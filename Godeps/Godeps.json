@@ -1,0 +1,87 @@
+{
+	"ImportPath": "github.com/neilotoole/sq",
+	"GoVersion": "go1.6",
+	"GodepVersion": "v62",
+	"Deps": [
+		{
+			"ImportPath": "github.com/dustin/gojson",
+			"Rev": "2e71ec9dd5adce3b168cd0dbde03b5cc04951c30"
+		},
+		{
+			"ImportPath": "github.com/emirpasic/gods/containers",
+			"Comment": "v1.5.0-6-g62b6e90",
+			"Rev": "62b6e90ed7e32e181a49fae6834041f02af2f840"
+		},
+		{
+			"ImportPath": "github.com/emirpasic/gods/sets",
+			"Comment": "v1.5.0-6-g62b6e90",
+			"Rev": "62b6e90ed7e32e181a49fae6834041f02af2f840"
+		},
+		{
+			"ImportPath": "github.com/emirpasic/gods/sets/hashset",
+			"Comment": "v1.5.0-6-g62b6e90",
+			"Rev": "62b6e90ed7e32e181a49fae6834041f02af2f840"
+		},
+		{
+			"ImportPath": "github.com/emirpasic/gods/utils",
+			"Comment": "v1.5.0-6-g62b6e90",
+			"Rev": "62b6e90ed7e32e181a49fae6834041f02af2f840"
+		},
+		{
+			"ImportPath": "github.com/fatih/color",
+			"Comment": "v0.2.0",
+			"Rev": "87d4004f2ab62d0d255e0a38f1680aa534549fe3"
+		},
+		{
+			"ImportPath": "github.com/inconshreveable/mousetrap",
+			"Rev": "76626ae9c91c4f2a10f34cad8ce83ea42c93bb75"
+		},
+		{
+			"ImportPath": "github.com/mattn/go-colorable",
+			"Comment": "v0.0.5",
+			"Rev": "9056b7a9f2d1f2d96498d6d146acd1f9d5ed3d59"
+		},
+		{
+			"ImportPath": "github.com/mattn/go-isatty",
+			"Rev": "56b76bdf51f7708750eac80fa38b952bb9f32639"
+		},
+		{
+			"ImportPath": "github.com/mattn/go-runewidth",
+			"Comment": "v0.0.1",
+			"Rev": "d6bea18f789704b5f83375793155289da36a3c7f"
+		},
+		{
+			"ImportPath": "github.com/mitchellh/go-homedir",
+			"Rev": "981ab348d865cf048eb7d17e78ac7192632d8415"
+		},
+		{
+			"ImportPath": "github.com/neilotoole/go-lg/lg",
+			"Rev": "a75055a9ebf8e75f0ff1215c4d1d27ebe71bbc2b"
+		},
+		{
+			"ImportPath": "github.com/pboyer/antlr4/runtime/Go/antlr",
+			"Comment": "4.5.1-1-401-g4825417",
+			"Rev": "4825417cf36cbb93fe8d12d61c574b8dabb56469"
+		},
+		{
+			"ImportPath": "github.com/spf13/cobra",
+			"Rev": "6a8bd97bdb1fc0d08a83459940498ea49d3e8c93"
+		},
+		{
+			"ImportPath": "github.com/spf13/pflag",
+			"Rev": "367864438f1b1a3c7db4da06a2f55b144e6784e0"
+		},
+		{
+			"ImportPath": "github.com/tealeg/xlsx",
+			"Rev": "bd0ba13fd8a4fe9a529b18e09c23a886f08f7d9a"
+		},
+		{
+			"ImportPath": "golang.org/x/sys/unix",
+			"Rev": "f64b50fbea64174967a8882830d621a18ee1548e"
+		},
+		{
+			"ImportPath": "gopkg.in/yaml.v2",
+			"Rev": "a83829b6f1293c91addabc89d0571c246397bbf4"
+		}
+	]
+}

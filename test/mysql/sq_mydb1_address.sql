@@ -1,0 +1,2 @@
+INSERT INTO sq_mydb1.address (street, city, state, zip, country, uid) VALUES ('1600 Penn', 'Washington', 'DC', '12345', 'US', 2);
+INSERT INTO sq_mydb1.address (street, city, state, zip, country, uid) VALUES ('999 Coleridge St', 'Ulan Bator', 'UB', '888', 'MN', 3);

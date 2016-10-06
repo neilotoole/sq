@@ -1,0 +1,1 @@
+@mydb1 | .user, .address | join( .uid ) | .user.uid, .username, .country
