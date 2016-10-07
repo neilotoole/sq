@@ -21,14 +21,14 @@ type Type string
 
 // Source describes a data source.
 type Source struct {
-	Ref      string `yaml:"ref"`
+	Ref      string `yaml:"handle"`
 	Location string `yaml:"location"`
 	Type     Type   `yaml:"type"`
 }
 
 func NewSource(name string, ref string) (*Source, error) {
 
-	lg.Debugf("attempting to create datasource %q using ref %q", name, ref)
+	lg.Debugf("attempting to create datasource %q using handle %q", name, ref)
 
 	typ, err := GetTypeFromSourceRef(ref)
 	if err != nil {
@@ -50,7 +50,7 @@ func NewSource(name string, ref string) (*Source, error) {
 
 func GetTypeFromSourceRef(ref string) (Type, error) {
 
-	lg.Debugf("attempting to determine datasource type from ref %q", ref)
+	lg.Debugf("attempting to determine datasource type from %q", ref)
 	// xsls content type: application/vnd.ms-excel
 
 	// A ref can look like:

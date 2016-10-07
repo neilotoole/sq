@@ -237,7 +237,7 @@ func (x *XEngine) importJoinTbl(scratchDB *sql.DB, scratchRndr Renderer, tblSel 
 		return returnErr(err)
 	}
 
-	fields, err := queryRows.Fields()
+	fields, err := queryRows.ColumnTypes()
 	if err != nil {
 		return returnErr(err)
 	}

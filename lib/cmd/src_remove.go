@@ -9,16 +9,11 @@ import (
 
 // srcRemoveCmd represents the remove command
 var srcRemoveCmd = &cobra.Command{
-	Use:     "rm DATASOURCE",
+	Use:     "rm @HANDLE",
+	Example: `  sq rm @my1`,
 	Aliases: []string{"remove"},
-	Short:   "Remove a data source",
-	Long: `Remove the datasource from sq's registry.
-
-Example:
-
-  sq rm mydb1
-`,
-	RunE: execSrcRemove,
+	Short:   "Remove data source",
+	RunE:    execSrcRemove,
 }
 
 func init() {

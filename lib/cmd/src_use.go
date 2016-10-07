@@ -9,26 +9,16 @@ import (
 )
 
 var srcUse = &cobra.Command{
-	Use:     "use [DATASOURCE]",
+	Use: "src [@HANDLE]",
+	Example: `  # get active data source
+   sq src
+   # set @my1 as active data source
+   sq src @my1`,
 	RunE:    execUse,
-	Short:   "Set or get the active data source",
-	Aliases: []string{"use"},
-	Long: `Set or get the active data source.
-If no arguments provided, get the active data source. Otherwise, set DATASOURCE
-as the active data source.
-
-Examples:
-
-   # Get the active data source
-   sq use
-   # Set "mydb1" to be active data source
-   sq use mydb1
-
-More:
-
-Use "sq ls" to list available data sources, or "sq add" to add a new
-data source.
-`,
+	Short:   "Get or set active data source",
+	Aliases: []string{"using"},
+	Long: `Get or set active data source. If no arguments provided, get the active data
+source. Otherwise, set @HANDLE as the active data source.`,
 }
 
 func init() {

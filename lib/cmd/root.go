@@ -36,7 +36,7 @@ const FlagTable string = "table"
 const FlagTableShort string = "t"
 
 // FlagTableUsage is usage for FlagTable
-const FlagTableUsage string = "table output"
+const FlagTableUsage string = "Table output"
 
 // FlagHeader specifies that the output should include header information (where applicable)
 const FlagHeader string = "header"
@@ -45,7 +45,7 @@ const FlagHeader string = "header"
 const FlagHeaderShort string = "h"
 
 // FlagHeaderUsage is usage for FlagHeader
-const FlagHeaderUsage string = "show header"
+const FlagHeaderUsage string = "Print header"
 
 // FlagNoHeader specifies that the output should not include header information (where applicable)
 const FlagNoHeader string = "no-header"
@@ -54,7 +54,7 @@ const FlagNoHeader string = "no-header"
 const FlagNoHeaderShort string = "H"
 
 // FlagNoHeaderUsage is usage for FlagNoHeader
-const FlagNoHeaderUsage string = "hide header"
+const FlagNoHeaderUsage string = "Do not print header"
 
 // FlagModeNativeSQL specifies SQL mode
 const FlagModeNativeSQL string = "native"
@@ -63,7 +63,7 @@ const FlagModeNativeSQL string = "native"
 const FlagModeNativeSQLShort string = "n"
 
 // FlagModeNativeSQLUsage is usage for FlagModeNativeSQL
-const FlagModeNativeSQLUsage string = "native SQL mode"
+const FlagModeNativeSQLUsage string = "Native SQL query mode"
 
 // FlagModeSQ specifies SQ (simple) mode
 const FlagModeSQ string = "sq"
@@ -72,7 +72,7 @@ const FlagModeSQ string = "sq"
 const FlagModeSQShort string = "s"
 
 // FlagModeSQUsage is usage for FlagModeSQ
-const FlagModeSQUsage string = "SQ (simple query) mode"
+const FlagModeSQUsage string = "SQ query mode"
 
 // FlagPingAll indicates to ping all data sources
 const FlagPingAll string = "all"
@@ -81,31 +81,40 @@ const FlagPingAll string = "all"
 const FlagPingAllShort string = "a"
 
 // FlagPingAllUsage is usage for FlagPingAllShort
-const FlagPingAllUsage string = "ping all datasources"
+const FlagPingAllUsage string = "Ping all datasources"
 
 // RootCmd represents the base command when called without any subcommands
 var RootCmd = &cobra.Command{
 	Use: `sq QUERY`,
-	Example: `  # Add a data source (run "sq add --help" for more)
-  sq add 'mysql://user:pass@localhost:3306/mydb1' @mydb1
+	Example: `  # get specified cols from tbladdress in active datasource
+  sq '.tbladdress |  .address_id, .city, .country'
 
-  # Set the active datasource
-  sq use @mydb1
+  # add a new datasource
+  sq add 'mysql://user:pass@localhost:3306/mydb1' @my1
 
-  # Get schema etc for datasource
-  sq inspect @mydb1
+  # list the available data sources
+  sq ls
 
-  # Table format (with header)
-  sq -th '.users | .uid, .username, .email'
+  # set the active data source
+  sq src @my1
 
-  # Native (SQL) syntax:
-  sq -n 'select uid, username, email from tbl1'`,
-	Short: "sq - simple, uniform access to structured data",
-	Long: `sq - the Simple Queryer - provides simple, uniform access to structured data
-across many common data sources. Results are output in JSON by default, but can
-several output formats are available. sq implements a simple query language,
-inspired by the excellent "jq" utility, but traditional database-native SQL
-queries can also be used via the --native flag.
+  # get schema etc for data source
+  sq inspect @my1
+
+  # output in table format (with header)
+  sq -th '.user | .uid, .username, .email'
+
+  # join across data sources
+  sq '@my1.user, @pg1.tbladdress | join(.uid) | .username, .email, .city'
+
+  # native (SQL) query:
+  sq -n 'SELECT uid, username, email FROM user'`,
+	Short: "sq - simple queryer for structured data",
+	Long: `sq - simple queryer for structured data - provides simple, uniform access to
+structured data across many common data sources. Results are output in JSON by
+default, but several output formats are available. sq uses a simple universal
+query language, inspired by the excellent "jq" utility, but traditional
+database-native SQL queries are also available.
 
 For full usage, see the online manual: http://neilotoole.io/sq
 `,

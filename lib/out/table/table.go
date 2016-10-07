@@ -239,7 +239,7 @@ func (t *TextWriter) ResultRows(rsRows []*common.ResultRow) error {
 	return nil
 }
 
-func (t *TextWriter) renderResultCell(field driver.Field, val interface{}) string {
+func (t *TextWriter) renderResultCell(field driver.ColumnType, val interface{}) string {
 
 	switch val := val.(type) {
 	case string:

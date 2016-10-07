@@ -10,12 +10,15 @@ import (
 )
 
 var inspectCmd = &cobra.Command{
-	Use: "inspect [DATASOURCE]",
-	Example: `  sq inspect
-  sq inspect @pg1 --th`,
-	Short: "Inspect a datasource",
-	Long: `Inspect a datasource, including table schemata, columns, etc.
-If DATASOURCE is not provided, use the active datasource.`,
+	Use: "inspect [@HANDLE]",
+	Example: `  # inspect active data source
+  sq inspect
+
+  # inspect @pg1 and output in table format
+  sq inspect --th @pg1`,
+	Short: "Inspect data source schema and stats",
+	Long: `Inspect a data source, including table schemata, columns, etc.
+If @HANDLE is not provided, use the active data source.`,
 	Aliases: []string{"info"},
 	RunE:    inspect,
 }

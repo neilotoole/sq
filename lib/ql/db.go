@@ -77,7 +77,7 @@ func (d *Database) exec(db *sql.DB, query string, writer out.ResultWriter) error
 		return util.WrapError(err)
 	}
 	defer rows.Close()
-	fields, err := rows.Fields()
+	fields, err := rows.ColumnTypes()
 	if err != nil {
 		return util.WrapError(err)
 	}

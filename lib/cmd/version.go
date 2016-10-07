@@ -21,7 +21,7 @@ func init() {
 func execVersion(cmd *cobra.Command, args []string) error {
 
 	color.Set(color.FgHiBlue)
-	fmt.Printf("sq 0.30.1")
+	fmt.Printf("sq 0.30.3")
 	color.Unset()
 	fmt.Printf("\n")
 	fmt.Printf("Simple Queryer                http://neilotoole.io/sq\n")

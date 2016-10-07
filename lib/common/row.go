@@ -17,7 +17,7 @@ import (
 
 type ResultRow struct {
 	Values []interface{}
-	Fields []driver.Field
+	Fields []driver.ColumnType
 
 	// fieldValMap is a mapping of field/alias names to value index
 	fieldValMap map[string]int
@@ -144,7 +144,7 @@ func (r *ResultRow) NamedValue(name string, errIfNil bool) (interface{}, error) 
 }
 
 // TODO: get rid of error in return
-func NewResultRow(fields []driver.Field) *ResultRow {
+func NewResultRow(fields []driver.ColumnType) *ResultRow {
 
 	r := &ResultRow{}
 	r.fieldValMap = make(map[string]int)

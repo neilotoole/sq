@@ -10,14 +10,17 @@ import (
 
 // addCmd represents the add command
 var srcAddCmd = &cobra.Command{
-	Use:   "add URL NAME",
-	RunE:  execSrcAdd,
-	Short: "Add a data source",
-	Long: `sq add URL NAME
+	Use: "add LOCATION @HANDLE",
+	Example: `  sq add 'mysql://user:pass@tcp(localhost:3306)/mydb1' @my1
+  sq add 'postgres://user:pass@localhost/pgdb1?sslmode=disable' @pg1
+  sq add 'sqlite3:///Users/neilotoole/testdata/sqlite1.db' @sl1
+  sq add /Users/neilotoole/testdata/test.xlsx @excel1
+  sq add http://neilotoole.io/sq/test/test1.xlsx @excel2`,
+	Short: "Add data source",
+	Long: `sq add LOCATION @HANDLE
 
-Add the data source specified by the URL, and identified by NAME.
-
-The format of URL is:
+Add the data source specified by LOCATION and identified by @HANDLE. The
+format of LOCATION varies, but is generally of the form:
 
     DRIVER://CONNECTION_STRING
 
@@ -29,30 +32,9 @@ Available drivers:
     Excel (.xlsx)
     Oracle          [BROKEN]
 
-
-The format of CONNECTION_STRING is driver-dependent. See "More" below for
-details for each supported driver.
-
-Examples:
-
-    # Add a MySQL data source
-    sq add "mysql://user:pass@tcp(localhost:3306)/mydb1" mydb1
-    # Add a Postgres data source
-    sq add "postgres://pqgotest:password@localhost/pqgotest" pgdb1
-    # SQLite3 datasource
-    sq add 'sqlite3:///Users/neilotoole/testdata/sqlite1.db' sl1
-    # Add Excel files, both local and remote (HTTP)
-    sq add /Users/neilotoole/testdata/test.xlsx xl1
-    sq add https://s3.amazonaws.com/sq.neilotoole.io/testdata/1.0/xslx/test.xlsx xl2
-
-
-More:
-
-Details of driver connection strings are linked below.
-
-    MySQL:     https://github.com/go-sql-driver/mysql
-    Postgres:  https://godoc.org/github.com/lib/pq
-`,
+The format of CONNECTION_STRING is driver-dependent. See the manual for more
+details: http://neilotoole.io/sq`,
+	RunE: execSrcAdd,
 }
 
 func init() {

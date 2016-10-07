@@ -19,18 +19,18 @@ import (
 
 // pingCmd represents the ping command
 var pingCmd = &cobra.Command{
-	Use:   "ping [DATASOURCE]",
-	Short: "Ping data source",
-	Long: `Ping the datasource to verify that the connection is healthy. If DATASOURCE is
-not specified, the currently active data source is pinged.
+	Use: "ping [@HANDLE]",
+	Example: `  # ping active data source
+  sq ping
 
-Examples:
-    # ping the active data source
-    sq ping
-    # ping @mydb1
-    sq ping @mydb1
-    sq ping --all
-`,
+  # ping all data sources
+  sq ping --all
+
+  # ping @my1 data source
+  sq ping @my1`,
+	Short: "Check data source connection health",
+	Long: `Ping data source to check connection health. If no arguments provided, the
+active data source is pinged.`,
 	RunE: execPing,
 }
 
