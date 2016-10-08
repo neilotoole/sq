@@ -19,7 +19,7 @@ func init() {
 
 func execSrcList(cmd *cobra.Command, args []string) error {
 
-	//cfg := config.Default()
+	//cfg := cfg
 
 	w := table.NewWriter(true)
 

@@ -71,7 +71,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	//cfg := config.Default()
+	//cfg := cfg
 
 	//srcs := cfg.Sources()
 

@@ -27,7 +27,7 @@ func execSrcRemove(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid arguments")
 	}
 
-	//cfg := config.Default()
+	//cfg := cfg
 
 	src, err := cfg.SourceSet.Get(args[0])
 	if err != nil {

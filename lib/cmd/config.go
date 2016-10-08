@@ -48,7 +48,7 @@ func init() {
 
 func execConfig(cmd *cobra.Command, args []string) error {
 
-	//cfg := config.Default()
+	//cfg := cfg
 	//w := table.NewWriter(false)
 	//
 	//if len(args) > 0 {

@@ -33,7 +33,7 @@ func execUse(cmd *cobra.Command, args []string) error {
 	}
 
 	w := table.NewWriter(true)
-	//cfg := config.Default()
+	//cfg := cfg
 
 	if len(args) == 0 {
 		// Get the active data source

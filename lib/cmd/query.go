@@ -46,12 +46,12 @@ func execQuery(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("no arguments provided")
 	}
 
-	//src, ok := config.Default().SourceSet.Active()
+	//src, ok := cfg.SourceSet.Active()
 	//if !ok {
 	//	return fmt.Errorf("no active datasource")
 	//}
 
-	ql.SetSourceSet(config.Default().SourceSet)
+	ql.SetSourceSet(cfg.SourceSet)
 
 	for i, arg := range args {
 		args[i] = strings.TrimSpace(arg)
@@ -72,7 +72,7 @@ func execQuery(cmd *cobra.Command, args []string) error {
 	//		return err
 	//	}
 	//} else {
-	//	src, ok := config.Default().SourceSet.Active()
+	//	src, ok := cfg.SourceSet.Active()
 	//	if !ok || src == nil {
 	//		return fmt.Errorf("no active datasource")
 	//	}
@@ -104,7 +104,7 @@ func execQuery(cmd *cobra.Command, args []string) error {
 
 	lg.Debugf("using SQL mode")
 	// else it's a traditional SQL query
-	src, ok := config.Default().SourceSet.Active()
+	src, ok := cfg.SourceSet.Active()
 	if !ok || src == nil {
 		return fmt.Errorf("no active datasource")
 	}
@@ -135,7 +135,7 @@ func getSQQueryWithDatasource(args []string) (*driver.Source, string, error) {
 		// strip the leading @
 		dsName = dsName[1:]
 
-		ds, err := config.Default().SourceSet.Get(dsName)
+		ds, err := cfg.SourceSet.Get(dsName)
 		if err != nil {
 			return nil, "", err
 		}
@@ -146,7 +146,7 @@ func getSQQueryWithDatasource(args []string) (*driver.Source, string, error) {
 	}
 
 	// no datasource provided as part of the args, use the active source
-	src, ok := config.Default().SourceSet.Active()
+	src, ok := cfg.SourceSet.Active()
 	if !ok {
 		return nil, "", fmt.Errorf("no datasource provided")
 	}
@@ -176,7 +176,7 @@ func setQueryOutputOptions(cmd *cobra.Command) {
 
 func getQueryMode(cmd *cobra.Command) config.QueryMode {
 
-	mode := config.Default().Options.QueryMode
+	mode := cfg.Options.QueryMode
 
 	if mode != config.ModeSQ && mode != config.ModeNativeSQL {
 		mode = config.ModeSQ
@@ -195,7 +195,7 @@ func getQueryMode(cmd *cobra.Command) config.QueryMode {
 
 func getResultWriter(cmd *cobra.Command) out.ResultWriter {
 
-	headers := config.Default().Options.Header
+	headers := cfg.Options.Header
 
 	if cmd.Flags().Changed(FlagHeader) {
 		headers = true
@@ -204,7 +204,7 @@ func getResultWriter(cmd *cobra.Command) out.ResultWriter {
 		headers = false
 	}
 
-	format := config.Default().Options.Format
+	format := cfg.Options.Format
 
 	if cmd.Flags().Changed(FlagRaw) {
 		format = config.FormatRaw

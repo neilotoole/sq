@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/neilotoole/sq/lib/config"
 	"github.com/neilotoole/sq/lib/driver"
 	"github.com/neilotoole/sq/lib/util"
 	"github.com/spf13/cobra"
@@ -40,13 +39,13 @@ func inspect(cmd *cobra.Command, args []string) error {
 	var src *driver.Source
 	if len(args) == 0 {
 		ok := false
-		src, ok = config.Default().SourceSet.Active()
+		src, ok = cfg.SourceSet.Active()
 		if !ok {
 			return fmt.Errorf("can't get active datasource")
 		}
 	} else {
 
-		src, err = config.Default().SourceSet.Get(args[0])
+		src, err = cfg.SourceSet.Get(args[0])
 		if err != nil {
 			return err
 		}
