@@ -24,7 +24,7 @@ type Source struct {
 var handlePattern = regexp.MustCompile(`\A[@][a-zA-Z][a-zA-Z0-9_]*$`)
 
 // CheckHandleText returns an error if handle is not an acceptable value.
-func checkHandleValue(handle string) error {
+func CheckHandleValue(handle string) error {
 
 	matches := handlePattern.MatchString(handle)
 
@@ -39,7 +39,7 @@ func NewSource(handle string, location string) (*Source, error) {
 
 	lg.Debugf("attempting to create datasource %q using handle %q", handle, location)
 
-	err := checkHandleValue(handle)
+	err := CheckHandleValue(handle)
 	if err != nil {
 		return nil, err
 	}

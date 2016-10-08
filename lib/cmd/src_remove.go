@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/neilotoole/sq/lib/config"
 	"github.com/spf13/cobra"
 )
 
@@ -28,7 +27,7 @@ func execSrcRemove(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid arguments")
 	}
 
-	cfg := config.Default()
+	//cfg := config.Default()
 
 	src, err := cfg.SourceSet.Get(args[0])
 	if err != nil {

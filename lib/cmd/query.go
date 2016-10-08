@@ -51,7 +51,7 @@ func execQuery(cmd *cobra.Command, args []string) error {
 	//	return fmt.Errorf("no active datasource")
 	//}
 
-	ql.SetSourceSet(&config.Default().SourceSet)
+	ql.SetSourceSet(config.Default().SourceSet)
 
 	for i, arg := range args {
 		args[i] = strings.TrimSpace(arg)

@@ -31,7 +31,7 @@ func TestCheckHandleValue(t *testing.T) {
 	}
 
 	for i, fail := range fails {
-		require.Error(t, checkHandleValue(fail.handle), fmt.Sprintf("[%d] %s]", i, fail.msg))
+		require.Error(t, CheckHandleValue(fail.handle), fmt.Sprintf("[%d] %s]", i, fail.msg))
 	}
 
 	var passes = []string{
@@ -45,7 +45,7 @@ func TestCheckHandleValue(t *testing.T) {
 	}
 
 	for i, pass := range passes {
-		require.Nil(t, checkHandleValue(pass), fmt.Sprintf("[%d] should pass", i))
+		require.Nil(t, CheckHandleValue(pass), fmt.Sprintf("[%d] should pass", i))
 	}
 
 }

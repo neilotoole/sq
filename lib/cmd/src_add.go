@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"github.com/neilotoole/sq/lib/config"
 	"github.com/neilotoole/sq/lib/driver"
 	"github.com/neilotoole/sq/lib/out/table"
 	"github.com/neilotoole/sq/lib/util"
@@ -67,11 +66,14 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 	location := args[0]
 	handle := args[1]
 
-	if handle[0] == '@' {
-		return util.Errorf("alias may not being with '@'")
+	err := driver.CheckHandleValue(handle)
+	if err != nil {
+		return err
 	}
 
-	cfg := config.Default()
+	//cfg := config.Default()
+
+	//srcs := cfg.Sources()
 
 	i, _ := cfg.SourceSet.IndexOf(handle)
 	if i != -1 {
@@ -91,6 +93,8 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		// If this is the first DS, make it current
 		cfg.SourceSet.SetActive(src.Handle)
 	}
+
+	//cfg.SourceSet = *srcs
 
 	err = cfg.Save()
 	if err != nil {

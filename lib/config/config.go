@@ -5,10 +5,6 @@ import (
 
 	"time"
 
-	"fmt"
-	"path/filepath"
-
-	"github.com/mitchellh/go-homedir"
 	"github.com/neilotoole/go-lg/lg"
 	"github.com/neilotoole/sq/lib/driver"
 )
@@ -30,10 +26,10 @@ var str Store
 
 // Config holds application config/session data.
 type Config struct {
-	cfgDir           string
-	Options          Options `yaml:"options"`
-	Log              Log     `yaml:"log"`
-	driver.SourceSet `yaml:"sources"`
+	cfgDir    string
+	Options   Options           `yaml:"options"`
+	Log       Log               `yaml:"log"`
+	SourceSet *driver.SourceSet `yaml:"sources"`
 }
 
 type Options struct {
@@ -57,24 +53,29 @@ func (c *Config) Save() error {
 	return str.Save(c)
 }
 
-// ConfigDir returns the absolute path of "~/.sq/".
-func (c *Config) ConfigDir() string {
-
-	if c.cfgDir != "" {
-
-		return c.cfgDir
-	}
-
-	home, err := homedir.Dir()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "unable to get user homedir: %v", err)
-		os.Exit(1)
-	}
-
-	c.cfgDir = filepath.Join(home, ".sq")
-
-	return c.cfgDir
+func (c *Config) Sources() *driver.SourceSet {
+	s := c.SourceSet
+	return s
 }
+
+// ConfigDir returns the absolute path of "~/.sq/".
+//func (c *Config) ConfigDir() string {
+//
+//	if c.cfgDir != "" {
+//
+//		return c.cfgDir
+//	}
+//
+//	home, err := homedir.Dir()
+//	if err != nil {
+//		fmt.Fprintf(os.Stderr, "unable to get user homedir: %v", err)
+//		os.Exit(1)
+//	}
+//
+//	c.cfgDir = filepath.Join(home, ".sq")
+//
+//	return c.cfgDir
+//}
 
 // Default returns the default config singleton.
 func Default() *Config {
