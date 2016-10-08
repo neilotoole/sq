@@ -85,7 +85,7 @@ func newScratchSrc() (*driver.Source, string, error) {
 
 	src := &driver.Source{}
 	src.Type = driver.Type("sqlite3")
-	src.Ref = "scratch_" + filename
+	src.Handle = "scratch_" + filename
 	src.Location = "sqlite3://" + path
 	return src, path, nil
 }

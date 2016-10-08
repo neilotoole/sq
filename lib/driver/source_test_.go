@@ -31,7 +31,7 @@ func TestSource_Driver(t *testing.T) {
 func TestSourceGetTypeFromRef(t *testing.T) {
 
 	items := []struct {
-		ref string
+		loc string
 		typ Type
 	}{
 		{`mysql://root:root@tcp(localhost:33067)/sq_mydb1`, typMySQL},
@@ -44,7 +44,7 @@ func TestSourceGetTypeFromRef(t *testing.T) {
 
 	for _, item := range items {
 
-		typ, err := GetTypeFromSourceRef(item.ref)
+		typ, err := GetTypeFromSourceLocation(item.loc)
 		assert.Nil(t, err)
 		assert.Equal(t, item.typ, typ)
 	}
@@ -92,30 +92,30 @@ func TestDataSources(t *testing.T) {
 	assert.Nil(t, src)
 	assert.False(t, ok)
 
-	src, err = srcs.SetActive(mydb1.Ref)
+	src, err = srcs.SetActive(mydb1.Handle)
 	assert.Nil(t, err)
 	assert.NotNil(t, src)
 	src, ok = srcs.Active()
 	assert.NotNil(t, src)
 	assert.True(t, ok)
-	assert.Equal(t, mydb1.Ref, src.Ref)
+	assert.Equal(t, mydb1.Handle, src.Handle)
 
-	src, err = srcs.SetActive(pg1.Ref)
+	src, err = srcs.SetActive(pg1.Handle)
 	assert.Nil(t, err)
 	assert.NotNil(t, src)
 	src, ok = srcs.Active()
 	assert.NotNil(t, src)
 	assert.True(t, ok)
-	assert.Equal(t, pg1.Ref, src.Ref)
+	assert.Equal(t, pg1.Handle, src.Handle)
 
 	// Remove an item
-	err = srcs.Remove(pg1.Ref)
+	err = srcs.Remove(pg1.Handle)
 	assert.Nil(t, err)
 
-	src, err = srcs.Get(pg1.Ref)
+	src, err = srcs.Get(pg1.Handle)
 	assert.Nil(t, src)
 	assert.NotNil(t, err)
-	i, src := srcs.IndexOf(pg1.Ref)
+	i, src := srcs.IndexOf(pg1.Handle)
 	assert.Equal(t, -1, i)
 	assert.Equal(t, 1, len(srcs.Items))
 	src, ok = srcs.Active()
@@ -123,16 +123,16 @@ func TestDataSources(t *testing.T) {
 	assert.False(t, ok)
 
 	// Remove the other item
-	src, err = srcs.SetActive(mydb1.Ref)
+	src, err = srcs.SetActive(mydb1.Handle)
 	assert.Nil(t, err)
 	assert.NotNil(t, src)
-	err = srcs.Remove(mydb1.Ref)
+	err = srcs.Remove(mydb1.Handle)
 	assert.Nil(t, err)
 
-	src, err = srcs.Get(mydb1.Ref)
+	src, err = srcs.Get(mydb1.Handle)
 	assert.Nil(t, src)
 	assert.Error(t, err)
-	i, src = srcs.IndexOf(mydb1.Ref)
+	i, src = srcs.IndexOf(mydb1.Handle)
 	assert.Equal(t, -1, i)
 	assert.Equal(t, 0, len(srcs.Items))
 	src, ok = srcs.Active()

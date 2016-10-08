@@ -12,30 +12,23 @@ import (
 
 type Type string
 
-//const DriverMySQL Type = "mysql"
-//const DriverPostgres Type = "postgres"
-//const DriverSQLite Type = "sqlite3"
-//const DriverExcel Type = "excel"
-//
-//var Drivers = []Type{DriverMySQL, DriverPostgres, DriverSQLite, DriverExcel}
-
 // Source describes a data source.
 type Source struct {
-	Ref      string `yaml:"handle"`
+	Handle   string `yaml:"handle"`
 	Location string `yaml:"location"`
 	Type     Type   `yaml:"type"`
 }
 
-func NewSource(name string, ref string) (*Source, error) {
+func NewSource(name string, handle string) (*Source, error) {
 
-	lg.Debugf("attempting to create datasource %q using handle %q", name, ref)
+	lg.Debugf("attempting to create datasource %q using handle %q", name, handle)
 
-	typ, err := GetTypeFromSourceRef(ref)
+	typ, err := GetTypeFromSourceLocation(handle)
 	if err != nil {
 		return nil, err
 	}
 
-	src := &Source{Ref: name, Location: ref, Type: typ}
+	src := &Source{Handle: name, Location: handle, Type: typ}
 
 	drvr, err := For(src)
 	if err != nil {
@@ -48,32 +41,31 @@ func NewSource(name string, ref string) (*Source, error) {
 	return canonicalSource, err
 }
 
-func GetTypeFromSourceRef(ref string) (Type, error) {
+func GetTypeFromSourceLocation(location string) (Type, error) {
 
-	lg.Debugf("attempting to determine datasource type from %q", ref)
+	lg.Debugf("attempting to determine datasource type from %q", location)
 	// xsls content type: application/vnd.ms-excel
 
-	// A ref can look like:
-	//NAME              DRIVER    REF
+	// A location can look like:
+	//HANDLE            DRIVER    LOCATION
 	//my1               mysql     mysql://root:root@tcp(localhost:33067)/sq_mydb1
 	//pg1               postgres  postgres://sq:sq@localhost/sq_pg1?sslmode=disable
 	//sl1               sqlite3   sqlite3:///Users/neilotoole/nd/go/src/github.com/neilotoole/sq/test/sqlite/sqlite_db1
 	//excel1            xlsx      xlsx:///Users/neilotoole/nd/go/src/github.com/neilotoole/sq/test/xlsx/test.xlsx
-	//
 	//excel2            xlsx      /Users/neilotoole/nd/go/src/github.com/neilotoole/sq/test/xlsx/test.xlsx
 	//excel3            xlsx      test.xlsx
 	//excel4            xlsx      https://s3.amazonaws.com/sq.neilotoole.io/testdata/1.0/xslx/test.xlsx
 
-	parts := strings.Split(ref, "://")
+	parts := strings.Split(location, "://")
 
 	if len(parts) > 1 && parts[0] != "http" && parts[0] != "https" {
 		drvrName := parts[0]
 		drvr, ok := drvrs[Type(drvrName)]
 		if !ok {
-			return "", util.Errorf("unknown driver type %q in source ref %q", drvrName, ref)
+			return "", util.Errorf("unknown driver type %q in source location %q", drvrName, location)
 		}
 
-		lg.Debugf("found datasource type %q for ref %q", drvr.Type(), ref)
+		lg.Debugf("found datasource type %q for location %q", drvr.Type(), location)
 		return drvr.Type(), nil
 	}
 
@@ -81,40 +73,40 @@ func GetTypeFromSourceRef(ref string) (Type, error) {
 	if parts[0] == "http" || parts[0] == "https" {
 
 		// https://s3.amazonaws.com/sq.neilotoole.io/testdata/1.0/xslx/test.xlsx
-		u, err := url.ParseRequestURI(ref)
+		u, err := url.ParseRequestURI(location)
 		if err != nil {
-			return "", util.Errorf("unable to determine datasource type from ref %q due to error: %v", ref, err)
+			return "", util.Errorf("unable to determine datasource type from location %q due to error: %v", location, err)
 		}
 
 		// let's see if we can determine the file extension
 		// /testdata/1.0/xslx/test.xlsx
 		suffix, ok := getFileSuffixFromPath(u.Path)
 		if !ok {
-			return "", util.Errorf("unable to determine source type from file suffix in ref %q", ref)
+			return "", util.Errorf("unable to determine source type from file suffix in location %q", location)
 		}
 
 		drvr, ok := drvrs[Type(strings.ToLower(suffix))]
 		if !ok {
-			return "", util.Errorf("no driver for file suffix %q in source ref %q", suffix, ref)
+			return "", util.Errorf("no driver for file suffix %q in source location %q", suffix, location)
 		}
 
-		lg.Debugf("found datasource type %q for ref %q", drvr.Type(), ref)
+		lg.Debugf("found datasource type %q for location %q", drvr.Type(), location)
 		return drvr.Type(), nil
 
 	}
 
 	// it's most likely a file path, e.g.
 	// /Users/neilotoole/nd/go/src/github.com/neilotoole/sq/test/xlsx/test.xlsx
-	suffix, ok := getFileSuffixFromPath(ref)
+	suffix, ok := getFileSuffixFromPath(location)
 	if !ok {
-		return "", util.Errorf("unable to determine source type from file suffix in ref %q", ref)
+		return "", util.Errorf("unable to determine source type from file suffix in location %q", location)
 	}
 	drvr, ok := drvrs[Type(strings.ToLower(suffix))]
 	if !ok {
-		return "", util.Errorf("no driver for file suffix %q in source ref %q", suffix, ref)
+		return "", util.Errorf("no driver for file suffix %q in source location %q", suffix, location)
 	}
 
-	lg.Debugf("found datasource type %q for ref %q", drvr.Type(), ref)
+	lg.Debugf("found datasource type %q for location %q", drvr.Type(), location)
 	return drvr.Type(), nil
 }
 
@@ -156,13 +148,13 @@ func (s Source) ConnURI() string {
 
 }
 
-func IsValidSourceRef(ref string) bool {
+func IsValidSourceLocation(location string) bool {
 
-	lg.Debugf("checking source ref %q", ref)
-	parts := strings.Split(ref, "://")
+	lg.Debugf("checking source location %q", location)
+	parts := strings.Split(location, "://")
 
 	if len(parts) != 2 {
-		lg.Debugf("expected source ref %q to have two parts, but had %d", ref, len(parts))
+		lg.Debugf("expected source location %q to have two parts, but had %d", location, len(parts))
 		return false
 	}
 
@@ -180,7 +172,7 @@ func IsValidSourceRef(ref string) bool {
 
 	_, ok := drvrs[typ]
 	if !ok {
-		lg.Debugf("given source ref %q, no driver found for ref component %q", ref, typ)
+		lg.Debugf("given source location %q, no driver found for location component %q", location, typ)
 	}
 
 	return ok
@@ -189,7 +181,7 @@ func IsValidSourceRef(ref string) bool {
 
 func (s Source) String() string {
 
-	return fmt.Sprintf("[%s] %s", s.Ref, s.Location)
+	return fmt.Sprintf("[%s] %s", s.Handle, s.Location)
 }
 
 type SourceSet struct {
@@ -199,8 +191,8 @@ type SourceSet struct {
 
 func (ss *SourceSet) Add(src *Source) error {
 
-	if i, _ := ss.IndexOf(src.Ref); i != -1 {
-		return util.Errorf(`data source with name "%v" already exists`, src.Ref)
+	if i, _ := ss.IndexOf(src.Handle); i != -1 {
+		return util.Errorf(`data source with name "%v" already exists`, src.Handle)
 	}
 
 	ss.Items = append(ss.Items, src)
@@ -210,7 +202,7 @@ func (ss *SourceSet) Add(src *Source) error {
 func (ss *SourceSet) IndexOf(name string) (int, *Source) {
 
 	for i, src := range ss.Items {
-		if src.Ref == name {
+		if src.Handle == name {
 			return i, src
 		}
 	}
@@ -256,7 +248,7 @@ func (ss *SourceSet) Get(name string) (*Source, error) {
 func (ss *SourceSet) SetActive(name string) (*Source, error) {
 
 	for _, src := range ss.Items {
-		if src.Ref == name {
+		if src.Handle == name {
 			ss.ActiveSrc = name
 			return src, nil
 		}

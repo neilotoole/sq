@@ -3,7 +3,7 @@ package driver
 import "encoding/json"
 
 type SourceMetadata struct {
-	Ref                string  `json:"ref"`
+	Handle             string  `json:"handle"`
 	Name               string  `json:"name"`
 	FullyQualifiedName string  `json:"fq_name"`
 	Location           string  `json:"location"`
@@ -29,23 +29,6 @@ func (t *Table) String() string {
 	return string(bytes)
 }
 
-//func (t *Table) ToOrderedMap() *OrderedMap {
-//
-//	m := &OrderedMap{}
-//	m.Put("name", t.Name)
-//	m.Put("row_count", t.Position)go inst
-//	m.Put("size_bytes", t.Datatype)
-//	m.Put("nullable", t.Nullable)
-//	m.Put("key", t.Key)
-//
-//	m.Put("comment", t.Comment)
-//
-//	cols := []OrderedMap
-//
-//
-//	return m
-//}
-
 type Column struct {
 	Name         string `json:"name"`
 	Position     int64  `json:"position"`
@@ -63,17 +46,3 @@ func (c *Column) String() string {
 	bytes, _ := json.Marshal(c)
 	return string(bytes)
 }
-
-//func (c *Column) ToOrderedMap() *orderedmap.Map {
-//
-//	m := &orderedmap.Map{}
-//	m.Put("name", c.Name)
-//	m.Put("position", c.Position)
-//	m.Put("datatype", c.Datatype)
-//	m.Put("col_type", c.ColType)
-//	m.Put("nullable", c.Nullable)
-//	//m.Put("key", c.Key)
-//	//m.Put("extra", c.Extra)
-//	m.Put("comment", c.Comment)
-//	return m
-//}

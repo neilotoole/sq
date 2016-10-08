@@ -89,8 +89,8 @@ func doPing(srcs []*driver.Source) {
 	unfinishedSrcs := hashset.New()
 	for _, src := range srcs {
 		unfinishedSrcs.Add(src)
-		if len(src.Ref) > maxNameLen {
-			maxNameLen = len(src.Ref)
+		if len(src.Handle) > maxNameLen {
+			maxNameLen = len(src.Handle)
 		}
 	}
 
@@ -123,7 +123,7 @@ func doPing(srcs []*driver.Source) {
 	for _, val := range unfinishedSrcs.Values() {
 		src := val.(*driver.Source)
 
-		out.Color.Number.Printf("%-"+strconv.Itoa(maxNameLen)+"s", src.Ref)
+		out.Color.Number.Printf("%-"+strconv.Itoa(maxNameLen)+"s", src.Handle)
 		//color.Set(out.Attrs.Number)
 		//fmt.Printf("%-"+strconv.Itoa(maxNameLen)+"s", src.Ref)
 		//color.Unset()
@@ -159,7 +159,7 @@ func doPingOne(src *driver.Source, maxNameLen int, unfinishedSrcs *hashset.Set, 
 
 	unfinishedSrcs.Remove(src)
 
-	out.Color.Number.Printf("%-"+strconv.Itoa(maxNameLen)+"s", src.Ref)
+	out.Color.Number.Printf("%-"+strconv.Itoa(maxNameLen)+"s", src.Handle)
 
 	fmt.Printf(" %4dms    ", duration/time.Millisecond)
 

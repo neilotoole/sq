@@ -89,7 +89,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 	}
 	if len(cfg.SourceSet.Items) == 1 {
 		// If this is the first DS, make it current
-		cfg.SourceSet.SetActive(src.Ref)
+		cfg.SourceSet.SetActive(src.Handle)
 	}
 	//
 	//

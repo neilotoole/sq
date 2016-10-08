@@ -152,7 +152,7 @@ func getSQQueryWithDatasource(args []string) (*driver.Source, string, error) {
 	}
 
 	q := strings.Join(args, " ")
-	q = fmt.Sprintf("%s | %s", src.Ref, q)
+	q = fmt.Sprintf("%s | %s", src.Handle, q)
 
 	return src, q, nil
 }

@@ -47,9 +47,9 @@ func For(source *Source) (Driver, error) {
 
 	drv, ok := drvrs[source.Type]
 	if !ok {
-		return nil, util.Errorf("unknown driver type %q for datasource %q", source.Type, source.Ref)
+		return nil, util.Errorf("unknown driver type %q for datasource %q", source.Type, source.Handle)
 	}
 
-	lg.Debugf("returning driver %q for datasource %q", drv.Type(), source.Ref)
+	lg.Debugf("returning driver %q for datasource %q", drv.Type(), source.Handle)
 	return drv, nil
 }
