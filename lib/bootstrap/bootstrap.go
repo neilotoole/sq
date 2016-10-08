@@ -14,8 +14,6 @@ import (
 
 func init() {
 
-	fmt.Println("doing bootstrap")
-
 	cfgDir := configDir()
 
 	// The location of the log file can be specified via an envar.

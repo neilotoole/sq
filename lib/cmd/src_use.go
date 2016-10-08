@@ -52,7 +52,7 @@ func execUse(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	err = cfg.Save()
+	err = saveConfig()
 	if err != nil {
 		return err
 	}

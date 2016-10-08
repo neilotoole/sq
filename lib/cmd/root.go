@@ -11,7 +11,6 @@ import (
 
 	"sync"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/mitchellh/go-homedir"
 	"github.com/neilotoole/sq/lib/config"
 	"github.com/neilotoole/sq/lib/shutdown"
@@ -134,6 +133,7 @@ For full usage, see the online manual: http://neilotoole.io/sq
 }
 
 var cfg *config.Config
+var cfgStore config.Store
 
 // Execute adds all child commands to the root command sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
@@ -144,8 +144,6 @@ func Execute() {
 		handleError(nil, err)
 		return
 	}
-
-	spew.Dump(cfg)
 
 	// HACK: This is a workaround for the fact that cobra doesn't currently
 	// support executing the root command with arbitrary args. That is to say,
@@ -227,17 +225,28 @@ func initConfig() error {
 	}
 
 	lg.Debugf("attempting to create filestore from %q with value %q", envar, configPath)
-	store, err := config.NewFileStore(configPath)
+	var err error
+	cfgStore, err = config.NewFileStore(configPath)
 	if err != nil {
 		return err
 	}
 
-	config.SetStore(store)
-	lg.Debugf("successfully set config filestore to %q", configPath)
+	cfg, err = cfgStore.Load()
+	if err != nil {
+		return err
+	}
 
-	cfg = config.Default()
+	//config.SetStore(cfgStore)
+	//lg.Debugf("successfully set config filestore to %q", configPath)
+	//
+	//cfg = config.Default()
 
 	return nil
+}
+
+func saveConfig() error {
+
+	return cfgStore.Save(cfg)
 }
 
 // configDir returns the absolute path of "~/.sq/" (or an alternative if specified by the user)

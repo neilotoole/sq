@@ -39,12 +39,12 @@ func execSrcRemove(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	err = cfg.Save()
+	err = saveConfig()
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("Datasource removed: %q", src.Handle)
+	fmt.Printf("Removed data source %q", src.Handle)
 	//db := db.New(src)
 	//
 	//err = db.New(src).Ping()

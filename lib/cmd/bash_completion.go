@@ -25,7 +25,7 @@ __sq_get_resource()
 
 __custom_func() {
     case ${last_command} in
-        sq_ls | sq_use | sq_rm | sq_inspect )
+        sq_ls | sq_src | sq_rm | sq_inspect )
             __sq_list_sources
             return
             ;;

@@ -77,7 +77,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 
 	i, _ := cfg.SourceSet.IndexOf(handle)
 	if i != -1 {
-		return util.Errorf("data source already exists")
+		return util.Errorf("data source handle %q already exists", handle)
 	}
 
 	src, err := driver.NewSource(handle, location)
@@ -96,7 +96,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 
 	//cfg.SourceSet = *srcs
 
-	err = cfg.Save()
+	err = saveConfig()
 	if err != nil {
 		return err
 	}

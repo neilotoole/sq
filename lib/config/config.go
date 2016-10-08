@@ -1,8 +1,6 @@
 package config
 
 import (
-	"os"
-
 	"time"
 
 	"github.com/neilotoole/go-lg/lg"
@@ -48,54 +46,25 @@ type Log struct {
 
 // TODO: need to add a file write lock
 
-// Save writes config to storage.
-func (c *Config) Save() error {
-	return str.Save(c)
-}
-
-func (c *Config) Sources() *driver.SourceSet {
-	s := c.SourceSet
-	return s
-}
-
-// ConfigDir returns the absolute path of "~/.sq/".
-//func (c *Config) ConfigDir() string {
+//// Default returns the default config singleton.
+//func Default() *Config {
 //
-//	if c.cfgDir != "" {
+//	if conf == nil {
 //
-//		return c.cfgDir
+//		if str == nil {
+//			panic("config.Default() invoked before config.SetStore() ")
+//		}
+//
+//		cfg, err := str.Load()
+//		if err != nil {
+//			// TODO: should try to load before this
+//			panic(err)
+//		}
+//		conf = cfg
 //	}
 //
-//	home, err := homedir.Dir()
-//	if err != nil {
-//		fmt.Fprintf(os.Stderr, "unable to get user homedir: %v", err)
-//		os.Exit(1)
-//	}
-//
-//	c.cfgDir = filepath.Join(home, ".sq")
-//
-//	return c.cfgDir
+//	return conf
 //}
-
-// Default returns the default config singleton.
-func Default() *Config {
-
-	if conf == nil {
-
-		if str == nil {
-			panic("config.Default() invoked before config.SetStore() ")
-		}
-
-		cfg, err := str.Load()
-		if err != nil {
-			// TODO: should try to load before this
-			panic(err)
-		}
-		conf = cfg
-	}
-
-	return conf
-}
 
 // SetStore specifies the store for config persistence.
 func SetStore(store Store) {
@@ -119,6 +88,11 @@ func NewConfig() *Config {
 // applyDefaults checks if required values are present, and if not, sets them.
 func applyDefaults(cfg *Config) {
 	lg.Debugf("checking that cfg has default values set")
+
+	if cfg.SourceSet == nil {
+		cfg.SourceSet = &driver.SourceSet{}
+	}
+
 	if cfg.Options.QueryMode == "" {
 		cfg.Options.QueryMode = defaults.QueryMode
 	}
@@ -143,24 +117,24 @@ var defaults = struct {
 	FormatJSON,
 }
 
-func init() {
-	//lg.Debugf("configuring factory settings")
-	//defaults.Timeout = 10 * time.Second
-	//defaults.QueryMode = ModeSQ
-	//defaults.Format = FormatJSON
-
-	// if the envar is set, then we use that as the default filestore.
-	envar := "SQ_CONFIG_FILEPATH"
-	configPath, ok := os.LookupEnv(envar)
-	if ok {
-		lg.Debugf("attempting to create filestore from %q with value %q", envar, configPath)
-		store, err := NewFileStore(configPath)
-		if err != nil {
-			lg.Fatalf("Fatal error: unable to initialize config: %v", err)
-		}
-
-		SetStore(store)
-		lg.Debugf("successfully set config filestore to %q", configPath)
-	}
-
-}
+//func init() {
+//	//lg.Debugf("configuring factory settings")
+//	//defaults.Timeout = 10 * time.Second
+//	//defaults.QueryMode = ModeSQ
+//	//defaults.Format = FormatJSON
+//
+//	// if the envar is set, then we use that as the default filestore.
+//	envar := "SQ_CONFIG_FILEPATH"
+//	configPath, ok := os.LookupEnv(envar)
+//	if ok {
+//		lg.Debugf("attempting to create filestore from %q with value %q", envar, configPath)
+//		store, err := NewFileStore(configPath)
+//		if err != nil {
+//			lg.Fatalf("Fatal error: unable to initialize config: %v", err)
+//		}
+//
+//		SetStore(store)
+//		lg.Debugf("successfully set config filestore to %q", configPath)
+//	}
+//
+//}
