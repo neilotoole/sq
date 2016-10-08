@@ -6,6 +6,8 @@ import (
 
 	"net/url"
 
+	"regexp"
+
 	"github.com/neilotoole/go-lg/lg"
 	"github.com/neilotoole/sq/lib/util"
 )
@@ -19,16 +21,30 @@ type Source struct {
 	Type     Type   `yaml:"type"`
 }
 
-func NewSource(name string, handle string) (*Source, error) {
+var handlePattern = regexp.MustCompile(`\A[@][a-zA-Z][a-zA-Z0-9_]*`)
 
-	lg.Debugf("attempting to create datasource %q using handle %q", name, handle)
+// CheckHandleText returns an error if handle is not an acceptable value.
+func CheckHandleText(handle string) error {
 
-	typ, err := GetTypeFromSourceLocation(handle)
+	matches := handlePattern.MatchString(handle)
+
+	if !matches {
+		return util.Errorf(`invalid handle value %q: handle must begin with @, followed by a letter, followed by zero or more letters, digits, or underscores, e.g. "@my_db1"`)
+	}
+
+	return nil
+}
+
+func NewSource(handle string, location string) (*Source, error) {
+
+	lg.Debugf("attempting to create datasource %q using handle %q", handle, location)
+
+	typ, err := GetTypeFromSourceLocation(location)
 	if err != nil {
 		return nil, err
 	}
 
-	src := &Source{Handle: name, Location: handle, Type: typ}
+	src := &Source{Handle: handle, Location: location, Type: typ}
 
 	drvr, err := For(src)
 	if err != nil {

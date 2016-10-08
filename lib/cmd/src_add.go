@@ -57,28 +57,28 @@ func init() {
 func execSrcAdd(cmd *cobra.Command, args []string) error {
 
 	if len(args) == 1 {
-		return util.Errorf("sorry, the NAME argument is currently required, we'll fix that soon")
+		return util.Errorf("sorry, the HANDLE argument is currently required, we'll fix that soon")
 	}
 
 	if len(args) != 2 {
 		return util.Errorf("invalid arguments")
 	}
 
-	url := args[0]
-	name := args[1]
+	location := args[0]
+	handle := args[1]
 
-	if name[0] == '@' {
+	if handle[0] == '@' {
 		return util.Errorf("alias may not being with '@'")
 	}
 
 	cfg := config.Default()
 
-	i, _ := cfg.SourceSet.IndexOf(name)
+	i, _ := cfg.SourceSet.IndexOf(handle)
 	if i != -1 {
 		return util.Errorf("data source already exists")
 	}
 
-	src, err := driver.NewSource(name, url)
+	src, err := driver.NewSource(handle, location)
 	if err != nil {
 		return err
 	}
@@ -91,23 +91,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		// If this is the first DS, make it current
 		cfg.SourceSet.SetActive(src.Handle)
 	}
-	//
-	//
-	//existingIndex := -1
-	//
-	//for i, s := range cfg.Sources {
-	//	if s.Alias == alias {
-	//		existingIndex = i
-	//		break
-	//	}
-	//}
-	//
-	//if existingIndex >= 0 {
-	//	cfg.Sources[existingIndex] = src
-	//} else {
-	//	cfg.Sources = append(cfg.Sources, src)
-	//}
-	//
+
 	err = cfg.Save()
 	if err != nil {
 		return err
