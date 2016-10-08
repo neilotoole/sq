@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"fmt"
-
 	"strconv"
 
 	"github.com/neilotoole/sq/lib/config"
@@ -50,51 +48,51 @@ func init() {
 
 func execConfig(cmd *cobra.Command, args []string) error {
 
-	cfg := config.Default()
-	w := table.NewWriter(false)
-
-	if len(args) > 0 {
-		return fmt.Errorf("invalid arguments")
-	}
-
-	if !hasChangedFlags(cmd) {
-		//var rows [][]string = make([][]string, 3)
-		//rows[0] = []string{"mode", string(cfg.Options.QueryMode)}
-		//rows[1] = []string{"format", string(cfg.Options.Format)}
-		//rows[2] = []string{"headers", strconv.FormatBool(cfg.Options.Headers)}
-		//w.Rows(rows, []tablewriter.Transformer{out.FgBlueTransform})
-		doPrintCfgDefaults(cfg, w)
-		return nil
-	}
-
-	if cmd.Flags().Changed(FlagModeNativeSQL) {
-		cfg.Options.QueryMode = config.ModeNativeSQL
-	}
-
-	if cmd.Flags().Changed(FlagModeSQ) {
-		cfg.Options.QueryMode = config.ModeSQ
-	}
-
-	if cmd.Flags().Changed(FlagTable) {
-		cfg.Options.Format = config.FormatTable
-	}
-	if cmd.Flags().Changed(FlagJSON) {
-		cfg.Options.Format = config.FormatJSON
-	}
-
-	if cmd.Flags().Changed(FlagHeader) {
-		cfg.Options.Header = true
-	}
-	if cmd.Flags().Changed(FlagNoHeader) {
-		cfg.Options.Header = false
-	}
-
-	err := cfg.Save()
-	if err != nil {
-		return err
-	}
-
-	doPrintCfgDefaults(cfg, w)
+	//cfg := config.Default()
+	//w := table.NewWriter(false)
+	//
+	//if len(args) > 0 {
+	//	return fmt.Errorf("invalid arguments")
+	//}
+	//
+	//if !hasChangedFlags(cmd) {
+	//	//var rows [][]string = make([][]string, 3)
+	//	//rows[0] = []string{"mode", string(cfg.Options.QueryMode)}
+	//	//rows[1] = []string{"format", string(cfg.Options.Format)}
+	//	//rows[2] = []string{"headers", strconv.FormatBool(cfg.Options.Headers)}
+	//	//w.Rows(rows, []tablewriter.Transformer{out.FgBlueTransform})
+	//	doPrintCfgDefaults(cfg, w)
+	//	return nil
+	//}
+	//
+	//if cmd.Flags().Changed(FlagModeNativeSQL) {
+	//	cfg.Options.QueryMode = config.ModeNativeSQL
+	//}
+	//
+	//if cmd.Flags().Changed(FlagModeSQ) {
+	//	cfg.Options.QueryMode = config.ModeSQ
+	//}
+	//
+	//if cmd.Flags().Changed(FlagTable) {
+	//	cfg.Options.Format = config.FormatTable
+	//}
+	//if cmd.Flags().Changed(FlagJSON) {
+	//	cfg.Options.Format = config.FormatJSON
+	//}
+	//
+	//if cmd.Flags().Changed(FlagHeader) {
+	//	cfg.Options.Header = true
+	//}
+	//if cmd.Flags().Changed(FlagNoHeader) {
+	//	cfg.Options.Header = false
+	//}
+	//
+	//err := cfg.Save()
+	//if err != nil {
+	//	return err
+	//}
+	//
+	//doPrintCfgDefaults(cfg, w)
 	return nil
 }
 

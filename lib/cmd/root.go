@@ -7,6 +7,13 @@ import (
 	"github.com/neilotoole/go-lg/lg"
 	"github.com/neilotoole/sq/lib/out"
 	//_ "github.com/neilotoole/sq/sq/bootstrap"
+	"path/filepath"
+
+	"sync"
+
+	"github.com/davecgh/go-spew/spew"
+	"github.com/mitchellh/go-homedir"
+	"github.com/neilotoole/sq/lib/config"
 	"github.com/neilotoole/sq/lib/shutdown"
 	"github.com/spf13/cobra"
 )
@@ -126,9 +133,19 @@ For full usage, see the online manual: http://neilotoole.io/sq
 	},
 }
 
+var cfg *config.Config
+
 // Execute adds all child commands to the root command sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
+
+	err := initConfig()
+	if err != nil {
+		handleError(nil, err)
+		return
+	}
+
+	spew.Dump(cfg)
 
 	// HACK: This is a workaround for the fact that cobra doesn't currently
 	// support executing the root command with arbitrary args. That is to say,
@@ -172,20 +189,7 @@ func Execute() {
 
 func init() {
 
-	//logPath := filepath.Join(util.ConfigDir(), "sq.log")
-	//logFile, err := os.OpenFile(logPath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-	//if err != nil {
-	//	fmt.Fprintf(os.Stderr, "Error: unable to access log file: ", err)
-	//	os.Exit(1)
-	//}
-	//lg.Use(logFile)
-
 	cobra.OnInitialize(doInstallBashCompletion)
-	cobra.OnInitialize(initWriter)
-
-	// Here you will define your flags and configuration settings.
-	// Cobra supports Persistent Flags, which, if defined here,
-	// will be global for your application.
 
 	// --json -j JSON (default)
 	// --grid -g JSON grid (or --array -a array)
@@ -195,35 +199,60 @@ func init() {
 	// --tsv -b tab Separated values
 	// --csv -c Command separated values
 
-	//RootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.sq.yaml)")
-	//RootCmd.PersistentFlags().BoolP("help", "", false, "help for this command")
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
-	//RootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 	preprocessCmd(RootCmd)
 	setQueryCmdOptions(RootCmd)
 }
 
-//func execRootE(cmd *cobra.Command, args []string) error {
-//
-//	fmt.Println("You're running sq!")
-//	fmt.Printf("Args: %v", strings.Join(args, " "))
-//	return nil
-//}
-//func execRoot(cmd *cobra.Command, args []string) {
-//
-//	fmt.Println("You're running sq!")
-//	fmt.Printf("Args: %v", strings.Join(args, " "))
-//	return
-//}
+var cfgMu sync.Mutex
 
-func initWriter() {
+func getConfig() *config.Config {
 
-	////out.Set(json.NewWriter())
-	//out.Set(table.NewWriter())
+	cfgMu.Lock()
+	defer cfgMu.Unlock()
+
+	if cfg == nil {
+		cfg = config.NewConfig()
+	}
+
+	return cfg
 }
 
-// preprocessCmd is should be run on all commands before adding them.
+func initConfig() error {
+
+	envar := "SQ_CONFIG_FILEPATH"
+	configPath, ok := os.LookupEnv(envar)
+
+	if !ok {
+		configPath = filepath.Join(configDir(), "sq.yml")
+	}
+
+	lg.Debugf("attempting to create filestore from %q with value %q", envar, configPath)
+	store, err := config.NewFileStore(configPath)
+	if err != nil {
+		return err
+	}
+
+	config.SetStore(store)
+	lg.Debugf("successfully set config filestore to %q", configPath)
+
+	cfg = config.Default()
+
+	return nil
+}
+
+// configDir returns the absolute path of "~/.sq/" (or an alternative if specified by the user)
+func configDir() string {
+
+	home, err := homedir.Dir()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "unable to get user homedir: %v", err)
+		os.Exit(1)
+	}
+
+	return filepath.Join(home, ".sq")
+}
+
+// preprocessCmd should be run on all commands before adding them.
 func preprocessCmd(cmd *cobra.Command) {
 	cmd.Flags().BoolP("help", "", false, "help for "+cmd.Name())
 

@@ -1,7 +1,8 @@
 package xslx
 
 import (
-	"github.com/neilotoole/gotils/testing"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 )
 

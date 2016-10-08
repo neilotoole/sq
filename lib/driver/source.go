@@ -21,15 +21,15 @@ type Source struct {
 	Type     Type   `yaml:"type"`
 }
 
-var handlePattern = regexp.MustCompile(`\A[@][a-zA-Z][a-zA-Z0-9_]*`)
+var handlePattern = regexp.MustCompile(`\A[@][a-zA-Z][a-zA-Z0-9_]*$`)
 
 // CheckHandleText returns an error if handle is not an acceptable value.
-func CheckHandleText(handle string) error {
+func checkHandleValue(handle string) error {
 
 	matches := handlePattern.MatchString(handle)
 
 	if !matches {
-		return util.Errorf(`invalid handle value %q: handle must begin with @, followed by a letter, followed by zero or more letters, digits, or underscores, e.g. "@my_db1"`)
+		return util.Errorf(`invalid data source handle value %q: must begin with @, followed by a letter, followed by zero or more letters, digits, or underscores, e.g. "@my_db1"`, handle)
 	}
 
 	return nil
@@ -38,6 +38,11 @@ func CheckHandleText(handle string) error {
 func NewSource(handle string, location string) (*Source, error) {
 
 	lg.Debugf("attempting to create datasource %q using handle %q", handle, location)
+
+	err := checkHandleValue(handle)
+	if err != nil {
+		return nil, err
+	}
 
 	typ, err := GetTypeFromSourceLocation(location)
 	if err != nil {

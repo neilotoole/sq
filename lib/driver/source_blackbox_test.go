@@ -1,30 +1,40 @@
-package driver
+package driver_test
 
 import (
-	"github.com/neilotoole/gotils/testing"
+	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"fmt"
+
+	_ "github.com/neilotoole/sq/test/gotestutil"
+
+	"github.com/neilotoole/sq/lib/driver"
+	_ "github.com/neilotoole/sq/lib/driver/impl"
 )
 
-const typMySQL = Type("mysql")
-const typPostgres = Type("postgres")
-const typSQLite3 = Type("sqlite3")
-const typXSLX = Type("xlsx")
+const typMySQL = driver.Type("mysql")
+const typPostgres = driver.Type("postgres")
+const typSQLite3 = driver.Type("sqlite3")
+const typXSLX = driver.Type("xlsx")
+
+func init() {
+	fmt.Println("driver.init() (Test)")
+}
 
 func TestSource_Driver(t *testing.T) {
 
-	src, err := NewSource("a1", "mysql://user:pass@localhost:3306/mydb1")
-	assert.Nil(t, err)
-	assert.Equal(t, Type("mysql"), src.Type)
-	assert.Equal(t, "[a1] mysql://user:pass@localhost:3306/mydb1", src.String())
-	assert.Equal(t, "user:pass@localhost:3306/mydb1", src.ConnURI())
+	src, err := driver.NewSource("@a1", "mysql://user:pass@localhost:3306/mydb1")
+	require.Nil(t, err)
+	require.Equal(t, typMySQL, src.Type)
+	require.Equal(t, "[@a1] mysql://user:pass@localhost:3306/mydb1", src.String())
+	require.Equal(t, "user:pass@localhost:3306/mydb1", src.ConnURI())
 
-	src, err = NewSource("a1", "postgres://pqgotest:password@localhost/pqgotest")
-	assert.Nil(t, err)
-	assert.Equal(t, Type("postgres"), src.Type)
-	assert.Equal(t, "[a1] postgres://pqgotest:password@localhost/pqgotest", src.String())
-	assert.Equal(t, "postgres://pqgotest:password@localhost/pqgotest", src.ConnURI())
+	src, err = driver.NewSource("@a1", "postgres://pqgotest:password@localhost/pqgotest")
+	require.Nil(t, err)
+	require.Equal(t, typPostgres, src.Type)
+	require.Equal(t, "[@a1] postgres://pqgotest:password@localhost/pqgotest", src.String())
+	require.Equal(t, "postgres://pqgotest:password@localhost/pqgotest", src.ConnURI())
 
 }
 
@@ -32,7 +42,7 @@ func TestSourceGetTypeFromRef(t *testing.T) {
 
 	items := []struct {
 		loc string
-		typ Type
+		typ driver.Type
 	}{
 		{`mysql://root:root@tcp(localhost:33067)/sq_mydb1`, typMySQL},
 		{`postgres://sq:sq@localhost/sq_pg1?sslmode=disable`, typPostgres},
@@ -44,9 +54,9 @@ func TestSourceGetTypeFromRef(t *testing.T) {
 
 	for _, item := range items {
 
-		typ, err := GetTypeFromSourceLocation(item.loc)
-		assert.Nil(t, err)
-		assert.Equal(t, item.typ, typ)
+		typ, err := driver.GetTypeFromSourceLocation(item.loc)
+		require.Nil(t, err)
+		require.Equal(t, item.typ, typ)
 	}
 
 	//typ, err := getTypeFromRef()
@@ -66,20 +76,17 @@ func TestSourceGetTypeFromRef(t *testing.T) {
 
 func TestDataSources(t *testing.T) {
 
-	driverMySQL := Type("mysql")
-	driverPostgres := Type("postgres")
+	srcs := driver.NewSourceSet()
 
-	srcs := NewSourceSet()
-
-	mydb1, err := NewSource("mydb1", "mysql://user:pass@localhost:3306/mydb1")
+	mydb1, err := driver.NewSource("@mydb1", "mysql://user:pass@localhost:3306/mydb1")
 	require.Nil(t, err)
 	require.NotNil(t, mydb1)
-	require.Equal(t, driverMySQL, mydb1.Type)
+	require.Equal(t, typMySQL, mydb1.Type)
 
-	pg1, err := NewSource("pg1", "postgres://pqgotest:password@localhost/pqgotest")
+	pg1, err := driver.NewSource("@pg1", "postgres://pqgotest:password@localhost/pqgotest")
 	require.Nil(t, err)
 	require.NotNil(t, pg1)
-	require.Equal(t, driverPostgres, pg1.Type)
+	require.Equal(t, typPostgres, pg1.Type)
 
 	err = srcs.Add(mydb1)
 	require.Nil(t, err)
@@ -89,54 +96,54 @@ func TestDataSources(t *testing.T) {
 	require.Equal(t, 2, len(srcs.Items))
 
 	src, ok := srcs.Active()
-	assert.Nil(t, src)
-	assert.False(t, ok)
+	require.Nil(t, src)
+	require.False(t, ok)
 
 	src, err = srcs.SetActive(mydb1.Handle)
-	assert.Nil(t, err)
-	assert.NotNil(t, src)
+	require.Nil(t, err)
+	require.NotNil(t, src)
 	src, ok = srcs.Active()
-	assert.NotNil(t, src)
-	assert.True(t, ok)
-	assert.Equal(t, mydb1.Handle, src.Handle)
+	require.NotNil(t, src)
+	require.True(t, ok)
+	require.Equal(t, mydb1.Handle, src.Handle)
 
 	src, err = srcs.SetActive(pg1.Handle)
-	assert.Nil(t, err)
-	assert.NotNil(t, src)
+	require.Nil(t, err)
+	require.NotNil(t, src)
 	src, ok = srcs.Active()
-	assert.NotNil(t, src)
-	assert.True(t, ok)
-	assert.Equal(t, pg1.Handle, src.Handle)
+	require.NotNil(t, src)
+	require.True(t, ok)
+	require.Equal(t, pg1.Handle, src.Handle)
 
 	// Remove an item
 	err = srcs.Remove(pg1.Handle)
-	assert.Nil(t, err)
+	require.Nil(t, err)
 
 	src, err = srcs.Get(pg1.Handle)
-	assert.Nil(t, src)
-	assert.NotNil(t, err)
+	require.Nil(t, src)
+	require.NotNil(t, err)
 	i, src := srcs.IndexOf(pg1.Handle)
-	assert.Equal(t, -1, i)
-	assert.Equal(t, 1, len(srcs.Items))
+	require.Equal(t, -1, i)
+	require.Equal(t, 1, len(srcs.Items))
 	src, ok = srcs.Active()
-	assert.Nil(t, src)
-	assert.False(t, ok)
+	require.Nil(t, src)
+	require.False(t, ok)
 
 	// Remove the other item
 	src, err = srcs.SetActive(mydb1.Handle)
-	assert.Nil(t, err)
-	assert.NotNil(t, src)
+	require.Nil(t, err)
+	require.NotNil(t, src)
 	err = srcs.Remove(mydb1.Handle)
-	assert.Nil(t, err)
+	require.Nil(t, err)
 
 	src, err = srcs.Get(mydb1.Handle)
-	assert.Nil(t, src)
-	assert.Error(t, err)
+	require.Nil(t, src)
+	require.Error(t, err)
 	i, src = srcs.IndexOf(mydb1.Handle)
-	assert.Equal(t, -1, i)
-	assert.Equal(t, 0, len(srcs.Items))
+	require.Equal(t, -1, i)
+	require.Equal(t, 0, len(srcs.Items))
 	src, ok = srcs.Active()
-	assert.Nil(t, src)
-	assert.False(t, ok)
+	require.Nil(t, src)
+	require.False(t, ok)
 
 }

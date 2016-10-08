@@ -80,6 +80,11 @@ func (c *Config) ConfigDir() string {
 func Default() *Config {
 
 	if conf == nil {
+
+		if str == nil {
+			panic("config.Default() invoked before config.SetStore() ")
+		}
+
 		cfg, err := str.Load()
 		if err != nil {
 			// TODO: should try to load before this
@@ -127,17 +132,21 @@ func applyDefaults(cfg *Config) {
 }
 
 // Defaults contains the (factory-supplied) config defaults.
-var defaults struct {
+var defaults = struct {
 	Timeout   time.Duration
 	QueryMode QueryMode
 	Format    Format
+}{
+	10 * time.Second,
+	ModeSQ,
+	FormatJSON,
 }
 
 func init() {
-	lg.Debugf("configuring factory settings")
-	defaults.Timeout = 10 * time.Second
-	defaults.QueryMode = ModeSQ
-	defaults.Format = FormatJSON
+	//lg.Debugf("configuring factory settings")
+	//defaults.Timeout = 10 * time.Second
+	//defaults.QueryMode = ModeSQ
+	//defaults.Format = FormatJSON
 
 	// if the envar is set, then we use that as the default filestore.
 	envar := "SQ_CONFIG_FILEPATH"

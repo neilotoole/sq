@@ -1,8 +1,9 @@
 package ql
 
 import (
+	"testing"
+
 	"github.com/neilotoole/go-lg/lg"
-	"github.com/neilotoole/gotils/testing"
 	"github.com/stretchr/testify/assert"
 )
 

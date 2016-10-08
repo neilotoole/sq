@@ -10,7 +10,6 @@ import (
 
 	"github.com/neilotoole/go-lg/lg"
 	"github.com/neilotoole/sq-driver/hackery/database/sql"
-	"github.com/neilotoole/sq/lib/config"
 	"github.com/neilotoole/sq/lib/driver"
 	"github.com/neilotoole/sq/lib/shutdown"
 	"github.com/neilotoole/sq/lib/util"
@@ -30,6 +29,12 @@ import (
 //	return db, nil
 //	//return nil, util.Errorf("not implemented")
 //}
+
+var workDir string
+
+func Init(scratchDir string) {
+	workDir = scratchDir
+}
 
 func OpenNew() (*driver.Source, *sql.DB, error) {
 
@@ -63,7 +68,7 @@ func Type() driver.Type {
 	return driver.Type("sqlite3")
 }
 
-func generateFilename() (filename string, path string) {
+func generateFilename(dir string) (filename string, path string) {
 	// // apacheFormat is the standard apache timestamp format.
 	//const apacheFormat = `02/Jan/2006:15:04:05 -0700`
 	const tsFmt = `20060102.030405.000000000`
@@ -72,7 +77,7 @@ func generateFilename() (filename string, path string) {
 
 	filename = ts + "__" + strconv.Itoa(os.Getpid()) + ".db"
 
-	path = filepath.Join(config.Default().ConfigDir(), filename)
+	path = filepath.Join(dir, filename)
 
 	lg.Debugf("generated path: %q", path)
 	return
@@ -80,7 +85,16 @@ func generateFilename() (filename string, path string) {
 }
 
 func newScratchSrc() (*driver.Source, string, error) {
-	filename, path := generateFilename()
+
+	var dir string
+
+	if workDir == "" {
+		dir = os.TempDir()
+	} else {
+		dir = workDir
+	}
+
+	filename, path := generateFilename(dir)
 	lg.Debugf("creating scratch datasource (sqlite3): %s", filename)
 
 	src := &driver.Source{}
