@@ -57,7 +57,7 @@ func (d *Driver) Open(src *drvr.Source) (*sql.DB, error) {
 		return nil, err
 	}
 
-	lg.Debugf("opened handled to scratch db")
+	lg.Debugf("opened handle to scratch db")
 
 	err = d.xlsxToScratch(src, scratchdb)
 	if err != nil {

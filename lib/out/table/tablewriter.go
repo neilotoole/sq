@@ -20,15 +20,15 @@ import (
 )
 
 type TextWriter struct {
-	tbl     *texttable.Table
-	f       *pretty.Formatter
-	headers bool
+	tbl    *texttable.Table
+	f      *pretty.Formatter
+	header bool
 }
 
-func NewWriter(headers bool) *TextWriter {
+func NewWriter(header bool) *TextWriter {
 
 	t := &TextWriter{
-		headers: headers,
+		header: header,
 	}
 
 	t.Reset()
@@ -54,7 +54,7 @@ func (t *TextWriter) setTableWriterOptions() {
 	t.tbl.SetRowSeparator("")
 	t.tbl.SetBorders(texttable.Border{Left: false, Top: false, Right: false, Bottom: false})
 	t.tbl.SetAutoFormatHeaders(false)
-	t.tbl.SetHeaderDisable(!t.headers)
+	t.tbl.SetHeaderDisable(!t.header)
 }
 
 func (t *TextWriter) Value(message string, key string, value interface{}) {

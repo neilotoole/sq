@@ -8,34 +8,54 @@ import (
 	"github.com/neilotoole/sq/lib/common"
 	"github.com/neilotoole/sq/lib/drvr"
 	"github.com/neilotoole/sq/lib/util"
+	"github.com/tealeg/xlsx"
 )
 
 var w io.Writer = os.Stdout
 
 type XLSXWriter struct {
+	header   bool
+	xlsxFile *xlsx.File
 }
 
-func NewWriter() *XLSXWriter {
+func NewWriter(header bool) *XLSXWriter {
 
-	return &XLSXWriter{}
+	return &XLSXWriter{header: header}
 }
 
-func (rw *XLSXWriter) Metadata(meta *drvr.SourceMetadata) error {
+func (w *XLSXWriter) Metadata(meta *drvr.SourceMetadata) error {
 	return util.Errorf("not implemented")
 }
 
-func (rw *XLSXWriter) Open() error {
+func (w *XLSXWriter) Open() error {
 	lg.Debugf("Open()")
+
+	w.xlsxFile = xlsx.NewFile()
+
 	return nil
 }
-func (rw *XLSXWriter) Close() error {
+func (w *XLSXWriter) Close() error {
+
 	lg.Debugf("Close()")
+
+	if w.xlsxFile == nil {
+		return util.Errorf("unable to write nil XLSX: must be first opened")
+	}
+
+	err := w.xlsxFile.Write(os.Stderr)
+	if err != nil {
+		return util.Errorf("unable to write XLSX: %v", err)
+	}
 	return nil
 }
 
-func (rw *XLSXWriter) ResultRows(rows []*common.ResultRow) error {
+func (w *XLSXWriter) ResultRows(rows []*common.ResultRow) error {
 
 	lg.Debugf("ResultRows()")
+
+	if w.xlsxFile == nil {
+		return util.Errorf("unable to write nil XLSX file: must be first opened")
+	}
 	if len(rows) == 0 {
 		return nil
 	}

@@ -197,13 +197,13 @@ func getQueryMode(cmd *cobra.Command) config.QueryMode {
 
 func getResultWriter(cmd *cobra.Command) out.ResultWriter {
 
-	headers := cfg.Options.Header
+	hasHeader := cfg.Options.Header
 
 	if cmd.Flags().Changed(FlagHeader) {
-		headers = true
+		hasHeader = true
 	}
 	if cmd.Flags().Changed(FlagNoHeader) {
-		headers = false
+		hasHeader = false
 	}
 
 	format := cfg.Options.Format
@@ -226,11 +226,11 @@ func getResultWriter(cmd *cobra.Command) out.ResultWriter {
 
 	switch format {
 	case config.FormatXLSX:
-		return xlsx.NewWriter()
+		return xlsx.NewWriter(hasHeader)
 	case config.FormatRaw:
 		return raw.NewWriter()
 	case config.FormatTable:
-		return table.NewWriter(headers)
+		return table.NewWriter(hasHeader)
 	}
 
 	return json.NewWriter()
