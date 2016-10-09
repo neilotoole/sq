@@ -41,11 +41,13 @@ that your username is `ksoze`.
 - Install and configure `go`:
 	- `brew install go 1.7.1`
 	- Set up your `$GOPATH`. Example: create a dir `~/go`, and in your `~/.bash_rc`, add the following line:
+	
 		```bash
 		export GOPATH=/Users/ksoze/go
 		```
 	- Execute `src ~/.bash_rc`.
 	- Verify your go setup:
+	
 		```
 		> echo $GOPATH
 		/Users/ksoze/nd/go
@@ -63,6 +65,7 @@ that your username is `ksoze`.
 	You'll now have your own fork, e.g. `https://github.com/kdoze/sq-driver`.
 - Do the same for this repo, and you'll have another fork: `https://github.com/kdoze/sq`
 - Now we'll need to clone those repos and set the `upstream` remotes:
+
 	```
 	> mkdir -p $GOPATH/src/github.com/neilotoole
 	> cd $GOPATH/src/github.com/neilotoole
@@ -77,6 +80,7 @@ that your username is `ksoze`.
 	> # verify that the remote was set
 	> git remote -v
 - Theoretically you should be good to go. From the `sq` directory:
+
 	```
 	> make install
 	```
