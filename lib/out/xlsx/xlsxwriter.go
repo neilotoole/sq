@@ -31,7 +31,6 @@ func (w *XLSXWriter) Metadata(meta *drvr.SourceMetadata) error {
 }
 
 func (w *XLSXWriter) Open() error {
-	lg.Debugf("Open()")
 
 	w.xfile = xlsx.NewFile()
 
@@ -46,8 +45,6 @@ func (w *XLSXWriter) Open() error {
 }
 func (w *XLSXWriter) Close() error {
 
-	lg.Debugf("Close()")
-
 	if w.xfile == nil {
 		return util.Errorf("unable to write nil XLSX: must be opened first")
 	}
@@ -61,14 +58,8 @@ func (w *XLSXWriter) Close() error {
 
 func (w *XLSXWriter) ResultRows(rows []*common.ResultRow) error {
 
-	lg.Debugf("ResultRows()")
-
 	if w.xfile == nil || w.sheet == nil {
 		return util.Errorf("unable to write nil XLSX file: must be opened first")
-	}
-
-	if w.header && len(w.sheet.Rows) == 0 {
-
 	}
 
 	for _, row := range rows {
@@ -90,8 +81,6 @@ func (w *XLSXWriter) ResultRows(rows []*common.ResultRow) error {
 		for _, val := range row.Values {
 
 			cell := xrow.AddCell()
-
-			lg.Debugf("have val with type: %T: %v", val, val)
 
 			switch val := val.(type) {
 			case nil:
@@ -131,40 +120,3 @@ func (w *XLSXWriter) ResultRows(rows []*common.ResultRow) error {
 
 	return nil
 }
-
-//for _, row := range rows {
-//
-//	for _, val := range row.Values {
-//		switch val := val.(type) {
-//		case nil:
-//		case *[]byte:
-//			w.Write(*val)
-//		case *sql.NullString:
-//			if val.Valid {
-//				fmt.Fprintf(w, val.String)
-//			}
-//		case *sql.NullBool:
-//
-//			if val.Valid {
-//				fmt.Fprintf(w, "%t", val.Bool)
-//			}
-//
-//		case *sql.NullInt64:
-//
-//			if val.Valid {
-//				fmt.Fprintf(w, "%d", val.Int64)
-//			}
-//		case *sql.NullFloat64:
-//
-//			if val.Valid {
-//				fmt.Fprintf(w, "%f", val.Float64)
-//			}
-//
-//		default:
-//			lg.Debugf("unexpected column value type, treating as default: %T(%v)", val, val)
-//			fmt.Fprintf(w, "%v", val)
-//		}
-//		fmt.Fprintln(w) // Add the new line
-//	}
-//
-//}
