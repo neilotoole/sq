@@ -11,6 +11,8 @@ import (
 
 	"sync"
 
+	"runtime/debug"
+
 	"github.com/mitchellh/go-homedir"
 	"github.com/neilotoole/sq/lib/config"
 	"github.com/neilotoole/sq/lib/shutdown"
@@ -60,7 +62,7 @@ const FlagCSV string = "csv"
 const FlagCSVShort string = "c"
 
 // FlagCSVUsage is usage for FlagCSV
-const FlagCSVUsage string = "Comma-Separated Value (CSV) output"
+const FlagCSVUsage string = "CSV (comma-separated value) output"
 
 // FlagTSV specifies TSV output
 const FlagTSV string = "tsv"
@@ -69,7 +71,7 @@ const FlagTSV string = "tsv"
 const FlagTSVShort string = "T"
 
 // FlagTSVUsage is usage for FlagTSV
-const FlagTSVUsage string = "Tab-Separated Value (TSV) output"
+const FlagTSVUsage string = "TSV (tab-separated value) output"
 
 // FlagXML specifies XML output
 const FlagXML string = "xml"
@@ -79,6 +81,15 @@ const FlagXMLShort string = "X"
 
 // FlagXMLUsage is usage for FlagXML
 const FlagXMLUsage string = "XML output"
+
+// FlagMonochrome specifies raw output
+const FlagMonochrome string = "monochrome"
+
+// FlagMonochromeShort is shorthand for FlagMonochrome
+const FlagMonochromeShort string = "M"
+
+// FlagMonochromeUsage is usage for FlagMonochrome
+const FlagMonochromeUsage string = "don't colorize output"
 
 // FlagHeader specifies that the output should include header information (where applicable)
 const FlagHeader string = "header"
@@ -201,7 +212,7 @@ func Execute() {
 	// We determine it's the root command if there's an err returned from
 	// Find(), and the cmd.Name is the program name (usually 'sq', but the
 	// user could rename it).
-	//if (cmdArgs == nil || len(cmdArgs) == 0) || (err != nil && cmd != nil && cmd.Name() == "sq") { // REVISIT: note that when run from debugger, that os.Args[0] can be weird text
+	//if (cmdArgs == nil || len(cmdArgs) == 0) || (err != nil && cmd != nil && cmd.Name() == "sq") {
 	if cmd != nil && cmd.Name() == "sq" { // REVISIT: note that when run from debugger, that os.Args[0] can be weird text
 
 		// Basically, if we have os.Args: [sq, arg1, arg2]
@@ -224,15 +235,6 @@ func Execute() {
 func init() {
 
 	cobra.OnInitialize(doInstallBashCompletion)
-
-	// --json -j JSON (default)
-	// --grid -g JSON grid (or --array -a array)
-	// --table -t Text table
-	// --header -h include header information
-	// --type -t include column type information (only if -h is set)
-	// --tsv -b tab Separated values
-	// --csv -c Command separated values
-
 	preprocessCmd(RootCmd)
 	setQueryCmdOptions(RootCmd)
 }
@@ -272,11 +274,6 @@ func initConfig() error {
 		return err
 	}
 
-	//config.SetStore(cfgStore)
-	//lg.Debugf("successfully set config filestore to %q", configPath)
-	//
-	//cfg = config.Default()
-
 	return nil
 }
 
@@ -305,6 +302,10 @@ func preprocessCmd(cmd *cobra.Command) {
 		cmd.RunE = execer(cmd.RunE)
 	}
 
+	if cmd.PreRunE == nil {
+		cmd.PreRunE = preExec
+	}
+
 	cmd.SilenceErrors = true
 	cmd.SilenceUsage = true
 
@@ -318,6 +319,9 @@ func execer(fn cobraCmdFn) cobraCmdFn {
 
 	return func(cmd *cobra.Command, args []string) error {
 
+		debug.PrintStack()
+		lg.Debugf("invoking cmd %q: %v", cmd.Name(), args)
+
 		err := fn(cmd, args)
 
 		if err != nil {
@@ -326,6 +330,14 @@ func execer(fn cobraCmdFn) cobraCmdFn {
 
 		return nil
 	}
+}
+
+// preExec is called before a cmd is executed.
+func preExec(cmd *cobra.Command, args []string) error {
+
+	lg.Debugf("preExec cmd %q: %v", cmd.Name(), args)
+
+	return nil
 }
 
 func handleError(cmd *cobra.Command, err error) {
