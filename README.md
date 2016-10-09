@@ -46,7 +46,7 @@ that your username is `ksoze`.
 		export GOPATH=/Users/ksoze/go
 		```
 	- Execute `src ~/.bash_rc`.
-	- Verify your go setup:
+	- Verify your `go` setup:
 	
 		```
 		> echo $GOPATH
@@ -61,9 +61,9 @@ that your username is `ksoze`.
  Note that these repos are still private, so you need to be added as a collaborator
  on both repos.
 - Login to [GitHub](https://github.com).
-- Go to the [https://github.com/neilotoole/sq-driver] repo, and fork it (button in top-right corner).
-	You'll now have your own fork, e.g. `https://github.com/kdoze/sq-driver`.
-- Do the same for this repo, and you'll have another fork: `https://github.com/kdoze/sq`
+- Go to the https://github.com/neilotoole/sq-driver repo, and fork it.
+	You'll now have your own fork, e.g. `https://github.com/ksoze/sq-driver`.
+- Do the same for this repo, and you'll have another fork: `https://github.com/ksoze/sq`
 - Now we'll need to clone those repos and set the `upstream` remotes:
 
 	```
@@ -76,7 +76,7 @@ that your username is `ksoze`.
 	> # verify that the remote was set
 	> git remote -v
 	> cd ../sq
-	> git remote add upstream https://github.com/neilotoole/sq-driver.git
+	> git remote add upstream https://github.com/neilotoole/sq.git
 	> # verify that the remote was set
 	> git remote -v
 	```
