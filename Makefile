@@ -10,6 +10,16 @@ SOURCES := $(shell find .  -name '*.go' ! -name '*_test.go' ! -path "./test/*" !
 # SOURCES_NO_GENERATED is SOURCES excluding the generated parser files
 SOURCES_NO_GENERATED := $(shell find .  -name '*.go' ! -name '*_test.go' ! -path "./lib/ql/parser/*" ! -path "./test/*" ! -path "./tools/*"  ! -path "./build/*" ! -path "./vendor/*")
 
+ifeq ($(shell uname),Darwin) #Mac OS
+	OS_PLATFORM := darwin
+	OS_PLATFORM_NAME := Mac OS
+else
+	OS_PLATFORM := linux
+	OS_PLATFORM_NAME := Linux
+endif
+
+LDFLAGS=-ldflags "-s -w"
+
 
 default: install
 
@@ -69,3 +79,10 @@ install-tools:
 
 list-src:
 	@echo $(SOURCES)
+
+build-for-dist: clean build-assets test
+	go build $(LDFLAGS) -o bin/$(OS_PLATFORM)/$(BINARY) main.go
+	cp -vf bin/$(OS_PLATFORM)/$(BINARY) $(GOPATH)/bin/
+
+dist: clean test build-for-dist
+	cp $(shell which sq) ./dist/sq && tar -cvzf "./dist/sq-$(BUILD_VERSION)-darwin.tar.gz" ./dist/sq && rm ./dist/sq
