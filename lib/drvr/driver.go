@@ -1,4 +1,4 @@
-package driver
+package drvr
 
 import (
 	"github.com/neilotoole/go-lg/lg"
@@ -35,17 +35,17 @@ type SQLDriver interface {
 	Driver
 }
 
-var drvrs = make(map[Type]Driver)
+var drvs = make(map[Type]Driver)
 
 func Register(driver Driver) {
-	drvrs[driver.Type()] = driver
+	drvs[driver.Type()] = driver
 	lg.Debugf("registered driver %q", driver.Type())
 }
 
 // For returns a driver for the supplied datasource.
 func For(source *Source) (Driver, error) {
 
-	drv, ok := drvrs[source.Type]
+	drv, ok := drvs[source.Type]
 	if !ok {
 		return nil, util.Errorf("unknown driver type %q for datasource %q", source.Type, source.Handle)
 	}

@@ -2,16 +2,16 @@ package out
 
 import (
 	"github.com/neilotoole/sq/lib/common"
-	"github.com/neilotoole/sq/lib/driver"
+	"github.com/neilotoole/sq/lib/drvr"
 )
 
 type ResultWriter interface {
-	Open() error
+	Open() error // TODO: no need for Open() really?
 	ResultRows(rows []*common.ResultRow) error
 	Close() error
-	Metadata(meta *driver.SourceMetadata) error
+	Metadata(meta *drvr.SourceMetadata) error
 }
 
 type MetadataWriter interface {
-	Metadata(meta *driver.SourceMetadata) error
+	Metadata(meta *drvr.SourceMetadata) error
 }

@@ -12,23 +12,23 @@ import (
 	"github.com/neilotoole/sq-driver/hackery/database/sql"
 	"github.com/neilotoole/sq-driver/hackery/database/sql/driver"
 	"github.com/neilotoole/sq/lib/common"
-	sqdriver "github.com/neilotoole/sq/lib/driver" // TODO: change this back to driver when we remove the dependency on sql driver
+	"github.com/neilotoole/sq/lib/drvr"
 	"github.com/neilotoole/sq/lib/out"
 	"github.com/neilotoole/sq/lib/out/json/pretty"
-	"github.com/neilotoole/sq/lib/out/table/textable"
+	"github.com/neilotoole/sq/lib/out/table/texttable"
 	"github.com/neilotoole/sq/lib/util"
 )
 
 type TextWriter struct {
-	tbl     *texttable.Table
-	f       *pretty.Formatter
-	headers bool
+	tbl    *texttable.Table
+	f      *pretty.Formatter
+	header bool
 }
 
-func NewWriter(headers bool) *TextWriter {
+func NewWriter(header bool) *TextWriter {
 
 	t := &TextWriter{
-		headers: headers,
+		header: header,
 	}
 
 	t.Reset()
@@ -54,7 +54,7 @@ func (t *TextWriter) setTableWriterOptions() {
 	t.tbl.SetRowSeparator("")
 	t.tbl.SetBorders(texttable.Border{Left: false, Top: false, Right: false, Bottom: false})
 	t.tbl.SetAutoFormatHeaders(false)
-	t.tbl.SetHeaderDisable(!t.headers)
+	t.tbl.SetHeaderDisable(!t.header)
 }
 
 func (t *TextWriter) Value(message string, key string, value interface{}) {
@@ -67,7 +67,7 @@ func (t *TextWriter) Value(message string, key string, value interface{}) {
 	fmt.Printf("%v: %v\n", message, value)
 }
 
-func (t *TextWriter) SourceSet(ss *sqdriver.SourceSet, active *sqdriver.Source) {
+func (t *TextWriter) SourceSet(ss *drvr.SourceSet, active *drvr.Source) {
 	var rows [][]string
 
 	for i, src := range ss.Items {
@@ -95,7 +95,7 @@ func (t *TextWriter) SourceSet(ss *sqdriver.SourceSet, active *sqdriver.Source) 
 	t.renderRows(rows)
 }
 
-func (t *TextWriter) Source(src *sqdriver.Source) {
+func (t *TextWriter) Source(src *drvr.Source) {
 
 	var rows [][]string
 
@@ -150,7 +150,7 @@ func (t *TextWriter) renderRow(row []string) {
 	t.tbl.Render() // Send output
 }
 
-func (t *TextWriter) Metadata(meta *sqdriver.SourceMetadata) error {
+func (t *TextWriter) Metadata(meta *drvr.SourceMetadata) error {
 
 	headers := []string{"REF", "NAME", "FQ NAME", "SIZE", "TABLES", "LOCATION"}
 

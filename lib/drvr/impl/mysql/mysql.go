@@ -7,24 +7,24 @@ import (
 	"github.com/neilotoole/go-lg/lg"
 	_ "github.com/neilotoole/sq-driver/hackery/database/drivers/mysql"
 	"github.com/neilotoole/sq-driver/hackery/database/sql"
-	"github.com/neilotoole/sq/lib/driver"
+	"github.com/neilotoole/sq/lib/drvr"
 	"github.com/neilotoole/sq/lib/util"
 )
 
-const typ = driver.Type("mysql")
+const typ = drvr.Type("mysql")
 
 type Driver struct {
 }
 
-func (d *Driver) Type() driver.Type {
+func (d *Driver) Type() drvr.Type {
 	return typ
 }
 
-func (d *Driver) ConnURI(src *driver.Source) (string, error) {
+func (d *Driver) ConnURI(src *drvr.Source) (string, error) {
 	return "", util.Errorf("not implemented")
 }
 
-func (d *Driver) Open(src *driver.Source) (*sql.DB, error) {
+func (d *Driver) Open(src *drvr.Source) (*sql.DB, error) {
 	return sql.Open(string(src.Type), src.ConnURI())
 }
 
@@ -32,14 +32,14 @@ func (d *Driver) Release() error {
 	return nil
 }
 
-func (d *Driver) ValidateSource(src *driver.Source) (*driver.Source, error) {
+func (d *Driver) ValidateSource(src *drvr.Source) (*drvr.Source, error) {
 	if src.Type != typ {
 		return nil, util.Errorf("expected source type %q but got %q", typ, src.Type)
 	}
 	return src, nil
 }
 
-func (d *Driver) Ping(src *driver.Source) error {
+func (d *Driver) Ping(src *drvr.Source) error {
 	db, err := d.Open(src)
 	if err != nil {
 		return err
@@ -48,9 +48,9 @@ func (d *Driver) Ping(src *driver.Source) error {
 	return db.Ping()
 }
 
-func (d *Driver) Metadata(src *driver.Source) (*driver.SourceMetadata, error) {
+func (d *Driver) Metadata(src *drvr.Source) (*drvr.SourceMetadata, error) {
 
-	meta := &driver.SourceMetadata{}
+	meta := &drvr.SourceMetadata{}
 	meta.Handle = src.Handle
 	meta.Location = src.Location
 	db, err := d.Open(src)
@@ -78,7 +78,7 @@ func (d *Driver) Metadata(src *driver.Source) (*driver.SourceMetadata, error) {
 
 	for rows.Next() {
 
-		tbl := &driver.Table{}
+		tbl := &drvr.Table{}
 
 		err = rows.Scan(&meta.Name, &tbl.Name, &tbl.Comment, &tbl.Size)
 		if err != nil {
@@ -96,7 +96,7 @@ func (d *Driver) Metadata(src *driver.Source) (*driver.SourceMetadata, error) {
 	return meta, nil
 }
 
-func populateTblMetadata(db *sql.DB, dbName string, tbl *driver.Table) error {
+func populateTblMetadata(db *sql.DB, dbName string, tbl *drvr.Table) error {
 
 	tpl := "SELECT column_name, data_type, column_type, ordinal_position, column_default, is_nullable, column_key, column_comment, extra, (SELECT COUNT(*) FROM `%s`) AS row_count FROM information_schema.columns cols WHERE cols.TABLE_SCHEMA = '%s' AND cols.TABLE_NAME = '%s' ORDER BY cols.ordinal_position ASC"
 	q := fmt.Sprintf(tpl, tbl.Name, dbName, tbl.Name)
@@ -111,7 +111,7 @@ func populateTblMetadata(db *sql.DB, dbName string, tbl *driver.Table) error {
 
 	for rows.Next() {
 
-		col := &driver.Column{}
+		col := &drvr.Column{}
 		var isNullable, colKey, extra string
 		//defVal := &sql.N
 		defVal := &sql.NullString{}
@@ -138,5 +138,5 @@ func populateTblMetadata(db *sql.DB, dbName string, tbl *driver.Table) error {
 
 func init() {
 	d := &Driver{}
-	driver.Register(d)
+	drvr.Register(d)
 }

@@ -8,7 +8,7 @@ import (
 	"github.com/neilotoole/go-lg/lg"
 	"github.com/neilotoole/sq-driver/hackery/database/sql"
 	"github.com/neilotoole/sq/lib/common"
-	"github.com/neilotoole/sq/lib/driver"
+	"github.com/neilotoole/sq/lib/drvr"
 	"github.com/neilotoole/sq/lib/util"
 )
 
@@ -22,7 +22,7 @@ func NewWriter() *RawWriter {
 	return &RawWriter{}
 }
 
-func (rw *RawWriter) Metadata(meta *driver.SourceMetadata) error {
+func (rw *RawWriter) Metadata(meta *drvr.SourceMetadata) error {
 	return util.Errorf("not implemented")
 }
 

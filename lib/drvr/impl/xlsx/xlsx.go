@@ -20,28 +20,28 @@ import (
 
 	"github.com/neilotoole/go-lg/lg"
 	"github.com/neilotoole/sq-driver/hackery/database/sql"
-	"github.com/neilotoole/sq/lib/driver"
-	"github.com/neilotoole/sq/lib/driver/scratch"
+	"github.com/neilotoole/sq/lib/drvr"
+	"github.com/neilotoole/sq/lib/drvr/scratch"
 	"github.com/neilotoole/sq/lib/util"
 	"github.com/tealeg/xlsx"
 )
 
-const typ = driver.Type("xlsx")
+const typ = drvr.Type("xlsx")
 
 type Driver struct {
 	mu      *sync.Mutex
 	cleanup []func() error
 }
 
-func (d *Driver) Type() driver.Type {
+func (d *Driver) Type() drvr.Type {
 	return typ
 }
 
-func (d *Driver) ConnURI(source *driver.Source) (string, error) {
+func (d *Driver) ConnURI(source *drvr.Source) (string, error) {
 	return "", util.Errorf("not implemented")
 }
 
-func (d *Driver) Open(src *driver.Source) (*sql.DB, error) {
+func (d *Driver) Open(src *drvr.Source) (*sql.DB, error) {
 
 	lg.Debugf("attempting to ping XLSX file %q", src.Location)
 	err := d.Ping(src)
@@ -57,7 +57,7 @@ func (d *Driver) Open(src *driver.Source) (*sql.DB, error) {
 		return nil, err
 	}
 
-	lg.Debugf("opened handled to scratch db")
+	lg.Debugf("opened handle to scratch db")
 
 	err = d.xlsxToScratch(src, scratchdb)
 	if err != nil {
@@ -67,7 +67,7 @@ func (d *Driver) Open(src *driver.Source) (*sql.DB, error) {
 	return scratchdb, nil
 }
 
-func (d *Driver) ValidateSource(src *driver.Source) (*driver.Source, error) {
+func (d *Driver) ValidateSource(src *drvr.Source) (*drvr.Source, error) {
 	if src.Type != typ {
 		return nil, util.Errorf("expected source type %q but got %q", typ, src.Type)
 	}
@@ -77,7 +77,7 @@ func (d *Driver) ValidateSource(src *driver.Source) (*driver.Source, error) {
 	return src, nil
 }
 
-func (d *Driver) Ping(src *driver.Source) error {
+func (d *Driver) Ping(src *drvr.Source) error {
 
 	lg.Debugf("driver %q attempting to ping %q", d.Type(), src)
 	file, err := d.getSourceFile(src)
@@ -96,9 +96,9 @@ func (d *Driver) Ping(src *driver.Source) error {
 	return nil
 }
 
-func (d *Driver) Metadata(src *driver.Source) (*driver.SourceMetadata, error) {
+func (d *Driver) Metadata(src *drvr.Source) (*drvr.SourceMetadata, error) {
 
-	meta := &driver.SourceMetadata{}
+	meta := &drvr.SourceMetadata{}
 	meta.Handle = src.Handle
 
 	file, err := d.getSourceFile(src)
@@ -132,7 +132,7 @@ func (d *Driver) Metadata(src *driver.Source) (*driver.SourceMetadata, error) {
 	//sheets := xlFile.Sheets
 
 	for _, sheet := range xlFile.Sheets {
-		tbl := driver.Table{}
+		tbl := drvr.Table{}
 
 		tbl.Name = sheet.Name
 		tbl.Size = -1
@@ -142,7 +142,7 @@ func (d *Driver) Metadata(src *driver.Source) (*driver.SourceMetadata, error) {
 
 		for i, colType := range colTypes {
 
-			col := driver.Column{}
+			col := drvr.Column{}
 			col.Datatype = cellTypeToString(colType)
 			col.ColType = col.Datatype
 			col.Position = int64(i)
@@ -218,7 +218,7 @@ func getColTypes(sheet *xlsx.Sheet) []xlsx.CellType {
 
 func init() {
 	d := &Driver{mu: &sync.Mutex{}}
-	driver.Register(d)
+	drvr.Register(d)
 }
 
 func (d *Driver) Release() error {
@@ -246,7 +246,7 @@ func (d *Driver) Release() error {
 }
 
 // getSourceFileName returns the final component of the file/URL path.
-func (d *Driver) getSourceFileName(src *driver.Source) (string, error) {
+func (d *Driver) getSourceFileName(src *drvr.Source) (string, error) {
 
 	sep := os.PathSeparator
 	if strings.HasPrefix(src.Location, "http") {
@@ -263,7 +263,7 @@ func (d *Driver) getSourceFileName(src *driver.Source) (string, error) {
 
 // getSourceFile returns a file handle for XLSX file. The return file is open,
 // the caller is responsible for closing it.
-func (d *Driver) getSourceFile(src *driver.Source) (*os.File, error) {
+func (d *Driver) getSourceFile(src *drvr.Source) (*os.File, error) {
 
 	// xlsx:///Users/neilotoole/sq/test/testdata.xlsx
 	//`https://s3.amazonaws.com/sq.neilotoole.io/testdata/1.0/xslx/test.xlsx`
@@ -317,7 +317,7 @@ func (d *Driver) getSourceFile(src *driver.Source) (*os.File, error) {
 	return file, nil
 }
 
-func (d *Driver) xlsxToScratch(src *driver.Source, db *sql.DB) error {
+func (d *Driver) xlsxToScratch(src *drvr.Source, db *sql.DB) error {
 	file, err := d.getSourceFile(src)
 	if err != nil {
 		return err

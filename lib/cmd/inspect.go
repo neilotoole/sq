@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/neilotoole/sq/lib/driver"
+	"github.com/neilotoole/sq/lib/drvr"
 	"github.com/neilotoole/sq/lib/util"
 	"github.com/spf13/cobra"
 )
@@ -36,7 +36,7 @@ func inspect(cmd *cobra.Command, args []string) error {
 	}
 
 	var err error
-	var src *driver.Source
+	var src *drvr.Source
 	if len(args) == 0 {
 		ok := false
 		src, ok = cfg.SourceSet.Active()
@@ -51,7 +51,7 @@ func inspect(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	drv, err := driver.For(src)
+	drv, err := drvr.For(src)
 	if err != nil {
 		return err
 	}

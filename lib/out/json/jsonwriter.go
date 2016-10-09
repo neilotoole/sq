@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/neilotoole/sq/lib/common"
-	"github.com/neilotoole/sq/lib/driver"
+	"github.com/neilotoole/sq/lib/drvr"
 	"github.com/neilotoole/sq/lib/out/json/pretty"
 )
 
@@ -30,7 +30,7 @@ func (w *JSONWriter) ResultRows(rows []*common.ResultRow) error {
 	return nil
 }
 
-func (w *JSONWriter) Metadata(meta *driver.SourceMetadata) error {
+func (w *JSONWriter) Metadata(meta *drvr.SourceMetadata) error {
 
 	//om := &common.OrderedMap{}
 
