@@ -7,6 +7,9 @@ import (
 	"github.com/neilotoole/sq/lib/driver"
 )
 
+var buildVersion string
+var buildTimestamp string
+
 type QueryMode string
 
 const ModeSQ QueryMode = "sq"
@@ -41,7 +44,7 @@ type Log struct {
 	Enabled     bool     `yaml:"enabled"`
 	Filepath    string   `yaml:"filepath"`
 	Levels      []string `yaml:"levels"`
-	ExcludePkgs []string `yaml:exclude_pkgs`
+	ExcludePkgs []string `yaml:"exclude_pkgs"`
 }
 
 // TODO: need to add a file write lock

@@ -29,6 +29,8 @@ var Trans = struct {
 
 var Color = struct {
 	Header     *color.Color
+	Hilite     *color.Color
+	Faint      *color.Color
 	Error      *color.Color
 	Success    *color.Color
 	Datasource *color.Color
@@ -41,6 +43,8 @@ var Color = struct {
 	Null       *color.Color
 }{
 	Header:     color.New(color.FgHiBlue),
+	Hilite:     color.New(color.FgHiBlue),
+	Faint:      color.New(color.Faint),
 	Error:      color.New(color.FgRed, color.Bold),
 	Success:    color.New(color.FgGreen, color.Bold),
 	Datasource: color.New(color.FgCyan),

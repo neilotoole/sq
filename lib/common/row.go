@@ -119,7 +119,7 @@ func (r *ResultRow) NamedValue(name string, errIfNil bool) (interface{}, error) 
 
 	index, ok := r.fieldValMap[name]
 	if !ok {
-		return nil, util.Errorf("named value %q not found")
+		return nil, util.Errorf("named value %q not found", name)
 	}
 
 	valuer, ok := r.Values[index].(driver.Valuer)

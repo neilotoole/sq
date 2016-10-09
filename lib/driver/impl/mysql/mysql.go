@@ -94,8 +94,6 @@ func (d *Driver) Metadata(src *driver.Source) (*driver.SourceMetadata, error) {
 	}
 
 	return meta, nil
-
-	return nil, util.Errorf("not implemented")
 }
 
 func populateTblMetadata(db *sql.DB, dbName string, tbl *driver.Table) error {
