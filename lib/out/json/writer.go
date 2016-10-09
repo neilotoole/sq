@@ -43,3 +43,11 @@ func (w *JSONWriter) Metadata(meta *driver.SourceMetadata) error {
 	fmt.Println(string(bytes))
 	return nil
 }
+
+func (rw *JSONWriter) Open() error {
+	return nil
+}
+
+func (rw *JSONWriter) Close() error {
+	return nil
+}

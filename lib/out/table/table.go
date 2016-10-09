@@ -15,12 +15,12 @@ import (
 	sqdriver "github.com/neilotoole/sq/lib/driver" // TODO: change this back to driver when we remove the dependency on sql driver
 	"github.com/neilotoole/sq/lib/out"
 	"github.com/neilotoole/sq/lib/out/json/pretty"
-	"github.com/neilotoole/sq/lib/out/table/tablewriter"
+	"github.com/neilotoole/sq/lib/out/table/textable"
 	"github.com/neilotoole/sq/lib/util"
 )
 
 type TextWriter struct {
-	tbl     *tablewriter.Table
+	tbl     *texttable.Table
 	f       *pretty.Formatter
 	headers bool
 }
@@ -37,7 +37,7 @@ func NewWriter(headers bool) *TextWriter {
 
 func (t *TextWriter) Reset() {
 
-	t.tbl = tablewriter.NewWriter(os.Stdout)
+	t.tbl = texttable.NewWriter(os.Stdout)
 	t.setTableWriterOptions()
 	t.f = pretty.NewFormatter()
 	t.tbl.SetAutoFormatHeaders(false)
@@ -45,14 +45,14 @@ func (t *TextWriter) Reset() {
 }
 
 func (t *TextWriter) setTableWriterOptions() {
-	t.tbl.SetAlignment(tablewriter.AlignLeft)
+	t.tbl.SetAlignment(texttable.AlignLeft)
 	t.tbl.SetAutoWrapText(true)
 	t.tbl.SetBorder(false)
-	t.tbl.SetHeaderAlignment(tablewriter.AlignLeft)
+	t.tbl.SetHeaderAlignment(texttable.AlignLeft)
 	t.tbl.SetCenterSeparator("")
 	t.tbl.SetColumnSeparator("")
 	t.tbl.SetRowSeparator("")
-	t.tbl.SetBorders(tablewriter.Border{Left: false, Top: false, Right: false, Bottom: false})
+	t.tbl.SetBorders(texttable.Border{Left: false, Top: false, Right: false, Bottom: false})
 	t.tbl.SetAutoFormatHeaders(false)
 	t.tbl.SetHeaderDisable(!t.headers)
 }
@@ -204,6 +204,14 @@ func (t *TextWriter) Metadata(meta *sqdriver.SourceMetadata) error {
 	t.tbl.SetColTrans(3, out.Trans.Number)
 
 	t.renderRows(rows)
+	return nil
+}
+
+func (rw *TextWriter) Open() error {
+	return nil
+}
+
+func (rw *TextWriter) Close() error {
 	return nil
 }
 
