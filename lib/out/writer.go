@@ -6,6 +6,12 @@ import (
 )
 
 type ResultWriter interface {
+	Open() error
 	ResultRows(rows []*common.ResultRow) error
+	Close() error
+	Metadata(meta *driver.SourceMetadata) error
+}
+
+type MetadataWriter interface {
 	Metadata(meta *driver.SourceMetadata) error
 }

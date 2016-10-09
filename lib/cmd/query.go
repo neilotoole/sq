@@ -12,7 +12,8 @@ import (
 	"github.com/neilotoole/sq/lib/out/json"
 	"github.com/neilotoole/sq/lib/out/raw"
 	"github.com/neilotoole/sq/lib/out/table"
-	"github.com/neilotoole/sq/lib/ql"
+	"github.com/neilotoole/sq/lib/out/xlsx"
+	"github.com/neilotoole/sq/lib/sq"
 	"github.com/spf13/cobra"
 )
 
@@ -51,12 +52,12 @@ func execQuery(cmd *cobra.Command, args []string) error {
 	//	return fmt.Errorf("no active datasource")
 	//}
 
-	ql.SetSourceSet(cfg.SourceSet)
+	sq.SetSourceSet(cfg.SourceSet)
 
 	for i, arg := range args {
 		args[i] = strings.TrimSpace(arg)
 	}
-	query := strings.Join(args, " ")
+	qry := strings.Join(args, " ")
 
 	//var ds *driver.Source
 	writer := getResultWriter(cmd)
@@ -87,7 +88,7 @@ func execQuery(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		err = ql.ExecuteSQ(sqQuery, writer)
+		err = sq.ExecuteSQ(sqQuery, writer)
 		return err
 		//q, err = ql.ToSQL(q)
 		//if err != nil {
@@ -109,11 +110,11 @@ func execQuery(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("no active datasource")
 	}
 
-	database, err := ql.NewDatabase(src)
+	database, err := sq.NewDatabase(src)
 	if err != nil {
 		return err
 	}
-	err = database.ExecuteAndWrite(query, writer)
+	err = database.ExecuteAndWrite(qry, writer)
 	return err
 }
 
@@ -170,6 +171,7 @@ func setQueryCmdOptions(cmd *cobra.Command) {
 func setQueryOutputOptions(cmd *cobra.Command) {
 	cmd.Flags().BoolP(FlagJSON, FlagJSONShort, false, FlagJSONUsage)
 	cmd.Flags().BoolP(FlagTable, FlagTableShort, false, FlagTableUsage)
+	cmd.Flags().BoolP(FlagXLSX, FlagXLSXShort, false, FlagXLSXUsage)
 	cmd.Flags().BoolP(FlagHeader, FlagHeaderShort, false, FlagHeaderUsage)
 	cmd.Flags().BoolP(FlagNoHeader, FlagNoHeaderShort, false, FlagNoHeaderUsage)
 }
@@ -206,6 +208,10 @@ func getResultWriter(cmd *cobra.Command) out.ResultWriter {
 
 	format := cfg.Options.Format
 
+	if cmd.Flags().Changed(FlagXLSX) {
+		format = config.FormatXLSX
+	}
+
 	if cmd.Flags().Changed(FlagRaw) {
 		format = config.FormatRaw
 	}
@@ -219,6 +225,8 @@ func getResultWriter(cmd *cobra.Command) out.ResultWriter {
 	}
 
 	switch format {
+	case config.FormatXLSX:
+		return xlsx.NewWriter()
 	case config.FormatRaw:
 		return raw.NewWriter()
 	case config.FormatTable:

@@ -21,6 +21,7 @@ const FormatJSON Format = "json"
 const FormatTable Format = "table"
 const FormatGrid Format = "grid"
 const FormatRaw Format = "raw"
+const FormatXLSX Format = "xlsx"
 
 var conf *Config
 var str Store

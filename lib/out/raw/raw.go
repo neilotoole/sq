@@ -26,6 +26,13 @@ func (rw *RawWriter) Metadata(meta *driver.SourceMetadata) error {
 	return util.Errorf("not implemented")
 }
 
+func (rw *RawWriter) Open() error {
+	return nil
+}
+func (rw *RawWriter) Close() error {
+	return nil
+}
+
 func (rw *RawWriter) ResultRows(rows []*common.ResultRow) error {
 
 	if len(rows) == 0 {

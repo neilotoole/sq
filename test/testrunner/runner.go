@@ -67,9 +67,9 @@ func main() {
 		//ql.TestRowRange4,
 		//ql.TestRowRange5,
 		//ql.TestRowRange6,
-		ql.TestBuild2,
+		query.TestBuild2,
 		//ql.TestInspector_findSegments,
-		ql.TestInspector_findSelectableSegments,
+		query.TestInspector_findSelectableSegments,
 	}
 
 	testing.Run("ql", tests...)

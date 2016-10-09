@@ -12,7 +12,7 @@ import (
 	"github.com/neilotoole/go-lg/lg"
 	"github.com/neilotoole/sq/lib/driver"
 	"github.com/neilotoole/sq/lib/out"
-	"github.com/neilotoole/sq/lib/ql"
+	"github.com/neilotoole/sq/lib/sq"
 	"github.com/spf13/cobra"
 )
 
@@ -144,8 +144,8 @@ func doPingOne(src *driver.Source, maxNameLen int, unfinishedSrcs *hashset.Set, 
 	start := time.Now()
 
 	var err error
-	var database *ql.Database
-	database, err = ql.NewDatabase(src)
+	var database *sq.Database
+	database, err = sq.NewDatabase(src)
 	if err == nil {
 		err = database.Ping()
 	}
