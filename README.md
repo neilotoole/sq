@@ -85,5 +85,6 @@ that your username is `ksoze`.
 	```
 	> make install
 	```
-- That should be it.
+- That should be it. Try `sq ls`. Note that `sq` by default will attempt to create
+  a config file in `~/.sq/sq.yml` and output debug logs to `~/.sq/sq.log`.
 
