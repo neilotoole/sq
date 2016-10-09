@@ -10,7 +10,7 @@ import (
 
 	"github.com/emirpasic/gods/sets/hashset"
 	"github.com/neilotoole/go-lg/lg"
-	"github.com/neilotoole/sq/lib/driver"
+	"github.com/neilotoole/sq/lib/drvr"
 	"github.com/neilotoole/sq/lib/out"
 	"github.com/neilotoole/sq/lib/sq"
 	"github.com/spf13/cobra"
@@ -48,13 +48,13 @@ func execPing(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid arguments")
 	}
 
-	var srcs []*driver.Source
+	var srcs []*drvr.Source
 
 	if cmd.Flags().Changed(FlagPingAll) {
 		srcs = cfg.SourceSet.Items
 	} else {
 		var err error
-		var src *driver.Source
+		var src *drvr.Source
 		if len(args) == 0 {
 			ok := false
 			src, ok = cfg.SourceSet.Active()
@@ -69,7 +69,7 @@ func execPing(cmd *cobra.Command, args []string) error {
 			}
 		}
 
-		srcs = []*driver.Source{src}
+		srcs = []*drvr.Source{src}
 	}
 
 	lg.Debugf("got srcs: %d", len(srcs))
@@ -77,7 +77,7 @@ func execPing(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func doPing(srcs []*driver.Source) {
+func doPing(srcs []*drvr.Source) {
 
 	//timeout := 5
 	mu := &sync.Mutex{}
@@ -120,7 +120,7 @@ func doPing(srcs []*driver.Source) {
 
 	//fmt.Printf("Num unfinished: %d\n", unfinishedSrcs.Size())
 	for _, val := range unfinishedSrcs.Values() {
-		src := val.(*driver.Source)
+		src := val.(*drvr.Source)
 
 		out.Color.Number.Printf("%-"+strconv.Itoa(maxNameLen)+"s", src.Handle)
 		//color.Set(out.Attrs.Number)
@@ -138,7 +138,7 @@ func doPing(srcs []*driver.Source) {
 	}
 }
 
-func doPingOne(src *driver.Source, maxNameLen int, unfinishedSrcs *hashset.Set, mu *sync.Mutex, wg *sync.WaitGroup) {
+func doPingOne(src *drvr.Source, maxNameLen int, unfinishedSrcs *hashset.Set, mu *sync.Mutex, wg *sync.WaitGroup) {
 	lg.Debugf("starting...")
 	defer wg.Done()
 	start := time.Now()

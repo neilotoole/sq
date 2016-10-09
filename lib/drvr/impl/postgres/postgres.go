@@ -7,24 +7,24 @@ import (
 	"github.com/neilotoole/go-lg/lg"
 	_ "github.com/neilotoole/sq-driver/hackery/database/drivers/postgres"
 	"github.com/neilotoole/sq-driver/hackery/database/sql"
-	"github.com/neilotoole/sq/lib/driver"
+	"github.com/neilotoole/sq/lib/drvr"
 	"github.com/neilotoole/sq/lib/util"
 )
 
 type Driver struct {
 }
 
-const typ = driver.Type("postgres")
+const typ = drvr.Type("postgres")
 
-func (d *Driver) Type() driver.Type {
-	return driver.Type("postgres")
+func (d *Driver) Type() drvr.Type {
+	return drvr.Type("postgres")
 }
 
-func (d *Driver) ConnURI(source *driver.Source) (string, error) {
+func (d *Driver) ConnURI(source *drvr.Source) (string, error) {
 	return "", util.Errorf("not implemented")
 }
 
-func (d *Driver) Open(src *driver.Source) (*sql.DB, error) {
+func (d *Driver) Open(src *drvr.Source) (*sql.DB, error) {
 	return sql.Open(string(src.Type), src.ConnURI())
 }
 
@@ -32,14 +32,14 @@ func (d *Driver) Release() error {
 	return nil
 }
 
-func (d *Driver) ValidateSource(src *driver.Source) (*driver.Source, error) {
+func (d *Driver) ValidateSource(src *drvr.Source) (*drvr.Source, error) {
 	if src.Type != typ {
 		return nil, util.Errorf("expected source type %q but got %q", typ, src.Type)
 	}
 	return src, nil
 }
 
-func (d *Driver) Ping(src *driver.Source) error {
+func (d *Driver) Ping(src *drvr.Source) error {
 	db, err := d.Open(src)
 	if err != nil {
 		return err
@@ -48,9 +48,9 @@ func (d *Driver) Ping(src *driver.Source) error {
 	return db.Ping()
 }
 
-func (d *Driver) Metadata(src *driver.Source) (*driver.SourceMetadata, error) {
+func (d *Driver) Metadata(src *drvr.Source) (*drvr.SourceMetadata, error) {
 
-	meta := &driver.SourceMetadata{}
+	meta := &drvr.SourceMetadata{}
 	meta.Handle = src.Handle
 	meta.Location = src.Location
 	db, err := d.Open(src)
@@ -79,7 +79,7 @@ func (d *Driver) Metadata(src *driver.Source) (*driver.SourceMetadata, error) {
 
 	for rows.Next() {
 
-		tbl := &driver.Table{}
+		tbl := &drvr.Table{}
 
 		var tblCatalog, tblSchema, tblName string
 
@@ -105,7 +105,7 @@ func (d *Driver) Metadata(src *driver.Source) (*driver.SourceMetadata, error) {
 
 }
 
-func populateTblMetadata(db *sql.DB, tblCatalog string, tblSchema string, tblName string, tbl *driver.Table) error {
+func populateTblMetadata(db *sql.DB, tblCatalog string, tblSchema string, tblName string, tbl *drvr.Table) error {
 
 	//row := db.QueryRow(fmt.Sprintf("SELECT pg_total_relation_size('%s')"), tbl.Name)
 	//row := db.QueryRow(fmt.Sprintf(`SELECT pg_total_relation_size('%s')`), tbl.Name)
@@ -190,7 +190,7 @@ WHERE  i.indrelid = '%s.%s'::regclass AND i.indisprimary`
 
 	for rows.Next() {
 
-		col := &driver.Column{}
+		col := &drvr.Column{}
 		var isNullable string
 		comment := &sql.NullString{}
 		err = rows.Scan(&col.Name, &col.ColType, &col.Datatype, &col.Position, &isNullable, comment)
@@ -231,7 +231,7 @@ WHERE  a.attnum > 0 AND NOT a.attisdropped AND a.attrelid = '%s.%s'::regclass  A
 
 func init() {
 	d := &Driver{}
-	driver.Register(d)
+	drvr.Register(d)
 }
 
 /*

@@ -1,4 +1,4 @@
-package driver_test
+package drvr_test
 
 import (
 	"testing"
@@ -9,14 +9,14 @@ import (
 
 	_ "github.com/neilotoole/sq/test/gotestutil"
 
-	"github.com/neilotoole/sq/lib/driver"
 	_ "github.com/neilotoole/sq/lib/driver/impl"
+	"github.com/neilotoole/sq/lib/drvr"
 )
 
-const typMySQL = driver.Type("mysql")
-const typPostgres = driver.Type("postgres")
-const typSQLite3 = driver.Type("sqlite3")
-const typXSLX = driver.Type("xlsx")
+const typMySQL = drvr.Type("mysql")
+const typPostgres = drvr.Type("postgres")
+const typSQLite3 = drvr.Type("sqlite3")
+const typXSLX = drvr.Type("xlsx")
 
 func init() {
 	fmt.Println("driver.init() (Test)")
@@ -24,13 +24,13 @@ func init() {
 
 func TestSource_Driver(t *testing.T) {
 
-	src, err := driver.NewSource("@a1", "mysql://user:pass@localhost:3306/mydb1")
+	src, err := drvr.NewSource("@a1", "mysql://user:pass@localhost:3306/mydb1")
 	require.Nil(t, err)
 	require.Equal(t, typMySQL, src.Type)
 	require.Equal(t, "[@a1] mysql://user:pass@localhost:3306/mydb1", src.String())
 	require.Equal(t, "user:pass@localhost:3306/mydb1", src.ConnURI())
 
-	src, err = driver.NewSource("@a1", "postgres://pqgotest:password@localhost/pqgotest")
+	src, err = drvr.NewSource("@a1", "postgres://pqgotest:password@localhost/pqgotest")
 	require.Nil(t, err)
 	require.Equal(t, typPostgres, src.Type)
 	require.Equal(t, "[@a1] postgres://pqgotest:password@localhost/pqgotest", src.String())
@@ -42,7 +42,7 @@ func TestSourceGetTypeFromRef(t *testing.T) {
 
 	items := []struct {
 		loc string
-		typ driver.Type
+		typ drvr.Type
 	}{
 		{`mysql://root:root@tcp(localhost:33067)/sq_mydb1`, typMySQL},
 		{`postgres://sq:sq@localhost/sq_pg1?sslmode=disable`, typPostgres},
@@ -54,7 +54,7 @@ func TestSourceGetTypeFromRef(t *testing.T) {
 
 	for _, item := range items {
 
-		typ, err := driver.GetTypeFromSourceLocation(item.loc)
+		typ, err := drvr.GetTypeFromSourceLocation(item.loc)
 		require.Nil(t, err)
 		require.Equal(t, item.typ, typ)
 	}
@@ -76,14 +76,14 @@ func TestSourceGetTypeFromRef(t *testing.T) {
 
 func TestDataSources(t *testing.T) {
 
-	srcs := driver.NewSourceSet()
+	srcs := drvr.NewSourceSet()
 
-	mydb1, err := driver.NewSource("@mydb1", "mysql://user:pass@localhost:3306/mydb1")
+	mydb1, err := drvr.NewSource("@mydb1", "mysql://user:pass@localhost:3306/mydb1")
 	require.Nil(t, err)
 	require.NotNil(t, mydb1)
 	require.Equal(t, typMySQL, mydb1.Type)
 
-	pg1, err := driver.NewSource("@pg1", "postgres://pqgotest:password@localhost/pqgotest")
+	pg1, err := drvr.NewSource("@pg1", "postgres://pqgotest:password@localhost/pqgotest")
 	require.Nil(t, err)
 	require.NotNil(t, pg1)
 	require.Equal(t, typPostgres, pg1.Type)

@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/neilotoole/go-lg/lg"
-	"github.com/neilotoole/sq/lib/driver"
+	"github.com/neilotoole/sq/lib/drvr"
 )
 
 var buildVersion string
@@ -29,9 +29,9 @@ var str Store
 // Config holds application config/session data.
 type Config struct {
 	cfgDir    string
-	Options   Options           `yaml:"options"`
-	Log       Log               `yaml:"log"`
-	SourceSet *driver.SourceSet `yaml:"sources"`
+	Options   Options         `yaml:"options"`
+	Log       Log             `yaml:"log"`
+	SourceSet *drvr.SourceSet `yaml:"sources"`
 }
 
 type Options struct {
@@ -94,7 +94,7 @@ func applyDefaults(cfg *Config) {
 	lg.Debugf("checking that cfg has default values set")
 
 	if cfg.SourceSet == nil {
-		cfg.SourceSet = &driver.SourceSet{}
+		cfg.SourceSet = &drvr.SourceSet{}
 	}
 
 	if cfg.Options.QueryMode == "" {

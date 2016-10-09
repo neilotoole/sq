@@ -9,24 +9,24 @@ import (
 
 	"github.com/neilotoole/go-lg/lg"
 	"github.com/neilotoole/sq-driver/hackery/database/sql"
-	"github.com/neilotoole/sq/lib/driver"
+	"github.com/neilotoole/sq/lib/drvr"
 	"github.com/neilotoole/sq/lib/util"
 )
 
-const typ = driver.Type("sqlite3")
+const typ = drvr.Type("sqlite3")
 
 type Driver struct {
 }
 
-func (d *Driver) Type() driver.Type {
+func (d *Driver) Type() drvr.Type {
 	return typ
 }
 
-func (d *Driver) ConnURI(source *driver.Source) (string, error) {
+func (d *Driver) ConnURI(source *drvr.Source) (string, error) {
 	return "", util.Errorf("not implemented")
 }
 
-func (d *Driver) Open(src *driver.Source) (*sql.DB, error) {
+func (d *Driver) Open(src *drvr.Source) (*sql.DB, error) {
 	return sql.Open(string(src.Type), src.ConnURI())
 }
 
@@ -34,14 +34,14 @@ func (d *Driver) Release() error {
 	return nil
 }
 
-func (d *Driver) ValidateSource(src *driver.Source) (*driver.Source, error) {
+func (d *Driver) ValidateSource(src *drvr.Source) (*drvr.Source, error) {
 	if src.Type != typ {
 		return nil, util.Errorf("expected driver type %q but got %q", typ, src.Type)
 	}
 	return src, nil
 }
 
-func (d *Driver) Ping(src *driver.Source) error {
+func (d *Driver) Ping(src *drvr.Source) error {
 	db, err := d.Open(src)
 	if err != nil {
 		return err
@@ -50,9 +50,9 @@ func (d *Driver) Ping(src *driver.Source) error {
 	return db.Ping()
 }
 
-func (d *Driver) Metadata(src *driver.Source) (*driver.SourceMetadata, error) {
+func (d *Driver) Metadata(src *drvr.Source) (*drvr.SourceMetadata, error) {
 
-	meta := &driver.SourceMetadata{}
+	meta := &drvr.SourceMetadata{}
 	meta.Handle = src.Handle
 
 	q := "SELECT tbl_name FROM sqlite_master WHERE type = 'table'"
@@ -81,7 +81,7 @@ func (d *Driver) Metadata(src *driver.Source) (*driver.SourceMetadata, error) {
 
 	for rows.Next() {
 
-		tbl := &driver.Table{}
+		tbl := &drvr.Table{}
 
 		err = rows.Scan(&tbl.Name)
 		if err != nil {
@@ -100,7 +100,7 @@ func (d *Driver) Metadata(src *driver.Source) (*driver.SourceMetadata, error) {
 	return meta, nil
 }
 
-func populateTblMetadata(db *sql.DB, dbName string, tbl *driver.Table) error {
+func populateTblMetadata(db *sql.DB, dbName string, tbl *drvr.Table) error {
 
 	// No easy way of getting size of table
 	tbl.Size = -1
@@ -126,7 +126,7 @@ func populateTblMetadata(db *sql.DB, dbName string, tbl *driver.Table) error {
 
 	for rows.Next() {
 
-		col := &driver.Column{}
+		col := &drvr.Column{}
 
 		var notnull int64
 		defVal := &sql.NullString{}
@@ -146,5 +146,5 @@ func populateTblMetadata(db *sql.DB, dbName string, tbl *driver.Table) error {
 
 func init() {
 	d := &Driver{}
-	driver.Register(d)
+	drvr.Register(d)
 }

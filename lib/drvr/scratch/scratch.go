@@ -10,7 +10,7 @@ import (
 
 	"github.com/neilotoole/go-lg/lg"
 	"github.com/neilotoole/sq-driver/hackery/database/sql"
-	"github.com/neilotoole/sq/lib/driver"
+	"github.com/neilotoole/sq/lib/drvr"
 	"github.com/neilotoole/sq/lib/shutdown"
 	"github.com/neilotoole/sq/lib/util"
 )
@@ -36,7 +36,7 @@ func Init(scratchDir string) {
 	workDir = scratchDir
 }
 
-func OpenNew() (*driver.Source, *sql.DB, error) {
+func OpenNew() (*drvr.Source, *sql.DB, error) {
 
 	src, filepath, err := newScratchSrc()
 	if err != nil {
@@ -64,8 +64,8 @@ func OpenNew() (*driver.Source, *sql.DB, error) {
 	return src, db, nil
 }
 
-func Type() driver.Type {
-	return driver.Type("sqlite3")
+func Type() drvr.Type {
+	return drvr.Type("sqlite3")
 }
 
 func generateFilename(dir string) (filename string, path string) {
@@ -84,7 +84,7 @@ func generateFilename(dir string) (filename string, path string) {
 
 }
 
-func newScratchSrc() (*driver.Source, string, error) {
+func newScratchSrc() (*drvr.Source, string, error) {
 
 	var dir string
 
@@ -97,8 +97,8 @@ func newScratchSrc() (*driver.Source, string, error) {
 	filename, path := generateFilename(dir)
 	lg.Debugf("creating scratch datasource (sqlite3): %s", filename)
 
-	src := &driver.Source{}
-	src.Type = driver.Type("sqlite3")
+	src := &drvr.Source{}
+	src.Type = drvr.Type("sqlite3")
 	src.Handle = "scratch_" + filename
 	src.Location = "sqlite3://" + path
 	return src, path, nil

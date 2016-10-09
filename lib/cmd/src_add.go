@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"github.com/neilotoole/sq/lib/driver"
+	"github.com/neilotoole/sq/lib/drvr"
 	"github.com/neilotoole/sq/lib/out/table"
 	"github.com/neilotoole/sq/lib/util"
 	"github.com/spf13/cobra"
@@ -66,7 +66,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 	location := args[0]
 	handle := args[1]
 
-	err := driver.CheckHandleValue(handle)
+	err := drvr.CheckHandleValue(handle)
 	if err != nil {
 		return err
 	}
@@ -80,7 +80,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		return util.Errorf("data source handle %q already exists", handle)
 	}
 
-	src, err := driver.NewSource(handle, location)
+	src, err := drvr.NewSource(handle, location)
 	if err != nil {
 		return err
 	}

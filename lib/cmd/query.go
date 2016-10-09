@@ -7,7 +7,7 @@ import (
 
 	"github.com/neilotoole/go-lg/lg"
 	"github.com/neilotoole/sq/lib/config"
-	"github.com/neilotoole/sq/lib/driver"
+	"github.com/neilotoole/sq/lib/drvr"
 	"github.com/neilotoole/sq/lib/out"
 	"github.com/neilotoole/sq/lib/out/json"
 	"github.com/neilotoole/sq/lib/out/raw"
@@ -118,7 +118,7 @@ func execQuery(cmd *cobra.Command, args []string) error {
 	return err
 }
 
-func getSQQueryWithDatasource(args []string) (*driver.Source, string, error) {
+func getSQQueryWithDatasource(args []string) (*drvr.Source, string, error) {
 
 	start := strings.TrimSpace(args[0])
 	parts := strings.Split(start, " ")

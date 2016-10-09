@@ -1,4 +1,4 @@
-package driver
+package drvr
 
 import (
 	"fmt"
@@ -51,14 +51,14 @@ func NewSource(handle string, location string) (*Source, error) {
 
 	src := &Source{Handle: handle, Location: location, Type: typ}
 
-	drvr, err := For(src)
+	drv, err := For(src)
 	if err != nil {
 		return nil, err
 	}
 
 	lg.Debugf("will now validate provisional new datasource: %q", src)
 
-	canonicalSource, err := drvr.ValidateSource(src)
+	canonicalSource, err := drv.ValidateSource(src)
 	return canonicalSource, err
 }
 
@@ -80,14 +80,14 @@ func GetTypeFromSourceLocation(location string) (Type, error) {
 	parts := strings.Split(location, "://")
 
 	if len(parts) > 1 && parts[0] != "http" && parts[0] != "https" {
-		drvrName := parts[0]
-		drvr, ok := drvrs[Type(drvrName)]
+		drvName := parts[0]
+		drv, ok := drvs[Type(drvName)]
 		if !ok {
-			return "", util.Errorf("unknown driver type %q in source location %q", drvrName, location)
+			return "", util.Errorf("unknown driver type %q in source location %q", drvName, location)
 		}
 
-		lg.Debugf("found datasource type %q for location %q", drvr.Type(), location)
-		return drvr.Type(), nil
+		lg.Debugf("found datasource type %q for location %q", drv.Type(), location)
+		return drv.Type(), nil
 	}
 
 	// check if it's http or https
@@ -106,13 +106,13 @@ func GetTypeFromSourceLocation(location string) (Type, error) {
 			return "", util.Errorf("unable to determine source type from file suffix in location %q", location)
 		}
 
-		drvr, ok := drvrs[Type(strings.ToLower(suffix))]
+		drv, ok := drvs[Type(strings.ToLower(suffix))]
 		if !ok {
 			return "", util.Errorf("no driver for file suffix %q in source location %q", suffix, location)
 		}
 
-		lg.Debugf("found datasource type %q for location %q", drvr.Type(), location)
-		return drvr.Type(), nil
+		lg.Debugf("found datasource type %q for location %q", drv.Type(), location)
+		return drv.Type(), nil
 
 	}
 
@@ -122,13 +122,13 @@ func GetTypeFromSourceLocation(location string) (Type, error) {
 	if !ok {
 		return "", util.Errorf("unable to determine source type from file suffix in location %q", location)
 	}
-	drvr, ok := drvrs[Type(strings.ToLower(suffix))]
+	drv, ok := drvs[Type(strings.ToLower(suffix))]
 	if !ok {
 		return "", util.Errorf("no driver for file suffix %q in source location %q", suffix, location)
 	}
 
-	lg.Debugf("found datasource type %q for location %q", drvr.Type(), location)
-	return drvr.Type(), nil
+	lg.Debugf("found datasource type %q for location %q", drv.Type(), location)
+	return drv.Type(), nil
 }
 
 func getFileSuffixFromPath(path string) (suffix string, ok bool) {
@@ -191,7 +191,7 @@ func IsValidSourceLocation(location string) bool {
 
 	typ := Type(parts[0])
 
-	_, ok := drvrs[typ]
+	_, ok := drvs[typ]
 	if !ok {
 		lg.Debugf("given source location %q, no driver found for location component %q", location, typ)
 	}
