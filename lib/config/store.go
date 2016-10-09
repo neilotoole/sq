@@ -95,3 +95,23 @@ func (f *FileStore) checkFile() error {
 	conf := NewConfig()
 	return f.Save(conf)
 }
+
+// InMemoryStore is a memory-based impl of Store. Useful for testing.
+type InMemoryStore struct {
+}
+
+func (f *InMemoryStore) String() string {
+	return "in-memory config store"
+}
+
+// Load returns a new config
+func (f *InMemoryStore) Load() (*Config, error) {
+
+	return NewConfig(), nil
+}
+
+// Save is a no-op
+func (f *InMemoryStore) Save(cfg *Config) error {
+
+	return nil
+}

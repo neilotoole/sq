@@ -51,7 +51,7 @@ func (d *Driver) Ping(src *driver.Source) error {
 func (d *Driver) Metadata(src *driver.Source) (*driver.SourceMetadata, error) {
 
 	meta := &driver.SourceMetadata{}
-	meta.Ref = src.Ref
+	meta.Handle = src.Handle
 	meta.Location = src.Location
 	db, err := d.Open(src)
 	if err != nil {
@@ -94,8 +94,6 @@ func (d *Driver) Metadata(src *driver.Source) (*driver.SourceMetadata, error) {
 	}
 
 	return meta, nil
-
-	return nil, util.Errorf("not implemented")
 }
 
 func populateTblMetadata(db *sql.DB, dbName string, tbl *driver.Table) error {

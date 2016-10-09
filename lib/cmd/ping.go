@@ -10,7 +10,6 @@ import (
 
 	"github.com/emirpasic/gods/sets/hashset"
 	"github.com/neilotoole/go-lg/lg"
-	"github.com/neilotoole/sq/lib/config"
 	"github.com/neilotoole/sq/lib/driver"
 	"github.com/neilotoole/sq/lib/out"
 	"github.com/neilotoole/sq/lib/ql"
@@ -52,19 +51,19 @@ func execPing(cmd *cobra.Command, args []string) error {
 	var srcs []*driver.Source
 
 	if cmd.Flags().Changed(FlagPingAll) {
-		srcs = config.Default().SourceSet.Items
+		srcs = cfg.SourceSet.Items
 	} else {
 		var err error
 		var src *driver.Source
 		if len(args) == 0 {
 			ok := false
-			src, ok = config.Default().SourceSet.Active()
+			src, ok = cfg.SourceSet.Active()
 			if !ok {
 				return fmt.Errorf("can't get active data source")
 			}
 		} else {
 
-			src, err = config.Default().SourceSet.Get(args[0])
+			src, err = cfg.SourceSet.Get(args[0])
 			if err != nil {
 				return err
 			}
@@ -89,8 +88,8 @@ func doPing(srcs []*driver.Source) {
 	unfinishedSrcs := hashset.New()
 	for _, src := range srcs {
 		unfinishedSrcs.Add(src)
-		if len(src.Ref) > maxNameLen {
-			maxNameLen = len(src.Ref)
+		if len(src.Handle) > maxNameLen {
+			maxNameLen = len(src.Handle)
 		}
 	}
 
@@ -108,7 +107,7 @@ func doPing(srcs []*driver.Source) {
 		close(done)
 	}()
 
-	timeout := config.Default().Options.Timeout
+	timeout := cfg.Options.Timeout
 	lg.Debugf("using ping timeout: %s", timeout)
 
 	select {
@@ -123,7 +122,7 @@ func doPing(srcs []*driver.Source) {
 	for _, val := range unfinishedSrcs.Values() {
 		src := val.(*driver.Source)
 
-		out.Color.Number.Printf("%-"+strconv.Itoa(maxNameLen)+"s", src.Ref)
+		out.Color.Number.Printf("%-"+strconv.Itoa(maxNameLen)+"s", src.Handle)
 		//color.Set(out.Attrs.Number)
 		//fmt.Printf("%-"+strconv.Itoa(maxNameLen)+"s", src.Ref)
 		//color.Unset()
@@ -159,7 +158,7 @@ func doPingOne(src *driver.Source, maxNameLen int, unfinishedSrcs *hashset.Set, 
 
 	unfinishedSrcs.Remove(src)
 
-	out.Color.Number.Printf("%-"+strconv.Itoa(maxNameLen)+"s", src.Ref)
+	out.Color.Number.Printf("%-"+strconv.Itoa(maxNameLen)+"s", src.Handle)
 
 	fmt.Printf(" %4dms    ", duration/time.Millisecond)
 

@@ -3,12 +3,11 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/neilotoole/sq/lib/config"
 	"github.com/neilotoole/sq/lib/out/table"
 	"github.com/spf13/cobra"
 )
 
-var srcUse = &cobra.Command{
+var srcCmd = &cobra.Command{
 	Use: "src [@HANDLE]",
 	Example: `  # get active data source
    sq src
@@ -22,8 +21,8 @@ source. Otherwise, set @HANDLE as the active data source.`,
 }
 
 func init() {
-	preprocessCmd(srcUse)
-	RootCmd.AddCommand(srcUse)
+	preprocessCmd(srcCmd)
+	RootCmd.AddCommand(srcCmd)
 
 }
 
@@ -34,7 +33,7 @@ func execUse(cmd *cobra.Command, args []string) error {
 	}
 
 	w := table.NewWriter(true)
-	cfg := config.Default()
+	//cfg := cfg
 
 	if len(args) == 0 {
 		// Get the active data source
@@ -53,7 +52,7 @@ func execUse(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	err = cfg.Save()
+	err = saveConfig()
 	if err != nil {
 		return err
 	}

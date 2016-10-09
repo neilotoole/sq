@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/neilotoole/sq/lib/config"
 	"github.com/spf13/cobra"
 )
 
@@ -28,24 +27,24 @@ func execSrcRemove(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid arguments")
 	}
 
-	cfg := config.Default()
+	//cfg := cfg
 
 	src, err := cfg.SourceSet.Get(args[0])
 	if err != nil {
 		return err
 	}
 
-	err = cfg.SourceSet.Remove(src.Ref)
+	err = cfg.SourceSet.Remove(src.Handle)
 	if err != nil {
 		return err
 	}
 
-	err = cfg.Save()
+	err = saveConfig()
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("Datasource removed: %q", src.Ref)
+	fmt.Printf("Removed data source %q", src.Handle)
 	//db := db.New(src)
 	//
 	//err = db.New(src).Ping()

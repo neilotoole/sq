@@ -73,11 +73,11 @@ func (t *TextWriter) SourceSet(ss *sqdriver.SourceSet, active *sqdriver.Source) 
 	for i, src := range ss.Items {
 
 		row := []string{
-			src.Ref,
+			src.Handle,
 			string(src.Type),
 			src.Location}
 
-		if active != nil && src.Ref == active.Ref {
+		if active != nil && src.Handle == active.Handle {
 			// TODO: Add "SetRowTransformer"
 			t.tbl.SetCellTrans(i, 0, out.Trans.Bold)
 			t.tbl.SetCellTrans(i, 1, out.Trans.Bold)
@@ -90,7 +90,7 @@ func (t *TextWriter) SourceSet(ss *sqdriver.SourceSet, active *sqdriver.Source) 
 
 	t.tbl.SetColTrans(0, out.Trans.Number)
 
-	t.tbl.SetHeader([]string{"REF", "DRIVER", "LOCATION"})
+	t.tbl.SetHeader([]string{"HANDLE", "DRIVER", "LOCATION"})
 
 	t.renderRows(rows)
 }
@@ -100,14 +100,14 @@ func (t *TextWriter) Source(src *sqdriver.Source) {
 	var rows [][]string
 
 	row := []string{
-		src.Ref,
+		src.Handle,
 		string(src.Type),
 		src.Location}
 	rows = append(rows, row)
 
 	t.tbl.SetColTrans(0, out.Trans.Number)
 
-	t.tbl.SetHeader([]string{"REF", "DRIVER", "LOCATION"})
+	t.tbl.SetHeader([]string{"HANDLE", "DRIVER", "LOCATION"})
 
 	t.renderRows(rows)
 }
@@ -155,7 +155,7 @@ func (t *TextWriter) Metadata(meta *sqdriver.SourceMetadata) error {
 	headers := []string{"REF", "NAME", "FQ NAME", "SIZE", "TABLES", "LOCATION"}
 
 	row := []string{
-		meta.Ref,
+		meta.Handle,
 		meta.Name,
 		meta.FullyQualifiedName,
 		util.ByteSized(meta.Size, 1, ""),

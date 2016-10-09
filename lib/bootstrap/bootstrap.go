@@ -14,11 +14,13 @@ import (
 
 func init() {
 
+	cfgDir := configDir()
+
 	// The location of the log file can be specified via an envar.
 	path, ok := os.LookupEnv("SQ_LOGFILE")
 	if !ok {
 		// If the envar does not exist, we set it ourselves.
-		path = filepath.Join(configDir(), "sq.log")
+		path = filepath.Join(cfgDir, "sq.log")
 	}
 
 	os.Setenv("__LG_LOG_FILEPATH", path)
@@ -27,20 +29,13 @@ func init() {
 	_, ok = os.LookupEnv("SQ_CONFIG_FILEPATH")
 	if !ok {
 		// If the envar does not exist, we set it ourselves.
-		path := filepath.Join(configDir(), "sq.yml")
+		path := filepath.Join(cfgDir, "sq.yml")
 		os.Setenv("SQ_CONFIG_FILEPATH", path)
 	}
 }
 
-var cfgDir string
-
 // configDir returns the absolute path of "~/.sq/".
 func configDir() string {
-
-	if cfgDir != "" {
-
-		return cfgDir
-	}
 
 	home, err := homedir.Dir()
 	if err != nil {
@@ -48,7 +43,5 @@ func configDir() string {
 		os.Exit(1)
 	}
 
-	cfgDir = filepath.Join(home, ".sq")
-
-	return cfgDir
+	return filepath.Join(home, ".sq")
 }

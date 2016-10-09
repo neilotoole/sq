@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"github.com/neilotoole/sq/lib/config"
 	"github.com/neilotoole/sq/lib/driver"
 	"github.com/neilotoole/sq/lib/out/table"
 	"github.com/neilotoole/sq/lib/util"
@@ -57,28 +56,31 @@ func init() {
 func execSrcAdd(cmd *cobra.Command, args []string) error {
 
 	if len(args) == 1 {
-		return util.Errorf("sorry, the NAME argument is currently required, we'll fix that soon")
+		return util.Errorf("sorry, the HANDLE argument is currently required, we'll fix that soon")
 	}
 
 	if len(args) != 2 {
 		return util.Errorf("invalid arguments")
 	}
 
-	url := args[0]
-	name := args[1]
+	location := args[0]
+	handle := args[1]
 
-	if name[0] == '@' {
-		return util.Errorf("alias may not being with '@'")
+	err := driver.CheckHandleValue(handle)
+	if err != nil {
+		return err
 	}
 
-	cfg := config.Default()
+	//cfg := cfg
 
-	i, _ := cfg.SourceSet.IndexOf(name)
+	//srcs := cfg.Sources()
+
+	i, _ := cfg.SourceSet.IndexOf(handle)
 	if i != -1 {
-		return util.Errorf("data source already exists")
+		return util.Errorf("data source handle %q already exists", handle)
 	}
 
-	src, err := driver.NewSource(name, url)
+	src, err := driver.NewSource(handle, location)
 	if err != nil {
 		return err
 	}
@@ -89,26 +91,12 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 	}
 	if len(cfg.SourceSet.Items) == 1 {
 		// If this is the first DS, make it current
-		cfg.SourceSet.SetActive(src.Ref)
+		cfg.SourceSet.SetActive(src.Handle)
 	}
-	//
-	//
-	//existingIndex := -1
-	//
-	//for i, s := range cfg.Sources {
-	//	if s.Alias == alias {
-	//		existingIndex = i
-	//		break
-	//	}
-	//}
-	//
-	//if existingIndex >= 0 {
-	//	cfg.Sources[existingIndex] = src
-	//} else {
-	//	cfg.Sources = append(cfg.Sources, src)
-	//}
-	//
-	err = cfg.Save()
+
+	//cfg.SourceSet = *srcs
+
+	err = saveConfig()
 	if err != nil {
 		return err
 	}

@@ -53,7 +53,7 @@ func (d *Driver) Ping(src *driver.Source) error {
 func (d *Driver) Metadata(src *driver.Source) (*driver.SourceMetadata, error) {
 
 	meta := &driver.SourceMetadata{}
-	meta.Ref = src.Ref
+	meta.Handle = src.Handle
 
 	q := "SELECT tbl_name FROM sqlite_master WHERE type = 'table'"
 

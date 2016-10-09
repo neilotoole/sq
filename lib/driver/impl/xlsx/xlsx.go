@@ -99,7 +99,7 @@ func (d *Driver) Ping(src *driver.Source) error {
 func (d *Driver) Metadata(src *driver.Source) (*driver.SourceMetadata, error) {
 
 	meta := &driver.SourceMetadata{}
-	meta.Ref = src.Ref
+	meta.Handle = src.Handle
 
 	file, err := d.getSourceFile(src)
 	if err != nil {
@@ -255,7 +255,7 @@ func (d *Driver) getSourceFileName(src *driver.Source) (string, error) {
 
 	parts := strings.Split(src.Location, string(sep))
 	if len(parts) == 0 || len(parts[len(parts)-1]) == 0 {
-		return "", util.Errorf("illegal src [%s] location: %s", src.Ref, src.Location)
+		return "", util.Errorf("illegal src [%s] location: %s", src.Handle, src.Location)
 	}
 
 	return parts[len(parts)-1], nil
@@ -269,18 +269,18 @@ func (d *Driver) getSourceFile(src *driver.Source) (*os.File, error) {
 	//`https://s3.amazonaws.com/sq.neilotoole.io/testdata/1.0/xslx/test.xlsx`
 	//`/Users/neilotoole/nd/go/src/github.com/neilotoole/sq/test/xlsx/test.xlsx`
 
-	lg.Debugf("attempting to determine XLSX filepath from source ref %q", src.Location)
+	lg.Debugf("attempting to determine XLSX filepath from source location %q", src.Location)
 
 	if strings.HasPrefix(src.Location, "http://") || strings.HasPrefix(src.Location, "https://") {
 		lg.Debugf("attempting to fetch XLSX file from %q", src.Location)
 
 		resp, err := http.Get(src.Location)
 		if err != nil {
-			return nil, util.Errorf("unable to fetch XLSX file for datasource %q with ref %q due to error: %v", src.Ref, src.Location, err)
+			return nil, util.Errorf("unable to fetch XLSX file for datasource %q with location %q due to error: %v", src.Handle, src.Location, err)
 		}
 
 		if resp.StatusCode != http.StatusOK {
-			return nil, util.Errorf("unable to fetch XLSX file for datasource %q with ref %q due to HTTP status: %s/%d", src.Ref, src.Location, resp.Status, resp.StatusCode)
+			return nil, util.Errorf("unable to fetch XLSX file for datasource %q with location %q due to HTTP status: %s/%d", src.Handle, src.Location, resp.Status, resp.StatusCode)
 		}
 
 		lg.Debugf("success fetching remote XLSX file from %q", src.Location)
@@ -315,16 +315,6 @@ func (d *Driver) getSourceFile(src *driver.Source) (*os.File, error) {
 	}
 
 	return file, nil
-	//u, err := url.Parse(src.Ref)
-	//if err != nil {
-	//	return nil, util.WrapError(err)
-	//}
-	//
-	//if u.Path == "" {
-	//	return nil, util.Errorf("no path component found in source ref %q", src.Ref)
-	//}
-	//
-	//return u.Path, nil
 }
 
 func (d *Driver) xlsxToScratch(src *driver.Source, db *sql.DB) error {
