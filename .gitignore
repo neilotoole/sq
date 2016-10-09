@@ -33,6 +33,6 @@ test/grun/java/*
 sq.yml
 test/xlsx/~$test.xlsx
 sq
-dist/*.tar.gz
+dist/*
 
 
