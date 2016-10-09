@@ -44,6 +44,15 @@ const FlagTableShort string = "t"
 // FlagTableUsage is usage for FlagTable
 const FlagTableUsage string = "Table output"
 
+// FlagXLSX specifies XLSX output
+const FlagXLSX string = "xlsx"
+
+// FlagXLSXShort is shorthand for FlagXLSX
+const FlagXLSXShort string = "x"
+
+// FlagXLSXUsage is usage for FlagXLSX
+const FlagXLSXUsage string = "XLSX (Excel) output"
+
 // FlagHeader specifies that the output should include header information (where applicable)
 const FlagHeader string = "header"
 

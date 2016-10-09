@@ -12,6 +12,7 @@ import (
 	"github.com/neilotoole/sq/lib/out/json"
 	"github.com/neilotoole/sq/lib/out/raw"
 	"github.com/neilotoole/sq/lib/out/table"
+	"github.com/neilotoole/sq/lib/out/xlsx"
 	"github.com/neilotoole/sq/lib/sq"
 	"github.com/spf13/cobra"
 )
@@ -170,6 +171,7 @@ func setQueryCmdOptions(cmd *cobra.Command) {
 func setQueryOutputOptions(cmd *cobra.Command) {
 	cmd.Flags().BoolP(FlagJSON, FlagJSONShort, false, FlagJSONUsage)
 	cmd.Flags().BoolP(FlagTable, FlagTableShort, false, FlagTableUsage)
+	cmd.Flags().BoolP(FlagXLSX, FlagXLSXShort, false, FlagXLSXUsage)
 	cmd.Flags().BoolP(FlagHeader, FlagHeaderShort, false, FlagHeaderUsage)
 	cmd.Flags().BoolP(FlagNoHeader, FlagNoHeaderShort, false, FlagNoHeaderUsage)
 }
@@ -206,6 +208,10 @@ func getResultWriter(cmd *cobra.Command) out.ResultWriter {
 
 	format := cfg.Options.Format
 
+	if cmd.Flags().Changed(FlagXLSX) {
+		format = config.FormatXLSX
+	}
+
 	if cmd.Flags().Changed(FlagRaw) {
 		format = config.FormatRaw
 	}
@@ -219,6 +225,8 @@ func getResultWriter(cmd *cobra.Command) out.ResultWriter {
 	}
 
 	switch format {
+	case config.FormatXLSX:
+		return xlsx.NewWriter()
 	case config.FormatRaw:
 		return raw.NewWriter()
 	case config.FormatTable:
