@@ -79,6 +79,7 @@ that your username is `ksoze`.
 	> git remote add upstream https://github.com/neilotoole/sq-driver.git
 	> # verify that the remote was set
 	> git remote -v
+	```
 - Theoretically you should be good to go. From the `sq` directory:
 
 	```
