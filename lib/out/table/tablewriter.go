@@ -15,7 +15,7 @@ import (
 	"github.com/neilotoole/sq/lib/drvr"
 	"github.com/neilotoole/sq/lib/out"
 	"github.com/neilotoole/sq/lib/out/json/pretty"
-	"github.com/neilotoole/sq/lib/out/table/textable"
+	"github.com/neilotoole/sq/lib/out/table/texttable"
 	"github.com/neilotoole/sq/lib/util"
 )
 

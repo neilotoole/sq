@@ -69,7 +69,7 @@ func (fi bindataFileInfo) Sys() interface{} {
 	return nil
 }
 
-var _build_timestampTxt = []byte("\x1f\x8b\x08\x00\x00\x09\x6e\x88\x00\xff\x32\x32\x30\x34\xd3\x35\x34\xd0\x35\xb0\x0c\x31\x30\xb0\x32\x34\xb2\x32\x32\xd0\x35\x30\x33\x30\xe0\x02\x04\x00\x00\xff\xff\xbf\x2b\x27\x26\x19\x00\x00\x00")
+var _build_timestampTxt = []byte("\x1f\x8b\x08\x00\x00\x09\x6e\x88\x00\xff\x32\x32\x30\x34\xd3\x35\x34\xd0\x35\xb0\x0c\x31\x30\xb0\x32\x34\xb5\x32\x36\xd0\x35\x30\x33\x30\xe0\x02\x04\x00\x00\xff\xff\x58\x30\x51\x08\x19\x00\x00\x00")
 
 func build_timestampTxtBytes() ([]byte, error) {
 	return bindataRead(
@@ -84,7 +84,7 @@ func build_timestampTxt() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "build_timestamp.txt", size: 25, mode: os.FileMode(420), modTime: time.Unix(1475993540, 0)}
+	info := bindataFileInfo{name: "build_timestamp.txt", size: 25, mode: os.FileMode(420), modTime: time.Unix(1475993730, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -104,7 +104,7 @@ func build_versionTxt() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "build_version.txt", size: 11, mode: os.FileMode(420), modTime: time.Unix(1475993540, 0)}
+	info := bindataFileInfo{name: "build_version.txt", size: 11, mode: os.FileMode(420), modTime: time.Unix(1475993730, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
