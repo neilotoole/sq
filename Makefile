@@ -85,4 +85,4 @@ build-for-dist: clean build-assets test
 	cp -vf bin/$(OS_PLATFORM)/$(BINARY) $(GOPATH)/bin/
 
 dist: clean test build-for-dist
-	cd ./dist && cp $(shell which sq) sq && tar -cvzf "sq-$(BUILD_VERSION)-darwin.tar.gz" sq && rm sq
+	mkdir -p ./dist && cd ./dist && cp $(shell which sq) sq && tar -cvzf "sq-$(BUILD_VERSION)-darwin.tar.gz" sq && rm sq
