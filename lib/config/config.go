@@ -22,6 +22,8 @@ const FormatTable Format = "table"
 const FormatGrid Format = "grid"
 const FormatRaw Format = "raw"
 const FormatXLSX Format = "xlsx"
+const FormatCSV Format = "csv"
+const FormatTSV Format = "tsv"
 
 var conf *Config
 var str Store

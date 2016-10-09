@@ -6,7 +6,7 @@ import (
 )
 
 type ResultWriter interface {
-	Open() error
+	Open() error // TODO: no need for Open() really?
 	ResultRows(rows []*common.ResultRow) error
 	Close() error
 	Metadata(meta *drvr.SourceMetadata) error

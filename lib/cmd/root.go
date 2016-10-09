@@ -53,6 +53,24 @@ const FlagXLSXShort string = "x"
 // FlagXLSXUsage is usage for FlagXLSX
 const FlagXLSXUsage string = "XLSX (Excel) output"
 
+// FlagCSV specifies CSV output
+const FlagCSV string = "csv"
+
+// FlagCSVShort is shorthand for FlagCSV
+const FlagCSVShort string = "c"
+
+// FlagCSVUsage is usage for FlagCSV
+const FlagCSVUsage string = "Comma-Separated Value (CSV) output"
+
+// FlagTSV specifies TSV output
+const FlagTSV string = "tsv"
+
+// FlagTSVShort is shorthand for FlagTSV
+const FlagTSVShort string = "T"
+
+// FlagTSVUsage is usage for FlagTSV
+const FlagTSVUsage string = "Tab-Separated Value (TSV) output"
+
 // FlagHeader specifies that the output should include header information (where applicable)
 const FlagHeader string = "header"
 

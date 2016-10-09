@@ -9,8 +9,8 @@ import (
 
 	_ "github.com/neilotoole/sq/test/gotestutil"
 
-	_ "github.com/neilotoole/sq/lib/driver/impl"
 	"github.com/neilotoole/sq/lib/drvr"
+	_ "github.com/neilotoole/sq/lib/drvr/impl"
 )
 
 const typMySQL = drvr.Type("mysql")
