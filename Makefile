@@ -2,7 +2,7 @@
 # http://github.com/neilotoole/sq
 
 BINARY := sq
-BUILD_VERSION=0.32.0
+BUILD_VERSION=0.32.1
 BUILD_TIMESTAMP := $(shell date +'%FT%T%z')
 
 # SOURCES is the .go files for the project, excluding test files
@@ -48,6 +48,7 @@ clean:
 	# rm -vf $(shell which sq)
 	rm -rf ./bin/*
 	rm -rf ./build/*
+	rm -rf ./dist/*
 
 fmt:
 	@goimports -w ./lib 	# We use goimports rather than go fmt
