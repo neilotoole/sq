@@ -22,6 +22,7 @@ const FormatTable Format = "table"
 const FormatGrid Format = "grid"
 const FormatRaw Format = "raw"
 const FormatXLSX Format = "xlsx"
+const FormatXML Format = "xml"
 const FormatCSV Format = "csv"
 const FormatTSV Format = "tsv"
 

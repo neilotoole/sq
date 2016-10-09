@@ -14,6 +14,7 @@ import (
 	"github.com/neilotoole/sq/lib/out/raw"
 	"github.com/neilotoole/sq/lib/out/table"
 	"github.com/neilotoole/sq/lib/out/xlsx"
+	"github.com/neilotoole/sq/lib/out/xml"
 	"github.com/neilotoole/sq/lib/sq"
 	"github.com/spf13/cobra"
 )
@@ -172,6 +173,7 @@ func setQueryCmdOptions(cmd *cobra.Command) {
 func setQueryOutputOptions(cmd *cobra.Command) {
 	cmd.Flags().BoolP(FlagJSON, FlagJSONShort, false, FlagJSONUsage)
 	cmd.Flags().BoolP(FlagTable, FlagTableShort, false, FlagTableUsage)
+	cmd.Flags().BoolP(FlagXML, FlagXMLShort, false, FlagXMLUsage)
 	cmd.Flags().BoolP(FlagXLSX, FlagXLSXShort, false, FlagXLSXUsage)
 	cmd.Flags().BoolP(FlagCSV, FlagCSVShort, false, FlagCSVUsage)
 	cmd.Flags().BoolP(FlagTSV, FlagTSVShort, false, FlagTSVUsage)
@@ -214,11 +216,16 @@ func getResultWriter(cmd *cobra.Command) out.ResultWriter {
 	if cmd.Flags().Changed(FlagTSV) {
 		format = config.FormatTSV
 	}
+
 	if cmd.Flags().Changed(FlagCSV) {
 		format = config.FormatCSV
 	}
+
 	if cmd.Flags().Changed(FlagXLSX) {
 		format = config.FormatXLSX
+	}
+	if cmd.Flags().Changed(FlagXML) {
+		format = config.FormatXML
 	}
 
 	if cmd.Flags().Changed(FlagRaw) {
@@ -238,6 +245,8 @@ func getResultWriter(cmd *cobra.Command) out.ResultWriter {
 		return csv.NewWriter(hasHeader, '\t')
 	case config.FormatCSV:
 		return csv.NewWriter(hasHeader, ',')
+	case config.FormatXML:
+		return xml.NewWriter()
 	case config.FormatXLSX:
 		return xlsx.NewWriter(hasHeader)
 	case config.FormatRaw:

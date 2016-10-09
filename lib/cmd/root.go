@@ -71,6 +71,15 @@ const FlagTSVShort string = "T"
 // FlagTSVUsage is usage for FlagTSV
 const FlagTSVUsage string = "Tab-Separated Value (TSV) output"
 
+// FlagXML specifies XML output
+const FlagXML string = "xml"
+
+// FlagXMLShort is shorthand for FlagXML
+const FlagXMLShort string = "X"
+
+// FlagXMLUsage is usage for FlagXML
+const FlagXMLUsage string = "XML output"
+
 // FlagHeader specifies that the output should include header information (where applicable)
 const FlagHeader string = "header"
 
