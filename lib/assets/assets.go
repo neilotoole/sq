@@ -69,7 +69,7 @@ func (fi bindataFileInfo) Sys() interface{} {
 	return nil
 }
 
-var _build_timestampTxt = []byte("\x1f\x8b\x08\x00\x00\x09\x6e\x88\x00\xff\x32\x32\x30\x34\xd3\x35\x34\xd0\x35\xb0\x0c\x31\x30\xb1\x32\xb0\xb4\x32\x36\xd3\x35\x30\x33\x30\xe0\x02\x04\x00\x00\xff\xff\xba\x50\x8a\x70\x19\x00\x00\x00")
+var _build_timestampTxt = []byte("\x1f\x8b\x08\x00\x00\x09\x6e\x88\x00\xff\x32\x32\x30\x34\xd3\x35\x34\xd0\x35\xb0\x0c\x31\x30\xb1\x32\xb2\xb4\x32\x34\xd4\x35\x30\x33\x30\xe0\x02\x04\x00\x00\xff\xff\x88\xd0\x64\xaf\x19\x00\x00\x00")
 
 func build_timestampTxtBytes() ([]byte, error) {
 	return bindataRead(
@@ -84,12 +84,12 @@ func build_timestampTxt() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "build_timestamp.txt", size: 25, mode: os.FileMode(420), modTime: time.Unix(1476007776, 0)}
+	info := bindataFileInfo{name: "build_timestamp.txt", size: 25, mode: os.FileMode(420), modTime: time.Unix(1476008953, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
-var _build_versionTxt = []byte("\x1f\x8b\x08\x00\x00\x09\x6e\x88\x00\xff\x32\xd0\x33\x36\xd2\x33\xd0\x4d\x49\x2d\xe3\x02\x04\x00\x00\xff\xff\xac\x91\x6c\x03\x0b\x00\x00\x00")
+var _build_versionTxt = []byte("\x1f\x8b\x08\x00\x00\x09\x6e\x88\x00\xff\x32\xd0\x33\x36\xd2\x33\xe4\x02\x04\x00\x00\xff\xff\x50\x69\x51\xa0\x07\x00\x00\x00")
 
 func build_versionTxtBytes() ([]byte, error) {
 	return bindataRead(
@@ -104,7 +104,7 @@ func build_versionTxt() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "build_version.txt", size: 11, mode: os.FileMode(420), modTime: time.Unix(1476007776, 0)}
+	info := bindataFileInfo{name: "build_version.txt", size: 7, mode: os.FileMode(420), modTime: time.Unix(1476008953, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -162,7 +162,7 @@ func AssetNames() []string {
 // _bindata is a table, holding each asset generator, mapped to its name.
 var _bindata = map[string]func() (*asset, error){
 	"build_timestamp.txt": build_timestampTxt,
-	"build_version.txt":   build_versionTxt,
+	"build_version.txt": build_versionTxt,
 }
 
 // AssetDir returns the file names below a certain
@@ -204,10 +204,9 @@ type bintree struct {
 	Func     func() (*asset, error)
 	Children map[string]*bintree
 }
-
 var _bintree = &bintree{nil, map[string]*bintree{
 	"build_timestamp.txt": &bintree{build_timestampTxt, map[string]*bintree{}},
-	"build_version.txt":   &bintree{build_versionTxt, map[string]*bintree{}},
+	"build_version.txt": &bintree{build_versionTxt, map[string]*bintree{}},
 }}
 
 // RestoreAsset restores an asset under the given directory
@@ -256,3 +255,4 @@ func _filePath(dir, name string) string {
 	cannonicalName := strings.Replace(name, "\\", "/", -1)
 	return filepath.Join(append([]string{dir}, strings.Split(cannonicalName, "/")...)...)
 }
+

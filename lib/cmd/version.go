@@ -31,7 +31,7 @@ func execVersion(cmd *cobra.Command, args []string) error {
 	//fmt.Printf("\n")
 
 	out.Color.Hilite.Printf("sq %s", version)
-	fmt.Printf("                           ")
+	fmt.Printf("                               ")
 	out.Color.Faint.Printf(timestamp)
 	fmt.Println()
 	fmt.Printf("simple queryer for structured data      ")

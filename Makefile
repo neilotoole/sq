@@ -2,7 +2,7 @@
 # http://github.com/neilotoole/sq
 
 BINARY := sq
-BUILD_VERSION=0.32.0-dev
+BUILD_VERSION=0.32.1
 BUILD_TIMESTAMP := $(shell date +'%FT%T%z')
 
 # SOURCES is the .go files for the project, excluding test files
@@ -48,6 +48,7 @@ clean:
 	# rm -vf $(shell which sq)
 	rm -rf ./bin/*
 	rm -rf ./build/*
+	rm -rf ./dist/*
 
 fmt:
 	@goimports -w ./lib 	# We use goimports rather than go fmt
@@ -85,4 +86,4 @@ build-for-dist: clean build-assets test
 	cp -vf bin/$(OS_PLATFORM)/$(BINARY) $(GOPATH)/bin/
 
 dist: clean test build-for-dist
-	cp $(shell which sq) ./dist/sq && tar -cvzf "./dist/sq-$(BUILD_VERSION)-darwin.tar.gz" ./dist/sq && rm ./dist/sq
+	mkdir -p ./dist && cd ./dist && cp $(shell which sq) sq && tar -cvzf "sq-$(BUILD_VERSION)-darwin.tar.gz" sq && rm sq
