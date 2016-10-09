@@ -179,6 +179,7 @@ func setQueryOutputOptions(cmd *cobra.Command) {
 	cmd.Flags().BoolP(FlagTSV, FlagTSVShort, false, FlagTSVUsage)
 	cmd.Flags().BoolP(FlagHeader, FlagHeaderShort, false, FlagHeaderUsage)
 	cmd.Flags().BoolP(FlagNoHeader, FlagNoHeaderShort, false, FlagNoHeaderUsage)
+	cmd.Flags().BoolP(FlagMonochrome, FlagMonochromeShort, false, FlagMonochromeUsage)
 }
 
 func getQueryMode(cmd *cobra.Command) config.QueryMode {
