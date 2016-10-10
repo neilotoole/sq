@@ -11,8 +11,6 @@ import (
 
 	"sync"
 
-	"runtime/debug"
-
 	"github.com/mitchellh/go-homedir"
 	"github.com/neilotoole/sq/lib/config"
 	"github.com/neilotoole/sq/lib/shutdown"
@@ -319,7 +317,6 @@ func execer(fn cobraCmdFn) cobraCmdFn {
 
 	return func(cmd *cobra.Command, args []string) error {
 
-		debug.PrintStack()
 		lg.Debugf("invoking cmd %q: %v", cmd.Name(), args)
 
 		err := fn(cmd, args)

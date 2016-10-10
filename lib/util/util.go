@@ -71,6 +71,22 @@ func ByteSized(size int64, precision int, sep string) string {
 	return fmt.Sprintf(tpl+"B", f)
 }
 
+func ReverseString(input string) string {
+	n := 0
+	runes := make([]rune, len(input))
+	for _, r := range input {
+		runes[n] = r
+		n++
+	}
+	runes = runes[0:n]
+	// Reverse
+	for i := 0; i < n/2; i++ {
+		runes[i], runes[n-1-i] = runes[n-1-i], runes[i]
+	}
+	// Convert back to UTF-8.
+	return string(runes)
+}
+
 const (
 	_          = iota // ignore first value by assigning to blank identifier
 	kb float64 = 1 << (10 * iota)

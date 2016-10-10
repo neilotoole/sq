@@ -1,18 +1,18 @@
-package xslx
+package csv
 
 import (
 	"strings"
 
 	"fmt"
 
-	"net/http"
+	"unicode/utf8"
 
 	"io"
 	"sync"
 
-	"io/ioutil"
-
 	"os"
+
+	"encoding/csv"
 
 	"github.com/neilotoole/go-lg/lg"
 	"github.com/neilotoole/sq-driver/hackery/database/sql"
@@ -23,7 +23,7 @@ import (
 	"github.com/tealeg/xlsx"
 )
 
-const typ = drvr.Type("xlsx")
+const typ = drvr.Type("csv")
 
 type Driver struct {
 	mu      *sync.Mutex
@@ -56,7 +56,7 @@ func (d *Driver) Open(src *drvr.Source) (*sql.DB, error) {
 
 	lg.Debugf("opened handle to scratch db")
 
-	err = d.xlsxToScratch(src, scratchdb)
+	err = d.csvToScratch(src, scratchdb)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +77,7 @@ func (d *Driver) ValidateSource(src *drvr.Source) (*drvr.Source, error) {
 func (d *Driver) Ping(src *drvr.Source) error {
 
 	lg.Debugf("driver %q attempting to ping %q", d.Type(), src)
-	file, err := d.getSourceFile(src)
+	file, err := d.GetSourceFile(src)
 	if err != nil {
 		return err
 	}
@@ -98,7 +98,7 @@ func (d *Driver) Metadata(src *drvr.Source) (*drvr.SourceMetadata, error) {
 	meta := &drvr.SourceMetadata{}
 	meta.Handle = src.Handle
 
-	file, err := d.getSourceFile(src)
+	file, err := d.GetSourceFile(src)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +111,7 @@ func (d *Driver) Metadata(src *drvr.Source) (*drvr.SourceMetadata, error) {
 	lg.Debugf("size: %d", fi.Size())
 	meta.Size = fi.Size()
 
-	meta.Name, err = d.getSourceFileName(src)
+	meta.Name, err = d.GetSourceFileName(src)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +143,7 @@ func (d *Driver) Metadata(src *drvr.Source) (*drvr.SourceMetadata, error) {
 			col.Datatype = cellTypeToString(colType)
 			col.ColType = col.Datatype
 			col.Position = int64(i)
-			col.Name = drvrutil.GenerateExcelColName(i)
+			col.Name = GenerateExcelColName(i)
 			tbl.Columns = append(tbl.Columns, col)
 		}
 
@@ -154,63 +154,6 @@ func (d *Driver) Metadata(src *drvr.Source) (*drvr.SourceMetadata, error) {
 	return meta, nil
 
 	//return nil, util.Errorf("not implemented")
-}
-
-func cellTypeToString(typ xlsx.CellType) string {
-
-	switch typ {
-	case xlsx.CellTypeString:
-		return "string"
-	case xlsx.CellTypeFormula:
-		return "formula"
-	case xlsx.CellTypeNumeric:
-		return "numeric"
-	case xlsx.CellTypeBool:
-		return "bool"
-	case xlsx.CellTypeInline:
-		return "inline"
-	case xlsx.CellTypeError:
-		return "error"
-	case xlsx.CellTypeDate:
-		return "date"
-	}
-
-	return "general"
-}
-
-func getColTypes(sheet *xlsx.Sheet) []xlsx.CellType {
-
-	types := make([]*xlsx.CellType, len(sheet.Cols))
-
-	for _, row := range sheet.Rows {
-
-		for i, cell := range row.Cells {
-
-			if types[i] == nil {
-				typ := cell.Type()
-				types[i] = &typ
-				continue
-			}
-
-			// else, it already has a type
-			if *types[i] == cell.Type() {
-				// type matches, just continue
-				continue
-			}
-
-			// it already has a type, and it's different from this cell's type
-			typ := xlsx.CellTypeGeneral
-			types[i] = &typ
-		}
-	}
-
-	// convert back to value types
-	ret := make([]xlsx.CellType, len(types))
-	for i, typ := range types {
-		ret[i] = *typ
-	}
-
-	return ret
 }
 
 func init() {
@@ -242,88 +185,30 @@ func (d *Driver) Release() error {
 	return nil
 }
 
-// getSourceFileName returns the final component of the file/URL path.
-func (d *Driver) getSourceFileName(src *drvr.Source) (string, error) {
-
-	sep := os.PathSeparator
-	if strings.HasPrefix(src.Location, "http") {
-		sep = '/'
-	}
-
-	parts := strings.Split(src.Location, string(sep))
-	if len(parts) == 0 || len(parts[len(parts)-1]) == 0 {
-		return "", util.Errorf("illegal src [%s] location: %s", src.Handle, src.Location)
-	}
-
-	return parts[len(parts)-1], nil
-}
-
-// getSourceFile returns a file handle for XLSX file. The return file is open,
-// the caller is responsible for closing it.
-func (d *Driver) getSourceFile(src *drvr.Source) (*os.File, error) {
-
-	// xlsx:///Users/neilotoole/sq/test/testdata.xlsx
-	//`https://s3.amazonaws.com/sq.neilotoole.io/testdata/1.0/xslx/test.xlsx`
-	//`/Users/neilotoole/nd/go/src/github.com/neilotoole/sq/test/xlsx/test.xlsx`
-
-	lg.Debugf("attempting to determine XLSX filepath from source location %q", src.Location)
-
-	if strings.HasPrefix(src.Location, "http://") || strings.HasPrefix(src.Location, "https://") {
-		lg.Debugf("attempting to fetch XLSX file from %q", src.Location)
-
-		resp, err := http.Get(src.Location)
-		if err != nil {
-			return nil, util.Errorf("unable to fetch XLSX file for datasource %q with location %q due to error: %v", src.Handle, src.Location, err)
-		}
-
-		if resp.StatusCode != http.StatusOK {
-			return nil, util.Errorf("unable to fetch XLSX file for datasource %q with location %q due to HTTP status: %s/%d", src.Handle, src.Location, resp.Status, resp.StatusCode)
-		}
-
-		lg.Debugf("success fetching remote XLSX file from %q", src.Location)
-
-		tmpFile, err := ioutil.TempFile("", "sq_xlsx_") // really should give this a suffix
-		if err != nil {
-			return nil, util.Errorf("unable to create tmp file: %v", err)
-		}
-
-		_, err = io.Copy(tmpFile, resp.Body)
-		if err != nil {
-			return nil, util.Errorf("error reading XLSX file from %q to %q", src.Location, tmpFile.Name())
-		}
-		defer resp.Body.Close()
-
-		// TODO: revisit locking here
-		d.mu.Lock()
-		defer d.mu.Unlock()
-		d.cleanup = append(d.cleanup, func() error {
-			lg.Debugf("deleting tmp file %q", tmpFile.Name())
-			return os.Remove(tmpFile.Name())
-		})
-
-		return tmpFile, nil
-
-	}
-
-	// If it's not remote, it should be a local path
-	file, err := os.Open(src.Location)
-	if err != nil {
-		return nil, util.Errorf("error opening XLSX file %q: %v", src.Location, err)
-	}
-
-	return file, nil
-}
-
-func (d *Driver) xlsxToScratch(src *drvr.Source, db *sql.DB) error {
-	file, err := d.getSourceFile(src)
+func (d *Driver) csvToScratch(src *drvr.Source, db *sql.DB) error {
+	file, err := d.GetSourceFile(src)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
 
+	r := csv.NewReader(file)
+
+	for {
+		record, err := r.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return util.WrapError(err)
+		}
+
+		fmt.Println(record)
+	}
+
 	xlFile, err := xlsx.OpenFile(file.Name())
 	if err != nil {
-		return util.Errorf("unable to open XLSX file %q: %v", file.Name(), err)
+		return util.Errorf("unable to open file %q: %v", file.Name(), err)
 	}
 
 	//sheets := xlFile.Sheets
@@ -402,52 +287,11 @@ func (d *Driver) xlsxToScratch(src *drvr.Source, db *sql.DB) error {
 	return nil
 }
 
-func getDBColTypeFromCell(cells []*xlsx.Cell) []string {
+// createTbl creates a table to hold records. If colNames is nil, then
+// column names will be generated. The function returns the actual column names used.
+func createTbl(db *sql.DB, tblName string, colNames []string) ([]string, error) {
 
-	vals := make([]string, len(cells))
-	for i, cell := range cells {
-		typ := cell.Type()
-		switch typ {
-		case xlsx.CellTypeBool:
-			vals[i] = AffinityInteger
-		case xlsx.CellTypeNumeric:
-			_, err := cell.Int64()
-			if err == nil {
-				vals[i] = AffinityInteger
-				continue
-			}
-			_, err = cell.Float()
-			if err == nil {
-				vals[i] = AffinityReal
-				continue
-			}
-			// it's not an int, it's not a float
-			vals[i] = AffinityNumeric
-
-		case xlsx.CellTypeDate:
-			// TODO: support time values here?
-			vals[i] = AffinityText
-		default:
-			vals[i] = AffinityText
-		}
-
-	}
-
-	return vals
-
-}
-
-const AffinityText = `TEXT`
-const AffinityNumeric = `NUMERIC`
-const AffinityInteger = `INTEGER`
-const AffinityReal = `REAL`
-const AffinityBlob = `BLOB`
-
-// createTblForSheet creates a table for the given sheet, and returns an arry
-// of the table's column names, or an error.
-func createTblForSheet(db *sql.DB, sheet *xlsx.Sheet) ([]string, error) {
-
-	lg.Debugf("creating table for sheet %q", sheet.Name)
+	lg.Debugf("creating table for sheet %q", tblName)
 	numCols := len(sheet.Cols)
 
 	colNames := make([]string, numCols)
@@ -493,4 +337,15 @@ func createTblForSheet(db *sql.DB, sheet *xlsx.Sheet) ([]string, error) {
 	lg.Debugf("created table %q", sheet.Name)
 
 	return colNames, nil
+}
+
+func reverse(s string) string {
+	size := len(s)
+	buf := make([]byte, size)
+	for start := 0; start < size; {
+		r, n := utf8.DecodeRuneInString(s[start:])
+		start += n
+		utf8.EncodeRune(buf[size-start:], r)
+	}
+	return string(buf)
 }
