@@ -13,6 +13,11 @@ var mu sync.Mutex
 func Add(shutdownFn func() error) {
 	mu.Lock()
 	defer mu.Unlock()
+
+	if shutdownFn == nil {
+		return
+	}
+
 	shutdownFns = append(shutdownFns, shutdownFn)
 }
 
@@ -35,6 +40,11 @@ func runShutdownFns() int {
 
 	for i, fn := range shutdownFns {
 		lg.Debugf("running shutdown function %d of %d...", i+1, len(shutdownFns))
+		if fn == nil {
+			// should never happen
+			lg.Debugf("skipping nil shutdown fn [%d]", i)
+			continue
+		}
 		err := fn()
 		if err != nil {
 			lg.Errorf("shutdown function error: %v", err)
