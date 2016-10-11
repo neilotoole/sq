@@ -27,7 +27,13 @@ sq add 'postgres://sq:sq@localhost/pqdb1?sslmode=disable' @pg1 ; trackResult
 sq add "`pwd`/test/xlsx/test1.xlsx" @excel1 ; trackResult
 sq add http://neilotoole.io/sq/test/test1.xlsx @excel2 ; trackResult
 sq add "sqlite3://`pwd`/test/sqlite/sqlite_db1" @sl1 ; trackResult
-sq add "`pwd`/test/csv/user-comma-noheader.csv" @csv_comma_noheader1 ; trackResult
+
+sq add "`pwd`/test/csv/user_comma_header.csv" @csv_user_comma_header1 ; trackResult
+sq add "`pwd`/test/csv/user_comma_noheader.csv" @csv_user_comma_noheader1 ; trackResult
+sq add "`pwd`/test/csv/user_pipe_header.csv" @csv_user_pipe_header1 ; trackResult
+sq add "`pwd`/test/csv/user_semicolon_header.csv" @csv_user_semicolon_header1 ; trackResult
+#sq add "`pwd`/test/csv/user_header.tsv" @tsv_user_header1 ; trackResult
+#sq add "`pwd`/test/csv/user_noheader.tsv" @tsv_user_noheader1 ; trackResult
 
 echo ""
 sq ls ; trackResult
@@ -42,8 +48,17 @@ sq inspect -th @sl1 ; trackResult
 #sq inspect -th @csv_comma_noheader1 ; trackResult
 
 echo ""
-sq -th '@csv_comma_noheader1.data' ; trackResult
+sq -th '@csv_user_comma_header1.data' ; trackResult
 echo ""
+sq -th '@csv_user_comma_noheader1.data' ; trackResult
+echo ""
+sq -th '@csv_user_pipe_header1.data' ; trackResult
+echo ""
+sq -th '@csv_user_semicolon_header1.data' ; trackResult
+echo ""
+
+
+
 sq -th '@my1.user, @pg1.tbladdress | join(.uid) | .user.uid, .email, .city, .country' ; trackResult
 echo ""
 sq '@excel1.user_sheet, @pg1.tbladdress | join(.A == .uid)' ; trackResult
@@ -64,10 +79,9 @@ echo
 echo
 
 if [ ${RES} -eq 0 ]; then
-  echo "SUCCESS"
-  echo
+  printf  "\n\e[1;32mSUCCESS\e[0m\n\n"
   exit 0
 else
-  >&2 echo "FAILURE: smoke test failed, check log: ${SQ_LOGFILE}"
+  >&2 printf "\n\e[1;97;41m FAILURE \e[0m  smoke test failed, check log: ${SQ_LOGFILE}\n\n"
   exit 1
 fi
