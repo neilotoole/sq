@@ -162,6 +162,7 @@ WHERE  i.indrelid = '%s.%s'::regclass AND i.indisprimary`
 	CASE
 		WHEN domain_name IS NOT NULL THEN domain_name
 		WHEN data_type='character varying' THEN 'varchar('||character_maximum_length||')'
+		WHEN data_type='character' THEN 'char('||character_maximum_length||')'
 		WHEN data_type='numeric' THEN 'numeric('||numeric_precision||','||numeric_scale||')'
 		ELSE data_type
 	END AS col_type, data_type, ordinal_position, is_nullable,
@@ -180,7 +181,7 @@ WHERE  i.indrelid = '%s.%s'::regclass AND i.indisprimary`
 	//tpl := "SELECT column_name, data_type, column_type, ordinal_position, is_nullable, column_key, column_comment, extra, (SELECT COUNT(*) FROM `%s`) AS row_count FROM information_schema.columns cols WHERE cols.TABLE_SCHEMA = '%s' AND cols.TABLE_NAME = '%s' ORDER BY cols.ordinal_position ASC"
 	//sql := fmt.Sprintf(tpl, tbl.Name, dbName, tbl.Name)
 
-	lg.Debugf("SQL: %s", q)
+	lg.Debugf("SQL:\n%s", q)
 
 	rows, err = db.Query(q)
 	if err != nil {
@@ -191,18 +192,44 @@ WHERE  i.indrelid = '%s.%s'::regclass AND i.indisprimary`
 	for rows.Next() {
 
 		col := &drvr.Column{}
-		var isNullable string
-		comment := &sql.NullString{}
-		err = rows.Scan(&col.Name, &col.ColType, &col.Datatype, &col.Position, &isNullable, comment)
+		//var isNullable string
+
+		var r struct {
+			ColName  sql.NullString
+			ColType  sql.NullString
+			Datatype sql.NullString
+			Position sql.NullInt64
+			Nullable sql.NullString
+			Comment  sql.NullString
+		}
+
+		//comment := &sql.NullString{}
+
+		//err = rows.Scan(&col.Name, &col.ColType, &col.Datatype, &col.Position, &isNullable, comment)
+		err = rows.Scan(&r.ColName, &r.ColType, &r.Datatype, &r.Position, &r.Nullable, &r.Comment)
 		if err != nil {
 			return util.WrapError(err)
 		}
 
-		if "YES" == strings.ToUpper(isNullable) {
-			col.Nullable = true
+		col.Name = r.ColName.String
+		col.ColType = r.ColType.String
+		col.Datatype = r.Datatype.String
+
+		// HACK: no idea why this is happening
+		if col.ColType == "" {
+			col.ColType = r.Datatype.String
 		}
 
-		col.Comment = comment.String
+		if col.Datatype == "" {
+			col.Datatype = r.ColType.String
+		}
+
+		col.Position = r.Position.Int64
+		col.Comment = r.Comment.String
+
+		if "YES" == strings.ToUpper(r.Nullable.String) {
+			col.Nullable = true
+		}
 
 		if util.InArray(primaryKeys, col.Name) {
 			col.PrimaryKey = true
@@ -213,6 +240,8 @@ WHERE  i.indrelid = '%s.%s'::regclass AND i.indisprimary`
 FROM pg_attribute a LEFT JOIN pg_attrdef f ON f.adrelid = a.attrelid AND f.adnum = a.attnum
 WHERE  a.attnum > 0 AND NOT a.attisdropped AND a.attrelid = '%s.%s'::regclass  AND a.attname = '%s'`
 		q = fmt.Sprintf(tpl, tblSchema, tblName, col.Name)
+
+		lg.Debugf("SQL:\n%s", q)
 
 		row := db.QueryRow(q)
 		defVal := &sql.NullString{}

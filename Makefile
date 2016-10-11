@@ -2,7 +2,7 @@
 # http://github.com/neilotoole/sq
 
 BINARY := sq
-BUILD_VERSION=0.32.1
+BUILD_VERSION=0.32.3
 BUILD_TIMESTAMP := $(shell date +'%FT%T%z')
 
 # SOURCES is the .go files for the project, excluding test files

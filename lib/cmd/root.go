@@ -134,6 +134,10 @@ const FlagPingAllShort string = "a"
 // FlagPingAllUsage is usage for FlagPingAllShort
 const FlagPingAllUsage string = "Ping all datasources"
 
+const FlagDriver string = "driver"
+
+const FlagDriverUsage string = "Explicitly specify the data source driver to use"
+
 // RootCmd represents the base command when called without any subcommands
 var RootCmd = &cobra.Command{
 	Use: `sq QUERY`,
@@ -204,9 +208,6 @@ func Execute() {
 
 	cmd, _, _ := RootCmd.Find(os.Args[1:])
 
-	//fmt.Printf("root err: %v", err)
-	//fmt.Printf("cmd name: %s\n", cmd.Name())
-	//fmt.Printf("cmd args: %s\n", cmdArgs)
 	// We determine it's the root command if there's an err returned from
 	// Find(), and the cmd.Name is the program name (usually 'sq', but the
 	// user could rename it).

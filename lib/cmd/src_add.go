@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"strings"
+
 	"github.com/neilotoole/sq/lib/drvr"
 	"github.com/neilotoole/sq/lib/out/table"
 	"github.com/neilotoole/sq/lib/util"
@@ -16,20 +18,18 @@ var srcAddCmd = &cobra.Command{
   sq add /Users/neilotoole/testdata/test.xlsx @excel1
   sq add http://neilotoole.io/sq/test/test1.xlsx @excel2`,
 	Short: "Add data source",
-	Long: `sq add LOCATION @HANDLE
-
-Add the data source specified by LOCATION and identified by @HANDLE. The
+	Long: `Add data source specified by LOCATION and identified by @HANDLE. If LOCATION
+is amibgious, you may need to add the "--driver=X" flag. The
 format of LOCATION varies, but is generally of the form:
 
-    DRIVER://CONNECTION_STRING
+  DRIVER://CONNECTION_STRING
 
 Available drivers:
 
-    MySQL
-    Postgres
-    SQLite3
-    Excel (.xlsx)
-    Oracle          [BROKEN]
+  mysql        MySQL
+  postgres     Postgres
+  sqlite3      SQLite 3
+  xlsx         Microsoft Excel XLSX
 
 The format of CONNECTION_STRING is driver-dependent. See the manual for more
 details: http://neilotoole.io/sq`,
@@ -38,6 +38,8 @@ details: http://neilotoole.io/sq`,
 
 func init() {
 	preprocessCmd(srcAddCmd)
+
+	srcAddCmd.Flags().StringP(FlagDriver, "", "", FlagDriverUsage)
 	RootCmd.AddCommand(srcAddCmd)
 
 	// TODO: add flag --active to immediately set active
@@ -56,24 +58,20 @@ func init() {
 func execSrcAdd(cmd *cobra.Command, args []string) error {
 
 	if len(args) == 1 {
-		return util.Errorf("sorry, the HANDLE argument is currently required, we'll fix that soon")
+		return util.Errorf("sorry, the @HANDLE argument is currently required, we'll fix that soon")
 	}
 
 	if len(args) != 2 {
 		return util.Errorf("invalid arguments")
 	}
 
-	location := args[0]
-	handle := args[1]
+	location := strings.TrimSpace(args[0])
+	handle := strings.TrimSpace(args[1])
 
 	err := drvr.CheckHandleValue(handle)
 	if err != nil {
 		return err
 	}
-
-	//cfg := cfg
-
-	//srcs := cfg.Sources()
 
 	i, _ := cfg.SourceSet.IndexOf(handle)
 	if i != -1 {
@@ -94,13 +92,10 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		cfg.SourceSet.SetActive(src.Handle)
 	}
 
-	//cfg.SourceSet = *srcs
-
 	err = saveConfig()
 	if err != nil {
 		return err
 	}
-	//
 	w := table.NewWriter(true)
 	w.Source(src)
 	return nil

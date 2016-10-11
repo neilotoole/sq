@@ -85,7 +85,7 @@ func (d *Driver) Ping(src *drvr.Source) error {
 
 func (d *Driver) Metadata(src *drvr.Source) (*drvr.SourceMetadata, error) {
 
-	lg.Debugf(src)
+	lg.Debugf(src.String())
 
 	return nil, util.Errorf("not implemented")
 

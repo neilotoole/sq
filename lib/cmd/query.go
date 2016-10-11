@@ -28,10 +28,6 @@ var queryCmd = &cobra.Command{
 
 func init() {
 
-	//queryCmd.SetUsageFunc(func(cmd *cobra.Command) error {
-	//	fmt.Println(RootCmd.UsageString())
-	//	return nil
-	//})
 	preprocessCmd(queryCmd)
 	setQueryCmdOptions(queryCmd)
 	queryCmd.SetUsageFunc(func(cmd *cobra.Command) error {
@@ -49,11 +45,6 @@ func execQuery(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("no arguments provided")
 	}
 
-	//src, ok := cfg.SourceSet.Active()
-	//if !ok {
-	//	return fmt.Errorf("no active datasource")
-	//}
-
 	sq.SetSourceSet(cfg.SourceSet)
 
 	for i, arg := range args {
@@ -61,30 +52,11 @@ func execQuery(cmd *cobra.Command, args []string) error {
 	}
 	qry := strings.Join(args, " ")
 
-	//var ds *driver.Source
 	writer := getResultWriter(cmd)
-	//if getQueryMode(cmd) == config.ModeSQ {
-	//
-	//	var err error
-	//	ds, q, err = getSQQueryWithDatasource(args)
-	//	if err != nil {
-	//		return err
-	//	}
-	//	q, err = ql.ToSQL(q)
-	//	if err != nil {
-	//		return err
-	//	}
-	//} else {
-	//	src, ok := cfg.SourceSet.Active()
-	//	if !ok || src == nil {
-	//		return fmt.Errorf("no active datasource")
-	//	}
-	//	ds = src
-	//}
+
 	if getQueryMode(cmd) == config.ModeSQ {
 
-		lg.Debugf("using SQ mode")
-		//var err error
+		lg.Debugf("using sq mode")
 		_, sqQuery, err := getSQQueryWithDatasource(args)
 		if err != nil {
 			return err
@@ -92,21 +64,11 @@ func execQuery(cmd *cobra.Command, args []string) error {
 
 		err = sq.ExecuteSQ(sqQuery, writer)
 		return err
-		//q, err = ql.ToSQL(q)
-		//if err != nil {
-		//	return err
-		//}
-		//
-		//database, err := ql.NewDatabase(ds)
-		//if err != nil {
-		//	return err
-		//}
-		//err = database.Execute(q, w)
-		//return err
+
 	}
 
-	lg.Debugf("using SQL mode")
-	// else it's a traditional SQL query
+	lg.Debugf("using database native mode")
+	// else it's a traditional database-native SQL query
 	src, ok := cfg.SourceSet.Active()
 	if !ok || src == nil {
 		return fmt.Errorf("no active datasource")
