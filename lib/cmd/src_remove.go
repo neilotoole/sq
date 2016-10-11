@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/neilotoole/sq/lib/out"
 	"github.com/neilotoole/sq/lib/util"
 	"github.com/spf13/cobra"
 )
@@ -45,7 +46,9 @@ func execSrcRemove(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Printf("Removed data source %s\n", src.Handle)
+	fmt.Printf("Removed data source ")
+	out.Color.Hilite.Printf("%s", src.Handle)
+	fmt.Println()
 
 	return nil
 }
