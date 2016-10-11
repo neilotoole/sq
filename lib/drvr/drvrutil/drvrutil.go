@@ -21,7 +21,6 @@ import (
 
 	"github.com/hashicorp/go-getter"
 	"github.com/neilotoole/go-lg/lg"
-	"github.com/neilotoole/sq/lib/drvr"
 	"github.com/neilotoole/sq/lib/util"
 )
 
@@ -43,22 +42,22 @@ func genExcelCol(n int, start rune, lenAlpha int) string {
 	return util.ReverseString(buf.String())
 }
 
-// GetSourceFileName returns the final component of the file/URL path.
-func GetSourceFileName(src *drvr.Source) (string, error) {
-
-	sep := os.PathSeparator
-	if strings.HasPrefix(src.Location, "http") {
-		sep = '/'
-	}
-
-	// Why is this illegal? Should be ok to get a file from http root?
-	parts := strings.Split(src.Location, string(sep))
-	if len(parts) == 0 || len(parts[len(parts)-1]) == 0 {
-		return "", util.Errorf("illegal src [%s] location: %s", src.Handle, src.Location)
-	}
-
-	return parts[len(parts)-1], nil
-}
+//// GetSourceFileName returns the final component of the file/URL path.
+//func GetSourceFileName(src *drvr.Source) (string, error) {
+//
+//	sep := os.PathSeparator
+//	if strings.HasPrefix(src.Location, "http") {
+//		sep = '/'
+//	}
+//
+//	// Why is this illegal? Should be ok to get a file from http root?
+//	parts := strings.Split(src.Location, string(sep))
+//	if len(parts) == 0 || len(parts[len(parts)-1]) == 0 {
+//		return "", util.Errorf("illegal src [%s] location: %s", src.Handle, src.Location)
+//	}
+//
+//	return parts[len(parts)-1], nil
+//}
 
 // GetSourceFile returns a file handle for the location, which can be a local filepath
 // or a URL. If it's a remote file it will be downloaded to a temp file. If cleanup
@@ -246,62 +245,3 @@ func (h *httpGetter) GetFile(dst string, u *url.URL) error {
 	_, err = io.Copy(f, resp.Body)
 	return err
 }
-
-//
-//// GetSourceFile returns a file handle for the location, which can be a local filepath
-//// or a URL. The return file is open, the caller is responsible for closing it.
-//func GetSourceFile(location string) (file *os.File, cleanup func() error, err error) {
-//
-//	// TODO (neilotoole): this should also return the mime type?
-//
-//	//`https://s3.amazonaws.com/sq.neilotoole.io/testdata/1.0/xslx/test.xlsx`
-//	//`/Users/neilotoole/nd/go/src/github.com/neilotoole/sq/test/xlsx/test.xlsx`
-//
-//	lg.Debugf("attempting to determine file path from source location %q", location)
-//
-//	if strings.HasPrefix(location, "http://") || strings.HasPrefix(location, "https://") {
-//		lg.Debugf("attempting to fetch  file from %q", location)
-//
-//		resp, err2 := http.Get(location)
-//		if err2 != nil {
-//			err = util.Errorf("unable to fetch file from %q: %v", location, err)
-//			return
-//		}
-//		defer resp.Body.Close()
-//		if resp.StatusCode != http.StatusOK {
-//			err = util.Errorf("unable to fetch file from %q due to HTTP status: %s", location, resp.Status)
-//			return
-//		}
-//
-//		lg.Debugf("success fetching remote file from %q", location)
-//
-//		tmpFile, err2 := ioutil.TempFile("", "sq_") // really should give this a file-specific suffix
-//		if err2 != nil {
-//			err = util.Errorf("unable to create tmp file: %v", err2)
-//			return
-//		}
-//
-//		cleanup = func() error {
-//			lg.Debugf("deleting tmp file %q", tmpFile.Name())
-//			return os.Remove(tmpFile.Name())
-//		}
-//
-//		_, err2 = io.Copy(tmpFile, resp.Body)
-//		if err2 != nil {
-//			err = util.Errorf("error copying file from %q to %q", location, tmpFile.Name())
-//			return
-//		}
-//
-//		file = tmpFile
-//		return
-//
-//	}
-//
-//	// If it's not remote, it should be a local path
-//	file, err = os.Open(location)
-//	if err != nil {
-//		err = util.Errorf("error opening file %q: %v", location, err)
-//	}
-//
-//	return
-//}

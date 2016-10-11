@@ -13,26 +13,21 @@ import (
 	_ "github.com/neilotoole/sq/lib/drvr/impl"
 )
 
-const typMySQL = drvr.Type("mysql")
-const typPostgres = drvr.Type("postgres")
-const typSQLite3 = drvr.Type("sqlite3")
-const typXSLX = drvr.Type("xlsx")
-
 func init() {
 	fmt.Println("driver.init() (Test)")
 }
 
 func TestSource_Driver(t *testing.T) {
 
-	src, err := drvr.AddSource("@a1", "mysql://user:pass@localhost:3306/mydb1")
+	src, err := drvr.AddSource("@a1", "mysql://user:pass@localhost:3306/mydb1", "")
 	require.Nil(t, err)
-	require.Equal(t, typMySQL, src.Type)
+	require.Equal(t, drvr.TypeMySQL, src.Type)
 	require.Equal(t, "[@a1] mysql://user:pass@localhost:3306/mydb1", src.String())
 	require.Equal(t, "user:pass@localhost:3306/mydb1", src.ConnURI())
 
-	src, err = drvr.AddSource("@a1", "postgres://pqgotest:password@localhost/pqgotest")
+	src, err = drvr.AddSource("@a1", "postgres://pqgotest:password@localhost/pqgotest", "")
 	require.Nil(t, err)
-	require.Equal(t, typPostgres, src.Type)
+	require.Equal(t, drvr.TypePostgres, src.Type)
 	require.Equal(t, "[@a1] postgres://pqgotest:password@localhost/pqgotest", src.String())
 	require.Equal(t, "postgres://pqgotest:password@localhost/pqgotest", src.ConnURI())
 
@@ -44,17 +39,17 @@ func TestSourceGetTypeFromRef(t *testing.T) {
 		loc string
 		typ drvr.Type
 	}{
-		{`mysql://root:root@tcp(localhost:33067)/sq_mydb1`, typMySQL},
-		{`postgres://sq:sq@localhost/sq_pg1?sslmode=disable`, typPostgres},
-		{`sqlite3:///Users/neilotoole/nd/go/src/github.com/neilotoole/sq/test/sqlite/sqlite_db1`, typSQLite3},
+		{`mysql://root:root@tcp(localhost:33067)/sq_mydb1`, drvr.TypeMySQL},
+		{`postgres://sq:sq@localhost/sq_pg1?sslmode=disable`, drvr.TypePostgres},
+		{`sqlite3:///Users/neilotoole/nd/go/src/github.com/neilotoole/sq/test/sqlite/sqlite_db1`, drvr.TypeSQLite3},
 		//{`xlsx:///Users/neilotoole/nd/go/src/github.com/neilotoole/sq/test/xlsx/test.xlsx`, typXSLX},
-		{`https://s3.amazonaws.com/sq.neilotoole.io/testdata/1.0/xslx/test.xlsx`, typXSLX},
-		{`/Users/neilotoole/nd/go/src/github.com/neilotoole/sq/test/xlsx/test.xlsx`, typXSLX},
+		{`https://s3.amazonaws.com/sq.neilotoole.io/testdata/1.0/xslx/test.xlsx`, drvr.TypeXSLX},
+		{`/Users/neilotoole/nd/go/src/github.com/neilotoole/sq/test/xlsx/test.xlsx`, drvr.TypeXSLX},
 	}
 
 	for _, item := range items {
 
-		typ, err := drvr.GetTypeFromSourceLocation(item.loc)
+		typ, err := drvr.GetTypeFromSrcLocation(item.loc)
 		require.Nil(t, err)
 		require.Equal(t, item.typ, typ)
 	}
@@ -78,15 +73,15 @@ func TestDataSources(t *testing.T) {
 
 	srcs := drvr.NewSourceSet()
 
-	mydb1, err := drvr.AddSource("@mydb1", "mysql://user:pass@localhost:3306/mydb1")
+	mydb1, err := drvr.AddSource("@mydb1", "mysql://user:pass@localhost:3306/mydb1", "")
 	require.Nil(t, err)
 	require.NotNil(t, mydb1)
-	require.Equal(t, typMySQL, mydb1.Type)
+	require.Equal(t, drvr.TypeMySQL, mydb1.Type)
 
-	pg1, err := drvr.AddSource("@pg1", "postgres://pqgotest:password@localhost/pqgotest")
+	pg1, err := drvr.AddSource("@pg1", "postgres://pqgotest:password@localhost/pqgotest", "")
 	require.Nil(t, err)
 	require.NotNil(t, pg1)
-	require.Equal(t, typPostgres, pg1.Type)
+	require.Equal(t, drvr.TypePostgres, pg1.Type)
 
 	err = srcs.Add(mydb1)
 	require.Nil(t, err)

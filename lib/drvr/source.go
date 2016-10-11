@@ -9,6 +9,8 @@ import (
 	"regexp"
 
 	"github.com/neilotoole/go-lg/lg"
+	"github.com/neilotoole/sq/lib/drvr/drvrutil"
+	"github.com/neilotoole/sq/lib/shutdown"
 	"github.com/neilotoole/sq/lib/util"
 )
 
@@ -35,12 +37,18 @@ func CheckHandleValue(handle string) error {
 	return nil
 }
 
+// AddSource attempts to register a new data source. driverName is optional; if not
+// provided, the function attempts to guess the driver type.
 func AddSource(handle string, location string, driverName string) (*Source, error) {
 
+	lg.Debugf("attempting to create data source %q [%s] at %q ", handle, driverName, location)
+	err := CheckHandleValue(handle)
+	if err != nil {
+		return nil, err
+	}
+
 	var driverType Type
-
 	if driverName != "" {
-
 		_, ok := registeredDrivers[Type(driverName)]
 		if !ok {
 			return nil, util.Errorf("unknown driver type %q", driverName)
@@ -48,19 +56,47 @@ func AddSource(handle string, location string, driverName string) (*Source, erro
 		driverType = Type(driverName)
 	}
 
-	lg.Debugf("attempting to create data source %q at %q", handle, location)
-
-	err := CheckHandleValue(handle)
-	if err != nil {
-		return nil, err
+	if driverType == "" {
+		// check if it's standard driver URL
+		driverType, _ = getDriverTypeFromStdDriverURL(location)
 	}
 
 	if driverType == "" {
-		driverType, err = GetTypeFromSourceLocation(location)
+		// not a standard driver URL, probably a file-based source or a remote source
+		file, mediatype, cleanup, err := drvrutil.GetSourceFile(location)
+
+		// TODO (neilotoole): ^^ do we really want to retrieve the file at this stage, or just
+		// get the mediatype etc?
 		if err != nil {
+			lg.Errorf("unable to determine driver for data src: %s", location)
+			// at this stage, we just give up
 			return nil, err
 		}
+
+		if file != nil {
+			shutdown.Add(func() error {
+				return file.Close()
+			})
+		}
+
+		shutdown.Add(cleanup)
+
+		ok := false
+		driverType, ok = getDriverTypeFromMediaType(mediatype)
+		if !ok {
+			return nil, util.Errorf("unable to determine driver for data src: %s [%s]", location, mediatype)
+		}
+
 	}
+
+	//lg.Debugf("attempting to create data source %q at %q", handle, location)
+	//
+	//if driverType == "" {
+	//	driverType, err = GetTypeFromSrcLocation(location)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//}
 
 	src := &Source{Handle: handle, Location: location, Type: driverType}
 
@@ -75,7 +111,49 @@ func AddSource(handle string, location string, driverName string) (*Source, erro
 	return canonicalSource, err
 }
 
-func GetTypeFromSourceLocation(location string) (Type, error) {
+// getDriverTypeFromMediaType returns the driver type corresponding to mediatype.
+// For example:
+//
+//  application/vnd.openxmlformats-officedocument.spreadsheetml.sheet  -->  xlsx
+//  csv --> csv
+func getDriverTypeFromMediaType(mediatype string) (driverType Type, ok bool) {
+
+	switch {
+	case strings.Index(mediatype, `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`) != -1:
+		driverType = Type("xlsx")
+		ok = true
+	case strings.Index(mediatype, `text/csv`) != -1:
+		driverType = Type("csv")
+		ok = true
+	}
+
+	lg.Debugf("%q  :  %q", mediatype, driverType)
+	return driverType, ok
+}
+
+// getDriverTypeFromStdDriverURL checks if location maps to a typical registered SQL driver,
+// and if so returns the driver type and true. That is, does the location start with
+// the name of the SQL driver? Examples:
+//
+//  mysql://root:root@tcp(localhost:33067)/sq_mydb1
+//  postgres://sq:sq@localhost/sq_pg1?sslmode=disable
+//
+func getDriverTypeFromStdDriverURL(location string) (Type, bool) {
+
+	u, err := url.ParseRequestURI(location)
+	if err != nil {
+		return "", false
+	}
+
+	drv, ok := registeredDrivers[Type(u.Scheme)]
+	if !ok {
+		return "", false
+	}
+
+	return drv.Type(), true
+}
+
+func GetTypeFromSrcLocation(location string) (Type, error) {
 
 	lg.Debugf("attempting to determine datasource type from %q", location)
 	// xsls content type: application/vnd.ms-excel
@@ -85,7 +163,6 @@ func GetTypeFromSourceLocation(location string) (Type, error) {
 	//my1               mysql     mysql://root:root@tcp(localhost:33067)/sq_mydb1
 	//pg1               postgres  postgres://sq:sq@localhost/sq_pg1?sslmode=disable
 	//sl1               sqlite3   sqlite3:///Users/neilotoole/nd/go/src/github.com/neilotoole/sq/test/sqlite/sqlite_db1
-	//excel1            xlsx      xlsx:///Users/neilotoole/nd/go/src/github.com/neilotoole/sq/test/xlsx/test.xlsx
 	//excel2            xlsx      /Users/neilotoole/nd/go/src/github.com/neilotoole/sq/test/xlsx/test.xlsx
 	//excel3            xlsx      test.xlsx
 	//excel4            xlsx      https://s3.amazonaws.com/sq.neilotoole.io/testdata/1.0/xslx/test.xlsx

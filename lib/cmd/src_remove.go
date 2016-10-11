@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/neilotoole/sq/lib/util"
 	"github.com/spf13/cobra"
 )
 
@@ -24,7 +25,7 @@ func init() {
 func execSrcRemove(cmd *cobra.Command, args []string) error {
 
 	if len(args) != 1 {
-		return fmt.Errorf("invalid arguments")
+		return util.Errorf("invalid arguments")
 	}
 
 	//cfg := cfg
@@ -44,18 +45,7 @@ func execSrcRemove(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Printf("Removed data source %q", src.Handle)
-	//db := db.New(src)
-	//
-	//err = db.New(src).Ping()
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//color.Set(color.FgGreen, color.Bold)
-	//fmt.Printf("pong!")
-	//color.Unset()
-	//fmt.Printf("\n")
+	fmt.Printf("Removed data source %s\n", src.Handle)
 
 	return nil
 }

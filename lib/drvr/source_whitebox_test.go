@@ -9,6 +9,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const TypeMySQL = Type("mysql")
+const TypePostgres = Type("postgres")
+const TypeSQLite3 = Type("sqlite3")
+const TypeXSLX = Type("xlsx")
+
 func TestCheckHandleValue(t *testing.T) {
 
 	var fails = []struct {
@@ -48,4 +53,19 @@ func TestCheckHandleValue(t *testing.T) {
 		require.Nil(t, CheckHandleValue(pass), fmt.Sprintf("[%d] should pass", i))
 	}
 
+}
+
+func TestGetDriverTypeFromStdSQLURL(t *testing.T) {
+
+	typ, ok := getDriverTypeFromStdDriverURL("mysql://root:root@tcp(localhost:33067)/sq_mydb1")
+	require.True(t, ok)
+	require.Equal(t, typ, TypeMySQL)
+
+	typ, ok = getDriverTypeFromStdDriverURL("postgres://sq:sq@localhost/sq_pg1?sslmode=disable")
+	require.True(t, ok)
+	require.Equal(t, typ, TypePostgres)
+
+	typ, ok = getDriverTypeFromStdDriverURL("http://neilotoole.io/sq/test/test1.xlsx")
+	require.False(t, ok)
+	require.Equal(t, typ, Type(""), "not a standard driver URL")
 }
