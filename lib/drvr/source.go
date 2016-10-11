@@ -9,7 +9,6 @@ import (
 	"regexp"
 
 	"github.com/neilotoole/go-lg/lg"
-	"github.com/neilotoole/sq/lib/drvr/drvrutil"
 	"github.com/neilotoole/sq/lib/shutdown"
 	"github.com/neilotoole/sq/lib/util"
 )
@@ -63,7 +62,7 @@ func AddSource(handle string, location string, driverName string) (*Source, erro
 
 	if driverType == "" {
 		// not a standard driver URL, probably a file-based source or a remote source
-		file, mediatype, cleanup, err := drvrutil.GetSourceFile(location)
+		file, mediatype, cleanup, err := GetSourceFile(location)
 
 		// TODO (neilotoole): ^^ do we really want to retrieve the file at this stage, or just
 		// get the mediatype etc?

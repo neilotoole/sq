@@ -11,7 +11,6 @@ import (
 	"github.com/neilotoole/go-lg/lg"
 	"github.com/neilotoole/sq-driver/hackery/database/sql"
 	"github.com/neilotoole/sq/lib/drvr"
-	"github.com/neilotoole/sq/lib/shutdown"
 	"github.com/neilotoole/sq/lib/util"
 )
 
@@ -36,16 +35,19 @@ func Init(scratchDir string) {
 	workDir = scratchDir
 }
 
-func OpenNew() (*drvr.Source, *sql.DB, error) {
+// OpenNew creates a new scratch database, and returns the data source, opened
+// database, cleanup function (may be nil), or an error. It is up to the caller invoke
+// db.Close() and to invoke the cleanup function.
+func OpenNew() (*drvr.Source, *sql.DB, func() error, error) {
 
 	src, filepath, err := newScratchSrc()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	db, err := sql.Open(string(src.Type), src.ConnURI())
 	if err != nil {
-		return nil, nil, util.WrapError(err)
+		return nil, nil, nil, util.WrapError(err)
 	}
 
 	cleanup := func() error {
@@ -59,9 +61,9 @@ func OpenNew() (*drvr.Source, *sql.DB, error) {
 		return err
 	}
 
-	shutdown.Add(cleanup)
+	//shutdown.Add(cleanup)
 
-	return src, db, nil
+	return src, db, cleanup, nil
 }
 
 func Type() drvr.Type {
@@ -69,13 +71,11 @@ func Type() drvr.Type {
 }
 
 func generateFilename(dir string) (filename string, path string) {
-	// // apacheFormat is the standard apache timestamp format.
-	//const apacheFormat = `02/Jan/2006:15:04:05 -0700`
 	const tsFmt = `20060102.030405.000000000`
 
 	ts := time.Now().Format(tsFmt)
 
-	filename = ts + "__" + strconv.Itoa(os.Getpid()) + ".db"
+	filename = ts + "__" + strconv.Itoa(os.Getpid()) + ".sqlite"
 
 	path = filepath.Join(dir, filename)
 

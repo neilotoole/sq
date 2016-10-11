@@ -5,10 +5,14 @@ import (
 
 	"sync"
 
+	"encoding/csv"
+
+	"fmt"
+	"io"
+
 	"github.com/neilotoole/go-lg/lg"
 	"github.com/neilotoole/sq-driver/hackery/database/sql"
 	"github.com/neilotoole/sq/lib/drvr"
-	"github.com/neilotoole/sq/lib/drvr/drvrutil"
 	"github.com/neilotoole/sq/lib/drvr/scratch"
 	"github.com/neilotoole/sq/lib/shutdown"
 	"github.com/neilotoole/sq/lib/util"
@@ -40,12 +44,13 @@ func (d *Driver) Open(src *drvr.Source) (*sql.DB, error) {
 	// we now know that the xlsx file is valid
 
 	// let's open the scratch db
-	_, scratchdb, err := scratch.OpenNew()
+	_, scratchdb, _, err := scratch.OpenNew()
+	//shutdown.Add(cleanup) // TODO: re-enable cleanup
 	if err != nil {
 		return nil, err
 	}
 
-	lg.Debugf("opened handle to scratch db")
+	lg.Debugf("opened scratch db: %s", src.String())
 
 	err = d.csvToScratch(src, scratchdb)
 	if err != nil {
@@ -69,12 +74,11 @@ func (d *Driver) Ping(src *drvr.Source) error {
 
 	lg.Debugf("driver %q attempting to ping %q", d.Type(), src)
 
-	file, _, cleanup, err := drvrutil.GetSourceFile(src.Location)
+	file, _, cleanup, err := drvr.GetSourceFile(src.Location)
+	shutdown.Add(cleanup)
 	if err != nil {
 		return err
 	}
-
-	shutdown.Add(cleanup)
 
 	lg.Debugf("file name: %q", file.Name())
 
@@ -88,67 +92,6 @@ func (d *Driver) Metadata(src *drvr.Source) (*drvr.SourceMetadata, error) {
 	lg.Debugf(src.String())
 
 	return nil, util.Errorf("not implemented")
-
-	//
-	//meta := &drvr.SourceMetadata{}
-	//meta.Handle = src.Handle
-	//
-	//file, err := d.GetSourceFile(src)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//defer file.Close()
-	//
-	//fi, err := os.Stat(file.Name())
-	//if err != nil {
-	//	return nil, util.WrapError(err)
-	//}
-	//lg.Debugf("size: %d", fi.Size())
-	//meta.Size = fi.Size()
-	//
-	//meta.Name, err = d.GetSourceFileName(src)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//
-	//meta.FullyQualifiedName = meta.Name
-	//meta.Location = src.Location
-	//
-	////lg.Debugf("source file name: %s", d.getSourceFileName(src))
-	//
-	//xlFile, err := xlsx.OpenFile(file.Name())
-	//if err != nil {
-	//	return nil, util.Errorf("unable to open XLSX file %q: %v", file.Name(), err)
-	//}
-	//
-	////sheets := xlFile.Sheets
-	//
-	//for _, sheet := range xlFile.Sheets {
-	//	tbl := drvr.Table{}
-	//
-	//	tbl.Name = sheet.Name
-	//	tbl.Size = -1
-	//	tbl.RowCount = int64(len(sheet.Rows))
-	//
-	//	colTypes := getColTypes(sheet)
-	//
-	//	for i, colType := range colTypes {
-	//
-	//		col := drvr.Column{}
-	//		col.Datatype = cellTypeToString(colType)
-	//		col.ColType = col.Datatype
-	//		col.Position = int64(i)
-	//		col.Name = GenerateExcelColName(i)
-	//		tbl.Columns = append(tbl.Columns, col)
-	//	}
-	//
-	//	meta.Tables = append(meta.Tables, tbl)
-	//
-	//}
-	//
-	//return meta, nil
-
-	//return nil, util.Errorf("not implemented")
 }
 
 func init() {
@@ -182,105 +125,214 @@ func (d *Driver) Release() error {
 
 func (d *Driver) csvToScratch(src *drvr.Source, db *sql.DB) error {
 
-	return util.Errorf("not implemented")
+	const tblName = "data"
 
-	//file, err := d.GetSourceFile(src)
-	//if err != nil {
-	//	return err
-	//}
-	//defer file.Close()
-	//
-	//r := csv.NewReader(file)
-	//
-	//for {
-	//	record, err := r.Read()
-	//	if err == io.EOF {
-	//		break
-	//	}
-	//	if err != nil {
-	//		return util.WrapError(err)
-	//	}
-	//
-	//	fmt.Println(record)
-	//}
-	//
-	//xlFile, err := xlsx.OpenFile(file.Name())
-	//if err != nil {
-	//	return util.Errorf("unable to open file %q: %v", file.Name(), err)
-	//}
-	//
-	////sheets := xlFile.Sheets
-	//
-	//for _, sheet := range xlFile.Sheets {
-	//
-	//	lg.Debugf("attempting to create table for sheet %q", sheet.Name)
-	//	colNames, err := createTblForSheet(db, sheet)
-	//	if err != nil {
-	//		return err
-	//	}
-	//	lg.Debugf("successfully created table for sheet %q", sheet.Name)
-	//
-	//	escapedColNames := make([]string, len(colNames))
-	//	for i, colName := range colNames {
-	//		escapedColNames[i] = `"` + colName + `"`
-	//	}
-	//
-	//	//placeholders := strings.Repeat("?", len(colNames))
-	//	placeholders := make([]string, len(colNames))
-	//	for i, _ := range placeholders {
-	//		placeholders[i] = "?"
-	//	}
-	//
-	//	insertTpl := `INSERT INTO "%s" ( %s ) VALUES ( %s )`
-	//	insertStmt := fmt.Sprintf(insertTpl, sheet.Name, strings.Join(escapedColNames, ", "), strings.Join(placeholders, ", "))
-	//
-	//	lg.Debugf("using INSERT stmt: %s", insertStmt)
-	//	for _, row := range sheet.Rows {
-	//
-	//		//result, err = database.Exec("Insert into Persons (id, LastName, FirstName, Address, City) values (?, ?, ?, ?, ?)", nil, "soni", "swati", "110 Eastern drive", "Mountain view, CA")
-	//		vals := make([]interface{}, len(row.Cells))
-	//		for i, cell := range row.Cells {
-	//			typ := cell.Type()
-	//			switch typ {
-	//			case xlsx.CellTypeBool:
-	//				vals[i] = cell.Bool()
-	//			case xlsx.CellTypeNumeric:
-	//				intVal, err := cell.Int64()
-	//				if err == nil {
-	//					vals[i] = intVal
-	//					continue
-	//				}
-	//				floatVal, err := cell.Float()
-	//				if err == nil {
-	//					vals[i] = floatVal
-	//					continue
-	//				}
-	//				// it's not an int, it's not a float, just give up and make it a string
-	//				vals[i] = cell.Value
-	//
-	//			case xlsx.CellTypeDate:
-	//				//val, _ := cell.
-	//				// TODO: parse into a time value here
-	//				vals[i] = cell.Value
-	//			default:
-	//				vals[i] = cell.Value
-	//			}
-	//
-	//		}
-	//
-	//		vls := make([]string, len(vals))
-	//		for i, val := range vals {
-	//			vls[i] = fmt.Sprintf("%v", val)
-	//		}
-	//
-	//		//lg.Debugf("INSERT INTO %q VALUES (%s)", sheet.Name, strings.Join(vls, ", "))
-	//
-	//		_, err := db.Exec(insertStmt, vals...)
-	//		if err != nil {
-	//			return util.WrapError(err)
-	//		}
-	//	}
-	//}
-	//
-	//return nil
+	file, _, cleanup, err := drvr.GetSourceFile(src.Location)
+	shutdown.Add(cleanup)
+	if err != nil {
+		return err
+	}
+
+	//var escapedColNames []string
+	//var placeholders []string
+	var insertStmt string
+	r := csv.NewReader(file)
+	var readCount int64
+
+	for {
+		record, err := r.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return util.Errorf("unable to read data source %q: %v", src.Location, err)
+		}
+
+		if readCount == 0 {
+			colNames, err := d.getColNames(src, r, record)
+			if err != nil {
+				return err
+			}
+
+			createStmt, err := d.tblCreateStmt(src, r, tblName, colNames)
+			if err != nil {
+				return err
+			}
+
+			lg.Debugf("creating table with SQL:\n%s", createStmt)
+			_, err = db.Exec(createStmt)
+			if err != nil {
+				return util.WrapError(err)
+			}
+
+			escapedColNames := make([]string, len(colNames))
+			for i, colName := range colNames {
+				escapedColNames[i] = `"` + colName + `"`
+			}
+
+			placeholders := make([]string, len(colNames))
+			for i := range placeholders {
+				placeholders[i] = "?"
+			}
+			insertTpl := `INSERT INTO "%s" ( %s ) VALUES ( %s )`
+			insertStmt = fmt.Sprintf(insertTpl, tblName, strings.Join(escapedColNames, ", "), strings.Join(placeholders, ", "))
+		}
+
+		vals := make([]interface{}, len(record))
+		for i := range record {
+			vals[i] = record[i]
+		}
+
+		_, err = db.Exec(insertStmt, vals...)
+		if err != nil {
+			return util.WrapError(err)
+		}
+
+		readCount++
+	}
+
+	if readCount == 0 {
+		return util.Errorf("data source %s is empty", src.Handle)
+	}
+
+	lg.Debugf("read %d records from %s", readCount, src.Handle)
+
+	return nil
+
 }
+
+func (d *Driver) tblCreateStmt(src *drvr.Source, r *csv.Reader, tblName string, colNames []string) (string, error) {
+
+	// create the table initially with all col types as TEXT
+	colTypes := make([]string, len(colNames))
+	colExprs := make([]string, len(colNames))
+	for i := 0; i < len(colNames); i++ {
+		colTypes[i] = AffinityText
+		colExprs[i] = fmt.Sprintf(`"%s" %s`, colNames[i], colTypes[i])
+	}
+
+	tblTpl := `CREATE TABLE IF NOT EXISTS "%s" ( %s )`
+
+	stmt := fmt.Sprintf(tblTpl, tblName, strings.Join(colExprs, ", "))
+	lg.Debugf("creating scratch table using SQL: %s", stmt)
+	return stmt, nil
+
+}
+
+func (d *Driver) getColNames(src *drvr.Source, r *csv.Reader, firstRecord []string) ([]string, error) {
+
+	colNames := make([]string, len(firstRecord))
+
+	for i := range colNames {
+		colNames[i] = drvr.GenerateAlphaColName(i)
+	}
+
+	return colNames, nil
+	// TODO: allow header column
+}
+
+const AffinityText = `TEXT`
+const AffinityNumeric = `NUMERIC`
+const AffinityInteger = `INTEGER`
+const AffinityReal = `REAL`
+const AffinityBlob = `BLOB`
+
+//file, err := d.GetSourceFile(src)
+//if err != nil {
+//	return err
+//}
+//defer file.Close()
+//
+//r := csv.NewReader(file)
+//
+//for {
+//	record, err := r.Read()
+//	if err == io.EOF {
+//		break
+//	}
+//	if err != nil {
+//		return util.WrapError(err)
+//	}
+//
+//	fmt.Println(record)
+//}
+//
+//xlFile, err := xlsx.OpenFile(file.Name())
+//if err != nil {
+//	return util.Errorf("unable to open file %q: %v", file.Name(), err)
+//}
+//
+////sheets := xlFile.Sheets
+//
+//for _, sheet := range xlFile.Sheets {
+//
+//	lg.Debugf("attempting to create table for sheet %q", sheet.Name)
+//	colNames, err := createTblForSheet(db, sheet)
+//	if err != nil {
+//		return err
+//	}
+//	lg.Debugf("successfully created table for sheet %q", sheet.Name)
+//
+//	escapedColNames := make([]string, len(colNames))
+//	for i, colName := range colNames {
+//		escapedColNames[i] = `"` + colName + `"`
+//	}
+//
+//	//placeholders := strings.Repeat("?", len(colNames))
+//	placeholders := make([]string, len(colNames))
+//	for i, _ := range placeholders {
+//		placeholders[i] = "?"
+//	}
+//
+//	insertTpl := `INSERT INTO "%s" ( %s ) VALUES ( %s )`
+//	insertStmt := fmt.Sprintf(insertTpl, sheet.Name, strings.Join(escapedColNames, ", "), strings.Join(placeholders, ", "))
+//
+//	lg.Debugf("using INSERT stmt: %s", insertStmt)
+//	for _, row := range sheet.Rows {
+//
+//		//result, err = database.Exec("Insert into Persons (id, LastName, FirstName, Address, City) values (?, ?, ?, ?, ?)", nil, "soni", "swati", "110 Eastern drive", "Mountain view, CA")
+//		vals := make([]interface{}, len(row.Cells))
+//		for i, cell := range row.Cells {
+//			typ := cell.Type()
+//			switch typ {
+//			case xlsx.CellTypeBool:
+//				vals[i] = cell.Bool()
+//			case xlsx.CellTypeNumeric:
+//				intVal, err := cell.Int64()
+//				if err == nil {
+//					vals[i] = intVal
+//					continue
+//				}
+//				floatVal, err := cell.Float()
+//				if err == nil {
+//					vals[i] = floatVal
+//					continue
+//				}
+//				// it's not an int, it's not a float, just give up and make it a string
+//				vals[i] = cell.Value
+//
+//			case xlsx.CellTypeDate:
+//				//val, _ := cell.
+//				// TODO: parse into a time value here
+//				vals[i] = cell.Value
+//			default:
+//				vals[i] = cell.Value
+//			}
+//
+//		}
+//
+//		vls := make([]string, len(vals))
+//		for i, val := range vals {
+//			vls[i] = fmt.Sprintf("%v", val)
+//		}
+//
+//		//lg.Debugf("INSERT INTO %q VALUES (%s)", sheet.Name, strings.Join(vls, ", "))
+//
+//		_, err := db.Exec(insertStmt, vals...)
+//		if err != nil {
+//			return util.WrapError(err)
+//		}
+//	}
+//}
+//
+//return nil

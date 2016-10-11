@@ -17,8 +17,8 @@ import (
 	"github.com/neilotoole/go-lg/lg"
 	"github.com/neilotoole/sq-driver/hackery/database/sql"
 	"github.com/neilotoole/sq/lib/drvr"
-	"github.com/neilotoole/sq/lib/drvr/drvrutil"
 	"github.com/neilotoole/sq/lib/drvr/scratch"
+	"github.com/neilotoole/sq/lib/shutdown"
 	"github.com/neilotoole/sq/lib/util"
 	"github.com/tealeg/xlsx"
 )
@@ -49,7 +49,8 @@ func (d *Driver) Open(src *drvr.Source) (*sql.DB, error) {
 	// we now know that the xlsx file is valid
 
 	// let's open the scratch db
-	_, scratchdb, err := scratch.OpenNew()
+	_, scratchdb, cleanup, err := scratch.OpenNew()
+	shutdown.Add(cleanup)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +144,7 @@ func (d *Driver) Metadata(src *drvr.Source) (*drvr.SourceMetadata, error) {
 			col.Datatype = cellTypeToString(colType)
 			col.ColType = col.Datatype
 			col.Position = int64(i)
-			col.Name = drvrutil.GenerateExcelColName(i)
+			col.Name = drvr.GenerateAlphaColName(i)
 			tbl.Columns = append(tbl.Columns, col)
 		}
 
@@ -262,6 +263,7 @@ func (d *Driver) getSourceFileName(src *drvr.Source) (string, error) {
 // the caller is responsible for closing it.
 func (d *Driver) getSourceFile(src *drvr.Source) (*os.File, error) {
 
+	// TODO: delegate to drvr.GetSourceFile
 	// xlsx:///Users/neilotoole/sq/test/testdata.xlsx
 	//`https://s3.amazonaws.com/sq.neilotoole.io/testdata/1.0/xslx/test.xlsx`
 	//`/Users/neilotoole/nd/go/src/github.com/neilotoole/sq/test/xlsx/test.xlsx`
@@ -342,9 +344,8 @@ func (d *Driver) xlsxToScratch(src *drvr.Source, db *sql.DB) error {
 			escapedColNames[i] = `"` + colName + `"`
 		}
 
-		//placeholders := strings.Repeat("?", len(colNames))
 		placeholders := make([]string, len(colNames))
-		for i, _ := range placeholders {
+		for i := range placeholders {
 			placeholders[i] = "?"
 		}
 
@@ -470,7 +471,7 @@ func createTblForSheet(db *sql.DB, sheet *xlsx.Sheet) ([]string, error) {
 	//}
 
 	for i := 0; i < numCols; i++ {
-		colNames[i] = drvrutil.GenerateExcelColName(i)
+		colNames[i] = drvr.GenerateAlphaColName(i)
 		//colTypes[i] = "TEXT"
 		colExprs[i] = fmt.Sprintf(`"%s" %s`, colNames[i], colTypes[i])
 	}
@@ -480,6 +481,7 @@ func createTblForSheet(db *sql.DB, sheet *xlsx.Sheet) ([]string, error) {
 	// need to get the col types
 
 	//tblTpl :=	"CREATE TABLE IF NOT EXISTS Persons ( id integer PRIMARY KEY, LastName varchar(255) NOT NULL, FirstName varchar(255), Address varchar(255), City varchar(255), CONSTRAINT uc_PersonID UNIQUE (id,LastName))",)
+	// TODO: should delegate this to the renderer
 	tblTpl := `CREATE TABLE IF NOT EXISTS "%s" ( %s )`
 
 	stmt := fmt.Sprintf(tblTpl, sheet.Name, strings.Join(colExprs, ", "))

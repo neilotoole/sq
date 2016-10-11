@@ -1,4 +1,4 @@
-package drvrutil
+package drvr
 
 import (
 	"testing"
@@ -14,7 +14,7 @@ func TestGenerateExcelColName(t *testing.T) {
 	colNames := make([]string, quantity)
 
 	for i := 0; i < quantity; i++ {
-		colNames[i] = GenerateExcelColName(i)
+		colNames[i] = GenerateAlphaColName(i)
 	}
 
 	items := []struct {

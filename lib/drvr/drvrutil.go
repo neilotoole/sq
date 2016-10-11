@@ -1,4 +1,4 @@
-package drvrutil
+package drvr
 
 import (
 	"bytes"
@@ -24,13 +24,13 @@ import (
 	"github.com/neilotoole/sq/lib/util"
 )
 
-// GenerateExcelColName will return an Excel-style column name for index n, starting with A, B, C...
+// GenerateAlphaColName returns an Excel-style column name for index n, starting with A, B, C...
 // and continuing to AA, AB, AC, etc...
-func GenerateExcelColName(n int) string {
-	return genExcelCol(n, 'A', 26)
+func GenerateAlphaColName(n int) string {
+	return genAlphaCol(n, 'A', 26)
 }
 
-func genExcelCol(n int, start rune, lenAlpha int) string {
+func genAlphaCol(n int, start rune, lenAlpha int) string {
 
 	buf := &bytes.Buffer{}
 

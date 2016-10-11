@@ -9,6 +9,8 @@ import (
 type Driver interface {
 	// Type returns the driver type.
 	Type() Type
+
+	// ConnURI returns the driver-specific connection string.
 	ConnURI(source *Source) (string, error)
 
 	// Open returns a database handle.
@@ -25,14 +27,11 @@ type Driver interface {
 
 	// Release instructs the driver instance to release any held resources,
 	// effectively shutting down the instance.
+	// TODO: do we need Release() and the application-wide shutdown mechanism?
 	Release() error
 
 	// Metadata returns metadata about the provided datasource.
 	Metadata(src *Source) (*SourceMetadata, error)
-}
-
-type SQLDriver interface {
-	Driver
 }
 
 var registeredDrivers = make(map[Type]Driver)
@@ -41,14 +40,14 @@ func Register(driver Driver) {
 	registeredDrivers[driver.Type()] = driver
 }
 
-// For returns a driver for the supplied datasource.
+// For returns a driver for the supplied data source.
 func For(source *Source) (Driver, error) {
 
 	drv, ok := registeredDrivers[source.Type]
 	if !ok {
-		return nil, util.Errorf("unknown driver type %q for datasource %q", source.Type, source.Handle)
+		return nil, util.Errorf("unknown driver type %q for data source %q", source.Type, source.Handle)
 	}
 
-	lg.Debugf("returning driver %q for datasource %q", drv.Type(), source.Handle)
+	lg.Debugf("returning driver %q for data source %q", drv.Type(), source.Handle)
 	return drv, nil
 }
