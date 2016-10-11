@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/neilotoole/sq/lib/drvr"
 	"gopkg.in/yaml.v2"
 )
 
@@ -45,13 +46,19 @@ func (f *FileStore) Load() (*Config, error) {
 		return nil, err
 	}
 
-	var cfg Config
-	err = yaml.Unmarshal(bytes, &cfg)
+	cfg := &Config{}
+	err = yaml.Unmarshal(bytes, cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	return &cfg, nil
+	applyDefaults(cfg)
+
+	if cfg.SourceSet == nil {
+		cfg.SourceSet = drvr.NewSourceSet()
+	}
+
+	return cfg, nil
 }
 
 // Save writes config to disk.

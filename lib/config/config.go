@@ -97,7 +97,7 @@ func applyDefaults(cfg *Config) {
 	lg.Debugf("checking that cfg has default values set")
 
 	if cfg.SourceSet == nil {
-		cfg.SourceSet = &drvr.SourceSet{}
+		cfg.SourceSet = drvr.NewSourceSet()
 	}
 
 	if cfg.Options.QueryMode == "" {
@@ -123,25 +123,3 @@ var defaults = struct {
 	ModeSQ,
 	FormatJSON,
 }
-
-//func init() {
-//	//lg.Debugf("configuring factory settings")
-//	//defaults.Timeout = 10 * time.Second
-//	//defaults.QueryMode = ModeSQ
-//	//defaults.Format = FormatJSON
-//
-//	// if the envar is set, then we use that as the default filestore.
-//	envar := "SQ_CONFIG_FILEPATH"
-//	configPath, ok := os.LookupEnv(envar)
-//	if ok {
-//		lg.Debugf("attempting to create filestore from %q with value %q", envar, configPath)
-//		store, err := NewFileStore(configPath)
-//		if err != nil {
-//			lg.Fatalf("Fatal error: unable to initialize config: %v", err)
-//		}
-//
-//		SetStore(store)
-//		lg.Debugf("successfully set config filestore to %q", configPath)
-//	}
-//
-//}

@@ -19,9 +19,11 @@ func init() {
 
 func execSrcList(cmd *cobra.Command, args []string) error {
 
-	//cfg := cfg
-
 	w := table.NewWriter(true)
+
+	if cfg.SourceSet == nil {
+		return nil
+	}
 
 	active, _ := cfg.SourceSet.Active()
 

@@ -87,3 +87,6 @@ build-for-dist: clean build-assets test
 
 dist: clean test build-for-dist
 	mkdir -p ./dist && cd ./dist && cp $(shell which sq) sq && tar -cvzf "sq-$(BUILD_VERSION)-darwin.tar.gz" sq && rm sq
+
+smoke:
+	@./test/smoke/smoke.sh

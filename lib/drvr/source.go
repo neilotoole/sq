@@ -35,21 +35,34 @@ func CheckHandleValue(handle string) error {
 	return nil
 }
 
-func NewSource(handle string, location string) (*Source, error) {
+func AddSource(handle string, location string, driverName string) (*Source, error) {
 
-	lg.Debugf("attempting to create datasource %q using handle %q", handle, location)
+	var driverType Type
+
+	if driverName != "" {
+
+		_, ok := registeredDrivers[Type(driverName)]
+		if !ok {
+			return nil, util.Errorf("unknown driver type %q", driverName)
+		}
+		driverType = Type(driverName)
+	}
+
+	lg.Debugf("attempting to create data source %q at %q", handle, location)
 
 	err := CheckHandleValue(handle)
 	if err != nil {
 		return nil, err
 	}
 
-	typ, err := GetTypeFromSourceLocation(location)
-	if err != nil {
-		return nil, err
+	if driverType == "" {
+		driverType, err = GetTypeFromSourceLocation(location)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	src := &Source{Handle: handle, Location: location, Type: typ}
+	src := &Source{Handle: handle, Location: location, Type: driverType}
 
 	drv, err := For(src)
 	if err != nil {
@@ -81,7 +94,7 @@ func GetTypeFromSourceLocation(location string) (Type, error) {
 
 	if len(parts) > 1 && parts[0] != "http" && parts[0] != "https" {
 		drvName := parts[0]
-		drv, ok := drvs[Type(drvName)]
+		drv, ok := registeredDrivers[Type(drvName)]
 		if !ok {
 			return "", util.Errorf("unknown driver type %q in source location %q", drvName, location)
 		}
@@ -106,7 +119,7 @@ func GetTypeFromSourceLocation(location string) (Type, error) {
 			return "", util.Errorf("unable to determine source type from file suffix in location %q", location)
 		}
 
-		drv, ok := drvs[Type(strings.ToLower(suffix))]
+		drv, ok := registeredDrivers[Type(strings.ToLower(suffix))]
 		if !ok {
 			return "", util.Errorf("no driver for file suffix %q in source location %q", suffix, location)
 		}
@@ -122,7 +135,7 @@ func GetTypeFromSourceLocation(location string) (Type, error) {
 	if !ok {
 		return "", util.Errorf("unable to determine source type from file suffix in location %q", location)
 	}
-	drv, ok := drvs[Type(strings.ToLower(suffix))]
+	drv, ok := registeredDrivers[Type(strings.ToLower(suffix))]
 	if !ok {
 		return "", util.Errorf("no driver for file suffix %q in source location %q", suffix, location)
 	}
@@ -191,7 +204,7 @@ func IsValidSourceLocation(location string) bool {
 
 	typ := Type(parts[0])
 
-	_, ok := drvs[typ]
+	_, ok := registeredDrivers[typ]
 	if !ok {
 		lg.Debugf("given source location %q, no driver found for location component %q", location, typ)
 	}
@@ -317,7 +330,7 @@ func (ss *SourceSet) Remove(name string) error {
 func NewSourceSet() *SourceSet {
 
 	ss := &SourceSet{}
-	ss.Items = []*Source{}
+	//ss.Items = []*Source{}
 	return ss
 }
 

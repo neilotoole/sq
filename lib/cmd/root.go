@@ -254,7 +254,7 @@ func getConfig() *config.Config {
 
 func initConfig() error {
 
-	envar := "SQ_CONFIG_FILEPATH"
+	envar := "SQ_CONFIGFILE"
 	configPath, ok := os.LookupEnv(envar)
 
 	if !ok {

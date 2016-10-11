@@ -26,11 +26,11 @@ func init() {
 	os.Setenv("__LG_LOG_FILEPATH", path)
 
 	// The location of the config file can be specified via an envar.
-	_, ok = os.LookupEnv("SQ_CONFIG_FILEPATH")
+	_, ok = os.LookupEnv("SQ_CONFIGFILE")
 	if !ok {
 		// If the envar does not exist, we set it ourselves.
 		path := filepath.Join(cfgDir, "sq.yml")
-		os.Setenv("SQ_CONFIG_FILEPATH", path)
+		os.Setenv("SQ_CONFIGFILE", path)
 	}
 }
 

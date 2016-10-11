@@ -24,13 +24,13 @@ func init() {
 
 func TestSource_Driver(t *testing.T) {
 
-	src, err := drvr.NewSource("@a1", "mysql://user:pass@localhost:3306/mydb1")
+	src, err := drvr.AddSource("@a1", "mysql://user:pass@localhost:3306/mydb1")
 	require.Nil(t, err)
 	require.Equal(t, typMySQL, src.Type)
 	require.Equal(t, "[@a1] mysql://user:pass@localhost:3306/mydb1", src.String())
 	require.Equal(t, "user:pass@localhost:3306/mydb1", src.ConnURI())
 
-	src, err = drvr.NewSource("@a1", "postgres://pqgotest:password@localhost/pqgotest")
+	src, err = drvr.AddSource("@a1", "postgres://pqgotest:password@localhost/pqgotest")
 	require.Nil(t, err)
 	require.Equal(t, typPostgres, src.Type)
 	require.Equal(t, "[@a1] postgres://pqgotest:password@localhost/pqgotest", src.String())
@@ -78,12 +78,12 @@ func TestDataSources(t *testing.T) {
 
 	srcs := drvr.NewSourceSet()
 
-	mydb1, err := drvr.NewSource("@mydb1", "mysql://user:pass@localhost:3306/mydb1")
+	mydb1, err := drvr.AddSource("@mydb1", "mysql://user:pass@localhost:3306/mydb1")
 	require.Nil(t, err)
 	require.NotNil(t, mydb1)
 	require.Equal(t, typMySQL, mydb1.Type)
 
-	pg1, err := drvr.NewSource("@pg1", "postgres://pqgotest:password@localhost/pqgotest")
+	pg1, err := drvr.AddSource("@pg1", "postgres://pqgotest:password@localhost/pqgotest")
 	require.Nil(t, err)
 	require.NotNil(t, pg1)
 	require.Equal(t, typPostgres, pg1.Type)

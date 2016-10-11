@@ -35,17 +35,16 @@ type SQLDriver interface {
 	Driver
 }
 
-var drvs = make(map[Type]Driver)
+var registeredDrivers = make(map[Type]Driver)
 
 func Register(driver Driver) {
-	drvs[driver.Type()] = driver
-	lg.Debugf("registered driver %q", driver.Type())
+	registeredDrivers[driver.Type()] = driver
 }
 
 // For returns a driver for the supplied datasource.
 func For(source *Source) (Driver, error) {
 
-	drv, ok := drvs[source.Type]
+	drv, ok := registeredDrivers[source.Type]
 	if !ok {
 		return nil, util.Errorf("unknown driver type %q for datasource %q", source.Type, source.Handle)
 	}

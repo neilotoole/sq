@@ -78,7 +78,13 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		return util.Errorf("data source handle %q already exists", handle)
 	}
 
-	src, err := drvr.NewSource(handle, location)
+	driverName := ""
+
+	if cmd.Flags().Changed(FlagDriver) {
+		driverName, _ = cmd.Flags().GetString(FlagDriver)
+	}
+
+	src, err := drvr.AddSource(handle, location, driverName)
 	if err != nil {
 		return err
 	}
