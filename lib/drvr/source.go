@@ -17,9 +17,10 @@ type Type string
 
 // Source describes a data source.
 type Source struct {
-	Handle   string `yaml:"handle"`
-	Location string `yaml:"location"`
-	Type     Type   `yaml:"type"`
+	Handle   string     `yaml:"handle"`
+	Location string     `yaml:"location"`
+	Type     Type       `yaml:"type"`
+	Options  url.Values `yaml:"options,omitempty"`
 }
 
 var handlePattern = regexp.MustCompile(`\A[@][a-zA-Z][a-zA-Z0-9_]*$`)
@@ -38,9 +39,14 @@ func CheckHandleValue(handle string) error {
 
 // AddSource attempts to register a new data source. driverName is optional; if not
 // provided, the function attempts to guess the driver type.
-func AddSource(handle string, location string, driverName string) (*Source, error) {
+func AddSource(handle string, location string, driverName string, opts url.Values) (*Source, error) {
 
-	lg.Debugf("attempting to create data source %q [%s] at %q ", handle, driverName, location)
+	msg := fmt.Sprintf("attempting to create data source %q [%s] from %q", handle, driverName, location)
+	if opts != nil {
+		msg = fmt.Sprintf(msg+" with options: %s", opts.Encode())
+	}
+
+	lg.Debugf(msg)
 	err := CheckHandleValue(handle)
 	if err != nil {
 		return nil, err
@@ -97,7 +103,7 @@ func AddSource(handle string, location string, driverName string) (*Source, erro
 	//	}
 	//}
 
-	src := &Source{Handle: handle, Location: location, Type: driverType}
+	src := &Source{Handle: handle, Location: location, Type: driverType, Options: opts}
 
 	drv, err := For(src)
 	if err != nil {

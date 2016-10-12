@@ -19,9 +19,11 @@ cat /dev/null > ${SQ_CONFIGFILE}
 RES=$((RES + $?))
 function trackResult() {
 	R=$?
-	RES=$((RES + R))
+
+#	RES=$((RES + R))
 
 	if [ ${R} -ne 0 ]; then
+		RES=$((RES + 1))
   	>&2 printf "\n\e[1;97;41m BOLLIX \e[0m\n\n"
   fi
 
@@ -54,7 +56,6 @@ sq inspect -th @sl1 ; trackResult
 #sq inspect -th @csv_comma_noheader1 ; trackResult
 
 echo ""
-#sq src @csv_user_comma_header1 ; trackResult
 sq -th '@csv_user_comma_header1.data' ; trackResult
 # Check that the returned JSON has three columns...
 sq -j '@csv_user_comma_header1.data' | jq -e '.[0] | length == 3'; trackResult
@@ -100,6 +101,6 @@ if [ ${RES} -eq 0 ]; then
   printf  "\n\e[1;97;42m G'MAN LADS \e[0m\n\n"
   exit 0
 else
-  >&2 printf "\n\e[1;97;41m FOR FECK'S SAKE LADS \e[0m  smoke test failed, check log: ${SQ_LOGFILE}\n\n"
+  >&2 printf "\n\e[1;97;41m FOR FECK'S SAKE LADS \e[0m  ${RES} failed, check log: ${SQ_LOGFILE}\n\n"
   exit 1
 fi

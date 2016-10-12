@@ -3,6 +3,8 @@ package cmd
 import (
 	"strings"
 
+	"net/url"
+
 	"github.com/neilotoole/sq/lib/drvr"
 	"github.com/neilotoole/sq/lib/out/table"
 	"github.com/neilotoole/sq/lib/util"
@@ -14,25 +16,33 @@ var srcAddCmd = &cobra.Command{
 	Use: "add LOCATION @HANDLE",
 	Example: `  sq add 'mysql://user:pass@tcp(localhost:3306)/mydb1' @my1
   sq add 'postgres://user:pass@localhost/pgdb1?sslmode=disable' @pg1
-  sq add 'sqlite3:///Users/neilotoole/testdata/sqlite1.db' @sl1
-  sq add /Users/neilotoole/testdata/test.xlsx @excel1
-  sq add http://neilotoole.io/sq/test/test1.xlsx @excel2`,
+  sq add '/testdata/sqlite1.db' @sl1 --driver=sqlite3
+  sq add /testdata/test1.xlsx @excel1 --opts='header=true'
+  sq add http://neilotoole.io/sq/test/test1.xlsx @excel2
+  sq add /testdata/user_comma_header.csv @csv1 --opts='header=true'`,
 	Short: "Add data source",
-	Long: `Add data source specified by LOCATION and identified by @HANDLE. If LOCATION
-is amibgious, you may need to add the "--driver=X" flag. The
-format of LOCATION varies, but is generally of the form:
+	Long: `Add data source specified by LOCATION and identified by @HANDLE.  The
+format of LOCATION varies, but is generally a DB connection string, a file path,
+or a URL.
 
   DRIVER://CONNECTION_STRING
+  /path/to/local/file.suf
+  https://neilotoole.io/data/test1.xlsx
+
+If LOCATION is a file path or URL, sq will attempt to determine the driver type
+from the file suffix or URL Content-Type. If the result is ambiguous, you
+must specify the driver via the --driver=X flag.
 
 Available drivers:
 
   mysql        MySQL
   postgres     Postgres
-  sqlite3      SQLite 3
+  sqlite3      SQLite3
   xlsx         Microsoft Excel XLSX
+  csv          Comma-Separated Values
+  tsv          Tab-Separated Values
 
-The format of CONNECTION_STRING is driver-dependent. See the manual for more
-details: http://neilotoole.io/sq`,
+Additional help: http://neilotoole.io/sq`,
 	RunE: execSrcAdd,
 }
 
@@ -40,6 +50,7 @@ func init() {
 	preprocessCmd(srcAddCmd)
 
 	srcAddCmd.Flags().StringP(FlagDriver, "", "", FlagDriverUsage)
+	srcAddCmd.Flags().StringP(FlagSrcAddOptions, "", "", FlagSrcAddOptionsUsage)
 	RootCmd.AddCommand(srcAddCmd)
 
 	// TODO: add flag --active to immediately set active
@@ -84,7 +95,22 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		driverName, _ = cmd.Flags().GetString(FlagDriver)
 	}
 
-	src, err := drvr.AddSource(handle, location, driverName)
+	var opts url.Values
+	if cmd.Flags().Changed(FlagSrcAddOptions) {
+		val, _ := cmd.Flags().GetString(FlagSrcAddOptions)
+
+		val = strings.TrimSpace(val)
+
+		if val != "" {
+			vals, err := url.ParseQuery(val)
+			if err != nil {
+				return util.Errorf("unable to parse options string (should be in URL-encoded query format): %v", err)
+			}
+			opts = vals
+		}
+	}
+
+	src, err := drvr.AddSource(handle, location, driverName, opts)
 	if err != nil {
 		return err
 	}

@@ -138,6 +138,10 @@ const FlagDriver string = "driver"
 
 const FlagDriverUsage string = "Explicitly specify the data source driver to use"
 
+const FlagSrcAddOptions string = "opts"
+
+const FlagSrcAddOptionsUsage string = "Driver-dependent data source options"
+
 // RootCmd represents the base command when called without any subcommands
 var RootCmd = &cobra.Command{
 	Use: `sq QUERY`,
