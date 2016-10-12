@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"io"
 
+	"bufio"
+
 	"github.com/neilotoole/go-lg/lg"
 	"github.com/neilotoole/sq-driver/hackery/database/sql"
 	"github.com/neilotoole/sq/lib/drvr"
@@ -18,15 +20,17 @@ import (
 	"github.com/neilotoole/sq/lib/util"
 )
 
-const typ = drvr.Type("csv")
+const csvType = drvr.Type("csv")
+const tsvType = drvr.Type("tsv")
 
 type Driver struct {
+	typ     drvr.Type
 	mu      *sync.Mutex
 	cleanup []func() error
 }
 
 func (d *Driver) Type() drvr.Type {
-	return typ
+	return d.typ
 }
 
 func (d *Driver) ConnURI(source *drvr.Source) (string, error) {
@@ -61,8 +65,8 @@ func (d *Driver) Open(src *drvr.Source) (*sql.DB, error) {
 }
 
 func (d *Driver) ValidateSource(src *drvr.Source) (*drvr.Source, error) {
-	if src.Type != typ {
-		return nil, util.Errorf("expected source type %q but got %q", typ, src.Type)
+	if src.Type != d.typ {
+		return nil, util.Errorf("expected source type %q but got %q", d.typ, src.Type)
 	}
 
 	lg.Debugf("validating source: %q", src.Location)
@@ -95,7 +99,9 @@ func (d *Driver) Metadata(src *drvr.Source) (*drvr.SourceMetadata, error) {
 }
 
 func init() {
-	d := &Driver{mu: &sync.Mutex{}}
+	d := &Driver{typ: csvType, mu: &sync.Mutex{}}
+	drvr.Register(d)
+	d = &Driver{typ: tsvType, mu: &sync.Mutex{}}
 	drvr.Register(d)
 }
 
@@ -123,8 +129,62 @@ func (d *Driver) Release() error {
 	return nil
 }
 
+type CRFilterReader struct {
+	*bufio.Reader
+}
+
+func NewCRFilterReader(r io.Reader) io.Reader {
+
+	//b := &bufio.Reader{}
+
+	cr := &CRFilterReader{}
+	cr.Reader = bufio.NewReader(r)
+	return cr
+}
+
+func (r *CRFilterReader) ReadRune() (rune, error) {
+
+	r1, _, err := r.Reader.ReadRune()
+	if r1 == '\r' {
+		r1, _, err = r.Reader.ReadRune()
+		if err == nil {
+			if r1 != '\n' {
+
+				r1 = '\n'
+			}
+		}
+		r.UnreadRune()
+	}
+
+	return r1, err
+}
+
+// readRune reads one rune from r, folding \r\n to \n and keeping track
+// of how far into the line we have read.  r.column will point to the start
+// of this rune, not the end of this rune.
+//func (r *Reader) readRune() (rune, error) {
+//	r1, _, err := r.r.ReadRune()
+//
+//	// Handle \r\n here. We make the simplifying assumption that
+//	// anytime \r is followed by \n that it can be folded to \n.
+//	// We will not detect files which contain both \r\n and bare \n.
+//	if r1 == '\r' {
+//		r1, _, err = r.r.ReadRune()
+//		if err == nil {
+//			if r1 != '\n' {
+//				r.r.UnreadRune()
+//				r1 = '\r'
+//			}
+//		}
+//	}
+//	r.column++
+//	return r1, err
+//}
+
 func (d *Driver) csvToScratch(src *drvr.Source, db *sql.DB) error {
 
+	// Since CSVs only have one "table" of data, it's necessary to give this
+	// table a name. Example: sq '@my_csv.data | .[0:10]'
 	const tblName = "data"
 
 	file, _, cleanup, err := drvr.GetSourceFile(src.Location)
@@ -136,7 +196,17 @@ func (d *Driver) csvToScratch(src *drvr.Source, db *sql.DB) error {
 	//var escapedColNames []string
 	//var placeholders []string
 	var insertStmt string
-	r := csv.NewReader(file)
+	// We add the CR filter reader to deal with files exported from Excel which
+	// can have the DOS-style \r EOL markers.
+	r := csv.NewReader(util.NewCRFilterReader(file))
+
+	if d.typ == tsvType {
+		r.Comma = '\t'
+		r.Read()
+	}
+
+	lg.Debugf("using delimter %v for file: %s", r.Comma, src.Location)
+
 	var readCount int64
 
 	for {
@@ -236,103 +306,3 @@ const AffinityNumeric = `NUMERIC`
 const AffinityInteger = `INTEGER`
 const AffinityReal = `REAL`
 const AffinityBlob = `BLOB`
-
-//file, err := d.GetSourceFile(src)
-//if err != nil {
-//	return err
-//}
-//defer file.Close()
-//
-//r := csv.NewReader(file)
-//
-//for {
-//	record, err := r.Read()
-//	if err == io.EOF {
-//		break
-//	}
-//	if err != nil {
-//		return util.WrapError(err)
-//	}
-//
-//	fmt.Println(record)
-//}
-//
-//xlFile, err := xlsx.OpenFile(file.Name())
-//if err != nil {
-//	return util.Errorf("unable to open file %q: %v", file.Name(), err)
-//}
-//
-////sheets := xlFile.Sheets
-//
-//for _, sheet := range xlFile.Sheets {
-//
-//	lg.Debugf("attempting to create table for sheet %q", sheet.Name)
-//	colNames, err := createTblForSheet(db, sheet)
-//	if err != nil {
-//		return err
-//	}
-//	lg.Debugf("successfully created table for sheet %q", sheet.Name)
-//
-//	escapedColNames := make([]string, len(colNames))
-//	for i, colName := range colNames {
-//		escapedColNames[i] = `"` + colName + `"`
-//	}
-//
-//	//placeholders := strings.Repeat("?", len(colNames))
-//	placeholders := make([]string, len(colNames))
-//	for i, _ := range placeholders {
-//		placeholders[i] = "?"
-//	}
-//
-//	insertTpl := `INSERT INTO "%s" ( %s ) VALUES ( %s )`
-//	insertStmt := fmt.Sprintf(insertTpl, sheet.Name, strings.Join(escapedColNames, ", "), strings.Join(placeholders, ", "))
-//
-//	lg.Debugf("using INSERT stmt: %s", insertStmt)
-//	for _, row := range sheet.Rows {
-//
-//		//result, err = database.Exec("Insert into Persons (id, LastName, FirstName, Address, City) values (?, ?, ?, ?, ?)", nil, "soni", "swati", "110 Eastern drive", "Mountain view, CA")
-//		vals := make([]interface{}, len(row.Cells))
-//		for i, cell := range row.Cells {
-//			typ := cell.Type()
-//			switch typ {
-//			case xlsx.CellTypeBool:
-//				vals[i] = cell.Bool()
-//			case xlsx.CellTypeNumeric:
-//				intVal, err := cell.Int64()
-//				if err == nil {
-//					vals[i] = intVal
-//					continue
-//				}
-//				floatVal, err := cell.Float()
-//				if err == nil {
-//					vals[i] = floatVal
-//					continue
-//				}
-//				// it's not an int, it's not a float, just give up and make it a string
-//				vals[i] = cell.Value
-//
-//			case xlsx.CellTypeDate:
-//				//val, _ := cell.
-//				// TODO: parse into a time value here
-//				vals[i] = cell.Value
-//			default:
-//				vals[i] = cell.Value
-//			}
-//
-//		}
-//
-//		vls := make([]string, len(vals))
-//		for i, val := range vals {
-//			vls[i] = fmt.Sprintf("%v", val)
-//		}
-//
-//		//lg.Debugf("INSERT INTO %q VALUES (%s)", sheet.Name, strings.Join(vls, ", "))
-//
-//		_, err := db.Exec(insertStmt, vals...)
-//		if err != nil {
-//			return util.WrapError(err)
-//		}
-//	}
-//}
-//
-//return nil

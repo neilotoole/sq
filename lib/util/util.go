@@ -8,6 +8,8 @@ import (
 
 	"strconv"
 
+	"io"
+
 	"github.com/neilotoole/go-lg/lg"
 )
 
@@ -31,6 +33,13 @@ func WrapError(err error) error {
 	err2 := fmt.Errorf(err.Error())
 	lg.Depth(1).Warnf("wrapping error (%T): %s", err, err2.Error())
 	return err
+}
+
+// OrPanic panics if err is not nil.
+func OrPanic(err error) {
+	if err != nil {
+		panic(err)
+	}
 }
 
 // InArray returns true if the needle is present in the haystack.
@@ -118,4 +127,32 @@ func FileExists(path string) (bool, error) {
 		return false, nil
 	}
 	return true, WrapError(err)
+}
+
+// NewCRFilterReader returns a new Reader whose Read() method converts standalone
+// carriage return '\r' bytes to newline '\n'. CRLF "\r\n" sequences are untouched.
+// This is useful for reading from DOS format, e.g. a TSV file exported by
+// Microsoft Excel.
+func NewCRFilterReader(r io.Reader) io.Reader {
+	return &crFilterReader{r: r}
+}
+
+type crFilterReader struct {
+	r io.Reader
+}
+
+func (r *crFilterReader) Read(p []byte) (n int, err error) {
+	n, err = r.r.Read(p)
+
+	for i := 0; i < n; i++ {
+		if p[i] == 13 {
+			if i+1 < n && p[i+1] == 10 {
+				continue // it's \r\n
+			}
+			// it's just \r by itself, replace
+			p[i] = 10
+		}
+	}
+
+	return n, err
 }

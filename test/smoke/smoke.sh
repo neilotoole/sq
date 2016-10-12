@@ -38,8 +38,8 @@ sq add "`pwd`/test/csv/user_comma_header.csv" @csv_user_comma_header1 ; trackRes
 sq add "`pwd`/test/csv/user_comma_noheader.csv" @csv_user_comma_noheader1 ; trackResult
 sq add "`pwd`/test/csv/user_pipe_header.csv" @csv_user_pipe_header1 ; trackResult
 sq add "`pwd`/test/csv/user_semicolon_header.csv" @csv_user_semicolon_header1 ; trackResult
-#sq add "`pwd`/test/csv/user_header.tsv" @tsv_user_header1 ; trackResult
-#sq add "`pwd`/test/csv/user_noheader.tsv" @tsv_user_noheader1 ; trackResult
+sq add "`pwd`/test/csv/user_header.tsv" @tsv_user_header1 ; trackResult
+sq add "`pwd`/test/csv/user_noheader.tsv" @tsv_user_noheader1 ; trackResult
 
 echo ""
 sq ls ; trackResult
@@ -67,6 +67,12 @@ sq -j '@csv_user_pipe_header1.data' | jq -e '.[0] | length == 3'; trackResult
 echo ""
 sq -th '@csv_user_semicolon_header1.data' ; trackResult
 sq -j '@csv_user_semicolon_header1.data' | jq -e '.[0] | length == 3'; trackResult
+echo ""
+sq -th '@csv_user_pipe_header1.data' ; trackResult
+sq -j '@csv_user_pipe_header1.data' | jq -e '.[0] | length == 3'; trackResult
+echo ""
+sq -th '@tsv_user_header1.data' ; trackResult
+sq -j '@tsv_user_header1.data' | jq -e '.[0] | length == 3'; trackResult
 echo ""
 
 

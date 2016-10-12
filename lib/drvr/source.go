@@ -114,7 +114,7 @@ func AddSource(handle string, location string, driverName string) (*Source, erro
 // For example:
 //
 //  application/vnd.openxmlformats-officedocument.spreadsheetml.sheet  -->  xlsx
-//  csv --> csv
+//  text/csv --> csv
 func getDriverTypeFromMediaType(mediatype string) (driverType Type, ok bool) {
 
 	switch {
@@ -123,6 +123,10 @@ func getDriverTypeFromMediaType(mediatype string) (driverType Type, ok bool) {
 		ok = true
 	case strings.Index(mediatype, `text/csv`) != -1:
 		driverType = Type("csv")
+		ok = true
+
+	case strings.Index(mediatype, `text/tab-separated-values`) != -1:
+		driverType = Type("tsv")
 		ok = true
 	}
 
