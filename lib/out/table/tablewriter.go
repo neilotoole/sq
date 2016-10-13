@@ -75,14 +75,16 @@ func (t *TextWriter) SourceSet(ss *drvr.SourceSet, active *drvr.Source) {
 		row := []string{
 			src.Handle,
 			string(src.Type),
-			src.Location}
+			src.Location,
+			t.renderSrcOptions(src)}
 
 		if active != nil && src.Handle == active.Handle {
-			// TODO: Add "SetRowTransformer"
+			// TODO: Add "SetRowTrans" or AddRowTrans
 			t.tbl.SetCellTrans(i, 0, out.Trans.Bold)
 			t.tbl.SetCellTrans(i, 1, out.Trans.Bold)
 			t.tbl.SetCellTrans(i, 2, out.Trans.Bold)
 			t.tbl.SetCellTrans(i, 3, out.Trans.Bold)
+			t.tbl.SetCellTrans(i, 4, out.Trans.Bold)
 		}
 
 		rows = append(rows, row)
@@ -90,9 +92,27 @@ func (t *TextWriter) SourceSet(ss *drvr.SourceSet, active *drvr.Source) {
 
 	t.tbl.SetColTrans(0, out.Trans.Number)
 
-	t.tbl.SetHeader([]string{"HANDLE", "DRIVER", "LOCATION"})
+	t.tbl.SetHeader([]string{"HANDLE", "DRIVER", "LOCATION", "OPTIONS"})
 
 	t.renderRows(rows)
+}
+
+func (t *TextWriter) renderSrcOptions(src *drvr.Source) string {
+	if src == nil || src.Options == nil || len(src.Options) == 0 {
+		return ""
+	}
+
+	opts := make([]string, 0, len(src.Options))
+
+	for key, vals := range src.Options {
+		if key == "" {
+			continue
+		}
+		v := strings.Join(vals, ",")
+		// TODO: add color here to distinguish the keys/values
+		opts = append(opts, fmt.Sprintf("%s=%s", key, v))
+	}
+	return strings.Join(opts, " ")
 }
 
 func (t *TextWriter) Source(src *drvr.Source) {
@@ -102,33 +122,34 @@ func (t *TextWriter) Source(src *drvr.Source) {
 	row := []string{
 		src.Handle,
 		string(src.Type),
-		src.Location}
+		src.Location,
+		t.renderSrcOptions(src)}
 	rows = append(rows, row)
 
 	t.tbl.SetColTrans(0, out.Trans.Number)
 
-	t.tbl.SetHeader([]string{"HANDLE", "DRIVER", "LOCATION"})
+	t.tbl.SetHeader([]string{"HANDLE", "DRIVER", "LOCATION", "OPTIONS"})
 
 	t.renderRows(rows)
 }
 
 // Write out a set of generic rows. Optional provide an array of column transformers.
-func (t *TextWriter) Rows(rows [][]string, colTrans []out.TextTransformer) {
-
-	if len(rows) == 0 {
-		return
-	}
-
-	if colTrans != nil && len(colTrans) > 0 {
-		for i := 0; i < len(rows[0]); i++ {
-			if i < len(colTrans) && colTrans[i] != nil {
-				t.tbl.SetColTrans(i, colTrans[i])
-			}
-		}
-	}
-
-	t.renderRows(rows)
-}
+//func (t *TextWriter) Rows(rows [][]string, colTrans []out.TextTransformer) {
+//
+//	if len(rows) == 0 {
+//		return
+//	}
+//
+//	if colTrans != nil && len(colTrans) > 0 {
+//		for i := 0; i < len(rows[0]); i++ {
+//			if i < len(colTrans) && colTrans[i] != nil {
+//				t.tbl.SetColTrans(i, colTrans[i])
+//			}
+//		}
+//	}
+//
+//	t.renderRows(rows)
+//}
 
 func (t *TextWriter) Error(err error) {
 	fmt.Println(out.Trans.Error(fmt.Sprintf("Error: %v", err)))
@@ -204,10 +225,6 @@ func (t *TextWriter) Metadata(meta *drvr.SourceMetadata) error {
 	t.tbl.SetColTrans(3, out.Trans.Number)
 
 	t.renderRows(rows)
-	return nil
-}
-
-func (rw *TextWriter) Open() error {
 	return nil
 }
 

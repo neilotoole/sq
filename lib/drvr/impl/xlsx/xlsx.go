@@ -18,7 +18,6 @@ import (
 	"github.com/neilotoole/sq-driver/hackery/database/sql"
 	"github.com/neilotoole/sq/lib/drvr"
 	"github.com/neilotoole/sq/lib/drvr/scratch"
-	"github.com/neilotoole/sq/lib/shutdown"
 	"github.com/neilotoole/sq/lib/util"
 	"github.com/tealeg/xlsx"
 )
@@ -49,8 +48,8 @@ func (d *Driver) Open(src *drvr.Source) (*sql.DB, error) {
 	// we now know that the xlsx file is valid
 
 	// let's open the scratch db
-	_, scratchdb, cleanup, err := scratch.OpenNew()
-	shutdown.Add(cleanup)
+	_, scratchdb, _, err := scratch.OpenNew()
+	//shutdown.Add(cleanup)
 	if err != nil {
 		return nil, err
 	}

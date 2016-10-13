@@ -12,6 +12,8 @@ import (
 
 	"bufio"
 
+	"strconv"
+
 	"github.com/neilotoole/go-lg/lg"
 	"github.com/neilotoole/sq-driver/hackery/database/sql"
 	"github.com/neilotoole/sq/lib/drvr"
@@ -65,11 +67,26 @@ func (d *Driver) Open(src *drvr.Source) (*sql.DB, error) {
 }
 
 func (d *Driver) ValidateSource(src *drvr.Source) (*drvr.Source, error) {
+	lg.Debugf("validating source: %q", src.Location)
+
 	if src.Type != d.typ {
 		return nil, util.Errorf("expected source type %q but got %q", d.typ, src.Type)
 	}
 
-	lg.Debugf("validating source: %q", src.Location)
+	if src.Options != nil || len(src.Options) > 0 {
+		lg.Debugf("opts: %v", src.Options.Encode())
+
+		key := "header"
+		v := src.Options.Get(key)
+
+		if v != "" {
+			_, err := strconv.ParseBool(v)
+			if err != nil {
+				return nil, util.Errorf(`unable to parse option %q: %v`, key, err)
+			}
+		}
+
+	}
 
 	return src, nil
 }
@@ -181,6 +198,27 @@ func (r *CRFilterReader) ReadRune() (rune, error) {
 //	return r1, err
 //}
 
+// optHeader checks if src.Options has "header=true".
+func optHeader(src *drvr.Source) (bool, error) {
+
+	if src.Options == nil {
+		return false, nil
+	}
+
+	key := "header"
+	v := src.Options.Get(key)
+	if v == "" {
+		return false, nil
+	}
+
+	hasHeader, err := strconv.ParseBool(v)
+	if err != nil {
+		return false, util.Errorf(`unable to parse option %q: %v`, key, err)
+	}
+
+	return hasHeader, nil
+}
+
 func (d *Driver) csvToScratch(src *drvr.Source, db *sql.DB) error {
 
 	// Since CSVs only have one "table" of data, it's necessary to give this
@@ -202,12 +240,30 @@ func (d *Driver) csvToScratch(src *drvr.Source, db *sql.DB) error {
 
 	if d.typ == tsvType {
 		r.Comma = '\t'
-		r.Read()
 	}
 
 	lg.Debugf("using delimter %v for file: %s", r.Comma, src.Location)
 
 	var readCount int64
+
+	hasHeader, err := optHeader(src)
+	if err != nil {
+		return err
+	}
+
+	var colNames []string
+
+	if hasHeader {
+		record, err := r.Read()
+		if err == io.EOF {
+			return util.Errorf("data source %s is empty", src.Handle)
+		}
+
+		if err != nil {
+			return util.WrapError(err)
+		}
+		colNames = record
+	}
 
 	for {
 		record, err := r.Read()
@@ -219,9 +275,12 @@ func (d *Driver) csvToScratch(src *drvr.Source, db *sql.DB) error {
 		}
 
 		if readCount == 0 {
-			colNames, err := d.getColNames(src, r, record)
-			if err != nil {
-				return err
+
+			if colNames == nil {
+				colNames, err = d.getColNames(src, r, record)
+				if err != nil {
+					return err
+				}
 			}
 
 			createStmt, err := d.tblCreateStmt(src, r, tblName, colNames)

@@ -53,30 +53,54 @@ sq inspect -th @pg1 ; trackResult
 sq inspect -th @excel1 ; trackResult
 sq inspect -th @excel2 ; trackResult
 sq inspect -th @sl1 ; trackResult
+
+# inspect is not implemented for csv yet
 #sq inspect -th @csv_comma_noheader1 ; trackResult
 
 echo ""
-sq -th '@csv_user_comma_header1.data' ; trackResult
-# Check that the returned JSON has three columns...
-sq -j '@csv_user_comma_header1.data' | jq -e '.[0] | length == 3'; trackResult
-echo ""
-sq -th '@csv_user_comma_noheader1.data' ; trackResult
-sq -j '@csv_user_comma_noheader1.data' | jq -e '.[0] | length == 3'; trackResult
-echo ""
-sq -th '@csv_user_pipe_header1.data' ; trackResult
-sq -j '@csv_user_pipe_header1.data' | jq -e '.[0] | length == 3'; trackResult
-echo ""
-sq -th '@csv_user_semicolon_header1.data' ; trackResult
-sq -j '@csv_user_semicolon_header1.data' | jq -e '.[0] | length == 3'; trackResult
-echo ""
-sq -th '@csv_user_pipe_header1.data' ; trackResult
-sq -j '@csv_user_pipe_header1.data' | jq -e '.[0] | length == 3'; trackResult
-echo ""
-sq -th '@tsv_user_header1.data' ; trackResult
-sq -j '@tsv_user_header1.data' | jq -e '.[0] | length == 3'; trackResult
-echo ""
 
 
+# A loop might be useful below...
+# Check that the returned JSON has 7 rows and 3 cols
+sq src  @csv_user_comma_header1 ; trackResult
+
+sq -j '.data' | jq -e '. | length == 7'; trackResult
+sq -j '.data' | jq -e '.[0] | length == 3'; trackResult
+
+
+echo ""
+sq src  @csv_user_comma_noheader1 ; trackResult
+sq -j '.data' | jq -e '. | length == 7'; trackResult
+sq -j '.data' | jq -e '.[0] | length == 3'; trackResult
+
+echo ""
+sq src  @csv_user_pipe_header1 ; trackResult
+sq -j '.data' | jq -e '. | length == 7'; trackResult
+sq -j '.data' | jq -e '.[0] | length == 3'; trackResult
+
+echo ""
+sq src  @csv_user_semicolon_header1 ; trackResult
+sq -j '.data' | jq -e '. | length == 7'; trackResult
+sq -j '.data' | jq -e '.[0] | length == 3'; trackResult
+
+echo ""
+sq src  @csv_user_pipe_header1 ; trackResult
+sq -j '.data' | jq -e '. | length == 7'; trackResult
+sq -j '.data' | jq -e '.[0] | length == 3'; trackResult
+
+echo ""
+sq src  @tsv_user_header1 ; trackResult
+sq -j '.data' | jq -e '. | length == 7'; trackResult
+sq -j '.data' | jq -e '.[0] | length == 3'; trackResult
+
+echo ""
+sq src @tsv_user_noheader1 ; trackResult
+sq -j '.data' | jq -e '. | length == 7'; trackResult
+sq -j '.data' | jq -e '.[0] | length == 3'; trackResult
+
+
+
+# test some joins
 
 sq -th '@my1.user, @pg1.tbladdress | join(.uid) | .user.uid, .email, .city, .country' ; trackResult
 echo ""
