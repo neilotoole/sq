@@ -14,6 +14,8 @@ import (
 
 	"strconv"
 
+	"unicode/utf8"
+
 	"github.com/neilotoole/go-lg/lg"
 	"github.com/neilotoole/sq-driver/hackery/database/sql"
 	"github.com/neilotoole/sq/lib/drvr"
@@ -219,6 +221,35 @@ func optHeader(src *drvr.Source) (bool, error) {
 	return hasHeader, nil
 }
 
+// optDelimiter returns ok as true and the delimiter rune if a valid value is provided
+// in src.Opts, returns ok as false if no valid value provided, and an error if the provided
+// value is invalid.
+func optDelimiter(src *drvr.Source) (r rune, ok bool, err error) {
+	if src.Options == nil {
+		return 0, false, nil
+	}
+
+	key := "delim"
+	v := src.Options.Get(key)
+	if v == "" {
+		return 0, false, nil
+	}
+
+	if len(v) == 1 {
+		r, _ = utf8.DecodeRuneInString(v)
+		return r, true, nil
+	}
+
+	r, ok = NamedDelimiters()[v]
+
+	if !ok {
+		err = util.Errorf("unknown delimiter constant %q", v)
+		return 0, false, err
+	}
+
+	return r, true, nil
+}
+
 func (d *Driver) csvToScratch(src *drvr.Source, db *sql.DB) error {
 
 	// Since CSVs only have one "table" of data, it's necessary to give this
@@ -231,18 +262,23 @@ func (d *Driver) csvToScratch(src *drvr.Source, db *sql.DB) error {
 		return err
 	}
 
-	//var escapedColNames []string
-	//var placeholders []string
 	var insertStmt string
 	// We add the CR filter reader to deal with files exported from Excel which
 	// can have the DOS-style \r EOL markers.
 	r := csv.NewReader(util.NewCRFilterReader(file))
 
-	if d.typ == tsvType {
+	delim, ok, err := optDelimiter(src)
+	if err != nil {
+		return err
+	}
+
+	if ok {
+		r.Comma = delim
+	} else if d.typ == tsvType {
 		r.Comma = '\t'
 	}
 
-	lg.Debugf("using delimter %v for file: %s", r.Comma, src.Location)
+	lg.Debugf("using delimiter '%v' for file: %s", string(r.Comma), src.Location)
 
 	var readCount int64
 
@@ -358,6 +394,23 @@ func (d *Driver) getColNames(src *drvr.Source, r *csv.Reader, firstRecord []stri
 
 	return colNames, nil
 	// TODO: allow header column
+}
+
+// NamedDelimiters returns a map of named delimiter strings to their rune value.
+// For example, "comma" maps to ',' and "pipe" maps to '|'.
+func NamedDelimiters() map[string]rune {
+
+	// TODO: save this in a var
+	m := make(map[string]rune)
+	m["comma"] = ','
+	m["space"] = ' '
+	m["pipe"] = '|'
+	m["tab"] = '\t'
+	m["colon"] = ':'
+	m["semi"] = ';'
+	m["period"] = '.'
+
+	return m
 }
 
 const AffinityText = `TEXT`

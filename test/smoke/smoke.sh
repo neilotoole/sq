@@ -36,11 +36,12 @@ sq add "`pwd`/test/xlsx/test1.xlsx" @excel1 ; trackResult
 sq add http://neilotoole.io/sq/test/test1.xlsx @excel2 ; trackResult
 sq add "sqlite3://`pwd`/test/sqlite/sqlite_db1" @sl1 ; trackResult
 
-sq add "`pwd`/test/csv/user_comma_header.csv" @csv_user_comma_header1 ; trackResult
+sq add "`pwd`/test/csv/user_comma_header.csv" @csv_user_comma_header1 --opts='header=true' ; trackResult
 sq add "`pwd`/test/csv/user_comma_noheader.csv" @csv_user_comma_noheader1 ; trackResult
-sq add "`pwd`/test/csv/user_pipe_header.csv" @csv_user_pipe_header1 ; trackResult
-sq add "`pwd`/test/csv/user_semicolon_header.csv" @csv_user_semicolon_header1 ; trackResult
-sq add "`pwd`/test/csv/user_header.tsv" @tsv_user_header1 ; trackResult
+sq add "`pwd`/test/csv/user_pipe_header.csv" @csv_user_pipe_header1 --opts='header=true;delim=pipe' ; trackResult
+sq add "`pwd`/test/csv/user_pipe_header.csv" @csv_user_pipe_header2 --opts='header=true;delim=|' ; trackResult
+sq add "`pwd`/test/csv/user_semicolon_header.csv" @csv_user_semicolon_header1 --opts='header=true;delim=semi' ; trackResult
+sq add "`pwd`/test/csv/user_header.tsv" @tsv_user_header1 --opts='header=true' ; trackResult
 sq add "`pwd`/test/csv/user_noheader.tsv" @tsv_user_noheader1 ; trackResult
 
 echo ""
@@ -85,6 +86,11 @@ sq -j '.data' | jq -e '.[0] | length == 3'; trackResult
 
 echo ""
 sq src  @csv_user_pipe_header1 ; trackResult
+sq -j '.data' | jq -e '. | length == 7'; trackResult
+sq -j '.data' | jq -e '.[0] | length == 3'; trackResult
+
+echo ""
+sq src  @csv_user_pipe_header2 ; trackResult
 sq -j '.data' | jq -e '. | length == 7'; trackResult
 sq -j '.data' | jq -e '.[0] | length == 3'; trackResult
 

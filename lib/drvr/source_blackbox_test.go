@@ -9,6 +9,8 @@ import (
 
 	_ "github.com/neilotoole/sq/test/gotestutil"
 
+	"net/url"
+
 	"github.com/neilotoole/sq/lib/drvr"
 	_ "github.com/neilotoole/sq/lib/drvr/impl"
 )
@@ -19,13 +21,13 @@ func init() {
 
 func TestSource_Driver(t *testing.T) {
 
-	src, err := drvr.AddSource("@a1", "mysql://user:pass@localhost:3306/mydb1", "")
+	src, err := drvr.AddSource("@a1", "mysql://user:pass@localhost:3306/mydb1", "", url.Values{})
 	require.Nil(t, err)
 	require.Equal(t, drvr.TypeMySQL, src.Type)
 	require.Equal(t, "[@a1] mysql://user:pass@localhost:3306/mydb1", src.String())
 	require.Equal(t, "user:pass@localhost:3306/mydb1", src.ConnURI())
 
-	src, err = drvr.AddSource("@a1", "postgres://pqgotest:password@localhost/pqgotest", "")
+	src, err = drvr.AddSource("@a1", "postgres://pqgotest:password@localhost/pqgotest", "", url.Values{})
 	require.Nil(t, err)
 	require.Equal(t, drvr.TypePostgres, src.Type)
 	require.Equal(t, "[@a1] postgres://pqgotest:password@localhost/pqgotest", src.String())
@@ -73,12 +75,12 @@ func TestDataSources(t *testing.T) {
 
 	srcs := drvr.NewSourceSet()
 
-	mydb1, err := drvr.AddSource("@mydb1", "mysql://user:pass@localhost:3306/mydb1", "")
+	mydb1, err := drvr.AddSource("@mydb1", "mysql://user:pass@localhost:3306/mydb1", "", url.Values{})
 	require.Nil(t, err)
 	require.NotNil(t, mydb1)
 	require.Equal(t, drvr.TypeMySQL, mydb1.Type)
 
-	pg1, err := drvr.AddSource("@pg1", "postgres://pqgotest:password@localhost/pqgotest", "")
+	pg1, err := drvr.AddSource("@pg1", "postgres://pqgotest:password@localhost/pqgotest", "", url.Values{})
 	require.Nil(t, err)
 	require.NotNil(t, pg1)
 	require.Equal(t, drvr.TypePostgres, pg1.Type)
