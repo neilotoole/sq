@@ -2,7 +2,7 @@
 # http://github.com/neilotoole/sq
 
 BINARY := sq
-BUILD_VERSION=0.40.2
+BUILD_VERSION=0.41.0
 BUILD_TIMESTAMP := $(shell date +'%FT%T%z')
 
 # SOURCES is the .go files for the project, excluding test files
@@ -10,14 +10,7 @@ SOURCES := $(shell find .  -name '*.go' ! -name '*_test.go' ! -path "./test/*" !
 # SOURCES_NO_GENERATED is SOURCES excluding the generated parser files
 SOURCES_NO_GENERATED := $(shell find .  -name '*.go' ! -name '*_test.go' ! -path "./libsq/slq/*" ! -path "./test/*" ! -path "./tools/*"  ! -path "./build/*" ! -path "./vendor/*")
 
-ifeq ($(shell uname),Darwin) #Mac OS
-	OS_PLATFORM := darwin
-	OS_PLATFORM_NAME := Mac OS
-else
-	OS_PLATFORM := linux
-	OS_PLATFORM_NAME := Linux
-endif
-
+# LDFLAGS are compiler flags, in this case to strip the binary of unneeded stuff
 LDFLAGS="-s -w"
 
 
@@ -52,6 +45,7 @@ clean:
 	rm -rf ./build/*
 	rm -rf ./dist/*
 
+
 fmt:
 	@goimports -w ./libsq/ 	# We use goimports rather than go fmt
 	@goimports -w ./cmd/
@@ -69,7 +63,6 @@ lint:
 	@golint ./libsq/util/...
 
 
-
 vet:
 	@go vet ./libsq/...
 	@go vet ./cmd/...
@@ -85,14 +78,8 @@ install-go-tools:
 list-src:
 	@echo $(SOURCES)
 
-build-for-dist: clean build-assets test
-	go build $(LDFLAGS) -o bin/$(OS_PLATFORM)/$(BINARY) main.go
-	cp -vf bin/$(OS_PLATFORM)/$(BINARY) $(GOPATH)/bin/
 
-# dist: clean test build-for-dist
-# 	mkdir -p ./dist && cd ./dist && cp $(shell which sq) sq && tar -cvzf "sq-$(BUILD_VERSION)-darwin.tar.gz" sq && rm sq
-
-dist: clean build-assets
+dist: clean test build-assets
 	xgo -go=1.7.1 -dest=./dist -ldflags=$(LDFLAGS) -targets=darwin/amd64,linux/amd64,windows/amd64 .
 
 	mkdir -p ./dist/darwin64
@@ -108,26 +95,13 @@ dist: clean build-assets
 	zip -jr ./dist/win64/sq-$(BUILD_VERSION)-win64.zip ./dist/win64/sq.exe
 
 
-# xgo-dist: clean build-assets
-# 	xgo -go 1.7.1 -dest=./dist -ldflags=$(LDFLAGS) -targets=darwin/amd64,linux/amd64,windows/amd64 .
-#
-# xgo-pkg: xgo-dist
-# 	mkdir -p ./dist/darwin64
-# 	mv ./dist/sq-darwin-10.6-amd64 ./dist/darwin64/sq
-# 	tar -C ./dist/darwin64 -cvzf ./dist/darwin64/sq-$(BUILD_VERSION)-darwin64.tar.gz sq
-#
-# 	mkdir -p ./dist/linux64
-# 	mv ./dist/sq-linux-amd64 ./dist/linux64/sq
-# 	tar -C ./dist/linux64 -cvzf ./dist/linux64/sq-$(BUILD_VERSION)-linux64.tar.gz sq
-#
-# 	mkdir -p ./dist/win64
-# 	mv ./dist/sq-windows-4.0-amd64.exe ./dist/win64/sq.exe
-# 	zip -jr ./dist/win64/sq-$(BUILD_VERSION)-win64.zip ./dist/win64/sq.exe
-
-
 smoke:
 	@./test/smoke/smoke.sh
 
 generate-parser:
 	@cd ./tools && ./gen-antlr.sh
+
+start-test-containers:
+	cd ./test/mysql && ./start.sh
+	cd ./test/postgres && ./start.sh
 
