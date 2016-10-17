@@ -54,9 +54,9 @@ Fork this [repo](https://github.com/neilotoole/sq), e.g. to  `https://github.com
 Clone the forked repo and set the `upstream` remote:
 
 ```
-mkdir -p $GOPATH/src/github.com/ksoze
-cd $GOPATH/src/github.com/ksoze
-git clone https://github.com/ksoze/sq.git
+mkdir -p $GOPATH/src/github.com/neilotoole
+cd $GOPATH/src/github.com/neilotoole
+git clone https://github.com/neilotoole/sq.git
 cd ./sq
 git remote add upstream https://github.com/neilotoole/sq.git
 # verify that the remote was set
@@ -64,7 +64,7 @@ git remote -v
 ```
 	
 ### Make
-From  `$GOPATH/src/github.com/ksoze/sq`:
+From  `$GOPATH/src/github.com/neilotoole/sq`:
 
 ```
 make install-go-tools

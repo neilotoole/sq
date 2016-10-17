@@ -21,17 +21,17 @@ func init() {
 
 func TestSource_Driver(t *testing.T) {
 
-	src, err := drvr.AddSource("@a1", "mysql://user:pass@localhost:3306/mydb1", "", url.Values{})
+	src, err := drvr.AddSource("@a1", "mysql://sq:sq@localhost:3306/sqtest1", "", url.Values{})
 	require.Nil(t, err)
 	require.Equal(t, drvr.TypeMySQL, src.Type)
-	require.Equal(t, "[@a1] mysql://user:pass@localhost:3306/mydb1", src.String())
-	require.Equal(t, "user:pass@localhost:3306/mydb1", src.ConnURI())
+	require.Equal(t, "[@a1] mysql://sq:sq@localhost:3306/sqtest1", src.String())
+	require.Equal(t, "sq:sq@localhost:3306/sqtest1", src.ConnURI())
 
-	src, err = drvr.AddSource("@a1", "postgres://pqgotest:password@localhost/pqgotest", "", url.Values{})
+	src, err = drvr.AddSource("@a1", "postgres://sq:sq@localhost/sqtest1", "", url.Values{})
 	require.Nil(t, err)
 	require.Equal(t, drvr.TypePostgres, src.Type)
-	require.Equal(t, "[@a1] postgres://pqgotest:password@localhost/pqgotest", src.String())
-	require.Equal(t, "postgres://pqgotest:password@localhost/pqgotest", src.ConnURI())
+	require.Equal(t, "[@a1] postgres://sq:sq@localhost/sqtest1", src.String())
+	require.Equal(t, "postgres://sq:sq@localhost/sqtest1", src.ConnURI())
 
 }
 
@@ -41,8 +41,8 @@ func TestSourceGetTypeFromRef(t *testing.T) {
 		loc string
 		typ drvr.Type
 	}{
-		{`mysql://root:root@tcp(localhost:33067)/sq_mydb1`, drvr.TypeMySQL},
-		{`postgres://sq:sq@localhost/sq_pg1?sslmode=disable`, drvr.TypePostgres},
+		{`mysql://sq:sq@tcp(localhost:3306)/sqtest1`, drvr.TypeMySQL},
+		{`postgres://sq:sq@localhost/sqtest1?sslmode=disable`, drvr.TypePostgres},
 		{`sqlite3:///Users/neilotoole/nd/go/src/github.com/neilotoole/sq/test/sqlite/sqlite_db1`, drvr.TypeSQLite3},
 		//{`xlsx:///Users/neilotoole/nd/go/src/github.com/neilotoole/sq/test/xlsx/test.xlsx`, typXSLX},
 		{`https://s3.amazonaws.com/sq.neilotoole.io/testdata/1.0/xslx/test.xlsx`, drvr.TypeXSLX},
@@ -59,7 +59,7 @@ func TestSourceGetTypeFromRef(t *testing.T) {
 	//typ, err := getTypeFromRef()
 
 	// A ref can look like:
-	//NAME              DRIVER    REF
+	//HANDLE              DRIVER    LOCATOIN
 	//my1               mysql     mysql://root:root@tcp(localhost:33067)/sq_mydb1
 	//pg1               postgres  postgres://sq:sq@localhost/sq_pg1?sslmode=disable
 	//sl1               sqlite3   sqlite3:///Users/neilotoole/nd/go/src/github.com/neilotoole/sq/test/sqlite/sqlite_db1
