@@ -42,8 +42,10 @@ These steps are for Mac OS X (tested on El Capitan `10.11.16`). The examples ass
 - [brew](http://brew.sh/)
 - [Xcode](https://itunes.apple.com/us/app/xcode/id497799835?mt=12) dev tools.
 - [jq](https://stedolan.github.io/jq/) `brew install jq 1.5`
-- [Java](http://www.oracle.com/technetwork/java/javase/downloads/index.html) is required if you're working on the *SLQ* grammar.
 - [Go](https://golang.org/doc/install) `brew install go 1.7.1`
+- [Docker](https://docs.docker.com/docker-for-mac/)
+- [Java](http://www.oracle.com/technetwork/java/javase/downloads/index.html) is required if you're working on the *SLQ* grammar.
+
 
 
 ### Fork
@@ -65,9 +67,12 @@ git remote -v
 From  `$GOPATH/src/github.com/ksoze/sq`:
 
 ```
+make install-go-tools
+make start-test-containers
 make test
 make install
 make smoke
+make dist
 ```
 	
 That should be it. Try `sq ls`. Note that by default `sq` uses `~/.sq/sq.yml` as

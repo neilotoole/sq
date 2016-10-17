@@ -1,2 +1,0 @@
-INSERT INTO public.tbladdress (address_id, street, city, state, zip, country, uid) VALUES (1, '1600 Penn', 'Washington', 'DC', '12345', 'US', 2);
-INSERT INTO public.tbladdress (address_id, street, city, state, zip, country, uid) VALUES (2, '999 Coleridge St', 'Ulan Bator', 'UB', '888', 'MN', 3);

@@ -10,8 +10,8 @@
 
 export SQ_LOGFILE="$HOME/.sq/sq.smoke.log"
 export SQ_CONFIGFILE="$HOME/.sq/sq.smoke.yml"
-SQ_TEST_DS_MYSQL=${SQ_TEST_DS_MYSQL:='mysql://sq:sq@tcp(localhost:3306)/sq_test'}
-SQ_TEST_DS_POSTGRES=${SQ_TEST_DS_POSTGRES:='postgres://sq:sq@localhost/sq_test?sslmode=disable'}
+SQ_TEST_DS_MYSQL=${SQ_TEST_DS_MYSQL:='mysql://sq:sq@tcp(localhost:3306)/sqtest1'}
+SQ_TEST_DS_POSTGRES=${SQ_TEST_DS_POSTGRES:='postgres://sq:sq@localhost/sqtest1?sslmode=disable'}
 
 echo ${SQ_TEST_DS_MYSQL}
 echo ${SQ_TEST_DS_POSTGRES}
@@ -71,8 +71,12 @@ echo ""
 
 # test some native sql
 sq src @my1 ; trackResult
-sq -jn 'SELECT * FROM user' | jq -e '. | length == 7' ; trackResult
-sq -jn 'SELECT * FROM user' | jq -e '.[0] | length == 3' ; trackResult
+sq -jn 'SELECT * FROM tbluser' | jq -e '. | length == 7' ; trackResult
+sq -jn 'SELECT * FROM tbluser' | jq -e '.[0] | length == 3' ; trackResult
+
+sq src @pg1 ; trackResult
+sq -jn 'SELECT * FROM tbluser' | jq -e '. | length == 7' ; trackResult
+sq -jn 'SELECT * FROM tbluser' | jq -e '.[0] | length == 3' ; trackResult
 
 # A loop might be useful below...
 # Check that the returned JSON has 7 rows and 3 cols
@@ -121,15 +125,15 @@ sq -j '.data' | jq -e '.[0] | length == 3'; trackResult
 
 # test some joins
 
-sq -th '@my1.user, @pg1.tbladdress | join(.uid) | .user.uid, .email, .city, .country' ; trackResult
+sq -th '@my1.tbluser, @pg1.tbladdress | join(.uid) | .tbluser.uid, .email, .city, .country' ; trackResult
 echo ""
 sq '@excel_noheader1.user_sheet, @pg1.tbladdress | join(.A == .uid)' ; trackResult
 echo ""
 sq src @pg1 ; trackResult
 sq src ; trackResult
 sq src @my1 ; trackResult
-sq -th '.user' ; trackResult
-sq -th '.user | .[2:4]' ; trackResult
+sq -th '.tbluser' ; trackResult
+sq -th '.tbluser | .[2:4]' ; trackResult
 echo ""
 sq rm @my1 ; trackResult
 sq rm @pg1 ; trackResult

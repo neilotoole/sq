@@ -1,8 +1,9 @@
 package cmd
 
 import (
-	"log"
+	"runtime"
 
+	"github.com/neilotoole/go-lg/lg"
 	"github.com/spf13/cobra"
 )
 
@@ -26,20 +27,25 @@ func installBashCompletion(cmd *cobra.Command, args []string) error {
 }
 
 func doInstallBashCompletion() {
-	path := "/usr/local/etc/bash_completion.d/sq"
 
-	// TODO: only write if necessary (check for version/timestamp)
-	err := RootCmd.GenBashCompletionFile(path) // TODO: install bash completion automatically
-	if err != nil {
-		log.Println(err)
+	var path string
+
+	switch runtime.GOOS {
+	case "windows":
+		lg.Debugf("skipping install bash completion on windows")
+		return
+	case "darwin":
+		path = "/usr/local/etc/bash_completion.d/sq"
+	default:
+		// it's unixish
+		path = " /etc/bash_completion.d/sq"
 	}
 
-	//_, err = exec.Command("/bin/bash", "source", path).Output()
-	//if err != nil {
-	//	log.Println(err)
-	//}
+	// TODO: only write if necessary (check for version/timestamp/checksum)
+	err := RootCmd.GenBashCompletionFile(path)
+	if err != nil {
+		lg.Warnf("failed to write bash completion to %q: %v", path, err)
+		return
+	}
 
-	//fmt.Printf("Bash completion script written: %v\nYou may need to restart your shell.\n", path)
-
-	//log.Println(err)
 }

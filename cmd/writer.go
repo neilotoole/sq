@@ -11,6 +11,9 @@ import (
 
 	"sync"
 
+	"runtime"
+
+	"github.com/labstack/gommon/color"
 	"github.com/neilotoole/sq/cmd/out/csv"
 	"github.com/neilotoole/sq/cmd/out/json"
 	"github.com/neilotoole/sq/cmd/out/xlsx"
@@ -72,6 +75,11 @@ func getWriter(cmd *cobra.Command) Writer {
 	defer wiMu.Unlock()
 	if wi != nil {
 		return wi
+	}
+
+	if runtime.GOOS == "windows" {
+		// TODO: at some point need to look into handling windows color support
+		color.Disable()
 	}
 
 	if cmd == nil {
