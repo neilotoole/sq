@@ -11,7 +11,7 @@
 export SQ_LOGFILE="$HOME/.sq/sq.smoke.log"
 export SQ_CONFIGFILE="$HOME/.sq/sq.smoke.yml"
 SQ_TEST_DS_MYSQL=${SQ_TEST_DS_MYSQL:='mysql://sq:sq@tcp(localhost:3306)/sq_test'}
-SQ_TEST_DS_POSTGRES=${SQ_TEST_DS_POSTGRES:='postgres://sq:sq@localhost/sq_test?sslmode=disable'}
+SQ_TEST_DS_POSTGRES=${SQ_TEST_DS_POSTGRES:='postgres://sq:sq@localhost/sqtest1?sslmode=disable'}
 
 echo ${SQ_TEST_DS_MYSQL}
 echo ${SQ_TEST_DS_POSTGRES}
