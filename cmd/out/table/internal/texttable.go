@@ -6,7 +6,7 @@
 // The protocols were written in pure Go and works on windows and unix systems
 
 // Package tablewriter creates & generates text based table
-package texttable
+package internal
 
 import (
 	"fmt"

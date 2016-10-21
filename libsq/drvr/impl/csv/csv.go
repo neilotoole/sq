@@ -10,8 +10,6 @@ import (
 	"fmt"
 	"io"
 
-	"bufio"
-
 	"strconv"
 
 	"unicode/utf8"
@@ -148,58 +146,6 @@ func (d *Driver) Release() error {
 	lg.Debugf("driver cleanup tasks complete")
 	return nil
 }
-
-type CRFilterReader struct {
-	*bufio.Reader
-}
-
-func NewCRFilterReader(r io.Reader) io.Reader {
-
-	//b := &bufio.Reader{}
-
-	cr := &CRFilterReader{}
-	cr.Reader = bufio.NewReader(r)
-	return cr
-}
-
-func (r *CRFilterReader) ReadRune() (rune, error) {
-
-	r1, _, err := r.Reader.ReadRune()
-	if r1 == '\r' {
-		r1, _, err = r.Reader.ReadRune()
-		if err == nil {
-			if r1 != '\n' {
-
-				r1 = '\n'
-			}
-		}
-		r.UnreadRune()
-	}
-
-	return r1, err
-}
-
-// readRune reads one rune from r, folding \r\n to \n and keeping track
-// of how far into the line we have read.  r.column will point to the start
-// of this rune, not the end of this rune.
-//func (r *Reader) readRune() (rune, error) {
-//	r1, _, err := r.r.ReadRune()
-//
-//	// Handle \r\n here. We make the simplifying assumption that
-//	// anytime \r is followed by \n that it can be folded to \n.
-//	// We will not detect files which contain both \r\n and bare \n.
-//	if r1 == '\r' {
-//		r1, _, err = r.r.ReadRune()
-//		if err == nil {
-//			if r1 != '\n' {
-//				r.r.UnreadRune()
-//				r1 = '\r'
-//			}
-//		}
-//	}
-//	r.column++
-//	return r1, err
-//}
 
 // optDelimiter returns ok as true and the delimiter rune if a valid value is provided
 // in src.Opts, returns ok as false if no valid value provided, and an error if the provided

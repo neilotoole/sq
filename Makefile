@@ -40,7 +40,7 @@ testv: $(SOURCES) fmt
 
 clean:
 	rm -f ./sq # Delete the sq binary in the project root
-	# rm -vf $(shell which sq)
+	rm -vf $(shell which sq)
 	rm -rf ./bin/*
 	rm -rf ./build/*
 	rm -rf ./dist/*
@@ -52,8 +52,8 @@ fmt:
 
 
 lint:
-	# Because we want to exclude the generated parser files from linting, we have
-	# to invoke golint multiple times (unless I'm doing this wrong)
+	@# Because we want to exclude the generated parser files from linting, we have
+	@# to invoke golint multiple times (unless I'm doing this wrong)
 	@golint ./cmd/...
 	@golint ./libsq
 	@golint ./libsq/ast/...
@@ -66,6 +66,9 @@ lint:
 vet:
 	@go vet ./libsq/...
 	@go vet ./cmd/...
+
+
+check: $(SOURCES) fmt lint vet
 
 
 install-go-tools:

@@ -15,16 +15,14 @@ func init() {
 }
 
 func execSrcList(cmd *cobra.Command, args []string) error {
+	cfg, _, w, err := ioFor(cmd, args)
+	if err != nil {
+		return err
+	}
 	if cfg.SourceSet == nil {
 		return nil
 	}
 
-	w := getWriter(cmd)
 	active, _ := cfg.SourceSet.Active()
-
-	if len(cfg.SourceSet.Items) > 0 {
-		w.SourceSet(cfg.SourceSet, active)
-	}
-
-	return nil
+	return w.SourceSet(cfg.SourceSet, active)
 }

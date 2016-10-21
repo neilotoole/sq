@@ -25,6 +25,11 @@ func init() {
 
 func execSrcRemove(cmd *cobra.Command, args []string) error {
 
+	cfg, store, _, err := ioFor(cmd, args)
+	if err != nil {
+		return err
+	}
+
 	if len(args) != 1 {
 		return util.Errorf("invalid arguments")
 	}
@@ -39,7 +44,7 @@ func execSrcRemove(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	err = saveConfig()
+	err = store.Save(cfg)
 	if err != nil {
 		return err
 	}

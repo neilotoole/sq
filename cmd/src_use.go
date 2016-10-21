@@ -26,11 +26,14 @@ func init() {
 
 func execUse(cmd *cobra.Command, args []string) error {
 
+	cfg, store, w, err := ioFor(cmd, args)
+	if err != nil {
+		return err
+	}
+
 	if len(args) > 1 {
 		return util.Errorf("invalid arguments")
 	}
-
-	w := getWriter(cmd)
 
 	if len(args) == 0 {
 		// Get the active data source
@@ -48,11 +51,10 @@ func execUse(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	err = saveConfig()
+	err = store.Save(cfg)
 	if err != nil {
 		return err
 	}
 
-	w.Source(src)
-	return nil
+	return w.Source(src)
 }
