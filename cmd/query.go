@@ -32,8 +32,13 @@ func init() {
 
 func execQuery(cmd *cobra.Command, args []string) error {
 
+	cfg, _, w, err := ioFor(cmd, args)
+	if err != nil {
+		return err
+	}
+
 	if len(args) == 0 {
-		return fmt.Errorf("no arguments provided")
+		return util.Errorf("no arguments provided")
 	}
 
 	for i, arg := range args {
@@ -41,17 +46,14 @@ func execQuery(cmd *cobra.Command, args []string) error {
 	}
 	qry := strings.Join(args, " ")
 
-	writer := getWriter(cmd)
-
-	if getQueryMode(cmd) == config.ModeSLQ {
+	if getQueryMode(cmd, cfg) == config.ModeSLQ {
 
 		lg.Debugf("using sq mode")
-		_, sqQuery, err := processUserQuery(args)
+		_, slq, err := processUserQuery(cfg, args)
 		if err != nil {
 			return err
 		}
-		//err = engine.ExecuteSQ(sqQuery, writer)
-		err = libsq.Execute(*cfg.SourceSet, sqQuery, writer)
+		err = libsq.Execute(*cfg.SourceSet, slq, w)
 		return err
 	}
 
@@ -62,14 +64,14 @@ func execQuery(cmd *cobra.Command, args []string) error {
 		return util.Errorf("no active data source")
 	}
 
-	return libsq.ExecuteSQL(*src, qry, writer)
+	return libsq.ExecuteSQL(*src, qry, w)
 }
 
 // processUserQuery does a bit of validation and munging on the SLQ input. If the query
 // doesn't contain a @HANDLE, the active src handle is prepended to the query.
 // Otherwise the function performs some basic sanity checking on SLQ input. On success
 // the function returns the first referenced src, and the (potentially modified) SLQ string.
-func processUserQuery(args []string) (src *drvr.Source, slq string, err error) {
+func processUserQuery(cfg *config.Config, args []string) (src *drvr.Source, slq string, err error) {
 	start := strings.TrimSpace(args[0])
 	parts := strings.Split(start, " ")
 
@@ -126,7 +128,7 @@ func addQueryCmdFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolP(FlagMonochrome, FlagMonochromeShort, false, FlagMonochromeUsage)
 }
 
-func getQueryMode(cmd *cobra.Command) config.QueryMode {
+func getQueryMode(cmd *cobra.Command, cfg *config.Config) config.QueryMode {
 	mode := cfg.Options.QueryMode
 	if mode != config.ModeSLQ && mode != config.ModeNativeSQL {
 		mode = config.ModeSLQ

@@ -13,6 +13,7 @@ import (
 	"github.com/neilotoole/sq/cmd/out"
 	"github.com/neilotoole/sq/libsq/drvr"
 	"github.com/neilotoole/sq/libsq/engine"
+	"github.com/neilotoole/sq/libsq/util"
 	"github.com/spf13/cobra"
 )
 
@@ -45,7 +46,12 @@ func execPing(cmd *cobra.Command, args []string) error {
 	lg.Debugf("starting")
 
 	if len(args) > 1 {
-		return fmt.Errorf("invalid arguments")
+		return util.Errorf("invalid arguments")
+	}
+
+	cfg, _, _, err := ioFor(cmd, args)
+	if err != nil {
+		return err
 	}
 
 	var srcs []*drvr.Source
@@ -59,7 +65,7 @@ func execPing(cmd *cobra.Command, args []string) error {
 			ok := false
 			src, ok = cfg.SourceSet.Active()
 			if !ok {
-				return fmt.Errorf("can't get active data source")
+				return util.Errorf("can't get active data source")
 			}
 		} else {
 
@@ -73,11 +79,11 @@ func execPing(cmd *cobra.Command, args []string) error {
 	}
 
 	lg.Debugf("got srcs: %d", len(srcs))
-	doPing(srcs)
+	doPing(srcs, cfg.Options.Timeout)
 	return nil
 }
 
-func doPing(srcs []*drvr.Source) {
+func doPing(srcs []*drvr.Source, timeout time.Duration) {
 
 	//timeout := 5
 	mu := &sync.Mutex{}
@@ -107,7 +113,6 @@ func doPing(srcs []*drvr.Source) {
 		close(done)
 	}()
 
-	timeout := cfg.Options.Timeout
 	lg.Debugf("using ping timeout: %s", timeout)
 
 	select {

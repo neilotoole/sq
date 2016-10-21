@@ -5,15 +5,15 @@ import (
 	"os"
 
 	"path/filepath"
-
-	"github.com/neilotoole/go-lg/lg"
-
 	"sync"
 
 	"github.com/mitchellh/go-homedir"
+	"github.com/neilotoole/go-lg/lg"
 	"github.com/neilotoole/sq/cmd/config"
 	_ "github.com/neilotoole/sq/libsq/drvr/impl"
 	"github.com/neilotoole/sq/libsq/shutdown"
+	"github.com/neilotoole/sq/libsq/util"
+
 	"github.com/spf13/cobra"
 )
 
@@ -185,18 +185,15 @@ For full usage, see the online manual: http://neilotoole.io/sq
 	},
 }
 
-var cfg *config.Config
-var cfgStore config.Store
-
 // Execute adds all child commands to the root command sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
 
-	err := initConfig()
-	if err != nil {
-		handleError(nil, err)
-		return
-	}
+	////err := initConfig()
+	//if err != nil {
+	//	handleError(nil, err)
+	//	return
+	//}
 
 	// HACK: This is a workaround for the fact that cobra doesn't currently
 	// support executing the root command with arbitrary args. That is to say,
@@ -243,58 +240,73 @@ func init() {
 }
 
 var cfgMu sync.Mutex
+var cfg2 *config.Config
+var cfgStore *config.FileStore
 
-func getConfig() *config.Config {
+func ioFor(cmd *cobra.Command, args []string) (cfg *config.Config, store config.Store, w Writer, err error) {
 
+	cfg, store, err = initConfig(cmd)
+	w = getWriter(cmd, cfg)
+
+	return cfg, store, w, err
+}
+
+//func getConfig() *config.Config {
+//	if cfg2 == nil {
+//		panic("getConfig called with cfg pkg var being initalized")
+//	}
+//	return cfg2
+//}
+
+func initConfig(cmd *cobra.Command) (*config.Config, config.Store, error) {
 	cfgMu.Lock()
 	defer cfgMu.Unlock()
 
-	if cfg == nil {
-		cfg = config.NewConfig()
+	if cfg2 != nil {
+		return cfg2, cfgStore, nil
 	}
 
-	return cfg
-}
-
-func initConfig() error {
-
+	// cfg isn't loaded yet
 	envar := "SQ_CONFIGFILE"
-	configPath, ok := os.LookupEnv(envar)
-
+	cfgPath, ok := os.LookupEnv(envar)
 	if !ok {
-		configPath = filepath.Join(configDir(), "sq.yml")
+		// envar not set, let's use the user homedir
+		dir, err := homedir.Dir()
+		if err != nil {
+			// really shouldn't happen
+			lg.Errorf("failed to get home dir: %v", err)
+			lg.Warnf("failing back to current working dir")
+			dir, err = os.Getwd()
+			if err != nil {
+				// also should not happen
+				return nil, nil, util.WrapError(err)
+			}
+
+		}
+		cfgPath = filepath.Join(dir, "sq.yml")
 	}
 
-	lg.Debugf("attempting to create filestore from %q with value %q", envar, configPath)
-	var err error
-	cfgStore, err = config.NewFileStore(configPath)
+	cfgStore = &config.FileStore{cfgPath}
+	lg.Debugf("will use config file: %v", cfgStore.Path)
+	if !cfgStore.FileExists() {
+		lg.Debugf("config file does not exist: %v", cfgStore.Path)
+		cfg2 = config.New()
+		return cfg2, cfgStore, nil
+	}
+
+	// file does exist, let's try to load it
+
+	c, err := cfgStore.Load()
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
-
-	cfg, err = cfgStore.Load()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	cfg2 = c
+	return cfg2, cfgStore, nil
 }
 
-func saveConfig() error {
-	return cfgStore.Save(cfg)
-}
-
-// configDir returns the absolute path of "~/.sq/" (or an alternative if specified by the user)
-func configDir() string {
-
-	home, err := homedir.Dir()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "unable to get user home dir: %v", err)
-		os.Exit(1)
-	}
-
-	return filepath.Join(home, ".sq")
-}
+//func saveConfig(cfg *config.Config) error {
+//	return cfgStore.Save(cfg)
+//}
 
 // preprocessCmd should be run on all commands before adding them.
 func preprocessCmd(cmd *cobra.Command) {
@@ -310,7 +322,6 @@ func preprocessCmd(cmd *cobra.Command) {
 
 	cmd.SilenceErrors = true
 	cmd.SilenceUsage = true
-
 }
 
 // cobraCmdFunc is a function type that matches the Cobra RunE function signature.
@@ -337,7 +348,10 @@ func execer(fn cobraCmdFn) cobraCmdFn {
 func preExec(cmd *cobra.Command, args []string) error {
 
 	lg.Debugf("preExec cmd %q: %v", cmd.Name(), args)
-
+	_, _, err := initConfig(cmd)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -352,7 +366,7 @@ func handleError(cmd *cobra.Command, err error) {
 	}
 
 	lg.Depth(1).Errorf(fmt.Sprintf("%s%v", cmdName, err))
-	getWriter(cmd).Error(err)
+	getWriter(cmd, cfg2).Error(err)
 
 	shutdown.Shutdown(1)
 }

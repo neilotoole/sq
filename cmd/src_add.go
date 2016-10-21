@@ -75,10 +75,15 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		return util.Errorf("invalid arguments")
 	}
 
+	cfg, store, w, err := ioFor(cmd, args)
+	if err != nil {
+		return err
+	}
+
 	location := strings.TrimSpace(args[0])
 	handle := strings.TrimSpace(args[1])
 
-	err := drvr.CheckHandleValue(handle)
+	err = drvr.CheckHandleValue(handle)
 	if err != nil {
 		return err
 	}
@@ -123,13 +128,11 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		cfg.SourceSet.SetActive(src.Handle)
 	}
 
-	err = saveConfig()
+	err = store.Save(cfg)
 	if err != nil {
 		return err
 	}
 
-	w := getWriter(cmd)
-	//w := table.NewWriter(true)
-	w.Source(src)
-	return nil
+	//w := getWriter(cmd, cfg)
+	return w.Source(src)
 }

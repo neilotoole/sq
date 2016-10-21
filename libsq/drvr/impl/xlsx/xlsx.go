@@ -497,7 +497,7 @@ func createTblForSheet(db *sql.DB, sheet *xlsx.Sheet, hasHeader bool) ([]string,
 
 	numCols := len(sheet.Cols)
 	if numCols == 0 {
-		return nil, util.Errorf("sheet %q has no columns")
+		return nil, util.Errorf("sheet %q has no columns", sheet.Name)
 	}
 
 	colNames := make([]string, numCols)

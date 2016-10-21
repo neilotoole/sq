@@ -6,7 +6,9 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/neilotoole/go-lg/lg"
 	"github.com/neilotoole/sq/libsq/drvr"
+	"github.com/neilotoole/sq/libsq/util"
 	"gopkg.in/yaml.v2"
 )
 
@@ -40,7 +42,7 @@ func (f *FileStore) String() string {
 
 // Load reads config from disk.
 func (f *FileStore) Load() (*Config, error) {
-
+	lg.Debugf("attempting to load config from %q", f.Path)
 	bytes, err := ioutil.ReadFile(f.Path)
 	if err != nil {
 		return nil, err
@@ -63,7 +65,7 @@ func (f *FileStore) Load() (*Config, error) {
 
 // Save writes config to disk.
 func (f *FileStore) Save(cfg *Config) error {
-
+	lg.Debugf("attempting to save config to %q", f.Path)
 	bytes, err := yaml.Marshal(cfg)
 	if err != nil {
 		return err
@@ -77,6 +79,13 @@ func (f *FileStore) Save(cfg *Config) error {
 	return nil
 }
 
+// FileExists returns true if the backing file can be accessed, false if it doesn't
+// exist or any error.
+func (f *FileStore) FileExists() bool {
+	_, err := os.Stat(f.Path)
+	return err == nil
+}
+
 // checkFile verifies that the file at f.Path exists, and if not, creates it etc.
 func (f *FileStore) checkFile() error {
 	_, err := os.Stat(f.Path)
@@ -87,7 +96,7 @@ func (f *FileStore) checkFile() error {
 
 	if !os.IsNotExist(err) {
 		// some other kind of error, return it
-		return fmt.Errorf("config: error with backing file '%v': %v", f.Path, err)
+		return util.Errorf("config: error with backing file '%v': %v", f.Path, err)
 	}
 
 	// File doesn't exist, create it.
@@ -96,10 +105,10 @@ func (f *FileStore) checkFile() error {
 	parent := filepath.Dir(f.Path)
 	err = os.MkdirAll(parent, os.ModePerm)
 	if err != nil {
-		return fmt.Errorf("config: backing file not created '%v': %v", f.Path, err)
+		return util.Errorf("config: backing file not created '%v': %v", f.Path, err)
 	}
 
-	conf := NewConfig()
+	conf := New()
 	return f.Save(conf)
 }
 
@@ -114,11 +123,10 @@ func (f *InMemoryStore) String() string {
 // Load returns a new config
 func (f *InMemoryStore) Load() (*Config, error) {
 
-	return NewConfig(), nil
+	return New(), nil
 }
 
 // Save is a no-op
 func (f *InMemoryStore) Save(cfg *Config) error {
-
 	return nil
 }

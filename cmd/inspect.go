@@ -36,7 +36,11 @@ func inspect(cmd *cobra.Command, args []string) error {
 		return util.Errorf("invalid arguments")
 	}
 
-	var err error
+	cfg, _, w, err := ioFor(cmd, args)
+	if err != nil {
+		return err
+	}
+
 	var src *drvr.Source
 	if len(args) == 0 {
 		ok := false
@@ -62,5 +66,5 @@ func inspect(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return getWriter(cmd).Metadata(meta)
+	return w.Metadata(meta)
 }

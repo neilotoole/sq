@@ -12,14 +12,14 @@ import (
 	"github.com/neilotoole/sq-driver/hackery/database/sql"
 	"github.com/neilotoole/sq/cmd/out"
 	"github.com/neilotoole/sq/cmd/out/json/pretty"
-	"github.com/neilotoole/sq/cmd/out/table/texttable"
+	"github.com/neilotoole/sq/cmd/out/table/internal"
 	"github.com/neilotoole/sq/libsq/drvr"
 	"github.com/neilotoole/sq/libsq/drvr/sqlh"
 	"github.com/neilotoole/sq/libsq/util"
 )
 
 type TextWriter struct {
-	tbl    *texttable.Table
+	tbl    *internal.Table
 	f      *pretty.Formatter
 	header bool
 }
@@ -36,7 +36,7 @@ func NewWriter(header bool) *TextWriter {
 
 func (t *TextWriter) Reset() {
 
-	t.tbl = texttable.NewWriter(os.Stdout)
+	t.tbl = internal.NewWriter(os.Stdout)
 	t.setTableWriterOptions()
 	t.f = pretty.NewFormatter()
 	t.tbl.SetAutoFormatHeaders(false)
@@ -44,14 +44,14 @@ func (t *TextWriter) Reset() {
 }
 
 func (t *TextWriter) setTableWriterOptions() {
-	t.tbl.SetAlignment(texttable.AlignLeft)
+	t.tbl.SetAlignment(internal.AlignLeft)
 	t.tbl.SetAutoWrapText(true)
 	t.tbl.SetBorder(false)
-	t.tbl.SetHeaderAlignment(texttable.AlignLeft)
+	t.tbl.SetHeaderAlignment(internal.AlignLeft)
 	t.tbl.SetCenterSeparator("")
 	t.tbl.SetColumnSeparator("")
 	t.tbl.SetRowSeparator("")
-	t.tbl.SetBorders(texttable.Border{Left: false, Top: false, Right: false, Bottom: false})
+	t.tbl.SetBorders(internal.Border{Left: false, Top: false, Right: false, Bottom: false})
 	t.tbl.SetAutoFormatHeaders(false)
 	t.tbl.SetHeaderDisable(!t.header)
 }

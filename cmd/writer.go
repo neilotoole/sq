@@ -13,7 +13,8 @@ import (
 
 	"runtime"
 
-	"github.com/labstack/gommon/color"
+	"github.com/fatih/color"
+	"github.com/neilotoole/go-lg/lg"
 	"github.com/neilotoole/sq/cmd/out/csv"
 	"github.com/neilotoole/sq/cmd/out/json"
 	"github.com/neilotoole/sq/cmd/out/xlsx"
@@ -32,8 +33,8 @@ type Writer interface {
 }
 
 // wi caches the writer instance (as returned by getWriter).
-var wi *writer
-var wiMu sync.Mutex
+var wrt *writer
+var wrtMu sync.Mutex
 
 // writer implements cmd.Writer interface.
 type writer struct {
@@ -69,24 +70,29 @@ func (w *writer) Help(help string) error {
 
 // getWriter returns a cmd.Writer as configured by the flags on cmd. It is permissible
 // for cmd to be nil, in which case a default Writer is returned.
-func getWriter(cmd *cobra.Command) Writer {
+func getWriter(cmd *cobra.Command, cfg *config.Config) Writer {
 
-	wiMu.Lock()
-	defer wiMu.Unlock()
-	if wi != nil {
-		return wi
+	lg.Depth(1).Debugf("getWriter")
+	wrtMu.Lock()
+	defer wrtMu.Unlock()
+	if wrt != nil {
+		return wrt
+	}
+
+	if cfg == nil {
+		cfg = config.New()
 	}
 
 	if runtime.GOOS == "windows" {
 		// TODO: at some point need to look into handling windows color support
-		color.Disable()
+		color.NoColor = true
 	}
 
 	if cmd == nil {
 		// this shouldn't happen, but let's play it safe
 		tblw := table.NewWriter(cfg.Options.Header)
-		wi = &writer{cmd: cmd, recw: tblw, metaw: tblw, srcw: tblw, errw: tblw, helpw: tblw}
-		return wi
+		wrt = &writer{cmd: cmd, recw: tblw, metaw: tblw, srcw: tblw, errw: tblw, helpw: tblw}
+		return wrt
 	}
 
 	// we need to determine --header here because the writer/format constructor
@@ -153,8 +159,8 @@ func getWriter(cmd *cobra.Command) Writer {
 		w.metaw = jw
 	}
 
-	wi = w
-	return wi
+	wrt = w
+	return wrt
 }
 
 // cmdFlagChanged returns true if cmd has the named flag and it has been changed.

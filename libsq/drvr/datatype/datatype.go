@@ -1,8 +1,6 @@
 package datatype
 
-import (
-	"fmt"
-)
+import "strconv"
 
 // Type models a generic data type, which ultimately maps to some more specific
 // implementation data type, such as a SQL VARCHAR or JSON boolean.
@@ -29,7 +27,7 @@ func (d Type) String() string {
 		return "null"
 	}
 
-	panic(fmt.Sprintf("unknown data type %q", d))
+	panic("unknown data type: " + strconv.Itoa(int(d)))
 }
 
 const (

@@ -54,8 +54,8 @@ Fork this [repo](https://github.com/neilotoole/sq), e.g. to  `https://github.com
 Clone the forked repo and set the `upstream` remote:
 
 ```
-mkdir -p $GOPATH/src/github.com/ksoze
-cd $GOPATH/src/github.com/ksoze
+mkdir -p $GOPATH/src/github.com/neilotoole
+cd $GOPATH/src/github.com/neilotoole
 git clone https://github.com/ksoze/sq.git
 cd ./sq
 git remote add upstream https://github.com/neilotoole/sq.git
@@ -64,7 +64,10 @@ git remote -v
 ```
 	
 ### Make
-From  `$GOPATH/src/github.com/ksoze/sq`:
+From  `$GOPATH/src/github.com/neilotoole/sq`, run `./test.sh`. This will run `make test`
+inside a docker container.
+
+For developing locally, this sequence should get you started:
 
 ```
 make install-go-tools
@@ -75,6 +78,19 @@ make smoke
 make dist
 ```
 	
-That should be it. Try `sq ls`. Note that by default `sq` uses `~/.sq/sq.yml` as
+Note that running these steps may take some time (in particular due the use of
+Cgo and cross-compiling distributables). Try `sq ls`. Note that by default `sq` uses `~/.sq/sq.yml` as
 its config store, and outputs debug logs to `~/.sq/sq.log`.
 
+
+Assuming the test containers are running (`make start-test-containers`), this workflow is suggested:
+
+- Make your changes
+- Run `make test && make install && make smoke`
+
+
+## Contributing
+
+When your changes are ready and tested, run `make dist` and a final `make smoke`.
+Push the changes to your own fork, and then open a PR against the upstream repo. The PR should include a link
+to the GitHub issue(s) that it addresses, and it must include the output of `make smoke`.

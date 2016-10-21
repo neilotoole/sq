@@ -81,8 +81,9 @@ func SetStore(store Store) {
 //	return filepath.Join(util.ConfigDir(), "sq.yml"), nil
 //}
 
-// NewConfig returns a config instance with default options set.
-func NewConfig() *Config {
+// New returns a config instance with default options set.
+func New() *Config {
+	lg.Debugf("new config instance")
 	cfg := &Config{}
 	applyDefaults(cfg)
 	return cfg
