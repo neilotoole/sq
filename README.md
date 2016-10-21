@@ -54,6 +54,7 @@ Fork this [repo](https://github.com/neilotoole/sq), e.g. to  `https://github.com
 Clone the forked repo and set the `upstream` remote:
 
 ```
+# ensure that $GOPATH/bin is on your PATH, then
 mkdir -p $GOPATH/src/github.com/ksoze
 cd $GOPATH/src/github.com/ksoze
 git clone https://github.com/ksoze/sq.git
