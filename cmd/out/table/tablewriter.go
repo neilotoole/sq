@@ -89,11 +89,12 @@ func (t *TextWriter) SourceSet(ss *drvr.SourceSet, active *drvr.Source) error {
 		rows = append(rows, row)
 	}
 
+	// TODO: currently we always output headers for sources
+	t.tbl.SetHeaderDisable(false)
 	t.tbl.SetColTrans(0, out.Trans.Number)
-
 	t.tbl.SetHeader([]string{"HANDLE", "DRIVER", "LOCATION", "OPTIONS"})
-
 	t.renderRows(rows)
+	t.tbl.SetHeaderDisable(t.header)
 	return nil
 }
 
@@ -127,11 +128,11 @@ func (t *TextWriter) Source(src *drvr.Source) error {
 	rows = append(rows, row)
 
 	t.tbl.SetColTrans(0, out.Trans.Number)
-
+	// TODO: currently we always output headers for sources
+	t.tbl.SetHeaderDisable(false)
 	t.tbl.SetHeader([]string{"HANDLE", "DRIVER", "LOCATION", "OPTIONS"})
-
 	t.renderRows(rows)
-
+	t.tbl.SetHeaderDisable(t.header)
 	return nil
 }
 

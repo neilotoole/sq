@@ -9,8 +9,6 @@ import (
 	"github.com/neilotoole/sq/libsq/drvr/sqlh"
 	"github.com/spf13/cobra"
 
-	"sync"
-
 	"runtime"
 
 	"github.com/fatih/color"
@@ -21,22 +19,11 @@ import (
 	"github.com/neilotoole/sq/cmd/out/xml"
 )
 
-// Writer is the interface that integrates all application output. The xyzWriter
-// interfaces are separated out because not every format can or should support
-// every application output (e.g. RawWriter.Help() is not useful).
-type Writer interface {
-	out.RecordWriter
-	out.MetadataWriter
-	out.SourceWriter
-	out.ErrorWriter
-	out.HelpWriter
-}
+// wrtr caches the writer instance for use by the CLI.
+var wrtr *writer
 
-// wi caches the writer instance (as returned by getWriter).
-var wrt *writer
-var wrtMu sync.Mutex
-
-// writer implements cmd.Writer interface.
+// writer implements all of the possible out.*Writer interfaces. The CLI should
+// write user/program output only via this object.
 type writer struct {
 	cmd   *cobra.Command
 	recw  out.RecordWriter
@@ -68,31 +55,32 @@ func (w *writer) Help(help string) error {
 	return w.helpw.Help(help)
 }
 
-// getWriter returns a cmd.Writer as configured by the flags on cmd. It is permissible
-// for cmd to be nil, in which case a default Writer is returned.
-func getWriter(cmd *cobra.Command, cfg *config.Config) Writer {
+// initWriter ensures that the cmd.wrtr var is available (as configured by the flags
+// on cmd, defaults in cfg, etc). It is permissible for cmd and/or cfg to be nil.
+func initWriter(cmd *cobra.Command, cfg *config.Config) {
 
-	lg.Depth(1).Debugf("getWriter")
-	wrtMu.Lock()
-	defer wrtMu.Unlock()
-	if wrt != nil {
-		return wrt
-	}
-
-	if cfg == nil {
-		cfg = config.New()
+	if wrtr != nil {
+		lg.Warnf("cmd.wrtr is already initalized")
+		return
 	}
 
 	if runtime.GOOS == "windows" {
+		lg.Debugf("Windows OS detected: disabling colorized output")
 		// TODO: at some point need to look into handling windows color support
 		color.NoColor = true
+	}
+
+	if cfg == nil {
+		// Create a default Config (for the duration of this function,
+		// we don't overwrite the package-level cfg var)
+		cfg = config.New()
 	}
 
 	if cmd == nil {
 		// this shouldn't happen, but let's play it safe
 		tblw := table.NewWriter(cfg.Options.Header)
-		wrt = &writer{cmd: cmd, recw: tblw, metaw: tblw, srcw: tblw, errw: tblw, helpw: tblw}
-		return wrt
+		wrtr = &writer{cmd: cmd, recw: tblw, metaw: tblw, srcw: tblw, errw: tblw, helpw: tblw}
+		return
 	}
 
 	// we need to determine --header here because the writer/format constructor
@@ -159,8 +147,8 @@ func getWriter(cmd *cobra.Command, cfg *config.Config) Writer {
 		w.metaw = jw
 	}
 
-	wrt = w
-	return wrt
+	wrtr = w
+	return
 }
 
 // cmdFlagChanged returns true if cmd has the named flag and it has been changed.

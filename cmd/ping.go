@@ -43,15 +43,8 @@ func init() {
 
 func execPing(cmd *cobra.Command, args []string) error {
 
-	lg.Debugf("starting")
-
 	if len(args) > 1 {
 		return util.Errorf("invalid arguments")
-	}
-
-	cfg, _, _, err := ioFor(cmd, args)
-	if err != nil {
-		return err
 	}
 
 	var srcs []*drvr.Source

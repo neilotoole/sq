@@ -25,12 +25,6 @@ func init() {
 }
 
 func execUse(cmd *cobra.Command, args []string) error {
-
-	cfg, store, w, err := ioFor(cmd, args)
-	if err != nil {
-		return err
-	}
-
 	if len(args) > 1 {
 		return util.Errorf("invalid arguments")
 	}
@@ -42,8 +36,7 @@ func execUse(cmd *cobra.Command, args []string) error {
 			return nil
 		}
 
-		w.Source(src)
-		return nil
+		return wrtr.Source(src)
 	}
 
 	src, err := cfg.SourceSet.SetActive(args[0])
@@ -51,10 +44,10 @@ func execUse(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	err = store.Save(cfg)
+	err = cfgStore.Save(cfg)
 	if err != nil {
 		return err
 	}
 
-	return w.Source(src)
+	return wrtr.Source(src)
 }
