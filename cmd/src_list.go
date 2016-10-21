@@ -1,6 +1,9 @@
 package cmd
 
-import "github.com/spf13/cobra"
+import (
+	"github.com/neilotoole/sq/libsq/util"
+	"github.com/spf13/cobra"
+)
 
 var srcListCmd = &cobra.Command{
 	Use:     "ls",
@@ -15,14 +18,19 @@ func init() {
 }
 
 func execSrcList(cmd *cobra.Command, args []string) error {
-	cfg, _, w, err := ioFor(cmd, args)
-	if err != nil {
-		return err
-	}
-	if cfg.SourceSet == nil {
-		return nil
+
+	if len(args) != 0 {
+		return util.Errorf("invalid arguments")
 	}
 
+	//cfg, _, w, err := ioFor(cmd, args)
+	//if err != nil {
+	//	return err
+	//}
+	//if cfg.SourceSet == nil {
+	//	return nil
+	//}
+
 	active, _ := cfg.SourceSet.Active()
-	return w.SourceSet(cfg.SourceSet, active)
+	return wrtr.SourceSet(cfg.SourceSet, active)
 }

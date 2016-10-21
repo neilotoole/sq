@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"path/filepath"
-	"sync"
 
 	"github.com/mitchellh/go-homedir"
 	"github.com/neilotoole/go-lg/lg"
@@ -15,131 +14,6 @@ import (
 	"github.com/neilotoole/sq/libsq/util"
 	"github.com/spf13/cobra"
 )
-
-// FlagJSON specifies JSON output
-const FlagJSON string = "json"
-
-// FlagJSONShort is shorthand for FlagJSON
-const FlagJSONShort string = "j"
-
-// FlagJSONUsage is usage for FlagJSON
-const FlagJSONUsage string = "JSON output"
-
-// FlagRaw specifies raw output
-const FlagRaw string = "raw"
-
-// FlagRawShort is shorthand for FlagRaw
-const FlagRawShort string = "r"
-
-// FlagRawUsage is usage for FlagRaw
-const FlagRawUsage string = "Output the raw data of each result"
-
-// FlagTable specifies Table output
-const FlagTable string = "table"
-
-// FlagTableShort is shorthand for FlagTable
-const FlagTableShort string = "t"
-
-// FlagTableUsage is usage for FlagTable
-const FlagTableUsage string = "Table output"
-
-// FlagXLSX specifies XLSX output
-const FlagXLSX string = "xlsx"
-
-// FlagXLSXShort is shorthand for FlagXLSX
-const FlagXLSXShort string = "x"
-
-// FlagXLSXUsage is usage for FlagXLSX
-const FlagXLSXUsage string = "XLSX (Excel) output"
-
-// FlagCSV specifies CSV output
-const FlagCSV string = "csv"
-
-// FlagCSVShort is shorthand for FlagCSV
-const FlagCSVShort string = "c"
-
-// FlagCSVUsage is usage for FlagCSV
-const FlagCSVUsage string = "CSV output"
-
-// FlagTSV specifies TSV output
-const FlagTSV string = "tsv"
-
-// FlagTSVShort is shorthand for FlagTSV
-const FlagTSVShort string = "T"
-
-// FlagTSVUsage is usage for FlagTSV
-const FlagTSVUsage string = "TSV output"
-
-// FlagXML specifies XML output
-const FlagXML string = "xml"
-
-// FlagXMLShort is shorthand for FlagXML
-const FlagXMLShort string = "X"
-
-// FlagXMLUsage is usage for FlagXML
-const FlagXMLUsage string = "XML output"
-
-// FlagMonochrome specifies raw output
-const FlagMonochrome string = "monochrome"
-
-// FlagMonochromeShort is shorthand for FlagMonochrome
-const FlagMonochromeShort string = "M"
-
-// FlagMonochromeUsage is usage for FlagMonochrome
-const FlagMonochromeUsage string = "Don't colorize output"
-
-// FlagHeader specifies that the output should include header information (where applicable)
-const FlagHeader string = "header"
-
-// FlagHeaderShort is shorthand for FlagHeader
-const FlagHeaderShort string = "h"
-
-// FlagHeaderUsage is usage for FlagHeader
-const FlagHeaderUsage string = "Print header"
-
-// FlagNoHeader specifies that the output should not include header information (where applicable)
-const FlagNoHeader string = "no-header"
-
-// FlagNoHeaderShort is shorthand for FlagHeader
-const FlagNoHeaderShort string = "H"
-
-// FlagNoHeaderUsage is usage for FlagNoHeader
-const FlagNoHeaderUsage string = "Don't print header"
-
-// FlagModeNativeSQL specifies SQL mode
-const FlagModeNativeSQL string = "native"
-
-// FlagModeNativeSQLShort is shorthand for FlagModeNativeSQL
-const FlagModeNativeSQLShort string = "n"
-
-// FlagModeNativeSQLUsage is usage for FlagModeNativeSQL
-const FlagModeNativeSQLUsage string = "Database-native SQL query mode"
-
-// FlagModeSLQ specifies SLQ mode
-const FlagModeSLQ string = "slq"
-
-// FlagModeSLQShort is shorthand for FlagModeSLQ
-const FlagModeSLQShort string = "s"
-
-// FlagModeSLQUsage is usage for FlagModeSLQ
-const FlagModeSLQUsage string = "SLQ mode (default)"
-
-// FlagPingAll indicates to ping all data sources
-const FlagPingAll string = "all"
-
-// FlagPingAllShort is shorthand for FlagPingAll
-const FlagPingAllShort string = "a"
-
-// FlagPingAllUsage is usage for FlagPingAllShort
-const FlagPingAllUsage string = "Ping all data sources"
-
-const FlagDriver string = "driver"
-
-const FlagDriverUsage string = "Explicitly specify the data source driver to use"
-
-const FlagSrcAddOptions string = "opts"
-
-const FlagSrcAddOptionsUsage string = "Driver-dependent data source options"
 
 // RootCmd represents the base command when called without any subcommands
 var RootCmd = &cobra.Command{
@@ -188,12 +62,6 @@ For full usage, see the online manual: http://neilotoole.io/sq
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
 
-	////err := initConfig()
-	//if err != nil {
-	//	handleError(nil, err)
-	//	return
-	//}
-
 	// HACK: This is a workaround for the fact that cobra doesn't currently
 	// support executing the root command with arbitrary args. That is to say,
 	// if you execute:
@@ -234,35 +102,22 @@ func Execute() {
 
 func init() {
 	cobra.OnInitialize(doInstallBashCompletion)
-	preprocessCmd(RootCmd)
 	addQueryCmdFlags(RootCmd)
+	preprocessCmd(RootCmd)
 }
 
-var cfgMu sync.Mutex
-var cfg2 *config.Config
+// cfg is the package-level Config instance. By the time the body of a command
+// executes, cfg will have been initialized.
+var cfg *config.Config
+
+// cfgStore is the package-level config.Store instance. By the time the body of a command
+// executes, cfgStore will have been initialized.
 var cfgStore *config.FileStore
 
-func ioFor(cmd *cobra.Command, args []string) (cfg *config.Config, store config.Store, w Writer, err error) {
-
-	cfg, store, err = initConfig(cmd)
-	w = getWriter(cmd, cfg)
-
-	return cfg, store, w, err
-}
-
-//func getConfig() *config.Config {
-//	if cfg2 == nil {
-//		panic("getConfig called with cfg pkg var being initalized")
-//	}
-//	return cfg2
-//}
-
+// initConfig ensures that the package's cfg and store variables are initialized.
 func initConfig(cmd *cobra.Command) (*config.Config, config.Store, error) {
-	cfgMu.Lock()
-	defer cfgMu.Unlock()
-
-	if cfg2 != nil {
-		return cfg2, cfgStore, nil
+	if cfg != nil {
+		return cfg, cfgStore, nil
 	}
 
 	// cfg isn't loaded yet
@@ -289,58 +144,45 @@ func initConfig(cmd *cobra.Command) (*config.Config, config.Store, error) {
 	lg.Debugf("will use config file: %v", cfgStore.Path)
 	if !cfgStore.FileExists() {
 		lg.Debugf("config file does not exist: %v", cfgStore.Path)
-		cfg2 = config.New()
-		return cfg2, cfgStore, nil
+		cfg = config.New()
+		return cfg, cfgStore, nil
 	}
 
 	// file does exist, let's try to load it
-
-	c, err := cfgStore.Load()
+	conf, err := cfgStore.Load()
 	if err != nil {
 		return nil, nil, err
 	}
-	cfg2 = c
-	return cfg2, cfgStore, nil
+	lg.Debugf("loaded config from %q", cfgStore.Path)
+	cfg = conf
+	return cfg, cfgStore, nil
 }
 
-//func saveConfig(cfg *config.Config) error {
-//	return cfgStore.Save(cfg)
-//}
-
-// preprocessCmd should be run on all commands before adding them.
+// preprocessCmd should be run on all commands before they are added to to cobra.
 func preprocessCmd(cmd *cobra.Command) {
 	cmd.Flags().BoolP("help", "", false, "Help for "+cmd.Name())
 
 	if cmd.RunE != nil {
-		cmd.RunE = execer(cmd.RunE)
+		// Wrap the cmd run function in the decorator below, enabling
+		// centralized error handling and what not.
+		execFn := cmd.RunE
+		cmd.RunE = func(cmd *cobra.Command, args []string) error {
+			lg.Debugf("invoking cmd %q: %v", cmd.Name(), args)
+			err := execFn(cmd, args)
+			if err != nil {
+				handleError(cmd, err)
+			}
+			return nil
+		}
 	}
 
 	if cmd.PreRunE == nil {
 		cmd.PreRunE = preExec
 	}
 
+	// We handle the errors ourselves (rather than let cobra do it)
 	cmd.SilenceErrors = true
 	cmd.SilenceUsage = true
-}
-
-// cobraCmdFunc is a function type that matches the Cobra RunE function signature.
-type cobraCmdFn func(cmd *cobra.Command, args []string) error
-
-// execer wraps a command's RunE function.
-func execer(fn cobraCmdFn) cobraCmdFn {
-
-	return func(cmd *cobra.Command, args []string) error {
-
-		lg.Debugf("invoking cmd %q: %v", cmd.Name(), args)
-
-		err := fn(cmd, args)
-
-		if err != nil {
-			handleError(cmd, err)
-		}
-
-		return nil
-	}
 }
 
 // preExec is called before a cmd is executed.
@@ -351,9 +193,13 @@ func preExec(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+
+	initWriter(cmd, cfg)
 	return nil
 }
 
+// handleError is the centralized function for handling CLI errors. It prints
+// the error, invokes the shutdown mechanism, and ultimately invokes os.Exit(1).
 func handleError(cmd *cobra.Command, err error) {
 	if err == nil {
 		return
@@ -365,7 +211,11 @@ func handleError(cmd *cobra.Command, err error) {
 	}
 
 	lg.Depth(1).Errorf(fmt.Sprintf("%s%v", cmdName, err))
-	getWriter(cmd, cfg2).Error(err)
 
+	if wrtr == nil {
+		initWriter(cmd, cfg)
+	}
+
+	wrtr.Error(err)
 	shutdown.Shutdown(1)
 }

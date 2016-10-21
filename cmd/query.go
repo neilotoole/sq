@@ -31,12 +31,6 @@ func init() {
 }
 
 func execQuery(cmd *cobra.Command, args []string) error {
-
-	cfg, _, w, err := ioFor(cmd, args)
-	if err != nil {
-		return err
-	}
-
 	if len(args) == 0 {
 		return util.Errorf("no arguments provided")
 	}
@@ -53,7 +47,7 @@ func execQuery(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		err = libsq.Execute(*cfg.SourceSet, slq, w)
+		err = libsq.Execute(*cfg.SourceSet, slq, wrtr)
 		return err
 	}
 
@@ -64,7 +58,7 @@ func execQuery(cmd *cobra.Command, args []string) error {
 		return util.Errorf("no active data source")
 	}
 
-	return libsq.ExecuteSQL(*src, qry, w)
+	return libsq.ExecuteSQL(*src, qry, wrtr)
 }
 
 // processUserQuery does a bit of validation and munging on the SLQ input. If the query

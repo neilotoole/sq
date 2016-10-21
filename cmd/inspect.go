@@ -22,7 +22,6 @@ If @HANDLE is not provided, use the active data source.`,
 
 func init() {
 	preprocessCmd(inspectCmd)
-
 	inspectCmd.Flags().BoolP(FlagJSON, FlagJSONShort, false, FlagJSONUsage)
 	inspectCmd.Flags().BoolP(FlagTable, FlagTableShort, false, FlagTableUsage)
 	inspectCmd.Flags().BoolP(FlagHeader, FlagHeaderShort, false, FlagHeaderUsage)
@@ -36,11 +35,6 @@ func inspect(cmd *cobra.Command, args []string) error {
 		return util.Errorf("invalid arguments")
 	}
 
-	cfg, _, w, err := ioFor(cmd, args)
-	if err != nil {
-		return err
-	}
-
 	var src *drvr.Source
 	if len(args) == 0 {
 		ok := false
@@ -50,6 +44,7 @@ func inspect(cmd *cobra.Command, args []string) error {
 		}
 	} else {
 
+		var err error
 		src, err = cfg.SourceSet.Get(args[0])
 		if err != nil {
 			return err
@@ -66,5 +61,5 @@ func inspect(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return w.Metadata(meta)
+	return wrtr.Metadata(meta)
 }

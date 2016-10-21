@@ -52,21 +52,10 @@ func init() {
 	srcAddCmd.Flags().StringP(FlagSrcAddOptions, "", "", FlagSrcAddOptionsUsage)
 	RootCmd.AddCommand(srcAddCmd)
 
-	// TODO: add flag --active to immediately set active
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// addCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// addCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-
+	// TODO: add flag --active to immediately set added src as active
 }
 
 func execSrcAdd(cmd *cobra.Command, args []string) error {
-
 	if len(args) == 1 {
 		return util.Errorf("sorry, the @HANDLE argument is currently required, we'll fix that soon")
 	}
@@ -75,15 +64,10 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		return util.Errorf("invalid arguments")
 	}
 
-	cfg, store, w, err := ioFor(cmd, args)
-	if err != nil {
-		return err
-	}
-
 	location := strings.TrimSpace(args[0])
 	handle := strings.TrimSpace(args[1])
 
-	err = drvr.CheckHandleValue(handle)
+	err := drvr.CheckHandleValue(handle)
 	if err != nil {
 		return err
 	}
@@ -94,7 +78,6 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 	}
 
 	driverName := ""
-
 	if cmd.Flags().Changed(FlagDriver) {
 		driverName, _ = cmd.Flags().GetString(FlagDriver)
 	}
@@ -128,11 +111,10 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		cfg.SourceSet.SetActive(src.Handle)
 	}
 
-	err = store.Save(cfg)
+	err = cfgStore.Save(cfg)
 	if err != nil {
 		return err
 	}
 
-	//w := getWriter(cmd, cfg)
-	return w.Source(src)
+	return wrtr.Source(src)
 }
