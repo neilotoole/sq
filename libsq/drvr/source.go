@@ -168,13 +168,13 @@ func GetTypeFromSrcLocation(location string) (Type, error) {
 	// xsls content type: application/vnd.ms-excel
 
 	// A location can look like:
-	//HANDLE            DRIVER    LOCATION
-	//my1               mysql     mysql://root:root@tcp(localhost:33067)/sq_mydb1
-	//pg1               postgres  postgres://sq:sq@localhost/sq_pg1?sslmode=disable
-	//sl1               sqlite3   sqlite3:///Users/neilotoole/nd/go/src/github.com/neilotoole/sq/test/sqlite/sqlite_db1
-	//excel2            xlsx      /Users/neilotoole/nd/go/src/github.com/neilotoole/sq/test/xlsx/test.xlsx
-	//excel3            xlsx      test.xlsx
-	//excel4            xlsx      https://s3.amazonaws.com/sq.neilotoole.io/testdata/1.0/xslx/test.xlsx
+	//HANDLE             DRIVER    LOCATION
+	//@my1               mysql     mysql://root:root@tcp(localhost:33067)/sq_mydb1
+	//@pg1               postgres  postgres://sq:sq@localhost/sq_pg1?sslmode=disable
+	//@sl1               sqlite3   sqlite3:///Users/neilotoole/nd/go/src/github.com/neilotoole/sq/test/sqlite/sqlite_db1
+	//@excel2            xlsx      /Users/neilotoole/nd/go/src/github.com/neilotoole/sq/test/xlsx/test.xlsx
+	//@excel3            xlsx      test.xlsx
+	//@excel4            xlsx      https://s3.amazonaws.com/sq.neilotoole.io/testdata/1.0/xslx/test.xlsx
 
 	parts := strings.Split(location, "://")
 
