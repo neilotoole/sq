@@ -17,7 +17,7 @@ LDFLAGS="-s -w"
 default: install
 
 
-install: $(SOURCES) fmt build-assets
+install: $(SOURCES) imports build-assets
 	@go install
 
 
@@ -28,12 +28,12 @@ build-assets:
 	@cd ./build/assets && go-bindata -pkg assets -o ../../cmd/assets/assets.go .
 
 
-test: $(SOURCES) fmt
+test: $(SOURCES) imports
 	go test -timeout 10s ./libsq/...
 	go test -timeout 10s ./cmd/...
 
 
-testv: $(SOURCES) fmt
+testv: $(SOURCES) imports
 	go test -v -timeout 10s ./libsq/...
 	go test -v -timeout 10s ./cmd/...
 
@@ -46,16 +46,15 @@ clean:
 	rm -rf ./dist/*
 
 
-fmt:
-	@goimports -w ./libsq/ 	# We use goimports rather than go fmt
-	@goimports -w ./cmd/
+imports:
+	@goimports -w  -srcdir ./vendor/github.com/neilotoole/sq/libsq/ ./libsq/
+	@goimports -w  -srcdir ./vendor/github.com/neilotoole/sq/cmd/ ./cmd/
 
 
 lint:
-	@# Because we want to exclude the generated parser files from linting, we have
-	@# to invoke golint multiple times (unless I'm doing this wrong)
+
 	@golint ./cmd/...
-	@golint ./libsq
+	@golint ./libsq			# Because we want to exclude the generated parser files from linting, we invoke go lint repeatedly (could be doing this wrong)
 	@golint ./libsq/ast/...
 	@golint ./libsq/drvr/...
 	@golint ./libsq/engine
@@ -68,10 +67,11 @@ vet:
 	@go vet ./cmd/...
 
 
-check: $(SOURCES) fmt lint vet
+check: $(SOURCES) imports lint vet
 
 
 install-go-tools:
+	go get github.com/kardianos/govendor
 	go get github.com/golang/lint/golint/...
 	go get github.com/jteeuwen/go-bindata/...
 	go get golang.org/x/tools/cmd/goimports/...

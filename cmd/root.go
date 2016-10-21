@@ -13,7 +13,6 @@ import (
 	_ "github.com/neilotoole/sq/libsq/drvr/impl"
 	"github.com/neilotoole/sq/libsq/shutdown"
 	"github.com/neilotoole/sq/libsq/util"
-
 	"github.com/spf13/cobra"
 )
 
