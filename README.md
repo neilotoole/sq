@@ -30,7 +30,7 @@ This includes traditional SQL-style databases, or document formats such as JSON,
 > `sq` defines its own query language, seen above, formally known as `SLQ`.
 
 
-For usage information or to download the binary, see the `sq` [manual](https://github.com/neilotoole/sq-manual/wiki).
+For usage information or to download the binaries, see the `sq` [manual](https://github.com/neilotoole/sq-manual/wiki).
 
 
 ## Development

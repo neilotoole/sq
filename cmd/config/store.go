@@ -80,7 +80,7 @@ func (f *FileStore) Save(cfg *Config) error {
 }
 
 // FileExists returns true if the backing file can be accessed, false if it doesn't
-// exist or any error.
+// exist or on any error.
 func (f *FileStore) FileExists() bool {
 	_, err := os.Stat(f.Path)
 	return err == nil
@@ -122,7 +122,6 @@ func (f *InMemoryStore) String() string {
 
 // Load returns a new config
 func (f *InMemoryStore) Load() (*Config, error) {
-
 	return New(), nil
 }
 

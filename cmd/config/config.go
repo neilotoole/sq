@@ -23,9 +23,6 @@ const FormatXML Format = "xml"
 const FormatCSV Format = "csv"
 const FormatTSV Format = "tsv"
 
-var conf *Config
-var str Store
-
 // Config holds application config/session data.
 type Config struct {
 	cfgDir    string
@@ -48,39 +45,6 @@ type Log struct {
 	ExcludePkgs []string `yaml:"exclude_pkgs"`
 }
 
-// TODO: need to add a file write lock
-
-//// Default returns the default config singleton.
-//func Default() *Config {
-//
-//	if conf == nil {
-//
-//		if str == nil {
-//			panic("config.Default() invoked before config.SetStore() ")
-//		}
-//
-//		cfg, err := str.Load()
-//		if err != nil {
-//			// TODO: should try to load before this
-//			panic(err)
-//		}
-//		conf = cfg
-//	}
-//
-//	return conf
-//}
-
-// SetStore specifies the store for config persistence.
-func SetStore(store Store) {
-	str = store
-}
-
-//// defaultPath returns ~/.sq/sq.yml
-//func defaultPath() (string, error) {
-//
-//	return filepath.Join(util.ConfigDir(), "sq.yml"), nil
-//}
-
 // New returns a config instance with default options set.
 func New() *Config {
 	lg.Debugf("new config instance")
@@ -92,7 +56,6 @@ func New() *Config {
 
 // applyDefaults checks if required values are present, and if not, sets them.
 func applyDefaults(cfg *Config) {
-	lg.Debugf("checking that cfg has default values set")
 
 	if cfg.SourceSet == nil {
 		cfg.SourceSet = drvr.NewSourceSet()

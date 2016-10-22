@@ -9,7 +9,7 @@ import (
 )
 
 // Plan models a sq execution plan.
-// At this time Plan effectively models a query, but in future it will also model
+// At this time Plan effectively models just queries, but in future it will also model
 // operations such as copy/inserts etc.
 type Plan struct {
 	AST        *ast.AST
@@ -34,14 +34,13 @@ func NewPlanBuilder(srcs *drvr.SourceSet) *PlanBuilder {
 	return &PlanBuilder{srcs: srcs}
 }
 
-// Model builds a SelectStmt from the IR.
+// Build creates a Plan instance from the AST.
 func (pb *PlanBuilder) Build(a *ast.AST) (*Plan, error) {
 
-	lg.Debugf("starting to build model")
+	lg.Debugf("building plan...")
 
-	lg.Debugf("starting build2()")
 	if len(a.Segments()) == 0 {
-		return nil, errorf("parse error: the query does not have enough segments")
+		return nil, errorf("plan error: the query does not have enough segments")
 	}
 
 	stmt := &Plan{AST: a}

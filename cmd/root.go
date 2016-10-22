@@ -141,7 +141,7 @@ func initConfig(cmd *cobra.Command) (*config.Config, config.Store, error) {
 	}
 
 	cfgStore = &config.FileStore{cfgPath}
-	lg.Debugf("will use config file: %v", cfgStore.Path)
+	lg.Debugf("attempting to use config file %q", cfgStore.Path)
 	if !cfgStore.FileExists() {
 		lg.Debugf("config file does not exist: %v", cfgStore.Path)
 		cfg = config.New()
@@ -153,7 +153,7 @@ func initConfig(cmd *cobra.Command) (*config.Config, config.Store, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	lg.Debugf("loaded config from %q", cfgStore.Path)
+	lg.Debugf("loaded config file %q", cfgStore.Path)
 	cfg = conf
 	return cfg, cfgStore, nil
 }
@@ -188,7 +188,7 @@ func preprocessCmd(cmd *cobra.Command) {
 // preExec is called before a cmd is executed.
 func preExec(cmd *cobra.Command, args []string) error {
 
-	lg.Debugf("preExec cmd %q: %v", cmd.Name(), args)
+	lg.Debugf("executing command %q: %v", cmd.Name(), args)
 	_, _, err := initConfig(cmd)
 	if err != nil {
 		return err

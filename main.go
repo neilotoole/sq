@@ -12,10 +12,7 @@ import (
 )
 
 func main() {
-
 	str := "\n" + strings.Repeat("*", 80) + "\n > " + strings.Join(os.Args, " ") + "\n" + strings.Repeat("*", 80)
 	lg.Debugf(str)
-
 	cmd.Execute()
-
 }
