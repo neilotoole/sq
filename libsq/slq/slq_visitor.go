@@ -1,4 +1,4 @@
-// Generated from ../grammar/SLQ.g4 by ANTLR 4.5.1.
+// Generated from ../grammar/SLQ.g4 by ANTLR 4.5.3.
 
 package slq // SLQ
 import "github.com/pboyer/antlr4/runtime/Go/antlr"
@@ -19,23 +19,17 @@ type SLQVisitor interface {
 	// Visit a parse tree produced by SLQParser#cmpr.
 	VisitCmpr(ctx *CmprContext) interface{}
 
-	// Visit a parse tree produced by SLQParser#fn.
-	VisitFn(ctx *FnContext) interface{}
-
 	// Visit a parse tree produced by SLQParser#args.
 	VisitArgs(ctx *ArgsContext) interface{}
 
 	// Visit a parse tree produced by SLQParser#arg.
 	VisitArg(ctx *ArgContext) interface{}
 
-	// Visit a parse tree produced by SLQParser#fnJoin.
-	VisitFnJoin(ctx *FnJoinContext) interface{}
+	// Visit a parse tree produced by SLQParser#join.
+	VisitJoin(ctx *JoinContext) interface{}
 
-	// Visit a parse tree produced by SLQParser#fnJoinCond.
-	VisitFnJoinCond(ctx *FnJoinCondContext) interface{}
-
-	// Visit a parse tree produced by SLQParser#fnJoinExpr.
-	VisitFnJoinExpr(ctx *FnJoinExprContext) interface{}
+	// Visit a parse tree produced by SLQParser#joinConstraint.
+	VisitJoinConstraint(ctx *JoinConstraintContext) interface{}
 
 	// Visit a parse tree produced by SLQParser#selElement.
 	VisitSelElement(ctx *SelElementContext) interface{}

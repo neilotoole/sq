@@ -1,10 +1,12 @@
-// Generated from ../grammar/SLQ.g4 by ANTLR 4.5.1.
+// Generated from ../grammar/SLQ.g4 by ANTLR 4.5.3.
 
 package slq // SLQ
 import "github.com/pboyer/antlr4/runtime/Go/antlr"
 
 // BaseSLQListener is a complete listener for a parse tree produced by SLQParser.
 type BaseSLQListener struct{}
+
+var _ SLQListener = &BaseSLQListener{}
 
 // VisitTerminal is called when a terminal node is visited.
 func (s *BaseSLQListener) VisitTerminal(node antlr.TerminalNode) {}
@@ -42,12 +44,6 @@ func (s *BaseSLQListener) EnterCmpr(ctx *CmprContext) {}
 // ExitCmpr is called when production cmpr is exited.
 func (s *BaseSLQListener) ExitCmpr(ctx *CmprContext) {}
 
-// EnterFn is called when production fn is entered.
-func (s *BaseSLQListener) EnterFn(ctx *FnContext) {}
-
-// ExitFn is called when production fn is exited.
-func (s *BaseSLQListener) ExitFn(ctx *FnContext) {}
-
 // EnterArgs is called when production args is entered.
 func (s *BaseSLQListener) EnterArgs(ctx *ArgsContext) {}
 
@@ -60,23 +56,17 @@ func (s *BaseSLQListener) EnterArg(ctx *ArgContext) {}
 // ExitArg is called when production arg is exited.
 func (s *BaseSLQListener) ExitArg(ctx *ArgContext) {}
 
-// EnterFnJoin is called when production fnJoin is entered.
-func (s *BaseSLQListener) EnterFnJoin(ctx *FnJoinContext) {}
+// EnterJoin is called when production join is entered.
+func (s *BaseSLQListener) EnterJoin(ctx *JoinContext) {}
 
-// ExitFnJoin is called when production fnJoin is exited.
-func (s *BaseSLQListener) ExitFnJoin(ctx *FnJoinContext) {}
+// ExitJoin is called when production join is exited.
+func (s *BaseSLQListener) ExitJoin(ctx *JoinContext) {}
 
-// EnterFnJoinCond is called when production fnJoinCond is entered.
-func (s *BaseSLQListener) EnterFnJoinCond(ctx *FnJoinCondContext) {}
+// EnterJoinConstraint is called when production joinConstraint is entered.
+func (s *BaseSLQListener) EnterJoinConstraint(ctx *JoinConstraintContext) {}
 
-// ExitFnJoinCond is called when production fnJoinCond is exited.
-func (s *BaseSLQListener) ExitFnJoinCond(ctx *FnJoinCondContext) {}
-
-// EnterFnJoinExpr is called when production fnJoinExpr is entered.
-func (s *BaseSLQListener) EnterFnJoinExpr(ctx *FnJoinExprContext) {}
-
-// ExitFnJoinExpr is called when production fnJoinExpr is exited.
-func (s *BaseSLQListener) ExitFnJoinExpr(ctx *FnJoinExprContext) {}
+// ExitJoinConstraint is called when production joinConstraint is exited.
+func (s *BaseSLQListener) ExitJoinConstraint(ctx *JoinConstraintContext) {}
 
 // EnterSelElement is called when production selElement is entered.
 func (s *BaseSLQListener) EnterSelElement(ctx *SelElementContext) {}

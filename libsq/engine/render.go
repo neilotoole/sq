@@ -22,7 +22,7 @@ type Renderer interface {
 	SelectCols(cols []ast.ColExpr) (string, error)
 	SelectAll(tblSel *ast.TblSelector) (string, error)
 	Range(rr *ast.RowRange) (string, error)
-	Join(fnJoin *ast.FnJoin) (string, error)
+	Join(fnJoin *ast.Join) (string, error)
 	CreateTable(tblName string, colNames []string, colTypes []reflect.Type) (string, error)
 	CreateInsertStmt(tblName string, colNames []string) (string, error)
 }
@@ -72,7 +72,7 @@ func (r *baseRenderer) FromTable(tblSel *ast.TblSelector) (string, error) {
 	return clause, nil
 }
 
-func (r *baseRenderer) Join(fnJoin *ast.FnJoin) (string, error) {
+func (r *baseRenderer) Join(fnJoin *ast.Join) (string, error) {
 
 	joinType := "INNER JOIN"
 
@@ -81,7 +81,7 @@ func (r *baseRenderer) Join(fnJoin *ast.FnJoin) (string, error) {
 	if len(fnJoin.Children()) == 0 {
 		joinType = "NATURAL JOIN"
 	} else {
-		joinExpr, ok := fnJoin.Children()[0].(*ast.FnJoinExpr)
+		joinExpr, ok := fnJoin.Children()[0].(*ast.JoinConstraint)
 		if !ok {
 			return "", errorf("expected *FnJoinExpr but got %T", fnJoin.Children()[0])
 		}
@@ -207,7 +207,7 @@ func (r *MySQLRenderer) FromTable(tblSel *ast.TblSelector) (string, error) {
 	return r.rndr.FromTable(tblSel)
 }
 
-func (r *MySQLRenderer) Join(fnJoin *ast.FnJoin) (string, error) {
+func (r *MySQLRenderer) Join(fnJoin *ast.Join) (string, error) {
 	return r.rndr.Join(fnJoin)
 }
 func (r *MySQLRenderer) Range(rr *ast.RowRange) (string, error) {
@@ -238,7 +238,7 @@ func (r *PostgresRenderer) FromTable(tblSel *ast.TblSelector) (string, error) {
 	return r.rndr.FromTable(tblSel)
 }
 
-func (r *PostgresRenderer) Join(fnJoin *ast.FnJoin) (string, error) {
+func (r *PostgresRenderer) Join(fnJoin *ast.Join) (string, error) {
 	return r.rndr.Join(fnJoin)
 }
 func (r *PostgresRenderer) Range(rr *ast.RowRange) (string, error) {
@@ -320,7 +320,7 @@ func (r *SQLite3Renderer) FromTable(tblSel *ast.TblSelector) (string, error) {
 	return r.rndr.FromTable(tblSel)
 }
 
-func (r *SQLite3Renderer) Join(fnJoin *ast.FnJoin) (string, error) {
+func (r *SQLite3Renderer) Join(fnJoin *ast.Join) (string, error) {
 	return r.rndr.Join(fnJoin)
 }
 func (r *SQLite3Renderer) Range(rr *ast.RowRange) (string, error) {
@@ -351,7 +351,7 @@ func (r *XLSXRenderer) FromTable(tblSel *ast.TblSelector) (string, error) {
 	return r.rndr.FromTable(tblSel)
 }
 
-func (r *XLSXRenderer) Join(fnJoin *ast.FnJoin) (string, error) {
+func (r *XLSXRenderer) Join(fnJoin *ast.Join) (string, error) {
 	return r.rndr.Join(fnJoin)
 }
 func (r *XLSXRenderer) Range(rr *ast.RowRange) (string, error) {
@@ -382,7 +382,7 @@ func (r *CSVRenderer) FromTable(tblSel *ast.TblSelector) (string, error) {
 	return r.rndr.FromTable(tblSel)
 }
 
-func (r *CSVRenderer) Join(fnJoin *ast.FnJoin) (string, error) {
+func (r *CSVRenderer) Join(fnJoin *ast.Join) (string, error) {
 	return r.rndr.Join(fnJoin)
 }
 func (r *CSVRenderer) Range(rr *ast.RowRange) (string, error) {

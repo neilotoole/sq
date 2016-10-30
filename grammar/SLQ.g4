@@ -7,24 +7,34 @@ query: segment (PIPE segment)* ;
 
 segment: (element)  (COMMA element)* ;
 
-element: dsTblElement | dsElement | selElement | fn | rowRange;
+element: dsTblElement | dsElement | selElement | join | rowRange;
 
 
 
 cmpr: LT_EQ | LT | GT_EQ | GT | EQ | NEQ ;
 
-fn: fnJoin ;
+//fn: fnJoin ;
 
 args: ( arg (COMMA arg)* )? ;
 
 arg: SEL | ID ;
 
 
-fnJoin: ('join'|'JOIN'|'j') LPAR fnJoinExpr RPAR;
-fnJoinCond: SEL cmpr SEL ;
-fnJoinExpr: fnJoinCond | SEL;
+join
+ : ('join'|'JOIN'|'j')
+ LPAR joinConstraint RPAR
+ ;
+//fnJoinCond: SEL cmpr SEL ;
+//fnJoinExpr: fnJoinCond | SEL;
+joinConstraint
+ : SEL cmpr SEL // .user.uid == .address.userid
+ | SEL // .uid
+ ;
+
 selElement: SEL;
+
 dsTblElement: DATASOURCE SEL; // datasource table element, e.g. @my1.user
+
 dsElement: DATASOURCE; // datasource element, e.g. @my1
 
 // []

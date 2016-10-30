@@ -53,14 +53,14 @@ func (v *ParseTreeVisitor) Visit(ctx antlr.ParseTree) interface{} {
 		v.VisitDsTblElement(ctx)
 	case *slq.SelElementContext:
 		v.VisitSelElement(ctx)
-	case *slq.FnContext:
-		v.VisitFn(ctx)
-	case *slq.FnJoinContext:
-		v.VisitFnJoin(ctx)
-	case *slq.FnJoinExprContext:
-		v.VisitFnJoinExpr(ctx)
-	case *slq.FnJoinCondContext:
-		v.VisitFnJoinCond(ctx)
+	//case *slq.FnContext:
+	//	v.VisitFn(ctx)
+	case *slq.JoinContext:
+		v.VisitJoin(ctx)
+	case *slq.JoinConstraintContext:
+		v.VisitJoinConstraint(ctx)
+	//case *slq.FnJoinCondContext:
+	//	v.VisitFnJoinCond(ctx)
 	case *slq.CmprContext:
 		v.VisitCmpr(ctx)
 	case *slq.RowRangeContext:
@@ -193,14 +193,14 @@ func (v *ParseTreeVisitor) VisitCmpr(ctx *slq.CmprContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
-func (v *ParseTreeVisitor) VisitFn(ctx *slq.FnContext) interface{} {
-	ok := v.notify(ctx)
-	if !ok {
-		return nil
-	}
-
-	return v.VisitChildren(ctx)
-}
+//func (v *ParseTreeVisitor) VisitFn(ctx *slq.FnContext) interface{} {
+//	ok := v.notify(ctx)
+//	if !ok {
+//		return nil
+//	}
+//
+//	return v.VisitChildren(ctx)
+//}
 
 func (v *ParseTreeVisitor) VisitArgs(ctx *slq.ArgsContext) interface{} {
 	ok := v.notify(ctx)
@@ -218,7 +218,7 @@ func (v *ParseTreeVisitor) VisitArg(ctx *slq.ArgContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
-func (v *ParseTreeVisitor) VisitFnJoin(ctx *slq.FnJoinContext) interface{} {
+func (v *ParseTreeVisitor) VisitJoin(ctx *slq.JoinContext) interface{} {
 	ok := v.notify(ctx)
 	if !ok {
 		return nil
@@ -231,17 +231,17 @@ func (v *ParseTreeVisitor) VisitFnJoin(ctx *slq.FnJoinContext) interface{} {
 		return nil
 	}
 
-	join := &FnJoin{seg: seg, ctx: ctx}
+	join := &Join{seg: seg, ctx: ctx}
 	seg.AddChild(join)
 
-	expr := ctx.FnJoinExpr()
+	expr := ctx.JoinConstraint()
 	if expr == nil {
 		return nil
 	}
 
 	// the join contains an expr, let's hit it
 	v.cur = join
-	v.VisitFnJoinExpr(expr.(*slq.FnJoinExprContext))
+	v.VisitJoinConstraint(expr.(*slq.JoinConstraintContext))
 
 	// set cur back to previous
 	v.cur = seg
@@ -249,62 +249,46 @@ func (v *ParseTreeVisitor) VisitFnJoin(ctx *slq.FnJoinContext) interface{} {
 	return nil
 }
 
-func (v *ParseTreeVisitor) VisitFnJoinExpr(ctx *slq.FnJoinExprContext) interface{} {
+func (v *ParseTreeVisitor) VisitJoinConstraint(ctx *slq.JoinConstraintContext) interface{} {
 	ok := v.notify(ctx)
 	if !ok {
 		return nil
 	}
 
-	// the expression could be empty
-	children := ctx.GetChildren()
-	if len(children) == 0 {
-		return nil
-	}
-
-	// it could be either a join condition, or just a SEL
-	cond := ctx.FnJoinCond()
-	if cond != nil {
-		return v.VisitFnJoinCond(cond.(*slq.FnJoinCondContext))
-	}
-
-	joinNode, ok := v.cur.(*FnJoin)
+	joinNode, ok := v.cur.(*Join)
 	if !ok {
 		v.Err = errorf("JOIN condition must have JOIN parent, but got %T", v.cur)
 	}
 
-	sel := ctx.SEL()
-	if sel == nil {
-		// shouldn't happen, parser should have caught this beforehand
-		v.Err = errorf("invalid JOIN expression: %q", ctx.GetText())
-		return nil
-	}
-
-	joinExprNode := &FnJoinExpr{join: joinNode, ctx: ctx}
-
-	colSelNode := &Selector{}
-	colSelNode.ctx = sel
-	colSelNode.parent = joinExprNode
-
-	joinExprNode.AddChild(colSelNode)
-	joinNode.AddChild(joinExprNode)
-
-	return nil
-}
-
-func (v *ParseTreeVisitor) VisitFnJoinCond(ctx *slq.FnJoinCondContext) interface{} {
-	ok := v.notify(ctx)
-	if !ok {
-		return nil
-	}
-
-	// the expression could be empty
+	// the constraint could be empty
 	children := ctx.GetChildren()
 	if len(children) == 0 {
 		return nil
 	}
 
-	// or else it's a LEFT CMPR RIGHT, e.g. .user.uid == .address.uid
+	// the constraint could be a single SEL (in which case, there's no comparison operator)
+	if ctx.Cmpr() == nil {
+		// there should be exactly one SEL
+		sels := ctx.AllSEL()
+		if len(sels) != 1 {
+			v.Err = errorf("JOIN constraint without a comparison operator must have exactly one selector")
+			return nil
+		}
 
+		joinExprNode := &JoinConstraint{join: joinNode, ctx: ctx}
+
+		colSelNode := &Selector{}
+		colSelNode.ctx = sels[0]
+		colSelNode.parent = joinExprNode
+
+		joinExprNode.AddChild(colSelNode) // TODO: error handling
+		joinNode.AddChild(joinExprNode)
+
+		return nil
+
+	}
+
+	// we've got a comparison operator
 	sels := ctx.AllSEL()
 	if len(sels) != 2 {
 		// REVISIT: probably unnecessary, should be caught by the parser
@@ -312,11 +296,11 @@ func (v *ParseTreeVisitor) VisitFnJoinCond(ctx *slq.FnJoinCondContext) interface
 		return nil
 	}
 
-	join, ok := v.cur.(*FnJoin)
+	join, ok := v.cur.(*Join)
 	if !ok {
 		v.Err = errorf("JOIN condition must have JOIN parent, but got %T", v.cur)
 	}
-	joinCondition := &FnJoinExpr{join: join, ctx: ctx}
+	joinCondition := &JoinConstraint{join: join, ctx: ctx}
 
 	leftSel := &Selector{}
 	leftSel.ctx = sels[0]
@@ -334,7 +318,80 @@ func (v *ParseTreeVisitor) VisitFnJoinCond(ctx *slq.FnJoinCondContext) interface
 	v.setIfErr(join.AddChild(joinCondition))
 
 	return nil
+
+	//
+	//// it could be either a join condition, or just a SEL
+	//cond := ctx.FnJoinCond()
+	//if cond != nil {
+	//	return v.VisitFnJoinCond(cond.(*slq.FnJoinCondContext))
+	//}
+	//
+	//
+	//
+	//sel := ctx.SEL()
+	//if sel == nil {
+	//	// shouldn't happen, parser should have caught this beforehand
+	//	v.Err = errorf("invalid JOIN expression: %q", ctx.GetText())
+	//	return nil
+	//}
+	//
+	//joinExprNode := &JoinConstraint{join: joinNode, ctx: ctx}
+	//
+	//colSelNode := &Selector{}
+	//colSelNode.ctx = sel
+	//colSelNode.parent = joinExprNode
+	//
+	//joinExprNode.AddChild(colSelNode)
+	//joinNode.AddChild(joinExprNode)
+
+	return nil
 }
+
+//
+//func (v *ParseTreeVisitor) VisitFnJoinCond(ctx *slq.FnJoinCondContext) interface{} {
+//	ok := v.notify(ctx)
+//	if !ok {
+//		return nil
+//	}
+//
+//	// the expression could be empty
+//	children := ctx.GetChildren()
+//	if len(children) == 0 {
+//		return nil
+//	}
+//
+//	// or else it's a LEFT CMPR RIGHT, e.g. .user.uid == .address.uid
+//
+//	sels := ctx.AllSEL()
+//	if len(sels) != 2 {
+//		// REVISIT: probably unnecessary, should be caught by the parser
+//		v.Err = errorf("JOIN condition must have 2 operands (left & right), but got %d", len(sels))
+//		return nil
+//	}
+//
+//	join, ok := v.cur.(*Join)
+//	if !ok {
+//		v.Err = errorf("JOIN condition must have JOIN parent, but got %T", v.cur)
+//	}
+//	joinCondition := &JoinConstraint{join: join, ctx: ctx}
+//
+//	leftSel := &Selector{}
+//	leftSel.ctx = sels[0]
+//	leftSel.parent = joinCondition
+//
+//	rightSel := &Selector{}
+//	rightSel.ctx = sels[1]
+//	rightSel.parent = joinCondition
+//
+//	cmpr := NewCmpr(joinCondition, ctx.Cmpr())
+//
+//	v.setIfErr(joinCondition.AddChild(leftSel))
+//	v.setIfErr(joinCondition.AddChild(cmpr))
+//	v.setIfErr(joinCondition.AddChild(rightSel))
+//	v.setIfErr(join.AddChild(joinCondition))
+//
+//	return nil
+//}
 
 func (v *ParseTreeVisitor) VisitTerminal(ctx antlr.TerminalNode) interface{} {
 	ok := v.notify(ctx)

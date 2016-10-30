@@ -1,4 +1,4 @@
-// Generated from ../grammar/SLQ.g4 by ANTLR 4.5.1.
+// Generated from ../grammar/SLQ.g4 by ANTLR 4.5.3.
 
 package slq // SLQ
 import (
@@ -9,56 +9,51 @@ import (
 	"github.com/pboyer/antlr4/runtime/Go/antlr"
 )
 
-// Stopgap to suppress unused import error. We aren't certain
-// to have these imports used in the generated code below
-
+// Suppress unused import errors
 var _ = fmt.Printf
 var _ = reflect.Copy
 var _ = strconv.Itoa
 
 var parserATN = []uint16{
-	3, 1072, 54993, 33286, 44333, 17431, 44785, 36224, 43741, 3, 30, 104, 4,
+	3, 1072, 54993, 33286, 44333, 17431, 44785, 36224, 43741, 3, 30, 97, 4,
 	2, 9, 2, 4, 3, 9, 3, 4, 4, 9, 4, 4, 5, 9, 5, 4, 6, 9, 6, 4, 7, 9, 7, 4,
 	8, 9, 8, 4, 9, 9, 9, 4, 10, 9, 10, 4, 11, 9, 11, 4, 12, 9, 12, 4, 13, 9,
-	13, 4, 14, 9, 14, 4, 15, 9, 15, 3, 2, 3, 2, 3, 2, 7, 2, 34, 10, 2, 12,
-	2, 14, 2, 37, 11, 2, 3, 3, 3, 3, 3, 3, 7, 3, 42, 10, 3, 12, 3, 14, 3, 45,
-	11, 3, 3, 4, 3, 4, 3, 4, 3, 4, 3, 4, 5, 4, 52, 10, 4, 3, 5, 3, 5, 3, 6,
-	3, 6, 3, 7, 3, 7, 3, 7, 7, 7, 61, 10, 7, 12, 7, 14, 7, 64, 11, 7, 5, 7,
-	66, 10, 7, 3, 8, 3, 8, 3, 9, 3, 9, 3, 9, 3, 9, 3, 9, 3, 10, 3, 10, 3, 10,
-	3, 10, 3, 11, 3, 11, 5, 11, 81, 10, 11, 3, 12, 3, 12, 3, 13, 3, 13, 3,
-	13, 3, 14, 3, 14, 3, 15, 3, 15, 3, 15, 3, 15, 3, 15, 3, 15, 3, 15, 3, 15,
-	3, 15, 3, 15, 5, 15, 100, 10, 15, 3, 15, 3, 15, 3, 15, 2, 2, 16, 2, 4,
-	6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 2, 5, 3, 2, 20, 25, 4, 2,
-	7, 7, 26, 26, 3, 2, 3, 5, 102, 2, 30, 3, 2, 2, 2, 4, 38, 3, 2, 2, 2, 6,
-	51, 3, 2, 2, 2, 8, 53, 3, 2, 2, 2, 10, 55, 3, 2, 2, 2, 12, 65, 3, 2, 2,
-	2, 14, 67, 3, 2, 2, 2, 16, 69, 3, 2, 2, 2, 18, 74, 3, 2, 2, 2, 20, 80,
-	3, 2, 2, 2, 22, 82, 3, 2, 2, 2, 24, 84, 3, 2, 2, 2, 26, 87, 3, 2, 2, 2,
-	28, 89, 3, 2, 2, 2, 30, 35, 5, 4, 3, 2, 31, 32, 7, 14, 2, 2, 32, 34, 5,
-	4, 3, 2, 33, 31, 3, 2, 2, 2, 34, 37, 3, 2, 2, 2, 35, 33, 3, 2, 2, 2, 35,
-	36, 3, 2, 2, 2, 36, 3, 3, 2, 2, 2, 37, 35, 3, 2, 2, 2, 38, 43, 5, 6, 4,
-	2, 39, 40, 7, 13, 2, 2, 40, 42, 5, 6, 4, 2, 41, 39, 3, 2, 2, 2, 42, 45,
-	3, 2, 2, 2, 43, 41, 3, 2, 2, 2, 43, 44, 3, 2, 2, 2, 44, 5, 3, 2, 2, 2,
-	45, 43, 3, 2, 2, 2, 46, 52, 5, 24, 13, 2, 47, 52, 5, 26, 14, 2, 48, 52,
-	5, 22, 12, 2, 49, 52, 5, 10, 6, 2, 50, 52, 5, 28, 15, 2, 51, 46, 3, 2,
-	2, 2, 51, 47, 3, 2, 2, 2, 51, 48, 3, 2, 2, 2, 51, 49, 3, 2, 2, 2, 51, 50,
-	3, 2, 2, 2, 52, 7, 3, 2, 2, 2, 53, 54, 9, 2, 2, 2, 54, 9, 3, 2, 2, 2, 55,
-	56, 5, 16, 9, 2, 56, 11, 3, 2, 2, 2, 57, 62, 5, 14, 8, 2, 58, 59, 7, 13,
-	2, 2, 59, 61, 5, 14, 8, 2, 60, 58, 3, 2, 2, 2, 61, 64, 3, 2, 2, 2, 62,
-	60, 3, 2, 2, 2, 62, 63, 3, 2, 2, 2, 63, 66, 3, 2, 2, 2, 64, 62, 3, 2, 2,
-	2, 65, 57, 3, 2, 2, 2, 65, 66, 3, 2, 2, 2, 66, 13, 3, 2, 2, 2, 67, 68,
-	9, 3, 2, 2, 68, 15, 3, 2, 2, 2, 69, 70, 9, 4, 2, 2, 70, 71, 7, 9, 2, 2,
-	71, 72, 5, 20, 11, 2, 72, 73, 7, 10, 2, 2, 73, 17, 3, 2, 2, 2, 74, 75,
-	7, 26, 2, 2, 75, 76, 5, 8, 5, 2, 76, 77, 7, 26, 2, 2, 77, 19, 3, 2, 2,
-	2, 78, 81, 5, 18, 10, 2, 79, 81, 7, 26, 2, 2, 80, 78, 3, 2, 2, 2, 80, 79,
-	3, 2, 2, 2, 81, 21, 3, 2, 2, 2, 82, 83, 7, 26, 2, 2, 83, 23, 3, 2, 2, 2,
-	84, 85, 7, 27, 2, 2, 85, 86, 7, 26, 2, 2, 86, 25, 3, 2, 2, 2, 87, 88, 7,
-	27, 2, 2, 88, 27, 3, 2, 2, 2, 89, 99, 7, 6, 2, 2, 90, 91, 7, 18, 2, 2,
-	91, 92, 7, 15, 2, 2, 92, 100, 7, 18, 2, 2, 93, 94, 7, 18, 2, 2, 94, 100,
-	7, 15, 2, 2, 95, 96, 7, 15, 2, 2, 96, 100, 7, 18, 2, 2, 97, 100, 7, 18,
-	2, 2, 98, 100, 3, 2, 2, 2, 99, 90, 3, 2, 2, 2, 99, 93, 3, 2, 2, 2, 99,
-	95, 3, 2, 2, 2, 99, 97, 3, 2, 2, 2, 99, 98, 3, 2, 2, 2, 100, 101, 3, 2,
-	2, 2, 101, 102, 7, 12, 2, 2, 102, 29, 3, 2, 2, 2, 9, 35, 43, 51, 62, 65,
-	80, 99,
+	13, 3, 2, 3, 2, 3, 2, 7, 2, 30, 10, 2, 12, 2, 14, 2, 33, 11, 2, 3, 3, 3,
+	3, 3, 3, 7, 3, 38, 10, 3, 12, 3, 14, 3, 41, 11, 3, 3, 4, 3, 4, 3, 4, 3,
+	4, 3, 4, 5, 4, 48, 10, 4, 3, 5, 3, 5, 3, 6, 3, 6, 3, 6, 7, 6, 55, 10, 6,
+	12, 6, 14, 6, 58, 11, 6, 5, 6, 60, 10, 6, 3, 7, 3, 7, 3, 8, 3, 8, 3, 8,
+	3, 8, 3, 8, 3, 9, 3, 9, 3, 9, 3, 9, 3, 9, 5, 9, 74, 10, 9, 3, 10, 3, 10,
+	3, 11, 3, 11, 3, 11, 3, 12, 3, 12, 3, 13, 3, 13, 3, 13, 3, 13, 3, 13, 3,
+	13, 3, 13, 3, 13, 3, 13, 3, 13, 5, 13, 93, 10, 13, 3, 13, 3, 13, 3, 13,
+	2, 2, 14, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 2, 5, 3, 2, 20, 25,
+	4, 2, 7, 7, 26, 26, 3, 2, 3, 5, 97, 2, 26, 3, 2, 2, 2, 4, 34, 3, 2, 2,
+	2, 6, 47, 3, 2, 2, 2, 8, 49, 3, 2, 2, 2, 10, 59, 3, 2, 2, 2, 12, 61, 3,
+	2, 2, 2, 14, 63, 3, 2, 2, 2, 16, 73, 3, 2, 2, 2, 18, 75, 3, 2, 2, 2, 20,
+	77, 3, 2, 2, 2, 22, 80, 3, 2, 2, 2, 24, 82, 3, 2, 2, 2, 26, 31, 5, 4, 3,
+	2, 27, 28, 7, 14, 2, 2, 28, 30, 5, 4, 3, 2, 29, 27, 3, 2, 2, 2, 30, 33,
+	3, 2, 2, 2, 31, 29, 3, 2, 2, 2, 31, 32, 3, 2, 2, 2, 32, 3, 3, 2, 2, 2,
+	33, 31, 3, 2, 2, 2, 34, 39, 5, 6, 4, 2, 35, 36, 7, 13, 2, 2, 36, 38, 5,
+	6, 4, 2, 37, 35, 3, 2, 2, 2, 38, 41, 3, 2, 2, 2, 39, 37, 3, 2, 2, 2, 39,
+	40, 3, 2, 2, 2, 40, 5, 3, 2, 2, 2, 41, 39, 3, 2, 2, 2, 42, 48, 5, 20, 11,
+	2, 43, 48, 5, 22, 12, 2, 44, 48, 5, 18, 10, 2, 45, 48, 5, 14, 8, 2, 46,
+	48, 5, 24, 13, 2, 47, 42, 3, 2, 2, 2, 47, 43, 3, 2, 2, 2, 47, 44, 3, 2,
+	2, 2, 47, 45, 3, 2, 2, 2, 47, 46, 3, 2, 2, 2, 48, 7, 3, 2, 2, 2, 49, 50,
+	9, 2, 2, 2, 50, 9, 3, 2, 2, 2, 51, 56, 5, 12, 7, 2, 52, 53, 7, 13, 2, 2,
+	53, 55, 5, 12, 7, 2, 54, 52, 3, 2, 2, 2, 55, 58, 3, 2, 2, 2, 56, 54, 3,
+	2, 2, 2, 56, 57, 3, 2, 2, 2, 57, 60, 3, 2, 2, 2, 58, 56, 3, 2, 2, 2, 59,
+	51, 3, 2, 2, 2, 59, 60, 3, 2, 2, 2, 60, 11, 3, 2, 2, 2, 61, 62, 9, 3, 2,
+	2, 62, 13, 3, 2, 2, 2, 63, 64, 9, 4, 2, 2, 64, 65, 7, 9, 2, 2, 65, 66,
+	5, 16, 9, 2, 66, 67, 7, 10, 2, 2, 67, 15, 3, 2, 2, 2, 68, 69, 7, 26, 2,
+	2, 69, 70, 5, 8, 5, 2, 70, 71, 7, 26, 2, 2, 71, 74, 3, 2, 2, 2, 72, 74,
+	7, 26, 2, 2, 73, 68, 3, 2, 2, 2, 73, 72, 3, 2, 2, 2, 74, 17, 3, 2, 2, 2,
+	75, 76, 7, 26, 2, 2, 76, 19, 3, 2, 2, 2, 77, 78, 7, 27, 2, 2, 78, 79, 7,
+	26, 2, 2, 79, 21, 3, 2, 2, 2, 80, 81, 7, 27, 2, 2, 81, 23, 3, 2, 2, 2,
+	82, 92, 7, 6, 2, 2, 83, 84, 7, 18, 2, 2, 84, 85, 7, 15, 2, 2, 85, 93, 7,
+	18, 2, 2, 86, 87, 7, 18, 2, 2, 87, 93, 7, 15, 2, 2, 88, 89, 7, 15, 2, 2,
+	89, 93, 7, 18, 2, 2, 90, 93, 7, 18, 2, 2, 91, 93, 3, 2, 2, 2, 92, 83, 3,
+	2, 2, 2, 92, 86, 3, 2, 2, 2, 92, 88, 3, 2, 2, 2, 92, 90, 3, 2, 2, 2, 92,
+	91, 3, 2, 2, 2, 93, 94, 3, 2, 2, 2, 94, 95, 7, 12, 2, 2, 95, 25, 3, 2,
+	2, 2, 9, 31, 39, 47, 56, 59, 73, 92,
 }
 
 var deserializer = antlr.NewATNDeserializer(nil)
@@ -78,8 +73,8 @@ var symbolicNames = []string{
 }
 
 var ruleNames = []string{
-	"query", "segment", "element", "cmpr", "fn", "args", "arg", "fnJoin", "fnJoinCond",
-	"fnJoinExpr", "selElement", "dsTblElement", "dsElement", "rowRange",
+	"query", "segment", "element", "cmpr", "args", "arg", "join", "joinConstraint",
+	"selElement", "dsTblElement", "dsElement", "rowRange",
 }
 
 type SLQParser struct {
@@ -142,20 +137,18 @@ const (
 
 // SLQParser rules.
 const (
-	SLQParserRULE_query        = 0
-	SLQParserRULE_segment      = 1
-	SLQParserRULE_element      = 2
-	SLQParserRULE_cmpr         = 3
-	SLQParserRULE_fn           = 4
-	SLQParserRULE_args         = 5
-	SLQParserRULE_arg          = 6
-	SLQParserRULE_fnJoin       = 7
-	SLQParserRULE_fnJoinCond   = 8
-	SLQParserRULE_fnJoinExpr   = 9
-	SLQParserRULE_selElement   = 10
-	SLQParserRULE_dsTblElement = 11
-	SLQParserRULE_dsElement    = 12
-	SLQParserRULE_rowRange     = 13
+	SLQParserRULE_query          = 0
+	SLQParserRULE_segment        = 1
+	SLQParserRULE_element        = 2
+	SLQParserRULE_cmpr           = 3
+	SLQParserRULE_args           = 4
+	SLQParserRULE_arg            = 5
+	SLQParserRULE_join           = 6
+	SLQParserRULE_joinConstraint = 7
+	SLQParserRULE_selElement     = 8
+	SLQParserRULE_dsTblElement   = 9
+	SLQParserRULE_dsElement      = 10
+	SLQParserRULE_rowRange       = 11
 )
 
 // IQueryContext is an interface to support dynamic dispatch.
@@ -165,8 +158,8 @@ type IQueryContext interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
-	// getQueryContext differentiates from other interfaces.
-	getQueryContext()
+	// IsQueryContext differentiates from other interfaces.
+	IsQueryContext()
 }
 
 type QueryContext struct {
@@ -181,7 +174,7 @@ func NewEmptyQueryContext() *QueryContext {
 	return p
 }
 
-func (*QueryContext) getQueryContext() {}
+func (*QueryContext) IsQueryContext() {}
 
 func NewQueryContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *QueryContext {
 	var p = new(QueryContext)
@@ -231,6 +224,10 @@ func (s *QueryContext) GetRuleContext() antlr.RuleContext {
 	return s
 }
 
+func (s *QueryContext) ToStringTree(ruleNames []string, recog antlr.Recognizer) string {
+	return antlr.TreesStringTree(s, ruleNames, recog)
+}
+
 func (s *QueryContext) EnterRule(listener antlr.ParseTreeListener) {
 	if listenerT, ok := listener.(SLQListener); ok {
 		listenerT.EnterQuery(s)
@@ -275,21 +272,21 @@ func (p *SLQParser) Query() (localctx IQueryContext) {
 	}()
 
 	p.EnterOuterAlt(localctx, 1)
-	p.SetState(28)
+	p.SetState(24)
 	p.Segment()
 
-	p.SetState(33)
+	p.SetState(29)
 	p.GetErrorHandler().Sync(p)
 	_la = p.GetTokenStream().LA(1)
 
 	for _la == SLQParserPIPE {
-		p.SetState(29)
+		p.SetState(25)
 		p.Match(SLQParserPIPE)
 
-		p.SetState(30)
+		p.SetState(26)
 		p.Segment()
 
-		p.SetState(35)
+		p.SetState(31)
 		p.GetErrorHandler().Sync(p)
 		_la = p.GetTokenStream().LA(1)
 	}
@@ -304,8 +301,8 @@ type ISegmentContext interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
-	// getSegmentContext differentiates from other interfaces.
-	getSegmentContext()
+	// IsSegmentContext differentiates from other interfaces.
+	IsSegmentContext()
 }
 
 type SegmentContext struct {
@@ -320,7 +317,7 @@ func NewEmptySegmentContext() *SegmentContext {
 	return p
 }
 
-func (*SegmentContext) getSegmentContext() {}
+func (*SegmentContext) IsSegmentContext() {}
 
 func NewSegmentContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *SegmentContext {
 	var p = new(SegmentContext)
@@ -370,6 +367,10 @@ func (s *SegmentContext) GetRuleContext() antlr.RuleContext {
 	return s
 }
 
+func (s *SegmentContext) ToStringTree(ruleNames []string, recog antlr.Recognizer) string {
+	return antlr.TreesStringTree(s, ruleNames, recog)
+}
+
 func (s *SegmentContext) EnterRule(listener antlr.ParseTreeListener) {
 	if listenerT, ok := listener.(SLQListener); ok {
 		listenerT.EnterSegment(s)
@@ -414,21 +415,21 @@ func (p *SLQParser) Segment() (localctx ISegmentContext) {
 	}()
 
 	p.EnterOuterAlt(localctx, 1)
-	p.SetState(36)
+	p.SetState(32)
 	p.Element()
 
-	p.SetState(41)
+	p.SetState(37)
 	p.GetErrorHandler().Sync(p)
 	_la = p.GetTokenStream().LA(1)
 
 	for _la == SLQParserCOMMA {
-		p.SetState(37)
+		p.SetState(33)
 		p.Match(SLQParserCOMMA)
 
-		p.SetState(38)
+		p.SetState(34)
 		p.Element()
 
-		p.SetState(43)
+		p.SetState(39)
 		p.GetErrorHandler().Sync(p)
 		_la = p.GetTokenStream().LA(1)
 	}
@@ -443,8 +444,8 @@ type IElementContext interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
-	// getElementContext differentiates from other interfaces.
-	getElementContext()
+	// IsElementContext differentiates from other interfaces.
+	IsElementContext()
 }
 
 type ElementContext struct {
@@ -459,7 +460,7 @@ func NewEmptyElementContext() *ElementContext {
 	return p
 }
 
-func (*ElementContext) getElementContext() {}
+func (*ElementContext) IsElementContext() {}
 
 func NewElementContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *ElementContext {
 	var p = new(ElementContext)
@@ -504,14 +505,14 @@ func (s *ElementContext) SelElement() ISelElementContext {
 	return t.(ISelElementContext)
 }
 
-func (s *ElementContext) Fn() IFnContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IFnContext)(nil)).Elem(), 0)
+func (s *ElementContext) Join() IJoinContext {
+	var t = s.GetTypedRuleContext(reflect.TypeOf((*IJoinContext)(nil)).Elem(), 0)
 
 	if t == nil {
 		return nil
 	}
 
-	return t.(IFnContext)
+	return t.(IJoinContext)
 }
 
 func (s *ElementContext) RowRange() IRowRangeContext {
@@ -526,6 +527,10 @@ func (s *ElementContext) RowRange() IRowRangeContext {
 
 func (s *ElementContext) GetRuleContext() antlr.RuleContext {
 	return s
+}
+
+func (s *ElementContext) ToStringTree(ruleNames []string, recog antlr.Recognizer) string {
+	return antlr.TreesStringTree(s, ruleNames, recog)
 }
 
 func (s *ElementContext) EnterRule(listener antlr.ParseTreeListener) {
@@ -570,7 +575,7 @@ func (p *SLQParser) Element() (localctx IElementContext) {
 		}
 	}()
 
-	p.SetState(49)
+	p.SetState(45)
 	p.GetErrorHandler().Sync(p)
 
 	la_ := p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 2, p.GetParserRuleContext())
@@ -578,27 +583,27 @@ func (p *SLQParser) Element() (localctx IElementContext) {
 	switch la_ {
 	case 1:
 		p.EnterOuterAlt(localctx, 1)
-		p.SetState(44)
+		p.SetState(40)
 		p.DsTblElement()
 
 	case 2:
 		p.EnterOuterAlt(localctx, 2)
-		p.SetState(45)
+		p.SetState(41)
 		p.DsElement()
 
 	case 3:
 		p.EnterOuterAlt(localctx, 3)
-		p.SetState(46)
+		p.SetState(42)
 		p.SelElement()
 
 	case 4:
 		p.EnterOuterAlt(localctx, 4)
-		p.SetState(47)
-		p.Fn()
+		p.SetState(43)
+		p.Join()
 
 	case 5:
 		p.EnterOuterAlt(localctx, 5)
-		p.SetState(48)
+		p.SetState(44)
 		p.RowRange()
 
 	}
@@ -613,8 +618,8 @@ type ICmprContext interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
-	// getCmprContext differentiates from other interfaces.
-	getCmprContext()
+	// IsCmprContext differentiates from other interfaces.
+	IsCmprContext()
 }
 
 type CmprContext struct {
@@ -629,7 +634,7 @@ func NewEmptyCmprContext() *CmprContext {
 	return p
 }
 
-func (*CmprContext) getCmprContext() {}
+func (*CmprContext) IsCmprContext() {}
 
 func NewCmprContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *CmprContext {
 	var p = new(CmprContext)
@@ -670,6 +675,10 @@ func (s *CmprContext) NEQ() antlr.TerminalNode {
 
 func (s *CmprContext) GetRuleContext() antlr.RuleContext {
 	return s
+}
+
+func (s *CmprContext) ToStringTree(ruleNames []string, recog antlr.Recognizer) string {
+	return antlr.TreesStringTree(s, ruleNames, recog)
 }
 
 func (s *CmprContext) EnterRule(listener antlr.ParseTreeListener) {
@@ -716,7 +725,7 @@ func (p *SLQParser) Cmpr() (localctx ICmprContext) {
 	}()
 
 	p.EnterOuterAlt(localctx, 1)
-	p.SetState(51)
+	p.SetState(47)
 	_la = p.GetTokenStream().LA(1)
 
 	if !(((_la)&-(0x1f+1)) == 0 && ((1<<uint(_la))&((1<<SLQParserLT_EQ)|(1<<SLQParserLT)|(1<<SLQParserGT_EQ)|(1<<SLQParserGT)|(1<<SLQParserNEQ)|(1<<SLQParserEQ))) != 0) {
@@ -728,107 +737,6 @@ func (p *SLQParser) Cmpr() (localctx ICmprContext) {
 	return localctx
 }
 
-// IFnContext is an interface to support dynamic dispatch.
-type IFnContext interface {
-	antlr.ParserRuleContext
-
-	// GetParser returns the parser.
-	GetParser() antlr.Parser
-
-	// getFnContext differentiates from other interfaces.
-	getFnContext()
-}
-
-type FnContext struct {
-	*antlr.BaseParserRuleContext
-	parser antlr.Parser
-}
-
-func NewEmptyFnContext() *FnContext {
-	var p = new(FnContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
-	p.RuleIndex = SLQParserRULE_fn
-	return p
-}
-
-func (*FnContext) getFnContext() {}
-
-func NewFnContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *FnContext {
-	var p = new(FnContext)
-
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
-
-	p.parser = parser
-	p.RuleIndex = SLQParserRULE_fn
-
-	return p
-}
-
-func (s *FnContext) GetParser() antlr.Parser { return s.parser }
-
-func (s *FnContext) FnJoin() IFnJoinContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IFnJoinContext)(nil)).Elem(), 0)
-
-	if t == nil {
-		return nil
-	}
-
-	return t.(IFnJoinContext)
-}
-
-func (s *FnContext) GetRuleContext() antlr.RuleContext {
-	return s
-}
-
-func (s *FnContext) EnterRule(listener antlr.ParseTreeListener) {
-	if listenerT, ok := listener.(SLQListener); ok {
-		listenerT.EnterFn(s)
-	}
-}
-
-func (s *FnContext) ExitRule(listener antlr.ParseTreeListener) {
-	if listenerT, ok := listener.(SLQListener); ok {
-		listenerT.ExitFn(s)
-	}
-}
-
-func (s *FnContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
-	switch t := visitor.(type) {
-	case SLQVisitor:
-		return t.VisitFn(s)
-
-	default:
-		return t.VisitChildren(s)
-	}
-}
-
-func (p *SLQParser) Fn() (localctx IFnContext) {
-	localctx = NewFnContext(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 8, SLQParserRULE_fn)
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
-
-	p.EnterOuterAlt(localctx, 1)
-	p.SetState(53)
-	p.FnJoin()
-
-	return localctx
-}
-
 // IArgsContext is an interface to support dynamic dispatch.
 type IArgsContext interface {
 	antlr.ParserRuleContext
@@ -836,8 +744,8 @@ type IArgsContext interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
-	// getArgsContext differentiates from other interfaces.
-	getArgsContext()
+	// IsArgsContext differentiates from other interfaces.
+	IsArgsContext()
 }
 
 type ArgsContext struct {
@@ -852,7 +760,7 @@ func NewEmptyArgsContext() *ArgsContext {
 	return p
 }
 
-func (*ArgsContext) getArgsContext() {}
+func (*ArgsContext) IsArgsContext() {}
 
 func NewArgsContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *ArgsContext {
 	var p = new(ArgsContext)
@@ -902,6 +810,10 @@ func (s *ArgsContext) GetRuleContext() antlr.RuleContext {
 	return s
 }
 
+func (s *ArgsContext) ToStringTree(ruleNames []string, recog antlr.Recognizer) string {
+	return antlr.TreesStringTree(s, ruleNames, recog)
+}
+
 func (s *ArgsContext) EnterRule(listener antlr.ParseTreeListener) {
 	if listenerT, ok := listener.(SLQListener); ok {
 		listenerT.EnterArgs(s)
@@ -926,7 +838,7 @@ func (s *ArgsContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 
 func (p *SLQParser) Args() (localctx IArgsContext) {
 	localctx = NewArgsContext(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 10, SLQParserRULE_args)
+	p.EnterRule(localctx, 8, SLQParserRULE_args)
 	var _la int
 
 	defer func() {
@@ -946,25 +858,25 @@ func (p *SLQParser) Args() (localctx IArgsContext) {
 	}()
 
 	p.EnterOuterAlt(localctx, 1)
-	p.SetState(63)
+	p.SetState(57)
 	_la = p.GetTokenStream().LA(1)
 
 	if _la == SLQParserID || _la == SLQParserSEL {
-		p.SetState(55)
+		p.SetState(49)
 		p.Arg()
 
-		p.SetState(60)
+		p.SetState(54)
 		p.GetErrorHandler().Sync(p)
 		_la = p.GetTokenStream().LA(1)
 
 		for _la == SLQParserCOMMA {
-			p.SetState(56)
+			p.SetState(50)
 			p.Match(SLQParserCOMMA)
 
-			p.SetState(57)
+			p.SetState(51)
 			p.Arg()
 
-			p.SetState(62)
+			p.SetState(56)
 			p.GetErrorHandler().Sync(p)
 			_la = p.GetTokenStream().LA(1)
 		}
@@ -981,8 +893,8 @@ type IArgContext interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
-	// getArgContext differentiates from other interfaces.
-	getArgContext()
+	// IsArgContext differentiates from other interfaces.
+	IsArgContext()
 }
 
 type ArgContext struct {
@@ -997,7 +909,7 @@ func NewEmptyArgContext() *ArgContext {
 	return p
 }
 
-func (*ArgContext) getArgContext() {}
+func (*ArgContext) IsArgContext() {}
 
 func NewArgContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *ArgContext {
 	var p = new(ArgContext)
@@ -1024,6 +936,10 @@ func (s *ArgContext) GetRuleContext() antlr.RuleContext {
 	return s
 }
 
+func (s *ArgContext) ToStringTree(ruleNames []string, recog antlr.Recognizer) string {
+	return antlr.TreesStringTree(s, ruleNames, recog)
+}
+
 func (s *ArgContext) EnterRule(listener antlr.ParseTreeListener) {
 	if listenerT, ok := listener.(SLQListener); ok {
 		listenerT.EnterArg(s)
@@ -1048,7 +964,7 @@ func (s *ArgContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 
 func (p *SLQParser) Arg() (localctx IArgContext) {
 	localctx = NewArgContext(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 12, SLQParserRULE_arg)
+	p.EnterRule(localctx, 10, SLQParserRULE_arg)
 	var _la int
 
 	defer func() {
@@ -1068,7 +984,7 @@ func (p *SLQParser) Arg() (localctx IArgContext) {
 	}()
 
 	p.EnterOuterAlt(localctx, 1)
-	p.SetState(65)
+	p.SetState(59)
 	_la = p.GetTokenStream().LA(1)
 
 	if !(_la == SLQParserID || _la == SLQParserSEL) {
@@ -1080,91 +996,95 @@ func (p *SLQParser) Arg() (localctx IArgContext) {
 	return localctx
 }
 
-// IFnJoinContext is an interface to support dynamic dispatch.
-type IFnJoinContext interface {
+// IJoinContext is an interface to support dynamic dispatch.
+type IJoinContext interface {
 	antlr.ParserRuleContext
 
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
-	// getFnJoinContext differentiates from other interfaces.
-	getFnJoinContext()
+	// IsJoinContext differentiates from other interfaces.
+	IsJoinContext()
 }
 
-type FnJoinContext struct {
+type JoinContext struct {
 	*antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
-func NewEmptyFnJoinContext() *FnJoinContext {
-	var p = new(FnJoinContext)
+func NewEmptyJoinContext() *JoinContext {
+	var p = new(JoinContext)
 	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
-	p.RuleIndex = SLQParserRULE_fnJoin
+	p.RuleIndex = SLQParserRULE_join
 	return p
 }
 
-func (*FnJoinContext) getFnJoinContext() {}
+func (*JoinContext) IsJoinContext() {}
 
-func NewFnJoinContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *FnJoinContext {
-	var p = new(FnJoinContext)
+func NewJoinContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *JoinContext {
+	var p = new(JoinContext)
 
 	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
 
 	p.parser = parser
-	p.RuleIndex = SLQParserRULE_fnJoin
+	p.RuleIndex = SLQParserRULE_join
 
 	return p
 }
 
-func (s *FnJoinContext) GetParser() antlr.Parser { return s.parser }
+func (s *JoinContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *FnJoinContext) LPAR() antlr.TerminalNode {
+func (s *JoinContext) LPAR() antlr.TerminalNode {
 	return s.GetToken(SLQParserLPAR, 0)
 }
 
-func (s *FnJoinContext) FnJoinExpr() IFnJoinExprContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IFnJoinExprContext)(nil)).Elem(), 0)
+func (s *JoinContext) JoinConstraint() IJoinConstraintContext {
+	var t = s.GetTypedRuleContext(reflect.TypeOf((*IJoinConstraintContext)(nil)).Elem(), 0)
 
 	if t == nil {
 		return nil
 	}
 
-	return t.(IFnJoinExprContext)
+	return t.(IJoinConstraintContext)
 }
 
-func (s *FnJoinContext) RPAR() antlr.TerminalNode {
+func (s *JoinContext) RPAR() antlr.TerminalNode {
 	return s.GetToken(SLQParserRPAR, 0)
 }
 
-func (s *FnJoinContext) GetRuleContext() antlr.RuleContext {
+func (s *JoinContext) GetRuleContext() antlr.RuleContext {
 	return s
 }
 
-func (s *FnJoinContext) EnterRule(listener antlr.ParseTreeListener) {
+func (s *JoinContext) ToStringTree(ruleNames []string, recog antlr.Recognizer) string {
+	return antlr.TreesStringTree(s, ruleNames, recog)
+}
+
+func (s *JoinContext) EnterRule(listener antlr.ParseTreeListener) {
 	if listenerT, ok := listener.(SLQListener); ok {
-		listenerT.EnterFnJoin(s)
+		listenerT.EnterJoin(s)
 	}
 }
 
-func (s *FnJoinContext) ExitRule(listener antlr.ParseTreeListener) {
+func (s *JoinContext) ExitRule(listener antlr.ParseTreeListener) {
 	if listenerT, ok := listener.(SLQListener); ok {
-		listenerT.ExitFnJoin(s)
+		listenerT.ExitJoin(s)
 	}
 }
 
-func (s *FnJoinContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
+func (s *JoinContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 	switch t := visitor.(type) {
 	case SLQVisitor:
-		return t.VisitFnJoin(s)
+		return t.VisitJoin(s)
 
 	default:
 		return t.VisitChildren(s)
 	}
 }
 
-func (p *SLQParser) FnJoin() (localctx IFnJoinContext) {
-	localctx = NewFnJoinContext(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 14, SLQParserRULE_fnJoin)
+func (p *SLQParser) Join() (localctx IJoinContext) {
+	localctx = NewJoinContext(p, p.GetParserRuleContext(), p.GetState())
+	p.EnterRule(localctx, 12, SLQParserRULE_join)
 	var _la int
 
 	defer func() {
@@ -1184,7 +1104,7 @@ func (p *SLQParser) FnJoin() (localctx IFnJoinContext) {
 	}()
 
 	p.EnterOuterAlt(localctx, 1)
-	p.SetState(67)
+	p.SetState(61)
 	_la = p.GetTokenStream().LA(1)
 
 	if !(((_la)&-(0x1f+1)) == 0 && ((1<<uint(_la))&((1<<SLQParserT__0)|(1<<SLQParserT__1)|(1<<SLQParserT__2))) != 0) {
@@ -1192,65 +1112,65 @@ func (p *SLQParser) FnJoin() (localctx IFnJoinContext) {
 	} else {
 		p.Consume()
 	}
-	p.SetState(68)
+	p.SetState(62)
 	p.Match(SLQParserLPAR)
 
-	p.SetState(69)
-	p.FnJoinExpr()
+	p.SetState(63)
+	p.JoinConstraint()
 
-	p.SetState(70)
+	p.SetState(64)
 	p.Match(SLQParserRPAR)
 
 	return localctx
 }
 
-// IFnJoinCondContext is an interface to support dynamic dispatch.
-type IFnJoinCondContext interface {
+// IJoinConstraintContext is an interface to support dynamic dispatch.
+type IJoinConstraintContext interface {
 	antlr.ParserRuleContext
 
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
-	// getFnJoinCondContext differentiates from other interfaces.
-	getFnJoinCondContext()
+	// IsJoinConstraintContext differentiates from other interfaces.
+	IsJoinConstraintContext()
 }
 
-type FnJoinCondContext struct {
+type JoinConstraintContext struct {
 	*antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
-func NewEmptyFnJoinCondContext() *FnJoinCondContext {
-	var p = new(FnJoinCondContext)
+func NewEmptyJoinConstraintContext() *JoinConstraintContext {
+	var p = new(JoinConstraintContext)
 	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
-	p.RuleIndex = SLQParserRULE_fnJoinCond
+	p.RuleIndex = SLQParserRULE_joinConstraint
 	return p
 }
 
-func (*FnJoinCondContext) getFnJoinCondContext() {}
+func (*JoinConstraintContext) IsJoinConstraintContext() {}
 
-func NewFnJoinCondContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *FnJoinCondContext {
-	var p = new(FnJoinCondContext)
+func NewJoinConstraintContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *JoinConstraintContext {
+	var p = new(JoinConstraintContext)
 
 	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
 
 	p.parser = parser
-	p.RuleIndex = SLQParserRULE_fnJoinCond
+	p.RuleIndex = SLQParserRULE_joinConstraint
 
 	return p
 }
 
-func (s *FnJoinCondContext) GetParser() antlr.Parser { return s.parser }
+func (s *JoinConstraintContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *FnJoinCondContext) AllSEL() []antlr.TerminalNode {
+func (s *JoinConstraintContext) AllSEL() []antlr.TerminalNode {
 	return s.GetTokens(SLQParserSEL)
 }
 
-func (s *FnJoinCondContext) SEL(i int) antlr.TerminalNode {
+func (s *JoinConstraintContext) SEL(i int) antlr.TerminalNode {
 	return s.GetToken(SLQParserSEL, i)
 }
 
-func (s *FnJoinCondContext) Cmpr() ICmprContext {
+func (s *JoinConstraintContext) Cmpr() ICmprContext {
 	var t = s.GetTypedRuleContext(reflect.TypeOf((*ICmprContext)(nil)).Elem(), 0)
 
 	if t == nil {
@@ -1260,35 +1180,39 @@ func (s *FnJoinCondContext) Cmpr() ICmprContext {
 	return t.(ICmprContext)
 }
 
-func (s *FnJoinCondContext) GetRuleContext() antlr.RuleContext {
+func (s *JoinConstraintContext) GetRuleContext() antlr.RuleContext {
 	return s
 }
 
-func (s *FnJoinCondContext) EnterRule(listener antlr.ParseTreeListener) {
+func (s *JoinConstraintContext) ToStringTree(ruleNames []string, recog antlr.Recognizer) string {
+	return antlr.TreesStringTree(s, ruleNames, recog)
+}
+
+func (s *JoinConstraintContext) EnterRule(listener antlr.ParseTreeListener) {
 	if listenerT, ok := listener.(SLQListener); ok {
-		listenerT.EnterFnJoinCond(s)
+		listenerT.EnterJoinConstraint(s)
 	}
 }
 
-func (s *FnJoinCondContext) ExitRule(listener antlr.ParseTreeListener) {
+func (s *JoinConstraintContext) ExitRule(listener antlr.ParseTreeListener) {
 	if listenerT, ok := listener.(SLQListener); ok {
-		listenerT.ExitFnJoinCond(s)
+		listenerT.ExitJoinConstraint(s)
 	}
 }
 
-func (s *FnJoinCondContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
+func (s *JoinConstraintContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 	switch t := visitor.(type) {
 	case SLQVisitor:
-		return t.VisitFnJoinCond(s)
+		return t.VisitJoinConstraint(s)
 
 	default:
 		return t.VisitChildren(s)
 	}
 }
 
-func (p *SLQParser) FnJoinCond() (localctx IFnJoinCondContext) {
-	localctx = NewFnJoinCondContext(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 16, SLQParserRULE_fnJoinCond)
+func (p *SLQParser) JoinConstraint() (localctx IJoinConstraintContext) {
+	localctx = NewJoinConstraintContext(p, p.GetParserRuleContext(), p.GetState())
+	p.EnterRule(localctx, 14, SLQParserRULE_joinConstraint)
 
 	defer func() {
 		p.ExitRule()
@@ -1306,118 +1230,7 @@ func (p *SLQParser) FnJoinCond() (localctx IFnJoinCondContext) {
 		}
 	}()
 
-	p.EnterOuterAlt(localctx, 1)
-	p.SetState(72)
-	p.Match(SLQParserSEL)
-
-	p.SetState(73)
-	p.Cmpr()
-
-	p.SetState(74)
-	p.Match(SLQParserSEL)
-
-	return localctx
-}
-
-// IFnJoinExprContext is an interface to support dynamic dispatch.
-type IFnJoinExprContext interface {
-	antlr.ParserRuleContext
-
-	// GetParser returns the parser.
-	GetParser() antlr.Parser
-
-	// getFnJoinExprContext differentiates from other interfaces.
-	getFnJoinExprContext()
-}
-
-type FnJoinExprContext struct {
-	*antlr.BaseParserRuleContext
-	parser antlr.Parser
-}
-
-func NewEmptyFnJoinExprContext() *FnJoinExprContext {
-	var p = new(FnJoinExprContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
-	p.RuleIndex = SLQParserRULE_fnJoinExpr
-	return p
-}
-
-func (*FnJoinExprContext) getFnJoinExprContext() {}
-
-func NewFnJoinExprContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *FnJoinExprContext {
-	var p = new(FnJoinExprContext)
-
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
-
-	p.parser = parser
-	p.RuleIndex = SLQParserRULE_fnJoinExpr
-
-	return p
-}
-
-func (s *FnJoinExprContext) GetParser() antlr.Parser { return s.parser }
-
-func (s *FnJoinExprContext) FnJoinCond() IFnJoinCondContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IFnJoinCondContext)(nil)).Elem(), 0)
-
-	if t == nil {
-		return nil
-	}
-
-	return t.(IFnJoinCondContext)
-}
-
-func (s *FnJoinExprContext) SEL() antlr.TerminalNode {
-	return s.GetToken(SLQParserSEL, 0)
-}
-
-func (s *FnJoinExprContext) GetRuleContext() antlr.RuleContext {
-	return s
-}
-
-func (s *FnJoinExprContext) EnterRule(listener antlr.ParseTreeListener) {
-	if listenerT, ok := listener.(SLQListener); ok {
-		listenerT.EnterFnJoinExpr(s)
-	}
-}
-
-func (s *FnJoinExprContext) ExitRule(listener antlr.ParseTreeListener) {
-	if listenerT, ok := listener.(SLQListener); ok {
-		listenerT.ExitFnJoinExpr(s)
-	}
-}
-
-func (s *FnJoinExprContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
-	switch t := visitor.(type) {
-	case SLQVisitor:
-		return t.VisitFnJoinExpr(s)
-
-	default:
-		return t.VisitChildren(s)
-	}
-}
-
-func (p *SLQParser) FnJoinExpr() (localctx IFnJoinExprContext) {
-	localctx = NewFnJoinExprContext(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 18, SLQParserRULE_fnJoinExpr)
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
-
-	p.SetState(78)
+	p.SetState(71)
 	p.GetErrorHandler().Sync(p)
 
 	la_ := p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 5, p.GetParserRuleContext())
@@ -1425,12 +1238,18 @@ func (p *SLQParser) FnJoinExpr() (localctx IFnJoinExprContext) {
 	switch la_ {
 	case 1:
 		p.EnterOuterAlt(localctx, 1)
-		p.SetState(76)
-		p.FnJoinCond()
+		p.SetState(66)
+		p.Match(SLQParserSEL)
+
+		p.SetState(67)
+		p.Cmpr()
+
+		p.SetState(68)
+		p.Match(SLQParserSEL)
 
 	case 2:
 		p.EnterOuterAlt(localctx, 2)
-		p.SetState(77)
+		p.SetState(70)
 		p.Match(SLQParserSEL)
 
 	}
@@ -1445,8 +1264,8 @@ type ISelElementContext interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
-	// getSelElementContext differentiates from other interfaces.
-	getSelElementContext()
+	// IsSelElementContext differentiates from other interfaces.
+	IsSelElementContext()
 }
 
 type SelElementContext struct {
@@ -1461,7 +1280,7 @@ func NewEmptySelElementContext() *SelElementContext {
 	return p
 }
 
-func (*SelElementContext) getSelElementContext() {}
+func (*SelElementContext) IsSelElementContext() {}
 
 func NewSelElementContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *SelElementContext {
 	var p = new(SelElementContext)
@@ -1482,6 +1301,10 @@ func (s *SelElementContext) SEL() antlr.TerminalNode {
 
 func (s *SelElementContext) GetRuleContext() antlr.RuleContext {
 	return s
+}
+
+func (s *SelElementContext) ToStringTree(ruleNames []string, recog antlr.Recognizer) string {
+	return antlr.TreesStringTree(s, ruleNames, recog)
 }
 
 func (s *SelElementContext) EnterRule(listener antlr.ParseTreeListener) {
@@ -1508,7 +1331,7 @@ func (s *SelElementContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 
 func (p *SLQParser) SelElement() (localctx ISelElementContext) {
 	localctx = NewSelElementContext(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 20, SLQParserRULE_selElement)
+	p.EnterRule(localctx, 16, SLQParserRULE_selElement)
 
 	defer func() {
 		p.ExitRule()
@@ -1527,7 +1350,7 @@ func (p *SLQParser) SelElement() (localctx ISelElementContext) {
 	}()
 
 	p.EnterOuterAlt(localctx, 1)
-	p.SetState(80)
+	p.SetState(73)
 	p.Match(SLQParserSEL)
 
 	return localctx
@@ -1540,8 +1363,8 @@ type IDsTblElementContext interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
-	// getDsTblElementContext differentiates from other interfaces.
-	getDsTblElementContext()
+	// IsDsTblElementContext differentiates from other interfaces.
+	IsDsTblElementContext()
 }
 
 type DsTblElementContext struct {
@@ -1556,7 +1379,7 @@ func NewEmptyDsTblElementContext() *DsTblElementContext {
 	return p
 }
 
-func (*DsTblElementContext) getDsTblElementContext() {}
+func (*DsTblElementContext) IsDsTblElementContext() {}
 
 func NewDsTblElementContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *DsTblElementContext {
 	var p = new(DsTblElementContext)
@@ -1583,6 +1406,10 @@ func (s *DsTblElementContext) GetRuleContext() antlr.RuleContext {
 	return s
 }
 
+func (s *DsTblElementContext) ToStringTree(ruleNames []string, recog antlr.Recognizer) string {
+	return antlr.TreesStringTree(s, ruleNames, recog)
+}
+
 func (s *DsTblElementContext) EnterRule(listener antlr.ParseTreeListener) {
 	if listenerT, ok := listener.(SLQListener); ok {
 		listenerT.EnterDsTblElement(s)
@@ -1607,7 +1434,7 @@ func (s *DsTblElementContext) Accept(visitor antlr.ParseTreeVisitor) interface{}
 
 func (p *SLQParser) DsTblElement() (localctx IDsTblElementContext) {
 	localctx = NewDsTblElementContext(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 22, SLQParserRULE_dsTblElement)
+	p.EnterRule(localctx, 18, SLQParserRULE_dsTblElement)
 
 	defer func() {
 		p.ExitRule()
@@ -1626,10 +1453,10 @@ func (p *SLQParser) DsTblElement() (localctx IDsTblElementContext) {
 	}()
 
 	p.EnterOuterAlt(localctx, 1)
-	p.SetState(82)
+	p.SetState(75)
 	p.Match(SLQParserDATASOURCE)
 
-	p.SetState(83)
+	p.SetState(76)
 	p.Match(SLQParserSEL)
 
 	return localctx
@@ -1642,8 +1469,8 @@ type IDsElementContext interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
-	// getDsElementContext differentiates from other interfaces.
-	getDsElementContext()
+	// IsDsElementContext differentiates from other interfaces.
+	IsDsElementContext()
 }
 
 type DsElementContext struct {
@@ -1658,7 +1485,7 @@ func NewEmptyDsElementContext() *DsElementContext {
 	return p
 }
 
-func (*DsElementContext) getDsElementContext() {}
+func (*DsElementContext) IsDsElementContext() {}
 
 func NewDsElementContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *DsElementContext {
 	var p = new(DsElementContext)
@@ -1679,6 +1506,10 @@ func (s *DsElementContext) DATASOURCE() antlr.TerminalNode {
 
 func (s *DsElementContext) GetRuleContext() antlr.RuleContext {
 	return s
+}
+
+func (s *DsElementContext) ToStringTree(ruleNames []string, recog antlr.Recognizer) string {
+	return antlr.TreesStringTree(s, ruleNames, recog)
 }
 
 func (s *DsElementContext) EnterRule(listener antlr.ParseTreeListener) {
@@ -1705,7 +1536,7 @@ func (s *DsElementContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 
 func (p *SLQParser) DsElement() (localctx IDsElementContext) {
 	localctx = NewDsElementContext(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 24, SLQParserRULE_dsElement)
+	p.EnterRule(localctx, 20, SLQParserRULE_dsElement)
 
 	defer func() {
 		p.ExitRule()
@@ -1724,7 +1555,7 @@ func (p *SLQParser) DsElement() (localctx IDsElementContext) {
 	}()
 
 	p.EnterOuterAlt(localctx, 1)
-	p.SetState(85)
+	p.SetState(78)
 	p.Match(SLQParserDATASOURCE)
 
 	return localctx
@@ -1737,8 +1568,8 @@ type IRowRangeContext interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
-	// getRowRangeContext differentiates from other interfaces.
-	getRowRangeContext()
+	// IsRowRangeContext differentiates from other interfaces.
+	IsRowRangeContext()
 }
 
 type RowRangeContext struct {
@@ -1753,7 +1584,7 @@ func NewEmptyRowRangeContext() *RowRangeContext {
 	return p
 }
 
-func (*RowRangeContext) getRowRangeContext() {}
+func (*RowRangeContext) IsRowRangeContext() {}
 
 func NewRowRangeContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *RowRangeContext {
 	var p = new(RowRangeContext)
@@ -1784,6 +1615,10 @@ func (s *RowRangeContext) GetRuleContext() antlr.RuleContext {
 	return s
 }
 
+func (s *RowRangeContext) ToStringTree(ruleNames []string, recog antlr.Recognizer) string {
+	return antlr.TreesStringTree(s, ruleNames, recog)
+}
+
 func (s *RowRangeContext) EnterRule(listener antlr.ParseTreeListener) {
 	if listenerT, ok := listener.(SLQListener); ok {
 		listenerT.EnterRowRange(s)
@@ -1808,7 +1643,7 @@ func (s *RowRangeContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 
 func (p *SLQParser) RowRange() (localctx IRowRangeContext) {
 	localctx = NewRowRangeContext(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 26, SLQParserRULE_rowRange)
+	p.EnterRule(localctx, 22, SLQParserRULE_rowRange)
 
 	defer func() {
 		p.ExitRule()
@@ -1827,47 +1662,47 @@ func (p *SLQParser) RowRange() (localctx IRowRangeContext) {
 	}()
 
 	p.EnterOuterAlt(localctx, 1)
-	p.SetState(87)
+	p.SetState(80)
 	p.Match(SLQParserT__3)
 
-	p.SetState(97)
+	p.SetState(90)
 	p.GetErrorHandler().Sync(p)
 
 	la_ := p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 6, p.GetParserRuleContext())
 
 	switch la_ {
 	case 1:
-		p.SetState(88)
+		p.SetState(81)
 		p.Match(SLQParserINT)
 
-		p.SetState(89)
+		p.SetState(82)
 		p.Match(SLQParserCOLON)
 
-		p.SetState(90)
+		p.SetState(83)
 		p.Match(SLQParserINT)
 
 	case 2:
-		p.SetState(91)
+		p.SetState(84)
 		p.Match(SLQParserINT)
 
-		p.SetState(92)
+		p.SetState(85)
 		p.Match(SLQParserCOLON)
 
 	case 3:
-		p.SetState(93)
+		p.SetState(86)
 		p.Match(SLQParserCOLON)
 
-		p.SetState(94)
+		p.SetState(87)
 		p.Match(SLQParserINT)
 
 	case 4:
-		p.SetState(95)
+		p.SetState(88)
 		p.Match(SLQParserINT)
 
 	case 5:
 
 	}
-	p.SetState(99)
+	p.SetState(92)
 	p.Match(SLQParserRBRA)
 
 	return localctx

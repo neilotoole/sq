@@ -18,7 +18,7 @@ func TestTypes_IsNode(t *testing.T) {
 	node = &Selector{}
 	node = &TblSelector{}
 	node = &ColSelector{}
-	node = &FnJoin{}
-	node = &FnJoinExpr{}
+	node = &Join{}
+	node = &JoinConstraint{}
 	node = &Cmpr{}
 }

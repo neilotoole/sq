@@ -1,16 +1,17 @@
-// Generated from ../grammar/SLQ.g4 by ANTLR 4.5.1.
+// Generated from ../grammar/SLQ.g4 by ANTLR 4.5.3.
 
 package slq
 
 import (
 	"fmt"
+	"unicode"
 
 	"github.com/pboyer/antlr4/runtime/Go/antlr"
 )
 
-// suppress unused import error, many tests
-// require fmt.
+// Suppress unused import error
 var _ = fmt.Printf
+var _ = unicode.IsLetter
 
 var serializedLexerAtn = []uint16{
 	3, 1072, 54993, 33286, 44333, 17431, 44785, 36224, 43741, 2, 30, 242, 8,
@@ -128,7 +129,6 @@ var serializedLexerAtn = []uint16{
 }
 
 var lexerDeserializer = antlr.NewATNDeserializer(nil)
-
 var lexerAtn = lexerDeserializer.DeserializeFromUInt16(serializedLexerAtn)
 
 var lexerModeNames = []string{
@@ -167,20 +167,19 @@ func NewSLQLexer(input antlr.CharStream) *SLQLexer {
 		lexerDecisionToDFA[index] = antlr.NewDFA(ds, index)
 	}
 
-	this := new(SLQLexer)
+	l := new(SLQLexer)
 
-	this.BaseLexer = antlr.NewBaseLexer(input)
+	l.BaseLexer = antlr.NewBaseLexer(input)
+	l.Interpreter = antlr.NewLexerATNSimulator(l, lexerAtn, lexerDecisionToDFA, antlr.NewPredictionContextCache())
 
-	this.Interpreter = antlr.NewLexerATNSimulator(this, lexerAtn, lexerDecisionToDFA, antlr.NewPredictionContextCache())
+	l.modeNames = lexerModeNames
+	l.RuleNames = lexerRuleNames
+	l.LiteralNames = lexerLiteralNames
+	l.SymbolicNames = lexerSymbolicNames
+	l.GrammarFileName = "SLQ.g4"
+	// TODO: l.EOF = antlr.TokenEOF
 
-	this.modeNames = lexerModeNames
-	this.RuleNames = lexerRuleNames
-	this.LiteralNames = lexerLiteralNames
-	this.SymbolicNames = lexerSymbolicNames
-	this.GrammarFileName = "SLQ.g4"
-	// TODO: lex.EOF = antlr.TokenEOF
-
-	return this
+	return l
 }
 
 // SLQLexer tokens.

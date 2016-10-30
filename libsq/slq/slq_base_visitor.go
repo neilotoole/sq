@@ -1,4 +1,4 @@
-// Generated from ../grammar/SLQ.g4 by ANTLR 4.5.1.
+// Generated from ../grammar/SLQ.g4 by ANTLR 4.5.3.
 
 package slq // SLQ
 import "github.com/pboyer/antlr4/runtime/Go/antlr"
@@ -23,10 +23,6 @@ func (v *BaseSLQVisitor) VisitCmpr(ctx *CmprContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseSLQVisitor) VisitFn(ctx *FnContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
 func (v *BaseSLQVisitor) VisitArgs(ctx *ArgsContext) interface{} {
 	return v.VisitChildren(ctx)
 }
@@ -35,15 +31,11 @@ func (v *BaseSLQVisitor) VisitArg(ctx *ArgContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseSLQVisitor) VisitFnJoin(ctx *FnJoinContext) interface{} {
+func (v *BaseSLQVisitor) VisitJoin(ctx *JoinContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseSLQVisitor) VisitFnJoinCond(ctx *FnJoinCondContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseSLQVisitor) VisitFnJoinExpr(ctx *FnJoinExprContext) interface{} {
+func (v *BaseSLQVisitor) VisitJoinConstraint(ctx *JoinConstraintContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 

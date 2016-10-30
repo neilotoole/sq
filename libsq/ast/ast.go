@@ -90,12 +90,9 @@ func (a *AST) Text() string {
 	return a.ctx.GetText()
 }
 
-// AddSegment appends seg to the IR.
+// AddSegment appends seg to the AST.
 func (a *AST) AddSegment(seg *Segment) {
 	seg.SetParent(a)
-
-	//a.bn.AddChild(seg)
-
 	a.segs = append(a.segs, seg)
 }
 

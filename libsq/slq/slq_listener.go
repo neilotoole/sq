@@ -1,4 +1,4 @@
-// Generated from ../grammar/SLQ.g4 by ANTLR 4.5.1.
+// Generated from ../grammar/SLQ.g4 by ANTLR 4.5.3.
 
 package slq // SLQ
 import "github.com/pboyer/antlr4/runtime/Go/antlr"
@@ -19,23 +19,17 @@ type SLQListener interface {
 	// EnterCmpr is called when entering the cmpr production.
 	EnterCmpr(c *CmprContext)
 
-	// EnterFn is called when entering the fn production.
-	EnterFn(c *FnContext)
-
 	// EnterArgs is called when entering the args production.
 	EnterArgs(c *ArgsContext)
 
 	// EnterArg is called when entering the arg production.
 	EnterArg(c *ArgContext)
 
-	// EnterFnJoin is called when entering the fnJoin production.
-	EnterFnJoin(c *FnJoinContext)
+	// EnterJoin is called when entering the join production.
+	EnterJoin(c *JoinContext)
 
-	// EnterFnJoinCond is called when entering the fnJoinCond production.
-	EnterFnJoinCond(c *FnJoinCondContext)
-
-	// EnterFnJoinExpr is called when entering the fnJoinExpr production.
-	EnterFnJoinExpr(c *FnJoinExprContext)
+	// EnterJoinConstraint is called when entering the joinConstraint production.
+	EnterJoinConstraint(c *JoinConstraintContext)
 
 	// EnterSelElement is called when entering the selElement production.
 	EnterSelElement(c *SelElementContext)
@@ -61,23 +55,17 @@ type SLQListener interface {
 	// ExitCmpr is called when exiting the cmpr production.
 	ExitCmpr(c *CmprContext)
 
-	// ExitFn is called when exiting the fn production.
-	ExitFn(c *FnContext)
-
 	// ExitArgs is called when exiting the args production.
 	ExitArgs(c *ArgsContext)
 
 	// ExitArg is called when exiting the arg production.
 	ExitArg(c *ArgContext)
 
-	// ExitFnJoin is called when exiting the fnJoin production.
-	ExitFnJoin(c *FnJoinContext)
+	// ExitJoin is called when exiting the join production.
+	ExitJoin(c *JoinContext)
 
-	// ExitFnJoinCond is called when exiting the fnJoinCond production.
-	ExitFnJoinCond(c *FnJoinCondContext)
-
-	// ExitFnJoinExpr is called when exiting the fnJoinExpr production.
-	ExitFnJoinExpr(c *FnJoinExprContext)
+	// ExitJoinConstraint is called when exiting the joinConstraint production.
+	ExitJoinConstraint(c *JoinConstraintContext)
 
 	// ExitSelElement is called when exiting the selElement production.
 	ExitSelElement(c *SelElementContext)

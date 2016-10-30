@@ -76,7 +76,7 @@ func (en *Engine) Execute() error {
 
 	case *ast.TblSelector:
 		src, fromClause, err = en.handleTblSelectable(selectable)
-	case *ast.FnJoin:
+	case *ast.Join:
 		src, fromClause, err = en.handleJoinSelectable(selectable)
 	default:
 		return errorf("unknown selectable %T: %q", selectable, selectable)
@@ -142,7 +142,7 @@ func (en *Engine) handleTblSelectable(tblSel *ast.TblSelector) (*drvr.Source, st
 	return src, fragment, nil
 }
 
-func (en *Engine) handleJoinSelectable(fnJoin *ast.FnJoin) (*drvr.Source, string, error) {
+func (en *Engine) handleJoinSelectable(fnJoin *ast.Join) (*drvr.Source, string, error) {
 
 	if fnJoin.LeftTbl() == nil || fnJoin.LeftTbl().SelValue() == "" {
 		return nil, "", errorf("JOIN is missing left table reference")
@@ -174,7 +174,7 @@ func (en *Engine) handleJoinSelectable(fnJoin *ast.FnJoin) (*drvr.Source, string
 	return src, fragment, nil
 }
 
-func (en *Engine) handleCrossDatasourceJoin(fnJoin *ast.FnJoin) (*drvr.Source, string, error) {
+func (en *Engine) handleCrossDatasourceJoin(fnJoin *ast.Join) (*drvr.Source, string, error) {
 	if fnJoin.LeftTbl().SelValue() == fnJoin.RightTbl().SelValue() {
 		return nil, "", errorf("JOIN tables must have distinct names (use aliases): duplicate tbl name %q", fnJoin.LeftTbl().SelValue())
 	}

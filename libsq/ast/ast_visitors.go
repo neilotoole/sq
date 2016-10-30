@@ -60,7 +60,7 @@ func narrowColSel(w *Walker, node Node) error {
 	parent := sel.Parent()
 
 	switch parent := parent.(type) {
-	case *FnJoinExpr:
+	case *JoinConstraint:
 		lg.Debugf("selector parent is *FnJoinExpr, therefore this is a ColSel")
 		colSel := newColSelector(sel.Parent(), sel.ctx)
 		return ReplaceNode(sel, colSel)
@@ -93,7 +93,7 @@ func narrowColSel(w *Walker, node Node) error {
 func determineJoinTables(w *Walker, node Node) error {
 
 	// node is guaranteed to be FnJoin
-	fnJoin, ok := node.(*FnJoin)
+	fnJoin, ok := node.(*Join)
 	if !ok {
 		return errorf("expected *FnJoin but got %T", node)
 	}
