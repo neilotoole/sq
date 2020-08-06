@@ -47,39 +47,6 @@ builds:
     goarch:
       - amd64
 
-#
-#archives:
-#  - id: sq_macos_archive
-#    builds:
-#    - build_macos
-#    name_template: "{{.ProjectName}}-{{.Version}}-{{.Os}}"
-#    format: tar.gz
-#    replacements:
-#      darwin: macos
-#    files:
-#      - README.md
-#      - LICENSE
-#
-#  - id: sq_linux_archive
-#    builds:
-#    - build_linux
-#    name_template: "{{.ProjectName}}-{{.Version}}-{{.Os}}-{{.Arch}}"
-#    format: tar.gz
-#    replacements:
-#    files:
-#      - README.md
-#      - LICENSE
-#
-#  - id: sq_windows_archive
-#    builds:
-#    - build_windows
-#    name_template: "{{.ProjectName}}-{{.Version}}-{{.Os}}-{{.Arch}}"
-#    format: zip
-#    replacements:
-#    files:
-#      - README.md
-#      - LICENSE
-
 archives:
   -
     builds: ['build_macos', 'build_linux', 'build_windows']
@@ -89,10 +56,7 @@ archives:
       - README.md
       - LICENSE
     replacements:
-#      amd64: 64-bit
-#      386: 32-bit
       darwin: macOS
-#      linux: Tux
     format_overrides:
       - goos: windows
         format: zip
@@ -121,8 +85,16 @@ release:
   github:
     owner: neilotoole
     name: sq-preview
-  draft: true
+
+  # If set to true, will not auto-publish the release. Default is false.
+  draft: false
+
+  # If set to auto, will mark the release as not ready for production
+  # in case there is an indicator for this in the tag e.g. v1.0.0-rc1
+  # If set to true, will mark the release as not ready for production.
+  # Default is false.
   prerelease: auto
+
 #
 #release:
 #  # Repo in which the release will be created.
@@ -167,10 +139,8 @@ brews:
   -
     name: sq
     homepage: "https://sq.io"
-    description: "sq is sed for structured data"
+    description: "sq is a swiss army knife for data"
     caveats: "This is a preview release of sq. Use with caution."
-#    ids:
-#      - sq_macos_archive
 
     github:
       owner: neilotoole
@@ -218,7 +188,7 @@ nfpms:
     builds: ['build_linux']
     file_name_template: "{{.ProjectName}}-{{.Version}}-{{.Os}}-{{.Arch}}"
     homepage:  https://sq.io
-    description: sq is sed for structured data
+    description: sq is a swiss army knife for data
     maintainer: Neil O'Toole <neilotoole@apache.org>
     license: MIT
     vendor: Neil O'Toole
@@ -246,10 +216,9 @@ snapcrafts:
 #    name_template: '`{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}{{ if .Mips }}_{{ .Mips }}{{ end }}`'
 #    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     name_template: "neilotoole-sq-{{ .Version }}-{{ .Os }}-{{ .Arch }}"
-#    name_template: "neilotoole-sq"
-    summary: "sq is sed for structured data"
+    summary: "sq is a swiss army knife for data"
     description: |
-      sq is sed for structured data. See https://sq.io
+      sq is a swiss army knife for data
     grade: devel
     confinement: devmode
 
