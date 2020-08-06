@@ -1,18 +1,28 @@
+// Package main contains sq's main function.
 package main
 
 import (
-	// bootstrap is the first import, do not move
-	_ "github.com/neilotoole/sq/cmd/bootstrap"
-
+	"context"
 	"os"
-	"strings"
+	"os/signal"
 
-	"github.com/neilotoole/go-lg/lg"
-	"github.com/neilotoole/sq/cmd"
+	"github.com/neilotoole/sq/cli"
 )
 
 func main() {
-	str := "\n" + strings.Repeat("*", 80) + "\n > " + strings.Join(os.Args, " ") + "\n" + strings.Repeat("*", 80)
-	lg.Debugf(str)
-	cmd.Execute()
+	ctx, cancelFn := context.WithCancel(context.Background())
+	defer cancelFn()
+
+	go func() {
+		stop := make(chan os.Signal, 1)
+		signal.Notify(stop, os.Interrupt)
+
+		<-stop
+		cancelFn()
+	}()
+
+	err := cli.Execute(ctx, os.Stdin, os.Stdout, os.Stderr, os.Args)
+	if err != nil {
+		os.Exit(1)
+	}
 }

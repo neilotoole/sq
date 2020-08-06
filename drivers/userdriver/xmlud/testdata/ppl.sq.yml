@@ -1,0 +1,50 @@
+user_drivers:
+  - driver: ppl
+    genre: xml
+    title: People
+    selector: /people
+    tables:
+      - table: person
+        selector: /people/person
+        primary_key:
+          - person_id
+        cols:
+          - col: person_id
+            kind: int
+            selector: ../sequence()
+          - col: first_name
+            selector: ./firstName
+            kind: text
+            required: true
+          - col: last_name
+            selector: ./lastName
+            kind: text
+            required: true
+          - col: nickname
+            kind: text
+            required: false
+          - col: age
+            kind: int
+            required: true
+          - col: gender
+            kind: text
+            selector: '@gender'
+            required: true
+          - col: synopsis
+            kind: text
+            selector: ./text()
+      - table: skill
+        selector: /people/person/skill
+        primary_key:
+          - skill_id
+        cols:
+          - col: skill_id
+            kind: int
+            selector: ../sequence()
+          - col: person_id
+            kind: int
+            selector: ../person_id
+            foreign: ../person_id
+          - col: skill_name
+            selector: ./text()
+            kind: text

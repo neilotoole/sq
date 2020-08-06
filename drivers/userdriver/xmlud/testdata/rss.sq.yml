@@ -1,0 +1,85 @@
+user_drivers:
+  - driver: rss
+    genre: xml
+    title: RSS (Really Simple Syndication)
+    doc: https://en.wikipedia.org/wiki/RSS#Example
+    selector: /rss
+    tables:
+      - table: channel
+        selector: /rss/channel
+        primary_key:
+          - channel_id
+        cols:
+          - col: channel_id
+            kind: int
+            selector: ../sequence()
+            comment: channel_id is a synthetic column that is the PK for this table
+          - col: title
+            kind: text
+            unique: true
+          - col: description
+            kind: text
+          - col: link
+            kind: text
+            format: url
+          - col: last_build_date
+            selector: lastBuildDate
+            #      datakind: datetime
+            kind: text
+            format: RFC_XYZ
+          - col: pub_date
+            selector: ./pubDate
+            kind: text
+            format: RFC_XYZ
+          - col: ttl
+            kind: int
+        comment: this is the channel table
+      - table: item
+        selector: /rss/channel/item
+        primary_key:
+          - item_id
+        cols:
+          - col: item_id
+            kind: int
+            selector: ../sequence()
+          - col: guid
+            kind: text
+            format: guidv2
+          - col: channel_id
+            kind: int
+            foreign: ../channel_id
+          - col: channel_title
+            kind: text
+          - col: title
+            kind: text
+          - col: description
+            kind: text
+            format: html
+            charset: utf-8
+          - col: link
+            kind: text
+            format: url
+          - col: guid_is_permalink
+            selector: guid/@isPermaLink
+            kind: bool
+          - col: pub_date
+            selector: /rss/channel/item/pubDate
+            kind: text
+            format: RFC_XYZ
+      - table: category
+        selector: /rss/channel/item/category
+        primary_key:
+          - category_id
+        cols:
+          - col: category_id
+            kind: int
+            selector: ../sequence()
+          - col: itemid
+            kind: int
+            foreign: ../item_id
+          - col: value
+            kind: text
+            selector: ./text()
+          - col: domain
+            kind: text
+            selector: "@domain"

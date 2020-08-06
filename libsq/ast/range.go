@@ -2,14 +2,14 @@ package ast
 
 import "github.com/neilotoole/sq/libsq/slq"
 
+// RowRange models a range, effectively {OFFSET,LIMIT}.
 type RowRange struct {
-	BaseNode
+	baseNode
 	Offset int
 	Limit  int
 }
 
-func NewRowRange(ctx *slq.RowRangeContext, offset int, limit int) *RowRange {
-
+func newRowRange(ctx *slq.RowRangeContext, offset, limit int) *RowRange {
 	rr := &RowRange{}
 	rr.ctx = ctx
 	rr.Offset = offset
@@ -21,18 +21,16 @@ func (rr *RowRange) String() string {
 	return rr.Text()
 }
 
-func (rr *RowRange) Range() (offset int, limit int) {
-
+func (rr *RowRange) Range() (offset, limit int) {
 	offset = rr.Offset
 	limit = rr.Limit
 	return
 }
 
 func (rr *RowRange) SetParent(parent Node) error {
-
 	seg, ok := parent.(*Segment)
 	if !ok {
-		return errorf("%T requires parent of type *%s", rr, TypeSegment)
+		return errorf("%T requires parent of type *%s", rr, typeSegment)
 	}
 	rr.parent = seg
 	return nil

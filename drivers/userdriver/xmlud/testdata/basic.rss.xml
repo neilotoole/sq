@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0">
+    <channel>
+        <title>Channel One</title>
+        <description>Description of Channel One</description>
+        <link>http://www.example.com/main.html</link>
+        <lastBuildDate>Mon, 06 Sep 2010 00:01:00 +0000 </lastBuildDate>
+        <pubDate>Sun, 06 Sep 2009 16:20:00 +0000</pubDate>
+        <ttl>1800</ttl>
+    </channel>
+    <channel>
+        <title>Channel Two</title>
+        <description>This is an example of an RSS feed</description>
+        <link>http://www.example.com/main.html</link>
+        <lastBuildDate>Mon, 06 Sep 2010 00:01:00 +0000 </lastBuildDate>
+        <pubDate>Sun, 06 Sep 2010 16:20:00 +0000</pubDate>
+
+        <item>
+            <title>Example entry</title>
+            <description>Here is some text containing an interesting description.</description>
+            <link>http://www.example.com/blog/post/1</link>
+            <guid isPermaLink="true">7bd204c6-1655-4c27-aeee-53f933c5395f</guid>
+            <pubDate>Sun, 06 Sep 2009 16:20:00 +0000</pubDate>
+        </item>
+        <item>
+            <title>Another entry</title>
+            <description>Yet more description.</description>
+            <link>http://www.example.com/blog/post/2</link>
+            <guid isPermaLink="true">8ad204aa-1655-4c27-aeee-53f933aaaaa</guid>
+            <pubDate>Sun, 07 Sep 20011 16:20:00 +0000</pubDate>
+            <category domain="http://www.nytimes.com/namespaces/keywords/des">Extradition</category>
+            <category domain="http://www.nytimes.com/namespaces/keywords/des">Drug Abuse and Traffic</category>
+            <category domain="http://www.nytimes.com/namespaces/keywords/nyt_per">Guzman Loera, Joaquin</category>
+            <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">Ciudad Juarez (Mexico)</category>
+            <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">United States</category>
+            <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">New York City</category>
+        </item>
+        <ttl>1800</ttl>
+    </channel>
+</rss>

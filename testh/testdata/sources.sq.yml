@@ -1,0 +1,118 @@
+sources:
+  items:
+    - handle: '@sakila_sl3'
+      type: sqlite3
+      location: sqlite3://${SQ_ROOT}/drivers/sqlite3/testdata/sakila.db
+    - handle: '@sakila_pg9'
+      type: postgres
+      location: postgres://sakila:p_ssW0rd@${SQ_TEST_SRC__SAKILA_PG9}/sakila?sslmode=disable
+    - handle: '@sakila_pg10'
+      type: postgres
+      location: postgres://sakila:p_ssW0rd@${SQ_TEST_SRC__SAKILA_PG10}/sakila?sslmode=disable
+    - handle: '@sakila_pg11'
+      type: postgres
+      location: postgres://sakila:p_ssW0rd@${SQ_TEST_SRC__SAKILA_PG11}/sakila?sslmode=disable
+    - handle: '@sakila_pg12'
+      type: postgres
+      location: postgres://sakila:p_ssW0rd@${SQ_TEST_SRC__SAKILA_PG12}/sakila?sslmode=disable
+    - handle: '@sakila_my56'
+      type: mysql
+      location: mysql://sakila:p_ssW0rd@${SQ_TEST_SRC__SAKILA_MY56}/sakila
+    - handle: '@sakila_my57'
+      type: mysql
+      location: mysql://sakila:p_ssW0rd@${SQ_TEST_SRC__SAKILA_MY57}/sakila
+    - handle: '@sakila_my8'
+      type: mysql
+      location: mysql://sakila:p_ssW0rd@${SQ_TEST_SRC__SAKILA_MY8}/sakila
+    - handle: '@sakila_ms17'
+      type: sqlserver
+      location: sqlserver://sakila:p_ssW0rd@${SQ_TEST_SRC__SAKILA_MS17}?database=sakila
+    - handle: '@sakila_xlsx'
+      type: xlsx
+      location: "${SQ_ROOT}/drivers/xlsx/testdata/sakila.xlsx"
+      options:
+        header:
+          - "true"
+    - handle: '@sakila_xlsx_subset'
+      type: xlsx
+      location: "${SQ_ROOT}/drivers/xlsx/testdata/sakila_subset.xlsx"
+      options:
+        header:
+          - "true"
+    - handle: '@sakila_xlsx_noheader'
+      type: xlsx
+      location: "${SQ_ROOT}/drivers/xlsx/testdata/sakila_noheader.xlsx"
+      options:
+        header:
+          - "false"
+    - handle: '@sakila_csv_actor'
+      type: csv
+      location: "${SQ_ROOT}/drivers/csv/testdata/sakila-csv/actor.csv"
+      options:
+        header:
+          - "true"
+    - handle: '@sakila_csv_actor_http'
+      type: csv
+      location: "https://sq.io/testdata/actor.csv"
+      options:
+        header:
+          - "true"
+    - handle: '@sakila_csv_actor_noheader'
+      type: csv
+      location: "${SQ_ROOT}/drivers/csv/testdata/sakila-csv-noheader/actor.csv"
+      options:
+        header:
+          - "false"
+    - handle: '@sakila_tsv_actor'
+      type: tsv
+      location: "${SQ_ROOT}/drivers/csv/testdata/sakila-tsv/actor.tsv"
+      options:
+        header:
+          - "true"
+    - handle: '@sakila_tsv_actor_noheader'
+      type: tsv
+      location: "${SQ_ROOT}/drivers/csv/testdata/sakila-tsv-noheader/actor.tsv"
+      options:
+        header:
+          - "false"
+
+    - handle: '@csv_person'
+      type: csv
+      location: "${SQ_ROOT}/drivers/csv/testdata/person.csv"
+    - handle: '@csv_person_big'
+      options:
+        header:
+          - "true"
+      type: csv
+      location: "${SQ_ROOT}/drivers/csv/testdata/person_big.csv"
+    - handle: '@csv_person_noheader'
+      type: csv
+      location: "${SQ_ROOT}/drivers/csv/testdata/person_noheader.csv"
+    - handle: '@tsv_person'
+      type: tsv
+      location: "${SQ_ROOT}/sq/drivers/csv/testdata/person.tsv"
+    - handle: '@tsv_person_noheader'
+      type: tsv
+      location: "${SQ_ROOT}/drivers/csv/testdata/person_noheader.tsv"
+    - handle: '@tsv_person_noheader_cols'
+      type: tsv
+      location: "${SQ_ROOT}/drivers/csv/testdata/person_noheader.tsv"
+      options:
+        cols:
+          - uid,username,email
+    - handle: '@xl_header'
+      type: xlsx
+      location: "${SQ_ROOT}/drivers/xlsx/testdata/test_header.xlsx"
+    - handle: '@xl_noheader'
+      type: xlsx
+      location: "${SQ_ROOT}/drivers/xlsx/testdata/test_noheader.xlsx"
+    - handle: '@ud_ppl'
+      type: ppl
+      location: "${SQ_ROOT}/drivers/userdriver/xmlud/testdata/people.xml"
+    - handle: '@ud_rss_nytimes_local'
+      type: rss
+      location: "${SQ_ROOT}/drivers/userdriver/xmlud/testdata/nytimes_local.rss.xml"
+    - handle: '@miscdb'
+      type: sqlite3
+      location: "sqlite3://${SQ_ROOT}/drivers/sqlite3/testdata/misc.db"
+

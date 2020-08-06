@@ -1,0 +1,6 @@
+sources:
+  items:
+    - handle: "@sl1"
+      type: sqlite3
+      # location is empty: illegal
+      location:

@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<people>
+    <person gender="male">
+        <firstName>Nikola</firstName>
+        <lastName>Tesla</lastName>
+        <email>nikola@tesla.rs</email>
+        <skill>Electrifying</skill>
+        <skill>Inventing</skill>
+    </person>
+
+    <person gender="female">
+        <firstName>Margaret</firstName>
+        <lastName>Hamilton</lastName>
+        <email>mhamilton@nasa.gov</email>
+        <skill>Coding</skill>
+        <skill>Navigating</skill>
+    </person>
+
+    <person gender="female">
+        <firstName>Marie</firstName>
+        <lastName>Curie</lastName>
+        <email>marie@curie.org</email>
+        <skill>X-Ray Vision</skill>
+        <skill>Chemistry</skill>
+    </person>
+
+</people>

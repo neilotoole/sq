@@ -1,0 +1,314 @@
+project_name: sq
+env:
+  - GO111MODULE=on
+  - CGO_ENABLED=1
+before:
+  hooks:
+    - go version  # prints the Go version used for build (can be seen when --debug flag is passed to goreleaser)
+    - go mod download
+
+builds:
+  - id: build_macos
+    ldflags: -s -w -X github.com/neilotoole/sq/cli/buildinfo.Version={{.Version}} -X github.com/neilotoole/sq/cli/buildinfo.Timestamp={{.Date}} -X github.com/neilotoole/sq/cli/buildinfo.Commit={{ .ShortCommit }}
+    binary: sq
+    env:
+      - CC=o64-clang
+      - CXX=o64-clang++
+    main: ./main.go
+    goos:
+      - darwin
+    goarch:
+      - amd64
+
+  - id: build_linux
+    binary: sq
+    main: ./main.go
+    goos:
+      - linux
+    goarch:
+      - amd64
+    # Note the additional ldflags (-linkmode etc), and the "-tags=netgo" in
+    # flags below. This is to build a static binary.
+    ldflags: -linkmode external -extldflags -static -s -w -X github.com/neilotoole/sq/cli/buildinfo.Version={{.Version}} -X github.com/neilotoole/sq/cli/buildinfo.Timestamp={{.Date}} -X github.com/neilotoole/sq/cli/buildinfo.Commit={{ .ShortCommit }}
+    flags:
+      - -tags=netgo
+      - -v
+
+
+  - id: build_windows
+    ldflags: -s -w -X github.com/neilotoole/sq/cli/buildinfo.Version={{.Version}} -X github.com/neilotoole/sq/cli/buildinfo.Timestamp={{.Date}} -X github.com/neilotoole/sq/cli/buildinfo.Commit={{ .ShortCommit }}
+    binary: sq
+    env:
+      - CC=x86_64-w64-mingw32-gcc
+      - CXX=x86_64-w64-mingw32-g++
+    main: ./main.go
+    goos:
+      - windows
+    goarch:
+      - amd64
+
+#
+#archives:
+#  - id: sq_macos_archive
+#    builds:
+#    - build_macos
+#    name_template: "{{.ProjectName}}-{{.Version}}-{{.Os}}"
+#    format: tar.gz
+#    replacements:
+#      darwin: macos
+#    files:
+#      - README.md
+#      - LICENSE
+#
+#  - id: sq_linux_archive
+#    builds:
+#    - build_linux
+#    name_template: "{{.ProjectName}}-{{.Version}}-{{.Os}}-{{.Arch}}"
+#    format: tar.gz
+#    replacements:
+#    files:
+#      - README.md
+#      - LICENSE
+#
+#  - id: sq_windows_archive
+#    builds:
+#    - build_windows
+#    name_template: "{{.ProjectName}}-{{.Version}}-{{.Os}}-{{.Arch}}"
+#    format: zip
+#    replacements:
+#    files:
+#      - README.md
+#      - LICENSE
+
+archives:
+  -
+    builds: ['build_macos', 'build_linux', 'build_windows']
+    name_template: "{{.ProjectName}}-{{.Version}}-{{.Os}}-{{.Arch}}"
+    format: tar.gz
+    files:
+      - README.md
+      - LICENSE
+    replacements:
+#      amd64: 64-bit
+#      386: 32-bit
+      darwin: macOS
+#      linux: Tux
+    format_overrides:
+      - goos: windows
+        format: zip
+
+
+checksum:
+  name_template: "{{.ProjectName}}-{{.Version}}-checksums.txt"
+
+snapshot:
+  name_template: "{{ .Version }}-snapshot"
+
+changelog:
+  skip: true
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^dev:'
+      - 'README'
+      - Merge pull request
+      - Merge branch
+
+
+release:
+  github:
+    owner: neilotoole
+    name: sq-preview
+  draft: true
+  prerelease: auto
+#
+#release:
+#  # Repo in which the release will be created.
+#  # We are using neilotoole/sq-preview for now.
+#  github:
+#    owner: neilotoole
+#    name: sq-preview
+#
+#  # IDs of the archives to use. Defaults to all.
+#  ids:
+#    - sq_macos_archive
+#    - sq_linux_archive
+#    - sq_windows_archive
+#
+#  # If set to true, will not auto-publish the release. Default is false.
+#  draft: false
+#
+#  # If set to auto, will mark the release as not ready for production
+#  # in case there is an indicator for this in the tag e.g. v1.0.0-rc1
+#  # If set to true, will mark the release as not ready for production.
+#  # Default is false.
+#  prerelease: auto
+#
+#  # You can change the name of the GitHub release.
+#  # Default is `{{.Tag}}`
+#  #  name_template: "{{.ProjectName}}-v{{.Version}} {{.Env.USER}}"
+#
+#  # You can disable this pipe in order to not upload any artifacts to
+#  # GitHub. Defaults to false.
+#  disable: false
+#
+#  # You can add extra pre-existing files to the release.
+#  # The filename on the release will be the last part of the path (base). If
+#  # another file with the same name exists, the latest one found will be used.
+#  # Defaults to empty.
+#  extra_files:
+#  #    - glob: ./path/to/file.txt
+#  #    - glob: ./glob/**/to/**/file/**/*
+#  #    - glob: ./glob/foo/to/bar/file/foobar/override_from_previous
+
+brews:
+  -
+    name: sq
+    homepage: "https://sq.io"
+    description: "sq is sed for structured data"
+    caveats: "This is a preview release of sq. Use with caution."
+#    ids:
+#      - sq_macos_archive
+
+    github:
+      owner: neilotoole
+      name: homebrew-sq
+
+    url_template: "https://github.com/neilotoole/sq-preview/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
+
+    commit_author:
+      name: neilotoole
+      email: neilotoole@apache.org
+
+    folder: Formula
+
+    test: |
+      system "#{bin}/sq version"
+
+    install: |
+      bin.install "sq"
+    # Setting this will prevent goreleaser to actually try to commit the updated
+    # formula - instead, the formula file will be stored on the dist folder only,
+    # leaving the responsibility of publishing it to the user.
+    # If set to auto, the release will not be uploaded to the homebrew tap
+    # in case there is an indicator for prerelease in the tag e.g. v1.0.0-rc1
+    # Default is false.
+    skip_upload: false
+
+
+scoop:
+  # scoop is a package installer for Windows, like brew for macOS.
+  # For background, see https://github.com/lukesampson/scoop/wiki/Buckets
+  url_template: "https://github.com/neilotoole/sq-preview/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
+  bucket:
+    owner: neilotoole
+    name: sq-preview
+  commit_author:
+    name: neilotoole
+    email: neilotoole@apache.org
+  homepage: "https://sq.io"
+  description: "sq is sed for structured data"
+  license: MIT
+
+
+nfpms:
+  -
+    builds: ['build_linux']
+    file_name_template: "{{.ProjectName}}-{{.Version}}-{{.Os}}-{{.Arch}}"
+    homepage:  https://sq.io
+    description: sq is sed for structured data
+    maintainer: Neil O'Toole <neilotoole@apache.org>
+    license: MIT
+    vendor: Neil O'Toole
+    formats:
+      - deb
+      - rpm
+
+
+snapcrafts:
+# For this to work, snapcraft needs to be installed.
+# On macOS, "brew install snapcraft", then "snapcraft login".
+
+  -
+    # ID of the snapcraft config, must be unique.
+    # Defaults to "default".
+    id: neilotoole-sq
+
+    builds:
+    - build_linux
+    # The name of the snap. This is optional.
+    # Default is project name.
+    name: neilotoole-sq
+
+
+#    name_template: '`{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}{{ if .Mips }}_{{ .Mips }}{{ end }}`'
+#    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    name_template: "neilotoole-sq-{{ .Version }}-{{ .Os }}-{{ .Arch }}"
+#    name_template: "neilotoole-sq"
+    summary: "sq is sed for structured data"
+    description: |
+      sq is sed for structured data. See https://sq.io
+    grade: devel
+    confinement: devmode
+
+
+    # Whether to publish the snap to the snapcraft store.
+    # Remember you need to `snapcraft login` first.
+    # Defaults to false.
+    publish: true
+    license: MIT
+
+    # A snap of type base to be used as the execution environment for this snap.
+    # Valid values are:
+    # * bare - Empty base snap;
+    # * core - Ubuntu Core 16;
+    # * core18 - Ubuntu Core 18.
+    # Default is empty.
+    base: core18
+
+    # Each binary built by GoReleaser is an app inside the snap. In this section
+    # you can declare extra details for those binaries. It is optional.
+    apps:
+
+      # The name of the app must be the same name as the binary built or the snapcraft name.
+#      neilotoole-sq:
+      sq:
+        # Declare "home" and "network" plugs to grant access to
+        # the user home dir, and the network
+        plugs: ["home", "network"]
+
+        # If your app requires extra permissions to work outside of its default
+        # confined space, declare them here.
+        # You can read the documentation about the available plugs and the
+        # things they allow:
+        # https://snapcraft.io/docs/reference/interfaces.
+#        plugs: ["home", "network", "personal-files"]
+
+        # If you want your app to be autostarted and to always run in the
+        # background, you can make it a simple daemon.
+#        daemon: simple
+
+        # If you any to pass args to your binary, you can add them with the
+        # args option.
+#        args: --foo
+
+        # Bash completion snippet. More information about completion here:
+        # https://docs.snapcraft.io/tab-completion-for-snaps.
+#        completer: drumroll-completion.bash
+
+
+#name: foo
+#...
+#plugs:
+#  config-foo:
+#    interface: personal-files
+#    read:
+#      - $HOME/.config/foo
+#
+#apps:
+#  foo:
+#    plugs:
+#      - config-foo
+#    ...

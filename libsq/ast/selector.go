@@ -3,15 +3,21 @@ package ast
 import (
 	"fmt"
 
+	"github.com/antlr/antlr4/runtime/Go/antlr"
+
 	"github.com/neilotoole/sq/libsq/slq"
-	"github.com/pboyer/antlr4/runtime/Go/antlr"
 )
 
-const emsgNodeNoAddChild = "%T cannot have children: failed to add %T"
-const emsgNodeNoAddChildren = "%T cannot have children: failed to add %d children"
+const msgNodeNoAddChild = "%T cannot add children: failed to add %T"
+const msgNodeNoAddChildren = "%T cannot add children: failed to add %d children"
 
+var _ Node = (*Selector)(nil)
+
+// Selector is a selector such as ".my_table" or ".my_col". The
+// generic selector will typically be replaced with a more specific
+// selector node such as TblSelector or ColSelector.
 type Selector struct {
-	BaseNode
+	baseNode
 }
 
 func (s *Selector) String() string {
@@ -22,6 +28,10 @@ func (s *Selector) SelValue() string {
 	return s.ctx.GetText()[1:]
 }
 
+var _ Node = (*TblSelector)(nil)
+
+// TblSelector is a selector for a table, such as ".my_table"
+// or "@my_src.my_table".
 type TblSelector struct {
 	Selector
 	DSName  string
@@ -36,6 +46,7 @@ func newTblSelector(seg *Segment, tblName string, ctx antlr.ParseTree) *TblSelec
 	return tbl
 }
 
+// Selectable implements the Selectable marker interface.
 func (s *TblSelector) Selectable() {
 	// no-op
 }
@@ -43,19 +54,16 @@ func (s *TblSelector) SelValue() string {
 	return s.TblName
 }
 
-// From returns the table name.
-func (ts *TblSelector) From() (string, error) {
-	// Drop the leading dot, e.g. ".user" -> "user"
-	return ts.Text()[1:], nil
-}
-
 func (s *TblSelector) String() string {
 	text := nodeString(s)
-	text = text + fmt.Sprintf(" | table: %q | datasource: %q", s.SelValue(), s.DSName)
+	text += fmt.Sprintf(" | table: %q | datasource: %q", s.SelValue(), s.DSName)
 	return text
 }
 
-// ColSelector models a column name, e.g. '.user_id'.
+var _ Node = (*ColSelector)(nil)
+var _ ColExpr = (*ColSelector)(nil)
+
+// ColSelector models a column selector such as ".user_id".
 type ColSelector struct {
 	Selector
 }
@@ -73,19 +81,26 @@ func (s *ColSelector) ColExpr() (string, error) {
 	return s.Text()[1:], nil
 }
 
+func (s *ColSelector) IsColName() bool {
+	return true
+}
+
 func (s *ColSelector) String() string {
 	return nodeString(s)
 }
 
+var _ Node = (*Cmpr)(nil)
+
+// Cmpr models a comparison.
 type Cmpr struct {
-	BaseNode
+	baseNode
 }
 
 func (c *Cmpr) String() string {
 	return nodeString(c)
 }
 
-func NewCmpr(parent Node, ctx slq.ICmprContext) *Cmpr {
+func newCmnr(parent Node, ctx slq.ICmprContext) *Cmpr {
 	leaf := ctx.GetChild(0).(*antlr.TerminalNodeImpl)
 	cmpr := &Cmpr{}
 	cmpr.ctx = leaf
@@ -93,8 +108,9 @@ func NewCmpr(parent Node, ctx slq.ICmprContext) *Cmpr {
 	return cmpr
 }
 
+// Datasource models a source such as "@sakila_sl3".
 type Datasource struct {
-	BaseNode
+	baseNode
 }
 
 func (d *Datasource) String() string {

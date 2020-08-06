@@ -1,0 +1,12 @@
+@mydb1 | .user, .address | join( .user.uid == .address.uid) | .email, .username, .country;
+@mydb1 | .user, .address | join( .uid ) | .user.uid, .username, .country;
+@mydb1 | .user | .[1];
+@mydb1 | .user | .[0:2];
+@mydb1 | .user | .[:3];
+@mydb1 | .user | .[2:];
+@mydb1 | .user | .[];
+@mydb1 | .user | .uid, .username;
+@mydb1.user | .uid, .username;
+
+
+

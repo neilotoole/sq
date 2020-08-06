@@ -4,17 +4,20 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/neilotoole/lg/testlg"
 )
 
 func TestInspector_findSelectableSegments(t *testing.T) {
+	log := testlg.New(t).Strict(true)
 
 	//  `@mydb1 | .user | .uid, .username`
-	ast, err := getAST(FixtSelect1)
+	ast, err := buildInitialAST(t, fixtSelect1)
 	require.Nil(t, err)
-	err = NewWalker(ast).AddVisitor(TypeSelector, narrowTblSel).Walk()
+	err = NewWalker(log, ast).AddVisitor(typeSelector, narrowTblSel).Walk()
 	require.Nil(t, err)
 
-	insp := NewInspector(ast)
+	insp := NewInspector(log, ast)
 
 	segs := ast.Segments()
 	require.Equal(t, 3, len(segs))
@@ -25,12 +28,12 @@ func TestInspector_findSelectableSegments(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, selSegs[0], finalSelSeg)
 
-	//// `@mydb1 | .user, .address | join(.user.uid == .address.uid) | .uid, .username, .country`
-	ast, err = getAST(FixtJoinQuery1)
+	// `@mydb1 | .user, .address | join(.user.uid == .address.uid) | .uid, .username, .country`
+	ast, err = buildInitialAST(t, fixtJoinQuery1)
 	require.Nil(t, err)
-	err = NewWalker(ast).AddVisitor(TypeSelector, narrowTblSel).Walk()
+	err = NewWalker(log, ast).AddVisitor(typeSelector, narrowTblSel).Walk()
 	require.Nil(t, err)
-	insp = NewInspector(ast)
+	insp = NewInspector(log, ast)
 
 	segs = ast.Segments()
 	require.Equal(t, 4, len(segs))
@@ -41,5 +44,4 @@ func TestInspector_findSelectableSegments(t *testing.T) {
 	finalSelSeg, err = insp.FindFinalSelectableSegment()
 	require.Nil(t, err)
 	require.Equal(t, selSegs[1], finalSelSeg)
-
 }

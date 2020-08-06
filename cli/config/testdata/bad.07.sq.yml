@@ -1,0 +1,6 @@
+sources:
+  items:
+    - handle: "@sl1"
+      # type is empty: illegal
+      type:
+      location: sqlite3://${SQ_ROOT}/drivers/sqlite3/testdata/sqtest.db

@@ -1,0 +1,65 @@
+{
+  "sq_log": {
+    "title": "sq",
+    "url": "https://sq,io",
+    "description": "Log format for sq",
+    "json": true,
+    "hide-extra": false,
+    "file-pattern": "sq.log",
+    "multiline": true,
+    "line-format": [
+      {
+        "field": "__timestamp__",
+        "timestamp-format": "%H:%M:%S.%L"
+      },
+      "\t",
+      {
+        "field": "level",
+        "text-transform": "uppercase"
+      },
+      "\t",
+      {
+        "field": "caller",
+        "max-width": 72,
+        "min-width": 72,
+        "overflow": "dot-dot"
+      },
+      "    ",
+      {
+        "field": "msg"
+      }
+    ],
+    "level-field": "level",
+    "level": {
+      "error": "error",
+      "debug": "debug",
+      "warning": "warn"
+    },
+    "highlights": {
+      "caller": {
+        "pattern": "caller",
+        "underline": true
+      }
+    },
+    "timestamp-field": "time",
+    "body-field": "msg",
+    "value": {
+      "time": {
+        "kind": "string",
+        "identifier": true
+      },
+      "level": {
+        "kind": "string",
+        "identifier": true
+      },
+      "caller": {
+        "kind": "string",
+        "identifier": true
+      },
+      "msg": {
+        "kind": "quoted",
+        "identifier": false
+      }
+    }
+  }
+}

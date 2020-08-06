@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<people>
+    <person gender="male">
+        <firstName>Nikola</firstName>
+        <lastName>Tesla</lastName>
+        <nickname>nikki</nickname>
+        <age>86</age>
+        <email>nikola@tesla.rs</email>
+
+        <skill>Electrifying</skill>
+        <skill>Inventing</skill>
+        <eyes>brown</eyes>
+        <synopsis>He de <b>man</b></synopsis>
+
+    </person>
+
+    <person gender="female">
+        <firstName>Margaret</firstName>
+        <lastName>Hamilton</lastName>
+        <nickname>mags</nickname>
+        <age>82</age>
+        <email>mhamilton@nasa.gov</email>
+        <skill>Coding</skill>
+        <skill>Navigating</skill>
+        <eyes>blue</eyes>
+    </person>
+
+    <person gender="female">
+        <firstName>Marie</firstName>
+        <lastName>Curie</lastName>
+        <nickname>radgal</nickname>
+        <age>66</age>
+        <email>marie@curie.org</email>
+        <skill>X-Ray Vision</skill>
+        <skill>Chemistry</skill>
+        <eyes>blue</eyes>
+    </person>
+</people>

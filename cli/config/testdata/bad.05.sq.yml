@@ -1,0 +1,5 @@
+sources:
+  items:
+    - handle: "illegal_handle"
+      type: sqlite3
+      location: sqlite3://${SQ_ROOT}/drivers/sqlite3/testdata/sqtest.db

@@ -23,18 +23,21 @@ _testmain.go
 *.test
 *.prof
 
+.DS_Store
+
 /.idea
-/misc
-/build
-/bin
-/grammar/*.go
-/grammar/*.tokens
-/test/grun/java/*
-/sq.yml
-/sq.log
-/xlsx/~$test.xlsx
-"sq"
+/grammar/build
+*/~test$*
 /dist
+/projectFilesBackup
+/*.iml
+/.swp
+/sq
+/demo
+/scratch
 
+# Some apps create temp files when editing, e.g. Excel with drivers/xlsx/testdata/~$test_header.xlsx
+**/testdata/~*
 
-
+gorelease-snapshot.sh
+magefile_local.go

@@ -1,0 +1,787 @@
+<?xml version="1.0"?>
+<rss xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:media="http://search.yahoo.com/mrss/" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:nyt="http://www.nytimes.com/namespaces/rss/2.0" version="2.0">
+  <channel>
+    <title>NYT &gt; World</title>
+    <link>http://www.nytimes.com/pages/world/index.html?partner=rss&amp;emc=rss</link>
+    <atom:link rel="self" type="application/rss+xml" href="http://www.nytimes.com/services/xml/rss/nyt/World.xml"/>
+    <description/>
+    <language>en-us</language>
+    <copyright>Copyright 2017  The New York Times Company</copyright>
+    <lastBuildDate>Fri, 20 Jan 2017 03:52:55 GMT </lastBuildDate>
+    <image>
+      <title>NYT &gt; World</title>
+      <url>https://static01.nyt.com/images/misc/NYT_logo_rss_250x40.png</url>
+      <link>http://www.nytimes.com/pages/world/index.html?partner=rss&amp;emc=rss</link>
+    </image>
+    <item>
+      <title>El Chapo, Mexican Drug Kingpin, Is Extradited to U.S.</title>
+      <link>http://www.nytimes.com/2017/01/19/world/el-chapo-extradited-mexico.html?partner=rss&amp;emc=rss</link>
+      <guid isPermaLink="true">http://www.nytimes.com/2017/01/19/world/el-chapo-extradited-mexico.html</guid>
+      <atom:link rel="standout" href="http://www.nytimes.com/2017/01/19/world/el-chapo-extradited-mexico.html?partner=rss&amp;emc=rss"/>
+      <media:content url="https://static01.nyt.com/images/2017/01/20/world/20mexico/20chapo-moth.jpg" medium="image" height="151" width="151"/>
+      <media:description>Joaqu&#xED;n Guzm&#xE1;n Loera, known as El Chapo, after his recapture last year in the city of Los Mochis, Sinaloa, Mexico.</media:description>
+      <media:credit>Jos&#xE9; M&#xE9;ndez/European Pressphoto Agency</media:credit>
+      <description>In an about-face for the Mexican government, Joaqu&#xED;n Guzm&#xE1;n Loera, known as El Chapo, was turned over to American officials on Thursday night.</description>
+      <dc:creator>AZAM AHMED</dc:creator>
+      <pubDate>Fri, 20 Jan 2017 02:30:34 GMT</pubDate>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Extradition</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Drug Abuse and Traffic</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_per">Guzman Loera, Joaquin</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">Ciudad Juarez (Mexico)</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">United States</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">New York City</category>
+    </item>
+    <item>
+      <title>Riot Police Try to Quell Continuing Violence in Brazilian Prison</title>
+      <link>http://www.nytimes.com/2017/01/19/world/americas/brazil-prison-riots-alcauz-rio-grande-do-norte.html?partner=rss&amp;emc=rss</link>
+      <guid isPermaLink="true">http://www.nytimes.com/2017/01/19/world/americas/brazil-prison-riots-alcauz-rio-grande-do-norte.html</guid>
+      <atom:link rel="standout" href="http://www.nytimes.com/2017/01/19/world/americas/brazil-prison-riots-alcauz-rio-grande-do-norte.html?partner=rss&amp;emc=rss"/>
+      <description>Specially equipped police officers entered a prison near the city of Natal as rival gangs battled each other with metal bars and wooden clubs in scenes reminiscent of medieval warfare.</description>
+      <dc:creator>DOM PHILLIPS</dc:creator>
+      <pubDate>Fri, 20 Jan 2017 02:06:17 GMT</pubDate>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">Natal (Brazil)</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Prisons and Prisoners</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Demonstrations, Protests and Riots</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/mdes">Organized Crime</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_org_all">First Capital Command (PCC)</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_org_all">Family of the North (FDN)</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_per">Temer, Michel (1940- )</category>
+    </item>
+    <item>
+      <title>Gambia&#x2019;s New President Is Sworn In as Troops Enter the Country</title>
+      <link>http://www.nytimes.com/2017/01/19/world/africa/gambia-adama-barrow-yahya-jammeh.html?partner=rss&amp;emc=rss</link>
+      <guid isPermaLink="true">http://www.nytimes.com/2017/01/19/world/africa/gambia-adama-barrow-yahya-jammeh.html</guid>
+      <atom:link rel="standout" href="http://www.nytimes.com/2017/01/19/world/africa/gambia-adama-barrow-yahya-jammeh.html?partner=rss&amp;emc=rss"/>
+      <media:content url="https://static01.nyt.com/images/2017/01/20/world/20GAMBIA/20GAMBIA-moth.jpg" medium="image" height="151" width="151"/>
+      <media:description>Adama Barrow, the newly elected president of Gambia, after being sworn in on Thursday in a ceremony at an embassy in neighboring Senegal.</media:description>
+      <media:credit>Sergey Ponomarev for The New York Times</media:credit>
+      <description>Yahya Jammeh, Gambia&#x2019;s leader for 22 years, is refusing to make way for the newly elected president, Adama Barrow, who has yet to enter his own country as president.</description>
+      <dc:creator>DIONNE SEARCEY and JAIME YAYA BARRY</dc:creator>
+      <pubDate>Thu, 19 Jan 2017 19:55:44 GMT</pubDate>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">Gambia</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_per">Barrow, Adama (1965- )</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_per">Jammeh, Yahya</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Elections</category>
+    </item>
+    <item>
+      <title>Julian Assange Repeats Offer of Extradition to U.S.</title>
+      <link>http://www.nytimes.com/2017/01/19/world/europe/julian-assange-wikileaks-offers-extradition-to-us.html?partner=rss&amp;emc=rss</link>
+      <guid isPermaLink="true">http://www.nytimes.com/2017/01/19/world/europe/julian-assange-wikileaks-offers-extradition-to-us.html</guid>
+      <atom:link rel="standout" href="http://www.nytimes.com/2017/01/19/world/europe/julian-assange-wikileaks-offers-extradition-to-us.html?partner=rss&amp;emc=rss"/>
+      <media:content url="https://static01.nyt.com/images/2017/01/20/world/20assange/20assange-moth.jpg" medium="image" height="151" width="151"/>
+      <media:description>Julian Assange on the balcony of the Ecuadorean embassy in London last year.</media:description>
+      <media:credit>Peter Nicholls/Reuters</media:credit>
+      <description>The founder of WikiLeaks said on Thursday he said he would go if his rights were &#x201C;protected,&#x201D; though he is not under public indictment by the United States.</description>
+      <dc:creator>STEVEN ERLANGER</dc:creator>
+      <pubDate>Thu, 19 Jan 2017 20:16:34 GMT</pubDate>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Classified Information and State Secrets</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Extradition</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_org_all">Federal Bureau of Investigation</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_org_all">Justice Department</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_org_all">WikiLeaks</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_per">Assange, Julian P</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_per">Manning, Chelsea</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">Great Britain</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">Sweden</category>
+    </item>
+    <item>
+      <title>Martin McGuinness, an I.R.A Leader Who Later Embraced Ulster Politics, Says He&#x2019;ll Retire</title>
+      <link>http://www.nytimes.com/2017/01/19/world/europe/martin-mcguinness-northern-ireland.html?partner=rss&amp;emc=rss</link>
+      <guid isPermaLink="true">http://www.nytimes.com/2017/01/19/world/europe/martin-mcguinness-northern-ireland.html</guid>
+      <atom:link rel="standout" href="http://www.nytimes.com/2017/01/19/world/europe/martin-mcguinness-northern-ireland.html?partner=rss&amp;emc=rss"/>
+      <description>Mr. McGuinness, who resigned as deputy first minister of Northern Ireland earlier this month after an internal political dispute, announced his retirement on health grounds.</description>
+      <dc:creator>STEPHEN CASTLE</dc:creator>
+      <pubDate>Fri, 20 Jan 2017 02:34:27 GMT</pubDate>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Retirement</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_per">McGuinness, Martin</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">Ireland</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">Northern Ireland</category>
+    </item>
+    <item>
+      <title>In India, Tension Over Traditions Perilous to Animals and Humans Alike</title>
+      <link>http://www.nytimes.com/2017/01/19/world/asia/india-bull-wrestling-protests.html?partner=rss&amp;emc=rss</link>
+      <guid isPermaLink="true">http://www.nytimes.com/2017/01/19/world/asia/india-bull-wrestling-protests.html</guid>
+      <atom:link rel="standout" href="http://www.nytimes.com/2017/01/19/world/asia/india-bull-wrestling-protests.html?partner=rss&amp;emc=rss"/>
+      <media:content url="https://static01.nyt.com/images/2017/01/20/world/asia/20india5/20india5-moth.jpg" medium="image" height="151" width="151"/>
+      <media:description>Indians in Chennai protested a ban on a bull wrestling festival in Chennai on Thursday, paralyzing the streets.</media:description>
+      <media:credit>Reuters</media:credit>
+      <description>Thousands of Indians are protesting a ban on a bull-wrestling tradition in Tamil Nadu, but it isn&#x2019;t the only cultural tradition coming under scrutiny.</description>
+      <dc:creator>NIDA NAJAR</dc:creator>
+      <pubDate>Fri, 20 Jan 2017 03:06:20 GMT</pubDate>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">India</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Demonstrations, Protests and Riots</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Hinduism</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/mdes">Animal Abuse, Rights and Welfare</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/mdes">Cattle</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">Tamil Nadu (India)</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Fasting</category>
+    </item>
+    <item>
+      <title>Was Ending the Search for Malaysia Airlines Flight 370 Justified?</title>
+      <link>http://www.nytimes.com/2017/01/19/world/asia/was-ending-the-search-for-malaysia-airlines-flight-370-justified.html?partner=rss&amp;emc=rss</link>
+      <guid isPermaLink="true">http://www.nytimes.com/2017/01/19/world/asia/was-ending-the-search-for-malaysia-airlines-flight-370-justified.html</guid>
+      <atom:link rel="standout" href="http://www.nytimes.com/2017/01/19/world/asia/was-ending-the-search-for-malaysia-airlines-flight-370-justified.html?partner=rss&amp;emc=rss"/>
+      <media:content url="https://static01.nyt.com/images/2017/01/19/world/20MH370/20MH370-moth.jpg" medium="image" height="151" width="151"/>
+      <media:description>The aircraft that disappeared, photographed over Poland earlier in 2014.</media:description>
+      <media:credit>Tomasz Bartkowiak/Reuters</media:credit>
+      <description>A multigovernment decision to stop the search, already the longest and most expensive in aviation history, raises ethical questions.</description>
+      <dc:creator>RUSSELL GOLDMAN and MICHELLE INNIS</dc:creator>
+      <pubDate>Thu, 19 Jan 2017 18:07:52 GMT</pubDate>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Malaysia Airlines Flight 370</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Ethics (Personal)</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Airlines and Airplanes</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Aviation Accidents, Safety and Disasters</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">Australia</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">China</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">Malaysia</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">Indian Ocean</category>
+    </item>
+    <item>
+      <title>Right-Wing Hoteliers in Japan Anger China With Radical Historical Views</title>
+      <link>http://www.nytimes.com/2017/01/19/business/japan-china-motoya-hotel-apa.html?partner=rss&amp;emc=rss</link>
+      <guid isPermaLink="true">http://www.nytimes.com/2017/01/19/business/japan-china-motoya-hotel-apa.html</guid>
+      <atom:link rel="standout" href="http://www.nytimes.com/2017/01/19/business/japan-china-motoya-hotel-apa.html?partner=rss&amp;emc=rss"/>
+      <media:content url="https://static01.nyt.com/images/2017/01/20/world/20japan-hotels-1/20japan-hotels-1-moth.jpg" medium="image" height="151" width="151"/>
+      <media:description>Toshio Motoya, president of the APA Group, in Tokyo in 2015.</media:description>
+      <media:credit>Thomas Peter/Reuters</media:credit>
+      <description>Fumiko and Toshio Motoya, founders of the APA Group and defenders of Japan&#x2019;s wartime conduct, provoked threats of a boycott over a book promoted at their chain.</description>
+      <dc:creator>JONATHAN SOBLE</dc:creator>
+      <pubDate>Thu, 19 Jan 2017 13:32:47 GMT</pubDate>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_org_all">APA Group</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_per">Motoya, Fumiko</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_per">Motoya, Toshio</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/mdes">Hotels and Travel Lodgings</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">China</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">Japan</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/mdes">World War II (1939-45)</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_keyword">Nanjing Massacre</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">International Relations</category>
+    </item>
+    <item>
+      <title>Trump Renews Vow for Jerusalem Embassy, a Gift of Uncertain Value</title>
+      <link>http://www.nytimes.com/2017/01/19/world/middleeast/donald-trump-jerusalem-embassy-israel-palestinians.html?partner=rss&amp;emc=rss</link>
+      <guid isPermaLink="true">http://www.nytimes.com/2017/01/19/world/middleeast/donald-trump-jerusalem-embassy-israel-palestinians.html</guid>
+      <atom:link rel="standout" href="http://www.nytimes.com/2017/01/19/world/middleeast/donald-trump-jerusalem-embassy-israel-palestinians.html?partner=rss&amp;emc=rss"/>
+      <media:content url="https://static01.nyt.com/images/2017/01/20/us/20JERUSALEM/20JERUSALEM-moth.jpg" medium="image" height="151" width="151"/>
+      <media:description>The United States Embassy in Tel Aviv, where other countries have their embassies.</media:description>
+      <media:credit>Jack Guez/Agence France-Presse &#x2014; Getty Images</media:credit>
+      <description>Palestinians in the West Bank protested the idea, which even many hard-line Israelis are not keen to embrace, seeing it as a catalyst to more fighting.</description>
+      <dc:creator>IAN FISHER and ISABEL KERSHNER</dc:creator>
+      <pubDate>Fri, 20 Jan 2017 02:29:10 GMT</pubDate>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">Jerusalem (Israel)</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Diplomatic Service, Embassies and Consulates</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Palestinians</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_per">Trump, Donald J</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">United States International Relations</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/mdes">Israeli Settlements</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_org_all">State Department</category>
+    </item>
+    <item>
+      <title>C.I.A. Torture Detailed in Newly Disclosed Documents</title>
+      <link>http://www.nytimes.com/2017/01/19/us/politics/cia-torture.html?partner=rss&amp;emc=rss</link>
+      <guid isPermaLink="true">http://www.nytimes.com/2017/01/19/us/politics/cia-torture.html</guid>
+      <atom:link rel="standout" href="http://www.nytimes.com/2017/01/19/us/politics/cia-torture.html?partner=rss&amp;emc=rss"/>
+      <media:content url="https://static01.nyt.com/images/2017/01/20/us/19TORTURE-1/19TORTURE-1-moth.jpg" medium="image" height="151" width="151"/>
+      <media:description>Central Intelligence Agency headquarters in McLean, Va.</media:description>
+      <media:credit>Larry Downing/Reuters</media:credit>
+      <description>The material sheds additional light on the torture program as the future of the Senate&#x2019;s classified full report on it hangs in the balance with the Obama presidency ending.</description>
+      <dc:creator>SHERI FINK, JAMES RISEN and CHARLIE SAVAGE</dc:creator>
+      <pubDate>Thu, 19 Jan 2017 19:06:49 GMT</pubDate>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">United States Politics and Government</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Classified Information and State Secrets</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_org_all">Central Intelligence Agency</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Interrogations</category>
+    </item>
+    <item>
+      <title>What in the World: When an Airline Suffered Misfortune, Some Looked for a Goat</title>
+      <link>http://www.nytimes.com/2017/01/18/world/what-in-the-world/pakistan-airport-goat-sacrifice.html?partner=rss&amp;emc=rss</link>
+      <guid isPermaLink="true">http://www.nytimes.com/2017/01/18/world/what-in-the-world/pakistan-airport-goat-sacrifice.html</guid>
+      <atom:link rel="standout" href="http://www.nytimes.com/2017/01/18/world/what-in-the-world/pakistan-airport-goat-sacrifice.html?partner=rss&amp;emc=rss"/>
+      <media:content url="https://static01.nyt.com/images/2017/01/12/world/what-in-the-world/00wit_pakistan-airline/00wit_pakistan-airline-moth.jpg" medium="image" height="151" width="151"/>
+      <media:description/>
+      <media:credit>Alvaro Dominguez</media:credit>
+      <description>The ritual slaughter of animals is common in Pakistan, but the airport sacrifice of a goat after a deadly plane crash still met with ridicule.</description>
+      <dc:creator>SALMAN MASOOD</dc:creator>
+      <pubDate>Wed, 18 Jan 2017 11:00:27 GMT</pubDate>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">Pakistan</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Aviation Accidents, Safety and Disasters</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/mdes">Superstitions</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Goats</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_org_all">Pakistan International Airlines</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_per">Zardari, Asif Ali</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_per">Bhutto, Benazir</category>
+    </item>
+    <item>
+      <title>Intercepted Russian Communications Part of Inquiry Into Trump Associates</title>
+      <link>http://www.nytimes.com/2017/01/19/us/politics/trump-russia-associates-investigation.html?partner=rss&amp;emc=rss</link>
+      <guid isPermaLink="true">http://www.nytimes.com/2017/01/19/us/politics/trump-russia-associates-investigation.html</guid>
+      <atom:link rel="standout" href="http://www.nytimes.com/2017/01/19/us/politics/trump-russia-associates-investigation.html?partner=rss&amp;emc=rss"/>
+      <media:content url="https://static01.nyt.com/images/2017/01/20/us/20intel/20intel-moth.jpg" medium="image" height="151" width="151"/>
+      <media:description>Paul Manafort, Donald J. Trump&#x2019;s former campaign chairman, at the Republican National Convention in Cleveland in July.</media:description>
+      <media:credit>Sam Hodgson for The New York Times</media:credit>
+      <description>It is not clear whether the communications had anything to do with Donald J. Trump or his campaign.</description>
+      <dc:creator>MICHAEL S. SCHMIDT, MATTHEW ROSENBERG, ADAM GOLDMAN and MATT APUZZO</dc:creator>
+      <pubDate>Fri, 20 Jan 2017 02:18:41 GMT</pubDate>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Cyberwarfare and Defense</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">United States Politics and Government</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/mdes">Wiretapping and Other Eavesdropping Devices and Methods</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_org_all">Central Intelligence Agency</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_per">Trump, Donald J</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">Russia</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_per">Manafort, Paul J</category>
+    </item>
+    <item>
+      <title>Supreme Court Justice Helping to Oversee Brazil Graft Inquiry Dies in Plane Crash</title>
+      <link>http://www.nytimes.com/2017/01/19/world/americas/brazil-judge-zavascki-petrobras-investigation-killed-plane-crash.html?partner=rss&amp;emc=rss</link>
+      <guid isPermaLink="true">http://www.nytimes.com/2017/01/19/world/americas/brazil-judge-zavascki-petrobras-investigation-killed-plane-crash.html</guid>
+      <atom:link rel="standout" href="http://www.nytimes.com/2017/01/19/world/americas/brazil-judge-zavascki-petrobras-investigation-killed-plane-crash.html?partner=rss&amp;emc=rss"/>
+      <description>The Supreme Court justice, Teori Zavascki, had earned a reputation as a judge prepared to curb abuses of power by influential lawmakers and business leaders.</description>
+      <dc:creator>SIMON ROMERO</dc:creator>
+      <pubDate>Fri, 20 Jan 2017 01:08:33 GMT</pubDate>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_per">Zavascki, Teori</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_org_all">Supreme Court (Brazil)</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">Brazil</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Aviation Accidents, Safety and Disasters</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_org_all">Petroleo Brasileiro SA Petrobras</category>
+    </item>
+    <item>
+      <title>Reporter's Notebook: A Clown and a Correspondent Join the Global Elite</title>
+      <link>http://www.nytimes.com/2017/01/19/world/europe/world-economic-forum-davos-reporters-notebook.html?partner=rss&amp;emc=rss</link>
+      <guid isPermaLink="true">http://www.nytimes.com/2017/01/19/world/europe/world-economic-forum-davos-reporters-notebook.html</guid>
+      <atom:link rel="standout" href="http://www.nytimes.com/2017/01/19/world/europe/world-economic-forum-davos-reporters-notebook.html?partner=rss&amp;emc=rss"/>
+      <media:content url="https://static01.nyt.com/images/2017/01/20/world/20davos/20davos-moth.jpg" medium="image" height="151" width="151"/>
+      <media:description>What look like massive beach balls hanging from the ceiling are part of a project called Aerocene, led by the artist Tom&#xE1;s Saraceno, at the World Economic Forum in Davos, Switzerland.</media:description>
+      <media:credit>Michel Euler/Associated Press</media:credit>
+      <description>Ben Hubbard, a Mideast correspondent for The Times, tags along with his wife, a storyteller who was invited to Davos as a &#x201C;Cultural Leader.&#x201D;</description>
+      <dc:creator>BEN HUBBARD</dc:creator>
+      <pubDate>Thu, 19 Jan 2017 22:42:10 GMT</pubDate>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Refugees and Displaced Persons</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Middle East and Africa Migrant Crisis</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Art</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_org_all">World Economic Forum</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">Davos (Switzerland)</category>
+    </item>
+    <item>
+      <title>Despite Syria Cease-Fire, U.N. Says, Aid Isn&#x2019;t Reaching Besieged Areas</title>
+      <link>http://www.nytimes.com/2017/01/19/world/middleeast/syria-aid-cease-fire.html?partner=rss&amp;emc=rss</link>
+      <guid isPermaLink="true">http://www.nytimes.com/2017/01/19/world/middleeast/syria-aid-cease-fire.html</guid>
+      <atom:link rel="standout" href="http://www.nytimes.com/2017/01/19/world/middleeast/syria-aid-cease-fire.html?partner=rss&amp;emc=rss"/>
+      <description>Armed opposition groups and government forces &#x201C;are routinely doing what they can, all of them it seems, to avoid us helping women, children, wounded on the other side,&#x201D; an official said.</description>
+      <dc:creator>NICK CUMMING-BRUCE</dc:creator>
+      <pubDate>Thu, 19 Jan 2017 22:00:18 GMT</pubDate>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Humanitarian Aid</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_org_all">United Nations</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_per">Egeland, Jan</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_per">de Mistura, Staffan</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">Syria</category>
+    </item>
+    <item>
+      <title>Reporter's Notebook: When Journalism Meets Civil Disobedience</title>
+      <link>http://www.nytimes.com/2017/01/19/insider/when-journalism-meets-civil-disobedience.html?partner=rss&amp;emc=rss</link>
+      <guid isPermaLink="true">http://www.nytimes.com/2017/01/19/insider/when-journalism-meets-civil-disobedience.html</guid>
+      <atom:link rel="standout" href="http://www.nytimes.com/2017/01/19/insider/when-journalism-meets-civil-disobedience.html?partner=rss&amp;emc=rss"/>
+      <media:content url="https://static01.nyt.com/images/2017/01/19/insider/19-Insider-Herrou-Image4/19-Insider-Herrou-Image4-moth.jpg" medium="image" height="151" width="151"/>
+      <media:description>At C&#xE9;dric Herrou&#x2019;s habitat in the foothills of the Alps outside Nice, France, where African migrants hid last September before crossing the border.</media:description>
+      <media:credit>Pierre Terdjman for The New York Times</media:credit>
+      <description>I had gotten a decent man in trouble while pursuing a good story.</description>
+      <dc:creator>ADAM NOSSITER</dc:creator>
+      <pubDate>Thu, 19 Jan 2017 18:26:50 GMT</pubDate>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_per">Herrou, Cedric</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Middle East and Africa Migrant Crisis</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Refugees and Displaced Persons</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_keyword">French Underground Railroad</category>
+    </item>
+    <item>
+      <title>Theresa May Says Britain Will Lead a New Era of Free Trade</title>
+      <link>http://www.nytimes.com/2017/01/19/world/europe/world-economic-forum-davos-theresa-may-brexit.html?partner=rss&amp;emc=rss</link>
+      <guid isPermaLink="true">http://www.nytimes.com/2017/01/19/world/europe/world-economic-forum-davos-theresa-may-brexit.html</guid>
+      <atom:link rel="standout" href="http://www.nytimes.com/2017/01/19/world/europe/world-economic-forum-davos-theresa-may-brexit.html?partner=rss&amp;emc=rss"/>
+      <description>It was a jarring note from the leader of a country leaving the world&#x2019;s largest free-trade group. She also urged the Davos elite to seriously address inequality.</description>
+      <dc:creator>STEVEN ERLANGER and STEPHEN CASTLE</dc:creator>
+      <pubDate>Thu, 19 Jan 2017 17:34:59 GMT</pubDate>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Politics and Government</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">International Trade and World Market</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/mdes">Banking and Financial Institutions</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/mdes">Great Britain Withdrawal from EU (Brexit)</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_org_all">European Union</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_org_all">World Economic Forum</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_per">May, Theresa M</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">Davos (Switzerland)</category>
+    </item>
+    <item>
+      <title>Trilobites: Fishing for Clues to Solve Namibia&#x2019;s Fairy Circle Mystery</title>
+      <link>http://www.nytimes.com/2017/01/19/science/fishing-for-clues-to-solve-namibias-fairy-circle-mystery.html?partner=rss&amp;emc=rss</link>
+      <guid isPermaLink="true">http://www.nytimes.com/2017/01/19/science/fishing-for-clues-to-solve-namibias-fairy-circle-mystery.html</guid>
+      <atom:link rel="standout" href="http://www.nytimes.com/2017/01/19/science/fishing-for-clues-to-solve-namibias-fairy-circle-mystery.html?partner=rss&amp;emc=rss"/>
+      <media:content url="https://static01.nyt.com/images/2017/01/19/science/19tb-fairy/19tb-fairy-moth.jpg" medium="image" height="151" width="151"/>
+      <media:description>A fairy circle in the NamibRand Nature Reserve in the Namib Desert.</media:description>
+      <media:credit>Jen Guyton</media:credit>
+      <description>The new study suggests that both termites and plants may be jointly responsible for forming fairy circle landscapes in Namibia.</description>
+      <dc:creator>NICHOLAS ST. FLEUR</dc:creator>
+      <pubDate>Thu, 19 Jan 2017 15:59:49 GMT</pubDate>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_keyword">Fairy circles</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">Namibia</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Research</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_org_all">Nature (Journal)</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Termites</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/mdes">Grass</category>
+    </item>
+    <item>
+      <title>Philippine Police Are Accused of Killing South Korean Businessman</title>
+      <link>http://www.nytimes.com/2017/01/19/world/asia/philippines-police-south-korean-killing.html?partner=rss&amp;emc=rss</link>
+      <guid isPermaLink="true">http://www.nytimes.com/2017/01/19/world/asia/philippines-police-south-korean-killing.html</guid>
+      <atom:link rel="standout" href="http://www.nytimes.com/2017/01/19/world/asia/philippines-police-south-korean-killing.html?partner=rss&amp;emc=rss"/>
+      <media:content url="https://static01.nyt.com/images/2017/01/20/world/20Philippines/20Philippines-moth.jpg" medium="image" height="151" width="151"/>
+      <media:description>The chief of the Philippine National Police, Ronald dela Rosa, left, with President Rodrigo Duterte in Manila on Thursday.</media:description>
+      <media:credit>Romeo Ranoco/Reuters</media:credit>
+      <description>Officers seized Jee Ick-joo under the pretense of a drug raid last year and later extorted money from his family, the Justice Department of the Philippines said.</description>
+      <dc:creator>FELIPE VILLAMOR</dc:creator>
+      <pubDate>Thu, 19 Jan 2017 15:08:57 GMT</pubDate>
+      <category domain="http://www.nytimes.com/namespaces/keywords/mdes">Police</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Murders, Attempted Murders and Homicides</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">Philippines</category>
+    </item>
+    <item>
+      <title>At Least 20 Firefighters Killed in Tehran High-Rise Collapse</title>
+      <link>http://www.nytimes.com/2017/01/19/world/middleeast/iran-tehran-building-collapse.html?partner=rss&amp;emc=rss</link>
+      <guid isPermaLink="true">http://www.nytimes.com/2017/01/19/world/middleeast/iran-tehran-building-collapse.html</guid>
+      <atom:link rel="standout" href="http://www.nytimes.com/2017/01/19/world/middleeast/iran-tehran-building-collapse.html?partner=rss&amp;emc=rss"/>
+      <media:content url="https://static01.nyt.com/images/2017/01/20/world/20Iran1/20Iran1-moth.jpg" medium="image" height="151" width="151"/>
+      <media:description/>
+      <media:credit>Agence France-Presse &#x2014; Getty Images</media:credit>
+      <description>The 17-story Plasco Building, one of the Iranian capital&#x2019;s oldest and most prominent skyscrapers, crumpled into a smoldering heap as millions watched on state TV.</description>
+      <dc:creator>THOMAS ERDBRINK and DAN BILEFSKY</dc:creator>
+      <pubDate>Thu, 19 Jan 2017 16:19:03 GMT</pubDate>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Fires and Firefighters</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Buildings (Structures)</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">Tehran (Iran)</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">vis-multimedia</category>
+    </item>
+    <item>
+      <title>Sinosphere: Wife of Detained Chinese Rights Lawyer Seeks Angela Merkel&#x2019;s Help</title>
+      <link>http://www.nytimes.com/2017/01/19/world/asia/china-lawyer-jiang-tianyong-germany.html?partner=rss&amp;emc=rss</link>
+      <guid isPermaLink="true">http://www.nytimes.com/2017/01/19/world/asia/china-lawyer-jiang-tianyong-germany.html</guid>
+      <atom:link rel="standout" href="http://www.nytimes.com/2017/01/19/world/asia/china-lawyer-jiang-tianyong-germany.html?partner=rss&amp;emc=rss"/>
+      <media:content url="https://static01.nyt.com/images/2017/01/20/world/20CHINALAWYER-1/20CHINALAWYER-1-moth.jpg" medium="image" height="151" width="151"/>
+      <media:description>Protesters in Hong Kong demanding the release of the rights lawyer Jiang Tianyong in December. Mr. Jiang has been in custody since November, but the Chinese authorities have not disclosed where.</media:description>
+      <media:credit>Tyrone Siu/Reuters</media:credit>
+      <description>The rights lawyer Jiang Tianyong once met the German chancellor in Beijing. Now his wife is hoping that Ms. Merkel can push Beijing to disclose his whereabouts.</description>
+      <dc:creator>DIDI KIRSTEN TATLOW</dc:creator>
+      <pubDate>Thu, 19 Jan 2017 10:17:07 GMT</pubDate>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Political Prisoners</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Human Rights and Human Rights Violations</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_per">Merkel, Angela</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_per">Jiang Tianyong (1971- )</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Torture</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">China</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">Germany</category>
+    </item>
+    <item>
+      <title>Avalanche in Italy Buries Hotel, Leaving up to 30 Missing</title>
+      <link>http://www.nytimes.com/2017/01/19/world/europe/italy-avalanche.html?partner=rss&amp;emc=rss</link>
+      <guid isPermaLink="true">http://www.nytimes.com/2017/01/19/world/europe/italy-avalanche.html</guid>
+      <atom:link rel="standout" href="http://www.nytimes.com/2017/01/19/world/europe/italy-avalanche.html?partner=rss&amp;emc=rss"/>
+      <media:content url="https://static01.nyt.com/images/2017/01/20/world/20Italy5/20Italy5-moth.jpg" medium="image" height="151" width="151"/>
+      <media:description>As many as 30 people were reported missing at the hotel.</media:description>
+      <media:credit>Alpine and Speleological Rescue Team, via Agence France-Presse &#x2014; Getty Images</media:credit>
+      <description>The disaster came after earthquakes struck the region on Wednesday, prompting officials to close schools and the subway system in Rome as a precaution.</description>
+      <dc:creator>ELISABETTA POVOLEDO and GERRY MULLANY</dc:creator>
+      <pubDate>Fri, 20 Jan 2017 01:08:00 GMT</pubDate>
+      <category domain="http://www.nytimes.com/namespaces/keywords/mdes">Avalanches</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Earthquakes</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">Farindola (Italy)</category>
+    </item>
+    <item>
+      <title>Persecuted Minority in Myanmar Is Escalating Its Armed Insurgency</title>
+      <link>http://www.nytimes.com/2017/01/19/world/asia/muslim-rohingya-myanmar.html?partner=rss&amp;emc=rss</link>
+      <guid isPermaLink="true">http://www.nytimes.com/2017/01/19/world/asia/muslim-rohingya-myanmar.html</guid>
+      <atom:link rel="standout" href="http://www.nytimes.com/2017/01/19/world/asia/muslim-rohingya-myanmar.html?partner=rss&amp;emc=rss"/>
+      <media:content url="https://static01.nyt.com/images/2017/01/20/world/19ROHINGYA-1/19ROHINGYA-1-moth.jpg" medium="image" height="151" width="151"/>
+      <media:description>Rohingya refugees in Cox&#x2019;s Bazar, Bangladesh, on Wednesday. About 65,000 are believed to have come from Myanmar since October, joining about a half-million who had already arrived.</media:description>
+      <media:credit>Allison Joyce/Getty Images</media:credit>
+      <description>Some analysts fear that turning the Rohingya into a transnational Muslim cause may draw foreign jihadists to Myanmar.</description>
+      <dc:creator>RICHARD C. PADDOCK, ELLEN BARRY and MIKE IVES</dc:creator>
+      <pubDate>Thu, 19 Jan 2017 08:00:03 GMT</pubDate>
+      <category domain="http://www.nytimes.com/namespaces/keywords/mdes">Rohingya (Ethnic Group)</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">Myanmar</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Defense and Military Forces</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/mdes">Human Rights and Human Rights Violations</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_org_all">Organization of Islamic Cooperation</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_org_all">International Crisis Group</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">Bangladesh</category>
+    </item>
+    <item>
+      <title>Rights Groups Ask China to Free Tibetan Education Advocate</title>
+      <link>http://www.nytimes.com/2017/01/18/world/asia/china-tibetan-education-advocate.html?partner=rss&amp;emc=rss</link>
+      <guid isPermaLink="true">http://www.nytimes.com/2017/01/18/world/asia/china-tibetan-education-advocate.html</guid>
+      <atom:link rel="standout" href="http://www.nytimes.com/2017/01/18/world/asia/china-tibetan-education-advocate.html?partner=rss&amp;emc=rss"/>
+      <media:content url="https://static01.nyt.com/images/2017/01/20/world/19TIBET-1/19TIBET-1-moth.jpg" medium="image" height="151" width="151"/>
+      <media:description>Tashi Wangchuk, a Tibetan entrepreneur and education advocate, at his home in Yushu, China, in 2015.</media:description>
+      <media:credit>Gilles Sabrie for The New York Times</media:credit>
+      <description>The Tibetan, Tashi Wangchuk, was detained and accused of inciting separatism nearly a year ago after speaking to The New York Times for a documentary video and two articles.</description>
+      <dc:creator>EDWARD WONG</dc:creator>
+      <pubDate>Thu, 19 Jan 2017 03:25:43 GMT</pubDate>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_per">Tashi Wangchuk</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">China</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">Tibet</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_org_all">Amnesty International</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_org_all">Human Rights Watch</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Human Rights and Human Rights Violations</category>
+    </item>
+    <item>
+      <title>Mexican Student Fatally Shoots Himself in Classroom After Wounding Four</title>
+      <link>http://www.nytimes.com/2017/01/18/world/americas/mexico-school-shooting-monterrey.html?partner=rss&amp;emc=rss</link>
+      <guid isPermaLink="true">http://www.nytimes.com/2017/01/18/world/americas/mexico-school-shooting-monterrey.html</guid>
+      <atom:link rel="standout" href="http://www.nytimes.com/2017/01/18/world/americas/mexico-school-shooting-monterrey.html?partner=rss&amp;emc=rss"/>
+      <media:content url="https://static01.nyt.com/images/2017/01/20/world/19MEXICO-SHOOTING-1/19MEXICO-SHOOTING-1-moth.jpg" medium="image" height="151" width="151"/>
+      <media:description>Outside the Colegio Americano del Noreste in Monterrey, Mexico, on Wednesday after a teenage student shot several students and a teacher and killed himself.</media:description>
+      <media:credit>Daniel Becerril/Reuters</media:credit>
+      <description>The motives of a 15-year-old who opened fire in Monterrey were unknown, and investigators were looking into where he got the weapon.</description>
+      <dc:creator>PAULINA VILLEGAS</dc:creator>
+      <pubDate>Thu, 19 Jan 2017 02:19:19 GMT</pubDate>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">Monterrey (Mexico)</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">School Shootings and Armed Attacks</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">Nuevo Leon (Mexico)</category>
+    </item>
+    <item>
+      <title>Isidro Baldenegro, Mexican Environmental Activist, Is Shot to Death</title>
+      <link>http://www.nytimes.com/2017/01/18/world/americas/mexico-environmental-activist-shot-sierra-madre.html?partner=rss&amp;emc=rss</link>
+      <guid isPermaLink="true">http://www.nytimes.com/2017/01/18/world/americas/mexico-environmental-activist-shot-sierra-madre.html</guid>
+      <atom:link rel="standout" href="http://www.nytimes.com/2017/01/18/world/americas/mexico-environmental-activist-shot-sierra-madre.html?partner=rss&amp;emc=rss"/>
+      <media:content url="https://static01.nyt.com/images/2017/01/20/world/19MEXICO-1/19MEXICO-1-moth.jpg" medium="image" height="151" width="151"/>
+      <media:description>Isidro Baldenegro L&#xF3;pez in 2003.</media:description>
+      <media:credit>Pablo Aneli/Associated Press</media:credit>
+      <description>Mr. Baldenegro, winner of the Goldman Environmental Prize, defended the western Sierra Madre&#x2019;s old-growth forests against powerful local strongmen.</description>
+      <dc:creator>ELISABETH MALKIN</dc:creator>
+      <pubDate>Thu, 19 Jan 2017 01:39:31 GMT</pubDate>
+      <category domain="http://www.nytimes.com/namespaces/keywords/mdes">Human Rights and Human Rights Violations</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">Mexico</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_per">Caceres, Berta</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Drug Abuse and Traffic</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/mdes">Forests and Forestry</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_org_all">Amnesty International</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_org_all">Global Witness</category>
+    </item>
+    <item>
+      <title>In a Blow to Prosecutor, South Korean Court Blocks Arrest of Samsung Group Leader</title>
+      <link>http://www.nytimes.com/2017/01/18/world/asia/samsung-korea-president-impeachment.html?partner=rss&amp;emc=rss</link>
+      <guid isPermaLink="true">http://www.nytimes.com/2017/01/18/world/asia/samsung-korea-president-impeachment.html</guid>
+      <atom:link rel="standout" href="http://www.nytimes.com/2017/01/18/world/asia/samsung-korea-president-impeachment.html?partner=rss&amp;emc=rss"/>
+      <media:content url="https://static01.nyt.com/images/2017/01/19/world/19korea/19korea-moth.jpg" medium="image" height="151" width="151"/>
+      <media:description>Jay Y. Lee, the leader of Samsung, leaving court in Seoul on Wednesday.</media:description>
+      <media:credit>Jung Yeon-Je/Agence France-Presse &#x2014; Getty Images</media:credit>
+      <description>A justice rejected a request to issue a warrant for Jay Y. Lee, but the de facto Samsung chief can still be indicted if a special prosecutor decides to pursue bribery allegations.</description>
+      <dc:creator>CHOE SANG-HUN</dc:creator>
+      <pubDate>Wed, 18 Jan 2017 23:59:37 GMT</pubDate>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Politics and Government</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Bribery and Kickbacks</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_org_all">Samsung Group</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_per">Lee, Jay Y</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_per">Park Geun-hye</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">South Korea</category>
+    </item>
+    <item>
+      <title>Iraqi Forces Take Eastern Mosul From Islamic State</title>
+      <link>http://www.nytimes.com/2017/01/18/world/middleeast/iraq-mosul-isis.html?partner=rss&amp;emc=rss</link>
+      <guid isPermaLink="true">http://www.nytimes.com/2017/01/18/world/middleeast/iraq-mosul-isis.html</guid>
+      <atom:link rel="standout" href="http://www.nytimes.com/2017/01/18/world/middleeast/iraq-mosul-isis.html?partner=rss&amp;emc=rss"/>
+      <media:content url="https://static01.nyt.com/images/2017/01/19/world/middleeast/19iraq2/19iraq2-moth.jpg" medium="image" height="151" width="151"/>
+      <media:description>American military personnel in Iraq during a battle with Islamic State militants at the University of Mosul on Wednesday.</media:description>
+      <media:credit>Muhammad Hamed/Reuters</media:credit>
+      <description>The announcement came three months after government troops, aided by American air support and military advisers, began an assault to retake the city.</description>
+      <dc:creator>RICK GLADSTONE</dc:creator>
+      <pubDate>Wed, 18 Jan 2017 21:54:47 GMT</pubDate>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">Iraq</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/mdes">Defense and Military Forces</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_org_all">Islamic State in Iraq and Syria (ISIS)</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">Mosul (Iraq)</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">Falluja (Iraq)</category>
+    </item>
+    <item>
+      <title>Trudeau Hits the Road, and Crowds and Questions Follow</title>
+      <link>http://www.nytimes.com/2017/01/18/world/canada/justin-trudeau-canada-town-hall-tour.html?partner=rss&amp;emc=rss</link>
+      <guid isPermaLink="true">http://www.nytimes.com/2017/01/18/world/canada/justin-trudeau-canada-town-hall-tour.html</guid>
+      <atom:link rel="standout" href="http://www.nytimes.com/2017/01/18/world/canada/justin-trudeau-canada-town-hall-tour.html?partner=rss&amp;emc=rss"/>
+      <media:content url="https://static01.nyt.com/images/2017/01/18/world/18Canada/18Canada-moth.jpg" medium="image" height="151" width="151"/>
+      <media:description>Prime Minister Justin Trudeau of Canada with supporters in Kingston, Ontario, on Jan. 12. Mr. Trudeau has set off on a nationwide tour that includes town hall-style events.</media:description>
+      <media:credit>Adrian Wyld/The Canadian Press, via Associated Press</media:credit>
+      <description>With the Canadian prime minister&#x2019;s image in need of some polishing, his January town-hall tour has all the earmarks of a campaign to reconnect with voters.</description>
+      <dc:creator>IAN AUSTEN</dc:creator>
+      <pubDate>Wed, 18 Jan 2017 20:22:24 GMT</pubDate>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">Canada</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_per">Trudeau, Justin</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Politics and Government</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Economic Conditions and Trends</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">International Trade and World Market</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/mdes">Conflicts of Interest</category>
+    </item>
+    <item>
+      <title>Suicide Attack at Military Camp in Mali Kills Scores</title>
+      <link>http://www.nytimes.com/2017/01/18/world/africa/suicide-attack-at-military-camp-in-mali-kills-scores.html?partner=rss&amp;emc=rss</link>
+      <guid isPermaLink="true">http://www.nytimes.com/2017/01/18/world/africa/suicide-attack-at-military-camp-in-mali-kills-scores.html</guid>
+      <atom:link rel="standout" href="http://www.nytimes.com/2017/01/18/world/africa/suicide-attack-at-military-camp-in-mali-kills-scores.html?partner=rss&amp;emc=rss"/>
+      <media:content url="https://static01.nyt.com/images/2017/01/19/us/19mali/19mali-moth.jpg" medium="image" height="151" width="151"/>
+      <media:description>Soldiers attended to casualties on Wednesday after a suicide attack at a Malian camp where soldiers and former fighters who reached a peace agreement with the government in 2015 had been working together to try to stabilize the region.</media:description>
+      <media:credit>Agence France-Presse &#x2014; Getty Images</media:credit>
+      <description>Many of the victims at the camp in Gao were soldiers and former rebel fighters who have been trying to work together to stabilize Mali&#x2019;s restive north.</description>
+      <dc:creator>THE ASSOCIATED PRESS</dc:creator>
+      <pubDate>Wed, 18 Jan 2017 19:48:53 GMT</pubDate>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Defense and Military Forces</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Politics and Government</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Diplomatic Service, Embassies and Consulates</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Terrorism</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_org_all">United Nations</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_per">Ladsous, Herve</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_per">Hollande, Francois</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">Gao (Mali)</category>
+    </item>
+    <item>
+      <title>Death Toll in Mistaken Bombing of Camp in Nigeria Climbs to 70</title>
+      <link>http://www.nytimes.com/2017/01/18/world/africa/nigeria-camp-airstrike-death-toll.html?partner=rss&amp;emc=rss</link>
+      <guid isPermaLink="true">http://www.nytimes.com/2017/01/18/world/africa/nigeria-camp-airstrike-death-toll.html</guid>
+      <atom:link rel="standout" href="http://www.nytimes.com/2017/01/18/world/africa/nigeria-camp-airstrike-death-toll.html?partner=rss&amp;emc=rss"/>
+      <description>The number killed in an errant bombing by a Nigerian military fighter jet on Tuesday included at least nine aid workers, humanitarian groups said Wednesday.</description>
+      <dc:creator>DIONNE SEARCEY</dc:creator>
+      <pubDate>Wed, 18 Jan 2017 19:35:28 GMT</pubDate>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">Nigeria</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Defense and Military Forces</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/mdes">Civilian Casualties</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/mdes">Refugees and Displaced Persons</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_org_all">Boko Haram</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_org_all">Doctors Without Borders</category>
+    </item>
+    <item>
+      <title>&lt;div&gt;Germany&#x2019;s Extreme Right Challenges Guilt Over Nazi Past &lt;/div&gt;</title>
+      <link>http://www.nytimes.com/2017/01/18/world/europe/germany-afd-alternative-bjorn-hocke.html?partner=rss&amp;emc=rss</link>
+      <guid isPermaLink="true">http://www.nytimes.com/2017/01/18/world/europe/germany-afd-alternative-bjorn-hocke.html</guid>
+      <atom:link rel="standout" href="http://www.nytimes.com/2017/01/18/world/europe/germany-afd-alternative-bjorn-hocke.html?partner=rss&amp;emc=rss"/>
+      <media:content url="https://static01.nyt.com/images/2017/01/19/world/europe/19Int-Germany1/19Int-Germany1-moth.jpg" medium="image" height="151" width="151"/>
+      <media:description>Bj&#xF6;rn H&#xF6;cke, left, at a rally for Alternative for Germany, in Dresden on Tuesday.</media:description>
+      <media:credit>Shane Thomas McMillan</media:credit>
+      <description>Bj&#xF6;rn H&#xF6;cke, a star in the Alternative for Germany party, has found success questioning national regret over the Holocaust and the country&#x2019;s Nazi crimes.</description>
+      <dc:creator>AMANDA TAUB and MAX FISHER</dc:creator>
+      <pubDate>Wed, 18 Jan 2017 17:51:32 GMT</pubDate>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">Germany</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_org_all">Alternative for Germany</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Politics and Government</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Holocaust and the Nazi Era</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_per">Hocke, Bjorn (1972- )</category>
+    </item>
+    <item>
+      <title>United Nations Memo: In South Sudan, Mass Killings, Rapes and the Limits of U.S. Diplomacy</title>
+      <link>http://www.nytimes.com/2017/01/18/world/africa/south-sudan-united-nations.html?partner=rss&amp;emc=rss</link>
+      <guid isPermaLink="true">http://www.nytimes.com/2017/01/18/world/africa/south-sudan-united-nations.html</guid>
+      <atom:link rel="standout" href="http://www.nytimes.com/2017/01/18/world/africa/south-sudan-united-nations.html?partner=rss&amp;emc=rss"/>
+      <media:content url="https://static01.nyt.com/images/2017/01/18/world/19nations/19nations-moth.jpg" medium="image" height="151" width="151"/>
+      <media:description>Samantha Power, center, the American ambassador to the United Nations, and members of the Security Council visited displaced people in Wau, South Sudan, last year.</media:description>
+      <media:credit>Justin Lynch/Associated Press</media:credit>
+      <description>Samantha Power, the ambassador to the United Nations, is known for advocating diplomacy to prevent atrocities, but poor timing has hampered efforts to avert a catastrophe.</description>
+      <dc:creator>SOMINI SENGUPTA</dc:creator>
+      <pubDate>Wed, 18 Jan 2017 14:30:14 GMT</pubDate>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">War Crimes, Genocide and Crimes Against Humanity</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">International Relations</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_org_all">United Nations</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_org_all">African Union</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">South Sudan</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">Juba (South Sudan)</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_per">Kiir Mayardit, Salva</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_per">Power, Samantha</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_per">Machar, Riek</category>
+    </item>
+    <item>
+      <title>Villager and Israeli Police Officer Die in Clash at Bedouin Hamlet</title>
+      <link>http://www.nytimes.com/2017/01/18/world/middleeast/israel-arab-home-demolition.html?partner=rss&amp;emc=rss</link>
+      <guid isPermaLink="true">http://www.nytimes.com/2017/01/18/world/middleeast/israel-arab-home-demolition.html</guid>
+      <atom:link rel="standout" href="http://www.nytimes.com/2017/01/18/world/middleeast/israel-arab-home-demolition.html?partner=rss&amp;emc=rss"/>
+      <media:content url="https://static01.nyt.com/images/2017/01/19/world/19Hiran1/19Hiran1-moth.jpg" medium="image" height="151" width="151"/>
+      <media:description>Israeli police officers detaining a man during clashes after a protest against house demolitions in the Bedouin village of Umm al-Hiran on Wednesday.</media:description>
+      <media:credit>Ammar Awad/Reuters</media:credit>
+      <description>There were conflicting accounts about events in Umm al-Hiran, a Negev village where homes were slated for demolition.</description>
+      <dc:creator>ISABEL KERSHNER</dc:creator>
+      <pubDate>Wed, 18 Jan 2017 21:30:46 GMT</pubDate>
+      <category domain="http://www.nytimes.com/namespaces/keywords/mdes">Bedouins</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_org_all">Adalah, The Legal Center for Arab Minority Rights in Israel</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_org_all">Islamic Movement</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">Israel</category>
+    </item>
+    <item>
+      <title>Russia Extends Edward Snowden&#x2019;s Asylum</title>
+      <link>http://www.nytimes.com/2017/01/18/world/europe/edward-snowden-asylum-russia.html?partner=rss&amp;emc=rss</link>
+      <guid isPermaLink="true">http://www.nytimes.com/2017/01/18/world/europe/edward-snowden-asylum-russia.html</guid>
+      <atom:link rel="standout" href="http://www.nytimes.com/2017/01/18/world/europe/edward-snowden-asylum-russia.html?partner=rss&amp;emc=rss"/>
+      <media:content url="https://static01.nyt.com/images/2017/01/19/world/19Snowden/19Snowden-moth.jpg" medium="image" height="151" width="151"/>
+      <media:description>Edward J. Snowden speaking to an audience in Massachusetts during a live video webcast in 2016.</media:description>
+      <media:credit>Kayana Szymczak for The New York Times</media:credit>
+      <description>Moscow said the former N.S.A. contractor, who was granted asylum in 2013, would be allowed to remain for &#x201C;a couple more years.&#x201D;</description>
+      <dc:creator>ANDREW E. KRAMER</dc:creator>
+      <pubDate>Wed, 18 Jan 2017 15:13:06 GMT</pubDate>
+      <category domain="http://www.nytimes.com/namespaces/keywords/mdes">Extradition</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/mdes">Privacy</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_org_all">National Security Agency</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_per">Snowden, Edward J</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">Russia</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">United States</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">United States International Relations</category>
+    </item>
+    <item>
+      <title>China Cancels 103 Coal Plants, Mindful of Smog and Wasted Capacity</title>
+      <link>http://www.nytimes.com/2017/01/18/world/asia/china-coal-power-plants-pollution.html?partner=rss&amp;emc=rss</link>
+      <guid isPermaLink="true">http://www.nytimes.com/2017/01/18/world/asia/china-coal-power-plants-pollution.html</guid>
+      <atom:link rel="standout" href="http://www.nytimes.com/2017/01/18/world/asia/china-coal-power-plants-pollution.html?partner=rss&amp;emc=rss"/>
+      <media:content url="https://static01.nyt.com/images/2017/01/19/world/19CHINACOAL-1/19CHINACOAL-1-moth.jpg" medium="image" height="151" width="151"/>
+      <media:description>A coal-fired power plant in Shanxi, China, in 2015. The government has canceled 103 coal plants that were planned or under construction, eliminating 120 gigawatts of future coal-fired capacity.</media:description>
+      <media:credit>Kevin Frayer/Getty Images</media:credit>
+      <description>The dropped projects include dozens already under construction, even though existing plants can already generate far more power than the country needs.</description>
+      <dc:creator>MICHAEL FORSYTHE</dc:creator>
+      <pubDate>Wed, 18 Jan 2017 11:21:36 GMT</pubDate>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Coal</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">China</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_org_all">National Energy Administration (China)</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/mdes">Global Warming</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Politics and Government</category>
+    </item>
+    <item>
+      <title>Sinosphere: On Taking Gay Rights From Taipei to Beijing: Don&#x2019;t Call It a &#x2018;Movement&#x2019;</title>
+      <link>http://www.nytimes.com/2017/01/18/world/asia/china-taiwan-same-sex-gay.html?partner=rss&amp;emc=rss</link>
+      <guid isPermaLink="true">http://www.nytimes.com/2017/01/18/world/asia/china-taiwan-same-sex-gay.html</guid>
+      <atom:link rel="standout" href="http://www.nytimes.com/2017/01/18/world/asia/china-taiwan-same-sex-gay.html?partner=rss&amp;emc=rss"/>
+      <media:content url="https://static01.nyt.com/images/2017/01/19/world/19CHINAGAY-1/19CHINAGAY-1-moth.jpg" medium="image" height="151" width="151"/>
+      <media:description>Lai Jeng-jer, a gay rights activist from Taiwan, at Two Cities, the cafe he opened after moving to Beijing in 2012. Before that, he had run a pioneering gay-themed bookstore in Taipei, Taiwan&#x2019;s capital.</media:description>
+      <media:credit>Giulia Marchi for The New York Times</media:credit>
+      <description>Lai Jeng-jer, a leader on gay rights in Taiwan who now lives in Beijing, discusses the progress he&#x2019;s seen on the mainland, as well as the limitations.</description>
+      <dc:creator>YURU CHENG and AMY CHANG CHIEN</dc:creator>
+      <pubDate>Wed, 18 Jan 2017 11:02:17 GMT</pubDate>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Same-Sex Marriage, Civil Unions and Domestic Partnerships</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">China</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">Taiwan</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Homosexuality and Bisexuality</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">Beijing (China)</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_per">Lai Jeng-jer</category>
+    </item>
+    <item>
+      <title>President&#x2019;s Term Running Out, Gambia Shudders as He Refuses to Quit</title>
+      <link>http://www.nytimes.com/2017/01/18/world/africa/gambia-yahya-jammeh-adama-barrow.html?partner=rss&amp;emc=rss</link>
+      <guid isPermaLink="true">http://www.nytimes.com/2017/01/18/world/africa/gambia-yahya-jammeh-adama-barrow.html</guid>
+      <atom:link rel="standout" href="http://www.nytimes.com/2017/01/18/world/africa/gambia-yahya-jammeh-adama-barrow.html?partner=rss&amp;emc=rss"/>
+      <description>The president&#x2019;s refusal to accept his electoral loss to Adama Barrow, after initially doing so, threatens to drag the nation into a bloody standoff.</description>
+      <dc:creator>JAIME YAYA BARRY and DIONNE SEARCEY</dc:creator>
+      <pubDate>Wed, 18 Jan 2017 10:00:25 GMT</pubDate>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">Gambia</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_per">Jammeh, Yahya</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Elections</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_per">Barrow, Adama (1965- )</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Politics and Government</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Human Rights and Human Rights Violations</category>
+    </item>
+    <item>
+      <title>China&#x2019;s Chief Justice Rejects an Independent Judiciary, and Reformers Wince</title>
+      <link>http://www.nytimes.com/2017/01/18/world/asia/china-chief-justice-courts-zhou-qiang.html?partner=rss&amp;emc=rss</link>
+      <guid isPermaLink="true">http://www.nytimes.com/2017/01/18/world/asia/china-chief-justice-courts-zhou-qiang.html</guid>
+      <atom:link rel="standout" href="http://www.nytimes.com/2017/01/18/world/asia/china-chief-justice-courts-zhou-qiang.html?partner=rss&amp;emc=rss"/>
+      <media:content url="https://static01.nyt.com/images/2017/01/19/world/19CHINA-1/19CHINA-1-moth.jpg" medium="image" height="151" width="151"/>
+      <media:description>Chief Justice Zhou Qiang at the National People&#x2019;s Congress in Beijing in March. A recent speech by the chief justice was seen as a nod to China&#x2019;s strict political climate, set by President Xi Jinping.</media:description>
+      <media:credit>Kim Kyung-hoon/Reuters</media:credit>
+      <description>Zhou Qiang denounced the &#x201C;trap&#x201D; of &#x201C;Western&#x201D; ideology, dismaying some liberal-minded observers of the Chinese legal system who had seen him as an encouraging figure.</description>
+      <dc:creator>MICHAEL FORSYTHE</dc:creator>
+      <pubDate>Wed, 18 Jan 2017 08:56:54 GMT</pubDate>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">China</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_org_all">Supreme People's Court (China)</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Politics and Government</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_per">Xi Jinping</category>
+    </item>
+    <item>
+      <title>U.S.-Trained Official May Shape China&#x2019;s Response to Trump on Trade</title>
+      <link>http://www.nytimes.com/2017/01/18/world/asia/liu-he-china-trade-trump.html?partner=rss&amp;emc=rss</link>
+      <guid isPermaLink="true">http://www.nytimes.com/2017/01/18/world/asia/liu-he-china-trade-trump.html</guid>
+      <atom:link rel="standout" href="http://www.nytimes.com/2017/01/18/world/asia/liu-he-china-trade-trump.html?partner=rss&amp;emc=rss"/>
+      <media:content url="https://static01.nyt.com/images/2016/12/28/world/31CHINA-LIU-1/31CHINA-LIU-1-moth-v2.jpg" medium="image" height="151" width="151"/>
+      <media:description>Liu He in Beijing in 2010. As the top economic adviser to China&#x2019;s president, Xi Jinping, Mr. Liu has sought to make China&#x2019;s growth less reliant on rising debt and public spending.</media:description>
+      <media:credit>Nelson Ching/Bloomberg</media:credit>
+      <description>Liu He, the top economic adviser to President Xi Jinping, has argued for more open markets. But his agenda could be overwhelmed by fears of fallout from a trade war.</description>
+      <dc:creator>CHRIS BUCKLEY and KEITH BRADSHER</dc:creator>
+      <pubDate>Wed, 18 Jan 2017 05:01:02 GMT</pubDate>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">China</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_per">Liu He (1952- )</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">International Trade and World Market</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_per">Trump, Donald J</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Economic Conditions and Trends</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_per">Xi Jinping</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">United States Economy</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_org_all">National Development and Reform Commission (China)</category>
+    </item>
+    <item>
+      <title>15 of the Best Journals by Our Reporters Around the World</title>
+      <link>http://www.nytimes.com/2016/12/30/world/15-of-the-best-journals-by-our-reporters-around-the-world.html?partner=rss&amp;emc=rss</link>
+      <guid isPermaLink="true">http://www.nytimes.com/2016/12/30/world/15-of-the-best-journals-by-our-reporters-around-the-world.html</guid>
+      <atom:link rel="standout" href="http://www.nytimes.com/2016/12/30/world/15-of-the-best-journals-by-our-reporters-around-the-world.html?partner=rss&amp;emc=rss"/>
+      <media:content url="https://static01.nyt.com/images/2016/01/18/world/asia/19India-slideshow-slide-FU7J/19India-slideshow-slide-FU7J-moth-v2.jpg" medium="image" height="151" width="151"/>
+      <media:description>A man folding blankets that are rented out to the homeless in Delhi.</media:description>
+      <media:credit>Daniel Berehulak for The New York Times</media:credit>
+      <description>The conversational and visual on-the-ground reports offered a glimpse of captivating people and places, from a &#x201C;sleep mafia&#x201D; in Delhi to a monastery seeking salvation in beer.</description>
+      <dc:creator>Compiled by BARBARA TIERNEY</dc:creator>
+      <pubDate>Fri, 30 Dec 2016 14:00:52 GMT</pubDate>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">vis-photo</category>
+    </item>
+    <item>
+      <title>&#x2018;I Didn&#x2019;t Want to Lose My Identity&#x2019;: 16,000 Readers Reflect on Their Surnames</title>
+      <link>http://www.nytimes.com/2016/12/24/world/identity-surnames-women.html?partner=rss&amp;emc=rss</link>
+      <guid isPermaLink="true">http://www.nytimes.com/2016/12/24/world/identity-surnames-women.html</guid>
+      <atom:link rel="standout" href="http://www.nytimes.com/2016/12/24/world/identity-surnames-women.html?partner=rss&amp;emc=rss"/>
+      <media:content url="https://static01.nyt.com/images/2016/12/17/world/surnames/surnames-moth.jpg" medium="image" height="151" width="151"/>
+      <media:description>Katherine Yuk from Toronto was one of more than 16,000 readers who responded when The New York Times asked women around the world why they kept or changed their surnames when they married.</media:description>
+      <media:credit>Ian Willms for The New York Times</media:credit>
+      <description>The Times asked women around the world why they had kept or changed their surnames when they married. For many, the decision carried significant weight.</description>
+      <dc:creator>HANNA INGBER</dc:creator>
+      <pubDate>Sat, 24 Dec 2016 11:00:44 GMT</pubDate>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">vis-comments</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Names, Personal</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/mdes">Women and Girls</category>
+    </item>
+    <item>
+      <title>Op-Ed Contributor: Britain&#x2019;s Soccer Sex Abuse Scandal</title>
+      <link>http://www.nytimes.com/2017/01/19/opinion/britains-soccer-sex-abuse-scandal.html?partner=rss&amp;emc=rss</link>
+      <guid isPermaLink="true">http://www.nytimes.com/2017/01/19/opinion/britains-soccer-sex-abuse-scandal.html</guid>
+      <atom:link rel="standout" href="http://www.nytimes.com/2017/01/19/opinion/britains-soccer-sex-abuse-scandal.html?partner=rss&amp;emc=rss"/>
+      <media:content url="https://static01.nyt.com/images/2017/01/20/opinion/20manzoor-inyt-web/20manzoor-inyt-web-moth.jpg" medium="image" height="151" width="151"/>
+      <media:description/>
+      <media:credit>S&#xE9;bastien Thibault</media:credit>
+      <description>In institution after institution, a pattern of exploitation of society&#x2019;s most vulnerable members has emerged.</description>
+      <dc:creator>SARFRAZ MANZOOR</dc:creator>
+      <pubDate>Thu, 19 Jan 2017 12:30:06 GMT</pubDate>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Child Abuse and Neglect</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Sex Crimes</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Soccer</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">Great Britain</category>
+    </item>
+    <item>
+      <title>Editorial: Freezing to Death at Europe&#x2019;s Door</title>
+      <link>http://www.nytimes.com/2017/01/19/opinion/freezing-to-death-at-europes-door.html?partner=rss&amp;emc=rss</link>
+      <guid isPermaLink="true">http://www.nytimes.com/2017/01/19/opinion/freezing-to-death-at-europes-door.html</guid>
+      <atom:link rel="standout" href="http://www.nytimes.com/2017/01/19/opinion/freezing-to-death-at-europes-door.html?partner=rss&amp;emc=rss"/>
+      <media:content url="https://static01.nyt.com/images/2017/01/20/world/20editorial-inyt-1/20editorial-inyt-1-moth.jpg" medium="image" height="151" width="151"/>
+      <media:description>Migrants inside a warehouse near Belgrade&#x2019;s main railway station, in Serbia, on Tuesday.</media:description>
+      <media:credit>Andrej Isakovic/Agence France-Presse &#x2014; Getty Images</media:credit>
+      <description>Failure to prepare for the winter threatens the lives of thousands of refugees.</description>
+      <dc:creator>THE EDITORIAL BOARD</dc:creator>
+      <pubDate>Thu, 19 Jan 2017 13:37:58 GMT</pubDate>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Middle East and Africa Migrant Crisis</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Refugees and Displaced Persons</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">Europe</category>
+    </item>
+    <item>
+      <title>Op-Ed Contributor: Voting Should Be Mandatory</title>
+      <link>http://www.nytimes.com/2017/01/19/opinion/voting-should-be-mandatory.html?partner=rss&amp;emc=rss</link>
+      <guid isPermaLink="true">http://www.nytimes.com/2017/01/19/opinion/voting-should-be-mandatory.html</guid>
+      <atom:link rel="standout" href="http://www.nytimes.com/2017/01/19/opinion/voting-should-be-mandatory.html?partner=rss&amp;emc=rss"/>
+      <media:content url="https://static01.nyt.com/images/2017/01/20/world/20ALY-INYT-1/19ALY-INYT-1-moth.jpg" medium="image" height="151" width="151"/>
+      <media:description>Voters in Canberra, Australia, in July. Around three-quarters of Australians have consistently supported compulsory voting.</media:description>
+      <media:credit>Martin Ollman/Getty Images</media:credit>
+      <description>Compulsory elections are won in the center. Extremist politicians can&#x2019;t get traction.</description>
+      <dc:creator>WALEED ALY</dc:creator>
+      <pubDate>Thu, 19 Jan 2017 12:02:59 GMT</pubDate>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Voting and Voters</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/des">Fringe Groups and Movements</category>
+      <category domain="http://www.nytimes.com/namespaces/keywords/nyt_geo">Australia</category>
+    </item>
+  </channel>
+</rss>

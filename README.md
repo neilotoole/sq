@@ -1,96 +1,39 @@
-# sq: simple queryer for structured data
+# sq: swiss army knife for data
 
-`sq` is a command-line tool that provides uniform access to structured data sources.
-This includes traditional SQL-style databases, or document formats such as JSON, XML, Excel etc.
+`sq` is a swiss army knife for data. `sq` provides uniform access to
+structured data sources like traditional SQL-style databases,
+or document formats such as CSV or Excel. `sq` can perform cross-source joins,  execute database-native SQL, and output to a multitude of formats including JSON, Excel, CSV, HTML markdown and XML, or output directly to a SQL database. `sq` can inspect sources to see metadata about the source structure (tables, columns, size) and has commands for frequent database operations such as copying or dropping tables.
+
+## Installation
 
 
-```
-> sq '.user | .uid, .username, .email'
-```
-```json
-[
-  {
-    "uid": 1,
-    "username": "neilotoole",
-    "email": "neilotoole@apache.org"
-  },
-  {
-    "uid": 2,
-    "username": "ksoze",
-    "email": "kaiser@soze.org"
-  },
-  {
-    "uid": 3,
-    "username": "kubla",
-    "email": "kubla@khan.mn"
-  }
-]
+### From source
+
+From the `sq` project dir:
+
+```shell script
+> go install
 ```
 
-> `sq` defines its own query language, seen above, formally known as `SLQ`.
+The simple go install does not populate the binary with build info that
+is output via the `sq version` command. To do so, use [mage](https://magefile.org/).
 
-
-For usage information or to download the binaries, see the `sq` [manual](https://github.com/neilotoole/sq-manual/wiki).
-
-
-## Development
-
-These steps are for Mac OS X (tested on El Capitan `10.11.16`). The examples assume username  `ksoze`.
-
-
-### Prerequisites
-- [brew](http://brew.sh/)
-- [Xcode](https://itunes.apple.com/us/app/xcode/id497799835?mt=12) dev tools.
-- [jq](https://stedolan.github.io/jq/) `brew install jq 1.5`
-- [Go](https://golang.org/doc/install) `brew install go 1.7.1`
-- [Docker](https://docs.docker.com/docker-for-mac/)
-- [Java](http://www.oracle.com/technetwork/java/javase/downloads/index.html) is required if you're working on the *SLQ* grammar.
-
-
-
-### Fork
-Fork this [repo](https://github.com/neilotoole/sq), e.g. to  `https://github.com/ksoze/sq`.
-
-Clone the forked repo and set the `upstream` remote:
-
+```shell script
+> brew install mage
+> mage install
 ```
-mkdir -p $GOPATH/src/github.com/neilotoole
-cd $GOPATH/src/github.com/neilotoole
-git clone https://github.com/ksoze/sq.git
-cd ./sq
-git remote add upstream https://github.com/neilotoole/sq.git
-# verify that the remote was set
-git remote -v
-```
-	
-### Make
-From  `$GOPATH/src/github.com/neilotoole/sq`, run `./test.sh`. This will run `make test`
-inside a docker container.
 
-For developing locally, this sequence should get you started:
+### Other installation options
 
-```
-make install-go-tools
-make start-test-containers
-make test
-make install
-make smoke
-make dist
-```
-	
-Note that running these steps may take some time (in particular due the use of
-Cgo and cross-compiling distributables). Try `sq ls`. Note that by default `sq` uses `~/.sq/sq.yml` as
-its config store, and outputs debug logs to `~/.sq/sq.log`.
+For homebrew, scoop, rpm etc, see the [wiki](https://github.com/neilotoole/sq-preview/wiki).
 
 
-Assuming the test containers are running (`make start-test-containers`), this workflow is suggested:
-
-- Make your changes
-- Run `make test && make install && make smoke`
 
 
-## Contributing
 
-When your changes are ready and tested, run `make dist` and a final `make smoke`.
-Push the changes to your own fork, and then open a PR against the upstream repo. The PR should include a link
-to the GitHub issue(s) that it addresses, and it must include the output of `make smoke`.
+## Acknowledgements
+
+- The [_Sakila_](https://dev.mysql.com/doc/sakila/en/) example databases were lifted from [jOOQ](https://github.com/jooq/jooq), which
+  in turn owe their heritage to earlier work on Sakila.
+- The `sq` query language was inspired by [jq](https://stedolan.github.io/jq/).
+
