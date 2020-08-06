@@ -127,12 +127,7 @@ func (fs *YAMLFileStore) loadExt(cfg *Config) error {
 				continue
 			}
 			extCfgCandidates = append(extCfgCandidates, filepath.Join(extPath, fiExtPath.Name()))
-		} else {
-			continue
-			// Again, won't stop bootstrap because of sqext failures
-			// return nil, errz.Wrapf(err, "failed to load ext config from %q", extPath)
 		}
-		// else file does not exist
 	}
 
 	for _, f := range extCfgCandidates {
@@ -159,19 +154,19 @@ func (fs *YAMLFileStore) Save(cfg *Config) error {
 		return errz.New("config file store is nil")
 	}
 
-	bytes, err := yaml.Marshal(cfg)
+	data, err := yaml.Marshal(cfg)
 	if err != nil {
 		return errz.Wrap(err, "failed to marshal config to YAML")
 	}
 
 	// It's possible that the parent dir of fs.Path doesn't exist.
 	dir := filepath.Dir(fs.Path)
-	err = os.MkdirAll(dir, os.ModePerm)
+	err = os.MkdirAll(dir, 0750)
 	if err != nil {
 		return errz.Wrapf(err, "failed to make parent dir of sq config file: %s", dir)
 	}
 
-	err = ioutil.WriteFile(fs.Path, bytes, os.ModePerm)
+	err = ioutil.WriteFile(fs.Path, data, 0600)
 	if err != nil {
 		return errz.Wrap(err, "failed to save config file")
 	}

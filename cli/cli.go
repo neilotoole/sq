@@ -650,7 +650,7 @@ func defaultLogging() (lg.Log, *cleanup.Cleanup, error) {
 	// Let's try to create the dir holding the logfile... if it already exists,
 	// then os.MkdirAll will just no-op
 	parent := filepath.Dir(logFilePath)
-	err := os.MkdirAll(parent, os.ModePerm)
+	err := os.MkdirAll(parent, 0750)
 	if err != nil {
 		return lg.Discard(), nil, errz.Wrapf(err, "failed to create parent dir of log file %s", logFilePath)
 	}
@@ -660,7 +660,7 @@ func defaultLogging() (lg.Log, *cleanup.Cleanup, error) {
 		flag = os.O_TRUNC
 	}
 
-	logFile, err := os.OpenFile(logFilePath, os.O_RDWR|os.O_CREATE|flag, 0666)
+	logFile, err := os.OpenFile(logFilePath, os.O_RDWR|os.O_CREATE|flag, 0600)
 	if err != nil {
 		return lg.Discard(), nil, errz.Wrapf(err, "unable to open log file %q", logFilePath)
 	}
