@@ -16,23 +16,15 @@ import (
 	"github.com/neilotoole/sq/testh/testsrc"
 )
 
-func TestCmdSQL_Insert_LONG(t *testing.T) {
-	testh.SkipShort(t, true)
-	testCmdSQL_Insert(t, sakila.All, sakila.All)
-}
+// TestCmdSQL_Insert tests "sq sql QUERY --insert=dest.tbl".
 func TestCmdSQL_Insert(t *testing.T) {
-	testCmdSQL_Insert(t, sakila.SQLLatest, sakila.SQLLatest)
-}
-
-// testCmdSQL_Insert tests "sq sql QUERY --insert=dest.tbl".
-func testCmdSQL_Insert(t *testing.T, origins, dests []string) {
-	for _, origin := range origins {
+	for _, origin := range sakila.SQLLatest {
 		origin := origin
 
 		t.Run("origin_"+origin, func(t *testing.T) {
 			testh.SkipShort(t, origin == sakila.XLSX)
 
-			for _, dest := range dests {
+			for _, dest := range sakila.SQLLatest {
 				dest := dest
 
 				t.Run("dest_"+dest, func(t *testing.T) {
