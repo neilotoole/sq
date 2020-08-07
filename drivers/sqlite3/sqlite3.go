@@ -63,7 +63,7 @@ func (d *Driver) DriverMetadata() driver.Metadata {
 func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
 	d.log.Debug("Opening data source: ", src)
 
-	dsn, err := PathFromSourceLocation(src)
+	dsn, err := PathFromLocation(src)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +77,7 @@ func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Database,
 
 // Truncate implements driver.Driver.
 func (d *Driver) Truncate(ctx context.Context, src *source.Source, tbl string, reset bool) (affected int64, err error) {
-	dsn, err := PathFromSourceLocation(src)
+	dsn, err := PathFromLocation(src)
 	if err != nil {
 		return 0, err
 	}
@@ -118,7 +118,7 @@ func (d *Driver) ValidateSource(src *source.Source) (*source.Source, error) {
 
 // Ping implements driver.Driver.
 func (d *Driver) Ping(ctx context.Context, src *source.Source) error {
-	dbase, err := d.Open(context.TODO(), src)
+	dbase, err := d.Open(ctx, src)
 	if err != nil {
 		return err
 	}
@@ -384,18 +384,20 @@ func NewScratchSource(log lg.Log, name string) (src *source.Source, clnup func()
 	return src, cleanFn, nil
 }
 
-// PathFromSourceLocation returns absolute file path
-// from the source location, which typically has the "sqlite3:" prefix.
-func PathFromSourceLocation(src *source.Source) (string, error) {
+// PathFromLocation returns the absolute file path
+// from the source location, which should have the "sqlite3://" prefix.
+func PathFromLocation(src *source.Source) (string, error) {
+	const prefix = dbDrvr + "://"
+
 	if src.Type != Type {
 		return "", errz.Errorf("driver %q does not support %q", Type, src.Type)
 	}
 
-	if !strings.HasPrefix(src.Location, dbDrvr+":") {
-		return "", errz.Errorf("sqlite3 source location must begin with %q but was: %s", Type, src.RedactedLocation())
+	if !strings.HasPrefix(src.Location, prefix) {
+		return "", errz.Errorf("sqlite3 source location must begin with %q but was: %s", prefix, src.RedactedLocation())
 	}
 
-	loc := strings.TrimPrefix(src.Location, dbDrvr+":")
+	loc := strings.TrimPrefix(src.Location, prefix)
 	if len(loc) < 2 {
 		return "", errz.Errorf("sqlite3 source location is too short: %s", src.RedactedLocation())
 	}

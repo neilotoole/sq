@@ -214,7 +214,8 @@ func TestSQLDriver_PrepareUpdateStmt(t *testing.T) {
 
 func TestDriver_Ping(t *testing.T) {
 	t.Parallel()
-	testCases := append(sakila.All, sakila.CSVActor, sakila.CSVActorHTTP)
+	testCases := sakila.All
+	testCases = append(testCases, sakila.CSVActor, sakila.CSVActorHTTP)
 
 	for _, handle := range testCases {
 		handle := handle
@@ -235,7 +236,8 @@ func TestDriver_Ping(t *testing.T) {
 
 func TestDriver_Open(t *testing.T) {
 	t.Parallel()
-	testCases := append(sakila.All, sakila.CSVActor, sakila.CSVActorHTTP)
+	testCases := sakila.All
+	testCases = append(testCases, sakila.CSVActor, sakila.CSVActorHTTP)
 
 	for _, handle := range testCases {
 		handle := handle
