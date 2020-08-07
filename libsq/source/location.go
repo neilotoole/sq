@@ -223,20 +223,6 @@ func parseLoc(loc string) (*parsedLoc, error) {
 	ploc.dsn = u.DSN
 	ploc.user = u.User.Username()
 	ploc.pass, _ = u.User.Password()
-
-	// sqlite3 is a special case, handle it now
-	//if ploc.scheme == "sqlite3" {
-	//	ploc.typ = typeSL3
-	//	name := path.Base(u.DSN)
-	//	ploc.ext = filepath.Ext(name)
-	//	if ploc.ext != "" {
-	//		name = name[:len(name)-len(ploc.ext)]
-	//	}
-	//
-	//	ploc.name = name
-	//	return ploc, nil
-	//}
-
 	ploc.hostname = u.Hostname()
 	if u.Port() != "" {
 		ploc.port, err = strconv.Atoi(u.Port())
