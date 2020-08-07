@@ -349,7 +349,7 @@ func (t *Table) printHeading() {
 		pad := ConditionString(i == end && !t.borders.Left, Space, t.pColumn)
 
 		head := t.headerTrans(fmt.Sprintf("%s %s ", padFunc(h, Space, v), pad))
-		fmt.Print(head)
+		fmt.Fprint(t.out, head)
 
 	}
 	// Next line

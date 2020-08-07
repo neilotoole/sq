@@ -150,7 +150,7 @@ func (h *Helper) Source(handle string) *source.Source {
 	switch src.Type {
 	case sqlite3.Type:
 		// This could be easily generalized for CSV/XLSX etc.
-		fpath, err := sqlite3.PathFromSourceLocation(src)
+		fpath, err := sqlite3.PathFromLocation(src)
 		require.NoError(t, err)
 
 		srcFile, err := os.Open(fpath)
@@ -167,7 +167,7 @@ func (h *Helper) Source(handle string) *source.Source {
 		_, err = io.Copy(destFile, srcFile)
 		require.NoError(t, err)
 
-		src.Location = "sqlite3:" + destFile.Name()
+		src.Location = sqlite3.Prefix + destFile.Name()
 	}
 	h.srcCache[handle] = src
 	return src

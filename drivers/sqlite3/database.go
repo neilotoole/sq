@@ -46,7 +46,7 @@ func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error)
 
 	meta := &source.Metadata{Handle: d.src.Handle, SourceType: Type, DBDriverType: dbDrvr}
 
-	dsn, err := PathFromSourceLocation(d.src)
+	dsn, err := PathFromLocation(d.src)
 	if err != nil {
 		return nil, err
 	}

@@ -181,8 +181,8 @@ func newNotifyAddHipChatCmd() (*cobra.Command, runFunc) {
 }
 
 func execNotifyAddHipChat(rc *RunContext, cmd *cobra.Command, args []string) error {
-	fmt.Println("Add HipChat room")
-	fmt.Println(strings.Join(args, " | "))
+	fmt.Fprintln(rc.Out, "Add HipChat room")
+	fmt.Fprintln(rc.Out, strings.Join(args, " | "))
 
 	var label string
 	var err error
@@ -194,7 +194,7 @@ func execNotifyAddHipChat(rc *RunContext, cmd *cobra.Command, args []string) err
 	}
 
 	if label != "" {
-		fmt.Printf("Label: %s", label)
+		fmt.Fprintf(rc.Out, "Label: %s", label)
 	}
 
 	return nil

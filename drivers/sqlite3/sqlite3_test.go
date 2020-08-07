@@ -6,6 +6,8 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/sq/drivers/sqlite3"
+	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/sqlmodel"
 	"github.com/neilotoole/sq/libsq/sqlz"
 	"github.com/neilotoole/sq/libsq/stringz"
@@ -158,5 +160,38 @@ func TestDriver_CreateTable_NotNullDefault(t *testing.T) {
 	require.Equal(t, len(colNames), len(sink.RecMeta))
 	for i := range sink.Recs[0] {
 		require.NotNil(t, sink.Recs[0][i])
+	}
+}
+
+func TestPathFromLocation(t *testing.T) {
+	testCases := []struct {
+		loc     string
+		want    string
+		wantErr bool
+	}{
+		{loc: "sqlite3:///test.db", want: "/test.db"},
+		{loc: "postgres:///test.db", wantErr: true},
+		{loc: `sqlite3://C:\dir\sakila.db`, want: `C:\dir\sakila.db`},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+
+		t.Run(tc.loc, func(t *testing.T) {
+			src := &source.Source{
+				Handle:   "@h1",
+				Type:     sqlite3.Type,
+				Location: tc.loc,
+			}
+
+			got, err := sqlite3.PathFromLocation(src)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got)
+		})
 	}
 }

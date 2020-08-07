@@ -455,8 +455,11 @@ func AbsLocation(loc string) string {
 	return loc
 }
 
+// isFpath returns true if loc is a file path.
 func isFpath(loc string) (fpath string, ok bool) {
-	if strings.ContainsRune(loc, ':') {
+	// This is not exactly an industrial-strength algorithm...
+	if strings.Contains(loc, ":/") {
+		// Excludes "http:/" etc
 		return "", false
 	}
 

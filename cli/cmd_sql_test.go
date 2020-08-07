@@ -16,23 +16,15 @@ import (
 	"github.com/neilotoole/sq/testh/testsrc"
 )
 
-func TestCmdSQL_Insert_LONG(t *testing.T) {
-	testh.SkipShort(t, true)
-	testCmdSQL_Insert(t, sakila.All, sakila.All)
-}
+// TestCmdSQL_Insert tests "sq sql QUERY --insert=dest.tbl".
 func TestCmdSQL_Insert(t *testing.T) {
-	testCmdSQL_Insert(t, sakila.SQLLatest, sakila.SQLLatest)
-}
-
-// testCmdSQL_Insert tests "sq sql QUERY --insert=dest.tbl".
-func testCmdSQL_Insert(t *testing.T, origins, dests []string) {
-	for _, origin := range origins {
+	for _, origin := range sakila.SQLLatest {
 		origin := origin
 
 		t.Run("origin_"+origin, func(t *testing.T) {
 			testh.SkipShort(t, origin == sakila.XLSX)
 
-			for _, dest := range dests {
+			for _, dest := range sakila.SQLLatest {
 				dest := dest
 
 				t.Run("dest_"+dest, func(t *testing.T) {
@@ -125,8 +117,8 @@ func TestCmdSQL_StdinQuery(t *testing.T) {
 		wantCount int
 		wantErr   bool
 	}{
-		{fpath: proj.Abs(sakila.PathCSVActor), tbl: source.MonotableName, wantCount: sakila.TblActorCount + 1}, // +1 is for the header row
-		{fpath: proj.Abs(sakila.PathXLSXSubset), tbl: sakila.TblActor, wantCount: sakila.TblActorCount + 1},
+		{fpath: proj.Abs(sakila.PathCSVActorNoHeader), tbl: source.MonotableName, wantCount: sakila.TblActorCount},
+		{fpath: proj.Abs(sakila.PathXLSXSubset), tbl: sakila.TblActor, wantCount: sakila.TblActorCount + 1}, // +1 is for the header row in the XLSX file
 		{fpath: proj.Abs("README.md"), wantErr: true},
 	}
 
@@ -140,9 +132,10 @@ func TestCmdSQL_StdinQuery(t *testing.T) {
 			require.NoError(t, err)
 
 			ru := newRun(t).hush()
+			//ru := newRun(t)
 			ru.rc.Stdin = f
 
-			err = ru.exec("sql", "SELECT * FROM "+tc.tbl)
+			err = ru.exec("sql", "--no-header", "SELECT * FROM "+tc.tbl)
 			if tc.wantErr {
 				require.Error(t, err)
 				return

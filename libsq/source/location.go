@@ -150,8 +150,13 @@ type parsedLoc struct {
 func parseLoc(loc string) (*parsedLoc, error) {
 	ploc := &parsedLoc{loc: loc}
 
-	if !strings.ContainsRune(loc, ':') {
-		// no scheme: it's just a file path
+	if !strings.Contains(loc, "://") {
+		if strings.Contains(loc, ":/") {
+			// malformed location, such as "sqlite3:/path/to/file"
+			return nil, errz.Errorf("parse location: invalid scheme: %q", loc)
+		}
+
+		// no scheme: it's just a regular file path for a document such as an Excel file
 		name := filepath.Base(loc)
 		ploc.ext = filepath.Ext(name)
 		if ploc.ext != "" {
@@ -184,20 +189,22 @@ func parseLoc(loc string) (*parsedLoc, error) {
 		return ploc, nil
 	}
 
-	u, err := dburl.Parse(loc)
-	if err != nil {
-		return nil, errz.Err(err)
-	}
-
-	ploc.scheme = u.OriginalScheme
-	ploc.dsn = u.DSN
-	ploc.user = u.User.Username()
-	ploc.pass, _ = u.User.Password()
-
 	// sqlite3 is a special case, handle it now
-	if ploc.scheme == "sqlite3" {
+	const sqlitePrefix = "sqlite3://"
+	if strings.HasPrefix(loc, sqlitePrefix) {
+		fpath := strings.TrimPrefix(loc, sqlitePrefix)
+
+		ploc.scheme = "sqlite3"
 		ploc.typ = typeSL3
-		name := path.Base(u.DSN)
+		ploc.dsn = fpath
+
+		// fpath could include params, e.g. "sqlite3://C:\sakila.db?param=val"
+		if i := strings.IndexRune(fpath, '?'); i >= 0 {
+			// Snip off the params
+			fpath = fpath[:i]
+		}
+
+		name := filepath.Base(fpath)
 		ploc.ext = filepath.Ext(name)
 		if ploc.ext != "" {
 			name = name[:len(name)-len(ploc.ext)]
@@ -207,6 +214,15 @@ func parseLoc(loc string) (*parsedLoc, error) {
 		return ploc, nil
 	}
 
+	u, err := dburl.Parse(loc)
+	if err != nil {
+		return nil, errz.Err(err)
+	}
+
+	ploc.scheme = u.OriginalScheme
+	ploc.dsn = u.DSN
+	ploc.user = u.User.Username()
+	ploc.pass, _ = u.User.Password()
 	ploc.hostname = u.Hostname()
 	if u.Port() != "" {
 		ploc.port, err = strconv.Atoi(u.Port())
