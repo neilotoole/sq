@@ -63,9 +63,10 @@ func TestParseLoc(t *testing.T) {
 		{loc: "./relative/path/to/sakila.xlsx", want: parsedLoc{name: "sakila", ext: ".xlsx"}},
 		{loc: "https://server:8080/path/to/sakila.xlsx", want: parsedLoc{scheme: "https", hostname: "server", port: 8080, name: "sakila", ext: ".xlsx"}},
 		{loc: "http://server/path/to/sakila.xlsx?param=val&param2=val2", want: parsedLoc{scheme: "http", hostname: "server", name: "sakila", ext: ".xlsx"}},
-		{loc: "sqlite3:/path/to/sakila.db", wantErr: true},
+		{loc: "sqlite3:/path/to/sakila.db", wantErr: true}, // the scheme is malformed (should be "sqlite3://...")
 		{loc: "sqlite3:///path/to/sakila.sqlite", want: parsedLoc{typ: typeSL3, scheme: "sqlite3", name: "sakila", ext: ".sqlite", dsn: "/path/to/sakila.sqlite"}},
 		{loc: `sqlite3://C:\path\to\sakila.sqlite`, windows: true, want: parsedLoc{typ: typeSL3, scheme: "sqlite3", name: "sakila", ext: ".sqlite", dsn: `C:\path\to\sakila.sqlite`}},
+		{loc: `sqlite3://C:\path\to\sakila.sqlite?param=val`, windows: true, want: parsedLoc{typ: typeSL3, scheme: "sqlite3", name: "sakila", ext: ".sqlite", dsn: `C:\path\to\sakila.sqlite?param=val`}},
 		{loc: "sqlite3:///path/to/sakila", want: parsedLoc{typ: typeSL3, scheme: "sqlite3", name: "sakila", dsn: "/path/to/sakila"}},
 		{loc: "sqlite3://path/to/sakila.db", want: parsedLoc{typ: typeSL3, scheme: "sqlite3", name: "sakila", ext: ".db", dsn: "path/to/sakila.db"}},
 		{loc: "sqlite3:///path/to/sakila.db", want: parsedLoc{typ: typeSL3, scheme: "sqlite3", name: "sakila", ext: ".db", dsn: "/path/to/sakila.db"}},
