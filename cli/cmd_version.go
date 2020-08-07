@@ -29,13 +29,13 @@ func execVersion(rc *RunContext, cmd *cobra.Command, args []string) error {
 	rc.wrtr.fmt.Hilite.Fprintf(rc.Out, "sq %s", version)
 
 	if len(buildinfo.Commit) > 0 {
-		fmt.Fprintf(rc.Out, "                ")
-		rc.wrtr.fmt.Faint.Fprintf(rc.Out, "#"+buildinfo.Commit)
+		fmt.Fprint(rc.Out, "    ")
+		rc.wrtr.fmt.Faint.Fprint(rc.Out, "#"+buildinfo.Commit)
 	}
 
 	if len(buildinfo.Timestamp) > 0 {
-		fmt.Fprintf(rc.Out, "       ")
-		rc.wrtr.fmt.Faint.Fprintf(rc.Out, buildinfo.Timestamp)
+		fmt.Fprint(rc.Out, "    ")
+		rc.wrtr.fmt.Faint.Fprint(rc.Out, buildinfo.Timestamp)
 	}
 
 	fmt.Fprintln(rc.Out)
