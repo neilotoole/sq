@@ -151,6 +151,11 @@ func parseLoc(loc string) (*parsedLoc, error) {
 	ploc := &parsedLoc{loc: loc}
 
 	if !strings.Contains(loc, "://") {
+		if strings.Contains(loc, ":/") {
+			// malformed location, such as "sqlite3:/path/to/file"
+			return nil, errz.Errorf("parse location: invalid scheme: %q", loc)
+		}
+
 		// no scheme: it's just a file path
 		name := filepath.Base(loc)
 		ploc.ext = filepath.Ext(name)
@@ -184,6 +189,24 @@ func parseLoc(loc string) (*parsedLoc, error) {
 		return ploc, nil
 	}
 
+	// sqlite3 is a special case, handle it now
+	if strings.HasPrefix(loc, "sqlite3://") {
+		p := loc[10:]
+		p = filepath.Clean(p)
+
+		ploc.scheme = "sqlite3"
+		ploc.typ = typeSL3
+		ploc.dsn = p
+		name := filepath.Base(p)
+		ploc.ext = filepath.Ext(name)
+		if ploc.ext != "" {
+			name = name[:len(name)-len(ploc.ext)]
+		}
+
+		ploc.name = name
+		return ploc, nil
+	}
+
 	u, err := dburl.Parse(loc)
 	if err != nil {
 		return nil, errz.Err(err)
@@ -195,17 +218,17 @@ func parseLoc(loc string) (*parsedLoc, error) {
 	ploc.pass, _ = u.User.Password()
 
 	// sqlite3 is a special case, handle it now
-	if ploc.scheme == "sqlite3" {
-		ploc.typ = typeSL3
-		name := path.Base(u.DSN)
-		ploc.ext = filepath.Ext(name)
-		if ploc.ext != "" {
-			name = name[:len(name)-len(ploc.ext)]
-		}
-
-		ploc.name = name
-		return ploc, nil
-	}
+	//if ploc.scheme == "sqlite3" {
+	//	ploc.typ = typeSL3
+	//	name := path.Base(u.DSN)
+	//	ploc.ext = filepath.Ext(name)
+	//	if ploc.ext != "" {
+	//		name = name[:len(name)-len(ploc.ext)]
+	//	}
+	//
+	//	ploc.name = name
+	//	return ploc, nil
+	//}
 
 	ploc.hostname = u.Hostname()
 	if u.Port() != "" {
