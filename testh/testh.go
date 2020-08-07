@@ -167,7 +167,7 @@ func (h *Helper) Source(handle string) *source.Source {
 		_, err = io.Copy(destFile, srcFile)
 		require.NoError(t, err)
 
-		src.Location = "sqlite3://" + destFile.Name()
+		src.Location = sqlite3.Prefix + destFile.Name()
 	}
 	h.srcCache[handle] = src
 	return src
