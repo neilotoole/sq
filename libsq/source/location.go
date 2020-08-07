@@ -150,7 +150,7 @@ type parsedLoc struct {
 func parseLoc(loc string) (*parsedLoc, error) {
 	ploc := &parsedLoc{loc: loc}
 
-	if !strings.ContainsRune(loc, ':') {
+	if !strings.Contains(loc, "://") {
 		// no scheme: it's just a file path
 		name := filepath.Base(loc)
 		ploc.ext = filepath.Ext(name)
