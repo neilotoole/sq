@@ -348,6 +348,8 @@ func (rc *RunContext) preRunE() error {
 	}
 
 	rc.wrtr = newWriters(rc.Log, rc.Cmd, rc.Config.Options, rc.Out, rc.ErrOut)
+	rc.Out = rc.wrtr.out
+	rc.ErrOut = rc.wrtr.errOut
 
 	var scratchSrcFunc driver.ScratchSrcFunc
 
@@ -456,6 +458,8 @@ func (rc *RunContext) databases() *driver.Databases {
 
 // writers is a container for the various output writer types.
 type writers struct {
+	out     io.Writer
+	errOut  io.Writer
 	fmt     *output.Formatting
 	recordw output.RecordWriter
 	metaw   output.MetadataWriter
@@ -491,6 +495,8 @@ func newWriters(log lg.Log, cmd *cobra.Command, opts config.Options, out, errOut
 	// flags and set the various writer fields depending upon which
 	// writers the format implements.
 	w := &writers{
+		out:     out,
+		errOut:  errOut,
 		fmt:     fm,
 		recordw: tablew.NewRecordWriter(out, fm, hasHeader),
 		metaw:   tablew.NewMetadataWriter(out, fm),

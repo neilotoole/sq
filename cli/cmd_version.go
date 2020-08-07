@@ -23,7 +23,7 @@ func execVersion(rc *RunContext, cmd *cobra.Command, args []string) error {
 	// If buildinfo.Version is not set (building without ldflags),
 	// then we set a dummy version.
 	if version == "" {
-		version = "0.0.0.dev"
+		version = "0.0.0-dev"
 	}
 
 	rc.wrtr.fmt.Hilite.Fprintf(rc.Out, "sq %s", version)
