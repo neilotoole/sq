@@ -26,16 +26,16 @@ func execVersion(rc *RunContext, cmd *cobra.Command, args []string) error {
 		version = "0.0.0-dev"
 	}
 
-	rc.wrtr.fmt.Hilite.Fprintf(rc.Out, "sq %s", version)
+	rc.writers.fmt.Hilite.Fprintf(rc.Out, "sq %s", version)
 
 	if len(buildinfo.Commit) > 0 {
 		fmt.Fprint(rc.Out, "    ")
-		rc.wrtr.fmt.Faint.Fprint(rc.Out, "#"+buildinfo.Commit)
+		rc.writers.fmt.Faint.Fprint(rc.Out, "#"+buildinfo.Commit)
 	}
 
 	if len(buildinfo.Timestamp) > 0 {
 		fmt.Fprint(rc.Out, "    ")
-		rc.wrtr.fmt.Faint.Fprint(rc.Out, buildinfo.Timestamp)
+		rc.writers.fmt.Faint.Fprint(rc.Out, buildinfo.Timestamp)
 	}
 
 	fmt.Fprintln(rc.Out)

@@ -93,7 +93,7 @@ func execSLQ(rc *RunContext, cmd *cobra.Command, args []string) error {
 // execSQLInsert executes the SQL and inserts resulting records
 // into destTbl in destSrc.
 func execSLQInsert(rc *RunContext, destSrc *source.Source, destTbl string) error {
-	args, srcs, dbases := rc.Args, rc.Config.Sources, rc.databases()
+	args, srcs, dbases := rc.Args, rc.Config.Sources, rc.databases
 	slq, err := preprocessUserSLQ(rc, args)
 	if err != nil {
 		return err
@@ -113,7 +113,7 @@ func execSLQInsert(rc *RunContext, destSrc *source.Source, destTbl string) error
 	// stack.
 
 	inserter := libsq.NewDBWriter(rc.Log, destDB, destTbl, libsq.DefaultRecordChSize)
-	err = libsq.ExecuteSLQ(ctx, rc.Log, rc.dbases, rc.dbases, srcs, slq, inserter)
+	err = libsq.ExecuteSLQ(ctx, rc.Log, rc.databases, rc.databases, srcs, slq, inserter)
 	if err != nil {
 		return errz.Wrapf(err, "insert %s.%s failed", destSrc.Handle, destTbl)
 	}
@@ -133,8 +133,8 @@ func execSLQPrint(rc *RunContext) error {
 		return err
 	}
 
-	recw := output.NewRecordWriterAdapter(rc.writers().recordw)
-	err = libsq.ExecuteSLQ(rc.Context, rc.Log, rc.dbases, rc.dbases, rc.Config.Sources, slq, recw)
+	recw := output.NewRecordWriterAdapter(rc.writers.recordw)
+	err = libsq.ExecuteSLQ(rc.Context, rc.Log, rc.databases, rc.databases, rc.Config.Sources, slq, recw)
 	if err != nil {
 		return err
 	}
@@ -172,7 +172,7 @@ func execSLQPrint(rc *RunContext) error {
 //
 //  $ sq '.person'  -->  sq '@active.person'
 func preprocessUserSLQ(rc *RunContext, args []string) (string, error) {
-	log, reg, dbases, srcs := rc.Log, rc.registry(), rc.databases(), rc.Config.Sources
+	log, reg, dbases, srcs := rc.Log, rc.registry, rc.databases, rc.Config.Sources
 	activeSrc := srcs.Active()
 
 	if len(args) == 0 {

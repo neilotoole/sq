@@ -103,12 +103,12 @@ func execSQL(rc *RunContext, cmd *cobra.Command, args []string) error {
 // to the configured writer.
 func execSQLPrint(rc *RunContext, fromSrc *source.Source) error {
 	args := rc.Args
-	dbase, err := rc.databases().Open(rc.Context, fromSrc)
+	dbase, err := rc.databases.Open(rc.Context, fromSrc)
 	if err != nil {
 		return err
 	}
 
-	recw := output.NewRecordWriterAdapter(rc.writers().recordw)
+	recw := output.NewRecordWriterAdapter(rc.writers.recordw)
 	err = libsq.QuerySQL(rc.Context, rc.Log, dbase, recw, args[0])
 	if err != nil {
 		return err
@@ -121,7 +121,7 @@ func execSQLPrint(rc *RunContext, fromSrc *source.Source) error {
 // into destTbl in destSrc.
 func execSQLInsert(rc *RunContext, fromSrc, destSrc *source.Source, destTbl string) error {
 	args := rc.Args
-	dbases := rc.databases()
+	dbases := rc.databases
 	ctx, cancelFn := context.WithCancel(rc.Context)
 	defer cancelFn()
 

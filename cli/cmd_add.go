@@ -95,7 +95,7 @@ func execSrcAdd(rc *RunContext, cmd *cobra.Command, args []string) error {
 	if cmd.Flags().Changed(flagDriver) {
 		val, _ := cmd.Flags().GetString(flagDriver)
 		typ = source.Type(strings.TrimSpace(val))
-		if !rc.reg.HasProviderFor(typ) {
+		if !rc.registry.HasProviderFor(typ) {
 			return errz.Errorf("unsupported source driver type %q", val)
 		}
 	} else {
@@ -154,7 +154,7 @@ func execSrcAdd(rc *RunContext, cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	src, err := newSource(rc.Log, rc.registry(), typ, handle, loc, opts)
+	src, err := newSource(rc.Log, rc.registry, typ, handle, loc, opts)
 	if err != nil {
 		return err
 	}
@@ -172,7 +172,7 @@ func execSrcAdd(rc *RunContext, cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	drvr, err := rc.registry().DriverFor(src.Type)
+	drvr, err := rc.registry.DriverFor(src.Type)
 	if err != nil {
 		return err
 	}
@@ -188,5 +188,5 @@ func execSrcAdd(rc *RunContext, cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return rc.writers().srcw.Source(src)
+	return rc.writers.srcw.Source(src)
 }

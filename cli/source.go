@@ -97,7 +97,6 @@ func activeSrcFromFlagsOrConfig(cmd *cobra.Command, srcs *source.Set) (*source.S
 // and returned.
 func checkStdinSource(rc *RunContext) (*source.Source, error) {
 	cmd := rc.Cmd
-	reg := rc.registry()
 
 	f := rc.Stdin
 	info, err := f.Stat()
@@ -130,7 +129,7 @@ func checkStdinSource(rc *RunContext) (*source.Source, error) {
 	if cmd.Flags().Changed(flagDriver) {
 		val, _ := cmd.Flags().GetString(flagDriver)
 		typ = source.Type(val)
-		if !reg.HasProviderFor(typ) {
+		if !rc.registry.HasProviderFor(typ) {
 			return nil, errz.Errorf("unknown driver type: %s", typ)
 		}
 	}
@@ -150,7 +149,7 @@ func checkStdinSource(rc *RunContext) (*source.Source, error) {
 		}
 	}
 
-	return newSource(rc.Log, reg, typ, source.StdinHandle, source.StdinHandle, opts)
+	return newSource(rc.Log, rc.registry, typ, source.StdinHandle, source.StdinHandle, opts)
 }
 
 // newSource creates a new Source instance where the

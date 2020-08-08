@@ -41,7 +41,7 @@ func execSrcRemove(rc *RunContext, cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Fprintf(rc.Out, "Removed data source ")
-	_, _ = rc.wrtr.fmt.Hilite.Fprintf(rc.Out, "%s", src.Handle)
+	_, _ = rc.writers.fmt.Hilite.Fprintf(rc.Out, "%s", src.Handle)
 	fmt.Fprintln(rc.Out)
 
 	return nil

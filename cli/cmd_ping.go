@@ -100,7 +100,7 @@ func execPing(rc *RunContext, cmd *cobra.Command, args []string) error {
 
 	rc.Log.Debugf("Using timeout value: %s", timeout)
 
-	return pingSources(rc.Context, rc.Log, rc.registry(), srcs, rc.writers().pingw, timeout)
+	return pingSources(rc.Context, rc.Log, rc.registry, srcs, rc.writers.pingw, timeout)
 }
 
 // pingSources pings each of the sources in srcs, and prints results

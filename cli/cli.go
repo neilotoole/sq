@@ -271,11 +271,14 @@ type RunContext struct {
 	// Log is the run's logger.
 	Log lg.Log
 
-	wrtr   *writers
-	reg    *driver.Registry
-	files  *source.Files
-	dbases *driver.Databases
-	clnup  *cleanup.Cleanup
+	// writers holds the various writer types that
+	// the CLI uses to print output.
+	writers *writers
+
+	registry  *driver.Registry
+	files     *source.Files
+	databases *driver.Databases
+	clnup     *cleanup.Cleanup
 }
 
 // newDefaultRunContext returns a RunContext configured
@@ -331,6 +334,9 @@ func (rc *RunContext) preRunE() error {
 	rc.clnup = cleanup.New()
 	log, cfg := rc.Log, rc.Config
 
+	// If the --output=/some/file flag is set, then we need to
+	// override rc.Out (which is typically stdout) to point it at
+	// the output destination file.
 	if cmdFlagChanged(rc.Cmd, flagOutput) {
 		fpath, _ := rc.Cmd.Flags().GetString(flagOutput)
 		fpath, err := filepath.Abs(fpath)
@@ -347,9 +353,7 @@ func (rc *RunContext) preRunE() error {
 		rc.Out = f
 	}
 
-	rc.wrtr = newWriters(rc.Log, rc.Cmd, rc.Config.Options, rc.Out, rc.ErrOut)
-	rc.Out = rc.wrtr.out
-	rc.ErrOut = rc.wrtr.errOut
+	rc.writers, rc.Out, rc.ErrOut = newWriters(rc.Log, rc.Cmd, rc.Config.Options, rc.Out, rc.ErrOut)
 
 	var scratchSrcFunc driver.ScratchSrcFunc
 
@@ -363,9 +367,9 @@ func (rc *RunContext) preRunE() error {
 		}
 	}
 
-	rc.reg = driver.NewRegistry(log)
-	rc.dbases = driver.NewDatabases(log, rc.reg, scratchSrcFunc)
-	rc.clnup.AddC(rc.dbases)
+	rc.registry = driver.NewRegistry(log)
+	rc.databases = driver.NewDatabases(log, rc.registry, scratchSrcFunc)
+	rc.clnup.AddC(rc.databases)
 
 	var err error
 	rc.files, err = source.NewFiles(log)
@@ -374,16 +378,16 @@ func (rc *RunContext) preRunE() error {
 	}
 	rc.files.AddTypeDetectors(source.DetectMagicNumber)
 
-	rc.reg.AddProvider(sqlite3.Type, &sqlite3.Provider{Log: log})
-	rc.reg.AddProvider(postgres.Type, &postgres.Provider{Log: log})
-	rc.reg.AddProvider(sqlserver.Type, &sqlserver.Provider{Log: log})
-	rc.reg.AddProvider(mysql.Type, &mysql.Provider{Log: log})
-	csvp := &csv.Provider{Log: log, Scratcher: rc.dbases, Files: rc.files}
-	rc.reg.AddProvider(csv.TypeCSV, csvp)
-	rc.reg.AddProvider(csv.TypeTSV, csvp)
+	rc.registry.AddProvider(sqlite3.Type, &sqlite3.Provider{Log: log})
+	rc.registry.AddProvider(postgres.Type, &postgres.Provider{Log: log})
+	rc.registry.AddProvider(sqlserver.Type, &sqlserver.Provider{Log: log})
+	rc.registry.AddProvider(mysql.Type, &mysql.Provider{Log: log})
+	csvp := &csv.Provider{Log: log, Scratcher: rc.databases, Files: rc.files}
+	rc.registry.AddProvider(csv.TypeCSV, csvp)
+	rc.registry.AddProvider(csv.TypeTSV, csvp)
 	rc.files.AddTypeDetectors(csv.DetectCSV, csv.DetectTSV)
 
-	rc.reg.AddProvider(xlsx.Type, &xlsx.Provider{Log: log, Scratcher: rc.dbases, Files: rc.files})
+	rc.registry.AddProvider(xlsx.Type, &xlsx.Provider{Log: log, Scratcher: rc.databases, Files: rc.files})
 	rc.files.AddTypeDetectors(xlsx.DetectXLSX)
 	// One day we may have more supported user driver genres.
 	userDriverImporters := map[string]userdriver.ImportFunc{
@@ -413,11 +417,11 @@ func (rc *RunContext) preRunE() error {
 			Log:       log,
 			DriverDef: userDriverDef,
 			ImportFn:  importFn,
-			Scratcher: rc.dbases,
+			Scratcher: rc.databases,
 			Files:     rc.files,
 		}
 
-		rc.reg.AddProvider(source.Type(userDriverDef.Name), udp)
+		rc.registry.AddProvider(source.Type(userDriverDef.Name), udp)
 		rc.files.AddTypeDetectors(udp.TypeDetectors()...)
 	}
 
@@ -441,26 +445,10 @@ func (rc *RunContext) Close() error {
 	return err
 }
 
-// writers returns this run context's writers instance.
-func (rc *RunContext) writers() *writers {
-	return rc.wrtr
-}
-
-// registry returns rc's Registry instance.
-func (rc *RunContext) registry() *driver.Registry {
-	return rc.reg
-}
-
-// registry returns rc's Databases instance.
-func (rc *RunContext) databases() *driver.Databases {
-	return rc.dbases
-}
-
-// writers is a container for the various output writer types.
+// writers is a container for the various output writers.
 type writers struct {
-	out     io.Writer
-	errOut  io.Writer
-	fmt     *output.Formatting
+	fmt *output.Formatting
+
 	recordw output.RecordWriter
 	metaw   output.MetadataWriter
 	srcw    output.SourceWriter
@@ -469,8 +457,12 @@ type writers struct {
 	pingw   output.PingWriter
 }
 
-func newWriters(log lg.Log, cmd *cobra.Command, opts config.Options, out, errOut io.Writer) *writers {
-	fm, out, errOut := getWriterFormatting(cmd, out, errOut)
+// newWriters returns a writers instance configured per opts and/or
+// flags from cmd. The returned out2/errOut2 values may differ
+// from the out/errOut args (e.g. decorated to support colorization).
+func newWriters(log lg.Log, cmd *cobra.Command, opts config.Options, out, errOut io.Writer) (w *writers, out2, errOut2 io.Writer) {
+	var fm *output.Formatting
+	fm, out2, errOut2 = getWriterFormatting(cmd, out, errOut)
 
 	// we need to determine --header here because the writer/format
 	// constructor functions, e.g. table.NewRecordWriter, require it.
@@ -494,16 +486,14 @@ func newWriters(log lg.Log, cmd *cobra.Command, opts config.Options, out, errOut
 	// so we use its writers as the baseline. Later we check the format
 	// flags and set the various writer fields depending upon which
 	// writers the format implements.
-	w := &writers{
-		out:     out,
-		errOut:  errOut,
+	w = &writers{
 		fmt:     fm,
-		recordw: tablew.NewRecordWriter(out, fm, hasHeader),
-		metaw:   tablew.NewMetadataWriter(out, fm),
-		srcw:    tablew.NewSourceWriter(out, fm, hasHeader, verbose),
-		pingw:   tablew.NewPingWriter(out, fm),
-		notifyw: tablew.NewNotifyWriter(out, fm, hasHeader),
-		errw:    tablew.NewErrorWriter(errOut, fm),
+		recordw: tablew.NewRecordWriter(out2, fm, hasHeader),
+		metaw:   tablew.NewMetadataWriter(out2, fm),
+		srcw:    tablew.NewSourceWriter(out2, fm, hasHeader, verbose),
+		pingw:   tablew.NewPingWriter(out2, fm),
+		notifyw: tablew.NewNotifyWriter(out2, fm, hasHeader),
+		errw:    tablew.NewErrorWriter(errOut2, fm),
 	}
 
 	// Invoke getFormat to see if the format was specified
@@ -513,44 +503,44 @@ func newWriters(log lg.Log, cmd *cobra.Command, opts config.Options, out, errOut
 	switch format {
 	default:
 		// No format specified, use JSON
-		w.recordw = jsonw.NewStdRecordWriter(out, fm)
-		w.metaw = jsonw.NewMetadataWriter(out, fm)
-		w.errw = jsonw.NewErrorWriter(log, errOut, fm)
+		w.recordw = jsonw.NewStdRecordWriter(out2, fm)
+		w.metaw = jsonw.NewMetadataWriter(out2, fm)
+		w.errw = jsonw.NewErrorWriter(log, errOut2, fm)
 
 	case config.FormatTable:
 	// Table is the base format, already set above, no need to do anything.
 
 	case config.FormatTSV:
-		w.recordw = csvw.NewRecordWriter(out, hasHeader, csvw.Tab)
-		w.pingw = csvw.NewPingWriter(out, csvw.Tab)
+		w.recordw = csvw.NewRecordWriter(out2, hasHeader, csvw.Tab)
+		w.pingw = csvw.NewPingWriter(out2, csvw.Tab)
 
 	case config.FormatCSV:
-		w.recordw = csvw.NewRecordWriter(out, hasHeader, csvw.Comma)
-		w.pingw = csvw.NewPingWriter(out, csvw.Comma)
+		w.recordw = csvw.NewRecordWriter(out2, hasHeader, csvw.Comma)
+		w.pingw = csvw.NewPingWriter(out2, csvw.Comma)
 
 	case config.FormatXML:
-		w.recordw = xmlw.NewRecordWriter(out, fm)
+		w.recordw = xmlw.NewRecordWriter(out2, fm)
 
 	case config.FormatXLSX:
-		w.recordw = xlsxw.NewRecordWriter(out, hasHeader)
+		w.recordw = xlsxw.NewRecordWriter(out2, hasHeader)
 
 	case config.FormatRaw:
-		w.recordw = raww.NewRecordWriter(out)
+		w.recordw = raww.NewRecordWriter(out2)
 
 	case config.FormatHTML:
-		w.recordw = htmlw.NewRecordWriter(out)
+		w.recordw = htmlw.NewRecordWriter(out2)
 
 	case config.FormatMarkdown:
-		w.recordw = markdownw.NewRecordWriter(out)
+		w.recordw = markdownw.NewRecordWriter(out2)
 
 	case config.FormatJSONA:
-		w.recordw = jsonw.NewArrayRecordWriter(out, fm)
+		w.recordw = jsonw.NewArrayRecordWriter(out2, fm)
 
 	case config.FormatJSONL:
-		w.recordw = jsonw.NewObjectRecordWriter(out, fm)
+		w.recordw = jsonw.NewObjectRecordWriter(out2, fm)
 	}
 
-	return w
+	return w, out2, errOut2
 }
 
 // getWriterFormatting returns a Formatting instance and
@@ -749,7 +739,7 @@ func printError(rc *RunContext, err error) {
 		}
 		log.Errorf("%s [%T] %+v", cmdName, err, err)
 
-		wrtrs := rc.writers()
+		wrtrs := rc.writers
 		if wrtrs != nil && wrtrs.errw != nil {
 			// If we have an errorWriter, we print to it
 			// and return.
