@@ -103,5 +103,5 @@ func TestRecordWriter_TblTypes(t *testing.T) {
 
 	want, err := ioutil.ReadFile("testdata/tbl_types.xml")
 	require.NoError(t, err)
-	require.Equal(t, want, buf.Bytes())
+	require.Equal(t, string(want), buf.String())
 }
