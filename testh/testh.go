@@ -155,19 +155,22 @@ func (h *Helper) Source(handle string) *source.Source {
 
 		srcFile, err := os.Open(fpath)
 		require.NoError(t, err)
-		defer func() { assert.NoError(t, srcFile.Close()) }()
+		defer func() {assert.NoError(t, srcFile.Close())}()
 
 		destFile, err := ioutil.TempFile("", "*_"+filepath.Base(src.Location))
 		require.NoError(t, err)
-		defer func() { assert.NoError(t, destFile.Close()) }()
-		t.Cleanup(func() {
-			assert.NoError(t, os.Remove(destFile.Name()))
+		defer func() {assert.NoError(t, destFile.Close())}()
+
+		destFileName := destFile.Name()
+
+		h.Cleanup.AddE(func() error {
+			return os.Remove(destFileName)
 		})
 
 		_, err = io.Copy(destFile, srcFile)
 		require.NoError(t, err)
 
-		src.Location = sqlite3.Prefix + destFile.Name()
+		src.Location = sqlite3.Prefix + destFileName
 	}
 	h.srcCache[handle] = src
 	return src
