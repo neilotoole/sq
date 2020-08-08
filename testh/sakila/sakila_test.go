@@ -35,7 +35,7 @@ func TestSakila_SQL(t *testing.T) {
 
 // TestSakila_XLSX is a sanity check for Sakila XLSX test sources.
 func TestSakila_XLSX(t *testing.T) {
-	handles := []string{sakila.XLSXNoHeader}
+	handles := []string{sakila.XLSXSubset}
 	// TODO: Add sakila.XLSX to handles when performance is reasonable
 	//  enough not to break CI.
 
