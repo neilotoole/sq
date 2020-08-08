@@ -106,7 +106,7 @@ func execInspect(rc *RunContext, cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	dbase, err := rc.databases().Open(rc.Context, src)
+	dbase, err := rc.databases.Open(rc.Context, src)
 	if err != nil {
 		return errz.Wrapf(err, "failed to inspect %s", src.Handle)
 	}
@@ -119,7 +119,7 @@ func execInspect(rc *RunContext, cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		return rc.writers().metaw.TableMetadata(tblMeta)
+		return rc.writers.metaw.TableMetadata(tblMeta)
 	}
 
 	meta, err := dbase.SourceMetadata(rc.Context)
@@ -133,5 +133,5 @@ func execInspect(rc *RunContext, cmd *cobra.Command, args []string) error {
 		meta.DBVars = nil
 	}
 
-	return rc.writers().metaw.SourceMetadata(meta)
+	return rc.writers.metaw.SourceMetadata(meta)
 }

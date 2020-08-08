@@ -23,6 +23,7 @@ func main() {
 
 	err := cli.Execute(ctx, os.Stdin, os.Stdout, os.Stderr, os.Args)
 	if err != nil {
+		cancelFn()
 		os.Exit(1)
 	}
 }

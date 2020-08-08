@@ -37,7 +37,7 @@ const (
 	flagJSONShort  = "j"
 	flagJSONA      = "jsona"
 	flagJSONAShort = "A"
-	flagJSONAUsage = "JSON: output each record's values as JSON array on its own line"
+	flagJSONAUsage = "JSON: output each record's values as a JSON array on its own line"
 	flagJSONL      = "jsonl"
 	flagJSONLShort = "l"
 	flagJSONLUsage = "JSON: output each record as a JSON object on its own line"

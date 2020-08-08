@@ -132,7 +132,6 @@ func TestCmdSQL_StdinQuery(t *testing.T) {
 			require.NoError(t, err)
 
 			ru := newRun(t).hush()
-			//ru := newRun(t)
 			ru.rc.Stdin = f
 
 			err = ru.exec("sql", "--no-header", "SELECT * FROM "+tc.tbl)

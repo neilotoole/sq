@@ -23,5 +23,5 @@ func execSrcList(rc *RunContext, cmd *cobra.Command, args []string) error {
 		return errz.Errorf(msgInvalidArgs)
 	}
 
-	return rc.writers().srcw.SourceSet(rc.Config.Sources)
+	return rc.writers.srcw.SourceSet(rc.Config.Sources)
 }

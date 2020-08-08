@@ -84,7 +84,7 @@ func (f *Format) UnmarshalText(text []byte) error {
 	switch Format(text) {
 	default:
 		return errz.Errorf("unknown output format %q", string(text))
-	case FormatJSON, FormatJSONA, FormatJSONL, FormatTable, FormatGrid, FormatRaw,
+	case FormatJSON, FormatJSONA, FormatJSONL, FormatTable, FormatRaw,
 		FormatHTML, FormatMarkdown, FormatXLSX, FormatXML, FormatCSV, FormatTSV:
 	}
 
@@ -92,13 +92,12 @@ func (f *Format) UnmarshalText(text []byte) error {
 	return nil
 }
 
-// Constants
+// Output format values.
 const (
 	FormatJSON     Format = "json"
 	FormatJSONL    Format = "jsonl"
 	FormatJSONA    Format = "jsona"
-	FormatTable    Format = "table" // FIXME: rename to FormatText
-	FormatGrid     Format = "grid"
+	FormatTable    Format = "table"
 	FormatRaw      Format = "raw"
 	FormatHTML     Format = "html"
 	FormatMarkdown Format = "markdown"

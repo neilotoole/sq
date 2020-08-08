@@ -38,7 +38,7 @@ func newNotifyListCmd() (*cobra.Command, runFunc) {
 }
 
 func execNotifyList(rc *RunContext, cmd *cobra.Command, args []string) error {
-	return rc.writers().notifyw.NotifyDestinations(rc.Config.Notification.Destinations)
+	return rc.writers.notifyw.NotifyDestinations(rc.Config.Notification.Destinations)
 }
 
 func newNotifyRemoveCmd() (*cobra.Command, runFunc) {
@@ -165,7 +165,7 @@ func execNotifyAddSlack(rc *RunContext, cmd *cobra.Command, args []string) error
 		return err
 	}
 
-	return rc.writers().notifyw.NotifyDestinations([]notify.Destination{*dest})
+	return rc.writers.notifyw.NotifyDestinations([]notify.Destination{*dest})
 }
 
 func newNotifyAddHipChatCmd() (*cobra.Command, runFunc) {

@@ -26,6 +26,6 @@ func execDrivers(rc *RunContext, cmd *cobra.Command, args []string) error {
 		return errz.Errorf("invalid arguments: zero arguments expected")
 	}
 
-	drvrs := rc.registry().DriversMetadata()
-	return rc.writers().metaw.DriverMetadata(drvrs)
+	drvrs := rc.registry.DriversMetadata()
+	return rc.writers.metaw.DriverMetadata(drvrs)
 }

@@ -61,7 +61,7 @@ func execTblCopy(rc *RunContext, cmd *cobra.Command, args []string) error {
 		return errz.New("one or two table args required")
 	}
 
-	tblHandles, err := parseTableHandleArgs(rc.reg, rc.Config.Sources, args)
+	tblHandles, err := parseTableHandleArgs(rc.registry, rc.Config.Sources, args)
 	if err != nil {
 		return err
 	}
@@ -108,7 +108,7 @@ func execTblCopy(rc *RunContext, cmd *cobra.Command, args []string) error {
 	}
 
 	var dbase driver.Database
-	dbase, err = rc.databases().Open(rc.Context, tblHandles[0].src)
+	dbase, err = rc.databases.Open(rc.Context, tblHandles[0].src)
 	if err != nil {
 		return err
 	}
@@ -160,7 +160,7 @@ func newTblTruncateCmd() (*cobra.Command, runFunc) {
 
 func execTblTruncate(rc *RunContext, cmd *cobra.Command, args []string) (err error) {
 	var tblHandles []tblHandle
-	tblHandles, err = parseTableHandleArgs(rc.reg, rc.Config.Sources, args)
+	tblHandles, err = parseTableHandleArgs(rc.registry, rc.Config.Sources, args)
 	if err != nil {
 		return err
 	}
@@ -200,7 +200,7 @@ func newTblDropCmd() (*cobra.Command, runFunc) {
 
 func execTblDrop(rc *RunContext, cmd *cobra.Command, args []string) (err error) {
 	var tblHandles []tblHandle
-	tblHandles, err = parseTableHandleArgs(rc.reg, rc.Config.Sources, args)
+	tblHandles, err = parseTableHandleArgs(rc.registry, rc.Config.Sources, args)
 	if err != nil {
 		return err
 	}
@@ -212,7 +212,7 @@ func execTblDrop(rc *RunContext, cmd *cobra.Command, args []string) (err error) 
 		}
 
 		var dbase driver.Database
-		dbase, err = rc.databases().Open(rc.Context, tblH.src)
+		dbase, err = rc.databases.Open(rc.Context, tblH.src)
 		if err != nil {
 			return err
 		}
