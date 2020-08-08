@@ -285,8 +285,8 @@ func (fs *Files) fetch(loc string) (fpath string, err error) {
 	}
 
 	f, mediatype, cleanFn, err := fetcher.FetchFile(fs.log, u.String())
-	fs.clnup.AddC(f) // f is kept open until fs.Close is called.
 	fs.clnup.AddE(cleanFn)
+	fs.clnup.AddC(f) // f is kept open until fs.Close is called.
 	if err != nil {
 		return "", err
 	}
