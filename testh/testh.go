@@ -391,15 +391,15 @@ func (h *Helper) Registry() *driver.Registry {
 	h.regOnce.Do(func() {
 		log := h.Log
 		h.reg = driver.NewRegistry(log)
-		h.dbases = driver.NewDatabases(log, h.reg, sqlite3.NewScratchSource)
-		h.Cleanup.AddC(h.dbases)
 
 		var err error
 		h.files, err = source.NewFiles(log)
 		require.NoError(h.T, err)
 		h.Cleanup.AddC(h.files)
-
 		h.files.AddTypeDetectors(source.DetectMagicNumber)
+
+		h.dbases = driver.NewDatabases(log, h.reg, sqlite3.NewScratchSource)
+		h.Cleanup.AddC(h.dbases)
 
 		h.reg.AddProvider(sqlite3.Type, &sqlite3.Provider{Log: log})
 		h.reg.AddProvider(postgres.Type, &postgres.Provider{Log: log})

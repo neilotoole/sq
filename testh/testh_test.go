@@ -149,6 +149,8 @@ func TestHelper_Files(t *testing.T) {
 			r, err := fs.NewReader(gctx, src)
 			require.NoError(t, err)
 
+			defer func() {require.NoError(t, r.Close())}()
+
 			b, err := ioutil.ReadAll(r)
 			require.NoError(t, err)
 
