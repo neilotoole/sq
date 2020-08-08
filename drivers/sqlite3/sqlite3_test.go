@@ -192,7 +192,7 @@ func TestPathFromLocation(t *testing.T) {
 			}
 
 			require.NoError(t, err)
-			want := filepath.FromSlash(tc.want)
+			want := filepath.FromSlash(tc.want) // for win/unix testing interoperability
 			require.Equal(t, want, got)
 		})
 	}
