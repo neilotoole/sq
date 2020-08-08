@@ -1,6 +1,7 @@
 package sqlite3_test
 
 import (
+	"path/filepath"
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -191,7 +192,8 @@ func TestPathFromLocation(t *testing.T) {
 			}
 
 			require.NoError(t, err)
-			require.Equal(t, tc.want, got)
+			want := filepath.FromSlash(tc.want)
+			require.Equal(t, want, got)
 		})
 	}
 }
