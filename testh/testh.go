@@ -54,7 +54,9 @@ type Helper struct {
 	srcCache map[string]*source.Source
 	Context  context.Context
 	cancelFn context.CancelFunc
-	Cleanup  *cleanup.Cleanup
+
+	// Cleanup is used
+	Cleanup *cleanup.Cleanup
 }
 
 // New returns a new Helper. The helper's Close func will be
@@ -155,11 +157,11 @@ func (h *Helper) Source(handle string) *source.Source {
 
 		srcFile, err := os.Open(fpath)
 		require.NoError(t, err)
-		defer func() {assert.NoError(t, srcFile.Close())}()
+		defer func() { assert.NoError(t, srcFile.Close()) }()
 
 		destFile, err := ioutil.TempFile("", "*_"+filepath.Base(src.Location))
 		require.NoError(t, err)
-		defer func() {assert.NoError(t, destFile.Close())}()
+		defer func() { assert.NoError(t, destFile.Close()) }()
 
 		destFileName := destFile.Name()
 

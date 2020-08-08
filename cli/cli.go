@@ -328,7 +328,7 @@ func newDefaultRunContext(ctx context.Context, stdin *os.File, stdout, stderr io
 }
 
 // preRunE is invoked by cobra prior to the command RunE being
-// invoked. It sets up the registry, databases, writer and related
+// invoked. It sets up the registry, databases, writers and related
 // fundamental components.
 func (rc *RunContext) preRunE() error {
 	rc.clnup = cleanup.New()
@@ -367,16 +367,23 @@ func (rc *RunContext) preRunE() error {
 		}
 	}
 
-	rc.registry = driver.NewRegistry(log)
-	rc.databases = driver.NewDatabases(log, rc.registry, scratchSrcFunc)
-	rc.clnup.AddC(rc.databases)
-
 	var err error
 	rc.files, err = source.NewFiles(log)
 	if err != nil {
+		log.WarnIfFuncError(rc.clnup.Run)
 		return err
 	}
+
+	// Note: it's important that files.Close is invoked
+	// after databases.Close (hence added to clnup first),
+	// because databases could depend upon the existence of
+	// files (such as a sqlite db file).
+	rc.clnup.AddE(rc.files.Close)
 	rc.files.AddTypeDetectors(source.DetectMagicNumber)
+
+	rc.registry = driver.NewRegistry(log)
+	rc.databases = driver.NewDatabases(log, rc.registry, scratchSrcFunc)
+	rc.clnup.AddC(rc.databases)
 
 	rc.registry.AddProvider(sqlite3.Type, &sqlite3.Provider{Log: log})
 	rc.registry.AddProvider(postgres.Type, &postgres.Provider{Log: log})
@@ -429,7 +436,7 @@ func (rc *RunContext) preRunE() error {
 }
 
 // Close should be invoked to dispose of any open resources
-// held by rc. If an error occurs during close and rc.Log
+// held by rc. If an error occurs during Close and rc.Log
 // is not nil, that error is logged at WARN level before
 // being returned.
 func (rc *RunContext) Close() error {
