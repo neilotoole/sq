@@ -35,18 +35,17 @@ func TestSakila_SQL(t *testing.T) {
 
 // TestSakila_XLSX is a sanity check for Sakila XLSX test sources.
 func TestSakila_XLSX(t *testing.T) {
-	testh.SkipShort(t, true)
-	t.Parallel()
+	handles := []string{sakila.XLSXSubset}
+	// TODO: Add sakila.XLSX to handles when performance is reasonable
+	//  enough not to break CI.
 
-	handles := []string{sakila.XLSX, sakila.XLSXNoHeader}
 	for _, handle := range handles {
 		handle := handle
+
 		t.Run(handle, func(t *testing.T) {
-			t.Parallel()
-
 			th := testh.New(t)
-
 			src := th.Source(handle)
+
 			sink, err := th.QuerySQL(src, "SELECT * FROM actor")
 			require.NoError(t, err)
 			require.Equal(t, sakila.TblActorCount, len(sink.Recs))

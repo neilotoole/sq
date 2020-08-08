@@ -12,12 +12,13 @@ import (
 )
 
 func TestFetchFile(t *testing.T) {
-	file, mediatype, cleanup, err := fetcher.FetchFile(testlg.New(t), sakila.URLSubsetXLSX)
+	file, _, cleanup, err := fetcher.FetchFile(testlg.New(t), sakila.URLSubsetXLSX)
 	if cleanup != nil {
-		defer require.Nil(t, cleanup())
+		defer func() {
+			require.Nil(t, cleanup())
+		}()
 	}
 	require.Nil(t, err)
 	require.NotNil(t, file)
-	require.Equal(t, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", mediatype)
 	require.Nil(t, file.Close())
 }

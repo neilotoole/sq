@@ -213,7 +213,6 @@ func TestSQLDriver_PrepareUpdateStmt(t *testing.T) {
 }
 
 func TestDriver_Ping(t *testing.T) {
-	t.Parallel()
 	testCases := sakila.All
 	testCases = append(testCases, sakila.CSVActor, sakila.CSVActorHTTP)
 
@@ -222,7 +221,6 @@ func TestDriver_Ping(t *testing.T) {
 
 		t.Run(handle, func(t *testing.T) {
 			testh.SkipShort(t, handle == sakila.XLSX)
-			t.Parallel()
 
 			th := testh.New(t)
 			src := th.Source(handle)

@@ -9,7 +9,6 @@ import (
 
 	"github.com/neilotoole/sq/drivers/csv"
 	"github.com/neilotoole/sq/drivers/sqlite3"
-	"github.com/neilotoole/sq/drivers/xlsx"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/proj"
@@ -54,8 +53,6 @@ func TestCmdInspect(t *testing.T) {
 }
 
 func TestCmdInspect_Stdin(t *testing.T) {
-	t.Parallel()
-
 	testCases := []struct {
 		fpath    string
 		wantErr  bool
@@ -64,18 +61,15 @@ func TestCmdInspect_Stdin(t *testing.T) {
 	}{
 		{fpath: proj.Abs(sakila.PathCSVActor), wantType: csv.TypeCSV, wantTbls: []string{source.MonotableName}},
 		{fpath: proj.Abs(sakila.PathTSVActor), wantType: csv.TypeTSV, wantTbls: []string{source.MonotableName}},
-		{fpath: proj.Abs(sakila.PathXLSX), wantType: xlsx.Type, wantTbls: sakila.AllTbls},
 	}
 
 	for _, tc := range testCases {
 		tc := tc
 
 		t.Run(testh.TName(tc.fpath), func(t *testing.T) {
-			testh.SkipShort(t, tc.wantType == xlsx.Type)
-			t.Parallel()
-
-			f, err := os.Open(tc.fpath)
+			f, err := os.Open(tc.fpath) // No need to close f
 			require.NoError(t, err)
+
 			ru := newRun(t)
 			ru.rc.Stdin = f
 

@@ -102,6 +102,9 @@ func (cu *Cleanup) AddC(c io.Closer) *Cleanup {
 // they were added. All funcs are executed, even in the presence of
 // an error from a func. Any errors are combined into a single error.
 // The set of cleanup funcs is removed when Run returns.
+//
+// TODO: Consider renaming Run to Close so that Cleanup
+// implements io.Closer?
 func (cu *Cleanup) Run() error {
 	if cu == nil {
 		return nil
