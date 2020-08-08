@@ -138,6 +138,11 @@ func createTypeTestTable(th *testh.Helper, src *source.Source, withData bool) (n
 	// sanity check: verify that we have the expected cols
 	rows, err := db.QueryContext(th.Context, "SELECT * FROM "+actualTblName+" LIMIT 1")
 	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, rows.Err())
+		require.NoError(t, rows.Close())
+	}()
+
 	gotColNames, err := rows.Columns()
 	require.NoError(t, err)
 	require.Equal(t, typeTestColNames, gotColNames)
@@ -173,7 +178,10 @@ func TestDatabaseTypes(t *testing.T) {
 	th := testh.New(t)
 	src := th.Source(sakila.SL3)
 	actualTblName := createTypeTestTable(th, src, true)
-	t.Cleanup(func() { th.DropTable(src, actualTblName) })
+	th.Cleanup.Add(func() {
+		th.DropTable(src, actualTblName)
+	})
+
 
 	sink := &testh.RecordSink{}
 	recw := output.NewRecordWriterAdapter(sink)

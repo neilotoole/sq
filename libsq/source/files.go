@@ -295,9 +295,14 @@ func (fs *Files) fetch(loc string) (fpath string, err error) {
 	return f.Name(), nil
 }
 
-// Close closes any open files.
+// Close closes any open resources.
 func (fs *Files) Close() error {
 	return fs.clnup.Run()
+}
+
+// CleanupE adds fn to the cleanup sequence invoked by fs.Close.
+func (fs *Files) CleanupE(fn func() error) {
+	fs.clnup.AddE(fn)
 }
 
 // Type returns the source type of location.

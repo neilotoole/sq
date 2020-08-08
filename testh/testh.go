@@ -33,6 +33,7 @@ import (
 	"github.com/neilotoole/sq/libsq"
 	"github.com/neilotoole/sq/libsq/cleanup"
 	"github.com/neilotoole/sq/libsq/driver"
+	"github.com/neilotoole/sq/libsq/errz"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/sqlmodel"
 	"github.com/neilotoole/sq/libsq/stringz"
@@ -118,6 +119,11 @@ func (h *Helper) Source(handle string) *source.Source {
 	defer h.mu.Unlock()
 	t := h.T
 
+	// invoke h.Registry to ensure that its cleanup side-effects
+	// happen in the correct order (files get cleaned after
+	// databases, etc.).
+	_ = h.Registry() // FIXME: questionable if this is needed
+
 	// If the handle refers to an external database, we will skip
 	// the test if the envar for the handle is not set.
 	if stringz.InSlice(sakila.SQLAllExternal, handle) {
@@ -157,16 +163,20 @@ func (h *Helper) Source(handle string) *source.Source {
 
 		srcFile, err := os.Open(fpath)
 		require.NoError(t, err)
-		defer func() { assert.NoError(t, srcFile.Close()) }()
+		defer func() {
+			assert.NoError(t, srcFile.Close())
+		}()
 
 		destFile, err := ioutil.TempFile("", "*_"+filepath.Base(src.Location))
 		require.NoError(t, err)
-		defer func() { assert.NoError(t, destFile.Close()) }()
+		defer func() {
+			assert.NoError(t, destFile.Close())
+		}()
 
 		destFileName := destFile.Name()
 
-		h.Cleanup.AddE(func() error {
-			return os.Remove(destFileName)
+		h.Files().CleanupE(func() error {
+			return errz.Err(os.Remove(destFileName))
 		})
 
 		_, err = io.Copy(destFile, srcFile)
@@ -309,7 +319,9 @@ func (h *Helper) CopyTable(dropAfter bool, src *source.Source, fromTable, toTabl
 // DropTable drops tbl from src.
 func (h *Helper) DropTable(src *source.Source, tbl string) {
 	dbase := h.openNew(src)
-	defer h.Log.WarnIfCloseError(dbase)
+	defer func() {
+		h.Log.WarnIfError(errz.Err(dbase.Close()))
+	}()
 
 	require.NoError(h.T, dbase.SQLDriver().DropTable(h.Context, dbase.DB(), tbl, true))
 	h.T.Logf("Dropped %s.%s", src.Handle, tbl)
@@ -388,7 +400,9 @@ func (h *Helper) TruncateTable(src *source.Source, tbl string) (affected int64) 
 }
 
 // Registry returns the helper's registry instance,
-// configured with standard providers.
+// configured with standard providers. Invoking Registry has
+// the important side-effect of initializing the helper's registry,
+// files, and databases fields.
 func (h *Helper) Registry() *driver.Registry {
 	h.regOnce.Do(func() {
 		log := h.Log

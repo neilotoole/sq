@@ -125,7 +125,7 @@ func (d *Driver) Ping(ctx context.Context, src *source.Source) error {
 	if err != nil {
 		return err
 	}
-	defer d.log.WarnIfFuncError(dbase.DB().Close)
+	defer d.log.WarnIfCloseError(dbase)
 
 	return dbase.DB().Ping()
 }
