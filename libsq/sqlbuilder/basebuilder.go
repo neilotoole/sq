@@ -85,7 +85,6 @@ func (fb *BaseFragmentBuilder) Expr(expr *ast.Expr) (string, error) {
 		}
 	}
 
-	fb.Log.Debugf("returning SQL fragment: %s", sql)
 	return sql, nil
 }
 
@@ -97,7 +96,6 @@ func (fb *BaseFragmentBuilder) SelectAll(tblSel *ast.TblSelector) (string, error
 
 // Function implements FragmentBuilder.
 func (fb *BaseFragmentBuilder) Function(fn *ast.Func) (string, error) {
-	fb.Log.Debugf("rendering function: %s", fn.FuncName())
 
 	buf := &bytes.Buffer{}
 	children := fn.Children()
@@ -113,7 +111,6 @@ func (fb *BaseFragmentBuilder) Function(fn *ast.Func) (string, error) {
 			buf.WriteString(fn.Context().GetText())
 		}
 
-		fb.Log.Debugf("returning SQL fragment: %s", buf.String())
 		return buf.String(), nil
 	}
 
@@ -123,20 +120,17 @@ func (fb *BaseFragmentBuilder) Function(fn *ast.Func) (string, error) {
 		if i > 0 {
 			buf.WriteString(", ")
 		}
-		fb.Log.Debugf("child %d: %T", i, child)
 
 		switch child := child.(type) {
 		case *ast.ColSelector:
 			buf.WriteString(child.SelValue())
 		default:
-			fb.Log.Debugf("unknown child type")
+			fb.Log.Debugf("unknown AST child node type %T", child)
 		}
 	}
 
 	buf.WriteRune(')')
 	sql := buf.String()
-
-	fb.Log.Debugf("returning SQL fragment: %s", sql)
 	return sql, nil
 }
 
@@ -148,7 +142,6 @@ func (fb *BaseFragmentBuilder) FromTable(tblSel *ast.TblSelector) (string, error
 	}
 
 	clause := fmt.Sprintf("FROM %v%s%v", fb.Quote, tblSel.SelValue(), fb.Quote)
-	fb.Log.Debugf("returning SQL fragment: %s", clause)
 	return clause, nil
 }
 
@@ -197,7 +190,6 @@ func (fb *BaseFragmentBuilder) Join(fnJoin *ast.Join) (string, error) {
 		sql = sql + " " + onClause
 	}
 
-	fb.Log.Debugf("returning JOIN fragment: %s", sql)
 	return sql, nil
 }
 
@@ -227,15 +219,12 @@ func (fb *BaseFragmentBuilder) Range(rr *ast.RowRange) (string, error) {
 	}
 
 	sql := limit + offset
-	fb.Log.Debugf("returning SQL fragment: %s", sql)
 
 	return sql, nil
 }
 
 // SelectCols implements FragmentBuilder.
 func (fb *BaseFragmentBuilder) SelectCols(cols []ast.ColExpr) (string, error) {
-	fb.Log.Debugf("generating select clause for cols: %v", cols)
-
 	if len(cols) == 0 {
 		return "SELECT *", nil
 	}

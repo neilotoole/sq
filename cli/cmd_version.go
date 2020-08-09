@@ -18,15 +18,7 @@ func newVersionCmd() (*cobra.Command, runFunc) {
 }
 
 func execVersion(rc *RunContext, cmd *cobra.Command, args []string) error {
-	version := buildinfo.Version
-
-	// If buildinfo.Version is not set (building without ldflags),
-	// then we set a dummy version.
-	if version == "" {
-		version = "0.0.0-dev"
-	}
-
-	rc.writers.fmt.Hilite.Fprintf(rc.Out, "sq %s", version)
+	rc.writers.fmt.Hilite.Fprintf(rc.Out, "sq %s", buildinfo.Version)
 
 	if len(buildinfo.Commit) > 0 {
 		fmt.Fprint(rc.Out, "    ")

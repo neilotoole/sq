@@ -15,7 +15,6 @@ func newDriversCmd() (*cobra.Command, runFunc) {
 	cmd.Flags().BoolP(flagJSON, flagJSONShort, false, flagJSONUsage)
 	cmd.Flags().BoolP(flagTable, flagTableShort, false, flagTableUsage)
 	cmd.Flags().BoolP(flagHeader, flagHeaderShort, false, flagHeaderUsage)
-	cmd.Flags().BoolP(flagNoHeader, flagNoHeaderShort, false, flagNoHeaderUsage)
 	cmd.Flags().BoolP(flagMonochrome, flagMonochromeShort, false, flagMonochromeUsage)
 
 	return cmd, execDrivers

@@ -34,7 +34,27 @@ func (t *table) renderResultCell(kind sqlz.Kind, val interface{}) string {
 		if val == nil {
 			return t.sprintNull()
 		}
-		return *val
+
+		// Although val is string, we allow for the case where
+		// the kind is not KindText: for example, sqlite returns
+		// values of KindTime as a string.
+
+		switch kind {
+		case sqlz.KindDatetime, sqlz.KindDate, sqlz.KindTime:
+			return t.fm.Datetime.Sprint(*val)
+		case sqlz.KindDecimal, sqlz.KindFloat, sqlz.KindInt:
+			return t.fm.Number.Sprint(*val)
+		case sqlz.KindBool:
+			return t.fm.Bool.Sprint(*val)
+		case sqlz.KindBytes:
+			return t.sprintBytes([]byte(*val))
+		case sqlz.KindText:
+			return t.fm.String.Sprint(*val)
+		default:
+			// Shouldn't happen
+			return *val
+		}
+
 	case float64:
 		return t.sprintFloat64(val)
 	case *float64:
@@ -123,7 +143,19 @@ func (t *table) renderResultCell(kind sqlz.Kind, val interface{}) string {
 		if val == nil {
 			return t.sprintNull()
 		}
-		return t.sprintTime(val)
+
+		var s string
+		switch kind {
+		default:
+			s = val.Format(stringz.DatetimeFormat)
+		case sqlz.KindTime:
+			s = val.Format(stringz.TimeFormat)
+		case sqlz.KindDate:
+			s = val.Format(stringz.DateFormat)
+		}
+
+		return t.fm.Datetime.Sprint(s)
+
 	case *sql.NullBool:
 		if !val.Valid {
 			return t.sprintNull()
@@ -151,21 +183,16 @@ func (t *table) renderResultCell(kind sqlz.Kind, val interface{}) string {
 }
 
 func (t *table) sprintBytes(b []byte) string {
-	s := fmt.Sprintf("[%d]", len(b))
+	s := fmt.Sprintf("[%d bytes]", len(b))
 	return t.fm.Bytes.Sprint(s)
 }
 
 func (t *table) sprintNull() string {
 	return t.fm.Null.Sprint("NULL")
 }
-func (t *table) sprintTime(tm *time.Time) string {
-	s := fmt.Sprintf("%v", *tm)
-	return t.fm.Datetime.Sprint(s)
-}
 
 func (t *table) sprintInt64(num int64) string {
-	s := fmt.Sprintf("%d", num)
-	return t.fm.Number.Sprint(s)
+	return t.fm.Number.Sprint(strconv.FormatInt(num, 10))
 }
 func (t *table) sprintFloat64(num float64) string {
 	return t.fm.Number.Sprint(stringz.FormatFloat(num))

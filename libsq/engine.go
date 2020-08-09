@@ -26,7 +26,6 @@ type engine struct {
 // execute executes the queryModel.
 func (ng *engine) execute(ctx context.Context, qm *queryModel, recw RecordWriter) error {
 	selectable := qm.Selectable
-	ng.log.Debugf("using selectable: %T: %s", selectable, selectable)
 
 	var targetDB driver.Database
 	var fromClause string
@@ -69,15 +68,12 @@ func (ng *engine) execute(ctx context.Context, qm *queryModel, recw RecordWriter
 	}
 
 	if qm.Where != nil {
-		ng.log.Debugf("where is not nil")
 		whereClause, err := fragBuilder.Where(qm.Where)
 		if err != nil {
 			return err
 		}
 
 		qb.SetWhere(whereClause)
-	} else {
-		ng.log.Debugf("where is nil")
 	}
 
 	sqlQuery, err := qb.SQL()
@@ -294,7 +290,6 @@ func buildQueryModel(log lg.Log, a *ast.AST) (*queryModel, error) {
 	}
 
 	qm := &queryModel{AST: a, Selectable: selectable}
-	log.Debugf("found selectable segment: %q", selectableSeg.Text())
 
 	// Look for range
 	for seg := selectableSeg.Next(); seg != nil; seg = seg.Next() {
@@ -318,10 +313,7 @@ func buildQueryModel(log lg.Log, a *ast.AST) (*queryModel, error) {
 		return nil, err
 	}
 
-	if seg == nil {
-		log.Debugf("did not find a col expr segment")
-	} else {
-		log.Debugf("found col expr segment: %s", seg.Text())
+	if seg != nil {
 		elems := seg.Children()
 		colExprs := make([]ast.ColExpr, len(elems))
 		for i, elem := range elems {
@@ -342,7 +334,7 @@ func buildQueryModel(log lg.Log, a *ast.AST) (*queryModel, error) {
 	}
 
 	if len(whereClauses) > 1 {
-		return nil, errz.Errorf("currently only one WHERE clause is supported, but found %d", len(whereClauses))
+		return nil, errz.Errorf("only one WHERE clause is supported, but found %d", len(whereClauses))
 	} else if len(whereClauses) == 1 {
 		qm.Where = whereClauses[0]
 	}

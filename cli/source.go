@@ -129,7 +129,7 @@ func checkStdinSource(rc *RunContext) (*source.Source, error) {
 	if cmd.Flags().Changed(flagDriver) {
 		val, _ := cmd.Flags().GetString(flagDriver)
 		typ = source.Type(val)
-		if !rc.registry.HasProviderFor(typ) {
+		if rc.registry.ProviderFor(typ) == nil {
 			return nil, errz.Errorf("unknown driver type: %s", typ)
 		}
 	}
@@ -156,7 +156,7 @@ func checkStdinSource(rc *RunContext) (*source.Source, error) {
 // driver type is known. Opts may be nil.
 func newSource(log lg.Log, dp driver.Provider, typ source.Type, handle, location string, opts options.Options) (*source.Source, error) {
 	if opts == nil {
-		log.Debugf("create new data source %q [%s] from %q",
+		log.Debugf("Create new data source %q [%s] from %q",
 			handle, typ, location)
 	} else {
 		log.Debugf("create new data source %q [%s] from %q with opts %s",

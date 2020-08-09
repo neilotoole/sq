@@ -18,7 +18,7 @@ const (
 
 	flagHeader      = "header"
 	flagHeaderShort = "h"
-	flagHeaderUsage = "Print header row in output"
+	flagHeaderUsage = "Print header row in output (default true)"
 
 	flagHandle      = "handle"
 	flagHandleShort = "h"
@@ -48,10 +48,6 @@ const (
 	flagMonochrome      = "monochrome"
 	flagMonochromeShort = "M"
 	flagMonochromeUsage = "Don't colorize output"
-
-	flagNoHeader      = "no-header"
-	flagNoHeaderShort = "H"
-	flagNoHeaderUsage = "Don't print header row in output"
 
 	flagNotifierLabel      = "label"
 	flagNotifierLabelUsage = "Optional label for the notification destination"

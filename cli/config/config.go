@@ -13,8 +13,17 @@ import (
 
 // Config holds application config/session data.
 type Config struct {
-	Options      Options       `yaml:"options" json:"options"`
-	Sources      *source.Set   `yaml:"sources" json:"sources"`
+	// Version is the config version. This will allow sq to
+	// upgrade config files if needed.
+	Version string `yaml:"version" json:"version"`
+
+	// Defaults contains default settings, such as output format.
+	Defaults Defaults `yaml:"defaults" json:"defaults"`
+
+	// Sources is the set of data sources.
+	Sources *source.Set `yaml:"sources" json:"sources"`
+
+	// Notifications holds notification config.
 	Notification *Notification `yaml:"notification" json:"notification"`
 
 	// Ext holds sq config extensions, such as user driver config.
@@ -31,8 +40,8 @@ type Ext struct {
 	UserDrivers []*userdriver.DriverDef `yaml:"user_drivers" json:"user_drivers"`
 }
 
-// Options contains sq default values.
-type Options struct {
+// Defaults contains sq default values.
+type Defaults struct {
 	Timeout time.Duration `yaml:"timeout" json:"timeout"`
 	Format  Format        `yaml:"output_format" json:"output_format"`
 	Header  bool          `yaml:"output_header" json:"output_header"`
@@ -49,16 +58,16 @@ func New() *Config {
 	cfg := &Config{}
 
 	// By default, we want header to be true; this is
-	// ugly wrt applyDefaults, as the zero value of a bool
+	// ugly wrt initCfg, as the zero value of a bool
 	// is false, but we actually want it to be true for Header.
-	cfg.Options.Header = true
+	cfg.Defaults.Header = true
 
-	applyDefaults(cfg)
+	initCfg(cfg)
 	return cfg
 }
 
-// applyDefaults checks if required values are present, and if not, sets them.
-func applyDefaults(cfg *Config) {
+// initCfg checks if required values are present, and if not, sets them.
+func initCfg(cfg *Config) {
 	if cfg.Sources == nil {
 		cfg.Sources = &source.Set{}
 	}
@@ -67,12 +76,15 @@ func applyDefaults(cfg *Config) {
 		cfg.Notification = &Notification{}
 	}
 
-	if cfg.Options.Format == "" {
-		cfg.Options.Format = FormatTable
+	if cfg.Defaults.Format == "" {
+		cfg.Defaults.Format = FormatTable
 	}
 
-	if cfg.Options.Timeout == 0 {
-		cfg.Options.Timeout = 10 * time.Second
+	if cfg.Defaults.Timeout == 0 {
+		// Probably should be setting this in the New function,
+		// but we haven't yet defined cli's behavior wrt
+		// a zero timeout. Does it mean no timeout?
+		cfg.Defaults.Timeout = 10 * time.Second
 	}
 }
 

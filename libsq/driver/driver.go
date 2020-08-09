@@ -121,7 +121,7 @@ type SQLDriver interface {
 	// PrepareUpdateStmt prepares a statement for updating destColNames in
 	// destTbl, using the supplied where clause (which may be empty).
 	// The where arg should use question mark "?" as the placeholder: it will
-	// be translated to the appropriate driver-specific placehold. For example,
+	// be translated to the appropriate driver-specific placeholder. For example,
 	// the where arg could be:
 	//
 	//   "actor_id = ? AND first_name = ?".

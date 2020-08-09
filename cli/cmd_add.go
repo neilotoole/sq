@@ -95,7 +95,7 @@ func execSrcAdd(rc *RunContext, cmd *cobra.Command, args []string) error {
 	if cmd.Flags().Changed(flagDriver) {
 		val, _ := cmd.Flags().GetString(flagDriver)
 		typ = source.Type(strings.TrimSpace(val))
-		if !rc.registry.HasProviderFor(typ) {
+		if rc.registry.ProviderFor(typ) == nil {
 			return errz.Errorf("unsupported source driver type %q", val)
 		}
 	} else {

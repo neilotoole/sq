@@ -97,7 +97,7 @@ func TestCmdSQL_SelectFromUserDriver(t *testing.T) {
 				}
 				ru.rc.Config.Ext.UserDrivers = append(ru.rc.Config.Ext.UserDrivers, udDefs...)
 
-				err := ru.exec("sql", "--csv", "--no-header", "SELECT * FROM "+wantTbl.tblName)
+				err := ru.exec("sql", "--csv", "--header=false", "SELECT * FROM "+wantTbl.tblName)
 				require.NoError(t, err)
 				recs := ru.mustReadCSV()
 				require.Equal(t, wantTbl.wantRows, len(recs), "expected %d rows in tbl %q but got %s", wantTbl.wantRows, wantTbl, len(recs))
@@ -134,7 +134,7 @@ func TestCmdSQL_StdinQuery(t *testing.T) {
 			ru := newRun(t).hush()
 			ru.rc.Stdin = f
 
-			err = ru.exec("sql", "--no-header", "SELECT * FROM "+tc.tbl)
+			err = ru.exec("sql", "--header=false", "SELECT * FROM "+tc.tbl)
 			if tc.wantErr {
 				require.Error(t, err)
 				return

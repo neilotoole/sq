@@ -8,6 +8,7 @@ import (
 
 	"strings"
 
+	"github.com/neilotoole/sq/cli/buildinfo"
 	"github.com/neilotoole/sq/libsq/errz"
 	"github.com/neilotoole/sq/libsq/source"
 
@@ -71,7 +72,7 @@ func (fs *YAMLFileStore) Load() (*Config, error) {
 		return nil, errz.Wrapf(err, "config: %s: failed to unmarshal config YAML", fs.Path)
 	}
 
-	applyDefaults(cfg)
+	initCfg(cfg)
 
 	err = source.VerifySetIntegrity(cfg.Sources)
 	if err != nil {
@@ -152,6 +153,10 @@ func (fs *YAMLFileStore) loadExt(cfg *Config) error {
 func (fs *YAMLFileStore) Save(cfg *Config) error {
 	if fs == nil {
 		return errz.New("config file store is nil")
+	}
+
+	if buildinfo.Version != "" {
+		cfg.Version = buildinfo.Version
 	}
 
 	data, err := yaml.Marshal(cfg)

@@ -1,2 +1,2 @@
-options:
+defaults:
   output_header: not_a_bool

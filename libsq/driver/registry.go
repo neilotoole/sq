@@ -42,13 +42,14 @@ func (r *Registry) AddProvider(typ source.Type, p Provider) {
 	r.providers[typ] = p
 }
 
-// HasProviderFor returns true if a provider for typ exists.
-func (r *Registry) HasProviderFor(typ source.Type) bool {
+// ProviderFor returns the provider for typ, or nil if no
+// registered provider.
+func (r *Registry) ProviderFor(typ source.Type) Provider {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	_, ok := r.providers[typ]
-	return ok
+	p, _ := r.providers[typ]
+	return p
 }
 
 // DriverFor implements Provider.

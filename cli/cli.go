@@ -39,6 +39,7 @@ import (
 	"github.com/neilotoole/lg"
 	"github.com/neilotoole/lg/zaplg"
 
+	"github.com/neilotoole/sq/cli/buildinfo"
 	"github.com/neilotoole/sq/cli/config"
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/csvw"
@@ -88,7 +89,8 @@ func Execute(ctx context.Context, stdin *os.File, stdout, stderr io.Writer, args
 // invoke rc.Close.
 func ExecuteWith(rc *RunContext, args []string) error {
 	rc.Log.Debugf("EXECUTE: %s", strings.Join(args, " "))
-	rc.Log.Debugf("Using config: %s", rc.ConfigStore.Location())
+	rc.Log.Debugf("Build: %s %s %s", buildinfo.Version, buildinfo.Commit, buildinfo.Timestamp)
+	rc.Log.Debugf("Config (cfg version %q) from: %s", rc.Config.Version, rc.ConfigStore.Location())
 
 	rootCmd := newCommandTree(rc)
 
@@ -215,7 +217,6 @@ func addCmd(rc *RunContext, parentCmd *cobra.Command, cmdFn func() (*cobra.Comma
 	}
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
-		rc.Log.Debugf("sq %s [%s]", cmd.Name(), strings.Join(args, ","))
 		if cmd.Flags().Changed(flagVersion) {
 			// Bit of a hack: flag --version on any command
 			// results in execVersion being invoked
@@ -353,7 +354,7 @@ func (rc *RunContext) preRunE() error {
 		rc.Out = f
 	}
 
-	rc.writers, rc.Out, rc.ErrOut = newWriters(rc.Log, rc.Cmd, rc.Config.Options, rc.Out, rc.ErrOut)
+	rc.writers, rc.Out, rc.ErrOut = newWriters(rc.Log, rc.Cmd, rc.Config.Defaults, rc.Out, rc.ErrOut)
 
 	var scratchSrcFunc driver.ScratchSrcFunc
 
@@ -464,24 +465,18 @@ type writers struct {
 	pingw   output.PingWriter
 }
 
-// newWriters returns a writers instance configured per opts and/or
+// newWriters returns a writers instance configured per defaults and/or
 // flags from cmd. The returned out2/errOut2 values may differ
 // from the out/errOut args (e.g. decorated to support colorization).
-func newWriters(log lg.Log, cmd *cobra.Command, opts config.Options, out, errOut io.Writer) (w *writers, out2, errOut2 io.Writer) {
+func newWriters(log lg.Log, cmd *cobra.Command, defaults config.Defaults, out, errOut io.Writer) (w *writers, out2, errOut2 io.Writer) {
 	var fm *output.Formatting
 	fm, out2, errOut2 = getWriterFormatting(cmd, out, errOut)
 
 	// we need to determine --header here because the writer/format
 	// constructor functions, e.g. table.NewRecordWriter, require it.
-	hasHeader := false
-	switch {
-	case cmdFlagChanged(cmd, flagHeader):
-		hasHeader = true
-	case cmdFlagChanged(cmd, flagNoHeader):
-		hasHeader = false
-	default:
-		// get the default --header value from config
-		hasHeader = opts.Header
+	printHeader := defaults.Header
+	if cmdFlagChanged(cmd, flagHeader) {
+		printHeader, _ = cmd.Flags().GetBool(flagHeader)
 	}
 
 	verbose := false
@@ -495,17 +490,17 @@ func newWriters(log lg.Log, cmd *cobra.Command, opts config.Options, out, errOut
 	// writers the format implements.
 	w = &writers{
 		fmt:     fm,
-		recordw: tablew.NewRecordWriter(out2, fm, hasHeader),
+		recordw: tablew.NewRecordWriter(out2, fm, printHeader),
 		metaw:   tablew.NewMetadataWriter(out2, fm),
-		srcw:    tablew.NewSourceWriter(out2, fm, hasHeader, verbose),
+		srcw:    tablew.NewSourceWriter(out2, fm, printHeader, verbose),
 		pingw:   tablew.NewPingWriter(out2, fm),
-		notifyw: tablew.NewNotifyWriter(out2, fm, hasHeader),
+		notifyw: tablew.NewNotifyWriter(out2, fm, printHeader),
 		errw:    tablew.NewErrorWriter(errOut2, fm),
 	}
 
 	// Invoke getFormat to see if the format was specified
 	// via config or flag.
-	format := getFormat(cmd, opts)
+	format := getFormat(cmd, defaults)
 
 	switch format {
 	default:
@@ -518,18 +513,18 @@ func newWriters(log lg.Log, cmd *cobra.Command, opts config.Options, out, errOut
 	// Table is the base format, already set above, no need to do anything.
 
 	case config.FormatTSV:
-		w.recordw = csvw.NewRecordWriter(out2, hasHeader, csvw.Tab)
+		w.recordw = csvw.NewRecordWriter(out2, printHeader, csvw.Tab)
 		w.pingw = csvw.NewPingWriter(out2, csvw.Tab)
 
 	case config.FormatCSV:
-		w.recordw = csvw.NewRecordWriter(out2, hasHeader, csvw.Comma)
+		w.recordw = csvw.NewRecordWriter(out2, printHeader, csvw.Comma)
 		w.pingw = csvw.NewPingWriter(out2, csvw.Comma)
 
 	case config.FormatXML:
 		w.recordw = xmlw.NewRecordWriter(out2, fm)
 
 	case config.FormatXLSX:
-		w.recordw = xlsxw.NewRecordWriter(out2, hasHeader)
+		w.recordw = xlsxw.NewRecordWriter(out2, printHeader)
 
 	case config.FormatRaw:
 		w.recordw = raww.NewRecordWriter(out2)
@@ -606,7 +601,7 @@ func getWriterFormatting(cmd *cobra.Command, out, errOut io.Writer) (fm *output.
 	return fm, out2, errOut2
 }
 
-func getFormat(cmd *cobra.Command, opts config.Options) config.Format {
+func getFormat(cmd *cobra.Command, defaults config.Defaults) config.Format {
 	var format config.Format
 
 	switch {
@@ -635,7 +630,7 @@ func getFormat(cmd *cobra.Command, opts config.Options) config.Format {
 		format = config.FormatJSON
 	default:
 		// no format flag, use the config value
-		format = opts.Format
+		format = defaults.Format
 	}
 	return format
 }
@@ -811,7 +806,7 @@ func bootstrapIsFormatJSON(rc *RunContext) bool {
 
 	defaultFormat := config.FormatTable
 	if rc.Config != nil {
-		defaultFormat = rc.Config.Options.Format
+		defaultFormat = rc.Config.Defaults.Format
 	}
 
 	// If args were provided, create a new flag set and check
