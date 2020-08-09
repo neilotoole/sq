@@ -148,13 +148,13 @@ func TestDriver_TableColumnTypes(t *testing.T) {
 				// as if the query was (SELECT * FROM actualTblName)
 				colTypes, err := drvr.TableColumnTypes(th.Context, db, actualTblName, nil)
 				require.NoError(t, err)
-				require.Equal(t, len(sakila.TblActorCols), len(colTypes))
+				require.Equal(t, len(sakila.TblActorCols()), len(colTypes))
 				for i := range colTypes {
-					require.Equal(t, sakila.TblActorCols[i], colTypes[i].Name())
+					require.Equal(t, sakila.TblActorCols()[i], colTypes[i].Name())
 				}
 
 				// Try again, but requesting specific col names
-				wantColNames := []string{sakila.TblActorCols[0], sakila.TblActorCols[2]}
+				wantColNames := []string{sakila.TblActorCols()[0], sakila.TblActorCols()[2]}
 				colTypes, err = drvr.TableColumnTypes(th.Context, db, actualTblName, wantColNames)
 				require.NoError(t, err)
 				require.Equal(t, len(wantColNames), len(colTypes))

@@ -50,7 +50,7 @@ func TestCmdSLQ_Insert(t *testing.T) {
 					}
 
 					insertTo := fmt.Sprintf("%s.%s", destSrc.Handle, actualDestTbl)
-					cols := stringz.PrefixSlice(sakila.TblActorCols, ".")
+					cols := stringz.PrefixSlice(sakila.TblActorCols(), ".")
 					query := fmt.Sprintf("%s.%s | %s", originSrc.Handle, srcTbl, strings.Join(cols, ", "))
 
 					err := ru.exec("slq", "--insert="+insertTo, query)

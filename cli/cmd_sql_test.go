@@ -49,7 +49,7 @@ func TestCmdSQL_Insert(t *testing.T) {
 					}
 
 					insertTo := fmt.Sprintf("%s.%s", destSrc.Handle, actualDestTbl)
-					query := fmt.Sprintf("SELECT %s FROM %s", strings.Join(sakila.TblActorCols, ", "), originTbl)
+					query := fmt.Sprintf("SELECT %s FROM %s", strings.Join(sakila.TblActorCols(), ", "), originTbl)
 
 					err := ru.exec("sql", "--insert="+insertTo, query)
 					require.NoError(t, err)

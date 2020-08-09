@@ -34,7 +34,7 @@ func TestCmdInspect(t *testing.T) {
 	require.Equal(t, sqlite3.Type, md.SourceType)
 	require.Equal(t, sakila.SL3, md.Handle)
 	require.Equal(t, src.Location, md.Location)
-	require.Equal(t, sakila.AllTbls, md.TableNames())
+	require.Equal(t, sakila.AllTbls(), md.TableNames())
 
 	// Try one more source for good measure
 	ru = newRun(t)

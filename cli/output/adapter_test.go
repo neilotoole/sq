@@ -31,13 +31,13 @@ func TestRecordWriterAdapter(t *testing.T) {
 			handle:       sakila.SL3,
 			sqlQuery:     "SELECT * FROM actor",
 			wantRowCount: sakila.TblActorCount,
-			wantColCount: len(sakila.TblActorCols),
+			wantColCount: len(sakila.TblActorCols()),
 		},
 		{
 			handle:       testsrc.CSVPersonBig,
 			sqlQuery:     "SELECT * FROM data",
 			wantRowCount: 10000,
-			wantColCount: len(sakila.TblActorCols),
+			wantColCount: len(sakila.TblActorCols()),
 		},
 	}
 

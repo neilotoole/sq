@@ -87,18 +87,38 @@ const (
 )
 
 // Facts regarding the sakila database.
-var (
-	TblActorCols     = []string{"actor_id", "first_name", "last_name", "last_update"}
-	TblActorColKinds = []sqlz.Kind{sqlz.KindInt, sqlz.KindText, sqlz.KindText, sqlz.KindDatetime}
-	TblFilmActorCols = []string{"actor_id", "film_id", "last_update"}
-	TblPaymentCols   = []string{"payment_id", "customer_id", "staff_id", "rental_id", "amount", "payment_date", "last_update"}
-	AllTbls          = []string{"actor", "address", "category", "city", "country", "customer", "film", "film_actor", "film_category", "film_text", "inventory", "language", "payment", "rental", "staff", "store"}
 
-	// AllTblsExceptFilmText exists because our current postgres image is different
-	// from the others in that it doesn't have the film_text table.
-	// FIXME: delete AllTblsExceptFilmText when postgres image is updated to include film_text.
-	AllTblsExceptFilmText = []string{"actor", "address", "category", "city", "country", "customer", "film", "film_actor", "film_category", "inventory", "language", "payment", "rental", "staff", "store"}
-)
+// TblActorCols returns table "actor" column names.
+func TblActorCols() []string {
+	return []string{"actor_id", "first_name", "last_name", "last_update"}
+}
+
+// TblActorColKinds returns the kinds of the columns from table actor.
+func TblActorColKinds() []sqlz.Kind {
+	return []sqlz.Kind{sqlz.KindInt, sqlz.KindText, sqlz.KindText, sqlz.KindDatetime}
+}
+
+// TblFilmActorCols returns table "film" column names.
+func TblFilmActorCols() []string {
+	return []string{"actor_id", "film_id", "last_update"}
+}
+
+// TblPaymentCols returns table "payment" column names.
+func TblPaymentCols() []string {
+	return []string{"payment_id", "customer_id", "staff_id", "rental_id", "amount", "payment_date", "last_update"}
+}
+
+// AllTbls returns all table names.
+func AllTbls() []string {
+	return []string{"actor", "address", "category", "city", "country", "customer", "film", "film_actor", "film_category", "film_text", "inventory", "language", "payment", "rental", "staff", "store"}
+}
+
+// AllTblsExceptFilmText exists because our current postgres image is different
+// from the others in that it doesn't have the film_text table.
+func AllTblsExceptFilmText() []string {
+	// TODO: delete AllTblsExceptFilmText when postgres image is updated to include film_text.
+	return []string{"actor", "address", "category", "city", "country", "customer", "film", "film_actor", "film_category", "inventory", "language", "payment", "rental", "staff", "store"}
+}
 
 // URLs for sakila resources.
 const (

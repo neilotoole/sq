@@ -24,7 +24,7 @@ func TestSmoke(t *testing.T) {
 
 			sink, err := th.QuerySQL(src, "SELECT * FROM data")
 			require.NoError(t, err)
-			require.Equal(t, len(sakila.TblActorCols), len(sink.RecMeta))
+			require.Equal(t, len(sakila.TblActorCols()), len(sink.RecMeta))
 			require.Equal(t, sakila.TblActorCount, len(sink.Recs))
 		})
 	}

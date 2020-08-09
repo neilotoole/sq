@@ -29,7 +29,7 @@ func TestSmoke(t *testing.T) {
 			th, src, _, _ := testh.NewWith(t, handle)
 			sink, err := th.QuerySQL(src, "SELECT * FROM actor")
 			require.NoError(t, err)
-			require.Equal(t, len(sakila.TblActorCols), len(sink.RecMeta))
+			require.Equal(t, len(sakila.TblActorCols()), len(sink.RecMeta))
 			require.Equal(t, sakila.TblActorCount, len(sink.Recs))
 		})
 	}
@@ -135,7 +135,7 @@ func TestGetTableColumnNames(t *testing.T) {
 
 			colNames, err := postgres.GetTableColumnNames(th.Context, th.Log, th.Open(src).DB(), sakila.TblActor)
 			require.NoError(t, err)
-			require.Equal(t, sakila.TblActorCols, colNames)
+			require.Equal(t, sakila.TblActorCols(), colNames)
 		})
 	}
 }
