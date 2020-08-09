@@ -295,7 +295,6 @@ func addQueryCmdFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool(flagMarkdown, false, flagMarkdownUsage)
 
 	cmd.Flags().BoolP(flagHeader, flagHeaderShort, false, flagHeaderUsage)
-	cmd.Flags().BoolP(flagNoHeader, flagNoHeaderShort, false, flagNoHeaderUsage)
 	cmd.Flags().BoolP(flagPretty, "", true, flagPrettyUsage)
 
 	cmd.Flags().StringP(flagInsert, "", "", flagInsertUsage)

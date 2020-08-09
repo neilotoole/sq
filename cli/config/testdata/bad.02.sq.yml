@@ -1,2 +1,2 @@
-options:
+defaults:
   output_format: not_a_format

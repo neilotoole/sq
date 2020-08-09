@@ -7,30 +7,33 @@ import (
 	"github.com/neilotoole/sq/libsq/sqlz"
 )
 
-// RecordWriter implements several of pkg out's writer interfaces.
-type RecordWriter struct {
+type recordWriter struct {
 	tbl      *table
 	recMeta  sqlz.RecordMeta
 	rowCount int
 }
 
-func NewRecordWriter(out io.Writer, fm *output.Formatting, header bool) *RecordWriter {
+// NewRecordWriter returns a RecordWriter for text table output.
+func NewRecordWriter(out io.Writer, fm *output.Formatting, header bool) output.RecordWriter {
 	tbl := &table{out: out, fm: fm, header: header}
-	w := &RecordWriter{tbl: tbl}
+	w := &recordWriter{tbl: tbl}
 	w.tbl.reset()
 	return w
 }
 
-func (w *RecordWriter) Open(recMeta sqlz.RecordMeta) error {
+// Open implements output.RecordWriter.
+func (w *recordWriter) Open(recMeta sqlz.RecordMeta) error {
 	w.recMeta = recMeta
 	return nil
 }
 
-func (w *RecordWriter) Flush() error {
+// Flush implements output.RecordWriter.
+func (w *recordWriter) Flush() error {
 	return nil
 }
 
-func (w *RecordWriter) Close() error {
+// Close implements output.RecordWriter.
+func (w *recordWriter) Close() error {
 	if w.rowCount == 0 {
 		// no data to write
 		return nil
@@ -44,7 +47,8 @@ func (w *RecordWriter) Close() error {
 	return nil
 }
 
-func (w *RecordWriter) WriteRecords(recs []sqlz.Record) error {
+// WriteRecords implements output.RecordWriter.
+func (w *recordWriter) WriteRecords(recs []sqlz.Record) error {
 	kinds := w.recMeta.Kinds()
 
 	var tblRows [][]string

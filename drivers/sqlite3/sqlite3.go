@@ -163,7 +163,7 @@ func (d *Driver) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable s
 	}
 
 	// A simple replace of the table name should work to mutate the
-	// above CREATE stmt use toTable instead of fromTable.
+	// above CREATE stmt to use toTable instead of fromTable.
 	destTblCreateStmt := strings.Replace(originTblCreateStmt, fromTable, toTable, 1)
 
 	_, err = db.ExecContext(ctx, destTblCreateStmt)
@@ -204,6 +204,7 @@ func (d *Driver) RecordMeta(colTypes []*sql.ColumnType) (sqlz.RecordMeta, driver
 	return recMeta, mungeFn, nil
 }
 
+// DropTable implements driver.SQLDriver.
 func (d *Driver) DropTable(ctx context.Context, db sqlz.DB, tbl string, ifExists bool) error {
 	var stmt string
 

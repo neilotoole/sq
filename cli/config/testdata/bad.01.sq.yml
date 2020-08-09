@@ -1,2 +1,2 @@
-options:
+defaults:
   timeout: not_a_duration

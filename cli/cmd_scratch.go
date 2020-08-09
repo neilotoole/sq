@@ -13,6 +13,9 @@ import (
 func newScratchCmd() (*cobra.Command, runFunc) {
 	cmd := &cobra.Command{
 		Use: "scratch [@HANDLE|internal|internal:file|internal:mem|@scratch]",
+		// This command is likely to be ditched in favor of a generalized "config" cmd
+		// such as "sq config scratchdb=@my1"
+		Hidden: true,
 		Example: `   # get scratch data source
    sq scratch
    # set @my1 as scratch data source

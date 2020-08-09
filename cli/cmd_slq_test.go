@@ -70,7 +70,7 @@ func TestCmdSLQ_CSV(t *testing.T) {
 
 	src := testh.New(t).Source(sakila.CSVActor)
 	ru := newRun(t).add(*src)
-	err := ru.exec("slq", "--no-header", "--csv", fmt.Sprintf("%s.data", src.Handle))
+	err := ru.exec("slq", "--header=false", "--csv", fmt.Sprintf("%s.data", src.Handle))
 	require.NoError(t, err)
 
 	recs := ru.mustReadCSV()
@@ -92,7 +92,7 @@ func TestCmdSLQ_OutputFlag(t *testing.T) {
 	})
 
 	err = ru.exec("slq",
-		"--no-header", "--csv", fmt.Sprintf("%s.%s", src.Handle, sakila.TblActor),
+		"--header=false", "--csv", fmt.Sprintf("%s.%s", src.Handle, sakila.TblActor),
 		"--output", outputFile.Name())
 	require.NoError(t, err)
 
@@ -126,7 +126,7 @@ func TestCmdSLQ_Join(t *testing.T) {
 
 					query := fmt.Sprintf(queryTpl, src1.Handle, src2.Handle, sakila.MillerCustID)
 
-					err := ru.exec("slq", "--no-header", "--csv", query)
+					err := ru.exec("slq", "--header=false", "--csv", query)
 					require.NoError(t, err)
 
 					recs := ru.mustReadCSV()
@@ -150,7 +150,7 @@ func TestCmdSLQ_ActiveSrcHandle(t *testing.T) {
 	ru := newRun(t).add(*src).hush()
 
 	require.Equal(t, src.Handle, ru.rc.Config.Sources.Active().Handle)
-	err := ru.exec("slq", "--no-header", "--csv", "@sakila_sl3.actor")
+	err := ru.exec("slq", "--header=false", "--csv", "@sakila_sl3.actor")
 	require.NoError(t, err)
 	recs := ru.mustReadCSV()
 	require.Equal(t, sakila.TblActorCount, len(recs))
@@ -158,7 +158,7 @@ func TestCmdSLQ_ActiveSrcHandle(t *testing.T) {
 	// 2. Verify that it works using source.ActiveHandle as the src handle
 	ru = newRun(t).add(*src).hush()
 	require.Equal(t, src.Handle, ru.rc.Config.Sources.Active().Handle)
-	err = ru.exec("slq", "--no-header", "--csv", source.ActiveHandle+".actor")
+	err = ru.exec("slq", "--header=false", "--csv", source.ActiveHandle+".actor")
 	require.NoError(t, err)
 	recs = ru.mustReadCSV()
 	require.Equal(t, sakila.TblActorCount, len(recs))

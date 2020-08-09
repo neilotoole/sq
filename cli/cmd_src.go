@@ -14,16 +14,14 @@ func newSrcCommand() (*cobra.Command, runFunc) {
    # set @my1 as active data source
    sq src @my1`,
 		// RunE:    execSrc,
-		Short:   "Get or set active data source",
-		Aliases: []string{"using"},
+		Short: "Get or set active data source",
 		Long: `Get or set active data source. If no argument provided, get the active data
 source. Otherwise, set @HANDLE as the active data source.`,
 	}
 
-	cmd.Flags().BoolP(flagJSON, flagJSONShort, false, flagJSONUsage)
-	cmd.Flags().BoolP(flagTable, flagTableShort, false, flagTableUsage)
-	cmd.Flags().BoolP(flagHeader, flagHeaderShort, false, flagHeaderUsage)
-	cmd.Flags().BoolP(flagNoHeader, flagNoHeaderShort, false, flagNoHeaderUsage)
+	//cmd.Flags().BoolP(flagJSON, flagJSONShort, false, flagJSONUsage)
+	//cmd.Flags().BoolP(flagTable, flagTableShort, false, flagTableUsage)
+	//cmd.Flags().BoolP(flagHeader, flagHeaderShort, false, flagHeaderUsage)
 
 	return cmd, execSrc
 }

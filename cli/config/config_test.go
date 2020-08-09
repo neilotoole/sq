@@ -71,14 +71,13 @@ func TestFileStore_Load(t *testing.T) {
 
 	for _, match := range good {
 		fs.Path = match
-		_, err := fs.Load()
+		_, err = fs.Load()
 		require.NoError(t, err, match)
 	}
 
 	for _, match := range bad {
 		fs.Path = match
-		_, err := fs.Load()
+		_, err = fs.Load()
 		require.Error(t, err, match)
-		t.Logf("got err: %s", err)
 	}
 }

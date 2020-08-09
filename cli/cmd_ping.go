@@ -93,7 +93,7 @@ func execPing(rc *RunContext, cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	timeout := cfg.Options.Timeout
+	timeout := cfg.Defaults.Timeout
 	if cmdFlagChanged(cmd, flagTimeout) {
 		timeout, _ = cmd.Flags().GetDuration(flagTimeout)
 	}

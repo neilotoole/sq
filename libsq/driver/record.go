@@ -37,7 +37,8 @@ type InsertMungeFunc func(vals sqlz.Record) error
 // retryable errors.
 type StmtExecFunc func(ctx context.Context, args ...interface{}) (affected int64, err error)
 
-// NewStmtExecer returns a new instance.
+// NewStmtExecer returns a new instance. The caller is responsible
+// for invoking Close on the returned StmtExecer.
 func NewStmtExecer(stmt *sql.Stmt, mungeFn InsertMungeFunc, execFn StmtExecFunc, destMeta sqlz.RecordMeta) *StmtExecer {
 	return &StmtExecer{
 		stmt:     stmt,
@@ -88,7 +89,7 @@ func (x *StmtExecer) Close() error {
 	return errz.Err(x.stmt.Close())
 }
 
-// NewRecordFromScanRow iterates over the elements the row slice
+// NewRecordFromScanRow iterates over the elements of the row slice
 // from rows.Scan, and returns a new (record) slice, replacing any
 // wrapper types such as sql.NullString with the unboxed value,
 // and other similar sanitization. For example it will
