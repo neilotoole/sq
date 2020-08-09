@@ -29,34 +29,45 @@ const (
 	MS               = MS17
 )
 
-// Collections of sakila source handles.
-var (
-	// All contains all the full sakila handles. It does not
-	// include monotable handles such as @sakila_csv_actor.
-	All = []string{SL3, Pg9, Pg10, Pg11, Pg12, My56, My57, My8, MS17, XLSX}
+// All returns all the sakila handles. It does not
+// include monotable handles such as @sakila_csv_actor.
+func All() []string {
+	return []string{SL3, Pg9, Pg10, Pg11, Pg12, My56, My57, My8, MS17, XLSX}
+}
 
-	// SQLAll contains all the sakila SQL handles.
-	SQLAll = []string{SL3, Pg9, Pg10, Pg11, Pg12, My56, My57, My8, MS17}
+// SQLAll returns all the sakila SQL handles.
+func SQLAll() []string {
+	return []string{SL3, Pg9, Pg10, Pg11, Pg12, My56, My57, My8, MS17}
+}
 
-	// SQLLatest contains the handles for the latest
-	// version of each supported SQL database. This is provided
-	// in addition to SQLAll to enable quicker iterative testing
-	// during development.
-	SQLLatest = []string{SL3, Pg, My, MS}
+// SQLAllExternal is the same as SQLAll, but only includes
+// external (non-embedded) sources. That is, it excludes SL3.
+func SQLAllExternal() []string {
+	return []string{Pg9, Pg10, Pg11, Pg12, My56, My57, My8, MS17}
+}
 
-	// PgAll contains the handles for all postgres versions.
-	PgAll = []string{Pg9, Pg10, Pg11, Pg12}
+// SQLLatest returns the handles for the latest
+// version of each supported SQL database. This is provided
+// in addition to SQLAll to enable quicker iterative testing
+// during development.
+func SQLLatest() []string {
+	return []string{SL3, Pg, My, MS}
+}
 
-	// MyAll contains the handles for all MySQL versions.
-	MyAll = []string{My56, My57, My8}
+// PgAll returns the handles for all postgres versions.
+func PgAll() []string {
+	return []string{Pg9, Pg10, Pg11, Pg12}
+}
 
-	// MSAll contains the handles for all SQL Server versions.
-	MSAll = []string{MS17}
+// MyAll returns the handles for all MySQL versions.
+func MyAll() []string {
+	return []string{My56, My57, My8}
+}
 
-	// SQLAllExternal is the same as SQLAll, but only includes
-	// external (non-embedded) sources. That is, it excludes SL3.
-	SQLAllExternal = []string{Pg9, Pg10, Pg11, Pg12, My56, My57, My8, MS17}
-)
+// MSAll returns the handles for all SQL Server versions.
+func MSAll() []string {
+	return []string{MS17}
+}
 
 // Facts regarding the sakila database.
 const (

@@ -18,7 +18,7 @@ func TestSakila_SQL(t *testing.T) {
 	require.Equal(t, sakila.My, sakila.My8)
 	require.Equal(t, sakila.MS, sakila.MS17)
 
-	handles := sakila.SQLAll
+	handles := sakila.SQLAll()
 	for _, handle := range handles {
 		handle := handle
 		t.Run(handle, func(t *testing.T) {

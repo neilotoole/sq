@@ -18,7 +18,7 @@ import (
 func TestSmoke(t *testing.T) {
 	t.Parallel()
 
-	for _, handle := range sakila.MSAll {
+	for _, handle := range sakila.MSAll() {
 		handle := handle
 
 		t.Run(handle, func(t *testing.T) {

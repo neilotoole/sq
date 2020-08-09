@@ -1,5 +1,14 @@
 name: Go
-on: [push, pull_request]
+on:
+  push:
+    # Sequence of patterns matched against refs/heads
+    branches:
+      # Push events on master branch
+      - master
+
+  pull_request:
+    branches:
+      - master
 
 jobs:
   build:

@@ -20,13 +20,13 @@ import (
 
 // TestCmdSLQ_Insert tests "sq slq QUERY --insert=dest.tbl".
 func TestCmdSLQ_Insert(t *testing.T) {
-	for _, origin := range sakila.SQLLatest {
+	for _, origin := range sakila.SQLLatest() {
 		origin := origin
 
 		t.Run("origin_"+origin, func(t *testing.T) {
 			testh.SkipShort(t, origin == sakila.XLSX)
 
-			for _, dest := range sakila.SQLLatest {
+			for _, dest := range sakila.SQLLatest() {
 				dest := dest
 
 				t.Run("dest_"+dest, func(t *testing.T) {
@@ -103,7 +103,7 @@ func TestCmdSLQ_OutputFlag(t *testing.T) {
 
 func TestCmdSLQ_Join(t *testing.T) {
 	const queryTpl = `%s.customer, %s.address | join(.address_id) | .customer_id == %d | .[0] | .customer_id, .email, .city_id`
-	handles := sakila.SQLAll
+	handles := sakila.SQLAll()
 
 	// Attempt to join every SQL test source against every SQL test source.
 	for _, h1 := range handles {
