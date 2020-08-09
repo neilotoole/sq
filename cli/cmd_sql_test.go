@@ -18,13 +18,13 @@ import (
 
 // TestCmdSQL_Insert tests "sq sql QUERY --insert=dest.tbl".
 func TestCmdSQL_Insert(t *testing.T) {
-	for _, origin := range sakila.SQLLatest {
+	for _, origin := range sakila.SQLLatest() {
 		origin := origin
 
 		t.Run("origin_"+origin, func(t *testing.T) {
 			testh.SkipShort(t, origin == sakila.XLSX)
 
-			for _, dest := range sakila.SQLLatest {
+			for _, dest := range sakila.SQLLatest() {
 				dest := dest
 
 				t.Run("dest_"+dest, func(t *testing.T) {

@@ -92,10 +92,10 @@ func TestQuerySQL_Smoke(t *testing.T) {
 }
 
 func TestQuerySQL_Count(t *testing.T) {
-	testCases := sakila.SQLAll
+	testCases := sakila.SQLAll()
 	for _, handle := range testCases {
 		handle := handle
-		
+
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 

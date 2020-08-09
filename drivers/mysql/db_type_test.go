@@ -334,7 +334,7 @@ func TestDatabaseTypes(t *testing.T) {
 
 	t.Parallel()
 
-	testCases := sakila.MyAll
+	testCases := sakila.MyAll()
 	for _, handle := range testCases {
 		handle := handle
 

@@ -13,7 +13,7 @@ import (
 func TestCmdTblCopy(t *testing.T) {
 	t.Parallel()
 
-	for _, handle := range sakila.SQLAll {
+	for _, handle := range sakila.SQLAll() {
 		handle := handle
 
 		t.Run(handle, func(t *testing.T) {
@@ -42,7 +42,7 @@ func TestCmdTblCopy(t *testing.T) {
 func TestCmdTblDrop(t *testing.T) {
 	t.Parallel()
 
-	for _, handle := range sakila.SQLAll {
+	for _, handle := range sakila.SQLAll() {
 		handle := handle
 
 		t.Run(handle, func(t *testing.T) {
@@ -70,7 +70,7 @@ func TestCmdTblDrop(t *testing.T) {
 func TestCmdTblTruncate(t *testing.T) {
 	t.Parallel()
 
-	for _, handle := range sakila.SQLAll {
+	for _, handle := range sakila.SQLAll() {
 		handle := handle
 
 		t.Run(handle, func(t *testing.T) {

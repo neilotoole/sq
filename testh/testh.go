@@ -126,7 +126,7 @@ func (h *Helper) Source(handle string) *source.Source {
 
 	// If the handle refers to an external database, we will skip
 	// the test if the envar for the handle is not set.
-	if stringz.InSlice(sakila.SQLAllExternal, handle) {
+	if stringz.InSlice(sakila.SQLAllExternal(), handle) {
 		// Skip the test if the envar for the handle is not set
 		handleEnvar := "SQ_TEST_SRC__" + strings.ToUpper(strings.TrimPrefix(handle, "@"))
 		if envar, ok := os.LookupEnv(handleEnvar); !ok || strings.TrimSpace(envar) == "" {

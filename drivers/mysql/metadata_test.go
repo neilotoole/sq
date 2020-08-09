@@ -65,7 +65,7 @@ func TestKindFromDBTypeName(t *testing.T) {
 }
 
 func TestDatabase_SourceMetadata(t *testing.T) {
-	testCases := sakila.MyAll
+	testCases := sakila.MyAll()
 	for _, handle := range testCases {
 		handle := handle
 		t.Run(handle, func(t *testing.T) {

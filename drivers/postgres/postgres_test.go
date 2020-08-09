@@ -21,7 +21,7 @@ import (
 func TestSmoke(t *testing.T) {
 	t.Parallel()
 
-	for _, handle := range sakila.PgAll {
+	for _, handle := range sakila.PgAll() {
 		handle := handle
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
@@ -38,7 +38,7 @@ func TestSmoke(t *testing.T) {
 func TestDriverBehavior(t *testing.T) {
 	// This test was created to help understand the behavior of the driver impl.
 	// It can be deleted eventually.
-	testCases := sakila.PgAll
+	testCases := sakila.PgAll()
 
 	for _, handle := range testCases {
 		handle := handle
@@ -82,7 +82,7 @@ func Test_VerifyDriverDoesNotReportNullability(t *testing.T) {
 	// When/if the driver is modified to behave as hoped (if
 	// at all possible) then we can simplify the
 	// postgres driver wrapper.
-	testCases := sakila.PgAll
+	testCases := sakila.PgAll()
 	for _, handle := range testCases {
 		handle := handle
 
@@ -125,7 +125,7 @@ func Test_VerifyDriverDoesNotReportNullability(t *testing.T) {
 }
 
 func TestGetTableColumnNames(t *testing.T) {
-	testCases := sakila.PgAll
+	testCases := sakila.PgAll()
 
 	for _, handle := range testCases {
 		handle := handle
@@ -143,7 +143,7 @@ func TestGetTableColumnNames(t *testing.T) {
 func TestDriver_CreateTable_NotNullDefault(t *testing.T) {
 	t.Parallel()
 
-	testCases := sakila.PgAll
+	testCases := sakila.PgAll()
 	for _, handle := range testCases {
 		handle := handle
 
@@ -181,7 +181,7 @@ func TestDriver_CreateTable_NotNullDefault(t *testing.T) {
 }
 
 func BenchmarkDatabase_SourceMetadata(b *testing.B) {
-	for _, handle := range sakila.PgAll {
+	for _, handle := range sakila.PgAll() {
 		handle := handle
 		b.Run(handle, func(b *testing.B) {
 			th := testh.New(b)

@@ -23,7 +23,7 @@ import (
 )
 
 func TestDriver_DropTable(t *testing.T) {
-	for _, handle := range sakila.SQLAll {
+	for _, handle := range sakila.SQLAll() {
 		handle := handle
 		t.Run(handle, func(t *testing.T) {
 			th := testh.New(t)
@@ -53,7 +53,7 @@ func TestDriver_DropTable(t *testing.T) {
 }
 
 func TestDriver_CopyTable(t *testing.T) {
-	for _, handle := range sakila.SQLAll {
+	for _, handle := range sakila.SQLAll() {
 		handle := handle
 		t.Run(handle, func(t *testing.T) {
 			// t.Parallel()
@@ -90,7 +90,7 @@ func TestDriver_CopyTable(t *testing.T) {
 func TestDriver_CreateTable_Minimal(t *testing.T) {
 	t.Parallel()
 
-	testCases := sakila.SQLAll
+	testCases := sakila.SQLAll()
 	for _, handle := range testCases {
 		handle := handle
 
@@ -123,7 +123,7 @@ func TestDriver_CreateTable_Minimal(t *testing.T) {
 func TestDriver_TableColumnTypes(t *testing.T) {
 	t.Parallel()
 
-	testCases := sakila.SQLAll
+	testCases := sakila.SQLAll()
 	for _, handle := range testCases {
 		handle := handle
 
@@ -168,7 +168,7 @@ func TestDriver_TableColumnTypes(t *testing.T) {
 
 func TestSQLDriver_PrepareUpdateStmt(t *testing.T) {
 	t.Parallel()
-	testCases := sakila.SQLAll
+	testCases := sakila.SQLAll()
 
 	for _, handle := range testCases {
 		handle := handle
@@ -213,7 +213,7 @@ func TestSQLDriver_PrepareUpdateStmt(t *testing.T) {
 }
 
 func TestDriver_Ping(t *testing.T) {
-	testCases := sakila.All
+	testCases := sakila.All()
 	testCases = append(testCases, sakila.CSVActor, sakila.CSVActorHTTP)
 
 	for _, handle := range testCases {
@@ -234,7 +234,7 @@ func TestDriver_Ping(t *testing.T) {
 
 func TestDriver_Open(t *testing.T) {
 	t.Parallel()
-	testCases := sakila.All
+	testCases := sakila.All()
 	testCases = append(testCases, sakila.CSVActor, sakila.CSVActorHTTP)
 
 	for _, handle := range testCases {
@@ -360,7 +360,7 @@ func TestRegistry_DriversMetadata_Doc(t *testing.T) {
 func TestDatabase_TableMetadata(t *testing.T) {
 	t.Parallel()
 
-	for _, handle := range sakila.SQLAll {
+	for _, handle := range sakila.SQLAll() {
 		handle := handle
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()

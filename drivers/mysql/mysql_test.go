@@ -15,7 +15,7 @@ import (
 func TestSmoke(t *testing.T) {
 	t.Parallel()
 
-	for _, handle := range sakila.MyAll {
+	for _, handle := range sakila.MyAll() {
 		handle := handle
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
@@ -32,7 +32,7 @@ func TestSmoke(t *testing.T) {
 func TestDriver_CreateTable_NotNullDefault(t *testing.T) {
 	t.Parallel()
 
-	testCases := sakila.MyAll
+	testCases := sakila.MyAll()
 	for _, handle := range testCases {
 		handle := handle
 		t.Run(handle, func(t *testing.T) {
