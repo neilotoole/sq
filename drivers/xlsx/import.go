@@ -63,7 +63,7 @@ func xlsxToScratch(ctx context.Context, log lg.Log, src *source.Source, xlFile *
 func importSheetToTable(ctx context.Context, log lg.Log, sheet *xlsx.Sheet, hasHeader bool, scratchDB driver.Database, tblDef *sqlmodel.TableDef) error {
 	startTime := time.Now()
 
-	stmtExecer, err := scratchDB.SQLDriver().PrepareInsertStmt(ctx, scratchDB.DB(), tblDef.Name, tblDef.ColNames())
+	stmtExecer, err := scratchDB.SQLDriver().PrepareInsertStmt(ctx, scratchDB.DB(), tblDef.Name, tblDef.ColNames(), 1)
 	if err != nil {
 		return err
 	}

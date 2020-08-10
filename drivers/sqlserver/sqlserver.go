@@ -274,22 +274,18 @@ func (d *Driver) DropTable(ctx context.Context, db sqlz.DB, tbl string, ifExists
 }
 
 // PrepareInsertStmt implements driver.SQLDriver.
-func (d *Driver) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string) (*driver.StmtExecer, error) {
+func (d *Driver) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string, numRows int) (*driver.StmtExecer, error) {
 	destColsMeta, err := d.getTableColsMeta(ctx, db, destTbl, destColNames)
 	if err != nil {
 		return nil, err
 	}
 
-	stmt, err := driver.PrepareInsertStmt(ctx, d, db, destTbl, destColsMeta.Names())
+	stmt, err := driver.PrepareInsertStmt(ctx, d, db, destTbl, destColsMeta.Names(), numRows)
 	if err != nil {
 		return nil, err
 	}
 
-	execer := driver.NewStmtExecer(stmt,
-		driver.DefaultInsertMungeFunc(destTbl, destColsMeta),
-		newStmtExecFunc(stmt, db, destTbl),
-		destColsMeta)
-
+	execer := driver.NewStmtExecer(stmt, driver.DefaultInsertMungeFunc(destTbl, destColsMeta), newStmtExecFunc(stmt, db, destTbl), destColsMeta, numRows)
 	return execer, nil
 }
 
@@ -310,11 +306,7 @@ func (d *Driver) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl stri
 		return nil, err
 	}
 
-	execer := driver.NewStmtExecer(stmt,
-		driver.DefaultInsertMungeFunc(destTbl, destColsMeta),
-		newStmtExecFunc(stmt, db, destTbl),
-		destColsMeta)
-
+	execer := driver.NewStmtExecer(stmt, driver.DefaultInsertMungeFunc(destTbl, destColsMeta), newStmtExecFunc(stmt, db, destTbl), destColsMeta, 1)
 	return execer, nil
 }
 

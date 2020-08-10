@@ -276,7 +276,7 @@ func (h *Helper) Insert(src *source.Source, tbl string, cols []string, data ...[
 	dbase := h.openNew(src)
 	defer h.Log.WarnIfCloseError(dbase)
 
-	execer, err := dbase.SQLDriver().PrepareInsertStmt(h.Context, dbase.DB(), tbl, cols)
+	execer, err := dbase.SQLDriver().PrepareInsertStmt(h.Context, dbase.DB(), tbl, cols, 1)
 	require.NoError(h.T, err)
 	h.Cleanup.AddC(execer)
 

@@ -37,19 +37,21 @@ type InsertMungeFunc func(vals sqlz.Record) error
 // retryable errors.
 type StmtExecFunc func(ctx context.Context, args ...interface{}) (affected int64, err error)
 
-// NewStmtExecer returns a new instance. The caller is responsible
+// NewStmtExecer returns a new StmtExecer instance. The caller is responsible
 // for invoking Close on the returned StmtExecer.
-func NewStmtExecer(stmt *sql.Stmt, mungeFn InsertMungeFunc, execFn StmtExecFunc, destMeta sqlz.RecordMeta) *StmtExecer {
+func NewStmtExecer(stmt *sql.Stmt, mungeFn InsertMungeFunc, execFn StmtExecFunc, destMeta sqlz.RecordMeta, numRows int) *StmtExecer {
 	return &StmtExecer{
 		stmt:     stmt,
 		mungeFn:  mungeFn,
 		execFn:   execFn,
 		destMeta: destMeta,
+		numRows:  numRows,
 	}
 }
 
 // StmtExecer encapsulates the elements required to execute
-// a SQL statement. The Munge method should be applied to each
+// a SQL statement. Typically the statement is an INSERT.
+// The Munge method should be applied to each
 // row of values prior to invoking Exec. The caller
 // is responsible for invoking Close.
 type StmtExecer struct {
@@ -57,6 +59,7 @@ type StmtExecer struct {
 	mungeFn  InsertMungeFunc
 	execFn   StmtExecFunc
 	destMeta sqlz.RecordMeta
+	numRows  int
 }
 
 // DestMeta returns the RecordMeta for the destination table columns.
@@ -64,8 +67,14 @@ func (x *StmtExecer) DestMeta() sqlz.RecordMeta {
 	return x.destMeta
 }
 
+// NumRows is the number of rows of data that should be passed
+// as args to method Exec.
+func (x *StmtExecer) NumRows() int {
+	return x.numRows
+}
+
 // Munge should be applied to each row of values prior
-// invoking Exec.
+// to inserting invoking Exec.
 func (x *StmtExecer) Munge(rec []interface{}) error {
 	if x.mungeFn == nil {
 		return nil
@@ -317,15 +326,21 @@ func NewRecordFromScanRow(meta sqlz.RecordMeta, row []interface{}, skip []int) (
 const Comma = ", "
 
 // PrepareInsertStmt prepares an insert statement using
-// driver-specific config.
-func PrepareInsertStmt(ctx context.Context, drvr SQLDriver, db sqlz.Preparer, destTbl string, destCols []string) (stmt *sql.Stmt, err error) {
+// driver-specific syntax from drvr. numRows specifies
+// how many rows of values are inserted by each execution of
+//the insert statement (1 row being the prototypical usage).
+func PrepareInsertStmt(ctx context.Context, drvr SQLDriver, db sqlz.Preparer, destTbl string, destCols []string, numRows int) (stmt *sql.Stmt, err error) {
 	const stmtTpl = `INSERT INTO %s (%s) VALUES (%s)`
+
+	if numRows <= 0 {
+		return nil, errz.Errorf("numRows must be a positive integer but got %d", numRows)
+	}
 
 	dialect := drvr.Dialect()
 	quote := string(dialect.Quote)
 	tblNameQuoted, colNamesQuoted := stringz.Surround(destTbl, quote), stringz.SurroundSlice(destCols, quote)
 	colsJoined := strings.Join(colNamesQuoted, Comma)
-	placeholders := dialect.Placeholders(len(colNamesQuoted))
+	placeholders := dialect.Placeholders(len(colNamesQuoted) * numRows)
 
 	query := fmt.Sprintf(stmtTpl, tblNameQuoted, colsJoined, placeholders)
 	stmt, err = db.PrepareContext(ctx, query)

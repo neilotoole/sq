@@ -75,8 +75,7 @@ func (w *DBWriter) Open(ctx context.Context, cancelFn context.CancelFunc, recMet
 		}
 	}
 
-	// insertStmt, _, _, mungeFn, err := w.destDB.SQLDriver().PrepareInsertStmt(ctx, tx, w.destTbl, recMeta.Names())
-	stmtExecer, err := w.destDB.SQLDriver().PrepareInsertStmt(ctx, tx, w.destTbl, recMeta.Names())
+	inserter, err := w.destDB.SQLDriver().PrepareInsertStmt(ctx, tx, w.destTbl, recMeta.Names(), 1)
 	if err != nil {
 		w.rollback(tx, err)
 		return nil, nil, err
@@ -116,7 +115,7 @@ func (w *DBWriter) Open(ctx context.Context, cancelFn context.CancelFunc, recMet
 				}
 
 				// rec is not nil, therefore we write it out
-				err = w.doInsert(ctx, stmtExecer, rec)
+				err = w.doInsert(ctx, inserter, rec)
 				if err != nil {
 					w.rollback(tx, err)
 					return
@@ -169,13 +168,13 @@ func (w *DBWriter) rollback(tx *sql.Tx, causeErrs ...error) {
 	w.addErrs(rollbackErr)
 }
 
-func (w *DBWriter) doInsert(ctx context.Context, stmtExecer *driver.StmtExecer, rec sqlz.Record) error {
-	err := stmtExecer.Munge(rec)
+func (w *DBWriter) doInsert(ctx context.Context, inserter *driver.StmtExecer, rec sqlz.Record) error {
+	err := inserter.Munge(rec)
 	if err != nil {
 		return err
 	}
 
-	affected, err := stmtExecer.Exec(ctx, rec...)
+	affected, err := inserter.Exec(ctx, rec...)
 	if err != nil {
 		// NOTE: in the scenario where we're inserting into
 		//  a SQLite db, and there's multiple writers (inserters) to
