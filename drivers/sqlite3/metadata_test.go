@@ -73,7 +73,7 @@ func TestRecordMetadata(t *testing.T) {
 		{
 			tbl:       sakila.TblActor,
 			rowCount:  sakila.TblActorCount,
-			colNames:  sakila.TblActorCols,
+			colNames:  sakila.TblActorCols(),
 			colKinds:  []sqlz.Kind{sqlz.KindInt, sqlz.KindText, sqlz.KindText, sqlz.KindDatetime},
 			scanTypes: []reflect.Type{sqlz.RTypeNullInt64, sqlz.RTypeNullString, sqlz.RTypeNullString, sqlz.RTypeNullTime},
 			colsMeta: []*source.ColMetadata{
@@ -86,7 +86,7 @@ func TestRecordMetadata(t *testing.T) {
 		{
 			tbl:       sakila.TblFilmActor,
 			rowCount:  sakila.TblFilmActorCount,
-			colNames:  sakila.TblFilmActorCols,
+			colNames:  sakila.TblFilmActorCols(),
 			colKinds:  []sqlz.Kind{sqlz.KindInt, sqlz.KindInt, sqlz.KindDatetime},
 			scanTypes: []reflect.Type{sqlz.RTypeNullInt64, sqlz.RTypeNullInt64, sqlz.RTypeNullTime},
 			colsMeta: []*source.ColMetadata{
@@ -98,7 +98,7 @@ func TestRecordMetadata(t *testing.T) {
 		{
 			tbl:       sakila.TblPayment,
 			rowCount:  sakila.TblPaymentCount,
-			colNames:  sakila.TblPaymentCols,
+			colNames:  sakila.TblPaymentCols(),
 			colKinds:  []sqlz.Kind{sqlz.KindInt, sqlz.KindInt, sqlz.KindInt, sqlz.KindInt, sqlz.KindDecimal, sqlz.KindDatetime, sqlz.KindDatetime},
 			scanTypes: []reflect.Type{sqlz.RTypeNullInt64, sqlz.RTypeNullInt64, sqlz.RTypeNullInt64, sqlz.RTypeNullInt64, sqlz.RTypeNullString, sqlz.RTypeNullTime, sqlz.RTypeNullTime},
 			colsMeta: []*source.ColMetadata{

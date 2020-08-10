@@ -21,7 +21,7 @@ func Test_Smoke_Subset(t *testing.T) {
 
 	sink, err := th.QuerySQL(src, "SELECT * FROM actor")
 	require.NoError(t, err)
-	require.Equal(t, len(sakila.TblActorCols), len(sink.RecMeta))
+	require.Equal(t, len(sakila.TblActorCols()), len(sink.RecMeta))
 	require.Equal(t, sakila.TblActorCount, len(sink.Recs))
 }
 
@@ -34,7 +34,7 @@ func Test_Smoke_Full(t *testing.T) {
 
 	sink, err := th.QuerySQL(src, "SELECT * FROM actor")
 	require.NoError(t, err)
-	require.Equal(t, len(sakila.TblActorCols), len(sink.RecMeta))
+	require.Equal(t, len(sakila.TblActorCols()), len(sink.RecMeta))
 	require.Equal(t, sakila.TblActorCount, len(sink.Recs))
 }
 
