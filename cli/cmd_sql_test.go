@@ -40,8 +40,7 @@ func TestCmdSQL_Insert(t *testing.T) {
 
 					// To avoid dirtying the destination table, we make a copy
 					// of it (without data).
-					actualDestTbl := th.CopyTable(false, destSrc, sakila.TblActor, "", false)
-					t.Cleanup(func() { th.DropTable(destSrc, actualDestTbl) })
+					actualDestTbl := th.CopyTable(true, destSrc, sakila.TblActor, "", false)
 
 					ru := newRun(t).add(*originSrc)
 					if destSrc.Handle != originSrc.Handle {

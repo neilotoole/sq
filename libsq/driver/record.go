@@ -331,7 +331,7 @@ const Comma = ", "
 // PrepareInsertStmt prepares an insert statement using
 // driver-specific syntax from drvr. numRows specifies
 // how many rows of values are inserted by each execution of
-//the insert statement (1 row being the prototypical usage).
+// the insert statement (1 row being the prototypical usage).
 func PrepareInsertStmt(ctx context.Context, drvr SQLDriver, db sqlz.Preparer, destTbl string, destCols []string, numRows int) (stmt *sql.Stmt, err error) {
 	const stmtTpl = `INSERT INTO %s (%s) VALUES %s`
 
@@ -343,53 +343,74 @@ func PrepareInsertStmt(ctx context.Context, drvr SQLDriver, db sqlz.Preparer, de
 	quote := string(dialect.Quote)
 	tblNameQuoted, colNamesQuoted := stringz.Surround(destTbl, quote), stringz.SurroundSlice(destCols, quote)
 	colsJoined := strings.Join(colNamesQuoted, Comma)
-	placeholders := dialect.Placeholders(len(colNamesQuoted))
-	placeholders = "(" + placeholders + ")"
-
-	if len(placeholders) > 1 {
-		placeholders = stringz.RepeatJoin(placeholders, numRows, ", ")
-	}
+	placeholders := dialect.Placeholders(len(colNamesQuoted), numRows)
 
 	query := fmt.Sprintf(stmtTpl, tblNameQuoted, colsJoined, placeholders)
 	stmt, err = db.PrepareContext(ctx, query)
 	return stmt, errz.Err(err)
 }
 
-// FIXME: probably delete this
+// BatchInsert encapsulates inserting records to a db. The caller sends
+// (munged) records on recCh; the record values should be munged via
+// the Munge method prior to sending. Records are written to db in
+// batches of batchSize as passed to NewBatchInsert (the final batch may
+// be less than batchSize). The caller must close recCh to indicate that
+// all records have been sent, or cancel the ctx passed to
+// NewBatchInsert to stop the insertion goroutine. Any error is returned
+// on errCh. Processing is complete when errCh is closed: the caller
+// must select on errCh.
 type BatchInsert struct {
+	// RecordCh is the channel that the caller sends records on. The
+	// caller must close RecordCh when done.
 	RecordCh chan<- []interface{}
-	ErrCh    <-chan error
-	written  *atomic.Int64
+
+	// ErrCh returns any errors that occur during insert. ErrCh is
+	// closed by BatchInsert when processing is complete.
+	ErrCh <-chan error
+
+	written *atomic.Int64
+
+	mungeFn InsertMungeFunc
 }
 
-// Written returns the number of records inserted at
-// the time of invocation.
+// Written returns the number of records inserted (at the time of
+// invocation). For the final value, Written should be invoked after
+// ErrCh is closed.
 func (bi *BatchInsert) Written() int64 {
 	return bi.written.Load()
 }
 
-// NewBatchInsert encapsulates inserting records to db. The caller sends
-// (unmunged) records on recCh; the record values are munged prior to
-// insertion. Records are written to db in batches of batchSize (the
-// final batch may be less than batchSize). The caller must close recCh to
-// indicate that all records have been sent, or cancel ctx to stop the
-// insertion goroutine. Any error is returned on errCh. Processing is
-// complete when errCh is closed: the caller must select on errCh.
-func NewBatchInsert(ctx context.Context, log lg.Log, drvr SQLDriver, db sqlz.DB, destTbl string, destColNames []string, batchSize int) (recCh chan<- []interface{}, errCh <-chan error) {
+// Munge should be invoked on every record before sending
+// on RecordCh.
+func (bi BatchInsert) Munge(rec []interface{}) error {
+	return bi.mungeFn(rec)
+}
+
+// NewBatchInsert returns a new BatchInsert instance. The internal
+// goroutine is started.
+//
+// Note that the db arg must guarantee a single connection: that is,
+// it must be a sql.Conn or sql.Tx.
+func NewBatchInsert(ctx context.Context, log lg.Log, drvr SQLDriver, db sqlz.DB, destTbl string, destColNames []string, batchSize int) (*BatchInsert, error) {
 	rCh := make(chan []interface{}, batchSize*8)
 	eCh := make(chan error, 1)
 	rowLen := len(destColNames)
 
+	inserter, err := drvr.PrepareInsertStmt(ctx, db, destTbl, destColNames, batchSize)
+	if err != nil {
+		return nil, err
+	}
+
+	bi := &BatchInsert{RecordCh: rCh, ErrCh: eCh, written: atomic.NewInt64(0), mungeFn: inserter.mungeFn}
+
 	go func() {
 		// vals holds rows of values as a single slice. That is, vals is
-		// a bunch of record values appended to one big slice to pass
+		// a bunch of record fields appended to one big slice to pass
 		// as args to the INSERT statement
 		vals := make([]interface{}, 0, rowLen*batchSize)
 
 		var rec []interface{}
-		var err error
 		var affected int64
-		var inserter *StmtExecer
 
 		defer func() {
 			if inserter != nil {
@@ -410,13 +431,8 @@ func NewBatchInsert(ctx context.Context, log lg.Log, drvr SQLDriver, db sqlz.DB,
 			}
 
 			close(eCh)
-			log.Debug("batch insert: exiting")
+			log.Debug("Batch insert: complete")
 		}()
-
-		inserter, err = drvr.PrepareInsertStmt(ctx, db, destTbl, destColNames, batchSize)
-		if err != nil {
-			return
-		}
 
 		for {
 			rec = nil
@@ -434,12 +450,6 @@ func NewBatchInsert(ctx context.Context, log lg.Log, drvr SQLDriver, db sqlz.DB,
 					return
 				}
 
-				// Munge the supplied record
-				err = inserter.Munge(rec)
-				if err != nil {
-					return
-				}
-
 				vals = append(vals, rec...)
 			}
 
@@ -449,11 +459,12 @@ func NewBatchInsert(ctx context.Context, log lg.Log, drvr SQLDriver, db sqlz.DB,
 			}
 
 			if len(vals)/rowLen == batchSize { // We've got a full batch to send
-
 				affected, err = inserter.Exec(ctx, vals...)
 				if err != nil {
 					return
 				}
+
+				bi.written.Add(affected)
 
 				log.Debugf("Wrote %d records to table %s", affected, destTbl)
 
@@ -488,6 +499,12 @@ func NewBatchInsert(ctx context.Context, log lg.Log, drvr SQLDriver, db sqlz.DB,
 			}
 
 			affected, err = inserter.Exec(ctx, vals...)
+			if err != nil {
+				return
+			}
+
+			bi.written.Add(affected)
+
 			log.Debugf("Wrote %d records to table %s", affected, destTbl)
 
 			// We're done
@@ -495,7 +512,7 @@ func NewBatchInsert(ctx context.Context, log lg.Log, drvr SQLDriver, db sqlz.DB,
 		}
 	}()
 
-	return rCh, eCh
+	return bi, nil
 }
 
 // DefaultInsertMungeFunc returns an InsertMungeFunc

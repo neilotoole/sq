@@ -67,23 +67,27 @@ func (d *Driver) Dialect() driver.Dialect {
 	}
 }
 
-func placeholders(n int) string {
-	if n == 0 {
-		return ""
-	}
-	if n == 1 {
-		return "$1"
+func placeholders(numCols, numRows int) string {
+	rows := make([]string, numRows)
+
+	n := 1
+	var sb strings.Builder
+	for i := 0; i < numRows; i++ {
+		sb.Reset()
+		sb.WriteRune('(')
+		for j := 1; j <= numCols; j++ {
+			sb.WriteRune('$')
+			sb.WriteString(strconv.Itoa(n))
+			n++
+			if j < numCols {
+				sb.WriteString(driver.Comma)
+			}
+		}
+		sb.WriteRune(')')
+		rows[i] = sb.String()
 	}
 
-	var sb strings.Builder
-	for i := 1; i <= n; i++ {
-		sb.WriteRune('$')
-		sb.WriteString(strconv.Itoa(i))
-		if i < n {
-			sb.WriteString(", ")
-		}
-	}
-	return sb.String()
+	return strings.Join(rows, driver.Comma)
 }
 
 // SQLBuilder implements driver.SQLDriver.

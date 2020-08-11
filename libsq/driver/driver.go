@@ -107,6 +107,9 @@ type SQLDriver interface {
 	// how many rows of values are inserted by each execution of
 	// the insert statement (1 row being the prototypical usage).
 	// It is the caller's responsibility to close the execer.
+	//
+	// Note that db must guarantee a single connection: that is, db
+	// must be a sql.Conn or sql.Tx.
 	PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string, numRows int) (*StmtExecer, error)
 
 	// PrepareUpdateStmt prepares a statement for updating destColNames in
@@ -119,6 +122,9 @@ type SQLDriver interface {
 	//
 	// Use the returned StmtExecer per its documentation. It is the caller's
 	// responsibility to close the execer.
+	//
+	// Note that db must guarantee a single connection: that is, db
+	// must be a sql.Conn or sql.Tx.
 	PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string, where string) (*StmtExecer, error)
 
 	// CreateTable creates the table defined by tblDef. Some implementations
@@ -192,9 +198,9 @@ type Dialect struct {
 	// Type is the dialect's driver source type.
 	Type source.Type `json:"type"`
 
-	// Placeholders returns a string of n placeholders.
-	// For example "?, ?, ?" or "$1, $2, $3".
-	Placeholders func(n int) string
+	// Placeholders returns a string of {numCols, numRows} placeholders.
+	// For example "(?, ?, ?)" or "($1, $2, $3), ($4, $5, $6)".
+	Placeholders func(numCols, numRows int) string
 
 	// Quote is the quote rune, typically the double quote rune.
 	Quote rune `json:"quote"`

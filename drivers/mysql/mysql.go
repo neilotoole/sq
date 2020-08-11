@@ -66,8 +66,12 @@ func (d *Driver) Dialect() driver.Dialect {
 	}
 }
 
-func placeholders(n int) string {
-	return stringz.RepeatJoin("?", n, driver.Comma)
+func placeholders(numCols, numRows int) string {
+	rows := make([]string, numRows)
+	for i := 0; i < numRows; i++ {
+		rows[i] = "(" + stringz.RepeatJoin("?", numCols, driver.Comma) + ")"
+	}
+	return strings.Join(rows, driver.Comma)
 }
 
 // SQLBuilder implements driver.SQLDriver.

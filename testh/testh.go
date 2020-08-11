@@ -311,7 +311,7 @@ func (h *Helper) CopyTable(dropAfter bool, src *source.Source, fromTable, toTabl
 		h.Cleanup.Add(func() { h.DropTable(src, toTable) })
 	}
 
-	h.T.Logf("Copied table %s.%s --> %s.%s  (copy data=%v; rows copied=%d])",
+	h.Log.Debugf("Copied table %s.%s --> %s.%s  (copy data=%v; rows copied=%d)",
 		src.Handle, fromTable, src.Handle, toTable, copyData, copied)
 	return toTable
 }
@@ -324,7 +324,7 @@ func (h *Helper) DropTable(src *source.Source, tbl string) {
 	}()
 
 	require.NoError(h.T, dbase.SQLDriver().DropTable(h.Context, dbase.DB(), tbl, true))
-	h.T.Logf("Dropped %s.%s", src.Handle, tbl)
+	h.Log.Debugf("Dropped %s.%s", src.Handle, tbl)
 }
 
 // QuerySQL uses libsq.QuerySQL to execute SQL query

@@ -265,8 +265,8 @@ func createTypeTestTable(th *testh.Helper, src *source.Source, withData bool) (r
 		return 0, actualTblName
 	}
 
-	placeholders := th.SQLDriverFor(src).Dialect().Placeholders(len(typeTestColNames))
-	const insertTpl = "INSERT INTO %s (%s) VALUES (%s)"
+	placeholders := th.SQLDriverFor(src).Dialect().Placeholders(len(typeTestColNames), 1)
+	const insertTpl = "INSERT INTO %s (%s) VALUES %s"
 	insertStmt := fmt.Sprintf(insertTpl, actualTblName, strings.Join(typeTestColNames, ", "), placeholders)
 
 	for _, insertRowVals := range typeTestVals {
@@ -326,7 +326,7 @@ func Test_MSSQLDB_DriverIssue196(t *testing.T) {
 	// behaviour is expected of VARBINARY.
 	const (
 		canonicalTblName = "type_test_issue_196"
-		insertTpl        = "INSERT INTO %s (col_binary_n) VALUES (%s)"
+		insertTpl        = "INSERT INTO %s (col_binary_n) VALUES %s"
 		createStmtTpl    = `CREATE TABLE type_test_issue_196 (col_binary_n BINARY(255))`
 	)
 
@@ -348,7 +348,7 @@ func Test_MSSQLDB_DriverIssue196(t *testing.T) {
 	})
 
 	// Build the INSERT statement
-	placeholders := th.SQLDriverFor(src).Dialect().Placeholders(1)
+	placeholders := th.SQLDriverFor(src).Dialect().Placeholders(1, 1)
 	insertStmt := fmt.Sprintf(insertTpl, actualTblName, placeholders)
 
 	// Insert empty byte slice, should work

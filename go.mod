@@ -7,7 +7,7 @@ require (
 	github.com/aws/aws-sdk-go v1.12.10 // indirect
 	github.com/bgentry/go-netrc v0.0.0-20140422174119-9fd32a8b3d3d // indirect
 	github.com/c2h5oh/datasize v0.0.0-20170519143321-54516c931ae9
-	github.com/denisenkom/go-mssqldb v0.0.0-20200428022330-06a60b6afbbc
+	github.com/denisenkom/go-mssqldb v0.0.0-20200620013148-b91950f658ec
 	github.com/djherbis/fscache v0.10.1
 	github.com/emirpasic/gods v1.9.0
 	github.com/fatih/color v1.9.0
@@ -50,7 +50,7 @@ require (
 	github.com/xo/dburl v0.0.0-20200124232849-e9ec94f52bc3
 	go.uber.org/atomic v1.5.0
 	go.uber.org/multierr v1.4.0
-	golang.org/x/crypto v0.0.0-20200510223506-06a226fb4e37
+	golang.org/x/crypto v0.0.0-20200728195943-123391ffb6de
 	golang.org/x/net v0.0.0-20190813141303-74dc4d7220e7
 	golang.org/x/sync v0.0.0-20200625203802-6e8e738ad208
 	gopkg.in/djherbis/atime.v1 v1.0.0 // indirect

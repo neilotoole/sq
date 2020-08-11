@@ -153,8 +153,8 @@ func createTypeTestTable(th *testh.Helper, src *source.Source, withData bool) (n
 		return actualTblName
 	}
 
-	placeholders := th.SQLDriverFor(src).Dialect().Placeholders(len(typeTestColNames))
-	const insertTpl = "INSERT INTO %s (%s) VALUES (%s)"
+	placeholders := th.SQLDriverFor(src).Dialect().Placeholders(len(typeTestColNames), 1)
+	const insertTpl = "INSERT INTO %s (%s) VALUES %s"
 	insertStmt := fmt.Sprintf(insertTpl, actualTblName, strings.Join(typeTestColNames, ", "), placeholders)
 	t.Log(insertStmt)
 
@@ -181,7 +181,6 @@ func TestDatabaseTypes(t *testing.T) {
 	th.Cleanup.Add(func() {
 		th.DropTable(src, actualTblName)
 	})
-
 
 	sink := &testh.RecordSink{}
 	recw := output.NewRecordWriterAdapter(sink)

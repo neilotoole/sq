@@ -25,6 +25,7 @@ import (
 func TestDriver_DropTable(t *testing.T) {
 	for _, handle := range sakila.SQLAll() {
 		handle := handle
+
 		t.Run(handle, func(t *testing.T) {
 			th := testh.New(t)
 			src := th.Source(handle)
@@ -55,8 +56,9 @@ func TestDriver_DropTable(t *testing.T) {
 func TestDriver_CopyTable(t *testing.T) {
 	for _, handle := range sakila.SQLAll() {
 		handle := handle
+
 		t.Run(handle, func(t *testing.T) {
-			// t.Parallel()
+			t.Parallel()
 
 			th := testh.New(t)
 			src := th.Source(handle)
@@ -257,40 +259,51 @@ func TestDriver_Open(t *testing.T) {
 }
 
 func TestNewBatchInsert(t *testing.T) {
-	const batchSize = 30
+	// This value is chosen as it's not a neat divisor of 200 (sakila.TblActorSize).
+	const batchSize = 70
 
-	th, src, _, drvr := testh.NewWith(t, sakila.SL3)
-	ctx := th.Context
-	tbl := th.CopyTable(true, src, sakila.TblActor, "", false)
+	for _, handle := range sakila.SQLAll() {
+		handle := handle
 
-	// Get records from TblActor that we'll write to the new tbl
-	recMeta, recs := testh.RecordsFromTbl(t, sakila.SL3, sakila.TblActor)
-	recCh, errCh := driver.NewBatchInsert(ctx, th.Log, drvr, th.Open(src).DB(), tbl, recMeta.Names(), batchSize)
+		t.Run(handle, func(t *testing.T) {
+			th, src, _, drvr := testh.NewWith(t, handle)
+			conn, err := th.Open(src).DB().Conn(th.Context)
+			require.NoError(t, err)
+			defer func() { assert.NoError(t, conn.Close()) }()
 
-	for _, rec := range recs {
-		select {
-		case <-ctx.Done():
-			close(recCh)
-			// Should never happen
-			t.Fatal(ctx.Err())
-		case err := <-errCh:
-			close(recCh)
-			// Should not happen
-			t.Fatal(err)
-		case recCh <- rec:
-		}
+			tbl := th.CopyTable(true, src, sakila.TblActor, "", false)
+
+			// Get records from TblActor that we'll write to the new tbl
+			recMeta, recs := testh.RecordsFromTbl(t, handle, sakila.TblActor)
+			bi, err := driver.NewBatchInsert(th.Context, th.Log, drvr, conn, tbl, recMeta.Names(), batchSize)
+			require.NoError(t, err)
+
+			for _, rec := range recs {
+				err = bi.Munge(rec)
+				require.NoError(t, err)
+
+				select {
+				case <-th.Context.Done():
+					close(bi.RecordCh)
+					// Should never happen
+					t.Fatal(th.Context.Err())
+				case err = <-bi.ErrCh:
+					close(bi.RecordCh)
+					// Should not happen
+					t.Fatal(err)
+				case bi.RecordCh <- rec:
+				}
+			}
+			close(bi.RecordCh) // Indicates end of records
+
+			err = <-bi.ErrCh
+			require.Nil(t, err)
+
+			sink, err := th.QuerySQL(src, "SELECT * FROM "+tbl)
+			require.NoError(t, err)
+			require.Equal(t, sakila.TblActorCount, len(sink.Recs))
+		})
 	}
-	close(recCh) // Indicates end of records
-
-	select {
-	case err := <-errCh:
-
-		require.NoError(t, err)
-	}
-
-	sink, err := th.QuerySQL(src, "SELECT * FROM "+tbl)
-	require.NoError(t, err)
-	require.Equal(t, sakila.TblActorCount, len(sink.Recs))
 }
 
 // coreDrivers is a slice of the core driver types.

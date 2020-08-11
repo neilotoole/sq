@@ -50,8 +50,8 @@ func TestCmdTblDrop(t *testing.T) {
 
 			th := testh.New(t)
 			src := th.Source(handle)
-			destTblName := th.CopyTable(false, src, sakila.TblActor, "", true)
-			t.Cleanup(func() { th.DropTable(src, destTblName) })
+			destTblName := th.CopyTable(true, src, sakila.TblActor, "", true)
+			//t.Cleanup(func() { th.DropTable(src, destTblName) }) // FIXME: delete
 
 			tblMeta, err := th.Open(src).TableMetadata(th.Context, destTblName)
 			require.NoError(t, err) // verify that the table exists
@@ -78,8 +78,7 @@ func TestCmdTblTruncate(t *testing.T) {
 
 			th := testh.New(t)
 			src := th.Source(handle)
-			destTblName := th.CopyTable(false, src, sakila.TblActor, "", true)
-			t.Cleanup(func() { th.DropTable(src, destTblName) })
+			destTblName := th.CopyTable(true, src, sakila.TblActor, "", true)
 
 			tblMeta, err := th.Open(src).TableMetadata(th.Context, destTblName)
 			require.NoError(t, err) // verify that the table exists
