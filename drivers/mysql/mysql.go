@@ -59,10 +59,11 @@ func (d *Driver) DriverMetadata() driver.Metadata {
 // Dialect implements driver.Driver.
 func (d *Driver) Dialect() driver.Dialect {
 	return driver.Dialect{
-		Type:         Type,
-		Placeholders: placeholders,
-		Quote:        '`',
-		IntBool:      true,
+		Type:           Type,
+		Placeholders:   placeholders,
+		Quote:          '`',
+		IntBool:        true,
+		MaxBatchValues: 250,
 	}
 }
 

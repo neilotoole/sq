@@ -61,9 +61,10 @@ func (d *Driver) DriverMetadata() driver.Metadata {
 // Dialect implements driver.SQLDriver.
 func (d *Driver) Dialect() driver.Dialect {
 	return driver.Dialect{
-		Type:         Type,
-		Placeholders: placeholders,
-		Quote:        '"',
+		Type:           Type,
+		Placeholders:   placeholders,
+		Quote:          '"',
+		MaxBatchValues: 1000,
 	}
 }
 

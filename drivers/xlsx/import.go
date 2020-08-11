@@ -2,6 +2,7 @@ package xlsx
 
 import (
 	"context"
+	"math"
 	"strings"
 	"time"
 
@@ -63,12 +64,19 @@ func xlsxToScratch(ctx context.Context, log lg.Log, src *source.Source, xlFile *
 func importSheetToTable(ctx context.Context, log lg.Log, sheet *xlsx.Sheet, hasHeader bool, scratchDB driver.Database, tblDef *sqlmodel.TableDef) error {
 	startTime := time.Now()
 
-	stmtExecer, err := scratchDB.SQLDriver().PrepareInsertStmt(ctx, scratchDB.DB(), tblDef.Name, tblDef.ColNames(), 1)
+	conn, err := scratchDB.DB().Conn(ctx)
+	if err != nil {
+		return errz.Err(err)
+	}
+	defer log.WarnIfCloseError(conn)
+
+	destColKinds := tblDef.ColKinds()
+	batchSize := int(math.Ceil(float64(scratchDB.SQLDriver().Dialect().MaxBatchValues) / float64(len(destColKinds))))
+
+	bi, err := driver.NewBatchInsert(ctx, log, scratchDB.SQLDriver(), conn, tblDef.Name, tblDef.ColNames(), batchSize)
 	if err != nil {
 		return err
 	}
-
-	destColKinds := tblDef.ColKinds()
 
 	for i, row := range sheet.Rows {
 		if hasHeader && i == 0 {
@@ -76,25 +84,37 @@ func importSheetToTable(ctx context.Context, log lg.Log, sheet *xlsx.Sheet, hasH
 		}
 
 		rec := rowToRecord(log, destColKinds, row, sheet.Name, i)
-		err = stmtExecer.Munge(rec)
+		err = bi.Munge(rec)
 		if err != nil {
+			close(bi.RecordCh)
 			return err
 		}
 
-		_, err = stmtExecer.Exec(ctx, rec...)
-		if err != nil {
-			log.WarnIfCloseError(stmtExecer)
-			return errz.Err(err)
+		select {
+		case <-ctx.Done():
+			close(bi.RecordCh)
+			return ctx.Err()
+		case err = <-bi.ErrCh:
+			if err != nil {
+				close(bi.RecordCh)
+				return err
+			}
+
+			// The batch inserter successfully completed
+			break
+		case bi.RecordCh <- rec:
 		}
 	}
 
-	err = stmtExecer.Close()
+	close(bi.RecordCh) // Indicate that we're finished writing records
+
+	err = <-bi.ErrCh // Wait for bi to complete
 	if err != nil {
-		return errz.Err(err)
+		return err
 	}
 
 	log.Debugf("Inserted %d rows from sheet %q into %s.%s in %s",
-		len(sheet.Rows), sheet.Name, scratchDB.Source().Handle, tblDef.Name, time.Since(startTime))
+		bi.Written(), sheet.Name, scratchDB.Source().Handle, tblDef.Name, time.Since(startTime))
 
 	return nil
 }

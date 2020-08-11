@@ -193,12 +193,12 @@ type Metadata struct {
 	Monotable bool `json:"monotable"`
 }
 
-// Dialect holds driver-specific dialect values.
+// Dialect holds driver-specific SQL dialect values.
 type Dialect struct {
 	// Type is the dialect's driver source type.
 	Type source.Type `json:"type"`
 
-	// Placeholders returns a string of {numCols, numRows} placeholders.
+	// Placeholders returns a string a SQL placeholders string.
 	// For example "(?, ?, ?)" or "($1, $2, $3), ($4, $5, $6)".
 	Placeholders func(numCols, numRows int) string
 
@@ -207,6 +207,9 @@ type Dialect struct {
 
 	// IntBool is true if BOOLEAN is handled as an INT by the DB driver.
 	IntBool bool `json:"int_bool"`
+
+	// MaxBatchValues is the maximum number of values in a batch insert.
+	MaxBatchValues int
 }
 
 // Enquote returns s surrounded by d.Quote.
@@ -345,7 +348,7 @@ func (d *Databases) Close() error {
 }
 
 // Tuning holds tuning params. Ultimately these params
-// could come from user config or be dynamically calculated/adjusted.
+// could come from user config or be dynamically calculated/adjusted?
 //
 // This package may not be the best home for these params.
 var Tuning = struct {
@@ -354,12 +357,7 @@ var Tuning = struct {
 
 	// ErrgroupQSize is the qSize value for errgroup.WithContextN.
 	ErrgroupQSize int
-
-	// InsertBatchSize controls the number of rows in a batch during
-	// insert operations.
-	InsertBatchSize int
 }{
-	ErrgroupNumG:    16,
-	ErrgroupQSize:   16,
-	InsertBatchSize: 100,
+	ErrgroupNumG:  16,
+	ErrgroupQSize: 16,
 }

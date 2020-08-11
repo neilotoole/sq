@@ -392,6 +392,8 @@ func (bi BatchInsert) Munge(rec []interface{}) error {
 // Note that the db arg must guarantee a single connection: that is,
 // it must be a sql.Conn or sql.Tx.
 func NewBatchInsert(ctx context.Context, log lg.Log, drvr SQLDriver, db sqlz.DB, destTbl string, destColNames []string, batchSize int) (*BatchInsert, error) {
+	log.Debugf("Batch insert to %q (rows per batch: %d)", destTbl, batchSize)
+
 	rCh := make(chan []interface{}, batchSize*8)
 	eCh := make(chan error, 1)
 	rowLen := len(destColNames)

@@ -127,8 +127,6 @@ func (d *Driver) ValidateSource(src *source.Source) (*source.Source, error) {
 
 // Ping implements driver.Driver.
 func (d *Driver) Ping(ctx context.Context, src *source.Source) (err error) {
-	d.log.Debugf("driver %q attempting to ping %q", Type, src)
-
 	r, err := d.files.NewReader(ctx, src)
 	if err != nil {
 		return err
