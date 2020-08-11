@@ -2,7 +2,6 @@ package xlsx
 
 import (
 	"context"
-	"math"
 	"strings"
 	"time"
 
@@ -70,10 +69,12 @@ func importSheetToTable(ctx context.Context, log lg.Log, sheet *xlsx.Sheet, hasH
 	}
 	defer log.WarnIfCloseError(conn)
 
-	destColKinds := tblDef.ColKinds()
-	batchSize := int(math.Ceil(float64(scratchDB.SQLDriver().Dialect().MaxBatchValues) / float64(len(destColKinds))))
+	drvr := scratchDB.SQLDriver()
 
-	bi, err := driver.NewBatchInsert(ctx, log, scratchDB.SQLDriver(), conn, tblDef.Name, tblDef.ColNames(), batchSize)
+	destColKinds := tblDef.ColKinds()
+
+	batchSize := driver.MaxBatchRows(drvr, len(destColKinds))
+	bi, err := driver.NewBatchInsert(ctx, log, drvr, conn, tblDef.Name, tblDef.ColNames(), batchSize)
 	if err != nil {
 		return err
 	}

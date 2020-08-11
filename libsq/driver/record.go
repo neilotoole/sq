@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math"
 	"reflect"
 	"strings"
 	"time"
@@ -394,6 +395,12 @@ func (bi BatchInsert) Munge(rec []interface{}) error {
 func NewBatchInsert(ctx context.Context, log lg.Log, drvr SQLDriver, db sqlz.DB, destTbl string, destColNames []string, batchSize int) (*BatchInsert, error) {
 	log.Debugf("Batch insert to %q (rows per batch: %d)", destTbl, batchSize)
 
+	switch db.(type) {
+	case *sql.Conn, *sql.Tx:
+	default:
+		return nil, errz.Errorf("db must be guaranteed single-connection (sql.Conn or sql.Tx) but was %T", db)
+	}
+
 	rCh := make(chan []interface{}, batchSize*8)
 	eCh := make(chan error, 1)
 	rowLen := len(destColNames)
@@ -515,6 +522,13 @@ func NewBatchInsert(ctx context.Context, log lg.Log, drvr SQLDriver, db sqlz.DB,
 	}()
 
 	return bi, nil
+}
+
+// MaxBatchRows returns the maximum number of rows allowed for a
+// batch insert for drvr. Note that the returned value may differ
+// for each database driver.
+func MaxBatchRows(drvr SQLDriver, numCols int) int {
+	return int(math.Ceil(float64(drvr.Dialect().MaxBatchValues) / float64(numCols)))
 }
 
 // DefaultInsertMungeFunc returns an InsertMungeFunc

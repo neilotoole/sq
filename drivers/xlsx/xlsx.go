@@ -117,7 +117,7 @@ func (d *Driver) Truncate(ctx context.Context, src *source.Source, tbl string, r
 
 // ValidateSource implements driver.Driver.
 func (d *Driver) ValidateSource(src *source.Source) (*source.Source, error) {
-	d.log.Debugf("validating source: %q", src.RedactedLocation())
+	d.log.Debugf("Validating source: %q", src.RedactedLocation())
 	if src.Type != Type {
 		return nil, errz.Errorf("expected source type %q but got %q", Type, src.Type)
 	}
