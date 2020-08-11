@@ -256,6 +256,43 @@ func TestDriver_Open(t *testing.T) {
 	}
 }
 
+func TestNewBatchInsert(t *testing.T) {
+	const batchSize = 30
+
+	th, src, _, drvr := testh.NewWith(t, sakila.SL3)
+	ctx := th.Context
+	tbl := th.CopyTable(true, src, sakila.TblActor, "", false)
+
+	// Get records from TblActor that we'll write to the new tbl
+	recMeta, recs := testh.RecordsFromTbl(t, sakila.SL3, sakila.TblActor)
+	recCh, errCh := driver.NewBatchInsert(ctx, th.Log, drvr, th.Open(src).DB(), tbl, recMeta.Names(), batchSize)
+
+	for _, rec := range recs {
+		select {
+		case <-ctx.Done():
+			close(recCh)
+			// Should never happen
+			t.Fatal(ctx.Err())
+		case err := <-errCh:
+			close(recCh)
+			// Should not happen
+			t.Fatal(err)
+		case recCh <- rec:
+		}
+	}
+	close(recCh) // Indicates end of records
+
+	select {
+	case err := <-errCh:
+
+		require.NoError(t, err)
+	}
+
+	sink, err := th.QuerySQL(src, "SELECT * FROM "+tbl)
+	require.NoError(t, err)
+	require.Equal(t, sakila.TblActorCount, len(sink.Recs))
+}
+
 // coreDrivers is a slice of the core driver types.
 var coreDrivers = []source.Type{
 	postgres.Type,
