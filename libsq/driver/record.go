@@ -401,8 +401,8 @@ func NewBatchInsert(ctx context.Context, log lg.Log, drvr SQLDriver, db sqlz.DB,
 		return nil, errz.Errorf("db must be guaranteed single-connection (sql.Conn or sql.Tx) but was %T", db)
 	}
 
-	rCh := make(chan []interface{}, batchSize*8)
-	eCh := make(chan error, 1)
+	recCh := make(chan []interface{}, batchSize*8)
+	errCh := make(chan error, 1)
 	rowLen := len(destColNames)
 
 	inserter, err := drvr.PrepareInsertStmt(ctx, db, destTbl, destColNames, batchSize)
@@ -410,7 +410,7 @@ func NewBatchInsert(ctx context.Context, log lg.Log, drvr SQLDriver, db sqlz.DB,
 		return nil, err
 	}
 
-	bi := &BatchInsert{RecordCh: rCh, ErrCh: eCh, written: atomic.NewInt64(0), mungeFn: inserter.mungeFn}
+	bi := &BatchInsert{RecordCh: recCh, ErrCh: errCh, written: atomic.NewInt64(0), mungeFn: inserter.mungeFn}
 
 	go func() {
 		// vals holds rows of values as a single slice. That is, vals is
@@ -436,10 +436,10 @@ func NewBatchInsert(ctx context.Context, log lg.Log, drvr SQLDriver, db sqlz.DB,
 			}
 
 			if err != nil {
-				eCh <- err
+				errCh <- err
 			}
 
-			close(eCh)
+			close(errCh)
 			log.Debug("Batch insert: complete")
 		}()
 
@@ -450,7 +450,7 @@ func NewBatchInsert(ctx context.Context, log lg.Log, drvr SQLDriver, db sqlz.DB,
 			case <-ctx.Done():
 				err = ctx.Err()
 				return
-			case rec = <-rCh:
+			case rec = <-recCh:
 			}
 
 			if rec != nil {
@@ -492,6 +492,11 @@ func NewBatchInsert(ctx context.Context, log lg.Log, drvr SQLDriver, db sqlz.DB,
 				// recCh is not closed, so we loop to accumulate more records
 				continue
 			}
+
+			// If we get this far, it means that rec is nil (indicating
+			// no more records), but the number of remaining records
+			// to write is less than batchSize. So, we'll need a new
+			// inserter to write the remaining records.
 
 			// First, close the existing full-batch-size inserter
 			if inserter != nil {
