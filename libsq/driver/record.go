@@ -4,9 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math"
 	"reflect"
 	"strings"
 	"time"
+
+	"github.com/neilotoole/lg"
+	"go.uber.org/atomic"
 
 	"github.com/neilotoole/sq/libsq/errz"
 	"github.com/neilotoole/sq/libsq/sqlz"
@@ -37,7 +41,7 @@ type InsertMungeFunc func(vals sqlz.Record) error
 // retryable errors.
 type StmtExecFunc func(ctx context.Context, args ...interface{}) (affected int64, err error)
 
-// NewStmtExecer returns a new instance. The caller is responsible
+// NewStmtExecer returns a new StmtExecer instance. The caller is responsible
 // for invoking Close on the returned StmtExecer.
 func NewStmtExecer(stmt *sql.Stmt, mungeFn InsertMungeFunc, execFn StmtExecFunc, destMeta sqlz.RecordMeta) *StmtExecer {
 	return &StmtExecer{
@@ -49,7 +53,8 @@ func NewStmtExecer(stmt *sql.Stmt, mungeFn InsertMungeFunc, execFn StmtExecFunc,
 }
 
 // StmtExecer encapsulates the elements required to execute
-// a SQL statement. The Munge method should be applied to each
+// a SQL statement. Typically the statement is an INSERT.
+// The Munge method should be applied to each
 // row of values prior to invoking Exec. The caller
 // is responsible for invoking Close.
 type StmtExecer struct {
@@ -65,7 +70,7 @@ func (x *StmtExecer) DestMeta() sqlz.RecordMeta {
 }
 
 // Munge should be applied to each row of values prior
-// invoking Exec.
+// to inserting invoking Exec.
 func (x *StmtExecer) Munge(rec []interface{}) error {
 	if x.mungeFn == nil {
 		return nil
@@ -317,19 +322,209 @@ func NewRecordFromScanRow(meta sqlz.RecordMeta, row []interface{}, skip []int) (
 const Comma = ", "
 
 // PrepareInsertStmt prepares an insert statement using
-// driver-specific config.
-func PrepareInsertStmt(ctx context.Context, drvr SQLDriver, db sqlz.Preparer, destTbl string, destCols []string) (stmt *sql.Stmt, err error) {
-	const stmtTpl = `INSERT INTO %s (%s) VALUES (%s)`
+// driver-specific syntax from drvr. numRows specifies
+// how many rows of values are inserted by each execution of
+// the insert statement (1 row being the prototypical usage).
+func PrepareInsertStmt(ctx context.Context, drvr SQLDriver, db sqlz.Preparer, destTbl string, destCols []string, numRows int) (stmt *sql.Stmt, err error) {
+	const stmtTpl = `INSERT INTO %s (%s) VALUES %s`
+
+	if numRows <= 0 {
+		return nil, errz.Errorf("numRows must be a positive integer but got %d", numRows)
+	}
 
 	dialect := drvr.Dialect()
 	quote := string(dialect.Quote)
 	tblNameQuoted, colNamesQuoted := stringz.Surround(destTbl, quote), stringz.SurroundSlice(destCols, quote)
 	colsJoined := strings.Join(colNamesQuoted, Comma)
-	placeholders := dialect.Placeholders(len(colNamesQuoted))
+	placeholders := dialect.Placeholders(len(colNamesQuoted), numRows)
 
 	query := fmt.Sprintf(stmtTpl, tblNameQuoted, colsJoined, placeholders)
 	stmt, err = db.PrepareContext(ctx, query)
 	return stmt, errz.Err(err)
+}
+
+// BatchInsert encapsulates inserting records to a db. The caller sends
+// (munged) records on recCh; the record values should be munged via
+// the Munge method prior to sending. Records are written to db in
+// batches of batchSize as passed to NewBatchInsert (the final batch may
+// be less than batchSize). The caller must close recCh to indicate that
+// all records have been sent, or cancel the ctx passed to
+// NewBatchInsert to stop the insertion goroutine. Any error is returned
+// on errCh. Processing is complete when errCh is closed: the caller
+// must select on errCh.
+type BatchInsert struct {
+	// RecordCh is the channel that the caller sends records on. The
+	// caller must close RecordCh when done.
+	RecordCh chan<- []interface{}
+
+	// ErrCh returns any errors that occur during insert. ErrCh is
+	// closed by BatchInsert when processing is complete.
+	ErrCh <-chan error
+
+	written *atomic.Int64
+
+	mungeFn InsertMungeFunc
+}
+
+// Written returns the number of records inserted (at the time of
+// invocation). For the final value, Written should be invoked after
+// ErrCh is closed.
+func (bi *BatchInsert) Written() int64 {
+	return bi.written.Load()
+}
+
+// Munge should be invoked on every record before sending
+// on RecordCh.
+func (bi BatchInsert) Munge(rec []interface{}) error {
+	return bi.mungeFn(rec)
+}
+
+// NewBatchInsert returns a new BatchInsert instance. The internal
+// goroutine is started.
+//
+// Note that the db arg must guarantee a single connection: that is,
+// it must be a sql.Conn or sql.Tx.
+func NewBatchInsert(ctx context.Context, log lg.Log, drvr SQLDriver, db sqlz.DB, destTbl string, destColNames []string, batchSize int) (*BatchInsert, error) {
+	log.Debugf("Batch insert to %q (rows per batch: %d)", destTbl, batchSize)
+
+	err := RequireSingleConn(db)
+	if err != nil {
+		return nil, err
+	}
+
+	recCh := make(chan []interface{}, batchSize*8)
+	errCh := make(chan error, 1)
+	rowLen := len(destColNames)
+
+	inserter, err := drvr.PrepareInsertStmt(ctx, db, destTbl, destColNames, batchSize)
+	if err != nil {
+		return nil, err
+	}
+
+	bi := &BatchInsert{RecordCh: recCh, ErrCh: errCh, written: atomic.NewInt64(0), mungeFn: inserter.mungeFn}
+
+	go func() {
+		// vals holds rows of values as a single slice. That is, vals is
+		// a bunch of record fields appended to one big slice to pass
+		// as args to the INSERT statement
+		vals := make([]interface{}, 0, rowLen*batchSize)
+
+		var rec []interface{}
+		var affected int64
+
+		defer func() {
+			if inserter != nil {
+				if err == nil {
+					// If no pre-existing error, any inserter.Close error
+					// becomes the error.
+					err = errz.Err(inserter.Close())
+				} else {
+					// If there's already an error, we just log any
+					// error from inserter.Close: the pre-existing error
+					// is the primary concern.
+					log.WarnIfError(errz.Err(inserter.Close()))
+				}
+			}
+
+			if err != nil {
+				errCh <- err
+			}
+
+			close(errCh)
+			log.Debug("Batch insert: complete")
+		}()
+
+		for {
+			rec = nil
+
+			select {
+			case <-ctx.Done():
+				err = ctx.Err()
+				return
+			case rec = <-recCh:
+			}
+
+			if rec != nil {
+				if len(rec) != rowLen {
+					err = errz.Errorf("batch insert: record should have %d values but found %d", rowLen, len(rec))
+					return
+				}
+
+				vals = append(vals, rec...)
+			}
+
+			if len(vals) == 0 {
+				// Nothing to do here, we're done
+				return
+			}
+
+			if len(vals)/rowLen == batchSize { // We've got a full batch to send
+				affected, err = inserter.Exec(ctx, vals...)
+				if err != nil {
+					return
+				}
+
+				bi.written.Add(affected)
+
+				log.Debugf("Wrote %d records to table %s", affected, destTbl)
+
+				if rec == nil {
+					// recCh is closed (coincidentally exactly on the
+					// batch size), so we're successfully done.
+					return
+				}
+
+				// reset vals for the next batch
+				vals = vals[0:0]
+				continue
+			}
+
+			if rec != nil {
+				// recCh is not closed, so we loop to accumulate more records
+				continue
+			}
+
+			// If we get this far, it means that rec is nil (indicating
+			// no more records), but the number of remaining records
+			// to write is less than batchSize. So, we'll need a new
+			// inserter to write the remaining records.
+
+			// First, close the existing full-batch-size inserter
+			if inserter != nil {
+				err = errz.Err(inserter.Close())
+				inserter = nil
+				if err != nil {
+					return
+				}
+			}
+
+			inserter, err = drvr.PrepareInsertStmt(ctx, db, destTbl, destColNames, len(vals)/rowLen)
+			if err != nil {
+				return
+			}
+
+			affected, err = inserter.Exec(ctx, vals...)
+			if err != nil {
+				return
+			}
+
+			bi.written.Add(affected)
+
+			log.Debugf("Wrote %d records to table %s", affected, destTbl)
+
+			// We're done
+			return
+		}
+	}()
+
+	return bi, nil
+}
+
+// MaxBatchRows returns the maximum number of rows allowed for a
+// batch insert for drvr. Note that the returned value may differ
+// for each database driver.
+func MaxBatchRows(drvr SQLDriver, numCols int) int {
+	return int(math.Ceil(float64(drvr.Dialect().MaxBatchValues) / float64(numCols)))
 }
 
 // DefaultInsertMungeFunc returns an InsertMungeFunc

@@ -414,8 +414,8 @@ func createTypeTestTable(th *testh.Helper, src *source.Source, withData bool) (r
 		return 0, actualTblName
 	}
 
-	placeholders := th.SQLDriverFor(src).Dialect().Placeholders(len(typeTestColNames))
-	const insertTpl = "INSERT INTO %s (%s) VALUES (%s)"
+	placeholders := th.SQLDriverFor(src).Dialect().Placeholders(len(typeTestColNames), 1)
+	const insertTpl = "INSERT INTO %s (%s) VALUES %s"
 	insertStmt := fmt.Sprintf(insertTpl, actualTblName, strings.Join(typeTestColNames, ", "), placeholders)
 
 	for _, insertRowVals := range typeTestVals {

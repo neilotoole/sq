@@ -43,14 +43,15 @@ type RecordWriterAdapter struct {
 	FlushAfterDuration time.Duration
 }
 
-// RecordWriterAdapterChSize is the size of the record chan (effectively
+// adapterRecChSize is the size of the record chan (effectively
 // the buffer) used by RecordWriterAdapter.
 // Possibly this value should be user-configurable.
-const RecordWriterAdapterChSize = 1000
+const adapterRecChSize = 1000
 
 // NewRecordWriterAdapter returns a new RecordWriterAdapter.
 func NewRecordWriterAdapter(rw RecordWriter) *RecordWriterAdapter {
-	recCh := make(chan sqlz.Record, RecordWriterAdapterChSize)
+	recCh := make(chan sqlz.Record, adapterRecChSize)
+
 	return &RecordWriterAdapter{rw: rw, recCh: recCh, wg: &sync.WaitGroup{}, written: atomic.NewInt64(0)}
 }
 

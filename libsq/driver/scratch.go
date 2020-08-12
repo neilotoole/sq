@@ -15,6 +15,9 @@ import (
 type ScratchSrcFunc func(log lg.Log, name string) (src *source.Source, cleanFn func() error, err error)
 
 // scratchDatabase implements driver.Database.
+// It exists as a separate type mostly to support cleanup of the
+// created scratch database during Close. Possibly this type can
+// be ditched entirely.
 type scratchDatabase struct {
 	log     lg.Log
 	impl    Database

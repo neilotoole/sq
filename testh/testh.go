@@ -265,30 +265,56 @@ func (h *Helper) CreateTable(dropAfter bool, src *source.Source, tblDef *sqlmode
 	return h.Insert(src, tblDef.Name, tblDef.ColNames(), data...)
 }
 
-// Insert inserts data for cols into src.tbl, returning the number of
-// data rows inserted. Note that the data arg may be mutated by
-// the src's driver InsertMungeFunc.
-func (h *Helper) Insert(src *source.Source, tbl string, cols []string, data ...[]interface{}) (affected int64) {
-	if len(data) == 0 {
+// Insert inserts records for cols into src.tbl, returning the number of
+// records inserted. Note that the records arg may be mutated by src's
+// driver InsertMungeFunc.
+func (h *Helper) Insert(src *source.Source, tbl string, cols []string, records ...[]interface{}) (affected int64) {
+	if len(records) == 0 {
 		return 0
 	}
 
 	dbase := h.openNew(src)
 	defer h.Log.WarnIfCloseError(dbase)
 
-	execer, err := dbase.SQLDriver().PrepareInsertStmt(h.Context, dbase.DB(), tbl, cols)
-	require.NoError(h.T, err)
-	h.Cleanup.AddC(execer)
+	drvr := dbase.SQLDriver()
 
-	for _, row := range data {
-		require.NoError(h.T, execer.Munge(row))
-		count, err := execer.Exec(h.Context, row...)
-		require.NoError(h.T, err)
-		affected += count
+	conn, err := dbase.DB().Conn(h.Context)
+	require.NoError(h.T, err)
+	defer h.Log.WarnIfCloseError(conn)
+
+	batchSize := driver.MaxBatchRows(drvr, len(cols))
+	bi, err := driver.NewBatchInsert(h.Context, h.Log, drvr, conn, tbl, cols, batchSize)
+	require.NoError(h.T, err)
+
+	for _, rec := range records {
+		require.NoError(h.T, bi.Munge(rec))
+
+		select {
+		case <-h.Context.Done():
+			// Should not happen
+			close(bi.RecordCh)
+			require.NoError(h.T, h.Context.Err())
+
+		case err = <-bi.ErrCh:
+			// Should not happen
+			if err != nil {
+				close(bi.RecordCh)
+				require.NoError(h.T, err)
+			} else {
+				break
+			}
+
+		case bi.RecordCh <- rec:
+		}
 	}
 
-	h.T.Logf("Inserted %d rows to %s.%s", affected, src.Handle, tbl)
-	return affected
+	close(bi.RecordCh) // Indicate that we're finished writing records
+
+	err = <-bi.ErrCh // Wait for bi to complete
+	require.NoError(h.T, err)
+
+	h.T.Logf("Inserted %d rows to %s.%s", bi.Written(), src.Handle, tbl)
+	return bi.Written()
 }
 
 // CopyTable copies fromTable into a new table toTable. If
@@ -311,7 +337,7 @@ func (h *Helper) CopyTable(dropAfter bool, src *source.Source, fromTable, toTabl
 		h.Cleanup.Add(func() { h.DropTable(src, toTable) })
 	}
 
-	h.T.Logf("Copied table %s.%s --> %s.%s  (copy data=%v; rows copied=%d])",
+	h.Log.Debugf("Copied table %s.%s --> %s.%s  (copy data=%v; rows copied=%d)",
 		src.Handle, fromTable, src.Handle, toTable, copyData, copied)
 	return toTable
 }
@@ -324,7 +350,7 @@ func (h *Helper) DropTable(src *source.Source, tbl string) {
 	}()
 
 	require.NoError(h.T, dbase.SQLDriver().DropTable(h.Context, dbase.DB(), tbl, true))
-	h.T.Logf("Dropped %s.%s", src.Handle, tbl)
+	h.Log.Debugf("Dropped %s.%s", src.Handle, tbl)
 }
 
 // QuerySQL uses libsq.QuerySQL to execute SQL query

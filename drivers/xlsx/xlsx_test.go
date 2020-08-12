@@ -14,8 +14,6 @@ import (
 )
 
 func Test_Smoke_Subset(t *testing.T) {
-	t.Parallel()
-
 	th := testh.New(t)
 	src := th.Source(sakila.XLSXSubset)
 
@@ -27,7 +25,6 @@ func Test_Smoke_Subset(t *testing.T) {
 
 func Test_Smoke_Full(t *testing.T) {
 	testh.SkipShort(t, true)
-	t.Parallel()
 
 	th := testh.New(t)
 	src := th.Source(sakila.XLSX)

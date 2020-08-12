@@ -428,7 +428,7 @@ func (im *importer) dbInsert(ctx context.Context, row *rowState) error {
 	execInsertFn, ok := im.execInsertFns[cacheKey]
 	if !ok {
 		// Nothing cached, prepare the insert statement and insert munge func
-		stmtExecer, err := im.destDB.SQLDriver().PrepareInsertStmt(ctx, im.destDB.DB(), tblName, colNames)
+		stmtExecer, err := im.destDB.SQLDriver().PrepareInsertStmt(ctx, im.destDB.DB(), tblName, colNames, 1)
 		if err != nil {
 			return err
 		}

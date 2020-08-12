@@ -11,7 +11,7 @@ import (
 
 // NewRegistry returns a new Registry instance that provides
 // access to driver implementations. Note that Registry
-// implements driver.Provider.
+// implements Provider.
 func NewRegistry(log lg.Log) *Registry {
 	return &Registry{
 		log:       log,
@@ -48,7 +48,7 @@ func (r *Registry) ProviderFor(typ source.Type) Provider {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	p, _ := r.providers[typ]
+	p := r.providers[typ]
 	return p
 }
 

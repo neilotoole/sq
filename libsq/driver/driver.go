@@ -19,13 +19,6 @@ import (
 	"github.com/neilotoole/sq/libsq/sqlz"
 )
 
-// These constants parameterize neilotoole/errgroup usage. Ultimately
-// the values should be configurable.
-const (
-	ErrgroupNumG  = 16
-	ErrgroupQSize = 16
-)
-
 // Provider is a factory that returns Driver instances.
 type Provider interface {
 	// DriverFor returns a driver instance for the given type.
@@ -110,13 +103,14 @@ type SQLDriver interface {
 	RecordMeta(colTypes []*sql.ColumnType) (sqlz.RecordMeta, NewRecordFunc, error)
 
 	// PrepareInsertStmt prepares a statement for inserting
-	// values to destColNames in destTbl. Use the returned StmtExecer
-	// per its documentation. It is the caller's responsibility to
-	// close the execer.
+	// values to destColNames in destTbl. numRows specifies
+	// how many rows of values are inserted by each execution of
+	// the insert statement (1 row being the prototypical usage).
+	// It is the caller's responsibility to close the execer.
 	//
-	// TODO: PrepareInsertStmt should take a param rowCount that
-	//  specifies how many rows of placeholders the statment takes.
-	PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string) (*StmtExecer, error)
+	// Note that db must guarantee a single connection: that is, db
+	// must be a sql.Conn or sql.Tx.
+	PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string, numRows int) (*StmtExecer, error)
 
 	// PrepareUpdateStmt prepares a statement for updating destColNames in
 	// destTbl, using the supplied where clause (which may be empty).
@@ -128,6 +122,9 @@ type SQLDriver interface {
 	//
 	// Use the returned StmtExecer per its documentation. It is the caller's
 	// responsibility to close the execer.
+	//
+	// Note that db must guarantee a single connection: that is, db
+	// must be a sql.Conn or sql.Tx.
 	PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string, where string) (*StmtExecer, error)
 
 	// CreateTable creates the table defined by tblDef. Some implementations
@@ -196,20 +193,23 @@ type Metadata struct {
 	Monotable bool `json:"monotable"`
 }
 
-// Dialect holds driver-specific dialect values.
+// Dialect holds driver-specific SQL dialect values.
 type Dialect struct {
 	// Type is the dialect's driver source type.
 	Type source.Type `json:"type"`
 
-	// Placeholders returns a string of n placeholders.
-	// For example "?, ?, ?" or "$1, $2, $3".
-	Placeholders func(n int) string
+	// Placeholders returns a string a SQL placeholders string.
+	// For example "(?, ?, ?)" or "($1, $2, $3), ($4, $5, $6)".
+	Placeholders func(numCols, numRows int) string
 
 	// Quote is the quote rune, typically the double quote rune.
 	Quote rune `json:"quote"`
 
 	// IntBool is true if BOOLEAN is handled as an INT by the DB driver.
 	IntBool bool `json:"int_bool"`
+
+	// MaxBatchValues is the maximum number of values in a batch insert.
+	MaxBatchValues int
 }
 
 // Enquote returns s surrounded by d.Quote.
@@ -345,4 +345,32 @@ func (d *Databases) OpenJoin(ctx context.Context, src1, src2 *source.Source, src
 func (d *Databases) Close() error {
 	d.log.Debugf("Closing %d databases(s)", d.clnup.Len())
 	return d.clnup.Run()
+}
+
+// Tuning holds tuning params. Ultimately these params
+// could come from user config or be dynamically calculated/adjusted?
+//
+// This package may not be the best home for these params.
+var Tuning = struct {
+	// ErrgroupNumG is the numG value for errgroup.WithContextN.
+	ErrgroupNumG int
+
+	// ErrgroupQSize is the qSize value for errgroup.WithContextN.
+	ErrgroupQSize int
+}{
+	ErrgroupNumG:  16,
+	ErrgroupQSize: 16,
+}
+
+// RequireSingleConn returns nil if db is a type that guarantees a
+// single database connection. That is, RequireSingleConn returns an
+// error if db does not have type *sql.Conn or *sql.Tx.
+func RequireSingleConn(db sqlz.DB) error {
+	switch db.(type) {
+	case *sql.Conn, *sql.Tx:
+	default:
+		return errz.Errorf("db must be guaranteed single-connection (sql.Conn or sql.Tx) but was %T", db)
+	}
+
+	return nil
 }

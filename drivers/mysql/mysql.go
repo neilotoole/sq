@@ -59,15 +59,20 @@ func (d *Driver) DriverMetadata() driver.Metadata {
 // Dialect implements driver.Driver.
 func (d *Driver) Dialect() driver.Dialect {
 	return driver.Dialect{
-		Type:         Type,
-		Placeholders: placeholders,
-		Quote:        '`',
-		IntBool:      true,
+		Type:           Type,
+		Placeholders:   placeholders,
+		Quote:          '`',
+		IntBool:        true,
+		MaxBatchValues: 250,
 	}
 }
 
-func placeholders(n int) string {
-	return stringz.RepeatJoin("?", n, driver.Comma)
+func placeholders(numCols, numRows int) string {
+	rows := make([]string, numRows)
+	for i := 0; i < numRows; i++ {
+		rows[i] = "(" + stringz.RepeatJoin("?", numCols, driver.Comma) + ")"
+	}
+	return strings.Join(rows, driver.Comma)
 }
 
 // SQLBuilder implements driver.SQLDriver.
@@ -94,22 +99,18 @@ func (d *Driver) CreateTable(ctx context.Context, db sqlz.DB, tblDef *sqlmodel.T
 }
 
 // PrepareInsertStmt implements driver.SQLDriver.
-func (d *Driver) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string) (*driver.StmtExecer, error) {
+func (d *Driver) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string, numRows int) (*driver.StmtExecer, error) {
 	destColsMeta, err := d.getTableRecordMeta(ctx, db, destTbl, destColNames)
 	if err != nil {
 		return nil, err
 	}
 
-	stmt, err := driver.PrepareInsertStmt(ctx, d, db, destTbl, destColsMeta.Names())
+	stmt, err := driver.PrepareInsertStmt(ctx, d, db, destTbl, destColsMeta.Names(), numRows)
 	if err != nil {
 		return nil, err
 	}
 
-	execer := driver.NewStmtExecer(stmt,
-		newInsertMungeFunc(destTbl, destColsMeta),
-		newStmtExecFunc(stmt),
-		destColsMeta)
-
+	execer := driver.NewStmtExecer(stmt, newInsertMungeFunc(destTbl, destColsMeta), newStmtExecFunc(stmt), destColsMeta)
 	return execer, nil
 }
 
@@ -130,11 +131,7 @@ func (d *Driver) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl stri
 		return nil, err
 	}
 
-	execer := driver.NewStmtExecer(stmt,
-		newInsertMungeFunc(destTbl, destColsMeta),
-		newStmtExecFunc(stmt),
-		destColsMeta)
-
+	execer := driver.NewStmtExecer(stmt, newInsertMungeFunc(destTbl, destColsMeta), newStmtExecFunc(stmt), destColsMeta)
 	return execer, nil
 }
 

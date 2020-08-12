@@ -4,23 +4,27 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-
-	"github.com/neilotoole/sq/libsq/driver"
 )
 
 var GetTableColumnNames = getTableColumnNames
 
 func TestPlaceholders(t *testing.T) {
-	testCases := map[int]string{
-		0: "",
-		1: "$1",
-		2: "$1" + driver.Comma + "$2",
-		3: "$1" + driver.Comma + "$2" + driver.Comma + "$3",
+	testCases := []struct {
+		numCols int
+		numRows int
+		want    string
+	}{
+		{numCols: 0, numRows: 0, want: ""},
+		{numCols: 1, numRows: 1, want: "($1)"},
+		{numCols: 2, numRows: 1, want: "($1, $2)"},
+		{numCols: 1, numRows: 2, want: "($1), ($2)"},
+		{numCols: 2, numRows: 2, want: "($1, $2), ($3, $4)"},
 	}
 
-	for n, want := range testCases {
-		got := placeholders(n)
-		require.Equal(t, want, got)
+	for _, tc := range testCases {
+		got := placeholders(tc.numCols, tc.numRows)
+		require.Equal(t, tc.want, got)
+
 	}
 }
 

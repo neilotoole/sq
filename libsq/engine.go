@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/neilotoole/errgroup"
 	"github.com/neilotoole/lg"
-	"golang.org/x/sync/errgroup"
 
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/driver"
@@ -32,7 +32,6 @@ func (ng *engine) execute(ctx context.Context, qm *queryModel, recw RecordWriter
 	var err error
 
 	switch selectable := selectable.(type) {
-
 	case *ast.TblSelector:
 		fromClause, targetDB, err = ng.buildTableFromClause(ctx, selectable)
 		if err != nil {
@@ -211,7 +210,7 @@ type joinCopyTask struct {
 
 // execJoinCopyTasks executes tasks, returning any error.
 func execJoinCopyTasks(ctx context.Context, log lg.Log, joinDB driver.Database, tasks []*joinCopyTask) error {
-	g, gCtx := errgroup.WithContext(ctx)
+	g, gCtx := errgroup.WithContextN(ctx, driver.Tuning.ErrgroupNumG, driver.Tuning.ErrgroupQSize)
 	for _, task := range tasks {
 		task := task
 
@@ -281,12 +280,14 @@ func buildQueryModel(log lg.Log, a *ast.AST) (*queryModel, error) {
 	}
 
 	if len(selectableSeg.Children()) != 1 {
-		return nil, errz.Errorf("the final selectable segment must have exactly one selectable element, but found %d elements", len(selectableSeg.Children()))
+		return nil, errz.Errorf("the final selectable segment must have exactly one selectable element, but found %d elements",
+			len(selectableSeg.Children()))
 	}
 
 	selectable, ok := selectableSeg.Children()[0].(ast.Selectable)
 	if !ok {
-		return nil, errz.Errorf("the final selectable segment must have exactly one selectable element, but found element %T(%q)", selectableSeg.Children()[0], selectableSeg.Children()[0].Text())
+		return nil, errz.Errorf("the final selectable segment must have exactly one selectable element, but found element %T(%q)",
+			selectableSeg.Children()[0], selectableSeg.Children()[0].Text())
 	}
 
 	qm := &queryModel{AST: a, Selectable: selectable}
@@ -296,7 +297,8 @@ func buildQueryModel(log lg.Log, a *ast.AST) (*queryModel, error) {
 		// Check if the first element of the segment is a row range, if not, just skip
 		if rr, ok := seg.Children()[0].(*ast.RowRange); ok {
 			if len(seg.Children()) != 1 {
-				return nil, errz.Errorf("segment [%d] with row range must have exactly one element, but found %d: %q", seg.SegIndex(), len(seg.Children()), seg.Text())
+				return nil, errz.Errorf("segment [%d] with row range must have exactly one element, but found %d: %q",
+					seg.SegIndex(), len(seg.Children()), seg.Text())
 			}
 
 			if qm.Range != nil {

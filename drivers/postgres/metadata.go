@@ -185,7 +185,7 @@ current_setting('server_version'), version(), "current_user"()`
 		return nil, err
 	}
 
-	g, gctx := errgroup.WithContextN(ctx, driver.ErrgroupNumG, driver.ErrgroupQSize)
+	g, gctx := errgroup.WithContextN(ctx, driver.Tuning.ErrgroupNumG, driver.Tuning.ErrgroupQSize)
 	tblMetas := make([]*source.TableMetadata, len(tblNames))
 
 	for i := range tblNames {

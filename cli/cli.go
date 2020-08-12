@@ -345,6 +345,12 @@ func (rc *RunContext) preRunE() error {
 			return errz.Wrapf(err, "failed to get absolute path for --%s", flagOutput)
 		}
 
+		// Ensure the parent dir exists
+		err = os.MkdirAll(filepath.Dir(fpath), os.ModePerm)
+		if err != nil {
+			return errz.Wrapf(err, "failed to make parent dir for --%s", flagOutput)
+		}
+
 		f, err := os.Create(fpath)
 		if err != nil {
 			return errz.Wrapf(err, "failed to open file specified by flag --%s", flagOutput)

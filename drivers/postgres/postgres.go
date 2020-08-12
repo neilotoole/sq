@@ -61,29 +61,34 @@ func (d *Driver) DriverMetadata() driver.Metadata {
 // Dialect implements driver.SQLDriver.
 func (d *Driver) Dialect() driver.Dialect {
 	return driver.Dialect{
-		Type:         Type,
-		Placeholders: placeholders,
-		Quote:        '"',
+		Type:           Type,
+		Placeholders:   placeholders,
+		Quote:          '"',
+		MaxBatchValues: 1000,
 	}
 }
 
-func placeholders(n int) string {
-	if n == 0 {
-		return ""
-	}
-	if n == 1 {
-		return "$1"
+func placeholders(numCols, numRows int) string {
+	rows := make([]string, numRows)
+
+	n := 1
+	var sb strings.Builder
+	for i := 0; i < numRows; i++ {
+		sb.Reset()
+		sb.WriteRune('(')
+		for j := 1; j <= numCols; j++ {
+			sb.WriteRune('$')
+			sb.WriteString(strconv.Itoa(n))
+			n++
+			if j < numCols {
+				sb.WriteString(driver.Comma)
+			}
+		}
+		sb.WriteRune(')')
+		rows[i] = sb.String()
 	}
 
-	var sb strings.Builder
-	for i := 1; i <= n; i++ {
-		sb.WriteRune('$')
-		sb.WriteString(strconv.Itoa(i))
-		if i < n {
-			sb.WriteString(", ")
-		}
-	}
-	return sb.String()
+	return strings.Join(rows, driver.Comma)
 }
 
 // SQLBuilder implements driver.SQLDriver.
@@ -153,7 +158,7 @@ func (d *Driver) CreateTable(ctx context.Context, db sqlz.DB, tblDef *sqlmodel.T
 }
 
 // PrepareInsertStmt implements driver.SQLDriver.
-func (d *Driver) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string) (*driver.StmtExecer, error) {
+func (d *Driver) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string, numRows int) (*driver.StmtExecer, error) {
 	// Note that the pgx driver doesn't support res.LastInsertId.
 	// https://github.com/jackc/pgx/issues/411
 
@@ -162,16 +167,12 @@ func (d *Driver) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl stri
 		return nil, err
 	}
 
-	stmt, err := driver.PrepareInsertStmt(ctx, d, db, destTbl, destColsMeta.Names())
+	stmt, err := driver.PrepareInsertStmt(ctx, d, db, destTbl, destColsMeta.Names(), numRows)
 	if err != nil {
 		return nil, err
 	}
 
-	execer := driver.NewStmtExecer(stmt,
-		driver.DefaultInsertMungeFunc(destTbl, destColsMeta),
-		newStmtExecFunc(stmt),
-		destColsMeta)
-
+	execer := driver.NewStmtExecer(stmt, driver.DefaultInsertMungeFunc(destTbl, destColsMeta), newStmtExecFunc(stmt), destColsMeta)
 	return execer, nil
 }
 
@@ -192,11 +193,7 @@ func (d *Driver) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl stri
 		return nil, err
 	}
 
-	execer := driver.NewStmtExecer(stmt,
-		driver.DefaultInsertMungeFunc(destTbl, destColsMeta),
-		newStmtExecFunc(stmt),
-		destColsMeta)
-
+	execer := driver.NewStmtExecer(stmt, driver.DefaultInsertMungeFunc(destTbl, destColsMeta), newStmtExecFunc(stmt), destColsMeta)
 	return execer, nil
 }
 

@@ -24,8 +24,8 @@ const (
 	readAheadBufferSize = 100
 )
 
-// csvToScratch loads the src CSV data to scratchDB.
-func (d *drvr) csvToScratch(ctx context.Context, src *source.Source, r io.Reader, scratchDB driver.Database) error {
+// importCSV loads the src CSV data to scratchDB.
+func (d *drvr) importCSV(ctx context.Context, src *source.Source, r io.Reader, scratchDB driver.Database) error {
 	// TODO: optPredictKind should be read from src.Options.
 	const optPredictKind bool = true
 
