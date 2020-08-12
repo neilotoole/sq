@@ -361,3 +361,16 @@ var Tuning = struct {
 	ErrgroupNumG:  16,
 	ErrgroupQSize: 16,
 }
+
+// RequireSingleConn returns nil if db is a type that guarantees a
+// single database connection. That is, RequireSingleConn returns an
+// error if db does not have type *sql.Conn or *sql.Tx.
+func RequireSingleConn(db sqlz.DB) error {
+	switch db.(type) {
+	case *sql.Conn, *sql.Tx:
+	default:
+		return errz.Errorf("db must be guaranteed single-connection (sql.Conn or sql.Tx) but was %T", db)
+	}
+
+	return nil
+}

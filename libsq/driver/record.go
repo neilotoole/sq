@@ -387,10 +387,9 @@ func (bi BatchInsert) Munge(rec []interface{}) error {
 func NewBatchInsert(ctx context.Context, log lg.Log, drvr SQLDriver, db sqlz.DB, destTbl string, destColNames []string, batchSize int) (*BatchInsert, error) {
 	log.Debugf("Batch insert to %q (rows per batch: %d)", destTbl, batchSize)
 
-	switch db.(type) {
-	case *sql.Conn, *sql.Tx:
-	default:
-		return nil, errz.Errorf("db must be guaranteed single-connection (sql.Conn or sql.Tx) but was %T", db)
+	err := RequireSingleConn(db)
+	if err != nil {
+		return nil, err
 	}
 
 	recCh := make(chan []interface{}, batchSize*8)
