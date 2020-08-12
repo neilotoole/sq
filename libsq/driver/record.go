@@ -43,13 +43,12 @@ type StmtExecFunc func(ctx context.Context, args ...interface{}) (affected int64
 
 // NewStmtExecer returns a new StmtExecer instance. The caller is responsible
 // for invoking Close on the returned StmtExecer.
-func NewStmtExecer(stmt *sql.Stmt, mungeFn InsertMungeFunc, execFn StmtExecFunc, destMeta sqlz.RecordMeta, numRows int) *StmtExecer {
+func NewStmtExecer(stmt *sql.Stmt, mungeFn InsertMungeFunc, execFn StmtExecFunc, destMeta sqlz.RecordMeta) *StmtExecer {
 	return &StmtExecer{
 		stmt:     stmt,
 		mungeFn:  mungeFn,
 		execFn:   execFn,
 		destMeta: destMeta,
-		numRows:  numRows,
 	}
 }
 
@@ -63,18 +62,11 @@ type StmtExecer struct {
 	mungeFn  InsertMungeFunc
 	execFn   StmtExecFunc
 	destMeta sqlz.RecordMeta
-	numRows  int
 }
 
 // DestMeta returns the RecordMeta for the destination table columns.
 func (x *StmtExecer) DestMeta() sqlz.RecordMeta {
 	return x.destMeta
-}
-
-// NumRows is the number of rows of data that should be passed
-// as args to method Exec.
-func (x *StmtExecer) NumRows() int {
-	return x.numRows
 }
 
 // Munge should be applied to each row of values prior

@@ -110,7 +110,7 @@ func (d *Driver) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl stri
 		return nil, err
 	}
 
-	execer := driver.NewStmtExecer(stmt, newInsertMungeFunc(destTbl, destColsMeta), newStmtExecFunc(stmt), destColsMeta, numRows)
+	execer := driver.NewStmtExecer(stmt, newInsertMungeFunc(destTbl, destColsMeta), newStmtExecFunc(stmt), destColsMeta)
 	return execer, nil
 }
 
@@ -131,7 +131,7 @@ func (d *Driver) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl stri
 		return nil, err
 	}
 
-	execer := driver.NewStmtExecer(stmt, newInsertMungeFunc(destTbl, destColsMeta), newStmtExecFunc(stmt), destColsMeta, 1)
+	execer := driver.NewStmtExecer(stmt, newInsertMungeFunc(destTbl, destColsMeta), newStmtExecFunc(stmt), destColsMeta)
 	return execer, nil
 }
 
