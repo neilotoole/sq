@@ -109,7 +109,7 @@ func (d *drvr) Open(ctx context.Context, src *source.Source) (driver.Database, e
 		return nil, err
 	}
 
-	err = d.csvToScratch(ctx, src, r, dbase.impl)
+	err = d.importCSV(ctx, src, r, dbase.impl)
 	if err != nil {
 		d.log.WarnIfCloseError(r)
 		d.log.WarnIfFuncError(dbase.clnup.Run)

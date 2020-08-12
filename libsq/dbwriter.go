@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	"github.com/neilotoole/lg"
-	"go.uber.org/atomic"
 
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/errz"
@@ -25,7 +24,7 @@ type DBWriter struct {
 	destDB   driver.Database
 	destTbl  string
 	recordCh chan sqlz.Record
-	written  *atomic.Int64
+	bi       *driver.BatchInsert
 	errCh    chan error
 	errs     []error
 
@@ -47,7 +46,6 @@ func NewDBWriter(log lg.Log, destDB driver.Database, destTbl string, recChSize i
 		destTbl:  destTbl,
 		recordCh: make(chan sqlz.Record, recChSize),
 		errCh:    make(chan error, 3),
-		written:  atomic.NewInt64(0),
 		wg:       &sync.WaitGroup{},
 	}
 
@@ -75,7 +73,8 @@ func (w *DBWriter) Open(ctx context.Context, cancelFn context.CancelFunc, recMet
 		}
 	}
 
-	inserter, err := w.destDB.SQLDriver().PrepareInsertStmt(ctx, tx, w.destTbl, recMeta.Names(), 1)
+	batchSize := driver.MaxBatchRows(w.destDB.SQLDriver(), len(recMeta.Names()))
+	w.bi, err = driver.NewBatchInsert(ctx, w.log, w.destDB.SQLDriver(), tx, w.destTbl, recMeta.Names(), batchSize)
 	if err != nil {
 		w.rollback(tx, err)
 		return nil, nil, err
@@ -85,8 +84,8 @@ func (w *DBWriter) Open(ctx context.Context, cancelFn context.CancelFunc, recMet
 	go func() {
 		defer func() {
 			// When the inserter goroutine finishes:
-			// - we close the errCh (and indicator that the writer is done)
-			// - and mark the wg as done, which the Wait method depends upon.
+			// - we close errCh (indicates that the DBWriter is done)
+			// - and mark wg as done, which the Wait method depends upon.
 			close(w.errCh)
 			w.wg.Done()
 		}()
@@ -104,6 +103,18 @@ func (w *DBWriter) Open(ctx context.Context, cancelFn context.CancelFunc, recMet
 					// It's time to commit the tx.
 					// Note that Commit automatically closes any stmts
 					// that were prepared by tx.
+
+					// Tell batch inserter that we're done sending records
+					close(w.bi.RecordCh)
+
+					err = <-w.bi.ErrCh // Wait for batch inserter to complete
+					if err != nil {
+						w.log.Error(err)
+						w.addErrs(err)
+						w.rollback(tx, err)
+						return
+					}
+
 					commitErr := errz.Err(tx.Commit())
 					if commitErr != nil {
 						w.log.Error(commitErr)
@@ -111,11 +122,12 @@ func (w *DBWriter) Open(ctx context.Context, cancelFn context.CancelFunc, recMet
 					} else {
 						w.log.Debugf("Tx commit success for %s.%s", w.destDB.Source().Handle, w.destTbl)
 					}
+
 					return
 				}
 
-				// rec is not nil, therefore we write it out
-				err = w.doInsert(ctx, inserter, rec)
+				// rec is not nil, therefore we write it to the db
+				err = w.doInsert(ctx, rec)
 				if err != nil {
 					w.rollback(tx, err)
 					return
@@ -127,7 +139,6 @@ func (w *DBWriter) Open(ctx context.Context, cancelFn context.CancelFunc, recMet
 				// or for ctx.Done indicating timeout or cancel etc.
 			}
 		}
-
 	}()
 
 	return w.recordCh, w.errCh, nil
@@ -139,7 +150,7 @@ func (w *DBWriter) Wait() (written int64, err error) {
 	if w.cancelFn != nil {
 		w.cancelFn()
 	}
-	return w.written.Load(), errz.Combine(w.errs...)
+	return w.bi.Written(), errz.Combine(w.errs...)
 }
 
 // addErrs handles any non-nil err in errs by appending it to w.errs
@@ -168,27 +179,18 @@ func (w *DBWriter) rollback(tx *sql.Tx, causeErrs ...error) {
 	w.addErrs(rollbackErr)
 }
 
-func (w *DBWriter) doInsert(ctx context.Context, inserter *driver.StmtExecer, rec sqlz.Record) error {
-	err := inserter.Munge(rec)
+func (w *DBWriter) doInsert(ctx context.Context, rec sqlz.Record) error {
+	err := w.bi.Munge(rec)
 	if err != nil {
 		return err
 	}
 
-	affected, err := inserter.Exec(ctx, rec...)
-	if err != nil {
-		// NOTE: in the scenario where we're inserting into
-		//  a SQLite db, and there's multiple writers (inserters) to
-		//  the same db, a "database is locked" error from SQLite is
-		//  possible. See https://github.com/mattn/go-sqlite3/issues/274
-		//  Perhaps there's a sensible way to handle such an error that
-		//  could be tackled here.
-		return errz.Err(err)
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case err = <-w.bi.ErrCh:
+		return err
+	case w.bi.RecordCh <- rec:
+		return nil
 	}
-
-	if affected != 1 {
-		w.log.Warnf("expected 1 affected row for insert, but got %d", affected)
-	}
-
-	w.written.Add(affected)
-	return nil
 }

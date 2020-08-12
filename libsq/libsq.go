@@ -165,6 +165,8 @@ func QuerySQL(ctx context.Context, log lg.Log, dbase driver.Database, recw Recor
 	var scanRow = recMeta.NewScanRow()
 
 	for hasNext {
+		var rec sqlz.Record
+
 		err = rows.Scan(scanRow...)
 		if err != nil {
 			cancelFn()
@@ -174,7 +176,7 @@ func QuerySQL(ctx context.Context, log lg.Log, dbase driver.Database, recw Recor
 		// recFromScanRowFn returns a new Record with appropriate
 		// copies of scanRow's data, thus freeing up scanRow
 		// for reuse on the next call to rows.Scan.
-		rec, err := recFromScanRowFn(scanRow)
+		rec, err = recFromScanRowFn(scanRow)
 		if err != nil {
 			cancelFn()
 			return err
@@ -182,7 +184,8 @@ func QuerySQL(ctx context.Context, log lg.Log, dbase driver.Database, recw Recor
 
 		// Note: ultimately we should be able to ditch this
 		//  check when we have more confidence in the codebase.
-		i, err := sqlz.ValidRecord(recMeta, rec)
+		var i int
+		i, err = sqlz.ValidRecord(recMeta, rec)
 		if err != nil {
 			cancelFn()
 			return errz.Wrapf(err, "column [%d] (%s): unacceptable munged type %T", i, recMeta[i].Name(), rec[i])
