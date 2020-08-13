@@ -19,7 +19,7 @@ import (
 // database implements driver.Database.
 type database struct {
 	log  lg.Log
-	drvr *Driver
+	drvr *driveri
 	db   *sql.DB
 	src  *source.Source
 }
