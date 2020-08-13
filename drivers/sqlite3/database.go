@@ -17,7 +17,7 @@ type database struct {
 	log  lg.Log
 	db   *sql.DB
 	src  *source.Source
-	drvr *Driver
+	drvr *driveri
 }
 
 // DB implements driver.Database.

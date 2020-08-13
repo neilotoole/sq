@@ -38,16 +38,16 @@ func (p *Provider) DriverFor(typ source.Type) (driver.Driver, error) {
 		return nil, errz.Errorf("unsupported driver type %q", typ)
 	}
 
-	return &Driver{log: p.Log}, nil
+	return &driveri{log: p.Log}, nil
 }
 
-// Driver is the MySQL implementation of driver.Driver.
-type Driver struct {
+// driveri is the MySQL implementation of driver.Driver.
+type driveri struct {
 	log lg.Log
 }
 
 // DriverMetadata implements driver.Driver.
-func (d *Driver) DriverMetadata() driver.Metadata {
+func (d *driveri) DriverMetadata() driver.Metadata {
 	return driver.Metadata{
 		Type:        Type,
 		Description: "MySQL",
@@ -57,7 +57,7 @@ func (d *Driver) DriverMetadata() driver.Metadata {
 }
 
 // Dialect implements driver.Driver.
-func (d *Driver) Dialect() driver.Dialect {
+func (d *driveri) Dialect() driver.Dialect {
 	return driver.Dialect{
 		Type:           Type,
 		Placeholders:   placeholders,
@@ -76,19 +76,19 @@ func placeholders(numCols, numRows int) string {
 }
 
 // SQLBuilder implements driver.SQLDriver.
-func (d *Driver) SQLBuilder() (sqlbuilder.FragmentBuilder, sqlbuilder.QueryBuilder) {
+func (d *driveri) SQLBuilder() (sqlbuilder.FragmentBuilder, sqlbuilder.QueryBuilder) {
 	return newFragmentBuilder(d.log), &sqlbuilder.BaseQueryBuilder{}
 }
 
 // RecordMeta implements driver.SQLDriver.
-func (d *Driver) RecordMeta(colTypes []*sql.ColumnType) (sqlz.RecordMeta, driver.NewRecordFunc, error) {
+func (d *driveri) RecordMeta(colTypes []*sql.ColumnType) (sqlz.RecordMeta, driver.NewRecordFunc, error) {
 	recMeta := recordMetaFromColumnTypes(d.log, colTypes)
 	mungeFn := getNewRecordFunc(recMeta)
 	return recMeta, mungeFn, nil
 }
 
 // CreateTable implements driver.SQLDriver.
-func (d *Driver) CreateTable(ctx context.Context, db sqlz.DB, tblDef *sqlmodel.TableDef) error {
+func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *sqlmodel.TableDef) error {
 	createStmt, err := buildCreateTableStmt(tblDef)
 	if err != nil {
 		return err
@@ -99,7 +99,7 @@ func (d *Driver) CreateTable(ctx context.Context, db sqlz.DB, tblDef *sqlmodel.T
 }
 
 // PrepareInsertStmt implements driver.SQLDriver.
-func (d *Driver) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string, numRows int) (*driver.StmtExecer, error) {
+func (d *driveri) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string, numRows int) (*driver.StmtExecer, error) {
 	destColsMeta, err := d.getTableRecordMeta(ctx, db, destTbl, destColNames)
 	if err != nil {
 		return nil, err
@@ -115,7 +115,7 @@ func (d *Driver) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl stri
 }
 
 // PrepareUpdateStmt implements driver.SQLDriver.
-func (d *Driver) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string, where string) (*driver.StmtExecer, error) {
+func (d *driveri) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string, where string) (*driver.StmtExecer, error) {
 	destColsMeta, err := d.getTableRecordMeta(ctx, db, destTbl, destColNames)
 	if err != nil {
 		return nil, err
@@ -147,7 +147,7 @@ func newStmtExecFunc(stmt *sql.Stmt) driver.StmtExecFunc {
 }
 
 // CopyTable implements driver.SQLDriver.
-func (d *Driver) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable string, copyData bool) (int64, error) {
+func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable string, copyData bool) (int64, error) {
 	stmt := fmt.Sprintf("CREATE TABLE IF NOT EXISTS `%s` SELECT * FROM `%s`", toTable, fromTable)
 
 	if !copyData {
@@ -163,7 +163,7 @@ func (d *Driver) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable s
 }
 
 // DropTable implements driver.SQLDriver.
-func (d *Driver) DropTable(ctx context.Context, db sqlz.DB, tbl string, ifExists bool) error {
+func (d *driveri) DropTable(ctx context.Context, db sqlz.DB, tbl string, ifExists bool) error {
 	var stmt string
 
 	if ifExists {
@@ -177,7 +177,7 @@ func (d *Driver) DropTable(ctx context.Context, db sqlz.DB, tbl string, ifExists
 }
 
 // TableColumnTypes implements driver.SQLDriver.
-func (d *Driver) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName string, colNames []string) ([]*sql.ColumnType, error) {
+func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName string, colNames []string) ([]*sql.ColumnType, error) {
 	const queryTpl = "SELECT %s FROM %s LIMIT 0"
 
 	dialect := d.Dialect()
@@ -216,7 +216,7 @@ func (d *Driver) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName strin
 	return colTypes, nil
 }
 
-func (d *Driver) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName string, colNames []string) (sqlz.RecordMeta, error) {
+func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName string, colNames []string) (sqlz.RecordMeta, error) {
 	colTypes, err := d.TableColumnTypes(ctx, db, tblName, colNames)
 	if err != nil {
 		return nil, err
@@ -256,7 +256,7 @@ func SourceDSN(src *source.Source) (string, error) {
 }
 
 // Open implements driver.Driver.
-func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
+func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
 	dsn, err := SourceDSN(src)
 	if err != nil {
 		return nil, err
@@ -271,7 +271,7 @@ func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Database,
 }
 
 // ValidateSource implements driver.Driver.
-func (d *Driver) ValidateSource(src *source.Source) (*source.Source, error) {
+func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 	if src.Type != Type {
 		return nil, errz.Errorf("expected source type %q but got %q", Type, src.Type)
 	}
@@ -279,7 +279,7 @@ func (d *Driver) ValidateSource(src *source.Source) (*source.Source, error) {
 }
 
 // Ping implements driver.Driver.
-func (d *Driver) Ping(ctx context.Context, src *source.Source) error {
+func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 	dbase, err := d.Open(context.TODO(), src)
 	if err != nil {
 		return err
@@ -292,7 +292,7 @@ func (d *Driver) Ping(ctx context.Context, src *source.Source) error {
 // Truncate implements driver.SQLDriver. Arg reset is
 // always ignored: the identity value is always reset by
 // the TRUNCATE statement.
-func (d *Driver) Truncate(ctx context.Context, src *source.Source, tbl string, reset bool) (affected int64, err error) {
+func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, reset bool) (affected int64, err error) {
 	// https://dev.mysql.com/doc/refman/8.0/en/truncate-table.html
 	dsn, err := SourceDSN(src)
 	if err != nil {

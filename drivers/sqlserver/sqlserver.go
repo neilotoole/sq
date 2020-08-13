@@ -40,16 +40,16 @@ func (p *Provider) DriverFor(typ source.Type) (driver.Driver, error) {
 		return nil, errz.Errorf("unsupported driver type %q", typ)
 	}
 
-	return &Driver{log: p.Log}, nil
+	return &driveri{log: p.Log}, nil
 }
 
-// Driver is the SQL Server implementation of driver.Driver.
-type Driver struct {
+// driveri is the SQL Server implementation of driver.Driver.
+type driveri struct {
 	log lg.Log
 }
 
 // DriverMetadata implements driver.SQLDriver.
-func (d *Driver) DriverMetadata() driver.Metadata {
+func (d *driveri) DriverMetadata() driver.Metadata {
 	return driver.Metadata{
 		Type:        Type,
 		Description: "Microsoft SQL Server",
@@ -59,7 +59,7 @@ func (d *Driver) DriverMetadata() driver.Metadata {
 }
 
 // Dialect implements driver.SQLDriver.
-func (d *Driver) Dialect() driver.Dialect {
+func (d *driveri) Dialect() driver.Dialect {
 	return driver.Dialect{
 		Type:           Type,
 		Placeholders:   placeholders,
@@ -92,12 +92,12 @@ func placeholders(numCols, numRows int) string {
 }
 
 // SQLBuilder implements driver.SQLDriver.
-func (d *Driver) SQLBuilder() (sqlbuilder.FragmentBuilder, sqlbuilder.QueryBuilder) {
+func (d *driveri) SQLBuilder() (sqlbuilder.FragmentBuilder, sqlbuilder.QueryBuilder) {
 	return newFragmentBuilder(d.log), &queryBuilder{}
 }
 
 // Open implements driver.Driver.
-func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
+func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
 	db, err := sql.Open(dbDrvr, src.Location)
 	if err != nil {
 		return nil, errz.Err(err)
@@ -113,7 +113,7 @@ func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Database,
 }
 
 // ValidateSource implements driver.Driver.
-func (d *Driver) ValidateSource(src *source.Source) (*source.Source, error) {
+func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 	if src.Type != Type {
 		return nil, errz.Errorf("expected source type %q but got %q", Type, src.Type)
 	}
@@ -121,7 +121,7 @@ func (d *Driver) ValidateSource(src *source.Source) (*source.Source, error) {
 }
 
 // Ping implements driver.Driver.
-func (d *Driver) Ping(ctx context.Context, src *source.Source) error {
+func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 	db, err := sql.Open(dbDrvr, src.Location)
 	if err != nil {
 		return errz.Err(err)
@@ -137,7 +137,7 @@ func (d *Driver) Ping(ctx context.Context, src *source.Source) error {
 // operation is implemented in two statements. First "DELETE FROM tbl" to
 // delete all rows. Then, if reset is true, the table sequence counter
 // is reset via RESEED.
-func (d *Driver) Truncate(ctx context.Context, src *source.Source, tbl string, reset bool) (affected int64, err error) {
+func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, reset bool) (affected int64, err error) {
 	// https://docs.microsoft.com/en-us/sql/t-sql/statements/truncate-table-transact-sql?view=sql-server-ver15
 
 	// When there are foreign key constraints on mssql tables,
@@ -170,7 +170,7 @@ func (d *Driver) Truncate(ctx context.Context, src *source.Source, tbl string, r
 }
 
 // TableColumnTypes implements driver.SQLDriver.
-func (d *Driver) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName string, colNames []string) ([]*sql.ColumnType, error) {
+func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName string, colNames []string) ([]*sql.ColumnType, error) {
 	// SQLServer has this unusual incantation for its LIMIT equivalent:
 	//
 	// SELECT username, email, address_id FROM person
@@ -214,7 +214,7 @@ func (d *Driver) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName strin
 }
 
 // RecordMeta implements driver.SQLDriver.
-func (d *Driver) RecordMeta(colTypes []*sql.ColumnType) (sqlz.RecordMeta, driver.NewRecordFunc, error) {
+func (d *driveri) RecordMeta(colTypes []*sql.ColumnType) (sqlz.RecordMeta, driver.NewRecordFunc, error) {
 	recMeta := make([]*sqlz.FieldMeta, len(colTypes))
 	for i, colType := range colTypes {
 		kind := kindFromDBTypeName(d.log, colType.Name(), colType.DatabaseTypeName())
@@ -237,7 +237,7 @@ func (d *Driver) RecordMeta(colTypes []*sql.ColumnType) (sqlz.RecordMeta, driver
 }
 
 // CreateTable implements driver.SQLDriver.
-func (d *Driver) CreateTable(ctx context.Context, db sqlz.DB, tblDef *sqlmodel.TableDef) error {
+func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *sqlmodel.TableDef) error {
 	stmt := buildCreateTableStmt(tblDef)
 
 	_, err := db.ExecContext(ctx, stmt)
@@ -245,7 +245,7 @@ func (d *Driver) CreateTable(ctx context.Context, db sqlz.DB, tblDef *sqlmodel.T
 }
 
 // CopyTable implements driver.SQLDriver.
-func (d *Driver) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable string, copyData bool) (int64, error) {
+func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable string, copyData bool) (int64, error) {
 	var stmt string
 
 	if copyData {
@@ -263,7 +263,7 @@ func (d *Driver) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable s
 }
 
 // DropTable implements driver.SQLDriver.
-func (d *Driver) DropTable(ctx context.Context, db sqlz.DB, tbl string, ifExists bool) error {
+func (d *driveri) DropTable(ctx context.Context, db sqlz.DB, tbl string, ifExists bool) error {
 	var stmt string
 
 	if ifExists {
@@ -277,7 +277,7 @@ func (d *Driver) DropTable(ctx context.Context, db sqlz.DB, tbl string, ifExists
 }
 
 // PrepareInsertStmt implements driver.SQLDriver.
-func (d *Driver) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string, numRows int) (*driver.StmtExecer, error) {
+func (d *driveri) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string, numRows int) (*driver.StmtExecer, error) {
 	destColsMeta, err := d.getTableColsMeta(ctx, db, destTbl, destColNames)
 	if err != nil {
 		return nil, err
@@ -293,7 +293,7 @@ func (d *Driver) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl stri
 }
 
 // PrepareUpdateStmt implements driver.SQLDriver.
-func (d *Driver) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string, where string) (*driver.StmtExecer, error) {
+func (d *driveri) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string, where string) (*driver.StmtExecer, error) {
 	destColsMeta, err := d.getTableColsMeta(ctx, db, destTbl, destColNames)
 	if err != nil {
 		return nil, err
@@ -364,7 +364,7 @@ func setIdentityInsert(ctx context.Context, db sqlz.DB, tbl string, on bool) err
 	return errz.Wrapf(err, "failed to SET IDENTITY INSERT %s %s", tbl, mode)
 }
 
-func (d *Driver) getTableColsMeta(ctx context.Context, db sqlz.DB, tblName string, colNames []string) (sqlz.RecordMeta, error) {
+func (d *driveri) getTableColsMeta(ctx context.Context, db sqlz.DB, tblName string, colNames []string) (sqlz.RecordMeta, error) {
 	// SQLServer has this unusual incantation for its LIMIT equivalent:
 	//
 	// SELECT username, email, address_id FROM person

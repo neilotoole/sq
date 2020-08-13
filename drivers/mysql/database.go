@@ -16,7 +16,7 @@ type database struct {
 	log  lg.Log
 	db   *sql.DB
 	src  *source.Source
-	drvr *Driver
+	drvr *driveri
 }
 
 func (d *database) DB() *sql.DB {

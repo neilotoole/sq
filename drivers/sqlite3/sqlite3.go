@@ -44,16 +44,16 @@ func (d *Provider) DriverFor(typ source.Type) (driver.Driver, error) {
 		return nil, errz.Errorf("unsupported driver type %q", typ)
 	}
 
-	return &Driver{log: d.Log}, nil
+	return &driveri{log: d.Log}, nil
 }
 
-// Driver is the SQLite3 implementation of driver.Driver.
-type Driver struct {
+// driveri is the SQLite3 implementation of driver.Driver.
+type driveri struct {
 	log lg.Log
 }
 
 // DriverMetadata implements driver.Driver.
-func (d *Driver) DriverMetadata() driver.Metadata {
+func (d *driveri) DriverMetadata() driver.Metadata {
 	return driver.Metadata{
 		Type:        Type,
 		Description: "SQLite",
@@ -63,7 +63,7 @@ func (d *Driver) DriverMetadata() driver.Metadata {
 }
 
 // Open implements driver.Driver.
-func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
+func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
 	d.log.Debug("Opening data source: ", src)
 
 	dsn, err := PathFromLocation(src)
@@ -79,7 +79,7 @@ func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Database,
 }
 
 // Truncate implements driver.Driver.
-func (d *Driver) Truncate(ctx context.Context, src *source.Source, tbl string, reset bool) (affected int64, err error) {
+func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, reset bool) (affected int64, err error) {
 	dsn, err := PathFromLocation(src)
 	if err != nil {
 		return 0, err
@@ -112,7 +112,7 @@ func (d *Driver) Truncate(ctx context.Context, src *source.Source, tbl string, r
 }
 
 // ValidateSource implements driver.Driver.
-func (d *Driver) ValidateSource(src *source.Source) (*source.Source, error) {
+func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 	if src.Type != Type {
 		return nil, errz.Errorf("expected driver type %q but got %q", Type, src.Type)
 	}
@@ -120,7 +120,7 @@ func (d *Driver) ValidateSource(src *source.Source) (*source.Source, error) {
 }
 
 // Ping implements driver.Driver.
-func (d *Driver) Ping(ctx context.Context, src *source.Source) error {
+func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 	dbase, err := d.Open(ctx, src)
 	if err != nil {
 		return err
@@ -131,7 +131,7 @@ func (d *Driver) Ping(ctx context.Context, src *source.Source) error {
 }
 
 // Dialect implements driver.SQLDriver.
-func (d *Driver) Dialect() driver.Dialect {
+func (d *driveri) Dialect() driver.Dialect {
 	return driver.Dialect{
 		Type:           Type,
 		Placeholders:   placeholders,
@@ -149,12 +149,12 @@ func placeholders(numCols, numRows int) string {
 }
 
 // SQLBuilder implements driver.SQLDriver.
-func (d *Driver) SQLBuilder() (sqlbuilder.FragmentBuilder, sqlbuilder.QueryBuilder) {
+func (d *driveri) SQLBuilder() (sqlbuilder.FragmentBuilder, sqlbuilder.QueryBuilder) {
 	return newFragmentBuilder(d.log), &sqlbuilder.BaseQueryBuilder{}
 }
 
 // CopyTable implements driver.SQLDriver.
-func (d *Driver) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable string, copyData bool) (int64, error) {
+func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable string, copyData bool) (int64, error) {
 	// Per https://stackoverflow.com/questions/12730390/copy-table-structure-to-new-table-in-sqlite3
 	// It is possible to copy the table structure with a simple statement:
 	//  CREATE TABLE copied AS SELECT * FROM mytable WHERE 0
@@ -190,7 +190,7 @@ func (d *Driver) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable s
 }
 
 // RecordMeta implements driver.SQLDriver.
-func (d *Driver) RecordMeta(colTypes []*sql.ColumnType) (sqlz.RecordMeta, driver.NewRecordFunc, error) {
+func (d *driveri) RecordMeta(colTypes []*sql.ColumnType) (sqlz.RecordMeta, driver.NewRecordFunc, error) {
 	recMeta, err := recordMetaFromColumnTypes(d.log, colTypes)
 	if err != nil {
 		return nil, nil, errz.Err(err)
@@ -210,7 +210,7 @@ func (d *Driver) RecordMeta(colTypes []*sql.ColumnType) (sqlz.RecordMeta, driver
 }
 
 // DropTable implements driver.SQLDriver.
-func (d *Driver) DropTable(ctx context.Context, db sqlz.DB, tbl string, ifExists bool) error {
+func (d *driveri) DropTable(ctx context.Context, db sqlz.DB, tbl string, ifExists bool) error {
 	var stmt string
 
 	if ifExists {
@@ -224,7 +224,7 @@ func (d *Driver) DropTable(ctx context.Context, db sqlz.DB, tbl string, ifExists
 }
 
 // CreateTable implements driver.SQLDriver.
-func (d *Driver) CreateTable(ctx context.Context, db sqlz.DB, tblDef *sqlmodel.TableDef) error {
+func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *sqlmodel.TableDef) error {
 	query, err := buildCreateTableStmt(tblDef)
 	if err != nil {
 		return err
@@ -245,7 +245,7 @@ func (d *Driver) CreateTable(ctx context.Context, db sqlz.DB, tblDef *sqlmodel.T
 }
 
 // PrepareInsertStmt implements driver.SQLDriver.
-func (d *Driver) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string, numRows int) (*driver.StmtExecer, error) {
+func (d *driveri) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string, numRows int) (*driver.StmtExecer, error) {
 	destColsMeta, err := d.getTableRecordMeta(ctx, db, destTbl, destColNames)
 	if err != nil {
 		return nil, err
@@ -261,7 +261,7 @@ func (d *Driver) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl stri
 }
 
 // PrepareUpdateStmt implements driver.SQLDriver.
-func (d *Driver) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string, where string) (*driver.StmtExecer, error) {
+func (d *driveri) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string, where string) (*driver.StmtExecer, error) {
 	destColsMeta, err := d.getTableRecordMeta(ctx, db, destTbl, destColNames)
 	if err != nil {
 		return nil, err
@@ -293,7 +293,7 @@ func newStmtExecFunc(stmt *sql.Stmt) driver.StmtExecFunc {
 }
 
 // TableColumnTypes implements driver.SQLDriver.
-func (d *Driver) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName string, colNames []string) ([]*sql.ColumnType, error) {
+func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName string, colNames []string) ([]*sql.ColumnType, error) {
 	// Given the dynamic behavior of sqlite's rows.ColumnTypes,
 	// this query selects a single row, as that'll give us more
 	// accurate column type info than no rows. For other db
@@ -351,7 +351,7 @@ func (d *Driver) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName strin
 	return colTypes, nil
 }
 
-func (d *Driver) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName string, colNames []string) (sqlz.RecordMeta, error) {
+func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName string, colNames []string) (sqlz.RecordMeta, error) {
 	colTypes, err := d.TableColumnTypes(ctx, db, tblName, colNames)
 	if err != nil {
 		return nil, err
