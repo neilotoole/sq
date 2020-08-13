@@ -50,7 +50,7 @@ type Helper struct {
 	reg      *driver.Registry
 	files    *source.Files
 	dbases   *driver.Databases
-	regOnce  sync.Once
+	initOnce sync.Once
 	srcs     *source.Set
 	srcCache map[string]*source.Source
 	Context  context.Context
@@ -90,6 +90,36 @@ func NewWith(t testing.TB, handle string) (*Helper, *source.Source, driver.Datab
 	return th, src, dbase, drvr
 }
 
+func (h *Helper) init() {
+	h.initOnce.Do(func() {
+		log := h.Log
+		h.reg = driver.NewRegistry(log)
+
+		var err error
+		h.files, err = source.NewFiles(log)
+		require.NoError(h.T, err)
+		h.Cleanup.AddC(h.files)
+		h.files.AddTypeDetectors(source.DetectMagicNumber)
+
+		h.dbases = driver.NewDatabases(log, h.reg, sqlite3.NewScratchSource)
+		h.Cleanup.AddC(h.dbases)
+
+		h.reg.AddProvider(sqlite3.Type, &sqlite3.Provider{Log: log})
+		h.reg.AddProvider(postgres.Type, &postgres.Provider{Log: log})
+		h.reg.AddProvider(sqlserver.Type, &sqlserver.Provider{Log: log})
+		h.reg.AddProvider(mysql.Type, &mysql.Provider{Log: log})
+		csvp := &csv.Provider{Log: log, Scratcher: h.dbases, Files: h.files}
+		h.reg.AddProvider(csv.TypeCSV, csvp)
+		h.reg.AddProvider(csv.TypeTSV, csvp)
+		h.files.AddTypeDetectors(csv.DetectCSV, csv.DetectTSV)
+
+		h.reg.AddProvider(xlsx.Type, &xlsx.Provider{Log: log, Scratcher: h.dbases, Files: h.files})
+		h.files.AddTypeDetectors(xlsx.DetectXLSX)
+
+		h.addUserDrivers()
+	})
+}
+
 // Close runs any cleanup tasks, failing h's testing.T if any cleanup
 // error occurs. Close is automatically invoked via t.Cleanup, it does
 // not need to be explicitly invoked unless desired.
@@ -125,7 +155,7 @@ func (h *Helper) Source(handle string) *source.Source {
 	// invoke h.Registry to ensure that its cleanup side-effects
 	// happen in the correct order (files get cleaned after
 	// databases, etc.).
-	_ = h.Registry() // FIXME: questionable if this is needed
+	h.init()
 
 	// If the handle refers to an external database, we will skip
 	// the test if the envar for the handle is not set.
@@ -438,38 +468,9 @@ func (h *Helper) TruncateTable(src *source.Source, tbl string) (affected int64) 
 }
 
 // Registry returns the helper's registry instance,
-// configured with standard providers. Invoking Registry has
-// the important side-effect of initializing the helper's registry,
-// files, and databases fields.
+// configured with standard providers.
 func (h *Helper) Registry() *driver.Registry {
-	h.regOnce.Do(func() {
-		log := h.Log
-		h.reg = driver.NewRegistry(log)
-
-		var err error
-		h.files, err = source.NewFiles(log)
-		require.NoError(h.T, err)
-		h.Cleanup.AddC(h.files)
-		h.files.AddTypeDetectors(source.DetectMagicNumber)
-
-		h.dbases = driver.NewDatabases(log, h.reg, sqlite3.NewScratchSource)
-		h.Cleanup.AddC(h.dbases)
-
-		h.reg.AddProvider(sqlite3.Type, &sqlite3.Provider{Log: log})
-		h.reg.AddProvider(postgres.Type, &postgres.Provider{Log: log})
-		h.reg.AddProvider(sqlserver.Type, &sqlserver.Provider{Log: log})
-		h.reg.AddProvider(mysql.Type, &mysql.Provider{Log: log})
-		csvp := &csv.Provider{Log: log, Scratcher: h.dbases, Files: h.files}
-		h.reg.AddProvider(csv.TypeCSV, csvp)
-		h.reg.AddProvider(csv.TypeTSV, csvp)
-		h.files.AddTypeDetectors(csv.DetectCSV, csv.DetectTSV)
-
-		h.reg.AddProvider(xlsx.Type, &xlsx.Provider{Log: log, Scratcher: h.dbases, Files: h.files})
-		h.files.AddTypeDetectors(xlsx.DetectXLSX)
-
-		h.addUserDrivers()
-	})
-
+	h.init()
 	return h.reg
 }
 
@@ -514,13 +515,13 @@ func (h *Helper) IsMonotable(src *source.Source) bool {
 
 // Databases returns the helper's Databases instance.
 func (h *Helper) Databases() *driver.Databases {
-	_ = h.Registry() // h.dbases is initialized by h.Registry
+	h.init()
 	return h.dbases
 }
 
 // Files returns the helper's Files instance.
 func (h *Helper) Files() *source.Files {
-	_ = h.Registry() // h.files is initialized by h.Registry
+	h.init()
 	return h.files
 }
 

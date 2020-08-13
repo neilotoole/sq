@@ -15,57 +15,6 @@ import (
 	"github.com/neilotoole/sq/libsq/sqlz"
 )
 
-// tableMetadata returns metadata for tblName in db.
-func tableMetadata(ctx context.Context, log lg.Log, db sqlz.DB, tblName string) (*source.TableMetadata, error) {
-	tblMeta := &source.TableMetadata{Name: tblName}
-	tblMeta.Size = -1 // No easy way of getting size of table, so set to -1
-
-	// But we can get the row count
-	query := fmt.Sprintf("SELECT COUNT(*) FROM '%s'", tblMeta.Name)
-	row := db.QueryRowContext(ctx, query)
-	err := row.Scan(&tblMeta.RowCount)
-	if err != nil {
-		return nil, errz.Err(err)
-	}
-
-	// cid	name		type		notnull	dflt_value	pk
-	// 0	actor_id	INT			1		<null>		1
-	// 1	film_id		INT			1		<null>		2
-	// 2	last_update	TIMESTAMP	1		<null>		0
-	query = fmt.Sprintf("PRAGMA TABLE_INFO('%s')", tblMeta.Name)
-	rows, err := db.QueryContext(ctx, query)
-	if err != nil {
-		return nil, errz.Err(err)
-	}
-	defer log.WarnIfCloseError(rows)
-
-	for rows.Next() {
-		col := &source.ColMetadata{}
-		var notnull int64
-		defaultValue := &sql.NullString{}
-		pkValue := &sql.NullInt64{}
-		err = rows.Scan(&col.Position, &col.Name, &col.BaseType, &notnull, defaultValue, pkValue)
-		if err != nil {
-			return nil, errz.Err(err)
-		}
-
-		col.PrimaryKey = pkValue.Int64 > 0 // pkVal can be 0,1,2 etc
-		col.ColumnType = col.BaseType
-		col.Nullable = notnull == 0
-		col.DefaultValue = defaultValue.String
-		col.Kind = kindFromDBTypeName(log, col.Name, col.BaseType, nil)
-
-		tblMeta.Columns = append(tblMeta.Columns, col)
-	}
-
-	err = rows.Err()
-	if err != nil {
-		return nil, errz.Err(err)
-	}
-
-	return tblMeta, nil
-}
-
 // recordMetaFromColumnTypes returns recordMetaFromColumnTypes for rows.
 func recordMetaFromColumnTypes(log lg.Log, colTypes []*sql.ColumnType) (sqlz.RecordMeta, error) {
 	recMeta := make([]*sqlz.FieldMeta, len(colTypes))
@@ -275,6 +224,62 @@ func DBTypeForKind(kind sqlz.Kind) string {
 	case sqlz.KindTime:
 		return "TIME"
 	}
+}
+
+// tableMetadata returns metadata for tblName in db.
+func tableMetadata(ctx context.Context, log lg.Log, db sqlz.DB, tblName string) (*source.TableMetadata, error) {
+	tblMeta := &source.TableMetadata{Name: tblName}
+	tblMeta.Size = -1 // No easy way of getting size of table, so set to -1
+
+	const tpl = `SELECT (SELECT COUNT(*) FROM %q), (SELECT type FROM sqlite_master WHERE name =%q LIMIT 1)`
+
+	// But we can get the row count and table type ("table" or "view")
+	//query := fmt.Sprintf("SELECT (SELECT COUNT(*) FROM %q), (SELECT type FROM sqlite_master WHERE name =%q LIMIT 1)", tblMeta.Name)
+	query := fmt.Sprintf(tpl, tblMeta.Name, tblMeta.Name)
+	row := db.QueryRowContext(ctx, query)
+	err := row.Scan(&tblMeta.RowCount, &tblMeta.TableType)
+	if err != nil {
+		return nil, errz.Err(err)
+	}
+
+	// FIXME: need to get tblMeta.TableType
+
+	// cid	name		type		notnull	dflt_value	pk
+	// 0	actor_id	INT			1		<null>		1
+	// 1	film_id		INT			1		<null>		2
+	// 2	last_update	TIMESTAMP	1		<null>		0
+	query = fmt.Sprintf("PRAGMA TABLE_INFO('%s')", tblMeta.Name)
+	rows, err := db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, errz.Err(err)
+	}
+	defer log.WarnIfCloseError(rows)
+
+	for rows.Next() {
+		col := &source.ColMetadata{}
+		var notnull int64
+		defaultValue := &sql.NullString{}
+		pkValue := &sql.NullInt64{}
+		err = rows.Scan(&col.Position, &col.Name, &col.BaseType, &notnull, defaultValue, pkValue)
+		if err != nil {
+			return nil, errz.Err(err)
+		}
+
+		col.PrimaryKey = pkValue.Int64 > 0 // pkVal can be 0,1,2 etc
+		col.ColumnType = col.BaseType
+		col.Nullable = notnull == 0
+		col.DefaultValue = defaultValue.String
+		col.Kind = kindFromDBTypeName(log, col.Name, col.BaseType, nil)
+
+		tblMeta.Columns = append(tblMeta.Columns, col)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return nil, errz.Err(err)
+	}
+
+	return tblMeta, nil
 }
 
 // getAllTblMeta gets metadata for each of the
