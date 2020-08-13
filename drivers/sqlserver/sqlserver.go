@@ -10,7 +10,6 @@ import (
 
 	mssql "github.com/denisenkom/go-mssqldb"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/neilotoole/lg"
 
 	"github.com/neilotoole/sq/libsq/driver"
@@ -90,7 +89,6 @@ func placeholders(numCols, numRows int) string {
 	}
 
 	return strings.Join(rows, driver.Comma)
-
 }
 
 // SQLBuilder implements driver.SQLDriver.
@@ -100,8 +98,7 @@ func (d *Driver) SQLBuilder() (sqlbuilder.FragmentBuilder, sqlbuilder.QueryBuild
 
 // Open implements driver.Driver.
 func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
-	// FIXME: get rid of sqlx
-	db, err := sqlx.Open(dbDrvr, src.Location)
+	db, err := sql.Open(dbDrvr, src.Location)
 	if err != nil {
 		return nil, errz.Err(err)
 	}
@@ -364,11 +361,6 @@ func setIdentityInsert(ctx context.Context, db sqlz.DB, tbl string, on bool) err
 
 	query := fmt.Sprintf("SET IDENTITY_INSERT %q %s", tbl, mode)
 	_, err := db.ExecContext(ctx, query)
-	if err != nil {
-		fmt.Println(err)
-	} else {
-		fmt.Println(query)
-	}
 	return errz.Wrapf(err, "failed to SET IDENTITY INSERT %s %s", tbl, mode)
 }
 

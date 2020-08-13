@@ -325,7 +325,7 @@ func (h *Helper) Insert(src *source.Source, tbl string, cols []string, records .
 // Constraints (keys, defaults etc.) may not be copied.
 func (h *Helper) CopyTable(dropAfter bool, src *source.Source, fromTable, toTable string, copyData bool) string {
 	if toTable == "" {
-		toTable = stringz.UniqSuffix(fromTable)
+		toTable = stringz.UniqTableName(fromTable)
 	}
 
 	dbase := h.openNew(src)
@@ -337,8 +337,8 @@ func (h *Helper) CopyTable(dropAfter bool, src *source.Source, fromTable, toTabl
 		h.Cleanup.Add(func() { h.DropTable(src, toTable) })
 	}
 
-	h.Log.Debugf("Copied table %s.%s --> %s.%s  (copy data=%v; rows copied=%d)",
-		src.Handle, fromTable, src.Handle, toTable, copyData, copied)
+	h.Log.Debugf("Copied table %s.%s --> %s.%s  (copy data=%v; drop after=%v; rows copied=%d)",
+		src.Handle, fromTable, src.Handle, toTable, copyData, dropAfter, copied)
 	return toTable
 }
 

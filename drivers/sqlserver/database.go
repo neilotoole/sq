@@ -8,36 +8,40 @@ import (
 	"strings"
 
 	"github.com/c2h5oh/datasize"
-	"github.com/jmoiron/sqlx"
 	"github.com/neilotoole/lg"
 
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/errz"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/sqlz"
 )
 
 // database implements driver.Database.
 type database struct {
 	log  lg.Log
 	drvr *Driver
-	db   *sqlx.DB
+	db   *sql.DB
 	src  *source.Source
 }
 
 var _ driver.Database = (*database)(nil)
 
+// DB implements driver.Database.
 func (d *database) DB() *sql.DB {
-	return d.db.DB
+	return d.db
 }
 
+// SQLDriver implements driver.Database.
 func (d *database) SQLDriver() driver.SQLDriver {
 	return d.drvr
 }
 
+// Source implements driver.Database.
 func (d *database) Source() *source.Source {
 	return d.src
 }
 
+// TableMetadata implements driver.Database.
 func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
 	srcMeta, err := d.SourceMetadata(ctx)
 	if err != nil {
@@ -46,7 +50,8 @@ func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.T
 	return source.TableFromSourceMetadata(srcMeta, tblName)
 }
 
-func (d *database) SourceMetadata(context.Context) (*source.Metadata, error) {
+// SourceMetadata implements driver.Database.
+func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error) {
 	const queryNameSize = `SELECT DB_NAME(), total_size_bytes = SUM(size) * 8192
 FROM sys.master_files WITH(NOWAIT)
 WHERE database_id = DB_ID() -- for current db
@@ -89,7 +94,7 @@ GROUP BY database_id;`
 		srcMeta.Name = tblCatalog
 		tblMeta.Name = tblName
 
-		err = d.populateTblMetadata(db, tblCatalog, tblSchema, tblName, tblMeta)
+		err = d.populateTblMetadata(ctx, db, tblCatalog, tblSchema, tblName, tblMeta)
 		if err != nil {
 			if hasErrCode(err, errCodeObjectNotExist) {
 				// If the table is dropped while we're collecting metadata,
@@ -110,19 +115,107 @@ GROUP BY database_id;`
 	return srcMeta, nil
 }
 
+// Close implements driver.Database.
 func (d *database) Close() error {
 	d.log.Debugf("Close database: %s", d.src)
 
 	return errz.Err(d.db.Close())
 }
 
-func (d *database) populateTblMetadata(db *sqlx.DB, tblCatalog, tblSchema, tblName string, tbl *source.TableMetadata) error {
+func selectInfoColumns(ctx context.Context, log lg.Log, db sqlz.DB, tblCatalog, tblSchema, tblName string) ([]columnMeta, error) {
+	// TODO: sq doesn't use all of these columns, no need to select them all.
+
+	const tplSchemaCol = `SELECT
+		TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME,
+		COLUMN_NAME, ORDINAL_POSITION, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE,
+		CHARACTER_MAXIMUM_LENGTH, CHARACTER_OCTET_LENGTH,
+		NUMERIC_PRECISION, NUMERIC_PRECISION_RADIX, NUMERIC_SCALE,
+		DATETIME_PRECISION,
+		CHARACTER_SET_CATALOG, CHARACTER_SET_SCHEMA, CHARACTER_SET_NAME,
+		COLLATION_CATALOG, COLLATION_SCHEMA, COLLATION_NAME,
+		DOMAIN_CATALOG, DOMAIN_SCHEMA, DOMAIN_NAME
+	FROM INFORMATION_SCHEMA.COLUMNS
+	WHERE TABLE_CATALOG = '%s' AND TABLE_SCHEMA = '%s' AND TABLE_NAME = '%s'` // TODO: use sql args
+
+	query := fmt.Sprintf(tplSchemaCol, tblCatalog, tblSchema, tblName)
+	var err error
+	var rows *sql.Rows
+
+	rows, err = db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, errz.Err(err)
+	}
+
+	defer func() { log.WarnIfCloseError(rows) }()
+
+	var cols []columnMeta
+
+	for rows.Next() {
+		c := columnMeta{}
+		err = rows.Scan(&c.TableCatalog, &c.TableSchema, &c.TableName, &c.ColumnName, &c.OrdinalPosition,
+			&c.ColumnDefault, &c.Nullable, &c.DataType, &c.CharMaxLength, &c.CharOctetLength, &c.NumericPrecision,
+			&c.NumericPrecisionRadix, &c.NumericScale, &c.DateTimePrecision, &c.CharSetCatalog, &c.CharSetSchema,
+			&c.CharSetName, &c.CollationCatalog, &c.CollationSchema, &c.CollationName, &c.DomainCatalog, &c.DomainSchema, &c.DomainName)
+		if err != nil {
+			return nil, errz.Err(err)
+		}
+
+		cols = append(cols, c)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, errz.Err(err)
+	}
+
+	return cols, nil
+}
+
+func getConstraints(ctx context.Context, log lg.Log, db sqlz.DB, tblCatalog, tblSchema, tblName string) ([]constraintMeta, error) {
+	const tpl = `SELECT kcu.TABLE_CATALOG, kcu.TABLE_SCHEMA, kcu.TABLE_NAME,  tc.CONSTRAINT_TYPE, kcu.COLUMN_NAME, kcu.CONSTRAINT_NAME
+		FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS tc
+		  JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS kcu
+			ON tc.TABLE_NAME = kcu.TABLE_NAME
+			   AND tc.CONSTRAINT_CATALOG = kcu.CONSTRAINT_CATALOG
+			   AND tc.CONSTRAINT_SCHEMA = kcu.CONSTRAINT_SCHEMA
+			   AND tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+		WHERE tc.TABLE_CATALOG = '%s' AND tc.TABLE_SCHEMA = '%s' AND tc.TABLE_NAME = '%s'
+		ORDER BY kcu.TABLE_NAME, tc.CONSTRAINT_TYPE, kcu.CONSTRAINT_NAME`
+
+	query := fmt.Sprintf(tpl, tblCatalog, tblSchema, tblName)
+	var err error
+	var rows *sql.Rows
+
+	rows, err = db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, errz.Err(err)
+	}
+
+	defer func() { log.WarnIfCloseError(rows) }()
+
+	var constraints []constraintMeta
+
+	for rows.Next() {
+		c := constraintMeta{}
+		err = rows.Scan(&c.TableCatalog, &c.TableSchema, &c.TableName, &c.ConstraintType, &c.ColumnName, &c.ConstraintName)
+		if err != nil {
+			return nil, errz.Err(err)
+		}
+
+		constraints = append(constraints, c)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, errz.Err(err)
+	}
+
+	return constraints, nil
+}
+
+func (d *database) populateTblMetadata(ctx context.Context, db *sql.DB, tblCatalog, tblSchema, tblName string, tbl *source.TableMetadata) error {
 	const tplTblUsage = `sp_spaceused '%s'`
 
-	row := db.QueryRow(fmt.Sprintf(tplTblUsage, tblName))
-
 	var rowCount, reserved, data, indexSize, unused string
-
+	row := db.QueryRow(fmt.Sprintf(tplTblUsage, tblName))
 	err := row.Scan(&tbl.Name, &rowCount, &reserved, &data, &indexSize, &unused)
 	if err != nil {
 		return errz.Err(err)
@@ -138,73 +231,50 @@ func (d *database) populateTblMetadata(db *sqlx.DB, tblCatalog, tblSchema, tblNa
 	if err != nil {
 		return errz.Err(err)
 	}
-
 	tbl.Size = int64(byteCount.Bytes())
 
-	const tplSchemaCol = `SELECT
-		TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME,
-		COLUMN_NAME, ORDINAL_POSITION, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE,
-		CHARACTER_MAXIMUM_LENGTH, CHARACTER_OCTET_LENGTH,
-		NUMERIC_PRECISION, NUMERIC_PRECISION_RADIX, NUMERIC_SCALE,
-		DATETIME_PRECISION,
-		CHARACTER_SET_CATALOG, CHARACTER_SET_SCHEMA, CHARACTER_SET_NAME,
-		COLLATION_CATALOG, COLLATION_SCHEMA, COLLATION_NAME,
-		DOMAIN_CATALOG, DOMAIN_SCHEMA, DOMAIN_NAME
-	FROM INFORMATION_SCHEMA.COLUMNS
-	WHERE TABLE_CATALOG = '%s' AND TABLE_SCHEMA = '%s' AND TABLE_NAME = '%s'`
+	var dbCols []columnMeta
+	dbCols, err = selectInfoColumns(ctx, d.log, db, tblCatalog, tblSchema, tblName)
+	if err != nil {
+		return err
+	}
 
-	var schemaCols []SchemaColumn
-	err = db.Select(&schemaCols, fmt.Sprintf(tplSchemaCol, tblCatalog, tblSchema, tblName))
+	var dbConstraints []constraintMeta
+	dbConstraints, err = getConstraints(ctx, d.log, db, tblCatalog, tblSchema, tblName)
 	if err != nil {
 		return errz.Err(err)
 	}
 
-	const tplSchemaConstraint = `SELECT kcu.TABLE_CATALOG, kcu.TABLE_SCHEMA, kcu.TABLE_NAME,  tc.CONSTRAINT_TYPE, kcu.COLUMN_NAME, kcu.CONSTRAINT_NAME
-		FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS tc
-		  JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS kcu
-			ON tc.TABLE_NAME = kcu.TABLE_NAME
-			   AND tc.CONSTRAINT_CATALOG = kcu.CONSTRAINT_CATALOG
-			   AND tc.CONSTRAINT_SCHEMA = kcu.CONSTRAINT_SCHEMA
-			   AND tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
-		WHERE tc.TABLE_CATALOG = '%s' AND tc.TABLE_SCHEMA = '%s' AND tc.TABLE_NAME = '%s'
-		ORDER BY kcu.TABLE_NAME, tc.CONSTRAINT_TYPE, kcu.CONSTRAINT_NAME`
-
-	var schemaConstraints []SchemaConstraint
-	err = db.Select(&schemaConstraints, fmt.Sprintf(tplSchemaConstraint, tblCatalog, tblSchema, tblName))
-	if err != nil {
-		return errz.Err(err)
-	}
-
-	cols := make([]*source.ColMetadata, len(schemaCols))
-	for i, sCol := range schemaCols {
+	cols := make([]*source.ColMetadata, len(dbCols))
+	for i := range dbCols {
 		cols[i] = &source.ColMetadata{
-			Name:         sCol.ColumnName,
-			Position:     sCol.OrdinalPosition,
-			BaseType:     sCol.DataType,
-			Kind:         kindFromDBTypeName(d.log, sCol.ColumnName, sCol.DataType),
-			Nullable:     sCol.Nullable.Bool,
-			DefaultValue: sCol.ColumnDefault.String,
+			Name:         dbCols[i].ColumnName,
+			Position:     dbCols[i].OrdinalPosition,
+			BaseType:     dbCols[i].DataType,
+			Kind:         kindFromDBTypeName(d.log, dbCols[i].ColumnName, dbCols[i].DataType),
+			Nullable:     dbCols[i].Nullable.Bool,
+			DefaultValue: dbCols[i].ColumnDefault.String,
 		}
 
 		// We want to output something like VARCHAR(255) for ColType
 		var colLength *int64
-		if sCol.CharMaxLength.Valid {
-			colLength = &sCol.CharMaxLength.Int64
-		} else if sCol.NumericPrecision.Valid {
-			colLength = &sCol.NumericPrecision.Int64
-		} else if sCol.DateTimePrecision.Valid {
-			colLength = &sCol.DateTimePrecision.Int64
+		if dbCols[i].CharMaxLength.Valid {
+			colLength = &dbCols[i].CharMaxLength.Int64
+		} else if dbCols[i].NumericPrecision.Valid {
+			colLength = &dbCols[i].NumericPrecision.Int64
+		} else if dbCols[i].DateTimePrecision.Valid {
+			colLength = &dbCols[i].DateTimePrecision.Int64
 		}
 
 		if colLength != nil {
-			cols[i].ColumnType = fmt.Sprintf("%s(%v)", sCol.DataType, *colLength)
+			cols[i].ColumnType = fmt.Sprintf("%s(%v)", dbCols[i].DataType, *colLength)
 		} else {
-			cols[i].ColumnType = sCol.DataType
+			cols[i].ColumnType = dbCols[i].DataType
 		}
 
-		for _, scon := range schemaConstraints {
-			if sCol.ColumnName == scon.ColumnName {
-				if scon.ConstraintType == "PRIMARY KEY" {
+		for _, iConstraint := range dbConstraints {
+			if dbCols[i].ColumnName == iConstraint.ColumnName {
+				if iConstraint.ConstraintType == "PRIMARY KEY" {
 					cols[i].PrimaryKey = true
 					break
 				}

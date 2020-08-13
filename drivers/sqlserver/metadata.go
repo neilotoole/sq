@@ -96,8 +96,8 @@ func setScanType(ct *sqlz.ColumnTypeData, kind sqlz.Kind) {
 	}
 }
 
-// SchemaConstraint models SQL Server constraints, e.g. "PRIMARY KEY", "FOREIGN KEY", etc.
-type SchemaConstraint struct {
+// constraintMeta models constraint metadata from information schema.
+type constraintMeta struct {
 	TableCatalog   string `db:"TABLE_CATALOG"`
 	TableSchema    string `db:"TABLE_SCHEMA"`
 	TableName      string `db:"TABLE_NAME"`
@@ -106,8 +106,8 @@ type SchemaConstraint struct {
 	ConstraintName string `db:"CONSTRAINT_NAME"`
 }
 
-// SchemaColumn models SQL Server's INFORMATION_SCHEMA.COLUMNS table.
-type SchemaColumn struct {
+// columnMeta models column metadata from information schema.
+type columnMeta struct {
 	TableCatalog          string         `db:"TABLE_CATALOG"`
 	TableSchema           string         `db:"TABLE_SCHEMA"`
 	TableName             string         `db:"TABLE_NAME"`

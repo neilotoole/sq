@@ -35,9 +35,8 @@ func TestQueryEmptyTable(t *testing.T) {
 	src := th.Source(sakila.SL3)
 
 	// Get an empty table by copying an existing one
-	tblName := th.CopyTable(false, src, sakila.TblFilm, "", false)
+	tblName := th.CopyTable(true, src, sakila.TblFilm, "", false)
 	require.Equal(t, int64(0), th.RowCount(src, tblName))
-	t.Cleanup(func() { th.DropTable(src, tblName) })
 
 	sink, err := th.QuerySQL(src, "SELECT * FROM "+tblName)
 	require.NoError(t, err)
