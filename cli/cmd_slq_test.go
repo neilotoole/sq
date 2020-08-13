@@ -24,7 +24,7 @@ func TestCmdSLQ_Insert(t *testing.T) {
 		origin := origin
 
 		t.Run("origin_"+origin, func(t *testing.T) {
-			testh.SkipShort(t, origin == sakila.XLSX)
+			//testh.SkipShort(t, origin == sakila.XLSX)
 
 			for _, dest := range sakila.SQLLatest() {
 				dest := dest
@@ -41,21 +41,21 @@ func TestCmdSLQ_Insert(t *testing.T) {
 
 					// To avoid dirtying the destination table, we make a copy
 					// of it (without data).
-					actualDestTbl := th.CopyTable(true, destSrc, sakila.TblActor, "", false)
+					tblName := th.CopyTable(true, destSrc, sakila.TblActor, "", false)
 
 					ru := newRun(t).add(*originSrc)
 					if destSrc.Handle != originSrc.Handle {
 						ru.add(*destSrc)
 					}
 
-					insertTo := fmt.Sprintf("%s.%s", destSrc.Handle, actualDestTbl)
+					insertTo := fmt.Sprintf("%s.%s", destSrc.Handle, tblName)
 					cols := stringz.PrefixSlice(sakila.TblActorCols(), ".")
 					query := fmt.Sprintf("%s.%s | %s", originSrc.Handle, srcTbl, strings.Join(cols, ", "))
 
 					err := ru.exec("slq", "--insert="+insertTo, query)
 					require.NoError(t, err)
 
-					sink, err := th.QuerySQL(destSrc, "select * from "+actualDestTbl)
+					sink, err := th.QuerySQL(destSrc, "select * from "+tblName)
 					require.NoError(t, err)
 					require.Equal(t, sakila.TblActorCount, len(sink.Recs))
 				})

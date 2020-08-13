@@ -11,8 +11,6 @@ import (
 )
 
 func TestCmdTblCopy(t *testing.T) {
-	t.Parallel()
-
 	for _, handle := range sakila.SQLAll() {
 		handle := handle
 
@@ -22,26 +20,26 @@ func TestCmdTblCopy(t *testing.T) {
 			th := testh.New(t)
 			src := th.Source(handle)
 			srcTblHandle := src.Handle + "." + sakila.TblActor
-			destTblName := stringz.UniqTableName(sakila.TblActor)
+			destTbl1 := stringz.UniqTableName(sakila.TblActor)
 
-			ru := newRun(t).add(*src)
-			err := ru.exec("tbl", "copy", "--data=false", srcTblHandle, src.Handle+"."+destTblName)
+			ru1 := newRun(t).add(*src)
+			err := ru1.exec("tbl", "copy", "--data=false", srcTblHandle, src.Handle+"."+destTbl1)
 			require.NoError(t, err)
-			t.Cleanup(func() { th.DropTable(src, destTblName) })
-			require.Equal(t, int64(0), th.RowCount(src, destTblName), "should not have copied any rows because --data=false")
+			defer th.DropTable(src, destTbl1)
+			require.Equal(t, int64(0), th.RowCount(src, destTbl1), "should not have copied any rows because --data=false")
 
-			destTblName = stringz.UniqTableName(sakila.TblActor)
-			err = ru.exec("tbl", "copy", "--data=true", srcTblHandle, src.Handle+"."+destTblName)
+			// --data=true
+			ru2 := newRun(t).add(*src)
+			destTbl2 := stringz.UniqTableName(sakila.TblActor)
+			err = ru2.exec("tbl", "copy", "--data=true", srcTblHandle, src.Handle+"."+destTbl2)
 			require.NoError(t, err)
-			t.Cleanup(func() { th.DropTable(src, destTblName) })
-			require.Equal(t, int64(sakila.TblActorCount), th.RowCount(src, destTblName), "should have copied rows because --data=true")
+			defer th.DropTable(src, destTbl2)
+			require.Equal(t, int64(sakila.TblActorCount), th.RowCount(src, destTbl2), "should have copied rows because --data=true")
 		})
 	}
 }
 
 func TestCmdTblDrop(t *testing.T) {
-	t.Parallel()
-
 	for _, handle := range sakila.SQLAll() {
 		handle := handle
 
@@ -50,8 +48,14 @@ func TestCmdTblDrop(t *testing.T) {
 
 			th := testh.New(t)
 			src := th.Source(handle)
-			destTblName := th.CopyTable(true, src, sakila.TblActor, "", true)
-			//t.Cleanup(func() { th.DropTable(src, destTblName) }) // FIXME: delete
+			destTblName := th.CopyTable(false, src, sakila.TblActor, "", true)
+			needsDrop := true
+
+			defer func() {
+				if needsDrop {
+					th.DropTable(src, destTblName)
+				}
+			}()
 
 			tblMeta, err := th.Open(src).TableMetadata(th.Context, destTblName)
 			require.NoError(t, err) // verify that the table exists
@@ -60,6 +64,8 @@ func TestCmdTblDrop(t *testing.T) {
 
 			err = newRun(t).add(*src).exec("tbl", "drop", src.Handle+"."+destTblName)
 			require.NoError(t, err)
+			needsDrop = false
+
 			tblMeta, err = th.Open(src).TableMetadata(th.Context, destTblName)
 			require.Error(t, err, "should get an error because the table was dropped")
 			require.Nil(t, tblMeta)
@@ -68,9 +74,9 @@ func TestCmdTblDrop(t *testing.T) {
 }
 
 func TestCmdTblTruncate(t *testing.T) {
-	t.Parallel()
+	testCases := []string{sakila.MS}
 
-	for _, handle := range sakila.SQLAll() {
+	for _, handle := range testCases {
 		handle := handle
 
 		t.Run(handle, func(t *testing.T) {

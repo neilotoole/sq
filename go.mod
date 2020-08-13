@@ -1,6 +1,6 @@
 module github.com/neilotoole/sq
 
-go 1.13
+go 1.14
 
 require (
 	github.com/antlr/antlr4 v0.0.0-20191011202612-ad2bd05285ca
@@ -22,8 +22,7 @@ require (
 	github.com/jackc/pgconn v1.5.0
 	github.com/jackc/pgx/v4 v4.6.0
 	github.com/jmespath/go-jmespath v0.0.0-20160202185014-0b12d6b521d8 // indirect
-	github.com/jmoiron/sqlx v0.0.0-20171020205521-3379e5993990
-	github.com/kr/pretty v0.2.0 // indirect
+	github.com/kr/pretty v0.2.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/magefile/mage v1.9.0
 	github.com/mattn/go-colorable v0.1.4

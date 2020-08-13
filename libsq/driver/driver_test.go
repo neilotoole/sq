@@ -27,28 +27,26 @@ func TestDriver_DropTable(t *testing.T) {
 		handle := handle
 
 		t.Run(handle, func(t *testing.T) {
-			th := testh.New(t)
-			src := th.Source(handle)
-			targetTable := stringz.UniqSuffix(sakila.TblActor)
+			t.Parallel()
 
-			drvr, err := th.Registry().DriverFor(src.Type)
-			require.NoError(t, err)
-			sqlDrvr := drvr.(driver.SQLDriver)
-			db := th.Open(src).DB()
+			th, src, dbase, drvr := testh.NewWith(t, handle)
+			db := dbase.DB()
+
+			tblName := stringz.UniqTableName(sakila.TblActor)
 
 			// Copy a table that we can play with
-			th.CopyTable(false, src, sakila.TblActor, targetTable, false)
-			require.NoError(t, sqlDrvr.DropTable(th.Context, db, targetTable, true))
+			tblName = th.CopyTable(false, src, sakila.TblActor, tblName, false)
+			require.NoError(t, drvr.DropTable(th.Context, db, tblName, true))
 
 			// Copy the table again so we can drop it again
-			th.CopyTable(false, src, sakila.TblActor, targetTable, false)
+			tblName = th.CopyTable(false, src, sakila.TblActor, tblName, false)
 
 			// test with ifExists = false
-			require.NoError(t, sqlDrvr.DropTable(th.Context, db, targetTable, false))
+			require.NoError(t, drvr.DropTable(th.Context, db, tblName, false))
 
 			// Check that we get the expected behavior when the table doesn't exist
-			require.NoError(t, sqlDrvr.DropTable(th.Context, db, stringz.UniqSuffix("not_a_table"), true), "should be no error when ifExists is true")
-			require.Error(t, sqlDrvr.DropTable(th.Context, db, stringz.UniqSuffix("not_a_table"), false), "error expected when ifExists is false")
+			require.NoError(t, drvr.DropTable(th.Context, db, stringz.UniqSuffix("not_a_table"), true), "should be no error when ifExists is true")
+			require.Error(t, drvr.DropTable(th.Context, db, stringz.UniqSuffix("not_a_table"), false), "error expected when ifExists is false")
 		})
 	}
 }
@@ -60,29 +58,25 @@ func TestDriver_CopyTable(t *testing.T) {
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
-			th := testh.New(t)
-			src := th.Source(handle)
+			th, src, dbase, drvr := testh.NewWith(t, handle)
+			db := dbase.DB()
+			require.Equal(t, int64(sakila.TblActorCount), th.RowCount(src, sakila.TblActor), "fromTable should have ActorCount rows beforehand")
 
-			drvr, err := th.Registry().DriverFor(src.Type)
-			require.NoError(t, err)
-			sqlDrvr := drvr.(driver.SQLDriver)
-			db := th.Open(src).DB()
-			require.EqualValues(t, sakila.TblActorCount, th.RowCount(src, sakila.TblActor), "fromTable should have ActorCount rows beforehand")
-
-			toTable := stringz.UniqSuffix(sakila.TblActor)
+			toTable := stringz.UniqTableName(sakila.TblActor)
 			// First, test with copyData = true
-			copied, err := sqlDrvr.CopyTable(th.Context, db, sakila.TblActor, toTable, true)
+			copied, err := drvr.CopyTable(th.Context, db, sakila.TblActor, toTable, true)
 			require.NoError(t, err)
 			require.Equal(t, int64(sakila.TblActorCount), copied)
-			require.EqualValues(t, sakila.TblActorCount, th.RowCount(src, toTable))
-			th.DropTable(src, toTable)
+			require.Equal(t, int64(sakila.TblActorCount), th.RowCount(src, toTable))
+			defer th.DropTable(src, toTable)
 
+			toTable = stringz.UniqTableName(sakila.TblActor)
 			// Then, with copyData = false
-			copied, err = sqlDrvr.CopyTable(th.Context, db, sakila.TblActor, toTable, false)
+			copied, err = drvr.CopyTable(th.Context, db, sakila.TblActor, toTable, false)
 			require.NoError(t, err)
 			require.Equal(t, int64(0), copied)
-			require.EqualValues(t, 0, th.RowCount(src, toTable))
-			th.DropTable(src, toTable)
+			require.Equal(t, int64(0), th.RowCount(src, toTable))
+			defer th.DropTable(src, toTable)
 		})
 	}
 }
@@ -143,12 +137,11 @@ func TestDriver_TableColumnTypes(t *testing.T) {
 			// differently depending upon whether the query returns rows
 			// or not.
 			for _, copyData := range []bool{false, true} {
-				actualTblName := th.CopyTable(false, src, sakila.TblActor, "", copyData)
-				t.Cleanup(func() { th.DropTable(src, actualTblName) })
+				tblName := th.CopyTable(true, src, sakila.TblActor, "", copyData)
 
 				// Note nil colNames, should still get all columns
 				// as if the query was (SELECT * FROM actualTblName)
-				colTypes, err := drvr.TableColumnTypes(th.Context, db, actualTblName, nil)
+				colTypes, err := drvr.TableColumnTypes(th.Context, db, tblName, nil)
 				require.NoError(t, err)
 				require.Equal(t, len(sakila.TblActorCols()), len(colTypes))
 				for i := range colTypes {
@@ -157,7 +150,7 @@ func TestDriver_TableColumnTypes(t *testing.T) {
 
 				// Try again, but requesting specific col names
 				wantColNames := []string{sakila.TblActorCols()[0], sakila.TblActorCols()[2]}
-				colTypes, err = drvr.TableColumnTypes(th.Context, db, actualTblName, wantColNames)
+				colTypes, err = drvr.TableColumnTypes(th.Context, db, tblName, wantColNames)
 				require.NoError(t, err)
 				require.Equal(t, len(wantColNames), len(colTypes))
 				for i := range colTypes {
@@ -181,8 +174,7 @@ func TestSQLDriver_PrepareUpdateStmt(t *testing.T) {
 
 			th, src, dbase, drvr := testh.NewWith(t, handle)
 
-			actualTblName := th.CopyTable(false, src, sakila.TblActor, "", true)
-			t.Cleanup(func() { th.DropTable(src, actualTblName) })
+			tblName := th.CopyTable(true, src, sakila.TblActor, "", true)
 
 			const (
 				actorID     int64  = 1
@@ -194,7 +186,7 @@ func TestSQLDriver_PrepareUpdateStmt(t *testing.T) {
 				args     = append(wantVals, actorID)
 			)
 
-			stmtExecer, err := drvr.PrepareUpdateStmt(th.Context, dbase.DB(), actualTblName, destCols, whereClause)
+			stmtExecer, err := drvr.PrepareUpdateStmt(th.Context, dbase.DB(), tblName, destCols, whereClause)
 			require.NoError(t, err)
 			require.Equal(t, destCols, stmtExecer.DestMeta().Names())
 			require.NoError(t, stmtExecer.Munge(wantVals))
@@ -203,7 +195,7 @@ func TestSQLDriver_PrepareUpdateStmt(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, int64(1), affected)
 
-			sink, err := th.QuerySQL(src, "SELECT * FROM "+actualTblName+" WHERE actor_id = 1")
+			sink, err := th.QuerySQL(src, "SELECT * FROM "+tblName+" WHERE actor_id = 1")
 
 			require.NoError(t, err)
 			require.Equal(t, 1, len(sink.Recs))
@@ -271,11 +263,11 @@ func TestNewBatchInsert(t *testing.T) {
 			require.NoError(t, err)
 			defer func() { assert.NoError(t, conn.Close()) }()
 
-			tbl := th.CopyTable(true, src, sakila.TblActor, "", false)
+			tblName := th.CopyTable(true, src, sakila.TblActor, "", false)
 
 			// Get records from TblActor that we'll write to the new tbl
 			recMeta, recs := testh.RecordsFromTbl(t, handle, sakila.TblActor)
-			bi, err := driver.NewBatchInsert(th.Context, th.Log, drvr, conn, tbl, recMeta.Names(), batchSize)
+			bi, err := driver.NewBatchInsert(th.Context, th.Log, drvr, conn, tblName, recMeta.Names(), batchSize)
 			require.NoError(t, err)
 
 			for _, rec := range recs {
@@ -299,7 +291,7 @@ func TestNewBatchInsert(t *testing.T) {
 			err = <-bi.ErrCh
 			require.Nil(t, err)
 
-			sink, err := th.QuerySQL(src, "SELECT * FROM "+tbl)
+			sink, err := th.QuerySQL(src, "SELECT * FROM "+tblName)
 			require.NoError(t, err)
 			require.Equal(t, sakila.TblActorCount, len(sink.Recs))
 		})
