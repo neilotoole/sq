@@ -14,7 +14,7 @@ const (
 	// RSSNYTLocalUD is the handle of a user-defined RSS source.
 	RSSNYTLocalUD = "@ud_rss_nytimes_local"
 
-	// MiscDB is the handle of SQLite DB with misc testing data.
+	// MiscDB is the handle of a SQLite DB with misc testing data.
 	MiscDB = "@miscdb"
 )
 

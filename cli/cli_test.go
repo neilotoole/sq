@@ -80,7 +80,7 @@ func TestSmoke(t *testing.T) {
 
 func TestCreateTblTestBytes(t *testing.T) {
 	th, src, _, _ := testh.NewWith(t, sakila.Pg9)
-	th.NoDiff(src)
+	th.DiffDB(src)
 
 	tblDef := sqlmodel.NewTableDef(
 		stringz.UniqTableName("test_bytes"),

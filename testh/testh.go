@@ -114,6 +114,9 @@ func (h *Helper) Close() {
 // will have its location determined from an envar. Given a source @sakila_pg12,
 // its location is derived from an envar SQ_TEST_SRC__SAKILA_PG12. If that envar
 // is not set, the test calling this method will be skipped.
+//
+// If envar SQ_TEST_DIFFDB is true, DiffDB is run on every SQL source
+// returned by Source.
 func (h *Helper) Source(handle string) *source.Source {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -185,6 +188,15 @@ func (h *Helper) Source(handle string) *source.Source {
 		src.Location = sqlite3.Prefix + destFileName
 	}
 	h.srcCache[handle] = src
+
+	// envDiffDB is the name of the envar that controls whether the testing
+	// diffdb mechanism is executed automatically by Helper.Source.
+	const envDiffDB = "SQ_TEST_DIFFDB"
+
+	if proj.BoolEnvar(envDiffDB) {
+		h.DiffDB(src)
+	}
+
 	return src
 }
 
@@ -512,37 +524,46 @@ func (h *Helper) Files() *source.Files {
 	return h.files
 }
 
-// NoDiff fails the test if src's metadata is substantially different
-// when t.Cleanup runs vs when NoDiff is invoked. Effectively NoDiff
+// DiffDB fails the test if src's metadata is substantially different
+// when t.Cleanup runs vs when DiffDB is invoked. Effectively DiffDB
 // takes before and after snapshots of src's metadata, and compares
 // various elements such as the number of tables, table row counts, etc.
-// NoDiff is useful for verifying that tests are leaving the database
+// DiffDB is useful for verifying that tests are leaving the database
 // as they found it.
-func (h *Helper) NoDiff(src *source.Source) {
-	// TODO: it should be possible to pass flag --sq:nodiff to "go test",
-	//  in which case NoDiff would be applied to all sources returned
-	//  from h.Source.
+//
+// Note that DiffDB adds considerable overhead to test runtime.
+//
+// If envar SQ_TEST_DIFFDB is true, DiffDB is run on every SQL source
+// returned by Helper.Source.
+func (h *Helper) DiffDB(src *source.Source) {
+	if !h.DriverFor(src).DriverMetadata().IsSQL {
+		// SkipDiffDB for non-SQL source types
+		return
+	}
 
-	dbase := h.openNew(src)
-	defer h.Log.WarnIfCloseError(dbase)
+	h.T.Logf("Executing DiffDB for %s", src.Handle) // FIXME: zap this
 
-	before, err := dbase.SourceMetadata(h.Context)
+	beforeDB := h.openNew(src)
+	defer h.Log.WarnIfCloseError(beforeDB)
+
+	beforeMeta, err := beforeDB.SourceMetadata(h.Context)
 	require.NoError(h.T, err)
 
 	h.Cleanup.Add(func() {
-		// Currently NoDiff just checks if the tables and each
+		// Currently DiffDB just checks if the tables and each
 		// table's row count match.
 
-		dbase := h.openNew(src)
-		defer h.Log.WarnIfCloseError(dbase)
+		afterDB := h.openNew(src)
+		defer h.Log.WarnIfCloseError(afterDB)
 
-		after, err := dbase.SourceMetadata(h.Context)
+		afterMeta, err := afterDB.SourceMetadata(h.Context)
 		require.NoError(h.T, err)
-		require.Equal(h.T, before.TableNames(), after.TableNames())
+		require.Equal(h.T, beforeMeta.TableNames(), afterMeta.TableNames(),
+			"diffdb: should have the same set of tables before and after")
 
-		for i, beforeTbl := range before.Tables {
-			assert.Equal(h.T, beforeTbl.RowCount, after.Tables[i].RowCount,
-				"row count for %q: %d, %d", beforeTbl.Name, beforeTbl.RowCount, after.Tables[i].RowCount)
+		for i, beforeTbl := range beforeMeta.Tables {
+			assert.Equal(h.T, beforeTbl.RowCount, afterMeta.Tables[i].RowCount,
+				"diffdb: %s: row count for %q is expected to be %d but got %d", src.Handle, beforeTbl.Name, beforeTbl.RowCount, afterMeta.Tables[i].RowCount)
 		}
 	})
 }

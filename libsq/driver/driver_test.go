@@ -294,6 +294,7 @@ func TestNewBatchInsert(t *testing.T) {
 			sink, err := th.QuerySQL(src, "SELECT * FROM "+tblName)
 			require.NoError(t, err)
 			require.Equal(t, sakila.TblActorCount, len(sink.Recs))
+			th.TruncateTable(src, tblName) // cleanup
 		})
 	}
 }

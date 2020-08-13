@@ -303,6 +303,7 @@ ORDER BY m.name, p.cid
 `
 
 	var tblMetas []*source.TableMetadata
+	var tblNames []string
 	var curTblName string
 	var curTblType string // either "table" or "view"
 	var curTblMeta *source.TableMetadata
@@ -314,10 +315,17 @@ ORDER BY m.name, p.cid
 	defer log.WarnIfCloseError(rows)
 
 	for rows.Next() {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+
 		col := &source.ColMetadata{}
 		var notnull int64
 		defaultValue := &sql.NullString{}
 		pkValue := &sql.NullInt64{}
+
 		err = rows.Scan(&curTblName, &curTblType, &col.Position, &col.Name, &col.BaseType, &notnull, defaultValue, pkValue)
 		if err != nil {
 			return nil, errz.Err(err)
@@ -328,23 +336,15 @@ ORDER BY m.name, p.cid
 			continue
 		}
 
-		if curTblType != "table" {
-			// REVISIT: Skipping "view" for now; there's prob a good case for
-			//  adding support for view metadata though.
-			continue
-		}
 		if curTblMeta == nil || curTblMeta.Name != curTblName {
+			// On our first time encountering a new table name, we create a new TableMetadata
 			curTblMeta = &source.TableMetadata{
-				Name: curTblName,
-				Size: -1, // No easy way of getting the storage size of a table
+				Name:      curTblName,
+				Size:      -1, // No easy way of getting the storage size of a table
+				TableType: curTblType,
 			}
 
-			countRow := db.QueryRowContext(ctx, fmt.Sprintf("SELECT COUNT(*) FROM %q", curTblName))
-			err = countRow.Scan(&curTblMeta.RowCount)
-			if err != nil {
-				return nil, errz.Err(err)
-			}
-
+			tblNames = append(tblNames, curTblName)
 			tblMetas = append(tblMetas, curTblMeta)
 		}
 
@@ -362,5 +362,92 @@ ORDER BY m.name, p.cid
 		return nil, errz.Err(err)
 	}
 
+	// Separately, we need to get the row counts for the tables
+	var rowCounts []int64
+	rowCounts, err = getTblRowCounts(ctx, log, db, tblNames)
+	if err != nil {
+		return nil, errz.Err(err)
+	}
+
+	for i := range rowCounts {
+		tblMetas[i].RowCount = rowCounts[i]
+	}
+
 	return tblMetas, nil
+}
+
+// getTblRowCounts returns the number of rows in each table.
+func getTblRowCounts(ctx context.Context, log lg.Log, db sqlz.DB, tblNames []string) ([]int64, error) {
+	// See: https://stackoverflow.com/questions/7524612/how-to-count-rows-from-multiple-tables-in-sqlite
+	//
+	// Several approaches were benchmarked. Ultimately the union-based
+	// query was selected.
+	//
+	// BenchmarkGetTblRowCounts/benchGetTblRowCountsBaseline-16         	     864	  43631750 ns/op
+	// BenchmarkGetTblRowCounts/getTblRowCounts-16                      	    3948	   9126191 ns/op
+	//
+	// That query looks like:
+	//
+	//  SELECT COUNT(*) FROM "actor"
+	//  UNION ALL
+	//  SELECT COUNT(*) FROM "address"
+	//  UNION ALL
+	//  SELECT COUNT(*) FROM "category"
+	//
+	// Note that there is a limit (SQLITE_MAX_COMPOUND_SELECT)
+	// to the number of "terms" (SELECT clauses) in a query.
+	// See https://www.sqlite.org/limits.html#max_compound_select
+	//
+	// Thus if len(tblNames) > 500, we need to execute multiple queries.
+	const maxCompoundSelect = 500
+
+	tblCounts := make([]int64, len(tblNames))
+
+	var sb strings.Builder
+	var query string
+	var terms int
+	var j int
+
+	for i := 0; i < len(tblNames); i++ {
+		if terms > 0 {
+			sb.WriteString(" UNION ALL ")
+		}
+		sb.WriteString(fmt.Sprintf("SELECT COUNT(*) FROM %q", tblNames[i]))
+		terms++
+
+		if terms != maxCompoundSelect && i != len(tblNames)-1 {
+			continue
+		}
+
+		query = sb.String()
+
+		rows, err := db.QueryContext(ctx, query)
+		if err != nil {
+			return nil, errz.Err(err)
+		}
+
+		for rows.Next() {
+			err = rows.Scan(&tblCounts[j])
+			if err != nil {
+				log.WarnIfCloseError(rows)
+				return nil, errz.Err(err)
+			}
+			j++
+		}
+
+		if err = rows.Err(); err != nil {
+			log.WarnIfCloseError(rows)
+			return nil, errz.Err(err)
+		}
+
+		err = rows.Close()
+		if err != nil {
+			return nil, errz.Err(err)
+		}
+
+		terms = 0
+		sb.Reset()
+	}
+
+	return tblCounts, nil
 }

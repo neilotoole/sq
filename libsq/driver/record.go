@@ -385,8 +385,6 @@ func (bi BatchInsert) Munge(rec []interface{}) error {
 // Note that the db arg must guarantee a single connection: that is,
 // it must be a sql.Conn or sql.Tx.
 func NewBatchInsert(ctx context.Context, log lg.Log, drvr SQLDriver, db sqlz.DB, destTbl string, destColNames []string, batchSize int) (*BatchInsert, error) {
-	log.Debugf("Batch insert to %q (rows per batch: %d)", destTbl, batchSize)
-
 	err := RequireSingleConn(db)
 	if err != nil {
 		return nil, err
@@ -431,7 +429,6 @@ func NewBatchInsert(ctx context.Context, log lg.Log, drvr SQLDriver, db sqlz.DB,
 			}
 
 			close(errCh)
-			log.Debug("Batch insert: complete")
 		}()
 
 		for {
@@ -465,8 +462,6 @@ func NewBatchInsert(ctx context.Context, log lg.Log, drvr SQLDriver, db sqlz.DB,
 				}
 
 				bi.written.Add(affected)
-
-				log.Debugf("Wrote %d records to table %s", affected, destTbl)
 
 				if rec == nil {
 					// recCh is closed (coincidentally exactly on the
@@ -509,8 +504,6 @@ func NewBatchInsert(ctx context.Context, log lg.Log, drvr SQLDriver, db sqlz.DB,
 			}
 
 			bi.written.Add(affected)
-
-			log.Debugf("Wrote %d records to table %s", affected, destTbl)
 
 			// We're done
 			return
