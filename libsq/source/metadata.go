@@ -79,16 +79,21 @@ type TableMetadata struct {
 	// FQName is the fully-qualified name, such as "sakila.public.actor"
 	FQName string `json:"fq_name,omitempty"`
 
-	// TableType indicates if this is a base table, view, etc.
-	// The value is driver dependent, e.g. "BASE TABLE" or "VIEW" for postgres.
-	TableType string `json:"tbl_type,omitempty"`
+	// TableType indicates if this is a "table" or "view". The value
+	// is driver-independent. See DBTableType for the driver-dependent
+	// value.
+	TableType string `json:"table_type,omitempty"`
+
+	// DBTableType indicates if this is a table or view, etc.
+	// The value is driver-dependent, e.g. "BASE TABLE" or "VIEW" for postgres.
+	DBTableType string `json:"db_table_type,omitempty"`
 
 	// RowCount is the number of rows in the table.
 	RowCount int64 `json:"row_count"`
 
-	// Size is the physical size of the table. For a view, this
-	// may be meaningless.
-	Size int64 `json:"tbl_size"`
+	// Size is the physical size of the table in bytes. For a view, this
+	// may be nil.
+	Size *int64 `json:"size,omitempty"`
 
 	// Comment is the comment for the table. Typically empty.
 	Comment string `json:"comment,omitempty"`

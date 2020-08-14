@@ -37,7 +37,7 @@ func (d *database) Source() *source.Source {
 
 // TableMetadata implements driver.Database.
 func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
-	return tableMetadata(ctx, d.log, d.DB(), tblName)
+	return getTableMetadata(ctx, d.log, d.DB(), tblName)
 }
 
 // SourceMetadata implements driver.Database.

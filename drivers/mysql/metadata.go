@@ -178,20 +178,21 @@ func getSourceMetadata(ctx context.Context, log lg.Log, src *source.Source, db *
 	}
 	defer log.WarnIfCloseError(tblSchemaRows)
 
-	var tblSize sql.NullInt64
 	for tblSchemaRows.Next() {
 		tblMeta := &source.TableMetadata{}
-
-		err = tblSchemaRows.Scan(&tblMeta.Name, &tblMeta.TableType, &tblMeta.Comment, &tblSize)
+		var tblSize sql.NullInt64
+		err = tblSchemaRows.Scan(&tblMeta.Name, &tblMeta.DBTableType, &tblMeta.Comment, &tblSize)
 		if err != nil {
 			return nil, errz.Err(err)
 		}
 
+		tblMeta.TableType = canonicalTableType(tblMeta.DBTableType)
+
 		if tblSize.Valid {
-			// for a view (as opposed to table), tblSize can be NULL
-			tblMeta.Size = tblSize.Int64
+			tblMeta.Size = &tblSize.Int64
 		} else {
-			tblMeta.Size = -1
+			// For a view (as opposed to table), tblSize can be NULL
+			tblMeta.Size = nil
 		}
 
 		err = populateTblMetadata(log, db, srcMeta.Name, tblMeta)
@@ -342,4 +343,17 @@ func mungeSetZeroValue(i int, rec []interface{}, destMeta sqlz.RecordMeta) {
 	//  and kind.Time (e.g. "00:00" for time)?
 	z := reflect.Zero(destMeta[i].ScanType()).Interface()
 	rec[i] = z
+}
+
+// canonicalTableType returns the canonical name for "BASE TABLE"
+// and "VIEW"
+func canonicalTableType(dbType string) string {
+	switch dbType {
+	default:
+		return ""
+	case "BASE TABLE":
+		return sqlz.TableTypeTable
+	case "VIEW":
+		return sqlz.TableTypeView
+	}
 }

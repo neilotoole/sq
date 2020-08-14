@@ -359,15 +359,27 @@ type pgTable struct {
 }
 
 func tblMetaFromPgTable(pgt *pgTable) *source.TableMetadata {
-	return &source.TableMetadata{
-		Name:      pgt.tableName,
-		FQName:    fmt.Sprintf("%s.%s.%s", pgt.tableCatalog, pgt.tableSchema, pgt.tableName),
-		TableType: pgt.tableType,
-		RowCount:  pgt.rowCount,
-		Size:      pgt.size.Int64,
-		Comment:   pgt.comment.String,
-		Columns:   nil, // Note: columns are set independently later
+	md := &source.TableMetadata{
+		Name:        pgt.tableName,
+		FQName:      fmt.Sprintf("%s.%s.%s", pgt.tableCatalog, pgt.tableSchema, pgt.tableName),
+		DBTableType: pgt.tableType,
+		RowCount:    pgt.rowCount,
+		Comment:     pgt.comment.String,
+		Columns:     nil, // Note: columns are set independently later
 	}
+
+	if pgt.size.Valid {
+		md.Size = &pgt.size.Int64
+	}
+
+	switch md.DBTableType {
+	case "BASE TABLE":
+		md.TableType = sqlz.TableTypeTable
+	case "VIEW":
+		md.TableType = sqlz.TableTypeView
+	}
+
+	return md
 }
 
 // pgColumn holds query results for column metadata.

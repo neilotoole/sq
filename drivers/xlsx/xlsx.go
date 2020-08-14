@@ -215,11 +215,7 @@ func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error)
 	}
 
 	for _, sheet := range xlFile.Sheets {
-		tbl := &source.TableMetadata{}
-
-		tbl.Name = sheet.Name
-		tbl.Size = -1
-		tbl.RowCount = int64(len(sheet.Rows))
+		tbl := &source.TableMetadata{Name: sheet.Name, RowCount: int64(len(sheet.Rows))}
 
 		if hasHeader && tbl.RowCount > 0 {
 			tbl.RowCount--

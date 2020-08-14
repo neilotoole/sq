@@ -55,14 +55,14 @@ func (w *mdWriter) TableMetadata(tblMeta *source.TableMetadata) error {
 	}
 
 	size := "-"
-	if tblMeta.Size != -1 {
-		size = stringz.ByteSized(tblMeta.Size, 1, "")
+	if tblMeta.Size != nil {
+		size = stringz.ByteSized(*tblMeta.Size, 1, "")
 	}
 
 	row := []string{
 		tblMeta.Name,
 		fmt.Sprintf("%d", tblMeta.RowCount),
-		tblMeta.TableType,
+		tblMeta.DBTableType,
 		size,
 		fmt.Sprintf("%d", len(tblMeta.Columns)),
 		strings.Join(colNames, ", "),
@@ -133,14 +133,14 @@ func (w *mdWriter) SourceMetadata(meta *source.Metadata) error {
 		}
 
 		size := "-"
-		if tbl.Size != -1 {
-			size = stringz.ByteSized(tbl.Size, 1, "")
+		if tbl.Size != nil {
+			size = stringz.ByteSized(*tbl.Size, 1, "")
 		}
 
 		row = []string{
 			tbl.Name,
 			fmt.Sprintf("%d", tbl.RowCount),
-			tbl.TableType,
+			tbl.DBTableType,
 			size,
 			fmt.Sprintf("%d", len(tbl.Columns)),
 			strings.Join(colNames, ", "),

@@ -226,23 +226,26 @@ func DBTypeForKind(kind sqlz.Kind) string {
 	}
 }
 
-// tableMetadata returns metadata for tblName in db.
-func tableMetadata(ctx context.Context, log lg.Log, db sqlz.DB, tblName string) (*source.TableMetadata, error) {
+// getTableMetadata returns metadata for tblName in db.
+func getTableMetadata(ctx context.Context, log lg.Log, db sqlz.DB, tblName string) (*source.TableMetadata, error) {
 	tblMeta := &source.TableMetadata{Name: tblName}
-	tblMeta.Size = -1 // No easy way of getting size of table, so set to -1
-
-	const tpl = `SELECT (SELECT COUNT(*) FROM %q), (SELECT type FROM sqlite_master WHERE name =%q LIMIT 1)`
+	// Note that there's no easy way of getting the physical size of
+	// a table, so tblMeta.Size remains nil.
 
 	// But we can get the row count and table type ("table" or "view")
-	//query := fmt.Sprintf("SELECT (SELECT COUNT(*) FROM %q), (SELECT type FROM sqlite_master WHERE name =%q LIMIT 1)", tblMeta.Name)
+	const tpl = `SELECT (SELECT COUNT(*) FROM %q), (SELECT type FROM sqlite_master WHERE name = %q LIMIT 1)`
 	query := fmt.Sprintf(tpl, tblMeta.Name, tblMeta.Name)
-	row := db.QueryRowContext(ctx, query)
-	err := row.Scan(&tblMeta.RowCount, &tblMeta.TableType)
+	err := db.QueryRowContext(ctx, query).Scan(&tblMeta.RowCount, &tblMeta.DBTableType)
 	if err != nil {
 		return nil, errz.Err(err)
 	}
 
-	// FIXME: need to get tblMeta.TableType
+	switch tblMeta.DBTableType {
+	case "table":
+		tblMeta.TableType = sqlz.TableTypeTable
+	case "view":
+		tblMeta.TableType = sqlz.TableTypeView
+	}
 
 	// cid	name		type		notnull	dflt_value	pk
 	// 0	actor_id	INT			1		<null>		1
@@ -344,9 +347,9 @@ ORDER BY m.name, p.cid
 		if curTblMeta == nil || curTblMeta.Name != curTblName {
 			// On our first time encountering a new table name, we create a new TableMetadata
 			curTblMeta = &source.TableMetadata{
-				Name:      curTblName,
-				Size:      -1, // No easy way of getting the storage size of a table
-				TableType: curTblType,
+				Name:        curTblName,
+				Size:        nil, // No easy way of getting the storage size of a table
+				DBTableType: curTblType,
 			}
 
 			tblNames = append(tblNames, curTblName)
