@@ -245,6 +245,7 @@ func getTableMetadata(ctx context.Context, log lg.Log, db sqlz.DB, tblName strin
 		tblMeta.TableType = sqlz.TableTypeTable
 	case "view":
 		tblMeta.TableType = sqlz.TableTypeView
+	default:
 	}
 
 	// cid	name		type		notnull	dflt_value	pk
@@ -313,7 +314,7 @@ ORDER BY m.name, p.cid
 	var tblMetas []*source.TableMetadata
 	var tblNames []string
 	var curTblName string
-	var curTblType string // either "table" or "view"
+	var curTblType string
 	var curTblMeta *source.TableMetadata
 
 	rows, err := db.QueryContext(ctx, query)
@@ -350,6 +351,14 @@ ORDER BY m.name, p.cid
 				Name:        curTblName,
 				Size:        nil, // No easy way of getting the storage size of a table
 				DBTableType: curTblType,
+			}
+
+			switch curTblMeta.DBTableType {
+			case "table":
+				curTblMeta.TableType = sqlz.TableTypeTable
+			case "view":
+				curTblMeta.TableType = sqlz.TableTypeView
+			default:
 			}
 
 			tblNames = append(tblNames, curTblName)

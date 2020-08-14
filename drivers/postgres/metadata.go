@@ -368,7 +368,7 @@ func tblMetaFromPgTable(pgt *pgTable) *source.TableMetadata {
 		Columns:     nil, // Note: columns are set independently later
 	}
 
-	if pgt.size.Valid {
+	if pgt.size.Valid && pgt.size.Int64 > 0 {
 		md.Size = &pgt.size.Int64
 	}
 
@@ -377,6 +377,7 @@ func tblMetaFromPgTable(pgt *pgTable) *source.TableMetadata {
 		md.TableType = sqlz.TableTypeTable
 	case "VIEW":
 		md.TableType = sqlz.TableTypeView
+	default:
 	}
 
 	return md

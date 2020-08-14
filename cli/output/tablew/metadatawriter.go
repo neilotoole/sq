@@ -62,7 +62,7 @@ func (w *mdWriter) TableMetadata(tblMeta *source.TableMetadata) error {
 	row := []string{
 		tblMeta.Name,
 		fmt.Sprintf("%d", tblMeta.RowCount),
-		tblMeta.DBTableType,
+		tblMeta.TableType,
 		size,
 		fmt.Sprintf("%d", len(tblMeta.Columns)),
 		strings.Join(colNames, ", "),
@@ -71,6 +71,7 @@ func (w *mdWriter) TableMetadata(tblMeta *source.TableMetadata) error {
 	rows = append(rows, row)
 
 	w.tbl.tblImpl.SetHeader(headers)
+	w.tbl.tblImpl.SetColTrans(0, w.tbl.fm.Handle.SprintFunc())
 	w.tbl.tblImpl.SetColTrans(1, w.tbl.fm.Number.SprintFunc())
 	w.tbl.tblImpl.SetColTrans(3, w.tbl.fm.Number.SprintFunc())
 	w.tbl.tblImpl.SetColTrans(4, w.tbl.fm.Number.SprintFunc())
@@ -123,7 +124,6 @@ func (w *mdWriter) SourceMetadata(meta *source.Metadata) error {
 	var rows [][]string
 
 	for _, tbl := range meta.Tables {
-
 		colNames := make([]string, len(tbl.Columns))
 		colTypes := make([]string, len(tbl.Columns))
 
@@ -140,7 +140,7 @@ func (w *mdWriter) SourceMetadata(meta *source.Metadata) error {
 		row = []string{
 			tbl.Name,
 			fmt.Sprintf("%d", tbl.RowCount),
-			tbl.DBTableType,
+			tbl.TableType,
 			size,
 			fmt.Sprintf("%d", len(tbl.Columns)),
 			strings.Join(colNames, ", "),
@@ -150,6 +150,7 @@ func (w *mdWriter) SourceMetadata(meta *source.Metadata) error {
 	}
 
 	w.tbl.tblImpl.SetHeader(headers)
+	w.tbl.tblImpl.SetColTrans(0, w.tbl.fm.Handle.SprintFunc())
 	w.tbl.tblImpl.SetColTrans(1, w.tbl.fm.Number.SprintFunc())
 	w.tbl.tblImpl.SetColTrans(3, w.tbl.fm.Number.SprintFunc())
 	w.tbl.tblImpl.SetColTrans(4, w.tbl.fm.Number.SprintFunc())

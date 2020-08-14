@@ -185,6 +185,7 @@ func getTableMetadata(ctx context.Context, log lg.Log, db sqlz.DB, tblCatalog, t
 		tblMeta.TableType = sqlz.TableTypeTable
 	case "VIEW":
 		tblMeta.TableType = sqlz.TableTypeView
+	default:
 	}
 
 	var rowCount, reserved, data, indexSize, unused sql.NullString
@@ -318,13 +319,9 @@ func getColumnMeta(ctx context.Context, log lg.Log, db sqlz.DB, tblCatalog, tblS
 		COLLATION_CATALOG, COLLATION_SCHEMA, COLLATION_NAME,
 		DOMAIN_CATALOG, DOMAIN_SCHEMA, DOMAIN_NAME
 	FROM INFORMATION_SCHEMA.COLUMNS
-	WHERE TABLE_CATALOG = '%s' AND TABLE_SCHEMA = '%s' AND TABLE_NAME = '%s'` // TODO: use sql args
+	WHERE TABLE_CATALOG = @p1 AND TABLE_SCHEMA = @p2 AND TABLE_NAME = @p3`
 
-	query := fmt.Sprintf(tplSchemaCol, tblCatalog, tblSchema, tblName)
-	var err error
-	var rows *sql.Rows
-
-	rows, err = db.QueryContext(ctx, query)
+	rows, err := db.QueryContext(ctx, tplSchemaCol, tblCatalog, tblSchema, tblName)
 	if err != nil {
 		return nil, errz.Err(err)
 	}
