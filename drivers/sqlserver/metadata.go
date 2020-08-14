@@ -309,7 +309,7 @@ ORDER BY TABLE_NAME ASC, TABLE_TYPE ASC`
 func getColumnMeta(ctx context.Context, log lg.Log, db sqlz.DB, tblCatalog, tblSchema, tblName string) ([]columnMeta, error) {
 	// TODO: sq doesn't use all of these columns, no need to select them all.
 
-	const tplSchemaCol = `SELECT
+	const query = `SELECT
 		TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME,
 		COLUMN_NAME, ORDINAL_POSITION, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE,
 		CHARACTER_MAXIMUM_LENGTH, CHARACTER_OCTET_LENGTH,
@@ -321,7 +321,7 @@ func getColumnMeta(ctx context.Context, log lg.Log, db sqlz.DB, tblCatalog, tblS
 	FROM INFORMATION_SCHEMA.COLUMNS
 	WHERE TABLE_CATALOG = @p1 AND TABLE_SCHEMA = @p2 AND TABLE_NAME = @p3`
 
-	rows, err := db.QueryContext(ctx, tplSchemaCol, tblCatalog, tblSchema, tblName)
+	rows, err := db.QueryContext(ctx, query, tblCatalog, tblSchema, tblName)
 	if err != nil {
 		return nil, errz.Err(err)
 	}
@@ -351,21 +351,17 @@ func getColumnMeta(ctx context.Context, log lg.Log, db sqlz.DB, tblCatalog, tblS
 }
 
 func getConstraints(ctx context.Context, log lg.Log, db sqlz.DB, tblCatalog, tblSchema, tblName string) ([]constraintMeta, error) {
-	const tpl = `SELECT kcu.TABLE_CATALOG, kcu.TABLE_SCHEMA, kcu.TABLE_NAME,  tc.CONSTRAINT_TYPE, kcu.COLUMN_NAME, kcu.CONSTRAINT_NAME
+	const query = `SELECT kcu.TABLE_CATALOG, kcu.TABLE_SCHEMA, kcu.TABLE_NAME,  tc.CONSTRAINT_TYPE, kcu.COLUMN_NAME, kcu.CONSTRAINT_NAME
 		FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS tc
 		  JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS kcu
 			ON tc.TABLE_NAME = kcu.TABLE_NAME
 			   AND tc.CONSTRAINT_CATALOG = kcu.CONSTRAINT_CATALOG
 			   AND tc.CONSTRAINT_SCHEMA = kcu.CONSTRAINT_SCHEMA
 			   AND tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
-		WHERE tc.TABLE_CATALOG = '%s' AND tc.TABLE_SCHEMA = '%s' AND tc.TABLE_NAME = '%s'
+		WHERE tc.TABLE_CATALOG = @p1 AND tc.TABLE_SCHEMA = @p2 AND tc.TABLE_NAME = @p3
 		ORDER BY kcu.TABLE_NAME, tc.CONSTRAINT_TYPE, kcu.CONSTRAINT_NAME`
 
-	query := fmt.Sprintf(tpl, tblCatalog, tblSchema, tblName)
-	var err error
-	var rows *sql.Rows
-
-	rows, err = db.QueryContext(ctx, query)
+	rows, err := db.QueryContext(ctx, query, tblCatalog, tblSchema, tblName)
 	if err != nil {
 		return nil, errz.Err(err)
 	}

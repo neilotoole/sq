@@ -383,11 +383,23 @@ func (d *database) Source() *source.Source {
 
 // TableMetadata implements driver.Database.
 func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
-	srcMeta, err := d.SourceMetadata(ctx)
+	const query = `SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_TYPE
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME = @p1`
+
+	var catalog, schema, tblType string
+	err := d.db.QueryRowContext(ctx, query, tblName).Scan(&catalog, &schema, &tblType)
 	if err != nil {
-		return nil, err
+		return nil, errz.Err(err)
 	}
-	return source.TableFromSourceMetadata(srcMeta, tblName)
+
+	return getTableMetadata(ctx, d.log, d.db, catalog, schema, tblName, tblType)
+	//
+	//srcMeta, err := d.SourceMetadata(ctx)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//return source.TableFromSourceMetadata(srcMeta, tblName)
 }
 
 // SourceMetadata implements driver.Database.

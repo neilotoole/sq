@@ -18,7 +18,7 @@ type Metadata struct {
 
 	// FQName is the full name of the data source, typically
 	// including catalog/schema etc. For example, "sakila.public"
-	FQName string `json:"fq_name"`
+	FQName string `json:"name_fq"`
 
 	// SourceType is the source driver type.
 	SourceType Type `json:"driver"`
@@ -77,7 +77,7 @@ type TableMetadata struct {
 	Name string `json:"name"`
 
 	// FQName is the fully-qualified name, such as "sakila.public.actor"
-	FQName string `json:"fq_name,omitempty"`
+	FQName string `json:"name_fq,omitempty"`
 
 	// TableType indicates if this is a "table" or "view". The value
 	// is driver-independent. See DBTableType for the driver-dependent
@@ -86,7 +86,7 @@ type TableMetadata struct {
 
 	// DBTableType indicates if this is a table or view, etc.
 	// The value is driver-dependent, e.g. "BASE TABLE" or "VIEW" for postgres.
-	DBTableType string `json:"db_table_type,omitempty"`
+	DBTableType string `json:"table_type_db,omitempty"`
 
 	// RowCount is the number of rows in the table.
 	RowCount int64 `json:"row_count"`

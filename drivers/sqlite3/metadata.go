@@ -233,9 +233,13 @@ func getTableMetadata(ctx context.Context, log lg.Log, db sqlz.DB, tblName strin
 	// a table, so tblMeta.Size remains nil.
 
 	// But we can get the row count and table type ("table" or "view")
-	const tpl = `SELECT (SELECT COUNT(*) FROM %q), (SELECT type FROM sqlite_master WHERE name = %q LIMIT 1)`
+	const tpl = `SELECT
+(SELECT COUNT(*) FROM %q),
+(SELECT type FROM sqlite_master WHERE name = %q LIMIT 1),
+(SELECT name FROM pragma_database_list ORDER BY seq LIMIT 1)`
+	var schema string
 	query := fmt.Sprintf(tpl, tblMeta.Name, tblMeta.Name)
-	err := db.QueryRowContext(ctx, query).Scan(&tblMeta.RowCount, &tblMeta.DBTableType)
+	err := db.QueryRowContext(ctx, query).Scan(&tblMeta.RowCount, &tblMeta.DBTableType, &schema)
 	if err != nil {
 		return nil, errz.Err(err)
 	}
@@ -247,6 +251,8 @@ func getTableMetadata(ctx context.Context, log lg.Log, db sqlz.DB, tblName strin
 		tblMeta.TableType = sqlz.TableTypeView
 	default:
 	}
+
+	tblMeta.FQName = schema + "." + tblName
 
 	// cid	name		type		notnull	dflt_value	pk
 	// 0	actor_id	INT			1		<null>		1
