@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/go-sql-driver/mysql"
+	"github.com/neilotoole/errgroup"
 	"github.com/neilotoole/lg"
 
 	"github.com/neilotoole/sq/libsq/driver"
@@ -32,7 +33,7 @@ func kindFromDBTypeName(log lg.Log, colName, dbTypeName string) sqlz.Kind {
 
 	switch dbTypeName {
 	default:
-		log.Warnf("Unknown MySQL database type %s for column %s: instead using %s", dbTypeName, colName, sqlz.KindUnknown)
+		log.Warnf("Unknown MySQL database type %q for column %q: using %q", dbTypeName, colName, sqlz.KindUnknown)
 		kind = sqlz.KindUnknown
 	case "":
 		kind = sqlz.KindUnknown
@@ -127,119 +128,194 @@ func getNewRecordFunc(rowMeta sqlz.RecordMeta) driver.NewRecordFunc {
 	}
 }
 
-func getSourceMetadata(ctx context.Context, log lg.Log, src *source.Source, db *sql.DB) (*source.Metadata, error) {
-	srcMeta := &source.Metadata{SourceType: Type, DBDriverType: Type}
-	srcMeta.Handle = src.Handle
-	srcMeta.Location = src.Location
+func getDBVars(ctx context.Context, log lg.Log, db sqlz.DB) ([]source.DBVar, error) {
+	var dbVars []source.DBVar
 
-	const versionQ = `SELECT @@GLOBAL.version, @@GLOBAL.version_comment, @@GLOBAL.version_compile_os, @@GLOBAL.version_compile_machine`
-	var version, versionComment, versionOS, versionArch string
-	err := db.QueryRowContext(ctx, versionQ).Scan(&version, &versionComment, &versionOS, &versionArch)
+	rows, err := db.QueryContext(ctx, "SHOW VARIABLES")
 	if err != nil {
 		return nil, errz.Err(err)
 	}
+	defer log.WarnIfCloseError(rows)
 
-	srcMeta.DBVersion = version
-	srcMeta.DBProduct = fmt.Sprintf("%s %s / %s (%s)", versionComment, version, versionOS, versionArch)
-
-	varRows, err := db.QueryContext(ctx, "SHOW VARIABLES")
-	if err != nil {
-		return nil, errz.Err(err)
-	}
-	defer log.WarnIfCloseError(varRows)
-	for varRows.Next() {
+	for rows.Next() {
 		var dbVar source.DBVar
-		err = varRows.Scan(&dbVar.Name, &dbVar.Value)
+		err = rows.Scan(&dbVar.Name, &dbVar.Value)
 		if err != nil {
 			return nil, errz.Err(err)
 		}
-		srcMeta.DBVars = append(srcMeta.DBVars, dbVar)
+		dbVars = append(dbVars, dbVar)
 	}
-	err = varRows.Err()
+	err = rows.Err()
 	if err != nil {
 		return nil, errz.Err(err)
 	}
 
-	// get the schema name and total table size
-	const schemaSummaryQ = `SELECT table_schema, SUM( data_length + index_length ) AS table_size
-		FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE()`
-	err = db.QueryRowContext(ctx, schemaSummaryQ).Scan(&srcMeta.Name, &srcMeta.Size)
+	return dbVars, nil
+}
+
+func getSourceMetadata(ctx context.Context, log lg.Log, src *source.Source, db *sql.DB) (*source.Metadata, error) {
+	md := &source.Metadata{SourceType: Type, DBDriverType: Type, Handle: src.Handle, Location: src.Location}
+
+	const summaryQuery = `SELECT @@GLOBAL.version, @@GLOBAL.version_comment, @@GLOBAL.version_compile_os,
+       @@GLOBAL.version_compile_machine, DATABASE(), CURRENT_USER(),
+       (SELECT SUM( data_length + index_length )
+        FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE()) AS size`
+
+	var version, versionComment, versionOS, versionArch, schema string
+	err := db.QueryRowContext(ctx, summaryQuery).Scan(&version, &versionComment, &versionOS, &versionArch, &schema, &md.User, &md.Size)
 	if err != nil {
 		return nil, errz.Err(err)
 	}
-	srcMeta.FQName = srcMeta.Name
 
-	const tblSummaryQ = `SELECT TABLE_NAME, TABLE_TYPE, TABLE_COMMENT,  (DATA_LENGTH + INDEX_LENGTH) AS TABLE_SIZE
+	md.Name = schema
+	md.FQName = schema
+	md.DBVersion = version
+	md.DBProduct = fmt.Sprintf("%s %s / %s (%s)", versionComment, version, versionOS, versionArch)
+
+	md.DBVars, err = getDBVars(ctx, log, db)
+	if err != nil {
+		return nil, err
+	}
+
+	// Note that this does not populate the RowCount of Columns fields of the
+	// table metadata.
+	tblMetas, err := getTableMetaBasic(ctx, log, db, schema)
+	if err != nil {
+		return nil, err
+	}
+
+	// Populate the RowCount and Columns fields of each table metadata.
+	// Note that this function may set elements of tblMetas to nil
+	// if the table is not found (can happen if a table is dropped
+	// during metadata collection).
+	err = setTableMetaDetails(ctx, log, db, schema, tblMetas)
+	if err != nil {
+		return nil, err
+	}
+
+	// Filter any nil tables
+	md.Tables = make([]*source.TableMetadata, 0, len(tblMetas))
+	for i := range tblMetas {
+		if tblMetas[i] != nil {
+			md.Tables = append(md.Tables, tblMetas[i])
+		}
+	}
+
+	return md, nil
+}
+
+// getTableMetaBasic returns basic metadata for each table in schema. Note
+// that the returned items are not fully populated: column metadata
+// must be separately populated.
+func getTableMetaBasic(ctx context.Context, log lg.Log, db *sql.DB, schema string) ([]*source.TableMetadata, error) {
+	const query = `SELECT TABLE_NAME, TABLE_TYPE, TABLE_COMMENT,  (DATA_LENGTH + INDEX_LENGTH) AS TABLE_SIZE
 		FROM information_schema.TABLES
-		WHERE TABLE_SCHEMA = DATABASE() ORDER BY TABLE_SCHEMA, TABLE_NAME ASC`
-	tblSchemaRows, err := db.QueryContext(ctx, tblSummaryQ)
+		WHERE TABLE_SCHEMA = ?
+		ORDER BY TABLE_SCHEMA, TABLE_NAME ASC`
+
+	rows, err := db.QueryContext(ctx, query, schema)
 	if err != nil {
 		return nil, errz.Err(err)
 	}
-	defer log.WarnIfCloseError(tblSchemaRows)
+	defer log.WarnIfCloseError(rows)
 
-	for tblSchemaRows.Next() {
+	var tblMetas []*source.TableMetadata
+	for rows.Next() {
 		tblMeta := &source.TableMetadata{}
+
 		var tblSize sql.NullInt64
-		err = tblSchemaRows.Scan(&tblMeta.Name, &tblMeta.DBTableType, &tblMeta.Comment, &tblSize)
+		err = rows.Scan(&tblMeta.Name, &tblMeta.DBTableType, &tblMeta.Comment, &tblSize)
 		if err != nil {
 			return nil, errz.Err(err)
 		}
 
 		tblMeta.TableType = canonicalTableType(tblMeta.DBTableType)
+		tblMeta.FQName = schema + "." + tblMeta.Name
 
 		if tblSize.Valid {
+			// For a view (as opposed to table), tblSize is typically nil
 			tblMeta.Size = &tblSize.Int64
-		} else {
-			// For a view (as opposed to table), tblSize can be NULL
-			tblMeta.Size = nil
 		}
 
-		err = populateTblMetadata(log, db, srcMeta.Name, tblMeta)
-		if err != nil {
-			if hasErrCode(err, errNumTableNotExist) {
-				// If the table is dropped while we're collecting metadata,
-				// for example, we log a warning and continue.
-				log.Warnf("table metadata collection: table %q appears not to exist (continuing regardless): %v", tblMeta.Name, err)
-				continue
-			}
-
-			return nil, err
-		}
-
-		srcMeta.Tables = append(srcMeta.Tables, tblMeta)
+		tblMetas = append(tblMetas, tblMeta)
 	}
 
-	err = tblSchemaRows.Err()
+	err = rows.Err()
 	if err != nil {
 		return nil, errz.Err(err)
 	}
 
-	return srcMeta, nil
+	return tblMetas, nil
 }
 
-func populateTblMetadata(log lg.Log, db *sql.DB, dbName string, tbl *source.TableMetadata) error {
-	const tpl = "SELECT column_name, data_type, column_type, ordinal_position, column_default, is_nullable, column_key," +
-		" column_comment, extra, (SELECT COUNT(*) FROM `%s`) AS row_count FROM information_schema.columns cols" +
-		" WHERE cols.TABLE_SCHEMA = '%s' AND cols.TABLE_NAME = '%s'" +
-		" ORDER BY cols.ordinal_position ASC"
+// setTableMetaDetails sets the RowCount and Columns field on each
+// of tblMetas. It can happen that a table in tblMetas is dropped
+// during the metadata collection process: if so, that element of
+// tblMetas is set to nil.
+func setTableMetaDetails(ctx context.Context, log lg.Log, db sqlz.DB, schema string, tblMetas []*source.TableMetadata) error {
+	g, gctx := errgroup.WithContextN(ctx, driver.Tuning.ErrgroupNumG, driver.Tuning.ErrgroupQSize)
+	for i := range tblMetas {
+		i := i
 
-	query := fmt.Sprintf(tpl, tbl.Name, dbName, tbl.Name)
+		g.Go(func() error {
+			err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM `"+tblMetas[i].Name+"`").Scan(&tblMetas[i].RowCount)
+			if err != nil {
+				if hasErrCode(err, errNumTableNotExist) {
+					// Can happen if the table is dropped while we're collecting metadata,
+					log.Warnf("table metadata: table %q appears not to exist (continuing regardless): %v", tblMetas[i].Name, err)
 
-	rows, err := db.Query(query)
+					// We'll need to delete this nil entry below
+					tblMetas[i] = nil
+					return nil
+				}
+			}
+
+			cols, err := getColumnMetadata(gctx, log, db, schema, tblMetas[i].Name)
+			if err != nil {
+				if hasErrCode(err, errNumTableNotExist) {
+					log.Warnf("table metadata: table %q appears not to exist (continuing regardless): %v", tblMetas[i].Name, err)
+					tblMetas[i] = nil
+					return nil
+				}
+
+				return err
+			}
+
+			tblMetas[i].Columns = cols
+			return nil
+		})
+	}
+
+	err := g.Wait()
 	if err != nil {
 		return errz.Err(err)
 	}
+	return nil
+}
+
+// getColumnMetadata returns column metadata for tblName.
+func getColumnMetadata(ctx context.Context, log lg.Log, db sqlz.DB, schema, tblName string) ([]*source.ColMetadata, error) {
+	const query = `SELECT column_name, data_type, column_type, ordinal_position, column_default, is_nullable, column_key, column_comment, extra
+FROM information_schema.columns cols
+WHERE cols.TABLE_SCHEMA = ? AND cols.TABLE_NAME = ?
+ORDER BY cols.ordinal_position ASC`
+
+	rows, err := db.QueryContext(ctx, query, schema, tblName)
+	if err != nil {
+		return nil, errz.Err(err)
+	}
 	defer log.WarnIfCloseError(rows)
+
+	var cols []*source.ColMetadata
 
 	for rows.Next() {
 		col := &source.ColMetadata{}
 		var isNullable, colKey, extra string
 
 		defVal := &sql.NullString{}
-		err = rows.Scan(&col.Name, &col.BaseType, &col.ColumnType, &col.Position, defVal, &isNullable, &colKey, &col.Comment, &extra, &tbl.RowCount)
+		err = rows.Scan(&col.Name, &col.BaseType, &col.ColumnType, &col.Position, defVal, &isNullable, &colKey, &col.Comment, &extra)
 		if err != nil {
-			return errz.Err(err)
+			return nil, errz.Err(err)
 		}
 
 		if strings.EqualFold("YES", isNullable) {
@@ -253,10 +329,11 @@ func populateTblMetadata(log lg.Log, db *sql.DB, dbName string, tbl *source.Tabl
 		col.DefaultValue = defVal.String
 		col.Kind = kindFromDBTypeName(log, col.Name, col.BaseType)
 
-		tbl.Columns = append(tbl.Columns, col)
+		//tbl.Columns = append(tbl.Columns, col)
+		cols = append(cols, col)
 	}
 
-	return errz.Err(rows.Err())
+	return cols, errz.Err(rows.Err())
 }
 
 // newInsertMungeFunc is lifted from driver.DefaultInsertMungeFunc.

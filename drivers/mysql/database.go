@@ -19,18 +19,22 @@ type database struct {
 	drvr *driveri
 }
 
+// DB implements driver.Database.
 func (d *database) DB() *sql.DB {
 	return d.db
 }
 
+// SQLDriver implements driver.Database.
 func (d *database) SQLDriver() driver.SQLDriver {
 	return d.drvr
 }
 
+// Source implements driver.Database.
 func (d *database) Source() *source.Source {
 	return d.src
 }
 
+// TableMetadata implements driver.Database.
 func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
 	srcMeta, err := d.SourceMetadata(ctx)
 	if err != nil {
@@ -39,10 +43,12 @@ func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.T
 	return source.TableFromSourceMetadata(srcMeta, tblName)
 }
 
+// SourceMetadata implements driver.Database.
 func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error) {
 	return getSourceMetadata(ctx, d.log, d.src, d.db)
 }
 
+// Close implements driver.Database.
 func (d *database) Close() error {
 	d.log.Debugf("Close database: %s", d.src)
 	return errz.Err(d.db.Close())

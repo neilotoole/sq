@@ -29,9 +29,9 @@ const (
 	MS               = MS17
 )
 
-// All returns all the sakila handles. It does not
+// AllHandles returns all the sakila handles. It does not
 // include monotable handles such as @sakila_csv_actor.
-func All() []string {
+func AllHandles() []string {
 	return []string{SL3, Pg9, Pg10, Pg11, Pg12, My56, My57, My8, MS17, XLSX}
 }
 
