@@ -128,7 +128,7 @@ func getNewRecordFunc(rowMeta sqlz.RecordMeta) driver.NewRecordFunc {
 	}
 }
 
-func getSourceMetadata(ctx context.Context, log lg.Log, src *source.Source, db *sql.DB) (*source.Metadata, error) {
+func getSourceMetadata(ctx context.Context, log lg.Log, src *source.Source, db sqlz.DB) (*source.Metadata, error) {
 	md := &source.Metadata{SourceType: Type, DBDriverType: Type, Handle: src.Handle, Location: src.Location}
 
 	const summaryQuery = `SELECT @@GLOBAL.version, @@GLOBAL.version_comment, @@GLOBAL.version_compile_os,
@@ -163,7 +163,7 @@ func getSourceMetadata(ctx context.Context, log lg.Log, src *source.Source, db *
 	// Note that this function may set elements of tblMetas to nil
 	// if the table is not found (can happen if a table is dropped
 	// during metadata collection).
-	err = setTableMetaDetails(ctx, log, db, schema, tblMetas)
+	err = setTableMetaDetails(ctx, log, db, tblMetas)
 	if err != nil {
 		return nil, err
 	}
@@ -179,7 +179,7 @@ func getSourceMetadata(ctx context.Context, log lg.Log, src *source.Source, db *
 	return md, nil
 }
 
-func getTableMetadata(ctx context.Context, log lg.Log, src *source.Source, db *sql.DB, tblName string) (*source.TableMetadata, error) {
+func getTableMetadata(ctx context.Context, log lg.Log, db sqlz.DB, tblName string) (*source.TableMetadata, error) {
 	query := `SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, TABLE_COMMENT, (DATA_LENGTH + INDEX_LENGTH) AS table_size,
 (SELECT COUNT(*) FROM ` + "`" + tblName + "`" + `) AS row_count
 FROM information_schema.TABLES
@@ -202,19 +202,18 @@ WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`
 		tblMeta.Size = &tblSize.Int64
 	}
 
-	tblMeta.Columns, err = getColumnMetadata(ctx, log, db, schema, tblMeta.Name)
+	tblMeta.Columns, err = getColumnMetadata(ctx, log, db, tblMeta.Name)
 	if err != nil {
 		return nil, err
 	}
 
 	return tblMeta, nil
-
 }
 
 // getSchemaTableMetas returns basic metadata for each table in schema. Note
 // that the returned items are not fully populated: column metadata
 // must be separately populated.
-func getSchemaTableMetas(ctx context.Context, log lg.Log, db *sql.DB, schema string) ([]*source.TableMetadata, error) {
+func getSchemaTableMetas(ctx context.Context, log lg.Log, db sqlz.DB, schema string) ([]*source.TableMetadata, error) {
 	const query = `SELECT TABLE_NAME, TABLE_TYPE, TABLE_COMMENT,  (DATA_LENGTH + INDEX_LENGTH) AS table_size
 		FROM information_schema.TABLES
 		WHERE TABLE_SCHEMA = ?
@@ -258,7 +257,7 @@ func getSchemaTableMetas(ctx context.Context, log lg.Log, db *sql.DB, schema str
 // of tblMetas. It can happen that a table in tblMetas is dropped
 // during the metadata collection process: if so, that element of
 // tblMetas is set to nil.
-func setTableMetaDetails(ctx context.Context, log lg.Log, db sqlz.DB, schema string, tblMetas []*source.TableMetadata) error {
+func setTableMetaDetails(ctx context.Context, log lg.Log, db sqlz.DB, tblMetas []*source.TableMetadata) error {
 	g, gctx := errgroup.WithContextN(ctx, driver.Tuning.ErrgroupNumG, driver.Tuning.ErrgroupQSize)
 	for i := range tblMetas {
 		i := i
@@ -276,7 +275,7 @@ func setTableMetaDetails(ctx context.Context, log lg.Log, db sqlz.DB, schema str
 				}
 			}
 
-			cols, err := getColumnMetadata(gctx, log, db, schema, tblMetas[i].Name)
+			cols, err := getColumnMetadata(gctx, log, db, tblMetas[i].Name)
 			if err != nil {
 				if hasErrCode(err, errNumTableNotExist) {
 					log.Warnf("table metadata: table %q appears not to exist (continuing regardless): %v", tblMetas[i].Name, err)
@@ -300,13 +299,13 @@ func setTableMetaDetails(ctx context.Context, log lg.Log, db sqlz.DB, schema str
 }
 
 // getColumnMetadata returns column metadata for tblName.
-func getColumnMetadata(ctx context.Context, log lg.Log, db sqlz.DB, schema, tblName string) ([]*source.ColMetadata, error) {
+func getColumnMetadata(ctx context.Context, log lg.Log, db sqlz.DB, tblName string) ([]*source.ColMetadata, error) {
 	const query = `SELECT column_name, data_type, column_type, ordinal_position, column_default, is_nullable, column_key, column_comment, extra
 FROM information_schema.columns cols
-WHERE cols.TABLE_SCHEMA = ? AND cols.TABLE_NAME = ?
+WHERE cols.TABLE_SCHEMA = DATABASE() AND cols.TABLE_NAME = ?
 ORDER BY cols.ordinal_position ASC`
 
-	rows, err := db.QueryContext(ctx, query, schema, tblName)
+	rows, err := db.QueryContext(ctx, query, tblName)
 	if err != nil {
 		return nil, errz.Err(err)
 	}
