@@ -36,11 +36,13 @@ func (d *database) Source() *source.Source {
 
 // TableMetadata implements driver.Database.
 func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
-	srcMeta, err := d.SourceMetadata(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return source.TableFromSourceMetadata(srcMeta, tblName)
+	return getTableMetadata(ctx, d.log, d.src, d.db, tblName)
+	//
+	//srcMeta, err := d.SourceMetadata(ctx)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//return source.TableFromSourceMetadata(srcMeta, tblName)
 }
 
 // SourceMetadata implements driver.Database.

@@ -90,7 +90,7 @@ func TestDatabase_TableMetadata(t *testing.T) {
 		handle := handle
 
 		t.Run(handle, func(t *testing.T) {
-			t.Parallel()
+			//t.Parallel()
 
 			th, _, dbase, _ := testh.NewWith(t, handle)
 			md, err := dbase.TableMetadata(th.Context, sakila.TblActor)

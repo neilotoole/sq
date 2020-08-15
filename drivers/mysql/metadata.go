@@ -128,31 +128,6 @@ func getNewRecordFunc(rowMeta sqlz.RecordMeta) driver.NewRecordFunc {
 	}
 }
 
-func getDBVars(ctx context.Context, log lg.Log, db sqlz.DB) ([]source.DBVar, error) {
-	var dbVars []source.DBVar
-
-	rows, err := db.QueryContext(ctx, "SHOW VARIABLES")
-	if err != nil {
-		return nil, errz.Err(err)
-	}
-	defer log.WarnIfCloseError(rows)
-
-	for rows.Next() {
-		var dbVar source.DBVar
-		err = rows.Scan(&dbVar.Name, &dbVar.Value)
-		if err != nil {
-			return nil, errz.Err(err)
-		}
-		dbVars = append(dbVars, dbVar)
-	}
-	err = rows.Err()
-	if err != nil {
-		return nil, errz.Err(err)
-	}
-
-	return dbVars, nil
-}
-
 func getSourceMetadata(ctx context.Context, log lg.Log, src *source.Source, db *sql.DB) (*source.Metadata, error) {
 	md := &source.Metadata{SourceType: Type, DBDriverType: Type, Handle: src.Handle, Location: src.Location}
 
@@ -172,14 +147,14 @@ func getSourceMetadata(ctx context.Context, log lg.Log, src *source.Source, db *
 	md.DBVersion = version
 	md.DBProduct = fmt.Sprintf("%s %s / %s (%s)", versionComment, version, versionOS, versionArch)
 
-	md.DBVars, err = getDBVars(ctx, log, db)
+	md.DBVars, err = getDBVarsMeta(ctx, log, db)
 	if err != nil {
 		return nil, err
 	}
 
 	// Note that this does not populate the RowCount of Columns fields of the
 	// table metadata.
-	tblMetas, err := getTableMetaBasic(ctx, log, db, schema)
+	tblMetas, err := getSchemaTableMetas(ctx, log, db, schema)
 	if err != nil {
 		return nil, err
 	}
@@ -204,11 +179,43 @@ func getSourceMetadata(ctx context.Context, log lg.Log, src *source.Source, db *
 	return md, nil
 }
 
-// getTableMetaBasic returns basic metadata for each table in schema. Note
+func getTableMetadata(ctx context.Context, log lg.Log, src *source.Source, db *sql.DB, tblName string) (*source.TableMetadata, error) {
+	query := `SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, TABLE_COMMENT, (DATA_LENGTH + INDEX_LENGTH) AS table_size,
+(SELECT COUNT(*) FROM ` + "`" + tblName + "`" + `) AS row_count
+FROM information_schema.TABLES
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`
+
+	var schema string
+	var tblSize sql.NullInt64
+	tblMeta := &source.TableMetadata{}
+
+	err := db.QueryRowContext(ctx, query, tblName).
+		Scan(&schema, &tblMeta.Name, &tblMeta.DBTableType, &tblMeta.Comment, &tblSize, &tblMeta.RowCount)
+	if err != nil {
+		return nil, errz.Err(err)
+	}
+
+	tblMeta.TableType = canonicalTableType(tblMeta.DBTableType)
+	tblMeta.FQName = schema + "." + tblMeta.Name
+	if tblSize.Valid {
+		// For a view (as opposed to table), tblSize is typically nil
+		tblMeta.Size = &tblSize.Int64
+	}
+
+	tblMeta.Columns, err = getColumnMetadata(ctx, log, db, schema, tblMeta.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	return tblMeta, nil
+
+}
+
+// getSchemaTableMetas returns basic metadata for each table in schema. Note
 // that the returned items are not fully populated: column metadata
 // must be separately populated.
-func getTableMetaBasic(ctx context.Context, log lg.Log, db *sql.DB, schema string) ([]*source.TableMetadata, error) {
-	const query = `SELECT TABLE_NAME, TABLE_TYPE, TABLE_COMMENT,  (DATA_LENGTH + INDEX_LENGTH) AS TABLE_SIZE
+func getSchemaTableMetas(ctx context.Context, log lg.Log, db *sql.DB, schema string) ([]*source.TableMetadata, error) {
+	const query = `SELECT TABLE_NAME, TABLE_TYPE, TABLE_COMMENT,  (DATA_LENGTH + INDEX_LENGTH) AS table_size
 		FROM information_schema.TABLES
 		WHERE TABLE_SCHEMA = ?
 		ORDER BY TABLE_SCHEMA, TABLE_NAME ASC`
@@ -231,7 +238,6 @@ func getTableMetaBasic(ctx context.Context, log lg.Log, db *sql.DB, schema strin
 
 		tblMeta.TableType = canonicalTableType(tblMeta.DBTableType)
 		tblMeta.FQName = schema + "." + tblMeta.Name
-
 		if tblSize.Valid {
 			// For a view (as opposed to table), tblSize is typically nil
 			tblMeta.Size = &tblSize.Int64
@@ -329,11 +335,36 @@ ORDER BY cols.ordinal_position ASC`
 		col.DefaultValue = defVal.String
 		col.Kind = kindFromDBTypeName(log, col.Name, col.BaseType)
 
-		//tbl.Columns = append(tbl.Columns, col)
 		cols = append(cols, col)
 	}
 
 	return cols, errz.Err(rows.Err())
+}
+
+// getDBVarsMeta returns the database variables.
+func getDBVarsMeta(ctx context.Context, log lg.Log, db sqlz.DB) ([]source.DBVar, error) {
+	var dbVars []source.DBVar
+
+	rows, err := db.QueryContext(ctx, "SHOW VARIABLES")
+	if err != nil {
+		return nil, errz.Err(err)
+	}
+	defer log.WarnIfCloseError(rows)
+
+	for rows.Next() {
+		var dbVar source.DBVar
+		err = rows.Scan(&dbVar.Name, &dbVar.Value)
+		if err != nil {
+			return nil, errz.Err(err)
+		}
+		dbVars = append(dbVars, dbVar)
+	}
+	err = rows.Err()
+	if err != nil {
+		return nil, errz.Err(err)
+	}
+
+	return dbVars, nil
 }
 
 // newInsertMungeFunc is lifted from driver.DefaultInsertMungeFunc.
