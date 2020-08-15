@@ -37,7 +37,7 @@ func (d *database) Source() *source.Source {
 
 // TableMetadata implements driver.Database.
 func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
-	return tableMetadata(ctx, d.log, d.DB(), tblName)
+	return getTableMetadata(ctx, d.log, d.DB(), tblName)
 }
 
 // SourceMetadata implements driver.Database.
@@ -51,17 +51,15 @@ func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error)
 		return nil, err
 	}
 
-	err = d.DB().QueryRowContext(ctx, "SELECT sqlite_version()").Scan(&meta.DBVersion)
-	if err != nil {
-		return nil, errz.Err(err)
-	}
-	meta.DBProduct = "SQLite3 v" + meta.DBVersion
+	const q = "SELECT sqlite_version(), (SELECT name FROM pragma_database_list ORDER BY seq LIMIT 1);"
 
 	var schemaName string // typically "main"
-	err = d.DB().QueryRowContext(ctx, "SELECT name FROM pragma_database_list ORDER BY seq LIMIT 1").Scan(&schemaName)
+	err = d.DB().QueryRowContext(ctx, q).Scan(&meta.DBVersion, &schemaName)
 	if err != nil {
 		return nil, errz.Err(err)
 	}
+
+	meta.DBProduct = "SQLite3 v" + meta.DBVersion
 
 	fi, err := os.Stat(dsn)
 	if err != nil {

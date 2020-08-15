@@ -313,6 +313,107 @@ func (d *driveri) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl str
 	return execer, nil
 }
 
+func (d *driveri) getTableColsMeta(ctx context.Context, db sqlz.DB, tblName string, colNames []string) (sqlz.RecordMeta, error) {
+	// SQLServer has this unusual incantation for its LIMIT equivalent:
+	//
+	// SELECT username, email, address_id FROM person
+	// ORDER BY (SELECT 0) OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY;
+	const queryTpl = "SELECT %s FROM %s ORDER BY (SELECT 0) OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY"
+
+	dialect := d.Dialect()
+	quote := string(dialect.Quote)
+	tblNameQuoted := stringz.Surround(tblName, quote)
+	colNamesQuoted := stringz.SurroundSlice(colNames, quote)
+	colsJoined := strings.Join(colNamesQuoted, driver.Comma)
+
+	query := fmt.Sprintf(queryTpl, colsJoined, tblNameQuoted)
+	rows, err := db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, errz.Err(err)
+	}
+
+	colTypes, err := rows.ColumnTypes()
+	if err != nil {
+		d.log.WarnIfFuncError(rows.Close)
+		return nil, errz.Err(err)
+	}
+
+	if rows.Err() != nil {
+		return nil, errz.Err(rows.Err())
+	}
+
+	destCols, _, err := d.RecordMeta(colTypes)
+	if err != nil {
+		d.log.WarnIfFuncError(rows.Close)
+		return nil, errz.Err(err)
+	}
+
+	err = rows.Close()
+	if err != nil {
+		return nil, errz.Err(err)
+	}
+
+	return destCols, nil
+}
+
+// database implements driver.Database.
+type database struct {
+	log  lg.Log
+	drvr *driveri
+	db   *sql.DB
+	src  *source.Source
+}
+
+var _ driver.Database = (*database)(nil)
+
+// DB implements driver.Database.
+func (d *database) DB() *sql.DB {
+	return d.db
+}
+
+// SQLDriver implements driver.Database.
+func (d *database) SQLDriver() driver.SQLDriver {
+	return d.drvr
+}
+
+// Source implements driver.Database.
+func (d *database) Source() *source.Source {
+	return d.src
+}
+
+// TableMetadata implements driver.Database.
+func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
+	const query = `SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_TYPE
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME = @p1`
+
+	var catalog, schema, tblType string
+	err := d.db.QueryRowContext(ctx, query, tblName).Scan(&catalog, &schema, &tblType)
+	if err != nil {
+		return nil, errz.Err(err)
+	}
+
+	return getTableMetadata(ctx, d.log, d.db, catalog, schema, tblName, tblType)
+	//
+	//srcMeta, err := d.SourceMetadata(ctx)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//return source.TableFromSourceMetadata(srcMeta, tblName)
+}
+
+// SourceMetadata implements driver.Database.
+func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error) {
+	return getSourceMetadata(ctx, d.log, d.src, d.db)
+}
+
+// Close implements driver.Database.
+func (d *database) Close() error {
+	d.log.Debugf("Close database: %s", d.src)
+
+	return errz.Err(d.db.Close())
+}
+
 // newStmtExecFunc returns a StmtExecFunc that has logic to deal with
 // the "identity insert" error. If the error is encountered, setIdentityInsert
 // is called and stmt is executed again.
@@ -364,49 +465,6 @@ func setIdentityInsert(ctx context.Context, db sqlz.DB, tbl string, on bool) err
 	return errz.Wrapf(err, "failed to SET IDENTITY INSERT %s %s", tbl, mode)
 }
 
-func (d *driveri) getTableColsMeta(ctx context.Context, db sqlz.DB, tblName string, colNames []string) (sqlz.RecordMeta, error) {
-	// SQLServer has this unusual incantation for its LIMIT equivalent:
-	//
-	// SELECT username, email, address_id FROM person
-	// ORDER BY (SELECT 0) OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY;
-	const queryTpl = "SELECT %s FROM %s ORDER BY (SELECT 0) OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY"
-
-	dialect := d.Dialect()
-	quote := string(dialect.Quote)
-	tblNameQuoted := stringz.Surround(tblName, quote)
-	colNamesQuoted := stringz.SurroundSlice(colNames, quote)
-	colsJoined := strings.Join(colNamesQuoted, driver.Comma)
-
-	query := fmt.Sprintf(queryTpl, colsJoined, tblNameQuoted)
-	rows, err := db.QueryContext(ctx, query)
-	if err != nil {
-		return nil, errz.Err(err)
-	}
-
-	colTypes, err := rows.ColumnTypes()
-	if err != nil {
-		d.log.WarnIfFuncError(rows.Close)
-		return nil, errz.Err(err)
-	}
-
-	if rows.Err() != nil {
-		return nil, errz.Err(rows.Err())
-	}
-
-	destCols, _, err := d.RecordMeta(colTypes)
-	if err != nil {
-		d.log.WarnIfFuncError(rows.Close)
-		return nil, errz.Err(err)
-	}
-
-	err = rows.Close()
-	if err != nil {
-		return nil, errz.Err(err)
-	}
-
-	return destCols, nil
-}
-
 // mssql error codes
 // https://docs.microsoft.com/en-us/sql/relational-databases/errors-events/database-engine-events-and-errors?view=sql-server-ver15
 const (
@@ -417,10 +475,8 @@ const (
 // hasErrCode returns true if err (or its cause err) is
 // of type mssql.Error and err.Number equals code.
 func hasErrCode(err error, code int32) bool {
-	err = errz.Cause(err)
-
-	if err2, ok := err.(mssql.Error); ok {
-		return err2.Number == code
+	if err, ok := errz.Cause(err).(mssql.Error); ok {
+		return err.Number == code
 	}
 	return false
 }

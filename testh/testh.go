@@ -50,7 +50,7 @@ type Helper struct {
 	reg      *driver.Registry
 	files    *source.Files
 	dbases   *driver.Databases
-	regOnce  sync.Once
+	initOnce sync.Once
 	srcs     *source.Set
 	srcCache map[string]*source.Source
 	Context  context.Context
@@ -90,6 +90,36 @@ func NewWith(t testing.TB, handle string) (*Helper, *source.Source, driver.Datab
 	return th, src, dbase, drvr
 }
 
+func (h *Helper) init() {
+	h.initOnce.Do(func() {
+		log := h.Log
+		h.reg = driver.NewRegistry(log)
+
+		var err error
+		h.files, err = source.NewFiles(log)
+		require.NoError(h.T, err)
+		h.Cleanup.AddC(h.files)
+		h.files.AddTypeDetectors(source.DetectMagicNumber)
+
+		h.dbases = driver.NewDatabases(log, h.reg, sqlite3.NewScratchSource)
+		h.Cleanup.AddC(h.dbases)
+
+		h.reg.AddProvider(sqlite3.Type, &sqlite3.Provider{Log: log})
+		h.reg.AddProvider(postgres.Type, &postgres.Provider{Log: log})
+		h.reg.AddProvider(sqlserver.Type, &sqlserver.Provider{Log: log})
+		h.reg.AddProvider(mysql.Type, &mysql.Provider{Log: log})
+		csvp := &csv.Provider{Log: log, Scratcher: h.dbases, Files: h.files}
+		h.reg.AddProvider(csv.TypeCSV, csvp)
+		h.reg.AddProvider(csv.TypeTSV, csvp)
+		h.files.AddTypeDetectors(csv.DetectCSV, csv.DetectTSV)
+
+		h.reg.AddProvider(xlsx.Type, &xlsx.Provider{Log: log, Scratcher: h.dbases, Files: h.files})
+		h.files.AddTypeDetectors(xlsx.DetectXLSX)
+
+		h.addUserDrivers()
+	})
+}
+
 // Close runs any cleanup tasks, failing h's testing.T if any cleanup
 // error occurs. Close is automatically invoked via t.Cleanup, it does
 // not need to be explicitly invoked unless desired.
@@ -114,6 +144,9 @@ func (h *Helper) Close() {
 // will have its location determined from an envar. Given a source @sakila_pg12,
 // its location is derived from an envar SQ_TEST_SRC__SAKILA_PG12. If that envar
 // is not set, the test calling this method will be skipped.
+//
+// If envar SQ_TEST_DIFFDB is true, DiffDB is run on every SQL source
+// returned by Source.
 func (h *Helper) Source(handle string) *source.Source {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -122,7 +155,7 @@ func (h *Helper) Source(handle string) *source.Source {
 	// invoke h.Registry to ensure that its cleanup side-effects
 	// happen in the correct order (files get cleaned after
 	// databases, etc.).
-	_ = h.Registry() // FIXME: questionable if this is needed
+	h.init()
 
 	// If the handle refers to an external database, we will skip
 	// the test if the envar for the handle is not set.
@@ -185,6 +218,15 @@ func (h *Helper) Source(handle string) *source.Source {
 		src.Location = sqlite3.Prefix + destFileName
 	}
 	h.srcCache[handle] = src
+
+	// envDiffDB is the name of the envar that controls whether the testing
+	// diffdb mechanism is executed automatically by Helper.Source.
+	const envDiffDB = "SQ_TEST_DIFFDB"
+
+	if proj.BoolEnvar(envDiffDB) {
+		h.DiffDB(src)
+	}
+
 	return src
 }
 
@@ -426,38 +468,9 @@ func (h *Helper) TruncateTable(src *source.Source, tbl string) (affected int64) 
 }
 
 // Registry returns the helper's registry instance,
-// configured with standard providers. Invoking Registry has
-// the important side-effect of initializing the helper's registry,
-// files, and databases fields.
+// configured with standard providers.
 func (h *Helper) Registry() *driver.Registry {
-	h.regOnce.Do(func() {
-		log := h.Log
-		h.reg = driver.NewRegistry(log)
-
-		var err error
-		h.files, err = source.NewFiles(log)
-		require.NoError(h.T, err)
-		h.Cleanup.AddC(h.files)
-		h.files.AddTypeDetectors(source.DetectMagicNumber)
-
-		h.dbases = driver.NewDatabases(log, h.reg, sqlite3.NewScratchSource)
-		h.Cleanup.AddC(h.dbases)
-
-		h.reg.AddProvider(sqlite3.Type, &sqlite3.Provider{Log: log})
-		h.reg.AddProvider(postgres.Type, &postgres.Provider{Log: log})
-		h.reg.AddProvider(sqlserver.Type, &sqlserver.Provider{Log: log})
-		h.reg.AddProvider(mysql.Type, &mysql.Provider{Log: log})
-		csvp := &csv.Provider{Log: log, Scratcher: h.dbases, Files: h.files}
-		h.reg.AddProvider(csv.TypeCSV, csvp)
-		h.reg.AddProvider(csv.TypeTSV, csvp)
-		h.files.AddTypeDetectors(csv.DetectCSV, csv.DetectTSV)
-
-		h.reg.AddProvider(xlsx.Type, &xlsx.Provider{Log: log, Scratcher: h.dbases, Files: h.files})
-		h.files.AddTypeDetectors(xlsx.DetectXLSX)
-
-		h.addUserDrivers()
-	})
-
+	h.init()
 	return h.reg
 }
 
@@ -502,47 +515,56 @@ func (h *Helper) IsMonotable(src *source.Source) bool {
 
 // Databases returns the helper's Databases instance.
 func (h *Helper) Databases() *driver.Databases {
-	_ = h.Registry() // h.dbases is initialized by h.Registry
+	h.init()
 	return h.dbases
 }
 
 // Files returns the helper's Files instance.
 func (h *Helper) Files() *source.Files {
-	_ = h.Registry() // h.files is initialized by h.Registry
+	h.init()
 	return h.files
 }
 
-// NoDiff fails the test if src's metadata is substantially different
-// when t.Cleanup runs vs when NoDiff is invoked. Effectively NoDiff
+// DiffDB fails the test if src's metadata is substantially different
+// when t.Cleanup runs vs when DiffDB is invoked. Effectively DiffDB
 // takes before and after snapshots of src's metadata, and compares
 // various elements such as the number of tables, table row counts, etc.
-// NoDiff is useful for verifying that tests are leaving the database
+// DiffDB is useful for verifying that tests are leaving the database
 // as they found it.
-func (h *Helper) NoDiff(src *source.Source) {
-	// TODO: it should be possible to pass flag --sq:nodiff to "go test",
-	//  in which case NoDiff would be applied to all sources returned
-	//  from h.Source.
+//
+// Note that DiffDB adds considerable overhead to test runtime.
+//
+// If envar SQ_TEST_DIFFDB is true, DiffDB is run on every SQL source
+// returned by Helper.Source.
+func (h *Helper) DiffDB(src *source.Source) {
+	if !h.DriverFor(src).DriverMetadata().IsSQL {
+		// SkipDiffDB for non-SQL source types
+		return
+	}
 
-	dbase := h.openNew(src)
-	defer h.Log.WarnIfCloseError(dbase)
+	h.T.Logf("Executing DiffDB for %s", src.Handle) // FIXME: zap this
 
-	before, err := dbase.SourceMetadata(h.Context)
+	beforeDB := h.openNew(src)
+	defer h.Log.WarnIfCloseError(beforeDB)
+
+	beforeMeta, err := beforeDB.SourceMetadata(h.Context)
 	require.NoError(h.T, err)
 
 	h.Cleanup.Add(func() {
-		// Currently NoDiff just checks if the tables and each
+		// Currently DiffDB just checks if the tables and each
 		// table's row count match.
 
-		dbase := h.openNew(src)
-		defer h.Log.WarnIfCloseError(dbase)
+		afterDB := h.openNew(src)
+		defer h.Log.WarnIfCloseError(afterDB)
 
-		after, err := dbase.SourceMetadata(h.Context)
+		afterMeta, err := afterDB.SourceMetadata(h.Context)
 		require.NoError(h.T, err)
-		require.Equal(h.T, before.TableNames(), after.TableNames())
+		require.Equal(h.T, beforeMeta.TableNames(), afterMeta.TableNames(),
+			"diffdb: should have the same set of tables before and after")
 
-		for i, beforeTbl := range before.Tables {
-			assert.Equal(h.T, beforeTbl.RowCount, after.Tables[i].RowCount,
-				"row count for %q: %d, %d", beforeTbl.Name, beforeTbl.RowCount, after.Tables[i].RowCount)
+		for i, beforeTbl := range beforeMeta.Tables {
+			assert.Equal(h.T, beforeTbl.RowCount, afterMeta.Tables[i].RowCount,
+				"diffdb: %s: row count for %q is expected to be %d but got %d", src.Handle, beforeTbl.Name, beforeTbl.RowCount, afterMeta.Tables[i].RowCount)
 		}
 	})
 }

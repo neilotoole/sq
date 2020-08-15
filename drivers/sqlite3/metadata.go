@@ -15,57 +15,6 @@ import (
 	"github.com/neilotoole/sq/libsq/sqlz"
 )
 
-// tableMetadata returns metadata for tblName in db.
-func tableMetadata(ctx context.Context, log lg.Log, db sqlz.DB, tblName string) (*source.TableMetadata, error) {
-	tblMeta := &source.TableMetadata{Name: tblName}
-	tblMeta.Size = -1 // No easy way of getting size of table, so set to -1
-
-	// But we can get the row count
-	query := fmt.Sprintf("SELECT COUNT(*) FROM '%s'", tblMeta.Name)
-	row := db.QueryRowContext(ctx, query)
-	err := row.Scan(&tblMeta.RowCount)
-	if err != nil {
-		return nil, errz.Err(err)
-	}
-
-	// cid	name		type		notnull	dflt_value	pk
-	// 0	actor_id	INT			1		<null>		1
-	// 1	film_id		INT			1		<null>		2
-	// 2	last_update	TIMESTAMP	1		<null>		0
-	query = fmt.Sprintf("PRAGMA TABLE_INFO('%s')", tblMeta.Name)
-	rows, err := db.QueryContext(ctx, query)
-	if err != nil {
-		return nil, errz.Err(err)
-	}
-	defer log.WarnIfCloseError(rows)
-
-	for rows.Next() {
-		col := &source.ColMetadata{}
-		var notnull int64
-		defaultValue := &sql.NullString{}
-		pkValue := &sql.NullInt64{}
-		err = rows.Scan(&col.Position, &col.Name, &col.BaseType, &notnull, defaultValue, pkValue)
-		if err != nil {
-			return nil, errz.Err(err)
-		}
-
-		col.PrimaryKey = pkValue.Int64 > 0 // pkVal can be 0,1,2 etc
-		col.ColumnType = col.BaseType
-		col.Nullable = notnull == 0
-		col.DefaultValue = defaultValue.String
-		col.Kind = kindFromDBTypeName(log, col.Name, col.BaseType, nil)
-
-		tblMeta.Columns = append(tblMeta.Columns, col)
-	}
-
-	err = rows.Err()
-	if err != nil {
-		return nil, errz.Err(err)
-	}
-
-	return tblMeta, nil
-}
-
 // recordMetaFromColumnTypes returns recordMetaFromColumnTypes for rows.
 func recordMetaFromColumnTypes(log lg.Log, colTypes []*sql.ColumnType) (sqlz.RecordMeta, error) {
 	recMeta := make([]*sqlz.FieldMeta, len(colTypes))
@@ -277,6 +226,72 @@ func DBTypeForKind(kind sqlz.Kind) string {
 	}
 }
 
+// getTableMetadata returns metadata for tblName in db.
+func getTableMetadata(ctx context.Context, log lg.Log, db sqlz.DB, tblName string) (*source.TableMetadata, error) {
+	tblMeta := &source.TableMetadata{Name: tblName}
+	// Note that there's no easy way of getting the physical size of
+	// a table, so tblMeta.Size remains nil.
+
+	// But we can get the row count and table type ("table" or "view")
+	const tpl = `SELECT
+(SELECT COUNT(*) FROM %q),
+(SELECT type FROM sqlite_master WHERE name = %q LIMIT 1),
+(SELECT name FROM pragma_database_list ORDER BY seq LIMIT 1)`
+	var schema string
+	query := fmt.Sprintf(tpl, tblMeta.Name, tblMeta.Name)
+	err := db.QueryRowContext(ctx, query).Scan(&tblMeta.RowCount, &tblMeta.DBTableType, &schema)
+	if err != nil {
+		return nil, errz.Err(err)
+	}
+
+	switch tblMeta.DBTableType {
+	case "table":
+		tblMeta.TableType = sqlz.TableTypeTable
+	case "view":
+		tblMeta.TableType = sqlz.TableTypeView
+	default:
+	}
+
+	tblMeta.FQName = schema + "." + tblName
+
+	// cid	name		type		notnull	dflt_value	pk
+	// 0	actor_id	INT			1		<null>		1
+	// 1	film_id		INT			1		<null>		2
+	// 2	last_update	TIMESTAMP	1		<null>		0
+	query = fmt.Sprintf("PRAGMA TABLE_INFO('%s')", tblMeta.Name)
+	rows, err := db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, errz.Err(err)
+	}
+	defer log.WarnIfCloseError(rows)
+
+	for rows.Next() {
+		col := &source.ColMetadata{}
+		var notnull int64
+		defaultValue := &sql.NullString{}
+		pkValue := &sql.NullInt64{}
+		err = rows.Scan(&col.Position, &col.Name, &col.BaseType, &notnull, defaultValue, pkValue)
+		if err != nil {
+			return nil, errz.Err(err)
+		}
+
+		col.PrimaryKey = pkValue.Int64 > 0 // pkVal can be 0,1,2 etc
+		col.ColumnType = col.BaseType
+		col.Nullable = notnull == 0
+		col.DefaultValue = defaultValue.String
+		col.Kind = kindFromDBTypeName(log, col.Name, col.BaseType, nil)
+
+		tblMeta.Columns = append(tblMeta.Columns, col)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return nil, errz.Err(err)
+	}
+
+	return tblMeta, nil
+}
+
 // getAllTblMeta gets metadata for each of the
 // non-system tables in db.
 func getAllTblMeta(ctx context.Context, log lg.Log, db sqlz.DB) ([]*source.TableMetadata, error) {
@@ -303,8 +318,9 @@ ORDER BY m.name, p.cid
 `
 
 	var tblMetas []*source.TableMetadata
+	var tblNames []string
 	var curTblName string
-	var curTblType string // either "table" or "view"
+	var curTblType string
 	var curTblMeta *source.TableMetadata
 
 	rows, err := db.QueryContext(ctx, query)
@@ -314,10 +330,17 @@ ORDER BY m.name, p.cid
 	defer log.WarnIfCloseError(rows)
 
 	for rows.Next() {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+
 		col := &source.ColMetadata{}
 		var notnull int64
 		defaultValue := &sql.NullString{}
 		pkValue := &sql.NullInt64{}
+
 		err = rows.Scan(&curTblName, &curTblType, &col.Position, &col.Name, &col.BaseType, &notnull, defaultValue, pkValue)
 		if err != nil {
 			return nil, errz.Err(err)
@@ -328,23 +351,23 @@ ORDER BY m.name, p.cid
 			continue
 		}
 
-		if curTblType != "table" {
-			// REVISIT: Skipping "view" for now; there's prob a good case for
-			//  adding support for view metadata though.
-			continue
-		}
 		if curTblMeta == nil || curTblMeta.Name != curTblName {
+			// On our first time encountering a new table name, we create a new TableMetadata
 			curTblMeta = &source.TableMetadata{
-				Name: curTblName,
-				Size: -1, // No easy way of getting the storage size of a table
+				Name:        curTblName,
+				Size:        nil, // No easy way of getting the storage size of a table
+				DBTableType: curTblType,
 			}
 
-			countRow := db.QueryRowContext(ctx, fmt.Sprintf("SELECT COUNT(*) FROM %q", curTblName))
-			err = countRow.Scan(&curTblMeta.RowCount)
-			if err != nil {
-				return nil, errz.Err(err)
+			switch curTblMeta.DBTableType {
+			case "table":
+				curTblMeta.TableType = sqlz.TableTypeTable
+			case "view":
+				curTblMeta.TableType = sqlz.TableTypeView
+			default:
 			}
 
+			tblNames = append(tblNames, curTblName)
 			tblMetas = append(tblMetas, curTblMeta)
 		}
 
@@ -362,5 +385,92 @@ ORDER BY m.name, p.cid
 		return nil, errz.Err(err)
 	}
 
+	// Separately, we need to get the row counts for the tables
+	var rowCounts []int64
+	rowCounts, err = getTblRowCounts(ctx, log, db, tblNames)
+	if err != nil {
+		return nil, errz.Err(err)
+	}
+
+	for i := range rowCounts {
+		tblMetas[i].RowCount = rowCounts[i]
+	}
+
 	return tblMetas, nil
+}
+
+// getTblRowCounts returns the number of rows in each table.
+func getTblRowCounts(ctx context.Context, log lg.Log, db sqlz.DB, tblNames []string) ([]int64, error) {
+	// See: https://stackoverflow.com/questions/7524612/how-to-count-rows-from-multiple-tables-in-sqlite
+	//
+	// Several approaches were benchmarked. Ultimately the union-based
+	// query was selected.
+	//
+	// BenchmarkGetTblRowCounts/benchGetTblRowCountsBaseline-16         	     864	  43631750 ns/op
+	// BenchmarkGetTblRowCounts/getTblRowCounts-16                      	    3948	   9126191 ns/op
+	//
+	// That query looks like:
+	//
+	//  SELECT COUNT(*) FROM "actor"
+	//  UNION ALL
+	//  SELECT COUNT(*) FROM "address"
+	//  UNION ALL
+	//  SELECT COUNT(*) FROM "category"
+	//
+	// Note that there is a limit (SQLITE_MAX_COMPOUND_SELECT)
+	// to the number of "terms" (SELECT clauses) in a query.
+	// See https://www.sqlite.org/limits.html#max_compound_select
+	//
+	// Thus if len(tblNames) > 500, we need to execute multiple queries.
+	const maxCompoundSelect = 500
+
+	tblCounts := make([]int64, len(tblNames))
+
+	var sb strings.Builder
+	var query string
+	var terms int
+	var j int
+
+	for i := 0; i < len(tblNames); i++ {
+		if terms > 0 {
+			sb.WriteString(" UNION ALL ")
+		}
+		sb.WriteString(fmt.Sprintf("SELECT COUNT(*) FROM %q", tblNames[i]))
+		terms++
+
+		if terms != maxCompoundSelect && i != len(tblNames)-1 {
+			continue
+		}
+
+		query = sb.String()
+
+		rows, err := db.QueryContext(ctx, query)
+		if err != nil {
+			return nil, errz.Err(err)
+		}
+
+		for rows.Next() {
+			err = rows.Scan(&tblCounts[j])
+			if err != nil {
+				log.WarnIfCloseError(rows)
+				return nil, errz.Err(err)
+			}
+			j++
+		}
+
+		if err = rows.Err(); err != nil {
+			log.WarnIfCloseError(rows)
+			return nil, errz.Err(err)
+		}
+
+		err = rows.Close()
+		if err != nil {
+			return nil, errz.Err(err)
+		}
+
+		terms = 0
+		sb.Reset()
+	}
+
+	return tblCounts, nil
 }

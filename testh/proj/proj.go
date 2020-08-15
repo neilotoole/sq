@@ -12,6 +12,9 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
+
+	"github.com/neilotoole/sq/libsq/stringz"
 )
 
 const (
@@ -191,4 +194,16 @@ func Passw() string {
 // string is returned.
 func LogFile() string {
 	return os.Getenv(EnvLogFile)
+}
+
+// BoolEnvar returns true if the environment variable e is set
+// and its value is boolean true.
+func BoolEnvar(envar string) bool {
+	s, ok := os.LookupEnv(envar)
+	if !ok {
+		return false
+	}
+
+	b, _ := stringz.ParseBool(strings.TrimSpace(s))
+	return b
 }

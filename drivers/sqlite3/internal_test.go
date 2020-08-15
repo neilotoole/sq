@@ -7,6 +7,7 @@ import (
 )
 
 var KindFromDBTypeName = kindFromDBTypeName
+var GetTblRowCounts = getTblRowCounts
 
 func TestPlaceholders(t *testing.T) {
 	testCases := []struct {

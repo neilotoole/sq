@@ -230,34 +230,9 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 	return destCols, nil
 }
 
-// SourceDSN extracts the mysql driver DSN from src.Location.
-func SourceDSN(src *source.Source) (string, error) {
-	if !strings.HasPrefix(src.Location, "mysql://") || len(src.Location) < 10 {
-		return "", errz.Errorf("invalid source location %s", src.RedactedLocation())
-	}
-
-	u, err := dburl.Parse(src.Location)
-	if err != nil {
-		return "", errz.Wrapf(err, "invalid source location %s", src.RedactedLocation())
-	}
-
-	// Convert the location to the desired driver DSN.
-	// Location: 	mysql://sakila:p_ssW0rd@localhost:3306/sqtest
-	// Driver DSN:	sakila:p_ssW0rd@tcp(localhost:3306)/sqtest
-	driverDSN := fmt.Sprintf("%s@tcp(%s)%s", u.User.String(), u.Host, u.Path)
-
-	// REVISIT: extra check for safety, can prob delete later
-	_, err = mysql.ParseDSN(driverDSN)
-	if err != nil {
-		return "", errz.Wrapf(err, "invalid source location: %q", driverDSN)
-	}
-
-	return driverDSN, nil
-}
-
 // Open implements driver.Driver.
 func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
-	dsn, err := SourceDSN(src)
+	dsn, err := dsnFromLocation(src)
 	if err != nil {
 		return nil, err
 	}
@@ -294,7 +269,7 @@ func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 // the TRUNCATE statement.
 func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, reset bool) (affected int64, err error) {
 	// https://dev.mysql.com/doc/refman/8.0/en/truncate-table.html
-	dsn, err := SourceDSN(src)
+	dsn, err := dsnFromLocation(src)
 	if err != nil {
 		return 0, err
 	}
@@ -337,6 +312,45 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 	return beforeCount, errz.Err(tx.Commit())
 }
 
+// database implements driver.Database.
+type database struct {
+	log  lg.Log
+	db   *sql.DB
+	src  *source.Source
+	drvr *driveri
+}
+
+// DB implements driver.Database.
+func (d *database) DB() *sql.DB {
+	return d.db
+}
+
+// SQLDriver implements driver.Database.
+func (d *database) SQLDriver() driver.SQLDriver {
+	return d.drvr
+}
+
+// Source implements driver.Database.
+func (d *database) Source() *source.Source {
+	return d.src
+}
+
+// TableMetadata implements driver.Database.
+func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
+	return getTableMetadata(ctx, d.log, d.db, tblName)
+}
+
+// SourceMetadata implements driver.Database.
+func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error) {
+	return getSourceMetadata(ctx, d.log, d.src, d.db)
+}
+
+// Close implements driver.Database.
+func (d *database) Close() error {
+	d.log.Debugf("Close database: %s", d.src)
+	return errz.Err(d.db.Close())
+}
+
 // hasErrCode returns true if err (or its cause error)
 // is of type *mysql.MySQLError and err.Number equals code.
 func hasErrCode(err error, code uint16) bool {
@@ -348,3 +362,27 @@ func hasErrCode(err error, code uint16) bool {
 }
 
 const errNumTableNotExist = uint16(1146)
+
+// dsnFromLocation extracts the mysql driver DSN from src.Location.
+func dsnFromLocation(src *source.Source) (string, error) {
+	if !strings.HasPrefix(src.Location, "mysql://") || len(src.Location) < 10 {
+		return "", errz.Errorf("invalid source location %s", src.RedactedLocation())
+	}
+
+	u, err := dburl.Parse(src.Location)
+	if err != nil {
+		return "", errz.Wrapf(err, "invalid source location %s", src.RedactedLocation())
+	}
+
+	// Convert the location to the desired driver DSN.
+	// Location: 	mysql://sakila:p_ssW0rd@localhost:3306/sqtest
+	// Driver DSN:	sakila:p_ssW0rd@tcp(localhost:3306)/sqtest
+	driverDSN := fmt.Sprintf("%s@tcp(%s)%s", u.User.String(), u.Host, u.Path)
+
+	_, err = mysql.ParseDSN(driverDSN) // verify
+	if err != nil {
+		return "", errz.Wrapf(err, "invalid source location: %q", driverDSN)
+	}
+
+	return driverDSN, nil
+}

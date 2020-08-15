@@ -58,3 +58,9 @@ func ExecResult(ctx context.Context, db Execer, query string, args ...interface{
 
 	return affected, nil
 }
+
+// Canonical driver-independent names for "table" and "view".
+const (
+	TableTypeTable = "table"
+	TableTypeView  = "view"
+)

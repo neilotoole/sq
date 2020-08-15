@@ -207,7 +207,7 @@ func TestSQLDriver_PrepareUpdateStmt(t *testing.T) {
 }
 
 func TestDriver_Ping(t *testing.T) {
-	testCases := sakila.All()
+	testCases := sakila.AllHandles()
 	testCases = append(testCases, sakila.CSVActor, sakila.CSVActorHTTP)
 
 	for _, handle := range testCases {
@@ -228,7 +228,7 @@ func TestDriver_Ping(t *testing.T) {
 
 func TestDriver_Open(t *testing.T) {
 	t.Parallel()
-	testCases := sakila.All()
+	testCases := sakila.AllHandles()
 	testCases = append(testCases, sakila.CSVActor, sakila.CSVActorHTTP)
 
 	for _, handle := range testCases {
@@ -294,6 +294,7 @@ func TestNewBatchInsert(t *testing.T) {
 			sink, err := th.QuerySQL(src, "SELECT * FROM "+tblName)
 			require.NoError(t, err)
 			require.Equal(t, sakila.TblActorCount, len(sink.Recs))
+			th.TruncateTable(src, tblName) // cleanup
 		})
 	}
 }
@@ -417,12 +418,13 @@ func TestDatabase_TableMetadata(t *testing.T) {
 }
 
 func TestDatabase_SourceMetadata(t *testing.T) {
-	t.Parallel()
+	//t.Parallel()
 
-	for _, handle := range []string{sakila.Pg9} {
+	for _, handle := range []string{sakila.My56} {
 		handle := handle
+
 		t.Run(handle, func(t *testing.T) {
-			t.Parallel()
+			//t.Parallel()
 
 			th, _, dbase, _ := testh.NewWith(t, handle)
 

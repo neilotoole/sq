@@ -117,56 +117,44 @@ var typeTestVals = [][]interface{}{
 	},
 }
 
-// createTypeTestTbl creates the type_test table, returning the actual table
-// named used. If withData is true, the test data is also loaded.
-// It is the caller's responsibility to drop the created table.
-func createTypeTestTable(th *testh.Helper, src *source.Source, withData bool) (name string) {
+// createTypeTestTbls creates nTimes instances of the type_test table,
+// returning the actual table names used. If withData is true, the
+// test data is also loaded. It is the caller's responsibility to drop
+// the created tables.
+func createTypeTestTbls(th *testh.Helper, src *source.Source, nTimes int, withData bool) (tblNames []string) {
 	const canonicalTblName = "type_test"
+	const insertTpl = "INSERT INTO %s (%s) VALUES %s"
 	t := th.T
 	db := th.Open(src).DB()
 
 	tblDDL, err := ioutil.ReadFile(typeTestTableDDLPath)
 	require.NoError(t, err)
 
-	// replace the canonical table name
-	actualTblName := stringz.UniqTableName(canonicalTblName)
-	createStmt := strings.Replace(string(tblDDL), canonicalTblName, actualTblName, 1)
-
-	_, err = db.ExecContext(th.Context, createStmt)
-	require.NoError(t, err)
-
-	// sanity check: verify that we have the expected cols
-	rows, err := db.QueryContext(th.Context, "SELECT * FROM "+actualTblName+" LIMIT 1")
-	require.NoError(t, err)
-	defer func() {
-		require.NoError(t, rows.Err())
-		require.NoError(t, rows.Close())
-	}()
-
-	gotColNames, err := rows.Columns()
-	require.NoError(t, err)
-	require.Equal(t, typeTestColNames, gotColNames)
-
-	t.Logf("created type_test table %q", actualTblName)
-
-	if !withData {
-		return actualTblName
-	}
-
+	baseTblName := stringz.UniqTableName(canonicalTblName)
 	placeholders := th.SQLDriverFor(src).Dialect().Placeholders(len(typeTestColNames), 1)
-	const insertTpl = "INSERT INTO %s (%s) VALUES %s"
-	insertStmt := fmt.Sprintf(insertTpl, actualTblName, strings.Join(typeTestColNames, ", "), placeholders)
-	t.Log(insertStmt)
 
-	for _, insertVals := range typeTestVals {
-		res, err := db.Exec(insertStmt, insertVals...)
+	for i := 0; i < nTimes; i++ {
+		actualTblName := fmt.Sprintf("%s_%d", baseTblName, i)
+		createStmt := strings.Replace(string(tblDDL), canonicalTblName, actualTblName, 1)
+
+		_, err = db.ExecContext(th.Context, createStmt)
 		require.NoError(t, err)
-		affected, err := res.RowsAffected()
-		require.NoError(t, err)
-		require.Equal(t, int64(1), affected)
+
+		if !withData {
+			continue
+		}
+
+		insertStmt := fmt.Sprintf(insertTpl, actualTblName, strings.Join(typeTestColNames, ", "), placeholders)
+
+		for _, insertVals := range typeTestVals {
+			_, err = db.Exec(insertStmt, insertVals...)
+			require.NoError(t, err)
+		}
+
+		tblNames = append(tblNames, actualTblName)
 	}
 
-	return actualTblName
+	return tblNames
 }
 
 // TestDatabaseTypes checks that our driver is dealing with database
@@ -177,7 +165,7 @@ func createTypeTestTable(th *testh.Helper, src *source.Source, withData bool) (n
 func TestDatabaseTypes(t *testing.T) {
 	th := testh.New(t)
 	src := th.Source(sakila.SL3)
-	actualTblName := createTypeTestTable(th, src, true)
+	actualTblName := createTypeTestTbls(th, src, 1, true)[0]
 	th.Cleanup.Add(func() {
 		th.DropTable(src, actualTblName)
 	})

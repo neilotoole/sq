@@ -65,15 +65,37 @@ func TestKindFromDBTypeName(t *testing.T) {
 }
 
 func TestDatabase_SourceMetadata(t *testing.T) {
-	testCases := sakila.MyAll()
-	for _, handle := range testCases {
+	for _, handle := range sakila.MyAll() {
 		handle := handle
+
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
 			th, _, dbase, _ := testh.NewWith(t, handle)
-			_, err := dbase.SourceMetadata(th.Context)
+			md, err := dbase.SourceMetadata(th.Context)
 			require.NoError(t, err)
+			require.Equal(t, "sakila", md.Name)
+			require.Equal(t, handle, md.Handle)
+
+			tblActor := md.Tables[0]
+			require.Equal(t, sakila.TblActor, tblActor.Name)
+			require.Equal(t, int64(sakila.TblActorCount), tblActor.RowCount)
+			require.Equal(t, len(sakila.TblActorCols()), len(tblActor.Columns))
+		})
+	}
+}
+
+func TestDatabase_TableMetadata(t *testing.T) {
+	for _, handle := range sakila.MyAll() {
+		handle := handle
+
+		t.Run(handle, func(t *testing.T) {
+			t.Parallel()
+
+			th, _, dbase, _ := testh.NewWith(t, handle)
+			md, err := dbase.TableMetadata(th.Context, sakila.TblActor)
+			require.NoError(t, err)
+			require.Equal(t, sakila.TblActor, md.Name)
 		})
 	}
 }

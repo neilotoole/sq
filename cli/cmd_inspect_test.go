@@ -18,8 +18,8 @@ import (
 func TestCmdInspect(t *testing.T) {
 	th := testh.New(t)
 	src := th.Source(sakila.SL3)
-	ru := newRun(t)
 
+	ru := newRun(t)
 	err := ru.exec("inspect")
 	require.Error(t, err, "should fail because no active src")
 
@@ -34,7 +34,7 @@ func TestCmdInspect(t *testing.T) {
 	require.Equal(t, sqlite3.Type, md.SourceType)
 	require.Equal(t, sakila.SL3, md.Handle)
 	require.Equal(t, src.Location, md.Location)
-	require.Equal(t, sakila.AllTbls(), md.TableNames())
+	require.Equal(t, sakila.AllTblsViews(), md.TableNames())
 
 	// Try one more source for good measure
 	ru = newRun(t)

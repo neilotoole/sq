@@ -1,20 +1,24 @@
 package sqlite3_test
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"strings"
 	"testing"
 
+	"github.com/neilotoole/lg"
 	"github.com/neilotoole/lg/testlg"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/drivers/sqlite3"
+	"github.com/neilotoole/sq/libsq/errz"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/sqlz"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
+	"github.com/neilotoole/sq/testh/testsrc"
 )
 
 func TestKindFromDBTypeName(t *testing.T) {
@@ -210,4 +214,89 @@ func TestScalarFuncsQuery(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, sakila.TblFilmCount, len(sink.Recs))
 	require.Equal(t, wantKinds, sink.RecMeta.Kinds())
+}
+
+func BenchmarkDatabase_SourceMetadata(b *testing.B) {
+	const numTables = 1000
+
+	th, src, dbase, drvr := testh.NewWith(b, testsrc.MiscDB)
+	db := dbase.DB()
+
+	tblNames := createTypeTestTbls(th, src, numTables, true)
+
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		srcMeta, err := dbase.SourceMetadata(th.Context)
+		require.NoError(b, err)
+		require.True(b, len(srcMeta.Tables) > len(tblNames))
+	}
+	b.StopTimer()
+
+	for _, tblName := range tblNames {
+		require.NoError(b, drvr.DropTable(th.Context, db, tblName, true))
+	}
+}
+
+func TestGetTblRowCounts(t *testing.T) {
+	const numTables = 10
+
+	th, src, dbase, _ := testh.NewWith(t, testsrc.MiscDB)
+	db := dbase.DB()
+
+	tblNames := createTypeTestTbls(th, src, numTables, true)
+
+	counts, err := sqlite3.GetTblRowCounts(th.Context, th.Log, db, tblNames)
+	require.NoError(t, err)
+	require.Equal(t, len(tblNames), len(counts))
+}
+
+func BenchmarkGetTblRowCounts(b *testing.B) {
+	const numTables = 1300
+
+	th, src, dbase, drvr := testh.NewWith(b, testsrc.MiscDB)
+	db := dbase.DB()
+
+	tblNames := createTypeTestTbls(th, src, numTables, true)
+
+	testCases := []struct {
+		name string
+		fn   func(ctx context.Context, log lg.Log, db sqlz.DB, tblNames []string) ([]int64, error)
+	}{
+		{name: "benchGetTblRowCountsBaseline", fn: benchGetTblRowCountsBaseline},
+		{name: "getTblRowCounts", fn: sqlite3.GetTblRowCounts},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+
+		b.Run(tc.name, func(b *testing.B) {
+			log := testlg.New(b)
+
+			for n := 0; n < b.N; n++ {
+				counts, err := tc.fn(th.Context, log, db, tblNames)
+				require.NoError(b, err)
+				require.Len(b, counts, len(tblNames))
+			}
+		})
+	}
+
+	for _, tblName := range tblNames {
+		require.NoError(b, drvr.DropTable(th.Context, db, tblName, true))
+	}
+}
+
+// benchGetTblRowCountsBaseline is a baseline impl of getTblRowCounts
+// for benchmark comparision.
+func benchGetTblRowCountsBaseline(ctx context.Context, log lg.Log, db sqlz.DB, tblNames []string) ([]int64, error) {
+	tblCounts := make([]int64, len(tblNames))
+
+	for i := range tblNames {
+		row := db.QueryRowContext(ctx, fmt.Sprintf("SELECT COUNT(*) FROM %q", tblNames[i]))
+		err := row.Scan(&tblCounts[i])
+		if err != nil {
+			return nil, errz.Err(err)
+		}
+	}
+
+	return tblCounts, nil
 }

@@ -29,9 +29,9 @@ const (
 	MS               = MS17
 )
 
-// All returns all the sakila handles. It does not
+// AllHandles returns all the sakila handles. It does not
 // include monotable handles such as @sakila_csv_actor.
-func All() []string {
+func AllHandles() []string {
 	return []string{SL3, Pg9, Pg10, Pg11, Pg12, My56, My57, My8, MS17, XLSX}
 }
 
@@ -111,6 +111,11 @@ func TblPaymentCols() []string {
 // AllTbls returns all table names.
 func AllTbls() []string {
 	return []string{"actor", "address", "category", "city", "country", "customer", "film", "film_actor", "film_category", "film_text", "inventory", "language", "payment", "rental", "staff", "store"}
+}
+
+// AllTblsViews returns all table AND view names.
+func AllTblsViews() []string {
+	return []string{"actor", "address", "category", "city", "country", "customer", "customer_list", "film", "film_actor", "film_category", "film_list", "film_text", "inventory", "language", "payment", "rental", "sales_by_film_category", "sales_by_store", "staff", "staff_list", "store"}
 }
 
 // AllTblsExceptFilmText exists because our current postgres image is different

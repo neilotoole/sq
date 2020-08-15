@@ -424,7 +424,7 @@ func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.T
 	return getTableMetadata(ctx, d.log, d.DB(), tblName)
 }
 
-// Metadata implements driver.Database.
+// SourceMetadata implements driver.Database.
 func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error) {
 	return getSourceMetadata(ctx, d.log, d.src, d.DB())
 }
