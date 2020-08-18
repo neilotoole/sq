@@ -338,10 +338,10 @@ ORDER BY m.name, p.cid
 
 		col := &source.ColMetadata{}
 		var notnull int64
-		defaultValue := &sql.NullString{}
+		colDefault := &sql.NullString{}
 		pkValue := &sql.NullInt64{}
 
-		err = rows.Scan(&curTblName, &curTblType, &col.Position, &col.Name, &col.BaseType, &notnull, defaultValue, pkValue)
+		err = rows.Scan(&curTblName, &curTblType, &col.Position, &col.Name, &col.BaseType, &notnull, colDefault, pkValue)
 		if err != nil {
 			return nil, errz.Err(err)
 		}
@@ -374,7 +374,7 @@ ORDER BY m.name, p.cid
 		col.PrimaryKey = pkValue.Int64 > 0 // pkVal can be 0,1,2 etc
 		col.ColumnType = col.BaseType
 		col.Nullable = notnull == 0
-		col.DefaultValue = defaultValue.String
+		col.DefaultValue = colDefault.String
 		col.Kind = kindFromDBTypeName(log, col.Name, col.BaseType, nil)
 
 		curTblMeta.Columns = append(curTblMeta.Columns, col)

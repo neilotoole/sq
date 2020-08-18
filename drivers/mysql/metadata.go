@@ -16,6 +16,7 @@ import (
 	"github.com/neilotoole/sq/libsq/errz"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/sqlz"
+	"github.com/neilotoole/sq/libsq/stringz"
 )
 
 // kindFromDBTypeName determines the sqlz.Kind from the database
@@ -128,57 +129,8 @@ func getNewRecordFunc(rowMeta sqlz.RecordMeta) driver.NewRecordFunc {
 	}
 }
 
-func getSourceMetadata(ctx context.Context, log lg.Log, src *source.Source, db sqlz.DB) (*source.Metadata, error) {
-	md := &source.Metadata{SourceType: Type, DBDriverType: Type, Handle: src.Handle, Location: src.Location}
-
-	const summaryQuery = `SELECT @@GLOBAL.version, @@GLOBAL.version_comment, @@GLOBAL.version_compile_os,
-       @@GLOBAL.version_compile_machine, DATABASE(), CURRENT_USER(),
-       (SELECT SUM( data_length + index_length )
-        FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE()) AS size`
-
-	var version, versionComment, versionOS, versionArch, schema string
-	err := db.QueryRowContext(ctx, summaryQuery).Scan(&version, &versionComment, &versionOS, &versionArch, &schema, &md.User, &md.Size)
-	if err != nil {
-		return nil, errz.Err(err)
-	}
-
-	md.Name = schema
-	md.FQName = schema
-	md.DBVersion = version
-	md.DBProduct = fmt.Sprintf("%s %s / %s (%s)", versionComment, version, versionOS, versionArch)
-
-	md.DBVars, err = getDBVarsMeta(ctx, log, db)
-	if err != nil {
-		return nil, err
-	}
-
-	// Note that this does not populate the RowCount of Columns fields of the
-	// table metadata.
-	tblMetas, err := getSchemaTableMetas(ctx, log, db, schema)
-	if err != nil {
-		return nil, err
-	}
-
-	// Populate the RowCount and Columns fields of each table metadata.
-	// Note that this function may set elements of tblMetas to nil
-	// if the table is not found (can happen if a table is dropped
-	// during metadata collection).
-	err = setTableMetaDetails(ctx, log, db, tblMetas)
-	if err != nil {
-		return nil, err
-	}
-
-	// Filter any nil tables
-	md.Tables = make([]*source.TableMetadata, 0, len(tblMetas))
-	for i := range tblMetas {
-		if tblMetas[i] != nil {
-			md.Tables = append(md.Tables, tblMetas[i])
-		}
-	}
-
-	return md, nil
-}
-
+// getTableMetadata gets the metadata for a single table. It is the
+// implementation of driver.Database.TableMetadata.
 func getTableMetadata(ctx context.Context, log lg.Log, db sqlz.DB, tblName string) (*source.TableMetadata, error) {
 	query := `SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, TABLE_COMMENT, (DATA_LENGTH + INDEX_LENGTH) AS table_size,
 (SELECT COUNT(*) FROM ` + "`" + tblName + "`" + `) AS row_count
@@ -208,94 +160,6 @@ WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`
 	}
 
 	return tblMeta, nil
-}
-
-// getSchemaTableMetas returns basic metadata for each table in schema. Note
-// that the returned items are not fully populated: column metadata
-// must be separately populated.
-func getSchemaTableMetas(ctx context.Context, log lg.Log, db sqlz.DB, schema string) ([]*source.TableMetadata, error) {
-	const query = `SELECT TABLE_NAME, TABLE_TYPE, TABLE_COMMENT,  (DATA_LENGTH + INDEX_LENGTH) AS table_size
-		FROM information_schema.TABLES
-		WHERE TABLE_SCHEMA = ?
-		ORDER BY TABLE_SCHEMA, TABLE_NAME ASC`
-
-	rows, err := db.QueryContext(ctx, query, schema)
-	if err != nil {
-		return nil, errz.Err(err)
-	}
-	defer log.WarnIfCloseError(rows)
-
-	var tblMetas []*source.TableMetadata
-	for rows.Next() {
-		tblMeta := &source.TableMetadata{}
-
-		var tblSize sql.NullInt64
-		err = rows.Scan(&tblMeta.Name, &tblMeta.DBTableType, &tblMeta.Comment, &tblSize)
-		if err != nil {
-			return nil, errz.Err(err)
-		}
-
-		tblMeta.TableType = canonicalTableType(tblMeta.DBTableType)
-		tblMeta.FQName = schema + "." + tblMeta.Name
-		if tblSize.Valid {
-			// For a view (as opposed to table), tblSize is typically nil
-			tblMeta.Size = &tblSize.Int64
-		}
-
-		tblMetas = append(tblMetas, tblMeta)
-	}
-
-	err = rows.Err()
-	if err != nil {
-		return nil, errz.Err(err)
-	}
-
-	return tblMetas, nil
-}
-
-// setTableMetaDetails sets the RowCount and Columns field on each
-// of tblMetas. It can happen that a table in tblMetas is dropped
-// during the metadata collection process: if so, that element of
-// tblMetas is set to nil.
-func setTableMetaDetails(ctx context.Context, log lg.Log, db sqlz.DB, tblMetas []*source.TableMetadata) error {
-	g, gctx := errgroup.WithContextN(ctx, driver.Tuning.ErrgroupNumG, driver.Tuning.ErrgroupQSize)
-	for i := range tblMetas {
-		i := i
-
-		g.Go(func() error {
-			err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM `"+tblMetas[i].Name+"`").Scan(&tblMetas[i].RowCount)
-			if err != nil {
-				if hasErrCode(err, errNumTableNotExist) {
-					// Can happen if the table is dropped while we're collecting metadata,
-					log.Warnf("table metadata: table %q appears not to exist (continuing regardless): %v", tblMetas[i].Name, err)
-
-					// We'll need to delete this nil entry below
-					tblMetas[i] = nil
-					return nil
-				}
-			}
-
-			cols, err := getColumnMetadata(gctx, log, db, tblMetas[i].Name)
-			if err != nil {
-				if hasErrCode(err, errNumTableNotExist) {
-					log.Warnf("table metadata: table %q appears not to exist (continuing regardless): %v", tblMetas[i].Name, err)
-					tblMetas[i] = nil
-					return nil
-				}
-
-				return err
-			}
-
-			tblMetas[i].Columns = cols
-			return nil
-		})
-	}
-
-	err := g.Wait()
-	if err != nil {
-		return errz.Err(err)
-	}
-	return nil
 }
 
 // getColumnMetadata returns column metadata for tblName.
@@ -340,6 +204,75 @@ ORDER BY cols.ordinal_position ASC`
 	return cols, errz.Err(rows.Err())
 }
 
+// getSourceMetadata is the implementation of driver.Database.SourceMetadata.
+//
+// Multiple queries are required to build the SourceMetadata, and this
+// impl makes use of errgroup to make concurrent queries. In the initial
+// relatively sequential implementation of this function, the main perf
+// roadblock was getting the row count for each table/view. For accuracy
+// it is necessary to perform "SELECT COUNT(*) FROM tbl" for each table/view.
+// For other databases (such as sqlite) it was performant to UNION ALL
+// these SELECTs into one (or a few) queries, e.g.:
+//
+//  SELECT COUNT(*) FROM actor
+//  UNION ALL
+//  SELECT COUNT(*) FROM address
+//  UNION ALL
+//  [...]
+//
+// However, this seemed to perform poorly (at least for MySQL 5.6 which
+// was the main focus of testing). We do seem to be getting fairly
+// reasonable results by spinning off a goroutine (via errgroup) for
+// each SELECT COUNT(*) query. That said, the testing/benchmarking was
+// far from exhaustive, and this entire thing has a bit of a code smell.
+func getSourceMetadata(ctx context.Context, log lg.Log, src *source.Source, db sqlz.DB) (*source.Metadata, error) {
+	md := &source.Metadata{SourceType: Type, DBDriverType: Type, Handle: src.Handle, Location: src.Location}
+
+	g, gctx := errgroup.WithContext(ctx)
+
+	g.Go(func() error {
+		return setSourceSummaryMeta(gctx, db, md)
+	})
+
+	g.Go(func() error {
+		var err error
+		md.DBVars, err = getDBVarsMeta(gctx, log, db)
+		return err
+	})
+
+	g.Go(func() error {
+		var err error
+		md.Tables, err = getAllTblMetas(gctx, log, db)
+		return err
+	})
+
+	err := g.Wait()
+	if err != nil {
+		return nil, err
+	}
+
+	return md, nil
+}
+
+func setSourceSummaryMeta(ctx context.Context, db sqlz.DB, md *source.Metadata) error {
+	const summaryQuery = `SELECT @@GLOBAL.version, @@GLOBAL.version_comment, @@GLOBAL.version_compile_os,
+       @@GLOBAL.version_compile_machine, DATABASE(), CURRENT_USER(),
+       (SELECT SUM( data_length + index_length )
+        FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE()) AS size`
+
+	var version, versionComment, versionOS, versionArch, schema string
+	err := db.QueryRowContext(ctx, summaryQuery).Scan(&version, &versionComment, &versionOS, &versionArch, &schema, &md.User, &md.Size)
+	if err != nil {
+		return errz.Err(err)
+	}
+
+	md.Name = schema
+	md.FQName = schema
+	md.DBVersion = version
+	md.DBProduct = fmt.Sprintf("%s %s / %s (%s)", versionComment, version, versionOS, versionArch)
+	return nil
+}
+
 // getDBVarsMeta returns the database variables.
 func getDBVarsMeta(ctx context.Context, log lg.Log, db sqlz.DB) ([]source.DBVar, error) {
 	var dbVars []source.DBVar
@@ -364,6 +297,110 @@ func getDBVarsMeta(ctx context.Context, log lg.Log, db sqlz.DB) ([]source.DBVar,
 	}
 
 	return dbVars, nil
+}
+
+// getAllTblMetas returns TableMetadata for each table/view in db.
+func getAllTblMetas(ctx context.Context, log lg.Log, db sqlz.DB) ([]*source.TableMetadata, error) {
+	const query = `SELECT t.TABLE_SCHEMA, t.TABLE_NAME, t.TABLE_TYPE, t.TABLE_COMMENT,  (DATA_LENGTH + INDEX_LENGTH) AS table_size,
+       c.COLUMN_NAME, c.ORDINAL_POSITION, c.COLUMN_KEY, c.DATA_TYPE, c.COLUMN_TYPE, c.IS_NULLABLE, c.COLUMN_DEFAULT, c.COLUMN_COMMENT, c.EXTRA
+FROM information_schema.TABLES t
+         LEFT JOIN information_schema.COLUMNS c
+                   ON c.TABLE_CATALOG = t.TABLE_CATALOG
+                       AND c.TABLE_SCHEMA = t.TABLE_SCHEMA
+                       AND c.TABLE_NAME = t.TABLE_NAME
+WHERE t.TABLE_SCHEMA = DATABASE()
+ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
+
+	// Query results look like:
+	// +------------+----------+----------+-------------+----------+-----------+----------------+----------+---------+--------------------+-----------+-----------------+--------------+---------------------------+
+	// |TABLE_SCHEMA|TABLE_NAME|TABLE_TYPE|TABLE_COMMENT|table_size|COLUMN_NAME|ORDINAL_POSITION|COLUMN_KEY|DATA_TYPE|COLUMN_TYPE         |IS_NULLABLE|COLUMN_DEFAULT   |COLUMN_COMMENT|EXTRA                      |
+	// +------------+----------+----------+-------------+----------+-----------+----------------+----------+---------+--------------------+-----------+-----------------+--------------+---------------------------+
+	// |sakila      |actor     |BASE TABLE|             |32768     |actor_id   |1               |PRI       |smallint |smallint(5) unsigned|NO         |NULL             |              |auto_increment             |
+	// |sakila      |actor     |BASE TABLE|             |32768     |first_name |2               |          |varchar  |varchar(45)         |NO         |NULL             |              |                           |
+	// |sakila      |actor     |BASE TABLE|             |32768     |last_name  |3               |MUL       |varchar  |varchar(45)         |NO         |NULL             |              |                           |
+	// |sakila      |actor     |BASE TABLE|             |32768     |last_update|4               |          |timestamp|timestamp           |NO         |CURRENT_TIMESTAMP|              |on update CURRENT_TIMESTAMP|
+	// |sakila      |actor_info|VIEW      |VIEW         |NULL      |actor_id   |1               |          |smallint |smallint(5) unsigned|NO         |0                |              |                           |
+
+	var tblMetas []*source.TableMetadata
+	var schema, curTblName, curTblType, curTblComment string
+	var curTblSize sql.NullInt64
+	var curTblMeta *source.TableMetadata
+
+	// gRowCount is an errgroup for fetching the
+	// row count for each table.
+	gRowCount, gctx := errgroup.WithContextN(ctx, 32, 1024)
+
+	rows, err := db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, errz.Err(err)
+	}
+	defer log.WarnIfCloseError(rows)
+
+	for rows.Next() {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+
+		col := &source.ColMetadata{}
+		var colNullable, colKey, colExtra string
+		colDefault := sql.NullString{}
+
+		err = rows.Scan(&schema, &curTblName, &curTblType, &curTblComment, &curTblSize, &col.Name, &col.Position,
+			&colKey, &col.BaseType, &col.ColumnType, &colNullable, &colDefault, &col.Comment, &colExtra)
+		if err != nil {
+			return nil, errz.Err(err)
+		}
+
+		if curTblMeta == nil || curTblMeta.Name != curTblName {
+			// On our first time encountering a new table name, we create a new TableMetadata
+			curTblMeta = &source.TableMetadata{
+				Name:        curTblName,
+				FQName:      schema + "." + curTblName,
+				DBTableType: curTblType,
+				TableType:   canonicalTableType(curTblType),
+				Comment:     curTblComment,
+			}
+
+			if curTblSize.Valid {
+				size := curTblSize.Int64
+				curTblMeta.Size = &size
+			}
+
+			rowCountTbl, rowCount := curTblName, &curTblMeta.RowCount
+			gRowCount.Go(func() error {
+				return errz.Err(db.QueryRowContext(gctx, "SELECT COUNT(*) FROM `"+rowCountTbl+"`").Scan(rowCount))
+			})
+
+			tblMetas = append(tblMetas, curTblMeta)
+		}
+
+		col.Nullable, err = stringz.ParseBool(colNullable)
+		if err != nil {
+			return nil, err
+		}
+
+		col.DefaultValue = colDefault.String
+		col.Kind = kindFromDBTypeName(log, col.Name, col.BaseType)
+		if strings.Contains(colKey, "PRI") {
+			col.PrimaryKey = true
+		}
+
+		curTblMeta.Columns = append(curTblMeta.Columns, col)
+	}
+
+	err = gRowCount.Wait()
+	if err != nil {
+		return nil, err
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return nil, errz.Err(err)
+	}
+
+	return tblMetas, nil
 }
 
 // newInsertMungeFunc is lifted from driver.DefaultInsertMungeFunc.
