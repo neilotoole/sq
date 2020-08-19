@@ -139,6 +139,11 @@ func (fs *Files) addFile(f *os.File, key string) (fscache.ReadAtCloser, error) {
 		return nil, errz.Errorf("failed to add to fscache (possibly previously added): %s", key)
 	}
 
+	// TODO: Problematically, we copy the entire contents of f into fscache.
+	// If f is a large file (e.g. piped over stdin), this means that
+	// everything is held up until f is fully copied. Hopefully we can
+	// do something with fscache so that the readers returned from
+	// fscache can lazily read from f.
 	copied, err := io.Copy(w, f)
 	if err != nil {
 		fs.log.WarnIfCloseError(r)

@@ -7,18 +7,20 @@ import (
 	"github.com/neilotoole/sq/libsq/notify"
 )
 
-type NotifyWriter struct {
+type notifyWriter struct {
 	tbl *table
 }
 
-func NewNotifyWriter(out io.Writer, fm *output.Formatting, header bool) *NotifyWriter {
+// NewNotifyWriter implements output.NotificationWriter.
+func NewNotifyWriter(out io.Writer, fm *output.Formatting, header bool) output.NotificationWriter {
 	tbl := &table{out: out, header: header, fm: fm}
-	w := &NotifyWriter{tbl: tbl}
+	w := &notifyWriter{tbl: tbl}
 	w.tbl.reset()
 	return w
 }
 
-func (w *NotifyWriter) NotifyDestinations(dests []notify.Destination) error {
+// NotifyDestinations implements output.NotificationWriter.
+func (w *notifyWriter) NotifyDestinations(dests []notify.Destination) error {
 	w.tbl.tblImpl.SetHeader([]string{"NOTIFIER", "TYPE", "TARGET"})
 	var rows [][]string
 
