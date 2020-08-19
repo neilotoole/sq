@@ -74,17 +74,17 @@ func TestFiles_DetectType(t *testing.T) {
 		wantOK   bool
 		wantErr  bool
 	}{
-		//{loc: proj.Abs(sakila.PathSL3), wantType: sqlite3.Type, wantOK: true},
-		//{loc: proj.Abs("drivers/sqlite3/testdata/sakila_db"), wantType: sqlite3.Type, wantOK: true},
-		//{loc: proj.Abs(testsrc.PathXLSXTestHeader), wantType: xlsx.Type, wantOK: true},
-		//{loc: proj.Abs("drivers/xlsx/testdata/test_header_xlsx"), wantType: xlsx.Type, wantOK: true},
-		//{loc: proj.Abs("drivers/xlsx/testdata/test_noheader.xlsx"), wantType: xlsx.Type, wantOK: true},
-		//{loc: proj.Abs("drivers/csv/testdata/person.csv"), wantType: csv.TypeCSV, wantOK: true},
-		//{loc: proj.Abs("drivers/csv/testdata/person_noheader.csv"), wantType: csv.TypeCSV, wantOK: true},
-		//{loc: proj.Abs("drivers/csv/testdata/person_csv"), wantType: csv.TypeCSV, wantOK: true},
-		//{loc: proj.Abs("drivers/csv/testdata/person.tsv"), wantType: csv.TypeTSV, wantOK: true},
-		//{loc: proj.Abs("drivers/csv/testdata/person_noheader.tsv"), wantType: csv.TypeTSV, wantOK: true},
-		//{loc: proj.Abs("drivers/csv/testdata/person_tsv"), wantType: csv.TypeTSV, wantOK: true},
+		{loc: proj.Abs(sakila.PathSL3), wantType: sqlite3.Type, wantOK: true},
+		{loc: proj.Abs("drivers/sqlite3/testdata/sakila_db"), wantType: sqlite3.Type, wantOK: true},
+		{loc: proj.Abs(testsrc.PathXLSXTestHeader), wantType: xlsx.Type, wantOK: true},
+		{loc: proj.Abs("drivers/xlsx/testdata/test_header_xlsx"), wantType: xlsx.Type, wantOK: true},
+		{loc: proj.Abs("drivers/xlsx/testdata/test_noheader.xlsx"), wantType: xlsx.Type, wantOK: true},
+		{loc: proj.Abs("drivers/csv/testdata/person.csv"), wantType: csv.TypeCSV, wantOK: true},
+		{loc: proj.Abs("drivers/csv/testdata/person_noheader.csv"), wantType: csv.TypeCSV, wantOK: true},
+		{loc: proj.Abs("drivers/csv/testdata/person_csv"), wantType: csv.TypeCSV, wantOK: true},
+		{loc: proj.Abs("drivers/csv/testdata/person.tsv"), wantType: csv.TypeTSV, wantOK: true},
+		{loc: proj.Abs("drivers/csv/testdata/person_noheader.tsv"), wantType: csv.TypeTSV, wantOK: true},
+		{loc: proj.Abs("drivers/csv/testdata/person_tsv"), wantType: csv.TypeTSV, wantOK: true},
 		{loc: proj.Abs("README.md"), wantType: source.TypeNone, wantOK: false},
 	}
 

@@ -1,12 +1,12 @@
 # sq: swiss army knife for data
 
-`sq` is a swiss army knife for data. `sq` provides uniform access to
+`sq` provides uniform access to
 structured data sources like traditional SQL-style databases,
 or document formats such as CSV or Excel. `sq` can perform cross-source joins, 
 execute database-native SQL, and output to a multitude of formats including JSON,
-Excel, CSV, HTML markdown and XML, or output directly to a SQL database.
+Excel, CSV, HTML, Markdown and XML, or output directly to a SQL database.
 `sq` can inspect sources to see metadata about the source structure (tables,
-columns, size) and has commands for frequent database operations such as copying
+columns, size) and has commands for common database operations such as copying
 or dropping tables.
 
 ## Usage
