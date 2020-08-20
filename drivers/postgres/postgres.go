@@ -396,6 +396,11 @@ func (d *driveri) RecordMeta(colTypes []*sql.ColumnType) (sqlz.RecordMeta, drive
 	return recMeta, mungeFn, nil
 }
 
+// AlterTableAddColumn implements driver.Driver.
+func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl string, col string, kind sqlz.Kind, ordinal int) error {
+	return errz.New("not implemented")
+}
+
 // database is the postgres implementation of driver.Database.
 type database struct {
 	log  lg.Log

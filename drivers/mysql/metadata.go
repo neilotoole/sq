@@ -322,7 +322,8 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 	// |sakila      |actor_info|VIEW      |VIEW         |NULL      |actor_id   |1               |          |smallint |smallint(5) unsigned|NO         |0                |              |                           |
 
 	var tblMetas []*source.TableMetadata
-	var schema, curTblName, curTblType, curTblComment string
+	var schema string
+	var curTblName, curTblType, curTblComment sql.NullString
 	var curTblSize sql.NullInt64
 	var curTblMeta *source.TableMetadata
 
@@ -343,24 +344,30 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 		default:
 		}
 
-		col := &source.ColMetadata{}
-		var colNullable, colKey, colExtra string
-		colDefault := sql.NullString{}
+		//var colNullable, colKey, colExtra string
+		var colName, colDefault, colNullable, colKey, colBaseType, colColumnType, colComment, colExtra sql.NullString
+		var colPosition sql.NullInt64
 
-		err = rows.Scan(&schema, &curTblName, &curTblType, &curTblComment, &curTblSize, &col.Name, &col.Position,
-			&colKey, &col.BaseType, &col.ColumnType, &colNullable, &colDefault, &col.Comment, &colExtra)
+		err = rows.Scan(&schema, &curTblName, &curTblType, &curTblComment, &curTblSize, &colName, &colPosition,
+			&colKey, &colBaseType, &colColumnType, &colNullable, &colDefault, &colComment, &colExtra)
 		if err != nil {
 			return nil, errz.Err(err)
 		}
 
-		if curTblMeta == nil || curTblMeta.Name != curTblName {
+		if !curTblName.Valid || !colName.Valid {
+			// table may have been dropped during metadata collection
+			log.Debugf("table not found during metadata collection")
+			continue
+		}
+
+		if curTblMeta == nil || curTblMeta.Name != curTblName.String {
 			// On our first time encountering a new table name, we create a new TableMetadata
 			curTblMeta = &source.TableMetadata{
-				Name:        curTblName,
-				FQName:      schema + "." + curTblName,
-				DBTableType: curTblType,
-				TableType:   canonicalTableType(curTblType),
-				Comment:     curTblComment,
+				Name:        curTblName.String,
+				FQName:      schema + "." + curTblName.String,
+				DBTableType: curTblType.String,
+				TableType:   canonicalTableType(curTblType.String),
+				Comment:     curTblComment.String,
 			}
 
 			if curTblSize.Valid {
@@ -368,22 +375,44 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 				curTblMeta.Size = &size
 			}
 
-			rowCountTbl, rowCount := curTblName, &curTblMeta.RowCount
+			tblMetas = append(tblMetas, curTblMeta)
+
+			rowCountTbl, rowCount, i := curTblName.String, &curTblMeta.RowCount, len(tblMetas)
 			gRowCount.Go(func() error {
-				return errz.Err(db.QueryRowContext(gctx, "SELECT COUNT(*) FROM `"+rowCountTbl+"`").Scan(rowCount))
+				err := db.QueryRowContext(gctx, "SELECT COUNT(*) FROM `"+rowCountTbl+"`").Scan(rowCount)
+				if err != nil {
+					if hasErrCode(err, errNumTableNotExist) {
+						// The table was probably dropped while we were collecting
+						// metadata, but that's ok. We set the element to nil
+						// and we'll filter it out later.
+						log.Debugf("Failed to get row count for %q: ignoring: %v", curTblName.String, err)
+						tblMetas[i] = nil
+						return nil
+					}
+
+					return errz.Err(err)
+				}
+				return nil
 			})
 
-			tblMetas = append(tblMetas, curTblMeta)
 		}
 
-		col.Nullable, err = stringz.ParseBool(colNullable)
+		col := &source.ColMetadata{
+			Name:         colName.String,
+			Position:     colPosition.Int64,
+			BaseType:     colBaseType.String,
+			ColumnType:   colColumnType.String,
+			DefaultValue: colDefault.String,
+			Comment:      colComment.String,
+		}
+
+		col.Nullable, err = stringz.ParseBool(colNullable.String)
 		if err != nil {
 			return nil, err
 		}
 
-		col.DefaultValue = colDefault.String
 		col.Kind = kindFromDBTypeName(log, col.Name, col.BaseType)
-		if strings.Contains(colKey, "PRI") {
+		if strings.Contains(colKey.String, "PRI") {
 			col.PrimaryKey = true
 		}
 
@@ -400,7 +429,18 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 		return nil, errz.Err(err)
 	}
 
-	return tblMetas, nil
+	// tblMetas may contain nil elements if we failed to get the row
+	// count for the table (which can happen if the table is dropped
+	// during the metadata collection process). So we filter out any
+	// nil elements.
+	retTblMetas := make([]*source.TableMetadata, 0, len(tblMetas))
+	for i := range tblMetas {
+		if tblMetas[i] != nil {
+			retTblMetas = append(retTblMetas, tblMetas[i])
+		}
+	}
+
+	return retTblMetas, nil
 }
 
 // newInsertMungeFunc is lifted from driver.DefaultInsertMungeFunc.
