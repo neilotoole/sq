@@ -29,6 +29,8 @@ const (
 	dbDrvr = "sqlserver"
 )
 
+var _ driver.Provider = (*Provider)(nil)
+
 // Provider is the SQL Server implementation of driver.Provider.
 type Provider struct {
 	Log lg.Log
@@ -42,6 +44,8 @@ func (p *Provider) DriverFor(typ source.Type) (driver.Driver, error) {
 
 	return &driveri{log: p.Log}, nil
 }
+
+var _ driver.Driver = (*driveri)(nil)
 
 // driveri is the SQL Server implementation of driver.Driver.
 type driveri struct {
@@ -311,6 +315,11 @@ func (d *driveri) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl str
 
 	execer := driver.NewStmtExecer(stmt, driver.DefaultInsertMungeFunc(destTbl, destColsMeta), newStmtExecFunc(stmt, db, destTbl), destColsMeta)
 	return execer, nil
+}
+
+// AlterTableAddColumn implements driver.Driver.
+func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl string, col string, kind sqlz.Kind, ordinal int) error {
+	return errz.New("not implemented")
 }
 
 func (d *driveri) getTableColsMeta(ctx context.Context, db sqlz.DB, tblName string, colNames []string) (sqlz.RecordMeta, error) {

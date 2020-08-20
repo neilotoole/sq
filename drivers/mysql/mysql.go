@@ -27,6 +27,8 @@ const (
 	dbDrvr = "mysql"
 )
 
+var _ driver.Provider = (*Provider)(nil)
+
 // Provider is the MySQL implementation of driver.Provider.
 type Provider struct {
 	Log lg.Log
@@ -40,6 +42,8 @@ func (p *Provider) DriverFor(typ source.Type) (driver.Driver, error) {
 
 	return &driveri{log: p.Log}, nil
 }
+
+var _ driver.Driver = (*driveri)(nil)
 
 // driveri is the MySQL implementation of driver.Driver.
 type driveri struct {
@@ -310,6 +314,11 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 	// TRUNCATE succeeded, therefore tbl is empty, therefore
 	// the count of truncated rows must be beforeCount?
 	return beforeCount, errz.Err(tx.Commit())
+}
+
+// AlterTableAddColumn implements driver.Driver.
+func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl string, col string, kind sqlz.Kind, ordinal int) error {
+	return errz.New("not implemented")
 }
 
 // database implements driver.Database.

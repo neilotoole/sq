@@ -405,6 +405,7 @@ func TestDatabase_TableMetadata(t *testing.T) {
 
 	for _, handle := range sakila.SQLAll() {
 		handle := handle
+
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
@@ -413,24 +414,26 @@ func TestDatabase_TableMetadata(t *testing.T) {
 			tblMeta, err := dbase.TableMetadata(th.Context, sakila.TblActor)
 			require.NoError(t, err)
 			require.Equal(t, sakila.TblActor, tblMeta.Name)
+			require.Equal(t, int64(sakila.TblActorCount), tblMeta.RowCount)
 		})
 	}
 }
 
 func TestDatabase_SourceMetadata(t *testing.T) {
-	//t.Parallel()
+	t.Parallel()
 
-	for _, handle := range []string{sakila.My56} {
+	for _, handle := range sakila.SQLAll() {
 		handle := handle
 
 		t.Run(handle, func(t *testing.T) {
-			//t.Parallel()
+			t.Parallel()
 
 			th, _, dbase, _ := testh.NewWith(t, handle)
 
 			md, err := dbase.SourceMetadata(th.Context)
 			require.NoError(t, err)
-			require.Equal(t, "sakila", md.Name)
+			require.Equal(t, sakila.TblActor, md.Tables[0].Name)
+			require.Equal(t, int64(sakila.TblActorCount), md.Tables[0].RowCount)
 		})
 	}
 }

@@ -142,6 +142,9 @@ type SQLDriver interface {
 	// DropTable drops tbl from db. If ifExists is true, an "IF EXISTS"
 	// or equivalent clause is added, if supported.
 	DropTable(ctx context.Context, db sqlz.DB, tbl string, ifExists bool) error
+
+	// AlterTableAddColumn adds column col to tbl at position ordinal.
+	AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl string, col string, kind sqlz.Kind, ordinal int) error
 }
 
 // Database models a database handle. It is conceptually equivalent to
