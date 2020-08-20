@@ -102,6 +102,18 @@ func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *sqlmodel.
 	return errz.Err(err)
 }
 
+// AlterTableAddColumn implements driver.SQLDriver.
+func (d *driveri) AlterTableAddColumn(ctx context.Context, db *sql.DB, tbl string, col string, kind sqlz.Kind) error {
+	q := fmt.Sprintf("ALTER TABLE %q ADD COLUMN %q ", tbl, col) + dbTypeNameFromKind(kind)
+
+	_, err := db.ExecContext(ctx, q)
+	if err != nil {
+		return errz.Wrapf(err, "alter table: failed to add column %q to table %q", col, tbl)
+	}
+
+	return nil
+}
+
 // PrepareInsertStmt implements driver.SQLDriver.
 func (d *driveri) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string, numRows int) (*driver.StmtExecer, error) {
 	destColsMeta, err := d.getTableRecordMeta(ctx, db, destTbl, destColNames)
@@ -314,11 +326,6 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 	// TRUNCATE succeeded, therefore tbl is empty, therefore
 	// the count of truncated rows must be beforeCount?
 	return beforeCount, errz.Err(tx.Commit())
-}
-
-// AlterTableAddColumn implements driver.Driver.
-func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl string, col string, kind sqlz.Kind, ordinal int) error {
-	return errz.New("not implemented")
 }
 
 // database implements driver.Database.

@@ -377,7 +377,7 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 
 			tblMetas = append(tblMetas, curTblMeta)
 
-			rowCountTbl, rowCount, i := curTblName.String, &curTblMeta.RowCount, len(tblMetas)
+			rowCountTbl, rowCount, i := curTblName.String, &curTblMeta.RowCount, len(tblMetas)-1
 			gRowCount.Go(func() error {
 				err := db.QueryRowContext(gctx, "SELECT COUNT(*) FROM `"+rowCountTbl+"`").Scan(rowCount)
 				if err != nil {
@@ -394,7 +394,6 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 				}
 				return nil
 			})
-
 		}
 
 		col := &source.ColMetadata{

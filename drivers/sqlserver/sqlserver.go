@@ -248,6 +248,18 @@ func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *sqlmodel.
 	return errz.Err(err)
 }
 
+// AlterTableAddColumn implements driver.SQLDriver.
+func (d *driveri) AlterTableAddColumn(ctx context.Context, db *sql.DB, tbl string, col string, kind sqlz.Kind) error {
+	q := fmt.Sprintf("ALTER TABLE %q ADD %q ", tbl, col) + dbTypeNameFromKind(kind)
+
+	_, err := db.ExecContext(ctx, q)
+	if err != nil {
+		return errz.Wrapf(err, "alter table: failed to add column %q to table %q", col, tbl)
+	}
+
+	return nil
+}
+
 // CopyTable implements driver.SQLDriver.
 func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable string, copyData bool) (int64, error) {
 	var stmt string
@@ -315,11 +327,6 @@ func (d *driveri) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl str
 
 	execer := driver.NewStmtExecer(stmt, driver.DefaultInsertMungeFunc(destTbl, destColsMeta), newStmtExecFunc(stmt, db, destTbl), destColsMeta)
 	return execer, nil
-}
-
-// AlterTableAddColumn implements driver.Driver.
-func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl string, col string, kind sqlz.Kind, ordinal int) error {
-	return errz.New("not implemented")
 }
 
 func (d *driveri) getTableColsMeta(ctx context.Context, db sqlz.DB, tblName string, colNames []string) (sqlz.RecordMeta, error) {

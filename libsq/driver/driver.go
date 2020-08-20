@@ -143,8 +143,10 @@ type SQLDriver interface {
 	// or equivalent clause is added, if supported.
 	DropTable(ctx context.Context, db sqlz.DB, tbl string, ifExists bool) error
 
-	// AlterTableAddColumn adds column col to tbl at position ordinal.
-	AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl string, col string, kind sqlz.Kind, ordinal int) error
+	// AlterTableAddColumn adds column col to tbl. The column is appended
+	// to the list of columns (that is, the column position cannot be
+	// specified).
+	AlterTableAddColumn(ctx context.Context, db *sql.DB, tbl string, col string, kind sqlz.Kind) error
 }
 
 // Database models a database handle. It is conceptually equivalent to

@@ -9,6 +9,7 @@ import (
 	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/drivers/sqlserver"
 	"github.com/neilotoole/sq/drivers/xlsx"
+	"github.com/neilotoole/sq/libsq/sqlz"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -434,6 +435,37 @@ func TestDatabase_SourceMetadata(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, sakila.TblActor, md.Tables[0].Name)
 			require.Equal(t, int64(sakila.TblActorCount), md.Tables[0].RowCount)
+		})
+	}
+}
+
+func TestSQLDriver_AlterTableAddColumn(t *testing.T) {
+	testCases := []string{sakila.SL3, sakila.Pg, sakila.MS}
+
+	for _, handle := range testCases {
+		handle := handle
+
+		t.Run(handle, func(t *testing.T) {
+			th, src, dbase, drvr := testh.NewWith(t, handle)
+
+			// Make a copy of the table to play with
+			tbl := th.CopyTable(true, src, sakila.TblActor, "", true)
+
+			const wantCol, wantKind = "col_int", sqlz.KindInt
+			wantCols := append(sakila.TblActorCols(), wantCol)
+			wantKinds := append(sakila.TblActorColKinds(), wantKind)
+
+			err := drvr.AlterTableAddColumn(th.Context, dbase.DB(), tbl, wantCol, wantKind)
+			require.NoError(t, err)
+
+			sink, err := th.QuerySQL(src, "SELECT * FROM "+tbl)
+			require.NoError(t, err)
+
+			gotCols := sink.RecMeta.Names()
+			require.Equal(t, wantCols, gotCols)
+
+			gotKinds := sink.RecMeta.Kinds()
+			require.Equal(t, wantKinds, gotKinds)
 		})
 	}
 }
