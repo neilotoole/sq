@@ -110,6 +110,8 @@ func TestFiles_DetectType(t *testing.T) {
 	}
 }
 
+var _ source.TypeDetectorFunc = source.DetectMagicNumber
+
 func TestDetectMagicNumber(t *testing.T) {
 	testCases := []struct {
 		loc       string
@@ -125,11 +127,10 @@ func TestDetectMagicNumber(t *testing.T) {
 		tc := tc
 
 		t.Run(filepath.Base(tc.loc), func(t *testing.T) {
-			f, err := os.Open(tc.loc)
-			require.NoError(t, err)
-			t.Cleanup(func() { assert.NoError(t, f.Close()) })
+			rdrs := testh.ReadersFor(tc.loc)
+			t.Cleanup(func() { assert.NoError(t, rdrs.Close()) })
 
-			typ, score, err := source.DetectMagicNumber(context.Background(), f)
+			typ, score, err := source.DetectMagicNumber(context.Background(), rdrs)
 			if tc.wantErr {
 				require.Error(t, err)
 				return
@@ -159,7 +160,7 @@ func TestFiles_NewReader(t *testing.T) {
 
 	for i := 0; i < 1000; i++ {
 		g.Go(func() error {
-			r, err := fs.NewReader(nil, src)
+			r, err := fs.NewReadCloser(src)
 			require.NoError(t, err)
 
 			b, err := ioutil.ReadAll(r)

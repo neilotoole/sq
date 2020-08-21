@@ -70,7 +70,7 @@ func (fs *Files) AddTypeDetectors(detectFns ...TypeDetectorFunc) {
 // as a convenience function and something of a replacement
 // for using os.Stat to get the file size.
 func (fs *Files) Size(src *Source) (size int64, err error) {
-	r, err := fs.NewReader(context.Background(), src)
+	r, err := fs.NewReadCloser(src)
 	if err != nil {
 		return 0, err
 	}
@@ -86,7 +86,7 @@ func (fs *Files) Size(src *Source) (size int64, err error) {
 }
 
 // AddStdin copies f to fs's cache: the stdin data in f
-// is later accessible via fs.NewReader(src) where src.Handle
+// is later accessible via fs.NewReadCloser(src) where src.Handle
 // is StdinHandle; f's type can be detected via TypeStdin.
 // Note that f is closed by this method.
 //
@@ -161,23 +161,28 @@ func (fs *Files) addFile(f *os.File, key string) (fscache.ReadAtCloser, error) {
 	return r, nil
 }
 
-// NewReader returns a new ReadCloser for src.Location.
+// NewReadCloser returns a new io.ReadCloser for src.Location.
 // If src.Handle is StdinHandle, AddStdin must first have
 // been invoked. The caller must close the reader.
-func (fs *Files) NewReader(ctx context.Context, src *Source) (io.ReadCloser, error) {
+func (fs *Files) NewReadCloser(src *Source) (io.ReadCloser, error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	if ctx == nil {
-		ctx = context.Background()
-	}
+	return fs.newReader(src.Location)
+}
 
-	return fs.newReader(ctx, src.Location)
+// NewReaders returns a Readers instance for loc.
+func (fs *Files) NewReaders(loc string) Readers {
+	return &readers{
+		loc:   loc,
+		fs:    fs,
+		clnup: cleanup.New(),
+	}
 }
 
 // ReadAll is a convenience method to read the bytes of a source.
 func (fs *Files) ReadAll(src *Source) ([]byte, error) {
-	r, err := fs.newReader(context.Background(), src.Location)
+	r, err := fs.newReader(src.Location)
 	if err != nil {
 		return nil, err
 	}
@@ -194,7 +199,7 @@ func (fs *Files) ReadAll(src *Source) ([]byte, error) {
 	return b, nil
 }
 
-func (fs *Files) newReader(ctx context.Context, loc string) (io.ReadCloser, error) {
+func (fs *Files) newReader(loc string) (io.ReadCloser, error) {
 	if loc == StdinHandle {
 		r, w, err := fs.fcache.Get(StdinHandle)
 		if err != nil {
@@ -357,22 +362,37 @@ func (fs *Files) detectType(ctx context.Context, loc string) (typ Type, ok bool,
 	}
 
 	resultCh := make(chan result, len(fs.detectFns))
-	readers := make([]io.ReadCloser, len(fs.detectFns))
+	//readers := make([]io.ReadCloser, len(fs.detectFns))
 
-	fs.mu.Lock()
-	for i := 0; i < len(readers); i++ {
-		readers[i], err = fs.newReader(ctx, loc)
-		if err != nil {
-			fs.mu.Unlock()
-			return TypeNone, false, nil
-		}
+	rdrs := &readers{
+		loc:   loc,
+		fs:    fs,
+		clnup: cleanup.New(),
 	}
-	fs.mu.Unlock()
+
+	//var rcFn NewReadCloserFunc
+	//rcFn = func() (io.ReadCloser, error) {
+	//	fs.mu.Lock()
+	//	defer fs.mu.Unlock()
+	//
+	//	return fs.newReader(loc)
+	//}
+
+	//fs.mu.Lock()
+	//for i := 0; i < len(readers); i++ {
+	//	readers[i], err = fs.newReader(loc)
+	//	if err != nil {
+	//		fs.mu.Unlock()
+	//		return TypeNone, false, nil
+	//	}
+	//}
+	//fs.mu.Unlock()
 
 	g, gctx := errgroup.WithContext(ctx)
 
-	for i, detectFn := range fs.detectFns {
-		i, detectFn := i, detectFn
+	for _, detectFn := range fs.detectFns {
+		//i, detectFn := i, detectFn
+		detectFn := detectFn
 
 		g.Go(func() error {
 			select {
@@ -381,10 +401,10 @@ func (fs *Files) detectType(ctx context.Context, loc string) (typ Type, ok bool,
 			default:
 			}
 
-			r := readers[i]
-			defer fs.log.WarnIfCloseError(r)
+			//r := readers[i]
+			//defer fs.log.WarnIfCloseError(r)
 
-			typ, score, err := detectFn(gctx, r)
+			typ, score, err := detectFn(gctx, rdrs)
 			if err != nil {
 				return err
 			}
@@ -418,10 +438,67 @@ func (fs *Files) detectType(ctx context.Context, loc string) (typ Type, ok bool,
 	return TypeNone, false, nil
 }
 
+// Readers encapsulates getting a Reader. The caller is responsible
+// for invoking Close on the returned Readers, which closes any
+// Reader opened by Open.
+type Readers interface {
+	// Open returns a new Reader. The returned Reader is
+	// closed when Readers.Close is invoked.
+	Open() (io.Reader, error)
+
+	// Close closes any open Reader return by Open.
+	Close() error
+}
+
+// Readers encapsulates getting a Reader. The caller is responsible
+// for invoking Close on the returned Readers.
+type readers struct {
+	loc   string
+	fs    *Files
+	clnup *cleanup.Cleanup
+}
+
+// Open implements Readers.
+func (r *readers) Open() (io.Reader, error) {
+	r.fs.mu.Lock()
+	defer r.fs.mu.Unlock()
+
+	rc, err := r.fs.newReader(r.loc)
+	if err != nil {
+		return nil, err
+	}
+
+	r.clnup.AddC(rc)
+	return rc, nil
+}
+
+// Close implements Readers.
+func (r *readers) Close() error {
+	return r.clnup.Run()
+}
+
+// TypeDetectorFunc interrogates a byte stream to determine
+// the source driver type. A score is returned indicating the
+// the confidence that the driver type has been detected.
+// A score <= 0 is failure, a score >= 1 is success; intermediate
+// values indicate some level of confidence.
+// An error is returned only if an IO problem occurred.
+// The implementation is responsible for closing rdrs.
+type TypeDetectorFunc func(ctx context.Context, rdrs Readers) (detected Type, score float32, err error)
+
+type TypeDetectorFunc2 func(ctx context.Context, newR func() (io.ReadCloser, error)) (detected Type, score float32, err error)
+
 // DetectMagicNumber is a TypeDetectorFunc that uses an external
 // pkg (h2non/filetype) to detect the "magic number" from
 // the start of files.
-func DetectMagicNumber(ctx context.Context, r io.Reader) (detected Type, score float32, err error) {
+func DetectMagicNumber(ctx context.Context, rdrs Readers) (detected Type, score float32, err error) {
+	var r io.Reader
+	r, err = rdrs.Open()
+	if err != nil {
+		return TypeNone, 0, errz.Err(err)
+	}
+	defer func() { err = errz.Combine(err, rdrs.Close()) }()
+
 	// We only have to pass the file header = first 261 bytes
 	head := make([]byte, 261)
 	_, err = r.Read(head)

@@ -45,16 +45,23 @@ func (d *Provider) DriverFor(typ source.Type) (driver.Driver, error) {
 }
 
 // DetectCSV implements source.TypeDetectorFunc.
-func DetectCSV(ctx context.Context, r io.Reader) (detected source.Type, score float32, err error) {
-	return detectType(ctx, TypeCSV, r)
+func DetectCSV(ctx context.Context, rdrs source.Readers) (detected source.Type, score float32, err error) {
+	return detectType(ctx, TypeCSV, rdrs)
 }
 
 // DetectTSV implements source.TypeDetectorFunc.
-func DetectTSV(ctx context.Context, r io.Reader) (detected source.Type, score float32, err error) {
-	return detectType(ctx, TypeTSV, r)
+func DetectTSV(ctx context.Context, rdrs source.Readers) (detected source.Type, score float32, err error) {
+	return detectType(ctx, TypeTSV, rdrs)
 }
 
-func detectType(ctx context.Context, typ source.Type, r io.Reader) (detected source.Type, score float32, err error) {
+func detectType(ctx context.Context, typ source.Type, rdrs source.Readers) (detected source.Type, score float32, err error) {
+	var r io.Reader
+	r, err = rdrs.Open()
+	if err != nil {
+		return source.TypeNone, 0, errz.Err(err)
+	}
+	defer func() { err = errz.Combine(err, rdrs.Close()) }()
+
 	var delim = csvw.Comma
 	if typ == TypeTSV {
 		delim = csvw.Tab
@@ -97,7 +104,7 @@ func (d *drvr) DriverMetadata() driver.Metadata {
 func (d *drvr) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
 	dbase := &database{log: d.log, src: src, clnup: cleanup.New(), files: d.files}
 
-	r, err := d.files.NewReader(ctx, src)
+	r, err := d.files.NewReadCloser(src)
 	if err != nil {
 		return nil, err
 	}
@@ -159,7 +166,7 @@ func (d *drvr) ValidateSource(src *source.Source) (*source.Source, error) {
 func (d *drvr) Ping(ctx context.Context, src *source.Source) error {
 	d.log.Debugf("driver %q attempting to ping %q", d.typ, src)
 
-	r, err := d.files.NewReader(ctx, src)
+	r, err := d.files.NewReadCloser(src)
 	if err != nil {
 		return err
 	}

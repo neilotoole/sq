@@ -142,11 +142,11 @@ func TestHelper_Files(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, src.Type, typ)
 
-	g, gctx := errgroup.WithContext(th.Context)
+	g, _ := errgroup.WithContext(th.Context)
 
 	for i := 0; i < 1000; i++ {
 		g.Go(func() error {
-			r, err := fs.NewReader(gctx, src)
+			r, err := fs.NewReadCloser(src)
 			require.NoError(t, err)
 
 			defer func() { require.NoError(t, r.Close()) }()

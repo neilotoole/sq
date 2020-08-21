@@ -672,3 +672,30 @@ func TName(args ...interface{}) string {
 
 	return s
 }
+
+// fileReaders is a testing impl of source.Readers.
+type fileReaders struct {
+	fpath string
+	clnup *cleanup.Cleanup
+}
+
+// Open implements source.Readers.
+func (fr *fileReaders) Open() (io.Reader, error) {
+	f, err := os.Open(fr.fpath)
+	if err != nil {
+		return nil, errz.Err(err)
+	}
+	fr.clnup.AddC(f)
+	return f, err
+}
+
+// Close implements source.Readers.
+func (fr *fileReaders) Close() error {
+	return fr.clnup.Run()
+}
+
+// ReadersFor returns a source.Readers that reads fpath from
+// the file system.
+func ReadersFor(fpath string) source.Readers {
+	return &fileReaders{fpath: fpath, clnup: cleanup.New()}
+}
