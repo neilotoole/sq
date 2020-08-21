@@ -51,7 +51,7 @@ func ShortLocation(loc string) string {
 		// NOT a SQL location, must be a document (local filepath or URL).
 
 		// Let's check if it's http
-		u, ok := HTTPURL(loc)
+		u, ok := httpURL(loc)
 		if ok {
 			name := path.Base(u.Path)
 			if name == "" || name == "/" || name == "." {
@@ -167,7 +167,7 @@ func parseLoc(loc string) (*parsedLoc, error) {
 		return ploc, nil
 	}
 
-	if u, ok := HTTPURL(loc); ok {
+	if u, ok := httpURL(loc); ok {
 		// It's a http or https URL
 		ploc.scheme = u.Scheme
 		ploc.hostname = u.Hostname()

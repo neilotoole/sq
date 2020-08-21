@@ -13,8 +13,6 @@ import (
 	"github.com/neilotoole/sq/testh/sakila"
 )
 
-var _ source.TypeDetectorFunc = xlsx.DetectXLSX
-
 func Test_Smoke_Subset(t *testing.T) {
 	th := testh.New(t)
 	src := th.Source(sakila.XLSXSubset)

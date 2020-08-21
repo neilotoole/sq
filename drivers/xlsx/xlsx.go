@@ -38,15 +38,17 @@ func (p *Provider) DriverFor(typ source.Type) (driver.Driver, error) {
 	return &Driver{log: p.Log, scratcher: p.Scratcher, files: p.Files}, nil
 }
 
-// DetectXLSX returns TypeXLSX and a score of 1.0 if r's bytes
-// are valid XLSX.
-func DetectXLSX(ctx context.Context, rdrs source.Readers) (detected source.Type, score float32, err error) {
-	var r io.Reader
-	r, err = rdrs.Open()
+var _ source.TypeDetectorFunc = DetectXLSX
+
+// DetectXLSX implements source.TypeDetectorFunc, returning
+// TypeXLSX and a score of 1.0 valid XLSX.
+func DetectXLSX(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (detected source.Type, score float32, err error) {
+	var r io.ReadCloser
+	r, err = openFn()
 	if err != nil {
 		return source.TypeNone, 0, errz.Err(err)
 	}
-	defer func() { err = errz.Combine(err, rdrs.Close()) }()
+	defer log.WarnIfCloseError(r)
 
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
@@ -81,7 +83,7 @@ func (d *Driver) DriverMetadata() driver.Metadata {
 
 // Open implements driver.Driver.
 func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
-	r, err := d.files.NewReadCloser(src)
+	r, err := d.files.Open(src)
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +136,7 @@ func (d *Driver) ValidateSource(src *source.Source) (*source.Source, error) {
 
 // Ping implements driver.Driver.
 func (d *Driver) Ping(ctx context.Context, src *source.Source) (err error) {
-	r, err := d.files.NewReadCloser(src)
+	r, err := d.files.Open(src)
 	if err != nil {
 		return err
 	}

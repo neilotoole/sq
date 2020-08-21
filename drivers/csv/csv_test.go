@@ -5,14 +5,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/sq/drivers/csv"
-	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
 )
-
-var _ source.TypeDetectorFunc = csv.DetectCSV
-var _ source.TypeDetectorFunc = csv.DetectTSV
 
 func TestSmoke(t *testing.T) {
 	testCases := []string{sakila.CSVActor, sakila.TSVActor, sakila.CSVActorHTTP}

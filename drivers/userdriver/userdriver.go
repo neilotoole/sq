@@ -79,7 +79,7 @@ func (d *drvr) DriverMetadata() driver.Metadata {
 func (d *drvr) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
 	clnup := cleanup.New()
 
-	r, err := d.files.NewReadCloser(src)
+	r, err := d.files.Open(src)
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +119,7 @@ func (d *drvr) ValidateSource(src *source.Source) (*source.Source, error) {
 func (d *drvr) Ping(ctx context.Context, src *source.Source) error {
 	d.log.Debugf("driver %q attempting to ping %q", d.typ, src)
 
-	r, err := d.files.NewReadCloser(src)
+	r, err := d.files.Open(src)
 	if err != nil {
 		return err
 	}

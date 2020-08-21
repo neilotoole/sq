@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"unicode/utf8"
 
+	"github.com/neilotoole/lg"
 	"github.com/shopspring/decimal"
 
 	"github.com/neilotoole/sq/libsq"
@@ -25,14 +26,21 @@ const (
 )
 
 // importCSV loads the src CSV data to scratchDB.
-func (d *drvr) importCSV(ctx context.Context, src *source.Source, r io.Reader, scratchDB driver.Database) error {
+func importCSV(ctx context.Context, log lg.Log, src *source.Source, openFn source.FileOpenFunc, scratchDB driver.Database) error {
 	// TODO: optPredictKind should be read from src.Options.
 	const optPredictKind bool = true
+
+	var err error
+	var r io.ReadCloser
+
+	r, err = openFn()
+	if err != nil {
+		return err
+	}
 
 	// We add the CR filter reader to deal with CSV files exported
 	// from Excel which can have the DOS-style \r EOL markers.
 	cr := csv.NewReader(&crFilterReader{r: r})
-	var err error
 	cr.Comma, err = getDelimiter(src)
 	if err != nil {
 		return err
@@ -77,7 +85,7 @@ func (d *drvr) importCSV(ctx context.Context, src *source.Source, r io.Reader, s
 		return err
 	}
 
-	insertWriter := libsq.NewDBWriter(d.log, scratchDB, tblDef.Name, insertChSize)
+	insertWriter := libsq.NewDBWriter(log, scratchDB, tblDef.Name, insertChSize)
 	err = execInsert(ctx, insertWriter, recMeta, readAheadRecs, cr)
 	if err != nil {
 		return err
@@ -88,7 +96,7 @@ func (d *drvr) importCSV(ctx context.Context, src *source.Source, r io.Reader, s
 		return err
 	}
 
-	d.log.Debugf("Inserted %d rows to %s.%s", inserted, scratchDB.Source().Handle, tblDef.Name)
+	log.Debugf("Inserted %d rows to %s.%s", inserted, scratchDB.Source().Handle, tblDef.Name)
 	return nil
 }
 

@@ -2,6 +2,7 @@ package source_test
 
 import (
 	"context"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -110,8 +111,6 @@ func TestFiles_DetectType(t *testing.T) {
 	}
 }
 
-var _ source.TypeDetectorFunc = source.DetectMagicNumber
-
 func TestDetectMagicNumber(t *testing.T) {
 	testCases := []struct {
 		loc       string
@@ -127,10 +126,9 @@ func TestDetectMagicNumber(t *testing.T) {
 		tc := tc
 
 		t.Run(filepath.Base(tc.loc), func(t *testing.T) {
-			rdrs := testh.ReadersFor(tc.loc)
-			t.Cleanup(func() { assert.NoError(t, rdrs.Close()) })
+			rFn := func() (io.ReadCloser, error) { return os.Open(tc.loc) }
 
-			typ, score, err := source.DetectMagicNumber(context.Background(), rdrs)
+			typ, score, err := source.DetectMagicNumber(context.Background(), testlg.New(t), rFn)
 			if tc.wantErr {
 				require.Error(t, err)
 				return
@@ -160,7 +158,7 @@ func TestFiles_NewReader(t *testing.T) {
 
 	for i := 0; i < 1000; i++ {
 		g.Go(func() error {
-			r, err := fs.NewReadCloser(src)
+			r, err := fs.Open(src)
 			require.NoError(t, err)
 
 			b, err := ioutil.ReadAll(r)

@@ -70,7 +70,7 @@ func (fs *Files) AddTypeDetectors(detectFns ...TypeDetectorFunc) {
 // as a convenience function and something of a replacement
 // for using os.Stat to get the file size.
 func (fs *Files) Size(src *Source) (size int64, err error) {
-	r, err := fs.NewReadCloser(src)
+	r, err := fs.Open(src)
 	if err != nil {
 		return 0, err
 	}
@@ -86,7 +86,7 @@ func (fs *Files) Size(src *Source) (size int64, err error) {
 }
 
 // AddStdin copies f to fs's cache: the stdin data in f
-// is later accessible via fs.NewReadCloser(src) where src.Handle
+// is later accessible via fs.Open(src) where src.Handle
 // is StdinHandle; f's type can be detected via TypeStdin.
 // Note that f is closed by this method.
 //
@@ -161,22 +161,20 @@ func (fs *Files) addFile(f *os.File, key string) (fscache.ReadAtCloser, error) {
 	return r, nil
 }
 
-// NewReadCloser returns a new io.ReadCloser for src.Location.
+// Open returns a new io.ReadCloser for src.Location.
 // If src.Handle is StdinHandle, AddStdin must first have
 // been invoked. The caller must close the reader.
-func (fs *Files) NewReadCloser(src *Source) (io.ReadCloser, error) {
+func (fs *Files) Open(src *Source) (io.ReadCloser, error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
 	return fs.newReader(src.Location)
 }
 
-// NewReaders returns a Readers instance for loc.
-func (fs *Files) NewReaders(loc string) Readers {
-	return &readers{
-		loc:   loc,
-		fs:    fs,
-		clnup: cleanup.New(),
+// OpenFunc returns a func that invokes fs.Open for src.Location.
+func (fs *Files) OpenFunc(src *Source) func() (io.ReadCloser, error) {
+	return func() (io.ReadCloser, error) {
+		return fs.Open(src)
 	}
 }
 
@@ -187,7 +185,8 @@ func (fs *Files) ReadAll(src *Source) ([]byte, error) {
 		return nil, err
 	}
 
-	b, err := ioutil.ReadAll(r)
+	var data []byte
+	data, err = ioutil.ReadAll(r)
 	closeErr := r.Close()
 	if err != nil {
 		return nil, err
@@ -196,7 +195,7 @@ func (fs *Files) ReadAll(src *Source) ([]byte, error) {
 		return nil, closeErr
 	}
 
-	return b, nil
+	return data, nil
 }
 
 func (fs *Files) newReader(loc string) (io.ReadCloser, error) {
@@ -247,7 +246,7 @@ func (fs *Files) openLocation(loc string) (*os.File, error) {
 	if !ok {
 		// It's not a local file path, maybe it's remote (http)
 		var u *url.URL
-		u, ok = HTTPURL(loc)
+		u, ok = httpURL(loc)
 		if !ok {
 			// We're out of luck, it's not a valid file location
 			return nil, errz.Errorf("invalid src location: %s", loc)
@@ -290,7 +289,7 @@ func (fs *Files) fetch(loc string) (fpath string, err error) {
 
 	var u *url.URL
 
-	if u, ok = HTTPURL(loc); !ok {
+	if u, ok = httpURL(loc); !ok {
 		return "", errz.Errorf("not a valid file location: %q", loc)
 	}
 
@@ -362,36 +361,16 @@ func (fs *Files) detectType(ctx context.Context, loc string) (typ Type, ok bool,
 	}
 
 	resultCh := make(chan result, len(fs.detectFns))
-	//readers := make([]io.ReadCloser, len(fs.detectFns))
+	openFn := func() (io.ReadCloser, error) {
+		fs.mu.Lock()
+		defer fs.mu.Unlock()
 
-	rdrs := &readers{
-		loc:   loc,
-		fs:    fs,
-		clnup: cleanup.New(),
+		return fs.newReader(loc)
 	}
-
-	//var rcFn NewReadCloserFunc
-	//rcFn = func() (io.ReadCloser, error) {
-	//	fs.mu.Lock()
-	//	defer fs.mu.Unlock()
-	//
-	//	return fs.newReader(loc)
-	//}
-
-	//fs.mu.Lock()
-	//for i := 0; i < len(readers); i++ {
-	//	readers[i], err = fs.newReader(loc)
-	//	if err != nil {
-	//		fs.mu.Unlock()
-	//		return TypeNone, false, nil
-	//	}
-	//}
-	//fs.mu.Unlock()
 
 	g, gctx := errgroup.WithContext(ctx)
 
 	for _, detectFn := range fs.detectFns {
-		//i, detectFn := i, detectFn
 		detectFn := detectFn
 
 		g.Go(func() error {
@@ -401,10 +380,7 @@ func (fs *Files) detectType(ctx context.Context, loc string) (typ Type, ok bool,
 			default:
 			}
 
-			//r := readers[i]
-			//defer fs.log.WarnIfCloseError(r)
-
-			typ, score, err := detectFn(gctx, rdrs)
+			typ, score, err := detectFn(gctx, fs.log, openFn)
 			if err != nil {
 				return err
 			}
@@ -438,44 +414,9 @@ func (fs *Files) detectType(ctx context.Context, loc string) (typ Type, ok bool,
 	return TypeNone, false, nil
 }
 
-// Readers encapsulates getting a Reader. The caller is responsible
-// for invoking Close on the returned Readers, which closes any
-// Reader opened by Open.
-type Readers interface {
-	// Open returns a new Reader. The returned Reader is
-	// closed when Readers.Close is invoked.
-	Open() (io.Reader, error)
-
-	// Close closes any open Reader return by Open.
-	Close() error
-}
-
-// Readers encapsulates getting a Reader. The caller is responsible
-// for invoking Close on the returned Readers.
-type readers struct {
-	loc   string
-	fs    *Files
-	clnup *cleanup.Cleanup
-}
-
-// Open implements Readers.
-func (r *readers) Open() (io.Reader, error) {
-	r.fs.mu.Lock()
-	defer r.fs.mu.Unlock()
-
-	rc, err := r.fs.newReader(r.loc)
-	if err != nil {
-		return nil, err
-	}
-
-	r.clnup.AddC(rc)
-	return rc, nil
-}
-
-// Close implements Readers.
-func (r *readers) Close() error {
-	return r.clnup.Run()
-}
+// FileOpenFunc returns a func that opens a ReadCloser. The caller
+// is responsible for closing the returned ReadCloser.
+type FileOpenFunc func() (io.ReadCloser, error)
 
 // TypeDetectorFunc interrogates a byte stream to determine
 // the source driver type. A score is returned indicating the
@@ -483,21 +424,22 @@ func (r *readers) Close() error {
 // A score <= 0 is failure, a score >= 1 is success; intermediate
 // values indicate some level of confidence.
 // An error is returned only if an IO problem occurred.
-// The implementation is responsible for closing rdrs.
-type TypeDetectorFunc func(ctx context.Context, rdrs Readers) (detected Type, score float32, err error)
+// The implementation gets access to the byte stream by invoking openFn,
+// and is responsible for closing any reader it opens.
+type TypeDetectorFunc func(ctx context.Context, log lg.Log, openFn FileOpenFunc) (detected Type, score float32, err error)
 
-type TypeDetectorFunc2 func(ctx context.Context, newR func() (io.ReadCloser, error)) (detected Type, score float32, err error)
+var _ TypeDetectorFunc = DetectMagicNumber
 
 // DetectMagicNumber is a TypeDetectorFunc that uses an external
 // pkg (h2non/filetype) to detect the "magic number" from
 // the start of files.
-func DetectMagicNumber(ctx context.Context, rdrs Readers) (detected Type, score float32, err error) {
-	var r io.Reader
-	r, err = rdrs.Open()
+func DetectMagicNumber(ctx context.Context, log lg.Log, openFn FileOpenFunc) (detected Type, score float32, err error) {
+	var r io.ReadCloser
+	r, err = openFn()
 	if err != nil {
 		return TypeNone, 0, errz.Err(err)
 	}
-	defer func() { err = errz.Combine(err, rdrs.Close()) }()
+	defer log.WarnIfCloseError(r)
 
 	// We only have to pass the file header = first 261 bytes
 	head := make([]byte, 261)
@@ -558,9 +500,9 @@ func isFpath(loc string) (fpath string, ok bool) {
 	return fpath, true
 }
 
-// HTTPURL tests if s is a well-structured HTTP or HTTPS url, and
+// httpURL tests if s is a well-structured HTTP or HTTPS url, and
 // if so, returns the url and true.
-func HTTPURL(s string) (u *url.URL, ok bool) {
+func httpURL(s string) (u *url.URL, ok bool) {
 	var err error
 	u, err = url.Parse(s)
 	if err != nil || u.Host == "" || !(u.Scheme == "http" || u.Scheme == "https") {
