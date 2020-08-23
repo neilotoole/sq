@@ -2,15 +2,14 @@ package sqlite3
 
 import (
 	"bytes"
-
-	"github.com/neilotoole/sq/libsq/sqlbuilder"
-
 	"strings"
+
+	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/sqlbuilder"
 
 	"github.com/neilotoole/lg"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/sqlmodel"
 )
 
@@ -20,17 +19,17 @@ func newFragmentBuilder(log lg.Log) *sqlbuilder.BaseFragmentBuilder {
 
 // createTblKindDefaults is a mapping of Kind to the value
 // to use for a column's DEFAULT clause in a CREATE TABLE statement.
-var createTblKindDefaults = map[sqlz.Kind]string{
-	sqlz.KindText:     `DEFAULT ''`,
-	sqlz.KindInt:      `DEFAULT 0`,
-	sqlz.KindFloat:    `DEFAULT 0`,
-	sqlz.KindDecimal:  `DEFAULT 0`,
-	sqlz.KindBool:     `DEFAULT 0`,
-	sqlz.KindDatetime: "DEFAULT '1970-01-01T00:00:00'",
-	sqlz.KindDate:     "DEFAULT '1970-01-01'",
-	sqlz.KindTime:     "DEFAULT '00:00'",
-	sqlz.KindBytes:    "DEFAULT ''",
-	sqlz.KindUnknown:  `DEFAULT ''`,
+var createTblKindDefaults = map[kind.Kind]string{
+	kind.Text:         `DEFAULT ''`,
+	kind.KindInt:      `DEFAULT 0`,
+	kind.KindFloat:    `DEFAULT 0`,
+	kind.KindDecimal:  `DEFAULT 0`,
+	kind.KindBool:     `DEFAULT 0`,
+	kind.KindDatetime: "DEFAULT '1970-01-01T00:00:00'",
+	kind.KindDate:     "DEFAULT '1970-01-01'",
+	kind.KindTime:     "DEFAULT '00:00'",
+	kind.KindBytes:    "DEFAULT ''",
+	kind.Unknown:      `DEFAULT ''`,
 }
 
 func buildCreateTableStmt(tblDef *sqlmodel.TableDef) (string, error) {

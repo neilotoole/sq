@@ -13,16 +13,17 @@ import (
 	"github.com/neilotoole/lg"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 )
 
-// kindFromDBTypeName determines the sqlz.Kind from the database
-// type name. For example, "VARCHAR(64)" -> sqlz.KindText.
-func kindFromDBTypeName(log lg.Log, colName, dbTypeName string) sqlz.Kind {
-	var kind sqlz.Kind
+// kindFromDBTypeName determines the Kind from the database
+// type name. For example, "VARCHAR(64)" -> kind.Text.
+func kindFromDBTypeName(log lg.Log, colName, dbTypeName string) kind.Kind {
+	var knd kind.Kind
 	dbTypeName = strings.ToUpper(dbTypeName)
 
 	// Given variations such as VARCHAR(255), we first trim the parens
@@ -34,36 +35,36 @@ func kindFromDBTypeName(log lg.Log, colName, dbTypeName string) sqlz.Kind {
 
 	switch dbTypeName {
 	default:
-		log.Warnf("Unknown MySQL database type %q for column %q: using %q", dbTypeName, colName, sqlz.KindUnknown)
-		kind = sqlz.KindUnknown
+		log.Warnf("Unknown MySQL database type %q for column %q: using %q", dbTypeName, colName, kind.Unknown)
+		knd = kind.Unknown
 	case "":
-		kind = sqlz.KindUnknown
+		knd = kind.Unknown
 	case "INTEGER", "INT", "TINYINT", "SMALLINT", "MEDIUMINT", "BIGINT", "YEAR", "BIT":
-		kind = sqlz.KindInt
+		knd = kind.KindInt
 	case "DECIMAL", "NUMERIC":
-		kind = sqlz.KindDecimal
+		knd = kind.KindDecimal
 	case "CHAR", "VARCHAR", "TEXT", "TINYTEXT", "MEDIUMTEXT", "LONGTEXT":
-		kind = sqlz.KindText
+		knd = kind.Text
 	case "ENUM", "SET":
-		kind = sqlz.KindText
+		knd = kind.Text
 	case "JSON":
-		kind = sqlz.KindText
+		knd = kind.Text
 	case "VARBINARY", "BINARY", "BLOB", "MEDIUMBLOB", "LONGBLOB", "TINYBLOB":
-		kind = sqlz.KindBytes
+		knd = kind.KindBytes
 	case "DATETIME", "TIMESTAMP":
-		kind = sqlz.KindDatetime
+		knd = kind.KindDatetime
 	case "DATE":
-		kind = sqlz.KindDate
+		knd = kind.KindDate
 	case "TIME":
-		kind = sqlz.KindTime
+		knd = kind.KindTime
 	case "FLOAT", "DOUBLE", "DOUBLE PRECISION", "REAL":
-		kind = sqlz.KindFloat
+		knd = kind.KindFloat
 	case "BOOL", "BOOLEAN":
 		// In practice these are not returned by the mysql driver.
-		kind = sqlz.KindBool
+		knd = kind.KindBool
 	}
 
-	return kind
+	return knd
 }
 
 func recordMetaFromColumnTypes(log lg.Log, colTypes []*sql.ColumnType) sqlz.RecordMeta {
@@ -457,7 +458,7 @@ func newInsertMungeFunc(destTbl string, destMeta sqlz.RecordMeta) driver.InsertM
 				continue
 			}
 
-			if destMeta[i].Kind() == sqlz.KindText {
+			if destMeta[i].Kind() == kind.Text {
 				// text doesn't need our help
 				continue
 			}
@@ -487,7 +488,7 @@ func newInsertMungeFunc(destTbl string, destMeta sqlz.RecordMeta) driver.InsertM
 				}
 
 				// string is non-empty
-				if destMeta[i].Kind() == sqlz.KindDatetime {
+				if destMeta[i].Kind() == kind.KindDatetime {
 					// special handling for datetime
 					mungeSetDatetimeFromString(*val, i, rec)
 				}

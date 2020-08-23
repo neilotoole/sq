@@ -11,6 +11,7 @@ import (
 	"github.com/neilotoole/lg"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/source"
 )
@@ -45,7 +46,7 @@ func recordMetaFromColumnTypes(log lg.Log, colTypes []*sql.ColumnType) (sqlz.Rec
 // If the scan type is NOT a sql.NullTYPE, the corresponding sql.NullTYPE will
 // be set.
 func setScanType(log lg.Log, colType *sqlz.ColumnTypeData) {
-	scanType, kind := colType.ScanType, colType.Kind
+	scanType, knd := colType.ScanType, colType.Kind
 
 	if scanType != nil {
 		// If the scan type is already set, ensure it's sql.NullTYPE.
@@ -67,47 +68,47 @@ func setScanType(log lg.Log, colType *sqlz.ColumnTypeData) {
 		}
 	}
 
-	switch kind {
+	switch knd {
 	default:
 		// Shouldn't happen?
 		log.Warnf("Unknown kind for col '%s' with database type '%s'", colType.Name, colType.DatabaseTypeName)
 		scanType = sqlz.RTypeBytes
 
-	case sqlz.KindText, sqlz.KindDecimal:
+	case kind.Text, kind.KindDecimal:
 		scanType = sqlz.RTypeNullString
 
-	case sqlz.KindInt:
+	case kind.KindInt:
 		scanType = sqlz.RTypeNullInt64
 
-	case sqlz.KindBool:
+	case kind.KindBool:
 		scanType = sqlz.RTypeNullBool
 
-	case sqlz.KindFloat:
+	case kind.KindFloat:
 		scanType = sqlz.RTypeNullFloat64
 
-	case sqlz.KindBytes:
+	case kind.KindBytes:
 		scanType = sqlz.RTypeBytes
 
-	case sqlz.KindDatetime:
+	case kind.KindDatetime:
 		scanType = sqlz.RTypeNullTime
 
-	case sqlz.KindDate:
+	case kind.KindDate:
 		scanType = sqlz.RTypeNullTime
 
-	case sqlz.KindTime:
+	case kind.KindTime:
 		scanType = sqlz.RTypeNullString
 	}
 
 	colType.ScanType = scanType
 }
 
-// kindFromDBTypeName determines the sqlz.Kind from the database
-// type name. For example, "VARCHAR(64)" -> sqlz.KindText.
+// kindFromDBTypeName determines the kind.Kind from the database
+// type name. For example, "VARCHAR(64)" -> kind.Text.
 // See https://www.sqlite.org/datatype3.html#determination_of_column_affinity
 // The scanType arg may be nil (it may not be available to the caller): when
 // non-nil it may be used to determine ambiguous cases. For example,
 // dbTypeName is empty string for "COUNT(*)"
-func kindFromDBTypeName(log lg.Log, colName, dbTypeName string, scanType reflect.Type) sqlz.Kind {
+func kindFromDBTypeName(log lg.Log, colName, dbTypeName string, scanType reflect.Type) kind.Kind {
 	if dbTypeName == "" {
 		// dbTypeName can be empty for functions such as COUNT() etc.
 		// But we can infer the type from scanType (if non-nil).
@@ -116,23 +117,23 @@ func kindFromDBTypeName(log lg.Log, colName, dbTypeName string, scanType reflect
 			//   3. If the declared type for a column contains the
 			//      string "BLOB" or **if no type is specified** then the
 			//      column has affinity BLOB.
-			return sqlz.KindBytes
+			return kind.KindBytes
 		}
 
 		switch scanType {
 		default:
 			// Default to KindBytes as mentioned above.
-			return sqlz.KindBytes
+			return kind.KindBytes
 		case sqlz.RTypeInt64:
-			return sqlz.KindInt
+			return kind.KindInt
 		case sqlz.RTypeFloat64:
-			return sqlz.KindFloat
+			return kind.KindFloat
 		case sqlz.RTypeString:
-			return sqlz.KindText
+			return kind.Text
 		}
 	}
 
-	var kind sqlz.Kind
+	var knd kind.Kind
 	dbTypeName = strings.ToUpper(dbTypeName)
 
 	// See the examples of type names in the sqlite docs linked above.
@@ -146,82 +147,82 @@ func kindFromDBTypeName(log lg.Log, colName, dbTypeName string, scanType reflect
 	// Try direct matches against common type names
 	switch dbTypeName {
 	case "INT", "INTEGER", "TINYINT", "SMALLINT", "MEDIUMINT", "BIGINT", "UNSIGNED BIG INT", "INT2", "INT8":
-		kind = sqlz.KindInt
+		knd = kind.KindInt
 	case "REAL", "DOUBLE", "DOUBLE PRECISION", "FLOAT":
-		kind = sqlz.KindFloat
+		knd = kind.KindFloat
 	case "DECIMAL":
-		kind = sqlz.KindDecimal
+		knd = kind.KindDecimal
 	case "TEXT", "CHARACTER", "VARCHAR", "VARYING CHARACTER", "NCHAR", "NATIVE CHARACTER", "NVARCHAR", "CLOB":
-		kind = sqlz.KindText
+		knd = kind.Text
 	case "BLOB":
-		kind = sqlz.KindBytes
+		knd = kind.KindBytes
 	case "DATETIME", "TIMESTAMP":
-		kind = sqlz.KindDatetime
+		knd = kind.KindDatetime
 	case "DATE":
-		kind = sqlz.KindDate
+		knd = kind.KindDate
 	case "TIME":
-		kind = sqlz.KindTime
+		knd = kind.KindTime
 	case "BOOLEAN":
-		kind = sqlz.KindBool
+		knd = kind.KindBool
 	case "NUMERIC":
 		// NUMERIC is problematic. It could be an int, float, big decimal, etc.
 		// KindDecimal is safest as it can accept any numeric value.
-		kind = sqlz.KindDecimal
+		knd = kind.KindDecimal
 	}
 
 	// If we have a match, return now.
-	if kind != sqlz.KindUnknown {
-		return kind
+	if knd != kind.Unknown {
+		return knd
 	}
 
 	// We didn't find an exact match, we'll use the Affinity rules
 	// per the SQLite link provided earlier, noting that we default
-	// to KindText (the docs specify default affinity NUMERIC, which
-	// sq handles as KindText).
+	// to kind.Text (the docs specify default affinity NUMERIC, which
+	// sq handles as Tind.Text).
 	switch {
 	default:
-		log.Warnf("Unknown SQLite database type name %q for %q: using %q", dbTypeName, colName, sqlz.KindUnknown)
-		kind = sqlz.KindUnknown
+		log.Warnf("Unknown SQLite database type name %q for %q: using %q", dbTypeName, colName, kind.Unknown)
+		knd = kind.Unknown
 	case strings.Contains(dbTypeName, "INT"):
-		kind = sqlz.KindInt
+		knd = kind.KindInt
 	case strings.Contains(dbTypeName, "TEXT"),
 		strings.Contains(dbTypeName, "CHAR"),
 		strings.Contains(dbTypeName, "CLOB"):
-		kind = sqlz.KindText
+		knd = kind.Text
 	case strings.Contains(dbTypeName, "BLOB"):
-		kind = sqlz.KindBytes
+		knd = kind.KindBytes
 	case strings.Contains(dbTypeName, "REAL"),
 		strings.Contains(dbTypeName, "FLOA"),
 		strings.Contains(dbTypeName, "DOUB"):
-		kind = sqlz.KindFloat
+		knd = kind.KindFloat
 	}
 
-	return kind
+	return knd
 }
 
 // DBTypeForKind returns the database type for kind.
 // For example: KindInt --> INTEGER
-func DBTypeForKind(kind sqlz.Kind) string {
-	switch kind {
+func DBTypeForKind(knd kind.Kind) string {
+	switch knd {
 	default:
-		panic(fmt.Sprintf("unknown kind %q", kind))
-	case sqlz.KindText, sqlz.KindNull, sqlz.KindUnknown:
+		panic(fmt.Sprintf("unknown kind %q", knd))
+	case kind.Text, kind.Null, kind.Unknown:
 		return "TEXT"
-	case sqlz.KindInt:
+	case kind.KindInt:
 		return "INTEGER"
-	case sqlz.KindFloat:
+	case kind.KindFloat:
 		return "REAL"
-	case sqlz.KindBytes:
+	case kind.KindBytes:
 		return "BLOB"
-	case sqlz.KindDecimal:
+	case kind.KindDecimal:
 		return "NUMERIC"
-	case sqlz.KindBool:
+	case kind.KindBool:
 		return "BOOLEAN"
-	case sqlz.KindDatetime:
+	case kind.KindDatetime:
 		return "DATETIME"
-	case sqlz.KindDate:
+	case kind.KindDate:
 		return "DATE"
-	case sqlz.KindTime:
+	case kind.KindTime:
 		return "TIME"
 	}
 }

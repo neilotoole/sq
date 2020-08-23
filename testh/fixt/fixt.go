@@ -10,7 +10,7 @@ package fixt
 import (
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/sqlz"
+	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
@@ -59,24 +59,24 @@ func mustParseTime(layout, value string) time.Time {
 }
 
 // ColNamePerKind returns a slice of column names, one column name for
-// each kind (excepting KindUnknown and KindNull, unless withNull
+// each kind (excepting kind.Unknown and kind.Null, unless withNull
 // or withUnknown are set). If isIntBool is
-// true, KindInt is returned for "col_bool", otherwise KindBool.
-func ColNamePerKind(isIntBool bool, withNull bool, withUnknown bool) (colNames []string, kinds []sqlz.Kind) {
+// true, kind.Int is returned for "col_bool", otherwise kind.Bool.
+func ColNamePerKind(isIntBool bool, withNull bool, withUnknown bool) (colNames []string, kinds []kind.Kind) {
 	colNames = []string{"col_int", "col_float", "col_decimal", "col_bool", "col_text", "col_datetime", "col_date", "col_time", "col_bytes"}
-	kinds = []sqlz.Kind{sqlz.KindInt, sqlz.KindFloat, sqlz.KindDecimal, sqlz.KindBool, sqlz.KindText, sqlz.KindDatetime, sqlz.KindDate, sqlz.KindTime, sqlz.KindBytes}
+	kinds = []kind.Kind{kind.KindInt, kind.KindFloat, kind.KindDecimal, kind.KindBool, kind.Text, kind.KindDatetime, kind.KindDate, kind.KindTime, kind.KindBytes}
 
 	if isIntBool {
-		kinds[3] = sqlz.KindInt
+		kinds[3] = kind.KindInt
 	}
 
 	if withNull {
 		colNames = append(colNames, "col_null")
-		kinds = append(kinds, sqlz.KindNull)
+		kinds = append(kinds, kind.Null)
 	}
 	if withUnknown {
 		colNames = append(colNames, "col_unknown")
-		kinds = append(kinds, sqlz.KindUnknown)
+		kinds = append(kinds, kind.Unknown)
 	}
 
 	return colNames, kinds

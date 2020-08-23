@@ -9,6 +9,7 @@ import (
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/jsonw/internal"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 )
@@ -232,11 +233,11 @@ func getFieldEncoders(recMeta sqlz.RecordMeta, fm *output.Formatting) []func(b [
 
 		for i := 0; i < len(recMeta); i++ {
 			switch recMeta[i].Kind() {
-			case sqlz.KindTime:
+			case kind.KindTime:
 				encodeFns[i] = enc.encodeTime
-			case sqlz.KindDate:
+			case kind.KindDate:
 				encodeFns[i] = enc.encodeDate
-			case sqlz.KindDatetime:
+			case kind.KindDatetime:
 				encodeFns[i] = enc.encodeDatetime
 			default:
 				encodeFns[i] = enc.encodeAny
@@ -252,11 +253,11 @@ func getFieldEncoders(recMeta sqlz.RecordMeta, fm *output.Formatting) []func(b [
 	enc := &colorEncoder{clrs: clrs}
 	for i := 0; i < len(recMeta); i++ {
 		switch recMeta[i].Kind() {
-		case sqlz.KindTime:
+		case kind.KindTime:
 			encodeFns[i] = enc.encodeTime
-		case sqlz.KindDate:
+		case kind.KindDate:
 			encodeFns[i] = enc.encodeDate
-		case sqlz.KindDatetime:
+		case kind.KindDatetime:
 			encodeFns[i] = enc.encodeDatetime
 		default:
 			encodeFns[i] = enc.encodeAny

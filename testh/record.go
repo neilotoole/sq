@@ -2,6 +2,7 @@ package testh
 
 import (
 	"fmt"
+	"reflect"
 	"sync"
 	"testing"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/drivers/sqlite3"
+	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 )
 
@@ -105,7 +107,7 @@ func RecordsFromTbl(tb testing.TB, handle, tbl string) (recMeta sqlz.RecordMeta,
 }
 
 // NewRecordMeta builds a new RecordMeta instance for testing.
-func NewRecordMeta(colNames []string, colKinds []sqlz.Kind) sqlz.RecordMeta {
+func NewRecordMeta(colNames []string, colKinds []kind.Kind) sqlz.RecordMeta {
 	recMeta := make(sqlz.RecordMeta, len(colNames))
 	for i := range colNames {
 		knd := colKinds[i]
@@ -114,7 +116,7 @@ func NewRecordMeta(colNames []string, colKinds []sqlz.Kind) sqlz.RecordMeta {
 			HasNullable:      true,
 			Nullable:         true,
 			DatabaseTypeName: sqlite3.DBTypeForKind(knd),
-			ScanType:         sqlz.KindScanType(knd),
+			ScanType:         KindScanType(knd),
 			Kind:             knd,
 		}
 
@@ -182,4 +184,37 @@ func CopyRecord(rec sqlz.Record) sqlz.Record {
 	}
 
 	return r2
+}
+
+// KindScanType returns the default scan type for kind. The returned
+// type is typically a sql.NullType.
+func KindScanType(knd kind.Kind) reflect.Type {
+	switch knd {
+	default:
+		return sqlz.RTypeNullString
+
+	case kind.Text, kind.KindDecimal:
+		return sqlz.RTypeNullString
+
+	case kind.KindInt:
+		return sqlz.RTypeNullInt64
+
+	case kind.KindBool:
+		return sqlz.RTypeNullBool
+
+	case kind.KindFloat:
+		return sqlz.RTypeNullFloat64
+
+	case kind.KindBytes:
+		return sqlz.RTypeBytes
+
+	case kind.KindDatetime:
+		return sqlz.RTypeNullTime
+
+	case kind.KindDate:
+		return sqlz.RTypeNullTime
+
+	case kind.KindTime:
+		return sqlz.RTypeNullTime
+	}
 }

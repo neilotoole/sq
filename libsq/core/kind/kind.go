@@ -1,9 +1,9 @@
-package sqlz
+// Package kind encapsulate data kind, that is data types.
+package kind
 
 import (
 	stdj "encoding/json"
 	"math/big"
-	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -13,14 +13,14 @@ import (
 )
 
 const (
-	// KindUnknown indicates an unknown kind.
-	KindUnknown Kind = iota
+	// Unknown indicates an unknown kind.
+	Unknown Kind = iota
 
-	// KindNull indicates a NULL kind.
-	KindNull
+	// Null indicates a NULL kind.
+	Null
 
-	// KindText indicates a text kind.
-	KindText
+	// Text indicates a text kind.
+	Text
 
 	// KindInt indicates an integer kind.
 	KindInt
@@ -75,11 +75,11 @@ func (d Kind) MarshalJSON() ([]byte, error) {
 func (d Kind) MarshalText() ([]byte, error) {
 	var name string
 	switch d {
-	case KindUnknown:
+	case Unknown:
 		name = "unknown"
-	case KindNull:
+	case Null:
 		name = "null"
-	case KindText:
+	case Text:
 		name = "text"
 	case KindInt:
 		name = "int"
@@ -120,11 +120,11 @@ func (d *Kind) UnmarshalText(text []byte) error {
 func parse(text string) (Kind, error) {
 	switch strings.ToLower(text) {
 	default:
-		return KindUnknown, errz.Errorf("unrecognized kind name %q", text)
+		return Unknown, errz.Errorf("unrecognized kind name %q", text)
 	case "unknown":
-		return KindUnknown, nil
+		return Unknown, nil
 	case "text":
-		return KindText, nil
+		return Text, nil
 	case "int":
 		return KindInt, nil
 	case "float":
@@ -142,22 +142,22 @@ func parse(text string) (Kind, error) {
 	case "bytes":
 		return KindBytes, nil
 	case "null":
-		return KindNull, nil
+		return Null, nil
 	}
 }
 
-// KindDetector is used to detect the kind of a stream of values.
+// Detector is used to detect the kind of a stream of values.
 // The caller adds values via Sample and then invokes Detect.
-type KindDetector struct {
+type Detector struct {
 	kinds       map[Kind]struct{}
 	mungeFns    map[Kind]func(interface{}) (interface{}, error)
 	dirty       bool
 	foundString bool
 }
 
-// NewKindDetector returns a new instance.
-func NewKindDetector() *KindDetector {
-	return &KindDetector{
+// NewDetector returns a new instance.
+func NewDetector() *Detector {
+	return &Detector{
 		kinds: map[Kind]struct{}{
 			KindInt:      {},
 			KindFloat:    {},
@@ -172,35 +172,35 @@ func NewKindDetector() *KindDetector {
 }
 
 // Sample adds a sample to the detector.
-func (kd *KindDetector) Sample(v interface{}) {
+func (d *Detector) Sample(v interface{}) {
 	switch v.(type) {
 	case nil:
 		// Can't glean any info from nil
 		return
 	default:
 		// Don't know what this, so delete all kinds
-		kd.retain()
+		d.retain()
 		return
 	case float32, float64:
-		kd.retain(KindFloat, KindDecimal)
+		d.retain(KindFloat, KindDecimal)
 		return
 	case int, int8, int16, int32, int64:
-		kd.retain(KindInt, KindFloat, KindDecimal)
+		d.retain(KindInt, KindFloat, KindDecimal)
 		return
 	case bool:
-		kd.retain(KindBool)
+		d.retain(KindBool)
 		return
 	case time.Time:
-		kd.retain(KindTime, KindDate, KindDatetime)
+		d.retain(KindTime, KindDate, KindDatetime)
 	case stdj.Number:
 		// JSON number
-		kd.foundString = true
-		kd.retain(KindDecimal)
+		d.foundString = true
+		d.retain(KindDecimal)
 		return
 	case string:
 		// We need to do more work to figure out the kind when
 		// we're getting string values
-		kd.foundString = true
+		d.foundString = true
 	}
 
 	// We're dealing with a string value, which could a variety
@@ -214,56 +214,56 @@ func (kd *KindDetector) Sample(v interface{}) {
 
 	var err error
 
-	if kd.has(KindDecimal) {
+	if d.has(KindDecimal) {
 		// If KindDecimal is still a candidate, check that we can parse it
 		if _, _, err = big.ParseFloat(s, 10, 64, 0); err != nil {
 			// If s cannot be parsed as a decimal, it also can't
 			// be int or float
-			kd.delete(KindDecimal, KindInt, KindFloat)
+			d.delete(KindDecimal, KindInt, KindFloat)
 		} else {
 			// s can be parsed as decimal, can't be time
-			kd.delete(KindTime, KindDate, KindDatetime)
+			d.delete(KindTime, KindDate, KindDatetime)
 		}
 	}
 
-	if kd.has(KindInt) {
+	if d.has(KindInt) {
 		if _, err = strconv.ParseInt(s, 10, 64); err != nil {
-			kd.delete(KindInt)
+			d.delete(KindInt)
 		} else {
 			// s can be parsed as int, can't be time
-			kd.delete(KindTime, KindDate, KindDatetime)
+			d.delete(KindTime, KindDate, KindDatetime)
 		}
 	}
 
-	if kd.has(KindFloat) {
+	if d.has(KindFloat) {
 		if _, err = strconv.ParseFloat(s, 64); err != nil {
-			kd.delete(KindFloat)
+			d.delete(KindFloat)
 		} else {
 			// s can be parsed as float, can't be time
-			kd.delete(KindTime, KindDate, KindDatetime)
+			d.delete(KindTime, KindDate, KindDatetime)
 		}
 	}
 
-	if kd.has(KindBool) {
+	if d.has(KindBool) {
 		if _, err = stringz.ParseBool(s); err != nil {
-			kd.delete(KindBool)
+			d.delete(KindBool)
 		} else {
 			// s can be parsed as bool, can't be time,
 			// but still could be int ("1" == true)
-			kd.delete(KindFloat, KindTime, KindDate, KindDatetime)
+			d.delete(KindFloat, KindTime, KindDate, KindDatetime)
 		}
 	}
 
-	if kd.has(KindTime) {
+	if d.has(KindTime) {
 		ok, format := detectKindTime(s)
 		if !ok {
 			// It's not a recognized time format
-			kd.delete(KindTime)
+			d.delete(KindTime)
 		} else {
 			// If it's KindTime, it can't be anything else
-			kd.retain(KindTime)
+			d.retain(KindTime)
 
-			kd.mungeFns[KindTime] = func(val interface{}) (interface{}, error) {
+			d.mungeFns[KindTime] = func(val interface{}) (interface{}, error) {
 				if val == nil {
 					return nil, nil
 				}
@@ -287,16 +287,16 @@ func (kd *KindDetector) Sample(v interface{}) {
 		}
 	}
 
-	if kd.has(KindDate) {
+	if d.has(KindDate) {
 		ok, format := detectKindDate(s)
 		if !ok {
 			// It's not a recognized date format
-			kd.delete(KindDate)
+			d.delete(KindDate)
 		} else {
 			// If it's KindDate, it can't be anything else
-			kd.retain(KindDate)
+			d.retain(KindDate)
 
-			kd.mungeFns[KindDate] = func(val interface{}) (interface{}, error) {
+			d.mungeFns[KindDate] = func(val interface{}) (interface{}, error) {
 				if val == nil {
 					return nil, nil
 				}
@@ -320,18 +320,18 @@ func (kd *KindDetector) Sample(v interface{}) {
 		}
 	}
 
-	if kd.has(KindDatetime) {
+	if d.has(KindDatetime) {
 		ok, format := detectKindDatetime(s)
 		if !ok {
 			// It's not a recognized datetime format
-			kd.delete(KindDatetime)
+			d.delete(KindDatetime)
 		} else {
 			// If it's KindDatetime, it can't be anything else
-			kd.retain(KindDatetime)
+			d.retain(KindDatetime)
 
 			// This mungeFn differs from KindDate and KindTime in that
 			// it returns a time.Time instead of a string
-			kd.mungeFns[KindDatetime] = func(val interface{}) (interface{}, error) {
+			d.mungeFns[KindDatetime] = func(val interface{}) (interface{}, error) {
 				if val == nil {
 					return nil, nil
 				}
@@ -356,84 +356,84 @@ func (kd *KindDetector) Sample(v interface{}) {
 	}
 }
 
-// Detect returns the detected Kind. If ambiguous, KindText is returned.
+// Detect returns the detected Kind. If ambiguous, Text is returned.
 // If the returned mungeFn is non-nil, it can be used to convert input
-// values to their canonical form. For example for KindDatetime mungeFn
+// values to their canonical form. For example for Datetime mungeFn
 // would accept string "2020-06-11T02:50:54Z" and return a time.Time,
-// while for KindDate, mungeFn would accept "1970-01-01" or "01 Jan 1970"
+// while for Date, mungeFn would accept "1970-01-01" or "01 Jan 1970"
 // and always return a string in the canonicalized form "1970-01-01".
-func (kd *KindDetector) Detect() (kind Kind, mungeFn func(interface{}) (interface{}, error), err error) {
-	if !kd.dirty {
-		// If we haven't filtered any kinds, default to KindText.
-		return KindText, nil, nil
+func (d *Detector) Detect() (kind Kind, mungeFn func(interface{}) (interface{}, error), err error) {
+	if !d.dirty {
+		// If we haven't filtered any kinds, default to Text.
+		return Text, nil, nil
 	}
 
-	switch len(kd.kinds) {
+	switch len(d.kinds) {
 	case 0:
-		return KindText, nil, nil
+		return Text, nil, nil
 	case 1:
-		for k := range kd.kinds {
-			return k, kd.mungeFns[k], nil
+		for k := range d.kinds {
+			return k, d.mungeFns[k], nil
 		}
 	default:
 	}
 
-	if kd.has(KindTime) {
-		return KindTime, kd.mungeFns[KindTime], nil
+	if d.has(KindTime) {
+		return KindTime, d.mungeFns[KindTime], nil
 	}
 
-	if kd.has(KindDate) {
-		return KindDate, kd.mungeFns[KindDate], nil
+	if d.has(KindDate) {
+		return KindDate, d.mungeFns[KindDate], nil
 	}
 
-	if kd.has(KindDatetime) {
-		return KindDatetime, kd.mungeFns[KindDatetime], nil
+	if d.has(KindDatetime) {
+		return KindDatetime, d.mungeFns[KindDatetime], nil
 	}
 
-	if kd.foundString && kd.has(KindDecimal) {
+	if d.foundString && d.has(KindDecimal) {
 		return KindDecimal, nil, nil
 	}
 
-	if kd.has(KindInt) {
+	if d.has(KindInt) {
 		return KindInt, nil, nil
 	}
 
-	if kd.has(KindFloat) {
+	if d.has(KindFloat) {
 		return KindFloat, nil, nil
 	}
 
-	if kd.has(KindBool) {
+	if d.has(KindBool) {
 		return KindBool, nil, nil
 	}
 
-	return KindText, nil, nil
+	return Text, nil, nil
 }
 
 // delete deletes each of kinds from kd.kinds
-func (kd *KindDetector) delete(kinds ...Kind) {
-	kd.dirty = true
+func (d *Detector) delete(kinds ...Kind) {
+	d.dirty = true
 	for _, k := range kinds {
-		delete(kd.kinds, k)
+		delete(d.kinds, k)
 	}
 }
 
 // retain deletes everything from kd.kinds except items
 // contains in the kinds arg. If kinds is empty, kd.kinds is
 // be emptied.
-func (kd *KindDetector) retain(kinds ...Kind) {
-	kd.dirty = true
-	for k := range kd.kinds {
+func (d *Detector) retain(kinds ...Kind) {
+	d.dirty = true
+	for k := range d.kinds {
 		if !containsKind(k, kinds...) {
-			delete(kd.kinds, k)
+			delete(d.kinds, k)
 		}
 	}
 }
 
 // has returns true if kd.kinds contains each of k.
-func (kd *KindDetector) has(kinds ...Kind) bool {
+func (d *Detector) has(kinds ...Kind) bool {
 	var ok bool
 	for _, k := range kinds {
-		if _, ok = kd.kinds[k]; !ok {
+		if _, ok = d.kinds[k]; !ok {
 			return false
 		}
 	}
@@ -522,37 +522,4 @@ func containsKind(needle Kind, haystack ...Kind) bool {
 	}
 
 	return false
-}
-
-// KindScanType returns the default scan type for kind. The returned
-// type is typically a sql.NullType.
-func KindScanType(knd Kind) reflect.Type {
-	switch knd {
-	default:
-		return RTypeNullString
-
-	case KindText, KindDecimal:
-		return RTypeNullString
-
-	case KindInt:
-		return RTypeNullInt64
-
-	case KindBool:
-		return RTypeNullBool
-
-	case KindFloat:
-		return RTypeNullFloat64
-
-	case KindBytes:
-		return RTypeBytes
-
-	case KindDatetime:
-		return RTypeNullTime
-
-	case KindDate:
-		return RTypeNullTime
-
-	case KindTime:
-		return RTypeNullTime
-	}
 }

@@ -5,6 +5,7 @@ import (
 	"io"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 
 	"github.com/neilotoole/sq/cli/output"
@@ -90,9 +91,9 @@ func (w *recordWriter) WriteRecords(recs []sqlz.Record) error {
 				switch w.recMeta[i].Kind() {
 				default:
 					cell.SetDateTime(*val)
-				case sqlz.KindDate:
+				case kind.KindDate:
 					cell.SetDate(*val)
-				case sqlz.KindTime:
+				case kind.KindTime:
 					// TODO: Maybe there's a way of setting a specific
 					//  time (as opposed to date or datetime) value, but
 					//  for now we just use a string.

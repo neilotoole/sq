@@ -2,7 +2,7 @@
 package sakila
 
 import (
-	"github.com/neilotoole/sq/libsq/core/sqlz"
+	"github.com/neilotoole/sq/libsq/core/kind"
 )
 
 // Sakila source handles.
@@ -94,8 +94,8 @@ func TblActorCols() []string {
 }
 
 // TblActorColKinds returns the kinds of the columns from table actor.
-func TblActorColKinds() []sqlz.Kind {
-	return []sqlz.Kind{sqlz.KindInt, sqlz.KindText, sqlz.KindText, sqlz.KindDatetime}
+func TblActorColKinds() []kind.Kind {
+	return []kind.Kind{kind.KindInt, kind.Text, kind.Text, kind.KindDatetime}
 }
 
 // TblFilmActorCols returns table "film" column names.

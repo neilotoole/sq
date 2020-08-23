@@ -13,6 +13,7 @@ import (
 	"go.uber.org/atomic"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 )
@@ -157,7 +158,7 @@ func NewRecordFromScanRow(meta sqlz.RecordMeta, row []interface{}, skip []int) (
 				continue
 			}
 
-			if meta[i].Kind() != sqlz.KindBytes {
+			if meta[i].Kind() != kind.KindBytes {
 				// We only want to use []byte for KindByte. Otherwise
 				// switch to a string.
 				s := string(*col)
@@ -197,12 +198,12 @@ func NewRecordFromScanRow(meta sqlz.RecordMeta, row []interface{}, skip []int) (
 				continue
 			}
 
-			kind := meta[i].Kind()
+			knd := meta[i].Kind()
 
 			// If RawBytes is of length zero, there's no
 			// need to copy.
 			if len(*col) == 0 {
-				if kind == sqlz.KindBytes {
+				if knd == kind.KindBytes {
 					var v = []byte{}
 					rec[i] = &v
 				} else {
@@ -217,7 +218,7 @@ func NewRecordFromScanRow(meta sqlz.RecordMeta, row []interface{}, skip []int) (
 			dest := make([]byte, len(*col))
 			copy(dest, *col)
 
-			if kind == sqlz.KindBytes {
+			if knd == kind.KindBytes {
 				rec[i] = &dest
 			} else {
 				str := string(dest)
@@ -292,7 +293,7 @@ func NewRecordFromScanRow(meta sqlz.RecordMeta, row []interface{}, skip []int) (
 			rec[i] = &v
 		}
 
-		if rec[i] != nil && meta[i].Kind() == sqlz.KindDecimal {
+		if rec[i] != nil && meta[i].Kind() == kind.KindDecimal {
 			// Drivers use varying types for numeric/money/decimal.
 			// We want to standardize on string.
 			switch col := rec[i].(type) {
@@ -546,7 +547,7 @@ func DefaultInsertMungeFunc(destTbl string, destMeta sqlz.RecordMeta) InsertMung
 				continue
 			}
 
-			if destMeta[i].Kind() == sqlz.KindText {
+			if destMeta[i].Kind() == kind.Text {
 				// text doesn't need our help
 				continue
 			}

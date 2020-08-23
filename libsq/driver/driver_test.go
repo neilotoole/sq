@@ -3,16 +3,16 @@ package driver_test
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/neilotoole/sq/drivers/csv"
 	"github.com/neilotoole/sq/drivers/mysql"
 	"github.com/neilotoole/sq/drivers/postgres"
 	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/drivers/sqlserver"
 	"github.com/neilotoole/sq/drivers/xlsx"
-	"github.com/neilotoole/sq/libsq/core/sqlz"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/neilotoole/sq/libsq/core/kind"
 
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
@@ -451,7 +451,7 @@ func TestSQLDriver_AlterTableAddColumn(t *testing.T) {
 			// Make a copy of the table to play with
 			tbl := th.CopyTable(true, src, sakila.TblActor, "", true)
 
-			const wantCol, wantKind = "col_int", sqlz.KindInt
+			const wantCol, wantKind = "col_int", kind.KindInt
 			wantCols := append(sakila.TblActorCols(), wantCol)
 			wantKinds := append(sakila.TblActorColKinds(), wantKind)
 

@@ -22,7 +22,7 @@ import (
 
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/tablew/internal"
-	"github.com/neilotoole/sq/libsq/core/sqlz"
+	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
@@ -35,7 +35,7 @@ type table struct {
 	tblImpl *internal.Table
 }
 
-func (t *table) renderResultCell(kind sqlz.Kind, val interface{}) string {
+func (t *table) renderResultCell(knd kind.Kind, val interface{}) string {
 	switch val := val.(type) {
 	case string:
 		return val
@@ -50,19 +50,19 @@ func (t *table) renderResultCell(kind sqlz.Kind, val interface{}) string {
 		}
 
 		// Although val is string, we allow for the case where
-		// the kind is not KindText: for example, sqlite returns
-		// values of KindTime as a string.
+		// the kind is not kind.Text: for example, sqlite returns
+		// values of kind.Time as a string.
 
-		switch kind {
-		case sqlz.KindDatetime, sqlz.KindDate, sqlz.KindTime:
+		switch knd {
+		case kind.KindDatetime, kind.KindDate, kind.KindTime:
 			return t.fm.Datetime.Sprint(*val)
-		case sqlz.KindDecimal, sqlz.KindFloat, sqlz.KindInt:
+		case kind.KindDecimal, kind.KindFloat, kind.KindInt:
 			return t.fm.Number.Sprint(*val)
-		case sqlz.KindBool:
+		case kind.KindBool:
 			return t.fm.Bool.Sprint(*val)
-		case sqlz.KindBytes:
+		case kind.KindBytes:
 			return t.sprintBytes([]byte(*val))
-		case sqlz.KindText:
+		case kind.Text:
 			return t.fm.String.Sprint(*val)
 		default:
 			// Shouldn't happen
@@ -159,12 +159,12 @@ func (t *table) renderResultCell(kind sqlz.Kind, val interface{}) string {
 		}
 
 		var s string
-		switch kind {
+		switch knd {
 		default:
 			s = val.Format(stringz.DatetimeFormat)
-		case sqlz.KindTime:
+		case kind.KindTime:
 			s = val.Format(stringz.TimeFormat)
-		case sqlz.KindDate:
+		case kind.KindDate:
 			s = val.Format(stringz.DateFormat)
 		}
 
@@ -188,7 +188,7 @@ func (t *table) renderResultCell(kind sqlz.Kind, val interface{}) string {
 		if val == nil || *val == nil {
 			return t.sprintNull()
 		}
-		if kind == sqlz.KindText {
+		if knd == kind.Text {
 			return fmt.Sprintf("%s", *val)
 		}
 		return t.sprintBytes(*val)

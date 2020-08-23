@@ -5,21 +5,18 @@ package xmlud
 
 import (
 	"context"
+	"encoding/xml"
 	"fmt"
 	"io"
-
-	"encoding/xml"
-
-	"strings"
-
 	"strconv"
+	"strings"
 
 	"github.com/neilotoole/lg"
 
 	"github.com/neilotoole/sq/drivers/userdriver"
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/sqlz"
+	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/sqlmodel"
 )
@@ -207,9 +204,9 @@ func (im *importer) convertVal(tbl string, col *userdriver.ColMapping, data inte
 	switch col.Kind {
 	default:
 		return nil, errz.Errorf("unknown data kind %q for col %s", col.Kind, col.Name)
-	case sqlz.KindText, sqlz.KindTime:
+	case kind.Text, kind.KindTime:
 		return data, nil
-	case sqlz.KindInt:
+	case kind.KindInt:
 		switch data := data.(type) {
 		case int, int32, int64:
 			return data, nil
@@ -222,7 +219,7 @@ func (im *importer) convertVal(tbl string, col *userdriver.ColMapping, data inte
 		default:
 			return nil, errz.Errorf(errTpl, tbl, col.Name, col.Kind, data, data)
 		}
-	case sqlz.KindFloat:
+	case kind.KindFloat:
 		switch data := data.(type) {
 		case float32, float64:
 			return data, nil
@@ -235,9 +232,9 @@ func (im *importer) convertVal(tbl string, col *userdriver.ColMapping, data inte
 		default:
 			return nil, errz.Errorf(errTpl, tbl, col.Name, col.Kind, data, data)
 		}
-	case sqlz.KindDecimal:
+	case kind.KindDecimal:
 		return data, nil
-	case sqlz.KindBool:
+	case kind.KindBool:
 		switch data := data.(type) {
 		case bool:
 			return data, nil
@@ -255,11 +252,11 @@ func (im *importer) convertVal(tbl string, col *userdriver.ColMapping, data inte
 		default:
 			return nil, errz.Errorf(errTpl, tbl, col.Name, col.Kind, data, data)
 		}
-	case sqlz.KindDatetime:
+	case kind.KindDatetime:
 		return data, nil
-	case sqlz.KindBytes:
+	case kind.KindBytes:
 		return data, nil
-	case sqlz.KindNull:
+	case kind.Null:
 		return data, nil
 	}
 }

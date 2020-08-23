@@ -14,6 +14,7 @@ import (
 
 	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/testh"
@@ -24,36 +25,36 @@ import (
 func TestKindFromDBTypeName(t *testing.T) {
 	t.Parallel()
 
-	testCases := map[string]sqlz.Kind{
-		"":                       sqlz.KindBytes,
-		"NUMERIC":                sqlz.KindDecimal,
-		"INT":                    sqlz.KindInt,
-		"INTEGER":                sqlz.KindInt,
-		"TINYINT":                sqlz.KindInt,
-		"SMALLINT":               sqlz.KindInt,
-		"MEDIUMINT":              sqlz.KindInt,
-		"BIGINT":                 sqlz.KindInt,
-		"UNSIGNED BIG INT":       sqlz.KindInt,
-		"INT2":                   sqlz.KindInt,
-		"INT8":                   sqlz.KindInt,
-		"CHARACTER(20)":          sqlz.KindText,
-		"VARCHAR(255)":           sqlz.KindText,
-		"VARYING CHARACTER(255)": sqlz.KindText,
-		"NCHAR(55)":              sqlz.KindText,
-		"NATIVE CHARACTER(70)":   sqlz.KindText,
-		"NVARCHAR(100)":          sqlz.KindText,
-		"TEXT":                   sqlz.KindText,
-		"CLOB":                   sqlz.KindText,
-		"REAL":                   sqlz.KindFloat,
-		"DOUBLE":                 sqlz.KindFloat,
-		"DOUBLE PRECISION":       sqlz.KindFloat,
-		"FLOAT":                  sqlz.KindFloat,
-		"DECIMAL(10,5)":          sqlz.KindDecimal,
-		"BOOLEAN":                sqlz.KindBool,
-		"DATETIME":               sqlz.KindDatetime,
-		"TIMESTAMP":              sqlz.KindDatetime,
-		"DATE":                   sqlz.KindDate,
-		"TIME":                   sqlz.KindTime,
+	testCases := map[string]kind.Kind{
+		"":                       kind.KindBytes,
+		"NUMERIC":                kind.KindDecimal,
+		"INT":                    kind.KindInt,
+		"INTEGER":                kind.KindInt,
+		"TINYINT":                kind.KindInt,
+		"SMALLINT":               kind.KindInt,
+		"MEDIUMINT":              kind.KindInt,
+		"BIGINT":                 kind.KindInt,
+		"UNSIGNED BIG INT":       kind.KindInt,
+		"INT2":                   kind.KindInt,
+		"INT8":                   kind.KindInt,
+		"CHARACTER(20)":          kind.Text,
+		"VARCHAR(255)":           kind.Text,
+		"VARYING CHARACTER(255)": kind.Text,
+		"NCHAR(55)":              kind.Text,
+		"NATIVE CHARACTER(70)":   kind.Text,
+		"NVARCHAR(100)":          kind.Text,
+		"TEXT":                   kind.Text,
+		"CLOB":                   kind.Text,
+		"REAL":                   kind.KindFloat,
+		"DOUBLE":                 kind.KindFloat,
+		"DOUBLE PRECISION":       kind.KindFloat,
+		"FLOAT":                  kind.KindFloat,
+		"DECIMAL(10,5)":          kind.KindDecimal,
+		"BOOLEAN":                kind.KindBool,
+		"DATETIME":               kind.KindDatetime,
+		"TIMESTAMP":              kind.KindDatetime,
+		"DATE":                   kind.KindDate,
+		"TIME":                   kind.KindTime,
 	}
 
 	log := testlg.New(t)
@@ -70,7 +71,7 @@ func TestRecordMetadata(t *testing.T) {
 		tbl       string
 		rowCount  int64
 		colNames  []string
-		colKinds  []sqlz.Kind
+		colKinds  []kind.Kind
 		scanTypes []reflect.Type
 		colsMeta  []*source.ColMetadata
 	}{
@@ -78,41 +79,41 @@ func TestRecordMetadata(t *testing.T) {
 			tbl:       sakila.TblActor,
 			rowCount:  sakila.TblActorCount,
 			colNames:  sakila.TblActorCols(),
-			colKinds:  []sqlz.Kind{sqlz.KindInt, sqlz.KindText, sqlz.KindText, sqlz.KindDatetime},
+			colKinds:  []kind.Kind{kind.KindInt, kind.Text, kind.Text, kind.KindDatetime},
 			scanTypes: []reflect.Type{sqlz.RTypeNullInt64, sqlz.RTypeNullString, sqlz.RTypeNullString, sqlz.RTypeNullTime},
 			colsMeta: []*source.ColMetadata{
-				{Name: "actor_id", Position: 0, PrimaryKey: true, BaseType: "INTEGER", ColumnType: "INTEGER", Kind: sqlz.KindInt, Nullable: false},
-				{Name: "first_name", Position: 1, BaseType: "VARCHAR(45)", ColumnType: "VARCHAR(45)", Kind: sqlz.KindText, Nullable: false},
-				{Name: "last_name", Position: 2, BaseType: "VARCHAR(45)", ColumnType: "VARCHAR(45)", Kind: sqlz.KindText, Nullable: false},
-				{Name: "last_update", Position: 3, BaseType: "TIMESTAMP", ColumnType: "TIMESTAMP", Kind: sqlz.KindDatetime, Nullable: false, DefaultValue: "CURRENT_TIMESTAMP"},
+				{Name: "actor_id", Position: 0, PrimaryKey: true, BaseType: "INTEGER", ColumnType: "INTEGER", Kind: kind.KindInt, Nullable: false},
+				{Name: "first_name", Position: 1, BaseType: "VARCHAR(45)", ColumnType: "VARCHAR(45)", Kind: kind.Text, Nullable: false},
+				{Name: "last_name", Position: 2, BaseType: "VARCHAR(45)", ColumnType: "VARCHAR(45)", Kind: kind.Text, Nullable: false},
+				{Name: "last_update", Position: 3, BaseType: "TIMESTAMP", ColumnType: "TIMESTAMP", Kind: kind.KindDatetime, Nullable: false, DefaultValue: "CURRENT_TIMESTAMP"},
 			},
 		},
 		{
 			tbl:       sakila.TblFilmActor,
 			rowCount:  sakila.TblFilmActorCount,
 			colNames:  sakila.TblFilmActorCols(),
-			colKinds:  []sqlz.Kind{sqlz.KindInt, sqlz.KindInt, sqlz.KindDatetime},
+			colKinds:  []kind.Kind{kind.KindInt, kind.KindInt, kind.KindDatetime},
 			scanTypes: []reflect.Type{sqlz.RTypeNullInt64, sqlz.RTypeNullInt64, sqlz.RTypeNullTime},
 			colsMeta: []*source.ColMetadata{
-				{Name: "actor_id", Position: 0, PrimaryKey: true, BaseType: "INT", ColumnType: "INT", Kind: sqlz.KindInt, Nullable: false},
-				{Name: "film_id", Position: 1, PrimaryKey: true, BaseType: "INT", ColumnType: "INT", Kind: sqlz.KindInt, Nullable: false},
-				{Name: "last_update", Position: 2, BaseType: "TIMESTAMP", ColumnType: "TIMESTAMP", Kind: sqlz.KindDatetime, Nullable: false},
+				{Name: "actor_id", Position: 0, PrimaryKey: true, BaseType: "INT", ColumnType: "INT", Kind: kind.KindInt, Nullable: false},
+				{Name: "film_id", Position: 1, PrimaryKey: true, BaseType: "INT", ColumnType: "INT", Kind: kind.KindInt, Nullable: false},
+				{Name: "last_update", Position: 2, BaseType: "TIMESTAMP", ColumnType: "TIMESTAMP", Kind: kind.KindDatetime, Nullable: false},
 			},
 		},
 		{
 			tbl:       sakila.TblPayment,
 			rowCount:  sakila.TblPaymentCount,
 			colNames:  sakila.TblPaymentCols(),
-			colKinds:  []sqlz.Kind{sqlz.KindInt, sqlz.KindInt, sqlz.KindInt, sqlz.KindInt, sqlz.KindDecimal, sqlz.KindDatetime, sqlz.KindDatetime},
+			colKinds:  []kind.Kind{kind.KindInt, kind.KindInt, kind.KindInt, kind.KindInt, kind.KindDecimal, kind.KindDatetime, kind.KindDatetime},
 			scanTypes: []reflect.Type{sqlz.RTypeNullInt64, sqlz.RTypeNullInt64, sqlz.RTypeNullInt64, sqlz.RTypeNullInt64, sqlz.RTypeNullString, sqlz.RTypeNullTime, sqlz.RTypeNullTime},
 			colsMeta: []*source.ColMetadata{
-				{Name: "payment_id", Position: 0, PrimaryKey: true, BaseType: "INT", ColumnType: "INT", Kind: sqlz.KindInt, Nullable: false},
-				{Name: "customer_id", Position: 1, BaseType: "INT", ColumnType: "INT", Kind: sqlz.KindInt, Nullable: false},
-				{Name: "staff_id", Position: 2, BaseType: "SMALLINT", ColumnType: "SMALLINT", Kind: sqlz.KindInt, Nullable: false},
-				{Name: "rental_id", Position: 3, BaseType: "INT", ColumnType: "INT", Kind: sqlz.KindInt, Nullable: true, DefaultValue: "NULL"},
-				{Name: "amount", Position: 4, BaseType: "DECIMAL(5,2)", ColumnType: "DECIMAL(5,2)", Kind: sqlz.KindDecimal, Nullable: false},
-				{Name: "payment_date", Position: 5, BaseType: "TIMESTAMP", ColumnType: "TIMESTAMP", Kind: sqlz.KindDatetime, Nullable: false},
-				{Name: "last_update", Position: 6, BaseType: "TIMESTAMP", ColumnType: "TIMESTAMP", Kind: sqlz.KindDatetime, Nullable: false},
+				{Name: "payment_id", Position: 0, PrimaryKey: true, BaseType: "INT", ColumnType: "INT", Kind: kind.KindInt, Nullable: false},
+				{Name: "customer_id", Position: 1, BaseType: "INT", ColumnType: "INT", Kind: kind.KindInt, Nullable: false},
+				{Name: "staff_id", Position: 2, BaseType: "SMALLINT", ColumnType: "SMALLINT", Kind: kind.KindInt, Nullable: false},
+				{Name: "rental_id", Position: 3, BaseType: "INT", ColumnType: "INT", Kind: kind.KindInt, Nullable: true, DefaultValue: "NULL"},
+				{Name: "amount", Position: 4, BaseType: "DECIMAL(5,2)", ColumnType: "DECIMAL(5,2)", Kind: kind.KindDecimal, Nullable: false},
+				{Name: "payment_date", Position: 5, BaseType: "TIMESTAMP", ColumnType: "TIMESTAMP", Kind: kind.KindDatetime, Nullable: false},
+				{Name: "last_update", Position: 6, BaseType: "TIMESTAMP", ColumnType: "TIMESTAMP", Kind: kind.KindDatetime, Nullable: false},
 			},
 		},
 	}
@@ -206,7 +207,7 @@ func TestScalarFuncsQuery(t *testing.T) {
 	const query = `SELECT NULL, ABS(film_id), LOWER(rating), LAST_INSERT_ROWID(),
 	MAX(rental_rate, replacement_cost)
 	FROM film`
-	wantKinds := []sqlz.Kind{sqlz.KindBytes, sqlz.KindInt, sqlz.KindText, sqlz.KindInt, sqlz.KindFloat}
+	wantKinds := []kind.Kind{kind.KindBytes, kind.KindInt, kind.Text, kind.KindInt, kind.KindFloat}
 
 	th := testh.New(t)
 	src := th.Source(sakila.SL3)

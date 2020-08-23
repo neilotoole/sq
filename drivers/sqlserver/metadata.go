@@ -12,58 +12,59 @@ import (
 	"github.com/neilotoole/lg"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 )
 
-// kindFromDBTypeName determines the sqlz.Kind from the database
-// type name. For example, "VARCHAR" -> sqlz.KindText.
-func kindFromDBTypeName(log lg.Log, colName, dbTypeName string) sqlz.Kind {
-	var kind sqlz.Kind
+// kindFromDBTypeName determines the kind.Kind from the database
+// type name. For example, "VARCHAR" -> kind.Text.
+func kindFromDBTypeName(log lg.Log, colName, dbTypeName string) kind.Kind {
+	var knd kind.Kind
 	dbTypeName = strings.ToUpper(dbTypeName)
 
 	switch dbTypeName {
 	default:
-		log.Warnf("Unknown SQLServer database type '%s' for column '%s': using %s", dbTypeName, colName, sqlz.KindUnknown)
-		kind = sqlz.KindUnknown
+		log.Warnf("Unknown SQLServer database type '%s' for column '%s': using %s", dbTypeName, colName, kind.Unknown)
+		knd = kind.Unknown
 	case "INT", "BIGINT", "SMALLINT", "TINYINT":
-		kind = sqlz.KindInt
+		knd = kind.KindInt
 	case "CHAR", "NCHAR", "VARCHAR", "JSON", "NVARCHAR", "NTEXT", "TEXT":
-		kind = sqlz.KindText
+		knd = kind.Text
 	case "BIT":
-		kind = sqlz.KindBool
+		knd = kind.KindBool
 	case "BINARY", "VARBINARY", "IMAGE":
-		kind = sqlz.KindBytes
+		knd = kind.KindBytes
 	case "DECIMAL", "NUMERIC":
-		kind = sqlz.KindDecimal
+		knd = kind.KindDecimal
 	case "MONEY", "SMALLMONEY":
-		kind = sqlz.KindDecimal
+		knd = kind.KindDecimal
 	case "DATETIME", "DATETIME2", "SMALLDATETIME", "DATETIMEOFFSET":
-		kind = sqlz.KindDatetime
+		knd = kind.KindDatetime
 	case "DATE":
-		kind = sqlz.KindDate
+		knd = kind.KindDate
 	case "TIME":
-		kind = sqlz.KindTime
+		knd = kind.KindTime
 	case "FLOAT", "REAL":
-		kind = sqlz.KindFloat
+		knd = kind.KindFloat
 	case "XML":
-		kind = sqlz.KindText
+		knd = kind.Text
 	case "UNIQUEIDENTIFIER":
-		kind = sqlz.KindText
+		knd = kind.Text
 	case "ROWVERSION", "TIMESTAMP":
-		kind = sqlz.KindInt
+		knd = kind.KindInt
 	}
 
-	return kind
+	return knd
 }
 
 // setScanType does some manipulation of ct's scan type.
 // Most importantly, if ct is nullable column, setwe  colTypeData.ScanType to a
 // nullable type. This is because the driver doesn't
 // report nullable scan types.
-func setScanType(ct *sqlz.ColumnTypeData, kind sqlz.Kind) {
-	if kind == sqlz.KindDecimal {
+func setScanType(ct *sqlz.ColumnTypeData, knd kind.Kind) {
+	if knd == kind.KindDecimal {
 		// The driver wants us to use []byte instead of string for DECIMAL,
 		// but we want to use string.
 		if ct.Nullable {

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 )
@@ -89,9 +90,9 @@ func (w *RecordWriter) WriteRecords(recs []sqlz.Record) error {
 				switch w.recMeta[i].Kind() {
 				default:
 					fields[i] = val.Format(stringz.DatetimeFormat)
-				case sqlz.KindTime:
+				case kind.KindTime:
 					fields[i] = val.Format(stringz.TimeFormat)
-				case sqlz.KindDate:
+				case kind.KindDate:
 					fields[i] = val.Format(stringz.DateFormat)
 				}
 			}

@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli"
-	"github.com/neilotoole/sq/libsq/core/sqlz"
+	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/sqlmodel"
 	"github.com/neilotoole/sq/testh"
@@ -85,7 +85,7 @@ func TestCreateTblTestBytes(t *testing.T) {
 	tblDef := sqlmodel.NewTableDef(
 		stringz.UniqTableName("test_bytes"),
 		[]string{"col_name", "col_bytes"},
-		[]sqlz.Kind{sqlz.KindText, sqlz.KindBytes},
+		[]kind.Kind{kind.Text, kind.KindBytes},
 	)
 
 	fBytes := proj.ReadFile(fixt.GopherPath)
@@ -112,7 +112,7 @@ func TestOutputRaw(t *testing.T) {
 			tblDef := sqlmodel.NewTableDef(
 				stringz.UniqTableName("test_bytes"),
 				[]string{"col_name", "col_bytes"},
-				[]sqlz.Kind{sqlz.KindText, sqlz.KindBytes},
+				[]kind.Kind{kind.Text, kind.KindBytes},
 			)
 
 			th, src, _, _ := testh.NewWith(t, handle)
@@ -128,7 +128,7 @@ func TestOutputRaw(t *testing.T) {
 			require.NoError(t, err)
 
 			require.Equal(t, 1, len(sink.Recs))
-			require.Equal(t, sqlz.KindBytes, sink.RecMeta[0].Kind())
+			require.Equal(t, kind.KindBytes, sink.RecMeta[0].Kind())
 			dbBytes := *(sink.Recs[0][0].(*[]byte))
 			require.Equal(t, fixt.GopherSize, len(dbBytes))
 			require.Equal(t, wantBytes, dbBytes)

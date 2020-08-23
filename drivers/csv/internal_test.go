@@ -12,7 +12,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/sq/libsq/core/sqlz"
+	"github.com/neilotoole/sq/libsq/core/kind"
 )
 
 func Test_isCSV(t *testing.T) {
@@ -63,14 +63,14 @@ func Test_predictColKinds(t *testing.T) {
 	const maxExamine = 100
 
 	testCases := []struct {
-		wantKinds      []sqlz.Kind
+		wantKinds      []kind.Kind
 		readAheadInput [][]string
 		readerInput    string
 	}{
 		{
 			readAheadInput: [][]string{},
 			readerInput:    "",
-			wantKinds:      []sqlz.Kind{},
+			wantKinds:      []kind.Kind{},
 		},
 		{
 			readAheadInput: [][]string{
@@ -79,12 +79,12 @@ func Test_predictColKinds(t *testing.T) {
 				{"3", "true", "", "7.7"},
 				{"", "", "", ""},
 			},
-			wantKinds: []sqlz.Kind{sqlz.KindInt, sqlz.KindBool, sqlz.KindText, sqlz.KindDecimal},
+			wantKinds: []kind.Kind{kind.KindInt, kind.KindBool, kind.Text, kind.KindDecimal},
 		},
 		{
 			readAheadInput: [][]string{},
 			readerInput:    "1,true,hello,0.0\n2,false,world,1\n3,true,,7.7\n,,,",
-			wantKinds:      []sqlz.Kind{sqlz.KindInt, sqlz.KindBool, sqlz.KindText, sqlz.KindDecimal},
+			wantKinds:      []kind.Kind{kind.KindInt, kind.KindBool, kind.Text, kind.KindDecimal},
 		},
 	}
 

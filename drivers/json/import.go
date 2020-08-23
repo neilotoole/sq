@@ -10,7 +10,7 @@ import (
 	"github.com/neilotoole/lg"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/sqlz"
+	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 )
@@ -33,15 +33,15 @@ func importJSONA(ctx context.Context, log lg.Log, src *source.Source, openFn sou
 	return nil
 }
 
-func predictColKindsJSONA(ctx context.Context, r io.Reader) ([]sqlz.Kind, error) {
+func predictColKindsJSONA(ctx context.Context, r io.Reader) ([]kind.Kind, error) {
 	var (
 		err            error
 		totalLineCount int
 		// jLineCount is the number of JSONA lines (totalLineCount minus empty lines)
 		jLineCount int
 		line       []byte
-		kinds      []sqlz.Kind
-		detectors  []*sqlz.KindDetector
+		kinds      []kind.Kind
+		detectors  []*kind.Detector
 	)
 
 	sc := bufio.NewScanner(r)
@@ -86,10 +86,10 @@ func predictColKindsJSONA(ctx context.Context, r io.Reader) ([]sqlz.Kind, error)
 		}
 
 		if kinds == nil {
-			kinds = make([]sqlz.Kind, len(vals))
-			detectors = make([]*sqlz.KindDetector, len(vals))
+			kinds = make([]kind.Kind, len(vals))
+			detectors = make([]*kind.Detector, len(vals))
 			for i := range detectors {
-				detectors[i] = sqlz.NewKindDetector()
+				detectors[i] = kind.NewDetector()
 			}
 		}
 
@@ -162,17 +162,17 @@ func importJSONL(ctx context.Context, log lg.Log, src *source.Source, openFn sou
 	//
 	//var expectFieldCount = len(colNames)
 	//
-	//var colKinds []sqlz.Kind
+	//var colKinds []kind.Kind
 	//if optPredictKind {
 	//	colKinds, err = predictColKinds(expectFieldCount, cr, &readAheadRecs, readAheadBufferSize)
 	//	if err != nil {
 	//		return err
 	//	}
 	//} else {
-	//	// If we're not predicting col kind, then we use KindText.
-	//	colKinds = make([]sqlz.Kind, expectFieldCount)
+	//	// If we're not predicting col kind, then we use kind.Text.
+	//	colKinds = make([]kind.Kind, expectFieldCount)
 	//	for i := range colKinds {
-	//		colKinds[i] = sqlz.KindText
+	//		colKinds[i] = kind.Text
 	//	}
 	//}
 	//
