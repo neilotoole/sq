@@ -11,74 +11,75 @@ import (
 	"github.com/neilotoole/errgroup"
 	"github.com/neilotoole/lg"
 
+	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/driver"
-	"github.com/neilotoole/sq/libsq/errz"
 	"github.com/neilotoole/sq/libsq/source"
-	"github.com/neilotoole/sq/libsq/sqlz"
 )
 
-// kindFromDBTypeName determines the sqlz.Kind from the database
-// type name. For example, "VARCHAR" -> sqlz.KindText.
+// kindFromDBTypeName determines the kind.Kind from the database
+// type name. For example, "VARCHAR" -> kind.Text.
 // See https://www.postgresql.org/docs/9.5/datatype.html
-func kindFromDBTypeName(log lg.Log, colName, dbTypeName string) sqlz.Kind {
-	var kind sqlz.Kind
+func kindFromDBTypeName(log lg.Log, colName, dbTypeName string) kind.Kind {
+	var knd kind.Kind
 	dbTypeName = strings.ToUpper(dbTypeName)
 
 	switch dbTypeName {
 	default:
-		log.Warnf("Unknown Postgres database type '%s' for column '%s': using %s", dbTypeName, colName, sqlz.KindUnknown)
-		kind = sqlz.KindUnknown
+		log.Warnf("Unknown Postgres database type '%s' for column '%s': using %s", dbTypeName, colName, kind.Unknown)
+		knd = kind.Unknown
 	case "":
-		kind = sqlz.KindUnknown
+		knd = kind.Unknown
 	case "INT", "INTEGER", "INT2", "INT4", "INT8", "SMALLINT", "BIGINT":
-		kind = sqlz.KindInt
+		knd = kind.Int
 	case "CHAR", "CHARACTER", "VARCHAR", "TEXT", "BPCHAR", "CHARACTER VARYING":
-		kind = sqlz.KindText
+		knd = kind.Text
 	case "BYTEA":
-		kind = sqlz.KindBytes
+		knd = kind.Bytes
 	case "BOOL", "BOOLEAN":
-		kind = sqlz.KindBool
+		knd = kind.Bool
 	case "TIMESTAMP", "TIMESTAMPTZ", "TIMESTAMP WITHOUT TIME ZONE":
-		kind = sqlz.KindDatetime
+		knd = kind.Datetime
 	case "TIME", "TIMETZ", "TIME WITHOUT TIME ZONE":
-		kind = sqlz.KindTime
+		knd = kind.Time
 	case "DATE":
-		kind = sqlz.KindDate
+		knd = kind.Date
 	case "INTERVAL": // interval meaning time duration
-		kind = sqlz.KindText
+		knd = kind.Text
 	case "FLOAT", "FLOAT4", "FLOAT8", "DOUBLE", "DOUBLE PRECISION":
-		kind = sqlz.KindFloat
+		knd = kind.Float
 	case "UUID":
-		kind = sqlz.KindText
+		knd = kind.Text
 	case "DECIMAL", "NUMERIC", "MONEY":
-		kind = sqlz.KindDecimal
+		knd = kind.Decimal
 	case "JSON", "JSONB":
-		kind = sqlz.KindText
+		knd = kind.Text
 	case "BIT", "VARBIT":
-		kind = sqlz.KindText
+		knd = kind.Text
 	case "XML":
-		kind = sqlz.KindText
+		knd = kind.Text
 	case "BOX", "CIRCLE", "LINE", "LSEG", "PATH", "POINT", "POLYGON":
-		kind = sqlz.KindText
+		knd = kind.Text
 	case "CIDR", "INET", "MACADDR":
-		kind = sqlz.KindText
+		knd = kind.Text
 	case "USER-DEFINED":
 		// REVISIT: How to handle USER-DEFINED type?
-		kind = sqlz.KindText
+		knd = kind.Text
 	case "TSVECTOR":
 		// REVISIT: how to handle TSVECTOR type?
-		kind = sqlz.KindText
+		knd = kind.Text
 	case "ARRAY":
 		// REVISIT: how to handle ARRAY type?
-		kind = sqlz.KindText
+		knd = kind.Text
 	}
 
-	return kind
+	return knd
 }
 
 // setScanType ensures that ctd's scan type field is set appropriately.
-func setScanType(log lg.Log, ctd *sqlz.ColumnTypeData, kind sqlz.Kind) {
-	if kind == sqlz.KindDecimal {
+func setScanType(log lg.Log, ctd *sqlz.ColumnTypeData, knd kind.Kind) {
+	if knd == kind.Decimal {
 		// Force the use of string for decimal, as the driver will
 		// sometimes prefer float.
 		ctd.ScanType = sqlz.RTypeNullString
@@ -87,14 +88,14 @@ func setScanType(log lg.Log, ctd *sqlz.ColumnTypeData, kind sqlz.Kind) {
 
 	// Need to switch to the nullable scan types because the
 	// backing driver doesn't report nullable info accurately.
-	ctd.ScanType = toNullableScanType(log, ctd.Name, ctd.DatabaseTypeName, kind, ctd.ScanType)
+	ctd.ScanType = toNullableScanType(log, ctd.Name, ctd.DatabaseTypeName, knd, ctd.ScanType)
 }
 
 // toNullableScanType returns the nullable equivalent of the scan type
 // reported by the postgres driver's ColumnType.ScanType. This is necessary
 // because the pgx driver does not support the stdlib sql
 // driver.RowsColumnTypeNullable interface.
-func toNullableScanType(log lg.Log, colName, dbTypeName string, kind sqlz.Kind, pgScanType reflect.Type) reflect.Type {
+func toNullableScanType(log lg.Log, colName, dbTypeName string, kind kind.Kind, pgScanType reflect.Type) reflect.Type {
 	var nullableScanType reflect.Type
 
 	switch pgScanType {

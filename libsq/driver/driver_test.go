@@ -3,21 +3,21 @@ package driver_test
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/neilotoole/sq/drivers/csv"
 	"github.com/neilotoole/sq/drivers/mysql"
 	"github.com/neilotoole/sq/drivers/postgres"
 	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/drivers/sqlserver"
 	"github.com/neilotoole/sq/drivers/xlsx"
-	"github.com/neilotoole/sq/libsq/sqlz"
+	"github.com/neilotoole/sq/libsq/core/kind"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
+	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/sqlmodel"
-	"github.com/neilotoole/sq/libsq/stringz"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/fixt"
 	"github.com/neilotoole/sq/testh/sakila"
@@ -451,7 +451,7 @@ func TestSQLDriver_AlterTableAddColumn(t *testing.T) {
 			// Make a copy of the table to play with
 			tbl := th.CopyTable(true, src, sakila.TblActor, "", true)
 
-			const wantCol, wantKind = "col_int", sqlz.KindInt
+			const wantCol, wantKind = "col_int", kind.Int
 			wantCols := append(sakila.TblActorCols(), wantCol)
 			wantKinds := append(sakila.TblActorColKinds(), wantKind)
 

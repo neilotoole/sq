@@ -12,12 +12,13 @@ import (
 
 	"github.com/fatih/color"
 
-	"github.com/neilotoole/sq/libsq/stringz"
+	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 
 	"github.com/neilotoole/sq/cli/output"
 
-	"github.com/neilotoole/sq/libsq/errz"
-	"github.com/neilotoole/sq/libsq/sqlz"
+	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/sqlz"
 )
 
 // recordWriter implements output.RecordWriter.
@@ -86,15 +87,15 @@ func (w *recordWriter) Open(recMeta sqlz.RecordMeta) error {
 		switch w.recMeta[i].Kind() {
 		default:
 			w.fieldPrintFns[i] = monoPrint
-		case sqlz.KindDatetime, sqlz.KindDate, sqlz.KindTime:
+		case kind.Datetime, kind.Date, kind.Time:
 			w.fieldPrintFns[i] = w.fm.Datetime.FprintFunc()
-		case sqlz.KindInt, sqlz.KindDecimal, sqlz.KindFloat:
+		case kind.Int, kind.Decimal, kind.Float:
 			w.fieldPrintFns[i] = w.fm.Number.FprintFunc()
-		case sqlz.KindBool:
+		case kind.Bool:
 			w.fieldPrintFns[i] = w.fm.Bool.FprintFunc()
-		case sqlz.KindBytes:
+		case kind.Bytes:
 			w.fieldPrintFns[i] = w.fm.Bytes.FprintFunc()
-		case sqlz.KindText:
+		case kind.Text:
 			w.fieldPrintFns[i] = w.fm.String.FprintFunc()
 		}
 	}
@@ -200,9 +201,9 @@ func (w *recordWriter) writeRecord(rec sqlz.Record) error {
 			switch w.recMeta[i].Kind() {
 			default:
 				w.fieldPrintFns[i](w.outBuf, val.Format(stringz.DatetimeFormat))
-			case sqlz.KindTime:
+			case kind.Time:
 				w.fieldPrintFns[i](w.outBuf, val.Format(stringz.TimeFormat))
-			case sqlz.KindDate:
+			case kind.Date:
 				w.fieldPrintFns[i](w.outBuf, val.Format(stringz.DateFormat))
 			}
 		}

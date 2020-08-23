@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/sqlbuilder"
 
 	"github.com/neilotoole/lg"
 
-	"github.com/neilotoole/sq/libsq/errz"
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/sqlmodel"
-	"github.com/neilotoole/sq/libsq/sqlz"
 )
 
 func newFragmentBuilder(log lg.Log) *sqlbuilder.BaseFragmentBuilder {
@@ -23,28 +23,28 @@ func newFragmentBuilder(log lg.Log) *sqlbuilder.BaseFragmentBuilder {
 	return r
 }
 
-func dbTypeNameFromKind(kind sqlz.Kind) string {
-	switch kind {
-	case sqlz.KindText:
+func dbTypeNameFromKind(knd kind.Kind) string {
+	switch knd {
+	case kind.Text:
 		return "TEXT"
-	case sqlz.KindInt:
+	case kind.Int:
 		return "INT"
-	case sqlz.KindFloat:
+	case kind.Float:
 		return "DOUBLE"
-	case sqlz.KindDecimal:
+	case kind.Decimal:
 		return "DECIMAL"
-	case sqlz.KindBool:
+	case kind.Bool:
 		return "TINYINT(1)"
-	case sqlz.KindDatetime:
+	case kind.Datetime:
 		return "DATETIME"
-	case sqlz.KindTime:
+	case kind.Time:
 		return "TIME"
-	case sqlz.KindDate:
+	case kind.Date:
 		return "DATE"
-	case sqlz.KindBytes:
+	case kind.Bytes:
 		return "BLOB"
 	default:
-		panic(fmt.Sprintf("unsupported datatype %q", kind))
+		panic(fmt.Sprintf("unsupported datatype %q", knd))
 	}
 }
 
@@ -54,17 +54,17 @@ func dbTypeNameFromKind(kind sqlz.Kind) string {
 // Note that MySQL (at least of v5.6) doesn't support DEFAULT values
 // for TEXT or BLOB columns.
 // https://bugs.mysql.com/bug.php?id=21532
-var createTblKindDefaults = map[sqlz.Kind]string{
-	sqlz.KindText:     ``,
-	sqlz.KindInt:      `DEFAULT 0`,
-	sqlz.KindFloat:    `DEFAULT 0`,
-	sqlz.KindDecimal:  `DEFAULT 0`,
-	sqlz.KindBool:     `DEFAULT 0`,
-	sqlz.KindDatetime: `DEFAULT '1970-01-01 00:00:00'`,
-	sqlz.KindDate:     `DEFAULT '1970-01-01'`,
-	sqlz.KindTime:     `DEFAULT '00:00:00'`,
-	sqlz.KindBytes:    ``,
-	sqlz.KindUnknown:  ``,
+var createTblKindDefaults = map[kind.Kind]string{
+	kind.Text:     ``,
+	kind.Int:      `DEFAULT 0`,
+	kind.Float:    `DEFAULT 0`,
+	kind.Decimal:  `DEFAULT 0`,
+	kind.Bool:     `DEFAULT 0`,
+	kind.Datetime: `DEFAULT '1970-01-01 00:00:00'`,
+	kind.Date:     `DEFAULT '1970-01-01'`,
+	kind.Time:     `DEFAULT '00:00:00'`,
+	kind.Bytes:    ``,
+	kind.Unknown:  ``,
 }
 
 func buildCreateTableStmt(tblDef *sqlmodel.TableDef) (string, error) {

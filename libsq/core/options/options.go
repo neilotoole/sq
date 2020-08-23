@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/errz"
-	"github.com/neilotoole/sq/libsq/stringz"
+	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 // Options are optional values akin to url.Values.

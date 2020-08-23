@@ -2,15 +2,13 @@
 package source
 
 import (
-	"context"
 	"fmt"
-	"io"
 	"net/url"
 	"strings"
 
 	"github.com/xo/dburl"
 
-	"github.com/neilotoole/sq/libsq/options"
+	"github.com/neilotoole/sq/libsq/core/options"
 )
 
 // Type is a source type, e.g. "mysql", "postgres", "csv", etc.
@@ -114,15 +112,6 @@ const (
 	typeCSV  = Type("csv")
 	typeTSV  = Type("tsv")
 )
-
-// TypeDetectorFunc interrogates a byte stream to determine
-// the source driver type. A score is returned indicating the
-// the confidence that the driver type has been detected.
-// A score <= 0 is failure, a score >= 1 is success; intermediate
-// values indicate some level of confidence.
-// An error is returned only if an IO problem occurred.
-// The implementation is responsible for closing r.
-type TypeDetectorFunc func(ctx context.Context, r io.Reader) (detected Type, score float32, err error)
 
 // typeFromMediaType returns the driver type corresponding to mediatype.
 // For example:

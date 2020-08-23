@@ -5,7 +5,7 @@ import (
 
 	"github.com/neilotoole/lg"
 
-	"github.com/neilotoole/sq/libsq/errz"
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/source"
 )
 

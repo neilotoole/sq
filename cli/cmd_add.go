@@ -6,10 +6,10 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/drivers/sqlite3"
-	"github.com/neilotoole/sq/libsq/errz"
-	"github.com/neilotoole/sq/libsq/options"
+	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/source"
-	"github.com/neilotoole/sq/libsq/stringz"
 )
 
 func newSrcAddCmd() (*cobra.Command, runFunc) {

@@ -15,7 +15,7 @@ import (
 
 	"github.com/neilotoole/sq/cli"
 	"github.com/neilotoole/sq/cli/config"
-	"github.com/neilotoole/sq/libsq/errz"
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/source"
 )
 

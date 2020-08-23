@@ -9,10 +9,10 @@ package output
 import (
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/notify"
 	"github.com/neilotoole/sq/libsq/source"
-	"github.com/neilotoole/sq/libsq/sqlz"
 )
 
 // RecordWriter is an interface for writing records to a destination.

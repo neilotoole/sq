@@ -1,16 +1,18 @@
 package csv
 
 import (
+	"bytes"
 	"context"
 	"encoding/csv"
 	"fmt"
+	"io/ioutil"
 	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/sq/libsq/sqlz"
+	"github.com/neilotoole/sq/libsq/core/kind"
 )
 
 func Test_isCSV(t *testing.T) {
@@ -61,14 +63,14 @@ func Test_predictColKinds(t *testing.T) {
 	const maxExamine = 100
 
 	testCases := []struct {
-		wantKinds      []sqlz.Kind
+		wantKinds      []kind.Kind
 		readAheadInput [][]string
 		readerInput    string
 	}{
 		{
 			readAheadInput: [][]string{},
 			readerInput:    "",
-			wantKinds:      []sqlz.Kind{},
+			wantKinds:      []kind.Kind{},
 		},
 		{
 			readAheadInput: [][]string{
@@ -77,12 +79,12 @@ func Test_predictColKinds(t *testing.T) {
 				{"3", "true", "", "7.7"},
 				{"", "", "", ""},
 			},
-			wantKinds: []sqlz.Kind{sqlz.KindInt, sqlz.KindBool, sqlz.KindText, sqlz.KindDecimal},
+			wantKinds: []kind.Kind{kind.Int, kind.Bool, kind.Text, kind.Decimal},
 		},
 		{
 			readAheadInput: [][]string{},
 			readerInput:    "1,true,hello,0.0\n2,false,world,1\n3,true,,7.7\n,,,",
-			wantKinds:      []sqlz.Kind{sqlz.KindInt, sqlz.KindBool, sqlz.KindText, sqlz.KindDecimal},
+			wantKinds:      []kind.Kind{kind.Int, kind.Bool, kind.Text, kind.Decimal},
 		},
 	}
 
@@ -98,5 +100,32 @@ func Test_predictColKinds(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, tc.wantKinds, gotKinds)
 		})
+	}
+}
+
+func TestCRFilterReader(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		in   string
+		want string
+	}{
+		{"", ""},
+		{"\r", "\n"},
+		{"\r\n", "\r\n"},
+		{"\r\r\n", "\n\r\n"},
+		{"a\rb\rc", "a\nb\nc"},
+		{" \r ", " \n "},
+		{" \r\n\n", " \r\n\n"},
+		{"\r \n", "\n \n"},
+		{"abc\r", "abc\n"},
+		{"abc\r\n\r", "abc\r\n\n"},
+	}
+
+	for _, tc := range testCases {
+		filter := &crFilterReader{r: bytes.NewReader([]byte(tc.in))}
+		actual, err := ioutil.ReadAll(filter)
+		require.Nil(t, err)
+		require.Equal(t, tc.want, string(actual))
 	}
 }

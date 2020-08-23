@@ -8,16 +8,16 @@ import (
 	"github.com/tealeg/xlsx/v2"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/neilotoole/sq/libsq/errz"
-	"github.com/neilotoole/sq/libsq/options"
+	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/source"
-	"github.com/neilotoole/sq/libsq/sqlz"
 
 	"github.com/neilotoole/lg"
 
+	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/sqlmodel"
-	"github.com/neilotoole/sq/libsq/stringz"
 )
 
 // xlsxToScratch loads the data in xlFile into scratchDB.
@@ -154,7 +154,7 @@ func buildTblDefForSheet(log lg.Log, sheet *xlsx.Sheet, hasHeader bool) (*sqlmod
 	}
 
 	colNames := make([]string, numCells)
-	colKinds := make([]sqlz.Kind, numCells)
+	colKinds := make([]kind.Kind, numCells)
 
 	firstDataRow := 0
 
@@ -164,7 +164,7 @@ func buildTblDefForSheet(log lg.Log, sheet *xlsx.Sheet, hasHeader bool) (*sqlmod
 
 		// sheet has no rows
 		for i := 0; i < numCells; i++ {
-			colKinds[i] = sqlz.KindText
+			colKinds[i] = kind.Text
 			colNames[i] = stringz.GenerateAlphaColName(i)
 		}
 	} else {
@@ -188,7 +188,7 @@ func buildTblDefForSheet(log lg.Log, sheet *xlsx.Sheet, hasHeader bool) (*sqlmod
 			// the sheet contains only one row (the header row). Let's
 			// explicitly set the column type none the less
 			for i := 0; i < numCells; i++ {
-				colKinds[i] = sqlz.KindText
+				colKinds[i] = kind.Text
 			}
 		} else {
 			// we have at least one data row, let's get the column types
@@ -207,7 +207,7 @@ func buildTblDefForSheet(log lg.Log, sheet *xlsx.Sheet, hasHeader bool) (*sqlmod
 	return tblDef, nil
 }
 
-func rowToRecord(log lg.Log, destColKinds []sqlz.Kind, row *xlsx.Row, sheetName string, rowIndex int) []interface{} {
+func rowToRecord(log lg.Log, destColKinds []kind.Kind, row *xlsx.Row, sheetName string, rowIndex int) []interface{} {
 	vals := make([]interface{}, len(row.Cells))
 	for j, cell := range row.Cells {
 		typ := cell.Type()
@@ -250,7 +250,7 @@ func rowToRecord(log lg.Log, destColKinds []sqlz.Kind, row *xlsx.Row, sheetName 
 			// FIXME: prob should return an error here?
 		case xlsx.CellTypeString:
 			if cell.Value == "" {
-				if destColKinds[j] != sqlz.KindText {
+				if destColKinds[j] != kind.Text {
 					vals[j] = nil
 					continue
 				}
@@ -271,38 +271,38 @@ func rowToRecord(log lg.Log, destColKinds []sqlz.Kind, row *xlsx.Row, sheetName 
 	return vals
 }
 
-func getKindsFromCells(cells []*xlsx.Cell) []sqlz.Kind {
-	vals := make([]sqlz.Kind, len(cells))
+func getKindsFromCells(cells []*xlsx.Cell) []kind.Kind {
+	vals := make([]kind.Kind, len(cells))
 	for i, cell := range cells {
 		typ := cell.Type()
 		switch typ {
 		case xlsx.CellTypeBool:
-			vals[i] = sqlz.KindBool
+			vals[i] = kind.Bool
 		case xlsx.CellTypeNumeric:
 			if cell.IsTime() {
-				vals[i] = sqlz.KindDatetime
+				vals[i] = kind.Datetime
 				continue
 			}
 
 			_, err := cell.Int64()
 			if err == nil {
-				vals[i] = sqlz.KindInt
+				vals[i] = kind.Int
 				continue
 			}
 			_, err = cell.Float()
 			if err == nil {
-				vals[i] = sqlz.KindFloat
+				vals[i] = kind.Float
 				continue
 			}
 			// it's not an int, it's not a float
-			vals[i] = sqlz.KindDecimal
+			vals[i] = kind.Decimal
 
 		case xlsx.CellTypeDate:
 			// TODO: support time values here?
-			vals[i] = sqlz.KindDatetime
+			vals[i] = kind.Datetime
 
 		default:
-			vals[i] = sqlz.KindText
+			vals[i] = kind.Text
 		}
 	}
 

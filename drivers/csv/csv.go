@@ -3,17 +3,17 @@ package csv
 
 import (
 	"context"
+	"database/sql"
 	"encoding/csv"
 	"io"
-	"io/ioutil"
 	"strconv"
 
 	"github.com/neilotoole/lg"
 
 	"github.com/neilotoole/sq/cli/output/csvw"
-	"github.com/neilotoole/sq/libsq/cleanup"
+	"github.com/neilotoole/sq/libsq/core/cleanup"
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/driver"
-	"github.com/neilotoole/sq/libsq/errz"
 	"github.com/neilotoole/sq/libsq/source"
 )
 
@@ -36,44 +36,16 @@ type Provider struct {
 func (d *Provider) DriverFor(typ source.Type) (driver.Driver, error) {
 	switch typ {
 	case TypeCSV:
-		return &drvr{log: d.Log, typ: TypeCSV, scratcher: d.Scratcher, files: d.Files}, nil
+		return &driveri{log: d.Log, typ: TypeCSV, scratcher: d.Scratcher, files: d.Files}, nil
 	case TypeTSV:
-		return &drvr{log: d.Log, typ: TypeTSV, scratcher: d.Scratcher, files: d.Files}, nil
+		return &driveri{log: d.Log, typ: TypeTSV, scratcher: d.Scratcher, files: d.Files}, nil
 	}
 
 	return nil, errz.Errorf("unsupported driver type %q", typ)
 }
 
-// DetectCSV implements source.TypeDetectorFunc.
-func DetectCSV(ctx context.Context, r io.Reader) (detected source.Type, score float32, err error) {
-	return detectType(ctx, TypeCSV, r)
-}
-
-// DetectTSV implements source.TypeDetectorFunc.
-func DetectTSV(ctx context.Context, r io.Reader) (detected source.Type, score float32, err error) {
-	return detectType(ctx, TypeTSV, r)
-}
-
-func detectType(ctx context.Context, typ source.Type, r io.Reader) (detected source.Type, score float32, err error) {
-	var delim = csvw.Comma
-	if typ == TypeTSV {
-		delim = csvw.Tab
-	}
-
-	cr := csv.NewReader(&crFilterReader{r: r})
-	cr.Comma = delim
-	cr.FieldsPerRecord = -1
-
-	score = isCSV(ctx, cr)
-	if score > 0 {
-		return typ, score, nil
-	}
-
-	return source.TypeNone, 0, nil
-}
-
 // Driver implements driver.Driver.
-type drvr struct {
+type driveri struct {
 	log       lg.Log
 	typ       source.Type
 	scratcher driver.ScratchDatabaseOpener
@@ -81,7 +53,7 @@ type drvr struct {
 }
 
 // DriverMetadata implements driver.Driver.
-func (d *drvr) DriverMetadata() driver.Metadata {
+func (d *driveri) DriverMetadata() driver.Metadata {
 	md := driver.Metadata{Type: d.typ, Monotable: true}
 	if d.typ == TypeCSV {
 		md.Description = "Comma-Separated Values"
@@ -94,10 +66,10 @@ func (d *drvr) DriverMetadata() driver.Metadata {
 }
 
 // Open implements driver.Driver.
-func (d *drvr) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
+func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
 	dbase := &database{log: d.log, src: src, clnup: cleanup.New(), files: d.files}
 
-	r, err := d.files.NewReader(ctx, src)
+	r, err := d.files.Open(src)
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +81,7 @@ func (d *drvr) Open(ctx context.Context, src *source.Source) (driver.Database, e
 		return nil, err
 	}
 
-	err = d.importCSV(ctx, src, r, dbase.impl)
+	err = importCSV(ctx, d.log, src, d.files.OpenFunc(src), dbase.impl)
 	if err != nil {
 		d.log.WarnIfCloseError(r)
 		d.log.WarnIfFuncError(dbase.clnup.Run)
@@ -125,15 +97,13 @@ func (d *drvr) Open(ctx context.Context, src *source.Source) (driver.Database, e
 }
 
 // Truncate implements driver.Driver.
-func (d *drvr) Truncate(ctx context.Context, src *source.Source, tbl string, reset bool) (int64, error) {
+func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, reset bool) (int64, error) {
 	// TODO: CSV could support Truncate for local files
 	return 0, errz.Errorf("truncate not supported for %s", d.DriverMetadata().Type)
 }
 
 // ValidateSource implements driver.Driver.
-func (d *drvr) ValidateSource(src *source.Source) (*source.Source, error) {
-	d.log.Debugf("validating source: %q", src.Location)
-
+func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 	if src.Type != d.typ {
 		return nil, errz.Errorf("expected source type %q but got %q", d.typ, src.Type)
 	}
@@ -156,23 +126,128 @@ func (d *drvr) ValidateSource(src *source.Source) (*source.Source, error) {
 }
 
 // Ping implements driver.Driver.
-func (d *drvr) Ping(ctx context.Context, src *source.Source) error {
+func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 	d.log.Debugf("driver %q attempting to ping %q", d.typ, src)
 
-	r, err := d.files.NewReader(ctx, src)
+	r, err := d.files.Open(src)
 	if err != nil {
 		return err
 	}
 	defer d.log.WarnIfCloseError(r)
 
-	// FIXME: this is a poor version of ping, but for now we just read the entire thing
-	//  Ultimately we should execute isCSV to verify that the src is indeed CSV.
-	_, err = ioutil.ReadAll(r)
-	if err != nil {
-		return err
+	return nil
+}
+
+// database implements driver.Database.
+type database struct {
+	log   lg.Log
+	src   *source.Source
+	impl  driver.Database
+	clnup *cleanup.Cleanup
+	files *source.Files
+}
+
+// DB implements driver.Database.
+func (d *database) DB() *sql.DB {
+	return d.impl.DB()
+}
+
+// SQLDriver implements driver.Database.
+func (d *database) SQLDriver() driver.SQLDriver {
+	return d.impl.SQLDriver()
+}
+
+// Source implements driver.Database.
+func (d *database) Source() *source.Source {
+	return d.src
+}
+
+// TableMetadata implements driver.Database.
+func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
+	if tblName != source.MonotableName {
+		return nil, errz.Errorf("table name should be %s for CSV/TSV etc., but got: %s",
+			source.MonotableName, tblName)
 	}
 
-	return nil
+	srcMeta, err := d.SourceMetadata(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// There will only ever be one table for CSV.
+	return srcMeta.Tables[0], nil
+}
+
+// SourceMetadata implements driver.Database.
+func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error) {
+	md, err := d.impl.SourceMetadata(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	md.Handle = d.src.Handle
+	md.Location = d.src.Location
+	md.SourceType = d.src.Type
+
+	md.Name, err = source.LocationFileName(d.src)
+	if err != nil {
+		return nil, err
+	}
+
+	md.Size, err = d.files.Size(d.src)
+	if err != nil {
+		return nil, err
+	}
+
+	md.FQName = md.Name
+	return md, nil
+}
+
+// Close implements driver.Database.
+func (d *database) Close() error {
+	d.log.Debugf("Close database: %s", d.src)
+
+	return errz.Combine(d.impl.Close(), d.clnup.Run())
+}
+
+var (
+	_ source.TypeDetectFunc = DetectCSV
+	_ source.TypeDetectFunc = DetectTSV
+)
+
+// DetectCSV implements source.TypeDetectFunc.
+func DetectCSV(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (detected source.Type, score float32, err error) {
+	return detectType(ctx, TypeCSV, log, openFn)
+}
+
+// DetectTSV implements source.TypeDetectFunc.
+func DetectTSV(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (detected source.Type, score float32, err error) {
+	return detectType(ctx, TypeTSV, log, openFn)
+}
+
+func detectType(ctx context.Context, typ source.Type, log lg.Log, openFn source.FileOpenFunc) (detected source.Type, score float32, err error) {
+	var r io.ReadCloser
+	r, err = openFn()
+	if err != nil {
+		return source.TypeNone, 0, errz.Err(err)
+	}
+	defer log.WarnIfCloseError(r)
+
+	var delim = csvw.Comma
+	if typ == TypeTSV {
+		delim = csvw.Tab
+	}
+
+	cr := csv.NewReader(&crFilterReader{r: r})
+	cr.Comma = delim
+	cr.FieldsPerRecord = -1
+
+	score = isCSV(ctx, cr)
+	if score > 0 {
+		return typ, score, nil
+	}
+
+	return source.TypeNone, 0, nil
 }
 
 const (

@@ -5,7 +5,7 @@ import (
 
 	uuid "github.com/satori/go.uuid"
 
-	"github.com/neilotoole/sq/libsq/stringz"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 // State is the job state, one of Created, Running, Completed or Failed.

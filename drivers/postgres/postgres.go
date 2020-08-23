@@ -12,13 +12,14 @@ import (
 	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/neilotoole/lg"
 
+	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/sqlz"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
-	"github.com/neilotoole/sq/libsq/errz"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/sqlbuilder"
 	"github.com/neilotoole/sq/libsq/sqlmodel"
-	"github.com/neilotoole/sq/libsq/sqlz"
-	"github.com/neilotoole/sq/libsq/stringz"
 )
 
 const (
@@ -158,7 +159,7 @@ func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *sqlmodel.
 }
 
 // AlterTableAddColumn implements driver.SQLDriver.
-func (d *driveri) AlterTableAddColumn(ctx context.Context, db *sql.DB, tbl string, col string, kind sqlz.Kind) error {
+func (d *driveri) AlterTableAddColumn(ctx context.Context, db *sql.DB, tbl string, col string, kind kind.Kind) error {
 	q := fmt.Sprintf("ALTER TABLE %q ADD COLUMN %q ", tbl, col) + dbTypeNameFromKind(kind)
 
 	_, err := db.ExecContext(ctx, q)

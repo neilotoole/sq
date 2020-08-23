@@ -7,8 +7,8 @@ import (
 
 	"go.uber.org/atomic"
 
-	"github.com/neilotoole/sq/libsq/errz"
-	"github.com/neilotoole/sq/libsq/sqlz"
+	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/sqlz"
 )
 
 // RecordWriterAdapter implements libsq.RecordWriter and

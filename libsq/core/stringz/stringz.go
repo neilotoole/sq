@@ -13,7 +13,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/neilotoole/sq/libsq/errz"
+	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
 // Reverse reverses the input string.

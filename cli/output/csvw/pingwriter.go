@@ -6,7 +6,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/errz"
+	"github.com/neilotoole/sq/libsq/core/errz"
 
 	"github.com/neilotoole/sq/cli/output"
 

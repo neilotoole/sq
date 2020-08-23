@@ -7,9 +7,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/sqlmodel"
-	"github.com/neilotoole/sq/libsq/sqlz"
-	"github.com/neilotoole/sq/libsq/stringz"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/fixt"
 	"github.com/neilotoole/sq/testh/sakila"
@@ -102,9 +102,9 @@ func TestDriver_CreateTable_NotNullDefault(t *testing.T) {
 				require.False(t, nullable)
 			}
 
-			// Check KindBytes is handled correctly
+			// Check kind.Bytes is handled correctly
 			const iBytes = 8 // the index of col_bytes
-			require.Equal(t, sqlz.KindBytes, colKinds[iBytes])
+			require.Equal(t, kind.Bytes, colKinds[iBytes])
 			b, ok := sink.Recs[0][iBytes].(*[]byte)
 			require.True(t, ok)
 			require.NotNil(t, b)

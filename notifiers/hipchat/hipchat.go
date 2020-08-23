@@ -19,7 +19,7 @@ import (
 
 	"github.com/tbruyelle/hipchat-go/hipchat"
 
-	"github.com/neilotoole/sq/libsq/errz"
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/notify"
 )
 

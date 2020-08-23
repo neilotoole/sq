@@ -9,7 +9,7 @@ import (
 	"github.com/neilotoole/lg"
 
 	"github.com/neilotoole/sq/libsq/ast"
-	"github.com/neilotoole/sq/libsq/errz"
+	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
 // baseOps is a map of SLQ operator (e.g. "==" or "!=") to its default SQL rendering.

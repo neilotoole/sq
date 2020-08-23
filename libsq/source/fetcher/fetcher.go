@@ -15,8 +15,8 @@ import (
 
 	"golang.org/x/net/context/ctxhttp"
 
-	"github.com/neilotoole/sq/libsq/errz"
-	"github.com/neilotoole/sq/libsq/stringz"
+	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 // Config parameterizes Fetcher behavior.

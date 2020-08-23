@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/neilotoole/sq/cli/buildinfo"
-	"github.com/neilotoole/sq/libsq/errz"
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/source"
 
 	"gopkg.in/yaml.v2"

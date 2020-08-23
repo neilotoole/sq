@@ -7,9 +7,9 @@ import (
 	"strings"
 
 	"github.com/neilotoole/sq/cli/output"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
-	"github.com/neilotoole/sq/libsq/stringz"
 )
 
 type mdWriter struct {

@@ -8,8 +8,8 @@ import (
 
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/jsonw/internal"
-	"github.com/neilotoole/sq/libsq/errz"
-	"github.com/neilotoole/sq/libsq/sqlz"
+	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/sqlz"
 )
 
 // NewStdRecordWriter returns a record writer that outputs each

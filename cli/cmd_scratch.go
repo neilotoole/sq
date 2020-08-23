@@ -2,7 +2,7 @@ package cli
 
 import (
 	"github.com/neilotoole/sq/drivers/sqlite3"
-	"github.com/neilotoole/sq/libsq/errz"
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/source"
 
 	"github.com/spf13/cobra"

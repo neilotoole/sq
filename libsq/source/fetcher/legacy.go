@@ -14,7 +14,7 @@ import (
 
 	"github.com/neilotoole/lg"
 
-	"github.com/neilotoole/sq/libsq/errz"
+	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
 // FetchFile returns a file handle for the location, which can be a local filepath

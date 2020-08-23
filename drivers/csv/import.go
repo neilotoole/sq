@@ -7,16 +7,18 @@ import (
 	"strconv"
 	"unicode/utf8"
 
+	"github.com/neilotoole/lg"
 	"github.com/shopspring/decimal"
 
 	"github.com/neilotoole/sq/libsq"
+	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/sqlz"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
-	"github.com/neilotoole/sq/libsq/errz"
-	"github.com/neilotoole/sq/libsq/options"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/sqlmodel"
-	"github.com/neilotoole/sq/libsq/sqlz"
-	"github.com/neilotoole/sq/libsq/stringz"
 )
 
 const (
@@ -25,14 +27,21 @@ const (
 )
 
 // importCSV loads the src CSV data to scratchDB.
-func (d *drvr) importCSV(ctx context.Context, src *source.Source, r io.Reader, scratchDB driver.Database) error {
+func importCSV(ctx context.Context, log lg.Log, src *source.Source, openFn source.FileOpenFunc, scratchDB driver.Database) error {
 	// TODO: optPredictKind should be read from src.Options.
 	const optPredictKind bool = true
+
+	var err error
+	var r io.ReadCloser
+
+	r, err = openFn()
+	if err != nil {
+		return err
+	}
 
 	// We add the CR filter reader to deal with CSV files exported
 	// from Excel which can have the DOS-style \r EOL markers.
 	cr := csv.NewReader(&crFilterReader{r: r})
-	var err error
 	cr.Comma, err = getDelimiter(src)
 	if err != nil {
 		return err
@@ -50,17 +59,17 @@ func (d *drvr) importCSV(ctx context.Context, src *source.Source, r io.Reader, s
 
 	var expectFieldCount = len(colNames)
 
-	var colKinds []sqlz.Kind
+	var colKinds []kind.Kind
 	if optPredictKind {
 		colKinds, err = predictColKinds(expectFieldCount, cr, &readAheadRecs, readAheadBufferSize)
 		if err != nil {
 			return err
 		}
 	} else {
-		// If we're not predicting col kind, then we use KindText.
-		colKinds = make([]sqlz.Kind, expectFieldCount)
+		// If we're not predicting col kind, then we use kind.Text.
+		colKinds = make([]kind.Kind, expectFieldCount)
 		for i := range colKinds {
-			colKinds[i] = sqlz.KindText
+			colKinds[i] = kind.Text
 		}
 	}
 
@@ -77,7 +86,7 @@ func (d *drvr) importCSV(ctx context.Context, src *source.Source, r io.Reader, s
 		return err
 	}
 
-	insertWriter := libsq.NewDBWriter(d.log, scratchDB, tblDef.Name, insertChSize)
+	insertWriter := libsq.NewDBWriter(log, scratchDB, tblDef.Name, insertChSize)
 	err = execInsert(ctx, insertWriter, recMeta, readAheadRecs, cr)
 	if err != nil {
 		return err
@@ -88,7 +97,7 @@ func (d *drvr) importCSV(ctx context.Context, src *source.Source, r io.Reader, s
 		return err
 	}
 
-	d.log.Debugf("Inserted %d rows to %s.%s", inserted, scratchDB.Source().Handle, tblDef.Name)
+	log.Debugf("Inserted %d rows to %s.%s", inserted, scratchDB.Source().Handle, tblDef.Name)
 	return nil
 }
 
@@ -170,7 +179,7 @@ func getRecMeta(ctx context.Context, scratchDB driver.Database, tblDef *sqlmodel
 	return destMeta, nil
 }
 
-func createTblDef(tblName string, colNames []string, kinds []sqlz.Kind) *sqlmodel.TableDef {
+func createTblDef(tblName string, colNames []string, kinds []kind.Kind) *sqlmodel.TableDef {
 	tbl := &sqlmodel.TableDef{Name: tblName}
 
 	cols := make([]*sqlmodel.ColDef, len(colNames))
@@ -187,16 +196,16 @@ func createTblDef(tblName string, colNames []string, kinds []sqlz.Kind) *sqlmode
 // Any additional records read from r are appended to readAheadRecs.
 //
 // This func considers these candidate kinds, in order of
-// precedence: KindInt, KindBool, KindDecimal.
+// precedence: kind.Int, kind.Bool, kind.Decimal.
 //
-// KindDecimal is chosen over KindFloat due to its greater flexibility.
-// NOTE: Currently KindTime and KindDatetime are not examined.
+// kind.Decimal is chosen over kind.Float due to its greater flexibility.
+// NOTE: Currently kind.Time and kind.Datetime are not examined.
 //
 // If any field (string) value cannot be parsed into a particular kind, that
 // kind is excluded from the list of candidate kinds. The first of any
-// remaining candidate kinds for each field is returned, or KindText if
+// remaining candidate kinds for each field is returned, or kind.Text if
 // no candidate kinds.
-func predictColKinds(expectFieldCount int, r *csv.Reader, readAheadRecs *[][]string, maxExamine int) ([]sqlz.Kind, error) {
+func predictColKinds(expectFieldCount int, r *csv.Reader, readAheadRecs *[][]string, maxExamine int) ([]kind.Kind, error) {
 	candidateKinds := newCandidateFieldKinds(expectFieldCount)
 	var examineCount int
 
@@ -232,13 +241,13 @@ func predictColKinds(expectFieldCount int, r *csv.Reader, readAheadRecs *[][]str
 		*readAheadRecs = append(*readAheadRecs, rec)
 	}
 
-	resultKinds := make([]sqlz.Kind, expectFieldCount)
+	resultKinds := make([]kind.Kind, expectFieldCount)
 	for i := range resultKinds {
 		switch len(candidateKinds[i]) {
 		case 0:
-			// If all candidate kinds have been excluded, KindText is
+			// If all candidate kinds have been excluded, kind.Text is
 			// the fallback option.
-			resultKinds[i] = sqlz.KindText
+			resultKinds[i] = kind.Text
 		default:
 			// If there's one or more candidate kinds remaining, pick the first
 			// one available, as it should be the most specific kind.
@@ -248,16 +257,16 @@ func predictColKinds(expectFieldCount int, r *csv.Reader, readAheadRecs *[][]str
 	return resultKinds, nil
 }
 
-// newCandidateFieldKinds returns a new slice of sqlz.Kind containing
+// newCandidateFieldKinds returns a new slice of kind.Kind containing
 // potential kinds for a field/column. The kinds are in an order of
 // precedence.
-func newCandidateFieldKinds(n int) [][]sqlz.Kind {
-	kinds := make([][]sqlz.Kind, n)
+func newCandidateFieldKinds(n int) [][]kind.Kind {
+	kinds := make([][]kind.Kind, n)
 	for i := range kinds {
-		k := []sqlz.Kind{
-			sqlz.KindInt,
-			sqlz.KindBool,
-			sqlz.KindDecimal,
+		k := []kind.Kind{
+			kind.Int,
+			kind.Bool,
+			kind.Decimal,
 		}
 		kinds[i] = k
 	}
@@ -267,8 +276,8 @@ func newCandidateFieldKinds(n int) [][]sqlz.Kind {
 
 // excludeFieldKinds returns a filter of fieldCandidateKinds, removing those
 // kinds which fieldVal cannot be converted to.
-func excludeFieldKinds(fieldCandidateKinds []sqlz.Kind, fieldVal string) []sqlz.Kind {
-	var resultCandidateKinds []sqlz.Kind
+func excludeFieldKinds(fieldCandidateKinds []kind.Kind, fieldVal string) []kind.Kind {
+	var resultCandidateKinds []kind.Kind
 
 	if fieldVal == "" {
 		// If the field is empty string, this could indicate a NULL value
@@ -277,23 +286,23 @@ func excludeFieldKinds(fieldCandidateKinds []sqlz.Kind, fieldVal string) []sqlz.
 		return fieldCandidateKinds
 	}
 
-	for _, kind := range fieldCandidateKinds {
+	for _, knd := range fieldCandidateKinds {
 		var err error
 
-		switch kind {
-		case sqlz.KindInt:
+		switch knd {
+		case kind.Int:
 			_, err = strconv.Atoi(fieldVal)
 
-		case sqlz.KindBool:
+		case kind.Bool:
 			_, err = strconv.ParseBool(fieldVal)
 
-		case sqlz.KindDecimal:
+		case kind.Decimal:
 			_, err = decimal.NewFromString(fieldVal)
 		default:
 		}
 
 		if err == nil {
-			resultCandidateKinds = append(resultCandidateKinds, kind)
+			resultCandidateKinds = append(resultCandidateKinds, knd)
 		}
 	}
 
@@ -435,4 +444,29 @@ func getDelimFromOptions(opts options.Options) (r rune, ok bool, err error) {
 	}
 
 	return r, true, nil
+}
+
+// crFilterReader is a reader whose Read method converts
+// standalone carriage return '\r' bytes to newline '\n'.
+// CRLF "\r\n" sequences are untouched.
+// This is useful for reading from DOS format, e.g. a TSV
+// file exported by Microsoft Excel.
+type crFilterReader struct {
+	r io.Reader
+}
+
+func (r *crFilterReader) Read(p []byte) (n int, err error) {
+	n, err = r.r.Read(p)
+
+	for i := 0; i < n; i++ {
+		if p[i] == 13 {
+			if i+1 < n && p[i+1] == 10 {
+				continue // it's \r\n
+			}
+			// it's just \r by itself, replace
+			p[i] = 10
+		}
+	}
+
+	return n, err
 }

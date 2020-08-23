@@ -6,11 +6,12 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/stringz"
+	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 
 	"github.com/neilotoole/sq/cli/output"
 
-	"github.com/neilotoole/sq/libsq/sqlz"
+	"github.com/neilotoole/sq/libsq/core/sqlz"
 )
 
 // recordWriter implements output.RecordWriter for raw output.
@@ -62,9 +63,9 @@ func (w *recordWriter) WriteRecords(recs []sqlz.Record) error {
 				switch w.recMeta[i].Kind() {
 				default:
 					fmt.Fprint(w.out, val.Format(stringz.DatetimeFormat))
-				case sqlz.KindTime:
+				case kind.Time:
 					fmt.Fprint(w.out, val.Format(stringz.TimeFormat))
-				case sqlz.KindDate:
+				case kind.Date:
 					fmt.Fprint(w.out, val.Format(stringz.DateFormat))
 				}
 			default:

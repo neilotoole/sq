@@ -5,13 +5,13 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/sqlbuilder"
 
 	"github.com/neilotoole/lg"
 
-	"github.com/neilotoole/sq/libsq/errz"
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/sqlmodel"
-	"github.com/neilotoole/sq/libsq/sqlz"
 )
 
 func newFragmentBuilder(log lg.Log) *sqlbuilder.BaseFragmentBuilder {
@@ -23,46 +23,46 @@ func newFragmentBuilder(log lg.Log) *sqlbuilder.BaseFragmentBuilder {
 	return fb
 }
 
-func dbTypeNameFromKind(kind sqlz.Kind) string {
-	switch kind {
+func dbTypeNameFromKind(knd kind.Kind) string {
+	switch knd {
 	default:
-		panic(fmt.Sprintf("unsupported datatype %q", kind))
-	case sqlz.KindUnknown:
+		panic(fmt.Sprintf("unsupported datatype %q", knd))
+	case kind.Unknown:
 		return "TEXT"
-	case sqlz.KindText:
+	case kind.Text:
 		return "TEXT"
-	case sqlz.KindInt:
+	case kind.Int:
 		return "BIGINT"
-	case sqlz.KindFloat:
+	case kind.Float:
 		return "DOUBLE PRECISION"
-	case sqlz.KindDecimal:
+	case kind.Decimal:
 		return "DECIMAL"
-	case sqlz.KindBool:
+	case kind.Bool:
 		return "BOOLEAN"
-	case sqlz.KindDatetime:
+	case kind.Datetime:
 		return "TIMESTAMP"
-	case sqlz.KindTime:
+	case kind.Time:
 		return "TIME"
-	case sqlz.KindDate:
+	case kind.Date:
 		return "DATE"
-	case sqlz.KindBytes:
+	case kind.Bytes:
 		return "BYTEA"
 	}
 }
 
 // createTblKindDefaults is a map of Kind to the value
 // to use for a column's DEFAULT clause in a CREATE TABLE statement.
-var createTblKindDefaults = map[sqlz.Kind]string{
-	sqlz.KindText:     `DEFAULT ''`,
-	sqlz.KindInt:      `DEFAULT 0`,
-	sqlz.KindFloat:    `DEFAULT 0`,
-	sqlz.KindDecimal:  `DEFAULT 0`,
-	sqlz.KindBool:     `DEFAULT false`,
-	sqlz.KindDatetime: "DEFAULT 'epoch'::timestamp",
-	sqlz.KindDate:     "DEFAULT 'epoch'::date",
-	sqlz.KindTime:     "DEFAULT '00:00:00'::time",
-	sqlz.KindBytes:    "DEFAULT ''::bytea",
-	sqlz.KindUnknown:  `DEFAULT ''`,
+var createTblKindDefaults = map[kind.Kind]string{
+	kind.Text:     `DEFAULT ''`,
+	kind.Int:      `DEFAULT 0`,
+	kind.Float:    `DEFAULT 0`,
+	kind.Decimal:  `DEFAULT 0`,
+	kind.Bool:     `DEFAULT false`,
+	kind.Datetime: "DEFAULT 'epoch'::timestamp",
+	kind.Date:     "DEFAULT 'epoch'::date",
+	kind.Time:     "DEFAULT '00:00:00'::time",
+	kind.Bytes:    "DEFAULT ''::bytea",
+	kind.Unknown:  `DEFAULT ''`,
 }
 
 // buildCreateTableStmt builds a CREATE TABLE statement from tblDef.

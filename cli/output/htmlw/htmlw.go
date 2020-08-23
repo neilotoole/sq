@@ -11,10 +11,11 @@ import (
 	"time"
 
 	"github.com/neilotoole/sq/cli/output"
+	"github.com/neilotoole/sq/libsq/core/kind"
 
-	"github.com/neilotoole/sq/libsq/errz"
-	"github.com/neilotoole/sq/libsq/sqlz"
-	"github.com/neilotoole/sq/libsq/stringz"
+	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/sqlz"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 // RecordWriter implements output.RecordWriter.
@@ -112,9 +113,9 @@ func (w *recordWriter) writeRecord(rec sqlz.Record) error {
 			switch w.recMeta[i].Kind() {
 			default:
 				s = val.Format(stringz.DatetimeFormat)
-			case sqlz.KindTime:
+			case kind.Time:
 				s = val.Format(stringz.TimeFormat)
-			case sqlz.KindDate:
+			case kind.Date:
 				s = val.Format(stringz.DateFormat)
 			}
 		}

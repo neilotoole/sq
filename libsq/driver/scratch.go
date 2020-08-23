@@ -6,7 +6,7 @@ import (
 
 	"github.com/neilotoole/lg"
 
-	"github.com/neilotoole/sq/libsq/cleanup"
+	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/source"
 )
 

@@ -3,8 +3,8 @@ package source
 import (
 	"encoding/json"
 
-	"github.com/neilotoole/sq/libsq/errz"
-	"github.com/neilotoole/sq/libsq/sqlz"
+	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/kind"
 )
 
 // Metadata holds metadata for a source.
@@ -138,7 +138,7 @@ type ColMetadata struct {
 	PrimaryKey   bool      `json:"primary_key"`
 	BaseType     string    `json:"base_type"`
 	ColumnType   string    `json:"column_type"`
-	Kind         sqlz.Kind `json:"kind"`
+	Kind         kind.Kind `json:"kind"`
 	Nullable     bool      `json:"nullable"`
 	DefaultValue string    `json:"default_value,omitempty"`
 	Comment      string    `json:"comment,omitempty"`

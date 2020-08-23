@@ -5,14 +5,15 @@ import (
 	"io"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/stringz"
+	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 
 	"github.com/neilotoole/sq/cli/output"
 
 	"github.com/tealeg/xlsx/v2"
 
-	"github.com/neilotoole/sq/libsq/errz"
-	"github.com/neilotoole/sq/libsq/sqlz"
+	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/sqlz"
 )
 
 type recordWriter struct {
@@ -90,9 +91,9 @@ func (w *recordWriter) WriteRecords(recs []sqlz.Record) error {
 				switch w.recMeta[i].Kind() {
 				default:
 					cell.SetDateTime(*val)
-				case sqlz.KindDate:
+				case kind.Date:
 					cell.SetDate(*val)
-				case sqlz.KindTime:
+				case kind.Time:
 					// TODO: Maybe there's a way of setting a specific
 					//  time (as opposed to date or datetime) value, but
 					//  for now we just use a string.

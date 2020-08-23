@@ -5,7 +5,7 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/neilotoole/sq/libsq/errz"
+	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
 // Execer abstracts the ExecContext method

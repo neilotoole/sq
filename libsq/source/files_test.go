@@ -2,6 +2,7 @@ package source_test
 
 import (
 	"context"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -18,8 +19,8 @@ import (
 	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/drivers/sqlserver"
 	"github.com/neilotoole/sq/drivers/xlsx"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/source"
-	"github.com/neilotoole/sq/libsq/stringz"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
@@ -125,11 +126,9 @@ func TestDetectMagicNumber(t *testing.T) {
 		tc := tc
 
 		t.Run(filepath.Base(tc.loc), func(t *testing.T) {
-			f, err := os.Open(tc.loc)
-			require.NoError(t, err)
-			t.Cleanup(func() { assert.NoError(t, f.Close()) })
+			rFn := func() (io.ReadCloser, error) { return os.Open(tc.loc) }
 
-			typ, score, err := source.DetectMagicNumber(context.Background(), f)
+			typ, score, err := source.DetectMagicNumber(context.Background(), testlg.New(t), rFn)
 			if tc.wantErr {
 				require.Error(t, err)
 				return
@@ -159,7 +158,7 @@ func TestFiles_NewReader(t *testing.T) {
 
 	for i := 0; i < 1000; i++ {
 		g.Go(func() error {
-			r, err := fs.NewReader(nil, src)
+			r, err := fs.Open(src)
 			require.NoError(t, err)
 
 			b, err := ioutil.ReadAll(r)
@@ -187,6 +186,7 @@ func TestFiles_Stdin(t *testing.T) {
 
 	for _, tc := range testCases {
 		tc := tc
+
 		t.Run(testh.TName(tc.fpath), func(t *testing.T) {
 			th := testh.New(t)
 			fs := th.Files()

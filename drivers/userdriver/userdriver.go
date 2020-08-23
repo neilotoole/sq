@@ -12,9 +12,9 @@ import (
 
 	"github.com/neilotoole/lg"
 
-	"github.com/neilotoole/sq/libsq/cleanup"
+	"github.com/neilotoole/sq/libsq/core/cleanup"
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/driver"
-	"github.com/neilotoole/sq/libsq/errz"
 	"github.com/neilotoole/sq/libsq/source"
 )
 
@@ -48,11 +48,11 @@ func (p *Provider) DriverFor(typ source.Type) (driver.Driver, error) {
 }
 
 // TypeDetectors returns funcs that can detect the source type.
-func (p *Provider) TypeDetectors() []source.TypeDetectorFunc {
+func (p *Provider) TypeDetectors() []source.TypeDetectFunc {
 	// TODO: it should be possible to return type detectors that
 	//  can detect based upon the DriverDef. So, as of right
 	//  now these detectors do nothing.
-	return []source.TypeDetectorFunc{}
+	return []source.TypeDetectFunc{}
 }
 
 // Driver implements driver.Driver.
@@ -79,7 +79,7 @@ func (d *drvr) DriverMetadata() driver.Metadata {
 func (d *drvr) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
 	clnup := cleanup.New()
 
-	r, err := d.files.NewReader(ctx, src)
+	r, err := d.files.Open(src)
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +119,7 @@ func (d *drvr) ValidateSource(src *source.Source) (*source.Source, error) {
 func (d *drvr) Ping(ctx context.Context, src *source.Source) error {
 	d.log.Debugf("driver %q attempting to ping %q", d.typ, src)
 
-	r, err := d.files.NewReader(ctx, src)
+	r, err := d.files.Open(src)
 	if err != nil {
 		return err
 	}

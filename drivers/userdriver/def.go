@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/errz"
+	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/sqlmodel"
-	"github.com/neilotoole/sq/libsq/sqlz"
-	"github.com/neilotoole/sq/libsq/stringz"
 )
 
 // DriverDef is a user-defined driver definition.
@@ -176,7 +176,7 @@ type ColMapping struct {
 	Selector string `yaml:"selector,omitempty" json:"selector,omitempty"`
 
 	// Kind is the data kind, e.g. "int", "text.
-	Kind sqlz.Kind `yaml:"kind" json:"kind"`
+	Kind kind.Kind `yaml:"kind" json:"kind"`
 
 	// Format is an optional type format for text values, e.g. "RFC3339" for a string.
 	Format string `yaml:"format,omitempty" json:"format,omitempty"`
@@ -259,7 +259,7 @@ func ValidateDriverDef(def *DriverDef) []error {
 			// These kinds are nonsensical
 			switch col.Kind {
 			default:
-			case sqlz.KindUnknown, sqlz.KindNull:
+			case kind.Unknown, kind.Null:
 				errs = append(errs, errz.Errorf("%s.kind (%s) is invalid", colName, col.Kind))
 			}
 		}

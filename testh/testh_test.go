@@ -9,9 +9,9 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/neilotoole/sq/drivers/csv"
+	"github.com/neilotoole/sq/libsq/core/sqlz"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/source"
-	"github.com/neilotoole/sq/libsq/sqlz"
-	"github.com/neilotoole/sq/libsq/stringz"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
@@ -142,11 +142,11 @@ func TestHelper_Files(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, src.Type, typ)
 
-	g, gctx := errgroup.WithContext(th.Context)
+	g, _ := errgroup.WithContext(th.Context)
 
 	for i := 0; i < 1000; i++ {
 		g.Go(func() error {
-			r, err := fs.NewReader(gctx, src)
+			r, err := fs.Open(src)
 			require.NoError(t, err)
 
 			defer func() { require.NoError(t, r.Close()) }()

@@ -6,17 +6,19 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/neilotoole/sq/libsq/stringz"
+	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 
-	"github.com/neilotoole/sq/libsq/cleanup"
+	"github.com/neilotoole/sq/libsq/core/cleanup"
 
 	"github.com/neilotoole/lg"
-	"github.com/neilotoole/sq/libsq/errz"
 
+	"github.com/neilotoole/sq/libsq/core/errz"
+
+	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/sqlbuilder"
 	"github.com/neilotoole/sq/libsq/sqlmodel"
-	"github.com/neilotoole/sq/libsq/sqlz"
 )
 
 // Provider is a factory that returns Driver instances.
@@ -146,7 +148,7 @@ type SQLDriver interface {
 	// AlterTableAddColumn adds column col to tbl. The column is appended
 	// to the list of columns (that is, the column position cannot be
 	// specified).
-	AlterTableAddColumn(ctx context.Context, db *sql.DB, tbl string, col string, kind sqlz.Kind) error
+	AlterTableAddColumn(ctx context.Context, db *sql.DB, tbl string, col string, kind kind.Kind) error
 }
 
 // Database models a database handle. It is conceptually equivalent to

@@ -6,8 +6,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/source"
-	"github.com/neilotoole/sq/libsq/sqlz"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
 )

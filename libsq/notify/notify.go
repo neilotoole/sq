@@ -8,8 +8,8 @@ import (
 
 	"github.com/neilotoole/lg"
 
-	"github.com/neilotoole/sq/libsq/errz"
-	"github.com/neilotoole/sq/libsq/stringz"
+	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 // DestType is the destination type, e.g. "slack", "hipchat", or "email" etc.

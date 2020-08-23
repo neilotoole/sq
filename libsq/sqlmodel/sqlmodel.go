@@ -2,9 +2,9 @@
 package sqlmodel
 
 import (
-	"github.com/neilotoole/sq/libsq/errz"
-	"github.com/neilotoole/sq/libsq/sqlz"
-	"github.com/neilotoole/sq/libsq/stringz"
+	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 // TableDef models a database table definition.
@@ -29,7 +29,7 @@ type TableDef struct {
 
 // NewTableDef is a convenience constructor for creating
 // a simple table definition.
-func NewTableDef(tblName string, colNames []string, colKinds []sqlz.Kind) *TableDef {
+func NewTableDef(tblName string, colNames []string, colKinds []kind.Kind) *TableDef {
 	tblDef := &TableDef{Name: tblName}
 	cols := make([]*ColDef, len(colNames))
 
@@ -53,8 +53,8 @@ func (t *TableDef) ColNames() []string {
 
 // ColKinds returns a new slice containing the kinds
 // of t's columns.
-func (t *TableDef) ColKinds() []sqlz.Kind {
-	kinds := make([]sqlz.Kind, len(t.Cols))
+func (t *TableDef) ColKinds() []kind.Kind {
+	kinds := make([]kind.Kind, len(t.Cols))
 	for i, col := range t.Cols {
 		kinds[i] = col.Kind
 	}
@@ -101,7 +101,7 @@ func (t *TableDef) FindCol(name string) (*ColDef, error) {
 type ColDef struct {
 	Name  string    `json:"name"`
 	Table *TableDef `json:"-"`
-	Kind  sqlz.Kind `json:"kind"`
+	Kind  kind.Kind `json:"kind"`
 
 	NotNull    bool `json:"not_null"`
 	HasDefault bool `json:"has_default"`

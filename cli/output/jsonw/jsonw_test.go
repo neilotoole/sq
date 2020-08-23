@@ -13,8 +13,8 @@ import (
 
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/jsonw"
-	"github.com/neilotoole/sq/libsq/errz"
-	"github.com/neilotoole/sq/libsq/sqlz"
+	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/fixt"
 )

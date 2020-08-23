@@ -12,8 +12,8 @@ import (
 
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/source"
-	"github.com/neilotoole/sq/libsq/stringz"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
 )

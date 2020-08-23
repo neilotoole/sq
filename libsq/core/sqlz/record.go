@@ -7,7 +7,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/errz"
+	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/kind"
 )
 
 // Record is a []interface{} row of field values returned from a query.
@@ -64,7 +65,7 @@ func ValidRecord(recMeta RecordMeta, rec Record) (i int, err error) {
 // devs don't need to learn a whole new thing.
 //
 // - For that reason, stdlib sql.ColumnType needs to be
-// supplemented with sqlz.Kind, and there needs to
+// supplemented with kind.Kind, and there needs to
 // be a mechanism for modifying sql.ColumnType's fields.
 //
 // - But sql.ColumnType is sealed (its fields cannot be changed
@@ -127,7 +128,7 @@ func (fm *FieldMeta) DatabaseTypeName() string {
 }
 
 // Kind returns the data kind for the column.
-func (fm *FieldMeta) Kind() Kind {
+func (fm *FieldMeta) Kind() kind.Kind {
 	return fm.data.Kind
 }
 
@@ -158,8 +159,8 @@ func (rm RecordMeta) NewScanRow() []interface{} {
 }
 
 // Kinds returns the data kinds for the record.
-func (rm RecordMeta) Kinds() []Kind {
-	kinds := make([]Kind, len(rm))
+func (rm RecordMeta) Kinds() []kind.Kind {
+	kinds := make([]kind.Kind, len(rm))
 	for i, col := range rm {
 		kinds[i] = col.Kind()
 	}
@@ -199,12 +200,12 @@ type ColumnTypeData struct {
 	Scale            int64
 	ScanType         reflect.Type
 
-	Kind Kind
+	Kind kind.Kind
 }
 
 // NewColumnTypeData returns a new instance with field values
 // taken from col, supplemented with the kind param.
-func NewColumnTypeData(col *sql.ColumnType, kind Kind) *ColumnTypeData {
+func NewColumnTypeData(col *sql.ColumnType, kind kind.Kind) *ColumnTypeData {
 	ct := &ColumnTypeData{
 		Name:             col.Name(),
 		DatabaseTypeName: col.DatabaseTypeName(),
