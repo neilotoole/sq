@@ -15,9 +15,9 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 
+	"github.com/neilotoole/sq/libsq/ast/sqlbuilder"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/source"
-	"github.com/neilotoole/sq/libsq/sqlbuilder"
 	"github.com/neilotoole/sq/libsq/sqlmodel"
 )
 

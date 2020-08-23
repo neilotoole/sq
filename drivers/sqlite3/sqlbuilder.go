@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/ast/sqlbuilder"
 	"github.com/neilotoole/sq/libsq/core/kind"
-	"github.com/neilotoole/sq/libsq/sqlbuilder"
 
 	"github.com/neilotoole/lg"
 

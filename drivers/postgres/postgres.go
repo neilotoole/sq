@@ -12,13 +12,13 @@ import (
 	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/neilotoole/lg"
 
+	"github.com/neilotoole/sq/libsq/ast/sqlbuilder"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
-	"github.com/neilotoole/sq/libsq/sqlbuilder"
 	"github.com/neilotoole/sq/libsq/sqlmodel"
 )
 
