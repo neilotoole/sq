@@ -5,10 +5,10 @@ import (
 	"time"
 
 	"github.com/neilotoole/sq/drivers/userdriver"
-	"github.com/neilotoole/sq/libsq/errz"
+	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/notify"
 	"github.com/neilotoole/sq/libsq/source"
-	"github.com/neilotoole/sq/libsq/stringz"
 )
 
 // Config holds application config/session data.

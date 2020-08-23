@@ -6,9 +6,9 @@ import (
 	"github.com/neilotoole/lg"
 	"github.com/spf13/cobra"
 
+	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/driver"
-	"github.com/neilotoole/sq/libsq/errz"
-	"github.com/neilotoole/sq/libsq/options"
 	"github.com/neilotoole/sq/libsq/source"
 )
 

@@ -10,8 +10,8 @@ package fixt
 import (
 	"time"
 
-	"github.com/neilotoole/sq/libsq/sqlz"
-	"github.com/neilotoole/sq/libsq/stringz"
+	"github.com/neilotoole/sq/libsq/core/sqlz"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 // These consts are test fixtures for various data types.

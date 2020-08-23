@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/errz"
+	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
 // Record is a []interface{} row of field values returned from a query.

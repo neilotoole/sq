@@ -9,7 +9,7 @@ import (
 
 	"github.com/neilotoole/sq/cli/config"
 	"github.com/neilotoole/sq/drivers/userdriver"
-	"github.com/neilotoole/sq/libsq/stringz"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/testsrc"
 )

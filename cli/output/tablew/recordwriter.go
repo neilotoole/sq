@@ -4,7 +4,7 @@ import (
 	"io"
 
 	"github.com/neilotoole/sq/cli/output"
-	"github.com/neilotoole/sq/libsq/sqlz"
+	"github.com/neilotoole/sq/libsq/core/sqlz"
 )
 
 type recordWriter struct {

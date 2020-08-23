@@ -20,8 +20,8 @@ import (
 	"github.com/neilotoole/lg"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/neilotoole/sq/libsq/cleanup"
-	"github.com/neilotoole/sq/libsq/errz"
+	"github.com/neilotoole/sq/libsq/core/cleanup"
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/source/fetcher"
 )
 

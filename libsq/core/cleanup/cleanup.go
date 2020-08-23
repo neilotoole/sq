@@ -6,7 +6,7 @@ import (
 	"io"
 	"sync"
 
-	"github.com/neilotoole/sq/libsq/errz"
+	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
 // Nop is a no-op cleanup.Func.

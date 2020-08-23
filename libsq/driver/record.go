@@ -12,9 +12,9 @@ import (
 	"github.com/neilotoole/lg"
 	"go.uber.org/atomic"
 
-	"github.com/neilotoole/sq/libsq/errz"
-	"github.com/neilotoole/sq/libsq/sqlz"
-	"github.com/neilotoole/sq/libsq/stringz"
+	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/sqlz"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 // NewRecordFunc is invoked on a query result row (scanRow) to

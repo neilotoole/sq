@@ -32,12 +32,12 @@ import (
 	"github.com/neilotoole/sq/drivers/userdriver/xmlud"
 	"github.com/neilotoole/sq/drivers/xlsx"
 	"github.com/neilotoole/sq/libsq"
-	"github.com/neilotoole/sq/libsq/cleanup"
+	"github.com/neilotoole/sq/libsq/core/cleanup"
+	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
-	"github.com/neilotoole/sq/libsq/errz"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/sqlmodel"
-	"github.com/neilotoole/sq/libsq/stringz"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/testsrc"
@@ -693,7 +693,7 @@ func TName(args ...interface{}) string {
 //func (fr *fileReaders) Open() (io.Reader, error) {
 //	f, err := os.Open(fr.fpath)
 //	if err != nil {
-//		return nil, errz.Err(err)
+//		return nil, core.errz.Err(err)
 //	}
 //	fr.clnup.AddC(f)
 //	return f, err

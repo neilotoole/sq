@@ -9,7 +9,7 @@ import (
 	"github.com/nlopes/slack"
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/sq/libsq/errz"
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/notify"
 )
 

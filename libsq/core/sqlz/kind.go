@@ -3,12 +3,13 @@ package sqlz
 import (
 	stdj "encoding/json"
 	"math/big"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/errz"
-	"github.com/neilotoole/sq/libsq/stringz"
+	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 const (
@@ -521,4 +522,37 @@ func containsKind(needle Kind, haystack ...Kind) bool {
 	}
 
 	return false
+}
+
+// KindScanType returns the default scan type for kind. The returned
+// type is typically a sql.NullType.
+func KindScanType(knd Kind) reflect.Type {
+	switch knd {
+	default:
+		return RTypeNullString
+
+	case KindText, KindDecimal:
+		return RTypeNullString
+
+	case KindInt:
+		return RTypeNullInt64
+
+	case KindBool:
+		return RTypeNullBool
+
+	case KindFloat:
+		return RTypeNullFloat64
+
+	case KindBytes:
+		return RTypeBytes
+
+	case KindDatetime:
+		return RTypeNullTime
+
+	case KindDate:
+		return RTypeNullTime
+
+	case KindTime:
+		return RTypeNullTime
+	}
 }

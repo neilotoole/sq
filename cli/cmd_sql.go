@@ -6,13 +6,13 @@ import (
 	"strings"
 
 	"github.com/neilotoole/sq/libsq"
-	"github.com/neilotoole/sq/libsq/errz"
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/source"
 
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/output"
-	"github.com/neilotoole/sq/libsq/stringz"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 func newSQLCmd() (*cobra.Command, runFunc) {

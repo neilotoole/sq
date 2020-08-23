@@ -2,7 +2,7 @@
 package sakila
 
 import (
-	"github.com/neilotoole/sq/libsq/sqlz"
+	"github.com/neilotoole/sq/libsq/core/sqlz"
 )
 
 // Sakila source handles.

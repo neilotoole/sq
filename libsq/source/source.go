@@ -8,7 +8,7 @@ import (
 
 	"github.com/xo/dburl"
 
-	"github.com/neilotoole/sq/libsq/options"
+	"github.com/neilotoole/sq/libsq/core/options"
 )
 
 // Type is a source type, e.g. "mysql", "postgres", "csv", etc.

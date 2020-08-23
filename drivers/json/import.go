@@ -9,10 +9,10 @@ import (
 
 	"github.com/neilotoole/lg"
 
+	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/driver"
-	"github.com/neilotoole/sq/libsq/errz"
 	"github.com/neilotoole/sq/libsq/source"
-	"github.com/neilotoole/sq/libsq/sqlz"
 )
 
 type importFunc func(ctx context.Context, log lg.Log, src *source.Source, openFn source.FileOpenFunc, scratchDB driver.Database) error
@@ -181,7 +181,7 @@ func importJSONL(ctx context.Context, log lg.Log, src *source.Source, openFn sou
 	//
 	//err = scratchDB.SQLDriver().CreateTable(ctx, scratchDB.DB(), tblDef)
 	//if err != nil {
-	//	return errz.Wrap(err, "csv: failed to create dest scratch table")
+	//	return core.errz.Wrap(err, "csv: failed to create dest scratch table")
 	//}
 	//
 	//recMeta, err := getRecMeta(ctx, scratchDB, tblDef)
