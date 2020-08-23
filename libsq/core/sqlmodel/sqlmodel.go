@@ -1,4 +1,4 @@
-// Package sqlmodel provides functionality for modeling SQL constructs.
+// Package core.sqlmodel provides functionality for modeling SQL constructs.
 package sqlmodel
 
 import (

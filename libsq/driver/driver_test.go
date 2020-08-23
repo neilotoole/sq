@@ -14,10 +14,10 @@ import (
 	"github.com/neilotoole/sq/drivers/xlsx"
 	"github.com/neilotoole/sq/libsq/core/kind"
 
+	"github.com/neilotoole/sq/libsq/core/sqlmodel"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
-	"github.com/neilotoole/sq/libsq/sqlmodel"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/fixt"
 	"github.com/neilotoole/sq/testh/sakila"

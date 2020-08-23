@@ -13,7 +13,7 @@ import (
 
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/sqlmodel"
+	"github.com/neilotoole/sq/libsq/core/sqlmodel"
 )
 
 type fragBuilder struct {

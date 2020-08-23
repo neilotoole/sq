@@ -6,8 +6,8 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/sqlmodel"
 	"github.com/neilotoole/sq/libsq/core/stringz"
-	"github.com/neilotoole/sq/libsq/sqlmodel"
 )
 
 // DriverDef is a user-defined driver definition.

@@ -11,7 +11,7 @@ import (
 	"github.com/neilotoole/lg"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/sqlmodel"
+	"github.com/neilotoole/sq/libsq/core/sqlmodel"
 )
 
 func newFragmentBuilder(log lg.Log) *sqlbuilder.BaseFragmentBuilder {

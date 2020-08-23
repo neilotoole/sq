@@ -15,9 +15,9 @@ import (
 
 	"github.com/neilotoole/lg"
 
+	"github.com/neilotoole/sq/libsq/core/sqlmodel"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
-	"github.com/neilotoole/sq/libsq/sqlmodel"
 )
 
 // xlsxToScratch loads the data in xlFile into scratchDB.
