@@ -211,16 +211,16 @@ func (d *database) Close() error {
 }
 
 var (
-	_ source.TypeDetectorFunc = DetectCSV
-	_ source.TypeDetectorFunc = DetectTSV
+	_ source.TypeDetectFunc = DetectCSV
+	_ source.TypeDetectFunc = DetectTSV
 )
 
-// DetectCSV implements source.TypeDetectorFunc.
+// DetectCSV implements source.TypeDetectFunc.
 func DetectCSV(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (detected source.Type, score float32, err error) {
 	return detectType(ctx, TypeCSV, log, openFn)
 }
 
-// DetectTSV implements source.TypeDetectorFunc.
+// DetectTSV implements source.TypeDetectFunc.
 func DetectTSV(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (detected source.Type, score float32, err error) {
 	return detectType(ctx, TypeTSV, log, openFn)
 }

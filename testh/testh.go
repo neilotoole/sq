@@ -23,6 +23,7 @@ import (
 	"github.com/neilotoole/sq/cli/config"
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/drivers/csv"
+	"github.com/neilotoole/sq/drivers/json"
 	"github.com/neilotoole/sq/drivers/mysql"
 	"github.com/neilotoole/sq/drivers/postgres"
 	"github.com/neilotoole/sq/drivers/sqlite3"
@@ -44,19 +45,23 @@ import (
 
 // Helper encapsulates a test helper session.
 type Helper struct {
-	mu       sync.Mutex
-	T        testing.TB
-	Log      lg.Log
-	reg      *driver.Registry
-	files    *source.Files
-	dbases   *driver.Databases
+	mu sync.Mutex
+
+	T   testing.TB
+	Log lg.Log
+
+	registry  *driver.Registry
+	files     *source.Files
+	databases *driver.Databases
+
 	initOnce sync.Once
+
 	srcs     *source.Set
 	srcCache map[string]*source.Source
+
 	Context  context.Context
 	cancelFn context.CancelFunc
 
-	// Cleanup is used
 	Cleanup *cleanup.Cleanup
 }
 
@@ -93,7 +98,7 @@ func NewWith(t testing.TB, handle string) (*Helper, *source.Source, driver.Datab
 func (h *Helper) init() {
 	h.initOnce.Do(func() {
 		log := h.Log
-		h.reg = driver.NewRegistry(log)
+		h.registry = driver.NewRegistry(log)
 
 		var err error
 		h.files, err = source.NewFiles(log)
@@ -101,19 +106,24 @@ func (h *Helper) init() {
 		h.Cleanup.AddC(h.files)
 		h.files.AddTypeDetectors(source.DetectMagicNumber)
 
-		h.dbases = driver.NewDatabases(log, h.reg, sqlite3.NewScratchSource)
-		h.Cleanup.AddC(h.dbases)
+		h.databases = driver.NewDatabases(log, h.registry, sqlite3.NewScratchSource)
+		h.Cleanup.AddC(h.databases)
 
-		h.reg.AddProvider(sqlite3.Type, &sqlite3.Provider{Log: log})
-		h.reg.AddProvider(postgres.Type, &postgres.Provider{Log: log})
-		h.reg.AddProvider(sqlserver.Type, &sqlserver.Provider{Log: log})
-		h.reg.AddProvider(mysql.Type, &mysql.Provider{Log: log})
-		csvp := &csv.Provider{Log: log, Scratcher: h.dbases, Files: h.files}
-		h.reg.AddProvider(csv.TypeCSV, csvp)
-		h.reg.AddProvider(csv.TypeTSV, csvp)
+		h.registry.AddProvider(sqlite3.Type, &sqlite3.Provider{Log: log})
+		h.registry.AddProvider(postgres.Type, &postgres.Provider{Log: log})
+		h.registry.AddProvider(sqlserver.Type, &sqlserver.Provider{Log: log})
+		h.registry.AddProvider(mysql.Type, &mysql.Provider{Log: log})
+
+		csvp := &csv.Provider{Log: log, Scratcher: h.databases, Files: h.files}
+		h.registry.AddProvider(csv.TypeCSV, csvp)
+		h.registry.AddProvider(csv.TypeTSV, csvp)
 		h.files.AddTypeDetectors(csv.DetectCSV, csv.DetectTSV)
 
-		h.reg.AddProvider(xlsx.Type, &xlsx.Provider{Log: log, Scratcher: h.dbases, Files: h.files})
+		jsonp := &json.Provider{Log: log, Scratcher: h.databases, Files: h.files}
+		h.registry.AddProvider(json.TypeJSONA, jsonp)
+		h.files.AddTypeDetectors(json.DetectJSON, json.DetectJSONA, json.DetectJSONL)
+
+		h.registry.AddProvider(xlsx.Type, &xlsx.Provider{Log: log, Scratcher: h.databases, Files: h.files})
 		h.files.AddTypeDetectors(xlsx.DetectXLSX)
 
 		h.addUserDrivers()
@@ -471,7 +481,7 @@ func (h *Helper) TruncateTable(src *source.Source, tbl string) (affected int64) 
 // configured with standard providers.
 func (h *Helper) Registry() *driver.Registry {
 	h.init()
-	return h.reg
+	return h.registry
 }
 
 // addUserDrivers adds some user drivers to the registry.
@@ -499,11 +509,11 @@ func (h *Helper) addUserDrivers() {
 			Log:       h.Log,
 			DriverDef: userDriverDef,
 			ImportFn:  importFn,
-			Scratcher: h.dbases,
+			Scratcher: h.databases,
 			Files:     h.files,
 		}
 
-		h.reg.AddProvider(source.Type(userDriverDef.Name), udp)
+		h.registry.AddProvider(source.Type(userDriverDef.Name), udp)
 		h.files.AddTypeDetectors(udp.TypeDetectors()...)
 	}
 }
@@ -516,7 +526,7 @@ func (h *Helper) IsMonotable(src *source.Source) bool {
 // Databases returns the helper's Databases instance.
 func (h *Helper) Databases() *driver.Databases {
 	h.init()
-	return h.dbases
+	return h.databases
 }
 
 // Files returns the helper's Files instance.
@@ -632,8 +642,8 @@ func Val(i interface{}) interface{} {
 }
 
 // TypeDetectors returns the common set of TypeDetectorFuncs.
-func TypeDetectors() []source.TypeDetectorFunc {
-	return []source.TypeDetectorFunc{source.DetectMagicNumber, xlsx.DetectXLSX, csv.DetectCSV, csv.DetectTSV}
+func TypeDetectors() []source.TypeDetectFunc {
+	return []source.TypeDetectFunc{source.DetectMagicNumber, xlsx.DetectXLSX, csv.DetectCSV, csv.DetectTSV}
 }
 
 // AssertCompareFunc matches several of the the testify/require funcs.

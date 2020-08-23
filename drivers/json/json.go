@@ -221,21 +221,22 @@ func (d *database) Close() error {
 }
 
 var (
-	_ source.TypeDetectorFunc = DetectJSON
-	_ source.TypeDetectorFunc = DetectJSONA
-	_ source.TypeDetectorFunc = DetectJSONL
+	_ source.TypeDetectFunc = DetectJSON
+	_ source.TypeDetectFunc = DetectJSONA
+	_ source.TypeDetectFunc = DetectJSONL
 )
 
 // sampleLines is the number items to sample to determine
 // type.
 const sampleSize = 100
 
-// DetectJSON implements source.TypeDetectorFunc.
+// DetectJSON implements source.TypeDetectFunc.
 func DetectJSON(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (detected source.Type, score float32, err error) {
-	return source.TypeNone, 0, errz.New("not implemented")
+	log.Warn("not implemented")
+	return source.TypeNone, 0, nil
 }
 
-// DetectJSONA implements source.TypeDetectorFunc for TypeJSONA.
+// DetectJSONA implements source.TypeDetectFunc for TypeJSONA.
 // Each line of input must be a valid JSON array.
 func DetectJSONA(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (detected source.Type, score float32, err error) {
 	var r io.ReadCloser
@@ -250,6 +251,12 @@ func DetectJSONA(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (d
 	var line []byte
 
 	for sc.Scan() {
+		select {
+		case <-ctx.Done():
+			return source.TypeNone, 0, ctx.Err()
+		default:
+		}
+
 		if err = sc.Err(); err != nil {
 			return source.TypeNone, 0, errz.Err(err)
 		}
@@ -298,7 +305,8 @@ func DetectJSONA(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (d
 	return source.TypeNone, 0, nil
 }
 
-// DetectJSONL implements source.TypeDetectorFunc.
+// DetectJSONL implements source.TypeDetectFunc.
 func DetectJSONL(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (detected source.Type, score float32, err error) {
-	return source.TypeNone, 0, errz.New("not implemented")
+	log.Warn("not implemented")
+	return source.TypeNone, 0, nil
 }

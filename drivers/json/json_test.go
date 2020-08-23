@@ -16,7 +16,7 @@ import (
 )
 
 func TestTypeDetectorFuncs(t *testing.T) {
-	detectFns := map[source.Type]source.TypeDetectorFunc{
+	detectFns := map[source.Type]source.TypeDetectFunc{
 		json.TypeJSON:  json.DetectJSON,
 		json.TypeJSONA: json.DetectJSONA,
 		json.TypeJSONL: json.DetectJSONL,

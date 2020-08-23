@@ -51,6 +51,7 @@ import (
 	"github.com/neilotoole/sq/cli/output/xlsxw"
 	"github.com/neilotoole/sq/cli/output/xmlw"
 	"github.com/neilotoole/sq/drivers/csv"
+	"github.com/neilotoole/sq/drivers/json"
 	"github.com/neilotoole/sq/drivers/mysql"
 	"github.com/neilotoole/sq/drivers/postgres"
 	"github.com/neilotoole/sq/drivers/sqlite3"
@@ -400,6 +401,10 @@ func (rc *RunContext) preRunE() error {
 	rc.registry.AddProvider(csv.TypeCSV, csvp)
 	rc.registry.AddProvider(csv.TypeTSV, csvp)
 	rc.files.AddTypeDetectors(csv.DetectCSV, csv.DetectTSV)
+
+	jsonp := &json.Provider{Log: log, Scratcher: rc.databases, Files: rc.files}
+	rc.registry.AddProvider(json.TypeJSONA, jsonp)
+	rc.files.AddTypeDetectors(json.DetectJSON, json.DetectJSONA, json.DetectJSONL)
 
 	rc.registry.AddProvider(xlsx.Type, &xlsx.Provider{Log: log, Scratcher: rc.databases, Files: rc.files})
 	rc.files.AddTypeDetectors(xlsx.DetectXLSX)

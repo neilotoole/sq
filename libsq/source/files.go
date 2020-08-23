@@ -2,6 +2,7 @@ package source
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"mime"
@@ -34,7 +35,7 @@ type Files struct {
 	mu        sync.Mutex
 	clnup     *cleanup.Cleanup
 	fcache    *fscache.FSCache
-	detectFns []TypeDetectorFunc
+	detectFns []TypeDetectFunc
 }
 
 // NewFiles returns a new Files instance.
@@ -62,7 +63,7 @@ func NewFiles(log lg.Log) (*Files, error) {
 }
 
 // AddTypeDetectors adds type detectors.
-func (fs *Files) AddTypeDetectors(detectFns ...TypeDetectorFunc) {
+func (fs *Files) AddTypeDetectors(detectFns ...TypeDetectFunc) {
 	fs.detectFns = append(fs.detectFns, detectFns...)
 }
 
@@ -368,6 +369,13 @@ func (fs *Files) detectType(ctx context.Context, loc string) (typ Type, ok bool,
 		return fs.newReader(loc)
 	}
 
+	select {
+	case <-ctx.Done():
+
+		fmt.Println(ctx.Err())
+	default:
+	}
+
 	g, gctx := errgroup.WithContext(ctx)
 
 	for _, detectFn := range fs.detectFns {
@@ -394,6 +402,7 @@ func (fs *Files) detectType(ctx context.Context, loc string) (typ Type, ok bool,
 
 	err = g.Wait()
 	if err != nil {
+		fs.log.Error(err)
 		return TypeNone, false, errz.Err(err)
 	}
 	close(resultCh)
@@ -418,7 +427,7 @@ func (fs *Files) detectType(ctx context.Context, loc string) (typ Type, ok bool,
 // is responsible for closing the returned ReadCloser.
 type FileOpenFunc func() (io.ReadCloser, error)
 
-// TypeDetectorFunc interrogates a byte stream to determine
+// TypeDetectFunc interrogates a byte stream to determine
 // the source driver type. A score is returned indicating the
 // the confidence that the driver type has been detected.
 // A score <= 0 is failure, a score >= 1 is success; intermediate
@@ -426,11 +435,11 @@ type FileOpenFunc func() (io.ReadCloser, error)
 // An error is returned only if an IO problem occurred.
 // The implementation gets access to the byte stream by invoking openFn,
 // and is responsible for closing any reader it opens.
-type TypeDetectorFunc func(ctx context.Context, log lg.Log, openFn FileOpenFunc) (detected Type, score float32, err error)
+type TypeDetectFunc func(ctx context.Context, log lg.Log, openFn FileOpenFunc) (detected Type, score float32, err error)
 
-var _ TypeDetectorFunc = DetectMagicNumber
+var _ TypeDetectFunc = DetectMagicNumber
 
-// DetectMagicNumber is a TypeDetectorFunc that uses an external
+// DetectMagicNumber is a TypeDetectFunc that uses an external
 // pkg (h2non/filetype) to detect the "magic number" from
 // the start of files.
 func DetectMagicNumber(ctx context.Context, log lg.Log, openFn FileOpenFunc) (detected Type, score float32, err error) {

@@ -38,9 +38,9 @@ func (p *Provider) DriverFor(typ source.Type) (driver.Driver, error) {
 	return &Driver{log: p.Log, scratcher: p.Scratcher, files: p.Files}, nil
 }
 
-var _ source.TypeDetectorFunc = DetectXLSX
+var _ source.TypeDetectFunc = DetectXLSX
 
-// DetectXLSX implements source.TypeDetectorFunc, returning
+// DetectXLSX implements source.TypeDetectFunc, returning
 // TypeXLSX and a score of 1.0 valid XLSX.
 func DetectXLSX(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (detected source.Type, score float32, err error) {
 	var r io.ReadCloser
