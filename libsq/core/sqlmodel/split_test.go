@@ -6,14 +6,14 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/sq/libsq/sqlmodel"
+	"github.com/neilotoole/sq/libsq/core/sqlmodel"
 	"github.com/neilotoole/sq/testh/proj"
 )
 
 func TestSplitInput(t *testing.T) {
 	const sel, other = sqlmodel.StmtSelect, sqlmodel.StmtOther
 
-	// convenience func to return a slice of n sqlmodel.StmtType.
+	// convenience func to return a slice of n core.sqlmodel.StmtType.
 	nTypes := func(n int, typ sqlmodel.StmtType) []sqlmodel.StmtType {
 		types := make([]sqlmodel.StmtType, n)
 		for i := range types {
@@ -78,21 +78,21 @@ func TestSplitInput(t *testing.T) {
 			{
 				name:      "sqlite3_type_test.sql",
 				delim:     ";",
-				input:     string(proj.ReadFile("libsq/sqlmodel/testdata/sqlite3_type_test.sql")),
+				input:     string(proj.ReadFile("libsq/core/sqlmodel/testdata/sqlite3_type_test.sql")),
 				wantCount: 4,
 				wantTypes: nTypes(4, other),
 			},
 			{
 				name:      "sqlite3_address.sql",
 				delim:     ";",
-				input:     string(proj.ReadFile("libsq/sqlmodel/testdata/sqlite3_address.sql")),
+				input:     string(proj.ReadFile("libsq/core/sqlmodel/testdata/sqlite3_address.sql")),
 				wantCount: 4,
 				wantTypes: nTypes(4, other),
 			},
 			{
 				name:      "sqlite3_person.sql",
 				delim:     ";",
-				input:     string(proj.ReadFile("libsq/sqlmodel/testdata/sqlite3_person.sql")),
+				input:     string(proj.ReadFile("libsq/core/sqlmodel/testdata/sqlite3_person.sql")),
 				wantCount: 10,
 				wantTypes: nTypes(10, other),
 			},
@@ -101,21 +101,21 @@ func TestSplitInput(t *testing.T) {
 			{
 				name:      "sqtype_public_type_test.sql",
 				delim:     ";",
-				input:     string(proj.ReadFile("libsq/sqlmodel/testdata/postgres_public_type_test.sql")),
+				input:     string(proj.ReadFile("libsq/core/sqlmodel/testdata/postgres_public_type_test.sql")),
 				wantCount: 5,
 				wantTypes: nTypes(5, other),
 			},
 			{
 				name:      "sqtest_public_address.sql",
 				delim:     ";",
-				input:     string(proj.ReadFile("libsq/sqlmodel/testdata/postgres_public_address.sql")),
+				input:     string(proj.ReadFile("libsq/core/sqlmodel/testdata/postgres_public_address.sql")),
 				wantCount: 5,
 				wantTypes: nTypes(5, other),
 			},
 			{
 				name:      "sqtest_public_person.sql",
 				delim:     ";",
-				input:     string(proj.ReadFile("libsq/sqlmodel/testdata/postgres_public_person.sql")),
+				input:     string(proj.ReadFile("libsq/core/sqlmodel/testdata/postgres_public_person.sql")),
 				wantCount: 11,
 				wantTypes: nTypes(11, other),
 			},
@@ -143,7 +143,7 @@ func TestSplitInput(t *testing.T) {
 				name:       "sqtype_dbo_type_test.sql",
 				delim:      ";",
 				moreDelims: []string{"go"},
-				input:      string(proj.ReadFile("libsq/sqlmodel/testdata/sqlserver_dbo_type_test.sql")),
+				input:      string(proj.ReadFile("libsq/core/sqlmodel/testdata/sqlserver_dbo_type_test.sql")),
 				wantCount:  5,
 				wantTypes:  nTypes(5, other),
 			},
@@ -151,7 +151,7 @@ func TestSplitInput(t *testing.T) {
 				name:       "sqtest_dbo_address.sql",
 				delim:      ";",
 				moreDelims: []string{"go"},
-				input:      string(proj.ReadFile("libsq/sqlmodel/testdata/sqlserver_dbo_address.sql")),
+				input:      string(proj.ReadFile("libsq/core/sqlmodel/testdata/sqlserver_dbo_address.sql")),
 				wantCount:  4,
 				wantTypes:  nTypes(5, other),
 			},
@@ -159,7 +159,7 @@ func TestSplitInput(t *testing.T) {
 				name:       "sqtest_dbo_person.sql",
 				delim:      ";",
 				moreDelims: []string{"go"},
-				input:      string(proj.ReadFile("libsq/sqlmodel/testdata/sqlserver_dbo_person.sql")),
+				input:      string(proj.ReadFile("libsq/core/sqlmodel/testdata/sqlserver_dbo_person.sql")),
 				wantCount:  10,
 				wantTypes:  nTypes(10, other),
 			},
@@ -168,21 +168,21 @@ func TestSplitInput(t *testing.T) {
 			{
 				name:      "mysql_type_test.sql",
 				delim:     ";",
-				input:     string(proj.ReadFile("libsq/sqlmodel/testdata/mysql_type_test.sql")),
+				input:     string(proj.ReadFile("libsq/core/sqlmodel/testdata/mysql_type_test.sql")),
 				wantCount: 5,
 				wantTypes: nTypes(5, other),
 			},
 			{
 				name:      "mysql_address.sql",
 				delim:     ";",
-				input:     string(proj.ReadFile("libsq/sqlmodel/testdata/mysql_address.sql")),
+				input:     string(proj.ReadFile("libsq/core/sqlmodel/testdata/mysql_address.sql")),
 				wantCount: 4,
 				wantTypes: nTypes(5, other),
 			},
 			{
 				name:      "mysql_person.sql",
 				delim:     ";",
-				input:     string(proj.ReadFile("libsq/sqlmodel/testdata/mysql_person.sql")),
+				input:     string(proj.ReadFile("libsq/core/sqlmodel/testdata/mysql_person.sql")),
 				wantCount: 9,
 				wantTypes: nTypes(9, other),
 			},

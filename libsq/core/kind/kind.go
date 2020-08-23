@@ -1,4 +1,5 @@
-// Package kind encapsulate data kind, that is data types.
+// Package kind encapsulates the notion of data "kind": that is, it
+// is an abstraction over data types across implementations.
 package kind
 
 import (
