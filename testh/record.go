@@ -193,28 +193,28 @@ func KindScanType(knd kind.Kind) reflect.Type {
 	default:
 		return sqlz.RTypeNullString
 
-	case kind.Text, kind.KindDecimal:
+	case kind.Text, kind.Decimal:
 		return sqlz.RTypeNullString
 
-	case kind.KindInt:
+	case kind.Int:
 		return sqlz.RTypeNullInt64
 
-	case kind.KindBool:
+	case kind.Bool:
 		return sqlz.RTypeNullBool
 
-	case kind.KindFloat:
+	case kind.Float:
 		return sqlz.RTypeNullFloat64
 
-	case kind.KindBytes:
+	case kind.Bytes:
 		return sqlz.RTypeBytes
 
-	case kind.KindDatetime:
+	case kind.Datetime:
 		return sqlz.RTypeNullTime
 
-	case kind.KindDate:
+	case kind.Date:
 		return sqlz.RTypeNullTime
 
-	case kind.KindTime:
+	case kind.Time:
 		return sqlz.RTypeNullTime
 	}
 }

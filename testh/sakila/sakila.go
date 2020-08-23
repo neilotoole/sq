@@ -95,7 +95,7 @@ func TblActorCols() []string {
 
 // TblActorColKinds returns the kinds of the columns from table actor.
 func TblActorColKinds() []kind.Kind {
-	return []kind.Kind{kind.KindInt, kind.Text, kind.Text, kind.KindDatetime}
+	return []kind.Kind{kind.Int, kind.Text, kind.Text, kind.Datetime}
 }
 
 // TblFilmActorCols returns table "film" column names.

@@ -29,31 +29,31 @@ func kindFromDBTypeName(log lg.Log, colName, dbTypeName string) kind.Kind {
 		log.Warnf("Unknown SQLServer database type '%s' for column '%s': using %s", dbTypeName, colName, kind.Unknown)
 		knd = kind.Unknown
 	case "INT", "BIGINT", "SMALLINT", "TINYINT":
-		knd = kind.KindInt
+		knd = kind.Int
 	case "CHAR", "NCHAR", "VARCHAR", "JSON", "NVARCHAR", "NTEXT", "TEXT":
 		knd = kind.Text
 	case "BIT":
-		knd = kind.KindBool
+		knd = kind.Bool
 	case "BINARY", "VARBINARY", "IMAGE":
-		knd = kind.KindBytes
+		knd = kind.Bytes
 	case "DECIMAL", "NUMERIC":
-		knd = kind.KindDecimal
+		knd = kind.Decimal
 	case "MONEY", "SMALLMONEY":
-		knd = kind.KindDecimal
+		knd = kind.Decimal
 	case "DATETIME", "DATETIME2", "SMALLDATETIME", "DATETIMEOFFSET":
-		knd = kind.KindDatetime
+		knd = kind.Datetime
 	case "DATE":
-		knd = kind.KindDate
+		knd = kind.Date
 	case "TIME":
-		knd = kind.KindTime
+		knd = kind.Time
 	case "FLOAT", "REAL":
-		knd = kind.KindFloat
+		knd = kind.Float
 	case "XML":
 		knd = kind.Text
 	case "UNIQUEIDENTIFIER":
 		knd = kind.Text
 	case "ROWVERSION", "TIMESTAMP":
-		knd = kind.KindInt
+		knd = kind.Int
 	}
 
 	return knd
@@ -64,7 +64,7 @@ func kindFromDBTypeName(log lg.Log, colName, dbTypeName string) kind.Kind {
 // nullable type. This is because the driver doesn't
 // report nullable scan types.
 func setScanType(ct *sqlz.ColumnTypeData, knd kind.Kind) {
-	if knd == kind.KindDecimal {
+	if knd == kind.Decimal {
 		// The driver wants us to use []byte instead of string for DECIMAL,
 		// but we want to use string.
 		if ct.Nullable {

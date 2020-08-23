@@ -27,21 +27,21 @@ func dbTypeNameFromKind(knd kind.Kind) string {
 	switch knd {
 	case kind.Text:
 		return "TEXT"
-	case kind.KindInt:
+	case kind.Int:
 		return "INT"
-	case kind.KindFloat:
+	case kind.Float:
 		return "DOUBLE"
-	case kind.KindDecimal:
+	case kind.Decimal:
 		return "DECIMAL"
-	case kind.KindBool:
+	case kind.Bool:
 		return "TINYINT(1)"
-	case kind.KindDatetime:
+	case kind.Datetime:
 		return "DATETIME"
-	case kind.KindTime:
+	case kind.Time:
 		return "TIME"
-	case kind.KindDate:
+	case kind.Date:
 		return "DATE"
-	case kind.KindBytes:
+	case kind.Bytes:
 		return "BLOB"
 	default:
 		panic(fmt.Sprintf("unsupported datatype %q", knd))
@@ -55,16 +55,16 @@ func dbTypeNameFromKind(knd kind.Kind) string {
 // for TEXT or BLOB columns.
 // https://bugs.mysql.com/bug.php?id=21532
 var createTblKindDefaults = map[kind.Kind]string{
-	kind.Text:         ``,
-	kind.KindInt:      `DEFAULT 0`,
-	kind.KindFloat:    `DEFAULT 0`,
-	kind.KindDecimal:  `DEFAULT 0`,
-	kind.KindBool:     `DEFAULT 0`,
-	kind.KindDatetime: `DEFAULT '1970-01-01 00:00:00'`,
-	kind.KindDate:     `DEFAULT '1970-01-01'`,
-	kind.KindTime:     `DEFAULT '00:00:00'`,
-	kind.KindBytes:    ``,
-	kind.Unknown:      ``,
+	kind.Text:     ``,
+	kind.Int:      `DEFAULT 0`,
+	kind.Float:    `DEFAULT 0`,
+	kind.Decimal:  `DEFAULT 0`,
+	kind.Bool:     `DEFAULT 0`,
+	kind.Datetime: `DEFAULT '1970-01-01 00:00:00'`,
+	kind.Date:     `DEFAULT '1970-01-01'`,
+	kind.Time:     `DEFAULT '00:00:00'`,
+	kind.Bytes:    ``,
+	kind.Unknown:  ``,
 }
 
 func buildCreateTableStmt(tblDef *sqlmodel.TableDef) (string, error) {

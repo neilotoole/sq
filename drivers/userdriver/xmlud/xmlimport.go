@@ -204,9 +204,9 @@ func (im *importer) convertVal(tbl string, col *userdriver.ColMapping, data inte
 	switch col.Kind {
 	default:
 		return nil, errz.Errorf("unknown data kind %q for col %s", col.Kind, col.Name)
-	case kind.Text, kind.KindTime:
+	case kind.Text, kind.Time:
 		return data, nil
-	case kind.KindInt:
+	case kind.Int:
 		switch data := data.(type) {
 		case int, int32, int64:
 			return data, nil
@@ -219,7 +219,7 @@ func (im *importer) convertVal(tbl string, col *userdriver.ColMapping, data inte
 		default:
 			return nil, errz.Errorf(errTpl, tbl, col.Name, col.Kind, data, data)
 		}
-	case kind.KindFloat:
+	case kind.Float:
 		switch data := data.(type) {
 		case float32, float64:
 			return data, nil
@@ -232,9 +232,9 @@ func (im *importer) convertVal(tbl string, col *userdriver.ColMapping, data inte
 		default:
 			return nil, errz.Errorf(errTpl, tbl, col.Name, col.Kind, data, data)
 		}
-	case kind.KindDecimal:
+	case kind.Decimal:
 		return data, nil
-	case kind.KindBool:
+	case kind.Bool:
 		switch data := data.(type) {
 		case bool:
 			return data, nil
@@ -252,9 +252,9 @@ func (im *importer) convertVal(tbl string, col *userdriver.ColMapping, data inte
 		default:
 			return nil, errz.Errorf(errTpl, tbl, col.Name, col.Kind, data, data)
 		}
-	case kind.KindDatetime:
+	case kind.Datetime:
 		return data, nil
-	case kind.KindBytes:
+	case kind.Bytes:
 		return data, nil
 	case kind.Null:
 		return data, nil

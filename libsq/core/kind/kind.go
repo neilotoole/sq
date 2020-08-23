@@ -22,29 +22,29 @@ const (
 	// Text indicates a text kind.
 	Text
 
-	// KindInt indicates an integer kind.
-	KindInt
+	// Int indicates an integer kind.
+	Int
 
-	// KindFloat indicates a float kind.
-	KindFloat
+	// Float indicates a float kind.
+	Float
 
-	// KindDecimal indicates a decimal kind.
-	KindDecimal
+	// Decimal indicates a decimal kind.
+	Decimal
 
-	// KindBool indicates a boolean kind.
-	KindBool
+	// Bool indicates a boolean kind.
+	Bool
 
-	// KindBytes indicates a bytes or blob kind.
-	KindBytes
+	// Bytes indicates a bytes or blob kind.
+	Bytes
 
-	// KindDatetime indicates a date-time kind.
-	KindDatetime
+	// Datetime indicates a date-time kind.
+	Datetime
 
-	// KindDate indicates a date-only kind.
-	KindDate
+	// Date indicates a date-only kind.
+	Date
 
-	// KindTime indicates a time-only kind.
-	KindTime
+	// Time indicates a time-only kind.
+	Time
 )
 
 // Kind models a generic data kind, which ultimately maps
@@ -52,8 +52,8 @@ const (
 // such as a SQL VARCHAR or JSON boolean.
 type Kind int
 
-func (d Kind) String() string {
-	t, err := d.MarshalText()
+func (k Kind) String() string {
+	t, err := k.MarshalText()
 	if err != nil {
 		return "<err>"
 	}
@@ -62,8 +62,8 @@ func (d Kind) String() string {
 }
 
 // MarshalJSON implements json.Marshaler.
-func (d Kind) MarshalJSON() ([]byte, error) {
-	t, err := d.MarshalText()
+func (k Kind) MarshalJSON() ([]byte, error) {
+	t, err := k.MarshalText()
 	if err != nil {
 		return nil, err
 	}
@@ -72,46 +72,46 @@ func (d Kind) MarshalJSON() ([]byte, error) {
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (d Kind) MarshalText() ([]byte, error) {
+func (k Kind) MarshalText() ([]byte, error) {
 	var name string
-	switch d {
+	switch k {
 	case Unknown:
 		name = "unknown"
 	case Null:
 		name = "null"
 	case Text:
 		name = "text"
-	case KindInt:
+	case Int:
 		name = "int"
-	case KindFloat:
+	case Float:
 		name = "float"
-	case KindDecimal:
+	case Decimal:
 		name = "decimal"
-	case KindBool:
+	case Bool:
 		name = "bool"
-	case KindDatetime:
+	case Datetime:
 		name = "datetime"
-	case KindDate:
+	case Date:
 		name = "date"
-	case KindTime:
+	case Time:
 		name = "time"
-	case KindBytes:
+	case Bytes:
 		name = "bytes"
 	default:
-		return nil, errz.Errorf("invalid data kind '%d'", d)
+		return nil, errz.Errorf("invalid data kind '%d'", k)
 	}
 
 	return []byte(name), nil
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (d *Kind) UnmarshalText(text []byte) error {
+func (k *Kind) UnmarshalText(text []byte) error {
 	kind, err := parse(string(text))
 	if err != nil {
 		return err
 	}
 
-	*d = kind
+	*k = kind
 	return nil
 }
 
@@ -126,21 +126,21 @@ func parse(text string) (Kind, error) {
 	case "text":
 		return Text, nil
 	case "int":
-		return KindInt, nil
+		return Int, nil
 	case "float":
-		return KindFloat, nil
+		return Float, nil
 	case "decimal":
-		return KindDecimal, nil
+		return Decimal, nil
 	case "bool":
-		return KindBool, nil
+		return Bool, nil
 	case "datetime":
-		return KindDatetime, nil
+		return Datetime, nil
 	case "date":
-		return KindDate, nil
+		return Date, nil
 	case "time":
-		return KindTime, nil
+		return Time, nil
 	case "bytes":
-		return KindBytes, nil
+		return Bytes, nil
 	case "null":
 		return Null, nil
 	}
@@ -159,13 +159,13 @@ type Detector struct {
 func NewDetector() *Detector {
 	return &Detector{
 		kinds: map[Kind]struct{}{
-			KindInt:      {},
-			KindFloat:    {},
-			KindDecimal:  {},
-			KindBool:     {},
-			KindTime:     {},
-			KindDate:     {},
-			KindDatetime: {},
+			Int:      {},
+			Float:    {},
+			Decimal:  {},
+			Bool:     {},
+			Time:     {},
+			Date:     {},
+			Datetime: {},
 		},
 		mungeFns: map[Kind]func(interface{}) (interface{}, error){},
 	}
@@ -182,20 +182,20 @@ func (d *Detector) Sample(v interface{}) {
 		d.retain()
 		return
 	case float32, float64:
-		d.retain(KindFloat, KindDecimal)
+		d.retain(Float, Decimal)
 		return
 	case int, int8, int16, int32, int64:
-		d.retain(KindInt, KindFloat, KindDecimal)
+		d.retain(Int, Float, Decimal)
 		return
 	case bool:
-		d.retain(KindBool)
+		d.retain(Bool)
 		return
 	case time.Time:
-		d.retain(KindTime, KindDate, KindDatetime)
+		d.retain(Time, Date, Datetime)
 	case stdj.Number:
 		// JSON number
 		d.foundString = true
-		d.retain(KindDecimal)
+		d.retain(Decimal)
 		return
 	case string:
 		// We need to do more work to figure out the kind when
@@ -214,56 +214,56 @@ func (d *Detector) Sample(v interface{}) {
 
 	var err error
 
-	if d.has(KindDecimal) {
-		// If KindDecimal is still a candidate, check that we can parse it
+	if d.has(Decimal) {
+		// If Decimal is still a candidate, check that we can parse it
 		if _, _, err = big.ParseFloat(s, 10, 64, 0); err != nil {
 			// If s cannot be parsed as a decimal, it also can't
 			// be int or float
-			d.delete(KindDecimal, KindInt, KindFloat)
+			d.delete(Decimal, Int, Float)
 		} else {
 			// s can be parsed as decimal, can't be time
-			d.delete(KindTime, KindDate, KindDatetime)
+			d.delete(Time, Date, Datetime)
 		}
 	}
 
-	if d.has(KindInt) {
+	if d.has(Int) {
 		if _, err = strconv.ParseInt(s, 10, 64); err != nil {
-			d.delete(KindInt)
+			d.delete(Int)
 		} else {
 			// s can be parsed as int, can't be time
-			d.delete(KindTime, KindDate, KindDatetime)
+			d.delete(Time, Date, Datetime)
 		}
 	}
 
-	if d.has(KindFloat) {
+	if d.has(Float) {
 		if _, err = strconv.ParseFloat(s, 64); err != nil {
-			d.delete(KindFloat)
+			d.delete(Float)
 		} else {
 			// s can be parsed as float, can't be time
-			d.delete(KindTime, KindDate, KindDatetime)
+			d.delete(Time, Date, Datetime)
 		}
 	}
 
-	if d.has(KindBool) {
+	if d.has(Bool) {
 		if _, err = stringz.ParseBool(s); err != nil {
-			d.delete(KindBool)
+			d.delete(Bool)
 		} else {
 			// s can be parsed as bool, can't be time,
 			// but still could be int ("1" == true)
-			d.delete(KindFloat, KindTime, KindDate, KindDatetime)
+			d.delete(Float, Time, Date, Datetime)
 		}
 	}
 
-	if d.has(KindTime) {
+	if d.has(Time) {
 		ok, format := detectKindTime(s)
 		if !ok {
 			// It's not a recognized time format
-			d.delete(KindTime)
+			d.delete(Time)
 		} else {
-			// If it's KindTime, it can't be anything else
-			d.retain(KindTime)
+			// If it's kind.Time, it can't be anything else
+			d.retain(Time)
 
-			d.mungeFns[KindTime] = func(val interface{}) (interface{}, error) {
+			d.mungeFns[Time] = func(val interface{}) (interface{}, error) {
 				if val == nil {
 					return nil, nil
 				}
@@ -287,16 +287,16 @@ func (d *Detector) Sample(v interface{}) {
 		}
 	}
 
-	if d.has(KindDate) {
+	if d.has(Date) {
 		ok, format := detectKindDate(s)
 		if !ok {
 			// It's not a recognized date format
-			d.delete(KindDate)
+			d.delete(Date)
 		} else {
-			// If it's KindDate, it can't be anything else
-			d.retain(KindDate)
+			// If it's kind.Date, it can't be anything else
+			d.retain(Date)
 
-			d.mungeFns[KindDate] = func(val interface{}) (interface{}, error) {
+			d.mungeFns[Date] = func(val interface{}) (interface{}, error) {
 				if val == nil {
 					return nil, nil
 				}
@@ -320,18 +320,18 @@ func (d *Detector) Sample(v interface{}) {
 		}
 	}
 
-	if d.has(KindDatetime) {
+	if d.has(Datetime) {
 		ok, format := detectKindDatetime(s)
 		if !ok {
 			// It's not a recognized datetime format
-			d.delete(KindDatetime)
+			d.delete(Datetime)
 		} else {
-			// If it's KindDatetime, it can't be anything else
-			d.retain(KindDatetime)
+			// If it's kind.Datetime, it can't be anything else
+			d.retain(Datetime)
 
-			// This mungeFn differs from KindDate and KindTime in that
+			// This mungeFn differs from kind.Date and kind.Time in that
 			// it returns a time.Time instead of a string
-			d.mungeFns[KindDatetime] = func(val interface{}) (interface{}, error) {
+			d.mungeFns[Datetime] = func(val interface{}) (interface{}, error) {
 				if val == nil {
 					return nil, nil
 				}
@@ -378,32 +378,32 @@ func (d *Detector) Detect() (kind Kind, mungeFn func(interface{}) (interface{}, 
 	default:
 	}
 
-	if d.has(KindTime) {
-		return KindTime, d.mungeFns[KindTime], nil
+	if d.has(Time) {
+		return Time, d.mungeFns[Time], nil
 	}
 
-	if d.has(KindDate) {
-		return KindDate, d.mungeFns[KindDate], nil
+	if d.has(Date) {
+		return Date, d.mungeFns[Date], nil
 	}
 
-	if d.has(KindDatetime) {
-		return KindDatetime, d.mungeFns[KindDatetime], nil
+	if d.has(Datetime) {
+		return Datetime, d.mungeFns[Datetime], nil
 	}
 
-	if d.foundString && d.has(KindDecimal) {
-		return KindDecimal, nil, nil
+	if d.foundString && d.has(Decimal) {
+		return Decimal, nil, nil
 	}
 
-	if d.has(KindInt) {
-		return KindInt, nil, nil
+	if d.has(Int) {
+		return Int, nil, nil
 	}
 
-	if d.has(KindFloat) {
-		return KindFloat, nil, nil
+	if d.has(Float) {
+		return Float, nil, nil
 	}
 
-	if d.has(KindBool) {
-		return KindBool, nil, nil
+	if d.has(Bool) {
+		return Bool, nil, nil
 	}
 
 	return Text, nil, nil

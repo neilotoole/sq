@@ -87,13 +87,13 @@ func (w *recordWriter) Open(recMeta sqlz.RecordMeta) error {
 		switch w.recMeta[i].Kind() {
 		default:
 			w.fieldPrintFns[i] = monoPrint
-		case kind.KindDatetime, kind.KindDate, kind.KindTime:
+		case kind.Datetime, kind.Date, kind.Time:
 			w.fieldPrintFns[i] = w.fm.Datetime.FprintFunc()
-		case kind.KindInt, kind.KindDecimal, kind.KindFloat:
+		case kind.Int, kind.Decimal, kind.Float:
 			w.fieldPrintFns[i] = w.fm.Number.FprintFunc()
-		case kind.KindBool:
+		case kind.Bool:
 			w.fieldPrintFns[i] = w.fm.Bool.FprintFunc()
-		case kind.KindBytes:
+		case kind.Bytes:
 			w.fieldPrintFns[i] = w.fm.Bytes.FprintFunc()
 		case kind.Text:
 			w.fieldPrintFns[i] = w.fm.String.FprintFunc()
@@ -201,9 +201,9 @@ func (w *recordWriter) writeRecord(rec sqlz.Record) error {
 			switch w.recMeta[i].Kind() {
 			default:
 				w.fieldPrintFns[i](w.outBuf, val.Format(stringz.DatetimeFormat))
-			case kind.KindTime:
+			case kind.Time:
 				w.fieldPrintFns[i](w.outBuf, val.Format(stringz.TimeFormat))
-			case kind.KindDate:
+			case kind.Date:
 				w.fieldPrintFns[i](w.outBuf, val.Format(stringz.DateFormat))
 			}
 		}

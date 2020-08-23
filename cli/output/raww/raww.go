@@ -63,9 +63,9 @@ func (w *recordWriter) WriteRecords(recs []sqlz.Record) error {
 				switch w.recMeta[i].Kind() {
 				default:
 					fmt.Fprint(w.out, val.Format(stringz.DatetimeFormat))
-				case kind.KindTime:
+				case kind.Time:
 					fmt.Fprint(w.out, val.Format(stringz.TimeFormat))
-				case kind.KindDate:
+				case kind.Date:
 					fmt.Fprint(w.out, val.Format(stringz.DateFormat))
 				}
 			default:

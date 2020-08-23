@@ -90,9 +90,9 @@ func (w *RecordWriter) WriteRecords(recs []sqlz.Record) error {
 				switch w.recMeta[i].Kind() {
 				default:
 					fields[i] = val.Format(stringz.DatetimeFormat)
-				case kind.KindTime:
+				case kind.Time:
 					fields[i] = val.Format(stringz.TimeFormat)
-				case kind.KindDate:
+				case kind.Date:
 					fields[i] = val.Format(stringz.DateFormat)
 				}
 			}

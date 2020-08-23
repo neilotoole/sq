@@ -16,7 +16,7 @@ import (
 func TestDateTimeHandling(t *testing.T) {
 	var (
 		colNames = []string{"col_datetime", "col_date", "col_time"}
-		kinds    = []kind.Kind{kind.KindDatetime, kind.KindDate, kind.KindTime}
+		kinds    = []kind.Kind{kind.Datetime, kind.Date, kind.Time}
 		when     = time.Unix(0, 0).UTC()
 	)
 	const want = "1970-01-01T00:00:00Z\t1970-01-01\t00:00:00\n"

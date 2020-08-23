@@ -451,7 +451,7 @@ func TestSQLDriver_AlterTableAddColumn(t *testing.T) {
 			// Make a copy of the table to play with
 			tbl := th.CopyTable(true, src, sakila.TblActor, "", true)
 
-			const wantCol, wantKind = "col_int", kind.KindInt
+			const wantCol, wantKind = "col_int", kind.Int
 			wantCols := append(sakila.TblActorCols(), wantCol)
 			wantKinds := append(sakila.TblActorColKinds(), wantKind)
 

@@ -40,9 +40,9 @@ func kindFromDBTypeName(log lg.Log, colName, dbTypeName string) kind.Kind {
 	case "":
 		knd = kind.Unknown
 	case "INTEGER", "INT", "TINYINT", "SMALLINT", "MEDIUMINT", "BIGINT", "YEAR", "BIT":
-		knd = kind.KindInt
+		knd = kind.Int
 	case "DECIMAL", "NUMERIC":
-		knd = kind.KindDecimal
+		knd = kind.Decimal
 	case "CHAR", "VARCHAR", "TEXT", "TINYTEXT", "MEDIUMTEXT", "LONGTEXT":
 		knd = kind.Text
 	case "ENUM", "SET":
@@ -50,18 +50,18 @@ func kindFromDBTypeName(log lg.Log, colName, dbTypeName string) kind.Kind {
 	case "JSON":
 		knd = kind.Text
 	case "VARBINARY", "BINARY", "BLOB", "MEDIUMBLOB", "LONGBLOB", "TINYBLOB":
-		knd = kind.KindBytes
+		knd = kind.Bytes
 	case "DATETIME", "TIMESTAMP":
-		knd = kind.KindDatetime
+		knd = kind.Datetime
 	case "DATE":
-		knd = kind.KindDate
+		knd = kind.Date
 	case "TIME":
-		knd = kind.KindTime
+		knd = kind.Time
 	case "FLOAT", "DOUBLE", "DOUBLE PRECISION", "REAL":
-		knd = kind.KindFloat
+		knd = kind.Float
 	case "BOOL", "BOOLEAN":
 		// In practice these are not returned by the mysql driver.
-		knd = kind.KindBool
+		knd = kind.Bool
 	}
 
 	return knd
@@ -488,7 +488,7 @@ func newInsertMungeFunc(destTbl string, destMeta sqlz.RecordMeta) driver.InsertM
 				}
 
 				// string is non-empty
-				if destMeta[i].Kind() == kind.KindDatetime {
+				if destMeta[i].Kind() == kind.Datetime {
 					// special handling for datetime
 					mungeSetDatetimeFromString(*val, i, rec)
 				}

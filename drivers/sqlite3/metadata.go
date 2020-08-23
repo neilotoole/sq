@@ -74,28 +74,28 @@ func setScanType(log lg.Log, colType *sqlz.ColumnTypeData) {
 		log.Warnf("Unknown kind for col '%s' with database type '%s'", colType.Name, colType.DatabaseTypeName)
 		scanType = sqlz.RTypeBytes
 
-	case kind.Text, kind.KindDecimal:
+	case kind.Text, kind.Decimal:
 		scanType = sqlz.RTypeNullString
 
-	case kind.KindInt:
+	case kind.Int:
 		scanType = sqlz.RTypeNullInt64
 
-	case kind.KindBool:
+	case kind.Bool:
 		scanType = sqlz.RTypeNullBool
 
-	case kind.KindFloat:
+	case kind.Float:
 		scanType = sqlz.RTypeNullFloat64
 
-	case kind.KindBytes:
+	case kind.Bytes:
 		scanType = sqlz.RTypeBytes
 
-	case kind.KindDatetime:
+	case kind.Datetime:
 		scanType = sqlz.RTypeNullTime
 
-	case kind.KindDate:
+	case kind.Date:
 		scanType = sqlz.RTypeNullTime
 
-	case kind.KindTime:
+	case kind.Time:
 		scanType = sqlz.RTypeNullString
 	}
 
@@ -117,17 +117,17 @@ func kindFromDBTypeName(log lg.Log, colName, dbTypeName string, scanType reflect
 			//   3. If the declared type for a column contains the
 			//      string "BLOB" or **if no type is specified** then the
 			//      column has affinity BLOB.
-			return kind.KindBytes
+			return kind.Bytes
 		}
 
 		switch scanType {
 		default:
-			// Default to KindBytes as mentioned above.
-			return kind.KindBytes
+			// Default to kind.Bytes as mentioned above.
+			return kind.Bytes
 		case sqlz.RTypeInt64:
-			return kind.KindInt
+			return kind.Int
 		case sqlz.RTypeFloat64:
-			return kind.KindFloat
+			return kind.Float
 		case sqlz.RTypeString:
 			return kind.Text
 		}
@@ -147,27 +147,27 @@ func kindFromDBTypeName(log lg.Log, colName, dbTypeName string, scanType reflect
 	// Try direct matches against common type names
 	switch dbTypeName {
 	case "INT", "INTEGER", "TINYINT", "SMALLINT", "MEDIUMINT", "BIGINT", "UNSIGNED BIG INT", "INT2", "INT8":
-		knd = kind.KindInt
+		knd = kind.Int
 	case "REAL", "DOUBLE", "DOUBLE PRECISION", "FLOAT":
-		knd = kind.KindFloat
+		knd = kind.Float
 	case "DECIMAL":
-		knd = kind.KindDecimal
+		knd = kind.Decimal
 	case "TEXT", "CHARACTER", "VARCHAR", "VARYING CHARACTER", "NCHAR", "NATIVE CHARACTER", "NVARCHAR", "CLOB":
 		knd = kind.Text
 	case "BLOB":
-		knd = kind.KindBytes
+		knd = kind.Bytes
 	case "DATETIME", "TIMESTAMP":
-		knd = kind.KindDatetime
+		knd = kind.Datetime
 	case "DATE":
-		knd = kind.KindDate
+		knd = kind.Date
 	case "TIME":
-		knd = kind.KindTime
+		knd = kind.Time
 	case "BOOLEAN":
-		knd = kind.KindBool
+		knd = kind.Bool
 	case "NUMERIC":
 		// NUMERIC is problematic. It could be an int, float, big decimal, etc.
-		// KindDecimal is safest as it can accept any numeric value.
-		knd = kind.KindDecimal
+		// kind.Decimal is safest as it can accept any numeric value.
+		knd = kind.Decimal
 	}
 
 	// If we have a match, return now.
@@ -184,45 +184,45 @@ func kindFromDBTypeName(log lg.Log, colName, dbTypeName string, scanType reflect
 		log.Warnf("Unknown SQLite database type name %q for %q: using %q", dbTypeName, colName, kind.Unknown)
 		knd = kind.Unknown
 	case strings.Contains(dbTypeName, "INT"):
-		knd = kind.KindInt
+		knd = kind.Int
 	case strings.Contains(dbTypeName, "TEXT"),
 		strings.Contains(dbTypeName, "CHAR"),
 		strings.Contains(dbTypeName, "CLOB"):
 		knd = kind.Text
 	case strings.Contains(dbTypeName, "BLOB"):
-		knd = kind.KindBytes
+		knd = kind.Bytes
 	case strings.Contains(dbTypeName, "REAL"),
 		strings.Contains(dbTypeName, "FLOA"),
 		strings.Contains(dbTypeName, "DOUB"):
-		knd = kind.KindFloat
+		knd = kind.Float
 	}
 
 	return knd
 }
 
 // DBTypeForKind returns the database type for kind.
-// For example: KindInt --> INTEGER
+// For example: Int --> INTEGER
 func DBTypeForKind(knd kind.Kind) string {
 	switch knd {
 	default:
 		panic(fmt.Sprintf("unknown kind %q", knd))
 	case kind.Text, kind.Null, kind.Unknown:
 		return "TEXT"
-	case kind.KindInt:
+	case kind.Int:
 		return "INTEGER"
-	case kind.KindFloat:
+	case kind.Float:
 		return "REAL"
-	case kind.KindBytes:
+	case kind.Bytes:
 		return "BLOB"
-	case kind.KindDecimal:
+	case kind.Decimal:
 		return "NUMERIC"
-	case kind.KindBool:
+	case kind.Bool:
 		return "BOOLEAN"
-	case kind.KindDatetime:
+	case kind.Datetime:
 		return "DATETIME"
-	case kind.KindDate:
+	case kind.Date:
 		return "DATE"
-	case kind.KindTime:
+	case kind.Time:
 		return "TIME"
 	}
 }

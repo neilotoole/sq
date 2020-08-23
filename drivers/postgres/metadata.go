@@ -32,27 +32,27 @@ func kindFromDBTypeName(log lg.Log, colName, dbTypeName string) kind.Kind {
 	case "":
 		knd = kind.Unknown
 	case "INT", "INTEGER", "INT2", "INT4", "INT8", "SMALLINT", "BIGINT":
-		knd = kind.KindInt
+		knd = kind.Int
 	case "CHAR", "CHARACTER", "VARCHAR", "TEXT", "BPCHAR", "CHARACTER VARYING":
 		knd = kind.Text
 	case "BYTEA":
-		knd = kind.KindBytes
+		knd = kind.Bytes
 	case "BOOL", "BOOLEAN":
-		knd = kind.KindBool
+		knd = kind.Bool
 	case "TIMESTAMP", "TIMESTAMPTZ", "TIMESTAMP WITHOUT TIME ZONE":
-		knd = kind.KindDatetime
+		knd = kind.Datetime
 	case "TIME", "TIMETZ", "TIME WITHOUT TIME ZONE":
-		knd = kind.KindTime
+		knd = kind.Time
 	case "DATE":
-		knd = kind.KindDate
+		knd = kind.Date
 	case "INTERVAL": // interval meaning time duration
 		knd = kind.Text
 	case "FLOAT", "FLOAT4", "FLOAT8", "DOUBLE", "DOUBLE PRECISION":
-		knd = kind.KindFloat
+		knd = kind.Float
 	case "UUID":
 		knd = kind.Text
 	case "DECIMAL", "NUMERIC", "MONEY":
-		knd = kind.KindDecimal
+		knd = kind.Decimal
 	case "JSON", "JSONB":
 		knd = kind.Text
 	case "BIT", "VARBIT":
@@ -79,7 +79,7 @@ func kindFromDBTypeName(log lg.Log, colName, dbTypeName string) kind.Kind {
 
 // setScanType ensures that ctd's scan type field is set appropriately.
 func setScanType(log lg.Log, ctd *sqlz.ColumnTypeData, knd kind.Kind) {
-	if knd == kind.KindDecimal {
+	if knd == kind.Decimal {
 		// Force the use of string for decimal, as the driver will
 		// sometimes prefer float.
 		ctd.ScanType = sqlz.RTypeNullString

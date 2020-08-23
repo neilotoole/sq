@@ -91,9 +91,9 @@ func (w *recordWriter) WriteRecords(recs []sqlz.Record) error {
 				switch w.recMeta[i].Kind() {
 				default:
 					cell.SetDateTime(*val)
-				case kind.KindDate:
+				case kind.Date:
 					cell.SetDate(*val)
-				case kind.KindTime:
+				case kind.Time:
 					// TODO: Maybe there's a way of setting a specific
 					//  time (as opposed to date or datetime) value, but
 					//  for now we just use a string.

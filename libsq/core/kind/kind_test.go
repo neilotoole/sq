@@ -13,17 +13,17 @@ import (
 
 func TestKind(t *testing.T) {
 	testCases := map[kind.Kind]string{
-		kind.Unknown:      "unknown",
-		kind.Null:         "null",
-		kind.Text:         "text",
-		kind.KindInt:      "int",
-		kind.KindFloat:    "float",
-		kind.KindDecimal:  "decimal",
-		kind.KindBool:     "bool",
-		kind.KindDatetime: "datetime",
-		kind.KindDate:     "date",
-		kind.KindTime:     "time",
-		kind.KindBytes:    "bytes",
+		kind.Unknown:  "unknown",
+		kind.Null:     "null",
+		kind.Text:     "text",
+		kind.Int:      "int",
+		kind.Float:    "float",
+		kind.Decimal:  "decimal",
+		kind.Bool:     "bool",
+		kind.Datetime: "datetime",
+		kind.Date:     "date",
+		kind.Time:     "time",
+		kind.Bytes:    "bytes",
 	}
 
 	for knd, testText := range testCases {
@@ -56,9 +56,9 @@ func TestKind(t *testing.T) {
 	require.Error(t, err)
 	require.Nil(t, bytes)
 
-	d = kind.KindBytes // pick any valid type
+	d = kind.Bytes // pick any valid type
 	require.Error(t, d.UnmarshalText([]byte("invalid_text")))
-	require.Equal(t, kind.KindBytes, d, "d should not be mutated on UnmarshalText err")
+	require.Equal(t, kind.Bytes, d, "d should not be mutated on UnmarshalText err")
 }
 
 func TestKindDetector(t *testing.T) {
@@ -93,40 +93,40 @@ func TestKindDetector(t *testing.T) {
 		{in: []interface{}{""}, want: kind.Text},
 		{in: []interface{}{nil}, want: kind.Text},
 		{in: []interface{}{nil, ""}, want: kind.Text},
-		{in: []interface{}{int(1), int8(8), int16(16), int32(32), int64(64)}, want: kind.KindInt},
-		{in: []interface{}{1, "2", "3"}, want: kind.KindDecimal},
-		{in: []interface{}{"99999999999999999999999999999999999999999999999999999999"}, want: kind.KindDecimal},
+		{in: []interface{}{int(1), int8(8), int16(16), int32(32), int64(64)}, want: kind.Int},
+		{in: []interface{}{1, "2", "3"}, want: kind.Decimal},
+		{in: []interface{}{"99999999999999999999999999999999999999999999999999999999"}, want: kind.Decimal},
 		{in: []interface{}{"99999999999999999999999999999999999999999999999999999999xxx"}, want: kind.Text},
-		{in: []interface{}{1, "2", stdj.Number("1000")}, want: kind.KindDecimal},
-		{in: []interface{}{1.0, "2.0"}, want: kind.KindDecimal},
-		{in: []interface{}{1, float64(2.0), float32(7.7), int32(3)}, want: kind.KindFloat},
+		{in: []interface{}{1, "2", stdj.Number("1000")}, want: kind.Decimal},
+		{in: []interface{}{1.0, "2.0"}, want: kind.Decimal},
+		{in: []interface{}{1, float64(2.0), float32(7.7), int32(3)}, want: kind.Float},
 		{in: []interface{}{nil, nil, nil}, want: kind.Text},
-		{in: []interface{}{"1.0", "2.0", "3.0", "4", nil, int64(6)}, want: kind.KindDecimal},
-		{in: []interface{}{true, false, nil, "true", "false", "yes", "no", ""}, want: kind.KindBool},
-		{in: []interface{}{"0", "1"}, want: kind.KindDecimal},
-		{in: []interface{}{fixtTime1, nil, ""}, want: kind.KindTime, wantMunge: true},
-		{in: []interface{}{fixtTime2}, want: kind.KindTime, wantMunge: true},
-		{in: []interface{}{fixtTime3}, want: kind.KindTime, wantMunge: true},
-		{in: []interface{}{fixtTime4}, want: kind.KindTime, wantMunge: true},
-		{in: []interface{}{fixtDate1, nil, ""}, want: kind.KindDate, wantMunge: true},
-		{in: []interface{}{fixtDate2}, want: kind.KindDate, wantMunge: true},
-		{in: []interface{}{fixtDate3}, want: kind.KindDate, wantMunge: true},
-		{in: []interface{}{fixtDate4}, want: kind.KindDate, wantMunge: true},
-		{in: []interface{}{fixtDatetime1, nil, ""}, want: kind.KindDatetime, wantMunge: true},
-		{in: []interface{}{fixtDatetime2}, want: kind.KindDatetime, wantMunge: true},
-		{in: []interface{}{fixtDatetimeAnsic}, want: kind.KindDatetime, wantMunge: true},
-		{in: []interface{}{fixtDatetimeUnix}, want: kind.KindDatetime, wantMunge: true},
-		{in: []interface{}{time.RubyDate}, want: kind.KindDatetime, wantMunge: true},
-		{in: []interface{}{time.RFC822}, want: kind.KindDatetime, wantMunge: true},
-		{in: []interface{}{time.RFC822Z}, want: kind.KindDatetime, wantMunge: true},
-		{in: []interface{}{time.RFC850}, want: kind.KindDatetime, wantMunge: true},
-		{in: []interface{}{time.RFC1123}, want: kind.KindDatetime, wantMunge: true},
-		{in: []interface{}{time.RFC1123Z}, want: kind.KindDatetime, wantMunge: true},
-		{in: []interface{}{fixtDatetimeRFC3339}, want: kind.KindDatetime, wantMunge: true},
-		{in: []interface{}{fixtDatetimeStamp}, want: kind.KindDatetime, wantMunge: true},
-		{in: []interface{}{fixtDatetimeStampMilli}, want: kind.KindDatetime, wantMunge: true},
-		{in: []interface{}{fixtDatetimeStampMicro}, want: kind.KindDatetime, wantMunge: true},
-		{in: []interface{}{fixtDatetimeStampNano}, want: kind.KindDatetime, wantMunge: true},
+		{in: []interface{}{"1.0", "2.0", "3.0", "4", nil, int64(6)}, want: kind.Decimal},
+		{in: []interface{}{true, false, nil, "true", "false", "yes", "no", ""}, want: kind.Bool},
+		{in: []interface{}{"0", "1"}, want: kind.Decimal},
+		{in: []interface{}{fixtTime1, nil, ""}, want: kind.Time, wantMunge: true},
+		{in: []interface{}{fixtTime2}, want: kind.Time, wantMunge: true},
+		{in: []interface{}{fixtTime3}, want: kind.Time, wantMunge: true},
+		{in: []interface{}{fixtTime4}, want: kind.Time, wantMunge: true},
+		{in: []interface{}{fixtDate1, nil, ""}, want: kind.Date, wantMunge: true},
+		{in: []interface{}{fixtDate2}, want: kind.Date, wantMunge: true},
+		{in: []interface{}{fixtDate3}, want: kind.Date, wantMunge: true},
+		{in: []interface{}{fixtDate4}, want: kind.Date, wantMunge: true},
+		{in: []interface{}{fixtDatetime1, nil, ""}, want: kind.Datetime, wantMunge: true},
+		{in: []interface{}{fixtDatetime2}, want: kind.Datetime, wantMunge: true},
+		{in: []interface{}{fixtDatetimeAnsic}, want: kind.Datetime, wantMunge: true},
+		{in: []interface{}{fixtDatetimeUnix}, want: kind.Datetime, wantMunge: true},
+		{in: []interface{}{time.RubyDate}, want: kind.Datetime, wantMunge: true},
+		{in: []interface{}{time.RFC822}, want: kind.Datetime, wantMunge: true},
+		{in: []interface{}{time.RFC822Z}, want: kind.Datetime, wantMunge: true},
+		{in: []interface{}{time.RFC850}, want: kind.Datetime, wantMunge: true},
+		{in: []interface{}{time.RFC1123}, want: kind.Datetime, wantMunge: true},
+		{in: []interface{}{time.RFC1123Z}, want: kind.Datetime, wantMunge: true},
+		{in: []interface{}{fixtDatetimeRFC3339}, want: kind.Datetime, wantMunge: true},
+		{in: []interface{}{fixtDatetimeStamp}, want: kind.Datetime, wantMunge: true},
+		{in: []interface{}{fixtDatetimeStampMilli}, want: kind.Datetime, wantMunge: true},
+		{in: []interface{}{fixtDatetimeStampMicro}, want: kind.Datetime, wantMunge: true},
+		{in: []interface{}{fixtDatetimeStampNano}, want: kind.Datetime, wantMunge: true},
 	}
 
 	for i, tc := range testCases {

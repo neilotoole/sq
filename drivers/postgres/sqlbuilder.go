@@ -31,21 +31,21 @@ func dbTypeNameFromKind(knd kind.Kind) string {
 		return "TEXT"
 	case kind.Text:
 		return "TEXT"
-	case kind.KindInt:
+	case kind.Int:
 		return "BIGINT"
-	case kind.KindFloat:
+	case kind.Float:
 		return "DOUBLE PRECISION"
-	case kind.KindDecimal:
+	case kind.Decimal:
 		return "DECIMAL"
-	case kind.KindBool:
+	case kind.Bool:
 		return "BOOLEAN"
-	case kind.KindDatetime:
+	case kind.Datetime:
 		return "TIMESTAMP"
-	case kind.KindTime:
+	case kind.Time:
 		return "TIME"
-	case kind.KindDate:
+	case kind.Date:
 		return "DATE"
-	case kind.KindBytes:
+	case kind.Bytes:
 		return "BYTEA"
 	}
 }
@@ -53,16 +53,16 @@ func dbTypeNameFromKind(knd kind.Kind) string {
 // createTblKindDefaults is a map of Kind to the value
 // to use for a column's DEFAULT clause in a CREATE TABLE statement.
 var createTblKindDefaults = map[kind.Kind]string{
-	kind.Text:         `DEFAULT ''`,
-	kind.KindInt:      `DEFAULT 0`,
-	kind.KindFloat:    `DEFAULT 0`,
-	kind.KindDecimal:  `DEFAULT 0`,
-	kind.KindBool:     `DEFAULT false`,
-	kind.KindDatetime: "DEFAULT 'epoch'::timestamp",
-	kind.KindDate:     "DEFAULT 'epoch'::date",
-	kind.KindTime:     "DEFAULT '00:00:00'::time",
-	kind.KindBytes:    "DEFAULT ''::bytea",
-	kind.Unknown:      `DEFAULT ''`,
+	kind.Text:     `DEFAULT ''`,
+	kind.Int:      `DEFAULT 0`,
+	kind.Float:    `DEFAULT 0`,
+	kind.Decimal:  `DEFAULT 0`,
+	kind.Bool:     `DEFAULT false`,
+	kind.Datetime: "DEFAULT 'epoch'::timestamp",
+	kind.Date:     "DEFAULT 'epoch'::date",
+	kind.Time:     "DEFAULT '00:00:00'::time",
+	kind.Bytes:    "DEFAULT ''::bytea",
+	kind.Unknown:  `DEFAULT ''`,
 }
 
 // buildCreateTableStmt builds a CREATE TABLE statement from tblDef.

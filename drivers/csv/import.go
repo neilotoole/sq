@@ -264,9 +264,9 @@ func newCandidateFieldKinds(n int) [][]kind.Kind {
 	kinds := make([][]kind.Kind, n)
 	for i := range kinds {
 		k := []kind.Kind{
-			kind.KindInt,
-			kind.KindBool,
-			kind.KindDecimal,
+			kind.Int,
+			kind.Bool,
+			kind.Decimal,
 		}
 		kinds[i] = k
 	}
@@ -290,13 +290,13 @@ func excludeFieldKinds(fieldCandidateKinds []kind.Kind, fieldVal string) []kind.
 		var err error
 
 		switch knd {
-		case kind.KindInt:
+		case kind.Int:
 			_, err = strconv.Atoi(fieldVal)
 
-		case kind.KindBool:
+		case kind.Bool:
 			_, err = strconv.ParseBool(fieldVal)
 
-		case kind.KindDecimal:
+		case kind.Decimal:
 			_, err = decimal.NewFromString(fieldVal)
 		default:
 		}

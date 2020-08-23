@@ -233,11 +233,11 @@ func getFieldEncoders(recMeta sqlz.RecordMeta, fm *output.Formatting) []func(b [
 
 		for i := 0; i < len(recMeta); i++ {
 			switch recMeta[i].Kind() {
-			case kind.KindTime:
+			case kind.Time:
 				encodeFns[i] = enc.encodeTime
-			case kind.KindDate:
+			case kind.Date:
 				encodeFns[i] = enc.encodeDate
-			case kind.KindDatetime:
+			case kind.Datetime:
 				encodeFns[i] = enc.encodeDatetime
 			default:
 				encodeFns[i] = enc.encodeAny
@@ -253,11 +253,11 @@ func getFieldEncoders(recMeta sqlz.RecordMeta, fm *output.Formatting) []func(b [
 	enc := &colorEncoder{clrs: clrs}
 	for i := 0; i < len(recMeta); i++ {
 		switch recMeta[i].Kind() {
-		case kind.KindTime:
+		case kind.Time:
 			encodeFns[i] = enc.encodeTime
-		case kind.KindDate:
+		case kind.Date:
 			encodeFns[i] = enc.encodeDate
-		case kind.KindDatetime:
+		case kind.Datetime:
 			encodeFns[i] = enc.encodeDatetime
 		default:
 			encodeFns[i] = enc.encodeAny

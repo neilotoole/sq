@@ -79,12 +79,12 @@ func Test_predictColKinds(t *testing.T) {
 				{"3", "true", "", "7.7"},
 				{"", "", "", ""},
 			},
-			wantKinds: []kind.Kind{kind.KindInt, kind.KindBool, kind.Text, kind.KindDecimal},
+			wantKinds: []kind.Kind{kind.Int, kind.Bool, kind.Text, kind.Decimal},
 		},
 		{
 			readAheadInput: [][]string{},
 			readerInput:    "1,true,hello,0.0\n2,false,world,1\n3,true,,7.7\n,,,",
-			wantKinds:      []kind.Kind{kind.KindInt, kind.KindBool, kind.Text, kind.KindDecimal},
+			wantKinds:      []kind.Kind{kind.Int, kind.Bool, kind.Text, kind.Decimal},
 		},
 	}
 

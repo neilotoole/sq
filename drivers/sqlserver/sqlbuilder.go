@@ -92,21 +92,21 @@ func dbTypeNameFromKind(knd kind.Kind) string {
 		return "NVARCHAR(MAX)"
 	case kind.Text:
 		return "NVARCHAR(MAX)"
-	case kind.KindInt:
+	case kind.Int:
 		return "BIGINT"
-	case kind.KindFloat:
+	case kind.Float:
 		return "FLOAT"
-	case kind.KindDecimal:
+	case kind.Decimal:
 		return "DECIMAL"
-	case kind.KindBool:
+	case kind.Bool:
 		return "BIT"
-	case kind.KindDatetime:
+	case kind.Datetime:
 		return "DATETIME"
-	case kind.KindTime:
+	case kind.Time:
 		return "TIME"
-	case kind.KindDate:
+	case kind.Date:
 		return "DATE"
-	case kind.KindBytes:
+	case kind.Bytes:
 		return "VARBINARY(MAX)"
 	}
 }
@@ -114,16 +114,16 @@ func dbTypeNameFromKind(knd kind.Kind) string {
 // createTblKindDefaults is a map of Kind to the value
 // to use for a column's DEFAULT clause in a CREATE TABLE statement.
 var createTblKindDefaults = map[kind.Kind]string{
-	kind.Text:         `DEFAULT ''`,
-	kind.KindInt:      `DEFAULT 0`,
-	kind.KindFloat:    `DEFAULT 0`,
-	kind.KindDecimal:  `DEFAULT 0`,
-	kind.KindBool:     `DEFAULT 0`,
-	kind.KindDatetime: `DEFAULT '1970-01-01T00:00:00'`,
-	kind.KindDate:     `DEFAULT '1970-01-01'`,
-	kind.KindTime:     `DEFAULT '00:00:00'`,
-	kind.KindBytes:    `DEFAULT 0x`,
-	kind.Unknown:      `DEFAULT ''`,
+	kind.Text:     `DEFAULT ''`,
+	kind.Int:      `DEFAULT 0`,
+	kind.Float:    `DEFAULT 0`,
+	kind.Decimal:  `DEFAULT 0`,
+	kind.Bool:     `DEFAULT 0`,
+	kind.Datetime: `DEFAULT '1970-01-01T00:00:00'`,
+	kind.Date:     `DEFAULT '1970-01-01'`,
+	kind.Time:     `DEFAULT '00:00:00'`,
+	kind.Bytes:    `DEFAULT 0x`,
+	kind.Unknown:  `DEFAULT ''`,
 }
 
 // buildCreateTableStmt builds a CREATE TABLE statement from tblDef.

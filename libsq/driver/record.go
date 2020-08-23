@@ -158,7 +158,7 @@ func NewRecordFromScanRow(meta sqlz.RecordMeta, row []interface{}, skip []int) (
 				continue
 			}
 
-			if meta[i].Kind() != kind.KindBytes {
+			if meta[i].Kind() != kind.Bytes {
 				// We only want to use []byte for KindByte. Otherwise
 				// switch to a string.
 				s := string(*col)
@@ -203,7 +203,7 @@ func NewRecordFromScanRow(meta sqlz.RecordMeta, row []interface{}, skip []int) (
 			// If RawBytes is of length zero, there's no
 			// need to copy.
 			if len(*col) == 0 {
-				if knd == kind.KindBytes {
+				if knd == kind.Bytes {
 					var v = []byte{}
 					rec[i] = &v
 				} else {
@@ -218,7 +218,7 @@ func NewRecordFromScanRow(meta sqlz.RecordMeta, row []interface{}, skip []int) (
 			dest := make([]byte, len(*col))
 			copy(dest, *col)
 
-			if knd == kind.KindBytes {
+			if knd == kind.Bytes {
 				rec[i] = &dest
 			} else {
 				str := string(dest)
@@ -293,7 +293,7 @@ func NewRecordFromScanRow(meta sqlz.RecordMeta, row []interface{}, skip []int) (
 			rec[i] = &v
 		}
 
-		if rec[i] != nil && meta[i].Kind() == kind.KindDecimal {
+		if rec[i] != nil && meta[i].Kind() == kind.Decimal {
 			// Drivers use varying types for numeric/money/decimal.
 			// We want to standardize on string.
 			switch col := rec[i].(type) {

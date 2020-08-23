@@ -80,7 +80,7 @@ func TestRecordWriterAdapter_FlushAfterN(t *testing.T) {
 	}
 	// Get some recMeta to feed to RecordWriter.Open.
 	// In this case, the field is "actor_id", which is an int.
-	recMeta := testh.NewRecordMeta([]string{"col_int"}, []kind.Kind{kind.KindInt})
+	recMeta := testh.NewRecordMeta([]string{"col_int"}, []kind.Kind{kind.Int})
 
 	for flushAfterN, wantFlushed := range testCases {
 		flushAfterN, wantFlushed := flushAfterN, wantFlushed
@@ -133,7 +133,7 @@ func TestRecordWriterAdapter_FlushAfterDuration(t *testing.T) {
 
 	// Get some recMeta to feed to RecordWriter.Open.
 	// In this case, the field is "actor_id", which is an int.
-	recMeta := testh.NewRecordMeta([]string{"col_int"}, []kind.Kind{kind.KindInt})
+	recMeta := testh.NewRecordMeta([]string{"col_int"}, []kind.Kind{kind.Int})
 
 	for _, tc := range testCases {
 		tc := tc

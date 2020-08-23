@@ -277,29 +277,29 @@ func getKindsFromCells(cells []*xlsx.Cell) []kind.Kind {
 		typ := cell.Type()
 		switch typ {
 		case xlsx.CellTypeBool:
-			vals[i] = kind.KindBool
+			vals[i] = kind.Bool
 		case xlsx.CellTypeNumeric:
 			if cell.IsTime() {
-				vals[i] = kind.KindDatetime
+				vals[i] = kind.Datetime
 				continue
 			}
 
 			_, err := cell.Int64()
 			if err == nil {
-				vals[i] = kind.KindInt
+				vals[i] = kind.Int
 				continue
 			}
 			_, err = cell.Float()
 			if err == nil {
-				vals[i] = kind.KindFloat
+				vals[i] = kind.Float
 				continue
 			}
 			// it's not an int, it's not a float
-			vals[i] = kind.KindDecimal
+			vals[i] = kind.Decimal
 
 		case xlsx.CellTypeDate:
 			// TODO: support time values here?
-			vals[i] = kind.KindDatetime
+			vals[i] = kind.Datetime
 
 		default:
 			vals[i] = kind.Text

@@ -54,13 +54,13 @@ func (t *table) renderResultCell(knd kind.Kind, val interface{}) string {
 		// values of kind.Time as a string.
 
 		switch knd {
-		case kind.KindDatetime, kind.KindDate, kind.KindTime:
+		case kind.Datetime, kind.Date, kind.Time:
 			return t.fm.Datetime.Sprint(*val)
-		case kind.KindDecimal, kind.KindFloat, kind.KindInt:
+		case kind.Decimal, kind.Float, kind.Int:
 			return t.fm.Number.Sprint(*val)
-		case kind.KindBool:
+		case kind.Bool:
 			return t.fm.Bool.Sprint(*val)
-		case kind.KindBytes:
+		case kind.Bytes:
 			return t.sprintBytes([]byte(*val))
 		case kind.Text:
 			return t.fm.String.Sprint(*val)
@@ -162,9 +162,9 @@ func (t *table) renderResultCell(knd kind.Kind, val interface{}) string {
 		switch knd {
 		default:
 			s = val.Format(stringz.DatetimeFormat)
-		case kind.KindTime:
+		case kind.Time:
 			s = val.Format(stringz.TimeFormat)
-		case kind.KindDate:
+		case kind.Date:
 			s = val.Format(stringz.DateFormat)
 		}
 

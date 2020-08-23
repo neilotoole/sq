@@ -20,16 +20,16 @@ func newFragmentBuilder(log lg.Log) *sqlbuilder.BaseFragmentBuilder {
 // createTblKindDefaults is a mapping of Kind to the value
 // to use for a column's DEFAULT clause in a CREATE TABLE statement.
 var createTblKindDefaults = map[kind.Kind]string{
-	kind.Text:         `DEFAULT ''`,
-	kind.KindInt:      `DEFAULT 0`,
-	kind.KindFloat:    `DEFAULT 0`,
-	kind.KindDecimal:  `DEFAULT 0`,
-	kind.KindBool:     `DEFAULT 0`,
-	kind.KindDatetime: "DEFAULT '1970-01-01T00:00:00'",
-	kind.KindDate:     "DEFAULT '1970-01-01'",
-	kind.KindTime:     "DEFAULT '00:00'",
-	kind.KindBytes:    "DEFAULT ''",
-	kind.Unknown:      `DEFAULT ''`,
+	kind.Text:     `DEFAULT ''`,
+	kind.Int:      `DEFAULT 0`,
+	kind.Float:    `DEFAULT 0`,
+	kind.Decimal:  `DEFAULT 0`,
+	kind.Bool:     `DEFAULT 0`,
+	kind.Datetime: "DEFAULT '1970-01-01T00:00:00'",
+	kind.Date:     "DEFAULT '1970-01-01'",
+	kind.Time:     "DEFAULT '00:00'",
+	kind.Bytes:    "DEFAULT ''",
+	kind.Unknown:  `DEFAULT ''`,
 }
 
 func buildCreateTableStmt(tblDef *sqlmodel.TableDef) (string, error) {
