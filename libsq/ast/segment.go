@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/antlr/antlr4/runtime/Go/antlr"
-	"github.com/neilotoole/sq/libsq/ast/slq"
+	"github.com/neilotoole/sq/libsq/ast/internal/slq"
 )
 
 var _ Node = (*Segment)(nil)

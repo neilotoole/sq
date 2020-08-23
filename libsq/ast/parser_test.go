@@ -8,7 +8,7 @@ import (
 
 	"github.com/neilotoole/lg/testlg"
 
-	"github.com/neilotoole/sq/libsq/ast/slq"
+	"github.com/neilotoole/sq/libsq/ast/internal/slq"
 )
 
 const (
