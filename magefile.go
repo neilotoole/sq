@@ -186,15 +186,15 @@ func updateParserFiles(genDir string) error {
 		return err
 	}
 
-	log.Println("Deleting previous generated files from libsq/slq")
+	log.Println("Deleting previous generated files from libsq/ast/slq")
 
-	err = rmAll("libsq/slq/*.go", "libsq/slq/*.token", "libsq/slq/*.interp")
+	err = rmAll("libsq/ast/slq/*.go", "libsq/ast/slq/*.token", "libsq/ast/slq/*.interp")
 	if err != nil {
 		return err
 	}
 
 	log.Println("Copying generated files to libsq/slq")
-	err = copyFilesToDir("libsq/slq", filepath.Join(genDir, "*"))
+	err = copyFilesToDir("libsq/ast/slq", filepath.Join(genDir, "*"))
 	if err != nil {
 		return err
 	}

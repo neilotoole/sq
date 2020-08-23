@@ -8,8 +8,9 @@ import (
 	"github.com/antlr/antlr4/runtime/Go/antlr"
 
 	"github.com/neilotoole/lg"
+
+	"github.com/neilotoole/sq/libsq/ast/slq"
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/slq"
 )
 
 // Parse parses the SLQ input string and builds the AST.

@@ -5,7 +5,7 @@ import (
 
 	"github.com/antlr/antlr4/runtime/Go/antlr"
 
-	"github.com/neilotoole/sq/libsq/slq"
+	"github.com/neilotoole/sq/libsq/ast/slq"
 )
 
 const msgNodeNoAddChild = "%T cannot add children: failed to add %T"

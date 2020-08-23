@@ -1,6 +1,6 @@
 package ast
 
-import "github.com/neilotoole/sq/libsq/slq"
+import "github.com/neilotoole/sq/libsq/ast/slq"
 
 // RowRange models a range, effectively {OFFSET,LIMIT}.
 type RowRange struct {
