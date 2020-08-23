@@ -1,4 +1,4 @@
-// Code generated from /Users/neilotoole/work/moi/go/src/github.com/neilotoole/sq/grammar/SLQ.g4 by ANTLR 4.7.2. DO NOT EDIT.
+// Code generated from /Users/neilotoole/work/sq/sq/grammar/SLQ.g4 by ANTLR 4.7.2. DO NOT EDIT.
 
 package slq
 

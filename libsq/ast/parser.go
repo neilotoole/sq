@@ -2,14 +2,13 @@ package ast
 
 import (
 	"fmt"
-	"strings"
-
 	"strconv"
+	"strings"
 
 	"github.com/antlr/antlr4/runtime/Go/antlr"
 	"github.com/neilotoole/lg"
 
-	"github.com/neilotoole/sq/libsq/slq"
+	"github.com/neilotoole/sq/libsq/ast/internal/slq"
 )
 
 // parseSLQ processes SLQ input text according to the rules of the SQL grammar,
