@@ -2,20 +2,37 @@ package json
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/testh/sakila"
 )
 
 func TestPredictColKindsJSONA(t *testing.T) {
-	f, err := os.Open("testdata/actor.jsona")
-	require.NoError(t, err)
-	t.Cleanup(func() { require.NoError(t, f.Close()) })
+	testCases := []struct {
+		tbl       string
+		wantKinds []kind.Kind
+	}{
+		{tbl: sakila.TblActor, wantKinds: sakila.TblActorColKinds()},
+		{tbl: sakila.TblFilmActor, wantKinds: sakila.TblFilmActorColKinds()},
+		{tbl: sakila.TblPayment, wantKinds: sakila.TblPaymentColKinds()},
+	}
 
-	kinds, err := predictColKindsJSONA(context.Background(), f)
-	require.NoError(t, err)
-	require.Equal(t, sakila.TblActorColKinds(), kinds)
+	for _, tc := range testCases {
+		tc := tc
+
+		t.Run(tc.tbl, func(t *testing.T) {
+			f, err := os.Open(fmt.Sprintf("testdata/%s.jsona", tc.tbl))
+			require.NoError(t, err)
+			t.Cleanup(func() { require.NoError(t, f.Close()) })
+
+			kinds, _, err := predictColKindsJSONA(context.Background(), f)
+			require.NoError(t, err)
+			require.Equal(t, tc.wantKinds, kinds)
+		})
+	}
 }

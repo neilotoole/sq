@@ -7,6 +7,7 @@ import (
 
 	"github.com/neilotoole/sq/libsq"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 
 	"github.com/spf13/cobra"
@@ -140,7 +141,7 @@ func execSQLInsert(rc *RunContext, fromSrc, destSrc *source.Source, destTbl stri
 	// is invoked by rc.Close, and rc is closed further up the
 	// stack.
 
-	inserter := libsq.NewDBWriter(rc.Log, destDB, destTbl, libsq.DefaultRecordChSize)
+	inserter := libsq.NewDBWriter(rc.Log, destDB, destTbl, driver.Tuning.RecordChSize)
 	err = libsq.QuerySQL(ctx, rc.Log, fromDB, inserter, args[0])
 	if err != nil {
 		return errz.Wrapf(err, "insert %s.%s failed", destSrc.Handle, destTbl)

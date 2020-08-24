@@ -224,7 +224,7 @@ func execJoinCopyTasks(ctx context.Context, log lg.Log, joinDB driver.Database, 
 
 // execCopyTable performs the work of copying fromDB.fromTblName to destDB.destTblName.
 func execCopyTable(ctx context.Context, log lg.Log, fromDB driver.Database, fromTblName string, destDB driver.Database, destTblName string) error {
-	inserter := NewDBWriter(log, destDB, destTblName, DefaultRecordChSize)
+	inserter := NewDBWriter(log, destDB, destTblName, driver.Tuning.RecordChSize)
 
 	// the preInsertHook creates the dest table to copy into
 	inserter.preWriteHook = func(ctx context.Context, originRecMeta sqlz.RecordMeta, tx sqlz.DB) error {

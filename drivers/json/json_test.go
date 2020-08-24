@@ -31,8 +31,14 @@ func TestTypeDetectorFuncs(t *testing.T) {
 		{fn: json.TypeJSONA, f: "actor.jsona", want: json.TypeJSONA},
 		{fn: json.TypeJSONA, f: "jsona_bad_1.jsona"},
 		{fn: json.TypeJSONA, f: "jsona_good_1.jsona", want: json.TypeJSONA},
+		{fn: json.TypeJSONA, f: "film_actor.jsona", want: json.TypeJSONA},
+		{fn: json.TypeJSONA, f: "payment.jsona", want: json.TypeJSONA},
 		{fn: json.TypeJSONA, f: "actor.json"},
 		{fn: json.TypeJSONA, f: "actor.jsonl"},
+		{fn: json.TypeJSONA, f: "film_actor.json"},
+		{fn: json.TypeJSONA, f: "film_actor.jsonl"},
+		{fn: json.TypeJSONA, f: "payment.json"},
+		{fn: json.TypeJSONA, f: "payment.jsonl"},
 	}
 
 	for _, tc := range testCases {

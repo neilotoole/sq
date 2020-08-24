@@ -106,7 +106,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database
 		return nil, err
 	}
 
-	err = importJSONL(ctx, d.log, src, d.files.OpenFunc(src), dbase.impl)
+	err = d.importFn(ctx, d.log, src, d.files.OpenFunc(src), dbase.impl)
 	if err != nil {
 		d.log.WarnIfCloseError(r)
 		d.log.WarnIfFuncError(dbase.clnup.Run)
@@ -226,10 +226,6 @@ var (
 	_ source.TypeDetectFunc = DetectJSONL
 )
 
-// sampleLines is the number items to sample to determine
-// type.
-const sampleSize = 100
-
 // DetectJSON implements source.TypeDetectFunc.
 func DetectJSON(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (detected source.Type, score float32, err error) {
 	log.Warn("not implemented")
@@ -289,7 +285,7 @@ func DetectJSONA(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (d
 		}
 
 		validLines++
-		if validLines >= sampleSize {
+		if validLines >= driver.Tuning.SampleSize {
 			break
 		}
 	}

@@ -22,7 +22,6 @@ import (
 )
 
 const (
-	insertChSize        = 1000
 	readAheadBufferSize = 100
 )
 
@@ -86,7 +85,7 @@ func importCSV(ctx context.Context, log lg.Log, src *source.Source, openFn sourc
 		return err
 	}
 
-	insertWriter := libsq.NewDBWriter(log, scratchDB, tblDef.Name, insertChSize)
+	insertWriter := libsq.NewDBWriter(log, scratchDB, tblDef.Name, driver.Tuning.RecordChSize)
 	err = execInsert(ctx, insertWriter, recMeta, readAheadRecs, cr)
 	if err != nil {
 		return err
@@ -206,6 +205,8 @@ func createTblDef(tblName string, colNames []string, kinds []kind.Kind) *sqlmode
 // remaining candidate kinds for each field is returned, or kind.Text if
 // no candidate kinds.
 func predictColKinds(expectFieldCount int, r *csv.Reader, readAheadRecs *[][]string, maxExamine int) ([]kind.Kind, error) {
+	// FIXME: [legacy] this function should switch to using kind.Detector
+
 	candidateKinds := newCandidateFieldKinds(expectFieldCount)
 	var examineCount int
 
@@ -373,7 +374,7 @@ func getColNames(cr *csv.Reader, src *source.Source, readAheadRecs *[][]string) 
 	// of fields in firstDataRecord.
 	generatedColNames := make([]string, len(firstDataRecord))
 	for i := range firstDataRecord {
-		generatedColNames[i] = stringz.GenerateAlphaColName(i)
+		generatedColNames[i] = stringz.GenerateAlphaColName(i, false)
 	}
 
 	return generatedColNames, nil
