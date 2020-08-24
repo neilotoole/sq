@@ -285,7 +285,7 @@ func DetectJSONA(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (d
 		}
 
 		validLines++
-		if validLines >= sampleSize {
+		if validLines >= driver.Tuning.SampleSize {
 			break
 		}
 	}

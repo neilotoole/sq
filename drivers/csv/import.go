@@ -151,7 +151,6 @@ func execInsert(ctx context.Context, recw libsq.RecordWriter, recMeta sqlz.Recor
 		case recordCh <- rec:
 		}
 	}
-
 }
 
 // mungeCSV2InsertRecord returns a new []interface{} containing
@@ -206,6 +205,8 @@ func createTblDef(tblName string, colNames []string, kinds []kind.Kind) *sqlmode
 // remaining candidate kinds for each field is returned, or kind.Text if
 // no candidate kinds.
 func predictColKinds(expectFieldCount int, r *csv.Reader, readAheadRecs *[][]string, maxExamine int) ([]kind.Kind, error) {
+	// FIXME: [legacy] this function should switch to using kind.Detector
+
 	candidateKinds := newCandidateFieldKinds(expectFieldCount)
 	var examineCount int
 
