@@ -11,6 +11,7 @@ import (
 	"github.com/neilotoole/sq/libsq"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 )
 
@@ -112,7 +113,7 @@ func execSLQInsert(rc *RunContext, destSrc *source.Source, destTbl string) error
 	// is invoked by rc.Close, and rc is closed further up the
 	// stack.
 
-	inserter := libsq.NewDBWriter(rc.Log, destDB, destTbl, libsq.DefaultRecordChSize)
+	inserter := libsq.NewDBWriter(rc.Log, destDB, destTbl, driver.Tuning.RecordChSize)
 	err = libsq.ExecuteSLQ(ctx, rc.Log, rc.databases, rc.databases, srcs, slq, inserter)
 	if err != nil {
 		return errz.Wrapf(err, "insert %s.%s failed", destSrc.Handle, destTbl)

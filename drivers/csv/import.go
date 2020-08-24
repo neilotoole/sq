@@ -22,7 +22,6 @@ import (
 )
 
 const (
-	insertChSize        = 1000
 	readAheadBufferSize = 100
 )
 
@@ -86,7 +85,7 @@ func importCSV(ctx context.Context, log lg.Log, src *source.Source, openFn sourc
 		return err
 	}
 
-	insertWriter := libsq.NewDBWriter(log, scratchDB, tblDef.Name, insertChSize)
+	insertWriter := libsq.NewDBWriter(log, scratchDB, tblDef.Name, driver.Tuning.RecordChSize)
 	err = execInsert(ctx, insertWriter, recMeta, readAheadRecs, cr)
 	if err != nil {
 		return err

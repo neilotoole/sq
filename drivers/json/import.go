@@ -66,15 +66,13 @@ func importJSONA(ctx context.Context, log lg.Log, src *source.Source, openFn sou
 		return err
 	}
 
-	const insertChSize = 100
-
 	r, err := openFn()
 	if err != nil {
 		return errz.Err(err)
 	}
 	defer log.WarnIfCloseError(r)
 
-	insertWriter := libsq.NewDBWriter(log, scratchDB, tblDef.Name, insertChSize)
+	insertWriter := libsq.NewDBWriter(log, scratchDB, tblDef.Name, driver.Tuning.RecordChSize)
 
 	var cancelFn context.CancelFunc
 	ctx, cancelFn = context.WithCancel(ctx)
@@ -85,6 +83,8 @@ func importJSONA(ctx context.Context, log lg.Log, src *source.Source, openFn sou
 		return err
 	}
 
+	// After startInsertJSONA returns, we sill need to wait
+	// for the insertWriter to finish.
 	err = startInsertJSONA(ctx, recordCh, errCh, r, readMungeFns)
 	if err != nil {
 		return err
@@ -178,7 +178,7 @@ func predictColKindsJSONA(ctx context.Context, r io.Reader) ([]kind.Kind, []func
 		default:
 		}
 
-		if jLineCount > sampleSize {
+		if jLineCount > driver.Tuning.SampleSize {
 			break
 		}
 

@@ -12,9 +12,6 @@ import (
 	"github.com/neilotoole/sq/libsq/driver"
 )
 
-// DefaultRecordChSize is the default size of a record channel.
-const DefaultRecordChSize = 100
-
 // DBWriter implements RecordWriter, writing
 // records to a database table.
 type DBWriter struct {

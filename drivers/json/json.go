@@ -226,10 +226,6 @@ var (
 	_ source.TypeDetectFunc = DetectJSONL
 )
 
-// sampleLines is the number items to sample to determine
-// type.
-const sampleSize = 100
-
 // DetectJSON implements source.TypeDetectFunc.
 func DetectJSON(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (detected source.Type, score float32, err error) {
 	log.Warn("not implemented")

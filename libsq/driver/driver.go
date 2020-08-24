@@ -364,15 +364,25 @@ var Tuning = struct {
 
 	// ErrgroupQSize is the qSize value for errgroup.WithContextN.
 	ErrgroupQSize int
+
+	// RecordChSize is the size of the buffer chan for record
+	// insertion/writing.
+	RecordChSize int
+
+	// SampleSize is the number of samples that a detector should
+	// take to determine type.
+	SampleSize int
 }{
 	ErrgroupNumG:  16,
 	ErrgroupQSize: 16,
+	RecordChSize:  1024,
+	SampleSize:    1024,
 }
 
-// RequireSingleConn returns nil if db is a type that guarantees a
-// single database connection. That is, RequireSingleConn returns an
+// requireSingleConn returns nil if db is a type that guarantees a
+// single database connection. That is, requireSingleConn returns an
 // error if db does not have type *sql.Conn or *sql.Tx.
-func RequireSingleConn(db sqlz.DB) error {
+func requireSingleConn(db sqlz.DB) error {
 	switch db.(type) {
 	case *sql.Conn, *sql.Tx:
 	default:
