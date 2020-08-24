@@ -152,6 +152,7 @@ func execInsert(ctx context.Context, recw libsq.RecordWriter, recMeta sqlz.Recor
 		case recordCh <- rec:
 		}
 	}
+
 }
 
 // mungeCSV2InsertRecord returns a new []interface{} containing
@@ -373,7 +374,7 @@ func getColNames(cr *csv.Reader, src *source.Source, readAheadRecs *[][]string) 
 	// of fields in firstDataRecord.
 	generatedColNames := make([]string, len(firstDataRecord))
 	for i := range firstDataRecord {
-		generatedColNames[i] = stringz.GenerateAlphaColName(i)
+		generatedColNames[i] = stringz.GenerateAlphaColName(i, false)
 	}
 
 	return generatedColNames, nil

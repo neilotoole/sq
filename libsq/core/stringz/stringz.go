@@ -36,8 +36,13 @@ func Reverse(input string) string {
 // GenerateAlphaColName returns an Excel-style column name
 // for index n, starting with A, B, C... and continuing
 // to AA, AB, AC, etc...
-func GenerateAlphaColName(n int) string {
-	return genAlphaCol(n, 'A', 26)
+func GenerateAlphaColName(n int, lower bool) string {
+	start := 'A'
+	if lower {
+		start = 'a'
+	}
+
+	return genAlphaCol(n, start, 26)
 }
 
 func genAlphaCol(n int, start rune, lenAlpha int) string {

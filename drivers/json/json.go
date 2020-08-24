@@ -106,7 +106,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database
 		return nil, err
 	}
 
-	err = importJSONL(ctx, d.log, src, d.files.OpenFunc(src), dbase.impl)
+	err = d.importFn(ctx, d.log, src, d.files.OpenFunc(src), dbase.impl)
 	if err != nil {
 		d.log.WarnIfCloseError(r)
 		d.log.WarnIfFuncError(dbase.clnup.Run)

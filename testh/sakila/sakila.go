@@ -86,14 +86,12 @@ const (
 	MillerCityID = 280
 )
 
-// Facts regarding the sakila database.
-
 // TblActorCols returns table "actor" column names.
 func TblActorCols() []string {
 	return []string{"actor_id", "first_name", "last_name", "last_update"}
 }
 
-// TblActorColKinds returns the kinds of the columns from table actor.
+// TblActorColKinds returns table "actor" column kinds.
 func TblActorColKinds() []kind.Kind {
 	return []kind.Kind{kind.Int, kind.Text, kind.Text, kind.Datetime}
 }
@@ -103,9 +101,19 @@ func TblFilmActorCols() []string {
 	return []string{"actor_id", "film_id", "last_update"}
 }
 
+// TblFilmActorColKinds returns table "film_actor" column kinds.
+func TblFilmActorColKinds() []kind.Kind {
+	return []kind.Kind{kind.Int, kind.Int, kind.Datetime}
+}
+
 // TblPaymentCols returns table "payment" column names.
 func TblPaymentCols() []string {
 	return []string{"payment_id", "customer_id", "staff_id", "rental_id", "amount", "payment_date", "last_update"}
+}
+
+// TblPaymentColKinds returns table "payment" column kinds.
+func TblPaymentColKinds() []kind.Kind {
+	return []kind.Kind{kind.Int, kind.Int, kind.Int, kind.Int, kind.Decimal, kind.Datetime, kind.Datetime}
 }
 
 // AllTbls returns all table names.

@@ -14,7 +14,7 @@ func TestGenerateAlphaColName(t *testing.T) {
 	colNames := make([]string, quantity)
 
 	for i := 0; i < quantity; i++ {
-		colNames[i] = stringz.GenerateAlphaColName(i)
+		colNames[i] = stringz.GenerateAlphaColName(i, false)
 	}
 
 	items := []struct {

@@ -9,8 +9,12 @@ import (
 
 	"github.com/neilotoole/lg"
 
+	"github.com/neilotoole/sq/libsq"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/sqlmodel"
+	"github.com/neilotoole/sq/libsq/core/sqlz"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 )
@@ -29,11 +33,132 @@ func importJSON(ctx context.Context, log lg.Log, src *source.Source, openFn sour
 }
 
 func importJSONA(ctx context.Context, log lg.Log, src *source.Source, openFn source.FileOpenFunc, scratchDB driver.Database) error {
-	log.Warn("not implemented")
+	predictR, err := openFn()
+	if err != nil {
+		return errz.Err(err)
+	}
+
+	defer log.WarnIfCloseError(predictR)
+
+	colKinds, readMungeFns, err := predictColKindsJSONA(ctx, predictR)
+	if err != nil {
+		return err
+	}
+
+	if len(colKinds) == 0 || len(readMungeFns) == 0 {
+		return errz.Errorf("import %s: number of fields is zero", TypeJSONA)
+	}
+
+	colNames := make([]string, len(colKinds))
+	for i := 0; i < len(colNames); i++ {
+		colNames[i] = stringz.GenerateAlphaColName(i, true)
+	}
+
+	// And now we need to create the dest table in scratchDB
+	tblDef := sqlmodel.NewTableDef(source.MonotableName, colNames, colKinds)
+	err = scratchDB.SQLDriver().CreateTable(ctx, scratchDB.DB(), tblDef)
+	if err != nil {
+		return errz.Wrapf(err, "import %s: failed to create dest scratch table", TypeJSONA)
+	}
+
+	recMeta, err := getRecMeta(ctx, scratchDB, tblDef)
+	if err != nil {
+		return err
+	}
+
+	const insertChSize = 100
+
+	r, err := openFn()
+	if err != nil {
+		return errz.Err(err)
+	}
+	defer log.WarnIfCloseError(r)
+
+	insertWriter := libsq.NewDBWriter(log, scratchDB, tblDef.Name, insertChSize)
+
+	var cancelFn context.CancelFunc
+	ctx, cancelFn = context.WithCancel(ctx)
+	defer cancelFn()
+
+	recordCh, errCh, err := insertWriter.Open(ctx, cancelFn, recMeta)
+	if err != nil {
+		return err
+	}
+
+	err = startInsertJSONA(ctx, recordCh, errCh, r, readMungeFns)
+	if err != nil {
+		return err
+	}
+
+	inserted, err := insertWriter.Wait()
+	if err != nil {
+		return err
+	}
+
+	log.Debugf("Inserted %d rows to %s.%s", inserted, scratchDB.Source().Handle, tblDef.Name)
 	return nil
 }
 
-func predictColKindsJSONA(ctx context.Context, r io.Reader) ([]kind.Kind, error) {
+// startInsertJSONA reads JSON records from r and sends
+// them on recordCh.
+func startInsertJSONA(ctx context.Context, recordCh chan<- sqlz.Record, errCh <-chan error, r io.Reader, mungeFns []func(interface{}) (interface{}, error)) error {
+	defer close(recordCh)
+
+	sc := bufio.NewScanner(r)
+	var line []byte
+	var err error
+
+	for sc.Scan() {
+		if err = sc.Err(); err != nil {
+			return errz.Err(err)
+		}
+
+		line = sc.Bytes()
+		if len(line) == 0 {
+			// Probably want to skip blank lines? Maybe
+			continue
+		}
+
+		// Each line of JSONA must open with left bracket
+		if line[0] != '[' {
+			return errz.New("malformed JSONA input")
+		}
+
+		// If the line is JSONA, it should marshal into []interface{}
+		var rec []interface{}
+		err = stdj.Unmarshal(line, &rec)
+		if err != nil {
+			return errz.Err(err)
+		}
+
+		for i := 0; i < len(rec); i++ {
+			fn := mungeFns[i]
+			if fn != nil {
+				v, err := fn(rec[i])
+				if err != nil {
+					return errz.Err(err)
+				}
+				rec[i] = v
+			}
+		}
+
+		select {
+		case err = <-errCh:
+			return err
+		case <-ctx.Done():
+			return ctx.Err()
+		case recordCh <- rec:
+		}
+	}
+
+	if err = sc.Err(); err != nil {
+		return errz.Err(err)
+	}
+
+	return nil
+}
+
+func predictColKindsJSONA(ctx context.Context, r io.Reader) ([]kind.Kind, []func(interface{}) (interface{}, error), error) {
 	var (
 		err            error
 		totalLineCount int
@@ -42,13 +167,14 @@ func predictColKindsJSONA(ctx context.Context, r io.Reader) ([]kind.Kind, error)
 		line       []byte
 		kinds      []kind.Kind
 		detectors  []*kind.Detector
+		mungeFns   []func(interface{}) (interface{}, error)
 	)
 
 	sc := bufio.NewScanner(r)
 	for sc.Scan() {
 		select {
 		case <-ctx.Done():
-			return nil, ctx.Err()
+			return nil, nil, ctx.Err()
 		default:
 		}
 
@@ -57,7 +183,7 @@ func predictColKindsJSONA(ctx context.Context, r io.Reader) ([]kind.Kind, error)
 		}
 
 		if err = sc.Err(); err != nil {
-			return nil, errz.Err(err)
+			return nil, nil, errz.Err(err)
 		}
 
 		line = sc.Bytes()
@@ -71,22 +197,23 @@ func predictColKindsJSONA(ctx context.Context, r io.Reader) ([]kind.Kind, error)
 
 		// Each line of JSONA must open with left bracket
 		if line[0] != '[' {
-			return nil, errz.New("line does not begin with left bracket '['")
+			return nil, nil, errz.New("line does not begin with left bracket '['")
 		}
 
 		// If the line is JSONA, it should marshall into []interface{}
 		var vals []interface{}
 		err = stdj.Unmarshal(line, &vals)
 		if err != nil {
-			return nil, errz.Err(err)
+			return nil, nil, errz.Err(err)
 		}
 
 		if len(vals) == 0 {
-			return nil, errz.Errorf("zero field count at line %d", totalLineCount)
+			return nil, nil, errz.Errorf("zero field count at line %d", totalLineCount)
 		}
 
 		if kinds == nil {
 			kinds = make([]kind.Kind, len(vals))
+			mungeFns = make([]func(interface{}) (interface{}, error), len(vals))
 			detectors = make([]*kind.Detector, len(vals))
 			for i := range detectors {
 				detectors[i] = kind.NewDetector()
@@ -94,14 +221,15 @@ func predictColKindsJSONA(ctx context.Context, r io.Reader) ([]kind.Kind, error)
 		}
 
 		if len(vals) != len(kinds) {
-			return nil, errz.Errorf("inconsistent field count: expected %d but got %d at line %d",
+			return nil, nil, errz.Errorf("inconsistent field count: expected %d but got %d at line %d",
 				len(kinds), len(vals), totalLineCount)
 		}
 
+		//
 		for i, val := range vals {
 			// Special case: The decoder can decode an int into a float.
-			// If the float has a zero after the decimal point '.' (that
-			// is to say, it's really a round int), we convert the float
+			// If the float has zero after the decimal point '.' (that
+			// is to say, it's a round float like 1.0), we convert the float
 			// to an int
 			fVal, ok := val.(float64)
 			if ok {
@@ -116,90 +244,34 @@ func predictColKindsJSONA(ctx context.Context, r io.Reader) ([]kind.Kind, error)
 	}
 
 	if jLineCount == 0 {
-		return nil, errz.New("empty JSONA input")
+		return nil, nil, errz.New("empty JSONA input")
 	}
 
 	for i := range kinds {
-		kinds[i], _, err = detectors[i].Detect() // FIXME: deal with the mungeFn
+		kinds[i], mungeFns[i], err = detectors[i].Detect()
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 
-	return kinds, nil
+	return kinds, mungeFns, nil
 }
 
 func importJSONL(ctx context.Context, log lg.Log, src *source.Source, openFn source.FileOpenFunc, scratchDB driver.Database) error {
 	return errz.New("not implemented")
+}
 
-	//const optPredictKind bool = true
-	//
-	//var err error
-	//var r io.ReadCloser
-	//
-	//r, err = openFn()
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//// We add the CR filter reader to deal with CSV files exported
-	//// from Excel which can have the DOS-style \r EOL markers.
-	//cr := csv.NewReader(&crFilterReader{r: r})
-	//cr.Comma, err = getDelimiter(src)
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//// readAheadRecs temporarily holds records read from r for the purpose
-	//// of determining CSV metadata such as column headers, data kind etc.
-	//// These records will later be written to recordCh.
-	//readAheadRecs := make([][]string, 0, readAheadBufferSize)
-	//
-	//colNames, err := getColNames(cr, src, &readAheadRecs)
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//var expectFieldCount = len(colNames)
-	//
-	//var colKinds []kind.Kind
-	//if optPredictKind {
-	//	colKinds, err = predictColKinds(expectFieldCount, cr, &readAheadRecs, readAheadBufferSize)
-	//	if err != nil {
-	//		return err
-	//	}
-	//} else {
-	//	// If we're not predicting col kind, then we use kind.Text.
-	//	colKinds = make([]kind.Kind, expectFieldCount)
-	//	for i := range colKinds {
-	//		colKinds[i] = kind.Text
-	//	}
-	//}
-	//
-	//// And now we need to create the dest table in scratchDB
-	//tblDef := createTblDef(source.MonotableName, colNames, colKinds)
-	//
-	//err = scratchDB.SQLDriver().CreateTable(ctx, scratchDB.DB(), tblDef)
-	//if err != nil {
-	//	return core.errz.Wrap(err, "csv: failed to create dest scratch table")
-	//}
-	//
-	//recMeta, err := getRecMeta(ctx, scratchDB, tblDef)
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//insertWriter := libsq.NewDBWriter(log, scratchDB, tblDef.Name, insertChSize)
-	//err = execInsert(ctx, insertWriter, recMeta, readAheadRecs, cr)
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//inserted, err := insertWriter.Wait()
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//log.Debugf("Inserted %d rows to %s.%s", inserted, scratchDB.Source().Handle, tblDef.Name)
-	//return nil
+// getRecMeta returns RecordMeta to use with RecordWriter.Open.
+func getRecMeta(ctx context.Context, scratchDB driver.Database, tblDef *sqlmodel.TableDef) (sqlz.RecordMeta, error) {
+	colTypes, err := scratchDB.SQLDriver().TableColumnTypes(ctx, scratchDB.DB(), tblDef.Name, tblDef.ColNames())
+	if err != nil {
+		return nil, err
+	}
+
+	destMeta, _, err := scratchDB.SQLDriver().RecordMeta(colTypes)
+	if err != nil {
+		return nil, err
+	}
+
+	return destMeta, nil
 }

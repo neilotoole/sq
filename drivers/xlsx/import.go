@@ -165,7 +165,7 @@ func buildTblDefForSheet(log lg.Log, sheet *xlsx.Sheet, hasHeader bool) (*sqlmod
 		// sheet has no rows
 		for i := 0; i < numCells; i++ {
 			colKinds[i] = kind.Text
-			colNames[i] = stringz.GenerateAlphaColName(i)
+			colNames[i] = stringz.GenerateAlphaColName(i, false)
 		}
 	} else {
 		// sheet is non-empty
@@ -179,7 +179,7 @@ func buildTblDefForSheet(log lg.Log, sheet *xlsx.Sheet, hasHeader bool) (*sqlmod
 			}
 		} else {
 			for i := 0; i < numCells; i++ {
-				colNames[i] = stringz.GenerateAlphaColName(i)
+				colNames[i] = stringz.GenerateAlphaColName(i, false)
 			}
 		}
 
@@ -325,7 +325,7 @@ func getColNames(sheet *xlsx.Sheet, hasHeader bool) []string {
 	}
 
 	for i := 0; i < numCells; i++ {
-		colNames[i] = stringz.GenerateAlphaColName(i)
+		colNames[i] = stringz.GenerateAlphaColName(i, false)
 	}
 
 	return colNames
