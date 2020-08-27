@@ -8,6 +8,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/ryboe/q"
+
 	"github.com/neilotoole/sq/drivers/csv"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
@@ -179,3 +181,6 @@ func TestTName(t *testing.T) {
 	}
 
 }
+
+// Keep the q lib around
+var _ = q.Q

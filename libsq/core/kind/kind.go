@@ -151,10 +151,15 @@ func parse(text string) (Kind, error) {
 // The caller adds values via Sample and then invokes Detect.
 type Detector struct {
 	kinds       map[Kind]struct{}
-	mungeFns    map[Kind]func(interface{}) (interface{}, error)
+	mungeFns    map[Kind]MungeFunc
 	dirty       bool
 	foundString bool
 }
+
+// MungeFunc is a function that accepts a value and returns a munged
+// value with the appropriate Kind. For example, a Datetime MungeFunc
+// would accept string "2020-06-11T02:50:54Z" and return a time.Time,
+type MungeFunc func(interface{}) (interface{}, error)
 
 // NewDetector returns a new instance.
 func NewDetector() *Detector {
@@ -168,7 +173,7 @@ func NewDetector() *Detector {
 			Date:     {},
 			Datetime: {},
 		},
-		mungeFns: map[Kind]func(interface{}) (interface{}, error){},
+		mungeFns: map[Kind]MungeFunc{},
 	}
 }
 
@@ -359,11 +364,11 @@ func (d *Detector) Sample(v interface{}) {
 
 // Detect returns the detected Kind. If ambiguous, Text is returned.
 // If the returned mungeFn is non-nil, it can be used to convert input
-// values to their canonical form. For example for Datetime mungeFn
+// values to their canonical form. For example, for Datetime the MungeFunc
 // would accept string "2020-06-11T02:50:54Z" and return a time.Time,
-// while for Date, mungeFn would accept "1970-01-01" or "01 Jan 1970"
+// while for Date, the MungeFunc would accept "1970-01-01" or "01 Jan 1970"
 // and always return a string in the canonicalized form "1970-01-01".
-func (d *Detector) Detect() (kind Kind, mungeFn func(interface{}) (interface{}, error), err error) {
+func (d *Detector) Detect() (kind Kind, mungeFn MungeFunc, err error) {
 	if !d.dirty {
 		// If we haven't filtered any kinds, default to Text.
 		return Text, nil, nil

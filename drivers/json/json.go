@@ -303,6 +303,66 @@ func DetectJSONA(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (d
 
 // DetectJSONL implements source.TypeDetectFunc.
 func DetectJSONL(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (detected source.Type, score float32, err error) {
-	log.Warn("not implemented")
+	var r io.ReadCloser
+	r, err = openFn()
+	if err != nil {
+		return source.TypeNone, 0, errz.Err(err)
+	}
+	defer log.WarnIfCloseError(r)
+
+	sc := bufio.NewScanner(r)
+	var validLines int
+	var line []byte
+
+	for sc.Scan() {
+		select {
+		case <-ctx.Done():
+			return source.TypeNone, 0, ctx.Err()
+		default:
+		}
+
+		if err = sc.Err(); err != nil {
+			return source.TypeNone, 0, errz.Err(err)
+		}
+
+		line = sc.Bytes()
+		if len(line) == 0 {
+			// Probably want to skip blank lines? Maybe
+			continue
+		}
+
+		// Each line of JSONL must open with left brace
+		if line[0] != '{' {
+			return source.TypeNone, 0, nil
+		}
+
+		// If the line is JSONL, it should marshall into map[string]interface{}
+		var vals map[string]interface{}
+		err = stdj.Unmarshal(line, &vals)
+		if err != nil {
+			return source.TypeNone, 0, nil
+		}
+
+		// At this time, JSONL does not support nested objects
+		for _, field := range vals {
+			if _, ok := field.(map[string]interface{}); ok {
+				return source.TypeNone, 0, nil
+			}
+		}
+
+		validLines++
+		if validLines >= driver.Tuning.SampleSize {
+			break
+		}
+	}
+
+	if err = sc.Err(); err != nil {
+		return source.TypeNone, 0, errz.Err(err)
+	}
+
+	if validLines > 0 {
+		return TypeJSONL, 1.0, nil
+	}
+
 	return source.TypeNone, 0, nil
 }

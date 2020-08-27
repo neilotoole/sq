@@ -39,6 +39,16 @@ func TestTypeDetectorFuncs(t *testing.T) {
 		{fn: json.TypeJSONA, f: "film_actor.jsonl"},
 		{fn: json.TypeJSONA, f: "payment.json"},
 		{fn: json.TypeJSONA, f: "payment.jsonl"},
+
+		{fn: json.TypeJSONL, f: "actor.jsonl", want: json.TypeJSONL},
+		{fn: json.TypeJSONL, f: "actor.jsona"},
+		{fn: json.TypeJSONL, f: "actor.json"},
+		{fn: json.TypeJSONL, f: "film_actor.jsonl", want: json.TypeJSONL},
+		{fn: json.TypeJSONL, f: "film_actor.jsona"},
+		{fn: json.TypeJSONL, f: "film_actor.json"},
+		{fn: json.TypeJSONL, f: "payment.jsonl", want: json.TypeJSONL},
+		{fn: json.TypeJSONL, f: "payment.jsona"},
+		{fn: json.TypeJSONL, f: "payment.json"},
 	}
 
 	for _, tc := range testCases {
@@ -65,15 +75,6 @@ func TestTypeDetectorFuncs(t *testing.T) {
 	}
 }
 
-//func TestDecode(t *testing.T) {
-//	const jsona = `[1,2,3,4,"hello",true,null,7.7, {"id": 3}]`
-//	const jsono = `{"a": 1, "b": 2}`
-//
-//	var s []interface{}
-//
-//	err := stdj.Unmarshal([]byte(jsono), &s)
-//	require.NoError(t, err)
-//
-//	fmt.Printf("%#v\n", s)
-//
-//}
+func TestJSONDecoder(t *testing.T) {
+
+}

@@ -121,6 +121,7 @@ func (h *Helper) init() {
 
 		jsonp := &json.Provider{Log: log, Scratcher: h.databases, Files: h.files}
 		h.registry.AddProvider(json.TypeJSONA, jsonp)
+		h.registry.AddProvider(json.TypeJSONL, jsonp)
 		h.files.AddTypeDetectors(json.DetectJSON, json.DetectJSONA, json.DetectJSONL)
 
 		h.registry.AddProvider(xlsx.Type, &xlsx.Provider{Log: log, Scratcher: h.databases, Files: h.files})

@@ -115,4 +115,7 @@ sources:
     - handle: '@miscdb'
       type: sqlite3
       location: 'sqlite3://${SQ_ROOT}/drivers/sqlite3/testdata/misc.db'
+    - handle: '@emptydb'
+      type: sqlite3
+      location: 'sqlite3://${SQ_ROOT}/drivers/sqlite3/testdata/empty.db'
 

@@ -404,6 +404,7 @@ func (rc *RunContext) preRunE() error {
 
 	jsonp := &json.Provider{Log: log, Scratcher: rc.databases, Files: rc.files}
 	rc.registry.AddProvider(json.TypeJSONA, jsonp)
+	rc.registry.AddProvider(json.TypeJSONL, jsonp)
 	rc.files.AddTypeDetectors(json.DetectJSON, json.DetectJSONA, json.DetectJSONL)
 
 	rc.registry.AddProvider(xlsx.Type, &xlsx.Provider{Log: log, Scratcher: rc.databases, Files: rc.files})
