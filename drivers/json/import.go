@@ -100,7 +100,7 @@ func (p *processor) calcColName(ent *entity, fieldName string) string {
 		return fieldName
 	}
 
-	colName := ent.parent.name + "_" + fieldName
+	colName := ent.name + "_" + fieldName
 	return p.calcColName(ent.parent, colName)
 }
 
@@ -406,7 +406,7 @@ func execInsertions(ctx context.Context, log lg.Log, drvr driver.SQLDriver, db s
 			return err
 		}
 
-		log.Debugf("Inserted %d row [%s] into table %q", affected, strings.Join(insert.cols, ", "), insert.tbl)
+		log.Debugf("Inserted %d row (%s) into table %q", affected, strings.Join(insert.cols, ","), insert.tbl)
 
 		err = execer.Close()
 		if err != nil {

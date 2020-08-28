@@ -2,7 +2,6 @@ package source
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"mime"
@@ -216,7 +215,6 @@ func (fs *Files) newReader(loc string) (io.ReadCloser, error) {
 		// cache miss
 		f, err := fs.openLocation(loc)
 		if err != nil {
-			fs.log.WarnIfCloseError(f)
 			return nil, err
 		}
 
@@ -345,7 +343,7 @@ func (fs *Files) Type(ctx context.Context, loc string) (Type, error) {
 	}
 
 	if !ok {
-		return TypeNone, errz.Errorf("unable to determine type of %q", loc)
+		return TypeNone, errz.Errorf("unable to determine source type: %s", loc)
 	}
 
 	return typ, nil
@@ -371,8 +369,7 @@ func (fs *Files) detectType(ctx context.Context, loc string) (typ Type, ok bool,
 
 	select {
 	case <-ctx.Done():
-
-		fmt.Println(ctx.Err())
+		return TypeNone, false, ctx.Err()
 	default:
 	}
 

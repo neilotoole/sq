@@ -1,7 +1,7 @@
 {
   "sq_log": {
     "title": "sq",
-    "url": "https://sq,io",
+    "url": "https://sq.io",
     "description": "Log format for sq",
     "json": true,
     "hide-extra": false,

@@ -87,22 +87,26 @@ func execSrcAdd(rc *RunContext, cmd *cobra.Command, args []string) error {
 	}
 
 	cfg := rc.Config
-
 	loc := source.AbsLocation(strings.TrimSpace(args[0]))
-
 	var err error
 	var typ source.Type
+
 	if cmd.Flags().Changed(flagDriver) {
 		val, _ := cmd.Flags().GetString(flagDriver)
 		typ = source.Type(strings.TrimSpace(val))
-		if rc.registry.ProviderFor(typ) == nil {
-			return errz.Errorf("unsupported source driver type %q", val)
-		}
+
 	} else {
 		typ, err = rc.files.Type(rc.Context, loc)
 		if err != nil {
-			return errz.Errorf("unable to determine source driver type: use --driver flag")
+			return err
 		}
+		if typ == source.TypeNone {
+			return errz.Errorf("unable to determine source type: use --driver flag")
+		}
+	}
+
+	if rc.registry.ProviderFor(typ) == nil {
+		return errz.Errorf("unsupported source type %q", typ)
 	}
 
 	var handle string

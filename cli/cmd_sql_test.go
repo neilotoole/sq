@@ -124,7 +124,7 @@ func TestCmdSQL_StdinQuery(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 
-		t.Run(testh.TName(tc.fpath), func(t *testing.T) {
+		t.Run(testh.Name(tc.fpath), func(t *testing.T) {
 			t.Parallel()
 
 			f, err := os.Open(tc.fpath)

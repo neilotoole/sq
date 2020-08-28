@@ -187,7 +187,7 @@ func TestFiles_Stdin(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 
-		t.Run(testh.TName(tc.fpath), func(t *testing.T) {
+		t.Run(testh.Name(tc.fpath), func(t *testing.T) {
 			th := testh.New(t)
 			fs := th.Files()
 

@@ -19,6 +19,75 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 )
 
+// DetectJSONA implements source.TypeDetectFunc for TypeJSONA.
+// Each line of input must be a valid JSON array.
+func DetectJSONA(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (detected source.Type, score float32, err error) {
+	var r io.ReadCloser
+	r, err = openFn()
+	if err != nil {
+		return source.TypeNone, 0, errz.Err(err)
+	}
+	defer log.WarnIfCloseError(r)
+
+	sc := bufio.NewScanner(r)
+	var validLines int
+	var line []byte
+
+	for sc.Scan() {
+		select {
+		case <-ctx.Done():
+			return source.TypeNone, 0, ctx.Err()
+		default:
+		}
+
+		if err = sc.Err(); err != nil {
+			return source.TypeNone, 0, errz.Err(err)
+		}
+
+		line = sc.Bytes()
+		if len(line) == 0 {
+			// Probably want to skip blank lines? Maybe
+			continue
+		}
+
+		// Each line of JSONA must open with left bracket
+		if line[0] != '[' {
+			return source.TypeNone, 0, nil
+		}
+
+		// If the line is JSONA, it should marshall into []interface{}
+		var fields []interface{}
+		err = stdj.Unmarshal(line, &fields)
+		if err != nil {
+			return source.TypeNone, 0, nil
+		}
+
+		// JSONA must consist only of values, not objects. Any object
+		// would get marshalled into a map[string]interface{}, so
+		// we check for that.
+		for _, field := range fields {
+			if _, ok := field.(map[string]interface{}); ok {
+				return source.TypeNone, 0, nil
+			}
+		}
+
+		validLines++
+		if validLines >= driver.Tuning.SampleSize {
+			break
+		}
+	}
+
+	if err = sc.Err(); err != nil {
+		return source.TypeNone, 0, errz.Err(err)
+	}
+
+	if validLines > 0 {
+		return TypeJSONA, 1.0, nil
+	}
+
+	return source.TypeNone, 0, nil
+}
+
 func importJSONA(ctx context.Context, log lg.Log, src *source.Source, openFn source.FileOpenFunc, scratchDB driver.Database) error {
 	predictR, err := openFn()
 	if err != nil {

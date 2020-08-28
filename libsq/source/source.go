@@ -118,7 +118,11 @@ const (
 //
 //  xlsx		application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
 //  csv			text/csv
-func typeFromMediaType(mediatype string) (driverType Type, ok bool) {
+//
+// Note that we don't rely on this function for types such
+// as application/json, because JSON can map to multiple
+// driver types (json, jsona, jsonl).
+func typeFromMediaType(mediatype string) (typ Type, ok bool) {
 	switch {
 	case strings.Contains(mediatype, `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`):
 		return typeXLSX, true

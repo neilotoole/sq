@@ -2,9 +2,10 @@
 package sqlmodel
 
 import (
+	"strings"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
-	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 // TableDef models a database table definition.
@@ -62,7 +63,7 @@ func (t *TableDef) ColKinds() []kind.Kind {
 }
 
 func (t *TableDef) String() string {
-	return stringz.SprintJSON(t)
+	return t.Name + "(" + strings.Join(t.ColNames(), ",") + ")"
 }
 
 // ColsByName returns the ColDefs for each named column, or an error if any column

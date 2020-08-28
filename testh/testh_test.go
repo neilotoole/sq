@@ -176,7 +176,7 @@ func TestTName(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		got := testh.TName(tc.a...)
+		got := testh.Name(tc.a...)
 		require.Equal(t, tc.want, got)
 	}
 
