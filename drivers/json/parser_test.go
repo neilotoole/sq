@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	stdj "encoding/json"
-	"fmt"
 	"io"
 	"os"
 	"testing"
@@ -102,6 +101,8 @@ func TestParseObjects3(t *testing.T) {
 		}
 	)
 
+	_, _, _, _ = m1, m2, m3, m4
+
 	testCases := []struct {
 		in         string
 		wantObjs   []map[string]interface{}
@@ -109,14 +110,22 @@ func TestParseObjects3(t *testing.T) {
 		wantErr    bool
 	}{
 		{in: ``, wantErr: true},
+		{in: `[,]`, wantErr: true},
+		{in: `[],`, wantErr: true},
+		{in: `[]  ,`, wantErr: true},
+		{in: `,[]`, wantErr: true},
 		{in: `[]`},
 		{in: ` []`},
 		{in: ` [  ] `},
 		{in: `[{"a":1}]`, wantObjs: m1, wantChunks: []string{`{"a":1}`}},
+		{in: `[,{"a":1}]`, wantErr: true},
+		{in: `[{"a":1},]`, wantErr: true},
 		{in: ` [{"a":1}]`, wantObjs: m1, wantChunks: []string{`{"a":1}`}},
 		{in: `[ {"a":1} ]`, wantObjs: m1, wantChunks: []string{`{"a":1}`}},
 		{in: `[  { "a" :  1   }  ]`, wantObjs: m1, wantChunks: []string{`{ "a" :  1   }`}},
 		{in: `[{"a":1},{"a":2}]`, wantObjs: m2, wantChunks: []string{`{"a":1}`, `{"a":2}`}},
+		{in: `[,{"a":1},{"a":2}]`, wantErr: true},
+		{in: `[{"a":1},,{"a":2}]`, wantErr: true},
 		{in: `  [{"a":1},{"a":2}]`, wantObjs: m2, wantChunks: []string{`{"a":1}`, `{"a":2}`}},
 		{in: `[{"a":1}, {"a":2}]`, wantObjs: m2, wantChunks: []string{`{"a":1}`, `{"a":2}`}},
 		{in: `[{"a":1} ,{"a":2}]`, wantObjs: m2, wantChunks: []string{`{"a":1}`, `{"a":2}`}},
@@ -152,219 +161,4 @@ func TestParseObjects3(t *testing.T) {
 			}
 		})
 	}
-}
-
-//func TestStdjDecode(t *testing.T) {
-//	f, err := os.Open("testdata/actor_small.json")
-//	require.NoError(t, err)
-//	defer f.Close()
-//
-//	buf := &bytes.Buffer{}
-//	r := io.TeeReader(f, buf)
-//	dec := stdj.NewDecoder(r)
-//
-//	var tok stdj.Token
-//	var startOffset, endOffset int64
-//
-//	tok, err = dec.Token()
-//	require.Equal(t, stdj.Delim('['), tok)
-//	startOffset = dec.InputOffset()
-//	t.Logf("startOffset: %d", startOffset)
-//
-//	var m map[string]interface{}
-//	var objCount int
-//	more := true
-//
-//	for {
-//		more = dec.More()
-//
-//		if !more {
-//			break
-//		}
-//
-//		err = dec.Decode(&m)
-//		require.NoError(t, err)
-//		q.Q(m)
-//		var decBuf []byte
-//		decBuf, err = ioutil.ReadAll(dec.Buffered())
-//		require.NoError(t, err)
-//
-//		// If there's another object, delim should be comma,
-//		// otherwise delim should be right bracket.
-//		delimIndex, delim := json.NextDelim(decBuf, 0)
-//		require.False(t, delimIndex == -1)
-//		switch delim {
-//		case ',':
-//		// more objects to come
-//		case ']':
-//			// end of input
-//			tok, err = dec.Token()
-//			require.NoError(t, err)
-//			require.Equal(t, stdj.Delim(']'), tok)
-//			more = dec.More()
-//			require.False(t, more)
-//			//require.False(t, dec.More())
-//			//return
-//		default:
-//			// bad input
-//			require.FailNow(t, "invalid JSON: expected comma or right bracket but got %s", string(delim))
-//		}
-//
-//		_ = decBuf
-//
-//		endOffset = dec.InputOffset()
-//		objSize := endOffset - startOffset
-//		t.Logf("obj[%d]: byte size: %d", objCount, objSize)
-//
-//		b := buf.Bytes()
-//		b2 := make([]byte, objSize)
-//		copy(b2, b[startOffset:endOffset])
-//		startOffset = endOffset
-//		objCount++
-//
-//		t.Logf("line[%d]:\n\n=====\n%s\n=====\n", objCount, string(b2))
-//	}
-//
-//	//require.
-//	//
-//	//
-//	//for {
-//	//	tok, err
-//	//}
-//	//
-//	//for dec.More() {
-//	//	tok, err = dec.Token()
-//	//	require.NoError(t, err)
-//	//	t.Logf("%#v", tok)
-//	//}
-//}
-
-func TestNextDelim(t *testing.T) {
-	var data = []byte(`[
-  {"actor_id": 1},
-  {"actor_id": 2},
-  {"actor_id": 3},
-  {"actor_id": 4}
-]`)
-
-	var i int
-	var delim byte
-
-	for {
-		i, delim = json.NextDelim(data, i)
-		if i == -1 {
-			break
-		}
-
-		t.Logf("%d -->  %v", i, string(delim))
-
-		if i == len(data)-1 {
-			break
-		}
-		i++
-	}
-
-}
-
-func TestNextDelimNoComma(t *testing.T) {
-	var data = []byte(`[
-  {"actor_id": 1},
-  {"actor_id": 2},
-  {"actor_id": 3},
-  {"actor_id": 4}
-]`)
-
-	var i int
-	var delim byte
-
-	for {
-		i, delim = json.NextDelimNoComma(data, i)
-		if i == -1 {
-			break
-		}
-
-		t.Logf("%d -->  %v", i, string(delim))
-
-		if i == len(data)-1 {
-			break
-		}
-		i++
-	}
-
-}
-
-//// firstDelim returns the index in b of the first JSON
-//// delimiter (left or right bracket, left or right brace, or comma)
-//// occurring from index start onwards. If no delimiter found,
-//// (-1, 0) is returned.
-//func NextDelim(b []byte, start int) (i int, delim byte) {
-//	for i = start; i < len(b); i++ {
-//		switch b[i] {
-//		case ',', '{', '}', '[', ']':
-//			return i, b[i]
-//		}
-//	}
-//
-//	return -1, 0
-//}
-
-func TestStdjDecoder2(t *testing.T) {
-	f, err := os.Open("testdata/jsonl_actor_nested.jsonl")
-	require.NoError(t, err)
-	defer f.Close()
-
-	dec := stdj.NewDecoder(f)
-	dec.UseNumber()
-
-	var m map[string]interface{}
-
-	for {
-		err = dec.Decode(&m)
-		if err == io.EOF {
-			break
-		}
-		require.NoError(t, err)
-		fmt.Println(m)
-	}
-
-	//var tok stdj.Token
-	//
-	//for dec.More() {
-	//	tok, err = dec.Token()
-	//	require.NoError(t, err)
-	//	t.Logf("%#v", tok)
-	//}
-
-}
-
-func TestStdjDecoder3(t *testing.T) {
-	f, err := os.Open("testdata/actor.json")
-	require.NoError(t, err)
-	defer f.Close()
-
-	dec := stdj.NewDecoder(f)
-	dec.UseNumber()
-
-	var rawMsgs []stdj.RawMessage
-
-	for {
-		err = dec.Decode(&rawMsgs)
-		if err == io.EOF {
-			break
-		}
-		require.NoError(t, err)
-	}
-
-	for i, raw := range rawMsgs {
-		fmt.Println(i, string(raw))
-	}
-
-	//var tok stdj.Token
-	//
-	//for dec.More() {
-	//	tok, err = dec.Token()
-	//	require.NoError(t, err)
-	//	t.Logf("%#v", tok)
-	//}
-
 }
