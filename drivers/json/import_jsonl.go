@@ -146,7 +146,6 @@ func importJSONL(ctx context.Context, log lg.Log, src *source.Source, openFn sou
 		err = dec.Decode(&m)
 		if err != nil {
 			if err == io.EOF {
-				err = nil
 				break
 			}
 			return errz.Err(err)
