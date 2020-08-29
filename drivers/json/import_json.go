@@ -81,8 +81,8 @@ func ParseObjectsInArray(r io.Reader) (objs []map[string]interface{}, chunks [][
 
 	var more bool
 	var decBuf []byte
-	//var delimIndex int
-	//var delim byte
+	var delimIndex int
+	var delim byte
 
 	for {
 		more = dec.More()
@@ -124,7 +124,7 @@ func ParseObjectsInArray(r io.Reader) (objs []map[string]interface{}, chunks [][
 		// If no bufDelim, or some other bufDelim, it's an error.
 
 		// Peek ahead in the decoder buffer
-		delimIndex, delim := NextDelim(decBuf, 0)
+		delimIndex, delim = NextDelim(decBuf, 0)
 		if delimIndex == -1 {
 			return nil, nil, errz.New("invalid JSON: additional input expected")
 		}
@@ -170,21 +170,21 @@ func ParseObjectsInArray(r io.Reader) (objs []map[string]interface{}, chunks [][
 
 		checkBufOffset()
 
-		bufDelimIndex, bufDelim := NextDelimNoComma(buf.b, prevDecPos-bufOffset)
-		if bufDelimIndex == -1 {
+		delimIndex, delim := NextDelimNoComma(buf.b, prevDecPos-bufOffset)
+		if delimIndex == -1 {
 			return nil, nil, errz.Errorf("invalid JSON: expected delimiter token")
 		}
 
-		switch bufDelim {
+		switch delim {
 		default:
-			return nil, nil, errz.Errorf("invalid JSON: expected comma or left-brace '{' but got: %s", string(bufDelim))
+			return nil, nil, errz.Errorf("invalid JSON: expected comma or left-brace '{' but got: %s", string(delim))
 		case ',':
 			panic("shouldn't happen, no more comma")
 
 		case '{':
 		}
 
-		canonChunk := canonBuf.b[prevDecPos+bufDelimIndex : curDecPos]
+		canonChunk := canonBuf.b[prevDecPos+delimIndex : curDecPos]
 		println("canCnk>>>" + string(canonChunk) + "<<<")
 		if strings.TrimSpace(string(canonChunk)) != string(canonChunk) {
 			panic("canonChunk has whitespace")
@@ -195,7 +195,7 @@ func ParseObjectsInArray(r io.Reader) (objs []map[string]interface{}, chunks [][
 		}
 
 		//chunk2 := buf.b[prevDecPos-bufOffset+bufDelimIndex : curDecPos-bufOffset]
-		chunk2 := buf.b[prevDecPos-bufOffset+bufDelimIndex : curDecPos-bufOffset]
+		chunk2 := buf.b[prevDecPos-bufOffset+delimIndex : curDecPos-bufOffset]
 
 		println("len chunk2: " + strconv.Itoa(len(chunk2)))
 		println("chunk2>>>" + string(chunk2) + "<<<")
@@ -203,8 +203,8 @@ func ParseObjectsInArray(r io.Reader) (objs []map[string]interface{}, chunks [][
 		//copy(chunk, buf.b[bufDelimIndex:curDecPos-bufOffset])
 		//chunk := make([]byte, len(chunk2))
 		//chunkSize := curDecPos - prevDecPos - bufDelimIndex
-		chunk := make([]byte, curDecPos-prevDecPos-bufDelimIndex)
-		copied := copy(chunk, buf.b[prevDecPos-bufOffset+bufDelimIndex:curDecPos-bufOffset])
+		chunk := make([]byte, curDecPos-prevDecPos-delimIndex)
+		copied := copy(chunk, buf.b[prevDecPos-bufOffset+delimIndex:curDecPos-bufOffset])
 		if copied != len(chunk2) {
 			panic("bad copy length")
 		}
@@ -227,7 +227,7 @@ func ParseObjectsInArray(r io.Reader) (objs []map[string]interface{}, chunks [][
 		canonReslice := canonBuf.b[curDecPos:]
 		println("can reslice>>>" + string(canonReslice) + "<<<")
 
-		println("prior to buf reslice: bufDelim is: [" + strconv.Itoa(bufDelimIndex) + "]  -->  " + string(bufDelim))
+		println("prior to buf reslice: bufDelim is: [" + strconv.Itoa(delimIndex) + "]  -->  " + string(delim))
 		println("buf before>>>" + string(buf.b) + "<<<")
 		// Trim the front of the buffer, otherwise it will grow unbounded.
 
