@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"strings"
 
 	"github.com/neilotoole/lg"
 
@@ -83,6 +84,8 @@ func ParseObjectsInArray(r io.Reader) (objs []map[string]interface{}, chunks [][
 		//	return
 		//}
 
+		more = dec.More()
+
 		switch delim {
 		default:
 			// bad input
@@ -90,43 +93,84 @@ func ParseObjectsInArray(r io.Reader) (objs []map[string]interface{}, chunks [][
 
 		case ']':
 			// should be end of input
-			tok, err = dec.Token()
+
+			tok, err = requireDelimToken(dec, ']')
 			if err != nil {
 				return nil, nil, errz.Err(err)
 			}
 
-			if tok != stdj.Delim(']') {
-				// should never happen
-				return nil, nil, errz.Errorf("unexpected JSON token: %s", tokstr(tok))
-			}
-
-			more = dec.More()
 			if more {
-				return nil, nil, errz.New("unexpected additional JSON input")
+				return nil, nil, errz.New("unexpected additional JSON input after closing ']'")
 			}
 
-			//endChunk := buf.b[delimIndex : endOffset-bufOffset]
+			//endChunk := buf.b[startOffset-bufOffset : endOffset-bufOffset]
 			//println("endchunk:>>>" + string(endChunk) + "<<<")
+			//if !stdj.Valid(endChunk) {
+			//	// Should never happen; should be able to delete this check
+			//	return nil, nil, errz.Errorf("invalid JSON")
+			//}
+			//
+			//chunks = append(chunks, endChunk)
+			//return objs, chunks, nil
 
 		case ',':
-			// more objects to come
+			// Expect more objects to come
+			if !more {
+				return nil, nil, errz.New("invalid JSON: expected additional tokens input after comma")
+			}
+
 		}
 
+		// Now we need to get the chunk for the most recently
+		// decoded object.
+
+		// We need to advance buf
+
+		// delim could be comma or left-brace
 		delimIndex, delim = NextDelim(buf.b, startOffset-bufOffset)
 		if delimIndex == -1 {
 			return nil, nil, errz.Errorf("invalid JSON: expected delimiter token")
 		}
 
-		if more && delim != '{' {
-			return nil, nil, errz.Errorf("invalid JSON: expected left-brace delimiter token but got: %s", string(delim))
+		switch delim {
+		default:
+			return nil, nil, errz.Errorf("invalid JSON: expected comma or left-brace '{' but got: %s", string(delim))
+		case ',':
+			println("got the comma")
+			// If it's a comma, we need to advance startOffset until we
+			// reach left-bracket (which MUST be the next delim).
+			//startOffset++
+			delimIndex, delim = NextDelim(buf.b, startOffset+1-bufOffset)
+			if delimIndex == -1 {
+				return nil, nil, errz.Errorf("invalid JSON: expected delimiter token")
+			}
+
+			if delim != '{' {
+				return nil, nil, errz.Errorf("invalid JSON: expected left-brace '{' token")
+			}
+			//startOffset = startOffset + delimIndex
+
+		case '{':
 		}
+
+		//if delim != '{' {
+		//	return nil, nil, errz.Errorf("invalid JSON: expected left-brace delimiter token but got: %s", string(delim))
+		//}
 
 		chunkSize := endOffset - delimIndex - bufOffset
 		chunk := make([]byte, chunkSize)
 		chunk2 := buf.b[delimIndex : endOffset-bufOffset]
-		println(">>>" + string(chunk2) + "<<<")
+		//println("chunk2>>>" + string(chunk2) + "<<<")
 		copy(chunk, buf.b[delimIndex:endOffset-bufOffset])
-		startOffset = endOffset
+		println("chunk >>>" + string(chunk2) + "<<<")
+
+		if strings.TrimSpace(string(chunk)) != string(chunk) {
+			panic("chunk has whitespace")
+		}
+
+		if string(chunk) != string(chunk2) {
+			panic("chunk != chunk2")
+		}
 
 		if !stdj.Valid(chunk) {
 			// Should never happen; should be able to delete this check
@@ -134,8 +178,11 @@ func ParseObjectsInArray(r io.Reader) (objs []map[string]interface{}, chunks [][
 		}
 
 		// Trim the front of the buffer, otherwise it will grow unbounded.
-		buf.b = buf.b[endOffset-bufOffset:]
-		bufOffset = endOffset
+		buf.b = buf.b[endOffset-bufOffset+delimIndex:]
+		bufOffset = endOffset + delimIndex
+		startOffset = endOffset + delimIndex
+
+		println("buf after>>>" + string(buf.b) + "<<<")
 
 		//fmt.Fprintf(os.Stdout, "[%d] buf size: len(%d) cap(%d)\n", len(chunks), len(buf.b), cap(buf.b))
 		//err = os.Stdout.Sync()
@@ -148,6 +195,21 @@ func ParseObjectsInArray(r io.Reader) (objs []map[string]interface{}, chunks [][
 
 	return objs, chunks, nil
 
+}
+
+// requireDelimToken invokes dec.Token, returning an error if the
+// token is not a delimiter with value delim.
+func requireDelimToken(dec *stdj.Decoder, delim rune) (stdj.Token, error) {
+	tok, err := dec.Token()
+	if err != nil {
+		return tok, err
+	}
+
+	if tok != stdj.Delim(delim) {
+		return tok, errz.Errorf("expected next token to be delimiter %q but got: %s", string(delim), tokstr(tok))
+	}
+
+	return tok, nil
 }
 
 // tokstr returns a string representation of tok.

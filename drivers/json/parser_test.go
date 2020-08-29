@@ -101,7 +101,7 @@ func TestParseObjects3(t *testing.T) {
 		//m3 = []map[string]interface{}{{"a": 1}, {"a": 2}, {"a": 3}}
 	)
 
-	_, _ = m1, m2
+	_, _, _ = m1, m2, m3
 
 	testCases := []struct {
 		in       string
@@ -110,15 +110,15 @@ func TestParseObjects3(t *testing.T) {
 		wantChunks []string
 		wantErr    bool
 	}{
-		//{in: ``, wantErr: true},
-		//{in: `[]`},
+		{in: ``, wantErr: true},
+		{in: `[]`},
 		{in: `[{"a":1}]`, wantObjs: m1, wantChunks: []string{`{"a":1}`}},
-		//{in: `[ {"a":1} ]`, wantObjs: m1, wantChunks: []string{`{"a":1}`}},
-		//{in: `[  { "a" :  1   }  ]`, wantObjs: m1, wantChunks: []string{`{ "a" :  1   }`}},
-		//{in: `[{"a":1},{"a":2}]`, wantObjs: m2, wantChunks: []string{`{"a":1}`, `{"a":2}`}},
-		{in: `[{"a":1},{"a":2},{"a":3}]`, wantObjs: m3, wantChunks: []string{`{"a":1}`, `{"a":2}`, `{"a":2}`}},
-		//{in: `[{"a":1},{"a":2},{"a":3}]`, want: 3},
-		//{in: "[\n  {\"a\": 1},\n  {\"a\": 2},\n  {\"a\": 3}\n]", want: 3},
+		{in: `[ {"a":1} ]`, wantObjs: m1, wantChunks: []string{`{"a":1}`}},
+		{in: `[  { "a" :  1   }  ]`, wantObjs: m1, wantChunks: []string{`{ "a" :  1   }`}},
+		{in: `[{"a":1},{"a":2}]`, wantObjs: m2, wantChunks: []string{`{"a":1}`, `{"a":2}`}},
+		{in: `[  { "a"  : 1} ,   {"a":  2 }  ]`, wantObjs: m2, wantChunks: []string{`{ "a"  : 1}`, `{"a":  2 }`}},
+		{in: `[{"a":1},{"a":2},{"a":3}]`, wantObjs: m3, wantChunks: []string{`{"a":1}`, `{"a":2}`, `{"a":3}`}},
+		{in: "[\n  {\"a\" : 1},\n  {\"a\"  : 2 \n}\n,\n  {\"a\":   3}\n]\n\n", wantObjs: m3, wantChunks: []string{"{\"a\" : 1}", "{\"a\"  : 2 \n}", "{\"a\":   3}"}},
 		//{in: "[  {\"a\": 1},  {\"a\": 2},\n  {\"a\": 3}\n]", want: 3},
 	}
 
@@ -126,6 +126,8 @@ func TestParseObjects3(t *testing.T) {
 		tc := tc
 
 		t.Run(testh.Name(i, tc.in), func(t *testing.T) {
+			println("input:>>>" + tc.in + "<<<")
+
 			r := bytes.NewReader([]byte(tc.in))
 			gotObjs, gotChunks, err := json.ParseObjectsInArray(r)
 			if tc.wantErr {
