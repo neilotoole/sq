@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"strconv"
-	"strings"
 
 	"github.com/neilotoole/lg"
 
@@ -36,25 +34,26 @@ func (b *buffer) Write(p []byte) (n int, err error) {
 // chunks slice holds the chunk of raw JSON for each object.
 func ParseObjectsInArray(r io.Reader) (objs []map[string]interface{}, chunks [][]byte, err error) {
 	buf := &buffer{b: []byte{}}
-	canonBuf := &buffer{b: []byte{}}
+	//canonBuf := &buffer{b: []byte{}}
 	var bufOffset int
 
-	checkBufOffset := func() {
-		if len(buf.b)+bufOffset != len(canonBuf.b) {
-			panic(fmt.Sprintf("len(buf): %d  |  bufOffset: %d  | len(canonBuf): %d",
-				len(buf.b), bufOffset, len(canonBuf.b)))
-		}
+	//checkBufOffset := func() {
+	//	if len(buf.b)+bufOffset != len(canonBuf.b) {
+	//		panic(fmt.Sprintf("len(buf): %d  |  bufOffset: %d  | len(canonBuf): %d",
+	//			len(buf.b), bufOffset, len(canonBuf.b)))
+	//	}
+	//
+	//	for i := 0; i < len(buf.b); i++ {
+	//		if buf.b[i] != canonBuf.b[i+bufOffset] {
+	//			panic("elements don't match")
+	//		}
+	//	}
+	//}
 
-		for i := 0; i < len(buf.b); i++ {
-			if buf.b[i] != canonBuf.b[i+bufOffset] {
-				panic("elements don't match")
-			}
-		}
-	}
+	//checkBufOffset()
 
-	checkBufOffset()
-
-	r = io.TeeReader(r, io.MultiWriter(buf, canonBuf))
+	//r = io.TeeReader(r, io.MultiWriter(buf, canonBuf))
+	r = io.TeeReader(r, buf)
 
 	dec := stdj.NewDecoder(r)
 
@@ -77,7 +76,7 @@ func ParseObjectsInArray(r io.Reader) (objs []map[string]interface{}, chunks [][
 	prevDecPos = int(dec.InputOffset())
 	buf.b = buf.b[prevDecPos:]
 	bufOffset = prevDecPos
-	checkBufOffset()
+	//checkBufOffset()
 
 	var more bool
 	var decBuf []byte
@@ -168,9 +167,9 @@ func ParseObjectsInArray(r io.Reader) (objs []map[string]interface{}, chunks [][
 		// Now we need to get the chunk for the most recently
 		// decoded object.
 
-		checkBufOffset()
+		//checkBufOffset()
 
-		delimIndex, delim := NextDelimNoComma(buf.b, prevDecPos-bufOffset)
+		delimIndex, delim = NextDelimNoComma(buf.b, prevDecPos-bufOffset)
 		if delimIndex == -1 {
 			return nil, nil, errz.Errorf("invalid JSON: expected delimiter token")
 		}
@@ -178,64 +177,62 @@ func ParseObjectsInArray(r io.Reader) (objs []map[string]interface{}, chunks [][
 		switch delim {
 		default:
 			return nil, nil, errz.Errorf("invalid JSON: expected comma or left-brace '{' but got: %s", string(delim))
-		case ',':
-			panic("shouldn't happen, no more comma")
 
 		case '{':
 		}
 
-		canonChunk := canonBuf.b[prevDecPos+delimIndex : curDecPos]
-		println("canCnk>>>" + string(canonChunk) + "<<<")
-		if strings.TrimSpace(string(canonChunk)) != string(canonChunk) {
-			panic("canonChunk has whitespace")
-		}
-		if !stdj.Valid(canonChunk) {
-			// Should never happen; should be able to delete this check
-			return nil, nil, errz.Errorf("invalid JSON")
-		}
+		//canonChunk := canonBuf.b[prevDecPos+delimIndex : curDecPos]
+		//println("canCnk>>>" + string(canonChunk) + "<<<")
+		//if strings.TrimSpace(string(canonChunk)) != string(canonChunk) {
+		//	panic("canonChunk has whitespace")
+		//}
+		//if !stdj.Valid(canonChunk) {
+		//	// Should never happen; should be able to delete this check
+		//	return nil, nil, errz.Errorf("invalid JSON")
+		//}
 
 		//chunk2 := buf.b[prevDecPos-bufOffset+bufDelimIndex : curDecPos-bufOffset]
-		chunk2 := buf.b[prevDecPos-bufOffset+delimIndex : curDecPos-bufOffset]
+		//chunk2 := buf.b[prevDecPos-bufOffset+delimIndex : curDecPos-bufOffset]
 
-		println("len chunk2: " + strconv.Itoa(len(chunk2)))
-		println("chunk2>>>" + string(chunk2) + "<<<")
+		//println("len chunk2: " + strconv.Itoa(len(chunk2)))
+		//println("chunk2>>>" + string(chunk2) + "<<<")
 
 		//copy(chunk, buf.b[bufDelimIndex:curDecPos-bufOffset])
 		//chunk := make([]byte, len(chunk2))
 		//chunkSize := curDecPos - prevDecPos - bufDelimIndex
 		chunk := make([]byte, curDecPos-prevDecPos-delimIndex)
-		copied := copy(chunk, buf.b[prevDecPos-bufOffset+delimIndex:curDecPos-bufOffset])
-		if copied != len(chunk2) {
-			panic("bad copy length")
-		}
+		copy(chunk, buf.b[prevDecPos-bufOffset+delimIndex:curDecPos-bufOffset])
+		//if copied != len(chunk2) {
+		//	panic("bad copy length")
+		//}
 		//copy(chunk, buf.b[bufDelimIndex:curDecPos-bufOffset])
-		println("chunk >>>" + string(chunk2) + "<<<")
-
-		if strings.TrimSpace(string(chunk)) != string(chunk) {
-			panic("chunk has whitespace")
-		}
-
-		if string(chunk) != string(chunk2) {
-			panic("chunk != chunk2")
-		}
+		//println("chunk >>>" + string(chunk2) + "<<<")
+		//
+		//if strings.TrimSpace(string(chunk)) != string(chunk) {
+		//	panic("chunk has whitespace")
+		//}
+		//
+		//if string(chunk) != string(chunk2) {
+		//	panic("chunk != chunk2")
+		//}
 
 		if !stdj.Valid(chunk) {
 			// Should never happen; should be able to delete this check
 			return nil, nil, errz.Errorf("invalid JSON")
 		}
+		//
+		//canonReslice := canonBuf.b[curDecPos:]
+		//println("can reslice>>>" + string(canonReslice) + "<<<")
 
-		canonReslice := canonBuf.b[curDecPos:]
-		println("can reslice>>>" + string(canonReslice) + "<<<")
-
-		println("prior to buf reslice: bufDelim is: [" + strconv.Itoa(delimIndex) + "]  -->  " + string(delim))
-		println("buf before>>>" + string(buf.b) + "<<<")
+		//println("prior to buf reslice: bufDelim is: [" + strconv.Itoa(delimIndex) + "]  -->  " + string(delim))
+		//println("buf before>>>" + string(buf.b) + "<<<")
 		// Trim the front of the buffer, otherwise it will grow unbounded.
 
 		off := curDecPos - bufOffset
 		buf.b = buf.b[off:]
-		println("buf after >>>" + string(buf.b) + "<<<")
+		//println("buf after >>>" + string(buf.b) + "<<<")
 		bufOffset += off
-		checkBufOffset()
+		//checkBufOffset()
 		prevDecPos = curDecPos
 
 		chunks = append(chunks, chunk)
