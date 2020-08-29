@@ -81,7 +81,8 @@ func TestParseObjects(t *testing.T) {
 
 		t.Run(testh.Name(i, tc.in), func(t *testing.T) {
 			r := bytes.NewReader([]byte(tc.in))
-			gotObjs, gotChunks, err := json.ParseObjectsInArray(r)
+			//gotObjs, gotChunks, err := json.ParseObjectsInArray(r)
+			gotObjs, gotChunks, err := json.ScanObjectsInArray(r)
 			if tc.wantErr {
 				require.Error(t, err)
 				return
