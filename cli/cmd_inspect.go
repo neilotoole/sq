@@ -25,8 +25,9 @@ func newInspectCmd() (*cobra.Command, runFunc) {
   # inspect piped data
   cat data.xlsx | sq inspect`,
 		Short: "Inspect data source schema and stats",
-		Long: `Inspect a data source, including table schemata, columns, etc.
-If @HANDLE is not provided, use the active data source.`,
+		Long: `Inspect a data source, or a particular table in a source,
+listing table details, column names and types, row counts, etc.
+If @HANDLE is not provided, the active data source is assumed.`,
 	}
 
 	cmd.Flags().BoolP(flagJSON, flagJSONShort, false, flagJSONUsage)

@@ -7,14 +7,14 @@ const (
 
 	flagCSV      = "csv"
 	flagCSVShort = "c"
-	flagCSVUsage = "CSV output"
+	flagCSVUsage = "Output CSV"
 
 	flagDriver      = "driver"
 	flagDriverShort = "d"
 	flagDriverUsage = "Explicitly specify the data source driver to use"
 
 	flagHTML      = "html"
-	flagHTMLUsage = "HTML table output"
+	flagHTMLUsage = "Output HTML table"
 
 	flagHeader      = "header"
 	flagHeaderShort = "h"
@@ -33,17 +33,17 @@ const (
 	flagInspectFullUsage = "Output full data source details (JSON only)"
 
 	flagJSON       = "json"
-	flagJSONUsage  = "JSON output"
+	flagJSONUsage  = "Output JSON"
 	flagJSONShort  = "j"
 	flagJSONA      = "jsona"
 	flagJSONAShort = "A"
-	flagJSONAUsage = "JSON: output each record's values as a JSON array on its own line"
+	flagJSONAUsage = "Output each record as a JSON array"
 	flagJSONL      = "jsonl"
 	flagJSONLShort = "l"
-	flagJSONLUsage = "JSON: output each record as a JSON object on its own line"
+	flagJSONLUsage = "Output each record as a JSON object"
 
 	flagMarkdown      = "markdown"
-	flagMarkdownUsage = "Markdown table output"
+	flagMarkdownUsage = "Output Markdown"
 
 	flagMonochrome      = "monochrome"
 	flagMonochromeShort = "M"
@@ -57,7 +57,7 @@ const (
 	flagOutputUsage = "Write output to <file> instead of stdout"
 
 	flagPretty      = "pretty"
-	flagPrettyUsage = "Pretty-print output for certain formats such as JSON or XML"
+	flagPrettyUsage = "Pretty-print output"
 
 	flagQueryDriverUsage     = "Explicitly specify the data source driver to use when piping input"
 	flagQuerySrcOptionsUsage = "Driver-dependent data source options when piping input"
@@ -77,14 +77,14 @@ const (
 
 	flagTSV      = "tsv"
 	flagTSVShort = "T"
-	flagTSVUsage = "TSV output"
+	flagTSVUsage = "Output TSV"
 
 	flagTable      = "table"
 	flagTableShort = "t"
-	flagTableUsage = "Table output"
+	flagTableUsage = "Output text table"
 
 	flagTblData      = "data"
-	flagTblDataUsage = "Copy table data (defualt true)"
+	flagTblDataUsage = "Copy table data (default true)"
 
 	flagTimeout          = "timeout"
 	flagTimeoutPingUsage = "Max time to wait for ping"
@@ -98,11 +98,11 @@ const (
 
 	flagXLSX      = "xlsx"
 	flagXLSXShort = "x"
-	flagXLSXUsage = "Excel XLSX output"
+	flagXLSXUsage = "Output Excel XLSX"
 
 	flagXML      = "xml"
 	flagXMLShort = "X"
-	flagXMLUsage = "XML output"
+	flagXMLUsage = "Output XML"
 )
 
 const (

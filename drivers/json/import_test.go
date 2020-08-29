@@ -28,7 +28,7 @@ func TestImportJSONL(t *testing.T) {
 	require.Equal(t, 4, len(sink.Recs))
 }
 
-func TestParseObjects(t *testing.T) {
+func TestScanObjectsInArray(t *testing.T) {
 	var (
 		m1 = []map[string]interface{}{{"a": float64(1)}}
 		m2 = []map[string]interface{}{{"a": float64(1)}, {"a": float64(2)}}
@@ -81,7 +81,6 @@ func TestParseObjects(t *testing.T) {
 
 		t.Run(testh.Name(i, tc.in), func(t *testing.T) {
 			r := bytes.NewReader([]byte(tc.in))
-			//gotObjs, gotChunks, err := json.ParseObjectsInArray(r)
 			gotObjs, gotChunks, err := json.ScanObjectsInArray(r)
 			if tc.wantErr {
 				require.Error(t, err)
@@ -99,7 +98,7 @@ func TestParseObjects(t *testing.T) {
 	}
 }
 
-func TestParseObjects_Files(t *testing.T) {
+func TestScanObjectsInArray_Files(t *testing.T) {
 	testCases := []struct {
 		fname     string
 		wantCount int
@@ -117,7 +116,7 @@ func TestParseObjects_Files(t *testing.T) {
 			require.NoError(t, err)
 			defer f.Close()
 
-			gotObjs, gotChunks, err := json.ParseObjectsInArray(f)
+			gotObjs, gotChunks, err := json.ScanObjectsInArray(f)
 			require.NoError(t, err)
 			require.Equal(t, tc.wantCount, len(gotObjs))
 			require.Equal(t, tc.wantCount, len(gotChunks))

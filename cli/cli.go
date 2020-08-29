@@ -115,7 +115,7 @@ func ExecuteWith(rc *RunContext, args []string) error {
 		}
 
 		// If we have args [sq, arg1, arg2] the we redirect
-		// to the "query" command by modifying args to
+		// to the "slq" command by modifying args to
 		// look like: [query, arg1, arg2] -- noting that SetArgs
 		// doesn't want the first args element.
 		queryCmdArgs := append([]string{"slq"}, args[1:]...)

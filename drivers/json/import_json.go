@@ -20,7 +20,9 @@ func importJSON(ctx context.Context, log lg.Log, src *source.Source, openFn sour
 	return nil
 }
 
-func ScanObjectsInArray(r io.Reader) (objs []map[string]interface{}, chunks [][]byte, err error) {
+// scanObjectsInArray is a convenience function
+// for objectsInArrayScanner.
+func scanObjectsInArray(r io.Reader) (objs []map[string]interface{}, chunks [][]byte, err error) {
 	sc := newObjectInArrayScanner(r)
 
 	for {
@@ -33,6 +35,7 @@ func ScanObjectsInArray(r io.Reader) (objs []map[string]interface{}, chunks [][]
 		}
 
 		if obj == nil {
+			// No more objects to be scanned
 			break
 		}
 
@@ -43,7 +46,10 @@ func ScanObjectsInArray(r io.Reader) (objs []map[string]interface{}, chunks [][]
 	return objs, chunks, nil
 }
 
-type objectInArrayScanner struct {
+// objectsInArrayScanner scans JSON text that consists of an array of
+// JSON objects, returning the decoded object and the chunk of JSON
+// that it was scanned from. Example input: [{a:1},{a:2},{a:3}]
+type objectsInArrayScanner struct {
 	// buf will get all the data that the JSON decoder reads.
 	// buf's role is to keep track of JSON text that has already been
 	// consumed by dec, so that we can return the raw JSON chunk
@@ -75,17 +81,19 @@ type objectInArrayScanner struct {
 
 // newObjectInArrayScanner returns a new instance that
 // reads from r.
-func newObjectInArrayScanner(r io.Reader) *objectInArrayScanner {
+func newObjectInArrayScanner(r io.Reader) *objectsInArrayScanner {
 	buf := &buffer{b: []byte{}}
+	// Everything that dec reads from r is written
+	// to buf via the TeeReader.
 	dec := stdj.NewDecoder(io.TeeReader(r, buf))
 
-	return &objectInArrayScanner{buf: buf, dec: dec}
+	return &objectsInArrayScanner{buf: buf, dec: dec}
 }
 
 // next scans the next object from the reader. The returned chunk holds
 // the raw JSON that the obj was decoded from. When no more objects,
 // obj and chunk are nil.
-func (s *objectInArrayScanner) next() (obj map[string]interface{}, chunk []byte, err error) {
+func (s *objectsInArrayScanner) next() (obj map[string]interface{}, chunk []byte, err error) {
 	var tok stdj.Token
 
 	if s.bufOffset == 0 {
@@ -140,7 +148,7 @@ func (s *objectInArrayScanner) next() (obj map[string]interface{}, chunk []byte,
 	more = s.dec.More()
 
 	// Peek ahead in the decoder buffer
-	delimIndex, delim := nextDelim(s.decBuf, 0)
+	delimIndex, delim := nextDelim(s.decBuf, 0, true)
 	if delimIndex == -1 {
 		return nil, nil, errz.New("invalid JSON: additional input expected")
 	}
@@ -183,7 +191,7 @@ func (s *objectInArrayScanner) next() (obj map[string]interface{}, chunk []byte,
 
 	// Note that we re-use the vars delimIndex and delim here.
 	// Above us, these vars referred to s.decBuf, not s.buf as here.
-	delimIndex, delim = nextDelimNoComma(s.buf.b, s.prevDecPos-s.bufOffset)
+	delimIndex, delim = nextDelim(s.buf.b, s.prevDecPos-s.bufOffset, false)
 	if delimIndex == -1 {
 		return nil, nil, errz.Errorf("invalid JSON: expected delimiter token")
 	}
@@ -213,174 +221,7 @@ func (s *objectInArrayScanner) next() (obj map[string]interface{}, chunk []byte,
 	return obj, chunk, nil
 }
 
-// ParseObjectsInArray parses JSON that consists of an array of
-// JSON objects. For example: [{a:1},{a:2},{a:3}]. The returned
-// chunks slice holds the chunk of raw JSON for each object.
-func ParseObjectsInArray(r io.Reader) (objs []map[string]interface{}, chunks [][]byte, err error) {
-	// buf will get all the data that the JSON decoder reads.
-	// buf's role is to keep track of JSON text that has already been
-	// consumed by dec, so that we can return the raw JSON chunk
-	// when returning its object.
-	buf := &buffer{b: []byte{}}
-	dec := stdj.NewDecoder(io.TeeReader(r, buf))
-
-	var (
-		// bufOffset is the offset of buf's byte slice relative to the
-		// entire input stream.
-		bufOffset int
-
-		// tok is the JSON token returned by the decoder.
-		tok stdj.Token
-
-		// curDecPos is the current position of the decoder in the
-		// input stream.
-		curDecPos int
-
-		// prevDecPos holds the previous position of the decoder
-		// in the input stream.
-		prevDecPos int
-
-		// more holds the value of dec.More, indicating if there
-		// are more tokens remaining to be decoded.
-		more bool
-
-		// decBuf holds the value of dec.Buffered, which allows us
-		// to look ahead at the upcoming decoder values.
-		decBuf []byte
-
-		// delimIndex and delim are the index and value of the next
-		// delimiters in either buf or decBuf.
-		delimIndex int
-		delim      byte
-	)
-
-	// The first token must be left-bracket'['
-	tok, err = requireDelimToken(dec, '[')
-	if err != nil {
-		return nil, nil, err
-	}
-
-	prevDecPos = int(dec.InputOffset())
-
-	// Sync buf with the position in the stream
-	buf.b = buf.b[prevDecPos:]
-	bufOffset = prevDecPos
-
-	for {
-		more = dec.More()
-		if !more {
-			// Make sure there's no trailing invalid stuff
-			decBuf, err = ioutil.ReadAll(dec.Buffered())
-			if err != nil {
-				return nil, nil, errz.Err(err)
-			}
-
-			trimmed := bytes.TrimSpace(decBuf)
-			if len(trimmed) == 0 {
-				break
-			}
-
-			if len(trimmed) == 1 && trimmed[0] == ']' {
-				break
-			}
-
-			return nil, nil, errz.Errorf("invalid JSON: non-whitespace trailing input: %s", string(decBuf))
-		}
-
-		var m map[string]interface{}
-		err = dec.Decode(&m)
-		if err != nil {
-			return nil, nil, errz.Err(err)
-		}
-		objs = append(objs, m)
-
-		curDecPos = int(dec.InputOffset())
-
-		decBuf, err = ioutil.ReadAll(dec.Buffered())
-		if err != nil {
-			return nil, nil, errz.Err(err)
-		}
-
-		more = dec.More()
-
-		// Peek ahead in the decoder buffer
-		delimIndex, delim = nextDelim(decBuf, 0)
-		if delimIndex == -1 {
-			return nil, nil, errz.New("invalid JSON: additional input expected")
-		}
-
-		// If end of input, delim should be right-bracket.
-		// If there's another object, delim should be comma.
-		// If delim not found, or some other delim, it's an error.
-		switch delim {
-		default:
-			// bad input
-			return nil, nil, errz.Errorf("invalid JSON: expected comma or right-bracket ']' token but got: %s", formatToken(tok))
-
-		case ']':
-			// should be end of input
-			tok, err = requireDelimToken(dec, ']')
-			if err != nil {
-				return nil, nil, errz.Err(err)
-			}
-
-			if more {
-				return nil, nil, errz.New("unexpected additional JSON input after closing ']'")
-			}
-
-			// Make sure there's no invalid trailing stuff
-			decBuf, err = ioutil.ReadAll(dec.Buffered())
-			if err != nil {
-				return nil, nil, errz.Err(err)
-			}
-
-			if len(bytes.TrimSpace(decBuf)) != 0 {
-				return nil, nil, errz.Errorf("invalid JSON: non-whitespace trailing input: %s", string(decBuf))
-			}
-
-		case ',':
-			// Expect more objects to come
-			if !more {
-				return nil, nil, errz.New("invalid JSON: expected additional tokens input after comma")
-			}
-		}
-
-		// Note that we are re-using the vars delimIndex and delim here.
-		// Above us, these vars referred to the value in decBuf, not buf as here.
-		delimIndex, delim = nextDelimNoComma(buf.b, prevDecPos-bufOffset)
-		if delimIndex == -1 {
-			return nil, nil, errz.Errorf("invalid JSON: expected delimiter token")
-		}
-
-		switch delim {
-		default:
-			return nil, nil,
-				errz.Errorf("invalid JSON: expected comma or left-brace '{' but got: %s", string(delim))
-		case '{':
-		}
-
-		chunk := make([]byte, curDecPos-prevDecPos-delimIndex)
-		copy(chunk, buf.b[prevDecPos-bufOffset+delimIndex:curDecPos-bufOffset])
-
-		if !stdj.Valid(chunk) {
-			// Should never happen; should be able to delete this check
-			return nil, nil, errz.Errorf("invalid JSON")
-		}
-
-		// If processing a large stream, buf.b will grow unbounded.
-		// So we snip it down to size and use bufOffset to track
-		// the nominal size.
-		buf.b = buf.b[curDecPos-bufOffset:]
-		bufOffset = curDecPos
-		prevDecPos = curDecPos
-
-		chunks = append(chunks, chunk)
-	}
-
-	return objs, chunks, nil
-}
-
-// buffer is a trivial implementation of io.Writer.
+// buffer is a basic implementation of io.Writer.
 type buffer struct {
 	b []byte
 }
@@ -419,28 +260,19 @@ func formatToken(tok stdj.Token) string {
 }
 
 // nextDelim returns the index in b of the first JSON
-// delimiter (left or right bracket, left or right brace, or comma)
-// occurring from index start onwards. If no delimiter found,
-// (-1, 0) is returned. Note that unlike dec.Token, this function
-// will return comma.
-func nextDelim(b []byte, start int) (i int, delim byte) {
-	for i = start; i < len(b); i++ {
-		switch b[i] {
-		case ',', '{', '}', '[', ']':
-			return i, b[i]
-		}
-	}
-
-	return -1, 0
-}
-
-// nextDelimNoComma works like nextDelim but skips comma (thus
-// it works like the stdlib json decoder).
-func nextDelimNoComma(b []byte, start int) (i int, delim byte) {
+// delimiter (left or right bracket, left or right brace)
+// occurring from index start onwards. If arg comma is true,
+// comma is also considered a delimiter. If no delimiter
+// found, (-1, 0) is returned.
+func nextDelim(b []byte, start int, comma bool) (i int, delim byte) {
 	for i = start; i < len(b); i++ {
 		switch b[i] {
 		case '{', '}', '[', ']':
 			return i, b[i]
+		case ',':
+			if comma {
+				return i, b[i]
+			}
 		}
 	}
 

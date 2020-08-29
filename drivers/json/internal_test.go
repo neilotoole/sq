@@ -14,9 +14,10 @@ import (
 
 // export for testing
 var (
-	ImportJSON  = importJSON
-	ImportJSONA = importJSONA
-	ImportJSONL = importJSONL
+	ImportJSON         = importJSON
+	ImportJSONA        = importJSONA
+	ImportJSONL        = importJSONL
+	ScanObjectsInArray = scanObjectsInArray
 )
 
 func TestDetectColKindsJSONA(t *testing.T) {
