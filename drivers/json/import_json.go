@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"strconv"
 	"strings"
 
 	"github.com/neilotoole/lg"
@@ -34,11 +35,34 @@ func (b *buffer) Write(p []byte) (n int, err error) {
 // chunks holds the chunk of raw JSON for each object.
 func ParseObjectsInArray(r io.Reader) (objs []map[string]interface{}, chunks [][]byte, err error) {
 	buf := &buffer{b: []byte{}}
-	r = io.TeeReader(r, buf)
+	canonBuf := &buffer{b: []byte{}}
+	var bufOffset int
+
+	checkBufOffset := func() {
+		if len(buf.b)+bufOffset != len(canonBuf.b) {
+			panic(fmt.Sprintf("len(buf): %d  |  bufOffset: %d  | len(canonBuf): %d",
+				len(buf.b), bufOffset, len(canonBuf.b)))
+		}
+
+		for i := 0; i < len(buf.b); i++ {
+			if buf.b[i] != canonBuf.b[i+bufOffset] {
+				panic("elements don't match")
+			}
+		}
+	}
+
+	checkBufOffset()
+
+	r = io.TeeReader(r, io.MultiWriter(buf, canonBuf))
+
 	dec := stdj.NewDecoder(r)
 
 	var tok stdj.Token
-	var startOffset, endOffset int
+
+	var prevDecPos int
+
+	// curDecPos is the position of the decoder in the input stream.
+	var curDecPos int
 
 	tok, err = dec.Token()
 	if err != nil {
@@ -49,15 +73,22 @@ func ParseObjectsInArray(r io.Reader) (objs []map[string]interface{}, chunks [][
 		return nil, nil, errz.Errorf("expected first delimiter to be left-bracket but got: %s", tokstr(tok))
 	}
 
-	startOffset = int(dec.InputOffset())
+	prevDecPos = int(dec.InputOffset())
+	buf.b = buf.b[prevDecPos:]
+	bufOffset = prevDecPos
+	checkBufOffset()
 
 	var more bool
 	var decBuf []byte
-	var delimIndex int
-	var delim byte
-	var bufOffset int
+	//var delimIndex int
+	//var delim byte
+
+	iter := -1
 
 	for {
+		iter++
+		println("\n\niter: " + strconv.Itoa(iter) + "\n\n")
+
 		more = dec.More()
 		if !more {
 			break
@@ -70,30 +101,29 @@ func ParseObjectsInArray(r io.Reader) (objs []map[string]interface{}, chunks [][
 		}
 		objs = append(objs, m)
 
-		endOffset = int(dec.InputOffset())
+		curDecPos = int(dec.InputOffset())
 
 		decBuf, err = ioutil.ReadAll(dec.Buffered())
 
-		// If there's another object, delim should be comma.
-		// If end of input, delim should be right-bracket.
-		// If no delim, or some other delim, it's an error.
+		// If there's another object, bufDelim should be comma.
+		// If end of input, bufDelim should be right-bracket.
+		// If no bufDelim, or some other bufDelim, it's an error.
 
 		// peek ahead in the decoder buffer
-		delimIndex, delim = NextDelim(decBuf, 0)
-		//if delimIndex == -1 {
-		//	return
-		//}
+		decDelimIndex, decDelim := NextDelim(decBuf, 0)
+		if decDelimIndex == -1 {
+			return nil, nil, errz.New("invalid JSON: additional input expected")
+		}
 
 		more = dec.More()
 
-		switch delim {
+		switch decDelim {
 		default:
 			// bad input
-			return nil, nil, errz.Errorf("invalid JSON: expected comma or right-bracket token but got: %s", tokstr(tok))
+			return nil, nil, errz.Errorf("invalid JSON: expected comma or right-bracket ']' token but got: %s", tokstr(tok))
 
 		case ']':
 			// should be end of input
-
 			tok, err = requireDelimToken(dec, ']')
 			if err != nil {
 				return nil, nil, errz.Err(err)
@@ -102,16 +132,6 @@ func ParseObjectsInArray(r io.Reader) (objs []map[string]interface{}, chunks [][
 			if more {
 				return nil, nil, errz.New("unexpected additional JSON input after closing ']'")
 			}
-
-			//endChunk := buf.b[startOffset-bufOffset : endOffset-bufOffset]
-			//println("endchunk:>>>" + string(endChunk) + "<<<")
-			//if !stdj.Valid(endChunk) {
-			//	// Should never happen; should be able to delete this check
-			//	return nil, nil, errz.Errorf("invalid JSON")
-			//}
-			//
-			//chunks = append(chunks, endChunk)
-			//return objs, chunks, nil
 
 		case ',':
 			// Expect more objects to come
@@ -125,43 +145,62 @@ func ParseObjectsInArray(r io.Reader) (objs []map[string]interface{}, chunks [][
 		// decoded object.
 
 		// We need to advance buf
+		checkBufOffset()
+		// bufDelim could be comma or left-brace
+		//bufDelimIndex, bufDelim := NextDelimNoComma(buf.b, prevDecPos-bufOffset)
 
-		// delim could be comma or left-brace
-		delimIndex, delim = NextDelim(buf.b, startOffset-bufOffset)
-		if delimIndex == -1 {
+		bufDelimIndex, bufDelim := NextDelimNoComma(buf.b, prevDecPos-bufOffset)
+		if bufDelimIndex == -1 {
 			return nil, nil, errz.Errorf("invalid JSON: expected delimiter token")
 		}
 
-		switch delim {
+		switch bufDelim {
 		default:
-			return nil, nil, errz.Errorf("invalid JSON: expected comma or left-brace '{' but got: %s", string(delim))
+			return nil, nil, errz.Errorf("invalid JSON: expected comma or left-brace '{' but got: %s", string(bufDelim))
 		case ',':
-			println("got the comma")
-			// If it's a comma, we need to advance startOffset until we
-			// reach left-bracket (which MUST be the next delim).
-			//startOffset++
-			delimIndex, delim = NextDelim(buf.b, startOffset+1-bufOffset)
-			if delimIndex == -1 {
-				return nil, nil, errz.Errorf("invalid JSON: expected delimiter token")
-			}
-
-			if delim != '{' {
-				return nil, nil, errz.Errorf("invalid JSON: expected left-brace '{' token")
-			}
-			//startOffset = startOffset + delimIndex
+			panic("shouldn't happen, no more comma")
+			//println("got the comma")
+			//// If it's a comma, we need to advance prevDecPos until we
+			//// reach left-bracket (which MUST be the next bufDelim).
+			////prevDecPos++
+			//bufDelimIndex, bufDelim = NextDelim(buf.b, prevDecPos+1-bufOffset)
+			//if bufDelimIndex == -1 {
+			//	return nil, nil, errz.Errorf("invalid JSON: expected delimiter token")
+			//}
+			//
+			//if bufDelim != '{' {
+			//	return nil, nil, errz.Errorf("invalid JSON: expected left-brace '{' token")
+			//}
+			//prevDecPos = prevDecPos + bufDelimIndex
 
 		case '{':
 		}
 
-		//if delim != '{' {
-		//	return nil, nil, errz.Errorf("invalid JSON: expected left-brace delimiter token but got: %s", string(delim))
+		//if bufDelim != '{' {
+		//	return nil, nil, errz.Errorf("invalid JSON: expected left-brace delimiter token but got: %s", string(bufDelim))
 		//}
 
-		chunkSize := endOffset - delimIndex - bufOffset
-		chunk := make([]byte, chunkSize)
-		chunk2 := buf.b[delimIndex : endOffset-bufOffset]
-		//println("chunk2>>>" + string(chunk2) + "<<<")
-		copy(chunk, buf.b[delimIndex:endOffset-bufOffset])
+		//chunkSize := curDecPos - bufDelimIndex - bufOffset
+		//chunk := make([]byte, chunkSize)
+		//chunk2 := buf.b[bufDelimIndex : curDecPos-bufOffset]
+		canonChunk := canonBuf.b[prevDecPos+bufDelimIndex : curDecPos]
+		println("canCnk>>>" + string(canonChunk) + "<<<")
+		if strings.TrimSpace(string(canonChunk)) != string(canonChunk) {
+			panic("canonChunk has whitespace")
+		}
+		if !stdj.Valid(canonChunk) {
+			// Should never happen; should be able to delete this check
+			return nil, nil, errz.Errorf("invalid JSON")
+		}
+
+		//chunk2 := buf.b[prevDecPos-bufOffset+bufDelimIndex : curDecPos-bufOffset]
+		chunk2 := buf.b[prevDecPos-bufOffset+bufDelimIndex : curDecPos-bufOffset]
+		println("chunk2>>>" + string(chunk2) + "<<<")
+
+		//copy(chunk, buf.b[bufDelimIndex:curDecPos-bufOffset])
+		chunk := make([]byte, len(chunk2))
+		copy(chunk, chunk2)
+		//copy(chunk, buf.b[bufDelimIndex:curDecPos-bufOffset])
 		println("chunk >>>" + string(chunk2) + "<<<")
 
 		if strings.TrimSpace(string(chunk)) != string(chunk) {
@@ -177,12 +216,24 @@ func ParseObjectsInArray(r io.Reader) (objs []map[string]interface{}, chunks [][
 			return nil, nil, errz.Errorf("invalid JSON")
 		}
 
-		// Trim the front of the buffer, otherwise it will grow unbounded.
-		buf.b = buf.b[endOffset-bufOffset+delimIndex:]
-		bufOffset = endOffset + delimIndex
-		startOffset = endOffset + delimIndex
+		canonReslice := canonBuf.b[curDecPos:]
+		println("can reslice>>>" + string(canonReslice) + "<<<")
 
-		println("buf after>>>" + string(buf.b) + "<<<")
+		println("prior to buf reslice: bufDelim is: [" + strconv.Itoa(bufDelimIndex) + "]  -->  " + string(bufDelim))
+		println("buf before>>>" + string(buf.b) + "<<<")
+		// Trim the front of the buffer, otherwise it will grow unbounded.
+
+		off := curDecPos - bufOffset
+		buf.b = buf.b[off:]
+		println("buf after >>>" + string(buf.b) + "<<<")
+		bufOffset += off
+		checkBufOffset()
+		prevDecPos = curDecPos
+		//bufOffset += bufDelimIndex
+		//prevDecPos = curDecPos + bufDelimIndex
+		//println("buf after >>>" + string(buf.b) + "<<<")
+
+		//checkBufOffset()
 
 		//fmt.Fprintf(os.Stdout, "[%d] buf size: len(%d) cap(%d)\n", len(chunks), len(buf.b), cap(buf.b))
 		//err = os.Stdout.Sync()
@@ -241,4 +292,13 @@ func NextDelim(b []byte, start int) (i int, delim byte) {
 	}
 
 	return -1, 0
+}
+
+func NextDelimNoComma(b []byte, start int) (i int, delim byte) {
+	i, delim = NextDelim(b, start)
+	if delim == ',' {
+		return NextDelim(b, i+1)
+	}
+
+	return i, delim
 }
