@@ -6,12 +6,10 @@ import (
 	"context"
 	stdj "encoding/json"
 	"io"
-	"math"
 
 	"github.com/neilotoole/lg"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 )
@@ -58,13 +56,6 @@ func DetectJSONL(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (d
 		if err != nil {
 			return source.TypeNone, 0, nil
 		}
-
-		//// At this time, JSONL does not support nested objects
-		//for _, field := range vals {
-		//	if _, ok := field.(map[string]interface{}); ok {
-		//		return source.TypeNone, 0, nil
-		//	}
-		//}
 
 		validLines++
 		if validLines >= driver.Tuning.SampleSize {
@@ -125,7 +116,6 @@ func importJSONL(ctx context.Context, log lg.Log, src *source.Source, openFn sou
 					return err
 				}
 
-				log.Debugf("Creating new schema: %s", *newSchema)
 				err = execSchemaDelta(ctx, log, drvr, db, curSchema, newSchema)
 				if err != nil {
 					return err
@@ -152,7 +142,6 @@ func importJSONL(ctx context.Context, log lg.Log, src *source.Source, openFn sou
 
 		var m map[string]interface{}
 		dec := stdj.NewDecoder(bytes.NewReader(line))
-		//dec.UseNumber()
 
 		err = dec.Decode(&m)
 		if err != nil {
@@ -177,19 +166,11 @@ func importJSONL(ctx context.Context, log lg.Log, src *source.Source, openFn sou
 		}
 
 		// FIXME: need to add values that are created after schema creation
-
 	}
 
 	if sc.validLineCount == 0 {
 		return errz.New("empty JSONL input")
 	}
-
-	//schema, err := proc.buildSchemaFlat()
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//q.Q(schema)
 
 	return nil
 }
@@ -242,108 +223,4 @@ func (ls *lineScanner) Next() (hasMore bool, line []byte, err error) {
 		ls.validLineCount++
 		return true, line, nil
 	}
-}
-
-// detectColKindsJSONL reads JSONL lines from r, and returns
-// the kind of each field. The []readMungeFunc may contain a munge
-// func that should be applied to each value (or the element may be nil).
-// Deprecated: the JSONL col kinds are now detected by processor.
-func detectColKindsJSONL(ctx context.Context, r io.Reader) (names []string, kinds []kind.Kind, mungeFns []kind.MungeFunc, err error) {
-	var (
-		totalLineCount int
-		// jLineCount is the number of JSONL lines (totalLineCount minus empty lines)
-		jLineCount int
-		line       []byte
-		detectors  []*kind.Detector
-	)
-
-	sc := bufio.NewScanner(r)
-	for sc.Scan() {
-		select {
-		case <-ctx.Done():
-			return nil, nil, nil, ctx.Err()
-		default:
-		}
-
-		if jLineCount > driver.Tuning.SampleSize {
-			break
-		}
-
-		if err = sc.Err(); err != nil {
-			return nil, nil, nil, errz.Err(err)
-		}
-
-		line = sc.Bytes()
-		totalLineCount++
-		if len(line) == 0 {
-			// Probably want to skip blank lines? Maybe
-			continue
-		}
-
-		jLineCount++
-
-		// Each line of JSONL must open with left brace
-		if line[0] != '{' {
-			return nil, nil, nil, errz.New("line does not begin with left bracket '['")
-		}
-
-		// If the line is JSONL it should marshall into map[string]interface{}
-		var obj map[string]interface{}
-		err = stdj.Unmarshal(line, &obj)
-		if err != nil {
-			return nil, nil, nil, errz.Err(err)
-		}
-
-		if len(obj) == 0 {
-			return nil, nil, nil, errz.Errorf("zero field count at line %d", totalLineCount)
-		}
-
-		if kinds == nil {
-			kinds = make([]kind.Kind, len(obj))
-			mungeFns = make([]kind.MungeFunc, len(obj))
-			detectors = make([]*kind.Detector, len(obj))
-			for i := range detectors {
-				detectors[i] = kind.NewDetector()
-			}
-		}
-
-		if len(obj) != len(kinds) {
-			return nil, nil, nil, errz.Errorf("inconsistent field count: expected %d but got %d at line %d",
-				len(kinds), len(obj), totalLineCount)
-		}
-
-		var j int
-		for _, val := range obj {
-			// Special case: The decoder decodes numbers into float.
-			// Which we don't want, if the number is really an int
-			// (especially important for id columns).
-			// So, if the float has zero after the decimal point '.' (that
-			// is to say, it's a round float like 1.0), we convert the float
-			// to an int. Possibly we could use json.Decoder.UseNumber to
-			// avoid this, but that may introduce other complexities.
-			fVal, ok := val.(float64)
-			if ok {
-				floor := math.Floor(fVal)
-				if fVal-floor == 0 {
-					val = int64(floor)
-				}
-			}
-
-			detectors[j].Sample(val)
-			j++
-		}
-	}
-
-	if jLineCount == 0 {
-		return nil, nil, nil, errz.New("empty JSONA input")
-	}
-
-	for i := range kinds {
-		kinds[i], mungeFns[i], err = detectors[i].Detect()
-		if err != nil {
-			return nil, nil, nil, err
-		}
-	}
-
-	return names, kinds, mungeFns, nil
 }

@@ -83,7 +83,3 @@ func TestTypeDetectorFuncs(t *testing.T) {
 		})
 	}
 }
-
-func TestJSONDecoder(t *testing.T) {
-
-}

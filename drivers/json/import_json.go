@@ -33,23 +33,35 @@ func (b *buffer) Write(p []byte) (n int, err error) {
 // JSON objects. For example: [{a:1},{a:2},{a:3}]. The returned
 // chunks slice holds the chunk of raw JSON for each object.
 func ParseObjectsInArray(r io.Reader) (objs []map[string]interface{}, chunks [][]byte, err error) {
-	// buf will get all that data that the JSON decoder reads
+	// buf will get all the data that the JSON decoder reads.
+	// We need buf to keep track of JSON text that has already been
+	// consumed by dec.
 	buf := &buffer{b: []byte{}}
 	dec := stdj.NewDecoder(io.TeeReader(r, buf))
 
 	var (
+		// bufOffset is the offset of buf's byte slice relative to the
+		// entire input stream.
 		bufOffset int
-		tok       stdj.Token
-		// curDecPos is the position of the decoder in the input stream.
-		curDecPos  int
+
+		tok stdj.Token
+
+		// curDecPos is the current position of the decoder in the
+		//i nput stream.
+		curDecPos int
+
+		// prevDecPos holds the previous position of the decoder
+		// in the input stream.
 		prevDecPos int
-		more       bool
-		decBuf     []byte
+
+		more   bool
+		decBuf []byte
+
 		delimIndex int
 		delim      byte
 	)
 
-	// The first token must be left-bracek '['
+	// The first token must be left-bracket'['
 	tok, err = requireDelimToken(dec, '[')
 	if err != nil {
 		return nil, nil, err
