@@ -2,71 +2,15 @@ package json_test
 
 import (
 	"bytes"
-	"context"
-	stdj "encoding/json"
-	"io"
 	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/drivers/json"
-	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
 )
-
-func TestStdjDecoder(t *testing.T) {
-	f, err := os.Open("testdata/jsonl_actor_nested.jsonl")
-	require.NoError(t, err)
-	defer f.Close()
-
-	dec := stdj.NewDecoder(f)
-	dec.UseNumber()
-
-	var tok stdj.Token
-
-	for dec.More() {
-		tok, err = dec.Token()
-		require.NoError(t, err)
-		t.Logf("%#v", tok)
-	}
-}
-
-// objectScanner scans for JSON objects, returning the raw
-// bytes
-type objectScanner struct {
-	ctx context.Context
-	dec *stdj.Decoder
-}
-
-func newObjectScanner(ctx context.Context, r io.Reader) *objectScanner {
-	return &objectScanner{
-		ctx: ctx,
-		dec: stdj.NewDecoder(r),
-	}
-}
-
-func (sc *objectScanner) Next() (hasMore bool, raw []byte, err error) {
-	var t stdj.Token
-
-	if sc.dec.InputOffset() == 0 {
-		t, err = sc.dec.Token()
-		if err != nil {
-			return false, nil, errz.Err(err)
-		}
-
-		if t != stdj.Delim('[') {
-			return false, nil, errz.Errorf("expected [ delim")
-		}
-	}
-
-	return false, nil, nil
-
-	//for {
-	//	t, err =
-	//}
-}
 
 func TestParseObjects(t *testing.T) {
 	f, err := os.Open("testdata/actor_small.json")
@@ -118,6 +62,7 @@ func TestParseObjects3(t *testing.T) {
 		{in: ` []`},
 		{in: ` [  ] `},
 		{in: `[{"a":1}]`, wantObjs: m1, wantChunks: []string{`{"a":1}`}},
+		{in: `{[{"a":1}]}`, wantErr: true},
 		{in: `[,{"a":1}]`, wantErr: true},
 		{in: `[{"a":1},]`, wantErr: true},
 		{in: ` [{"a":1}]`, wantObjs: m1, wantChunks: []string{`{"a":1}`}},
@@ -143,8 +88,6 @@ func TestParseObjects3(t *testing.T) {
 		tc := tc
 
 		t.Run(testh.Name(i, tc.in), func(t *testing.T) {
-			println("input:>>>" + tc.in + "<<<")
-
 			r := bytes.NewReader([]byte(tc.in))
 			gotObjs, gotChunks, err := json.ParseObjectsInArray(r)
 			if tc.wantErr {
