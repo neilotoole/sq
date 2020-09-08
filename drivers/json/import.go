@@ -4,7 +4,10 @@ package json
 // various JSON import mechanisms.
 
 import (
+	"bytes"
 	"context"
+	stdj "encoding/json"
+	"io"
 	"sort"
 	"strings"
 
@@ -42,6 +45,17 @@ func getRecMeta(ctx context.Context, scratchDB driver.Database, tblDef *sqlmodel
 	return destMeta, nil
 }
 
+const (
+	leftBrace    = stdj.Delim('{')
+	rightBrace   = stdj.Delim('}')
+	leftBracket  = stdj.Delim('[')
+	rightBracket = stdj.Delim(']')
+
+	// colScopeSep is used when generating flat column names. Thus
+	// an entity "name.first" becomes "name_first"
+	colScopeSep = "_"
+)
+
 // objectValueSet is the set of values for each of the fields of
 // a top-level JSON object. It is a map of entity to a map
 // of fieldName:fieldValue. For a nested JSON object, the value set
@@ -51,10 +65,13 @@ type objectValueSet map[*entity]map[string]interface{}
 
 // processor process JSON objects.
 type processor struct {
-	// if flag is true, the JSON object will be flattened into a single table.
+	// if flattened is true, the JSON object will be flattened into a single table.
 	flatten bool
-	root    *entity
-	schema  *importSchema
+
+	root   *entity
+	schema *importSchema
+
+	colNamesOrdered []string
 
 	// dirtyEntities tracks entities whose structure have been modified.
 	dirtyEntities map[*entity]struct{}
@@ -100,24 +117,25 @@ func (p *processor) calcColName(ent *entity, fieldName string) string {
 		return fieldName
 	}
 
-	colName := ent.name + "_" + fieldName
+	colName := ent.name + colScopeSep + fieldName
 	return p.calcColName(ent.parent, colName)
 }
 
 // buildSchemaFlat currently only builds a flat (single table) schema.
 func (p *processor) buildSchemaFlat() (*importSchema, error) {
-
 	tblDef := &sqlmodel.TableDef{
 		Name: source.MonotableName,
 	}
+
+	var colDefs []*sqlmodel.ColDef
+
 	schema := &importSchema{
 		colMungeFns: map[*sqlmodel.ColDef]kind.MungeFunc{},
 		entityTbls:  map[*entity]*sqlmodel.TableDef{},
-		tblDefs:     []*sqlmodel.TableDef{tblDef},
+		tblDefs:     []*sqlmodel.TableDef{tblDef}, // Single table only because flat
 	}
 
 	visitFn := func(e *entity) error {
-
 		schema.entityTbls[e] = tblDef
 
 		for _, field := range e.fieldNames {
@@ -134,7 +152,7 @@ func (p *processor) buildSchemaFlat() (*importSchema, error) {
 					Kind:  kind,
 				}
 
-				tblDef.Cols = append(tblDef.Cols, colDef)
+				colDefs = append(colDefs, colDef)
 				if mungeFn != nil {
 					schema.colMungeFns[colDef] = mungeFn
 				}
@@ -150,12 +168,21 @@ func (p *processor) buildSchemaFlat() (*importSchema, error) {
 		return nil, err
 	}
 
+	// Add the column names, in the correct order
+	for _, colName := range p.colNamesOrdered {
+		for j := range colDefs {
+			if colDefs[j].Name == colName {
+				tblDef.Cols = append(tblDef.Cols, colDefs[j])
+			}
+		}
+	}
+
 	return schema, nil
 }
 
 // processObject processes the parsed JSON object m. If the structure
-// of the importSchema changes due to this object, dirtySchema is true.
-func (p *processor) processObject(m map[string]interface{}) (dirtySchema bool, err error) {
+// of the importSchema changes due to this object, dirtySchema returns true.
+func (p *processor) processObject(m map[string]interface{}, chunk []byte) (dirtySchema bool, err error) {
 	p.curObjVals = objectValueSet{}
 	err = p.doAddObject(p.root, m)
 	if err == nil {
@@ -164,7 +191,27 @@ func (p *processor) processObject(m map[string]interface{}) (dirtySchema bool, e
 
 	p.curObjVals = nil
 	dirtySchema = len(p.dirtyEntities) > 0
+
+	if dirtySchema {
+		err = p.updateColNames(chunk)
+	}
+
 	return dirtySchema, err
+}
+
+func (p *processor) updateColNames(chunk []byte) error {
+	colNames, err := columnOrderFlat(chunk)
+	if err != nil {
+		return err
+	}
+
+	for _, colName := range colNames {
+		if !stringz.InSlice(p.colNamesOrdered, colName) {
+			p.colNamesOrdered = append(p.colNamesOrdered, colName)
+		}
+	}
+
+	return nil
 }
 
 func (p *processor) doAddObject(ent *entity, m map[string]interface{}) error {
@@ -230,6 +277,7 @@ func (p *processor) doAddObject(ent *entity, m map[string]interface{}) error {
 			colName := p.calcColName(ent, fieldName)
 			entVals[colName] = val
 
+			val = maybeFloatToInt(val)
 			detector.Sample(val)
 		}
 	}
@@ -379,10 +427,143 @@ func execSchemaDelta(ctx context.Context, log lg.Log, drvr driver.SQLDriver, db 
 	return errz.New("schema delta not yet implemented")
 }
 
+// columnOrderFlat parses the json chunk and returns a slice
+// containing column names, in the order they appear in chunk.
+// Nested fields are flattened, e.g:
+//
+//  {"a":1, "b": {"c":2, "d":3}}  -->  ["a", "b_c", "b_d"]
+func columnOrderFlat(chunk []byte) ([]string, error) {
+	dec := stdj.NewDecoder(bytes.NewReader(chunk))
+
+	var (
+		cols  []string
+		stack []string
+		tok   stdj.Token
+		err   error
+	)
+
+	// Get the opening left-brace
+	_, err = requireDelimToken(dec, leftBrace)
+	if err != nil {
+		return nil, err
+	}
+
+loop:
+	for {
+		// Expect tok to be a field name, or else the terminating right-brace.
+		tok, err = dec.Token()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, errz.Err(err)
+		}
+
+		switch tok := tok.(type) {
+		case string:
+			// tok is a field name
+			stack = append(stack, tok)
+
+		case stdj.Delim:
+			if tok == rightBrace {
+				if len(stack) == 0 {
+					// This is the terminating right-brace
+					break loop
+				}
+				// Else we've come to the end of an object
+				stack = stack[:len(stack)-1]
+				continue
+			}
+
+		default:
+			return nil, errz.Errorf("expected string field name but got %T: %s", tok, formatToken(tok))
+		}
+
+		// We've consumed the field name above, now let's see what
+		// the next token is
+		tok, err = dec.Token()
+		if err != nil {
+			return nil, errz.Err(err)
+		}
+
+		switch tok := tok.(type) {
+		default:
+			// This next token was a regular old value.
+
+			// The field name is already on the stack. We generate
+			// the column name...
+			cols = append(cols, strings.Join(stack, colScopeSep))
+
+			// And pop the stack.
+			stack = stack[0 : len(stack)-1]
+
+		case stdj.Delim:
+			// The next token was a delimiter.
+
+			if tok == leftBrace {
+				// It's the start of a nested object.
+				// Back to the top of the loop we go, so that
+				// we can descend into the nested object.
+				continue loop
+			}
+
+			if tok == leftBracket {
+				// It's the start of an array.
+				// Note that we don't descend into arrays.
+
+				cols = append(cols, strings.Join(stack, colScopeSep))
+				stack = stack[0 : len(stack)-1]
+
+				err = decoderFindArrayClose(dec)
+				if err != nil {
+					return nil, err
+				}
+			}
+
+		}
+	}
+
+	return cols, nil
+}
+
+// decoderFindArrayClose advances dec until a closing
+// right-bracket ']' is located at the correct nesting level.
+// The most-recently returned decoder token should have been
+// the opening left-bracket '['.
+func decoderFindArrayClose(dec *stdj.Decoder) error {
+	var depth int
+	var tok stdj.Token
+	var err error
+
+	for {
+		tok, err = dec.Token()
+		if err != nil {
+			break
+		}
+
+		if tok == leftBracket {
+			// Nested array
+			depth++
+			continue
+		}
+
+		if tok == rightBracket {
+			if depth == 0 {
+				return nil
+			}
+			depth--
+		}
+
+	}
+
+	return errz.Err(err)
+}
+
 // execInsertions performs db INSERT for each of the insertions.
 func execInsertions(ctx context.Context, log lg.Log, drvr driver.SQLDriver, db sqlz.DB, insertions []*insertion) error {
-	// FIXME: This is not the proper way of performing insertion. See
-	//  use of the driver.BatchInsert mechanism.
+	// FIXME: This an is efficient way of performing insertion.
+	//  We should be re-using the prepared statement, and probably
+	//  should batch the inserts as well. See driver.BatchInsert.
 
 	var err error
 	var execer *driver.StmtExecer

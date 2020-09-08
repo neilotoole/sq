@@ -91,11 +91,13 @@ func importJSONL(ctx context.Context, log lg.Log, src *source.Source, openFn sou
 	proc := newProcessor(true)
 	sc := newLineScanner(ctx, r, '{')
 
-	var hasMore bool
-	var dirtySchema bool
-	var line []byte
-	var curSchema *importSchema
-	var insertions []*insertion
+	var (
+		hasMore     bool
+		dirtySchema bool
+		line        []byte
+		curSchema   *importSchema
+		insertions  []*insertion
+	)
 
 	for {
 		hasMore, line, err = sc.Next()
@@ -136,6 +138,7 @@ func importJSONL(ctx context.Context, log lg.Log, src *source.Source, openFn sou
 			}
 
 			if !hasMore {
+				// We're done
 				break
 			}
 		}
@@ -151,7 +154,7 @@ func importJSONL(ctx context.Context, log lg.Log, src *source.Source, openFn sou
 			return errz.Err(err)
 		}
 
-		dirtySchema, err = proc.processObject(m)
+		dirtySchema, err = proc.processObject(m, line)
 		if err != nil {
 			return err
 		}
@@ -161,7 +164,7 @@ func importJSONL(ctx context.Context, log lg.Log, src *source.Source, openFn sou
 		// However, if the schema is dirty, wait for the top of the
 		// loop (where the schema will be rebuilt) before insertion.
 		if curSchema != nil && !dirtySchema {
-
+			// FIXME: implement
 		}
 
 		// FIXME: need to add values that are created after schema creation

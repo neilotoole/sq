@@ -285,21 +285,7 @@ func detectColKindsJSONA(ctx context.Context, r io.Reader) ([]kind.Kind, []kind.
 		}
 
 		for i, val := range vals {
-			// Special case: The decoder decodes numbers into float.
-			// Which we don't want, if the number is really an int
-			// (especially important for id columns).
-			// So, if the float has zero after the decimal point '.' (that
-			// is to say, it's a round float like 1.0), we convert the float
-			// to an int. Possibly we could use json.Decoder.UseNumber to
-			// avoid this, but that may introduce other complexities.
-			fVal, ok := val.(float64)
-			if ok {
-				floor := math.Floor(fVal)
-				if fVal-floor == 0 {
-					val = int64(floor)
-				}
-			}
-
+			val = maybeFloatToInt(val)
 			detectors[i].Sample(val)
 		}
 	}
@@ -316,4 +302,24 @@ func detectColKindsJSONA(ctx context.Context, r io.Reader) ([]kind.Kind, []kind.
 	}
 
 	return kinds, mungeFns, nil
+}
+
+// maybeFloatToInt returns an int64 if val is a float64 with a
+// round integer value. If val is not a float64, it is returned
+// unchanged.
+//
+// The JSON decoder decodes numbers into float64.
+// We don't want that if the number is really an integer
+// (especially important for id columns).
+// So, if the float64 has zero after the decimal point '.' (that
+// is to say, it's a round float like 1.0), we return the int64 value.
+func maybeFloatToInt(val interface{}) interface{} {
+	if f64, ok := val.(float64); ok {
+		floor := math.Floor(f64)
+		if f64-floor == 0 {
+			return int64(floor)
+		}
+	}
+
+	return val
 }

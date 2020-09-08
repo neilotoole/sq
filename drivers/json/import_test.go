@@ -2,6 +2,7 @@ package json_test
 
 import (
 	"bytes"
+	stdj "encoding/json"
 	"io"
 	"os"
 	"testing"
@@ -120,6 +121,47 @@ func TestScanObjectsInArray_Files(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, tc.wantCount, len(gotObjs))
 			require.Equal(t, tc.wantCount, len(gotChunks))
+		})
+	}
+}
+
+func TestColumnOrderFlat(t *testing.T) {
+	testCases := []struct {
+		in      string
+		want    []string
+		wantErr bool
+	}{
+
+		{in: `{}`, want: nil},
+		{in: `{"a":1}`, want: []string{"a"}},
+		{in: `{"a":1, "b": {"c":2}}`, want: []string{"a", "b_c"}},
+		{in: `{"a":1, "b": {"c":2}, "d":3}`, want: []string{"a", "b_c", "d"}},
+		{in: `{"a":1, "b": {"c":2, "d":3}}`, want: []string{"a", "b_c", "b_d"}},
+		{in: `{"a":1, "b": {"c":2}, "d":3, "e":4}`, want: []string{"a", "b_c", "d", "e"}},
+		{in: `{"a":1, "b": {"c":2}, "d": [3,4], "e":5}`, want: []string{"a", "b_c", "d", "e"}},
+		{in: `{"d": [3,4], "e":5}`, want: []string{"d", "e"}},
+		{in: `{"d": [3], "e":5}`, want: []string{"d", "e"}},
+		{in: `{"d": [3,[4,5]], "e":6}`, want: []string{"d", "e"}},
+		{in: `{"d": [3,[4,5,[6,7,8]]], "e":9, "f":[10,11,[12,13]]}`, want: []string{"d", "e", "f"}},
+		{in: `{"a":1, "b": {"c":2}, "d": 3, "e":4}`, want: []string{"a", "b_c", "d", "e"}},
+		{in: `{"b":1,"a":2}`, want: []string{"b", "a"}},
+		{in: `{"a":1,"b":2,"c":{"c1":3,"c2":4,"c3":{"d1":5,"d2":6},"c5":7},"e":8}`, want: []string{"a", "b", "c_c1", "c_c2", "c_c3_d1", "c_c3_d2", "c_c5", "e"}},
+	}
+
+	for i, tc := range testCases {
+		tc := tc
+
+		t.Run(testh.Name(i, tc.in), func(t *testing.T) {
+			require.True(t, stdj.Valid([]byte(tc.in)))
+
+			gotCols, err := json.ColumnOrderFlat([]byte(tc.in))
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
+			require.Equal(t, tc.want, gotCols)
 		})
 	}
 }

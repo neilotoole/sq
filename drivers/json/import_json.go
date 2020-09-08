@@ -99,8 +99,8 @@ func (s *objectsInArrayScanner) next() (obj map[string]interface{}, chunk []byte
 	if s.bufOffset == 0 {
 		// This is only invoked on the first call to next().
 
-		// The first token must be left-bracket'['
-		tok, err = requireDelimToken(s.dec, '[')
+		// The first token must be left-bracket '['
+		tok, err = requireDelimToken(s.dec, leftBracket)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -163,7 +163,7 @@ func (s *objectsInArrayScanner) next() (obj map[string]interface{}, chunk []byte
 
 	case ']':
 		// should be end of input
-		tok, err = requireDelimToken(s.dec, ']')
+		tok, err = requireDelimToken(s.dec, rightBracket)
 		if err != nil {
 			return nil, nil, errz.Err(err)
 		}
@@ -233,14 +233,14 @@ func (b *buffer) Write(p []byte) (n int, err error) {
 }
 
 // requireDelimToken invokes dec.Token, returning an error if the
-// token is not a delimiter with value delim.
-func requireDelimToken(dec *stdj.Decoder, delim rune) (stdj.Token, error) {
+// token is not delim.
+func requireDelimToken(dec *stdj.Decoder, delim stdj.Delim) (stdj.Token, error) {
 	tok, err := dec.Token()
 	if err != nil {
 		return tok, err
 	}
 
-	if tok != stdj.Delim(delim) {
+	if tok != delim {
 		return tok, errz.Errorf("expected next token to be delimiter %q but got: %s", string(delim), formatToken(tok))
 	}
 

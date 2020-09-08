@@ -18,6 +18,7 @@ var (
 	ImportJSONA        = importJSONA
 	ImportJSONL        = importJSONL
 	ScanObjectsInArray = scanObjectsInArray
+	ColumnOrderFlat    = columnOrderFlat
 )
 
 func TestDetectColKindsJSONA(t *testing.T) {
