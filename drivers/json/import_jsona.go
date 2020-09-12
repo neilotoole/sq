@@ -88,8 +88,8 @@ func DetectJSONA(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (d
 	return source.TypeNone, 0, nil
 }
 
-func importJSONA(ctx context.Context, log lg.Log, src *source.Source, openFn source.FileOpenFunc, scratchDB driver.Database) error {
-	predictR, err := openFn()
+func importJSONA(ctx context.Context, log lg.Log, job importJob) error {
+	predictR, err := job.openFn()
 	if err != nil {
 		return errz.Err(err)
 	}
@@ -110,25 +110,25 @@ func importJSONA(ctx context.Context, log lg.Log, src *source.Source, openFn sou
 		colNames[i] = stringz.GenerateAlphaColName(i, true)
 	}
 
-	// And now we need to create the dest table in scratchDB
+	// And now we need to create the dest table in destDB
 	tblDef := sqlmodel.NewTableDef(source.MonotableName, colNames, colKinds)
-	err = scratchDB.SQLDriver().CreateTable(ctx, scratchDB.DB(), tblDef)
+	err = job.destDB.SQLDriver().CreateTable(ctx, job.destDB.DB(), tblDef)
 	if err != nil {
 		return errz.Wrapf(err, "import %s: failed to create dest scratch table", TypeJSONA)
 	}
 
-	recMeta, err := getRecMeta(ctx, scratchDB, tblDef)
+	recMeta, err := getRecMeta(ctx, job.destDB, tblDef)
 	if err != nil {
 		return err
 	}
 
-	r, err := openFn()
+	r, err := job.openFn()
 	if err != nil {
 		return errz.Err(err)
 	}
 	defer log.WarnIfCloseError(r)
 
-	insertWriter := libsq.NewDBWriter(log, scratchDB, tblDef.Name, driver.Tuning.RecordChSize)
+	insertWriter := libsq.NewDBWriter(log, job.destDB, tblDef.Name, driver.Tuning.RecordChSize)
 
 	var cancelFn context.CancelFunc
 	ctx, cancelFn = context.WithCancel(ctx)
@@ -151,7 +151,7 @@ func importJSONA(ctx context.Context, log lg.Log, src *source.Source, openFn sou
 		return err
 	}
 
-	log.Debugf("Inserted %d rows to %s.%s", inserted, scratchDB.Source().Handle, tblDef.Name)
+	log.Debugf("Inserted %d rows to %s.%s", inserted, job.destDB.Source().Handle, tblDef.Name)
 	return nil
 }
 

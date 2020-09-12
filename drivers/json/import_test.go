@@ -4,29 +4,119 @@ import (
 	"bytes"
 	stdj "encoding/json"
 	"io"
+	"io/ioutil"
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/drivers/json"
+	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/testsrc"
 )
 
-func TestImportJSONL(t *testing.T) {
+func TestImportJSONL_Flat(t *testing.T) {
+	// Either fpath (testdata file path) or input should be provided.
+	testCases := []struct {
+		fpath     string
+		input     string
+		wantRows  int
+		wantCols  []string
+		wantKinds []kind.Kind
+		wantErr   bool
+	}{
+		{
+			fpath:     "actor.jsonl",
+			wantRows:  sakila.TblActorCount,
+			wantCols:  sakila.TblActorCols(),
+			wantKinds: sakila.TblActorColKinds(),
+		},
+		{
+			fpath:     "film_actor.jsonl",
+			wantRows:  sakila.TblFilmActorCount,
+			wantCols:  sakila.TblFilmActorCols(),
+			wantKinds: sakila.TblFilmActorColKinds(),
+		},
+		{
+			fpath:     "jsonl_actor_nested.jsonl",
+			wantRows:  4,
+			wantCols:  []string{"actor_id", "name_first_name", "name_last_name", "last_update"},
+			wantKinds: []kind.Kind{kind.Int, kind.Text, kind.Text, kind.Datetime},
+		},
+		{
+			input: `{"a": 1, "b": 1, "c": true, "d": "2020-06-11", "e": 2.0}
+{"a": 1.0, "b": 1, "c": false, "d": "2020-06-12", "e":2.01}`,
+			wantRows:  2,
+			wantCols:  []string{"a", "b", "c", "d", "e"},
+			wantKinds: []kind.Kind{kind.Int, kind.Int, kind.Bool, kind.Date, kind.Float},
+		},
+		{
+			input: `{"b": 1}
+{"a": 1.1, "b": 2}`,
+			wantRows:  2,
+			wantCols:  []string{"b", "a"},
+			wantKinds: []kind.Kind{kind.Int, kind.Float},
+		},
+		{
+			input: `{"a": null, "b": null}
+{"a": 1.1, "b": 2.0000}`,
+			wantRows:  2,
+			wantCols:  []string{"a", "b"},
+			wantKinds: []kind.Kind{kind.Float, kind.Int},
+		},
+	}
+
+	for i, tc := range testCases {
+		tc := tc
+
+		t.Run(testh.Name(i, tc.fpath, tc.input), func(t *testing.T) {
+			openFn := func() (io.ReadCloser, error) {
+				return ioutil.NopCloser(strings.NewReader(tc.input)), nil
+			}
+
+			if tc.fpath != "" {
+				openFn = func() (io.ReadCloser, error) {
+					return os.Open(filepath.Join("testdata", tc.fpath))
+				}
+			}
+
+			th, src, dbase, _ := testh.NewWith(t, testsrc.EmptyDB)
+			job := json.NewImportJob(src, openFn, dbase, 0, true)
+
+			err := json.ImportJSONL(th.Context, th.Log, job)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
+			sink, err := th.QuerySQL(src, "SELECT * FROM data")
+			require.NoError(t, err)
+			require.Equal(t, tc.wantRows, len(sink.Recs))
+			require.Equal(t, tc.wantCols, sink.RecMeta.Names())
+			require.Equal(t, tc.wantKinds, sink.RecMeta.Kinds())
+		})
+	}
+}
+
+func TestImportJSON_Flat(t *testing.T) {
 	openFn := func() (io.ReadCloser, error) {
-		return os.Open("testdata/jsonl_actor_nested.jsonl")
+		return os.Open("testdata/actor.json")
 	}
 
 	th, src, dbase, _ := testh.NewWith(t, testsrc.EmptyDB)
-	err := json.ImportJSONL(th.Context, th.Log, src, openFn, dbase)
+	job := json.NewImportJob(src, openFn, dbase, 0, true)
+
+	err := json.ImportJSON(th.Context, th.Log, job)
 	require.NoError(t, err)
 
 	sink, err := th.QuerySQL(src, "SELECT * FROM data")
 	require.NoError(t, err)
-	require.Equal(t, 4, len(sink.Recs))
+	require.Equal(t, sakila.TblActorCount, len(sink.Recs))
 }
 
 func TestScanObjectsInArray(t *testing.T) {
@@ -142,7 +232,7 @@ func TestColumnOrderFlat(t *testing.T) {
 		{in: `{"d": [3,4], "e":5}`, want: []string{"d", "e"}},
 		{in: `{"d": [3], "e":5}`, want: []string{"d", "e"}},
 		{in: `{"d": [3,[4,5]], "e":6}`, want: []string{"d", "e"}},
-		{in: `{"d": [3,[4,5,[6,7,8]]], "e":9, "f":[10,11,[12,13]]}`, want: []string{"d", "e", "f"}},
+		{in: `{"d": [3,[4,5,[6,7,8]]], "e":9, "fname":[10,11,[12,13]]}`, want: []string{"d", "e", "fname"}},
 		{in: `{"a":1, "b": {"c":2}, "d": 3, "e":4}`, want: []string{"a", "b_c", "d", "e"}},
 		{in: `{"b":1,"a":2}`, want: []string{"b", "a"}},
 		{in: `{"a":1,"b":2,"c":{"c1":3,"c2":4,"c3":{"d1":5,"d2":6},"c5":7},"e":8}`, want: []string{"a", "b", "c_c1", "c_c2", "c_c3_d1", "c_c3_d2", "c_c5", "e"}},

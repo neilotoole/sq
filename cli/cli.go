@@ -403,6 +403,7 @@ func (rc *RunContext) preRunE() error {
 	rc.files.AddTypeDetectors(csv.DetectCSV, csv.DetectTSV)
 
 	jsonp := &json.Provider{Log: log, Scratcher: rc.databases, Files: rc.files}
+	rc.registry.AddProvider(json.TypeJSON, jsonp)
 	rc.registry.AddProvider(json.TypeJSONA, jsonp)
 	rc.registry.AddProvider(json.TypeJSONL, jsonp)
 	rc.files.AddTypeDetectors(json.DetectJSON, json.DetectJSONA, json.DetectJSONL)

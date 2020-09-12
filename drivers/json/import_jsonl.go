@@ -74,40 +74,40 @@ func DetectJSONL(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (d
 	return source.TypeNone, 0, nil
 }
 
-func importJSONL(ctx context.Context, log lg.Log, src *source.Source, openFn source.FileOpenFunc, dbase driver.Database) error {
-	r, err := openFn()
+func importJSONL(ctx context.Context, log lg.Log, job importJob) error {
+	r, err := job.openFn()
 	if err != nil {
 		return err
 	}
 	defer log.WarnIfCloseError(r)
 
-	drvr := dbase.SQLDriver()
-	db, err := dbase.DB().Conn(ctx)
+	drvr := job.destDB.SQLDriver()
+	db, err := job.destDB.DB().Conn(ctx)
 	if err != nil {
 		return errz.Err(err)
 	}
 	defer log.WarnIfCloseError(db)
 
-	proc := newProcessor(true)
-	sc := newLineScanner(ctx, r, '{')
+	proc := newProcessor(job.flatten)
+	scan := newLineScanner(ctx, r, '{')
 
 	var (
-		hasMore     bool
-		dirtySchema bool
-		line        []byte
-		curSchema   *importSchema
-		insertions  []*insertion
+		hasMore        bool
+		schemaModified bool
+		line           []byte
+		curSchema      *importSchema
+		insertions     []*insertion
 	)
 
 	for {
-		hasMore, line, err = sc.Next()
+		hasMore, line, err = scan.next()
 		if err != nil {
 			return err
 		}
 
-		if dirtySchema {
-			if !hasMore || sc.validLineCount > driver.Tuning.SampleSize {
-				log.Debugf("line[%d]: time to (re)build the schema", sc.totalLineCount)
+		if schemaModified {
+			if !hasMore || scan.validLineCount >= job.sampleSize {
+				log.Debugf("line[%d]: time to (re)build the schema", scan.totalLineCount)
 				if curSchema == nil {
 					log.Debug("First time building the schema")
 				}
@@ -122,6 +122,10 @@ func importJSONL(ctx context.Context, log lg.Log, src *source.Source, openFn sou
 				if err != nil {
 					return err
 				}
+
+				// The DB has been updated with the current schema,
+				// so we mark it as clean.
+				proc.markSchemaClean()
 
 				curSchema = newSchema
 				newSchema = nil
@@ -154,23 +158,39 @@ func importJSONL(ctx context.Context, log lg.Log, src *source.Source, openFn sou
 			return errz.Err(err)
 		}
 
-		dirtySchema, err = proc.processObject(m, line)
+		schemaModified, err = proc.processObject(m, line)
 		if err != nil {
 			return err
 		}
 
-		// If there's already a schema (curSchema != nil), then we
-		// want to immediately insert new rows from the processor.
-		// However, if the schema is dirty, wait for the top of the
-		// loop (where the schema will be rebuilt) before insertion.
-		if curSchema != nil && !dirtySchema {
-			// FIXME: implement
+		// Initial schema has not been created: we're still in
+		// the sampling phase. So we loop.
+		if curSchema == nil {
+			continue
 		}
 
-		// FIXME: need to add values that are created after schema creation
+		// If we got this far, the initial schema has already been created.
+		if schemaModified {
+			// But... the schema has been modified. We could still be in
+			// the sampling phase, so we loop.
+			continue
+		}
+
+		// The schema exists in the DB, and the current JSON chunk hasn't
+		// dirtied the schema, so it's safe to insert the recent rows.
+		insertions, err = proc.buildInsertionsFlat(curSchema)
+		if err != nil {
+			return err
+		}
+
+		err = execInsertions(ctx, log, drvr, db, insertions)
+		if err != nil {
+			return err
+		}
+
 	}
 
-	if sc.validLineCount == 0 {
+	if scan.validLineCount == 0 {
 		return errz.New("empty JSONL input")
 	}
 
@@ -192,8 +212,8 @@ func newLineScanner(ctx context.Context, r io.Reader, requireAnchor byte) *lineS
 	return &lineScanner{ctx: ctx, sc: bufio.NewScanner(r), requireAnchor: requireAnchor}
 }
 
-// Next returns the next non-empty line.
-func (ls *lineScanner) Next() (hasMore bool, line []byte, err error) {
+// next returns the next non-empty line.
+func (ls *lineScanner) next() (hasMore bool, line []byte, err error) {
 	for {
 		select {
 		case <-ls.ctx.Done():
@@ -218,8 +238,8 @@ func (ls *lineScanner) Next() (hasMore bool, line []byte, err error) {
 		}
 
 		if line[0] != ls.requireAnchor {
-			return false, nil, errz.Errorf("line %d expected to begin with '%v' but got '%v'",
-				ls.totalLineCount-1, rune(ls.requireAnchor), rune(line[0]))
+			return false, nil, errz.Errorf("line %d expected to begin with '%s' but got '%s'",
+				ls.totalLineCount-1, string(ls.requireAnchor), string(line[0]))
 		}
 
 		ls.validLineCount++

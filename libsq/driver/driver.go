@@ -357,7 +357,7 @@ func (d *Databases) Close() error {
 // Tuning holds tuning params. Ultimately these params
 // could come from user config or be dynamically calculated/adjusted?
 //
-// This package may not be the best home for these params.
+// Deprecated: This is a stop-gap home for these tuning params.
 var Tuning = struct {
 	// ErrgroupNumG is the numG value for errgroup.WithContextN.
 	ErrgroupNumG int

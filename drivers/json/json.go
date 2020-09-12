@@ -21,6 +21,8 @@ const (
 	// TypeJSON is the plain-old JSON driver type.
 	TypeJSON = source.Type("json")
 
+	TypeBlah = source.Type("blah")
+
 	// TypeJSONA is the JSON Array driver type.
 	TypeJSONA = source.Type("jsona")
 
@@ -103,7 +105,15 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database
 		return nil, err
 	}
 
-	err = d.importFn(ctx, d.log, src, d.files.OpenFunc(src), dbase.impl)
+	job := importJob{
+		fromSrc:    src,
+		openFn:     d.files.OpenFunc(src),
+		destDB:     dbase.impl,
+		sampleSize: driver.Tuning.SampleSize,
+		flatten:    true, // TODO: Should come from src.Options
+	}
+
+	err = d.importFn(ctx, d.log, job)
 	if err != nil {
 		d.log.WarnIfCloseError(r)
 		d.log.WarnIfFuncError(dbase.clnup.Run)
@@ -222,9 +232,3 @@ var (
 	_ source.TypeDetectFunc = DetectJSONA
 	_ source.TypeDetectFunc = DetectJSONL
 )
-
-// DetectJSON implements source.TypeDetectFunc.
-func DetectJSON(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (detected source.Type, score float32, err error) {
-	log.Warn("not implemented")
-	return source.TypeNone, 0, nil
-}

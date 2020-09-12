@@ -22,7 +22,25 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 )
 
-type importFunc func(ctx context.Context, log lg.Log, src *source.Source, openFn source.FileOpenFunc, scratchDB driver.Database) error
+// importJob describes a single import job, where the JSON
+// at fromSrc is read via openFn and the resulting records
+// are written to destDB.
+type importJob struct {
+	fromSrc *source.Source
+	openFn  source.FileOpenFunc
+	destDB  driver.Database
+
+	// sampleSize is the maximum number of values to
+	// sample to determine the kind of an element.
+	sampleSize int
+
+	// flatten specifies that the fields of nested JSON objects are
+	// imported as fields of the single top-level table, with a
+	// scoped column name.
+	flatten bool
+}
+
+type importFunc func(ctx context.Context, log lg.Log, job importJob) error
 
 var (
 	_ importFunc = importJSON
@@ -73,8 +91,8 @@ type processor struct {
 
 	colNamesOrdered []string
 
-	// dirtyEntities tracks entities whose structure have been modified.
-	dirtyEntities map[*entity]struct{}
+	// schemaDirtyEntities tracks entities whose structure have been modified.
+	schemaDirtyEntities map[*entity]struct{}
 
 	unwrittenObjVals []objectValueSet
 	curObjVals       objectValueSet
@@ -82,24 +100,20 @@ type processor struct {
 
 func newProcessor(flatten bool) *processor {
 	return &processor{
-		flatten:       flatten,
-		schema:        &importSchema{},
-		root:          &entity{name: source.MonotableName, detectors: map[string]*kind.Detector{}},
-		dirtyEntities: map[*entity]struct{}{},
+		flatten:             flatten,
+		schema:              &importSchema{},
+		root:                &entity{name: source.MonotableName, detectors: map[string]*kind.Detector{}},
+		schemaDirtyEntities: map[*entity]struct{}{},
 	}
 }
 
-func (p *processor) markDirty(e *entity, dirty bool) {
-	if dirty {
-		p.dirtyEntities[e] = struct{}{}
-	} else {
-		delete(p.dirtyEntities, e)
-	}
+func (p *processor) markSchemaDirty(e *entity) {
+	p.schemaDirtyEntities[e] = struct{}{}
 }
 
-func (p *processor) clearDirty() {
-	for k := range p.dirtyEntities {
-		delete(p.dirtyEntities, k)
+func (p *processor) markSchemaClean() {
+	for k := range p.schemaDirtyEntities {
+		delete(p.schemaDirtyEntities, k)
 	}
 }
 
@@ -185,13 +199,14 @@ func (p *processor) buildSchemaFlat() (*importSchema, error) {
 func (p *processor) processObject(m map[string]interface{}, chunk []byte) (dirtySchema bool, err error) {
 	p.curObjVals = objectValueSet{}
 	err = p.doAddObject(p.root, m)
-	if err == nil {
-		p.unwrittenObjVals = append(p.unwrittenObjVals, p.curObjVals)
+	dirtySchema = len(p.schemaDirtyEntities) > 0
+	if err != nil {
+		return dirtySchema, err
 	}
 
-	p.curObjVals = nil
-	dirtySchema = len(p.dirtyEntities) > 0
+	p.unwrittenObjVals = append(p.unwrittenObjVals, p.curObjVals)
 
+	p.curObjVals = nil
 	if dirtySchema {
 		err = p.updateColNames(chunk)
 	}
@@ -221,7 +236,7 @@ func (p *processor) doAddObject(ent *entity, m map[string]interface{}) error {
 			// time to recurse
 			child := ent.getChild(fieldName)
 			if child == nil {
-				p.markDirty(ent, true)
+				p.markSchemaDirty(ent)
 
 				if !stringz.InSlice(ent.fieldNames, fieldName) {
 					// The field name could already exist (even without
@@ -257,7 +272,7 @@ func (p *processor) doAddObject(ent *entity, m map[string]interface{}) error {
 			// It's a regular value
 			detector, ok := ent.detectors[fieldName]
 			if !ok {
-				p.markDirty(ent, true)
+				p.markSchemaDirty(ent)
 				if stringz.InSlice(ent.fieldNames, fieldName) {
 					return errz.Errorf("JSON field %q was previously detected as a nested field (object or array)")
 				} else {
@@ -285,6 +300,9 @@ func (p *processor) doAddObject(ent *entity, m map[string]interface{}) error {
 	return nil
 }
 
+// buildInsertionsFlat builds a set of DB insertions from the
+// processor's unwrittenObjVals. After a non-error return, unwrittenObjVals
+// is empty.
 func (p *processor) buildInsertionsFlat(schema *importSchema) ([]*insertion, error) {
 	if len(schema.tblDefs) != 1 {
 		return nil, errz.Errorf("expected 1 table for flat JSON processing but got %d", len(schema.tblDefs))
@@ -319,10 +337,12 @@ func (p *processor) buildInsertionsFlat(schema *importSchema) ([]*insertion, err
 
 	}
 
+	p.unwrittenObjVals = p.unwrittenObjVals[:0]
+
 	return insertions, nil
 }
 
-// entity is a JSON entity, either an object or an array.
+// entity models the structure of a JSON entity, either an object or an array.
 type entity struct {
 	// isArray is true if the entity is an array, false if an object.
 	isArray bool
@@ -561,13 +581,13 @@ func decoderFindArrayClose(dec *stdj.Decoder) error {
 
 // execInsertions performs db INSERT for each of the insertions.
 func execInsertions(ctx context.Context, log lg.Log, drvr driver.SQLDriver, db sqlz.DB, insertions []*insertion) error {
-	// FIXME: This an is efficient way of performing insertion.
+	// FIXME: This is an inefficient way of performing insertion.
 	//  We should be re-using the prepared statement, and probably
 	//  should batch the inserts as well. See driver.BatchInsert.
 
 	var err error
 	var execer *driver.StmtExecer
-	var affected int64
+	//var affected int64
 
 	for _, insert := range insertions {
 		execer, err = drvr.PrepareInsertStmt(ctx, db, insert.tbl, insert.cols, 1)
@@ -581,19 +601,16 @@ func execInsertions(ctx context.Context, log lg.Log, drvr driver.SQLDriver, db s
 			return err
 		}
 
-		affected, err = execer.Exec(ctx, insert.vals...)
+		_, err = execer.Exec(ctx, insert.vals...)
 		if err != nil {
 			log.WarnIfCloseError(execer)
 			return err
 		}
 
-		log.Debugf("Inserted %d row (%s) into table %q", affected, strings.Join(insert.cols, ","), insert.tbl)
-
 		err = execer.Close()
 		if err != nil {
 			return err
 		}
-
 	}
 
 	return nil

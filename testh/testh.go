@@ -120,6 +120,7 @@ func (h *Helper) init() {
 		h.files.AddTypeDetectors(csv.DetectCSV, csv.DetectTSV)
 
 		jsonp := &json.Provider{Log: log, Scratcher: h.databases, Files: h.files}
+		h.registry.AddProvider(json.TypeJSON, jsonp)
 		h.registry.AddProvider(json.TypeJSONA, jsonp)
 		h.registry.AddProvider(json.TypeJSONL, jsonp)
 		h.files.AddTypeDetectors(json.DetectJSON, json.DetectJSONA, json.DetectJSONL)
@@ -672,11 +673,17 @@ var (
 // paths.
 //
 //   testh.Name("path/to/file") --> "path_to_file"
+//
+// Any element of arg that prints to empty string is skipped.
 func Name(args ...interface{}) string {
 	var parts []string
 	var s string
 	for _, a := range args {
 		s = fmt.Sprintf("%v", a)
+		if s == "" {
+			continue
+		}
+
 		s = strings.Replace(s, "/", "_", -1)
 		parts = append(parts, s)
 	}

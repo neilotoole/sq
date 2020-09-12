@@ -11,39 +11,239 @@ import (
 	"github.com/neilotoole/lg"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 )
 
-func importJSON(ctx context.Context, log lg.Log, src *source.Source, openFn source.FileOpenFunc, scratchDB driver.Database) error {
-	log.Warn("not implemented")
-	return nil
-}
+// DetectJSON implements source.TypeDetectFunc.
+// The function returns TypeJSON for two varieties of input:
+func DetectJSON(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (detected source.Type, score float32, err error) {
+	var r1, r2 io.ReadCloser
+	r1, err = openFn()
+	if err != nil {
+		return source.TypeNone, 0, errz.Err(err)
+	}
+	defer log.WarnIfCloseError(r1)
 
-// scanObjectsInArray is a convenience function
-// for objectsInArrayScanner.
-func scanObjectsInArray(r io.Reader) (objs []map[string]interface{}, chunks [][]byte, err error) {
-	sc := newObjectInArrayScanner(r)
+	dec := stdj.NewDecoder(r1)
+	var tok stdj.Token
+	tok, err = dec.Token()
+	if err != nil {
+		return source.TypeNone, 0, nil
+	}
 
-	for {
-		var obj map[string]interface{}
-		var chunk []byte
+	delim, ok := tok.(stdj.Delim)
+	if !ok {
+		return source.TypeNone, 0, nil
+	}
 
-		obj, chunk, err = sc.next()
+	switch delim {
+	default:
+		return source.TypeNone, 0, nil
+	case leftBrace:
+		// The input is a single JSON object
+		r2, err = openFn()
+
+		// buf gets a copy of what is read from r2
+		buf := &buffer{}
+
 		if err != nil {
-			return nil, nil, err
+			return source.TypeNone, 0, errz.Err(err)
+		}
+		defer log.WarnIfCloseError(r2)
+
+		dec = stdj.NewDecoder(io.TeeReader(r2, buf))
+		var m map[string]interface{}
+		err = dec.Decode(&m)
+		if err != nil {
+			return source.TypeNone, 0, nil
 		}
 
-		if obj == nil {
-			// No more objects to be scanned
+		if dec.More() {
+			// The input is supposed to be just a single object, so
+			// it shouldn't have more tokens
+			return source.TypeNone, 0, nil
+		}
+
+		// If the input is all on a single line, then it could be
+		// either JSON or JSONL. For single-line input, prefer JSONL.
+		lineCount := stringz.LineCount(bytes.NewReader(buf.b), true)
+		switch lineCount {
+		case -1:
+			// should never happen
+			return source.TypeNone, 0, errz.New("unknown problem reading JSON input")
+		case 0:
+			// should never happen
+			return source.TypeNone, 0, errz.New("JSON input is empty")
+		case 1:
+			// If the input is a JSON object on a single line, it could
+			// be TypeJSON or TypeJSONL. In deference to TypeJSONL, we
+			// return 0.9 instead of 1.0
+			return TypeJSON, 0.9, nil
+		default:
+			return TypeJSON, 1.0, nil
+		}
+
+	case leftBracket:
+		// The input is one or more JSON objects inside an array
+	}
+
+	r2, err = openFn()
+	if err != nil {
+		return source.TypeNone, 0, errz.Err(err)
+	}
+	defer log.WarnIfCloseError(r2)
+
+	sc := newObjectInArrayScanner(r2)
+	var validObjCount int
+	var obj map[string]interface{}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return source.TypeNone, 0, ctx.Err()
+		default:
+		}
+
+		obj, _, err = sc.next()
+		if err != nil {
+			return source.TypeNone, 0, ctx.Err()
+		}
+
+		if obj == nil { // end of input
 			break
 		}
 
-		objs = append(objs, obj)
-		chunks = append(chunks, chunk)
+		validObjCount++
+		if validObjCount >= driver.Tuning.SampleSize {
+			break
+		}
 	}
 
-	return objs, chunks, nil
+	if validObjCount > 0 {
+		return TypeJSON, 1.0, nil
+	}
+
+	return source.TypeNone, 0, nil
+}
+
+//func detectJSONObjectsInArray(ctx context.Context, r io.Reader)
+
+func importJSON(ctx context.Context, log lg.Log, job importJob) error {
+	r, err := job.openFn()
+	if err != nil {
+		return err
+	}
+	defer log.WarnIfCloseError(r)
+
+	drvr := job.destDB.SQLDriver()
+	db, err := job.destDB.DB().Conn(ctx)
+	if err != nil {
+		return errz.Err(err)
+	}
+	defer log.WarnIfCloseError(db)
+
+	proc := newProcessor(job.flatten)
+	scan := newObjectInArrayScanner(r)
+
+	var (
+		obj            map[string]interface{}
+		chunk          []byte
+		schemaModified bool
+		curSchema      *importSchema
+		insertions     []*insertion
+		hasMore        bool
+	)
+
+	for {
+		obj, chunk, err = scan.next()
+		if err != nil {
+			return err
+		}
+
+		// obj is returned nil by scan.next when end of input.
+		hasMore = obj != nil
+
+		if schemaModified {
+			if !hasMore || scan.objCount >= job.sampleSize {
+				log.Debugf("line[%d]: time to (re)build the schema", scan.objCount)
+				if curSchema == nil {
+					log.Debug("First time building the schema")
+				}
+
+				var newSchema *importSchema
+				newSchema, err = proc.buildSchemaFlat()
+				if err != nil {
+					return err
+				}
+
+				err = execSchemaDelta(ctx, log, drvr, db, curSchema, newSchema)
+				if err != nil {
+					return err
+				}
+
+				// The DB has been updated with the current schema,
+				// so we mark it as clean.
+				proc.markSchemaClean()
+
+				curSchema = newSchema
+				newSchema = nil
+
+				insertions, err = proc.buildInsertionsFlat(curSchema)
+				if err != nil {
+					return err
+				}
+
+				err = execInsertions(ctx, log, drvr, db, insertions)
+				if err != nil {
+					return err
+				}
+			}
+
+			if !hasMore {
+				// We're done
+				break
+			}
+		}
+
+		schemaModified, err = proc.processObject(obj, chunk)
+		if err != nil {
+			return err
+		}
+
+		// Initial schema has not been created: we're still in
+		// the sampling phase. So we loop.
+		if curSchema == nil {
+			continue
+		}
+
+		// If we got this far, the initial schema has already been created.
+		if schemaModified {
+			// But... the schema has been modified. We could still be in
+			// the sampling phase, so we loop.
+			continue
+		}
+
+		// The schema exists in the DB, and the current JSON chunk hasn't
+		// dirtied the schema, so it's safe to insert the recent rows.
+		insertions, err = proc.buildInsertionsFlat(curSchema)
+		if err != nil {
+			return err
+		}
+
+		err = execInsertions(ctx, log, drvr, db, insertions)
+		if err != nil {
+			return err
+		}
+
+	}
+
+	if scan.objCount == 0 {
+		return errz.New("empty JSON input")
+	}
+
+	return nil
 }
 
 // objectsInArrayScanner scans JSON text that consists of an array of
@@ -77,6 +277,9 @@ type objectsInArrayScanner struct {
 	// decBuf holds the value of dec.Buffered, which allows us
 	// to look ahead at the upcoming decoder values.
 	decBuf []byte
+
+	// objCount is the count of objects processed by method next.
+	objCount int
 }
 
 // newObjectInArrayScanner returns a new instance that
@@ -218,6 +421,7 @@ func (s *objectsInArrayScanner) next() (obj map[string]interface{}, chunk []byte
 	s.bufOffset = s.curDecPos
 	s.prevDecPos = s.curDecPos
 
+	s.objCount++
 	return obj, chunk, nil
 }
 
