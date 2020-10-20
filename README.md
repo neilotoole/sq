@@ -1,7 +1,7 @@
 # sq: swiss army knife for data
 
-`sq` provides uniform access to
-structured data sources like traditional SQL-style databases,
+`sq` is a command line tool that jq-style access to
+structured data sources such as SQL databases,
 or document formats such as CSV or Excel. `sq` can perform cross-source joins, 
 execute database-native SQL, and output to a multitude of formats including JSON,
 Excel, CSV, HTML, Markdown and XML, or output directly to a SQL database.
