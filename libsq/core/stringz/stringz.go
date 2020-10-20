@@ -3,9 +3,11 @@
 package stringz
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 	"time"
@@ -307,4 +309,35 @@ func SanitizeAlphaNumeric(s string, r rune) string {
 	}
 
 	return string(runes)
+}
+
+// LineCount returns the number of lines in r. If skipEmpty is
+// true, empty lines are skipped (a whitespace-only line is not
+// considered empty). If r is nil or any error occurs, -1 is returned.
+func LineCount(r io.Reader, skipEmpty bool) int {
+	if r == nil {
+		return -1
+	}
+
+	sc := bufio.NewScanner(r)
+	var i int
+
+	if skipEmpty {
+		for sc.Scan() {
+			if len(sc.Bytes()) > 0 {
+				i++
+			}
+		}
+
+		if sc.Err() != nil {
+			return -1
+		}
+
+		return i
+	}
+
+	for i = 0; sc.Scan(); i++ {
+	}
+
+	return i
 }

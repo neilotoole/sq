@@ -16,6 +16,9 @@ const (
 
 	// MiscDB is the handle of a SQLite DB with misc testing data.
 	MiscDB = "@miscdb"
+
+	// EmptyDB is the handle of an empty SQLite DB.
+	EmptyDB = "@emptydb"
 )
 
 const (

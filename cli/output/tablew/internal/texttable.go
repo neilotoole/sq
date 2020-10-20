@@ -160,7 +160,7 @@ func (t *Table) getColTrans(col int) textTransFunc {
 	}
 }
 
-// renderAll table output
+// RenderAll table output
 func (t *Table) RenderAll() {
 	if t.borders.Top {
 		t.printLine(true)

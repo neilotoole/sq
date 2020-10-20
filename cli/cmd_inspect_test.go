@@ -66,7 +66,7 @@ func TestCmdInspect_Stdin(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 
-		t.Run(testh.TName(tc.fpath), func(t *testing.T) {
+		t.Run(testh.Name(tc.fpath), func(t *testing.T) {
 			f, err := os.Open(tc.fpath) // No need to close f
 			require.NoError(t, err)
 

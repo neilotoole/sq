@@ -120,7 +120,9 @@ func (h *Helper) init() {
 		h.files.AddTypeDetectors(csv.DetectCSV, csv.DetectTSV)
 
 		jsonp := &json.Provider{Log: log, Scratcher: h.databases, Files: h.files}
+		h.registry.AddProvider(json.TypeJSON, jsonp)
 		h.registry.AddProvider(json.TypeJSONA, jsonp)
+		h.registry.AddProvider(json.TypeJSONL, jsonp)
 		h.files.AddTypeDetectors(json.DetectJSON, json.DetectJSONA, json.DetectJSONL)
 
 		h.registry.AddProvider(xlsx.Type, &xlsx.Provider{Log: log, Scratcher: h.databases, Files: h.files})
@@ -643,11 +645,16 @@ func Val(i interface{}) interface{} {
 
 // TypeDetectors returns the common set of TypeDetectorFuncs.
 func TypeDetectors() []source.TypeDetectFunc {
-	return []source.TypeDetectFunc{source.DetectMagicNumber, xlsx.DetectXLSX, csv.DetectCSV, csv.DetectTSV}
+	return []source.TypeDetectFunc{
+		source.DetectMagicNumber,
+		xlsx.DetectXLSX,
+		csv.DetectCSV, csv.DetectTSV,
+		/*json.DetectJSON,*/ json.DetectJSONA, json.DetectJSONL, // FIXME: enable DetectJSON when it's ready
+	}
 }
 
 // AssertCompareFunc matches several of the the testify/require funcs.
-// It can be used to choose assertion comparision funcs in test cases.
+// It can be used to choose assertion comparison funcs in test cases.
 type AssertCompareFunc func(require.TestingT, interface{}, interface{}, ...interface{})
 
 // Verify that a sample of the require funcs match AssertCompareFunc.
@@ -657,55 +664,34 @@ var (
 	_ AssertCompareFunc = require.Greater
 )
 
-// TName is a convenience function for generating names to
+// Name is a convenience function for building a test name to
 // pass to t.Run.
 //
-//  t.Run(testh.TName("mytest", 1), func(t *testing.T) {
+//  t.Run(testh.Name("my_test", 1), func(t *testing.T) {
 //
 // The most common usage is with test names that are file
 // paths.
 //
-//   testh.TName("path/to/file") --> "path_to_file"
-func TName(args ...interface{}) string {
-	var strs []string
+//   testh.Name("path/to/file") --> "path_to_file"
+//
+// Any element of arg that prints to empty string is skipped.
+func Name(args ...interface{}) string {
+	var parts []string
 	var s string
 	for _, a := range args {
 		s = fmt.Sprintf("%v", a)
+		if s == "" {
+			continue
+		}
+
 		s = strings.Replace(s, "/", "_", -1)
-		strs = append(strs, s)
+		parts = append(parts, s)
 	}
 
-	s = strings.Join(strs, "_")
+	s = strings.Join(parts, "_")
 	if s == "" {
 		return "empty"
 	}
 
 	return s
 }
-
-//// fileReaders is a testing impl of source.Readers.
-//type fileReaders struct {
-//	fpath string
-//	clnup *cleanup.Cleanup
-//}
-//
-//// Open implements source.Readers.
-//func (fr *fileReaders) Open() (io.Reader, error) {
-//	f, err := os.Open(fr.fpath)
-//	if err != nil {
-//		return nil, core.errz.Err(err)
-//	}
-//	fr.clnup.AddC(f)
-//	return f, err
-//}
-//
-//// Close implements source.Readers.
-//func (fr *fileReaders) Close() error {
-//	return fr.clnup.Run()
-//}
-//
-//// ReadersFor returns a source.Readers that reads fpath from
-//// the file system.
-//func ReadersFor(fpath string) source.Readers {
-//	return &fileReaders{fpath: fpath, clnup: cleanup.New()}
-//}

@@ -18,15 +18,15 @@ import (
 func newSLQCmd() (*cobra.Command, runFunc) {
 	cmd := &cobra.Command{
 		Use:    "slq",
-		Short:  "",
-		Hidden: true,
+		Short:  "Execute SLQ query",
+		Hidden: false,
 	}
 
 	addQueryCmdFlags(cmd)
 	cmd.Flags().Bool(flagVersion, false, flagVersionUsage)
-	cmd.SetUsageFunc(func(cmd *cobra.Command) error {
-		return cmd.Root().Help()
-	})
+	//cmd.SetUsageFunc(func(cmd *cobra.Command) error {
+	//	return cmd.Root().Help()
+	//})
 
 	return cmd, execSLQ
 }
@@ -151,7 +151,7 @@ func execSLQPrint(rc *RunContext) error {
 // preprocessUserSLQ does a bit of validation and munging on the
 // SLQ input (provided in args), returning the SLQ query. This
 // function is something of a hangover from the early days of
-// seek and may need to be rethought.
+// sq and may need to be rethought.
 //
 // 1. If there's piped input but no query args, the first table
 // from the pipe source becomes the query. Invoked like this:
@@ -279,7 +279,7 @@ func preprocessUserSLQ(rc *RunContext, args []string) (string, error) {
 	return query, nil
 }
 
-// addQueryCmdFlags sets flags for the slq/sql commands.
+// addQueryCmdFlags sets the common flags for the slq/sql commands.
 func addQueryCmdFlags(cmd *cobra.Command) {
 	cmd.Flags().StringP(flagOutput, flagOutputShort, "", flagOutputUsage)
 

@@ -6,6 +6,7 @@ require (
 	github.com/antlr/antlr4 v0.0.0-20191011202612-ad2bd05285ca
 	github.com/aws/aws-sdk-go v1.12.10 // indirect
 	github.com/bgentry/go-netrc v0.0.0-20140422174119-9fd32a8b3d3d // indirect
+	github.com/buger/jsonparser v1.0.0
 	github.com/c2h5oh/datasize v0.0.0-20170519143321-54516c931ae9
 	github.com/denisenkom/go-mssqldb v0.0.0-20200620013148-b91950f658ec
 	github.com/djherbis/fscache v0.10.1
@@ -35,6 +36,7 @@ require (
 	github.com/neilotoole/lg v0.3.0
 	github.com/nlopes/slack v0.1.0
 	github.com/pkg/errors v0.9.1
+	github.com/ryboe/q v1.0.12
 	github.com/satori/go.uuid v1.2.0
 	github.com/segmentio/encoding v0.1.14
 	github.com/shopspring/decimal v0.0.0-20180709203117-cd690d0c9e24

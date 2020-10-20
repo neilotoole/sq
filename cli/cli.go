@@ -115,7 +115,7 @@ func ExecuteWith(rc *RunContext, args []string) error {
 		}
 
 		// If we have args [sq, arg1, arg2] the we redirect
-		// to the "query" command by modifying args to
+		// to the "slq" command by modifying args to
 		// look like: [query, arg1, arg2] -- noting that SetArgs
 		// doesn't want the first args element.
 		queryCmdArgs := append([]string{"slq"}, args[1:]...)
@@ -403,7 +403,9 @@ func (rc *RunContext) preRunE() error {
 	rc.files.AddTypeDetectors(csv.DetectCSV, csv.DetectTSV)
 
 	jsonp := &json.Provider{Log: log, Scratcher: rc.databases, Files: rc.files}
+	rc.registry.AddProvider(json.TypeJSON, jsonp)
 	rc.registry.AddProvider(json.TypeJSONA, jsonp)
+	rc.registry.AddProvider(json.TypeJSONL, jsonp)
 	rc.files.AddTypeDetectors(json.DetectJSON, json.DetectJSONA, json.DetectJSONL)
 
 	rc.registry.AddProvider(xlsx.Type, &xlsx.Provider{Log: log, Scratcher: rc.databases, Files: rc.files})

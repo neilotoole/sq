@@ -1,12 +1,14 @@
 package stringz_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/testh"
 )
 
 func TestGenerateAlphaColName(t *testing.T) {
@@ -242,4 +244,40 @@ func TestSanitizeAlphaNumeric(t *testing.T) {
 		got := stringz.SanitizeAlphaNumeric(input, '_')
 		require.Equal(t, want, got)
 	}
+}
+
+func TestLineCount(t *testing.T) {
+	testCases := []struct {
+		in        string
+		withEmpty int
+		skipEmpty int
+	}{
+		{in: "", withEmpty: 0, skipEmpty: 0},
+		{in: "\n", withEmpty: 1, skipEmpty: 0},
+		{in: "\n\n", withEmpty: 2, skipEmpty: 0},
+		{in: "\n\n", withEmpty: 2, skipEmpty: 0},
+		{in: " ", withEmpty: 1, skipEmpty: 1},
+		{in: "one", withEmpty: 1, skipEmpty: 1},
+		{in: "one\n", withEmpty: 1, skipEmpty: 1},
+		{in: "\none\n", withEmpty: 2, skipEmpty: 1},
+		{in: "one\ntwo", withEmpty: 2, skipEmpty: 2},
+		{in: "one\ntwo\n", withEmpty: 2, skipEmpty: 2},
+		{in: "one\ntwo\n ", withEmpty: 3, skipEmpty: 3},
+		{in: "one\n\nthree", withEmpty: 3, skipEmpty: 2},
+		{in: "one\n\nthree\n", withEmpty: 3, skipEmpty: 2},
+	}
+
+	require.Equal(t, -1, stringz.LineCount(nil, true))
+
+	for i, tc := range testCases {
+		tc := tc
+
+		t.Run(testh.Name(i, tc.in), func(t *testing.T) {
+			count := stringz.LineCount(strings.NewReader(tc.in), false)
+			require.Equal(t, tc.withEmpty, count)
+			count = stringz.LineCount(strings.NewReader(tc.in), true)
+			require.Equal(t, tc.skipEmpty, count)
+		})
+	}
+
 }

@@ -81,7 +81,6 @@ More at https://sq.io
 		BashCompletionFunction: bashCompletionFunc,
 	}
 
-	// the query cmd does the real work when the root cmd is invoked
 	addQueryCmdFlags(cmd)
 	cmd.Flags().Bool(flagVersion, false, flagVersionUsage)
 	cmd.PersistentFlags().BoolP(flagMonochrome, flagMonochromeShort, false, flagMonochromeUsage)

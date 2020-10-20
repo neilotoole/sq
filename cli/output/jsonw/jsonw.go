@@ -66,20 +66,24 @@ func (w *stdWriter) Open(recMeta sqlz.RecordMeta) error {
 	w.recMeta = recMeta
 
 	if len(recMeta) == 0 {
-		// should never happen
-		return errz.New("empty record metadata")
+		// This can happen, e.g. with postgres for an empty table
+		w.tpl = &stdTemplate{
+			header: []byte("["),
+			footer: []byte("]"),
+		}
+	} else {
+		w.encodeFns = getFieldEncoders(recMeta, w.fm)
+
+		tpl, err := newStdTemplate(recMeta, w.fm)
+		if err != nil {
+			w.err = err
+			return err
+		}
+
+		w.tpl = tpl
 	}
 
-	w.encodeFns = getFieldEncoders(recMeta, w.fm)
-
-	tpl, err := newStdTemplate(recMeta, w.fm)
-	if err != nil {
-		w.err = err
-		return err
-	}
-
-	w.outBuf.Write(tpl.header)
-	w.tpl = tpl
+	w.outBuf.Write(w.tpl.header)
 
 	return nil
 }

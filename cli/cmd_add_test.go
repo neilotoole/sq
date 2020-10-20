@@ -57,7 +57,7 @@ func TestCmdAdd(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 
-		t.Run(testh.TName(tc.wantHandle, tc.loc, tc.driver), func(t *testing.T) {
+		t.Run(testh.Name(tc.wantHandle, tc.loc, tc.driver), func(t *testing.T) {
 			args := []string{"add", tc.loc}
 			if tc.handle != "" {
 				args = append(args, "--handle="+tc.handle)
