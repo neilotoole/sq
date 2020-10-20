@@ -1,4 +1,4 @@
-// Package core.errz is sq's error package. It exists to combine
+// Package errz is sq's error package. It exists to combine
 // functionality from several error packages.
 package errz
 
@@ -32,9 +32,9 @@ var Append = multierr.Append
 //  if the args have already been wrapped (WithStack), and if not,
 //  automatically wrap them. That is, this:
 //
-//  return core.errz.Append(err, core.errz.Err(tx.Rollback())
+//  return errz.Append(err, errz.Err(tx.Rollback())
 //  // becomes
-//  return core.errz.Append(err, tx.Rollback())
+//  return errz.Append(err, tx.Rollback())
 
 // Combine is documented by multierr.Combine.
 var Combine = multierr.Combine

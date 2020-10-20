@@ -14,10 +14,10 @@ func main() {
 	defer cancelFn()
 
 	go func() {
-		stop := make(chan os.Signal, 1)
-		signal.Notify(stop, os.Interrupt)
+		stopCh := make(chan os.Signal, 1)
+		signal.Notify(stopCh, os.Interrupt)
 
-		<-stop
+		<-stopCh
 		cancelFn()
 	}()
 

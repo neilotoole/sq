@@ -26,7 +26,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
-// table encapsulates the
+// table encapsulates our table implementation.
 type table struct {
 	fm     *output.Formatting
 	out    io.Writer
@@ -221,7 +221,7 @@ func (t *table) reset() {
 
 func (t *table) setTableWriterOptions() {
 	t.tblImpl.SetAlignment(internal.AlignLeft)
-	t.tblImpl.SetAutoWrapText(true)
+	t.tblImpl.SetAutoWrapText(false)
 	t.tblImpl.SetBorder(false)
 	t.tblImpl.SetHeaderAlignment(internal.AlignLeft)
 	t.tblImpl.SetCenterSeparator("")
