@@ -29,7 +29,7 @@ const (
 	MS               = MS17
 )
 
-// AllHandles returns all the sakila handles. It does not
+// AllHandles returns all the typical sakila handles. It does not
 // include monotable handles such as @sakila_csv_actor.
 func AllHandles() []string {
 	return []string{SL3, Pg9, Pg10, Pg11, Pg12, My56, My57, My8, MS17, XLSX}
@@ -145,6 +145,7 @@ const (
 	PathSL3              = "drivers/sqlite3/testdata/sakila.db"
 	PathXLSX             = "drivers/xlsx/testdata/sakila.xlsx"
 	PathXLSXSubset       = "drivers/xlsx/testdata/sakila_subset.xlsx"
+	PathXLSXActorHeader  = "drivers/xlsx/testdata/sakila_actor_header.xlsx"
 	PathCSVActor         = "drivers/csv/testdata/sakila-csv/actor.csv"
 	PathCSVActorNoHeader = "drivers/csv/testdata/sakila-csv-noheader/actor.csv"
 	PathTSVActor         = "drivers/csv/testdata/sakila-tsv/actor.tsv"

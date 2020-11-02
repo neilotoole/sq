@@ -91,7 +91,7 @@ func execSLQ(rc *RunContext, cmd *cobra.Command, args []string) error {
 	return execSLQInsert(rc, destSrc, destTbl)
 }
 
-// execSQLInsert executes the SQL and inserts resulting records
+// execSQLInsert executes the SLQ and inserts resulting records
 // into destTbl in destSrc.
 func execSLQInsert(rc *RunContext, destSrc *source.Source, destTbl string) error {
 	args, srcs, dbases := rc.Args, rc.Config.Sources, rc.databases
@@ -114,20 +114,21 @@ func execSLQInsert(rc *RunContext, destSrc *source.Source, destTbl string) error
 	// stack.
 
 	inserter := libsq.NewDBWriter(rc.Log, destDB, destTbl, driver.Tuning.RecordChSize)
-	err = libsq.ExecuteSLQ(ctx, rc.Log, rc.databases, rc.databases, srcs, slq, inserter)
-	if err != nil {
-		return errz.Wrapf(err, "insert %s.%s failed", destSrc.Handle, destTbl)
+	execErr := libsq.ExecuteSLQ(ctx, rc.Log, rc.databases, rc.databases, srcs, slq, inserter)
+	affected, waitErr := inserter.Wait() // Wait for the writer to finish processing
+	if execErr != nil {
+		return errz.Wrapf(execErr, "insert %s.%s failed", destSrc.Handle, destTbl)
 	}
 
-	affected, err := inserter.Wait() // Wait for the writer to finish processing
-	if err != nil {
-		return errz.Wrapf(err, "insert %s.%s failed", destSrc.Handle, destTbl)
+	if waitErr != nil {
+		return errz.Wrapf(waitErr, "insert %s.%s failed", destSrc.Handle, destTbl)
 	}
 
 	fmt.Fprintf(rc.Out, stringz.Plu("Inserted %d row(s) into %s.%s\n", int(affected)), affected, destSrc.Handle, destTbl)
 	return nil
 }
 
+// execSLQPrint executes the SLQ query, and prints output to writer.
 func execSLQPrint(rc *RunContext) error {
 	slq, err := preprocessUserSLQ(rc, rc.Args)
 	if err != nil {
@@ -135,17 +136,13 @@ func execSLQPrint(rc *RunContext) error {
 	}
 
 	recw := output.NewRecordWriterAdapter(rc.writers.recordw)
-	err = libsq.ExecuteSLQ(rc.Context, rc.Log, rc.databases, rc.databases, rc.Config.Sources, slq, recw)
-	if err != nil {
-		return err
+	execErr := libsq.ExecuteSLQ(rc.Context, rc.Log, rc.databases, rc.databases, rc.Config.Sources, slq, recw)
+	_, waitErr := recw.Wait()
+	if execErr != nil {
+		return execErr
 	}
 
-	_, err = recw.Wait()
-	if err != nil {
-		return err
-	}
-
-	return err
+	return waitErr
 }
 
 // preprocessUserSLQ does a bit of validation and munging on the
