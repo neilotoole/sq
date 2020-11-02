@@ -299,6 +299,9 @@ func detectColKindsJSONA(ctx context.Context, r io.Reader) ([]kind.Kind, []kind.
 		if err != nil {
 			return nil, nil, err
 		}
+		if kinds[i] == kind.Null {
+			kinds[i] = kind.Text
+		}
 	}
 
 	return kinds, mungeFns, nil

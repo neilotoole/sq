@@ -198,6 +198,7 @@ func (d *Detector) Sample(v interface{}) {
 		return
 	case time.Time:
 		d.retain(Time, Date, Datetime)
+		return
 	case stdj.Number:
 		// JSON number
 		d.foundString = true
@@ -274,7 +275,7 @@ func (d *Detector) Sample(v interface{}) {
 					return nil, nil
 				}
 
-				s, ok := val.(string)
+				s, ok = val.(string)
 				if !ok {
 					return nil, errz.Errorf("expected %T to be string", val)
 				}
@@ -283,7 +284,8 @@ func (d *Detector) Sample(v interface{}) {
 					return nil, nil
 				}
 
-				t, err := time.Parse(format, s)
+				var t time.Time
+				t, err = time.Parse(format, s)
 				if err != nil {
 					return nil, errz.Err(err)
 				}
@@ -307,7 +309,7 @@ func (d *Detector) Sample(v interface{}) {
 					return nil, nil
 				}
 
-				s, ok := val.(string)
+				s, ok = val.(string)
 				if !ok {
 					return nil, errz.Errorf("expected %T to be string", val)
 				}
@@ -316,7 +318,8 @@ func (d *Detector) Sample(v interface{}) {
 					return nil, nil
 				}
 
-				t, err := time.Parse(format, s)
+				var t time.Time
+				t, err = time.Parse(format, s)
 				if err != nil {
 					return nil, errz.Err(err)
 				}
@@ -362,7 +365,8 @@ func (d *Detector) Sample(v interface{}) {
 	}
 }
 
-// Detect returns the detected Kind. If ambiguous, Text is returned.
+// Detect returns the detected Kind. If ambiguous, Text is returned,
+// unless all sampled values were nil, in which case Null is returned.
 // If the returned mungeFn is non-nil, it can be used to convert input
 // values to their canonical form. For example, for Datetime the MungeFunc
 // would accept string "2020-06-11T02:50:54Z" and return a time.Time,
@@ -370,8 +374,12 @@ func (d *Detector) Sample(v interface{}) {
 // and always return a string in the canonicalized form "1970-01-01".
 func (d *Detector) Detect() (kind Kind, mungeFn MungeFunc, err error) {
 	if !d.dirty {
+		if d.foundString {
+			return Text, nil, nil
+		}
+
 		// If we haven't filtered any kinds, default to Text.
-		return Text, nil, nil
+		return Null, nil, nil
 	}
 
 	switch len(d.kinds) {
@@ -381,7 +389,15 @@ func (d *Detector) Detect() (kind Kind, mungeFn MungeFunc, err error) {
 		for k := range d.kinds {
 			return k, d.mungeFns[k], nil
 		}
-	default:
+	}
+
+	// NOTE: this logic below about detecting the remaining type
+	//  is a bit sketchy. If you're debugging this code, it's
+	//  probably the case that the code below is faulty.
+	if d.has(Time, Date, Datetime) {
+		// If all three time types are left, use the most
+		// general, i.e. Datetime.
+		return Datetime, d.mungeFns[Datetime], nil
 	}
 
 	if d.has(Time) {

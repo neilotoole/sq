@@ -113,11 +113,13 @@ func TestCmdSQL_StdinQuery(t *testing.T) {
 	testCases := []struct {
 		fpath     string
 		tbl       string
+		srcHeader bool
 		wantCount int
 		wantErr   bool
 	}{
 		{fpath: proj.Abs(sakila.PathCSVActorNoHeader), tbl: source.MonotableName, wantCount: sakila.TblActorCount},
-		{fpath: proj.Abs(sakila.PathXLSXSubset), tbl: sakila.TblActor, wantCount: sakila.TblActorCount + 1}, // +1 is for the header row in the XLSX file
+		{fpath: proj.Abs(sakila.PathXLSXActorHeader), srcHeader: true, tbl: sakila.TblActor, wantCount: sakila.TblActorCount},
+		{fpath: proj.Abs(sakila.PathXLSXSubset), srcHeader: true, tbl: sakila.TblActor, wantCount: sakila.TblActorCount},
 		{fpath: proj.Abs("README.md"), wantErr: true},
 	}
 
@@ -133,7 +135,12 @@ func TestCmdSQL_StdinQuery(t *testing.T) {
 			ru := newRun(t).hush()
 			ru.rc.Stdin = f
 
-			err = ru.exec("sql", "--header=false", "SELECT * FROM "+tc.tbl)
+			args := []string{"sql", "--header=false", "SELECT * FROM " + tc.tbl}
+			if tc.srcHeader {
+				args = append(args, "--opts=header=true")
+			}
+
+			err = ru.exec(args...)
 			if tc.wantErr {
 				require.Error(t, err)
 				return

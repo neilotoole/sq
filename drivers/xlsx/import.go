@@ -84,6 +84,10 @@ func importSheetToTable(ctx context.Context, log lg.Log, sheet *xlsx.Sheet, hasH
 			continue
 		}
 
+		if isEmptyRow(row) {
+			continue
+		}
+
 		rec := rowToRecord(log, destColKinds, row, sheet.Name, i)
 		err = bi.Munge(rec)
 		if err != nil {
@@ -120,6 +124,22 @@ func importSheetToTable(ctx context.Context, log lg.Log, sheet *xlsx.Sheet, hasH
 	return nil
 }
 
+// isEmptyRow returns true if row is nil or has zero cells, or if
+// every cell value is empty string.
+func isEmptyRow(row *xlsx.Row) bool {
+	if row == nil || len(row.Cells) == 0 {
+		return true
+	}
+
+	for i := range row.Cells {
+		if row.Cells[i].Value != "" {
+			return false
+		}
+	}
+
+	return true
+}
+
 // buildTblDefsForSheets returns a TableDef for each sheet.
 func buildTblDefsForSheets(ctx context.Context, log lg.Log, sheets []*xlsx.Sheet, hasHeader bool) ([]*sqlmodel.TableDef, error) {
 	tblDefs := make([]*sqlmodel.TableDef, len(sheets))
@@ -148,22 +168,21 @@ func buildTblDefsForSheets(ctx context.Context, log lg.Log, sheets []*xlsx.Sheet
 // buildTblDefForSheet creates a table for the given sheet, and returns
 // a model of the table, or an error.
 func buildTblDefForSheet(log lg.Log, sheet *xlsx.Sheet, hasHeader bool) (*sqlmodel.TableDef, error) {
-	numCells := getRowsMaxCellCount(sheet)
-	if numCells == 0 {
+	maxCols := getRowsMaxCellCount(sheet)
+	if maxCols == 0 {
 		return nil, errz.Errorf("sheet %q has no columns", sheet.Name)
 	}
 
-	colNames := make([]string, numCells)
-	colKinds := make([]kind.Kind, numCells)
+	colNames := make([]string, maxCols)
+	colKinds := make([]kind.Kind, maxCols)
 
 	firstDataRow := 0
-
 	if len(sheet.Rows) == 0 {
 		// TODO: is this even reachable? That is, if sheet.Rows is empty,
 		//  then sheet.cols (checked for above) will also be empty?
 
 		// sheet has no rows
-		for i := 0; i < numCells; i++ {
+		for i := 0; i < maxCols; i++ {
 			colKinds[i] = kind.Text
 			colNames[i] = stringz.GenerateAlphaColName(i, false)
 		}
@@ -174,11 +193,11 @@ func buildTblDefForSheet(log lg.Log, sheet *xlsx.Sheet, hasHeader bool) (*sqlmod
 		if hasHeader {
 			firstDataRow = 1
 			headerCells := sheet.Rows[0].Cells
-			for i := 0; i < numCells; i++ {
+			for i := 0; i < len(headerCells); i++ {
 				colNames[i] = headerCells[i].Value
 			}
 		} else {
-			for i := 0; i < numCells; i++ {
+			for i := 0; i < maxCols; i++ {
 				colNames[i] = stringz.GenerateAlphaColName(i, false)
 			}
 		}
@@ -186,15 +205,21 @@ func buildTblDefForSheet(log lg.Log, sheet *xlsx.Sheet, hasHeader bool) (*sqlmod
 		// Set up the column types
 		if firstDataRow >= len(sheet.Rows) {
 			// the sheet contains only one row (the header row). Let's
-			// explicitly set the column type none the less
-			for i := 0; i < numCells; i++ {
+			// explicitly set the column type nonetheless
+			for i := 0; i < maxCols; i++ {
 				colKinds[i] = kind.Text
 			}
 		} else {
 			// we have at least one data row, let's get the column types
-			colKinds = getKindsFromCells(sheet.Rows[firstDataRow].Cells)
+			var err error
+			colKinds, err = calcKindsForRows(firstDataRow, sheet.Rows)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
+
+	colNames, colKinds = syncColNamesKinds(colNames, colKinds)
 
 	tblDef := &sqlmodel.TableDef{Name: sheet.Name}
 	cols := make([]*sqlmodel.ColDef, len(colNames))
@@ -207,9 +232,65 @@ func buildTblDefForSheet(log lg.Log, sheet *xlsx.Sheet, hasHeader bool) (*sqlmod
 	return tblDef, nil
 }
 
+// syncColNamesKinds ensures that column names and kinds are in
+// a working state vis-a-vis each other. Notably if a colName is
+// empty and its equivalent kind is kind.Null, that element
+// is filtered out.
+func syncColNamesKinds(colNames []string, colKinds []kind.Kind) (names []string, kinds []kind.Kind) {
+	// Allow for the case of "phantom" columns. That is,
+	// columns with entirely empty data.
+	// Note: not sure if this scenario is now reachable
+	if len(colKinds) < len(colNames) {
+		colNames = colNames[0:len(colKinds)]
+	}
+
+	for i := range colNames {
+		// Filter out the case where the column name is empty
+		// and the kind is kind.Null or kind.Unknown.
+		if colNames[i] == "" && (colKinds[i] == kind.Null || colKinds[i] == kind.Unknown) {
+			continue
+		}
+
+		names = append(names, colNames[i])
+		kinds = append(kinds, colKinds[i])
+	}
+
+	colNames = names
+	colKinds = kinds
+
+	// Check that we don't have any unnamed columns (empty header)
+	for i := 0; i < len(colNames); i++ {
+		if colNames[i] == "" {
+			// Empty col name... possibly we should just throw
+			// an error, but instead we'll try to generate a col name.
+			colName := stringz.GenerateAlphaColName(i, false)
+			for stringz.InSlice(colNames[0:i], colName) {
+				// If colName already exists, just append an
+				// underscore and try again.
+				colName += "_"
+			}
+			colNames[i] = colName
+		}
+	}
+
+	for i := range colKinds {
+		if colKinds[i] == kind.Null || colKinds[i] == kind.Unknown {
+			colKinds[i] = kind.Text
+		}
+	}
+
+	return colNames, colKinds
+}
+
 func rowToRecord(log lg.Log, destColKinds []kind.Kind, row *xlsx.Row, sheetName string, rowIndex int) []interface{} {
-	vals := make([]interface{}, len(row.Cells))
+	vals := make([]interface{}, len(destColKinds))
 	for j, cell := range row.Cells {
+		if j >= len(vals) {
+			log.Warnf("sheet %s[%d:%d]: skipping additional cells because there's more cells than expected (%d)",
+				sheetName, rowIndex, j, len(destColKinds))
+			continue
+		}
+
 		typ := cell.Type()
 		switch typ {
 		case xlsx.CellTypeBool:
@@ -271,42 +352,100 @@ func rowToRecord(log lg.Log, destColKinds []kind.Kind, row *xlsx.Row, sheetName 
 	return vals
 }
 
-func getKindsFromCells(cells []*xlsx.Cell) []kind.Kind {
-	vals := make([]kind.Kind, len(cells))
-	for i, cell := range cells {
-		typ := cell.Type()
-		switch typ {
-		case xlsx.CellTypeBool:
-			vals[i] = kind.Bool
-		case xlsx.CellTypeNumeric:
-			if cell.IsTime() {
-				vals[i] = kind.Datetime
-				continue
-			}
+// readCellValue reads the value of a cell, returning a value of
+// type that most matches the sq kind.
+func readCellValue(cell *xlsx.Cell) interface{} {
+	if cell == nil || cell.Value == "" {
+		return nil
+	}
 
-			_, err := cell.Int64()
+	var val interface{}
+
+	switch cell.Type() {
+	case xlsx.CellTypeBool:
+		val = cell.Bool()
+		return val
+	case xlsx.CellTypeNumeric:
+		if cell.IsTime() {
+			t, err := cell.GetTime(false)
 			if err == nil {
-				vals[i] = kind.Int
-				continue
+				return t
 			}
-			_, err = cell.Float()
+
+			t, err = cell.GetTime(true)
 			if err == nil {
-				vals[i] = kind.Float
-				continue
+				return t
 			}
-			// it's not an int, it's not a float
-			vals[i] = kind.Decimal
 
-		case xlsx.CellTypeDate:
-			// TODO: support time values here?
-			vals[i] = kind.Datetime
+			// Otherwise we have an error, just return the value
+			val, _ = cell.FormattedValue()
+			return val
+		}
 
-		default:
-			vals[i] = kind.Text
+		intVal, err := cell.Int64()
+		if err == nil {
+			val = intVal
+			return val
+		}
+
+		floatVal, err := cell.Float()
+		if err == nil {
+			val = floatVal
+			return val
+		}
+
+		val, _ = cell.FormattedValue()
+		return val
+
+	case xlsx.CellTypeString:
+		val = cell.String()
+	case xlsx.CellTypeDate:
+		// TODO: parse into a time.Time value here?
+		val, _ = cell.FormattedValue()
+	default:
+		val, _ = cell.FormattedValue()
+	}
+
+	return val
+}
+
+// calcKindsForRows calculates the lowest-common-denominator kind
+// for the cells of rows. The returned slice will have length
+// equal to the longest row.
+func calcKindsForRows(firstDataRow int, rows []*xlsx.Row) ([]kind.Kind, error) {
+	if firstDataRow > len(rows) {
+		return nil, errz.Errorf("rows are empty")
+	}
+
+	var detectors []*kind.Detector
+
+	for i := firstDataRow; i < len(rows); i++ {
+		if isEmptyRow(rows[i]) {
+			continue
+		}
+
+		for j := len(detectors); j < len(rows[i].Cells); j++ {
+			detectors = append(detectors, kind.NewDetector())
+		}
+
+		for j := range rows[i].Cells {
+			val := readCellValue(rows[i].Cells[j])
+			detectors[j].Sample(val)
 		}
 	}
 
-	return vals
+	kinds := make([]kind.Kind, len(detectors))
+
+	for j := range detectors {
+		knd, _, err := detectors[j].Detect()
+		if err != nil {
+			return nil, err
+		}
+
+		kinds[j] = knd
+	}
+
+	return kinds, nil
 }
 
 // getColNames returns column names for the sheet. If hasHeader is true and there's
@@ -318,22 +457,23 @@ func getColNames(sheet *xlsx.Sheet, hasHeader bool) []string {
 
 	if len(sheet.Rows) > 0 && hasHeader {
 		row := sheet.Rows[0]
-		for i := 0; i < numCells; i++ {
-			colNames[i] = row.Cells[i].Value
+		for i := 0; i < len(row.Cells); i++ {
+			colNames[i] = row.Cells[i].String()
 		}
-		return colNames
 	}
 
-	for i := 0; i < numCells; i++ {
-		colNames[i] = stringz.GenerateAlphaColName(i, false)
+	for i := range colNames {
+		if colNames[i] == "" {
+			colNames[i] = stringz.GenerateAlphaColName(i, false)
+		}
 	}
 
 	return colNames
 }
 
-// getColTypes returns the xlsx column types for the sheet, determined from
+// getCellColumnTypes returns the xlsx cell types for the sheet, determined from
 // the values of the first data row (after any header row).
-func getColTypes(sheet *xlsx.Sheet, hasHeader bool) []xlsx.CellType {
+func getCellColumnTypes(sheet *xlsx.Sheet, hasHeader bool) []xlsx.CellType {
 	types := make([]*xlsx.CellType, getRowsMaxCellCount(sheet))
 	firstDataRow := 0
 	if hasHeader {

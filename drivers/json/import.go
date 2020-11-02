@@ -155,15 +155,19 @@ func (p *processor) buildSchemaFlat() (*importSchema, error) {
 		for _, field := range e.fieldNames {
 			if detector, ok := e.detectors[field]; ok {
 				// If it has a detector, it's a regular field
-				kind, mungeFn, err := detector.Detect()
+				k, mungeFn, err := detector.Detect()
 				if err != nil {
 					return errz.Err(err)
+				}
+
+				if k == kind.Null {
+					k = kind.Text
 				}
 
 				colDef := &sqlmodel.ColDef{
 					Name:  p.calcColName(e, field),
 					Table: tblDef,
-					Kind:  kind,
+					Kind:  k,
 				}
 
 				colDefs = append(colDefs, colDef)

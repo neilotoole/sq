@@ -88,10 +88,10 @@ func TestKindDetector(t *testing.T) {
 		wantMunge bool
 		wantErr   bool
 	}{
-		{in: nil, want: kind.Text},
-		{in: []interface{}{}, want: kind.Text},
+		{in: nil, want: kind.Null},
+		{in: []interface{}{}, want: kind.Null},
 		{in: []interface{}{""}, want: kind.Text},
-		{in: []interface{}{nil}, want: kind.Text},
+		{in: []interface{}{nil}, want: kind.Null},
 		{in: []interface{}{nil, ""}, want: kind.Text},
 		{in: []interface{}{int(1), int8(8), int16(16), int32(32), int64(64)}, want: kind.Int},
 		{in: []interface{}{1, "2", "3"}, want: kind.Decimal},
@@ -100,7 +100,7 @@ func TestKindDetector(t *testing.T) {
 		{in: []interface{}{1, "2", stdj.Number("1000")}, want: kind.Decimal},
 		{in: []interface{}{1.0, "2.0"}, want: kind.Decimal},
 		{in: []interface{}{1, float64(2.0), float32(7.7), int32(3)}, want: kind.Float},
-		{in: []interface{}{nil, nil, nil}, want: kind.Text},
+		{in: []interface{}{nil, nil, nil}, want: kind.Null},
 		{in: []interface{}{"1.0", "2.0", "3.0", "4", nil, int64(6)}, want: kind.Decimal},
 		{in: []interface{}{true, false, nil, "true", "false", "yes", "no", ""}, want: kind.Bool},
 		{in: []interface{}{"0", "1"}, want: kind.Decimal},
@@ -145,7 +145,7 @@ func TestKindDetector(t *testing.T) {
 				return
 			}
 
-			require.Equal(t, tc.want.String(), gotKind.String())
+			require.Equal(t, tc.want.String(), gotKind.String(), tc.in)
 
 			if !tc.wantMunge {
 				require.Nil(t, gotMungeFn)

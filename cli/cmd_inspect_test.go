@@ -9,6 +9,7 @@ import (
 
 	"github.com/neilotoole/sq/drivers/csv"
 	"github.com/neilotoole/sq/drivers/sqlite3"
+	"github.com/neilotoole/sq/drivers/xlsx"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/proj"
@@ -16,6 +17,62 @@ import (
 )
 
 func TestCmdInspect(t *testing.T) {
+	testCases := []struct {
+		handle   string
+		wantErr  bool
+		wantType source.Type
+		wantTbls []string
+	}{
+		{
+			handle:   sakila.CSVActor,
+			wantType: csv.TypeCSV,
+			wantTbls: []string{source.MonotableName},
+		},
+		{
+			handle:   sakila.TSVActor,
+			wantType: csv.TypeTSV,
+			wantTbls: []string{source.MonotableName},
+		},
+		{
+			handle:   sakila.XLSX,
+			wantType: xlsx.Type,
+			wantTbls: sakila.AllTbls(),
+		},
+		{
+			handle:   sakila.SL3,
+			wantType: sqlite3.Type,
+			wantTbls: sakila.AllTblsViews(),
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+
+		t.Run(tc.handle, func(t *testing.T) {
+			t.Parallel()
+
+			th := testh.New(t)
+			src := th.Source(tc.handle)
+
+			ru := newRun(t).add(*src)
+
+			err := ru.exec("inspect", "--json")
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+
+			md := &source.Metadata{}
+			require.NoError(t, json.Unmarshal(ru.out.Bytes(), md))
+			require.Equal(t, tc.wantType, md.SourceType)
+			require.Equal(t, src.Handle, md.Handle)
+			require.Equal(t, src.Location, md.Location)
+			require.Equal(t, tc.wantTbls, md.TableNames())
+		})
+	}
+}
+
+func TestCmdInspectSmoke(t *testing.T) {
 	th := testh.New(t)
 	src := th.Source(sakila.SL3)
 
