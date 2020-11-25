@@ -42,7 +42,7 @@ type Files struct {
 func NewFiles(log lg.Log) (*Files, error) {
 	fs := &Files{log: log, clnup: cleanup.New()}
 
-	tmpdir, err := ioutil.TempDir("", "")
+	tmpdir, err := ioutil.TempDir("", "sq_files_fscache_*")
 	if err != nil {
 		return nil, errz.Err(err)
 	}
@@ -64,7 +64,12 @@ func NewFiles(log lg.Log) (*Files, error) {
 		return nil, errz.Err(err)
 	}
 
-	fs.clnup.AddE(fcache.Clean)
+	fs.clnup.AddE(func() error {
+		log.Debugf("About to clean fscache")
+		err := fcache.Clean()
+		log.WarnIfError(err)
+		return err
+	})
 	fs.fcache = fcache
 	return fs, nil
 }
@@ -313,6 +318,8 @@ func (fs *Files) fetch(loc string) (fpath string, err error) {
 
 // Close closes any open resources.
 func (fs *Files) Close() error {
+	fs.log.Debugf("Files.Close invoked: has %d clean funcs", fs.clnup.Len())
+
 	return fs.clnup.Run()
 }
 
