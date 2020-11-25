@@ -2,6 +2,7 @@ package source
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"mime"
@@ -47,6 +48,7 @@ func NewFiles(log lg.Log) (*Files, error) {
 	}
 
 	fs.clnup.AddE(func() error {
+		log.Debugf("Deleting files tmp dir: %s", tmpdir)
 		return errz.Err(os.RemoveAll(tmpdir))
 	})
 
@@ -539,7 +541,15 @@ func TempDirFile(filename string) (dir string, f *os.File, cleanFn func() error,
 	}
 
 	cleanFn = func() error {
-		return errz.Append(f.Close(), os.RemoveAll(dir))
+		fmt.Println("closing tmp file: " + f.Name())
+
+		closeErr := f.Close()
+
+		fmt.Println("removing tmp dir: " + dir)
+		removeDirErr := os.RemoveAll(dir)
+		return errz.Combine(closeErr, removeDirErr)
+
+		//return errz.Append(f.Close(), os.RemoveAll(dir))
 	}
 
 	return dir, f, cleanFn, nil
