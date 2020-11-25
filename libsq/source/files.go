@@ -49,7 +49,13 @@ func NewFiles(log lg.Log) (*Files, error) {
 
 	fs.clnup.AddE(func() error {
 		log.Debugf("Deleting files tmp dir: %s", tmpdir)
-		return errz.Err(os.RemoveAll(tmpdir))
+		err := errz.Err(os.RemoveAll(tmpdir))
+		if err != nil {
+			log.Errorf("Error deleting files tmp dir: %v", err)
+		} else {
+			log.Debugf("Success deleting files tmp dir")
+		}
+		return err
 	})
 
 	fcache, err := fscache.New(tmpdir, os.ModePerm, time.Hour)
