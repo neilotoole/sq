@@ -95,7 +95,7 @@ func setScanType(log lg.Log, ctd *sqlz.ColumnTypeData, knd kind.Kind) {
 // reported by the postgres driver's ColumnType.ScanType. This is necessary
 // because the pgx driver does not support the stdlib sql
 // driver.RowsColumnTypeNullable interface.
-func toNullableScanType(log lg.Log, colName, dbTypeName string, kind kind.Kind, pgScanType reflect.Type) reflect.Type {
+func toNullableScanType(log lg.Log, colName, dbTypeName string, knd kind.Kind, pgScanType reflect.Type) reflect.Type {
 	var nullableScanType reflect.Type
 
 	switch pgScanType {
@@ -108,7 +108,7 @@ func toNullableScanType(log lg.Log, colName, dbTypeName string, kind kind.Kind, 
 		switch dbTypeName {
 		default:
 			log.Warnf("Unknown postgres scan type: col(%s) --> scan(%s) --> db(%s) --> kind(%s): using %s",
-				colName, pgScanType, dbTypeName, kind, sqlz.RTypeNullString)
+				colName, pgScanType, dbTypeName, knd, sqlz.RTypeNullString)
 			nullableScanType = sqlz.RTypeNullString
 		case "":
 			// NOTE: the pgx driver currently reports an empty dbTypeName for certain
@@ -198,16 +198,16 @@ current_setting('server_version'), version(), "current_user"()`
 
 		i := i
 		g.Go(func() error {
-			tblMeta, err := getTableMetadata(gctx, log, db, tblNames[i])
-			if err != nil {
-				if hasErrCode(err, errCodeRelationNotExist) {
+			tblMeta, mdErr := getTableMetadata(gctx, log, db, tblNames[i])
+			if mdErr != nil {
+				if hasErrCode(mdErr, errCodeRelationNotExist) {
 					// If the table is dropped while we're collecting metadata,
 					// for example, we log a warning and suppress the error.
 					log.Warnf("table metadata collection: table %q appears not to exist (continuing regardless): %v",
-						tblNames[i], err)
+						tblNames[i], mdErr)
 					return nil
 				}
-				return err
+				return mdErr
 			}
 			tblMetas[i] = tblMeta
 			return nil

@@ -24,7 +24,6 @@ func TestPlaceholders(t *testing.T) {
 	for _, tc := range testCases {
 		got := placeholders(tc.numCols, tc.numRows)
 		require.Equal(t, tc.want, got)
-
 	}
 }
 

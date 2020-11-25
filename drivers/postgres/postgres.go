@@ -128,6 +128,10 @@ func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 }
 
 // Truncate implements driver.Driver.
+// Note that Truncate makes a separate query to determine the
+// row count of tbl before executing TRUNCATE. This row count
+// query is not part of a transaction with TRUNCATE, although
+// possibly it should be, as the number of rows may have changed.
 func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, reset bool) (affected int64, err error) {
 	// https://www.postgresql.org/docs/9.1/sql-truncate.html
 
@@ -139,15 +143,25 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 		return affected, errz.Err(err)
 	}
 
-	query := fmt.Sprintf("TRUNCATE TABLE %q", tbl)
+	truncateQuery := fmt.Sprintf("TRUNCATE TABLE %q", tbl)
 	if reset {
 		// if reset & src.DBVersion >= 8.2
-		query += " RESTART IDENTITY" // default is CONTINUE IDENTITY
+		truncateQuery += " RESTART IDENTITY" // default is CONTINUE IDENTITY
 	}
 	// We could add RESTRICT here; alternative is CASCADE
 
-	affected, err = sqlz.ExecResult(ctx, db, query)
-	return affected, err
+	affectedQuery := fmt.Sprintf("SELECT COUNT(*) FROM %q", tbl)
+	err = db.QueryRowContext(ctx, affectedQuery).Scan(&affected)
+	if err != nil {
+		return 0, errz.Err(err)
+	}
+
+	_, err = db.ExecContext(ctx, truncateQuery)
+	if err != nil {
+		return 0, errz.Err(err)
+	}
+
+	return affected, nil
 }
 
 // CreateTable implements driver.SQLDriver.
@@ -159,8 +173,8 @@ func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *sqlmodel.
 }
 
 // AlterTableAddColumn implements driver.SQLDriver.
-func (d *driveri) AlterTableAddColumn(ctx context.Context, db *sql.DB, tbl string, col string, kind kind.Kind) error {
-	q := fmt.Sprintf("ALTER TABLE %q ADD COLUMN %q ", tbl, col) + dbTypeNameFromKind(kind)
+func (d *driveri) AlterTableAddColumn(ctx context.Context, db *sql.DB, tbl, col string, knd kind.Kind) error {
+	q := fmt.Sprintf("ALTER TABLE %q ADD COLUMN %q ", tbl, col) + dbTypeNameFromKind(knd)
 
 	_, err := db.ExecContext(ctx, q)
 	if err != nil {
@@ -380,9 +394,9 @@ func (d *driveri) RecordMeta(colTypes []*sql.ColumnType) (sqlz.RecordMeta, drive
 
 	recMeta := make(sqlz.RecordMeta, len(colTypes))
 	for i, colType := range colTypes {
-		kind := kindFromDBTypeName(d.log, colType.Name(), colType.DatabaseTypeName())
-		colTypeData := sqlz.NewColumnTypeData(colType, kind)
-		setScanType(d.log, colTypeData, kind)
+		knd := kindFromDBTypeName(d.log, colType.Name(), colType.DatabaseTypeName())
+		colTypeData := sqlz.NewColumnTypeData(colType, knd)
+		setScanType(d.log, colTypeData, knd)
 		recMeta[i] = sqlz.NewFieldMeta(colTypeData)
 	}
 

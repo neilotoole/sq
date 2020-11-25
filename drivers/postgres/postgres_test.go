@@ -56,6 +56,7 @@ LIMIT 1`
 
 			rows, err := db.QueryContext(th.Context, query)
 			require.NoError(t, err)
+			require.NoError(t, rows.Err())
 			t.Cleanup(func() { assert.NoError(t, rows.Close()) })
 
 			colTypes, err := rows.ColumnTypes()
@@ -98,6 +99,7 @@ func Test_VerifyDriverDoesNotReportNullability(t *testing.T) {
 
 			rows, err := db.Query("SELECT * FROM " + actualTblName)
 			require.NoError(t, err)
+			require.NoError(t, rows.Err())
 			t.Cleanup(func() { assert.NoError(t, rows.Close()) })
 
 			colTypes, err := rows.ColumnTypes()
