@@ -103,7 +103,14 @@ func (h *Helper) init() {
 		var err error
 		h.files, err = source.NewFiles(log)
 		require.NoError(h.T, err)
-		h.Cleanup.AddC(h.files)
+
+		h.Cleanup.Add(func() {
+			h.T.Logf("Executing outer Files cleanup")
+			err := h.files.Close()
+			assert.NoError(h.T, err)
+		})
+
+		//h.Cleanup.AddC(h.files)
 		h.files.AddTypeDetectors(source.DetectMagicNumber)
 
 		h.databases = driver.NewDatabases(log, h.registry, sqlite3.NewScratchSource)

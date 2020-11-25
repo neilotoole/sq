@@ -294,33 +294,42 @@ func (d *Databases) OpenScratch(ctx context.Context, name string) (Database, err
 	}
 	d.log.Debugf("got scratch src %s: %s", scratchSrc.Handle, scratchSrc.RedactedLocation())
 
-	scratchDBClnup := cleanup.New().AddE(cleanFn)
+	//scratchDBClnup := cleanup.New().AddE(cleanFn)
 
 	drvr, err := d.drvrs.DriverFor(scratchSrc.Type)
 	if err != nil {
-		d.log.WarnIfError(scratchDBClnup.Run())
+		d.log.WarnIfFuncError(cleanFn)
+		//d.log.WarnIfError(scratchDBClnup.Run())
 		return nil, err
 	}
 
 	sqlDrvr, ok := drvr.(SQLDriver)
 	if !ok {
+		d.log.WarnIfFuncError(cleanFn)
+
+		//d.log.WarnIfError(scratchDBClnup.Run())
 		return nil, errz.Errorf("driver for scratch source %s is not a SQLDriver but is %T", scratchSrc.Handle, drvr)
 	}
 
 	var backingDB Database
 	backingDB, err = sqlDrvr.Open(ctx, scratchSrc)
 	if err != nil {
-		d.log.WarnIfError(scratchDBClnup.Run())
+		d.log.WarnIfFuncError(cleanFn)
+
+		//d.log.WarnIfError(scratchDBClnup.Run())
 		return nil, err
 	}
 
-	scratchDBClnup.AddE(backingDB.Close)
-
-	scratchDB := &scratchDatabase{log: d.log, impl: backingDB, cleanup: scratchDBClnup}
-
-	// scratchDB.Close will be invoked when d.Close is invoked.
-	d.clnup.AddE(scratchDB.Close)
-	return scratchDB, nil
+	d.clnup.AddE(cleanFn)
+	return backingDB, nil
+	//
+	//scratchDBClnup.AddE(backingDB.Close)
+	//
+	//scratchDB := &scratchDatabase{log: d.log, impl: backingDB, cleanup: scratchDBClnup}
+	//
+	//// scratchDB.Close will be invoked when d.Close is invoked.
+	//d.clnup.AddE(scratchDB.Close)
+	//return scratchDB, nil
 }
 
 // OpenJoin opens an appropriate database for use as

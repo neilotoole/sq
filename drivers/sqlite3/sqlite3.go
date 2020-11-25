@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/neilotoole/lg"
@@ -389,6 +390,10 @@ type database struct {
 	db   *sql.DB
 	src  *source.Source
 	drvr *driveri
+
+	// DEBUG: closeMu and closed exist while debugging close behavior
+	closeMu sync.Mutex
+	closed  bool
 }
 
 // DB implements driver.Database.
@@ -451,13 +456,23 @@ func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error)
 
 // Close implements driver.Database.
 func (d *database) Close() error {
-	d.log.Debugf("Close database: %s", d.src)
+	d.closeMu.Lock()
+	defer d.closeMu.Unlock()
 
-	return errz.Err(d.db.Close())
+	if d.closed {
+		panic("SQLite DB already closed")
+	}
+
+	d.log.Debugf("Closing database: %s", d.src)
+	err := errz.Err(d.db.Close())
+	d.closed = true
+	return err
 }
 
-// NewScratchSource returns a new scratch src. Currently this
-// defaults to a sqlite-backed source.
+// NewScratchSource returns a new scratch src. Effectively this
+// function creates a new sqlite db file in the temp dir, and
+// src points at this file. The returned clnup func closes that
+// db file and deletes it.
 func NewScratchSource(log lg.Log, name string) (src *source.Source, clnup func() error, err error) {
 	name = stringz.SanitizeAlphaNumeric(name, '_')
 	_, f, cleanFn, err := source.TempDirFile(name + ".sqlite")
