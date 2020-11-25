@@ -2,7 +2,6 @@ package source
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"mime"
@@ -556,15 +555,7 @@ func TempDirFile(filename string) (dir string, f *os.File, cleanFn func() error,
 	}
 
 	cleanFn = func() error {
-		fmt.Println("closing tmp file: " + f.Name())
-
-		closeErr := f.Close()
-
-		fmt.Println("removing tmp dir: " + dir)
-		removeDirErr := os.RemoveAll(dir)
-		return errz.Combine(closeErr, removeDirErr)
-
-		//return errz.Append(f.Close(), os.RemoveAll(dir))
+		return errz.Append(f.Close(), os.RemoveAll(dir))
 	}
 
 	return dir, f, cleanFn, nil

@@ -3,7 +3,6 @@ package driver
 import (
 	"context"
 	"database/sql"
-	"runtime/debug"
 	"sync"
 
 	"github.com/neilotoole/lg"
@@ -64,7 +63,7 @@ func (d *scratchDatabase) Close() error {
 
 	d.log.Debugf("Closing scratch database [%s]", d.impl.Source())
 
-	debug.PrintStack()
+	//debug.PrintStack()
 	// No need to explicitly invoke c.impl.Close because it
 	// has already been added to c.cleanup.
 	err := d.cleanup.Run()

@@ -111,7 +111,7 @@ func execInspect(rc *RunContext, cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return errz.Wrapf(err, "failed to inspect %s", src.Handle)
 	}
-	defer rc.Log.WarnIfCloseError(dbase)
+	//defer rc.Log.WarnIfCloseError(dbase)
 
 	if table != "" {
 		var tblMeta *source.TableMetadata
