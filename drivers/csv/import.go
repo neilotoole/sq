@@ -38,6 +38,8 @@ func importCSV(ctx context.Context, log lg.Log, src *source.Source, openFn sourc
 		return err
 	}
 
+	defer log.WarnIfCloseError(r)
+
 	// We add the CR filter reader to deal with CSV files exported
 	// from Excel which can have the DOS-style \r EOL markers.
 	cr := csv.NewReader(&crFilterReader{r: r})
