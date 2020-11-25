@@ -47,16 +47,16 @@ func NewFiles(log lg.Log) (*Files, error) {
 		return nil, errz.Err(err)
 	}
 
-	fs.clnup.AddE(func() error {
-		log.Debugf("Deleting files tmp dir: %s", tmpdir)
-		err := errz.Err(os.RemoveAll(tmpdir))
-		if err != nil {
-			log.Errorf("Error deleting files tmp dir: %v", err)
-		} else {
-			log.Debugf("Success deleting files tmp dir")
-		}
-		return err
-	})
+	//fs.clnup.AddE(func() error {
+	//	log.Debugf("Deleting files tmp dir: %s", tmpdir)
+	//	err := errz.Err(os.RemoveAll(tmpdir))
+	//	if err != nil {
+	//		log.Errorf("Error deleting files tmp dir: %v", err)
+	//	} else {
+	//		log.Debugf("Success deleting files tmp dir")
+	//	}
+	//	return err
+	//})
 
 	fcache, err := fscache.New(tmpdir, os.ModePerm, time.Hour)
 	if err != nil {
@@ -68,6 +68,7 @@ func NewFiles(log lg.Log) (*Files, error) {
 		log.Debugf("About to clean fscache")
 		err := fcache.Clean()
 		log.WarnIfError(err)
+
 		return err
 	})
 	fs.fcache = fcache
@@ -142,6 +143,7 @@ func (fs *Files) TypeStdin(ctx context.Context) (Type, error) {
 // add file copies f to fs's cache, returning a reader which the
 // caller is responsible for closing. f is closed by this method.
 func (fs *Files) addFile(f *os.File, key string) (fscache.ReadAtCloser, error) {
+	fs.log.Debugf("Adding file with key %q: %s", key, f.Name())
 	r, w, err := fs.fcache.Get(key)
 	if err != nil {
 		return nil, errz.Err(err)
