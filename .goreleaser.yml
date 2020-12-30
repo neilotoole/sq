@@ -84,7 +84,7 @@ changelog:
 release:
   github:
     owner: neilotoole
-    name: sq-preview
+    name: sq
 
   # If set to true, will not auto-publish the release. Default is false.
   draft: false
@@ -146,7 +146,7 @@ brews:
       owner: neilotoole
       name: homebrew-sq
 
-    url_template: "https://github.com/neilotoole/sq-preview/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
+    url_template: "https://github.com/neilotoole/sq/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
 
     commit_author:
       name: neilotoole
@@ -171,15 +171,15 @@ brews:
 scoop:
   # scoop is a package installer for Windows, like brew for macOS.
   # For background, see https://github.com/lukesampson/scoop/wiki/Buckets
-  url_template: "https://github.com/neilotoole/sq-preview/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
+  url_template: "https://github.com/neilotoole/sq/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
   bucket:
     owner: neilotoole
-    name: sq-preview
+    name: sq
   commit_author:
     name: neilotoole
     email: neilotoole@apache.org
   homepage: "https://sq.io"
-  description: "sq is sed for structured data"
+  description: "sq is a swiss army knife for data"
   license: MIT
 
 
