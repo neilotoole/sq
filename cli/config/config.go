@@ -7,7 +7,6 @@ import (
 	"github.com/neilotoole/sq/drivers/userdriver"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
-	"github.com/neilotoole/sq/libsq/notify"
 	"github.com/neilotoole/sq/libsq/source"
 )
 
@@ -22,9 +21,6 @@ type Config struct {
 
 	// Sources is the set of data sources.
 	Sources *source.Set `yaml:"sources" json:"sources"`
-
-	// Notifications holds notification config.
-	Notification *Notification `yaml:"notification" json:"notification"`
 
 	// Ext holds sq config extensions, such as user driver config.
 	Ext Ext `yaml:"-" json:"-"`
@@ -47,12 +43,6 @@ type Defaults struct {
 	Header  bool          `yaml:"output_header" json:"output_header"`
 }
 
-// Notification holds notification configuration.
-type Notification struct {
-	Enabled      []string             `yaml:"enabled" json:"enabled"`
-	Destinations []notify.Destination `yaml:"destinations" json:"destinations"`
-}
-
 // New returns a config instance with default options set.
 func New() *Config {
 	cfg := &Config{}
@@ -70,10 +60,6 @@ func New() *Config {
 func initCfg(cfg *Config) {
 	if cfg.Sources == nil {
 		cfg.Sources = &source.Set{}
-	}
-
-	if cfg.Notification == nil {
-		cfg.Notification = &Notification{}
 	}
 
 	if cfg.Defaults.Format == "" {

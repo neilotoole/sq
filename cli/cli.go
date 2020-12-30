@@ -3,9 +3,7 @@
 // provides excellent functionality, it has some issues.
 // Most prominently, its documentation suggests reliance
 // upon package-level constructs for initializing the
-// command tree (bad for testing). Also, it doesn't provide support
-// for context.Context: see https://github.com/spf13/cobra/pull/893
-// which has been lingering for a while at the time of writing.
+// command tree (bad for testing).
 //
 // Thus, this cmd package deviates from cobra's suggested
 // usage pattern by eliminating all pkg-level constructs
@@ -16,6 +14,11 @@
 // RunContext is similar to context.Context (and contains
 // an instance of that), but also encapsulates injectable
 // resources such as config and logging.
+//
+// Update (Dec 2020): recent releases of cobra now support
+// accessing Context from the cobra.Command. At some point
+// it may make sense to revisit the way commands are
+// constructed, to use this now-standard cobra mechanism.
 //
 // The entry point to this pkg is the Execute function.
 package cli
@@ -95,9 +98,9 @@ func ExecuteWith(rc *RunContext, args []string) error {
 
 	rootCmd := newCommandTree(rc)
 
-	// The following is a workaround for the fact that cobra doesn't currently
-	// support executing the root command with arbitrary args. That is to say,
-	// if you execute:
+	// The following is a workaround for the fact that cobra doesn't
+	// currently (as of 2017) support executing the root command with
+	// arbitrary args. That is to say, if you execute:
 	//
 	//   sq arg1 arg2
 	//
@@ -114,7 +117,7 @@ func ExecuteWith(rc *RunContext, args []string) error {
 			panic(fmt.Sprintf("bad cobra cmd state: %v", cmd))
 		}
 
-		// If we have args [sq, arg1, arg2] the we redirect
+		// If we have args [sq, arg1, arg2] then we redirect
 		// to the "slq" command by modifying args to
 		// look like: [query, arg1, arg2] -- noting that SetArgs
 		// doesn't want the first args element.
@@ -178,13 +181,6 @@ func newCommandTree(rc *RunContext) (rootCmd *cobra.Command) {
 
 	addCmd(rc, rootCmd, newVersionCmd)
 	addCmd(rc, rootCmd, newDriversCmd)
-
-	notifyCmd := addCmd(rc, rootCmd, newNotifyCmd)
-	addCmd(rc, notifyCmd, newNotifyListCmd)
-	addCmd(rc, notifyCmd, newNotifyRemoveCmd)
-	notifyAddCmd := addCmd(rc, notifyCmd, newNotifyAddCmd)
-	addCmd(rc, notifyAddCmd, newNotifyAddSlackCmd)
-	addCmd(rc, notifyAddCmd, newNotifyAddHipChatCmd)
 
 	tblCmd := addCmd(rc, rootCmd, newTblCmd)
 	addCmd(rc, tblCmd, newTblCopyCmd)
