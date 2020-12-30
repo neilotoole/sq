@@ -72,3 +72,12 @@ func TestSakila_CSV(t *testing.T) {
 		})
 	}
 }
+
+func TestSQLiteCloseError(t *testing.T) {
+	th := testh.New(t)
+	src := th.Source(sakila.CSVActor)
+	// Note table "data" instead of "actor", because CSV is monotable
+	sink, err := th.QuerySQL(src, "SELECT * FROM data")
+	require.NoError(t, err)
+	require.Equal(t, sakila.TblActorCount, len(sink.Recs))
+}

@@ -3,6 +3,7 @@ package driver
 import (
 	"context"
 	"database/sql"
+	"sync"
 
 	"github.com/neilotoole/lg"
 
@@ -22,6 +23,8 @@ type scratchDatabase struct {
 	log     lg.Log
 	impl    Database
 	cleanup *cleanup.Cleanup
+	mu      sync.Mutex
+	closed  bool
 }
 
 // DB implements driver.Database.
@@ -51,8 +54,20 @@ func (d *scratchDatabase) SourceMetadata(ctx context.Context) (*source.Metadata,
 
 // Close implements driver.Database.
 func (d *scratchDatabase) Close() error {
-	d.log.Debugf("Close scratch database: %s", d.impl.Source())
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	if d.closed {
+		panic("already closed")
+	}
+
+	d.log.Debugf("Closing scratch database [%s]", d.impl.Source())
+
+	//debug.PrintStack()
 	// No need to explicitly invoke c.impl.Close because it
 	// has already been added to c.cleanup.
-	return d.cleanup.Run()
+	err := d.cleanup.Run()
+	d.log.Debugf("Closed scratch database [%s]: err=%v", d.impl.Source(), err)
+	d.closed = true
+	return err
 }

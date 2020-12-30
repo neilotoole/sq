@@ -41,14 +41,21 @@ type Files struct {
 func NewFiles(log lg.Log) (*Files, error) {
 	fs := &Files{log: log, clnup: cleanup.New()}
 
-	tmpdir, err := ioutil.TempDir("", "")
+	tmpdir, err := ioutil.TempDir("", "sq_files_fscache_*")
 	if err != nil {
 		return nil, errz.Err(err)
 	}
 
-	fs.clnup.AddE(func() error {
-		return errz.Err(os.RemoveAll(tmpdir))
-	})
+	//fs.clnup.AddE(func() error {
+	//	log.Debugf("Deleting files tmp dir: %s", tmpdir)
+	//	err := errz.Err(os.RemoveAll(tmpdir))
+	//	if err != nil {
+	//		log.Errorf("Error deleting files tmp dir: %v", err)
+	//	} else {
+	//		log.Debugf("Success deleting files tmp dir")
+	//	}
+	//	return err
+	//})
 
 	fcache, err := fscache.New(tmpdir, os.ModePerm, time.Hour)
 	if err != nil {
@@ -56,7 +63,13 @@ func NewFiles(log lg.Log) (*Files, error) {
 		return nil, errz.Err(err)
 	}
 
-	fs.clnup.AddE(fcache.Clean)
+	fs.clnup.AddE(func() error {
+		log.Debugf("About to clean fscache from dir: %s", tmpdir)
+		err := fcache.Clean()
+		log.WarnIfError(err)
+
+		return err
+	})
 	fs.fcache = fcache
 	return fs, nil
 }
@@ -129,6 +142,7 @@ func (fs *Files) TypeStdin(ctx context.Context) (Type, error) {
 // add file copies f to fs's cache, returning a reader which the
 // caller is responsible for closing. f is closed by this method.
 func (fs *Files) addFile(f *os.File, key string) (fscache.ReadAtCloser, error) {
+	fs.log.Debugf("Adding file with key %q: %s", key, f.Name())
 	r, w, err := fs.fcache.Get(key)
 	if err != nil {
 		return nil, errz.Err(err)
@@ -305,6 +319,8 @@ func (fs *Files) fetch(loc string) (fpath string, err error) {
 
 // Close closes any open resources.
 func (fs *Files) Close() error {
+	fs.log.Debugf("Files.Close invoked: has %d clean funcs", fs.clnup.Len())
+
 	return fs.clnup.Run()
 }
 
