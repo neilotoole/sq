@@ -3,6 +3,8 @@ module github.com/neilotoole/sq
 go 1.14
 
 require (
+	github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751 // indirect
+	github.com/alecthomas/units v0.0.0-20201120081800-1786d5ef83d4 // indirect
 	github.com/antlr/antlr4 v0.0.0-20191011202612-ad2bd05285ca
 	github.com/aws/aws-sdk-go v1.12.10 // indirect
 	github.com/bgentry/go-netrc v0.0.0-20140422174119-9fd32a8b3d3d // indirect
@@ -10,6 +12,7 @@ require (
 	github.com/c2h5oh/datasize v0.0.0-20170519143321-54516c931ae9
 	github.com/denisenkom/go-mssqldb v0.0.0-20200620013148-b91950f658ec
 	github.com/djherbis/fscache v0.10.1
+	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/emirpasic/gods v1.9.0
 	github.com/fatih/color v1.9.0
 	github.com/go-ini/ini v1.30.0 // indirect
@@ -23,6 +26,7 @@ require (
 	github.com/jackc/pgconn v1.5.0
 	github.com/jackc/pgx/v4 v4.6.0
 	github.com/jmespath/go-jmespath v0.0.0-20160202185014-0b12d6b521d8 // indirect
+	github.com/jondot/goweight v1.0.5 // indirect
 	github.com/kr/pretty v0.2.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/magefile/mage v1.9.0
@@ -30,6 +34,7 @@ require (
 	github.com/mattn/go-isatty v0.0.12
 	github.com/mattn/go-runewidth v0.0.4
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible
+	github.com/mattn/go-zglob v0.0.3 // indirect
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/mitchellh/go-testing-interface v0.0.0-20171004221916-a61a99592b77 // indirect
 	github.com/neilotoole/errgroup v0.1.5
@@ -47,6 +52,7 @@ require (
 	github.com/tbruyelle/hipchat-go v0.0.0-20160921153256-749fb9e14beb
 	github.com/tealeg/xlsx/v2 v2.0.1
 	github.com/testcontainers/testcontainers-go v0.5.0
+	github.com/thoas/go-funk v0.7.0 // indirect
 	github.com/ulikunitz/xz v0.5.4 // indirect
 	github.com/xo/dburl v0.0.0-20200124232849-e9ec94f52bc3
 	go.uber.org/atomic v1.5.0

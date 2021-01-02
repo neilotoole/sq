@@ -1,12 +1,16 @@
 name: Go
 on:
   push:
-    # Sequence of patterns matched against refs/heads
+    paths-ignore:
+      - 'README.md'
+      - 'sq.json'
     branches:
-      # Push events on master branch
       - master
 
   pull_request:
+    paths-ignore:
+      - 'README.md'
+      - 'sq.json'
     branches:
       - master
 
