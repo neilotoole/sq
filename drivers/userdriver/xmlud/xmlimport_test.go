@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
 
@@ -31,6 +32,9 @@ func TestImport_Ppl(t *testing.T) {
 
 	scratchDB, err := th.Databases().OpenScratch(th.Context, "ppl")
 	require.NoError(t, err)
+	t.Cleanup(func() {
+		assert.NoError(t, scratchDB.Close())
+	})
 
 	data := proj.ReadFile("drivers/userdriver/xmlud/testdata/people.xml")
 	err = xmlud.Import(th.Context, th.Log, udDef, bytes.NewReader(data), scratchDB)
@@ -73,6 +77,9 @@ func TestImport_RSS(t *testing.T) {
 
 	scratchDB, err := th.Databases().OpenScratch(th.Context, "rss")
 	require.NoError(t, err)
+	t.Cleanup(func() {
+		assert.NoError(t, scratchDB.Close())
+	})
 
 	data := proj.ReadFile("drivers/userdriver/xmlud/testdata/nytimes_local.rss.xml")
 	err = xmlud.Import(th.Context, th.Log, udDef, bytes.NewReader(data), scratchDB)
