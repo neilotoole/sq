@@ -1,11 +1,13 @@
 # sq: swiss army knife for data
 
-`sq` is a command line tool that jq-style access to
+`sq` is a command line tool provides that `jq`-style access to
 structured data sources such as SQL databases,
-or document formats such as CSV or Excel. `sq` can perform cross-source joins, 
+or document formats such as CSV or Excel. 
+
+`sq` can perform cross-source joins, 
 execute database-native SQL, and output to a multitude of formats including JSON,
 Excel, CSV, HTML, Markdown and XML, or output directly to a SQL database.
-`sq` can inspect sources to see metadata about the source structure (tables,
+`sq` can also inspect sources to see metadata about the source structure (tables,
 columns, size) and has commands for common database operations such as copying
 or dropping tables.
 
@@ -34,7 +36,7 @@ $ mage install
 
 ### Other installation options
 
-For homebrew, scoop, rpm etc, see the [wiki](https://github.com/neilotoole/sq/wiki).
+For homebrew, scoop, rpm etc, see the [wiki](https://github.com/neilotoole/sq/wiki/Home#Install).
 
 
 ## Acknowledgements
