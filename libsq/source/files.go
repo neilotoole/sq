@@ -27,7 +27,7 @@ import (
 // Files is the centralized API for interacting with files.
 //
 // Why does Files exist? There's a need for functionality to
-// transparently open remote or local files, and most importantly,
+// transparently get a Reader for remote or local files, and most importantly,
 // an ability for multiple goroutines to read/sample a file while
 // its being read (mainly to "sample" the file type, e.g. to determine
 // if it's an XLSX file etc). Currently we use fscache under the hood
