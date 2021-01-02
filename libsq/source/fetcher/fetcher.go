@@ -1,8 +1,5 @@
 // Package fetcher provides a mechanism for fetching files
 // from URLs.
-//
-// At this time package fetcher also contains the legacy FetchFile
-// method and associated code, while is deprecated and will be removed.
 package fetcher
 
 import (
@@ -29,19 +26,16 @@ type Config struct {
 }
 
 // Fetcher can fetch files from URLs. If field Config is nil,
-// defaults are used.
+// defaults are used. At this time, only HTTP/HTTPS is supported,
+// but it's possible other schemes (such as FTP) will be
+// supported in future.
 type Fetcher struct {
 	Config *Config
 }
 
 // Fetch writes the body of the document at url to w.
-// If cfg is nil, f's config is used.
-func (f *Fetcher) Fetch(ctx context.Context, cfg *Config, url string, w io.Writer) error {
-	if cfg == nil {
-		cfg = f.Config
-	}
-
-	return fetchHTTP(ctx, cfg, url, w)
+func (f *Fetcher) Fetch(ctx context.Context, url string, w io.Writer) error {
+	return fetchHTTP(ctx, f.Config, url, w)
 }
 
 func httpClient(cfg *Config) *http.Client {

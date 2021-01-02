@@ -17,12 +17,12 @@ import (
 	"github.com/neilotoole/sq/testh/sakila"
 )
 
-func TestFetcher_Fetch_HTTP(t *testing.T) {
+func TestFetcherHTTP(t *testing.T) {
 	wantData := proj.ReadFile(sakila.PathCSVActor)
 	buf := &bytes.Buffer{}
 
 	f := &fetcher.Fetcher{}
-	err := f.Fetch(context.Background(), nil, sakila.URLActorCSV, buf)
+	err := f.Fetch(context.Background(), sakila.URLActorCSV, buf)
 	require.NoError(t, err)
 
 	require.Equal(t, wantData, buf.Bytes())
@@ -41,19 +41,14 @@ func TestFetcherConfig(t *testing.T) {
 
 	fetchr := &fetcher.Fetcher{}
 	// No config, expect error because of bad cert
-	err := fetchr.Fetch(ctx, nil, server.URL, ioutil.Discard)
+	err := fetchr.Fetch(ctx, server.URL, ioutil.Discard)
 	require.Error(t, err, "expect untrusted cert error")
 
 	cfg := &fetcher.Config{InsecureSkipVerify: true}
 
 	// Config as field of Fetcher
 	fetchr = &fetcher.Fetcher{Config: cfg}
-	err = fetchr.Fetch(ctx, nil, server.URL, ioutil.Discard)
-	require.NoError(t, err)
-
-	// Config passed to Fetch method
-	fetchr = &fetcher.Fetcher{}
-	err = fetchr.Fetch(ctx, cfg, server.URL, ioutil.Discard)
+	err = fetchr.Fetch(ctx, server.URL, ioutil.Discard)
 	require.NoError(t, err)
 
 	// Test timeout
@@ -61,12 +56,12 @@ func TestFetcherConfig(t *testing.T) {
 
 	// Have the server sleep for longer than that
 	*serverSleepy = time.Millisecond * 200
-	fetchr = &fetcher.Fetcher{}
-	err = fetchr.Fetch(ctx, cfg, server.URL, ioutil.Discard)
+	fetchr = &fetcher.Fetcher{Config: cfg}
+	err = fetchr.Fetch(ctx, server.URL, ioutil.Discard)
 	require.Error(t, err, "should have seen a client timeout")
 
 	// Make the client timeout larger than server sleep time
 	cfg.Timeout = time.Millisecond * 500
-	err = fetchr.Fetch(ctx, cfg, server.URL, ioutil.Discard)
+	err = fetchr.Fetch(ctx, server.URL, ioutil.Discard)
 	require.NoError(t, err)
 }
