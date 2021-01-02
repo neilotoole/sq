@@ -229,6 +229,8 @@ func (d Dialect) String() string {
 }
 
 // Databases provides a mechanism for getting Database instances.
+// Note that at this time instances returned by Open are cached
+// and then closed by Close. This may be a bad approach.
 type Databases struct {
 	log          lg.Log
 	drvrs        Provider
@@ -292,22 +294,17 @@ func (d *Databases) OpenScratch(ctx context.Context, name string) (Database, err
 		// if err is non-nil, cleanup is guaranteed to be nil
 		return nil, err
 	}
-	d.log.Debugf("got scratch src %s: %s", scratchSrc.Handle, scratchSrc.RedactedLocation())
-
-	//scratchDBClnup := cleanup.New().AddE(cleanFn)
+	d.log.Debugf("Will open Scratch src %s: %s", scratchSrc.Handle, scratchSrc.RedactedLocation())
 
 	drvr, err := d.drvrs.DriverFor(scratchSrc.Type)
 	if err != nil {
 		d.log.WarnIfFuncError(cleanFn)
-		//d.log.WarnIfError(scratchDBClnup.Run())
 		return nil, err
 	}
 
 	sqlDrvr, ok := drvr.(SQLDriver)
 	if !ok {
 		d.log.WarnIfFuncError(cleanFn)
-
-		//d.log.WarnIfError(scratchDBClnup.Run())
 		return nil, errz.Errorf("driver for scratch source %s is not a SQLDriver but is %T", scratchSrc.Handle, drvr)
 	}
 
@@ -315,21 +312,11 @@ func (d *Databases) OpenScratch(ctx context.Context, name string) (Database, err
 	backingDB, err = sqlDrvr.Open(ctx, scratchSrc)
 	if err != nil {
 		d.log.WarnIfFuncError(cleanFn)
-
-		//d.log.WarnIfError(scratchDBClnup.Run())
 		return nil, err
 	}
 
 	d.clnup.AddE(cleanFn)
 	return backingDB, nil
-	//
-	//scratchDBClnup.AddE(backingDB.Close)
-	//
-	//scratchDB := &scratchDatabase{log: d.log, impl: backingDB, cleanup: scratchDBClnup}
-	//
-	//// scratchDB.Close will be invoked when d.Close is invoked.
-	//d.clnup.AddE(scratchDB.Close)
-	//return scratchDB, nil
 }
 
 // OpenJoin opens an appropriate database for use as

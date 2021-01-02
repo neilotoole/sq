@@ -25,11 +25,18 @@ import (
 )
 
 // Files is the centralized API for interacting with files.
+//
+// Why does Files exist? There's a need for functionality to
+// transparently open remote or local files, and most importantly,
+// an ability for multiple goroutines to read/sample a file while
+// its being read (mainly to "sample" the file type, e.g. to determine
+// if it's an XLSX file etc). Currently we use fscache under the hood
+// for this, but our implementation is not satisfactory: in particular,
+// the implementation currently requires that we read the entire source
+// file into fscache before it's available to be read (which is awful
+// if we're reading long-running pipe from stdin). This entire thing
+// needs to be revisited.
 type Files struct {
-	// Note: It is expected that Files will in future have more
-	//  capabilities, such as caching (on the filesystem) files that
-	//  are fetched from URLs.
-
 	log       lg.Log
 	mu        sync.Mutex
 	clnup     *cleanup.Cleanup
@@ -45,17 +52,6 @@ func NewFiles(log lg.Log) (*Files, error) {
 	if err != nil {
 		return nil, errz.Err(err)
 	}
-
-	//fs.clnup.AddE(func() error {
-	//	log.Debugf("Deleting files tmp dir: %s", tmpdir)
-	//	err := errz.Err(os.RemoveAll(tmpdir))
-	//	if err != nil {
-	//		log.Errorf("Error deleting files tmp dir: %v", err)
-	//	} else {
-	//		log.Debugf("Success deleting files tmp dir")
-	//	}
-	//	return err
-	//})
 
 	fcache, err := fscache.New(tmpdir, os.ModePerm, time.Hour)
 	if err != nil {
@@ -291,8 +287,7 @@ func (fs *Files) openFile(fpath string) (*os.File, error) {
 // entail downloading the file via HTTPS etc.
 func (fs *Files) fetch(loc string) (fpath string, err error) {
 	// This impl is a vestigial abomination from an early
-	// experiment. In particular, the FetchFile function
-	// can be completely simplified.
+	// experiment.
 
 	var ok bool
 	if fpath, ok = isFpath(loc); ok {
@@ -301,20 +296,27 @@ func (fs *Files) fetch(loc string) (fpath string, err error) {
 	}
 
 	var u *url.URL
-
 	if u, ok = httpURL(loc); !ok {
 		return "", errz.Errorf("not a valid file location: %q", loc)
 	}
 
-	f, mediatype, cleanFn, err := fetcher.FetchFile(fs.log, u.String())
-	fs.clnup.AddE(cleanFn)
-	fs.clnup.AddC(f) // f is kept open until fs.Close is called.
+	var dlFile *os.File
+	dlFile, err = ioutil.TempFile("", "")
 	if err != nil {
-		return "", err
+		return "", errz.Err(err)
 	}
 
-	fs.log.Debugf("fetched %q: mediatype=%s", loc, mediatype)
-	return f.Name(), nil
+	fetchr := &fetcher.Fetcher{}
+	// TOOD: ultimately should be passing a real context here
+	err = fetchr.Fetch(context.Background(), u.String(), dlFile)
+	if err != nil {
+		return "", errz.Err(err)
+	}
+
+	// dlFile is kept open until fs is closed.
+	fs.clnup.AddC(dlFile)
+
+	return dlFile.Name(), nil
 }
 
 // Close closes any open resources.
