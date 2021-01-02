@@ -142,7 +142,7 @@ brews:
     description: "sq is a swiss army knife for data"
     caveats: "This is a preview release of sq. Use with caution."
 
-    github:
+    tap:
       owner: neilotoole
       name: homebrew-sq
 
