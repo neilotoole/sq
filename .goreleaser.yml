@@ -51,23 +51,23 @@ builds:
 archives:
   -
     builds: ['build_macos', 'build_linux', 'build_windows']
-    name_template: "{{.ProjectName}}-{{.Version}}-{{.Os}}-{{.Arch}}"
+    name_template: "{{.ProjectName}}-{{.Os}}-{{.Arch}}"
     format: tar.gz
     files:
       - README.md
       - LICENSE
     replacements:
-      darwin: macOS
+      darwin: macos
     format_overrides:
       - goos: windows
         format: zip
 
 
 checksum:
-  name_template: "{{.ProjectName}}-{{.Version}}-checksums.txt"
+  name_template: "{{.ProjectName}}-checksums.txt"
 
 snapshot:
-  name_template: "{{ .Version }}-snapshot"
+  name_template: "snapshot"
 
 changelog:
   skip: true
@@ -142,7 +142,7 @@ scoop:
 nfpms:
   -
     builds: ['build_linux']
-    file_name_template: "{{.ProjectName}}-{{.Version}}-{{.Os}}-{{.Arch}}"
+    file_name_template: "{{.ProjectName}}-{{.Os}}-{{.Arch}}"
     homepage:  https://sq.io
     description: sq is a swiss army knife for data
     maintainer: Neil O'Toole <neilotoole@apache.org>
@@ -167,7 +167,7 @@ snapcrafts:
     # The name of the snap should be "sq"; we need to register that.
     name: neilotoole-sq
 
-    name_template: "neilotoole-sq-{{ .Version }}-{{ .Os }}-{{ .Arch }}"
+    name_template: "neilotoole-sq-{{ .Os }}-{{ .Arch }}"
     summary: "sq is a swiss army knife for data"
     description: |
       sq is a swiss army knife for data
