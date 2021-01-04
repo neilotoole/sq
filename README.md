@@ -16,36 +16,44 @@ or dropping tables.
 
 For other installation options, see [here](https://github.com/neilotoole/sq/wiki/Home#Install).
 
+
 ### macOS
 
 ```shell script
 brew tap neilotoole/sq && brew install sq
 ```
 
+
 ### Windows
 
 ```
 scoop bucket add sq https://github.com/neilotoole/sq
 scoop install sq
+
 ```
+
 
 ### Linux
 
 ```shell script
 curl -fsSLO https://github.com/neilotoole/sq/releases/latest/download/sq-linux-amd64.deb && sudo apt install -y ./sq-linux-amd64.deb && rm ./sq-linux-amd64.deb
+
 ```
 
 Or:
 
 ```shell script
 sudo rpm -i https://github.com/neilotoole/sq/releases/latest/download/sq-linux-amd64.rpm
+
 ```
 
 Or:
 
 ```shell script
 yum localinstall -y https://github.com/neilotoole/sq/releases/latest/download/sq-linux-amd64.rpm
+
 ```
+
 
 ## Quickstart
 
