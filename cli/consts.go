@@ -37,10 +37,10 @@ const (
 	flagJSONShort  = "j"
 	flagJSONA      = "jsona"
 	flagJSONAShort = "A"
-	flagJSONAUsage = "Output each record as a JSON array"
+	flagJSONAUsage = "Output LF-delimited JSON arrays"
 	flagJSONL      = "jsonl"
 	flagJSONLShort = "l"
-	flagJSONLUsage = "Output each record as a JSON object"
+	flagJSONLUsage = "Output LF-delimited JSON objects"
 
 	flagMarkdown      = "markdown"
 	flagMarkdownUsage = "Output Markdown"
