@@ -24,9 +24,6 @@ func newSLQCmd() (*cobra.Command, runFunc) {
 
 	addQueryCmdFlags(cmd)
 	cmd.Flags().Bool(flagVersion, false, flagVersionUsage)
-	//cmd.SetUsageFunc(func(cmd *cobra.Command) error {
-	//	return cmd.Root().Help()
-	//})
 
 	return cmd, execSLQ
 }

@@ -147,7 +147,12 @@ func (w *DBWriter) Wait() (written int64, err error) {
 	if w.cancelFn != nil {
 		w.cancelFn()
 	}
-	return w.bi.Written(), errz.Combine(w.errs...)
+
+	if w.bi != nil {
+		written = w.bi.Written()
+	}
+
+	return written, errz.Combine(w.errs...)
 }
 
 // addErrs handles any non-nil err in errs by appending it to w.errs

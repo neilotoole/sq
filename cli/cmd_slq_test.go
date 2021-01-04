@@ -18,14 +18,42 @@ import (
 	"github.com/neilotoole/sq/testh/sakila"
 )
 
+// TestCmdSLQ_Insert tests "sq slq QUERY --insert=_newdest.tbl".
+func TestCmdSLQ_Insert_Create(t *testing.T) {
+	th := testh.New(t)
+	originSrc, destSrc := th.Source(sakila.SL3), th.Source(sakila.SL3)
+	srcTbl := sakila.TblActor
+	if th.IsMonotable(originSrc) {
+		srcTbl = source.MonotableName
+	}
+
+	// To avoid dirtying the destination table, we make a copy
+	// of it (without data).
+	destTbl := "actor_copy"
+
+	ru := newRun(t).add(*originSrc)
+	if destSrc.Handle != originSrc.Handle {
+		ru.add(*destSrc)
+	}
+
+	insertTo := fmt.Sprintf("%s.%s", destSrc.Handle, destTbl)
+	cols := stringz.PrefixSlice(sakila.TblActorCols(), ".")
+	query := fmt.Sprintf("%s.%s | %s", originSrc.Handle, srcTbl, strings.Join(cols, ", "))
+
+	err := ru.exec("slq", "--insert="+insertTo, query)
+	require.NoError(t, err)
+
+	sink, err := th.QuerySQL(destSrc, "select * from "+destTbl)
+	require.NoError(t, err)
+	require.Equal(t, sakila.TblActorCount, len(sink.Recs))
+}
+
 // TestCmdSLQ_Insert tests "sq slq QUERY --insert=dest.tbl".
 func TestCmdSLQ_Insert(t *testing.T) {
 	for _, origin := range sakila.SQLLatest() {
 		origin := origin
 
 		t.Run("origin_"+origin, func(t *testing.T) {
-			//testh.SkipShort(t, origin == sakila.XLSX)
-
 			for _, dest := range sakila.SQLLatest() {
 				dest := dest
 

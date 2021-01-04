@@ -49,7 +49,7 @@ type antlrErrorListener struct {
 func (el *antlrErrorListener) error() error {
 	if el.err == nil && len(el.errs) > 0 {
 		msg := strings.Join(el.errs, "\n")
-		el.err = &ParseError{msg: msg}
+		el.err = &parseError{msg: msg}
 	}
 	return el.err
 }
@@ -72,29 +72,26 @@ func (el *antlrErrorListener) ReportAmbiguity(recognizer antlr.Parser, dfa *antl
 	tok := recognizer.GetCurrentToken()
 	text := fmt.Sprintf("%s: syntax ambiguity: [%d:%d]", el.name, startIndex, stopIndex)
 	text = text + "  >>" + tok.GetText() + "<<"
-	el.log.Warnf(text)
 	el.warnings = append(el.warnings, text)
 }
 
 func (el *antlrErrorListener) ReportAttemptingFullContext(recognizer antlr.Parser, dfa *antlr.DFA, startIndex, stopIndex int, conflictingAlts *antlr.BitSet, configs antlr.ATNConfigSet) {
 	text := fmt.Sprintf("%s: attempting full context: [%d:%d]", el.name, startIndex, stopIndex)
-	el.log.Warnf(text)
 	el.warnings = append(el.warnings, text)
 }
 
 func (el *antlrErrorListener) ReportContextSensitivity(recognizer antlr.Parser, dfa *antlr.DFA, startIndex, stopIndex, prediction int, configs antlr.ATNConfigSet) {
 	text := fmt.Sprintf("%s: context sensitivity: [%d:%d]", el.name, startIndex, stopIndex)
-	el.log.Warnf(text)
 	el.warnings = append(el.warnings, text)
 }
 
-// ParseError represents an error in lexing/parsing input.
-type ParseError struct {
+// parseError represents an error in lexing/parsing input.
+type parseError struct {
 	msg string
 	// TODO: parse error should include more detail, such as the offending token, position, etc.
 }
 
-func (p *ParseError) Error() string {
+func (p *parseError) Error() string {
 	return p.msg
 }
 
