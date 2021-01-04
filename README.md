@@ -143,7 +143,7 @@ address                 603    table  -     8         address_id, address, addre
 category                16     table  -     3         category_id, name, last_update
 ```
 
-Use the `--json` (or `-j`) flag to output in JSON (output abbreviated):
+Use `--json` (`-j`) to output in JSON (output abbreviated):
 
 ```shell
 $ sq inspect -j
