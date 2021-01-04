@@ -316,7 +316,7 @@ xlsx       Microsoft Excel XLSX                   false         https://en.wikip
 
 
 ## Output Formats
-`sq` supports these output formats:
+`sq` has many output formats:
 
 - `--csv`: Text/Table
 - `--json`: JSON
