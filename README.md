@@ -59,7 +59,7 @@ Use `sq help` to see command help. The [tutorial](https://github.com/neilotoole/
 
 The major concept is: `sq` operates on data sources, which are treated as SQL databases (even if the source is really a CSV or XLSX file etc).
 
-In a nutshell, you add a source (giving it a `handle`), and then execute commands against the source.
+In a nutshell, you `sq add` a source (giving it a `handle`), and then execute commands against the source.
 
 
 ### Sources
