@@ -2,7 +2,7 @@
 
 `sq` is a command line tool that provides `jq`-style access to
 structured data sources such as SQL databases,
-or document formats such as CSV or Excel.
+or document formats like CSV or Excel.
 
 `sq` can perform cross-source joins,
 execute database-native SQL, and output to a multitude of formats including JSON,
