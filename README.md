@@ -6,7 +6,7 @@ or document formats like CSV or Excel.
 
 `sq` can perform cross-source joins,
 execute database-native SQL, and output to a multitude of formats including JSON,
-Excel, CSV, HTML, Markdown and XML, or output directly to a SQL database.
+Excel, CSV, HTML, Markdown and XML, or insert directly to a SQL database.
 `sq` can also inspect sources to see metadata about the source structure (tables,
 columns, size) and has commands for common database operations such as copying
 or dropping tables.
