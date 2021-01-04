@@ -49,12 +49,9 @@ yum localinstall -y https://github.com/neilotoole/sq/releases/latest/download/sq
 
 ## Quickstart
 
-Use `sq help` to see command help. Note that the [tutorial](https://github.com/neilotoole/sq/wiki/Tutorial)
-has more detail, but the basics are:
+Use `sq help` to see command help. Note that the [tutorial](https://github.com/neilotoole/sq/wiki/Tutorial) has a more detail, but here's the basics:
 
-`sq` operates on data sources, which are treated as SQL databases (even
-if the source is really a CSV or XLSX file etc). In a nutshell, you add
-a source (giving it a `handle`), and then execute commands against the source.
+`sq` operates on data sources, which are treated as SQL databases (even if the source is really a CSV or XLSX file etc). In a nutshell, you add a source (giving it a `handle`), and then execute commands against the source.
 
 
 ### Sources
@@ -66,8 +63,7 @@ $ sq ls
 
 ```
 
-Let's add a source. First we'll add a SQLite database, but this could also
-be Postgres, SQL Server, Excel, etc. Download the sample DB, and add the source.
+Let's add a source. First we'll add a SQLite database, but this could also be Postgres, SQL Server, Excel, etc. Let's download the sample DB, and add the source.
 
 ```sh
 $ wget https://sq.io/testdata/sakila.db
@@ -88,10 +84,7 @@ $ sq src
 
 The `sq ping` command simply pings the source to verify that it's available. 
 
-`sq src` lists the _active source_, which in our case is `@sakila_sqlite3`.
-You can change the active source using `sq src @other_src`. When there's
-an active source set, you can usually omit the handle from commands.
-Thus you could instead do:
+`sq src` lists the _active source_, which in our case is `@sakila_sqlite3`. You can change the active source using `sq src @other_src`. When there's an active source set, you can usually omit the handle from commands. Thus you could instead do:
 
 ```sh
 $ sq ping
@@ -111,8 +104,7 @@ actor_id  first_name  last_name     last_update
 ```
 
 
-The above query selected some rows from the `actor` table. You could also
-use native SQL, e.g.:
+The above query selected some rows from the `actor` table. You could also use native SQL, e.g.:
 
 ```sh
 $ sq sql 'SELECT * FROM actor WHERE actor_id < 100 LIMIT 3'
@@ -199,7 +191,35 @@ actor  200   table  -     4         actor_id, first_name, last_name, last_update
 
 ```
 
-### Cross-Source JOIN
+### Copy Table Across Sources
+
+`sq` query results can be output in various formats (JSON, XML, CSV, etc), and can also be "outputted" as an *insert* into database sources.
+
+Thus, you can use `sq` to copy a Postgres table into MySQL, or to copy an Excel worksheet into a SQLite table, or a CSV file into SQL Server table.
+
+> **Note:** If you want to copy a table inside the same (database) source, use `sq tbl copy` instead, which uses the database's native table copy functionality.
+
+For this example, we'll insert an Excel worksheet into our SQLite DB. First, we download the XLSX file, and `sq add` it as a source.
+
+```sh
+$ wget https://sq.io/testdata/xl_demo.xlsx
+
+$ sq add ./xl_demo.xlsx --opts header=true
+@xl_demo_xlsx  xlsx  xl_demo.xlsx
+
+$ sq @xl_demo_xlsx.person
+uid  username    email                  address_id
+1    neilotoole  neilotoole@apache.org  1
+2    ksoze       kaiser@soze.org        2
+3    kubla       kubla@khan.mn          NULL
+[...]
+```
+
+
+
+
+
+### Cross-Source Join
 
 `sq` has rudimentary support for cross-source joins. That is, you can join an Excel sheet with a CSV file, or Postgres table, etc. 
 
