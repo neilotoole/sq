@@ -131,7 +131,7 @@ But we're flying a bit blind here: how did we know about the `actor` table?
 `sq inspect` is your friend (output abbreviated):
 
 ```sh
-sq inspect
+$ sq inspect
 HANDLE          DRIVER   NAME       FQ NAME         SIZE   TABLES  LOCATION
 @sakila_sl3     sqlite3  sakila.db  sakila.db/main  5.6MB  21      sqlite3:///root/sakila.db
 
