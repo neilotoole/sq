@@ -205,7 +205,7 @@ actor  200   table  -     4         actor_id, first_name, last_name, last_update
 
 `sq` query results can be output in various formats (JSON, XML, CSV, etc), and can also be "outputted" as an *insert* into database sources.
 
-Thus, you can use `sq` to copy a Postgres table into MySQL, or to copy an Excel worksheet into a SQLite table, or a CSV file into a SQL Server table.
+Thus, you can use `sq` to copy a Postgres table into MySQL, or to copy an Excel worksheet into a SQLite table, or a CSV file into a SQL Server table etc.
 
 > **Note:** If you want to copy a table inside the same (database) source, use `sq tbl copy` instead, which uses the database's native table copy functionality.
 
@@ -225,7 +225,7 @@ uid  username    email                  address_id
 [...]
 ```
 
-Now, we'll insert those query results into a (new) table in `@sakila_sl3`:
+Now, we'll insert those query results into a new table (`person`) in `@sakila_sl3`:
 
 ```shell
 $ sq @xl_demo_xlsx.person --insert @sakila_sl3.person
