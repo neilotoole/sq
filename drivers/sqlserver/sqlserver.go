@@ -241,6 +241,20 @@ func (d *driveri) RecordMeta(colTypes []*sql.ColumnType) (sqlz.RecordMeta, drive
 	return recMeta, mungeFn, nil
 }
 
+// TableExists implements driver.SQLDriver.
+func (d *driveri) TableExists(ctx context.Context, db sqlz.DB, tbl string) (bool, error) {
+	const query = `SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA = 'dbo' AND TABLE_NAME = @p1`
+
+	var count int64
+	err := db.QueryRowContext(ctx, query, tbl).Scan(&count)
+	if err != nil {
+		return false, errz.Err(err)
+	}
+
+	return count == 1, nil
+}
+
 // CreateTable implements driver.SQLDriver.
 func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *sqlmodel.TableDef) error {
 	stmt := buildCreateTableStmt(tblDef)

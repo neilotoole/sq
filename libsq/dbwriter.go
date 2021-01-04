@@ -8,6 +8,7 @@ import (
 	"github.com/neilotoole/lg"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/sqlmodel"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/driver"
 )
@@ -29,21 +30,52 @@ type DBWriter struct {
 	// records are written. This is useful when the recMeta or tx are
 	// needed to perform actions before insertion, such as creating
 	// the dest table on the fly.
-	preWriteHook func(ctx context.Context, recMeta sqlz.RecordMeta, tx sqlz.DB) error
+	preWriteHooks []DBWriterPreWriteHook
+}
+
+// DBWriterPreWriteHook is a function that is invoked before DBWriter
+// begins writing.
+type DBWriterPreWriteHook func(ctx context.Context, recMeta sqlz.RecordMeta, destDB driver.Database, tx sqlz.DB) error
+
+// DBWriterCreateTableIfNotExistsHook returns a hook that
+// creates destTblName if it does not exist.
+func DBWriterCreateTableIfNotExistsHook(destTblName string) DBWriterPreWriteHook {
+	return func(ctx context.Context, recMeta sqlz.RecordMeta, destDB driver.Database, tx sqlz.DB) error {
+		tblExists, err := destDB.SQLDriver().TableExists(ctx, destDB.DB(), destTblName)
+		if err != nil {
+			return errz.Err(err)
+		}
+
+		if tblExists {
+			return nil
+		}
+
+		destColNames := recMeta.Names()
+		destColKinds := recMeta.Kinds()
+		destTblDef := sqlmodel.NewTableDef(destTblName, destColNames, destColKinds)
+
+		err = destDB.SQLDriver().CreateTable(ctx, tx, destTblDef)
+		if err != nil {
+			return errz.Wrapf(err, "failed to create dest table %s.%s", destDB.Source().Handle, destTblName)
+		}
+
+		return nil
+	}
 }
 
 // NewDBWriter returns a new writer than implements RecordWriter.
 // The writer writes records from recordCh to destTbl
 // in destDB. The recChSize param controls the size of recordCh
 // returned by the writer's Open method.
-func NewDBWriter(log lg.Log, destDB driver.Database, destTbl string, recChSize int) *DBWriter {
+func NewDBWriter(log lg.Log, destDB driver.Database, destTbl string, recChSize int, preWriteHooks ...DBWriterPreWriteHook) *DBWriter {
 	return &DBWriter{
-		log:      log,
-		destDB:   destDB,
-		destTbl:  destTbl,
-		recordCh: make(chan sqlz.Record, recChSize),
-		errCh:    make(chan error, 3),
-		wg:       &sync.WaitGroup{},
+		log:           log,
+		destDB:        destDB,
+		destTbl:       destTbl,
+		recordCh:      make(chan sqlz.Record, recChSize),
+		errCh:         make(chan error, 3),
+		wg:            &sync.WaitGroup{},
+		preWriteHooks: preWriteHooks,
 	}
 
 	// Note: errCh has size 3 because that's the maximum number of
@@ -62,8 +94,8 @@ func (w *DBWriter) Open(ctx context.Context, cancelFn context.CancelFunc, recMet
 		return nil, nil, errz.Wrapf(err, "failed to open tx for %s.%s", w.destDB.Source().Handle, w.destTbl)
 	}
 
-	if w.preWriteHook != nil {
-		err = w.preWriteHook(ctx, recMeta, tx)
+	for _, hook := range w.preWriteHooks {
+		err = hook(ctx, recMeta, w.destDB, tx)
 		if err != nil {
 			w.rollback(tx, err)
 			return nil, nil, err

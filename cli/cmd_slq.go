@@ -110,7 +110,13 @@ func execSLQInsert(rc *RunContext, destSrc *source.Source, destTbl string) error
 	// is invoked by rc.Close, and rc is closed further up the
 	// stack.
 
-	inserter := libsq.NewDBWriter(rc.Log, destDB, destTbl, driver.Tuning.RecordChSize)
+	inserter := libsq.NewDBWriter(
+		rc.Log,
+		destDB,
+		destTbl,
+		driver.Tuning.RecordChSize,
+		libsq.DBWriterCreateTableIfNotExistsHook(destTbl),
+	)
 	execErr := libsq.ExecuteSLQ(ctx, rc.Log, rc.databases, rc.databases, srcs, slq, inserter)
 	affected, waitErr := inserter.Wait() // Wait for the writer to finish processing
 	if execErr != nil {

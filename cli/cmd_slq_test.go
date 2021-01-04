@@ -27,9 +27,7 @@ func TestCmdSLQ_Insert_Create(t *testing.T) {
 		srcTbl = source.MonotableName
 	}
 
-	// To avoid dirtying the destination table, we make a copy
-	// of it (without data).
-	destTbl := "actor_copy"
+	destTbl := stringz.UniqSuffix(sakila.TblActor + "_copy")
 
 	ru := newRun(t).add(*originSrc)
 	if destSrc.Handle != originSrc.Handle {

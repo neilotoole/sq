@@ -179,6 +179,19 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable 
 	return affected, nil
 }
 
+// TableExists implements driver.SQLDriver.
+func (d *driveri) TableExists(ctx context.Context, db sqlz.DB, tbl string) (bool, error) {
+	const query = `SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = ?`
+
+	var count int64
+	err := db.QueryRowContext(ctx, query, tbl).Scan(&count)
+	if err != nil {
+		return false, errz.Err(err)
+	}
+
+	return count == 1, nil
+}
+
 // DropTable implements driver.SQLDriver.
 func (d *driveri) DropTable(ctx context.Context, db sqlz.DB, tbl string, ifExists bool) error {
 	var stmt string

@@ -51,6 +51,26 @@ func TestDriver_DropTable(t *testing.T) {
 		})
 	}
 }
+func TestDriver_TableExists(t *testing.T) {
+	for _, handle := range sakila.SQLAll() {
+		handle := handle
+
+		t.Run(handle, func(t *testing.T) {
+			th, _, dbase, drvr := testh.NewWith(t, handle)
+			db := dbase.DB()
+
+			tblName := sakila.TblActor
+			exists, err := drvr.TableExists(th.Context, db, tblName)
+			require.NoError(t, err)
+			require.True(t, exists)
+
+			tblName = stringz.UniqTableName("no_exist")
+			exists, err = drvr.TableExists(th.Context, db, tblName)
+			require.NoError(t, err)
+			require.False(t, exists)
+		})
+	}
+}
 
 func TestDriver_CopyTable(t *testing.T) {
 	for _, handle := range sakila.SQLAll() {
