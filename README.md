@@ -143,8 +143,8 @@ category                16     table  -     3         category_id, name, last_up
 
 Use the `--json` flag to output in JSON (output abbreviated):
 
-```json
-sq inspect -j
+```shell
+$ sq inspect -j
 {
   "handle": "@sakila_sl3",
   "name": "sakila.db",
