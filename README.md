@@ -318,7 +318,7 @@ xlsx       Microsoft Excel XLSX                   false         https://en.wikip
 ## Output Formats
 `sq` has many output formats:
 
-- `--csv`: Text/Table
+- `--table`: Text/Table
 - `--json`: JSON
 - `--jsona`: JSON Array
 - `--jsonl`: JSON Lines
