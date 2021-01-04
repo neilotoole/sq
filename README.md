@@ -247,7 +247,7 @@ uid  username    email                  address_id
 
 `sq` has rudimentary support for cross-source joins. That is, you can join an Excel worksheet with a CSV file, or Postgres table, etc.
 
-> Note that the current mechanism for these joins is highly naive: it basically copies the joined table from each source to a "scratch database" (SQLite by default), and then performs the JOIN using the scratch database's SQL interface. Thus, performance is currently abysmal for larger tables.
+> **Note:** The current mechanism for these joins is highly naive: it basically copies the joined table from each source to a "scratch database" (SQLite by default), and then performs the JOIN using the scratch database's SQL interface. Thus, performance is currently abysmal for larger tables.
 
 See the [tutorial](https://github.com/neilotoole/sq/wiki/Tutorial#join) for further details, but given an Excel source `@xl_demo` and a CSV source `@csv_demo`, you can do:
 
