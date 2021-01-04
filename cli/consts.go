@@ -27,7 +27,7 @@ const (
 	flagHelp = "help"
 
 	flagInsert      = "insert"
-	flagInsertUsage = "Insert query results into @HANDLE.TABLE"
+	flagInsertUsage = "Insert query results into @HANDLE.TABLE. If not existing, TABLE will be created."
 
 	flagInspectFull      = "full"
 	flagInspectFullUsage = "Output full data source details (JSON only)"
