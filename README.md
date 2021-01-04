@@ -226,7 +226,7 @@ uid  username    email                  address_id
 [...]
 ```
 
-Now, we'll insert those query results into a new table (`person`) in `@sakila_sl3`:
+Now, execute the same query, but this time `sq` inserts the results into a new table (`person`) in `@sakila_sl3`:
 
 ```shell
 $ sq @xl_demo_xlsx.person --insert @sakila_sl3.person
