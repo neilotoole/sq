@@ -55,9 +55,11 @@ yum localinstall -y https://github.com/neilotoole/sq/releases/latest/download/sq
 
 ## Quickstart
 
-Use `sq help` to see command help. Note that the [tutorial](https://github.com/neilotoole/sq/wiki/Tutorial) has more detail, but here's the basics:
+Use `sq help` to see command help. The [tutorial](https://github.com/neilotoole/sq/wiki/Tutorial) is the best place to start.
 
-`sq` operates on data sources, which are treated as SQL databases (even if the source is really a CSV or XLSX file etc). In a nutshell, you add a source (giving it a `handle`), and then execute commands against the source.
+The major concept is: `sq` operates on data sources, which are treated as SQL databases (even if the source is really a CSV or XLSX file etc).
+
+In a nutshell, you add a source (giving it a `handle`), and then execute commands against the source.
 
 
 ### Sources
