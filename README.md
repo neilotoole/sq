@@ -69,6 +69,7 @@ Initially there are no sources.
 ```sh
 $ sq ls
 
+
 ```
 
 Let's add a source. First we'll add a SQLite database, but this could also be Postgres,
