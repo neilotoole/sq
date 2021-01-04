@@ -29,7 +29,6 @@ brew tap neilotoole/sq && brew install sq
 ```
 scoop bucket add sq https://github.com/neilotoole/sq
 scoop install sq
-
 ```
 
 
@@ -37,21 +36,18 @@ scoop install sq
 
 ```shell script
 curl -fsSLO https://github.com/neilotoole/sq/releases/latest/download/sq-linux-amd64.deb && sudo apt install -y ./sq-linux-amd64.deb && rm ./sq-linux-amd64.deb
-
 ```
 
 Or:
 
 ```shell script
 sudo rpm -i https://github.com/neilotoole/sq/releases/latest/download/sq-linux-amd64.rpm
-
 ```
 
 Or:
 
 ```shell script
 yum localinstall -y https://github.com/neilotoole/sq/releases/latest/download/sq-linux-amd64.rpm
-
 ```
 
 
@@ -94,7 +90,7 @@ $ sq src
 
 The `sq ping` command simply pings the source to verify that it's available.
 
-`sq src` lists the _active source_, which in our case is `@sakila_sl3`. You can change the active source using `sq src @other_src`. When there's an _active source_ set, you can usually omit the handle from commands. Thus you could instead do:
+`sq src` lists the _active source_, which in our case is `@sakila_sl3`. You can change the active source using `sq src @other_src`. When there's an _active source_ specified, you can usually omit the handle from commands. Thus you could instead do:
 
 ```sh
 $ sq ping
