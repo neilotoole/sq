@@ -286,13 +286,13 @@ Dropped table @sakila_sl3.actor_copy
 For file-based sources (such as CSV or XLSX), you can `sq add` the source file, but you can also pipe it:
 
 ```shell
-cat ./example.xlsx | sq .Sheet1
+$ cat ./example.xlsx | sq .Sheet1
 ```
 
 Similarly you can inspect:
 
 ```shell
-cat ./example.xlsx | sq inspect
+$ cat ./example.xlsx | sq inspect
 ```
 
 
