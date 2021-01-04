@@ -2,9 +2,9 @@
 
 `sq` is a command line tool that provides `jq`-style access to
 structured data sources such as SQL databases,
-or document formats such as CSV or Excel. 
+or document formats such as CSV or Excel.
 
-`sq` can perform cross-source joins, 
+`sq` can perform cross-source joins,
 execute database-native SQL, and output to a multitude of formats including JSON,
 Excel, CSV, HTML, Markdown and XML, or output directly to a SQL database.
 `sq` can also inspect sources to see metadata about the source structure (tables,
@@ -63,32 +63,34 @@ $ sq ls
 
 ```
 
-Let's add a source. First we'll add a SQLite database, but this could also be Postgres, SQL Server, Excel, etc. Let's download the sample DB, and add the source.
+Let's add a source. First we'll add a SQLite database, but this could also be Postgres,
+SQL Server, Excel, etc. Let's download the sample DB, and add the source. We
+use `-h` to specify a handle to use.
 
 ```sh
 $ wget https://sq.io/testdata/sakila.db
 
-$ sq add ./sakila.db
-@sakila_sqlite  sqlite3  sakila.db
+$ sq add ./sakila.db -h @sakila_sl3
+@sakila_sl3  sqlite3  sakila.db
 
 $ sq ls -v
 HANDLE           DRIVER   LOCATION                 OPTIONS
-@sakila_sqlite*  sqlite3  sqlite3:/root/sakila.db
+@sakila_sl3*  sqlite3  sqlite3:/root/sakila.db
 
-$ sq ping @sakila_sqlite
-@sakila_sqlite       1ms  pong
+$ sq ping @sakila_sl3
+@sakila_sl3  1ms  pong
 
 $ sq src
-@sakila_sqlite  sqlite3  sakila.db
+@sakila_sl3  sqlite3  sakila.db
 ```
 
-The `sq ping` command simply pings the source to verify that it's available. 
+The `sq ping` command simply pings the source to verify that it's available.
 
-`sq src` lists the _active source_, which in our case is `@sakila_sqlite3`. You can change the active source using `sq src @other_src`. When there's an active source set, you can usually omit the handle from commands. Thus you could instead do:
+`sq src` lists the _active source_, which in our case is `@sakila_sl33`. You can change the active source using `sq src @other_src`. When there's an active source set, you can usually omit the handle from commands. Thus you could instead do:
 
 ```sh
 $ sq ping
-@sakila_sqlite       1ms  pong
+@sakila_sl3  1ms  pong
 ```
 
 ### Query
@@ -123,7 +125,7 @@ But we're flying a bit blind here: how did we know about the `actor` table?
 ```sh
 sq inspect
 HANDLE          DRIVER   NAME       FQ NAME         SIZE   TABLES  LOCATION
-@sakila_sqlite  sqlite3  sakila.db  sakila.db/main  5.6MB  21      sqlite3:///root/sakila.db
+@sakila_sl3     sqlite3  sakila.db  sakila.db/main  5.6MB  21      sqlite3:///root/sakila.db
 
 TABLE                   ROWS   TYPE   SIZE  NUM COLS  COL NAMES                                                                          COL TYPES
 actor                   200    table  -     4         actor_id, first_name, last_name, last_update                                       numeric, VARCHAR(45), VARCHAR(45), TIMESTAMP
@@ -131,12 +133,12 @@ address                 603    table  -     8         address_id, address, addre
 category                16     table  -     3         category_id, name, last_update
 ```
 
-Use the `--json` flag to output in JSON (output abbreviated): 
+Use the `--json` flag to output in JSON (output abbreviated):
 
 ```json
 sq inspect -j
 {
-  "handle": "@sakila_sqlite",
+  "handle": "@sakila_sl3",
   "name": "sakila.db",
   "driver": "sqlite3",
   "db_version": "3.31.1",
@@ -157,6 +159,10 @@ sq inspect -j
           "kind": "decimal",
           "nullable": false
         }
+      ]
+    }
+  ]
+}
 ```
 
 Combine `sq inspect` with [jq](https://stedolan.github.io/jq/) for some very useful capabilities. Here's how to [list](https://github.com/neilotoole/sq/wiki/Cookbook#list-name-of-each-table-in-a-source) all the table names in the active source:
@@ -185,7 +191,7 @@ category.csv  customer.csv  film_actor.csv     film_text.csv	  payment.csv	 sale
 Note that you can also inspect an individual table:
 
 ```sh
-$ sq inspect @sakila_sqlite.actor
+$ sq inspect @sakila_sl3.actor
 TABLE  ROWS  TYPE   SIZE  NUM COLS  COL NAMES                                     COL TYPES
 actor  200   table  -     4         actor_id, first_name, last_name, last_update  numeric, VARCHAR(45), VARCHAR(45), TIMESTAMP
 
@@ -215,13 +221,27 @@ uid  username    email                  address_id
 [...]
 ```
 
+Now, we'll insert that output into a (new) table in `@sakila_sl3`:
 
+```shell
+$ sq @xl_demo_xlsx.person --insert @sakila_sl3.person
+Inserted 7 rows into @sakila_sl3.person
 
+$ sq inspect @sakila_sl3.person
+TABLE   ROWS  TYPE   SIZE  NUM COLS  COL NAMES                         COL TYPES
+person  7     table  -     4         uid, username, email, address_id  INTEGER, TEXT, TEXT, INTEGER
 
+$ sq @sakila_sl3.person
+uid  username    email                  address_id
+1    neilotoole  neilotoole@apache.org  1
+2    ksoze       kaiser@soze.org        2
+3    kubla       kubla@khan.mn          NULL
+[...]
+```
 
 ### Cross-Source Join
 
-`sq` has rudimentary support for cross-source joins. That is, you can join an Excel sheet with a CSV file, or Postgres table, etc. 
+`sq` has rudimentary support for cross-source joins. That is, you can join an Excel sheet with a CSV file, or Postgres table, etc.
 
 > Note that the current mechanism for these joins is highly naive: it basically copies the joined table from each source to a "scratch database" (SQLite by default), and then performs the JOIN using the scratch database's SQL interface. Thus, performance is currently abysmal for larger tables.
 
@@ -238,26 +258,26 @@ plato@athens.gr        Washington
 ```
 
 
-### Table commands
+### Table Commands
 
 `sq` provides several handy commands for working with tables. Note that these commands work directly against SQL database sources, using their native SQL commands.
 
 ```sh
 $ sq tbl copy .actor .actor_copy
-Copied table: @sakila_sqlite.actor --> @sakila_sqlite.actor_copy (200 rows copied)
+Copied table: @sakila_sl3.actor --> @sakila_sl3.actor_copy (200 rows copied)
 
 $ sq tbl truncate .actor_copy
-Truncated 200 rows from @sakila_sqlite.actor_copy
+Truncated 200 rows from @sakila_sl3.actor_copy
 
 $ sq tbl drop .actor_copy
-Dropped table @sakila_sqlite.actor_copy
+Dropped table @sakila_sl3.actor_copy
 ```
 
 
 
 ### UNIX Pipes
 
-For file-based sources (such as CSV or XLSX), you can `sq add` the source file, but you can also pipe it, e.g. `cat ./example.xlsx | sq .Sheet1`. 
+For file-based sources (such as CSV or XLSX), you can `sq add` the source file, but you can also pipe it, e.g. `cat ./example.xlsx | sq .Sheet1`.
 
 Similarly you can inspect, e.g. `cat ./example.xlsx | sq inspect`.
 
@@ -280,7 +300,7 @@ jsonl      JSON Lines: LF-delimited JSON objects  false         https://en.wikip
 xlsx       Microsoft Excel XLSX                   false         https://en.wikipedia.org/wiki/Microsoft_Excel
 ```
 
- 
+
 ## Output Formats
 `sq` supports these output formats:
 
@@ -294,7 +314,7 @@ xlsx       Microsoft Excel XLSX                   false         https://en.wikip
 - `--xml`: XML
 - `--markdown`: Markdown
 - `--raw`: Raw (bytes)
- 
+
 
 ## Acknowledgements
 
