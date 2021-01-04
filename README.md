@@ -72,7 +72,7 @@ $ sq ls
 ```
 
 Let's add a source. First we'll add a SQLite database, but this could also be Postgres,
-SQL Server, Excel, etc. Let's download the sample DB, and add the source. We
+SQL Server, Excel, etc. Download the sample DB, and add the source. We
 use `-h` to specify a handle to use.
 
 ```sh
