@@ -210,7 +210,7 @@ That is, you can use `sq` to insert results from a Postgres query into a MySQL t
 
 > **Note:** If you want to copy a table inside the same (database) source, use `sq tbl copy` instead, which uses the database's native table copy functionality.
 
-For this example, we'll insert an Excel worksheet into our SQLite DB. First, we download the XLSX file, and `sq add` it as a source.
+For this example, we'll insert an Excel worksheet into our `@sakila_sl3` SQLite database. First, we download the XLSX file, and `sq add` it as a source.
 
 ```sh
 $ wget https://sq.io/testdata/xl_demo.xlsx
