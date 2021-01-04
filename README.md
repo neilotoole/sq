@@ -94,7 +94,7 @@ $ sq src
 
 The `sq ping` command simply pings the source to verify that it's available.
 
-`sq src` lists the _active source_, which in our case is `@sakila_sl3`. You can change the active source using `sq src @other_src`. When there's an active source set, you can usually omit the handle from commands. Thus you could instead do:
+`sq src` lists the _active source_, which in our case is `@sakila_sl3`. You can change the active source using `sq src @other_src`. When there's an _active source_ set, you can usually omit the handle from commands. Thus you could instead do:
 
 ```sh
 $ sq ping
