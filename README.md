@@ -7,7 +7,7 @@ or document formats like CSV or Excel.
 `sq` can perform cross-source joins,
 execute database-native SQL, and output to a multitude of formats including JSON,
 Excel, CSV, HTML, Markdown and XML, or insert directly to a SQL database.
-`sq` can also inspect sources to see metadata about the source structure (tables,
+`sq` can also inspect sources to view metadata about the source structure (tables,
 columns, size) and has commands for common database operations such as copying
 or dropping tables.
 
@@ -82,8 +82,8 @@ $ sq add ./sakila.db -h @sakila_sl3
 @sakila_sl3  sqlite3  sakila.db
 
 $ sq ls -v
-HANDLE           DRIVER   LOCATION                 OPTIONS
-@sakila_sl3*  sqlite3  sqlite3:/root/sakila.db
+HANDLE       DRIVER   LOCATION                 OPTIONS
+@sakila_sl3* sqlite3  sqlite3:/root/sakila.db
 
 $ sq ping @sakila_sl3
 @sakila_sl3  1ms  pong
@@ -173,7 +173,7 @@ sq inspect -j
 }
 ```
 
-Combine `sq inspect` with [jq](https://stedolan.github.io/jq/) for some very useful capabilities. Here's how to [list](https://github.com/neilotoole/sq/wiki/Cookbook#list-name-of-each-table-in-a-source) all the table names in the active source:
+Combine `sq inspect` with [jq](https://stedolan.github.io/jq/) for some useful capabilities. Here's how to [list](https://github.com/neilotoole/sq/wiki/Cookbook#list-name-of-each-table-in-a-source) all the table names in the active source:
 
 ```sh
 $ sq inspect -j | jq -r '.tables[] | .name'
@@ -209,7 +209,7 @@ actor  200   table  -     4         actor_id, first_name, last_name, last_update
 
 `sq` query results can be output in various formats (JSON, XML, CSV, etc), and can also be "outputted" as an *insert* into database sources.
 
-Thus, you can use `sq` to copy a Postgres table into MySQL, or to copy an Excel worksheet into a SQLite table, or a CSV file into SQL Server table.
+Thus, you can use `sq` to copy a Postgres table into MySQL, or to copy an Excel worksheet into a SQLite table, or a CSV file into a SQL Server table.
 
 > **Note:** If you want to copy a table inside the same (database) source, use `sq tbl copy` instead, which uses the database's native table copy functionality.
 
@@ -229,7 +229,7 @@ uid  username    email                  address_id
 [...]
 ```
 
-Now, we'll insert that output into a (new) table in `@sakila_sl3`:
+Now, we'll insert those query results into a (new) table in `@sakila_sl3`:
 
 ```shell
 $ sq @xl_demo_xlsx.person --insert @sakila_sl3.person
@@ -249,7 +249,7 @@ uid  username    email                  address_id
 
 ### Cross-Source Join
 
-`sq` has rudimentary support for cross-source joins. That is, you can join an Excel sheet with a CSV file, or Postgres table, etc.
+`sq` has rudimentary support for cross-source joins. That is, you can join an Excel worksheet with a CSV file, or Postgres table, etc.
 
 > Note that the current mechanism for these joins is highly naive: it basically copies the joined table from each source to a "scratch database" (SQLite by default), and then performs the JOIN using the scratch database's SQL interface. Thus, performance is currently abysmal for larger tables.
 
