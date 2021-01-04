@@ -297,7 +297,7 @@ $ cat ./example.xlsx | sq inspect
 
 
 ## Data Source Drivers
-`sq` implements support a data source types via a _driver_. To view the installed/supported drivers:
+`sq` knows how to deal with a data source type via a _driver_ implementation. To view the installed/supported drivers:
 
 ```sh
 $ sq drivers
