@@ -49,9 +49,12 @@ yum localinstall -y https://github.com/neilotoole/sq/releases/latest/download/sq
 
 ## Quickstart
 
-Use `sq help` to see command help. Note that the [tutorial](https://github.com/neilotoole/sq/wiki/Tutorial) has a more detail, but here's the basics:
+Use `sq help` to see command help. Note that the [tutorial](https://github.com/neilotoole/sq/wiki/Tutorial)
+has more detail, but the basics are:
 
-`sq` operates on data sources, which are treated as SQL databases (even if the source is really a CSV or XLSX file etc). In a nutshell, you add a source (giving it a `handle`), and then execute commands against the source.
+`sq` operates on data sources, which are treated as SQL databases (even
+if the source is really a CSV or XLSX file etc). In a nutshell, you add
+a source (giving it a `handle`), and then execute commands against the source.
 
 
 ### Sources
@@ -63,7 +66,8 @@ $ sq ls
 
 ```
 
-Let's add a source. First we'll add a SQLite database, but this could also be Postgres, SQL Server, Excel, etc. Let's download the sample DB, and add the source.
+Let's add a source. First we'll add a SQLite database, but this could also
+be Postgres, SQL Server, Excel, etc. Download the sample DB, and add the source.
 
 ```sh
 $ wget https://sq.io/testdata/sakila.db
@@ -84,7 +88,10 @@ $ sq src
 
 The `sq ping` command simply pings the source to verify that it's available. 
 
-`sq src` lists the _active source_, which in our case is `@sakila_sqlite3`. You can change the active source using `sq src @other_src`. When there's an active source set, you can usually omit the handle from commands. Thus you could instead do:
+`sq src` lists the _active source_, which in our case is `@sakila_sqlite3`.
+You can change the active source using `sq src @other_src`. When there's
+an active source set, you can usually omit the handle from commands.
+Thus you could instead do:
 
 ```sh
 $ sq ping
@@ -104,7 +111,8 @@ actor_id  first_name  last_name     last_update
 ```
 
 
-The above query selected some rows from the `actor` table. You could also use native SQL, e.g.:
+The above query selected some rows from the `actor` table. You could also
+use native SQL, e.g.:
 
 ```sh
 $ sq sql 'SELECT * FROM actor WHERE actor_id < 100 LIMIT 3'

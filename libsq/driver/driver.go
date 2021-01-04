@@ -135,6 +135,9 @@ type SQLDriver interface {
 	// must honor the table name and column names and kinds from tblDef.
 	CreateTable(ctx context.Context, db sqlz.DB, tblDef *sqlmodel.TableDef) error
 
+	// TableExists returns true if there's an exist table tbl in db.
+	TableExists(ctx context.Context, db sqlz.DB, tbl string) (bool, error)
+
 	// CopyTable copies fromTable into a new table toTable.
 	// If copyData is true, fromTable's data is also copied.
 	// Constraints (keys, defaults etc.) may not be copied. The

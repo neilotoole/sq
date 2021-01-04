@@ -263,6 +263,19 @@ func (d *driveri) AlterTableAddColumn(ctx context.Context, db *sql.DB, tbl strin
 	return nil
 }
 
+// TableExists implements driver.SQLDriver.
+func (d *driveri) TableExists(ctx context.Context, db sqlz.DB, tbl string) (bool, error) {
+	const query = `SELECT COUNT(*) FROM sqlite_master WHERE name = ? and type='table'`
+
+	var count int64
+	err := db.QueryRowContext(ctx, query, tbl).Scan(&count)
+	if err != nil {
+		return false, errz.Err(err)
+	}
+
+	return count == 1, nil
+}
+
 // PrepareInsertStmt implements driver.SQLDriver.
 func (d *driveri) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string, numRows int) (*driver.StmtExecer, error) {
 	destColsMeta, err := d.getTableRecordMeta(ctx, db, destTbl, destColNames)

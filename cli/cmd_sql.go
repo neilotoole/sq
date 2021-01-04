@@ -141,7 +141,13 @@ func execSQLInsert(rc *RunContext, fromSrc, destSrc *source.Source, destTbl stri
 	// is invoked by rc.Close, and rc is closed further up the
 	// stack.
 
-	inserter := libsq.NewDBWriter(rc.Log, destDB, destTbl, driver.Tuning.RecordChSize)
+	inserter := libsq.NewDBWriter(
+		rc.Log,
+		destDB,
+		destTbl,
+		driver.Tuning.RecordChSize,
+		libsq.DBWriterCreateTableIfNotExistsHook(destTbl),
+	)
 	err = libsq.QuerySQL(ctx, rc.Log, fromDB, inserter, args[0])
 	if err != nil {
 		return errz.Wrapf(err, "insert %s.%s failed", destSrc.Handle, destTbl)
