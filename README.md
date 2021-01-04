@@ -289,7 +289,7 @@ For file-based sources (such as CSV or XLSX), you can `sq add` the source file, 
 $ cat ./example.xlsx | sq .Sheet1
 ```
 
-Similarly you can inspect:
+Similarly, you can inspect:
 
 ```shell
 $ cat ./example.xlsx | sq inspect
