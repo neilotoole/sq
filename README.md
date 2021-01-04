@@ -283,9 +283,17 @@ Dropped table @sakila_sl3.actor_copy
 
 ### UNIX Pipes
 
-For file-based sources (such as CSV or XLSX), you can `sq add` the source file, but you can also pipe it, e.g. `cat ./example.xlsx | sq .Sheet1`.
+For file-based sources (such as CSV or XLSX), you can `sq add` the source file, but you can also pipe it:
 
-Similarly you can inspect, e.g. `cat ./example.xlsx | sq inspect`.
+```shell
+cat ./example.xlsx | sq .Sheet1
+```
+
+Similarly you can inspect:
+
+```shell
+cat ./example.xlsx | sq inspect
+```
 
 
 ## Data Source Drivers
