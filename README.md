@@ -34,17 +34,19 @@ scoop install sq
 
 ### Linux
 
+#### `apt`
+
 ```shell script
 curl -fsSLO https://github.com/neilotoole/sq/releases/latest/download/sq-linux-amd64.deb && sudo apt install -y ./sq-linux-amd64.deb && rm ./sq-linux-amd64.deb
 ```
 
-Or:
+#### `rpm`
 
 ```shell script
 sudo rpm -i https://github.com/neilotoole/sq/releases/latest/download/sq-linux-amd64.rpm
 ```
 
-Or:
+#### `yum`
 
 ```shell script
 yum localinstall -y https://github.com/neilotoole/sq/releases/latest/download/sq-linux-amd64.rpm
