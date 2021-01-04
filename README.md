@@ -205,7 +205,7 @@ actor  200   table  -     4         actor_id, first_name, last_name, last_update
 
 ```
 
-### Copy Table Across Sources
+### Insert Output Into Database Source
 
 `sq` query results can be output in various formats (JSON, XML, CSV, etc), and can also be "outputted" as an *insert* into database sources.
 
