@@ -167,10 +167,6 @@ sq inspect -j
           "kind": "decimal",
           "nullable": false
         }
-      ]
-    }
-  ]
-}
 ```
 
 Combine `sq inspect` with [jq](https://stedolan.github.io/jq/) for some useful capabilities. Here's how to [list](https://github.com/neilotoole/sq/wiki/Cookbook#list-name-of-each-table-in-a-source) all the table names in the active source:
