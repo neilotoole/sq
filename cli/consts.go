@@ -49,9 +49,6 @@ const (
 	flagMonochromeShort = "M"
 	flagMonochromeUsage = "Don't colorize output"
 
-	flagNotifierLabel      = "label"
-	flagNotifierLabelUsage = "Optional label for the notification destination"
-
 	flagOutput      = "output"
 	flagOutputShort = "o"
 	flagOutputUsage = "Write output to <file> instead of stdout"

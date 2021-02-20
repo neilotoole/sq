@@ -38,7 +38,6 @@ func Test_Smoke_Full(t *testing.T) {
 func Test_XLSX_BadDateRecognition(t *testing.T) {
 	t.Parallel()
 
-	// https://github.com/neilotoole/sq-preview/issues/2
 	th := testh.New(t)
 
 	src := &source.Source{
@@ -56,4 +55,22 @@ func Test_XLSX_BadDateRecognition(t *testing.T) {
 	sink, err := th.QuerySQL(src, "SELECT * FROM Summary")
 	require.NoError(t, err)
 	require.Equal(t, 21, len(sink.Recs))
+}
+
+// TestHandleEmptySheets verifies that sq can import XLSX
+// when there are empty sheets.
+func TestHandleEmptySheets(t *testing.T) {
+	t.Parallel()
+
+	th := testh.New(t)
+
+	src := &source.Source{
+		Handle:   "@xlsx_empty_sheets",
+		Type:     xlsx.Type,
+		Location: proj.Abs("drivers/xlsx/testdata/test_with_empty_sheets.xlsx"),
+	}
+
+	sink, err := th.QuerySQL(src, "SELECT * FROM Sheet1")
+	require.NoError(t, err)
+	require.Equal(t, 2, len(sink.Recs))
 }
