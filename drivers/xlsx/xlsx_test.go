@@ -57,9 +57,9 @@ func Test_XLSX_BadDateRecognition(t *testing.T) {
 	require.Equal(t, 21, len(sink.Recs))
 }
 
-// TestHandleEmptySheets verifies that sq can import XLSX
-// when there are empty sheets.
-func TestHandleEmptySheets(t *testing.T) {
+// TestHandleSomeEmptySheets verifies that sq can import XLSX
+// when there are some empty sheets.
+func TestHandleSomeEmptySheets(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
@@ -67,7 +67,7 @@ func TestHandleEmptySheets(t *testing.T) {
 	src := &source.Source{
 		Handle:   "@xlsx_empty_sheets",
 		Type:     xlsx.Type,
-		Location: proj.Abs("drivers/xlsx/testdata/test_with_empty_sheets.xlsx"),
+		Location: proj.Abs("drivers/xlsx/testdata/test_with_some_empty_sheets.xlsx"),
 	}
 
 	sink, err := th.QuerySQL(src, "SELECT * FROM Sheet1")
