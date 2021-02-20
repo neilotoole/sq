@@ -277,6 +277,8 @@ github.com/modern-go/reflect2 v1.0.1/go.mod h1:bx2lNnkwVCuqBIxFjflWJWanXIb3Rllmb
 github.com/morikuni/aec v0.0.0-20170113033406-39771216ff4c h1:nXxl5PrvVm2L/wCy8dQu6DMTwH4oIuGN8GJDAlqDdVE=
 github.com/morikuni/aec v0.0.0-20170113033406-39771216ff4c/go.mod h1:BbKIizmSmc5MMPqRYbxO4ZU0S0+P200+tUnFx7PXmsc=
 github.com/mwitkow/go-conntrack v0.0.0-20161129095857-cc309e4a2223/go.mod h1:qRWi+5nqEBWmkhHvq77mSJWrCKwh8bxhgT7d/eI7P4U=
+github.com/neilotoole/cobra v1.1.4-0.20210220092732-c11dbd416310 h1:++ilwBgxD5woFaMRfHmbJDbZ4mpoJT/ghS2I5pjrn+A=
+github.com/neilotoole/cobra v1.1.4-0.20210220092732-c11dbd416310/go.mod h1:pGADOWyqRD/YMrPZigI/zbliZ2wVD/23d+is3pSWzOo=
 github.com/neilotoole/errgroup v0.1.5 h1:DxEGoIfFm5ooGicidR+okiHjoOaGRKFaSxDPVZuuu2I=
 github.com/neilotoole/errgroup v0.1.5/go.mod h1:Q2nLGf+594h0CLBs/Mbg6qOr7GtqDK7C2S41udRnToE=
 github.com/neilotoole/lg v0.3.0 h1:2/IESY8l903AeK9nvH3AWVI/p8up+8wmKWIuts7PpxY=

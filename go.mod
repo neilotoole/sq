@@ -1,6 +1,11 @@
 module github.com/neilotoole/sq
 
-go 1.14
+go 1.15
+
+// Using forked cobra for now because v1.1.3 does not pass Context
+// to valid args completion funcs. There's an open PR for
+// this: https://github.com/spf13/cobra/pull/1265
+replace github.com/spf13/cobra v1.1.3 => github.com/neilotoole/cobra v1.1.4-0.20210220092732-c11dbd416310
 
 require (
 	github.com/antlr/antlr4 v0.0.0-20191011202612-ad2bd05285ca

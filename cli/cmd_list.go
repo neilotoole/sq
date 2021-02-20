@@ -18,6 +18,10 @@ func newSrcListCmd() (*cobra.Command, runFunc) {
 }
 
 func execSrcList(rc *RunContext, cmd *cobra.Command, args []string) error {
+	ctx := cmd.Context()
+	rc2 := RunContextFrom(ctx)
+	_ = rc2
+
 	if len(args) != 0 {
 		return errz.Errorf(msgInvalidArgs)
 	}

@@ -9,7 +9,9 @@ import (
 
 func newInspectCmd() (*cobra.Command, runFunc) {
 	cmd := &cobra.Command{
-		Use: "inspect [@HANDLE|@HANDLE.TABLE|.TABLE]",
+		Use:               "inspect [@HANDLE|@HANDLE.TABLE|.TABLE]",
+		Args:              cobra.MaximumNArgs(1),
+		ValidArgsFunction: completeHandles,
 		Example: `  # inspect active data source
   sq inspect
   

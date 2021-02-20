@@ -15,26 +15,38 @@ import (
 )
 
 func newPingCmd() (*cobra.Command, runFunc) {
+	argsFn := func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		rc := RunContextFrom(cmd.Context())
+		a := append([]string{"all"}, rc.Config.Sources.Handles()...)
+
+		return a, cobra.ShellCompDirectiveNoFileComp
+	}
+
 	cmd := &cobra.Command{
-		Use: "ping [@HANDLE|all]",
+		Use: "ping [all|@HANDLE [@HANDLE_N]]",
+		//Args:              cobra.MaximumNArgs(1),
+		ValidArgsFunction: argsFn,
+
+		Short: "Ping data sources",
+		Long: `Ping data sources to check connection health. If no arguments provided, the
+active data source is pinged. Provide the handles of one or more sources
+to ping those sources, or "all" to ping all sources.
+
+The exit code is 1 if ping fails for any of the sources.`,
 		Example: `  # ping active data source
   sq ping
 
   # ping all data sources
   sq ping all
 
-  # ping @my1 with 2s timeout
-  sq ping @my1 --timeout=2s
-		
   # ping @my1 and @pg1
   sq ping @my1 @pg1
 
+  # ping @my1 with 2s timeout
+  sq ping @my1 --timeout=2s
+
   # output in TSV format
   sq ping --tsv @my1`,
-
-		Short: "Check data source connection health",
-		Long: `Ping data sources to check connection health. If no arguments provided, the
-active data source is pinged. The exit code is 1 if ping fails for any of the sources.`,
 	}
 
 	cmd.Flags().BoolP(flagTable, flagTableShort, false, flagTableUsage)

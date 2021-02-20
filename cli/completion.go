@@ -2,21 +2,15 @@ package cli
 
 import "github.com/spf13/cobra"
 
-// completionFunc is a shell completion function for a flag.
+// completionFunc is a shell completion function.
 type completionFunc func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective)
 
+var _ completionFunc = completeHandles
+
 func completeHandles(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-	//rc, err := newLightRunContext()
-	//if err != nil {
-	//	return nil, cobra.ShellCompDirectiveError
-	//}
-	//
-	//vals, err := fn(rc)
-	//if err != nil {
-	//	return []string{}, cobra.ShellCompDirectiveError
-	//}
+	rc := RunContextFrom(cmd.Context())
 
-	vals := []string{"@my1", "@pg1"}
+	handles := rc.Config.Sources.Handles()
 
-	return vals, cobra.ShellCompDirectiveNoFileComp
+	return handles, cobra.ShellCompDirectiveNoFileComp
 }

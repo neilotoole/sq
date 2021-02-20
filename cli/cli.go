@@ -32,6 +32,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/fatih/color"
 	"github.com/mattn/go-colorable"
@@ -85,13 +86,28 @@ func Execute(ctx context.Context, stdin *os.File, stdout, stderr io.Writer, args
 
 	defer rc.Close() // ok to call rc.Close on nil rc
 
-	return ExecuteWith(rc, args)
+	return ExecuteWith(ctx, rc, args)
+}
+
+var completionRunContextMu sync.Mutex
+var completionRunContext *RunContext
+
+func setCompletionRunContext(rc *RunContext) {
+	completionRunContextMu.Lock()
+	defer completionRunContextMu.Unlock()
+	completionRunContext = rc
+}
+
+func getCompletionRunContext() *RunContext {
+	completionRunContextMu.Lock()
+	defer completionRunContextMu.Unlock()
+	return completionRunContext
 }
 
 // ExecuteWith invokes the cobra CLI framework, ultimately
 // resulting in a command being executed. The caller must
 // invoke rc.Close.
-func ExecuteWith(rc *RunContext, args []string) error {
+func ExecuteWith(ctx context.Context, rc *RunContext, args []string) error {
 	rc.Log.Debugf("EXECUTE: %s", strings.Join(args, " "))
 	rc.Log.Debugf("Build: %s %s %s", buildinfo.Version, buildinfo.Commit, buildinfo.Timestamp)
 	rc.Log.Debugf("Config (cfg version %q) from: %s", rc.Config.Version, rc.ConfigStore.Location())
@@ -102,6 +118,9 @@ func ExecuteWith(rc *RunContext, args []string) error {
 	//  the workaround to smuggle Context to the commands. Presumably
 	//  we'll refactor the code at some point to make use of cobra's
 	//  support for Context.
+
+	ctx = WithRunContext(ctx, rc)
+	rc.Context = ctx
 
 	rootCmd := newCommandTree(rc)
 	var err error

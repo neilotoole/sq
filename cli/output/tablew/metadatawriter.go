@@ -96,7 +96,7 @@ func (w *mdWriter) SourceMetadata(meta *source.Metadata) error {
 			meta.Name,
 			stringz.ByteSized(meta.Size, 1, ""),
 			fmt.Sprintf("%d", len(meta.Tables)),
-			meta.Location,
+			source.RedactLocation(meta.Location),
 		}
 	} else {
 		headers = []string{"HANDLE", "DRIVER", "NAME", "FQ NAME", "SIZE", "TABLES", "LOCATION"}
@@ -110,7 +110,7 @@ func (w *mdWriter) SourceMetadata(meta *source.Metadata) error {
 			meta.FQName,
 			stringz.ByteSized(meta.Size, 1, ""),
 			fmt.Sprintf("%d", len(meta.Tables)),
-			meta.Location,
+			source.RedactLocation(meta.Location),
 		}
 	}
 

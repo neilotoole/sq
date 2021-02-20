@@ -67,8 +67,13 @@ func (s *Source) RedactedLocation() string {
 	if s == nil {
 		return ""
 	}
-	loc := s.Location
+	return RedactLocation(s.Location)
+}
 
+// RedactLocation returns a redacted version of the source
+// location loc, with the password component (if any) of
+// the location masked.
+func RedactLocation(loc string) string {
 	switch {
 	case loc == "":
 		return ""

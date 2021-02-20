@@ -106,7 +106,7 @@ func (ru *run) exec(args ...string) error {
 		args = append([]string{"sq"}, args...)
 	}
 
-	execErr := cli.ExecuteWith(ru.rc, args)
+	execErr := cli.ExecuteWith(ru.rc.Context, ru.rc, args)
 
 	if !ru.hushOutput {
 		// We log sq's output now (before calling rc.Close) because
