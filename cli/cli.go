@@ -96,54 +96,70 @@ func ExecuteWith(rc *RunContext, args []string) error {
 	rc.Log.Debugf("Build: %s %s %s", buildinfo.Version, buildinfo.Commit, buildinfo.Timestamp)
 	rc.Log.Debugf("Config (cfg version %q) from: %s", rc.Config.Version, rc.ConfigStore.Location())
 
+	// NOTE: (Feb 2021): The project has been finally been upgraded
+	//  to spf13/cobra v1.1.3, which does provide support
+	//  for context.Context. However, the sq codebase is still using
+	//  the workaround to smuggle Context to the commands. Presumably
+	//  we'll refactor the code at some point to make use of cobra's
+	//  support for Context.
+
 	rootCmd := newCommandTree(rc)
+	var err error
 
-	// The following is a workaround for the fact that cobra doesn't
-	// currently (as of 2017) support executing the root command with
-	// arbitrary args. That is to say, if you execute:
-	//
-	//   sq arg1 arg2
-	//
-	// then cobra will look for a command named "arg1", and when it
-	// doesn't find such a command, it returns an "unknown command"
-	// error.
-	cmd, _, err := rootCmd.Find(args[1:])
-	if err != nil {
-		// This err will be the "unknown command" error.
-		// cobra still returns cmd though. It should be
-		// the root cmd.
-		if cmd == nil || cmd.Name() != rootCmd.Name() {
-			// should never happen
-			panic(fmt.Sprintf("bad cobra cmd state: %v", cmd))
-		}
-
-		// If we have args [sq, arg1, arg2] then we redirect
-		// to the "slq" command by modifying args to
-		// look like: [query, arg1, arg2] -- noting that SetArgs
-		// doesn't want the first args element.
-		queryCmdArgs := append([]string{"slq"}, args[1:]...)
-		rootCmd.SetArgs(queryCmdArgs)
+	if len(args) > 1 && args[1] == "__complete" {
+		rootCmd.SetArgs(args[1:])
 	} else {
-		if cmd.Name() == rootCmd.Name() {
-			// Not sure why we have two paths to this, but it appears
-			// that we've found the root cmd again, so again
-			// we redirect to "query" cmd.
+		// The following is a workaround for the fact that cobra doesn't
+		// currently (as of 2017) support executing the root command with
+		// arbitrary args. That is to say, if you execute:
+		//
+		//   sq arg1 arg2
+		//
+		// then cobra will look for a command named "arg1", and when it
+		// doesn't find such a command, it returns an "unknown command"
+		// error.
 
-			a := append([]string{"slq"}, args[1:]...)
-			rootCmd.SetArgs(a)
+		// NOTE: This entire mechanism is ancient, and likely can
+		//  be simplified, if not entirely removed.
+		var cmd *cobra.Command
+		cmd, _, err = rootCmd.Find(args[1:])
+		if err != nil {
+			// This err will be the "unknown command" error.
+			// cobra still returns cmd though. It should be
+			// the root cmd.
+			if cmd == nil || cmd.Name() != rootCmd.Name() {
+				// should never happen
+				panic(fmt.Sprintf("bad cobra cmd state: %v", cmd))
+			}
+
+			// If we have args [sq, arg1, arg2] then we redirect
+			// to the "slq" command by modifying args to
+			// look like: [query, arg1, arg2] -- noting that SetArgs
+			// doesn't want the first args element.
+			queryCmdArgs := append([]string{"slq"}, args[1:]...)
+			rootCmd.SetArgs(queryCmdArgs)
 		} else {
-			// It's just a normal command like "sq ls" or such.
+			if cmd.Name() == rootCmd.Name() {
+				// Not sure why we have two paths to this, but it appears
+				// that we've found the root cmd again, so again
+				// we redirect to "slq" cmd.
 
-			// Explicitly set the args on rootCmd as this makes
-			// cobra happy when this func is executed via tests.
-			// Haven't explored the reason why.
-			rootCmd.SetArgs(args[1:])
+				a := append([]string{"slq"}, args[1:]...)
+				rootCmd.SetArgs(a)
+			} else {
+				// It's just a normal command like "sq ls" or such.
+
+				// Explicitly set the args on rootCmd as this makes
+				// cobra happy when this func is executed via tests.
+				// Haven't explored the reason why.
+				rootCmd.SetArgs(args[1:])
+			}
 		}
 	}
 
 	// Execute the rootCmd; cobra will find the appropriate
 	// sub-command, and ultimately execute that command.
-	err = rootCmd.Execute()
+	err = rootCmd.ExecuteContext(rc.Context)
 	if err != nil {
 		printError(rc, err)
 	}
@@ -187,8 +203,7 @@ func newCommandTree(rc *RunContext) (rootCmd *cobra.Command) {
 	addCmd(rc, tblCmd, newTblTruncateCmd)
 	addCmd(rc, tblCmd, newTblDropCmd)
 
-	addCmd(rc, rootCmd, newInstallBashCompletionCmd)
-	addCmd(rc, rootCmd, newGenerateZshCompletionCmd)
+	addCmd(rc, rootCmd, newCompletionCmd)
 
 	return rootCmd
 }
@@ -200,6 +215,8 @@ type runFunc func(rc *RunContext, cmd *cobra.Command, args []string) error
 // addCmd adds the command returned by cmdFn to parentCmd.
 func addCmd(rc *RunContext, parentCmd *cobra.Command, cmdFn func() (*cobra.Command, runFunc)) *cobra.Command {
 	cmd, fn := cmdFn()
+
+	cmd.Flags().SortFlags = false
 
 	if cmd.Name() != "help" {
 		// Don't add the --help flag to the help command.
@@ -230,6 +247,22 @@ func addCmd(rc *RunContext, parentCmd *cobra.Command, cmdFn func() (*cobra.Comma
 	parentCmd.AddCommand(cmd)
 
 	return cmd
+}
+
+type runContextKey struct{}
+
+// WithRunContext returns ctx with rc added as a value.
+func WithRunContext(ctx context.Context, rc *RunContext) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	return context.WithValue(ctx, runContextKey{}, rc)
+}
+
+// RunContextFrom extracts the RunContext added to ctx via WithRunContext.
+func RunContextFrom(ctx context.Context) *RunContext {
+	return ctx.Value(runContextKey{}).(*RunContext)
 }
 
 // RunContext is a container for injectable resources passed
