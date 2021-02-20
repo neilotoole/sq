@@ -36,6 +36,10 @@ func xlsxToScratch(ctx context.Context, log lg.Log, src *source.Source, xlFile *
 	}
 
 	for _, tblDef := range tblDefs {
+		if tblDef == nil {
+			// tblDef can be nil if its sheet is empty (has no data).
+			continue
+		}
 		err = scratchDB.SQLDriver().CreateTable(ctx, scratchDB.DB(), tblDef)
 		if err != nil {
 			return err
@@ -45,15 +49,23 @@ func xlsxToScratch(ctx context.Context, log lg.Log, src *source.Source, xlFile *
 	log.Debugf("%d tables created (but not yet populated) in %s in %s",
 		len(tblDefs), scratchDB.Source().Handle, time.Since(start))
 
+	var imported, skipped int
+
 	for i := range xlFile.Sheets {
+		if tblDefs[i] == nil {
+			// tblDef can be nil if its sheet is empty (has no data).
+			skipped++
+			continue
+		}
 		err = importSheetToTable(ctx, log, xlFile.Sheets[i], hasHeader, scratchDB, tblDefs[i])
 		if err != nil {
 			return err
 		}
+		imported++
 	}
 
-	log.Debugf("%d sheets imported from %s to %s in %s",
-		len(xlFile.Sheets), src.Handle, scratchDB.Source().Handle, time.Since(start))
+	log.Debugf("%d sheets imported (%d sheets skipped) from %s to %s in %s",
+		imported, skipped, src.Handle, scratchDB.Source().Handle, time.Since(start))
 
 	return nil
 }
@@ -140,7 +152,8 @@ func isEmptyRow(row *xlsx.Row) bool {
 	return true
 }
 
-// buildTblDefsForSheets returns a TableDef for each sheet.
+// buildTblDefsForSheets returns a TableDef for each sheet. If the
+// sheet is empty (has no data), the TableDef for that sheet will be nil.
 func buildTblDefsForSheets(ctx context.Context, log lg.Log, sheets []*xlsx.Sheet, hasHeader bool) ([]*sqlmodel.TableDef, error) {
 	tblDefs := make([]*sqlmodel.TableDef, len(sheets))
 
@@ -166,11 +179,13 @@ func buildTblDefsForSheets(ctx context.Context, log lg.Log, sheets []*xlsx.Sheet
 }
 
 // buildTblDefForSheet creates a table for the given sheet, and returns
-// a model of the table, or an error.
+// a model of the table, or an error. If the sheet is empty, (nil,nil)
+// is returned.
 func buildTblDefForSheet(log lg.Log, sheet *xlsx.Sheet, hasHeader bool) (*sqlmodel.TableDef, error) {
 	maxCols := getRowsMaxCellCount(sheet)
 	if maxCols == 0 {
-		return nil, errz.Errorf("sheet %q has no columns", sheet.Name)
+		log.Warnf("sheet %q is empty: skipping")
+		return nil, nil
 	}
 
 	colNames := make([]string, maxCols)
