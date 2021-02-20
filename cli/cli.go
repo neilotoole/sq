@@ -126,6 +126,7 @@ func ExecuteWith(ctx context.Context, rc *RunContext, args []string) error {
 	var err error
 
 	if len(args) > 1 && args[1] == "__complete" {
+		// Special handling for autocomplete command
 		rootCmd.SetArgs(args[1:])
 	} else {
 		// The following is a workaround for the fact that cobra doesn't
