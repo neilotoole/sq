@@ -19,66 +19,67 @@ output to a database table.
 
 You can query using sq's own jq-like syntax, or in native SQL.
 
+Execute "sq completion --help" for how to install shell completion.
+
 More at https://sq.io
 `,
 		Example: `  # pipe an Excel file and output the first 10 rows from sheet1
-  cat data.xlsx | sq '.sheet1 | .[0:10]'
+  $ cat data.xlsx | sq '.sheet1 | .[0:10]'
 
   # add Postgres source identified by handle @sakila_pg
-  sq add --handle=@sakila_pg 'postgres://user:pass@localhost:5432/sakila?sslmode=disable'
+  $ sq add --handle=@sakila_pg 'postgres://user:pass@localhost:5432/sakila?sslmode=disable'
 
   # add SQL Server source; will have generated handle @sakila_mssql
-  sq add 'sqlserver://user:pass@localhost?database=sakila'
+  $ sq add 'sqlserver://user:pass@localhost?database=sakila'
 
   # list available data sources
-  sq ls
+  $ sq ls
 
   # ping all data sources
-  sq ping all
+  $ sq ping all
 
   # set active data source
-  sq src @sakila_pg
+  $ sq src @sakila_pg
 
   # get specified cols from table address in active data source
-  sq '.address |  .address_id, .city, .country'
+  $ sq '.address |  .address_id, .city, .country'
 
   # get metadata (schema, stats etc) for data source
-  sq inspect @sakila_pg
+  $ sq inspect @sakila_pg
 
   # get metadata for a table
-  sq inspect @pg1.person
+  $ sq inspect @pg1.person
 
   # output in JSON
-  sq -j '.person | .uid, .username, .email'
+  $ sq -j '.person | .uid, .username, .email'
 
   # output in table format (with header)
-  sq -th '.person | .uid, .username, .email'
+  $ sq -th '.person | .uid, .username, .email'
 
   # output in table format (no header)
-  sq -t '.person | .uid, .username, .email'
+  $ sq -t '.person | .uid, .username, .email'
 
   # output to a HTML file
-  sq --html '@sakila_sl3.actor' -o actor.html
+  $ sq --html '@sakila_sl3.actor' -o actor.html
 
   # join across data sources
-  sq '@my1.person, @pg1.address | join(.uid) | .username, .email, .city'
+  $ sq '@my1.person, @pg1.address | join(.uid) | .username, .email, .city'
 
   # insert query results into a table in another data source
-  sq --insert=@pg1.person '@my1.person | .username, .email'
+  $ sq --insert=@pg1.person '@my1.person | .username, .email'
 
   # execute a database-native SQL query, specifying the source
-  sq sql --src=@pg1 'SELECT uid, username, email FROM person LIMIT 2'
+  $ sq sql --src=@pg1 'SELECT uid, username, email FROM person LIMIT 2'
 
   # copy a table (in the same source)
-  sq tbl copy @sakila_sl3.actor .actor2
+  $ sq tbl copy @sakila_sl3.actor .actor2
 
   # truncate tables
-  sq tbl truncate @sakila_sl3.actor2
+  $ sq tbl truncate @sakila_sl3.actor2
 
   # drop table
-  sq tbl drop @sakila_sl3.actor2
+  $ sq tbl drop @sakila_sl3.actor2
 `,
-		BashCompletionFunction: bashCompletionFunc,
 	}
 
 	addQueryCmdFlags(cmd)

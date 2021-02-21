@@ -35,19 +35,19 @@ to ping those sources, or "all" to ping all sources.
 
 The exit code is 1 if ping fails for any of the sources.`,
 		Example: `  # ping active data source
-  sq ping
+  $ sq ping
 
   # ping all data sources
-  sq ping all
+  $ sq ping all
 
   # ping @my1 and @pg1
-  sq ping @my1 @pg1
+  $ sq ping @my1 @pg1
 
   # ping @my1 with 2s timeout
-  sq ping @my1 --timeout=2s
+  $ sq ping @my1 --timeout=2s
 
   # output in TSV format
-  sq ping --tsv @my1`,
+  $ sq ping --tsv @my1`,
 	}
 
 	cmd.Flags().BoolP(flagTable, flagTableShort, false, flagTableUsage)

@@ -6,9 +6,27 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
-func newDriversCmd() (*cobra.Command, runFunc) {
+func newDriverCmd() (*cobra.Command, runFunc) {
 	cmd := &cobra.Command{
-		Use:   "drivers",
+		Use:   "driver",
+		Short: "List or manage drivers",
+
+		Example: `  # List drivers
+  $ sq driver ls
+
+  # Install User Driver [TBD]
+  $ sq driver install ./rss.sq.yml
+`,
+	}
+
+	return cmd, func(rc *RunContext, cmd *cobra.Command, args []string) error {
+		return cmd.Help()
+	}
+}
+
+func newDriverListCmd() (*cobra.Command, runFunc) {
+	cmd := &cobra.Command{
+		Use:   "ls",
 		Short: "List available drivers",
 	}
 
@@ -17,10 +35,10 @@ func newDriversCmd() (*cobra.Command, runFunc) {
 	cmd.Flags().BoolP(flagHeader, flagHeaderShort, false, flagHeaderUsage)
 	cmd.Flags().BoolP(flagMonochrome, flagMonochromeShort, false, flagMonochromeUsage)
 
-	return cmd, execDrivers
+	return cmd, execDriverList
 }
 
-func execDrivers(rc *RunContext, cmd *cobra.Command, args []string) error {
+func execDriverList(rc *RunContext, cmd *cobra.Command, args []string) error {
 	if len(args) > 0 {
 		return errz.Errorf("invalid arguments: zero arguments expected")
 	}

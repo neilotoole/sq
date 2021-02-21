@@ -17,13 +17,13 @@ func newTblCmd() (*cobra.Command, runFunc) {
 		Short: "Common actions on tables (copy, truncate, drop)",
 
 		Example: `  # Copy table actor to new table actor2
-  sq tbl copy @sakila_sl3.actor actor2
+  $ sq tbl copy @sakila_sl3.actor actor2
 
   # Truncate table actor2
-  sq tbl truncate @sakila_sl3.actor2
+  $ sq tbl truncate @sakila_sl3.actor2
 
   # Drop table actor2
-  sq tbl drop @sakila_sl3.actor2`,
+  $ sq tbl drop @sakila_sl3.actor2`,
 	}
 
 	return cmd, func(rc *RunContext, cmd *cobra.Command, args []string) error {
@@ -37,16 +37,16 @@ func newTblCopyCmd() (*cobra.Command, runFunc) {
 		Short: "Make a copy of a table",
 		Long:  `Make a copy of a table in the same database. The table data is also copied by default.`,
 		Example: `  # Copy table "actor" in @sakila_sl3" to new table "actor2"
-  sq tbl copy @sakila_sl3.actor .actor2
+  $ sq tbl copy @sakila_sl3.actor .actor2
 
   # Copy table "actor" in active src to table "actor2"
-  sq tbl copy .actor .actor2
+  $ sq tbl copy .actor .actor2
 
   # Copy table "actor" in active src to generated table name (e.g. "@sakila_sl3.actor_copy__1ae03e9b")
-  sq tbl copy .actor
+  $ sq tbl copy .actor
 
   # Copy table structure, but don't copy table data
-  sq tbl copy --data=false .actor
+  $ sq tbl copy --data=false .actor
 `,
 	}
 
@@ -142,13 +142,13 @@ func newTblTruncateCmd() (*cobra.Command, runFunc) {
 		Use:   "truncate @HANDLE.TABLE",
 		Short: "Truncate one or more tables",
 		Example: `  # truncate table "actor"" in source @sakila_sl3
-  sq tbl truncate @sakila_sl3.actor
+  $ sq tbl truncate @sakila_sl3.actor
 
   # truncate table "payment"" in the active src
-  sq tbl truncate .payment
+  $ sq tbl truncate .payment
 
   # truncate multiple tables
-  sq tbl truncate .payment @sakila_sl3.actor
+  $ sq tbl truncate .payment @sakila_sl3.actor
 `,
 	}
 
@@ -185,13 +185,13 @@ func newTblDropCmd() (*cobra.Command, runFunc) {
 		Use:   "drop @HANDLE.TABLE",
 		Short: "Drop one or more tables",
 		Example: `# drop table "actor" in src @sakila_sl3
-  sq tbl drop @sakila_sl3.actor
+  $ sq tbl drop @sakila_sl3.actor
 
   # drop table "payment"" in the active src
-  sq tbl drop .payment
+  $ sq tbl drop .payment
 
   # drop multiple tables
-  sq drop .payment @sakila_sl3.actor
+  $ sq drop .payment @sakila_sl3.actor
 `,
 	}
 

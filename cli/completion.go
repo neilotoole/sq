@@ -13,17 +13,38 @@ import (
 type completionFunc func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective)
 
 var (
-	_ completionFunc = completeHandles
+	_ completionFunc = completeHandle
 	_ completionFunc = completeHandleOrTable
+	_ completionFunc = completeDriverType
 )
 
-// completeHandles is a completionFunc that suggests handles.
-func completeHandles(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+// completeHandle is a completionFunc that suggests handles.
+func completeHandle(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	rc := RunContextFrom(cmd.Context())
 
 	handles := rc.Config.Sources.Handles()
 
 	return handles, cobra.ShellCompDirectiveNoFileComp
+}
+
+// completeDriverType is a completionFunc that suggests drivers.
+func completeDriverType(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	rc := RunContextFrom(cmd.Context())
+	if rc.databases == nil {
+		err := rc.preRunE()
+		if err != nil {
+			rc.Log.Error(err)
+			return nil, cobra.ShellCompDirectiveError
+		}
+	}
+
+	drivers := rc.registry.Drivers()
+	types := make([]string, len(drivers))
+	for i, driver := range rc.registry.Drivers() {
+		types[i] = string(driver.DriverMetadata().Type)
+	}
+
+	return types, cobra.ShellCompDirectiveNoFileComp
 }
 
 // completeHandleOrTable is a completionFunc that suggests

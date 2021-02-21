@@ -171,7 +171,7 @@ func execSLQPrint(rc *RunContext) error {
 // to the query. This allows a query where the first selector
 // segment is the table name.
 //
-//  $ sq '.person'  -->  sq '@active.person'
+//  $ sq '.person'  -->  $ sq '@active.person'
 func preprocessUserSLQ(rc *RunContext, args []string) (string, error) {
 	log, reg, dbases, srcs := rc.Log, rc.registry, rc.databases, rc.Config.Sources
 	activeSrc := srcs.Active()
@@ -300,8 +300,11 @@ func addQueryCmdFlags(cmd *cobra.Command) {
 
 	cmd.Flags().StringP(flagInsert, "", "", flagInsertUsage)
 	cmd.Flags().StringP(flagActiveSrc, "", "", flagActiveSrcUsage)
+	cmd.RegisterFlagCompletionFunc(flagActiveSrc, completeHandle)
 
 	// The driver flag can be used if data is piped to sq over stdin
 	cmd.Flags().StringP(flagDriver, "", "", flagQueryDriverUsage)
+	cmd.RegisterFlagCompletionFunc(flagDriver, completeDriverType)
+
 	cmd.Flags().StringP(flagSrcOptions, "", "", flagQuerySrcOptionsUsage)
 }

@@ -133,7 +133,7 @@ func ExecuteWith(ctx context.Context, rc *RunContext, args []string) error {
 		// currently (as of 2017) support executing the root command with
 		// arbitrary args. That is to say, if you execute:
 		//
-		//   sq arg1 arg2
+		//   $ sq arg1 arg2
 		//
 		// then cobra will look for a command named "arg1", and when it
 		// doesn't find such a command, it returns an "unknown command"
@@ -216,7 +216,9 @@ func newCommandTree(rc *RunContext) (rootCmd *cobra.Command) {
 	addCmd(rc, rootCmd, newPingCmd)
 
 	addCmd(rc, rootCmd, newVersionCmd)
-	addCmd(rc, rootCmd, newDriversCmd)
+
+	driverCmd := addCmd(rc, rootCmd, newDriverCmd)
+	addCmd(rc, driverCmd, newDriverListCmd)
 
 	tblCmd := addCmd(rc, rootCmd, newTblCmd)
 	addCmd(rc, tblCmd, newTblCopyCmd)

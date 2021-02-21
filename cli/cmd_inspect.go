@@ -13,16 +13,16 @@ func newInspectCmd() (*cobra.Command, runFunc) {
 		Args:              cobra.MaximumNArgs(1),
 		ValidArgsFunction: completeHandleOrTable,
 		Example: `  # inspect active data source
-  sq inspect
+  $ sq inspect
   
   # inspect @pg1 data source
-  sq inspect @pg1
+  $ sq inspect @pg1
   
   # inspect 'tbluser' in @pg1 data source
-  sq inspect @pg1.tbluser
+  $ sq inspect @pg1.tbluser
   
   # inspect 'tbluser' in active data source
-  sq inspect .tbluser
+  $ sq inspect .tbluser
   
   # inspect piped data
   cat data.xlsx | sq inspect`,
