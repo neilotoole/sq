@@ -89,21 +89,6 @@ func Execute(ctx context.Context, stdin *os.File, stdout, stderr io.Writer, args
 	return ExecuteWith(ctx, rc, args)
 }
 
-var completionRunContextMu sync.Mutex
-var completionRunContext *RunContext
-
-func setCompletionRunContext(rc *RunContext) {
-	completionRunContextMu.Lock()
-	defer completionRunContextMu.Unlock()
-	completionRunContext = rc
-}
-
-func getCompletionRunContext() *RunContext {
-	completionRunContextMu.Lock()
-	defer completionRunContextMu.Unlock()
-	return completionRunContext
-}
-
 // ExecuteWith invokes the cobra CLI framework, ultimately
 // resulting in a command being executed. The caller must
 // invoke rc.Close.
