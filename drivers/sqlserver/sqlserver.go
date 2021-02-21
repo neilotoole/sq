@@ -159,7 +159,7 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 	}
 	defer d.log.WarnIfFuncError(db.Close)
 
-	affected, err = sqlz.ExecResult(ctx, db, fmt.Sprintf("DELETE FROM %q", tbl))
+	affected, err = sqlz.ExecAffected(ctx, db, fmt.Sprintf("DELETE FROM %q", tbl))
 	if err != nil {
 		return affected, errz.Wrapf(err, "truncate: failed to delete from %q", tbl)
 	}
@@ -285,7 +285,7 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable 
 		stmt = fmt.Sprintf("SELECT TOP(0) * INTO %q FROM %q", toTable, fromTable)
 	}
 
-	affected, err := sqlz.ExecResult(ctx, db, stmt)
+	affected, err := sqlz.ExecAffected(ctx, db, stmt)
 	if err != nil {
 		return 0, errz.Err(err)
 	}

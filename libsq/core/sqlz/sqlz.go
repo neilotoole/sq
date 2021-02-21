@@ -42,9 +42,9 @@ type DB interface {
 	Preparer
 }
 
-// ExecResult invokes db.ExecContext, returning the count of rows
+// ExecAffected invokes db.ExecContext, returning the count of rows
 // affected and any error.
-func ExecResult(ctx context.Context, db Execer, query string, args ...interface{}) (affected int64, err error) {
+func ExecAffected(ctx context.Context, db Execer, query string, args ...interface{}) (affected int64, err error) {
 	var res sql.Result
 	res, err = db.ExecContext(ctx, query, args...)
 	if err != nil {

@@ -69,6 +69,10 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 )
 
+func init() {
+	cobra.EnableCommandSorting = false
+}
+
 // errNoMsg is a sentinel error indicating that a command
 // has failed, but that no error message should be printed.
 // This is useful in the case where any error information may
@@ -110,22 +114,36 @@ func ExecuteWith(ctx context.Context, rc *RunContext, args []string) error {
 	rootCmd := newCommandTree(rc)
 	var err error
 
-	if len(args) > 1 && args[1] == "__complete" {
-		// Special handling for autocomplete command
-		rootCmd.SetArgs(args[1:])
-	} else {
-		// The following is a workaround for the fact that cobra doesn't
-		// currently (as of 2017) support executing the root command with
-		// arbitrary args. That is to say, if you execute:
-		//
-		//   $ sq arg1 arg2
-		//
-		// then cobra will look for a command named "arg1", and when it
-		// doesn't find such a command, it returns an "unknown command"
-		// error.
+	// The following is a workaround for the fact that cobra doesn't
+	// currently (as of 2017) support executing the root command with
+	// arbitrary args. That is to say, if you execute:
+	//
+	//   $ sq arg1 arg2
+	//
+	// then cobra will look for a command named "arg1", and when it
+	// doesn't find such a command, it returns an "unknown command"
+	// error.
+	//
+	// NOTE: This entire mechanism is ancient. Perhaps cobra
+	//  now handles this situation?
 
-		// NOTE: This entire mechanism is ancient, and likely can
-		//  be simplified, if not entirely removed.
+	// We need to perform handling for autocomplete
+	if len(args) > 1 && args[1] == "__complete" {
+
+		if hasMatchingChildCommand(rootCmd, args[2]) {
+			// If there is a matching child command, we let rootCmd
+			// handle it, as per normal.
+			rootCmd.SetArgs(args[1:])
+		} else {
+			// There's no command matching the first argument to __complete.
+			// Therefore, we assume that we want to perform completion
+			// for the "slq" command (which is the pseudo-root command).
+			effectiveArgs := append([]string{"__complete", "slq"}, args[2:]...)
+			rootCmd.SetArgs(effectiveArgs)
+		}
+
+	} else {
+
 		var cmd *cobra.Command
 		cmd, _, err = rootCmd.Find(args[1:])
 		if err != nil {
@@ -133,7 +151,7 @@ func ExecuteWith(ctx context.Context, rc *RunContext, args []string) error {
 			// cobra still returns cmd though. It should be
 			// the root cmd.
 			if cmd == nil || cmd.Name() != rootCmd.Name() {
-				// should never happen
+				// Not sure if this can happen anymore? Can prob delete?
 				panic(fmt.Sprintf("bad cobra cmd state: %v", cmd))
 			}
 
@@ -141,8 +159,8 @@ func ExecuteWith(ctx context.Context, rc *RunContext, args []string) error {
 			// to the "slq" command by modifying args to
 			// look like: [query, arg1, arg2] -- noting that SetArgs
 			// doesn't want the first args element.
-			queryCmdArgs := append([]string{"slq"}, args[1:]...)
-			rootCmd.SetArgs(queryCmdArgs)
+			effectiveArgs := append([]string{"slq"}, args[1:]...)
+			rootCmd.SetArgs(effectiveArgs)
 		} else {
 			if cmd.Name() == rootCmd.Name() {
 				// Not sure why we have two paths to this, but it appears
@@ -162,7 +180,7 @@ func ExecuteWith(ctx context.Context, rc *RunContext, args []string) error {
 		}
 	}
 
-	// Execute the rootCmd; cobra will find the appropriate
+	// Execute rootCmd; cobra will find the appropriate
 	// sub-command, and ultimately execute that command.
 	err = rootCmd.ExecuteContext(rc.Context)
 	if err != nil {
@@ -172,11 +190,14 @@ func ExecuteWith(ctx context.Context, rc *RunContext, args []string) error {
 	return err
 }
 
+type commandTree struct {
+	rootCmd *cobra.Command
+}
+
 // newCommandTree builds sq's command tree, returning
 // the root cobra command.
 func newCommandTree(rc *RunContext) (rootCmd *cobra.Command) {
 	rootCmd = newRootCmd()
-
 	rootCmd.SetOut(rc.Out)
 	rootCmd.SetErr(rc.ErrOut)
 
@@ -185,6 +206,7 @@ func newCommandTree(rc *RunContext) (rootCmd *cobra.Command) {
 	// The behavior of cobra in this regard seems to have
 	// changed? This particular incantation currently does the trick.
 	rootCmd.Flags().Bool(flagHelp, false, "Show sq help")
+	rootCmd.Flags().SortFlags = false
 	helpCmd := addCmd(rc, rootCmd, newHelpCmd)
 	rootCmd.SetHelpCommand(helpCmd)
 
@@ -213,6 +235,18 @@ func newCommandTree(rc *RunContext) (rootCmd *cobra.Command) {
 	addCmd(rc, rootCmd, newCompletionCmd)
 
 	return rootCmd
+}
+
+// hasMatchingChildCommand returns true if s is a full or prefix
+// match for any of cmd's children. For example, if cmd has
+// children [inspect, ls, rm], then "insp" or "ls" would return true.
+func hasMatchingChildCommand(cmd *cobra.Command, s string) bool {
+	for _, child := range cmd.Commands() {
+		if strings.HasPrefix(child.Name(), s) {
+			return true
+		}
+	}
+	return false
 }
 
 // runFunc is an expansion of cobra's RunE func that

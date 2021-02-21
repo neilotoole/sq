@@ -171,7 +171,7 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable 
 		stmt += " WHERE 0"
 	}
 
-	affected, err := sqlz.ExecResult(ctx, db, stmt)
+	affected, err := sqlz.ExecAffected(ctx, db, stmt)
 	if err != nil {
 		return 0, errz.Err(err)
 	}
@@ -324,7 +324,7 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 		return 0, errz.Append(err, errz.Err(tx.Rollback()))
 	}
 
-	affected, err = sqlz.ExecResult(ctx, tx, fmt.Sprintf("TRUNCATE TABLE `%s`", tbl))
+	affected, err = sqlz.ExecAffected(ctx, tx, fmt.Sprintf("TRUNCATE TABLE `%s`", tbl))
 	if err != nil {
 		return affected, errz.Append(err, errz.Err(tx.Rollback()))
 	}

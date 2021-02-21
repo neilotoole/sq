@@ -299,6 +299,8 @@ func addQueryCmdFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolP(flagPretty, "", true, flagPrettyUsage)
 
 	cmd.Flags().StringP(flagInsert, "", "", flagInsertUsage)
+	cmd.RegisterFlagCompletionFunc(flagInsert, (&handleTableCompleter{onlySQL: true, handleRequired: true}).complete)
+
 	cmd.Flags().StringP(flagActiveSrc, "", "", flagActiveSrcUsage)
 	cmd.RegisterFlagCompletionFunc(flagActiveSrc, completeHandle)
 

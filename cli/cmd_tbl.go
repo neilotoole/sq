@@ -139,8 +139,13 @@ func execTblCopy(rc *RunContext, cmd *cobra.Command, args []string) error {
 
 func newTblTruncateCmd() (*cobra.Command, runFunc) {
 	cmd := &cobra.Command{
-		Use:   "truncate @HANDLE.TABLE",
+		Use:   "truncate @HANDLE.TABLE|.TABLE",
 		Short: "Truncate one or more tables",
+		Long: `Truncate one or more tables. Note that this command
+only applies to tables in SQL sources.`,
+		ValidArgsFunction: (&handleTableCompleter{
+			onlySQL: true,
+		}).complete,
 		Example: `  # truncate table "actor"" in source @sakila_sl3
   $ sq tbl truncate @sakila_sl3.actor
 

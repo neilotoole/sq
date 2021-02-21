@@ -52,7 +52,8 @@ func completeDriverType(cmd *cobra.Command, args []string, toComplete string) ([
 // ("@sakila_sl3.actor"). Its complete method is a completionFunc.
 type handleTableCompleter struct {
 	// onlySQL, when true, filters out non-SQL sources.
-	onlySQL bool
+	onlySQL        bool
+	handleRequired bool
 }
 
 // complete is the completionFunc for handleTableCompleter.
@@ -67,6 +68,9 @@ func (c *handleTableCompleter) complete(cmd *cobra.Command, args []string, toCom
 	defer cancelFn()
 
 	if toComplete == "" {
+		if c.handleRequired {
+			return c.completeHandle(ctx, rc, args, toComplete)
+		}
 		return c.completeEither(ctx, rc, args, toComplete)
 	}
 
@@ -80,6 +84,9 @@ func (c *handleTableCompleter) complete(cmd *cobra.Command, args []string, toCom
 	case '@':
 		return c.completeHandle(ctx, rc, args, toComplete)
 	case '.':
+		if c.handleRequired {
+			return nil, cobra.ShellCompDirectiveError
+		}
 		return c.completeTableOnly(ctx, rc, args, toComplete)
 	}
 }
@@ -129,9 +136,14 @@ func (c *handleTableCompleter) completeHandle(ctx context.Context, rc *RunContex
 	// But we could be dealing with just the handle ("@sakila_sl3")
 	// or a @HANDLE.TABLE ("@sakila_sl3.actor").
 	if strings.ContainsRune(toComplete, '.') {
+		if strings.Count(toComplete, ".") > 1 {
+			// Can only have one period
+			return nil, cobra.ShellCompDirectiveError
+		}
+
 		// It's a handle with a full handle and at least a
 		// partial table name, such as "@sakila_sl3.fil"
-		handle, partialTbl, err := source.ParseTableHandle(toComplete)
+		handle, partialTbl, err := source.ParseTableHandle(strings.TrimSuffix(toComplete, "."))
 		if err != nil {
 			rc.Log.Error(err)
 			return nil, cobra.ShellCompDirectiveError
