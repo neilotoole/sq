@@ -248,7 +248,7 @@ func addCmd(rc *RunContext, parentCmd *cobra.Command, cmdFn func() (*cobra.Comma
 	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
 		rc.Cmd = cmd
 		rc.Args = args
-		err := rc.preRunE()
+		err := rc.init()
 		return err
 	}
 
@@ -324,6 +324,9 @@ type RunContext struct {
 	// Log is the run's logger.
 	Log lg.Log
 
+	initOnce sync.Once
+	initErr  error
+
 	// writers holds the various writer types that
 	// the CLI uses to print output.
 	writers *writers
@@ -380,10 +383,21 @@ func newDefaultRunContext(ctx context.Context, stdin *os.File, stdout, stderr io
 	return rc, nil
 }
 
-// preRunE is invoked by cobra prior to the command RunE being
+// init is invoked by cobra prior to the command RunE being
 // invoked. It sets up the registry, databases, writers and related
-// fundamental components.
-func (rc *RunContext) preRunE() error {
+// fundamental components. Subsequent invocations of this method
+// are no-op.
+func (rc *RunContext) init() error {
+	rc.initOnce.Do(func() {
+		rc.initErr = rc.doInit()
+	})
+
+	return rc.initErr
+}
+
+// doInit performs the actual work of initializing rc.
+// It must only be invoked once.
+func (rc *RunContext) doInit() error {
 	rc.clnup = cleanup.New()
 	log, cfg := rc.Log, rc.Config
 
