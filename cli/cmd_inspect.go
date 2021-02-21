@@ -9,10 +9,12 @@ import (
 
 func newInspectCmd() (*cobra.Command, runFunc) {
 	cmd := &cobra.Command{
-		Use:               "inspect [@HANDLE|@HANDLE.TABLE|.TABLE]",
-		Args:              cobra.MaximumNArgs(1),
-		ValidArgsFunction: new(handleTableCompleter).complete,
-		Short:             "Inspect data source schema and stats",
+		Use:  "inspect [@HANDLE|@HANDLE.TABLE|.TABLE]",
+		Args: cobra.MaximumNArgs(1),
+		ValidArgsFunction: (&handleTableCompleter{
+			max: 1,
+		}).complete,
+		Short: "Inspect data source schema and stats",
 		Long: `Inspect a data source, or a particular table in a source,
 listing table details, column names and types, row counts, etc.
 If @HANDLE is not provided, the active data source is assumed.`,

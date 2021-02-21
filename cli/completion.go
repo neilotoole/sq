@@ -74,8 +74,17 @@ func completeTblCopy(cmd *cobra.Command, args []string, toComplete string) ([]st
 // ("@sakila_sl3.actor"). Its complete method is a completionFunc.
 type handleTableCompleter struct {
 	// onlySQL, when true, filters out non-SQL sources.
-	onlySQL        bool
+	onlySQL bool
+
+	// handleRequired, when true, means that only @HANDLE.TABLE
+	// suggestions are offered. That is, naked .TABLE suggestions
+	// will not be offered.
 	handleRequired bool
+
+	// max indicates the maximum number of completions
+	// to offer. Use 0 to indicate no limit. Frequently this
+	// is set to 1 to if the command accepts only one argument.
+	max int
 }
 
 // complete is the completionFunc for handleTableCompleter.
@@ -86,8 +95,15 @@ func (c *handleTableCompleter) complete(cmd *cobra.Command, args []string, toCom
 		return nil, cobra.ShellCompDirectiveError
 	}
 
+	// We don't want the user to wait around forever for
+	// shell completion, so we set a timeout. Typically
+	// this is something like 500ms.
 	ctx, cancelFn := context.WithTimeout(cmd.Context(), rc.Config.Defaults.ShellCompletionTimeout)
 	defer cancelFn()
+
+	if c.max > 0 && len(args) >= c.max {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
 
 	if toComplete == "" {
 		if c.handleRequired {
