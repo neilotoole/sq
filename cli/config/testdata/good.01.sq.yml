@@ -1,5 +1,6 @@
 defaults:
-  timeout: 10s
+  ping_timeout: 10s
+  shell_completion_timeout: 1s
   output_format: table
   output_header: true
 sources:

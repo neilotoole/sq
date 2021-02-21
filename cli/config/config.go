@@ -36,11 +36,21 @@ type Ext struct {
 	UserDrivers []*userdriver.DriverDef `yaml:"user_drivers" json:"user_drivers"`
 }
 
-// Defaults contains sq default values.
+// Defaults contains default config values.
 type Defaults struct {
-	Timeout time.Duration `yaml:"timeout" json:"timeout"`
-	Format  Format        `yaml:"output_format" json:"output_format"`
-	Header  bool          `yaml:"output_header" json:"output_header"`
+	// Format is the default output format: json, table, etc.
+	Format Format `yaml:"output_format" json:"output_format"`
+
+	// Header determines if a header should be printed (if relevant
+	// for the output format).
+	Header bool `yaml:"output_header" json:"output_header"`
+
+	// PingTimeout is the allowed time for a ping.
+	PingTimeout time.Duration `yaml:"ping_timeout" json:"ping_timeout"`
+
+	// ShellCompletionTimeout is the time allowed for the shell
+	// completion callback to execute.
+	ShellCompletionTimeout time.Duration `yaml:"shell_completion_timeout" json:"shell_completion_timeout"`
 }
 
 // New returns a config instance with default options set.
@@ -66,11 +76,15 @@ func initCfg(cfg *Config) {
 		cfg.Defaults.Format = FormatTable
 	}
 
-	if cfg.Defaults.Timeout == 0 {
+	if cfg.Defaults.PingTimeout == 0 {
 		// Probably should be setting this in the New function,
 		// but we haven't yet defined cli's behavior wrt
 		// a zero timeout. Does it mean no timeout?
-		cfg.Defaults.Timeout = 10 * time.Second
+		cfg.Defaults.PingTimeout = 10 * time.Second
+	}
+
+	if cfg.Defaults.ShellCompletionTimeout == 0 {
+		cfg.Defaults.ShellCompletionTimeout = time.Millisecond * 500
 	}
 }
 

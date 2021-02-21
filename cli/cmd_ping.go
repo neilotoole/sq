@@ -16,10 +16,11 @@ import (
 
 func newPingCmd() (*cobra.Command, runFunc) {
 	argsFn := func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		// Suggestions are: handles, plus the string "all".
 		rc := RunContextFrom(cmd.Context())
-		a := append([]string{"all"}, rc.Config.Sources.Handles()...)
+		suggestions := append([]string{"all"}, rc.Config.Sources.Handles()...)
 
-		return a, cobra.ShellCompDirectiveNoFileComp
+		return suggestions, cobra.ShellCompDirectiveNoFileComp
 	}
 
 	cmd := &cobra.Command{
@@ -105,7 +106,7 @@ func execPing(rc *RunContext, cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	timeout := cfg.Defaults.Timeout
+	timeout := cfg.Defaults.PingTimeout
 	if cmdFlagChanged(cmd, flagTimeout) {
 		timeout, _ = cmd.Flags().GetDuration(flagTimeout)
 	}
