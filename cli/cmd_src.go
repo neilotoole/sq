@@ -15,7 +15,7 @@ func newSrcCommand() (*cobra.Command, runFunc) {
    # set @my1 as active data source
    $ sq src @my1`,
 		Args:              cobra.MaximumNArgs(1),
-		ValidArgsFunction: completeHandle,
+		ValidArgsFunction: completeHandle(1),
 		Short:             "Get or set active data source",
 		Long: `Get or set active data source. If no argument provided, get the active data
 source. Otherwise, set @HANDLE as the active data source.`,

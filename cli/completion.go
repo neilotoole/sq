@@ -13,18 +13,24 @@ import (
 type completionFunc func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective)
 
 var (
-	_ completionFunc = completeHandle
 	_ completionFunc = completeDriverType
 	_ completionFunc = new(handleTableCompleter).complete
 )
 
 // completeHandle is a completionFunc that suggests handles.
-func completeHandle(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-	rc := RunContextFrom(cmd.Context())
+// The max arg is the maximum number of completions. Set to 0
+// for no limit.
+func completeHandle(max int) completionFunc {
+	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if max > 0 && len(args) >= max {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
 
-	handles := rc.Config.Sources.Handles()
+		rc := RunContextFrom(cmd.Context())
+		handles := rc.Config.Sources.Handles()
 
-	return handles, cobra.ShellCompDirectiveNoFileComp
+		return handles, cobra.ShellCompDirectiveNoFileComp
+	}
 }
 
 // completeDriverType is a completionFunc that suggests drivers.

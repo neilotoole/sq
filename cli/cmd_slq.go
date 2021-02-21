@@ -302,7 +302,7 @@ func addQueryCmdFlags(cmd *cobra.Command) {
 	cmd.RegisterFlagCompletionFunc(flagInsert, (&handleTableCompleter{onlySQL: true, handleRequired: true}).complete)
 
 	cmd.Flags().StringP(flagActiveSrc, "", "", flagActiveSrcUsage)
-	cmd.RegisterFlagCompletionFunc(flagActiveSrc, completeHandle)
+	cmd.RegisterFlagCompletionFunc(flagActiveSrc, completeHandle(0))
 
 	// The driver flag can be used if data is piped to sq over stdin
 	cmd.Flags().StringP(flagDriver, "", "", flagQueryDriverUsage)

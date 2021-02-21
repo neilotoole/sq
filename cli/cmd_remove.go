@@ -14,7 +14,7 @@ func newSrcRemoveCmd() (*cobra.Command, runFunc) {
 		Example:           `  $ sq rm @my1`,
 		Short:             "Remove data source",
 		Args:              cobra.ExactArgs(1),
-		ValidArgsFunction: completeHandle,
+		ValidArgsFunction: completeHandle(1),
 	}
 
 	return cmd, execSrcRemove
