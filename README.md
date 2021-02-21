@@ -52,6 +52,11 @@ sudo rpm -i https://github.com/neilotoole/sq/releases/latest/download/sq-linux-a
 yum localinstall -y https://github.com/neilotoole/sq/releases/latest/download/sq-linux-amd64.rpm
 ```
 
+## Shell completion
+
+Shell completion is available for `bash`, `zsh`, `fish`, and `powershell`.
+
+Execute `sq completion --help` for installation instructions.
 
 ## Quickstart
 

@@ -47,6 +47,28 @@ func completeDriverType(cmd *cobra.Command, args []string, toComplete string) ([
 	return types, cobra.ShellCompDirectiveNoFileComp
 }
 
+// completeTblCopy is a completionFunc for the "tbl copy" command.
+func completeTblCopy(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	// Example invocation:
+	//
+	//  sq tbl copy @sakila_sl3.actor .new_table
+	//
+	// Note that the second arg can only be a table name (and
+	// not a @HANDLE.TABLE), and it must also be a _new_ table
+	// (because we can't copy over an existing table), thus
+	// we only suggest "." for the second arg, forcing the user
+	// to supply the rest of that new table name.
+	switch len(args) {
+	case 0:
+		c := &handleTableCompleter{onlySQL: true}
+		return c.complete(cmd, args, toComplete)
+	case 1:
+		return []string{"."}, cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace
+	default:
+		return nil, cobra.ShellCompDirectiveError
+	}
+}
+
 // handleTableCompleter encapsulates completion of a handle
 // ("@sakila_sl3"), table (".actor"), or @HANDLE.TABLE
 // ("@sakila_sl3.actor"). Its complete method is a completionFunc.
@@ -125,7 +147,7 @@ func (c *handleTableCompleter) completeTableOnly(ctx context.Context, rc *RunCon
 		}
 	}
 
-	return suggestions, cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace
+	return suggestions, cobra.ShellCompDirectiveNoFileComp
 }
 
 // completeHandle returns suggestions given input beginning with

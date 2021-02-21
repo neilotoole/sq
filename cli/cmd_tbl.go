@@ -33,10 +33,11 @@ func newTblCmd() (*cobra.Command, runFunc) {
 
 func newTblCopyCmd() (*cobra.Command, runFunc) {
 	cmd := &cobra.Command{
-		Use:   "copy @HANDLE.TABLE NEWTABLE",
-		Short: "Make a copy of a table",
-		Long:  `Make a copy of a table in the same database. The table data is also copied by default.`,
-		Example: `  # Copy table "actor" in @sakila_sl3" to new table "actor2"
+		Use:               "copy @HANDLE.TABLE NEWTABLE",
+		Short:             "Make a copy of a table",
+		Long:              `Make a copy of a table in the same database. The table data is also copied by default.`,
+		ValidArgsFunction: completeTblCopy,
+		Example: `  # Copy table "actor" in @sakila_sl3 to new table "actor2"
   $ sq tbl copy @sakila_sl3.actor .actor2
 
   # Copy table "actor" in active src to table "actor2"
@@ -142,7 +143,7 @@ func newTblTruncateCmd() (*cobra.Command, runFunc) {
 		Use:   "truncate @HANDLE.TABLE|.TABLE",
 		Short: "Truncate one or more tables",
 		Long: `Truncate one or more tables. Note that this command
-only applies to tables in SQL sources.`,
+only applies to SQL sources.`,
 		ValidArgsFunction: (&handleTableCompleter{
 			onlySQL: true,
 		}).complete,
@@ -189,6 +190,11 @@ func newTblDropCmd() (*cobra.Command, runFunc) {
 	cmd := &cobra.Command{
 		Use:   "drop @HANDLE.TABLE",
 		Short: "Drop one or more tables",
+		Long: `Drop one or more tables. Note that this command
+only applies to SQL sources.`,
+		ValidArgsFunction: (&handleTableCompleter{
+			onlySQL: true,
+		}).complete,
 		Example: `# drop table "actor" in src @sakila_sl3
   $ sq tbl drop @sakila_sl3.actor
 
