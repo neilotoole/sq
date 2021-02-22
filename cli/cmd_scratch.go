@@ -2,7 +2,6 @@ package cli
 
 import (
 	"github.com/neilotoole/sq/drivers/sqlite3"
-	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/source"
 
 	"github.com/spf13/cobra"
@@ -10,12 +9,14 @@ import (
 
 // TODO: dump all this "internal" stuff: make the options as follows: @HANDLE, file, memory
 
-func newScratchCmd() (*cobra.Command, runFunc) {
+func newScratchCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use: "scratch [@HANDLE|internal|internal:file|internal:mem|@scratch]",
 		// This command is likely to be ditched in favor of a generalized "config" cmd
 		// such as "sq config scratchdb=@my1"
 		Hidden: true,
+		Args:   cobra.ExactArgs(1),
+		RunE:   execScratch,
 		Example: `   # get scratch data source
    $ sq scratch
    # set @my1 as scratch data source
@@ -35,14 +36,11 @@ source. Otherwise, set @HANDLE or an internal db as the scratch data source. The
 `,
 	}
 
-	return cmd, execScratch
+	return cmd
 }
 
-func execScratch(rc *RunContext, cmd *cobra.Command, args []string) error {
-	if len(args) > 1 {
-		return errz.Errorf(msgInvalidArgs)
-	}
-
+func execScratch(cmd *cobra.Command, args []string) error {
+	rc := RunContextFrom(cmd.Context())
 	cfg := rc.Config
 
 	var src *source.Source

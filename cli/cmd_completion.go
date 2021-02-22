@@ -1,17 +1,16 @@
 package cli
 
 import (
-	"os"
-
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
-func newCompletionCmd() (*cobra.Command, runFunc) {
+func newCompletionCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "completion [bash|zsh|fish|powershell]",
 		Short: "Generate completion script",
+		RunE:  execCompletion,
 		Long: `To load completions:
 
 Bash:
@@ -54,35 +53,23 @@ PS> sq completion powershell > sq.ps1
 		DisableFlagsInUseLine: true,
 		ValidArgs:             []string{"bash", "zsh", "fish", "powershell"},
 		Args:                  cobra.ExactValidArgs(1),
-		Run: func(cmd *cobra.Command, args []string) {
-			switch args[0] {
-			case "bash":
-				cmd.Root().GenBashCompletion(os.Stdout)
-			case "zsh":
-				cmd.Root().GenZshCompletion(os.Stdout)
-			case "fish":
-				cmd.Root().GenFishCompletion(os.Stdout, true)
-			case "powershell":
-				cmd.Root().GenPowerShellCompletion(os.Stdout)
-			}
-		},
 	}
 
-	return cmd, execCompletion
+	return cmd
 }
 
-func execCompletion(rc *RunContext, cmd *cobra.Command, args []string) error {
+func execCompletion(cmd *cobra.Command, args []string) error {
+	rc := RunContextFrom(cmd.Context())
 	switch args[0] {
 	case "bash":
-		cmd.Root().GenBashCompletion(rc.Out)
+		return cmd.Root().GenBashCompletion(rc.Out)
 	case "zsh":
-		cmd.Root().GenZshCompletion(rc.Out)
+		return cmd.Root().GenZshCompletion(rc.Out)
 	case "fish":
-		cmd.Root().GenFishCompletion(rc.Out, true)
+		return cmd.Root().GenFishCompletion(rc.Out, true)
 	case "powershell":
-		cmd.Root().GenPowerShellCompletion(rc.Out)
+		return cmd.Root().GenPowerShellCompletion(rc.Out)
 	default:
 		return errz.Errorf("invalid arg: %s", args[0])
 	}
-	return nil
 }

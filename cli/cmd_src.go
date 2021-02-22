@@ -2,13 +2,12 @@ package cli
 
 import (
 	"github.com/spf13/cobra"
-
-	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
-func newSrcCommand() (*cobra.Command, runFunc) {
+func newSrcCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use: "src [@HANDLE]",
+		Use:  "src [@HANDLE]",
+		RunE: execSrc,
 		Example: `  # get active data source
    $ sq src
 
@@ -21,14 +20,11 @@ func newSrcCommand() (*cobra.Command, runFunc) {
 source. Otherwise, set @HANDLE as the active data source.`,
 	}
 
-	return cmd, execSrc
+	return cmd
 }
 
-func execSrc(rc *RunContext, cmd *cobra.Command, args []string) error {
-	if len(args) > 1 {
-		return errz.Errorf(msgInvalidArgs)
-	}
-
+func execSrc(cmd *cobra.Command, args []string) error {
+	rc := RunContextFrom(cmd.Context())
 	cfg := rc.Config
 
 	if len(args) == 0 {

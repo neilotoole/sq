@@ -16,6 +16,7 @@ or dropping tables.
 
 For other installation options, see [here](https://github.com/neilotoole/sq/wiki/Home#Install).
 
+It is strongly advised to install [shell completion](#shell-completion).
 
 ### macOS
 

@@ -155,7 +155,7 @@ func (c *handleTableCompleter) complete(cmd *cobra.Command, args []string, toCom
 func (c *handleTableCompleter) completeTableOnly(ctx context.Context, rc *RunContext, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	activeSrc := rc.Config.Sources.Active()
 	if activeSrc == nil {
-		rc.Log.Debug("Active source is nil")
+		rc.Log.Error("Active source is nil")
 		return nil, cobra.ShellCompDirectiveError
 	}
 
@@ -256,10 +256,10 @@ func (c *handleTableCompleter) completeHandle(ctx context.Context, rc *RunContex
 	}
 
 	switch len(matchingHandles) {
-	case 0:
-		return nil, cobra.ShellCompDirectiveNoFileComp
 	default:
 		return matchingHandles, cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace
+	case 0:
+		return nil, cobra.ShellCompDirectiveNoFileComp
 	case 1:
 		// Only one handle match, so we will present that complete
 		// handle, plus a suggestion (@HANDLE.TABLE) for each of the tables
@@ -286,7 +286,7 @@ func (c *handleTableCompleter) completeEither(ctx context.Context, rc *RunContex
 	// plus the tables from the active source.
 	activeSrc := rc.Config.Sources.Active()
 	if activeSrc == nil {
-		rc.Log.Debug("Active source is nil")
+		rc.Log.Error("Active source is nil")
 		return nil, cobra.ShellCompDirectiveError
 	}
 

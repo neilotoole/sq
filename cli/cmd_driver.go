@@ -2,14 +2,15 @@ package cli
 
 import (
 	"github.com/spf13/cobra"
-
-	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
-func newDriverCmd() (*cobra.Command, runFunc) {
+func newDriverCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "driver",
 		Short: "List or manage drivers",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 
 		Example: `  # List drivers
   $ sq driver ls
@@ -19,15 +20,15 @@ func newDriverCmd() (*cobra.Command, runFunc) {
 `,
 	}
 
-	return cmd, func(rc *RunContext, cmd *cobra.Command, args []string) error {
-		return cmd.Help()
-	}
+	return cmd
 }
 
-func newDriverListCmd() (*cobra.Command, runFunc) {
+func newDriverListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "ls",
 		Short: "List available drivers",
+		Args:  cobra.ExactArgs(0),
+		RunE:  execDriverList,
 	}
 
 	cmd.Flags().BoolP(flagJSON, flagJSONShort, false, flagJSONUsage)
@@ -35,14 +36,11 @@ func newDriverListCmd() (*cobra.Command, runFunc) {
 	cmd.Flags().BoolP(flagHeader, flagHeaderShort, false, flagHeaderUsage)
 	cmd.Flags().BoolP(flagMonochrome, flagMonochromeShort, false, flagMonochromeUsage)
 
-	return cmd, execDriverList
+	return cmd
 }
 
-func execDriverList(rc *RunContext, cmd *cobra.Command, args []string) error {
-	if len(args) > 0 {
-		return errz.Errorf("invalid arguments: zero arguments expected")
-	}
-
+func execDriverList(cmd *cobra.Command, args []string) error {
+	rc := RunContextFrom(cmd.Context())
 	drvrs := rc.registry.DriversMetadata()
 	return rc.writers.metaw.DriverMetadata(drvrs)
 }

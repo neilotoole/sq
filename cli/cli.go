@@ -82,7 +82,7 @@ var errNoMsg = errors.New("")
 // Execute builds a RunContext using ctx and default
 // settings, and invokes ExecuteWith.
 func Execute(ctx context.Context, stdin *os.File, stdout, stderr io.Writer, args []string) error {
-	rc, err := newDefaultRunContext(ctx, stdin, stdout, stderr)
+	rc, err := newDefaultRunContext(stdin, stdout, stderr)
 	if err != nil {
 		printError(rc, err)
 		return err
@@ -109,7 +109,6 @@ func ExecuteWith(ctx context.Context, rc *RunContext, args []string) error {
 	//  support for Context.
 
 	ctx = WithRunContext(ctx, rc)
-	rc.Context = ctx
 
 	rootCmd := newCommandTree(rc)
 	var err error
@@ -118,18 +117,17 @@ func ExecuteWith(ctx context.Context, rc *RunContext, args []string) error {
 	// currently (as of 2017) support executing the root command with
 	// arbitrary args. That is to say, if you execute:
 	//
-	//   $ sq arg1 arg2
+	//   $ sq @sakila_sl3.actor
 	//
-	// then cobra will look for a command named "arg1", and when it
-	// doesn't find such a command, it returns an "unknown command"
-	// error.
+	// then cobra will look for a command named "@sakila_sl3.actor",
+	// and when it doesn't find such a command, it returns
+	// an "unknown command" error.
 	//
 	// NOTE: This entire mechanism is ancient. Perhaps cobra
 	//  now handles this situation?
 
 	// We need to perform handling for autocomplete
 	if len(args) > 0 && args[0] == "__complete" {
-
 		if hasMatchingChildCommand(rootCmd, args[1]) {
 			// If there is a matching child command, we let rootCmd
 			// handle it, as per normal.
@@ -141,9 +139,7 @@ func ExecuteWith(ctx context.Context, rc *RunContext, args []string) error {
 			effectiveArgs := append([]string{"__complete", "slq"}, args[1:]...)
 			rootCmd.SetArgs(effectiveArgs)
 		}
-
 	} else {
-
 		var cmd *cobra.Command
 		cmd, _, err = rootCmd.Find(args)
 		if err != nil {
@@ -182,7 +178,7 @@ func ExecuteWith(ctx context.Context, rc *RunContext, args []string) error {
 
 	// Execute rootCmd; cobra will find the appropriate
 	// sub-command, and ultimately execute that command.
-	err = rootCmd.ExecuteContext(rc.Context)
+	err = rootCmd.ExecuteContext(ctx)
 	if err != nil {
 		printError(rc, err)
 	}
@@ -210,32 +206,32 @@ func newCommandTree(rc *RunContext) (rootCmd *cobra.Command) {
 	// changed? This particular incantation currently does the trick.
 	rootCmd.Flags().Bool(flagHelp, false, "Show sq help")
 	rootCmd.Flags().SortFlags = false
-	helpCmd := addCmd(rc, rootCmd, newHelpCmd)
+	helpCmd := addCmd(rc, rootCmd, newHelpCmd())
 	rootCmd.SetHelpCommand(helpCmd)
 
-	addCmd(rc, rootCmd, newSLQCmd)
-	addCmd(rc, rootCmd, newSQLCmd)
+	addCmd(rc, rootCmd, newSLQCmd())
+	addCmd(rc, rootCmd, newSQLCmd())
 
-	addCmd(rc, rootCmd, newSrcCommand)
-	addCmd(rc, rootCmd, newSrcAddCmd)
-	addCmd(rc, rootCmd, newSrcListCmd)
-	addCmd(rc, rootCmd, newSrcRemoveCmd)
-	addCmd(rc, rootCmd, newScratchCmd)
+	addCmd(rc, rootCmd, newSrcCommand())
+	addCmd(rc, rootCmd, newSrcAddCmd())
+	addCmd(rc, rootCmd, newSrcListCmd())
+	addCmd(rc, rootCmd, newSrcRemoveCmd())
+	addCmd(rc, rootCmd, newScratchCmd())
 
-	addCmd(rc, rootCmd, newInspectCmd)
-	addCmd(rc, rootCmd, newPingCmd)
+	addCmd(rc, rootCmd, newInspectCmd())
+	addCmd(rc, rootCmd, newPingCmd())
 
-	addCmd(rc, rootCmd, newVersionCmd)
+	addCmd(rc, rootCmd, newVersionCmd())
 
-	driverCmd := addCmd(rc, rootCmd, newDriverCmd)
-	addCmd(rc, driverCmd, newDriverListCmd)
+	driverCmd := addCmd(rc, rootCmd, newDriverCmd())
+	addCmd(rc, driverCmd, newDriverListCmd())
 
-	tblCmd := addCmd(rc, rootCmd, newTblCmd)
-	addCmd(rc, tblCmd, newTblCopyCmd)
-	addCmd(rc, tblCmd, newTblTruncateCmd)
-	addCmd(rc, tblCmd, newTblDropCmd)
+	tblCmd := addCmd(rc, rootCmd, newTblCmd())
+	addCmd(rc, tblCmd, newTblCopyCmd())
+	addCmd(rc, tblCmd, newTblTruncateCmd())
+	addCmd(rc, tblCmd, newTblDropCmd())
 
-	addCmd(rc, rootCmd, newCompletionCmd)
+	addCmd(rc, rootCmd, newCompletionCmd())
 
 	return rootCmd
 }
@@ -252,14 +248,8 @@ func hasMatchingChildCommand(cmd *cobra.Command, s string) bool {
 	return false
 }
 
-// runFunc is an expansion of cobra's RunE func that
-// adds a RunContext as the first param.
-type runFunc func(rc *RunContext, cmd *cobra.Command, args []string) error
-
 // addCmd adds the command returned by cmdFn to parentCmd.
-func addCmd(rc *RunContext, parentCmd *cobra.Command, cmdFn func() (*cobra.Command, runFunc)) *cobra.Command {
-	cmd, fn := cmdFn()
-
+func addCmd(rc *RunContext, parentCmd, cmd *cobra.Command) *cobra.Command {
 	cmd.Flags().SortFlags = false
 
 	if cmd.Name() != "help" {
@@ -274,14 +264,15 @@ func addCmd(rc *RunContext, parentCmd *cobra.Command, cmdFn func() (*cobra.Comma
 		return err
 	}
 
+	runE := cmd.RunE
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		if cmd.Flags().Changed(flagVersion) {
 			// Bit of a hack: flag --version on any command
 			// results in execVersion being invoked
-			return execVersion(rc, cmd, args)
+			return execVersion(cmd, args)
 		}
 
-		return fn(rc, cmd, args)
+		return runE(cmd, args)
 	}
 
 	// We handle the errors ourselves (rather than let cobra do it)
@@ -313,9 +304,6 @@ func RunContextFrom(ctx context.Context) *RunContext {
 // to all execX funcs. The Close method should be invoked when
 // the RunContext is no longer needed.
 type RunContext struct {
-	// Context is the run's context.Context.
-	Context context.Context
-
 	// Stdin typically is os.Stdin, but can be changed for testing.
 	Stdin *os.File
 
@@ -368,12 +356,11 @@ type RunContext struct {
 // example if there's a config error). We do this to provide
 // enough framework so that such an error can be logged or
 // printed per the normal mechanisms if at all possible.
-func newDefaultRunContext(ctx context.Context, stdin *os.File, stdout, stderr io.Writer) (*RunContext, error) {
+func newDefaultRunContext(stdin *os.File, stdout, stderr io.Writer) (*RunContext, error) {
 	rc := &RunContext{
-		Context: ctx,
-		Stdin:   stdin,
-		Out:     stdout,
-		ErrOut:  stderr,
+		Stdin:  stdin,
+		Out:    stdout,
+		ErrOut: stderr,
 	}
 
 	log, clnup, loggingErr := defaultLogging()

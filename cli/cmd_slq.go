@@ -15,26 +15,28 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 )
 
-func newSLQCmd() (*cobra.Command, runFunc) {
+func newSLQCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:               "slq",
 		Short:             "Execute SLQ query",
 		Hidden:            true,
 		Args:              cobra.MaximumNArgs(1),
+		RunE:              execSLQ,
 		ValidArgsFunction: completeSLQ,
 	}
 
 	addQueryCmdFlags(cmd)
 	cmd.Flags().Bool(flagVersion, false, flagVersionUsage)
 
-	return cmd, execSLQ
+	return cmd
 }
 
-func execSLQ(rc *RunContext, cmd *cobra.Command, args []string) error {
+func execSLQ(cmd *cobra.Command, args []string) error {
+	rc := RunContextFrom(cmd.Context())
 	srcs := rc.Config.Sources
 
 	// check if there's input on stdin
-	src, err := checkStdinSource(rc)
+	src, err := checkStdinSource(cmd.Context(), rc)
 	if err != nil {
 		return err
 	}
@@ -67,7 +69,7 @@ func execSLQ(rc *RunContext, cmd *cobra.Command, args []string) error {
 	if !cmdFlagChanged(cmd, flagInsert) {
 		// The user didn't specify the --insert=@src.tbl flag,
 		// so we just want to print the records.
-		return execSLQPrint(rc)
+		return execSLQPrint(cmd.Context(), rc)
 	}
 
 	// Instead of printing the records, they will be
@@ -87,19 +89,19 @@ func execSLQ(rc *RunContext, cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return execSLQInsert(rc, destSrc, destTbl)
+	return execSLQInsert(cmd.Context(), rc, destSrc, destTbl)
 }
 
 // execSQLInsert executes the SLQ and inserts resulting records
 // into destTbl in destSrc.
-func execSLQInsert(rc *RunContext, destSrc *source.Source, destTbl string) error {
+func execSLQInsert(ctx context.Context, rc *RunContext, destSrc *source.Source, destTbl string) error {
 	args, srcs, dbases := rc.Args, rc.Config.Sources, rc.databases
-	slq, err := preprocessUserSLQ(rc, args)
+	slq, err := preprocessUserSLQ(ctx, rc, args)
 	if err != nil {
 		return err
 	}
 
-	ctx, cancelFn := context.WithCancel(rc.Context)
+	ctx, cancelFn := context.WithCancel(ctx)
 	defer cancelFn()
 
 	destDB, err := dbases.Open(ctx, destSrc)
@@ -134,14 +136,14 @@ func execSLQInsert(rc *RunContext, destSrc *source.Source, destTbl string) error
 }
 
 // execSLQPrint executes the SLQ query, and prints output to writer.
-func execSLQPrint(rc *RunContext) error {
-	slq, err := preprocessUserSLQ(rc, rc.Args)
+func execSLQPrint(ctx context.Context, rc *RunContext) error {
+	slq, err := preprocessUserSLQ(ctx, rc, rc.Args)
 	if err != nil {
 		return err
 	}
 
 	recw := output.NewRecordWriterAdapter(rc.writers.recordw)
-	execErr := libsq.ExecuteSLQ(rc.Context, rc.Log, rc.databases, rc.databases, rc.Config.Sources, slq, recw)
+	execErr := libsq.ExecuteSLQ(ctx, rc.Log, rc.databases, rc.databases, rc.Config.Sources, slq, recw)
 	_, waitErr := recw.Wait()
 	if execErr != nil {
 		return execErr
@@ -174,7 +176,7 @@ func execSLQPrint(rc *RunContext) error {
 // segment is the table name.
 //
 //  $ sq '.person'  -->  $ sq '@active.person'
-func preprocessUserSLQ(rc *RunContext, args []string) (string, error) {
+func preprocessUserSLQ(ctx context.Context, rc *RunContext, args []string) (string, error) {
 	log, reg, dbases, srcs := rc.Log, rc.registry, rc.databases, rc.Config.Sources
 	activeSrc := srcs.Active()
 
@@ -206,13 +208,13 @@ func preprocessUserSLQ(rc *RunContext, args []string) (string, error) {
 			// This isn't a monotable src, so we can't
 			// just select @stdin.data. Instead we'll select
 			// the first table name, as found in the source meta.
-			dbase, err := dbases.Open(rc.Context, activeSrc)
+			dbase, err := dbases.Open(ctx, activeSrc)
 			if err != nil {
 				return "", err
 			}
 			defer log.WarnIfCloseError(dbase)
 
-			srcMeta, err := dbase.SourceMetadata(rc.Context)
+			srcMeta, err := dbase.SourceMetadata(ctx)
 			if err != nil {
 				return "", err
 			}
@@ -301,14 +303,14 @@ func addQueryCmdFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolP(flagPretty, "", true, flagPrettyUsage)
 
 	cmd.Flags().StringP(flagInsert, "", "", flagInsertUsage)
-	cmd.RegisterFlagCompletionFunc(flagInsert, (&handleTableCompleter{onlySQL: true, handleRequired: true}).complete)
+	_ = cmd.RegisterFlagCompletionFunc(flagInsert, (&handleTableCompleter{onlySQL: true, handleRequired: true}).complete)
 
 	cmd.Flags().StringP(flagActiveSrc, "", "", flagActiveSrcUsage)
-	cmd.RegisterFlagCompletionFunc(flagActiveSrc, completeHandle(0))
+	_ = cmd.RegisterFlagCompletionFunc(flagActiveSrc, completeHandle(0))
 
 	// The driver flag can be used if data is piped to sq over stdin
 	cmd.Flags().StringP(flagDriver, "", "", flagQueryDriverUsage)
-	cmd.RegisterFlagCompletionFunc(flagDriver, completeDriverType)
+	_ = cmd.RegisterFlagCompletionFunc(flagDriver, completeDriverType)
 
 	cmd.Flags().StringP(flagSrcOptions, "", "", flagQuerySrcOptionsUsage)
 }

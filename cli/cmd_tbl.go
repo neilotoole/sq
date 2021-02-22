@@ -11,11 +11,13 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 )
 
-func newTblCmd() (*cobra.Command, runFunc) {
+func newTblCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "tbl",
 		Short: "Common actions on tables (copy, truncate, drop)",
-
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 		Example: `  # Copy table actor to new table actor2
   $ sq tbl copy @sakila_sl3.actor actor2
 
@@ -26,17 +28,16 @@ func newTblCmd() (*cobra.Command, runFunc) {
   $ sq tbl drop @sakila_sl3.actor2`,
 	}
 
-	return cmd, func(rc *RunContext, cmd *cobra.Command, args []string) error {
-		return cmd.Help()
-	}
+	return cmd
 }
 
-func newTblCopyCmd() (*cobra.Command, runFunc) {
+func newTblCopyCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:               "copy @HANDLE.TABLE NEWTABLE",
 		Short:             "Make a copy of a table",
 		Long:              `Make a copy of a table in the same database. The table data is also copied by default.`,
 		ValidArgsFunction: completeTblCopy,
+		RunE:              execTblCopy,
 		Example: `  # Copy table "actor" in @sakila_sl3 to new table "actor2"
   $ sq tbl copy @sakila_sl3.actor .actor2
 
@@ -54,10 +55,11 @@ func newTblCopyCmd() (*cobra.Command, runFunc) {
 	cmd.Flags().BoolP(flagJSON, flagJSONShort, false, flagJSONUsage)
 	cmd.Flags().Bool(flagTblData, true, flagTblDataUsage)
 
-	return cmd, execTblCopy
+	return cmd
 }
 
-func execTblCopy(rc *RunContext, cmd *cobra.Command, args []string) error {
+func execTblCopy(cmd *cobra.Command, args []string) error {
+	rc := RunContextFrom(cmd.Context())
 	if len(args) == 0 || len(args) > 2 {
 		return errz.New("one or two table args required")
 	}
@@ -109,12 +111,12 @@ func execTblCopy(rc *RunContext, cmd *cobra.Command, args []string) error {
 	}
 
 	var dbase driver.Database
-	dbase, err = rc.databases.Open(rc.Context, tblHandles[0].src)
+	dbase, err = rc.databases.Open(cmd.Context(), tblHandles[0].src)
 	if err != nil {
 		return err
 	}
 
-	copied, err := sqlDrvr.CopyTable(rc.Context, dbase.DB(), tblHandles[0].tbl, tblHandles[1].tbl, copyData)
+	copied, err := sqlDrvr.CopyTable(cmd.Context(), dbase.DB(), tblHandles[0].tbl, tblHandles[1].tbl, copyData)
 	if err != nil {
 		return errz.Wrapf(err, "failed tbl copy %s.%s --> %s.%s",
 			tblHandles[0].handle, tblHandles[0].tbl,
@@ -138,12 +140,13 @@ func execTblCopy(rc *RunContext, cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func newTblTruncateCmd() (*cobra.Command, runFunc) {
+func newTblTruncateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "truncate @HANDLE.TABLE|.TABLE",
 		Short: "Truncate one or more tables",
 		Long: `Truncate one or more tables. Note that this command
 only applies to SQL sources.`,
+		RunE: execTblTruncate,
 		ValidArgsFunction: (&handleTableCompleter{
 			onlySQL: true,
 		}).complete,
@@ -161,10 +164,11 @@ only applies to SQL sources.`,
 	cmd.Flags().BoolP(flagJSON, flagJSONShort, false, flagJSONUsage)
 	cmd.Flags().BoolP(flagTable, flagTableShort, false, flagTableUsage)
 
-	return cmd, execTblTruncate
+	return cmd
 }
 
-func execTblTruncate(rc *RunContext, cmd *cobra.Command, args []string) (err error) {
+func execTblTruncate(cmd *cobra.Command, args []string) (err error) {
+	rc := RunContextFrom(cmd.Context())
 	var tblHandles []tblHandle
 	tblHandles, err = parseTableHandleArgs(rc.registry, rc.Config.Sources, args)
 	if err != nil {
@@ -173,7 +177,7 @@ func execTblTruncate(rc *RunContext, cmd *cobra.Command, args []string) (err err
 
 	for _, tblH := range tblHandles {
 		var affected int64
-		affected, err = tblH.drvr.Truncate(rc.Context, tblH.src, tblH.tbl, true)
+		affected, err = tblH.drvr.Truncate(cmd.Context(), tblH.src, tblH.tbl, true)
 		if err != nil {
 			return err
 		}
@@ -186,12 +190,13 @@ func execTblTruncate(rc *RunContext, cmd *cobra.Command, args []string) (err err
 	return nil
 }
 
-func newTblDropCmd() (*cobra.Command, runFunc) {
+func newTblDropCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "drop @HANDLE.TABLE",
 		Short: "Drop one or more tables",
 		Long: `Drop one or more tables. Note that this command
 only applies to SQL sources.`,
+		RunE: execTblDrop,
 		ValidArgsFunction: (&handleTableCompleter{
 			onlySQL: true,
 		}).complete,
@@ -206,10 +211,11 @@ only applies to SQL sources.`,
 `,
 	}
 
-	return cmd, execTblDrop
+	return cmd
 }
 
-func execTblDrop(rc *RunContext, cmd *cobra.Command, args []string) (err error) {
+func execTblDrop(cmd *cobra.Command, args []string) (err error) {
+	rc := RunContextFrom(cmd.Context())
 	var tblHandles []tblHandle
 	tblHandles, err = parseTableHandleArgs(rc.registry, rc.Config.Sources, args)
 	if err != nil {
@@ -223,11 +229,11 @@ func execTblDrop(rc *RunContext, cmd *cobra.Command, args []string) (err error) 
 		}
 
 		var dbase driver.Database
-		dbase, err = rc.databases.Open(rc.Context, tblH.src)
+		dbase, err = rc.databases.Open(cmd.Context(), tblH.src)
 		if err != nil {
 			return err
 		}
-		err = sqlDrvr.DropTable(rc.Context, dbase.DB(), tblH.tbl, false)
+		err = sqlDrvr.DropTable(cmd.Context(), dbase.DB(), tblH.tbl, false)
 		if err != nil {
 			return err
 		}

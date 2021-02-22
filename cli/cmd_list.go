@@ -2,29 +2,23 @@ package cli
 
 import (
 	"github.com/spf13/cobra"
-
-	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
-func newSrcListCmd() (*cobra.Command, runFunc) {
+func newSrcListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "ls",
 		Short: "List data sources",
+		Args:  cobra.ExactArgs(0),
+		RunE:  execSrcList,
 	}
 
 	cmd.Flags().BoolP(flagVerbose, flagVerboseShort, false, flagVerboseUsage)
 	cmd.Flags().BoolP(flagHeader, flagHeaderShort, false, flagHeaderUsage)
-	return cmd, execSrcList
+	return cmd
 }
 
-func execSrcList(rc *RunContext, cmd *cobra.Command, args []string) error {
-	ctx := cmd.Context()
-	rc2 := RunContextFrom(ctx)
-	_ = rc2
-
-	if len(args) != 0 {
-		return errz.Errorf(msgInvalidArgs)
-	}
+func execSrcList(cmd *cobra.Command, args []string) error {
+	rc := RunContextFrom(cmd.Context())
 
 	return rc.writers.srcw.SourceSet(rc.Config.Sources)
 }

@@ -29,7 +29,6 @@ func newTestRunCtx(log lg.Log) (rc *cli.RunContext, out, errOut *bytes.Buffer) {
 	errOut = &bytes.Buffer{}
 
 	rc = &cli.RunContext{
-		Context:     context.Background(),
 		Stdin:       os.Stdin,
 		Out:         out,
 		ErrOut:      errOut,
@@ -102,7 +101,7 @@ func (ru *run) exec(args ...string) error {
 		return err
 	}
 
-	execErr := cli.ExecuteWith(ru.rc.Context, ru.rc, args)
+	execErr := cli.ExecuteWith(context.Background(), ru.rc, args)
 
 	if !ru.hushOutput {
 		// We log sq's output now (before calling rc.Close) because

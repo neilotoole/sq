@@ -16,7 +16,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
-func newSQLCmd() (*cobra.Command, runFunc) {
+func newSQLCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "sql QUERY|STMT",
 		Short: "Execute DB-native SQL query or statement",
@@ -28,6 +28,7 @@ If flag --query is set, sq will run the input as a query
 (SELECT) and return the query rows. If flag --exec is set,
 sq will execute the input and return the result. If neither
 flag is set, sq attempts to determine the appropriate mode.`,
+		RunE: execSQL,
 		Example: `  # Select from active source
   $ sq sql 'SELECT * FROM actor'
 
@@ -48,10 +49,11 @@ flag is set, sq attempts to determine the appropriate mode.`,
 	// User explicitly wants to execute the SQL using sql.DB.Exec
 	cmd.Flags().Bool(flagSQLExec, false, flagSQLExecUsage)
 
-	return cmd, execSQL
+	return cmd
 }
 
-func execSQL(rc *RunContext, cmd *cobra.Command, args []string) error {
+func execSQL(cmd *cobra.Command, args []string) error {
+	rc := RunContextFrom(cmd.Context())
 	switch len(args) {
 	default:
 		// FIXME: we should allow multiple args and concat them
@@ -64,7 +66,7 @@ func execSQL(rc *RunContext, cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	err := determineSources(rc)
+	err := determineSources(cmd.Context(), rc)
 	if err != nil {
 		return err
 	}
@@ -77,7 +79,7 @@ func execSQL(rc *RunContext, cmd *cobra.Command, args []string) error {
 	if !cmdFlagChanged(cmd, flagInsert) {
 		// The user didn't specify the --insert=@src.tbl flag,
 		// so we just want to print the records.
-		return execSQLPrint(rc, activeSrc)
+		return execSQLPrint(cmd.Context(), rc, activeSrc)
 	}
 
 	// Instead of printing the records, they will be
@@ -97,20 +99,20 @@ func execSQL(rc *RunContext, cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return execSQLInsert(rc, activeSrc, destSrc, destTbl)
+	return execSQLInsert(cmd.Context(), rc, activeSrc, destSrc, destTbl)
 }
 
 // execSQLPrint executes the SQL and prints resulting records
 // to the configured writer.
-func execSQLPrint(rc *RunContext, fromSrc *source.Source) error {
+func execSQLPrint(ctx context.Context, rc *RunContext, fromSrc *source.Source) error {
 	args := rc.Args
-	dbase, err := rc.databases.Open(rc.Context, fromSrc)
+	dbase, err := rc.databases.Open(ctx, fromSrc)
 	if err != nil {
 		return err
 	}
 
 	recw := output.NewRecordWriterAdapter(rc.writers.recordw)
-	err = libsq.QuerySQL(rc.Context, rc.Log, dbase, recw, args[0])
+	err = libsq.QuerySQL(ctx, rc.Log, dbase, recw, args[0])
 	if err != nil {
 		return err
 	}
@@ -120,10 +122,10 @@ func execSQLPrint(rc *RunContext, fromSrc *source.Source) error {
 
 // execSQLInsert executes the SQL and inserts resulting records
 // into destTbl in destSrc.
-func execSQLInsert(rc *RunContext, fromSrc, destSrc *source.Source, destTbl string) error {
+func execSQLInsert(ctx context.Context, rc *RunContext, fromSrc, destSrc *source.Source, destTbl string) error {
 	args := rc.Args
 	dbases := rc.databases
-	ctx, cancelFn := context.WithCancel(rc.Context)
+	ctx, cancelFn := context.WithCancel(ctx)
 	defer cancelFn()
 
 	fromDB, err := dbases.Open(ctx, fromSrc)

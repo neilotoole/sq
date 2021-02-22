@@ -12,9 +12,10 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 )
 
-func newSrcAddCmd() (*cobra.Command, runFunc) {
+func newSrcAddCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use: "add [--driver=TYPE] [--handle=@HANDLE] LOCATION",
+		Use:  "add [--driver=TYPE] [--handle=@HANDLE] LOCATION",
+		RunE: execSrcAdd,
 		Example: `  # add a Postgres source; will have generated handle @sakila_pg
   $ sq add 'postgres://user:pass@localhost/sakila?sslmode=disable'
   
@@ -79,13 +80,14 @@ At a minimum, the following drivers are bundled:
 	}
 
 	cmd.Flags().StringP(flagDriver, flagDriverShort, "", flagDriverUsage)
-	cmd.RegisterFlagCompletionFunc(flagDriver, completeDriverType)
+	_ = cmd.RegisterFlagCompletionFunc(flagDriver, completeDriverType)
 	cmd.Flags().StringP(flagSrcOptions, "", "", flagSrcOptionsUsage)
 	cmd.Flags().StringP(flagHandle, flagHandleShort, "", flagHandleUsage)
-	return cmd, execSrcAdd
+	return cmd
 }
 
-func execSrcAdd(rc *RunContext, cmd *cobra.Command, args []string) error {
+func execSrcAdd(cmd *cobra.Command, args []string) error {
+	rc := RunContextFrom(cmd.Context())
 	if len(args) != 1 {
 		return errz.Errorf(msgInvalidArgs)
 	}
@@ -98,9 +100,8 @@ func execSrcAdd(rc *RunContext, cmd *cobra.Command, args []string) error {
 	if cmd.Flags().Changed(flagDriver) {
 		val, _ := cmd.Flags().GetString(flagDriver)
 		typ = source.Type(strings.TrimSpace(val))
-
 	} else {
-		typ, err = rc.files.Type(rc.Context, loc)
+		typ, err = rc.files.Type(cmd.Context(), loc)
 		if err != nil {
 			return err
 		}
@@ -186,7 +187,7 @@ func execSrcAdd(rc *RunContext, cmd *cobra.Command, args []string) error {
 	}
 
 	// TODO: should we really be pinging this src right now?
-	err = drvr.Ping(rc.Context, src)
+	err = drvr.Ping(cmd.Context(), src)
 	if err != nil {
 		return errz.Wrapf(err, "failed to ping %s [%s]", src.Handle, src.RedactedLocation())
 	}

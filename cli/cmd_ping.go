@@ -14,7 +14,7 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 )
 
-func newPingCmd() (*cobra.Command, runFunc) {
+func newPingCmd() *cobra.Command {
 	argsFn := func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		// Suggestions are: handles, plus the string "all".
 		rc := RunContextFrom(cmd.Context())
@@ -26,6 +26,7 @@ func newPingCmd() (*cobra.Command, runFunc) {
 	cmd := &cobra.Command{
 		Use: "ping [all|@HANDLE [@HANDLE_N]]",
 		//Args:              cobra.MaximumNArgs(1),
+		RunE:              execPing,
 		ValidArgsFunction: argsFn,
 
 		Short: "Ping data sources",
@@ -55,10 +56,11 @@ The exit code is 1 if ping fails for any of the sources.`,
 	cmd.Flags().BoolP(flagTSV, flagTSVShort, false, flagTSVUsage)
 	cmd.Flags().Duration(flagTimeout, time.Second*10, flagTimeoutPingUsage)
 
-	return cmd, execPing
+	return cmd
 }
 
-func execPing(rc *RunContext, cmd *cobra.Command, args []string) error {
+func execPing(cmd *cobra.Command, args []string) error {
+	rc := RunContextFrom(cmd.Context())
 	cfg := rc.Config
 	var srcs []*source.Source
 	var gotAll bool
@@ -113,7 +115,7 @@ func execPing(rc *RunContext, cmd *cobra.Command, args []string) error {
 
 	rc.Log.Debugf("Using timeout value: %s", timeout)
 
-	return pingSources(rc.Context, rc.Log, rc.registry, srcs, rc.writers.pingw, timeout)
+	return pingSources(cmd.Context(), rc.Log, rc.registry, srcs, rc.writers.pingw, timeout)
 }
 
 // pingSources pings each of the sources in srcs, and prints results
