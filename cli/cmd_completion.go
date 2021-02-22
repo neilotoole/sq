@@ -1,109 +1,75 @@
 package cli
 
 import (
-	"os"
-	"runtime"
-
 	"github.com/spf13/cobra"
+
+	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
-const bashCompletionFunc = `
-
-__sq_list_sources()
-{
-    local sq_output out
-    if sq_output=$(sq ls 2>/dev/null); then
-        out=($(echo "${sq_output}" | awk 'NR > 1 {print $1}'))
-        COMPREPLY=( $( compgen -W "${out[*]}" -- "$cur" ) )
-    fi
-}
-
-__sq_get_resource()
-{
-    if [[ ${#nouns[@]} -eq 0 ]]; then
-        return 1
-    fi
-    __sq_list_sources ${nouns[${#nouns[@]} -1]}
-    if [[ $? -eq 0 ]]; then
-        return 0
-    fi
-}
-
-__custom_func() {
-    case ${last_command} in
-        sq_ls | sq_src | sq_rm | sq_inspect )
-            __sq_list_sources
-            return
-            ;;
-        *)
-            ;;
-    esac
-}
-`
-
-func newInstallBashCompletionCmd() (*cobra.Command, runFunc) {
+func newCompletionCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:    "install-bash-completion",
-		Short:  "Install bash completion script on Unix-ish systems.",
-		Hidden: true,
+		Use:   "completion [bash|zsh|fish|powershell]",
+		Short: "Generate completion script",
+		RunE:  execCompletion,
+		Long: `To load completions:
+
+Bash:
+
+$ source <(sq completion bash)
+
+# To load completions for each session, execute once:
+Linux:
+  $ sq completion bash > /etc/bash_completion.d/sq
+MacOS:
+  $ sq completion bash > /usr/local/etc/bash_completion.d/sq
+
+Zsh:
+
+# If shell completion is not already enabled in your environment you will need
+# to enable it.  You can execute the following once:
+
+$ echo "autoload -U compinit; compinit" >> ~/.zshrc
+
+# To load completions for each session, execute once:
+$ sq completion zsh > "${fpath[1]}/_sq"
+
+# You will need to start a new shell for this setup to take effect.
+
+Fish:
+
+$ sq completion fish | source
+
+# To load completions for each session, execute once:
+$ sq completion fish > ~/.config/fish/completions/sq.fish
+
+Powershell:
+
+PS> sq completion powershell | Out-String | Invoke-Expression
+
+# To load completions for every new session, run:
+PS> sq completion powershell > sq.ps1
+# and source this file from your powershell profile.
+`,
+		DisableFlagsInUseLine: true,
+		ValidArgs:             []string{"bash", "zsh", "fish", "powershell"},
+		Args:                  cobra.ExactValidArgs(1),
 	}
 
-	return cmd, execInstallBashCompletion
+	return cmd
 }
 
-func execInstallBashCompletion(rc *RunContext, cmd *cobra.Command, args []string) error {
-	log := rc.Log
-	var path string
-
-	switch runtime.GOOS {
-	case "windows":
-		log.Warnf("skipping install bash completion on windows")
-		return nil
-	case "darwin":
-		path = "/usr/local/etc/bash_completion.d/sq"
+func execCompletion(cmd *cobra.Command, args []string) error {
+	rc := RunContextFrom(cmd.Context())
+	switch args[0] {
+	case "bash":
+		return cmd.Root().GenBashCompletion(rc.Out)
+	case "zsh":
+		return cmd.Root().GenZshCompletion(rc.Out)
+	case "fish":
+		return cmd.Root().GenFishCompletion(rc.Out, true)
+	case "powershell":
+		return cmd.Root().GenPowerShellCompletion(rc.Out)
 	default:
-		// it's unixish
-		path = " /etc/bash_completion.d/sq"
+		return errz.Errorf("invalid arg: %s", args[0])
 	}
-
-	// TODO: only write if necessary (check for version/timestamp/checksum)
-	err := cmd.Root().GenBashCompletionFile(path)
-	if err != nil {
-		log.Warnf("failed to write bash completion to %q: %v", path, err)
-		return err
-	}
-
-	return nil
-}
-
-func newGenerateZshCompletionCmd() (*cobra.Command, runFunc) {
-	cmd := &cobra.Command{
-		Use:    "gen-zsh-completion",
-		Short:  "Generate zsh completion script on Unix-ish systems.",
-		Hidden: true,
-	}
-	return cmd, execGenerateZshCompletion
-}
-
-func execGenerateZshCompletion(rc *RunContext, cmd *cobra.Command, args []string) error {
-	log := rc.Log
-	var path string
-
-	switch runtime.GOOS {
-	case "windows":
-		log.Warnf("skipping install zsh completion on windows")
-		return nil
-	case "darwin":
-		path = "/usr/local/etc/bash_completion.d/sq"
-	default:
-		// it's unixish
-		path = " /etc/bash_completion.d/sq"
-	}
-
-	err := cmd.Root().GenZshCompletion(os.Stdout)
-	if err != nil {
-		log.Warnf("failed to write zsh completion to %q: %v", path, err)
-		return err
-	}
-	return nil
 }

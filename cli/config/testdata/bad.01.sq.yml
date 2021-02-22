@@ -1,2 +1,2 @@
 defaults:
-  timeout: not_a_duration
+  ping_timeout: not_a_duration

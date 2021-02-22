@@ -21,7 +21,7 @@ func main() {
 		cancelFn()
 	}()
 
-	err := cli.Execute(ctx, os.Stdin, os.Stdout, os.Stderr, os.Args)
+	err := cli.Execute(ctx, os.Stdin, os.Stdout, os.Stderr, os.Args[1:])
 	if err != nil {
 		cancelFn()
 		os.Exit(1)

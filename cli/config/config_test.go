@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli/config"
+	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/proj"
 )
 
@@ -70,14 +71,21 @@ func TestFileStore_Load(t *testing.T) {
 	fs := &config.YAMLFileStore{HookLoad: hookExpand}
 
 	for _, match := range good {
-		fs.Path = match
-		_, err = fs.Load()
-		require.NoError(t, err, match)
+		match := match
+		t.Run(testh.Name(match), func(t *testing.T) {
+			fs.Path = match
+			_, err = fs.Load()
+			require.NoError(t, err, match)
+		})
+
 	}
 
 	for _, match := range bad {
-		fs.Path = match
-		_, err = fs.Load()
-		require.Error(t, err, match)
+		match := match
+		t.Run(testh.Name(match), func(t *testing.T) {
+			fs.Path = match
+			_, err = fs.Load()
+			require.Error(t, err, match)
+		})
 	}
 }

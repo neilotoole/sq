@@ -90,14 +90,6 @@ func (s *Set) Add(src *Source) error {
 	return nil
 }
 
-// IndexOf returns the index of handle in s.
-func (s *Set) IndexOf(handle string) (int, *Source) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	return s.indexOf(handle)
-}
-
 // Exists returns true if handle already exists in the set.
 func (s *Set) Exists(handle string) bool {
 	s.mu.Lock()
@@ -261,6 +253,19 @@ func (s *Set) Remove(handle string) error {
 	s.data.Items = pre
 	s.data.Items = append(s.data.Items, post...)
 	return nil
+}
+
+// Handles returns the set of source handles.
+func (s *Set) Handles() []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	handles := make([]string, len(s.data.Items))
+	for i := range s.data.Items {
+		handles[i] = s.data.Items[i].Handle
+	}
+
+	return handles
 }
 
 // VerifySetIntegrity verifies the internal state of s.

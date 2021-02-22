@@ -1,60 +1,48 @@
 module github.com/neilotoole/sq
 
-go 1.14
+go 1.15
+
+// Using forked cobra for now because v1.1.3 does not pass Context
+// to valid args completion funcs. There's an open PR for
+// this: https://github.com/spf13/cobra/pull/1265
+replace github.com/spf13/cobra v1.1.3 => github.com/neilotoole/cobra v1.1.4-0.20210220092732-c11dbd416310
 
 require (
-	github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751 // indirect
-	github.com/alecthomas/units v0.0.0-20201120081800-1786d5ef83d4 // indirect
 	github.com/antlr/antlr4 v0.0.0-20191011202612-ad2bd05285ca
-	github.com/aws/aws-sdk-go v1.12.10 // indirect
-	github.com/bgentry/go-netrc v0.0.0-20140422174119-9fd32a8b3d3d // indirect
-	github.com/buger/jsonparser v1.0.0
+	github.com/armon/consul-api v0.0.0-20180202201655-eb2c6b5be1b6 // indirect
 	github.com/c2h5oh/datasize v0.0.0-20170519143321-54516c931ae9
+	github.com/coreos/go-etcd v2.0.0+incompatible // indirect
+	github.com/cpuguy83/go-md2man v1.0.10 // indirect
 	github.com/denisenkom/go-mssqldb v0.0.0-20200620013148-b91950f658ec
 	github.com/djherbis/fscache v0.10.1
-	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/emirpasic/gods v1.9.0
 	github.com/fatih/color v1.9.0
-	github.com/go-ini/ini v1.30.0 // indirect
 	github.com/go-sql-driver/mysql v1.5.0
-	github.com/google/go-querystring v0.0.0-20170111101155-53e6ce116135 // indirect
 	github.com/google/uuid v1.1.1
 	github.com/h2non/filetype v1.1.0
-	github.com/hashicorp/go-cleanhttp v0.0.0-20170211013415-3573b8b52aa7 // indirect
-	github.com/hashicorp/go-getter v0.0.0-20171007181130-2f449c791e6a
-	github.com/hashicorp/go-version v0.0.0-20170914154128-fc61389e27c7 // indirect
 	github.com/jackc/pgconn v1.5.0
 	github.com/jackc/pgx/v4 v4.6.0
-	github.com/jmespath/go-jmespath v0.0.0-20160202185014-0b12d6b521d8 // indirect
-	github.com/jondot/goweight v1.0.5 // indirect
-	github.com/kr/pretty v0.2.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/magefile/mage v1.9.0
 	github.com/mattn/go-colorable v0.1.4
 	github.com/mattn/go-isatty v0.0.12
 	github.com/mattn/go-runewidth v0.0.4
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible
-	github.com/mattn/go-zglob v0.0.3 // indirect
 	github.com/mitchellh/go-homedir v1.1.0
-	github.com/mitchellh/go-testing-interface v0.0.0-20171004221916-a61a99592b77 // indirect
 	github.com/neilotoole/errgroup v0.1.5
 	github.com/neilotoole/lg v0.3.0
-	github.com/nlopes/slack v0.1.0
 	github.com/pkg/errors v0.9.1
 	github.com/ryboe/q v1.0.12
 	github.com/satori/go.uuid v1.2.0
 	github.com/segmentio/encoding v0.1.14
 	github.com/shopspring/decimal v0.0.0-20180709203117-cd690d0c9e24
-	github.com/smartystreets/goconvey v0.0.0-20190731233626-505e41936337 // indirect
-	github.com/spf13/cobra v0.0.5
-	github.com/spf13/pflag v1.0.3
+	github.com/spf13/cobra v1.1.3
+	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.5.1
-	github.com/tbruyelle/hipchat-go v0.0.0-20160921153256-749fb9e14beb
 	github.com/tealeg/xlsx/v2 v2.0.1
 	github.com/testcontainers/testcontainers-go v0.5.0
-	github.com/thoas/go-funk v0.7.0 // indirect
-	github.com/ulikunitz/xz v0.5.4 // indirect
 	github.com/xo/dburl v0.0.0-20200124232849-e9ec94f52bc3
+	github.com/xordataexchange/crypt v0.0.3-0.20170626215501-b2862e3d0a77 // indirect
 	go.uber.org/atomic v1.5.0
 	go.uber.org/multierr v1.4.0
 	golang.org/x/crypto v0.0.0-20200728195943-123391ffb6de
@@ -62,5 +50,5 @@ require (
 	golang.org/x/sync v0.0.0-20200625203802-6e8e738ad208
 	gopkg.in/djherbis/atime.v1 v1.0.0 // indirect
 	gopkg.in/djherbis/stream.v1 v1.3.1 // indirect
-	gopkg.in/yaml.v2 v2.2.8
+	gopkg.in/yaml.v2 v2.4.0
 )

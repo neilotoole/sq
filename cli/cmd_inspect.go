@@ -7,40 +7,44 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 )
 
-func newInspectCmd() (*cobra.Command, runFunc) {
+func newInspectCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use: "inspect [@HANDLE|@HANDLE.TABLE|.TABLE]",
-		Example: `  # inspect active data source
-  sq inspect
-  
-  # inspect @pg1 data source
-  sq inspect @pg1
-  
-  # inspect 'tbluser' in @pg1 data source
-  sq inspect @pg1.tbluser
-  
-  # inspect 'tbluser' in active data source
-  sq inspect .tbluser
-  
-  # inspect piped data
-  cat data.xlsx | sq inspect`,
+		Use:  "inspect [@HANDLE|@HANDLE.TABLE|.TABLE]",
+		Args: cobra.MaximumNArgs(1),
+		ValidArgsFunction: (&handleTableCompleter{
+			max: 1,
+		}).complete,
+		RunE:  execInspect,
 		Short: "Inspect data source schema and stats",
 		Long: `Inspect a data source, or a particular table in a source,
 listing table details, column names and types, row counts, etc.
 If @HANDLE is not provided, the active data source is assumed.`,
+		Example: `  # inspect active data source
+  $ sq inspect
+  
+  # inspect @pg1 data source
+  $ sq inspect @pg1
+  
+  # inspect 'actor' in @pg1 data source
+  $ sq inspect @pg1.actor
+  
+  # inspect 'actor' in active data source
+  $ sq inspect .actor
+  
+  # inspect piped data
+  $ cat data.xlsx | sq inspect`,
 	}
 
 	cmd.Flags().BoolP(flagJSON, flagJSONShort, false, flagJSONUsage)
 	cmd.Flags().BoolP(flagTable, flagTableShort, false, flagTableUsage)
 	cmd.Flags().Bool(flagInspectFull, false, flagInspectFullUsage)
 
-	return cmd, execInspect
+	return cmd
 }
 
-func execInspect(rc *RunContext, cmd *cobra.Command, args []string) error {
-	if len(args) > 1 {
-		return errz.Errorf("too many arguments")
-	}
+func execInspect(cmd *cobra.Command, args []string) error {
+	ctx := cmd.Context()
+	rc := RunContextFrom(ctx)
 
 	srcs := rc.Config.Sources
 
@@ -56,7 +60,7 @@ func execInspect(rc *RunContext, cmd *cobra.Command, args []string) error {
 		// - We're inspecting the active src
 
 		// check if there's input on stdin
-		src, err = checkStdinSource(rc)
+		src, err = checkStdinSource(ctx, rc)
 		if err != nil {
 			return err
 		}
@@ -107,15 +111,14 @@ func execInspect(rc *RunContext, cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	dbase, err := rc.databases.Open(rc.Context, src)
+	dbase, err := rc.databases.Open(ctx, src)
 	if err != nil {
 		return errz.Wrapf(err, "failed to inspect %s", src.Handle)
 	}
-	//defer rc.Log.WarnIfCloseError(dbase)
 
 	if table != "" {
 		var tblMeta *source.TableMetadata
-		tblMeta, err = dbase.TableMetadata(rc.Context, table)
+		tblMeta, err = dbase.TableMetadata(ctx, table)
 		if err != nil {
 			return err
 		}
@@ -123,7 +126,7 @@ func execInspect(rc *RunContext, cmd *cobra.Command, args []string) error {
 		return rc.writers.metaw.TableMetadata(tblMeta)
 	}
 
-	meta, err := dbase.SourceMetadata(rc.Context)
+	meta, err := dbase.SourceMetadata(ctx)
 	if err != nil {
 		return errz.Wrapf(err, "failed to read %s source metadata", src.Handle)
 	}

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"strings"
 
 	"github.com/neilotoole/lg"
@@ -17,7 +18,7 @@ import (
 // mutate rc.Config.Sources as necessary. If no error
 // is returned, it is guaranteed that there's an active
 // source on the source set.
-func determineSources(rc *RunContext) error {
+func determineSources(ctx context.Context, rc *RunContext) error {
 	cmd, srcs := rc.Cmd, rc.Config.Sources
 	activeSrc, err := activeSrcFromFlagsOrConfig(cmd, srcs)
 	if err != nil {
@@ -26,7 +27,7 @@ func determineSources(rc *RunContext) error {
 	// Note: ^ activeSrc could still be nil
 
 	// check if there's input on stdin
-	stdinSrc, err := checkStdinSource(rc)
+	stdinSrc, err := checkStdinSource(ctx, rc)
 	if err != nil {
 		return err
 	}
@@ -95,7 +96,7 @@ func activeSrcFromFlagsOrConfig(cmd *cobra.Command, srcs *source.Set) (*source.S
 // If there is, that pipe is inspected, and if it has recognizable
 // input, a new source instance with handle @stdin is constructed
 // and returned.
-func checkStdinSource(rc *RunContext) (*source.Source, error) {
+func checkStdinSource(ctx context.Context, rc *RunContext) (*source.Source, error) {
 	cmd := rc.Cmd
 
 	f := rc.Stdin
@@ -140,7 +141,7 @@ func checkStdinSource(rc *RunContext) (*source.Source, error) {
 	}
 
 	if typ == source.TypeNone {
-		typ, err = rc.files.TypeStdin(rc.Context)
+		typ, err = rc.files.TypeStdin(ctx)
 		if err != nil {
 			return nil, err
 		}

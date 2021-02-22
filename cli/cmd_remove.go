@@ -4,26 +4,23 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-
-	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
-func newSrcRemoveCmd() (*cobra.Command, runFunc) {
+func newSrcRemoveCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "rm @HANDLE",
-		Example: `  sq rm @my1`,
-		Aliases: []string{"remove"},
-		Short:   "Remove data source",
+		Use:               "rm @HANDLE",
+		Example:           `  $ sq rm @my1`,
+		Short:             "Remove data source",
+		Args:              cobra.ExactArgs(1),
+		RunE:              execSrcRemove,
+		ValidArgsFunction: completeHandle(1),
 	}
 
-	return cmd, execSrcRemove
+	return cmd
 }
 
-func execSrcRemove(rc *RunContext, cmd *cobra.Command, args []string) error {
-	if len(args) != 1 {
-		return errz.Errorf(msgInvalidArgs)
-	}
-
+func execSrcRemove(cmd *cobra.Command, args []string) error {
+	rc := RunContextFrom(cmd.Context())
 	cfg := rc.Config
 	src, err := cfg.Sources.Get(args[0])
 	if err != nil {

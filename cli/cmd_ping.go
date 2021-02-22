@@ -14,27 +14,41 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 )
 
-func newPingCmd() (*cobra.Command, runFunc) {
+func newPingCmd() *cobra.Command {
+	argsFn := func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		// Suggestions are: handles, plus the string "all".
+		rc := RunContextFrom(cmd.Context())
+		suggestions := append([]string{"all"}, rc.Config.Sources.Handles()...)
+
+		return suggestions, cobra.ShellCompDirectiveNoFileComp
+	}
+
 	cmd := &cobra.Command{
-		Use: "ping [@HANDLE|all]",
+		Use: "ping [all|@HANDLE [@HANDLE_N]]",
+		//Args:              cobra.MaximumNArgs(1),
+		RunE:              execPing,
+		ValidArgsFunction: argsFn,
+
+		Short: "Ping data sources",
+		Long: `Ping data sources to check connection health. If no arguments provided, the
+active data source is pinged. Provide the handles of one or more sources
+to ping those sources, or "all" to ping all sources.
+
+The exit code is 1 if ping fails for any of the sources.`,
 		Example: `  # ping active data source
-  sq ping
+  $ sq ping
 
   # ping all data sources
-  sq ping all
+  $ sq ping all
+
+  # ping @my1 and @pg1
+  $ sq ping @my1 @pg1
 
   # ping @my1 with 2s timeout
-  sq ping @my1 --timeout=2s
-		
-  # ping @my1 and @pg1
-  sq ping @my1 @pg1
+  $ sq ping @my1 --timeout=2s
 
   # output in TSV format
-  sq ping --tsv @my1`,
-
-		Short: "Check data source connection health",
-		Long: `Ping data sources to check connection health. If no arguments provided, the
-active data source is pinged. The exit code is 1 if ping fails for any of the sources.`,
+  $ sq ping --tsv @my1`,
 	}
 
 	cmd.Flags().BoolP(flagTable, flagTableShort, false, flagTableUsage)
@@ -42,10 +56,11 @@ active data source is pinged. The exit code is 1 if ping fails for any of the so
 	cmd.Flags().BoolP(flagTSV, flagTSVShort, false, flagTSVUsage)
 	cmd.Flags().Duration(flagTimeout, time.Second*10, flagTimeoutPingUsage)
 
-	return cmd, execPing
+	return cmd
 }
 
-func execPing(rc *RunContext, cmd *cobra.Command, args []string) error {
+func execPing(cmd *cobra.Command, args []string) error {
+	rc := RunContextFrom(cmd.Context())
 	cfg := rc.Config
 	var srcs []*source.Source
 	var gotAll bool
@@ -93,19 +108,23 @@ func execPing(rc *RunContext, cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	timeout := cfg.Defaults.Timeout
+	timeout := cfg.Defaults.PingTimeout
 	if cmdFlagChanged(cmd, flagTimeout) {
 		timeout, _ = cmd.Flags().GetDuration(flagTimeout)
 	}
 
 	rc.Log.Debugf("Using timeout value: %s", timeout)
 
-	return pingSources(rc.Context, rc.Log, rc.registry, srcs, rc.writers.pingw, timeout)
+	return pingSources(cmd.Context(), rc.Log, rc.registry, srcs, rc.writers.pingw, timeout)
 }
 
 // pingSources pings each of the sources in srcs, and prints results
 // to w. If any error occurs pinging any of srcs, that error is printed
 // inline as part of the ping results, and an errNoMsg is returned.
+//
+// NOTE: This ping code has an ancient lineage, in that it was written
+//  originally laid down before context.Context was a thing. Thus,
+//  the entire thing could probably be rewritten for simplicity.
 func pingSources(ctx context.Context, log lg.Log, dp driver.Provider, srcs []*source.Source, w output.PingWriter, timeout time.Duration) error {
 	w.Open(srcs)
 	defer log.WarnIfFuncError(w.Close)

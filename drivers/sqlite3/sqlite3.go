@@ -103,15 +103,26 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 		return 0, errz.Err(err)
 	}
 
-	affected, err = sqlz.ExecResult(ctx, tx, fmt.Sprintf("DELETE FROM %q", tbl))
+	affected, err = sqlz.ExecAffected(ctx, tx, fmt.Sprintf("DELETE FROM %q", tbl))
 	if err != nil {
 		return affected, errz.Append(err, errz.Err(tx.Rollback()))
 	}
 
 	if reset {
-		_, err = sqlz.ExecResult(ctx, tx, "UPDATE sqlite_sequence SET seq = 0 WHERE name = ?", tbl)
+		// First check that the sqlite_sequence table event exists. It
+		// may not exist if there are no auto-increment columns?
+		const q = `SELECT COUNT(name) FROM sqlite_master WHERE type='table' AND name='sqlite_sequence'`
+		var count int64
+		err = tx.QueryRowContext(ctx, q).Scan(&count)
 		if err != nil {
 			return 0, errz.Append(err, errz.Err(tx.Rollback()))
+		}
+
+		if count > 0 {
+			_, err = tx.ExecContext(ctx, "UPDATE sqlite_sequence SET seq = 0 WHERE name = ?", tbl)
+			if err != nil {
+				return 0, errz.Append(err, errz.Err(tx.Rollback()))
+			}
 		}
 	}
 
@@ -188,7 +199,7 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable 
 	}
 
 	stmt := fmt.Sprintf("INSERT INTO %q SELECT * FROM %q", toTable, fromTable)
-	affected, err := sqlz.ExecResult(ctx, db, stmt)
+	affected, err := sqlz.ExecAffected(ctx, db, stmt)
 	if err != nil {
 		return 0, errz.Err(err)
 	}

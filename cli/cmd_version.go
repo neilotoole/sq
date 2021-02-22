@@ -8,16 +8,18 @@ import (
 	"github.com/neilotoole/sq/cli/buildinfo"
 )
 
-func newVersionCmd() (*cobra.Command, runFunc) {
+func newVersionCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "version",
 		Short: "Print sq version",
+		RunE:  execVersion,
 	}
 
-	return cmd, execVersion
+	return cmd
 }
 
-func execVersion(rc *RunContext, cmd *cobra.Command, args []string) error {
+func execVersion(cmd *cobra.Command, args []string) error {
+	rc := RunContextFrom(cmd.Context())
 	rc.writers.fmt.Hilite.Fprintf(rc.Out, "sq %s", buildinfo.Version)
 
 	if len(buildinfo.Commit) > 0 {

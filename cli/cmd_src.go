@@ -2,35 +2,29 @@ package cli
 
 import (
 	"github.com/spf13/cobra"
-
-	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
-func newSrcCommand() (*cobra.Command, runFunc) {
+func newSrcCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use: "src [@HANDLE]",
+		Use:  "src [@HANDLE]",
+		RunE: execSrc,
 		Example: `  # get active data source
-   sq src
+   $ sq src
+
    # set @my1 as active data source
-   sq src @my1`,
-		// RunE:    execSrc,
-		Short: "Get or set active data source",
+   $ sq src @my1`,
+		Args:              cobra.MaximumNArgs(1),
+		ValidArgsFunction: completeHandle(1),
+		Short:             "Get or set active data source",
 		Long: `Get or set active data source. If no argument provided, get the active data
 source. Otherwise, set @HANDLE as the active data source.`,
 	}
 
-	//cmd.Flags().BoolP(flagJSON, flagJSONShort, false, flagJSONUsage)
-	//cmd.Flags().BoolP(flagTable, flagTableShort, false, flagTableUsage)
-	//cmd.Flags().BoolP(flagHeader, flagHeaderShort, false, flagHeaderUsage)
-
-	return cmd, execSrc
+	return cmd
 }
 
-func execSrc(rc *RunContext, cmd *cobra.Command, args []string) error {
-	if len(args) > 1 {
-		return errz.Errorf(msgInvalidArgs)
-	}
-
+func execSrc(cmd *cobra.Command, args []string) error {
+	rc := RunContextFrom(cmd.Context())
 	cfg := rc.Config
 
 	if len(args) == 0 {

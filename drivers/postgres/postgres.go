@@ -243,7 +243,7 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable 
 		stmt += " WITH NO DATA"
 	}
 
-	affected, err := sqlz.ExecResult(ctx, db, stmt)
+	affected, err := sqlz.ExecAffected(ctx, db, stmt)
 	if err != nil {
 		return 0, errz.Err(err)
 	}
