@@ -102,10 +102,6 @@ func (ru *run) exec(args ...string) error {
 		return err
 	}
 
-	if len(args) > 0 && args[0] != "sq" {
-		args = append([]string{"sq"}, args...)
-	}
-
 	execErr := cli.ExecuteWith(ru.rc.Context, ru.rc, args)
 
 	if !ru.hushOutput {

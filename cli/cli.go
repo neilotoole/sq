@@ -128,24 +128,24 @@ func ExecuteWith(ctx context.Context, rc *RunContext, args []string) error {
 	//  now handles this situation?
 
 	// We need to perform handling for autocomplete
-	if len(args) > 1 && args[1] == "__complete" {
+	if len(args) > 0 && args[0] == "__complete" {
 
-		if hasMatchingChildCommand(rootCmd, args[2]) {
+		if hasMatchingChildCommand(rootCmd, args[1]) {
 			// If there is a matching child command, we let rootCmd
 			// handle it, as per normal.
-			rootCmd.SetArgs(args[1:])
+			rootCmd.SetArgs(args)
 		} else {
 			// There's no command matching the first argument to __complete.
 			// Therefore, we assume that we want to perform completion
 			// for the "slq" command (which is the pseudo-root command).
-			effectiveArgs := append([]string{"__complete", "slq"}, args[2:]...)
+			effectiveArgs := append([]string{"__complete", "slq"}, args[1:]...)
 			rootCmd.SetArgs(effectiveArgs)
 		}
 
 	} else {
 
 		var cmd *cobra.Command
-		cmd, _, err = rootCmd.Find(args[1:])
+		cmd, _, err = rootCmd.Find(args)
 		if err != nil {
 			// This err will be the "unknown command" error.
 			// cobra still returns cmd though. It should be
@@ -159,7 +159,7 @@ func ExecuteWith(ctx context.Context, rc *RunContext, args []string) error {
 			// to the "slq" command by modifying args to
 			// look like: [query, arg1, arg2] -- noting that SetArgs
 			// doesn't want the first args element.
-			effectiveArgs := append([]string{"slq"}, args[1:]...)
+			effectiveArgs := append([]string{"slq"}, args...)
 			rootCmd.SetArgs(effectiveArgs)
 		} else {
 			if cmd.Name() == rootCmd.Name() {
@@ -167,7 +167,7 @@ func ExecuteWith(ctx context.Context, rc *RunContext, args []string) error {
 				// that we've found the root cmd again, so again
 				// we redirect to "slq" cmd.
 
-				a := append([]string{"slq"}, args[1:]...)
+				a := append([]string{"slq"}, args...)
 				rootCmd.SetArgs(a)
 			} else {
 				// It's just a normal command like "sq ls" or such.
@@ -175,7 +175,7 @@ func ExecuteWith(ctx context.Context, rc *RunContext, args []string) error {
 				// Explicitly set the args on rootCmd as this makes
 				// cobra happy when this func is executed via tests.
 				// Haven't explored the reason why.
-				rootCmd.SetArgs(args[1:])
+				rootCmd.SetArgs(args)
 			}
 		}
 	}
@@ -190,13 +190,16 @@ func ExecuteWith(ctx context.Context, rc *RunContext, args []string) error {
 	return err
 }
 
-type commandTree struct {
-	rootCmd *cobra.Command
-}
+// cobraMu exists because cobra relies upon package-level
+// constructs. This does not sit well with parallel tests.
+var cobraMu sync.Mutex
 
 // newCommandTree builds sq's command tree, returning
 // the root cobra command.
 func newCommandTree(rc *RunContext) (rootCmd *cobra.Command) {
+	cobraMu.Lock()
+	defer cobraMu.Unlock()
+
 	rootCmd = newRootCmd()
 	rootCmd.SetOut(rc.Out)
 	rootCmd.SetErr(rc.ErrOut)

@@ -28,27 +28,23 @@ func TestSmoke(t *testing.T) {
 	t.Parallel()
 	// Execute a bunch of smoke test cases.
 
-	sqargs := func(a ...string) []string {
-		return append([]string{"sq"}, a...)
-	}
-
 	testCases := []struct {
 		a []string
 		// errBecause, if non-empty, indicates an error is expected.
 		errBecause string
 	}{
-		{a: sqargs("ls")},
-		{a: sqargs("ls", "-v")},
-		{a: sqargs("ls", "--help")},
-		{a: sqargs("inspect"), errBecause: "no active data source"},
-		{a: sqargs("inspect", "--help")},
-		{a: sqargs("version")},
-		{a: sqargs("--version")},
-		{a: sqargs("help")},
-		{a: sqargs("--help")},
-		{a: sqargs("ping", "all")},
-		{a: sqargs("ping", "--help")},
-		{a: sqargs("ping"), errBecause: "no active data source"},
+		{a: []string{"ls"}},
+		{a: []string{"ls", "-v"}},
+		{a: []string{"ls", "--help"}},
+		{a: []string{"inspect"}, errBecause: "no active data source"},
+		{a: []string{"inspect", "--help"}},
+		{a: []string{"version"}},
+		{a: []string{"--version"}},
+		{a: []string{"help"}},
+		{a: []string{"--help"}},
+		{a: []string{"ping", "all"}},
+		{a: []string{"ping", "--help"}},
+		{a: []string{"ping"}, errBecause: "no active data source"},
 	}
 
 	for _, tc := range testCases {
