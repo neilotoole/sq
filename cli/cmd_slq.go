@@ -17,9 +17,11 @@ import (
 
 func newSLQCmd() (*cobra.Command, runFunc) {
 	cmd := &cobra.Command{
-		Use:    "slq",
-		Short:  "Execute SLQ query",
-		Hidden: false,
+		Use:               "slq",
+		Short:             "Execute SLQ query",
+		Hidden:            true,
+		Args:              cobra.MaximumNArgs(1),
+		ValidArgsFunction: completeSLQ,
 	}
 
 	addQueryCmdFlags(cmd)

@@ -14,6 +14,7 @@ type completionFunc func(cmd *cobra.Command, args []string, toComplete string) (
 
 var (
 	_ completionFunc = completeDriverType
+	_ completionFunc = completeSLQ
 	_ completionFunc = new(handleTableCompleter).complete
 )
 
@@ -31,6 +32,19 @@ func completeHandle(max int) completionFunc {
 
 		return handles, cobra.ShellCompDirectiveNoFileComp
 	}
+}
+
+// completeSLQ is a completionFunc that completes SLQ queries.
+// The completion functionality is rudimentary: it only
+// completes the "table select" segment (that is, the @HANDLE.NAME)
+// segment.
+func completeSLQ(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	if len(args) != 0 {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	c := &handleTableCompleter{}
+	return c.complete(cmd, args, toComplete)
 }
 
 // completeDriverType is a completionFunc that suggests drivers.
@@ -146,7 +160,7 @@ func (c *handleTableCompleter) completeTableOnly(ctx context.Context, rc *RunCon
 	}
 
 	if c.onlySQL {
-		isSQL, err := handleIsSQL(rc, activeSrc.Handle)
+		isSQL, err := handleIsSQLDriver(rc, activeSrc.Handle)
 		if err != nil {
 			rc.Log.Error(err)
 			return nil, cobra.ShellCompDirectiveError
@@ -156,7 +170,7 @@ func (c *handleTableCompleter) completeTableOnly(ctx context.Context, rc *RunCon
 		}
 	}
 
-	tables, err := getTableNames(ctx, rc, activeSrc.Handle)
+	tables, err := getTableNamesForHandle(ctx, rc, activeSrc.Handle)
 	if err != nil {
 		rc.Log.Error(err)
 		return nil, cobra.ShellCompDirectiveError
@@ -194,7 +208,7 @@ func (c *handleTableCompleter) completeHandle(ctx context.Context, rc *RunContex
 		}
 
 		if c.onlySQL {
-			isSQL, err := handleIsSQL(rc, handle)
+			isSQL, err := handleIsSQLDriver(rc, handle)
 			if err != nil {
 				rc.Log.Error(err)
 				return nil, cobra.ShellCompDirectiveError
@@ -205,7 +219,7 @@ func (c *handleTableCompleter) completeHandle(ctx context.Context, rc *RunContex
 			}
 		}
 
-		tables, err := getTableNames(ctx, rc, handle)
+		tables, err := getTableNamesForHandle(ctx, rc, handle)
 		if err != nil {
 			rc.Log.Error(err)
 			return nil, cobra.ShellCompDirectiveError
@@ -227,7 +241,7 @@ func (c *handleTableCompleter) completeHandle(ctx context.Context, rc *RunContex
 	for _, handle := range handles {
 		if strings.HasPrefix(handle, toComplete) {
 			if c.onlySQL {
-				isSQL, err := handleIsSQL(rc, handle)
+				isSQL, err := handleIsSQLDriver(rc, handle)
 				if err != nil {
 					rc.Log.Error(err)
 					return nil, cobra.ShellCompDirectiveError
@@ -252,7 +266,7 @@ func (c *handleTableCompleter) completeHandle(ctx context.Context, rc *RunContex
 		// for that handle
 	}
 
-	tables, err := getTableNames(ctx, rc, matchingHandles[0])
+	tables, err := getTableNamesForHandle(ctx, rc, matchingHandles[0])
 	if err != nil {
 		rc.Log.Error(err)
 		return nil, cobra.ShellCompDirectiveError
@@ -277,14 +291,14 @@ func (c *handleTableCompleter) completeEither(ctx context.Context, rc *RunContex
 	}
 
 	var activeSrcTables []string
-	isSQL, err := handleIsSQL(rc, activeSrc.Handle)
+	isSQL, err := handleIsSQLDriver(rc, activeSrc.Handle)
 	if err != nil {
 		rc.Log.Error(err)
 		return nil, cobra.ShellCompDirectiveError
 	}
 
 	if !c.onlySQL || isSQL {
-		activeSrcTables, err = getTableNames(ctx, rc, activeSrc.Handle)
+		activeSrcTables, err = getTableNamesForHandle(ctx, rc, activeSrc.Handle)
 		if err != nil {
 			rc.Log.Error(err)
 			return nil, cobra.ShellCompDirectiveError
@@ -298,7 +312,7 @@ func (c *handleTableCompleter) completeEither(ctx context.Context, rc *RunContex
 
 	for _, src := range rc.Config.Sources.Items() {
 		if c.onlySQL {
-			isSQL, err = handleIsSQL(rc, src.Handle)
+			isSQL, err = handleIsSQLDriver(rc, src.Handle)
 			if err != nil {
 				rc.Log.Error(err)
 				return nil, cobra.ShellCompDirectiveError
@@ -314,7 +328,7 @@ func (c *handleTableCompleter) completeEither(ctx context.Context, rc *RunContex
 	return suggestions, cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace
 }
 
-func handleIsSQL(rc *RunContext, handle string) (bool, error) {
+func handleIsSQLDriver(rc *RunContext, handle string) (bool, error) {
 	src, err := rc.Config.Sources.Get(handle)
 	if err != nil {
 		return false, err
@@ -328,7 +342,7 @@ func handleIsSQL(rc *RunContext, handle string) (bool, error) {
 	return driver.DriverMetadata().IsSQL, nil
 }
 
-func getTableNames(ctx context.Context, rc *RunContext, handle string) ([]string, error) {
+func getTableNamesForHandle(ctx context.Context, rc *RunContext, handle string) ([]string, error) {
 	src, err := rc.Config.Sources.Get(handle)
 	if err != nil {
 		return nil, err
