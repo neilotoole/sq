@@ -17,6 +17,8 @@ import (
 )
 
 func TestCmdInspect(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		handle   string
 		wantErr  bool
@@ -49,7 +51,7 @@ func TestCmdInspect(t *testing.T) {
 		tc := tc
 
 		t.Run(tc.handle, func(t *testing.T) {
-			//t.Parallel()
+			t.Parallel()
 
 			th := testh.New(t)
 			src := th.Source(tc.handle)
