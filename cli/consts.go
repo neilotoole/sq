@@ -83,8 +83,12 @@ const (
 	flagTblData      = "data"
 	flagTblDataUsage = "Copy table data (default true)"
 
-	flagTimeout          = "timeout"
-	flagTimeoutPingUsage = "Max time to wait for ping"
+	flagPingTimeout      = "timeout"
+	flagPingTimeoutUsage = "Max time to wait for ping"
+
+	flagPingAll      = "all"
+	flagPingAllShort = "a"
+	flagPingAllUsage = "Ping all sources"
 
 	flagVerbose      = "verbose"
 	flagVerboseShort = "v"

@@ -1,6 +1,6 @@
 module github.com/neilotoole/sq
 
-go 1.16
+go 1.15
 
 // Using forked cobra for now because v1.1.3 does not pass Context
 // to valid args completion funcs. There's an open PR for

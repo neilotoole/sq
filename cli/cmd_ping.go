@@ -15,31 +15,22 @@ import (
 )
 
 func newPingCmd() *cobra.Command {
-	argsFn := func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		// Suggestions are: handles, plus the string "all".
-		rc := RunContextFrom(cmd.Context())
-		suggestions := append([]string{"all"}, rc.Config.Sources.Handles()...)
-
-		return suggestions, cobra.ShellCompDirectiveNoFileComp
-	}
-
 	cmd := &cobra.Command{
-		Use: "ping [all|@HANDLE [@HANDLE_N]]",
-		//Args:              cobra.MaximumNArgs(1),
+		Use:               "ping [@HANDLE [@HANDLE_N]]",
 		RunE:              execPing,
-		ValidArgsFunction: argsFn,
+		ValidArgsFunction: completeHandle(0),
 
 		Short: "Ping data sources",
 		Long: `Ping data sources to check connection health. If no arguments provided, the
 active data source is pinged. Provide the handles of one or more sources
-to ping those sources, or "all" to ping all sources.
+to ping those sources, or --all to ping all sources.
 
 The exit code is 1 if ping fails for any of the sources.`,
 		Example: `  # ping active data source
   $ sq ping
 
   # ping all data sources
-  $ sq ping all
+  $ sq ping --all
 
   # ping @my1 and @pg1
   $ sq ping @my1 @pg1
@@ -54,7 +45,8 @@ The exit code is 1 if ping fails for any of the sources.`,
 	cmd.Flags().BoolP(flagTable, flagTableShort, false, flagTableUsage)
 	cmd.Flags().BoolP(flagCSV, flagCSVShort, false, flagCSVUsage)
 	cmd.Flags().BoolP(flagTSV, flagTSVShort, false, flagTSVUsage)
-	cmd.Flags().Duration(flagTimeout, time.Second*10, flagTimeoutPingUsage)
+	cmd.Flags().Duration(flagPingTimeout, time.Second*10, flagPingTimeoutUsage)
+	cmd.Flags().BoolP(flagPingAll, flagPingAllShort, false, flagPingAllUsage)
 
 	return cmd
 }
@@ -63,37 +55,27 @@ func execPing(cmd *cobra.Command, args []string) error {
 	rc := RunContextFrom(cmd.Context())
 	cfg := rc.Config
 	var srcs []*source.Source
-	var gotAll bool
 
 	// args can be:
 	// [empty] : ping active source
-	// all     : ping all sources
 	// @handle1 @handleN: ping multiple sources
-	if len(args) == 0 {
+
+	var pingAll bool
+	if cmd.Flags().Changed(flagPingAll) {
+		pingAll, _ = cmd.Flags().GetBool(flagPingAll)
+	}
+
+	switch {
+	case pingAll:
+		srcs = cfg.Sources.Items()
+	case len(args) == 0:
 		src := cfg.Sources.Active()
 		if src == nil {
 			return errz.New(msgNoActiveSrc)
 		}
 		srcs = []*source.Source{src}
-	} else {
-		for i, arg := range args {
-			if arg == "all" {
-				if gotAll || i != 0 {
-					// If "all" is an arg, it must the the only one
-					return errz.New("arg 'all' must be supplied without other args")
-				}
-
-				gotAll = true
-				srcs = cfg.Sources.Items()
-				continue
-			}
-
-			if gotAll {
-				// This can happen if arg "all" is mixed in with
-				// handle args, e.g. [@handle1 all @handle2]
-				return errz.New("arg 'all' must be supplied without other args")
-			}
-
+	default:
+		for _, arg := range args {
 			err := source.VerifyLegalHandle(arg)
 			if err != nil {
 				return err
@@ -109,11 +91,11 @@ func execPing(cmd *cobra.Command, args []string) error {
 	}
 
 	timeout := cfg.Defaults.PingTimeout
-	if cmdFlagChanged(cmd, flagTimeout) {
-		timeout, _ = cmd.Flags().GetDuration(flagTimeout)
+	if cmdFlagChanged(cmd, flagPingTimeout) {
+		timeout, _ = cmd.Flags().GetDuration(flagPingTimeout)
 	}
 
-	rc.Log.Debugf("Using timeout value: %s", timeout)
+	rc.Log.Debugf("Using ping timeout value: %s", timeout)
 
 	return pingSources(cmd.Context(), rc.Log, rc.registry, srcs, rc.writers.pingw, timeout)
 }

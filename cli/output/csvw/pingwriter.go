@@ -40,6 +40,8 @@ func (p *pingWriter) Result(src *source.Source, d time.Duration, err error) {
 		} else {
 			rec[2] = err.Error()
 		}
+	} else {
+		rec[2] = "pong"
 	}
 
 	_ = p.csvw.Write(rec)
