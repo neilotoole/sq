@@ -23,7 +23,10 @@ func main() {
 
 	err := cli.Execute(ctx, os.Stdin, os.Stdout, os.Stderr, os.Args[1:])
 	if err != nil {
+		// invoke cancelFn before os.Exit, because deferred funcs don't
+		// run before os.Exit.
 		cancelFn()
+
 		os.Exit(1)
 	}
 }

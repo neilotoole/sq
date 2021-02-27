@@ -70,7 +70,7 @@ snapshot:
   name_template: "snapshot"
 
 changelog:
-  skip: true
+  skip: false
   sort: asc
   filters:
     exclude:

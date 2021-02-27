@@ -65,9 +65,9 @@ func checkPingOutputCSV(t *testing.T, h *run, srcs ...source.Source) {
 		recHandle := recs[i][0]
 		require.True(t, handles[recHandle], "should have handle %q in map", recHandle)
 
-		_, err := time.ParseDuration(recs[i][1])
+		_, err = time.ParseDuration(recs[i][1])
 		require.NoError(t, err, "should be a valid duration value")
 
-		require.Empty(t, recs[i][2], "error field should be empty")
+		require.Equal(t, "pong", recs[i][2], "error field should be empty")
 	}
 }
