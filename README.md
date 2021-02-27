@@ -56,6 +56,7 @@ yum localinstall -y https://github.com/neilotoole/sq/releases/latest/download/sq
 ## Shell completion
 
 Shell completion is available for `bash`, `zsh`, `fish`, and `powershell`.
+It is strongly recommended to install.
 
 Execute `sq completion --help` for installation instructions.
 
