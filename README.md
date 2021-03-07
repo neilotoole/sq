@@ -21,7 +21,7 @@ It is strongly advised to install [shell completion](#shell-completion).
 ### macOS
 
 ```shell script
-brew tap neilotoole/sq && brew install sq
+brew install neilotoole/sq/sq
 ```
 
 
