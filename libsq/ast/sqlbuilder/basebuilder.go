@@ -173,9 +173,16 @@ func (fb *BaseFragmentBuilder) Join(fnJoin *ast.Join) (string, error) {
 			operator = "=="
 			rightOperand = fmt.Sprintf("%s%s%s.%s%s%s", fb.Quote, fnJoin.RightTbl().SelValue(), fb.Quote, fb.Quote, colSel.SelValue(), fb.Quote)
 		} else {
-			leftOperand = joinExpr.Children()[0].Text()[1:]
+			var err error
+			leftOperand, err = fb.formatColSelector(joinExpr.Children()[0].Text())
+			if err != nil {
+				return "", err
+			}
 			operator = joinExpr.Children()[1].Text()
-			rightOperand = joinExpr.Children()[2].Text()[1:]
+			rightOperand, err = fb.formatColSelector(joinExpr.Children()[2].Text())
+			if err != nil {
+				return "", err
+			}
 		}
 
 		if operator == "==" {
@@ -191,6 +198,24 @@ func (fb *BaseFragmentBuilder) Join(fnJoin *ast.Join) (string, error) {
 	}
 
 	return sql, nil
+}
+
+// private function that formats one side of the JOIN statement, caring for a proper quoting
+// E.g. .tbl.col gets formatted as "tbl"."col".
+// .col is formatted as col to keep backward compatibility
+func (fb *BaseFragmentBuilder) formatColSelector(textExpr string) (string, error) {
+	var operand string
+	split := strings.Split(textExpr, ".")[1:]
+	switch len(split) {
+	case 1:
+		operand = split[0]
+	case 2:
+		operand = fmt.Sprintf("%s%s%s.%s%s%s", fb.Quote, split[0], fb.Quote, fb.Quote, split[1], fb.Quote)
+	default:
+		// should not happen if grammar is OK
+		return "", errz.Errorf("malformed ColSelector: %q", textExpr)
+	}
+	return operand, nil
 }
 
 // Range implements FragmentBuilder.
