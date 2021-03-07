@@ -1,4 +1,4 @@
-# sq: swiss army knife for data
+# sq: swiss-army knife for data
 
 `sq` is a command line tool that provides `jq`-style access to
 structured data sources such as SQL databases,
