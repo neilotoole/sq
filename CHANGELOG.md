@@ -1,7 +1,7 @@
 # CHANGELOG
 
 ## v0.15.2
-- [#88](https://github.com/neilotoole/sq/pull/88): Bug with SQL generated for joins.
+- [#89](https://github.com/neilotoole/sq/pull/89): Bug with SQL generated for joins.
 
 ## v0.15.1
 - [#83](https://github.com/neilotoole/sq/pull/83): `sq ping` now has `--all` flag instead of `all` arg.
