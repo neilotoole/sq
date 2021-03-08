@@ -192,15 +192,33 @@ func (fb *BaseFragmentBuilder) Join(fnJoin *ast.Join) (string, error) {
 			operator = "="
 		}
 
-		onClause = fmt.Sprintf(" ON %s %s %s", leftOperand, operator, rightOperand)
+		onClause = fmt.Sprintf("ON %s %s %s", leftOperand, operator, rightOperand)
 	}
 
 	sql := fmt.Sprintf("FROM %s%s%s %s %s%s%s", fb.Quote, fnJoin.LeftTbl().SelValue(), fb.Quote, joinType, fb.Quote, fnJoin.RightTbl().SelValue(), fb.Quote)
-	if onClause != "" {
-		sql = sql + " " + onClause
-	}
+	sql = sqlAppend(sql, onClause)
+	//
+	//if onClause != "" {
+	//	sql = sql + " " + onClause
+	//}
 
 	return sql, nil
+}
+
+// sqlAppend is a convenience function for building the SQL string.
+// The main purpose is to ensure that there's always a consistent amount
+// of whitespace. Thus, if existing has a space suffix and add has a
+// space prefix, the returned string will only have one space. If add
+// is the empty string or just whitespace, this function simply
+// returns existing.
+func sqlAppend(existing, add string) string {
+	add = strings.TrimSpace(add)
+	if add == "" {
+		return existing
+	}
+
+	existing = strings.TrimSpace(existing)
+	return existing + " " + add
 }
 
 // quoteTableOrColSelector returns a quote table, col, or table/col

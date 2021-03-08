@@ -21,24 +21,40 @@ type engine struct {
 	srcs         *source.Set
 	dbOpener     driver.DatabaseOpener
 	joinDBOpener driver.JoinDatabaseOpener
+
+	// tasks contains tasks that must be completed before targetSQL
+	// is executed against targetDB. Typically tasks is used to
+	// set up the joindb before it is queried.
+	tasks []tasker
+
+	// targetSQL is the ultimate SQL query to be executed against
+	// targetDB.
+	targetSQL string
+
+	// targetDB is the destination for the ultimate SQL query to
+	// be executed against.
+	targetDB driver.Database
 }
 
-// execute executes the queryModel.
-func (ng *engine) execute(ctx context.Context, qm *queryModel, recw RecordWriter) error {
+// prepare prepares the engine to execute queryModel.
+// When this method returns, targetDB and targetSQL will be set,
+// as will any tasks (may be empty). The tasks must be executed
+// against targetDB before targetSQL is executed (the engine.execute
+// method does this work).
+func (ng *engine) prepare(ctx context.Context, qm *queryModel) error {
 	selectable := qm.Selectable
 
-	var targetDB driver.Database
 	var fromClause string
 	var err error
 
 	switch selectable := selectable.(type) {
 	case *ast.TblSelector:
-		fromClause, targetDB, err = ng.buildTableFromClause(ctx, selectable)
+		fromClause, ng.targetDB, err = ng.buildTableFromClause(ctx, selectable)
 		if err != nil {
 			return err
 		}
 	case *ast.Join:
-		fromClause, targetDB, err = ng.buildJoinFromClause(ctx, selectable)
+		fromClause, ng.targetDB, err = ng.buildJoinFromClause(ctx, selectable)
 		if err != nil {
 			return err
 		}
@@ -46,7 +62,7 @@ func (ng *engine) execute(ctx context.Context, qm *queryModel, recw RecordWriter
 		return errz.Errorf("unknown selectable %T: %q", selectable, selectable)
 	}
 
-	fragBuilder, qb := targetDB.SQLDriver().SQLBuilder()
+	fragBuilder, qb := ng.targetDB.SQLDriver().SQLBuilder()
 
 	selectColsClause, err := fragBuilder.SelectCols(qm.Cols)
 	if err != nil {
@@ -75,14 +91,48 @@ func (ng *engine) execute(ctx context.Context, qm *queryModel, recw RecordWriter
 		qb.SetWhere(whereClause)
 	}
 
-	sqlQuery, err := qb.SQL()
+	ng.targetSQL, err = qb.SQL()
 	if err != nil {
 		return err
 	}
 
-	ng.log.Debugf("SQL BUILDER [%s]: %s", targetDB.Source().Handle, sqlQuery)
-	err = QuerySQL(ctx, ng.log, targetDB, recw, sqlQuery)
-	return err
+	return nil
+}
+
+// execute executes the plan that was built by engine.prepare.
+func (ng *engine) execute(ctx context.Context, recw RecordWriter) error {
+	ng.log.Debugf("engine.execute: [%s]: %s", ng.targetDB.Source().Handle, ng.targetSQL)
+
+	err := ng.executeTasks(ctx)
+	if err != nil {
+		return err
+	}
+
+	return QuerySQL(ctx, ng.log, ng.targetDB, recw, ng.targetSQL)
+}
+
+// executeTasks executes any tasks in engine.tasks.
+// These tasks may exist if preparatory work must be performed
+// before engine.targetSQL can be executed.
+func (ng *engine) executeTasks(ctx context.Context) error {
+	switch len(ng.tasks) {
+	case 0:
+		return nil
+	case 1:
+		return ng.tasks[0].executeTask(ctx, ng.log)
+	default:
+	}
+
+	g, gCtx := errgroup.WithContextN(ctx, driver.Tuning.ErrgroupNumG, driver.Tuning.ErrgroupQSize)
+	for _, task := range ng.tasks {
+		task := task
+
+		g.Go(func() error {
+			return task.executeTask(gCtx, ng.log)
+		})
+	}
+
+	return g.Wait()
 }
 
 func (ng *engine) buildTableFromClause(ctx context.Context, tblSel *ast.TblSelector) (fromClause string, fromConn driver.Database, err error) {
@@ -149,45 +199,51 @@ func (ng *engine) crossSourceJoin(ctx context.Context, fnJoin *ast.Join) (fromCl
 		return "", nil, errz.Errorf("JOIN tables must have distinct names (or use aliases): duplicate tbl name %q", fnJoin.LeftTbl().SelValue())
 	}
 
-	ng.log.Debugf("Starting cross-source JOIN...")
-
-	var joinCopyTasks []*joinCopyTask
-
 	leftSrc, err := ng.srcs.Get(fnJoin.LeftTbl().DSName)
 	if err != nil {
 		return "", nil, err
 	}
-	leftDB, err := ng.dbOpener.Open(ctx, leftSrc)
-	if err != nil {
-		return "", nil, err
-	}
-	joinCopyTasks = append(joinCopyTasks, &joinCopyTask{
-		fromDB:      leftDB,
-		fromTblName: leftTblName,
-	})
 
 	rightSrc, err := ng.srcs.Get(fnJoin.RightTbl().DSName)
 	if err != nil {
 		return "", nil, err
 	}
-	rightDB, err := ng.dbOpener.Open(ctx, rightSrc)
-	if err != nil {
-		return "", nil, err
-	}
-	joinCopyTasks = append(joinCopyTasks, &joinCopyTask{
-		fromDB:      rightDB,
-		fromTblName: rightTblName,
-	})
 
 	// Open the join db
 	joinDB, err := ng.joinDBOpener.OpenJoin(ctx, leftSrc, rightSrc)
 	if err != nil {
 		return "", nil, err
 	}
-	err = execJoinCopyTasks(ctx, ng.log, joinDB, joinCopyTasks)
+
+	leftDB, err := ng.dbOpener.Open(ctx, leftSrc)
 	if err != nil {
 		return "", nil, err
 	}
+	leftCopyTask := &joinCopyTask{
+		fromDB:      leftDB,
+		fromTblName: leftTblName,
+		toDB:        joinDB,
+		toTblName:   leftTblName,
+	}
+
+	rightDB, err := ng.dbOpener.Open(ctx, rightSrc)
+	if err != nil {
+		return "", nil, err
+	}
+	rightCopyTask := &joinCopyTask{
+		fromDB:      rightDB,
+		fromTblName: rightTblName,
+		toDB:        joinDB,
+		toTblName:   rightTblName,
+	}
+
+	ng.tasks = append(ng.tasks, leftCopyTask)
+	ng.tasks = append(ng.tasks, rightCopyTask)
+
+	//err = execJoinCopyTasks(ctx, ng.log, joinDB, joinCopyTasks)
+	//if err != nil {
+	//	return "", nil, err
+	//}
 
 	joinDBFragBuilder, _ := joinDB.SQLDriver().SQLBuilder()
 	fromClause, err = joinDBFragBuilder.Join(fnJoin)
@@ -198,28 +254,26 @@ func (ng *engine) crossSourceJoin(ctx context.Context, fnJoin *ast.Join) (fromCl
 	return fromClause, joinDB, nil
 }
 
+// tasker is the interface for executing a DB task.
+type tasker interface {
+	// executeTask executes a task against the DB.
+	executeTask(ctx context.Context, log lg.Log) error
+}
+
 // joinCopyTask is a specification of a table data copy task to be performed
 // for a cross-source join. That is, the data in fromDB.fromTblName will
-// be copied to a similar target table in the scratch DB. If colNames is
+// be copied to a table in toDB. If colNames is
 // empty, all cols in fromTblName are to be copied.
 type joinCopyTask struct {
 	fromDB      driver.Database
 	fromTblName string
 	colNames    []string
+	toDB        driver.Database
+	toTblName   string
 }
 
-// execJoinCopyTasks executes tasks, returning any error.
-func execJoinCopyTasks(ctx context.Context, log lg.Log, joinDB driver.Database, tasks []*joinCopyTask) error {
-	g, gCtx := errgroup.WithContextN(ctx, driver.Tuning.ErrgroupNumG, driver.Tuning.ErrgroupQSize)
-	for _, task := range tasks {
-		task := task
-
-		g.Go(func() error {
-			return execCopyTable(gCtx, log, task.fromDB, task.fromTblName, joinDB, task.fromTblName)
-		})
-	}
-
-	return g.Wait()
+func (jt *joinCopyTask) executeTask(ctx context.Context, log lg.Log) error {
+	return execCopyTable(ctx, log, jt.fromDB, jt.fromTblName, jt.toDB, jt.toTblName)
 }
 
 // execCopyTable performs the work of copying fromDB.fromTblName to destDB.destTblName.
@@ -239,7 +293,7 @@ func execCopyTable(ctx context.Context, log lg.Log, fromDB driver.Database, from
 
 	inserter := NewDBWriter(log, destDB, destTblName, driver.Tuning.RecordChSize, createTblHook)
 
-	query := "SELECT * FROM " + fromTblName
+	query := "SELECT * FROM " + fromDB.SQLDriver().Dialect().Enquote(fromTblName)
 	err := QuerySQL(ctx, log, fromDB, inserter, query)
 	if err != nil {
 		return errz.Wrapf(err, "insert %s.%s failed", destDB.Source().Handle, destTblName)
