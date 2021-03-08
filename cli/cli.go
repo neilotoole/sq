@@ -101,13 +101,6 @@ func ExecuteWith(ctx context.Context, rc *RunContext, args []string) error {
 	rc.Log.Debugf("Build: %s %s %s", buildinfo.Version, buildinfo.Commit, buildinfo.Timestamp)
 	rc.Log.Debugf("Config (cfg version %q) from: %s", rc.Config.Version, rc.ConfigStore.Location())
 
-	// NOTE: (Feb 2021): The project has been finally been upgraded
-	//  to spf13/cobra v1.1.3, which does provide support
-	//  for context.Context. However, the sq codebase is still using
-	//  the workaround to smuggle Context to the commands. Presumably
-	//  we'll refactor the code at some point to make use of cobra's
-	//  support for Context.
-
 	ctx = WithRunContext(ctx, rc)
 
 	rootCmd := newCommandTree(rc)

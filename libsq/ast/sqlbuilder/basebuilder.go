@@ -173,9 +173,19 @@ func (fb *BaseFragmentBuilder) Join(fnJoin *ast.Join) (string, error) {
 			operator = "=="
 			rightOperand = fmt.Sprintf("%s%s%s.%s%s%s", fb.Quote, fnJoin.RightTbl().SelValue(), fb.Quote, fb.Quote, colSel.SelValue(), fb.Quote)
 		} else {
-			leftOperand = joinExpr.Children()[0].Text()[1:]
+			var err error
+
+			leftOperand, err = quoteTableOrColSelector(fb.Quote, joinExpr.Children()[0].Text())
+			if err != nil {
+				return "", err
+			}
+
 			operator = joinExpr.Children()[1].Text()
-			rightOperand = joinExpr.Children()[2].Text()[1:]
+
+			rightOperand, err = quoteTableOrColSelector(fb.Quote, joinExpr.Children()[2].Text())
+			if err != nil {
+				return "", err
+			}
 		}
 
 		if operator == "==" {
@@ -191,6 +201,30 @@ func (fb *BaseFragmentBuilder) Join(fnJoin *ast.Join) (string, error) {
 	}
 
 	return sql, nil
+}
+
+// quoteTableOrColSelector returns a quote table, col, or table/col
+// selector for use in a SQL statement. For example:
+//
+//  .table     -->  "table"
+//  .col       -->  "col"
+//  .table.col -->  "table"."col"
+//
+// Thus, the selector must have exactly one or two periods.
+func quoteTableOrColSelector(quote string, selector string) (string, error) {
+	if len(selector) < 2 || selector[0] != '.' {
+		return "", errz.Errorf("invalid selector: %s", selector)
+	}
+
+	parts := strings.Split(selector[1:], ".")
+	switch len(parts) {
+	case 1:
+		return quote + parts[0] + quote, nil
+	case 2:
+		return quote + parts[0] + quote + "." + quote + parts[1] + quote, nil
+	default:
+		return "", errz.Errorf("invalid selector: %s", selector)
+	}
 }
 
 // Range implements FragmentBuilder.
