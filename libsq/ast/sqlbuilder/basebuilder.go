@@ -197,10 +197,6 @@ func (fb *BaseFragmentBuilder) Join(fnJoin *ast.Join) (string, error) {
 
 	sql := fmt.Sprintf("FROM %s%s%s %s %s%s%s", fb.Quote, fnJoin.LeftTbl().SelValue(), fb.Quote, joinType, fb.Quote, fnJoin.RightTbl().SelValue(), fb.Quote)
 	sql = sqlAppend(sql, onClause)
-	//
-	//if onClause != "" {
-	//	sql = sql + " " + onClause
-	//}
 
 	return sql, nil
 }

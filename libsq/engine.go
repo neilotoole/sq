@@ -240,11 +240,6 @@ func (ng *engine) crossSourceJoin(ctx context.Context, fnJoin *ast.Join) (fromCl
 	ng.tasks = append(ng.tasks, leftCopyTask)
 	ng.tasks = append(ng.tasks, rightCopyTask)
 
-	//err = execJoinCopyTasks(ctx, ng.log, joinDB, joinCopyTasks)
-	//if err != nil {
-	//	return "", nil, err
-	//}
-
 	joinDBFragBuilder, _ := joinDB.SQLDriver().SQLBuilder()
 	fromClause, err = joinDBFragBuilder.Join(fnJoin)
 	if err != nil {

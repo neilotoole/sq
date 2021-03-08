@@ -17,6 +17,7 @@ func TestSLQ2SQL(t *testing.T) {
 		wantSQL string
 		wantErr bool
 	}{
+		// Obviously we could use about 1,000 additional test cases.
 		{
 			handles: []string{sakila.SL3},
 			slq:     `@sakila_sl3 | .actor, .film_actor | join(.film_actor.actor_id == .actor.actor_id)`,
@@ -42,5 +43,4 @@ func TestSLQ2SQL(t *testing.T) {
 			require.Equal(t, tc.wantSQL, gotSQL)
 		})
 	}
-
 }
