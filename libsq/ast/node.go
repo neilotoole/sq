@@ -39,8 +39,8 @@ type Node interface {
 }
 
 // Selectable is a marker interface to indicate that the node can be
-// selected from. That is, the node represents a SQL table or join and
-// can be used like "SELECT * FROM [selectable]".
+// selected from. That is, the node represents a SQL table, view, or
+// join table, and can be used like "SELECT * FROM [selectable]".
 type Selectable interface {
 	Selectable()
 }

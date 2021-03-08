@@ -171,7 +171,7 @@ func (h *Helper) Source(handle string) *source.Source {
 	defer h.mu.Unlock()
 	t := h.T
 
-	// invoke h.Registry to ensure that its cleanup side-effects
+	// invoke h.init to ensure that its cleanup side-effects
 	// happen in the correct order (files get cleaned after
 	// databases, etc.).
 	h.init()
@@ -247,6 +247,17 @@ func (h *Helper) Source(handle string) *source.Source {
 	}
 
 	return src
+}
+
+// NewSourceSet is a convenience function for building a
+// new *source.Set incorporating the supplied handles. See
+// Helper.Source for more on the behavior.
+func (h *Helper) NewSourceSet(handles ...string) *source.Set {
+	srcs := &source.Set{}
+	for _, handle := range handles {
+		require.NoError(h.T, srcs.Add(h.Source(handle)))
+	}
+	return srcs
 }
 
 // Open opens a Database for src via h's internal Databases

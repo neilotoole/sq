@@ -74,14 +74,23 @@ type RecordWriter interface {
 // ExecuteSLQ executes the slq query, writing the results to recw.
 // The caller is responsible for closing dbases.
 func ExecuteSLQ(ctx context.Context, log lg.Log, dbOpener driver.DatabaseOpener, joinDBOpener driver.JoinDatabaseOpener, srcs *source.Set, query string, recw RecordWriter) error {
-	a, err := ast.Parse(log, query)
+	ng, err := newEngine(ctx, log, dbOpener, joinDBOpener, srcs, query)
 	if err != nil {
 		return err
 	}
 
+	return ng.execute(ctx, recw)
+}
+
+func newEngine(ctx context.Context, log lg.Log, dbOpener driver.DatabaseOpener, joinDBOpener driver.JoinDatabaseOpener, srcs *source.Set, query string) (*engine, error) {
+	a, err := ast.Parse(log, query)
+	if err != nil {
+		return nil, err
+	}
+
 	qModel, err := buildQueryModel(log, a)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	ng := &engine{
@@ -90,7 +99,13 @@ func ExecuteSLQ(ctx context.Context, log lg.Log, dbOpener driver.DatabaseOpener,
 		dbOpener:     dbOpener,
 		joinDBOpener: joinDBOpener,
 	}
-	return ng.execute(ctx, qModel, recw)
+
+	err = ng.prepare(ctx, qModel)
+	if err != nil {
+		return nil, err
+	}
+
+	return ng, nil
 }
 
 // QuerySQL executes the SQL query against dbase, writing

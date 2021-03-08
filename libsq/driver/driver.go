@@ -260,6 +260,9 @@ func NewDatabases(log lg.Log, drvrs Provider, scratchSrcFn ScratchSrcFunc) *Data
 // same handle. Thus, the caller should typically not close
 // the Database: it will be closed via d.Close.
 //
+// NOTE: This entire logic re caching/not-closing is a bit sketchy,
+//  and needs to be revisited.
+//
 // Open implements DatabaseOpener.
 func (d *Databases) Open(ctx context.Context, src *source.Source) (Database, error) {
 	d.mu.Lock()

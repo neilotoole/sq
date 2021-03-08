@@ -173,24 +173,72 @@ func (fb *BaseFragmentBuilder) Join(fnJoin *ast.Join) (string, error) {
 			operator = "=="
 			rightOperand = fmt.Sprintf("%s%s%s.%s%s%s", fb.Quote, fnJoin.RightTbl().SelValue(), fb.Quote, fb.Quote, colSel.SelValue(), fb.Quote)
 		} else {
-			leftOperand = joinExpr.Children()[0].Text()[1:]
+			var err error
+
+			leftOperand, err = quoteTableOrColSelector(fb.Quote, joinExpr.Children()[0].Text())
+			if err != nil {
+				return "", err
+			}
+
 			operator = joinExpr.Children()[1].Text()
-			rightOperand = joinExpr.Children()[2].Text()[1:]
+
+			rightOperand, err = quoteTableOrColSelector(fb.Quote, joinExpr.Children()[2].Text())
+			if err != nil {
+				return "", err
+			}
 		}
 
 		if operator == "==" {
 			operator = "="
 		}
 
-		onClause = fmt.Sprintf(" ON %s %s %s", leftOperand, operator, rightOperand)
+		onClause = fmt.Sprintf("ON %s %s %s", leftOperand, operator, rightOperand)
 	}
 
 	sql := fmt.Sprintf("FROM %s%s%s %s %s%s%s", fb.Quote, fnJoin.LeftTbl().SelValue(), fb.Quote, joinType, fb.Quote, fnJoin.RightTbl().SelValue(), fb.Quote)
-	if onClause != "" {
-		sql = sql + " " + onClause
-	}
+	sql = sqlAppend(sql, onClause)
 
 	return sql, nil
+}
+
+// sqlAppend is a convenience function for building the SQL string.
+// The main purpose is to ensure that there's always a consistent amount
+// of whitespace. Thus, if existing has a space suffix and add has a
+// space prefix, the returned string will only have one space. If add
+// is the empty string or just whitespace, this function simply
+// returns existing.
+func sqlAppend(existing, add string) string {
+	add = strings.TrimSpace(add)
+	if add == "" {
+		return existing
+	}
+
+	existing = strings.TrimSpace(existing)
+	return existing + " " + add
+}
+
+// quoteTableOrColSelector returns a quote table, col, or table/col
+// selector for use in a SQL statement. For example:
+//
+//  .table     -->  "table"
+//  .col       -->  "col"
+//  .table.col -->  "table"."col"
+//
+// Thus, the selector must have exactly one or two periods.
+func quoteTableOrColSelector(quote string, selector string) (string, error) {
+	if len(selector) < 2 || selector[0] != '.' {
+		return "", errz.Errorf("invalid selector: %s", selector)
+	}
+
+	parts := strings.Split(selector[1:], ".")
+	switch len(parts) {
+	case 1:
+		return quote + parts[0] + quote, nil
+	case 2:
+		return quote + parts[0] + quote + "." + quote + parts[1] + quote, nil
+	default:
+		return "", errz.Errorf("invalid selector: %s", selector)
+	}
 }
 
 // Range implements FragmentBuilder.
