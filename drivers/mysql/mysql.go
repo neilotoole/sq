@@ -405,9 +405,9 @@ func dsnFromLocation(src *source.Source) (string, error) {
 	}
 
 	// Convert the location to the desired driver DSN.
-	// Location: 	mysql://sakila:p_ssW0rd@localhost:3306/sqtest
-	// Driver DSN:	sakila:p_ssW0rd@tcp(localhost:3306)/sqtest
-	driverDSN := fmt.Sprintf("%s@tcp(%s)%s", u.User.String(), u.Host, u.Path)
+	// Location: 	mysql://sakila:p_ssW0rd@localhost:3306/sqtest?allowOldPasswords=1
+	// Driver DSN:	sakila:p_ssW0rd@tcp(localhost:3306)/sqtest?allowOldPasswords=1
+	driverDSN := u.DSN
 
 	_, err = mysql.ParseDSN(driverDSN) // verify
 	if err != nil {
