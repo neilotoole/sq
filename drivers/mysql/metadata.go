@@ -71,8 +71,8 @@ func recordMetaFromColumnTypes(log lg.Log, colTypes []*sql.ColumnType) sqlz.Reco
 	recMeta := make(sqlz.RecordMeta, len(colTypes))
 
 	for i, colType := range colTypes {
-		kind := kindFromDBTypeName(log, colType.Name(), colType.DatabaseTypeName())
-		colTypeData := sqlz.NewColumnTypeData(colType, kind)
+		knd := kindFromDBTypeName(log, colType.Name(), colType.DatabaseTypeName())
+		colTypeData := sqlz.NewColumnTypeData(colType, knd)
 		recMeta[i] = sqlz.NewFieldMeta(colTypeData)
 	}
 
@@ -312,6 +312,7 @@ FROM information_schema.TABLES t
 WHERE t.TABLE_SCHEMA = DATABASE()
 ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 
+	// nolint:lll
 	// Query results look like:
 	// +------------+----------+----------+-------------+----------+-----------+----------------+----------+---------+--------------------+-----------+-----------------+--------------+---------------------------+
 	// |TABLE_SCHEMA|TABLE_NAME|TABLE_TYPE|TABLE_COMMENT|table_size|COLUMN_NAME|ORDINAL_POSITION|COLUMN_KEY|DATA_TYPE|COLUMN_TYPE         |IS_NULLABLE|COLUMN_DEFAULT   |COLUMN_COMMENT|EXTRA                      |
@@ -345,7 +346,6 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 		default:
 		}
 
-		//var colNullable, colKey, colExtra string
 		var colName, colDefault, colNullable, colKey, colBaseType, colColumnType, colComment, colExtra sql.NullString
 		var colPosition sql.NullInt64
 
@@ -380,18 +380,18 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 
 			rowCountTbl, rowCount, i := curTblName.String, &curTblMeta.RowCount, len(tblMetas)-1
 			gRowCount.Go(func() error {
-				err := db.QueryRowContext(gctx, "SELECT COUNT(*) FROM `"+rowCountTbl+"`").Scan(rowCount)
-				if err != nil {
-					if hasErrCode(err, errNumTableNotExist) {
+				gErr := db.QueryRowContext(gctx, "SELECT COUNT(*) FROM `"+rowCountTbl+"`").Scan(rowCount)
+				if gErr != nil {
+					if hasErrCode(gErr, errNumTableNotExist) {
 						// The table was probably dropped while we were collecting
 						// metadata, but that's ok. We set the element to nil
 						// and we'll filter it out later.
-						log.Debugf("Failed to get row count for %q: ignoring: %v", curTblName.String, err)
+						log.Debugf("Failed to get row count for %q: ignoring: %v", curTblName.String, gErr)
 						tblMetas[i] = nil
 						return nil
 					}
 
-					return errz.Err(err)
+					return errz.Err(gErr)
 				}
 				return nil
 			})

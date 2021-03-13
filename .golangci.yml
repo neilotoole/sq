@@ -13,8 +13,8 @@ linters-settings:
     lines: 200
     statements: 100
   goconst:
-    min-len: 2
-    min-occurrences: 3
+    min-len: 3
+    min-occurrences: 4
   gocritic:
     enabled-tags:
       - diagnostic
@@ -52,8 +52,6 @@ linters-settings:
           - (github.com/neilotoole/lg.Log).Errorf
   lll:
     line-length: 180
-  maligned:
-    suggest-new: true
   misspell:
     locale: US
 
@@ -82,7 +80,6 @@ linters:
     - gosimple
     - govet
     - ineffassign
-    - interfacer
     - lll
 #    - misspell
     - nakedret
@@ -100,7 +97,6 @@ linters:
 #    - gochecknoglobals
     - gocognit
 #    - godox
-    - maligned
     - prealloc
 
 issues:

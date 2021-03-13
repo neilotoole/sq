@@ -67,7 +67,8 @@ var createTblKindDefaults = map[kind.Kind]string{
 	kind.Unknown:  ``,
 }
 
-func buildCreateTableStmt(tblDef *sqlmodel.TableDef) (string, error) {
+// nolint:funlen
+func buildCreateTableStmt(tblDef *sqlmodel.TableDef) string {
 	buf := &bytes.Buffer{}
 
 	cols := make([]string, len(tblDef.Cols))
@@ -134,46 +135,48 @@ func buildCreateTableStmt(tblDef *sqlmodel.TableDef) (string, error) {
 	fk := ""
 	buf.Reset()
 	for _, col := range tblDef.Cols {
-		if col.ForeignKey != nil {
-			if buf.Len() > 0 {
-				buf.WriteString(",\n")
-			}
-			buf.WriteString("KEY `")
-			buf.WriteString(tblDef.Name)
-			buf.WriteRune('_')
-			buf.WriteString(col.Name)
-			buf.WriteRune('_')
-			buf.WriteString(col.ForeignKey.RefTable)
-			buf.WriteRune('_')
-			buf.WriteString(col.ForeignKey.RefCol)
-			buf.WriteString("_key` (`")
-			buf.WriteString(col.Name)
-			buf.WriteString("`),\nCONSTRAINT `")
-			buf.WriteString(tblDef.Name)
-			buf.WriteRune('_')
-			buf.WriteString(col.Name)
-			buf.WriteRune('_')
-			buf.WriteString(col.ForeignKey.RefTable)
-			buf.WriteRune('_')
-			buf.WriteString(col.ForeignKey.RefCol)
-			buf.WriteString("_fk` FOREIGN KEY (`")
-			buf.WriteString(col.Name)
-			buf.WriteString("`) REFERENCES `")
-			buf.WriteString(col.ForeignKey.RefTable)
-			buf.WriteString("` (`")
-			buf.WriteString(col.ForeignKey.RefCol)
-			buf.WriteString("`) ON DELETE ")
-			if col.ForeignKey.OnDelete == "" {
-				buf.WriteString("CASCADE")
-			} else {
-				buf.WriteString(col.ForeignKey.OnDelete)
-			}
-			buf.WriteString(" ON UPDATE ")
-			if col.ForeignKey.OnUpdate == "" {
-				buf.WriteString("CASCADE")
-			} else {
-				buf.WriteString(col.ForeignKey.OnUpdate)
-			}
+		if col.ForeignKey == nil {
+			continue
+		}
+
+		if buf.Len() > 0 {
+			buf.WriteString(",\n")
+		}
+		buf.WriteString("KEY `")
+		buf.WriteString(tblDef.Name)
+		buf.WriteRune('_')
+		buf.WriteString(col.Name)
+		buf.WriteRune('_')
+		buf.WriteString(col.ForeignKey.RefTable)
+		buf.WriteRune('_')
+		buf.WriteString(col.ForeignKey.RefCol)
+		buf.WriteString("_key` (`")
+		buf.WriteString(col.Name)
+		buf.WriteString("`),\nCONSTRAINT `")
+		buf.WriteString(tblDef.Name)
+		buf.WriteRune('_')
+		buf.WriteString(col.Name)
+		buf.WriteRune('_')
+		buf.WriteString(col.ForeignKey.RefTable)
+		buf.WriteRune('_')
+		buf.WriteString(col.ForeignKey.RefCol)
+		buf.WriteString("_fk` FOREIGN KEY (`")
+		buf.WriteString(col.Name)
+		buf.WriteString("`) REFERENCES `")
+		buf.WriteString(col.ForeignKey.RefTable)
+		buf.WriteString("` (`")
+		buf.WriteString(col.ForeignKey.RefCol)
+		buf.WriteString("`) ON DELETE ")
+		if col.ForeignKey.OnDelete == "" {
+			buf.WriteString("CASCADE")
+		} else {
+			buf.WriteString(col.ForeignKey.OnDelete)
+		}
+		buf.WriteString(" ON UPDATE ")
+		if col.ForeignKey.OnUpdate == "" {
+			buf.WriteString("CASCADE")
+		} else {
+			buf.WriteString(col.ForeignKey.OnUpdate)
 		}
 	}
 	fk = buf.String()
@@ -202,7 +205,7 @@ func buildCreateTableStmt(tblDef *sqlmodel.TableDef) (string, error) {
 		buf.WriteString(fk)
 	}
 	buf.WriteString("\n)")
-	return buf.String(), nil
+	return buf.String()
 }
 
 func buildUpdateStmt(tbl string, cols []string, where string) (string, error) {
