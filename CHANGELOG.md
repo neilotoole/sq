@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## v0.15.3
+- [#91](https://github.com/neilotoole/sq/pull/91): MySQL driver options no longer stripped
+
 ## v0.15.2
 - [#89](https://github.com/neilotoole/sq/pull/89): Bug with SQL generated for joins.
 
