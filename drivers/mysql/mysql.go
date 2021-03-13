@@ -94,18 +94,15 @@ func (d *driveri) RecordMeta(colTypes []*sql.ColumnType) (sqlz.RecordMeta, drive
 
 // CreateTable implements driver.SQLDriver.
 func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *sqlmodel.TableDef) error {
-	createStmt, err := buildCreateTableStmt(tblDef)
-	if err != nil {
-		return err
-	}
+	createStmt := buildCreateTableStmt(tblDef)
 
-	_, err = db.ExecContext(ctx, createStmt)
+	_, err := db.ExecContext(ctx, createStmt)
 	return errz.Err(err)
 }
 
 // AlterTableAddColumn implements driver.SQLDriver.
-func (d *driveri) AlterTableAddColumn(ctx context.Context, db *sql.DB, tbl string, col string, kind kind.Kind) error {
-	q := fmt.Sprintf("ALTER TABLE %q ADD COLUMN %q ", tbl, col) + dbTypeNameFromKind(kind)
+func (d *driveri) AlterTableAddColumn(ctx context.Context, db *sql.DB, tbl, col string, knd kind.Kind) error {
+	q := fmt.Sprintf("ALTER TABLE %q ADD COLUMN %q ", tbl, col) + dbTypeNameFromKind(knd)
 
 	_, err := db.ExecContext(ctx, q)
 	if err != nil {
@@ -285,13 +282,13 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 
 // Ping implements driver.Driver.
 func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
-	dbase, err := d.Open(context.TODO(), src)
+	dbase, err := d.Open(ctx, src)
 	if err != nil {
 		return err
 	}
 	defer d.log.WarnIfCloseError(dbase.DB())
 
-	return dbase.DB().Ping()
+	return dbase.DB().PingContext(ctx)
 }
 
 // Truncate implements driver.SQLDriver. Arg reset is

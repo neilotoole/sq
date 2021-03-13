@@ -88,5 +88,4 @@ func TestDSNFromLocation(t *testing.T) {
 			require.Equal(t, tc.wantDSN, gotDSN)
 		})
 	}
-
 }
