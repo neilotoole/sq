@@ -70,6 +70,8 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 }
 
 // Open implements driver.Driver.
+// If src.Options has option "spatialite=true", the spatialite
+// extension will be loaded.
 func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
 	d.log.Debug("Opening data source: ", src)
 
@@ -77,7 +79,18 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database
 	if err != nil {
 		return nil, err
 	}
-	db, err := sql.Open(dbDrvr, dsn)
+
+	var drvrName = dbDrvr
+	isSpatialite, _, err := src.Options.GetBool(spatialite)
+	if err != nil {
+		return nil, errz.Err(err)
+	}
+	if isSpatialite {
+		registerSpatialite()
+		drvrName = spatialite
+	}
+
+	db, err := sql.Open(drvrName, dsn)
 	if err != nil {
 		return nil, errz.Wrapf(err, "failed to open sqlite3 source with DSN %q", dsn)
 	}
@@ -87,16 +100,13 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database
 
 // Truncate implements driver.Driver.
 func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, reset bool) (affected int64, err error) {
-	dsn, err := PathFromLocation(src)
-	if err != nil {
-		return 0, err
-	}
-
-	db, err := sql.Open(dbDrvr, dsn)
+	dbase, err := d.Open(ctx, src)
 	if err != nil {
 		return 0, errz.Err(err)
 	}
-	defer d.log.WarnIfFuncError(db.Close)
+
+	db := dbase.DB()
+	defer d.log.WarnIfFuncError(dbase.Close)
 
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
@@ -482,10 +492,6 @@ func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error)
 func (d *database) Close() error {
 	d.closeMu.Lock()
 	defer d.closeMu.Unlock()
-
-	//if !d.closed {
-	//	debug.PrintStack()
-	//}
 
 	if d.closed {
 		//panic( "SQLITE DB already closed")

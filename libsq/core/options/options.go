@@ -35,10 +35,10 @@ func (o Options) Clone() Options {
 	return n
 }
 
-// ParseOptions parses the URL-encoded options string. If allowedOpts is
+// Parse parses the URL-encoded options string. If allowedOpts is
 // non-empty, the options are tested for basic correctness.
 // See url.ParseQuery.
-func ParseOptions(options string, allowedOpts ...string) (Options, error) {
+func Parse(options string, allowedOpts ...string) (Options, error) {
 	vals, err := url.ParseQuery(options)
 	if err != nil {
 		return nil, errz.Wrap(err, "unable to parse --opts flag: value should be in URL-encoded query format")
@@ -47,7 +47,7 @@ func ParseOptions(options string, allowedOpts ...string) (Options, error) {
 	opts := Options(vals)
 
 	if len(allowedOpts) > 0 {
-		err := verifyOptions(opts, allowedOpts...)
+		err = verifyOptions(opts, allowedOpts...)
 		if err != nil {
 			return nil, err
 		}
@@ -57,13 +57,37 @@ func ParseOptions(options string, allowedOpts ...string) (Options, error) {
 }
 
 // Add is documented by url.Values.Add.
-func (o Options) Add(key, value string) {
+func (o Options) Add(key, value string) Options {
 	url.Values(o).Add(key, value)
+	return o
 }
 
 // Get is documented by url.Values.Get.
 func (o Options) Get(key string) string {
 	return url.Values(o).Get(key)
+}
+
+// GetBool returns (true,true,nil) if there o has an option "name"
+// whose value is boolean true.
+func (o Options) GetBool(name string) (val, ok bool, err error) {
+	if len(o) == 0 {
+		return false, false, nil
+	}
+
+	if _, ok = o[name]; !ok {
+		return false, false, nil
+	}
+	v := o.Get(name)
+	if v == "" {
+		return false, false, nil
+	}
+
+	val, err = strconv.ParseBool(v)
+	if err != nil {
+		return false, false, errz.Wrapf(err, `option %q: not bool value: %q`, name, v)
+	}
+
+	return val, true, nil
 }
 
 // Encode is documented by url.Values.Encode.

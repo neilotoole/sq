@@ -4,7 +4,6 @@ package testh
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -41,6 +40,7 @@ import (
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/testsrc"
+	"github.com/neilotoole/sq/testh/tutil"
 )
 
 // Helper encapsulates a test helper session.
@@ -682,34 +682,7 @@ var (
 	_ AssertCompareFunc = require.Greater
 )
 
-// Name is a convenience function for building a test name to
-// pass to t.Run.
+// Name is documented by tutil.Name.
 //
-//  t.Run(testh.Name("my_test", 1), func(t *testing.T) {
-//
-// The most common usage is with test names that are file
-// paths.
-//
-//   testh.Name("path/to/file") --> "path_to_file"
-//
-// Any element of arg that prints to empty string is skipped.
-func Name(args ...interface{}) string {
-	var parts []string
-	var s string
-	for _, a := range args {
-		s = fmt.Sprintf("%v", a)
-		if s == "" {
-			continue
-		}
-
-		s = strings.Replace(s, "/", "_", -1)
-		parts = append(parts, s)
-	}
-
-	s = strings.Join(parts, "_")
-	if s == "" {
-		return "empty"
-	}
-
-	return s
-}
+// Deprecated: Use util.Name.
+var Name = tutil.Name

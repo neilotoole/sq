@@ -142,7 +142,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		val, _ := cmd.Flags().GetString(flagSrcOptions)
 		val = strings.TrimSpace(val)
 		if val != "" {
-			opts, err = options.ParseOptions(val)
+			opts, err = options.Parse(val)
 			if err != nil {
 				return err
 			}

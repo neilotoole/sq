@@ -119,7 +119,7 @@ func checkStdinSource(ctx context.Context, rc *RunContext) (*source.Source, erro
 		val = strings.TrimSpace(val)
 
 		if val != "" {
-			opts, err = options.ParseOptions(val)
+			opts, err = options.Parse(val)
 			if err != nil {
 				return nil, err
 			}
