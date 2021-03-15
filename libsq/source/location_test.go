@@ -20,9 +20,13 @@ func TestIsSQL(t *testing.T) {
 		{loc: "https://path/to/data.xlsx", want: false},
 		{loc: "http://path/to/data.xlsx", want: false},
 		{loc: "sqlite3:///path/to/sqlite.db", want: true},
+		{loc: "sl:///path/to/sqlite.db", want: true},
 		{loc: "sqlserver://sq:p_ssW0rd@localhost?database=sqtest", want: true},
+		{loc: "ms://sq:p_ssW0rd@localhost?database=sqtest", want: true},
 		{loc: "postgres://sq:p_ssW0rd@localhost/sqtest?sslmode=disable", want: true},
+		{loc: "pg://sq:p_ssW0rd@localhost/sqtest?sslmode=disable", want: true},
 		{loc: "mysql://sq:p_ssW0rd@tcp(localhost:3306)/sqtest", want: true},
+		{loc: "my://sq:p_ssW0rd@tcp(localhost:3306)/sqtest", want: true},
 	}
 
 	for _, tc := range testCases {

@@ -158,8 +158,9 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 	//
 	// The second form is particularly nice for bash completion etc.
 	if typ == sqlite3.Type {
-		if !strings.HasPrefix(loc, sqlite3.Prefix) {
-			loc = sqlite3.Prefix + loc
+		r, prefix := source.IsSQLitePrefix(loc)
+		if !r {
+			loc = prefix + loc
 		}
 	}
 
