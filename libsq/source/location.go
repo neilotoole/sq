@@ -16,6 +16,11 @@ var dbSchemes = []string{
 	"sqlserver",
 	"postgres",
 	"sqlite3",
+	// short versions
+	"my",
+	"ms",
+	"pg",
+	"sl",
 }
 
 // LocationFileName returns the final component of the file/URL path.
@@ -190,9 +195,9 @@ func parseLoc(loc string) (*parsedLoc, error) {
 	}
 
 	// sqlite3 is a special case, handle it now
-	const sqlitePrefix = "sqlite3://"
-	if strings.HasPrefix(loc, sqlitePrefix) {
-		fpath := strings.TrimPrefix(loc, sqlitePrefix)
+	r, prefix := IsSQLitePrefix(loc)
+	if r {
+		fpath := strings.TrimPrefix(loc, prefix)
 
 		ploc.scheme = "sqlite3"
 		ploc.typ = typeSL3
@@ -234,7 +239,7 @@ func parseLoc(loc string) (*parsedLoc, error) {
 	switch ploc.scheme {
 	default:
 		return nil, errz.Errorf("parse location: invalid scheme: %s", loc)
-	case "sqlserver":
+	case "sqlserver", "ms":
 		ploc.typ = typeMS
 		vals, err := url.ParseQuery(u.DSN)
 		if err != nil {
@@ -242,13 +247,27 @@ func parseLoc(loc string) (*parsedLoc, error) {
 				errz.Wrapf(err, "parse location: %q", loc)
 		}
 		ploc.name = vals.Get("database")
-	case "postgres":
+	case "postgres", "pg":
 		ploc.typ = typePg
 		ploc.name = strings.TrimPrefix(u.Path, "/")
-	case "mysql":
+	case "mysql", "my":
 		ploc.typ = typeMy
 		ploc.name = strings.TrimPrefix(u.Path, "/")
 	}
 
 	return ploc, nil
+}
+
+const sqlitePrefixLong = "sqlite3://"
+const sqlitePrefixShort = "sl://"
+
+// IsSQLitePrefix checks if location has long/short SQLite prefix
+func IsSQLitePrefix(location string) (bool, string) {
+	if strings.HasPrefix(location, sqlitePrefixLong) {
+		return true, sqlitePrefixLong
+	} else if strings.HasPrefix(location, sqlitePrefixShort) {
+		return true, sqlitePrefixShort
+	} else {
+		return false, ""
+	}
 }
