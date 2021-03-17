@@ -97,6 +97,31 @@ func setScanType(log lg.Log, colType *sqlz.ColumnTypeData) {
 
 	case kind.Time:
 		scanType = sqlz.RTypeNullString
+
+		//case kind.GeoPoint, kind.GeoLineString, kind.GeoPolygon,
+		//	kind.GeoMultiPoint, kind.GeoMultiLineString, kind.GeoMultiPolygon, kind.GeoCollection:
+		//	scanType = sqlz.RTypeBytes
+
+	case kind.GeoPoint:
+		scanType = sqlz.RTypeGeoPoint
+
+	case kind.GeoLineString:
+		scanType = sqlz.RTypeGeoLineString
+
+	case kind.GeoPolygon:
+		scanType = sqlz.RTypeGeoPolygon
+
+	case kind.GeoMultiPoint:
+		scanType = sqlz.RTypeGeoMultiPoint
+
+	case kind.GeoMultiLineString:
+		scanType = sqlz.RTypeGeoMultiLineString
+
+	case kind.GeoMultiPolygon:
+		scanType = sqlz.RTypeGeoMultiPolygon
+
+	case kind.GeoCollection:
+		scanType = sqlz.RTypeGeoCollection
 	}
 
 	colType.ScanType = scanType
@@ -168,6 +193,18 @@ func kindFromDBTypeName(log lg.Log, colName, dbTypeName string, scanType reflect
 		// NUMERIC is problematic. It could be an int, float, big decimal, etc.
 		// kind.Decimal is safest as it can accept any numeric value.
 		knd = kind.Decimal
+	case "POINT":
+		knd = kind.GeoPoint
+	case "LINESTRING":
+		knd = kind.GeoLineString
+	case "MULTIPOINT":
+		knd = kind.GeoMultiPoint
+	case "MULTILINESTRING":
+		knd = kind.GeoMultiLineString
+	case "MULTIPOLYGON":
+		knd = kind.GeoMultiPolygon
+	case "GEOMETRYCOLLECTION":
+		knd = kind.GeoCollection
 	}
 
 	// If we have a match, return now.
@@ -224,6 +261,20 @@ func DBTypeForKind(knd kind.Kind) string {
 		return "DATE"
 	case kind.Time:
 		return "TIME"
+	case kind.GeoPoint:
+		return "POINT"
+	case kind.GeoLineString:
+		return "LINESTRING"
+	case kind.GeoPolygon:
+		return "POLYGON"
+	case kind.GeoMultiPoint:
+		return "MULTIPOINT"
+	case kind.GeoMultiLineString:
+		return "MULTILINESTRING"
+	case kind.GeoMultiPolygon:
+		return "MULTIPOLYGON"
+	case kind.GeoCollection:
+		return "GEOMETRYCOLLECTION"
 	}
 }
 

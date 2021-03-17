@@ -1,5 +1,12 @@
 package sqlite3
 
+// This file contains code supporting the SQLite SpatiaLite extensions.
+// See:
+// - https://www.gaia-gis.it/gaia-sins/spatialite-tutorial-2.3.1.html
+// - https://www.gaia-gis.it/fossil/libspatialite/wiki?name=mod_spatialite
+// - https://en.wikipedia.org/wiki/Well-known_text_representation_of_geometry
+// - https://docs.geotools.org/stable/javadocs/org/opengis/referencing/doc-files/WKT.html
+
 // Acknowledgement: some of the code in this file derives
 // from: https://github.com/shaxbee/go-spatialite
 

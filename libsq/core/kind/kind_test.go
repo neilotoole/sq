@@ -3,6 +3,7 @@ package kind_test
 import (
 	stdj "encoding/json"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -13,17 +14,23 @@ import (
 
 func TestKind(t *testing.T) {
 	testCases := map[kind.Kind]string{
-		kind.Unknown:  "unknown",
-		kind.Null:     "null",
-		kind.Text:     "text",
-		kind.Int:      "int",
-		kind.Float:    "float",
-		kind.Decimal:  "decimal",
-		kind.Bool:     "bool",
-		kind.Datetime: "datetime",
-		kind.Date:     "date",
-		kind.Time:     "time",
-		kind.Bytes:    "bytes",
+		kind.Unknown:            "unknown",
+		kind.Null:               "null",
+		kind.Text:               "text",
+		kind.Int:                "int",
+		kind.Float:              "float",
+		kind.Decimal:            "decimal",
+		kind.Bool:               "bool",
+		kind.Datetime:           "datetime",
+		kind.Date:               "date",
+		kind.Time:               "time",
+		kind.GeoPoint:           "geo_point",
+		kind.GeoLineString:      "geo_linestring",
+		kind.GeoPolygon:         "geo_polygon",
+		kind.GeoMultiPoint:      "geo_multipoint",
+		kind.GeoMultiLineString: "geo_multilinestring",
+		kind.GeoMultiPolygon:    "geo_multipolygon",
+		kind.GeoCollection:      "geo_geometrycollection",
 	}
 
 	for knd, testText := range testCases {
@@ -157,5 +164,16 @@ func TestKindDetector(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestKindIsGeo(t *testing.T) {
+	for i := 0; i < int(kind.GeoCollection); i++ {
+		knd := kind.Kind(i)
+		text := knd.String()
+		expectGeo := strings.HasPrefix(text, "geo_")
+
+		gotGeo := kind.IsGeo(knd)
+		require.Equal(t, expectGeo, gotGeo)
 	}
 }

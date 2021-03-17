@@ -46,6 +46,31 @@ const (
 
 	// Time indicates a time-only kind.
 	Time
+
+	// The following are geometry types. For reference:
+	// - https://en.wikipedia.org/wiki/Well-known_text_representation_of_geometry
+	// - https://github.com/twpayne/go-geom
+
+	// GeoPoint indicates a POINT kind.
+	GeoPoint
+
+	// GeoLineString indicates a LINESTRING kind.
+	GeoLineString
+
+	// GeoPolygon indicates a POLYGON kind.
+	GeoPolygon
+
+	// GeoMultiPoint indicates a MULTIPOINT kind.
+	GeoMultiPoint
+
+	// GeoMultiLineString indicates a MULTILINESTRING kind.
+	GeoMultiLineString
+
+	// GeoMultiPolygon indicates a MULTIPOLYGON kind.
+	GeoMultiPolygon
+
+	// GeoCollection indicates a GEOMETRYCOLLECTION kind.
+	GeoCollection
 )
 
 // Kind models a generic data kind, which ultimately maps
@@ -56,6 +81,7 @@ type Kind int
 func (k Kind) String() string {
 	t, err := k.MarshalText()
 	if err != nil {
+		// Should never happen... maybe should panic
 		return "<err>"
 	}
 
@@ -98,6 +124,20 @@ func (k Kind) MarshalText() ([]byte, error) {
 		name = "time"
 	case Bytes:
 		name = "bytes"
+	case GeoPoint:
+		name = "geo_point"
+	case GeoLineString:
+		name = "geo_linestring"
+	case GeoPolygon:
+		name = "geo_polygon"
+	case GeoMultiPoint:
+		name = "geo_multipoint"
+	case GeoMultiLineString:
+		name = "geo_multilinestring"
+	case GeoMultiPolygon:
+		name = "geo_multipolygon"
+	case GeoCollection:
+		name = "geo_geometrycollection"
 	default:
 		return nil, errz.Errorf("invalid data kind '%d'", k)
 	}
@@ -144,6 +184,20 @@ func parse(text string) (Kind, error) {
 		return Bytes, nil
 	case "null":
 		return Null, nil
+	case "geo_point":
+		return GeoPoint, nil
+	case "geo_linestring":
+		return GeoLineString, nil
+	case "geo_polygon":
+		return GeoPolygon, nil
+	case "geo_multipoint":
+		return GeoMultiPoint, nil
+	case "geo_multilinestring":
+		return GeoMultiLineString, nil
+	case "geo_multipolygon":
+		return GeoMultiPolygon, nil
+	case "geo_geometrycollection":
+		return GeoCollection, nil
 	}
 }
 
@@ -544,4 +598,9 @@ func containsKind(needle Kind, haystack ...Kind) bool {
 	}
 
 	return false
+}
+
+// IsGeo returns true if knd is a geometry kind.
+func IsGeo(knd Kind) bool {
+	return knd >= GeoPoint && knd <= GeoCollection
 }

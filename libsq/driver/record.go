@@ -158,8 +158,9 @@ func NewRecordFromScanRow(meta sqlz.RecordMeta, row []interface{}, skip []int) (
 				continue
 			}
 
-			if meta[i].Kind() != kind.Bytes {
-				// We only want to use []byte for KindByte. Otherwise
+			if meta[i].Kind() != kind.Bytes && !kind.IsGeo(meta[i].Kind()) {
+				// We only want to use []byte for KindByte or geometry kinds.
+				// Otherwise
 				// switch to a string.
 				s := string(*col)
 				rec[i] = &s

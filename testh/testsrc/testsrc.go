@@ -19,6 +19,10 @@ const (
 
 	// EmptyDB is the handle of an empty SQLite DB.
 	EmptyDB = "@emptydb"
+
+	// SpatialiteOSF is the (small) OSF sample database.
+	// Source: https://osf.io/m968j/
+	SpatialiteOSF = "@spatialite_osf"
 )
 
 const (

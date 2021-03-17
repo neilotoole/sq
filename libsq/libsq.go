@@ -15,6 +15,7 @@ import (
 	"github.com/neilotoole/sq/libsq/ast"
 
 	"github.com/neilotoole/lg"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"

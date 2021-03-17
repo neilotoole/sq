@@ -341,3 +341,22 @@ func LineCount(r io.Reader, skipEmpty bool) int {
 
 	return i
 }
+
+// StripEmptyOrSpaceFromSlice returns s with all empty or
+// whitespace-only elements removed.
+func StripEmptyOrSpaceFromSlice(s []string) []string {
+	if len(s) == 0 {
+		return s
+	}
+	a := make([]string, 0, len(s))
+
+	var x string
+	for i := range s {
+		x = strings.TrimSpace(s[i])
+		if x != "" {
+			a = append(a, x)
+		}
+	}
+
+	return a
+}

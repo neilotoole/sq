@@ -10,8 +10,6 @@ import (
 	"net/url"
 	"time"
 
-	"golang.org/x/net/context/ctxhttp"
-
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 )
@@ -71,7 +69,9 @@ func fetchHTTP(ctx context.Context, cfg *Config, url string, w io.Writer) error 
 		return err
 	}
 
-	resp, err := ctxhttp.Do(ctx, c, req)
+	req = req.WithContext(ctx)
+
+	resp, err := c.Do(req)
 	if err != nil {
 		return err
 	}

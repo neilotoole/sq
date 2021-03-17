@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"reflect"
 	"time"
+
+	"github.com/twpayne/go-geom/encoding/wkb"
 )
 
 // Cached results from reflect.TypeOf for commonly used types.
@@ -31,4 +33,12 @@ var (
 	RTypeBytes       = reflect.TypeOf([]byte{})
 	RTypeBytesP      = reflect.TypeOf((*[]byte)(nil))
 	RTypeNil         = reflect.TypeOf(nil)
+
+	RTypeGeoPoint           = reflect.TypeOf((*wkb.Point)(nil))
+	RTypeGeoLineString      = reflect.TypeOf((*wkb.LineString)(nil))
+	RTypeGeoPolygon         = reflect.TypeOf((*wkb.Polygon)(nil))
+	RTypeGeoMultiPoint      = reflect.TypeOf((*wkb.MultiPoint)(nil))
+	RTypeGeoMultiLineString = reflect.TypeOf((*wkb.MultiLineString)(nil))
+	RTypeGeoMultiPolygon    = reflect.TypeOf((*wkb.MultiPolygon)(nil))
+	RTypeGeoCollection      = reflect.TypeOf((*wkb.GeometryCollection)(nil))
 )

@@ -118,4 +118,11 @@ sources:
     - handle: '@emptydb'
       type: sqlite3
       location: 'sqlite3://${SQ_ROOT}/drivers/sqlite3/testdata/empty.db'
+    - handle: '@spatialite_osf'
+      type: sqlite3
+      location: 'sqlite3://${SQ_ROOT}/drivers/sqlite3/testdata/spatialite_osf_db_small.sqlite'
+      options:
+        spatialite:
+        - 'true'
+
 

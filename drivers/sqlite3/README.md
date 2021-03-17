@@ -22,4 +22,4 @@ The spatialite test DBs come from:
 
 - https://github.com/dpmcmlxxvi/SpatiaLiteCpp/blob/master/examples/spatialite/test-2.3.sqlite
 - https://git.asi.ru/solutions/world-ai-and-data-challenge/trase/-/blob/fd8f090fb6f934890d4b5e95df4976c65f183292/aequilibrae/reference_files/spatialite.sqlite
-
+- https://osf.io/2ym95/

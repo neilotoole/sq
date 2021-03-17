@@ -153,6 +153,9 @@ func (rm RecordMeta) NewScanRow() []interface{} {
 
 	for i, col := range rm {
 		dests[i] = reflect.New(col.data.ScanType).Interface()
+		if dests[i] == nil {
+			panic("it's nil")
+		}
 	}
 
 	return dests
