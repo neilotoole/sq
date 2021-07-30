@@ -33,9 +33,9 @@ type Fetcher struct {
 	Config *Config
 }
 
-// Fetch writes the body of the document at url to w.
-func (f *Fetcher) Fetch(ctx context.Context, url string, w io.Writer) error {
-	return fetchHTTP(ctx, f.Config, url, w)
+// Fetch writes the body of the document at fileURL to w.
+func (f *Fetcher) Fetch(ctx context.Context, fileURL string, w io.Writer) error {
+	return fetchHTTP(ctx, f.Config, fileURL, w)
 }
 
 func httpClient(cfg *Config) *http.Client {
@@ -49,7 +49,7 @@ func httpClient(cfg *Config) *http.Client {
 	}
 
 	if tr.TLSClientConfig == nil {
-		tr.TLSClientConfig = &tls.Config{}
+		tr.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12}
 	} else {
 		tr.TLSClientConfig = tr.TLSClientConfig.Clone()
 	}
@@ -64,9 +64,9 @@ func httpClient(cfg *Config) *http.Client {
 	return &client
 }
 
-func fetchHTTP(ctx context.Context, cfg *Config, url string, w io.Writer) error {
+func fetchHTTP(ctx context.Context, cfg *Config, fileURL string, w io.Writer) error {
 	c := httpClient(cfg)
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest("GET", fileURL, nil)
 	if err != nil {
 		return err
 	}
@@ -78,13 +78,13 @@ func fetchHTTP(ctx context.Context, cfg *Config, url string, w io.Writer) error 
 
 	if resp.StatusCode != http.StatusOK {
 		_ = resp.Body.Close()
-		return errz.Errorf("http: returned non-200 status code (%s) from: %s", resp.Status, url)
+		return errz.Errorf("http: returned non-200 status code (%s) from: %s", resp.Status, fileURL)
 	}
 
 	_, err = io.Copy(w, resp.Body)
 	if err != nil {
 		_ = resp.Body.Close()
-		return errz.Wrapf(err, "http: failed to read body from: %s", url)
+		return errz.Wrapf(err, "http: failed to read body from: %s", fileURL)
 	}
 
 	return errz.Err(resp.Body.Close())

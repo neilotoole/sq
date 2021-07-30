@@ -52,9 +52,9 @@ type Metadata struct {
 
 // TableNames is a convenience method that returns md's table names.
 func (md *Metadata) TableNames() []string {
-	var names []string
-	for _, tblDef := range md.Tables {
-		names = append(names, tblDef.Name)
+	names := make([]string, 0, len(md.Tables))
+	for i, tblDef := range md.Tables {
+		names[i] = tblDef.Name
 	}
 	return names
 }

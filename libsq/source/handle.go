@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	handlePattern = regexp.MustCompile(`\A[@][a-zA-Z][a-zA-Z0-9_]*$`)
+	handlePattern = regexp.MustCompile(`\A@[a-zA-Z][a-zA-Z0-9_]*$`)
 	tablePattern  = regexp.MustCompile(`\A[a-zA-Z_][a-zA-Z0-9_]*$`)
 )
 
@@ -20,7 +20,7 @@ var (
 // not an acceptable source handle value.
 // Valid input must match:
 //
-//   \A[@][a-zA-Z][a-zA-Z0-9_]*$
+//   \A@[a-zA-Z][a-zA-Z0-9_]*$
 func VerifyLegalHandle(handle string) error {
 	matches := handlePattern.MatchString(handle)
 	if !matches {
