@@ -279,5 +279,4 @@ func TestLineCount(t *testing.T) {
 			require.Equal(t, tc.skipEmpty, count)
 		})
 	}
-
 }

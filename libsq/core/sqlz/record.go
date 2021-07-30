@@ -205,12 +205,12 @@ type ColumnTypeData struct {
 
 // NewColumnTypeData returns a new instance with field values
 // taken from col, supplemented with the kind param.
-func NewColumnTypeData(col *sql.ColumnType, kind kind.Kind) *ColumnTypeData {
+func NewColumnTypeData(col *sql.ColumnType, knd kind.Kind) *ColumnTypeData {
 	ct := &ColumnTypeData{
 		Name:             col.Name(),
 		DatabaseTypeName: col.DatabaseTypeName(),
 		ScanType:         col.ScanType(),
-		Kind:             kind,
+		Kind:             knd,
 	}
 
 	ct.Nullable, ct.HasNullable = col.Nullable()

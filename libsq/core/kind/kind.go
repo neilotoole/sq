@@ -215,6 +215,7 @@ func (d *Detector) Sample(v interface{}) {
 	d.doSampleString(v.(string))
 }
 
+//nolint:dupl,gocognit
 func (d *Detector) doSampleString(s string) {
 	if s == "" {
 		// Can't really do anything useful with this
