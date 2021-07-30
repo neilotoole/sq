@@ -403,13 +403,13 @@ func (fs *Files) detectType(ctx context.Context, loc string) (typ Type, ok bool,
 			default:
 			}
 
-			typ, score, err := detectFn(gctx, fs.log, openFn)
-			if err != nil {
-				return err
+			gTyp, gScore, gErr := detectFn(gctx, fs.log, openFn)
+			if gErr != nil {
+				return gErr
 			}
 
-			if score > 0 {
-				resultCh <- result{typ: typ, score: score}
+			if gScore > 0 {
+				resultCh <- result{typ: gTyp, score: gScore}
 			}
 			return nil
 		})
