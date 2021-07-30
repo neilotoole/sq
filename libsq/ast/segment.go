@@ -18,10 +18,12 @@ type Segment struct {
 	bn baseNode
 }
 
+// Parent implements ast.Node.
 func (s *Segment) Parent() Node {
 	return s.bn.Parent()
 }
 
+// SetParent implements ast.Node.
 func (s *Segment) SetParent(parent Node) error {
 	ast, ok := parent.(*AST)
 	if !ok {
@@ -30,24 +32,29 @@ func (s *Segment) SetParent(parent Node) error {
 	return s.bn.SetParent(ast)
 }
 
+// Children implements ast.Node.
 func (s *Segment) Children() []Node {
 	return s.bn.Children()
 }
 
+// AddChild implements ast.Node.
 func (s *Segment) AddChild(child Node) error {
 	s.bn.addChild(child)
 	return child.SetParent(s)
 }
 
+// SetChildren implements ast.Node.
 func (s *Segment) SetChildren(children []Node) error {
 	s.bn.setChildren(children)
 	return nil
 }
 
+// Context implements ast.Node.
 func (s *Segment) Context() antlr.ParseTree {
 	return s.bn.Context()
 }
 
+// SetContext implements ast.Node.
 func (s *Segment) SetContext(ctx antlr.ParseTree) error {
 	segCtx, ok := ctx.(*slq.SegmentContext)
 	if !ok {

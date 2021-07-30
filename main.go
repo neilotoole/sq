@@ -10,8 +10,14 @@ import (
 )
 
 func main() {
+	var err error
 	ctx, cancelFn := context.WithCancel(context.Background())
-	defer cancelFn()
+	defer func() {
+		cancelFn()
+		if err != nil {
+			os.Exit(1)
+		}
+	}()
 
 	go func() {
 		stopCh := make(chan os.Signal, 1)
@@ -21,12 +27,5 @@ func main() {
 		cancelFn()
 	}()
 
-	err := cli.Execute(ctx, os.Stdin, os.Stdout, os.Stderr, os.Args[1:])
-	if err != nil {
-		// invoke cancelFn before os.Exit, because deferred funcs don't
-		// run before os.Exit.
-		cancelFn()
-
-		os.Exit(1)
-	}
+	err = cli.Execute(ctx, os.Stdin, os.Stdout, os.Stderr, os.Args[1:])
 }

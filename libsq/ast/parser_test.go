@@ -12,15 +12,14 @@ import (
 )
 
 const (
-	fixtRowRange1    = `@mydb1 | .user | .uid, .username | .[]`
-	fixtRowRange2    = `@mydb1 | .user | .uid, .username | .[2]`
-	fixtRowRange3    = `@mydb1 | .user | .uid, .username | .[1:3]`
-	fixtRowRange4    = `@mydb1 | .user | .uid, .username | .[0:3]`
-	fixtRowRange5    = `@mydb1 | .user | .uid, .username | .[:3]`
-	fixtRowRange6    = `@mydb1 | .user | .uid, .username | .[2:]`
-	fixtJoinRowRange = `@my1 |.user, .address | join(.uid) |  .[0:4] | .user.uid, .username, .country`
-	fixtJoinQuery1   = `@mydb1 | .user, .address | join(.user.uid == .address.uid) | .uid, .username, .country`
-	fixtSelect1      = `@mydb1 | .user | .uid, .username`
+	fixtRowRange1  = `@mydb1 | .user | .uid, .username | .[]`
+	fixtRowRange2  = `@mydb1 | .user | .uid, .username | .[2]`
+	fixtRowRange3  = `@mydb1 | .user | .uid, .username | .[1:3]`
+	fixtRowRange4  = `@mydb1 | .user | .uid, .username | .[0:3]`
+	fixtRowRange5  = `@mydb1 | .user | .uid, .username | .[:3]`
+	fixtRowRange6  = `@mydb1 | .user | .uid, .username | .[2:]`
+	fixtJoinQuery1 = `@mydb1 | .user, .address | join(.user.uid == .address.uid) | .uid, .username, .country`
+	fixtSelect1    = `@mydb1 | .user | .uid, .username`
 )
 
 var slqInputs = map[string]string{
