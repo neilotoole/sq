@@ -59,28 +59,38 @@ func (el *antlrErrorListener) String() string {
 		return fmt.Sprintf("%s: no issues", el.name)
 	}
 
-	str := append(el.errs, el.warnings...)
-	return strings.Join(str, "\n")
+	strs := make([]string, 0, len(el.errs)+len(el.warnings))
+	strs = append(strs, el.errs...)
+	strs = append(strs, el.warnings...)
+
+	return strings.Join(strs, "\n")
 }
 
+// SyntaxError implements antlr.ErrorListener.
 func (el *antlrErrorListener) SyntaxError(recognizer antlr.Recognizer, offendingSymbol interface{}, line, column int, msg string, e antlr.RecognitionException) {
 	text := fmt.Sprintf("%s: syntax error: [%d:%d] %s", el.name, line, column, msg)
 	el.errs = append(el.errs, text)
 }
 
-func (el *antlrErrorListener) ReportAmbiguity(recognizer antlr.Parser, dfa *antlr.DFA, startIndex, stopIndex int, exact bool, ambigAlts *antlr.BitSet, configs antlr.ATNConfigSet) {
+// ReportAmbiguity implements antlr.ErrorListener.
+func (el *antlrErrorListener) ReportAmbiguity(recognizer antlr.Parser, dfa *antlr.DFA, startIndex, stopIndex int,
+	exact bool, ambigAlts *antlr.BitSet, configs antlr.ATNConfigSet) {
 	tok := recognizer.GetCurrentToken()
 	text := fmt.Sprintf("%s: syntax ambiguity: [%d:%d]", el.name, startIndex, stopIndex)
 	text = text + "  >>" + tok.GetText() + "<<"
 	el.warnings = append(el.warnings, text)
 }
 
-func (el *antlrErrorListener) ReportAttemptingFullContext(recognizer antlr.Parser, dfa *antlr.DFA, startIndex, stopIndex int, conflictingAlts *antlr.BitSet, configs antlr.ATNConfigSet) {
+// ReportAttemptingFullContext implements antlr.ErrorListener.
+func (el *antlrErrorListener) ReportAttemptingFullContext(recognizer antlr.Parser, dfa *antlr.DFA, startIndex,
+	stopIndex int, conflictingAlts *antlr.BitSet, configs antlr.ATNConfigSet) {
 	text := fmt.Sprintf("%s: attempting full context: [%d:%d]", el.name, startIndex, stopIndex)
 	el.warnings = append(el.warnings, text)
 }
 
-func (el *antlrErrorListener) ReportContextSensitivity(recognizer antlr.Parser, dfa *antlr.DFA, startIndex, stopIndex, prediction int, configs antlr.ATNConfigSet) {
+// ReportContextSensitivity implements antlr.ErrorListener.
+func (el *antlrErrorListener) ReportContextSensitivity(recognizer antlr.Parser, dfa *antlr.DFA, startIndex, stopIndex,
+	prediction int, configs antlr.ATNConfigSet) {
 	text := fmt.Sprintf("%s: context sensitivity: [%d:%d]", el.name, startIndex, stopIndex)
 	el.warnings = append(el.warnings, text)
 }
@@ -106,6 +116,7 @@ type parseTreeVisitor struct {
 	AST *AST
 }
 
+// Visit implements antlr.ParseTreeVisitor.
 func (v *parseTreeVisitor) Visit(ctx antlr.ParseTree) interface{} {
 	v.log.Debugf("visiting %T: %v: ", ctx, ctx.GetText())
 
@@ -146,6 +157,7 @@ func (v *parseTreeVisitor) Visit(ctx antlr.ParseTree) interface{} {
 	return errorf("unknown node type: %T", ctx)
 }
 
+// VisitChildren implements antlr.ParseTreeVisitor.
 func (v *parseTreeVisitor) VisitChildren(ctx antlr.RuleNode) interface{} {
 	for _, child := range ctx.GetChildren() {
 		tree, ok := child.(antlr.ParseTree)
@@ -161,6 +173,7 @@ func (v *parseTreeVisitor) VisitChildren(ctx antlr.RuleNode) interface{} {
 	return nil
 }
 
+// VisitQuery implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitQuery(ctx *slq.QueryContext) interface{} {
 	v.AST = &AST{}
 	v.AST.ctx = ctx
@@ -176,6 +189,7 @@ func (v *parseTreeVisitor) VisitQuery(ctx *slq.QueryContext) interface{} {
 	return nil
 }
 
+// VisitDsElement implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitDsElement(ctx *slq.DsElementContext) interface{} {
 	ds := &Datasource{}
 	ds.parent = v.cur
@@ -183,6 +197,7 @@ func (v *parseTreeVisitor) VisitDsElement(ctx *slq.DsElementContext) interface{}
 	return v.cur.AddChild(ds)
 }
 
+// VisitDsTblElement implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitDsTblElement(ctx *slq.DsTblElementContext) interface{} {
 	tblSel := &TblSelector{}
 	tblSel.parent = v.cur
@@ -194,18 +209,11 @@ func (v *parseTreeVisitor) VisitDsTblElement(ctx *slq.DsTblElementContext) inter
 	return v.cur.AddChild(tblSel)
 }
 
+// VisitSegment implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitSegment(ctx *slq.SegmentContext) interface{} {
 	seg := &Segment{}
 	seg.bn.ctx = ctx
 	seg.bn.parent = v.AST
-
-	if v == nil {
-		panic("v is nil")
-	}
-
-	if v.AST == nil {
-		panic("v.AST is nil")
-	}
 
 	v.AST.AddSegment(seg)
 	v.cur = seg
@@ -213,6 +221,7 @@ func (v *parseTreeVisitor) VisitSegment(ctx *slq.SegmentContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
+// VisitSelElement implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitSelElement(ctx *slq.SelElementContext) interface{} {
 	selector := &Selector{}
 	selector.parent = v.cur
@@ -220,10 +229,12 @@ func (v *parseTreeVisitor) VisitSelElement(ctx *slq.SelElementContext) interface
 	return v.cur.AddChild(selector)
 }
 
+// VisitElement implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitElement(ctx *slq.ElementContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
+// VisitFn implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitFn(ctx *slq.FnContext) interface{} {
 	v.log.Debugf("visiting function: %v", ctx.GetText())
 
@@ -245,6 +256,7 @@ func (v *parseTreeVisitor) VisitFn(ctx *slq.FnContext) interface{} {
 	return v.cur.AddChild(fn)
 }
 
+// VisitExpr implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitExpr(ctx *slq.ExprContext) interface{} {
 	v.log.Debugf("visiting expr: %v", ctx.GetText())
 
@@ -279,14 +291,17 @@ func (v *parseTreeVisitor) VisitExpr(ctx *slq.ExprContext) interface{} {
 	return v.cur.AddChild(ex)
 }
 
+// VisitCmpr implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitCmpr(ctx *slq.CmprContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
+// VisitStmtList implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitStmtList(ctx *slq.StmtListContext) interface{} {
 	return nil // not using StmtList just yet
 }
 
+// VisitLiteral implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitLiteral(ctx *slq.LiteralContext) interface{} {
 	v.log.Debugf("visiting literal: %q", ctx.GetText())
 
@@ -297,13 +312,17 @@ func (v *parseTreeVisitor) VisitLiteral(ctx *slq.LiteralContext) interface{} {
 	return err
 }
 
+// VisitUnaryOperator implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitUnaryOperator(ctx *slq.UnaryOperatorContext) interface{} {
 	return nil
 }
+
+// VisitFnName implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitFnName(ctx *slq.FnNameContext) interface{} {
 	return nil
 }
 
+// VisitGroup implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitGroup(ctx *slq.GroupContext) interface{} {
 	// parent node must be a segment
 	_, ok := v.cur.(*Segment)
@@ -333,6 +352,7 @@ func (v *parseTreeVisitor) VisitGroup(ctx *slq.GroupContext) interface{} {
 	return nil
 }
 
+// VisitJoin implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitJoin(ctx *slq.JoinContext) interface{} {
 	// parent node must be a segment
 	seg, ok := v.cur.(*Segment)
@@ -362,6 +382,7 @@ func (v *parseTreeVisitor) VisitJoin(ctx *slq.JoinContext) interface{} {
 	return nil
 }
 
+// VisitJoinConstraint implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitJoinConstraint(ctx *slq.JoinConstraintContext) interface{} {
 	joinNode, ok := v.cur.(*Join)
 	if !ok {
@@ -433,6 +454,7 @@ func (v *parseTreeVisitor) VisitJoinConstraint(ctx *slq.JoinConstraintContext) i
 	return join.AddChild(joinCondition)
 }
 
+// VisitTerminal implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitTerminal(ctx antlr.TerminalNode) interface{} {
 	v.log.Debugf("visiting terminal: %q", ctx.GetText())
 
@@ -459,6 +481,7 @@ func (v *parseTreeVisitor) VisitTerminal(ctx antlr.TerminalNode) interface{} {
 	return nil
 }
 
+// VisitRowRange implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitRowRange(ctx *slq.RowRangeContext) interface{} {
 	// []      select all rows (no range)
 	// [1]     select row[1]
@@ -517,6 +540,7 @@ func (v *parseTreeVisitor) VisitRowRange(ctx *slq.RowRangeContext) interface{} {
 	return v.cur.AddChild(rr)
 }
 
+// VisitErrorNode implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitErrorNode(ctx antlr.ErrorNode) interface{} {
 	v.log.Debugf("error node: %v", ctx.GetText())
 	return nil

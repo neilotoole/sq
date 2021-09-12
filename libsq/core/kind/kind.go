@@ -212,8 +212,11 @@ func (d *Detector) Sample(v interface{}) {
 
 	// We're dealing with a string value, which could a variety
 	// of things, such as: "1", "1.0", "true", "11:30".
-	s := v.(string)
+	d.doSampleString(v.(string))
+}
 
+//nolint:dupl,gocognit
+func (d *Detector) doSampleString(s string) {
 	if s == "" {
 		// Can't really do anything useful with this
 		return

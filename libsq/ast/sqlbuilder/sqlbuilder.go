@@ -1,4 +1,4 @@
-// Package sqlbuilder contains functionality building SQL from
+// Package sqlbuilder contains functionality for building SQL from
 // the AST.
 package sqlbuilder
 

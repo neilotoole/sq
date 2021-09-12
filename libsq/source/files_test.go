@@ -158,11 +158,11 @@ func TestFiles_NewReader(t *testing.T) {
 
 	for i := 0; i < 1000; i++ {
 		g.Go(func() error {
-			r, err := fs.Open(src)
-			require.NoError(t, err)
+			r, gErr := fs.Open(src)
+			require.NoError(t, gErr)
 
-			b, err := ioutil.ReadAll(r)
-			require.NoError(t, err)
+			b, gErr := ioutil.ReadAll(r)
+			require.NoError(t, gErr)
 
 			require.Equal(t, wantBytes, b)
 			return nil

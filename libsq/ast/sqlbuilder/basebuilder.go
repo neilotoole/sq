@@ -96,7 +96,6 @@ func (fb *BaseFragmentBuilder) SelectAll(tblSel *ast.TblSelector) (string, error
 
 // Function implements FragmentBuilder.
 func (fb *BaseFragmentBuilder) Function(fn *ast.Func) (string, error) {
-
 	buf := &bytes.Buffer{}
 	children := fn.Children()
 
@@ -225,7 +224,7 @@ func sqlAppend(existing, add string) string {
 //  .table.col -->  "table"."col"
 //
 // Thus, the selector must have exactly one or two periods.
-func quoteTableOrColSelector(quote string, selector string) (string, error) {
+func quoteTableOrColSelector(quote, selector string) (string, error) {
 	if len(selector) < 2 || selector[0] != '.' {
 		return "", errz.Errorf("invalid selector: %s", selector)
 	}
