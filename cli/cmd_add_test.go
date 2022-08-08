@@ -1,23 +1,24 @@
 package cli_test
 
 import (
-	"testing"
-
-	"github.com/stretchr/testify/require"
-
 	"github.com/neilotoole/sq/drivers/csv"
 	"github.com/neilotoole/sq/drivers/mysql"
 	"github.com/neilotoole/sq/drivers/postgres"
 	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/drivers/sqlserver"
-	"github.com/neilotoole/sq/libsq/source"
-	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/testh"
 )
 
 func TestCmdAdd(t *testing.T) {
 	th := testh.New(t)
+	_ = th
 
 	testCases := []struct {
 		loc        string // first arg to "add" cmd

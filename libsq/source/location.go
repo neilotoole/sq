@@ -92,7 +92,11 @@ func ShortLocation(loc string) string {
 	}
 
 	// Else path is empty, db name was prob part of params
-	vals, err := url.ParseQuery(u.DSN)
+	u2, err := url.ParseRequestURI(loc)
+	if err != nil {
+		return loc
+	}
+	vals, err := url.ParseQuery(u2.RawQuery)
 	if err != nil {
 		return loc
 	}
@@ -236,7 +240,13 @@ func parseLoc(loc string) (*parsedLoc, error) {
 		return nil, errz.Errorf("parse location: invalid scheme: %s", loc)
 	case "sqlserver":
 		ploc.typ = typeMS
-		vals, err := url.ParseQuery(u.DSN)
+
+		u2, err := url.ParseRequestURI(loc)
+		if err != nil {
+			return nil, errz.Wrapf(err, "parse location: %q", loc)
+		}
+
+		vals, err := url.ParseQuery(u2.RawQuery)
 		if err != nil {
 			return nil,
 				errz.Wrapf(err, "parse location: %q", loc)

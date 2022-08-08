@@ -1,4 +1,4 @@
-// +build mage
+//go:build mage
 
 // This magefile contains targets for starting and stopping
 // the Sakila test containers locally.
@@ -26,8 +26,9 @@ const startupTimeout = time.Minute * 5
 // containers is the set of database server containers required for
 // integration testing.
 // NOTE: The wait.ForLog mechanism is probably not fully correct for any of the
-//  containers (e.g. the string may appear multiple times in the log output),
-//  thus the containers may not have started fully when WaitingFor completes.
+//
+//	containers (e.g. the string may appear multiple times in the log output),
+//	thus the containers may not have started fully when WaitingFor completes.
 var containers = []testcontainers.ContainerRequest{
 	{
 		Image:        "sakiladb/sqlserver:2017-CU19",
