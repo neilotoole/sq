@@ -18,7 +18,6 @@ import (
 
 func TestCmdAdd(t *testing.T) {
 	th := testh.New(t)
-	_ = th
 
 	testCases := []struct {
 		loc        string // first arg to "add" cmd
