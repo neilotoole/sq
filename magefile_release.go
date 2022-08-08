@@ -1,4 +1,4 @@
-// +build mage
+//go:build mage
 
 // This magefile contains release targets and related functions.
 // Ultimately this should go away in favor of CI.
@@ -41,10 +41,12 @@ func (Release) Snapshot() error {
 // to github, brew, scoop, etc.
 //
 // To create a new tag, in this example: v0.5.1
+//
 //	$ git tag v0.5.1 && git push origin v0.5.1
 //
 // To delete a tag:
-//  $ git push --delete origin v0.5.1 && git tag -d v0.5.1
+//
+//	$ git push --delete origin v0.5.1 && git tag -d v0.5.1
 func (r Release) Release() error {
 	mg.Deps(r.GitIsReady, CheckDocker)
 	wd, err := os.Getwd()
@@ -167,13 +169,13 @@ func gitIsDirtyWorkingDir() bool {
 // BuildVersion prints the build version that would be
 // incorporated into the sq binary. The build version is of
 // the form TAG[-SUFFIX], for example "v0.5.9-dev".
-// - If working dir is dirty, or if the HEAD commit does not
-//   match the latest tag commit, the suffix is "-wip" (Work In
-//   Progress), e.g. "v0.5.9-wip".
-// - Else, if the branch is not master, the branch name is
-//   used as the suffix, e.g. "v0.5.9-dev".
-// - Else, we're on master and the HEAD commit is the latest
-//   tag, so the suffix is omitted, e.g. "v0.5.9".
+//   - If working dir is dirty, or if the HEAD commit does not
+//     match the latest tag commit, the suffix is "-wip" (Work In
+//     Progress), e.g. "v0.5.9-wip".
+//   - Else, if the branch is not master, the branch name is
+//     used as the suffix, e.g. "v0.5.9-dev".
+//   - Else, we're on master and the HEAD commit is the latest
+//     tag, so the suffix is omitted, e.g. "v0.5.9".
 func (Release) BuildVersion() {
 	fmt.Println(generateBuildVersion())
 }

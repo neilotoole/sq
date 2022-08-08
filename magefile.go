@@ -1,4 +1,4 @@
-// +build mage
+//go:build mage
 
 // Magefile for building/test sq. This magefile was originally copied from
 // the Hugo magefile, and may contain functionality that can be ditched.
@@ -427,7 +427,7 @@ func CheckDocker() error {
 // execDocker executes a docker command with args, returning
 // any error. Example:
 //
-//  execDocker("run", "-it", "alpine", "echo", "hello world")
+//	execDocker("run", "-it", "alpine", "echo", "hello world")
 func execDocker(cmd string, args ...string) error {
 	args = append([]string{cmd}, args...)
 	return sh.RunV("docker", args...)
