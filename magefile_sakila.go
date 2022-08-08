@@ -25,6 +25,7 @@ const startupTimeout = time.Minute * 5
 
 // containers is the set of database server containers required for
 // integration testing.
+//
 // NOTE: The wait.ForLog mechanism is probably not fully correct for any of the
 //
 //	containers (e.g. the string may appear multiple times in the log output),
