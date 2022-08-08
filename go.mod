@@ -37,7 +37,7 @@ require (
 	github.com/stretchr/testify v1.5.1
 	github.com/tealeg/xlsx/v2 v2.0.1
 	github.com/testcontainers/testcontainers-go v0.5.0
-	github.com/xo/dburl v0.0.0-20200124232849-e9ec94f52bc3
+	github.com/xo/dburl v0.11.0
 	go.uber.org/atomic v1.5.0
 	go.uber.org/multierr v1.4.0
 	golang.org/x/crypto v0.0.0-20200728195943-123391ffb6de
