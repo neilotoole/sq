@@ -29,6 +29,7 @@ _testmain.go
 /grammar/build
 */~test$*
 /dist
+/dist-*
 /projectFilesBackup
 /*.iml
 /.swp
@@ -36,7 +37,7 @@ _testmain.go
 /demo
 /scratch
 
-/dist-*
+
 # Some apps create temp files when editing, e.g. Excel with drivers/xlsx/testdata/~$test_header.xlsx
 **/testdata/~*
 
