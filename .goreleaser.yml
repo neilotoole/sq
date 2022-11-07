@@ -69,7 +69,6 @@ scoop:
     name: sq
   homepage: "https://sq.io"
   description: "sq is a swiss army knife for data"
-  caveats: "For shell completion installation instructions, execute: sq completion --help"
   license: MIT
   commit_author:
     name: neilotoole
