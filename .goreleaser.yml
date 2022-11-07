@@ -88,3 +88,224 @@ nfpms:
 furies:
   # Upload deb and rpm to fury.io. Requires that envar $FURY_TOKEN be set.
   - account: neilotoole
+
+# original .goreleaser.yml content below
+#project_name: sq
+#env:
+#  - GO111MODULE=on
+#  - CGO_ENABLED=1
+#before:
+#  hooks:
+#    - go version
+#    - go mod download
+#
+#builds:
+#  - id: build_macos
+#    ldflags: -s -w -X github.com/neilotoole/sq/cli/buildinfo.Version={{.Version}} -X github.com/neilotoole/sq/cli/buildinfo.Timestamp={{.Date}} -X github.com/neilotoole/sq/cli/buildinfo.Commit={{ .ShortCommit }}
+#    binary: sq
+#    env:
+#      - CC=o64-clang
+#      - CXX=o64-clang++
+#    main: ./main.go
+#    goos:
+#      - darwin
+#    goarch:
+#      - amd64
+#
+#  - id: build_linux
+#    binary: sq
+#    main: ./main.go
+#    goos:
+#      - linux
+#    goarch:
+#      - amd64
+#
+#    # Note the additional ldflags (-linkmode etc), and the "-tags=netgo" in
+#    # flags below. This is to build a static binary.
+#    ldflags: -linkmode external -extldflags -static -s -w -X github.com/neilotoole/sq/cli/buildinfo.Version={{.Version}} -X github.com/neilotoole/sq/cli/buildinfo.Timestamp={{.Date}} -X github.com/neilotoole/sq/cli/buildinfo.Commit={{ .ShortCommit }}
+#    flags:
+#      - -tags=netgo
+#      - -v
+#
+#
+#  - id: build_windows
+#    ldflags: -s -w -X github.com/neilotoole/sq/cli/buildinfo.Version={{.Version}} -X github.com/neilotoole/sq/cli/buildinfo.Timestamp={{.Date}} -X github.com/neilotoole/sq/cli/buildinfo.Commit={{ .ShortCommit }}
+#    binary: sq
+#    env:
+#      - CC=x86_64-w64-mingw32-gcc
+#      - CXX=x86_64-w64-mingw32-g++
+#    main: ./main.go
+#    goos:
+#      - windows
+#    goarch:
+#      - amd64
+#
+#archives:
+#  -
+#    builds: ['build_macos', 'build_linux', 'build_windows']
+#    name_template: "{{.ProjectName}}-{{.Os}}-{{.Arch}}"
+#    format: tar.gz
+#    files:
+#      - README.md
+#      - LICENSE
+#    replacements:
+#      darwin: macos
+#    format_overrides:
+#      - goos: windows
+#        format: zip
+#
+#
+#checksum:
+#  name_template: "{{.ProjectName}}-checksums.txt"
+#
+#snapshot:
+#  name_template: "snapshot"
+#
+#changelog:
+#  skip: false
+#  sort: asc
+#  filters:
+#    exclude:
+#      - '^docs:'
+#      - '^test:'
+#      - '^dev:'
+#      - 'README'
+#      - Merge pull request
+#      - Merge branch
+#
+#
+#release:
+#  github:
+#    owner: neilotoole
+#    name: sq
+#
+#  # If set to true, will not auto-publish the release. Default is false.
+#  draft: false
+#
+#  # If set to auto, will mark the release as not ready for production
+#  # in case there is an indicator for this in the tag e.g. v1.0.0-rc1
+#  # If set to true, will mark the release as not ready for production.
+#  # Default is false.
+#  prerelease: auto
+#
+#brews:
+#  -
+#    name: sq
+#    homepage: "https://sq.io"
+#    description: "sq is a swiss army knife for data"
+#    caveats: "For shell completion installation instructions, execute: sq completion --help"
+#
+#    tap:
+#      owner: neilotoole
+#      name: homebrew-sq
+#
+#    url_template: "https://github.com/neilotoole/sq/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
+#
+#    commit_author:
+#      name: neilotoole
+#      email: neilotoole@apache.org
+#
+#    folder: Formula
+#
+#    test: |
+#      system "#{bin}/sq version"
+#
+#    install: |
+#      bin.install "sq"
+#
+#    skip_upload: false
+#
+#
+#scoop:
+#  # scoop is a package installer for Windows, like brew for macOS.
+#  # For background, see https://github.com/lukesampson/scoop/wiki/Buckets
+#  url_template: "https://github.com/neilotoole/sq/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
+#  bucket:
+#    owner: neilotoole
+#    name: sq
+#  commit_author:
+#    name: neilotoole
+#    email: neilotoole@apache.org
+#  homepage: "https://sq.io"
+#  description: "sq is a swiss army knife for data"
+#  license: MIT
+#
+#
+#nfpms:
+#  -
+#    builds: ['build_linux']
+#    file_name_template: "{{.ProjectName}}-{{.Os}}-{{.Arch}}"
+#    homepage:  https://sq.io
+#    description: sq is a swiss army knife for data
+#    maintainer: Neil O'Toole <neilotoole@apache.org>
+#    license: MIT
+#    vendor: Neil O'Toole
+#    formats:
+#      - deb
+#      - rpm
+#
+#
+##snapcrafts:
+### For this to work, snapcraft needs to be installed.
+### On macOS, "brew install snapcraft", then "snapcraft login".
+##
+##  -
+##    # ID of the snapcraft config, must be unique.
+##    # Defaults to "default".
+##    id: neilotoole-sq
+##
+##    builds:
+##    - build_linux
+##    # The name of the snap should be "sq"; we need to register that.
+##    name: neilotoole-sq
+##
+##    name_template: "neilotoole-sq-{{ .Os }}-{{ .Arch }}"
+##    summary: "sq is a swiss army knife for data"
+##    description: |
+##      sq is a swiss army knife for data
+##    grade: devel
+##    confinement: devmode
+##
+##
+##    # Whether to publish the snap to the snapcraft store.
+##    # Remember you need to `snapcraft login` first.
+##    # Defaults to false.
+##    publish: true
+##    license: MIT
+##
+##    # A snap of type base to be used as the execution environment for this snap.
+##    # Valid values are:
+##    # * bare - Empty base snap;
+##    # * core - Ubuntu Core 16;
+##    # * core18 - Ubuntu Core 18.
+##    # Default is empty.
+##    base: core18
+##
+##    # Each binary built by GoReleaser is an app inside the snap. In this section
+##    # you can declare extra details for those binaries. It is optional.
+##    apps:
+##
+##      # The name of the app must be the same name as the binary built or the snapcraft name.
+##      sq:
+##        # Declare "home" and "network" plugs to grant access to
+##        # the user home dir, and the network
+##        plugs: ["home", "network"]
+##
+##        # If your app requires extra permissions to work outside of its default
+##        # confined space, declare them here.
+##        # You can read the documentation about the available plugs and the
+##        # things they allow:
+##        # https://snapcraft.io/docs/reference/interfaces.
+###        plugs: ["home", "network", "personal-files"]
+##
+##        # If you want your app to be autostarted and to always run in the
+##        # background, you can make it a simple daemon.
+###        daemon: simple
+##
+##        # If you any to pass args to your binary, you can add them with the
+##        # args option.
+###        args: --foo
+##
+##        # Bash completion snippet. More information about completion here:
+##        # https://docs.snapcraft.io/tab-completion-for-snaps.
+###        completer: drumroll-completion.bash
