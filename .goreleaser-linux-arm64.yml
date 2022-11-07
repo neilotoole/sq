@@ -1,0 +1,28 @@
+before:
+  hooks:
+    - go mod tidy
+
+dist: dist-linux
+
+builds:
+  -
+    main: .
+    binary: sq
+    env:
+      - CGO_ENABLED=1
+      - CGO_LDFLAGS=-static
+      - CC=aarch64-linux-gnu-gcc
+      - CXX=aarch64-linux-gnu-g++
+    goos:
+      - linux
+    goarch:
+      - arm64
+    ldflags:
+      - -extld=aarch64-linux-gnu-gcc
+      - -s -w
+      - -X github.com/neilotoole/sq/cli/buildinfo.Version={{ .Version }}
+      - -X github.com/neilotoole/sq/cli/buildinfo.Commit={{ .ShortCommit }}
+      - -X github.com/neilotoole/sq/cli/buildinfo.Timestamp={{ .Date }}
+
+archives:
+  - format: binary
