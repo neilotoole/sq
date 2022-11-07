@@ -80,6 +80,7 @@ nfpms:
       - deb
       - rpm
     vendor: "neilotoole"
+    maintainer: "neilotoole <neilotoole@apache.org>"
     homepage: "https://sq.io"
     description: "sq is a swiss army knife for data"
     license: "MIT"
