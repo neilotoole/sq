@@ -1,19 +1,53 @@
-# CHANGELOG
+# Changelog
 
-## v0.15.4
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [v0.16.0] - 2022-11-20
+
+### Added
+
+- `install.sh` install script
+
+### Changed
+
+- Improved GH workflow
+
+
+## [v0.15.11] - 2022-11-06
+
+### Changed
+
+- Yet more changes to GitHub workflow.
+
+
+## [v0.15.4] - 2021-09-18
+
+### Changed
+
 - Bug fixes
 
-## v0.15.3
+## [v0.15.3] - 2021-03-13
+
+### Changed
+
 - [#91](https://github.com/neilotoole/sq/pull/91): MySQL driver options no longer stripped
 
-## v0.15.2
+## [v0.15.2] - 2021-03-08
+
+### Changed
+
 - [#89](https://github.com/neilotoole/sq/pull/89): Bug with SQL generated for joins.
 
-## v0.15.1
-- [#83](https://github.com/neilotoole/sq/pull/83): `sq ping` now has `--all` flag instead of `all` arg.
 
-## v0.15.0
-- [#81](https://github.com/neilotoole/sq/pull/81): Shell completion
+[v0.16.0]: https://github.com/neilotoole/sq/compare/v0.15.11...v0.16.0
+[v0.15.11]: https://github.com/neilotoole/sq/compare/v0.15.4...v0.15.11
+[v0.15.4]: https://github.com/neilotoole/sq/compare/v0.15.3...v0.15.4
+[v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
+[v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 
-## v0.14.9
-- [#82](https://github.com/neilotoole/sq/issues/82): XLSX empty sheets
+
+
+# CHANGELOG
