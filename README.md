@@ -14,13 +14,13 @@ or dropping tables.
 
 ## Install
 
-For other installation options, see [here](https://github.com/neilotoole/sq/wiki/Home#Install).
+For other installation options, see [here](https://github.com/neilotoole/sq/wiki#install).
 
 It is strongly advised to install [shell completion](#shell-completion).
 
 ### macOS
 
-```shell script
+```shell
 brew install neilotoole/sq/sq
 ```
 
@@ -35,30 +35,28 @@ scoop install sq
 
 ### Linux
 
-#### apt
+#### install.sh
 
-```shell script
-curl -fsSLO https://github.com/neilotoole/sq/releases/latest/download/sq-linux-amd64.deb && sudo apt install -y ./sq-linux-amd64.deb && rm ./sq-linux-amd64.deb
+The easiest method is to use [install.sh](./install.sh):
+
+```shell
+$ /bin/sh -c "$(curl -fsSL https://sq.io/install.sh)"
 ```
 
-#### rpm
+The script detects if any of `apt`, `yum`, or `brew` are installed, and
+then installs via the usual procedure.
 
-```shell script
-sudo rpm -i https://github.com/neilotoole/sq/releases/latest/download/sq-linux-amd64.rpm
-```
+> Note that `https://sq.io/install.sh` is simply a redirect to [https://raw.githubusercontent.com/neilotoole/sq/master/install.sh](https://raw.githubusercontent.com/neilotoole/sq/master/install.sh).
 
-#### yum
-
-```shell script
-yum localinstall -y https://github.com/neilotoole/sq/releases/latest/download/sq-linux-amd64.rpm
-```
+You can of course directly use `apt`, `yum` etc. if desired. See the
+wiki for [more installation options](https://github.com/neilotoole/sq/wiki#install).
 
 ## Shell completion
 
 Shell completion is available for `bash`, `zsh`, `fish`, and `powershell`.
-It is strongly recommended to install.
+It is strongly recommended to install it.
 
-Execute `sq completion --help` for installation instructions.
+Execute `sq completion --help` for the procedure.
 
 ## Quickstart
 

@@ -7,6 +7,7 @@ apt --version >/dev/null 2>&1
 if [ "$?" -eq "0" ]; then
   set -e
   echo "Using apt to install sq..."
+  echo ""
 
   apt update -y && apt install -y --no-upgrade curl gpg
 
@@ -31,6 +32,7 @@ yum version >/dev/null 2>&1
 if [ "$?" -eq "0" ]; then
   set -e
   echo "Using yum to install sq..."
+  echo ""
 
   cat <<EOF > /etc/yum.repos.d/sq.repo
 [sq]
@@ -52,6 +54,7 @@ brew --version >/dev/null 2>&1
 if [ "$?" -eq "0" ]; then
   set -e
   echo "Using brew to install sq..."
+  echo ""
 
   brew install neilotoole/sq/sq
 
