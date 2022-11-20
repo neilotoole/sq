@@ -1,5 +1,6 @@
 #!/usr/bin/env sh
-# This script adds the "sq" repo to apt.
+# This script adds the "sq" repo to apt, but does not install "sq".
+# To install, run
 
 apt update -y && apt install -y curl gpg
 
@@ -13,4 +14,4 @@ Pin: origin apt.fury.io
 Pin-Priority: 501
 EOF
 
-apt update
+apt update -y
