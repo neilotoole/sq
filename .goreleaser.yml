@@ -22,6 +22,7 @@ builds:
 
 archives:
   -
+    name_template: "{{.ProjectName}}-{{ .Version }}-{{.Os}}-{{.Arch}}"
     replacements:
       darwin: macos
     format_overrides:
@@ -30,6 +31,7 @@ archives:
     files:
       - README.md
       - LICENSE
+      - CHANGELOG
 
 checksum:
   name_template: 'checksums.txt'

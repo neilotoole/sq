@@ -43,3 +43,7 @@ _testmain.go
 
 gorelease-snapshot.sh
 magefile_local.go
+.goreleaser-local.yml
+apt-install.sh
+yum-install.sh
+goreleaser-test.sh
