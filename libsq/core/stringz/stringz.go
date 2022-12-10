@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/rand"
 	"strconv"
 	"strings"
 	"time"
@@ -149,21 +150,68 @@ func UUID() string {
 
 // Uniq32 returns a UUID-like string that only contains
 // alphanumeric chars. The result has length 32.
+// The first element is guaranteed to be a letter.
 func Uniq32() string {
-	return strings.ReplaceAll(UUID(), "-", "")
+	return UniqN(32)
 }
 
 // Uniq8 returns a UUID-like string that only contains
 // alphanumeric chars. The result has length 8.
+// The first element is guaranteed to be a letter.
 func Uniq8() string {
 	// I'm sure there's a more efficient way of doing this, but
 	// this is fine for now.
-	return Uniq32()[0:8]
+	return UniqN(8)
 }
 
 // UniqSuffix returns s with a unique suffix.
 func UniqSuffix(s string) string {
 	return s + "_" + Uniq8()
+}
+
+// UniqPrefix returns s with a unique prefix.
+func UniqPrefix(s string) string {
+	return Uniq8() + "_" + s
+}
+
+const (
+	// charsetAlphanumericLower is a set of characters to generate from. Note
+	// that ambiguous chars such as "i" or "j" are excluded.
+	charsetAlphanumericLower = "abcdefghkrstuvwxyz2345689"
+
+	// charsetAlphaLower is similar to charsetAlphanumericLower, but
+	// without numbers.
+	charsetAlphaLower = "abcdefghkrstuvwxyz"
+)
+
+func stringWithCharset(length int, charset string) string {
+	if charset == "" {
+		panic("charset has zero length")
+	}
+
+	if length <= 0 {
+		return ""
+	}
+
+	b := make([]byte, length)
+	for i := range b {
+		b[i] = charset[rand.Intn(len(charset))]
+	}
+
+	return string(b)
+}
+
+// UniqN returns a uniq string of length n. The first element is
+// guaranteed to be a letter.
+func UniqN(length int) string {
+	switch {
+	case length <= 0:
+		return ""
+	case length == 1:
+		return stringWithCharset(1, charsetAlphaLower)
+	default:
+		return stringWithCharset(1, charsetAlphaLower) + stringWithCharset(length-1, charsetAlphanumericLower)
+	}
 }
 
 // Plu handles the most common (English language) case of
@@ -179,7 +227,7 @@ func Plu(s string, i int) string {
 // RepeatJoin returns a string consisting of count copies
 // of s separated by sep. For example:
 //
-//  stringz.RepeatJoin("?", 3, ", ") == "?, ?, ?"
+//	stringz.RepeatJoin("?", 3, ", ") == "?, ?, ?"
 func RepeatJoin(s string, count int, sep string) string {
 	if s == "" || count == 0 {
 		return ""
@@ -296,7 +344,7 @@ func UniqTableName(tbl string) string {
 // SanitizeAlphaNumeric replaces any non-alphanumeric
 // runes of s with r (which is typically underscore).
 //
-//  a#2%3.4_ --> a_2_3_4_
+//	a#2%3.4_ --> a_2_3_4_
 func SanitizeAlphaNumeric(s string, r rune) string {
 	runes := []rune(s)
 
