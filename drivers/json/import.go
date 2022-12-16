@@ -79,7 +79,7 @@ const (
 // of fieldName:fieldValue. For a nested JSON object, the value set
 // may refer to several entities, and thus may decompose into
 // insertions to several tables.
-type objectValueSet map[*entity]map[string]interface{}
+type objectValueSet map[*entity]map[string]any
 
 // processor process JSON objects.
 type processor struct {
@@ -200,7 +200,7 @@ func (p *processor) buildSchemaFlat() (*importSchema, error) {
 
 // processObject processes the parsed JSON object m. If the structure
 // of the importSchema changes due to this object, dirtySchema returns true.
-func (p *processor) processObject(m map[string]interface{}, chunk []byte) (dirtySchema bool, err error) {
+func (p *processor) processObject(m map[string]any, chunk []byte) (dirtySchema bool, err error) {
 	p.curObjVals = objectValueSet{}
 	err = p.doAddObject(p.root, m)
 	dirtySchema = len(p.schemaDirtyEntities) > 0
@@ -233,10 +233,10 @@ func (p *processor) updateColNames(chunk []byte) error {
 	return nil
 }
 
-func (p *processor) doAddObject(ent *entity, m map[string]interface{}) error {
+func (p *processor) doAddObject(ent *entity, m map[string]any) error {
 	for fieldName, val := range m {
 		switch val := val.(type) {
-		case map[string]interface{}:
+		case map[string]any:
 			// time to recurse
 			child := ent.getChild(fieldName)
 			if child == nil {
@@ -268,7 +268,7 @@ func (p *processor) doAddObject(ent *entity, m map[string]interface{}) error {
 				return err
 			}
 
-		case []interface{}:
+		case []any:
 			if !stringz.InSlice(ent.fieldNames, fieldName) {
 				ent.fieldNames = append(ent.fieldNames, fieldName)
 			}
@@ -289,7 +289,7 @@ func (p *processor) doAddObject(ent *entity, m map[string]interface{}) error {
 
 			var entVals = p.curObjVals[ent]
 			if entVals == nil {
-				entVals = map[string]interface{}{}
+				entVals = map[string]any{}
 				p.curObjVals[ent] = entVals
 			}
 
@@ -318,7 +318,7 @@ func (p *processor) buildInsertionsFlat(schema *importSchema) ([]*insertion, err
 	// Each of unwrittenObjVals is effectively an INSERT row
 	for _, objValSet := range p.unwrittenObjVals {
 		var colNames []string
-		colVals := map[string]interface{}{}
+		colVals := map[string]any{}
 
 		for ent, fieldVals := range objValSet {
 			// For each entity, we get its values and add them to colVals.
@@ -333,7 +333,7 @@ func (p *processor) buildInsertionsFlat(schema *importSchema) ([]*insertion, err
 		}
 
 		sort.Strings(colNames)
-		vals := make([]interface{}, len(colNames))
+		vals := make([]any, len(colNames))
 		for i, colName := range colNames {
 			vals[i] = colVals[colName]
 		}
@@ -627,10 +627,10 @@ type insertion struct {
 
 	tbl  string
 	cols []string
-	vals []interface{}
+	vals []any
 }
 
-func newInsertion(tbl string, cols []string, vals []interface{}) *insertion {
+func newInsertion(tbl string, cols []string, vals []any) *insertion {
 	return &insertion{
 		stmtKey: buildInsertStmtKey(tbl, cols),
 		tbl:     tbl,

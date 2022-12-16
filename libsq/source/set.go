@@ -47,7 +47,7 @@ func (s *Set) UnmarshalJSON(b []byte) error {
 }
 
 // MarshalYAML implements yaml.Marshaler.
-func (s *Set) MarshalYAML() (interface{}, error) {
+func (s *Set) MarshalYAML() (any, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -55,7 +55,7 @@ func (s *Set) MarshalYAML() (interface{}, error) {
 }
 
 // UnmarshalYAML implements yaml.Unmarshaler.
-func (s *Set) UnmarshalYAML(unmarshal func(interface{}) error) error {
+func (s *Set) UnmarshalYAML(unmarshal func(any) error) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

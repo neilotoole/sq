@@ -37,8 +37,8 @@ func Import(ctx context.Context, log lg.Log, def *userdriver.DriverDef, data io.
 		rowStack:      newRowStack(),
 		tblDefs:       map[string]*sqlmodel.TableDef{},
 		tblSequence:   map[string]int64{},
-		execInsertFns: map[string]func(ctx context.Context, insertVals []interface{}) error{},
-		execUpdateFns: map[string]func(ctx context.Context, updateVals []interface{}, whereArgs []interface{}) error{},
+		execInsertFns: map[string]func(ctx context.Context, insertVals []any) error{},
+		execUpdateFns: map[string]func(ctx context.Context, updateVals []any, whereArgs []any) error{},
 		clnup:         cleanup.New(),
 		msgOnce:       map[string]struct{}{},
 	}
@@ -69,12 +69,12 @@ type importer struct {
 	// execInsertFns is a map of a table+cols key to an func for inserting
 	// vals. Effectively it can be considered a cache of prepared insert
 	// statements. See the dbInsert function.
-	execInsertFns map[string]func(ctx context.Context, vals []interface{}) error
+	execInsertFns map[string]func(ctx context.Context, vals []any) error
 
 	// execUpdateFns is similar to execInsertFns, but for UPDATE instead
 	// of INSERT. The whereArgs param is the arguments for the
 	// update's WHERE clause.
-	execUpdateFns map[string]func(ctx context.Context, updateVals []interface{}, whereArgs []interface{}) error
+	execUpdateFns map[string]func(ctx context.Context, updateVals []any, whereArgs []any) error
 
 	// clnup holds cleanup funcs that should be run when the importer
 	// finishes.
@@ -197,7 +197,7 @@ func (im *importer) execImport(ctx context.Context, r io.Reader, destDB driver.D
 	return nil
 }
 
-func (im *importer) convertVal(tbl string, col *userdriver.ColMapping, data interface{}) (interface{}, error) {
+func (im *importer) convertVal(tbl string, col *userdriver.ColMapping, data any) (any, error) {
 	const errTpl = `conversion error: %s.%s: expected "%s" but got %T(%v)`
 	const errTplMsg = `conversion error: %s.%s: expected "%s" but got %T(%v): %v`
 
@@ -411,7 +411,7 @@ func (im *importer) saveRow(ctx context.Context, row *rowState) error {
 func (im *importer) dbInsert(ctx context.Context, row *rowState) error {
 	tblName := row.tbl.Name
 	colNames := make([]string, len(row.dirtyColVals))
-	vals := make([]interface{}, len(row.dirtyColVals))
+	vals := make([]any, len(row.dirtyColVals))
 
 	i := 0
 	for k, v := range row.dirtyColVals {
@@ -433,7 +433,7 @@ func (im *importer) dbInsert(ctx context.Context, row *rowState) error {
 		// Make sure we close stmt eventually.
 		im.clnup.AddC(stmtExecer)
 
-		execInsertFn = func(ctx context.Context, vals []interface{}) error {
+		execInsertFn = func(ctx context.Context, vals []any) error {
 			// Munge vals so that they're as the target DB expects
 			err = stmtExecer.Munge(vals)
 			if err != nil {
@@ -464,7 +464,7 @@ func (im *importer) dbUpdate(ctx context.Context, row *rowState) error {
 	pkColNames := row.tbl.PrimaryKey
 
 	var whereBuilder strings.Builder
-	var pkVals []interface{}
+	var pkVals []any
 	for i, pkColName := range pkColNames {
 		if pkVal, ok := row.savedColVals[pkColName]; ok {
 			pkVals = append(pkVals, pkVal)
@@ -484,7 +484,7 @@ func (im *importer) dbUpdate(ctx context.Context, row *rowState) error {
 
 	whereClause := whereBuilder.String()
 	colNames := make([]string, len(row.dirtyColVals))
-	dirtyVals := make([]interface{}, len(row.dirtyColVals))
+	dirtyVals := make([]any, len(row.dirtyColVals))
 
 	i := 0
 	for k, v := range row.dirtyColVals {
@@ -505,7 +505,7 @@ func (im *importer) dbUpdate(ctx context.Context, row *rowState) error {
 		// Make sure we close stmt eventually.
 		im.clnup.AddC(stmtExecer)
 
-		execUpdateFn = func(ctx context.Context, updateVals []interface{}, whereArgs []interface{}) error {
+		execUpdateFn = func(ctx context.Context, updateVals []any, whereArgs []any) error {
 			// Munge vals so that they're as the target DB expects
 			err := stmtExecer.Munge(updateVals)
 			if err != nil {
@@ -537,8 +537,8 @@ func (im *importer) buildRow() (*rowState, error) {
 	}
 
 	r := &rowState{tbl: tbl}
-	r.dirtyColVals = make(map[string]interface{})
-	r.savedColVals = make(map[string]interface{})
+	r.dirtyColVals = make(map[string]any)
+	r.savedColVals = make(map[string]any)
 
 	for i := range r.tbl.Cols {
 		// If the table has a column that has a "text()" selector, then we need to capture the
@@ -585,7 +585,7 @@ func (im *importer) isRowSelector() bool {
 // msgOncef is used to prevent repeated logging of a message. The
 // method returns ok=true and the formatted string if the formatted
 // string has not been previous seen by msgOncef.
-func (im *importer) msgOncef(format string, a ...interface{}) (msg string, ok bool) {
+func (im *importer) msgOncef(format string, a ...any) (msg string, ok bool) {
 	msg = fmt.Sprintf(format, a...)
 
 	if _, exists := im.msgOnce[msg]; exists {

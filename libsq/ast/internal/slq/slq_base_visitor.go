@@ -7,70 +7,70 @@ type BaseSLQVisitor struct {
 	*antlr.BaseParseTreeVisitor
 }
 
-func (v *BaseSLQVisitor) VisitStmtList(ctx *StmtListContext) interface{} {
+func (v *BaseSLQVisitor) VisitStmtList(ctx *StmtListContext) any {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseSLQVisitor) VisitQuery(ctx *QueryContext) interface{} {
+func (v *BaseSLQVisitor) VisitQuery(ctx *QueryContext) any {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseSLQVisitor) VisitSegment(ctx *SegmentContext) interface{} {
+func (v *BaseSLQVisitor) VisitSegment(ctx *SegmentContext) any {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseSLQVisitor) VisitElement(ctx *ElementContext) interface{} {
+func (v *BaseSLQVisitor) VisitElement(ctx *ElementContext) any {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseSLQVisitor) VisitCmpr(ctx *CmprContext) interface{} {
+func (v *BaseSLQVisitor) VisitCmpr(ctx *CmprContext) any {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseSLQVisitor) VisitFn(ctx *FnContext) interface{} {
+func (v *BaseSLQVisitor) VisitFn(ctx *FnContext) any {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseSLQVisitor) VisitJoin(ctx *JoinContext) interface{} {
+func (v *BaseSLQVisitor) VisitJoin(ctx *JoinContext) any {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseSLQVisitor) VisitJoinConstraint(ctx *JoinConstraintContext) interface{} {
+func (v *BaseSLQVisitor) VisitJoinConstraint(ctx *JoinConstraintContext) any {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseSLQVisitor) VisitGroup(ctx *GroupContext) interface{} {
+func (v *BaseSLQVisitor) VisitGroup(ctx *GroupContext) any {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseSLQVisitor) VisitSelElement(ctx *SelElementContext) interface{} {
+func (v *BaseSLQVisitor) VisitSelElement(ctx *SelElementContext) any {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseSLQVisitor) VisitDsTblElement(ctx *DsTblElementContext) interface{} {
+func (v *BaseSLQVisitor) VisitDsTblElement(ctx *DsTblElementContext) any {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseSLQVisitor) VisitDsElement(ctx *DsElementContext) interface{} {
+func (v *BaseSLQVisitor) VisitDsElement(ctx *DsElementContext) any {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseSLQVisitor) VisitRowRange(ctx *RowRangeContext) interface{} {
+func (v *BaseSLQVisitor) VisitRowRange(ctx *RowRangeContext) any {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseSLQVisitor) VisitFnName(ctx *FnNameContext) interface{} {
+func (v *BaseSLQVisitor) VisitFnName(ctx *FnNameContext) any {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseSLQVisitor) VisitExpr(ctx *ExprContext) interface{} {
+func (v *BaseSLQVisitor) VisitExpr(ctx *ExprContext) any {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseSLQVisitor) VisitLiteral(ctx *LiteralContext) interface{} {
+func (v *BaseSLQVisitor) VisitLiteral(ctx *LiteralContext) any {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseSLQVisitor) VisitUnaryOperator(ctx *UnaryOperatorContext) interface{} {
+func (v *BaseSLQVisitor) VisitUnaryOperator(ctx *UnaryOperatorContext) any {
 	return v.VisitChildren(ctx)
 }

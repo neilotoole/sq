@@ -13,7 +13,7 @@ type NullBool struct {
 }
 
 // Scan implements the Scanner interface.
-func (n *NullBool) Scan(value interface{}) error {
+func (n *NullBool) Scan(value any) error {
 	if value == nil {
 		n.Bool, n.Valid = false, false
 		return nil

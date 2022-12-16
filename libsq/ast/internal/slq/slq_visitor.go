@@ -8,53 +8,53 @@ type SLQVisitor interface {
 	antlr.ParseTreeVisitor
 
 	// Visit a parse tree produced by SLQParser#stmtList.
-	VisitStmtList(ctx *StmtListContext) interface{}
+	VisitStmtList(ctx *StmtListContext) any
 
 	// Visit a parse tree produced by SLQParser#query.
-	VisitQuery(ctx *QueryContext) interface{}
+	VisitQuery(ctx *QueryContext) any
 
 	// Visit a parse tree produced by SLQParser#segment.
-	VisitSegment(ctx *SegmentContext) interface{}
+	VisitSegment(ctx *SegmentContext) any
 
 	// Visit a parse tree produced by SLQParser#element.
-	VisitElement(ctx *ElementContext) interface{}
+	VisitElement(ctx *ElementContext) any
 
 	// Visit a parse tree produced by SLQParser#cmpr.
-	VisitCmpr(ctx *CmprContext) interface{}
+	VisitCmpr(ctx *CmprContext) any
 
 	// Visit a parse tree produced by SLQParser#fn.
-	VisitFn(ctx *FnContext) interface{}
+	VisitFn(ctx *FnContext) any
 
 	// Visit a parse tree produced by SLQParser#join.
-	VisitJoin(ctx *JoinContext) interface{}
+	VisitJoin(ctx *JoinContext) any
 
 	// Visit a parse tree produced by SLQParser#joinConstraint.
-	VisitJoinConstraint(ctx *JoinConstraintContext) interface{}
+	VisitJoinConstraint(ctx *JoinConstraintContext) any
 
 	// Visit a parse tree produced by SLQParser#group.
-	VisitGroup(ctx *GroupContext) interface{}
+	VisitGroup(ctx *GroupContext) any
 
 	// Visit a parse tree produced by SLQParser#selElement.
-	VisitSelElement(ctx *SelElementContext) interface{}
+	VisitSelElement(ctx *SelElementContext) any
 
 	// Visit a parse tree produced by SLQParser#dsTblElement.
-	VisitDsTblElement(ctx *DsTblElementContext) interface{}
+	VisitDsTblElement(ctx *DsTblElementContext) any
 
 	// Visit a parse tree produced by SLQParser#dsElement.
-	VisitDsElement(ctx *DsElementContext) interface{}
+	VisitDsElement(ctx *DsElementContext) any
 
 	// Visit a parse tree produced by SLQParser#rowRange.
-	VisitRowRange(ctx *RowRangeContext) interface{}
+	VisitRowRange(ctx *RowRangeContext) any
 
 	// Visit a parse tree produced by SLQParser#fnName.
-	VisitFnName(ctx *FnNameContext) interface{}
+	VisitFnName(ctx *FnNameContext) any
 
 	// Visit a parse tree produced by SLQParser#expr.
-	VisitExpr(ctx *ExprContext) interface{}
+	VisitExpr(ctx *ExprContext) any
 
 	// Visit a parse tree produced by SLQParser#literal.
-	VisitLiteral(ctx *LiteralContext) interface{}
+	VisitLiteral(ctx *LiteralContext) any
 
 	// Visit a parse tree produced by SLQParser#unaryOperator.
-	VisitUnaryOperator(ctx *UnaryOperatorContext) interface{}
+	VisitUnaryOperator(ctx *UnaryOperatorContext) any
 }

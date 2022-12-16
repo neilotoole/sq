@@ -159,7 +159,7 @@ type Detector struct {
 // MungeFunc is a function that accepts a value and returns a munged
 // value with the appropriate Kind. For example, a Datetime MungeFunc
 // would accept string "2020-06-11T02:50:54Z" and return a time.Time,
-type MungeFunc func(interface{}) (interface{}, error)
+type MungeFunc func(any) (any, error)
 
 // NewDetector returns a new instance.
 func NewDetector() *Detector {
@@ -178,7 +178,7 @@ func NewDetector() *Detector {
 }
 
 // Sample adds a sample to the detector.
-func (d *Detector) Sample(v interface{}) {
+func (d *Detector) Sample(v any) {
 	switch v.(type) {
 	case nil:
 		// Can't glean any info from nil
@@ -273,7 +273,7 @@ func (d *Detector) doSampleString(s string) {
 			// If it's kind.Time, it can't be anything else
 			d.retain(Time)
 
-			d.mungeFns[Time] = func(val interface{}) (interface{}, error) {
+			d.mungeFns[Time] = func(val any) (any, error) {
 				if val == nil {
 					return nil, nil
 				}
@@ -307,7 +307,7 @@ func (d *Detector) doSampleString(s string) {
 			// If it's kind.Date, it can't be anything else
 			d.retain(Date)
 
-			d.mungeFns[Date] = func(val interface{}) (interface{}, error) {
+			d.mungeFns[Date] = func(val any) (any, error) {
 				if val == nil {
 					return nil, nil
 				}
@@ -343,7 +343,7 @@ func (d *Detector) doSampleString(s string) {
 
 			// This mungeFn differs from kind.Date and kind.Time in that
 			// it returns a time.Time instead of a string
-			d.mungeFns[Datetime] = func(val interface{}) (interface{}, error) {
+			d.mungeFns[Datetime] = func(val any) (any, error) {
 				if val == nil {
 					return nil, nil
 				}

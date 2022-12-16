@@ -11,10 +11,10 @@ import (
 	"github.com/neilotoole/sq/libsq/core/kind"
 )
 
-// Record is a []interface{} row of field values returned from a query.
+// Record is a []any row of field values returned from a query.
 //
 // In the codebase, we distinguish between a "Record" and
-// a "ScanRow", although both are []interface{} and are closely related.
+// a "ScanRow", although both are []any and are closely related.
 //
 // An instance of ScanRow is passed to the sql rows.Scan method, and
 // its elements may include implementations of the sql.Scanner interface
@@ -26,7 +26,7 @@ import (
 //	nil, *int64, *float64, *bool, *string, *[]byte, *time.Time
 //
 // It is an error for a Record to contain elements of any other type.
-type Record []interface{}
+type Record []any
 
 // ValidRecord checks that each element of the record vals is
 // of an acceptable type. On the first unacceptable element,
@@ -39,7 +39,7 @@ type Record []interface{}
 func ValidRecord(recMeta RecordMeta, rec Record) (i int, err error) {
 	// FIXME: ValidRecord should check the values of rec to see if they match recMeta's kinds
 
-	var val interface{}
+	var val any
 	for i, val = range rec {
 		switch val := val.(type) {
 		case nil, *int64, *float64, *bool, *string, *[]byte, *time.Time:
@@ -147,10 +147,10 @@ func (rm RecordMeta) Names() []string {
 	return names
 }
 
-// NewScanRow returns a new []interface{} that can be scanned
+// NewScanRow returns a new []any that can be scanned
 // into by sql.Rows.Scan.
-func (rm RecordMeta) NewScanRow() []interface{} {
-	dests := make([]interface{}, len(rm))
+func (rm RecordMeta) NewScanRow() []any {
+	dests := make([]any, len(rm))
 
 	for i, col := range rm {
 		dests[i] = reflect.New(col.data.ScanType).Interface()

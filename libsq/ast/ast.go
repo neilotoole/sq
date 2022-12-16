@@ -160,6 +160,6 @@ func (a *AST) AddSegment(seg *Segment) {
 // errorf builds an error. Error creation for this package
 // was centralized here in the expectation that an AST-specific
 // error type (annotated appropriately) would be returned.
-func errorf(format string, v ...interface{}) error {
+func errorf(format string, v ...any) error {
 	return errz.Errorf(format, v...)
 }

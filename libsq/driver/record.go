@@ -29,7 +29,7 @@ import (
 //
 // Thus a func instance might unbox sql.NullString et al, or deal
 // with any driver specific quirks.
-type NewRecordFunc func(scanRow []interface{}) (rec sqlz.Record, err error)
+type NewRecordFunc func(scanRow []any) (rec sqlz.Record, err error)
 
 // InsertMungeFunc is invoked on vals before insertion (or
 // update, despite the name). Note that InsertMungeFunc operates
@@ -40,7 +40,7 @@ type InsertMungeFunc func(vals sqlz.Record) error
 // execution of a prepared statement. Typically the func will
 // perform some driver-specific action, such as managing
 // retryable errors.
-type StmtExecFunc func(ctx context.Context, args ...interface{}) (affected int64, err error)
+type StmtExecFunc func(ctx context.Context, args ...any) (affected int64, err error)
 
 // NewStmtExecer returns a new StmtExecer instance. The caller is responsible
 // for invoking Close on the returned StmtExecer.
@@ -72,7 +72,7 @@ func (x *StmtExecer) DestMeta() sqlz.RecordMeta {
 
 // Munge should be applied to each row of values prior
 // to inserting invoking Exec.
-func (x *StmtExecer) Munge(rec []interface{}) error {
+func (x *StmtExecer) Munge(rec []any) error {
 	if x.mungeFn == nil {
 		return nil
 	}
@@ -86,7 +86,7 @@ func (x *StmtExecer) Munge(rec []interface{}) error {
 
 // Exec executes the statement. The caller should invoke Munge on
 // each row of values prior to passing those values to Exec.
-func (x *StmtExecer) Exec(ctx context.Context, args ...interface{}) (affected int64, err error) {
+func (x *StmtExecer) Exec(ctx context.Context, args ...any) (affected int64, err error) {
 	return x.execFn(ctx, args...)
 }
 
@@ -108,8 +108,8 @@ func (x *StmtExecer) Close() error {
 // copied directly into rec, and its index is returned in skipped.
 // The caller must take appropriate action to deal with all
 // elements of rec listed in skipped.
-func NewRecordFromScanRow(meta sqlz.RecordMeta, row []interface{}, skip []int) (rec sqlz.Record, skipped []int) {
-	rec = make([]interface{}, len(row))
+func NewRecordFromScanRow(meta sqlz.RecordMeta, row []any, skip []int) (rec sqlz.Record, skipped []int) {
+	rec = make([]any, len(row))
 
 	// For convenience, make a map of the skip row indices.
 	mSkip := map[int]struct{}{}
@@ -356,7 +356,7 @@ func PrepareInsertStmt(ctx context.Context, drvr SQLDriver, db sqlz.Preparer, de
 type BatchInsert struct {
 	// RecordCh is the channel that the caller sends records on. The
 	// caller must close RecordCh when done.
-	RecordCh chan<- []interface{}
+	RecordCh chan<- []any
 
 	// ErrCh returns any errors that occur during insert. ErrCh is
 	// closed by BatchInsert when processing is complete.
@@ -376,7 +376,7 @@ func (bi *BatchInsert) Written() int64 {
 
 // Munge should be invoked on every record before sending
 // on RecordCh.
-func (bi BatchInsert) Munge(rec []interface{}) error {
+func (bi BatchInsert) Munge(rec []any) error {
 	return bi.mungeFn(rec)
 }
 
@@ -391,7 +391,7 @@ func NewBatchInsert(ctx context.Context, log lg.Log, drvr SQLDriver, db sqlz.DB,
 		return nil, err
 	}
 
-	recCh := make(chan []interface{}, batchSize*8)
+	recCh := make(chan []any, batchSize*8)
 	errCh := make(chan error, 1)
 	rowLen := len(destColNames)
 
@@ -406,9 +406,9 @@ func NewBatchInsert(ctx context.Context, log lg.Log, drvr SQLDriver, db sqlz.DB,
 		// vals holds rows of values as a single slice. That is, vals is
 		// a bunch of record fields appended to one big slice to pass
 		// as args to the INSERT statement
-		vals := make([]interface{}, 0, rowLen*batchSize)
+		vals := make([]any, 0, rowLen*batchSize)
 
-		var rec []interface{}
+		var rec []any
 		var affected int64
 
 		defer func() {
@@ -584,7 +584,7 @@ func DefaultInsertMungeFunc(destTbl string, destMeta sqlz.RecordMeta) InsertMung
 
 // mungeSetZeroValue is invoked when rec[i] is nil, but
 // destMeta[i] is not nullable.
-func mungeSetZeroValue(i int, rec []interface{}, destMeta sqlz.RecordMeta) {
+func mungeSetZeroValue(i int, rec []any, destMeta sqlz.RecordMeta) {
 	// REVISIT: do we need to do special handling for kind.Datetime
 	//  and kind.Time (e.g. "00:00" for time)?
 	z := reflect.Zero(destMeta[i].ScanType()).Interface()

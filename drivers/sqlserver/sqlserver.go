@@ -228,7 +228,7 @@ func (d *driveri) RecordMeta(colTypes []*sql.ColumnType) (sqlz.RecordMeta, drive
 		recMeta[i] = sqlz.NewFieldMeta(colTypeData)
 	}
 
-	mungeFn := func(vals []interface{}) (sqlz.Record, error) {
+	mungeFn := func(vals []any) (sqlz.Record, error) {
 		// sqlserver doesn't need to do any special munging, so we
 		// just use the default munging.
 		rec, skipped := driver.NewRecordFromScanRow(recMeta, vals, nil)
@@ -449,7 +449,7 @@ func (d *database) Close() error {
 // the "identity insert" error. If the error is encountered, setIdentityInsert
 // is called and stmt is executed again.
 func newStmtExecFunc(stmt *sql.Stmt, db sqlz.DB, tbl string) driver.StmtExecFunc {
-	return func(ctx context.Context, args ...interface{}) (int64, error) {
+	return func(ctx context.Context, args ...any) (int64, error) {
 		res, err := stmt.ExecContext(ctx, args...)
 		if err == nil {
 			var affected int64

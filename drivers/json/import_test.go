@@ -121,18 +121,18 @@ func TestImportJSON_Flat(t *testing.T) {
 
 func TestScanObjectsInArray(t *testing.T) {
 	var (
-		m1 = []map[string]interface{}{{"a": float64(1)}}
-		m2 = []map[string]interface{}{{"a": float64(1)}, {"a": float64(2)}}
-		m3 = []map[string]interface{}{{"a": float64(1)}, {"a": float64(2)}, {"a": float64(3)}}
-		m4 = []map[string]interface{}{
-			{"a": float64(1), "b": []interface{}{float64(1), float64(2), float64(3)}, "c": map[string]interface{}{"c1": float64(1)}, "d": "d1"},
-			{"a": float64(2), "b": []interface{}{float64(21), float64(22), float64(23)}, "c": map[string]interface{}{"c1": float64(2)}, "d": "d2"},
+		m1 = []map[string]any{{"a": float64(1)}}
+		m2 = []map[string]any{{"a": float64(1)}, {"a": float64(2)}}
+		m3 = []map[string]any{{"a": float64(1)}, {"a": float64(2)}, {"a": float64(3)}}
+		m4 = []map[string]any{
+			{"a": float64(1), "b": []any{float64(1), float64(2), float64(3)}, "c": map[string]any{"c1": float64(1)}, "d": "d1"},
+			{"a": float64(2), "b": []any{float64(21), float64(22), float64(23)}, "c": map[string]any{"c1": float64(2)}, "d": "d2"},
 		}
 	)
 
 	testCases := []struct {
 		in         string
-		wantObjs   []map[string]interface{}
+		wantObjs   []map[string]any
 		wantChunks []string
 		wantErr    bool
 	}{

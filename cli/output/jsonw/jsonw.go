@@ -53,7 +53,7 @@ type stdWriter struct {
 	recsWritten bool
 
 	tpl       *stdTemplate
-	encodeFns []func(b []byte, v interface{}) ([]byte, error)
+	encodeFns []func(b []byte, v any) ([]byte, error)
 }
 
 // Open implements output.RecordWriter.
@@ -295,7 +295,7 @@ type lineRecordWriter struct {
 	tpl [][]byte
 
 	// encodeFns holds an encoder func for each element of the record.
-	encodeFns []func(b []byte, v interface{}) ([]byte, error)
+	encodeFns []func(b []byte, v any) ([]byte, error)
 }
 
 // Open implements output.RecordWriter.

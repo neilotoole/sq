@@ -66,11 +66,11 @@ func TestDetectColKindsJSONA(t *testing.T) {
 
 // ScanObjectsInArray is a convenience function
 // for objectsInArrayScanner.
-func ScanObjectsInArray(r io.Reader) (objs []map[string]interface{}, chunks [][]byte, err error) {
+func ScanObjectsInArray(r io.Reader) (objs []map[string]any, chunks [][]byte, err error) {
 	sc := newObjectInArrayScanner(r)
 
 	for {
-		var obj map[string]interface{}
+		var obj map[string]any
 		var chunk []byte
 
 		obj, chunk, err = sc.next()

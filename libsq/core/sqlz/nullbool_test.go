@@ -10,7 +10,7 @@ import (
 
 func TestNullBool_Scan(t *testing.T) {
 	var tests = []struct {
-		input       interface{}
+		input       any
 		expectValid bool
 		expectBool  bool
 	}{

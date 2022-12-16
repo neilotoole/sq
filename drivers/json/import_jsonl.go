@@ -50,8 +50,8 @@ func DetectJSONL(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (d
 			return source.TypeNone, 0, nil
 		}
 
-		// If the line is JSONL, it should marshall into map[string]interface{}
-		var vals map[string]interface{}
+		// If the line is JSONL, it should marshall into map[string]any
+		var vals map[string]any
 		err = stdj.Unmarshal(line, &vals)
 		if err != nil {
 			return source.TypeNone, 0, nil
@@ -147,7 +147,7 @@ func importJSONL(ctx context.Context, log lg.Log, job importJob) error {
 			}
 		}
 
-		var m map[string]interface{}
+		var m map[string]any
 		dec := stdj.NewDecoder(bytes.NewReader(line))
 
 		err = dec.Decode(&m)

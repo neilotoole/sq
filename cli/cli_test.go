@@ -86,7 +86,7 @@ func TestCreateTblTestBytes(t *testing.T) {
 	)
 
 	fBytes := proj.ReadFile(fixt.GopherPath)
-	data := []interface{}{fixt.GopherFilename, fBytes}
+	data := []any{fixt.GopherFilename, fBytes}
 
 	require.Equal(t, int64(1), th.CreateTable(true, src, tblDef, data))
 }
@@ -115,7 +115,7 @@ func TestOutputRaw(t *testing.T) {
 			th, src, _, _ := testh.NewWith(t, handle)
 
 			// Create the table and insert data
-			insertRow := []interface{}{fixt.GopherFilename, wantBytes}
+			insertRow := []any{fixt.GopherFilename, wantBytes}
 			require.Equal(t, int64(1), th.CreateTable(true, src, tblDef, insertRow))
 
 			// 1. Query and check that libsq is returning bytes correctly.

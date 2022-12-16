@@ -21,25 +21,25 @@ import (
 
 func TestVal(t *testing.T) {
 	want := "hello"
-	var got interface{}
+	var got any
 
 	if testh.Val(nil) != nil {
 		t.FailNow()
 	}
 
-	var v0 interface{}
+	var v0 any
 	if testh.Val(v0) != nil {
 		t.FailNow()
 	}
 
 	var v1 = want
-	var v1a interface{} = want
+	var v1a any = want
 	var v2 = &v1
-	var v3 interface{} = &v1
+	var v3 any = &v1
 	var v4 = &v2
 	var v5 = &v4
 
-	vals := []interface{}{v1, v1a, v2, v3, v4, v5}
+	vals := []any{v1, v1a, v2, v3, v4, v5}
 	for _, val := range vals {
 		got = testh.Val(val)
 
@@ -167,12 +167,12 @@ func TestHelper_Files(t *testing.T) {
 
 func TestTName(t *testing.T) {
 	testCases := []struct {
-		a    []interface{}
+		a    []any
 		want string
 	}{
-		{a: []interface{}{}, want: "empty"},
-		{a: []interface{}{"test", 1}, want: "test_1"},
-		{a: []interface{}{"/file/path/name"}, want: "_file_path_name"},
+		{a: []any{}, want: "empty"},
+		{a: []any{"test", 1}, want: "test_1"},
+		{a: []any{"/file/path/name"}, want: "_file_path_name"},
 	}
 
 	for _, tc := range testCases {

@@ -737,15 +737,15 @@ func (d decoder) decodeMapStringInterface(b []byte, p unsafe.Pointer) ([]byte, e
 	}
 
 	i := 0
-	m := *(*map[string]interface{})(p)
+	m := *(*map[string]any)(p)
 
 	if m == nil {
-		m = make(map[string]interface{}, 64)
+		m = make(map[string]any, 64)
 	}
 
 	var err error
 	var key string
-	var val interface{}
+	var val any
 	var input = b
 
 	b = b[1:]
@@ -1009,8 +1009,8 @@ func (d decoder) decodePointer(b []byte, p unsafe.Pointer, t reflect.Type, decod
 }
 
 func (d decoder) decodeInterface(b []byte, p unsafe.Pointer) ([]byte, error) {
-	val := *(*interface{})(p)
-	*(*interface{})(p) = nil
+	val := *(*any)(p)
+	*(*any)(p) = nil
 
 	if t := reflect.TypeOf(val); t != nil && t.Kind() == reflect.Ptr {
 		if v := reflect.ValueOf(val); v.IsNil() || t.Elem().Kind() != reflect.Ptr {
@@ -1018,14 +1018,14 @@ func (d decoder) decodeInterface(b []byte, p unsafe.Pointer) ([]byte, error) {
 			// `null`, and the encoding/json package always nils the destination
 			// interface value in this case.
 			if hasNullPrefix(b) {
-				*(*interface{})(p) = nil
+				*(*any)(p) = nil
 				return b[4:], nil
 			}
 		}
 
 		b, err := Parse(b, val, d.flags)
 		if err == nil {
-			*(*interface{})(p) = val
+			*(*any)(p) = val
 		}
 		return b, err
 	}
@@ -1037,12 +1037,12 @@ func (d decoder) decodeInterface(b []byte, p unsafe.Pointer) ([]byte, error) {
 
 	switch v[0] {
 	case '{':
-		m := make(map[string]interface{})
+		m := make(map[string]any)
 		v, err = d.decodeMapStringInterface(v, unsafe.Pointer(&m))
 		val = m
 
 	case '[':
-		a := make([]interface{}, 0, 10)
+		a := make([]any, 0, 10)
 		v, err = d.decodeSlice(v, unsafe.Pointer(&a), unsafe.Sizeof(a[0]), sliceInterfaceType, decoder.decodeInterface)
 		val = a
 
@@ -1083,13 +1083,13 @@ func (d decoder) decodeInterface(b []byte, p unsafe.Pointer) ([]byte, error) {
 		return b, syntaxError(v, "unexpected trailing trailing tokens after json value")
 	}
 
-	*(*interface{})(p) = val
+	*(*any)(p) = val
 	return b, nil
 }
 
 func (d decoder) decodeMaybeEmptyInterface(b []byte, p unsafe.Pointer, t reflect.Type) ([]byte, error) {
 	if hasNullPrefix(b) {
-		*(*interface{})(p) = nil
+		*(*any)(p) = nil
 		return b[4:], nil
 	}
 
@@ -1098,7 +1098,7 @@ func (d decoder) decodeMaybeEmptyInterface(b []byte, p unsafe.Pointer, t reflect
 			return Parse(b, e.Interface(), d.flags)
 		}
 	} else if t.NumMethod() == 0 { // empty interface
-		return Parse(b, (*interface{})(p), d.flags)
+		return Parse(b, (*any)(p), d.flags)
 	}
 
 	return d.decodeUnmarshalTypeError(b, p, t)

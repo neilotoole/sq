@@ -319,7 +319,7 @@ func (h *Helper) RowCount(src *source.Source, tbl string) int64 {
 // CreateTable creates a new table in src, and inserts data, returning
 // the number of data rows inserted. If dropAfter is true, the created
 // table is dropped when t.Cleanup is run.
-func (h *Helper) CreateTable(dropAfter bool, src *source.Source, tblDef *sqlmodel.TableDef, data ...[]interface{}) (affected int64) {
+func (h *Helper) CreateTable(dropAfter bool, src *source.Source, tblDef *sqlmodel.TableDef, data ...[]any) (affected int64) {
 	dbase := h.openNew(src)
 	defer h.Log.WarnIfCloseError(dbase)
 
@@ -340,7 +340,7 @@ func (h *Helper) CreateTable(dropAfter bool, src *source.Source, tblDef *sqlmode
 // Insert inserts records for cols into src.tbl, returning the number of
 // records inserted. Note that the records arg may be mutated by src's
 // driver InsertMungeFunc.
-func (h *Helper) Insert(src *source.Source, tbl string, cols []string, records ...[]interface{}) (affected int64) {
+func (h *Helper) Insert(src *source.Source, tbl string, cols []string, records ...[]any) (affected int64) {
 	if len(records) == 0 {
 		return 0
 	}
@@ -429,7 +429,7 @@ func (h *Helper) DropTable(src *source.Source, tbl string) {
 // against src, returning a sink to which all records have
 // been written. Note that QuerySQL uses the
 // same Database instance as returned by h.Open.
-func (h *Helper) QuerySQL(src *source.Source, query string, args ...interface{}) (*RecordSink, error) {
+func (h *Helper) QuerySQL(src *source.Source, query string, args ...any) (*RecordSink, error) {
 	dbase := h.Open(src)
 
 	sink := &RecordSink{}
@@ -449,7 +449,7 @@ func (h *Helper) QuerySQL(src *source.Source, query string, args ...interface{})
 // ExecSQL is a convenience wrapper for sql.DB.Exec that returns the
 // rows affected, failing on any error. Note that ExecSQL uses the
 // same Database instance as returned by h.Open.
-func (h *Helper) ExecSQL(src *source.Source, query string, args ...interface{}) (affected int64) {
+func (h *Helper) ExecSQL(src *source.Source, query string, args ...any) (affected int64) {
 	dbase := h.Open(src)
 
 	res, err := dbase.DB().ExecContext(h.Context, query, args...)
@@ -636,7 +636,7 @@ func SkipShort(t *testing.T, skip bool) {
 // is nil, nil is returned. If i has type *(*string),
 // Val(i) returns string.
 // Useful for testing.
-func Val(i interface{}) interface{} {
+func Val(i any) any {
 	if i == nil {
 		return nil
 	}
@@ -673,7 +673,7 @@ func TypeDetectors() []source.TypeDetectFunc {
 
 // AssertCompareFunc matches several of the the testify/require funcs.
 // It can be used to choose assertion comparison funcs in test cases.
-type AssertCompareFunc func(require.TestingT, interface{}, interface{}, ...interface{})
+type AssertCompareFunc func(require.TestingT, any, any, ...any)
 
 // Verify that a sample of the require funcs match AssertCompareFunc.
 var (
@@ -693,7 +693,7 @@ var (
 //	testh.Name("path/to/file") --> "path_to_file"
 //
 // Any element of arg that prints to empty string is skipped.
-func Name(args ...interface{}) string {
+func Name(args ...any) string {
 	var parts []string
 	var s string
 	for _, a := range args {

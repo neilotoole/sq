@@ -16,7 +16,7 @@ type Walker struct {
 	visitors map[reflect.Type][]nodeVisitorFn
 	// state is a generic field to hold any data that a visitor function
 	// might need to stash on the walker.
-	state interface{}
+	state any
 }
 
 // NewWalker returns a new Walker instance.

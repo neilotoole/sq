@@ -308,7 +308,7 @@ func (s *StmtListContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *StmtListContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
+func (s *StmtListContext) Accept(visitor antlr.ParseTreeVisitor) any {
 	switch t := visitor.(type) {
 	case SLQVisitor:
 		return t.VisitStmtList(s)
@@ -497,7 +497,7 @@ func (s *QueryContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *QueryContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
+func (s *QueryContext) Accept(visitor antlr.ParseTreeVisitor) any {
 	switch t := visitor.(type) {
 	case SLQVisitor:
 		return t.VisitQuery(s)
@@ -644,7 +644,7 @@ func (s *SegmentContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *SegmentContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
+func (s *SegmentContext) Accept(visitor antlr.ParseTreeVisitor) any {
 	switch t := visitor.(type) {
 	case SLQVisitor:
 		return t.VisitSegment(s)
@@ -841,7 +841,7 @@ func (s *ElementContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *ElementContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
+func (s *ElementContext) Accept(visitor antlr.ParseTreeVisitor) any {
 	switch t := visitor.(type) {
 	case SLQVisitor:
 		return t.VisitElement(s)
@@ -1017,7 +1017,7 @@ func (s *CmprContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *CmprContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
+func (s *CmprContext) Accept(visitor antlr.ParseTreeVisitor) any {
 	switch t := visitor.(type) {
 	case SLQVisitor:
 		return t.VisitCmpr(s)
@@ -1171,7 +1171,7 @@ func (s *FnContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *FnContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
+func (s *FnContext) Accept(visitor antlr.ParseTreeVisitor) any {
 	switch t := visitor.(type) {
 	case SLQVisitor:
 		return t.VisitFn(s)
@@ -1333,7 +1333,7 @@ func (s *JoinContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *JoinContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
+func (s *JoinContext) Accept(visitor antlr.ParseTreeVisitor) any {
 	switch t := visitor.(type) {
 	case SLQVisitor:
 		return t.VisitJoin(s)
@@ -1468,7 +1468,7 @@ func (s *JoinConstraintContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *JoinConstraintContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
+func (s *JoinConstraintContext) Accept(visitor antlr.ParseTreeVisitor) any {
 	switch t := visitor.(type) {
 	case SLQVisitor:
 		return t.VisitJoinConstraint(s)
@@ -1610,7 +1610,7 @@ func (s *GroupContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *GroupContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
+func (s *GroupContext) Accept(visitor antlr.ParseTreeVisitor) any {
 	switch t := visitor.(type) {
 	case SLQVisitor:
 		return t.VisitGroup(s)
@@ -1749,7 +1749,7 @@ func (s *SelElementContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *SelElementContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
+func (s *SelElementContext) Accept(visitor antlr.ParseTreeVisitor) any {
 	switch t := visitor.(type) {
 	case SLQVisitor:
 		return t.VisitSelElement(s)
@@ -1854,7 +1854,7 @@ func (s *DsTblElementContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *DsTblElementContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
+func (s *DsTblElementContext) Accept(visitor antlr.ParseTreeVisitor) any {
 	switch t := visitor.(type) {
 	case SLQVisitor:
 		return t.VisitDsTblElement(s)
@@ -1959,7 +1959,7 @@ func (s *DsElementContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *DsElementContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
+func (s *DsElementContext) Accept(visitor antlr.ParseTreeVisitor) any {
 	switch t := visitor.(type) {
 	case SLQVisitor:
 		return t.VisitDsElement(s)
@@ -2072,7 +2072,7 @@ func (s *RowRangeContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *RowRangeContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
+func (s *RowRangeContext) Accept(visitor antlr.ParseTreeVisitor) any {
 	switch t := visitor.(type) {
 	case SLQVisitor:
 		return t.VisitRowRange(s)
@@ -2216,7 +2216,7 @@ func (s *FnNameContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *FnNameContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
+func (s *FnNameContext) Accept(visitor antlr.ParseTreeVisitor) any {
 	switch t := visitor.(type) {
 	case SLQVisitor:
 		return t.VisitFnName(s)
@@ -2402,7 +2402,7 @@ func (s *ExprContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *ExprContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
+func (s *ExprContext) Accept(visitor antlr.ParseTreeVisitor) any {
 	switch t := visitor.(type) {
 	case SLQVisitor:
 		return t.VisitExpr(s)
@@ -2743,7 +2743,7 @@ func (s *LiteralContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *LiteralContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
+func (s *LiteralContext) Accept(visitor antlr.ParseTreeVisitor) any {
 	switch t := visitor.(type) {
 	case SLQVisitor:
 		return t.VisitLiteral(s)
@@ -2847,7 +2847,7 @@ func (s *UnaryOperatorContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *UnaryOperatorContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
+func (s *UnaryOperatorContext) Accept(visitor antlr.ParseTreeVisitor) any {
 	switch t := visitor.(type) {
 	case SLQVisitor:
 		return t.VisitUnaryOperator(s)

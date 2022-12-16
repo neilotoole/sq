@@ -957,7 +957,7 @@ func init() {
 	}
 }
 
-func syntaxError(b []byte, msg string, args ...interface{}) error {
+func syntaxError(b []byte, msg string, args ...any) error {
 	e := new(SyntaxError)
 	i := syntaxErrorMsgOffset
 	if i != ^uintptr(0) {
@@ -1049,11 +1049,11 @@ var (
 	timePtrType       = reflect.PtrTo(timeType)
 	rawMessagePtrType = reflect.PtrTo(rawMessageType)
 
-	sliceInterfaceType      = reflect.TypeOf(([]interface{})(nil))
-	mapStringInterfaceType  = reflect.TypeOf((map[string]interface{})(nil))
+	sliceInterfaceType      = reflect.TypeOf(([]any)(nil))
+	mapStringInterfaceType  = reflect.TypeOf((map[string]any)(nil))
 	mapStringRawMessageType = reflect.TypeOf((map[string]RawMessage)(nil))
 
-	interfaceType       = reflect.TypeOf((*interface{})(nil)).Elem()
+	interfaceType       = reflect.TypeOf((*any)(nil)).Elem()
 	jsonMarshalerType   = reflect.TypeOf((*Marshaler)(nil)).Elem()
 	jsonUnmarshalerType = reflect.TypeOf((*Unmarshaler)(nil)).Elem()
 	textMarshalerType   = reflect.TypeOf((*encoding.TextMarshaler)(nil)).Elem()

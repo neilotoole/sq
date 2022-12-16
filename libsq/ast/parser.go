@@ -67,7 +67,7 @@ func (el *antlrErrorListener) String() string {
 }
 
 // SyntaxError implements antlr.ErrorListener.
-func (el *antlrErrorListener) SyntaxError(recognizer antlr.Recognizer, offendingSymbol interface{}, line, column int, msg string, e antlr.RecognitionException) {
+func (el *antlrErrorListener) SyntaxError(recognizer antlr.Recognizer, offendingSymbol any, line, column int, msg string, e antlr.RecognitionException) {
 	text := fmt.Sprintf("%s: syntax error: [%d:%d] %s", el.name, line, column, msg)
 	el.errs = append(el.errs, text)
 }
@@ -117,7 +117,7 @@ type parseTreeVisitor struct {
 }
 
 // Visit implements antlr.ParseTreeVisitor.
-func (v *parseTreeVisitor) Visit(ctx antlr.ParseTree) interface{} {
+func (v *parseTreeVisitor) Visit(ctx antlr.ParseTree) any {
 	v.log.Debugf("visiting %T: %v: ", ctx, ctx.GetText())
 
 	switch ctx := ctx.(type) {
@@ -158,7 +158,7 @@ func (v *parseTreeVisitor) Visit(ctx antlr.ParseTree) interface{} {
 }
 
 // VisitChildren implements antlr.ParseTreeVisitor.
-func (v *parseTreeVisitor) VisitChildren(ctx antlr.RuleNode) interface{} {
+func (v *parseTreeVisitor) VisitChildren(ctx antlr.RuleNode) any {
 	for _, child := range ctx.GetChildren() {
 		tree, ok := child.(antlr.ParseTree)
 		if !ok {
@@ -174,7 +174,7 @@ func (v *parseTreeVisitor) VisitChildren(ctx antlr.RuleNode) interface{} {
 }
 
 // VisitQuery implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitQuery(ctx *slq.QueryContext) interface{} {
+func (v *parseTreeVisitor) VisitQuery(ctx *slq.QueryContext) any {
 	v.AST = &AST{}
 	v.AST.ctx = ctx
 	v.cur = v.AST
@@ -190,7 +190,7 @@ func (v *parseTreeVisitor) VisitQuery(ctx *slq.QueryContext) interface{} {
 }
 
 // VisitDsElement implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitDsElement(ctx *slq.DsElementContext) interface{} {
+func (v *parseTreeVisitor) VisitDsElement(ctx *slq.DsElementContext) any {
 	ds := &Datasource{}
 	ds.parent = v.cur
 	ds.ctx = ctx.DATASOURCE()
@@ -198,7 +198,7 @@ func (v *parseTreeVisitor) VisitDsElement(ctx *slq.DsElementContext) interface{}
 }
 
 // VisitDsTblElement implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitDsTblElement(ctx *slq.DsTblElementContext) interface{} {
+func (v *parseTreeVisitor) VisitDsTblElement(ctx *slq.DsTblElementContext) any {
 	tblSel := &TblSelector{}
 	tblSel.parent = v.cur
 	tblSel.ctx = ctx
@@ -210,7 +210,7 @@ func (v *parseTreeVisitor) VisitDsTblElement(ctx *slq.DsTblElementContext) inter
 }
 
 // VisitSegment implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitSegment(ctx *slq.SegmentContext) interface{} {
+func (v *parseTreeVisitor) VisitSegment(ctx *slq.SegmentContext) any {
 	seg := &Segment{}
 	seg.bn.ctx = ctx
 	seg.bn.parent = v.AST
@@ -222,7 +222,7 @@ func (v *parseTreeVisitor) VisitSegment(ctx *slq.SegmentContext) interface{} {
 }
 
 // VisitSelElement implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitSelElement(ctx *slq.SelElementContext) interface{} {
+func (v *parseTreeVisitor) VisitSelElement(ctx *slq.SelElementContext) any {
 	selector := &Selector{}
 	selector.parent = v.cur
 	selector.ctx = ctx.SEL()
@@ -230,12 +230,12 @@ func (v *parseTreeVisitor) VisitSelElement(ctx *slq.SelElementContext) interface
 }
 
 // VisitElement implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitElement(ctx *slq.ElementContext) interface{} {
+func (v *parseTreeVisitor) VisitElement(ctx *slq.ElementContext) any {
 	return v.VisitChildren(ctx)
 }
 
 // VisitFn implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitFn(ctx *slq.FnContext) interface{} {
+func (v *parseTreeVisitor) VisitFn(ctx *slq.FnContext) any {
 	v.log.Debugf("visiting function: %v", ctx.GetText())
 
 	fn := &Func{fnName: ctx.FnName().GetText()}
@@ -257,7 +257,7 @@ func (v *parseTreeVisitor) VisitFn(ctx *slq.FnContext) interface{} {
 }
 
 // VisitExpr implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitExpr(ctx *slq.ExprContext) interface{} {
+func (v *parseTreeVisitor) VisitExpr(ctx *slq.ExprContext) any {
 	v.log.Debugf("visiting expr: %v", ctx.GetText())
 
 	// check if the expr is a SEL, e.g. ".uid"
@@ -292,17 +292,17 @@ func (v *parseTreeVisitor) VisitExpr(ctx *slq.ExprContext) interface{} {
 }
 
 // VisitCmpr implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitCmpr(ctx *slq.CmprContext) interface{} {
+func (v *parseTreeVisitor) VisitCmpr(ctx *slq.CmprContext) any {
 	return v.VisitChildren(ctx)
 }
 
 // VisitStmtList implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitStmtList(ctx *slq.StmtListContext) interface{} {
+func (v *parseTreeVisitor) VisitStmtList(ctx *slq.StmtListContext) any {
 	return nil // not using StmtList just yet
 }
 
 // VisitLiteral implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitLiteral(ctx *slq.LiteralContext) interface{} {
+func (v *parseTreeVisitor) VisitLiteral(ctx *slq.LiteralContext) any {
 	v.log.Debugf("visiting literal: %q", ctx.GetText())
 
 	lit := &Literal{}
@@ -313,17 +313,17 @@ func (v *parseTreeVisitor) VisitLiteral(ctx *slq.LiteralContext) interface{} {
 }
 
 // VisitUnaryOperator implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitUnaryOperator(ctx *slq.UnaryOperatorContext) interface{} {
+func (v *parseTreeVisitor) VisitUnaryOperator(ctx *slq.UnaryOperatorContext) any {
 	return nil
 }
 
 // VisitFnName implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitFnName(ctx *slq.FnNameContext) interface{} {
+func (v *parseTreeVisitor) VisitFnName(ctx *slq.FnNameContext) any {
 	return nil
 }
 
 // VisitGroup implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitGroup(ctx *slq.GroupContext) interface{} {
+func (v *parseTreeVisitor) VisitGroup(ctx *slq.GroupContext) any {
 	// parent node must be a segment
 	_, ok := v.cur.(*Segment)
 	if !ok {
@@ -353,7 +353,7 @@ func (v *parseTreeVisitor) VisitGroup(ctx *slq.GroupContext) interface{} {
 }
 
 // VisitJoin implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitJoin(ctx *slq.JoinContext) interface{} {
+func (v *parseTreeVisitor) VisitJoin(ctx *slq.JoinContext) any {
 	// parent node must be a segment
 	seg, ok := v.cur.(*Segment)
 	if !ok {
@@ -383,7 +383,7 @@ func (v *parseTreeVisitor) VisitJoin(ctx *slq.JoinContext) interface{} {
 }
 
 // VisitJoinConstraint implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitJoinConstraint(ctx *slq.JoinConstraintContext) interface{} {
+func (v *parseTreeVisitor) VisitJoinConstraint(ctx *slq.JoinConstraintContext) any {
 	joinNode, ok := v.cur.(*Join)
 	if !ok {
 		return errorf("JOIN constraint must have JOIN parent, but got %T", v.cur)
@@ -455,7 +455,7 @@ func (v *parseTreeVisitor) VisitJoinConstraint(ctx *slq.JoinConstraintContext) i
 }
 
 // VisitTerminal implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitTerminal(ctx antlr.TerminalNode) interface{} {
+func (v *parseTreeVisitor) VisitTerminal(ctx antlr.TerminalNode) any {
 	v.log.Debugf("visiting terminal: %q", ctx.GetText())
 
 	val := ctx.GetText()
@@ -482,7 +482,7 @@ func (v *parseTreeVisitor) VisitTerminal(ctx antlr.TerminalNode) interface{} {
 }
 
 // VisitRowRange implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitRowRange(ctx *slq.RowRangeContext) interface{} {
+func (v *parseTreeVisitor) VisitRowRange(ctx *slq.RowRangeContext) any {
 	// []      select all rows (no range)
 	// [1]     select row[1]
 	// [10:15] select rows 10 thru 15
@@ -541,7 +541,7 @@ func (v *parseTreeVisitor) VisitRowRange(ctx *slq.RowRangeContext) interface{} {
 }
 
 // VisitErrorNode implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitErrorNode(ctx antlr.ErrorNode) interface{} {
+func (v *parseTreeVisitor) VisitErrorNode(ctx antlr.ErrorNode) any {
 	v.log.Debugf("error node: %v", ctx.GetText())
 	return nil
 }

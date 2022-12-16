@@ -214,7 +214,7 @@ func (d *driveri) RecordMeta(colTypes []*sql.ColumnType) (sqlz.RecordMeta, drive
 		return nil, nil, errz.Err(err)
 	}
 
-	mungeFn := func(vals []interface{}) (sqlz.Record, error) {
+	mungeFn := func(vals []any) (sqlz.Record, error) {
 		// sqlite3 doesn't need to do any special munging, so we
 		// just use the default munging.
 		rec, skipped := driver.NewRecordFromScanRow(recMeta, vals, nil)
@@ -325,7 +325,7 @@ func (d *driveri) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl str
 }
 
 func newStmtExecFunc(stmt *sql.Stmt) driver.StmtExecFunc {
-	return func(ctx context.Context, args ...interface{}) (int64, error) {
+	return func(ctx context.Context, args ...any) (int64, error) {
 		res, err := stmt.ExecContext(ctx, args...)
 		if err != nil {
 			return 0, errz.Err(err)

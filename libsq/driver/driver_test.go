@@ -203,7 +203,7 @@ func TestSQLDriver_PrepareUpdateStmt(t *testing.T) {
 			)
 			var (
 				destCols = []string{"first_name", "last_name"}
-				wantVals = []interface{}{"Kubla", "Khan"}
+				wantVals = []any{"Kubla", "Khan"}
 				args     = append(wantVals, actorID)
 			)
 

@@ -135,7 +135,7 @@ const (
 	yb
 )
 
-func SprintJSON(value interface{}) string {
+func SprintJSON(value any) string {
 	j, err := json.MarshalIndent(value, "", "  ")
 	if err != nil {
 		panic(err)

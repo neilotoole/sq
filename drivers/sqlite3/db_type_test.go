@@ -51,7 +51,7 @@ var typeTestColNames = []string{
 //   - Row 1 contains non-zero values.
 //   - Row 2 contains non-zero values and nil values for cols that permit
 //     nil values (those cols ending with _n such as col_int_n).
-var typeTestVals = [][]interface{}{
+var typeTestVals = [][]any{
 	{
 		int64(1),        // col_id
 		fixt.IntZ,       // col_int

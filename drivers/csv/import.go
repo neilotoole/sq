@@ -155,10 +155,10 @@ func execInsert(ctx context.Context, recw libsq.RecordWriter, recMeta sqlz.Recor
 	}
 }
 
-// mungeCSV2InsertRecord returns a new []interface{} containing
+// mungeCSV2InsertRecord returns a new []any containing
 // the values of the csvRec []string.
-func mungeCSV2InsertRecord(csvRec []string) []interface{} {
-	a := make([]interface{}, len(csvRec))
+func mungeCSV2InsertRecord(csvRec []string) []any {
+	a := make([]any, len(csvRec))
 	for i := range csvRec {
 		a[i] = csvRec[i]
 	}

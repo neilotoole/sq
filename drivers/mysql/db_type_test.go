@@ -29,7 +29,7 @@ const typeTestTableDDLPath = "testdata/type_test.ddl"
 //   - Row 1 contains non-zero values.
 //   - Row 2 contains non-zero values and nil values for cols that permit
 //     nil values (those cols ending with _n such as col_text_n).
-var typeTestVals = [][]interface{}{
+var typeTestVals = [][]any{
 	{
 		1,               //	col_id
 		fixt.IntZ,       //	col_bigint
@@ -376,7 +376,7 @@ func TestDatabaseTypeJSON(t *testing.T) {
 )`
 	)
 
-	testVals := [][]interface{}{
+	testVals := [][]any{
 		{
 			int64(1),  // col_id
 			fixt.JSON, // col_json
