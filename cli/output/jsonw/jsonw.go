@@ -16,20 +16,20 @@ import (
 // record as a JSON object that is an element of JSON array. This is
 // to say, standard JSON. For example:
 //
-//  [
-//    {
-//      "actor_id": 1,
-//      "first_name": "PENELOPE",
-//      "last_name": "GUINESS",
-//      "last_update": "2020-06-11T02:50:54Z"
-//    },
-//    {
-//      "actor_id": 2,
-//      "first_name": "NICK",
-//      "last_name": "WAHLBERG",
-//      "last_update": "2020-06-11T02:50:54Z"
-//    }
-//  ]
+//	[
+//	  {
+//	    "actor_id": 1,
+//	    "first_name": "PENELOPE",
+//	    "last_name": "GUINESS",
+//	    "last_update": "2020-06-11T02:50:54Z"
+//	  },
+//	  {
+//	    "actor_id": 2,
+//	    "first_name": "NICK",
+//	    "last_name": "WAHLBERG",
+//	    "last_update": "2020-06-11T02:50:54Z"
+//	  }
+//	]
 func NewStdRecordWriter(out io.Writer, fm *output.Formatting) output.RecordWriter {
 	return &stdWriter{
 		out: out,
@@ -247,8 +247,8 @@ func newStdTemplate(recMeta sqlz.RecordMeta, fm *output.Formatting) (*stdTemplat
 // NewObjectRecordWriter writes out each record as a JSON object
 // on its own line. For example:
 //
-//  {"actor_id": 1, "first_name": "PENELOPE", "last_name": "GUINESS", "last_update": "2020-06-11T02:50:54Z"}
-//  {"actor_id": 2, "first_name": "NICK", "last_name": "WAHLBERG", "last_update": "2020-06-11T02:50:54Z"}
+//	{"actor_id": 1, "first_name": "PENELOPE", "last_name": "GUINESS", "last_update": "2020-06-11T02:50:54Z"}
+//	{"actor_id": 2, "first_name": "NICK", "last_name": "WAHLBERG", "last_update": "2020-06-11T02:50:54Z"}
 func NewObjectRecordWriter(out io.Writer, fm *output.Formatting) output.RecordWriter {
 	return &lineRecordWriter{
 		out:      out,
@@ -260,8 +260,8 @@ func NewObjectRecordWriter(out io.Writer, fm *output.Formatting) output.RecordWr
 // NewArrayRecordWriter returns a RecordWriter that outputs each
 // record as a JSON array on its own line. For example:
 //
-//  [1, "PENELOPE", "GUINESS", "2020-06-11T02:50:54Z"]
-//  [2, "NICK", "WAHLBERG", "2020-06-11T02:50:54Z"]
+//	[1, "PENELOPE", "GUINESS", "2020-06-11T02:50:54Z"]
+//	[2, "NICK", "WAHLBERG", "2020-06-11T02:50:54Z"]
 func NewArrayRecordWriter(out io.Writer, fm *output.Formatting) output.RecordWriter {
 	return &lineRecordWriter{
 		out:      out,

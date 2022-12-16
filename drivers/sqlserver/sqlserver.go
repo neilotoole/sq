@@ -480,7 +480,7 @@ func newStmtExecFunc(stmt *sql.Stmt, db sqlz.DB, tbl string) driver.StmtExecFunc
 // SQLServer is fussy about inserting values to the identity col. This
 // error can be returned from the driver:
 //
-//   mssql: Cannot insert explicit value for identity column in table 'payment' when IDENTITY_INSERT is set to OFF
+//	mssql: Cannot insert explicit value for identity column in table 'payment' when IDENTITY_INSERT is set to OFF
 //
 // The solution is "SET IDENTITY_INSERT tbl ON".
 //

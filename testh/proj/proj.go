@@ -4,7 +4,7 @@
 // such as SQ_ROOT are guaranteed to be set. Thus the following
 // will work as expected:
 //
-//   p := proj.Expand("${SQ_ROOT}/go.mod")
+//	p := proj.Expand("${SQ_ROOT}/go.mod")
 package proj
 
 import (

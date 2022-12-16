@@ -20,7 +20,7 @@ var (
 // not an acceptable source handle value.
 // Valid input must match:
 //
-//   \A@[a-zA-Z][a-zA-Z0-9_]*$
+//	\A@[a-zA-Z][a-zA-Z0-9_]*$
 func VerifyLegalHandle(handle string) error {
 	matches := handlePattern.MatchString(handle)
 	if !matches {
@@ -33,8 +33,7 @@ func VerifyLegalHandle(handle string) error {
 // verifyLegalTableName returns an error if table is not an
 // acceptable table name. Valid input must match:
 //
-//   \A[a-zA-Z_][a-zA-Z0-9_]*$`
-//
+//	\A[a-zA-Z_][a-zA-Z0-9_]*$`
 func verifyLegalTableName(table string) error {
 	matches := tablePattern.MatchString(table)
 	if !matches {
@@ -121,9 +120,9 @@ func SuggestHandle(typ Type, loc string, takenFn func(string) bool) (string, err
 // ParseTableHandle attempts to parse a SLQ source handle and/or table name.
 // Surrounding whitespace is trimmed. Examples of valid input values are:
 //
-//   @handle.tblName
-//   @handle
-//   .tblName
+//	@handle.tblName
+//	@handle
+//	.tblName
 func ParseTableHandle(input string) (handle, table string, err error) {
 	trimmed := strings.TrimSpace(input)
 	if trimmed == "" {

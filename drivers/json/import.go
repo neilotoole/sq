@@ -455,7 +455,7 @@ func execSchemaDelta(ctx context.Context, log lg.Log, drvr driver.SQLDriver, db 
 // containing column names, in the order they appear in chunk.
 // Nested fields are flattened, e.g:
 //
-//  {"a":1, "b": {"c":2, "d":3}}  -->  ["a", "b_c", "b_d"]
+//	{"a":1, "b": {"c":2, "d":3}}  -->  ["a", "b_c", "b_d"]
 func columnOrderFlat(chunk []byte) ([]string, error) {
 	dec := stdj.NewDecoder(bytes.NewReader(chunk))
 

@@ -685,12 +685,12 @@ var (
 // Name is a convenience function for building a test name to
 // pass to t.Run.
 //
-//  t.Run(testh.Name("my_test", 1), func(t *testing.T) {
+//	t.Run(testh.Name("my_test", 1), func(t *testing.T) {
 //
 // The most common usage is with test names that are file
 // paths.
 //
-//   testh.Name("path/to/file") --> "path_to_file"
+//	testh.Name("path/to/file") --> "path_to_file"
 //
 // Any element of arg that prints to empty string is skipped.
 func Name(args ...interface{}) string {

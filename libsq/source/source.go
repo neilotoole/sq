@@ -121,8 +121,8 @@ const (
 // typeFromMediaType returns the driver type corresponding to mediatype.
 // For example:
 //
-//  xlsx		application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
-//  csv			text/csv
+//	xlsx		application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+//	csv			text/csv
 //
 // Note that we don't rely on this function for types such
 // as application/json, because JSON can map to multiple

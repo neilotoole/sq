@@ -14,7 +14,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
@@ -325,10 +324,6 @@ func runCmd(env map[string]string, cmd string, args ...string) error {
 	}
 
 	return err
-}
-
-func isGoLatest() bool {
-	return strings.Contains(runtime.Version(), "1.14")
 }
 
 func isCI() bool {

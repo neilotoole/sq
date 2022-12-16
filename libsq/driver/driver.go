@@ -261,7 +261,8 @@ func NewDatabases(log lg.Log, drvrs Provider, scratchSrcFn ScratchSrcFunc) *Data
 // the Database: it will be closed via d.Close.
 //
 // NOTE: This entire logic re caching/not-closing is a bit sketchy,
-//  and needs to be revisited.
+//
+//	and needs to be revisited.
 //
 // Open implements DatabaseOpener.
 func (d *Databases) Open(ctx context.Context, src *source.Source) (Database, error) {

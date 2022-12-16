@@ -47,10 +47,10 @@ var typeTestColNames = []string{
 // typeTestVals is the set of vals inserted to the type_test table (and
 // is expected when querying that table).
 //
-// - Row 0 contains zero values (0, empty string, etc).
-// - Row 1 contains non-zero values.
-// - Row 2 contains non-zero values and nil values for cols that permit
-//   nil values (those cols ending with _n such as col_int_n).
+//   - Row 0 contains zero values (0, empty string, etc).
+//   - Row 1 contains non-zero values.
+//   - Row 2 contains non-zero values and nil values for cols that permit
+//     nil values (those cols ending with _n such as col_int_n).
 var typeTestVals = [][]interface{}{
 	{
 		int64(1),        // col_id

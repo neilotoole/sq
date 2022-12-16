@@ -8,9 +8,10 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/testcontainers/testcontainers-go/wait"
 	"sync"
 	"time"
+
+	"github.com/testcontainers/testcontainers-go/wait"
 
 	"github.com/magefile/mage/mg"
 	"golang.org/x/sync/errgroup"

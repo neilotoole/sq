@@ -157,7 +157,9 @@ func narrowColSel(log lg.Log, w *Walker, node Node) error {
 // inserts a SetWhere node into the AST for that expression.
 //
 // In practice, a WHERE clause is an *Expr that is the only child of a segment. For example:
-//    @my1 | .tbluser | .uid > 4 | .uid, .email
+//
+//	@my1 | .tbluser | .uid > 4 | .uid, .email
+//
 // In this case, ".uid > 4" is the WHERE clause.
 func findWhereClause(log lg.Log, w *Walker, node Node) error {
 	// node is guaranteed to be *Expr

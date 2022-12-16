@@ -215,11 +215,11 @@ ORDER BY cols.ordinal_position ASC`
 // For other databases (such as sqlite) it was performant to UNION ALL
 // these SELECTs into one (or a few) queries, e.g.:
 //
-//  SELECT COUNT(*) FROM actor
-//  UNION ALL
-//  SELECT COUNT(*) FROM address
-//  UNION ALL
-//  [...]
+//	SELECT COUNT(*) FROM actor
+//	UNION ALL
+//	SELECT COUNT(*) FROM address
+//	UNION ALL
+//	[...]
 //
 // However, this seemed to perform poorly (at least for MySQL 5.6 which
 // was the main focus of testing). We do seem to be getting fairly

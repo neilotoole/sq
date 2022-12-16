@@ -100,7 +100,8 @@ func (fs *Files) Size(src *Source) (size int64, err error) {
 // Note that f is closed by this method.
 //
 // DESIGN: it's possible we'll ditch AddStdin and TypeStdin
-//  in some future version; this mechanism is a stopgap.
+//
+//	in some future version; this mechanism is a stopgap.
 func (fs *Files) AddStdin(f *os.File) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()

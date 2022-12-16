@@ -38,7 +38,6 @@ package json
 //			...
 //		}
 //	}
-//
 type Tokenizer struct {
 	// When the tokenizer is positioned on a json delimiter this field is not
 	// zero. In this case the possible values are '{', '}', '[', ']', ':', and
