@@ -84,7 +84,7 @@ func recordMetaFromColumnTypes(log lg.Log, colTypes []*sql.ColumnType) sqlz.Reco
 // In particular mysql.NullTime is unboxed to *time.Time, and TIME fields
 // are munged from RawBytes to string.
 func getNewRecordFunc(rowMeta sqlz.RecordMeta) driver.NewRecordFunc {
-	return func(row []interface{}) (sqlz.Record, error) {
+	return func(row []any) (sqlz.Record, error) {
 		rec, skipped := driver.NewRecordFromScanRow(rowMeta, row, nil)
 		// We iterate over each element of val, checking for certain
 		// conditions. A more efficient approach might be to (in
@@ -507,7 +507,7 @@ var datetimeLayouts = []string{time.RFC3339Nano, time.RFC3339}
 // mungeSetDatetimeFromString attempts to parse s into time.Time and
 // sets rec[i] to that value. If unable to parse, rec is unchanged,
 // and it's up to mysql to deal with the text.
-func mungeSetDatetimeFromString(s string, i int, rec []interface{}) {
+func mungeSetDatetimeFromString(s string, i int, rec []any) {
 	var t time.Time
 	var err error
 
@@ -522,7 +522,7 @@ func mungeSetDatetimeFromString(s string, i int, rec []interface{}) {
 
 // mungeSetZeroValue is invoked when rec[i] is nil, but
 // destMeta[i] is not nullable.
-func mungeSetZeroValue(i int, rec []interface{}, destMeta sqlz.RecordMeta) {
+func mungeSetZeroValue(i int, rec []any, destMeta sqlz.RecordMeta) {
 	// REVISIT: do we need to do special handling for kind.Datetime
 	//  and kind.Time (e.g. "00:00" for time)?
 	z := reflect.Zero(destMeta[i].ScanType()).Interface()

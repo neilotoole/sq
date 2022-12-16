@@ -55,18 +55,18 @@ func DetectJSONA(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (d
 			return source.TypeNone, 0, nil
 		}
 
-		// If the line is JSONA, it should marshall into []interface{}
-		var fields []interface{}
+		// If the line is JSONA, it should marshall into []any
+		var fields []any
 		err = stdj.Unmarshal(line, &fields)
 		if err != nil {
 			return source.TypeNone, 0, nil
 		}
 
 		// JSONA must consist only of values, not objects. Any object
-		// would get marshalled into a map[string]interface{}, so
+		// would get marshalled into a map[string]any, so
 		// we check for that.
 		for _, field := range fields {
-			if _, ok := field.(map[string]interface{}); ok {
+			if _, ok := field.(map[string]any); ok {
 				return source.TypeNone, 0, nil
 			}
 		}
@@ -180,8 +180,8 @@ func startInsertJSONA(ctx context.Context, recordCh chan<- sqlz.Record, errCh <-
 			return errz.New("malformed JSONA input")
 		}
 
-		// If the line is JSONA, it should marshal into []interface{}
-		var rec []interface{}
+		// If the line is JSONA, it should marshal into []any
+		var rec []any
 		err = stdj.Unmarshal(line, &rec)
 		if err != nil {
 			return errz.Err(err)
@@ -259,8 +259,8 @@ func detectColKindsJSONA(ctx context.Context, r io.Reader) ([]kind.Kind, []kind.
 			return nil, nil, errz.New("line does not begin with left bracket '['")
 		}
 
-		// If the line is JSONA, it should marshall into []interface{}
-		var vals []interface{}
+		// If the line is JSONA, it should marshall into []any
+		var vals []any
 		err = stdj.Unmarshal(line, &vals)
 		if err != nil {
 			return nil, nil, errz.Err(err)
@@ -316,7 +316,7 @@ func detectColKindsJSONA(ctx context.Context, r io.Reader) ([]kind.Kind, []kind.
 // (especially important for id columns).
 // So, if the float64 has zero after the decimal point '.' (that
 // is to say, it's a round float like 1.0), we return the int64 value.
-func maybeFloatToInt(val interface{}) interface{} {
+func maybeFloatToInt(val any) any {
 	if f64, ok := val.(float64); ok {
 		floor := math.Floor(f64)
 		if f64-floor == 0 {

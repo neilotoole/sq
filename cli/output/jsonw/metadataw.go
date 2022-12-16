@@ -25,7 +25,7 @@ func NewMetadataWriter(out io.Writer, fm *output.Formatting) output.MetadataWrit
 	return &mdWriter{out: out, fm: fm}
 }
 
-func (w *mdWriter) write(v interface{}) error {
+func (w *mdWriter) write(v any) error {
 	buf := &bytes.Buffer{}
 
 	enc := jcolorenc.NewEncoder(buf)

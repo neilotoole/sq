@@ -19,19 +19,19 @@ import (
 type monoEncoder struct {
 }
 
-func (e monoEncoder) encodeTime(b []byte, v interface{}) ([]byte, error) {
+func (e monoEncoder) encodeTime(b []byte, v any) ([]byte, error) {
 	return e.doEncodeTime(b, v, stringz.TimeFormat)
 }
 
-func (e monoEncoder) encodeDatetime(b []byte, v interface{}) ([]byte, error) {
+func (e monoEncoder) encodeDatetime(b []byte, v any) ([]byte, error) {
 	return e.doEncodeTime(b, v, stringz.DatetimeFormat)
 }
 
-func (e monoEncoder) encodeDate(b []byte, v interface{}) ([]byte, error) {
+func (e monoEncoder) encodeDate(b []byte, v any) ([]byte, error) {
 	return e.doEncodeTime(b, v, stringz.DateFormat)
 }
 
-func (e monoEncoder) doEncodeTime(b []byte, v interface{}, layout string) ([]byte, error) {
+func (e monoEncoder) doEncodeTime(b []byte, v any, layout string) ([]byte, error) {
 	switch v := v.(type) {
 	case nil:
 		return append(b, "null"...), nil
@@ -48,7 +48,7 @@ func (e monoEncoder) doEncodeTime(b []byte, v interface{}, layout string) ([]byt
 	}
 }
 
-func (e monoEncoder) encodeAny(b []byte, v interface{}) ([]byte, error) {
+func (e monoEncoder) encodeAny(b []byte, v any) ([]byte, error) {
 	switch v := v.(type) {
 	default:
 		return b, errz.Errorf("unexpected record field type %T: %#v", v, v)
@@ -95,19 +95,19 @@ type colorEncoder struct {
 	clrs internal.Colors
 }
 
-func (e *colorEncoder) encodeTime(b []byte, v interface{}) ([]byte, error) {
+func (e *colorEncoder) encodeTime(b []byte, v any) ([]byte, error) {
 	return e.doEncodeTime(b, v, stringz.TimeFormat)
 }
 
-func (e *colorEncoder) encodeDatetime(b []byte, v interface{}) ([]byte, error) {
+func (e *colorEncoder) encodeDatetime(b []byte, v any) ([]byte, error) {
 	return e.doEncodeTime(b, v, stringz.DatetimeFormat)
 }
 
-func (e *colorEncoder) encodeDate(b []byte, v interface{}) ([]byte, error) {
+func (e *colorEncoder) encodeDate(b []byte, v any) ([]byte, error) {
 	return e.doEncodeTime(b, v, stringz.DateFormat)
 }
 
-func (e *colorEncoder) doEncodeTime(b []byte, v interface{}, layout string) ([]byte, error) {
+func (e *colorEncoder) doEncodeTime(b []byte, v any, layout string) ([]byte, error) {
 	start := len(b)
 
 	switch v := v.(type) {
@@ -135,7 +135,7 @@ func (e *colorEncoder) doEncodeTime(b []byte, v interface{}, layout string) ([]b
 	}
 }
 
-func (e *colorEncoder) encodeAny(b []byte, v interface{}) ([]byte, error) {
+func (e *colorEncoder) encodeAny(b []byte, v any) ([]byte, error) {
 	switch v := v.(type) {
 	default:
 		return b, errz.Errorf("unexpected record field type %T: %#v", v, v)
@@ -225,8 +225,8 @@ func newPunc(fm *output.Formatting) punc {
 	return p
 }
 
-func getFieldEncoders(recMeta sqlz.RecordMeta, fm *output.Formatting) []func(b []byte, v interface{}) ([]byte, error) {
-	encodeFns := make([]func(b []byte, v interface{}) ([]byte, error), len(recMeta))
+func getFieldEncoders(recMeta sqlz.RecordMeta, fm *output.Formatting) []func(b []byte, v any) ([]byte, error) {
+	encodeFns := make([]func(b []byte, v any) ([]byte, error), len(recMeta))
 
 	if fm.IsMonochrome() {
 		enc := monoEncoder{}

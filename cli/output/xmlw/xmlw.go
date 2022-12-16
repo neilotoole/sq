@@ -42,7 +42,7 @@ type recordWriter struct {
 	tplFieldStart []string
 	tplFieldEnd   []string
 
-	fieldPrintFns []func(w io.Writer, a ...interface{})
+	fieldPrintFns []func(w io.Writer, a ...any)
 }
 
 const (
@@ -66,7 +66,7 @@ func (w *recordWriter) Open(recMeta sqlz.RecordMeta) error {
 		newline = "\n"
 	}
 
-	w.fieldPrintFns = make([]func(w io.Writer, a ...interface{}), len(recMeta))
+	w.fieldPrintFns = make([]func(w io.Writer, a ...any), len(recMeta))
 
 	w.tplFieldStart = make([]string, len(recMeta))
 	w.tplFieldEnd = make([]string, len(recMeta))
@@ -107,7 +107,7 @@ func (w *recordWriter) Open(recMeta sqlz.RecordMeta) error {
 
 // monoPrint delegates to fmt.Fprint, for
 // monochrome (non-color) printing.
-func monoPrint(w io.Writer, a ...interface{}) {
+func monoPrint(w io.Writer, a ...any) {
 	_, _ = fmt.Fprint(w, a...)
 }
 

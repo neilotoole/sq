@@ -53,7 +53,7 @@ func isValidNumber(n string) bool {
 	return true
 }
 
-func assertErrorPresence(t *testing.T, expected error, actual error, prefixes ...interface{}) {
+func assertErrorPresence(t *testing.T, expected error, actual error, prefixes ...any) {
 	if expected != nil && actual == nil {
 		errorWithPrefixes(t, prefixes, "expected error, but did not get an error")
 	} else if expected == nil && actual != nil {
@@ -61,7 +61,7 @@ func assertErrorPresence(t *testing.T, expected error, actual error, prefixes ..
 	}
 }
 
-func errorWithPrefixes(t *testing.T, prefixes []interface{}, format string, elements ...interface{}) {
+func errorWithPrefixes(t *testing.T, prefixes []any, format string, elements ...any) {
 	fullFormat := format
 	allElements := append(prefixes, elements...)
 

@@ -297,8 +297,8 @@ func syncColNamesKinds(colNames []string, colKinds []kind.Kind) (names []string,
 	return colNames, colKinds
 }
 
-func rowToRecord(log lg.Log, destColKinds []kind.Kind, row *xlsx.Row, sheetName string, rowIndex int) []interface{} {
-	vals := make([]interface{}, len(destColKinds))
+func rowToRecord(log lg.Log, destColKinds []kind.Kind, row *xlsx.Row, sheetName string, rowIndex int) []any {
+	vals := make([]any, len(destColKinds))
 	for j, cell := range row.Cells {
 		if j >= len(vals) {
 			log.Warnf("sheet %s[%d:%d]: skipping additional cells because there's more cells than expected (%d)",
@@ -369,12 +369,12 @@ func rowToRecord(log lg.Log, destColKinds []kind.Kind, row *xlsx.Row, sheetName 
 
 // readCellValue reads the value of a cell, returning a value of
 // type that most matches the sq kind.
-func readCellValue(cell *xlsx.Cell) interface{} {
+func readCellValue(cell *xlsx.Cell) any {
 	if cell == nil || cell.Value == "" {
 		return nil
 	}
 
-	var val interface{}
+	var val any
 
 	switch cell.Type() {
 	case xlsx.CellTypeBool:

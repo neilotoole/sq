@@ -100,7 +100,7 @@ func toNullableScanType(log lg.Log, colName, dbTypeName string, knd kind.Kind, p
 
 	switch pgScanType {
 	default:
-		// If we don't recognize the scan type (likely it's interface{}),
+		// If we don't recognize the scan type (likely it's any),
 		// we explicitly switch through the db type names that we know.
 		// At this time, we will use NullString for all unrecognized
 		// scan types, but nonetheless we switch through the known db type
@@ -515,7 +515,7 @@ func colMetaFromPgColumn(log lg.Log, pgCol *pgColumn) *source.ColMetadata {
 // are returned. If tblName is specified, constraints just for that
 // table are returned.
 func getPgConstraints(ctx context.Context, log lg.Log, db sqlz.DB, tblName string) ([]*pgConstraint, error) {
-	var args []interface{}
+	var args []any
 	query := `SELECT kcu.table_catalog,kcu.table_schema,kcu.table_name,kcu.column_name,
     kcu.ordinal_position,tc.constraint_name,tc.constraint_type,
     (

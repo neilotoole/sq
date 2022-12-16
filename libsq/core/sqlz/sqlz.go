@@ -12,17 +12,17 @@ import (
 // from sql.DB and friends.
 type Execer interface {
 	// ExecContext is documented by sql.DB.ExecContext.
-	ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
 }
 
 // Queryer abstracts the QueryContext and QueryRowContext
 // methods from sql.DB and friends.
 type Queryer interface {
 	// QueryContext is documented by sql.DB.QueryContext.
-	QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
 
 	// QueryRowContext is documented by sql.DB.QueryRowContext.
-	QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
 }
 
 // Preparer abstracts the PrepareContext method from sql.DB and
@@ -44,7 +44,7 @@ type DB interface {
 
 // ExecAffected invokes db.ExecContext, returning the count of rows
 // affected and any error.
-func ExecAffected(ctx context.Context, db Execer, query string, args ...interface{}) (affected int64, err error) {
+func ExecAffected(ctx context.Context, db Execer, query string, args ...any) (affected int64, err error) {
 	var res sql.Result
 	res, err = db.ExecContext(ctx, query, args...)
 	if err != nil {

@@ -16,7 +16,7 @@ import (
 
 // Encoder encapsulates the methods of a JSON encoder.
 type Encoder interface {
-	Encode(v interface{}) error
+	Encode(v any) error
 	SetEscapeHTML(on bool)
 	SetIndent(prefix, indent string)
 }
@@ -29,22 +29,22 @@ func TestEncode(t *testing.T) {
 		pretty  bool
 		color   bool
 		sortMap bool
-		v       interface{}
+		v       any
 		want    string
 	}{
 		{name: "nil", pretty: true, v: nil, want: "null\n"},
 		{name: "slice_empty", pretty: true, v: []int{}, want: "[]\n"},
-		{name: "slice_1_pretty", pretty: true, v: []interface{}{1}, want: "[\n  1\n]\n"},
-		{name: "slice_1_no_pretty", v: []interface{}{1}, want: "[1]\n"},
-		{name: "slice_2_pretty", pretty: true, v: []interface{}{1, true}, want: "[\n  1,\n  true\n]\n"},
-		{name: "slice_2_no_pretty", v: []interface{}{1, true}, want: "[1,true]\n"},
+		{name: "slice_1_pretty", pretty: true, v: []any{1}, want: "[\n  1\n]\n"},
+		{name: "slice_1_no_pretty", v: []any{1}, want: "[1]\n"},
+		{name: "slice_2_pretty", pretty: true, v: []any{1, true}, want: "[\n  1,\n  true\n]\n"},
+		{name: "slice_2_no_pretty", v: []any{1, true}, want: "[1,true]\n"},
 		{name: "map_int_empty", pretty: true, v: map[string]int{}, want: "{}\n"},
-		{name: "map_interface_empty", pretty: true, v: map[string]interface{}{}, want: "{}\n"},
-		{name: "map_interface_empty_sorted", pretty: true, sortMap: true, v: map[string]interface{}{}, want: "{}\n"},
-		{name: "map_1_pretty", pretty: true, sortMap: true, v: map[string]interface{}{"one": 1}, want: "{\n  \"one\": 1\n}\n"},
-		{name: "map_1_no_pretty", sortMap: true, v: map[string]interface{}{"one": 1}, want: "{\"one\":1}\n"},
-		{name: "map_2_pretty", pretty: true, sortMap: true, v: map[string]interface{}{"one": 1, "two": 2}, want: "{\n  \"one\": 1,\n  \"two\": 2\n}\n"},
-		{name: "map_2_no_pretty", sortMap: true, v: map[string]interface{}{"one": 1, "two": 2}, want: "{\"one\":1,\"two\":2}\n"},
+		{name: "map_interface_empty", pretty: true, v: map[string]any{}, want: "{}\n"},
+		{name: "map_interface_empty_sorted", pretty: true, sortMap: true, v: map[string]any{}, want: "{}\n"},
+		{name: "map_1_pretty", pretty: true, sortMap: true, v: map[string]any{"one": 1}, want: "{\n  \"one\": 1\n}\n"},
+		{name: "map_1_no_pretty", sortMap: true, v: map[string]any{"one": 1}, want: "{\"one\":1}\n"},
+		{name: "map_2_pretty", pretty: true, sortMap: true, v: map[string]any{"one": 1, "two": 2}, want: "{\n  \"one\": 1,\n  \"two\": 2\n}\n"},
+		{name: "map_2_no_pretty", sortMap: true, v: map[string]any{"one": 1, "two": 2}, want: "{\"one\":1,\"two\":2}\n"},
 		{name: "tinystruct", pretty: true, v: TinyStruct{FBool: true}, want: "{\n  \"f_bool\": true\n}\n"},
 	}
 
@@ -78,14 +78,14 @@ func TestEncode_Slice(t *testing.T) {
 		name   string
 		pretty bool
 		color  bool
-		v      []interface{}
+		v      []any
 		want   string
 	}{
 		{name: "nil", pretty: true, v: nil, want: "null\n"},
-		{name: "empty", pretty: true, v: []interface{}{}, want: "[]\n"},
-		{name: "one", pretty: true, v: []interface{}{1}, want: "[\n  1\n]\n"},
-		{name: "two", pretty: true, v: []interface{}{1, true}, want: "[\n  1,\n  true\n]\n"},
-		{name: "three", pretty: true, v: []interface{}{1, true, "hello"}, want: "[\n  1,\n  true,\n  \"hello\"\n]\n"},
+		{name: "empty", pretty: true, v: []any{}, want: "[]\n"},
+		{name: "one", pretty: true, v: []any{1}, want: "[\n  1\n]\n"},
+		{name: "two", pretty: true, v: []any{1, true}, want: "[\n  1,\n  true\n]\n"},
+		{name: "three", pretty: true, v: []any{1, true, "hello"}, want: "[\n  1,\n  true,\n  \"hello\"\n]\n"},
 	}
 
 	for _, tc := range testCases {
@@ -114,8 +114,8 @@ func TestEncode_Slice(t *testing.T) {
 func TestEncode_SmallStruct(t *testing.T) {
 	v := SmallStruct{
 		FInt:   7,
-		FSlice: []interface{}{64, true},
-		FMap: map[string]interface{}{
+		FSlice: []any{64, true},
+		FMap: map[string]any{
 			"m_float64": 64.64,
 			"m_string":  "hello",
 		},
@@ -158,13 +158,13 @@ func TestEncode_SmallStruct(t *testing.T) {
 }
 
 func TestEncode_Map_Nested(t *testing.T) {
-	v := map[string]interface{}{
+	v := map[string]any{
 		"m_bool1": true,
-		"m_nest1": map[string]interface{}{
+		"m_nest1": map[string]any{
 			"m_nest1_bool": true,
-			"m_nest2": map[string]interface{}{
+			"m_nest2": map[string]any{
 				"m_nest2_bool": true,
-				"m_nest3": map[string]interface{}{
+				"m_nest3": map[string]any{
 					"m_nest3_bool": true,
 				},
 			},
@@ -207,9 +207,9 @@ func TestEncode_Map_Nested(t *testing.T) {
 }
 
 // TestEncode_Map_StringNotInterface tests maps with a string key
-// but the value type is not interface{}.
+// but the value type is not any.
 // For example, map[string]bool. This test is necessary because the
-// encoder has a fast path for map[string]interface{}
+// encoder has a fast path for map[string]any
 func TestEncode_Map_StringNotInterface(t *testing.T) {
 	testCases := []struct {
 		pretty  bool
@@ -264,7 +264,7 @@ func TestEncode_RawMessage(t *testing.T) {
 		name   string
 		pretty bool
 		color  bool
-		v      interface{}
+		v      any
 		want   string
 	}{
 		{name: "empty", pretty: false, v: jcolorenc.RawMessage(`{}`), want: "{}\n"},
@@ -300,7 +300,7 @@ func TestEncode_RawMessage(t *testing.T) {
 
 // TestEncode_Map_StringNotInterface tests map[string]json.RawMessage.
 // This test is necessary because the encoder has a fast path
-// for map[string]interface{}
+// for map[string]any
 func TestEncode_Map_StringRawMessage(t *testing.T) {
 	raw := jcolorenc.RawMessage(`{"one":1,"two":2}`)
 
@@ -383,7 +383,7 @@ func TestEncode_BigStruct(t *testing.T) {
 }
 
 // TestEncode_Map_Not_StringInterface tests map encoding where
-// the map is not map[string]interface{} (for which the encoder
+// the map is not map[string]any (for which the encoder
 // has a fast path).
 //
 // NOTE: Currently the encoder is broken wrt colors enabled
@@ -417,35 +417,35 @@ func TestEncode_Map_Not_StringInterface(t *testing.T) {
 
 // BigStruct is a big test struct.
 type BigStruct struct {
-	FInt         int                    `json:"f_int"`
-	FInt8        int8                   `json:"f_int8"`
-	FInt16       int16                  `json:"f_int16"`
-	FInt32       int32                  `json:"f_int32"`
-	FInt64       int64                  `json:"f_int64"`
-	FUint        uint                   `json:"f_uint"`
-	FUint8       uint8                  `json:"f_uint8"`
-	FUint16      uint16                 `json:"f_uint16"`
-	FUint32      uint32                 `json:"f_uint32"`
-	FUint64      uint64                 `json:"f_uint64"`
-	FFloat32     float32                `json:"f_float32"`
-	FFloat64     float64                `json:"f_float64"`
-	FBool        bool                   `json:"f_bool"`
-	FBytes       []byte                 `json:"f_bytes"`
-	FNil         interface{}            `json:"f_nil"`
-	FString      string                 `json:"f_string"`
-	FMap         map[string]interface{} `json:"f_map"`
-	FSmallStruct SmallStruct            `json:"f_smallstruct"`
-	FInterface   interface{}            `json:"f_interface"`
-	FInterfaces  []interface{}          `json:"f_interfaces"`
+	FInt         int            `json:"f_int"`
+	FInt8        int8           `json:"f_int8"`
+	FInt16       int16          `json:"f_int16"`
+	FInt32       int32          `json:"f_int32"`
+	FInt64       int64          `json:"f_int64"`
+	FUint        uint           `json:"f_uint"`
+	FUint8       uint8          `json:"f_uint8"`
+	FUint16      uint16         `json:"f_uint16"`
+	FUint32      uint32         `json:"f_uint32"`
+	FUint64      uint64         `json:"f_uint64"`
+	FFloat32     float32        `json:"f_float32"`
+	FFloat64     float64        `json:"f_float64"`
+	FBool        bool           `json:"f_bool"`
+	FBytes       []byte         `json:"f_bytes"`
+	FNil         any            `json:"f_nil"`
+	FString      string         `json:"f_string"`
+	FMap         map[string]any `json:"f_map"`
+	FSmallStruct SmallStruct    `json:"f_smallstruct"`
+	FInterface   any            `json:"f_interface"`
+	FInterfaces  []any          `json:"f_interfaces"`
 }
 
 // SmallStruct is a small test struct.
 type SmallStruct struct {
-	FInt        int                    `json:"f_int"`
-	FSlice      []interface{}          `json:"f_slice"`
-	FMap        map[string]interface{} `json:"f_map"`
-	FTinyStruct TinyStruct             `json:"f_tinystruct"`
-	FString     string                 `json:"f_string"`
+	FInt        int            `json:"f_int"`
+	FSlice      []any          `json:"f_slice"`
+	FMap        map[string]any `json:"f_map"`
+	FTinyStruct TinyStruct     `json:"f_tinystruct"`
+	FString     string         `json:"f_string"`
 }
 
 // Tiny Struct is a tiny test struct.
@@ -471,7 +471,7 @@ func newBigStruct() BigStruct {
 		FBytes:   []byte("hello"),
 		FNil:     nil,
 		FString:  "hello",
-		FMap: map[string]interface{}{
+		FMap: map[string]any{
 			"m_int64":       int64(64),
 			"m_string":      "hello",
 			"m_bool":        true,
@@ -479,16 +479,16 @@ func newBigStruct() BigStruct {
 			"m_smallstruct": newSmallStruct(),
 		},
 		FSmallStruct: newSmallStruct(),
-		FInterface:   interface{}("hello"),
-		FInterfaces:  []interface{}{int64(64), "hello", true},
+		FInterface:   any("hello"),
+		FInterfaces:  []any{int64(64), "hello", true},
 	}
 }
 
 func newSmallStruct() SmallStruct {
 	return SmallStruct{
 		FInt:   7,
-		FSlice: []interface{}{64, true},
-		FMap: map[string]interface{}{
+		FSlice: []any{64, true},
+		FMap: map[string]any{
 			"m_float64": 64.64,
 			"m_string":  "hello",
 		},

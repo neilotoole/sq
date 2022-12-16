@@ -12,8 +12,8 @@ import (
 type rowState struct {
 	tbl *userdriver.TableMapping
 
-	dirtyColVals map[string]interface{}
-	savedColVals map[string]interface{}
+	dirtyColVals map[string]any
+	savedColVals map[string]any
 	curCol       *userdriver.ColMapping
 }
 

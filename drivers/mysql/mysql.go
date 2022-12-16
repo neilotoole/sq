@@ -150,7 +150,7 @@ func (d *driveri) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl str
 }
 
 func newStmtExecFunc(stmt *sql.Stmt) driver.StmtExecFunc {
-	return func(ctx context.Context, args ...interface{}) (int64, error) {
+	return func(ctx context.Context, args ...any) (int64, error) {
 		res, err := stmt.ExecContext(ctx, args...)
 		if err != nil {
 			return 0, errz.Err(err)

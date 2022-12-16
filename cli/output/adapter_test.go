@@ -98,7 +98,7 @@ func TestRecordWriterAdapter_FlushAfterN(t *testing.T) {
 
 			// Write some records
 			for i := 0; i < writeRecCount; i++ {
-				recCh <- []interface{}{1}
+				recCh <- []any{1}
 			}
 			close(recCh)
 
@@ -151,7 +151,7 @@ func TestRecordWriterAdapter_FlushAfterDuration(t *testing.T) {
 
 			// Write some records
 			for i := 0; i < writeRecCount; i++ {
-				recCh <- []interface{}{1}
+				recCh <- []any{1}
 				time.Sleep(sleepTime)
 			}
 			close(recCh)

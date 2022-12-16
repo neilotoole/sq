@@ -138,12 +138,12 @@ func (t *Table) getCellTrans(row int, col int) textTransFunc {
 	cellTrans := t.cellTrans[key]
 
 	if cellTrans == nil {
-		cellTrans = func(val ...interface{}) string {
+		cellTrans = func(val ...any) string {
 			return fmt.Sprint(val...)
 		}
 	}
 
-	return func(val ...interface{}) string {
+	return func(val ...any) string {
 		return cellTrans(colTrans(val...))
 	}
 }
@@ -155,7 +155,7 @@ func (t *Table) getColTrans(col int) textTransFunc {
 		return trans
 	}
 
-	return func(val ...interface{}) string {
+	return func(val ...any) string {
 		return fmt.Sprint(val...)
 	}
 }
@@ -571,4 +571,4 @@ func (t *Table) parseDimension(str string, colKey, rowKey int) []string {
 
 // textTransFunc is a function that can transform text, typically
 // to add color.
-type textTransFunc func(a ...interface{}) string
+type textTransFunc func(a ...any) string

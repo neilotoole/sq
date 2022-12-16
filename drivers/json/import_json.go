@@ -54,7 +54,7 @@ func DetectJSON(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (de
 		defer log.WarnIfCloseError(r2)
 
 		dec = stdj.NewDecoder(io.TeeReader(r2, buf))
-		var m map[string]interface{}
+		var m map[string]any
 		err = dec.Decode(&m)
 		if err != nil {
 			return source.TypeNone, 0, nil
@@ -97,7 +97,7 @@ func DetectJSON(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (de
 
 	sc := newObjectInArrayScanner(r2)
 	var validObjCount int
-	var obj map[string]interface{}
+	var obj map[string]any
 
 	for {
 		select {
@@ -148,7 +148,7 @@ func importJSON(ctx context.Context, log lg.Log, job importJob) error {
 	scan := newObjectInArrayScanner(r)
 
 	var (
-		obj            map[string]interface{}
+		obj            map[string]any
 		chunk          []byte
 		schemaModified bool
 		curSchema      *importSchema
@@ -296,7 +296,7 @@ func newObjectInArrayScanner(r io.Reader) *objectsInArrayScanner {
 // next scans the next object from the reader. The returned chunk holds
 // the raw JSON that the obj was decoded from. When no more objects,
 // obj and chunk are nil.
-func (s *objectsInArrayScanner) next() (obj map[string]interface{}, chunk []byte, err error) {
+func (s *objectsInArrayScanner) next() (obj map[string]any, chunk []byte, err error) {
 	var tok stdj.Token
 
 	if s.bufOffset == 0 {

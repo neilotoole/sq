@@ -113,7 +113,7 @@ func newEngine(ctx context.Context, log lg.Log, dbOpener driver.DatabaseOpener, 
 // before recw has finished writing, thus the caller may wish
 // to wait for recw to complete.
 // The caller is responsible for closing dbase.
-func QuerySQL(ctx context.Context, log lg.Log, dbase driver.Database, recw RecordWriter, query string, args ...interface{}) error {
+func QuerySQL(ctx context.Context, log lg.Log, dbase driver.Database, recw RecordWriter, query string, args ...any) error {
 	rows, err := dbase.DB().QueryContext(ctx, query, args...)
 	if err != nil {
 		return errz.Wrapf(err, `SQL query against %s failed: %s`, dbase.Source().Handle, query)
