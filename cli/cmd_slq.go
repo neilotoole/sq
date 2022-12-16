@@ -160,22 +160,22 @@ func execSLQPrint(ctx context.Context, rc *RunContext) error {
 // 1. If there's piped input but no query args, the first table
 // from the pipe source becomes the query. Invoked like this:
 //
-//  $ cat something.csv | sq
+//	$ cat something.csv | sq
 //
 // The query effectively becomes:
 //
-//  $ cat something.csv | sq @stdin.data
+//	$ cat something.csv | sq @stdin.data
 //
 // For non-monotable sources, the first table is used:
 //
-//  $ cat something.xlsx | sq @stdin.sheet1
+//	$ cat something.xlsx | sq @stdin.sheet1
 //
 // 2. If the query doesn't contain a source selector segment
 // starting with @HANDLE, the active src handle is prepended
 // to the query. This allows a query where the first selector
 // segment is the table name.
 //
-//  $ sq '.person'  -->  $ sq '@active.person'
+//	$ sq '.person'  -->  $ sq '@active.person'
 func preprocessUserSLQ(ctx context.Context, rc *RunContext, args []string) (string, error) {
 	log, reg, dbases, srcs := rc.Log, rc.registry, rc.databases, rc.Config.Sources
 	activeSrc := srcs.Active()

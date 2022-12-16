@@ -23,7 +23,7 @@ import (
 // A Record is typically built from a ScanRow, unwrapping and
 // munging elements such that the Record only contains standard types:
 //
-//   nil, *int64, *float64, *bool, *string, *[]byte, *time.Time
+//	nil, *int64, *float64, *bool, *string, *[]byte, *time.Time
 //
 // It is an error for a Record to contain elements of any other type.
 type Record []interface{}
@@ -34,7 +34,8 @@ type Record []interface{}
 // success (-1, nil) is returned.
 //
 // These acceptable types, per the stdlib sql pkg, are:
-//   nil, *int64, *float64, *bool, *string, *[]byte, *time.Time
+//
+//	nil, *int64, *float64, *bool, *string, *[]byte, *time.Time
 func ValidRecord(recMeta RecordMeta, rec Record) (i int, err error) {
 	// FIXME: ValidRecord should check the values of rec to see if they match recMeta's kinds
 

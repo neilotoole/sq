@@ -246,7 +246,7 @@ func execTblDrop(cmd *cobra.Command, args []string) (err error) {
 
 // parseTableHandleArgs parses args of the form:
 //
-//  @HANDLE1.TABLE1 .TABLE2 .TABLE3 @HANDLE2.TABLE4 .TABLEN
+//	@HANDLE1.TABLE1 .TABLE2 .TABLE3 @HANDLE2.TABLE4 .TABLEN
 //
 // It returns a slice of tblHandle, one for each arg. If an arg
 // does not have a HANDLE, the active src is assumed: it's an error

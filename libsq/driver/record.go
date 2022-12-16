@@ -25,7 +25,7 @@ import (
 //
 // Ultimately rec should only contain:
 //
-//  nil, *int64, *bool, *float64, *string, *[]byte, *time.Time
+//	nil, *int64, *bool, *float64, *string, *[]byte, *time.Time
 //
 // Thus a func instance might unbox sql.NullString et al, or deal
 // with any driver specific quirks.

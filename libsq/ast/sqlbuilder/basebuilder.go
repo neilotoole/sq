@@ -219,9 +219,9 @@ func sqlAppend(existing, add string) string {
 // quoteTableOrColSelector returns a quote table, col, or table/col
 // selector for use in a SQL statement. For example:
 //
-//  .table     -->  "table"
-//  .col       -->  "col"
-//  .table.col -->  "table"."col"
+//	.table     -->  "table"
+//	.col       -->  "col"
+//	.table.col -->  "table"."col"
 //
 // Thus, the selector must have exactly one or two periods.
 func quoteTableOrColSelector(quote, selector string) (string, error) {

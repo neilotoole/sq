@@ -105,8 +105,9 @@ func execPing(cmd *cobra.Command, args []string) error {
 // inline as part of the ping results, and an errNoMsg is returned.
 //
 // NOTE: This ping code has an ancient lineage, in that it was written
-//  originally laid down before context.Context was a thing. Thus,
-//  the entire thing could probably be rewritten for simplicity.
+//
+//	originally laid down before context.Context was a thing. Thus,
+//	the entire thing could probably be rewritten for simplicity.
 func pingSources(ctx context.Context, log lg.Log, dp driver.Provider, srcs []*source.Source, w output.PingWriter, timeout time.Duration) error {
 	w.Open(srcs)
 	defer log.WarnIfFuncError(w.Close)

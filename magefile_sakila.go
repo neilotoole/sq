@@ -11,8 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/magefile/mage/mg"
 	"github.com/testcontainers/testcontainers-go/wait"
+
+	"github.com/magefile/mage/mg"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/testcontainers/testcontainers-go"
@@ -55,12 +56,12 @@ var containerReqs = []testcontainers.ContainerRequest{
 	// 	ExposedPorts: []string{"54331:5432"},
 	// 	WaitingFor:   wait.ForLog("PostgreSQL init process complete; ready for start up.").WithStartupTimeout(startupTimeout),
 	// },
-	// {
-	// 	Image:        "sakiladb/postgres:12",
-	// 	Name:         "sakiladb-postgres-12",
-	// 	ExposedPorts: []string{"54332:5432"},
-	// 	WaitingFor:   wait.ForLog("PostgreSQL init process complete; ready for start up.").WithStartupTimeout(startupTimeout),
-	// },
+	{
+		Image:        "sakiladb/postgres:12",
+		Name:         "sakiladb-postgres-12",
+		ExposedPorts: []string{"54332:5432"},
+		WaitingFor:   wait.ForLog("PostgreSQL init process complete; ready for start up.").WithStartupTimeout(startupTimeout),
+	},
 	// {
 	// 	Image:        "sakiladb/mysql:5.6",
 	// 	Name:         "sakiladb-mysql-5.6",

@@ -140,9 +140,9 @@ func SplitSQL(input io.Reader, delim string, moreDelims ...string) (stmts []stri
 // is taken that the delim is only stripped on a word boundary.
 // For example, using delim "go":
 //
-//  "select * from food go"		--> "select * from food"
-//  "select * from food2go"		--> "select * from food2go"
-//  "select * from food2go go"	--> "select * from food2go"
+//	"select * from food go"		--> "select * from food"
+//	"select * from food2go"		--> "select * from food2go"
+//	"select * from food2go go"	--> "select * from food2go"
 //
 // This implementation is mighty inefficient, don't use on
 // the hot path.

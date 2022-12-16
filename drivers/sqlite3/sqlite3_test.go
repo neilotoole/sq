@@ -46,11 +46,11 @@ func TestQueryEmptyTable(t *testing.T) {
 // TestExhibitDriverColumnTypesBehavior shows the unusual
 // behavior of SQLite wrt column types. The following is observed:
 //
-// 1. If rows.ColumnTypes is invoked prior to rows.Next being
-//    invoked, the column ScanType will be nil.
-// 2. The values returned by rows.ColumnTypes can change after
-//    each call to rows.Next. This is because of SQLite's dynamic
-//    typing: any value can be stored in any column.
+//  1. If rows.ColumnTypes is invoked prior to rows.Next being
+//     invoked, the column ScanType will be nil.
+//  2. The values returned by rows.ColumnTypes can change after
+//     each call to rows.Next. This is because of SQLite's dynamic
+//     typing: any value can be stored in any column.
 //
 // The second fact is potentially problematic for sq, as sq expects
 // that the values of a column are all of the same type. Thus, sq

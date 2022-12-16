@@ -315,12 +315,12 @@ func excludeFieldKinds(fieldCandidateKinds []kind.Kind, fieldVal string) []kind.
 // getColNames determines column names. The col names are determined
 // as follows:
 //
-// - Col names can be explicitly specified in src.Options
-// - If the source CSV has a header record, the fields of the
-//   header record are returned.
-// - Otherwise, the first data record is read, and col names are generated
-//   based on the number of fields [A,B,C...] etc. That first data record
-//   is appended to readAheadRecs so that it's not lost.
+//   - Col names can be explicitly specified in src.Options
+//   - If the source CSV has a header record, the fields of the
+//     header record are returned.
+//   - Otherwise, the first data record is read, and col names are generated
+//     based on the number of fields [A,B,C...] etc. That first data record
+//     is appended to readAheadRecs so that it's not lost.
 //
 // Note that cr must not have been previously read.
 func getColNames(cr *csv.Reader, src *source.Source, readAheadRecs *[][]string) ([]string, error) {

@@ -387,8 +387,9 @@ func TestEncode_BigStruct(t *testing.T) {
 // has a fast path).
 //
 // NOTE: Currently the encoder is broken wrt colors enabled
-//  for non-string map keys. It's possible we don't actually need
-//  to address this for sq purposes.
+//
+//	for non-string map keys. It's possible we don't actually need
+//	to address this for sq purposes.
 func TestEncode_Map_Not_StringInterface(t *testing.T) {
 	fm := output.NewFormatting()
 	fm.Pretty = true
