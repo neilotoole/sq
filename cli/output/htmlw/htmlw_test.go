@@ -2,7 +2,7 @@ package htmlw_test
 
 import (
 	"bytes"
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -36,7 +36,7 @@ func TestRecordWriter(t *testing.T) {
 			require.NoError(t, w.WriteRecords(recs))
 			require.NoError(t, w.Close())
 
-			want, err := ioutil.ReadFile(tc.fixtPath)
+			want, err := os.ReadFile(tc.fixtPath)
 			require.NoError(t, err)
 			require.Equal(t, string(want), buf.String())
 		})

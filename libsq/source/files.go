@@ -3,7 +3,6 @@ package source
 import (
 	"context"
 	"io"
-	"io/ioutil"
 	"mime"
 	"net/url"
 	"os"
@@ -48,7 +47,7 @@ type Files struct {
 func NewFiles(log lg.Log) (*Files, error) {
 	fs := &Files{log: log, clnup: cleanup.New()}
 
-	tmpdir, err := ioutil.TempDir("", "sq_files_fscache_*")
+	tmpdir, err := os.MkdirTemp("", "sq_files_fscache_*")
 	if err != nil {
 		return nil, errz.Err(err)
 	}
@@ -86,7 +85,7 @@ func (fs *Files) Size(src *Source) (size int64, err error) {
 
 	defer fs.log.WarnIfCloseError(r)
 
-	size, err = io.Copy(ioutil.Discard, r)
+	size, err = io.Copy(io.Discard, r)
 	if err != nil {
 		return 0, errz.Err(err)
 	}
@@ -197,7 +196,7 @@ func (fs *Files) ReadAll(src *Source) ([]byte, error) {
 	}
 
 	var data []byte
-	data, err = ioutil.ReadAll(r)
+	data, err = io.ReadAll(r)
 	closeErr := r.Close()
 	if err != nil {
 		return nil, err
@@ -302,7 +301,7 @@ func (fs *Files) fetch(loc string) (fpath string, err error) {
 	}
 
 	var dlFile *os.File
-	dlFile, err = ioutil.TempFile("", "")
+	dlFile, err = os.CreateTemp("", "")
 	if err != nil {
 		return "", errz.Err(err)
 	}
@@ -543,7 +542,7 @@ func httpURL(s string) (u *url.URL, ok bool) {
 // It is the caller's responsibility to close the file and remove the temp
 // dir, which the returned cleanFn encapsulates.
 func TempDirFile(filename string) (dir string, f *os.File, cleanFn func() error, err error) {
-	dir, err = ioutil.TempDir("", "sq_")
+	dir, err = os.MkdirTemp("", "sq_")
 	if err != nil {
 		return "", nil, nil, errz.Err(err)
 	}

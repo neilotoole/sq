@@ -38,6 +38,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+
+      - name: Delete irrelevant files
+        # Codacy looks at everything in the repo by default. We could configure
+        # the step below via the --directory flag, but that only accepts a single
+        # argument, and there are multiple dirs we want to scan (cli, drivers,
+        # libsq, etc). A simple solution is to just delete the stuff we don't
+        # want scanned.
+        run: |
+          rm -rf ./grammar/grun/java
+
       # Execute Codacy Analysis CLI and generate a SARIF output with the security issues identified during the analysis
       - name: Run Codacy Analysis CLI
         uses: codacy/codacy-analysis-cli-action@d840f886c4bd4edc059706d09c6a1586111c540b

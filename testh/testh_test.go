@@ -2,7 +2,7 @@ package testh_test
 
 import (
 	"github.com/neilotoole/sq/testh/tutil"
-	"io/ioutil"
+	"io"
 	"testing"
 	"time"
 
@@ -154,7 +154,7 @@ func TestHelper_Files(t *testing.T) {
 
 			defer func() { require.NoError(t, r.Close()) }()
 
-			b, err := ioutil.ReadAll(r)
+			b, err := io.ReadAll(r)
 			require.NoError(t, err)
 
 			require.Equal(t, wantBytes, b)

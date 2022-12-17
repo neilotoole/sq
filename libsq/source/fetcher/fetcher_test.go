@@ -3,7 +3,7 @@ package fetcher_test
 import (
 	"bytes"
 	"context"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -35,20 +35,20 @@ func TestFetcherConfig(t *testing.T) {
 	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(*serverSleepy)
 	}))
-	server.Config.ErrorLog = log.New(ioutil.Discard, "", 0) // hush the server logging
+	server.Config.ErrorLog = log.New(io.Discard, "", 0) // hush the server logging
 	server.StartTLS()
 	defer server.Close()
 
 	fetchr := &fetcher.Fetcher{}
 	// No config, expect error because of bad cert
-	err := fetchr.Fetch(ctx, server.URL, ioutil.Discard)
+	err := fetchr.Fetch(ctx, server.URL, io.Discard)
 	require.Error(t, err, "expect untrusted cert error")
 
 	cfg := &fetcher.Config{InsecureSkipVerify: true}
 
 	// Config as field of Fetcher
 	fetchr = &fetcher.Fetcher{Config: cfg}
-	err = fetchr.Fetch(ctx, server.URL, ioutil.Discard)
+	err = fetchr.Fetch(ctx, server.URL, io.Discard)
 	require.NoError(t, err)
 
 	// Test timeout
@@ -57,11 +57,11 @@ func TestFetcherConfig(t *testing.T) {
 	// Have the server sleep for longer than that
 	*serverSleepy = time.Millisecond * 200
 	fetchr = &fetcher.Fetcher{Config: cfg}
-	err = fetchr.Fetch(ctx, server.URL, ioutil.Discard)
+	err = fetchr.Fetch(ctx, server.URL, io.Discard)
 	require.Error(t, err, "should have seen a client timeout")
 
 	// Make the client timeout larger than server sleep time
 	cfg.Timeout = time.Millisecond * 500
-	err = fetchr.Fetch(ctx, server.URL, ioutil.Discard)
+	err = fetchr.Fetch(ctx, server.URL, io.Discard)
 	require.NoError(t, err)
 }

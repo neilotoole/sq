@@ -9,7 +9,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
 	"os"
 	"path/filepath"
@@ -387,7 +386,7 @@ func TestCodec(t *testing.T) {
 				t.Logf("found:    %#v", x2)
 			}
 
-			if b, err := ioutil.ReadAll(dec.Buffered()); err != nil {
+			if b, err := io.ReadAll(dec.Buffered()); err != nil {
 				t.Error(err)
 			} else if len(b) != 0 {
 				t.Errorf("leftover trailing bytes in the decoder: %q", b)

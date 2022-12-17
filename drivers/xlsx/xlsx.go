@@ -4,11 +4,9 @@ package xlsx
 import (
 	"context"
 	"database/sql"
-	"io"
-	"io/ioutil"
-
 	"github.com/neilotoole/lg"
 	"github.com/tealeg/xlsx/v2"
+	"io"
 
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -50,7 +48,7 @@ func DetectXLSX(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (de
 	}
 	defer log.WarnIfCloseError(r)
 
-	data, err := ioutil.ReadAll(r)
+	data, err := io.ReadAll(r)
 	if err != nil {
 		return source.TypeNone, 0, errz.Err(err)
 	}
@@ -89,7 +87,7 @@ func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Database,
 	}
 	defer d.log.WarnIfCloseError(r)
 
-	b, err := ioutil.ReadAll(r)
+	b, err := io.ReadAll(r)
 	if err != nil {
 		return nil, errz.Err(err)
 	}
@@ -143,7 +141,7 @@ func (d *Driver) Ping(ctx context.Context, src *source.Source) (err error) {
 
 	defer d.log.WarnIfCloseError(r)
 
-	b, err := ioutil.ReadAll(r)
+	b, err := io.ReadAll(r)
 	if err != nil {
 		return errz.Err(err)
 	}

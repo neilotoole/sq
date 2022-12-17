@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/neilotoole/sq/testh/tutil"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -162,7 +161,7 @@ func TestFiles_NewReader(t *testing.T) {
 			r, gErr := fs.Open(src)
 			require.NoError(t, gErr)
 
-			b, gErr := ioutil.ReadAll(r)
+			b, gErr := io.ReadAll(r)
 			require.NoError(t, gErr)
 
 			require.Equal(t, wantBytes, b)

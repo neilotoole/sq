@@ -2,7 +2,7 @@ package xmlw_test
 
 import (
 	"bytes"
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/neilotoole/sq/testh/testsrc"
@@ -101,7 +101,7 @@ func TestRecordWriter_TblTypes(t *testing.T) {
 	require.NoError(t, w.WriteRecords(recs))
 	require.NoError(t, w.Close())
 
-	want, err := ioutil.ReadFile("testdata/tbl_types.xml")
+	want, err := os.ReadFile("testdata/tbl_types.xml")
 	require.NoError(t, err)
 	require.Equal(t, string(want), buf.String())
 }

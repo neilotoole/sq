@@ -76,7 +76,7 @@ type Formatting struct {
 func NewFormatting() *Formatting {
 	fm := &Formatting{
 		ShowHeader: true,
-		Verbose: 	false,
+		Verbose:    false,
 		Pretty:     true,
 		monochrome: false,
 		Indent:     "  ",

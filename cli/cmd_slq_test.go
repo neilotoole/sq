@@ -3,7 +3,6 @@ package cli_test
 import (
 	"encoding/csv"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
@@ -108,7 +107,7 @@ func TestCmdSLQ_OutputFlag(t *testing.T) {
 
 	src := testh.New(t).Source(sakila.SL3)
 	ru := newRun(t).add(*src)
-	outputFile, err := ioutil.TempFile("", t.Name())
+	outputFile, err := os.CreateTemp("", t.Name())
 	require.NoError(t, err)
 
 	t.Cleanup(func() {

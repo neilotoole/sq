@@ -5,7 +5,6 @@ import (
 	stdj "encoding/json"
 	"github.com/neilotoole/sq/testh/tutil"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -76,7 +75,7 @@ func TestImportJSONL_Flat(t *testing.T) {
 
 		t.Run(tutil.Name(i, tc.fpath, tc.input), func(t *testing.T) {
 			openFn := func() (io.ReadCloser, error) {
-				return ioutil.NopCloser(strings.NewReader(tc.input)), nil
+				return io.NopCloser(strings.NewReader(tc.input)), nil
 			}
 
 			if tc.fpath != "" {

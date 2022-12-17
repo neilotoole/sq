@@ -314,7 +314,7 @@ FROM information_schema.TABLES t
 WHERE t.TABLE_SCHEMA = DATABASE()
 ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 
-	// nolint:lll
+	//nolint:lll
 	// Query results look like:
 	// +------------+----------+----------+-------------+----------+-----------+----------------+----------+---------+--------------------+-----------+-----------------+--------------+---------------------------+
 	// |TABLE_SCHEMA|TABLE_NAME|TABLE_TYPE|TABLE_COMMENT|table_size|COLUMN_NAME|ORDINAL_POSITION|COLUMN_KEY|DATA_TYPE|COLUMN_TYPE         |IS_NULLABLE|COLUMN_DEFAULT   |COLUMN_COMMENT|EXTRA                      |

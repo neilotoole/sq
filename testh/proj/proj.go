@@ -9,7 +9,6 @@ package proj
 
 import (
 	"bufio"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -95,7 +94,7 @@ func init() {
 // isProjDir returns true if dir contains a go.mod file
 // containing sq's module declaration. Any io error panics.
 func isProjDir(dir string) bool {
-	files, err := ioutil.ReadDir(dir)
+	files, err := os.ReadDir(dir)
 	if err != nil {
 		panic(err)
 	}
@@ -167,10 +166,10 @@ func Abs(projRelPath string) string {
 
 // ReadFile is a convenience function for reading
 // a file under the proj dir. It's equivalent to
-// ioutil.ReadFile(proj.Abs(path)) but panics on any error.
+// os.ReadFile(proj.Abs(path)) but panics on any error.
 func ReadFile(projRelPath string) []byte {
 	p := Abs(projRelPath)
-	d, err := ioutil.ReadFile(p)
+	d, err := os.ReadFile(p)
 	if err != nil {
 		panic(err)
 	}

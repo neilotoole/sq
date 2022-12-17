@@ -2,7 +2,7 @@ package config_test
 
 import (
 	"github.com/neilotoole/sq/testh/tutil"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -36,7 +36,7 @@ func TestFileStore_LoadSaveLoad(t *testing.T) {
 	require.NotNil(t, cfg.Sources)
 	require.Equal(t, expectGood01SrcCount, len(cfg.Sources.Items()))
 
-	f, err := ioutil.TempFile("", "*.sq.yml")
+	f, err := os.CreateTemp("", "*.sq.yml")
 	require.NoError(t, err)
 	t.Cleanup(func() { assert.NoError(t, f.Close()) })
 

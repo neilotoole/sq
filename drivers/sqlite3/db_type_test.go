@@ -3,7 +3,7 @@ package sqlite3_test
 import (
 	"fmt"
 	"github.com/neilotoole/sq/testh/tutil"
-	"io/ioutil"
+	"os"
 	"strings"
 	"testing"
 
@@ -128,7 +128,7 @@ func createTypeTestTbls(th *testh.Helper, src *source.Source, nTimes int, withDa
 	t := th.T
 	db := th.Open(src).DB()
 
-	tblDDL, err := ioutil.ReadFile(typeTestTableDDLPath)
+	tblDDL, err := os.ReadFile(typeTestTableDDLPath)
 	require.NoError(t, err)
 
 	baseTblName := stringz.UniqTableName(canonicalTblName)

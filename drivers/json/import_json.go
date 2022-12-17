@@ -5,10 +5,8 @@ import (
 	"context"
 	stdj "encoding/json"
 	"fmt"
-	"io"
-	"io/ioutil"
-
 	"github.com/neilotoole/lg"
+	"io"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
@@ -320,7 +318,7 @@ func (s *objectsInArrayScanner) next() (obj map[string]any, chunk []byte, err er
 		// We've reached the end of the stream.
 
 		// Make sure there's no trailing invalid stuff
-		s.decBuf, err = ioutil.ReadAll(s.dec.Buffered())
+		s.decBuf, err = io.ReadAll(s.dec.Buffered())
 		if err != nil {
 			return nil, nil, errz.Err(err)
 		}
@@ -343,7 +341,7 @@ func (s *objectsInArrayScanner) next() (obj map[string]any, chunk []byte, err er
 	}
 
 	s.curDecPos = int(s.dec.InputOffset())
-	s.decBuf, err = ioutil.ReadAll(s.dec.Buffered())
+	s.decBuf, err = io.ReadAll(s.dec.Buffered())
 	if err != nil {
 		return nil, nil, errz.Err(err)
 	}
@@ -376,7 +374,7 @@ func (s *objectsInArrayScanner) next() (obj map[string]any, chunk []byte, err er
 		}
 
 		// Make sure there's no invalid trailing stuff
-		s.decBuf, err = ioutil.ReadAll(s.dec.Buffered())
+		s.decBuf, err = io.ReadAll(s.dec.Buffered())
 		if err != nil {
 			return nil, nil, errz.Err(err)
 		}

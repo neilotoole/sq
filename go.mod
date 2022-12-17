@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/alexflint/go-filemutex v1.2.0
 	github.com/antlr/antlr4 v0.0.0-20191011202612-ad2bd05285ca
-	github.com/c2h5oh/datasize v0.0.0-20170519143321-54516c931ae9
+	github.com/c2h5oh/datasize v0.0.0-20220606134207-859f65c6625b
 	github.com/denisenkom/go-mssqldb v0.0.0-20200620013148-b91950f658ec
 	github.com/djherbis/fscache v0.10.1
 	github.com/emirpasic/gods v1.9.0

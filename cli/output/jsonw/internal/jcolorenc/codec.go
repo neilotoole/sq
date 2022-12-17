@@ -795,7 +795,7 @@ func constructInlineValueEncodeFunc(encode encodeFunc) encodeFunc {
 //go:nosplit
 func noescape(p unsafe.Pointer) unsafe.Pointer {
 	x := uintptr(p)
-	return unsafe.Pointer(x ^ 0)
+	return unsafe.Pointer(x ^ 0) //nolint:staticcheck
 }
 
 func alignedSize(t reflect.Type) uintptr {

@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -53,7 +52,7 @@ func (fs *YAMLFileStore) Location() string {
 
 // Load reads config from disk.
 func (fs *YAMLFileStore) Load() (*Config, error) {
-	bytes, err := ioutil.ReadFile(fs.Path)
+	bytes, err := os.ReadFile(fs.Path)
 	if err != nil {
 		return nil, errz.Wrapf(err, "config: failed to load file %q", fs.Path)
 	}
@@ -99,7 +98,7 @@ func (fs *YAMLFileStore) loadExt(cfg *Config) error {
 			// path exists
 
 			if fiExtPath.IsDir() {
-				files, err := ioutil.ReadDir(extPath)
+				files, err := os.ReadDir(extPath)
 				if err != nil {
 					// just continue; no means of logging this yet (logging may
 					// not have bootstrapped), and we shouldn't stop bootstrap
@@ -132,7 +131,7 @@ func (fs *YAMLFileStore) loadExt(cfg *Config) error {
 	}
 
 	for _, f := range extCfgCandidates {
-		bytes, err := ioutil.ReadFile(f)
+		bytes, err := os.ReadFile(f)
 		if err != nil {
 			return errz.Wrapf(err, "error reading config ext file %q", f)
 		}
@@ -171,7 +170,7 @@ func (fs *YAMLFileStore) Save(cfg *Config) error {
 		return errz.Wrapf(err, "failed to make parent dir of sq config file: %s", dir)
 	}
 
-	err = ioutil.WriteFile(fs.Path, data, 0600)
+	err = os.WriteFile(fs.Path, data, 0600)
 	if err != nil {
 		return errz.Wrap(err, "failed to save config file")
 	}

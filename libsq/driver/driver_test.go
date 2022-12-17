@@ -74,6 +74,7 @@ func TestDriver_TableExists(t *testing.T) {
 }
 
 func TestDriver_CopyTable(t *testing.T) {
+	t.Parallel()
 	for _, handle := range sakila.SQLAll() {
 		handle := handle
 
