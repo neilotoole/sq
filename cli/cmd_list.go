@@ -12,7 +12,6 @@ func newSrcListCmd() *cobra.Command {
 		RunE:  execSrcList,
 	}
 
-	cmd.Flags().BoolP(flagVerbose, flagVerboseShort, false, flagVerboseUsage)
 	cmd.Flags().BoolP(flagHeader, flagHeaderShort, false, flagHeaderUsage)
 	return cmd
 }

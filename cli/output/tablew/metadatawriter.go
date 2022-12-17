@@ -42,8 +42,7 @@ func (w *mdWriter) DriverMetadata(drvrs []driver.Metadata) error {
 
 // TableMetadata implements output.MetadataWriter.
 func (w *mdWriter) TableMetadata(tblMeta *source.TableMetadata) error {
-	headers := []string{"TABLE", "ROWS", "TYPE", "SIZE", "NUM COLS", "COL NAMES", "COL TYPES"}
-
+	var headers []string
 	var rows [][]string
 
 	colNames := make([]string, len(tblMeta.Columns))
@@ -59,22 +58,39 @@ func (w *mdWriter) TableMetadata(tblMeta *source.TableMetadata) error {
 		size = stringz.ByteSized(*tblMeta.Size, 1, "")
 	}
 
-	row := []string{
-		tblMeta.Name,
-		fmt.Sprintf("%d", tblMeta.RowCount),
-		tblMeta.TableType,
-		size,
-		fmt.Sprintf("%d", len(tblMeta.Columns)),
-		strings.Join(colNames, ", "),
-		strings.Join(colTypes, ", "),
-	}
-	rows = append(rows, row)
+	if w.tbl.fm.Verbose {
+		headers = []string{"TABLE", "ROWS", "TYPE", "SIZE", "NUM COLS", "COL NAMES", "COL TYPES"}
 
-	w.tbl.tblImpl.SetHeader(headers)
-	w.tbl.tblImpl.SetColTrans(0, w.tbl.fm.Handle.SprintFunc())
-	w.tbl.tblImpl.SetColTrans(1, w.tbl.fm.Number.SprintFunc())
-	w.tbl.tblImpl.SetColTrans(3, w.tbl.fm.Number.SprintFunc())
-	w.tbl.tblImpl.SetColTrans(4, w.tbl.fm.Number.SprintFunc())
+		w.tbl.tblImpl.SetHeader(headers)
+		w.tbl.tblImpl.SetColTrans(0, w.tbl.fm.Handle.SprintFunc())
+		w.tbl.tblImpl.SetColTrans(1, w.tbl.fm.Number.SprintFunc())
+		w.tbl.tblImpl.SetColTrans(3, w.tbl.fm.Number.SprintFunc())
+		w.tbl.tblImpl.SetColTrans(4, w.tbl.fm.Number.SprintFunc())
+
+		row := []string{
+			tblMeta.Name,
+			fmt.Sprintf("%d", tblMeta.RowCount),
+			tblMeta.TableType,
+			size,
+			fmt.Sprintf("%d", len(tblMeta.Columns)),
+			strings.Join(colNames, ", "),
+			strings.Join(colTypes, ", "),
+		}
+		rows = append(rows, row)
+	} else {
+		headers = []string{"TABLE", "ROWS", "COL NAMES"}
+
+		w.tbl.tblImpl.SetHeader(headers)
+		w.tbl.tblImpl.SetColTrans(0, w.tbl.fm.Handle.SprintFunc())
+		w.tbl.tblImpl.SetColTrans(1, w.tbl.fm.Number.SprintFunc())
+
+		row := []string{
+			tblMeta.Name,
+			fmt.Sprintf("%d", tblMeta.RowCount),
+			strings.Join(colNames, ", "),
+		}
+		rows = append(rows, row)
+	}
 
 	w.tbl.appendRowsAndRenderAll(rows)
 	return nil
@@ -119,7 +135,21 @@ func (w *mdWriter) SourceMetadata(meta *source.Metadata) error {
 	w.tbl.reset()
 	fmt.Fprintln(w.tbl.out)
 
-	headers = []string{"TABLE", "ROWS", "TYPE", "SIZE", "NUM COLS", "COL NAMES", "COL TYPES"}
+
+	if w.tbl.fm.Verbose {
+		headers = []string{"TABLE", "ROWS", "TYPE", "SIZE", "NUM COLS", "COL NAMES", "COL TYPES"}
+		w.tbl.tblImpl.SetHeader(headers)
+		w.tbl.tblImpl.SetColTrans(0, w.tbl.fm.Handle.SprintFunc())
+		w.tbl.tblImpl.SetColTrans(1, w.tbl.fm.Number.SprintFunc())
+		w.tbl.tblImpl.SetColTrans(3, w.tbl.fm.Number.SprintFunc())
+		w.tbl.tblImpl.SetColTrans(4, w.tbl.fm.Number.SprintFunc())
+
+	} else {
+		headers = []string{"TABLE", "ROWS", "COL NAMES"}
+		w.tbl.tblImpl.SetHeader(headers)
+		w.tbl.tblImpl.SetColTrans(0, w.tbl.fm.Handle.SprintFunc())
+		w.tbl.tblImpl.SetColTrans(1, w.tbl.fm.Number.SprintFunc())
+	}
 
 	var rows [][]string
 
@@ -137,23 +167,26 @@ func (w *mdWriter) SourceMetadata(meta *source.Metadata) error {
 			size = stringz.ByteSized(*tbl.Size, 1, "")
 		}
 
-		row = []string{
-			tbl.Name,
-			fmt.Sprintf("%d", tbl.RowCount),
-			tbl.TableType,
-			size,
-			fmt.Sprintf("%d", len(tbl.Columns)),
-			strings.Join(colNames, ", "),
-			strings.Join(colTypes, ", "),
+		if w.tbl.fm.Verbose {
+			row = []string{
+				tbl.Name,
+				fmt.Sprintf("%d", tbl.RowCount),
+				tbl.TableType,
+				size,
+				fmt.Sprintf("%d", len(tbl.Columns)),
+				strings.Join(colNames, ", "),
+				strings.Join(colTypes, ", "),
+			}
+		} else {
+			row = []string{
+				tbl.Name,
+				fmt.Sprintf("%d", tbl.RowCount),
+				strings.Join(colNames, ", "),
+			}
 		}
+
 		rows = append(rows, row)
 	}
-
-	w.tbl.tblImpl.SetHeader(headers)
-	w.tbl.tblImpl.SetColTrans(0, w.tbl.fm.Handle.SprintFunc())
-	w.tbl.tblImpl.SetColTrans(1, w.tbl.fm.Number.SprintFunc())
-	w.tbl.tblImpl.SetColTrans(3, w.tbl.fm.Number.SprintFunc())
-	w.tbl.tblImpl.SetColTrans(4, w.tbl.fm.Number.SprintFunc())
 
 	w.tbl.appendRowsAndRenderAll(rows)
 	return nil

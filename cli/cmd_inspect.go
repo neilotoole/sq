@@ -17,7 +17,8 @@ func newInspectCmd() *cobra.Command {
 		RunE:  execInspect,
 		Short: "Inspect data source schema and stats",
 		Long: `Inspect a data source, or a particular table in a source,
-listing table details, column names and types, row counts, etc.
+listing table details such as column names and row counts, etc. Use
+the --verbose flag to see more detail.
 If @HANDLE is not provided, the active data source is assumed.`,
 		Example: `  # inspect active data source
   $ sq inspect
@@ -25,6 +26,9 @@ If @HANDLE is not provided, the active data source is assumed.`,
   # inspect @pg1 data source
   $ sq inspect @pg1
   
+  # inspect @pg1 data source, showing verbose output
+  $ sq inspect -v @pg1
+
   # inspect 'actor' in @pg1 data source
   $ sq inspect @pg1.actor
   

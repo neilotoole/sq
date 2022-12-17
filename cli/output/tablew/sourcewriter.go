@@ -16,9 +16,9 @@ type sourceWriter struct {
 
 // NewSourceWriter returns a source writer that outputs source
 // details in text table format.
-func NewSourceWriter(out io.Writer, fm *output.Formatting, header, verbose bool) output.SourceWriter {
-	tbl := &table{out: out, fm: fm, header: header}
-	w := &sourceWriter{tbl: tbl, verbose: verbose}
+func NewSourceWriter(out io.Writer, fm *output.Formatting) output.SourceWriter {
+	tbl := &table{out: out, fm: fm, header: fm.ShowHeader}
+	w := &sourceWriter{tbl: tbl, verbose: fm.Verbose}
 	w.tbl.reset()
 	return w
 }
@@ -77,8 +77,8 @@ func (w *sourceWriter) SourceSet(ss *source.Set) error {
 		rows = append(rows, row)
 	}
 
-	w.tbl.tblImpl.SetHeaderDisable(!w.tbl.header)
-	w.tbl.tblImpl.SetColTrans(0, w.tbl.fm.Number.SprintFunc())
+	w.tbl.tblImpl.SetHeaderDisable(!w.tbl.fm.ShowHeader)
+	w.tbl.tblImpl.SetColTrans(0, w.tbl.fm.Handle.SprintFunc())
 	w.tbl.tblImpl.SetHeader([]string{"HANDLE", "DRIVER", "LOCATION", "OPTIONS"})
 	w.tbl.appendRowsAndRenderAll(rows)
 	return nil
