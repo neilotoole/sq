@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"image/gif"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -132,7 +131,7 @@ func TestOutputRaw(t *testing.T) {
 
 			// 1. Now that we've verified libsq, we'll test cli. First
 			// using using --output=/path/to/file
-			tmpDir, err := ioutil.TempDir("", "")
+			tmpDir, err := os.MkdirTemp("", "")
 			require.NoError(t, err)
 			outputPath := filepath.Join(tmpDir, "gopher.gif")
 			t.Cleanup(func() {
@@ -143,7 +142,7 @@ func TestOutputRaw(t *testing.T) {
 			err = ru.exec("sql", "--raw", "--output="+outputPath, query)
 			require.NoError(t, err)
 
-			outputBytes, err := ioutil.ReadFile(outputPath)
+			outputBytes, err := os.ReadFile(outputPath)
 			require.NoError(t, err)
 			require.Equal(t, fixt.GopherSize, len(outputBytes))
 			_, err = gif.Decode(bytes.NewReader(outputBytes))

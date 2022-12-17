@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/csv"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"strconv"
 	"strings"
 	"testing"
@@ -124,7 +124,7 @@ func TestCRFilterReader(t *testing.T) {
 
 	for _, tc := range testCases {
 		filter := &crFilterReader{r: bytes.NewReader([]byte(tc.in))}
-		actual, err := ioutil.ReadAll(filter)
+		actual, err := io.ReadAll(filter)
 		require.Nil(t, err)
 		require.Equal(t, tc.want, string(actual))
 	}

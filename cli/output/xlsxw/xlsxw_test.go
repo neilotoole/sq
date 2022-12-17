@@ -2,7 +2,7 @@ package xlsxw_test
 
 import (
 	"bytes"
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/neilotoole/sq/testh/testsrc"
@@ -45,7 +45,7 @@ func TestRecordWriter(t *testing.T) {
 			require.NoError(t, w.WriteRecords(recs))
 			require.NoError(t, w.Close())
 
-			want, err := ioutil.ReadFile(tc.fixtPath)
+			want, err := os.ReadFile(tc.fixtPath)
 			require.NoError(t, err)
 			requireEqualXLSX(t, want, buf.Bytes())
 		})

@@ -2,7 +2,7 @@ package internal_test
 
 import (
 	stdj "encoding/json"
-	"io/ioutil"
+	"io"
 	"testing"
 
 	segmentj "github.com/segmentio/encoding/json"
@@ -25,7 +25,7 @@ func BenchmarkStdj(b *testing.B) {
 	b.ResetTimer()
 
 	for n := 0; n < b.N; n++ {
-		enc := stdj.NewEncoder(ioutil.Discard)
+		enc := stdj.NewEncoder(io.Discard)
 		enc.SetEscapeHTML(false)
 
 		for i := range recs {
@@ -42,7 +42,7 @@ func BenchmarkStdj_Indent(b *testing.B) {
 	b.ResetTimer()
 
 	for n := 0; n < b.N; n++ {
-		enc := stdj.NewEncoder(ioutil.Discard)
+		enc := stdj.NewEncoder(io.Discard)
 		enc.SetEscapeHTML(false)
 		enc.SetIndent("", "  ")
 
@@ -60,7 +60,7 @@ func BenchmarkSegmentj(b *testing.B) {
 	b.ResetTimer()
 
 	for n := 0; n < b.N; n++ {
-		enc := segmentj.NewEncoder(ioutil.Discard)
+		enc := segmentj.NewEncoder(io.Discard)
 		enc.SetEscapeHTML(false)
 
 		for i := range recs {
@@ -77,7 +77,7 @@ func BenchmarkSegmentj_Indent(b *testing.B) {
 	b.ResetTimer()
 
 	for n := 0; n < b.N; n++ {
-		enc := segmentj.NewEncoder(ioutil.Discard)
+		enc := segmentj.NewEncoder(io.Discard)
 		enc.SetEscapeHTML(false)
 		enc.SetIndent("", "  ")
 
@@ -94,7 +94,7 @@ func BenchmarkJColorEnc(b *testing.B) {
 	b.ResetTimer()
 
 	for n := 0; n < b.N; n++ {
-		enc := jcolorenc.NewEncoder(ioutil.Discard)
+		enc := jcolorenc.NewEncoder(io.Discard)
 		enc.SetEscapeHTML(false)
 
 		for i := range recs {
@@ -111,7 +111,7 @@ func BenchmarkJColorEnc_Indent(b *testing.B) {
 	b.ResetTimer()
 
 	for n := 0; n < b.N; n++ {
-		enc := jcolorenc.NewEncoder(ioutil.Discard)
+		enc := jcolorenc.NewEncoder(io.Discard)
 		enc.SetEscapeHTML(false)
 		enc.SetIndent("", "  ")
 

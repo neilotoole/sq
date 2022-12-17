@@ -24,20 +24,22 @@ type Sakila mg.Namespace
 
 const startupTimeout = time.Minute * 5
 
-// containerReqs is the set of database server containers required for
+// requests is the set of database server containers required for
 // integration testing.
 //
-// NOTE: The wait.ForLog mechanism is probably not fully correct for any of the
+// See: https://golang.testcontainers.org/features/creating_container/
 //
-//	containers (e.g. the string may appear multiple times in the log output),
-//	thus the containers may not have started fully when WaitingFor completes.
-var containerReqs = []testcontainers.ContainerRequest{
-	{
-		Image:        "sakiladb/sqlserver:2017",
-		Name:         "sakiladb-sqlserver-2017",
-		ExposedPorts: []string{"14337:1433"},
-		WaitingFor:   wait.ForLog("Changed database context to 'sakila'.").WithStartupTimeout(startupTimeout),
-	},
+// FIXME: huzzah
+// TODO: The wait.ForLog mechanism is probably not fully correct for any of the
+// containers (e.g. the string may appear multiple times in the log output),
+// thus the containers may not have started fully when WaitingFor completes.
+var requests = []testcontainers.ContainerRequest{
+	//{
+	//	Image:        "sakiladb/sqlserver:2017",
+	//	Name:         "sakiladb-sqlserver-2017",
+	//	ExposedPorts: []string{"14337:1433"},
+	//	WaitingFor:   wait.ForLog("Changed database context to 'sakila'.").WithStartupTimeout(startupTimeout),
+	//},
 	// {
 	// 	Image:        "sakiladb/postgres:9",
 	// 	Name:         "sakiladb-postgres-9",
@@ -109,7 +111,7 @@ export SQ_TEST_SRC__SAKILA_MS17=localhost:14337`
 
 	errGroup, ctx := errgroup.WithContext(ctx)
 
-	for _, containerReq := range containerReqs {
+	for _, containerReq := range requests {
 		containerReq := containerReq
 		// The user invokes mage sakila:RemoveAll to remove all the containers.
 		containerReq.SkipReaper = true
@@ -147,8 +149,8 @@ export SQ_TEST_SRC__SAKILA_MS17=localhost:14337`
 // RemoveAll removes all the Sakila docker containers.
 func (Sakila) RemoveAll(ctx context.Context) {
 	wg := &sync.WaitGroup{}
-	wg.Add(len(containerReqs))
-	for _, containerReq := range containerReqs {
+	wg.Add(len(requests))
+	for _, containerReq := range requests {
 		containerReq := containerReq
 
 		go func() {

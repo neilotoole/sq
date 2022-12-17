@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"io"
-	"io/ioutil"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -47,7 +46,7 @@ func SplitSQL(input io.Reader, delim string, moreDelims ...string) (stmts []stri
 
 	allDelims := append([]string{delim}, moreDelims...)
 
-	data, err := ioutil.ReadAll(input)
+	data, err := io.ReadAll(input)
 	if err != nil {
 		return nil, types, errz.Err(err)
 	}

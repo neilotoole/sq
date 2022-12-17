@@ -372,7 +372,7 @@ func encodeString(b []byte, s string, escapeHTML bool) ([]byte, error) { //nolin
 
 // encodeBytes encodes v in base64 and appends to b, returning
 // the resulting slice.
-func encodeBytes(b, v []byte) ([]byte, error) { // nolint:unparam
+func encodeBytes(b, v []byte) ([]byte, error) {
 	// This function is copied from the segment.io JSON encoder.
 
 	if v == nil {

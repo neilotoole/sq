@@ -3,7 +3,7 @@ package mysql_test
 import (
 	"fmt"
 	"github.com/neilotoole/sq/testh/tutil"
-	"io/ioutil"
+	"os"
 	"strings"
 	"testing"
 
@@ -298,7 +298,7 @@ func createTypeTestTable(th *testh.Helper, src *source.Source, withData bool) (n
 	)
 
 	t, db := th.T, th.Open(src).DB()
-	tblDDL, err := ioutil.ReadFile(typeTestTableDDLPath)
+	tblDDL, err := os.ReadFile(typeTestTableDDLPath)
 	require.NoError(t, err)
 
 	// Replace the canonical table name
@@ -371,7 +371,7 @@ func TestDatabaseTypeJSON(t *testing.T) {
 		canonicalTblName = "type_test_json"
 		createStmtTpl    = `create table type_test_json
 (
-	col_id int auto_increment primary key,
+	col_id INT auto_increment primary key,
 	col_json json not null,
 	col_json_n json null
 )`

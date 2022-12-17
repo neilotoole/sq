@@ -67,7 +67,7 @@ var createTblKindDefaults = map[kind.Kind]string{
 	kind.Unknown:  ``,
 }
 
-// nolint:funlen
+//nolint:funlen
 func buildCreateTableStmt(tblDef *sqlmodel.TableDef) string {
 	buf := &bytes.Buffer{}
 

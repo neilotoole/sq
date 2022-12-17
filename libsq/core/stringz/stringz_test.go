@@ -1,9 +1,10 @@
 package stringz_test
 
 import (
-	"github.com/neilotoole/sq/testh/tutil"
 	"strings"
 	"testing"
+
+	"github.com/neilotoole/sq/testh/tutil"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -74,7 +75,6 @@ func TestPluralize(t *testing.T) {
 	}
 }
 
-
 func TestTrimLen(t *testing.T) {
 	testCases := []struct {
 		s    string
@@ -96,7 +96,6 @@ func TestTrimLen(t *testing.T) {
 		require.Equal(t, tc.want, got)
 	}
 }
-
 
 func TestRepeatJoin(t *testing.T) {
 	testCases := []struct {

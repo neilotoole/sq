@@ -2,7 +2,7 @@ package source
 
 import (
 	"context"
-	"io/ioutil"
+	"io"
 	"runtime"
 	"testing"
 
@@ -41,7 +41,7 @@ func TestFiles_Open(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { assert.NoError(t, f2.Close()) })
 
-	b, err := ioutil.ReadAll(f2)
+	b, err := io.ReadAll(f2)
 	require.NoError(t, err)
 	require.Equal(t, proj.ReadFile(sakila.PathCSVActor), b)
 }

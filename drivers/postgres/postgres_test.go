@@ -77,6 +77,7 @@ LIMIT 1`
 }
 
 func Test_VerifyDriverDoesNotReportNullability(t *testing.T) {
+	t.Parallel()
 	// This test demonstrates that the backing pgx driver
 	// does not report column nullability (as one might hope).
 	//

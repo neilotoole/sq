@@ -2,7 +2,7 @@ package postgres_test
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strings"
 	"testing"
 
@@ -400,7 +400,7 @@ const (
 func createTypeTestTable(th *testh.Helper, src *source.Source, withData bool) (rowCount int64, actualTblName string) {
 	const canonicalTblName = "type_test"
 	t, db := th.T, th.Open(src).DB()
-	tblDDL, err := ioutil.ReadFile(typeTestTableDDLPath)
+	tblDDL, err := os.ReadFile(typeTestTableDDLPath)
 	require.NoError(t, err)
 
 	// replace the canonical table name

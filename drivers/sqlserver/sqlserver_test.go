@@ -22,7 +22,7 @@ func TestSmoke(t *testing.T) {
 		handle := handle
 
 		t.Run(handle, func(t *testing.T) {
-			// t.Parallel()
+			t.Parallel()
 
 			th, src, _, _ := testh.NewWith(t, handle)
 			sink, err := th.QuerySQL(src, "SELECT * FROM actor")

@@ -164,7 +164,7 @@ type MungeFunc func(any) (any, error)
 // NewDetector returns a new instance.
 func NewDetector() *Detector {
 	return &Detector{
-		kinds: map[Kind]struct{}{
+		kinds: map[Kind]struct{}{ //nolint:exhaustive
 			Int:      {},
 			Float:    {},
 			Decimal:  {},
@@ -215,7 +215,7 @@ func (d *Detector) Sample(v any) {
 	d.doSampleString(v.(string))
 }
 
-//nolint:dupl,gocognit
+//nolint:gocognit
 func (d *Detector) doSampleString(s string) {
 	if s == "" {
 		// Can't really do anything useful with this

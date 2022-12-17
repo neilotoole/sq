@@ -129,7 +129,7 @@ func TestRecordMetadata(t *testing.T) {
 			dbase := th.Open(src)
 
 			query := fmt.Sprintf("SELECT %s FROM %s", strings.Join(tc.colNames, ", "), tc.tbl)
-			rows, err := dbase.DB().QueryContext(th.Context, query) // nolint:rowserrcheck
+			rows, err := dbase.DB().QueryContext(th.Context, query) //nolint:rowserrcheck
 			require.NoError(t, err)
 			t.Cleanup(func() { assert.NoError(t, rows.Close()) })
 

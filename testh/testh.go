@@ -5,7 +5,6 @@ package testh
 import (
 	"context"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -216,7 +215,7 @@ func (h *Helper) Source(handle string) *source.Source {
 			assert.NoError(t, srcFile.Close())
 		}()
 
-		destFile, err := ioutil.TempFile("", "*_"+filepath.Base(src.Location))
+		destFile, err := os.CreateTemp("", "*_"+filepath.Base(src.Location))
 		require.NoError(t, err)
 		defer func() {
 			assert.NoError(t, destFile.Close())
