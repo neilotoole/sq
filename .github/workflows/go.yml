@@ -33,16 +33,10 @@ jobs:
       - name: Test
         run: go test -v  ./...
 
-  goreleaser-gate:
-    needs: go-test
-    runs-on: ubuntu-22.04
-
-    steps:
-      - name: Gate
-        run: echo "GoReleaser gate"
 
   build-binaries-darwin:
-    needs: goreleaser-gate
+    needs: go-test
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: macos-12
 
     steps:
@@ -73,7 +67,8 @@ jobs:
           path: dist-darwin
 
   build-binaries-linux-amd64:
-    needs: goreleaser-gate
+    needs: go-test
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-22.04
 
     steps:
@@ -104,7 +99,8 @@ jobs:
           path: dist-linux
 
   build-binaries-linux-arm64:
-    needs: goreleaser-gate
+    needs: go-test
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-22.04
 
     steps:
@@ -141,7 +137,8 @@ jobs:
 
 
   build-binaries-windows:
-    needs: goreleaser-gate
+    needs: go-test
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: windows-2022
 
     steps:
@@ -173,7 +170,7 @@ jobs:
           path: dist-windows
 
   publish:
-    if: startsWith(github.ref, 'refs/tags/v') # Only run this if it's a tag, e.g. v1.0.1
+    if: startsWith(github.ref, 'refs/tags/v')
     needs: [ build-binaries-darwin, build-binaries-linux-amd64, build-binaries-linux-arm64, build-binaries-windows ]
     runs-on: ubuntu-22.04
 
