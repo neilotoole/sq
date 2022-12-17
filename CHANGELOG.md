@@ -5,30 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [v0.16.0] - 2022-12-16
 
 ### Added
 
 - `--verbose` flag is now global
+- `install.sh` install script.
 
 ### Changed
 
+- Improved GH workflow
 - `sq inspect` shows less output by default (use `-v` to restore previous behavior)
 
 ### Fixed
 
 - `sq inspect` can now deal with Postgres sources that have null values for constraint fields
-
-## [v0.16.0] - 2022-11-20
-
-### Added
-
-- `install.sh` install script
-
-### Changed
-
-- Improved GH workflow
-
 
 ## [v0.15.11] - 2022-11-06
 
@@ -61,7 +52,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [v0.15.4]: https://github.com/neilotoole/sq/compare/v0.15.3...v0.15.4
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
-
-
-
-# CHANGELOG

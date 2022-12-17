@@ -3,6 +3,7 @@ on:
   push:
     paths-ignore:
       - '**.md'
+      - 'sq.json' # This is updated by scoop; no need to run a new build
 
 env:
   GO_VERSION: 1.19.3
