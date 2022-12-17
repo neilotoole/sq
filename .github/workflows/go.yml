@@ -1,5 +1,8 @@
 name: Main pipeline
-on: push
+on:
+  push:
+    paths-ignore:
+      - '**.md'
 
 env:
   GO_VERSION: 1.19.3
