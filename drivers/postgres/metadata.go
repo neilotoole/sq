@@ -583,9 +583,10 @@ type pgConstraint struct {
 	tableName       string
 	columnName      string
 	ordinalPosition int64
-	constraintName  string
-	constraintType  string
-	constraintDef   string
+
+	constraintName  sql.NullString
+	constraintType  sql.NullString
+	constraintDef   sql.NullString
 
 	// constraintFKeyTableName holds the name of the table to which
 	// a foreign-key constraint points to. This is null if this
@@ -602,7 +603,7 @@ func setTblMetaConstraints(log lg.Log, tblMeta *source.TableMetadata, pgConstrai
 			continue
 		}
 
-		if pgc.constraintType == constraintTypePK {
+		if pgc.constraintType.String == constraintTypePK {
 			colMeta := tblMeta.Column(pgc.columnName)
 			if colMeta == nil {
 				// Shouldn't happen
