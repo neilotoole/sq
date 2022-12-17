@@ -14,8 +14,8 @@ type recordWriter struct {
 }
 
 // NewRecordWriter returns a RecordWriter for text table output.
-func NewRecordWriter(out io.Writer, fm *output.Formatting, header bool) output.RecordWriter {
-	tbl := &table{out: out, fm: fm, header: header}
+func NewRecordWriter(out io.Writer, fm *output.Formatting) output.RecordWriter {
+	tbl := &table{out: out, fm: fm, header: fm.ShowHeader}
 	w := &recordWriter{tbl: tbl}
 	w.tbl.reset()
 	return w

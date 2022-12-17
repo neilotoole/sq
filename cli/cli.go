@@ -198,6 +198,7 @@ func newCommandTree(rc *RunContext) (rootCmd *cobra.Command) {
 	// The behavior of cobra in this regard seems to have
 	// changed? This particular incantation currently does the trick.
 	rootCmd.Flags().Bool(flagHelp, false, "Show sq help")
+
 	rootCmd.Flags().SortFlags = false
 	helpCmd := addCmd(rc, rootCmd, newHelpCmd())
 	rootCmd.SetHelpCommand(helpCmd)
@@ -552,29 +553,30 @@ func newWriters(log lg.Log, cmd *cobra.Command, defaults config.Defaults, out, e
 	var fm *output.Formatting
 	fm, out2, errOut2 = getWriterFormatting(cmd, out, errOut)
 
-	// we need to determine --header here because the writer/format
-	// constructor functions, e.g. table.NewRecordWriter, require it.
-	printHeader := defaults.Header
-	if cmdFlagChanged(cmd, flagHeader) {
-		printHeader, _ = cmd.Flags().GetBool(flagHeader)
-	}
+	// FIXME: delete this section
+	//// we need to determine --header here because the writer/format
+	//// constructor functions, e.g. table.NewRecordWriter, require it.
+	//printHeader := defaults.Header
+	//if cmdFlagChanged(cmd, flagHeader) {
+	//	printHeader, _ = cmd.Flags().GetBool(flagHeader)
+	//}
+	//
+	//verbose := false
+	//if cmdFlagChanged(cmd, flagVerbose) {
+	//	verbose, _ = cmd.Flags().GetBool(flagVerbose)
+	//}
 
-	verbose := false
-	if cmdFlagChanged(cmd, flagVerbose) {
-		verbose, _ = cmd.Flags().GetBool(flagVerbose)
-	}
-
-	// Package tablew has writer impls for all of the writer interfaces,
+	// Package tablew has writer impls for each of the writer interfaces,
 	// so we use its writers as the baseline. Later we check the format
 	// flags and set the various writer fields depending upon which
 	// writers the format implements.
 	w = &writers{
 		fmt:     fm,
-		recordw: tablew.NewRecordWriter(out2, fm, printHeader),
+		recordw: tablew.NewRecordWriter(out2, fm),
 		metaw:   tablew.NewMetadataWriter(out2, fm),
-		srcw:    tablew.NewSourceWriter(out2, fm, printHeader, verbose),
+		srcw:    tablew.NewSourceWriter(out2, fm),
 		pingw:   tablew.NewPingWriter(out2, fm),
-		notifyw: tablew.NewNotifyWriter(out2, fm, printHeader),
+		notifyw: tablew.NewNotifyWriter(out2, fm),
 		errw:    tablew.NewErrorWriter(errOut2, fm),
 	}
 
@@ -593,18 +595,18 @@ func newWriters(log lg.Log, cmd *cobra.Command, defaults config.Defaults, out, e
 	// Table is the base format, already set above, no need to do anything.
 
 	case config.FormatTSV:
-		w.recordw = csvw.NewRecordWriter(out2, printHeader, csvw.Tab)
+		w.recordw = csvw.NewRecordWriter(out2, fm.ShowHeader, csvw.Tab)
 		w.pingw = csvw.NewPingWriter(out2, csvw.Tab)
 
 	case config.FormatCSV:
-		w.recordw = csvw.NewRecordWriter(out2, printHeader, csvw.Comma)
+		w.recordw = csvw.NewRecordWriter(out2, fm.ShowHeader, csvw.Comma)
 		w.pingw = csvw.NewPingWriter(out2, csvw.Comma)
 
 	case config.FormatXML:
 		w.recordw = xmlw.NewRecordWriter(out2, fm)
 
 	case config.FormatXLSX:
-		w.recordw = xlsxw.NewRecordWriter(out2, printHeader)
+		w.recordw = xlsxw.NewRecordWriter(out2, fm.ShowHeader)
 
 	case config.FormatRaw:
 		w.recordw = raww.NewRecordWriter(out2)
@@ -633,6 +635,14 @@ func getWriterFormatting(cmd *cobra.Command, out, errOut io.Writer) (fm *output.
 
 	if cmdFlagChanged(cmd, flagPretty) {
 		fm.Pretty, _ = cmd.Flags().GetBool(flagPretty)
+	}
+
+	if cmdFlagChanged(cmd, flagVerbose) {
+		fm.Verbose, _ = cmd.Flags().GetBool(flagVerbose)
+	}
+
+	if cmdFlagChanged(cmd, flagHeader) {
+		fm.ShowHeader, _ = cmd.Flags().GetBool(flagHeader)
 	}
 
 	// TODO: Should get this default value from config

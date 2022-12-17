@@ -85,6 +85,6 @@ More at https://sq.io
 	addQueryCmdFlags(cmd)
 	cmd.Flags().Bool(flagVersion, false, flagVersionUsage)
 	cmd.PersistentFlags().BoolP(flagMonochrome, flagMonochromeShort, false, flagMonochromeUsage)
-
+	cmd.PersistentFlags().BoolP(flagVerbose, flagVerboseShort, false, flagVerboseUsage)
 	return cmd
 }

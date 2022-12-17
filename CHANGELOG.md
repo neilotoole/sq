@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `--verbose` flag is now global
+
+### Changed
+
+- `sq inspect` shows less output by default (use `-v` to restore previous behavior)
+
+### Fixed
+
+- `sq inspect` can now deal with Postgres sources that have null values for constraint fields
+
 ## [v0.16.0] - 2022-11-20
 
 ### Added

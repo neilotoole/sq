@@ -12,8 +12,8 @@ type notifyWriter struct {
 }
 
 // NewNotifyWriter implements output.NotificationWriter.
-func NewNotifyWriter(out io.Writer, fm *output.Formatting, header bool) output.NotificationWriter {
-	tbl := &table{out: out, header: header, fm: fm}
+func NewNotifyWriter(out io.Writer, fm *output.Formatting) output.NotificationWriter {
+	tbl := &table{out: out, header: fm.ShowHeader, fm: fm }
 	w := &notifyWriter{tbl: tbl}
 	w.tbl.reset()
 	return w

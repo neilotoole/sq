@@ -142,17 +142,16 @@ But we're flying a bit blind here: how did we know about the `actor` table?
 `sq inspect` is your friend (output abbreviated):
 
 ```sh
-$ sq inspect
-HANDLE          DRIVER   NAME       FQ NAME         SIZE   TABLES  LOCATION
-@sakila_sl3     sqlite3  sakila.db  sakila.db/main  5.6MB  21      sqlite3:///root/sakila.db
+HANDLE       DRIVER   NAME       FQ NAME         SIZE   TABLES  LOCATION
+@sakila_sl3  sqlite3  sakila.db  sakila.db/main  5.6MB  21      sqlite3:/Users/neilotoole/work/sq/sq/drivers/sqlite3/testdata/sakila.db
 
-TABLE                   ROWS   TYPE   SIZE  NUM COLS  COL NAMES                                                                          COL TYPES
-actor                   200    table  -     4         actor_id, first_name, last_name, last_update                                       numeric, VARCHAR(45), VARCHAR(45), TIMESTAMP
-address                 603    table  -     8         address_id, address, address2, district, city_id, postal_code, phone, last_update  int, VARCHAR(50), VARCHAR(50), VARCHAR(20), INT, VARCHAR(10), VARCHAR(20), TIMESTAMP
-category                16     table  -     3         category_id, name, last_update
+TABLE                   ROWS   COL NAMES
+actor                   200    actor_id, first_name, last_name, last_update
+address                 603    address_id, address, address2, district, city_id, postal_code, phone, last_update
+category                16     category_id, name, last_update
 ```
 
-Use `--json` (`-j`) to output in JSON (output abbreviated):
+Use the `--verbose` (`-v`) flag to see more detail. And use `--json` (`-j`) to output in JSON (output abbreviated):
 
 ```shell
 $ sq inspect -j
@@ -206,7 +205,7 @@ category.csv  customer.csv  film_actor.csv     film_text.csv	  payment.csv	 sale
 Note that you can also inspect an individual table:
 
 ```sh
-$ sq inspect @sakila_sl3.actor
+$ sq inspect -v @sakila_sl3.actor
 TABLE  ROWS  TYPE   SIZE  NUM COLS  COL NAMES                                     COL TYPES
 actor  200   table  -     4         actor_id, first_name, last_name, last_update  numeric, VARCHAR(45), VARCHAR(45), TIMESTAMP
 
@@ -242,7 +241,7 @@ Now, execute the same query, but this time `sq` inserts the results into a new t
 $ sq @xl_demo_xlsx.person --insert @sakila_sl3.person
 Inserted 7 rows into @sakila_sl3.person
 
-$ sq inspect @sakila_sl3.person
+$ sq inspect -v @sakila_sl3.person
 TABLE   ROWS  TYPE   SIZE  NUM COLS  COL NAMES                         COL TYPES
 person  7     table  -     4         uid, username, email, address_id  INTEGER, TEXT, TEXT, INTEGER
 

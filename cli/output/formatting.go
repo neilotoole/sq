@@ -6,6 +6,14 @@ import "github.com/fatih/color"
 type Formatting struct {
 	monochrome bool
 
+	// ShowHeader indicates that a header (e.g. a header row) should
+	// be printed where applicable.
+	ShowHeader bool
+
+	// Verbose indicates that verbose output should be printed where
+	// applicable.
+	Verbose bool
+
 	// Pretty indicates that output should be pretty-printed.
 	// Typically this means indentation, new lines, etc, but
 	// varies by output format.
@@ -67,6 +75,8 @@ type Formatting struct {
 // are enabled. The default indent is two spaces.
 func NewFormatting() *Formatting {
 	fm := &Formatting{
+		ShowHeader: true,
+		Verbose: 	false,
 		Pretty:     true,
 		monochrome: false,
 		Indent:     "  ",
