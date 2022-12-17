@@ -86,6 +86,10 @@ linters-settings:
       - prometheus.ExponentialBuckets
       - prometheus.ExponentialBucketsRange
       - prometheus.LinearBuckets
+    ignored-numbers:
+      - "2"
+      - "3"
+
 
   gomodguard:
     blocked:
@@ -119,7 +123,7 @@ linters-settings:
       shadow:
         # Whether to be strict about shadowing; can be noisy.
         # Default: false
-        strict: true
+        strict: false
 
   nakedret:
     # Make an issue if func has more lines of code than this setting, and it has naked returns.

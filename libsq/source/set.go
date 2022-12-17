@@ -180,15 +180,15 @@ func (s *Set) Get(handle string) (*Source, error) {
 }
 
 // SetActive sets the active src, or unsets any active
-// src if handle is empty. If handle does not
-// exist, an error is returned.
+// src if handle is empty (and thus returns nil,nil).
+// If handle does not exist, an error is returned.
 func (s *Set) SetActive(handle string) (*Source, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if handle == "" {
 		s.data.ActiveSrc = ""
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	}
 
 	for _, src := range s.data.Items {
@@ -201,14 +201,16 @@ func (s *Set) SetActive(handle string) (*Source, error) {
 	return nil, errz.Errorf(msgUnknownSrc, handle)
 }
 
-// SetScratch sets the scratch src to handle.
+// SetScratch sets the scratch src to handle. If handle
+// is empty string, the scratch src is unset, and nil,nil
+// is returned.
 func (s *Set) SetScratch(handle string) (*Source, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if handle == "" {
 		s.data.ScratchSrc = ""
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	}
 	for _, src := range s.data.Items {
 		if src.Handle == handle {

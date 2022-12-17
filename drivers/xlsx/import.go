@@ -185,7 +185,7 @@ func buildTblDefForSheet(log lg.Log, sheet *xlsx.Sheet, hasHeader bool) (*sqlmod
 	maxCols := getRowsMaxCellCount(sheet)
 	if maxCols == 0 {
 		log.Warnf("sheet %q is empty: skipping")
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	}
 
 	colNames := make([]string, maxCols)

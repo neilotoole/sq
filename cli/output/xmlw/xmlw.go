@@ -180,8 +180,6 @@ func (w *recordWriter) writeRecord(rec sqlz.Record) error {
 			}
 			w.fieldPrintFns[i](w.outBuf, tmpBuf.String())
 			tmpBuf.Reset()
-		case nil:
-			// should never happen
 		case *string:
 			err = xml.EscapeText(tmpBuf, []byte(*val))
 			if err != nil {

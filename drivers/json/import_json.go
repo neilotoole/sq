@@ -364,7 +364,7 @@ func (s *objectsInArrayScanner) next() (obj map[string]any, chunk []byte, err er
 
 	case ']':
 		// should be end of input
-		tok, err = requireDelimToken(s.dec, rightBracket)
+		_, err = requireDelimToken(s.dec, rightBracket)
 		if err != nil {
 			return nil, nil, errz.Err(err)
 		}

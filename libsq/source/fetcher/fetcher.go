@@ -66,7 +66,7 @@ func httpClient(cfg *Config) *http.Client {
 
 func fetchHTTP(ctx context.Context, cfg *Config, fileURL string, w io.Writer) error {
 	c := httpClient(cfg)
-	req, err := http.NewRequest("GET", fileURL, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", fileURL, nil)
 	if err != nil {
 		return err
 	}
