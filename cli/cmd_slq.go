@@ -17,8 +17,9 @@ import (
 
 func newSLQCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:               "slq",
-		Short:             "Execute SLQ query",
+		Use:   "slq",
+		Short: "Execute SLQ query",
+		// This command is hidden, because it is effectively the root cmd.
 		Hidden:            true,
 		Args:              cobra.MaximumNArgs(1),
 		RunE:              execSLQ,
@@ -26,6 +27,9 @@ func newSLQCmd() *cobra.Command {
 	}
 
 	addQueryCmdFlags(cmd)
+
+	// Explicitly flagVersion because people like to do "sq --version"
+	// as much as "sq version".
 	cmd.Flags().Bool(flagVersion, false, flagVersionUsage)
 
 	return cmd

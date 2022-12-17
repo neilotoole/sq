@@ -19,7 +19,7 @@ output to a database table.
 
 You can query using sq's own jq-like syntax, or in native SQL.
 
-Execute "sq completion --help" for how to install shell completion.
+Execute "sq completion --help" for instructions to install shell completion.
 
 More at https://sq.io
 `,
@@ -27,7 +27,7 @@ More at https://sq.io
   $ cat data.xlsx | sq '.sheet1 | .[0:10]'
 
   # add Postgres source identified by handle @sakila_pg
-  $ sq add --handle=@sakila_pg 'postgres://user:pass@localhost:5432/sakila?sslmode=disable'
+  $ sq add --handle=@sakila_pg 'postgres://user:pass@localhost:5432/sakila'
 
   # add SQL Server source; will have generated handle @sakila_mssql
   $ sq add 'sqlserver://user:pass@localhost?database=sakila'

@@ -19,6 +19,10 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
+
 // Reverse reverses the input string.
 func Reverse(input string) string {
 	n := 0
@@ -391,11 +395,10 @@ func LineCount(r io.Reader, skipEmpty bool) int {
 }
 
 // TrimLen returns s but with a maximum length of maxLen.
-func TrimLen(s string,  maxLen int) string {
+func TrimLen(s string, maxLen int) string {
 	if len(s) <= maxLen {
 		return s
 	}
 
 	return s[:maxLen]
 }
-
