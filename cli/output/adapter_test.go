@@ -3,6 +3,7 @@ package output_test
 import (
 	"context"
 	"fmt"
+	"github.com/neilotoole/sq/testh/tutil"
 	"testing"
 	"time"
 
@@ -122,7 +123,7 @@ func TestRecordWriterAdapter_FlushAfterDuration(t *testing.T) {
 	testCases := []struct {
 		flushAfter  time.Duration
 		wantFlushed int
-		assertFn    testh.AssertCompareFunc
+		assertFn    tutil.AssertCompareFunc
 	}{
 		{flushAfter: -1, wantFlushed: 0, assertFn: require.Equal},
 		{flushAfter: 0, wantFlushed: 0, assertFn: require.Equal},

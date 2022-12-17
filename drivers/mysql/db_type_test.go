@@ -2,6 +2,7 @@ package mysql_test
 
 import (
 	"fmt"
+	"github.com/neilotoole/sq/testh/tutil"
 	"io/ioutil"
 	"strings"
 	"testing"
@@ -431,7 +432,7 @@ func TestDatabaseTypeJSON(t *testing.T) {
 			require.Equal(t, len(testVals), len(sink.Recs))
 			for i := range testVals {
 				for j := range testVals[i] {
-					require.Equal(t, testVals[i][j], testh.Val(sink.Recs[i][j]))
+					require.Equal(t, testVals[i][j], tutil.Val(sink.Recs[i][j]))
 				}
 			}
 		})

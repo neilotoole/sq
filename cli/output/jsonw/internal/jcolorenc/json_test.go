@@ -296,7 +296,12 @@ func makeMapStringInterface(n int) map[string]any {
 }
 
 func testName(v any) string {
-	return fmt.Sprintf("%T", v)
+	name := fmt.Sprintf("%T", v)
+	if len(name) > 80 {
+		name = name[:80]
+	}
+
+	return name
 }
 
 type codeResponse2 struct {

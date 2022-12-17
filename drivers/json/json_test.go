@@ -3,6 +3,7 @@ package json_test
 import (
 	"context"
 	"fmt"
+	"github.com/neilotoole/sq/testh/tutil"
 	"io"
 	"os"
 	"path/filepath"
@@ -13,7 +14,6 @@ import (
 
 	"github.com/neilotoole/sq/drivers/json"
 	"github.com/neilotoole/sq/libsq/source"
-	"github.com/neilotoole/sq/testh"
 )
 
 func TestTypeDetectorFuncs(t *testing.T) {
@@ -87,7 +87,7 @@ func TestTypeDetectorFuncs(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 
-		t.Run(testh.Name(tc.fn, tc.fname), func(t *testing.T) {
+		t.Run(tutil.Name(tc.fn, tc.fname), func(t *testing.T) {
 			openFn := func() (io.ReadCloser, error) { return os.Open(filepath.Join("testdata", tc.fname)) }
 			detectFn := detectFns[tc.fn]
 

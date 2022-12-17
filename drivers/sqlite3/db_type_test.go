@@ -2,6 +2,7 @@ package sqlite3_test
 
 import (
 	"fmt"
+	"github.com/neilotoole/sq/testh/tutil"
 	"io/ioutil"
 	"strings"
 	"testing"
@@ -188,7 +189,7 @@ func TestDatabaseTypes(t *testing.T) {
 				continue
 			}
 
-			require.Equal(t, wantVal, testh.Val(gotVal),
+			require.Equal(t, wantVal, tutil.Val(gotVal),
 				"%s[%d][%d] (%s) expected %T(%v) but got %T(%v)",
 				actualTblName, i, j, typeTestColNames[j], wantVal, wantVal, gotVal, gotVal)
 		}

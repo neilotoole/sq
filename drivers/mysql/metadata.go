@@ -39,7 +39,9 @@ func kindFromDBTypeName(log lg.Log, colName, dbTypeName string) kind.Kind {
 		knd = kind.Unknown
 	case "":
 		knd = kind.Unknown
-	case "INTEGER", "INT", "TINYINT", "SMALLINT", "MEDIUMINT", "BIGINT", "YEAR", "BIT":
+	case "INTEGER", "INT", "TINYINT", "SMALLINT", "MEDIUMINT", "BIGINT", "YEAR", "BIT",
+		"UNSIGNED INTEGER", "UNSIGNED INT", "UNSIGNED TINYINT",
+		"UNSIGNED SMALLINT", "UNSIGNED MEDIUMINT", "UNSIGNED BIGINT":
 		knd = kind.Int
 	case "DECIMAL", "NUMERIC":
 		knd = kind.Decimal

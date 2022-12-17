@@ -389,3 +389,13 @@ func LineCount(r io.Reader, skipEmpty bool) int {
 
 	return i
 }
+
+// TrimLen returns s but with a maximum length of maxLen.
+func TrimLen(s string,  maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+
+	return s[:maxLen]
+}
+

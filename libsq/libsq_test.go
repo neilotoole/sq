@@ -1,6 +1,7 @@
 package libsq_test
 
 import (
+	"github.com/neilotoole/sq/testh/tutil"
 	"reflect"
 	"testing"
 
@@ -62,7 +63,7 @@ func TestQuerySQL_Smoke(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.handle, func(t *testing.T) {
-			testh.SkipShort(t, tc.handle == sakila.XLSX)
+			tutil.SkipShort(t, tc.handle == sakila.XLSX)
 			t.Parallel()
 
 			th := testh.New(t)

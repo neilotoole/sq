@@ -1,6 +1,7 @@
 package driver_test
 
 import (
+	"github.com/neilotoole/sq/testh/tutil"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -145,7 +146,7 @@ func TestDriver_TableColumnTypes(t *testing.T) {
 		handle := handle
 
 		t.Run(handle, func(t *testing.T) {
-			testh.SkipShort(t, handle == sakila.XLSX)
+			tutil.SkipShort(t, handle == sakila.XLSX)
 			t.Parallel()
 
 			th := testh.New(t)
@@ -190,7 +191,7 @@ func TestSQLDriver_PrepareUpdateStmt(t *testing.T) {
 		handle := handle
 
 		t.Run(handle, func(t *testing.T) {
-			testh.SkipShort(t, handle == sakila.XLSX)
+			tutil.SkipShort(t, handle == sakila.XLSX)
 			t.Parallel()
 
 			th, src, dbase, drvr := testh.NewWith(t, handle)
@@ -220,9 +221,9 @@ func TestSQLDriver_PrepareUpdateStmt(t *testing.T) {
 
 			require.NoError(t, err)
 			require.Equal(t, 1, len(sink.Recs))
-			require.Equal(t, actorID, testh.Val(sink.Recs[0][0]))
-			require.Equal(t, wantVals[0], testh.Val(sink.Recs[0][1]))
-			require.Equal(t, wantVals[1], testh.Val(sink.Recs[0][2]))
+			require.Equal(t, actorID, tutil.Val(sink.Recs[0][0]))
+			require.Equal(t, wantVals[0], tutil.Val(sink.Recs[0][1]))
+			require.Equal(t, wantVals[1], tutil.Val(sink.Recs[0][2]))
 		})
 	}
 }
@@ -235,7 +236,7 @@ func TestDriver_Ping(t *testing.T) {
 		handle := handle
 
 		t.Run(handle, func(t *testing.T) {
-			testh.SkipShort(t, handle == sakila.XLSX)
+			tutil.SkipShort(t, handle == sakila.XLSX)
 
 			th := testh.New(t)
 			src := th.Source(handle)
@@ -256,7 +257,7 @@ func TestDriver_Open(t *testing.T) {
 		handle := handle
 
 		t.Run(handle, func(t *testing.T) {
-			testh.SkipShort(t, handle == sakila.XLSX)
+			tutil.SkipShort(t, handle == sakila.XLSX)
 			t.Parallel()
 
 			th := testh.New(t)
