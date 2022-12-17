@@ -3,6 +3,7 @@ package json_test
 import (
 	"bytes"
 	stdj "encoding/json"
+	"github.com/neilotoole/sq/testh/tutil"
 	"io"
 	"io/ioutil"
 	"os"
@@ -73,7 +74,7 @@ func TestImportJSONL_Flat(t *testing.T) {
 	for i, tc := range testCases {
 		tc := tc
 
-		t.Run(testh.Name(i, tc.fpath, tc.input), func(t *testing.T) {
+		t.Run(tutil.Name(i, tc.fpath, tc.input), func(t *testing.T) {
 			openFn := func() (io.ReadCloser, error) {
 				return ioutil.NopCloser(strings.NewReader(tc.input)), nil
 			}
@@ -170,7 +171,7 @@ func TestScanObjectsInArray(t *testing.T) {
 	for i, tc := range testCases {
 		tc := tc
 
-		t.Run(testh.Name(i, tc.in), func(t *testing.T) {
+		t.Run(tutil.Name(i, tc.in), func(t *testing.T) {
 			r := bytes.NewReader([]byte(tc.in))
 			gotObjs, gotChunks, err := json.ScanObjectsInArray(r)
 			if tc.wantErr {
@@ -202,7 +203,7 @@ func TestScanObjectsInArray_Files(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 
-		t.Run(testh.Name(tc.fname), func(t *testing.T) {
+		t.Run(tutil.Name(tc.fname), func(t *testing.T) {
 			f, err := os.Open(tc.fname)
 			require.NoError(t, err)
 			defer f.Close()
@@ -241,7 +242,7 @@ func TestColumnOrderFlat(t *testing.T) {
 	for i, tc := range testCases {
 		tc := tc
 
-		t.Run(testh.Name(i, tc.in), func(t *testing.T) {
+		t.Run(tutil.Name(i, tc.in), func(t *testing.T) {
 			require.True(t, stdj.Valid([]byte(tc.in)))
 
 			gotCols, err := json.ColumnOrderFlat([]byte(tc.in))

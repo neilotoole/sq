@@ -1,6 +1,7 @@
 package config_test
 
 import (
+	"github.com/neilotoole/sq/testh/tutil"
 	"io/ioutil"
 	"path/filepath"
 	"testing"
@@ -9,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli/config"
-	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/proj"
 )
 
@@ -72,7 +72,7 @@ func TestFileStore_Load(t *testing.T) {
 
 	for _, match := range good {
 		match := match
-		t.Run(testh.Name(match), func(t *testing.T) {
+		t.Run(tutil.Name(match), func(t *testing.T) {
 			fs.Path = match
 			_, err = fs.Load()
 			require.NoError(t, err, match)
@@ -82,7 +82,7 @@ func TestFileStore_Load(t *testing.T) {
 
 	for _, match := range bad {
 		match := match
-		t.Run(testh.Name(match), func(t *testing.T) {
+		t.Run(tutil.Name(match), func(t *testing.T) {
 			fs.Path = match
 			_, err = fs.Load()
 			require.Error(t, err, match)

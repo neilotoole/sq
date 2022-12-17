@@ -4,17 +4,14 @@ package testh
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"sync"
 	"testing"
 
-	"github.com/alexflint/go-filemutex"
 	"github.com/neilotoole/lg"
 	"github.com/neilotoole/lg/testlg"
 	"github.com/neilotoole/sq/cli/config"
@@ -625,42 +622,6 @@ func DriverDefsFrom(t testing.TB, cfgFiles ...string) []*userdriver.DriverDef {
 	return userDriverDefs
 }
 
-// SkipShort invokes t.Skip if testing.Short and arg skip are both true.
-func SkipShort(t *testing.T, skip bool) {
-	if skip && testing.Short() {
-		t.Skip("Skipping long-running test because -short is true.")
-	}
-}
-
-// Val returns the fully dereferenced value of i. If i
-// is nil, nil is returned. If i has type *(*string),
-// Val(i) returns string.
-// Useful for testing.
-func Val(i any) any {
-	if i == nil {
-		return nil
-	}
-
-	v := reflect.ValueOf(i)
-	for {
-		if !v.IsValid() {
-			return nil
-		}
-
-		switch v.Kind() {
-		default:
-			return v.Interface()
-		case reflect.Ptr, reflect.Interface:
-			if v.IsNil() {
-				return nil
-			}
-			v = v.Elem()
-			// Loop again
-			continue
-		}
-	}
-}
-
 // TypeDetectors returns the common set of TypeDetectorFuncs.
 func TypeDetectors() []source.TypeDetectFunc {
 	return []source.TypeDetectFunc{
@@ -669,69 +630,4 @@ func TypeDetectors() []source.TypeDetectFunc {
 		csv.DetectCSV, csv.DetectTSV,
 		/*json.DetectJSON,*/ json.DetectJSONA, json.DetectJSONL, // FIXME: enable DetectJSON when it's ready
 	}
-}
-
-// AssertCompareFunc matches several of the the testify/require funcs.
-// It can be used to choose assertion comparison funcs in test cases.
-type AssertCompareFunc func(require.TestingT, any, any, ...any)
-
-// Verify that a sample of the require funcs match AssertCompareFunc.
-var (
-	_ AssertCompareFunc = require.Equal
-	_ AssertCompareFunc = require.GreaterOrEqual
-	_ AssertCompareFunc = require.Greater
-)
-
-// Name is a convenience function for building a test name to
-// pass to t.Run.
-//
-//	t.Run(testh.Name("my_test", 1), func(t *testing.T) {
-//
-// The most common usage is with test names that are file
-// paths.
-//
-//	testh.Name("path/to/file") --> "path_to_file"
-//
-// Any element of arg that prints to empty string is skipped.
-func Name(args ...any) string {
-	var parts []string
-	var s string
-	for _, a := range args {
-		s = fmt.Sprintf("%v", a)
-		if s == "" {
-			continue
-		}
-
-		s = strings.Replace(s, "/", "_", -1)
-		parts = append(parts, s)
-	}
-
-	s = strings.Join(parts, "_")
-	if s == "" {
-		return "empty"
-	}
-
-	return s
-}
-
-// Lock obtains a universal (cross-process) mutex for all tests.
-// This should be called by tests that cannot be executed in parallel
-// with any other test (even those in another package).
-//
-// Why? The vast majority of tests can be run in parallel, both inside
-// each test package and across test packages. The handful of tests
-// that must not be run in parallel can use this function to guarantee
-// sequential execution.
-//
-// This is implemented via a lock file /tmp/go_test.lock.
-// The lock is released via t.Cleanup.
-func Lock(t testing.TB) {
-	fp := filepath.Join(os.TempDir(), "go_test.lock")
-	mu, err := filemutex.New(fp)
-	require.NoError(t, err)
-
-	t.Cleanup(func() {
-		err := mu.Unlock()
-		assert.NoError(t, err)
-	})
 }

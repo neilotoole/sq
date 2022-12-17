@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"fmt"
+	"github.com/neilotoole/sq/testh/tutil"
 	"os"
 	"strings"
 	"testing"
@@ -22,7 +23,7 @@ func TestCmdSQL_Insert(t *testing.T) {
 		origin := origin
 
 		t.Run("origin_"+origin, func(t *testing.T) {
-			testh.SkipShort(t, origin == sakila.XLSX)
+			tutil.SkipShort(t, origin == sakila.XLSX)
 
 			for _, dest := range sakila.SQLLatest() {
 				dest := dest
@@ -126,7 +127,7 @@ func TestCmdSQL_StdinQuery(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 
-		t.Run(testh.Name(tc.fpath), func(t *testing.T) {
+		t.Run(tutil.Name(tc.fpath), func(t *testing.T) {
 			t.Parallel()
 
 			f, err := os.Open(tc.fpath)

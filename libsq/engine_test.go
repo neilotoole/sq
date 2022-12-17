@@ -1,6 +1,7 @@
 package libsq_test
 
 import (
+	"github.com/neilotoole/sq/testh/tutil"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -28,7 +29,7 @@ func TestSLQ2SQL(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 
-		t.Run(testh.Name(tc.slq), func(t *testing.T) {
+		t.Run(tutil.Name(tc.slq), func(t *testing.T) {
 			th := testh.New(t)
 			srcs := th.NewSourceSet(tc.handles...)
 

@@ -1,6 +1,7 @@
 package stringz_test
 
 import (
+	"github.com/neilotoole/sq/testh/tutil"
 	"strings"
 	"testing"
 
@@ -8,7 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/stringz"
-	"github.com/neilotoole/sq/testh"
 )
 
 func TestGenerateAlphaColName(t *testing.T) {
@@ -73,6 +73,30 @@ func TestPluralize(t *testing.T) {
 		require.Equal(t, tc.want, got)
 	}
 }
+
+
+func TestTrimLen(t *testing.T) {
+	testCases := []struct {
+		s    string
+		i    int
+		want string
+	}{
+		{s: "", i: 0, want: ""},
+		{s: "", i: 1, want: ""},
+		{s: "abc", i: 0, want: ""},
+		{s: "abc", i: 1, want: "a"},
+		{s: "abc", i: 2, want: "ab"},
+		{s: "abc", i: 3, want: "abc"},
+		{s: "abc", i: 4, want: "abc"},
+		{s: "abc", i: 5, want: "abc"},
+	}
+
+	for _, tc := range testCases {
+		got := stringz.TrimLen(tc.s, tc.i)
+		require.Equal(t, tc.want, got)
+	}
+}
+
 
 func TestRepeatJoin(t *testing.T) {
 	testCases := []struct {
@@ -272,7 +296,7 @@ func TestLineCount(t *testing.T) {
 	for i, tc := range testCases {
 		tc := tc
 
-		t.Run(testh.Name(i, tc.in), func(t *testing.T) {
+		t.Run(tutil.Name(i, tc.in), func(t *testing.T) {
 			count := stringz.LineCount(strings.NewReader(tc.in), false)
 			require.Equal(t, tc.withEmpty, count)
 			count = stringz.LineCount(strings.NewReader(tc.in), true)

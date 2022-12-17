@@ -1,6 +1,7 @@
 package xlsx_test
 
 import (
+	"github.com/neilotoole/sq/testh/tutil"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -24,7 +25,7 @@ func Test_Smoke_Subset(t *testing.T) {
 }
 
 func Test_Smoke_Full(t *testing.T) {
-	testh.SkipShort(t, true)
+	tutil.SkipShort(t, true)
 
 	th := testh.New(t)
 	src := th.Source(sakila.XLSX)

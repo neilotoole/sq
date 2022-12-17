@@ -1,6 +1,7 @@
 package testh_test
 
 import (
+	"github.com/neilotoole/sq/testh/tutil"
 	"io/ioutil"
 	"testing"
 	"time"
@@ -23,12 +24,12 @@ func TestVal(t *testing.T) {
 	want := "hello"
 	var got any
 
-	if testh.Val(nil) != nil {
+	if tutil.Val(nil) != nil {
 		t.FailNow()
 	}
 
 	var v0 any
-	if testh.Val(v0) != nil {
+	if tutil.Val(v0) != nil {
 		t.FailNow()
 	}
 
@@ -41,7 +42,7 @@ func TestVal(t *testing.T) {
 
 	vals := []any{v1, v1a, v2, v3, v4, v5}
 	for _, val := range vals {
-		got = testh.Val(val)
+		got = tutil.Val(val)
 
 		if got != want {
 			t.Errorf("expected %T(%v) but got %T(%v)", want, want, got, got)
@@ -49,26 +50,26 @@ func TestVal(t *testing.T) {
 	}
 
 	slice := []string{"a", "b"}
-	require.Equal(t, slice, testh.Val(slice))
-	require.Equal(t, slice, testh.Val(&slice))
+	require.Equal(t, slice, tutil.Val(slice))
+	require.Equal(t, slice, tutil.Val(&slice))
 
 	b := true
-	require.Equal(t, b, testh.Val(b))
-	require.Equal(t, b, testh.Val(&b))
+	require.Equal(t, b, tutil.Val(b))
+	require.Equal(t, b, tutil.Val(&b))
 
 	type structT struct {
 		f string
 	}
 
 	st1 := structT{f: "hello"}
-	require.Equal(t, st1, testh.Val(st1))
-	require.Equal(t, st1, testh.Val(&st1))
+	require.Equal(t, st1, tutil.Val(st1))
+	require.Equal(t, st1, tutil.Val(&st1))
 
 	var c chan int
-	require.Nil(t, testh.Val(c))
+	require.Nil(t, tutil.Val(c))
 	c = make(chan int, 10)
-	require.Equal(t, c, testh.Val(c))
-	require.Equal(t, c, testh.Val(&c))
+	require.Equal(t, c, tutil.Val(c))
+	require.Equal(t, c, tutil.Val(&c))
 }
 
 func TestCopyRecords(t *testing.T) {
@@ -106,7 +107,7 @@ func TestCopyRecords(t *testing.T) {
 					require.False(t, recs[i][j] == recs2[i][j],
 						"pointer values should not be equal: %#v --> %#v", recs[i][j], recs2[i][j])
 
-					val1, val2 := testh.Val(recs[i][j]), testh.Val(recs2[i][j])
+					val1, val2 := tutil.Val(recs[i][j]), tutil.Val(recs2[i][j])
 					require.Equal(t, val1, val2,
 						"dereferenced values should be equal: %#v --> %#v", val1, val2)
 				}
@@ -176,7 +177,7 @@ func TestTName(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		got := testh.Name(tc.a...)
+		got := tutil.Name(tc.a...)
 		require.Equal(t, tc.want, got)
 	}
 

@@ -14,7 +14,7 @@ require (
 	github.com/djherbis/fscache v0.10.1
 	github.com/emirpasic/gods v1.9.0
 	github.com/fatih/color v1.13.0
-	github.com/go-sql-driver/mysql v1.6.0
+	github.com/go-sql-driver/mysql v1.7.0
 	github.com/google/uuid v1.3.0
 	github.com/h2non/filetype v1.1.0
 	github.com/jackc/pgconn v1.5.0

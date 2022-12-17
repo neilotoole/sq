@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"github.com/neilotoole/sq/testh/tutil"
 	"testing"
 
 	"github.com/go-sql-driver/mysql"
@@ -47,38 +48,60 @@ func TestHasErrCode(t *testing.T) {
 
 func TestDSNFromLocation(t *testing.T) {
 	testCases := []struct {
-		loc     string
-		wantDSN string
-		wantErr bool
+		loc       string
+		parseTime bool
+		wantDSN   string
+		wantErr   bool
 	}{
 		{
 			loc:     "mysql://sakila:p_ssW0rd@localhost:3306/sqtest",
 			wantDSN: "sakila:p_ssW0rd@tcp(localhost:3306)/sqtest",
-			wantErr: false,
 		},
 		{
-			loc:     "mysql://sakila:p_ssW0rd@localhost:3306/sqtest?allowOldPasswords=1",
-			wantDSN: "sakila:p_ssW0rd@tcp(localhost:3306)/sqtest?allowOldPasswords=1",
-			wantErr: false,
+			loc:       "mysql://sakila:p_ssW0rd@localhost:3306/sqtest",
+			wantDSN:   "sakila:p_ssW0rd@tcp(localhost:3306)/sqtest?parseTime=true",
+			parseTime: true,
 		},
 		{
-			loc:     "mysql://sakila:p_ssW0rd@localhost:3306/sqtest?allowCleartextPasswords=true&allowOldPasswords=1",
-			wantDSN: "sakila:p_ssW0rd@tcp(localhost:3306)/sqtest?allowCleartextPasswords=true&allowOldPasswords=1",
-			wantErr: false,
+			loc:       "mysql://sakila:p_ssW0rd@localhost:3306/sqtest?parseTime=true",
+			wantDSN:   "sakila:p_ssW0rd@tcp(localhost:3306)/sqtest?parseTime=true",
+			parseTime: true,
+		},
+		{
+			loc:     "mysql://sakila:p_ssW0rd@localhost:3306/sqtest?allowOldPasswords=true",
+			wantDSN: "sakila:p_ssW0rd@tcp(localhost:3306)/sqtest?allowOldPasswords=true",
+		},
+		{
+			loc:       "mysql://sakila:p_ssW0rd@localhost:3306/sqtest?allowOldPasswords=true",
+			wantDSN:   "sakila:p_ssW0rd@tcp(localhost:3306)/sqtest?allowOldPasswords=true&parseTime=true",
+			parseTime: true,
+		},
+		{
+			loc:     "mysql://sakila:p_ssW0rd@localhost:3306/sqtest?allowOldPasswords=true",
+			wantDSN: "sakila:p_ssW0rd@tcp(localhost:3306)/sqtest?allowOldPasswords=true",
+		},
+		{
+			loc:     "mysql://sakila:p_ssW0rd@localhost:3306/sqtest?allowCleartextPasswords=true&allowOldPasswords=true",
+			wantDSN: "sakila:p_ssW0rd@tcp(localhost:3306)/sqtest?allowCleartextPasswords=true&allowOldPasswords=true",
+		},
+		{
+			loc:       "mysql://sakila:p_ssW0rd@localhost:3306/sqtest?parseTime=true&allowCleartextPasswords=true&allowOldPasswords=true",
+			wantDSN:   "sakila:p_ssW0rd@tcp(localhost:3306)/sqtest?allowCleartextPasswords=true&allowOldPasswords=true&parseTime=true",
+			parseTime: true,
 		},
 	}
 
 	for _, tc := range testCases {
 		tc := tc
 
-		t.Run(tc.loc, func(t *testing.T) {
+		t.Run(tutil.Name(tc.loc, tc.parseTime), func(t *testing.T) {
 			src := &source.Source{
 				Handle:   "@testhandle",
 				Type:     Type,
 				Location: tc.loc,
 			}
 
-			gotDSN, gotErr := dsnFromLocation(src)
+			gotDSN, gotErr := dsnFromLocation(src, tc.parseTime)
 			if tc.wantErr {
 				require.Error(t, gotErr)
 				return

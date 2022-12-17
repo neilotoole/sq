@@ -259,7 +259,7 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 
 // Open implements driver.Driver.
 func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
-	dsn, err := dsnFromLocation(src)
+	dsn, err := dsnFromLocation(src, true)
 	if err != nil {
 		return nil, err
 	}
@@ -296,7 +296,7 @@ func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 // the TRUNCATE statement.
 func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, reset bool) (affected int64, err error) {
 	// https://dev.mysql.com/doc/refman/8.0/en/truncate-table.html
-	dsn, err := dsnFromLocation(src)
+	dsn, err := dsnFromLocation(src, true)
 	if err != nil {
 		return 0, err
 	}
@@ -390,8 +390,10 @@ func hasErrCode(err error, code uint16) bool {
 
 const errNumTableNotExist = uint16(1146)
 
-// dsnFromLocation extracts the mysql driver DSN from src.Location.
-func dsnFromLocation(src *source.Source) (string, error) {
+// dsnFromLocation builds the mysql driver DSN from src.Location.
+// If parseTime is true, the param "parseTime=true" is added. This
+// is because of: https://stackoverflow.com/questions/29341590/how-to-parse-time-from-database/29343013#29343013
+func dsnFromLocation(src *source.Source, parseTime bool) (string, error) {
 	if !strings.HasPrefix(src.Location, "mysql://") || len(src.Location) < 10 {
 		return "", errz.Errorf("invalid source location %s", src.RedactedLocation())
 	}
@@ -406,10 +408,13 @@ func dsnFromLocation(src *source.Source) (string, error) {
 	// Driver DSN:	sakila:p_ssW0rd@tcp(localhost:3306)/sqtest?allowOldPasswords=1
 	driverDSN := u.DSN
 
-	_, err = mysql.ParseDSN(driverDSN) // verify
+	myCfg, err := mysql.ParseDSN(driverDSN) // verify
 	if err != nil {
 		return "", errz.Wrapf(err, "invalid source location: %q", driverDSN)
 	}
+
+	myCfg.ParseTime = parseTime
+	driverDSN = myCfg.FormatDSN()
 
 	return driverDSN, nil
 }
