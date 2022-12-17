@@ -192,6 +192,7 @@ func newCommandTree(rc *RunContext) (rootCmd *cobra.Command) {
 	rootCmd = newRootCmd()
 	rootCmd.SetOut(rc.Out)
 	rootCmd.SetErr(rc.ErrOut)
+	rootCmd.Flags().SortFlags = false
 
 	// The --help flag must be explicitly added to rootCmd,
 	// or else cobra tries to do its own (unwanted) thing.
@@ -199,11 +200,18 @@ func newCommandTree(rc *RunContext) (rootCmd *cobra.Command) {
 	// changed? This particular incantation currently does the trick.
 	rootCmd.Flags().Bool(flagHelp, false, "Show sq help")
 
-	rootCmd.Flags().SortFlags = false
 	helpCmd := addCmd(rc, rootCmd, newHelpCmd())
 	rootCmd.SetHelpCommand(helpCmd)
 
-	addCmd(rc, rootCmd, newSLQCmd())
+	// From the end user's perspective, slqCmd is *effectively* the
+	// root cmd. We need to perform some trickery to make it output help
+	// such that "sq help" and "sq --help" output the same thing.
+	slqCmd := newSLQCmd()
+	slqCmd.SetHelpFunc(func(command *cobra.Command, i []string) {
+		rootCmd.Help()
+	})
+
+	addCmd(rc, rootCmd, slqCmd)
 	addCmd(rc, rootCmd, newSQLCmd())
 
 	addCmd(rc, rootCmd, newSrcCommand())
@@ -552,19 +560,6 @@ type writers struct {
 func newWriters(log lg.Log, cmd *cobra.Command, defaults config.Defaults, out, errOut io.Writer) (w *writers, out2, errOut2 io.Writer) {
 	var fm *output.Formatting
 	fm, out2, errOut2 = getWriterFormatting(cmd, out, errOut)
-
-	// FIXME: delete this section
-	//// we need to determine --header here because the writer/format
-	//// constructor functions, e.g. table.NewRecordWriter, require it.
-	//printHeader := defaults.Header
-	//if cmdFlagChanged(cmd, flagHeader) {
-	//	printHeader, _ = cmd.Flags().GetBool(flagHeader)
-	//}
-	//
-	//verbose := false
-	//if cmdFlagChanged(cmd, flagVerbose) {
-	//	verbose, _ = cmd.Flags().GetBool(flagVerbose)
-	//}
 
 	// Package tablew has writer impls for each of the writer interfaces,
 	// so we use its writers as the baseline. Later we check the format

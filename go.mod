@@ -2,11 +2,6 @@ module github.com/neilotoole/sq
 
 go 1.19
 
-// Using forked cobra for now because v1.1.3 does not pass Context
-// to valid args completion funcs. There's an open PR for
-// this: https://github.com/spf13/cobra/pull/1265
-replace github.com/spf13/cobra v1.1.3 => github.com/neilotoole/cobra v1.1.4-0.20210220092732-c11dbd416310
-
 require (
 	github.com/alexflint/go-filemutex v1.2.0
 	github.com/antlr/antlr4 v0.0.0-20191011202612-ad2bd05285ca
@@ -33,7 +28,7 @@ require (
 	github.com/satori/go.uuid v1.2.0
 	github.com/segmentio/encoding v0.1.14
 	github.com/shopspring/decimal v0.0.0-20180709203117-cd690d0c9e24
-	github.com/spf13/cobra v1.1.3
+	github.com/spf13/cobra v1.6.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.1
 	github.com/tealeg/xlsx/v2 v2.0.1
@@ -64,7 +59,7 @@ require (
 	github.com/golang-sql/civil v0.0.0-20190719163853-cb61b32ac6fe // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
-	github.com/inconshreveable/mousetrap v1.0.0 // indirect
+	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jackc/chunkreader/v2 v2.0.1 // indirect
 	github.com/jackc/pgio v1.0.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
