@@ -223,9 +223,9 @@ func UniqN(length int) string {
 // returns "row col" if arg i is 1, otherwise returns "rows cols".
 func Plu(s string, i int) string {
 	if i == 1 {
-		return strings.Replace(s, "(s)", "", -1)
+		return strings.ReplaceAll(s, "(s)", "")
 	}
-	return strings.Replace(s, "(s)", "s", -1)
+	return strings.ReplaceAll(s, "(s)", "s")
 }
 
 // RepeatJoin returns a string consisting of count copies
@@ -339,8 +339,8 @@ func UniqTableName(tbl string) string {
 	tbl += suffix
 
 	// paranoid sanitization
-	tbl = strings.Replace(tbl, "@", "_", -1)
-	tbl = strings.Replace(tbl, "/", "_", -1)
+	tbl = strings.ReplaceAll(tbl, "@", "_")
+	tbl = strings.ReplaceAll(tbl, "/", "_")
 
 	return tbl
 }

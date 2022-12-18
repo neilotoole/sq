@@ -516,8 +516,8 @@ func (im *importer) dbUpdate(ctx context.Context, row *rowState) error {
 			}
 
 			// Append the WHERE clause args
-			stmtArgs := append(updateVals, whereArgs...)
-			_, err = stmtExecer.Exec(ctx, stmtArgs...)
+			updateVals = append(updateVals, whereArgs...)
+			_, err = stmtExecer.Exec(ctx, updateVals...)
 			return errz.Err(err)
 		}
 

@@ -251,11 +251,12 @@ func getTableMetadata(ctx context.Context, log lg.Log, db sqlz.DB,
 
 		// REVISIT: This is all a bit messy and inconsistent with other drivers
 		var colLength *int64
-		if dbCols[i].CharMaxLength.Valid {
+		switch {
+		case dbCols[i].CharMaxLength.Valid:
 			colLength = &dbCols[i].CharMaxLength.Int64
-		} else if dbCols[i].NumericPrecision.Valid {
+		case dbCols[i].NumericPrecision.Valid:
 			colLength = &dbCols[i].NumericPrecision.Int64
-		} else if dbCols[i].DateTimePrecision.Valid {
+		case dbCols[i].DateTimePrecision.Valid:
 			colLength = &dbCols[i].DateTimePrecision.Int64
 		}
 

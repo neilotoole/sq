@@ -219,7 +219,7 @@ func Name(args ...any) string {
 			continue
 		}
 
-		s = strings.Replace(s, "/", "_", -1)
+		s = strings.ReplaceAll(s, "/", "_")
 		s = stringz.TrimLen(s, 40) // we don't want it to be too long
 		parts = append(parts, s)
 	}

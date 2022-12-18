@@ -106,7 +106,6 @@ func (h *Helper) init() {
 			assert.NoError(h.T, err)
 		})
 
-		//h.Cleanup.AddC(h.files)
 		h.files.AddTypeDetectors(source.DetectMagicNumber)
 
 		h.databases = driver.NewDatabases(log, h.registry, sqlite3.NewScratchSource)
@@ -203,8 +202,7 @@ func (h *Helper) Source(handle string) *source.Source {
 	require.NoError(t, err,
 		"source %s was not found in %s", handle, testsrc.PathSrcsConfig)
 
-	switch src.Type { //nolint:exhaustive
-	case sqlite3.Type:
+	if src.Type == sqlite3.Type {
 		// This could be easily generalized for CSV/XLSX etc.
 		fpath, err := sqlite3.PathFromLocation(src)
 		require.NoError(t, err)
@@ -232,6 +230,7 @@ func (h *Helper) Source(handle string) *source.Source {
 
 		src.Location = sqlite3.Prefix + destFileName
 	}
+
 	h.srcCache[handle] = src
 
 	// envDiffDB is the name of the envar that controls whether the testing

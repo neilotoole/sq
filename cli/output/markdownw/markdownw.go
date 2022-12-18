@@ -124,8 +124,8 @@ func (w *RecordWriter) WriteRecords(recs []sqlz.Record) error {
 // function with a real library call at the earliest opportunity.
 func escapeMarkdown(s string) string {
 	s = html.EscapeString(s)
-	s = strings.Replace(s, "|", "&vert;", -1)
-	s = strings.Replace(s, "\r\n", "<br/>", -1)
-	s = strings.Replace(s, "\n", "<br/>", -1)
+	s = strings.ReplaceAll(s, "|", "&vert;")
+	s = strings.ReplaceAll(s, "\r\n", "<br/>")
+	s = strings.ReplaceAll(s, "\n", "<br/>")
 	return s
 }

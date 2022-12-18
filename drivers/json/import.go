@@ -255,13 +255,11 @@ func (p *processor) doAddObject(ent *entity, m map[string]any) error {
 					detectors: map[string]*kind.Detector{},
 				}
 				ent.children = append(ent.children, child)
-			} else {
+			} else if child.isArray {
 				// Child already exists
-				if child.isArray {
-					// Safety check
-					return errz.Errorf("JSON entity %q previously detected as array, but now detected as object",
-						ent.String())
-				}
+				// Safety check
+				return errz.Errorf("JSON entity %q previously detected as array, but now detected as object",
+					ent.String())
 			}
 
 			err := p.doAddObject(child, val)
@@ -580,7 +578,6 @@ func execInsertions(ctx context.Context, log lg.Log, drvr driver.SQLDriver, db s
 
 	var err error
 	var execer *driver.StmtExecer
-	//var affected int64
 
 	for _, insert := range insertions {
 		execer, err = drvr.PrepareInsertStmt(ctx, db, insert.tbl, insert.cols, 1)
