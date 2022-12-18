@@ -179,7 +179,8 @@ GROUP BY database_id) AS total_size_bytes`
 }
 
 func getTableMetadata(ctx context.Context, log lg.Log, db sqlz.DB,
-	tblCatalog, tblSchema, tblName, tblType string) (*source.TableMetadata, error) {
+	tblCatalog, tblSchema, tblName, tblType string,
+) (*source.TableMetadata, error) {
 	const tplTblUsage = `sp_spaceused '%s'`
 
 	tblMeta := &source.TableMetadata{Name: tblName, DBTableType: tblType}
@@ -312,7 +313,8 @@ ORDER BY TABLE_NAME ASC, TABLE_TYPE ASC`
 }
 
 func getColumnMeta(ctx context.Context, log lg.Log, db sqlz.DB, tblCatalog, tblSchema, tblName string) ([]columnMeta,
-	error) {
+	error,
+) {
 	// TODO: sq doesn't use all of these columns, no need to select them all.
 
 	const query = `SELECT
@@ -358,7 +360,8 @@ func getColumnMeta(ctx context.Context, log lg.Log, db sqlz.DB, tblCatalog, tblS
 }
 
 func getConstraints(ctx context.Context, log lg.Log, db sqlz.DB,
-	tblCatalog, tblSchema, tblName string) ([]constraintMeta, error) {
+	tblCatalog, tblSchema, tblName string,
+) ([]constraintMeta, error) {
 	const query = `SELECT kcu.TABLE_CATALOG, kcu.TABLE_SCHEMA, kcu.TABLE_NAME,  tc.CONSTRAINT_TYPE,
        kcu.COLUMN_NAME, kcu.CONSTRAINT_NAME
 		FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS tc

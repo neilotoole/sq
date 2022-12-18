@@ -57,6 +57,7 @@ func TestDriver_DropTable(t *testing.T) {
 		})
 	}
 }
+
 func TestDriver_TableExists(t *testing.T) {
 	for _, handle := range sakila.SQLAll() {
 		handle := handle

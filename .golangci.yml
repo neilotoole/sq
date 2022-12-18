@@ -85,6 +85,14 @@ linters-settings:
     # Default: 30 (but we recommend 10-20)
     min-complexity: 50
 
+  gofumpt:
+    # Module path which contains the source code being formatted.
+    # Default: ""
+    module-path: github.com/neilotoole/sq
+    # Choose whether to use the extra rules.
+    # Default: false
+    extra-rules: true
+
   gomnd:
     # List of function patterns to exclude from analysis.
     # Values always ignored: `time.Date`,
@@ -209,6 +217,7 @@ linters:
     - gocritic # provides diagnostics that check for bugs, performance and style issues
     - gocyclo # computes and checks the cyclomatic complexity of functions
     - godot # checks if comments end in a period
+    - gofumpt
     - goimports # in addition to fixing imports, goimports also formats your code in the same style as gofmt
     - gomoddirectives # manages the use of 'replace', 'retract', and 'excludes' directives in go.mod
     - gomodguard # allow and block lists linter for direct Go module dependencies. This is different from depguard where there are different block types for example version constraints and module recommendations

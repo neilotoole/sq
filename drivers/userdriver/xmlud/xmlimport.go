@@ -38,7 +38,7 @@ func Import(ctx context.Context, log lg.Log, def *userdriver.DriverDef, data io.
 		tblDefs:       map[string]*sqlmodel.TableDef{},
 		tblSequence:   map[string]int64{},
 		execInsertFns: map[string]func(ctx context.Context, insertVals []any) error{},
-		execUpdateFns: map[string]func(ctx context.Context, updateVals []any, whereArgs []any) error{},
+		execUpdateFns: map[string]func(ctx context.Context, updateVals, whereArgs []any) error{},
 		clnup:         cleanup.New(),
 		msgOnce:       map[string]struct{}{},
 	}
@@ -74,7 +74,7 @@ type importer struct {
 	// execUpdateFns is similar to execInsertFns, but for UPDATE instead
 	// of INSERT. The whereArgs param is the arguments for the
 	// update's WHERE clause.
-	execUpdateFns map[string]func(ctx context.Context, updateVals []any, whereArgs []any) error
+	execUpdateFns map[string]func(ctx context.Context, updateVals, whereArgs []any) error
 
 	// clnup holds cleanup funcs that should be run when the importer
 	// finishes.
@@ -508,7 +508,7 @@ func (im *importer) dbUpdate(ctx context.Context, row *rowState) error {
 		// Make sure we close stmt eventually.
 		im.clnup.AddC(stmtExecer)
 
-		execUpdateFn = func(ctx context.Context, updateVals []any, whereArgs []any) error {
+		execUpdateFn = func(ctx context.Context, updateVals, whereArgs []any) error {
 			// Munge vals so that they're as the target DB expects
 			err := stmtExecer.Munge(updateVals)
 			if err != nil {

@@ -2,7 +2,6 @@ package ast
 
 import (
 	"fmt"
-
 	"reflect"
 	"strings"
 

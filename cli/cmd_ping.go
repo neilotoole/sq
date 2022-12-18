@@ -110,7 +110,8 @@ func execPing(cmd *cobra.Command, args []string) error {
 //	originally laid down before context.Context was a thing. Thus,
 //	the entire thing could probably be rewritten for simplicity.
 func pingSources(ctx context.Context, log lg.Log, dp driver.Provider, srcs []*source.Source, w output.PingWriter,
-	timeout time.Duration) error {
+	timeout time.Duration,
+) error {
 	w.Open(srcs)
 	defer log.WarnIfFuncError(w.Close)
 
@@ -163,7 +164,8 @@ func pingSources(ctx context.Context, log lg.Log, dp driver.Provider, srcs []*so
 // pingSource pings an individual driver.Source. It always returns a
 // result on resultCh, even when ctx is done.
 func pingSource(ctx context.Context, dp driver.Provider, src *source.Source, timeout time.Duration,
-	resultCh chan<- pingResult) {
+	resultCh chan<- pingResult,
+) {
 	drvr, err := dp.DriverFor(src.Type)
 	if err != nil {
 		resultCh <- pingResult{src: src, err: err}

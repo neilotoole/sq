@@ -62,7 +62,8 @@ func (w *sourceWriter) SourceSet(ss *source.Set) error {
 			src.Handle,
 			string(src.Type),
 			src.RedactedLocation(),
-			renderSrcOptions(src)}
+			renderSrcOptions(src),
+		}
 
 		if ss.Active() != nil && ss.Active().Handle == src.Handle {
 			row[0] = w.tbl.fm.Handle.Sprintf(row[0]) + "*" // add the star to indicate active src
@@ -105,7 +106,8 @@ func (w *sourceWriter) Source(src *source.Source) error {
 		src.Handle,
 		string(src.Type),
 		src.RedactedLocation(),
-		renderSrcOptions(src)}
+		renderSrcOptions(src),
+	}
 	rows = append(rows, row)
 
 	w.tbl.tblImpl.SetColTrans(0, w.tbl.fm.Number.SprintFunc())

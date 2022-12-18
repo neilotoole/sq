@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-
 	"strings"
 
 	"github.com/neilotoole/sq/cli/buildinfo"
@@ -165,12 +164,12 @@ func (fs *YAMLFileStore) Save(cfg *Config) error {
 
 	// It's possible that the parent dir of fs.Path doesn't exist.
 	dir := filepath.Dir(fs.Path)
-	err = os.MkdirAll(dir, 0750)
+	err = os.MkdirAll(dir, 0o750)
 	if err != nil {
 		return errz.Wrapf(err, "failed to make parent dir of sq config file: %s", dir)
 	}
 
-	err = os.WriteFile(fs.Path, data, 0600)
+	err = os.WriteFile(fs.Path, data, 0o600)
 	if err != nil {
 		return errz.Wrap(err, "failed to save config file")
 	}
@@ -187,8 +186,7 @@ func (fs *YAMLFileStore) FileExists() bool {
 
 // DiscardStore implements Store but its Save method is no-op
 // and Load always returns a new empty Config. Useful for testing.
-type DiscardStore struct {
-}
+type DiscardStore struct{}
 
 var _ Store = (*DiscardStore)(nil)
 

@@ -8,8 +8,10 @@ import (
 	"github.com/neilotoole/sq/libsq/ast/internal/slq"
 )
 
-const msgNodeNoAddChild = "%T cannot add children: failed to add %T"
-const msgNodeNoAddChildren = "%T cannot add children: failed to add %d children"
+const (
+	msgNodeNoAddChild    = "%T cannot add children: failed to add %T"
+	msgNodeNoAddChildren = "%T cannot add children: failed to add %d children"
+)
 
 var _ Node = (*Selector)(nil)
 
@@ -50,6 +52,7 @@ func newTblSelector(seg *Segment, tblName string, ctx antlr.ParseTree) *TblSelec
 func (s *TblSelector) Selectable() {
 	// no-op
 }
+
 func (s *TblSelector) SelValue() string {
 	return s.TblName
 }
@@ -60,8 +63,10 @@ func (s *TblSelector) String() string {
 	return text
 }
 
-var _ Node = (*ColSelector)(nil)
-var _ ColExpr = (*ColSelector)(nil)
+var (
+	_ Node    = (*ColSelector)(nil)
+	_ ColExpr = (*ColSelector)(nil)
+)
 
 // ColSelector models a column selector such as ".user_id".
 type ColSelector struct {

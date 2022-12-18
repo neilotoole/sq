@@ -84,8 +84,10 @@ var requests = []testcontainers.ContainerRequest{
 	// },
 }
 
-var startedContainers []testcontainers.Container
-var startedContainersMu sync.Mutex
+var (
+	startedContainers   []testcontainers.Container
+	startedContainersMu sync.Mutex
+)
 
 func containerStarted(cont testcontainers.Container) {
 	startedContainersMu.Lock()
@@ -123,7 +125,6 @@ export SQ_TEST_SRC__SAKILA_MS17=localhost:14337`
 				ContainerRequest: containerReq,
 				Started:          true,
 			})
-
 			if err != nil {
 				return fmt.Errorf("image %s: %w", containerReq.Image, err)
 			}

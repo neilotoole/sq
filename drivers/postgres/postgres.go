@@ -134,7 +134,8 @@ func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 // query is not part of a transaction with TRUNCATE, although
 // possibly it should be, as the number of rows may have changed.
 func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, reset bool) (affected int64,
-	err error) {
+	err error,
+) {
 	// https://www.postgresql.org/docs/9.1/sql-truncate.html
 
 	// RESTART IDENTITY and CASCADE/RESTRICT are from pg 8.2 onwards
@@ -195,7 +196,8 @@ func (d *driveri) AlterTableAddColumn(ctx context.Context, db *sql.DB, tbl, col 
 
 // PrepareInsertStmt implements driver.SQLDriver.
 func (d *driveri) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string,
-	numRows int) (*driver.StmtExecer, error) {
+	numRows int,
+) (*driver.StmtExecer, error) {
 	// Note that the pgx driver doesn't support res.LastInsertId.
 	// https://github.com/jackc/pgx/issues/411
 
@@ -216,7 +218,8 @@ func (d *driveri) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl str
 
 // PrepareUpdateStmt implements driver.SQLDriver.
 func (d *driveri) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string,
-	where string) (*driver.StmtExecer, error) {
+	where string,
+) (*driver.StmtExecer, error) {
 	destColsMeta, err := d.getTableRecordMeta(ctx, db, destTbl, destColNames)
 	if err != nil {
 		return nil, err
@@ -294,7 +297,8 @@ func (d *driveri) DropTable(ctx context.Context, db sqlz.DB, tbl string, ifExist
 
 // TableColumnTypes implements driver.SQLDriver.
 func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName string,
-	colNames []string) ([]*sql.ColumnType, error) {
+	colNames []string,
+) ([]*sql.ColumnType, error) {
 	// We have to do some funky stuff to get the column types
 	// from when the table has no rows.
 	// https://stackoverflow.com/questions/8098795/return-a-value-if-no-record-is-found
@@ -360,7 +364,8 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 }
 
 func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName string,
-	colNames []string) (sqlz.RecordMeta, error) {
+	colNames []string,
+) (sqlz.RecordMeta, error) {
 	colTypes, err := d.TableColumnTypes(ctx, db, tblName, colNames)
 	if err != nil {
 		return nil, err

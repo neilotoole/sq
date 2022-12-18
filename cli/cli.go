@@ -557,7 +557,8 @@ type writers struct {
 // flags from cmd. The returned out2/errOut2 values may differ
 // from the out/errOut args (e.g. decorated to support colorization).
 func newWriters(log lg.Log, cmd *cobra.Command, defaults config.Defaults, out, errOut io.Writer) (w *writers,
-	out2, errOut2 io.Writer) {
+	out2, errOut2 io.Writer,
+) {
 	var fm *output.Formatting
 	fm, out2, errOut2 = getWriterFormatting(cmd, out, errOut)
 
@@ -732,7 +733,7 @@ func defaultLogging() (lg.Log, *cleanup.Cleanup, error) {
 	// Let's try to create the dir holding the logfile... if it already exists,
 	// then os.MkdirAll will just no-op
 	parent := filepath.Dir(logFilePath)
-	err := os.MkdirAll(parent, 0750)
+	err := os.MkdirAll(parent, 0o750)
 	if err != nil {
 		return lg.Discard(), nil, errz.Wrapf(err, "failed to create parent dir of log file %s", logFilePath)
 	}
@@ -742,7 +743,7 @@ func defaultLogging() (lg.Log, *cleanup.Cleanup, error) {
 		flag = os.O_TRUNC
 	}
 
-	logFile, err := os.OpenFile(logFilePath, os.O_RDWR|os.O_CREATE|flag, 0600)
+	logFile, err := os.OpenFile(logFilePath, os.O_RDWR|os.O_CREATE|flag, 0o600)
 	if err != nil {
 		return lg.Discard(), nil, errz.Wrapf(err, "unable to open log file %q", logFilePath)
 	}

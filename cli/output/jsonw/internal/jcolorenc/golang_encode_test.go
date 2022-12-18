@@ -110,9 +110,11 @@ func TestStringTag(t *testing.T) {
 }
 
 // byte slices are special even if they're renamed types.
-type renamedByte byte
-type renamedByteSlice []byte
-type renamedRenamedByteSlice []renamedByte
+type (
+	renamedByte             byte
+	renamedByteSlice        []byte
+	renamedRenamedByteSlice []renamedByte
+)
 
 func TestEncodeRenamedByteSlice(t *testing.T) {
 	s := renamedByteSlice("abc")
@@ -191,7 +193,7 @@ func (ValText) MarshalText() ([]byte, error) {
 }
 
 func TestRefValMarshal(t *testing.T) {
-	var s = struct {
+	s := struct {
 		R0 Ref
 		R1 *Ref
 		R2 RefText
@@ -261,151 +263,160 @@ func TestAnonymousFields(t *testing.T) {
 		label     string     // Test name
 		makeInput func() any // Function to create input value
 		want      string     // Expected JSON output
-	}{{
-		// Both S1 and S2 have a field named X. From the perspective of S,
-		// it is ambiguous which one X refers to.
-		// This should not serialize either field.
-		label: "AmbiguousField",
-		makeInput: func() any {
-			type (
-				S1 struct{ x, X int }
-				S2 struct{ x, X int }
-				S  struct {
-					S1
-					S2
-				}
-			)
-			return S{S1{1, 2}, S2{3, 4}}
+	}{
+		{
+			// Both S1 and S2 have a field named X. From the perspective of S,
+			// it is ambiguous which one X refers to.
+			// This should not serialize either field.
+			label: "AmbiguousField",
+			makeInput: func() any {
+				type (
+					S1 struct{ x, X int }
+					S2 struct{ x, X int }
+					S  struct {
+						S1
+						S2
+					}
+				)
+				return S{S1{1, 2}, S2{3, 4}}
+			},
+			want: `{}`,
 		},
-		want: `{}`,
-	}, {
-		label: "DominantField",
-		// Both S1 and S2 have a field named X, but since S has an X field as
-		// well, it takes precedence over S1.X and S2.X.
-		makeInput: func() any {
-			type (
-				S1 struct{ x, X int }
-				S2 struct{ x, X int }
-				S  struct {
-					S1
-					S2
-					x, X int
-				}
-			)
-			return S{S1{1, 2}, S2{3, 4}, 5, 6}
+		{
+			label: "DominantField",
+			// Both S1 and S2 have a field named X, but since S has an X field as
+			// well, it takes precedence over S1.X and S2.X.
+			makeInput: func() any {
+				type (
+					S1 struct{ x, X int }
+					S2 struct{ x, X int }
+					S  struct {
+						S1
+						S2
+						x, X int
+					}
+				)
+				return S{S1{1, 2}, S2{3, 4}, 5, 6}
+			},
+			want: `{"X":6}`,
 		},
-		want: `{"X":6}`,
-	}, {
-		// Unexported embedded field of non-struct type should not be serialized.
-		label: "UnexportedEmbeddedInt",
-		makeInput: func() any {
-			type (
-				myInt int
-				S     struct{ myInt }
-			)
-			return S{5}
+		{
+			// Unexported embedded field of non-struct type should not be serialized.
+			label: "UnexportedEmbeddedInt",
+			makeInput: func() any {
+				type (
+					myInt int
+					S     struct{ myInt }
+				)
+				return S{5}
+			},
+			want: `{}`,
 		},
-		want: `{}`,
-	}, {
-		// Exported embedded field of non-struct type should be serialized.
-		label: "ExportedEmbeddedInt",
-		makeInput: func() any {
-			type (
-				MyInt int
-				S     struct{ MyInt }
-			)
-			return S{5}
+		{
+			// Exported embedded field of non-struct type should be serialized.
+			label: "ExportedEmbeddedInt",
+			makeInput: func() any {
+				type (
+					MyInt int
+					S     struct{ MyInt }
+				)
+				return S{5}
+			},
+			want: `{"MyInt":5}`,
 		},
-		want: `{"MyInt":5}`,
-	}, {
-		// Unexported embedded field of pointer to non-struct type
-		// should not be serialized.
-		label: "UnexportedEmbeddedIntPointer",
-		makeInput: func() any {
-			type (
-				myInt int
-				S     struct{ *myInt }
-			)
-			s := S{new(myInt)}
-			*s.myInt = 5
-			return s
+		{
+			// Unexported embedded field of pointer to non-struct type
+			// should not be serialized.
+			label: "UnexportedEmbeddedIntPointer",
+			makeInput: func() any {
+				type (
+					myInt int
+					S     struct{ *myInt }
+				)
+				s := S{new(myInt)}
+				*s.myInt = 5
+				return s
+			},
+			want: `{}`,
 		},
-		want: `{}`,
-	}, {
-		// Exported embedded field of pointer to non-struct type
-		// should be serialized.
-		label: "ExportedEmbeddedIntPointer",
-		makeInput: func() any {
-			type (
-				MyInt int
-				S     struct{ *MyInt }
-			)
-			s := S{new(MyInt)}
-			*s.MyInt = 5
-			return s
+		{
+			// Exported embedded field of pointer to non-struct type
+			// should be serialized.
+			label: "ExportedEmbeddedIntPointer",
+			makeInput: func() any {
+				type (
+					MyInt int
+					S     struct{ *MyInt }
+				)
+				s := S{new(MyInt)}
+				*s.MyInt = 5
+				return s
+			},
+			want: `{"MyInt":5}`,
 		},
-		want: `{"MyInt":5}`,
-	}, {
-		// Exported fields of embedded structs should have their
-		// exported fields be serialized regardless of whether the struct types
-		// themselves are exported.
-		label: "EmbeddedStruct",
-		makeInput: func() any {
-			type (
-				s1 struct{ x, X int }
-				S2 struct{ y, Y int }
-				S  struct {
-					s1
-					S2
-				}
-			)
-			return S{s1{1, 2}, S2{3, 4}}
+		{
+			// Exported fields of embedded structs should have their
+			// exported fields be serialized regardless of whether the struct types
+			// themselves are exported.
+			label: "EmbeddedStruct",
+			makeInput: func() any {
+				type (
+					s1 struct{ x, X int }
+					S2 struct{ y, Y int }
+					S  struct {
+						s1
+						S2
+					}
+				)
+				return S{s1{1, 2}, S2{3, 4}}
+			},
+			want: `{"X":2,"Y":4}`,
 		},
-		want: `{"X":2,"Y":4}`,
-	}, {
-		// Exported fields of pointers to embedded structs should have their
-		// exported fields be serialized regardless of whether the struct types
-		// themselves are exported.
-		label: "EmbeddedStructPointer",
-		makeInput: func() any {
-			type (
-				s1 struct{ x, X int }
-				S2 struct{ y, Y int }
-				S  struct {
-					*s1
-					*S2
-				}
-			)
-			return S{&s1{1, 2}, &S2{3, 4}}
+		{
+			// Exported fields of pointers to embedded structs should have their
+			// exported fields be serialized regardless of whether the struct types
+			// themselves are exported.
+			label: "EmbeddedStructPointer",
+			makeInput: func() any {
+				type (
+					s1 struct{ x, X int }
+					S2 struct{ y, Y int }
+					S  struct {
+						*s1
+						*S2
+					}
+				)
+				return S{&s1{1, 2}, &S2{3, 4}}
+			},
+			want: `{"X":2,"Y":4}`,
 		},
-		want: `{"X":2,"Y":4}`,
-	}, {
-		// Exported fields on embedded unexported structs at multiple levels
-		// of nesting should still be serialized.
-		label: "NestedStructAndInts",
-		makeInput: func() any {
-			type (
-				MyInt1 int
-				MyInt2 int
-				myInt  int
-				s2     struct {
-					MyInt2
-					myInt
-				}
-				s1 struct {
-					MyInt1
-					myInt
-					s2
-				}
-				S struct {
-					s1
-					myInt
-				}
-			)
-			return S{s1{1, 2, s2{3, 4}}, 6}
+		{
+			// Exported fields on embedded unexported structs at multiple levels
+			// of nesting should still be serialized.
+			label: "NestedStructAndInts",
+			makeInput: func() any {
+				type (
+					MyInt1 int
+					MyInt2 int
+					myInt  int
+					s2     struct {
+						MyInt2
+						myInt
+					}
+					s1 struct {
+						MyInt1
+						myInt
+						s2
+					}
+					S struct {
+						s1
+						myInt
+					}
+				)
+				return S{s1{1, 2, s2{3, 4}}, 6}
+			},
+			want: `{"MyInt1":1,"MyInt2":3}`,
 		},
-		want: `{"MyInt1":1,"MyInt2":3}`,
-	},
 		{
 			// If an anonymous struct pointer field is nil, we should ignore
 			// the embedded fields behind it. Not properly doing so may
@@ -867,7 +878,7 @@ func TestMarshalFloat(t *testing.T) {
 		smaller = math.Inf(-1)
 	)
 
-	var digits = "1.2345678901234567890123"
+	digits := "1.2345678901234567890123"
 	for i := len(digits); i >= 2; i-- {
 		if testing.Short() && i < len(digits)-4 {
 			break

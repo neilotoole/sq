@@ -146,7 +146,8 @@ func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 //
 //nolint:lll
 func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, reset bool) (affected int64,
-	err error) {
+	err error,
+) {
 	// https://docs.microsoft.com/en-us/sql/t-sql/statements/truncate-table-transact-sql?view=sql-server-ver15
 
 	// When there are foreign key constraints on mssql tables,
@@ -180,7 +181,8 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 
 // TableColumnTypes implements driver.SQLDriver.
 func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName string,
-	colNames []string) ([]*sql.ColumnType, error) {
+	colNames []string,
+) ([]*sql.ColumnType, error) {
 	// SQLServer has this unusual incantation for its LIMIT equivalent:
 	//
 	// SELECT username, email, address_id FROM person
@@ -191,7 +193,7 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 	quote := string(dialect.Quote)
 	tblNameQuoted := stringz.Surround(tblName, quote)
 
-	var colsClause = "*"
+	colsClause := "*"
 	if len(colNames) > 0 {
 		colNamesQuoted := stringz.SurroundSlice(colNames, quote)
 		colsClause = strings.Join(colNamesQuoted, driver.Comma)
@@ -269,7 +271,7 @@ func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *sqlmodel.
 }
 
 // AlterTableAddColumn implements driver.SQLDriver.
-func (d *driveri) AlterTableAddColumn(ctx context.Context, db *sql.DB, tbl string, col string, kind kind.Kind) error {
+func (d *driveri) AlterTableAddColumn(ctx context.Context, db *sql.DB, tbl, col string, kind kind.Kind) error {
 	q := fmt.Sprintf("ALTER TABLE %q ADD %q ", tbl, col) + dbTypeNameFromKind(kind)
 
 	_, err := db.ExecContext(ctx, q)
@@ -314,7 +316,8 @@ func (d *driveri) DropTable(ctx context.Context, db sqlz.DB, tbl string, ifExist
 
 // PrepareInsertStmt implements driver.SQLDriver.
 func (d *driveri) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string,
-	numRows int) (*driver.StmtExecer, error) {
+	numRows int,
+) (*driver.StmtExecer, error) {
 	destColsMeta, err := d.getTableColsMeta(ctx, db, destTbl, destColNames)
 	if err != nil {
 		return nil, err
@@ -332,7 +335,8 @@ func (d *driveri) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl str
 
 // PrepareUpdateStmt implements driver.SQLDriver.
 func (d *driveri) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string,
-	where string) (*driver.StmtExecer, error) {
+	where string,
+) (*driver.StmtExecer, error) {
 	destColsMeta, err := d.getTableColsMeta(ctx, db, destTbl, destColNames)
 	if err != nil {
 		return nil, err
@@ -354,7 +358,8 @@ func (d *driveri) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl str
 }
 
 func (d *driveri) getTableColsMeta(ctx context.Context, db sqlz.DB, tblName string, colNames []string) (sqlz.RecordMeta,
-	error) {
+	error,
+) {
 	// SQLServer has this unusual incantation for its LIMIT equivalent:
 	//
 	// SELECT username, email, address_id FROM person
@@ -490,7 +495,7 @@ func newStmtExecFunc(stmt *sql.Stmt, db sqlz.DB, tbl string) driver.StmtExecFunc
 //
 // See: https://docs.microsoft.com/en-us/sql/t-sql/statements/set-identity-insert-transact-sql?view=sql-server-ver15
 func setIdentityInsert(ctx context.Context, db sqlz.DB, tbl string, on bool) error {
-	var mode = "ON"
+	mode := "ON"
 	if !on {
 		mode = "OFF"
 	}

@@ -39,7 +39,7 @@ func (f *Fetcher) Fetch(ctx context.Context, fileURL string, w io.Writer) error 
 }
 
 func httpClient(cfg *Config) *http.Client {
-	var client = *http.DefaultClient
+	client := *http.DefaultClient
 
 	var tr *http.Transport
 	if client.Transport == nil {

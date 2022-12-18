@@ -42,7 +42,7 @@ func (c Colors) AppendBool(b []byte, v bool) []byte {
 }
 
 // AppendKey appends the colorized key v to b.
-func (c Colors) AppendKey(b []byte, v []byte) []byte {
+func (c Colors) AppendKey(b, v []byte) []byte {
 	b = append(b, c.Key.Prefix...)
 	b = append(b, v...)
 	return append(b, c.Key.Suffix...)

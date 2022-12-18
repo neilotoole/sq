@@ -28,7 +28,8 @@ const (
 
 // importCSV loads the src CSV data to scratchDB.
 func importCSV(ctx context.Context, log lg.Log, src *source.Source, openFn source.FileOpenFunc,
-	scratchDB driver.Database) error {
+	scratchDB driver.Database,
+) error {
 	// TODO: optPredictKind should be read from src.Options.
 	const optPredictKind bool = true
 
@@ -60,7 +61,7 @@ func importCSV(ctx context.Context, log lg.Log, src *source.Source, openFn sourc
 		return err
 	}
 
-	var expectFieldCount = len(colNames)
+	expectFieldCount := len(colNames)
 
 	var colKinds []kind.Kind
 	if optPredictKind {
@@ -107,7 +108,8 @@ func importCSV(ctx context.Context, log lg.Log, src *source.Source, openFn sourc
 // execInsert inserts the CSV records in readAheadRecs (followed by records
 // from the csv.Reader) via recw. The caller should wait on recw to complete.
 func execInsert(ctx context.Context, recw libsq.RecordWriter, recMeta sqlz.RecordMeta,
-	readAheadRecs [][]string, r *csv.Reader) error {
+	readAheadRecs [][]string, r *csv.Reader,
+) error {
 	ctx, cancelFn := context.WithCancel(ctx)
 
 	recordCh, errCh, err := recw.Open(ctx, cancelFn, recMeta)
@@ -210,7 +212,8 @@ func createTblDef(tblName string, colNames []string, kinds []kind.Kind) *sqlmode
 // remaining candidate kinds for each field is returned, or kind.Text if
 // no candidate kinds.
 func predictColKinds(expectFieldCount int, r *csv.Reader, readAheadRecs *[][]string, maxExamine int) ([]kind.Kind,
-	error) {
+	error,
+) {
 	// FIXME: [legacy] this function should switch to using kind.Detector
 
 	candidateKinds := newCandidateFieldKinds(expectFieldCount)

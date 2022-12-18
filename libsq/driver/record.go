@@ -169,7 +169,7 @@ func NewRecordFromScanRow(meta sqlz.RecordMeta, row []any, skip []int) (rec sqlz
 			}
 
 			if len(*col) == 0 {
-				var v = []byte{}
+				v := []byte{}
 				rec[i] = &v
 			} else {
 				dest := make([]byte, len(*col))
@@ -206,7 +206,7 @@ func NewRecordFromScanRow(meta sqlz.RecordMeta, row []any, skip []int) (rec sqlz
 			// need to copy.
 			if len(*col) == 0 {
 				if knd == kind.Bytes {
-					var v = []byte{}
+					v := []byte{}
 					rec[i] = &v
 				} else {
 					// Else treat it as an empty string
@@ -329,7 +329,8 @@ const Comma = ", "
 // how many rows of values are inserted by each execution of
 // the insert statement (1 row being the prototypical usage).
 func PrepareInsertStmt(ctx context.Context, drvr SQLDriver, db sqlz.Preparer, destTbl string, destCols []string,
-	numRows int) (stmt *sql.Stmt, err error) {
+	numRows int,
+) (stmt *sql.Stmt, err error) {
 	const stmtTpl = `INSERT INTO %s (%s) VALUES %s`
 
 	if numRows <= 0 {
@@ -391,7 +392,8 @@ func (bi BatchInsert) Munge(rec []any) error {
 //
 //nolint:gocognit
 func NewBatchInsert(ctx context.Context, log lg.Log, drvr SQLDriver, db sqlz.DB, destTbl string, destColNames []string,
-	batchSize int) (*BatchInsert, error) {
+	batchSize int,
+) (*BatchInsert, error) {
 	err := requireSingleConn(db)
 	if err != nil {
 		return nil, err

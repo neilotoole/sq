@@ -437,7 +437,7 @@ func parseString(b []byte) ([]byte, []byte, error) {
 	return s, b, err
 }
 
-func parseStringUnquote(b []byte, r []byte) ([]byte, []byte, bool, error) {
+func parseStringUnquote(b, r []byte) ([]byte, []byte, bool, error) {
 	s, b, escaped, err := parseStringFast(b)
 	if err != nil {
 		return s, b, false, err
@@ -526,7 +526,7 @@ func appendRune(b []byte, r rune) []byte {
 	return b[:n+utf8.EncodeRune(b[n:], r)]
 }
 
-func appendCoerceInvalidUTF8(b []byte, s []byte) []byte {
+func appendCoerceInvalidUTF8(b, s []byte) []byte {
 	c := [4]byte{}
 
 	for _, r := range string(s) {
@@ -546,9 +546,9 @@ func parseObject(b []byte) ([]byte, []byte, error) {
 	}
 
 	var err error
-	var a = b
-	var n = len(b)
-	var i = 0
+	a := b
+	n := len(b)
+	i := 0
 
 	b = b[1:]
 	for {
@@ -612,9 +612,9 @@ func parseArray(b []byte) ([]byte, []byte, error) {
 	}
 
 	var err error
-	var a = b
-	var n = len(b)
-	var i = 0
+	a := b
+	n := len(b)
+	i := 0
 
 	b = b[1:]
 	for {

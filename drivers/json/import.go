@@ -286,7 +286,7 @@ func (p *processor) doAddObject(ent *entity, m map[string]any) error {
 				ent.detectors[fieldName] = detector
 			}
 
-			var entVals = p.curObjVals[ent]
+			entVals := p.curObjVals[ent]
 			if entVals == nil {
 				entVals = map[string]any{}
 				p.curObjVals[ent] = entVals
@@ -423,7 +423,8 @@ type importSchema struct {
 }
 
 func execSchemaDelta(ctx context.Context, log lg.Log, drvr driver.SQLDriver, db sqlz.DB,
-	curSchema, newSchema *importSchema) error {
+	curSchema, newSchema *importSchema,
+) error {
 	var err error
 	if curSchema == nil {
 		for _, tblDef := range newSchema.tblDefs {

@@ -44,10 +44,14 @@ func TestEncode(t *testing.T) {
 		{name: "map_interface_empty_sorted", pretty: true, sortMap: true, v: map[string]any{}, want: "{}\n"},
 		{name: "map_1_pretty", pretty: true, sortMap: true, v: map[string]any{"one": 1}, want: "{\n  \"one\": 1\n}\n"},
 		{name: "map_1_no_pretty", sortMap: true, v: map[string]any{"one": 1}, want: "{\"one\":1}\n"},
-		{name: "map_2_pretty", pretty: true, sortMap: true, v: map[string]any{"one": 1, "two": 2},
-			want: "{\n  \"one\": 1,\n  \"two\": 2\n}\n"},
-		{name: "map_2_no_pretty", sortMap: true, v: map[string]any{"one": 1, "two": 2},
-			want: "{\"one\":1,\"two\":2}\n"},
+		{
+			name: "map_2_pretty", pretty: true, sortMap: true, v: map[string]any{"one": 1, "two": 2},
+			want: "{\n  \"one\": 1,\n  \"two\": 2\n}\n",
+		},
+		{
+			name: "map_2_no_pretty", sortMap: true, v: map[string]any{"one": 1, "two": 2},
+			want: "{\"one\":1,\"two\":2}\n",
+		},
 		{name: "tinystruct", pretty: true, v: TinyStruct{FBool: true}, want: "{\n  \"f_bool\": true\n}\n"},
 	}
 
@@ -131,10 +135,14 @@ func TestEncode_SmallStruct(t *testing.T) {
 		color  bool
 		want   string
 	}{
-		{pretty: false, color: false,
-			want: "{\"f_int\":7,\"f_slice\":[64,true],\"f_map\":{\"m_float64\":64.64,\"m_string\":\"hello\"},\"f_tinystruct\":{\"f_bool\":true},\"f_string\":\"hello\"}\n"},
-		{pretty: true, color: false,
-			want: "{\n  \"f_int\": 7,\n  \"f_slice\": [\n    64,\n    true\n  ],\n  \"f_map\": {\n    \"m_float64\": 64.64,\n    \"m_string\": \"hello\"\n  },\n  \"f_tinystruct\": {\n    \"f_bool\": true\n  },\n  \"f_string\": \"hello\"\n}\n"},
+		{
+			pretty: false, color: false,
+			want: "{\"f_int\":7,\"f_slice\":[64,true],\"f_map\":{\"m_float64\":64.64,\"m_string\":\"hello\"},\"f_tinystruct\":{\"f_bool\":true},\"f_string\":\"hello\"}\n",
+		},
+		{
+			pretty: true, color: false,
+			want: "{\n  \"f_int\": 7,\n  \"f_slice\": [\n    64,\n    true\n  ],\n  \"f_map\": {\n    \"m_float64\": 64.64,\n    \"m_string\": \"hello\"\n  },\n  \"f_tinystruct\": {\n    \"f_bool\": true\n  },\n  \"f_string\": \"hello\"\n}\n",
+		},
 	}
 
 	for _, tc := range testCases {
@@ -182,10 +190,14 @@ func TestEncode_Map_Nested(t *testing.T) {
 		color  bool
 		want   string
 	}{
-		{pretty: false,
-			want: "{\"m_bool1\":true,\"m_nest1\":{\"m_nest1_bool\":true,\"m_nest2\":{\"m_nest2_bool\":true,\"m_nest3\":{\"m_nest3_bool\":true}}},\"m_string1\":\"hello\"}\n"},
-		{pretty: true,
-			want: "{\n  \"m_bool1\": true,\n  \"m_nest1\": {\n    \"m_nest1_bool\": true,\n    \"m_nest2\": {\n      \"m_nest2_bool\": true,\n      \"m_nest3\": {\n        \"m_nest3_bool\": true\n      }\n    }\n  },\n  \"m_string1\": \"hello\"\n}\n"},
+		{
+			pretty: false,
+			want:   "{\"m_bool1\":true,\"m_nest1\":{\"m_nest1_bool\":true,\"m_nest2\":{\"m_nest2_bool\":true,\"m_nest3\":{\"m_nest3_bool\":true}}},\"m_string1\":\"hello\"}\n",
+		},
+		{
+			pretty: true,
+			want:   "{\n  \"m_bool1\": true,\n  \"m_nest1\": {\n    \"m_nest1_bool\": true,\n    \"m_nest2\": {\n      \"m_nest2_bool\": true,\n      \"m_nest3\": {\n        \"m_nest3_bool\": true\n      }\n    }\n  },\n  \"m_string1\": \"hello\"\n}\n",
+		},
 	}
 
 	for _, tc := range testCases {
@@ -231,10 +243,14 @@ func TestEncode_Map_StringNotInterface(t *testing.T) {
 		{pretty: true, sortMap: false, v: map[string]bool{}, want: "{}\n"},
 		{pretty: false, sortMap: true, v: map[string]bool{"one": true}, want: "{\"one\":true}\n"},
 		{pretty: false, sortMap: false, v: map[string]bool{"one": true}, want: "{\"one\":true}\n"},
-		{pretty: false, sortMap: true, v: map[string]bool{"one": true, "two": false},
-			want: "{\"one\":true,\"two\":false}\n"},
-		{pretty: true, sortMap: true, v: map[string]bool{"one": true, "two": false},
-			want: "{\n  \"one\": true,\n  \"two\": false\n}\n"},
+		{
+			pretty: false, sortMap: true, v: map[string]bool{"one": true, "two": false},
+			want: "{\"one\":true,\"two\":false}\n",
+		},
+		{
+			pretty: true, sortMap: true, v: map[string]bool{"one": true, "two": false},
+			want: "{\n  \"one\": true,\n  \"two\": false\n}\n",
+		},
 	}
 
 	for _, tc := range testCases {
@@ -279,8 +295,10 @@ func TestEncode_RawMessage(t *testing.T) {
 		{name: "empty", pretty: false, v: jcolorenc.RawMessage(`{}`), want: "{}\n"},
 		{name: "no_pretty", pretty: false, v: raw, want: "{\"one\":1,\"two\":2}\n"},
 		{name: "pretty", pretty: true, v: raw, want: "{\n  \"one\": 1,\n  \"two\": 2\n}\n"},
-		{name: "pretty_struct", pretty: true, v: RawStruct{FString: "hello", FRaw: raw},
-			want: "{\n  \"f_string\": \"hello\",\n  \"f_raw\": {\n    \"one\": 1,\n    \"two\": 2\n  }\n}\n"},
+		{
+			name: "pretty_struct", pretty: true, v: RawStruct{FString: "hello", FRaw: raw},
+			want: "{\n  \"f_string\": \"hello\",\n  \"f_raw\": {\n    \"one\": 1,\n    \"two\": 2\n  }\n}\n",
+		},
 	}
 
 	for _, tc := range testCases {
@@ -325,12 +343,18 @@ func TestEncode_Map_StringRawMessage(t *testing.T) {
 		{pretty: false, sortMap: false, v: map[string]jcolorenc.RawMessage{}, want: "{}\n"},
 		{pretty: true, sortMap: true, v: map[string]jcolorenc.RawMessage{}, want: "{}\n"},
 		{pretty: true, sortMap: false, v: map[string]jcolorenc.RawMessage{}, want: "{}\n"},
-		{pretty: false, sortMap: true, v: map[string]jcolorenc.RawMessage{"msg1": raw, "msg2": raw},
-			want: "{\"msg1\":{\"one\":1,\"two\":2},\"msg2\":{\"one\":1,\"two\":2}}\n"},
-		{pretty: true, sortMap: true, v: map[string]jcolorenc.RawMessage{"msg1": raw, "msg2": raw},
-			want: "{\n  \"msg1\": {\n    \"one\": 1,\n    \"two\": 2\n  },\n  \"msg2\": {\n    \"one\": 1,\n    \"two\": 2\n  }\n}\n"},
-		{pretty: true, sortMap: false, v: map[string]jcolorenc.RawMessage{"msg1": raw},
-			want: "{\n  \"msg1\": {\n    \"one\": 1,\n    \"two\": 2\n  }\n}\n"},
+		{
+			pretty: false, sortMap: true, v: map[string]jcolorenc.RawMessage{"msg1": raw, "msg2": raw},
+			want: "{\"msg1\":{\"one\":1,\"two\":2},\"msg2\":{\"one\":1,\"two\":2}}\n",
+		},
+		{
+			pretty: true, sortMap: true, v: map[string]jcolorenc.RawMessage{"msg1": raw, "msg2": raw},
+			want: "{\n  \"msg1\": {\n    \"one\": 1,\n    \"two\": 2\n  },\n  \"msg2\": {\n    \"one\": 1,\n    \"two\": 2\n  }\n}\n",
+		},
+		{
+			pretty: true, sortMap: false, v: map[string]jcolorenc.RawMessage{"msg1": raw},
+			want: "{\n  \"msg1\": {\n    \"one\": 1,\n    \"two\": 2\n  }\n}\n",
+		},
 	}
 
 	for _, tc := range testCases {
@@ -366,10 +390,14 @@ func TestEncode_BigStruct(t *testing.T) {
 		color  bool
 		want   string
 	}{
-		{pretty: false,
-			want: "{\"f_int\":-7,\"f_int8\":-8,\"f_int16\":-16,\"f_int32\":-32,\"f_int64\":-64,\"f_uint\":7,\"f_uint8\":8,\"f_uint16\":16,\"f_uint32\":32,\"f_uint64\":64,\"f_float32\":32.32,\"f_float64\":64.64,\"f_bool\":true,\"f_bytes\":\"aGVsbG8=\",\"f_nil\":null,\"f_string\":\"hello\",\"f_map\":{\"m_bool\":true,\"m_int64\":64,\"m_nil\":null,\"m_smallstruct\":{\"f_int\":7,\"f_slice\":[64,true],\"f_map\":{\"m_float64\":64.64,\"m_string\":\"hello\"},\"f_tinystruct\":{\"f_bool\":true},\"f_string\":\"hello\"},\"m_string\":\"hello\"},\"f_smallstruct\":{\"f_int\":7,\"f_slice\":[64,true],\"f_map\":{\"m_float64\":64.64,\"m_string\":\"hello\"},\"f_tinystruct\":{\"f_bool\":true},\"f_string\":\"hello\"},\"f_interface\":\"hello\",\"f_interfaces\":[64,\"hello\",true]}\n"},
-		{pretty: true,
-			want: "{\n  \"f_int\": -7,\n  \"f_int8\": -8,\n  \"f_int16\": -16,\n  \"f_int32\": -32,\n  \"f_int64\": -64,\n  \"f_uint\": 7,\n  \"f_uint8\": 8,\n  \"f_uint16\": 16,\n  \"f_uint32\": 32,\n  \"f_uint64\": 64,\n  \"f_float32\": 32.32,\n  \"f_float64\": 64.64,\n  \"f_bool\": true,\n  \"f_bytes\": \"aGVsbG8=\",\n  \"f_nil\": null,\n  \"f_string\": \"hello\",\n  \"f_map\": {\n    \"m_bool\": true,\n    \"m_int64\": 64,\n    \"m_nil\": null,\n    \"m_smallstruct\": {\n      \"f_int\": 7,\n      \"f_slice\": [\n        64,\n        true\n      ],\n      \"f_map\": {\n        \"m_float64\": 64.64,\n        \"m_string\": \"hello\"\n      },\n      \"f_tinystruct\": {\n        \"f_bool\": true\n      },\n      \"f_string\": \"hello\"\n    },\n    \"m_string\": \"hello\"\n  },\n  \"f_smallstruct\": {\n    \"f_int\": 7,\n    \"f_slice\": [\n      64,\n      true\n    ],\n    \"f_map\": {\n      \"m_float64\": 64.64,\n      \"m_string\": \"hello\"\n    },\n    \"f_tinystruct\": {\n      \"f_bool\": true\n    },\n    \"f_string\": \"hello\"\n  },\n  \"f_interface\": \"hello\",\n  \"f_interfaces\": [\n    64,\n    \"hello\",\n    true\n  ]\n}\n"},
+		{
+			pretty: false,
+			want:   "{\"f_int\":-7,\"f_int8\":-8,\"f_int16\":-16,\"f_int32\":-32,\"f_int64\":-64,\"f_uint\":7,\"f_uint8\":8,\"f_uint16\":16,\"f_uint32\":32,\"f_uint64\":64,\"f_float32\":32.32,\"f_float64\":64.64,\"f_bool\":true,\"f_bytes\":\"aGVsbG8=\",\"f_nil\":null,\"f_string\":\"hello\",\"f_map\":{\"m_bool\":true,\"m_int64\":64,\"m_nil\":null,\"m_smallstruct\":{\"f_int\":7,\"f_slice\":[64,true],\"f_map\":{\"m_float64\":64.64,\"m_string\":\"hello\"},\"f_tinystruct\":{\"f_bool\":true},\"f_string\":\"hello\"},\"m_string\":\"hello\"},\"f_smallstruct\":{\"f_int\":7,\"f_slice\":[64,true],\"f_map\":{\"m_float64\":64.64,\"m_string\":\"hello\"},\"f_tinystruct\":{\"f_bool\":true},\"f_string\":\"hello\"},\"f_interface\":\"hello\",\"f_interfaces\":[64,\"hello\",true]}\n",
+		},
+		{
+			pretty: true,
+			want:   "{\n  \"f_int\": -7,\n  \"f_int8\": -8,\n  \"f_int16\": -16,\n  \"f_int32\": -32,\n  \"f_int64\": -64,\n  \"f_uint\": 7,\n  \"f_uint8\": 8,\n  \"f_uint16\": 16,\n  \"f_uint32\": 32,\n  \"f_uint64\": 64,\n  \"f_float32\": 32.32,\n  \"f_float64\": 64.64,\n  \"f_bool\": true,\n  \"f_bytes\": \"aGVsbG8=\",\n  \"f_nil\": null,\n  \"f_string\": \"hello\",\n  \"f_map\": {\n    \"m_bool\": true,\n    \"m_int64\": 64,\n    \"m_nil\": null,\n    \"m_smallstruct\": {\n      \"f_int\": 7,\n      \"f_slice\": [\n        64,\n        true\n      ],\n      \"f_map\": {\n        \"m_float64\": 64.64,\n        \"m_string\": \"hello\"\n      },\n      \"f_tinystruct\": {\n        \"f_bool\": true\n      },\n      \"f_string\": \"hello\"\n    },\n    \"m_string\": \"hello\"\n  },\n  \"f_smallstruct\": {\n    \"f_int\": 7,\n    \"f_slice\": [\n      64,\n      true\n    ],\n    \"f_map\": {\n      \"m_float64\": 64.64,\n      \"m_string\": \"hello\"\n    },\n    \"f_tinystruct\": {\n      \"f_bool\": true\n    },\n    \"f_string\": \"hello\"\n  },\n  \"f_interface\": \"hello\",\n  \"f_interfaces\": [\n    64,\n    \"hello\",\n    true\n  ]\n}\n",
+		},
 	}
 
 	for _, tc := range testCases {

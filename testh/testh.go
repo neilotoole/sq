@@ -317,7 +317,8 @@ func (h *Helper) RowCount(src *source.Source, tbl string) int64 {
 // the number of data rows inserted. If dropAfter is true, the created
 // table is dropped when t.Cleanup is run.
 func (h *Helper) CreateTable(dropAfter bool, src *source.Source, tblDef *sqlmodel.TableDef,
-	data ...[]any) (affected int64) {
+	data ...[]any,
+) (affected int64) {
 	dbase := h.openNew(src)
 	defer h.Log.WarnIfCloseError(dbase)
 

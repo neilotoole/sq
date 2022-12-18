@@ -82,7 +82,8 @@ func (r Release) Release() error {
 
 		args = append([]string{
 			"-e", "SNAPCRAFT_LOGIN_FILE=/.snapcraft.login",
-			"-v", localPath + ":/.snapcraft.login"},
+			"-v", localPath + ":/.snapcraft.login",
+		},
 			args...)
 	}
 

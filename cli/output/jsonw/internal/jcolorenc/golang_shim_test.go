@@ -15,8 +15,7 @@ var fieldCache = sync.Map{}
 func cachedTypeFields(reflect.Type) {}
 
 // Fake test env for golang_bench_test.go
-type testenvShim struct {
-}
+type testenvShim struct{}
 
 func (ts testenvShim) Builder() string {
 	return ""
@@ -25,8 +24,7 @@ func (ts testenvShim) Builder() string {
 var testenv testenvShim
 
 // Fake scanner for golang_decode_test.go
-type scanner struct {
-}
+type scanner struct{}
 
 func checkValid(in []byte, scan *scanner) error {
 	return nil
@@ -53,7 +51,7 @@ func isValidNumber(n string) bool {
 	return true
 }
 
-func assertErrorPresence(t *testing.T, expected error, actual error, prefixes ...any) {
+func assertErrorPresence(t *testing.T, expected, actual error, prefixes ...any) {
 	if expected != nil && actual == nil {
 		errorWithPrefixes(t, prefixes, "expected error, but did not get an error")
 	} else if expected == nil && actual != nil {
