@@ -202,7 +202,7 @@ linters:
     - gocognit # computes and checks the cognitive complexity of functions
 #    - goconst # finds repeated strings that could be replaced by a constant
 #    - gocritic # provides diagnostics that check for bugs, performance and style issues
-#    - gocyclo # computes and checks the cyclomatic complexity of functions
+    - gocyclo # computes and checks the cyclomatic complexity of functions
 #    - godot # checks if comments end in a period
 #    - goimports # in addition to fixing imports, goimports also formats your code in the same style as gofmt
 #    - gomoddirectives # manages the use of 'replace', 'retract', and 'excludes' directives in go.mod
