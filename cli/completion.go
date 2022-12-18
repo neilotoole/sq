@@ -211,7 +211,8 @@ func (c *handleTableCompleter) completeHandle(ctx context.Context, rc *RunContex
 		}
 
 		if c.onlySQL {
-			isSQL, err := handleIsSQLDriver(rc, handle)
+			var isSQL bool
+			isSQL, err = handleIsSQLDriver(rc, handle)
 			if err != nil {
 				rc.Log.Error(err)
 				return nil, cobra.ShellCompDirectiveError

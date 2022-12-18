@@ -143,13 +143,15 @@ GROUP BY database_id) AS total_size_bytes`
 
 		i := i
 		g.Go(func() error {
-			tblMeta, err := getTableMetadata(gctx, log, db, catalog, schema, tblNames[i], tblTypes[i])
+			var tblMeta *source.TableMetadata
+			tblMeta, err = getTableMetadata(gctx, log, db, catalog, schema, tblNames[i], tblTypes[i])
 			if err != nil {
 				if hasErrCode(err, errCodeObjectNotExist) {
 					// This can happen if the table is dropped while
 					// we're collecting metadata. We log a warning and continue.
-					log.Warnf("table metadata: table %q appears not to exist (continuing regardless): %v", tblNames[i],
-						err)
+					log.Warnf("table metadata: table %q appears not to exist (continuing regardless): %v",
+						tblNames[i], err)
+
 					return nil
 				}
 				return err

@@ -72,18 +72,19 @@ func (ng *engine) prepare(ctx context.Context, qm *queryModel) error {
 	qb.SetSelect(selectColsClause)
 	qb.SetFrom(fromClause)
 
-	var rangeClause string
-
 	if qm.Range != nil {
+		var rangeClause string
 		rangeClause, err = fragBuilder.Range(qm.Range)
 		if err != nil {
 			return err
 		}
+
 		qb.SetRange(rangeClause)
 	}
 
 	if qm.Where != nil {
-		whereClause, err := fragBuilder.Where(qm.Where)
+		var whereClause string
+		whereClause, err = fragBuilder.Where(qm.Where)
 		if err != nil {
 			return err
 		}
