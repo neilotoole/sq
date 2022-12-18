@@ -88,7 +88,7 @@ func (w *recordWriter) WriteRecords(recs []sqlz.Record) error {
 			case *float64:
 				cell.SetFloat(*val)
 			case *time.Time:
-				switch w.recMeta[i].Kind() {
+				switch w.recMeta[i].Kind() { //nolint:exhaustive
 				default:
 					cell.SetDateTime(*val)
 				case kind.Date:

@@ -108,7 +108,8 @@ func (x *StmtExecer) Close() error {
 // copied directly into rec, and its index is returned in skipped.
 // The caller must take appropriate action to deal with all
 // elements of rec listed in skipped.
-func NewRecordFromScanRow(meta sqlz.RecordMeta, row []any, skip []int) (rec sqlz.Record, skipped []int) {
+func NewRecordFromScanRow(meta sqlz.RecordMeta, row []any, skip []int) (rec sqlz.Record,
+	skipped []int) { //nolint:funlen
 	rec = make([]any, len(row))
 
 	// For convenience, make a map of the skip row indices.

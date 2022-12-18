@@ -301,5 +301,3 @@ issues:
         - gosec
         - noctx
         - wrapcheck
-
-

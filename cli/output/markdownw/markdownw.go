@@ -89,7 +89,7 @@ func (w *RecordWriter) writeRecord(rec sqlz.Record) error {
 		case *[]byte:
 			s = base64.StdEncoding.EncodeToString(*val)
 		case *time.Time:
-			switch w.recMeta[i].Kind() {
+			switch w.recMeta[i].Kind() { //nolint:exhaustive
 			default:
 				s = val.Format(stringz.DatetimeFormat)
 			case kind.Time:

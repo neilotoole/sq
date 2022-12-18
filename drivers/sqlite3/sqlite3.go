@@ -488,12 +488,7 @@ func (d *database) Close() error {
 	d.closeMu.Lock()
 	defer d.closeMu.Unlock()
 
-	//if !d.closed {
-	//	debug.PrintStack()
-	//}
-
 	if d.closed {
-		//panic( "SQLITE DB already closed")
 		d.log.Warnf("SQLite DB already closed: %v", d.src)
 		return nil
 	}

@@ -203,7 +203,7 @@ func (h *Helper) Source(handle string) *source.Source {
 	require.NoError(t, err,
 		"source %s was not found in %s", handle, testsrc.PathSrcsConfig)
 
-	switch src.Type {
+	switch src.Type { //nolint:exhaustive
 	case sqlite3.Type:
 		// This could be easily generalized for CSV/XLSX etc.
 		fpath, err := sqlite3.PathFromLocation(src)

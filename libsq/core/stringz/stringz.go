@@ -199,7 +199,7 @@ func stringWithCharset(length int, charset string) string {
 
 	b := make([]byte, length)
 	for i := range b {
-		b[i] = charset[rand.Intn(len(charset))]
+		b[i] = charset[rand.Intn(len(charset))] //#nosec G404 // Doesn't need to be strongly random
 	}
 
 	return string(b)
