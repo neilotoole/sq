@@ -68,36 +68,21 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 // Open implements driver.Driver.
 func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
 	dbase := &database{
-		log: d.log,
-		src: src,
-		//clnup: cleanup.New(),
+		log:   d.log,
+		src:   src,
 		files: d.files,
 	}
-
-	//r, err := d.files.Open(src)
-	//if err != nil {
-	//	return nil, err
-	//}
 
 	var err error
 	dbase.impl, err = d.scratcher.OpenScratch(ctx, src.Handle)
 	if err != nil {
-		//d.log.WarnIfCloseError(r)
-		//d.log.WarnIfFuncError(dbase.clnup.Run)
 		return nil, err
 	}
 
 	err = importCSV(ctx, d.log, src, d.files.OpenFunc(src), dbase.impl)
 	if err != nil {
-		//d.log.WarnIfCloseError(r)
-		//d.log.WarnIfFuncError(dbase.clnup.Run)
 		return nil, err
 	}
-
-	//err = r.Close()
-	//if err != nil {
-	//	return nil, err
-	//}
 
 	return dbase, nil
 }
@@ -146,10 +131,9 @@ func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 
 // database implements driver.Database.
 type database struct {
-	log  lg.Log
-	src  *source.Source
-	impl driver.Database
-	//clnup *cleanup.Cleanup
+	log   lg.Log
+	src   *source.Source
+	impl  driver.Database
 	files *source.Files
 }
 
@@ -214,8 +198,6 @@ func (d *database) Close() error {
 	d.log.Debugf("Close database: %s", d.src)
 
 	return errz.Err(d.impl.Close())
-
-	//return errz.Combine(d.impl.Close(), d.clnup.Run())
 }
 
 var (
@@ -266,7 +248,7 @@ const (
 	scoreMaybe    float32 = 0.1
 	scoreProbably float32 = 0.2
 	// scoreYes is less than 1.0 because other detectors
-	// (e.g. XLSX) can be more confident
+	// (e.g. XLSX) can be more confident.
 	scoreYes float32 = 0.9
 )
 

@@ -33,7 +33,7 @@ const (
 
 var projDir string
 
-func init() {
+func init() { //nolint:gochecknoinits
 	envar, ok := os.LookupEnv(EnvPassw)
 	if !ok || envar == "" {
 		err := os.Setenv(EnvPassw, DefaultPassw)

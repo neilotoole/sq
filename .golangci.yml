@@ -175,7 +175,9 @@ linters:
     - staticcheck # is a go vet on steroids, applying a ton of static analysis checks
     - typecheck # like the front-end of a Go compiler, parses and type-checks Go code
     - unused # checks for unused constants, variables, functions and types
-    ## disabled by default
+
+
+#    ## disabled by default
     - asasalint # checks for pass []any as any in variadic func(...any)
     - asciicheck # checks that your code does not contain non-ASCII identifiers
     - bidichk # checks for dangerous unicode character sequences

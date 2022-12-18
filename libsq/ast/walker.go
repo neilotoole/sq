@@ -198,7 +198,7 @@ func findWhereClause(log lg.Log, w *Walker, node Node) error {
 	return nil
 }
 
-// determineJoinTables attempts to determine the tables that a JOIN refers to
+// determineJoinTables attempts to determine the tables that a JOIN refers to.
 func determineJoinTables(log lg.Log, w *Walker, node Node) error {
 	// node is guaranteed to be FnJoin
 	fnJoin, ok := node.(*Join)
@@ -233,7 +233,7 @@ func determineJoinTables(log lg.Log, w *Walker, node Node) error {
 	return nil
 }
 
-// visitCheckRowRange validates the RowRange element
+// visitCheckRowRange validates the RowRange element.
 func visitCheckRowRange(log lg.Log, w *Walker, node Node) error {
 	// node is guaranteed to be FnJoin
 	rr, ok := node.(*RowRange)

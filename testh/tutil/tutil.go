@@ -58,7 +58,13 @@ func StructFieldValue(fieldName string, strct any) any {
 	}
 
 	f := e.FieldByName(fieldName)
-	if f == zv {
+	if f == zv { //nolint:govet
+		// According to govet:
+		//
+		//   reflectvaluecompare: avoid using == with reflect.Value
+		//
+		// Maybe we should be using f.IsZero instead?
+
 		panic(fmt.Sprintf("struct (%T) does not have field {%s}", strct, fieldName))
 	}
 	fieldValue := f.Interface()
@@ -213,7 +219,7 @@ func Name(args ...any) string {
 			continue
 		}
 
-		s = strings.Replace(s, "/", "_", -1)
+		s = strings.ReplaceAll(s, "/", "_")
 		s = stringz.TrimLen(s, 40) // we don't want it to be too long
 		parts = append(parts, s)
 	}

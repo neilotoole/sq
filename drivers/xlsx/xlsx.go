@@ -180,16 +180,8 @@ func (d *database) Source() *source.Source {
 	return d.src
 }
 
-// TableMetadata implements driver.Database.
-func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
-	srcMeta, err := d.SourceMetadata(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return source.TableFromSourceMetadata(srcMeta, tblName)
-}
-
 // SourceMetadata implements driver.Database.
+//
 // TODO: the implementation of SourceMetadata is out
 // of sync with the way we import data. For example, empty
 // rows are filtered out during import, and empty columns
@@ -253,6 +245,54 @@ func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error)
 	}
 
 	return meta, nil
+}
+
+// TableMetadata implements driver.Database.
+func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
+	b, err := d.files.ReadAll(d.src)
+	if err != nil {
+		return nil, errz.Err(err)
+	}
+
+	xlFile, err := xlsx.OpenBinary(b)
+	if err != nil {
+		return nil, errz.Errorf("unable to open XLSX file: ", d.src.Location, err)
+	}
+
+	hasHeader, _, err := options.HasHeader(d.src.Options)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, sheet := range xlFile.Sheets {
+		if sheet.Name != tblName {
+			continue
+		}
+
+		tbl := &source.TableMetadata{Name: sheet.Name, RowCount: int64(len(sheet.Rows))}
+
+		if hasHeader && tbl.RowCount > 0 {
+			tbl.RowCount--
+		}
+
+		colNames := getColNames(sheet, hasHeader)
+
+		// TODO: Should move over to using kind.Detector
+		colTypes := getCellColumnTypes(sheet, hasHeader)
+
+		for i, colType := range colTypes {
+			col := &source.ColMetadata{}
+			col.BaseType = cellTypeToString(colType)
+			col.ColumnType = col.BaseType
+			col.Position = int64(i)
+			col.Name = colNames[i]
+			tbl.Columns = append(tbl.Columns, col)
+		}
+
+		return tbl, nil
+	}
+
+	return nil, errz.Errorf("table %q not found", tblName)
 }
 
 // Close implements driver.Database.

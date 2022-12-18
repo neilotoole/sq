@@ -31,7 +31,7 @@ func (c *Config) String() string {
 }
 
 // Ext holds additional config (extensions) loaded from other
-// config files, e.g. ~/.config/sq/ext/*.sq.yml
+// config files, e.g. ~/.config/sq/ext/*.sq.yml.
 type Ext struct {
 	UserDrivers []*userdriver.DriverDef `yaml:"user_drivers" json:"user_drivers"`
 }

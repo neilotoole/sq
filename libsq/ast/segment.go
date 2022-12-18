@@ -65,7 +65,7 @@ func (s *Segment) SetContext(ctx antlr.ParseTree) error {
 
 // ChildType returns the expected Type of the segment's elements, based
 // on the content of the segment's node's children. The type should be something
-// like Selector|Func
+// like Selector|Func.
 func (s *Segment) ChildType() (reflect.Type, error) {
 	if len(s.Children()) == 0 {
 		return nil, nil

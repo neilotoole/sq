@@ -3,7 +3,7 @@ package cli
 import (
 	"github.com/spf13/cobra"
 
-	// Import the providers package to initialize provider implementations
+	// Import the providers package to initialize provider implementations.
 	_ "github.com/neilotoole/sq/drivers"
 )
 

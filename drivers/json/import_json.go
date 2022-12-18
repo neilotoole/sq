@@ -16,7 +16,7 @@ import (
 )
 
 // DetectJSON implements source.TypeDetectFunc.
-// The function returns TypeJSON for two varieties of input:
+// The function returns TypeJSON for two varieties of input:.
 func DetectJSON(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (detected source.Type, score float32,
 	err error) {
 	var r1, r2 io.ReadCloser
@@ -127,8 +127,6 @@ func DetectJSON(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (de
 
 	return source.TypeNone, 0, nil
 }
-
-//func detectJSONObjectsInArray(ctx context.Context, r io.Reader)
 
 func importJSON(ctx context.Context, log lg.Log, job importJob) error {
 	r, err := job.openFn()
@@ -247,7 +245,7 @@ func importJSON(ctx context.Context, log lg.Log, job importJob) error {
 
 // objectsInArrayScanner scans JSON text that consists of an array of
 // JSON objects, returning the decoded object and the chunk of JSON
-// that it was scanned from. Example input: [{a:1},{a:2},{a:3}]
+// that it was scanned from. Example input: [{a:1},{a:2},{a:3}].
 type objectsInArrayScanner struct {
 	// buf will get all the data that the JSON decoder reads.
 	// buf's role is to keep track of JSON text that has already been

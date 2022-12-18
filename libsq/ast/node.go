@@ -46,7 +46,7 @@ type Selectable interface {
 }
 
 // ColExpr indicates a column selection expression such as a
-// column name, or context-appropriate function (e.g. "COUNT(*)")
+// column name, or context-appropriate function, e.g. "COUNT(*)".
 type ColExpr interface {
 	// IsColName returns true if the expr is a column name, e.g. "uid" or "users.uid".
 	IsColName() bool
