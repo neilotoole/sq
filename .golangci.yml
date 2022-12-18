@@ -217,7 +217,7 @@ linters:
     - lll # reports long lines
     - loggercheck # checks key value pairs for common logger libraries (kitlog,klog,logr,zap)
     - makezero # finds slice declarations with non-zero initial length
-#    - nakedret # finds naked returns in functions greater than a specified function length
+    - nakedret # finds naked returns in functions greater than a specified function length
 #    - nestif # reports deeply nested if statements
 #    - nilerr # finds the code that returns nil even if it checks that the error is not nil
 #    - nilnil # checks that there is no simultaneous return of nil error and an invalid value
