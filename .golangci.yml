@@ -80,6 +80,11 @@ linters-settings:
         # Default: true
         skipRecvDeref: false
 
+  gocyclo:
+    # Minimal code complexity to report.
+    # Default: 30 (but we recommend 10-20)
+    min-complexity: 50
+
   gomnd:
     # List of function patterns to exclude from analysis.
     # Values always ignored: `time.Date`,
@@ -200,18 +205,18 @@ linters:
     - funlen # tool for detection of long functions
     - gochecknoinits # checks that no init functions are present in Go code
     - gocognit # computes and checks the cognitive complexity of functions
-#    - goconst # finds repeated strings that could be replaced by a constant
-#    - gocritic # provides diagnostics that check for bugs, performance and style issues
+    - goconst # finds repeated strings that could be replaced by a constant
+    - gocritic # provides diagnostics that check for bugs, performance and style issues
     - gocyclo # computes and checks the cyclomatic complexity of functions
-#    - godot # checks if comments end in a period
-#    - goimports # in addition to fixing imports, goimports also formats your code in the same style as gofmt
-#    - gomoddirectives # manages the use of 'replace', 'retract', and 'excludes' directives in go.mod
-#    - gomodguard # allow and block lists linter for direct Go module dependencies. This is different from depguard where there are different block types for example version constraints and module recommendations
-#    - goprintffuncname # checks that printf-like functions are named with f at the end
-#    - gosec # inspects source code for security problems
-#    - lll # reports long lines
-#    - loggercheck # checks key value pairs for common logger libraries (kitlog,klog,logr,zap)
-#    - makezero # finds slice declarations with non-zero initial length
+    - godot # checks if comments end in a period
+    - goimports # in addition to fixing imports, goimports also formats your code in the same style as gofmt
+    - gomoddirectives # manages the use of 'replace', 'retract', and 'excludes' directives in go.mod
+    - gomodguard # allow and block lists linter for direct Go module dependencies. This is different from depguard where there are different block types for example version constraints and module recommendations
+    - goprintffuncname # checks that printf-like functions are named with f at the end
+    - gosec # inspects source code for security problems
+    - lll # reports long lines
+    - loggercheck # checks key value pairs for common logger libraries (kitlog,klog,logr,zap)
+    - makezero # finds slice declarations with non-zero initial length
 #    - nakedret # finds naked returns in functions greater than a specified function length
 #    - nestif # reports deeply nested if statements
 #    - nilerr # finds the code that returns nil even if it checks that the error is not nil

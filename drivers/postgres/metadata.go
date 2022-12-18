@@ -22,7 +22,7 @@ import (
 // kindFromDBTypeName determines the kind.Kind from the database
 // type name. For example, "VARCHAR" -> kind.Text.
 // See https://www.postgresql.org/docs/9.5/datatype.html
-func kindFromDBTypeName(log lg.Log, colName, dbTypeName string) kind.Kind {
+func kindFromDBTypeName(log lg.Log, colName, dbTypeName string) kind.Kind { //nolint:goconst
 	var knd kind.Kind
 	dbTypeName = strings.ToUpper(dbTypeName)
 
@@ -34,7 +34,7 @@ func kindFromDBTypeName(log lg.Log, colName, dbTypeName string) kind.Kind {
 		knd = kind.Unknown
 	case "INT", "INTEGER", "INT2", "INT4", "INT8", "SMALLINT", "BIGINT":
 		knd = kind.Int
-	case "CHAR", "CHARACTER", "VARCHAR", "TEXT", "BPCHAR", "CHARACTER VARYING":
+	case "CHAR", "CHARACTER", "VARCHAR", "TEXT", "BPCHAR", "CHARACTER VARYING": //nolint:goconst
 		knd = kind.Text
 	case "BYTEA":
 		knd = kind.Bytes
@@ -42,7 +42,7 @@ func kindFromDBTypeName(log lg.Log, colName, dbTypeName string) kind.Kind {
 		knd = kind.Bool
 	case "TIMESTAMP", "TIMESTAMPTZ", "TIMESTAMP WITHOUT TIME ZONE":
 		knd = kind.Datetime
-	case "TIME", "TIMETZ", "TIME WITHOUT TIME ZONE":
+	case "TIME", "TIMETZ", "TIME WITHOUT TIME ZONE": //nolint:goconst
 		knd = kind.Time
 	case "DATE":
 		knd = kind.Date
