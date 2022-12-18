@@ -13,7 +13,7 @@ run:
   # Default: 1m
   timeout: 5m
 
-  tests: false
+  tests: true
 
   skip-dirs:
     # Skip jcolorenc because big chunks of it are copied from

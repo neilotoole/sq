@@ -2,11 +2,12 @@ package source_test
 
 import (
 	"context"
-	"github.com/neilotoole/sq/testh/tutil"
 	"io"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/neilotoole/sq/testh/tutil"
 
 	"github.com/neilotoole/errgroup"
 	"github.com/neilotoole/lg/testlg"

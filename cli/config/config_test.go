@@ -1,10 +1,11 @@
 package config_test
 
 import (
-	"github.com/neilotoole/sq/testh/tutil"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/neilotoole/sq/testh/tutil"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -77,7 +78,6 @@ func TestFileStore_Load(t *testing.T) {
 			_, err = fs.Load()
 			require.NoError(t, err, match)
 		})
-
 	}
 
 	for _, match := range bad {

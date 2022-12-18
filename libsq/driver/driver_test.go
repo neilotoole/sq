@@ -1,8 +1,9 @@
 package driver_test
 
 import (
-	"github.com/neilotoole/sq/testh/tutil"
 	"testing"
+
+	"github.com/neilotoole/sq/testh/tutil"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -25,6 +26,8 @@ import (
 )
 
 func TestDriver_DropTable(t *testing.T) {
+	t.Parallel()
+
 	for _, handle := range sakila.SQLAll() {
 		handle := handle
 
@@ -47,8 +50,10 @@ func TestDriver_DropTable(t *testing.T) {
 			require.NoError(t, drvr.DropTable(th.Context, db, tblName, false))
 
 			// Check that we get the expected behavior when the table doesn't exist
-			require.NoError(t, drvr.DropTable(th.Context, db, stringz.UniqSuffix("not_a_table"), true), "should be no error when ifExists is true")
-			require.Error(t, drvr.DropTable(th.Context, db, stringz.UniqSuffix("not_a_table"), false), "error expected when ifExists is false")
+			require.NoError(t, drvr.DropTable(th.Context, db, stringz.UniqSuffix("not_a_table"), true),
+				"should be no error when ifExists is true")
+			require.Error(t, drvr.DropTable(th.Context, db, stringz.UniqSuffix("not_a_table"), false),
+				"error expected when ifExists is false")
 		})
 	}
 }
@@ -83,7 +88,8 @@ func TestDriver_CopyTable(t *testing.T) {
 
 			th, src, dbase, drvr := testh.NewWith(t, handle)
 			db := dbase.DB()
-			require.Equal(t, int64(sakila.TblActorCount), th.RowCount(src, sakila.TblActor), "fromTable should have ActorCount rows beforehand")
+			require.Equal(t, int64(sakila.TblActorCount), th.RowCount(src, sakila.TblActor),
+				"fromTable should have ActorCount rows beforehand")
 
 			toTable := stringz.UniqTableName(sakila.TblActor)
 			// First, test with copyData = true

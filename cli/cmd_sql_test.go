@@ -2,10 +2,11 @@ package cli_test
 
 import (
 	"fmt"
-	"github.com/neilotoole/sq/testh/tutil"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/neilotoole/sq/testh/tutil"
 
 	"github.com/stretchr/testify/require"
 
@@ -64,6 +65,8 @@ func TestCmdSQL_Insert(t *testing.T) {
 }
 
 func TestCmdSQL_SelectFromUserDriver(t *testing.T) {
+	t.Parallel()
+
 	testCases := map[string][]struct {
 		tblName  string
 		wantRows int
@@ -100,8 +103,10 @@ func TestCmdSQL_SelectFromUserDriver(t *testing.T) {
 				err := ru.exec("sql", "--csv", "--header=false", "SELECT * FROM "+wantTbl.tblName)
 				require.NoError(t, err)
 				recs := ru.mustReadCSV()
-				require.Equal(t, wantTbl.wantRows, len(recs), "expected %d rows in tbl %q but got %s", wantTbl.wantRows, wantTbl, len(recs))
-				require.Equal(t, wantTbl.wantCols, len(recs[0]), "expected %d cols in tbl %q but got %s", wantTbl.wantCols, wantTbl, len(recs[0]))
+				require.Equal(t, wantTbl.wantRows, len(recs), "expected %d rows in tbl %q but got %s", wantTbl.wantRows,
+					wantTbl, len(recs))
+				require.Equal(t, wantTbl.wantCols, len(recs[0]), "expected %d cols in tbl %q but got %s",
+					wantTbl.wantCols, wantTbl, len(recs[0]))
 			})
 		}
 	}
@@ -119,8 +124,10 @@ func TestCmdSQL_StdinQuery(t *testing.T) {
 		wantErr   bool
 	}{
 		{fpath: proj.Abs(sakila.PathCSVActorNoHeader), tbl: source.MonotableName, wantCount: sakila.TblActorCount},
-		{fpath: proj.Abs(sakila.PathXLSXActorHeader), srcHeader: true, tbl: sakila.TblActor, wantCount: sakila.TblActorCount},
-		{fpath: proj.Abs(sakila.PathXLSXSubset), srcHeader: true, tbl: sakila.TblActor, wantCount: sakila.TblActorCount},
+		{fpath: proj.Abs(sakila.PathXLSXActorHeader), srcHeader: true, tbl: sakila.TblActor,
+			wantCount: sakila.TblActorCount},
+		{fpath: proj.Abs(sakila.PathXLSXSubset), srcHeader: true, tbl: sakila.TblActor,
+			wantCount: sakila.TblActorCount},
 		{fpath: proj.Abs("README.md"), wantErr: true},
 	}
 

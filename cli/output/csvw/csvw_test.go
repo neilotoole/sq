@@ -2,6 +2,7 @@ package csvw_test
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 	"time"
 
@@ -32,5 +33,5 @@ func TestDateTimeHandling(t *testing.T) {
 	require.NoError(t, w.Close())
 
 	require.Equal(t, want, buf.String())
-	println(buf.String())
+	fmt.Println(buf.String())
 }

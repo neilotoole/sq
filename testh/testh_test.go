@@ -1,10 +1,11 @@
 package testh_test
 
 import (
-	"github.com/neilotoole/sq/testh/tutil"
 	"io"
 	"testing"
 	"time"
+
+	"github.com/neilotoole/sq/testh/tutil"
 
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
@@ -149,13 +150,13 @@ func TestHelper_Files(t *testing.T) {
 
 	for i := 0; i < 1000; i++ {
 		g.Go(func() error {
-			r, err := fs.Open(src)
-			require.NoError(t, err)
+			r, fErr := fs.Open(src)
+			require.NoError(t, fErr)
 
 			defer func() { require.NoError(t, r.Close()) }()
 
-			b, err := io.ReadAll(r)
-			require.NoError(t, err)
+			b, fErr := io.ReadAll(r)
+			require.NoError(t, fErr)
 
 			require.Equal(t, wantBytes, b)
 			return nil
@@ -180,8 +181,7 @@ func TestTName(t *testing.T) {
 		got := tutil.Name(tc.a...)
 		require.Equal(t, tc.want, got)
 	}
-
 }
 
-// Keep the q lib around
+// Keep the q lib around.
 var _ = q.Q
