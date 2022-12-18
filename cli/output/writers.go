@@ -11,7 +11,6 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/driver"
-	"github.com/neilotoole/sq/libsq/notify"
 	"github.com/neilotoole/sq/libsq/source"
 )
 
@@ -62,12 +61,6 @@ type SourceWriter interface {
 	Source(src *source.Source) error
 }
 
-// NotificationWriter outputs notification destination details.
-type NotificationWriter interface {
-	// NotifyDestinations outputs details of the notification
-	// destinations.
-	NotifyDestinations(dests []notify.Destination) error
-}
 
 // ErrorWriter outputs errors.
 type ErrorWriter interface {

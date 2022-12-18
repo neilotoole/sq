@@ -549,7 +549,6 @@ type writers struct {
 	recordw output.RecordWriter
 	metaw   output.MetadataWriter
 	srcw    output.SourceWriter
-	notifyw output.NotificationWriter
 	errw    output.ErrorWriter
 	pingw   output.PingWriter
 }
@@ -572,7 +571,6 @@ func newWriters(log lg.Log, cmd *cobra.Command, defaults config.Defaults, out, e
 		metaw:   tablew.NewMetadataWriter(out2, fm),
 		srcw:    tablew.NewSourceWriter(out2, fm),
 		pingw:   tablew.NewPingWriter(out2, fm),
-		notifyw: tablew.NewNotifyWriter(out2, fm),
 		errw:    tablew.NewErrorWriter(errOut2, fm),
 	}
 
