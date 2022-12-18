@@ -64,7 +64,7 @@ linters-settings:
   gocognit:
     # Minimal code complexity to report
     # Default: 30 (but we recommend 10-20)
-    min-complexity: 40
+    min-complexity: 50
 
   gocritic:
     # Settings passed to gocritic.
@@ -198,8 +198,8 @@ linters:
     - exportloopref # checks for pointers to enclosing loop variables
     - forbidigo # forbids identifiers
     - funlen # tool for detection of long functions
-#    - gochecknoinits # checks that no init functions are present in Go code
-#    - gocognit # computes and checks the cognitive complexity of functions
+    - gochecknoinits # checks that no init functions are present in Go code
+    - gocognit # computes and checks the cognitive complexity of functions
 #    - goconst # finds repeated strings that could be replaced by a constant
 #    - gocritic # provides diagnostics that check for bugs, performance and style issues
 #    - gocyclo # computes and checks the cyclomatic complexity of functions

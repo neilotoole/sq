@@ -109,9 +109,8 @@ func (x *StmtExecer) Close() error {
 // The caller must take appropriate action to deal with all
 // elements of rec listed in skipped.
 //
-//nolint:funlen
-func NewRecordFromScanRow(meta sqlz.RecordMeta, row []any, skip []int) (rec sqlz.Record,
-	skipped []int) {
+//nolint:funlen,gocognit
+func NewRecordFromScanRow(meta sqlz.RecordMeta, row []any, skip []int) (rec sqlz.Record, skipped []int) {
 	rec = make([]any, len(row))
 
 	// For convenience, make a map of the skip row indices.
@@ -389,6 +388,8 @@ func (bi BatchInsert) Munge(rec []any) error {
 //
 // Note that the db arg must guarantee a single connection: that is,
 // it must be a sql.Conn or sql.Tx.
+//
+//nolint:gocognit
 func NewBatchInsert(ctx context.Context, log lg.Log, drvr SQLDriver, db sqlz.DB, destTbl string, destColNames []string,
 	batchSize int) (*BatchInsert, error) {
 	err := requireSingleConn(db)

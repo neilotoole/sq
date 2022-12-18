@@ -84,7 +84,7 @@ type importer struct {
 	msgOnce map[string]struct{}
 }
 
-func (im *importer) execImport(ctx context.Context, r io.Reader, destDB driver.Database) error {
+func (im *importer) execImport(ctx context.Context, r io.Reader, destDB driver.Database) error { //nolint:gocognit
 	im.data, im.destDB = r, destDB
 
 	err := im.createTables(ctx)
