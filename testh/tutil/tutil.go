@@ -247,7 +247,7 @@ func Val(i any) any {
 			return nil
 		}
 
-		switch v.Kind() {
+		switch v.Kind() { //nolint:exhaustive
 		default:
 			return v.Interface()
 		case reflect.Ptr, reflect.Interface:

@@ -24,7 +24,7 @@ func newFragmentBuilder(log lg.Log) *sqlbuilder.BaseFragmentBuilder {
 }
 
 func dbTypeNameFromKind(knd kind.Kind) string {
-	switch knd {
+	switch knd { //nolint:exhaustive // ignore kind.Unknown and kind.Null
 	case kind.Text:
 		return "TEXT"
 	case kind.Int:
@@ -54,7 +54,7 @@ func dbTypeNameFromKind(knd kind.Kind) string {
 // Note that MySQL (at least of v5.6) doesn't support DEFAULT values
 // for TEXT or BLOB columns.
 // https://bugs.mysql.com/bug.php?id=21532
-var createTblKindDefaults = map[kind.Kind]string{
+var createTblKindDefaults = map[kind.Kind]string{ //nolint:exhaustive
 	kind.Text:     ``,
 	kind.Int:      `DEFAULT 0`,
 	kind.Float:    `DEFAULT 0`,

@@ -232,7 +232,7 @@ func getFieldEncoders(recMeta sqlz.RecordMeta, fm *output.Formatting) []func(b [
 		enc := monoEncoder{}
 
 		for i := 0; i < len(recMeta); i++ {
-			switch recMeta[i].Kind() {
+			switch recMeta[i].Kind() { //nolint:exhaustive
 			case kind.Time:
 				encodeFns[i] = enc.encodeTime
 			case kind.Date:
@@ -252,7 +252,7 @@ func getFieldEncoders(recMeta sqlz.RecordMeta, fm *output.Formatting) []func(b [
 	// Else, we want color encoders
 	enc := &colorEncoder{clrs: clrs}
 	for i := 0; i < len(recMeta); i++ {
-		switch recMeta[i].Kind() {
+		switch recMeta[i].Kind() { // nolint:exhaustive
 		case kind.Time:
 			encodeFns[i] = enc.encodeTime
 		case kind.Date:

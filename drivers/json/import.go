@@ -279,9 +279,9 @@ func (p *processor) doAddObject(ent *entity, m map[string]any) error {
 				p.markSchemaDirty(ent)
 				if stringz.InSlice(ent.fieldNames, fieldName) {
 					return errz.Errorf("JSON field %q was previously detected as a nested field (object or array)")
-				} else {
-					ent.fieldNames = append(ent.fieldNames, fieldName)
 				}
+
+				ent.fieldNames = append(ent.fieldNames, fieldName)
 
 				detector = kind.NewDetector()
 				ent.detectors[fieldName] = detector
@@ -338,7 +338,6 @@ func (p *processor) buildInsertionsFlat(schema *importSchema) ([]*insertion, err
 			vals[i] = colVals[colName]
 		}
 		insertions = append(insertions, newInsertion(tblDef.Name, colNames, vals))
-
 	}
 
 	p.unwrittenObjVals = p.unwrittenObjVals[:0]
@@ -383,7 +382,7 @@ func (e *entity) String() string {
 
 // fqFieldName returns the fully-qualified field name, such
 // as "data.name.first_name".
-func (e *entity) fqFieldName(field string) string {
+func (e *entity) fqFieldName(field string) string { //nolint:unused
 	return e.String() + "." + field
 }
 
@@ -422,16 +421,6 @@ type importSchema struct {
 	// entityTbls is a mapping of entity to the table in which
 	// the entity's fields will be inserted.
 	entityTbls map[*entity]*sqlmodel.TableDef
-}
-
-func (is *importSchema) getTableDef(tblName string) *sqlmodel.TableDef {
-	for _, t := range is.tblDefs {
-		if t.Name == tblName {
-			return t
-		}
-	}
-
-	return nil
 }
 
 func execSchemaDelta(ctx context.Context, log lg.Log, drvr driver.SQLDriver, db sqlz.DB, curSchema, newSchema *importSchema) error {
@@ -543,7 +532,6 @@ loop:
 					return nil, err
 				}
 			}
-
 		}
 	}
 
@@ -577,7 +565,6 @@ func decoderFindArrayClose(dec *stdj.Decoder) error {
 			}
 			depth--
 		}
-
 	}
 
 	return errz.Err(err)

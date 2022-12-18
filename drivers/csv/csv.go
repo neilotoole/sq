@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/csv"
+	"errors"
 	"io"
 	"strconv"
 
@@ -287,7 +288,7 @@ func isCSV(ctx context.Context, cr *csv.Reader) (score float32) {
 		rec, err := cr.Read()
 
 		if err != nil {
-			if err == io.EOF && rec == nil {
+			if errors.Is(err, io.EOF) && rec == nil {
 				// This means end of data
 				break
 			}

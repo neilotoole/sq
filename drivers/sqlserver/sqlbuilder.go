@@ -85,7 +85,7 @@ func (qb *queryBuilder) SQL() (string, error) {
 }
 
 func dbTypeNameFromKind(knd kind.Kind) string {
-	switch knd {
+	switch knd { //nolint:exhaustive // ignore kind.Null
 	default:
 		panic(fmt.Sprintf("unsupported datatype %q", knd))
 	case kind.Unknown:
@@ -113,7 +113,7 @@ func dbTypeNameFromKind(knd kind.Kind) string {
 
 // createTblKindDefaults is a map of Kind to the value
 // to use for a column's DEFAULT clause in a CREATE TABLE statement.
-var createTblKindDefaults = map[kind.Kind]string{
+var createTblKindDefaults = map[kind.Kind]string{ //nolint:exhaustive
 	kind.Text:     `DEFAULT ''`,
 	kind.Int:      `DEFAULT 0`,
 	kind.Float:    `DEFAULT 0`,

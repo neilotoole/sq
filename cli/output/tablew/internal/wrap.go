@@ -13,7 +13,7 @@ import (
 	"unicode/utf8"
 )
 
-var (
+const (
 	nl = "\n"
 	sp = " "
 )
@@ -94,10 +94,5 @@ func WrapWords(words []string, spc, lim, pen int) [][]string {
 
 // getLines decomposes a multiline string into a slice of strings.
 func getLines(s string) []string {
-	var lines []string
-
-	for _, line := range strings.Split(strings.TrimSpace(s), nl) {
-		lines = append(lines, line)
-	}
-	return lines
+	return strings.Split(strings.TrimSpace(s), nl)
 }

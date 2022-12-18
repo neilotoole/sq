@@ -135,7 +135,8 @@ func (ng *engine) executeTasks(ctx context.Context) error {
 	return g.Wait()
 }
 
-func (ng *engine) buildTableFromClause(ctx context.Context, tblSel *ast.TblSelector) (fromClause string, fromConn driver.Database, err error) {
+func (ng *engine) buildTableFromClause(ctx context.Context, tblSel *ast.TblSelector) (fromClause string,
+	fromConn driver.Database, err error) {
 	src, err := ng.srcs.Get(tblSel.DSName)
 	if err != nil {
 		return "", nil, err
@@ -155,7 +156,8 @@ func (ng *engine) buildTableFromClause(ctx context.Context, tblSel *ast.TblSelec
 	return fromClause, fromConn, nil
 }
 
-func (ng *engine) buildJoinFromClause(ctx context.Context, fnJoin *ast.Join) (fromClause string, fromConn driver.Database, err error) {
+func (ng *engine) buildJoinFromClause(ctx context.Context, fnJoin *ast.Join) (fromClause string,
+	fromConn driver.Database, err error) {
 	if fnJoin.LeftTbl() == nil || fnJoin.LeftTbl().SelValue() == "" {
 		return "", nil, errz.Errorf("JOIN is missing left table reference")
 	}
@@ -262,7 +264,6 @@ type tasker interface {
 type joinCopyTask struct {
 	fromDB      driver.Database
 	fromTblName string
-	colNames    []string
 	toDB        driver.Database
 	toTblName   string
 }
