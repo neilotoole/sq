@@ -266,7 +266,7 @@ const (
 	scoreMaybe    float32 = 0.1
 	scoreProbably float32 = 0.2
 	// scoreYes is less than 1.0 because other detectors
-	// (e.g. XLSX) can be more confident
+	// (e.g. XLSX) can be more confident.
 	scoreYes float32 = 0.9
 )
 

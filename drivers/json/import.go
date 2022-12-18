@@ -70,7 +70,7 @@ const (
 	rightBracket = stdj.Delim(']')
 
 	// colScopeSep is used when generating flat column names. Thus
-	// an entity "name.first" becomes "name_first"
+	// an entity "name.first" becomes "name_first".
 	colScopeSep = "_"
 )
 

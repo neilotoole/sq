@@ -1,6 +1,6 @@
 package cli
 
-// cli flags
+// cli flags.
 const (
 	flagActiveSrc      = "src"
 	flagActiveSrcUsage = "Override the active source for this query"

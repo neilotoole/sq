@@ -537,7 +537,7 @@ func mungeSetZeroValue(i int, rec []any, destMeta sqlz.RecordMeta) {
 }
 
 // canonicalTableType returns the canonical name for "BASE TABLE"
-// and "VIEW"
+// and "VIEW".
 func canonicalTableType(dbType string) string {
 	switch dbType {
 	default:

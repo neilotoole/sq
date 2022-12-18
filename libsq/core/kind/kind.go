@@ -158,7 +158,7 @@ type Detector struct {
 
 // MungeFunc is a function that accepts a value and returns a munged
 // value with the appropriate Kind. For example, a Datetime MungeFunc
-// would accept string "2020-06-11T02:50:54Z" and return a time.Time,
+// would accept string "2020-06-11T02:50:54Z" and return a time.Time.
 type MungeFunc func(any) (any, error)
 
 // NewDetector returns a new instance.
@@ -434,7 +434,7 @@ func (d *Detector) Detect() (kind Kind, mungeFn MungeFunc, err error) {
 	return Text, nil, nil
 }
 
-// delete deletes each of kinds from kd.kinds
+// delete deletes each of kinds from d.kinds.
 func (d *Detector) delete(kinds ...Kind) {
 	d.dirty = true
 	for _, k := range kinds {
@@ -443,8 +443,8 @@ func (d *Detector) delete(kinds ...Kind) {
 }
 
 // retain deletes everything from kd.kinds except items
-// contains in the kinds arg. If kinds is empty, kd.kinds is
-// be emptied.
+// contains in the kinds arg. If kinds is empty, d.kinds is
+// emptied.
 func (d *Detector) retain(kinds ...Kind) {
 	d.dirty = true
 	for k := range d.kinds {

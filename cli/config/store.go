@@ -202,7 +202,7 @@ func (DiscardStore) Save(*Config) error {
 	return nil
 }
 
-// Location returns /dev/null
+// Location returns /dev/null.
 func (DiscardStore) Location() string {
 	return "/dev/null"
 }
