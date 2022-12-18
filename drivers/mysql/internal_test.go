@@ -1,8 +1,9 @@
 package mysql
 
 import (
-	"github.com/neilotoole/sq/testh/tutil"
 	"testing"
+
+	"github.com/neilotoole/sq/testh/tutil"
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/stretchr/testify/require"

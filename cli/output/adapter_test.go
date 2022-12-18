@@ -3,9 +3,10 @@ package output_test
 import (
 	"context"
 	"fmt"
-	"github.com/neilotoole/sq/testh/tutil"
 	"testing"
 	"time"
+
+	"github.com/neilotoole/sq/testh/tutil"
 
 	"github.com/stretchr/testify/require"
 

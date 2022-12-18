@@ -2,8 +2,9 @@ package xmlud_test
 
 import (
 	"bytes"
-	"github.com/neilotoole/sq/testh/tutil"
 	"testing"
+
+	"github.com/neilotoole/sq/testh/tutil"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -114,7 +115,8 @@ func TestImport_RSS(t *testing.T) {
 	sink, err = th.QuerySQL(scratchDB.Source(), "SELECT * FROM item")
 	require.NoError(t, err)
 	require.Equal(t, 45, len(sink.Recs))
-	require.EqualValues(t, "Trilobites: Fishing for Clues to Solve Namibia’s Fairy Circle Mystery", tutil.Val(sink.Recs[17][4]))
+	require.EqualValues(t, "Trilobites: Fishing for Clues to Solve Namibia’s Fairy Circle Mystery",
+		tutil.Val(sink.Recs[17][4]))
 	for i, rec := range sink.Recs {
 		// Verify that the primary id cols are sequential
 		require.Equal(t, int64(i+1), tutil.Val(rec[0]))
