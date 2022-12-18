@@ -19,7 +19,6 @@ func TestIs(t *testing.T) {
 
 func TestAs(t *testing.T) {
 	var originalErr error
-
 	originalErr = &CustomError{msg: "huzzah"}
 
 	var err error
