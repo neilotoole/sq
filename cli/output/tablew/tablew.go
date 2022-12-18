@@ -35,7 +35,7 @@ type table struct {
 	tblImpl *internal.Table
 }
 
-func (t *table) renderResultCell(knd kind.Kind, val any) string {
+func (t *table) renderResultCell(knd kind.Kind, val any) string { //nolint:funlen
 	switch val := val.(type) {
 	case string:
 		return val
@@ -159,7 +159,7 @@ func (t *table) renderResultCell(knd kind.Kind, val any) string {
 		}
 
 		var s string
-		switch knd {
+		switch knd { //nolint:exhaustive
 		default:
 			s = val.Format(stringz.DatetimeFormat)
 		case kind.Time:

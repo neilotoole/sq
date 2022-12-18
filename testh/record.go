@@ -188,7 +188,7 @@ func CopyRecord(rec sqlz.Record) sqlz.Record {
 // KindScanType returns the default scan type for kind. The returned
 // type is typically a sql.NullType.
 func KindScanType(knd kind.Kind) reflect.Type {
-	switch knd {
+	switch knd { //nolint:exhaustive
 	default:
 		return sqlz.RTypeNullString
 

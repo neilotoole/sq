@@ -34,7 +34,7 @@ type Provider struct {
 
 // DriverFor implements driver.Provider.
 func (d *Provider) DriverFor(typ source.Type) (driver.Driver, error) {
-	switch typ {
+	switch typ { //nolint:exhaustive
 	case TypeCSV:
 		return &driveri{log: d.Log, typ: TypeCSV, scratcher: d.Scratcher, files: d.Files}, nil
 	case TypeTSV:

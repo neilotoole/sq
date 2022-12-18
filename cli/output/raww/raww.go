@@ -60,7 +60,7 @@ func (w *recordWriter) WriteRecords(recs []sqlz.Record) error {
 			case *float64:
 				fmt.Fprint(w.out, stringz.FormatFloat(*val))
 			case *time.Time:
-				switch w.recMeta[i].Kind() {
+				switch w.recMeta[i].Kind() { //nolint:exhaustive
 				default:
 					fmt.Fprint(w.out, val.Format(stringz.DatetimeFormat))
 				case kind.Time:
