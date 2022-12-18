@@ -51,7 +51,7 @@ func buildInitialAST(t *testing.T, input string) (*AST, error) {
 	log := testlg.New(t).Strict(true)
 
 	p := getSLQParser(input)
-	q := p.Query().(*slq.QueryContext)
+	q, _ := p.Query().(*slq.QueryContext)
 	v := &parseTreeVisitor{log: log}
 	err := q.Accept(v)
 	if err != nil {

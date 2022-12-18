@@ -35,7 +35,7 @@ func TestNodesWithType(t *testing.T) {
 }
 
 func TestAvg(t *testing.T) {
-	const input = `@mydb1 | .user, .address | join(.user.uid == .address.uid) | .uid, .username, .country | .[0:2] | avg(.uid)`
+	const input = `@mydb1 | .user, .address | join(.user.uid == .address.uid) | .uid, .username, .country | .[0:2] | avg(.uid)` //nolint:lll
 	ast := mustBuildAST(t, input)
 	require.NotNil(t, ast)
 }

@@ -1,9 +1,10 @@
 package libsq_test
 
 import (
-	"github.com/neilotoole/sq/testh/tutil"
 	"reflect"
 	"testing"
+
+	"github.com/neilotoole/sq/testh/tutil"
 
 	"github.com/stretchr/testify/require"
 
@@ -80,7 +81,8 @@ func TestQuerySQL_Smoke(t *testing.T) {
 			require.Equal(t, len(tc.fieldTypes), len(sink.Recs[0]))
 			for i := range sink.Recs[0] {
 				require.Equal(t, tc.fieldTypes[i], reflect.TypeOf(sink.Recs[0][i]),
-					"expected field[%d] to have type %s but got %s", i, tc.fieldTypes[i], reflect.TypeOf(sink.Recs[0][i]))
+					"expected field[%d] to have type %s but got %s", i, tc.fieldTypes[i],
+					reflect.TypeOf(sink.Recs[0][i]))
 			}
 		})
 	}

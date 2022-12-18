@@ -15,17 +15,19 @@ import (
 	"github.com/neilotoole/sq/testh/sakila"
 )
 
-// export for testing
+// export for testing.
 var (
 	ImportJSON      = importJSON
 	ImportJSONA     = importJSONA
 	ImportJSONL     = importJSONL
 	ColumnOrderFlat = columnOrderFlat
+	NewImportJob    = newImportJob
 )
 
-// NewImportJob is a constructor for the unexported importJob type.
+// newImportJob is a constructor for the unexported importJob type.
 // If sampleSize <= 0, a default value is used.
-func NewImportJob(fromSrc *source.Source, openFn source.FileOpenFunc, destDB driver.Database, sampleSize int, flatten bool) importJob {
+func newImportJob(fromSrc *source.Source, openFn source.FileOpenFunc, destDB driver.Database, sampleSize int,
+	flatten bool) importJob {
 	if sampleSize <= 0 {
 		sampleSize = driver.Tuning.SampleSize
 	}

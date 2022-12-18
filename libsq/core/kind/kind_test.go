@@ -145,7 +145,7 @@ func TestKindDetector(t *testing.T) {
 				return
 			}
 
-			require.Equal(t, tc.want.String(), gotKind.String(), tc.in)
+			require.Equal(t, tc.want.String(), gotKind.String())
 
 			if !tc.wantMunge {
 				require.Nil(t, gotMungeFn)

@@ -2,12 +2,12 @@ package json_test
 
 import (
 	"context"
-	"fmt"
-	"github.com/neilotoole/sq/testh/tutil"
 	"io"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/neilotoole/sq/testh/tutil"
 
 	"github.com/neilotoole/lg/testlg"
 	"github.com/stretchr/testify/require"
@@ -17,7 +17,7 @@ import (
 )
 
 func TestTypeDetectorFuncs(t *testing.T) {
-	detectFns := map[source.Type]source.TypeDetectFunc{
+	detectFns := map[source.Type]source.TypeDetectFunc{ //nolint:exhaustive
 		json.TypeJSON:  json.DetectJSON,
 		json.TypeJSONA: json.DetectJSONA,
 		json.TypeJSONL: json.DetectJSONL,
@@ -111,16 +111,4 @@ func TestTypeDetectorFuncs(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestDriver(t *testing.T) { // FIXME: delete
-	p := json.Provider{
-		Log:       nil,
-		Scratcher: nil,
-		Files:     nil,
-	}
-
-	drvr, err := p.DriverFor("json")
-	require.NoError(t, err)
-	fmt.Println(drvr.DriverMetadata())
 }

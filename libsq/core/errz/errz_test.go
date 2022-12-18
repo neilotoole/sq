@@ -10,19 +10,17 @@ import (
 )
 
 func TestIs(t *testing.T) {
-	var err error
-	err = errz.Wrap(sql.ErrNoRows, "wrap")
+	err := errz.Wrap(sql.ErrNoRows, "wrap")
 
 	require.Equal(t, "wrap: "+sql.ErrNoRows.Error(), err.Error())
 	require.True(t, errors.Is(err, sql.ErrNoRows))
 }
 
 func TestAs(t *testing.T) {
-	var originalErr error
+	var originalErr error //nolint:gosimple
 	originalErr = &CustomError{msg: "huzzah"}
 
-	var err error
-	err = errz.Wrap(errz.Wrap(originalErr, "wrap"), "wrap")
+	err := errz.Wrap(errz.Wrap(originalErr, "wrap"), "wrap")
 	require.Equal(t, "wrap: wrap: huzzah", err.Error())
 
 	var gotCustomErr *CustomError
@@ -30,7 +28,7 @@ func TestAs(t *testing.T) {
 	require.Equal(t, "huzzah", gotCustomErr.msg)
 
 	gotUnwrap := errz.Cause(err)
-	require.Equal(t, *originalErr.(*CustomError), *gotUnwrap.(*CustomError))
+	require.Equal(t, *originalErr.(*CustomError), *gotUnwrap.(*CustomError)) //nolint:errorlint
 }
 
 type CustomError struct {

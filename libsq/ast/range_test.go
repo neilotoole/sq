@@ -29,7 +29,7 @@ func TestRowRange2(t *testing.T) {
 	assert.Equal(t, 1, ins.CountNodes(typeRowRange))
 	nodes := ins.FindNodes(typeRowRange)
 	assert.Equal(t, 1, len(nodes))
-	rr := nodes[0].(*RowRange)
+	rr, _ := nodes[0].(*RowRange)
 	assert.Equal(t, 2, rr.Offset)
 	assert.Equal(t, 1, rr.Limit)
 }
@@ -39,7 +39,7 @@ func TestRowRange3(t *testing.T) {
 
 	ast := mustBuildAST(t, fixtRowRange3)
 	ins := NewInspector(log, ast)
-	rr := ins.FindNodes(typeRowRange)[0].(*RowRange)
+	rr, _ := ins.FindNodes(typeRowRange)[0].(*RowRange)
 	assert.Equal(t, 1, rr.Offset)
 	assert.Equal(t, 2, rr.Limit)
 }
@@ -49,7 +49,7 @@ func TestRowRange4(t *testing.T) {
 
 	ast := mustBuildAST(t, fixtRowRange4)
 	ins := NewInspector(log, ast)
-	rr := ins.FindNodes(typeRowRange)[0].(*RowRange)
+	rr, _ := ins.FindNodes(typeRowRange)[0].(*RowRange)
 	assert.Equal(t, 0, rr.Offset)
 	assert.Equal(t, 3, rr.Limit)
 }
@@ -58,7 +58,7 @@ func TestRowRange5(t *testing.T) {
 	log := testlg.New(t).Strict(true)
 	ast := mustBuildAST(t, fixtRowRange5)
 	ins := NewInspector(log, ast)
-	rr := ins.FindNodes(typeRowRange)[0].(*RowRange)
+	rr, _ := ins.FindNodes(typeRowRange)[0].(*RowRange)
 	assert.Equal(t, 0, rr.Offset)
 	assert.Equal(t, 3, rr.Limit)
 }
@@ -67,7 +67,7 @@ func TestRowRange6(t *testing.T) {
 	log := testlg.New(t).Strict(true)
 	ast := mustBuildAST(t, fixtRowRange6)
 	ins := NewInspector(log, ast)
-	rr := ins.FindNodes(typeRowRange)[0].(*RowRange)
+	rr, _ := ins.FindNodes(typeRowRange)[0].(*RowRange)
 	assert.Equal(t, 2, rr.Offset)
 	assert.Equal(t, -1, rr.Limit)
 }

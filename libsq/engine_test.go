@@ -1,8 +1,9 @@
 package libsq_test
 
 import (
-	"github.com/neilotoole/sq/testh/tutil"
 	"testing"
+
+	"github.com/neilotoole/sq/testh/tutil"
 
 	"github.com/stretchr/testify/require"
 

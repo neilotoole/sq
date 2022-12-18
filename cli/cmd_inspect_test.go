@@ -2,9 +2,10 @@ package cli_test
 
 import (
 	"encoding/json"
-	"github.com/neilotoole/sq/testh/tutil"
 	"os"
 	"testing"
+
+	"github.com/neilotoole/sq/testh/tutil"
 
 	"github.com/stretchr/testify/require"
 

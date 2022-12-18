@@ -65,6 +65,8 @@ func TestKindFromDBTypeName(t *testing.T) {
 }
 
 func TestDatabase_SourceMetadata(t *testing.T) {
+	t.Parallel()
+
 	for _, handle := range sakila.MyAll() {
 		handle := handle
 
@@ -86,6 +88,8 @@ func TestDatabase_SourceMetadata(t *testing.T) {
 }
 
 func TestDatabase_TableMetadata(t *testing.T) {
+	t.Parallel()
+
 	for _, handle := range sakila.MyAll() {
 		handle := handle
 

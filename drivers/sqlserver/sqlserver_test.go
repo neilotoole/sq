@@ -54,7 +54,8 @@ func TestDriverBehavior(t *testing.T) {
 
 	for i, colType := range colTypes {
 		nullable, ok := colType.Nullable()
-		t.Logf("%d:	%s	%s	%s	nullable,ok={%v,%v}", i, colType.Name(), colType.DatabaseTypeName(), colType.ScanType().Name(), nullable, ok)
+		t.Logf("%d:	%s	%s	%s	nullable,ok={%v,%v}", i, colType.Name(), colType.DatabaseTypeName(),
+			colType.ScanType().Name(), nullable, ok)
 
 		if !nullable {
 			scanType := colType.ScanType()

@@ -64,7 +64,8 @@ LIMIT 1`
 
 			for i, colType := range colTypes {
 				nullable, ok := colType.Nullable()
-				t.Logf("%d:	%s	%s	%s	nullable,ok={%v,%v}", i, colType.Name(), colType.DatabaseTypeName(), colType.ScanType().Name(), nullable, ok)
+				t.Logf("%d:	%s	%s	%s	nullable,ok={%v,%v}", i, colType.Name(), colType.DatabaseTypeName(),
+					colType.ScanType().Name(), nullable, ok)
 
 				if !nullable {
 					scanType := colType.ScanType()
@@ -116,7 +117,8 @@ func Test_VerifyDriverDoesNotReportNullability(t *testing.T) {
 
 				// The col is indicated as nullable via its name/suffix
 				nullable, hasNullable := colType.Nullable()
-				require.False(t, hasNullable, "ColumnType.hasNullable is unfortunately expected to be false for %q", colName)
+				require.False(t, hasNullable, "ColumnType.hasNullable is unfortunately expected to be false for %q",
+					colName)
 				require.False(t, nullable, "ColumnType.nullable is unfortunately expected to be false for %q", colName)
 			}
 

@@ -436,6 +436,8 @@ func createTypeTestTable(th *testh.Helper, src *source.Source, withData bool) (r
 // the returned data matches the inserted data, including verifying
 // that NULL is handled correctly.
 func TestDatabaseTypes(t *testing.T) {
+	t.Parallel()
+
 	testCases := sakila.PgAll()
 	for _, handle := range testCases {
 		handle := handle
@@ -450,7 +452,8 @@ func TestDatabaseTypes(t *testing.T) {
 
 			sink := &testh.RecordSink{}
 			recw := output.NewRecordWriterAdapter(sink)
-			err := libsq.QuerySQL(th.Context, th.Log, th.Open(src), recw, fmt.Sprintf("SELECT * FROM %s", actualTblName))
+			err := libsq.QuerySQL(th.Context, th.Log, th.Open(src), recw,
+				fmt.Sprintf("SELECT * FROM %s", actualTblName))
 			require.NoError(t, err)
 			written, err := recw.Wait()
 			require.NoError(t, err)

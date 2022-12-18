@@ -11,6 +11,8 @@ import (
 )
 
 func TestCmdTblCopy(t *testing.T) {
+	t.Parallel()
+
 	for _, handle := range sakila.SQLAll() {
 		handle := handle
 
@@ -26,7 +28,8 @@ func TestCmdTblCopy(t *testing.T) {
 			err := ru1.exec("tbl", "copy", "--data=false", srcTblHandle, src.Handle+"."+destTbl1)
 			require.NoError(t, err)
 			defer th.DropTable(src, destTbl1)
-			require.Equal(t, int64(0), th.RowCount(src, destTbl1), "should not have copied any rows because --data=false")
+			require.Equal(t, int64(0), th.RowCount(src, destTbl1),
+				"should not have copied any rows because --data=false")
 
 			// --data=true
 			ru2 := newRun(t).add(*src)
@@ -34,12 +37,15 @@ func TestCmdTblCopy(t *testing.T) {
 			err = ru2.exec("tbl", "copy", "--data=true", srcTblHandle, src.Handle+"."+destTbl2)
 			require.NoError(t, err)
 			defer th.DropTable(src, destTbl2)
-			require.Equal(t, int64(sakila.TblActorCount), th.RowCount(src, destTbl2), "should have copied rows because --data=true")
+			require.Equal(t, int64(sakila.TblActorCount), th.RowCount(src, destTbl2),
+				"should have copied rows because --data=true")
 		})
 	}
 }
 
 func TestCmdTblDrop(t *testing.T) {
+	t.Parallel()
+
 	for _, handle := range sakila.SQLAll() {
 		handle := handle
 
@@ -74,8 +80,9 @@ func TestCmdTblDrop(t *testing.T) {
 }
 
 func TestCmdTblTruncate(t *testing.T) {
-	testCases := []string{sakila.MS}
+	t.Parallel()
 
+	testCases := []string{sakila.MS, sakila.My, sakila.Pg9}
 	for _, handle := range testCases {
 		handle := handle
 

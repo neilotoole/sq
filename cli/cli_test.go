@@ -93,6 +93,8 @@ func TestCreateTblTestBytes(t *testing.T) {
 // TestOutputRaw verifies that the raw output format works.
 // We're particularly concerned that bytes output is correct.
 func TestOutputRaw(t *testing.T) {
+	t.Parallel()
+
 	for _, handle := range sakila.SQLAll() {
 		handle := handle
 

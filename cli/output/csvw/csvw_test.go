@@ -32,5 +32,5 @@ func TestDateTimeHandling(t *testing.T) {
 	require.NoError(t, w.Close())
 
 	require.Equal(t, want, buf.String())
-	println(buf.String())
+	t.Log(buf.String())
 }

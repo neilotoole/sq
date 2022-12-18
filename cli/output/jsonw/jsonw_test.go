@@ -1,3 +1,4 @@
+//nolint:lll
 package jsonw_test
 
 import (
@@ -140,7 +141,8 @@ func TestRecordWriters(t *testing.T) {
 			colNames, kinds := fixt.ColNamePerKind(false, false, false)
 			recMeta := testh.NewRecordMeta(colNames, kinds)
 
-			v0, v1, v2, v3, v4, v5, v6, v7, v8 := int64(64), float64(64.64), "10000000000000000.99", true, "hello", time.Unix(0, 0).UTC(), time.Unix(0, 0).UTC(), time.Unix(0, 0).UTC(), []byte("hello")
+			v0, v1, v2, v3, v4, v5, v6, v7, v8 := int64(64), float64(64.64), "10000000000000000.99", true, "hello", time.Unix(0,
+				0).UTC(), time.Unix(0, 0).UTC(), time.Unix(0, 0).UTC(), []byte("hello")
 
 			recs := []sqlz.Record{
 				{&v0, &v1, &v2, &v3, &v4, &v5, &v6, &v7, &v8},

@@ -10,6 +10,8 @@ import (
 )
 
 func TestSmoke(t *testing.T) {
+	t.Parallel()
+
 	testCases := []string{sakila.CSVActor, sakila.TSVActor, sakila.CSVActorHTTP}
 
 	for _, handle := range testCases {
@@ -30,8 +32,9 @@ func TestSmoke(t *testing.T) {
 }
 
 func TestQuerySQL_Count(t *testing.T) {
-	testCases := []string{sakila.CSVActor, sakila.TSVActor}
+	t.Parallel()
 
+	testCases := []string{sakila.CSVActor, sakila.TSVActor}
 	for _, handle := range testCases {
 		handle := handle
 
