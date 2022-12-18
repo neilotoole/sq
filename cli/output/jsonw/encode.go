@@ -16,8 +16,7 @@ import (
 
 // monoEncoder provides methods for encoding JSON values
 // without colorization (that is, in monochrome).
-type monoEncoder struct {
-}
+type monoEncoder struct{}
 
 func (e monoEncoder) encodeTime(b []byte, v any) ([]byte, error) {
 	return e.doEncodeTime(b, v, stringz.TimeFormat)

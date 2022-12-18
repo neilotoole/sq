@@ -2,7 +2,6 @@ package ast
 
 import (
 	"fmt"
-
 	"reflect"
 
 	"github.com/antlr/antlr4/runtime/Go/antlr"

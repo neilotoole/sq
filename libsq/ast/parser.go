@@ -68,14 +68,16 @@ func (el *antlrErrorListener) String() string {
 
 // SyntaxError implements antlr.ErrorListener.
 func (el *antlrErrorListener) SyntaxError(recognizer antlr.Recognizer, offendingSymbol any, line, column int,
-	msg string, e antlr.RecognitionException) {
+	msg string, e antlr.RecognitionException,
+) {
 	text := fmt.Sprintf("%s: syntax error: [%d:%d] %s", el.name, line, column, msg)
 	el.errs = append(el.errs, text)
 }
 
 // ReportAmbiguity implements antlr.ErrorListener.
 func (el *antlrErrorListener) ReportAmbiguity(recognizer antlr.Parser, dfa *antlr.DFA, startIndex, stopIndex int,
-	exact bool, ambigAlts *antlr.BitSet, configs antlr.ATNConfigSet) {
+	exact bool, ambigAlts *antlr.BitSet, configs antlr.ATNConfigSet,
+) {
 	tok := recognizer.GetCurrentToken()
 	text := fmt.Sprintf("%s: syntax ambiguity: [%d:%d]", el.name, startIndex, stopIndex)
 	text = text + "  >>" + tok.GetText() + "<<"
@@ -84,14 +86,16 @@ func (el *antlrErrorListener) ReportAmbiguity(recognizer antlr.Parser, dfa *antl
 
 // ReportAttemptingFullContext implements antlr.ErrorListener.
 func (el *antlrErrorListener) ReportAttemptingFullContext(recognizer antlr.Parser, dfa *antlr.DFA, startIndex,
-	stopIndex int, conflictingAlts *antlr.BitSet, configs antlr.ATNConfigSet) {
+	stopIndex int, conflictingAlts *antlr.BitSet, configs antlr.ATNConfigSet,
+) {
 	text := fmt.Sprintf("%s: attempting full context: [%d:%d]", el.name, startIndex, stopIndex)
 	el.warnings = append(el.warnings, text)
 }
 
 // ReportContextSensitivity implements antlr.ErrorListener.
 func (el *antlrErrorListener) ReportContextSensitivity(recognizer antlr.Parser, dfa *antlr.DFA, startIndex, stopIndex,
-	prediction int, configs antlr.ATNConfigSet) {
+	prediction int, configs antlr.ATNConfigSet,
+) {
 	text := fmt.Sprintf("%s: context sensitivity: [%d:%d]", el.name, startIndex, stopIndex)
 	el.warnings = append(el.warnings, text)
 }
@@ -526,7 +530,7 @@ func (v *parseTreeVisitor) VisitRowRange(ctx *slq.RowRangeContext) any {
 	//   [10:]   select all rows from 10 onwards
 	// so we need to determine if the INT is before or after the colon
 	var offset int
-	var limit = -1
+	limit := -1
 
 	if ctx.COLON().GetSymbol().GetTokenIndex() < ctx.AllNN()[0].GetSymbol().GetTokenIndex() {
 		// [:15]   (0 thru 15)

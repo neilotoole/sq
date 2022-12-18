@@ -89,6 +89,7 @@ func BenchmarkSegmentj_Indent(b *testing.B) {
 		}
 	}
 }
+
 func BenchmarkJColorEnc(b *testing.B) {
 	_, recs := testh.RecordsFromTbl(b, sakila.SL3, "payment")
 	b.ResetTimer()

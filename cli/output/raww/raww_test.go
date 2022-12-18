@@ -25,8 +25,10 @@ func TestRecordWriter_TblActor(t *testing.T) {
 		want    []byte
 	}{
 		{name: "actor_0", numRecs: 0, want: nil},
-		{name: "actor_3", numRecs: 3,
-			want: []byte("1PENELOPEGUINESS2020-06-11T02:50:54Z2NICKWAHLBERG2020-06-11T02:50:54Z3EDCHASE2020-06-11T02:50:54Z")}, //nolint:lll
+		{
+			name: "actor_3", numRecs: 3,
+			want: []byte("1PENELOPEGUINESS2020-06-11T02:50:54Z2NICKWAHLBERG2020-06-11T02:50:54Z3EDCHASE2020-06-11T02:50:54Z"),
+		},
 	}
 
 	for _, tc := range testCases {

@@ -124,10 +124,14 @@ func TestCmdSQL_StdinQuery(t *testing.T) {
 		wantErr   bool
 	}{
 		{fpath: proj.Abs(sakila.PathCSVActorNoHeader), tbl: source.MonotableName, wantCount: sakila.TblActorCount},
-		{fpath: proj.Abs(sakila.PathXLSXActorHeader), srcHeader: true, tbl: sakila.TblActor,
-			wantCount: sakila.TblActorCount},
-		{fpath: proj.Abs(sakila.PathXLSXSubset), srcHeader: true, tbl: sakila.TblActor,
-			wantCount: sakila.TblActorCount},
+		{
+			fpath: proj.Abs(sakila.PathXLSXActorHeader), srcHeader: true, tbl: sakila.TblActor,
+			wantCount: sakila.TblActorCount,
+		},
+		{
+			fpath: proj.Abs(sakila.PathXLSXSubset), srcHeader: true, tbl: sakila.TblActor,
+			wantCount: sakila.TblActorCount,
+		},
 		{fpath: proj.Abs("README.md"), wantErr: true},
 	}
 

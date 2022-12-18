@@ -123,7 +123,7 @@ func (t *Table) SetColTrans(col int, trans textTransFunc) {
 }
 
 // SetCellTrans sets the cell transformer.
-func (t *Table) SetCellTrans(row int, col int, trans textTransFunc) {
+func (t *Table) SetCellTrans(row, col int, trans textTransFunc) {
 	t.cellTrans[fmt.Sprintf("[%v][%v]", row, col)] = trans
 }
 
@@ -132,7 +132,7 @@ func (t *Table) SetHeaderTrans(trans textTransFunc) {
 	t.headerTrans = trans
 }
 
-func (t *Table) getCellTrans(row int, col int) textTransFunc {
+func (t *Table) getCellTrans(row, col int) textTransFunc {
 	colTrans := t.getColTrans(col)
 	key := fmt.Sprintf("[%v][%v]", row, col)
 	cellTrans := t.cellTrans[key]
@@ -184,7 +184,7 @@ func (t *Table) SetHeader(keys []string) {
 
 // SetFooter sets table Footer
 func (t *Table) SetFooter(keys []string) {
-	//t.colSize = len(keys)
+	// t.colSize = len(keys)
 	for i, v := range keys {
 		t.parseDimension(v, i, -1)
 		t.footers = append(t.footers, v)
@@ -494,7 +494,6 @@ func (t *Table) printRow(columns [][]string, colKey int) {
 					fmt.Fprintf(t.out, "%s", PadLeft(text, Space, t.cs[y]))
 				} else {
 					fmt.Fprintf(t.out, "%s", PadRight(text, Space, t.cs[y]))
-
 				}
 			}
 			fmt.Fprint(t.out, Space)
@@ -508,7 +507,6 @@ func (t *Table) printRow(columns [][]string, colKey int) {
 	if t.rowLine {
 		t.printLine(true)
 	}
-
 }
 
 func (t *Table) parseDimension(str string, colKey, rowKey int) []string {

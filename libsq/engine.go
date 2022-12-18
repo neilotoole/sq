@@ -137,7 +137,8 @@ func (ng *engine) executeTasks(ctx context.Context) error {
 }
 
 func (ng *engine) buildTableFromClause(ctx context.Context, tblSel *ast.TblSelector) (fromClause string,
-	fromConn driver.Database, err error) {
+	fromConn driver.Database, err error,
+) {
 	src, err := ng.srcs.Get(tblSel.DSName)
 	if err != nil {
 		return "", nil, err
@@ -158,7 +159,8 @@ func (ng *engine) buildTableFromClause(ctx context.Context, tblSel *ast.TblSelec
 }
 
 func (ng *engine) buildJoinFromClause(ctx context.Context, fnJoin *ast.Join) (fromClause string,
-	fromConn driver.Database, err error) {
+	fromConn driver.Database, err error,
+) {
 	if fnJoin.LeftTbl() == nil || fnJoin.LeftTbl().SelValue() == "" {
 		return "", nil, errz.Errorf("JOIN is missing left table reference")
 	}
@@ -175,7 +177,8 @@ func (ng *engine) buildJoinFromClause(ctx context.Context, fnJoin *ast.Join) (fr
 }
 
 func (ng *engine) singleSourceJoin(ctx context.Context, fnJoin *ast.Join) (fromClause string, fromDB driver.Database,
-	err error) {
+	err error,
+) {
 	src, err := ng.srcs.Get(fnJoin.LeftTbl().DSName)
 	if err != nil {
 		return "", nil, err
@@ -198,7 +201,8 @@ func (ng *engine) singleSourceJoin(ctx context.Context, fnJoin *ast.Join) (fromC
 // crossSourceJoin returns a FROM clause that forms part of
 // the SQL SELECT statement against fromDB.
 func (ng *engine) crossSourceJoin(ctx context.Context, fnJoin *ast.Join) (fromClause string, fromDB driver.Database,
-	err error) {
+	err error,
+) {
 	leftTblName, rightTblName := fnJoin.LeftTbl().SelValue(), fnJoin.RightTbl().SelValue()
 	if leftTblName == rightTblName {
 		return "", nil, errz.Errorf("JOIN tables must have distinct names (or use aliases): duplicate tbl name %q",
@@ -278,9 +282,11 @@ func (jt *joinCopyTask) executeTask(ctx context.Context, log lg.Log) error {
 
 // execCopyTable performs the work of copying fromDB.fromTblName to destDB.destTblName.
 func execCopyTable(ctx context.Context, log lg.Log, fromDB driver.Database, fromTblName string, destDB driver.Database,
-	destTblName string) error {
+	destTblName string,
+) error {
 	createTblHook := func(ctx context.Context, originRecMeta sqlz.RecordMeta, destDB driver.Database,
-		tx sqlz.DB) error {
+		tx sqlz.DB,
+	) error {
 		destColNames := originRecMeta.Names()
 		destColKinds := originRecMeta.Kinds()
 		destTblDef := sqlmodel.NewTableDef(destTblName, destColNames, destColKinds)

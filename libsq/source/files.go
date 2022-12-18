@@ -275,7 +275,7 @@ func (fs *Files) openLocation(loc string) (*os.File, error) {
 // openFile opens the file at fpath. It is the caller's
 // responsibility to close the returned file.
 func (fs *Files) openFile(fpath string) (*os.File, error) {
-	f, err := os.OpenFile(fpath, os.O_RDWR, 0666)
+	f, err := os.OpenFile(fpath, os.O_RDWR, 0o666)
 	if err != nil {
 		return nil, errz.Err(err)
 	}
@@ -548,7 +548,7 @@ func TempDirFile(filename string) (dir string, f *os.File, cleanFn func() error,
 	}
 
 	name := filepath.Join(dir, filename)
-	f, err = os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
+	f, err = os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
 		// Silently delete the temp dir
 		_ = os.RemoveAll(dir)

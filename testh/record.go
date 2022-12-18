@@ -67,8 +67,10 @@ func (r *RecordSink) Close() error {
 	return nil
 }
 
-var recSinkCache = map[string]*RecordSink{}
-var recSinkMu sync.Mutex
+var (
+	recSinkCache = map[string]*RecordSink{}
+	recSinkMu    sync.Mutex
+)
 
 // RecordsFromTbl returns a cached copy of all records from handle.tbl.
 // The function performs a "SELECT * FROM tbl" and caches (in a package

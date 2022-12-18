@@ -26,8 +26,10 @@ func TestRecordWriter(t *testing.T) {
 	}{
 		{name: "actor_0", handle: sakila.SL3, tbl: sakila.TblActor, numRecs: 0, fixtPath: "testdata/actor_0_rows.xlsx"},
 		{name: "actor_3", handle: sakila.SL3, tbl: sakila.TblActor, numRecs: 3, fixtPath: "testdata/actor_3_rows.xlsx"},
-		{name: "tbl_types_3", handle: testsrc.MiscDB, tbl: testsrc.TblTypes, numRecs: -1,
-			fixtPath: "testdata/miscdb_tbl_types.xlsx"},
+		{
+			name: "tbl_types_3", handle: testsrc.MiscDB, tbl: testsrc.TblTypes, numRecs: -1,
+			fixtPath: "testdata/miscdb_tbl_types.xlsx",
+		},
 	}
 
 	for _, tc := range testCases {

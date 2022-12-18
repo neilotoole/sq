@@ -34,12 +34,12 @@ func TestVal(t *testing.T) {
 		t.FailNow()
 	}
 
-	var v1 = want
+	v1 := want
 	var v1a any = want
-	var v2 = &v1
+	v2 := &v1
 	var v3 any = &v1
-	var v4 = &v2
-	var v5 = &v4
+	v4 := &v2
+	v5 := &v4
 
 	vals := []any{v1, v1a, v2, v3, v4, v5}
 	for _, val := range vals {
@@ -74,7 +74,7 @@ func TestVal(t *testing.T) {
 }
 
 func TestCopyRecords(t *testing.T) {
-	var v1, v2, v3, v4, v5, v6 = int64(1), float64(1.1), true, "hello", []byte("hello"), time.Unix(0, 0)
+	v1, v2, v3, v4, v5, v6 := int64(1), float64(1.1), true, "hello", []byte("hello"), time.Unix(0, 0)
 
 	testCases := map[string][]sqlz.Record{
 		"nil":   nil,

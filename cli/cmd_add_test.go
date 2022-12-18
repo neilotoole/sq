@@ -45,12 +45,18 @@ func TestCmdAdd(t *testing.T) {
 		{loc: proj.Abs(sakila.PathCSVActor), driver: "csv", wantHandle: "@actor_csv", wantType: csv.TypeCSV},
 		{loc: proj.Abs(sakila.PathCSVActor), driver: "xlsx", wantErr: true},
 		// sqlite can be added both with and without the scheme "sqlite://"
-		{loc: "sqlite3://" + proj.Abs(sakila.PathSL3), wantHandle: "@sakila_sqlite",
-			wantType: sqlite3.Type}, // with scheme
-		{loc: proj.Abs(sakila.PathSL3), wantHandle: "@sakila_sqlite",
-			wantType: sqlite3.Type}, // without scheme, abs path
-		{loc: proj.Rel(sakila.PathSL3), wantHandle: "@sakila_sqlite",
-			wantType: sqlite3.Type}, // without scheme, relative path
+		{
+			loc: "sqlite3://" + proj.Abs(sakila.PathSL3), wantHandle: "@sakila_sqlite",
+			wantType: sqlite3.Type,
+		}, // with scheme
+		{
+			loc: proj.Abs(sakila.PathSL3), wantHandle: "@sakila_sqlite",
+			wantType: sqlite3.Type,
+		}, // without scheme, abs path
+		{
+			loc: proj.Rel(sakila.PathSL3), wantHandle: "@sakila_sqlite",
+			wantType: sqlite3.Type,
+		}, // without scheme, relative path
 		{loc: th.Source(sakila.Pg).Location, wantHandle: "@sakila_pg", wantType: postgres.Type},
 		{loc: th.Source(sakila.MS).Location, wantHandle: "@sakila_mssql", wantType: sqlserver.Type},
 		{loc: th.Source(sakila.My).Location, wantHandle: "@sakila_my", wantType: mysql.Type},

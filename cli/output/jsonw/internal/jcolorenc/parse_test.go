@@ -22,7 +22,6 @@ func TestParseString(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.in, func(t *testing.T) {
 			out, ext, err := parseString([]byte(test.in))
-
 			if err != nil {
 				t.Errorf("%s => %s", test.in, err)
 				return
@@ -107,8 +106,10 @@ func BenchmarkAppendToLower(b *testing.B) {
 	}
 }
 
-var benchmarkHasPrefixString = []byte("some random string")
-var benchmarkHasPrefixResult = false
+var (
+	benchmarkHasPrefixString = []byte("some random string")
+	benchmarkHasPrefixResult = false
+)
 
 func BenchmarkHasPrefix(b *testing.B) {
 	for i := 0; i < b.N; i++ {
@@ -135,7 +136,7 @@ func BenchmarkHasFalsePrefix(b *testing.B) {
 }
 
 func BenchmarkParseStringEscapeNone(b *testing.B) {
-	var j = []byte(`"` + strings.Repeat(`a`, 1000) + `"`)
+	j := []byte(`"` + strings.Repeat(`a`, 1000) + `"`)
 	var s string
 	b.SetBytes(int64(len(j)))
 
@@ -148,7 +149,7 @@ func BenchmarkParseStringEscapeNone(b *testing.B) {
 }
 
 func BenchmarkParseStringEscapeOne(b *testing.B) {
-	var j = []byte(`"` + strings.Repeat(`a`, 998) + `\n"`)
+	j := []byte(`"` + strings.Repeat(`a`, 998) + `\n"`)
 	var s string
 	b.SetBytes(int64(len(j)))
 
@@ -161,7 +162,7 @@ func BenchmarkParseStringEscapeOne(b *testing.B) {
 }
 
 func BenchmarkParseStringEscapeAll(b *testing.B) {
-	var j = []byte(`"` + strings.Repeat(`\`, 1000) + `"`)
+	j := []byte(`"` + strings.Repeat(`\`, 1000) + `"`)
 	var s string
 	b.SetBytes(int64(len(j)))
 

@@ -18,7 +18,7 @@ import (
 )
 
 func TestVerifyLegalHandle(t *testing.T) {
-	var fails = []struct {
+	fails := []struct {
 		handle string
 		msg    string
 	}{
@@ -41,7 +41,7 @@ func TestVerifyLegalHandle(t *testing.T) {
 		require.Error(t, source.VerifyLegalHandle(fail.handle), fmt.Sprintf("[%d] %s]", i, fail.msg))
 	}
 
-	var passes = []string{
+	passes := []string{
 		"@handle",
 		"@handle1",
 		"@h1",
@@ -71,15 +71,19 @@ func TestSuggestHandle(t *testing.T) {
 		{typ: xlsx.Type, loc: "/path/to/sakila.something.xlsx", want: "@sakila_something_xlsx"},
 		{typ: xlsx.Type, loc: "/path/to/😀abc123😀", want: "@h_abc123__xlsx"},
 		{typ: source.TypeNone, loc: "/path/to/sakila.xlsx", want: "@sakila_xlsx"},
-		{typ: xlsx.Type, loc: "/path/to/sakila.xlsx", want: "@sakila_xlsx_2",
-			taken: []string{"@sakila_xlsx", "@sakila_xlsx_1"}},
+		{
+			typ: xlsx.Type, loc: "/path/to/sakila.xlsx", want: "@sakila_xlsx_2",
+			taken: []string{"@sakila_xlsx", "@sakila_xlsx_1"},
+		},
 		{typ: sqlite3.Type, loc: "sqlite3:///path/to/sakila.db", want: "@sakila_sqlite"},
 		{typ: source.TypeNone, loc: "sqlite3:///path/to/sakila.db", want: "@sakila_sqlite"},
 		{typ: sqlite3.Type, loc: "/path/to/sakila.db", want: "@sakila_sqlite"},
 		{typ: sqlserver.Type, loc: "sqlserver://sakila_p_ssW0rd@localhost?database=sakila", want: "@sakila_mssql"},
 		{typ: source.TypeNone, loc: "sqlserver://sakila_p_ssW0rd@localhost?database=sakila", want: "@sakila_mssql"},
-		{typ: source.TypeNone, loc: "sqlserver://sakila_p_ssW0rd@localhost?database=sakila", want: "@sakila_mssql_1",
-			taken: []string{"@sakila_mssql"}},
+		{
+			typ: source.TypeNone, loc: "sqlserver://sakila_p_ssW0rd@localhost?database=sakila", want: "@sakila_mssql_1",
+			taken: []string{"@sakila_mssql"},
+		},
 		{typ: postgres.Type, loc: "postgres://sakila_p_ssW0rd@localhost/sakila?sslmode=disable", want: "@sakila_pg"},
 		{typ: source.TypeNone, loc: "postgres://sakila_p_ssW0rd@localhost/sakila?sslmode=disable", want: "@sakila_pg"},
 		{typ: postgres.Type, loc: "postgres://sakila_p_ssW0rd@localhost/sakila?sslmode=disable", want: "@sakila_pg"},

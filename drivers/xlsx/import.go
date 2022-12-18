@@ -22,7 +22,8 @@ import (
 
 // xlsxToScratch loads the data in xlFile into scratchDB.
 func xlsxToScratch(ctx context.Context, log lg.Log, src *source.Source, xlFile *xlsx.File,
-	scratchDB driver.Database) error {
+	scratchDB driver.Database,
+) error {
 	start := time.Now()
 	log.Debugf("Beginning import from XLSX %s to %s (%s)...", src.Handle, scratchDB.Source().Handle,
 		scratchDB.Source().RedactedLocation())
@@ -75,7 +76,8 @@ func xlsxToScratch(ctx context.Context, log lg.Log, src *source.Source, xlFile *
 // importSheetToTable imports sheet's data to its scratch table.
 // The scratch table must already exist.
 func importSheetToTable(ctx context.Context, log lg.Log, sheet *xlsx.Sheet, hasHeader bool, scratchDB driver.Database,
-	tblDef *sqlmodel.TableDef) error {
+	tblDef *sqlmodel.TableDef,
+) error {
 	startTime := time.Now()
 
 	conn, err := scratchDB.DB().Conn(ctx)
@@ -158,7 +160,8 @@ func isEmptyRow(row *xlsx.Row) bool {
 // buildTblDefsForSheets returns a TableDef for each sheet. If the
 // sheet is empty (has no data), the TableDef for that sheet will be nil.
 func buildTblDefsForSheets(ctx context.Context, log lg.Log, sheets []*xlsx.Sheet, hasHeader bool) ([]*sqlmodel.TableDef,
-	error) {
+	error,
+) {
 	tblDefs := make([]*sqlmodel.TableDef, len(sheets))
 
 	g, _ := errgroup.WithContext(ctx)

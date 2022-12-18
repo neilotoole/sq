@@ -3,6 +3,7 @@
 package sqlite3
 
 import "C"
+
 import (
 	"context"
 	"database/sql"
@@ -87,7 +88,8 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database
 
 // Truncate implements driver.Driver.
 func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, reset bool) (affected int64,
-	err error) {
+	err error,
+) {
 	dsn, err := PathFromLocation(src)
 	if err != nil {
 		return 0, err
@@ -262,7 +264,7 @@ func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *sqlmodel.
 }
 
 // AlterTableAddColumn implements driver.SQLDriver.
-func (d *driveri) AlterTableAddColumn(ctx context.Context, db *sql.DB, tbl string, col string, kind kind.Kind) error {
+func (d *driveri) AlterTableAddColumn(ctx context.Context, db *sql.DB, tbl, col string, kind kind.Kind) error {
 	q := fmt.Sprintf("ALTER TABLE %q ADD COLUMN %q ", tbl, col) + DBTypeForKind(kind)
 
 	_, err := db.ExecContext(ctx, q)
@@ -288,7 +290,8 @@ func (d *driveri) TableExists(ctx context.Context, db sqlz.DB, tbl string) (bool
 
 // PrepareInsertStmt implements driver.SQLDriver.
 func (d *driveri) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string,
-	numRows int) (*driver.StmtExecer, error) {
+	numRows int,
+) (*driver.StmtExecer, error) {
 	destColsMeta, err := d.getTableRecordMeta(ctx, db, destTbl, destColNames)
 	if err != nil {
 		return nil, err
@@ -306,7 +309,8 @@ func (d *driveri) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl str
 
 // PrepareUpdateStmt implements driver.SQLDriver.
 func (d *driveri) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl string,
-	destColNames []string, where string) (*driver.StmtExecer, error) {
+	destColNames []string, where string,
+) (*driver.StmtExecer, error) {
 	destColsMeta, err := d.getTableRecordMeta(ctx, db, destTbl, destColNames)
 	if err != nil {
 		return nil, err
@@ -340,7 +344,8 @@ func newStmtExecFunc(stmt *sql.Stmt) driver.StmtExecFunc {
 
 // TableColumnTypes implements driver.SQLDriver.
 func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName string,
-	colNames []string) ([]*sql.ColumnType, error) {
+	colNames []string,
+) ([]*sql.ColumnType, error) {
 	// Given the dynamic behavior of sqlite's rows.ColumnTypes,
 	// this query selects a single row, as that'll give us more
 	// accurate column type info than no rows. For other db
@@ -351,7 +356,7 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 	quote := string(dialect.Quote)
 	tblNameQuoted := stringz.Surround(tblName, quote)
 
-	var colsClause = "*"
+	colsClause := "*"
 	if len(colNames) > 0 {
 		colNamesQuoted := stringz.SurroundSlice(colNames, quote)
 		colsClause = strings.Join(colNamesQuoted, driver.Comma)
@@ -399,7 +404,8 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 }
 
 func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName string,
-	colNames []string) (sqlz.RecordMeta, error) {
+	colNames []string,
+) (sqlz.RecordMeta, error) {
 	colTypes, err := d.TableColumnTypes(ctx, db, tblName, colNames)
 	if err != nil {
 		return nil, err

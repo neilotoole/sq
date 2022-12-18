@@ -157,7 +157,8 @@ func checkStdinSource(ctx context.Context, rc *RunContext) (*source.Source, erro
 // newSource creates a new Source instance where the
 // driver type is known. Opts may be nil.
 func newSource(log lg.Log, dp driver.Provider, typ source.Type, handle, location string,
-	opts options.Options) (*source.Source, error) {
+	opts options.Options,
+) (*source.Source, error) {
 	if opts == nil {
 		log.Debugf("Create new data source %q [%s] from %q",
 			handle, typ, location)

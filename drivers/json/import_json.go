@@ -18,7 +18,8 @@ import (
 // DetectJSON implements source.TypeDetectFunc.
 // The function returns TypeJSON for two varieties of input:.
 func DetectJSON(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (detected source.Type, score float32,
-	err error) {
+	err error,
+) {
 	var r1, r2 io.ReadCloser
 	r1, err = openFn()
 	if err != nil {

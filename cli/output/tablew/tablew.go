@@ -208,6 +208,7 @@ func (t *table) sprintNull() string {
 func (t *table) sprintInt64(num int64) string {
 	return t.fm.Number.Sprint(strconv.FormatInt(num, 10))
 }
+
 func (t *table) sprintFloat64(num float64) string {
 	return t.fm.Number.Sprint(stringz.FormatFloat(num))
 }

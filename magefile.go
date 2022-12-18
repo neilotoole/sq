@@ -221,7 +221,7 @@ func execAntlrGenerate(jarPath string) (genDir string, err error) {
 	}
 
 	// Make sure the output dir exists.
-	err = os.MkdirAll(genDir, 0700)
+	err = os.MkdirAll(genDir, 0o700)
 	if err != nil {
 		return "", err
 	}
@@ -270,7 +270,7 @@ func ensureAntlrJar() (jarPath string, err error) {
 	)
 
 	// Make sure our grammar/build dir exists
-	err = os.MkdirAll(filepath.Join("grammar", "build"), 0700)
+	err = os.MkdirAll(filepath.Join("grammar", "build"), 0o700)
 	if err != nil {
 		return "", err
 	}

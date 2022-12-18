@@ -153,7 +153,7 @@ type SQLDriver interface {
 	// AlterTableAddColumn adds column col to tbl. The column is appended
 	// to the list of columns (that is, the column position cannot be
 	// specified).
-	AlterTableAddColumn(ctx context.Context, db *sql.DB, tbl string, col string, kind kind.Kind) error
+	AlterTableAddColumn(ctx context.Context, db *sql.DB, tbl, col string, kind kind.Kind) error
 }
 
 // Database models a database handle. It is conceptually equivalent to

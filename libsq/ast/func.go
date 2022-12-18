@@ -1,7 +1,9 @@
 package ast
 
-var _ Node = (*Func)(nil)
-var _ ColExpr = (*Func)(nil)
+var (
+	_ Node    = (*Func)(nil)
+	_ ColExpr = (*Func)(nil)
+)
 
 // Func models a function. For example, "COUNT()".
 type Func struct {

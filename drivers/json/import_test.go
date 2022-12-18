@@ -126,10 +126,14 @@ func TestScanObjectsInArray(t *testing.T) {
 		m2 = []map[string]any{{"a": float64(1)}, {"a": float64(2)}}
 		m3 = []map[string]any{{"a": float64(1)}, {"a": float64(2)}, {"a": float64(3)}}
 		m4 = []map[string]any{
-			{"a": float64(1), "b": []any{float64(1), float64(2), float64(3)}, "c": map[string]any{"c1": float64(1)},
-				"d": "d1"},
-			{"a": float64(2), "b": []any{float64(21), float64(22), float64(23)}, "c": map[string]any{"c1": float64(2)},
-				"d": "d2"},
+			{
+				"a": float64(1), "b": []any{float64(1), float64(2), float64(3)}, "c": map[string]any{"c1": float64(1)},
+				"d": "d1",
+			},
+			{
+				"a": float64(2), "b": []any{float64(21), float64(22), float64(23)}, "c": map[string]any{"c1": float64(2)},
+				"d": "d2",
+			},
 		}
 	)
 
@@ -166,11 +170,17 @@ func TestScanObjectsInArray(t *testing.T) {
 		{in: `[  { "a"  : 1} ,   {"a":  2 }  ]`, wantObjs: m2, wantChunks: []string{`{ "a"  : 1}`, `{"a":  2 }`}},
 		{in: `[{"a":1},{"a":2},{"a":3}]`, wantObjs: m3, wantChunks: []string{`{"a":1}`, `{"a":2}`, `{"a":3}`}},
 		{in: `[{"a":1} ,{"a":2},{"a":3}]`, wantObjs: m3, wantChunks: []string{`{"a":1}`, `{"a":2}`, `{"a":3}`}},
-		{in: "[\n  {\"a\" : 1},\n  {\"a\"  : 2 \n}\n,\n  {\"a\":   3}\n]\n\n", wantObjs: m3,
-			wantChunks: []string{"{\"a\" : 1}", "{\"a\"  : 2 \n}", "{\"a\":   3}"}},
-		{in: `[{"a":1,"b":[1,2,3],"c":{"c1":1},"d":"d1"}  ,  {"a":2,"b":[21,22,23],"c":{"c1":2},"d":"d2"}]`,
-			wantObjs: m4, wantChunks: []string{`{"a":1,"b":[1,2,3],"c":{"c1":1},"d":"d1"}`,
-				`{"a":2,"b":[21,22,23],"c":{"c1":2},"d":"d2"}`}},
+		{
+			in: "[\n  {\"a\" : 1},\n  {\"a\"  : 2 \n}\n,\n  {\"a\":   3}\n]\n\n", wantObjs: m3,
+			wantChunks: []string{"{\"a\" : 1}", "{\"a\"  : 2 \n}", "{\"a\":   3}"},
+		},
+		{
+			in:       `[{"a":1,"b":[1,2,3],"c":{"c1":1},"d":"d1"}  ,  {"a":2,"b":[21,22,23],"c":{"c1":2},"d":"d2"}]`,
+			wantObjs: m4, wantChunks: []string{
+				`{"a":1,"b":[1,2,3],"c":{"c1":1},"d":"d1"}`,
+				`{"a":2,"b":[21,22,23],"c":{"c1":2},"d":"d2"}`,
+			},
+		},
 	}
 
 	for i, tc := range testCases {
@@ -227,7 +237,6 @@ func TestColumnOrderFlat(t *testing.T) {
 		want    []string
 		wantErr bool
 	}{
-
 		{in: `{}`, want: nil},
 		{in: `{"a":1}`, want: []string{"a"}},
 		{in: `{"a":1, "b": {"c":2}}`, want: []string{"a", "b_c"}},
@@ -241,8 +250,10 @@ func TestColumnOrderFlat(t *testing.T) {
 		{in: `{"d": [3,[4,5,[6,7,8]]], "e":9, "fname":[10,11,[12,13]]}`, want: []string{"d", "e", "fname"}},
 		{in: `{"a":1, "b": {"c":2}, "d": 3, "e":4}`, want: []string{"a", "b_c", "d", "e"}},
 		{in: `{"b":1,"a":2}`, want: []string{"b", "a"}},
-		{in: `{"a":1,"b":2,"c":{"c1":3,"c2":4,"c3":{"d1":5,"d2":6},"c5":7},"e":8}`,
-			want: []string{"a", "b", "c_c1", "c_c2", "c_c3_d1", "c_c3_d2", "c_c5", "e"}},
+		{
+			in:   `{"a":1,"b":2,"c":{"c1":3,"c2":4,"c3":{"d1":5,"d2":6},"c5":7},"e":8}`,
+			want: []string{"a", "b", "c_c1", "c_c2", "c_c3_d1", "c_c3_d2", "c_c5", "e"},
+		},
 	}
 
 	for i, tc := range testCases {

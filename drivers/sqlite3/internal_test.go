@@ -6,8 +6,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var KindFromDBTypeName = kindFromDBTypeName
-var GetTblRowCounts = getTblRowCounts
+var (
+	KindFromDBTypeName = kindFromDBTypeName
+	GetTblRowCounts    = getTblRowCounts
+)
 
 func TestPlaceholders(t *testing.T) {
 	testCases := []struct {

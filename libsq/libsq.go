@@ -75,7 +75,8 @@ type RecordWriter interface {
 // ExecuteSLQ executes the slq query, writing the results to recw.
 // The caller is responsible for closing dbases.
 func ExecuteSLQ(ctx context.Context, log lg.Log, dbOpener driver.DatabaseOpener, joinDBOpener driver.JoinDatabaseOpener,
-	srcs *source.Set, query string, recw RecordWriter) error {
+	srcs *source.Set, query string, recw RecordWriter,
+) error {
 	ng, err := newEngine(ctx, log, dbOpener, joinDBOpener, srcs, query)
 	if err != nil {
 		return err
@@ -85,7 +86,8 @@ func ExecuteSLQ(ctx context.Context, log lg.Log, dbOpener driver.DatabaseOpener,
 }
 
 func newEngine(ctx context.Context, log lg.Log, dbOpener driver.DatabaseOpener, joinDBOpener driver.JoinDatabaseOpener,
-	srcs *source.Set, query string) (*engine, error) {
+	srcs *source.Set, query string,
+) (*engine, error) {
 	a, err := ast.Parse(log, query)
 	if err != nil {
 		return nil, err
@@ -117,7 +119,8 @@ func newEngine(ctx context.Context, log lg.Log, dbOpener driver.DatabaseOpener, 
 // to wait for recw to complete.
 // The caller is responsible for closing dbase.
 func QuerySQL(ctx context.Context, log lg.Log, dbase driver.Database, recw RecordWriter, query string,
-	args ...any) error {
+	args ...any,
+) error {
 	rows, err := dbase.DB().QueryContext(ctx, query, args...)
 	if err != nil {
 		return errz.Wrapf(err, `SQL query against %s failed: %s`, dbase.Source().Handle, query)
@@ -181,7 +184,7 @@ func QuerySQL(ctx context.Context, log lg.Log, dbase driver.Database, recw Recor
 	// pkg reflect to build scanRow (and also some drivers munge
 	// the scan types, e.g. switching to sql.NullString instead
 	// of *string). Therefore we reuse scanRow for each call to rows.Scan.
-	var scanRow = recMeta.NewScanRow()
+	scanRow := recMeta.NewScanRow()
 
 	for hasNext {
 		var rec sqlz.Record

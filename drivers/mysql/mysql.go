@@ -115,7 +115,8 @@ func (d *driveri) AlterTableAddColumn(ctx context.Context, db *sql.DB, tbl, col 
 
 // PrepareInsertStmt implements driver.SQLDriver.
 func (d *driveri) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string,
-	numRows int) (*driver.StmtExecer, error) {
+	numRows int,
+) (*driver.StmtExecer, error) {
 	destColsMeta, err := d.getTableRecordMeta(ctx, db, destTbl, destColNames)
 	if err != nil {
 		return nil, err
@@ -132,7 +133,8 @@ func (d *driveri) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl str
 
 // PrepareUpdateStmt implements driver.SQLDriver.
 func (d *driveri) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string,
-	where string) (*driver.StmtExecer, error) {
+	where string,
+) (*driver.StmtExecer, error) {
 	destColsMeta, err := d.getTableRecordMeta(ctx, db, destTbl, destColNames)
 	if err != nil {
 		return nil, err
@@ -208,14 +210,15 @@ func (d *driveri) DropTable(ctx context.Context, db sqlz.DB, tbl string, ifExist
 
 // TableColumnTypes implements driver.SQLDriver.
 func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName string,
-	colNames []string) ([]*sql.ColumnType, error) {
+	colNames []string,
+) ([]*sql.ColumnType, error) {
 	const queryTpl = "SELECT %s FROM %s LIMIT 0"
 
 	dialect := d.Dialect()
 	quote := string(dialect.Quote)
 	tblNameQuoted := stringz.Surround(tblName, quote)
 
-	var colsClause = "*"
+	colsClause := "*"
 	if len(colNames) > 0 {
 		colNamesQuoted := stringz.SurroundSlice(colNames, quote)
 		colsClause = strings.Join(colNamesQuoted, driver.Comma)
@@ -248,7 +251,8 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 }
 
 func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName string,
-	colNames []string) (sqlz.RecordMeta, error) {
+	colNames []string,
+) (sqlz.RecordMeta, error) {
 	colTypes, err := d.TableColumnTypes(ctx, db, tblName, colNames)
 	if err != nil {
 		return nil, err
@@ -300,7 +304,8 @@ func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 // always ignored: the identity value is always reset by
 // the TRUNCATE statement.
 func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, reset bool) (affected int64,
-	err error) {
+	err error,
+) {
 	// https://dev.mysql.com/doc/refman/8.0/en/truncate-table.html
 	dsn, err := dsnFromLocation(src, true)
 	if err != nil {

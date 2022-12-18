@@ -429,7 +429,8 @@ var unmarshalTests = []unmarshalTest{
 	//{in: `"invalid: \uD834x\uDD1E"`, ptr: new(string), out: "invalid: \uFFFDx\uFFFD"},
 	{in: "null", ptr: new(any), out: nil},
 	{in: `{"X": [1,2,3], "Y": 4}`, ptr: new(T), out: T{Y: 4}, err: &UnmarshalTypeError{"array", reflect.TypeOf(""), 7, "T", "X"}},
-	{in: `{"X": 23}`, ptr: new(T), out: T{}, err: &UnmarshalTypeError{"number", reflect.TypeOf(""), 8, "T", "X"}}, {in: `{"x": 1}`, ptr: new(tx), out: tx{}},
+	{in: `{"X": 23}`, ptr: new(T), out: T{}, err: &UnmarshalTypeError{"number", reflect.TypeOf(""), 8, "T", "X"}},
+	{in: `{"x": 1}`, ptr: new(tx), out: tx{}},
 	{in: `{"x": 1}`, ptr: new(tx), out: tx{}},
 	{in: `{"x": 1}`, ptr: new(tx), err: fmt.Errorf("json: unknown field \"x\""), disallowUnknownFields: true},
 	{in: `{"S": 23}`, ptr: new(W), out: W{}, err: &UnmarshalTypeError{"number", reflect.TypeOf(SS("")), 0, "W", "S"}},
@@ -1265,7 +1266,7 @@ func TestErrorMessageFromMisusedString(t *testing.T) {
 }
 
 func noSpace(c rune) rune {
-	if isSpace(byte(c)) { //only used for ascii
+	if isSpace(byte(c)) { // only used for ascii
 		return -1
 	}
 	return c
@@ -2088,7 +2089,7 @@ func TestPrefilled(t *testing.T) {
 	ptrToMap := func(m map[string]any) *map[string]any { return &m }
 
 	// Values here change, cannot reuse table across runs.
-	var prefillTests = []struct {
+	prefillTests := []struct {
 		in  string
 		ptr any
 		out any

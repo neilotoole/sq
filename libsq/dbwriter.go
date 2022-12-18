@@ -68,7 +68,8 @@ func DBWriterCreateTableIfNotExistsHook(destTblName string) DBWriterPreWriteHook
 // in destDB. The recChSize param controls the size of recordCh
 // returned by the writer's Open method.
 func NewDBWriter(log lg.Log, destDB driver.Database, destTbl string, recChSize int,
-	preWriteHooks ...DBWriterPreWriteHook) *DBWriter {
+	preWriteHooks ...DBWriterPreWriteHook,
+) *DBWriter {
 	return &DBWriter{
 		log:           log,
 		destDB:        destDB,
@@ -87,7 +88,8 @@ func NewDBWriter(log lg.Log, destDB driver.Database, destTbl string, recChSize i
 
 // Open implements RecordWriter.
 func (w *DBWriter) Open(ctx context.Context, cancelFn context.CancelFunc, recMeta sqlz.RecordMeta) (chan<- sqlz.Record,
-	<-chan error, error) {
+	<-chan error, error,
+) {
 	w.cancelFn = cancelFn
 
 	// REVISIT: tx could potentially be passed to NewDBWriter?

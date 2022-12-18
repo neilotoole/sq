@@ -19,5 +19,7 @@ type stdlibColumnType interface {
 	DatabaseTypeName() string
 }
 
-var _ stdlibColumnType = (*sql.ColumnType)(nil)
-var _ stdlibColumnType = (*sqlz.FieldMeta)(nil)
+var (
+	_ stdlibColumnType = (*sql.ColumnType)(nil)
+	_ stdlibColumnType = (*sqlz.FieldMeta)(nil)
+)
