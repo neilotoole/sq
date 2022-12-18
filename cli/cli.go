@@ -69,7 +69,7 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 )
 
-func init() {
+func init() { //nolint:gochecknoinits
 	cobra.EnableCommandSorting = false
 }
 

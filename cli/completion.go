@@ -154,7 +154,7 @@ func (c *handleTableCompleter) complete(cmd *cobra.Command, args []string, toCom
 // a period. Effectively this is completion for tables in the
 // active src.
 func (c *handleTableCompleter) completeTableOnly(ctx context.Context, rc *RunContext, args []string,
-	toComplete string) ([]string, cobra.ShellCompDirective) {
+	toComplete string) ([]string, cobra.ShellCompDirective) { //nolint:unparam
 	activeSrc := rc.Config.Sources.Active()
 	if activeSrc == nil {
 		rc.Log.Error("Active source is nil")
@@ -191,7 +191,7 @@ func (c *handleTableCompleter) completeTableOnly(ctx context.Context, rc *RunCon
 // completeHandle returns suggestions given input beginning with
 // a '@'. The returned suggestions could be @HANDLE, or @HANDLE.TABLE.
 func (c *handleTableCompleter) completeHandle(ctx context.Context, rc *RunContext, args []string,
-	toComplete string) ([]string, cobra.ShellCompDirective) {
+	toComplete string) ([]string, cobra.ShellCompDirective) { //nolint:unparam
 	// We're dealing with a handle.
 
 	// But we could be dealing with just the handle ("@sakila_sl3")
@@ -285,7 +285,7 @@ func (c *handleTableCompleter) completeHandle(ctx context.Context, rc *RunContex
 }
 
 func (c *handleTableCompleter) completeEither(ctx context.Context, rc *RunContext, args []string,
-	toComplete string) ([]string, cobra.ShellCompDirective) {
+	toComplete string) ([]string, cobra.ShellCompDirective) { //nolint:unparam
 	// There's no input yet.
 	// Therefore we want to return a union of all handles
 	// plus the tables from the active source.
