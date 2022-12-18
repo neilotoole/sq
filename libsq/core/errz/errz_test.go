@@ -17,7 +17,7 @@ func TestIs(t *testing.T) {
 }
 
 func TestAs(t *testing.T) {
-	var originalErr error
+	var originalErr error //nolint:gosimple
 	originalErr = &CustomError{msg: "huzzah"}
 
 	err := errz.Wrap(errz.Wrap(originalErr, "wrap"), "wrap")

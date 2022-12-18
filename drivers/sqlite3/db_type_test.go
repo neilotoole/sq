@@ -2,10 +2,11 @@ package sqlite3_test
 
 import (
 	"fmt"
-	"github.com/neilotoole/sq/testh/tutil"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/neilotoole/sq/testh/tutil"
 
 	"github.com/stretchr/testify/require"
 
@@ -122,6 +123,8 @@ var typeTestVals = [][]any{
 // returning the actual table names used. If withData is true, the
 // test data is also loaded. It is the caller's responsibility to drop
 // the created tables.
+//
+//nolint:unparam // withData is currently unused
 func createTypeTestTbls(th *testh.Helper, src *source.Source, nTimes int, withData bool) (tblNames []string) {
 	const canonicalTblName = "type_test"
 	const insertTpl = "INSERT INTO %s (%s) VALUES %s"

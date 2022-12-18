@@ -2,10 +2,11 @@ package mysql_test
 
 import (
 	"fmt"
-	"github.com/neilotoole/sq/testh/tutil"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/neilotoole/sq/testh/tutil"
 
 	"github.com/stretchr/testify/require"
 
@@ -351,7 +352,8 @@ func TestDatabaseTypes(t *testing.T) {
 
 			sink := &testh.RecordSink{}
 			recw := output.NewRecordWriterAdapter(sink)
-			err := libsq.QuerySQL(th.Context, th.Log, th.Open(src), recw, fmt.Sprintf("SELECT * FROM %s", actualTblName))
+			err := libsq.QuerySQL(th.Context, th.Log, th.Open(src), recw,
+				fmt.Sprintf("SELECT * FROM %s", actualTblName))
 			require.NoError(t, err)
 			written, err := recw.Wait()
 			require.NoError(t, err)
@@ -365,7 +367,7 @@ func TestDatabaseTypes(t *testing.T) {
 // TestDatabaseTypeJSON explicitly tests the JSON type
 // introduced in MySQL v5.7.8.
 func TestDatabaseTypeJSON(t *testing.T) {
-	// t.Parallel()
+	t.Parallel()
 
 	const (
 		canonicalTblName = "type_test_json"
