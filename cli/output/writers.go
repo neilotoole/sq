@@ -61,7 +61,6 @@ type SourceWriter interface {
 	Source(src *source.Source) error
 }
 
-
 // ErrorWriter outputs errors.
 type ErrorWriter interface {
 	// Error outputs err.

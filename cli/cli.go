@@ -208,7 +208,7 @@ func newCommandTree(rc *RunContext) (rootCmd *cobra.Command) {
 	// such that "sq help" and "sq --help" output the same thing.
 	slqCmd := newSLQCmd()
 	slqCmd.SetHelpFunc(func(command *cobra.Command, i []string) {
-		rootCmd.Help()
+		panicOn(rootCmd.Help())
 	})
 
 	addCmd(rc, rootCmd, slqCmd)
@@ -802,16 +802,16 @@ func printError(rc *RunContext, err error) {
 		return
 	}
 
-	if err == errNoMsg {
+	if errors.Is(err, errNoMsg) {
 		// errNoMsg is a sentinel err that sq doesn't want to print
 		return
 	}
 
-	switch errz.Cause(err) {
+	switch {
 	default:
-	case context.Canceled:
+	case errors.Is(err, context.Canceled):
 		err = errz.New("stopped")
-	case context.DeadlineExceeded:
+	case errors.Is(err, context.DeadlineExceeded):
 		err = errz.New("timeout")
 	}
 
@@ -914,4 +914,10 @@ func bootstrapIsFormatJSON(rc *RunContext) bool {
 
 	// No args, return true if the config file default is JSON
 	return defaultFormat == config.FormatJSON
+}
+
+func panicOn(err error) {
+	if err != nil {
+		panic(err)
+	}
 }

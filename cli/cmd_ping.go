@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -131,12 +132,12 @@ func pingSources(ctx context.Context, log lg.Log, dp driver.Provider, srcs []*so
 		result := <-resultCh
 
 		switch {
-		case result.err == context.Canceled:
+		case errors.Is(result.err, context.Canceled):
 			// If any one of the goroutines have received context.Canceled,
 			// then we'll bubble that up and ignore the remaining goroutines.
 			return context.Canceled
 
-		case result.err == context.DeadlineExceeded:
+		case errors.Is(result.err, context.DeadlineExceeded):
 			// If timeout occurred, set the duration to timeout.
 			result.duration = timeout
 			pingErrExists = true

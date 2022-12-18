@@ -3,6 +3,7 @@ package csvw
 import (
 	"context"
 	"encoding/csv"
+	"errors"
 	"io"
 	"time"
 
@@ -35,7 +36,7 @@ func (p *pingWriter) Result(src *source.Source, d time.Duration, err error) {
 	rec[0] = src.Handle
 	rec[1] = d.Truncate(time.Millisecond).String()
 	if err != nil {
-		if err == context.DeadlineExceeded {
+		if errors.Is(err, context.DeadlineExceeded) {
 			rec[2] = "timeout exceeded"
 		} else {
 			rec[2] = err.Error()

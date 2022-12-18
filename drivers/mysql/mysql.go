@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -390,10 +391,11 @@ func hasErrCode(err error, code uint16) bool {
 		return false
 	}
 
-	err = errz.Cause(err)
-	if err2, ok := err.(*mysql.MySQLError); ok {
-		return err2.Number == code
+	var mysqlErr *mysql.MySQLError
+	if errors.As(err, &mysqlErr) {
+		return mysqlErr.Number == code
 	}
+
 	return false
 }
 

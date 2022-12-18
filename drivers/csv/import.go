@@ -3,6 +3,7 @@ package csv
 import (
 	"context"
 	"encoding/csv"
+	"errors"
 	"io"
 	"strconv"
 	"unicode/utf8"
@@ -134,7 +135,7 @@ func execInsert(ctx context.Context, recw libsq.RecordWriter, recMeta sqlz.Recor
 	var csvRecord []string
 	for {
 		csvRecord, err = r.Read()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			// We're done reading
 			return nil
 		}
@@ -227,7 +228,7 @@ func predictColKinds(expectFieldCount int, r *csv.Reader, readAheadRecs *[][]str
 	// Next, continue to read from r until we reach maxExamine records.
 	for ; examineCount < maxExamine; examineCount++ {
 		rec, err := r.Read()
-		if err == io.EOF {
+		if err == io.EOF { //nolint:errorlint
 			break
 		}
 		if err != nil {
@@ -342,7 +343,7 @@ func getColNames(cr *csv.Reader, src *source.Source, readAheadRecs *[][]string) 
 		// The CSV file has a header record, we need to consume it.
 		var headerRec []string
 		headerRec, err = cr.Read()
-		if err == io.EOF {
+		if err == io.EOF { //nolint:errorlint
 			return nil, errz.Errorf("data source %s has no data", src.Handle)
 		}
 		if err != nil {
@@ -364,7 +365,7 @@ func getColNames(cr *csv.Reader, src *source.Source, readAheadRecs *[][]string) 
 	// col names [A,B,C...]. To do so, we need to know how many fields
 	// there are in the first record.
 	firstDataRecord, err := cr.Read()
-	if err == io.EOF {
+	if err == io.EOF { //nolint:errorlint
 		return nil, errz.Errorf("data source %s is empty", src.Handle)
 	}
 	if err != nil {

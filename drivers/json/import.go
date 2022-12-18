@@ -468,7 +468,7 @@ loop:
 		// Expect tok to be a field name, or else the terminating right-brace.
 		tok, err = dec.Token()
 		if err != nil {
-			if err == io.EOF {
+			if err == io.EOF { //nolint:errorlint
 				break
 			}
 			return nil, errz.Err(err)

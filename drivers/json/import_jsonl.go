@@ -153,7 +153,7 @@ func importJSONL(ctx context.Context, log lg.Log, job importJob) error {
 
 		err = dec.Decode(&m)
 		if err != nil {
-			if err == io.EOF {
+			if err == io.EOF { //nolint:errorlint
 				break
 			}
 			return errz.Err(err)
