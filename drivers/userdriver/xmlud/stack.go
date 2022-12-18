@@ -48,7 +48,7 @@ type rowStack struct {
 	stack *arraystack.Stack
 }
 
-func (r *rowStack) size() int {
+func (r *rowStack) size() int { //nolint:unused
 	return r.stack.Size()
 }
 
@@ -117,7 +117,7 @@ func (s *selStack) pop() string {
 	return val.(string)
 }
 
-func (s *selStack) peek() string {
+func (s *selStack) peek() string { //nolint:unused
 	val, ok := s.stack.Peek()
 	if !ok {
 		return ""

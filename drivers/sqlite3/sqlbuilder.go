@@ -19,7 +19,7 @@ func newFragmentBuilder(log lg.Log) *sqlbuilder.BaseFragmentBuilder {
 
 // createTblKindDefaults is a mapping of Kind to the value
 // to use for a column's DEFAULT clause in a CREATE TABLE statement.
-var createTblKindDefaults = map[kind.Kind]string{
+var createTblKindDefaults = map[kind.Kind]string{ //nolint:exhaustive // ignore kind.Null
 	kind.Text:     `DEFAULT ''`,
 	kind.Int:      `DEFAULT 0`,
 	kind.Float:    `DEFAULT 0`,
@@ -32,7 +32,7 @@ var createTblKindDefaults = map[kind.Kind]string{
 	kind.Unknown:  `DEFAULT ''`,
 }
 
-func buildCreateTableStmt(tblDef *sqlmodel.TableDef) (string, error) {
+func buildCreateTableStmt(tblDef *sqlmodel.TableDef) string {
 	var buf *bytes.Buffer
 
 	cols := make([]string, len(tblDef.Cols))
@@ -122,7 +122,7 @@ func buildCreateTableStmt(tblDef *sqlmodel.TableDef) (string, error) {
 		buf.WriteString(fk)
 	}
 	buf.WriteString("\n)")
-	return buf.String(), nil
+	return buf.String()
 }
 
 func buildUpdateStmt(tbl string, cols []string, where string) (string, error) {

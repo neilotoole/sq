@@ -88,7 +88,7 @@ func (in *Inspector) FindColExprSegment() (*Segment, error) {
 		}
 	}
 
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 // FindSelectableSegments returns the segments that have at least one child

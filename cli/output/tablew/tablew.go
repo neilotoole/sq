@@ -53,7 +53,7 @@ func (t *table) renderResultCell(knd kind.Kind, val any) string {
 		// the kind is not kind.Text: for example, sqlite returns
 		// values of kind.Time as a string.
 
-		switch knd {
+		switch knd { //nolint:exhaustive // ignore kind.Unknown and kind.Null
 		case kind.Datetime, kind.Date, kind.Time:
 			return t.fm.Datetime.Sprint(*val)
 		case kind.Decimal, kind.Float, kind.Int:
@@ -189,7 +189,7 @@ func (t *table) renderResultCell(knd kind.Kind, val any) string {
 			return t.sprintNull()
 		}
 		if knd == kind.Text {
-			return fmt.Sprintf("%s", *val)
+			return string(*val)
 		}
 		return t.sprintBytes(*val)
 	}

@@ -185,7 +185,7 @@ func buildTblDefForSheet(log lg.Log, sheet *xlsx.Sheet, hasHeader bool) (*sqlmod
 	maxCols := getRowsMaxCellCount(sheet)
 	if maxCols == 0 {
 		log.Warnf("sheet %q is empty: skipping")
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	}
 
 	colNames := make([]string, maxCols)
@@ -307,7 +307,7 @@ func rowToRecord(log lg.Log, destColKinds []kind.Kind, row *xlsx.Row, sheetName 
 		}
 
 		typ := cell.Type()
-		switch typ {
+		switch typ { //nolint:exhaustive
 		case xlsx.CellTypeBool:
 			vals[j] = cell.Bool()
 		case xlsx.CellTypeNumeric:
@@ -376,7 +376,7 @@ func readCellValue(cell *xlsx.Cell) any {
 
 	var val any
 
-	switch cell.Type() {
+	switch cell.Type() { //nolint:exhaustive
 	case xlsx.CellTypeBool:
 		val = cell.Bool()
 		return val

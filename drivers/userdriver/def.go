@@ -257,7 +257,7 @@ func ValidateDriverDef(def *DriverDef) []error {
 			}
 
 			// These kinds are nonsensical
-			switch col.Kind {
+			switch col.Kind { // nolint:exhaustive
 			default:
 			case kind.Unknown, kind.Null:
 				errs = append(errs, errz.Errorf("%s.kind (%s) is invalid", colName, col.Kind))

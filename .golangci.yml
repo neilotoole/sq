@@ -15,6 +15,7 @@ run:
 
   skip-dirs:
     - cli/output/jsonw/internal/jcolorenc
+    - cli/output/tablew/internal
 
 # This file contains only configs which differ from defaults.
 # All possible options can be found here https://github.com/golangci/golangci-lint/blob/master/.golangci.reference.yml
@@ -45,16 +46,16 @@ linters-settings:
     # Checks the number of lines in a function.
     # If lower than 0, disable the check.
     # Default: 60
-    lines: 100
+    lines: 150
     # Checks the number of statements in a function.
     # If lower than 0, disable the check.
     # Default: 40
-    statements: 50
+    statements: 100
 
   gocognit:
     # Minimal code complexity to report
     # Default: 30 (but we recommend 10-20)
-    min-complexity: 20
+    min-complexity: 40
 
   gocritic:
     # Settings passed to gocritic.
@@ -86,6 +87,10 @@ linters-settings:
       - prometheus.ExponentialBuckets
       - prometheus.ExponentialBucketsRange
       - prometheus.LinearBuckets
+    ignored-numbers:
+      - "2"
+      - "3"
+
 
   gomodguard:
     blocked:
@@ -119,12 +124,17 @@ linters-settings:
       shadow:
         # Whether to be strict about shadowing; can be noisy.
         # Default: false
-        strict: true
+        strict: false
 
   nakedret:
     # Make an issue if func has more lines of code than this setting, and it has naked returns.
     # Default: 30
     max-func-lines: 0
+
+  nestif:
+    # Minimal complexity of if statements to report.
+    # Default: 5
+    min-complexity: 15
 
   nolintlint:
     # Exclude following linters from requiring an explanation.
@@ -184,7 +194,7 @@ linters:
     - gocyclo # computes and checks the cyclomatic complexity of functions
     - godot # checks if comments end in a period
     - goimports # in addition to fixing imports, goimports also formats your code in the same style as gofmt
-    - gomnd # detects magic numbers
+#    - gomnd # detects magic numbers
     - gomoddirectives # manages the use of 'replace', 'retract', and 'excludes' directives in go.mod
     - gomodguard # allow and block lists linter for direct Go module dependencies. This is different from depguard where there are different block types for example version constraints and module recommendations
     - goprintffuncname # checks that printf-like functions are named with f at the end

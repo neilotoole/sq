@@ -187,7 +187,6 @@ func importJSONL(ctx context.Context, log lg.Log, job importJob) error {
 		if err != nil {
 			return err
 		}
-
 	}
 
 	if scan.validLineCount == 0 {

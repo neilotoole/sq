@@ -29,12 +29,12 @@ var Cause = errors.Cause
 var Append = multierr.Append
 
 // TODO: ^^ Should implement our own version of Append that checks
-//  if the args have already been wrapped (WithStack), and if not,
-//  automatically wrap them. That is, this:
+// if the args have already been wrapped (WithStack), and if not,
+// automatically wrap them. That is, this:
 //
-//  return errz.Append(err, errz.Err(tx.Rollback())
-//  // becomes
-//  return errz.Append(err, tx.Rollback())
+//   return errz.Append(err, errz.Err(tx.Rollback())
+//   // becomes
+//   return errz.Append(err, tx.Rollback())
 
 // Combine is documented by multierr.Combine.
 var Combine = multierr.Combine

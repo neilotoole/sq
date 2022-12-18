@@ -381,6 +381,10 @@ func (d *database) Close() error {
 // hasErrCode returns true if err (or its cause error)
 // is of type *mysql.MySQLError and err.Number equals code.
 func hasErrCode(err error, code uint16) bool {
+	if err == nil {
+		return false
+	}
+
 	err = errz.Cause(err)
 	if err2, ok := err.(*mysql.MySQLError); ok {
 		return err2.Number == code

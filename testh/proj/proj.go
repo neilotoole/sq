@@ -75,7 +75,6 @@ func init() {
 		if err != nil {
 			panic(err)
 		}
-
 	} else {
 		var err error
 		path, err = filepath.Abs(envar)

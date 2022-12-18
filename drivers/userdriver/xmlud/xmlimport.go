@@ -201,7 +201,7 @@ func (im *importer) convertVal(tbl string, col *userdriver.ColMapping, data any)
 	const errTpl = `conversion error: %s.%s: expected "%s" but got %T(%v)`
 	const errTplMsg = `conversion error: %s.%s: expected "%s" but got %T(%v): %v`
 
-	switch col.Kind {
+	switch col.Kind { //nolint:exhaustive
 	default:
 		return nil, errz.Errorf("unknown data kind %q for col %s", col.Kind, col.Name)
 	case kind.Text, kind.Time:
@@ -252,7 +252,7 @@ func (im *importer) convertVal(tbl string, col *userdriver.ColMapping, data any)
 		default:
 			return nil, errz.Errorf(errTpl, tbl, col.Name, col.Kind, data, data)
 		}
-	case kind.Datetime:
+	case kind.Datetime, kind.Date:
 		return data, nil
 	case kind.Bytes:
 		return data, nil

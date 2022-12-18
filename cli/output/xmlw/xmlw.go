@@ -84,7 +84,7 @@ func (w *recordWriter) Open(recMeta sqlz.RecordMeta) error {
 			continue
 		}
 
-		switch w.recMeta[i].Kind() {
+		switch w.recMeta[i].Kind() { //nolint:exhaustive // ignore kind.Unknown and kind.Null
 		default:
 			w.fieldPrintFns[i] = monoPrint
 		case kind.Datetime, kind.Date, kind.Time:
@@ -180,8 +180,6 @@ func (w *recordWriter) writeRecord(rec sqlz.Record) error {
 			}
 			w.fieldPrintFns[i](w.outBuf, tmpBuf.String())
 			tmpBuf.Reset()
-		case nil:
-			// should never happen
 		case *string:
 			err = xml.EscapeText(tmpBuf, []byte(*val))
 			if err != nil {

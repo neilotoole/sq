@@ -234,7 +234,6 @@ func importJSON(ctx context.Context, log lg.Log, job importJob) error {
 		if err != nil {
 			return err
 		}
-
 	}
 
 	if scan.objCount == 0 {
@@ -364,7 +363,7 @@ func (s *objectsInArrayScanner) next() (obj map[string]any, chunk []byte, err er
 
 	case ']':
 		// should be end of input
-		tok, err = requireDelimToken(s.dec, rightBracket)
+		_, err = requireDelimToken(s.dec, rightBracket)
 		if err != nil {
 			return nil, nil, errz.Err(err)
 		}

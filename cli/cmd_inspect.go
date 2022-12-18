@@ -56,7 +56,7 @@ func execInspect(cmd *cobra.Command, args []string) error {
 	var table string
 	var err error
 
-	if len(args) == 0 {
+	if len(args) == 0 { //nolint:nestif
 		// No args supplied.
 
 		// There are two paths from here:

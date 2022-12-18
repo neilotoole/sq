@@ -95,7 +95,8 @@ func activeSrcFromFlagsOrConfig(cmd *cobra.Command, srcs *source.Set) (*source.S
 // checkStdinSource checks if there's stdin data (on pipe/redirect).
 // If there is, that pipe is inspected, and if it has recognizable
 // input, a new source instance with handle @stdin is constructed
-// and returned.
+// and returned. If the pipe has no data (size is zero),
+// then (nil,nil) is returned.
 func checkStdinSource(ctx context.Context, rc *RunContext) (*source.Source, error) {
 	cmd := rc.Cmd
 
@@ -107,7 +108,7 @@ func checkStdinSource(ctx context.Context, rc *RunContext) (*source.Source, erro
 
 	if info.Size() <= 0 {
 		// Doesn't make sense to have zero-data pipe? just ignore.
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	}
 
 	// If we got this far, we have pipe input

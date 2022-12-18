@@ -2,6 +2,7 @@ package tablew
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strconv"
@@ -48,7 +49,7 @@ func (w *PingWriter) Result(src *source.Source, d time.Duration, err error) {
 	case err == nil:
 		w.fm.Success.Fprintf(w.out, "pong")
 
-	case err == context.DeadlineExceeded:
+	case errors.Is(err, context.DeadlineExceeded):
 		w.fm.Error.Fprintf(w.out, "fail")
 		// Special rendering for timeout error
 		fmt.Fprint(w.out, "  timeout exceeded")

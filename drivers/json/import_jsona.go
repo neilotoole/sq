@@ -190,7 +190,8 @@ func startInsertJSONA(ctx context.Context, recordCh chan<- sqlz.Record, errCh <-
 		for i := 0; i < len(rec); i++ {
 			fn := mungeFns[i]
 			if fn != nil {
-				v, err := fn(rec[i])
+				var v any
+				v, err = fn(rec[i])
 				if err != nil {
 					return errz.Err(err)
 				}

@@ -292,7 +292,6 @@ ORDER BY TABLE_NAME ASC, TABLE_TYPE ASC`
 		var tblName, tblType string
 		err = rows.Scan(&tblName, &tblType)
 		if err != nil {
-
 			return nil, nil, errz.Err(err)
 		}
 

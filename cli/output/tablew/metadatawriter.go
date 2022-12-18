@@ -135,7 +135,6 @@ func (w *mdWriter) SourceMetadata(meta *source.Metadata) error {
 	w.tbl.reset()
 	fmt.Fprintln(w.tbl.out)
 
-
 	if w.tbl.fm.Verbose {
 		headers = []string{"TABLE", "ROWS", "TYPE", "SIZE", "NUM COLS", "COL NAMES", "COL TYPES"}
 		w.tbl.tblImpl.SetHeader(headers)
@@ -143,7 +142,6 @@ func (w *mdWriter) SourceMetadata(meta *source.Metadata) error {
 		w.tbl.tblImpl.SetColTrans(1, w.tbl.fm.Number.SprintFunc())
 		w.tbl.tblImpl.SetColTrans(3, w.tbl.fm.Number.SprintFunc())
 		w.tbl.tblImpl.SetColTrans(4, w.tbl.fm.Number.SprintFunc())
-
 	} else {
 		headers = []string{"TABLE", "ROWS", "COL NAMES"}
 		w.tbl.tblImpl.SetHeader(headers)

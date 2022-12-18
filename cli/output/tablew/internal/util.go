@@ -8,7 +8,6 @@
 package internal
 
 import (
-	"math"
 	"regexp"
 	"strings"
 
@@ -43,9 +42,9 @@ func Title(name string) string {
 func Pad(s, pad string, width int) string {
 	gap := width - DisplayWidth(s)
 	if gap > 0 {
-		gapLeft := int(math.Ceil(float64(gap / 2)))
+		gapLeft := int(float64(gap / 2))
 		gapRight := gap - gapLeft
-		return strings.Repeat(string(pad), gapLeft) + s + strings.Repeat(string(pad), gapRight)
+		return strings.Repeat(pad, gapLeft) + s + strings.Repeat(pad, gapRight)
 	}
 	return s
 }
@@ -54,7 +53,7 @@ func Pad(s, pad string, width int) string {
 func PadRight(s, pad string, width int) string {
 	gap := width - DisplayWidth(s)
 	if gap > 0 {
-		return s + strings.Repeat(string(pad), gap)
+		return s + strings.Repeat(pad, gap)
 	}
 	return s
 }

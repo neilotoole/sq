@@ -149,7 +149,6 @@ func (t *Table) getCellTrans(row int, col int) textTransFunc {
 }
 
 func (t *Table) getColTrans(col int) textTransFunc {
-
 	trans := t.colTrans[col]
 	if trans != nil {
 		return trans
@@ -172,7 +171,6 @@ func (t *Table) RenderAll() {
 		t.printLine(true)
 	}
 	t.printFooter()
-
 }
 
 // SetHeader sets table header
@@ -273,7 +271,6 @@ func (t *Table) Append(row []string) {
 	n := len(t.lines)
 	line := [][]string{}
 	for i, v := range row {
-
 		// Detect string  width
 		// Detect String height
 		// Break strings into words
@@ -448,14 +445,12 @@ func (t *Table) printFooter() {
 	}
 
 	fmt.Fprintln(t.out)
-
 }
 
 func (t *Table) printRows() {
 	for i, lines := range t.lines {
 		t.printRow(lines, i)
 	}
-
 }
 
 // Print Row Information
@@ -465,12 +460,9 @@ func (t *Table) printRow(columns [][]string, colKey int) {
 	total := len(columns)
 
 	// Pad Each Height
-	pads := []int{}
-
 	for i, line := range columns {
 		length := len(line)
 		pad := max - length
-		pads = append(pads, pad)
 		for n := 0; n < pad; n++ {
 			columns[i] = append(columns[i], "  ")
 		}
@@ -478,7 +470,6 @@ func (t *Table) printRow(columns [][]string, colKey int) {
 
 	for x := 0; x < max; x++ {
 		for y := 0; y < total; y++ {
-
 			// Check if border is set
 			fmt.Fprint(t.out, ConditionString(!t.borders.Left && y == 0, Empty, t.pColumn))
 

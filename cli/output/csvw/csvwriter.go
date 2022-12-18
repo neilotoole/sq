@@ -87,7 +87,7 @@ func (w *RecordWriter) WriteRecords(recs []sqlz.Record) error {
 			case *[]byte:
 				fields[i] = fmt.Sprintf("%v", string(*val))
 			case *time.Time:
-				switch w.recMeta[i].Kind() {
+				switch w.recMeta[i].Kind() { //nolint:exhaustive
 				default:
 					fields[i] = val.Format(stringz.DatetimeFormat)
 				case kind.Time:

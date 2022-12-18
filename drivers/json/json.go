@@ -21,8 +21,6 @@ const (
 	// TypeJSON is the plain-old JSON driver type.
 	TypeJSON = source.Type("json")
 
-	TypeBlah = source.Type("blah")
-
 	// TypeJSONA is the JSON Array driver type.
 	TypeJSONA = source.Type("jsona")
 
@@ -41,7 +39,7 @@ type Provider struct {
 func (d *Provider) DriverFor(typ source.Type) (driver.Driver, error) {
 	var importFn importFunc
 
-	switch typ {
+	switch typ { //nolint:exhaustive
 	case TypeJSON:
 		importFn = importJSON
 	case TypeJSONA:
@@ -74,7 +72,7 @@ type driveri struct {
 func (d *driveri) DriverMetadata() driver.Metadata {
 	md := driver.Metadata{Type: d.typ, Monotable: true}
 
-	switch d.typ {
+	switch d.typ { //nolint:exhaustive
 	case TypeJSON:
 		md.Description = "JSON"
 		md.Doc = "https://en.wikipedia.org/wiki/JSON"

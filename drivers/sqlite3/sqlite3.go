@@ -12,7 +12,7 @@ import (
 	"strings"
 	"sync"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/mattn/go-sqlite3" // Import for side effect of loading the driver
 	"github.com/neilotoole/lg"
 
 	"github.com/neilotoole/sq/libsq/ast/sqlbuilder"
@@ -243,10 +243,7 @@ func (d *driveri) DropTable(ctx context.Context, db sqlz.DB, tbl string, ifExist
 
 // CreateTable implements driver.SQLDriver.
 func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *sqlmodel.TableDef) error {
-	query, err := buildCreateTableStmt(tblDef)
-	if err != nil {
-		return err
-	}
+	query := buildCreateTableStmt(tblDef)
 
 	stmt, err := db.PrepareContext(ctx, query)
 	if err != nil {
@@ -299,12 +296,14 @@ func (d *driveri) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl str
 		return nil, err
 	}
 
-	execer := driver.NewStmtExecer(stmt, driver.DefaultInsertMungeFunc(destTbl, destColsMeta), newStmtExecFunc(stmt), destColsMeta)
+	execer := driver.NewStmtExecer(stmt, driver.DefaultInsertMungeFunc(destTbl, destColsMeta),
+		newStmtExecFunc(stmt), destColsMeta)
 	return execer, nil
 }
 
 // PrepareUpdateStmt implements driver.SQLDriver.
-func (d *driveri) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string, where string) (*driver.StmtExecer, error) {
+func (d *driveri) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl string,
+	destColNames []string, where string) (*driver.StmtExecer, error) {
 	destColsMeta, err := d.getTableRecordMeta(ctx, db, destTbl, destColNames)
 	if err != nil {
 		return nil, err
@@ -320,7 +319,8 @@ func (d *driveri) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl str
 		return nil, err
 	}
 
-	execer := driver.NewStmtExecer(stmt, driver.DefaultInsertMungeFunc(destTbl, destColsMeta), newStmtExecFunc(stmt), destColsMeta)
+	execer := driver.NewStmtExecer(stmt, driver.DefaultInsertMungeFunc(destTbl, destColsMeta),
+		newStmtExecFunc(stmt), destColsMeta)
 	return execer, nil
 }
 

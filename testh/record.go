@@ -96,11 +96,10 @@ func RecordsFromTbl(tb testing.TB, handle, tbl string) (recMeta sqlz.RecordMeta,
 	// Make copies so that the caller can mutate their records
 	// without it affecting other callers
 	recMeta = make(sqlz.RecordMeta, len(sink.RecMeta))
-	for i := range sink.RecMeta {
-		// Don't need to make a deep copy of each FieldMeta because
-		// the type is effectively immutable
-		recMeta[i] = sink.RecMeta[i]
-	}
+
+	// Don't need to make a deep copy of each FieldMeta because
+	// the type is effectively immutable
+	copy(recMeta, sink.RecMeta)
 
 	recs = CopyRecords(sink.Recs)
 	return recMeta, recs

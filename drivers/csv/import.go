@@ -292,13 +292,11 @@ func excludeFieldKinds(fieldCandidateKinds []kind.Kind, fieldVal string) []kind.
 	for _, knd := range fieldCandidateKinds {
 		var err error
 
-		switch knd {
+		switch knd { //nolint:exhaustive
 		case kind.Int:
 			_, err = strconv.Atoi(fieldVal)
-
 		case kind.Bool:
 			_, err = strconv.ParseBool(fieldVal)
-
 		case kind.Decimal:
 			_, err = decimal.NewFromString(fieldVal)
 		default:
