@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/jackc/pgx/v4"
 	// Import jackc/pgx, which is our postgres driver.
 	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/neilotoole/lg"
@@ -137,32 +138,39 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 	// https://www.postgresql.org/docs/9.1/sql-truncate.html
 
 	// RESTART IDENTITY and CASCADE/RESTRICT are from pg 8.2 onwards
-	// TODO: should first check the pg version for < pg8.2 support
+	// FIXME: should first check the pg version for < pg8.2 support
 
 	db, err := sql.Open(dbDrvr, src.Location)
 	if err != nil {
 		return affected, errz.Err(err)
 	}
 
-	truncateQuery := fmt.Sprintf("TRUNCATE TABLE %q", tbl)
-	if reset {
-		// if reset & src.DBVersion >= 8.2
-		truncateQuery += " RESTART IDENTITY" // default is CONTINUE IDENTITY
-	}
-	// We could add RESTRICT here; alternative is CASCADE
-
-	affectedQuery := fmt.Sprintf("SELECT COUNT(*) FROM %q", tbl)
+	affectedQuery := "SELECT COUNT(*) FROM " + idSanitize(tbl)
 	err = db.QueryRowContext(ctx, affectedQuery).Scan(&affected)
 	if err != nil {
 		return 0, errz.Err(err)
 	}
 
+	truncateQuery := "TRUNCATE TABLE " + idSanitize(tbl)
+	if reset {
+		// if reset & src.DBVersion >= 8.2
+		truncateQuery += " RESTART IDENTITY" // default is CONTINUE IDENTITY
+	}
+	// We could add RESTRICT here; alternative is CASCADE
 	_, err = db.ExecContext(ctx, truncateQuery)
 	if err != nil {
 		return 0, errz.Err(err)
 	}
 
 	return affected, nil
+}
+
+// idSanitize sanitizes an identifier (such as table name). It will
+// add surrounding quotes. For example:
+//
+//	table_name    -->    "table_name"
+func idSanitize(s string) string {
+	return pgx.Identifier([]string{s}).Sanitize()
 }
 
 // CreateTable implements driver.SQLDriver.

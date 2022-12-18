@@ -44,3 +44,14 @@ func TestReplacePlaceholders(t *testing.T) {
 		require.Equal(t, want, got)
 	}
 }
+
+func Test_idSanitize(t *testing.T) {
+	testCases := map[string]string{
+		`tbl_name`: `"tbl_name"`,
+	}
+
+	for input, want := range testCases {
+		got := idSanitize(input)
+		require.Equal(t, want, got)
+	}
+}
