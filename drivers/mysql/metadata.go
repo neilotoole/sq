@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-sql-driver/mysql"
 	"github.com/neilotoole/errgroup"
 	"github.com/neilotoole/lg"
 
@@ -83,7 +82,7 @@ func recordMetaFromColumnTypes(log lg.Log, colTypes []*sql.ColumnType) sqlz.Reco
 
 // getNewRecordFunc returns a NewRecordFunc that, after interacting
 // with the standard driver.NewRecordFromScanRow, munges any skipped fields.
-// In particular mysql.NullTime is unboxed to *time.Time, and TIME fields
+// In particular sql.NullTime is unboxed to *time.Time, and TIME fields
 // are munged from RawBytes to string.
 func getNewRecordFunc(rowMeta sqlz.RecordMeta) driver.NewRecordFunc {
 	return func(row []any) (sqlz.Record, error) {
@@ -93,7 +92,7 @@ func getNewRecordFunc(rowMeta sqlz.RecordMeta) driver.NewRecordFunc {
 		// the outside func) iterate over the column metadata, and
 		// build a list of val elements to visit.
 		for _, i := range skipped {
-			if nullTime, ok := rec[i].(*mysql.NullTime); ok {
+			if nullTime, ok := rec[i].(*sql.NullTime); ok {
 				if nullTime.Valid {
 					// Make a copy of the value
 					t := nullTime.Time
