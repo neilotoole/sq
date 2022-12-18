@@ -5,16 +5,22 @@
 # This is the best config for golangci-lint based on my experience and opinion.
 # It is very strict, but not extremely strict.
 # Feel free to adopt and change it for your needs.
+#
+# @neilotoole: ^^ Well, it's less strict now!
 
 run:
   # Timeout for analysis, e.g. 30s, 5m.
   # Default: 1m
-  timeout: 3m
+  timeout: 5m
 
   tests: false
 
   skip-dirs:
+    # Skip jcolorenc because big chunks of it are copied from
+    # another encoder, and it uses a bunch of unsafe etc.
     - cli/output/jsonw/internal/jcolorenc
+
+    # This package is such a mess, and needs to be rewritten completely.
     - cli/output/tablew/internal
 
 output:
@@ -26,7 +32,7 @@ linters-settings:
   cyclop:
     # The maximal code complexity to report.
     # Default: 10
-    max-complexity: 30
+    max-complexity: 50
     # The maximal average package complexity.
     # If it's higher than 0.0 (float) the check is enabled
     # Default: 0.0
@@ -179,19 +185,19 @@ linters:
 
 #    ## disabled by default
     - asasalint # checks for pass []any as any in variadic func(...any)
-#    - asciicheck # checks that your code does not contain non-ASCII identifiers
-#    - bidichk # checks for dangerous unicode character sequences
-#    - bodyclose # checks whether HTTP response body is closed successfully
-#    - cyclop # checks function and package cyclomatic complexity
-#    - dupl # tool for code clone detection
-#    - durationcheck # checks for two durations multiplied together
-#    - errname # checks that sentinel errors are prefixed with the Err and error types are suffixed with the Error
-#    - errorlint # finds code that will cause problems with the error wrapping scheme introduced in Go 1.13
-#    - execinquery # checks query string in Query function which reads your Go src files and warning it finds
-#    - exhaustive # checks exhaustiveness of enum switch statements
-#    - exportloopref # checks for pointers to enclosing loop variables
-#    - forbidigo # forbids identifiers
-#    - funlen # tool for detection of long functions
+    - asciicheck # checks that your code does not contain non-ASCII identifiers
+    - bidichk # checks for dangerous unicode character sequences
+    - bodyclose # checks whether HTTP response body is closed successfully
+    - cyclop # checks function and package cyclomatic complexity
+    - dupl # tool for code clone detection
+    - durationcheck # checks for two durations multiplied together
+    - errname # checks that sentinel errors are prefixed with the Err and error types are suffixed with the Error
+    - errorlint # finds code that will cause problems with the error wrapping scheme introduced in Go 1.13
+    - execinquery # checks query string in Query function which reads your Go src files and warning it finds
+    - exhaustive # checks exhaustiveness of enum switch statements
+    - exportloopref # checks for pointers to enclosing loop variables
+    - forbidigo # forbids identifiers
+    - funlen # tool for detection of long functions
 #    - gochecknoinits # checks that no init functions are present in Go code
 #    - gocognit # computes and checks the cognitive complexity of functions
 #    - goconst # finds repeated strings that could be replaced by a constant
