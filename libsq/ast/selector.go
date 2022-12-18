@@ -101,7 +101,7 @@ func (c *Cmpr) String() string {
 }
 
 func newCmnr(parent Node, ctx slq.ICmprContext) *Cmpr {
-	leaf := ctx.GetChild(0).(*antlr.TerminalNodeImpl)
+	leaf, _ := ctx.GetChild(0).(*antlr.TerminalNodeImpl)
 	cmpr := &Cmpr{}
 	cmpr.ctx = leaf
 	cmpr.parent = parent

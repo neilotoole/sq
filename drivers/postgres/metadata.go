@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -234,10 +235,15 @@ current_setting('server_version'), version(), "current_user"()`
 // hasErrCode returns true if err (or its cause error)
 // is of type *pgconn.PgError and err.Number equals code.
 func hasErrCode(err error, code string) bool {
-	err = errz.Cause(err)
-	if err2, ok := err.(*pgconn.PgError); ok {
-		return err2.Code == code
+	if err == nil {
+		return false
 	}
+	var pgErr *pgconn.PgError
+
+	if errors.As(err, &pgErr) {
+		return pgErr.Code == code
+	}
+
 	return false
 }
 
@@ -315,7 +321,7 @@ AND table_name = $1`
 	pgTbl := &pgTable{}
 	err := db.QueryRowContext(ctx, tablesQuery, tblName).
 		Scan(&pgTbl.tableCatalog, &pgTbl.tableSchema, &pgTbl.tableName, &pgTbl.tableType, &pgTbl.isInsertable,
-		&pgTbl.rowCount, &pgTbl.size, &pgTbl.oid, &pgTbl.comment)
+			&pgTbl.rowCount, &pgTbl.size, &pgTbl.oid, &pgTbl.comment)
 	if err != nil {
 		return nil, errz.Err(err)
 	}

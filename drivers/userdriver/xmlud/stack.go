@@ -135,7 +135,7 @@ func (s *selStack) selector() string {
 
 	for it.Next() {
 		val := it.Value()
-		strs[i] = val.(string)
+		strs[i], _ = val.(string)
 		i--
 	}
 

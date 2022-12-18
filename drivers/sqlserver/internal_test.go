@@ -1,12 +1,14 @@
 package sqlserver
 
 import (
+	"fmt"
 	"testing"
 
+	mssql "github.com/denisenkom/go-mssqldb"
 	"github.com/stretchr/testify/require"
 )
 
-func TestPlaceholders(t *testing.T) {
+func Test_placeholders(t *testing.T) {
 	testCases := []struct {
 		numCols int
 		numRows int
@@ -23,4 +25,19 @@ func TestPlaceholders(t *testing.T) {
 		got := placeholders(tc.numCols, tc.numRows)
 		require.Equal(t, tc.want, got)
 	}
+}
+
+func Test_hasErrCode(t *testing.T) {
+	const wantCode = 100
+	var err error
+
+	require.False(t, hasErrCode(nil, wantCode))
+	err = fmt.Errorf("huzzah")
+	require.False(t, hasErrCode(err, wantCode))
+
+	err = mssql.Error{
+		Number: wantCode,
+	}
+
+	require.True(t, hasErrCode(err, wantCode))
 }

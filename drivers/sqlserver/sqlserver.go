@@ -4,6 +4,7 @@ package sqlserver
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -518,8 +519,14 @@ const (
 // hasErrCode returns true if err (or its cause err) is
 // of type mssql.Error and err.Number equals code.
 func hasErrCode(err error, code int32) bool {
-	if err, ok := errz.Cause(err).(mssql.Error); ok {
-		return err.Number == code
+	if err == nil {
+		return false
 	}
+
+	var msErr mssql.Error
+	if errors.As(err, &msErr) {
+		return msErr.Number == code
+	}
+
 	return false
 }
