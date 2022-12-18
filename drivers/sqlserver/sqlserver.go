@@ -435,12 +435,6 @@ WHERE TABLE_NAME = @p1`
 	}
 
 	return getTableMetadata(ctx, d.log, d.db, catalog, schema, tblName, tblType)
-	//
-	//srcMeta, err := d.SourceMetadata(ctx)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//return source.TableFromSourceMetadata(srcMeta, tblName)
 }
 
 // SourceMetadata implements driver.Database.

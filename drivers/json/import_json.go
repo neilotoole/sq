@@ -128,8 +128,6 @@ func DetectJSON(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (de
 	return source.TypeNone, 0, nil
 }
 
-//func detectJSONObjectsInArray(ctx context.Context, r io.Reader)
-
 func importJSON(ctx context.Context, log lg.Log, job importJob) error {
 	r, err := job.openFn()
 	if err != nil {

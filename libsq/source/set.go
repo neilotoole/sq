@@ -38,7 +38,7 @@ func (s *Set) MarshalJSON() ([]byte, error) {
 	return json.Marshal(s.data)
 }
 
-// UnmarshalJSON implements json.Unmarshaler
+// UnmarshalJSON implements json.Unmarshaler.
 func (s *Set) UnmarshalJSON(b []byte) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
