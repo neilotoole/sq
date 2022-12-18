@@ -198,7 +198,7 @@ func (c *handleTableCompleter) completeTableOnly(ctx context.Context, rc *RunCon
 //nolint:unparam
 func (c *handleTableCompleter) completeHandle(ctx context.Context, rc *RunContext, args []string,
 	toComplete string,
-) ([]string, cobra.ShellCompDirective) { //nolint:unparam
+) ([]string, cobra.ShellCompDirective) {
 	// We're dealing with a handle.
 
 	// But we could be dealing with just the handle ("@sakila_sl3")
