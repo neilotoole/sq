@@ -5,8 +5,9 @@ import (
 	"context"
 	stdj "encoding/json"
 	"fmt"
-	"github.com/neilotoole/lg"
 	"io"
+
+	"github.com/neilotoole/lg"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
