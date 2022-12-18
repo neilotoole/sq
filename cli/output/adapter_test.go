@@ -69,6 +69,8 @@ func TestRecordWriterAdapter(t *testing.T) {
 }
 
 func TestRecordWriterAdapter_FlushAfterN(t *testing.T) {
+	t.Parallel()
+
 	const writeRecCount = 200
 
 	testCases := map[int]int{
@@ -114,6 +116,7 @@ func TestRecordWriterAdapter_FlushAfterN(t *testing.T) {
 	}
 }
 
+//nolint:tparallel
 func TestRecordWriterAdapter_FlushAfterDuration(t *testing.T) {
 	// Don't run this as t.Parallel because it's timing sensitive.
 	const (

@@ -74,6 +74,8 @@ func TestFileStore_Load(t *testing.T) {
 	for _, match := range good {
 		match := match
 		t.Run(tutil.Name(match), func(t *testing.T) {
+			t.Parallel()
+
 			fs.Path = match
 			_, err = fs.Load()
 			require.NoError(t, err, match)

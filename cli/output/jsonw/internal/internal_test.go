@@ -1,3 +1,4 @@
+//nolint:lll
 package internal_test
 
 import (
@@ -309,7 +310,7 @@ func TestEncode_RawMessage(t *testing.T) {
 
 // TestEncode_Map_StringNotInterface tests map[string]json.RawMessage.
 // This test is necessary because the encoder has a fast path
-// for map[string]any
+// for map[string]any.
 func TestEncode_Map_StringRawMessage(t *testing.T) {
 	raw := jcolorenc.RawMessage(`{"one":1,"two":2}`)
 
