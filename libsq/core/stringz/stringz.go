@@ -19,7 +19,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
-func init() {
+func init() { //nolint:gochecknoinits
 	rand.Seed(time.Now().UnixNano())
 }
 

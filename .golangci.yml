@@ -5,16 +5,22 @@
 # This is the best config for golangci-lint based on my experience and opinion.
 # It is very strict, but not extremely strict.
 # Feel free to adopt and change it for your needs.
+#
+# @neilotoole: ^^ Well, it's less strict now!
 
 run:
   # Timeout for analysis, e.g. 30s, 5m.
   # Default: 1m
-  timeout: 3m
+  timeout: 5m
 
   tests: false
 
   skip-dirs:
+    # Skip jcolorenc because big chunks of it are copied from
+    # another encoder, and it uses a bunch of unsafe etc.
     - cli/output/jsonw/internal/jcolorenc
+
+    # This package is such a mess, and needs to be rewritten completely.
     - cli/output/tablew/internal
 
 output:
@@ -26,7 +32,7 @@ linters-settings:
   cyclop:
     # The maximal code complexity to report.
     # Default: 10
-    max-complexity: 30
+    max-complexity: 50
     # The maximal average package complexity.
     # If it's higher than 0.0 (float) the check is enabled
     # Default: 0.0
@@ -58,7 +64,7 @@ linters-settings:
   gocognit:
     # Minimal code complexity to report
     # Default: 30 (but we recommend 10-20)
-    min-complexity: 40
+    min-complexity: 50
 
   gocritic:
     # Settings passed to gocritic.
@@ -73,6 +79,11 @@ linters-settings:
         # Whether to skip (*x).method() calls where x is a pointer receiver.
         # Default: true
         skipRecvDeref: false
+
+  gocyclo:
+    # Minimal code complexity to report.
+    # Default: 30 (but we recommend 10-20)
+    min-complexity: 50
 
   gomnd:
     # List of function patterns to exclude from analysis.

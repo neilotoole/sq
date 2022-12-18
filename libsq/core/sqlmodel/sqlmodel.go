@@ -15,13 +15,13 @@ type TableDef struct {
 
 	// PKColName is the name of the primary key column, or empty.
 	//
-	// Deprecated: this construct does not allow for composite PK.
+	// REVISIT: this construct does not allow for composite PK.
 	PKColName string `json:"primary_key,omitempty"`
 
 	// AutoIncrement, if true, indicates that a PK column
 	// should autoincrement.
 	//
-	// Deprecated: this construct does not allow for composite PK.
+	// REVISIT: this construct does not allow for composite PK.
 	AutoIncrement bool `json:"auto_increment"`
 
 	// Cols is the table's column definitions.

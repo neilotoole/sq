@@ -75,7 +75,7 @@ func DetectJSONL(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (d
 	return source.TypeNone, 0, nil
 }
 
-func importJSONL(ctx context.Context, log lg.Log, job importJob) error {
+func importJSONL(ctx context.Context, log lg.Log, job importJob) error { //nolint:gocognit
 	r, err := job.openFn()
 	if err != nil {
 		return err

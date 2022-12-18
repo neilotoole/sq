@@ -56,7 +56,7 @@ func kindFromDBTypeName(log lg.Log, colName, dbTypeName string) kind.Kind {
 		knd = kind.Datetime
 	case "DATE":
 		knd = kind.Date
-	case "TIME":
+	case "TIME": //nolint:goconst
 		knd = kind.Time
 	case "FLOAT", "DOUBLE", "DOUBLE PRECISION", "REAL":
 		knd = kind.Float
