@@ -17,6 +17,9 @@ run:
     - cli/output/jsonw/internal/jcolorenc
     - cli/output/tablew/internal
 
+output:
+  sort-results: true
+
 # This file contains only configs which differ from defaults.
 # All possible options can be found here https://github.com/golangci/golangci-lint/blob/master/.golangci.reference.yml
 linters-settings:
