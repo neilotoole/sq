@@ -16,7 +16,8 @@ import (
 
 // DetectJSON implements source.TypeDetectFunc.
 // The function returns TypeJSON for two varieties of input:
-func DetectJSON(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (detected source.Type, score float32, err error) {
+func DetectJSON(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (detected source.Type, score float32,
+	err error) {
 	var r1, r2 io.ReadCloser
 	r1, err = openFn()
 	if err != nil {
@@ -359,7 +360,8 @@ func (s *objectsInArrayScanner) next() (obj map[string]any, chunk []byte, err er
 	switch delim {
 	default:
 		// bad input
-		return nil, nil, errz.Errorf("invalid JSON: expected comma or right-bracket ']' token but got: %s", formatToken(tok))
+		return nil, nil, errz.Errorf("invalid JSON: expected comma or right-bracket ']' token but got: %s",
+			formatToken(tok))
 
 	case ']':
 		// should be end of input

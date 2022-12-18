@@ -557,7 +557,8 @@ type writers struct {
 // newWriters returns a writers instance configured per defaults and/or
 // flags from cmd. The returned out2/errOut2 values may differ
 // from the out/errOut args (e.g. decorated to support colorization).
-func newWriters(log lg.Log, cmd *cobra.Command, defaults config.Defaults, out, errOut io.Writer) (w *writers, out2, errOut2 io.Writer) {
+func newWriters(log lg.Log, cmd *cobra.Command, defaults config.Defaults, out, errOut io.Writer) (w *writers,
+	out2, errOut2 io.Writer) {
 	var fm *output.Formatting
 	fm, out2, errOut2 = getWriterFormatting(cmd, out, errOut)
 

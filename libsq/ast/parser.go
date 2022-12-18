@@ -67,7 +67,8 @@ func (el *antlrErrorListener) String() string {
 }
 
 // SyntaxError implements antlr.ErrorListener.
-func (el *antlrErrorListener) SyntaxError(recognizer antlr.Recognizer, offendingSymbol any, line, column int, msg string, e antlr.RecognitionException) {
+func (el *antlrErrorListener) SyntaxError(recognizer antlr.Recognizer, offendingSymbol any, line, column int,
+	msg string, e antlr.RecognitionException) {
 	text := fmt.Sprintf("%s: syntax error: [%d:%d] %s", el.name, line, column, msg)
 	el.errs = append(el.errs, text)
 }

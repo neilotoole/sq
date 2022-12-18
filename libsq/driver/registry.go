@@ -34,7 +34,8 @@ func (r *Registry) AddProvider(typ source.Type, p Provider) {
 	defer r.mu.Unlock()
 
 	if existingType, ok := r.providers[typ]; ok {
-		r.log.Warnf("failed to add driver provider (%T) for driver type %s: provider (%T) already registered", p, typ, existingType)
+		r.log.Warnf("failed to add driver provider (%T) for driver type %s: provider (%T) already registered", p, typ,
+			existingType)
 		return
 	}
 

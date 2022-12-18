@@ -56,7 +56,8 @@ func NewRecordWriterAdapter(rw RecordWriter) *RecordWriterAdapter {
 }
 
 // Open implements libsq.RecordWriter.
-func (w *RecordWriterAdapter) Open(ctx context.Context, cancelFn context.CancelFunc, recMeta sqlz.RecordMeta) (chan<- sqlz.Record, <-chan error, error) {
+func (w *RecordWriterAdapter) Open(ctx context.Context, cancelFn context.CancelFunc,
+	recMeta sqlz.RecordMeta) (chan<- sqlz.Record, <-chan error, error) {
 	w.cancelFn = cancelFn
 
 	err := w.rw.Open(recMeta)

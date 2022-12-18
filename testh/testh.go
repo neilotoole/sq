@@ -288,7 +288,9 @@ func (h *Helper) SQLDriverFor(src *source.Source) driver.SQLDriver {
 	drvr, err := reg.DriverFor(src.Type)
 	require.NoError(h.T, err)
 	sqlDrvr, ok := drvr.(driver.SQLDriver)
-	require.True(h.T, ok, "driver %T is not a driver.SQLDriver: ensure that the src passed to SQLDriverFor implements driver.SQLDriver", drvr)
+	require.True(h.T, ok,
+		"driver %T is not a driver.SQLDriver: ensure that the src passed to SQLDriverFor implements driver.SQLDriver",
+		drvr)
 	return sqlDrvr
 }
 
@@ -315,7 +317,8 @@ func (h *Helper) RowCount(src *source.Source, tbl string) int64 {
 // CreateTable creates a new table in src, and inserts data, returning
 // the number of data rows inserted. If dropAfter is true, the created
 // table is dropped when t.Cleanup is run.
-func (h *Helper) CreateTable(dropAfter bool, src *source.Source, tblDef *sqlmodel.TableDef, data ...[]any) (affected int64) {
+func (h *Helper) CreateTable(dropAfter bool, src *source.Source, tblDef *sqlmodel.TableDef,
+	data ...[]any) (affected int64) {
 	dbase := h.openNew(src)
 	defer h.Log.WarnIfCloseError(dbase)
 
@@ -590,7 +593,8 @@ func (h *Helper) DiffDB(src *source.Source) {
 
 		for i, beforeTbl := range beforeMeta.Tables {
 			assert.Equal(h.T, beforeTbl.RowCount, afterMeta.Tables[i].RowCount,
-				"diffdb: %s: row count for %q is expected to be %d but got %d", src.Handle, beforeTbl.Name, beforeTbl.RowCount, afterMeta.Tables[i].RowCount)
+				"diffdb: %s: row count for %q is expected to be %d but got %d", src.Handle, beforeTbl.Name,
+				beforeTbl.RowCount, afterMeta.Tables[i].RowCount)
 		}
 	})
 }

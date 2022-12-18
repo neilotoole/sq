@@ -222,11 +222,13 @@ func determineJoinTables(log lg.Log, w *Walker, node Node) error {
 
 	fnJoin.leftTbl, ok = prevSeg.Children()[0].(*TblSelector)
 	if !ok {
-		return errorf("JOIN() expected table selector in previous segment, but was %T(%q)", prevSeg.Children()[0], prevSeg.Children()[0].Text())
+		return errorf("JOIN() expected table selector in previous segment, but was %T(%q)", prevSeg.Children()[0],
+			prevSeg.Children()[0].Text())
 	}
 	fnJoin.rightTbl, ok = prevSeg.Children()[1].(*TblSelector)
 	if !ok {
-		return errorf("JOIN() expected table selector in previous segment, but was %T(%q)", prevSeg.Children()[1], prevSeg.Children()[1].Text())
+		return errorf("JOIN() expected table selector in previous segment, but was %T(%q)", prevSeg.Children()[1],
+			prevSeg.Children()[1].Text())
 	}
 	return nil
 }

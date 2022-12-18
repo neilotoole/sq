@@ -4,9 +4,10 @@ package xlsx
 import (
 	"context"
 	"database/sql"
+	"io"
+
 	"github.com/neilotoole/lg"
 	"github.com/tealeg/xlsx/v2"
-	"io"
 
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -40,7 +41,8 @@ var _ source.TypeDetectFunc = DetectXLSX
 
 // DetectXLSX implements source.TypeDetectFunc, returning
 // TypeXLSX and a score of 1.0 valid XLSX.
-func DetectXLSX(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (detected source.Type, score float32, err error) {
+func DetectXLSX(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (detected source.Type, score float32,
+	err error) {
 	var r io.ReadCloser
 	r, err = openFn()
 	if err != nil {

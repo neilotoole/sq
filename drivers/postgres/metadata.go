@@ -314,7 +314,8 @@ AND table_name = $1`
 
 	pgTbl := &pgTable{}
 	err := db.QueryRowContext(ctx, tablesQuery, tblName).
-		Scan(&pgTbl.tableCatalog, &pgTbl.tableSchema, &pgTbl.tableName, &pgTbl.tableType, &pgTbl.isInsertable, &pgTbl.rowCount, &pgTbl.size, &pgTbl.oid, &pgTbl.comment)
+		Scan(&pgTbl.tableCatalog, &pgTbl.tableSchema, &pgTbl.tableName, &pgTbl.tableType, &pgTbl.isInsertable,
+		&pgTbl.rowCount, &pgTbl.size, &pgTbl.oid, &pgTbl.comment)
 	if err != nil {
 		return nil, errz.Err(err)
 	}
@@ -584,9 +585,9 @@ type pgConstraint struct {
 	columnName      string
 	ordinalPosition int64
 
-	constraintName  sql.NullString
-	constraintType  sql.NullString
-	constraintDef   sql.NullString
+	constraintName sql.NullString
+	constraintType sql.NullString
+	constraintDef  sql.NullString
 
 	// constraintFKeyTableName holds the name of the table to which
 	// a foreign-key constraint points to. This is null if this
@@ -607,7 +608,8 @@ func setTblMetaConstraints(log lg.Log, tblMeta *source.TableMetadata, pgConstrai
 			colMeta := tblMeta.Column(pgc.columnName)
 			if colMeta == nil {
 				// Shouldn't happen
-				log.Warnf("No column %s.%s found matching constraint %q", tblMeta.Name, pgc.columnName, pgc.constraintName)
+				log.Warnf("No column %s.%s found matching constraint %q", tblMeta.Name, pgc.columnName,
+					pgc.constraintName)
 				continue
 			}
 			colMeta.PrimaryKey = true

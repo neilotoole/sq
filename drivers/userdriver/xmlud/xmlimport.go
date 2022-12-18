@@ -146,7 +146,8 @@ func (im *importer) execImport(ctx context.Context, r io.Reader, destDB driver.D
 
 			col := curRow.tbl.ColBySelector(im.selStack.selector())
 			if col == nil {
-				if msg, ok := im.msgOncef("Skip: element %q is not a column of table %q", elem.Name.Local, curRow.tbl.Name); ok {
+				if msg, ok := im.msgOncef("Skip: element %q is not a column of table %q", elem.Name.Local,
+					curRow.tbl.Name); ok {
 					im.log.Debug(msg)
 				}
 				continue
@@ -301,7 +302,8 @@ func (im *importer) setForeignColsVals(row *rowState) error {
 		parts := strings.Split(col.Foreign, "/")
 		// parts will look like [ "..", "channel_id" ]
 		if len(parts) != 2 || parts[0] != ".." {
-			return errz.Errorf(`%s.%s: "foreign" field should be of form "../col_name" but was %q`, row.tbl.Name, col.Name, col.Foreign)
+			return errz.Errorf(`%s.%s: "foreign" field should be of form "../col_name" but was %q`, row.tbl.Name,
+				col.Name, col.Foreign)
 		}
 
 		fkName := parts[1]
@@ -313,7 +315,8 @@ func (im *importer) setForeignColsVals(row *rowState) error {
 
 		fkVal, ok := parentRow.savedColVals[fkName]
 		if !ok {
-			return errz.Errorf(`%s.%s: unable to find foreign key value in parent table %q`, row.tbl.Name, col.Name, parentRow.tbl.Name)
+			return errz.Errorf(`%s.%s: unable to find foreign key value in parent table %q`, row.tbl.Name, col.Name,
+				parentRow.tbl.Name)
 		}
 
 		row.dirtyColVals[col.Name] = fkVal

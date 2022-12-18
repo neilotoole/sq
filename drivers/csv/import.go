@@ -26,7 +26,8 @@ const (
 )
 
 // importCSV loads the src CSV data to scratchDB.
-func importCSV(ctx context.Context, log lg.Log, src *source.Source, openFn source.FileOpenFunc, scratchDB driver.Database) error {
+func importCSV(ctx context.Context, log lg.Log, src *source.Source, openFn source.FileOpenFunc,
+	scratchDB driver.Database) error {
 	// TODO: optPredictKind should be read from src.Options.
 	const optPredictKind bool = true
 
@@ -104,7 +105,8 @@ func importCSV(ctx context.Context, log lg.Log, src *source.Source, openFn sourc
 
 // execInsert inserts the CSV records in readAheadRecs (followed by records
 // from the csv.Reader) via recw. The caller should wait on recw to complete.
-func execInsert(ctx context.Context, recw libsq.RecordWriter, recMeta sqlz.RecordMeta, readAheadRecs [][]string, r *csv.Reader) error {
+func execInsert(ctx context.Context, recw libsq.RecordWriter, recMeta sqlz.RecordMeta,
+	readAheadRecs [][]string, r *csv.Reader) error {
 	ctx, cancelFn := context.WithCancel(ctx)
 
 	recordCh, errCh, err := recw.Open(ctx, cancelFn, recMeta)
@@ -206,7 +208,8 @@ func createTblDef(tblName string, colNames []string, kinds []kind.Kind) *sqlmode
 // kind is excluded from the list of candidate kinds. The first of any
 // remaining candidate kinds for each field is returned, or kind.Text if
 // no candidate kinds.
-func predictColKinds(expectFieldCount int, r *csv.Reader, readAheadRecs *[][]string, maxExamine int) ([]kind.Kind, error) {
+func predictColKinds(expectFieldCount int, r *csv.Reader, readAheadRecs *[][]string, maxExamine int) ([]kind.Kind,
+	error) {
 	// FIXME: [legacy] this function should switch to using kind.Detector
 
 	candidateKinds := newCandidateFieldKinds(expectFieldCount)
@@ -215,7 +218,8 @@ func predictColKinds(expectFieldCount int, r *csv.Reader, readAheadRecs *[][]str
 	// First, read any records from the readAheadRecs buffer
 	for recIndex := 0; recIndex < len(*readAheadRecs) && examineCount < maxExamine; recIndex++ {
 		for fieldIndex := 0; fieldIndex < expectFieldCount; fieldIndex++ {
-			candidateKinds[fieldIndex] = excludeFieldKinds(candidateKinds[fieldIndex], (*readAheadRecs)[recIndex][fieldIndex])
+			candidateKinds[fieldIndex] = excludeFieldKinds(candidateKinds[fieldIndex],
+				(*readAheadRecs)[recIndex][fieldIndex])
 		}
 		examineCount++
 	}

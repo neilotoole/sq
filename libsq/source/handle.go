@@ -22,9 +22,10 @@ var (
 //
 //	\A@[a-zA-Z][a-zA-Z0-9_]*$
 func VerifyLegalHandle(handle string) error {
+	const msg = `invalid data source handle %q: must begin with @, followed by a letter, followed by zero or more letters, digits, or underscores, e.g. "@my_db1"` //nolint:lll
 	matches := handlePattern.MatchString(handle)
 	if !matches {
-		return errz.Errorf(`invalid data source handle %q: must begin with @, followed by a letter, followed by zero or more letters, digits, or underscores, e.g. "@my_db1"`, handle)
+		return errz.Errorf(msg, handle)
 	}
 
 	return nil
@@ -35,9 +36,11 @@ func VerifyLegalHandle(handle string) error {
 //
 //	\A[a-zA-Z_][a-zA-Z0-9_]*$`
 func verifyLegalTableName(table string) error {
+	const msg = `invalid table name %q: must begin a letter or underscore, followed by zero or more letters, digits, or underscores, e.g. "tbl1" or "_tbl2"` //nolint:lll
+
 	matches := tablePattern.MatchString(table)
 	if !matches {
-		return errz.Errorf(`invalid table name %q: must begin a letter or underscore, followed by zero or more letters, digits, or underscores, e.g. "tbl1" or "_tbl2"`, table)
+		return errz.Errorf(msg, table)
 	}
 	return nil
 }

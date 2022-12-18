@@ -118,19 +118,23 @@ func TblPaymentColKinds() []kind.Kind {
 
 // AllTbls returns all table names.
 func AllTbls() []string {
-	return []string{"actor", "address", "category", "city", "country", "customer", "film", "film_actor", "film_category", "film_text", "inventory", "language", "payment", "rental", "staff", "store"}
+	return []string{"actor", "address", "category", "city", "country", "customer", "film", "film_actor",
+		"film_category", "film_text", "inventory", "language", "payment", "rental", "staff", "store"}
 }
 
 // AllTblsViews returns all table AND view names.
 func AllTblsViews() []string {
-	return []string{"actor", "address", "category", "city", "country", "customer", "customer_list", "film", "film_actor", "film_category", "film_list", "film_text", "inventory", "language", "payment", "rental", "sales_by_film_category", "sales_by_store", "staff", "staff_list", "store"}
+	return []string{"actor", "address", "category", "city", "country", "customer", "customer_list", "film",
+		"film_actor", "film_category", "film_list", "film_text", "inventory", "language", "payment", "rental",
+		"sales_by_film_category", "sales_by_store", "staff", "staff_list", "store"}
 }
 
 // AllTblsExceptFilmText exists because our current postgres image is different
 // from the others in that it doesn't have the film_text table.
 func AllTblsExceptFilmText() []string {
 	// TODO: delete AllTblsExceptFilmText when postgres image is updated to include film_text.
-	return []string{"actor", "address", "category", "city", "country", "customer", "film", "film_actor", "film_category", "inventory", "language", "payment", "rental", "staff", "store"}
+	return []string{"actor", "address", "category", "city", "country", "customer", "film", "film_actor",
+		"film_category", "inventory", "language", "payment", "rental", "staff", "store"}
 }
 
 // URLs for sakila resources.

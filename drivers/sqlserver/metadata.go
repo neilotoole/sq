@@ -148,7 +148,8 @@ GROUP BY database_id) AS total_size_bytes`
 				if hasErrCode(err, errCodeObjectNotExist) {
 					// This can happen if the table is dropped while
 					// we're collecting metadata. We log a warning and continue.
-					log.Warnf("table metadata: table %q appears not to exist (continuing regardless): %v", tblNames[i], err)
+					log.Warnf("table metadata: table %q appears not to exist (continuing regardless): %v", tblNames[i],
+						err)
 					return nil
 				}
 				return err
@@ -175,7 +176,8 @@ GROUP BY database_id) AS total_size_bytes`
 	return md, nil
 }
 
-func getTableMetadata(ctx context.Context, log lg.Log, db sqlz.DB, tblCatalog, tblSchema, tblName, tblType string) (*source.TableMetadata, error) {
+func getTableMetadata(ctx context.Context, log lg.Log, db sqlz.DB,
+	tblCatalog, tblSchema, tblName, tblType string) (*source.TableMetadata, error) {
 	const tplTblUsage = `sp_spaceused '%s'`
 
 	tblMeta := &source.TableMetadata{Name: tblName, DBTableType: tblType}
@@ -306,7 +308,8 @@ ORDER BY TABLE_NAME ASC, TABLE_TYPE ASC`
 	return tblNames, tblTypes, nil
 }
 
-func getColumnMeta(ctx context.Context, log lg.Log, db sqlz.DB, tblCatalog, tblSchema, tblName string) ([]columnMeta, error) {
+func getColumnMeta(ctx context.Context, log lg.Log, db sqlz.DB, tblCatalog, tblSchema, tblName string) ([]columnMeta,
+	error) {
 	// TODO: sq doesn't use all of these columns, no need to select them all.
 
 	const query = `SELECT
@@ -335,7 +338,8 @@ func getColumnMeta(ctx context.Context, log lg.Log, db sqlz.DB, tblCatalog, tblS
 		err = rows.Scan(&c.TableCatalog, &c.TableSchema, &c.TableName, &c.ColumnName, &c.OrdinalPosition,
 			&c.ColumnDefault, &c.Nullable, &c.DataType, &c.CharMaxLength, &c.CharOctetLength, &c.NumericPrecision,
 			&c.NumericPrecisionRadix, &c.NumericScale, &c.DateTimePrecision, &c.CharSetCatalog, &c.CharSetSchema,
-			&c.CharSetName, &c.CollationCatalog, &c.CollationSchema, &c.CollationName, &c.DomainCatalog, &c.DomainSchema, &c.DomainName)
+			&c.CharSetName, &c.CollationCatalog, &c.CollationSchema, &c.CollationName, &c.DomainCatalog,
+			&c.DomainSchema, &c.DomainName)
 		if err != nil {
 			return nil, errz.Err(err)
 		}
@@ -350,8 +354,10 @@ func getColumnMeta(ctx context.Context, log lg.Log, db sqlz.DB, tblCatalog, tblS
 	return cols, nil
 }
 
-func getConstraints(ctx context.Context, log lg.Log, db sqlz.DB, tblCatalog, tblSchema, tblName string) ([]constraintMeta, error) {
-	const query = `SELECT kcu.TABLE_CATALOG, kcu.TABLE_SCHEMA, kcu.TABLE_NAME,  tc.CONSTRAINT_TYPE, kcu.COLUMN_NAME, kcu.CONSTRAINT_NAME
+func getConstraints(ctx context.Context, log lg.Log, db sqlz.DB,
+	tblCatalog, tblSchema, tblName string) ([]constraintMeta, error) {
+	const query = `SELECT kcu.TABLE_CATALOG, kcu.TABLE_SCHEMA, kcu.TABLE_NAME,  tc.CONSTRAINT_TYPE,
+       kcu.COLUMN_NAME, kcu.CONSTRAINT_NAME
 		FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS tc
 		  JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS kcu
 			ON tc.TABLE_NAME = kcu.TABLE_NAME
@@ -372,7 +378,8 @@ func getConstraints(ctx context.Context, log lg.Log, db sqlz.DB, tblCatalog, tbl
 
 	for rows.Next() {
 		c := constraintMeta{}
-		err = rows.Scan(&c.TableCatalog, &c.TableSchema, &c.TableName, &c.ConstraintType, &c.ColumnName, &c.ConstraintName)
+		err = rows.Scan(&c.TableCatalog, &c.TableSchema, &c.TableName, &c.ConstraintType, &c.ColumnName,
+			&c.ConstraintName)
 		if err != nil {
 			return nil, errz.Err(err)
 		}

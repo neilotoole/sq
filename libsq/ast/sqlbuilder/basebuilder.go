@@ -168,9 +168,11 @@ func (fb *BaseFragmentBuilder) Join(fnJoin *ast.Join) (string, error) {
 				return "", errz.Errorf("expected *ColSelector but got %T", joinExpr.Children()[0])
 			}
 
-			leftOperand = fmt.Sprintf("%s%s%s.%s%s%s", fb.Quote, fnJoin.LeftTbl().SelValue(), fb.Quote, fb.Quote, colSel.SelValue(), fb.Quote)
+			leftOperand = fmt.Sprintf("%s%s%s.%s%s%s", fb.Quote, fnJoin.LeftTbl().SelValue(), fb.Quote, fb.Quote,
+				colSel.SelValue(), fb.Quote)
 			operator = "=="
-			rightOperand = fmt.Sprintf("%s%s%s.%s%s%s", fb.Quote, fnJoin.RightTbl().SelValue(), fb.Quote, fb.Quote, colSel.SelValue(), fb.Quote)
+			rightOperand = fmt.Sprintf("%s%s%s.%s%s%s", fb.Quote, fnJoin.RightTbl().SelValue(), fb.Quote, fb.Quote,
+				colSel.SelValue(), fb.Quote)
 		} else {
 			var err error
 
@@ -194,7 +196,8 @@ func (fb *BaseFragmentBuilder) Join(fnJoin *ast.Join) (string, error) {
 		onClause = fmt.Sprintf("ON %s %s %s", leftOperand, operator, rightOperand)
 	}
 
-	sql := fmt.Sprintf("FROM %s%s%s %s %s%s%s", fb.Quote, fnJoin.LeftTbl().SelValue(), fb.Quote, joinType, fb.Quote, fnJoin.RightTbl().SelValue(), fb.Quote)
+	sql := fmt.Sprintf("FROM %s%s%s %s %s%s%s", fb.Quote, fnJoin.LeftTbl().SelValue(), fb.Quote, joinType, fb.Quote,
+		fnJoin.RightTbl().SelValue(), fb.Quote)
 	sql = sqlAppend(sql, onClause)
 
 	return sql, nil

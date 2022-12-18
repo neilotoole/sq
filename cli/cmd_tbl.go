@@ -99,7 +99,8 @@ func execTblCopy(cmd *cobra.Command, args []string) error {
 
 	sqlDrvr, ok := tblHandles[0].drvr.(driver.SQLDriver)
 	if !ok {
-		return errz.Errorf("source type %q (%s) doesn't support dropping tables", tblHandles[0].src.Type, tblHandles[0].src.Handle)
+		return errz.Errorf("source type %q (%s) doesn't support dropping tables", tblHandles[0].src.Type,
+			tblHandles[0].src.Handle)
 	}
 
 	copyData := true // copy data by default
