@@ -22,7 +22,7 @@ import (
 // kindFromDBTypeName determines the kind.Kind from the database
 // type name. For example, "VARCHAR" -> kind.Text.
 // See https://www.postgresql.org/docs/9.5/datatype.html
-func kindFromDBTypeName(log lg.Log, colName, dbTypeName string) kind.Kind { //nolint:goconst
+func kindFromDBTypeName(log lg.Log, colName, dbTypeName string) kind.Kind {
 	var knd kind.Kind
 	dbTypeName = strings.ToUpper(dbTypeName)
 

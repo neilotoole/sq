@@ -218,24 +218,24 @@ linters:
     - loggercheck # checks key value pairs for common logger libraries (kitlog,klog,logr,zap)
     - makezero # finds slice declarations with non-zero initial length
     - nakedret # finds naked returns in functions greater than a specified function length
-#    - nestif # reports deeply nested if statements
-#    - nilerr # finds the code that returns nil even if it checks that the error is not nil
-#    - nilnil # checks that there is no simultaneous return of nil error and an invalid value
-#    - noctx # finds sending http request without context.Context
-#    - nolintlint # reports ill-formed or insufficient nolint directives
-#    - nosprintfhostport # checks for misuse of Sprintf to construct a host with port in a URL
-#    - predeclared # finds code that shadows one of Go's predeclared identifiers
-#    - promlinter # checks Prometheus metrics naming via promlint
-#    - reassign # checks that package variables are not reassigned
-#    - revive # fast, configurable, extensible, flexible, and beautiful linter for Go, drop-in replacement of golint
-#    - stylecheck # is a replacement for golint
-#    - tenv # detects using os.Setenv instead of t.Setenv since Go1.17
-#    - testableexamples # checks if examples are testable (have an expected output)
-#    - tparallel # detects inappropriate usage of t.Parallel() method in your Go test codes
-#    - unconvert # removes unnecessary type conversions
-#    - unparam # reports unused function parameters
-#    - usestdlibvars # detects the possibility to use variables/constants from the Go standard library
-#    - whitespace # detects leading and trailing whitespace
+    - nestif # reports deeply nested if statements
+    - nilerr # finds the code that returns nil even if it checks that the error is not nil
+    - nilnil # checks that there is no simultaneous return of nil error and an invalid value
+    - noctx # finds sending http request without context.Context
+    - nolintlint # reports ill-formed or insufficient nolint directives
+    - nosprintfhostport # checks for misuse of Sprintf to construct a host with port in a URL
+    - predeclared # finds code that shadows one of Go's predeclared identifiers
+    - promlinter # checks Prometheus metrics naming via promlint
+    - reassign # checks that package variables are not reassigned
+    - revive # fast, configurable, extensible, flexible, and beautiful linter for Go, drop-in replacement of golint
+    - stylecheck # is a replacement for golint
+    - tenv # detects using os.Setenv instead of t.Setenv since Go1.17
+    - testableexamples # checks if examples are testable (have an expected output)
+    - tparallel # detects inappropriate usage of t.Parallel() method in your Go test codes
+    - unconvert # removes unnecessary type conversions
+    - unparam # reports unused function parameters
+    - usestdlibvars # detects the possibility to use variables/constants from the Go standard library
+    - whitespace # detects leading and trailing whitespace
 
     ## These three linters are disabled for now due to generics: https://github.com/golangci/golangci-lint/issues/2649
     #- rowserrcheck # checks whether Err of rows is checked successfully  # Disabled because:  https://github.com/golangci/golangci-lint/issues/2649

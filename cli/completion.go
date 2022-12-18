@@ -153,8 +153,10 @@ func (c *handleTableCompleter) complete(cmd *cobra.Command, args []string, toCom
 // completeTableOnly returns suggestions given input beginning with
 // a period. Effectively this is completion for tables in the
 // active src.
+//
+//nolint:unparam
 func (c *handleTableCompleter) completeTableOnly(ctx context.Context, rc *RunContext, args []string,
-	toComplete string) ([]string, cobra.ShellCompDirective) { //nolint:unparam
+	toComplete string) ([]string, cobra.ShellCompDirective) {
 	activeSrc := rc.Config.Sources.Active()
 	if activeSrc == nil {
 		rc.Log.Error("Active source is nil")
@@ -190,6 +192,8 @@ func (c *handleTableCompleter) completeTableOnly(ctx context.Context, rc *RunCon
 
 // completeHandle returns suggestions given input beginning with
 // a '@'. The returned suggestions could be @HANDLE, or @HANDLE.TABLE.
+//
+//nolint:unparam
 func (c *handleTableCompleter) completeHandle(ctx context.Context, rc *RunContext, args []string,
 	toComplete string) ([]string, cobra.ShellCompDirective) { //nolint:unparam
 	// We're dealing with a handle.
@@ -284,8 +288,11 @@ func (c *handleTableCompleter) completeHandle(ctx context.Context, rc *RunContex
 	return suggestions, cobra.ShellCompDirectiveNoFileComp
 }
 
+// completeEither returns a union of all handles plus the tables from the active source.
+//
+//nolint:unparam
 func (c *handleTableCompleter) completeEither(ctx context.Context, rc *RunContext, args []string,
-	toComplete string) ([]string, cobra.ShellCompDirective) { //nolint:unparam
+	toComplete string) ([]string, cobra.ShellCompDirective) {
 	// There's no input yet.
 	// Therefore we want to return a union of all handles
 	// plus the tables from the active source.

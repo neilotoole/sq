@@ -24,7 +24,7 @@ func (rr *RowRange) String() string {
 func (rr *RowRange) Range() (offset, limit int) {
 	offset = rr.Offset
 	limit = rr.Limit
-	return
+	return offset, limit
 }
 
 func (rr *RowRange) SetParent(parent Node) error {

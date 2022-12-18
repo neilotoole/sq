@@ -243,7 +243,8 @@ func ValidateDriverDef(def *DriverDef) []error {
 					}
 				}
 				if !foundIt {
-					errs = append(errs, errz.Errorf("%s specified primary key %q not found in cols", tblName, pkColName))
+					errs = append(errs,
+						errz.Errorf("%s specified primary key %q not found in cols", tblName, pkColName))
 				}
 			}
 		}
@@ -257,7 +258,7 @@ func ValidateDriverDef(def *DriverDef) []error {
 			}
 
 			// These kinds are nonsensical
-			switch col.Kind { // nolint:exhaustive
+			switch col.Kind { //nolint:exhaustive
 			default:
 			case kind.Unknown, kind.Null:
 				errs = append(errs, errz.Errorf("%s.kind (%s) is invalid", colName, col.Kind))
