@@ -112,7 +112,8 @@ type SQLDriver interface {
 	//
 	// Note that db must guarantee a single connection: that is, db
 	// must be a sql.Conn or sql.Tx.
-	PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string, numRows int) (*StmtExecer, error)
+	PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string, numRows int) (*StmtExecer,
+		error)
 
 	// PrepareUpdateStmt prepares a statement for updating destColNames in
 	// destTbl, using the supplied where clause (which may be empty).
@@ -127,7 +128,8 @@ type SQLDriver interface {
 	//
 	// Note that db must guarantee a single connection: that is, db
 	// must be a sql.Conn or sql.Tx.
-	PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string, where string) (*StmtExecer, error)
+	PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string,
+		where string) (*StmtExecer, error)
 
 	// CreateTable creates the table defined by tblDef. Some implementations
 	// may not honor all of the fields of tblDef, e.g. an impl might not

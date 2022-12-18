@@ -96,7 +96,8 @@ func (s *Segment) uniformChildren() (bool, error) {
 			str = append(str, typ)
 		}
 
-		return false, fmt.Errorf("segment [%d] has more than one element node type: [%s]", s.SegIndex(), strings.Join(str, ", "))
+		return false, fmt.Errorf("segment [%d] has more than one element node type: [%s]", s.SegIndex(),
+			strings.Join(str, ", "))
 	}
 
 	return true, nil

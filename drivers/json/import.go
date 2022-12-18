@@ -259,7 +259,8 @@ func (p *processor) doAddObject(ent *entity, m map[string]any) error {
 				// Child already exists
 				if child.isArray {
 					// Safety check
-					return errz.Errorf("JSON entity %q previously detected as array, but now detected as object", ent.String())
+					return errz.Errorf("JSON entity %q previously detected as array, but now detected as object",
+						ent.String())
 				}
 			}
 
@@ -423,7 +424,8 @@ type importSchema struct {
 	entityTbls map[*entity]*sqlmodel.TableDef
 }
 
-func execSchemaDelta(ctx context.Context, log lg.Log, drvr driver.SQLDriver, db sqlz.DB, curSchema, newSchema *importSchema) error {
+func execSchemaDelta(ctx context.Context, log lg.Log, drvr driver.SQLDriver, db sqlz.DB,
+	curSchema, newSchema *importSchema) error {
 	var err error
 	if curSchema == nil {
 		for _, tblDef := range newSchema.tblDefs {

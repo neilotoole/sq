@@ -62,7 +62,8 @@ type RecordWriter interface {
 	// construction. This mechanism exists to enable a goroutine to wait
 	// on the writer outside of the function that invoked Open, without
 	// having to pass cancelFn around.
-	Open(ctx context.Context, cancelFn context.CancelFunc, recMeta sqlz.RecordMeta) (recCh chan<- sqlz.Record, errCh <-chan error, err error)
+	Open(ctx context.Context, cancelFn context.CancelFunc, recMeta sqlz.RecordMeta) (recCh chan<- sqlz.Record,
+		errCh <-chan error, err error)
 
 	// Wait waits for the writer to complete and returns the number of
 	// written rows and any error (which may be a multierr).
@@ -73,7 +74,8 @@ type RecordWriter interface {
 
 // ExecuteSLQ executes the slq query, writing the results to recw.
 // The caller is responsible for closing dbases.
-func ExecuteSLQ(ctx context.Context, log lg.Log, dbOpener driver.DatabaseOpener, joinDBOpener driver.JoinDatabaseOpener, srcs *source.Set, query string, recw RecordWriter) error {
+func ExecuteSLQ(ctx context.Context, log lg.Log, dbOpener driver.DatabaseOpener, joinDBOpener driver.JoinDatabaseOpener,
+	srcs *source.Set, query string, recw RecordWriter) error {
 	ng, err := newEngine(ctx, log, dbOpener, joinDBOpener, srcs, query)
 	if err != nil {
 		return err
@@ -82,7 +84,8 @@ func ExecuteSLQ(ctx context.Context, log lg.Log, dbOpener driver.DatabaseOpener,
 	return ng.execute(ctx, recw)
 }
 
-func newEngine(ctx context.Context, log lg.Log, dbOpener driver.DatabaseOpener, joinDBOpener driver.JoinDatabaseOpener, srcs *source.Set, query string) (*engine, error) {
+func newEngine(ctx context.Context, log lg.Log, dbOpener driver.DatabaseOpener, joinDBOpener driver.JoinDatabaseOpener,
+	srcs *source.Set, query string) (*engine, error) {
 	a, err := ast.Parse(log, query)
 	if err != nil {
 		return nil, err
@@ -113,7 +116,8 @@ func newEngine(ctx context.Context, log lg.Log, dbOpener driver.DatabaseOpener, 
 // before recw has finished writing, thus the caller may wish
 // to wait for recw to complete.
 // The caller is responsible for closing dbase.
-func QuerySQL(ctx context.Context, log lg.Log, dbase driver.Database, recw RecordWriter, query string, args ...any) error {
+func QuerySQL(ctx context.Context, log lg.Log, dbase driver.Database, recw RecordWriter, query string,
+	args ...any) error {
 	rows, err := dbase.DB().QueryContext(ctx, query, args...)
 	if err != nil {
 		return errz.Wrapf(err, `SQL query against %s failed: %s`, dbase.Source().Handle, query)

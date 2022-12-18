@@ -63,8 +63,10 @@ func mustParseTime(layout, value string) time.Time {
 // or withUnknown are set). If isIntBool is
 // true, kind.Int is returned for "col_bool", otherwise kind.Bool.
 func ColNamePerKind(isIntBool bool, withNull bool, withUnknown bool) (colNames []string, kinds []kind.Kind) {
-	colNames = []string{"col_int", "col_float", "col_decimal", "col_bool", "col_text", "col_datetime", "col_date", "col_time", "col_bytes"}
-	kinds = []kind.Kind{kind.Int, kind.Float, kind.Decimal, kind.Bool, kind.Text, kind.Datetime, kind.Date, kind.Time, kind.Bytes}
+	colNames = []string{"col_int", "col_float", "col_decimal", "col_bool", "col_text", "col_datetime", "col_date",
+		"col_time", "col_bytes"}
+	kinds = []kind.Kind{kind.Int, kind.Float, kind.Decimal, kind.Bool, kind.Text, kind.Datetime, kind.Date, kind.Time,
+		kind.Bytes}
 
 	if isIntBool {
 		kinds[3] = kind.Int

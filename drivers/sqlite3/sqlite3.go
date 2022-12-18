@@ -86,7 +86,8 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database
 }
 
 // Truncate implements driver.Driver.
-func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, reset bool) (affected int64, err error) {
+func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, reset bool) (affected int64,
+	err error) {
 	dsn, err := PathFromLocation(src)
 	if err != nil {
 		return 0, err
@@ -180,7 +181,8 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable 
 	// we need to do something more complicated.
 
 	var originTblCreateStmt string
-	err := db.QueryRowContext(ctx, fmt.Sprintf("SELECT sql FROM sqlite_master WHERE type='table' AND name='%s'", fromTable)).Scan(&originTblCreateStmt)
+	err := db.QueryRowContext(ctx, fmt.Sprintf("SELECT sql FROM sqlite_master WHERE type='table' AND name='%s'",
+		fromTable)).Scan(&originTblCreateStmt)
 	if err != nil {
 		return 0, errz.Err(err)
 	}
@@ -285,7 +287,8 @@ func (d *driveri) TableExists(ctx context.Context, db sqlz.DB, tbl string) (bool
 }
 
 // PrepareInsertStmt implements driver.SQLDriver.
-func (d *driveri) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string, numRows int) (*driver.StmtExecer, error) {
+func (d *driveri) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string,
+	numRows int) (*driver.StmtExecer, error) {
 	destColsMeta, err := d.getTableRecordMeta(ctx, db, destTbl, destColNames)
 	if err != nil {
 		return nil, err
@@ -336,7 +339,8 @@ func newStmtExecFunc(stmt *sql.Stmt) driver.StmtExecFunc {
 }
 
 // TableColumnTypes implements driver.SQLDriver.
-func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName string, colNames []string) ([]*sql.ColumnType, error) {
+func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName string,
+	colNames []string) ([]*sql.ColumnType, error) {
 	// Given the dynamic behavior of sqlite's rows.ColumnTypes,
 	// this query selects a single row, as that'll give us more
 	// accurate column type info than no rows. For other db
@@ -394,7 +398,8 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 	return colTypes, nil
 }
 
-func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName string, colNames []string) (sqlz.RecordMeta, error) {
+func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName string,
+	colNames []string) (sqlz.RecordMeta, error) {
 	colTypes, err := d.TableColumnTypes(ctx, db, tblName, colNames)
 	if err != nil {
 		return nil, err

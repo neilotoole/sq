@@ -173,7 +173,8 @@ func (ng *engine) buildJoinFromClause(ctx context.Context, fnJoin *ast.Join) (fr
 	return ng.singleSourceJoin(ctx, fnJoin)
 }
 
-func (ng *engine) singleSourceJoin(ctx context.Context, fnJoin *ast.Join) (fromClause string, fromDB driver.Database, err error) {
+func (ng *engine) singleSourceJoin(ctx context.Context, fnJoin *ast.Join) (fromClause string, fromDB driver.Database,
+	err error) {
 	src, err := ng.srcs.Get(fnJoin.LeftTbl().DSName)
 	if err != nil {
 		return "", nil, err
@@ -195,10 +196,12 @@ func (ng *engine) singleSourceJoin(ctx context.Context, fnJoin *ast.Join) (fromC
 
 // crossSourceJoin returns a FROM clause that forms part of
 // the SQL SELECT statement against fromDB.
-func (ng *engine) crossSourceJoin(ctx context.Context, fnJoin *ast.Join) (fromClause string, fromDB driver.Database, err error) {
+func (ng *engine) crossSourceJoin(ctx context.Context, fnJoin *ast.Join) (fromClause string, fromDB driver.Database,
+	err error) {
 	leftTblName, rightTblName := fnJoin.LeftTbl().SelValue(), fnJoin.RightTbl().SelValue()
 	if leftTblName == rightTblName {
-		return "", nil, errz.Errorf("JOIN tables must have distinct names (or use aliases): duplicate tbl name %q", fnJoin.LeftTbl().SelValue())
+		return "", nil, errz.Errorf("JOIN tables must have distinct names (or use aliases): duplicate tbl name %q",
+			fnJoin.LeftTbl().SelValue())
 	}
 
 	leftSrc, err := ng.srcs.Get(fnJoin.LeftTbl().DSName)
@@ -273,8 +276,10 @@ func (jt *joinCopyTask) executeTask(ctx context.Context, log lg.Log) error {
 }
 
 // execCopyTable performs the work of copying fromDB.fromTblName to destDB.destTblName.
-func execCopyTable(ctx context.Context, log lg.Log, fromDB driver.Database, fromTblName string, destDB driver.Database, destTblName string) error {
-	createTblHook := func(ctx context.Context, originRecMeta sqlz.RecordMeta, destDB driver.Database, tx sqlz.DB) error {
+func execCopyTable(ctx context.Context, log lg.Log, fromDB driver.Database, fromTblName string, destDB driver.Database,
+	destTblName string) error {
+	createTblHook := func(ctx context.Context, originRecMeta sqlz.RecordMeta, destDB driver.Database,
+		tx sqlz.DB) error {
 		destColNames := originRecMeta.Names()
 		destColKinds := originRecMeta.Kinds()
 		destTblDef := sqlmodel.NewTableDef(destTblName, destColNames, destColKinds)
@@ -329,13 +334,15 @@ func buildQueryModel(log lg.Log, a *ast.AST) (*queryModel, error) {
 	}
 
 	if len(selectableSeg.Children()) != 1 {
-		return nil, errz.Errorf("the final selectable segment must have exactly one selectable element, but found %d elements",
+		return nil, errz.Errorf(
+			"the final selectable segment must have exactly one selectable element, but found %d elements",
 			len(selectableSeg.Children()))
 	}
 
 	selectable, ok := selectableSeg.Children()[0].(ast.Selectable)
 	if !ok {
-		return nil, errz.Errorf("the final selectable segment must have exactly one selectable element, but found element %T(%q)",
+		return nil, errz.Errorf(
+			"the final selectable segment must have exactly one selectable element, but found element %T(%q)",
 			selectableSeg.Children()[0], selectableSeg.Children()[0].Text())
 	}
 
@@ -346,12 +353,14 @@ func buildQueryModel(log lg.Log, a *ast.AST) (*queryModel, error) {
 		// Check if the first element of the segment is a row range, if not, just skip
 		if rr, ok := seg.Children()[0].(*ast.RowRange); ok {
 			if len(seg.Children()) != 1 {
-				return nil, errz.Errorf("segment [%d] with row range must have exactly one element, but found %d: %q",
+				return nil, errz.Errorf(
+					"segment [%d] with row range must have exactly one element, but found %d: %q",
 					seg.SegIndex(), len(seg.Children()), seg.Text())
 			}
 
 			if qm.Range != nil {
-				return nil, errz.Errorf("only one row range permitted, but found %q and %q", qm.Range.Text(), rr.Text())
+				return nil, errz.Errorf("only one row range permitted, but found %q and %q",
+					qm.Range.Text(), rr.Text())
 			}
 
 			log.Debugf("found row range: %q", rr.Text())

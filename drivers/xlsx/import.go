@@ -21,9 +21,11 @@ import (
 )
 
 // xlsxToScratch loads the data in xlFile into scratchDB.
-func xlsxToScratch(ctx context.Context, log lg.Log, src *source.Source, xlFile *xlsx.File, scratchDB driver.Database) error {
+func xlsxToScratch(ctx context.Context, log lg.Log, src *source.Source, xlFile *xlsx.File,
+	scratchDB driver.Database) error {
 	start := time.Now()
-	log.Debugf("Beginning import from XLSX %s to %s (%s)...", src.Handle, scratchDB.Source().Handle, scratchDB.Source().RedactedLocation())
+	log.Debugf("Beginning import from XLSX %s to %s (%s)...", src.Handle, scratchDB.Source().Handle,
+		scratchDB.Source().RedactedLocation())
 
 	hasHeader, _, err := options.HasHeader(src.Options)
 	if err != nil {
@@ -72,7 +74,8 @@ func xlsxToScratch(ctx context.Context, log lg.Log, src *source.Source, xlFile *
 
 // importSheetToTable imports sheet's data to its scratch table.
 // The scratch table must already exist.
-func importSheetToTable(ctx context.Context, log lg.Log, sheet *xlsx.Sheet, hasHeader bool, scratchDB driver.Database, tblDef *sqlmodel.TableDef) error {
+func importSheetToTable(ctx context.Context, log lg.Log, sheet *xlsx.Sheet, hasHeader bool, scratchDB driver.Database,
+	tblDef *sqlmodel.TableDef) error {
 	startTime := time.Now()
 
 	conn, err := scratchDB.DB().Conn(ctx)
@@ -154,7 +157,8 @@ func isEmptyRow(row *xlsx.Row) bool {
 
 // buildTblDefsForSheets returns a TableDef for each sheet. If the
 // sheet is empty (has no data), the TableDef for that sheet will be nil.
-func buildTblDefsForSheets(ctx context.Context, log lg.Log, sheets []*xlsx.Sheet, hasHeader bool) ([]*sqlmodel.TableDef, error) {
+func buildTblDefsForSheets(ctx context.Context, log lg.Log, sheets []*xlsx.Sheet, hasHeader bool) ([]*sqlmodel.TableDef,
+	error) {
 	tblDefs := make([]*sqlmodel.TableDef, len(sheets))
 
 	g, _ := errgroup.WithContext(ctx)
@@ -341,7 +345,8 @@ func rowToRecord(log lg.Log, destColKinds []kind.Kind, row *xlsx.Row, sheetName 
 
 			// it's not an int, it's not a float, it's not empty string;
 			// just give up and make it a string.
-			log.Warnf("Failed to determine type of numeric cell [%s:%d:%d] from value: %q", sheetName, rowIndex, j, cell.Value)
+			log.Warnf("Failed to determine type of numeric cell [%s:%d:%d] from value: %q", sheetName, rowIndex, j,
+				cell.Value)
 			vals[j] = cell.Value
 			// FIXME: prob should return an error here?
 		case xlsx.CellTypeString:

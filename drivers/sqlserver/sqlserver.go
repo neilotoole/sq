@@ -142,7 +142,11 @@ func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 // operation is implemented in two statements. First "DELETE FROM tbl" to
 // delete all rows. Then, if reset is true, the table sequence counter
 // is reset via RESEED.
-func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, reset bool) (affected int64, err error) {
+//
+//nolint:lll
+func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, reset bool) (affected int64,
+	err error) {
+
 	// https://docs.microsoft.com/en-us/sql/t-sql/statements/truncate-table-transact-sql?view=sql-server-ver15
 
 	// When there are foreign key constraints on mssql tables,
@@ -175,7 +179,8 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 }
 
 // TableColumnTypes implements driver.SQLDriver.
-func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName string, colNames []string) ([]*sql.ColumnType, error) {
+func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName string,
+	colNames []string) ([]*sql.ColumnType, error) {
 	// SQLServer has this unusual incantation for its LIMIT equivalent:
 	//
 	// SELECT username, email, address_id FROM person
@@ -308,7 +313,8 @@ func (d *driveri) DropTable(ctx context.Context, db sqlz.DB, tbl string, ifExist
 }
 
 // PrepareInsertStmt implements driver.SQLDriver.
-func (d *driveri) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string, numRows int) (*driver.StmtExecer, error) {
+func (d *driveri) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string,
+	numRows int) (*driver.StmtExecer, error) {
 	destColsMeta, err := d.getTableColsMeta(ctx, db, destTbl, destColNames)
 	if err != nil {
 		return nil, err
@@ -319,12 +325,14 @@ func (d *driveri) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl str
 		return nil, err
 	}
 
-	execer := driver.NewStmtExecer(stmt, driver.DefaultInsertMungeFunc(destTbl, destColsMeta), newStmtExecFunc(stmt, db, destTbl), destColsMeta)
+	execer := driver.NewStmtExecer(stmt, driver.DefaultInsertMungeFunc(destTbl, destColsMeta),
+		newStmtExecFunc(stmt, db, destTbl), destColsMeta)
 	return execer, nil
 }
 
 // PrepareUpdateStmt implements driver.SQLDriver.
-func (d *driveri) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string, where string) (*driver.StmtExecer, error) {
+func (d *driveri) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string,
+	where string) (*driver.StmtExecer, error) {
 	destColsMeta, err := d.getTableColsMeta(ctx, db, destTbl, destColNames)
 	if err != nil {
 		return nil, err
@@ -340,11 +348,13 @@ func (d *driveri) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl str
 		return nil, err
 	}
 
-	execer := driver.NewStmtExecer(stmt, driver.DefaultInsertMungeFunc(destTbl, destColsMeta), newStmtExecFunc(stmt, db, destTbl), destColsMeta)
+	execer := driver.NewStmtExecer(stmt, driver.DefaultInsertMungeFunc(destTbl, destColsMeta),
+		newStmtExecFunc(stmt, db, destTbl), destColsMeta)
 	return execer, nil
 }
 
-func (d *driveri) getTableColsMeta(ctx context.Context, db sqlz.DB, tblName string, colNames []string) (sqlz.RecordMeta, error) {
+func (d *driveri) getTableColsMeta(ctx context.Context, db sqlz.DB, tblName string, colNames []string) (sqlz.RecordMeta,
+	error) {
 	// SQLServer has this unusual incantation for its LIMIT equivalent:
 	//
 	// SELECT username, email, address_id FROM person
@@ -497,8 +507,10 @@ func setIdentityInsert(ctx context.Context, db sqlz.DB, tbl string, on bool) err
 }
 
 // mssql error codes
-// https://docs.microsoft.com/en-us/sql/relational-databases/errors-events/database-engine-events-and-errors?view=sql-server-ver15
+//
+//nolint:lll
 const (
+	// See: https://docs.microsoft.com/en-us/sql/relational-databases/errors-events/database-engine-events-and-errors?view=sql-server-ver15
 	errCodeIdentityInsert int32 = 544
 	errCodeObjectNotExist int32 = 15009
 )

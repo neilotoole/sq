@@ -326,7 +326,8 @@ const Comma = ", "
 // driver-specific syntax from drvr. numRows specifies
 // how many rows of values are inserted by each execution of
 // the insert statement (1 row being the prototypical usage).
-func PrepareInsertStmt(ctx context.Context, drvr SQLDriver, db sqlz.Preparer, destTbl string, destCols []string, numRows int) (stmt *sql.Stmt, err error) {
+func PrepareInsertStmt(ctx context.Context, drvr SQLDriver, db sqlz.Preparer, destTbl string, destCols []string,
+	numRows int) (stmt *sql.Stmt, err error) {
 	const stmtTpl = `INSERT INTO %s (%s) VALUES %s`
 
 	if numRows <= 0 {
@@ -385,7 +386,8 @@ func (bi BatchInsert) Munge(rec []any) error {
 //
 // Note that the db arg must guarantee a single connection: that is,
 // it must be a sql.Conn or sql.Tx.
-func NewBatchInsert(ctx context.Context, log lg.Log, drvr SQLDriver, db sqlz.DB, destTbl string, destColNames []string, batchSize int) (*BatchInsert, error) {
+func NewBatchInsert(ctx context.Context, log lg.Log, drvr SQLDriver, db sqlz.DB, destTbl string, destColNames []string,
+	batchSize int) (*BatchInsert, error) {
 	err := requireSingleConn(db)
 	if err != nil {
 		return nil, err

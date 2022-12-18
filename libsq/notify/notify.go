@@ -48,14 +48,16 @@ type Notifier interface {
 // Provider is a factory that returns Notifier instances and generates notification Destinations from user parameters.
 type Provider interface {
 	// Destination returns a notification Destination instance from the supplied parameters.
-	Destination(typ DestType, target string, label string, credentials string, labelAvailable func(label string) bool) (*Destination, error)
+	Destination(typ DestType, target string, label string, credentials string,
+		labelAvailable func(label string) bool) (*Destination, error)
 	// Notifier returns a Notifier instance for the given destination.
 	Notifier(dest Destination) (Notifier, error)
 }
 
 var providers = make(map[DestType]Provider)
 
-// RegisterProvider should be invoked by notification implementations to indicate that they handle a specific destination type.
+// RegisterProvider should be invoked by notification implementations to
+// indicate that they handle a specific destination type.
 func RegisterProvider(typ DestType, p Provider) {
 	providers[typ] = p
 }
@@ -135,8 +137,10 @@ var handlePattern = regexp.MustCompile(`\A[a-zA-Z][a-zA-Z0-9_]*$`)
 
 // ValidHandle returns an error if handle is not an acceptable notification destination handle value.
 func ValidHandle(handle string) error {
+	const msg = `invalid notification destination handle value %q: must begin with a letter, followed by zero or more letters, digits, or underscores, e.g. "slack_devops"` //nolint:lll
+
 	if !handlePattern.MatchString(handle) {
-		return errz.Errorf(`invalid notification destination handle value %q: must begin with a letter, followed by zero or more letters, digits, or underscores, e.g. "slack_devops"`, handle)
+		return errz.Errorf(msg, handle)
 	}
 
 	return nil

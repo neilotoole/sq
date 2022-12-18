@@ -126,7 +126,8 @@ func getNewRecordFunc(rowMeta sqlz.RecordMeta) driver.NewRecordFunc {
 			}
 
 			// else, we don't know what to do with this col
-			return nil, errz.Errorf("column %d %s: unknown type db(%T) with kind(%s), val(%v)", i, rowMeta[i].Name(), rec[i], rowMeta[i].Kind(), rec[i])
+			return nil, errz.Errorf("column %d %s: unknown type db(%T) with kind(%s), val(%v)", i, rowMeta[i].Name(),
+				rec[i], rowMeta[i].Kind(), rec[i])
 		}
 		return rec, nil
 	}
@@ -167,7 +168,8 @@ WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`
 
 // getColumnMetadata returns column metadata for tblName.
 func getColumnMetadata(ctx context.Context, log lg.Log, db sqlz.DB, tblName string) ([]*source.ColMetadata, error) {
-	const query = `SELECT column_name, data_type, column_type, ordinal_position, column_default, is_nullable, column_key, column_comment, extra
+	const query = `SELECT column_name, data_type, column_type, ordinal_position, column_default,
+       is_nullable, column_key, column_comment, extra
 FROM information_schema.columns cols
 WHERE cols.TABLE_SCHEMA = DATABASE() AND cols.TABLE_NAME = ?
 ORDER BY cols.ordinal_position ASC`
@@ -185,7 +187,8 @@ ORDER BY cols.ordinal_position ASC`
 		var isNullable, colKey, extra string
 
 		defVal := &sql.NullString{}
-		err = rows.Scan(&col.Name, &col.BaseType, &col.ColumnType, &col.Position, defVal, &isNullable, &colKey, &col.Comment, &extra)
+		err = rows.Scan(&col.Name, &col.BaseType, &col.ColumnType, &col.Position, defVal, &isNullable, &colKey,
+			&col.Comment, &extra)
 		if err != nil {
 			return nil, errz.Err(err)
 		}
@@ -264,7 +267,8 @@ func setSourceSummaryMeta(ctx context.Context, db sqlz.DB, md *source.Metadata) 
         FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE()) AS size`
 
 	var version, versionComment, versionOS, versionArch, schema string
-	err := db.QueryRowContext(ctx, summaryQuery).Scan(&version, &versionComment, &versionOS, &versionArch, &schema, &md.User, &md.Size)
+	err := db.QueryRowContext(ctx, summaryQuery).Scan(&version, &versionComment, &versionOS, &versionArch, &schema,
+		&md.User, &md.Size)
 	if err != nil {
 		return errz.Err(err)
 	}
@@ -304,8 +308,10 @@ func getDBVarsMeta(ctx context.Context, log lg.Log, db sqlz.DB) ([]source.DBVar,
 
 // getAllTblMetas returns TableMetadata for each table/view in db.
 func getAllTblMetas(ctx context.Context, log lg.Log, db sqlz.DB) ([]*source.TableMetadata, error) {
-	const query = `SELECT t.TABLE_SCHEMA, t.TABLE_NAME, t.TABLE_TYPE, t.TABLE_COMMENT,  (DATA_LENGTH + INDEX_LENGTH) AS table_size,
-       c.COLUMN_NAME, c.ORDINAL_POSITION, c.COLUMN_KEY, c.DATA_TYPE, c.COLUMN_TYPE, c.IS_NULLABLE, c.COLUMN_DEFAULT, c.COLUMN_COMMENT, c.EXTRA
+	const query = `SELECT t.TABLE_SCHEMA, t.TABLE_NAME, t.TABLE_TYPE, t.TABLE_COMMENT,
+       (DATA_LENGTH + INDEX_LENGTH) AS table_size,
+       c.COLUMN_NAME, c.ORDINAL_POSITION, c.COLUMN_KEY, c.DATA_TYPE, c.COLUMN_TYPE,
+       c.IS_NULLABLE, c.COLUMN_DEFAULT, c.COLUMN_COMMENT, c.EXTRA
 FROM information_schema.TABLES t
          LEFT JOIN information_schema.COLUMNS c
                    ON c.TABLE_CATALOG = t.TABLE_CATALOG

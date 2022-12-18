@@ -21,7 +21,8 @@ import (
 
 // DetectJSONA implements source.TypeDetectFunc for TypeJSONA.
 // Each line of input must be a valid JSON array.
-func DetectJSONA(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (detected source.Type, score float32, err error) {
+func DetectJSONA(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (detected source.Type, score float32,
+	err error) {
 	var r io.ReadCloser
 	r, err = openFn()
 	if err != nil {
@@ -157,7 +158,8 @@ func importJSONA(ctx context.Context, log lg.Log, job importJob) error {
 
 // startInsertJSONA reads JSON records from r and sends
 // them on recordCh.
-func startInsertJSONA(ctx context.Context, recordCh chan<- sqlz.Record, errCh <-chan error, r io.Reader, mungeFns []kind.MungeFunc) error {
+func startInsertJSONA(ctx context.Context, recordCh chan<- sqlz.Record, errCh <-chan error, r io.Reader,
+	mungeFns []kind.MungeFunc) error {
 	defer close(recordCh)
 
 	sc := bufio.NewScanner(r)
