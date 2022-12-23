@@ -7,7 +7,7 @@ require (
 	github.com/antlr/antlr4 v0.0.0-20191011202612-ad2bd05285ca
 	github.com/c2h5oh/datasize v0.0.0-20220606134207-859f65c6625b
 	github.com/djherbis/fscache v0.10.1
-	github.com/emirpasic/gods v1.9.0
+	github.com/emirpasic/gods v1.18.1
 	github.com/fatih/color v1.13.0
 	github.com/go-sql-driver/mysql v1.7.0
 	github.com/google/uuid v1.3.0
@@ -37,7 +37,7 @@ require (
 	go.uber.org/multierr v1.9.0
 	golang.org/x/net v0.4.0
 	golang.org/x/sync v0.1.0
-	gopkg.in/yaml.v2 v2.4.0
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -96,5 +96,4 @@ require (
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/djherbis/atime.v1 v1.0.0 // indirect
 	gopkg.in/djherbis/stream.v1 v1.3.1 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
