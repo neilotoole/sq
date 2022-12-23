@@ -337,6 +337,9 @@ xlsx       Microsoft Excel XLSX                   false         https://en.wikip
 - `--markdown`: Markdown
 - `--raw`: Raw (bytes)
 
+## Changelog
+
+See [CHANGELOG.md](./CHANGELOG.md).
 
 ## Acknowledgements
 
