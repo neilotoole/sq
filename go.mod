@@ -32,7 +32,7 @@ require (
 	github.com/stretchr/testify v1.8.1
 	github.com/tealeg/xlsx/v2 v2.0.1
 	github.com/testcontainers/testcontainers-go v0.17.0
-	github.com/xo/dburl v0.12.0
+	github.com/xo/dburl v0.13.0
 	go.uber.org/atomic v1.10.0
 	go.uber.org/multierr v1.9.0
 	golang.org/x/net v0.4.0
