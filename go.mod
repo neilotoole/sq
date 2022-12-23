@@ -33,8 +33,8 @@ require (
 	github.com/tealeg/xlsx/v2 v2.0.1
 	github.com/testcontainers/testcontainers-go v0.15.0
 	github.com/xo/dburl v0.11.0
-	go.uber.org/atomic v1.5.0
-	go.uber.org/multierr v1.4.0
+	go.uber.org/atomic v1.10.0
+	go.uber.org/multierr v1.9.0
 	golang.org/x/net v0.3.0
 	golang.org/x/sync v0.1.0
 	gopkg.in/yaml.v2 v2.4.0
