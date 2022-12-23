@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Shell completion is better behaved when a source is offline [#123](/issues/123).
+- [#123] Shell completion is better behaved when a source is offline
 
 ## [v0.16.0] - 2022-12-16
 
@@ -64,3 +64,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [v0.15.4]: https://github.com/neilotoole/sq/compare/v0.15.3...v0.15.4
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
+
+[#123]: https://github.com/neilotoole/sq/issues/123
