@@ -6,7 +6,6 @@ require (
 	github.com/alexflint/go-filemutex v1.2.0
 	github.com/antlr/antlr4 v0.0.0-20191011202612-ad2bd05285ca
 	github.com/c2h5oh/datasize v0.0.0-20220606134207-859f65c6625b
-	github.com/denisenkom/go-mssqldb v0.0.0-20200620013148-b91950f658ec
 	github.com/djherbis/fscache v0.10.1
 	github.com/emirpasic/gods v1.9.0
 	github.com/fatih/color v1.13.0
@@ -20,12 +19,12 @@ require (
 	github.com/mattn/go-isatty v0.0.14
 	github.com/mattn/go-runewidth v0.0.4
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible
+	github.com/microsoft/go-mssqldb v0.19.0
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/neilotoole/errgroup v0.1.5
 	github.com/neilotoole/lg v0.3.0
 	github.com/pkg/errors v0.9.1
 	github.com/ryboe/q v1.0.12
-	github.com/satori/go.uuid v1.2.0
 	github.com/segmentio/encoding v0.1.14
 	github.com/shopspring/decimal v0.0.0-20180709203117-cd690d0c9e24
 	github.com/spf13/cobra v1.6.1
@@ -36,10 +35,14 @@ require (
 	github.com/xo/dburl v0.11.0
 	go.uber.org/atomic v1.5.0
 	go.uber.org/multierr v1.4.0
-	golang.org/x/crypto v0.0.0-20220511200225-c6db032c6c88
-	golang.org/x/net v0.2.0
+	golang.org/x/net v0.3.0
 	golang.org/x/sync v0.1.0
 	gopkg.in/yaml.v2 v2.4.0
+)
+
+require (
+	github.com/golang-sql/sqlexp v0.1.0 // indirect
+	golang.org/x/crypto v0.4.0 // indirect
 )
 
 require (
@@ -56,7 +59,7 @@ require (
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/golang-sql/civil v0.0.0-20190719163853-cb61b32ac6fe // indirect
+	github.com/golang-sql/civil v0.0.0-20220223132316-b832511892a9 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
@@ -84,9 +87,9 @@ require (
 	go.uber.org/zap v1.13.0 // indirect
 	golang.org/x/lint v0.0.0-20200302205851-738671d3881b // indirect
 	golang.org/x/mod v0.7.0 // indirect
-	golang.org/x/sys v0.2.0 // indirect
-	golang.org/x/term v0.2.0 // indirect
-	golang.org/x/text v0.4.0 // indirect
+	golang.org/x/sys v0.3.0 // indirect
+	golang.org/x/term v0.3.0
+	golang.org/x/text v0.5.0 // indirect
 	golang.org/x/tools v0.3.0 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	google.golang.org/genproto v0.0.0-20221118155620-16455021b5e6 // indirect

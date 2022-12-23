@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	mssql "github.com/denisenkom/go-mssqldb"
+	mssql "github.com/microsoft/go-mssqldb"
 	"github.com/stretchr/testify/require"
 )
 
