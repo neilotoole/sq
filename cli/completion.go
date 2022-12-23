@@ -135,7 +135,7 @@ func (c *handleTableCompleter) complete(cmd *cobra.Command, args []string, toCom
 	}
 
 	// There's some input. We expect the input to be of the
-	// the form "@handle" or ".table". That is, the input should
+	// form "@handle" or ".table". That is, the input should
 	// start with either '@' or '.'.
 	switch toComplete[0] {
 	default:
@@ -279,8 +279,11 @@ func (c *handleTableCompleter) completeHandle(ctx context.Context, rc *RunContex
 
 	tables, err := getTableNamesForHandle(ctx, rc, matchingHandles[0])
 	if err != nil {
-		rc.Log.Error(err)
-		return nil, cobra.ShellCompDirectiveError
+		// This means that we aren't able to get metadata for this source.
+		// This could be because the source is temporarily offline. The
+		// best we can do is just to return the handle, without the tables.
+		rc.Log.Warn(err)
+		return matchingHandles, cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace
 	}
 
 	suggestions := []string{matchingHandles[0]}
