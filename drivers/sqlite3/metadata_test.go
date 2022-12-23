@@ -9,6 +9,7 @@ import (
 
 	"github.com/neilotoole/lg"
 	"github.com/neilotoole/lg/testlg"
+	"github.com/neilotoole/sq/testh/proj"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -20,7 +21,30 @@ import (
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/testsrc"
+
+	mattn "github.com/mattn/go-sqlite3"
 )
+
+func TestScalarFuncsRaw(t *testing.T) {
+	// t.Parallel() // FIXME: switch back to parallel
+	fp := proj.Abs("drivers/sqlite3/testdata/sakila.db")
+	t.Log(fp)
+
+	_ = mattn.ErrAbort
+
+	//const query = `SELECT NULL, ABS(film_id), LOWER(rating), LAST_INSERT_ROWID(),
+	//MAX(rental_rate, replacement_cost)
+	//FROM film LIMIT 1`
+	//wantKinds := []kind.Kind{kind.Bytes, kind.Int, kind.Text, kind.Int, kind.Float}
+	//
+	//th := testh.New(t)
+	//src := th.Source(sakila.SL3)
+	//sink, err := th.QuerySQL(src, query)
+	//require.NoError(t, err)
+	//// require.Equal(t, sakila.TblFilmCount, len(sink.Recs))
+	//require.Equal(t, 1, len(sink.Recs))
+	//require.Equal(t, wantKinds, sink.RecMeta.Kinds())
+}
 
 func TestKindFromDBTypeName(t *testing.T) {
 	t.Parallel()
@@ -247,18 +271,19 @@ func TestAggregateFuncsQuery(t *testing.T) {
 // a query with some scalar funcs to verify that
 // column type info is being correctly determined.
 func TestScalarFuncsQuery(t *testing.T) {
-	t.Parallel()
+	// t.Parallel() // FIXME: switch back to parallel
 
 	const query = `SELECT NULL, ABS(film_id), LOWER(rating), LAST_INSERT_ROWID(),
 	MAX(rental_rate, replacement_cost)
-	FROM film`
+	FROM film LIMIT 1`
 	wantKinds := []kind.Kind{kind.Bytes, kind.Int, kind.Text, kind.Int, kind.Float}
 
 	th := testh.New(t)
 	src := th.Source(sakila.SL3)
 	sink, err := th.QuerySQL(src, query)
 	require.NoError(t, err)
-	require.Equal(t, sakila.TblFilmCount, len(sink.Recs))
+	// require.Equal(t, sakila.TblFilmCount, len(sink.Recs))
+	require.Equal(t, 1, len(sink.Recs))
 	require.Equal(t, wantKinds, sink.RecMeta.Kinds())
 }
 

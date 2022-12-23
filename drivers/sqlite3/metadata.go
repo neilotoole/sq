@@ -109,6 +109,13 @@ func setScanType(log lg.Log, colType *sqlz.ColumnTypeData) {
 // non-nil it may be used to determine ambiguous cases. For example,
 // dbTypeName is empty string for "COUNT(*)"
 func kindFromDBTypeName(log lg.Log, colName, dbTypeName string, scanType reflect.Type) kind.Kind {
+	scanInfo := "<nil>"
+	if scanType != nil {
+		scanInfo = scanType.String()
+	}
+	log.Debugf("colName: {%s}, dbTypeName: {%s}, scanType: {%s}",
+		colName, dbTypeName, scanInfo)
+
 	if dbTypeName == "" {
 		// dbTypeName can be empty for functions such as COUNT() etc.
 		// But we can infer the type from scanType (if non-nil).
@@ -178,7 +185,7 @@ func kindFromDBTypeName(log lg.Log, colName, dbTypeName string, scanType reflect
 	// We didn't find an exact match, we'll use the Affinity rules
 	// per the SQLite link provided earlier, noting that we default
 	// to kind.Text (the docs specify default affinity NUMERIC, which
-	// sq handles as Tind.Text).
+	// sq handles as kind.Text).
 	switch {
 	default:
 		log.Warnf("Unknown SQLite database type name %q for %q: using %q", dbTypeName, colName, kind.Unknown)

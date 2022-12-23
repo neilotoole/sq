@@ -18,7 +18,7 @@ require (
 	github.com/mattn/go-colorable v0.1.12
 	github.com/mattn/go-isatty v0.0.16
 	github.com/mattn/go-runewidth v0.0.4
-	github.com/mattn/go-sqlite3 v2.0.3+incompatible
+	github.com/mattn/go-sqlite3 v1.14.16
 	github.com/microsoft/go-mssqldb v0.19.0
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/neilotoole/errgroup v0.1.5
