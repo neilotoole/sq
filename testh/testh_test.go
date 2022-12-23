@@ -6,11 +6,10 @@ import (
 	"time"
 
 	"github.com/neilotoole/sq/testh/tutil"
-
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/ryboe/q"
+	_ "github.com/ryboe/q" // keep the q lib around
 
 	"github.com/neilotoole/sq/drivers/csv"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
@@ -182,6 +181,3 @@ func TestTName(t *testing.T) {
 		require.Equal(t, tc.want, got)
 	}
 }
-
-// Keep the q lib around.
-var _ = q.Q

@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	mssql "github.com/denisenkom/go-mssqldb"
+	mssql "github.com/microsoft/go-mssqldb"
 
 	"github.com/neilotoole/lg"
 
@@ -59,7 +59,7 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 	return driver.Metadata{
 		Type:        Type,
 		Description: "Microsoft SQL Server",
-		Doc:         "https://github.com/denisenkom/go-mssqldb",
+		Doc:         "https://github.com/microsoft/go-mssqldb",
 		IsSQL:       true,
 	}
 }
