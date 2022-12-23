@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Shell completion is better behaved when a source is offline #123
 
 ## [v0.16.0] - 2022-12-16
 
