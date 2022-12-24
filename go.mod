@@ -14,9 +14,9 @@ require (
 	github.com/jackc/pgconn v1.5.0
 	github.com/jackc/pgx/v4 v4.6.0
 	github.com/magefile/mage v1.9.0
-	github.com/mattn/go-colorable v0.1.12
+	github.com/mattn/go-colorable v0.1.13
 	github.com/mattn/go-isatty v0.0.16
-	github.com/mattn/go-runewidth v0.0.4
+	github.com/mattn/go-runewidth v0.0.14
 	github.com/mattn/go-sqlite3 v1.14.16
 	github.com/microsoft/go-mssqldb v0.19.0
 	github.com/mitchellh/go-homedir v1.1.0
@@ -24,12 +24,12 @@ require (
 	github.com/neilotoole/lg v0.3.0
 	github.com/pkg/errors v0.9.1
 	github.com/ryboe/q v1.0.18
-	github.com/segmentio/encoding v0.1.14
+	github.com/segmentio/encoding v0.1.14 // Be very careful changing this encoding packge
 	github.com/shopspring/decimal v1.3.1
 	github.com/spf13/cobra v1.6.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.1
-	github.com/tealeg/xlsx/v2 v2.0.1
+	github.com/tealeg/xlsx/v2 v2.0.1 // This package is no longer supported; switch to a different impl
 	github.com/testcontainers/testcontainers-go v0.17.0
 	github.com/xo/dburl v0.13.0
 	go.uber.org/atomic v1.10.0
@@ -47,6 +47,7 @@ require (
 	github.com/klauspost/compress v1.11.13 // indirect
 	github.com/moby/patternmatcher v0.5.0 // indirect
 	github.com/moby/sys/sequential v0.5.0 // indirect
+	github.com/rivo/uniseg v0.4.3 // indirect
 	github.com/rogpeppe/go-internal v1.9.0 // indirect
 	golang.org/x/crypto v0.4.0 // indirect
 	golang.org/x/exp v0.0.0-20221217163422-3c43f8badb15 // indirect
