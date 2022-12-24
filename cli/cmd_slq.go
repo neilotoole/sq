@@ -70,7 +70,7 @@ func execSLQ(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	if !flagChanged(cmd, flagInsert) {
+	if !cmdFlagChanged(cmd, flagInsert) {
 		// The user didn't specify the --insert=@src.tbl flag,
 		// so we just want to print the records.
 		return execSLQPrint(cmd.Context(), rc)

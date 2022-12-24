@@ -76,7 +76,7 @@ func execSQL(cmd *cobra.Command, args []string) error {
 	// determineSources successfully returns.
 	activeSrc := srcs.Active()
 
-	if !flagChanged(cmd, flagInsert) {
+	if !cmdFlagChanged(cmd, flagInsert) {
 		// The user didn't specify the --insert=@src.tbl flag,
 		// so we just want to print the records.
 		return execSQLPrint(cmd.Context(), rc, activeSrc)

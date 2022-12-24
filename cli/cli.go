@@ -415,7 +415,7 @@ func (rc *RunContext) doInit() error {
 	// If the --output=/some/file flag is set, then we need to
 	// override rc.Out (which is typically stdout) to point it at
 	// the output destination file.
-	if flagChanged(rc.Cmd, flagOutput) {
+	if cmdFlagChanged(rc.Cmd, flagOutput) {
 		fpath, _ := rc.Cmd.Flags().GetString(flagOutput)
 		fpath, err := filepath.Abs(fpath)
 		if err != nil {
@@ -628,25 +628,25 @@ func newWriters(log lg.Log, cmd *cobra.Command, defaults config.Defaults, out, e
 func getWriterFormatting(cmd *cobra.Command, out, errOut io.Writer) (fm *output.Formatting, out2, errOut2 io.Writer) {
 	fm = output.NewFormatting()
 
-	if flagChanged(cmd, flagPretty) {
+	if cmdFlagChanged(cmd, flagPretty) {
 		fm.Pretty, _ = cmd.Flags().GetBool(flagPretty)
 	}
 
-	if flagChanged(cmd, flagVerbose) {
+	if cmdFlagChanged(cmd, flagVerbose) {
 		fm.Verbose, _ = cmd.Flags().GetBool(flagVerbose)
 	}
 
-	if flagChanged(cmd, flagHeader) {
+	if cmdFlagChanged(cmd, flagHeader) {
 		fm.ShowHeader, _ = cmd.Flags().GetBool(flagHeader)
 	}
 
 	// TODO: Should get this default value from config
 	colorize := true
 
-	if flagChanged(cmd, flagOutput) {
+	if cmdFlagChanged(cmd, flagOutput) {
 		// We're outputting to a file, thus no color.
 		colorize = false
-	} else if flagChanged(cmd, flagMonochrome) {
+	} else if cmdFlagChanged(cmd, flagMonochrome) {
 		if mono, _ := cmd.Flags().GetBool(flagMonochrome); mono {
 			colorize = false
 		}
@@ -691,27 +691,27 @@ func getFormat(cmd *cobra.Command, defaults config.Defaults) config.Format {
 
 	switch {
 	// cascade through the format flags in low-to-high order of precedence.
-	case flagChanged(cmd, flagTSV):
+	case cmdFlagChanged(cmd, flagTSV):
 		format = config.FormatTSV
-	case flagChanged(cmd, flagCSV):
+	case cmdFlagChanged(cmd, flagCSV):
 		format = config.FormatCSV
-	case flagChanged(cmd, flagXLSX):
+	case cmdFlagChanged(cmd, flagXLSX):
 		format = config.FormatXLSX
-	case flagChanged(cmd, flagXML):
+	case cmdFlagChanged(cmd, flagXML):
 		format = config.FormatXML
-	case flagChanged(cmd, flagRaw):
+	case cmdFlagChanged(cmd, flagRaw):
 		format = config.FormatRaw
-	case flagChanged(cmd, flagHTML):
+	case cmdFlagChanged(cmd, flagHTML):
 		format = config.FormatHTML
-	case flagChanged(cmd, flagMarkdown):
+	case cmdFlagChanged(cmd, flagMarkdown):
 		format = config.FormatMarkdown
-	case flagChanged(cmd, flagTable):
+	case cmdFlagChanged(cmd, flagTable):
 		format = config.FormatTable
-	case flagChanged(cmd, flagJSONL):
+	case cmdFlagChanged(cmd, flagJSONL):
 		format = config.FormatJSONL
-	case flagChanged(cmd, flagJSONA):
+	case cmdFlagChanged(cmd, flagJSONA):
 		format = config.FormatJSONA
-	case flagChanged(cmd, flagJSON):
+	case cmdFlagChanged(cmd, flagJSON):
 		format = config.FormatJSON
 	default:
 		// no format flag, use the config value
@@ -865,9 +865,9 @@ func printError(rc *RunContext, err error) {
 	}
 }
 
-// flagChanged returns true if cmd is non-nil and
+// cmdFlagChanged returns true if cmd is non-nil and
 // has the named flag and that flag been changed.
-func flagChanged(cmd *cobra.Command, name string) bool {
+func cmdFlagChanged(cmd *cobra.Command, name string) bool {
 	if cmd == nil {
 		return false
 	}
@@ -880,10 +880,10 @@ func flagChanged(cmd *cobra.Command, name string) bool {
 	return flag.Changed
 }
 
-// flagTrue returns true if flag name has been changed
+// cmdFlagTrue returns true if flag name has been changed
 // and the flag value is true.
-func flagTrue(cmd *cobra.Command, name string) bool {
-	if !flagChanged(cmd, name) {
+func cmdFlagTrue(cmd *cobra.Command, name string) bool {
+	if !cmdFlagChanged(cmd, name) {
 		return false
 	}
 
@@ -898,8 +898,8 @@ func flagTrue(cmd *cobra.Command, name string) bool {
 // flagBool returns nil if the flag is not changed, and
 // otherwise returns the flag value.
 // FIXME: do we need this?
-func flagBool(cmd *cobra.Command, name string) *bool {
-	if !flagChanged(cmd, name) {
+func cmdFlagBool(cmd *cobra.Command, name string) *bool {
+	if !cmdFlagChanged(cmd, name) {
 		return nil
 	}
 

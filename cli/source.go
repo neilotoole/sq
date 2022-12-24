@@ -41,7 +41,7 @@ func determineSources(ctx context.Context, rc *RunContext) error {
 			return err
 		}
 
-		if !flagChanged(cmd, flagActiveSrc) {
+		if !cmdFlagChanged(cmd, flagActiveSrc) {
 			// If the user has not explicitly set an active
 			// source via flag, then we set the stdin pipe data
 			// source as the active source.
@@ -72,7 +72,7 @@ func determineSources(ctx context.Context, rc *RunContext) error {
 func activeSrcFromFlagsOrConfig(cmd *cobra.Command, srcs *source.Set) (*source.Source, error) {
 	var activeSrc *source.Source
 
-	if flagChanged(cmd, flagActiveSrc) {
+	if cmdFlagChanged(cmd, flagActiveSrc) {
 		// The user explicitly wants to set an active source
 		// just for this query.
 
