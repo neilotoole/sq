@@ -58,10 +58,10 @@ type RecordWriter interface {
 	//
 	// It is noted that the existence of the cancelFn param is an unusual
 	// construction. This mechanism exists to enable a goroutine to wait
-	// on the writer outside of the function that invoked Open, without
+	// on the writer outside the function that invoked Open, without
 	// having to pass cancelFn around.
-	Open(ctx context.Context, cancelFn context.CancelFunc, recMeta sqlz.RecordMeta) (recCh chan<- sqlz.Record,
-		errCh <-chan error, err error)
+	Open(ctx context.Context, cancelFn context.CancelFunc,
+		recMeta sqlz.RecordMeta) (recCh chan<- sqlz.Record, errCh <-chan error, err error)
 
 	// Wait waits for the writer to complete and returns the number of
 	// written rows and any error (which may be a multierr).
