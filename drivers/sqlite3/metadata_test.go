@@ -9,7 +9,6 @@ import (
 
 	"github.com/neilotoole/lg"
 	"github.com/neilotoole/lg/testlg"
-	"github.com/ryboe/q"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -36,7 +35,6 @@ func TestSimple(t *testing.T) {
 	require.Equal(t, 1, len(sink.Recs))
 	require.Equal(t, wantKinds, sink.RecMeta.Kinds())
 	row := sink.Recs[0]
-	q.Q(row)
 	for i := range row {
 		require.NotNil(t, row[i])
 	}

@@ -33,7 +33,7 @@ func TestRedactedLocation(t *testing.T) {
 		{
 			tname: "sqlite3", loc: "sqlite3:///path/to/sqlite.db",
 			want: "sqlite3:/path/to/sqlite.db",
-		}, // FIXME: how many slashes to we want, or zero slashes?
+		},
 	}
 
 	for _, tc := range testCases {

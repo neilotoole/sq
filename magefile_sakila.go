@@ -29,7 +29,6 @@ const startupTimeout = time.Minute * 5
 //
 // See: https://golang.testcontainers.org/features/creating_container/
 //
-// FIXME: huzzah
 // TODO: The wait.ForLog mechanism is probably not fully correct for any of the
 // containers (e.g. the string may appear multiple times in the log output),
 // thus the containers may not have started fully when WaitingFor completes.
