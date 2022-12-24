@@ -75,7 +75,7 @@ func TestExhibitDriverColumnTypesBehavior(t *testing.T) {
 
 	// Create the table
 	th.ExecSQL(src, createStmt)
-	// t.Cleanup(func() { th.DropTable(src, tblName) }) // FIXME: turn this back on
+	t.Cleanup(func() { th.DropTable(src, tblName) })
 
 	// 1. Demonstrate that ColumnType.ScanType now correctly returns
 	//    a valid value when rows.ColumnTypes is invoked prior to the first
@@ -126,7 +126,6 @@ func TestExhibitDriverColumnTypesBehavior(t *testing.T) {
 	require.True(t, rows2.Next())
 	require.NoError(t, rows2.Scan(&got))
 	require.True(t, nil == got)
-	q.Q(got)
 	colTypes, err = rows2.ColumnTypes()
 	require.NoError(t, err)
 	scanType = colTypes[0].ScanType()
@@ -138,7 +137,6 @@ func TestExhibitDriverColumnTypesBehavior(t *testing.T) {
 	require.NoError(t, rows2.Scan(&got))
 	_, ok := got.(float64)
 	require.True(t, ok)
-	q.Q(got)
 	colTypes, err = rows2.ColumnTypes()
 	require.NoError(t, err)
 	scanType = colTypes[0].ScanType()
@@ -149,7 +147,6 @@ func TestExhibitDriverColumnTypesBehavior(t *testing.T) {
 	require.True(t, rows2.Next())
 	require.NoError(t, rows2.Scan(&got))
 
-	q.Q(got)
 	_, ok = got.(string)
 	require.True(t, ok, "a string was returned to us")
 	colTypes, err = rows2.ColumnTypes()
