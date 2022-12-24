@@ -52,7 +52,7 @@ func setScanType(log lg.Log, colType *sqlz.ColumnTypeData) {
 		// If the scan type is already set, ensure it's sql.NullTYPE.
 		switch scanType {
 		default:
-			// It's already a sql.NullTYPE.
+			// If it's not one of these types, we use "any".
 			colType.ScanType = sqlz.RTypeAny
 		case sqlz.RTypeInt64:
 			colType.ScanType = sqlz.RTypeNullInt64
@@ -110,27 +110,23 @@ func setScanType(log lg.Log, colType *sqlz.ColumnTypeData) {
 // non-nil it may be used to determine ambiguous cases. For example,
 // dbTypeName is empty string for "COUNT(*)"
 func kindFromDBTypeName(log lg.Log, colName, dbTypeName string, scanType reflect.Type) kind.Kind {
-	scanInfo := "<nil>"
-	if scanType != nil {
-		scanInfo = scanType.String()
-	}
-	log.Debugf("colName: {%s}, dbTypeName: {%s}, scanType: {%s}",
-		colName, dbTypeName, scanInfo)
-
 	if dbTypeName == "" {
 		// dbTypeName can be empty for functions such as COUNT() etc.
 		// But we can infer the type from scanType (if non-nil).
 		if scanType == nil {
 			// According to the SQLite3 docs:
+			//
 			//   3. If the declared type for a column contains the
 			//      string "BLOB" or **if no type is specified** then the
 			//      column has affinity BLOB.
+			//
+			// However, I'm not certain how significant that claim is. It
+			// might be more appropriate to return kind.Unknown here.
 			return kind.Bytes
 		}
 
 		switch scanType {
 		default:
-			// Default to kind.Bytes as mentioned above. // FIXME: change this?
 			return kind.Unknown
 		case sqlz.RTypeInt64:
 			return kind.Int

@@ -256,8 +256,7 @@ func newRecordFromScanRow(meta sqlz.RecordMeta, row []any) (rec sqlz.Record) {
 		switch col := col.(type) {
 		default:
 			// Shouldn't happen
-			fmt.Printf("[%d]: %T : %v\n", i, col, col) // FIXME: delete
-
+			// TODO: We really should log here
 			rec[i] = col
 			continue
 		case nil:

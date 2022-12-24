@@ -2,17 +2,13 @@ package sqlz
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"reflect"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
-	"github.com/ryboe/q"
-	"github.com/samber/lo"
 )
 
 // Record is a []any row of field values returned from a query.
@@ -158,8 +154,7 @@ func (rm RecordMeta) NewScanRow() []any {
 
 	for i, col := range rm {
 		if col.data.ScanType == nil {
-			var val any
-			dests[i] = &val
+			dests[i] = new(any)
 			continue
 		}
 
@@ -240,43 +235,4 @@ func SetKindIfUnknown(meta RecordMeta, i int, k kind.Kind) {
 	if meta[i].data.Kind == kind.Unknown || meta[i].data.Kind == kind.Null {
 		meta[i].data.Kind = k
 	}
-}
-
-// ColumnTypeToString returns a debug/log friendly representation
-// of sql.ColumnType.
-func ColumnTypeToString(col *sql.ColumnType) string {
-	if col == nil {
-		return "<nil>"
-	}
-
-	ctd := NewColumnTypeData(col, kind.Unknown)
-	b, err := json.Marshal(ctd)
-	if err != nil {
-		panic(err)
-	}
-
-	m := map[string]any{}
-	if err := json.Unmarshal(b, &m); err != nil {
-		panic(err)
-	}
-
-	scanType := col.ScanType()
-	if scanType == nil {
-		m["scan_type"] = "nil"
-	} else {
-		m["scan_type"] = scanType.String()
-	}
-
-	q.Q(scanType)
-
-	return string(b)
-}
-
-// FIXME: delete this
-func ColumnTypesToString(cols []*sql.ColumnType) string {
-	strs := lo.Map(cols, func(item *sql.ColumnType, index int) string {
-		return ColumnTypeToString(item)
-	})
-
-	return strings.Join(strs, "\n")
 }

@@ -222,8 +222,7 @@ func (h *Helper) Source(handle string) *source.Source {
 		destFileName := destFile.Name()
 
 		h.Files().CleanupE(func() error {
-			// return errz.Err(os.Remove(destFileName)) // FIXME: re-enable this
-			return nil
+			return errz.Err(os.Remove(destFileName))
 		})
 
 		_, err = io.Copy(destFile, srcFile)

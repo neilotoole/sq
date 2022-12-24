@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/ryboe/q"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/drivers/sqlite3"
@@ -181,7 +180,7 @@ func TestDriver_CreateTable_NotNullDefault(t *testing.T) {
 
 	err := drvr.CreateTable(th.Context, dbase.DB(), tblDef)
 	require.NoError(t, err)
-	// t.Cleanup(func() { th.DropTable(src, tblName) }) // FIXME: turn this back on
+	t.Cleanup(func() { th.DropTable(src, tblName) })
 
 	th.InsertDefaultRow(src, tblName)
 
@@ -190,8 +189,6 @@ func TestDriver_CreateTable_NotNullDefault(t *testing.T) {
 	require.Equal(t, 1, len(sink.Recs))
 	require.Equal(t, len(colNames), len(sink.RecMeta))
 	for i := range sink.Recs[0] {
-		x := sink.Recs[0]
-		q.Q(x)
 		require.NotNil(t, sink.Recs[0][i])
 	}
 }
