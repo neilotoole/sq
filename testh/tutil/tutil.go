@@ -3,15 +3,11 @@ package tutil
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
 
-	"github.com/alexflint/go-filemutex"
 	"github.com/neilotoole/sq/libsq/core/stringz"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -278,25 +274,3 @@ var (
 	_ AssertCompareFunc = require.GreaterOrEqual
 	_ AssertCompareFunc = require.Greater
 )
-
-// Lock obtains a universal (cross-process) mutex for all tests.
-// This should be called by tests that cannot be executed in parallel
-// with any other test (even those in another package).
-//
-// Why? The vast majority of tests can be run in parallel, both inside
-// each test package and across test packages. The handful of tests
-// that must not be run in parallel can use this function to guarantee
-// sequential execution.
-//
-// This is implemented via a lock file /tmp/go_test.lock.
-// The lock is released via t.Cleanup.
-func Lock(t testing.TB) {
-	fp := filepath.Join(os.TempDir(), "go_test.lock")
-	mu, err := filemutex.New(fp)
-	require.NoError(t, err)
-
-	t.Cleanup(func() {
-		err := mu.Unlock()
-		assert.NoError(t, err)
-	})
-}

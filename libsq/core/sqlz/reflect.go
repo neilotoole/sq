@@ -31,4 +31,5 @@ var (
 	RTypeBytes       = reflect.TypeOf([]byte{})
 	RTypeBytesP      = reflect.TypeOf((*[]byte)(nil))
 	RTypeNil         = reflect.TypeOf(nil)
+	RTypeAny         = reflect.TypeOf((any)(nil))
 )

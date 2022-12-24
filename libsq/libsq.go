@@ -12,14 +12,12 @@ package libsq
 import (
 	"context"
 
-	"github.com/neilotoole/sq/libsq/ast"
-
 	"github.com/neilotoole/lg"
+	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
-
-	"github.com/neilotoole/sq/libsq/core/sqlz"
 )
 
 // RecordWriter is the interface for writing records to a
@@ -134,6 +132,12 @@ func QuerySQL(ctx context.Context, log lg.Log, dbase driver.Database, recw Recor
 	// scan type of the columns. After rows.Next is first invoked, the
 	// scan type will then be reported.
 	//
+	// UPDATE: As of mattn/go-sqlite3@v1.14.16 (and probably earlier)
+	// it seems that this behavior may have changed. That is, it seems
+	// that rows.ColumnTypes is now returning values even before the first
+	// rows.Next call. It may now be possible to refactor the below code
+	// to remove the double call to rows.ColumnTypes.
+	//
 	// However, there is a snag. Assume an empty table. A call to rows.Next
 	// returns false, and a following call to rows.ColumnTypes will return
 	// an error (because the rows.Next call closed rows). But we still need
@@ -163,7 +167,8 @@ func QuerySQL(ctx context.Context, log lg.Log, dbase driver.Database, recw Recor
 		}
 	}
 
-	recMeta, recFromScanRowFn, err := dbase.SQLDriver().RecordMeta(colTypes)
+	drvr := dbase.SQLDriver()
+	recMeta, recFromScanRowFn, err := drvr.RecordMeta(colTypes)
 	if err != nil {
 		return err
 	}

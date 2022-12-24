@@ -3,7 +3,6 @@ module github.com/neilotoole/sq
 go 1.19
 
 require (
-	github.com/alexflint/go-filemutex v1.2.0
 	github.com/antlr/antlr4 v0.0.0-20191011202612-ad2bd05285ca
 	github.com/c2h5oh/datasize v0.0.0-20220606134207-859f65c6625b
 	github.com/djherbis/fscache v0.10.1
@@ -18,7 +17,7 @@ require (
 	github.com/mattn/go-colorable v0.1.12
 	github.com/mattn/go-isatty v0.0.16
 	github.com/mattn/go-runewidth v0.0.4
-	github.com/mattn/go-sqlite3 v2.0.3+incompatible
+	github.com/mattn/go-sqlite3 v1.14.16
 	github.com/microsoft/go-mssqldb v0.19.0
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/neilotoole/errgroup v0.1.5

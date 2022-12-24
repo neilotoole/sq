@@ -166,7 +166,7 @@ func (h *Helper) Source(handle string) *source.Source {
 	defer h.mu.Unlock()
 	t := h.T
 
-	// invoke h.init to ensure that its cleanup side-effects
+	// invoke h.init to ensure that its cleanup side effects
 	// happen in the correct order (files get cleaned after
 	// databases, etc.).
 	h.init()

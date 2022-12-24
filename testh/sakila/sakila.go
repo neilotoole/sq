@@ -21,8 +21,8 @@ const (
 	Pg11             = "@sakila_pg11"
 	Pg12             = "@sakila_pg12"
 	Pg               = Pg12
-	My56             = "@sakila_my56"
-	My57             = "@sakila_my57"
+	My56             = "@sakila_my56" // FIXME: rename to @sakila_my5_6
+	My57             = "@sakila_my57" // FIXME: rename to @sakila_my5_7
 	My8              = "@sakila_my8"
 	My               = My8
 	MS17             = "@sakila_ms17"

@@ -31,7 +31,7 @@ func recordMetaFromColumnTypes(log lg.Log, colTypes []*sql.ColumnType) (sqlz.Rec
 
 		// It's necessary to explicitly set the scan type because
 		// the backing driver doesn't set it for whatever reason.
-		setScanType(log, colTypeData)
+		setScanType(log, colTypeData) // FIXME: legacy?
 		recMeta[i] = sqlz.NewFieldMeta(colTypeData)
 	}
 
@@ -52,7 +52,8 @@ func setScanType(log lg.Log, colType *sqlz.ColumnTypeData) {
 		// If the scan type is already set, ensure it's sql.NullTYPE.
 		switch scanType {
 		default:
-			// It's already a sql.NullTYPE.
+			// If it's not one of these types, we use "any".
+			colType.ScanType = sqlz.RTypeAny
 		case sqlz.RTypeInt64:
 			colType.ScanType = sqlz.RTypeNullInt64
 		case sqlz.RTypeFloat64:
@@ -72,7 +73,7 @@ func setScanType(log lg.Log, colType *sqlz.ColumnTypeData) {
 	default:
 		// Shouldn't happen?
 		log.Warnf("Unknown kind for col '%s' with database type '%s'", colType.Name, colType.DatabaseTypeName)
-		scanType = sqlz.RTypeBytes
+		scanType = sqlz.RTypeAny
 
 	case kind.Text, kind.Decimal:
 		scanType = sqlz.RTypeNullString
@@ -114,22 +115,27 @@ func kindFromDBTypeName(log lg.Log, colName, dbTypeName string, scanType reflect
 		// But we can infer the type from scanType (if non-nil).
 		if scanType == nil {
 			// According to the SQLite3 docs:
+			//
 			//   3. If the declared type for a column contains the
 			//      string "BLOB" or **if no type is specified** then the
 			//      column has affinity BLOB.
+			//
+			// However, I'm not certain how significant that claim is. It
+			// might be more appropriate to return kind.Unknown here.
 			return kind.Bytes
 		}
 
 		switch scanType {
 		default:
-			// Default to kind.Bytes as mentioned above.
-			return kind.Bytes
+			return kind.Unknown
 		case sqlz.RTypeInt64:
 			return kind.Int
 		case sqlz.RTypeFloat64:
 			return kind.Float
 		case sqlz.RTypeString:
 			return kind.Text
+		case sqlz.RTypeBytes:
+			return kind.Bytes
 		}
 	}
 
@@ -178,7 +184,7 @@ func kindFromDBTypeName(log lg.Log, colName, dbTypeName string, scanType reflect
 	// We didn't find an exact match, we'll use the Affinity rules
 	// per the SQLite link provided earlier, noting that we default
 	// to kind.Text (the docs specify default affinity NUMERIC, which
-	// sq handles as Tind.Text).
+	// sq handles as kind.Text).
 	switch {
 	default:
 		log.Warnf("Unknown SQLite database type name %q for %q: using %q", dbTypeName, colName, kind.Unknown)

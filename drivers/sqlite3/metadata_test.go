@@ -22,6 +22,73 @@ import (
 	"github.com/neilotoole/sq/testh/testsrc"
 )
 
+func TestSimple(t *testing.T) {
+	t.Parallel()
+
+	const query = `SELECT * from actor limit 1`
+	wantKinds := []kind.Kind{kind.Int, kind.Text, kind.Text, kind.Datetime}
+
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
+	sink, err := th.QuerySQL(src, query)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(sink.Recs))
+	require.Equal(t, wantKinds, sink.RecMeta.Kinds())
+	row := sink.Recs[0]
+	for i := range row {
+		require.NotNil(t, row[i])
+	}
+}
+
+// TestScalarFuncsQuery performs a smoke test of executing
+// a query with some scalar funcs to verify that
+// column type info is being correctly determined.
+func TestScalarFuncsQuery(t *testing.T) {
+	t.Parallel()
+
+	const query = `SELECT 'huzzah', NULL, ABS(film_id), LOWER(rating),
+    	LAST_INSERT_ROWID(), MAX(rental_rate, replacement_cost)
+		FROM film LIMIT 1`
+
+	wantKinds := []kind.Kind{
+		kind.Text,
+		kind.Unknown,
+		kind.Int,
+		kind.Text,
+		kind.Int,
+		kind.Float,
+	}
+
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
+	sink, err := th.QuerySQL(src, query)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(sink.Recs))
+	require.Equal(t, wantKinds, sink.RecMeta.Kinds())
+}
+
+// TestTypeTime tests the behavior of CURRENT_TIME.
+// Apparently it's coming back to us as a string, thus
+// it will be interpreted as kind.Text, not kind.Time.
+// This is probably the best we can do, without attempting
+// to scan each value to check for time-ness.
+func TestCurrentTime(t *testing.T) {
+	t.Parallel()
+
+	const query = `SELECT CURRENT_TIME AS time_now`
+
+	wantKinds := []kind.Kind{
+		kind.Text, // We wish this could be kind.Time
+	}
+
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
+	sink, err := th.QuerySQL(src, query)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(sink.Recs))
+	require.Equal(t, wantKinds, sink.RecMeta.Kinds())
+}
+
 func TestKindFromDBTypeName(t *testing.T) {
 	t.Parallel()
 
@@ -231,9 +298,15 @@ func TestPayments(t *testing.T) {
 func TestAggregateFuncsQuery(t *testing.T) {
 	t.Parallel()
 
-	const query = `SELECT COUNT(*), SUM(rental_rate), TOTAL(rental_rate),
-	AVG(rental_rate), MAX(rental_rate), MIN(rental_rate),
-	MAX(title), MAX(last_update), GROUP_CONCAT(rating,',')
+	const query = `SELECT COUNT(*),
+		SUM(rental_rate),
+		TOTAL(rental_rate),
+		AVG(rental_rate),
+		MAX(rental_rate),
+		MIN(rental_rate),
+		MAX(title),
+		MAX(last_update),
+		GROUP_CONCAT(rating,',')
 	FROM film`
 
 	th := testh.New(t)
@@ -241,25 +314,6 @@ func TestAggregateFuncsQuery(t *testing.T) {
 	sink, err := th.QuerySQL(src, query)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(sink.Recs))
-}
-
-// TestScalarFuncsQuery performs a smoke test of executing
-// a query with some scalar funcs to verify that
-// column type info is being correctly determined.
-func TestScalarFuncsQuery(t *testing.T) {
-	t.Parallel()
-
-	const query = `SELECT NULL, ABS(film_id), LOWER(rating), LAST_INSERT_ROWID(),
-	MAX(rental_rate, replacement_cost)
-	FROM film`
-	wantKinds := []kind.Kind{kind.Bytes, kind.Int, kind.Text, kind.Int, kind.Float}
-
-	th := testh.New(t)
-	src := th.Source(sakila.SL3)
-	sink, err := th.QuerySQL(src, query)
-	require.NoError(t, err)
-	require.Equal(t, sakila.TblFilmCount, len(sink.Recs))
-	require.Equal(t, wantKinds, sink.RecMeta.Kinds())
 }
 
 func BenchmarkDatabase_SourceMetadata(b *testing.B) {
@@ -332,7 +386,7 @@ func BenchmarkGetTblRowCounts(b *testing.B) {
 }
 
 // benchGetTblRowCountsBaseline is a baseline impl of getTblRowCounts
-// for benchmark comparision.
+// for benchmark comparison.
 func benchGetTblRowCountsBaseline(ctx context.Context, log lg.Log, db sqlz.DB, tblNames []string) ([]int64, error) {
 	tblCounts := make([]int64, len(tblNames))
 
