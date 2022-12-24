@@ -3,7 +3,7 @@ package ast
 import (
 	"fmt"
 
-	"github.com/antlr/antlr4/runtime/Go/antlr"
+	"github.com/antlr/antlr4/runtime/Go/antlr/v4"
 
 	"github.com/neilotoole/sq/libsq/ast/internal/slq"
 )

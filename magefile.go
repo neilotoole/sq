@@ -266,7 +266,7 @@ func ensureJava() error {
 func ensureAntlrJar() (jarPath string, err error) {
 	const (
 		baseDownloadURL = "https://www.antlr.org/download/"
-		jarName         = "antlr-4.7.2-complete.jar"
+		jarName         = "antlr-4.11.1-complete.jar"
 	)
 
 	// Make sure our grammar/build dir exists

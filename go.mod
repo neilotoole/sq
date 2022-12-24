@@ -3,7 +3,7 @@ module github.com/neilotoole/sq
 go 1.19
 
 require (
-	github.com/antlr/antlr4 v0.0.0-20191011202612-ad2bd05285ca
+	github.com/antlr/antlr4/runtime/Go/antlr/v4 v4.0.0-20221202181307-76fa05c21b12
 	github.com/c2h5oh/datasize v0.0.0-20220606134207-859f65c6625b
 	github.com/djherbis/fscache v0.10.1
 	github.com/emirpasic/gods v1.18.1
@@ -49,6 +49,7 @@ require (
 	github.com/moby/sys/sequential v0.5.0 // indirect
 	github.com/rogpeppe/go-internal v1.9.0 // indirect
 	golang.org/x/crypto v0.4.0 // indirect
+	golang.org/x/exp v0.0.0-20221217163422-3c43f8badb15 // indirect
 )
 
 require (
