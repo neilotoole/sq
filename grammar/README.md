@@ -15,4 +15,14 @@ The `libsq/ast.Parse` function takes a `SLQ` input string and returns an `*ast.A
 The entrypoint that accepts the SLQ string is `libsq.ExecuteSLQ`, which ultimately
 invokes `ast.Parse`.
 
+## Working with the grammar
+
+You probably should install the [antlr tools](https://github.com/antlr/antlr4-tools).
+
+```shell
+$ pip install antlr4-tools
+```
+
+There's also 
+
 
