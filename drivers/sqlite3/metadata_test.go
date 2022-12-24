@@ -299,8 +299,8 @@ func TestAggregateFuncsQuery(t *testing.T) {
 	t.Parallel()
 
 	const query = `SELECT COUNT(*),
-    	SUM(rental_rate),
-    	TOTAL(rental_rate),
+		SUM(rental_rate),
+		TOTAL(rental_rate),
 		AVG(rental_rate),
 		MAX(rental_rate),
 		MIN(rental_rate),
