@@ -166,7 +166,7 @@ func (h *Helper) Source(handle string) *source.Source {
 	defer h.mu.Unlock()
 	t := h.T
 
-	// invoke h.init to ensure that its cleanup side-effects
+	// invoke h.init to ensure that its cleanup side effects
 	// happen in the correct order (files get cleaned after
 	// databases, etc.).
 	h.init()
@@ -222,7 +222,8 @@ func (h *Helper) Source(handle string) *source.Source {
 		destFileName := destFile.Name()
 
 		h.Files().CleanupE(func() error {
-			return errz.Err(os.Remove(destFileName))
+			// return errz.Err(os.Remove(destFileName)) // FIXME: re-enable this
+			return nil
 		})
 
 		_, err = io.Copy(destFile, srcFile)

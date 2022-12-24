@@ -248,8 +248,8 @@ func newRecordFromScanRow(meta sqlz.RecordMeta, row []any) (rec sqlz.Record) {
 		}
 
 		// Dereference *any before the switch
-		var col any
-		if ptr, ok := row[i].(*any); ok {
+		col := row[i]
+		if ptr, ok := col.(*any); ok {
 			col = *ptr
 		}
 
@@ -261,7 +261,6 @@ func newRecordFromScanRow(meta sqlz.RecordMeta, row []any) (rec sqlz.Record) {
 			rec[i] = col
 			continue
 		case nil:
-			sqlz.SetKindIfUnknown(meta, i, kind.Null)
 			rec[i] = nil
 		case *int64:
 			sqlz.SetKindIfUnknown(meta, i, kind.Int)
