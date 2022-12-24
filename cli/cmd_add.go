@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -170,7 +171,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 	}
 
 	if cmdFlagTrue(cmd, flagPasswordPrompt) {
-		passwd, err := readPassword(rc.Stdin, rc.Out)
+		passwd, err := readPassword(cmd.Context(), rc.Stdin, rc.Out)
 		if err != nil {
 			return err
 		}
@@ -215,29 +216,50 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 	return rc.writers.srcw.Source(src)
 }
 
-func readPassword(stdin *os.File, stdout io.Writer) ([]byte, error) {
+// readPassword reads a password from stdin pipe, or if nothing on stdin,
+// it prints a prompt to stdout, and then accepts input (which must be
+// followed by a return).
+func readPassword(ctx context.Context, stdin *os.File, stdout io.Writer) ([]byte, error) {
 	// https://askubuntu.com/questions/678915/whats-the-difference-between-and-in-bash
 	// https://unix.stackexchange.com/questions/41828/what-does-dash-at-the-end-of-a-command-mean
 	// https://unix.stackexchange.com/questions/716438/whats-wrong-with-var-dev-stdin-to-read-stdin-into-a-variable
 	// https://stackoverflow.com/questions/49704456/how-to-read-from-device-when-stdin-is-pipe
+
+	resultCh := make(chan []byte, 0)
+	errCh := make(chan error, 0)
 
 	// check if there is something to read on STDIN
 	stat, _ := stdin.Stat()
 	if (stat.Mode() & os.ModeCharDevice) == 0 {
 		b, err := io.ReadAll(stdin)
 		if err != nil {
-			return nil, errz.Err(err)
+			return nil, err
 		}
 
 		b = bytes.TrimSuffix(b, []byte("\n"))
 		return b, nil
 	}
-	fmt.Fprint(stdout, "Password: ")
 
-	b, err := term.ReadPassword(int(stdin.Fd()))
-	if err != nil {
+	// Run this is a goroutine so that we can handle ctrl-c
+	go func() {
+		fmt.Fprint(stdout, "Password [ENTER]: ")
+		b, err := term.ReadPassword(int(stdin.Fd()))
+		if err != nil {
+			errCh <- errz.Err(err)
+			return
+		}
+
+		resultCh <- b
+	}()
+
+	select {
+	case <-ctx.Done():
+		// Print newline so that cancel msg is printed on its own line
+		fmt.Fprintln(stdout)
+		return nil, errz.Err(ctx.Err())
+	case err := <-errCh:
 		return nil, err
+	case b := <-resultCh:
+		return b, nil
 	}
-
-	return b, nil
 }

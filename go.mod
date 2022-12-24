@@ -43,6 +43,7 @@ require (
 replace github.com/docker/docker => github.com/docker/docker v20.10.3-0.20221013203545-33ab36d6b304+incompatible // 22.06 branch
 
 require (
+	github.com/dolmen-go/contextio v0.0.0-20220904134943-e50796217f5f // indirect
 	github.com/golang-sql/sqlexp v0.1.0 // indirect
 	github.com/klauspost/compress v1.11.13 // indirect
 	github.com/moby/patternmatcher v0.5.0 // indirect
