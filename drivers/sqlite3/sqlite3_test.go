@@ -49,12 +49,16 @@ func TestQueryEmptyTable(t *testing.T) {
 //
 //  1. If rows.ColumnTypes is invoked prior to rows.Next being
 //     invoked, the column ScanType will be nil.
+//
+//     UPDATE: ^^ As of mattn/go-sqlite3@v1.14.16 (and probably earlier)
+//     this behavior seems to have changed.
+//
 //  2. The values returned by rows.ColumnTypes can change after
 //     each call to rows.Next. This is because of SQLite's dynamic
 //     typing: any value can be stored in any column.
 //
 // The second fact is potentially problematic for sq, as sq expects
-// that the values of a column are all of the same type. Thus, sq
+// that the values of a column are each of the same type. Thus, sq
 // will likely encounter problems dealing with SQLite tables
 // that have mixed data types in columns.
 func TestExhibitDriverColumnTypesBehavior(t *testing.T) {
@@ -72,10 +76,12 @@ func TestExhibitDriverColumnTypesBehavior(t *testing.T) {
 
 	// Create the table
 	th.ExecSQL(src, createStmt)
-	t.Cleanup(func() { th.DropTable(src, tblName) })
+	// t.Cleanup(func() { th.DropTable(src, tblName) }) // FIXME: turn this back on
 
-	// 1. Demonstrate that ColumnType.ScanType returns nil
-	//    before rows.Next is invoked
+	// 1. Demonstrate that ColumnType.ScanType now correctly returns
+	//    a valid value when rows.ColumnTypes is invoked prior to the first
+	//    invocation of rows.Next. In earlier versions of the driver,
+	//    it was necessary to invoke rows.Next first.
 	rows1, err := db.Query(query)
 	require.NoError(t, err)
 	defer rows1.Close()
@@ -83,15 +89,21 @@ func TestExhibitDriverColumnTypesBehavior(t *testing.T) {
 	colTypes, err := rows1.ColumnTypes()
 	require.NoError(t, err)
 	require.Equal(t, colTypes[0].Name(), "col1")
-	require.Nil(t, colTypes[0].ScanType(), "scan type is nil because rows.Next was not invoked")
+	scanType := colTypes[0].ScanType()
+	require.Equal(t, sqlz.RTypeNullFloat64, scanType)
 
 	require.False(t, rows1.Next()) // no rows yet since table is empty
 	colTypes, err = rows1.ColumnTypes()
 	require.Error(t, err, "ColumnTypes returns an error because the Next call closed rows")
 	require.Nil(t, colTypes)
 
-	// 2. Demonstrate that a column's scan type can be different for
-	//    each row (due to sqlite's dynamic typing)
+	// 2. In earlier versions of mattn/sqlite3, a column's scan type
+	//    could be different for each row. Now, it seems that the
+	//    returned scan type is the type of the column in the first
+	//    non-null row. This does result in some weirdness: the reported
+	//    scan type could be sql.NullFloat64, but passing *interface{} to
+	//    row.Scan could result the variable being populated
+	//    with, e.g. a string. Such is the SQLite life.
 
 	// Insert values of various types
 	_, err = db.Exec(insertStmt, nil)
@@ -106,30 +118,48 @@ func TestExhibitDriverColumnTypesBehavior(t *testing.T) {
 	defer rows2.Close()
 	colTypes, err = rows2.ColumnTypes()
 	require.NoError(t, err)
-	require.Nil(t, colTypes[0].ScanType(), "scan type should be nil because rows.Next was not invoked")
+	require.Equal(t, sqlz.RTypeNullFloat64, scanType)
 
-	// 1st data row
-	require.True(t, rows2.Next())
-	colTypes, err = rows2.ColumnTypes()
-	require.NoError(t, err)
-	scanType := colTypes[0].ScanType()
-	require.Nil(t, scanType, "scan type be nil because the value is nil")
+	// got := new(any)
+	var got any
 
-	// 2nd data row
+	// 1st data row (nil)
 	require.True(t, rows2.Next())
-	colTypes, err = rows2.ColumnTypes()
-	require.NoError(t, err)
-	scanType = colTypes[0].ScanType()
-	require.NotNil(t, scanType, "scan type should be non-nil because the value is not nil")
-	require.Equal(t, sqlz.RTypeFloat64.String(), scanType.String())
-
-	// 3nd data row
-	require.True(t, rows2.Next())
+	require.NoError(t, rows2.Scan(&got))
+	require.True(t, nil == got)
+	q.Q(got)
 	colTypes, err = rows2.ColumnTypes()
 	require.NoError(t, err)
 	scanType = colTypes[0].ScanType()
+	t.Logf("%s", scanType)
+	require.Equal(t, sqlz.RTypeNullFloat64, scanType)
+
+	// 2nd data row (float64)
+	require.True(t, rows2.Next())
+	require.NoError(t, rows2.Scan(&got))
+	_, ok := got.(float64)
+	require.True(t, ok)
+	q.Q(got)
+	colTypes, err = rows2.ColumnTypes()
+	require.NoError(t, err)
+	scanType = colTypes[0].ScanType()
+	t.Logf("%s", scanType)
+	require.Equal(t, sqlz.RTypeNullFloat64.String(), scanType.String())
+
+	// 3nd data row (string)
+	require.True(t, rows2.Next())
+	require.NoError(t, rows2.Scan(&got))
+
+	q.Q(got)
+	_, ok = got.(string)
+	require.True(t, ok, "a string was returned to us")
+	colTypes, err = rows2.ColumnTypes()
+	require.NoError(t, err)
+	scanType = colTypes[0].ScanType()
+	t.Log(scanType.String())
 	require.NotNil(t, scanType, "scan type should be non-nil because the value is not nil")
-	require.Equal(t, sqlz.RTypeString.String(), scanType.String())
+	require.Equal(t, sqlz.RTypeNullFloat64.String(), scanType.String(),
+		"the scan type is still sql.NullFloat64, even though the returned value is string")
 
 	require.False(t, rows2.Next(), "should be end of rows")
 	require.Nil(t, rows2.Err())
