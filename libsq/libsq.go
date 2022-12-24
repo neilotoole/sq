@@ -15,11 +15,9 @@ import (
 	"github.com/neilotoole/lg"
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
-	"github.com/ryboe/q"
-
-	"github.com/neilotoole/sq/libsq/core/sqlz"
 )
 
 // RecordWriter is the interface for writing records to a
@@ -206,7 +204,6 @@ func QuerySQL(ctx context.Context, log lg.Log, dbase driver.Database, recw Recor
 		// copies of scanRow's data, thus freeing up scanRow
 		// for reuse on the next call to rows.Scan.
 		rec, err = recFromScanRowFn(scanRow)
-		q.Q(rec)
 		if err != nil {
 			cancelFn()
 			return err
