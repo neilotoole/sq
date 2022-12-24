@@ -135,15 +135,13 @@ func NewRecordFromScanRow(meta sqlz.RecordMeta, row []any, skip []int) (rec sqlz
 		}
 
 		// Dereference *any before the switch
-		var col any
-		if a, ok := row[i].(*any); ok {
+		col := row[i]
+		if a, ok := col.(*any); ok {
 			col = *a
 		}
 
 		switch col := col.(type) {
 		default:
-			fmt.Printf("[%d]: %T : %v\n", i, col, col)
-
 			rec[i] = col
 			skipped = append(skipped, i)
 			continue

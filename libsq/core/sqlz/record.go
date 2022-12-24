@@ -153,6 +153,7 @@ func (rm RecordMeta) NewScanRow() []any {
 	dests := make([]any, len(rm))
 
 	for i, col := range rm {
+		// FIXME: does this break stuff?
 		if col.data.ScanType == nil {
 			dests[i] = new(any)
 			continue
