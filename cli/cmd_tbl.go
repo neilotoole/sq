@@ -104,7 +104,7 @@ func execTblCopy(cmd *cobra.Command, args []string) error {
 	}
 
 	copyData := true // copy data by default
-	if cmdFlagChanged(cmd, flagTblData) {
+	if flagChanged(cmd, flagTblData) {
 		copyData, err = cmd.Flags().GetBool(flagTblData)
 		if err != nil {
 			return errz.Err(err)

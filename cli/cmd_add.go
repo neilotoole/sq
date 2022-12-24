@@ -17,13 +17,13 @@ func newSrcAddCmd() *cobra.Command {
 		Use:  "add [--driver=TYPE] [--handle=@HANDLE] LOCATION",
 		RunE: execSrcAdd,
 		Example: `  # add a Postgres source; will have generated handle @sakila_pg
-  $ sq add 'postgres://user:pass@localhost/sakila?sslmode=disable'
+  $ sq add 'postgres://user:pass@localhost/sakila'
   
   # same as above, but explicitly setting flags
-  $ sq add --handle=@sakila_pg --driver=postgres 'postgres://user:pass@localhost/sakila?sslmode=disable'
+  $ sq add --handle=@sakila_pg --driver=postgres 'postgres://user:pass@localhost/sakila'
 
   # same as above, but with short flags
-  $ sq add -h @sakila_pg --d postgres 'postgres://user:pass@localhost/sakila?sslmode=disable'
+  $ sq add -h @sakila_pg --d postgres 'postgres://user:pass@localhost/sakila'
 
   # add a SQL Server source; will have generated handle @sakila_mssql or similar
   $ sq add 'sqlserver://user:pass@localhost?database=sakila' 
@@ -83,6 +83,7 @@ At a minimum, the following drivers are bundled:
 	_ = cmd.RegisterFlagCompletionFunc(flagDriver, completeDriverType)
 	cmd.Flags().StringP(flagSrcOptions, "", "", flagSrcOptionsUsage)
 	cmd.Flags().StringP(flagHandle, flagHandleShort, "", flagHandleUsage)
+	cmd.Flags().BoolP(flagPasswordPrompt, flagPasswordPromptShort, false, flagPasswordPromptUsage)
 	return cmd
 }
 

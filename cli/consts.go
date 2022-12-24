@@ -53,6 +53,10 @@ const (
 	flagOutputShort = "o"
 	flagOutputUsage = "Write output to <file> instead of stdout"
 
+	flagPasswordPrompt      = "prompt"
+	flagPasswordPromptShort = "p"
+	flagPasswordPromptUsage = "Prompt for password"
+
 	flagPretty      = "pretty"
 	flagPrettyUsage = "Pretty-print output"
 
