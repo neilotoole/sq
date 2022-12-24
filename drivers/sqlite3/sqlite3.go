@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3" // Import for side effect of loading the driver
 	"github.com/neilotoole/lg"
@@ -219,16 +220,315 @@ func (d *driveri) RecordMeta(colTypes []*sql.ColumnType) (sqlz.RecordMeta, drive
 	}
 
 	mungeFn := func(vals []any) (sqlz.Record, error) {
-		// sqlite3 doesn't need to do any special munging, so we
-		// just use the default munging.
-		rec, skipped := driver.NewRecordFromScanRow(recMeta, vals, nil)
-		if len(skipped) > 0 {
-			return nil, errz.Errorf("expected zero skipped cols but have %v", skipped)
-		}
+		rec := newRecordFromScanRow(recMeta, vals)
 		return rec, nil
 	}
 
 	return recMeta, mungeFn, nil
+}
+
+// newRecordFromScanRow iterates over the elements of the row slice
+// from rows.Scan, and returns a new (record) slice, replacing any
+// wrapper types such as sql.NullString with the unboxed value,
+// and other similar sanitization. For example, it will
+// make a copy of any sql.RawBytes. The row slice
+// can be reused by rows.Scan after this function returns.
+//
+// Note that this function can modify the kind of the RecordMeta elements
+// if the kind is currently unknown. That is, if meta[0].Kind() returns
+// kind.Unknown, but this function detects that row[0] is an *int64, then
+// the kind will be set to kind.Int.
+func newRecordFromScanRow(meta sqlz.RecordMeta, row []any) (rec sqlz.Record) {
+	rec = make([]any, len(row))
+
+	for i := 0; i < len(row); i++ {
+		if row[i] == nil {
+			rec[i] = nil
+			continue
+		}
+
+		// Dereference *any before the switch
+		var col any
+		if ptr, ok := row[i].(*any); ok {
+			col = *ptr
+		}
+
+		switch col := col.(type) {
+		default:
+			// Shouldn't happen
+			fmt.Printf("[%d]: %T : %v\n", i, col, col) // FIXME: delete
+
+			rec[i] = col
+			continue
+		case nil:
+			sqlz.SetKindIfUnknown(meta, i, kind.Null)
+			rec[i] = nil
+		case *int64:
+			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+			v := *col
+			rec[i] = &v
+		case int64:
+			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+			rec[i] = &col
+		case *float64:
+			sqlz.SetKindIfUnknown(meta, i, kind.Float)
+			v := *col
+			rec[i] = &v
+		case float64:
+			sqlz.SetKindIfUnknown(meta, i, kind.Float)
+			rec[i] = &col
+		case *bool:
+			sqlz.SetKindIfUnknown(meta, i, kind.Bool)
+			v := *col
+			rec[i] = &v
+		case bool:
+			sqlz.SetKindIfUnknown(meta, i, kind.Bool)
+			rec[i] = &col
+		case *string:
+			sqlz.SetKindIfUnknown(meta, i, kind.Text)
+			v := *col
+			rec[i] = &v
+		case string:
+			sqlz.SetKindIfUnknown(meta, i, kind.Text)
+			rec[i] = &col
+		case *[]byte:
+			if col == nil || *col == nil {
+				rec[i] = nil
+				continue
+			}
+
+			if meta[i].Kind() != kind.Bytes {
+				// We only want to use []byte for kind.Bytes. Otherwise
+				// switch to a string.
+				s := string(*col)
+				rec[i] = &s
+				sqlz.SetKindIfUnknown(meta, i, kind.Text)
+				continue
+			}
+
+			if len(*col) == 0 {
+				v := []byte{}
+				rec[i] = &v
+			} else {
+				dest := make([]byte, len(*col))
+				copy(dest, *col)
+				rec[i] = &dest
+			}
+			sqlz.SetKindIfUnknown(meta, i, kind.Bytes)
+		case *sql.NullInt64:
+			if col.Valid {
+				v := col.Int64
+				rec[i] = &v
+			} else {
+				rec[i] = nil
+			}
+			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+		case *sql.NullString:
+			if col.Valid {
+				v := col.String
+				rec[i] = &v
+			} else {
+				rec[i] = nil
+			}
+			sqlz.SetKindIfUnknown(meta, i, kind.Text)
+		case *sql.RawBytes:
+			if col == nil || *col == nil {
+				// Explicitly set rec[i] so that its type becomes nil
+				rec[i] = nil
+				continue
+			}
+
+			knd := meta[i].Kind()
+
+			// If RawBytes is of length zero, there's no
+			// need to copy.
+			if len(*col) == 0 {
+				if knd == kind.Bytes {
+					v := []byte{}
+					rec[i] = &v
+				} else {
+					// Else treat it as an empty string
+					var s string
+					rec[i] = &s
+					sqlz.SetKindIfUnknown(meta, i, kind.Text)
+				}
+
+				continue
+			}
+
+			dest := make([]byte, len(*col))
+			copy(dest, *col)
+
+			if knd == kind.Bytes {
+				rec[i] = &dest
+			} else {
+				str := string(dest)
+				rec[i] = &str
+				sqlz.SetKindIfUnknown(meta, i, kind.Text)
+			}
+
+		case *sql.NullFloat64:
+			if col.Valid {
+				v := col.Float64
+				rec[i] = &v
+			} else {
+				rec[i] = nil
+			}
+			sqlz.SetKindIfUnknown(meta, i, kind.Float)
+		case *sql.NullBool:
+			if col.Valid {
+				v := col.Bool
+				rec[i] = &v
+			} else {
+				rec[i] = nil
+			}
+			sqlz.SetKindIfUnknown(meta, i, kind.Bool)
+		case *sqlz.NullBool:
+			// This custom NullBool type is only used by sqlserver at this time.
+			// Possibly this code should skip this item, and allow
+			// the sqlserver munge func handle the conversion?
+			if col.Valid {
+				v := col.Bool
+				rec[i] = &v
+			} else {
+				rec[i] = nil
+			}
+			sqlz.SetKindIfUnknown(meta, i, kind.Bool)
+		case *sql.NullTime:
+			if col.Valid {
+				v := col.Time
+				rec[i] = &v
+			} else {
+				rec[i] = nil
+			}
+			sqlz.SetKindIfUnknown(meta, i, kind.Datetime)
+		case *time.Time:
+			v := *col
+			rec[i] = &v
+			sqlz.SetKindIfUnknown(meta, i, kind.Datetime)
+		case time.Time:
+			v := col
+			rec[i] = &v
+			sqlz.SetKindIfUnknown(meta, i, kind.Datetime)
+
+		// REVISIT: We probably don't need any of the below cases
+		// for sqlite?
+		case *int:
+			v := int64(*col)
+			rec[i] = &v
+			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+
+		case int:
+			v := int64(col)
+			rec[i] = &v
+			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+
+		case *int8:
+			v := int64(*col)
+			rec[i] = &v
+			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+
+		case int8:
+			v := int64(col)
+			rec[i] = &v
+			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+
+		case *int16:
+			v := int64(*col)
+			rec[i] = &v
+			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+
+		case int16:
+			v := int64(col)
+			rec[i] = &v
+			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+
+		case *int32:
+			v := int64(*col)
+			rec[i] = &v
+			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+
+		case int32:
+			v := int64(col)
+			rec[i] = &v
+			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+
+		case *uint:
+			v := int64(*col)
+			rec[i] = &v
+			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+
+		case uint:
+			v := int64(col)
+			rec[i] = &v
+			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+
+		case *uint8:
+			v := int64(*col)
+			rec[i] = &v
+			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+
+		case uint8:
+			v := int64(col)
+			rec[i] = &v
+			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+
+		case *uint16:
+			v := int64(*col)
+			rec[i] = &v
+			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+
+		case uint16:
+			v := int64(col)
+			rec[i] = &v
+			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+
+		case *uint32:
+			v := int64(*col)
+			rec[i] = &v
+			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+
+		case uint32:
+			v := int64(col)
+			rec[i] = &v
+			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+
+		case *float32:
+			v := float64(*col)
+			rec[i] = &v
+			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+
+		case float32:
+			v := int64(col)
+			rec[i] = &v
+			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+
+		}
+
+		if rec[i] != nil && meta[i].Kind() == kind.Decimal {
+			// Drivers use varying types for numeric/money/decimal.
+			// We want to standardize on string.
+			switch col := rec[i].(type) {
+			case *string:
+				// Do nothing, it's already string
+
+			case *[]byte:
+				v := string(*col)
+				rec[i] = &v
+
+			case *float64:
+				v := stringz.FormatFloat(*col)
+				rec[i] = &v
+
+			default:
+				// Shouldn't happen
+				v := fmt.Sprintf("%v", col)
+				rec[i] = &v
+			}
+		}
+	}
+
+	return rec
 }
 
 // DropTable implements driver.SQLDriver.

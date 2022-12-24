@@ -98,7 +98,7 @@ func (x *StmtExecer) Close() error {
 // NewRecordFromScanRow iterates over the elements of the row slice
 // from rows.Scan, and returns a new (record) slice, replacing any
 // wrapper types such as sql.NullString with the unboxed value,
-// and other similar sanitization. For example it will
+// and other similar sanitization. For example, it will
 // make a copy of any sql.RawBytes. The row slice
 // can be reused by rows.Scan after this function returns.
 //
@@ -108,6 +108,8 @@ func (x *StmtExecer) Close() error {
 // copied directly into rec, and its index is returned in skipped.
 // The caller must take appropriate action to deal with all
 // elements of rec listed in skipped.
+//
+// REVISIT: Do we need the skip mechanism at all?
 //
 //nolint:funlen,gocognit
 func NewRecordFromScanRow(meta sqlz.RecordMeta, row []any, skip []int) (rec sqlz.Record, skipped []int) {
@@ -132,28 +134,41 @@ func NewRecordFromScanRow(meta sqlz.RecordMeta, row []any, skip []int) (rec sqlz
 			continue
 		}
 
-		switch col := row[i].(type) {
+		// Dereference *any before the switch
+		var col any
+		if a, ok := row[i].(*any); ok {
+			col = *a
+		}
+
+		switch col := col.(type) {
 		default:
+			fmt.Printf("[%d]: %T : %v\n", i, col, col)
+
 			rec[i] = col
 			skipped = append(skipped, i)
 			continue
-
+		case nil:
+			rec[i] = nil
 		case *int64:
 			v := *col
 			rec[i] = &v
-
+		case int64:
+			rec[i] = &col
 		case *float64:
 			v := *col
 			rec[i] = &v
-
+		case float64:
+			rec[i] = &col
 		case *bool:
 			v := *col
 			rec[i] = &v
-
+		case bool:
+			rec[i] = &col
 		case *string:
 			v := *col
 			rec[i] = &v
-
+		case string:
+			rec[i] = &col
 		case *[]byte:
 			if col == nil || *col == nil {
 				rec[i] = nil

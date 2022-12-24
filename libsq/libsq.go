@@ -13,6 +13,7 @@ import (
 	"context"
 
 	"github.com/neilotoole/sq/libsq/ast"
+	"github.com/ryboe/q"
 
 	"github.com/neilotoole/lg"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -163,7 +164,8 @@ func QuerySQL(ctx context.Context, log lg.Log, dbase driver.Database, recw Recor
 		}
 	}
 
-	recMeta, recFromScanRowFn, err := dbase.SQLDriver().RecordMeta(colTypes)
+	drvr := dbase.SQLDriver()
+	recMeta, recFromScanRowFn, err := drvr.RecordMeta(colTypes)
 	if err != nil {
 		return err
 	}
@@ -186,14 +188,22 @@ func QuerySQL(ctx context.Context, log lg.Log, dbase driver.Database, recw Recor
 	// of *string). Therefore we reuse scanRow for each call to rows.Scan.
 	scanRow := recMeta.NewScanRow()
 
+	//scanRow := make([]any, len(recMeta))
+	//actualScan := make([]any, len(scanRow))
+	//for i := range actualScan {
+	//	actualScan[i] = &scanRow[i]
+	//}
+
 	for hasNext {
 		var rec sqlz.Record
 
 		err = rows.Scan(scanRow...)
+		// err = rows.Scan(actualScan...)
 		if err != nil {
 			cancelFn()
 			return errz.Wrapf(err, "query against %s", dbase.Source().Handle)
 		}
+		q.Q(scanRow)
 
 		// recFromScanRowFn returns a new Record with appropriate
 		// copies of scanRow's data, thus freeing up scanRow

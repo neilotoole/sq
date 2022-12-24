@@ -2,13 +2,17 @@ package sqlz
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/ryboe/q"
+	"github.com/samber/lo"
 )
 
 // Record is a []any row of field values returned from a query.
@@ -153,7 +157,14 @@ func (rm RecordMeta) NewScanRow() []any {
 	dests := make([]any, len(rm))
 
 	for i, col := range rm {
-		dests[i] = reflect.New(col.data.ScanType).Interface()
+		if col.data.ScanType == nil {
+			var val any
+			dests[i] = &val
+			continue
+		}
+
+		val := reflect.New(col.data.ScanType)
+		dests[i] = val.Interface()
 	}
 
 	return dests
@@ -188,20 +199,20 @@ func (rm RecordMeta) ScanTypes() []reflect.Type {
 //
 // This is all a bit ugly.
 type ColumnTypeData struct {
-	Name string
+	Name string `json:"name"`
 
-	HasNullable       bool
-	HasLength         bool
-	HasPrecisionScale bool
+	HasNullable       bool `json:"has_nullable"`
+	HasLength         bool `json:"has_length"`
+	HasPrecisionScale bool `json:"has_precision_scale"`
 
-	Nullable         bool
-	Length           int64
-	DatabaseTypeName string
-	Precision        int64
-	Scale            int64
-	ScanType         reflect.Type
+	Nullable         bool         `json:"nullable"`
+	Length           int64        `json:"length"`
+	DatabaseTypeName string       `json:"database_type_name"`
+	Precision        int64        `json:"precision"`
+	Scale            int64        `json:"scale"`
+	ScanType         reflect.Type `json:"scan_type"`
 
-	Kind kind.Kind
+	Kind kind.Kind `json:"kind"`
 }
 
 // NewColumnTypeData returns a new instance with field values
@@ -219,4 +230,53 @@ func NewColumnTypeData(col *sql.ColumnType, knd kind.Kind) *ColumnTypeData {
 	ct.Precision, ct.Scale, ct.HasPrecisionScale = col.DecimalSize()
 
 	return ct
+}
+
+// SetKindIfUnknown sets meta[i].kind to k, iff the kind is
+// currently kind.Unknown or kind.Null. This function can be used to set
+// the kind after-the-fact, which is useful for some databases
+// that don't always return sufficient type info upfront.
+func SetKindIfUnknown(meta RecordMeta, i int, k kind.Kind) {
+	if meta[i].data.Kind == kind.Unknown || meta[i].data.Kind == kind.Null {
+		meta[i].data.Kind = k
+	}
+}
+
+// ColumnTypeToString returns a debug/log friendly representation
+// of sql.ColumnType.
+func ColumnTypeToString(col *sql.ColumnType) string {
+	if col == nil {
+		return "<nil>"
+	}
+
+	ctd := NewColumnTypeData(col, kind.Unknown)
+	b, err := json.Marshal(ctd)
+	if err != nil {
+		panic(err)
+	}
+
+	m := map[string]any{}
+	if err := json.Unmarshal(b, &m); err != nil {
+		panic(err)
+	}
+
+	scanType := col.ScanType()
+	if scanType == nil {
+		m["scan_type"] = "nil"
+	} else {
+		m["scan_type"] = scanType.String()
+	}
+
+	q.Q(scanType)
+
+	return string(b)
+}
+
+// FIXME: delete this
+func ColumnTypesToString(cols []*sql.ColumnType) string {
+	strs := lo.Map(cols, func(item *sql.ColumnType, index int) string {
+		return ColumnTypeToString(item)
+	})
+
+	return strings.Join(strs, "\n")
 }

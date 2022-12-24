@@ -31,7 +31,7 @@ func recordMetaFromColumnTypes(log lg.Log, colTypes []*sql.ColumnType) (sqlz.Rec
 
 		// It's necessary to explicitly set the scan type because
 		// the backing driver doesn't set it for whatever reason.
-		setScanType(log, colTypeData)
+		setScanType(log, colTypeData) // FIXME: legacy?
 		recMeta[i] = sqlz.NewFieldMeta(colTypeData)
 	}
 
@@ -53,6 +53,7 @@ func setScanType(log lg.Log, colType *sqlz.ColumnTypeData) {
 		switch scanType {
 		default:
 			// It's already a sql.NullTYPE.
+			colType.ScanType = sqlz.RTypeAny
 		case sqlz.RTypeInt64:
 			colType.ScanType = sqlz.RTypeNullInt64
 		case sqlz.RTypeFloat64:
@@ -72,7 +73,7 @@ func setScanType(log lg.Log, colType *sqlz.ColumnTypeData) {
 	default:
 		// Shouldn't happen?
 		log.Warnf("Unknown kind for col '%s' with database type '%s'", colType.Name, colType.DatabaseTypeName)
-		scanType = sqlz.RTypeBytes
+		scanType = sqlz.RTypeAny
 
 	case kind.Text, kind.Decimal:
 		scanType = sqlz.RTypeNullString
@@ -129,14 +130,16 @@ func kindFromDBTypeName(log lg.Log, colName, dbTypeName string, scanType reflect
 
 		switch scanType {
 		default:
-			// Default to kind.Bytes as mentioned above.
-			return kind.Bytes
+			// Default to kind.Bytes as mentioned above. // FIXME: change this?
+			return kind.Unknown
 		case sqlz.RTypeInt64:
 			return kind.Int
 		case sqlz.RTypeFloat64:
 			return kind.Float
 		case sqlz.RTypeString:
 			return kind.Text
+		case sqlz.RTypeBytes:
+			return kind.Bytes
 		}
 	}
 

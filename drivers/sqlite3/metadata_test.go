@@ -2,6 +2,7 @@ package sqlite3_test
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"reflect"
 	"strings"
@@ -10,6 +11,7 @@ import (
 	"github.com/neilotoole/lg"
 	"github.com/neilotoole/lg/testlg"
 	"github.com/neilotoole/sq/testh/proj"
+	"github.com/ryboe/q"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -32,9 +34,78 @@ func TestScalarFuncsRaw(t *testing.T) {
 
 	_ = mattn.ErrAbort
 
-	//const query = `SELECT NULL, ABS(film_id), LOWER(rating), LAST_INSERT_ROWID(),
-	//MAX(rental_rate, replacement_cost)
-	//FROM film LIMIT 1`
+	ctx := context.Background()
+
+	db, err := sql.Open("sqlite3", fp)
+	require.NoError(t, err)
+	defer func() { assert.NoError(t, db.Close()) }()
+
+	require.NoError(t, db.PingContext(ctx))
+
+	const numCols = 5
+
+	const query = `SELECT NULL, ABS(film_id), LOWER(rating), LAST_INSERT_ROWID(),
+	MAX(rental_rate, replacement_cost)
+	FROM film LIMIT 1`
+
+	rows, err := db.QueryContext(ctx, query)
+	require.NoError(t, err)
+	defer func() { assert.NoError(t, rows.Close()) }()
+
+	colNames, err := rows.Columns()
+	require.NoError(t, err)
+	q.Q(colNames)
+
+	colTypes, err := rows.ColumnTypes()
+	var colTypes2 []*sql.ColumnType
+	require.NoError(t, err)
+	// q.Q(colTypes)
+
+	hasNext := rows.Next()
+	require.NoError(t, rows.Err())
+
+	if hasNext {
+		colTypes2, err = rows.ColumnTypes()
+		require.NoError(t, err)
+	}
+
+	q.Q(colTypes)
+	q.Q(colTypes2)
+
+	if colTypes2 != nil {
+		colTypes = colTypes2
+	}
+
+	for i := range colTypes {
+		require.Equal(t, *colTypes[i], *colTypes2[i])
+	}
+
+	t.Logf("\n%s", sqlz.ColumnTypesToString(colTypes))
+
+	var allRows [][]any
+
+	for hasNext {
+		// gotRow := make([]any, len(colTypes))
+		gotRow := make([]any, numCols)
+		//for i := range gotRow {
+		//	gotRow[i] = new(any)
+		//}
+		scanBoys := make([]any, len(gotRow))
+		for i := range gotRow {
+			scanBoys[i] = &gotRow[i]
+		}
+
+		require.NoError(t, rows.Err())
+		// err = rows.Scan(&gotRow[0], &gotRow[1], &gotRow[2], &gotRow[3], &gotRow[4])
+		// err = rows.Scan(gotRow...)
+		err = rows.Scan(scanBoys...)
+		require.NoError(t, err)
+		allRows = append(allRows, gotRow)
+		hasNext = rows.Next()
+	}
+
+	q.Q(allRows)
+
 	//wantKinds := []kind.Kind{kind.Bytes, kind.Int, kind.Text, kind.Int, kind.Float}
 	//
 	//th := testh.New(t)
@@ -44,6 +115,48 @@ func TestScalarFuncsRaw(t *testing.T) {
 	//// require.Equal(t, sakila.TblFilmCount, len(sink.Recs))
 	//require.Equal(t, 1, len(sink.Recs))
 	//require.Equal(t, wantKinds, sink.RecMeta.Kinds())
+}
+
+func TestSimple(t *testing.T) {
+	t.Parallel()
+
+	const query = `SELECT * from actor limit 2`
+	wantKinds := []kind.Kind{kind.Int, kind.Text, kind.Text, kind.Datetime}
+
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
+	sink, err := th.QuerySQL(src, query)
+	require.NoError(t, err)
+	require.Equal(t, 2, len(sink.Recs))
+	require.Equal(t, wantKinds, sink.RecMeta.Kinds())
+}
+
+// TestScalarFuncsQuery performs a smoke test of executing
+// a query with some scalar funcs to verify that
+// column type info is being correctly determined.
+func TestScalarFuncsQuery(t *testing.T) {
+	// t.Parallel() // FIXME: switch back to parallel
+
+	const query = `SELECT 'huzzah', NULL, ABS(film_id), LOWER(rating),
+    	LAST_INSERT_ROWID(), MAX(rental_rate, replacement_cost)
+		FROM film LIMIT 1`
+
+	wantKinds := []kind.Kind{
+		kind.Text,
+		kind.Null,
+		kind.Int,
+		kind.Text,
+		kind.Int,
+		kind.Float,
+	}
+
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
+	sink, err := th.QuerySQL(src, query)
+	require.NoError(t, err)
+	// require.Equal(t, sakila.TblFilmCount, len(sink.Recs))
+	require.Equal(t, 1, len(sink.Recs))
+	require.Equal(t, wantKinds, sink.RecMeta.Kinds())
 }
 
 func TestKindFromDBTypeName(t *testing.T) {
@@ -265,26 +378,6 @@ func TestAggregateFuncsQuery(t *testing.T) {
 	sink, err := th.QuerySQL(src, query)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(sink.Recs))
-}
-
-// TestScalarFuncsQuery performs a smoke test of executing
-// a query with some scalar funcs to verify that
-// column type info is being correctly determined.
-func TestScalarFuncsQuery(t *testing.T) {
-	// t.Parallel() // FIXME: switch back to parallel
-
-	const query = `SELECT NULL, ABS(film_id), LOWER(rating), LAST_INSERT_ROWID(),
-	MAX(rental_rate, replacement_cost)
-	FROM film LIMIT 1`
-	wantKinds := []kind.Kind{kind.Bytes, kind.Int, kind.Text, kind.Int, kind.Float}
-
-	th := testh.New(t)
-	src := th.Source(sakila.SL3)
-	sink, err := th.QuerySQL(src, query)
-	require.NoError(t, err)
-	// require.Equal(t, sakila.TblFilmCount, len(sink.Recs))
-	require.Equal(t, 1, len(sink.Recs))
-	require.Equal(t, wantKinds, sink.RecMeta.Kinds())
 }
 
 func BenchmarkDatabase_SourceMetadata(b *testing.B) {

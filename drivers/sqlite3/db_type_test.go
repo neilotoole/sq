@@ -20,7 +20,7 @@ import (
 )
 
 // typeTestTableDDLPath is the location of the SQL CREATE statement
-// for the "type_test" table that is used to verify handling of the
+// for the "type_test" table that is used to verify handling of
 // the driver's various data types.
 const typeTestTableDDLPath = "testdata/type_test.ddl"
 
