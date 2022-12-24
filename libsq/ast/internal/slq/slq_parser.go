@@ -1,152 +1,173 @@
-// Code generated from /Users/neilotoole/work/sq/sq/grammar/SLQ.g4 by ANTLR 4.7.2. DO NOT EDIT.
+// Code generated from java-escape by ANTLR 4.11.1. DO NOT EDIT.
 
 package slq // SLQ
 import (
 	"fmt"
-	"reflect"
 	"strconv"
+	"sync"
 
-	"github.com/antlr/antlr4/runtime/Go/antlr"
+	"github.com/antlr/antlr4/runtime/Go/antlr/v4"
 )
 
 // Suppress unused import errors
 var _ = fmt.Printf
-var _ = reflect.Copy
 var _ = strconv.Itoa
-
-var parserATN = []uint16{
-	3, 24715, 42794, 33075, 47597, 16764, 15335, 30598, 22884, 3, 52, 193,
-	4, 2, 9, 2, 4, 3, 9, 3, 4, 4, 9, 4, 4, 5, 9, 5, 4, 6, 9, 6, 4, 7, 9, 7,
-	4, 8, 9, 8, 4, 9, 9, 9, 4, 10, 9, 10, 4, 11, 9, 11, 4, 12, 9, 12, 4, 13,
-	9, 13, 4, 14, 9, 14, 4, 15, 9, 15, 4, 16, 9, 16, 4, 17, 9, 17, 4, 18, 9,
-	18, 3, 2, 7, 2, 38, 10, 2, 12, 2, 14, 2, 41, 11, 2, 3, 2, 3, 2, 6, 2, 45,
-	10, 2, 13, 2, 14, 2, 46, 3, 2, 7, 2, 50, 10, 2, 12, 2, 14, 2, 53, 11, 2,
-	3, 2, 7, 2, 56, 10, 2, 12, 2, 14, 2, 59, 11, 2, 3, 3, 3, 3, 3, 3, 7, 3,
-	64, 10, 3, 12, 3, 14, 3, 67, 11, 3, 3, 4, 3, 4, 3, 4, 7, 4, 72, 10, 4,
-	12, 4, 14, 4, 75, 11, 4, 3, 5, 3, 5, 3, 5, 3, 5, 3, 5, 3, 5, 3, 5, 3, 5,
-	5, 5, 85, 10, 5, 3, 6, 3, 6, 3, 7, 3, 7, 3, 7, 3, 7, 3, 7, 7, 7, 94, 10,
-	7, 12, 7, 14, 7, 97, 11, 7, 3, 7, 5, 7, 100, 10, 7, 3, 7, 3, 7, 3, 8, 3,
-	8, 3, 8, 3, 8, 3, 8, 3, 9, 3, 9, 3, 9, 3, 9, 3, 9, 5, 9, 114, 10, 9, 3,
-	10, 3, 10, 3, 10, 3, 10, 3, 10, 7, 10, 121, 10, 10, 12, 10, 14, 10, 124,
-	11, 10, 3, 10, 3, 10, 3, 11, 3, 11, 3, 12, 3, 12, 3, 12, 3, 13, 3, 13,
-	3, 14, 3, 14, 3, 14, 3, 14, 3, 14, 3, 14, 3, 14, 3, 14, 3, 14, 5, 14, 144,
-	10, 14, 3, 14, 3, 14, 3, 15, 3, 15, 3, 16, 3, 16, 3, 16, 3, 16, 3, 16,
-	3, 16, 3, 16, 5, 16, 157, 10, 16, 3, 16, 3, 16, 3, 16, 3, 16, 3, 16, 3,
-	16, 3, 16, 3, 16, 3, 16, 3, 16, 3, 16, 3, 16, 3, 16, 3, 16, 3, 16, 3, 16,
-	3, 16, 3, 16, 3, 16, 5, 16, 178, 10, 16, 3, 16, 3, 16, 3, 16, 3, 16, 7,
-	16, 184, 10, 16, 12, 16, 14, 16, 187, 11, 16, 3, 17, 3, 17, 3, 18, 3, 18,
-	3, 18, 2, 3, 30, 19, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28,
-	30, 32, 34, 2, 12, 3, 2, 43, 48, 3, 2, 5, 7, 3, 2, 8, 10, 3, 2, 12, 19,
-	4, 2, 4, 4, 21, 22, 3, 2, 23, 24, 3, 2, 25, 27, 3, 2, 43, 46, 4, 2, 40,
-	42, 51, 51, 4, 2, 23, 24, 29, 30, 2, 209, 2, 39, 3, 2, 2, 2, 4, 60, 3,
-	2, 2, 2, 6, 68, 3, 2, 2, 2, 8, 84, 3, 2, 2, 2, 10, 86, 3, 2, 2, 2, 12,
-	88, 3, 2, 2, 2, 14, 103, 3, 2, 2, 2, 16, 113, 3, 2, 2, 2, 18, 115, 3, 2,
-	2, 2, 20, 127, 3, 2, 2, 2, 22, 129, 3, 2, 2, 2, 24, 132, 3, 2, 2, 2, 26,
-	134, 3, 2, 2, 2, 28, 147, 3, 2, 2, 2, 30, 156, 3, 2, 2, 2, 32, 188, 3,
-	2, 2, 2, 34, 190, 3, 2, 2, 2, 36, 38, 7, 3, 2, 2, 37, 36, 3, 2, 2, 2, 38,
-	41, 3, 2, 2, 2, 39, 37, 3, 2, 2, 2, 39, 40, 3, 2, 2, 2, 40, 42, 3, 2, 2,
-	2, 41, 39, 3, 2, 2, 2, 42, 51, 5, 4, 3, 2, 43, 45, 7, 3, 2, 2, 44, 43,
-	3, 2, 2, 2, 45, 46, 3, 2, 2, 2, 46, 44, 3, 2, 2, 2, 46, 47, 3, 2, 2, 2,
-	47, 48, 3, 2, 2, 2, 48, 50, 5, 4, 3, 2, 49, 44, 3, 2, 2, 2, 50, 53, 3,
-	2, 2, 2, 51, 49, 3, 2, 2, 2, 51, 52, 3, 2, 2, 2, 52, 57, 3, 2, 2, 2, 53,
-	51, 3, 2, 2, 2, 54, 56, 7, 3, 2, 2, 55, 54, 3, 2, 2, 2, 56, 59, 3, 2, 2,
-	2, 57, 55, 3, 2, 2, 2, 57, 58, 3, 2, 2, 2, 58, 3, 3, 2, 2, 2, 59, 57, 3,
-	2, 2, 2, 60, 65, 5, 6, 4, 2, 61, 62, 7, 38, 2, 2, 62, 64, 5, 6, 4, 2, 63,
-	61, 3, 2, 2, 2, 64, 67, 3, 2, 2, 2, 65, 63, 3, 2, 2, 2, 65, 66, 3, 2, 2,
-	2, 66, 5, 3, 2, 2, 2, 67, 65, 3, 2, 2, 2, 68, 73, 5, 8, 5, 2, 69, 70, 7,
-	37, 2, 2, 70, 72, 5, 8, 5, 2, 71, 69, 3, 2, 2, 2, 72, 75, 3, 2, 2, 2, 73,
-	71, 3, 2, 2, 2, 73, 74, 3, 2, 2, 2, 74, 7, 3, 2, 2, 2, 75, 73, 3, 2, 2,
-	2, 76, 85, 5, 22, 12, 2, 77, 85, 5, 24, 13, 2, 78, 85, 5, 20, 11, 2, 79,
-	85, 5, 14, 8, 2, 80, 85, 5, 18, 10, 2, 81, 85, 5, 26, 14, 2, 82, 85, 5,
-	12, 7, 2, 83, 85, 5, 30, 16, 2, 84, 76, 3, 2, 2, 2, 84, 77, 3, 2, 2, 2,
-	84, 78, 3, 2, 2, 2, 84, 79, 3, 2, 2, 2, 84, 80, 3, 2, 2, 2, 84, 81, 3,
-	2, 2, 2, 84, 82, 3, 2, 2, 2, 84, 83, 3, 2, 2, 2, 85, 9, 3, 2, 2, 2, 86,
-	87, 9, 2, 2, 2, 87, 11, 3, 2, 2, 2, 88, 89, 5, 28, 15, 2, 89, 99, 7, 33,
-	2, 2, 90, 95, 5, 30, 16, 2, 91, 92, 7, 37, 2, 2, 92, 94, 5, 30, 16, 2,
-	93, 91, 3, 2, 2, 2, 94, 97, 3, 2, 2, 2, 95, 93, 3, 2, 2, 2, 95, 96, 3,
-	2, 2, 2, 96, 100, 3, 2, 2, 2, 97, 95, 3, 2, 2, 2, 98, 100, 7, 4, 2, 2,
-	99, 90, 3, 2, 2, 2, 99, 98, 3, 2, 2, 2, 99, 100, 3, 2, 2, 2, 100, 101,
-	3, 2, 2, 2, 101, 102, 7, 34, 2, 2, 102, 13, 3, 2, 2, 2, 103, 104, 9, 3,
-	2, 2, 104, 105, 7, 33, 2, 2, 105, 106, 5, 16, 9, 2, 106, 107, 7, 34, 2,
-	2, 107, 15, 3, 2, 2, 2, 108, 109, 7, 49, 2, 2, 109, 110, 5, 10, 6, 2, 110,
-	111, 7, 49, 2, 2, 111, 114, 3, 2, 2, 2, 112, 114, 7, 49, 2, 2, 113, 108,
-	3, 2, 2, 2, 113, 112, 3, 2, 2, 2, 114, 17, 3, 2, 2, 2, 115, 116, 9, 4,
-	2, 2, 116, 117, 7, 33, 2, 2, 117, 122, 7, 49, 2, 2, 118, 119, 7, 37, 2,
-	2, 119, 121, 7, 49, 2, 2, 120, 118, 3, 2, 2, 2, 121, 124, 3, 2, 2, 2, 122,
-	120, 3, 2, 2, 2, 122, 123, 3, 2, 2, 2, 123, 125, 3, 2, 2, 2, 124, 122,
-	3, 2, 2, 2, 125, 126, 7, 34, 2, 2, 126, 19, 3, 2, 2, 2, 127, 128, 7, 49,
-	2, 2, 128, 21, 3, 2, 2, 2, 129, 130, 7, 50, 2, 2, 130, 131, 7, 49, 2, 2,
-	131, 23, 3, 2, 2, 2, 132, 133, 7, 50, 2, 2, 133, 25, 3, 2, 2, 2, 134, 143,
-	7, 11, 2, 2, 135, 136, 7, 41, 2, 2, 136, 137, 7, 39, 2, 2, 137, 144, 7,
-	41, 2, 2, 138, 139, 7, 41, 2, 2, 139, 144, 7, 39, 2, 2, 140, 141, 7, 39,
-	2, 2, 141, 144, 7, 41, 2, 2, 142, 144, 7, 41, 2, 2, 143, 135, 3, 2, 2,
-	2, 143, 138, 3, 2, 2, 2, 143, 140, 3, 2, 2, 2, 143, 142, 3, 2, 2, 2, 143,
-	144, 3, 2, 2, 2, 144, 145, 3, 2, 2, 2, 145, 146, 7, 36, 2, 2, 146, 27,
-	3, 2, 2, 2, 147, 148, 9, 5, 2, 2, 148, 29, 3, 2, 2, 2, 149, 150, 8, 16,
-	1, 2, 150, 157, 7, 49, 2, 2, 151, 157, 5, 32, 17, 2, 152, 153, 5, 34, 18,
-	2, 153, 154, 5, 30, 16, 11, 154, 157, 3, 2, 2, 2, 155, 157, 5, 12, 7, 2,
-	156, 149, 3, 2, 2, 2, 156, 151, 3, 2, 2, 2, 156, 152, 3, 2, 2, 2, 156,
-	155, 3, 2, 2, 2, 157, 185, 3, 2, 2, 2, 158, 159, 12, 10, 2, 2, 159, 160,
-	7, 20, 2, 2, 160, 184, 5, 30, 16, 11, 161, 162, 12, 9, 2, 2, 162, 163,
-	9, 6, 2, 2, 163, 184, 5, 30, 16, 10, 164, 165, 12, 8, 2, 2, 165, 166, 9,
-	7, 2, 2, 166, 184, 5, 30, 16, 9, 167, 168, 12, 7, 2, 2, 168, 169, 9, 8,
-	2, 2, 169, 184, 5, 30, 16, 8, 170, 171, 12, 6, 2, 2, 171, 172, 9, 9, 2,
-	2, 172, 184, 5, 30, 16, 7, 173, 177, 12, 5, 2, 2, 174, 178, 7, 48, 2, 2,
-	175, 178, 7, 47, 2, 2, 176, 178, 3, 2, 2, 2, 177, 174, 3, 2, 2, 2, 177,
-	175, 3, 2, 2, 2, 177, 176, 3, 2, 2, 2, 178, 179, 3, 2, 2, 2, 179, 184,
-	5, 30, 16, 6, 180, 181, 12, 4, 2, 2, 181, 182, 7, 28, 2, 2, 182, 184, 5,
-	30, 16, 5, 183, 158, 3, 2, 2, 2, 183, 161, 3, 2, 2, 2, 183, 164, 3, 2,
-	2, 2, 183, 167, 3, 2, 2, 2, 183, 170, 3, 2, 2, 2, 183, 173, 3, 2, 2, 2,
-	183, 180, 3, 2, 2, 2, 184, 187, 3, 2, 2, 2, 185, 183, 3, 2, 2, 2, 185,
-	186, 3, 2, 2, 2, 186, 31, 3, 2, 2, 2, 187, 185, 3, 2, 2, 2, 188, 189, 9,
-	10, 2, 2, 189, 33, 3, 2, 2, 2, 190, 191, 9, 11, 2, 2, 191, 35, 3, 2, 2,
-	2, 18, 39, 46, 51, 57, 65, 73, 84, 95, 99, 113, 122, 143, 156, 177, 183,
-	185,
-}
-var deserializer = antlr.NewATNDeserializer(nil)
-var deserializedATN = deserializer.DeserializeFromUInt16(parserATN)
-
-var literalNames = []string{
-	"", "';'", "'*'", "'join'", "'JOIN'", "'j'", "'group'", "'GROUP'", "'g'",
-	"'.['", "'sum'", "'SUM'", "'avg'", "'AVG'", "'count'", "'COUNT'", "'where'",
-	"'WHERE'", "'||'", "'/'", "'%'", "'+'", "'-'", "'<<'", "'>>'", "'&'", "'&&'",
-	"'~'", "'!'", "", "", "'('", "')'", "'['", "']'", "','", "'|'", "':'",
-	"", "", "", "'<='", "'<'", "'>='", "'>'", "'!='", "'=='",
-}
-var symbolicNames = []string{
-	"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
-	"", "", "", "", "", "", "", "", "", "", "", "ID", "WS", "LPAR", "RPAR",
-	"LBRA", "RBRA", "COMMA", "PIPE", "COLON", "NULL", "NN", "NUMBER", "LT_EQ",
-	"LT", "GT_EQ", "GT", "NEQ", "EQ", "SEL", "DATASOURCE", "STRING", "LINECOMMENT",
-}
-
-var ruleNames = []string{
-	"stmtList", "query", "segment", "element", "cmpr", "fn", "join", "joinConstraint",
-	"group", "selElement", "dsTblElement", "dsElement", "rowRange", "fnName",
-	"expr", "literal", "unaryOperator",
-}
-var decisionToDFA = make([]*antlr.DFA, len(deserializedATN.DecisionToState))
-
-func init() {
-	for index, ds := range deserializedATN.DecisionToState {
-		decisionToDFA[index] = antlr.NewDFA(ds, index)
-	}
-}
+var _ = sync.Once{}
 
 type SLQParser struct {
 	*antlr.BaseParser
 }
 
+var slqParserStaticData struct {
+	once                   sync.Once
+	serializedATN          []int32
+	literalNames           []string
+	symbolicNames          []string
+	ruleNames              []string
+	predictionContextCache *antlr.PredictionContextCache
+	atn                    *antlr.ATN
+	decisionToDFA          []*antlr.DFA
+}
+
+func slqParserInit() {
+	staticData := &slqParserStaticData
+	staticData.literalNames = []string{
+		"", "';'", "'*'", "'join'", "'JOIN'", "'j'", "'group'", "'GROUP'", "'g'",
+		"'.['", "'sum'", "'SUM'", "'avg'", "'AVG'", "'count'", "'COUNT'", "'where'",
+		"'WHERE'", "'||'", "'/'", "'%'", "'+'", "'-'", "'<<'", "'>>'", "'&'",
+		"'&&'", "'~'", "'!'", "", "", "'('", "')'", "'['", "']'", "','", "'|'",
+		"':'", "", "", "", "'<='", "'<'", "'>='", "'>'", "'!='", "'=='",
+	}
+	staticData.symbolicNames = []string{
+		"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "", "", "", "", "", "ID", "WS", "LPAR",
+		"RPAR", "LBRA", "RBRA", "COMMA", "PIPE", "COLON", "NULL", "NN", "NUMBER",
+		"LT_EQ", "LT", "GT_EQ", "GT", "NEQ", "EQ", "SEL", "DATASOURCE", "STRING",
+		"LINECOMMENT",
+	}
+	staticData.ruleNames = []string{
+		"stmtList", "query", "segment", "element", "cmpr", "fn", "join", "joinConstraint",
+		"group", "selElement", "dsTblElement", "dsElement", "rowRange", "fnName",
+		"expr", "literal", "unaryOperator",
+	}
+	staticData.predictionContextCache = antlr.NewPredictionContextCache()
+	staticData.serializedATN = []int32{
+		4, 1, 50, 191, 2, 0, 7, 0, 2, 1, 7, 1, 2, 2, 7, 2, 2, 3, 7, 3, 2, 4, 7,
+		4, 2, 5, 7, 5, 2, 6, 7, 6, 2, 7, 7, 7, 2, 8, 7, 8, 2, 9, 7, 9, 2, 10, 7,
+		10, 2, 11, 7, 11, 2, 12, 7, 12, 2, 13, 7, 13, 2, 14, 7, 14, 2, 15, 7, 15,
+		2, 16, 7, 16, 1, 0, 5, 0, 36, 8, 0, 10, 0, 12, 0, 39, 9, 0, 1, 0, 1, 0,
+		4, 0, 43, 8, 0, 11, 0, 12, 0, 44, 1, 0, 5, 0, 48, 8, 0, 10, 0, 12, 0, 51,
+		9, 0, 1, 0, 5, 0, 54, 8, 0, 10, 0, 12, 0, 57, 9, 0, 1, 1, 1, 1, 1, 1, 5,
+		1, 62, 8, 1, 10, 1, 12, 1, 65, 9, 1, 1, 2, 1, 2, 1, 2, 5, 2, 70, 8, 2,
+		10, 2, 12, 2, 73, 9, 2, 1, 3, 1, 3, 1, 3, 1, 3, 1, 3, 1, 3, 1, 3, 1, 3,
+		3, 3, 83, 8, 3, 1, 4, 1, 4, 1, 5, 1, 5, 1, 5, 1, 5, 1, 5, 5, 5, 92, 8,
+		5, 10, 5, 12, 5, 95, 9, 5, 1, 5, 3, 5, 98, 8, 5, 1, 5, 1, 5, 1, 6, 1, 6,
+		1, 6, 1, 6, 1, 6, 1, 7, 1, 7, 1, 7, 1, 7, 1, 7, 3, 7, 112, 8, 7, 1, 8,
+		1, 8, 1, 8, 1, 8, 1, 8, 5, 8, 119, 8, 8, 10, 8, 12, 8, 122, 9, 8, 1, 8,
+		1, 8, 1, 9, 1, 9, 1, 10, 1, 10, 1, 10, 1, 11, 1, 11, 1, 12, 1, 12, 1, 12,
+		1, 12, 1, 12, 1, 12, 1, 12, 1, 12, 1, 12, 3, 12, 142, 8, 12, 1, 12, 1,
+		12, 1, 13, 1, 13, 1, 14, 1, 14, 1, 14, 1, 14, 1, 14, 1, 14, 1, 14, 3, 14,
+		155, 8, 14, 1, 14, 1, 14, 1, 14, 1, 14, 1, 14, 1, 14, 1, 14, 1, 14, 1,
+		14, 1, 14, 1, 14, 1, 14, 1, 14, 1, 14, 1, 14, 1, 14, 1, 14, 1, 14, 1, 14,
+		3, 14, 176, 8, 14, 1, 14, 1, 14, 1, 14, 1, 14, 5, 14, 182, 8, 14, 10, 14,
+		12, 14, 185, 9, 14, 1, 15, 1, 15, 1, 16, 1, 16, 1, 16, 0, 1, 28, 17, 0,
+		2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 0, 10, 1, 0,
+		41, 46, 1, 0, 3, 5, 1, 0, 6, 8, 1, 0, 10, 17, 2, 0, 2, 2, 19, 20, 1, 0,
+		21, 22, 1, 0, 23, 25, 1, 0, 41, 44, 2, 0, 38, 40, 49, 49, 2, 0, 21, 22,
+		27, 28, 207, 0, 37, 1, 0, 0, 0, 2, 58, 1, 0, 0, 0, 4, 66, 1, 0, 0, 0, 6,
+		82, 1, 0, 0, 0, 8, 84, 1, 0, 0, 0, 10, 86, 1, 0, 0, 0, 12, 101, 1, 0, 0,
+		0, 14, 111, 1, 0, 0, 0, 16, 113, 1, 0, 0, 0, 18, 125, 1, 0, 0, 0, 20, 127,
+		1, 0, 0, 0, 22, 130, 1, 0, 0, 0, 24, 132, 1, 0, 0, 0, 26, 145, 1, 0, 0,
+		0, 28, 154, 1, 0, 0, 0, 30, 186, 1, 0, 0, 0, 32, 188, 1, 0, 0, 0, 34, 36,
+		5, 1, 0, 0, 35, 34, 1, 0, 0, 0, 36, 39, 1, 0, 0, 0, 37, 35, 1, 0, 0, 0,
+		37, 38, 1, 0, 0, 0, 38, 40, 1, 0, 0, 0, 39, 37, 1, 0, 0, 0, 40, 49, 3,
+		2, 1, 0, 41, 43, 5, 1, 0, 0, 42, 41, 1, 0, 0, 0, 43, 44, 1, 0, 0, 0, 44,
+		42, 1, 0, 0, 0, 44, 45, 1, 0, 0, 0, 45, 46, 1, 0, 0, 0, 46, 48, 3, 2, 1,
+		0, 47, 42, 1, 0, 0, 0, 48, 51, 1, 0, 0, 0, 49, 47, 1, 0, 0, 0, 49, 50,
+		1, 0, 0, 0, 50, 55, 1, 0, 0, 0, 51, 49, 1, 0, 0, 0, 52, 54, 5, 1, 0, 0,
+		53, 52, 1, 0, 0, 0, 54, 57, 1, 0, 0, 0, 55, 53, 1, 0, 0, 0, 55, 56, 1,
+		0, 0, 0, 56, 1, 1, 0, 0, 0, 57, 55, 1, 0, 0, 0, 58, 63, 3, 4, 2, 0, 59,
+		60, 5, 36, 0, 0, 60, 62, 3, 4, 2, 0, 61, 59, 1, 0, 0, 0, 62, 65, 1, 0,
+		0, 0, 63, 61, 1, 0, 0, 0, 63, 64, 1, 0, 0, 0, 64, 3, 1, 0, 0, 0, 65, 63,
+		1, 0, 0, 0, 66, 71, 3, 6, 3, 0, 67, 68, 5, 35, 0, 0, 68, 70, 3, 6, 3, 0,
+		69, 67, 1, 0, 0, 0, 70, 73, 1, 0, 0, 0, 71, 69, 1, 0, 0, 0, 71, 72, 1,
+		0, 0, 0, 72, 5, 1, 0, 0, 0, 73, 71, 1, 0, 0, 0, 74, 83, 3, 20, 10, 0, 75,
+		83, 3, 22, 11, 0, 76, 83, 3, 18, 9, 0, 77, 83, 3, 12, 6, 0, 78, 83, 3,
+		16, 8, 0, 79, 83, 3, 24, 12, 0, 80, 83, 3, 10, 5, 0, 81, 83, 3, 28, 14,
+		0, 82, 74, 1, 0, 0, 0, 82, 75, 1, 0, 0, 0, 82, 76, 1, 0, 0, 0, 82, 77,
+		1, 0, 0, 0, 82, 78, 1, 0, 0, 0, 82, 79, 1, 0, 0, 0, 82, 80, 1, 0, 0, 0,
+		82, 81, 1, 0, 0, 0, 83, 7, 1, 0, 0, 0, 84, 85, 7, 0, 0, 0, 85, 9, 1, 0,
+		0, 0, 86, 87, 3, 26, 13, 0, 87, 97, 5, 31, 0, 0, 88, 93, 3, 28, 14, 0,
+		89, 90, 5, 35, 0, 0, 90, 92, 3, 28, 14, 0, 91, 89, 1, 0, 0, 0, 92, 95,
+		1, 0, 0, 0, 93, 91, 1, 0, 0, 0, 93, 94, 1, 0, 0, 0, 94, 98, 1, 0, 0, 0,
+		95, 93, 1, 0, 0, 0, 96, 98, 5, 2, 0, 0, 97, 88, 1, 0, 0, 0, 97, 96, 1,
+		0, 0, 0, 97, 98, 1, 0, 0, 0, 98, 99, 1, 0, 0, 0, 99, 100, 5, 32, 0, 0,
+		100, 11, 1, 0, 0, 0, 101, 102, 7, 1, 0, 0, 102, 103, 5, 31, 0, 0, 103,
+		104, 3, 14, 7, 0, 104, 105, 5, 32, 0, 0, 105, 13, 1, 0, 0, 0, 106, 107,
+		5, 47, 0, 0, 107, 108, 3, 8, 4, 0, 108, 109, 5, 47, 0, 0, 109, 112, 1,
+		0, 0, 0, 110, 112, 5, 47, 0, 0, 111, 106, 1, 0, 0, 0, 111, 110, 1, 0, 0,
+		0, 112, 15, 1, 0, 0, 0, 113, 114, 7, 2, 0, 0, 114, 115, 5, 31, 0, 0, 115,
+		120, 5, 47, 0, 0, 116, 117, 5, 35, 0, 0, 117, 119, 5, 47, 0, 0, 118, 116,
+		1, 0, 0, 0, 119, 122, 1, 0, 0, 0, 120, 118, 1, 0, 0, 0, 120, 121, 1, 0,
+		0, 0, 121, 123, 1, 0, 0, 0, 122, 120, 1, 0, 0, 0, 123, 124, 5, 32, 0, 0,
+		124, 17, 1, 0, 0, 0, 125, 126, 5, 47, 0, 0, 126, 19, 1, 0, 0, 0, 127, 128,
+		5, 48, 0, 0, 128, 129, 5, 47, 0, 0, 129, 21, 1, 0, 0, 0, 130, 131, 5, 48,
+		0, 0, 131, 23, 1, 0, 0, 0, 132, 141, 5, 9, 0, 0, 133, 134, 5, 39, 0, 0,
+		134, 135, 5, 37, 0, 0, 135, 142, 5, 39, 0, 0, 136, 137, 5, 39, 0, 0, 137,
+		142, 5, 37, 0, 0, 138, 139, 5, 37, 0, 0, 139, 142, 5, 39, 0, 0, 140, 142,
+		5, 39, 0, 0, 141, 133, 1, 0, 0, 0, 141, 136, 1, 0, 0, 0, 141, 138, 1, 0,
+		0, 0, 141, 140, 1, 0, 0, 0, 141, 142, 1, 0, 0, 0, 142, 143, 1, 0, 0, 0,
+		143, 144, 5, 34, 0, 0, 144, 25, 1, 0, 0, 0, 145, 146, 7, 3, 0, 0, 146,
+		27, 1, 0, 0, 0, 147, 148, 6, 14, -1, 0, 148, 155, 5, 47, 0, 0, 149, 155,
+		3, 30, 15, 0, 150, 151, 3, 32, 16, 0, 151, 152, 3, 28, 14, 9, 152, 155,
+		1, 0, 0, 0, 153, 155, 3, 10, 5, 0, 154, 147, 1, 0, 0, 0, 154, 149, 1, 0,
+		0, 0, 154, 150, 1, 0, 0, 0, 154, 153, 1, 0, 0, 0, 155, 183, 1, 0, 0, 0,
+		156, 157, 10, 8, 0, 0, 157, 158, 5, 18, 0, 0, 158, 182, 3, 28, 14, 9, 159,
+		160, 10, 7, 0, 0, 160, 161, 7, 4, 0, 0, 161, 182, 3, 28, 14, 8, 162, 163,
+		10, 6, 0, 0, 163, 164, 7, 5, 0, 0, 164, 182, 3, 28, 14, 7, 165, 166, 10,
+		5, 0, 0, 166, 167, 7, 6, 0, 0, 167, 182, 3, 28, 14, 6, 168, 169, 10, 4,
+		0, 0, 169, 170, 7, 7, 0, 0, 170, 182, 3, 28, 14, 5, 171, 175, 10, 3, 0,
+		0, 172, 176, 5, 46, 0, 0, 173, 176, 5, 45, 0, 0, 174, 176, 1, 0, 0, 0,
+		175, 172, 1, 0, 0, 0, 175, 173, 1, 0, 0, 0, 175, 174, 1, 0, 0, 0, 176,
+		177, 1, 0, 0, 0, 177, 182, 3, 28, 14, 4, 178, 179, 10, 2, 0, 0, 179, 180,
+		5, 26, 0, 0, 180, 182, 3, 28, 14, 3, 181, 156, 1, 0, 0, 0, 181, 159, 1,
+		0, 0, 0, 181, 162, 1, 0, 0, 0, 181, 165, 1, 0, 0, 0, 181, 168, 1, 0, 0,
+		0, 181, 171, 1, 0, 0, 0, 181, 178, 1, 0, 0, 0, 182, 185, 1, 0, 0, 0, 183,
+		181, 1, 0, 0, 0, 183, 184, 1, 0, 0, 0, 184, 29, 1, 0, 0, 0, 185, 183, 1,
+		0, 0, 0, 186, 187, 7, 8, 0, 0, 187, 31, 1, 0, 0, 0, 188, 189, 7, 9, 0,
+		0, 189, 33, 1, 0, 0, 0, 16, 37, 44, 49, 55, 63, 71, 82, 93, 97, 111, 120,
+		141, 154, 175, 181, 183,
+	}
+	deserializer := antlr.NewATNDeserializer(nil)
+	staticData.atn = deserializer.Deserialize(staticData.serializedATN)
+	atn := staticData.atn
+	staticData.decisionToDFA = make([]*antlr.DFA, len(atn.DecisionToState))
+	decisionToDFA := staticData.decisionToDFA
+	for index, state := range atn.DecisionToState {
+		decisionToDFA[index] = antlr.NewDFA(state, index)
+	}
+}
+
+// SLQParserInit initializes any static state used to implement SLQParser. By default the
+// static state used to implement the parser is lazily initialized during the first call to
+// NewSLQParser(). You can call this function if you wish to initialize the static state ahead
+// of time.
+func SLQParserInit() {
+	staticData := &slqParserStaticData
+	staticData.once.Do(slqParserInit)
+}
+
+// NewSLQParser produces a new parser instance for the optional input antlr.TokenStream.
 func NewSLQParser(input antlr.TokenStream) *SLQParser {
+	SLQParserInit()
 	this := new(SLQParser)
-
 	this.BaseParser = antlr.NewBaseParser(input)
-
-	this.Interpreter = antlr.NewParserATNSimulator(this, deserializedATN, decisionToDFA, antlr.NewPredictionContextCache())
-	this.RuleNames = ruleNames
-	this.LiteralNames = literalNames
-	this.SymbolicNames = symbolicNames
-	this.GrammarFileName = "SLQ.g4"
+	staticData := &slqParserStaticData
+	this.Interpreter = antlr.NewParserATNSimulator(this, staticData.atn, staticData.decisionToDFA, staticData.predictionContextCache)
+	this.RuleNames = staticData.ruleNames
+	this.LiteralNames = staticData.literalNames
+	this.SymbolicNames = staticData.symbolicNames
+	this.GrammarFileName = "java-escape"
 
 	return this
 }
@@ -266,12 +287,20 @@ func NewStmtListContext(parser antlr.Parser, parent antlr.ParserRuleContext, inv
 func (s *StmtListContext) GetParser() antlr.Parser { return s.parser }
 
 func (s *StmtListContext) AllQuery() []IQueryContext {
-	var ts = s.GetTypedRuleContexts(reflect.TypeOf((*IQueryContext)(nil)).Elem())
-	var tst = make([]IQueryContext, len(ts))
+	children := s.GetChildren()
+	len := 0
+	for _, ctx := range children {
+		if _, ok := ctx.(IQueryContext); ok {
+			len++
+		}
+	}
 
-	for i, t := range ts {
-		if t != nil {
+	tst := make([]IQueryContext, len)
+	i := 0
+	for _, ctx := range children {
+		if t, ok := ctx.(IQueryContext); ok {
 			tst[i] = t.(IQueryContext)
+			i++
 		}
 	}
 
@@ -279,7 +308,17 @@ func (s *StmtListContext) AllQuery() []IQueryContext {
 }
 
 func (s *StmtListContext) Query(i int) IQueryContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IQueryContext)(nil)).Elem(), i)
+	var t antlr.RuleContext
+	j := 0
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IQueryContext); ok {
+			if j == i {
+				t = ctx.(antlr.RuleContext)
+				break
+			}
+			j++
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -308,7 +347,7 @@ func (s *StmtListContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *StmtListContext) Accept(visitor antlr.ParseTreeVisitor) any {
+func (s *StmtListContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 	switch t := visitor.(type) {
 	case SLQVisitor:
 		return t.VisitStmtList(s)
@@ -319,6 +358,9 @@ func (s *StmtListContext) Accept(visitor antlr.ParseTreeVisitor) any {
 }
 
 func (p *SLQParser) StmtList() (localctx IStmtListContext) {
+	this := p
+	_ = this
+
 	localctx = NewStmtListContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 0, SLQParserRULE_stmtList)
 	var _la int
@@ -447,12 +489,20 @@ func NewQueryContext(parser antlr.Parser, parent antlr.ParserRuleContext, invoki
 func (s *QueryContext) GetParser() antlr.Parser { return s.parser }
 
 func (s *QueryContext) AllSegment() []ISegmentContext {
-	var ts = s.GetTypedRuleContexts(reflect.TypeOf((*ISegmentContext)(nil)).Elem())
-	var tst = make([]ISegmentContext, len(ts))
+	children := s.GetChildren()
+	len := 0
+	for _, ctx := range children {
+		if _, ok := ctx.(ISegmentContext); ok {
+			len++
+		}
+	}
 
-	for i, t := range ts {
-		if t != nil {
+	tst := make([]ISegmentContext, len)
+	i := 0
+	for _, ctx := range children {
+		if t, ok := ctx.(ISegmentContext); ok {
 			tst[i] = t.(ISegmentContext)
+			i++
 		}
 	}
 
@@ -460,7 +510,17 @@ func (s *QueryContext) AllSegment() []ISegmentContext {
 }
 
 func (s *QueryContext) Segment(i int) ISegmentContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*ISegmentContext)(nil)).Elem(), i)
+	var t antlr.RuleContext
+	j := 0
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(ISegmentContext); ok {
+			if j == i {
+				t = ctx.(antlr.RuleContext)
+				break
+			}
+			j++
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -497,7 +557,7 @@ func (s *QueryContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *QueryContext) Accept(visitor antlr.ParseTreeVisitor) any {
+func (s *QueryContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 	switch t := visitor.(type) {
 	case SLQVisitor:
 		return t.VisitQuery(s)
@@ -508,6 +568,9 @@ func (s *QueryContext) Accept(visitor antlr.ParseTreeVisitor) any {
 }
 
 func (p *SLQParser) Query() (localctx IQueryContext) {
+	this := p
+	_ = this
+
 	localctx = NewQueryContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 2, SLQParserRULE_query)
 	var _la int
@@ -594,12 +657,20 @@ func NewSegmentContext(parser antlr.Parser, parent antlr.ParserRuleContext, invo
 func (s *SegmentContext) GetParser() antlr.Parser { return s.parser }
 
 func (s *SegmentContext) AllElement() []IElementContext {
-	var ts = s.GetTypedRuleContexts(reflect.TypeOf((*IElementContext)(nil)).Elem())
-	var tst = make([]IElementContext, len(ts))
+	children := s.GetChildren()
+	len := 0
+	for _, ctx := range children {
+		if _, ok := ctx.(IElementContext); ok {
+			len++
+		}
+	}
 
-	for i, t := range ts {
-		if t != nil {
+	tst := make([]IElementContext, len)
+	i := 0
+	for _, ctx := range children {
+		if t, ok := ctx.(IElementContext); ok {
 			tst[i] = t.(IElementContext)
+			i++
 		}
 	}
 
@@ -607,7 +678,17 @@ func (s *SegmentContext) AllElement() []IElementContext {
 }
 
 func (s *SegmentContext) Element(i int) IElementContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IElementContext)(nil)).Elem(), i)
+	var t antlr.RuleContext
+	j := 0
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IElementContext); ok {
+			if j == i {
+				t = ctx.(antlr.RuleContext)
+				break
+			}
+			j++
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -644,7 +725,7 @@ func (s *SegmentContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *SegmentContext) Accept(visitor antlr.ParseTreeVisitor) any {
+func (s *SegmentContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 	switch t := visitor.(type) {
 	case SLQVisitor:
 		return t.VisitSegment(s)
@@ -655,6 +736,9 @@ func (s *SegmentContext) Accept(visitor antlr.ParseTreeVisitor) any {
 }
 
 func (p *SLQParser) Segment() (localctx ISegmentContext) {
+	this := p
+	_ = this
+
 	localctx = NewSegmentContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 4, SLQParserRULE_segment)
 	var _la int
@@ -742,7 +826,13 @@ func NewElementContext(parser antlr.Parser, parent antlr.ParserRuleContext, invo
 func (s *ElementContext) GetParser() antlr.Parser { return s.parser }
 
 func (s *ElementContext) DsTblElement() IDsTblElementContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IDsTblElementContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IDsTblElementContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -752,7 +842,13 @@ func (s *ElementContext) DsTblElement() IDsTblElementContext {
 }
 
 func (s *ElementContext) DsElement() IDsElementContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IDsElementContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IDsElementContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -762,7 +858,13 @@ func (s *ElementContext) DsElement() IDsElementContext {
 }
 
 func (s *ElementContext) SelElement() ISelElementContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*ISelElementContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(ISelElementContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -772,7 +874,13 @@ func (s *ElementContext) SelElement() ISelElementContext {
 }
 
 func (s *ElementContext) Join() IJoinContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IJoinContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IJoinContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -782,7 +890,13 @@ func (s *ElementContext) Join() IJoinContext {
 }
 
 func (s *ElementContext) Group() IGroupContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IGroupContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IGroupContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -792,7 +906,13 @@ func (s *ElementContext) Group() IGroupContext {
 }
 
 func (s *ElementContext) RowRange() IRowRangeContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IRowRangeContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IRowRangeContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -802,7 +922,13 @@ func (s *ElementContext) RowRange() IRowRangeContext {
 }
 
 func (s *ElementContext) Fn() IFnContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IFnContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IFnContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -812,7 +938,13 @@ func (s *ElementContext) Fn() IFnContext {
 }
 
 func (s *ElementContext) Expr() IExprContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IExprContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IExprContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -841,7 +973,7 @@ func (s *ElementContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *ElementContext) Accept(visitor antlr.ParseTreeVisitor) any {
+func (s *ElementContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 	switch t := visitor.(type) {
 	case SLQVisitor:
 		return t.VisitElement(s)
@@ -852,6 +984,9 @@ func (s *ElementContext) Accept(visitor antlr.ParseTreeVisitor) any {
 }
 
 func (p *SLQParser) Element() (localctx IElementContext) {
+	this := p
+	_ = this
+
 	localctx = NewElementContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 6, SLQParserRULE_element)
 
@@ -1017,7 +1152,7 @@ func (s *CmprContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *CmprContext) Accept(visitor antlr.ParseTreeVisitor) any {
+func (s *CmprContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 	switch t := visitor.(type) {
 	case SLQVisitor:
 		return t.VisitCmpr(s)
@@ -1028,6 +1163,9 @@ func (s *CmprContext) Accept(visitor antlr.ParseTreeVisitor) any {
 }
 
 func (p *SLQParser) Cmpr() (localctx ICmprContext) {
+	this := p
+	_ = this
+
 	localctx = NewCmprContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 8, SLQParserRULE_cmpr)
 	var _la int
@@ -1053,7 +1191,7 @@ func (p *SLQParser) Cmpr() (localctx ICmprContext) {
 		p.SetState(84)
 		_la = p.GetTokenStream().LA(1)
 
-		if !(((_la-41)&-(0x1f+1)) == 0 && ((1<<uint((_la-41)))&((1<<(SLQParserLT_EQ-41))|(1<<(SLQParserLT-41))|(1<<(SLQParserGT_EQ-41))|(1<<(SLQParserGT-41))|(1<<(SLQParserNEQ-41))|(1<<(SLQParserEQ-41)))) != 0) {
+		if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&138538465099776) != 0) {
 			p.GetErrorHandler().RecoverInline(p)
 		} else {
 			p.GetErrorHandler().ReportMatch(p)
@@ -1103,7 +1241,13 @@ func NewFnContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingS
 func (s *FnContext) GetParser() antlr.Parser { return s.parser }
 
 func (s *FnContext) FnName() IFnNameContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IFnNameContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IFnNameContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -1121,12 +1265,20 @@ func (s *FnContext) RPAR() antlr.TerminalNode {
 }
 
 func (s *FnContext) AllExpr() []IExprContext {
-	var ts = s.GetTypedRuleContexts(reflect.TypeOf((*IExprContext)(nil)).Elem())
-	var tst = make([]IExprContext, len(ts))
+	children := s.GetChildren()
+	len := 0
+	for _, ctx := range children {
+		if _, ok := ctx.(IExprContext); ok {
+			len++
+		}
+	}
 
-	for i, t := range ts {
-		if t != nil {
+	tst := make([]IExprContext, len)
+	i := 0
+	for _, ctx := range children {
+		if t, ok := ctx.(IExprContext); ok {
 			tst[i] = t.(IExprContext)
+			i++
 		}
 	}
 
@@ -1134,7 +1286,17 @@ func (s *FnContext) AllExpr() []IExprContext {
 }
 
 func (s *FnContext) Expr(i int) IExprContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IExprContext)(nil)).Elem(), i)
+	var t antlr.RuleContext
+	j := 0
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IExprContext); ok {
+			if j == i {
+				t = ctx.(antlr.RuleContext)
+				break
+			}
+			j++
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -1171,7 +1333,7 @@ func (s *FnContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *FnContext) Accept(visitor antlr.ParseTreeVisitor) any {
+func (s *FnContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 	switch t := visitor.(type) {
 	case SLQVisitor:
 		return t.VisitFn(s)
@@ -1182,6 +1344,9 @@ func (s *FnContext) Accept(visitor antlr.ParseTreeVisitor) any {
 }
 
 func (p *SLQParser) Fn() (localctx IFnContext) {
+	this := p
+	_ = this
+
 	localctx = NewFnContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 10, SLQParserRULE_fn)
 	var _la int
@@ -1300,7 +1465,13 @@ func (s *JoinContext) LPAR() antlr.TerminalNode {
 }
 
 func (s *JoinContext) JoinConstraint() IJoinConstraintContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IJoinConstraintContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IJoinConstraintContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -1333,7 +1504,7 @@ func (s *JoinContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *JoinContext) Accept(visitor antlr.ParseTreeVisitor) any {
+func (s *JoinContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 	switch t := visitor.(type) {
 	case SLQVisitor:
 		return t.VisitJoin(s)
@@ -1344,6 +1515,9 @@ func (s *JoinContext) Accept(visitor antlr.ParseTreeVisitor) any {
 }
 
 func (p *SLQParser) Join() (localctx IJoinContext) {
+	this := p
+	_ = this
+
 	localctx = NewJoinContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 12, SLQParserRULE_join)
 	var _la int
@@ -1369,7 +1543,7 @@ func (p *SLQParser) Join() (localctx IJoinContext) {
 		p.SetState(101)
 		_la = p.GetTokenStream().LA(1)
 
-		if !(((_la)&-(0x1f+1)) == 0 && ((1<<uint(_la))&((1<<SLQParserT__2)|(1<<SLQParserT__3)|(1<<SLQParserT__4))) != 0) {
+		if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&56) != 0) {
 			p.GetErrorHandler().RecoverInline(p)
 		} else {
 			p.GetErrorHandler().ReportMatch(p)
@@ -1439,7 +1613,13 @@ func (s *JoinConstraintContext) SEL(i int) antlr.TerminalNode {
 }
 
 func (s *JoinConstraintContext) Cmpr() ICmprContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*ICmprContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(ICmprContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -1468,7 +1648,7 @@ func (s *JoinConstraintContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *JoinConstraintContext) Accept(visitor antlr.ParseTreeVisitor) any {
+func (s *JoinConstraintContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 	switch t := visitor.(type) {
 	case SLQVisitor:
 		return t.VisitJoinConstraint(s)
@@ -1479,6 +1659,9 @@ func (s *JoinConstraintContext) Accept(visitor antlr.ParseTreeVisitor) any {
 }
 
 func (p *SLQParser) JoinConstraint() (localctx IJoinConstraintContext) {
+	this := p
+	_ = this
+
 	localctx = NewJoinConstraintContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 14, SLQParserRULE_joinConstraint)
 
@@ -1610,7 +1793,7 @@ func (s *GroupContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *GroupContext) Accept(visitor antlr.ParseTreeVisitor) any {
+func (s *GroupContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 	switch t := visitor.(type) {
 	case SLQVisitor:
 		return t.VisitGroup(s)
@@ -1621,6 +1804,9 @@ func (s *GroupContext) Accept(visitor antlr.ParseTreeVisitor) any {
 }
 
 func (p *SLQParser) Group() (localctx IGroupContext) {
+	this := p
+	_ = this
+
 	localctx = NewGroupContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 16, SLQParserRULE_group)
 	var _la int
@@ -1646,7 +1832,7 @@ func (p *SLQParser) Group() (localctx IGroupContext) {
 		p.SetState(113)
 		_la = p.GetTokenStream().LA(1)
 
-		if !(((_la)&-(0x1f+1)) == 0 && ((1<<uint(_la))&((1<<SLQParserT__5)|(1<<SLQParserT__6)|(1<<SLQParserT__7))) != 0) {
+		if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&448) != 0) {
 			p.GetErrorHandler().RecoverInline(p)
 		} else {
 			p.GetErrorHandler().ReportMatch(p)
@@ -1749,7 +1935,7 @@ func (s *SelElementContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *SelElementContext) Accept(visitor antlr.ParseTreeVisitor) any {
+func (s *SelElementContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 	switch t := visitor.(type) {
 	case SLQVisitor:
 		return t.VisitSelElement(s)
@@ -1760,6 +1946,9 @@ func (s *SelElementContext) Accept(visitor antlr.ParseTreeVisitor) any {
 }
 
 func (p *SLQParser) SelElement() (localctx ISelElementContext) {
+	this := p
+	_ = this
+
 	localctx = NewSelElementContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 18, SLQParserRULE_selElement)
 
@@ -1854,7 +2043,7 @@ func (s *DsTblElementContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *DsTblElementContext) Accept(visitor antlr.ParseTreeVisitor) any {
+func (s *DsTblElementContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 	switch t := visitor.(type) {
 	case SLQVisitor:
 		return t.VisitDsTblElement(s)
@@ -1865,6 +2054,9 @@ func (s *DsTblElementContext) Accept(visitor antlr.ParseTreeVisitor) any {
 }
 
 func (p *SLQParser) DsTblElement() (localctx IDsTblElementContext) {
+	this := p
+	_ = this
+
 	localctx = NewDsTblElementContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 20, SLQParserRULE_dsTblElement)
 
@@ -1959,7 +2151,7 @@ func (s *DsElementContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *DsElementContext) Accept(visitor antlr.ParseTreeVisitor) any {
+func (s *DsElementContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 	switch t := visitor.(type) {
 	case SLQVisitor:
 		return t.VisitDsElement(s)
@@ -1970,6 +2162,9 @@ func (s *DsElementContext) Accept(visitor antlr.ParseTreeVisitor) any {
 }
 
 func (p *SLQParser) DsElement() (localctx IDsElementContext) {
+	this := p
+	_ = this
+
 	localctx = NewDsElementContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 22, SLQParserRULE_dsElement)
 
@@ -2072,7 +2267,7 @@ func (s *RowRangeContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *RowRangeContext) Accept(visitor antlr.ParseTreeVisitor) any {
+func (s *RowRangeContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 	switch t := visitor.(type) {
 	case SLQVisitor:
 		return t.VisitRowRange(s)
@@ -2083,6 +2278,9 @@ func (s *RowRangeContext) Accept(visitor antlr.ParseTreeVisitor) any {
 }
 
 func (p *SLQParser) RowRange() (localctx IRowRangeContext) {
+	this := p
+	_ = this
+
 	localctx = NewRowRangeContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 24, SLQParserRULE_rowRange)
 
@@ -2216,7 +2414,7 @@ func (s *FnNameContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *FnNameContext) Accept(visitor antlr.ParseTreeVisitor) any {
+func (s *FnNameContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 	switch t := visitor.(type) {
 	case SLQVisitor:
 		return t.VisitFnName(s)
@@ -2227,6 +2425,9 @@ func (s *FnNameContext) Accept(visitor antlr.ParseTreeVisitor) any {
 }
 
 func (p *SLQParser) FnName() (localctx IFnNameContext) {
+	this := p
+	_ = this
+
 	localctx = NewFnNameContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 26, SLQParserRULE_fnName)
 	var _la int
@@ -2252,7 +2453,7 @@ func (p *SLQParser) FnName() (localctx IFnNameContext) {
 		p.SetState(145)
 		_la = p.GetTokenStream().LA(1)
 
-		if !(((_la)&-(0x1f+1)) == 0 && ((1<<uint(_la))&((1<<SLQParserT__9)|(1<<SLQParserT__10)|(1<<SLQParserT__11)|(1<<SLQParserT__12)|(1<<SLQParserT__13)|(1<<SLQParserT__14)|(1<<SLQParserT__15)|(1<<SLQParserT__16))) != 0) {
+		if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&261120) != 0) {
 			p.GetErrorHandler().RecoverInline(p)
 		} else {
 			p.GetErrorHandler().ReportMatch(p)
@@ -2306,7 +2507,13 @@ func (s *ExprContext) SEL() antlr.TerminalNode {
 }
 
 func (s *ExprContext) Literal() ILiteralContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*ILiteralContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(ILiteralContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -2316,7 +2523,13 @@ func (s *ExprContext) Literal() ILiteralContext {
 }
 
 func (s *ExprContext) UnaryOperator() IUnaryOperatorContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IUnaryOperatorContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IUnaryOperatorContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -2326,12 +2539,20 @@ func (s *ExprContext) UnaryOperator() IUnaryOperatorContext {
 }
 
 func (s *ExprContext) AllExpr() []IExprContext {
-	var ts = s.GetTypedRuleContexts(reflect.TypeOf((*IExprContext)(nil)).Elem())
-	var tst = make([]IExprContext, len(ts))
+	children := s.GetChildren()
+	len := 0
+	for _, ctx := range children {
+		if _, ok := ctx.(IExprContext); ok {
+			len++
+		}
+	}
 
-	for i, t := range ts {
-		if t != nil {
+	tst := make([]IExprContext, len)
+	i := 0
+	for _, ctx := range children {
+		if t, ok := ctx.(IExprContext); ok {
 			tst[i] = t.(IExprContext)
+			i++
 		}
 	}
 
@@ -2339,7 +2560,17 @@ func (s *ExprContext) AllExpr() []IExprContext {
 }
 
 func (s *ExprContext) Expr(i int) IExprContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IExprContext)(nil)).Elem(), i)
+	var t antlr.RuleContext
+	j := 0
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IExprContext); ok {
+			if j == i {
+				t = ctx.(antlr.RuleContext)
+				break
+			}
+			j++
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -2349,7 +2580,13 @@ func (s *ExprContext) Expr(i int) IExprContext {
 }
 
 func (s *ExprContext) Fn() IFnContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IFnContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IFnContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -2402,7 +2639,7 @@ func (s *ExprContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *ExprContext) Accept(visitor antlr.ParseTreeVisitor) any {
+func (s *ExprContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 	switch t := visitor.(type) {
 	case SLQVisitor:
 		return t.VisitExpr(s)
@@ -2417,6 +2654,9 @@ func (p *SLQParser) Expr() (localctx IExprContext) {
 }
 
 func (p *SLQParser) expr(_p int) (localctx IExprContext) {
+	this := p
+	_ = this
+
 	var _parentctx antlr.ParserRuleContext = p.GetParserRuleContext()
 	_parentState := p.GetState()
 	localctx = NewExprContext(p, p.GetParserRuleContext(), _parentState)
@@ -2523,7 +2763,7 @@ func (p *SLQParser) expr(_p int) (localctx IExprContext) {
 					p.SetState(160)
 					_la = p.GetTokenStream().LA(1)
 
-					if !(((_la)&-(0x1f+1)) == 0 && ((1<<uint(_la))&((1<<SLQParserT__1)|(1<<SLQParserT__18)|(1<<SLQParserT__19))) != 0) {
+					if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&1572868) != 0) {
 						p.GetErrorHandler().RecoverInline(p)
 					} else {
 						p.GetErrorHandler().ReportMatch(p)
@@ -2571,7 +2811,7 @@ func (p *SLQParser) expr(_p int) (localctx IExprContext) {
 					p.SetState(166)
 					_la = p.GetTokenStream().LA(1)
 
-					if !(((_la)&-(0x1f+1)) == 0 && ((1<<uint(_la))&((1<<SLQParserT__22)|(1<<SLQParserT__23)|(1<<SLQParserT__24))) != 0) {
+					if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&58720256) != 0) {
 						p.GetErrorHandler().RecoverInline(p)
 					} else {
 						p.GetErrorHandler().ReportMatch(p)
@@ -2595,7 +2835,7 @@ func (p *SLQParser) expr(_p int) (localctx IExprContext) {
 					p.SetState(169)
 					_la = p.GetTokenStream().LA(1)
 
-					if !(((_la-41)&-(0x1f+1)) == 0 && ((1<<uint((_la-41)))&((1<<(SLQParserLT_EQ-41))|(1<<(SLQParserLT-41))|(1<<(SLQParserGT_EQ-41))|(1<<(SLQParserGT-41)))) != 0) {
+					if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&32985348833280) != 0) {
 						p.GetErrorHandler().RecoverInline(p)
 					} else {
 						p.GetErrorHandler().ReportMatch(p)
@@ -2743,7 +2983,7 @@ func (s *LiteralContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *LiteralContext) Accept(visitor antlr.ParseTreeVisitor) any {
+func (s *LiteralContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 	switch t := visitor.(type) {
 	case SLQVisitor:
 		return t.VisitLiteral(s)
@@ -2754,6 +2994,9 @@ func (s *LiteralContext) Accept(visitor antlr.ParseTreeVisitor) any {
 }
 
 func (p *SLQParser) Literal() (localctx ILiteralContext) {
+	this := p
+	_ = this
+
 	localctx = NewLiteralContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 30, SLQParserRULE_literal)
 	var _la int
@@ -2779,7 +3022,7 @@ func (p *SLQParser) Literal() (localctx ILiteralContext) {
 		p.SetState(186)
 		_la = p.GetTokenStream().LA(1)
 
-		if !(((_la-38)&-(0x1f+1)) == 0 && ((1<<uint((_la-38)))&((1<<(SLQParserNULL-38))|(1<<(SLQParserNN-38))|(1<<(SLQParserNUMBER-38))|(1<<(SLQParserSTRING-38)))) != 0) {
+		if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&564874098769920) != 0) {
 			p.GetErrorHandler().RecoverInline(p)
 		} else {
 			p.GetErrorHandler().ReportMatch(p)
@@ -2847,7 +3090,7 @@ func (s *UnaryOperatorContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *UnaryOperatorContext) Accept(visitor antlr.ParseTreeVisitor) any {
+func (s *UnaryOperatorContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 	switch t := visitor.(type) {
 	case SLQVisitor:
 		return t.VisitUnaryOperator(s)
@@ -2858,6 +3101,9 @@ func (s *UnaryOperatorContext) Accept(visitor antlr.ParseTreeVisitor) any {
 }
 
 func (p *SLQParser) UnaryOperator() (localctx IUnaryOperatorContext) {
+	this := p
+	_ = this
+
 	localctx = NewUnaryOperatorContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 32, SLQParserRULE_unaryOperator)
 	var _la int
@@ -2883,7 +3129,7 @@ func (p *SLQParser) UnaryOperator() (localctx IUnaryOperatorContext) {
 		p.SetState(188)
 		_la = p.GetTokenStream().LA(1)
 
-		if !(((_la)&-(0x1f+1)) == 0 && ((1<<uint(_la))&((1<<SLQParserT__20)|(1<<SLQParserT__21)|(1<<SLQParserT__26)|(1<<SLQParserT__27))) != 0) {
+		if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&408944640) != 0) {
 			p.GetErrorHandler().RecoverInline(p)
 		} else {
 			p.GetErrorHandler().ReportMatch(p)
@@ -2909,6 +3155,9 @@ func (p *SLQParser) Sempred(localctx antlr.RuleContext, ruleIndex, predIndex int
 }
 
 func (p *SLQParser) Expr_Sempred(localctx antlr.RuleContext, predIndex int) bool {
+	this := p
+	_ = this
+
 	switch predIndex {
 	case 0:
 		return p.Precpred(p.GetParserRuleContext(), 8)
