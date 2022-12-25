@@ -238,7 +238,7 @@ func (d *driveri) RecordMeta(colTypes []*sql.ColumnType) (sqlz.RecordMeta, drive
 // if the kind is currently unknown. That is, if meta[0].Kind() returns
 // kind.Unknown, but this function detects that row[0] is an *int64, then
 // the kind will be set to kind.Int.
-func newRecordFromScanRow(meta sqlz.RecordMeta, row []any) (rec sqlz.Record) { //nolint:funlen
+func newRecordFromScanRow(meta sqlz.RecordMeta, row []any) (rec sqlz.Record) { //nolint:funlen,gocognit,gocyclo,cyclop
 	rec = make([]any, len(row))
 
 	for i := 0; i < len(row); i++ {

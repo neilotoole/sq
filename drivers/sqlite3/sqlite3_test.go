@@ -117,9 +117,9 @@ func TestExhibitDriverColumnTypesBehavior(t *testing.T) {
 	defer rows2.Close()
 	colTypes, err = rows2.ColumnTypes()
 	require.NoError(t, err)
+	scanType = colTypes[0].ScanType()
 	require.Equal(t, sqlz.RTypeNullFloat64, scanType)
 
-	// got := new(any)
 	var got any
 
 	// 1st data row (nil)
