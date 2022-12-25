@@ -172,7 +172,7 @@ func TestParseLoc(t *testing.T) {
 				return
 			}
 
-			tc.want.loc = tc.loc // set this here rather than verbosely in the setup
+			tc.want.loc = tc.loc // set this here rather than verbosely loc the setup
 			got, gotErr := parseLoc(tc.loc)
 			if tc.wantErr {
 				require.Error(t, gotErr)

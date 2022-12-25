@@ -1,9 +1,16 @@
 package cli
 
 import (
+	"bytes"
+	"context"
+	"fmt"
+	"io"
+	"os"
 	"strings"
 
+	"github.com/neilotoole/sq/cli/output"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 
 	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -14,33 +21,17 @@ import (
 
 func newSrcAddCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:  "add [--driver=TYPE] [--handle=@HANDLE] LOCATION",
-		RunE: execSrcAdd,
-		Example: `  # add a Postgres source; will have generated handle @sakila_pg
-  $ sq add 'postgres://user:pass@localhost/sakila?sslmode=disable'
-  
-  # same as above, but explicitly setting flags
-  $ sq add --handle=@sakila_pg --driver=postgres 'postgres://user:pass@localhost/sakila?sslmode=disable'
-
-  # same as above, but with short flags
-  $ sq add -h @sakila_pg --d postgres 'postgres://user:pass@localhost/sakila?sslmode=disable'
-
-  # add a SQL Server source; will have generated handle @sakila_mssql or similar
-  $ sq add 'sqlserver://user:pass@localhost?database=sakila' 
-  
-  # add a sqlite db
-  $ sq add ./testdata/sqlite1.db
-
-  # add an Excel spreadsheet, with options
-  $ sq add ./testdata/test1.xlsx --opts=header=true
-  
-  # add a CSV source, with options
-  $ sq add ./testdata/person.csv --opts=header=true
-
-  # add a CSV source from a server (will be downloaded)
-  $ sq add https://sq.io/testdata/actor.csv
+		Use:   "add [--handle @HANDLE] [FLAGS] LOCATION",
+		RunE:  execSrcAdd,
+		Short: "Add data source",
+		Long: `Add data source specified by LOCATION, and optionally identified by @HANDLE.
 `,
-		Long: `Add data source specified by LOCATION and optionally identified by @HANDLE.
+
+		Example: `When adding a data source, LOCATION is the only required arg.
+
+  # Add a postgres source with handle "@sakila_pg"
+  $ sq add -h @sakila_pg 'postgres://user:pass@localhost/sakila'
+
 The format of LOCATION varies, but is generally a DB connection string, a
 file path, or a URL.
 
@@ -51,38 +42,90 @@ file path, or a URL.
 If flag --handle is omitted, sq will generate a handle based
 on LOCATION and the source driver type.
 
-If flag --driver is omitted, sq will attempt to determine the
-type from LOCATION via file suffix, content type, etc.. If the result
-is ambiguous, specify the driver type via flag --driver.
+It's a security hazard to expose the data source password via
+the LOCATION string. If flag --password (-p) is set, sq prompt the
+user for the password:
 
-Flag --opts sets source-specific options. Generally opts are relevant
+  $ sq add 'postgres://user@localhost/sakila' -p
+  Password: ****
+
+However, if there's input on stdin, sq will read the password from
+there instead of prompting the user:
+
+  # Add a source, but read password from an environment variable
+  $ export PASSWORD='open:;"_Ses@me'
+  $ sq add 'postgres://user@localhost/sakila' -p <<< $PASSWORD
+
+  # Same as above, but instead read password from file
+  $ echo 'open:;"_Ses@me' > password.txt
+  $ sq add 'postgres://user@localhost/sakila' -p < password.txt
+
+Flag --opts sets source-specific options. Generally, opts are relevant
 to document source types (such as a CSV file). The most common
 use is to specify that the document has a header row:
 
   $ sq add actor.csv --opts=header=true
 
-Available source driver types can be listed via "sq driver ls".
+Use query string encoding for multiple options, e.g. "--opts a=b&x=y".
 
-At a minimum, the following drivers are bundled:
+If flag --driver is omitted, sq will attempt to determine the
+type from LOCATION via file suffix, content type, etc.. If the result
+is ambiguous, explicitly specify the driver type.
+  
+  $ sq add --driver=tsv ./mystery.data
+
+Available source driver types can be listed via "sq drivers". At a
+minimum, the following drivers are bundled:
 
   sqlite3    SQLite                               
   postgres   PostgreSQL                           
-  sqlserver  Microsoft SQL Server                 
+  sqlserver  Microsoft SQL Server / Azure SQL Edge                 
   mysql      MySQL                                
   csv        Comma-Separated Values               
   tsv        Tab-Separated Values                 
   json       JSON                                 
   jsona      JSON Array: LF-delimited JSON arrays 
   jsonl      JSON Lines: LF-delimited JSON objects
-  xlsx       Microsoft Excel XLSX                  
-`,
-		Short: "Add data source",
+  xlsx       Microsoft Excel XLSX 
+
+More examples:
+
+  # Add a source, but prompt user for password
+  $ sq add 'postgres://user@localhost/sakila' -p
+  Password: ****
+
+
+
+
+
+  # Explicitly set flags
+  $ sq add --handle=@sakila_pg --driver=postgres 'postgres://user:pass@localhost/sakila'
+
+  # Same as above, but with short flags
+  $ sq add -h @sakila_pg --d postgres 'postgres://user:pass@localhost/sakila'
+
+  # Add a SQL Server source; will have generated handle @sakila_mssql or similar
+  $ sq add 'sqlserver://user:pass@localhost?database=sakila' 
+  
+  # Add a sqlite db
+  $ sq add ./testdata/sqlite1.db
+
+  # Add an Excel spreadsheet, with options
+  $ sq add ./testdata/test1.xlsx --opts=header=true
+  
+  # Add a CSV source, with options
+  $ sq add ./testdata/person.csv --opts=header=true
+
+  # Add a CSV source from a URL (will be downloaded)
+  $ sq add https://sq.io/testdata/actor.csv`,
 	}
 
 	cmd.Flags().StringP(flagDriver, flagDriverShort, "", flagDriverUsage)
-	_ = cmd.RegisterFlagCompletionFunc(flagDriver, completeDriverType)
+	cmd.RegisterFlagCompletionFunc(flagDriver, completeDriverType)
 	cmd.Flags().StringP(flagSrcOptions, "", "", flagSrcOptionsUsage)
 	cmd.Flags().StringP(flagHandle, flagHandleShort, "", flagHandleUsage)
+	cmd.Flags().BoolP(flagPasswordPrompt, flagPasswordPromptShort, false, flagPasswordPromptUsage)
+	cmd.Flags().Bool(flagSkipVerify, false, flagSkipVerifyUsage)
 	return cmd
 }
 
@@ -163,6 +206,20 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// If the -p flag is set, sq looks for password input on stdin,
+	// or sq prompts the user.
+	if cmdFlagTrue(cmd, flagPasswordPrompt) {
+		passwd, err := readPassword(cmd.Context(), rc.Stdin, rc.Out, rc.writers.fm)
+		if err != nil {
+			return err
+		}
+
+		loc, err = source.LocationWithPassword(loc, string(passwd))
+		if err != nil {
+			return err
+		}
+	}
+
 	src, err := newSource(rc.Log, rc.registry, typ, handle, loc, opts)
 	if err != nil {
 		return err
@@ -186,10 +243,11 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// TODO: should we really be pinging this src right now?
-	err = drvr.Ping(cmd.Context(), src)
-	if err != nil {
-		return errz.Wrapf(err, "failed to ping %s [%s]", src.Handle, src.RedactedLocation())
+	if !cmdFlagTrue(cmd, flagSkipVerify) {
+		// Typically we want to ping the source before adding it.
+		if err = drvr.Ping(cmd.Context(), src); err != nil {
+			return err
+		}
 	}
 
 	err = rc.ConfigStore.Save(rc.Config)
@@ -198,4 +256,55 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 	}
 
 	return rc.writers.srcw.Source(src)
+}
+
+// readPassword reads a password from stdin pipe, or if nothing on stdin,
+// it prints a prompt to stdout, and then accepts input (which must be
+// followed by a return).
+func readPassword(ctx context.Context, stdin *os.File, stdout io.Writer, fm *output.Formatting) ([]byte, error) {
+	resultCh := make(chan []byte, 0)
+	errCh := make(chan error, 0)
+
+	// Check if there is something to read on STDIN.
+	stat, _ := stdin.Stat()
+	if (stat.Mode() & os.ModeCharDevice) == 0 {
+		b, err := io.ReadAll(stdin)
+		if err != nil {
+			return nil, err
+		}
+
+		b = bytes.TrimSuffix(b, []byte("\n"))
+		return b, nil
+	}
+
+	// Run this is a goroutine so that we can handle ctrl-c.
+	go func() {
+		buf := &bytes.Buffer{}
+		fmt.Fprint(buf, "Password: ")
+		fm.Faint.Fprint(buf, "[ENTER]")
+		fmt.Fprint(buf, " ")
+		stdout.Write(buf.Bytes())
+
+		b, err := term.ReadPassword(int(stdin.Fd()))
+		// Regardless of whether there's an error, we print
+		// newline for presentation.
+		fmt.Fprintln(stdout)
+		if err != nil {
+			errCh <- errz.Err(err)
+			return
+		}
+
+		resultCh <- b
+	}()
+
+	select {
+	case <-ctx.Done():
+		// Print newline so that cancel msg is printed on its own line.
+		fmt.Fprintln(stdout)
+		return nil, errz.Err(ctx.Err())
+	case err := <-errCh:
+		return nil, err
+	case b := <-resultCh:
+		return b, nil
+	}
 }

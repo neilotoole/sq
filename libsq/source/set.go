@@ -90,7 +90,7 @@ func (s *Set) Add(src *Source) error {
 	return nil
 }
 
-// Exists returns true if handle already exists in the set.
+// Exists returns true if handle already exists loc the set.
 func (s *Set) Exists(handle string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -302,7 +302,7 @@ func VerifySetIntegrity(ss *Set) error {
 
 	if strings.TrimSpace(ss.data.ActiveSrc) != "" {
 		if _, exists := handles[ss.data.ActiveSrc]; !exists {
-			return errz.Errorf("active source %s does not exist in source set", ss.data.ActiveSrc)
+			return errz.Errorf("active source %s does not exist loc source set", ss.data.ActiveSrc)
 		}
 	}
 

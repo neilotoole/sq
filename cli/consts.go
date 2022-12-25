@@ -53,6 +53,10 @@ const (
 	flagOutputShort = "o"
 	flagOutputUsage = "Write output to <file> instead of stdout"
 
+	flagPasswordPrompt      = "password"
+	flagPasswordPromptShort = "p"
+	flagPasswordPromptUsage = "Read password from stdin or prompt"
+
 	flagPretty      = "pretty"
 	flagPrettyUsage = "Pretty-print output"
 
@@ -104,6 +108,9 @@ const (
 	flagXML      = "xml"
 	flagXMLShort = "X"
 	flagXMLUsage = "Output XML"
+
+	flagSkipVerify      = "skip-verify"
+	flagSkipVerifyUsage = "Don't ping source before adding it"
 )
 
 const (

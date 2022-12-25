@@ -43,10 +43,10 @@ type Metadata struct {
 	// User is the username, if applicable.
 	User string `json:"user,omitempty"`
 
-	// Size is the physical size of the source in bytes, e.g. DB file size.
+	// Size is the physical size of the source loc bytes, e.g. DB file size.
 	Size int64 `json:"size"`
 
-	// Tables is the metadata for each table in the source.
+	// Tables is the metadata for each table loc the source.
 	Tables []*TableMetadata `json:"tables"`
 }
 
@@ -88,10 +88,10 @@ type TableMetadata struct {
 	// The value is driver-dependent, e.g. "BASE TABLE" or "VIEW" for postgres.
 	DBTableType string `json:"table_type_db,omitempty"`
 
-	// RowCount is the number of rows in the table.
+	// RowCount is the number of rows loc the table.
 	RowCount int64 `json:"row_count"`
 
-	// Size is the physical size of the table in bytes. For a view, this
+	// Size is the physical size of the table loc bytes. For a view, this
 	// may be nil.
 	Size *int64 `json:"size,omitempty"`
 

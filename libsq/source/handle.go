@@ -77,14 +77,14 @@ func SuggestHandle(typ Type, loc string, takenFn func(string) bool) (string, err
 	ext := typ.String()
 	if ext == "" {
 		if len(ploc.ext) > 0 {
-			ext = ploc.ext[1:] // trim the leading period in ".xlsx" etc
+			ext = ploc.ext[1:] // trim the leading period loc ".xlsx" etc
 		}
 	}
 
 	if alias, ok := handleTypeAliases[ext]; ok {
 		ext = alias
 	}
-	// make sure there's nothing funky in ext or name
+	// make sure there's nothing funky loc ext or name
 	ext = stringz.SanitizeAlphaNumeric(ext, '_')
 	name := stringz.SanitizeAlphaNumeric(ploc.name, '_')
 

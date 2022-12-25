@@ -14,7 +14,7 @@ import (
 func newTblCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "tbl",
-		Short: "Common actions on tables (copy, truncate, drop)",
+		Short: "Useful table actions (copy, truncate, drop)",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
 		},

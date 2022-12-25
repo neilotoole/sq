@@ -156,15 +156,15 @@ func checkStdinSource(ctx context.Context, rc *RunContext) (*source.Source, erro
 
 // newSource creates a new Source instance where the
 // driver type is known. Opts may be nil.
-func newSource(log lg.Log, dp driver.Provider, typ source.Type, handle, location string,
+func newSource(log lg.Log, dp driver.Provider, typ source.Type, handle, loc string,
 	opts options.Options,
 ) (*source.Source, error) {
 	if opts == nil {
 		log.Debugf("Create new data source %q [%s] from %q",
-			handle, typ, location)
+			handle, typ, source.RedactLocation(loc))
 	} else {
-		log.Debugf("create new data source %q [%s] from %q with opts %s",
-			handle, typ, location, opts.Encode())
+		log.Debugf("Create new data source %q [%s] from %q with opts %s",
+			handle, typ, source.RedactLocation(loc), opts.Encode())
 	}
 
 	err := source.VerifyLegalHandle(handle)
@@ -177,7 +177,7 @@ func newSource(log lg.Log, dp driver.Provider, typ source.Type, handle, location
 		return nil, err
 	}
 
-	src := &source.Source{Handle: handle, Location: location, Type: typ, Options: opts}
+	src := &source.Source{Handle: handle, Location: loc, Type: typ, Options: opts}
 
 	log.Debugf("validating provisional new data source: %q", src)
 	canonicalSrc, err := drvr.ValidateSource(src)

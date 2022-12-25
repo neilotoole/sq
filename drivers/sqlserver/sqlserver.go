@@ -58,7 +58,7 @@ type driveri struct {
 func (d *driveri) DriverMetadata() driver.Metadata {
 	return driver.Metadata{
 		Type:        Type,
-		Description: "Microsoft SQL Server",
+		Description: "Microsoft SQL Server / Azure SQL Edge",
 		Doc:         "https://github.com/microsoft/go-mssqldb",
 		IsSQL:       true,
 	}

@@ -544,7 +544,7 @@ func (rc *RunContext) Close() error {
 
 // writers is a container for the various output writers.
 type writers struct {
-	fmt *output.Formatting
+	fm *output.Formatting
 
 	recordw output.RecordWriter
 	metaw   output.MetadataWriter
@@ -567,7 +567,7 @@ func newWriters(log lg.Log, cmd *cobra.Command, defaults config.Defaults, out, e
 	// flags and set the various writer fields depending upon which
 	// writers the format implements.
 	w = &writers{
-		fmt:     fm,
+		fm:      fm,
 		recordw: tablew.NewRecordWriter(out2, fm),
 		metaw:   tablew.NewMetadataWriter(out2, fm),
 		srcw:    tablew.NewSourceWriter(out2, fm),
@@ -878,6 +878,37 @@ func cmdFlagChanged(cmd *cobra.Command, name string) bool {
 	}
 
 	return flag.Changed
+}
+
+// cmdFlagTrue returns true if flag name has been changed
+// and the flag value is true.
+func cmdFlagTrue(cmd *cobra.Command, name string) bool {
+	if !cmdFlagChanged(cmd, name) {
+		return false
+	}
+
+	b, err := cmd.Flags().GetBool(name)
+	if err != nil {
+		panic(err) // Should never happen
+	}
+
+	return b
+}
+
+// flagBool returns nil if the flag is not changed, and
+// otherwise returns the flag value.
+// FIXME: do we need this?
+func cmdFlagBool(cmd *cobra.Command, name string) *bool {
+	if !cmdFlagChanged(cmd, name) {
+		return nil
+	}
+
+	b, err := cmd.Flags().GetBool(name)
+	if err != nil {
+		panic(err) // Should never happen
+	}
+
+	return &b
 }
 
 // bootstrapIsFormatJSON is a last-gasp attempt to check if the user
