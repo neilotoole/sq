@@ -12,10 +12,36 @@ env:
 
 jobs:
 
-  go-test:
+  go-test-linux:
+    # Linux is the core test platform. We only execute on macOS/Windows
+    # when it's time to publish.
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Build
+        run: go build -v ./...
+
+      - name: Test
+        run: go test -v  ./...
+
+  go-test-others:
+    # MacOS and (particularly) Windows take significantly
+    # longer to build/test. So, we're only running on these OSes
+    # when it's time to publish/release.
+    if: startsWith(github.ref, 'refs/tags/v')
     strategy:
       matrix:
-        os: [ macos-12, ubuntu-22.04, windows-2022 ]
+        os: [ macos-12, windows-2022 ]
 
     runs-on: ${{ matrix.os }}
 
@@ -38,9 +64,8 @@ jobs:
 
 
   go-lint:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
-
       - name: Checkout
         uses: actions/checkout@v3
         with:
@@ -193,7 +218,8 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     needs:
       - go-lint
-      - go-test
+      - go-test-linux
+      - go-test-others
       - build-binaries-darwin
       - build-binaries-linux-amd64
       - build-binaries-linux-arm64
