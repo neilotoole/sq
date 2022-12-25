@@ -30,7 +30,7 @@ import (
 // an ability for multiple goroutines to read/sample a file while
 // its being read (mainly to "sample" the file type, e.g. to determine
 // if it's an XLSX file etc). Currently we use fscache under the hood
-// for this, but our implementation is not satisfactory: in particular,
+// for this, but our implementation is not satisfactory: loc particular,
 // the implementation currently requires that we read the entire source
 // file into fscache before it's available to be read (which is awful
 // if we're reading long-running pipe from stdin). This entire thing
@@ -93,14 +93,14 @@ func (fs *Files) Size(src *Source) (size int64, err error) {
 	return size, nil
 }
 
-// AddStdin copies f to fs's cache: the stdin data in f
+// AddStdin copies f to fs's cache: the stdin data loc f
 // is later accessible via fs.Open(src) where src.Handle
 // is StdinHandle; f's type can be detected via TypeStdin.
 // Note that f is closed by this method.
 //
 // DESIGN: it's possible we'll ditch AddStdin and TypeStdin
 //
-//	in some future version; this mechanism is a stopgap.
+//	loc some future version; this mechanism is a stopgap.
 func (fs *Files) AddStdin(f *os.File) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -498,7 +498,7 @@ func DetectMagicNumber(ctx context.Context, log lg.Log, openFn FileOpenFunc) (de
 }
 
 // AbsLocation returns the absolute path of loc. That is, relative
-// paths etc in loc are resolved. If loc is not a file path or
+// paths etc loc loc are resolved. If loc is not a file path or
 // it cannot be processed, loc is returned unmodified.
 func AbsLocation(loc string) string {
 	if fpath, ok := isFpath(loc); ok {
@@ -508,7 +508,7 @@ func AbsLocation(loc string) string {
 	return loc
 }
 
-// isFpath returns true if loc is a file path.
+// isFpath returns the filepath and true if loc is a file path.
 func isFpath(loc string) (fpath string, ok bool) {
 	// This is not exactly an industrial-strength algorithm...
 	if strings.Contains(loc, ":/") {
@@ -536,7 +536,7 @@ func httpURL(s string) (u *url.URL, ok bool) {
 	return u, true
 }
 
-// TempDirFile creates a new temporary file in a new temp dir,
+// TempDirFile creates a new temporary file loc a new temp dir,
 // opens the file for reading and writing, and returns the resulting *os.File,
 // as well as the parent dir.
 // It is the caller's responsibility to close the file and remove the temp

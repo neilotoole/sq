@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/neilotoole/sq/cli/output"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 
@@ -20,32 +21,9 @@ import (
 
 func newSrcAddCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:  "add [--driver=TYPE] [--handle=@HANDLE] LOCATION",
-		RunE: execSrcAdd,
-		Example: `  # add a Postgres source; will have generated handle @sakila_pg
-  $ sq add 'postgres://user:pass@localhost/sakila'
-  
-  # same as above, but explicitly setting flags
-  $ sq add --handle=@sakila_pg --driver=postgres 'postgres://user:pass@localhost/sakila'
-
-  # same as above, but with short flags
-  $ sq add -h @sakila_pg --d postgres 'postgres://user:pass@localhost/sakila'
-
-  # add a SQL Server source; will have generated handle @sakila_mssql or similar
-  $ sq add 'sqlserver://user:pass@localhost?database=sakila' 
-  
-  # add a sqlite db
-  $ sq add ./testdata/sqlite1.db
-
-  # add an Excel spreadsheet, with options
-  $ sq add ./testdata/test1.xlsx --opts=header=true
-  
-  # add a CSV source, with options
-  $ sq add ./testdata/person.csv --opts=header=true
-
-  # add a CSV source from a server (will be downloaded)
-  $ sq add https://sq.io/testdata/actor.csv
-`,
+		Use:   "add [--handle=@HANDLE] [--password] [--driver=TYPE][--opts=a=b] LOCATION",
+		RunE:  execSrcAdd,
+		Short: "Add data source",
 		Long: `Add data source specified by LOCATION and optionally identified by @HANDLE.
 The format of LOCATION varies, but is generally a DB connection string, a
 file path, or a URL.
@@ -56,6 +34,12 @@ file path, or a URL.
 
 If flag --handle is omitted, sq will generate a handle based
 on LOCATION and the source driver type.
+
+If flag --password (-p) is set, the user will be prompted for
+the data source password, or it will be read from stdin.
+
+  $ sq add 'postgres://user@localhost/sakila' -p
+  Password: ****
 
 If flag --driver is omitted, sq will attempt to determine the
 type from LOCATION via file suffix, content type, etc.. If the result
@@ -82,7 +66,43 @@ At a minimum, the following drivers are bundled:
   jsonl      JSON Lines: LF-delimited JSON objects
   xlsx       Microsoft Excel XLSX                  
 `,
-		Short: "Add data source",
+
+		Example: `  # add a Postgres source; will have generated handle @sakila_pg
+  $ sq add 'postgres://user:pass@localhost/sakila'
+  
+  # Add a source, but prompt user for password
+  $ sq add 'postgres://user@localhost/sakila' -p
+  Password: ****
+
+  # Add a source, but read password from an environment variable
+  $ export PASSWORD='open:;"_Ses@me'
+  $ sq add 'postgres://user@localhost/sakila' -p <<< $PASSWORD
+
+  # Same as above, but read password from file
+  $ echo 'open:;"_Ses@me' > password.txt
+  $ sq add 'postgres://user@localhost/sakila' -p < password.txt
+
+  # Explicitly set flags
+  $ sq add --handle=@sakila_pg --driver=postgres 'postgres://user:pass@localhost/sakila'
+
+  # Same as above, but with short flags
+  $ sq add -h @sakila_pg --d postgres 'postgres://user:pass@localhost/sakila'
+
+  # Add a SQL Server source; will have generated handle @sakila_mssql or similar
+  $ sq add 'sqlserver://user:pass@localhost?database=sakila' 
+  
+  # Add a sqlite db
+  $ sq add ./testdata/sqlite1.db
+
+  # Add an Excel spreadsheet, with options
+  $ sq add ./testdata/test1.xlsx --opts=header=true
+  
+  # Add a CSV source, with options
+  $ sq add ./testdata/person.csv --opts=header=true
+
+  # Add a CSV source from a URL (will be downloaded)
+  $ sq add https://sq.io/testdata/actor.csv
+`,
 	}
 
 	cmd.Flags().StringP(flagDriver, flagDriverShort, "", flagDriverUsage)
@@ -170,13 +190,20 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// If the -p flag is set, we look for password input in
+	// one of two ways:
+	//
+	//  $ sq add postgres://sakila@localhost/sakila < passwd.txt
 	if cmdFlagTrue(cmd, flagPasswordPrompt) {
-		passwd, err := readPassword(cmd.Context(), rc.Stdin, rc.Out)
+		passwd, err := readPassword(cmd.Context(), rc.Stdin, rc.Out, rc.writers.fm)
 		if err != nil {
 			return err
 		}
 
-		fmt.Fprintf(os.Stdout, "got password: >> %s <<\n", passwd)
+		loc, err = source.LocationWithPassword(loc, string(passwd))
+		if err != nil {
+			return err
+		}
 	}
 
 	src, err := newSource(rc.Log, rc.registry, typ, handle, loc, opts)
@@ -219,16 +246,11 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 // readPassword reads a password from stdin pipe, or if nothing on stdin,
 // it prints a prompt to stdout, and then accepts input (which must be
 // followed by a return).
-func readPassword(ctx context.Context, stdin *os.File, stdout io.Writer) ([]byte, error) {
-	// https://askubuntu.com/questions/678915/whats-the-difference-between-and-in-bash
-	// https://unix.stackexchange.com/questions/41828/what-does-dash-at-the-end-of-a-command-mean
-	// https://unix.stackexchange.com/questions/716438/whats-wrong-with-var-dev-stdin-to-read-stdin-into-a-variable
-	// https://stackoverflow.com/questions/49704456/how-to-read-from-device-when-stdin-is-pipe
-
+func readPassword(ctx context.Context, stdin *os.File, stdout io.Writer, fm *output.Formatting) ([]byte, error) {
 	resultCh := make(chan []byte, 0)
 	errCh := make(chan error, 0)
 
-	// check if there is something to read on STDIN
+	// Check if there is something to read on STDIN.
 	stat, _ := stdin.Stat()
 	if (stat.Mode() & os.ModeCharDevice) == 0 {
 		b, err := io.ReadAll(stdin)
@@ -240,10 +262,18 @@ func readPassword(ctx context.Context, stdin *os.File, stdout io.Writer) ([]byte
 		return b, nil
 	}
 
-	// Run this is a goroutine so that we can handle ctrl-c
+	// Run this is a goroutine so that we can handle ctrl-c.
 	go func() {
-		fmt.Fprint(stdout, "Password [ENTER]: ")
+		buf := &bytes.Buffer{}
+		fmt.Fprint(buf, "Password: ")
+		fm.Faint.Fprint(buf, "[ENTER]")
+		fmt.Fprint(buf, " ")
+		stdout.Write(buf.Bytes())
+
 		b, err := term.ReadPassword(int(stdin.Fd()))
+		// Regardless of whether there's an error, we print
+		// newline for presentation.
+		fmt.Fprintln(stdout)
 		if err != nil {
 			errCh <- errz.Err(err)
 			return
@@ -254,7 +284,7 @@ func readPassword(ctx context.Context, stdin *os.File, stdout io.Writer) ([]byte
 
 	select {
 	case <-ctx.Done():
-		// Print newline so that cancel msg is printed on its own line
+		// Print newline so that cancel msg is printed on its own line.
 		fmt.Fprintln(stdout)
 		return nil, errz.Err(ctx.Err())
 	case err := <-errCh:

@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Added
+
+- [#95]: `sq add` now has a `--password` (`-p`) flag that prompts the user for the data source
+  password, instead of putting it in the location string. It will also read from stdin
+  if there's input there.
+
 ## [v0.17.0] - 2022-12-23
 
 ### Changed
@@ -17,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- [#123] Shell completion is better behaved when a source is offline
+- [#123]: Shell completion is better behaved when a source is offline
 
 ## [v0.16.0] - 2022-12-16
 
@@ -52,13 +60,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- [#91](https://github.com/neilotoole/sq/pull/91): MySQL driver options no longer stripped
+- [#91]: MySQL driver options no longer stripped
 
 ## [v0.15.2] - 2021-03-08
 
 ### Changed
 
-- [#89](https://github.com/neilotoole/sq/pull/89): Bug with SQL generated for joins.
+- [#89]: Bug with SQL generated for joins.
 
 
 [v0.17.0]: https://github.com/neilotoole/sq/compare/v0.16.1...v0.17.0
@@ -70,3 +78,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 
 [#123]: https://github.com/neilotoole/sq/issues/123
+[#95]: https://github.com/neilotoole/sq/issues/93
+[#91]: https://github.com/neilotoole/sq/pull/91
+[#89]: https://github.com/neilotoole/sq/pull/89

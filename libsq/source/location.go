@@ -44,8 +44,25 @@ func IsSQLLocation(loc string) bool {
 	return false
 }
 
+// LocationWithPassword returns the location string with the password
+// value set, overriding any existing password. This works by converting
+// loc to a string
+func LocationWithPassword(loc, password string) (string, error) {
+	if _, ok := isFpath(loc); ok {
+		return "", errz.New("")
+	}
+
+	u, err := url.ParseRequestURI(loc)
+	if err != nil {
+		return "", errz.Err(err)
+	}
+
+	u.User = url.UserPassword(u.User.Username(), password)
+	return u.String(), nil
+}
+
 // ShortLocation returns a short location string. For example, the
-// base name (data.xlsx) for a file or for a DSN, user@host[:port]/db.
+// base name (data.xlsx) for a file, or for a DSN, user@host[:port]/db.
 func ShortLocation(loc string) string {
 	if !IsSQLLocation(loc) {
 		// NOT a SQL location, must be a document (local filepath or URL).
@@ -143,7 +160,7 @@ type parsedLoc struct {
 	// ext is the file extension, if applicable.
 	ext string
 
-	// dsn is the connection "data source name" that can be used in a
+	// dsn is the connection "data source name" that can be used loc a
 	// call to sql/Open. Empty for non-SQL locations.
 	dsn string
 }

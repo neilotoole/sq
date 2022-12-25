@@ -544,7 +544,7 @@ func (rc *RunContext) Close() error {
 
 // writers is a container for the various output writers.
 type writers struct {
-	fmt *output.Formatting
+	fm *output.Formatting
 
 	recordw output.RecordWriter
 	metaw   output.MetadataWriter
@@ -567,7 +567,7 @@ func newWriters(log lg.Log, cmd *cobra.Command, defaults config.Defaults, out, e
 	// flags and set the various writer fields depending upon which
 	// writers the format implements.
 	w = &writers{
-		fmt:     fm,
+		fm:      fm,
 		recordw: tablew.NewRecordWriter(out2, fm),
 		metaw:   tablew.NewMetadataWriter(out2, fm),
 		srcw:    tablew.NewSourceWriter(out2, fm),
