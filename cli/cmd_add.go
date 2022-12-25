@@ -21,10 +21,17 @@ import (
 
 func newSrcAddCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "add [--handle=@HANDLE] [--password] [--driver=TYPE][--opts=a=b] LOCATION",
+		Use:   "add [--handle @HANDLE] [FLAGS] LOCATION",
 		RunE:  execSrcAdd,
 		Short: "Add data source",
-		Long: `Add data source specified by LOCATION and optionally identified by @HANDLE.
+		Long: `Add data source specified by LOCATION, and optionally identified by @HANDLE.
+`,
+
+		Example: `When adding a data source, LOCATION is the only required arg.
+
+  # Add a postgres source with handle "@sakila_pg"
+  $ sq add -h @sakila_pg 'postgres://user:pass@localhost/sakila'
+
 The format of LOCATION varies, but is generally a DB connection string, a
 file path, or a URL.
 
@@ -35,52 +42,61 @@ file path, or a URL.
 If flag --handle is omitted, sq will generate a handle based
 on LOCATION and the source driver type.
 
-If flag --password (-p) is set, the user will be prompted for
-the data source password, or it will be read from stdin.
+It's a security hazard to expose the data source password via
+the LOCATION string. If flag --password (-p) is set, sq prompt the
+user for the password:
 
   $ sq add 'postgres://user@localhost/sakila' -p
   Password: ****
 
-If flag --driver is omitted, sq will attempt to determine the
-type from LOCATION via file suffix, content type, etc.. If the result
-is ambiguous, specify the driver type via flag --driver.
+However, if there's input on stdin, sq will read the password from
+there instead of prompting the user:
 
-Flag --opts sets source-specific options. Generally opts are relevant
+  # Add a source, but read password from an environment variable
+  $ export PASSWORD='open:;"_Ses@me'
+  $ sq add 'postgres://user@localhost/sakila' -p <<< $PASSWORD
+
+  # Same as above, but instead read password from file
+  $ echo 'open:;"_Ses@me' > password.txt
+  $ sq add 'postgres://user@localhost/sakila' -p < password.txt
+
+Flag --opts sets source-specific options. Generally, opts are relevant
 to document source types (such as a CSV file). The most common
 use is to specify that the document has a header row:
 
   $ sq add actor.csv --opts=header=true
 
-Available source driver types can be listed via "sq driver ls".
+Use query string encoding for multiple options, e.g. "--opts a=b&x=y".
 
-At a minimum, the following drivers are bundled:
+If flag --driver is omitted, sq will attempt to determine the
+type from LOCATION via file suffix, content type, etc.. If the result
+is ambiguous, explicitly specify the driver type.
+  
+  $ sq add --driver=tsv ./mystery.data
+
+Available source driver types can be listed via "sq drivers". At a
+minimum, the following drivers are bundled:
 
   sqlite3    SQLite                               
   postgres   PostgreSQL                           
-  sqlserver  Microsoft SQL Server                 
+  sqlserver  Microsoft SQL Server / Azure SQL Edge                 
   mysql      MySQL                                
   csv        Comma-Separated Values               
   tsv        Tab-Separated Values                 
   json       JSON                                 
   jsona      JSON Array: LF-delimited JSON arrays 
   jsonl      JSON Lines: LF-delimited JSON objects
-  xlsx       Microsoft Excel XLSX                  
-`,
+  xlsx       Microsoft Excel XLSX 
 
-		Example: `  # add a Postgres source; will have generated handle @sakila_pg
-  $ sq add 'postgres://user:pass@localhost/sakila'
-  
+More examples:
+
   # Add a source, but prompt user for password
   $ sq add 'postgres://user@localhost/sakila' -p
   Password: ****
 
-  # Add a source, but read password from an environment variable
-  $ export PASSWORD='open:;"_Ses@me'
-  $ sq add 'postgres://user@localhost/sakila' -p <<< $PASSWORD
 
-  # Same as above, but read password from file
-  $ echo 'open:;"_Ses@me' > password.txt
-  $ sq add 'postgres://user@localhost/sakila' -p < password.txt
+
+
 
   # Explicitly set flags
   $ sq add --handle=@sakila_pg --driver=postgres 'postgres://user:pass@localhost/sakila'
@@ -101,15 +117,15 @@ At a minimum, the following drivers are bundled:
   $ sq add ./testdata/person.csv --opts=header=true
 
   # Add a CSV source from a URL (will be downloaded)
-  $ sq add https://sq.io/testdata/actor.csv
-`,
+  $ sq add https://sq.io/testdata/actor.csv`,
 	}
 
 	cmd.Flags().StringP(flagDriver, flagDriverShort, "", flagDriverUsage)
-	_ = cmd.RegisterFlagCompletionFunc(flagDriver, completeDriverType)
+	cmd.RegisterFlagCompletionFunc(flagDriver, completeDriverType)
 	cmd.Flags().StringP(flagSrcOptions, "", "", flagSrcOptionsUsage)
 	cmd.Flags().StringP(flagHandle, flagHandleShort, "", flagHandleUsage)
 	cmd.Flags().BoolP(flagPasswordPrompt, flagPasswordPromptShort, false, flagPasswordPromptUsage)
+	cmd.Flags().Bool(flagSkipVerify, false, flagSkipVerifyUsage)
 	return cmd
 }
 
@@ -190,10 +206,8 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// If the -p flag is set, we look for password input in
-	// one of two ways:
-	//
-	//  $ sq add postgres://sakila@localhost/sakila < passwd.txt
+	// If the -p flag is set, sq looks for password input on stdin,
+	// or sq prompts the user.
 	if cmdFlagTrue(cmd, flagPasswordPrompt) {
 		passwd, err := readPassword(cmd.Context(), rc.Stdin, rc.Out, rc.writers.fm)
 		if err != nil {
@@ -229,10 +243,11 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// TODO: should we really be pinging this src right now?
-	err = drvr.Ping(cmd.Context(), src)
-	if err != nil {
-		return errz.Wrapf(err, "failed to ping %s [%s]", src.Handle, src.RedactedLocation())
+	if !cmdFlagTrue(cmd, flagSkipVerify) {
+		// Typically we want to ping the source before adding it.
+		if err = drvr.Ping(cmd.Context(), src); err != nil {
+			return err
+		}
 	}
 
 	err = rc.ConfigStore.Save(rc.Config)

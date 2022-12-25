@@ -8,6 +8,7 @@ func newSrcListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "ls",
 		Short: "List data sources",
+		Long:  "List data sources.",
 		Args:  cobra.ExactArgs(0),
 		RunE:  execSrcList,
 	}

@@ -108,6 +108,9 @@ const (
 	flagXML      = "xml"
 	flagXMLShort = "X"
 	flagXMLUsage = "Output XML"
+
+	flagSkipVerify      = "skip-verify"
+	flagSkipVerifyUsage = "Don't ping source before adding it"
 )
 
 const (

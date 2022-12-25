@@ -8,11 +8,11 @@ func newSrcCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:  "src [@HANDLE]",
 		RunE: execSrc,
-		Example: `  # get active data source
-   $ sq src
+		Example: `  # Get active data source
+  $ sq src
 
-   # set @my1 as active data source
-   $ sq src @my1`,
+  # Set @my1 as active data source
+  $ sq src @my1`,
 		Args:              cobra.MaximumNArgs(1),
 		ValidArgsFunction: completeHandle(1),
 		Short:             "Get or set active data source",
