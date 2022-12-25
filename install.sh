@@ -64,7 +64,6 @@ if command -v apk &> /dev/null; then
 
   # e.g. "1.0.0"
   ver=$(echo "$semver" | sed -e "s/^v//")
-  echo "semver: $semver  ver:  $ver"
 
   # Should be "x86_64" for amd64, and "aarch64" for arm64
   arch=$(uname -m)
