@@ -1,129 +1,119 @@
 #!/usr/bin/env sh
-# This script attempts to install sq via apt, yum, or brew.
-
-get_latest_release() {
-  echo "in there"
-  curl --silent "https://api.github.com/repos/neilotoole/sq/releases/latest" | # Get latest release from GitHub api
-    grep '"tag_name":' |                                            # Get tag line
-    sed -E 's/.*"([^"]+)".*/\1/'                                    # Pluck JSON value
-}
+# This script attempts to install sq via apt, yum, apk, or brew.
 
 
-
-
-echo "huzzah"
-
-# Test if apt is installed
-apk --version >/dev/null 2>&1
-if [ "$?" -eq "0" ]; then
+# apt / deb
+if command -v apt &> /dev/null; then
   set -e
-  printf "\nUsing apk to install sq...\n\n"
+  printf "Using apt to install sq...\n\n"
 
-  if ! command -v curl &> /dev/null; then
-    apk update && apk add curl
-  fi
+  apt update -y && apt install -y --no-upgrade curl gpg
 
-  if ! command -v dpkg &> /dev/null; then
-    apk update && apk add dpkg
-  fi
+  curl -fsSL https://apt.fury.io/neilotoole/gpg.key | gpg --dearmor -o /usr/share/keyrings/sq.gpg
 
-  # e.g. "v1.0.0"
-  semver=$(curl -s "https://api.github.com/repos/neilotoole/sq/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+  echo "deb [signed-by=/usr/share/keyrings/sq.gpg] https://apt.fury.io/neilotoole/ * *" > /etc/apt/sources.list.d/sq.list
 
-  # e.g. "1.0.0"
-  ver=$(echo "$semver" | sed -e "s/^v//")
+  cat <<EOF > /etc/apt/preferences.d/sq
+Package: sq
+Pin: origin apt.fury.io
+Pin-Priority: 501
+EOF
 
-  # e.g. "sq_1.0.0_linux_arm64.deb
-  deb=$(printf "sq_%s_linux_arm64.deb" "$ver")
+  apt update -y && apt install -y sq
 
-
-  echo "semver: $semver  ver:  $ver  deb: $deb"
-  download_url=$(printf "https://github.com/neilotoole/sq/releases/download/%s/%s" "$semver" "$deb")
-
-  curl -s -o /tmp/"$deb" "$download_url"
-
-  dpkg -i /tmp/"$deb"
-
+  printf "\n"
   sq version
-
-# https://git.alpinelinux.org/aports/tree/community/hugo/APKBUILD
-
-  rm /tmp/"$deb"
-
-#wget https://dl.influxdata.com/influxdb/releases/influxdb_0.13.0_armhf.deb
-#sudo dpkg -i influxdb_0.13.0_armhf.deb
-  # apk install dpkg
-
+  printf "\n"
   exit
 fi
 
 
+# Yum / rpm
+if command -v yum &> /dev/null; then
+  printf "Using yum to install sq...\n\n"
+
+  cat <<EOF > /etc/yum.repos.d/sq.repo
+[sq]
+name=sq
+baseurl=https://yum.fury.io/neilotoole/
+enabled=1
+gpgcheck=0
+gpgkey=https://apt.fury.io/neilotoole/gpg.key
+EOF
+
+  yum install -y sq
+
+  printf "\n"
+  sq version
+  printf "\n"
+  exit
+fi
 
 
-## Test if apt is installed
-#apt --version >/dev/null 2>&1
-#if [ "$?" -eq "0" ]; then
-#  set -e
-#  echo "Using apt to install sq..."
-#  echo ""
-#
-#  apt update -y && apt install -y --no-upgrade curl gpg
-#
-#  curl -fsSL https://apt.fury.io/neilotoole/gpg.key | gpg --dearmor -o /usr/share/keyrings/sq.gpg
-#
-#  echo "deb [signed-by=/usr/share/keyrings/sq.gpg] https://apt.fury.io/neilotoole/ * *" > /etc/apt/sources.list.d/sq.list
-#
-#  cat <<EOF > /etc/apt/preferences.d/sq
-#Package: sq
-#Pin: origin apt.fury.io
-#Pin-Priority: 501
-#EOF
-#
-#  apt update -y && apt install -y sq
-#
-#  exit
-#fi
-#
-#
-## Test if yum is installed
-#yum version >/dev/null 2>&1
-#if [ "$?" -eq "0" ]; then
-#  set -e
-#  echo "Using yum to install sq..."
-#  echo ""
-#
-#  cat <<EOF > /etc/yum.repos.d/sq.repo
-#[sq]
-#name=sq
-#baseurl=https://yum.fury.io/neilotoole/
-#enabled=1
-#gpgcheck=0
-#gpgkey=https://apt.fury.io/neilotoole/gpg.key
-#EOF
-#
-#  yum install -y sq
-#
-#  exit
-#fi
-#
-#
-## Test if brew is installed
-#brew --version >/dev/null 2>&1
-#if [ "$?" -eq "0" ]; then
-#  set -e
-#  echo "Using brew to install sq..."
-#  echo ""
-#
-#  brew install neilotoole/sq/sq
-#
-#  exit
-#fi
+# apk / alpine
+if command -v apk &> /dev/null; then
+  set -e
+  printf "Using apk to install sq...\n\n"
+  apk update
+
+  # sq isn't published to an Alpine repo yet, so we download the
+  # file from GitHub, and execute "apk add" with the local apk file.
+
+  # e.g. "v1.0.0"
+  semver=$(wget -qO- "https://api.github.com/repos/neilotoole/sq/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+
+  # e.g. "1.0.0"
+  ver=$(echo "$semver" | sed -e "s/^v//")
+  echo "semver: $semver  ver:  $ver"
+
+  # Should be "x86_64" for amd64, and "aarch64" for arm64
+  arch=$(uname -m)
+
+  if [ "$arch" == "x86_64" ]; then
+    arch="amd64"
+  elif [ "$arch" == "aarch64" ]; then
+    arch="arm64"
+  else
+    printf "sq install package not available for architecture %q\n" $arch
+    exit 1
+  fi
+
+  # e.g. "sq_0.18.1_linux_arm64.apk"
+  file_name=$(printf "sq_%s_linux_%s.apk" "$ver" $arch)
+  file_path="/tmp/$file_name"
+
+  # https://github.com/neilotoole/sq/releases/download/v0.18.1/sq_0.18.1_linux_amd64.apk
+  # https://github.com/neilotoole/sq/releases/download/v0.18.1/sq_0.18.1_linux_arm64.apk
+  download_url=$(printf "https://github.com/neilotoole/sq/releases/download/%s/%s" "$semver" "$file_name")
+
+  echo "Downloading apk from: $download_url"
+  wget  "$download_url" -O "$file_path"
+
+  apk add --allow-untrusted "$file_path"
+  rm "$file_path"
+
+  printf "\n"
+  sq version
+  printf "\n"
+  exit
+fi
+
+# brew
+if command -v brew &> /dev/null; then
+  set -e
+  printf "Using brew to install sq...\n\n"
+
+  brew install neilotoole/sq/sq
+
+  printf "\n"
+  sq version
+  printf "\n"
+  exit
+fi
 
 
-echo ""
-echo "Could not find a suitable install mechanism to install sq."
-echo ""
-echo "Visit https://github.com/neilotoole/sq for more installation options."
+printf "\nCould not find a suitable install mechanism to install sq.\n"
+printf "\nVisit https://github.com/neilotoole/sq for more installation options.\n"
 exit 1
 
 
