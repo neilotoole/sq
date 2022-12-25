@@ -46,6 +46,8 @@ if [ "$?" -eq "0" ]; then
 
   sq version
 
+# https://git.alpinelinux.org/aports/tree/community/hugo/APKBUILD
+
   rm /tmp/"$deb"
 
 #wget https://dl.influxdata.com/influxdb/releases/influxdb_0.13.0_armhf.deb
