@@ -79,8 +79,11 @@ scoop:
 nfpms:
   -
     formats:
+      - apk
       - deb
       - rpm
+      - termux.deb
+      - archlinux
     vendor: "neilotoole"
     maintainer: "neilotoole <neilotoole@apache.org>"
     homepage: "https://sq.io"
