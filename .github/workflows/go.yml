@@ -33,8 +33,6 @@ jobs:
       - name: Build
         run: go build -v ./...
 
-      - name: Lint
-
       - name: Test
         run: go test -v  ./...
 
