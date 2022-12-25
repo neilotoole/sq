@@ -20,7 +20,7 @@ builds:
     ldflags:
       - -extld=aarch64-linux-gnu-gcc
       - -s -w
-      - -X github.com/neilotoole/sq/cli/buildinfo.Version={{ .Version }}
+      - -X github.com/neilotoole/sq/cli/buildinfo.Version=v{{ .Version }}
       - -X github.com/neilotoole/sq/cli/buildinfo.Commit={{ .ShortCommit }}
       - -X github.com/neilotoole/sq/cli/buildinfo.Timestamp={{ .Date }}
 

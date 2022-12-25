@@ -1,9 +1,33 @@
 #!/usr/bin/env sh
 # This script attempts to install sq via apt, yum, apk, or brew.
+# Parts of the script are inspired by the get-docker.sh
+# script at https://get.docker.com
 
+
+get_distribution() {
+	lsb_dist=""
+	# Every system that we officially support has /etc/os-release
+	if [ -r /etc/os-release ]; then
+		lsb_dist="$(. /etc/os-release && echo "$ID")"
+	fi
+	# Returning an empty string here should be alright since the
+	# case statements don't act unless you provide an actual value
+	echo "$lsb_dist"
+}
+
+# Usage:
+#
+# if command_exists lsb_release; then
+command_exists() {
+	command -v "$@" > /dev/null 2>&1
+}
+
+
+my_dist=$(get_distribution)
+echo $my_dist
 
 # apt / deb
-if command -v apt &> /dev/null; then
+if [ -r /etc/debian_version ] && command_exists apt; then
   set -e
   printf "Using apt to install sq...\n\n"
 
@@ -29,7 +53,9 @@ fi
 
 
 # Yum / rpm
-if command -v yum &> /dev/null; then
+if command_exists yum; then
+  set -e
+  set +x
   printf "Using yum to install sq...\n\n"
 
   cat <<EOF > /etc/yum.repos.d/sq.repo
@@ -51,7 +77,7 @@ fi
 
 
 # apk / alpine
-if command -v apk &> /dev/null; then
+if command_exists apk; then
   set -e
   printf "Using apk to install sq...\n\n"
   apk update
@@ -98,7 +124,7 @@ if command -v apk &> /dev/null; then
 fi
 
 # brew
-if command -v brew &> /dev/null; then
+if command_exists brew; then
   set -e
   printf "Using brew to install sq...\n\n"
 
@@ -114,6 +140,7 @@ fi
 printf "\nCould not find a suitable install mechanism to install sq.\n"
 printf "\nVisit https://github.com/neilotoole/sq for more installation options.\n"
 exit 1
+
 
 
 
