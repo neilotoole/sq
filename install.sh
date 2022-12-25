@@ -22,9 +22,7 @@ command_exists() {
 	command -v "$@" > /dev/null 2>&1
 }
 
-
-my_dist=$(get_distribution)
-echo $my_dist
+get_distribution
 
 # apt / deb
 if [ -r /etc/debian_version ] && command_exists apt; then
