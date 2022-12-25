@@ -15,7 +15,7 @@ jobs:
   go-test:
     strategy:
       matrix:
-        os: [ macos-12, ubuntu-22.04, windows-2022]
+        os: [ macos-12, ubuntu-22.04, windows-2022 ]
 
     runs-on: ${{ matrix.os }}
 
