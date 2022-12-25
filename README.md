@@ -39,7 +39,7 @@ The easiest method is to use [install.sh](./install.sh):
 /bin/sh -c "$(curl -fsSL https://sq.io/install.sh)"
 ```
 
-The script detects if any of `apt`, `yum`, or `brew` are installed, and
+The script detects if any of `apt`, `yum`, `apk` or `brew` are installed, and
 then installs via the usual procedure.
 
 > Note that `https://sq.io/install.sh` is simply a redirect
