@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/neilotoole/sq/testh/tutil"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/source"
@@ -36,7 +37,7 @@ func TestIsSQL(t *testing.T) {
 }
 
 func TestLocationWithPassword(t *testing.T) {
-	const wantPw = `abc_";''\'_*&-  9""'' `
+	t.Parallel()
 
 	testCases := []struct {
 		loc     string
@@ -45,17 +46,34 @@ func TestLocationWithPassword(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			loc:     "/some/file",
-			wantErr: true,
+			loc:  "/some/file",
+			want: "/some/file",
 		},
 		{
-			loc: "postgres://sakila:p_ssW0rd@localhost/sakila",
+			loc:  "postgres://sakila:p_ssW0rd@localhost/sakila",
+			pw:   "p_ssW0rd",
+			want: "postgres://sakila:p_ssW0rd@localhost/sakila",
+		},
+		{
+			loc:  "postgres://sakila:p_ssW0rd@localhost/sakila",
+			pw:   `abc_";''\'_*&-  9""'' `,
+			want: `postgres://sakila:abc_%22;%27%27%5C%27_%2A&-%20%209%22%22%27%27%20@localhost/sakila`,
+		},
+		{
+			loc:  "postgres://sakila@localhost/sakila",
+			pw:   "",
+			want: "postgres://sakila@localhost/sakila",
+		},
+		{
+			loc:  "postgres://sakila:p_ssW0rd@localhost/sakila",
+			pw:   "",
+			want: "postgres://sakila@localhost/sakila",
 		},
 	}
 
 	for _, tc := range testCases {
 		tc := tc
-		t.Run(tc.loc, func(t *testing.T) {
+		t.Run(tutil.Name(tc.loc), func(t *testing.T) {
 			beforeURL, err := url.ParseRequestURI(tc.loc)
 			require.NoError(t, err)
 
@@ -69,9 +87,12 @@ func TestLocationWithPassword(t *testing.T) {
 			require.Equal(t, tc.want, got)
 			afterURL, err := url.ParseRequestURI(got)
 			require.NoError(t, err)
-			afterPass, ok := afterURL.User.Password()
-			require.True(t, ok)
-			require.Equal(t, tc.pw, afterPass)
+
+			if tc.pw != "" {
+				afterPass, hasPass := afterURL.User.Password()
+				require.True(t, hasPass)
+				require.Equal(t, tc.pw, afterPass)
+			}
 
 			if beforeURL.User != nil {
 				require.Equal(t, beforeURL.User.Username(), afterURL.User.Username(),

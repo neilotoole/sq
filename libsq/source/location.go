@@ -45,11 +45,11 @@ func IsSQLLocation(loc string) bool {
 }
 
 // LocationWithPassword returns the location string with the password
-// value set, overriding any existing password. This works by converting
-// loc to a string
-func LocationWithPassword(loc, password string) (string, error) {
+// value set, overriding any existing password. If loc is not a URL
+// (e.g. it's a file path), it is returned unmodified.
+func LocationWithPassword(loc, passw string) (string, error) {
 	if _, ok := isFpath(loc); ok {
-		return "", errz.New("")
+		return loc, nil
 	}
 
 	u, err := url.ParseRequestURI(loc)
@@ -57,7 +57,13 @@ func LocationWithPassword(loc, password string) (string, error) {
 		return "", errz.Err(err)
 	}
 
-	u.User = url.UserPassword(u.User.Username(), password)
+	if passw == "" {
+		// This will effectively remove any existing password in loc
+		u.User = url.User(u.User.Username())
+	} else {
+		u.User = url.UserPassword(u.User.Username(), passw)
+	}
+
 	return u.String(), nil
 }
 
