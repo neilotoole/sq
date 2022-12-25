@@ -40,7 +40,7 @@ require (
 )
 
 // https://golang.testcontainers.org/quickstart/#2-install-testcontainers-for-go
-replace github.com/docker/docker => github.com/docker/docker v20.10.3-0.20221013203545-33ab36d6b304+incompatible // 22.06 branch
+replace github.com/docker/docker => github.com/docker/docker v20.10.3-0.20221013203545-33ab36d6b304+incompatible //nolint:gomoddirectives
 
 require (
 	github.com/dolmen-go/contextio v0.0.0-20220904134943-e50796217f5f // indirect

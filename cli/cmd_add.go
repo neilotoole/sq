@@ -121,7 +121,7 @@ More examples:
 	}
 
 	cmd.Flags().StringP(flagDriver, flagDriverShort, "", flagDriverUsage)
-	cmd.RegisterFlagCompletionFunc(flagDriver, completeDriverType)
+	panicOn(cmd.RegisterFlagCompletionFunc(flagDriver, completeDriverType))
 	cmd.Flags().StringP(flagSrcOptions, "", "", flagSrcOptionsUsage)
 	cmd.Flags().StringP(flagHandle, flagHandleShort, "", flagHandleUsage)
 	cmd.Flags().BoolP(flagPasswordPrompt, flagPasswordPromptShort, false, flagPasswordPromptUsage)
@@ -209,7 +209,8 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 	// If the -p flag is set, sq looks for password input on stdin,
 	// or sq prompts the user.
 	if cmdFlagTrue(cmd, flagPasswordPrompt) {
-		passwd, err := readPassword(cmd.Context(), rc.Stdin, rc.Out, rc.writers.fm)
+		var passwd []byte
+		passwd, err = readPassword(cmd.Context(), rc.Stdin, rc.Out, rc.writers.fm)
 		if err != nil {
 			return err
 		}
@@ -262,8 +263,8 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 // it prints a prompt to stdout, and then accepts input (which must be
 // followed by a return).
 func readPassword(ctx context.Context, stdin *os.File, stdout io.Writer, fm *output.Formatting) ([]byte, error) {
-	resultCh := make(chan []byte, 0)
-	errCh := make(chan error, 0)
+	resultCh := make(chan []byte)
+	errCh := make(chan error)
 
 	// Check if there is something to read on STDIN.
 	stat, _ := stdin.Stat()

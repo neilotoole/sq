@@ -895,22 +895,6 @@ func cmdFlagTrue(cmd *cobra.Command, name string) bool {
 	return b
 }
 
-// flagBool returns nil if the flag is not changed, and
-// otherwise returns the flag value.
-// FIXME: do we need this?
-func cmdFlagBool(cmd *cobra.Command, name string) *bool {
-	if !cmdFlagChanged(cmd, name) {
-		return nil
-	}
-
-	b, err := cmd.Flags().GetBool(name)
-	if err != nil {
-		panic(err) // Should never happen
-	}
-
-	return &b
-}
-
 // bootstrapIsFormatJSON is a last-gasp attempt to check if the user
 // supplied --json=true on the command line, to determine if a
 // bootstrap error (hopefully rare) should be output in JSON.

@@ -74,6 +74,8 @@ func TestLocationWithPassword(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tutil.Name(tc.loc), func(t *testing.T) {
+			t.Parallel()
+
 			beforeURL, err := url.ParseRequestURI(tc.loc)
 			require.NoError(t, err)
 

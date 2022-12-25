@@ -111,7 +111,7 @@ func (x *StmtExecer) Close() error {
 //
 // REVISIT: Do we need the skip mechanism at all?
 //
-//nolint:funlen,gocognit
+//nolint:funlen,gocognit,gocyclo,cyclop
 func NewRecordFromScanRow(meta sqlz.RecordMeta, row []any, skip []int) (rec sqlz.Record, skipped []int) {
 	rec = make([]any, len(row))
 
