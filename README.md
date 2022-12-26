@@ -355,6 +355,7 @@ See [CHANGELOG.md](./CHANGELOG.md).
 
 ## Acknowledgements
 
+- Thanks to [Diego Souza](https://aur.archlinux.org/account/diegosouza) for creating the [Arch Linux package](https://aur.archlinux.org/packages/sq-bin).
 - Much inspiration is owed to [jq](https://stedolan.github.io/jq/).
 - See [`go.mod`](https://github.com/neilotoole/sq/blob/master/go.mod) for a list of third-party
   packages.
