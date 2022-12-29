@@ -206,7 +206,7 @@ aurs:
       install -Dm755 "./sq" "${pkgdir}/usr/bin/sq"
 
       # license
-      install -Dm644 "./LICENSE.md" "${pkgdir}/usr/share/licenses/sq/LICENSE"
+      install -Dm644 "./LICENSE" "${pkgdir}/usr/share/licenses/sq/LICENSE"
 
       # completions
       #install -Dm644 "./completions/mybin.bash" "${pkgdir}/usr/share/bash-completion/completions/mybin"
