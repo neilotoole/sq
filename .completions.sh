@@ -1,5 +1,4 @@
 #!/bin/sh
-
 # ".completions.sh regenerates completions to "./completions".
 
 set -e
