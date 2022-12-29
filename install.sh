@@ -121,6 +121,39 @@ if command_exists apk; then
   exit
 fi
 
+# Arch Linux
+if command_exists pacman; then
+    if [[ $EUID -eq 0 ]]; then
+        echo "AUR packages shouldn't be installed as root"
+        exit 1
+    fi
+
+    # First check if there's an AUR helper available instead
+    # of downloading and using pacman
+
+    if command_exists yay; then
+        echo "Installing via yay..."
+        yay -S --noconfirm sq-bin
+        exit 0
+    fi
+
+    if command_exists paru; then
+        echo "Installing via paru..."
+        paru -S --noconfirm sq-bin
+        exit 0
+    fi
+
+    # Fall back to pacman
+    echo "Installing via pacman..."
+    cd /tmp
+    curl -sO https://aur.archlinux.org/cgit/aur.git/snapshot/sq-bin.tar.gz
+    tar -xf sq-bin.tar.gz
+    cd sq-bin
+    makepkg -sri --noconfirm
+    rm -rf /tmp/sq-bin*
+fi
+
+
 # brew
 if command_exists brew; then
   set -e

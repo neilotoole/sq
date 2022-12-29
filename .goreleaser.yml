@@ -237,7 +237,7 @@ aurs:
     # the Git URL.
     #
     # Defaults to `ssh -i {{ .KeyPath }} -o StrictHostKeyChecking=accept-new -F /dev/null`.
-    git_ssh_command: 'ssh -i {{ .Env.AUR_PRIVATE_KEY }} -o StrictHostKeyChecking=accept-new -F /dev/null'
+#    git_ssh_command: 'ssh -i {{ .Env.AUR_PRIVATE_KEY }} -o StrictHostKeyChecking=accept-new -F /dev/null'
 #    git_ssh_command: 'ssh -i {{ .Env.KEY }} -o SomeOption=yes'
 
     # Template for the url which is determined by the given Token
