@@ -103,7 +103,7 @@ aurs:
     #
     # Note that since this integration does not create a PKGBUILD to build from
     # source, per Arch's guidelines.
-    # That said, GoReleaser will enforce a `-bin` suffix if its not present.
+    # That said, GoReleaser will enforce a `-bin` suffix if it's not present.
     name: sq-bin
 
 
@@ -134,7 +134,7 @@ aurs:
     # This can either be a path or the key contents.
     #
     # WARNING: do not expose your private key in the configuration file!
-    private_key: '{{ .Env.AUR_KEY }}'
+    private_key: '{{ .Env.AUR_PRIVATE_KEY }}'
 
     # The AUR Git URL for this package.
     # Defaults to empty
@@ -184,7 +184,7 @@ aurs:
     # Default: empty.
     # Since: v1.12
     backup:
-      - /etc/foo.conf
+#      - /etc/foo.conf # This should really include the sq config? ~/.config/sq/sq.yml
 
     # Custom package instructions.
     #
