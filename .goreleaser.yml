@@ -1,6 +1,7 @@
 before:
   hooks:
     - go mod tidy
+    - ./.completions.sh
 
 builds:
   - builder: prebuilt
@@ -32,6 +33,7 @@ archives:
       - README.md
       - LICENSE
       - CHANGELOG.md
+      - completions/*
 
 checksum:
   name_template: 'checksums.txt'
@@ -62,6 +64,9 @@ brews:
 
     install: |
       bin.install "sq"
+      bash_completion.install "completions/sq.bash" => "sq"
+      zsh_completion.install "completions/sq.zsh" => "_sq"
+      fish_completion.install "completions/sq.fish"
     test: |
       system "#{bin}/sq --version"
 
@@ -89,6 +94,19 @@ nfpms:
     homepage: "https://sq.io"
     description: "sq: swiss-army knife for data"
     license: "MIT"
+    contents:
+      - src: ./completions/sq.bash
+        dst: /usr/share/bash-completion/completions/sq
+        file_info:
+          mode: 0644
+      - src: ./completions/sq.fish
+        dst: /usr/share/fish/vendor_completions.d/sq.fish
+        file_info:
+          mode: 0644
+      - src: ./completions/sq.zsh
+        dst: /usr/share/zsh/vendor-completions/_sq
+        file_info:
+          mode: 0644
 
 furies:
   # Upload deb and rpm to fury.io. Requires that envar $FURY_TOKEN be set.
@@ -194,29 +212,28 @@ aurs:
     # We recommend you override this, installing the binary, license and
     # everything else your package needs.
     package: |-
-      mkdir -p $pkgdir/usr/bin
-      mkdir -p $pkgdir/usr/share/licenses/${_pkgname}
-      mkdir -p $pkgdir/usr/share/doc/${_pkgname}
+      # bin
+      mkdir -p "${pkgdir}/usr/bin"
+      install -Dm755 "./sq" "${pkgdir}/usr/bin/sq"
+
+      # license
+      mkdir -p "${pkgdir}/usr/share/licenses/sq"
+      install -Dm644 "./LICENSE" "${pkgdir}/usr/share/licenses/sq/LICENSE"
+
+
+      # completions
       mkdir -p "${pkgdir}/usr/share/bash-completion/completions/"
       mkdir -p "${pkgdir}/usr/share/zsh/site-functions/"
       mkdir -p "${pkgdir}/usr/share/fish/vendor_completions.d/"
       
-      
-      # bin
-      install -Dm755 "./sq" "${pkgdir}/usr/bin/sq"
+      #install -Dm644 "./completions/sq.bash" "${pkgdir}/usr/share/bash-completion/completions/sq"
+      #install -Dm644 "./completions/sq.zsh" "${pkgdir}/usr/share/zsh/site-functions/_sq"
+      #install -Dm644 "./completions/sq.fish" "${pkgdir}/usr/share/fish/vendor_completions.d/sq.fish"
 
-      # license
-      install -Dm644 "./LICENSE" "${pkgdir}/usr/share/licenses/sq/LICENSE"
-
-      # completions
-      #install -Dm644 "./completions/mybin.bash" "${pkgdir}/usr/share/bash-completion/completions/mybin"
-      #install -Dm644 "./completions/mybin.zsh" "${pkgdir}/usr/share/zsh/site-functions/_mybin"
-      #install -Dm644 "./completions/mybin.fish" "${pkgdir}/usr/share/fish/vendor_completions.d/mybin.fish"
-
-      # man pages
+      # docs
+      mkdir -p "${pkgdir}/usr/share/doc/sq"
+      install -Dm644 "./README.md" "${pkgdir}/usr/share/doc/sq/README.md"
       #install -Dm644 "./manpages/mybin.1.gz" "${pkgdir}/usr/share/man/man1/mybin.1.gz"
-      
-      cp $srcdir/README.md $pkgdir/usr/share/doc/${_pkgname}/
 
     # Git author used to commit to the repository.
     # Defaults are shown below.

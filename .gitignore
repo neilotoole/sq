@@ -48,3 +48,4 @@ apt-install.sh
 yum-install.sh
 goreleaser-test.sh
 /.vscode
+/completions
