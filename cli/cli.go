@@ -260,6 +260,8 @@ func addCmd(rc *RunContext, parentCmd, cmd *cobra.Command) *cobra.Command {
 		cmd.Flags().Bool(flagHelp, false, "help for "+cmd.Name())
 	}
 
+	cmd.DisableAutoGenTag = true
+
 	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
 		rc.Cmd = cmd
 		rc.Args = args
