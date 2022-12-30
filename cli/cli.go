@@ -190,6 +190,7 @@ func newCommandTree(rc *RunContext) (rootCmd *cobra.Command) {
 	defer cobraMu.Unlock()
 
 	rootCmd = newRootCmd()
+	rootCmd.DisableAutoGenTag = true
 	rootCmd.SetOut(rc.Out)
 	rootCmd.SetErr(rc.ErrOut)
 	rootCmd.Flags().SortFlags = false
@@ -234,6 +235,7 @@ func newCommandTree(rc *RunContext) (rootCmd *cobra.Command) {
 	addCmd(rc, tblCmd, newTblDropCmd())
 
 	addCmd(rc, rootCmd, newCompletionCmd())
+	addCmd(rc, rootCmd, newManCmd())
 
 	return rootCmd
 }
@@ -258,6 +260,8 @@ func addCmd(rc *RunContext, parentCmd, cmd *cobra.Command) *cobra.Command {
 		// Don't add the --help flag to the help command.
 		cmd.Flags().Bool(flagHelp, false, "help for "+cmd.Name())
 	}
+
+	cmd.DisableAutoGenTag = true
 
 	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
 		rc.Cmd = cmd
