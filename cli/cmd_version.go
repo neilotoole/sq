@@ -55,6 +55,9 @@ func execVersion(cmd *cobra.Command, args []string) error {
 	case latestVersion = <-resultCh:
 		if latestVersion != "" && !strings.HasPrefix(latestVersion, "v") {
 			latestVersion = "v" + latestVersion
+			if !semver.IsValid(latestVersion) {
+				return errz.Errorf("invalid semver from brew repo: {%s}", latestVersion)
+			}
 		}
 	}
 
