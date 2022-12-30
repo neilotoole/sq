@@ -190,6 +190,7 @@ func newCommandTree(rc *RunContext) (rootCmd *cobra.Command) {
 	defer cobraMu.Unlock()
 
 	rootCmd = newRootCmd()
+	rootCmd.DisableAutoGenTag = true
 	rootCmd.SetOut(rc.Out)
 	rootCmd.SetErr(rc.ErrOut)
 	rootCmd.Flags().SortFlags = false
