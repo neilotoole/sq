@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"os"
 
 	mcobra "github.com/muesli/mango-cobra"
 	"github.com/muesli/roff"
@@ -24,11 +23,12 @@ func newManCmd() *cobra.Command {
 }
 
 func execGenerateMan(cmd *cobra.Command, args []string) error {
+	rc := RunContextFrom(cmd.Context())
 	manPage, err := mcobra.NewManPage(1, cmd.Root())
 	if err != nil {
 		return err
 	}
 
-	_, err = fmt.Fprint(os.Stdout, manPage.Build(roff.NewDocument()))
+	_, err = fmt.Fprint(rc.Out, manPage.Build(roff.NewDocument()))
 	return err
 }

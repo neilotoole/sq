@@ -69,7 +69,7 @@ brews:
       bash_completion.install "completions/sq.bash" => "sq"
       zsh_completion.install "completions/sq.zsh" => "_sq"
       fish_completion.install "completions/sq.fish"
-          man1.install "manpages/sq.1.gz"
+      man1.install "manpages/sq.1.gz"
     test: |
       system "#{bin}/sq --version"
 
@@ -232,13 +232,14 @@ aurs:
       mkdir -p "${pkgdir}/usr/share/zsh/site-functions/"
       mkdir -p "${pkgdir}/usr/share/fish/vendor_completions.d/"
       
-      #install -Dm644 "./completions/sq.bash" "${pkgdir}/usr/share/bash-completion/completions/sq"
-      #install -Dm644 "./completions/sq.zsh" "${pkgdir}/usr/share/zsh/site-functions/_sq"
-      #install -Dm644 "./completions/sq.fish" "${pkgdir}/usr/share/fish/vendor_completions.d/sq.fish"
+      install -Dm644 "./completions/sq.bash" "${pkgdir}/usr/share/bash-completion/completions/sq"
+      install -Dm644 "./completions/sq.zsh" "${pkgdir}/usr/share/zsh/site-functions/_sq"
+      install -Dm644 "./completions/sq.fish" "${pkgdir}/usr/share/fish/vendor_completions.d/sq.fish"
 
       # docs
       mkdir -p "${pkgdir}/usr/share/doc/sq"
       install -Dm644 "./README.md" "${pkgdir}/usr/share/doc/sq/README.md"
+      mkdir -p "${pkgdir}/usr/share/man/man1"
       install -Dm644 "./manpages/sq.1.gz" "${pkgdir}/usr/share/man/man1/sq.1.gz"
 
     # Git author used to commit to the repository.
