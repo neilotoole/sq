@@ -585,7 +585,7 @@ func newWriters(log lg.Log, cmd *cobra.Command, defaults config.Defaults, out, e
 	// via config or flag.
 	format := getFormat(cmd, defaults)
 
-	switch format {
+	switch format { //nolint:exhaustive
 	default:
 		// No format specified, use JSON
 		w.recordw = jsonw.NewStdRecordWriter(out2, fm)
