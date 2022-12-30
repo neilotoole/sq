@@ -9,6 +9,7 @@ package output
 import (
 	"time"
 
+	"github.com/neilotoole/sq/cli/buildinfo"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
@@ -79,6 +80,14 @@ type PingWriter interface {
 
 	// Close is called after all results have been received.
 	Close() error
+}
+
+// VersionWriter prints the CLI version.
+type VersionWriter interface {
+	// Version prints version info. Arg latestVersion is the latest
+	// version available from the homebrew repository. The value
+	// may be empty.
+	Version(info buildinfo.BuildInfo, latestVersion string) error
 }
 
 // FlushThreshold is the size in bytes after which a writer

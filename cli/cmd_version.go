@@ -1,9 +1,17 @@
 package cli
 
 import (
-	"fmt"
+	"bufio"
+	"bytes"
+	"context"
+	"io"
+	"net/http"
+	"strings"
+	"time"
 
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/spf13/cobra"
+	"golang.org/x/mod/semver"
 
 	"github.com/neilotoole/sq/cli/buildinfo"
 )
@@ -15,23 +23,110 @@ func newVersionCmd() *cobra.Command {
 		RunE:  execVersion,
 	}
 
+	cmd.Flags().BoolP(flagJSON, flagJSONShort, false, flagJSONUsage)
+
 	return cmd
 }
 
 func execVersion(cmd *cobra.Command, args []string) error {
 	rc := RunContextFrom(cmd.Context())
-	rc.writers.fm.Hilite.Fprintf(rc.Out, "sq %s", buildinfo.Version)
 
-	if len(buildinfo.Commit) > 0 {
-		fmt.Fprint(rc.Out, "    ")
-		rc.writers.fm.Faint.Fprint(rc.Out, "#"+buildinfo.Commit)
+	// We'd like to display that there's an update available, but
+	// we don't want to wait around long for that.
+	// So, we swallow (but log) any error from the goroutine.
+	ctx, cancelFn := context.WithTimeout(cmd.Context(), time.Second*2)
+	defer cancelFn()
+
+	resultCh := make(chan string)
+	go func() {
+		var err error
+		v, err := fetchBrewVersion(ctx)
+		if err != nil {
+			rc.Log.Error(err)
+		}
+
+		// OK if v is empty
+		resultCh <- v
+	}()
+
+	var latestVersion string
+	select {
+	case <-ctx.Done():
+	case latestVersion = <-resultCh:
+		if latestVersion != "" && !strings.HasPrefix(latestVersion, "v") {
+			latestVersion = "v" + latestVersion
+		}
 	}
 
-	if len(buildinfo.Timestamp) > 0 {
-		fmt.Fprint(rc.Out, "    ")
-		rc.writers.fm.Faint.Fprint(rc.Out, buildinfo.Timestamp)
+	return rc.writers.versionw.Version(buildinfo.Info(), latestVersion)
+}
+
+func fetchBrewVersion(ctx context.Context) (string, error) {
+	const u = `https://raw.githubusercontent.com/neilotoole/homebrew-sq/master/sq.rb`
+
+	req, err := http.NewRequestWithContext(ctx, "GET", u, http.NoBody)
+	if err != nil {
+		return "", errz.Err(err)
 	}
 
-	fmt.Fprintln(rc.Out)
-	return nil
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", errz.Wrap(err, "failed to check edgectl brew repo")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		if err != nil {
+			return "", errz.Errorf("failed to check edgectl brew repo: %d %s",
+				resp.StatusCode, http.StatusText(resp.StatusCode))
+		}
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", errz.Wrap(err, "failed to read edgectl brew repo body")
+	}
+
+	return getVersionFromBrewFormula(body)
+}
+
+// getVersionFromBrewFormula returns the first brew version
+// from f, which is a brew ruby formula. The version is returned
+// without a "v" prefix, e.g. "0.1.2", not "v0.1.2".
+func getVersionFromBrewFormula(f []byte) (string, error) {
+	var (
+		line string
+		val  string
+		err  error
+	)
+
+	sc := bufio.NewScanner(bytes.NewReader(f))
+	for sc.Scan() {
+		line = sc.Text()
+		if err = sc.Err(); err != nil {
+			return "", errz.Err(err)
+		}
+
+		val = strings.TrimSpace(line)
+		if strings.HasPrefix(val, `version "`) {
+			// found it
+			val = val[9:]
+			val = strings.TrimSuffix(val, `"`)
+			if !semver.IsValid("v" + val) { // semver pkg requires "v" prefix
+				return "", errz.Errorf("invalid brew formula: invalid semver")
+			}
+			return val, nil
+		}
+
+		if strings.HasPrefix(line, "bottle") {
+			// Gone too far
+			return "", errz.New("unable to parse brew formula")
+		}
+	}
+
+	if sc.Err() != nil {
+		return "", errz.Wrap(err, "invalid brew formula")
+	}
+
+	return "", errz.New("invalid brew formula")
 }
