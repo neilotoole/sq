@@ -100,7 +100,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [#89]: Bug with SQL generated for joins.
 
 
-[v0.21.3]: https://github.com/neilotoole/sq/compare/v0.20.0...v0.21.2
+[v0.21.3]: https://github.com/neilotoole/sq/compare/v0.20.0...v0.21.3
 [v0.20.0]: https://github.com/neilotoole/sq/compare/v0.19.0...v0.20.0
 [v0.19.0]: https://github.com/neilotoole/sq/compare/v0.18.2...v0.19.0
 [v0.18.2]: https://github.com/neilotoole/sq/compare/v0.18.0...v0.18.2
