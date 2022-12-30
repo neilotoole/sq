@@ -550,11 +550,12 @@ func (rc *RunContext) Close() error {
 type writers struct {
 	fm *output.Formatting
 
-	recordw output.RecordWriter
-	metaw   output.MetadataWriter
-	srcw    output.SourceWriter
-	errw    output.ErrorWriter
-	pingw   output.PingWriter
+	recordw  output.RecordWriter
+	metaw    output.MetadataWriter
+	srcw     output.SourceWriter
+	errw     output.ErrorWriter
+	pingw    output.PingWriter
+	versionw output.VersionWriter
 }
 
 // newWriters returns a writers instance configured per defaults and/or
@@ -571,12 +572,13 @@ func newWriters(log lg.Log, cmd *cobra.Command, defaults config.Defaults, out, e
 	// flags and set the various writer fields depending upon which
 	// writers the format implements.
 	w = &writers{
-		fm:      fm,
-		recordw: tablew.NewRecordWriter(out2, fm),
-		metaw:   tablew.NewMetadataWriter(out2, fm),
-		srcw:    tablew.NewSourceWriter(out2, fm),
-		pingw:   tablew.NewPingWriter(out2, fm),
-		errw:    tablew.NewErrorWriter(errOut2, fm),
+		fm:       fm,
+		recordw:  tablew.NewRecordWriter(out2, fm),
+		metaw:    tablew.NewMetadataWriter(out2, fm),
+		srcw:     tablew.NewSourceWriter(out2, fm),
+		pingw:    tablew.NewPingWriter(out2, fm),
+		errw:     tablew.NewErrorWriter(errOut2, fm),
+		versionw: tablew.NewVersionWriter(out2, fm),
 	}
 
 	// Invoke getFormat to see if the format was specified
@@ -589,6 +591,7 @@ func newWriters(log lg.Log, cmd *cobra.Command, defaults config.Defaults, out, e
 		w.recordw = jsonw.NewStdRecordWriter(out2, fm)
 		w.metaw = jsonw.NewMetadataWriter(out2, fm)
 		w.errw = jsonw.NewErrorWriter(log, errOut2, fm)
+		w.versionw = jsonw.NewVersionWriter(out2, fm)
 
 	case config.FormatTable:
 	// Table is the base format, already set above, no need to do anything.
