@@ -2,6 +2,7 @@ before:
   hooks:
     - go mod tidy
     - ./.completions.sh
+    - ./.manpages.sh
 
 builds:
   - builder: prebuilt
@@ -34,6 +35,7 @@ archives:
       - LICENSE
       - CHANGELOG.md
       - completions/*
+      - manpages/*
 
 checksum:
   name_template: 'checksums.txt'
@@ -67,6 +69,7 @@ brews:
       bash_completion.install "completions/sq.bash" => "sq"
       zsh_completion.install "completions/sq.zsh" => "_sq"
       fish_completion.install "completions/sq.fish"
+          man1.install "manpages/sq.1.gz"
     test: |
       system "#{bin}/sq --version"
 
@@ -107,12 +110,15 @@ nfpms:
         dst: /usr/share/zsh/vendor-completions/_sq
         file_info:
           mode: 0644
+      - src: ./manpages/sq.1.gz
+        dst: /usr/share/man/man1/sq.1.gz
+        file_info:
+          mode: 0644
 
 furies:
   # Upload deb and rpm to fury.io. Requires that envar $FURY_TOKEN be set.
   - account: neilotoole
 
-# .goreleaser.yaml
 aurs:
   -
     # The package name.
@@ -233,7 +239,7 @@ aurs:
       # docs
       mkdir -p "${pkgdir}/usr/share/doc/sq"
       install -Dm644 "./README.md" "${pkgdir}/usr/share/doc/sq/README.md"
-      #install -Dm644 "./manpages/mybin.1.gz" "${pkgdir}/usr/share/man/man1/mybin.1.gz"
+      install -Dm644 "./manpages/sq.1.gz" "${pkgdir}/usr/share/man/man1/sq.1.gz"
 
     # Git author used to commit to the repository.
     # Defaults are shown below.

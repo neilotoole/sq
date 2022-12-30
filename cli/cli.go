@@ -234,6 +234,7 @@ func newCommandTree(rc *RunContext) (rootCmd *cobra.Command) {
 	addCmd(rc, tblCmd, newTblDropCmd())
 
 	addCmd(rc, rootCmd, newCompletionCmd())
+	addCmd(rc, rootCmd, newManCmd())
 
 	return rootCmd
 }
