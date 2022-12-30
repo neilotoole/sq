@@ -26,27 +26,22 @@ func NewVersionWriter(out io.Writer, fm *output.Formatting) output.VersionWriter
 func (w *versionWriter) Version(bi buildinfo.BuildInfo, latestVersion string) error {
 	fmt.Fprintf(w.out, "sq %s", bi.Version)
 
-	// Only print more if --verbose is set.
-	if !w.fm.Verbose {
-		fmt.Fprintln(w.out)
-		return nil
-	}
+	if w.fm.Verbose {
+		if len(bi.Commit) > 0 {
+			fmt.Fprint(w.out, "    ")
+			w.fm.Faint.Fprint(w.out, "#"+bi.Commit)
+		}
 
-	if len(bi.Commit) > 0 {
-		fmt.Fprint(w.out, "    ")
-		w.fm.Faint.Fprint(w.out, "#"+bi.Commit)
-	}
-
-	if len(bi.Timestamp) > 0 {
-		fmt.Fprint(w.out, "    ")
-		w.fm.Faint.Fprint(w.out, bi.Timestamp)
+		if len(bi.Timestamp) > 0 {
+			fmt.Fprint(w.out, "    ")
+			w.fm.Faint.Fprint(w.out, bi.Timestamp)
+		}
 	}
 
 	showUpdate := semver.Compare(latestVersion, bi.Version) > 0
 	if showUpdate {
 		fmt.Fprint(w.out, "    ")
-		w.fm.Faint.Fprint(w.out, "Update available: ")
-		w.fm.Number.Fprint(w.out, latestVersion)
+		w.fm.Faint.Fprint(w.out, "Update available: "+latestVersion)
 	}
 
 	fmt.Fprintln(w.out)
