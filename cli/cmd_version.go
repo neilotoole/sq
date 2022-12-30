@@ -67,7 +67,7 @@ func execVersion(cmd *cobra.Command, args []string) error {
 func fetchBrewVersion(ctx context.Context) (string, error) {
 	const u = `https://raw.githubusercontent.com/neilotoole/homebrew-sq/master/sq.rb`
 
-	req, err := http.NewRequestWithContext(ctx, "GET", u, http.NoBody)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, http.NoBody)
 	if err != nil {
 		return "", errz.Err(err)
 	}
@@ -79,10 +79,8 @@ func fetchBrewVersion(ctx context.Context) (string, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		if err != nil {
-			return "", errz.Errorf("failed to check edgectl brew repo: %d %s",
-				resp.StatusCode, http.StatusText(resp.StatusCode))
-		}
+		return "", errz.Errorf("failed to check edgectl brew repo: %d %s",
+			resp.StatusCode, http.StatusText(resp.StatusCode))
 	}
 
 	body, err := io.ReadAll(resp.Body)
