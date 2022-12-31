@@ -1,0 +1,194 @@
+# This is a basic workflow to help you get started with Actions
+
+name: Install Test
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the "master" branch
+#  push:
+#    tags:
+#      - 'v*'
+  workflow_call:
+  # FIXME: should be able to check for tags here
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+
+  test-macos-brew:
+    runs-on: macos-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Set up Homebrew
+        id: set-up-homebrew
+        uses: Homebrew/actions/setup-homebrew@master
+
+      - name: Test brew
+        shell: bash
+        run: |-
+          set -e pipefail
+          brew install neilotoole/sq/sq
+          if [ $(sq version | awk '{print $2}') != "${{github.ref_name}}" ]; then
+            echo "Expected sq ${{github.ref_name}} but got: $(sq version)"
+            exit 1
+          fi
+
+
+  test-macos-install-sh:
+    runs-on: macos-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Set up Homebrew
+        id: set-up-homebrew
+        uses: Homebrew/actions/setup-homebrew@master
+
+      - name: Test install.sh
+        shell: bash
+        run: |-
+          set -e pipefail
+          /bin/sh -c "$(curl -fsSL https://sq.io/install.sh)"
+          if [ $(sq version | awk '{print $2}') != "${{github.ref_name}}" ]; then
+            echo "Expected sq ${{github.ref_name}} but got: $(sq version)"
+            exit 1
+          fi
+
+  test-linux-container:
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    strategy:
+      matrix:
+        container:
+          - "ubuntu:latest"
+          - "fedora:latest"
+          - "rockylinux:9"
+    #          - "opensuse/leap:latest"
+
+    container:
+      image: ${{ matrix.container }}
+
+    steps:
+      - name: Test install.sh
+        run: |-
+          set pipefail
+          set +e
+          
+          # Some images don't have curl installed
+          if ! command -v curl &> /dev/null ; then
+            if command -v apt &> /dev/null; then
+              apt update && apt install -y curl
+            fi
+          fi
+          
+          set -e
+          
+          /bin/sh -c "$(curl -fsSL https://sq.io/install.sh)"
+          if [ $(sq version | awk '{print $2}') != "${{github.ref_name}}" ]; then
+            echo "Expected sq ${{github.ref_name}} but got: $(sq version)"
+            exit 1
+          fi
+
+  test-alpine:
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    container: alpine:latest
+    steps:
+      - name: Test install
+        run: |-
+          set -e pipefail
+          apk add curl
+          /bin/sh -c "$(curl -fsSL https://sq.io/install.sh)"
+          if [ $(sq version | awk '{print $2}') != "${{github.ref_name}}" ]; then
+            echo "Expected sq ${{github.ref_name}} but got: $(sq version)"
+            exit 1
+          fi
+
+  test-archlinux-pacman:
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    container: archlinux:latest
+    steps:
+      - name: Create non-root user
+        run: |-
+          set -e pipefail
+
+          pacman -Syu --noconfirm
+          pacman -S --needed --noconfirm sudo base-devel
+
+          uname="moi"
+          useradd $uname
+          passwd -d $uname
+          printf '%s ALL=(ALL) ALL\n' $uname | tee -a /etc/sudoers
+          mkdir -p /home/$uname
+          chown -R "$uname:$uname" /home/$uname
+
+      - name: Test install (pacman)
+        run: |-
+          set -e pipefail
+          
+          # Run as non-root user
+          # sudo -u moi 
+          
+          # Should be installed via pacman
+          sudo -u moi /bin/sh -c "$(curl -fsSL https://sq.io/install.sh)"
+          if [ $(sq version | awk '{print $2}') != "${{github.ref_name}}" ]; then
+            echo "Expected sq ${{github.ref_name}} but got: $(sq version)"
+            exit 1
+          fi
+
+  test-archlinux-yay:
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    container: archlinux:latest
+    steps:
+      - name: Create non-root user
+        run: |-
+          set -e pipefail
+
+          pacman -Syu --noconfirm
+          pacman -S --needed --noconfirm sudo base-devel
+
+          uname="moi"
+          useradd $uname
+          passwd -d $uname
+          printf '%s ALL=(ALL) ALL\n' $uname | tee -a /etc/sudoers
+          mkdir -p /home/$uname
+          chown -R "$uname:$uname" /home/$uname
+
+      - name: Install yay
+        run: |-
+          set -e pipefail
+          cd /tmp
+          curl -sO https://aur.archlinux.org/cgit/aur.git/snapshot/yay-bin.tar.gz
+          tar -xf yay-bin.tar.gz
+          chmod -R 777 yay-bin
+          cd yay-bin
+          sudo -u moi makepkg -sri --noconfirm
+
+      - name: Test install (yay)
+        run: |-
+          set -e pipefail
+          
+          # Should be installed via yay
+          sudo -u moi /bin/sh -c "$(curl -fsSL https://sq.io/install.sh)"
+          if [ $(sq version | awk '{print $2}') != "${{github.ref_name}}" ]; then
+            echo "Expected sq ${{github.ref_name}} but got: $(sq version)"
+            exit 1
+          fi
+
+  test-ubuntu-brew:
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Set up Homebrew
+        id: set-up-homebrew
+        uses: Homebrew/actions/setup-homebrew@master
+
+      - name: Test install via brew
+        shell: bash
+        run: |-
+          set -e pipefail
+          brew install neilotoole/sq/sq
+          if [ $(sq version | awk '{print $2}') != "${{github.ref_name}}" ]; then
+            echo "Expected sq ${{github.ref_name}} but got: $(sq version)"
+            exit 1
+          fi
