@@ -5,7 +5,7 @@ on:
       - '**.md'
       - 'sq.json' # This is updated by scoop; no need to run a new build
 
-  # Allows you to run this workflow manually from the Actions tab
+  # Allows this workflow to be manually triggered from the Actions tab
   workflow_dispatch:
 
 env:
@@ -16,7 +16,7 @@ env:
 jobs:
 
   go-test-linux:
-    # Linux is the core test platform. We only execute on macOS/Windows
+    # Linux is the core test platform. We only test on macOS/Windows
     # when it's time to publish.
     runs-on: ubuntu-22.04
 
