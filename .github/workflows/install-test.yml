@@ -5,7 +5,7 @@ name: Install Test
 # Controls when the workflow will run
 on:
   # Triggers the workflow on push or pull request events but only for the "master" branch
-#  push:
+  push:
 #    tags:
 #      - 'v*'
   workflow_call:
@@ -20,7 +20,6 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     steps:
       - name: Set up Homebrew
-        id: set-up-homebrew
         uses: Homebrew/actions/setup-homebrew@master
 
       - name: Test brew
@@ -39,7 +38,6 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     steps:
       - name: Set up Homebrew
-        id: set-up-homebrew
         uses: Homebrew/actions/setup-homebrew@master
 
       - name: Test install.sh
@@ -192,3 +190,26 @@ jobs:
             echo "Expected sq ${{github.ref_name}} but got: $(sq version)"
             exit 1
           fi
+
+  test-windows-scoop:
+    runs-on: windows-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Test install (scoop)
+        run: |-
+          Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+          iex "& {$(irm get.scoop.sh)} -RunAsAdmin"
+          scoop help
+
+          scoop bucket add sq https://github.com/neilotoole/sq
+          scoop install sq
+          
+          $gotVersion = sq version
+          echo $gotVersion
+          
+          if ($gotVersion -ne "sq ${{github.ref_name}}") {
+            echo "Wanted: sq ${{github.ref_name}}"
+            echo "Actual: $gotVersion"
+            echo "Incorrect version number"
+            exit 1
+          }
