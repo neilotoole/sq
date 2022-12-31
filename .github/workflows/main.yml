@@ -85,7 +85,7 @@ jobs:
           version: ${{ env.GOLANGCI_LINT_VERSION }}
 
 
-  build-binaries-darwin:
+  binaries-darwin:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: macos-12
 
@@ -116,7 +116,7 @@ jobs:
           name: dist-darwin
           path: dist-darwin
 
-  build-binaries-linux-amd64:
+  binaries-linux-amd64:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-22.04
 
@@ -147,7 +147,7 @@ jobs:
           name: dist-linux-amd64
           path: dist-linux
 
-  build-binaries-linux-arm64:
+  binaries-linux-arm64:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-22.04
 
@@ -184,7 +184,7 @@ jobs:
           path: dist-linux
 
 
-  build-binaries-windows:
+  binaries-windows:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: windows-2022
 
@@ -223,10 +223,10 @@ jobs:
       - go-lint
       - go-test-linux
       - go-test-others
-      - build-binaries-darwin
-      - build-binaries-linux-amd64
-      - build-binaries-linux-arm64
-      - build-binaries-windows
+      - binaries-darwin
+      - binaries-linux-amd64
+      - binaries-linux-arm64
+      - binaries-windows
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -274,7 +274,11 @@ jobs:
           FURY_TOKEN: ${{ secrets.FURY_TOKEN }}
           AUR_PRIVATE_KEY: ${{ secrets.AUR_PRIVATE_KEY }}
 
-  call-test-install:
+  install:
+    # Verify that install mechanisms are working on the various
+    # supported platforms. This workflow runs *after* the new release
+    # has been published. So, if this workflow fails, it means that
+    # users are experiencing those failures. Fix the problem ASAP!
     needs: publish
     if: startsWith(github.ref, 'refs/tags/v')
     uses: ./.github/workflows/test-install.yml

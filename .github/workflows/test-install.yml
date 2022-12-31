@@ -1,17 +1,13 @@
 # This workflow tests the various sq install mechanisms.
 name: Test Install
 on:
-  # Triggers the workflow on push or pull request events but only for the "master" branch
-#  push:
-#    tags:
-#      - 'v*'
   workflow_call:
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
 jobs:
-  test-macos-brew:
+  macos-brew:
     runs-on: macos-latest
     if: startsWith(github.ref, 'refs/tags/v')
     steps:
@@ -28,7 +24,7 @@ jobs:
             exit 1
           fi
 
-  test-macos-install-sh:
+  macos-install-sh:
     runs-on: macos-latest
     if: startsWith(github.ref, 'refs/tags/v')
     steps:
@@ -45,7 +41,7 @@ jobs:
             exit 1
           fi
 
-  test-linux-container:
+  linux-container:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     strategy:
@@ -80,7 +76,7 @@ jobs:
             exit 1
           fi
 
-  test-alpine:
+  alpine:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     container: alpine:latest
@@ -95,7 +91,7 @@ jobs:
             exit 1
           fi
 
-  test-archlinux-pacman:
+  archlinux-pacman:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     container: archlinux:latest
@@ -128,7 +124,7 @@ jobs:
             exit 1
           fi
 
-  test-archlinux-yay:
+  archlinux-yay:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     container: archlinux:latest
@@ -168,7 +164,7 @@ jobs:
             exit 1
           fi
 
-  test-ubuntu-brew:
+  ubuntu-brew:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     steps:
@@ -186,7 +182,7 @@ jobs:
             exit 1
           fi
 
-  test-windows-scoop:
+  windows-scoop:
     runs-on: windows-latest
     if: startsWith(github.ref, 'refs/tags/v')
     steps:
