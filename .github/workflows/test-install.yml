@@ -1,11 +1,8 @@
-# This is a basic workflow to help you get started with Actions
-
+# This workflow tests the various sq install mechanisms.
 name: Test Install
-
-# Controls when the workflow will run
 on:
   # Triggers the workflow on push or pull request events but only for the "master" branch
-  push:
+#  push:
 #    tags:
 #      - 'v*'
   workflow_call:
@@ -14,7 +11,6 @@ on:
   workflow_dispatch:
 
 jobs:
-
   test-macos-brew:
     runs-on: macos-latest
     if: startsWith(github.ref, 'refs/tags/v')
@@ -31,7 +27,6 @@ jobs:
             echo "Expected sq ${{github.ref_name}} but got: $(sq version)"
             exit 1
           fi
-
 
   test-macos-install-sh:
     runs-on: macos-latest
