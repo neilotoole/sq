@@ -14,6 +14,7 @@ func newSrcListCmd() *cobra.Command {
 	}
 
 	cmd.Flags().BoolP(flagHeader, flagHeaderShort, false, flagHeaderUsage)
+	cmd.Flags().BoolP(flagJSON, flagJSONShort, false, flagJSONUsage)
 	return cmd
 }
 

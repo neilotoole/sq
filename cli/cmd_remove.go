@@ -1,20 +1,27 @@
 package cli
 
 import (
-	"fmt"
-
+	"github.com/neilotoole/sq/libsq/source"
+	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 )
 
 func newSrcRemoveCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:               "rm @HANDLE",
-		Example:           `  $ sq rm @my1`,
+		Use: "rm @HANDLE1 [@HANDLE2...]",
+		Example: `  # Remove @my1 data source
+  $ sq rm @my1
+
+  # Remove multiple data sources
+  $ sq rm @my1 @pg1 @sqlserver1`,
 		Short:             "Remove data source",
-		Args:              cobra.ExactArgs(1),
+		Long:              "Remove data source.",
+		Args:              cobra.MinimumNArgs(1),
 		RunE:              execSrcRemove,
-		ValidArgsFunction: completeHandle(1),
+		ValidArgsFunction: completeHandle(0),
 	}
+
+	cmd.Flags().BoolP(flagJSON, flagJSONShort, false, flagJSONUsage)
 
 	return cmd
 }
@@ -22,24 +29,26 @@ func newSrcRemoveCmd() *cobra.Command {
 func execSrcRemove(cmd *cobra.Command, args []string) error {
 	rc := RunContextFrom(cmd.Context())
 	cfg := rc.Config
-	src, err := cfg.Sources.Get(args[0])
-	if err != nil {
+
+	args = lo.Uniq(args)
+	srcs := make([]*source.Source, len(args))
+	for i := range args {
+		src, err := cfg.Sources.Get(args[i])
+		if err != nil {
+			return err
+		}
+
+		err = cfg.Sources.Remove(src.Handle)
+		if err != nil {
+			return err
+		}
+
+		srcs[i] = src
+	}
+
+	if err := rc.ConfigStore.Save(cfg); err != nil {
 		return err
 	}
 
-	err = cfg.Sources.Remove(src.Handle)
-	if err != nil {
-		return err
-	}
-
-	err = rc.ConfigStore.Save(cfg)
-	if err != nil {
-		return err
-	}
-
-	fmt.Fprintf(rc.Out, "Removed data source ")
-	_, _ = rc.writers.fm.Hilite.Fprintf(rc.Out, "%s", src.Handle)
-	fmt.Fprintln(rc.Out)
-
-	return nil
+	return rc.writers.srcw.Removed(srcs...)
 }

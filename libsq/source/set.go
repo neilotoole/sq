@@ -22,7 +22,7 @@ type Set struct {
 }
 
 // setData holds Set's for the purposes of serialization
-// to YAML etc (we don't want to expose setData's exported
+// to YAML etc. (we don't want to expose setData's exported
 // fields directly on Set.)
 //
 // This seemed like a good idea t the time, but probably wasn't.
@@ -83,9 +83,6 @@ func (s *Set) UnmarshalYAML(unmarshal func(any) error) error {
 
 // Items returns the sources as a slice.
 func (s *Set) Items() []*Source {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	return s.data.Items
 }
 
@@ -287,6 +284,31 @@ func (s *Set) Handles() []string {
 	}
 
 	return handles
+}
+
+// Clone returns a deep copy of s. If s is nil, nil is returned.
+func (s *Set) Clone() *Set {
+	if s == nil {
+		return nil
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	data := setData{
+		ActiveSrc:  s.data.ActiveSrc,
+		ScratchSrc: s.data.ScratchSrc,
+		Items:      make([]*Source, len(s.data.Items)),
+	}
+
+	for i, src := range s.data.Items {
+		data.Items[i] = src.Clone()
+	}
+
+	return &Set{
+		mu:   sync.Mutex{},
+		data: data,
+	}
 }
 
 // VerifySetIntegrity verifies the internal state of s.

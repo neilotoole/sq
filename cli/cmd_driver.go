@@ -34,7 +34,6 @@ func newDriverListCmd() *cobra.Command {
 	cmd.Flags().BoolP(flagJSON, flagJSONShort, false, flagJSONUsage)
 	cmd.Flags().BoolP(flagTable, flagTableShort, false, flagTableUsage)
 	cmd.Flags().BoolP(flagHeader, flagHeaderShort, false, flagHeaderUsage)
-	cmd.Flags().BoolP(flagMonochrome, flagMonochromeShort, false, flagMonochromeUsage)
 
 	return cmd
 }

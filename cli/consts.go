@@ -29,6 +29,9 @@ const (
 	flagInsert      = "insert"
 	flagInsertUsage = "Insert query results into @HANDLE.TABLE. If not existing, TABLE will be created."
 
+	// flagInspectFull is an odd one.
+	//
+	// Deprecated: use verbose?
 	flagInspectFull      = "full"
 	flagInspectFullUsage = "Output full data source details (JSON only)"
 

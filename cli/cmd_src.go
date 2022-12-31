@@ -20,6 +20,8 @@ func newSrcCommand() *cobra.Command {
 source. Otherwise, set @HANDLE as the active data source.`,
 	}
 
+	cmd.Flags().BoolP(flagJSON, flagJSONShort, false, flagJSONUsage)
+
 	return cmd
 }
 

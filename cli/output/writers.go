@@ -16,7 +16,7 @@ import (
 )
 
 // RecordWriter is an interface for writing records to a destination.
-// In effect it is a synchronous counterpart to the asynchronous
+// In effect, it is a synchronous counterpart to the asynchronous
 // libsq.RecordWriter interface. Being a synchronous interface, it is
 // less tricky to implement than libsq.RecordWriter. The RecordWriterAdapter
 // type defined in this package bridges the two interfaces.
@@ -60,6 +60,9 @@ type SourceWriter interface {
 
 	// Source outputs details of the source.
 	Source(src *source.Source) error
+
+	// Removed is called when sources are removed from the source set.
+	Removed(srcs ...*source.Source) error
 }
 
 // ErrorWriter outputs errors.

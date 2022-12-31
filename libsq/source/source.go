@@ -70,6 +70,20 @@ func (s *Source) RedactedLocation() string {
 	return RedactLocation(s.Location)
 }
 
+// Clone returns a deep copy of s. If s is nil, nil is returned.
+func (s *Source) Clone() *Source {
+	if s == nil {
+		return nil
+	}
+
+	return &Source{
+		Handle:   s.Handle,
+		Type:     s.Type,
+		Location: s.Location,
+		Options:  s.Options.Clone(),
+	}
+}
+
 // RedactLocation returns a redacted version of the source
 // location loc, with the password component (if any) of
 // the location masked.
