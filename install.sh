@@ -134,13 +134,13 @@ if command_exists pacman; then
     if command_exists yay; then
         echo "Installing via yay..."
         yay -S --noconfirm sq-bin
-        exit 0
+        exit
     fi
 
     if command_exists paru; then
         echo "Installing via paru..."
         paru -S --noconfirm sq-bin
-        exit 0
+        exit
     fi
 
     # Fall back to pacman
@@ -151,6 +151,7 @@ if command_exists pacman; then
     cd sq-bin
     makepkg -sri --noconfirm
     rm -rf /tmp/sq-bin*
+    exit
 fi
 
 
