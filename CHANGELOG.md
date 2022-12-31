@@ -12,7 +12,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `sq ls` now respects `--json flag`.
 - `sq rm` now respects `--json flag`.
 - FIXME: `sq add` now respects `--json flag`.
-- FIXME: `sq version` only shows upgrade info when `--verbose`.
 - CI pipeline now verifies install packages after publish.
 
 ### Changed

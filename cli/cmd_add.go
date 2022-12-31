@@ -21,13 +21,12 @@ import (
 
 func newSrcAddCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "add [--handle @HANDLE] [FLAGS] LOCATION",
+		Use:   "add [--handle @HANDLE] LOCATION",
 		RunE:  execSrcAdd,
 		Short: "Add data source",
-		Long: `Add data source specified by LOCATION, and optionally identified by @HANDLE.
-`,
-
-		Example: `When adding a data source, LOCATION is the only required arg.
+		Long:  `Add data source specified by LOCATION, optionally identified by @HANDLE.`,
+		Example: `
+When adding a data source, LOCATION is the only required arg.
 
   # Add a postgres source with handle "@sakila_pg"
   $ sq add -h @sakila_pg 'postgres://user:pass@localhost/sakila'
@@ -94,10 +93,6 @@ More examples:
   $ sq add 'postgres://user@localhost/sakila' -p
   Password: ****
 
-
-
-
-
   # Explicitly set flags
   $ sq add --handle=@sakila_pg --driver=postgres 'postgres://user:pass@localhost/sakila'
 
@@ -126,6 +121,7 @@ More examples:
 	cmd.Flags().StringP(flagHandle, flagHandleShort, "", flagHandleUsage)
 	cmd.Flags().BoolP(flagPasswordPrompt, flagPasswordPromptShort, false, flagPasswordPromptUsage)
 	cmd.Flags().Bool(flagSkipVerify, false, flagSkipVerifyUsage)
+	cmd.Flags().BoolP(flagJSON, flagJSONShort, false, flagJSONUsage)
 	return cmd
 }
 
