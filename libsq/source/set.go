@@ -24,10 +24,29 @@ type Set struct {
 // setData holds Set's for the purposes of serialization
 // to YAML etc (we don't want to expose setData's exported
 // fields directly on Set.)
+//
+// This seemed like a good idea t the time, but probably wasn't.
 type setData struct {
 	ActiveSrc  string    `yaml:"active" json:"active"`
 	ScratchSrc string    `yaml:"scratch" json:"scratch"`
 	Items      []*Source `yaml:"items" json:"items"`
+}
+
+// Data returns the internal representation of the set data.
+// This is a filthy hack so that the internal data can be passed
+// directly to sq's colorizing json encoder (it can't handle colorization
+// of values that implement json.Marshaler).
+//
+// There are two long-term solutions here:
+//  1. The color encoder needs to be able to handle json.RawMessage.
+//  2. Refactor source.Set so that it doesn't have this weird internal
+//     representation.
+func (s *Set) Data() any {
+	if s == nil {
+		return nil
+	}
+
+	return s.data
 }
 
 // MarshalJSON implements json.Marshaler.
