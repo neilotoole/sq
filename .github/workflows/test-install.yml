@@ -41,7 +41,7 @@ jobs:
             exit 1
           fi
 
-  linux-container:
+  linux-other:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     strategy:
