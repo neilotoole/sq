@@ -51,3 +51,4 @@ goreleaser-test.sh
 /completions
 /manpages
 /cli/test.db
+/*.db
