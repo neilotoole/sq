@@ -231,8 +231,15 @@ func TestMungeLocation(t *testing.T) {
 	require.NoError(t, err)
 	cwd = filepath.ToSlash(cwd)
 
+	root, err := filepath.Abs("/")
+	require.NoError(t, err)
+	t.Log(root)
+	root = filepath.ToSlash(root)
+
 	cwdWant := "sqlite3://" + cwd + "/sakila.db"
 
+	t.Log("cwdWant:", cwdWant)
+	t.Log("root:", root)
 	testCases := []struct {
 		in      string
 		want    string
@@ -244,7 +251,7 @@ func TestMungeLocation(t *testing.T) {
 		},
 		{
 			in:   "sqlite3:///path/to/sakila.db",
-			want: "sqlite3:///path/to/sakila.db",
+			want: "sqlite3://" + root + "path/to/sakila.db",
 		},
 		{
 			in:   "sqlite3://sakila.db",
@@ -256,7 +263,7 @@ func TestMungeLocation(t *testing.T) {
 		},
 		{
 			in:   "sqlite3:/sakila.db",
-			want: "sqlite3:///sakila.db",
+			want: "sqlite3://" + root + "sakila.db",
 		},
 		{
 			in:   "sakila.db",
@@ -268,13 +275,13 @@ func TestMungeLocation(t *testing.T) {
 		},
 		{
 			in:   "/path/to/sakila.db",
-			want: "sqlite3:///path/to/sakila.db",
+			want: "sqlite3://" + root + "path/to/sakila.db",
 		},
 	}
 
-	for _, tc := range testCases {
+	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(tc.in), func(t *testing.T) {
+		t.Run(tutil.Name(i, tc.in), func(t *testing.T) {
 			got, err := sqlite3.MungeLocation(tc.in)
 			if tc.wantErr {
 				require.Error(t, err)
