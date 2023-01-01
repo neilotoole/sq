@@ -99,7 +99,13 @@ func execPing(cmd *cobra.Command, args []string) error {
 
 	rc.Log.Debugf("Using ping timeout value: %s", timeout)
 
-	return pingSources(cmd.Context(), rc.Log, rc.registry, srcs, rc.writers.pingw, timeout)
+	err := pingSources(cmd.Context(), rc.Log, rc.registry, srcs, rc.writers.pingw, timeout)
+	if errors.Is(err, context.Canceled) {
+		// It's common to cancel "sq ping". We don't want to print the cancel message.
+		return errNoMsg
+	}
+
+	return err
 }
 
 // pingSources pings each of the sources in srcs, and prints results
