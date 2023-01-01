@@ -305,8 +305,9 @@ func isFpath(loc string) (fpath string, ok bool) {
 		return "", false
 	}
 
-	if strings.Contains(loc, ":") {
+	if strings.Contains(loc, "sqlite:") {
 		// Excludes "sqlite:my_file.db"
+		// Be wary of windows paths, e.g. "D:\a\b\c.file"
 		return "", false
 	}
 
