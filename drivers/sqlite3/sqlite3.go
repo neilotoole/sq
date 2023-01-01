@@ -878,8 +878,6 @@ func MungeLocation(loc string) (string, error) {
 		return "", errz.Wrapf(err, "invalid location: %s", loc)
 	}
 
-	u.Path = filepath.ToSlash(fp)
-
-	u.Scheme = "sqlite3"
-	return u.String(), nil
+	fp = filepath.ToSlash(fp)
+	return "sqlite3://" + fp, nil
 }
