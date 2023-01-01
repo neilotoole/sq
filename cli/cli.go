@@ -593,6 +593,7 @@ func newWriters(log lg.Log, cmd *cobra.Command, defaults config.Defaults, out, e
 		w.srcw = jsonw.NewSourceWriter(out2, fm)
 		w.errw = jsonw.NewErrorWriter(log, errOut2, fm)
 		w.versionw = jsonw.NewVersionWriter(out2, fm)
+		w.pingw = jsonw.NewPingWriter(out2, fm)
 
 	case config.FormatTable:
 	// Table is the base format, already set above, no need to do anything.
@@ -819,7 +820,7 @@ func printError(rc *RunContext, err error) {
 	switch {
 	default:
 	case errors.Is(err, context.Canceled):
-		err = errz.New("stopped")
+		err = errz.New("canceled")
 	case errors.Is(err, context.DeadlineExceeded):
 		err = errz.New("timeout")
 	}
