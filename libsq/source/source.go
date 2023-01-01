@@ -91,7 +91,7 @@ func RedactLocation(loc string) string {
 	switch {
 	case loc == "",
 		strings.HasPrefix(loc, "/"),
-		strings.HasPrefix(loc, "sqlite3:///"):
+		strings.HasPrefix(loc, "sqlite3://"):
 		return loc
 	case strings.HasPrefix(loc, "http://"), strings.HasPrefix(loc, "https://"):
 		u, err := url.ParseRequestURI(loc)

@@ -107,6 +107,7 @@ func TestCmdAdd_SQLite_Path(t *testing.T) {
 
 	absPath, err := filepath.Abs("test.db")
 	require.NoError(t, err)
+	absPath = filepath.ToSlash(absPath)
 
 	wantLoc := "sqlite3://" + absPath
 	require.Equal(t, wantLoc, got["location"])
