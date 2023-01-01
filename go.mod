@@ -56,6 +56,7 @@ require (
 	github.com/muesli/mango-pflag v0.1.0 // indirect
 	github.com/rivo/uniseg v0.4.3 // indirect
 	github.com/rogpeppe/go-internal v1.9.0 // indirect
+	github.com/samber/lo v1.37.0 // indirect
 	golang.org/x/crypto v0.4.0 // indirect
 	golang.org/x/exp v0.0.0-20221217163422-3c43f8badb15 // indirect
 )

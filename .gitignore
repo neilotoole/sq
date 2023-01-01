@@ -50,3 +50,5 @@ goreleaser-test.sh
 /.vscode
 /completions
 /manpages
+/cli/test.db
+/*.db

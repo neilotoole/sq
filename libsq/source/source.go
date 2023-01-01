@@ -70,33 +70,48 @@ func (s *Source) RedactedLocation() string {
 	return RedactLocation(s.Location)
 }
 
+// Clone returns a deep copy of s. If s is nil, nil is returned.
+func (s *Source) Clone() *Source {
+	if s == nil {
+		return nil
+	}
+
+	return &Source{
+		Handle:   s.Handle,
+		Type:     s.Type,
+		Location: s.Location,
+		Options:  s.Options.Clone(),
+	}
+}
+
 // RedactLocation returns a redacted version of the source
 // location loc, with the password component (if any) of
 // the location masked.
 func RedactLocation(loc string) string {
 	switch {
-	case loc == "":
-		return ""
-	case strings.HasPrefix(loc, "/"):
-		// It's a file
+	case loc == "",
+		strings.HasPrefix(loc, "/"),
+		strings.HasPrefix(loc, "sqlite3:///"):
 		return loc
 	case strings.HasPrefix(loc, "http://"), strings.HasPrefix(loc, "https://"):
-		// TODO: technically a HTTP url could have a user:password component that could be masked
-		return loc
+		u, err := url.ParseRequestURI(loc)
+		if err != nil {
+			// If we can't parse it, just return the original loc
+			return loc
+		}
+
+		return u.Redacted()
 	}
 
 	// At this point, we expect it's a DSN
-	u, err := dburl.Parse(loc)
+	dbu, err := dburl.Parse(loc)
 	if err != nil {
 		// Shouldn't happen, but if it does, simply return the
 		// unmodified loc.
 		return loc
 	}
 
-	// We want to mask the password, but our preferred ****
-	// text gets URL encoded, so we'll make this a two-step process.
-	u.User = url.UserPassword(u.User.Username(), "password")
-	return strings.Replace(u.String(), "password", "****", 1)
+	return dbu.Redacted()
 }
 
 // ShortLocation returns a short location string. For example, the

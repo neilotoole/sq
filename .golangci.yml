@@ -23,6 +23,9 @@ run:
     # This package is such a mess, and needs to be rewritten completely.
     - cli/output/tablew/internal
 
+    # Non-committed scratch dir
+    - scratch
+
 output:
   sort-results: true
 

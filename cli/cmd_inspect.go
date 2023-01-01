@@ -41,7 +41,6 @@ If @HANDLE is not provided, the active data source is assumed.`,
 
 	cmd.Flags().BoolP(flagJSON, flagJSONShort, false, flagJSONUsage)
 	cmd.Flags().BoolP(flagTable, flagTableShort, false, flagTableUsage)
-	cmd.Flags().Bool(flagInspectFull, false, flagInspectFullUsage)
 
 	return cmd
 }
@@ -135,9 +134,9 @@ func execInspect(cmd *cobra.Command, args []string) error {
 		return errz.Wrapf(err, "failed to read %s source metadata", src.Handle)
 	}
 
-	// This is a bit hacky, but it works... if not "--full", then just zap
+	// This is a bit hacky, but it works... if not "--verbose", then just zap
 	// the DBVars, as we usually don't want to see those
-	if !cmd.Flags().Changed(flagInspectFull) {
+	if !cmdFlagTrue(cmd, flagVerbose) {
 		meta.DBVars = nil
 	}
 

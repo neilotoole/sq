@@ -8,6 +8,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -842,4 +843,41 @@ func PathFromLocation(src *source.Source) (string, error) {
 
 	loc = filepath.Clean(loc)
 	return loc, nil
+}
+
+// MungeLocation takes a location argument (as received from the user)
+// and builds a sqlite3 location URL. Each of these forms are allowed:
+//
+//	sqlite3:///path/to/sakila.db	--> sqlite3:///path/to/sakila.db
+//	sqlite3:sakila.db 				--> sqlite3:///current/working/dir/sakila.db
+//	sqlite3:/sakila.db 				--> sqlite3:///sakila.db
+//	sqlite3:./sakila.db 			--> sqlite3:///current/working/dir/sakila.db
+//	sqlite3:sakila.db 				--> sqlite3:///current/working/dir/sakila.db
+//	sakila.db						--> sqlite3:///current/working/dir/sakila.db
+//	/path/to/sakila.db				--> sqlite3:///path/to/sakila.db
+//
+// The final form is particularly nice for shell completion etc.
+func MungeLocation(loc string) (string, error) {
+	loc2 := strings.TrimSpace(loc)
+	if loc2 == "" {
+		return "", errz.New("location must not be empty")
+	}
+
+	loc2 = strings.TrimPrefix(loc2, "sqlite3://")
+	loc2 = strings.TrimPrefix(loc2, "sqlite3:")
+
+	// Now we should be left with just a path, which could be
+	// relative or absolute.
+	u, err := url.Parse(loc2)
+	if err != nil {
+		return "", errz.Wrapf(err, "invalid location: %s", loc)
+	}
+
+	u.Path, err = filepath.Abs(u.Path)
+	if err != nil {
+		return "", errz.Wrapf(err, "invalid location: %s", loc)
+	}
+
+	u.Scheme = "sqlite3"
+	return u.String(), nil
 }

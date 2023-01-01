@@ -74,18 +74,18 @@ func fetchBrewVersion(ctx context.Context) (string, error) {
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return "", errz.Wrap(err, "failed to check edgectl brew repo")
+		return "", errz.Wrap(err, "failed to check sq brew repo")
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", errz.Errorf("failed to check edgectl brew repo: %d %s",
+		return "", errz.Errorf("failed to check sq brew repo: %d %s",
 			resp.StatusCode, http.StatusText(resp.StatusCode))
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", errz.Wrap(err, "failed to read edgectl brew repo body")
+		return "", errz.Wrap(err, "failed to read sq brew repo body")
 	}
 
 	return getVersionFromBrewFormula(body)

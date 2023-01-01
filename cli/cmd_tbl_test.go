@@ -25,7 +25,7 @@ func TestCmdTblCopy(t *testing.T) {
 			destTbl1 := stringz.UniqTableName(sakila.TblActor)
 
 			ru1 := newRun(t).add(*src)
-			err := ru1.exec("tbl", "copy", "--data=false", srcTblHandle, src.Handle+"."+destTbl1)
+			err := ru1.Exec("tbl", "copy", "--data=false", srcTblHandle, src.Handle+"."+destTbl1)
 			require.NoError(t, err)
 			defer th.DropTable(src, destTbl1)
 			require.Equal(t, int64(0), th.RowCount(src, destTbl1),
@@ -34,7 +34,7 @@ func TestCmdTblCopy(t *testing.T) {
 			// --data=true
 			ru2 := newRun(t).add(*src)
 			destTbl2 := stringz.UniqTableName(sakila.TblActor)
-			err = ru2.exec("tbl", "copy", "--data=true", srcTblHandle, src.Handle+"."+destTbl2)
+			err = ru2.Exec("tbl", "copy", "--data=true", srcTblHandle, src.Handle+"."+destTbl2)
 			require.NoError(t, err)
 			defer th.DropTable(src, destTbl2)
 			require.Equal(t, int64(sakila.TblActorCount), th.RowCount(src, destTbl2),
@@ -68,7 +68,7 @@ func TestCmdTblDrop(t *testing.T) {
 			require.Equal(t, destTblName, tblMeta.Name)
 			require.Equal(t, int64(sakila.TblActorCount), tblMeta.RowCount)
 
-			err = newRun(t).add(*src).exec("tbl", "drop", src.Handle+"."+destTblName)
+			err = newRun(t).add(*src).Exec("tbl", "drop", src.Handle+"."+destTblName)
 			require.NoError(t, err)
 			needsDrop = false
 
@@ -98,7 +98,7 @@ func TestCmdTblTruncate(t *testing.T) {
 			require.Equal(t, destTblName, tblMeta.Name)
 			require.Equal(t, int64(sakila.TblActorCount), tblMeta.RowCount)
 
-			err = newRun(t).add(*src).exec("tbl", "truncate", src.Handle+"."+destTblName)
+			err = newRun(t).add(*src).Exec("tbl", "truncate", src.Handle+"."+destTblName)
 			require.NoError(t, err)
 			tblMeta, err = th.Open(src).TableMetadata(th.Context, destTblName)
 			require.NoError(t, err)

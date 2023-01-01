@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/libsq/source"
@@ -29,6 +30,8 @@ func completeHandle(max int) completionFunc {
 
 		rc := RunContextFrom(cmd.Context())
 		handles := rc.Config.Sources.Handles()
+
+		handles, _ = lo.Difference(handles, args)
 
 		return handles, cobra.ShellCompDirectiveNoFileComp
 	}

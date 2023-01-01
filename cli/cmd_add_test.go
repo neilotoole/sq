@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/neilotoole/sq/testh/tutil"
@@ -79,7 +80,7 @@ func TestCmdAdd(t *testing.T) {
 			}
 
 			ru := newRun(t)
-			err := ru.exec(args...)
+			err := ru.Exec(args...)
 			if tc.wantErr {
 				require.Error(t, err)
 				return
@@ -94,4 +95,19 @@ func TestCmdAdd(t *testing.T) {
 			require.Equal(t, tc.wantType, gotSrc.Type)
 		})
 	}
+}
+
+// TestCmdAdd_SQLite_Path has additional tests for sqlite paths.
+func TestCmdAdd_SQLite_Path(t *testing.T) {
+	const h1 = `@s1`
+
+	ru := newRun(t)
+	require.NoError(t, ru.Exec("add", "-j", "sqlite3://test.db", "-h", h1))
+	got := ru.BindMap()
+
+	absPath, err := filepath.Abs("test.db")
+	require.NoError(t, err)
+
+	wantLoc := "sqlite3://" + absPath
+	require.Equal(t, wantLoc, got["location"])
 }

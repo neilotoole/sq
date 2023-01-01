@@ -116,6 +116,24 @@ func (w *sourceWriter) Source(src *source.Source) error {
 	return nil
 }
 
+// Removed implements output.SourceWriter.
+func (w *sourceWriter) Removed(srcs ...*source.Source) error {
+	if !w.verbose || len(srcs) == 0 {
+		return nil
+	}
+
+	fmt.Fprintf(w.tbl.out, "Removed: ")
+
+	for i, src := range srcs {
+		if i > 0 {
+			w.tbl.fm.Faint.Fprint(w.tbl.out, ", ")
+		}
+		w.tbl.fm.Handle.Fprint(w.tbl.out, src.Handle)
+	}
+	fmt.Fprintln(w.tbl.out)
+	return nil
+}
+
 func renderSrcOptions(src *source.Source) string {
 	if src == nil || src.Options == nil || len(src.Options) == 0 {
 		return ""

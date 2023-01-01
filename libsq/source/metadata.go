@@ -12,6 +12,10 @@ type Metadata struct {
 	// Handle is the source handle.
 	Handle string `json:"handle"`
 
+	// Location is the source location such as a DB connection string,
+	// a file path, or a URL.
+	Location string `json:"location"`
+
 	// Name is the base name of the source, e.g. the base filename
 	// or DB name etc. For example, "sakila".
 	Name string `json:"name"`
@@ -33,13 +37,6 @@ type Metadata struct {
 	// DBVersion is the DB version.
 	DBVersion string `json:"db_version"`
 
-	// DBVars are configuration name-value pairs from the DB.
-	DBVars []DBVar `json:"db_variables,omitempty"`
-
-	// Location is the source location such as a DB connection string,
-	// a file path, or a URL.
-	Location string `json:"location"`
-
 	// User is the username, if applicable.
 	User string `json:"user,omitempty"`
 
@@ -48,6 +45,44 @@ type Metadata struct {
 
 	// Tables is the metadata for each table loc the source.
 	Tables []*TableMetadata `json:"tables"`
+
+	// DBVars are configuration name-value pairs from the DB.
+	DBVars []DBVar `json:"db_variables,omitempty"`
+}
+
+// Clone returns a deep copy of md. If md is nil, nil is returned.
+func (md *Metadata) Clone() *Metadata {
+	if md == nil {
+		return md
+	}
+
+	c := &Metadata{
+		Handle:       md.Handle,
+		Location:     md.Location,
+		Name:         md.Name,
+		FQName:       md.FQName,
+		SourceType:   md.SourceType,
+		DBDriverType: md.DBDriverType,
+		DBProduct:    md.DBProduct,
+		DBVersion:    md.DBVersion,
+		User:         md.User,
+		Size:         md.Size,
+		Tables:       nil,
+		DBVars:       nil,
+	}
+
+	if md.DBVars != nil {
+		copy(c.DBVars, md.DBVars)
+	}
+
+	if md.Tables != nil {
+		c.Tables = make([]*TableMetadata, len(md.Tables))
+		for i := range md.Tables {
+			c.Tables[i] = md.Tables[i].Clone()
+		}
+	}
+
+	return c
 }
 
 // TableNames is a convenience method that returns md's table names.
@@ -107,6 +142,33 @@ func (t *TableMetadata) String() string {
 	return string(bytes)
 }
 
+// Clone returns a deep copy of t. If t is nil, nil is returned.
+func (t *TableMetadata) Clone() *TableMetadata {
+	if t == nil {
+		return nil
+	}
+
+	c := &TableMetadata{
+		Name:        t.Name,
+		FQName:      t.FQName,
+		TableType:   t.TableType,
+		DBTableType: t.DBTableType,
+		RowCount:    t.RowCount,
+		Size:        t.Size,
+		Comment:     t.Comment,
+		Columns:     nil,
+	}
+
+	if t.Columns != nil {
+		c.Columns = make([]*ColMetadata, len(t.Columns))
+		for i := range t.Columns {
+			c.Columns[i] = t.Columns[i].Clone()
+		}
+	}
+
+	return c
+}
+
 // Column returns the named col or nil.
 func (t *TableMetadata) Column(colName string) *ColMetadata {
 	for _, col := range t.Columns {
@@ -143,6 +205,25 @@ type ColMetadata struct {
 	DefaultValue string    `json:"default_value,omitempty"`
 	Comment      string    `json:"comment,omitempty"`
 	// TODO: Add foreign key field
+}
+
+// Clone returns a deep copy of c. If c is nil, nil is returned.
+func (c *ColMetadata) Clone() *ColMetadata {
+	if c == nil {
+		return nil
+	}
+
+	return &ColMetadata{
+		Name:         c.Name,
+		Position:     c.Position,
+		PrimaryKey:   c.PrimaryKey,
+		BaseType:     c.BaseType,
+		ColumnType:   c.ColumnType,
+		Kind:         c.Kind,
+		Nullable:     c.Nullable,
+		DefaultValue: c.DefaultValue,
+		Comment:      c.Comment,
+	}
 }
 
 func (c *ColMetadata) String() string {

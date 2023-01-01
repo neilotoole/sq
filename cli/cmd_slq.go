@@ -88,6 +88,10 @@ func execSLQ(cmd *cobra.Command, args []string) error {
 		return errz.Wrapf(err, "invalid --%s value", flagInsert)
 	}
 
+	if destTbl == "" {
+		return errz.Errorf("invalid value for --%s: must be @HANDLE.TABLE", flagInsert)
+	}
+
 	destSrc, err := srcs.Get(destHandle)
 	if err != nil {
 		return err

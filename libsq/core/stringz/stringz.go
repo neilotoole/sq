@@ -19,6 +19,10 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
+// Redacted is the "xxxxx" string used for redacted
+// values, such as passwords.
+const Redacted = "xxxxx"
+
 func init() { //nolint:gochecknoinits
 	rand.Seed(time.Now().UnixNano())
 }

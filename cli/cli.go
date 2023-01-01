@@ -590,6 +590,7 @@ func newWriters(log lg.Log, cmd *cobra.Command, defaults config.Defaults, out, e
 		// No format specified, use JSON
 		w.recordw = jsonw.NewStdRecordWriter(out2, fm)
 		w.metaw = jsonw.NewMetadataWriter(out2, fm)
+		w.srcw = jsonw.NewSourceWriter(out2, fm)
 		w.errw = jsonw.NewErrorWriter(log, errOut2, fm)
 		w.versionw = jsonw.NewVersionWriter(out2, fm)
 

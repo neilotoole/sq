@@ -285,3 +285,35 @@ func parseLoc(loc string) (*parsedLoc, error) {
 
 	return ploc, nil
 }
+
+// AbsLocation returns the absolute path of loc. That is, relative
+// paths etc. are resolved. If loc is not a file path or
+// it cannot be processed, loc is returned unmodified.
+func AbsLocation(loc string) string {
+	if fpath, ok := isFpath(loc); ok {
+		return fpath
+	}
+
+	return loc
+}
+
+// isFpath returns the absolute filepath and true if loc is a file path.
+func isFpath(loc string) (fpath string, ok bool) {
+	// This is not exactly an industrial-strength algorithm...
+	if strings.Contains(loc, ":/") {
+		// Excludes "http:/" etc
+		return "", false
+	}
+
+	if strings.Contains(loc, ":") {
+		// Excludes "sqlite:my_file.db"
+		return "", false
+	}
+
+	fpath, err := filepath.Abs(loc)
+	if err != nil {
+		return "", false
+	}
+
+	return fpath, true
+}

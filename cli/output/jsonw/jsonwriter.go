@@ -3,7 +3,6 @@ package jsonw
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"strings"
 
@@ -17,9 +16,7 @@ import (
 // writeJSON prints a JSON representation of v to out, using specs
 // from fm.
 func writeJSON(out io.Writer, fm *output.Formatting, v any) error {
-	buf := &bytes.Buffer{}
-
-	enc := jcolorenc.NewEncoder(buf)
+	enc := jcolorenc.NewEncoder(out)
 	enc.SetColors(internal.NewColors(fm))
 	enc.SetEscapeHTML(false)
 	if fm.Pretty {
@@ -27,11 +24,6 @@ func writeJSON(out io.Writer, fm *output.Formatting, v any) error {
 	}
 
 	err := enc.Encode(v)
-	if err != nil {
-		return errz.Err(err)
-	}
-
-	_, err = fmt.Fprint(out, buf.String())
 	if err != nil {
 		return errz.Err(err)
 	}

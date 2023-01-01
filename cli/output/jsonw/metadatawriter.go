@@ -1,14 +1,9 @@
 package jsonw
 
 import (
-	"bytes"
-	"fmt"
 	"io"
 
 	"github.com/neilotoole/sq/cli/output"
-	"github.com/neilotoole/sq/cli/output/jsonw/internal"
-	jcolorenc "github.com/neilotoole/sq/cli/output/jsonw/internal/jcolorenc"
-	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 )
@@ -25,40 +20,20 @@ func NewMetadataWriter(out io.Writer, fm *output.Formatting) output.MetadataWrit
 	return &mdWriter{out: out, fm: fm}
 }
 
-func (w *mdWriter) write(v any) error {
-	buf := &bytes.Buffer{}
-
-	enc := jcolorenc.NewEncoder(buf)
-	enc.SetColors(internal.NewColors(w.fm))
-	enc.SetEscapeHTML(false)
-	if w.fm.Pretty {
-		enc.SetIndent("", w.fm.Indent)
-	}
-
-	err := enc.Encode(v)
-	if err != nil {
-		return errz.Err(err)
-	}
-
-	_, err = fmt.Fprint(w.out, buf.String())
-	if err != nil {
-		return errz.Err(err)
-	}
-
-	return nil
-}
-
 // DriverMetadata implements output.MetadataWriter.
 func (w *mdWriter) DriverMetadata(md []driver.Metadata) error {
-	return w.write(md)
+	return writeJSON(w.out, w.fm, md)
 }
 
 // TableMetadata implements output.MetadataWriter.
 func (w *mdWriter) TableMetadata(md *source.TableMetadata) error {
-	return w.write(md)
+	return writeJSON(w.out, w.fm, md)
 }
 
 // SourceMetadata implements output.MetadataWriter.
 func (w *mdWriter) SourceMetadata(md *source.Metadata) error {
-	return w.write(md)
+	md2 := *md // Shallow copy is fine
+	md2.Location = source.RedactLocation(md2.Location)
+
+	return writeJSON(w.out, w.fm, &md2)
 }

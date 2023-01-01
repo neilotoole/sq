@@ -29,9 +29,6 @@ const (
 	flagInsert      = "insert"
 	flagInsertUsage = "Insert query results into @HANDLE.TABLE. If not existing, TABLE will be created."
 
-	flagInspectFull      = "full"
-	flagInspectFullUsage = "Output full data source details (JSON only)"
-
 	flagJSON       = "json"
 	flagJSONUsage  = "Output JSON"
 	flagJSONShort  = "j"
@@ -67,7 +64,7 @@ const (
 	flagRawShort = "r"
 	flagRawUsage = "Output each record field in raw format without any encoding or delimiter"
 
-	flagSQLExec      = "exec"
+	flagSQLExec      = "Exec"
 	flagSQLExecUsage = "Execute the SQL as a statement (as opposed to query)"
 
 	flagSQLQuery      = "query"

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/csv"
+	"encoding/json"
 	"os"
 	"strings"
 	"sync"
@@ -15,7 +16,6 @@ import (
 
 	"github.com/neilotoole/sq/cli"
 	"github.com/neilotoole/sq/cli/config"
-	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/source"
 )
 
@@ -41,7 +41,7 @@ func newTestRunCtx(log lg.Log) (rc *cli.RunContext, out, errOut *bytes.Buffer) {
 }
 
 // run is a helper for testing sq commands.
-type run struct {
+type Run struct {
 	t      *testing.T
 	mu     sync.Mutex
 	rc     *cli.RunContext
@@ -54,8 +54,8 @@ type run struct {
 }
 
 // newRun returns a new run instance for testing sq commands.
-func newRun(t *testing.T) *run {
-	ru := &run{t: t}
+func newRun(t *testing.T) *Run {
+	ru := &Run{t: t}
 	ru.rc, ru.out, ru.errOut = newTestRunCtx(testlg.New(t))
 	return ru
 }
@@ -63,7 +63,7 @@ func newRun(t *testing.T) *run {
 // add adds srcs to ru.rc.Config.Set. If the source set
 // does not already have an active source, the first element
 // of srcs is used.
-func (ru *run) add(srcs ...source.Source) *run {
+func (ru *Run) add(srcs ...source.Source) *Run {
 	ru.mu.Lock()
 	defer ru.mu.Unlock()
 
@@ -87,24 +87,32 @@ func (ru *run) add(srcs ...source.Source) *run {
 	return ru
 }
 
-// exec executes the sq command specified by args. If the first
+// Exec executes the sq command specified by args. If the first
 // element of args is not "sq", that value is prepended to the
 // args for execution. This method may only be invoked once.
-// The backing RunContext will also be closed.
-func (ru *run) exec(args ...string) error {
+// The backing RunContext will also be closed. If an error
+// occurs on the client side during execution, that error is returned.
+// Either ru.out or ru.errOut will be filled, according to what the
+// CLI outputs.
+func (ru *Run) Exec(args ...string) error {
 	ru.mu.Lock()
 	defer ru.mu.Unlock()
 
-	if ru.used {
-		err := errz.New("run instance must only be used once")
-		ru.t.Fatal(err)
-		return err
-	}
+	return ru.doExec(args)
+}
 
-	execErr := cli.ExecuteWith(context.Background(), ru.rc, args)
+func (ru *Run) doExec(args []string) error {
+	defer func() { ru.used = true }()
+
+	require.False(ru.t, ru.used, "Run instance must only be used once")
+
+	ctx, cancelFn := context.WithCancel(context.Background())
+	ru.t.Cleanup(cancelFn)
+
+	execErr := cli.ExecuteWith(ctx, ru.rc, args)
 
 	if !ru.hushOutput {
-		// We log sq's output now (before calling rc.Close) because
+		// We log the CLI's output now (before calling rc.Close) because
 		// it reads better in testing's output that way.
 		if ru.out.Len() > 0 {
 			ru.t.Log(strings.TrimSuffix(ru.out.String(), "\n"))
@@ -124,9 +132,27 @@ func (ru *run) exec(args ...string) error {
 	return closeErr
 }
 
+// Bind marshals Run.Out to v (as JSON), failing the test on any error.
+func (ru *Run) Bind(v any) *Run {
+	ru.mu.Lock()
+	defer ru.mu.Unlock()
+
+	err := json.Unmarshal(ru.out.Bytes(), &v)
+	require.NoError(ru.t, err)
+	return ru
+}
+
+// BindMap is a convenience method for binding ru.Out to a map.
+func (ru *Run) BindMap() map[string]any {
+	m := map[string]any{}
+	ru.Bind(&m)
+	return m
+}
+
 // mustReadCSV reads CSV from ru.out and returns all records,
-// failing the testing on any problem.
-func (ru *run) mustReadCSV() [][]string {
+// failing the testing on any problem. Obviously the Exec call
+// should have specified "--csv".
+func (ru *Run) mustReadCSV() [][]string {
 	ru.mu.Lock()
 	defer ru.mu.Unlock()
 
@@ -138,7 +164,7 @@ func (ru *run) mustReadCSV() [][]string {
 // hush suppresses the printing of output collected in out
 // and errOut to t.Log. Set to true for tests
 // that output excessive content, binary files, etc.
-func (ru *run) hush() *run {
+func (ru *Run) hush() *Run {
 	ru.hushOutput = true
 	return ru
 }

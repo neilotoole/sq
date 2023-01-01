@@ -52,7 +52,7 @@ func TestCmdSQL_Insert(t *testing.T) {
 					insertTo := fmt.Sprintf("%s.%s", destSrc.Handle, tblName)
 					query := fmt.Sprintf("SELECT %s FROM %s", strings.Join(sakila.TblActorCols(), ", "), originTbl)
 
-					err := ru.exec("sql", "--insert="+insertTo, query)
+					err := ru.Exec("sql", "--insert="+insertTo, query)
 					require.NoError(t, err)
 
 					sink, err := th.QuerySQL(destSrc, "select * from "+tblName)
@@ -100,7 +100,7 @@ func TestCmdSQL_SelectFromUserDriver(t *testing.T) {
 				}
 				ru.rc.Config.Ext.UserDrivers = append(ru.rc.Config.Ext.UserDrivers, udDefs...)
 
-				err := ru.exec("sql", "--csv", "--header=false", "SELECT * FROM "+wantTbl.tblName)
+				err := ru.Exec("sql", "--csv", "--header=false", "SELECT * FROM "+wantTbl.tblName)
 				require.NoError(t, err)
 				recs := ru.mustReadCSV()
 				require.Equal(t, wantTbl.wantRows, len(recs), "expected %d rows in tbl %q but got %s", wantTbl.wantRows,
@@ -152,7 +152,7 @@ func TestCmdSQL_StdinQuery(t *testing.T) {
 				args = append(args, "--opts=header=true")
 			}
 
-			err = ru.exec(args...)
+			err = ru.Exec(args...)
 			if tc.wantErr {
 				require.Error(t, err)
 				return

@@ -141,7 +141,7 @@ func TestOutputRaw(t *testing.T) {
 			})
 
 			ru := newRun(t).add(*src).hush()
-			err = ru.exec("sql", "--raw", "--output="+outputPath, query)
+			err = ru.Exec("sql", "--raw", "--output="+outputPath, query)
 			require.NoError(t, err)
 
 			outputBytes, err := os.ReadFile(outputPath)
@@ -152,7 +152,7 @@ func TestOutputRaw(t *testing.T) {
 
 			// 2. Now test that stdout also gets the same data
 			ru = newRun(t).add(*src)
-			err = ru.exec("sql", "--raw", query)
+			err = ru.Exec("sql", "--raw", query)
 			require.NoError(t, err)
 			require.Equal(t, wantBytes, ru.out.Bytes())
 		})
