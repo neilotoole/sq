@@ -112,7 +112,7 @@ func (ru *Run) doExec(args []string) error {
 	execErr := cli.ExecuteWith(ctx, ru.rc, args)
 
 	if !ru.hushOutput {
-		// We log edgectl's output now (before calling rc.Close) because
+		// We log the CLI's output now (before calling rc.Close) because
 		// it reads better in testing's output that way.
 		if ru.out.Len() > 0 {
 			ru.t.Log(strings.TrimSuffix(ru.out.String(), "\n"))
