@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `sq ping` now respects `--json` flag.
 
+### Fixed
+
+- Improved handling of file paths on Windows.
+
 ## [v0.23.0] - 2022-12-31
 
 ### Added
