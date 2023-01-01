@@ -100,28 +100,18 @@ func RedactLocation(loc string) string {
 			return loc
 		}
 
-		// The HTTP url could have a user:password component that could be masked
-		if u.User != nil {
-			if _, ok := u.User.Password(); ok {
-				u.User = url.UserPassword(u.User.Username(), "****")
-			}
-		}
-
-		return u.String()
+		return u.Redacted()
 	}
 
 	// At this point, we expect it's a DSN
-	u, err := dburl.Parse(loc)
+	dbu, err := dburl.Parse(loc)
 	if err != nil {
 		// Shouldn't happen, but if it does, simply return the
 		// unmodified loc.
 		return loc
 	}
 
-	// We want to mask the password, but our preferred ****
-	// text gets URL encoded, so we'll make this a two-step process.
-	u.User = url.UserPassword(u.User.Username(), "****")
-	return u.String()
+	return dbu.Redacted()
 }
 
 // ShortLocation returns a short location string. For example, the
