@@ -5,20 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## [v0.23.0] - 2022-12-31
 
 ### Added
 
 - `sq ls` now respects `--json flag`.
 - `sq rm` now respects `--json flag`.
-- FIXME: `sq add` now respects `--json flag`.
+- `sq add` now respects `--json flag`.
 - CI pipeline now verifies install packages after publish.
 
 ### Changed
 
 - `sq rm` can delete multiple sources.
 - `sq rm` doesn't print output unless `--verbose`.
-
+- Redacted snipped is now `xxxxx` instead of `****`, to match stdlib `url.URL.Redacted()`.
 
 ### Fixed
 
@@ -123,6 +123,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [#89]: Bug with SQL generated for joins.
 
 
+[v0.23.0]: https://github.com/neilotoole/sq/compare/v0.21.3...v0.23.0
 [v0.21.3]: https://github.com/neilotoole/sq/compare/v0.20.0...v0.21.3
 [v0.20.0]: https://github.com/neilotoole/sq/compare/v0.19.0...v0.20.0
 [v0.19.0]: https://github.com/neilotoole/sq/compare/v0.18.2...v0.19.0
