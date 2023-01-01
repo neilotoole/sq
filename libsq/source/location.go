@@ -305,6 +305,11 @@ func isFpath(loc string) (fpath string, ok bool) {
 		return "", false
 	}
 
+	if strings.Contains(loc, ":") {
+		// Excludes "sqlite:my_file.db"
+		return "", false
+	}
+
 	fpath, err := filepath.Abs(loc)
 	if err != nil {
 		return "", false

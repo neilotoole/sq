@@ -129,6 +129,7 @@ More examples:
 func execSrcAdd(cmd *cobra.Command, args []string) error {
 	rc := RunContextFrom(cmd.Context())
 	cfg := rc.Config
+
 	loc := source.AbsLocation(strings.TrimSpace(args[0]))
 	var err error
 	var typ source.Type
