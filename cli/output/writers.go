@@ -74,12 +74,12 @@ type ErrorWriter interface {
 // PingWriter writes ping results.
 type PingWriter interface {
 	// Open opens the writer to write the supplied sources.
-	Open(srcs []*source.Source)
+	Open(srcs []*source.Source) error
 
 	// Result prints a ping result. The ping succeeded if
 	// err is nil. If err is context.DeadlineExceeded, the d
 	// arg will be the timeout value.
-	Result(src *source.Source, d time.Duration, err error)
+	Result(src *source.Source, d time.Duration, err error) error
 
 	// Close is called after all results have been received.
 	Close() error

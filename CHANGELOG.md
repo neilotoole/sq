@@ -5,13 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Added
+
+- `sq ping` now respects `--json` flag.
+
 ## [v0.23.0] - 2022-12-31
 
 ### Added
 
-- `sq ls` now respects `--json flag`.
-- `sq rm` now respects `--json flag`.
-- `sq add` now respects `--json flag`.
+- `sq ls` now respects `--json` flag.
+- `sq rm` now respects `--json` flag.
+- `sq add` now respects `--json` flag.
 - CI pipeline now verifies install packages after publish.
 
 ### Changed

@@ -28,15 +28,16 @@ type PingWriter struct {
 	handleWidthMax int
 }
 
-func (w *PingWriter) Open(srcs []*source.Source) {
+func (w *PingWriter) Open(srcs []*source.Source) error {
 	for _, src := range srcs {
 		if len(src.Handle) > w.handleWidthMax {
 			w.handleWidthMax = len(src.Handle)
 		}
 	}
+	return nil
 }
 
-func (w *PingWriter) Result(src *source.Source, d time.Duration, err error) {
+func (w *PingWriter) Result(src *source.Source, d time.Duration, err error) error {
 	w.fm.Number.Fprintf(w.out, "%-"+strconv.Itoa(w.handleWidthMax)+"s", src.Handle)
 	fmt.Fprintf(w.out, "%10s  ", d.Truncate(time.Millisecond).String())
 
@@ -60,6 +61,7 @@ func (w *PingWriter) Result(src *source.Source, d time.Duration, err error) {
 	}
 
 	fmt.Fprintf(w.out, "\n")
+	return nil
 }
 
 func (w *PingWriter) Close() error {

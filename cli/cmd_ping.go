@@ -46,6 +46,7 @@ The exit code is 1 if ping fails for any of the sources.`,
 	cmd.Flags().BoolP(flagTable, flagTableShort, false, flagTableUsage)
 	cmd.Flags().BoolP(flagCSV, flagCSVShort, false, flagCSVUsage)
 	cmd.Flags().BoolP(flagTSV, flagTSVShort, false, flagTSVUsage)
+	cmd.Flags().BoolP(flagJSON, flagJSONShort, false, flagJSONUsage)
 	cmd.Flags().Duration(flagPingTimeout, time.Second*10, flagPingTimeoutUsage)
 	cmd.Flags().BoolP(flagPingAll, flagPingAllShort, false, flagPingAllUsage)
 
@@ -105,14 +106,15 @@ func execPing(cmd *cobra.Command, args []string) error {
 // to w. If any error occurs pinging any of srcs, that error is printed
 // inline as part of the ping results, and an errNoMsg is returned.
 //
-// NOTE: This ping code has an ancient lineage, in that it was written
-//
-//	originally laid down before context.Context was a thing. Thus,
-//	the entire thing could probably be rewritten for simplicity.
+// NOTE: This ping code has an ancient lineage, in that it was
+// originally laid down before context.Context was a thing. Thus,
+// the entire thing could probably be rewritten for simplicity.
 func pingSources(ctx context.Context, log lg.Log, dp driver.Provider, srcs []*source.Source, w output.PingWriter,
 	timeout time.Duration,
 ) error {
-	w.Open(srcs)
+	if err := w.Open(srcs); err != nil {
+		return err
+	}
 	defer log.WarnIfFuncError(w.Close)
 
 	resultCh := make(chan pingResult, len(srcs))
@@ -147,7 +149,7 @@ func pingSources(ctx context.Context, log lg.Log, dp driver.Provider, srcs []*so
 			pingErrExists = true
 		}
 
-		w.Result(result.src, result.duration, result.err)
+		log.WarnIfError(w.Result(result.src, result.duration, result.err))
 	}
 
 	// If there's at least one error, we return the

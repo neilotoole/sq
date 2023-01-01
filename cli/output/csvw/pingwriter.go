@@ -27,11 +27,12 @@ type pingWriter struct {
 }
 
 // Open implements output.PingWriter.
-func (p *pingWriter) Open(srcs []*source.Source) {
+func (p *pingWriter) Open(srcs []*source.Source) error {
+	return nil
 }
 
 // Result implements output.PingWriter.
-func (p *pingWriter) Result(src *source.Source, d time.Duration, err error) {
+func (p *pingWriter) Result(src *source.Source, d time.Duration, err error) error {
 	rec := make([]string, 3)
 	rec[0] = src.Handle
 	rec[1] = d.Truncate(time.Millisecond).String()
@@ -47,6 +48,7 @@ func (p *pingWriter) Result(src *source.Source, d time.Duration, err error) {
 
 	_ = p.csvw.Write(rec)
 	p.csvw.Flush()
+	return nil
 }
 
 // Close implements output.PingWriter.
