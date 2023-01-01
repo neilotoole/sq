@@ -60,7 +60,7 @@ func TestCmdInspect(t *testing.T) {
 
 			ru := newRun(t).add(*src)
 
-			err := ru.exec("inspect", "--json")
+			err := ru.Exec("inspect", "--json")
 			if tc.wantErr {
 				require.Error(t, err)
 				return
@@ -81,20 +81,20 @@ func TestCmdInspectSmoke(t *testing.T) {
 	src := th.Source(sakila.SL3)
 
 	ru := newRun(t)
-	err := ru.exec("inspect")
+	err := ru.Exec("inspect")
 	require.Error(t, err, "should fail because no active src")
 
 	ru = newRun(t)
 	ru.add(*src) // now have an active src
 
-	err = ru.exec("inspect", "--json")
+	err = ru.Exec("inspect", "--json")
 	require.NoError(t, err, "should pass because there is an active src")
 
 	md := &source.Metadata{}
 	require.NoError(t, json.Unmarshal(ru.out.Bytes(), md))
 	require.Equal(t, sqlite3.Type, md.SourceType)
 	require.Equal(t, sakila.SL3, md.Handle)
-	require.Equal(t, src.Location, md.Location)
+	require.Equal(t, src.RedactedLocation(), md.Location)
 	require.Equal(t, sakila.AllTblsViews(), md.TableNames())
 
 	// Try one more source for good measure
@@ -102,7 +102,7 @@ func TestCmdInspectSmoke(t *testing.T) {
 	src = th.Source(sakila.CSVActor)
 	ru.add(*src)
 
-	err = ru.exec("inspect", "--json", src.Handle)
+	err = ru.Exec("inspect", "--json", src.Handle)
 	require.NoError(t, err)
 
 	md = &source.Metadata{}
@@ -134,7 +134,7 @@ func TestCmdInspect_Stdin(t *testing.T) {
 			ru := newRun(t)
 			ru.rc.Stdin = f
 
-			err = ru.exec("inspect", "--json")
+			err = ru.Exec("inspect", "--json")
 			if tc.wantErr {
 				require.Error(t, err)
 				return

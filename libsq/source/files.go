@@ -7,7 +7,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
@@ -495,33 +494,6 @@ func DetectMagicNumber(ctx context.Context, log lg.Log, openFn FileOpenFunc) (de
 	case matchers.TypeSqlite:
 		return typeSL3, 1.0, nil
 	}
-}
-
-// AbsLocation returns the absolute path of loc. That is, relative
-// paths etc loc loc are resolved. If loc is not a file path or
-// it cannot be processed, loc is returned unmodified.
-func AbsLocation(loc string) string {
-	if fpath, ok := isFpath(loc); ok {
-		return fpath
-	}
-
-	return loc
-}
-
-// isFpath returns the filepath and true if loc is a file path.
-func isFpath(loc string) (fpath string, ok bool) {
-	// This is not exactly an industrial-strength algorithm...
-	if strings.Contains(loc, ":/") {
-		// Excludes "http:/" etc
-		return "", false
-	}
-
-	fpath, err := filepath.Abs(loc)
-	if err != nil {
-		return "", false
-	}
-
-	return fpath, true
 }
 
 // httpURL tests if s is a well-structured HTTP or HTTPS url, and

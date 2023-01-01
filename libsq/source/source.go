@@ -89,14 +89,25 @@ func (s *Source) Clone() *Source {
 // the location masked.
 func RedactLocation(loc string) string {
 	switch {
-	case loc == "":
-		return ""
-	case strings.HasPrefix(loc, "/"):
-		// It's a file
+	case loc == "",
+		strings.HasPrefix(loc, "/"),
+		strings.HasPrefix(loc, "sqlite3:///"):
 		return loc
 	case strings.HasPrefix(loc, "http://"), strings.HasPrefix(loc, "https://"):
-		// TODO: technically a HTTP url could have a user:password component that could be masked
-		return loc
+		u, err := url.ParseRequestURI(loc)
+		if err != nil {
+			// If we can't parse it, just return the original loc
+			return loc
+		}
+
+		// The HTTP url could have a user:password component that could be masked
+		if u.User != nil {
+			if _, ok := u.User.Password(); ok {
+				u.User = url.UserPassword(u.User.Username(), "****")
+			}
+		}
+
+		return u.String()
 	}
 
 	// At this point, we expect it's a DSN
@@ -109,8 +120,8 @@ func RedactLocation(loc string) string {
 
 	// We want to mask the password, but our preferred ****
 	// text gets URL encoded, so we'll make this a two-step process.
-	u.User = url.UserPassword(u.User.Username(), "password")
-	return strings.Replace(u.String(), "password", "****", 1)
+	u.User = url.UserPassword(u.User.Username(), "****")
+	return u.String()
 }
 
 // ShortLocation returns a short location string. For example, the

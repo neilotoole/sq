@@ -23,6 +23,7 @@ func newSrcAddCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add [--handle @HANDLE] LOCATION",
 		RunE:  execSrcAdd,
+		Args:  cobra.ExactArgs(1),
 		Short: "Add data source",
 		Long:  `Add data source specified by LOCATION, optionally identified by @HANDLE.`,
 		Example: `
@@ -127,16 +128,12 @@ More examples:
 
 func execSrcAdd(cmd *cobra.Command, args []string) error {
 	rc := RunContextFrom(cmd.Context())
-	if len(args) != 1 {
-		return errz.Errorf(msgInvalidArgs)
-	}
-
 	cfg := rc.Config
 	loc := source.AbsLocation(strings.TrimSpace(args[0]))
 	var err error
 	var typ source.Type
 
-	if cmd.Flags().Changed(flagDriver) {
+	if cmdFlagChanged(cmd, flagDriver) {
 		val, _ := cmd.Flags().GetString(flagDriver)
 		typ = source.Type(strings.TrimSpace(val))
 	} else {
@@ -154,7 +151,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 	}
 
 	var handle string
-	if cmd.Flags().Changed(flagHandle) {
+	if cmdFlagChanged(cmd, flagHandle) {
 		handle, _ = cmd.Flags().GetString(flagHandle)
 	} else {
 		handle, err = source.SuggestHandle(typ, loc, cfg.Sources.Exists)
@@ -177,7 +174,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 	}
 
 	var opts options.Options
-	if cmd.Flags().Changed(flagSrcOptions) {
+	if cmdFlagChanged(cmd, flagSrcOptions) {
 		val, _ := cmd.Flags().GetString(flagSrcOptions)
 		val = strings.TrimSpace(val)
 		if val != "" {
@@ -188,17 +185,11 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Special handling for SQLite, because it's a file-based SQL DB
-	// unlike the other SQL DBs sq supports so far.
-	// Both of these forms are allowed:
-	//
-	//  $ sq add sqlite3:///path/to/sakila.db
-	//  $ sq add /path/to/sakila.db
-	//
-	// The second form is particularly nice for bash completion etc.
 	if typ == sqlite3.Type {
-		if !strings.HasPrefix(loc, sqlite3.Prefix) {
-			loc = sqlite3.Prefix + loc
+		// Special handling for SQLite, because it's a file-based DB.
+		loc, err = sqlite3.MungeLocation(loc)
+		if err != nil {
+			return err
 		}
 	}
 

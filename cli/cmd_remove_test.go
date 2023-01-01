@@ -14,7 +14,7 @@ func TestCmdRemove(t *testing.T) {
 
 	// 1. Should fail if bad handle
 	ru := newRun(t)
-	err := ru.exec("rm", "@not_a_source")
+	err := ru.Exec("rm", "@not_a_source")
 	require.Error(t, err)
 
 	// 2. Check normal operation
@@ -26,7 +26,7 @@ func TestCmdRemove(t *testing.T) {
 	require.NotNil(t, activeSrc)
 	require.Equal(t, src.Handle, activeSrc.Handle)
 
-	err = ru.exec("rm", src.Handle)
+	err = ru.Exec("rm", src.Handle)
 	require.NoError(t, err)
 
 	activeSrc = ru.rc.Config.Sources.Active()

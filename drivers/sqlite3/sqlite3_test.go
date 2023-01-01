@@ -1,10 +1,12 @@
 package sqlite3_test
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/neilotoole/sq/testh/tutil"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/drivers/sqlite3"
@@ -220,6 +222,65 @@ func TestPathFromLocation(t *testing.T) {
 			require.NoError(t, err)
 			want := filepath.FromSlash(tc.want) // for win/unix testing interoperability
 			require.Equal(t, want, got)
+		})
+	}
+}
+
+func TestMungeLocation(t *testing.T) {
+	cwd, err := os.Getwd()
+	require.NoError(t, err)
+	cwdWant := "sqlite3://" + cwd + "/sakila.db"
+
+	testCases := []struct {
+		in      string
+		want    string
+		wantErr bool
+	}{
+		{
+			in:      "",
+			wantErr: true,
+		},
+		{
+			in:   "sqlite3:///path/to/sakila.db",
+			want: "sqlite3:///path/to/sakila.db",
+		},
+		{
+			in:   "sqlite3://sakila.db",
+			want: cwdWant,
+		},
+		{
+			in:   "sqlite3:sakila.db",
+			want: cwdWant,
+		},
+		{
+			in:   "sqlite3:/sakila.db",
+			want: "sqlite3:///sakila.db",
+		},
+		{
+			in:   "sakila.db",
+			want: cwdWant,
+		},
+		{
+			in:   "./sakila.db",
+			want: cwdWant,
+		},
+		{
+			in:   "/path/to/sakila.db",
+			want: "sqlite3:///path/to/sakila.db",
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tutil.Name(tc.in), func(t *testing.T) {
+			got, err := sqlite3.MungeLocation(tc.in)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got)
 		})
 	}
 }
