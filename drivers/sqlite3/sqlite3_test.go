@@ -229,6 +229,8 @@ func TestPathFromLocation(t *testing.T) {
 func TestMungeLocation(t *testing.T) {
 	cwd, err := os.Getwd()
 	require.NoError(t, err)
+	cwd = filepath.ToSlash(cwd)
+
 	cwdWant := "sqlite3://" + cwd + "/sakila.db"
 
 	testCases := []struct {
