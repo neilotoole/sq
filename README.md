@@ -360,8 +360,8 @@ See [CHANGELOG.md](./CHANGELOG.md).
 - See [`go.mod`](https://github.com/neilotoole/sq/blob/master/go.mod) for a list of third-party
   packages.
 - Additionally, `sq` incorporates modified versions of:
-    - [`olekukonko/tablewriter`](https://github.com/olekukonko/tablewriter)
-    - [`segmentio/encoding`](https://github.com/segmentio/encoding) for JSON encoding.
+  - [`olekukonko/tablewriter`](https://github.com/olekukonko/tablewriter)
+  - [`segmentio/encoding`](https://github.com/segmentio/encoding) for JSON encoding.
 - The [_Sakila_](https://dev.mysql.com/doc/sakila/en/) example databases were lifted
   from [jOOQ](https://github.com/jooq/jooq), which in turn owe their heritage to earlier work on
   Sakila.

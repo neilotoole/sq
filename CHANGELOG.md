@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `sq ls` now respects `--json` flag.
 - `sq rm` now respects `--json` flag.
-- `sq add` now respects `--json` flag.
+- `sq add` now respects `--json` flag.`
 - CI pipeline now verifies install packages after publish.
 
 ### Changed

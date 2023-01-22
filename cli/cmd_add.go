@@ -53,8 +53,8 @@ However, if there's input on stdin, sq will read the password from
 there instead of prompting the user:
 
   # Add a source, but read password from an environment variable
-  $ export PASSWORD='open:;"_Ses@me'
-  $ sq add 'postgres://user@localhost/sakila' -p <<< $PASSWORD
+  $ export PASSWD='open:;"_Ses@me'
+  $ sq add 'postgres://user@localhost/sakila' -p <<< $PASSWD
 
   # Same as above, but instead read password from file
   $ echo 'open:;"_Ses@me' > password.txt
