@@ -11,7 +11,7 @@ func newRootCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   `sq QUERY`,
 		Short: "sq",
-		Long: `sq is a swiss army knife for data.
+		Long: `sq is a swiss-army knife for wrangling data.
 
 Use sq to query Postgres, SQLite, SQLServer, MySQL, CSV, TSV
 and Excel, and output in text, JSON, CSV, Excel, HTML, etc., or
