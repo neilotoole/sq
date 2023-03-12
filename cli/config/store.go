@@ -75,9 +75,8 @@ func (fs *YAMLFileStore) Load() (*Config, error) {
 	repaired, err := source.VerifySetIntegrity(cfg.Sources)
 	if err != nil {
 		if repaired {
-			// TODO: This should be logged
-			err2 := fs.Save(cfg)
-			err = errz.Combine(err, err2)
+			// The config was repaired. Save the changes.
+			err = errz.Combine(err, fs.Save(cfg))
 		}
 		return nil, errz.Wrapf(err, "config: %s", fs.Path)
 	}
