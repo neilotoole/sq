@@ -1,2 +1,10 @@
+version: v0.0.0-dev
+defaults:
+    output_format: table
+    output_header: false
+    ping_timeout: 10s
+    shell_completion_timeout: 500ms
 sources:
-  active: '@does_not_exist'
+    active: ""
+    scratch: ""
+    items: []
