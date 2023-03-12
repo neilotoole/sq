@@ -314,9 +314,12 @@ func (s *Set) Clone() *Set {
 // VerifySetIntegrity verifies the internal state of s.
 // Typically this func is invoked after s has been loaded
 // from config, verifying that the config is not corrupt.
-func VerifySetIntegrity(ss *Set) error {
+// If err is returned non-nil, repaired may be returned true
+// to indicate that ss has been repaired and modified. The
+// caller should save the config to persist the repair.
+func VerifySetIntegrity(ss *Set) (repaired bool, err error) {
 	if ss == nil {
-		return errz.New("source set is nil")
+		return false, errz.New("source set is nil")
 	}
 
 	ss.mu.Lock()
@@ -326,16 +329,16 @@ func VerifySetIntegrity(ss *Set) error {
 	for i := range ss.data.Items {
 		src := ss.data.Items[i]
 		if src == nil {
-			return errz.Errorf("source set item %d is nil", i)
+			return false, errz.Errorf("source set item %d is nil", i)
 		}
 
 		err := verifyLegalSource(src)
 		if err != nil {
-			return errz.Wrapf(err, "source set item %d", i)
+			return false, errz.Wrapf(err, "source set item %d", i)
 		}
 
 		if _, exists := handles[src.Handle]; exists {
-			return errz.Errorf("source set item %d duplicates handle %s", i, src.Handle)
+			return false, errz.Errorf("source set item %d duplicates handle %s", i, src.Handle)
 		}
 
 		handles[src.Handle] = src
@@ -343,11 +346,17 @@ func VerifySetIntegrity(ss *Set) error {
 
 	if strings.TrimSpace(ss.data.ActiveSrc) != "" {
 		if _, exists := handles[ss.data.ActiveSrc]; !exists {
-			return errz.Errorf("active source %s does not exist loc source set", ss.data.ActiveSrc)
+			// The active source doesn't exist. We'll unset the active source.
+			activeSrc := ss.data.ActiveSrc
+			ss.data.ActiveSrc = ""
+			repaired = true
+			// Note that the caller will still need to save the source set
+			// to the config file for the repair to take effect.
+			return repaired, errz.Errorf("active source {%s} does not exist in source set: config has been repaired: please try again", activeSrc) //nolint:lll
 		}
 	}
 
-	return nil
+	return repaired, nil
 }
 
 // verifyLegalSource performs basic checking on source s.

@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.24.1] - 2023-03-11
+
+### Fixed
+
+- [#144]: Handle corrupted config active source.
+
 ## [v0.24.0] - 2022-12-31
 
 ### Added
@@ -21,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `sq ls` now respects `--json` flag.
 - `sq rm` now respects `--json` flag.
-- `sq add` now respects `--json` flag.
+- `sq add` now respects `--json` flag.`
 - CI pipeline now verifies install packages after publish.
 
 ### Changed
@@ -133,6 +139,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [#89]: Bug with SQL generated for joins.
 
 
+[v0.24.1]: https://github.com/neilotoole/sq/compare/v0.24.0...v0.24.1
 [v0.24.0]: https://github.com/neilotoole/sq/compare/v0.23.0...v0.24.0
 [v0.23.0]: https://github.com/neilotoole/sq/compare/v0.21.3...v0.23.0
 [v0.21.3]: https://github.com/neilotoole/sq/compare/v0.20.0...v0.21.3
@@ -148,6 +155,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 
+[#144]: https://github.com/neilotoole/sq/issues/144
 [#123]: https://github.com/neilotoole/sq/issues/123
 [#95]: https://github.com/neilotoole/sq/issues/93
 [#91]: https://github.com/neilotoole/sq/pull/91

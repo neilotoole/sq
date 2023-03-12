@@ -116,7 +116,6 @@ linters-settings:
       - "2"
       - "3"
 
-
   gomodguard:
     blocked:
       # List of blocked modules.
@@ -150,6 +149,15 @@ linters-settings:
         # Whether to be strict about shadowing; can be noisy.
         # Default: false
         strict: false
+
+  lll:
+    # Max line length, lines longer will be reported.
+    # '\t' is counted as 1 character by default, and can be changed with the tab-width option.
+    # Default: 120.
+    line-length: 120
+    # Tab width in spaces.
+    # Default: 1
+    tab-width: 1
 
   nakedret:
     # Make an issue if func has more lines of code than this setting, and it has naked returns.

@@ -13,11 +13,7 @@ func newDriverCmd() *cobra.Command {
 		},
 
 		Example: `  # List drivers
-  $ sq driver ls
-
-  # Install User Driver [TBD]
-  $ sq driver install ./rss.sq.yml
-`,
+  $ sq driver ls`,
 	}
 
 	return cmd
