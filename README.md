@@ -1,4 +1,4 @@
-# sq: swiss-army knife for data
+# sq: data wrangler
 
 `sq` is a command line tool that provides `jq`-style access to
 structured data sources: SQL databases, or document formats like CSV or Excel.
@@ -10,11 +10,10 @@ Excel, CSV, HTML, Markdown and XML, or insert directly to a SQL database.
 columns, size) and has commands for common database operations such as copying
 or dropping tables.
 
+Find out more at [sq.io](https://sq.io).
+
+
 ## Install
-
-For other installation options, see [here](https://github.com/neilotoole/sq/wiki#install).
-
-It is strongly advised to install [shell completion](#shell-completion).
 
 ### macOS
 
@@ -22,47 +21,36 @@ It is strongly advised to install [shell completion](#shell-completion).
 brew install neilotoole/sq/sq
 ```
 
-### Windows
-
-```
-scoop bucket add sq https://github.com/neilotoole/sq
-scoop install sq
-```
-
 ### Linux
-
-#### install.sh
-
-The easiest method is to use [install.sh](./install.sh):
 
 ```shell
 /bin/sh -c "$(curl -fsSL https://sq.io/install.sh)"
 ```
 
-The script detects if any of `apt`, `yum`, `apk` or `brew` are installed, and
-then installs via the usual procedure.
+### Windows
 
-> Note that `https://sq.io/install.sh` is simply a redirect
-> to [https://raw.githubusercontent.com/neilotoole/sq/master/install.sh](https://raw.githubusercontent.com/neilotoole/sq/master/install.sh).
+```shell
+scoop bucket add sq https://github.com/neilotoole/sq
+scoop install sq
+```
 
-You can of course directly use `apt`, `yum` etc. if desired. See the
-wiki for [more installation options](https://github.com/neilotoole/sq/wiki#install).
+### Go
 
-## Shell completion
+```shell
+go install github.com/neilotoole/sq
+```
 
-Shell completion is available for `bash`, `zsh`, `fish`, and `powershell`.
-It is strongly recommended to install it.
-
-Execute `sq completion --help` for the procedure.
+See other [install options](https://sq.io/docs/install/).
 
 ## Quickstart
 
-Use `sq help` to see command help. The [tutorial](https://github.com/neilotoole/sq/wiki/Tutorial) is
-the best place to start.
-The [cookbook](https://github.com/neilotoole/sq/wiki/Cookbook) has recipes for common actions.
+Use `sq help` to see command help. Docs are over at [sq.io](https://sq.io).
+Read the [overview](https://sq.io/docs/overview/), and the
+[tutorial](https://sq.io/docs/tutorial/). The [cookbook](https://sq.io/docs/cookbook/) has
+recipes for common tasks.
 
 The major concept is: `sq` operates on data sources, which are treated as SQL databases (even if the
-source is really a CSV or XLSX file etc).
+source is really a CSV or XLSX file etc.).
 
 In a nutshell, you `sq add` a source (giving it a `handle`), and then execute commands against the
 source.
@@ -178,7 +166,7 @@ $ sq inspect -j
 ```
 
 Combine `sq inspect` with [jq](https://stedolan.github.io/jq/) for some useful capabilities. Here's
-how to [list](https://github.com/neilotoole/sq/wiki/Cookbook#list-name-of-each-table-in-a-source)
+how to [list](https://sq-web.netlify.app/docs/cookbook/#list-table-names)
 all the table names in the active source:
 
 ```shell
@@ -193,7 +181,7 @@ customer
 ```
 
 And here's how you
-could [export](https://github.com/neilotoole/sq/wiki/Cookbook#export-all-tables-to-csv) each table
+could [export](https://sq.io/docs/cookbook/#export-all-tables-to-csv) each table
 to a CSV file:
 
 ```shell
@@ -267,10 +255,11 @@ CSV file, or Postgres table, etc.
 
 > **Note:** The current mechanism for these joins is highly naive: `sq` copies the joined table from
 > each source to a "scratch database" (SQLite by default), and then performs the JOIN using the
-> scratch database's SQL interface. Thus, performance is abysmal for larger tables. There are massive
+> scratch database's SQL interface. Thus, performance is abysmal for larger tables. There are
+> massive
 > optimizations to be made, but none have been implemented yet.
 
-See the [tutorial](https://github.com/neilotoole/sq/wiki/Tutorial#join) for further details, but
+See the [tutorial](https://sq.io/docs/tutorial/#join) for further details, but
 given an Excel source `@xl_demo` and a CSV source `@csv_demo`, you can do:
 
 ```shell
@@ -355,13 +344,14 @@ See [CHANGELOG.md](./CHANGELOG.md).
 
 ## Acknowledgements
 
-- Thanks to [Diego Souza](https://github.com/diegosouza) for creating the [Arch Linux package](https://aur.archlinux.org/packages/sq-bin).
+- Thanks to [Diego Souza](https://github.com/diegosouza) for creating
+  the [Arch Linux package](https://aur.archlinux.org/packages/sq-bin).
 - Much inspiration is owed to [jq](https://stedolan.github.io/jq/).
 - See [`go.mod`](https://github.com/neilotoole/sq/blob/master/go.mod) for a list of third-party
   packages.
 - Additionally, `sq` incorporates modified versions of:
-    - [`olekukonko/tablewriter`](https://github.com/olekukonko/tablewriter)
-    - [`segmentio/encoding`](https://github.com/segmentio/encoding) for JSON encoding.
+	- [`olekukonko/tablewriter`](https://github.com/olekukonko/tablewriter)
+	- [`segmentio/encoding`](https://github.com/segmentio/encoding) for JSON encoding.
 - The [_Sakila_](https://dev.mysql.com/doc/sakila/en/) example databases were lifted
   from [jOOQ](https://github.com/jooq/jooq), which in turn owe their heritage to earlier work on
   Sakila.
