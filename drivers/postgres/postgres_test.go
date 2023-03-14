@@ -1,12 +1,20 @@
 package postgres_test
 
 import (
+	"context"
+	"database/sql"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
 
-	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/neilotoole/lg"
+
+	"github.com/neilotoole/sq/libsq/core/errz"
+
+	"github.com/neilotoole/sq/libsq/source"
+
+	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -49,7 +57,7 @@ func TestDriverBehavior(t *testing.T) {
 			db := th.Open(src).DB()
 
 			query := `SELECT
-       (SELECT actor_id FROM actor LIMIT 1) AS actor_id,
+       (SELECT actor_id FROM actor limit 1) AS actor_id,
        (SELECT first_name FROM actor LIMIT 1) AS first_name,
        (SELECT last_name FROM actor LIMIT 1) AS last_name
 LIMIT 1`
@@ -183,6 +191,99 @@ func TestDriver_CreateTable_NotNullDefault(t *testing.T) {
 			}
 		})
 	}
+}
+
+// getAdminSource returns a new src that users the "postgres" user
+// instead of "sakila" user. This is useful if we need to create
+// databases, etc. A better solution is probably to change the
+// sakila DBs to grant all privileges to "sakila".
+func getAdminSakilaSource(src *source.Source) *source.Source {
+	s := *src
+	s.Location = strings.Replace(s.Location, "postgres://sakila:", "postgres://postgres:", 1)
+	return &s
+}
+
+// TestAlternateSchema verifies that we can access a schema
+// other than the default ("public").
+func TestAlternateSchema(t *testing.T) {
+	t.Parallel()
+
+	th := testh.New(t)
+	ctx := th.Context
+
+	src := getAdminSakilaSource(th.Source(sakila.Pg))
+	t.Logf("Using src: {%s}", src)
+
+	dbase := th.Open(src)
+	db := dbase.DB()
+	require.NoError(t, db.Ping())
+
+	schemaName := stringz.UniqSuffix("test_schema")
+	err := createSchema(ctx, db, schemaName)
+	t.Logf("Created schema {%s} in {%s}", schemaName, src)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		assert.NoError(t, dropSchema(ctx, db, schemaName))
+	})
+
+	tblName := stringz.UniqSuffix("test_table")
+	const wantRowCount = 5
+	require.NoError(t, createSimpleTable(ctx, db, schemaName, tblName, wantRowCount))
+
+	// We create a new src to point to the new schema.
+	// We change the schema by setting the search_path param.
+	src2 := src.Clone()
+	src2.Handle += "2"
+	src2.Location += "?search_path=" + schemaName
+	dbase2 := th.Open(src2)
+	md2, err := dbase2.SourceMetadata(ctx)
+	require.NoError(t, err)
+	require.Equal(t, schemaName, md2.Schema)
+
+	tblMeta2, err := dbase2.TableMetadata(ctx, tblName)
+	require.NoError(t, err)
+	require.Equal(t, int64(wantRowCount), tblMeta2.RowCount)
+}
+
+func createSchema(ctx context.Context, db *sql.DB, name string) error {
+	const tpl = `DROP SCHEMA IF EXISTS %q CASCADE;
+CREATE SCHEMA %q;`
+	stmt := fmt.Sprintf(tpl, name, name)
+	_, err := db.ExecContext(ctx, stmt)
+	return err
+}
+
+func dropSchema(ctx context.Context, db *sql.DB, name string) error {
+	const tpl = `DROP SCHEMA IF EXISTS %q CASCADE;`
+	stmt := fmt.Sprintf(tpl, name)
+	_, err := db.ExecContext(ctx, stmt)
+	return err
+}
+
+func createSimpleTable(ctx context.Context, db *sql.DB, schemaName, tblName string, insertRowCount int) error {
+	const tpl = `CREATE TABLE %q.%q
+	(
+	id   serial PRIMARY KEY,
+	NAME VARCHAR(255)
+	);`
+
+	stmt := fmt.Sprintf(tpl, schemaName, tblName)
+
+	_, err := db.ExecContext(ctx, stmt)
+	if err != nil {
+		return errz.Err(err)
+	}
+
+	stmt = fmt.Sprintf("INSERT INTO %q.%q (NAME) VALUES ($1)", schemaName, tblName)
+
+	for i := 0; i < insertRowCount; i++ {
+		_, err = db.ExecContext(ctx, stmt, fmt.Sprintf("name-%d", i))
+		if err != nil {
+			return errz.Err(err)
+		}
+	}
+
+	return nil
 }
 
 func BenchmarkDatabase_SourceMetadata(b *testing.B) {

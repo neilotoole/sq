@@ -24,6 +24,10 @@ type Metadata struct {
 	// including catalog/schema etc. For example, "sakila.public"
 	FQName string `json:"name_fq"`
 
+	// Schema is the schema name, for example "public".
+	// This may be empty for some sources.
+	Schema string `json:"schema,omitempty"`
+
 	// SourceType is the source driver type.
 	SourceType Type `json:"driver"`
 

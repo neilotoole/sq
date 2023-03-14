@@ -51,10 +51,18 @@ func ReservedHandles() []string {
 
 // Source describes a data source.
 type Source struct {
-	Handle   string          `yaml:"handle" json:"handle"`
-	Type     Type            `yaml:"type" json:"type"`
-	Location string          `yaml:"location" json:"location"`
-	Options  options.Options `yaml:"options,omitempty" json:"options,omitempty"`
+	// Handle is used to refer to a source, e.g. "@sakila".
+	Handle string `yaml:"handle" json:"handle"`
+
+	// Type is the driver type, e.g. postgres.Type.
+	Type Type `yaml:"type" json:"type"`
+
+	// Location is the source location, such as a DB connection URI,
+	// or a file path.
+	Location string `yaml:"location" json:"location"`
+
+	// Options are additional params, typically empty.
+	Options options.Options `yaml:"options,omitempty" json:"options,omitempty"`
 }
 
 func (s *Source) String() string {

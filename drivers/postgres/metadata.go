@@ -165,7 +165,7 @@ func getSourceMetadata(ctx context.Context, log lg.Log, src *source.Source, db s
 		DBDriverType: src.Type,
 	}
 
-	var schema string
+	var schema sql.NullString
 	const summaryQuery = `SELECT current_catalog, current_schema(), pg_database_size(current_catalog),
 current_setting('server_version'), version(), "current_user"()`
 
@@ -175,7 +175,12 @@ current_setting('server_version'), version(), "current_user"()`
 		return nil, errz.Err(err)
 	}
 
-	md.FQName = md.Name + "." + schema
+	if !schema.Valid {
+		return nil, errz.New("NULL value for current_schema(): check privileges and search_path")
+	}
+
+	md.Schema = schema.String
+	md.FQName = md.Name + "." + schema.String
 
 	md.DBVars, err = getPgSettings(ctx, log, db)
 	if err != nil {
@@ -456,7 +461,7 @@ func getPgColumns(ctx context.Context, log lg.Log, db sqlz.DB, tblName string) (
   is_updatable,
   (
 	SELECT
-		pg_catalog.col_description(c.oid, cols.ordinal_position::int)
+		pg_catalog.col_description(c.oid, cols.ordinal_position::INT)
 	FROM
 		pg_catalog.pg_class c
 	WHERE
@@ -526,11 +531,11 @@ func getPgConstraints(ctx context.Context, log lg.Log, db sqlz.DB, tblName strin
 	query := `SELECT kcu.table_catalog,kcu.table_schema,kcu.table_name,kcu.column_name,
     kcu.ordinal_position,tc.constraint_name,tc.constraint_type,
     (
-       SELECT pg_catalog.pg_get_constraintdef(pgc.oid, true)
+       SELECT pg_catalog.pg_get_constraintdef(pgc.oid, TRUE)
        FROM pg_catalog.pg_constraint pgc
        WHERE pgc.conrelid = (SELECT ('"' || kcu.table_name || '"')::regclass::oid)
        AND pgc.conname = tc.constraint_name
-       LIMIT 1
+       limit 1
     )  AS constraint_def,
     (
        SELECT pgc.confrelid::regclass
