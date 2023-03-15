@@ -181,7 +181,7 @@ customer
 ```
 
 And here's how you
-could [export](https://sq.io/docs/cookbook/#export-all-tables-to-csv) each table
+could [export](https://sq.io/docs/cookbook/#export-all-table-data-to-csv) each table
 to a CSV file:
 
 ```shell
