@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- When a CSV source has explicit column names (via `--opts cols=A,B,C`), `sq` verifies
+- When a CSV source has explicit column names (via `--opts cols=A,B,C`), `sq` now verifies
   that the CSV data record field count matches the number of explicit columns.
 
 
