@@ -364,10 +364,9 @@ func getColNames(cr *csv.Reader, src *source.Source, readAheadRecs *[][]string) 
 		return headerRec, nil
 	}
 
-	// The CSV file does not have a header record. We will generate
-	// col names [A,B,C...]. To do so, we need to know how many fields
-	// there are in the first record.
-	firstDataRecord, err := cr.Read()
+	// Read ahead the first record. We need this to determine the number
+	// of columns.
+	firstRec, err := cr.Read()
 	if err == io.EOF { //nolint:errorlint
 		return nil, errz.Errorf("data source %s is empty", src.Handle)
 	}
@@ -375,13 +374,27 @@ func getColNames(cr *csv.Reader, src *source.Source, readAheadRecs *[][]string) 
 		return nil, errz.Wrapf(err, "read from data source %s", src.Handle)
 	}
 
-	// firstRecord contains actual data, so append it to initialRecs.
-	*readAheadRecs = append(*readAheadRecs, firstDataRecord)
+	// firstRec contains actual data, so append it to readAheadRecs.
+	*readAheadRecs = append(*readAheadRecs, firstRec)
 
+	// If we have explicit column names, we still need to verify the
+	// column name count against the data.
+	if len(explicitColNames) > 0 {
+		if len(explicitColNames) != len(firstRec) {
+			return nil, errz.Errorf("mismatch: source has %d explicit column names specified, but first data record has %d fields", //nolint:lll
+				len(explicitColNames), len(firstRec))
+		}
+
+		return explicitColNames, nil
+	}
+
+	// The CSV file does not have a header record. We will generate
+	// col names [A,B,C...]. To do so, we need to know how many fields
+	// there are in the first record.
 	// If no column names yet, we generate them based on the number
-	// of fields in firstDataRecord.
-	generatedColNames := make([]string, len(firstDataRecord))
-	for i := range firstDataRecord {
+	// of fields in firstRec.
+	generatedColNames := make([]string, len(firstRec))
+	for i := range firstRec {
 		generatedColNames[i] = stringz.GenerateAlphaColName(i, false)
 	}
 
@@ -429,13 +442,12 @@ func getDelimFromOptions(opts options.Options) (r rune, ok bool, err error) {
 		return 0, false, nil
 	}
 
-	const key = "delim"
-	_, ok = opts[key]
+	_, ok = opts[options.OptDelim]
 	if !ok {
 		return 0, false, nil
 	}
 
-	val := opts.Get(key)
+	val := opts.Get(options.OptDelim)
 	if val == "" {
 		return 0, false, nil
 	}
