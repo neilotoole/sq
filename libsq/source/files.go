@@ -27,9 +27,9 @@ import (
 // Why does Files exist? There's a need for functionality to
 // transparently get a Reader for remote or local files, and most importantly,
 // an ability for multiple goroutines to read/sample a file while
-// its being read (mainly to "sample" the file type, e.g. to determine
-// if it's an XLSX file etc). Currently we use fscache under the hood
-// for this, but our implementation is not satisfactory: loc particular,
+// it's being read (mainly to "sample" the file type, e.g. to determine
+// if it's an XLSX file etc.). Currently we use fscache under the hood
+// for this, but our implementation is not satisfactory: in particular,
 // the implementation currently requires that we read the entire source
 // file into fscache before it's available to be read (which is awful
 // if we're reading long-running pipe from stdin). This entire thing
@@ -442,7 +442,7 @@ func (fs *Files) detectType(ctx context.Context, loc string) (typ Type, ok bool,
 type FileOpenFunc func() (io.ReadCloser, error)
 
 // TypeDetectFunc interrogates a byte stream to determine
-// the source driver type. A score is returned indicating the
+// the source driver type. A score is returned indicating
 // the confidence that the driver type has been detected.
 // A score <= 0 is failure, a score >= 1 is success; intermediate
 // values indicate some level of confidence.

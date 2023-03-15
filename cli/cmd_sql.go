@@ -25,7 +25,7 @@ source's SQL dialect. Use flag --src=@HANDLE to specify an alternative
 source.
 
 If flag --query is set, sq will run the input as a query
-(SELECT) and return the query rows. If flag --Exec is set,
+(SELECT) and return the query rows. If flag --exec is set,
 sq will execute the input and return the result. If neither
 flag is set, sq attempts to determine the appropriate mode.`,
 		RunE: execSQL,
@@ -36,7 +36,7 @@ flag is set, sq attempts to determine the appropriate mode.`,
   $ sq sql --src=@sakila_pg12 'SELECT * FROM actor'
 
   # Drop table @sakila_pg12.actor
-  $ sq sql --Exec --src=@sakila_pg12 'DROP TABLE actor'
+  $ sq sql --exec --src=@sakila_pg12 'DROP TABLE actor'
 
   # Select from active source and write results to @sakila_ms17.actor
   $ sq sql 'SELECT * FROM actor' --insert=@sakila_ms17.actor`,

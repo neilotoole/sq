@@ -66,7 +66,7 @@ type importer struct {
 	// insert ID value for that table. See dbInsert for more.
 	tblSequence map[string]int64
 
-	// execInsertFns is a map of a table+cols key to an func for inserting
+	// execInsertFns is a map of a table+cols key to a func for inserting
 	// vals. Effectively it can be considered a cache of prepared insert
 	// statements. See the dbInsert function.
 	execInsertFns map[string]func(ctx context.Context, vals []any) error
