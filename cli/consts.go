@@ -64,7 +64,7 @@ const (
 	flagRawShort = "r"
 	flagRawUsage = "Output each record field in raw format without any encoding or delimiter"
 
-	flagSQLExec      = "Exec"
+	flagSQLExec      = "exec"
 	flagSQLExecUsage = "Execute the SQL as a statement (as opposed to query)"
 
 	flagSQLQuery      = "query"
