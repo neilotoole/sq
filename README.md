@@ -5,7 +5,6 @@ structured data sources: SQL databases, or document formats like CSV or Excel.
 
 ![sq](./splash.png)
 
-
 `sq` can perform cross-source joins,
 execute database-native SQL, and output to a multitude of formats including JSON,
 Excel, CSV, HTML, Markdown and XML, or insert directly to a SQL database.
