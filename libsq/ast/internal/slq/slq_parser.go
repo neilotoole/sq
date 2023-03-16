@@ -1,4 +1,4 @@
-// Code generated from java-escape by ANTLR 4.11.1. DO NOT EDIT.
+// Code generated from SLQ.g4 by ANTLR 4.12.0. DO NOT EDIT.
 
 package slq // SLQ
 import (
@@ -167,7 +167,7 @@ func NewSLQParser(input antlr.TokenStream) *SLQParser {
 	this.RuleNames = staticData.ruleNames
 	this.LiteralNames = staticData.literalNames
 	this.SymbolicNames = staticData.symbolicNames
-	this.GrammarFileName = "java-escape"
+	this.GrammarFileName = "SLQ.g4"
 
 	return this
 }
@@ -254,6 +254,10 @@ type IStmtListContext interface {
 
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
+
+	// Getter signatures
+	AllQuery() []IQueryContext
+	Query(i int) IQueryContext
 
 	// IsStmtListContext differentiates from other interfaces.
 	IsStmtListContext()
@@ -457,6 +461,12 @@ type IQueryContext interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
+	// Getter signatures
+	AllSegment() []ISegmentContext
+	Segment(i int) ISegmentContext
+	AllPIPE() []antlr.TerminalNode
+	PIPE(i int) antlr.TerminalNode
+
 	// IsQueryContext differentiates from other interfaces.
 	IsQueryContext()
 }
@@ -624,6 +634,12 @@ type ISegmentContext interface {
 
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
+
+	// Getter signatures
+	AllElement() []IElementContext
+	Element(i int) IElementContext
+	AllCOMMA() []antlr.TerminalNode
+	COMMA(i int) antlr.TerminalNode
 
 	// IsSegmentContext differentiates from other interfaces.
 	IsSegmentContext()
@@ -793,6 +809,16 @@ type IElementContext interface {
 
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
+
+	// Getter signatures
+	DsTblElement() IDsTblElementContext
+	DsElement() IDsElementContext
+	SelElement() ISelElementContext
+	Join() IJoinContext
+	Group() IGroupContext
+	RowRange() IRowRangeContext
+	Fn() IFnContext
+	Expr() IExprContext
 
 	// IsElementContext differentiates from other interfaces.
 	IsElementContext()
@@ -1077,6 +1103,14 @@ type ICmprContext interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
+	// Getter signatures
+	LT_EQ() antlr.TerminalNode
+	LT() antlr.TerminalNode
+	GT_EQ() antlr.TerminalNode
+	GT() antlr.TerminalNode
+	EQ() antlr.TerminalNode
+	NEQ() antlr.TerminalNode
+
 	// IsCmprContext differentiates from other interfaces.
 	IsCmprContext()
 }
@@ -1208,6 +1242,15 @@ type IFnContext interface {
 
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
+
+	// Getter signatures
+	FnName() IFnNameContext
+	LPAR() antlr.TerminalNode
+	RPAR() antlr.TerminalNode
+	AllExpr() []IExprContext
+	Expr(i int) IExprContext
+	AllCOMMA() []antlr.TerminalNode
+	COMMA(i int) antlr.TerminalNode
 
 	// IsFnContext differentiates from other interfaces.
 	IsFnContext()
@@ -1429,6 +1472,11 @@ type IJoinContext interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
+	// Getter signatures
+	LPAR() antlr.TerminalNode
+	JoinConstraint() IJoinConstraintContext
+	RPAR() antlr.TerminalNode
+
 	// IsJoinContext differentiates from other interfaces.
 	IsJoinContext()
 }
@@ -1572,6 +1620,11 @@ type IJoinConstraintContext interface {
 
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
+
+	// Getter signatures
+	AllSEL() []antlr.TerminalNode
+	SEL(i int) antlr.TerminalNode
+	Cmpr() ICmprContext
 
 	// IsJoinConstraintContext differentiates from other interfaces.
 	IsJoinConstraintContext()
@@ -1717,6 +1770,14 @@ type IGroupContext interface {
 
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
+
+	// Getter signatures
+	LPAR() antlr.TerminalNode
+	AllSEL() []antlr.TerminalNode
+	SEL(i int) antlr.TerminalNode
+	RPAR() antlr.TerminalNode
+	AllCOMMA() []antlr.TerminalNode
+	COMMA(i int) antlr.TerminalNode
 
 	// IsGroupContext differentiates from other interfaces.
 	IsGroupContext()
@@ -1880,6 +1941,9 @@ type ISelElementContext interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
+	// Getter signatures
+	SEL() antlr.TerminalNode
+
 	// IsSelElementContext differentiates from other interfaces.
 	IsSelElementContext()
 }
@@ -1983,6 +2047,10 @@ type IDsTblElementContext interface {
 
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
+
+	// Getter signatures
+	DATASOURCE() antlr.TerminalNode
+	SEL() antlr.TerminalNode
 
 	// IsDsTblElementContext differentiates from other interfaces.
 	IsDsTblElementContext()
@@ -2096,6 +2164,9 @@ type IDsElementContext interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
+	// Getter signatures
+	DATASOURCE() antlr.TerminalNode
+
 	// IsDsElementContext differentiates from other interfaces.
 	IsDsElementContext()
 }
@@ -2199,6 +2270,12 @@ type IRowRangeContext interface {
 
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
+
+	// Getter signatures
+	RBRA() antlr.TerminalNode
+	AllNN() []antlr.TerminalNode
+	NN(i int) antlr.TerminalNode
+	COLON() antlr.TerminalNode
 
 	// IsRowRangeContext differentiates from other interfaces.
 	IsRowRangeContext()
@@ -2363,7 +2440,6 @@ type IFnNameContext interface {
 
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
-
 	// IsFnNameContext differentiates from other interfaces.
 	IsFnNameContext()
 }
@@ -2470,6 +2546,20 @@ type IExprContext interface {
 
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
+
+	// Getter signatures
+	SEL() antlr.TerminalNode
+	Literal() ILiteralContext
+	UnaryOperator() IUnaryOperatorContext
+	AllExpr() []IExprContext
+	Expr(i int) IExprContext
+	Fn() IFnContext
+	LT() antlr.TerminalNode
+	LT_EQ() antlr.TerminalNode
+	GT() antlr.TerminalNode
+	GT_EQ() antlr.TerminalNode
+	EQ() antlr.TerminalNode
+	NEQ() antlr.TerminalNode
 
 	// IsExprContext differentiates from other interfaces.
 	IsExprContext()
@@ -2916,6 +3006,12 @@ type ILiteralContext interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
+	// Getter signatures
+	NN() antlr.TerminalNode
+	NUMBER() antlr.TerminalNode
+	STRING() antlr.TerminalNode
+	NULL() antlr.TerminalNode
+
 	// IsLiteralContext differentiates from other interfaces.
 	IsLiteralContext()
 }
@@ -3039,7 +3135,6 @@ type IUnaryOperatorContext interface {
 
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
-
 	// IsUnaryOperatorContext differentiates from other interfaces.
 	IsUnaryOperatorContext()
 }

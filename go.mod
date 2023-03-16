@@ -3,7 +3,7 @@ module github.com/neilotoole/sq
 go 1.19
 
 require (
-	github.com/antlr/antlr4/runtime/Go/antlr/v4 v4.0.0-20221202181307-76fa05c21b12
+	github.com/antlr/antlr4/runtime/Go/antlr/v4 v4.0.0-20230305170008-8188dc5388df
 	github.com/c2h5oh/datasize v0.0.0-20220606134207-859f65c6625b
 	github.com/djherbis/fscache v0.10.1
 	github.com/emirpasic/gods v1.18.1
@@ -45,6 +45,7 @@ replace github.com/docker/docker => github.com/docker/docker v20.10.3-0.20221013
 require (
 	github.com/muesli/mango-cobra v1.2.0
 	github.com/muesli/roff v0.1.0
+	github.com/samber/lo v1.37.0
 )
 
 require (
@@ -56,7 +57,6 @@ require (
 	github.com/muesli/mango-pflag v0.1.0 // indirect
 	github.com/rivo/uniseg v0.4.3 // indirect
 	github.com/rogpeppe/go-internal v1.9.0 // indirect
-	github.com/samber/lo v1.37.0 // indirect
 	golang.org/x/crypto v0.4.0 // indirect
 	golang.org/x/exp v0.0.0-20221217163422-3c43f8badb15 // indirect
 )
@@ -94,7 +94,7 @@ require (
 	github.com/sirupsen/logrus v1.9.0 // indirect
 	go.uber.org/zap v1.13.0 // indirect
 	golang.org/x/lint v0.0.0-20200302205851-738671d3881b // indirect
-	golang.org/x/mod v0.7.0 // indirect
+	golang.org/x/mod v0.7.0
 	golang.org/x/sys v0.3.0 // indirect
 	golang.org/x/term v0.3.0
 	golang.org/x/text v0.5.0 // indirect
