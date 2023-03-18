@@ -74,6 +74,12 @@ func (s *BaseSLQListener) EnterGroup(ctx *GroupContext) {}
 // ExitGroup is called when production group is exited.
 func (s *BaseSLQListener) ExitGroup(ctx *GroupContext) {}
 
+// EnterAlias is called when production alias is entered.
+func (s *BaseSLQListener) EnterAlias(ctx *AliasContext) {}
+
+// ExitAlias is called when production alias is exited.
+func (s *BaseSLQListener) ExitAlias(ctx *AliasContext) {}
+
 // EnterSelElement is called when production selElement is entered.
 func (s *BaseSLQListener) EnterSelElement(ctx *SelElementContext) {}
 

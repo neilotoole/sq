@@ -116,14 +116,27 @@ var _ slq.SLQVisitor = (*parseTreeVisitor)(nil)
 // generate the preliminary AST.
 type parseTreeVisitor struct {
 	log lg.Log
+
 	// cur is the currently-active node of the AST.
 	cur Node
+
 	AST *AST
+}
+
+// using is a convenience function that sets v.cur to cur,
+// executes fn, and then restores v.cur to its previous value.
+// The type of the returned value is declared as "any" instead of
+// error, because that's the generated antlr code returns "any".
+func (v *parseTreeVisitor) using(cur Node, fn func() any) any {
+	prev := v.cur
+	v.cur = cur
+	defer func() { v.cur = prev }()
+	return fn()
 }
 
 // Visit implements antlr.ParseTreeVisitor.
 func (v *parseTreeVisitor) Visit(ctx antlr.ParseTree) any {
-	v.log.Debugf("visiting %T: %v: ", ctx, ctx.GetText())
+	v.log.Debugf("visiting %T: %v", ctx, ctx.GetText())
 
 	switch ctx := ctx.(type) {
 	case *slq.SegmentContext:
@@ -142,6 +155,8 @@ func (v *parseTreeVisitor) Visit(ctx antlr.ParseTree) any {
 		return v.VisitFnName(ctx)
 	case *slq.JoinContext:
 		return v.VisitJoin(ctx)
+	case *slq.AliasContext:
+		return v.VisitAlias(ctx)
 	case *slq.JoinConstraintContext:
 		return v.VisitJoinConstraint(ctx)
 	case *slq.CmprContext:
@@ -231,12 +246,34 @@ func (v *parseTreeVisitor) VisitSelElement(ctx *slq.SelElementContext) any {
 	selector := &Selector{}
 	selector.parent = v.cur
 	selector.ctx = ctx.SEL()
-	return v.cur.AddChild(selector)
+
+	var err any
+	if err = v.cur.AddChild(selector); err != nil {
+		return err
+	}
+
+	return v.using(selector, func() any {
+		return v.VisitChildren(ctx)
+	})
 }
 
 // VisitElement implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitElement(ctx *slq.ElementContext) any {
 	return v.VisitChildren(ctx)
+}
+
+// VisitAlias implements slq.SLQVisitor.
+func (v *parseTreeVisitor) VisitAlias(ctx *slq.AliasContext) any {
+	alias := ctx.ID().GetText()
+
+	switch sel := v.cur.(type) {
+	case *Selector:
+		sel.alias = alias
+	default:
+		return errorf("'alias' must only be a child of a selector")
+	}
+
+	return nil
 }
 
 // VisitFn implements slq.SLQVisitor.
@@ -250,12 +287,10 @@ func (v *parseTreeVisitor) VisitFn(ctx *slq.FnContext) any {
 		return err
 	}
 
-	prev := v.cur
-	v.cur = fn
-	err2 := v.VisitChildren(ctx)
-	v.cur = prev
-	if err2 != nil {
-		return err2.(error)
+	if err2 := v.using(fn, func() any {
+		return v.VisitChildren(ctx)
+	}); err2 != nil {
+		return err2
 	}
 
 	return v.cur.AddChild(fn)
@@ -348,7 +383,7 @@ func (v *parseTreeVisitor) VisitGroup(ctx *slq.GroupContext) any {
 	}
 
 	for _, selCtx := range sels {
-		err = grp.AddChild(newColSelector(grp, selCtx))
+		err = grp.AddChild(newColSelector(grp, selCtx, "")) // FIXME: Handle alias appropriately
 		if err != nil {
 			return err
 		}
@@ -442,7 +477,7 @@ func (v *parseTreeVisitor) VisitJoinConstraint(ctx *slq.JoinConstraintContext) a
 		return err
 	}
 
-	cmpr := newCmnr(joinCondition, ctx.Cmpr())
+	cmpr := newCmpr(joinCondition, ctx.Cmpr())
 	err = joinCondition.AddChild(cmpr)
 	if err != nil {
 		return err

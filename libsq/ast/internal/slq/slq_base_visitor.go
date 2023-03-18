@@ -43,6 +43,10 @@ func (v *BaseSLQVisitor) VisitGroup(ctx *GroupContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
+func (v *BaseSLQVisitor) VisitAlias(ctx *AliasContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
 func (v *BaseSLQVisitor) VisitSelElement(ctx *SelElementContext) interface{} {
 	return v.VisitChildren(ctx)
 }

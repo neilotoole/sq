@@ -15,7 +15,7 @@ type Node interface {
 	// SetParent sets the node's parent, returning an error if illegal.
 	SetParent(n Node) error
 
-	// Children returns the node's children (may be empty).
+	// Children returns the node's children (which may be empty).
 	Children() []Node
 
 	// SetChildren sets the node's children, returning an error if illegal.
@@ -49,7 +49,12 @@ type Selectable interface {
 type ColExpr interface {
 	// IsColName returns true if the expr is a column name, e.g. "uid" or "users.uid".
 	IsColName() bool
+
+	// ColExpr returns the column expression value. For a simple ColSelector ".first_name",
+	// this would be "first_name".
 	ColExpr() (string, error)
+
+	// String returns a log/debug-friendly representation.
 	String() string
 }
 

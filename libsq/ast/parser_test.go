@@ -61,18 +61,26 @@ func buildInitialAST(t *testing.T, input string) (*AST, error) {
 	return v.AST, nil
 }
 
-// mustBuildAST builds a full AST from the input SLQ, or fails on any error.
-func mustBuildAST(t *testing.T, input string) *AST {
+// mustParse builds a full AST from the input SLQ, or fails on any error.
+func mustParse(t *testing.T, input string) *AST {
 	log := testlg.New(t).Strict(true)
+
+	ast, err := Parse(log, input)
+	require.NoError(t, err)
+	return ast
+}
+
+func TestSimpleQuery(t *testing.T) {
+	log := testlg.New(t).Strict(true)
+	const input = fixtSelect1
 
 	ptree, err := parseSLQ(log, input)
 	require.Nil(t, err)
 	require.NotNil(t, ptree)
 
-	ast, err := buildAST(log, ptree)
+	ast, err := buildAst(log, ptree)
 	require.Nil(t, err)
 	require.NotNil(t, ast)
-	return ast
 }
 
 func TestParseBuild(t *testing.T) {
@@ -83,7 +91,7 @@ func TestParseBuild(t *testing.T) {
 		require.Nil(t, err, test)
 		require.NotNil(t, ptree, test)
 
-		ast, err := buildAST(log, ptree)
+		ast, err := buildAst(log, ptree)
 		require.Nil(t, err, test)
 		require.NotNil(t, ast, test)
 	}
@@ -99,7 +107,7 @@ func TestInspector_FindWhereClauses(t *testing.T) {
 	require.Nil(t, err)
 	require.NotNil(t, ptree)
 
-	nRoot, err := buildAST(log, ptree)
+	nRoot, err := buildAst(log, ptree)
 	require.Nil(t, err)
 
 	insp := NewInspector(log, nRoot)
