@@ -56,6 +56,10 @@ type ColExpr interface {
 
 	// String returns a log/debug-friendly representation.
 	String() string
+
+	// Alias returns the column alias, which may be empty.
+	// For example, given the selector ".first_name:given_name", the alias is "given_name".
+	Alias() string
 }
 
 // baseNode is a base implementation of Node.

@@ -11,6 +11,8 @@ import (
 )
 
 func TestColumnAlias(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		in        string
 		wantErr   bool
@@ -27,6 +29,8 @@ func TestColumnAlias(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tutil.Name(tc.in), func(t *testing.T) {
+			t.Parallel()
+
 			log := testlg.New(t)
 
 			ast, err := Parse(log, tc.in)

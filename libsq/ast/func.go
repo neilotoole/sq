@@ -25,6 +25,12 @@ func (fn *Func) ColExpr() (string, error) {
 	return fn.ctx.GetText(), nil
 }
 
+// Alias implements ColExpr.
+func (fn *Func) Alias() string {
+	// TODO: implement Alias for Func
+	return ""
+}
+
 // SetChildren implements Node.
 func (fn *Func) SetChildren(children []Node) error {
 	fn.setChildren(children)

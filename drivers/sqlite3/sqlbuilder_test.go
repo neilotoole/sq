@@ -1,40 +1,58 @@
-package libsq_test
+package sqlite3_test
 
 import (
 	"testing"
 
-	"github.com/neilotoole/sq/testh/tutil"
-
+	"github.com/neilotoole/sq/libsq"
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/sq/libsq"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
 )
 
 func TestSLQ2SQL(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
+		name    string
 		handles []string
 		slq     string
 		wantSQL string
 		wantErr bool
 	}{
-		// Obviously we could use about 1,000 additional test cases.
 		{
+			name:    "join",
 			handles: []string{sakila.SL3},
 			slq:     `@sakila_sl3 | .actor, .film_actor | join(.film_actor.actor_id == .actor.actor_id)`,
 			wantSQL: `SELECT * FROM "actor" INNER JOIN "film_actor" ON "film_actor"."actor_id" = "actor"."actor_id"`,
+		},
+		{
+			name:    "select-cols",
+			handles: []string{sakila.SL3},
+			slq:     `@sakila_sl3 | .actor | .first_name, .last_name`,
+			wantSQL: `SELECT "first_name", "last_name" FROM "actor"`,
+		},
+		{
+			name:    "select-cols-aliases",
+			handles: []string{sakila.SL3},
+			slq:     `@sakila_sl3 | .actor | .first_name:given_name, .last_name:family_name`,
+			wantSQL: `SELECT "first_name" AS "given_name", "last_name" AS "family_name" FROM "actor"`,
 		},
 	}
 
 	for _, tc := range testCases {
 		tc := tc
 
-		t.Run(tutil.Name(tc.slq), func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			th := testh.New(t)
 			srcs := th.NewSourceSet(tc.handles...)
 
-			gotSQL, gotErr := libsq.EngineSLQ2SQL(th.Context, th.Log, th.Databases(), th.Databases(), srcs, tc.slq)
+			dbases := th.Databases()
+
+			gotSQL, gotErr := libsq.SLQ2SQL(th.Context, th.Log, dbases, dbases, srcs, tc.slq)
 			if tc.wantErr {
 				require.Error(t, gotErr)
 				return

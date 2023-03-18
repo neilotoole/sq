@@ -287,6 +287,13 @@ func (fb *BaseFragmentBuilder) SelectCols(cols []ast.ColExpr) (string, error) {
 			return "", errz.Errorf("unable to extract col expr from %q: %v", col, err)
 		}
 
+		// aliasFrag holds the "AS alias" fragment (if applicable).
+		// For example "@sakila | actor | .first_name:given_name" becomes "SELECT first_name AS given_name".
+		var aliasFrag string
+		if col.Alias() != "" {
+			aliasFrag = fmt.Sprintf(" AS %s%s%s", fb.Quote, col.Alias(), fb.Quote)
+		}
+
 		fn, ok := col.(*ast.Func)
 		if ok {
 			// it's a function
@@ -294,12 +301,14 @@ func (fb *BaseFragmentBuilder) SelectCols(cols []ast.ColExpr) (string, error) {
 			if err != nil {
 				return "", err
 			}
+			vals[i] += aliasFrag
 			continue
 		}
 
 		if !col.IsColName() {
 			// it's a function or expression
 			vals[i] = colText // for now, we just return the raw text
+			vals[i] += aliasFrag
 			continue
 		}
 
@@ -307,6 +316,7 @@ func (fb *BaseFragmentBuilder) SelectCols(cols []ast.ColExpr) (string, error) {
 		if !strings.ContainsRune(colText, '.') {
 			// it's a regular (non-scoped) col name, e.g. "uid"
 			vals[i] = fmt.Sprintf("%s%s%s", fb.Quote, colText, fb.Quote)
+			vals[i] += aliasFrag
 			continue
 		}
 
@@ -317,6 +327,7 @@ func (fb *BaseFragmentBuilder) SelectCols(cols []ast.ColExpr) (string, error) {
 		}
 
 		vals[i] = fmt.Sprintf("%s%s%s.%s%s%s", fb.Quote, parts[0], fb.Quote, fb.Quote, parts[1], fb.Quote)
+		vals[i] += aliasFrag
 	}
 
 	text := "SELECT " + strings.Join(vals, ", ")

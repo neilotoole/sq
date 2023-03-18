@@ -38,7 +38,7 @@ type engine struct {
 
 // prepare prepares the engine to execute queryModel.
 // When this method returns, targetDB and targetSQL will be set,
-// as will any tasks (may be empty). The tasks must be executed
+// as will any tasks (which may be empty). The tasks must be executed
 // against targetDB before targetSQL is executed (the engine.execute
 // method does this work).
 func (ng *engine) prepare(ctx context.Context, qm *queryModel) error {
@@ -257,6 +257,20 @@ func (ng *engine) crossSourceJoin(ctx context.Context, fnJoin *ast.Join) (fromCl
 	}
 
 	return fromClause, joinDB, nil
+}
+
+// SLQ2SQL simulates execution of a SLQ query, but instead of executing
+// the resulting SQL query, that ultimate SQL is returned. Effectively it is
+// equivalent to libsq.ExecuteSLQ, but without the execution.
+func SLQ2SQL(ctx context.Context, log lg.Log, dbOpener driver.DatabaseOpener,
+	joinDBOpener driver.JoinDatabaseOpener, srcs *source.Set, query string,
+) (targetSQL string, err error) {
+	var ng *engine
+	ng, err = newEngine(ctx, log, dbOpener, joinDBOpener, srcs, query)
+	if err != nil {
+		return "", err
+	}
+	return ng.targetSQL, nil
 }
 
 // tasker is the interface for executing a DB task.
