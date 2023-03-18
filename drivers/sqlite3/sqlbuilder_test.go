@@ -39,6 +39,24 @@ func TestSLQ2SQL(t *testing.T) {
 			slq:     `@sakila_sl3 | .actor | .first_name:given_name, .last_name:family_name`,
 			wantSQL: `SELECT "first_name" AS "given_name", "last_name" AS "family_name" FROM "actor"`,
 		},
+		{
+			name:    "select-count",
+			handles: []string{sakila.SL3},
+			slq:     `@sakila_sl3 | .actor | count(*)`,
+			wantSQL: `SELECT COUNT(*) FROM "actor"`,
+		},
+		{
+			name:    "select-count",
+			handles: []string{sakila.SL3},
+			slq:     `@sakila_sl3 | .actor | count()`,
+			wantSQL: `SELECT COUNT(*) FROM "actor"`,
+		},
+		{
+			name:    "select-count-alias",
+			handles: []string{sakila.SL3},
+			slq:     `@sakila_sl3 | .actor | count(*):quantity2`,
+			wantSQL: `SELECT COUNT(*) AS "quantity" FROM "actor"`,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -49,7 +67,6 @@ func TestSLQ2SQL(t *testing.T) {
 
 			th := testh.New(t)
 			srcs := th.NewSourceSet(tc.handles...)
-
 			dbases := th.Databases()
 
 			gotSQL, gotErr := libsq.SLQ2SQL(th.Context, th.Log, dbases, dbases, srcs, tc.slq)

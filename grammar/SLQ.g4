@@ -24,6 +24,8 @@ cmpr: LT_EQ | LT | GT_EQ | GT | EQ | NEQ;
 
 fn: fnName '(' ( expr ( ',' expr)* | '*')? ')';
 
+fnElement: fn (alias);
+
 join: ('join' | 'JOIN' | 'j') '(' joinConstraint ')';
 
 joinConstraint:

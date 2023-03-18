@@ -113,7 +113,7 @@ func (fb *BaseFragmentBuilder) Function(fn *ast.Func) (string, error) {
 		return buf.String(), nil
 	}
 
-	buf.WriteString(fn.FuncName())
+	buf.WriteString(strings.ToUpper(fn.FuncName()))
 	buf.WriteRune('(')
 	for i, child := range children {
 		if i > 0 {
@@ -123,6 +123,8 @@ func (fb *BaseFragmentBuilder) Function(fn *ast.Func) (string, error) {
 		switch child := child.(type) {
 		case *ast.ColSelector:
 			buf.WriteString(child.SelValue())
+		case *ast.Operator:
+			buf.WriteString(child.Text())
 		default:
 			fb.Log.Debugf("unknown AST child node type %T", child)
 		}
