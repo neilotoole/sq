@@ -9,10 +9,12 @@
 package internal
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"regexp"
 	"strings"
+	"unicode"
 )
 
 // MaxRowWidth defines maximum row width
@@ -326,9 +328,12 @@ func (t *Table) printHeading() {
 		return
 	}
 
+	buf := &bytes.Buffer{}
+
 	// Check if border is set
 	// Replace with space if not set
-	fmt.Fprint(t.out, ConditionString(t.borders.Left, t.pColumn, Empty))
+	fmt.Fprint(buf, ConditionString(t.borders.Left, t.pColumn, Empty))
+	fmt.Fprint(t.out, strings.TrimRightFunc(buf.String(), unicode.IsSpace))
 
 	// Identify last column
 	end := len(t.cs) - 1
@@ -345,7 +350,14 @@ func (t *Table) printHeading() {
 		}
 		pad := ConditionString(i == end && !t.borders.Left, Space, t.pColumn)
 
-		head := t.headerTrans(fmt.Sprintf("%s %s ", padFunc(h, Space, v), pad))
+		var head string
+		if i == end {
+			// Trim the padding from the final column
+			// head = strings.TrimRightFunc(head, unicode.IsPunct)
+			head = t.headerTrans(h)
+		} else {
+			head = t.headerTrans(fmt.Sprintf("%s %s ", padFunc(h, Space, v), pad))
+		}
 		fmt.Fprint(t.out, head)
 
 	}
@@ -487,8 +499,11 @@ func (t *Table) printRow(columns [][]string, colKey int) {
 				cellContent := text
 				if y != total-1 {
 					cellContent = PadRight(text, Space, t.cs[y])
+					fmt.Fprintf(t.out, tran("%s  "), cellContent)
+				} else {
+					fmt.Fprintf(t.out, tran(strings.TrimRightFunc(cellContent, unicode.IsSpace)))
 				}
-				fmt.Fprintf(t.out, tran("%s "), cellContent)
+
 			default:
 				if decimal.MatchString(strings.TrimSpace(text)) || percent.MatchString(strings.TrimSpace(text)) {
 					fmt.Fprintf(t.out, "%s", PadLeft(text, Space, t.cs[y]))
@@ -496,11 +511,10 @@ func (t *Table) printRow(columns [][]string, colKey int) {
 					fmt.Fprintf(t.out, "%s", PadRight(text, Space, t.cs[y]))
 				}
 			}
-			fmt.Fprint(t.out, Space)
 		}
 		// Check if border is set
 		// Replace with space if not set
-		fmt.Fprint(t.out, ConditionString(t.borders.Left, t.pColumn, Space))
+		// fmt.Fprint(t.out, ConditionString(t.borders.Left, t.pColumn, Space))
 		fmt.Fprintln(t.out)
 	}
 
