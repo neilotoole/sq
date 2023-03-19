@@ -22,16 +22,22 @@ func TestSLQ2SQL(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:    "join",
-			handles: []string{sakila.SL3},
-			slq:     `@sakila_sl3 | .actor, .film_actor | join(.film_actor.actor_id == .actor.actor_id)`,
-			wantSQL: `SELECT * FROM "actor" INNER JOIN "film_actor" ON "film_actor"."actor_id" = "actor"."actor_id"`,
-		},
-		{
 			name:    "select-cols",
 			handles: []string{sakila.SL3},
 			slq:     `@sakila_sl3 | .actor | .first_name, .last_name`,
 			wantSQL: `SELECT "first_name", "last_name" FROM "actor"`,
+		},
+		{
+			name:    "select-cols-whitespace",
+			handles: []string{sakila.SL3Whitespace},
+			slq:     `@sakila_sl3_whitespace | .actor | ."first name"`,
+			wantSQL: `SELECT "first name" FROM "actor"`,
+		},
+		{
+			name:    "select-cols-whitespace-2",
+			handles: []string{sakila.SL3Whitespace},
+			slq:     `@sakila_sl3_whitespace | .actor | .actor_id, ."first name", ."last name"`,
+			wantSQL: `SELECT "actor_id", "first name", "last name" FROM "actor"`,
 		},
 		{
 			name:    "select-cols-aliases",
@@ -56,6 +62,12 @@ func TestSLQ2SQL(t *testing.T) {
 			handles: []string{sakila.SL3},
 			slq:     `@sakila_sl3 | .actor | count(*):quantity`,
 			wantSQL: `SELECT COUNT(*) AS "quantity" FROM "actor"`,
+		},
+		{
+			name:    "join",
+			handles: []string{sakila.SL3},
+			slq:     `@sakila_sl3 | .actor, .film_actor | join(.film_actor.actor_id == .actor.actor_id)`,
+			wantSQL: `SELECT * FROM "actor" INNER JOIN "film_actor" ON "film_actor"."actor_id" = "actor"."actor_id"`,
 		},
 	}
 

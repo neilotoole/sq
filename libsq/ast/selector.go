@@ -2,6 +2,7 @@ package ast
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/antlr/antlr4/runtime/Go/antlr/v4"
 
@@ -89,7 +90,38 @@ func newColSelector(parent Node, ctx antlr.ParseTree, alias string) *ColSelector
 // ColExpr returns the column name.
 func (s *ColSelector) ColExpr() (string, error) {
 	// Drop the leading dot, e.g. ".user" -> "user"
-	return s.Text()[1:], nil
+	// children := s.Children()
+
+	children := s.ctx.GetChildren()
+	_ = children
+
+	original := s.Text()
+	if len(original) < 2 {
+		return "", errorf("invalid column expression: too short: %s", original)
+	}
+
+	if original[0] != '.' {
+		return "", errorf("illegal column expression: must start with period: %s", original)
+	}
+
+	// Trim the leading period.
+	wip := s.Text()[1:]
+
+	// Remove quotes if applicable.
+	if wip[0] == '"' {
+		if wip[len(wip)-1] != '"' {
+			return "", errorf("illegal column expression: unmatched quotes on string: %s", original)
+		}
+
+		wip = strings.TrimPrefix(wip, `"`)
+		wip = strings.TrimSuffix(wip, `"`)
+
+		if len(wip) == 0 {
+			return "", errorf("invalid column expression: too short: %s", original)
+		}
+	}
+
+	return wip, nil
 }
 
 // IsColName always returns true.

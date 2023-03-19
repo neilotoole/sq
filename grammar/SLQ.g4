@@ -120,9 +120,13 @@ EQ: '==';
 
 
 SEL:
-	'.' ID ('.' ID)*; // SEL can be .THING or .THING.OTHERTHING etc.
+    // SEL can be .THING or .THING.OTHERTHING.
+    // It can also be ."some name".OTHERTHING, etc.
+	'.' (ID | STRING) ('.' (ID | STRING))*;
+
 DATASOURCE:
-	'@' ID; // DS (Data Source): @mydb1 or @postgres_db2 etc.
+    // Datasource: @mydb1 or @postgres_db2 etc.
+	'@' ID;
 
 STRING: '"' (ESC | ~["\\])* '"';
 fragment ESC: '\\' (["\\/bfnrt] | UNICODE);
