@@ -2,7 +2,6 @@
 // The grammar is not yet finalized; it is subject to change in any new sq release.
 grammar SLQ;
 
-// "@mysql_db1 | .user, .address | join(.user.uid == .address.uid) | .[0:3] | .uid, .username, .country"
 stmtList: ';'* query ( ';'+ query)* ';'*;
 
 query: segment ('|' segment)*;
@@ -19,8 +18,8 @@ element:
 	| fnElement
 	| expr;
 
+// cmpr is a comparison operator.
 cmpr: LT_EQ | LT | GT_EQ | GT | EQ | NEQ;
-
 
 fn: fnName '(' ( expr ( ',' expr)* | '*')? ')';
 
@@ -38,20 +37,28 @@ group: ('group' | 'GROUP' | 'g') '(' SEL (',' SEL)* ')';
 // For example: ".first_name:given_name" : "given_name" is the alias.
 alias: ':' ID;
 
+// selElement is a selector element.
+// - .first_name
+// - ."first name"
+// - .first_name:given_name
+// - ."first name":given_name
 selElement: SEL (alias)?;
 
-dsTblElement:
-    // dsTblElement is a data source table element. This is a data
-    // source with followed by a table.
-    // - @my1.user
-	DATASOURCE SEL;
+// dsTblElement is a data source table element. This is a data
+// source with followed by a table.
+// - @my1.user
+dsTblElement: DATASOURCE SEL;
 
-dsElement:
-    // dsElement is a data source element, e.g. @my1
-    DATASOURCE;
+// dsElement is a data source element, e.g. @my1
+dsElement: DATASOURCE;
 
-// [] select all rows [10] select row 10 [10:15] select rows 10 thru 15 [0:15] select rows 0 thru 15
-// [:15] same as above (0 thru 15) [10:] select all rows from 10 onwards
+// rowRange specifies a range of rows. It gets turned into
+// a SQL "LIMIT x OFFSET y".
+// - [] select all rows
+// - [10] select row 10
+// - [10:15] select rows 10 thru 15
+// - [0:15] select rows 0 thru 15
+// - [:15] same as above (0 thru 15) [10:] select all rows from 10 onwards
 rowRange:
 	'.[' (
 		NN COLON NN // [10:15]
@@ -82,7 +89,7 @@ expr:
 	| expr ( '==' | '!=' |) expr
 	| expr '&&' expr
 	| fn
-	; // | fnName '(' ( expr ( ',' expr )* | '*' )? ')'
+	;
 
 literal: NN | NUMBER | STRING | NULL;
 
@@ -99,16 +106,19 @@ PIPE: '|';
 COLON: ':';
 NULL: 'null' | 'NULL';
 
-NN: INTF; // NN: Natural Number {0,1,2,3, ...}
+// NN: Natural Number {0,1,2,3, ...}
+NN: INTF;
 
 NUMBER:
 	NN
 	| '-'? INTF '.' [0-9]+ EXP? // 1.35, 1.35E-9, 0.3, -4.5
 	| '-'? INTF EXP // 1e10 -3e4
 	| '-'? INTF ; // -3, 45
+
 fragment INTF: '0' | [1-9] [0-9]*; // no leading zeros
+
 fragment EXP:
-	[Ee] [+\-]? INTF; // \- since - means "range" inside [...]
+	[Ee] [+\-]? INTF; // \- since "-" means "range" inside [...]
 
 LT_EQ: '<=';
 LT: '<';
@@ -117,16 +127,12 @@ GT: '>';
 NEQ: '!=';
 EQ: '==';
 
+// SEL can be .THING or .THING.OTHERTHING.
+// It can also be ."some name".OTHERTHING, etc.
+SEL: '.' (ID | STRING) ('.' (ID | STRING))*;
 
-
-SEL:
-    // SEL can be .THING or .THING.OTHERTHING.
-    // It can also be ."some name".OTHERTHING, etc.
-	'.' (ID | STRING) ('.' (ID | STRING))*;
-
-DATASOURCE:
-    // Datasource: @mydb1 or @postgres_db2 etc.
-	'@' ID;
+// DATASOURCE: @mydb1 or @postgres_db2 etc.
+DATASOURCE: '@' ID;
 
 STRING: '"' (ESC | ~["\\])* '"';
 fragment ESC: '\\' (["\\/bfnrt] | UNICODE);
