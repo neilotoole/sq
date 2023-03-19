@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - [#15] Column Aliases. You can now change specify an alias for a column (or column expression
-- such as a function). For example: `sq '.actor | .first_name:given_name`, or `sq .actor | count(*):quantity`.
+  such as a function). For example: `sq '.actor | .first_name:given_name`, or `sq .actor | count(*):quantity`.
 
 ## [v0.24.4] - 2023-03-15
 
