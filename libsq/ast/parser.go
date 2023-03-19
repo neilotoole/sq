@@ -564,8 +564,7 @@ func (v *parseTreeVisitor) VisitTerminal(ctx antlr.TerminalNode) any {
 		return nil
 	}
 
-	v.log.Warnf("unknown terminal: %q", val)
-
+	// Unknown terminal, but that's not a problem.
 	return nil
 }
 

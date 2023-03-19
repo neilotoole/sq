@@ -14,7 +14,8 @@ import (
 )
 
 // Parse parses the SLQ input string and builds the AST.
-func Parse(log lg.Log, input string) (*AST, error) {
+func Parse(log lg.Log, input string) (*AST, error) { //nolint:staticcheck
+	log = lg.Discard() //nolint:staticcheck // Disable parser logging.
 	ptree, err := parseSLQ(log, input)
 	if err != nil {
 		return nil, err
@@ -34,7 +35,6 @@ func buildAst(log lg.Log, query slq.IQueryContext) (*AST, error) {
 		return nil, errorf("unable to convert %T to *parser.QueryContext", query)
 	}
 
-	// v := &parseTreeVisitor{log: lg.Discard()}
 	v := &parseTreeVisitor{log: log}
 
 	// Accept returns an interface{} instead of error (but it's always an error?)
