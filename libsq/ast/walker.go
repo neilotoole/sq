@@ -87,7 +87,7 @@ func narrowTblSel(log lg.Log, w *Walker, node Node) error {
 	}
 
 	if seg.SegIndex() == 0 {
-		return errorf("syntax error: illegal to have raw selector in first segment: %q", sel.Text())
+		return errorf("@HANDLE must be first element: %q", sel.Text())
 	}
 
 	typ, err := seg.Prev().ChildType()
@@ -104,7 +104,7 @@ func narrowTblSel(log lg.Log, w *Walker, node Node) error {
 		// this means that this selector must be a table selector
 		tblSel := newTblSelector(seg, sel.SelValue(), sel.Context())
 		tblSel.DSName = ds.Text()
-		err = replaceNode(sel, tblSel)
+		err = nodeReplace(sel, tblSel)
 		if err != nil {
 			return err
 		}
@@ -115,7 +115,7 @@ func narrowTblSel(log lg.Log, w *Walker, node Node) error {
 
 // narrowColSel takes a generic selector, and if appropriate, converts it to a ColSel.
 func narrowColSel(log lg.Log, w *Walker, node Node) error {
-	// node is guaranteed to be typeSelector
+	// node is guaranteed to be type Selector
 	sel, ok := node.(*Selector)
 	if !ok {
 		return errorf("expected *Selector but got %T", node)
@@ -127,8 +127,8 @@ func narrowColSel(log lg.Log, w *Walker, node Node) error {
 	case *JoinConstraint, *Func:
 		// selector parent is JoinConstraint or Func, therefore this is a ColSelector
 		log.Debugf("selector parent is %T, therefore this is a ColSelector", parent)
-		colSel := newColSelector(sel.Parent(), sel.ctx)
-		return replaceNode(sel, colSel)
+		colSel := newColSelector(sel.Parent(), sel.ctx, sel.alias)
+		return nodeReplace(sel, colSel)
 	case *Segment:
 		// if the parent is a segment, this is a "top-level" selector.
 		// Only top-level selectors after the final selectable seg are
@@ -143,8 +143,8 @@ func narrowColSel(log lg.Log, w *Walker, node Node) error {
 			return nil
 		}
 
-		colSel := newColSelector(sel.Parent(), sel.ctx)
-		return replaceNode(sel, colSel)
+		colSel := newColSelector(sel.Parent(), sel.ctx, sel.alias)
+		return nodeReplace(sel, colSel)
 
 	default:
 		log.Warnf("skipping this selector, as parent is not of a relevant type, but is %T", parent)

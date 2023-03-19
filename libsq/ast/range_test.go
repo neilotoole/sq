@@ -17,17 +17,17 @@ import (
 func TestRowRange1(t *testing.T) {
 	log := testlg.New(t).Strict(true)
 
-	ast := mustBuildAST(t, fixtRowRange1)
+	ast := mustParse(t, fixtRowRange1)
 	assert.Equal(t, 0, NewInspector(log, ast).CountNodes(typeRowRange))
 }
 
 func TestRowRange2(t *testing.T) {
 	log := testlg.New(t).Strict(true)
 
-	ast := mustBuildAST(t, fixtRowRange2)
-	ins := NewInspector(log, ast)
-	assert.Equal(t, 1, ins.CountNodes(typeRowRange))
-	nodes := ins.FindNodes(typeRowRange)
+	ast := mustParse(t, fixtRowRange2)
+	insp := NewInspector(log, ast)
+	assert.Equal(t, 1, insp.CountNodes(typeRowRange))
+	nodes := insp.FindNodes(typeRowRange)
 	assert.Equal(t, 1, len(nodes))
 	rr, _ := nodes[0].(*RowRange)
 	assert.Equal(t, 2, rr.Offset)
@@ -37,9 +37,9 @@ func TestRowRange2(t *testing.T) {
 func TestRowRange3(t *testing.T) {
 	log := testlg.New(t).Strict(true)
 
-	ast := mustBuildAST(t, fixtRowRange3)
-	ins := NewInspector(log, ast)
-	rr, _ := ins.FindNodes(typeRowRange)[0].(*RowRange)
+	ast := mustParse(t, fixtRowRange3)
+	insp := NewInspector(log, ast)
+	rr, _ := insp.FindNodes(typeRowRange)[0].(*RowRange)
 	assert.Equal(t, 1, rr.Offset)
 	assert.Equal(t, 2, rr.Limit)
 }
@@ -47,27 +47,27 @@ func TestRowRange3(t *testing.T) {
 func TestRowRange4(t *testing.T) {
 	log := testlg.New(t).Strict(true)
 
-	ast := mustBuildAST(t, fixtRowRange4)
-	ins := NewInspector(log, ast)
-	rr, _ := ins.FindNodes(typeRowRange)[0].(*RowRange)
+	ast := mustParse(t, fixtRowRange4)
+	insp := NewInspector(log, ast)
+	rr, _ := insp.FindNodes(typeRowRange)[0].(*RowRange)
 	assert.Equal(t, 0, rr.Offset)
 	assert.Equal(t, 3, rr.Limit)
 }
 
 func TestRowRange5(t *testing.T) {
 	log := testlg.New(t).Strict(true)
-	ast := mustBuildAST(t, fixtRowRange5)
-	ins := NewInspector(log, ast)
-	rr, _ := ins.FindNodes(typeRowRange)[0].(*RowRange)
+	ast := mustParse(t, fixtRowRange5)
+	insp := NewInspector(log, ast)
+	rr, _ := insp.FindNodes(typeRowRange)[0].(*RowRange)
 	assert.Equal(t, 0, rr.Offset)
 	assert.Equal(t, 3, rr.Limit)
 }
 
 func TestRowRange6(t *testing.T) {
 	log := testlg.New(t).Strict(true)
-	ast := mustBuildAST(t, fixtRowRange6)
-	ins := NewInspector(log, ast)
-	rr, _ := ins.FindNodes(typeRowRange)[0].(*RowRange)
+	ast := mustParse(t, fixtRowRange6)
+	insp := NewInspector(log, ast)
+	rr, _ := insp.FindNodes(typeRowRange)[0].(*RowRange)
 	assert.Equal(t, 2, rr.Offset)
 	assert.Equal(t, -1, rr.Limit)
 }

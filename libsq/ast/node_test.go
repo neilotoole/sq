@@ -20,7 +20,7 @@ func TestChildIndex(t *testing.T) {
 	require.Equal(t, 4, len(ast.Segments()))
 
 	for i, seg := range ast.Segments() {
-		index := childIndex(ast, seg)
+		index := nodeChildIndex(ast, seg)
 		require.Equal(t, i, index)
 	}
 }
@@ -36,6 +36,6 @@ func TestNodesWithType(t *testing.T) {
 
 func TestAvg(t *testing.T) {
 	const input = `@mydb1 | .user, .address | join(.user.uid == .address.uid) | .uid, .username, .country | .[0:2] | avg(.uid)` //nolint:lll
-	ast := mustBuildAST(t, input)
+	ast := mustParse(t, input)
 	require.NotNil(t, ast)
 }

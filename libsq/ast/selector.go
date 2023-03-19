@@ -20,6 +20,10 @@ var _ Node = (*Selector)(nil)
 // selector node such as TblSelector or ColSelector.
 type Selector struct {
 	baseNode
+
+	// alias is the (optional) alias part. For example, given ".first_name:given_name",
+	// the alias value is "given_name". May be empy.
+	alias string
 }
 
 func (s *Selector) String() string {
@@ -71,12 +75,14 @@ var (
 // ColSelector models a column selector such as ".user_id".
 type ColSelector struct {
 	Selector
+	alias string
 }
 
-func newColSelector(parent Node, ctx antlr.ParseTree) *ColSelector {
+func newColSelector(parent Node, ctx antlr.ParseTree, alias string) *ColSelector {
 	col := &ColSelector{}
 	col.parent = parent
 	col.ctx = ctx
+	col.alias = alias
 	return col
 }
 
@@ -86,17 +92,29 @@ func (s *ColSelector) ColExpr() (string, error) {
 	return s.Text()[1:], nil
 }
 
+// IsColName always returns true.
 func (s *ColSelector) IsColName() bool {
 	return true
 }
 
+// Alias returns the column alias, which may be empty.
+// For example, given the selector ".first_name:given_name", the alias is "given_name".
+func (s *ColSelector) Alias() string {
+	return s.alias
+}
+
+// String returns a log/debug-friendly representation.
 func (s *ColSelector) String() string {
-	return nodeString(s)
+	str := nodeString(s)
+	if s.alias != "" {
+		str += ":" + s.alias
+	}
+	return str
 }
 
 var _ Node = (*Cmpr)(nil)
 
-// Cmpr models a comparison.
+// Cmpr models a comparison, such as ".age == 42".
 type Cmpr struct {
 	baseNode
 }
@@ -105,7 +123,7 @@ func (c *Cmpr) String() string {
 	return nodeString(c)
 }
 
-func newCmnr(parent Node, ctx slq.ICmprContext) *Cmpr {
+func newCmpr(parent Node, ctx slq.ICmprContext) *Cmpr {
 	leaf, _ := ctx.GetChild(0).(*antlr.TerminalNodeImpl)
 	cmpr := &Cmpr{}
 	cmpr.ctx = leaf

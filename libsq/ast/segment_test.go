@@ -8,7 +8,7 @@ import (
 
 func TestSegment(t *testing.T) {
 	// `@mydb1 | .user, .address | join(.uid == .uid) | .uid, .username, .country`
-	ast := mustBuildAST(t, fixtJoinQuery1)
+	ast := mustParse(t, fixtJoinQuery1)
 
 	segs := ast.Segments()
 	assert.Equal(t, 4, len(segs))

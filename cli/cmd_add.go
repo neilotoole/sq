@@ -32,8 +32,8 @@ When adding a data source, LOCATION is the only required arg.
   # Add a postgres source with handle "@sakila_pg"
   $ sq add -h @sakila_pg 'postgres://user:pass@localhost/sakila'
 
-The format of LOCATION varies, but is generally a DB connection string, a
-file path, or a URL.
+The format of LOCATION is driver-specific,but is generally a DB connection
+string, a file path, or a URL.
 
   DRIVER://USER:PASS@HOST:PORT/DBNAME
   /path/to/local/file.ext
@@ -74,7 +74,7 @@ is ambiguous, explicitly specify the driver type.
   
   $ sq add --driver=tsv ./mystery.data
 
-Available source driver types can be listed via "sq drivers". At a
+Available source driver types can be listed via "sq driver ls". At a
 minimum, the following drivers are bundled:
 
   sqlite3    SQLite                               
@@ -87,6 +87,9 @@ minimum, the following drivers are bundled:
   jsona      JSON Array: LF-delimited JSON arrays 
   jsonl      JSON Lines: LF-delimited JSON objects
   xlsx       Microsoft Excel XLSX 
+
+If there isn't already an active source, the newly added source becomes the
+active source.
 
 More examples:
 

@@ -1,7 +1,8 @@
+// This is the grammar for SLQ, the query language used by sq (https://sq.io).
+// The grammar is not yet finalized; it is subject to change in any new sq release.
 grammar SLQ;
 
 // "@mysql_db1 | .user, .address | join(.user.uid == .address.uid) | .[0:3] | .uid, .username, .country"
-
 stmtList: ';'* query ( ';'+ query)* ';'*;
 
 query: segment ('|' segment)*;
@@ -15,15 +16,15 @@ element:
 	| join
 	| group
 	| rowRange
-	| fn
+	| fnElement
 	| expr;
 
 cmpr: LT_EQ | LT | GT_EQ | GT | EQ | NEQ;
 
-//whereExpr
-// : expr ;
 
 fn: fnName '(' ( expr ( ',' expr)* | '*')? ')';
+
+fnElement: fn (alias)?;
 
 join: ('join' | 'JOIN' | 'j') '(' joinConstraint ')';
 
@@ -33,12 +34,21 @@ joinConstraint:
 
 group: ('group' | 'GROUP' | 'g') '(' SEL (',' SEL)* ')';
 
-selElement: SEL;
+// alias, for columns, implements "col AS alias".
+// For example: ".first_name:given_name" : "given_name" is the alias.
+alias: ':' ID;
+
+selElement: SEL (alias)?;
 
 dsTblElement:
-	DATASOURCE SEL; // data source table element, e.g. @my1.user
+    // dsTblElement is a data source table element. This is a data
+    // source with followed by a table.
+    // - @my1.user
+	DATASOURCE SEL;
 
-dsElement: DATASOURCE; // data source element, e.g. @my1
+dsElement:
+    // dsElement is a data source element, e.g. @my1
+    DATASOURCE;
 
 // [] select all rows [10] select row 10 [10:15] select rows 10 thru 15 [0:15] select rows 0 thru 15
 // [:15] same as above (0 thru 15) [10:] select all rows from 10 onwards
@@ -106,6 +116,8 @@ GT_EQ: '>=';
 GT: '>';
 NEQ: '!=';
 EQ: '==';
+
+
 
 SEL:
 	'.' ID ('.' ID)*; // SEL can be .THING or .THING.OTHERTHING etc.

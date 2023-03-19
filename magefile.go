@@ -80,6 +80,11 @@ func Lint() error {
 	return sh.RunV("golangci-lint", "run", "./...")
 }
 
+// Fmt runs gofumpt on the source.
+func Fmt() error {
+	return sh.RunV("gofumpt", "-l", "-w", ".")
+}
+
 // Generate generates SLQ parser Go files from the
 // antlr grammar. Note that the antlr generator tool is Java-based; you
 // must have Java installed.

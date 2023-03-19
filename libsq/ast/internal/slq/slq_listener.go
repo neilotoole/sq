@@ -25,6 +25,9 @@ type SLQListener interface {
 	// EnterFn is called when entering the fn production.
 	EnterFn(c *FnContext)
 
+	// EnterFnElement is called when entering the fnElement production.
+	EnterFnElement(c *FnElementContext)
+
 	// EnterJoin is called when entering the join production.
 	EnterJoin(c *JoinContext)
 
@@ -33,6 +36,9 @@ type SLQListener interface {
 
 	// EnterGroup is called when entering the group production.
 	EnterGroup(c *GroupContext)
+
+	// EnterAlias is called when entering the alias production.
+	EnterAlias(c *AliasContext)
 
 	// EnterSelElement is called when entering the selElement production.
 	EnterSelElement(c *SelElementContext)
@@ -76,6 +82,9 @@ type SLQListener interface {
 	// ExitFn is called when exiting the fn production.
 	ExitFn(c *FnContext)
 
+	// ExitFnElement is called when exiting the fnElement production.
+	ExitFnElement(c *FnElementContext)
+
 	// ExitJoin is called when exiting the join production.
 	ExitJoin(c *JoinContext)
 
@@ -84,6 +93,9 @@ type SLQListener interface {
 
 	// ExitGroup is called when exiting the group production.
 	ExitGroup(c *GroupContext)
+
+	// ExitAlias is called when exiting the alias production.
+	ExitAlias(c *AliasContext)
 
 	// ExitSelElement is called when exiting the selElement production.
 	ExitSelElement(c *SelElementContext)

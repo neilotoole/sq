@@ -9,6 +9,7 @@ var (
 type Func struct {
 	baseNode
 	fnName string
+	alias  string
 }
 
 // FuncName returns the function name.
@@ -16,13 +17,23 @@ func (fn *Func) FuncName() string {
 	return fn.fnName
 }
 
+// String returns a log/debug-friendly representation.
 func (fn *Func) String() string {
-	return nodeString(fn)
+	str := nodeString(fn)
+	if fn.alias != "" {
+		str += ":" + fn.alias
+	}
+	return str
 }
 
 // ColExpr implements ColExpr.
 func (fn *Func) ColExpr() (string, error) {
 	return fn.ctx.GetText(), nil
+}
+
+// Alias implements ColExpr.
+func (fn *Func) Alias() string {
+	return fn.alias
 }
 
 // SetChildren implements Node.

@@ -15,7 +15,7 @@ type Node interface {
 	// SetParent sets the node's parent, returning an error if illegal.
 	SetParent(n Node) error
 
-	// Children returns the node's children (may be empty).
+	// Children returns the node's children (which may be empty).
 	Children() []Node
 
 	// SetChildren sets the node's children, returning an error if illegal.
@@ -49,8 +49,17 @@ type Selectable interface {
 type ColExpr interface {
 	// IsColName returns true if the expr is a column name, e.g. "uid" or "users.uid".
 	IsColName() bool
+
+	// ColExpr returns the column expression value. For a simple ColSelector ".first_name",
+	// this would be "first_name".
 	ColExpr() (string, error)
+
+	// String returns a log/debug-friendly representation.
 	String() string
+
+	// Alias returns the column alias, which may be empty.
+	// For example, given the selector ".first_name:given_name", the alias is "given_name".
+	Alias() string
 }
 
 // baseNode is a base implementation of Node.
@@ -60,15 +69,18 @@ type baseNode struct {
 	ctx      antlr.ParseTree
 }
 
+// Parent implements Node.Parent.
 func (bn *baseNode) Parent() Node {
 	return bn.parent
 }
 
+// SetParent implements Node.SetParent.
 func (bn *baseNode) SetParent(parent Node) error {
 	bn.parent = parent
 	return nil
 }
 
+// Children implements Node.Children.
 func (bn *baseNode) Children() []Node {
 	return bn.children
 }
@@ -111,9 +123,9 @@ func nodeString(n Node) string {
 	return fmt.Sprintf("%T: %s", n, n.Text())
 }
 
-// replaceNode replaces old with new. That is, nu becomes a child
+// nodeReplace replaces old with new. That is, nu becomes a child
 // of old's parent.
-func replaceNode(old, nu Node) error {
+func nodeReplace(old, nu Node) error {
 	err := nu.SetContext(old.Context())
 	if err != nil {
 		return err
@@ -121,7 +133,7 @@ func replaceNode(old, nu Node) error {
 
 	parent := old.Parent()
 
-	index := childIndex(parent, old)
+	index := nodeChildIndex(parent, old)
 	if index < 0 {
 		return errorf("parent %T(%q) does not appear to have child %T(%q)", parent, parent.Text(), old, old.Text())
 	}
@@ -131,18 +143,43 @@ func replaceNode(old, nu Node) error {
 	return parent.SetChildren(siblings)
 }
 
-// childIndex returns the index of child in parent's children, or -1.
-func childIndex(parent, child Node) int {
-	index := -1
-
+// nodeChildIndex returns the index of child in parent's children, or -1.
+func nodeChildIndex(parent, child Node) int {
 	for i, node := range parent.Children() {
 		if node == child {
-			index = i
-			break
+			return i
 		}
 	}
 
-	return index
+	return -1
+}
+
+// nodeFirstChild returns the first child of parent, or nil.
+func nodeFirstChild(parent Node) Node { //nolint:unused
+	if parent == nil {
+		return nil
+	}
+
+	children := parent.Children()
+	if len(children) == 0 {
+		return nil
+	}
+
+	return children[0]
+}
+
+// nodeFirstChild returns the last child of parent, or nil.
+func nodeLastChild(parent Node) Node {
+	if parent == nil {
+		return nil
+	}
+
+	children := parent.Children()
+	if len(children) == 0 {
+		return nil
+	}
+
+	return children[len(children)-1]
 }
 
 // nodesWithType returns a new slice containing each member of nodes that is
