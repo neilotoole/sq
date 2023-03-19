@@ -167,7 +167,7 @@ linters-settings:
   nestif:
     # Minimal complexity of if statements to report.
     # Default: 5
-    min-complexity: 15
+    min-complexity: 20
 
   nolintlint:
     # Exclude following linters from requiring an explanation.

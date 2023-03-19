@@ -110,10 +110,10 @@ func (jn *Join) String() string {
 	rightTblName := ""
 
 	if jn.leftTbl != nil {
-		leftTblName = jn.leftTbl.SelValue()
+		leftTblName, _ = jn.leftTbl.SelValue()
 	}
 	if jn.rightTbl != nil {
-		rightTblName = jn.rightTbl.SelValue()
+		rightTblName, _ = jn.rightTbl.SelValue()
 	}
 
 	text += fmt.Sprintf(" |  left_table: %q  |  right_table: %q", leftTblName, rightTblName)

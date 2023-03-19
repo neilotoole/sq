@@ -40,6 +40,18 @@ func TestSLQ2SQL(t *testing.T) {
 			wantSQL: `SELECT "actor_id", "first name", "last name" FROM "actor"`,
 		},
 		{
+			name:    "select-count-whitespace-col",
+			handles: []string{sakila.SL3Whitespace},
+			slq:     `@sakila_sl3_whitespace | .actor | count(."first name")`,
+			wantSQL: `SELECT COUNT("first name") FROM "actor"`,
+		},
+		{
+			name:    "select-table-whitespace",
+			handles: []string{sakila.SL3Whitespace},
+			slq:     `@sakila_sl3_whitespace | ."film actor"`,
+			wantSQL: `SELECT * FROM "film actor"`,
+		},
+		{
 			name:    "select-cols-aliases",
 			handles: []string{sakila.SL3},
 			slq:     `@sakila_sl3 | .actor | .first_name:given_name, .last_name:family_name`,

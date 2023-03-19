@@ -431,7 +431,11 @@ func (v *parseTreeVisitor) VisitGroup(ctx *slq.GroupContext) any {
 	}
 
 	for _, selCtx := range sels {
-		err = grp.AddChild(newColSelector(grp, selCtx, "")) // FIXME: Handle alias appropriately
+		colSel, err := newColSelector(grp, selCtx, "") // FIXME: Handle alias appropriately
+		if err != nil {
+			return err
+		}
+		err = grp.AddChild(colSel)
 		if err != nil {
 			return err
 		}

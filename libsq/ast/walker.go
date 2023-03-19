@@ -102,7 +102,10 @@ func narrowTblSel(log lg.Log, w *Walker, node Node) error {
 		}
 
 		// this means that this selector must be a table selector
-		tblSel := newTblSelector(seg, sel.SelValue(), sel.Context())
+		tblSel, err := newTblSelector(seg, sel.Context())
+		if err != nil {
+			return err
+		}
 		tblSel.DSName = ds.Text()
 		err = nodeReplace(sel, tblSel)
 		if err != nil {
@@ -127,7 +130,10 @@ func narrowColSel(log lg.Log, w *Walker, node Node) error {
 	case *JoinConstraint, *Func:
 		// selector parent is JoinConstraint or Func, therefore this is a ColSelector
 		log.Debugf("selector parent is %T, therefore this is a ColSelector", parent)
-		colSel := newColSelector(sel.Parent(), sel.ctx, sel.alias)
+		colSel, err := newColSelector(sel.Parent(), sel.ctx, sel.alias)
+		if err != nil {
+			return err
+		}
 		return nodeReplace(sel, colSel)
 	case *Segment:
 		// if the parent is a segment, this is a "top-level" selector.
@@ -143,7 +149,10 @@ func narrowColSel(log lg.Log, w *Walker, node Node) error {
 			return nil
 		}
 
-		colSel := newColSelector(sel.Parent(), sel.ctx, sel.alias)
+		colSel, err := newColSelector(sel.Parent(), sel.ctx, sel.alias)
+		if err != nil {
+			return err
+		}
 		return nodeReplace(sel, colSel)
 
 	default:

@@ -63,7 +63,10 @@ func (fb *BaseFragmentBuilder) Expr(expr *ast.Expr) (string, error) {
 	for _, child := range expr.Children() {
 		switch child := child.(type) {
 		case *ast.Selector:
-			val := child.SelValue()
+			val, err := child.SelValue()
+			if err != nil {
+				return "", err
+			}
 			parts := strings.Split(val, ".")
 			identifier := fb.ColQuote + strings.Join(parts, fb.ColQuote+"."+fb.ColQuote) + fb.ColQuote
 			sql = sql + " " + identifier
@@ -90,7 +93,7 @@ func (fb *BaseFragmentBuilder) Expr(expr *ast.Expr) (string, error) {
 
 // SelectAll implements FragmentBuilder.
 func (fb *BaseFragmentBuilder) SelectAll(tblSel *ast.TblSelector) (string, error) {
-	sql := fmt.Sprintf("SELECT * FROM %v%s%v", fb.Quote, tblSel.SelValue(), fb.Quote)
+	sql := fmt.Sprintf("SELECT * FROM %v%s%v", fb.Quote, tblSel.TblName, fb.Quote)
 	return sql, nil
 }
 
@@ -122,7 +125,10 @@ func (fb *BaseFragmentBuilder) Function(fn *ast.Func) (string, error) {
 
 		switch child := child.(type) {
 		case *ast.ColSelector:
-			buf.WriteString(child.SelValue())
+			colName := child.ColName()
+			buf.WriteString(fb.Quote)
+			buf.WriteString(colName)
+			buf.WriteString(fb.Quote)
 		case *ast.Operator:
 			buf.WriteString(child.Text())
 		default:
@@ -137,12 +143,12 @@ func (fb *BaseFragmentBuilder) Function(fn *ast.Func) (string, error) {
 
 // FromTable implements FragmentBuilder.
 func (fb *BaseFragmentBuilder) FromTable(tblSel *ast.TblSelector) (string, error) {
-	tblName := tblSel.SelValue()
+	tblName, _ := tblSel.SelValue()
 	if tblName == "" {
 		return "", errz.Errorf("selector has empty table name: %q", tblSel.Text())
 	}
 
-	clause := fmt.Sprintf("FROM %v%s%v", fb.Quote, tblSel.SelValue(), fb.Quote)
+	clause := fmt.Sprintf("FROM %v%s%v", fb.Quote, tblSel.TblName, fb.Quote)
 	return clause, nil
 }
 
@@ -170,14 +176,44 @@ func (fb *BaseFragmentBuilder) Join(fnJoin *ast.Join) (string, error) {
 				return "", errz.Errorf("expected *ColSelector but got %T", joinExpr.Children()[0])
 			}
 
-			leftOperand = fmt.Sprintf("%s%s%s.%s%s%s", fb.Quote, fnJoin.LeftTbl().SelValue(), fb.Quote, fb.Quote,
-				colSel.SelValue(), fb.Quote)
+			colVal, err := colSel.SelValue()
+			if err != nil {
+				return "", err
+			}
+
+			leftTblVal, err := fnJoin.LeftTbl().SelValue()
+			if err != nil {
+				return "", err
+			}
+
+			leftOperand = fmt.Sprintf(
+				"%s%s%s.%s%s%s",
+				fb.Quote,
+				leftTblVal,
+				fb.Quote,
+				fb.Quote,
+				colVal,
+				fb.Quote,
+			)
 			operator = "=="
-			rightOperand = fmt.Sprintf("%s%s%s.%s%s%s", fb.Quote, fnJoin.RightTbl().SelValue(), fb.Quote, fb.Quote,
-				colSel.SelValue(), fb.Quote)
+
+			rightTblVal, err := fnJoin.RightTbl().SelValue()
+			if err != nil {
+				return "", err
+			}
+
+			rightOperand = fmt.Sprintf(
+				"%s%s%s.%s%s%s",
+				fb.Quote,
+				rightTblVal,
+				fb.Quote,
+				fb.Quote,
+				colVal,
+				fb.Quote,
+			)
 		} else {
 			var err error
-
+			// TODO: Does this func work ok with whitespace names?
 			leftOperand, err = quoteTableOrColSelector(fb.Quote, joinExpr.Children()[0].Text())
 			if err != nil {
 				return "", err
@@ -198,8 +234,8 @@ func (fb *BaseFragmentBuilder) Join(fnJoin *ast.Join) (string, error) {
 		onClause = fmt.Sprintf("ON %s %s %s", leftOperand, operator, rightOperand)
 	}
 
-	sql := fmt.Sprintf("FROM %s%s%s %s %s%s%s", fb.Quote, fnJoin.LeftTbl().SelValue(), fb.Quote, joinType, fb.Quote,
-		fnJoin.RightTbl().SelValue(), fb.Quote)
+	sql := fmt.Sprintf("FROM %s%s%s %s %s%s%s", fb.Quote, fnJoin.LeftTbl().TblName, fb.Quote, joinType, fb.Quote,
+		fnJoin.RightTbl().TblName, fb.Quote)
 	sql = sqlAppend(sql, onClause)
 
 	return sql, nil
@@ -314,6 +350,7 @@ func (fb *BaseFragmentBuilder) SelectCols(cols []ast.ColExpr) (string, error) {
 			continue
 		}
 
+		// FIXME: this won't stand up to quoted col names that contain a period?
 		// it's a column name, e.g. "uid" or "user.uid"
 		if !strings.ContainsRune(colText, '.') {
 			// it's a regular (non-scoped) col name, e.g. "uid"

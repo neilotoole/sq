@@ -23,7 +23,7 @@ type Selector struct {
 	baseNode
 
 	// alias is the (optional) alias part. For example, given ".first_name:given_name",
-	// the alias value is "given_name". May be empy.
+	// the alias value is "given_name". May be empty.
 	alias string
 }
 
@@ -31,8 +31,10 @@ func (s *Selector) String() string {
 	return nodeString(s)
 }
 
-func (s *Selector) SelValue() string {
-	return s.ctx.GetText()[1:]
+// SelValue returns the selector value.
+// See extractSelValue.
+func (s *Selector) SelValue() (string, error) {
+	return extractSelVal(s.ctx)
 }
 
 var _ Node = (*TblSelector)(nil)
@@ -45,12 +47,17 @@ type TblSelector struct {
 	TblName string
 }
 
-func newTblSelector(seg *Segment, tblName string, ctx antlr.ParseTree) *TblSelector {
+// newTblSelector creates a new TblSelector from ctx.
+func newTblSelector(seg *Segment, ctx antlr.ParseTree) (*TblSelector, error) {
 	tbl := &TblSelector{}
 	tbl.parent = seg
 	tbl.ctx = ctx
-	tbl.TblName = tblName
-	return tbl
+
+	var err error
+	if tbl.TblName, err = extractSelVal(ctx); err != nil {
+		return nil, err
+	}
+	return tbl, nil
 }
 
 // Selectable implements the Selectable marker interface.
@@ -58,13 +65,18 @@ func (s *TblSelector) Selectable() {
 	// no-op
 }
 
-func (s *TblSelector) SelValue() string {
-	return s.TblName
+func (s *TblSelector) SelValue() (string, error) {
+	return s.TblName, nil
 }
 
+// String returns a log/debug-friendly representation.
 func (s *TblSelector) String() string {
 	text := nodeString(s)
-	text += fmt.Sprintf(" | table: %q | datasource: %q", s.SelValue(), s.DSName)
+	selVal, err := s.SelValue()
+	if err != nil {
+		selVal = "error: " + err.Error()
+	}
+	text += fmt.Sprintf(" | table: %q | datasource: %q", selVal, s.DSName)
 	return text
 }
 
@@ -76,52 +88,29 @@ var (
 // ColSelector models a column selector such as ".user_id".
 type ColSelector struct {
 	Selector
+
 	alias string
+
+	colName string
 }
 
-func newColSelector(parent Node, ctx antlr.ParseTree, alias string) *ColSelector {
+// newColSelector returns a ColSelector constructed from ctx.
+func newColSelector(parent Node, ctx antlr.ParseTree, alias string) (*ColSelector, error) {
 	col := &ColSelector{}
 	col.parent = parent
 	col.ctx = ctx
 	col.alias = alias
-	return col
+
+	var err error
+	if col.colName, err = extractSelVal(ctx); err != nil {
+		return nil, err
+	}
+	return col, nil
 }
 
 // ColExpr returns the column name.
 func (s *ColSelector) ColExpr() (string, error) {
-	// Drop the leading dot, e.g. ".user" -> "user"
-	// children := s.Children()
-
-	children := s.ctx.GetChildren()
-	_ = children
-
-	original := s.Text()
-	if len(original) < 2 {
-		return "", errorf("invalid column expression: too short: %s", original)
-	}
-
-	if original[0] != '.' {
-		return "", errorf("illegal column expression: must start with period: %s", original)
-	}
-
-	// Trim the leading period.
-	wip := s.Text()[1:]
-
-	// Remove quotes if applicable.
-	if wip[0] == '"' {
-		if wip[len(wip)-1] != '"' {
-			return "", errorf("illegal column expression: unmatched quotes on string: %s", original)
-		}
-
-		wip = strings.TrimPrefix(wip, `"`)
-		wip = strings.TrimSuffix(wip, `"`)
-
-		if len(wip) == 0 {
-			return "", errorf("invalid column expression: too short: %s", original)
-		}
-	}
-
-	return wip, nil
+	return extractSelVal(s.ctx)
 }
 
 // IsColName always returns true.
@@ -129,8 +118,15 @@ func (s *ColSelector) IsColName() bool {
 	return true
 }
 
+// ColName returns the column name. Note the name is not escaped/quoted,
+// thus it could contain whitespace, etc.
+func (s *ColSelector) ColName() string {
+	return s.colName
+}
+
 // Alias returns the column alias, which may be empty.
-// For example, given the selector ".first_name:given_name", the alias is "given_name".
+// For example, given the selector ".first_name:given_name",
+// the alias is "given_name".
 func (s *ColSelector) Alias() string {
 	return s.alias
 }
@@ -170,4 +166,43 @@ type Datasource struct {
 
 func (d *Datasource) String() string {
 	return nodeString(d)
+}
+
+// extractSelVal extracts the value of the selector.
+// Example inputs:
+//
+//   - .actor --> actor
+//   - .first_name --> first_name
+//   - ."first name" --> first name
+func extractSelVal(ctx antlr.ParseTree) (string, error) {
+	if ctx == nil {
+		return "", errorf("invalid selector: is nil")
+	}
+	original := ctx.GetText()
+	if len(original) < 2 {
+		return "", errorf("invalid selector expression: too short: %s", original)
+	}
+
+	if original[0] != '.' {
+		return "", errorf("illegal selector expression: must start with period: %s", original)
+	}
+
+	// Trim the leading period, e.g. ".first_name" -> "first_name".
+	wip := original[1:]
+
+	// Remove quotes if applicable.
+	if wip[0] == '"' {
+		if wip[len(wip)-1] != '"' {
+			return "", errorf("illegal selector expression: unmatched quotes on string: %s", original)
+		}
+
+		wip = strings.TrimPrefix(wip, `"`)
+		wip = strings.TrimSuffix(wip, `"`)
+
+		if len(wip) == 0 {
+			return "", errorf("invalid selector expression: too short: %s", original)
+		}
+	}
+
+	return wip, nil
 }

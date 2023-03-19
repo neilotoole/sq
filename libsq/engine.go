@@ -161,11 +161,11 @@ func (ng *engine) buildTableFromClause(ctx context.Context, tblSel *ast.TblSelec
 func (ng *engine) buildJoinFromClause(ctx context.Context, fnJoin *ast.Join) (fromClause string,
 	fromConn driver.Database, err error,
 ) {
-	if fnJoin.LeftTbl() == nil || fnJoin.LeftTbl().SelValue() == "" {
+	if fnJoin.LeftTbl() == nil || fnJoin.LeftTbl().TblName == "" {
 		return "", nil, errz.Errorf("JOIN is missing left table reference")
 	}
 
-	if fnJoin.RightTbl() == nil || fnJoin.RightTbl().SelValue() == "" {
+	if fnJoin.RightTbl() == nil || fnJoin.RightTbl().TblName == "" {
 		return "", nil, errz.Errorf("JOIN is missing right table reference")
 	}
 
@@ -203,10 +203,10 @@ func (ng *engine) singleSourceJoin(ctx context.Context, fnJoin *ast.Join) (fromC
 func (ng *engine) crossSourceJoin(ctx context.Context, fnJoin *ast.Join) (fromClause string, fromDB driver.Database,
 	err error,
 ) {
-	leftTblName, rightTblName := fnJoin.LeftTbl().SelValue(), fnJoin.RightTbl().SelValue()
+	leftTblName, rightTblName := fnJoin.LeftTbl().TblName, fnJoin.RightTbl().TblName
 	if leftTblName == rightTblName {
 		return "", nil, errz.Errorf("JOIN tables must have distinct names (or use aliases): duplicate tbl name %q",
-			fnJoin.LeftTbl().SelValue())
+			fnJoin.LeftTbl().TblName)
 	}
 
 	leftSrc, err := ng.srcs.Get(fnJoin.LeftTbl().DSName)
