@@ -16,7 +16,7 @@ element:
 	| join
 	| group
 	| rowRange
-	| fn
+	| fnElement
 	| expr;
 
 cmpr: LT_EQ | LT | GT_EQ | GT | EQ | NEQ;
@@ -24,7 +24,7 @@ cmpr: LT_EQ | LT | GT_EQ | GT | EQ | NEQ;
 
 fn: fnName '(' ( expr ( ',' expr)* | '*')? ')';
 
-fnElement: fn (alias);
+fnElement: fn (alias)?;
 
 join: ('join' | 'JOIN' | 'j') '(' joinConstraint ')';
 

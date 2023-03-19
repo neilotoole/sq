@@ -31,6 +31,10 @@ func (v *BaseSLQVisitor) VisitFn(ctx *FnContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
+func (v *BaseSLQVisitor) VisitFnElement(ctx *FnElementContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
 func (v *BaseSLQVisitor) VisitJoin(ctx *JoinContext) interface{} {
 	return v.VisitChildren(ctx)
 }

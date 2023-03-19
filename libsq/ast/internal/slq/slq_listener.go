@@ -25,6 +25,9 @@ type SLQListener interface {
 	// EnterFn is called when entering the fn production.
 	EnterFn(c *FnContext)
 
+	// EnterFnElement is called when entering the fnElement production.
+	EnterFnElement(c *FnElementContext)
+
 	// EnterJoin is called when entering the join production.
 	EnterJoin(c *JoinContext)
 
@@ -78,6 +81,9 @@ type SLQListener interface {
 
 	// ExitFn is called when exiting the fn production.
 	ExitFn(c *FnContext)
+
+	// ExitFnElement is called when exiting the fnElement production.
+	ExitFnElement(c *FnElementContext)
 
 	// ExitJoin is called when exiting the join production.
 	ExitJoin(c *JoinContext)

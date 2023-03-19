@@ -20,7 +20,7 @@ func TestChildIndex(t *testing.T) {
 	require.Equal(t, 4, len(ast.Segments()))
 
 	for i, seg := range ast.Segments() {
-		index := childIndex(ast, seg)
+		index := nodeChildIndex(ast, seg)
 		require.Equal(t, i, index)
 	}
 }

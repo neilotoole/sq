@@ -56,6 +56,12 @@ func (s *BaseSLQListener) EnterFn(ctx *FnContext) {}
 // ExitFn is called when production fn is exited.
 func (s *BaseSLQListener) ExitFn(ctx *FnContext) {}
 
+// EnterFnElement is called when production fnElement is entered.
+func (s *BaseSLQListener) EnterFnElement(ctx *FnElementContext) {}
+
+// ExitFnElement is called when production fnElement is exited.
+func (s *BaseSLQListener) ExitFnElement(ctx *FnElementContext) {}
+
 // EnterJoin is called when production join is entered.
 func (s *BaseSLQListener) EnterJoin(ctx *JoinContext) {}
 

@@ -149,6 +149,8 @@ func (v *parseTreeVisitor) Visit(ctx antlr.ParseTree) any {
 		return v.VisitDsTblElement(ctx)
 	case *slq.SelElementContext:
 		return v.VisitSelElement(ctx)
+	case *slq.FnElementContext:
+		return v.VisitFnElement(ctx)
 	case *slq.FnContext:
 		return v.VisitFn(ctx)
 	case *slq.FnNameContext:
@@ -266,11 +268,57 @@ func (v *parseTreeVisitor) VisitElement(ctx *slq.ElementContext) any {
 func (v *parseTreeVisitor) VisitAlias(ctx *slq.AliasContext) any {
 	alias := ctx.ID().GetText()
 
-	switch sel := v.cur.(type) {
+	switch node := v.cur.(type) {
 	case *Selector:
-		sel.alias = alias
+		node.alias = alias
+	case *Func:
+		node.alias = alias
 	default:
-		return errorf("'alias' must only be a child of a selector")
+		return errorf("alias not allowed for type %T: %v", node, ctx.GetText())
+	}
+
+	return nil
+}
+
+// VisitFnElement implements slq.SLQVisitor.
+func (v *parseTreeVisitor) VisitFnElement(ctx *slq.FnElementContext) any {
+	v.log.Debugf("visiting FnElement: %v", ctx.GetText())
+
+	childCount := ctx.GetChildCount()
+	if childCount == 0 || childCount > 2 {
+		return errorf("parser: invalid function: expected 1 or 2 children, but got %d: %v",
+			childCount, ctx.GetText())
+	}
+
+	// e.g. count(*)
+	child1 := ctx.GetChild(0)
+	fnCtx, ok := child1.(*slq.FnContext)
+	if !ok {
+		return errorf("expected first child to be %T but was %T: %v", fnCtx, child1, ctx.GetText())
+	}
+
+	if err := v.VisitFn(fnCtx); err != nil {
+		return err
+	}
+
+	// Check if there's an alias
+	if childCount == 2 {
+		child2 := ctx.GetChild(1)
+		aliasCtx, ok := child2.(*slq.AliasContext)
+		if !ok {
+			return errorf("expected second child to be %T but was %T: %v", aliasCtx, child2, ctx.GetText())
+		}
+
+		// VisitAlias will expect v.cur to be a Func.
+		lastNode := nodeLastChild(v.cur)
+		fnNode, ok := lastNode.(*Func)
+		if !ok {
+			return errorf("expected %T but got %T: %v", fnNode, lastNode, ctx.GetText())
+		}
+
+		return v.using(fnNode, func() any {
+			return v.VisitAlias(aliasCtx)
+		})
 	}
 
 	return nil
@@ -278,7 +326,7 @@ func (v *parseTreeVisitor) VisitAlias(ctx *slq.AliasContext) any {
 
 // VisitFn implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitFn(ctx *slq.FnContext) any {
-	v.log.Debugf("visiting function: %v", ctx.GetText())
+	v.log.Debugf("visiting Fn: %v", ctx.GetText())
 
 	fn := &Func{fnName: ctx.FnName().GetText()}
 	fn.ctx = ctx

@@ -25,6 +25,9 @@ type SLQVisitor interface {
 	// Visit a parse tree produced by SLQParser#fn.
 	VisitFn(ctx *FnContext) interface{}
 
+	// Visit a parse tree produced by SLQParser#fnElement.
+	VisitFnElement(ctx *FnElementContext) interface{}
+
 	// Visit a parse tree produced by SLQParser#join.
 	VisitJoin(ctx *JoinContext) interface{}
 
