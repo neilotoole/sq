@@ -32,7 +32,7 @@ type YAMLFileStore struct {
 	Path string
 
 	// If HookLoad is non-nil, it is invoked by Load
-	// on Path's bytes before the YAML is unmarshaled.
+	// on Path's bytes before the YAML is unmarshalled.
 	// This allows expansion of variables etc.
 	HookLoad func(data []byte) ([]byte, error)
 

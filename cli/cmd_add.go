@@ -89,7 +89,7 @@ minimum, the following drivers are bundled:
   xlsx       Microsoft Excel XLSX 
 
 If there isn't already an active source, the newly added source becomes the
-active source.
+active source. Otherwise you can use --active to make the new source active.
 
 More examples:
 
@@ -126,6 +126,7 @@ More examples:
 	cmd.Flags().BoolP(flagPasswordPrompt, flagPasswordPromptShort, false, flagPasswordPromptUsage)
 	cmd.Flags().Bool(flagSkipVerify, false, flagSkipVerifyUsage)
 	cmd.Flags().BoolP(flagJSON, flagJSONShort, false, flagJSONUsage)
+	cmd.Flags().Bool(flagAddActive, false, flagAddActiveUsage)
 	return cmd
 }
 
@@ -222,8 +223,9 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if cfg.Sources.Active() == nil {
-		// If no current active data source, use this one.
+	if cfg.Sources.Active() == nil || cmdFlagTrue(cmd, flagAddActive) {
+		// If no current active data source, use this one, OR if
+		// flagAddActive is true.
 		_, err = cfg.Sources.SetActive(src.Handle)
 		if err != nil {
 			return err

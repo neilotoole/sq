@@ -5,12 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [v0.25.0] - 2023-03-18
+## [v0.25.0] - 2023-03-19
 
 ### Added
 
-- [#15] Column Aliases. You can now change specify an alias for a column (or column expression
+- [#15]: Column Aliases. You can now change specify an alias for a column (or column expression
   such as a function). For example: `sq '.actor | .first_name:given_name`, or `sq .actor | count(*):quantity`.
+- [#151]: `sq add` now has a `--active` flag, which immediately sets the new source
+  as the active source.
 
 ## [v0.24.4] - 2023-03-15
 
@@ -186,6 +188,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 
+[#151]: https://github.com/neilotoole/sq/issues/151
 [#144]: https://github.com/neilotoole/sq/issues/144
 [#142]: https://github.com/neilotoole/sq/issues/142
 [#123]: https://github.com/neilotoole/sq/issues/123
