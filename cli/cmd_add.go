@@ -126,7 +126,7 @@ More examples:
 	cmd.Flags().BoolP(flagPasswordPrompt, flagPasswordPromptShort, false, flagPasswordPromptUsage)
 	cmd.Flags().Bool(flagSkipVerify, false, flagSkipVerifyUsage)
 	cmd.Flags().BoolP(flagJSON, flagJSONShort, false, flagJSONUsage)
-	cmd.Flags().Bool(flagAddActive, false, flagAddActiveUsage)
+	cmd.Flags().BoolP(flagAddActive, flagAddActiveShort, false, flagAddActiveUsage)
 	return cmd
 }
 

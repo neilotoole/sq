@@ -122,7 +122,7 @@ func TestCmdAdd_SQLite_Path(t *testing.T) {
 func TestCmdAdd_Active(t *testing.T) {
 	t.Parallel()
 
-	const h1, h2, h3 = "@h1", "@h2", "@h3"
+	const h1, h2, h3, h4 = "@h1", "@h2", "@h3", "@h4"
 
 	// Verify that initially there are no sources.
 	ru := newRun(t, nil)
@@ -154,4 +154,12 @@ func TestCmdAdd_Active(t *testing.T) {
 	require.NoError(t, ru.Exec("src", "-j"))
 	m = ru.BindMap()
 	require.Equal(t, h3, m["handle"], "active source now be %s", h3)
+
+	// Same again with a fourth src, but this time using the shorthand -a flag.
+	ru = newRun(t, ru)
+	require.NoError(t, ru.Exec("add", proj.Abs(sakila.PathCSVActor), "-h", h4, "-a"))
+	ru = newRun(t, ru)
+	require.NoError(t, ru.Exec("src", "-j"))
+	m = ru.BindMap()
+	require.Equal(t, h4, m["handle"], "active source now be %s", h4)
 }

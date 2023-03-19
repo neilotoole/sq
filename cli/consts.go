@@ -43,6 +43,7 @@ const (
 	flagMarkdownUsage = "Output Markdown"
 
 	flagAddActive      = "active"
+	flagAddActiveShort = "a"
 	flagAddActiveUsage = "Make this the active source"
 
 	flagMonochrome      = "monochrome"
