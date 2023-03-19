@@ -14,7 +14,7 @@ func TestChildIndex(t *testing.T) {
 	// `@mydb1 | .user, .address | join(.uid == .uid) | .uid, .username, .country`
 	p := getSLQParser(fixtJoinQuery1)
 	query := p.Query()
-	ast, err := buildAst(log, query)
+	ast, err := buildAST(log, query)
 	require.Nil(t, err)
 	require.NotNil(t, ast)
 	require.Equal(t, 4, len(ast.Segments()))

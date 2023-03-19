@@ -78,7 +78,7 @@ func TestSimpleQuery(t *testing.T) {
 	require.Nil(t, err)
 	require.NotNil(t, ptree)
 
-	ast, err := buildAst(log, ptree)
+	ast, err := buildAST(log, ptree)
 	require.Nil(t, err)
 	require.NotNil(t, ast)
 }
@@ -91,7 +91,7 @@ func TestParseBuild(t *testing.T) {
 		require.Nil(t, err, test)
 		require.NotNil(t, ptree, test)
 
-		ast, err := buildAst(log, ptree)
+		ast, err := buildAST(log, ptree)
 		require.Nil(t, err, test)
 		require.NotNil(t, ast, test)
 	}
@@ -107,7 +107,7 @@ func TestInspector_FindWhereClauses(t *testing.T) {
 	require.Nil(t, err)
 	require.NotNil(t, ptree)
 
-	nRoot, err := buildAst(log, ptree)
+	nRoot, err := buildAST(log, ptree)
 	require.Nil(t, err)
 
 	insp := NewInspector(log, nRoot)

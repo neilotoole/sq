@@ -21,11 +21,11 @@ func Parse(log lg.Log, input string) (*AST, error) { //nolint:staticcheck
 		return nil, err
 	}
 
-	return buildAst(log, ptree)
+	return buildAST(log, ptree)
 }
 
-// buildAst constructs sq's AST from a parse tree.
-func buildAst(log lg.Log, query slq.IQueryContext) (*AST, error) {
+// buildAST constructs sq's AST from a parse tree.
+func buildAST(log lg.Log, query slq.IQueryContext) (*AST, error) {
 	if query == nil {
 		return nil, errorf("query is nil")
 	}

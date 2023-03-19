@@ -15,7 +15,7 @@ func TestWalker(t *testing.T) {
 	// `@mydb1 | .user, .address | join(.uid == .uid) | .uid, .username, .country`
 	p := getSLQParser(fixtJoinQuery1)
 	query := p.Query()
-	ast, err := buildAst(log, query)
+	ast, err := buildAST(log, query)
 
 	assert.Nil(t, err)
 	assert.NotNil(t, ast)
