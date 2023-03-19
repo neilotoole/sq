@@ -74,7 +74,7 @@ is ambiguous, explicitly specify the driver type.
   
   $ sq add --driver=tsv ./mystery.data
 
-Available source driver types can be listed via "sq drivers". At a
+Available source driver types can be listed via "sq driver ls". At a
 minimum, the following drivers are bundled:
 
   sqlite3    SQLite                               
@@ -87,6 +87,9 @@ minimum, the following drivers are bundled:
   jsona      JSON Array: LF-delimited JSON arrays 
   jsonl      JSON Lines: LF-delimited JSON objects
   xlsx       Microsoft Excel XLSX 
+
+If there isn't already an active source, the newly added source becomes the active source.
+Otherwise 
 
 More examples:
 

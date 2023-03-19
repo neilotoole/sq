@@ -82,7 +82,7 @@ const (
 	flagTableUsage = "Output text table"
 
 	flagTblData      = "data"
-	flagTblDataUsage = "Copy table data (default true)"
+	flagTblDataUsage = "Copy table data"
 
 	flagPingTimeout      = "timeout"
 	flagPingTimeoutUsage = "Max time to wait for ping"
