@@ -105,9 +105,9 @@ More examples:
 
   # Add a SQL Server source; will have generated handle @sakila_mssql or similar
   $ sq add 'sqlserver://user:pass@localhost?database=sakila' 
-  
-  # Add a sqlite db
-  $ sq add ./testdata/sqlite1.db
+
+  # Add a sqlite db, and immediately make it the active source
+  $ sq add --active ./testdata/sqlite1.db
 
   # Add an Excel spreadsheet, with options
   $ sq add ./testdata/test1.xlsx --opts=header=true
