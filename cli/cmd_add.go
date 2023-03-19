@@ -89,7 +89,7 @@ minimum, the following drivers are bundled:
   xlsx       Microsoft Excel XLSX 
 
 If there isn't already an active source, the newly added source becomes the
-active source.
+active source. Otherwise you can use --active to make the new source active.
 
 More examples:
 
@@ -105,9 +105,9 @@ More examples:
 
   # Add a SQL Server source; will have generated handle @sakila_mssql or similar
   $ sq add 'sqlserver://user:pass@localhost?database=sakila' 
-  
-  # Add a sqlite db
-  $ sq add ./testdata/sqlite1.db
+
+  # Add a sqlite db, and immediately make it the active source
+  $ sq add --active ./testdata/sqlite1.db
 
   # Add an Excel spreadsheet, with options
   $ sq add ./testdata/test1.xlsx --opts=header=true
@@ -126,6 +126,7 @@ More examples:
 	cmd.Flags().BoolP(flagPasswordPrompt, flagPasswordPromptShort, false, flagPasswordPromptUsage)
 	cmd.Flags().Bool(flagSkipVerify, false, flagSkipVerifyUsage)
 	cmd.Flags().BoolP(flagJSON, flagJSONShort, false, flagJSONUsage)
+	cmd.Flags().BoolP(flagAddActive, flagAddActiveShort, false, flagAddActiveUsage)
 	return cmd
 }
 
@@ -222,8 +223,9 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if cfg.Sources.Active() == nil {
-		// If no current active data source, use this one.
+	if cfg.Sources.Active() == nil || cmdFlagTrue(cmd, flagAddActive) {
+		// If no current active data source, use this one, OR if
+		// flagAddActive is true.
 		_, err = cfg.Sources.SetActive(src.Handle)
 		if err != nil {
 			return err

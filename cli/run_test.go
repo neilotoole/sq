@@ -6,11 +6,11 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
 
-	"github.com/neilotoole/lg"
 	"github.com/neilotoole/lg/testlg"
 	"github.com/stretchr/testify/require"
 
@@ -24,17 +24,33 @@ import (
 // rc writing to stdout and stderr). The contents of
 // these buffers can be written to t.Log() if desired.
 // The srcs args are added to rc.Config.Set.
-func newTestRunCtx(log lg.Log) (rc *cli.RunContext, out, errOut *bytes.Buffer) {
+//
+// If cfgStore is nil, a new one is created in a temp dir.
+func newTestRunCtx(t testing.TB, cfgStore config.Store) (rc *cli.RunContext, out, errOut *bytes.Buffer) {
 	out = &bytes.Buffer{}
 	errOut = &bytes.Buffer{}
+
+	var cfg *config.Config
+	var err error
+	if cfgStore == nil {
+		var cfgDir string
+		cfgDir, err = os.MkdirTemp("", "sq_test")
+		require.NoError(t, err)
+		cfgStore = &config.YAMLFileStore{Path: filepath.Join(cfgDir, "sq.yml")}
+		cfg = config.New()
+		require.NoError(t, cfgStore.Save(cfg))
+	} else {
+		cfg, err = cfgStore.Load()
+		require.NoError(t, err)
+	}
 
 	rc = &cli.RunContext{
 		Stdin:       os.Stdin,
 		Out:         out,
 		ErrOut:      errOut,
-		Log:         log,
-		Config:      config.New(),
-		ConfigStore: config.DiscardStore{},
+		Log:         testlg.New(t),
+		Config:      cfg,
+		ConfigStore: cfgStore,
 	}
 
 	return rc, out, errOut
@@ -54,15 +70,21 @@ type Run struct {
 }
 
 // newRun returns a new run instance for testing sq commands.
-func newRun(t *testing.T) *Run {
+// If from is non-nil, its config is used. This allows sequential
+// commands to use the same config.
+func newRun(t *testing.T, from *Run) *Run {
 	ru := &Run{t: t}
-	ru.rc, ru.out, ru.errOut = newTestRunCtx(testlg.New(t))
+	var cfgStore config.Store
+	if from != nil {
+		cfgStore = from.rc.ConfigStore
+	}
+	ru.rc, ru.out, ru.errOut = newTestRunCtx(t, cfgStore)
 	return ru
 }
 
 // add adds srcs to ru.rc.Config.Set. If the source set
 // does not already have an active source, the first element
-// of srcs is used.
+// of srcs is used as the active source.
 func (ru *Run) add(srcs ...source.Source) *Run {
 	ru.mu.Lock()
 	defer ru.mu.Unlock()

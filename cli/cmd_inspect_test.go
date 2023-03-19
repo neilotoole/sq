@@ -58,7 +58,7 @@ func TestCmdInspect(t *testing.T) {
 			th := testh.New(t)
 			src := th.Source(tc.handle)
 
-			ru := newRun(t).add(*src)
+			ru := newRun(t, nil).add(*src)
 
 			err := ru.Exec("inspect", "--json")
 			if tc.wantErr {
@@ -80,11 +80,11 @@ func TestCmdInspectSmoke(t *testing.T) {
 	th := testh.New(t)
 	src := th.Source(sakila.SL3)
 
-	ru := newRun(t)
+	ru := newRun(t, nil)
 	err := ru.Exec("inspect")
 	require.Error(t, err, "should fail because no active src")
 
-	ru = newRun(t)
+	ru = newRun(t, nil)
 	ru.add(*src) // now have an active src
 
 	err = ru.Exec("inspect", "--json")
@@ -98,7 +98,7 @@ func TestCmdInspectSmoke(t *testing.T) {
 	require.Equal(t, sakila.AllTblsViews(), md.TableNames())
 
 	// Try one more source for good measure
-	ru = newRun(t)
+	ru = newRun(t, nil)
 	src = th.Source(sakila.CSVActor)
 	ru.add(*src)
 
@@ -131,7 +131,7 @@ func TestCmdInspect_Stdin(t *testing.T) {
 			f, err := os.Open(tc.fpath) // No need to close f
 			require.NoError(t, err)
 
-			ru := newRun(t)
+			ru := newRun(t, nil)
 			ru.rc.Stdin = f
 
 			err = ru.Exec("inspect", "--json")

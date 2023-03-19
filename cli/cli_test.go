@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/neilotoole/lg/testlg"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -53,7 +52,7 @@ func TestSmoke(t *testing.T) {
 		t.Run(strings.Join(tc.a, "_"), func(t *testing.T) {
 			t.Parallel()
 
-			rc, out, errOut := newTestRunCtx(testlg.New(t))
+			rc, out, errOut := newTestRunCtx(t, nil)
 			err := cli.ExecuteWith(context.Background(), rc, tc.a)
 
 			// We log sq's output before doing assert, because it reads
@@ -140,7 +139,7 @@ func TestOutputRaw(t *testing.T) {
 				os.RemoveAll(outputPath)
 			})
 
-			ru := newRun(t).add(*src).hush()
+			ru := newRun(t, nil).add(*src).hush()
 			err = ru.Exec("sql", "--raw", "--output="+outputPath, query)
 			require.NoError(t, err)
 
@@ -151,7 +150,7 @@ func TestOutputRaw(t *testing.T) {
 			require.NoError(t, err)
 
 			// 2. Now test that stdout also gets the same data
-			ru = newRun(t).add(*src)
+			ru = newRun(t, nil).add(*src)
 			err = ru.Exec("sql", "--raw", query)
 			require.NoError(t, err)
 			require.Equal(t, wantBytes, ru.out.Bytes())
