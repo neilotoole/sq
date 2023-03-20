@@ -22,64 +22,70 @@ func TestSLQ2SQL(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:    "select-cols",
+			name:    "select/cols",
 			handles: []string{sakila.SL3},
 			slq:     `@sakila_sl3 | .actor | .first_name, .last_name`,
 			wantSQL: `SELECT "first_name", "last_name" FROM "actor"`,
 		},
 		{
-			name:    "select-cols-whitespace",
+			name:    "select/cols-whitespace",
 			handles: []string{sakila.SL3Whitespace},
 			slq:     `@sakila_sl3_whitespace | .actor | ."first name"`,
 			wantSQL: `SELECT "first name" FROM "actor"`,
 		},
 		{
-			name:    "select-cols-whitespace-2",
+			name:    "select/cols-whitespace-2",
 			handles: []string{sakila.SL3Whitespace},
 			slq:     `@sakila_sl3_whitespace | .actor | .actor_id, ."first name", ."last name"`,
 			wantSQL: `SELECT "actor_id", "first name", "last name" FROM "actor"`,
 		},
 		{
-			name:    "select-count-whitespace-col",
+			name:    "select/count-whitespace-col",
 			handles: []string{sakila.SL3Whitespace},
 			slq:     `@sakila_sl3_whitespace | .actor | count(."first name")`,
 			wantSQL: `SELECT COUNT("first name") FROM "actor"`,
 		},
 		{
-			name:    "select-table-whitespace",
+			name:    "select/table-whitespace",
 			handles: []string{sakila.SL3Whitespace},
 			slq:     `@sakila_sl3_whitespace | ."film actor"`,
 			wantSQL: `SELECT * FROM "film actor"`,
 		},
 		{
-			name:    "select-cols-aliases",
+			name:    "select/cols-aliases",
 			handles: []string{sakila.SL3},
 			slq:     `@sakila_sl3 | .actor | .first_name:given_name, .last_name:family_name`,
 			wantSQL: `SELECT "first_name" AS "given_name", "last_name" AS "family_name" FROM "actor"`,
 		},
 		{
-			name:    "select-count-star",
+			name:    "select/count-star",
 			handles: []string{sakila.SL3},
 			slq:     `@sakila_sl3 | .actor | count(*)`,
 			wantSQL: `SELECT COUNT(*) FROM "actor"`,
 		},
 		{
-			name:    "select-count",
+			name:    "select/count",
 			handles: []string{sakila.SL3},
 			slq:     `@sakila_sl3 | .actor | count()`,
 			wantSQL: `SELECT COUNT(*) FROM "actor"`,
 		},
 		{
-			name:    "select-count-alias",
+			name:    "select/count-alias",
 			handles: []string{sakila.SL3},
 			slq:     `@sakila_sl3 | .actor | count(*):quantity`,
 			wantSQL: `SELECT COUNT(*) AS "quantity" FROM "actor"`,
 		},
 		{
-			name:    "join",
+			name:    "join/fq-table-cols-equal",
 			handles: []string{sakila.SL3},
 			slq:     `@sakila_sl3 | .actor, .film_actor | join(.film_actor.actor_id == .actor.actor_id)`,
 			wantSQL: `SELECT * FROM "actor" INNER JOIN "film_actor" ON "film_actor"."actor_id" = "actor"."actor_id"`,
+		},
+		{
+			name:    "join/fq-table-cols-equal-whitespace",
+			handles: []string{sakila.SL3Whitespace},
+			slq:     `@sakila_sl3_whitespace | .actor, ."film actor" | join(."film actor".actor_id == .actor.actor_id)`,
+			wantSQL: `SELECT * FROM "actor" INNER JOIN "film actor" ON "film actor"."actor_id" = "actor"."actor_id"`,
 		},
 	}
 
