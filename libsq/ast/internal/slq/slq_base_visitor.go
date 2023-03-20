@@ -55,11 +55,11 @@ func (v *BaseSLQVisitor) VisitSelElement(ctx *SelElementContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseSLQVisitor) VisitDsTblElement(ctx *DsTblElementContext) interface{} {
+func (v *BaseSLQVisitor) VisitHandleTable(ctx *HandleTableContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseSLQVisitor) VisitHandleElement(ctx *HandleElementContext) interface{} {
+func (v *BaseSLQVisitor) VisitHandle(ctx *HandleContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 

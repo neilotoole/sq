@@ -92,17 +92,17 @@ func (s *BaseSLQListener) EnterSelElement(ctx *SelElementContext) {}
 // ExitSelElement is called when production selElement is exited.
 func (s *BaseSLQListener) ExitSelElement(ctx *SelElementContext) {}
 
-// EnterDsTblElement is called when production dsTblElement is entered.
-func (s *BaseSLQListener) EnterDsTblElement(ctx *DsTblElementContext) {}
+// EnterHandleTable is called when production handleTable is entered.
+func (s *BaseSLQListener) EnterHandleTable(ctx *HandleTableContext) {}
 
-// ExitDsTblElement is called when production dsTblElement is exited.
-func (s *BaseSLQListener) ExitDsTblElement(ctx *DsTblElementContext) {}
+// ExitHandleTable is called when production handleTable is exited.
+func (s *BaseSLQListener) ExitHandleTable(ctx *HandleTableContext) {}
 
-// EnterHandleElement is called when production handleElement is entered.
-func (s *BaseSLQListener) EnterHandleElement(ctx *HandleElementContext) {}
+// EnterHandle is called when production handle is entered.
+func (s *BaseSLQListener) EnterHandle(ctx *HandleContext) {}
 
-// ExitHandleElement is called when production handleElement is exited.
-func (s *BaseSLQListener) ExitHandleElement(ctx *HandleElementContext) {}
+// ExitHandle is called when production handle is exited.
+func (s *BaseSLQListener) ExitHandle(ctx *HandleContext) {}
 
 // EnterRowRange is called when production rowRange is entered.
 func (s *BaseSLQListener) EnterRowRange(ctx *RowRangeContext) {}

@@ -143,10 +143,10 @@ func (v *parseTreeVisitor) Visit(ctx antlr.ParseTree) any {
 		return v.VisitSegment(ctx)
 	case *slq.ElementContext:
 		return v.VisitElement(ctx)
-	case *slq.HandleElementContext:
-		return v.VisitHandleElement(ctx)
-	case *slq.DsTblElementContext:
-		return v.VisitDsTblElement(ctx)
+	case *slq.HandleContext:
+		return v.VisitHandle(ctx)
+	case *slq.HandleTableContext:
+		return v.VisitHandleTable(ctx)
 	case *slq.SelElementContext:
 		return v.VisitSelElement(ctx)
 	case *slq.FnElementContext:
@@ -211,16 +211,16 @@ func (v *parseTreeVisitor) VisitQuery(ctx *slq.QueryContext) any {
 	return nil
 }
 
-// VisitHandleElement implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitHandleElement(ctx *slq.HandleElementContext) any {
+// VisitHandle implements slq.SLQVisitor.
+func (v *parseTreeVisitor) VisitHandle(ctx *slq.HandleContext) any {
 	ds := &Datasource{}
 	ds.parent = v.cur
 	ds.ctx = ctx.HANDLE()
 	return v.cur.AddChild(ds)
 }
 
-// VisitDsTblElement implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitDsTblElement(ctx *slq.DsTblElementContext) any {
+// VisitHandleTable implements slq.SLQVisitor.
+func (v *parseTreeVisitor) VisitHandleTable(ctx *slq.HandleTableContext) any {
 	tblSel := &TblSelector{}
 	tblSel.parent = v.cur
 	tblSel.ctx = ctx

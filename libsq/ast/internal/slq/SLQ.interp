@@ -117,8 +117,8 @@ joinConstraint
 group
 alias
 selElement
-dsTblElement
-handleElement
+handleTable
+handle
 rowRange
 fnName
 expr

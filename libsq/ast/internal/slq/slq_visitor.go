@@ -43,11 +43,11 @@ type SLQVisitor interface {
 	// Visit a parse tree produced by SLQParser#selElement.
 	VisitSelElement(ctx *SelElementContext) interface{}
 
-	// Visit a parse tree produced by SLQParser#dsTblElement.
-	VisitDsTblElement(ctx *DsTblElementContext) interface{}
+	// Visit a parse tree produced by SLQParser#handleTable.
+	VisitHandleTable(ctx *HandleTableContext) interface{}
 
-	// Visit a parse tree produced by SLQParser#handleElement.
-	VisitHandleElement(ctx *HandleElementContext) interface{}
+	// Visit a parse tree produced by SLQParser#handle.
+	VisitHandle(ctx *HandleContext) interface{}
 
 	// Visit a parse tree produced by SLQParser#rowRange.
 	VisitRowRange(ctx *RowRangeContext) interface{}

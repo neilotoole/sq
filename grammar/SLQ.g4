@@ -9,9 +9,9 @@ query: segment ('|' segment)*;
 segment: (element) (',' element)*;
 
 element:
-	dsTblElement
-	| handleElement
-	| selElement
+	handleTable
+	| handle
+	| selector
 	| join
 	| group
 	| rowRange
@@ -42,15 +42,15 @@ alias: ':' ID;
 // - ."first name"
 // - .first_name:given_name
 // - ."first name":given_name
-selElement: SEL (alias)?;
+selector: SEL (alias)?;
 
-// dsTblElement is a data source table element. This is a data
-// source with followed by a table.
+// handleTable is a handle.table pair.
 // - @my1.user
-dsTblElement: HANDLE SEL;
+handleTable: HANDLE SEL;
 
-// dsElement is a data source element, e.g. @my1
-handleElement: HANDLE;
+// handle is a source handle.
+// - @sakila
+handle: HANDLE;
 
 // rowRange specifies a range of rows. It gets turned into
 // a SQL "LIMIT x OFFSET y".
@@ -126,6 +126,8 @@ GT_EQ: '>=';
 GT: '>';
 NEQ: '!=';
 EQ: '==';
+
+NAME: '.' (ID | STRING);
 
 // SEL can be .THING or .THING.OTHERTHING.
 // It can also be ."some name".OTHERTHING, etc.
