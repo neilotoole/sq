@@ -143,8 +143,8 @@ func (v *parseTreeVisitor) Visit(ctx antlr.ParseTree) any {
 		return v.VisitSegment(ctx)
 	case *slq.ElementContext:
 		return v.VisitElement(ctx)
-	case *slq.DsElementContext:
-		return v.VisitDsElement(ctx)
+	case *slq.HandleElementContext:
+		return v.VisitHandleElement(ctx)
 	case *slq.DsTblElementContext:
 		return v.VisitDsTblElement(ctx)
 	case *slq.SelElementContext:
@@ -211,11 +211,11 @@ func (v *parseTreeVisitor) VisitQuery(ctx *slq.QueryContext) any {
 	return nil
 }
 
-// VisitDsElement implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitDsElement(ctx *slq.DsElementContext) any {
+// VisitHandleElement implements slq.SLQVisitor.
+func (v *parseTreeVisitor) VisitHandleElement(ctx *slq.HandleElementContext) any {
 	ds := &Datasource{}
 	ds.parent = v.cur
-	ds.ctx = ctx.DATASOURCE()
+	ds.ctx = ctx.HANDLE()
 	return v.cur.AddChild(ds)
 }
 
@@ -225,7 +225,7 @@ func (v *parseTreeVisitor) VisitDsTblElement(ctx *slq.DsTblElementContext) any {
 	tblSel.parent = v.cur
 	tblSel.ctx = ctx
 
-	tblSel.DSName = ctx.DATASOURCE().GetText()
+	tblSel.DSName = ctx.HANDLE().GetText()
 	tblSel.TblName = ctx.SEL().GetText()[1:]
 
 	return v.cur.AddChild(tblSel)

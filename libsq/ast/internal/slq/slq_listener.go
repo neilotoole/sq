@@ -46,8 +46,8 @@ type SLQListener interface {
 	// EnterDsTblElement is called when entering the dsTblElement production.
 	EnterDsTblElement(c *DsTblElementContext)
 
-	// EnterDsElement is called when entering the dsElement production.
-	EnterDsElement(c *DsElementContext)
+	// EnterHandleElement is called when entering the handleElement production.
+	EnterHandleElement(c *HandleElementContext)
 
 	// EnterRowRange is called when entering the rowRange production.
 	EnterRowRange(c *RowRangeContext)
@@ -103,8 +103,8 @@ type SLQListener interface {
 	// ExitDsTblElement is called when exiting the dsTblElement production.
 	ExitDsTblElement(c *DsTblElementContext)
 
-	// ExitDsElement is called when exiting the dsElement production.
-	ExitDsElement(c *DsElementContext)
+	// ExitHandleElement is called when exiting the handleElement production.
+	ExitHandleElement(c *HandleElementContext)
 
 	// ExitRowRange is called when exiting the rowRange production.
 	ExitRowRange(c *RowRangeContext)

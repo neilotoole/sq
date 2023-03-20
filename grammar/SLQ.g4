@@ -10,7 +10,7 @@ segment: (element) (',' element)*;
 
 element:
 	dsTblElement
-	| dsElement
+	| handleElement
 	| selElement
 	| join
 	| group
@@ -47,10 +47,10 @@ selElement: SEL (alias)?;
 // dsTblElement is a data source table element. This is a data
 // source with followed by a table.
 // - @my1.user
-dsTblElement: DATASOURCE SEL;
+dsTblElement: HANDLE SEL;
 
 // dsElement is a data source element, e.g. @my1
-dsElement: DATASOURCE;
+handleElement: HANDLE;
 
 // rowRange specifies a range of rows. It gets turned into
 // a SQL "LIMIT x OFFSET y".
@@ -131,8 +131,8 @@ EQ: '==';
 // It can also be ."some name".OTHERTHING, etc.
 SEL: '.' (ID | STRING) ('.' (ID | STRING))*;
 
-// DATASOURCE: @mydb1 or @postgres_db2 etc.
-DATASOURCE: '@' ID;
+// HANDLE: @mydb1 or @postgres_db2 etc.
+HANDLE: '@' ID;
 
 STRING: '"' (ESC | ~["\\])* '"';
 fragment ESC: '\\' (["\\/bfnrt] | UNICODE);

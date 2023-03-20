@@ -100,7 +100,7 @@ GT
 NEQ
 EQ
 SEL
-DATASOURCE
+HANDLE
 STRING
 LINECOMMENT
 
@@ -118,7 +118,7 @@ group
 alias
 selElement
 dsTblElement
-dsElement
+handleElement
 rowRange
 fnName
 expr

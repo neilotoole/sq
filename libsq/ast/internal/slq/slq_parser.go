@@ -42,13 +42,13 @@ func slqParserInit() {
 		"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
 		"", "", "", "", "", "", "", "", "", "", "", "", "ID", "WS", "LPAR",
 		"RPAR", "LBRA", "RBRA", "COMMA", "PIPE", "COLON", "NULL", "NN", "NUMBER",
-		"LT_EQ", "LT", "GT_EQ", "GT", "NEQ", "EQ", "SEL", "DATASOURCE", "STRING",
+		"LT_EQ", "LT", "GT_EQ", "GT", "NEQ", "EQ", "SEL", "HANDLE", "STRING",
 		"LINECOMMENT",
 	}
 	staticData.ruleNames = []string{
 		"stmtList", "query", "segment", "element", "cmpr", "fn", "fnElement",
 		"join", "joinConstraint", "group", "alias", "selElement", "dsTblElement",
-		"dsElement", "rowRange", "fnName", "expr", "literal", "unaryOperator",
+		"handleElement", "rowRange", "fnName", "expr", "literal", "unaryOperator",
 	}
 	staticData.predictionContextCache = antlr.NewPredictionContextCache()
 	staticData.serializedATN = []int32{
@@ -228,7 +228,7 @@ const (
 	SLQParserNEQ         = 45
 	SLQParserEQ          = 46
 	SLQParserSEL         = 47
-	SLQParserDATASOURCE  = 48
+	SLQParserHANDLE      = 48
 	SLQParserSTRING      = 49
 	SLQParserLINECOMMENT = 50
 )
@@ -248,7 +248,7 @@ const (
 	SLQParserRULE_alias          = 10
 	SLQParserRULE_selElement     = 11
 	SLQParserRULE_dsTblElement   = 12
-	SLQParserRULE_dsElement      = 13
+	SLQParserRULE_handleElement  = 13
 	SLQParserRULE_rowRange       = 14
 	SLQParserRULE_fnName         = 15
 	SLQParserRULE_expr           = 16
@@ -820,7 +820,7 @@ type IElementContext interface {
 
 	// Getter signatures
 	DsTblElement() IDsTblElementContext
-	DsElement() IDsElementContext
+	HandleElement() IHandleElementContext
 	SelElement() ISelElementContext
 	Join() IJoinContext
 	Group() IGroupContext
@@ -875,10 +875,10 @@ func (s *ElementContext) DsTblElement() IDsTblElementContext {
 	return t.(IDsTblElementContext)
 }
 
-func (s *ElementContext) DsElement() IDsElementContext {
+func (s *ElementContext) HandleElement() IHandleElementContext {
 	var t antlr.RuleContext
 	for _, ctx := range s.GetChildren() {
-		if _, ok := ctx.(IDsElementContext); ok {
+		if _, ok := ctx.(IHandleElementContext); ok {
 			t = ctx.(antlr.RuleContext)
 			break
 		}
@@ -888,7 +888,7 @@ func (s *ElementContext) DsElement() IDsElementContext {
 		return nil
 	}
 
-	return t.(IDsElementContext)
+	return t.(IHandleElementContext)
 }
 
 func (s *ElementContext) SelElement() ISelElementContext {
@@ -1054,7 +1054,7 @@ func (p *SLQParser) Element() (localctx IElementContext) {
 		p.EnterOuterAlt(localctx, 2)
 		{
 			p.SetState(79)
-			p.DsElement()
+			p.HandleElement()
 		}
 
 	case 3:
@@ -2350,7 +2350,7 @@ type IDsTblElementContext interface {
 	GetParser() antlr.Parser
 
 	// Getter signatures
-	DATASOURCE() antlr.TerminalNode
+	HANDLE() antlr.TerminalNode
 	SEL() antlr.TerminalNode
 
 	// IsDsTblElementContext differentiates from other interfaces.
@@ -2384,8 +2384,8 @@ func NewDsTblElementContext(parser antlr.Parser, parent antlr.ParserRuleContext,
 
 func (s *DsTblElementContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *DsTblElementContext) DATASOURCE() antlr.TerminalNode {
-	return s.GetToken(SLQParserDATASOURCE, 0)
+func (s *DsTblElementContext) HANDLE() antlr.TerminalNode {
+	return s.GetToken(SLQParserHANDLE, 0)
 }
 
 func (s *DsTblElementContext) SEL() antlr.TerminalNode {
@@ -2448,7 +2448,7 @@ func (p *SLQParser) DsTblElement() (localctx IDsTblElementContext) {
 	p.EnterOuterAlt(localctx, 1)
 	{
 		p.SetState(140)
-		p.Match(SLQParserDATASOURCE)
+		p.Match(SLQParserHANDLE)
 	}
 	{
 		p.SetState(141)
@@ -2458,87 +2458,87 @@ func (p *SLQParser) DsTblElement() (localctx IDsTblElementContext) {
 	return localctx
 }
 
-// IDsElementContext is an interface to support dynamic dispatch.
-type IDsElementContext interface {
+// IHandleElementContext is an interface to support dynamic dispatch.
+type IHandleElementContext interface {
 	antlr.ParserRuleContext
 
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
 	// Getter signatures
-	DATASOURCE() antlr.TerminalNode
+	HANDLE() antlr.TerminalNode
 
-	// IsDsElementContext differentiates from other interfaces.
-	IsDsElementContext()
+	// IsHandleElementContext differentiates from other interfaces.
+	IsHandleElementContext()
 }
 
-type DsElementContext struct {
+type HandleElementContext struct {
 	*antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
-func NewEmptyDsElementContext() *DsElementContext {
-	var p = new(DsElementContext)
+func NewEmptyHandleElementContext() *HandleElementContext {
+	var p = new(HandleElementContext)
 	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
-	p.RuleIndex = SLQParserRULE_dsElement
+	p.RuleIndex = SLQParserRULE_handleElement
 	return p
 }
 
-func (*DsElementContext) IsDsElementContext() {}
+func (*HandleElementContext) IsHandleElementContext() {}
 
-func NewDsElementContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *DsElementContext {
-	var p = new(DsElementContext)
+func NewHandleElementContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *HandleElementContext {
+	var p = new(HandleElementContext)
 
 	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
 
 	p.parser = parser
-	p.RuleIndex = SLQParserRULE_dsElement
+	p.RuleIndex = SLQParserRULE_handleElement
 
 	return p
 }
 
-func (s *DsElementContext) GetParser() antlr.Parser { return s.parser }
+func (s *HandleElementContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *DsElementContext) DATASOURCE() antlr.TerminalNode {
-	return s.GetToken(SLQParserDATASOURCE, 0)
+func (s *HandleElementContext) HANDLE() antlr.TerminalNode {
+	return s.GetToken(SLQParserHANDLE, 0)
 }
 
-func (s *DsElementContext) GetRuleContext() antlr.RuleContext {
+func (s *HandleElementContext) GetRuleContext() antlr.RuleContext {
 	return s
 }
 
-func (s *DsElementContext) ToStringTree(ruleNames []string, recog antlr.Recognizer) string {
+func (s *HandleElementContext) ToStringTree(ruleNames []string, recog antlr.Recognizer) string {
 	return antlr.TreesStringTree(s, ruleNames, recog)
 }
 
-func (s *DsElementContext) EnterRule(listener antlr.ParseTreeListener) {
+func (s *HandleElementContext) EnterRule(listener antlr.ParseTreeListener) {
 	if listenerT, ok := listener.(SLQListener); ok {
-		listenerT.EnterDsElement(s)
+		listenerT.EnterHandleElement(s)
 	}
 }
 
-func (s *DsElementContext) ExitRule(listener antlr.ParseTreeListener) {
+func (s *HandleElementContext) ExitRule(listener antlr.ParseTreeListener) {
 	if listenerT, ok := listener.(SLQListener); ok {
-		listenerT.ExitDsElement(s)
+		listenerT.ExitHandleElement(s)
 	}
 }
 
-func (s *DsElementContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
+func (s *HandleElementContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 	switch t := visitor.(type) {
 	case SLQVisitor:
-		return t.VisitDsElement(s)
+		return t.VisitHandleElement(s)
 
 	default:
 		return t.VisitChildren(s)
 	}
 }
 
-func (p *SLQParser) DsElement() (localctx IDsElementContext) {
+func (p *SLQParser) HandleElement() (localctx IHandleElementContext) {
 	this := p
 	_ = this
 
-	localctx = NewDsElementContext(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 26, SLQParserRULE_dsElement)
+	localctx = NewHandleElementContext(p, p.GetParserRuleContext(), p.GetState())
+	p.EnterRule(localctx, 26, SLQParserRULE_handleElement)
 
 	defer func() {
 		p.ExitRule()
@@ -2559,7 +2559,7 @@ func (p *SLQParser) DsElement() (localctx IDsElementContext) {
 	p.EnterOuterAlt(localctx, 1)
 	{
 		p.SetState(143)
-		p.Match(SLQParserDATASOURCE)
+		p.Match(SLQParserHANDLE)
 	}
 
 	return localctx

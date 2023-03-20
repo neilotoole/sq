@@ -98,11 +98,11 @@ func (s *BaseSLQListener) EnterDsTblElement(ctx *DsTblElementContext) {}
 // ExitDsTblElement is called when production dsTblElement is exited.
 func (s *BaseSLQListener) ExitDsTblElement(ctx *DsTblElementContext) {}
 
-// EnterDsElement is called when production dsElement is entered.
-func (s *BaseSLQListener) EnterDsElement(ctx *DsElementContext) {}
+// EnterHandleElement is called when production handleElement is entered.
+func (s *BaseSLQListener) EnterHandleElement(ctx *HandleElementContext) {}
 
-// ExitDsElement is called when production dsElement is exited.
-func (s *BaseSLQListener) ExitDsElement(ctx *DsElementContext) {}
+// ExitHandleElement is called when production handleElement is exited.
+func (s *BaseSLQListener) ExitHandleElement(ctx *HandleElementContext) {}
 
 // EnterRowRange is called when production rowRange is entered.
 func (s *BaseSLQListener) EnterRowRange(ctx *RowRangeContext) {}

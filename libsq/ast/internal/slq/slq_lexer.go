@@ -54,7 +54,7 @@ func slqlexerLexerInit() {
 		"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
 		"", "", "", "", "", "", "", "", "", "", "", "", "ID", "WS", "LPAR",
 		"RPAR", "LBRA", "RBRA", "COMMA", "PIPE", "COLON", "NULL", "NN", "NUMBER",
-		"LT_EQ", "LT", "GT_EQ", "GT", "NEQ", "EQ", "SEL", "DATASOURCE", "STRING",
+		"LT_EQ", "LT", "GT_EQ", "GT", "NEQ", "EQ", "SEL", "HANDLE", "STRING",
 		"LINECOMMENT",
 	}
 	staticData.ruleNames = []string{
@@ -63,7 +63,7 @@ func slqlexerLexerInit() {
 		"T__17", "T__18", "T__19", "T__20", "T__21", "T__22", "T__23", "T__24",
 		"T__25", "T__26", "T__27", "ID", "WS", "LPAR", "RPAR", "LBRA", "RBRA",
 		"COMMA", "PIPE", "COLON", "NULL", "NN", "NUMBER", "INTF", "EXP", "LT_EQ",
-		"LT", "GT_EQ", "GT", "NEQ", "EQ", "SEL", "DATASOURCE", "STRING", "ESC",
+		"LT", "GT_EQ", "GT", "NEQ", "EQ", "SEL", "HANDLE", "STRING", "ESC",
 		"UNICODE", "HEX", "DIGIT", "A", "B", "C", "D", "E", "F", "G", "H", "I",
 		"J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W",
 		"X", "Y", "Z", "LINECOMMENT",
@@ -366,7 +366,7 @@ const (
 	SLQLexerNEQ         = 45
 	SLQLexerEQ          = 46
 	SLQLexerSEL         = 47
-	SLQLexerDATASOURCE  = 48
+	SLQLexerHANDLE      = 48
 	SLQLexerSTRING      = 49
 	SLQLexerLINECOMMENT = 50
 )

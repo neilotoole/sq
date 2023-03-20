@@ -59,7 +59,7 @@ func (v *BaseSLQVisitor) VisitDsTblElement(ctx *DsTblElementContext) interface{}
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseSLQVisitor) VisitDsElement(ctx *DsElementContext) interface{} {
+func (v *BaseSLQVisitor) VisitHandleElement(ctx *HandleElementContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
