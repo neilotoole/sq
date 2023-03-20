@@ -11,7 +11,7 @@ segment: (element) (',' element)*;
 element:
 	handleTable
 	| handle
-	| selector
+	| selectorElement
 	| join
 	| group
 	| rowRange
@@ -28,25 +28,40 @@ fnElement: fn (alias)?;
 join: ('join' | 'JOIN' | 'j') '(' joinConstraint ')';
 
 joinConstraint:
-	SEL cmpr SEL // .user.uid == .address.userid
-	| SEL ; // .uid
+	selector cmpr selector // .user.uid == .address.userid
+	| selector ; // .uid
 
-group: ('group' | 'GROUP' | 'g') '(' SEL (',' SEL)* ')';
+group: ('group' | 'GROUP' | 'g') '(' selector (',' selector)* ')';
+
+// selector specfies a table name, a column name, or table.column.
+// - .first_name
+// - ."first name"
+// - .actor
+// - ."actor"
+// - .actor.first_name
+selector: NAME (NAME)?;
+
+// selector is a selector element.
+// - .first_name
+// - ."first name"
+// - .first_name:given_name
+// - ."first name":given_name
+// - .actor.first_name
+// - .actor.first_name:given_name
+// - ."actor".first_name
+selectorElement: selector (alias)?;
 
 // alias, for columns, implements "col AS alias".
 // For example: ".first_name:given_name" : "given_name" is the alias.
 alias: ':' ID;
 
-// selElement is a selector element.
-// - .first_name
-// - ."first name"
-// - .first_name:given_name
-// - ."first name":given_name
-selector: SEL (alias)?;
+
+
+
 
 // handleTable is a handle.table pair.
 // - @my1.user
-handleTable: HANDLE SEL;
+handleTable: HANDLE NAME;
 
 // handle is a source handle.
 // - @sakila
@@ -78,7 +93,7 @@ fnName:
 	| 'WHERE';
 
 expr:
-	SEL
+	selector
 	| literal
 	| unaryOperator expr
 	| expr '||' expr
@@ -127,11 +142,11 @@ GT: '>';
 NEQ: '!=';
 EQ: '==';
 
-//NAME: '.' (ID | STRING);
+NAME: '.' (ID | STRING);
 
 // SEL can be .THING or .THING.OTHERTHING.
 // It can also be ."some name".OTHERTHING, etc.
-SEL: '.' (ID | STRING) ('.' (ID | STRING))*;
+//SEL: '.' (ID | STRING) ('.' (ID | STRING))*;
 
 // HANDLE: @mydb1 or @postgres_db2 etc.
 HANDLE: '@' ID;
@@ -174,3 +189,11 @@ fragment Y: [yY];
 fragment Z: [zZ];
 
 LINECOMMENT: '//' .*? '\n' -> skip;
+
+//// From https://github.com/antlr/grammars-v4/blob/master/sql/sqlite/SQLiteLexer.g4
+//IDENTIFIER:
+//    '"' (~'"' | '""')* '"'
+//    | '`' (~'`' | '``')* '`'
+//    | '[' ~']'* ']'
+//    | [A-Z_] [A-Z_0-9]*
+//; // TODO check: needs more chars in set

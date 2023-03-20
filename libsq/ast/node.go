@@ -41,25 +41,30 @@ type Node interface {
 // selected from. That is, the node represents a SQL table, view, or
 // join table, and can be used like "SELECT * FROM [selectable]".
 type Selectable interface {
+	// Selectable is a marker interface method.
 	Selectable()
 }
 
-// ColExpr indicates a column selection expression such as a
+// ResultColumn indicates a column selection expression such as a
 // column name, or context-appropriate function, e.g. "COUNT(*)".
-type ColExpr interface {
-	// IsColName returns true if the expr is a column name, e.g. "uid" or "users.uid".
-	IsColName() bool
-
-	// ColExpr returns the column expression value. For a simple ColSelector ".first_name",
-	// this would be "first_name".
-	ColExpr() (string, error)
+// See: https://www.sqlite.org/syntax/result-column.html
+type ResultColumn interface {
+	// IsColumn returns true if the expression represents
+	// a column, e.g. ".first_name" or "actor.first_name".
+	// This method returns false for functions, e.g. "COUNT(*)".
+	// REVISIT: We can probably get rid of this?
+	IsColumn() bool
 
 	// String returns a log/debug-friendly representation.
 	String() string
 
 	// Alias returns the column alias, which may be empty.
-	// For example, given the selector ".first_name:given_name", the alias is "given_name".
+	// For example, given the selector ".first_name:given_name", the
+	// alias is "given_name".
 	Alias() string
+
+	// Text returns the raw text of the node, e.g. ".actor" or "1*2".
+	Text() string
 }
 
 // baseNode is a base implementation of Node.
@@ -67,6 +72,7 @@ type baseNode struct {
 	parent   Node
 	children []Node
 	ctx      antlr.ParseTree
+	text     string
 }
 
 // Parent implements Node.Parent.
@@ -197,6 +203,7 @@ func nodesWithType(nodes []Node, typ reflect.Type) []Node {
 
 // Terminal is a terminal/leaf node that typically is interpreted simply as its
 // text value.
+// REVISIT: Is Terminal needed?
 type Terminal struct {
 	baseNode
 }
@@ -211,9 +218,9 @@ type Group struct {
 }
 
 func (g *Group) AddChild(child Node) error {
-	_, ok := child.(*ColSelector)
+	_, ok := child.(*ColSelectorNode)
 	if !ok {
-		return errorf("GROUP() only accepts children of type %s, but got %T", typeColSelector, child)
+		return errorf("GROUP() only accepts children of type %s, but got %T", typeColSelectorNode, child)
 	}
 
 	g.addChild(child)
@@ -302,13 +309,13 @@ func isOperator(text string) bool {
 
 // Cached results from reflect.TypeOf for node types.
 var (
-	typeAST         = reflect.TypeOf((*AST)(nil))
-	typeDatasource  = reflect.TypeOf((*Datasource)(nil))
-	typeSegment     = reflect.TypeOf((*Segment)(nil))
-	typeJoin        = reflect.TypeOf((*Join)(nil))
-	typeSelector    = reflect.TypeOf((*Selector)(nil))
-	typeColSelector = reflect.TypeOf((*ColSelector)(nil))
-	typeTblSelector = reflect.TypeOf((*TblSelector)(nil))
-	typeRowRange    = reflect.TypeOf((*RowRange)(nil))
-	typeExpr        = reflect.TypeOf((*Expr)(nil))
+	typeAST             = reflect.TypeOf((*AST)(nil))
+	typeHandleNode      = reflect.TypeOf((*HandleNode)(nil))
+	typeSegmentNode     = reflect.TypeOf((*SegmentNode)(nil))
+	typeJoinNode        = reflect.TypeOf((*JoinNode)(nil))
+	typeSelectorNode    = reflect.TypeOf((*SelectorNode)(nil))
+	typeColSelectorNode = reflect.TypeOf((*ColSelectorNode)(nil))
+	typeTblSelectorNode = reflect.TypeOf((*TblSelectorNode)(nil))
+	typeRowRangeNode    = reflect.TypeOf((*RowRange)(nil))
+	typeExprNode        = reflect.TypeOf((*Expr)(nil))
 )

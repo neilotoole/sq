@@ -37,11 +37,14 @@ type SLQListener interface {
 	// EnterGroup is called when entering the group production.
 	EnterGroup(c *GroupContext)
 
-	// EnterAlias is called when entering the alias production.
-	EnterAlias(c *AliasContext)
-
 	// EnterSelector is called when entering the selector production.
 	EnterSelector(c *SelectorContext)
+
+	// EnterSelectorElement is called when entering the selectorElement production.
+	EnterSelectorElement(c *SelectorElementContext)
+
+	// EnterAlias is called when entering the alias production.
+	EnterAlias(c *AliasContext)
 
 	// EnterHandleTable is called when entering the handleTable production.
 	EnterHandleTable(c *HandleTableContext)
@@ -94,11 +97,14 @@ type SLQListener interface {
 	// ExitGroup is called when exiting the group production.
 	ExitGroup(c *GroupContext)
 
-	// ExitAlias is called when exiting the alias production.
-	ExitAlias(c *AliasContext)
-
 	// ExitSelector is called when exiting the selector production.
 	ExitSelector(c *SelectorContext)
+
+	// ExitSelectorElement is called when exiting the selectorElement production.
+	ExitSelectorElement(c *SelectorElementContext)
+
+	// ExitAlias is called when exiting the alias production.
+	ExitAlias(c *AliasContext)
 
 	// ExitHandleTable is called when exiting the handleTable production.
 	ExitHandleTable(c *HandleTableContext)

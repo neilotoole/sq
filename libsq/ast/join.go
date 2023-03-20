@@ -3,49 +3,51 @@ package ast
 import (
 	"fmt"
 
+	"github.com/neilotoole/sq/libsq/ast/internal/slq"
+
 	"github.com/antlr/antlr4/runtime/Go/antlr/v4"
 )
 
-var _ Node = (*Join)(nil)
+var _ Node = (*JoinNode)(nil)
 
-// Join models a SQL JOIN node. It has a child of type JoinConstraint.
-type Join struct {
-	seg        *Segment
+// JoinNode models a SQL JOIN node. It has a child of type JoinConstraint.
+type JoinNode struct {
+	seg        *SegmentNode
 	ctx        antlr.ParseTree
 	constraint *JoinConstraint
-	leftTbl    *TblSelector
-	rightTbl   *TblSelector
+	leftTbl    *TblSelectorNode
+	rightTbl   *TblSelectorNode
 }
 
 // LeftTbl is the selector for the left table of the join.
-func (jn *Join) LeftTbl() *TblSelector {
+func (jn *JoinNode) LeftTbl() *TblSelectorNode {
 	return jn.leftTbl
 }
 
 // RightTbl is the selector for the right table of the join.
-func (jn *Join) RightTbl() *TblSelector {
+func (jn *JoinNode) RightTbl() *TblSelectorNode {
 	return jn.rightTbl
 }
 
 // Selectable implements the Selectable marker interface.
-func (jn *Join) Selectable() {
+func (jn *JoinNode) Selectable() {
 	// no-op
 }
 
-func (jn *Join) Parent() Node {
+func (jn *JoinNode) Parent() Node {
 	return jn.seg
 }
 
-func (jn *Join) SetParent(parent Node) error {
-	seg, ok := parent.(*Segment)
+func (jn *JoinNode) SetParent(parent Node) error {
+	seg, ok := parent.(*SegmentNode)
 	if !ok {
-		return errorf("%T requires parent of type %s", jn, typeSegment)
+		return errorf("%T requires parent of type %s", jn, typeSegmentNode)
 	}
 	jn.seg = seg
 	return nil
 }
 
-func (jn *Join) Children() []Node {
+func (jn *JoinNode) Children() []Node {
 	if jn.constraint == nil {
 		return []Node{}
 	}
@@ -53,7 +55,7 @@ func (jn *Join) Children() []Node {
 	return []Node{jn.constraint}
 }
 
-func (jn *Join) AddChild(node Node) error {
+func (jn *JoinNode) AddChild(node Node) error {
 	jc, ok := node.(*JoinConstraint)
 	if !ok {
 		return errorf("JOIN() child must be *JoinConstraint, but got: %T", node)
@@ -67,7 +69,7 @@ func (jn *Join) AddChild(node Node) error {
 	return nil
 }
 
-func (jn *Join) SetChildren(children []Node) error {
+func (jn *JoinNode) SetChildren(children []Node) error {
 	if len(children) == 0 {
 		jn.constraint = nil
 		return nil
@@ -86,24 +88,24 @@ func (jn *Join) SetChildren(children []Node) error {
 	return nil
 }
 
-func (jn *Join) Context() antlr.ParseTree {
+func (jn *JoinNode) Context() antlr.ParseTree {
 	return jn.ctx
 }
 
-func (jn *Join) SetContext(ctx antlr.ParseTree) error {
+func (jn *JoinNode) SetContext(ctx antlr.ParseTree) error {
 	jn.ctx = ctx
 	return nil
 }
 
-func (jn *Join) Text() string {
+func (jn *JoinNode) Text() string {
 	return jn.ctx.GetText()
 }
 
-func (jn *Join) Segment() *Segment {
+func (jn *JoinNode) Segment() *SegmentNode {
 	return jn.seg
 }
 
-func (jn *Join) String() string {
+func (jn *JoinNode) String() string {
 	text := nodeString(jn)
 
 	leftTblName := ""
@@ -127,69 +129,76 @@ var _ Node = (*JoinConstraint)(nil)
 // in "join(.uid == .user_id)".
 type JoinConstraint struct {
 	// join is the parent node
-	join     *Join
+	join     *JoinNode
 	ctx      antlr.ParseTree
 	children []Node
 }
 
-func (jc *JoinConstraint) Parent() Node {
-	return jc.join
+func (n *JoinConstraint) Parent() Node {
+	return n.join
 }
 
-func (jc *JoinConstraint) SetParent(parent Node) error {
-	join, ok := parent.(*Join)
+func (n *JoinConstraint) SetParent(parent Node) error {
+	join, ok := parent.(*JoinNode)
 	if !ok {
-		return errorf("%T requires parent of type %s", jc, typeJoin)
+		return errorf("%T requires parent of type %s", n, typeJoinNode)
 	}
-	jc.join = join
+	n.join = join
 	return nil
 }
 
-func (jc *JoinConstraint) Children() []Node {
-	return jc.children
+func (n *JoinConstraint) Children() []Node {
+	return n.children
 }
 
-func (jc *JoinConstraint) AddChild(child Node) error {
+func (n *JoinConstraint) AddChild(child Node) error {
 	nodeCtx := child.Context()
-	_, ok := nodeCtx.(*antlr.TerminalNodeImpl)
-	if !ok {
-		return errorf("expected leaf node, but got: %T", nodeCtx)
+
+	switch nodeCtx.(type) {
+	case *antlr.TerminalNodeImpl:
+	case *slq.SelectorContext:
+	default:
+		return errorf("cannot add child node %T to %T", nodeCtx, n.ctx)
 	}
 
-	jc.children = append(jc.children, child)
+	n.children = append(n.children, child)
 	return nil
 }
 
-func (jc *JoinConstraint) SetChildren(children []Node) error {
+func (n *JoinConstraint) SetChildren(children []Node) error {
 	for _, child := range children {
 		nodeCtx := child.Context()
-		if _, ok := nodeCtx.(*antlr.TerminalNodeImpl); !ok {
-			return errorf("expected leaf node, but got: %T", nodeCtx)
+
+		switch nodeCtx.(type) {
+		case *antlr.TerminalNodeImpl:
+		case *slq.SelectorContext:
+		default:
+			return errorf("cannot add child node %T to %T", nodeCtx, n.ctx)
 		}
 	}
 
 	if len(children) == 0 {
-		jc.children = children
+		n.children = children
 		return nil
 	}
 
-	jc.children = children
+	n.children = children
 	return nil
 }
 
-func (jc *JoinConstraint) Context() antlr.ParseTree {
-	return jc.ctx
+func (n *JoinConstraint) Context() antlr.ParseTree {
+	return n.ctx
 }
 
-func (jc *JoinConstraint) SetContext(ctx antlr.ParseTree) error {
-	jc.ctx = ctx // TODO: check for correct type
+func (n *JoinConstraint) SetContext(ctx antlr.ParseTree) error {
+	n.ctx = ctx // TODO: check for correct type
 	return nil
 }
 
-func (jc *JoinConstraint) Text() string {
-	return jc.ctx.GetText()
+func (n *JoinConstraint) Text() string {
+	return n.ctx.GetText()
 }
 
-func (jc *JoinConstraint) String() string {
-	return nodeString(jc)
+func (n *JoinConstraint) String() string {
+	return nodeString(n)
 }

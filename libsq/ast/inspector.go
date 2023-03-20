@@ -62,7 +62,7 @@ func (in *Inspector) FindWhereClauses() ([]*Where, error) {
 // FindColExprSegment returns the segment containing col expressions (such as
 // ".uid, .email"). This is typically the last segment. It's also possible that
 // there is no such segment (which usually results in a SELECT * FROM).
-func (in *Inspector) FindColExprSegment() (*Segment, error) {
+func (in *Inspector) FindColExprSegment() (*SegmentNode, error) {
 	segs := in.ast.Segments()
 
 	// work backwards from the end
@@ -71,7 +71,7 @@ func (in *Inspector) FindColExprSegment() (*Segment, error) {
 		numColExprs := 0
 
 		for _, elem := range elems {
-			if _, ok := elem.(ColExpr); !ok {
+			if _, ok := elem.(ResultColumn); !ok {
 				if numColExprs > 0 {
 					return nil, errorf("found non-homogenous col expr segment [%d]: also has element %T", i, elem)
 				}
@@ -93,9 +93,9 @@ func (in *Inspector) FindColExprSegment() (*Segment, error) {
 
 // FindSelectableSegments returns the segments that have at least one child
 // that implements Selectable.
-func (in *Inspector) FindSelectableSegments() []*Segment {
+func (in *Inspector) FindSelectableSegments() []*SegmentNode {
 	segs := in.ast.Segments()
-	selSegs := make([]*Segment, 0, 2)
+	selSegs := make([]*SegmentNode, 0, 2)
 
 	for _, seg := range segs {
 		for _, child := range seg.Children() {
@@ -111,7 +111,7 @@ func (in *Inspector) FindSelectableSegments() []*Segment {
 
 // FindFinalSelectableSegment returns the final segment that
 // has at lest one child that implements Selectable.
-func (in *Inspector) FindFinalSelectableSegment() (*Segment, error) {
+func (in *Inspector) FindFinalSelectableSegment() (*SegmentNode, error) {
 	selectableSegs := in.FindSelectableSegments()
 	if len(selectableSegs) == 0 {
 		return nil, errorf("no selectable segments")

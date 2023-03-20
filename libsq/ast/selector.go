@@ -14,128 +14,192 @@ const (
 	msgNodeNoAddChildren = "%T cannot add children: failed to add %d children"
 )
 
-var _ Node = (*Selector)(nil)
+var _ Node = (*SelectorNode)(nil)
 
-// Selector is a selector such as ".my_table" or ".my_col". The
+// SelectorNode is a selector such as ".my_table" or ".my_col". The
 // generic selector will typically be replaced with a more specific
-// selector node such as TblSelector or ColSelector.
-type Selector struct {
+// selector node such as TblSelectorNode or ColSelectorNode.
+type SelectorNode struct {
 	baseNode
 
 	// alias is the (optional) alias part. For example, given ".first_name:given_name",
 	// the alias value is "given_name". May be empty.
 	alias string
+
+	// name0 is the first name part.
+	//  - .actor -> name0 = .actor
+	//  - .first_name -> name0 = .first_name
+	//  - .actor.first_name -> name0 = .actor
+	name0 string
+
+	// name1 is the optional second name part.
+	// - .actor --> name1 = EMPTY
+	// - .actor.first_name -> name1 = first_name
+	name1 string
 }
 
-func (s *Selector) String() string {
+func (s *SelectorNode) String() string {
 	return nodeString(s)
 }
 
 // SelValue returns the selector value.
 // See extractSelValue.
-func (s *Selector) SelValue() (string, error) {
+func (s *SelectorNode) SelValue() (string, error) {
 	return extractSelVal(s.ctx)
 }
 
-var _ Node = (*TblSelector)(nil)
+var (
+	_ Node       = (*TblSelectorNode)(nil)
+	_ Selectable = (*TblSelectorNode)(nil)
+)
 
-// TblSelector is a selector for a table, such as ".my_table"
+// TblSelectorNode is a selector for a table, such as ".my_table"
 // or "@my_src.my_table".
-type TblSelector struct {
-	Selector
-	DSName  string
+type TblSelectorNode struct {
+	*SelectorNode
+	Handle  string
 	TblName string
 }
 
-// newTblSelector creates a new TblSelector from ctx.
-func newTblSelector(seg *Segment, ctx antlr.ParseTree) (*TblSelector, error) {
-	tbl := &TblSelector{}
-	tbl.parent = seg
-	tbl.ctx = ctx
-
-	var err error
-	if tbl.TblName, err = extractSelVal(ctx); err != nil {
-		return nil, err
+// newTblSelector creates a new TblSelectorNode from ctx.
+func newTblSelector(selNode *SelectorNode) (*TblSelectorNode, error) { //nolint:unparam
+	n := &TblSelectorNode{
+		SelectorNode: selNode,
+		TblName:      selNode.name0,
 	}
-	return tbl, nil
+
+	return n, nil
 }
 
 // Selectable implements the Selectable marker interface.
-func (s *TblSelector) Selectable() {
+func (s *TblSelectorNode) Selectable() {
 	// no-op
 }
 
-func (s *TblSelector) SelValue() (string, error) {
+func (s *TblSelectorNode) SelValue() (string, error) {
 	return s.TblName, nil
 }
 
 // String returns a log/debug-friendly representation.
-func (s *TblSelector) String() string {
+func (s *TblSelectorNode) String() string {
 	text := nodeString(s)
 	selVal, err := s.SelValue()
 	if err != nil {
 		selVal = "error: " + err.Error()
 	}
-	text += fmt.Sprintf(" | table: %q | datasource: %q", selVal, s.DSName)
+	text += fmt.Sprintf(" | table: %q | datasource: %q", selVal, s.Handle)
 	return text
 }
 
 var (
-	_ Node    = (*ColSelector)(nil)
-	_ ColExpr = (*ColSelector)(nil)
+	_ Node         = (*TblColSelectorNode)(nil)
+	_ ResultColumn = (*TblColSelectorNode)(nil)
 )
 
-// ColSelector models a column selector such as ".user_id".
-type ColSelector struct {
-	Selector
-
-	alias string
-
+// TblColSelectorNode models the TABLE.COLUMN selector, e.g. actor.first_name.
+type TblColSelectorNode struct {
+	*SelectorNode
+	tblName string
 	colName string
 }
 
-// newColSelector returns a ColSelector constructed from ctx.
-func newColSelector(parent Node, ctx antlr.ParseTree, alias string) (*ColSelector, error) {
-	col := &ColSelector{}
-	col.parent = parent
-	col.ctx = ctx
-	col.alias = alias
-
-	var err error
-	if col.colName, err = extractSelVal(ctx); err != nil {
-		return nil, err
-	}
-	return col, nil
-}
-
-// ColExpr returns the column name.
-func (s *ColSelector) ColExpr() (string, error) {
-	return extractSelVal(s.ctx)
-}
-
-// IsColName always returns true.
-func (s *ColSelector) IsColName() bool {
+// IsColumn implements ResultColumn.
+func (n *TblColSelectorNode) IsColumn() bool {
 	return true
 }
 
-// ColName returns the column name. Note the name is not escaped/quoted,
-// thus it could contain whitespace, etc.
-func (s *ColSelector) ColName() string {
-	return s.colName
+// Text implements ResultColumn.
+func (n *TblColSelectorNode) Text() string {
+	return n.ctx.GetText()
+}
+
+func newTblColSelectorNode(selNode *SelectorNode) (*TblColSelectorNode, error) {
+	n := &TblColSelectorNode{
+		SelectorNode: selNode,
+		tblName:      selNode.name0,
+		colName:      selNode.name1,
+	}
+
+	if n.tblName == "" {
+		return nil, errorf("table name is empty: %s", n.Text())
+	}
+
+	if n.colName == "" {
+		return nil, errorf("column name is empty: %s", n.Text())
+	}
+
+	return n, nil
+}
+
+// TblName returns the table name, e.g. actor.
+func (n *TblColSelectorNode) TblName() string {
+	return n.tblName
+}
+
+// ColName returns the column name, e.g. first_name.
+func (n *TblColSelectorNode) ColName() string {
+	return n.colName
+}
+
+// String returns a log/debug-friendly representation.
+func (n *TblColSelectorNode) String() string {
+	return fmt.Sprintf("%T: %s", n, n.ctx.GetText())
 }
 
 // Alias returns the column alias, which may be empty.
 // For example, given the selector ".first_name:given_name",
 // the alias is "given_name".
-func (s *ColSelector) Alias() string {
-	return s.alias
+func (n *TblColSelectorNode) Alias() string {
+	return n.alias
+}
+
+var (
+	_ Node         = (*ColSelectorNode)(nil)
+	_ ResultColumn = (*ColSelectorNode)(nil)
+)
+
+// ColSelectorNode models a column selector such as ".first_name".
+type ColSelectorNode struct {
+	*SelectorNode
+
+	colName string
+}
+
+// newColSelectorNode returns a ColSelectorNode constructed from ctx.
+func newColSelectorNode(selNode *SelectorNode) (*ColSelectorNode, error) { //nolint:unparam
+	n := &ColSelectorNode{SelectorNode: selNode}
+	n.colName = selNode.name0
+	return n, nil
+}
+
+// Text implements ResultColumn.
+func (n *ColSelectorNode) Text() string {
+	return n.ctx.GetText()
+}
+
+// IsColumn always returns true.
+func (n *ColSelectorNode) IsColumn() bool {
+	return true
+}
+
+// ColName returns the column name. Note the name is not escaped/quoted,
+// thus it could contain whitespace, etc.
+func (n *ColSelectorNode) ColName() string {
+	return n.colName
+}
+
+// Alias returns the column alias, which may be empty.
+// For example, given the selector ".first_name:given_name",
+// the alias is "given_name".
+func (n *ColSelectorNode) Alias() string {
+	return n.alias
 }
 
 // String returns a log/debug-friendly representation.
-func (s *ColSelector) String() string {
-	str := nodeString(s)
-	if s.alias != "" {
-		str += ":" + s.alias
+func (n *ColSelectorNode) String() string {
+	str := nodeString(n)
+	if n.alias != "" {
+		str += ":" + n.alias
 	}
 	return str
 }
@@ -152,19 +216,19 @@ func (c *Cmpr) String() string {
 }
 
 func newCmpr(parent Node, ctx slq.ICmprContext) *Cmpr {
-	leaf, _ := ctx.GetChild(0).(*antlr.TerminalNodeImpl)
+	leaf, _ := ctx.GetChild(0).(*antlr.TerminalNodeImpl) // FIXME: return an error
 	cmpr := &Cmpr{}
 	cmpr.ctx = leaf
 	cmpr.parent = parent
 	return cmpr
 }
 
-// Datasource models a source such as "@sakila_sl3".
-type Datasource struct {
+// HandleNode models a source handle such as "@sakila_sl3".
+type HandleNode struct {
 	baseNode
 }
 
-func (d *Datasource) String() string {
+func (d *HandleNode) String() string {
 	return nodeString(d)
 }
 
@@ -174,6 +238,8 @@ func (d *Datasource) String() string {
 //   - .actor --> actor
 //   - .first_name --> first_name
 //   - ."first name" --> first name
+//
+// FIXME: We should be able to get rid of this.
 func extractSelVal(ctx antlr.ParseTree) (string, error) {
 	if ctx == nil {
 		return "", errorf("invalid selector: is nil")

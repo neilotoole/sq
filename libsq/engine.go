@@ -48,12 +48,12 @@ func (ng *engine) prepare(ctx context.Context, qm *queryModel) error {
 	var err error
 
 	switch selectable := selectable.(type) {
-	case *ast.TblSelector:
+	case *ast.TblSelectorNode:
 		fromClause, ng.targetDB, err = ng.buildTableFromClause(ctx, selectable)
 		if err != nil {
 			return err
 		}
-	case *ast.Join:
+	case *ast.JoinNode:
 		fromClause, ng.targetDB, err = ng.buildJoinFromClause(ctx, selectable)
 		if err != nil {
 			return err
@@ -136,10 +136,10 @@ func (ng *engine) executeTasks(ctx context.Context) error {
 	return g.Wait()
 }
 
-func (ng *engine) buildTableFromClause(ctx context.Context, tblSel *ast.TblSelector) (fromClause string,
+func (ng *engine) buildTableFromClause(ctx context.Context, tblSel *ast.TblSelectorNode) (fromClause string,
 	fromConn driver.Database, err error,
 ) {
-	src, err := ng.srcs.Get(tblSel.DSName)
+	src, err := ng.srcs.Get(tblSel.Handle)
 	if err != nil {
 		return "", nil, err
 	}
@@ -158,7 +158,7 @@ func (ng *engine) buildTableFromClause(ctx context.Context, tblSel *ast.TblSelec
 	return fromClause, fromConn, nil
 }
 
-func (ng *engine) buildJoinFromClause(ctx context.Context, fnJoin *ast.Join) (fromClause string,
+func (ng *engine) buildJoinFromClause(ctx context.Context, fnJoin *ast.JoinNode) (fromClause string,
 	fromConn driver.Database, err error,
 ) {
 	if fnJoin.LeftTbl() == nil || fnJoin.LeftTbl().TblName == "" {
@@ -169,17 +169,17 @@ func (ng *engine) buildJoinFromClause(ctx context.Context, fnJoin *ast.Join) (fr
 		return "", nil, errz.Errorf("JOIN is missing right table reference")
 	}
 
-	if fnJoin.LeftTbl().DSName != fnJoin.RightTbl().DSName {
+	if fnJoin.LeftTbl().Handle != fnJoin.RightTbl().Handle {
 		return ng.crossSourceJoin(ctx, fnJoin)
 	}
 
 	return ng.singleSourceJoin(ctx, fnJoin)
 }
 
-func (ng *engine) singleSourceJoin(ctx context.Context, fnJoin *ast.Join) (fromClause string, fromDB driver.Database,
-	err error,
+func (ng *engine) singleSourceJoin(ctx context.Context, fnJoin *ast.JoinNode) (fromClause string,
+	fromDB driver.Database, err error,
 ) {
-	src, err := ng.srcs.Get(fnJoin.LeftTbl().DSName)
+	src, err := ng.srcs.Get(fnJoin.LeftTbl().Handle)
 	if err != nil {
 		return "", nil, err
 	}
@@ -200,7 +200,7 @@ func (ng *engine) singleSourceJoin(ctx context.Context, fnJoin *ast.Join) (fromC
 
 // crossSourceJoin returns a FROM clause that forms part of
 // the SQL SELECT statement against fromDB.
-func (ng *engine) crossSourceJoin(ctx context.Context, fnJoin *ast.Join) (fromClause string, fromDB driver.Database,
+func (ng *engine) crossSourceJoin(ctx context.Context, fnJoin *ast.JoinNode) (fromClause string, fromDB driver.Database,
 	err error,
 ) {
 	leftTblName, rightTblName := fnJoin.LeftTbl().TblName, fnJoin.RightTbl().TblName
@@ -209,12 +209,12 @@ func (ng *engine) crossSourceJoin(ctx context.Context, fnJoin *ast.Join) (fromCl
 			fnJoin.LeftTbl().TblName)
 	}
 
-	leftSrc, err := ng.srcs.Get(fnJoin.LeftTbl().DSName)
+	leftSrc, err := ng.srcs.Get(fnJoin.LeftTbl().Handle)
 	if err != nil {
 		return "", nil, err
 	}
 
-	rightSrc, err := ng.srcs.Get(fnJoin.RightTbl().DSName)
+	rightSrc, err := ng.srcs.Get(fnJoin.RightTbl().Handle)
 	if err != nil {
 		return "", nil, err
 	}
@@ -333,7 +333,7 @@ func execCopyTable(ctx context.Context, log lg.Log, fromDB driver.Database, from
 type queryModel struct {
 	AST        *ast.AST
 	Selectable ast.Selectable
-	Cols       []ast.ColExpr
+	Cols       []ast.ResultColumn
 	Range      *ast.RowRange
 	Where      *ast.Where
 }
@@ -396,9 +396,9 @@ func buildQueryModel(log lg.Log, a *ast.AST) (*queryModel, error) {
 
 	if seg != nil {
 		elems := seg.Children()
-		colExprs := make([]ast.ColExpr, len(elems))
+		colExprs := make([]ast.ResultColumn, len(elems))
 		for i, elem := range elems {
-			colExpr, ok := elem.(ast.ColExpr)
+			colExpr, ok := elem.(ast.ResultColumn)
 			if !ok {
 				return nil, errz.Errorf("expected element in segment [%d] to be col expr, but was %T", i, elem)
 			}

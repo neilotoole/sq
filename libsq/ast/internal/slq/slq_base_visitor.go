@@ -47,11 +47,15 @@ func (v *BaseSLQVisitor) VisitGroup(ctx *GroupContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseSLQVisitor) VisitAlias(ctx *AliasContext) interface{} {
+func (v *BaseSLQVisitor) VisitSelector(ctx *SelectorContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseSLQVisitor) VisitSelector(ctx *SelectorContext) interface{} {
+func (v *BaseSLQVisitor) VisitSelectorElement(ctx *SelectorElementContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseSLQVisitor) VisitAlias(ctx *AliasContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 

@@ -62,7 +62,7 @@ func (fb *BaseFragmentBuilder) Expr(expr *ast.Expr) (string, error) {
 
 	for _, child := range expr.Children() {
 		switch child := child.(type) {
-		case *ast.Selector:
+		case *ast.SelectorNode:
 			val, err := child.SelValue()
 			if err != nil {
 				return "", err
@@ -92,7 +92,7 @@ func (fb *BaseFragmentBuilder) Expr(expr *ast.Expr) (string, error) {
 }
 
 // SelectAll implements FragmentBuilder.
-func (fb *BaseFragmentBuilder) SelectAll(tblSel *ast.TblSelector) (string, error) {
+func (fb *BaseFragmentBuilder) SelectAll(tblSel *ast.TblSelectorNode) (string, error) {
 	sql := fmt.Sprintf("SELECT * FROM %v%s%v", fb.Quote, tblSel.TblName, fb.Quote)
 	return sql, nil
 }
@@ -124,7 +124,7 @@ func (fb *BaseFragmentBuilder) Function(fn *ast.Func) (string, error) {
 		}
 
 		switch child := child.(type) {
-		case *ast.ColSelector:
+		case *ast.ColSelectorNode:
 			colName := child.ColName()
 			buf.WriteString(fb.Quote)
 			buf.WriteString(colName)
@@ -142,7 +142,7 @@ func (fb *BaseFragmentBuilder) Function(fn *ast.Func) (string, error) {
 }
 
 // FromTable implements FragmentBuilder.
-func (fb *BaseFragmentBuilder) FromTable(tblSel *ast.TblSelector) (string, error) {
+func (fb *BaseFragmentBuilder) FromTable(tblSel *ast.TblSelectorNode) (string, error) {
 	tblName, _ := tblSel.SelValue()
 	if tblName == "" {
 		return "", errz.Errorf("selector has empty table name: %q", tblSel.Text())
@@ -153,7 +153,7 @@ func (fb *BaseFragmentBuilder) FromTable(tblSel *ast.TblSelector) (string, error
 }
 
 // Join implements FragmentBuilder.
-func (fb *BaseFragmentBuilder) Join(fnJoin *ast.Join) (string, error) {
+func (fb *BaseFragmentBuilder) Join(fnJoin *ast.JoinNode) (string, error) {
 	joinType := "INNER JOIN"
 	onClause := ""
 
@@ -171,9 +171,9 @@ func (fb *BaseFragmentBuilder) Join(fnJoin *ast.Join) (string, error) {
 
 		if len(joinExpr.Children()) == 1 {
 			// It's a single col selector
-			colSel, ok := joinExpr.Children()[0].(*ast.ColSelector)
+			colSel, ok := joinExpr.Children()[0].(*ast.ColSelectorNode)
 			if !ok {
-				return "", errz.Errorf("expected *ColSelector but got %T", joinExpr.Children()[0])
+				return "", errz.Errorf("expected *ColSelectorNode but got %T", joinExpr.Children()[0])
 			}
 
 			colVal, err := colSel.SelValue()
@@ -312,60 +312,38 @@ func (fb *BaseFragmentBuilder) Range(rr *ast.RowRange) (string, error) {
 }
 
 // SelectCols implements FragmentBuilder.
-func (fb *BaseFragmentBuilder) SelectCols(cols []ast.ColExpr) (string, error) {
+func (fb *BaseFragmentBuilder) SelectCols(cols []ast.ResultColumn) (string, error) {
 	if len(cols) == 0 {
 		return "SELECT *", nil
 	}
 
 	vals := make([]string, len(cols))
-
 	for i, col := range cols {
-		colText, err := col.ColExpr()
-		if err != nil {
-			return "", errz.Errorf("unable to extract col expr from %q: %v", col, err)
-		}
-
 		// aliasFrag holds the "AS alias" fragment (if applicable).
-		// For example "@sakila | actor | .first_name:given_name" becomes "SELECT first_name AS given_name".
+		// For example: "@sakila | .actor | .first_name:given_name" becomes
+		// "SELECT first_name AS given_name FROM actor".
 		var aliasFrag string
 		if col.Alias() != "" {
 			aliasFrag = fmt.Sprintf(" AS %s%s%s", fb.Quote, col.Alias(), fb.Quote)
 		}
 
-		fn, ok := col.(*ast.Func)
-		if ok {
+		switch col := col.(type) {
+		case *ast.ColSelectorNode:
+			vals[i] = fmt.Sprintf("%s%s%s", fb.Quote, col.ColName(), fb.Quote)
+		case *ast.TblColSelectorNode:
+			vals[i] = fmt.Sprintf("%s%s%s.%s%s%s", fb.Quote, col.TblName(), fb.Quote, fb.Quote, col.ColName(), fb.Quote)
+		case *ast.Func:
 			// it's a function
-			vals[i], err = fb.Function(fn)
-			if err != nil {
+			var err error
+			if vals[i], err = fb.Function(col); err != nil {
 				return "", err
 			}
-			vals[i] += aliasFrag
-			continue
+		default:
+			// FIXME: We should be exhaustively checking the cases.
+			// it's probably an expression
+			vals[i] = col.Text() // for now, we just return the raw text
 		}
 
-		if !col.IsColName() {
-			// it's a function or expression
-			vals[i] = colText // for now, we just return the raw text
-			vals[i] += aliasFrag
-			continue
-		}
-
-		// FIXME: this won't stand up to quoted col names that contain a period?
-		// it's a column name, e.g. "uid" or "user.uid"
-		if !strings.ContainsRune(colText, '.') {
-			// it's a regular (non-scoped) col name, e.g. "uid"
-			vals[i] = fmt.Sprintf("%s%s%s", fb.Quote, colText, fb.Quote)
-			vals[i] += aliasFrag
-			continue
-		}
-
-		// the expr contains a period, so it's likely scoped, e.g. "user.uid"
-		parts := strings.Split(colText, ".")
-		if len(parts) != 2 {
-			return "", errz.Errorf("expected scoped col expr %q to have 2 parts, but got: %v", col, parts)
-		}
-
-		vals[i] = fmt.Sprintf("%s%s%s.%s%s%s", fb.Quote, parts[0], fb.Quote, fb.Quote, parts[1], fb.Quote)
 		vals[i] += aliasFrag
 	}
 

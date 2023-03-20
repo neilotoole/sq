@@ -74,13 +74,13 @@ func (w *Walker) visitChildren(node Node) error {
 
 // narrowTblSel takes a generic selector, and if appropriate, converts it to a TblSel.
 func narrowTblSel(log lg.Log, w *Walker, node Node) error {
-	// node is guaranteed to be typeSelector
-	sel, ok := node.(*Selector)
+	// node is guaranteed to be typeSelectorNode
+	sel, ok := node.(*SelectorNode)
 	if !ok {
-		return errorf("expected *Selector but got %T", node)
+		return errorf("expected *SelectorNode but got %T", node)
 	}
 
-	seg, ok := sel.Parent().(*Segment)
+	seg, ok := sel.Parent().(*SegmentNode)
 	if !ok {
 		log.Debugf("parent is not a segment, but is %T", sel.Parent())
 		return nil
@@ -90,23 +90,24 @@ func narrowTblSel(log lg.Log, w *Walker, node Node) error {
 		return errorf("@HANDLE must be first element: %q", sel.Text())
 	}
 
-	typ, err := seg.Prev().ChildType()
+	prevType, err := seg.Prev().ChildType()
 	if err != nil {
 		return err
 	}
+	log.Debugf("prevType: %s", prevType)
 
-	if typ == typeDatasource {
-		ds, ok := seg.Prev().Children()[0].(*Datasource)
+	if prevType == typeHandleNode {
+		handleNode, ok := seg.Prev().Children()[0].(*HandleNode)
 		if !ok {
-			return errorf("syntax error: expected Datasource, but got %T", seg.Prev().Children()[0])
+			return errorf("syntax error: expected HandleNode, but got %T", seg.Prev().Children()[0])
 		}
 
 		// this means that this selector must be a table selector
-		tblSel, err := newTblSelector(seg, sel.Context())
+		tblSel, err := newTblSelector(sel)
 		if err != nil {
 			return err
 		}
-		tblSel.DSName = ds.Text()
+		tblSel.Handle = handleNode.Text()
 		err = nodeReplace(sel, tblSel)
 		if err != nil {
 			return err
@@ -116,26 +117,26 @@ func narrowTblSel(log lg.Log, w *Walker, node Node) error {
 	return nil
 }
 
-// narrowColSel takes a generic selector, and if appropriate, converts it to a ColSel.
-func narrowColSel(log lg.Log, w *Walker, node Node) error {
-	// node is guaranteed to be type Selector
-	sel, ok := node.(*Selector)
+// narrowTblColSel takes a generic selector, and if appropriate, replaces it
+// with a TblColSelectorNode.
+func narrowTblColSel(log lg.Log, w *Walker, node Node) error { //nolint:dupl
+	// node is guaranteed to be type SelectorNode
+	sel, ok := node.(*SelectorNode)
 	if !ok {
-		return errorf("expected *Selector but got %T", node)
+		return errorf("expected *SelectorNode but got %T", node)
 	}
 
 	parent := sel.Parent()
-
 	switch parent := parent.(type) {
 	case *JoinConstraint, *Func:
-		// selector parent is JoinConstraint or Func, therefore this is a ColSelector
-		log.Debugf("selector parent is %T, therefore this is a ColSelector", parent)
-		colSel, err := newColSelector(sel.Parent(), sel.ctx, sel.alias)
+		// selector parent is JoinConstraint or Func, therefore this is a ColSelectorNode
+		log.Debugf("selector parent is %T, therefore this is a TblColSelectorNode", parent)
+		tblColSelNode, err := newTblColSelectorNode(sel)
 		if err != nil {
 			return err
 		}
-		return nodeReplace(sel, colSel)
-	case *Segment:
+		return nodeReplace(sel, tblColSelNode)
+	case *SegmentNode:
 		// if the parent is a segment, this is a "top-level" selector.
 		// Only top-level selectors after the final selectable seg are
 		// convert to colSels.
@@ -149,7 +150,53 @@ func narrowColSel(log lg.Log, w *Walker, node Node) error {
 			return nil
 		}
 
-		colSel, err := newColSelector(sel.Parent(), sel.ctx, sel.alias)
+		tblColSelNode, err := newTblColSelectorNode(sel)
+		if err != nil {
+			return err
+		}
+		return nodeReplace(sel, tblColSelNode)
+
+	default:
+		log.Warnf("skipping this selector, as parent is not of a relevant type, but is %T", parent)
+	}
+
+	return nil
+}
+
+// narrowColSel takes a generic selector, and if appropriate, converts it to a ColSel.
+func narrowColSel(log lg.Log, w *Walker, node Node) error { //nolint:dupl
+	// node is guaranteed to be type SelectorNode
+	sel, ok := node.(*SelectorNode)
+	if !ok {
+		return errorf("expected *SelectorNode but got %T", node)
+	}
+
+	parent := sel.Parent()
+
+	switch parent := parent.(type) {
+	case *JoinConstraint, *Func:
+		// selector parent is JoinConstraint or Func, therefore this is a ColSelectorNode
+		log.Debugf("selector parent is %T, therefore this is a ColSelectorNode", parent)
+		colSel, err := newColSelectorNode(sel)
+		if err != nil {
+			return err
+		}
+		return nodeReplace(sel, colSel)
+	case *SegmentNode:
+		// if the parent is a segment, this is a "top-level" selector.
+		// Only top-level selectors after the final selectable seg are
+		// convert to colSels.
+		selectableSeg, err := NewInspector(log, w.root.(*AST)).FindFinalSelectableSegment()
+		if err != nil {
+			return err
+		}
+
+		if parent.SegIndex() <= selectableSeg.SegIndex() {
+			log.Debugf("skipping this selector because it's not after the final selectable segment")
+			return nil
+		}
+
+		colSel, err := newColSelectorNode(sel)
 		if err != nil {
 			return err
 		}
@@ -179,15 +226,15 @@ func findWhereClause(log lg.Log, w *Walker, node Node) error {
 
 	log.Debugf("found expression: %q", expr.Context().GetText())
 
-	seg, ok := expr.Parent().(*Segment)
+	seg, ok := expr.Parent().(*SegmentNode)
 	if !ok {
 		// The expr is not the direct child of a segment, so we're not interested in it.
 		return nil
 	}
 
-	log.Debugf("expr parent is *Segment")
+	log.Debugf("expr parent is *SegmentNode")
 	if len(seg.Children()) != 1 {
-		return errorf("Segment with expression - representing a WHERE clause - must only have one child")
+		return errorf("SegmentNode with expression - representing a WHERE clause - must only have one child")
 	}
 
 	// The expr is the direct and only child of a segment.
@@ -210,14 +257,14 @@ func findWhereClause(log lg.Log, w *Walker, node Node) error {
 // determineJoinTables attempts to determine the tables that a JOIN refers to.
 func determineJoinTables(log lg.Log, w *Walker, node Node) error {
 	// node is guaranteed to be FnJoin
-	fnJoin, ok := node.(*Join)
+	fnJoin, ok := node.(*JoinNode)
 	if !ok {
 		return errorf("expected *FnJoin but got %T", node)
 	}
 
-	seg, ok := fnJoin.Parent().(*Segment)
+	seg, ok := fnJoin.Parent().(*SegmentNode)
 	if !ok {
-		return errorf("JOIN() must have a *Segment parent, but got %T", fnJoin.Parent())
+		return errorf("JOIN() must have a *SegmentNode parent, but got %T", fnJoin.Parent())
 	}
 
 	prevSeg := seg.Prev()
@@ -225,16 +272,16 @@ func determineJoinTables(log lg.Log, w *Walker, node Node) error {
 		return errorf("JOIN() must not be in the first segment")
 	}
 
-	if len(prevSeg.Children()) != 2 || len(nodesWithType(prevSeg.Children(), typeTblSelector)) != 2 {
+	if len(prevSeg.Children()) != 2 || len(nodesWithType(prevSeg.Children(), typeTblSelectorNode)) != 2 {
 		return errorf("JOIN() must have two table selectors in the preceding segment")
 	}
 
-	fnJoin.leftTbl, ok = prevSeg.Children()[0].(*TblSelector)
+	fnJoin.leftTbl, ok = prevSeg.Children()[0].(*TblSelectorNode)
 	if !ok {
 		return errorf("JOIN() expected table selector in previous segment, but was %T(%q)", prevSeg.Children()[0],
 			prevSeg.Children()[0].Text())
 	}
-	fnJoin.rightTbl, ok = prevSeg.Children()[1].(*TblSelector)
+	fnJoin.rightTbl, ok = prevSeg.Children()[1].(*TblSelectorNode)
 	if !ok {
 		return errorf("JOIN() expected table selector in previous segment, but was %T(%q)", prevSeg.Children()[1],
 			prevSeg.Children()[1].Text())
@@ -247,7 +294,7 @@ func visitCheckRowRange(log lg.Log, w *Walker, node Node) error {
 	// node is guaranteed to be FnJoin
 	rr, ok := node.(*RowRange)
 	if !ok {
-		return errorf("expected %s but got %T", typeRowRange, node)
+		return errorf("expected %s but got %T", typeRowRangeNode, node)
 	}
 
 	if w.state != nil {

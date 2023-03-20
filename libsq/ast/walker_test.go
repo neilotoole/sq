@@ -28,7 +28,7 @@ func TestWalker(t *testing.T) {
 		return w.visitChildren(node)
 	}
 
-	walker.AddVisitor(typeJoin, visitor)
+	walker.AddVisitor(typeJoinNode, visitor)
 	err = walker.Walk()
 	assert.Nil(t, err)
 	assert.Equal(t, 1, count)
@@ -46,8 +46,8 @@ func TestWalker(t *testing.T) {
 		return w.visitChildren(node)
 	}
 
-	walker.AddVisitor(typeTblSelector, visitorA)
-	walker.AddVisitor(typeColSelector, visitorB)
+	walker.AddVisitor(typeTblSelectorNode, visitorA)
+	walker.AddVisitor(typeColSelectorNode, visitorB)
 	err = walker.Walk()
 	assert.Nil(t, err)
 	assert.Equal(t, 2, countA)

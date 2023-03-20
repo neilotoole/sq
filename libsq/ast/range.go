@@ -28,9 +28,9 @@ func (rr *RowRange) Range() (offset, limit int) {
 }
 
 func (rr *RowRange) SetParent(parent Node) error {
-	seg, ok := parent.(*Segment)
+	seg, ok := parent.(*SegmentNode)
 	if !ok {
-		return errorf("%T requires parent of type *%s", rr, typeSegment)
+		return errorf("%T requires parent of type *%s", rr, typeSegmentNode)
 	}
 	rr.parent = seg
 	return nil

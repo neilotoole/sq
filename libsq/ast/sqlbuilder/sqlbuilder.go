@@ -9,19 +9,19 @@ import (
 // FragmentBuilder renders driver-specific SQL fragments.
 type FragmentBuilder interface {
 	// FromTable renders a FROM table fragment.
-	FromTable(tblSel *ast.TblSelector) (string, error)
+	FromTable(tblSel *ast.TblSelectorNode) (string, error)
 
 	// SelectCols renders a column names/expression fragment.
-	SelectCols(cols []ast.ColExpr) (string, error)
+	SelectCols(cols []ast.ResultColumn) (string, error)
 
 	// SelectAll renders a SELECT * fragment.
-	SelectAll(tblSel *ast.TblSelector) (string, error)
+	SelectAll(tblSel *ast.TblSelectorNode) (string, error)
 
 	// Range renders a row range fragment.
 	Range(rr *ast.RowRange) (string, error)
 
 	// Join renders a join fragment.
-	Join(fnJoin *ast.Join) (string, error)
+	Join(fnJoin *ast.JoinNode) (string, error)
 
 	// Function renders a function fragment.
 	Function(fn *ast.Func) (string, error)

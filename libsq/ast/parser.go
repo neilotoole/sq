@@ -173,6 +173,8 @@ func (v *parseTreeVisitor) Visit(ctx antlr.ParseTree) any {
 		return v.VisitLiteral(ctx)
 	case *antlr.TerminalNodeImpl:
 		return v.VisitTerminal(ctx)
+	case *slq.SelectorElementContext:
+		return v.VisitSelectorElement(ctx)
 	}
 
 	// should never be reached
@@ -199,6 +201,7 @@ func (v *parseTreeVisitor) VisitChildren(ctx antlr.RuleNode) any {
 func (v *parseTreeVisitor) VisitQuery(ctx *slq.QueryContext) any {
 	v.AST = &AST{}
 	v.AST.ctx = ctx
+	v.AST.text = ctx.GetText()
 	v.cur = v.AST
 
 	for _, seg := range ctx.AllSegment() {
@@ -213,7 +216,7 @@ func (v *parseTreeVisitor) VisitQuery(ctx *slq.QueryContext) any {
 
 // VisitHandle implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitHandle(ctx *slq.HandleContext) any {
-	ds := &Datasource{}
+	ds := &HandleNode{}
 	ds.parent = v.cur
 	ds.ctx = ctx.HANDLE()
 	return v.cur.AddChild(ds)
@@ -221,42 +224,69 @@ func (v *parseTreeVisitor) VisitHandle(ctx *slq.HandleContext) any {
 
 // VisitHandleTable implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitHandleTable(ctx *slq.HandleTableContext) any {
-	tblSel := &TblSelector{}
+	tblSel := &TblSelectorNode{}
 	tblSel.parent = v.cur
 	tblSel.ctx = ctx
 
-	tblSel.DSName = ctx.HANDLE().GetText()
-	tblSel.TblName = ctx.SEL().GetText()[1:]
+	tblSel.Handle = ctx.HANDLE().GetText()
+	tblSel.TblName = ctx.NAME().GetText()[1:]
 
 	return v.cur.AddChild(tblSel)
 }
 
 // VisitSegment implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitSegment(ctx *slq.SegmentContext) any {
-	seg := &Segment{}
-	seg.bn.ctx = ctx
-	seg.bn.parent = v.AST
-
+	seg := newSegmentNode(v.AST, ctx)
 	v.AST.AddSegment(seg)
 	v.cur = seg
 
 	return v.VisitChildren(ctx)
 }
 
-// VisitSelector implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitSelector(ctx *slq.SelectorContext) any {
-	selector := &Selector{}
-	selector.parent = v.cur
-	selector.ctx = ctx.SEL()
+func newSelectorNode(parent Node, ctx slq.ISelectorContext) (*SelectorNode, error) {
+	selNode := &SelectorNode{}
+	selNode.parent = parent
+	selNode.ctx = ctx
+	selNode.text = ctx.GetText()
 
-	var err any
-	if err = v.cur.AddChild(selector); err != nil {
+	names := ctx.AllNAME()
+	switch len(names) {
+	default:
+		return nil, errorf("expected 1 or 2 names in selector but got %d: %s", len(names), ctx.GetText())
+	case 1:
+		selNode.name0 = names[0].GetText()
+	case 2:
+		selNode.name0 = names[0].GetText()
+		selNode.name1 = names[1].GetText()
+	}
+
+	return selNode, nil
+}
+
+// VisitSelectorElement implements slq.SLQVisitor.
+func (v *parseTreeVisitor) VisitSelectorElement(ctx *slq.SelectorElementContext) any {
+	selNode, err := newSelectorNode(v.cur, ctx.Selector())
+	if err != nil {
 		return err
 	}
 
-	return v.using(selector, func() any {
-		return v.VisitChildren(ctx)
-	})
+	if aliasCtx := ctx.Alias(); aliasCtx != nil {
+		selNode.alias = ctx.Alias().ID().GetText()
+	}
+
+	if err := v.cur.AddChild(selNode); err != nil {
+		return err
+	}
+
+	// No need to descend to the children, because we've already dealt
+	// with them in this function.
+	return nil
+}
+
+// VisitSelector implements slq.SLQVisitor.
+func (v *parseTreeVisitor) VisitSelector(ctx *slq.SelectorContext) any {
+	// no-op
+	return nil
 }
 
 // VisitElement implements slq.SLQVisitor.
@@ -266,10 +296,11 @@ func (v *parseTreeVisitor) VisitElement(ctx *slq.ElementContext) any {
 
 // VisitAlias implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitAlias(ctx *slq.AliasContext) any {
+	// TODO: Probably don't need this.
 	alias := ctx.ID().GetText()
 
 	switch node := v.cur.(type) {
-	case *Selector:
+	case *SelectorNode:
 		node.alias = alias
 	case *Func:
 		node.alias = alias
@@ -348,12 +379,13 @@ func (v *parseTreeVisitor) VisitFn(ctx *slq.FnContext) any {
 func (v *parseTreeVisitor) VisitExpr(ctx *slq.ExprContext) any {
 	v.log.Debugf("visiting expr: %v", ctx.GetText())
 
-	// check if the expr is a SEL, e.g. ".uid"
-	if ctx.SEL() != nil {
-		selector := &Selector{}
-		selector.parent = v.cur
-		selector.ctx = ctx.SEL()
-		return v.cur.AddChild(selector)
+	// check if the expr is a selector, e.g. ".uid"
+	if selCtx := ctx.Selector(); selCtx != nil {
+		selNode, err := newSelectorNode(v.cur, selCtx)
+		if err != nil {
+			return err
+		}
+		return v.cur.AddChild(selNode)
 	}
 
 	if ctx.Literal() != nil {
@@ -413,12 +445,13 @@ func (v *parseTreeVisitor) VisitFnName(ctx *slq.FnNameContext) any {
 // VisitGroup implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitGroup(ctx *slq.GroupContext) any {
 	// parent node must be a segment
-	_, ok := v.cur.(*Segment)
+	_, ok := v.cur.(*SegmentNode)
 	if !ok {
-		return errorf("parent of GROUP() must be Segment, but got: %T", v.cur)
+		return errorf("parent of GROUP() must be SegmentNode, but got: %T", v.cur)
 	}
 
-	sels := ctx.AllSEL()
+	// FIXME: this needs to be revisited.
+	sels := ctx.AllSelector()
 	if len(sels) == 0 {
 		return errorf("GROUP() requires at least one column selector argument")
 	}
@@ -431,10 +464,11 @@ func (v *parseTreeVisitor) VisitGroup(ctx *slq.GroupContext) any {
 	}
 
 	for _, selCtx := range sels {
-		colSel, err := newColSelector(grp, selCtx, "") // FIXME: Handle alias appropriately
+		colSel, err := newSelectorNode(grp, selCtx)
 		if err != nil {
 			return err
 		}
+
 		err = grp.AddChild(colSel)
 		if err != nil {
 			return err
@@ -447,12 +481,12 @@ func (v *parseTreeVisitor) VisitGroup(ctx *slq.GroupContext) any {
 // VisitJoin implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitJoin(ctx *slq.JoinContext) any {
 	// parent node must be a segment
-	seg, ok := v.cur.(*Segment)
+	seg, ok := v.cur.(*SegmentNode)
 	if !ok {
-		return errorf("parent of JOIN() must be Segment, but got: %T", v.cur)
+		return errorf("parent of JOIN() must be SegmentNode, but got: %T", v.cur)
 	}
 
-	join := &Join{seg: seg, ctx: ctx}
+	join := &JoinNode{seg: seg, ctx: ctx}
 	err := seg.AddChild(join)
 	if err != nil {
 		return err
@@ -476,7 +510,7 @@ func (v *parseTreeVisitor) VisitJoin(ctx *slq.JoinContext) any {
 
 // VisitJoinConstraint implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitJoinConstraint(ctx *slq.JoinConstraintContext) any {
-	joinNode, ok := v.cur.(*Join)
+	joinNode, ok := v.cur.(*JoinNode)
 	if !ok {
 		return errorf("JOIN constraint must have JOIN parent, but got %T", v.cur)
 	}
@@ -490,56 +524,58 @@ func (v *parseTreeVisitor) VisitJoinConstraint(ctx *slq.JoinConstraintContext) a
 	// the constraint could be a single SEL (in which case, there's no comparison operator)
 	if ctx.Cmpr() == nil {
 		// there should be exactly one SEL
-		sels := ctx.AllSEL()
+		sels := ctx.AllSelector()
 		if len(sels) != 1 {
 			return errorf("JOIN constraint without a comparison operator must have exactly one selector")
 		}
 
 		joinExprNode := &JoinConstraint{join: joinNode, ctx: ctx}
 
-		colSelNode := &Selector{}
-		colSelNode.ctx = sels[0]
-		colSelNode.parent = joinExprNode
-
-		err := joinExprNode.AddChild(colSelNode)
+		colSelNode, err := newSelectorNode(joinExprNode, sels[0])
 		if err != nil {
 			return err
 		}
+
+		if err := joinExprNode.AddChild(colSelNode); err != nil {
+			return err
+		}
+
 		return joinNode.AddChild(joinExprNode)
 	}
 
-	// we've got a comparison operator
-	sels := ctx.AllSEL()
+	// We've got a comparison operator
+	sels := ctx.AllSelector()
 	if len(sels) != 2 {
 		// REVISIT: probably unnecessary, should be caught by the parser
 		return errorf("JOIN constraint must have 2 operands (left & right), but got %d", len(sels))
 	}
 
-	join, ok := v.cur.(*Join)
+	join, ok := v.cur.(*JoinNode)
 	if !ok {
-		return errorf("JOIN constraint must have JOIN parent, but got %T", v.cur)
+		return errorf("JoinConstraint must have JoinNode parent, but got %T", v.cur)
 	}
 	joinCondition := &JoinConstraint{join: join, ctx: ctx}
 
-	leftSel := &Selector{}
-	leftSel.ctx = sels[0]
-	leftSel.parent = joinCondition
-	err := joinCondition.AddChild(leftSel)
+	leftSel, err := newSelectorNode(joinCondition, sels[0])
 	if err != nil {
+		return err
+	}
+
+	if err = joinCondition.AddChild(leftSel); err != nil {
 		return err
 	}
 
 	cmpr := newCmpr(joinCondition, ctx.Cmpr())
-	err = joinCondition.AddChild(cmpr)
+	if err = joinCondition.AddChild(cmpr); err != nil {
+		return err
+	}
+
+	rightSel, err := newSelectorNode(joinCondition, sels[1])
 	if err != nil {
 		return err
 	}
 
-	rightSel := &Selector{}
-	rightSel.ctx = sels[1]
-	rightSel.parent = joinCondition
-	err = joinCondition.AddChild(rightSel)
-	if err != nil {
+	if err = joinCondition.AddChild(rightSel); err != nil {
 		return err
 	}
 
