@@ -147,8 +147,8 @@ func (v *parseTreeVisitor) Visit(ctx antlr.ParseTree) any {
 		return v.VisitHandle(ctx)
 	case *slq.HandleTableContext:
 		return v.VisitHandleTable(ctx)
-	case *slq.SelElementContext:
-		return v.VisitSelElement(ctx)
+	case *slq.SelectorContext:
+		return v.VisitSelector(ctx)
 	case *slq.FnElementContext:
 		return v.VisitFnElement(ctx)
 	case *slq.FnContext:
@@ -243,8 +243,8 @@ func (v *parseTreeVisitor) VisitSegment(ctx *slq.SegmentContext) any {
 	return v.VisitChildren(ctx)
 }
 
-// VisitSelElement implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitSelElement(ctx *slq.SelElementContext) any {
+// VisitSelector implements slq.SLQVisitor.
+func (v *parseTreeVisitor) VisitSelector(ctx *slq.SelectorContext) any {
 	selector := &Selector{}
 	selector.parent = v.cur
 	selector.ctx = ctx.SEL()

@@ -127,7 +127,7 @@ GT: '>';
 NEQ: '!=';
 EQ: '==';
 
-NAME: '.' (ID | STRING);
+//NAME: '.' (ID | STRING);
 
 // SEL can be .THING or .THING.OTHERTHING.
 // It can also be ."some name".OTHERTHING, etc.

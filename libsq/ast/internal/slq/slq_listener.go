@@ -40,8 +40,8 @@ type SLQListener interface {
 	// EnterAlias is called when entering the alias production.
 	EnterAlias(c *AliasContext)
 
-	// EnterSelElement is called when entering the selElement production.
-	EnterSelElement(c *SelElementContext)
+	// EnterSelector is called when entering the selector production.
+	EnterSelector(c *SelectorContext)
 
 	// EnterHandleTable is called when entering the handleTable production.
 	EnterHandleTable(c *HandleTableContext)
@@ -97,8 +97,8 @@ type SLQListener interface {
 	// ExitAlias is called when exiting the alias production.
 	ExitAlias(c *AliasContext)
 
-	// ExitSelElement is called when exiting the selElement production.
-	ExitSelElement(c *SelElementContext)
+	// ExitSelector is called when exiting the selector production.
+	ExitSelector(c *SelectorContext)
 
 	// ExitHandleTable is called when exiting the handleTable production.
 	ExitHandleTable(c *HandleTableContext)

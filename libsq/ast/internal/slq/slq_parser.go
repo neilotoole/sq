@@ -47,7 +47,7 @@ func slqParserInit() {
 	}
 	staticData.ruleNames = []string{
 		"stmtList", "query", "segment", "element", "cmpr", "fn", "fnElement",
-		"join", "joinConstraint", "group", "alias", "selElement", "handleTable",
+		"join", "joinConstraint", "group", "alias", "selector", "handleTable",
 		"handle", "rowRange", "fnName", "expr", "literal", "unaryOperator",
 	}
 	staticData.predictionContextCache = antlr.NewPredictionContextCache()
@@ -246,7 +246,7 @@ const (
 	SLQParserRULE_joinConstraint = 8
 	SLQParserRULE_group          = 9
 	SLQParserRULE_alias          = 10
-	SLQParserRULE_selElement     = 11
+	SLQParserRULE_selector       = 11
 	SLQParserRULE_handleTable    = 12
 	SLQParserRULE_handle         = 13
 	SLQParserRULE_rowRange       = 14
@@ -821,7 +821,7 @@ type IElementContext interface {
 	// Getter signatures
 	HandleTable() IHandleTableContext
 	Handle() IHandleContext
-	SelElement() ISelElementContext
+	Selector() ISelectorContext
 	Join() IJoinContext
 	Group() IGroupContext
 	RowRange() IRowRangeContext
@@ -891,10 +891,10 @@ func (s *ElementContext) Handle() IHandleContext {
 	return t.(IHandleContext)
 }
 
-func (s *ElementContext) SelElement() ISelElementContext {
+func (s *ElementContext) Selector() ISelectorContext {
 	var t antlr.RuleContext
 	for _, ctx := range s.GetChildren() {
-		if _, ok := ctx.(ISelElementContext); ok {
+		if _, ok := ctx.(ISelectorContext); ok {
 			t = ctx.(antlr.RuleContext)
 			break
 		}
@@ -904,7 +904,7 @@ func (s *ElementContext) SelElement() ISelElementContext {
 		return nil
 	}
 
-	return t.(ISelElementContext)
+	return t.(ISelectorContext)
 }
 
 func (s *ElementContext) Join() IJoinContext {
@@ -1061,7 +1061,7 @@ func (p *SLQParser) Element() (localctx IElementContext) {
 		p.EnterOuterAlt(localctx, 3)
 		{
 			p.SetState(80)
-			p.SelElement()
+			p.Selector()
 		}
 
 	case 4:
@@ -2206,8 +2206,8 @@ func (p *SLQParser) Alias() (localctx IAliasContext) {
 	return localctx
 }
 
-// ISelElementContext is an interface to support dynamic dispatch.
-type ISelElementContext interface {
+// ISelectorContext is an interface to support dynamic dispatch.
+type ISelectorContext interface {
 	antlr.ParserRuleContext
 
 	// GetParser returns the parser.
@@ -2217,42 +2217,42 @@ type ISelElementContext interface {
 	SEL() antlr.TerminalNode
 	Alias() IAliasContext
 
-	// IsSelElementContext differentiates from other interfaces.
-	IsSelElementContext()
+	// IsSelectorContext differentiates from other interfaces.
+	IsSelectorContext()
 }
 
-type SelElementContext struct {
+type SelectorContext struct {
 	*antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
-func NewEmptySelElementContext() *SelElementContext {
-	var p = new(SelElementContext)
+func NewEmptySelectorContext() *SelectorContext {
+	var p = new(SelectorContext)
 	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
-	p.RuleIndex = SLQParserRULE_selElement
+	p.RuleIndex = SLQParserRULE_selector
 	return p
 }
 
-func (*SelElementContext) IsSelElementContext() {}
+func (*SelectorContext) IsSelectorContext() {}
 
-func NewSelElementContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *SelElementContext {
-	var p = new(SelElementContext)
+func NewSelectorContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *SelectorContext {
+	var p = new(SelectorContext)
 
 	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
 
 	p.parser = parser
-	p.RuleIndex = SLQParserRULE_selElement
+	p.RuleIndex = SLQParserRULE_selector
 
 	return p
 }
 
-func (s *SelElementContext) GetParser() antlr.Parser { return s.parser }
+func (s *SelectorContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *SelElementContext) SEL() antlr.TerminalNode {
+func (s *SelectorContext) SEL() antlr.TerminalNode {
 	return s.GetToken(SLQParserSEL, 0)
 }
 
-func (s *SelElementContext) Alias() IAliasContext {
+func (s *SelectorContext) Alias() IAliasContext {
 	var t antlr.RuleContext
 	for _, ctx := range s.GetChildren() {
 		if _, ok := ctx.(IAliasContext); ok {
@@ -2268,42 +2268,42 @@ func (s *SelElementContext) Alias() IAliasContext {
 	return t.(IAliasContext)
 }
 
-func (s *SelElementContext) GetRuleContext() antlr.RuleContext {
+func (s *SelectorContext) GetRuleContext() antlr.RuleContext {
 	return s
 }
 
-func (s *SelElementContext) ToStringTree(ruleNames []string, recog antlr.Recognizer) string {
+func (s *SelectorContext) ToStringTree(ruleNames []string, recog antlr.Recognizer) string {
 	return antlr.TreesStringTree(s, ruleNames, recog)
 }
 
-func (s *SelElementContext) EnterRule(listener antlr.ParseTreeListener) {
+func (s *SelectorContext) EnterRule(listener antlr.ParseTreeListener) {
 	if listenerT, ok := listener.(SLQListener); ok {
-		listenerT.EnterSelElement(s)
+		listenerT.EnterSelector(s)
 	}
 }
 
-func (s *SelElementContext) ExitRule(listener antlr.ParseTreeListener) {
+func (s *SelectorContext) ExitRule(listener antlr.ParseTreeListener) {
 	if listenerT, ok := listener.(SLQListener); ok {
-		listenerT.ExitSelElement(s)
+		listenerT.ExitSelector(s)
 	}
 }
 
-func (s *SelElementContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
+func (s *SelectorContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 	switch t := visitor.(type) {
 	case SLQVisitor:
-		return t.VisitSelElement(s)
+		return t.VisitSelector(s)
 
 	default:
 		return t.VisitChildren(s)
 	}
 }
 
-func (p *SLQParser) SelElement() (localctx ISelElementContext) {
+func (p *SLQParser) Selector() (localctx ISelectorContext) {
 	this := p
 	_ = this
 
-	localctx = NewSelElementContext(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 22, SLQParserRULE_selElement)
+	localctx = NewSelectorContext(p, p.GetParserRuleContext(), p.GetState())
+	p.EnterRule(localctx, 22, SLQParserRULE_selector)
 	var _la int
 
 	defer func() {

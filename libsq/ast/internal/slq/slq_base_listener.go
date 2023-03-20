@@ -86,11 +86,11 @@ func (s *BaseSLQListener) EnterAlias(ctx *AliasContext) {}
 // ExitAlias is called when production alias is exited.
 func (s *BaseSLQListener) ExitAlias(ctx *AliasContext) {}
 
-// EnterSelElement is called when production selElement is entered.
-func (s *BaseSLQListener) EnterSelElement(ctx *SelElementContext) {}
+// EnterSelector is called when production selector is entered.
+func (s *BaseSLQListener) EnterSelector(ctx *SelectorContext) {}
 
-// ExitSelElement is called when production selElement is exited.
-func (s *BaseSLQListener) ExitSelElement(ctx *SelElementContext) {}
+// ExitSelector is called when production selector is exited.
+func (s *BaseSLQListener) ExitSelector(ctx *SelectorContext) {}
 
 // EnterHandleTable is called when production handleTable is entered.
 func (s *BaseSLQListener) EnterHandleTable(ctx *HandleTableContext) {}

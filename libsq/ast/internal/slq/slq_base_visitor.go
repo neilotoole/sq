@@ -51,7 +51,7 @@ func (v *BaseSLQVisitor) VisitAlias(ctx *AliasContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseSLQVisitor) VisitSelElement(ctx *SelElementContext) interface{} {
+func (v *BaseSLQVisitor) VisitSelector(ctx *SelectorContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 

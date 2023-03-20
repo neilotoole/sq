@@ -116,7 +116,7 @@ join
 joinConstraint
 group
 alias
-selElement
+selector
 handleTable
 handle
 rowRange
