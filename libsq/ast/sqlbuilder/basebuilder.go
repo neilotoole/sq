@@ -93,7 +93,7 @@ func (fb *BaseFragmentBuilder) Expr(expr *ast.Expr) (string, error) {
 
 // SelectAll implements FragmentBuilder.
 func (fb *BaseFragmentBuilder) SelectAll(tblSel *ast.TblSelectorNode) (string, error) {
-	sql := fmt.Sprintf("SELECT * FROM %v%s%v", fb.Quote, tblSel.TblName, fb.Quote)
+	sql := fmt.Sprintf("SELECT * FROM %v%s%v", fb.Quote, tblSel.TblName(), fb.Quote)
 	return sql, nil
 }
 
@@ -148,7 +148,7 @@ func (fb *BaseFragmentBuilder) FromTable(tblSel *ast.TblSelectorNode) (string, e
 		return "", errz.Errorf("selector has empty table name: %q", tblSel.Text())
 	}
 
-	clause := fmt.Sprintf("FROM %v%s%v", fb.Quote, tblSel.TblName, fb.Quote)
+	clause := fmt.Sprintf("FROM %v%s%v", fb.Quote, tblSel.TblName(), fb.Quote)
 	return clause, nil
 }
 
@@ -181,11 +181,7 @@ func (fb *BaseFragmentBuilder) Join(fnJoin *ast.JoinNode) (string, error) {
 				return "", err
 			}
 
-			leftTblVal, err := fnJoin.LeftTbl().SelValue()
-			if err != nil {
-				return "", err
-			}
-
+			leftTblVal := fnJoin.LeftTbl().TblName()
 			leftOperand = fmt.Sprintf(
 				"%s%s%s.%s%s%s",
 				fb.Quote,
@@ -195,13 +191,10 @@ func (fb *BaseFragmentBuilder) Join(fnJoin *ast.JoinNode) (string, error) {
 				colVal,
 				fb.Quote,
 			)
+
 			operator = "=="
 
-			rightTblVal, err := fnJoin.RightTbl().SelValue()
-			if err != nil {
-				return "", err
-			}
-
+			rightTblVal := fnJoin.RightTbl().TblName()
 			rightOperand = fmt.Sprintf(
 				"%s%s%s.%s%s%s",
 				fb.Quote,
@@ -213,15 +206,14 @@ func (fb *BaseFragmentBuilder) Join(fnJoin *ast.JoinNode) (string, error) {
 			)
 		} else {
 			var err error
-			// TODO: Does this func work ok with whitespace names?
-			leftOperand, err = quoteTableOrColSelector(fb.Quote, joinExpr.Children()[0].Text())
+			leftOperand, err = renderSelectorNode(fb.Quote, joinExpr.Children()[0])
 			if err != nil {
 				return "", err
 			}
 
 			operator = joinExpr.Children()[1].Text()
 
-			rightOperand, err = quoteTableOrColSelector(fb.Quote, joinExpr.Children()[2].Text())
+			rightOperand, err = renderSelectorNode(fb.Quote, joinExpr.Children()[2])
 			if err != nil {
 				return "", err
 			}
@@ -234,11 +226,57 @@ func (fb *BaseFragmentBuilder) Join(fnJoin *ast.JoinNode) (string, error) {
 		onClause = fmt.Sprintf("ON %s %s %s", leftOperand, operator, rightOperand)
 	}
 
-	sql := fmt.Sprintf("FROM %s%s%s %s %s%s%s", fb.Quote, fnJoin.LeftTbl().TblName, fb.Quote, joinType, fb.Quote,
-		fnJoin.RightTbl().TblName, fb.Quote)
+	sql := fmt.Sprintf(
+		"FROM %s%s%s %s %s%s%s",
+		fb.Quote,
+		fnJoin.LeftTbl().TblName(),
+		fb.Quote,
+		joinType,
+		fb.Quote,
+		fnJoin.RightTbl().TblName(),
+		fb.Quote,
+	)
 	sql = sqlAppend(sql, onClause)
 
 	return sql, nil
+}
+
+// renderSelectorNode renders a selector such as ".actor.first_name"
+// or ".last_name".
+func renderSelectorNode(quote string, node ast.Node) (string, error) {
+	switch node := node.(type) {
+	case *ast.ColSelectorNode:
+		return fmt.Sprintf(
+			"%s%s%s",
+			quote,
+			node.ColName(),
+			quote,
+		), nil
+	case *ast.TblColSelectorNode:
+		return fmt.Sprintf(
+			"%s%s%s.%s%s%s",
+			quote,
+			node.TblName(),
+			quote,
+			quote,
+			node.ColName(),
+			quote,
+		), nil
+	case *ast.TblSelectorNode:
+		return fmt.Sprintf(
+			"%s%s%s",
+			quote,
+			node.TblName(),
+			quote,
+		), nil
+
+	default:
+		return "", errz.Errorf(
+			"expected selector node type, but got %T: %s",
+			node,
+			node.Text(),
+		)
+	}
 }
 
 // sqlAppend is a convenience function for building the SQL string.

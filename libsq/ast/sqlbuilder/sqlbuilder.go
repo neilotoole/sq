@@ -1,5 +1,5 @@
 // Package sqlbuilder contains functionality for building SQL from
-// the AST.
+// the ast.
 package sqlbuilder
 
 import (

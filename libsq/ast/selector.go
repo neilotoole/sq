@@ -56,19 +56,30 @@ var (
 // TblSelectorNode is a selector for a table, such as ".my_table"
 // or "@my_src.my_table".
 type TblSelectorNode struct {
-	*SelectorNode
-	Handle  string
-	TblName string
+	SelectorNode
+
+	handle  string
+	tblName string
 }
 
 // newTblSelector creates a new TblSelectorNode from ctx.
 func newTblSelector(selNode *SelectorNode) (*TblSelectorNode, error) { //nolint:unparam
 	n := &TblSelectorNode{
-		SelectorNode: selNode,
-		TblName:      selNode.name0,
+		SelectorNode: *selNode,
+		tblName:      selNode.name0,
 	}
 
 	return n, nil
+}
+
+// TblName returns the table name. This is the raw value without punctuation.
+func (s *TblSelectorNode) TblName() string {
+	return s.tblName
+}
+
+// Handle returns the handle, which may be empty.
+func (s *TblSelectorNode) Handle() string {
+	return s.handle
 }
 
 // Selectable implements the Selectable marker interface.
@@ -76,8 +87,10 @@ func (s *TblSelectorNode) Selectable() {
 	// no-op
 }
 
+// SelValue returns the table name.
+// TODO: Can we get rid of this method SelValue?
 func (s *TblSelectorNode) SelValue() (string, error) {
-	return s.TblName, nil
+	return s.TblName(), nil
 }
 
 // String returns a log/debug-friendly representation.
@@ -87,7 +100,7 @@ func (s *TblSelectorNode) String() string {
 	if err != nil {
 		selVal = "error: " + err.Error()
 	}
-	text += fmt.Sprintf(" | table: %q | datasource: %q", selVal, s.Handle)
+	text += fmt.Sprintf(" | table: %q | datasource: %q", selVal, s.Handle())
 	return text
 }
 
@@ -121,11 +134,11 @@ func newTblColSelectorNode(selNode *SelectorNode) (*TblColSelectorNode, error) {
 	}
 
 	if n.tblName == "" {
-		return nil, errorf("table name is empty: %s", n.Text())
+		return nil, errorf("cannot create %T: table name is empty: %s", n, n.Text())
 	}
 
 	if n.colName == "" {
-		return nil, errorf("column name is empty: %s", n.Text())
+		return nil, errorf("cannot create %T: column name is empty: %s", n, n.Text())
 	}
 
 	return n, nil
@@ -232,14 +245,15 @@ func (d *HandleNode) String() string {
 	return nodeString(d)
 }
 
-// extractSelVal extracts the value of the selector.
+// extractSelVal extracts the value of the selector. The function takes
+// a selector node type as input, e.g. ast.SelectorNode.
 // Example inputs:
 //
 //   - .actor --> actor
 //   - .first_name --> first_name
 //   - ."first name" --> first name
 //
-// FIXME: We should be able to get rid of this.
+// The function will remove the leading period, and quotes around the name.
 func extractSelVal(ctx antlr.ParseTree) (string, error) {
 	if ctx == nil {
 		return "", errorf("invalid selector: is nil")

@@ -107,7 +107,7 @@ func narrowTblSel(log lg.Log, w *Walker, node Node) error {
 		if err != nil {
 			return err
 		}
-		tblSel.Handle = handleNode.Text()
+		tblSel.handle = handleNode.Text()
 		err = nodeReplace(sel, tblSel)
 		if err != nil {
 			return err
@@ -119,7 +119,7 @@ func narrowTblSel(log lg.Log, w *Walker, node Node) error {
 
 // narrowTblColSel takes a generic selector, and if appropriate, replaces it
 // with a TblColSelectorNode.
-func narrowTblColSel(log lg.Log, w *Walker, node Node) error { //nolint:dupl
+func narrowTblColSel(log lg.Log, w *Walker, node Node) error {
 	// node is guaranteed to be type SelectorNode
 	sel, ok := node.(*SelectorNode)
 	if !ok {
@@ -129,8 +129,10 @@ func narrowTblColSel(log lg.Log, w *Walker, node Node) error { //nolint:dupl
 	parent := sel.Parent()
 	switch parent := parent.(type) {
 	case *JoinConstraint, *Func:
-		// selector parent is JoinConstraint or Func, therefore this is a ColSelectorNode
-		log.Debugf("selector parent is %T, therefore this is a TblColSelectorNode", parent)
+		if sel.name1 == "" {
+			return nil
+		}
+
 		tblColSelNode, err := newTblColSelectorNode(sel)
 		if err != nil {
 			return err
@@ -139,7 +141,7 @@ func narrowTblColSel(log lg.Log, w *Walker, node Node) error { //nolint:dupl
 	case *SegmentNode:
 		// if the parent is a segment, this is a "top-level" selector.
 		// Only top-level selectors after the final selectable seg are
-		// convert to colSels.
+		// convert to TblColSelectorNode.
 		selectableSeg, err := NewInspector(log, w.root.(*AST)).FindFinalSelectableSegment()
 		if err != nil {
 			return err
@@ -150,6 +152,12 @@ func narrowTblColSel(log lg.Log, w *Walker, node Node) error { //nolint:dupl
 			return nil
 		}
 
+		if sel.name1 == "" {
+			// It's only a TblColSelectorNode if name1 is set.
+			// So, it's either a ColSelectorNode or a TblSelectorNode.
+			return nil
+		}
+
 		tblColSelNode, err := newTblColSelectorNode(sel)
 		if err != nil {
 			return err
@@ -157,14 +165,13 @@ func narrowTblColSel(log lg.Log, w *Walker, node Node) error { //nolint:dupl
 		return nodeReplace(sel, tblColSelNode)
 
 	default:
-		log.Warnf("skipping this selector, as parent is not of a relevant type, but is %T", parent)
 	}
 
 	return nil
 }
 
 // narrowColSel takes a generic selector, and if appropriate, converts it to a ColSel.
-func narrowColSel(log lg.Log, w *Walker, node Node) error { //nolint:dupl
+func narrowColSel(log lg.Log, w *Walker, node Node) error {
 	// node is guaranteed to be type SelectorNode
 	sel, ok := node.(*SelectorNode)
 	if !ok {

@@ -12,7 +12,7 @@ import (
 )
 
 func TestSLQ2SQL(t *testing.T) {
-	t.Parallel()
+	// t.Parallel()
 
 	testCases := []struct {
 		name    string
@@ -69,6 +69,25 @@ func TestSLQ2SQL(t *testing.T) {
 			slq:     `@sakila_sl3 | .actor | count()`,
 			wantSQL: `SELECT COUNT(*) FROM "actor"`,
 		},
+
+		{
+			name:    "select/handle-table/cols",
+			handles: []string{sakila.SL3},
+			slq:     `@sakila_sl3.actor | .first_name, .last_name`,
+			wantSQL: `SELECT "first_name", "last_name" FROM "actor"`,
+		},
+		{
+			name:    "select/handle-table/count-star",
+			handles: []string{sakila.SL3},
+			slq:     `@sakila_sl3.actor | count(*)`,
+			wantSQL: `SELECT COUNT(*) FROM "actor"`,
+		},
+		{
+			name:    "select/handle-table/count-col",
+			handles: []string{sakila.SL3Whitespace},
+			slq:     `@sakila_sl3_whitespace.actor | count(."first name")`,
+			wantSQL: `SELECT COUNT("first name") FROM "actor"`,
+		},
 		{
 			name:    "select/count-alias",
 			handles: []string{sakila.SL3},
@@ -93,7 +112,8 @@ func TestSLQ2SQL(t *testing.T) {
 		tc := tc
 
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
+			// t.Parallel()
+			t.Logf(tc.slq)
 
 			th := testh.New(t)
 			srcs := th.NewSourceSet(tc.handles...)

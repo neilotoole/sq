@@ -139,7 +139,7 @@ func (ng *engine) executeTasks(ctx context.Context) error {
 func (ng *engine) buildTableFromClause(ctx context.Context, tblSel *ast.TblSelectorNode) (fromClause string,
 	fromConn driver.Database, err error,
 ) {
-	src, err := ng.srcs.Get(tblSel.Handle)
+	src, err := ng.srcs.Get(tblSel.Handle())
 	if err != nil {
 		return "", nil, err
 	}
@@ -161,15 +161,15 @@ func (ng *engine) buildTableFromClause(ctx context.Context, tblSel *ast.TblSelec
 func (ng *engine) buildJoinFromClause(ctx context.Context, fnJoin *ast.JoinNode) (fromClause string,
 	fromConn driver.Database, err error,
 ) {
-	if fnJoin.LeftTbl() == nil || fnJoin.LeftTbl().TblName == "" {
+	if fnJoin.LeftTbl() == nil || fnJoin.LeftTbl().TblName() == "" {
 		return "", nil, errz.Errorf("JOIN is missing left table reference")
 	}
 
-	if fnJoin.RightTbl() == nil || fnJoin.RightTbl().TblName == "" {
+	if fnJoin.RightTbl() == nil || fnJoin.RightTbl().TblName() == "" {
 		return "", nil, errz.Errorf("JOIN is missing right table reference")
 	}
 
-	if fnJoin.LeftTbl().Handle != fnJoin.RightTbl().Handle {
+	if fnJoin.LeftTbl().Handle() != fnJoin.RightTbl().Handle() {
 		return ng.crossSourceJoin(ctx, fnJoin)
 	}
 
@@ -179,7 +179,7 @@ func (ng *engine) buildJoinFromClause(ctx context.Context, fnJoin *ast.JoinNode)
 func (ng *engine) singleSourceJoin(ctx context.Context, fnJoin *ast.JoinNode) (fromClause string,
 	fromDB driver.Database, err error,
 ) {
-	src, err := ng.srcs.Get(fnJoin.LeftTbl().Handle)
+	src, err := ng.srcs.Get(fnJoin.LeftTbl().Handle())
 	if err != nil {
 		return "", nil, err
 	}
@@ -203,18 +203,18 @@ func (ng *engine) singleSourceJoin(ctx context.Context, fnJoin *ast.JoinNode) (f
 func (ng *engine) crossSourceJoin(ctx context.Context, fnJoin *ast.JoinNode) (fromClause string, fromDB driver.Database,
 	err error,
 ) {
-	leftTblName, rightTblName := fnJoin.LeftTbl().TblName, fnJoin.RightTbl().TblName
+	leftTblName, rightTblName := fnJoin.LeftTbl().TblName(), fnJoin.RightTbl().TblName()
 	if leftTblName == rightTblName {
 		return "", nil, errz.Errorf("JOIN tables must have distinct names (or use aliases): duplicate tbl name %q",
-			fnJoin.LeftTbl().TblName)
+			fnJoin.LeftTbl().TblName())
 	}
 
-	leftSrc, err := ng.srcs.Get(fnJoin.LeftTbl().Handle)
+	leftSrc, err := ng.srcs.Get(fnJoin.LeftTbl().Handle())
 	if err != nil {
 		return "", nil, err
 	}
 
-	rightSrc, err := ng.srcs.Get(fnJoin.RightTbl().Handle)
+	rightSrc, err := ng.srcs.Get(fnJoin.RightTbl().Handle())
 	if err != nil {
 		return "", nil, err
 	}

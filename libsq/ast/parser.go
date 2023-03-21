@@ -118,9 +118,10 @@ type parseTreeVisitor struct {
 	log lg.Log
 
 	// cur is the currently-active node of the AST.
+	// This value is modified as the tree is descended.
 	cur Node
 
-	AST *AST
+	ast *AST
 }
 
 // using is a convenience function that sets v.cur to cur,
@@ -199,10 +200,10 @@ func (v *parseTreeVisitor) VisitChildren(ctx antlr.RuleNode) any {
 
 // VisitQuery implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitQuery(ctx *slq.QueryContext) any {
-	v.AST = &AST{}
-	v.AST.ctx = ctx
-	v.AST.text = ctx.GetText()
-	v.cur = v.AST
+	v.ast = &AST{}
+	v.ast.ctx = ctx
+	v.ast.text = ctx.GetText()
+	v.cur = v.ast
 
 	for _, seg := range ctx.AllSegment() {
 		err := v.VisitSegment(seg.(*slq.SegmentContext))
@@ -224,20 +225,24 @@ func (v *parseTreeVisitor) VisitHandle(ctx *slq.HandleContext) any {
 
 // VisitHandleTable implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitHandleTable(ctx *slq.HandleTableContext) any {
-	tblSel := &TblSelectorNode{}
-	tblSel.parent = v.cur
-	tblSel.ctx = ctx
+	selNode := &TblSelectorNode{}
+	selNode.parent = v.cur
+	selNode.ctx = ctx
 
-	tblSel.Handle = ctx.HANDLE().GetText()
-	tblSel.TblName = ctx.NAME().GetText()[1:]
+	selNode.handle = ctx.HANDLE().GetText()
 
-	return v.cur.AddChild(tblSel)
+	var err error
+	if selNode.tblName, err = extractSelVal(ctx.NAME()); err != nil {
+		return err
+	}
+
+	return v.cur.AddChild(selNode)
 }
 
 // VisitSegment implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitSegment(ctx *slq.SegmentContext) any {
-	seg := newSegmentNode(v.AST, ctx)
-	v.AST.AddSegment(seg)
+	seg := newSegmentNode(v.ast, ctx)
+	v.ast.AddSegment(seg)
 	v.cur = seg
 
 	return v.VisitChildren(ctx)
@@ -249,15 +254,23 @@ func newSelectorNode(parent Node, ctx slq.ISelectorContext) (*SelectorNode, erro
 	selNode.ctx = ctx
 	selNode.text = ctx.GetText()
 
+	var err error
 	names := ctx.AllNAME()
 	switch len(names) {
 	default:
-		return nil, errorf("expected 1 or 2 names in selector but got %d: %s", len(names), ctx.GetText())
+		return nil, errorf("expected 1 or 2 name parts in selector (e.g. '.table.column') but got %d parts: %s",
+			len(names), ctx.GetText())
 	case 1:
-		selNode.name0 = names[0].GetText()
+		if selNode.name0, err = extractSelVal(names[0]); err != nil {
+			return nil, err
+		}
 	case 2:
-		selNode.name0 = names[0].GetText()
-		selNode.name1 = names[1].GetText()
+		if selNode.name0, err = extractSelVal(names[0]); err != nil {
+			return nil, err
+		}
+		if selNode.name1, err = extractSelVal(names[1]); err != nil {
+			return nil, err
+		}
 	}
 
 	return selNode, nil

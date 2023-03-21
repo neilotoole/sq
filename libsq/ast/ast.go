@@ -5,6 +5,8 @@
 package ast
 
 import (
+	"reflect"
+
 	"github.com/antlr/antlr4/runtime/Go/antlr/v4"
 
 	"github.com/neilotoole/lg"
@@ -35,38 +37,32 @@ func buildAST(log lg.Log, query slq.IQueryContext) (*AST, error) {
 		return nil, errorf("unable to convert %T to *parser.QueryContext", query)
 	}
 
-	v := &parseTreeVisitor{log: log}
+	tree := &parseTreeVisitor{log: log}
 
-	// Accept returns an interface{} instead of error (but it's always an error?)
-	if err := q.Accept(v); err != nil {
+	if err := q.Accept(tree); err != nil {
 		return nil, err.(error)
 	}
 
-	if err := NewWalker(log, v.AST).AddVisitor(typeSelectorNode, narrowTblColSel).Walk(); err != nil {
-		return nil, err
+	visitors := []struct {
+		typ reflect.Type
+		fn  nodeVisitorFn
+	}{
+		{typeSelectorNode, narrowTblSel},
+		{typeSelectorNode, narrowTblColSel},
+		{typeSelectorNode, narrowColSel},
+		{typeJoinNode, determineJoinTables},
+		{typeRowRangeNode, visitCheckRowRange},
+		{typeExprNode, findWhereClause},
 	}
 
-	if err := NewWalker(log, v.AST).AddVisitor(typeSelectorNode, narrowTblSel).Walk(); err != nil {
-		return nil, err
+	for _, visitor := range visitors {
+		w := NewWalker(log, tree.ast).AddVisitor(visitor.typ, visitor.fn)
+		if err := w.Walk(); err != nil {
+			return nil, err
+		}
 	}
 
-	if err := NewWalker(log, v.AST).AddVisitor(typeSelectorNode, narrowColSel).Walk(); err != nil {
-		return nil, err
-	}
-
-	if err := NewWalker(log, v.AST).AddVisitor(typeJoinNode, determineJoinTables).Walk(); err != nil {
-		return nil, err
-	}
-
-	if err := NewWalker(log, v.AST).AddVisitor(typeRowRangeNode, visitCheckRowRange).Walk(); err != nil {
-		return nil, err
-	}
-
-	if err := NewWalker(log, v.AST).AddVisitor(typeExprNode, findWhereClause).Walk(); err != nil {
-		return nil, err
-	}
-
-	return v.AST, nil
+	return tree.ast, nil
 }
 
 var _ Node = (*AST)(nil)

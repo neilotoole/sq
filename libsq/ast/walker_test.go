@@ -51,5 +51,5 @@ func TestWalker(t *testing.T) {
 	err = walker.Walk()
 	assert.Nil(t, err)
 	assert.Equal(t, 2, countA)
-	assert.Equal(t, 5, countB)
+	assert.Equal(t, 3, countB)
 }
