@@ -469,7 +469,7 @@ func TestDatabase_SourceMetadata(t *testing.T) {
 }
 
 func TestSQLDriver_AlterTableAddColumn(t *testing.T) {
-	testCases := []string{sakila.SL3, sakila.Pg, sakila.MS}
+	testCases := []string{sakila.SL3, sakila.Pg, sakila.MS, sakila.My8}
 
 	for _, handle := range testCases {
 		handle := handle
@@ -495,6 +495,35 @@ func TestSQLDriver_AlterTableAddColumn(t *testing.T) {
 
 			gotKinds := sink.RecMeta.Kinds()
 			require.Equal(t, wantKinds, gotKinds)
+		})
+	}
+}
+
+func TestSQLDriver_CurrentSchema(t *testing.T) {
+	testCases := []struct {
+		handle string
+		want   string
+	}{
+		{sakila.SL3, "main"},
+		{sakila.Pg, "public"},
+		{sakila.My, "sakila"},
+		{sakila.MS, "dbo"},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+
+		t.Run(tc.handle, func(t *testing.T) {
+			th, _, dbase, drvr := testh.NewWith(t, tc.handle)
+
+			got, err := drvr.CurrentSchema(th.Context, dbase.DB())
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got)
+
+			md, err := dbase.SourceMetadata(th.Context)
+			require.NoError(t, err)
+			require.NotNil(t, md)
+			require.Equal(t, md.Schema, got)
 		})
 	}
 }

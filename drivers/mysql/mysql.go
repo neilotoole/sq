@@ -45,11 +45,35 @@ func (p *Provider) DriverFor(typ source.Type) (driver.Driver, error) {
 	return &driveri{log: p.Log}, nil
 }
 
-var _ driver.Driver = (*driveri)(nil)
+var _ driver.SQLDriver = (*driveri)(nil)
 
 // driveri is the MySQL implementation of driver.Driver.
 type driveri struct {
 	log lg.Log
+}
+
+// CurrentSchema implements driver.SQLDriver.
+func (d *driveri) CurrentSchema(ctx context.Context, db sqlz.DB) (string, error) {
+	var name string
+	if err := db.QueryRowContext(ctx, `SELECT DATABASE()`).Scan(&name); err != nil {
+		return "", errz.Err(err)
+	}
+
+	return name, nil
+}
+
+// AlterTableRename implements driver.SQLDriver.
+func (d *driveri) AlterTableRename(ctx context.Context, db sqlz.DB, tbl, newName string) error {
+	q := fmt.Sprintf("RENAME TABLE `%s` TO `%s`", tbl, newName)
+	_, err := db.ExecContext(ctx, q)
+	return errz.Wrapf(err, "alter table: failed to rename table %q to %q", tbl, newName)
+}
+
+// AlterTableRenameColumn implements driver.SQLDriver.
+func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, col, newName string) error {
+	q := fmt.Sprintf("ALTER TABLE `%s` RENAME COLUMN `%s` TO `%s`", tbl, col, newName)
+	_, err := db.ExecContext(ctx, q)
+	return errz.Wrapf(err, "alter table: failed to rename column {%s.%s} to {%s}", tbl, col, newName)
 }
 
 // DriverMetadata implements driver.Driver.
@@ -102,7 +126,7 @@ func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *sqlmodel.
 }
 
 // AlterTableAddColumn implements driver.SQLDriver.
-func (d *driveri) AlterTableAddColumn(ctx context.Context, db *sql.DB, tbl, col string, knd kind.Kind) error {
+func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl, col string, knd kind.Kind) error {
 	q := fmt.Sprintf("ALTER TABLE %q ADD COLUMN %q ", tbl, col) + dbTypeNameFromKind(knd)
 
 	_, err := db.ExecContext(ctx, q)
@@ -183,7 +207,7 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable 
 
 // TableExists implements driver.SQLDriver.
 func (d *driveri) TableExists(ctx context.Context, db sqlz.DB, tbl string) (bool, error) {
-	const query = `SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = ?`
+	const query = `SELECT COUNT(*) FROM information_schema.tables WHERE table_name = ?`
 
 	var count int64
 	err := db.QueryRowContext(ctx, query, tbl).Scan(&count)
@@ -199,7 +223,7 @@ func (d *driveri) DropTable(ctx context.Context, db sqlz.DB, tbl string, ifExist
 	var stmt string
 
 	if ifExists {
-		stmt = fmt.Sprintf("DROP TABLE IF EXISTS `%s` RESTRICT", tbl)
+		stmt = fmt.Sprintf("DROP TABLE if EXISTS `%s` RESTRICT", tbl)
 	} else {
 		stmt = fmt.Sprintf("DROP TABLE `%s` RESTRICT", tbl)
 	}

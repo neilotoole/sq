@@ -83,6 +83,9 @@ type SQLDriver interface {
 	// SQLBuilder returns the SQL builder for this driver.
 	SQLBuilder() (sqlbuilder.FragmentBuilder, sqlbuilder.QueryBuilder)
 
+	// CurrentSchema returns the current schema name.
+	CurrentSchema(ctx context.Context, db sqlz.DB) (string, error)
+
 	// TableColumnTypes returns the column type info from
 	// the SQL driver. If len(colNames) is 0, info is returned
 	// for all columns in the table.
@@ -150,10 +153,16 @@ type SQLDriver interface {
 	// or equivalent clause is added, if supported.
 	DropTable(ctx context.Context, db sqlz.DB, tbl string, ifExists bool) error
 
+	// AlterTableRename renames a table.
+	AlterTableRename(ctx context.Context, db sqlz.DB, tbl, newName string) error
+
 	// AlterTableAddColumn adds column col to tbl. The column is appended
 	// to the list of columns (that is, the column position cannot be
 	// specified).
-	AlterTableAddColumn(ctx context.Context, db *sql.DB, tbl, col string, kind kind.Kind) error
+	AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl, col string, knd kind.Kind) error
+
+	// AlterTableRenameColumn renames a column.
+	AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, col, newName string) error
 }
 
 // Database models a database handle. It is conceptually equivalent to

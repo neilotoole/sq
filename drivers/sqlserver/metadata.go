@@ -106,7 +106,7 @@ func setScanType(ct *sqlz.ColumnTypeData, knd kind.Kind) {
 }
 
 func getSourceMetadata(ctx context.Context, log lg.Log, src *source.Source, db sqlz.DB) (*source.Metadata, error) {
-	const query = `SELECT DB_NAME(), SCHEMA_NAME(), SERVERPROPERTY('ProductVersion'), @@VERSION,
+	const query = `SELECT db_name(), schema_name(), serverproperty('ProductVersion'), @@version,
 (SELECT SUM(size) * 8192
 FROM sys.master_files WITH(NOWAIT)
 WHERE database_id = DB_ID()
@@ -125,6 +125,7 @@ GROUP BY database_id) AS total_size_bytes`
 
 	md.Name = catalog
 	md.FQName = catalog + "." + schema
+	md.Schema = schema
 
 	tblNames, tblTypes, err := getAllTables(ctx, log, db)
 	if err != nil {
@@ -284,9 +285,9 @@ func getTableMetadata(ctx context.Context, log lg.Log, db sqlz.DB,
 // getAllTables returns all of the table names, and the table types
 // (i.e. "BASE TABLE" or "VIEW").
 func getAllTables(ctx context.Context, log lg.Log, db sqlz.DB) (tblNames, tblTypes []string, err error) {
-	const query = `SELECT TABLE_NAME, TABLE_TYPE FROM INFORMATION_SCHEMA.TABLES
-WHERE TABLE_TYPE='BASE TABLE' OR TABLE_TYPE='VIEW'
-ORDER BY TABLE_NAME ASC, TABLE_TYPE ASC`
+	const query = `SELECT table_name, table_type FROM information_schema.tables
+WHERE table_type='BASE TABLE' OR table_type='VIEW'
+ORDER BY table_name ASC, table_type ASC`
 
 	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
@@ -318,16 +319,16 @@ func getColumnMeta(ctx context.Context, log lg.Log, db sqlz.DB, tblCatalog, tblS
 	// TODO: sq doesn't use all of these columns, no need to select them all.
 
 	const query = `SELECT
-		TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME,
-		COLUMN_NAME, ORDINAL_POSITION, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE,
-		CHARACTER_MAXIMUM_LENGTH, CHARACTER_OCTET_LENGTH,
-		NUMERIC_PRECISION, NUMERIC_PRECISION_RADIX, NUMERIC_SCALE,
-		DATETIME_PRECISION,
-		CHARACTER_SET_CATALOG, CHARACTER_SET_SCHEMA, CHARACTER_SET_NAME,
-		COLLATION_CATALOG, COLLATION_SCHEMA, COLLATION_NAME,
-		DOMAIN_CATALOG, DOMAIN_SCHEMA, DOMAIN_NAME
-	FROM INFORMATION_SCHEMA.COLUMNS
-	WHERE TABLE_CATALOG = @p1 AND TABLE_SCHEMA = @p2 AND TABLE_NAME = @p3`
+		table_catalog, table_schema, table_name,
+		column_name, ordinal_position, column_default, is_nullable, data_type,
+		character_maximum_length, character_octet_length,
+		numeric_precision, numeric_precision_radix, numeric_scale,
+		datetime_precision,
+		character_set_catalog, character_set_schema, character_set_name,
+		collation_catalog, collation_schema, collation_name,
+		domain_catalog, domain_schema, domain_name
+	FROM information_schema.columns
+	WHERE table_catalog = @p1 AND table_schema = @p2 AND table_name = @p3`
 
 	rows, err := db.QueryContext(ctx, query, tblCatalog, tblSchema, tblName)
 	if err != nil {
@@ -362,16 +363,16 @@ func getColumnMeta(ctx context.Context, log lg.Log, db sqlz.DB, tblCatalog, tblS
 func getConstraints(ctx context.Context, log lg.Log, db sqlz.DB,
 	tblCatalog, tblSchema, tblName string,
 ) ([]constraintMeta, error) {
-	const query = `SELECT kcu.TABLE_CATALOG, kcu.TABLE_SCHEMA, kcu.TABLE_NAME,  tc.CONSTRAINT_TYPE,
-       kcu.COLUMN_NAME, kcu.CONSTRAINT_NAME
-		FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS tc
-		  JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS kcu
-			ON tc.TABLE_NAME = kcu.TABLE_NAME
-			   AND tc.CONSTRAINT_CATALOG = kcu.CONSTRAINT_CATALOG
-			   AND tc.CONSTRAINT_SCHEMA = kcu.CONSTRAINT_SCHEMA
-			   AND tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
-		WHERE tc.TABLE_CATALOG = @p1 AND tc.TABLE_SCHEMA = @p2 AND tc.TABLE_NAME = @p3
-		ORDER BY kcu.TABLE_NAME, tc.CONSTRAINT_TYPE, kcu.CONSTRAINT_NAME`
+	const query = `SELECT kcu.table_catalog, kcu.table_schema, kcu.table_name,  tc.constraint_type,
+       kcu.column_name, kcu.constraint_name
+		FROM information_schema.table_constraints AS tc
+		  JOIN information_schema.key_column_usage AS kcu
+			ON tc.table_name = kcu.table_name
+			   AND tc.constraint_catalog = kcu.constraint_catalog
+			   AND tc.constraint_schema = kcu.constraint_schema
+			   AND tc.constraint_name = kcu.constraint_name
+		WHERE tc.table_catalog = @p1 AND tc.table_schema = @p2 AND tc.table_name = @p3
+		ORDER BY kcu.table_name, tc.constraint_type, kcu.constraint_name`
 
 	rows, err := db.QueryContext(ctx, query, tblCatalog, tblSchema, tblName)
 	if err != nil {

@@ -135,7 +135,7 @@ func getNewRecordFunc(rowMeta sqlz.RecordMeta) driver.NewRecordFunc {
 // getTableMetadata gets the metadata for a single table. It is the
 // implementation of driver.Database.TableMetadata.
 func getTableMetadata(ctx context.Context, log lg.Log, db sqlz.DB, tblName string) (*source.TableMetadata, error) {
-	query := `SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, TABLE_COMMENT, (DATA_LENGTH + INDEX_LENGTH) AS table_size,
+	query := `SELECT table_schema, table_name, table_type, table_comment, (data_length + index_length) AS table_size,
 (SELECT COUNT(*) FROM ` + "`" + tblName + "`" + `) AS row_count
 FROM information_schema.TABLES
 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`
@@ -170,7 +170,7 @@ func getColumnMetadata(ctx context.Context, log lg.Log, db sqlz.DB, tblName stri
 	const query = `SELECT column_name, data_type, column_type, ordinal_position, column_default,
        is_nullable, column_key, column_comment, extra
 FROM information_schema.columns cols
-WHERE cols.TABLE_SCHEMA = DATABASE() AND cols.TABLE_NAME = ?
+WHERE cols.table_schema = database() AND cols.table_name = ?
 ORDER BY cols.ordinal_position ASC`
 
 	rows, err := db.QueryContext(ctx, query, tblName)
@@ -260,10 +260,10 @@ func getSourceMetadata(ctx context.Context, log lg.Log, src *source.Source, db s
 }
 
 func setSourceSummaryMeta(ctx context.Context, db sqlz.DB, md *source.Metadata) error {
-	const summaryQuery = `SELECT @@GLOBAL.version, @@GLOBAL.version_comment, @@GLOBAL.version_compile_os,
-       @@GLOBAL.version_compile_machine, DATABASE(), CURRENT_USER(),
+	const summaryQuery = `SELECT @@global.version, @@global.version_comment, @@global.version_compile_os,
+       @@global.version_compile_machine, database(), CURRENT_USER(),
        (SELECT SUM( data_length + index_length )
-        FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE()) AS size`
+        FROM information_schema.tables WHERE table_schema = database()) AS size`
 
 	var version, versionComment, versionOS, versionArch, schema string
 	err := db.QueryRowContext(ctx, summaryQuery).Scan(&version, &versionComment, &versionOS, &versionArch, &schema,
@@ -273,6 +273,7 @@ func setSourceSummaryMeta(ctx context.Context, db sqlz.DB, md *source.Metadata) 
 	}
 
 	md.Name = schema
+	md.Schema = schema
 	md.FQName = schema
 	md.DBVersion = version
 	md.DBProduct = fmt.Sprintf("%s %s / %s (%s)", versionComment, version, versionOS, versionArch)
@@ -307,17 +308,17 @@ func getDBVarsMeta(ctx context.Context, log lg.Log, db sqlz.DB) ([]source.DBVar,
 
 // getAllTblMetas returns TableMetadata for each table/view in db.
 func getAllTblMetas(ctx context.Context, log lg.Log, db sqlz.DB) ([]*source.TableMetadata, error) {
-	const query = `SELECT t.TABLE_SCHEMA, t.TABLE_NAME, t.TABLE_TYPE, t.TABLE_COMMENT,
-       (DATA_LENGTH + INDEX_LENGTH) AS table_size,
-       c.COLUMN_NAME, c.ORDINAL_POSITION, c.COLUMN_KEY, c.DATA_TYPE, c.COLUMN_TYPE,
-       c.IS_NULLABLE, c.COLUMN_DEFAULT, c.COLUMN_COMMENT, c.EXTRA
-FROM information_schema.TABLES t
-         LEFT JOIN information_schema.COLUMNS c
-                   ON c.TABLE_CATALOG = t.TABLE_CATALOG
-                       AND c.TABLE_SCHEMA = t.TABLE_SCHEMA
-                       AND c.TABLE_NAME = t.TABLE_NAME
-WHERE t.TABLE_SCHEMA = DATABASE()
-ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
+	const query = `SELECT t.table_schema, t.table_name, t.table_type, t.table_comment,
+       (data_length + index_length) AS table_size,
+       c.column_name, c.ordinal_position, c.column_key, c.data_type, c.column_type,
+       c.is_nullable, c.column_default, c.column_comment, c.extra
+FROM information_schema.tables t
+         LEFT JOIN information_schema.columns c
+                   ON c.table_catalog = t.table_catalog
+                       AND c.table_schema = t.table_schema
+                       AND c.table_name = t.table_name
+WHERE t.table_schema = database()
+ORDER BY c.table_name ASC, c.ordinal_position ASC`
 
 	//nolint:lll
 	// Query results look like:

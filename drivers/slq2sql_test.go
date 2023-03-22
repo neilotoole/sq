@@ -132,6 +132,10 @@ func TestSLQ2SQLNew(t *testing.T) {
 
 					th := testh.New(t)
 					dbases := th.Databases()
+
+					// drvr := th.DriverFor(src).(driver.SQLDriver)
+					// drvr.AlterTableAddColumn()
+
 					gotSQL, gotErr := libsq.SLQ2SQL(th.Context, th.Log, dbases, dbases, srcs, in)
 					if tc.wantErr {
 						require.Error(t, gotErr)
