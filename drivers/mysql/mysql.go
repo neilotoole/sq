@@ -207,7 +207,7 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable 
 
 // TableExists implements driver.SQLDriver.
 func (d *driveri) TableExists(ctx context.Context, db sqlz.DB, tbl string) (bool, error) {
-	const query = `SELECT COUNT(*) FROM information_schema.tables WHERE table_name = ?`
+	const query = `SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = ?`
 
 	var count int64
 	err := db.QueryRowContext(ctx, query, tbl).Scan(&count)
@@ -223,7 +223,7 @@ func (d *driveri) DropTable(ctx context.Context, db sqlz.DB, tbl string, ifExist
 	var stmt string
 
 	if ifExists {
-		stmt = fmt.Sprintf("DROP TABLE if EXISTS `%s` RESTRICT", tbl)
+		stmt = fmt.Sprintf("DROP TABLE IF EXISTS `%s` RESTRICT", tbl)
 	} else {
 		stmt = fmt.Sprintf("DROP TABLE `%s` RESTRICT", tbl)
 	}
