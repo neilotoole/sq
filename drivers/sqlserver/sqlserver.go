@@ -319,7 +319,7 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable 
 	if copyData {
 		stmt = fmt.Sprintf("SELECT * INTO %q FROM %q", toTable, fromTable)
 	} else {
-		stmt = fmt.Sprintf("SELECT top(0) * INTO %q FROM %q", toTable, fromTable)
+		stmt = fmt.Sprintf("SELECT TOP(0) * INTO %q FROM %q", toTable, fromTable)
 	}
 
 	affected, err := sqlz.ExecAffected(ctx, db, stmt)
@@ -459,9 +459,9 @@ func (d *database) Source() *source.Source {
 
 // TableMetadata implements driver.Database.
 func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
-	const query = `SELECT table_catalog, table_schema, table_type
-FROM information_schema.tables
-WHERE table_name = @p1`
+	const query = `SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_TYPE
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME = @p1`
 
 	var catalog, schema, tblType string
 	err := d.db.QueryRowContext(ctx, query, tblName).Scan(&catalog, &schema, &tblType)
