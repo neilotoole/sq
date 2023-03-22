@@ -16,6 +16,7 @@ const (
 	TSVActor         = "@sakila_tsv_actor"
 	TSVActorNoHeader = "@sakila_tsv_actor_noheader"
 	SL3              = "@sakila_sl3"
+	SL3Whitespace    = "@sakila_sl3_whitespace"
 	Pg9              = "@sakila_pg9"
 	Pg10             = "@sakila_pg10"
 	Pg11             = "@sakila_pg11"
@@ -153,6 +154,7 @@ const (
 // Paths for sakila resources.
 const (
 	PathSL3              = "drivers/sqlite3/testdata/sakila.db"
+	PathSL3Whitespace    = "drivers/sqlite3/testdata/sakila-whitespace.db"
 	PathXLSX             = "drivers/xlsx/testdata/sakila.xlsx"
 	PathXLSXSubset       = "drivers/xlsx/testdata/sakila_subset.xlsx"
 	PathXLSXActorHeader  = "drivers/xlsx/testdata/sakila_actor_header.xlsx"

@@ -14,15 +14,15 @@ func TestColumnAlias(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
-		in        string
-		wantErr   bool
-		wantExpr  string
-		wantAlias string
+		in          string
+		wantErr     bool
+		wantColName string
+		wantAlias   string
 	}{
 		{
-			in:        `@sakila | .actor | .first_name:given_name`,
-			wantExpr:  "first_name",
-			wantAlias: "given_name",
+			in:          `@sakila | .actor | .first_name:given_name`,
+			wantColName: "first_name",
+			wantAlias:   "given_name",
 		},
 	}
 
@@ -42,13 +42,12 @@ func TestColumnAlias(t *testing.T) {
 			require.NoError(t, err)
 
 			insp := NewInspector(log, ast)
-			nodes := insp.FindNodes(typeColSelector)
+			nodes := insp.FindNodes(typeColSelectorNode)
 			require.Equal(t, 1, len(nodes))
-			colSel, ok := nodes[0].(*ColSelector)
+			colSel, ok := nodes[0].(*ColSelectorNode)
 			require.True(t, ok)
-			expr, _ := colSel.ColExpr()
 
-			require.Equal(t, tc.wantExpr, expr)
+			require.Equal(t, tc.wantColName, colSel.ColName())
 			require.Equal(t, tc.wantAlias, colSel.Alias())
 		})
 	}

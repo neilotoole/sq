@@ -80,29 +80,35 @@ func (s *BaseSLQListener) EnterGroup(ctx *GroupContext) {}
 // ExitGroup is called when production group is exited.
 func (s *BaseSLQListener) ExitGroup(ctx *GroupContext) {}
 
+// EnterSelector is called when production selector is entered.
+func (s *BaseSLQListener) EnterSelector(ctx *SelectorContext) {}
+
+// ExitSelector is called when production selector is exited.
+func (s *BaseSLQListener) ExitSelector(ctx *SelectorContext) {}
+
+// EnterSelectorElement is called when production selectorElement is entered.
+func (s *BaseSLQListener) EnterSelectorElement(ctx *SelectorElementContext) {}
+
+// ExitSelectorElement is called when production selectorElement is exited.
+func (s *BaseSLQListener) ExitSelectorElement(ctx *SelectorElementContext) {}
+
 // EnterAlias is called when production alias is entered.
 func (s *BaseSLQListener) EnterAlias(ctx *AliasContext) {}
 
 // ExitAlias is called when production alias is exited.
 func (s *BaseSLQListener) ExitAlias(ctx *AliasContext) {}
 
-// EnterSelElement is called when production selElement is entered.
-func (s *BaseSLQListener) EnterSelElement(ctx *SelElementContext) {}
+// EnterHandleTable is called when production handleTable is entered.
+func (s *BaseSLQListener) EnterHandleTable(ctx *HandleTableContext) {}
 
-// ExitSelElement is called when production selElement is exited.
-func (s *BaseSLQListener) ExitSelElement(ctx *SelElementContext) {}
+// ExitHandleTable is called when production handleTable is exited.
+func (s *BaseSLQListener) ExitHandleTable(ctx *HandleTableContext) {}
 
-// EnterDsTblElement is called when production dsTblElement is entered.
-func (s *BaseSLQListener) EnterDsTblElement(ctx *DsTblElementContext) {}
+// EnterHandle is called when production handle is entered.
+func (s *BaseSLQListener) EnterHandle(ctx *HandleContext) {}
 
-// ExitDsTblElement is called when production dsTblElement is exited.
-func (s *BaseSLQListener) ExitDsTblElement(ctx *DsTblElementContext) {}
-
-// EnterDsElement is called when production dsElement is entered.
-func (s *BaseSLQListener) EnterDsElement(ctx *DsElementContext) {}
-
-// ExitDsElement is called when production dsElement is exited.
-func (s *BaseSLQListener) ExitDsElement(ctx *DsElementContext) {}
+// ExitHandle is called when production handle is exited.
+func (s *BaseSLQListener) ExitHandle(ctx *HandleContext) {}
 
 // EnterRowRange is called when production rowRange is entered.
 func (s *BaseSLQListener) EnterRowRange(ctx *RowRangeContext) {}

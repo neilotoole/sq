@@ -2,7 +2,6 @@
 // The grammar is not yet finalized; it is subject to change in any new sq release.
 grammar SLQ;
 
-// "@mysql_db1 | .user, .address | join(.user.uid == .address.uid) | .[0:3] | .uid, .username, .country"
 stmtList: ';'* query ( ';'+ query)* ';'*;
 
 query: segment ('|' segment)*;
@@ -10,17 +9,17 @@ query: segment ('|' segment)*;
 segment: (element) (',' element)*;
 
 element:
-	dsTblElement
-	| dsElement
-	| selElement
+	handleTable
+	| handle
+	| selectorElement
 	| join
 	| group
 	| rowRange
 	| fnElement
 	| expr;
 
+// cmpr is a comparison operator.
 cmpr: LT_EQ | LT | GT_EQ | GT | EQ | NEQ;
-
 
 fn: fnName '(' ( expr ( ',' expr)* | '*')? ')';
 
@@ -29,29 +28,52 @@ fnElement: fn (alias)?;
 join: ('join' | 'JOIN' | 'j') '(' joinConstraint ')';
 
 joinConstraint:
-	SEL cmpr SEL // .user.uid == .address.userid
-	| SEL ; // .uid
+	selector cmpr selector // .user.uid == .address.userid
+	| selector ; // .uid
 
-group: ('group' | 'GROUP' | 'g') '(' SEL (',' SEL)* ')';
+group: ('group' | 'GROUP' | 'g') '(' selector (',' selector)* ')';
+
+// selector specfies a table name, a column name, or table.column.
+// - .first_name
+// - ."first name"
+// - .actor
+// - ."actor"
+// - .actor.first_name
+selector: NAME (NAME)?;
+
+// selector is a selector element.
+// - .first_name
+// - ."first name"
+// - .first_name:given_name
+// - ."first name":given_name
+// - .actor.first_name
+// - .actor.first_name:given_name
+// - ."actor".first_name
+selectorElement: selector (alias)?;
 
 // alias, for columns, implements "col AS alias".
 // For example: ".first_name:given_name" : "given_name" is the alias.
 alias: ':' ID;
 
-selElement: SEL (alias)?;
 
-dsTblElement:
-    // dsTblElement is a data source table element. This is a data
-    // source with followed by a table.
-    // - @my1.user
-	DATASOURCE SEL;
 
-dsElement:
-    // dsElement is a data source element, e.g. @my1
-    DATASOURCE;
 
-// [] select all rows [10] select row 10 [10:15] select rows 10 thru 15 [0:15] select rows 0 thru 15
-// [:15] same as above (0 thru 15) [10:] select all rows from 10 onwards
+
+// handleTable is a handle.table pair.
+// - @my1.user
+handleTable: HANDLE NAME;
+
+// handle is a source handle.
+// - @sakila
+handle: HANDLE;
+
+// rowRange specifies a range of rows. It gets turned into
+// a SQL "LIMIT x OFFSET y".
+// - [] select all rows
+// - [10] select row 10
+// - [10:15] select rows 10 thru 15
+// - [0:15] select rows 0 thru 15
+// - [:15] same as above (0 thru 15) [10:] select all rows from 10 onwards
 rowRange:
 	'.[' (
 		NN COLON NN // [10:15]
@@ -71,7 +93,7 @@ fnName:
 	| 'WHERE';
 
 expr:
-	SEL
+	selector
 	| literal
 	| unaryOperator expr
 	| expr '||' expr
@@ -82,7 +104,7 @@ expr:
 	| expr ( '==' | '!=' |) expr
 	| expr '&&' expr
 	| fn
-	; // | fnName '(' ( expr ( ',' expr )* | '*' )? ')'
+	;
 
 literal: NN | NUMBER | STRING | NULL;
 
@@ -99,16 +121,19 @@ PIPE: '|';
 COLON: ':';
 NULL: 'null' | 'NULL';
 
-NN: INTF; // NN: Natural Number {0,1,2,3, ...}
+// NN: Natural Number {0,1,2,3, ...}
+NN: INTF;
 
 NUMBER:
 	NN
 	| '-'? INTF '.' [0-9]+ EXP? // 1.35, 1.35E-9, 0.3, -4.5
 	| '-'? INTF EXP // 1e10 -3e4
 	| '-'? INTF ; // -3, 45
+
 fragment INTF: '0' | [1-9] [0-9]*; // no leading zeros
+
 fragment EXP:
-	[Ee] [+\-]? INTF; // \- since - means "range" inside [...]
+	[Ee] [+\-]? INTF; // \- since "-" means "range" inside [...]
 
 LT_EQ: '<=';
 LT: '<';
@@ -117,12 +142,14 @@ GT: '>';
 NEQ: '!=';
 EQ: '==';
 
+NAME: '.' (ID | STRING);
 
+// SEL can be .THING or .THING.OTHERTHING.
+// It can also be ."some name".OTHERTHING, etc.
+//SEL: '.' (ID | STRING) ('.' (ID | STRING))*;
 
-SEL:
-	'.' ID ('.' ID)*; // SEL can be .THING or .THING.OTHERTHING etc.
-DATASOURCE:
-	'@' ID; // DS (Data Source): @mydb1 or @postgres_db2 etc.
+// HANDLE: @mydb1 or @postgres_db2 etc.
+HANDLE: '@' ID;
 
 STRING: '"' (ESC | ~["\\])* '"';
 fragment ESC: '\\' (["\\/bfnrt] | UNICODE);
@@ -162,3 +189,11 @@ fragment Y: [yY];
 fragment Z: [zZ];
 
 LINECOMMENT: '//' .*? '\n' -> skip;
+
+//// From https://github.com/antlr/grammars-v4/blob/master/sql/sqlite/SQLiteLexer.g4
+//IDENTIFIER:
+//    '"' (~'"' | '""')* '"'
+//    | '`' (~'`' | '``')* '`'
+//    | '[' ~']'* ']'
+//    | [A-Z_] [A-Z_0-9]*
+//; // TODO check: needs more chars in set

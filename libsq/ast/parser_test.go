@@ -58,7 +58,7 @@ func buildInitialAST(t *testing.T, input string) (*AST, error) {
 		return nil, err.(error)
 	}
 
-	return v.AST, nil
+	return v.ast, nil
 }
 
 // mustParse builds a full AST from the input SLQ, or fails on any error.
@@ -84,16 +84,21 @@ func TestSimpleQuery(t *testing.T) {
 }
 
 func TestParseBuild(t *testing.T) {
-	log := testlg.New(t).Strict(true)
-
 	for test, input := range slqInputs {
-		ptree, err := parseSLQ(log, input)
-		require.Nil(t, err, test)
-		require.NotNil(t, ptree, test)
+		test, input := test, input
 
-		ast, err := buildAST(log, ptree)
-		require.Nil(t, err, test)
-		require.NotNil(t, ast, test)
+		t.Run(test, func(t *testing.T) {
+			t.Logf(input)
+			log := testlg.New(t)
+
+			ptree, err := parseSLQ(log, input)
+			require.Nil(t, err)
+			require.NotNil(t, ptree)
+
+			ast, err := buildAST(log, ptree)
+			require.Nil(t, err)
+			require.NotNil(t, ast)
+		})
 	}
 }
 

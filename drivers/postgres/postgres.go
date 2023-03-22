@@ -182,8 +182,32 @@ func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *sqlmodel.
 	return errz.Err(err)
 }
 
+// CurrentSchema implements driver.SQLDriver.
+func (d *driveri) CurrentSchema(ctx context.Context, db sqlz.DB) (string, error) {
+	var name string
+	if err := db.QueryRowContext(ctx, `SELECT CURRENT_SCHEMA()`).Scan(&name); err != nil {
+		return "", errz.Err(err)
+	}
+
+	return name, nil
+}
+
+// AlterTableRename implements driver.SQLDriver.
+func (d *driveri) AlterTableRename(ctx context.Context, db sqlz.DB, tbl, newName string) error {
+	q := fmt.Sprintf(`ALTER TABLE %q RENAME TO %q`, tbl, newName)
+	_, err := db.ExecContext(ctx, q)
+	return errz.Wrapf(err, "alter table: failed to rename table {%s} to {%s}", tbl, newName)
+}
+
+// AlterTableRenameColumn implements driver.SQLDriver.
+func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, col, newName string) error {
+	q := fmt.Sprintf("ALTER TABLE %q RENAME COLUMN %q TO %q", tbl, col, newName)
+	_, err := db.ExecContext(ctx, q)
+	return errz.Wrapf(err, "alter table: failed to rename column {%s.%s} to {%s}", tbl, col, newName)
+}
+
 // AlterTableAddColumn implements driver.SQLDriver.
-func (d *driveri) AlterTableAddColumn(ctx context.Context, db *sql.DB, tbl, col string, knd kind.Kind) error {
+func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl, col string, knd kind.Kind) error {
 	q := fmt.Sprintf("ALTER TABLE %q ADD COLUMN %q ", tbl, col) + dbTypeNameFromKind(knd)
 
 	_, err := db.ExecContext(ctx, q)
@@ -383,7 +407,7 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 // returning the names of the table's columns in oridinal order.
 func getTableColumnNames(ctx context.Context, log lg.Log, db sqlz.DB, tblName string) ([]string, error) {
 	const query = `SELECT column_name FROM information_schema.columns
-	WHERE table_schema = current_schema()
+	WHERE table_schema = CURRENT_SCHEMA()
 	AND table_name = $1
 	ORDER BY ordinal_position`
 

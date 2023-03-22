@@ -3,6 +3,9 @@ sources:
     - handle: '@sakila_sl3'
       type: sqlite3
       location: sqlite3://${SQ_ROOT}/drivers/sqlite3/testdata/sakila.db
+    - handle: '@sakila_sl3_whitespace'
+      type: sqlite3
+      location: sqlite3://${SQ_ROOT}/drivers/sqlite3/testdata/sakila-whitespace.db
     - handle: '@sakila_pg9'
       type: postgres
       location: postgres://sakila:p_ssW0rd@${SQ_TEST_SRC__SAKILA_PG9}/sakila

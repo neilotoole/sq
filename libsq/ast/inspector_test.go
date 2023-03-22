@@ -14,7 +14,7 @@ func TestInspector_findSelectableSegments(t *testing.T) {
 	//  `@mydb1 | .user | .uid, .username`
 	ast, err := buildInitialAST(t, fixtSelect1)
 	require.Nil(t, err)
-	err = NewWalker(log, ast).AddVisitor(typeSelector, narrowTblSel).Walk()
+	err = NewWalker(log, ast).AddVisitor(typeSelectorNode, narrowTblSel).Walk()
 	require.Nil(t, err)
 
 	insp := NewInspector(log, ast)
@@ -31,7 +31,7 @@ func TestInspector_findSelectableSegments(t *testing.T) {
 	// `@mydb1 | .user, .address | join(.user.uid == .address.uid) | .uid, .username, .country`
 	ast, err = buildInitialAST(t, fixtJoinQuery1)
 	require.Nil(t, err)
-	err = NewWalker(log, ast).AddVisitor(typeSelector, narrowTblSel).Walk()
+	err = NewWalker(log, ast).AddVisitor(typeSelectorNode, narrowTblSel).Walk()
 	require.Nil(t, err)
 	insp = NewInspector(log, ast)
 

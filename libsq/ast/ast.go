@@ -5,6 +5,8 @@
 package ast
 
 import (
+	"reflect"
+
 	"github.com/antlr/antlr4/runtime/Go/antlr/v4"
 
 	"github.com/neilotoole/lg"
@@ -35,40 +37,32 @@ func buildAST(log lg.Log, query slq.IQueryContext) (*AST, error) {
 		return nil, errorf("unable to convert %T to *parser.QueryContext", query)
 	}
 
-	v := &parseTreeVisitor{log: log}
+	tree := &parseTreeVisitor{log: log}
 
-	// Accept returns an interface{} instead of error (but it's always an error?)
-	er := q.Accept(v)
-	if er != nil {
-		return nil, er.(error)
+	if err := q.Accept(tree); err != nil {
+		return nil, err.(error)
 	}
 
-	err := NewWalker(log, v.AST).AddVisitor(typeSelector, narrowTblSel).Walk()
-	if err != nil {
-		return nil, err
+	visitors := []struct {
+		typ reflect.Type
+		fn  nodeVisitorFn
+	}{
+		{typeSelectorNode, narrowTblSel},
+		{typeSelectorNode, narrowTblColSel},
+		{typeSelectorNode, narrowColSel},
+		{typeJoinNode, determineJoinTables},
+		{typeRowRangeNode, visitCheckRowRange},
+		{typeExprNode, findWhereClause},
 	}
 
-	err = NewWalker(log, v.AST).AddVisitor(typeSelector, narrowColSel).Walk()
-	if err != nil {
-		return nil, err
+	for _, visitor := range visitors {
+		w := NewWalker(log, tree.ast).AddVisitor(visitor.typ, visitor.fn)
+		if err := w.Walk(); err != nil {
+			return nil, err
+		}
 	}
 
-	err = NewWalker(log, v.AST).AddVisitor(typeJoin, determineJoinTables).Walk()
-	if err != nil {
-		return nil, err
-	}
-
-	err = NewWalker(log, v.AST).AddVisitor(typeRowRange, visitCheckRowRange).Walk()
-	if err != nil {
-		return nil, err
-	}
-
-	err = NewWalker(log, v.AST).AddVisitor(typeExpr, findWhereClause).Walk()
-	if err != nil {
-		return nil, err
-	}
-
-	return v.AST, nil
+	return tree.ast, nil
 }
 
 var _ Node = (*AST)(nil)
@@ -76,7 +70,8 @@ var _ Node = (*AST)(nil)
 // AST is the Abstract Syntax Tree. It is the root node of a SQL query/stmt.
 type AST struct {
 	ctx  *slq.QueryContext
-	segs []*Segment
+	segs []*SegmentNode
+	text string
 }
 
 func (a *AST) Parent() Node {
@@ -97,14 +92,14 @@ func (a *AST) Children() []Node {
 	return nodes
 }
 
-func (a *AST) Segments() []*Segment {
+func (a *AST) Segments() []*SegmentNode {
 	return a.segs
 }
 
 func (a *AST) AddChild(node Node) error {
-	seg, ok := node.(*Segment)
+	seg, ok := node.(*SegmentNode)
 	if !ok {
-		return errorf("expected *Segment but got: %T", node)
+		return errorf("expected *SegmentNode but got: %T", node)
 	}
 
 	a.AddSegment(seg)
@@ -112,12 +107,12 @@ func (a *AST) AddChild(node Node) error {
 }
 
 func (a *AST) SetChildren(children []Node) error {
-	segs := make([]*Segment, len(children))
+	segs := make([]*SegmentNode, len(children))
 
 	for i, child := range children {
-		seg, ok := child.(*Segment)
+		seg, ok := child.(*SegmentNode)
 		if !ok {
-			return errorf("expected child of type %s, but got: %T", typeSegment, child)
+			return errorf("expected child of type %s, but got: %T", typeSegmentNode, child)
 		}
 
 		segs[i] = seg
@@ -150,7 +145,7 @@ func (a *AST) Text() string {
 }
 
 // AddSegment appends seg to the AST.
-func (a *AST) AddSegment(seg *Segment) {
+func (a *AST) AddSegment(seg *SegmentNode) {
 	_ = seg.SetParent(a)
 	a.segs = append(a.segs, seg)
 }

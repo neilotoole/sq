@@ -561,9 +561,34 @@ func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *sqlmodel.
 	return errz.Err(stmt.Close())
 }
 
+// CurrentSchema implements driver.SQLDriver.
+func (d *driveri) CurrentSchema(ctx context.Context, db sqlz.DB) (string, error) {
+	const q = `SELECT name FROM pragma_database_list ORDER BY seq limit 1`
+	var name string
+	if err := db.QueryRowContext(ctx, q).Scan(&name); err != nil {
+		return "", errz.Err(err)
+	}
+
+	return name, nil
+}
+
+// AlterTableRename implements driver.SQLDriver.
+func (d *driveri) AlterTableRename(ctx context.Context, db sqlz.DB, tbl, newName string) error {
+	q := fmt.Sprintf(`ALTER TABLE %q RENAME TO %q`, tbl, newName)
+	_, err := db.ExecContext(ctx, q)
+	return errz.Wrapf(err, "alter table: failed to rename table {%s} to {%s}", tbl, newName)
+}
+
+// AlterTableRenameColumn implements driver.SQLDriver.
+func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, col, newName string) error {
+	q := fmt.Sprintf("ALTER TABLE %q RENAME COLUMN %q TO %q", tbl, col, newName)
+	_, err := db.ExecContext(ctx, q)
+	return errz.Wrapf(err, "alter table: failed to rename column {%s.%s} to {%s}", tbl, col, newName)
+}
+
 // AlterTableAddColumn implements driver.SQLDriver.
-func (d *driveri) AlterTableAddColumn(ctx context.Context, db *sql.DB, tbl, col string, kind kind.Kind) error {
-	q := fmt.Sprintf("ALTER TABLE %q ADD COLUMN %q ", tbl, col) + DBTypeForKind(kind)
+func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl, col string, knd kind.Kind) error {
+	q := fmt.Sprintf("ALTER TABLE %q ADD COLUMN %q ", tbl, col) + DBTypeForKind(knd)
 
 	_, err := db.ExecContext(ctx, q)
 	if err != nil {
@@ -575,7 +600,7 @@ func (d *driveri) AlterTableAddColumn(ctx context.Context, db *sql.DB, tbl, col 
 
 // TableExists implements driver.SQLDriver.
 func (d *driveri) TableExists(ctx context.Context, db sqlz.DB, tbl string) (bool, error) {
-	const query = `SELECT COUNT(*) FROM sqlite_master WHERE name = ? and type='table'`
+	const query = `SELECT COUNT(*) FROM sqlite_master WHERE name = ? AND type='table'`
 
 	var count int64
 	err := db.QueryRowContext(ctx, query, tbl).Scan(&count)
@@ -760,10 +785,9 @@ func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error)
 		return nil, err
 	}
 
-	const q = "SELECT sqlite_version(), (SELECT name FROM pragma_database_list ORDER BY seq LIMIT 1);"
+	const q = "SELECT sqlite_version(), (SELECT name FROM pragma_database_list ORDER BY seq limit 1);"
 
-	var schemaName string // typically "main"
-	err = d.DB().QueryRowContext(ctx, q).Scan(&meta.DBVersion, &schemaName)
+	err = d.DB().QueryRowContext(ctx, q).Scan(&meta.DBVersion, &meta.Schema)
 	if err != nil {
 		return nil, errz.Err(err)
 	}
@@ -777,7 +801,7 @@ func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error)
 
 	meta.Size = fi.Size()
 	meta.Name = fi.Name()
-	meta.FQName = fi.Name() + "/" + schemaName
+	meta.FQName = fi.Name() + "/" + meta.Schema
 	meta.Location = d.src.Location
 
 	meta.Tables, err = getAllTblMeta(ctx, d.log, d.db)

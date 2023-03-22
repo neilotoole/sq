@@ -273,6 +273,7 @@ func setSourceSummaryMeta(ctx context.Context, db sqlz.DB, md *source.Metadata) 
 	}
 
 	md.Name = schema
+	md.Schema = schema
 	md.FQName = schema
 	md.DBVersion = version
 	md.DBProduct = fmt.Sprintf("%s %s / %s (%s)", versionComment, version, versionOS, versionArch)
@@ -310,7 +311,7 @@ func getAllTblMetas(ctx context.Context, log lg.Log, db sqlz.DB) ([]*source.Tabl
 	const query = `SELECT t.TABLE_SCHEMA, t.TABLE_NAME, t.TABLE_TYPE, t.TABLE_COMMENT,
        (DATA_LENGTH + INDEX_LENGTH) AS table_size,
        c.COLUMN_NAME, c.ORDINAL_POSITION, c.COLUMN_KEY, c.DATA_TYPE, c.COLUMN_TYPE,
-       c.IS_NULLABLE, c.COLUMN_DEFAULT, c.COLUMN_COMMENT, c.EXTRA
+       c.IS_NULLABLE, c.COLßUMN_DEFAULT, c.COLUMN_COMMENT, c.EXTRA
 FROM information_schema.TABLES t
          LEFT JOIN information_schema.COLUMNS c
                    ON c.TABLE_CATALOG = t.TABLE_CATALOG

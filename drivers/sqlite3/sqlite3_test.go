@@ -293,3 +293,19 @@ func TestMungeLocation(t *testing.T) {
 		})
 	}
 }
+
+func TestSQLQuery_Whitespace(t *testing.T) {
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.SL3Whitespace)
+
+	sink, err := th.QuerySQL(src, `SELECT * FROM "film actor"`)
+	require.NoError(t, err)
+	require.Equal(t, sakila.TblFilmActorCount, len(sink.Recs))
+
+	sink, err = th.QuerySQL(src, `SELECT * FROM "actor"`)
+	require.NoError(t, err)
+	require.Equal(t, "first name", sink.RecMeta[1].Name())
+	require.Equal(t, "last name", sink.RecMeta[2].Name())
+}

@@ -26,12 +26,12 @@ func TestChildIndex(t *testing.T) {
 }
 
 func TestNodesWithType(t *testing.T) {
-	nodes := []Node{&ColSelector{}, &ColSelector{}, &TblSelector{}, &RowRange{}}
+	nodes := []Node{&ColSelectorNode{}, &ColSelectorNode{}, &TblSelectorNode{}, &RowRange{}}
 
-	require.Equal(t, 2, len(nodesWithType(nodes, typeColSelector)))
-	require.Equal(t, 1, len(nodesWithType(nodes, typeTblSelector)))
-	require.Equal(t, 1, len(nodesWithType(nodes, typeRowRange)))
-	require.Equal(t, 0, len(nodesWithType(nodes, typeJoin)))
+	require.Equal(t, 2, len(nodesWithType(nodes, typeColSelectorNode)))
+	require.Equal(t, 1, len(nodesWithType(nodes, typeTblSelectorNode)))
+	require.Equal(t, 1, len(nodesWithType(nodes, typeRowRangeNode)))
+	require.Equal(t, 0, len(nodesWithType(nodes, typeJoinNode)))
 }
 
 func TestAvg(t *testing.T) {

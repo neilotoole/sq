@@ -47,19 +47,23 @@ func (v *BaseSLQVisitor) VisitGroup(ctx *GroupContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
+func (v *BaseSLQVisitor) VisitSelector(ctx *SelectorContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseSLQVisitor) VisitSelectorElement(ctx *SelectorElementContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
 func (v *BaseSLQVisitor) VisitAlias(ctx *AliasContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseSLQVisitor) VisitSelElement(ctx *SelElementContext) interface{} {
+func (v *BaseSLQVisitor) VisitHandleTable(ctx *HandleTableContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseSLQVisitor) VisitDsTblElement(ctx *DsTblElementContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseSLQVisitor) VisitDsElement(ctx *DsElementContext) interface{} {
+func (v *BaseSLQVisitor) VisitHandle(ctx *HandleContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 

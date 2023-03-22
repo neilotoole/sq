@@ -1,8 +1,8 @@
 package ast
 
 var (
-	_ Node    = (*Func)(nil)
-	_ ColExpr = (*Func)(nil)
+	_ Node         = (*Func)(nil)
+	_ ResultColumn = (*Func)(nil)
 )
 
 // Func models a function. For example, "COUNT()".
@@ -26,12 +26,12 @@ func (fn *Func) String() string {
 	return str
 }
 
-// ColExpr implements ColExpr.
-func (fn *Func) ColExpr() (string, error) {
-	return fn.ctx.GetText(), nil
+// Text implements ResultColumn.
+func (fn *Func) Text() string {
+	return fn.ctx.GetText()
 }
 
-// Alias implements ColExpr.
+// Alias implements ResultColumn.
 func (fn *Func) Alias() string {
 	return fn.alias
 }
@@ -42,8 +42,8 @@ func (fn *Func) SetChildren(children []Node) error {
 	return nil
 }
 
-// IsColName implements ColExpr.
-func (fn *Func) IsColName() bool {
+// IsColumn implements ResultColumn.
+func (fn *Func) IsColumn() bool {
 	return false
 }
 

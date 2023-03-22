@@ -9,21 +9,29 @@ import (
 	"github.com/neilotoole/sq/libsq/ast/internal/slq"
 )
 
-var _ Node = (*Segment)(nil)
+var _ Node = (*SegmentNode)(nil)
 
-// Segment models a segment of a query (the elements separated by pipes).
+func newSegmentNode(ast *AST, ctx *slq.SegmentContext) *SegmentNode {
+	seg := &SegmentNode{}
+	seg.bn.ctx = ctx
+	seg.bn.parent = ast
+	seg.bn.text = ctx.GetText()
+	return seg
+}
+
+// SegmentNode models a segment of a query (the elements separated by pipes).
 // For example, ".user | .uid, .username" is two segments (".user" and ".uid, .username").
-type Segment struct {
+type SegmentNode struct {
 	bn baseNode
 }
 
 // Parent implements ast.Node.
-func (s *Segment) Parent() Node {
+func (s *SegmentNode) Parent() Node {
 	return s.bn.Parent()
 }
 
 // SetParent implements ast.Node.
-func (s *Segment) SetParent(parent Node) error {
+func (s *SegmentNode) SetParent(parent Node) error {
 	ast, ok := parent.(*AST)
 	if !ok {
 		return errorf("%T requires parent of type %s", s, typeAST)
@@ -32,29 +40,29 @@ func (s *Segment) SetParent(parent Node) error {
 }
 
 // Children implements ast.Node.
-func (s *Segment) Children() []Node {
+func (s *SegmentNode) Children() []Node {
 	return s.bn.Children()
 }
 
 // AddChild implements ast.Node.
-func (s *Segment) AddChild(child Node) error {
+func (s *SegmentNode) AddChild(child Node) error {
 	s.bn.addChild(child)
 	return child.SetParent(s)
 }
 
 // SetChildren implements ast.Node.
-func (s *Segment) SetChildren(children []Node) error {
+func (s *SegmentNode) SetChildren(children []Node) error {
 	s.bn.setChildren(children)
 	return nil
 }
 
 // Context implements ast.Node.
-func (s *Segment) Context() antlr.ParseTree {
+func (s *SegmentNode) Context() antlr.ParseTree {
 	return s.bn.Context()
 }
 
 // SetContext implements ast.Node.
-func (s *Segment) SetContext(ctx antlr.ParseTree) error {
+func (s *SegmentNode) SetContext(ctx antlr.ParseTree) error {
 	segCtx, ok := ctx.(*slq.SegmentContext)
 	if !ok {
 		return errorf("expected *parser.SegmentContext, but got %T", ctx)
@@ -64,8 +72,8 @@ func (s *Segment) SetContext(ctx antlr.ParseTree) error {
 
 // ChildType returns the expected Type of the segment's elements, based
 // on the content of the segment's node's children. The type should be something
-// like Selector|Func.
-func (s *Segment) ChildType() (reflect.Type, error) {
+// like SelectorNode|Func.
+func (s *SegmentNode) ChildType() (reflect.Type, error) {
 	if len(s.Children()) == 0 {
 		return nil, nil
 	}
@@ -79,7 +87,7 @@ func (s *Segment) ChildType() (reflect.Type, error) {
 
 // uniformChildren returns true if all the nodes of the segment
 // are of a uniform type.
-func (s *Segment) uniformChildren() (bool, error) {
+func (s *SegmentNode) uniformChildren() (bool, error) {
 	if len(s.Children()) == 0 {
 		return true, nil
 	}
@@ -103,7 +111,7 @@ func (s *Segment) uniformChildren() (bool, error) {
 }
 
 // SegIndex returns the index of this segment.
-func (s *Segment) SegIndex() int {
+func (s *SegmentNode) SegIndex() int {
 	for i, seg := range s.bn.parent.Children() {
 		if s == seg {
 			return i
@@ -113,7 +121,7 @@ func (s *Segment) SegIndex() int {
 	return -1
 }
 
-func (s *Segment) String() string {
+func (s *SegmentNode) String() string {
 	if len(s.Children()) == 1 {
 		return fmt.Sprintf("segment[%d]: [1 element]", s.SegIndex())
 	}
@@ -121,22 +129,22 @@ func (s *Segment) String() string {
 	return fmt.Sprintf("segment[%d]: [%d elements]", s.SegIndex(), len(s.Children()))
 }
 
-func (s *Segment) Text() string {
+func (s *SegmentNode) Text() string {
 	return s.bn.Context().GetText()
 }
 
 // Prev returns the previous segment, or nil if this is
 // the first segment.
-func (s *Segment) Prev() *Segment {
+func (s *SegmentNode) Prev() *SegmentNode {
 	parent := s.Parent()
 	children := parent.Children()
 	index := -1
 
 	for i, child := range children {
-		childSeg, ok := child.(*Segment)
+		childSeg, ok := child.(*SegmentNode)
 		if !ok {
 			// should never happen
-			panic("sibling is not *ast.Segment")
+			panic("sibling is not *ast.SegmentNode")
 		}
 
 		if childSeg == s {
@@ -154,18 +162,18 @@ func (s *Segment) Prev() *Segment {
 		return nil
 	}
 
-	return children[index-1].(*Segment)
+	return children[index-1].(*SegmentNode)
 }
 
 // Next returns the next segment, or nil if this is the last segment.
-func (s *Segment) Next() *Segment {
+func (s *SegmentNode) Next() *SegmentNode {
 	for i, seg := range s.bn.parent.Children() {
 		if seg == s {
 			if i >= len(s.bn.parent.Children())-1 {
 				return nil
 			}
 
-			return s.bn.parent.Children()[i+1].(*Segment)
+			return s.bn.parent.Children()[i+1].(*SegmentNode)
 		}
 	}
 

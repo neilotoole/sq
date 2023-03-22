@@ -24,20 +24,20 @@ func TestSegment(t *testing.T) {
 	typ, err := ast.Segments()[0].ChildType()
 	assert.Nil(t, err)
 	assert.NotNil(t, typ)
-	assert.Equal(t, typeDatasource.String(), typ.String())
+	assert.Equal(t, typeHandleNode.String(), typ.String())
 
 	typ, err = ast.Segments()[1].ChildType()
 	assert.Nil(t, err)
 	assert.NotNil(t, typ)
-	assert.Equal(t, typeTblSelector.String(), typ.String())
+	assert.Equal(t, typeTblSelectorNode.String(), typ.String())
 
 	typ, err = ast.Segments()[2].ChildType()
 	assert.Nil(t, err)
 	assert.NotNil(t, typ)
-	assert.Equal(t, typeJoin.String(), typ.String())
+	assert.Equal(t, typeJoinNode.String(), typ.String())
 
 	typ, err = ast.Segments()[3].ChildType()
 	assert.Nil(t, err)
 	assert.NotNil(t, typ)
-	assert.Equal(t, typeColSelector.String(), typ.String())
+	assert.Equal(t, typeColSelectorNode.String(), typ.String())
 }

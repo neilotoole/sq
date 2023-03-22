@@ -37,17 +37,20 @@ type SLQListener interface {
 	// EnterGroup is called when entering the group production.
 	EnterGroup(c *GroupContext)
 
+	// EnterSelector is called when entering the selector production.
+	EnterSelector(c *SelectorContext)
+
+	// EnterSelectorElement is called when entering the selectorElement production.
+	EnterSelectorElement(c *SelectorElementContext)
+
 	// EnterAlias is called when entering the alias production.
 	EnterAlias(c *AliasContext)
 
-	// EnterSelElement is called when entering the selElement production.
-	EnterSelElement(c *SelElementContext)
+	// EnterHandleTable is called when entering the handleTable production.
+	EnterHandleTable(c *HandleTableContext)
 
-	// EnterDsTblElement is called when entering the dsTblElement production.
-	EnterDsTblElement(c *DsTblElementContext)
-
-	// EnterDsElement is called when entering the dsElement production.
-	EnterDsElement(c *DsElementContext)
+	// EnterHandle is called when entering the handle production.
+	EnterHandle(c *HandleContext)
 
 	// EnterRowRange is called when entering the rowRange production.
 	EnterRowRange(c *RowRangeContext)
@@ -94,17 +97,20 @@ type SLQListener interface {
 	// ExitGroup is called when exiting the group production.
 	ExitGroup(c *GroupContext)
 
+	// ExitSelector is called when exiting the selector production.
+	ExitSelector(c *SelectorContext)
+
+	// ExitSelectorElement is called when exiting the selectorElement production.
+	ExitSelectorElement(c *SelectorElementContext)
+
 	// ExitAlias is called when exiting the alias production.
 	ExitAlias(c *AliasContext)
 
-	// ExitSelElement is called when exiting the selElement production.
-	ExitSelElement(c *SelElementContext)
+	// ExitHandleTable is called when exiting the handleTable production.
+	ExitHandleTable(c *HandleTableContext)
 
-	// ExitDsTblElement is called when exiting the dsTblElement production.
-	ExitDsTblElement(c *DsTblElementContext)
-
-	// ExitDsElement is called when exiting the dsElement production.
-	ExitDsElement(c *DsElementContext)
+	// ExitHandle is called when exiting the handle production.
+	ExitHandle(c *HandleContext)
 
 	// ExitRowRange is called when exiting the rowRange production.
 	ExitRowRange(c *RowRangeContext)

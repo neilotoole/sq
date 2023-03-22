@@ -47,7 +47,7 @@ func (p *Provider) DriverFor(typ source.Type) (driver.Driver, error) {
 	return &driveri{log: p.Log}, nil
 }
 
-var _ driver.Driver = (*driveri)(nil)
+var _ driver.SQLDriver = (*driveri)(nil)
 
 // driveri is the SQL Server implementation of driver.Driver.
 type driveri struct {
@@ -250,8 +250,8 @@ func (d *driveri) RecordMeta(colTypes []*sql.ColumnType) (sqlz.RecordMeta, drive
 
 // TableExists implements driver.SQLDriver.
 func (d *driveri) TableExists(ctx context.Context, db sqlz.DB, tbl string) (bool, error) {
-	const query = `SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
-WHERE TABLE_SCHEMA = 'dbo' AND TABLE_NAME = @p1`
+	const query = `SELECT COUNT(*) FROM information_schema.tables
+WHERE table_schema = 'dbo' AND table_name = @p1`
 
 	var count int64
 	err := db.QueryRowContext(ctx, query, tbl).Scan(&count)
@@ -260,6 +260,16 @@ WHERE TABLE_SCHEMA = 'dbo' AND TABLE_NAME = @p1`
 	}
 
 	return count == 1, nil
+}
+
+// CurrentSchema implements driver.SQLDriver.
+func (d *driveri) CurrentSchema(ctx context.Context, db sqlz.DB) (string, error) {
+	var name string
+	if err := db.QueryRowContext(ctx, `SELECT SCHEMA_NAME()`).Scan(&name); err != nil {
+		return "", errz.Err(err)
+	}
+
+	return name, nil
 }
 
 // CreateTable implements driver.SQLDriver.
@@ -271,15 +281,35 @@ func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *sqlmodel.
 }
 
 // AlterTableAddColumn implements driver.SQLDriver.
-func (d *driveri) AlterTableAddColumn(ctx context.Context, db *sql.DB, tbl, col string, kind kind.Kind) error {
-	q := fmt.Sprintf("ALTER TABLE %q ADD %q ", tbl, col) + dbTypeNameFromKind(kind)
+func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl, col string, knd kind.Kind) error {
+	q := fmt.Sprintf("ALTER TABLE %q ADD %q ", tbl, col) + dbTypeNameFromKind(knd)
 
 	_, err := db.ExecContext(ctx, q)
+	return errz.Wrapf(err, "alter table: failed to add column %q to table %q", col, tbl)
+}
+
+// AlterTableRename implements driver.SQLDriver.
+func (d *driveri) AlterTableRename(ctx context.Context, db sqlz.DB, tbl, newName string) error {
+	schema, err := d.CurrentSchema(ctx, db)
 	if err != nil {
-		return errz.Wrapf(err, "alter table: failed to add column %q to table %q", col, tbl)
+		return err
 	}
 
-	return nil
+	q := fmt.Sprintf(`exec sp_rename '[%s].[%s]', '%s'`, schema, tbl, newName)
+	_, err = db.ExecContext(ctx, q)
+	return errz.Wrapf(err, "alter table: failed to rename table %q to %q", tbl, newName)
+}
+
+// AlterTableRenameColumn implements driver.SQLDriver.
+func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, col, newName string) error {
+	schema, err := d.CurrentSchema(ctx, db)
+	if err != nil {
+		return err
+	}
+
+	q := fmt.Sprintf(`exec sp_rename '[%s].[%s].[%s]', '%s'`, schema, tbl, col, newName)
+	_, err = db.ExecContext(ctx, q)
+	return errz.Wrapf(err, "alter table: failed to rename column {%s.%s.%s} to {%s}", schema, tbl, col, newName)
 }
 
 // CopyTable implements driver.SQLDriver.
