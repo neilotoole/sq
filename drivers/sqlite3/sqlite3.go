@@ -185,7 +185,7 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable 
 	// we need to do something more complicated.
 
 	var originTblCreateStmt string
-	err := db.QueryRowContext(ctx, fmt.Sprintf("SELECT SQL FROM sqlite_master WHERE TYPE='table' AND NAME='%s'",
+	err := db.QueryRowContext(ctx, fmt.Sprintf("SELECT sql FROM sqlite_master WHERE type='table' AND name='%s'",
 		fromTable)).Scan(&originTblCreateStmt)
 	if err != nil {
 		return 0, errz.Err(err)
@@ -534,7 +534,7 @@ func (d *driveri) DropTable(ctx context.Context, db sqlz.DB, tbl string, ifExist
 	var stmt string
 
 	if ifExists {
-		stmt = fmt.Sprintf("DROP TABLE if EXISTS %q", tbl)
+		stmt = fmt.Sprintf("DROP TABLE IF EXISTS %q", tbl)
 	} else {
 		stmt = fmt.Sprintf("DROP TABLE %q", tbl)
 	}
