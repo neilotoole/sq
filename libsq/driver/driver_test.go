@@ -1,6 +1,7 @@
 package driver_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/neilotoole/sq/testh/tutil"
@@ -469,7 +470,7 @@ func TestDatabase_SourceMetadata(t *testing.T) {
 }
 
 func TestSQLDriver_AlterTableAddColumn(t *testing.T) {
-	testCases := []string{sakila.SL3, sakila.Pg, sakila.MS, sakila.My8}
+	testCases := sakila.SQLLatest()
 
 	for _, handle := range testCases {
 		handle := handle
@@ -495,6 +496,58 @@ func TestSQLDriver_AlterTableAddColumn(t *testing.T) {
 
 			gotKinds := sink.RecMeta.Kinds()
 			require.Equal(t, wantKinds, gotKinds)
+		})
+	}
+}
+
+func TestSQLDriver_AlterTableRename(t *testing.T) {
+	testCases := sakila.SQLLatest()
+
+	for _, handle := range testCases {
+		handle := handle
+
+		t.Run(handle, func(t *testing.T) {
+			th, src, dbase, drvr := testh.NewWith(t, handle)
+
+			// Make a copy of the table to play with
+			tbl := th.CopyTable(true, src, sakila.TblActor, "", true)
+
+			newName := stringz.UniqSuffix("actor_copy_")
+			err := drvr.AlterTableRename(th.Context, dbase.DB(), tbl, newName)
+			require.NoError(t, err)
+
+			md, err := dbase.TableMetadata(th.Context, newName)
+			require.NoError(t, err)
+			require.Equal(t, newName, md.Name)
+			sink, err := th.QuerySQL(src, "SELECT * FROM "+newName)
+			require.NoError(t, err)
+			require.Equal(t, sakila.TblActorCount, len(sink.Recs))
+		})
+	}
+}
+
+func TestSQLDriver_AlterTableRenameColumn(t *testing.T) {
+	testCases := sakila.SQLLatest()
+
+	for _, handle := range testCases {
+		handle := handle
+
+		t.Run(handle, func(t *testing.T) {
+			th, src, dbase, drvr := testh.NewWith(t, handle)
+
+			// Make a copy of the table to play with
+			tbl := th.CopyTable(true, src, sakila.TblActor, "", true)
+
+			newName := "given_name"
+			err := drvr.AlterTableRenameColumn(th.Context, dbase.DB(), tbl, "first_name", newName)
+			require.NoError(t, err)
+
+			md, err := dbase.TableMetadata(th.Context, tbl)
+			require.NoError(t, err)
+			require.NotNil(t, md.Column(newName))
+			sink, err := th.QuerySQL(src, fmt.Sprintf("SELECT %s FROM %s", newName, tbl))
+			require.NoError(t, err)
+			require.Equal(t, sakila.TblActorCount, len(sink.Recs))
 		})
 	}
 }

@@ -6,7 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-## [v0.26.0] - 2023-03-21
+## [v0.26.0] - 2023-03-22
+
+### Added
+
+- [#98]: Whitespace is now allowed in SLQ selector names. You can 
+  do `@sakila | ."film actor" | ."actor id"`.
+
 
 ### Fixed
 
@@ -210,6 +216,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#144]: https://github.com/neilotoole/sq/issues/144
 [#142]: https://github.com/neilotoole/sq/issues/142
 [#123]: https://github.com/neilotoole/sq/issues/123
+[#98]: https://github.com/neilotoole/sq/issues/98
 [#95]: https://github.com/neilotoole/sq/issues/93
 [#91]: https://github.com/neilotoole/sq/pull/91
 [#89]: https://github.com/neilotoole/sq/pull/89

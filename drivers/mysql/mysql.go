@@ -52,30 +52,6 @@ type driveri struct {
 	log lg.Log
 }
 
-// CurrentSchema implements driver.SQLDriver.
-func (d *driveri) CurrentSchema(ctx context.Context, db sqlz.DB) (string, error) {
-	var name string
-	if err := db.QueryRowContext(ctx, `SELECT DATABASE()`).Scan(&name); err != nil {
-		return "", errz.Err(err)
-	}
-
-	return name, nil
-}
-
-// AlterTableRename implements driver.SQLDriver.
-func (d *driveri) AlterTableRename(ctx context.Context, db sqlz.DB, tbl, newName string) error {
-	q := fmt.Sprintf("RENAME TABLE `%s` TO `%s`", tbl, newName)
-	_, err := db.ExecContext(ctx, q)
-	return errz.Wrapf(err, "alter table: failed to rename table %q to %q", tbl, newName)
-}
-
-// AlterTableRenameColumn implements driver.SQLDriver.
-func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, col, newName string) error {
-	q := fmt.Sprintf("ALTER TABLE `%s` RENAME COLUMN `%s` TO `%s`", tbl, col, newName)
-	_, err := db.ExecContext(ctx, q)
-	return errz.Wrapf(err, "alter table: failed to rename column {%s.%s} to {%s}", tbl, col, newName)
-}
-
 // DriverMetadata implements driver.Driver.
 func (d *driveri) DriverMetadata() driver.Metadata {
 	return driver.Metadata{
@@ -127,7 +103,7 @@ func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *sqlmodel.
 
 // AlterTableAddColumn implements driver.SQLDriver.
 func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl, col string, knd kind.Kind) error {
-	q := fmt.Sprintf("ALTER TABLE %q ADD COLUMN %q ", tbl, col) + dbTypeNameFromKind(knd)
+	q := fmt.Sprintf("ALTER TABLE `%s` ADD COLUMN `%s` ", tbl, col) + dbTypeNameFromKind(knd)
 
 	_, err := db.ExecContext(ctx, q)
 	if err != nil {
@@ -135,6 +111,30 @@ func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl, col 
 	}
 
 	return nil
+}
+
+// CurrentSchema implements driver.SQLDriver.
+func (d *driveri) CurrentSchema(ctx context.Context, db sqlz.DB) (string, error) {
+	var name string
+	if err := db.QueryRowContext(ctx, `SELECT DATABASE()`).Scan(&name); err != nil {
+		return "", errz.Err(err)
+	}
+
+	return name, nil
+}
+
+// AlterTableRename implements driver.SQLDriver.
+func (d *driveri) AlterTableRename(ctx context.Context, db sqlz.DB, tbl, newName string) error {
+	q := fmt.Sprintf("RENAME TABLE `%s` TO `%s`", tbl, newName)
+	_, err := db.ExecContext(ctx, q)
+	return errz.Wrapf(err, "alter table: failed to rename table %q to %q", tbl, newName)
+}
+
+// AlterTableRenameColumn implements driver.SQLDriver.
+func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, col, newName string) error {
+	q := fmt.Sprintf("ALTER TABLE `%s` RENAME COLUMN `%s` TO `%s`", tbl, col, newName)
+	_, err := db.ExecContext(ctx, q)
+	return errz.Wrapf(err, "alter table: failed to rename column {%s.%s} to {%s}", tbl, col, newName)
 }
 
 // PrepareInsertStmt implements driver.SQLDriver.
