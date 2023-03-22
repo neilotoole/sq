@@ -28,6 +28,12 @@ func TestSLQ2SQL(t *testing.T) {
 			wantSQL: `SELECT "first_name", "last_name" FROM "actor"`,
 		},
 		{
+			name:    "select/cols",
+			handles: []string{sakila.Pg},
+			slq:     `@sakila_pg12 | .actor | .first_name, .last_name`,
+			wantSQL: `SELECT "first_name", "last_name" FROM "actor"`,
+		},
+		{
 			name:    "select/cols-whitespace",
 			handles: []string{sakila.SL3Whitespace},
 			slq:     `@sakila_sl3_whitespace | .actor | ."first name"`,
@@ -69,7 +75,6 @@ func TestSLQ2SQL(t *testing.T) {
 			slq:     `@sakila_sl3 | .actor | count()`,
 			wantSQL: `SELECT COUNT(*) FROM "actor"`,
 		},
-
 		{
 			name:    "select/handle-table/cols",
 			handles: []string{sakila.SL3},
