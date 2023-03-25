@@ -170,6 +170,10 @@ func (v *parseTreeVisitor) Visit(ctx antlr.ParseTree) any {
 		return v.VisitExpr(ctx)
 	case *slq.GroupContext:
 		return v.VisitGroup(ctx)
+	case *slq.OrderByContext:
+		return v.VisitOrderBy(ctx)
+	case *slq.OrderByTermContext:
+		return v.VisitOrderByTerm(ctx)
 	case *slq.LiteralContext:
 		return v.VisitLiteral(ctx)
 	case *antlr.TerminalNodeImpl:
@@ -248,32 +252,40 @@ func (v *parseTreeVisitor) VisitSegment(ctx *slq.SegmentContext) any {
 	return v.VisitChildren(ctx)
 }
 
-func newSelectorNode(parent Node, ctx slq.ISelectorContext) (*SelectorNode, error) {
-	selNode := &SelectorNode{}
-	selNode.parent = parent
-	selNode.ctx = ctx
-	selNode.text = ctx.GetText()
+// VisitOrderByTerm implements slq.SLQVisitor.
+func (v *parseTreeVisitor) VisitOrderByTerm(ctx *slq.OrderByTermContext) interface{} {
+	node := &OrderByTermNode{}
+	node.parent = v.cur
+	node.ctx = ctx
+	node.text = ctx.GetText()
 
 	var err error
-	names := ctx.AllNAME()
-	switch len(names) {
-	default:
-		return nil, errorf("expected 1 or 2 name parts in selector (e.g. '.table.column') but got %d parts: %s",
-			len(names), ctx.GetText())
-	case 1:
-		if selNode.name0, err = extractSelVal(names[0]); err != nil {
-			return nil, err
-		}
-	case 2:
-		if selNode.name0, err = extractSelVal(names[0]); err != nil {
-			return nil, err
-		}
-		if selNode.name1, err = extractSelVal(names[1]); err != nil {
-			return nil, err
-		}
+	if node.selector, err = newSelectorNode(node, ctx.Selector()); err != nil {
+		return err
 	}
 
-	return selNode, nil
+	if ctx.ORDER_ASC() != nil {
+		node.direction = OrderByDirectionAsc
+	} else if ctx.ORDER_DESC() != nil {
+		node.direction = OrderByDirectionDesc
+	}
+
+	return nil
+}
+
+// VisitOrderBy implements slq.SLQVisitor.
+func (v *parseTreeVisitor) VisitOrderBy(ctx *slq.OrderByContext) interface{} {
+	node := &OrderByNode{}
+	node.parent = v.cur
+	node.ctx = ctx
+	node.text = ctx.GetText()
+
+	v.cur.AddChild(node)
+
+	return v.using(node, func() any {
+		// This will result in VisitOrderByTerm being called on the children.
+		return v.VisitChildren(ctx)
+	})
 }
 
 // VisitSelectorElement implements slq.SLQVisitor.

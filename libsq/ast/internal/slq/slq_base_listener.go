@@ -80,6 +80,18 @@ func (s *BaseSLQListener) EnterGroup(ctx *GroupContext) {}
 // ExitGroup is called when production group is exited.
 func (s *BaseSLQListener) ExitGroup(ctx *GroupContext) {}
 
+// EnterOrderByTerm is called when production orderByTerm is entered.
+func (s *BaseSLQListener) EnterOrderByTerm(ctx *OrderByTermContext) {}
+
+// ExitOrderByTerm is called when production orderByTerm is exited.
+func (s *BaseSLQListener) ExitOrderByTerm(ctx *OrderByTermContext) {}
+
+// EnterOrderBy is called when production orderBy is entered.
+func (s *BaseSLQListener) EnterOrderBy(ctx *OrderByContext) {}
+
+// ExitOrderBy is called when production orderBy is exited.
+func (s *BaseSLQListener) ExitOrderBy(ctx *OrderByContext) {}
+
 // EnterSelector is called when production selector is entered.
 func (s *BaseSLQListener) EnterSelector(ctx *SelectorContext) {}
 

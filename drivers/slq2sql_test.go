@@ -109,6 +109,47 @@ func TestSLQ2SQLNew(t *testing.T) {
 			want:     `SELECT * FROM "actor" INNER JOIN "film actor" ON "film actor"."actor_id" = "actor"."actor_id"`,
 			override: map[source.Type]string{mysql.Type: "SELECT * FROM `actor` INNER JOIN `film actor` ON `film actor`.`actor_id` = `actor`.`actor_id`"},
 		},
+		{
+			name:     "orderby/single-element",
+			in:       `@sakila | .actor | orderby(.first_name)`,
+			want:     `SELECT * FROM "actor" ORDER BY "first_name"`,
+			override: map[source.Type]string{mysql.Type: "SELECT * FROM `actor` ORDER BY `first_name`"},
+		},
+		{
+			name:     "orderby/single-element-table-selector",
+			in:       `@sakila | .actor | orderby(.actor.first_name)`,
+			want:     `SELECT * FROM "actor" ORDER BY "actor"."first_name"`,
+			override: map[source.Type]string{mysql.Type: "SELECT * FROM `actor` ORDER BY `actor`.`first_name`"},
+		},
+		{
+			name:     "orderby/single-element-asc",
+			in:       `@sakila | .actor | orderby(.first_name+)`,
+			want:     `SELECT * FROM "actor" ORDER BY "first_name" ASC`,
+			override: map[source.Type]string{mysql.Type: "SELECT * FROM `actor` ORDER BY `first_name` ASC"},
+		},
+		{
+			name:     "orderby/single-element-desc",
+			in:       `@sakila | .actor | orderby(.first_name-)`,
+			want:     `SELECT * FROM "actor" ORDER BY "first_name" DESC`,
+			override: map[source.Type]string{mysql.Type: "SELECT* FROM `actor` ORDER BY `first_name` DESC"},
+		},
+		{
+			name:     "orderby/multiple-elements",
+			in:       `@sakila | .actor | orderby(.first_name+, .last_name-)`,
+			want:     `SELECT * FROM "actor" ORDER BY "first_name" ASC, "last_name" DESC`,
+			override: map[source.Type]string{mysql.Type: "SELECT * FROM `actor` ORDER BY `first_name` ASC, `last_name` DESC"},
+		},
+		{
+			name:     "orderby/synonym-sort-by",
+			in:       `@sakila | .actor | sort_by(.first_name)`,
+			want:     `SELECT "first_name" FROM "actor" ORDER BY "first_name"`,
+			override: map[source.Type]string{mysql.Type: "SELECT `first_name`  FROM `actor` ORDER BY `first_name`"},
+		},
+		{
+			name:    "orderby/error-no-selector",
+			in:      `@sakila | .actor | orderby()`,
+			wantErr: true,
+		},
 	}
 
 	srcs := testh.New(t).NewSourceSet(sakila.SQLLatest()...)

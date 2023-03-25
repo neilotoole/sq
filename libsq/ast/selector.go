@@ -14,6 +14,34 @@ const (
 	msgNodeNoAddChildren = "%T cannot add children: failed to add %d children"
 )
 
+func newSelectorNode(parent Node, ctx slq.ISelectorContext) (*SelectorNode, error) {
+	selNode := &SelectorNode{}
+	selNode.parent = parent
+	selNode.ctx = ctx
+	selNode.text = ctx.GetText()
+
+	var err error
+	names := ctx.AllNAME()
+	switch len(names) {
+	default:
+		return nil, errorf("expected 1 or 2 name parts in selector (e.g. '.table.column') but got %d parts: %s",
+			len(names), ctx.GetText())
+	case 1:
+		if selNode.name0, err = extractSelVal(names[0]); err != nil {
+			return nil, err
+		}
+	case 2:
+		if selNode.name0, err = extractSelVal(names[0]); err != nil {
+			return nil, err
+		}
+		if selNode.name1, err = extractSelVal(names[1]); err != nil {
+			return nil, err
+		}
+	}
+
+	return selNode, nil
+}
+
 var _ Node = (*SelectorNode)(nil)
 
 // SelectorNode is a selector such as ".my_table" or ".my_col". The

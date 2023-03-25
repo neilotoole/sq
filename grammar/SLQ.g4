@@ -14,6 +14,7 @@ element:
 	| selectorElement
 	| join
 	| group
+	| orderBy
 	| rowRange
 	| fnElement
 	| expr;
@@ -32,6 +33,31 @@ joinConstraint:
 	| selector ; // .uid
 
 group: ('group' | 'GROUP' | 'g') '(' selector (',' selector)* ')';
+
+/*
+orderby
+
+The "orderby" construct implements the SQL "ORDER BY" clause.
+
+    .actor | orderby(.first_name, .last_name)
+    .actor | orderby(.first_name+)
+    .actor | orderby(.actor.first_name-)
+
+The optional plus/minus tokens specify ASC or DESC order.
+
+For jq compatability, the "sort_by" synonym is provided.
+See: https://stedolan.github.io/jq/manual/v1.6/#sort,sort_by(path_expression)
+
+We do not implement a "sort" synonym for the jq "sort" function, because SQL
+results are inherently sorted. Although perhaps it should be implemented
+as a no-op.
+*/
+
+ORDER_ASC: '+';
+ORDER_DESC: '-';
+ORDER_BY: 'orderby' | 'sort_by';
+orderByTerm: selector (ORDER_ASC | ORDER_DESC)?;
+orderBy: ORDER_BY '(' orderByTerm (',' orderByTerm)* ')';
 
 // selector specfies a table name, a column name, or table.column.
 // - .first_name
@@ -141,6 +167,7 @@ GT_EQ: '>=';
 GT: '>';
 NEQ: '!=';
 EQ: '==';
+
 
 NAME: '.' (ID | STRING);
 

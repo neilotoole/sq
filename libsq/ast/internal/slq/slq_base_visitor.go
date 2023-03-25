@@ -47,6 +47,14 @@ func (v *BaseSLQVisitor) VisitGroup(ctx *GroupContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
+func (v *BaseSLQVisitor) VisitOrderByTerm(ctx *OrderByTermContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseSLQVisitor) VisitOrderBy(ctx *OrderByContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
 func (v *BaseSLQVisitor) VisitSelector(ctx *SelectorContext) interface{} {
 	return v.VisitChildren(ctx)
 }
