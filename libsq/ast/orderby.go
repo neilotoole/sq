@@ -15,7 +15,7 @@ func (n *OrderByNode) String() string {
 func (n *OrderByNode) Terms() []*OrderByTermNode {
 	terms := make([]*OrderByTermNode, len(n.children))
 	for i := range n.children {
-		terms[i] = n.children[i].(*OrderByTermNode)
+		terms[i], _ = n.children[i].(*OrderByTermNode)
 	}
 	return terms
 }
@@ -29,6 +29,23 @@ func (n *OrderByNode) AddChild(child Node) error {
 	}
 
 	n.addChild(child)
+	return nil
+}
+
+// SetChildren implements ast.Node.
+func (n *OrderByNode) SetChildren(children []Node) error {
+	if len(children) > 1 {
+		return errorf("%T can have only 1 child but attempt to set %d children",
+			n, len(children))
+	}
+
+	for i := range children {
+		if _, ok := children[i].(*OrderByTermNode); !ok {
+			return errorf("illegal child type %T {%s} for %T", children[i], children[i], n)
+		}
+	}
+
+	n.setChildren(children)
 	return nil
 }
 
@@ -49,13 +66,45 @@ const (
 // OrderByTermNode is a child of OrderByNode.
 type OrderByTermNode struct {
 	baseNode
-	selector  *SelectorNode
 	direction OrderByDirection
 }
 
+// AddChild accepts a single child of type *SelectorNode.
+func (n *OrderByTermNode) AddChild(child Node) error {
+	if len(n.children) > 0 {
+		return errorf("%s is only allowed a single child")
+	}
+
+	selNode, ok := child.(*SelectorNode)
+	if !ok {
+		return errorf("illegal %T child type %T: %s", n, child, child)
+	}
+
+	n.addChild(selNode)
+	return child.SetParent(n)
+}
+
+// SetChildren implements ast.Node.
+func (n *OrderByTermNode) SetChildren(children []Node) error {
+	switch len(children) {
+	case 0:
+		// fallthrough
+	case 1:
+		if _, ok := children[0].(selector); !ok {
+			return errorf("illegal child type %T {%s} for %T", children[0], children[0], n)
+		}
+	default:
+		return errorf("%T can have only 1 child but attempt to set %d children",
+			n, len(children))
+	}
+
+	n.setChildren(children)
+	return nil
+}
+
 // Selector returns the ordering term's selector.
-func (n *OrderByTermNode) Selector() *SelectorNode {
-	return n.selector
+func (n *OrderByTermNode) Selector() Node {
+	return n.children[0]
 }
 
 // Direction returns the ordering term's direction.

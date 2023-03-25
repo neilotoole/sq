@@ -40,9 +40,16 @@ type Node interface {
 // Selectable is a marker interface to indicate that the node can be
 // selected from. That is, the node represents a SQL table, view, or
 // join table, and can be used like "SELECT * FROM [selectable]".
+//
+// REVISIT: the name "Selectable" might be confusing. Perhaps "Tabler" or such.
 type Selectable interface {
 	// Selectable is a marker interface method.
-	Selectable()
+	selectable()
+}
+
+// selector is a marker interface for selector types.
+type selector interface {
+	selector()
 }
 
 // ResultColumn indicates a column selection expression such as a
@@ -91,6 +98,9 @@ func (bn *baseNode) Children() []Node {
 	return bn.children
 }
 
+// AddChild always returns an error. Node implementations should
+// implement a type-specific method that only accepts a child of
+// an appropriate type for that node.
 func (bn *baseNode) AddChild(child Node) error {
 	return errorf(msgNodeNoAddChild, bn, child)
 }
@@ -201,14 +211,14 @@ func nodesWithType(nodes []Node, typ reflect.Type) []Node {
 	return s
 }
 
-// Terminal is a terminal/leaf node that typically is interpreted simply as its
+// TerminalNode is a terminal/leaf node that typically is interpreted simply as its
 // text value.
-// REVISIT: Is Terminal needed?
-type Terminal struct {
+// REVISIT: Is TerminalNode needed?
+type TerminalNode struct {
 	baseNode
 }
 
-func (t *Terminal) String() string {
+func (t *TerminalNode) String() string {
 	return nodeString(t)
 }
 
@@ -232,61 +242,61 @@ func (g *Group) String() string {
 	return text
 }
 
-// Expr models a SLQ expression such as ".uid > 4".
-type Expr struct {
+// ExprNode models a SLQ expression such as ".uid > 4".
+type ExprNode struct {
 	baseNode
 }
 
-func (e *Expr) AddChild(child Node) error {
+func (e *ExprNode) AddChild(child Node) error {
 	e.addChild(child)
 	return child.SetParent(e)
 }
 
-func (e *Expr) String() string {
+func (e *ExprNode) String() string {
 	text := nodeString(e)
 	return text
 }
 
-// Operator is a leaf node in an expression representing an operator such as ">" or "==".
-type Operator struct {
+// OperatorNode is a leaf node in an expression representing an operator such as ">" or "==".
+type OperatorNode struct {
 	baseNode
 }
 
-func (o *Operator) String() string {
+func (o *OperatorNode) String() string {
 	return nodeString(o)
 }
 
-// Literal is a leaf node representing a literal such as a number or a string.
-type Literal struct {
+// LiteralNode is a leaf node representing a literal such as a number or a string.
+type LiteralNode struct {
 	baseNode
 }
 
-func (li *Literal) String() string {
+func (li *LiteralNode) String() string {
 	return nodeString(li)
 }
 
-// Where represents a SQL WHERE clause, i.e. a filter on the SELECT.
-type Where struct {
+// WhereNode represents a SQL WHERE clause, i.e. a filter on the SELECT.
+type WhereNode struct {
 	baseNode
 }
 
-func (w *Where) String() string {
+func (w *WhereNode) String() string {
 	return nodeString(w)
 }
 
 // Expr returns the expression that constitutes the SetWhere clause, or nil if no expression.
-func (w *Where) Expr() *Expr {
+func (w *WhereNode) Expr() *ExprNode {
 	if len(w.children) == 0 {
 		return nil
 	}
 
-	return w.children[0].(*Expr)
+	return w.children[0].(*ExprNode)
 }
 
-func (w *Where) AddChild(node Node) error {
-	expr, ok := node.(*Expr)
+func (w *WhereNode) AddChild(node Node) error {
+	expr, ok := node.(*ExprNode)
 	if !ok {
-		return errorf("WHERE child must be *Expr, but got: %T", node)
+		return errorf("WHERE child must be %T, but got: %T", expr, node)
 	}
 
 	if len(w.children) > 0 {
@@ -316,6 +326,7 @@ var (
 	typeSelectorNode    = reflect.TypeOf((*SelectorNode)(nil))
 	typeColSelectorNode = reflect.TypeOf((*ColSelectorNode)(nil))
 	typeTblSelectorNode = reflect.TypeOf((*TblSelectorNode)(nil))
-	typeRowRangeNode    = reflect.TypeOf((*RowRange)(nil))
-	typeExprNode        = reflect.TypeOf((*Expr)(nil))
+	typeRowRangeNode    = reflect.TypeOf((*RowRangeNode)(nil))
+	typeOrderByNode     = reflect.TypeOf((*OrderByNode)(nil))
+	typeExprNode        = reflect.TypeOf((*ExprNode)(nil))
 )

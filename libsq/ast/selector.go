@@ -42,7 +42,10 @@ func newSelectorNode(parent Node, ctx slq.ISelectorContext) (*SelectorNode, erro
 	return selNode, nil
 }
 
-var _ Node = (*SelectorNode)(nil)
+var (
+	_ Node     = (*SelectorNode)(nil)
+	_ selector = (*SelectorNode)(nil)
+)
 
 // SelectorNode is a selector such as ".my_table" or ".my_col". The
 // generic selector will typically be replaced with a more specific
@@ -66,6 +69,11 @@ type SelectorNode struct {
 	name1 string
 }
 
+// selector implements the ast.selector marker interface.
+func (s *SelectorNode) selector() {
+}
+
+// Strings returns a log/debug-friendly representation.
 func (s *SelectorNode) String() string {
 	return nodeString(s)
 }
@@ -111,7 +119,7 @@ func (s *TblSelectorNode) Handle() string {
 }
 
 // Selectable implements the Selectable marker interface.
-func (s *TblSelectorNode) Selectable() {
+func (s *TblSelectorNode) selectable() {
 	// no-op
 }
 
@@ -135,6 +143,7 @@ func (s *TblSelectorNode) String() string {
 var (
 	_ Node         = (*TblColSelectorNode)(nil)
 	_ ResultColumn = (*TblColSelectorNode)(nil)
+	_ selector     = (*TblColSelectorNode)(nil)
 )
 
 // TblColSelectorNode models the TABLE.COLUMN selector, e.g. actor.first_name.
@@ -197,6 +206,7 @@ func (n *TblColSelectorNode) Alias() string {
 var (
 	_ Node         = (*ColSelectorNode)(nil)
 	_ ResultColumn = (*ColSelectorNode)(nil)
+	_ selector     = (*ColSelectorNode)(nil)
 )
 
 // ColSelectorNode models a column selector such as ".first_name".

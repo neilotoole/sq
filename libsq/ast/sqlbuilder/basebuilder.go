@@ -27,6 +27,8 @@ func BaseOps() map[string]string {
 	return ops
 }
 
+var _ FragmentBuilder = (*BaseFragmentBuilder)(nil)
+
 // BaseFragmentBuilder is a default implementation of sqlbuilder.FragmentBuilder.
 type BaseFragmentBuilder struct {
 	Log lg.Log
@@ -36,8 +38,43 @@ type BaseFragmentBuilder struct {
 	Ops      map[string]string
 }
 
+// OrderBy implements FragmentBuilder.
+func (fb *BaseFragmentBuilder) OrderBy(ob *ast.OrderByNode) (string, error) {
+	if ob == nil {
+		return "", nil
+	}
+
+	terms := ob.Terms()
+	if len(terms) == 0 {
+		return "", errz.Errorf("%T has no ordering terms: %s", ob, ob)
+	}
+
+	clause := "ORDER BY "
+	for i := 0; i < len(terms); i++ {
+		if i > 0 {
+			clause += ", "
+		}
+
+		sel, err := renderSelectorNode(fb.Quote, terms[i].Selector())
+		if err != nil {
+			return "", err
+		}
+
+		clause += sel
+		switch terms[i].Direction() { //nolint:exhaustive
+		case ast.OrderByDirectionAsc:
+			clause += " ASC"
+		case ast.OrderByDirectionDesc:
+			clause += " DESC"
+		default:
+		}
+	}
+
+	return clause, nil
+}
+
 // Operator implements FragmentBuilder.
-func (fb *BaseFragmentBuilder) Operator(op *ast.Operator) (string, error) {
+func (fb *BaseFragmentBuilder) Operator(op *ast.OperatorNode) (string, error) {
 	if val, ok := fb.Ops[op.Text()]; ok {
 		return val, nil
 	}
@@ -46,7 +83,7 @@ func (fb *BaseFragmentBuilder) Operator(op *ast.Operator) (string, error) {
 }
 
 // Where implements FragmentBuilder.
-func (fb *BaseFragmentBuilder) Where(where *ast.Where) (string, error) {
+func (fb *BaseFragmentBuilder) Where(where *ast.WhereNode) (string, error) {
 	sql, err := fb.Expr(where.Expr())
 	if err != nil {
 		return "", err
@@ -57,7 +94,7 @@ func (fb *BaseFragmentBuilder) Where(where *ast.Where) (string, error) {
 }
 
 // Expr implements FragmentBuilder.
-func (fb *BaseFragmentBuilder) Expr(expr *ast.Expr) (string, error) {
+func (fb *BaseFragmentBuilder) Expr(expr *ast.ExprNode) (string, error) {
 	var sql string
 
 	for _, child := range expr.Children() {
@@ -70,13 +107,13 @@ func (fb *BaseFragmentBuilder) Expr(expr *ast.Expr) (string, error) {
 			parts := strings.Split(val, ".")
 			identifier := fb.ColQuote + strings.Join(parts, fb.ColQuote+"."+fb.ColQuote) + fb.ColQuote
 			sql = sql + " " + identifier
-		case *ast.Operator:
+		case *ast.OperatorNode:
 			val, err := fb.Operator(child)
 			if err != nil {
 				return "", err
 			}
 			sql = sql + " " + val
-		case *ast.Expr:
+		case *ast.ExprNode:
 			val, err := fb.Expr(child)
 			if err != nil {
 				return "", err
@@ -98,7 +135,7 @@ func (fb *BaseFragmentBuilder) SelectAll(tblSel *ast.TblSelectorNode) (string, e
 }
 
 // Function implements FragmentBuilder.
-func (fb *BaseFragmentBuilder) Function(fn *ast.Func) (string, error) {
+func (fb *BaseFragmentBuilder) Function(fn *ast.FuncNode) (string, error) {
 	buf := &bytes.Buffer{}
 	children := fn.Children()
 
@@ -129,7 +166,7 @@ func (fb *BaseFragmentBuilder) Function(fn *ast.Func) (string, error) {
 			buf.WriteString(fb.Quote)
 			buf.WriteString(colName)
 			buf.WriteString(fb.Quote)
-		case *ast.Operator:
+		case *ast.OperatorNode:
 			buf.WriteString(child.Text())
 		default:
 			fb.Log.Debugf("unknown AST child node type %T", child)
@@ -320,7 +357,7 @@ func quoteTableOrColSelector(quote, selector string) (string, error) {
 }
 
 // Range implements FragmentBuilder.
-func (fb *BaseFragmentBuilder) Range(rr *ast.RowRange) (string, error) {
+func (fb *BaseFragmentBuilder) Range(rr *ast.RowRangeNode) (string, error) {
 	if rr == nil {
 		return "", nil
 	}
@@ -370,7 +407,7 @@ func (fb *BaseFragmentBuilder) SelectCols(cols []ast.ResultColumn) (string, erro
 			vals[i] = fmt.Sprintf("%s%s%s", fb.Quote, col.ColName(), fb.Quote)
 		case *ast.TblColSelectorNode:
 			vals[i] = fmt.Sprintf("%s%s%s.%s%s%s", fb.Quote, col.TblName(), fb.Quote, fb.Quote, col.ColName(), fb.Quote)
-		case *ast.Func:
+		case *ast.FuncNode:
 			// it's a function
 			var err error
 			if vals[i], err = fb.Function(col); err != nil {
@@ -389,6 +426,8 @@ func (fb *BaseFragmentBuilder) SelectCols(cols []ast.ResultColumn) (string, erro
 	return text, nil
 }
 
+var _ QueryBuilder = (*BaseQueryBuilder)(nil)
+
 // BaseQueryBuilder is a default implementation
 // of sqlbuilder.QueryBuilder.
 type BaseQueryBuilder struct {
@@ -397,6 +436,10 @@ type BaseQueryBuilder struct {
 	WhereClause   string
 	RangeClause   string
 	OrderByClause string
+}
+
+func (qb *BaseQueryBuilder) SetOrderBy(ob string) {
+	qb.OrderByClause = ob
 }
 
 // SetSelect implements QueryBuilder.

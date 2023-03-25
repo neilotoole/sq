@@ -30,7 +30,7 @@ func (in *Inspector) CountNodes(typ reflect.Type) int {
 	return count
 }
 
-// FindNodes returns all of the nodes having typ.
+// FindNodes returns the nodes having typ.
 func (in *Inspector) FindNodes(typ reflect.Type) []Node {
 	var nodes []Node
 	w := NewWalker(in.log, in.ast)
@@ -44,19 +44,19 @@ func (in *Inspector) FindNodes(typ reflect.Type) []Node {
 }
 
 // FindWhereClauses returns all the WHERE clauses in the AST.
-func (in *Inspector) FindWhereClauses() ([]*Where, error) {
-	ws := []*Where{}
+func (in *Inspector) FindWhereClauses() ([]*WhereNode, error) {
+	var nodes []*WhereNode
 
 	for _, seg := range in.ast.Segments() {
-		// Where clauses must be the only child of a segment
+		// WhereNode clauses must be the only child of a segment
 		if len(seg.Children()) == 1 {
-			if w, ok := seg.Children()[0].(*Where); ok {
-				ws = append(ws, w)
+			if w, ok := seg.Children()[0].(*WhereNode); ok {
+				nodes = append(nodes, w)
 			}
 		}
 	}
 
-	return ws, nil
+	return nodes, nil
 }
 
 // FindColExprSegment returns the segment containing col expressions (such as
@@ -85,6 +85,29 @@ func (in *Inspector) FindColExprSegment() (*SegmentNode, error) {
 
 		if numColExprs > 0 {
 			return segs[i], nil
+		}
+	}
+
+	return nil, nil //nolint:nilnil
+}
+
+// FindOrderByNode returns the OrderByNode, or nil if not found.
+func (in *Inspector) FindOrderByNode() (*OrderByNode, error) {
+	segs := in.ast.Segments()
+
+	for i := range segs {
+		nodes := nodesWithType(segs[i].Children(), typeOrderByNode)
+		switch len(nodes) {
+		case 0:
+			// No OrderByNode in this segment, continue searching.
+			continue
+		case 1:
+			// Found it
+			node, _ := nodes[0].(*OrderByNode)
+			return node, nil
+		default:
+			// Shouldn't be possible
+			return nil, errorf("Segment {%s} has %d OrderByNode children, but should have a max of 1", segs[i])
 		}
 	}
 

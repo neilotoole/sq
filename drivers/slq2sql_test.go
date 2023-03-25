@@ -131,7 +131,7 @@ func TestSLQ2SQLNew(t *testing.T) {
 			name:     "orderby/single-element-desc",
 			in:       `@sakila | .actor | orderby(.first_name-)`,
 			want:     `SELECT * FROM "actor" ORDER BY "first_name" DESC`,
-			override: map[source.Type]string{mysql.Type: "SELECT* FROM `actor` ORDER BY `first_name` DESC"},
+			override: map[source.Type]string{mysql.Type: "SELECT * FROM `actor` ORDER BY `first_name` DESC"},
 		},
 		{
 			name:     "orderby/multiple-elements",
@@ -142,8 +142,8 @@ func TestSLQ2SQLNew(t *testing.T) {
 		{
 			name:     "orderby/synonym-sort-by",
 			in:       `@sakila | .actor | sort_by(.first_name)`,
-			want:     `SELECT "first_name" FROM "actor" ORDER BY "first_name"`,
-			override: map[source.Type]string{mysql.Type: "SELECT `first_name`  FROM `actor` ORDER BY `first_name`"},
+			want:     `SELECT * FROM "actor" ORDER BY "first_name"`,
+			override: map[source.Type]string{mysql.Type: "SELECT * FROM `actor` ORDER BY `first_name`"},
 		},
 		{
 			name:    "orderby/error-no-selector",
@@ -173,9 +173,6 @@ func TestSLQ2SQLNew(t *testing.T) {
 
 					th := testh.New(t)
 					dbases := th.Databases()
-
-					// drvr := th.DriverFor(src).(driver.SQLDriver)
-					// drvr.AlterTableAddColumn()
 
 					gotSQL, gotErr := libsq.SLQ2SQL(th.Context, th.Log, dbases, dbases, srcs, in)
 					if tc.wantErr {

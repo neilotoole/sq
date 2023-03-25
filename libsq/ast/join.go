@@ -30,7 +30,7 @@ func (jn *JoinNode) RightTbl() *TblSelectorNode {
 }
 
 // Selectable implements the Selectable marker interface.
-func (jn *JoinNode) Selectable() {
+func (jn *JoinNode) selectable() {
 	// no-op
 }
 
