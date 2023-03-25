@@ -128,7 +128,7 @@ func narrowTblColSel(log lg.Log, w *Walker, node Node) error {
 
 	parent := sel.Parent()
 	switch parent := parent.(type) {
-	case *JoinConstraint, *FuncNode, *OrderByTermNode:
+	case *JoinConstraint, *FuncNode, *OrderByTermNode, *ExprNode:
 		if sel.name1 == "" {
 			return nil
 		}
@@ -181,7 +181,7 @@ func narrowColSel(log lg.Log, w *Walker, node Node) error {
 	parent := sel.Parent()
 
 	switch parent := parent.(type) {
-	case *JoinConstraint, *FuncNode, *OrderByTermNode:
+	case *JoinConstraint, *FuncNode, *OrderByTermNode, *ExprNode:
 		colSel, err := newColSelectorNode(sel)
 		if err != nil {
 			return err

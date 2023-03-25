@@ -29,7 +29,7 @@ func Parse(log lg.Log, input string) (*AST, error) { //nolint:staticcheck
 		return nil, err
 	}
 
-	if err := checkASTIntegrity(log, ast); err != nil {
+	if err := verify(log, ast); err != nil {
 		return nil, err
 	}
 
@@ -75,18 +75,17 @@ func buildAST(log lg.Log, query slq.IQueryContext) (*AST, error) {
 	return tree.ast, nil
 }
 
-// checkASTIntegrity performs additional checks on the state of the AST.
-func checkASTIntegrity(log lg.Log, ast *AST) error {
-	return nil
+// verify performs additional checks on the state of the built AST.
+func verify(log lg.Log, ast *AST) error {
+	selCount := NewInspector(log, ast).CountNodes(typeSelectorNode)
+	if selCount != 0 {
+		return errorf("AST should have zero nodes of type %T but found %d",
+			(*SelectorNode)(nil), selCount)
+	}
 
-	// FIXME: Re-enable checkASTIntegrity function.
-	// selCount := NewInspector(log, ast).CountNodes(typeSelectorNode)
-	// if selCount != 0 {
-	// 	return errorf("AST should have zero nodes of type %T but found %d",
-	// 		(*SelectorNode)(nil), selCount)
-	// }
-	//
-	// return nil
+	// TODO: Lots more checks could go here
+
+	return nil
 }
 
 var _ Node = (*AST)(nil)

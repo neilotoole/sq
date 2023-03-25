@@ -99,14 +99,12 @@ func (fb *BaseFragmentBuilder) Expr(expr *ast.ExprNode) (string, error) {
 
 	for _, child := range expr.Children() {
 		switch child := child.(type) {
-		case *ast.SelectorNode:
-			val, err := child.SelValue()
+		case *ast.TblColSelectorNode, *ast.ColSelectorNode:
+			val, err := renderSelectorNode(fb.ColQuote, child)
 			if err != nil {
 				return "", err
 			}
-			parts := strings.Split(val, ".")
-			identifier := fb.ColQuote + strings.Join(parts, fb.ColQuote+"."+fb.ColQuote) + fb.ColQuote
-			sql = sql + " " + identifier
+			sql = val
 		case *ast.OperatorNode:
 			val, err := fb.Operator(child)
 			if err != nil {
@@ -119,7 +117,6 @@ func (fb *BaseFragmentBuilder) Expr(expr *ast.ExprNode) (string, error) {
 				return "", err
 			}
 			sql = sql + " " + val
-
 		default:
 			sql = sql + " " + child.Text()
 		}

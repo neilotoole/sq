@@ -218,27 +218,30 @@ type TerminalNode struct {
 	baseNode
 }
 
-func (t *TerminalNode) String() string {
-	return nodeString(t)
+// String returns a log/debug-friendly representation.
+func (n *TerminalNode) String() string {
+	return nodeString(n)
 }
 
-// Group models GROUP BY.
-type Group struct {
+// GroupByNode models GROUP BY.
+type GroupByNode struct {
 	baseNode
 }
 
-func (g *Group) AddChild(child Node) error {
+// AddChild implements Node.
+func (n *GroupByNode) AddChild(child Node) error {
 	_, ok := child.(*ColSelectorNode)
 	if !ok {
 		return errorf("GROUP() only accepts children of type %s, but got %T", typeColSelectorNode, child)
 	}
 
-	g.addChild(child)
-	return child.SetParent(g)
+	n.addChild(child)
+	return child.SetParent(n)
 }
 
-func (g *Group) String() string {
-	text := nodeString(g)
+// String returns a log/debug-friendly representation.
+func (n *GroupByNode) String() string {
+	text := nodeString(n)
 	return text
 }
 
@@ -247,13 +250,21 @@ type ExprNode struct {
 	baseNode
 }
 
-func (e *ExprNode) AddChild(child Node) error {
-	e.addChild(child)
-	return child.SetParent(e)
+// AddChild implements Node.
+func (n *ExprNode) AddChild(child Node) error {
+	n.addChild(child)
+	return child.SetParent(n)
 }
 
-func (e *ExprNode) String() string {
-	text := nodeString(e)
+// SetChildren implements Node.
+func (n *ExprNode) SetChildren(children []Node) error {
+	n.setChildren(children)
+	return nil
+}
+
+// String returns a log/debug-friendly representation.
+func (n *ExprNode) String() string {
+	text := nodeString(n)
 	return text
 }
 
@@ -262,8 +273,9 @@ type OperatorNode struct {
 	baseNode
 }
 
-func (o *OperatorNode) String() string {
-	return nodeString(o)
+// String returns a log/debug-friendly representation.
+func (n *OperatorNode) String() string {
+	return nodeString(n)
 }
 
 // LiteralNode is a leaf node representing a literal such as a number or a string.
@@ -271,8 +283,9 @@ type LiteralNode struct {
 	baseNode
 }
 
-func (li *LiteralNode) String() string {
-	return nodeString(li)
+// String returns a log/debug-friendly representation.
+func (n *LiteralNode) String() string {
+	return nodeString(n)
 }
 
 // WhereNode represents a SQL WHERE clause, i.e. a filter on the SELECT.
@@ -280,30 +293,30 @@ type WhereNode struct {
 	baseNode
 }
 
-func (w *WhereNode) String() string {
-	return nodeString(w)
+func (n *WhereNode) String() string {
+	return nodeString(n)
 }
 
 // Expr returns the expression that constitutes the SetWhere clause, or nil if no expression.
-func (w *WhereNode) Expr() *ExprNode {
-	if len(w.children) == 0 {
+func (n *WhereNode) Expr() *ExprNode {
+	if len(n.children) == 0 {
 		return nil
 	}
 
-	return w.children[0].(*ExprNode)
+	return n.children[0].(*ExprNode)
 }
 
-func (w *WhereNode) AddChild(node Node) error {
+func (n *WhereNode) AddChild(node Node) error {
 	expr, ok := node.(*ExprNode)
 	if !ok {
 		return errorf("WHERE child must be %T, but got: %T", expr, node)
 	}
 
-	if len(w.children) > 0 {
+	if len(n.children) > 0 {
 		return errorf("WHERE has max 1 child: failed to add: %T", node)
 	}
 
-	w.addChild(expr)
+	n.addChild(expr)
 	return nil
 }
 

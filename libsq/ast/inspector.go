@@ -3,6 +3,8 @@ package ast
 import (
 	"reflect"
 
+	"github.com/ryboe/q"
+
 	"github.com/neilotoole/lg"
 )
 
@@ -23,6 +25,11 @@ func (in *Inspector) CountNodes(typ reflect.Type) int {
 	w := NewWalker(in.log, in.ast)
 	w.AddVisitor(typ, func(log lg.Log, w *Walker, node Node) error {
 		count++
+		if typ == typeSelectorNode {
+			// found it
+			// FIXME: delete this
+			q.Q("found it", node)
+		}
 		return nil
 	})
 

@@ -98,6 +98,18 @@ func TestSLQ2SQLNew(t *testing.T) {
 			override: map[source.Type]string{mysql.Type: "SELECT COUNT(*) AS `quantity` FROM `actor`"},
 		},
 		{
+			name:     "filter/equal",
+			in:       `@sakila | .actor | .actor_id == 1`,
+			want:     `SELECT * FROM "actor" WHERE "actor_id" = 1`,
+			override: map[source.Type]string{mysql.Type: "SELECT * FROM `actor` WHERE `actor_id` = 1"},
+		},
+		{
+			name:     "join/single-selector",
+			in:       `@sakila | .actor, .film_actor | join(.actor_id)`,
+			want:     `SELECT * FROM "actor" INNER JOIN "film_actor" ON "actor"."actor_id" = "film_actor"."actor_id"`,
+			override: map[source.Type]string{mysql.Type: "SELECT * FROM `actor` INNER JOIN `film_actor` ON `actor`.`actor_id` = `film_actor`.`actor_id`"},
+		},
+		{
 			name:     "join/fq-table-cols-equal",
 			in:       `@sakila | .actor, .film_actor | join(.film_actor.actor_id == .actor.actor_id)`,
 			want:     `SELECT * FROM "actor" INNER JOIN "film_actor" ON "film_actor"."actor_id" = "actor"."actor_id"`,
@@ -153,6 +165,7 @@ func TestSLQ2SQLNew(t *testing.T) {
 	}
 
 	srcs := testh.New(t).NewSourceSet(sakila.SQLLatest()...)
+	// srcs := testh.New(t).NewSourceSet(sakila.SL3)
 	for _, tc := range testCases {
 		tc := tc
 

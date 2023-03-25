@@ -487,7 +487,7 @@ func (v *parseTreeVisitor) VisitGroup(ctx *slq.GroupContext) any {
 		return errorf("GROUP() requires at least one column selector argument")
 	}
 
-	grp := &Group{}
+	grp := &GroupByNode{}
 	grp.ctx = ctx
 	err := v.cur.AddChild(grp)
 	if err != nil {
