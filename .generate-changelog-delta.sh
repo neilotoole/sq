@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -e
+
 # This script the per-release changelog file for goreleaser to use
 # to publish to GitHub releases. It produces markdown output.
 
@@ -18,8 +20,6 @@ git diff "$prevTag" "$curTag" --no-ext-diff --unified=0 --exit-code -a --no-pref
 | grep -vF '+++ CHANGELOG.md' \
 | cut -c 2- \
 | tail -n +2
-
-
 
 # Then we add a section for the commits.
 printf "\n### Commits\n\n"
