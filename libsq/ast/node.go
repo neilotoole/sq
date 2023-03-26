@@ -38,27 +38,27 @@ type Node interface {
 	Text() string
 }
 
-// Selectable is a marker interface to indicate that the node can be
+// Tabler is a Node marker interface to indicate that the node can be
 // selected from. That is, the node represents a SQL table, view, or
-// join table, and can be used like "SELECT * FROM [selectable]".
-//
-// REVISIT: the name "Selectable" might be confusing. Perhaps "Tabler" or such.
-type Selectable interface {
+// join table, and can be used like "SELECT * FROM [tabler]".
+type Tabler interface {
 	Node
-	selectable()
+	tabler()
 }
 
-// Selector is a marker interface for selector node types. A selector node
+// Selector is a Node marker interface for selector node types. A selector node
 // models a selector such as ".first_name" or ".actor.last_name".
 type Selector interface {
 	Node
 	selector()
 }
 
-// ResultColumn indicates a column selection expression such as a
+// ResultColumn indicates a column selection expression Node such as a
 // column name, or context-appropriate function, e.g. "COUNT(*)".
 // See: https://www.sqlite.org/syntax/result-column.html
 type ResultColumn interface {
+	Node
+
 	// IsColumn returns true if the expression represents
 	// a column, e.g. ".first_name" or "actor.first_name".
 	// This method returns false for functions, e.g. "COUNT(*)".
@@ -285,6 +285,7 @@ type WhereNode struct {
 	baseNode
 }
 
+// String returns a log/debug-friendly representation.
 func (n *WhereNode) String() string {
 	return nodeString(n)
 }
@@ -298,6 +299,7 @@ func (n *WhereNode) Expr() *ExprNode {
 	return n.children[0].(*ExprNode)
 }
 
+// AddChild implements Node.
 func (n *WhereNode) AddChild(node Node) error {
 	expr, ok := node.(*ExprNode)
 	if !ok {

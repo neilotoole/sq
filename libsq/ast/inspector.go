@@ -174,14 +174,14 @@ func (in *Inspector) FindGroupByNode() (*GroupByNode, error) {
 }
 
 // FindSelectableSegments returns the segments that have at least one child
-// that implements Selectable.
+// that implements Tabler.
 func (in *Inspector) FindSelectableSegments() []*SegmentNode {
 	segs := in.ast.Segments()
 	selSegs := make([]*SegmentNode, 0, 2)
 
 	for _, seg := range segs {
 		for _, child := range seg.Children() {
-			if _, ok := child.(Selectable); ok {
+			if _, ok := child.(Tabler); ok {
 				selSegs = append(selSegs, seg)
 				break
 			}
@@ -192,7 +192,7 @@ func (in *Inspector) FindSelectableSegments() []*SegmentNode {
 }
 
 // FindFinalSelectableSegment returns the final segment that
-// has at lest one child that implements Selectable.
+// has at lest one child that implements Tabler.
 func (in *Inspector) FindFinalSelectableSegment() (*SegmentNode, error) {
 	selectableSegs := in.FindSelectableSegments()
 	if len(selectableSegs) == 0 {

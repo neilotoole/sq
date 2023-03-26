@@ -85,8 +85,8 @@ func (s *SelectorNode) SelValue() (string, error) {
 }
 
 var (
-	_ Node       = (*TblSelectorNode)(nil)
-	_ Selectable = (*TblSelectorNode)(nil)
+	_ Node   = (*TblSelectorNode)(nil)
+	_ Tabler = (*TblSelectorNode)(nil)
 )
 
 // TblSelectorNode is a selector for a table, such as ".my_table"
@@ -118,8 +118,8 @@ func (s *TblSelectorNode) Handle() string {
 	return s.handle
 }
 
-// Selectable implements the Selectable marker interface.
-func (s *TblSelectorNode) selectable() {
+// Tabler implements the Tabler marker interface.
+func (s *TblSelectorNode) tabler() {
 	// no-op
 }
 
