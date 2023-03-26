@@ -11,14 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - [#158]: Use `orderby()` to order results. See [query guide](https://sq.io/docs/query/#ordering).
 
-
 ## [v0.26.0] - 2023-03-22
 
 ### Added
 
-- [#98]: Whitespace is now allowed in SLQ selector names. You can 
+- [#98]: Whitespace is now allowed in SLQ selector names. You can
   do `@sakila | ."film actor" | ."actor id"`.
-
 
 ### Fixed
 
@@ -53,7 +51,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - When a CSV source has explicit column names (via `--opts cols=A,B,C`), `sq` now verifies
   that the CSV data record field count matches the number of explicit columns.
 
-
 ## [v0.24.2] - 2023-03-13
 
 ### Fixed
@@ -82,7 +79,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `sq ls` now respects `--json` flag.
 - `sq rm` now respects `--json` flag.
-- `sq add` now respects `--json` flag.`
+- `sq add` now respects `--json` flag.\`
 - CI pipeline now verifies install packages after publish.
 
 ### Changed
@@ -129,7 +126,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   are not yet published to a repository, so it's necessary to run `apk` against
   the downloaded `.apk` file (`install.sh` does this for you).
 
-
 ## [v0.18.0] - 2022-12-24
 
 ### Added
@@ -174,7 +170,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Yet more changes to GitHub workflow.
 
-
 ## [v0.15.4] - 2021-09-18
 
 ### Changed
@@ -193,39 +188,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - [#89]: Bug with SQL generated for joins.
 
-
-[v0.27.0]: https://github.com/neilotoole/sq/compare/v0.26.0...v0.27.0
-[v0.26.0]: https://github.com/neilotoole/sq/compare/v0.25.1...v0.26.0
-[v0.25.1]: https://github.com/neilotoole/sq/compare/v0.25.0...v0.25.1
-[v0.25.0]: https://github.com/neilotoole/sq/compare/v0.24.4...v0.25.0
-[v0.24.4]: https://github.com/neilotoole/sq/compare/v0.24.3...v0.24.4
-[v0.24.3]: https://github.com/neilotoole/sq/compare/v0.24.2...v0.24.3
-[v0.24.2]: https://github.com/neilotoole/sq/compare/v0.24.1...v0.24.2
-[v0.24.1]: https://github.com/neilotoole/sq/compare/v0.24.0...v0.24.1
-[v0.24.0]: https://github.com/neilotoole/sq/compare/v0.23.0...v0.24.0
-[v0.23.0]: https://github.com/neilotoole/sq/compare/v0.21.3...v0.23.0
-[v0.21.3]: https://github.com/neilotoole/sq/compare/v0.20.0...v0.21.3
-[v0.20.0]: https://github.com/neilotoole/sq/compare/v0.19.0...v0.20.0
-[v0.19.0]: https://github.com/neilotoole/sq/compare/v0.18.2...v0.19.0
-[v0.18.2]: https://github.com/neilotoole/sq/compare/v0.18.0...v0.18.2
-[v0.18.0]: https://github.com/neilotoole/sq/compare/v0.17.0...v0.18.0
-[v0.17.0]: https://github.com/neilotoole/sq/compare/v0.16.1...v0.17.0
-[v0.16.1]: https://github.com/neilotoole/sq/compare/v0.16.0...v0.16.1
-[v0.16.0]: https://github.com/neilotoole/sq/compare/v0.15.11...v0.16.0
-[v0.15.11]: https://github.com/neilotoole/sq/compare/v0.15.4...v0.15.11
-[v0.15.4]: https://github.com/neilotoole/sq/compare/v0.15.3...v0.15.4
-[v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
-[v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
-
-[#158]: https://github.com/neilotoole/sq/issues/158
-[#155]: https://github.com/neilotoole/sq/issues/155
-[#153]: https://github.com/neilotoole/sq/issues/153
-[#151]: https://github.com/neilotoole/sq/issues/151
-[#144]: https://github.com/neilotoole/sq/issues/144
-[#142]: https://github.com/neilotoole/sq/issues/142
 [#123]: https://github.com/neilotoole/sq/issues/123
-[#98]: https://github.com/neilotoole/sq/issues/98
-[#95]: https://github.com/neilotoole/sq/issues/93
-[#91]: https://github.com/neilotoole/sq/pull/91
-[#89]: https://github.com/neilotoole/sq/pull/89
+[#142]: https://github.com/neilotoole/sq/issues/142
+[#144]: https://github.com/neilotoole/sq/issues/144
 [#15]: https://github.com/neilotoole/sq/issues/15
+[#151]: https://github.com/neilotoole/sq/issues/151
+[#153]: https://github.com/neilotoole/sq/issues/153
+[#155]: https://github.com/neilotoole/sq/issues/155
+[#158]: https://github.com/neilotoole/sq/issues/158
+[#89]: https://github.com/neilotoole/sq/pull/89
+[#91]: https://github.com/neilotoole/sq/pull/91
+[#95]: https://github.com/neilotoole/sq/issues/93
+[#98]: https://github.com/neilotoole/sq/issues/98
+[v0.15.11]: https://github.com/neilotoole/sq/compare/v0.15.4...v0.15.11
+[v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
+[v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
+[v0.15.4]: https://github.com/neilotoole/sq/compare/v0.15.3...v0.15.4
+[v0.16.0]: https://github.com/neilotoole/sq/compare/v0.15.11...v0.16.0
+[v0.16.1]: https://github.com/neilotoole/sq/compare/v0.16.0...v0.16.1
+[v0.17.0]: https://github.com/neilotoole/sq/compare/v0.16.1...v0.17.0
+[v0.18.0]: https://github.com/neilotoole/sq/compare/v0.17.0...v0.18.0
+[v0.18.2]: https://github.com/neilotoole/sq/compare/v0.18.0...v0.18.2
+[v0.19.0]: https://github.com/neilotoole/sq/compare/v0.18.2...v0.19.0
+[v0.20.0]: https://github.com/neilotoole/sq/compare/v0.19.0...v0.20.0
+[v0.21.3]: https://github.com/neilotoole/sq/compare/v0.20.0...v0.21.3
+[v0.23.0]: https://github.com/neilotoole/sq/compare/v0.21.3...v0.23.0
+[v0.24.0]: https://github.com/neilotoole/sq/compare/v0.23.0...v0.24.0
+[v0.24.1]: https://github.com/neilotoole/sq/compare/v0.24.0...v0.24.1
+[v0.24.2]: https://github.com/neilotoole/sq/compare/v0.24.1...v0.24.2
+[v0.24.3]: https://github.com/neilotoole/sq/compare/v0.24.2...v0.24.3
+[v0.24.4]: https://github.com/neilotoole/sq/compare/v0.24.3...v0.24.4
+[v0.25.0]: https://github.com/neilotoole/sq/compare/v0.24.4...v0.25.0
+[v0.25.1]: https://github.com/neilotoole/sq/compare/v0.25.0...v0.25.1
+[v0.26.0]: https://github.com/neilotoole/sq/compare/v0.25.1...v0.26.0
+[v0.27.0]: https://github.com/neilotoole/sq/compare/v0.26.0...v0.27.0
