@@ -37,6 +37,12 @@ type SLQListener interface {
 	// EnterGroup is called when entering the group production.
 	EnterGroup(c *GroupContext)
 
+	// EnterOrderByTerm is called when entering the orderByTerm production.
+	EnterOrderByTerm(c *OrderByTermContext)
+
+	// EnterOrderBy is called when entering the orderBy production.
+	EnterOrderBy(c *OrderByContext)
+
 	// EnterSelector is called when entering the selector production.
 	EnterSelector(c *SelectorContext)
 
@@ -96,6 +102,12 @@ type SLQListener interface {
 
 	// ExitGroup is called when exiting the group production.
 	ExitGroup(c *GroupContext)
+
+	// ExitOrderByTerm is called when exiting the orderByTerm production.
+	ExitOrderByTerm(c *OrderByTermContext)
+
+	// ExitOrderBy is called when exiting the orderBy production.
+	ExitOrderBy(c *OrderByContext)
 
 	// ExitSelector is called when exiting the selector production.
 	ExitSelector(c *SelectorContext)

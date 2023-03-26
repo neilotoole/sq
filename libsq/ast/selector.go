@@ -14,7 +14,38 @@ const (
 	msgNodeNoAddChildren = "%T cannot add children: failed to add %d children"
 )
 
-var _ Node = (*SelectorNode)(nil)
+func newSelectorNode(parent Node, ctx slq.ISelectorContext) (*SelectorNode, error) {
+	selNode := &SelectorNode{}
+	selNode.parent = parent
+	selNode.ctx = ctx
+	selNode.text = ctx.GetText()
+
+	var err error
+	names := ctx.AllNAME()
+	switch len(names) {
+	default:
+		return nil, errorf("expected 1 or 2 name parts in selector (e.g. '.table.column') but got %d parts: %s",
+			len(names), ctx.GetText())
+	case 1:
+		if selNode.name0, err = extractSelVal(names[0]); err != nil {
+			return nil, err
+		}
+	case 2:
+		if selNode.name0, err = extractSelVal(names[0]); err != nil {
+			return nil, err
+		}
+		if selNode.name1, err = extractSelVal(names[1]); err != nil {
+			return nil, err
+		}
+	}
+
+	return selNode, nil
+}
+
+var (
+	_ Node     = (*SelectorNode)(nil)
+	_ selector = (*SelectorNode)(nil)
+)
 
 // SelectorNode is a selector such as ".my_table" or ".my_col". The
 // generic selector will typically be replaced with a more specific
@@ -38,6 +69,11 @@ type SelectorNode struct {
 	name1 string
 }
 
+// selector implements the ast.selector marker interface.
+func (s *SelectorNode) selector() {
+}
+
+// Strings returns a log/debug-friendly representation.
 func (s *SelectorNode) String() string {
 	return nodeString(s)
 }
@@ -83,7 +119,7 @@ func (s *TblSelectorNode) Handle() string {
 }
 
 // Selectable implements the Selectable marker interface.
-func (s *TblSelectorNode) Selectable() {
+func (s *TblSelectorNode) selectable() {
 	// no-op
 }
 
@@ -107,6 +143,7 @@ func (s *TblSelectorNode) String() string {
 var (
 	_ Node         = (*TblColSelectorNode)(nil)
 	_ ResultColumn = (*TblColSelectorNode)(nil)
+	_ selector     = (*TblColSelectorNode)(nil)
 )
 
 // TblColSelectorNode models the TABLE.COLUMN selector, e.g. actor.first_name.
@@ -169,6 +206,7 @@ func (n *TblColSelectorNode) Alias() string {
 var (
 	_ Node         = (*ColSelectorNode)(nil)
 	_ ResultColumn = (*ColSelectorNode)(nil)
+	_ selector     = (*ColSelectorNode)(nil)
 )
 
 // ColSelectorNode models a column selector such as ".first_name".

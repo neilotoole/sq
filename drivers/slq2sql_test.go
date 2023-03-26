@@ -98,6 +98,18 @@ func TestSLQ2SQLNew(t *testing.T) {
 			override: map[source.Type]string{mysql.Type: "SELECT COUNT(*) AS `quantity` FROM `actor`"},
 		},
 		{
+			name:     "filter/equal",
+			in:       `@sakila | .actor | .actor_id == 1`,
+			want:     `SELECT * FROM "actor" WHERE "actor_id" = 1`,
+			override: map[source.Type]string{mysql.Type: "SELECT * FROM `actor` WHERE `actor_id` = 1"},
+		},
+		{
+			name:     "join/single-selector",
+			in:       `@sakila | .actor, .film_actor | join(.actor_id)`,
+			want:     `SELECT * FROM "actor" INNER JOIN "film_actor" ON "actor"."actor_id" = "film_actor"."actor_id"`,
+			override: map[source.Type]string{mysql.Type: "SELECT * FROM `actor` INNER JOIN `film_actor` ON `actor`.`actor_id` = `film_actor`.`actor_id`"},
+		},
+		{
 			name:     "join/fq-table-cols-equal",
 			in:       `@sakila | .actor, .film_actor | join(.film_actor.actor_id == .actor.actor_id)`,
 			want:     `SELECT * FROM "actor" INNER JOIN "film_actor" ON "film_actor"."actor_id" = "actor"."actor_id"`,
@@ -109,9 +121,51 @@ func TestSLQ2SQLNew(t *testing.T) {
 			want:     `SELECT * FROM "actor" INNER JOIN "film actor" ON "film actor"."actor_id" = "actor"."actor_id"`,
 			override: map[source.Type]string{mysql.Type: "SELECT * FROM `actor` INNER JOIN `film actor` ON `film actor`.`actor_id` = `actor`.`actor_id`"},
 		},
+		{
+			name:     "orderby/single-element",
+			in:       `@sakila | .actor | orderby(.first_name)`,
+			want:     `SELECT * FROM "actor" ORDER BY "first_name"`,
+			override: map[source.Type]string{mysql.Type: "SELECT * FROM `actor` ORDER BY `first_name`"},
+		},
+		{
+			name:     "orderby/single-element-table-selector",
+			in:       `@sakila | .actor | orderby(.actor.first_name)`,
+			want:     `SELECT * FROM "actor" ORDER BY "actor"."first_name"`,
+			override: map[source.Type]string{mysql.Type: "SELECT * FROM `actor` ORDER BY `actor`.`first_name`"},
+		},
+		{
+			name:     "orderby/single-element-asc",
+			in:       `@sakila | .actor | orderby(.first_name+)`,
+			want:     `SELECT * FROM "actor" ORDER BY "first_name" ASC`,
+			override: map[source.Type]string{mysql.Type: "SELECT * FROM `actor` ORDER BY `first_name` ASC"},
+		},
+		{
+			name:     "orderby/single-element-desc",
+			in:       `@sakila | .actor | orderby(.first_name-)`,
+			want:     `SELECT * FROM "actor" ORDER BY "first_name" DESC`,
+			override: map[source.Type]string{mysql.Type: "SELECT * FROM `actor` ORDER BY `first_name` DESC"},
+		},
+		{
+			name:     "orderby/multiple-elements",
+			in:       `@sakila | .actor | orderby(.first_name+, .last_name-)`,
+			want:     `SELECT * FROM "actor" ORDER BY "first_name" ASC, "last_name" DESC`,
+			override: map[source.Type]string{mysql.Type: "SELECT * FROM `actor` ORDER BY `first_name` ASC, `last_name` DESC"},
+		},
+		{
+			name:     "orderby/synonym-sort-by",
+			in:       `@sakila | .actor | sort_by(.first_name)`,
+			want:     `SELECT * FROM "actor" ORDER BY "first_name"`,
+			override: map[source.Type]string{mysql.Type: "SELECT * FROM `actor` ORDER BY `first_name`"},
+		},
+		{
+			name:    "orderby/error-no-selector",
+			in:      `@sakila | .actor | orderby()`,
+			wantErr: true,
+		},
 	}
 
 	srcs := testh.New(t).NewSourceSet(sakila.SQLLatest()...)
+	// srcs := testh.New(t).NewSourceSet(sakila.SL3)
 	for _, tc := range testCases {
 		tc := tc
 
@@ -132,9 +186,6 @@ func TestSLQ2SQLNew(t *testing.T) {
 
 					th := testh.New(t)
 					dbases := th.Databases()
-
-					// drvr := th.DriverFor(src).(driver.SQLDriver)
-					// drvr.AlterTableAddColumn()
 
 					gotSQL, gotErr := libsq.SLQ2SQL(th.Context, th.Log, dbases, dbases, srcs, in)
 					if tc.wantErr {

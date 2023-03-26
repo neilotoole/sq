@@ -128,9 +128,9 @@ type parseTreeVisitor struct {
 // executes fn, and then restores v.cur to its previous value.
 // The type of the returned value is declared as "any" instead of
 // error, because that's the generated antlr code returns "any".
-func (v *parseTreeVisitor) using(cur Node, fn func() any) any {
+func (v *parseTreeVisitor) using(node Node, fn func() any) any {
 	prev := v.cur
-	v.cur = cur
+	v.cur = node
 	defer func() { v.cur = prev }()
 	return fn()
 }
@@ -170,6 +170,10 @@ func (v *parseTreeVisitor) Visit(ctx antlr.ParseTree) any {
 		return v.VisitExpr(ctx)
 	case *slq.GroupContext:
 		return v.VisitGroup(ctx)
+	case *slq.OrderByContext:
+		return v.VisitOrderBy(ctx)
+	case *slq.OrderByTermContext:
+		return v.VisitOrderByTerm(ctx)
 	case *slq.LiteralContext:
 		return v.VisitLiteral(ctx)
 	case *antlr.TerminalNodeImpl:
@@ -248,32 +252,46 @@ func (v *parseTreeVisitor) VisitSegment(ctx *slq.SegmentContext) any {
 	return v.VisitChildren(ctx)
 }
 
-func newSelectorNode(parent Node, ctx slq.ISelectorContext) (*SelectorNode, error) {
-	selNode := &SelectorNode{}
-	selNode.parent = parent
-	selNode.ctx = ctx
-	selNode.text = ctx.GetText()
+// VisitOrderBy implements slq.SLQVisitor.
+func (v *parseTreeVisitor) VisitOrderBy(ctx *slq.OrderByContext) interface{} {
+	node := &OrderByNode{}
+	node.parent = v.cur
+	node.ctx = ctx
+	node.text = ctx.GetText()
 
-	var err error
-	names := ctx.AllNAME()
-	switch len(names) {
-	default:
-		return nil, errorf("expected 1 or 2 name parts in selector (e.g. '.table.column') but got %d parts: %s",
-			len(names), ctx.GetText())
-	case 1:
-		if selNode.name0, err = extractSelVal(names[0]); err != nil {
-			return nil, err
-		}
-	case 2:
-		if selNode.name0, err = extractSelVal(names[0]); err != nil {
-			return nil, err
-		}
-		if selNode.name1, err = extractSelVal(names[1]); err != nil {
-			return nil, err
-		}
+	if err := v.cur.AddChild(node); err != nil {
+		return err
 	}
 
-	return selNode, nil
+	return v.using(node, func() any {
+		// This will result in VisitOrderByTerm being called on the children.
+		return v.VisitChildren(ctx)
+	})
+}
+
+// VisitOrderByTerm implements slq.SLQVisitor.
+func (v *parseTreeVisitor) VisitOrderByTerm(ctx *slq.OrderByTermContext) interface{} {
+	node := &OrderByTermNode{}
+	node.parent = v.cur
+	node.ctx = ctx
+	node.text = ctx.GetText()
+
+	selNode, err := newSelectorNode(node, ctx.Selector())
+	if err != nil {
+		return nil
+	}
+
+	if ctx.ORDER_ASC() != nil {
+		node.direction = OrderByDirectionAsc
+	} else if ctx.ORDER_DESC() != nil {
+		node.direction = OrderByDirectionDesc
+	}
+
+	if err := node.AddChild(selNode); err != nil {
+		return err
+	}
+
+	return v.cur.AddChild(node)
 }
 
 // VisitSelectorElement implements slq.SLQVisitor.
@@ -315,7 +333,7 @@ func (v *parseTreeVisitor) VisitAlias(ctx *slq.AliasContext) any {
 	switch node := v.cur.(type) {
 	case *SelectorNode:
 		node.alias = alias
-	case *Func:
+	case *FuncNode:
 		node.alias = alias
 	default:
 		return errorf("alias not allowed for type %T: %v", node, ctx.GetText())
@@ -353,9 +371,9 @@ func (v *parseTreeVisitor) VisitFnElement(ctx *slq.FnElementContext) any {
 			return errorf("expected second child to be %T but was %T: %v", aliasCtx, child2, ctx.GetText())
 		}
 
-		// VisitAlias will expect v.cur to be a Func.
+		// VisitAlias will expect v.cur to be a FuncNode.
 		lastNode := nodeLastChild(v.cur)
-		fnNode, ok := lastNode.(*Func)
+		fnNode, ok := lastNode.(*FuncNode)
 		if !ok {
 			return errorf("expected %T but got %T: %v", fnNode, lastNode, ctx.GetText())
 		}
@@ -372,7 +390,7 @@ func (v *parseTreeVisitor) VisitFnElement(ctx *slq.FnElementContext) any {
 func (v *parseTreeVisitor) VisitFn(ctx *slq.FnContext) any {
 	v.log.Debugf("visiting Fn: %v", ctx.GetText())
 
-	fn := &Func{fnName: ctx.FnName().GetText()}
+	fn := &FuncNode{fnName: ctx.FnName().GetText()}
 	fn.ctx = ctx
 	err := fn.SetParent(v.cur)
 	if err != nil {
@@ -405,7 +423,7 @@ func (v *parseTreeVisitor) VisitExpr(ctx *slq.ExprContext) any {
 		return v.VisitLiteral(ctx.Literal().(*slq.LiteralContext))
 	}
 
-	ex := &Expr{}
+	ex := &ExprNode{}
 	ex.ctx = ctx
 	err := ex.SetParent(v.cur)
 	if err != nil {
@@ -438,7 +456,7 @@ func (v *parseTreeVisitor) VisitStmtList(ctx *slq.StmtListContext) any {
 func (v *parseTreeVisitor) VisitLiteral(ctx *slq.LiteralContext) any {
 	v.log.Debugf("visiting literal: %q", ctx.GetText())
 
-	lit := &Literal{}
+	lit := &LiteralNode{}
 	lit.ctx = ctx
 	_ = lit.SetParent(v.cur)
 	err := v.cur.AddChild(lit)
@@ -469,7 +487,7 @@ func (v *parseTreeVisitor) VisitGroup(ctx *slq.GroupContext) any {
 		return errorf("GROUP() requires at least one column selector argument")
 	}
 
-	grp := &Group{}
+	grp := &GroupByNode{}
 	grp.ctx = ctx
 	err := v.cur.AddChild(grp)
 	if err != nil {
@@ -602,7 +620,7 @@ func (v *parseTreeVisitor) VisitTerminal(ctx antlr.TerminalNode) any {
 	val := ctx.GetText()
 
 	if isOperator(val) {
-		op := &Operator{}
+		op := &OperatorNode{}
 		op.ctx = ctx
 
 		err := op.SetParent(v.cur)
@@ -642,7 +660,7 @@ func (v *parseTreeVisitor) VisitRowRange(ctx *slq.RowRangeContext) any {
 		}
 
 		i, _ := strconv.Atoi(ctx.AllNN()[0].GetText())
-		rr := newRowRange(ctx, i, 1)
+		rr := newRowRangeNode(ctx, i, 1)
 		return v.cur.AddChild(rr)
 	}
 
@@ -656,7 +674,7 @@ func (v *parseTreeVisitor) VisitRowRange(ctx *slq.RowRangeContext) any {
 		offset, _ := strconv.Atoi(ctx.AllNN()[0].GetText())
 		finish, _ := strconv.Atoi(ctx.AllNN()[1].GetText())
 		limit := finish - offset
-		rr := newRowRange(ctx, offset, limit)
+		rr := newRowRangeNode(ctx, offset, limit)
 		return v.cur.AddChild(rr)
 	}
 
@@ -676,7 +694,7 @@ func (v *parseTreeVisitor) VisitRowRange(ctx *slq.RowRangeContext) any {
 		offset, _ = strconv.Atoi(ctx.AllNN()[0].GetText())
 	}
 
-	rr := newRowRange(ctx, offset, limit)
+	rr := newRowRangeNode(ctx, offset, limit)
 	return v.cur.AddChild(rr)
 }
 

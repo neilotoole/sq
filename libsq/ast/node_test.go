@@ -26,7 +26,7 @@ func TestChildIndex(t *testing.T) {
 }
 
 func TestNodesWithType(t *testing.T) {
-	nodes := []Node{&ColSelectorNode{}, &ColSelectorNode{}, &TblSelectorNode{}, &RowRange{}}
+	nodes := []Node{&ColSelectorNode{}, &ColSelectorNode{}, &TblSelectorNode{}, &RowRangeNode{}}
 
 	require.Equal(t, 2, len(nodesWithType(nodes, typeColSelectorNode)))
 	require.Equal(t, 1, len(nodesWithType(nodes, typeTblSelectorNode)))

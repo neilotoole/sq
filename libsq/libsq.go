@@ -103,8 +103,7 @@ func newEngine(ctx context.Context, log lg.Log, dbOpener driver.DatabaseOpener, 
 		joinDBOpener: joinDBOpener,
 	}
 
-	err = ng.prepare(ctx, qModel)
-	if err != nil {
+	if err = ng.prepare(ctx, qModel); err != nil {
 		return nil, err
 	}
 

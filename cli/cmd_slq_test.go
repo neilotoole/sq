@@ -17,7 +17,7 @@ import (
 	"github.com/neilotoole/sq/testh/sakila"
 )
 
-// TestCmdSLQ_Insert tests "sq slq QUERY --insert=_newdest.tbl".
+// TestCmdSLQ_Insert tests "sq QUERY --insert=@src.tbl".
 func TestCmdSLQ_Insert_Create(t *testing.T) {
 	th := testh.New(t)
 	originSrc, destSrc := th.Source(sakila.SL3), th.Source(sakila.SL3)

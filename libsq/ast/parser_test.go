@@ -106,7 +106,7 @@ func TestInspector_FindWhereClauses(t *testing.T) {
 	log := testlg.New(t)
 
 	// Verify that ".uid > 4" becomes a WHERE clause.
-	const input = "@my1 | .tbluser | .uid > 4 | .uid, .username"
+	const input = "@my1 | .actor | .uid > 4 | .uid, .username"
 
 	ptree, err := parseSLQ(log, input)
 	require.Nil(t, err)

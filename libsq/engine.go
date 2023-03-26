@@ -74,8 +74,7 @@ func (ng *engine) prepare(ctx context.Context, qm *queryModel) error {
 
 	if qm.Range != nil {
 		var rangeClause string
-		rangeClause, err = fragBuilder.Range(qm.Range)
-		if err != nil {
+		if rangeClause, err = fragBuilder.Range(qm.Range); err != nil {
 			return err
 		}
 
@@ -84,12 +83,20 @@ func (ng *engine) prepare(ctx context.Context, qm *queryModel) error {
 
 	if qm.Where != nil {
 		var whereClause string
-		whereClause, err = fragBuilder.Where(qm.Where)
-		if err != nil {
+		if whereClause, err = fragBuilder.Where(qm.Where); err != nil {
 			return err
 		}
 
 		qb.SetWhere(whereClause)
+	}
+
+	if qm.OrderBy != nil {
+		var orderByClause string
+		if orderByClause, err = fragBuilder.OrderBy(qm.OrderBy); err != nil {
+			return err
+		}
+
+		qb.SetOrderBy(orderByClause)
 	}
 
 	ng.targetSQL, err = qb.SQL()
@@ -334,8 +341,9 @@ type queryModel struct {
 	AST        *ast.AST
 	Selectable ast.Selectable
 	Cols       []ast.ResultColumn
-	Range      *ast.RowRange
-	Where      *ast.Where
+	Range      *ast.RowRangeNode
+	Where      *ast.WhereNode
+	OrderBy    *ast.OrderByNode
 }
 
 func (qm *queryModel) String() string {
@@ -372,7 +380,7 @@ func buildQueryModel(log lg.Log, a *ast.AST) (*queryModel, error) {
 	// Look for range
 	for seg := selectableSeg.Next(); seg != nil; seg = seg.Next() {
 		// Check if the first element of the segment is a row range, if not, just skip
-		if rr, ok := seg.Children()[0].(*ast.RowRange); ok {
+		if rr, ok := seg.Children()[0].(*ast.RowRangeNode); ok {
 			if len(seg.Children()) != 1 {
 				return nil, errz.Errorf(
 					"segment [%d] with row range must have exactly one element, but found %d: %q",
@@ -418,6 +426,10 @@ func buildQueryModel(log lg.Log, a *ast.AST) (*queryModel, error) {
 		return nil, errz.Errorf("only one WHERE clause is supported, but found %d", len(whereClauses))
 	} else if len(whereClauses) == 1 {
 		qm.Where = whereClauses[0]
+	}
+
+	if qm.OrderBy, err = insp.FindOrderByNode(); err != nil {
+		return nil, err
 	}
 
 	return qm, nil

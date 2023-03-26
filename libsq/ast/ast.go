@@ -17,13 +17,23 @@ import (
 
 // Parse parses the SLQ input string and builds the AST.
 func Parse(log lg.Log, input string) (*AST, error) { //nolint:staticcheck
+	// REVISIT: We need a better solution for disabling parser logging.
 	log = lg.Discard() //nolint:staticcheck // Disable parser logging.
 	ptree, err := parseSLQ(log, input)
 	if err != nil {
 		return nil, err
 	}
 
-	return buildAST(log, ptree)
+	ast, err := buildAST(log, ptree)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := verify(log, ast); err != nil {
+		return nil, err
+	}
+
+	return ast, nil
 }
 
 // buildAST constructs sq's AST from a parse tree.
@@ -63,6 +73,19 @@ func buildAST(log lg.Log, query slq.IQueryContext) (*AST, error) {
 	}
 
 	return tree.ast, nil
+}
+
+// verify performs additional checks on the state of the built AST.
+func verify(log lg.Log, ast *AST) error {
+	selCount := NewInspector(log, ast).CountNodes(typeSelectorNode)
+	if selCount != 0 {
+		return errorf("AST should have zero nodes of type %T but found %d",
+			(*SelectorNode)(nil), selCount)
+	}
+
+	// TODO: Lots more checks could go here
+
+	return nil
 }
 
 var _ Node = (*AST)(nil)

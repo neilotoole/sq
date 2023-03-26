@@ -16,6 +16,8 @@ import (
 	"github.com/neilotoole/sq/libsq/core/sqlmodel"
 )
 
+var _ sqlbuilder.FragmentBuilder = (*fragBuilder)(nil)
+
 type fragBuilder struct {
 	sqlbuilder.BaseFragmentBuilder
 }
@@ -29,13 +31,13 @@ func newFragmentBuilder(log lg.Log) *fragBuilder {
 	return r
 }
 
-func (fb *fragBuilder) Range(rr *ast.RowRange) (string, error) {
+func (fb *fragBuilder) Range(rr *ast.RowRangeNode) (string, error) {
 	if rr == nil {
 		return "", nil
 	}
 
 	/*
-		SELECT * FROM tbluser
+		SELECT * FROM actor
 			ORDER BY (SELECT 0)
 			OFFSET 1 ROWS
 			FETCH NEXT 2 ROWS ONLY;
@@ -62,6 +64,8 @@ func (fb *fragBuilder) Range(rr *ast.RowRange) (string, error) {
 	return sql, nil
 }
 
+var _ sqlbuilder.QueryBuilder = (*queryBuilder)(nil)
+
 type queryBuilder struct {
 	sqlbuilder.BaseQueryBuilder
 }
@@ -71,7 +75,7 @@ func (qb *queryBuilder) SQL() (string, error) {
 	// then the ORDER BY clause is required. If ORDER BY is not specified, we use a trick (SELECT 0)
 	// to satisfy SQL Server. For example:
 	//
-	//   SELECT * FROM tbluser
+	//   SELECT * FROM actor
 	//   ORDER BY (SELECT 0)
 	//   OFFSET 1 ROWS
 	//   FETCH NEXT 2 ROWS ONLY;

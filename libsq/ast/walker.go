@@ -123,12 +123,12 @@ func narrowTblColSel(log lg.Log, w *Walker, node Node) error {
 	// node is guaranteed to be type SelectorNode
 	sel, ok := node.(*SelectorNode)
 	if !ok {
-		return errorf("expected *SelectorNode but got %T", node)
+		return errorf("expected %T but got %T", sel, node)
 	}
 
 	parent := sel.Parent()
 	switch parent := parent.(type) {
-	case *JoinConstraint, *Func:
+	case *JoinConstraint, *FuncNode, *OrderByTermNode, *ExprNode:
 		if sel.name1 == "" {
 			return nil
 		}
@@ -175,15 +175,13 @@ func narrowColSel(log lg.Log, w *Walker, node Node) error {
 	// node is guaranteed to be type SelectorNode
 	sel, ok := node.(*SelectorNode)
 	if !ok {
-		return errorf("expected *SelectorNode but got %T", node)
+		return errorf("expected %T but got %T", sel, node)
 	}
 
 	parent := sel.Parent()
 
 	switch parent := parent.(type) {
-	case *JoinConstraint, *Func:
-		// selector parent is JoinConstraint or Func, therefore this is a ColSelectorNode
-		log.Debugf("selector parent is %T, therefore this is a ColSelectorNode", parent)
+	case *JoinConstraint, *FuncNode, *OrderByTermNode, *ExprNode:
 		colSel, err := newColSelectorNode(sel)
 		if err != nil {
 			return err
@@ -219,19 +217,17 @@ func narrowColSel(log lg.Log, w *Walker, node Node) error {
 // findWhereClause locates any expressions that represent the WHERE clause of the SQL SELECT stmt, and
 // inserts a SetWhere node into the AST for that expression.
 //
-// In practice, a WHERE clause is an *Expr that is the only child of a segment. For example:
+// In practice, a WHERE clause is an *ExprNode that is the only child of a segment. For example:
 //
 //	@my1 | .tbluser | .uid > 4 | .uid, .email
 //
 // In this case, ".uid > 4" is the WHERE clause.
 func findWhereClause(log lg.Log, w *Walker, node Node) error {
-	// node is guaranteed to be *Expr
-	expr, ok := node.(*Expr)
+	// node is guaranteed to be *ExprNode
+	expr, ok := node.(*ExprNode)
 	if !ok {
-		return errorf("expected *Expr but got %T", node)
+		return errorf("expected %T but got %T", expr, node)
 	}
-
-	log.Debugf("found expression: %q", expr.Context().GetText())
 
 	seg, ok := expr.Parent().(*SegmentNode)
 	if !ok {
@@ -239,14 +235,13 @@ func findWhereClause(log lg.Log, w *Walker, node Node) error {
 		return nil
 	}
 
-	log.Debugf("expr parent is *SegmentNode")
 	if len(seg.Children()) != 1 {
-		return errorf("SegmentNode with expression - representing a WHERE clause - must only have one child")
+		return errorf("%T with expression - representing a WHERE clause - must only have one child", seg)
 	}
 
 	// The expr is the direct and only child of a segment.
-	// We insert a Where between the segment and the expr.
-	where := &Where{}
+	// We insert a WhereNode between the segment and the expr.
+	where := &WhereNode{}
 	where.ctx = expr.ctx
 	err := where.AddChild(expr)
 	if err != nil {
@@ -296,10 +291,10 @@ func determineJoinTables(log lg.Log, w *Walker, node Node) error {
 	return nil
 }
 
-// visitCheckRowRange validates the RowRange element.
+// visitCheckRowRange validates the RowRangeNode element.
 func visitCheckRowRange(log lg.Log, w *Walker, node Node) error {
 	// node is guaranteed to be FnJoin
-	rr, ok := node.(*RowRange)
+	rr, ok := node.(*RowRangeNode)
 	if !ok {
 		return errorf("expected %s but got %T", typeRowRangeNode, node)
 	}
