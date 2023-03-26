@@ -16,15 +16,26 @@ element:
 	| group
 	| orderBy
 	| rowRange
-	| fnElement
+	| funcElement
 	| expr;
 
 // cmpr is a comparison operator.
 cmpr: LT_EQ | LT | GT_EQ | GT | EQ | NEQ;
 
-fn: fnName '(' ( expr ( ',' expr)* | '*')? ')';
+/*
+functions
+---------
 
-fnElement: fn (alias)?;
+Database function call mechanism.
+
+    .actor | count(.first_name)
+    .payment | max(.amount)
+    .payment | max(.amount):amount   # result column name is aliased
+*/
+
+func: funcName '(' ( expr ( ',' expr)* | '*')? ')';
+
+funcElement: func (alias)?;
 
 join: ('join' | 'JOIN' | 'j') '(' joinConstraint ')';
 
@@ -126,16 +137,11 @@ rowRange:
 		| NN // [10]
 	)? ']';
 
-fnName:
+funcName:
 	'sum'
-	| 'SUM'
 	| 'avg'
-	| 'AVG'
 	| 'count'
-	| 'COUNT'
-	| 'where'
-	| 'WHERE';
-
+	| 'where';
 expr:
 	selector
 	| literal
@@ -147,7 +153,7 @@ expr:
 	| expr ( '<' | '<=' | '>' | '>=') expr
 	| expr ( '==' | '!=' |) expr
 	| expr '&&' expr
-	| fn
+	| func
 	;
 
 literal: NN | NUMBER | STRING | NULL;

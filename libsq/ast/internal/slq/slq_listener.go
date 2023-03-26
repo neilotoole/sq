@@ -22,11 +22,11 @@ type SLQListener interface {
 	// EnterCmpr is called when entering the cmpr production.
 	EnterCmpr(c *CmprContext)
 
-	// EnterFn is called when entering the fn production.
-	EnterFn(c *FnContext)
+	// EnterFunc is called when entering the func production.
+	EnterFunc(c *FuncContext)
 
-	// EnterFnElement is called when entering the fnElement production.
-	EnterFnElement(c *FnElementContext)
+	// EnterFuncElement is called when entering the funcElement production.
+	EnterFuncElement(c *FuncElementContext)
 
 	// EnterJoin is called when entering the join production.
 	EnterJoin(c *JoinContext)
@@ -61,8 +61,8 @@ type SLQListener interface {
 	// EnterRowRange is called when entering the rowRange production.
 	EnterRowRange(c *RowRangeContext)
 
-	// EnterFnName is called when entering the fnName production.
-	EnterFnName(c *FnNameContext)
+	// EnterFuncName is called when entering the funcName production.
+	EnterFuncName(c *FuncNameContext)
 
 	// EnterExpr is called when entering the expr production.
 	EnterExpr(c *ExprContext)
@@ -88,11 +88,11 @@ type SLQListener interface {
 	// ExitCmpr is called when exiting the cmpr production.
 	ExitCmpr(c *CmprContext)
 
-	// ExitFn is called when exiting the fn production.
-	ExitFn(c *FnContext)
+	// ExitFunc is called when exiting the func production.
+	ExitFunc(c *FuncContext)
 
-	// ExitFnElement is called when exiting the fnElement production.
-	ExitFnElement(c *FnElementContext)
+	// ExitFuncElement is called when exiting the funcElement production.
+	ExitFuncElement(c *FuncElementContext)
 
 	// ExitJoin is called when exiting the join production.
 	ExitJoin(c *JoinContext)
@@ -127,8 +127,8 @@ type SLQListener interface {
 	// ExitRowRange is called when exiting the rowRange production.
 	ExitRowRange(c *RowRangeContext)
 
-	// ExitFnName is called when exiting the fnName production.
-	ExitFnName(c *FnNameContext)
+	// ExitFuncName is called when exiting the funcName production.
+	ExitFuncName(c *FuncNameContext)
 
 	// ExitExpr is called when exiting the expr production.
 	ExitExpr(c *ExprContext)

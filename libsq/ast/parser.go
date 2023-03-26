@@ -150,12 +150,12 @@ func (v *parseTreeVisitor) Visit(ctx antlr.ParseTree) any {
 		return v.VisitHandleTable(ctx)
 	case *slq.SelectorContext:
 		return v.VisitSelector(ctx)
-	case *slq.FnElementContext:
-		return v.VisitFnElement(ctx)
-	case *slq.FnContext:
-		return v.VisitFn(ctx)
-	case *slq.FnNameContext:
-		return v.VisitFnName(ctx)
+	case *slq.FuncElementContext:
+		return v.VisitFuncElement(ctx)
+	case *slq.FuncContext:
+		return v.VisitFunc(ctx)
+	case *slq.FuncNameContext:
+		return v.VisitFuncName(ctx)
 	case *slq.JoinContext:
 		return v.VisitJoin(ctx)
 	case *slq.AliasContext:
@@ -342,10 +342,8 @@ func (v *parseTreeVisitor) VisitAlias(ctx *slq.AliasContext) any {
 	return nil
 }
 
-// VisitFnElement implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitFnElement(ctx *slq.FnElementContext) any {
-	v.log.Debugf("visiting FnElement: %v", ctx.GetText())
-
+// VisitFuncElement implements slq.SLQVisitor.
+func (v *parseTreeVisitor) VisitFuncElement(ctx *slq.FuncElementContext) any {
 	childCount := ctx.GetChildCount()
 	if childCount == 0 || childCount > 2 {
 		return errorf("parser: invalid function: expected 1 or 2 children, but got %d: %v",
@@ -354,12 +352,12 @@ func (v *parseTreeVisitor) VisitFnElement(ctx *slq.FnElementContext) any {
 
 	// e.g. count(*)
 	child1 := ctx.GetChild(0)
-	fnCtx, ok := child1.(*slq.FnContext)
+	fnCtx, ok := child1.(*slq.FuncContext)
 	if !ok {
 		return errorf("expected first child to be %T but was %T: %v", fnCtx, child1, ctx.GetText())
 	}
 
-	if err := v.VisitFn(fnCtx); err != nil {
+	if err := v.VisitFunc(fnCtx); err != nil {
 		return err
 	}
 
@@ -386,11 +384,9 @@ func (v *parseTreeVisitor) VisitFnElement(ctx *slq.FnElementContext) any {
 	return nil
 }
 
-// VisitFn implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitFn(ctx *slq.FnContext) any {
-	v.log.Debugf("visiting Fn: %v", ctx.GetText())
-
-	fn := &FuncNode{fnName: ctx.FnName().GetText()}
+// VisitFunc implements slq.SLQVisitor.
+func (v *parseTreeVisitor) VisitFunc(ctx *slq.FuncContext) any {
+	fn := &FuncNode{fnName: ctx.FuncName().GetText()}
 	fn.ctx = ctx
 	err := fn.SetParent(v.cur)
 	if err != nil {
@@ -468,8 +464,8 @@ func (v *parseTreeVisitor) VisitUnaryOperator(ctx *slq.UnaryOperatorContext) any
 	return nil
 }
 
-// VisitFnName implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitFnName(ctx *slq.FnNameContext) any {
+// VisitFuncName implements slq.SLQVisitor.
+func (v *parseTreeVisitor) VisitFuncName(ctx *slq.FuncNameContext) any {
 	return nil
 }
 

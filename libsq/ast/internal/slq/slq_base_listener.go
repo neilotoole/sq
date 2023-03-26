@@ -50,17 +50,17 @@ func (s *BaseSLQListener) EnterCmpr(ctx *CmprContext) {}
 // ExitCmpr is called when production cmpr is exited.
 func (s *BaseSLQListener) ExitCmpr(ctx *CmprContext) {}
 
-// EnterFn is called when production fn is entered.
-func (s *BaseSLQListener) EnterFn(ctx *FnContext) {}
+// EnterFunc is called when production func is entered.
+func (s *BaseSLQListener) EnterFunc(ctx *FuncContext) {}
 
-// ExitFn is called when production fn is exited.
-func (s *BaseSLQListener) ExitFn(ctx *FnContext) {}
+// ExitFunc is called when production func is exited.
+func (s *BaseSLQListener) ExitFunc(ctx *FuncContext) {}
 
-// EnterFnElement is called when production fnElement is entered.
-func (s *BaseSLQListener) EnterFnElement(ctx *FnElementContext) {}
+// EnterFuncElement is called when production funcElement is entered.
+func (s *BaseSLQListener) EnterFuncElement(ctx *FuncElementContext) {}
 
-// ExitFnElement is called when production fnElement is exited.
-func (s *BaseSLQListener) ExitFnElement(ctx *FnElementContext) {}
+// ExitFuncElement is called when production funcElement is exited.
+func (s *BaseSLQListener) ExitFuncElement(ctx *FuncElementContext) {}
 
 // EnterJoin is called when production join is entered.
 func (s *BaseSLQListener) EnterJoin(ctx *JoinContext) {}
@@ -128,11 +128,11 @@ func (s *BaseSLQListener) EnterRowRange(ctx *RowRangeContext) {}
 // ExitRowRange is called when production rowRange is exited.
 func (s *BaseSLQListener) ExitRowRange(ctx *RowRangeContext) {}
 
-// EnterFnName is called when production fnName is entered.
-func (s *BaseSLQListener) EnterFnName(ctx *FnNameContext) {}
+// EnterFuncName is called when production funcName is entered.
+func (s *BaseSLQListener) EnterFuncName(ctx *FuncNameContext) {}
 
-// ExitFnName is called when production fnName is exited.
-func (s *BaseSLQListener) ExitFnName(ctx *FnNameContext) {}
+// ExitFuncName is called when production funcName is exited.
+func (s *BaseSLQListener) ExitFuncName(ctx *FuncNameContext) {}
 
 // EnterExpr is called when production expr is entered.
 func (s *BaseSLQListener) EnterExpr(ctx *ExprContext) {}

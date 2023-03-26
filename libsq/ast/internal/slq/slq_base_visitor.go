@@ -27,11 +27,11 @@ func (v *BaseSLQVisitor) VisitCmpr(ctx *CmprContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseSLQVisitor) VisitFn(ctx *FnContext) interface{} {
+func (v *BaseSLQVisitor) VisitFunc(ctx *FuncContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseSLQVisitor) VisitFnElement(ctx *FnElementContext) interface{} {
+func (v *BaseSLQVisitor) VisitFuncElement(ctx *FuncElementContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
@@ -79,7 +79,7 @@ func (v *BaseSLQVisitor) VisitRowRange(ctx *RowRangeContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseSLQVisitor) VisitFnName(ctx *FnNameContext) interface{} {
+func (v *BaseSLQVisitor) VisitFuncName(ctx *FuncNameContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
