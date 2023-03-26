@@ -476,31 +476,29 @@ func (v *parseTreeVisitor) VisitFnName(ctx *slq.FnNameContext) any {
 // VisitGroup implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitGroup(ctx *slq.GroupContext) any {
 	// parent node must be a segment
-	_, ok := v.cur.(*SegmentNode)
+	seg, ok := v.cur.(*SegmentNode)
 	if !ok {
-		return errorf("parent of GROUP() must be SegmentNode, but got: %T", v.cur)
+		return errorf("parent of GROUP() must be %T, but got: %T", seg, v.cur)
 	}
-
-	// FIXME: this needs to be revisited.
 	sels := ctx.AllSelector()
 	if len(sels) == 0 {
 		return errorf("GROUP() requires at least one column selector argument")
 	}
 
-	grp := &GroupByNode{}
-	grp.ctx = ctx
-	err := v.cur.AddChild(grp)
-	if err != nil {
+	grpNode := &GroupByNode{}
+	grpNode.ctx = ctx
+	grpNode.text = ctx.GetText()
+	if err := v.cur.AddChild(grpNode); err != nil {
 		return err
 	}
 
 	for _, selCtx := range sels {
-		colSel, err := newSelectorNode(grp, selCtx)
+		colSel, err := newSelectorNode(grpNode, selCtx)
 		if err != nil {
 			return err
 		}
 
-		err = grp.AddChild(colSel)
+		err = grpNode.AddChild(colSel)
 		if err != nil {
 			return err
 		}

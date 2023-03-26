@@ -32,12 +32,28 @@ joinConstraint:
 	selector cmpr selector // .user.uid == .address.userid
 	| selector ; // .uid
 
-group: ('group' | 'GROUP' | 'g') '(' selector (',' selector)* ')';
+/*
+groupby
+-------
+
+The 'groupby' construct implments the SQL "GROUP BY" clause.
+
+    .payment | .customer_id, sum(.amount) | groupby(.customer_id)
+
+Syonyms:
+- 'group_by' for jq interoperability.
+  https://stedolan.github.io/jq/manual/v1.6/#group_by(path_expression)
+- 'group': for legacy sq compabibility. Should this be deprecated and removed?
+*/
+
+GROUP_BY: 'groupby' | 'group_by';
+group: GROUP_BY '(' selector (',' selector)* ')';
 
 /*
 orderby
+------
 
-The "orderby" construct implements the SQL "ORDER BY" clause.
+The 'orderby' construct implements the SQL "ORDER BY" clause.
 
     .actor | orderby(.first_name, .last_name)
     .actor | orderby(.first_name+)
@@ -45,10 +61,12 @@ The "orderby" construct implements the SQL "ORDER BY" clause.
 
 The optional plus/minus tokens specify ASC or DESC order.
 
-For jq compatability, the "sort_by" synonym is provided.
-See: https://stedolan.github.io/jq/manual/v1.6/#sort,sort_by(path_expression)
+Synonyms:
 
-We do not implement a "sort" synonym for the jq "sort" function, because SQL
+- 'sort_by' for jq interoperability.
+  https://stedolan.github.io/jq/manual/v1.6/#sort,sort_by(path_expression)
+
+We do not implement a 'sort' synonym for the jq 'sort' function, because SQL
 results are inherently sorted. Although perhaps it should be implemented
 as a no-op.
 */

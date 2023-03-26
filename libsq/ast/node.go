@@ -43,12 +43,13 @@ type Node interface {
 //
 // REVISIT: the name "Selectable" might be confusing. Perhaps "Tabler" or such.
 type Selectable interface {
-	// Selectable is a marker interface method.
+	Node
 	selectable()
 }
 
 // selector is a marker interface for selector types.
 type selector interface {
+	Node
 	selector()
 }
 
@@ -218,13 +219,25 @@ type GroupByNode struct {
 
 // AddChild implements Node.
 func (n *GroupByNode) AddChild(child Node) error {
-	_, ok := child.(*ColSelectorNode)
+	_, ok := child.(selector)
 	if !ok {
 		return errorf("GROUP() only accepts children of type %s, but got %T", typeColSelectorNode, child)
 	}
 
 	n.addChild(child)
 	return child.SetParent(n)
+}
+
+// SetChildren implements ast.Node.
+func (n *GroupByNode) SetChildren(children []Node) error {
+	for i := range children {
+		if _, ok := children[i].(selector); !ok {
+			return errorf("illegal child [%d] type %T {%s} for %T", i, children[i], children[i], n)
+		}
+	}
+
+	n.setChildren(children)
+	return nil
 }
 
 // String returns a log/debug-friendly representation.
@@ -329,5 +342,6 @@ var (
 	typeTblSelectorNode = reflect.TypeOf((*TblSelectorNode)(nil))
 	typeRowRangeNode    = reflect.TypeOf((*RowRangeNode)(nil))
 	typeOrderByNode     = reflect.TypeOf((*OrderByNode)(nil))
+	typeGroupByNode     = reflect.TypeOf((*GroupByNode)(nil))
 	typeExprNode        = reflect.TypeOf((*ExprNode)(nil))
 )

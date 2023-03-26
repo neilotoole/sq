@@ -27,24 +27,25 @@ const (
 	My8              = "@sakila_my8"
 	My               = My8
 	MS17             = "@sakila_ms17"
+	MS19             = "@sakila_ms19"
 	MS               = MS17
 )
 
 // AllHandles returns all the typical sakila handles. It does not
 // include monotable handles such as @sakila_csv_actor.
 func AllHandles() []string {
-	return []string{SL3, Pg9, Pg10, Pg11, Pg12, My56, My57, My8, MS17, XLSX}
+	return []string{SL3, Pg9, Pg10, Pg11, Pg12, My56, My57, My8, MS17, MS19, XLSX}
 }
 
 // SQLAll returns all the sakila SQL handles.
 func SQLAll() []string {
-	return []string{SL3, Pg9, Pg10, Pg11, Pg12, My56, My57, My8, MS17}
+	return []string{SL3, Pg9, Pg10, Pg11, Pg12, My56, My57, My8, MS17, MS19}
 }
 
 // SQLAllExternal is the same as SQLAll, but only includes
 // external (non-embedded) sources. That is, it excludes SL3.
 func SQLAllExternal() []string {
-	return []string{Pg9, Pg10, Pg11, Pg12, My56, My57, My8, MS17}
+	return []string{Pg9, Pg10, Pg11, Pg12, My56, My57, My8, MS17, MS19}
 }
 
 // SQLLatest returns the handles for the latest

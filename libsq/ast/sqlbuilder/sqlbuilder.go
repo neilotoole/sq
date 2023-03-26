@@ -23,6 +23,9 @@ type FragmentBuilder interface {
 	// OrderBy renders the ORDER BY fragment.
 	OrderBy(ob *ast.OrderByNode) (string, error)
 
+	// GroupBy renders the GROUP BY fragment.
+	GroupBy(gb *ast.GroupByNode) (string, error)
+
 	// Join renders a join fragment.
 	Join(fnJoin *ast.JoinNode) (string, error)
 
@@ -55,6 +58,9 @@ type QueryBuilder interface {
 
 	// SetOrderBy sets the ORDER BY clause.
 	SetOrderBy(ob string)
+
+	// SetGroupBy sets the GROUP BY clause.
+	SetGroupBy(gb string)
 
 	// SQL renders the SQL query.
 	SQL() (string, error)

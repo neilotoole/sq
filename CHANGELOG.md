@@ -5,11 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.28.0] - 2023-03-26
+
+### Added
+
+- [#160]: Use `groupby()` to group results. See [query guide](https://sq.io/docs/query/#group-by).
+
 ## [v0.27.0] - 2023-03-25
 
 ### Added
 
-- [#158]: Use `orderby()` to order results. See [query guide](https://sq.io/docs/query/#ordering).
+- [#158]: Use `orderby()` to order results. See [query guide](https://sq.io/docs/query/#order-by).
 
 ## [v0.26.0] - 2023-03-22
 
@@ -191,11 +197,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#123]: https://github.com/neilotoole/sq/issues/123
 [#142]: https://github.com/neilotoole/sq/issues/142
 [#144]: https://github.com/neilotoole/sq/issues/144
-[#15]: https://github.com/neilotoole/sq/issues/15
 [#151]: https://github.com/neilotoole/sq/issues/151
 [#153]: https://github.com/neilotoole/sq/issues/153
 [#155]: https://github.com/neilotoole/sq/issues/155
 [#158]: https://github.com/neilotoole/sq/issues/158
+[#15]: https://github.com/neilotoole/sq/issues/15
+[#160]: https://github.com/neilotoole/sq/issues/160
 [#89]: https://github.com/neilotoole/sq/pull/89
 [#91]: https://github.com/neilotoole/sq/pull/91
 [#95]: https://github.com/neilotoole/sq/issues/93
@@ -222,3 +229,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [v0.25.1]: https://github.com/neilotoole/sq/compare/v0.25.0...v0.25.1
 [v0.26.0]: https://github.com/neilotoole/sq/compare/v0.25.1...v0.26.0
 [v0.27.0]: https://github.com/neilotoole/sq/compare/v0.26.0...v0.27.0
+[v0.28.0]: https://github.com/neilotoole/sq/compare/v0.27.0...v0.28.0
