@@ -213,7 +213,7 @@ func TestSLQ2SQLNew(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:     "groupby/single-element",
+			name:     "groupby/single-term",
 			in:       `@sakila | .payment | .customer_id, sum(.amount) | groupby(.customer_id)`,
 			wantSQL:  `SELECT "customer_id", SUM("amount") FROM "payment" GROUP BY "customer_id"`,
 			override: map[source.Type]string{mysql.Type: "SELECT `customer_id`, SUM(`amount`) FROM `payment` GROUP BY `customer_id`"},
@@ -227,11 +227,11 @@ func TestSLQ2SQLNew(t *testing.T) {
 			wantRecs: 599,
 		},
 		{
-			name:     "groupby/synonym-group",
-			in:       `@sakila | .payment | .customer_id, sum(.amount) | group(.customer_id)`,
-			wantSQL:  `SELECT "customer_id", SUM("amount") FROM "payment" GROUP BY "customer_id"`,
-			override: map[source.Type]string{mysql.Type: "SELECT `customer_id`, SUM(`amount`) FROM `payment` GROUP BY `customer_id`"},
-			wantRecs: 599,
+			name:     "groupby/multiple_terms",
+			in:       `@sakila | .payment | .customer_id, .staff_id, sum(.amount) | groupby(.customer_id, .staff_id)`,
+			wantSQL:  `SELECT "customer_id", "staff_id", SUM("amount") FROM "payment" GROUP BY "customer_id", "staff_id"`,
+			override: map[source.Type]string{mysql.Type: "SELECT `customer_id`, `staff_id`, SUM(`amount`) FROM `payment` GROUP BY `customer_id`, `staff_id`"},
+			wantRecs: 1198,
 		},
 	}
 

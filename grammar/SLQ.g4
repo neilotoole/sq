@@ -46,7 +46,7 @@ Syonyms:
 - 'group': for legacy sq compabibility. Should this be deprecated and removed?
 */
 
-GROUP_BY: 'groupby' | 'group_by' | 'group';
+GROUP_BY: 'groupby' | 'group_by';
 group: GROUP_BY '(' selector (',' selector)* ')';
 
 /*
