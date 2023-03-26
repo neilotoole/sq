@@ -3,6 +3,7 @@ package ast
 import (
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/antlr/antlr4/runtime/Go/antlr/v4"
 )
@@ -47,8 +48,9 @@ type Selectable interface {
 	selectable()
 }
 
-// selector is a marker interface for selector types.
-type selector interface {
+// Selector is a marker interface for selector node types. A selector node
+// models a selector such as ".first_name" or ".actor.last_name".
+type Selector interface {
 	Node
 	selector()
 }
@@ -160,6 +162,29 @@ func nodeReplace(old, nu Node) error {
 	return parent.SetChildren(siblings)
 }
 
+// nodesAreOnlyOfType returns an error if the type of any non-nil element
+// of nodes is not contained in types.
+func nodesAreOnlyOfType(nodes []Node, types ...reflect.Type) error {
+	m := map[reflect.Type]struct{}{}
+	typeNames := make([]string, 0, len(types))
+	for _, typ := range types {
+		m[typ] = struct{}{}
+		typeNames = append(typeNames, typ.Name())
+	}
+
+	for i, node := range nodes {
+		if node == nil {
+			continue
+		}
+
+		if _, ok := m[reflect.TypeOf(node)]; !ok {
+			return errorf("node[%d] {%s} is not an allowed type in [%s]", i, node, strings.Join(typeNames, ", "))
+		}
+	}
+
+	return nil
+}
+
 // nodeChildIndex returns the index of child in parent's children, or -1.
 func nodeChildIndex(parent, child Node) int {
 	for i, node := range parent.Children() {
@@ -210,40 +235,6 @@ func nodesWithType(nodes []Node, typ reflect.Type) []Node {
 		}
 	}
 	return s
-}
-
-// GroupByNode models GROUP BY.
-type GroupByNode struct {
-	baseNode
-}
-
-// AddChild implements Node.
-func (n *GroupByNode) AddChild(child Node) error {
-	_, ok := child.(selector)
-	if !ok {
-		return errorf("GROUP() only accepts children of type %s, but got %T", typeColSelectorNode, child)
-	}
-
-	n.addChild(child)
-	return child.SetParent(n)
-}
-
-// SetChildren implements ast.Node.
-func (n *GroupByNode) SetChildren(children []Node) error {
-	for i := range children {
-		if _, ok := children[i].(selector); !ok {
-			return errorf("illegal child [%d] type %T {%s} for %T", i, children[i], children[i], n)
-		}
-	}
-
-	n.setChildren(children)
-	return nil
-}
-
-// String returns a log/debug-friendly representation.
-func (n *GroupByNode) String() string {
-	text := nodeString(n)
-	return text
 }
 
 // ExprNode models a SLQ expression such as ".uid > 4".
@@ -333,15 +324,17 @@ func isOperator(text string) bool {
 
 // Cached results from reflect.TypeOf for node types.
 var (
-	typeAST             = reflect.TypeOf((*AST)(nil))
-	typeHandleNode      = reflect.TypeOf((*HandleNode)(nil))
-	typeSegmentNode     = reflect.TypeOf((*SegmentNode)(nil))
-	typeJoinNode        = reflect.TypeOf((*JoinNode)(nil))
-	typeSelectorNode    = reflect.TypeOf((*SelectorNode)(nil))
-	typeColSelectorNode = reflect.TypeOf((*ColSelectorNode)(nil))
-	typeTblSelectorNode = reflect.TypeOf((*TblSelectorNode)(nil))
-	typeRowRangeNode    = reflect.TypeOf((*RowRangeNode)(nil))
-	typeOrderByNode     = reflect.TypeOf((*OrderByNode)(nil))
-	typeGroupByNode     = reflect.TypeOf((*GroupByNode)(nil))
-	typeExprNode        = reflect.TypeOf((*ExprNode)(nil))
+	typeAST                = reflect.TypeOf((*AST)(nil))
+	typeSegmentNode        = reflect.TypeOf((*SegmentNode)(nil))
+	typeHandleNode         = reflect.TypeOf((*HandleNode)(nil))
+	typeSelectorNode       = reflect.TypeOf((*SelectorNode)(nil))
+	typeTblSelectorNode    = reflect.TypeOf((*TblSelectorNode)(nil))
+	typeTblColSelectorNode = reflect.TypeOf((*TblColSelectorNode)(nil))
+	typeColSelectorNode    = reflect.TypeOf((*ColSelectorNode)(nil))
+	typeJoinNode           = reflect.TypeOf((*JoinNode)(nil))
+	typeRowRangeNode       = reflect.TypeOf((*RowRangeNode)(nil))
+	typeOrderByNode        = reflect.TypeOf((*OrderByNode)(nil))
+	typeGroupByNode        = reflect.TypeOf((*GroupByNode)(nil))
+	typeExprNode           = reflect.TypeOf((*ExprNode)(nil))
+	typeFuncNode           = reflect.TypeOf((*FuncNode)(nil))
 )

@@ -44,7 +44,7 @@ func newSelectorNode(parent Node, ctx slq.ISelectorContext) (*SelectorNode, erro
 
 var (
 	_ Node     = (*SelectorNode)(nil)
-	_ selector = (*SelectorNode)(nil)
+	_ Selector = (*SelectorNode)(nil)
 )
 
 // SelectorNode is a selector such as ".my_table" or ".my_col". The
@@ -143,7 +143,7 @@ func (s *TblSelectorNode) String() string {
 var (
 	_ Node         = (*TblColSelectorNode)(nil)
 	_ ResultColumn = (*TblColSelectorNode)(nil)
-	_ selector     = (*TblColSelectorNode)(nil)
+	_ Selector     = (*TblColSelectorNode)(nil)
 )
 
 // TblColSelectorNode models the TABLE.COLUMN selector, e.g. actor.first_name.
@@ -206,7 +206,7 @@ func (n *TblColSelectorNode) Alias() string {
 var (
 	_ Node         = (*ColSelectorNode)(nil)
 	_ ResultColumn = (*ColSelectorNode)(nil)
-	_ selector     = (*ColSelectorNode)(nil)
+	_ Selector     = (*ColSelectorNode)(nil)
 )
 
 // ColSelectorNode models a column selector such as ".first_name".

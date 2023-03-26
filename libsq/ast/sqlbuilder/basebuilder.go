@@ -46,23 +46,36 @@ func (fb *BaseFragmentBuilder) GroupBy(gb *ast.GroupByNode) (string, error) {
 		return "", nil
 	}
 
-	clause := "GROUP BY "
-	children := gb.Children()
-	for i := 0; i < len(children); i++ {
+	var (
+		term string
+		err  error
+		sb   strings.Builder
+	)
+
+	sb.WriteString("GROUP BY ")
+	for i, child := range gb.Children() {
 		if i > 0 {
-			clause += ", "
+			sb.WriteString(", ")
 		}
 
-		// FIXME: really should check for other types
-		s, err := renderSelectorNode(fb.Quote, children[i])
-		if err != nil {
-			return "", err
+		switch child := child.(type) {
+		case *ast.FuncNode:
+			if term, err = fb.Function(child); err != nil {
+				return "", err
+			}
+		case ast.Selector:
+			if term, err = renderSelectorNode(fb.Quote, child); err != nil {
+				return "", err
+			}
+		default:
+			// Should never happen
+			return "", errz.Errorf("invalid child type: %T: %s", child, child)
 		}
 
-		clause += s
+		sb.WriteString(term)
 	}
 
-	return clause, nil
+	return sb.String(), nil
 }
 
 // OrderBy implements FragmentBuilder.
@@ -169,7 +182,7 @@ func (fb *BaseFragmentBuilder) Function(fn *ast.FuncNode) (string, error) {
 		// HACK: this stuff basically doesn't work at all...
 		//  but for COUNT(), here's a quick hack to make it work on some DBs
 		if fn.Context().GetText() == "count()" {
-			buf.WriteString("COUNT(*)")
+			buf.WriteString("count(*)")
 		} else {
 			buf.WriteString(fn.Context().GetText())
 		}
@@ -177,7 +190,7 @@ func (fb *BaseFragmentBuilder) Function(fn *ast.FuncNode) (string, error) {
 		return buf.String(), nil
 	}
 
-	buf.WriteString(strings.ToUpper(fn.FuncName()))
+	buf.WriteString(strings.ToLower(fn.FuncName()))
 	buf.WriteRune('(')
 	for i, child := range children {
 		if i > 0 {

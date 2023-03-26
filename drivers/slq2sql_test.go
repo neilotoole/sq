@@ -86,8 +86,8 @@ func TestSLQ2SQLNew(t *testing.T) {
 		{
 			name:            "select/count-whitespace-col",
 			in:              `@sakila | .actor | count(."first name")`,
-			wantSQL:         `SELECT COUNT("first name") FROM "actor"`,
-			overrideWantSQL: map[source.Type]string{mysql.Type: "SELECT COUNT(`first name`) FROM `actor`"},
+			wantSQL:         `SELECT count("first name") FROM "actor"`,
+			overrideWantSQL: map[source.Type]string{mysql.Type: "SELECT count(`first name`) FROM `actor`"},
 			skipExec:        true,
 		},
 		{
@@ -107,15 +107,15 @@ func TestSLQ2SQLNew(t *testing.T) {
 		{
 			name:            "select/count-star",
 			in:              `@sakila | .actor | count(*)`,
-			wantSQL:         `SELECT COUNT(*) FROM "actor"`,
-			overrideWantSQL: map[source.Type]string{mysql.Type: "SELECT COUNT(*) FROM `actor`"},
+			wantSQL:         `SELECT count(*) FROM "actor"`,
+			overrideWantSQL: map[source.Type]string{mysql.Type: "SELECT count(*) FROM `actor`"},
 			wantRecs:        1,
 		},
 		{
 			name:            "select/count",
 			in:              `@sakila | .actor | count()`,
-			wantSQL:         `SELECT COUNT(*) FROM "actor"`,
-			overrideWantSQL: map[source.Type]string{mysql.Type: "SELECT COUNT(*) FROM `actor`"},
+			wantSQL:         `SELECT count(*) FROM "actor"`,
+			overrideWantSQL: map[source.Type]string{mysql.Type: "SELECT count(*) FROM `actor`"},
 			wantRecs:        1,
 		},
 		{
@@ -128,22 +128,22 @@ func TestSLQ2SQLNew(t *testing.T) {
 		{
 			name:            "select/handle-table/count-star",
 			in:              `@sakila.actor | count(*)`,
-			wantSQL:         `SELECT COUNT(*) FROM "actor"`,
-			overrideWantSQL: map[source.Type]string{mysql.Type: "SELECT COUNT(*) FROM `actor`"},
+			wantSQL:         `SELECT count(*) FROM "actor"`,
+			overrideWantSQL: map[source.Type]string{mysql.Type: "SELECT count(*) FROM `actor`"},
 			wantRecs:        1,
 		},
 		{
 			name:            "select/handle-table/count-col",
 			in:              `@sakila.actor | count(."first name")`,
-			wantSQL:         `SELECT COUNT("first name") FROM "actor"`,
-			overrideWantSQL: map[source.Type]string{mysql.Type: "SELECT COUNT(`first name`) FROM `actor`"},
+			wantSQL:         `SELECT count("first name") FROM "actor"`,
+			overrideWantSQL: map[source.Type]string{mysql.Type: "SELECT count(`first name`) FROM `actor`"},
 			skipExec:        true,
 		},
 		{
 			name:            "select/count-alias",
 			in:              `@sakila | .actor | count(*):quantity`,
-			wantSQL:         `SELECT COUNT(*) AS "quantity" FROM "actor"`,
-			overrideWantSQL: map[source.Type]string{mysql.Type: "SELECT COUNT(*) AS `quantity` FROM `actor`"},
+			wantSQL:         `SELECT count(*) AS "quantity" FROM "actor"`,
+			overrideWantSQL: map[source.Type]string{mysql.Type: "SELECT count(*) AS `quantity` FROM `actor`"},
 			wantRecs:        1,
 		},
 		{
@@ -224,35 +224,37 @@ func TestSLQ2SQLNew(t *testing.T) {
 		{
 			name:            "groupby/single-term",
 			in:              `@sakila | .payment | .customer_id, sum(.amount) | groupby(.customer_id)`,
-			wantSQL:         `SELECT "customer_id", SUM("amount") FROM "payment" GROUP BY "customer_id"`,
-			overrideWantSQL: map[source.Type]string{mysql.Type: "SELECT `customer_id`, SUM(`amount`) FROM `payment` GROUP BY `customer_id`"},
+			wantSQL:         `SELECT "customer_id", sum("amount") FROM "payment" GROUP BY "customer_id"`,
+			overrideWantSQL: map[source.Type]string{mysql.Type: "SELECT `customer_id`, sum(`amount`) FROM `payment` GROUP BY `customer_id`"},
 			wantRecs:        599,
 		},
 		{
 			name:            "groupby/synonym-group_by",
 			in:              `@sakila | .payment | .customer_id, sum(.amount) | group_by(.customer_id)`,
-			wantSQL:         `SELECT "customer_id", SUM("amount") FROM "payment" GROUP BY "customer_id"`,
-			overrideWantSQL: map[source.Type]string{mysql.Type: "SELECT `customer_id`, SUM(`amount`) FROM `payment` GROUP BY `customer_id`"},
+			wantSQL:         `SELECT "customer_id", sum("amount") FROM "payment" GROUP BY "customer_id"`,
+			overrideWantSQL: map[source.Type]string{mysql.Type: "SELECT `customer_id`, sum(`amount`) FROM `payment` GROUP BY `customer_id`"},
 			wantRecs:        599,
 		},
 		{
 			name:            "groupby/multiple_terms",
 			in:              `@sakila | .payment | .customer_id, .staff_id, sum(.amount) | groupby(.customer_id, .staff_id)`,
-			wantSQL:         `SELECT "customer_id", "staff_id", SUM("amount") FROM "payment" GROUP BY "customer_id", "staff_id"`,
-			overrideWantSQL: map[source.Type]string{mysql.Type: "SELECT `customer_id`, `staff_id`, SUM(`amount`) FROM `payment` GROUP BY `customer_id`, `staff_id`"},
+			wantSQL:         `SELECT "customer_id", "staff_id", sum("amount") FROM "payment" GROUP BY "customer_id", "staff_id"`,
+			overrideWantSQL: map[source.Type]string{mysql.Type: "SELECT `customer_id`, `staff_id`, sum(`amount`) FROM `payment` GROUP BY `customer_id`, `staff_id`"},
 			wantRecs:        1198,
 		},
 		{
-			name:    "groupby/with_func/sqlite",
-			in:      `@sakila | .payment | date_trunc("month", .payment_date):month, count(.payment_id):count | groupby(date_trunc("month", .payment_date))`,
-			wantSQL: `SELECT DATE_TRUNC('month', "payment_date") AS "month", COUNT(payment_id) AS "count" FROM "payment" GROUP BY DATE_TRUNC('month', "payment_date")`,
-			onlyFor: []source.Type{sqlite3.Type},
+			name:     "groupby/with_func/sqlite",
+			in:       `@sakila | .payment | date("month", .payment_date):month, count(.payment_id):count | groupby(date("month", .payment_date))`,
+			wantSQL:  `SELECT date('month', "payment_date") AS "month", count("payment_id") AS "count" FROM "payment" GROUP BY date('month', "payment_date")`,
+			onlyFor:  []source.Type{sqlite3.Type},
+			wantRecs: 1,
 		},
 		{
-			name:    "datetime/sqlite/date_trunc",
-			in:      `@sakila | .payment | date_trunc("month", .payment_date)`,
-			wantSQL: `SELECT DATE_TRUNC('month', "payment_date") FROM "payment"`,
-			onlyFor: []source.Type{sqlite3.Type},
+			name:     "datetime/sqlite/date",
+			in:       `@sakila | .payment | date("month", .payment_date)`,
+			wantSQL:  `SELECT date('month', "payment_date") FROM "payment"`,
+			onlyFor:  []source.Type{sqlite3.Type},
+			wantRecs: sakila.TblPaymentCount,
 		},
 	}
 
@@ -264,6 +266,7 @@ func TestSLQ2SQLNew(t *testing.T) {
 				t.Skip()
 			}
 			srcs := testh.New(t).NewSourceSet(sakila.SQLLatest()...)
+			// srcs := testh.New(t).NewSourceSet(sakila.SL3)
 
 			for _, src := range srcs.Items() {
 				src := src

@@ -13,7 +13,7 @@ element:
 	| handle
 	| selectorElement
 	| join
-	| group
+	| groupBy
 	| orderBy
 	| rowRange
 	| funcElement
@@ -22,33 +22,15 @@ element:
 // cmpr is a comparison operator.
 cmpr: LT_EQ | LT | GT_EQ | GT | EQ | NEQ;
 
-/*
-functions
----------
-
-Database function call mechanism.
-
-    .actor | count(.first_name)
-    .payment | max(.amount)
-    .payment | max(.amount):amount   # result column name is aliased
-*/
-
-FUNC_NAME: [a-z_] [a-z_0-9]*;
-funcName: FUNC_NAME;
-func: funcName '(' ( expr ( ',' expr)* | '*')? ')';
 funcElement: func (alias)?;
-
-
-/*
-join
-----
-*/
+func: funcName '(' ( expr ( ',' expr)* | '*')? ')';
+funcName: ID;
 
 join: ('join') '(' joinConstraint ')';
+
 joinConstraint:
 	selector cmpr selector // .user.uid == .address.userid
 	| selector ; // .uid
-
 
 /*
 groupby
@@ -65,7 +47,8 @@ Syonyms:
 */
 
 GROUP_BY: 'groupby' | 'group_by';
-group: GROUP_BY '(' selector (',' selector)* ')';
+groupByTerm: selector | func;
+groupBy: GROUP_BY '(' groupByTerm (',' groupByTerm)* ')';
 
 /*
 orderby
@@ -118,6 +101,8 @@ selectorElement: selector (alias)?;
 alias: ':' ID;
 
 
+//FUNC_NAME: [a-z_] [a-z_0-9]*;
+
 
 
 
@@ -143,6 +128,17 @@ rowRange:
 		| COLON NN // [:15]
 		| NN // [10]
 	)? ']';
+
+//fnName:
+//	'sum'
+//	| 'SUM'
+//	| 'avg'
+//	| 'AVG'
+//	| 'count'
+//	| 'COUNT'
+//	| 'where'
+//	| 'WHERE';
+
 
 
 expr:
@@ -242,7 +238,7 @@ fragment X: [xX];
 fragment Y: [yY];
 fragment Z: [zZ];
 
-LINECOMMENT: '//' .*? '\n' -> skip;
+LINECOMMENT: '#' .*? '\n' -> skip;
 
 //// From https://github.com/antlr/grammars-v4/blob/master/sql/sqlite/SQLiteLexer.g4
 //IDENTIFIER:

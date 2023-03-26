@@ -50,11 +50,11 @@ func (s *BaseSLQListener) EnterCmpr(ctx *CmprContext) {}
 // ExitCmpr is called when production cmpr is exited.
 func (s *BaseSLQListener) ExitCmpr(ctx *CmprContext) {}
 
-// EnterFuncName is called when production funcName is entered.
-func (s *BaseSLQListener) EnterFuncName(ctx *FuncNameContext) {}
+// EnterFuncElement is called when production funcElement is entered.
+func (s *BaseSLQListener) EnterFuncElement(ctx *FuncElementContext) {}
 
-// ExitFuncName is called when production funcName is exited.
-func (s *BaseSLQListener) ExitFuncName(ctx *FuncNameContext) {}
+// ExitFuncElement is called when production funcElement is exited.
+func (s *BaseSLQListener) ExitFuncElement(ctx *FuncElementContext) {}
 
 // EnterFunc is called when production func is entered.
 func (s *BaseSLQListener) EnterFunc(ctx *FuncContext) {}
@@ -62,11 +62,11 @@ func (s *BaseSLQListener) EnterFunc(ctx *FuncContext) {}
 // ExitFunc is called when production func is exited.
 func (s *BaseSLQListener) ExitFunc(ctx *FuncContext) {}
 
-// EnterFuncElement is called when production funcElement is entered.
-func (s *BaseSLQListener) EnterFuncElement(ctx *FuncElementContext) {}
+// EnterFuncName is called when production funcName is entered.
+func (s *BaseSLQListener) EnterFuncName(ctx *FuncNameContext) {}
 
-// ExitFuncElement is called when production funcElement is exited.
-func (s *BaseSLQListener) ExitFuncElement(ctx *FuncElementContext) {}
+// ExitFuncName is called when production funcName is exited.
+func (s *BaseSLQListener) ExitFuncName(ctx *FuncNameContext) {}
 
 // EnterJoin is called when production join is entered.
 func (s *BaseSLQListener) EnterJoin(ctx *JoinContext) {}
@@ -80,11 +80,17 @@ func (s *BaseSLQListener) EnterJoinConstraint(ctx *JoinConstraintContext) {}
 // ExitJoinConstraint is called when production joinConstraint is exited.
 func (s *BaseSLQListener) ExitJoinConstraint(ctx *JoinConstraintContext) {}
 
-// EnterGroup is called when production group is entered.
-func (s *BaseSLQListener) EnterGroup(ctx *GroupContext) {}
+// EnterGroupByTerm is called when production groupByTerm is entered.
+func (s *BaseSLQListener) EnterGroupByTerm(ctx *GroupByTermContext) {}
 
-// ExitGroup is called when production group is exited.
-func (s *BaseSLQListener) ExitGroup(ctx *GroupContext) {}
+// ExitGroupByTerm is called when production groupByTerm is exited.
+func (s *BaseSLQListener) ExitGroupByTerm(ctx *GroupByTermContext) {}
+
+// EnterGroupBy is called when production groupBy is entered.
+func (s *BaseSLQListener) EnterGroupBy(ctx *GroupByContext) {}
+
+// ExitGroupBy is called when production groupBy is exited.
+func (s *BaseSLQListener) ExitGroupBy(ctx *GroupByContext) {}
 
 // EnterOrderByTerm is called when production orderByTerm is entered.
 func (s *BaseSLQListener) EnterOrderByTerm(ctx *OrderByTermContext) {}
