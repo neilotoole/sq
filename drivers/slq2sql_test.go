@@ -229,7 +229,6 @@ func TestSLQ2SQLNew(t *testing.T) {
 				t.Skip()
 			}
 			srcs := testh.New(t).NewSourceSet(sakila.SQLLatest()...)
-			// srcs := testh.New(t).NewSourceSet(sakila.SL3)
 
 			for _, src := range srcs.Items() {
 				src := src

@@ -30,6 +30,9 @@ sources:
     - handle: '@sakila_ms17'
       type: sqlserver
       location: sqlserver://sakila:p_ssW0rd@${SQ_TEST_SRC__SAKILA_MS17}?database=sakila
+    - handle: '@sakila_ms19'
+      type: sqlserver
+      location: sqlserver://sakila:p_ssW0rd@${SQ_TEST_SRC__SAKILA_MS19}?database=sakila
     - handle: '@sakila_xlsx'
       type: xlsx
       location: '${SQ_ROOT}/drivers/xlsx/testdata/sakila.xlsx'
