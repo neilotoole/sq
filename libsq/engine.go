@@ -99,6 +99,15 @@ func (ng *engine) prepare(ctx context.Context, qm *queryModel) error {
 		qb.SetOrderBy(orderByClause)
 	}
 
+	if qm.GroupBy != nil {
+		var groupByClause string
+		if groupByClause, err = fragBuilder.GroupBy(qm.GroupBy); err != nil {
+			return err
+		}
+
+		qb.SetGroupBy(groupByClause)
+	}
+
 	ng.targetSQL, err = qb.SQL()
 	if err != nil {
 		return err
@@ -344,6 +353,7 @@ type queryModel struct {
 	Range      *ast.RowRangeNode
 	Where      *ast.WhereNode
 	OrderBy    *ast.OrderByNode
+	GroupBy    *ast.GroupByNode
 }
 
 func (qm *queryModel) String() string {
@@ -429,6 +439,10 @@ func buildQueryModel(log lg.Log, a *ast.AST) (*queryModel, error) {
 	}
 
 	if qm.OrderBy, err = insp.FindOrderByNode(); err != nil {
+		return nil, err
+	}
+
+	if qm.GroupBy, err = insp.FindGroupByNode(); err != nil {
 		return nil, err
 	}
 

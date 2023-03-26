@@ -38,6 +38,31 @@ type BaseFragmentBuilder struct {
 	Ops      map[string]string
 }
 
+// GroupBy implements FragmentBuilder.
+func (fb *BaseFragmentBuilder) GroupBy(gb *ast.GroupByNode) (string, error) {
+	if gb == nil {
+		return "", nil
+	}
+
+	clause := "GROUP BY "
+	children := gb.Children()
+	for i := 0; i < len(children); i++ {
+		if i > 0 {
+			clause += ", "
+		}
+
+		// FIXME: really should check for other types
+		s, err := renderSelectorNode(fb.Quote, children[i])
+		if err != nil {
+			return "", err
+		}
+
+		clause += s
+	}
+
+	return clause, nil
+}
+
 // OrderBy implements FragmentBuilder.
 func (fb *BaseFragmentBuilder) OrderBy(ob *ast.OrderByNode) (string, error) {
 	if ob == nil {
@@ -433,8 +458,15 @@ type BaseQueryBuilder struct {
 	WhereClause   string
 	RangeClause   string
 	OrderByClause string
+	GroupByClause string
 }
 
+// SetGroupBy implements QueryBuilder.
+func (qb *BaseQueryBuilder) SetGroupBy(gb string) {
+	qb.GroupByClause = gb
+}
+
+// SetOrderBy implements QueryBuilder.
 func (qb *BaseQueryBuilder) SetOrderBy(ob string) {
 	qb.OrderByClause = ob
 }
@@ -475,6 +507,11 @@ func (qb *BaseQueryBuilder) SQL() (string, error) {
 	if qb.OrderByClause != "" {
 		buf.WriteRune(' ')
 		buf.WriteString(qb.OrderByClause)
+	}
+
+	if qb.GroupByClause != "" {
+		buf.WriteRune(' ')
+		buf.WriteString(qb.GroupByClause)
 	}
 
 	if qb.RangeClause != "" {

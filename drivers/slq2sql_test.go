@@ -24,7 +24,9 @@ func TestSLQ2SQLNew(t *testing.T) {
 		// name is the test name
 		name string
 
-		// in is the SLQ input
+		// in is the SLQ input. The "@sakila" handle is replaced
+		// with the source's actual handle before an individual
+		// test cases is executed.
 		in string
 
 		// wantErr indicates that an error is expected
@@ -33,7 +35,8 @@ func TestSLQ2SQLNew(t *testing.T) {
 		// wantSQL is the wanted SQL
 		wantSQL string
 
-		// override allows an alternative "wantSQL"
+		// override allows an alternative "wantSQL" for a specific driver type.
+		// For example, MySQL uses backtick as the quote char.
 		override map[source.Type]string
 
 		// skip indicates the test should be skipped. Useful for test cases
@@ -209,17 +212,24 @@ func TestSLQ2SQLNew(t *testing.T) {
 			in:      `@sakila | .actor | orderby()`,
 			wantErr: true,
 		},
+		{
+			name:     "groupby/single-element",
+			in:       `@sakila | .payment | .customer_id, sum(.amount) | group(.customer_id)`,
+			wantSQL:  `SELECT "customer_id", SUM("amount") FROM "payment" GROUP BY "customer_id"`,
+			override: map[source.Type]string{mysql.Type: "SELECT `customer_id`, SUM(`amount`) FROM `payment` GROUP BY `customer_id`"},
+			wantRecs: 599,
+		},
 	}
 
 	for _, tc := range testCases {
 		tc := tc
-		if tc.skip {
-			t.Skip()
-			continue
-		}
 
 		t.Run(tc.name, func(t *testing.T) {
+			if tc.skip {
+				t.Skip()
+			}
 			srcs := testh.New(t).NewSourceSet(sakila.SQLLatest()...)
+			// srcs := testh.New(t).NewSourceSet(sakila.SL3)
 
 			for _, src := range srcs.Items() {
 				src := src
@@ -246,6 +256,7 @@ func TestSLQ2SQLNew(t *testing.T) {
 
 					require.NoError(t, gotErr)
 					require.Equal(t, want, gotSQL)
+					t.Log(gotSQL)
 
 					if tc.skipExec {
 						return

@@ -121,6 +121,29 @@ func (in *Inspector) FindOrderByNode() (*OrderByNode, error) {
 	return nil, nil //nolint:nilnil
 }
 
+// FindGroupByNode returns the GroupByNode, or nil if not found.
+func (in *Inspector) FindGroupByNode() (*GroupByNode, error) {
+	segs := in.ast.Segments()
+
+	for i := range segs {
+		nodes := nodesWithType(segs[i].Children(), typeGroupByNode)
+		switch len(nodes) {
+		case 0:
+			// No GroupByNode in this segment, continue searching.
+			continue
+		case 1:
+			// Found it
+			node, _ := nodes[0].(*GroupByNode)
+			return node, nil
+		default:
+			// Shouldn't be possible
+			return nil, errorf("Segment {%s} has %d GroupByNode children, but should have a max of 1", segs[i])
+		}
+	}
+
+	return nil, nil //nolint:nilnil
+}
+
 // FindSelectableSegments returns the segments that have at least one child
 // that implements Selectable.
 func (in *Inspector) FindSelectableSegments() []*SegmentNode {
