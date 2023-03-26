@@ -214,6 +214,20 @@ func TestSLQ2SQLNew(t *testing.T) {
 		},
 		{
 			name:     "groupby/single-element",
+			in:       `@sakila | .payment | .customer_id, sum(.amount) | groupby(.customer_id)`,
+			wantSQL:  `SELECT "customer_id", SUM("amount") FROM "payment" GROUP BY "customer_id"`,
+			override: map[source.Type]string{mysql.Type: "SELECT `customer_id`, SUM(`amount`) FROM `payment` GROUP BY `customer_id`"},
+			wantRecs: 599,
+		},
+		{
+			name:     "groupby/synonym-group_by",
+			in:       `@sakila | .payment | .customer_id, sum(.amount) | group_by(.customer_id)`,
+			wantSQL:  `SELECT "customer_id", SUM("amount") FROM "payment" GROUP BY "customer_id"`,
+			override: map[source.Type]string{mysql.Type: "SELECT `customer_id`, SUM(`amount`) FROM `payment` GROUP BY `customer_id`"},
+			wantRecs: 599,
+		},
+		{
+			name:     "groupby/synonym-group",
 			in:       `@sakila | .payment | .customer_id, sum(.amount) | group(.customer_id)`,
 			wantSQL:  `SELECT "customer_id", SUM("amount") FROM "payment" GROUP BY "customer_id"`,
 			override: map[source.Type]string{mysql.Type: "SELECT `customer_id`, SUM(`amount`) FROM `payment` GROUP BY `customer_id`"},
