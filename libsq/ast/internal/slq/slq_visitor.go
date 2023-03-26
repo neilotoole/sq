@@ -22,6 +22,9 @@ type SLQVisitor interface {
 	// Visit a parse tree produced by SLQParser#cmpr.
 	VisitCmpr(ctx *CmprContext) interface{}
 
+	// Visit a parse tree produced by SLQParser#funcName.
+	VisitFuncName(ctx *FuncNameContext) interface{}
+
 	// Visit a parse tree produced by SLQParser#func.
 	VisitFunc(ctx *FuncContext) interface{}
 
@@ -60,9 +63,6 @@ type SLQVisitor interface {
 
 	// Visit a parse tree produced by SLQParser#rowRange.
 	VisitRowRange(ctx *RowRangeContext) interface{}
-
-	// Visit a parse tree produced by SLQParser#funcName.
-	VisitFuncName(ctx *FuncNameContext) interface{}
 
 	// Visit a parse tree produced by SLQParser#expr.
 	VisitExpr(ctx *ExprContext) interface{}

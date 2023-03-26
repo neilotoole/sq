@@ -22,6 +22,9 @@ type SLQListener interface {
 	// EnterCmpr is called when entering the cmpr production.
 	EnterCmpr(c *CmprContext)
 
+	// EnterFuncName is called when entering the funcName production.
+	EnterFuncName(c *FuncNameContext)
+
 	// EnterFunc is called when entering the func production.
 	EnterFunc(c *FuncContext)
 
@@ -61,9 +64,6 @@ type SLQListener interface {
 	// EnterRowRange is called when entering the rowRange production.
 	EnterRowRange(c *RowRangeContext)
 
-	// EnterFuncName is called when entering the funcName production.
-	EnterFuncName(c *FuncNameContext)
-
 	// EnterExpr is called when entering the expr production.
 	EnterExpr(c *ExprContext)
 
@@ -87,6 +87,9 @@ type SLQListener interface {
 
 	// ExitCmpr is called when exiting the cmpr production.
 	ExitCmpr(c *CmprContext)
+
+	// ExitFuncName is called when exiting the funcName production.
+	ExitFuncName(c *FuncNameContext)
 
 	// ExitFunc is called when exiting the func production.
 	ExitFunc(c *FuncContext)
@@ -126,9 +129,6 @@ type SLQListener interface {
 
 	// ExitRowRange is called when exiting the rowRange production.
 	ExitRowRange(c *RowRangeContext)
-
-	// ExitFuncName is called when exiting the funcName production.
-	ExitFuncName(c *FuncNameContext)
 
 	// ExitExpr is called when exiting the expr production.
 	ExitExpr(c *ExprContext)

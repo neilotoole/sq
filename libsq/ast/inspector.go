@@ -3,6 +3,8 @@ package ast
 import (
 	"reflect"
 
+	"github.com/samber/lo"
+
 	"github.com/ryboe/q"
 
 	"github.com/neilotoole/lg"
@@ -46,8 +48,35 @@ func (in *Inspector) FindNodes(typ reflect.Type) []Node {
 		return nil
 	})
 
-	_ = w.Walk()
+	if err := w.Walk(); err != nil {
+		// Should never happen
+		panic(err)
+	}
 	return nodes
+}
+
+// FindHandles returns all handles mentioned in the AST.
+func (in *Inspector) FindHandles() []string {
+	var handles []string
+
+	if err := walkWith(in.log, in.ast, typeHandleNode, func(log lg.Log, walker *Walker, node Node) error {
+		handles = append(handles, node.Text())
+		return nil
+	}); err != nil {
+		panic(err)
+	}
+
+	if err := walkWith(in.log, in.ast, typeTblSelectorNode, func(log lg.Log, walker *Walker, node Node) error {
+		n, _ := node.(*TblSelectorNode)
+		if n.handle != "" {
+			handles = append(handles, n.handle)
+		}
+		return nil
+	}); err != nil {
+		panic(err)
+	}
+
+	return lo.Uniq(handles)
 }
 
 // FindWhereClauses returns all the WHERE clauses in the AST.

@@ -33,15 +33,22 @@ Database function call mechanism.
     .payment | max(.amount):amount   # result column name is aliased
 */
 
+FUNC_NAME: [a-z_] [a-z_0-9]*;
+funcName: FUNC_NAME;
 func: funcName '(' ( expr ( ',' expr)* | '*')? ')';
-
 funcElement: func (alias)?;
 
-join: ('join' | 'JOIN' | 'j') '(' joinConstraint ')';
 
+/*
+join
+----
+*/
+
+join: ('join') '(' joinConstraint ')';
 joinConstraint:
 	selector cmpr selector // .user.uid == .address.userid
 	| selector ; // .uid
+
 
 /*
 groupby
@@ -137,11 +144,7 @@ rowRange:
 		| NN // [10]
 	)? ']';
 
-funcName:
-	'sum'
-	| 'avg'
-	| 'count'
-	| 'where';
+
 expr:
 	selector
 	| literal

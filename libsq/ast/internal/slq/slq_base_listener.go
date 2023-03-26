@@ -50,6 +50,12 @@ func (s *BaseSLQListener) EnterCmpr(ctx *CmprContext) {}
 // ExitCmpr is called when production cmpr is exited.
 func (s *BaseSLQListener) ExitCmpr(ctx *CmprContext) {}
 
+// EnterFuncName is called when production funcName is entered.
+func (s *BaseSLQListener) EnterFuncName(ctx *FuncNameContext) {}
+
+// ExitFuncName is called when production funcName is exited.
+func (s *BaseSLQListener) ExitFuncName(ctx *FuncNameContext) {}
+
 // EnterFunc is called when production func is entered.
 func (s *BaseSLQListener) EnterFunc(ctx *FuncContext) {}
 
@@ -127,12 +133,6 @@ func (s *BaseSLQListener) EnterRowRange(ctx *RowRangeContext) {}
 
 // ExitRowRange is called when production rowRange is exited.
 func (s *BaseSLQListener) ExitRowRange(ctx *RowRangeContext) {}
-
-// EnterFuncName is called when production funcName is entered.
-func (s *BaseSLQListener) EnterFuncName(ctx *FuncNameContext) {}
-
-// ExitFuncName is called when production funcName is exited.
-func (s *BaseSLQListener) ExitFuncName(ctx *FuncNameContext) {}
 
 // EnterExpr is called when production expr is entered.
 func (s *BaseSLQListener) EnterExpr(ctx *ExprContext) {}

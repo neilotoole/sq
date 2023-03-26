@@ -11,6 +11,8 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/ast"
+
 	"github.com/neilotoole/lg"
 	"github.com/neilotoole/lg/testlg"
 	"github.com/neilotoole/sq/cli/config"
@@ -442,6 +444,34 @@ func (h *Helper) QuerySQL(src *source.Source, query string, args ...any) (*Recor
 	if err != nil {
 		return nil, err
 	}
+	return sink, nil
+}
+
+// QuerySLQ executes the SLQ query.
+func (h *Helper) QuerySLQ(query string) (*RecordSink, error) {
+	// We need to ensure that each of the handles in the query is loaded.
+	a, err := ast.Parse(h.Log, query)
+	require.NoError(h.T, err)
+
+	for _, handle := range ast.NewInspector(h.Log, a).FindHandles() {
+		// This triggers handle loading
+		_ = h.Source(handle)
+	}
+
+	srcs := h.srcs
+	dbases := h.Databases()
+	sink := &RecordSink{}
+	recw := output.NewRecordWriterAdapter(sink)
+
+	err = libsq.ExecuteSLQ(h.Context, h.Log, dbases, dbases, srcs, query, recw)
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err = recw.Wait(); err != nil {
+		return nil, err
+	}
+
 	return sink, nil
 }
 

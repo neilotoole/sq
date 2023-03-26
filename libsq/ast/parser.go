@@ -450,13 +450,13 @@ func (v *parseTreeVisitor) VisitStmtList(ctx *slq.StmtListContext) any {
 
 // VisitLiteral implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitLiteral(ctx *slq.LiteralContext) any {
-	v.log.Debugf("visiting literal: %q", ctx.GetText())
-
-	lit := &LiteralNode{}
-	lit.ctx = ctx
-	_ = lit.SetParent(v.cur)
-	err := v.cur.AddChild(lit)
-	return err
+	node := &LiteralNode{}
+	node.ctx = ctx
+	node.text = ctx.GetText()
+	if err := node.SetParent(v.cur); err != nil {
+		return err
+	}
+	return v.cur.AddChild(node)
 }
 
 // VisitUnaryOperator implements slq.SLQVisitor.

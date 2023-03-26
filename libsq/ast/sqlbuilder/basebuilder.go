@@ -12,6 +12,8 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
+const singleQuote = '\''
+
 // baseOps is a map of SLQ operator (e.g. "==" or "!=") to its default SQL rendering.
 var baseOps = map[string]string{
 	`==`: `=`,
@@ -182,22 +184,80 @@ func (fb *BaseFragmentBuilder) Function(fn *ast.FuncNode) (string, error) {
 			buf.WriteString(", ")
 		}
 
-		switch child := child.(type) {
-		case *ast.ColSelectorNode:
-			colName := child.ColName()
-			buf.WriteString(fb.Quote)
-			buf.WriteString(colName)
-			buf.WriteString(fb.Quote)
+		switch node := child.(type) {
+		case *ast.ColSelectorNode, *ast.TblColSelectorNode, *ast.TblSelectorNode:
+			s, err := renderSelectorNode(fb.Quote, node)
+			if err != nil {
+				return "", err
+			}
+			buf.WriteString(s)
 		case *ast.OperatorNode:
-			buf.WriteString(child.Text())
+			buf.WriteString(node.Text())
+		case *ast.LiteralNode:
+			// TODO: This is all a bit of a mess. We probably need to
+			// move to using bound parameters instead of inlining
+			// literal values.
+			val, wasQuoted, err := unquoteLiteral(node.Text())
+			if err != nil {
+				return "", err
+			}
+
+			if wasQuoted {
+				// The literal had quotes, so it's a regular string.
+				buf.WriteRune(singleQuote)
+				buf.WriteString(escapeLiteralString(val))
+				buf.WriteRune(singleQuote)
+			} else {
+				buf.WriteString(val)
+			}
 		default:
-			fb.Log.Debugf("unknown AST child node type %T", child)
+			return "", errz.Errorf("unknown AST child node %T: %s", node, node)
 		}
 	}
 
 	buf.WriteRune(')')
 	sql := buf.String()
 	return sql, nil
+}
+
+// escapeLiteralString escapes the single quotes in s.
+func escapeLiteralString(s string) string {
+	if !strings.ContainsRune(s, singleQuote) {
+		return s
+	}
+
+	sb := strings.Builder{}
+	for _, r := range s {
+		if r == singleQuote {
+			_, _ = sb.WriteRune(singleQuote)
+			_, _ = sb.WriteRune(singleQuote)
+			continue
+		}
+
+		_, _ = sb.WriteRune(r)
+	}
+
+	return sb.String()
+}
+
+// unquoteLiteral returns true if s is a "quoted" string, and also returns
+// the value with the quotes stripped. An error is returned if the string
+// is malformed.
+func unquoteLiteral(s string) (val string, ok bool, err error) {
+	hasPrefix := strings.HasPrefix(s, `"`)
+	hasSuffix := strings.HasSuffix(s, `"`)
+
+	if hasPrefix && hasSuffix {
+		val = strings.TrimPrefix(s, `"`)
+		val = strings.TrimSuffix(val, `"`)
+		return val, true, nil
+	}
+
+	if hasPrefix != hasSuffix {
+		return "", false, errz.Errorf("malformed literal: %s", s)
+	}
+
+	return s, false, nil
 }
 
 // FromTable implements FragmentBuilder.
