@@ -9,7 +9,7 @@ type RowRangeNode struct {
 	Limit  int
 }
 
-func newRowRange(ctx *slq.RowRangeContext, offset, limit int) *RowRangeNode {
+func newRowRangeNode(ctx *slq.RowRangeContext, offset, limit int) *RowRangeNode {
 	rr := &RowRangeNode{}
 	rr.ctx = ctx
 	rr.Offset = offset

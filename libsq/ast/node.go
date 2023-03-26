@@ -211,18 +211,6 @@ func nodesWithType(nodes []Node, typ reflect.Type) []Node {
 	return s
 }
 
-// TerminalNode is a terminal/leaf node that typically is interpreted simply as its
-// text value.
-// REVISIT: Is TerminalNode needed?
-type TerminalNode struct {
-	baseNode
-}
-
-// String returns a log/debug-friendly representation.
-func (n *TerminalNode) String() string {
-	return nodeString(n)
-}
-
 // GroupByNode models GROUP BY.
 type GroupByNode struct {
 	baseNode

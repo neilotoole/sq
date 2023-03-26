@@ -660,7 +660,7 @@ func (v *parseTreeVisitor) VisitRowRange(ctx *slq.RowRangeContext) any {
 		}
 
 		i, _ := strconv.Atoi(ctx.AllNN()[0].GetText())
-		rr := newRowRange(ctx, i, 1)
+		rr := newRowRangeNode(ctx, i, 1)
 		return v.cur.AddChild(rr)
 	}
 
@@ -674,7 +674,7 @@ func (v *parseTreeVisitor) VisitRowRange(ctx *slq.RowRangeContext) any {
 		offset, _ := strconv.Atoi(ctx.AllNN()[0].GetText())
 		finish, _ := strconv.Atoi(ctx.AllNN()[1].GetText())
 		limit := finish - offset
-		rr := newRowRange(ctx, offset, limit)
+		rr := newRowRangeNode(ctx, offset, limit)
 		return v.cur.AddChild(rr)
 	}
 
@@ -694,7 +694,7 @@ func (v *parseTreeVisitor) VisitRowRange(ctx *slq.RowRangeContext) any {
 		offset, _ = strconv.Atoi(ctx.AllNN()[0].GetText())
 	}
 
-	rr := newRowRange(ctx, offset, limit)
+	rr := newRowRangeNode(ctx, offset, limit)
 	return v.cur.AddChild(rr)
 }
 
