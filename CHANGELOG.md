@@ -5,17 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Upcoming
+[//]: # (## [v0.29.0] - 2023-03-26)
+
+### Added
+
+- [#162]: `group_by` now accepts [function arguments](https://sq.io/docs/query/#group_by). 
+
+### Changed
+
+- Renamed `groupby` to `group_by` to match jq.
+- Renamed `orderby` to `order_by` to match jq.
+
 ## [v0.28.0] - 2023-03-26
 
 ### Added
 
-- [#160]: Use `groupby()` to group results. See [query guide](https://sq.io/docs/query/#group-by).
+- [#160]: Use `groupby()` to group results. See [query guide](https://sq.io/docs/query/#group_by).
 
 ## [v0.27.0] - 2023-03-25
 
 ### Added
 
-- [#158]: Use `orderby()` to order results. See [query guide](https://sq.io/docs/query/#order-by).
+- [#158]: Use `orderby()` to order results. See [query guide](https://sq.io/docs/query/#order_by).
 
 ## [v0.26.0] - 2023-03-22
 
@@ -194,6 +206,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - [#89]: Bug with SQL generated for joins.
 
+[#162]: https://github.com/neilotoole/sq/issues/162
 [#123]: https://github.com/neilotoole/sq/issues/123
 [#142]: https://github.com/neilotoole/sq/issues/142
 [#144]: https://github.com/neilotoole/sq/issues/144
@@ -230,3 +243,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [v0.26.0]: https://github.com/neilotoole/sq/compare/v0.25.1...v0.26.0
 [v0.27.0]: https://github.com/neilotoole/sq/compare/v0.26.0...v0.27.0
 [v0.28.0]: https://github.com/neilotoole/sq/compare/v0.27.0...v0.28.0
+[v0.29.0]: https://github.com/neilotoole/sq/compare/v0.28.0...v0.29.0
