@@ -72,6 +72,11 @@ func (w *Walker) visitChildren(node Node) error {
 	return nil
 }
 
+// walkWith is a convenience function for using Walker.
+func walkWith(log lg.Log, ast *AST, typ reflect.Type, fn nodeVisitorFn) error {
+	return NewWalker(log, ast).AddVisitor(typ, fn).Walk()
+}
+
 // narrowTblSel takes a generic selector, and if appropriate, converts it to a TblSel.
 func narrowTblSel(log lg.Log, w *Walker, node Node) error {
 	// node is guaranteed to be typeSelectorNode

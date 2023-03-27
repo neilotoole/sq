@@ -12,6 +12,8 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
+const singleQuote = '\''
+
 // baseOps is a map of SLQ operator (e.g. "==" or "!=") to its default SQL rendering.
 var baseOps = map[string]string{
 	`==`: `=`,
@@ -44,23 +46,36 @@ func (fb *BaseFragmentBuilder) GroupBy(gb *ast.GroupByNode) (string, error) {
 		return "", nil
 	}
 
-	clause := "GROUP BY "
-	children := gb.Children()
-	for i := 0; i < len(children); i++ {
+	var (
+		term string
+		err  error
+		sb   strings.Builder
+	)
+
+	sb.WriteString("GROUP BY ")
+	for i, child := range gb.Children() {
 		if i > 0 {
-			clause += ", "
+			sb.WriteString(", ")
 		}
 
-		// FIXME: really should check for other types
-		s, err := renderSelectorNode(fb.Quote, children[i])
-		if err != nil {
-			return "", err
+		switch child := child.(type) {
+		case *ast.FuncNode:
+			if term, err = fb.Function(child); err != nil {
+				return "", err
+			}
+		case ast.Selector:
+			if term, err = renderSelectorNode(fb.Quote, child); err != nil {
+				return "", err
+			}
+		default:
+			// Should never happen
+			return "", errz.Errorf("invalid child type: %T: %s", child, child)
 		}
 
-		clause += s
+		sb.WriteString(term)
 	}
 
-	return clause, nil
+	return sb.String(), nil
 }
 
 // OrderBy implements FragmentBuilder.
@@ -167,7 +182,7 @@ func (fb *BaseFragmentBuilder) Function(fn *ast.FuncNode) (string, error) {
 		// HACK: this stuff basically doesn't work at all...
 		//  but for COUNT(), here's a quick hack to make it work on some DBs
 		if fn.Context().GetText() == "count()" {
-			buf.WriteString("COUNT(*)")
+			buf.WriteString("count(*)")
 		} else {
 			buf.WriteString(fn.Context().GetText())
 		}
@@ -175,29 +190,87 @@ func (fb *BaseFragmentBuilder) Function(fn *ast.FuncNode) (string, error) {
 		return buf.String(), nil
 	}
 
-	buf.WriteString(strings.ToUpper(fn.FuncName()))
+	buf.WriteString(strings.ToLower(fn.FuncName()))
 	buf.WriteRune('(')
 	for i, child := range children {
 		if i > 0 {
 			buf.WriteString(", ")
 		}
 
-		switch child := child.(type) {
-		case *ast.ColSelectorNode:
-			colName := child.ColName()
-			buf.WriteString(fb.Quote)
-			buf.WriteString(colName)
-			buf.WriteString(fb.Quote)
+		switch node := child.(type) {
+		case *ast.ColSelectorNode, *ast.TblColSelectorNode, *ast.TblSelectorNode:
+			s, err := renderSelectorNode(fb.Quote, node)
+			if err != nil {
+				return "", err
+			}
+			buf.WriteString(s)
 		case *ast.OperatorNode:
-			buf.WriteString(child.Text())
+			buf.WriteString(node.Text())
+		case *ast.LiteralNode:
+			// TODO: This is all a bit of a mess. We probably need to
+			// move to using bound parameters instead of inlining
+			// literal values.
+			val, wasQuoted, err := unquoteLiteral(node.Text())
+			if err != nil {
+				return "", err
+			}
+
+			if wasQuoted {
+				// The literal had quotes, so it's a regular string.
+				buf.WriteRune(singleQuote)
+				buf.WriteString(escapeLiteralString(val))
+				buf.WriteRune(singleQuote)
+			} else {
+				buf.WriteString(val)
+			}
 		default:
-			fb.Log.Debugf("unknown AST child node type %T", child)
+			return "", errz.Errorf("unknown AST child node %T: %s", node, node)
 		}
 	}
 
 	buf.WriteRune(')')
 	sql := buf.String()
 	return sql, nil
+}
+
+// escapeLiteralString escapes the single quotes in s.
+func escapeLiteralString(s string) string {
+	if !strings.ContainsRune(s, singleQuote) {
+		return s
+	}
+
+	sb := strings.Builder{}
+	for _, r := range s {
+		if r == singleQuote {
+			_, _ = sb.WriteRune(singleQuote)
+			_, _ = sb.WriteRune(singleQuote)
+			continue
+		}
+
+		_, _ = sb.WriteRune(r)
+	}
+
+	return sb.String()
+}
+
+// unquoteLiteral returns true if s is a "quoted" string, and also returns
+// the value with the quotes stripped. An error is returned if the string
+// is malformed.
+func unquoteLiteral(s string) (val string, ok bool, err error) {
+	hasPrefix := strings.HasPrefix(s, `"`)
+	hasSuffix := strings.HasSuffix(s, `"`)
+
+	if hasPrefix && hasSuffix {
+		val = strings.TrimPrefix(s, `"`)
+		val = strings.TrimSuffix(val, `"`)
+		return val, true, nil
+	}
+
+	if hasPrefix != hasSuffix {
+		return "", false, errz.Errorf("malformed literal: %s", s)
+	}
+
+	return s, false, nil
 }
 
 // FromTable implements FragmentBuilder.

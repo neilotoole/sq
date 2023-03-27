@@ -13,32 +13,32 @@ element:
 	| handle
 	| selectorElement
 	| join
-	| group
+	| groupBy
 	| orderBy
 	| rowRange
-	| fnElement
+	| funcElement
 	| expr;
 
 // cmpr is a comparison operator.
 cmpr: LT_EQ | LT | GT_EQ | GT | EQ | NEQ;
 
-fn: fnName '(' ( expr ( ',' expr)* | '*')? ')';
+funcElement: func (alias)?;
+func: funcName '(' ( expr ( ',' expr)* | '*')? ')';
+funcName: ID;
 
-fnElement: fn (alias)?;
-
-join: ('join' | 'JOIN' | 'j') '(' joinConstraint ')';
+join: ('join') '(' joinConstraint ')';
 
 joinConstraint:
 	selector cmpr selector // .user.uid == .address.userid
 	| selector ; // .uid
 
 /*
-groupby
+group_by
 -------
 
-The 'groupby' construct implments the SQL "GROUP BY" clause.
+The 'group_by' construct implments the SQL "GROUP BY" clause.
 
-    .payment | .customer_id, sum(.amount) | groupby(.customer_id)
+    .payment | .customer_id, sum(.amount) | group_by(.customer_id)
 
 Syonyms:
 - 'group_by' for jq interoperability.
@@ -46,18 +46,19 @@ Syonyms:
 - 'group': for legacy sq compabibility. Should this be deprecated and removed?
 */
 
-GROUP_BY: 'groupby' | 'group_by';
-group: GROUP_BY '(' selector (',' selector)* ')';
+GROUP_BY: 'group_by';
+groupByTerm: selector | func;
+groupBy: GROUP_BY '(' groupByTerm (',' groupByTerm)* ')';
 
 /*
-orderby
+order_by
 ------
 
-The 'orderby' construct implements the SQL "ORDER BY" clause.
+The 'order_by' construct implements the SQL "ORDER BY" clause.
 
-    .actor | orderby(.first_name, .last_name)
-    .actor | orderby(.first_name+)
-    .actor | orderby(.actor.first_name-)
+    .actor | order_by(.first_name, .last_name)
+    .actor | order_by(.first_name+)
+    .actor | order_by(.actor.first_name-)
 
 The optional plus/minus tokens specify ASC or DESC order.
 
@@ -73,7 +74,7 @@ as a no-op.
 
 ORDER_ASC: '+';
 ORDER_DESC: '-';
-ORDER_BY: 'orderby' | 'sort_by';
+ORDER_BY: 'order_by' | 'sort_by';
 orderByTerm: selector (ORDER_ASC | ORDER_DESC)?;
 orderBy: ORDER_BY '(' orderByTerm (',' orderByTerm)* ')';
 
@@ -99,6 +100,8 @@ selectorElement: selector (alias)?;
 // For example: ".first_name:given_name" : "given_name" is the alias.
 alias: ':' ID;
 
+
+//FUNC_NAME: [a-z_] [a-z_0-9]*;
 
 
 
@@ -126,15 +129,17 @@ rowRange:
 		| NN // [10]
 	)? ']';
 
-fnName:
-	'sum'
-	| 'SUM'
-	| 'avg'
-	| 'AVG'
-	| 'count'
-	| 'COUNT'
-	| 'where'
-	| 'WHERE';
+//fnName:
+//	'sum'
+//	| 'SUM'
+//	| 'avg'
+//	| 'AVG'
+//	| 'count'
+//	| 'COUNT'
+//	| 'where'
+//	| 'WHERE';
+
+
 
 expr:
 	selector
@@ -147,7 +152,7 @@ expr:
 	| expr ( '<' | '<=' | '>' | '>=') expr
 	| expr ( '==' | '!=' |) expr
 	| expr '&&' expr
-	| fn
+	| func
 	;
 
 literal: NN | NUMBER | STRING | NULL;
@@ -233,7 +238,7 @@ fragment X: [xX];
 fragment Y: [yY];
 fragment Z: [zZ];
 
-LINECOMMENT: '//' .*? '\n' -> skip;
+LINECOMMENT: '#' .*? '\n' -> skip;
 
 //// From https://github.com/antlr/grammars-v4/blob/master/sql/sqlite/SQLiteLexer.g4
 //IDENTIFIER:

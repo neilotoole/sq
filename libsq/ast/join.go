@@ -29,8 +29,8 @@ func (jn *JoinNode) RightTbl() *TblSelectorNode {
 	return jn.rightTbl
 }
 
-// Selectable implements the Selectable marker interface.
-func (jn *JoinNode) selectable() {
+// Tabler implements the Tabler marker interface.
+func (jn *JoinNode) tabler() {
 	// no-op
 }
 

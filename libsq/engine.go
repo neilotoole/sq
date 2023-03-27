@@ -348,7 +348,7 @@ func execCopyTable(ctx context.Context, log lg.Log, fromDB driver.Database, from
 // queryModel is a model of a SLQ query built from the AST.
 type queryModel struct {
 	AST        *ast.AST
-	Selectable ast.Selectable
+	Selectable ast.Tabler
 	Cols       []ast.ResultColumn
 	Range      *ast.RowRangeNode
 	Where      *ast.WhereNode
@@ -378,7 +378,7 @@ func buildQueryModel(log lg.Log, a *ast.AST) (*queryModel, error) {
 			len(selectableSeg.Children()))
 	}
 
-	selectable, ok := selectableSeg.Children()[0].(ast.Selectable)
+	selectable, ok := selectableSeg.Children()[0].(ast.Tabler)
 	if !ok {
 		return nil, errz.Errorf(
 			"the final selectable segment must have exactly one selectable element, but found element %T(%q)",

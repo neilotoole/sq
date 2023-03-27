@@ -3,6 +3,8 @@ package sqlbuilder
 import (
 	"testing"
 
+	"github.com/neilotoole/sq/testh/tutil"
+
 	"github.com/stretchr/testify/require"
 )
 
@@ -32,6 +34,29 @@ func TestQuoteTableOrColSelector(t *testing.T) {
 			}
 
 			require.NoError(t, gotErr)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestEscapeLiteralString(t *testing.T) {
+	testCases := []struct {
+		in   string
+		want string
+	}{
+		{in: ``, want: ``},
+		{in: `  `, want: `  `},
+		{in: `hello`, want: `hello`},
+		{in: `"hello"`, want: `"hello"`},
+		{in: `there's`, want: `there''s`},
+		{in: `double''`, want: `double''''`},
+	}
+
+	for i, tc := range testCases {
+		tc := tc
+
+		t.Run(tutil.Name(i, tc.in), func(t *testing.T) {
+			got := escapeLiteralString(tc.in)
 			require.Equal(t, tc.want, got)
 		})
 	}

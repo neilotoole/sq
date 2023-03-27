@@ -1,5 +1,7 @@
 package ast
 
+import "github.com/neilotoole/sq/libsq/ast/internal/slq"
+
 // OrderByNode implements the SQL "ORDER BY" clause.
 type OrderByNode struct {
 	baseNode
@@ -90,7 +92,7 @@ func (n *OrderByTermNode) SetChildren(children []Node) error {
 	case 0:
 		// fallthrough
 	case 1:
-		if _, ok := children[0].(selector); !ok {
+		if _, ok := children[0].(Selector); !ok {
 			return errorf("illegal child type %T {%s} for %T", children[0], children[0], n)
 		}
 	default:
@@ -115,4 +117,46 @@ func (n *OrderByTermNode) Direction() OrderByDirection {
 // String returns a log/debug-friendly representation.
 func (n *OrderByTermNode) String() string {
 	return nodeString(n)
+}
+
+// VisitOrderBy implements slq.SLQVisitor.
+func (v *parseTreeVisitor) VisitOrderBy(ctx *slq.OrderByContext) interface{} {
+	node := &OrderByNode{}
+	node.parent = v.cur
+	node.ctx = ctx
+	node.text = ctx.GetText()
+
+	if err := v.cur.AddChild(node); err != nil {
+		return err
+	}
+
+	return v.using(node, func() any {
+		// This will result in VisitOrderByTerm being called on the children.
+		return v.VisitChildren(ctx)
+	})
+}
+
+// VisitOrderByTerm implements slq.SLQVisitor.
+func (v *parseTreeVisitor) VisitOrderByTerm(ctx *slq.OrderByTermContext) interface{} {
+	node := &OrderByTermNode{}
+	node.parent = v.cur
+	node.ctx = ctx
+	node.text = ctx.GetText()
+
+	selNode, err := newSelectorNode(node, ctx.Selector())
+	if err != nil {
+		return nil
+	}
+
+	if ctx.ORDER_ASC() != nil {
+		node.direction = OrderByDirectionAsc
+	} else if ctx.ORDER_DESC() != nil {
+		node.direction = OrderByDirectionDesc
+	}
+
+	if err := node.AddChild(selNode); err != nil {
+		return err
+	}
+
+	return v.cur.AddChild(node)
 }

@@ -22,11 +22,14 @@ type SLQListener interface {
 	// EnterCmpr is called when entering the cmpr production.
 	EnterCmpr(c *CmprContext)
 
-	// EnterFn is called when entering the fn production.
-	EnterFn(c *FnContext)
+	// EnterFuncElement is called when entering the funcElement production.
+	EnterFuncElement(c *FuncElementContext)
 
-	// EnterFnElement is called when entering the fnElement production.
-	EnterFnElement(c *FnElementContext)
+	// EnterFunc is called when entering the func production.
+	EnterFunc(c *FuncContext)
+
+	// EnterFuncName is called when entering the funcName production.
+	EnterFuncName(c *FuncNameContext)
 
 	// EnterJoin is called when entering the join production.
 	EnterJoin(c *JoinContext)
@@ -34,8 +37,11 @@ type SLQListener interface {
 	// EnterJoinConstraint is called when entering the joinConstraint production.
 	EnterJoinConstraint(c *JoinConstraintContext)
 
-	// EnterGroup is called when entering the group production.
-	EnterGroup(c *GroupContext)
+	// EnterGroupByTerm is called when entering the groupByTerm production.
+	EnterGroupByTerm(c *GroupByTermContext)
+
+	// EnterGroupBy is called when entering the groupBy production.
+	EnterGroupBy(c *GroupByContext)
 
 	// EnterOrderByTerm is called when entering the orderByTerm production.
 	EnterOrderByTerm(c *OrderByTermContext)
@@ -61,9 +67,6 @@ type SLQListener interface {
 	// EnterRowRange is called when entering the rowRange production.
 	EnterRowRange(c *RowRangeContext)
 
-	// EnterFnName is called when entering the fnName production.
-	EnterFnName(c *FnNameContext)
-
 	// EnterExpr is called when entering the expr production.
 	EnterExpr(c *ExprContext)
 
@@ -88,11 +91,14 @@ type SLQListener interface {
 	// ExitCmpr is called when exiting the cmpr production.
 	ExitCmpr(c *CmprContext)
 
-	// ExitFn is called when exiting the fn production.
-	ExitFn(c *FnContext)
+	// ExitFuncElement is called when exiting the funcElement production.
+	ExitFuncElement(c *FuncElementContext)
 
-	// ExitFnElement is called when exiting the fnElement production.
-	ExitFnElement(c *FnElementContext)
+	// ExitFunc is called when exiting the func production.
+	ExitFunc(c *FuncContext)
+
+	// ExitFuncName is called when exiting the funcName production.
+	ExitFuncName(c *FuncNameContext)
 
 	// ExitJoin is called when exiting the join production.
 	ExitJoin(c *JoinContext)
@@ -100,8 +106,11 @@ type SLQListener interface {
 	// ExitJoinConstraint is called when exiting the joinConstraint production.
 	ExitJoinConstraint(c *JoinConstraintContext)
 
-	// ExitGroup is called when exiting the group production.
-	ExitGroup(c *GroupContext)
+	// ExitGroupByTerm is called when exiting the groupByTerm production.
+	ExitGroupByTerm(c *GroupByTermContext)
+
+	// ExitGroupBy is called when exiting the groupBy production.
+	ExitGroupBy(c *GroupByContext)
 
 	// ExitOrderByTerm is called when exiting the orderByTerm production.
 	ExitOrderByTerm(c *OrderByTermContext)
@@ -126,9 +135,6 @@ type SLQListener interface {
 
 	// ExitRowRange is called when exiting the rowRange production.
 	ExitRowRange(c *RowRangeContext)
-
-	// ExitFnName is called when exiting the fnName production.
-	ExitFnName(c *FnNameContext)
 
 	// ExitExpr is called when exiting the expr production.
 	ExitExpr(c *ExprContext)
