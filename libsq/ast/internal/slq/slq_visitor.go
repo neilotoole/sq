@@ -40,6 +40,9 @@ type SLQVisitor interface {
 	// Visit a parse tree produced by SLQParser#uniqueFunc.
 	VisitUniqueFunc(ctx *UniqueFuncContext) interface{}
 
+	// Visit a parse tree produced by SLQParser#countFunc.
+	VisitCountFunc(ctx *CountFuncContext) interface{}
+
 	// Visit a parse tree produced by SLQParser#groupByTerm.
 	VisitGroupByTerm(ctx *GroupByTermContext) interface{}
 

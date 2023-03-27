@@ -184,6 +184,8 @@ func (v *parseTreeVisitor) Visit(ctx antlr.ParseTree) any {
 		return v.VisitSelectorElement(ctx)
 	case *slq.UniqueFuncContext:
 		return v.VisitUniqueFunc(ctx)
+	case *slq.CountFuncContext:
+		return v.VisitCountFunc(ctx)
 	}
 
 	// should never be reached
@@ -293,7 +295,6 @@ func (v *parseTreeVisitor) VisitElement(ctx *slq.ElementContext) any {
 
 // VisitAlias implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitAlias(ctx *slq.AliasContext) any {
-	// TODO: Probably don't need this.
 	alias := ctx.ID().GetText()
 
 	switch node := v.cur.(type) {
@@ -306,66 +307,6 @@ func (v *parseTreeVisitor) VisitAlias(ctx *slq.AliasContext) any {
 	}
 
 	return nil
-}
-
-// VisitFuncElement implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitFuncElement(ctx *slq.FuncElementContext) any {
-	childCount := ctx.GetChildCount()
-	if childCount == 0 || childCount > 2 {
-		return errorf("parser: invalid function: expected 1 or 2 children, but got %d: %v",
-			childCount, ctx.GetText())
-	}
-
-	// e.g. count(*)
-	child1 := ctx.GetChild(0)
-	fnCtx, ok := child1.(*slq.FuncContext)
-	if !ok {
-		return errorf("expected first child to be %T but was %T: %v", fnCtx, child1, ctx.GetText())
-	}
-
-	if err := v.VisitFunc(fnCtx); err != nil {
-		return err
-	}
-
-	// Check if there's an alias
-	if childCount == 2 {
-		child2 := ctx.GetChild(1)
-		aliasCtx, ok := child2.(*slq.AliasContext)
-		if !ok {
-			return errorf("expected second child to be %T but was %T: %v", aliasCtx, child2, ctx.GetText())
-		}
-
-		// VisitAlias will expect v.cur to be a FuncNode.
-		lastNode := nodeLastChild(v.cur)
-		fnNode, ok := lastNode.(*FuncNode)
-		if !ok {
-			return errorf("expected %T but got %T: %v", fnNode, lastNode, ctx.GetText())
-		}
-
-		return v.using(fnNode, func() any {
-			return v.VisitAlias(aliasCtx)
-		})
-	}
-
-	return nil
-}
-
-// VisitFunc implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitFunc(ctx *slq.FuncContext) any {
-	fn := &FuncNode{fnName: ctx.FuncName().GetText()}
-	fn.ctx = ctx
-	err := fn.SetParent(v.cur)
-	if err != nil {
-		return err
-	}
-
-	if err2 := v.using(fn, func() any {
-		return v.VisitChildren(ctx)
-	}); err2 != nil {
-		return err2
-	}
-
-	return v.cur.AddChild(fn)
 }
 
 // VisitExpr implements slq.SLQVisitor.
@@ -427,11 +368,6 @@ func (v *parseTreeVisitor) VisitLiteral(ctx *slq.LiteralContext) any {
 
 // VisitUnaryOperator implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitUnaryOperator(ctx *slq.UnaryOperatorContext) any {
-	return nil
-}
-
-// VisitFuncName implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitFuncName(ctx *slq.FuncNameContext) any {
 	return nil
 }
 

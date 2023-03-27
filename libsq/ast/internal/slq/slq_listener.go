@@ -40,6 +40,9 @@ type SLQListener interface {
 	// EnterUniqueFunc is called when entering the uniqueFunc production.
 	EnterUniqueFunc(c *UniqueFuncContext)
 
+	// EnterCountFunc is called when entering the countFunc production.
+	EnterCountFunc(c *CountFuncContext)
+
 	// EnterGroupByTerm is called when entering the groupByTerm production.
 	EnterGroupByTerm(c *GroupByTermContext)
 
@@ -111,6 +114,9 @@ type SLQListener interface {
 
 	// ExitUniqueFunc is called when exiting the uniqueFunc production.
 	ExitUniqueFunc(c *UniqueFuncContext)
+
+	// ExitCountFunc is called when exiting the countFunc production.
+	ExitCountFunc(c *CountFuncContext)
 
 	// ExitGroupByTerm is called when exiting the groupByTerm production.
 	ExitGroupByTerm(c *GroupByTermContext)

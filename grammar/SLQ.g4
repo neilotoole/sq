@@ -2,6 +2,10 @@
 // The grammar is not yet finalized; it is subject to change in any new sq release.
 grammar SLQ;
 
+// alias, for columns, implements "col AS alias".
+// For example: ".first_name:given_name" : "given_name" is the alias.
+alias: ':' ID;
+
 stmtList: ';'* query ( ';'+ query)* ';'*;
 
 query: segment ('|' segment)*;
@@ -17,7 +21,7 @@ element
 	| orderBy
 	| rowRange
 	| uniqueFunc
-//	| countFunc
+	| countFunc
 	| funcElement
 	| expr;
 
@@ -47,24 +51,25 @@ The func takes zero args.
 */
 uniqueFunc: 'unique';
 
-///*
-//countFunc
-//---------
-//
-//This implements SQL's COUNT function. It has special handling vs other
-//funcs because of the several forms it can take.
-//
-//    .actor | count
-//    .actor | count:quantity                 # alias
-//    .actor | count()
-//    .actor | count(*)
-//    .actor | count(.first_name):quanity     # alias
-//
-// TODO: how to handle COUNT DISTINCT?
-// */
-//countFunc
-//    : 'count' (LPAR (selector)? RPAR)? (alias)?;
+/*
+countFunc
+---------
 
+This implements SQL's COUNT function. It has special handling vs other
+funcs because of the several forms it can take.
+
+    .actor | count
+    .actor | count:quantity                 # alias
+    .actor | count()
+    .actor | count(*)
+    .actor | count(.first_name):quanity     # alias
+
+ TODO: how to handle COUNT DISTINCT?
+ */
+countFunc
+    : 'count' (LPAR (selector)? RPAR)? (ALIAS)?;
+
+ALIAS: ':' [a-zA-Z_][a-zA-Z0-9_]*;
 
 /*
 group_by
@@ -129,14 +134,6 @@ selector: NAME (NAME)?;
 // - .actor.first_name:given_name
 // - ."actor".first_name
 selectorElement: selector (alias)?;
-
-// alias, for columns, implements "col AS alias".
-// For example: ".first_name:given_name" : "given_name" is the alias.
-alias: ':' ID;
-
-
-//FUNC_NAME: [a-z_] [a-z_0-9]*;
-
 
 
 
