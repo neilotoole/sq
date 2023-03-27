@@ -4,11 +4,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neilotoole/sq/drivers/sqlserver"
+
+	"github.com/neilotoole/sq/drivers/postgres"
+
 	"github.com/neilotoole/sq/drivers/sqlite3"
 
 	"golang.org/x/exp/slices"
-
-	"github.com/neilotoole/sq/cli/output"
 
 	"github.com/neilotoole/sq/drivers/mysql"
 
@@ -250,10 +252,31 @@ func TestSLQ2SQLNew(t *testing.T) {
 			wantRecs: 1,
 		},
 		{
-			name:     "datetime/sqlite/date",
+			name:     "datetime/date/sqlite",
 			in:       `@sakila | .payment | date("month", .payment_date)`,
 			wantSQL:  `SELECT date('month', "payment_date") FROM "payment"`,
 			onlyFor:  []source.Type{sqlite3.Type},
+			wantRecs: sakila.TblPaymentCount,
+		},
+		{
+			name:     "datetime/date_trunc/postgres",
+			in:       `@sakila | .payment | date_trunc("month", .payment_date)`,
+			wantSQL:  `SELECT date_trunc('month', "payment_date") FROM "payment"`,
+			onlyFor:  []source.Type{postgres.Type},
+			wantRecs: sakila.TblPaymentCount,
+		},
+		{
+			name:     "datetime/month/sqlserver",
+			in:       `@sakila | .payment | month(.payment_date)`,
+			wantSQL:  `SELECT month("payment_date") FROM "payment"`,
+			onlyFor:  []source.Type{sqlserver.Type},
+			wantRecs: sakila.TblPaymentCount,
+		},
+		{
+			name:     "datetime/date_format/mysql",
+			in:       `@sakila | .payment | date_format(.payment_date, "%m")`,
+			wantSQL:  "SELECT date_format(`payment_date`, '%m') FROM `payment`",
+			onlyFor:  []source.Type{mysql.Type},
 			wantRecs: sakila.TblPaymentCount,
 		},
 	}
@@ -266,8 +289,6 @@ func TestSLQ2SQLNew(t *testing.T) {
 				t.Skip()
 			}
 			srcs := testh.New(t).NewSourceSet(sakila.SQLLatest()...)
-			// srcs := testh.New(t).NewSourceSet(sakila.SL3)
-
 			for _, src := range srcs.Items() {
 				src := src
 
@@ -305,56 +326,11 @@ func TestSLQ2SQLNew(t *testing.T) {
 						return
 					}
 
-					sink := &testh.RecordSink{}
-					recw := output.NewRecordWriterAdapter(sink)
-
-					gotErr = libsq.ExecuteSLQ(th.Context, th.Log, dbases, dbases, srcs, in, recw)
-					require.NoError(t, gotErr)
-
-					written, err := recw.Wait()
+					sink, err := th.QuerySLQ(in)
 					require.NoError(t, err)
-					require.Equal(t, tc.wantRecs, int(written))
 					require.Equal(t, tc.wantRecs, len(sink.Recs))
 				})
 			}
 		})
 	}
-}
-
-func TestSQLiteDateTrunc(t *testing.T) {
-	/*
-		{
-		name:    "datetime/sqlite/date_trunc",
-			in:      `@sakila | .payment | date_trunc("month", .payment_date)`,
-			wantSQL: `SELECT DATE_TRUNC('month', "payment_date") FROM "payment"`,
-			onlyFor: []source.Type{sqlite3.Type},
-		},
-
-	*/
-
-	const query1 = `SELECT DATE('now') FROM "payment";`
-	const query2 = `SELECT DATE(?) FROM "payment";`
-	_ = query2
-
-	th := testh.New(t)
-	ctx := th.Context
-	src := th.Source(sakila.SL3)
-	dbases, err := th.Databases().Open(ctx, src)
-	require.NoError(t, err)
-	db := dbases.DB()
-	_ = db
-
-	sink, err := th.QuerySQL(src, query1)
-	require.NoError(t, err)
-	require.Equal(t, sakila.TblPaymentCount, len(sink.Recs))
-}
-
-func TestSL3Date(t *testing.T) {
-	th := testh.New(t)
-
-	const query = `@sakila_sl3 | .payment | date("month", .payment_date)`
-	// const query = `@sakila_sl3 | .actor`
-	sink, err := th.QuerySLQ(query)
-	require.NoError(t, err)
-	require.Equal(t, sakila.TblPaymentCount, len(sink.Recs))
 }
