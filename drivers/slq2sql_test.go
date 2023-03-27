@@ -252,9 +252,9 @@ func TestSLQ2SQLNew(t *testing.T) {
 			wantRecs: 1,
 		},
 		{
-			name:     "datetime/date/sqlite",
-			in:       `@sakila | .payment | date("month", .payment_date)`,
-			wantSQL:  `SELECT date('month', "payment_date") FROM "payment"`,
+			name:     "datetime/strftime/sqlite",
+			in:       `@sakila | .payment | strftime("%m", .payment_date)`,
+			wantSQL:  `SELECT strftime('%m', "payment_date") FROM "payment"`,
 			onlyFor:  []source.Type{sqlite3.Type},
 			wantRecs: sakila.TblPaymentCount,
 		},
