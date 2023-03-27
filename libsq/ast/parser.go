@@ -182,6 +182,8 @@ func (v *parseTreeVisitor) Visit(ctx antlr.ParseTree) any {
 		return v.VisitTerminal(ctx)
 	case *slq.SelectorElementContext:
 		return v.VisitSelectorElement(ctx)
+	case *slq.UniqueFuncContext:
+		return v.VisitUniqueFunc(ctx)
 	}
 
 	// should never be reached

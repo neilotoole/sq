@@ -37,6 +37,9 @@ type SLQListener interface {
 	// EnterJoinConstraint is called when entering the joinConstraint production.
 	EnterJoinConstraint(c *JoinConstraintContext)
 
+	// EnterUniqueFunc is called when entering the uniqueFunc production.
+	EnterUniqueFunc(c *UniqueFuncContext)
+
 	// EnterGroupByTerm is called when entering the groupByTerm production.
 	EnterGroupByTerm(c *GroupByTermContext)
 
@@ -105,6 +108,9 @@ type SLQListener interface {
 
 	// ExitJoinConstraint is called when exiting the joinConstraint production.
 	ExitJoinConstraint(c *JoinConstraintContext)
+
+	// ExitUniqueFunc is called when exiting the uniqueFunc production.
+	ExitUniqueFunc(c *UniqueFuncContext)
 
 	// ExitGroupByTerm is called when exiting the groupByTerm production.
 	ExitGroupByTerm(c *GroupByTermContext)

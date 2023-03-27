@@ -8,14 +8,16 @@ query: segment ('|' segment)*;
 
 segment: (element) (',' element)*;
 
-element:
-	handleTable
+element
+    : handleTable
 	| handle
 	| selectorElement
 	| join
 	| groupBy
 	| orderBy
 	| rowRange
+	| uniqueFunc
+//	| countFunc
 	| funcElement
 	| expr;
 
@@ -28,9 +30,41 @@ funcName: ID;
 
 join: ('join') '(' joinConstraint ')';
 
-joinConstraint:
-	selector cmpr selector // .user.uid == .address.userid
+joinConstraint
+    : selector cmpr selector // .user.uid == .address.userid
 	| selector ; // .uid
+
+/*
+uniqueFunc
+----------
+
+uniqueFunc implements SQL's DISTINCT mechanism.
+
+    .actor | .first_name | unique
+    .actor | unique
+
+The func takes zero args.
+*/
+uniqueFunc: 'unique';
+
+///*
+//countFunc
+//---------
+//
+//This implements SQL's COUNT function. It has special handling vs other
+//funcs because of the several forms it can take.
+//
+//    .actor | count
+//    .actor | count:quantity                 # alias
+//    .actor | count()
+//    .actor | count(*)
+//    .actor | count(.first_name):quanity     # alias
+//
+// TODO: how to handle COUNT DISTINCT?
+// */
+//countFunc
+//    : 'count' (LPAR (selector)? RPAR)? (alias)?;
+
 
 /*
 group_by

@@ -147,7 +147,7 @@ func narrowTblColSel(log lg.Log, w *Walker, node Node) error {
 		// if the parent is a segment, this is a "top-level" selector.
 		// Only top-level selectors after the final selectable seg are
 		// convert to TblColSelectorNode.
-		selectableSeg, err := NewInspector(log, w.root.(*AST)).FindFinalSelectableSegment()
+		selectableSeg, err := NewInspector(log, w.root.(*AST)).FindFinalTablerSegment()
 		if err != nil {
 			return err
 		}
@@ -196,7 +196,7 @@ func narrowColSel(log lg.Log, w *Walker, node Node) error {
 		// if the parent is a segment, this is a "top-level" selector.
 		// Only top-level selectors after the final selectable seg are
 		// convert to colSels.
-		selectableSeg, err := NewInspector(log, w.root.(*AST)).FindFinalSelectableSegment()
+		selectableSeg, err := NewInspector(log, w.root.(*AST)).FindFinalTablerSegment()
 		if err != nil {
 			return err
 		}

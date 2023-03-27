@@ -37,6 +37,9 @@ type SLQVisitor interface {
 	// Visit a parse tree produced by SLQParser#joinConstraint.
 	VisitJoinConstraint(ctx *JoinConstraintContext) interface{}
 
+	// Visit a parse tree produced by SLQParser#uniqueFunc.
+	VisitUniqueFunc(ctx *UniqueFuncContext) interface{}
+
 	// Visit a parse tree produced by SLQParser#groupByTerm.
 	VisitGroupByTerm(ctx *GroupByTermContext) interface{}
 

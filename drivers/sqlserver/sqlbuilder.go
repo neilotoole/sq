@@ -70,7 +70,7 @@ type queryBuilder struct {
 	sqlbuilder.BaseQueryBuilder
 }
 
-func (qb *queryBuilder) SQL() (string, error) {
+func (qb *queryBuilder) Render() (string, error) {
 	// SQL Server handles range (OFFSET, LIMIT) a little differently. If the query has a range,
 	// then the ORDER BY clause is required. If ORDER BY is not specified, we use a trick (SELECT 0)
 	// to satisfy SQL Server. For example:
@@ -79,13 +79,13 @@ func (qb *queryBuilder) SQL() (string, error) {
 	//   ORDER BY (SELECT 0)
 	//   OFFSET 1 ROWS
 	//   FETCH NEXT 2 ROWS ONLY;
-	if qb.RangeClause != "" {
-		if qb.OrderByClause == "" {
-			qb.OrderByClause = "ORDER BY (SELECT 0)"
+	if qb.Range != "" {
+		if qb.OrderBy == "" {
+			qb.OrderBy = "ORDER BY (SELECT 0)"
 		}
 	}
 
-	return qb.BaseQueryBuilder.SQL()
+	return qb.BaseQueryBuilder.Render()
 }
 
 func dbTypeNameFromKind(knd kind.Kind) string {

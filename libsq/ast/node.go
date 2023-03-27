@@ -339,4 +339,5 @@ var (
 	typeGroupByNode        = reflect.TypeOf((*GroupByNode)(nil))
 	typeExprNode           = reflect.TypeOf((*ExprNode)(nil))
 	typeFuncNode           = reflect.TypeOf((*FuncNode)(nil))
+	typeUniqueNode         = reflect.TypeOf((*UniqueNode)(nil))
 )

@@ -47,6 +47,10 @@ func (v *BaseSLQVisitor) VisitJoinConstraint(ctx *JoinConstraintContext) interfa
 	return v.VisitChildren(ctx)
 }
 
+func (v *BaseSLQVisitor) VisitUniqueFunc(ctx *UniqueFuncContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
 func (v *BaseSLQVisitor) VisitGroupByTerm(ctx *GroupByTermContext) interface{} {
 	return v.VisitChildren(ctx)
 }

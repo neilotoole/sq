@@ -42,73 +42,74 @@ type engine struct {
 // against targetDB before targetSQL is executed (the engine.execute
 // method does this work).
 func (ng *engine) prepare(ctx context.Context, qm *queryModel) error {
-	selectable := qm.Selectable
+	var (
+		s   string
+		err error
+	)
 
-	var fromClause string
-	var err error
-
-	switch selectable := selectable.(type) {
+	switch node := qm.Table.(type) {
 	case *ast.TblSelectorNode:
-		fromClause, ng.targetDB, err = ng.buildTableFromClause(ctx, selectable)
+		s, ng.targetDB, err = ng.buildTableFromClause(ctx, node)
 		if err != nil {
 			return err
 		}
 	case *ast.JoinNode:
-		fromClause, ng.targetDB, err = ng.buildJoinFromClause(ctx, selectable)
+		s, ng.targetDB, err = ng.buildJoinFromClause(ctx, node)
 		if err != nil {
 			return err
 		}
 	default:
-		return errz.Errorf("unknown selectable %T: %q", selectable, selectable)
+		return errz.Errorf("unknown selectable %T: %q", node, node)
 	}
 
-	fragBuilder, qb := ng.targetDB.SQLDriver().SQLBuilder()
+	fb, qb := ng.targetDB.SQLDriver().SQLBuilder()
+	qb.SetFrom(s)
 
-	selectColsClause, err := fragBuilder.SelectCols(qm.Cols)
-	if err != nil {
+	if s, err = fb.SelectCols(qm.Cols); err != nil {
 		return err
 	}
+	qb.SetColumns(s)
 
-	qb.SetSelect(selectColsClause)
-	qb.SetFrom(fromClause)
-
-	if qm.Range != nil {
-		var rangeClause string
-		if rangeClause, err = fragBuilder.Range(qm.Range); err != nil {
+	if qm.Distinct != nil {
+		if s, err = fb.Distinct(qm.Distinct); err != nil {
 			return err
 		}
 
-		qb.SetRange(rangeClause)
+		qb.SetDistinct(s)
+	}
+
+	if qm.Range != nil {
+		if s, err = fb.Range(qm.Range); err != nil {
+			return err
+		}
+
+		qb.SetRange(s)
 	}
 
 	if qm.Where != nil {
-		var whereClause string
-		if whereClause, err = fragBuilder.Where(qm.Where); err != nil {
+		if s, err = fb.Where(qm.Where); err != nil {
 			return err
 		}
 
-		qb.SetWhere(whereClause)
+		qb.SetWhere(s)
 	}
 
 	if qm.OrderBy != nil {
-		var orderByClause string
-		if orderByClause, err = fragBuilder.OrderBy(qm.OrderBy); err != nil {
+		if s, err = fb.OrderBy(qm.OrderBy); err != nil {
 			return err
 		}
 
-		qb.SetOrderBy(orderByClause)
+		qb.SetOrderBy(s)
 	}
 
 	if qm.GroupBy != nil {
-		var groupByClause string
-		if groupByClause, err = fragBuilder.GroupBy(qm.GroupBy); err != nil {
+		if s, err = fb.GroupBy(qm.GroupBy); err != nil {
 			return err
 		}
-
-		qb.SetGroupBy(groupByClause)
+		qb.SetGroupBy(s)
 	}
 
-	ng.targetSQL, err = qb.SQL()
+	ng.targetSQL, err = qb.Render()
 	if err != nil {
 		return err
 	}
@@ -345,19 +346,20 @@ func execCopyTable(ctx context.Context, log lg.Log, fromDB driver.Database, from
 	return nil
 }
 
-// queryModel is a model of a SLQ query built from the AST.
+// queryModel is a model of an SLQ query built from the AST.
 type queryModel struct {
-	AST        *ast.AST
-	Selectable ast.Tabler
-	Cols       []ast.ResultColumn
-	Range      *ast.RowRangeNode
-	Where      *ast.WhereNode
-	OrderBy    *ast.OrderByNode
-	GroupBy    *ast.GroupByNode
+	AST      *ast.AST
+	Table    ast.Tabler
+	Cols     []ast.ResultColumn
+	Range    *ast.RowRangeNode
+	Where    *ast.WhereNode
+	OrderBy  *ast.OrderByNode
+	GroupBy  *ast.GroupByNode
+	Distinct *ast.UniqueNode
 }
 
 func (qm *queryModel) String() string {
-	return fmt.Sprintf("%v | %v  |  %v", qm.Selectable, qm.Cols, qm.Range)
+	return fmt.Sprintf("%v | %v  |  %v", qm.Table, qm.Cols, qm.Range)
 }
 
 // buildQueryModel creates a queryModel instance from the AST.
@@ -367,28 +369,28 @@ func buildQueryModel(log lg.Log, a *ast.AST) (*queryModel, error) {
 	}
 
 	insp := ast.NewInspector(log, a)
-	selectableSeg, err := insp.FindFinalSelectableSegment()
+	tablerSeg, err := insp.FindFinalTablerSegment()
 	if err != nil {
 		return nil, err
 	}
 
-	if len(selectableSeg.Children()) != 1 {
+	if len(tablerSeg.Children()) != 1 {
 		return nil, errz.Errorf(
 			"the final selectable segment must have exactly one selectable element, but found %d elements",
-			len(selectableSeg.Children()))
+			len(tablerSeg.Children()))
 	}
 
-	selectable, ok := selectableSeg.Children()[0].(ast.Tabler)
+	tabler, ok := tablerSeg.Children()[0].(ast.Tabler)
 	if !ok {
 		return nil, errz.Errorf(
 			"the final selectable segment must have exactly one selectable element, but found element %T(%q)",
-			selectableSeg.Children()[0], selectableSeg.Children()[0].Text())
+			tablerSeg.Children()[0], tablerSeg.Children()[0].Text())
 	}
 
-	qm := &queryModel{AST: a, Selectable: selectable}
+	qm := &queryModel{AST: a, Table: tabler}
 
 	// Look for range
-	for seg := selectableSeg.Next(); seg != nil; seg = seg.Next() {
+	for seg := tablerSeg.Next(); seg != nil; seg = seg.Next() {
 		// Check if the first element of the segment is a row range, if not, just skip
 		if rr, ok := seg.Children()[0].(*ast.RowRangeNode); ok {
 			if len(seg.Children()) != 1 {
@@ -443,6 +445,10 @@ func buildQueryModel(log lg.Log, a *ast.AST) (*queryModel, error) {
 	}
 
 	if qm.GroupBy, err = insp.FindGroupByNode(); err != nil {
+		return nil, err
+	}
+
+	if qm.Distinct, err = insp.FindUniqueNode(); err != nil {
 		return nil, err
 	}
 
