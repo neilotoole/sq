@@ -34,14 +34,15 @@ func slqParserInit() {
 	staticData.literalNames = []string{
 		"", "';'", "'*'", "'join'", "'unique'", "'count'", "'.['", "'||'", "'/'",
 		"'%'", "'<<'", "'>>'", "'&'", "'&&'", "'~'", "'!'", "'group_by'", "'+'",
-		"'-'", "", "", "", "'('", "')'", "'['", "']'", "','", "'|'", "':'",
+		"'-'", "", "", "", "", "'('", "')'", "'['", "']'", "','", "'|'", "':'",
 		"", "", "", "'<='", "'<'", "'>='", "'>'", "'!='", "'=='",
 	}
 	staticData.symbolicNames = []string{
 		"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "GROUP_BY",
-		"ORDER_ASC", "ORDER_DESC", "ORDER_BY", "ID", "WS", "LPAR", "RPAR", "LBRA",
-		"RBRA", "COMMA", "PIPE", "COLON", "NULL", "NN", "NUMBER", "LT_EQ", "LT",
-		"GT_EQ", "GT", "NEQ", "EQ", "NAME", "HANDLE", "STRING", "LINECOMMENT",
+		"ORDER_ASC", "ORDER_DESC", "ORDER_BY", "ALIAS_RESERVED", "ID", "WS",
+		"LPAR", "RPAR", "LBRA", "RBRA", "COMMA", "PIPE", "COLON", "NULL", "NN",
+		"NUMBER", "LT_EQ", "LT", "GT_EQ", "GT", "NEQ", "EQ", "NAME", "HANDLE",
+		"STRING", "LINECOMMENT",
 	}
 	staticData.ruleNames = []string{
 		"stmtList", "query", "segment", "element", "cmpr", "funcElement", "func",
@@ -51,7 +52,7 @@ func slqParserInit() {
 	}
 	staticData.predictionContextCache = antlr.NewPredictionContextCache()
 	staticData.serializedATN = []int32{
-		4, 1, 41, 256, 2, 0, 7, 0, 2, 1, 7, 1, 2, 2, 7, 2, 2, 3, 7, 3, 2, 4, 7,
+		4, 1, 42, 261, 2, 0, 7, 0, 2, 1, 7, 1, 2, 2, 7, 2, 2, 3, 7, 3, 2, 4, 7,
 		4, 2, 5, 7, 5, 2, 6, 7, 6, 2, 7, 7, 7, 2, 8, 7, 8, 2, 9, 7, 9, 2, 10, 7,
 		10, 2, 11, 7, 11, 2, 12, 7, 12, 2, 13, 7, 13, 2, 14, 7, 14, 2, 15, 7, 15,
 		2, 16, 7, 16, 2, 17, 7, 17, 2, 18, 7, 18, 2, 19, 7, 19, 2, 20, 7, 20, 2,
@@ -64,107 +65,111 @@ func slqParserInit() {
 		3, 1, 4, 1, 4, 1, 5, 1, 5, 3, 5, 108, 8, 5, 1, 6, 1, 6, 1, 6, 1, 6, 1,
 		6, 5, 6, 115, 8, 6, 10, 6, 12, 6, 118, 9, 6, 1, 6, 3, 6, 121, 8, 6, 1,
 		6, 1, 6, 1, 7, 1, 7, 1, 8, 1, 8, 1, 8, 1, 8, 1, 8, 1, 9, 1, 9, 1, 9, 1,
-		9, 1, 9, 3, 9, 137, 8, 9, 1, 10, 1, 10, 1, 11, 1, 11, 1, 11, 3, 11, 144,
-		8, 11, 1, 11, 3, 11, 147, 8, 11, 1, 11, 3, 11, 150, 8, 11, 1, 12, 1, 12,
-		3, 12, 154, 8, 12, 1, 13, 1, 13, 1, 13, 1, 13, 1, 13, 5, 13, 161, 8, 13,
-		10, 13, 12, 13, 164, 9, 13, 1, 13, 1, 13, 1, 14, 1, 14, 3, 14, 170, 8,
-		14, 1, 15, 1, 15, 1, 15, 1, 15, 1, 15, 5, 15, 177, 8, 15, 10, 15, 12, 15,
-		180, 9, 15, 1, 15, 1, 15, 1, 16, 1, 16, 3, 16, 186, 8, 16, 1, 17, 1, 17,
-		3, 17, 190, 8, 17, 1, 18, 1, 18, 1, 18, 1, 19, 1, 19, 1, 19, 1, 20, 1,
-		20, 1, 21, 1, 21, 1, 21, 1, 21, 1, 21, 1, 21, 1, 21, 1, 21, 1, 21, 3, 21,
-		209, 8, 21, 1, 21, 1, 21, 1, 22, 1, 22, 1, 22, 1, 22, 1, 22, 1, 22, 1,
-		22, 3, 22, 220, 8, 22, 1, 22, 1, 22, 1, 22, 1, 22, 1, 22, 1, 22, 1, 22,
-		1, 22, 1, 22, 1, 22, 1, 22, 1, 22, 1, 22, 1, 22, 1, 22, 1, 22, 1, 22, 1,
-		22, 1, 22, 3, 22, 241, 8, 22, 1, 22, 1, 22, 1, 22, 1, 22, 5, 22, 247, 8,
-		22, 10, 22, 12, 22, 250, 9, 22, 1, 23, 1, 23, 1, 24, 1, 24, 1, 24, 0, 1,
-		44, 25, 0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32,
-		34, 36, 38, 40, 42, 44, 46, 48, 0, 7, 1, 0, 32, 37, 1, 0, 17, 18, 2, 0,
-		2, 2, 8, 9, 1, 0, 10, 12, 1, 0, 32, 35, 2, 0, 29, 31, 40, 40, 2, 0, 14,
-		15, 17, 18, 276, 0, 53, 1, 0, 0, 0, 2, 74, 1, 0, 0, 0, 4, 82, 1, 0, 0,
-		0, 6, 101, 1, 0, 0, 0, 8, 103, 1, 0, 0, 0, 10, 105, 1, 0, 0, 0, 12, 109,
-		1, 0, 0, 0, 14, 124, 1, 0, 0, 0, 16, 126, 1, 0, 0, 0, 18, 136, 1, 0, 0,
-		0, 20, 138, 1, 0, 0, 0, 22, 140, 1, 0, 0, 0, 24, 153, 1, 0, 0, 0, 26, 155,
-		1, 0, 0, 0, 28, 167, 1, 0, 0, 0, 30, 171, 1, 0, 0, 0, 32, 183, 1, 0, 0,
-		0, 34, 187, 1, 0, 0, 0, 36, 191, 1, 0, 0, 0, 38, 194, 1, 0, 0, 0, 40, 197,
-		1, 0, 0, 0, 42, 199, 1, 0, 0, 0, 44, 219, 1, 0, 0, 0, 46, 251, 1, 0, 0,
-		0, 48, 253, 1, 0, 0, 0, 50, 52, 5, 1, 0, 0, 51, 50, 1, 0, 0, 0, 52, 55,
-		1, 0, 0, 0, 53, 51, 1, 0, 0, 0, 53, 54, 1, 0, 0, 0, 54, 56, 1, 0, 0, 0,
-		55, 53, 1, 0, 0, 0, 56, 65, 3, 2, 1, 0, 57, 59, 5, 1, 0, 0, 58, 57, 1,
-		0, 0, 0, 59, 60, 1, 0, 0, 0, 60, 58, 1, 0, 0, 0, 60, 61, 1, 0, 0, 0, 61,
-		62, 1, 0, 0, 0, 62, 64, 3, 2, 1, 0, 63, 58, 1, 0, 0, 0, 64, 67, 1, 0, 0,
-		0, 65, 63, 1, 0, 0, 0, 65, 66, 1, 0, 0, 0, 66, 71, 1, 0, 0, 0, 67, 65,
-		1, 0, 0, 0, 68, 70, 5, 1, 0, 0, 69, 68, 1, 0, 0, 0, 70, 73, 1, 0, 0, 0,
-		71, 69, 1, 0, 0, 0, 71, 72, 1, 0, 0, 0, 72, 1, 1, 0, 0, 0, 73, 71, 1, 0,
-		0, 0, 74, 79, 3, 4, 2, 0, 75, 76, 5, 27, 0, 0, 76, 78, 3, 4, 2, 0, 77,
-		75, 1, 0, 0, 0, 78, 81, 1, 0, 0, 0, 79, 77, 1, 0, 0, 0, 79, 80, 1, 0, 0,
-		0, 80, 3, 1, 0, 0, 0, 81, 79, 1, 0, 0, 0, 82, 87, 3, 6, 3, 0, 83, 84, 5,
-		26, 0, 0, 84, 86, 3, 6, 3, 0, 85, 83, 1, 0, 0, 0, 86, 89, 1, 0, 0, 0, 87,
-		85, 1, 0, 0, 0, 87, 88, 1, 0, 0, 0, 88, 5, 1, 0, 0, 0, 89, 87, 1, 0, 0,
-		0, 90, 102, 3, 38, 19, 0, 91, 102, 3, 40, 20, 0, 92, 102, 3, 34, 17, 0,
-		93, 102, 3, 16, 8, 0, 94, 102, 3, 26, 13, 0, 95, 102, 3, 30, 15, 0, 96,
-		102, 3, 42, 21, 0, 97, 102, 3, 20, 10, 0, 98, 102, 3, 22, 11, 0, 99, 102,
-		3, 10, 5, 0, 100, 102, 3, 44, 22, 0, 101, 90, 1, 0, 0, 0, 101, 91, 1, 0,
-		0, 0, 101, 92, 1, 0, 0, 0, 101, 93, 1, 0, 0, 0, 101, 94, 1, 0, 0, 0, 101,
-		95, 1, 0, 0, 0, 101, 96, 1, 0, 0, 0, 101, 97, 1, 0, 0, 0, 101, 98, 1, 0,
-		0, 0, 101, 99, 1, 0, 0, 0, 101, 100, 1, 0, 0, 0, 102, 7, 1, 0, 0, 0, 103,
-		104, 7, 0, 0, 0, 104, 9, 1, 0, 0, 0, 105, 107, 3, 12, 6, 0, 106, 108, 3,
-		36, 18, 0, 107, 106, 1, 0, 0, 0, 107, 108, 1, 0, 0, 0, 108, 11, 1, 0, 0,
-		0, 109, 110, 3, 14, 7, 0, 110, 120, 5, 22, 0, 0, 111, 116, 3, 44, 22, 0,
-		112, 113, 5, 26, 0, 0, 113, 115, 3, 44, 22, 0, 114, 112, 1, 0, 0, 0, 115,
-		118, 1, 0, 0, 0, 116, 114, 1, 0, 0, 0, 116, 117, 1, 0, 0, 0, 117, 121,
-		1, 0, 0, 0, 118, 116, 1, 0, 0, 0, 119, 121, 5, 2, 0, 0, 120, 111, 1, 0,
-		0, 0, 120, 119, 1, 0, 0, 0, 120, 121, 1, 0, 0, 0, 121, 122, 1, 0, 0, 0,
-		122, 123, 5, 23, 0, 0, 123, 13, 1, 0, 0, 0, 124, 125, 5, 20, 0, 0, 125,
-		15, 1, 0, 0, 0, 126, 127, 5, 3, 0, 0, 127, 128, 5, 22, 0, 0, 128, 129,
-		3, 18, 9, 0, 129, 130, 5, 23, 0, 0, 130, 17, 1, 0, 0, 0, 131, 132, 3, 32,
-		16, 0, 132, 133, 3, 8, 4, 0, 133, 134, 3, 32, 16, 0, 134, 137, 1, 0, 0,
-		0, 135, 137, 3, 32, 16, 0, 136, 131, 1, 0, 0, 0, 136, 135, 1, 0, 0, 0,
-		137, 19, 1, 0, 0, 0, 138, 139, 5, 4, 0, 0, 139, 21, 1, 0, 0, 0, 140, 146,
-		5, 5, 0, 0, 141, 143, 5, 22, 0, 0, 142, 144, 3, 32, 16, 0, 143, 142, 1,
-		0, 0, 0, 143, 144, 1, 0, 0, 0, 144, 145, 1, 0, 0, 0, 145, 147, 5, 23, 0,
-		0, 146, 141, 1, 0, 0, 0, 146, 147, 1, 0, 0, 0, 147, 149, 1, 0, 0, 0, 148,
-		150, 3, 36, 18, 0, 149, 148, 1, 0, 0, 0, 149, 150, 1, 0, 0, 0, 150, 23,
-		1, 0, 0, 0, 151, 154, 3, 32, 16, 0, 152, 154, 3, 12, 6, 0, 153, 151, 1,
-		0, 0, 0, 153, 152, 1, 0, 0, 0, 154, 25, 1, 0, 0, 0, 155, 156, 5, 16, 0,
-		0, 156, 157, 5, 22, 0, 0, 157, 162, 3, 24, 12, 0, 158, 159, 5, 26, 0, 0,
-		159, 161, 3, 24, 12, 0, 160, 158, 1, 0, 0, 0, 161, 164, 1, 0, 0, 0, 162,
-		160, 1, 0, 0, 0, 162, 163, 1, 0, 0, 0, 163, 165, 1, 0, 0, 0, 164, 162,
-		1, 0, 0, 0, 165, 166, 5, 23, 0, 0, 166, 27, 1, 0, 0, 0, 167, 169, 3, 32,
-		16, 0, 168, 170, 7, 1, 0, 0, 169, 168, 1, 0, 0, 0, 169, 170, 1, 0, 0, 0,
-		170, 29, 1, 0, 0, 0, 171, 172, 5, 19, 0, 0, 172, 173, 5, 22, 0, 0, 173,
-		178, 3, 28, 14, 0, 174, 175, 5, 26, 0, 0, 175, 177, 3, 28, 14, 0, 176,
-		174, 1, 0, 0, 0, 177, 180, 1, 0, 0, 0, 178, 176, 1, 0, 0, 0, 178, 179,
-		1, 0, 0, 0, 179, 181, 1, 0, 0, 0, 180, 178, 1, 0, 0, 0, 181, 182, 5, 23,
-		0, 0, 182, 31, 1, 0, 0, 0, 183, 185, 5, 38, 0, 0, 184, 186, 5, 38, 0, 0,
-		185, 184, 1, 0, 0, 0, 185, 186, 1, 0, 0, 0, 186, 33, 1, 0, 0, 0, 187, 189,
-		3, 32, 16, 0, 188, 190, 3, 36, 18, 0, 189, 188, 1, 0, 0, 0, 189, 190, 1,
-		0, 0, 0, 190, 35, 1, 0, 0, 0, 191, 192, 5, 28, 0, 0, 192, 193, 5, 20, 0,
-		0, 193, 37, 1, 0, 0, 0, 194, 195, 5, 39, 0, 0, 195, 196, 5, 38, 0, 0, 196,
-		39, 1, 0, 0, 0, 197, 198, 5, 39, 0, 0, 198, 41, 1, 0, 0, 0, 199, 208, 5,
-		6, 0, 0, 200, 201, 5, 30, 0, 0, 201, 202, 5, 28, 0, 0, 202, 209, 5, 30,
-		0, 0, 203, 204, 5, 30, 0, 0, 204, 209, 5, 28, 0, 0, 205, 206, 5, 28, 0,
-		0, 206, 209, 5, 30, 0, 0, 207, 209, 5, 30, 0, 0, 208, 200, 1, 0, 0, 0,
-		208, 203, 1, 0, 0, 0, 208, 205, 1, 0, 0, 0, 208, 207, 1, 0, 0, 0, 208,
-		209, 1, 0, 0, 0, 209, 210, 1, 0, 0, 0, 210, 211, 5, 25, 0, 0, 211, 43,
-		1, 0, 0, 0, 212, 213, 6, 22, -1, 0, 213, 220, 3, 32, 16, 0, 214, 220, 3,
-		46, 23, 0, 215, 216, 3, 48, 24, 0, 216, 217, 3, 44, 22, 9, 217, 220, 1,
-		0, 0, 0, 218, 220, 3, 12, 6, 0, 219, 212, 1, 0, 0, 0, 219, 214, 1, 0, 0,
-		0, 219, 215, 1, 0, 0, 0, 219, 218, 1, 0, 0, 0, 220, 248, 1, 0, 0, 0, 221,
-		222, 10, 8, 0, 0, 222, 223, 5, 7, 0, 0, 223, 247, 3, 44, 22, 9, 224, 225,
-		10, 7, 0, 0, 225, 226, 7, 2, 0, 0, 226, 247, 3, 44, 22, 8, 227, 228, 10,
-		6, 0, 0, 228, 229, 7, 1, 0, 0, 229, 247, 3, 44, 22, 7, 230, 231, 10, 5,
-		0, 0, 231, 232, 7, 3, 0, 0, 232, 247, 3, 44, 22, 6, 233, 234, 10, 4, 0,
-		0, 234, 235, 7, 4, 0, 0, 235, 247, 3, 44, 22, 5, 236, 240, 10, 3, 0, 0,
-		237, 241, 5, 37, 0, 0, 238, 241, 5, 36, 0, 0, 239, 241, 1, 0, 0, 0, 240,
-		237, 1, 0, 0, 0, 240, 238, 1, 0, 0, 0, 240, 239, 1, 0, 0, 0, 241, 242,
-		1, 0, 0, 0, 242, 247, 3, 44, 22, 4, 243, 244, 10, 2, 0, 0, 244, 245, 5,
-		13, 0, 0, 245, 247, 3, 44, 22, 3, 246, 221, 1, 0, 0, 0, 246, 224, 1, 0,
-		0, 0, 246, 227, 1, 0, 0, 0, 246, 230, 1, 0, 0, 0, 246, 233, 1, 0, 0, 0,
-		246, 236, 1, 0, 0, 0, 246, 243, 1, 0, 0, 0, 247, 250, 1, 0, 0, 0, 248,
-		246, 1, 0, 0, 0, 248, 249, 1, 0, 0, 0, 249, 45, 1, 0, 0, 0, 250, 248, 1,
-		0, 0, 0, 251, 252, 7, 5, 0, 0, 252, 47, 1, 0, 0, 0, 253, 254, 7, 6, 0,
-		0, 254, 49, 1, 0, 0, 0, 25, 53, 60, 65, 71, 79, 87, 101, 107, 116, 120,
-		136, 143, 146, 149, 153, 162, 169, 178, 185, 189, 208, 219, 240, 246, 248,
+		9, 1, 9, 3, 9, 137, 8, 9, 1, 10, 1, 10, 1, 11, 1, 11, 1, 11, 1, 11, 3,
+		11, 145, 8, 11, 1, 11, 3, 11, 148, 8, 11, 1, 11, 3, 11, 151, 8, 11, 3,
+		11, 153, 8, 11, 1, 12, 1, 12, 3, 12, 157, 8, 12, 1, 13, 1, 13, 1, 13, 1,
+		13, 1, 13, 5, 13, 164, 8, 13, 10, 13, 12, 13, 167, 9, 13, 1, 13, 1, 13,
+		1, 14, 1, 14, 3, 14, 173, 8, 14, 1, 15, 1, 15, 1, 15, 1, 15, 1, 15, 5,
+		15, 180, 8, 15, 10, 15, 12, 15, 183, 9, 15, 1, 15, 1, 15, 1, 16, 1, 16,
+		3, 16, 189, 8, 16, 1, 17, 1, 17, 3, 17, 193, 8, 17, 1, 18, 1, 18, 1, 18,
+		3, 18, 198, 8, 18, 1, 19, 1, 19, 1, 19, 1, 20, 1, 20, 1, 21, 1, 21, 1,
+		21, 1, 21, 1, 21, 1, 21, 1, 21, 1, 21, 1, 21, 3, 21, 214, 8, 21, 1, 21,
+		1, 21, 1, 22, 1, 22, 1, 22, 1, 22, 1, 22, 1, 22, 1, 22, 3, 22, 225, 8,
+		22, 1, 22, 1, 22, 1, 22, 1, 22, 1, 22, 1, 22, 1, 22, 1, 22, 1, 22, 1, 22,
+		1, 22, 1, 22, 1, 22, 1, 22, 1, 22, 1, 22, 1, 22, 1, 22, 1, 22, 3, 22, 246,
+		8, 22, 1, 22, 1, 22, 1, 22, 1, 22, 5, 22, 252, 8, 22, 10, 22, 12, 22, 255,
+		9, 22, 1, 23, 1, 23, 1, 24, 1, 24, 1, 24, 0, 1, 44, 25, 0, 2, 4, 6, 8,
+		10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44,
+		46, 48, 0, 7, 1, 0, 33, 38, 1, 0, 17, 18, 2, 0, 2, 2, 8, 9, 1, 0, 10, 12,
+		1, 0, 33, 36, 2, 0, 30, 32, 41, 41, 2, 0, 14, 15, 17, 18, 283, 0, 53, 1,
+		0, 0, 0, 2, 74, 1, 0, 0, 0, 4, 82, 1, 0, 0, 0, 6, 101, 1, 0, 0, 0, 8, 103,
+		1, 0, 0, 0, 10, 105, 1, 0, 0, 0, 12, 109, 1, 0, 0, 0, 14, 124, 1, 0, 0,
+		0, 16, 126, 1, 0, 0, 0, 18, 136, 1, 0, 0, 0, 20, 138, 1, 0, 0, 0, 22, 152,
+		1, 0, 0, 0, 24, 156, 1, 0, 0, 0, 26, 158, 1, 0, 0, 0, 28, 170, 1, 0, 0,
+		0, 30, 174, 1, 0, 0, 0, 32, 186, 1, 0, 0, 0, 34, 190, 1, 0, 0, 0, 36, 197,
+		1, 0, 0, 0, 38, 199, 1, 0, 0, 0, 40, 202, 1, 0, 0, 0, 42, 204, 1, 0, 0,
+		0, 44, 224, 1, 0, 0, 0, 46, 256, 1, 0, 0, 0, 48, 258, 1, 0, 0, 0, 50, 52,
+		5, 1, 0, 0, 51, 50, 1, 0, 0, 0, 52, 55, 1, 0, 0, 0, 53, 51, 1, 0, 0, 0,
+		53, 54, 1, 0, 0, 0, 54, 56, 1, 0, 0, 0, 55, 53, 1, 0, 0, 0, 56, 65, 3,
+		2, 1, 0, 57, 59, 5, 1, 0, 0, 58, 57, 1, 0, 0, 0, 59, 60, 1, 0, 0, 0, 60,
+		58, 1, 0, 0, 0, 60, 61, 1, 0, 0, 0, 61, 62, 1, 0, 0, 0, 62, 64, 3, 2, 1,
+		0, 63, 58, 1, 0, 0, 0, 64, 67, 1, 0, 0, 0, 65, 63, 1, 0, 0, 0, 65, 66,
+		1, 0, 0, 0, 66, 71, 1, 0, 0, 0, 67, 65, 1, 0, 0, 0, 68, 70, 5, 1, 0, 0,
+		69, 68, 1, 0, 0, 0, 70, 73, 1, 0, 0, 0, 71, 69, 1, 0, 0, 0, 71, 72, 1,
+		0, 0, 0, 72, 1, 1, 0, 0, 0, 73, 71, 1, 0, 0, 0, 74, 79, 3, 4, 2, 0, 75,
+		76, 5, 28, 0, 0, 76, 78, 3, 4, 2, 0, 77, 75, 1, 0, 0, 0, 78, 81, 1, 0,
+		0, 0, 79, 77, 1, 0, 0, 0, 79, 80, 1, 0, 0, 0, 80, 3, 1, 0, 0, 0, 81, 79,
+		1, 0, 0, 0, 82, 87, 3, 6, 3, 0, 83, 84, 5, 27, 0, 0, 84, 86, 3, 6, 3, 0,
+		85, 83, 1, 0, 0, 0, 86, 89, 1, 0, 0, 0, 87, 85, 1, 0, 0, 0, 87, 88, 1,
+		0, 0, 0, 88, 5, 1, 0, 0, 0, 89, 87, 1, 0, 0, 0, 90, 102, 3, 38, 19, 0,
+		91, 102, 3, 40, 20, 0, 92, 102, 3, 34, 17, 0, 93, 102, 3, 16, 8, 0, 94,
+		102, 3, 26, 13, 0, 95, 102, 3, 30, 15, 0, 96, 102, 3, 42, 21, 0, 97, 102,
+		3, 20, 10, 0, 98, 102, 3, 22, 11, 0, 99, 102, 3, 10, 5, 0, 100, 102, 3,
+		44, 22, 0, 101, 90, 1, 0, 0, 0, 101, 91, 1, 0, 0, 0, 101, 92, 1, 0, 0,
+		0, 101, 93, 1, 0, 0, 0, 101, 94, 1, 0, 0, 0, 101, 95, 1, 0, 0, 0, 101,
+		96, 1, 0, 0, 0, 101, 97, 1, 0, 0, 0, 101, 98, 1, 0, 0, 0, 101, 99, 1, 0,
+		0, 0, 101, 100, 1, 0, 0, 0, 102, 7, 1, 0, 0, 0, 103, 104, 7, 0, 0, 0, 104,
+		9, 1, 0, 0, 0, 105, 107, 3, 12, 6, 0, 106, 108, 3, 36, 18, 0, 107, 106,
+		1, 0, 0, 0, 107, 108, 1, 0, 0, 0, 108, 11, 1, 0, 0, 0, 109, 110, 3, 14,
+		7, 0, 110, 120, 5, 23, 0, 0, 111, 116, 3, 44, 22, 0, 112, 113, 5, 27, 0,
+		0, 113, 115, 3, 44, 22, 0, 114, 112, 1, 0, 0, 0, 115, 118, 1, 0, 0, 0,
+		116, 114, 1, 0, 0, 0, 116, 117, 1, 0, 0, 0, 117, 121, 1, 0, 0, 0, 118,
+		116, 1, 0, 0, 0, 119, 121, 5, 2, 0, 0, 120, 111, 1, 0, 0, 0, 120, 119,
+		1, 0, 0, 0, 120, 121, 1, 0, 0, 0, 121, 122, 1, 0, 0, 0, 122, 123, 5, 24,
+		0, 0, 123, 13, 1, 0, 0, 0, 124, 125, 5, 21, 0, 0, 125, 15, 1, 0, 0, 0,
+		126, 127, 5, 3, 0, 0, 127, 128, 5, 23, 0, 0, 128, 129, 3, 18, 9, 0, 129,
+		130, 5, 24, 0, 0, 130, 17, 1, 0, 0, 0, 131, 132, 3, 32, 16, 0, 132, 133,
+		3, 8, 4, 0, 133, 134, 3, 32, 16, 0, 134, 137, 1, 0, 0, 0, 135, 137, 3,
+		32, 16, 0, 136, 131, 1, 0, 0, 0, 136, 135, 1, 0, 0, 0, 137, 19, 1, 0, 0,
+		0, 138, 139, 5, 4, 0, 0, 139, 21, 1, 0, 0, 0, 140, 153, 1, 0, 0, 0, 141,
+		147, 5, 5, 0, 0, 142, 144, 5, 23, 0, 0, 143, 145, 3, 32, 16, 0, 144, 143,
+		1, 0, 0, 0, 144, 145, 1, 0, 0, 0, 145, 146, 1, 0, 0, 0, 146, 148, 5, 24,
+		0, 0, 147, 142, 1, 0, 0, 0, 147, 148, 1, 0, 0, 0, 148, 150, 1, 0, 0, 0,
+		149, 151, 3, 36, 18, 0, 150, 149, 1, 0, 0, 0, 150, 151, 1, 0, 0, 0, 151,
+		153, 1, 0, 0, 0, 152, 140, 1, 0, 0, 0, 152, 141, 1, 0, 0, 0, 153, 23, 1,
+		0, 0, 0, 154, 157, 3, 32, 16, 0, 155, 157, 3, 12, 6, 0, 156, 154, 1, 0,
+		0, 0, 156, 155, 1, 0, 0, 0, 157, 25, 1, 0, 0, 0, 158, 159, 5, 16, 0, 0,
+		159, 160, 5, 23, 0, 0, 160, 165, 3, 24, 12, 0, 161, 162, 5, 27, 0, 0, 162,
+		164, 3, 24, 12, 0, 163, 161, 1, 0, 0, 0, 164, 167, 1, 0, 0, 0, 165, 163,
+		1, 0, 0, 0, 165, 166, 1, 0, 0, 0, 166, 168, 1, 0, 0, 0, 167, 165, 1, 0,
+		0, 0, 168, 169, 5, 24, 0, 0, 169, 27, 1, 0, 0, 0, 170, 172, 3, 32, 16,
+		0, 171, 173, 7, 1, 0, 0, 172, 171, 1, 0, 0, 0, 172, 173, 1, 0, 0, 0, 173,
+		29, 1, 0, 0, 0, 174, 175, 5, 19, 0, 0, 175, 176, 5, 23, 0, 0, 176, 181,
+		3, 28, 14, 0, 177, 178, 5, 27, 0, 0, 178, 180, 3, 28, 14, 0, 179, 177,
+		1, 0, 0, 0, 180, 183, 1, 0, 0, 0, 181, 179, 1, 0, 0, 0, 181, 182, 1, 0,
+		0, 0, 182, 184, 1, 0, 0, 0, 183, 181, 1, 0, 0, 0, 184, 185, 5, 24, 0, 0,
+		185, 31, 1, 0, 0, 0, 186, 188, 5, 39, 0, 0, 187, 189, 5, 39, 0, 0, 188,
+		187, 1, 0, 0, 0, 188, 189, 1, 0, 0, 0, 189, 33, 1, 0, 0, 0, 190, 192, 3,
+		32, 16, 0, 191, 193, 3, 36, 18, 0, 192, 191, 1, 0, 0, 0, 192, 193, 1, 0,
+		0, 0, 193, 35, 1, 0, 0, 0, 194, 198, 5, 20, 0, 0, 195, 196, 5, 29, 0, 0,
+		196, 198, 5, 21, 0, 0, 197, 194, 1, 0, 0, 0, 197, 195, 1, 0, 0, 0, 198,
+		37, 1, 0, 0, 0, 199, 200, 5, 40, 0, 0, 200, 201, 5, 39, 0, 0, 201, 39,
+		1, 0, 0, 0, 202, 203, 5, 40, 0, 0, 203, 41, 1, 0, 0, 0, 204, 213, 5, 6,
+		0, 0, 205, 206, 5, 31, 0, 0, 206, 207, 5, 29, 0, 0, 207, 214, 5, 31, 0,
+		0, 208, 209, 5, 31, 0, 0, 209, 214, 5, 29, 0, 0, 210, 211, 5, 29, 0, 0,
+		211, 214, 5, 31, 0, 0, 212, 214, 5, 31, 0, 0, 213, 205, 1, 0, 0, 0, 213,
+		208, 1, 0, 0, 0, 213, 210, 1, 0, 0, 0, 213, 212, 1, 0, 0, 0, 213, 214,
+		1, 0, 0, 0, 214, 215, 1, 0, 0, 0, 215, 216, 5, 26, 0, 0, 216, 43, 1, 0,
+		0, 0, 217, 218, 6, 22, -1, 0, 218, 225, 3, 32, 16, 0, 219, 225, 3, 46,
+		23, 0, 220, 221, 3, 48, 24, 0, 221, 222, 3, 44, 22, 9, 222, 225, 1, 0,
+		0, 0, 223, 225, 3, 12, 6, 0, 224, 217, 1, 0, 0, 0, 224, 219, 1, 0, 0, 0,
+		224, 220, 1, 0, 0, 0, 224, 223, 1, 0, 0, 0, 225, 253, 1, 0, 0, 0, 226,
+		227, 10, 8, 0, 0, 227, 228, 5, 7, 0, 0, 228, 252, 3, 44, 22, 9, 229, 230,
+		10, 7, 0, 0, 230, 231, 7, 2, 0, 0, 231, 252, 3, 44, 22, 8, 232, 233, 10,
+		6, 0, 0, 233, 234, 7, 1, 0, 0, 234, 252, 3, 44, 22, 7, 235, 236, 10, 5,
+		0, 0, 236, 237, 7, 3, 0, 0, 237, 252, 3, 44, 22, 6, 238, 239, 10, 4, 0,
+		0, 239, 240, 7, 4, 0, 0, 240, 252, 3, 44, 22, 5, 241, 245, 10, 3, 0, 0,
+		242, 246, 5, 38, 0, 0, 243, 246, 5, 37, 0, 0, 244, 246, 1, 0, 0, 0, 245,
+		242, 1, 0, 0, 0, 245, 243, 1, 0, 0, 0, 245, 244, 1, 0, 0, 0, 246, 247,
+		1, 0, 0, 0, 247, 252, 3, 44, 22, 4, 248, 249, 10, 2, 0, 0, 249, 250, 5,
+		13, 0, 0, 250, 252, 3, 44, 22, 3, 251, 226, 1, 0, 0, 0, 251, 229, 1, 0,
+		0, 0, 251, 232, 1, 0, 0, 0, 251, 235, 1, 0, 0, 0, 251, 238, 1, 0, 0, 0,
+		251, 241, 1, 0, 0, 0, 251, 248, 1, 0, 0, 0, 252, 255, 1, 0, 0, 0, 253,
+		251, 1, 0, 0, 0, 253, 254, 1, 0, 0, 0, 254, 45, 1, 0, 0, 0, 255, 253, 1,
+		0, 0, 0, 256, 257, 7, 5, 0, 0, 257, 47, 1, 0, 0, 0, 258, 259, 7, 6, 0,
+		0, 259, 49, 1, 0, 0, 0, 27, 53, 60, 65, 71, 79, 87, 101, 107, 116, 120,
+		136, 144, 147, 150, 152, 156, 165, 172, 181, 188, 192, 197, 213, 224, 245,
+		251, 253,
 	}
 	deserializer := antlr.NewATNDeserializer(nil)
 	staticData.atn = deserializer.Deserialize(staticData.serializedATN)
@@ -202,48 +207,49 @@ func NewSLQParser(input antlr.TokenStream) *SLQParser {
 
 // SLQParser tokens.
 const (
-	SLQParserEOF         = antlr.TokenEOF
-	SLQParserT__0        = 1
-	SLQParserT__1        = 2
-	SLQParserT__2        = 3
-	SLQParserT__3        = 4
-	SLQParserT__4        = 5
-	SLQParserT__5        = 6
-	SLQParserT__6        = 7
-	SLQParserT__7        = 8
-	SLQParserT__8        = 9
-	SLQParserT__9        = 10
-	SLQParserT__10       = 11
-	SLQParserT__11       = 12
-	SLQParserT__12       = 13
-	SLQParserT__13       = 14
-	SLQParserT__14       = 15
-	SLQParserGROUP_BY    = 16
-	SLQParserORDER_ASC   = 17
-	SLQParserORDER_DESC  = 18
-	SLQParserORDER_BY    = 19
-	SLQParserID          = 20
-	SLQParserWS          = 21
-	SLQParserLPAR        = 22
-	SLQParserRPAR        = 23
-	SLQParserLBRA        = 24
-	SLQParserRBRA        = 25
-	SLQParserCOMMA       = 26
-	SLQParserPIPE        = 27
-	SLQParserCOLON       = 28
-	SLQParserNULL        = 29
-	SLQParserNN          = 30
-	SLQParserNUMBER      = 31
-	SLQParserLT_EQ       = 32
-	SLQParserLT          = 33
-	SLQParserGT_EQ       = 34
-	SLQParserGT          = 35
-	SLQParserNEQ         = 36
-	SLQParserEQ          = 37
-	SLQParserNAME        = 38
-	SLQParserHANDLE      = 39
-	SLQParserSTRING      = 40
-	SLQParserLINECOMMENT = 41
+	SLQParserEOF            = antlr.TokenEOF
+	SLQParserT__0           = 1
+	SLQParserT__1           = 2
+	SLQParserT__2           = 3
+	SLQParserT__3           = 4
+	SLQParserT__4           = 5
+	SLQParserT__5           = 6
+	SLQParserT__6           = 7
+	SLQParserT__7           = 8
+	SLQParserT__8           = 9
+	SLQParserT__9           = 10
+	SLQParserT__10          = 11
+	SLQParserT__11          = 12
+	SLQParserT__12          = 13
+	SLQParserT__13          = 14
+	SLQParserT__14          = 15
+	SLQParserGROUP_BY       = 16
+	SLQParserORDER_ASC      = 17
+	SLQParserORDER_DESC     = 18
+	SLQParserORDER_BY       = 19
+	SLQParserALIAS_RESERVED = 20
+	SLQParserID             = 21
+	SLQParserWS             = 22
+	SLQParserLPAR           = 23
+	SLQParserRPAR           = 24
+	SLQParserLBRA           = 25
+	SLQParserRBRA           = 26
+	SLQParserCOMMA          = 27
+	SLQParserPIPE           = 28
+	SLQParserCOLON          = 29
+	SLQParserNULL           = 30
+	SLQParserNN             = 31
+	SLQParserNUMBER         = 32
+	SLQParserLT_EQ          = 33
+	SLQParserLT             = 34
+	SLQParserGT_EQ          = 35
+	SLQParserGT             = 36
+	SLQParserNEQ            = 37
+	SLQParserEQ             = 38
+	SLQParserNAME           = 39
+	SLQParserHANDLE         = 40
+	SLQParserSTRING         = 41
+	SLQParserLINECOMMENT    = 42
 )
 
 // SLQParser rules.
@@ -417,17 +423,19 @@ func (p *SLQParser) StmtList() (localctx IStmtListContext) {
 	p.EnterOuterAlt(localctx, 1)
 	p.SetState(53)
 	p.GetErrorHandler().Sync(p)
-	_la = p.GetTokenStream().LA(1)
+	_alt = p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 0, p.GetParserRuleContext())
 
-	for _la == SLQParserT__0 {
-		{
-			p.SetState(50)
-			p.Match(SLQParserT__0)
+	for _alt != 2 && _alt != antlr.ATNInvalidAltNumber {
+		if _alt == 1 {
+			{
+				p.SetState(50)
+				p.Match(SLQParserT__0)
+			}
+
 		}
-
 		p.SetState(55)
 		p.GetErrorHandler().Sync(p)
-		_la = p.GetTokenStream().LA(1)
+		_alt = p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 0, p.GetParserRuleContext())
 	}
 	{
 		p.SetState(56)
@@ -441,17 +449,22 @@ func (p *SLQParser) StmtList() (localctx IStmtListContext) {
 		if _alt == 1 {
 			p.SetState(58)
 			p.GetErrorHandler().Sync(p)
-			_la = p.GetTokenStream().LA(1)
+			_alt = 1
+			for ok := true; ok; ok = _alt != 2 && _alt != antlr.ATNInvalidAltNumber {
+				switch _alt {
+				case 1:
+					{
+						p.SetState(57)
+						p.Match(SLQParserT__0)
+					}
 
-			for ok := true; ok; ok = _la == SLQParserT__0 {
-				{
-					p.SetState(57)
-					p.Match(SLQParserT__0)
+				default:
+					panic(antlr.NewNoViableAltException(p, nil, nil, nil, nil, nil))
 				}
 
 				p.SetState(60)
 				p.GetErrorHandler().Sync(p)
-				_la = p.GetTokenStream().LA(1)
+				_alt = p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 1, p.GetParserRuleContext())
 			}
 			{
 				p.SetState(62)
@@ -1324,7 +1337,7 @@ func (p *SLQParser) Cmpr() (localctx ICmprContext) {
 		p.SetState(103)
 		_la = p.GetTokenStream().LA(1)
 
-		if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&270582939648) != 0) {
+		if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&541165879296) != 0) {
 			p.GetErrorHandler().RecoverInline(p)
 		} else {
 			p.GetErrorHandler().ReportMatch(p)
@@ -1472,7 +1485,7 @@ func (p *SLQParser) FuncElement() (localctx IFuncElementContext) {
 	p.GetErrorHandler().Sync(p)
 	_la = p.GetTokenStream().LA(1)
 
-	if _la == SLQParserCOLON {
+	if _la == SLQParserALIAS_RESERVED || _la == SLQParserCOLON {
 		{
 			p.SetState(106)
 			p.Alias()
@@ -2380,47 +2393,59 @@ func (p *SLQParser) CountFunc() (localctx ICountFuncContext) {
 		}
 	}()
 
-	p.EnterOuterAlt(localctx, 1)
-	{
-		p.SetState(140)
-		p.Match(SLQParserT__4)
-	}
-	p.SetState(146)
+	p.SetState(152)
 	p.GetErrorHandler().Sync(p)
-	_la = p.GetTokenStream().LA(1)
 
-	if _la == SLQParserLPAR {
+	switch p.GetTokenStream().LA(1) {
+	case SLQParserEOF, SLQParserT__0, SLQParserCOMMA, SLQParserPIPE:
+		p.EnterOuterAlt(localctx, 1)
+
+	case SLQParserT__4:
+		p.EnterOuterAlt(localctx, 2)
 		{
 			p.SetState(141)
-			p.Match(SLQParserLPAR)
+			p.Match(SLQParserT__4)
 		}
-		p.SetState(143)
+		p.SetState(147)
 		p.GetErrorHandler().Sync(p)
 		_la = p.GetTokenStream().LA(1)
 
-		if _la == SLQParserNAME {
+		if _la == SLQParserLPAR {
 			{
 				p.SetState(142)
-				p.Selector()
+				p.Match(SLQParserLPAR)
+			}
+			p.SetState(144)
+			p.GetErrorHandler().Sync(p)
+			_la = p.GetTokenStream().LA(1)
+
+			if _la == SLQParserNAME {
+				{
+					p.SetState(143)
+					p.Selector()
+				}
+
+			}
+			{
+				p.SetState(146)
+				p.Match(SLQParserRPAR)
 			}
 
 		}
-		{
-			p.SetState(145)
-			p.Match(SLQParserRPAR)
+		p.SetState(150)
+		p.GetErrorHandler().Sync(p)
+		_la = p.GetTokenStream().LA(1)
+
+		if _la == SLQParserALIAS_RESERVED || _la == SLQParserCOLON {
+			{
+				p.SetState(149)
+				p.Alias()
+			}
+
 		}
 
-	}
-	p.SetState(149)
-	p.GetErrorHandler().Sync(p)
-	_la = p.GetTokenStream().LA(1)
-
-	if _la == SLQParserCOLON {
-		{
-			p.SetState(148)
-			p.Alias()
-		}
-
+	default:
+		panic(antlr.NewNoViableAltException(p, nil, nil, nil, nil, nil))
 	}
 
 	return localctx
@@ -2553,21 +2578,21 @@ func (p *SLQParser) GroupByTerm() (localctx IGroupByTermContext) {
 		}
 	}()
 
-	p.SetState(153)
+	p.SetState(156)
 	p.GetErrorHandler().Sync(p)
 
 	switch p.GetTokenStream().LA(1) {
 	case SLQParserNAME:
 		p.EnterOuterAlt(localctx, 1)
 		{
-			p.SetState(151)
+			p.SetState(154)
 			p.Selector()
 		}
 
 	case SLQParserID:
 		p.EnterOuterAlt(localctx, 2)
 		{
-			p.SetState(152)
+			p.SetState(155)
 			p.Func_()
 		}
 
@@ -2742,37 +2767,37 @@ func (p *SLQParser) GroupBy() (localctx IGroupByContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(155)
+		p.SetState(158)
 		p.Match(SLQParserGROUP_BY)
 	}
 	{
-		p.SetState(156)
+		p.SetState(159)
 		p.Match(SLQParserLPAR)
 	}
 	{
-		p.SetState(157)
+		p.SetState(160)
 		p.GroupByTerm()
 	}
-	p.SetState(162)
+	p.SetState(165)
 	p.GetErrorHandler().Sync(p)
 	_la = p.GetTokenStream().LA(1)
 
 	for _la == SLQParserCOMMA {
 		{
-			p.SetState(158)
+			p.SetState(161)
 			p.Match(SLQParserCOMMA)
 		}
 		{
-			p.SetState(159)
+			p.SetState(162)
 			p.GroupByTerm()
 		}
 
-		p.SetState(164)
+		p.SetState(167)
 		p.GetErrorHandler().Sync(p)
 		_la = p.GetTokenStream().LA(1)
 	}
 	{
-		p.SetState(165)
+		p.SetState(168)
 		p.Match(SLQParserRPAR)
 	}
 
@@ -2902,16 +2927,16 @@ func (p *SLQParser) OrderByTerm() (localctx IOrderByTermContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(167)
+		p.SetState(170)
 		p.Selector()
 	}
-	p.SetState(169)
+	p.SetState(172)
 	p.GetErrorHandler().Sync(p)
 	_la = p.GetTokenStream().LA(1)
 
 	if _la == SLQParserORDER_ASC || _la == SLQParserORDER_DESC {
 		{
-			p.SetState(168)
+			p.SetState(171)
 			_la = p.GetTokenStream().LA(1)
 
 			if !(_la == SLQParserORDER_ASC || _la == SLQParserORDER_DESC) {
@@ -3091,37 +3116,37 @@ func (p *SLQParser) OrderBy() (localctx IOrderByContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(171)
+		p.SetState(174)
 		p.Match(SLQParserORDER_BY)
 	}
 	{
-		p.SetState(172)
+		p.SetState(175)
 		p.Match(SLQParserLPAR)
 	}
 	{
-		p.SetState(173)
+		p.SetState(176)
 		p.OrderByTerm()
 	}
-	p.SetState(178)
+	p.SetState(181)
 	p.GetErrorHandler().Sync(p)
 	_la = p.GetTokenStream().LA(1)
 
 	for _la == SLQParserCOMMA {
 		{
-			p.SetState(174)
+			p.SetState(177)
 			p.Match(SLQParserCOMMA)
 		}
 		{
-			p.SetState(175)
+			p.SetState(178)
 			p.OrderByTerm()
 		}
 
-		p.SetState(180)
+		p.SetState(183)
 		p.GetErrorHandler().Sync(p)
 		_la = p.GetTokenStream().LA(1)
 	}
 	{
-		p.SetState(181)
+		p.SetState(184)
 		p.Match(SLQParserRPAR)
 	}
 
@@ -3233,15 +3258,15 @@ func (p *SLQParser) Selector() (localctx ISelectorContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(183)
+		p.SetState(186)
 		p.Match(SLQParserNAME)
 	}
-	p.SetState(185)
+	p.SetState(188)
 	p.GetErrorHandler().Sync(p)
 
-	if p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 18, p.GetParserRuleContext()) == 1 {
+	if p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 19, p.GetParserRuleContext()) == 1 {
 		{
-			p.SetState(184)
+			p.SetState(187)
 			p.Match(SLQParserNAME)
 		}
 
@@ -3380,16 +3405,16 @@ func (p *SLQParser) SelectorElement() (localctx ISelectorElementContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(187)
+		p.SetState(190)
 		p.Selector()
 	}
-	p.SetState(189)
+	p.SetState(192)
 	p.GetErrorHandler().Sync(p)
 	_la = p.GetTokenStream().LA(1)
 
-	if _la == SLQParserCOLON {
+	if _la == SLQParserALIAS_RESERVED || _la == SLQParserCOLON {
 		{
-			p.SetState(188)
+			p.SetState(191)
 			p.Alias()
 		}
 
@@ -3406,6 +3431,7 @@ type IAliasContext interface {
 	GetParser() antlr.Parser
 
 	// Getter signatures
+	ALIAS_RESERVED() antlr.TerminalNode
 	COLON() antlr.TerminalNode
 	ID() antlr.TerminalNode
 
@@ -3439,6 +3465,10 @@ func NewAliasContext(parser antlr.Parser, parent antlr.ParserRuleContext, invoki
 }
 
 func (s *AliasContext) GetParser() antlr.Parser { return s.parser }
+
+func (s *AliasContext) ALIAS_RESERVED() antlr.TerminalNode {
+	return s.GetToken(SLQParserALIAS_RESERVED, 0)
+}
 
 func (s *AliasContext) COLON() antlr.TerminalNode {
 	return s.GetToken(SLQParserCOLON, 0)
@@ -3501,14 +3531,30 @@ func (p *SLQParser) Alias() (localctx IAliasContext) {
 		}
 	}()
 
-	p.EnterOuterAlt(localctx, 1)
-	{
-		p.SetState(191)
-		p.Match(SLQParserCOLON)
-	}
-	{
-		p.SetState(192)
-		p.Match(SLQParserID)
+	p.SetState(197)
+	p.GetErrorHandler().Sync(p)
+
+	switch p.GetTokenStream().LA(1) {
+	case SLQParserALIAS_RESERVED:
+		p.EnterOuterAlt(localctx, 1)
+		{
+			p.SetState(194)
+			p.Match(SLQParserALIAS_RESERVED)
+		}
+
+	case SLQParserCOLON:
+		p.EnterOuterAlt(localctx, 2)
+		{
+			p.SetState(195)
+			p.Match(SLQParserCOLON)
+		}
+		{
+			p.SetState(196)
+			p.Match(SLQParserID)
+		}
+
+	default:
+		panic(antlr.NewNoViableAltException(p, nil, nil, nil, nil, nil))
 	}
 
 	return localctx
@@ -3619,11 +3665,11 @@ func (p *SLQParser) HandleTable() (localctx IHandleTableContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(194)
+		p.SetState(199)
 		p.Match(SLQParserHANDLE)
 	}
 	{
-		p.SetState(195)
+		p.SetState(200)
 		p.Match(SLQParserNAME)
 	}
 
@@ -3730,7 +3776,7 @@ func (p *SLQParser) Handle() (localctx IHandleContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(197)
+		p.SetState(202)
 		p.Match(SLQParserHANDLE)
 	}
 
@@ -3852,55 +3898,55 @@ func (p *SLQParser) RowRange() (localctx IRowRangeContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(199)
+		p.SetState(204)
 		p.Match(SLQParserT__5)
 	}
-	p.SetState(208)
+	p.SetState(213)
 	p.GetErrorHandler().Sync(p)
 
-	if p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 20, p.GetParserRuleContext()) == 1 {
-		{
-			p.SetState(200)
-			p.Match(SLQParserNN)
-		}
-		{
-			p.SetState(201)
-			p.Match(SLQParserCOLON)
-		}
-		{
-			p.SetState(202)
-			p.Match(SLQParserNN)
-		}
-
-	} else if p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 20, p.GetParserRuleContext()) == 2 {
-		{
-			p.SetState(203)
-			p.Match(SLQParserNN)
-		}
-		{
-			p.SetState(204)
-			p.Match(SLQParserCOLON)
-		}
-
-	} else if p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 20, p.GetParserRuleContext()) == 3 {
+	if p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 22, p.GetParserRuleContext()) == 1 {
 		{
 			p.SetState(205)
-			p.Match(SLQParserCOLON)
+			p.Match(SLQParserNN)
 		}
 		{
 			p.SetState(206)
-			p.Match(SLQParserNN)
+			p.Match(SLQParserCOLON)
 		}
-
-	} else if p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 20, p.GetParserRuleContext()) == 4 {
 		{
 			p.SetState(207)
 			p.Match(SLQParserNN)
 		}
 
+	} else if p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 22, p.GetParserRuleContext()) == 2 {
+		{
+			p.SetState(208)
+			p.Match(SLQParserNN)
+		}
+		{
+			p.SetState(209)
+			p.Match(SLQParserCOLON)
+		}
+
+	} else if p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 22, p.GetParserRuleContext()) == 3 {
+		{
+			p.SetState(210)
+			p.Match(SLQParserCOLON)
+		}
+		{
+			p.SetState(211)
+			p.Match(SLQParserNN)
+		}
+
+	} else if p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 22, p.GetParserRuleContext()) == 4 {
+		{
+			p.SetState(212)
+			p.Match(SLQParserNN)
+		}
+
 	}
 	{
-		p.SetState(210)
+		p.SetState(215)
 		p.Match(SLQParserRBRA)
 	}
 
@@ -4164,35 +4210,35 @@ func (p *SLQParser) expr(_p int) (localctx IExprContext) {
 	var _alt int
 
 	p.EnterOuterAlt(localctx, 1)
-	p.SetState(219)
+	p.SetState(224)
 	p.GetErrorHandler().Sync(p)
 
 	switch p.GetTokenStream().LA(1) {
 	case SLQParserNAME:
 		{
-			p.SetState(213)
+			p.SetState(218)
 			p.Selector()
 		}
 
 	case SLQParserNULL, SLQParserNN, SLQParserNUMBER, SLQParserSTRING:
 		{
-			p.SetState(214)
+			p.SetState(219)
 			p.Literal()
 		}
 
 	case SLQParserT__13, SLQParserT__14, SLQParserORDER_ASC, SLQParserORDER_DESC:
 		{
-			p.SetState(215)
+			p.SetState(220)
 			p.UnaryOperator()
 		}
 		{
-			p.SetState(216)
+			p.SetState(221)
 			p.expr(9)
 		}
 
 	case SLQParserID:
 		{
-			p.SetState(218)
+			p.SetState(223)
 			p.Func_()
 		}
 
@@ -4200,9 +4246,9 @@ func (p *SLQParser) expr(_p int) (localctx IExprContext) {
 		panic(antlr.NewNoViableAltException(p, nil, nil, nil, nil, nil))
 	}
 	p.GetParserRuleContext().SetStop(p.GetTokenStream().LT(-1))
-	p.SetState(248)
+	p.SetState(253)
 	p.GetErrorHandler().Sync(p)
-	_alt = p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 24, p.GetParserRuleContext())
+	_alt = p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 26, p.GetParserRuleContext())
 
 	for _alt != 2 && _alt != antlr.ATNInvalidAltNumber {
 		if _alt == 1 {
@@ -4210,36 +4256,36 @@ func (p *SLQParser) expr(_p int) (localctx IExprContext) {
 				p.TriggerExitRuleEvent()
 			}
 			_prevctx = localctx
-			p.SetState(246)
+			p.SetState(251)
 			p.GetErrorHandler().Sync(p)
-			switch p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 23, p.GetParserRuleContext()) {
+			switch p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 25, p.GetParserRuleContext()) {
 			case 1:
 				localctx = NewExprContext(p, _parentctx, _parentState)
 				p.PushNewRecursionContext(localctx, _startState, SLQParserRULE_expr)
-				p.SetState(221)
+				p.SetState(226)
 
 				if !(p.Precpred(p.GetParserRuleContext(), 8)) {
 					panic(antlr.NewFailedPredicateException(p, "p.Precpred(p.GetParserRuleContext(), 8)", ""))
 				}
 				{
-					p.SetState(222)
+					p.SetState(227)
 					p.Match(SLQParserT__6)
 				}
 				{
-					p.SetState(223)
+					p.SetState(228)
 					p.expr(9)
 				}
 
 			case 2:
 				localctx = NewExprContext(p, _parentctx, _parentState)
 				p.PushNewRecursionContext(localctx, _startState, SLQParserRULE_expr)
-				p.SetState(224)
+				p.SetState(229)
 
 				if !(p.Precpred(p.GetParserRuleContext(), 7)) {
 					panic(antlr.NewFailedPredicateException(p, "p.Precpred(p.GetParserRuleContext(), 7)", ""))
 				}
 				{
-					p.SetState(225)
+					p.SetState(230)
 					_la = p.GetTokenStream().LA(1)
 
 					if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&772) != 0) {
@@ -4250,20 +4296,20 @@ func (p *SLQParser) expr(_p int) (localctx IExprContext) {
 					}
 				}
 				{
-					p.SetState(226)
+					p.SetState(231)
 					p.expr(8)
 				}
 
 			case 3:
 				localctx = NewExprContext(p, _parentctx, _parentState)
 				p.PushNewRecursionContext(localctx, _startState, SLQParserRULE_expr)
-				p.SetState(227)
+				p.SetState(232)
 
 				if !(p.Precpred(p.GetParserRuleContext(), 6)) {
 					panic(antlr.NewFailedPredicateException(p, "p.Precpred(p.GetParserRuleContext(), 6)", ""))
 				}
 				{
-					p.SetState(228)
+					p.SetState(233)
 					_la = p.GetTokenStream().LA(1)
 
 					if !(_la == SLQParserORDER_ASC || _la == SLQParserORDER_DESC) {
@@ -4274,20 +4320,20 @@ func (p *SLQParser) expr(_p int) (localctx IExprContext) {
 					}
 				}
 				{
-					p.SetState(229)
+					p.SetState(234)
 					p.expr(7)
 				}
 
 			case 4:
 				localctx = NewExprContext(p, _parentctx, _parentState)
 				p.PushNewRecursionContext(localctx, _startState, SLQParserRULE_expr)
-				p.SetState(230)
+				p.SetState(235)
 
 				if !(p.Precpred(p.GetParserRuleContext(), 5)) {
 					panic(antlr.NewFailedPredicateException(p, "p.Precpred(p.GetParserRuleContext(), 5)", ""))
 				}
 				{
-					p.SetState(231)
+					p.SetState(236)
 					_la = p.GetTokenStream().LA(1)
 
 					if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&7168) != 0) {
@@ -4298,23 +4344,23 @@ func (p *SLQParser) expr(_p int) (localctx IExprContext) {
 					}
 				}
 				{
-					p.SetState(232)
+					p.SetState(237)
 					p.expr(6)
 				}
 
 			case 5:
 				localctx = NewExprContext(p, _parentctx, _parentState)
 				p.PushNewRecursionContext(localctx, _startState, SLQParserRULE_expr)
-				p.SetState(233)
+				p.SetState(238)
 
 				if !(p.Precpred(p.GetParserRuleContext(), 4)) {
 					panic(antlr.NewFailedPredicateException(p, "p.Precpred(p.GetParserRuleContext(), 4)", ""))
 				}
 				{
-					p.SetState(234)
+					p.SetState(239)
 					_la = p.GetTokenStream().LA(1)
 
-					if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&64424509440) != 0) {
+					if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&128849018880) != 0) {
 						p.GetErrorHandler().RecoverInline(p)
 					} else {
 						p.GetErrorHandler().ReportMatch(p)
@@ -4322,31 +4368,31 @@ func (p *SLQParser) expr(_p int) (localctx IExprContext) {
 					}
 				}
 				{
-					p.SetState(235)
+					p.SetState(240)
 					p.expr(5)
 				}
 
 			case 6:
 				localctx = NewExprContext(p, _parentctx, _parentState)
 				p.PushNewRecursionContext(localctx, _startState, SLQParserRULE_expr)
-				p.SetState(236)
+				p.SetState(241)
 
 				if !(p.Precpred(p.GetParserRuleContext(), 3)) {
 					panic(antlr.NewFailedPredicateException(p, "p.Precpred(p.GetParserRuleContext(), 3)", ""))
 				}
-				p.SetState(240)
+				p.SetState(245)
 				p.GetErrorHandler().Sync(p)
 
 				switch p.GetTokenStream().LA(1) {
 				case SLQParserEQ:
 					{
-						p.SetState(237)
+						p.SetState(242)
 						p.Match(SLQParserEQ)
 					}
 
 				case SLQParserNEQ:
 					{
-						p.SetState(238)
+						p.SetState(243)
 						p.Match(SLQParserNEQ)
 					}
 
@@ -4356,33 +4402,33 @@ func (p *SLQParser) expr(_p int) (localctx IExprContext) {
 					panic(antlr.NewNoViableAltException(p, nil, nil, nil, nil, nil))
 				}
 				{
-					p.SetState(242)
+					p.SetState(247)
 					p.expr(4)
 				}
 
 			case 7:
 				localctx = NewExprContext(p, _parentctx, _parentState)
 				p.PushNewRecursionContext(localctx, _startState, SLQParserRULE_expr)
-				p.SetState(243)
+				p.SetState(248)
 
 				if !(p.Precpred(p.GetParserRuleContext(), 2)) {
 					panic(antlr.NewFailedPredicateException(p, "p.Precpred(p.GetParserRuleContext(), 2)", ""))
 				}
 				{
-					p.SetState(244)
+					p.SetState(249)
 					p.Match(SLQParserT__12)
 				}
 				{
-					p.SetState(245)
+					p.SetState(250)
 					p.expr(3)
 				}
 
 			}
 
 		}
-		p.SetState(250)
+		p.SetState(255)
 		p.GetErrorHandler().Sync(p)
-		_alt = p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 24, p.GetParserRuleContext())
+		_alt = p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 26, p.GetParserRuleContext())
 	}
 
 	return localctx
@@ -4504,10 +4550,10 @@ func (p *SLQParser) Literal() (localctx ILiteralContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(251)
+		p.SetState(256)
 		_la = p.GetTokenStream().LA(1)
 
-		if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&1103269724160) != 0) {
+		if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&2206539448320) != 0) {
 			p.GetErrorHandler().RecoverInline(p)
 		} else {
 			p.GetErrorHandler().ReportMatch(p)
@@ -4624,7 +4670,7 @@ func (p *SLQParser) UnaryOperator() (localctx IUnaryOperatorContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(253)
+		p.SetState(258)
 		_la = p.GetTokenStream().LA(1)
 
 		if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&442368) != 0) {

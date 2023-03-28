@@ -33,7 +33,7 @@ var slqInputs = map[string]string{
 	"join1":               `@mydb1 | .user, .address | join(.user.uid == .address.uid) | .uid, .username, .country`,
 	"select1":             `@mydb1 | .user | .uid, .username`,
 	"tbl datasource":      `@mydb1.user | .uid, .username`,
-	"count1":              `@mydb1.user | count(*)`,
+	"count1":              `@mydb1.user | count`,
 }
 
 // getSLQParser returns a parser for the given SQL input.

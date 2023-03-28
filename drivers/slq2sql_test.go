@@ -86,7 +86,7 @@ func TestSLQ2SQLNew(t *testing.T) {
 			skipExec: true,
 		},
 		{
-			name:     "/count-whitespace-col",
+			name:     "count/whitespace-col",
 			in:       `@sakila | .actor | count(."first name")`,
 			wantSQL:  `SELECT count("first name") FROM "actor"`,
 			override: map[source.Type]string{mysql.Type: "SELECT count(`first name`) FROM `actor`"},
@@ -109,24 +109,46 @@ func TestSLQ2SQLNew(t *testing.T) {
 		{
 			name:     "count/no-parens-no-args",
 			in:       `@sakila | .actor | count`,
-			wantSQL:  `SELECT count(*) FROM "actor"`,
-			override: map[source.Type]string{mysql.Type: "SELECT count(*) FROM `actor`"},
+			wantSQL:  `SELECT count(*) AS "count" FROM "actor"`,
+			override: map[source.Type]string{mysql.Type: "SELECT count(*) AS `count` FROM `actor`"},
 			wantRecs: 1,
-			skip:     true,
+		},
+		{
+			name: "count/no-parens-no-args-with-alias-count",
+			// Test that the count:ALIAS form can handle the alias
+			// being a reserved word (count).
+			in:       `@sakila | .actor | count:count`,
+			wantSQL:  `SELECT count(*) AS "count" FROM "actor"`,
+			override: map[source.Type]string{mysql.Type: "SELECT count(*) AS `count` FROM `actor`"},
+			wantRecs: 1,
+		},
+		{
+			name: "count/no-parens-no-args-with-alias-unique",
+			// Test that the count:ALIAS form can handle the alias
+			// being a reserved word (unique).
+			in:       `@sakila | .actor | count:unique`,
+			wantSQL:  `SELECT count(*) AS "unique" FROM "actor"`,
+			override: map[source.Type]string{mysql.Type: "SELECT count(*) AS `unique` FROM `actor`"},
+			wantRecs: 1,
+		},
+		{
+			name:     "count/no-parens-no-args-with-alias-arbitrary",
+			in:       `@sakila | .actor | count:something_123`,
+			wantSQL:  `SELECT count(*) AS "something_123" FROM "actor"`,
+			override: map[source.Type]string{mysql.Type: "SELECT count(*) AS `something_123` FROM `actor`"},
+			wantRecs: 1,
 		},
 		{
 			name:     "count/count-parens-no-args",
 			in:       `@sakila | .actor | count()`,
-			wantSQL:  `SELECT count(*) FROM "actor"`,
-			override: map[source.Type]string{mysql.Type: "SELECT count(*) FROM `actor`"},
+			wantSQL:  `SELECT count(*) AS "count" FROM "actor"`,
+			override: map[source.Type]string{mysql.Type: "SELECT count(*) AS `count` FROM `actor`"},
 			wantRecs: 1,
-			skip:     true,
 		},
 		{
 			name:    "count/error-star",
 			in:      `@sakila | .actor | count(*)`,
 			wantErr: true, // Star version is not supported
-			skip:    true,
 		},
 		{
 			name:     "count/single-selector",
@@ -134,13 +156,11 @@ func TestSLQ2SQLNew(t *testing.T) {
 			wantSQL:  `SELECT count("first_name") FROM "actor"`,
 			override: map[source.Type]string{mysql.Type: "SELECT count(`first_name`) FROM `actor`"},
 			wantRecs: 1,
-			skip:     true,
 		},
 		{
 			name:    "count/error-multiple-selector",
 			in:      `@sakila | .actor | count(.first_name, .last_name)`,
 			wantErr: true, // Only a single selector is permitted
-			skip:    true,
 		},
 		{
 			name:     "unique/single-col",
@@ -164,10 +184,10 @@ func TestSLQ2SQLNew(t *testing.T) {
 			wantRecs: sakila.TblActorCount,
 		},
 		{
-			name:     "select/handle-table/count-star",
-			in:       `@sakila.actor | count(*)`,
-			wantSQL:  `SELECT count(*) FROM "actor"`,
-			override: map[source.Type]string{mysql.Type: "SELECT count(*) FROM `actor`"},
+			name:     "select/handle-table/count",
+			in:       `@sakila.actor | count`,
+			wantSQL:  `SELECT count(*) AS "count" FROM "actor"`,
+			override: map[source.Type]string{mysql.Type: "SELECT count(*) AS `count` FROM `actor`"},
 			wantRecs: 1,
 		},
 		{
@@ -178,10 +198,17 @@ func TestSLQ2SQLNew(t *testing.T) {
 			skipExec: true,
 		},
 		{
-			name:     "select/count-alias",
-			in:       `@sakila | .actor | count(*):quantity`,
+			name:     "count/alias",
+			in:       `@sakila | .actor | count:quantity`,
 			wantSQL:  `SELECT count(*) AS "quantity" FROM "actor"`,
 			override: map[source.Type]string{mysql.Type: "SELECT count(*) AS `quantity` FROM `actor`"},
+			wantRecs: 1,
+		},
+		{
+			name:     "select/count-same-alias",
+			in:       `@sakila | .actor | count:count`,
+			wantSQL:  `SELECT count(*) AS "count" FROM "actor"`,
+			override: map[source.Type]string{mysql.Type: "SELECT count(*) AS `count` FROM `actor`"},
 			wantRecs: 1,
 		},
 		{
@@ -318,6 +345,7 @@ func TestSLQ2SQLNew(t *testing.T) {
 				t.Skip()
 			}
 			srcs := testh.New(t).NewSourceSet(sakila.SQLLatest()...)
+			// srcs := testh.New(t).NewSourceSet(sakila.SL3) // FIXME: remove when done debugging
 			for _, src := range srcs.Items() {
 				src := src
 

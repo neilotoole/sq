@@ -195,17 +195,16 @@ func (fb *BaseFragmentBuilder) Function(fn *ast.FuncNode) (string, error) {
 	children := fn.Children()
 
 	if len(children) == 0 {
-		// no children, let's just grab the direct text
+		sb.WriteString(fn.FuncName())
+		sb.WriteRune('(')
 
-		// FIXME: get rid of this
-		// HACK: this stuff basically doesn't work at all...
-		//  but for COUNT(), here's a quick hack to make it work on some DBs
-		if fn.Context().GetText() == "count()" {
-			sb.WriteString("count(*)")
-		} else {
-			sb.WriteString(fn.Context().GetText())
+		if fn.FuncName() == "count" {
+			// Special handling for the count function, because COUNT()
+			// isn't valid, but COUNT(*) is.
+			sb.WriteRune('*')
 		}
 
+		sb.WriteRune(')')
 		return sb.String(), nil
 	}
 
@@ -529,7 +528,7 @@ func (fb *BaseFragmentBuilder) SelectCols(cols []ast.ResultColumn) (string, erro
 			}
 		default:
 			// FIXME: We should be exhaustively checking the cases.
-			// it's probably an expression
+			// Here, it's probably an ExprNode?
 			vals[i] = col.Text() // for now, we just return the raw text
 		}
 

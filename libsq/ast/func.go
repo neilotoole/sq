@@ -1,6 +1,8 @@
 package ast
 
-import "github.com/neilotoole/sq/libsq/ast/internal/slq"
+import (
+	"github.com/neilotoole/sq/libsq/ast/internal/slq"
+)
 
 var (
 	_ Node         = (*FuncNode)(nil)
@@ -123,6 +125,9 @@ func (v *parseTreeVisitor) VisitFunc(ctx *slq.FuncContext) any {
 }
 
 // VisitCountFunc implements antlr.ParseTreeVisitor.
+// Although the "count" func has special handling in the grammar (because
+// it has a no-arg form, e.g. ".actor | count"), a regular FuncNode is
+// inserted into the AST.
 func (v *parseTreeVisitor) VisitCountFunc(ctx *slq.CountFuncContext) interface{} {
 	node := &FuncNode{fnName: "count"}
 	node.ctx = ctx
@@ -132,7 +137,17 @@ func (v *parseTreeVisitor) VisitCountFunc(ctx *slq.CountFuncContext) interface{}
 		return err
 	}
 
-	return v.using(node, func() any {
+	if err := v.using(node, func() any {
 		return v.VisitChildren(ctx)
-	})
+	}); err != nil {
+		return err
+	}
+
+	if len(node.Children()) == 0 && ctx.Alias() == nil {
+		// If there's no children, and no alias, we explicitly set the
+		// alias to "count".
+		node.alias = "count"
+	}
+
+	return nil
 }
