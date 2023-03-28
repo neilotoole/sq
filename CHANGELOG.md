@@ -9,21 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- [#164]: Implemented `unique` function:
+- [#164]: Implemented `unique` function ([docs](https://sq.io/docs/query#unique)):
   ```shell
   $sq '.actor | .first_name | unique'
   ```
-  
-- This is equivalent to:
+  This is equivalent to:
   ```sql
   SELECT DISTINCT first_name FROM actor
+  ```
+- Added `count_unique` function ([docs](https://sq.io/docs/query#count_unique)).
+  ```shell
+  $sq '.actor | count_unique(.first_name)'
   ```
 
 ### Changed
 
-- The `count` function has been changed.
+- The `count` function has been changed ([docs](https://sq.io/docs/query#count))
   - Added no-args version: `.actor | count` equivalent to `SELECT COUNT(*) AS "count" FROM "actor"`.
-  - The "star" version (`.actor | count(*)`) is no longer supported; use the
+  - **BREAKING CHANGE**: The "star" version (`.actor | count(*)`) is no longer supported; use the
     naked version instead.
 
 ## [v0.29.0] - 2023-03-26

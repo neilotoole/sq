@@ -1,6 +1,7 @@
 package drivers_test
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 
@@ -25,7 +26,7 @@ import (
 )
 
 //nolint:exhaustive,lll
-func TestSLQ2SQLNew(t *testing.T) {
+func TestSLQ2SQL(t *testing.T) {
 	testCases := []struct {
 		// name is the test name
 		name string
@@ -177,6 +178,13 @@ func TestSLQ2SQLNew(t *testing.T) {
 			wantRecs: sakila.TblActorCount,
 		},
 		{
+			name:     "unique/no-col",
+			in:       `@sakila | .actor | unique`,
+			wantSQL:  `SELECT DISTINCT * FROM "actor"`,
+			override: map[source.Type]string{mysql.Type: "SELECT DISTINCT * FROM `actor`"},
+			wantRecs: sakila.TblActorCount,
+		},
+		{
 			name:     "select/handle-table/cols",
 			in:       `@sakila.actor | .first_name, .last_name`,
 			wantSQL:  `SELECT "first_name", "last_name" FROM "actor"`,
@@ -289,15 +297,15 @@ func TestSLQ2SQLNew(t *testing.T) {
 		{
 			name:     "group_by/single-term",
 			in:       `@sakila | .payment | .customer_id, sum(.amount) | group_by(.customer_id)`,
-			wantSQL:  `SELECT "customer_id", sum("amount") FROM "payment" GROUP BY "customer_id"`,
-			override: map[source.Type]string{mysql.Type: "SELECT `customer_id`, sum(`amount`) FROM `payment` GROUP BY `customer_id`"},
+			wantSQL:  `SELECT "customer_id", sum("amount") AS "sum(.amount)" FROM "payment" GROUP BY "customer_id"`,
+			override: map[source.Type]string{mysql.Type: "SELECT `customer_id`, sum(`amount`) AS `sum(.amount)` FROM `payment` GROUP BY `customer_id`"},
 			wantRecs: 599,
 		},
 		{
 			name:     "group_by/multiple_terms",
 			in:       `@sakila | .payment | .customer_id, .staff_id, sum(.amount) | group_by(.customer_id, .staff_id)`,
-			wantSQL:  `SELECT "customer_id", "staff_id", sum("amount") FROM "payment" GROUP BY "customer_id", "staff_id"`,
-			override: map[source.Type]string{mysql.Type: "SELECT `customer_id`, `staff_id`, sum(`amount`) FROM `payment` GROUP BY `customer_id`, `staff_id`"},
+			wantSQL:  `SELECT "customer_id", "staff_id", sum("amount") AS "sum(.amount)" FROM "payment" GROUP BY "customer_id", "staff_id"`,
+			override: map[source.Type]string{mysql.Type: "SELECT `customer_id`, `staff_id`, sum(`amount`) AS `sum(.amount)` FROM `payment` GROUP BY `customer_id`, `staff_id`"},
 			wantRecs: 1198,
 		},
 		{
@@ -310,28 +318,28 @@ func TestSLQ2SQLNew(t *testing.T) {
 		{
 			name:     "datetime/strftime/sqlite",
 			in:       `@sakila | .payment | strftime("%m", .payment_date)`,
-			wantSQL:  `SELECT strftime('%m', "payment_date") FROM "payment"`,
+			wantSQL:  `SELECT strftime('%m', "payment_date") AS "strftime(""%m"",.payment_date)" FROM "payment"`,
 			onlyFor:  []source.Type{sqlite3.Type},
 			wantRecs: sakila.TblPaymentCount,
 		},
 		{
 			name:     "datetime/date_trunc/postgres",
 			in:       `@sakila | .payment | date_trunc("month", .payment_date)`,
-			wantSQL:  `SELECT date_trunc('month', "payment_date") FROM "payment"`,
+			wantSQL:  `SELECT date_trunc('month', "payment_date") AS "date_trunc(""month"",.payment_date)" FROM "payment"`,
 			onlyFor:  []source.Type{postgres.Type},
 			wantRecs: sakila.TblPaymentCount,
 		},
 		{
 			name:     "datetime/month/sqlserver",
 			in:       `@sakila | .payment | month(.payment_date)`,
-			wantSQL:  `SELECT month("payment_date") FROM "payment"`,
+			wantSQL:  `SELECT month("payment_date") AS "month(.payment_date)" FROM "payment"`,
 			onlyFor:  []source.Type{sqlserver.Type},
 			wantRecs: sakila.TblPaymentCount,
 		},
 		{
 			name:     "datetime/date_format/mysql",
 			in:       `@sakila | .payment | date_format(.payment_date, "%m")`,
-			wantSQL:  "SELECT date_format(`payment_date`, '%m') FROM `payment`",
+			wantSQL:  "SELECT date_format(`payment_date`, '%m') AS `date_format(.payment_date,\"%m\")` FROM `payment`",
 			onlyFor:  []source.Type{mysql.Type},
 			wantRecs: sakila.TblPaymentCount,
 		},
@@ -390,4 +398,12 @@ func TestSLQ2SQLNew(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestQuoting(t *testing.T) {
+	w := strconv.Quote("")
+	t.Log(w)
+
+	s := strconv.Quote(`hello "friend"`)
+	t.Log(s)
 }

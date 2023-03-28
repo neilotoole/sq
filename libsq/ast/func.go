@@ -121,6 +121,10 @@ func (v *parseTreeVisitor) VisitFunc(ctx *slq.FuncContext) any {
 		return err
 	}
 
+	if node.alias == "" {
+		node.alias = ctx.GetText()
+	}
+
 	return v.cur.AddChild(node)
 }
 

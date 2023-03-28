@@ -519,7 +519,7 @@ func ParseUTCDate(s string) (time.Time, error) {
 		return t, nil
 	}
 
-	// There's a 'T' in s, which means its probably a timestamp.
+	// There's a 'T' in s, which means it's probably a timestamp.
 	return time.Time{}, errz.Errorf("invalid date format: %s", s)
 }
 
@@ -533,4 +533,55 @@ func ParseDateOrTimestampUTC(s string) (time.Time, error) {
 
 	t, err := ParseUTCDate(s)
 	return t.UTC(), err
+}
+
+// DoubleQuote double-quotes (and escapes) s.
+//
+//	hello "world"  -->  "hello ""world"""
+func DoubleQuote(s string) string {
+	const q = '"'
+	sb := strings.Builder{}
+	sb.WriteRune(q)
+	for _, r := range s {
+		if r == q {
+			sb.WriteRune(q)
+		}
+		sb.WriteRune(r)
+	}
+	sb.WriteRune(q)
+	return sb.String()
+}
+
+// BacktickQuote backtick-quotes (and escapes) s.
+//
+//	hello `world`  --> `hello ``world```
+func BacktickQuote(s string) string {
+	const q = '`'
+	sb := strings.Builder{}
+	sb.WriteRune(q)
+	for _, r := range s {
+		if r == q {
+			sb.WriteRune(q)
+		}
+		sb.WriteRune(r)
+	}
+	sb.WriteRune(q)
+	return sb.String()
+}
+
+// SingleQuote single-quotes (and escapes) s.
+//
+//	jessie's girl  -->  'jessie''s girl'
+func SingleQuote(s string) string {
+	const q = '\''
+	sb := strings.Builder{}
+	sb.WriteRune(q)
+	for _, r := range s {
+		if r == q {
+			sb.WriteRune(q)
+		}
+		sb.WriteRune(r)
+	}
+	sb.WriteRune(q)
+	return sb.String()
 }

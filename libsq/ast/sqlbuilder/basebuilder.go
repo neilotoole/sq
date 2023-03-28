@@ -37,9 +37,11 @@ var _ FragmentBuilder = (*BaseFragmentBuilder)(nil)
 type BaseFragmentBuilder struct {
 	Log lg.Log
 	// Quote is the driver-specific quote rune, e.g. " or `
-	Quote    string
-	ColQuote string
-	Ops      map[string]string
+	Quote string
+
+	// QuoteFn quotes an identifier.
+	QuoteFn func(string) string
+	Ops     map[string]string
 }
 
 // Distinct implements FragmentBuilder.
@@ -160,7 +162,7 @@ func (fb *BaseFragmentBuilder) Expr(expr *ast.ExprNode) (string, error) {
 	for _, child := range expr.Children() {
 		switch child := child.(type) {
 		case *ast.TblColSelectorNode, *ast.ColSelectorNode:
-			val, err := renderSelectorNode(fb.ColQuote, child)
+			val, err := renderSelectorNode(fb.Quote, child)
 			if err != nil {
 				return "", err
 			}
@@ -192,13 +194,14 @@ func (fb *BaseFragmentBuilder) Expr(expr *ast.ExprNode) (string, error) {
 // Function implements FragmentBuilder.
 func (fb *BaseFragmentBuilder) Function(fn *ast.FuncNode) (string, error) {
 	sb := strings.Builder{}
+	fnName := strings.ToLower(fn.FuncName())
 	children := fn.Children()
 
 	if len(children) == 0 {
-		sb.WriteString(fn.FuncName())
+		sb.WriteString(fnName)
 		sb.WriteRune('(')
 
-		if fn.FuncName() == "count" {
+		if fnName == "count" {
 			// Special handling for the count function, because COUNT()
 			// isn't valid, but COUNT(*) is.
 			sb.WriteRune('*')
@@ -208,8 +211,15 @@ func (fb *BaseFragmentBuilder) Function(fn *ast.FuncNode) (string, error) {
 		return sb.String(), nil
 	}
 
-	sb.WriteString(strings.ToLower(fn.FuncName()))
-	sb.WriteRune('(')
+	// Special handling for "count_unique(.col)" function. We translate
+	// it to "SELECT count(DISTINCT col)".
+	if fnName == "count_unique" {
+		sb.WriteString("count(DISTINCT ")
+	} else {
+		sb.WriteString(fnName)
+		sb.WriteRune('(')
+	}
+
 	for i, child := range children {
 		if i > 0 {
 			sb.WriteString(", ")
@@ -235,8 +245,9 @@ func (fb *BaseFragmentBuilder) Function(fn *ast.FuncNode) (string, error) {
 
 			if wasQuoted {
 				// The literal had quotes, so it's a regular string.
+				// FIXME: replace with stringz.SingleQuote
 				sb.WriteRune(singleQuote)
-				sb.WriteString(escapeLiteralString(val))
+				sb.WriteString(escapeLiteral(val))
 				sb.WriteRune(singleQuote)
 			} else {
 				sb.WriteString(val)
@@ -249,46 +260,6 @@ func (fb *BaseFragmentBuilder) Function(fn *ast.FuncNode) (string, error) {
 	sb.WriteRune(')')
 	sql := sb.String()
 	return sql, nil
-}
-
-// escapeLiteralString escapes the single quotes in s.
-func escapeLiteralString(s string) string {
-	if !strings.ContainsRune(s, singleQuote) {
-		return s
-	}
-
-	sb := strings.Builder{}
-	for _, r := range s {
-		if r == singleQuote {
-			_, _ = sb.WriteRune(singleQuote)
-			_, _ = sb.WriteRune(singleQuote)
-			continue
-		}
-
-		_, _ = sb.WriteRune(r)
-	}
-
-	return sb.String()
-}
-
-// unquoteLiteral returns true if s is a "quoted" string, and also returns
-// the value with the quotes stripped. An error is returned if the string
-// is malformed.
-func unquoteLiteral(s string) (val string, ok bool, err error) {
-	hasPrefix := strings.HasPrefix(s, `"`)
-	hasSuffix := strings.HasSuffix(s, `"`)
-
-	if hasPrefix && hasSuffix {
-		val = strings.TrimPrefix(s, `"`)
-		val = strings.TrimSuffix(val, `"`)
-		return val, true, nil
-	}
-
-	if hasPrefix != hasSuffix {
-		return "", false, errz.Errorf("malformed literal: %s", s)
-	}
-
-	return s, false, nil
 }
 
 // FromTable implements FragmentBuilder.
@@ -512,7 +483,7 @@ func (fb *BaseFragmentBuilder) SelectCols(cols []ast.ResultColumn) (string, erro
 		// "SELECT first_name AS given_name FROM actor".
 		var aliasFrag string
 		if col.Alias() != "" {
-			aliasFrag = fmt.Sprintf(" AS %s%s%s", fb.Quote, col.Alias(), fb.Quote)
+			aliasFrag = " AS " + fb.QuoteFn(col.Alias())
 		}
 
 		switch col := col.(type) {
@@ -625,4 +596,42 @@ func (qb *BaseQueryBuilder) Render() (string, error) {
 	}
 
 	return sb.String(), nil
+}
+
+// escapeLiteral escapes the single quotes in s.
+//
+//	jessie's girl  -->  jessie''s girl
+func escapeLiteral(s string) string {
+	sb := strings.Builder{}
+	for _, r := range s {
+		if r == singleQuote {
+			_, _ = sb.WriteRune(singleQuote)
+		}
+
+		_, _ = sb.WriteRune(r)
+	}
+
+	return sb.String()
+}
+
+// unquoteLiteral returns true if s is a double-quoted string, and also returns
+// the value with the quotes stripped. An error is returned if the string
+// is malformed.
+//
+// REVISIT: why not use strconv.Unquote or such?
+func unquoteLiteral(s string) (val string, ok bool, err error) {
+	hasPrefix := strings.HasPrefix(s, `"`)
+	hasSuffix := strings.HasSuffix(s, `"`)
+
+	if hasPrefix && hasSuffix {
+		val = strings.TrimPrefix(s, `"`)
+		val = strings.TrimSuffix(val, `"`)
+		return val, true, nil
+	}
+
+	if hasPrefix != hasSuffix {
+		return "", false, errz.Errorf("malformed literal: %s", s)
+	}
+
+	return s, false, nil
 }

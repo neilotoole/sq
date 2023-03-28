@@ -159,6 +159,7 @@ alias: ALIAS_RESERVED | ':' ID;
 ALIAS_RESERVED
     // TODO: Update ALIAS_RESERVED with all "keywords"
     : ':count'
+    | ':count_unique'
     | ':avg'
     | ':group_by'
     | ':max'

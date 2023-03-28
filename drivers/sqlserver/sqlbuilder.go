@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/stringz"
+
 	"github.com/neilotoole/sq/libsq/ast/sqlbuilder"
 	"github.com/neilotoole/sq/libsq/core/kind"
 
@@ -26,7 +28,7 @@ func newFragmentBuilder(log lg.Log) *fragBuilder {
 	r := &fragBuilder{}
 	r.Log = log
 	r.Quote = `"`
-	r.ColQuote = `"`
+	r.QuoteFn = stringz.DoubleQuote
 	r.Ops = sqlbuilder.BaseOps()
 	return r
 }
