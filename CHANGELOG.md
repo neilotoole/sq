@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.30.0] - 2003-03-27
+
+### Added
+
+- [#164]: Implemented `unique` function ([docs](https://sq.io/docs/query#unique)):
+  ```shell
+  $sq '.actor | .first_name | unique'
+  ```
+  This is equivalent to:
+  ```sql
+  SELECT DISTINCT first_name FROM actor
+  ```
+- Implemented `count_unique` function ([docs](https://sq.io/docs/query#count_unique)).
+  ```shell
+  $ sq '.actor | count_unique(.first_name)'
+  ```
+
+### Changed
+
+- The `count` function has been changed ([docs](https://sq.io/docs/query#count))
+  - Added no-args version: `.actor | count` equivalent to `SELECT COUNT(*) AS "count" FROM "actor"`.
+  - **BREAKING CHANGE**: The "star" version (`.actor | count(*)`) is no longer supported; use the
+    naked version instead.
+- Function columns are now named according to the `sq` token, not the SQL token.
+  ```shell
+  # previous behavior
+  $ sq '.actor | max(.actor_id)'
+  max("actor_id")
+  200
+  
+  # now
+  $ sq '.actor | max(.actor_id)'
+  max(.actor_id)
+  200
+  ```
+
+
 ## [v0.29.0] - 2023-03-26
 
 ### Added
@@ -205,6 +242,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - [#89]: Bug with SQL generated for joins.
 
+[#164]: https://github.com/neilotoole/sq/issues/164
 [#162]: https://github.com/neilotoole/sq/issues/162
 [#123]: https://github.com/neilotoole/sq/issues/123
 [#142]: https://github.com/neilotoole/sq/issues/142
@@ -243,3 +281,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [v0.27.0]: https://github.com/neilotoole/sq/compare/v0.26.0...v0.27.0
 [v0.28.0]: https://github.com/neilotoole/sq/compare/v0.27.0...v0.28.0
 [v0.29.0]: https://github.com/neilotoole/sq/compare/v0.28.0...v0.29.0
+[v0.30.0]: https://github.com/neilotoole/sq/compare/v0.29.0...v0.30.0

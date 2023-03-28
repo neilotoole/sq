@@ -56,7 +56,7 @@ func TestEscapeLiteralString(t *testing.T) {
 		tc := tc
 
 		t.Run(tutil.Name(i, tc.in), func(t *testing.T) {
-			got := escapeLiteralString(tc.in)
+			got := escapeLiteral(tc.in)
 			require.Equal(t, tc.want, got)
 		})
 	}

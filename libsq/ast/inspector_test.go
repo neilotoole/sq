@@ -22,9 +22,9 @@ func TestInspector_findSelectableSegments(t *testing.T) {
 	segs := ast.Segments()
 	require.Equal(t, 3, len(segs))
 
-	selSegs := insp.FindSelectableSegments()
+	selSegs := insp.FindTablerSegments()
 	require.Equal(t, 1, len(selSegs), "should be 1 selectable segment: the tbl sel segment")
-	finalSelSeg, err := insp.FindFinalSelectableSegment()
+	finalSelSeg, err := insp.FindFinalTablerSegment()
 	require.Nil(t, err)
 	require.Equal(t, selSegs[0], finalSelSeg)
 
@@ -38,10 +38,10 @@ func TestInspector_findSelectableSegments(t *testing.T) {
 	segs = ast.Segments()
 	require.Equal(t, 4, len(segs))
 
-	selSegs = insp.FindSelectableSegments()
+	selSegs = insp.FindTablerSegments()
 	require.Equal(t, 2, len(selSegs), "should be 2 selectable segments: the tbl selector segment, and the join segment")
 
-	finalSelSeg, err = insp.FindFinalSelectableSegment()
+	finalSelSeg, err = insp.FindFinalTablerSegment()
 	require.Nil(t, err)
 	require.Equal(t, selSegs[1], finalSelSeg)
 }

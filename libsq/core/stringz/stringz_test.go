@@ -355,3 +355,57 @@ func TestZuluTimestamp(t *testing.T) {
 	got := stringz.TimestampToRFC3339(input)
 	require.Equal(t, want, got)
 }
+
+func TestDoubleQuote(t *testing.T) {
+	testCases := []struct {
+		in   string
+		want string
+	}{
+		{in: ``, want: `""`},
+		{in: `"hello"`, want: `"""hello"""`},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.in, func(t *testing.T) {
+			got := stringz.DoubleQuote(tc.in)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestBacktickQuote(t *testing.T) {
+	testCases := []struct {
+		in   string
+		want string
+	}{
+		{in: "", want: "``"},
+		{in: "`world`", want: "```world```"},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.in, func(t *testing.T) {
+			got := stringz.BacktickQuote(tc.in)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestSingleQuote(t *testing.T) {
+	testCases := []struct {
+		in   string
+		want string
+	}{
+		{in: "", want: "''"},
+		{in: "jessie's girl", want: "'jessie''s girl'"},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.in, func(t *testing.T) {
+			got := stringz.SingleQuote(tc.in)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}

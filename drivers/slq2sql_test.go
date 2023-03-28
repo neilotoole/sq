@@ -1,6 +1,7 @@
 package drivers_test
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 
@@ -25,7 +26,7 @@ import (
 )
 
 //nolint:exhaustive,lll
-func TestSLQ2SQLNew(t *testing.T) {
+func TestSLQ2SQL(t *testing.T) {
 	testCases := []struct {
 		// name is the test name
 		name string
@@ -45,10 +46,10 @@ func TestSLQ2SQLNew(t *testing.T) {
 		// the specified types. When empty, the test is executed on all types.
 		onlyFor []source.Type
 
-		// overrideWantSQL allows an alternative "wantSQL" for a specific driver type.
+		// override allows an alternative "wantSQL" for a specific driver type.
 		// For example, MySQL uses backtick as the quote char, so it needs
 		// a separate wantSQL string.
-		overrideWantSQL map[source.Type]string
+		override map[source.Type]string
 
 		// skip indicates the test should be skipped. Useful for test cases
 		// that we wantSQL to implement in the future.
@@ -63,160 +64,230 @@ func TestSLQ2SQLNew(t *testing.T) {
 		wantRecs int
 	}{
 		{
-			name:            "select/cols",
-			in:              `@sakila | .actor | .first_name, .last_name`,
-			wantSQL:         `SELECT "first_name", "last_name" FROM "actor"`,
-			overrideWantSQL: map[source.Type]string{mysql.Type: "SELECT `first_name`, `last_name` FROM `actor`"},
-			wantRecs:        sakila.TblActorCount,
+			name:     "select/cols",
+			in:       `@sakila | .actor | .first_name, .last_name`,
+			wantSQL:  `SELECT "first_name", "last_name" FROM "actor"`,
+			override: map[source.Type]string{mysql.Type: "SELECT `first_name`, `last_name` FROM `actor`"},
+			wantRecs: sakila.TblActorCount,
 		},
 		{
-			name:            "select/cols-whitespace-single-col",
-			in:              `@sakila | .actor | ."first name"`,
-			wantSQL:         `SELECT "first name" FROM "actor"`,
-			overrideWantSQL: map[source.Type]string{mysql.Type: "SELECT `first name` FROM `actor`"},
-			wantRecs:        sakila.TblActorCount,
-			skipExec:        true,
+			name:     "select/cols-whitespace-single-col",
+			in:       `@sakila | .actor | ."first name"`,
+			wantSQL:  `SELECT "first name" FROM "actor"`,
+			override: map[source.Type]string{mysql.Type: "SELECT `first name` FROM `actor`"},
+			wantRecs: sakila.TblActorCount,
+			skipExec: true,
 		},
 		{
-			name:            "select/cols-whitespace-multiple-cols",
-			in:              `@sakila | .actor | .actor_id, ."first name", ."last name"`,
-			wantSQL:         `SELECT "actor_id", "first name", "last name" FROM "actor"`,
-			overrideWantSQL: map[source.Type]string{mysql.Type: "SELECT `actor_id`, `first name`, `last name` FROM `actor`"},
-			wantRecs:        sakila.TblActorCount,
-			skipExec:        true,
+			name:     "select/cols-whitespace-multiple-cols",
+			in:       `@sakila | .actor | .actor_id, ."first name", ."last name"`,
+			wantSQL:  `SELECT "actor_id", "first name", "last name" FROM "actor"`,
+			override: map[source.Type]string{mysql.Type: "SELECT `actor_id`, `first name`, `last name` FROM `actor`"},
+			wantRecs: sakila.TblActorCount,
+			skipExec: true,
 		},
 		{
-			name:            "select/count-whitespace-col",
-			in:              `@sakila | .actor | count(."first name")`,
-			wantSQL:         `SELECT count("first name") FROM "actor"`,
-			overrideWantSQL: map[source.Type]string{mysql.Type: "SELECT count(`first name`) FROM `actor`"},
-			skipExec:        true,
+			name:     "count/whitespace-col",
+			in:       `@sakila | .actor | count(."first name")`,
+			wantSQL:  `SELECT count("first name") FROM "actor"`,
+			override: map[source.Type]string{mysql.Type: "SELECT count(`first name`) FROM `actor`"},
+			skipExec: true,
 		},
 		{
-			name:            "select/table-whitespace",
-			in:              `@sakila | ."film actor"`,
-			wantSQL:         `SELECT * FROM "film actor"`,
-			overrideWantSQL: map[source.Type]string{mysql.Type: "SELECT * FROM `film actor`"},
-			skipExec:        true,
+			name:     "select/table-whitespace",
+			in:       `@sakila | ."film actor"`,
+			wantSQL:  `SELECT * FROM "film actor"`,
+			override: map[source.Type]string{mysql.Type: "SELECT * FROM `film actor`"},
+			skipExec: true,
 		},
 		{
-			name:            "select/cols-aliases",
-			in:              `@sakila | .actor | .first_name:given_name, .last_name:family_name`,
-			wantSQL:         `SELECT "first_name" AS "given_name", "last_name" AS "family_name" FROM "actor"`,
-			overrideWantSQL: map[source.Type]string{mysql.Type: "SELECT `first_name` AS `given_name`, `last_name` AS `family_name` FROM `actor`"},
-			wantRecs:        sakila.TblActorCount,
+			name:     "select/cols-aliases",
+			in:       `@sakila | .actor | .first_name:given_name, .last_name:family_name`,
+			wantSQL:  `SELECT "first_name" AS "given_name", "last_name" AS "family_name" FROM "actor"`,
+			override: map[source.Type]string{mysql.Type: "SELECT `first_name` AS `given_name`, `last_name` AS `family_name` FROM `actor`"},
+			wantRecs: sakila.TblActorCount,
 		},
 		{
-			name:            "select/count-star",
-			in:              `@sakila | .actor | count(*)`,
-			wantSQL:         `SELECT count(*) FROM "actor"`,
-			overrideWantSQL: map[source.Type]string{mysql.Type: "SELECT count(*) FROM `actor`"},
-			wantRecs:        1,
+			name:     "count/no-parens-no-args",
+			in:       `@sakila | .actor | count`,
+			wantSQL:  `SELECT count(*) AS "count" FROM "actor"`,
+			override: map[source.Type]string{mysql.Type: "SELECT count(*) AS `count` FROM `actor`"},
+			wantRecs: 1,
 		},
 		{
-			name:            "select/count",
-			in:              `@sakila | .actor | count()`,
-			wantSQL:         `SELECT count(*) FROM "actor"`,
-			overrideWantSQL: map[source.Type]string{mysql.Type: "SELECT count(*) FROM `actor`"},
-			wantRecs:        1,
+			name: "count/no-parens-no-args-with-alias-count",
+			// Test that the count:ALIAS form can handle the alias
+			// being a reserved word (count).
+			in:       `@sakila | .actor | count:count`,
+			wantSQL:  `SELECT count(*) AS "count" FROM "actor"`,
+			override: map[source.Type]string{mysql.Type: "SELECT count(*) AS `count` FROM `actor`"},
+			wantRecs: 1,
 		},
 		{
-			name:            "select/handle-table/cols",
-			in:              `@sakila.actor | .first_name, .last_name`,
-			wantSQL:         `SELECT "first_name", "last_name" FROM "actor"`,
-			overrideWantSQL: map[source.Type]string{mysql.Type: "SELECT `first_name`, `last_name` FROM `actor`"},
-			wantRecs:        sakila.TblActorCount,
+			name: "count/no-parens-no-args-with-alias-unique",
+			// Test that the count:ALIAS form can handle the alias
+			// being a reserved word (unique).
+			in:       `@sakila | .actor | count:unique`,
+			wantSQL:  `SELECT count(*) AS "unique" FROM "actor"`,
+			override: map[source.Type]string{mysql.Type: "SELECT count(*) AS `unique` FROM `actor`"},
+			wantRecs: 1,
 		},
 		{
-			name:            "select/handle-table/count-star",
-			in:              `@sakila.actor | count(*)`,
-			wantSQL:         `SELECT count(*) FROM "actor"`,
-			overrideWantSQL: map[source.Type]string{mysql.Type: "SELECT count(*) FROM `actor`"},
-			wantRecs:        1,
+			name:     "count/no-parens-no-args-with-alias-arbitrary",
+			in:       `@sakila | .actor | count:something_123`,
+			wantSQL:  `SELECT count(*) AS "something_123" FROM "actor"`,
+			override: map[source.Type]string{mysql.Type: "SELECT count(*) AS `something_123` FROM `actor`"},
+			wantRecs: 1,
 		},
 		{
-			name:            "select/handle-table/count-col",
-			in:              `@sakila.actor | count(."first name")`,
-			wantSQL:         `SELECT count("first name") FROM "actor"`,
-			overrideWantSQL: map[source.Type]string{mysql.Type: "SELECT count(`first name`) FROM `actor`"},
-			skipExec:        true,
+			name:     "count/count-parens-no-args",
+			in:       `@sakila | .actor | count()`,
+			wantSQL:  `SELECT count(*) AS "count" FROM "actor"`,
+			override: map[source.Type]string{mysql.Type: "SELECT count(*) AS `count` FROM `actor`"},
+			wantRecs: 1,
 		},
 		{
-			name:            "select/count-alias",
-			in:              `@sakila | .actor | count(*):quantity`,
-			wantSQL:         `SELECT count(*) AS "quantity" FROM "actor"`,
-			overrideWantSQL: map[source.Type]string{mysql.Type: "SELECT count(*) AS `quantity` FROM `actor`"},
-			wantRecs:        1,
+			name:    "count/error-star",
+			in:      `@sakila | .actor | count(*)`,
+			wantErr: true, // Star version is not supported
 		},
 		{
-			name:            "filter/equal",
-			in:              `@sakila | .actor | .actor_id == 1`,
-			wantSQL:         `SELECT * FROM "actor" WHERE "actor_id" = 1`,
-			overrideWantSQL: map[source.Type]string{mysql.Type: "SELECT * FROM `actor` WHERE `actor_id` = 1"},
-			wantRecs:        1,
+			name:     "count/single-selector",
+			in:       `@sakila | .actor | count(.first_name)`,
+			wantSQL:  `SELECT count("first_name") FROM "actor"`,
+			override: map[source.Type]string{mysql.Type: "SELECT count(`first_name`) FROM `actor`"},
+			wantRecs: 1,
 		},
 		{
-			name:            "join/single-selector",
-			in:              `@sakila | .actor, .film_actor | join(.actor_id)`,
-			wantSQL:         `SELECT * FROM "actor" INNER JOIN "film_actor" ON "actor"."actor_id" = "film_actor"."actor_id"`,
-			overrideWantSQL: map[source.Type]string{mysql.Type: "SELECT * FROM `actor` INNER JOIN `film_actor` ON `actor`.`actor_id` = `film_actor`.`actor_id`"},
-			wantRecs:        sakila.TblFilmActorCount,
+			name:    "count/error-multiple-selector",
+			in:      `@sakila | .actor | count(.first_name, .last_name)`,
+			wantErr: true, // Only a single selector is permitted
 		},
 		{
-			name:            "join/fq-table-cols-equal",
-			in:              `@sakila | .actor, .film_actor | join(.film_actor.actor_id == .actor.actor_id)`,
-			wantSQL:         `SELECT * FROM "actor" INNER JOIN "film_actor" ON "film_actor"."actor_id" = "actor"."actor_id"`,
-			overrideWantSQL: map[source.Type]string{mysql.Type: "SELECT * FROM `actor` INNER JOIN `film_actor` ON `film_actor`.`actor_id` = `actor`.`actor_id`"},
-			wantRecs:        sakila.TblFilmActorCount,
+			name:     "unique/single-col",
+			in:       `@sakila | .actor | .first_name | unique`,
+			wantSQL:  `SELECT DISTINCT "first_name" FROM "actor"`,
+			override: map[source.Type]string{mysql.Type: "SELECT DISTINCT `first_name` FROM `actor`"},
+			wantRecs: 128,
 		},
 		{
-			name:            "join/fq-table-cols-equal-whitespace",
-			in:              `@sakila | .actor, ."film actor" | join(."film actor".actor_id == .actor.actor_id)`,
-			wantSQL:         `SELECT * FROM "actor" INNER JOIN "film actor" ON "film actor"."actor_id" = "actor"."actor_id"`,
-			overrideWantSQL: map[source.Type]string{mysql.Type: "SELECT * FROM `actor` INNER JOIN `film actor` ON `film actor`.`actor_id` = `actor`.`actor_id`"},
-			skipExec:        true,
+			name:     "unique/no-col",
+			in:       `@sakila | .actor | unique`,
+			wantSQL:  `SELECT DISTINCT * FROM "actor"`,
+			override: map[source.Type]string{mysql.Type: "SELECT DISTINCT * FROM `actor`"},
+			wantRecs: sakila.TblActorCount,
 		},
 		{
-			name:            "order_by/single-element",
-			in:              `@sakila | .actor | order_by(.first_name)`,
-			wantSQL:         `SELECT * FROM "actor" ORDER BY "first_name"`,
-			overrideWantSQL: map[source.Type]string{mysql.Type: "SELECT * FROM `actor` ORDER BY `first_name`"},
-			wantRecs:        sakila.TblActorCount,
+			name:     "unique/no-col",
+			in:       `@sakila | .actor | unique`,
+			wantSQL:  `SELECT DISTINCT * FROM "actor"`,
+			override: map[source.Type]string{mysql.Type: "SELECT DISTINCT * FROM `actor`"},
+			wantRecs: sakila.TblActorCount,
 		},
 		{
-			name:            "order_by/single-element-table-selector",
-			in:              `@sakila | .actor | order_by(.actor.first_name)`,
-			wantSQL:         `SELECT * FROM "actor" ORDER BY "actor"."first_name"`,
-			overrideWantSQL: map[source.Type]string{mysql.Type: "SELECT * FROM `actor` ORDER BY `actor`.`first_name`"},
-			wantRecs:        sakila.TblActorCount,
+			name:     "select/handle-table/cols",
+			in:       `@sakila.actor | .first_name, .last_name`,
+			wantSQL:  `SELECT "first_name", "last_name" FROM "actor"`,
+			override: map[source.Type]string{mysql.Type: "SELECT `first_name`, `last_name` FROM `actor`"},
+			wantRecs: sakila.TblActorCount,
 		},
 		{
-			name:            "order_by/single-element-asc",
-			in:              `@sakila | .actor | order_by(.first_name+)`,
-			wantSQL:         `SELECT * FROM "actor" ORDER BY "first_name" ASC`,
-			overrideWantSQL: map[source.Type]string{mysql.Type: "SELECT * FROM `actor` ORDER BY `first_name` ASC"},
-			wantRecs:        sakila.TblActorCount,
+			name:     "select/handle-table/count",
+			in:       `@sakila.actor | count`,
+			wantSQL:  `SELECT count(*) AS "count" FROM "actor"`,
+			override: map[source.Type]string{mysql.Type: "SELECT count(*) AS `count` FROM `actor`"},
+			wantRecs: 1,
 		},
 		{
-			name:            "order_by/single-element-desc",
-			in:              `@sakila | .actor | order_by(.first_name-)`,
-			wantSQL:         `SELECT * FROM "actor" ORDER BY "first_name" DESC`,
-			overrideWantSQL: map[source.Type]string{mysql.Type: "SELECT * FROM `actor` ORDER BY `first_name` DESC"},
-			wantRecs:        sakila.TblActorCount,
+			name:     "select/handle-table/count-col",
+			in:       `@sakila.actor | count(."first name")`,
+			wantSQL:  `SELECT count("first name") FROM "actor"`,
+			override: map[source.Type]string{mysql.Type: "SELECT count(`first name`) FROM `actor`"},
+			skipExec: true,
 		},
 		{
-			name:            "order_by/multiple-elements",
-			in:              `@sakila | .actor | order_by(.first_name+, .last_name-)`,
-			wantSQL:         `SELECT * FROM "actor" ORDER BY "first_name" ASC, "last_name" DESC`,
-			overrideWantSQL: map[source.Type]string{mysql.Type: "SELECT * FROM `actor` ORDER BY `first_name` ASC, `last_name` DESC"},
-			wantRecs:        sakila.TblActorCount,
+			name:     "count/alias",
+			in:       `@sakila | .actor | count:quantity`,
+			wantSQL:  `SELECT count(*) AS "quantity" FROM "actor"`,
+			override: map[source.Type]string{mysql.Type: "SELECT count(*) AS `quantity` FROM `actor`"},
+			wantRecs: 1,
 		},
 		{
-			name:            "order_by/synonym-sort-by",
-			in:              `@sakila | .actor | sort_by(.first_name)`,
-			wantSQL:         `SELECT * FROM "actor" ORDER BY "first_name"`,
-			overrideWantSQL: map[source.Type]string{mysql.Type: "SELECT * FROM `actor` ORDER BY `first_name`"},
-			wantRecs:        sakila.TblActorCount,
+			name:     "select/count-same-alias",
+			in:       `@sakila | .actor | count:count`,
+			wantSQL:  `SELECT count(*) AS "count" FROM "actor"`,
+			override: map[source.Type]string{mysql.Type: "SELECT count(*) AS `count` FROM `actor`"},
+			wantRecs: 1,
+		},
+		{
+			name:     "filter/equal",
+			in:       `@sakila | .actor | .actor_id == 1`,
+			wantSQL:  `SELECT * FROM "actor" WHERE "actor_id" = 1`,
+			override: map[source.Type]string{mysql.Type: "SELECT * FROM `actor` WHERE `actor_id` = 1"},
+			wantRecs: 1,
+		},
+		{
+			name:     "join/single-selector",
+			in:       `@sakila | .actor, .film_actor | join(.actor_id)`,
+			wantSQL:  `SELECT * FROM "actor" INNER JOIN "film_actor" ON "actor"."actor_id" = "film_actor"."actor_id"`,
+			override: map[source.Type]string{mysql.Type: "SELECT * FROM `actor` INNER JOIN `film_actor` ON `actor`.`actor_id` = `film_actor`.`actor_id`"},
+			wantRecs: sakila.TblFilmActorCount,
+		},
+		{
+			name:     "join/fq-table-cols-equal",
+			in:       `@sakila | .actor, .film_actor | join(.film_actor.actor_id == .actor.actor_id)`,
+			wantSQL:  `SELECT * FROM "actor" INNER JOIN "film_actor" ON "film_actor"."actor_id" = "actor"."actor_id"`,
+			override: map[source.Type]string{mysql.Type: "SELECT * FROM `actor` INNER JOIN `film_actor` ON `film_actor`.`actor_id` = `actor`.`actor_id`"},
+			wantRecs: sakila.TblFilmActorCount,
+		},
+		{
+			name:     "join/fq-table-cols-equal-whitespace",
+			in:       `@sakila | .actor, ."film actor" | join(."film actor".actor_id == .actor.actor_id)`,
+			wantSQL:  `SELECT * FROM "actor" INNER JOIN "film actor" ON "film actor"."actor_id" = "actor"."actor_id"`,
+			override: map[source.Type]string{mysql.Type: "SELECT * FROM `actor` INNER JOIN `film actor` ON `film actor`.`actor_id` = `actor`.`actor_id`"},
+			skipExec: true,
+		},
+		{
+			name:     "order_by/single-element",
+			in:       `@sakila | .actor | order_by(.first_name)`,
+			wantSQL:  `SELECT * FROM "actor" ORDER BY "first_name"`,
+			override: map[source.Type]string{mysql.Type: "SELECT * FROM `actor` ORDER BY `first_name`"},
+			wantRecs: sakila.TblActorCount,
+		},
+		{
+			name:     "order_by/single-element-table-selector",
+			in:       `@sakila | .actor | order_by(.actor.first_name)`,
+			wantSQL:  `SELECT * FROM "actor" ORDER BY "actor"."first_name"`,
+			override: map[source.Type]string{mysql.Type: "SELECT * FROM `actor` ORDER BY `actor`.`first_name`"},
+			wantRecs: sakila.TblActorCount,
+		},
+		{
+			name:     "order_by/single-element-asc",
+			in:       `@sakila | .actor | order_by(.first_name+)`,
+			wantSQL:  `SELECT * FROM "actor" ORDER BY "first_name" ASC`,
+			override: map[source.Type]string{mysql.Type: "SELECT * FROM `actor` ORDER BY `first_name` ASC"},
+			wantRecs: sakila.TblActorCount,
+		},
+		{
+			name:     "order_by/single-element-desc",
+			in:       `@sakila | .actor | order_by(.first_name-)`,
+			wantSQL:  `SELECT * FROM "actor" ORDER BY "first_name" DESC`,
+			override: map[source.Type]string{mysql.Type: "SELECT * FROM `actor` ORDER BY `first_name` DESC"},
+			wantRecs: sakila.TblActorCount,
+		},
+		{
+			name:     "order_by/multiple-elements",
+			in:       `@sakila | .actor | order_by(.first_name+, .last_name-)`,
+			wantSQL:  `SELECT * FROM "actor" ORDER BY "first_name" ASC, "last_name" DESC`,
+			override: map[source.Type]string{mysql.Type: "SELECT * FROM `actor` ORDER BY `first_name` ASC, `last_name` DESC"},
+			wantRecs: sakila.TblActorCount,
+		},
+		{
+			name:     "order_by/synonym-sort-by",
+			in:       `@sakila | .actor | sort_by(.first_name)`,
+			wantSQL:  `SELECT * FROM "actor" ORDER BY "first_name"`,
+			override: map[source.Type]string{mysql.Type: "SELECT * FROM `actor` ORDER BY `first_name`"},
+			wantRecs: sakila.TblActorCount,
 		},
 		{
 			name:    "order_by/error-no-selector",
@@ -224,18 +295,18 @@ func TestSLQ2SQLNew(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:            "group_by/single-term",
-			in:              `@sakila | .payment | .customer_id, sum(.amount) | group_by(.customer_id)`,
-			wantSQL:         `SELECT "customer_id", sum("amount") FROM "payment" GROUP BY "customer_id"`,
-			overrideWantSQL: map[source.Type]string{mysql.Type: "SELECT `customer_id`, sum(`amount`) FROM `payment` GROUP BY `customer_id`"},
-			wantRecs:        599,
+			name:     "group_by/single-term",
+			in:       `@sakila | .payment | .customer_id, sum(.amount) | group_by(.customer_id)`,
+			wantSQL:  `SELECT "customer_id", sum("amount") AS "sum(.amount)" FROM "payment" GROUP BY "customer_id"`,
+			override: map[source.Type]string{mysql.Type: "SELECT `customer_id`, sum(`amount`) AS `sum(.amount)` FROM `payment` GROUP BY `customer_id`"},
+			wantRecs: 599,
 		},
 		{
-			name:            "group_by/multiple_terms",
-			in:              `@sakila | .payment | .customer_id, .staff_id, sum(.amount) | group_by(.customer_id, .staff_id)`,
-			wantSQL:         `SELECT "customer_id", "staff_id", sum("amount") FROM "payment" GROUP BY "customer_id", "staff_id"`,
-			overrideWantSQL: map[source.Type]string{mysql.Type: "SELECT `customer_id`, `staff_id`, sum(`amount`) FROM `payment` GROUP BY `customer_id`, `staff_id`"},
-			wantRecs:        1198,
+			name:     "group_by/multiple_terms",
+			in:       `@sakila | .payment | .customer_id, .staff_id, sum(.amount) | group_by(.customer_id, .staff_id)`,
+			wantSQL:  `SELECT "customer_id", "staff_id", sum("amount") AS "sum(.amount)" FROM "payment" GROUP BY "customer_id", "staff_id"`,
+			override: map[source.Type]string{mysql.Type: "SELECT `customer_id`, `staff_id`, sum(`amount`) AS `sum(.amount)` FROM `payment` GROUP BY `customer_id`, `staff_id`"},
+			wantRecs: 1198,
 		},
 		{
 			name:     "group_by/with_func/sqlite",
@@ -247,28 +318,28 @@ func TestSLQ2SQLNew(t *testing.T) {
 		{
 			name:     "datetime/strftime/sqlite",
 			in:       `@sakila | .payment | strftime("%m", .payment_date)`,
-			wantSQL:  `SELECT strftime('%m', "payment_date") FROM "payment"`,
+			wantSQL:  `SELECT strftime('%m', "payment_date") AS "strftime(""%m"",.payment_date)" FROM "payment"`,
 			onlyFor:  []source.Type{sqlite3.Type},
 			wantRecs: sakila.TblPaymentCount,
 		},
 		{
 			name:     "datetime/date_trunc/postgres",
 			in:       `@sakila | .payment | date_trunc("month", .payment_date)`,
-			wantSQL:  `SELECT date_trunc('month', "payment_date") FROM "payment"`,
+			wantSQL:  `SELECT date_trunc('month', "payment_date") AS "date_trunc(""month"",.payment_date)" FROM "payment"`,
 			onlyFor:  []source.Type{postgres.Type},
 			wantRecs: sakila.TblPaymentCount,
 		},
 		{
 			name:     "datetime/month/sqlserver",
 			in:       `@sakila | .payment | month(.payment_date)`,
-			wantSQL:  `SELECT month("payment_date") FROM "payment"`,
+			wantSQL:  `SELECT month("payment_date") AS "month(.payment_date)" FROM "payment"`,
 			onlyFor:  []source.Type{sqlserver.Type},
 			wantRecs: sakila.TblPaymentCount,
 		},
 		{
 			name:     "datetime/date_format/mysql",
 			in:       `@sakila | .payment | date_format(.payment_date, "%m")`,
-			wantSQL:  "SELECT date_format(`payment_date`, '%m') FROM `payment`",
+			wantSQL:  "SELECT date_format(`payment_date`, '%m') AS `date_format(.payment_date,\"%m\")` FROM `payment`",
 			onlyFor:  []source.Type{mysql.Type},
 			wantRecs: sakila.TblPaymentCount,
 		},
@@ -282,6 +353,7 @@ func TestSLQ2SQLNew(t *testing.T) {
 				t.Skip()
 			}
 			srcs := testh.New(t).NewSourceSet(sakila.SQLLatest()...)
+			// srcs := testh.New(t).NewSourceSet(sakila.SL3) // FIXME: remove when done debugging
 			for _, src := range srcs.Items() {
 				src := src
 
@@ -295,7 +367,7 @@ func TestSLQ2SQLNew(t *testing.T) {
 					in := strings.Replace(tc.in, "@sakila", src.Handle, 1)
 					t.Logf(in)
 					want := tc.wantSQL
-					if overrideWant, ok := tc.overrideWantSQL[src.Type]; ok {
+					if overrideWant, ok := tc.override[src.Type]; ok {
 						want = overrideWant
 					}
 
@@ -326,4 +398,12 @@ func TestSLQ2SQLNew(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestQuoting(t *testing.T) {
+	w := strconv.Quote("")
+	t.Log(w)
+
+	s := strconv.Quote(`hello "friend"`)
+	t.Log(s)
 }

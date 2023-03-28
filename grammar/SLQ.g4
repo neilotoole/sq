@@ -2,25 +2,33 @@
 // The grammar is not yet finalized; it is subject to change in any new sq release.
 grammar SLQ;
 
+// alias, for columns, implements "col AS alias".
+// For example: ".first_name:given_name" : "given_name" is the alias.
+
+
 stmtList: ';'* query ( ';'+ query)* ';'*;
 
 query: segment ('|' segment)*;
 
 segment: (element) (',' element)*;
 
-element:
-	handleTable
+element
+    : handleTable
 	| handle
 	| selectorElement
 	| join
 	| groupBy
 	| orderBy
 	| rowRange
+	| uniqueFunc
+	| countFunc
 	| funcElement
 	| expr;
 
 // cmpr is a comparison operator.
 cmpr: LT_EQ | LT | GT_EQ | GT | EQ | NEQ;
+
+
 
 funcElement: func (alias)?;
 func: funcName '(' ( expr ( ',' expr)* | '*')? ')';
@@ -28,9 +36,56 @@ funcName: ID;
 
 join: ('join') '(' joinConstraint ')';
 
-joinConstraint:
-	selector cmpr selector // .user.uid == .address.userid
+joinConstraint
+    : selector cmpr selector // .user.uid == .address.userid
 	| selector ; // .uid
+
+/*
+uniqueFunc
+----------
+
+uniqueFunc implements SQL's DISTINCT mechanism.
+
+    .actor | .first_name | unique
+    .actor | unique
+
+The func takes zero args.
+*/
+uniqueFunc: 'unique';
+
+/*
+countFunc
+---------
+
+This implements SQL's COUNT function. It has special handling vs other
+funcs because of the several forms it can take.
+
+    .actor | count
+    .actor | count:quantity                 # alias
+    .actor | count()
+    .actor | count(*)
+    .actor | count(.first_name):quanity     # alias
+
+ TODO: how to handle COUNT DISTINCT?
+ */
+countFunc:
+//    : COUNT (LPAR (selector)? RPAR)?;
+//    : 'count' (LPAR (selector)? RPAR)? (ALIAS)?
+//    : 'count:count' // Deal with some pathological cases.
+//    | 'count():count'
+//    | 'count' (LPAR (selector)? RPAR)? (alias)?
+
+//    | 'count' (LPAR (selector)? RPAR)? (':count')?
+//    | 'count' (LPAR (selector)? RPAR)? (ALIAS_RESERVED)?
+    | 'count' (LPAR (selector)? RPAR)? (alias)?
+    ;
+
+
+
+//COUNT: 'count';
+
+
+//ALIAS: ':' [a-zA-Z_][a-zA-Z0-9_]*;
 
 /*
 group_by
@@ -96,15 +151,22 @@ selector: NAME (NAME)?;
 // - ."actor".first_name
 selectorElement: selector (alias)?;
 
-// alias, for columns, implements "col AS alias".
-// For example: ".first_name:given_name" : "given_name" is the alias.
-alias: ':' ID;
-
-
-//FUNC_NAME: [a-z_] [a-z_0-9]*;
-
-
-
+alias: ALIAS_RESERVED | ':' ID;
+// The grammar has problems dealing with "reserved" lexer tokens.
+// Basically, there's a problem with using "column:KEYWORD".
+// ALIAS_RESERVED is a hack to deal with those cases.
+// The grammar could probably be refactored to not need this.
+ALIAS_RESERVED
+    // TODO: Update ALIAS_RESERVED with all "keywords"
+    : ':count'
+    | ':count_unique'
+    | ':avg'
+    | ':group_by'
+    | ':max'
+    | ':min'
+    | ':order_by'
+    | ':unique'
+    ;
 
 // handleTable is a handle.table pair.
 // - @my1.user
@@ -247,3 +309,5 @@ LINECOMMENT: '#' .*? '\n' -> skip;
 //    | '[' ~']'* ']'
 //    | [A-Z_] [A-Z_0-9]*
 //; // TODO check: needs more chars in set
+
+

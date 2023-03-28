@@ -1,7 +1,6 @@
 package sqlbuilder
 
 import (
-	"bytes"
 	"fmt"
 	"math"
 	"strings"
@@ -12,7 +11,10 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
-const singleQuote = '\''
+const (
+	singleQuote = '\''
+	sp          = ' '
+)
 
 // baseOps is a map of SLQ operator (e.g. "==" or "!=") to its default SQL rendering.
 var baseOps = map[string]string{
@@ -35,9 +37,19 @@ var _ FragmentBuilder = (*BaseFragmentBuilder)(nil)
 type BaseFragmentBuilder struct {
 	Log lg.Log
 	// Quote is the driver-specific quote rune, e.g. " or `
-	Quote    string
-	ColQuote string
-	Ops      map[string]string
+	Quote string
+
+	// QuoteFn quotes an identifier.
+	QuoteFn func(string) string
+	Ops     map[string]string
+}
+
+// Distinct implements FragmentBuilder.
+func (fb *BaseFragmentBuilder) Distinct(n *ast.UniqueNode) (string, error) {
+	if n == nil {
+		return "", nil
+	}
+	return "DISTINCT", nil
 }
 
 // GroupBy implements FragmentBuilder.
@@ -115,6 +127,10 @@ func (fb *BaseFragmentBuilder) OrderBy(ob *ast.OrderByNode) (string, error) {
 
 // Operator implements FragmentBuilder.
 func (fb *BaseFragmentBuilder) Operator(op *ast.OperatorNode) (string, error) {
+	if op == nil {
+		return "", nil
+	}
+
 	if val, ok := fb.Ops[op.Text()]; ok {
 		return val, nil
 	}
@@ -124,6 +140,9 @@ func (fb *BaseFragmentBuilder) Operator(op *ast.OperatorNode) (string, error) {
 
 // Where implements FragmentBuilder.
 func (fb *BaseFragmentBuilder) Where(where *ast.WhereNode) (string, error) {
+	if where == nil {
+		return "", nil
+	}
 	sql, err := fb.Expr(where.Expr())
 	if err != nil {
 		return "", err
@@ -135,66 +154,75 @@ func (fb *BaseFragmentBuilder) Where(where *ast.WhereNode) (string, error) {
 
 // Expr implements FragmentBuilder.
 func (fb *BaseFragmentBuilder) Expr(expr *ast.ExprNode) (string, error) {
-	var sql string
+	if expr == nil {
+		return "", nil
+	}
+	var sb strings.Builder
 
 	for _, child := range expr.Children() {
 		switch child := child.(type) {
 		case *ast.TblColSelectorNode, *ast.ColSelectorNode:
-			val, err := renderSelectorNode(fb.ColQuote, child)
+			val, err := renderSelectorNode(fb.Quote, child)
 			if err != nil {
 				return "", err
 			}
-			sql = val
+			sb.WriteString(val)
 		case *ast.OperatorNode:
 			val, err := fb.Operator(child)
 			if err != nil {
 				return "", err
 			}
-			sql = sql + " " + val
+
+			sb.WriteRune(sp)
+			sb.WriteString(val)
 		case *ast.ExprNode:
 			val, err := fb.Expr(child)
 			if err != nil {
 				return "", err
 			}
-			sql = sql + " " + val
+			sb.WriteRune(sp)
+			sb.WriteString(val)
 		default:
-			sql = sql + " " + child.Text()
+			sb.WriteRune(sp)
+			sb.WriteString(child.Text())
 		}
 	}
 
-	return sql, nil
-}
-
-// SelectAll implements FragmentBuilder.
-func (fb *BaseFragmentBuilder) SelectAll(tblSel *ast.TblSelectorNode) (string, error) {
-	sql := fmt.Sprintf("SELECT * FROM %v%s%v", fb.Quote, tblSel.TblName(), fb.Quote)
-	return sql, nil
+	return sb.String(), nil
 }
 
 // Function implements FragmentBuilder.
 func (fb *BaseFragmentBuilder) Function(fn *ast.FuncNode) (string, error) {
-	buf := &bytes.Buffer{}
+	sb := strings.Builder{}
+	fnName := strings.ToLower(fn.FuncName())
 	children := fn.Children()
 
 	if len(children) == 0 {
-		// no children, let's just grab the direct text
+		sb.WriteString(fnName)
+		sb.WriteRune('(')
 
-		// HACK: this stuff basically doesn't work at all...
-		//  but for COUNT(), here's a quick hack to make it work on some DBs
-		if fn.Context().GetText() == "count()" {
-			buf.WriteString("count(*)")
-		} else {
-			buf.WriteString(fn.Context().GetText())
+		if fnName == "count" {
+			// Special handling for the count function, because COUNT()
+			// isn't valid, but COUNT(*) is.
+			sb.WriteRune('*')
 		}
 
-		return buf.String(), nil
+		sb.WriteRune(')')
+		return sb.String(), nil
 	}
 
-	buf.WriteString(strings.ToLower(fn.FuncName()))
-	buf.WriteRune('(')
+	// Special handling for "count_unique(.col)" function. We translate
+	// it to "SELECT count(DISTINCT col)".
+	if fnName == "count_unique" {
+		sb.WriteString("count(DISTINCT ")
+	} else {
+		sb.WriteString(fnName)
+		sb.WriteRune('(')
+	}
+
 	for i, child := range children {
 		if i > 0 {
-			buf.WriteString(", ")
+			sb.WriteString(", ")
 		}
 
 		switch node := child.(type) {
@@ -203,9 +231,9 @@ func (fb *BaseFragmentBuilder) Function(fn *ast.FuncNode) (string, error) {
 			if err != nil {
 				return "", err
 			}
-			buf.WriteString(s)
+			sb.WriteString(s)
 		case *ast.OperatorNode:
-			buf.WriteString(node.Text())
+			sb.WriteString(node.Text())
 		case *ast.LiteralNode:
 			// TODO: This is all a bit of a mess. We probably need to
 			// move to using bound parameters instead of inlining
@@ -217,60 +245,21 @@ func (fb *BaseFragmentBuilder) Function(fn *ast.FuncNode) (string, error) {
 
 			if wasQuoted {
 				// The literal had quotes, so it's a regular string.
-				buf.WriteRune(singleQuote)
-				buf.WriteString(escapeLiteralString(val))
-				buf.WriteRune(singleQuote)
+				// FIXME: replace with stringz.SingleQuote
+				sb.WriteRune(singleQuote)
+				sb.WriteString(escapeLiteral(val))
+				sb.WriteRune(singleQuote)
 			} else {
-				buf.WriteString(val)
+				sb.WriteString(val)
 			}
 		default:
 			return "", errz.Errorf("unknown AST child node %T: %s", node, node)
 		}
 	}
 
-	buf.WriteRune(')')
-	sql := buf.String()
+	sb.WriteRune(')')
+	sql := sb.String()
 	return sql, nil
-}
-
-// escapeLiteralString escapes the single quotes in s.
-func escapeLiteralString(s string) string {
-	if !strings.ContainsRune(s, singleQuote) {
-		return s
-	}
-
-	sb := strings.Builder{}
-	for _, r := range s {
-		if r == singleQuote {
-			_, _ = sb.WriteRune(singleQuote)
-			_, _ = sb.WriteRune(singleQuote)
-			continue
-		}
-
-		_, _ = sb.WriteRune(r)
-	}
-
-	return sb.String()
-}
-
-// unquoteLiteral returns true if s is a "quoted" string, and also returns
-// the value with the quotes stripped. An error is returned if the string
-// is malformed.
-func unquoteLiteral(s string) (val string, ok bool, err error) {
-	hasPrefix := strings.HasPrefix(s, `"`)
-	hasSuffix := strings.HasSuffix(s, `"`)
-
-	if hasPrefix && hasSuffix {
-		val = strings.TrimPrefix(s, `"`)
-		val = strings.TrimSuffix(val, `"`)
-		return val, true, nil
-	}
-
-	if hasPrefix != hasSuffix {
-		return "", false, errz.Errorf("malformed literal: %s", s)
-	}
-
-	return s, false, nil
 }
 
 // FromTable implements FragmentBuilder.
@@ -484,7 +473,7 @@ func (fb *BaseFragmentBuilder) Range(rr *ast.RowRangeNode) (string, error) {
 // SelectCols implements FragmentBuilder.
 func (fb *BaseFragmentBuilder) SelectCols(cols []ast.ResultColumn) (string, error) {
 	if len(cols) == 0 {
-		return "SELECT *", nil
+		return "*", nil
 	}
 
 	vals := make([]string, len(cols))
@@ -494,7 +483,7 @@ func (fb *BaseFragmentBuilder) SelectCols(cols []ast.ResultColumn) (string, erro
 		// "SELECT first_name AS given_name FROM actor".
 		var aliasFrag string
 		if col.Alias() != "" {
-			aliasFrag = fmt.Sprintf(" AS %s%s%s", fb.Quote, col.Alias(), fb.Quote)
+			aliasFrag = " AS " + fb.QuoteFn(col.Alias())
 		}
 
 		switch col := col.(type) {
@@ -510,14 +499,14 @@ func (fb *BaseFragmentBuilder) SelectCols(cols []ast.ResultColumn) (string, erro
 			}
 		default:
 			// FIXME: We should be exhaustively checking the cases.
-			// it's probably an expression
+			// Here, it's probably an ExprNode?
 			vals[i] = col.Text() // for now, we just return the raw text
 		}
 
 		vals[i] += aliasFrag
 	}
 
-	text := "SELECT " + strings.Join(vals, ", ")
+	text := strings.Join(vals, ", ")
 	return text, nil
 }
 
@@ -526,71 +515,123 @@ var _ QueryBuilder = (*BaseQueryBuilder)(nil)
 // BaseQueryBuilder is a default implementation
 // of sqlbuilder.QueryBuilder.
 type BaseQueryBuilder struct {
-	SelectClause  string
-	FromClause    string
-	WhereClause   string
-	RangeClause   string
-	OrderByClause string
-	GroupByClause string
+	Distinct string
+	Columns  string
+	From     string
+	Where    string
+	GroupBy  string
+	OrderBy  string
+	Range    string
+}
+
+// SetDistinct implements QueryBuilder.
+func (qb *BaseQueryBuilder) SetDistinct(d string) {
+	qb.Distinct = d
 }
 
 // SetGroupBy implements QueryBuilder.
 func (qb *BaseQueryBuilder) SetGroupBy(gb string) {
-	qb.GroupByClause = gb
+	qb.GroupBy = gb
 }
 
 // SetOrderBy implements QueryBuilder.
 func (qb *BaseQueryBuilder) SetOrderBy(ob string) {
-	qb.OrderByClause = ob
+	qb.OrderBy = ob
 }
 
-// SetSelect implements QueryBuilder.
-func (qb *BaseQueryBuilder) SetSelect(cols string) {
-	qb.SelectClause = cols
+// SetColumns implements QueryBuilder.
+func (qb *BaseQueryBuilder) SetColumns(cols string) {
+	qb.Columns = cols
 }
 
 // SetFrom implements QueryBuilder.
 func (qb *BaseQueryBuilder) SetFrom(from string) {
-	qb.FromClause = from
+	qb.From = from
 }
 
 // SetWhere implements QueryBuilder.
 func (qb *BaseQueryBuilder) SetWhere(where string) {
-	qb.WhereClause = where
+	qb.Where = where
 }
 
 // SetRange implements QueryBuilder.
 func (qb *BaseQueryBuilder) SetRange(rng string) {
-	qb.RangeClause = rng
+	qb.Range = rng
 }
 
-// SQL implements QueryBuilder.
-func (qb *BaseQueryBuilder) SQL() (string, error) {
-	buf := &bytes.Buffer{}
+// Render implements QueryBuilder.
+func (qb *BaseQueryBuilder) Render() (string, error) {
+	sb := strings.Builder{}
 
-	buf.WriteString(qb.SelectClause)
-	buf.WriteRune(' ')
-	buf.WriteString(qb.FromClause)
+	sb.WriteString("SELECT")
 
-	if qb.WhereClause != "" {
-		buf.WriteRune(' ')
-		buf.WriteString(qb.WhereClause)
+	if qb.Distinct != "" {
+		sb.WriteRune(sp)
+		sb.WriteString(qb.Distinct)
 	}
 
-	if qb.OrderByClause != "" {
-		buf.WriteRune(' ')
-		buf.WriteString(qb.OrderByClause)
+	sb.WriteRune(sp)
+	sb.WriteString(qb.Columns)
+	sb.WriteRune(sp)
+	sb.WriteString(qb.From)
+
+	if qb.Where != "" {
+		sb.WriteRune(sp)
+		sb.WriteString(qb.Where)
 	}
 
-	if qb.GroupByClause != "" {
-		buf.WriteRune(' ')
-		buf.WriteString(qb.GroupByClause)
+	if qb.OrderBy != "" {
+		sb.WriteRune(sp)
+		sb.WriteString(qb.OrderBy)
 	}
 
-	if qb.RangeClause != "" {
-		buf.WriteRune(' ')
-		buf.WriteString(qb.RangeClause)
+	if qb.GroupBy != "" {
+		sb.WriteRune(sp)
+		sb.WriteString(qb.GroupBy)
 	}
 
-	return buf.String(), nil
+	if qb.Range != "" {
+		sb.WriteRune(sp)
+		sb.WriteString(qb.Range)
+	}
+
+	return sb.String(), nil
+}
+
+// escapeLiteral escapes the single quotes in s.
+//
+//	jessie's girl  -->  jessie''s girl
+func escapeLiteral(s string) string {
+	sb := strings.Builder{}
+	for _, r := range s {
+		if r == singleQuote {
+			_, _ = sb.WriteRune(singleQuote)
+		}
+
+		_, _ = sb.WriteRune(r)
+	}
+
+	return sb.String()
+}
+
+// unquoteLiteral returns true if s is a double-quoted string, and also returns
+// the value with the quotes stripped. An error is returned if the string
+// is malformed.
+//
+// REVISIT: why not use strconv.Unquote or such?
+func unquoteLiteral(s string) (val string, ok bool, err error) {
+	hasPrefix := strings.HasPrefix(s, `"`)
+	hasSuffix := strings.HasSuffix(s, `"`)
+
+	if hasPrefix && hasSuffix {
+		val = strings.TrimPrefix(s, `"`)
+		val = strings.TrimSuffix(val, `"`)
+		return val, true, nil
+	}
+
+	if hasPrefix != hasSuffix {
+		return "", false, errz.Errorf("malformed literal: %s", s)
+	}
+
+	return s, false, nil
 }

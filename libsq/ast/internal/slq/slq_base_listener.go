@@ -80,6 +80,18 @@ func (s *BaseSLQListener) EnterJoinConstraint(ctx *JoinConstraintContext) {}
 // ExitJoinConstraint is called when production joinConstraint is exited.
 func (s *BaseSLQListener) ExitJoinConstraint(ctx *JoinConstraintContext) {}
 
+// EnterUniqueFunc is called when production uniqueFunc is entered.
+func (s *BaseSLQListener) EnterUniqueFunc(ctx *UniqueFuncContext) {}
+
+// ExitUniqueFunc is called when production uniqueFunc is exited.
+func (s *BaseSLQListener) ExitUniqueFunc(ctx *UniqueFuncContext) {}
+
+// EnterCountFunc is called when production countFunc is entered.
+func (s *BaseSLQListener) EnterCountFunc(ctx *CountFuncContext) {}
+
+// ExitCountFunc is called when production countFunc is exited.
+func (s *BaseSLQListener) ExitCountFunc(ctx *CountFuncContext) {}
+
 // EnterGroupByTerm is called when production groupByTerm is entered.
 func (s *BaseSLQListener) EnterGroupByTerm(ctx *GroupByTermContext) {}
 

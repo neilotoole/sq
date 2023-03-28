@@ -12,10 +12,10 @@ type FragmentBuilder interface {
 	FromTable(tblSel *ast.TblSelectorNode) (string, error)
 
 	// SelectCols renders a column names/expression fragment.
+	// It shouldn't render the actual SELECT keyword. Example:
+	//
+	//   "first_name", "last name" AS given_name
 	SelectCols(cols []ast.ResultColumn) (string, error)
-
-	// SelectAll renders a SELECT * fragment.
-	SelectAll(tblSel *ast.TblSelectorNode) (string, error)
 
 	// Range renders a row range fragment.
 	Range(rr *ast.RowRangeNode) (string, error)
@@ -40,12 +40,16 @@ type FragmentBuilder interface {
 
 	// Operator renders an operator fragment.
 	Operator(op *ast.OperatorNode) (string, error)
+
+	// Distinct renders the DISTINCT fragment. Returns an
+	// empty string if n is nil.
+	Distinct(n *ast.UniqueNode) (string, error)
 }
 
 // QueryBuilder provides an abstraction for building a SQL query.
 type QueryBuilder interface {
-	// SetSelect sets the columns to select.
-	SetSelect(cols string)
+	// SetColumns sets the columns to select.
+	SetColumns(cols string)
 
 	// SetFrom sets the FROM clause.
 	SetFrom(from string)
@@ -53,7 +57,7 @@ type QueryBuilder interface {
 	// SetWhere sets the WHERE clause.
 	SetWhere(where string)
 
-	// SetRange sets the range clause.
+	// SetRange sets the LIMIT ... OFFSET clause.
 	SetRange(rng string)
 
 	// SetOrderBy sets the ORDER BY clause.
@@ -62,6 +66,9 @@ type QueryBuilder interface {
 	// SetGroupBy sets the GROUP BY clause.
 	SetGroupBy(gb string)
 
-	// SQL renders the SQL query.
-	SQL() (string, error)
+	// SetDistinct sets the DISTINCT clause.
+	SetDistinct(d string)
+
+	// Render renders the SQL query.
+	Render() (string, error)
 }

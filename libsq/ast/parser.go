@@ -182,6 +182,10 @@ func (v *parseTreeVisitor) Visit(ctx antlr.ParseTree) any {
 		return v.VisitTerminal(ctx)
 	case *slq.SelectorElementContext:
 		return v.VisitSelectorElement(ctx)
+	case *slq.UniqueFuncContext:
+		return v.VisitUniqueFunc(ctx)
+	case *slq.CountFuncContext:
+		return v.VisitCountFunc(ctx)
 	}
 
 	// should never be reached
@@ -291,79 +295,51 @@ func (v *parseTreeVisitor) VisitElement(ctx *slq.ElementContext) any {
 
 // VisitAlias implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitAlias(ctx *slq.AliasContext) any {
-	// TODO: Probably don't need this.
-	alias := ctx.ID().GetText()
+	if ctx.ID() == nil && ctx.GetText() == "" {
+		return nil
+	}
+
+	var alias string
+	if ctx.ID() != nil {
+		alias = ctx.ID().GetText()
+	}
 
 	switch node := v.cur.(type) {
 	case *SelectorNode:
 		node.alias = alias
 	case *FuncNode:
-		node.alias = alias
+		if alias != "" {
+			node.alias = alias
+			return nil
+		}
+
+		// HACK: The grammar has a dodgy hack to deal with no-arg funcs
+		// with an alias that is a reserved word.
+		//
+		// For example, let's start with this snippet. Note that "count" is
+		// a function, equivalent to count().
+		//
+		//   .actor | count
+		//
+		// Then add an alias that is a reserved word, such as a function name.
+		// In this example, we will use an alias of "count" as well.
+		//
+		//   .actor | count:count
+		//
+		// Well, the grammar doesn't know how to handle this. Most likely the
+		// grammar could be refactored to deal with this more gracefully. The
+		// hack is to look at the full text of the context (e.g. ":count"),
+		// instead of just ID, and look for the alias after the colon.
+
+		text := ctx.GetText()
+		// text = strings.TrimPrefix(text, node.fnName)
+		node.alias = strings.TrimPrefix(text, ":")
+
 	default:
 		return errorf("alias not allowed for type %T: %v", node, ctx.GetText())
 	}
 
 	return nil
-}
-
-// VisitFuncElement implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitFuncElement(ctx *slq.FuncElementContext) any {
-	childCount := ctx.GetChildCount()
-	if childCount == 0 || childCount > 2 {
-		return errorf("parser: invalid function: expected 1 or 2 children, but got %d: %v",
-			childCount, ctx.GetText())
-	}
-
-	// e.g. count(*)
-	child1 := ctx.GetChild(0)
-	fnCtx, ok := child1.(*slq.FuncContext)
-	if !ok {
-		return errorf("expected first child to be %T but was %T: %v", fnCtx, child1, ctx.GetText())
-	}
-
-	if err := v.VisitFunc(fnCtx); err != nil {
-		return err
-	}
-
-	// Check if there's an alias
-	if childCount == 2 {
-		child2 := ctx.GetChild(1)
-		aliasCtx, ok := child2.(*slq.AliasContext)
-		if !ok {
-			return errorf("expected second child to be %T but was %T: %v", aliasCtx, child2, ctx.GetText())
-		}
-
-		// VisitAlias will expect v.cur to be a FuncNode.
-		lastNode := nodeLastChild(v.cur)
-		fnNode, ok := lastNode.(*FuncNode)
-		if !ok {
-			return errorf("expected %T but got %T: %v", fnNode, lastNode, ctx.GetText())
-		}
-
-		return v.using(fnNode, func() any {
-			return v.VisitAlias(aliasCtx)
-		})
-	}
-
-	return nil
-}
-
-// VisitFunc implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitFunc(ctx *slq.FuncContext) any {
-	fn := &FuncNode{fnName: ctx.FuncName().GetText()}
-	fn.ctx = ctx
-	err := fn.SetParent(v.cur)
-	if err != nil {
-		return err
-	}
-
-	if err2 := v.using(fn, func() any {
-		return v.VisitChildren(ctx)
-	}); err2 != nil {
-		return err2
-	}
-
-	return v.cur.AddChild(fn)
 }
 
 // VisitExpr implements slq.SLQVisitor.
@@ -425,11 +401,6 @@ func (v *parseTreeVisitor) VisitLiteral(ctx *slq.LiteralContext) any {
 
 // VisitUnaryOperator implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitUnaryOperator(ctx *slq.UnaryOperatorContext) any {
-	return nil
-}
-
-// VisitFuncName implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitFuncName(ctx *slq.FuncNameContext) any {
 	return nil
 }
 

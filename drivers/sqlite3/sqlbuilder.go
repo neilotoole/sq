@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/stringz"
+
 	"github.com/neilotoole/sq/libsq/ast/sqlbuilder"
 	"github.com/neilotoole/sq/libsq/core/kind"
 
@@ -14,7 +16,12 @@ import (
 )
 
 func newFragmentBuilder(log lg.Log) *sqlbuilder.BaseFragmentBuilder {
-	return &sqlbuilder.BaseFragmentBuilder{Log: log, Quote: `"`, ColQuote: `"`, Ops: sqlbuilder.BaseOps()}
+	return &sqlbuilder.BaseFragmentBuilder{
+		Log:     log,
+		Quote:   `"`,
+		QuoteFn: stringz.DoubleQuote,
+		Ops:     sqlbuilder.BaseOps(),
+	}
 }
 
 // createTblKindDefaults is a mapping of Kind to the value
