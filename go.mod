@@ -21,7 +21,7 @@ require (
 	github.com/microsoft/go-mssqldb v0.19.0
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/neilotoole/errgroup v0.1.5
-	github.com/neilotoole/lg v0.3.0
+	github.com/neilotoole/lg v1.0.0
 	github.com/pkg/errors v0.9.1
 	github.com/ryboe/q v1.0.18
 	github.com/segmentio/encoding v0.1.14 // Be very careful changing this encoding packge
@@ -46,6 +46,7 @@ require (
 	github.com/muesli/mango-cobra v1.2.0
 	github.com/muesli/roff v0.1.0
 	github.com/samber/lo v1.37.0
+	golang.org/x/exp v0.0.0-20221217163422-3c43f8badb15
 )
 
 require (
@@ -58,7 +59,6 @@ require (
 	github.com/rivo/uniseg v0.4.3 // indirect
 	github.com/rogpeppe/go-internal v1.9.0 // indirect
 	golang.org/x/crypto v0.4.0 // indirect
-	golang.org/x/exp v0.0.0-20221217163422-3c43f8badb15 // indirect
 )
 
 require (
