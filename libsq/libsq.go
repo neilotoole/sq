@@ -13,12 +13,27 @@ import (
 	"context"
 
 	"github.com/neilotoole/lg"
-	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 )
+
+// QueryContext encapsulates the context a SLQ query is executed within.
+type QueryContext struct {
+	// Sources is the set of sources.
+	Sources *source.Set
+
+	// DBOpener is used to open databases.
+	DBOpener driver.DatabaseOpener
+
+	// JoinDBOpener is used to open the joindb (if needed).
+	JoinDBOpener driver.JoinDatabaseOpener
+
+	// Args defines variables that are substituted into the query.
+	// May be nil or empty.
+	Args map[string]string
+}
 
 // RecordWriter is the interface for writing records to a
 // destination. The Open method returns a channel to
@@ -71,11 +86,10 @@ type RecordWriter interface {
 }
 
 // ExecuteSLQ executes the slq query, writing the results to recw.
-// The caller is responsible for closing dbases.
-func ExecuteSLQ(ctx context.Context, log lg.Log, dbOpener driver.DatabaseOpener, joinDBOpener driver.JoinDatabaseOpener,
-	srcs *source.Set, query string, recw RecordWriter,
+// The caller is responsible for closing qc.
+func ExecuteSLQ(ctx context.Context, log lg.Log, qc *QueryContext, query string, recw RecordWriter,
 ) error {
-	ng, err := newEngine(ctx, log, dbOpener, joinDBOpener, srcs, query)
+	ng, err := newEngine(ctx, log, qc, query)
 	if err != nil {
 		return err
 	}
@@ -83,31 +97,17 @@ func ExecuteSLQ(ctx context.Context, log lg.Log, dbOpener driver.DatabaseOpener,
 	return ng.execute(ctx, recw)
 }
 
-func newEngine(ctx context.Context, log lg.Log, dbOpener driver.DatabaseOpener, joinDBOpener driver.JoinDatabaseOpener,
-	srcs *source.Set, query string,
-) (*engine, error) {
-	a, err := ast.Parse(log, query)
+// SLQ2SQL simulates execution of a SLQ query, but instead of executing
+// the resulting SQL query, that ultimate SQL is returned. Effectively it is
+// equivalent to libsq.ExecuteSLQ, but without the execution.
+func SLQ2SQL(ctx context.Context, log lg.Log, qc *QueryContext, query string,
+) (targetSQL string, err error) {
+	var ng *engine
+	ng, err = newEngine(ctx, log, qc, query)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-
-	qModel, err := buildQueryModel(log, a)
-	if err != nil {
-		return nil, err
-	}
-
-	ng := &engine{
-		log:          log,
-		srcs:         srcs,
-		dbOpener:     dbOpener,
-		joinDBOpener: joinDBOpener,
-	}
-
-	if err = ng.prepare(ctx, qModel); err != nil {
-		return nil, err
-	}
-
-	return ng, nil
+	return ng.targetSQL, nil
 }
 
 // QuerySQL executes the SQL query against dbase, writing

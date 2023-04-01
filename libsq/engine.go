@@ -12,15 +12,13 @@ import (
 	"github.com/neilotoole/sq/libsq/core/sqlmodel"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/driver"
-	"github.com/neilotoole/sq/libsq/source"
 )
 
 // engine executes a queryModel and writes to a RecordWriter.
 type engine struct {
-	log          lg.Log
-	srcs         *source.Set
-	dbOpener     driver.DatabaseOpener
-	joinDBOpener driver.JoinDatabaseOpener
+	log lg.Log
+
+	qc *QueryContext
 
 	// tasks contains tasks that must be completed before targetSQL
 	// is executed against targetDB. Typically tasks is used to
@@ -34,6 +32,29 @@ type engine struct {
 	// targetDB is the destination for the ultimate SQL query to
 	// be executed against.
 	targetDB driver.Database
+}
+
+func newEngine(ctx context.Context, log lg.Log, qc *QueryContext, query string) (*engine, error) {
+	a, err := ast.Parse(log, query)
+	if err != nil {
+		return nil, err
+	}
+
+	qModel, err := buildQueryModel(log, a)
+	if err != nil {
+		return nil, err
+	}
+
+	ng := &engine{
+		log: log,
+		qc:  qc,
+	}
+
+	if err = ng.prepare(ctx, qModel); err != nil {
+		return nil, err
+	}
+
+	return ng, nil
 }
 
 // prepare prepares the engine to execute queryModel.
@@ -156,12 +177,12 @@ func (ng *engine) executeTasks(ctx context.Context) error {
 func (ng *engine) buildTableFromClause(ctx context.Context, tblSel *ast.TblSelectorNode) (fromClause string,
 	fromConn driver.Database, err error,
 ) {
-	src, err := ng.srcs.Get(tblSel.Handle())
+	src, err := ng.qc.Sources.Get(tblSel.Handle())
 	if err != nil {
 		return "", nil, err
 	}
 
-	fromConn, err = ng.dbOpener.Open(ctx, src)
+	fromConn, err = ng.qc.DBOpener.Open(ctx, src)
 	if err != nil {
 		return "", nil, err
 	}
@@ -196,12 +217,12 @@ func (ng *engine) buildJoinFromClause(ctx context.Context, fnJoin *ast.JoinNode)
 func (ng *engine) singleSourceJoin(ctx context.Context, fnJoin *ast.JoinNode) (fromClause string,
 	fromDB driver.Database, err error,
 ) {
-	src, err := ng.srcs.Get(fnJoin.LeftTbl().Handle())
+	src, err := ng.qc.Sources.Get(fnJoin.LeftTbl().Handle())
 	if err != nil {
 		return "", nil, err
 	}
 
-	fromDB, err = ng.dbOpener.Open(ctx, src)
+	fromDB, err = ng.qc.DBOpener.Open(ctx, src)
 	if err != nil {
 		return "", nil, err
 	}
@@ -226,23 +247,23 @@ func (ng *engine) crossSourceJoin(ctx context.Context, fnJoin *ast.JoinNode) (fr
 			fnJoin.LeftTbl().TblName())
 	}
 
-	leftSrc, err := ng.srcs.Get(fnJoin.LeftTbl().Handle())
+	leftSrc, err := ng.qc.Sources.Get(fnJoin.LeftTbl().Handle())
 	if err != nil {
 		return "", nil, err
 	}
 
-	rightSrc, err := ng.srcs.Get(fnJoin.RightTbl().Handle())
+	rightSrc, err := ng.qc.Sources.Get(fnJoin.RightTbl().Handle())
 	if err != nil {
 		return "", nil, err
 	}
 
 	// Open the join db
-	joinDB, err := ng.joinDBOpener.OpenJoin(ctx, leftSrc, rightSrc)
+	joinDB, err := ng.qc.JoinDBOpener.OpenJoin(ctx, leftSrc, rightSrc)
 	if err != nil {
 		return "", nil, err
 	}
 
-	leftDB, err := ng.dbOpener.Open(ctx, leftSrc)
+	leftDB, err := ng.qc.DBOpener.Open(ctx, leftSrc)
 	if err != nil {
 		return "", nil, err
 	}
@@ -253,7 +274,7 @@ func (ng *engine) crossSourceJoin(ctx context.Context, fnJoin *ast.JoinNode) (fr
 		toTblName:   leftTblName,
 	}
 
-	rightDB, err := ng.dbOpener.Open(ctx, rightSrc)
+	rightDB, err := ng.qc.DBOpener.Open(ctx, rightSrc)
 	if err != nil {
 		return "", nil, err
 	}
@@ -274,20 +295,6 @@ func (ng *engine) crossSourceJoin(ctx context.Context, fnJoin *ast.JoinNode) (fr
 	}
 
 	return fromClause, joinDB, nil
-}
-
-// SLQ2SQL simulates execution of a SLQ query, but instead of executing
-// the resulting SQL query, that ultimate SQL is returned. Effectively it is
-// equivalent to libsq.ExecuteSLQ, but without the execution.
-func SLQ2SQL(ctx context.Context, log lg.Log, dbOpener driver.DatabaseOpener,
-	joinDBOpener driver.JoinDatabaseOpener, srcs *source.Set, query string,
-) (targetSQL string, err error) {
-	var ng *engine
-	ng, err = newEngine(ctx, log, dbOpener, joinDBOpener, srcs, query)
-	if err != nil {
-		return "", err
-	}
-	return ng.targetSQL, nil
 }
 
 // tasker is the interface for executing a DB task.

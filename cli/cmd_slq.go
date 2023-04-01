@@ -129,7 +129,15 @@ func execSLQInsert(ctx context.Context, rc *RunContext, destSrc *source.Source, 
 		driver.Tuning.RecordChSize,
 		libsq.DBWriterCreateTableIfNotExistsHook(destTbl),
 	)
-	execErr := libsq.ExecuteSLQ(ctx, rc.Log, rc.databases, rc.databases, srcs, slq, inserter)
+
+	qc := &libsq.QueryContext{
+		Sources:      srcs,
+		DBOpener:     rc.databases,
+		JoinDBOpener: rc.databases,
+		Args:         nil,
+	}
+
+	execErr := libsq.ExecuteSLQ(ctx, rc.Log, qc, slq, inserter)
 	affected, waitErr := inserter.Wait() // Wait for the writer to finish processing
 	if execErr != nil {
 		return errz.Wrapf(execErr, "insert %s.%s failed", destSrc.Handle, destTbl)
@@ -150,8 +158,15 @@ func execSLQPrint(ctx context.Context, rc *RunContext) error {
 		return err
 	}
 
+	qc := &libsq.QueryContext{
+		Sources:      rc.Config.Sources,
+		DBOpener:     rc.databases,
+		JoinDBOpener: rc.databases,
+		Args:         nil,
+	}
+
 	recw := output.NewRecordWriterAdapter(rc.writers.recordw)
-	execErr := libsq.ExecuteSLQ(ctx, rc.Log, rc.databases, rc.databases, rc.Config.Sources, slq, recw)
+	execErr := libsq.ExecuteSLQ(ctx, rc.Log, qc, slq, recw)
 	_, waitErr := recw.Wait()
 	if execErr != nil {
 		return execErr

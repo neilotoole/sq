@@ -8,8 +8,6 @@ import (
 
 	"golang.org/x/exp/slices"
 
-	"github.com/neilotoole/sq/drivers/mysql"
-
 	"github.com/neilotoole/sq/libsq/source"
 
 	"github.com/stretchr/testify/require"
@@ -68,7 +66,6 @@ func execQueryTestCase(t *testing.T, tc queryTestCase) {
 	}
 
 	srcs := testh.New(t).NewSourceSet(sakila.SQLLatest()...)
-	// srcs := testh.New(t).NewSourceSet(sakila.SL3) // FIXME: remove when done debugging
 	for _, src := range srcs.Items() {
 		src := src
 
@@ -92,7 +89,14 @@ func execQueryTestCase(t *testing.T, tc queryTestCase) {
 			th := testh.New(t)
 			dbases := th.Databases()
 
-			gotSQL, gotErr := libsq.SLQ2SQL(th.Context, th.Log, dbases, dbases, srcs, in)
+			qc := &libsq.QueryContext{
+				Sources:      srcs,
+				DBOpener:     dbases,
+				JoinDBOpener: dbases,
+				Args:         tc.args,
+			}
+
+			gotSQL, gotErr := libsq.SLQ2SQL(th.Context, th.Log, qc, in)
 			if tc.wantErr {
 				require.Error(t, gotErr)
 				return
@@ -109,71 +113,6 @@ func execQueryTestCase(t *testing.T, tc queryTestCase) {
 			sink, err := th.QuerySLQ(in)
 			require.NoError(t, err)
 			require.Equal(t, tc.wantRecs, len(sink.Recs))
-		})
-	}
-}
-
-//nolint:exhaustive,lll
-func TestSLQ2SQL(t *testing.T) {
-	testCases := []queryTestCase{
-		{
-			name:     "select/cols",
-			in:       `@sakila | .actor | .first_name, .last_name`,
-			wantSQL:  `SELECT "first_name", "last_name" FROM "actor"`,
-			override: map[source.Type]string{mysql.Type: "SELECT `first_name`, `last_name` FROM `actor`"},
-			wantRecs: sakila.TblActorCount,
-		},
-		{
-			name:     "select/cols-whitespace-single-col",
-			in:       `@sakila | .actor | ."first name"`,
-			wantSQL:  `SELECT "first name" FROM "actor"`,
-			override: map[source.Type]string{mysql.Type: "SELECT `first name` FROM `actor`"},
-			wantRecs: sakila.TblActorCount,
-			skipExec: true,
-		},
-		{
-			name:     "select/cols-whitespace-multiple-cols",
-			in:       `@sakila | .actor | .actor_id, ."first name", ."last name"`,
-			wantSQL:  `SELECT "actor_id", "first name", "last name" FROM "actor"`,
-			override: map[source.Type]string{mysql.Type: "SELECT `actor_id`, `first name`, `last name` FROM `actor`"},
-			wantRecs: sakila.TblActorCount,
-			skipExec: true,
-		},
-		{
-			name:     "count/whitespace-col",
-			in:       `@sakila | .actor | count(."first name")`,
-			wantSQL:  `SELECT count("first name") FROM "actor"`,
-			override: map[source.Type]string{mysql.Type: "SELECT count(`first name`) FROM `actor`"},
-			skipExec: true,
-		},
-		{
-			name:     "select/table-whitespace",
-			in:       `@sakila | ."film actor"`,
-			wantSQL:  `SELECT * FROM "film actor"`,
-			override: map[source.Type]string{mysql.Type: "SELECT * FROM `film actor`"},
-			skipExec: true,
-		},
-		{
-			name:     "select/cols-aliases",
-			in:       `@sakila | .actor | .first_name:given_name, .last_name:family_name`,
-			wantSQL:  `SELECT "first_name" AS "given_name", "last_name" AS "family_name" FROM "actor"`,
-			override: map[source.Type]string{mysql.Type: "SELECT `first_name` AS `given_name`, `last_name` AS `family_name` FROM `actor`"},
-			wantRecs: sakila.TblActorCount,
-		},
-
-		{
-			name:     "select/handle-table/cols",
-			in:       `@sakila.actor | .first_name, .last_name`,
-			wantSQL:  `SELECT "first_name", "last_name" FROM "actor"`,
-			override: map[source.Type]string{mysql.Type: "SELECT `first_name`, `last_name` FROM `actor`"},
-			wantRecs: sakila.TblActorCount,
-		},
-	}
-
-	for _, tc := range testCases {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			execQueryTestCase(t, tc)
 		})
 	}
 }
