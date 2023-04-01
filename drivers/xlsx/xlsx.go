@@ -91,7 +91,7 @@ func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Database,
 	if err != nil {
 		return nil, err
 	}
-	slg.WarnIfCloseError(d.log, r)
+	defer slg.WarnIfCloseError(d.log, r)
 
 	b, err := io.ReadAll(r)
 	if err != nil {
@@ -145,7 +145,7 @@ func (d *Driver) Ping(_ context.Context, src *source.Source) (err error) {
 		return err
 	}
 
-	slg.WarnIfCloseError(d.log, r)
+	defer slg.WarnIfCloseError(d.log, r)
 
 	b, err := io.ReadAll(r)
 	if err != nil {

@@ -135,7 +135,7 @@ func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 		return errz.Err(err)
 	}
 
-	slg.WarnIfCloseError(d.log, db)
+	defer slg.WarnIfCloseError(d.log, db)
 
 	err = db.PingContext(ctx)
 	return errz.Err(err)
