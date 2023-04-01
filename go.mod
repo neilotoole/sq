@@ -23,12 +23,13 @@ require (
 	github.com/neilotoole/errgroup v0.1.5
 	github.com/pkg/errors v0.9.1
 	github.com/ryboe/q v1.0.18
-	github.com/segmentio/encoding v0.1.14 // Be very careful changing this encoding packge
+	// Be very careful changing pkg segmentio/encoding. A specific version is by our json encoder.
+	github.com/segmentio/encoding v0.1.14
 	github.com/shopspring/decimal v1.3.1
 	github.com/spf13/cobra v1.6.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.1
-	github.com/tealeg/xlsx/v2 v2.0.1 // This package is no longer supported; switch to a different impl
+	github.com/tealeg/xlsx/v2 v2.0.1 // TODO: This package is no longer supported; switch to a different impl
 	github.com/testcontainers/testcontainers-go v0.17.0
 	github.com/xo/dburl v0.13.0
 	go.uber.org/atomic v1.10.0
