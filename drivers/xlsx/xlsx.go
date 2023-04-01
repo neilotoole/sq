@@ -6,7 +6,9 @@ import (
 	"database/sql"
 	"io"
 
-	"github.com/neilotoole/lg"
+	"github.com/neilotoole/sq/libsq/core/slg"
+	"golang.org/x/exp/slog"
+
 	"github.com/tealeg/xlsx/v2"
 
 	"github.com/neilotoole/sq/libsq/core/cleanup"
@@ -23,7 +25,7 @@ const (
 
 // Provider implements driver.Provider.
 type Provider struct {
-	Log       lg.Log
+	Log       *slog.Logger
 	Files     *source.Files
 	Scratcher driver.ScratchDatabaseOpener
 }
@@ -41,7 +43,7 @@ var _ source.TypeDetectFunc = DetectXLSX
 
 // DetectXLSX implements source.TypeDetectFunc, returning
 // TypeXLSX and a score of 1.0 valid XLSX.
-func DetectXLSX(_ context.Context, log lg.Log, openFn source.FileOpenFunc) (detected source.Type, score float32,
+func DetectXLSX(_ context.Context, log *slog.Logger, openFn source.FileOpenFunc) (detected source.Type, score float32,
 	err error,
 ) {
 	var r io.ReadCloser
@@ -49,7 +51,7 @@ func DetectXLSX(_ context.Context, log lg.Log, openFn source.FileOpenFunc) (dete
 	if err != nil {
 		return source.TypeNone, 0, errz.Err(err)
 	}
-	defer log.WarnIfCloseError(r)
+	defer slg.WarnIfCloseError(log, r)
 
 	data, err := io.ReadAll(r)
 	if err != nil {
@@ -69,7 +71,7 @@ func DetectXLSX(_ context.Context, log lg.Log, openFn source.FileOpenFunc) (dete
 
 // Driver implements driver.Driver.
 type Driver struct {
-	log       lg.Log
+	log       *slog.Logger
 	scratcher driver.ScratchDatabaseOpener
 	files     *source.Files
 }
@@ -89,7 +91,7 @@ func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Database,
 	if err != nil {
 		return nil, err
 	}
-	defer d.log.WarnIfCloseError(r)
+	slg.WarnIfCloseError(d.log, r)
 
 	b, err := io.ReadAll(r)
 	if err != nil {
@@ -111,7 +113,7 @@ func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Database,
 
 	err = xlsxToScratch(ctx, d.log, src, xlFile, scratchDB)
 	if err != nil {
-		d.log.WarnIfError(clnup.Run())
+		slg.WarnIfError(d.log, clnup.Run())
 		return nil, err
 	}
 
@@ -128,7 +130,7 @@ func (d *Driver) Truncate(_ context.Context, src *source.Source, _ string, _ boo
 
 // ValidateSource implements driver.Driver.
 func (d *Driver) ValidateSource(src *source.Source) (*source.Source, error) {
-	d.log.Debugf("Validating source: %q", src.RedactedLocation())
+	d.log.Debug("Validating source: %q", src.RedactedLocation())
 	if src.Type != Type {
 		return nil, errz.Errorf("expected source type %q but got %q", Type, src.Type)
 	}
@@ -143,7 +145,7 @@ func (d *Driver) Ping(_ context.Context, src *source.Source) (err error) {
 		return err
 	}
 
-	defer d.log.WarnIfCloseError(r)
+	slg.WarnIfCloseError(d.log, r)
 
 	b, err := io.ReadAll(r)
 	if err != nil {
@@ -160,7 +162,7 @@ func (d *Driver) Ping(_ context.Context, src *source.Source) (err error) {
 
 // database implements driver.Database.
 type database struct {
-	log   lg.Log
+	log   *slog.Logger
 	src   *source.Source
 	files *source.Files
 	impl  driver.Database
@@ -299,7 +301,7 @@ func (d *database) TableMetadata(_ context.Context, tblName string) (*source.Tab
 
 // Close implements driver.Database.
 func (d *database) Close() error {
-	d.log.Debugf("Close database: %s", d.src)
+	d.log.Debug("Close database: %s", d.src)
 
 	// No need to explicitly invoke c.impl.Close because
 	// that's already added to c.clnup

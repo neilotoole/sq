@@ -7,8 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/neilotoole/lg"
-	"github.com/neilotoole/lg/testlg"
+	"golang.org/x/exp/slog"
+
+	"github.com/neilotoole/slogt"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -124,7 +126,7 @@ func TestKindFromDBTypeName(t *testing.T) {
 		"TIME":                   kind.Time,
 	}
 
-	log := testlg.New(t)
+	log := slogt.New(t)
 	for dbTypeName, wantKind := range testCases {
 		gotKind := sqlite3.KindFromDBTypeName(log, "col", dbTypeName, nil)
 		require.Equal(t, wantKind, gotKind, "%s should produce %s but got %s", dbTypeName)
@@ -360,7 +362,7 @@ func BenchmarkGetTblRowCounts(b *testing.B) {
 
 	testCases := []struct {
 		name string
-		fn   func(ctx context.Context, log lg.Log, db sqlz.DB, tblNames []string) ([]int64, error)
+		fn   func(ctx context.Context, log *slog.Logger, db sqlz.DB, tblNames []string) ([]int64, error)
 	}{
 		{name: "benchGetTblRowCountsBaseline", fn: benchGetTblRowCountsBaseline},
 		{name: "getTblRowCounts", fn: sqlite3.GetTblRowCounts},
@@ -370,7 +372,7 @@ func BenchmarkGetTblRowCounts(b *testing.B) {
 		tc := tc
 
 		b.Run(tc.name, func(b *testing.B) {
-			log := testlg.New(b)
+			log := slogt.New(b)
 
 			for n := 0; n < b.N; n++ {
 				counts, err := tc.fn(th.Context, log, db, tblNames)
@@ -387,7 +389,7 @@ func BenchmarkGetTblRowCounts(b *testing.B) {
 
 // benchGetTblRowCountsBaseline is a baseline impl of getTblRowCounts
 // for benchmark comparison.
-func benchGetTblRowCountsBaseline(ctx context.Context, _ lg.Log, db sqlz.DB, tblNames []string) ([]int64, error) {
+func benchGetTblRowCountsBaseline(ctx context.Context, _ *slog.Logger, db sqlz.DB, tblNames []string) ([]int64, error) {
 	tblCounts := make([]int64, len(tblNames))
 
 	for i := range tblNames {

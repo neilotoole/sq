@@ -8,9 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neilotoole/errgroup"
-	"github.com/neilotoole/lg"
+	"github.com/neilotoole/sq/libsq/core/slg"
+	"golang.org/x/exp/slog"
 
+	"github.com/neilotoole/errgroup"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
@@ -21,7 +22,7 @@ import (
 
 // kindFromDBTypeName determines the Kind from the database
 // type name. For example, "VARCHAR(64)" -> kind.Text.
-func kindFromDBTypeName(log lg.Log, colName, dbTypeName string) kind.Kind {
+func kindFromDBTypeName(log *slog.Logger, colName, dbTypeName string) kind.Kind {
 	var knd kind.Kind
 	dbTypeName = strings.ToUpper(dbTypeName)
 
@@ -34,7 +35,7 @@ func kindFromDBTypeName(log lg.Log, colName, dbTypeName string) kind.Kind {
 
 	switch dbTypeName {
 	default:
-		log.Warnf("Unknown MySQL database type %q for column %q: using %q", dbTypeName, colName, kind.Unknown)
+		log.Warn("Unknown MySQL database type %q for column %q: using %q", dbTypeName, colName, kind.Unknown)
 		knd = kind.Unknown
 	case "":
 		knd = kind.Unknown
@@ -68,7 +69,7 @@ func kindFromDBTypeName(log lg.Log, colName, dbTypeName string) kind.Kind {
 	return knd
 }
 
-func recordMetaFromColumnTypes(log lg.Log, colTypes []*sql.ColumnType) sqlz.RecordMeta {
+func recordMetaFromColumnTypes(log *slog.Logger, colTypes []*sql.ColumnType) sqlz.RecordMeta {
 	recMeta := make(sqlz.RecordMeta, len(colTypes))
 
 	for i, colType := range colTypes {
@@ -134,7 +135,8 @@ func getNewRecordFunc(rowMeta sqlz.RecordMeta) driver.NewRecordFunc {
 
 // getTableMetadata gets the metadata for a single table. It is the
 // implementation of driver.Database.TableMetadata.
-func getTableMetadata(ctx context.Context, log lg.Log, db sqlz.DB, tblName string) (*source.TableMetadata, error) {
+func getTableMetadata(ctx context.Context, log *slog.Logger, db sqlz.DB, tblName string,
+) (*source.TableMetadata, error) {
 	query := `SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, TABLE_COMMENT, (DATA_LENGTH + INDEX_LENGTH) AS table_size,
 (SELECT COUNT(*) FROM ` + "`" + tblName + "`" + `) AS row_count
 FROM information_schema.TABLES
@@ -166,7 +168,9 @@ WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`
 }
 
 // getColumnMetadata returns column metadata for tblName.
-func getColumnMetadata(ctx context.Context, log lg.Log, db sqlz.DB, tblName string) ([]*source.ColMetadata, error) {
+func getColumnMetadata(ctx context.Context, log *slog.Logger, db sqlz.DB,
+	tblName string,
+) ([]*source.ColMetadata, error) {
 	const query = `SELECT column_name, data_type, column_type, ordinal_position, column_default,
        is_nullable, column_key, column_comment, extra
 FROM information_schema.columns cols
@@ -177,7 +181,7 @@ ORDER BY cols.ordinal_position ASC`
 	if err != nil {
 		return nil, errz.Err(err)
 	}
-	defer log.WarnIfCloseError(rows)
+	defer slg.WarnIfCloseError(log, rows)
 
 	var cols []*source.ColMetadata
 
@@ -230,7 +234,8 @@ ORDER BY cols.ordinal_position ASC`
 // reasonable results by spinning off a goroutine (via errgroup) for
 // each SELECT COUNT(*) query. That said, the testing/benchmarking was
 // far from exhaustive, and this entire thing has a bit of a code smell.
-func getSourceMetadata(ctx context.Context, log lg.Log, src *source.Source, db sqlz.DB) (*source.Metadata, error) {
+func getSourceMetadata(ctx context.Context, log *slog.Logger, src *source.Source, db sqlz.DB,
+) (*source.Metadata, error) {
 	md := &source.Metadata{SourceType: Type, DBDriverType: Type, Handle: src.Handle, Location: src.Location}
 
 	g, gctx := errgroup.WithContext(ctx)
@@ -281,14 +286,14 @@ func setSourceSummaryMeta(ctx context.Context, db sqlz.DB, md *source.Metadata) 
 }
 
 // getDBVarsMeta returns the database variables.
-func getDBVarsMeta(ctx context.Context, log lg.Log, db sqlz.DB) ([]source.DBVar, error) {
+func getDBVarsMeta(ctx context.Context, log *slog.Logger, db sqlz.DB) ([]source.DBVar, error) {
 	var dbVars []source.DBVar
 
 	rows, err := db.QueryContext(ctx, "SHOW VARIABLES")
 	if err != nil {
 		return nil, errz.Err(err)
 	}
-	defer log.WarnIfCloseError(rows)
+	defer slg.WarnIfCloseError(log, rows)
 
 	for rows.Next() {
 		var dbVar source.DBVar
@@ -307,7 +312,7 @@ func getDBVarsMeta(ctx context.Context, log lg.Log, db sqlz.DB) ([]source.DBVar,
 }
 
 // getAllTblMetas returns TableMetadata for each table/view in db.
-func getAllTblMetas(ctx context.Context, log lg.Log, db sqlz.DB) ([]*source.TableMetadata, error) {
+func getAllTblMetas(ctx context.Context, log *slog.Logger, db sqlz.DB) ([]*source.TableMetadata, error) {
 	const query = `SELECT t.TABLE_SCHEMA, t.TABLE_NAME, t.TABLE_TYPE, t.TABLE_COMMENT,
        (DATA_LENGTH + INDEX_LENGTH) AS table_size,
        c.COLUMN_NAME, c.ORDINAL_POSITION, c.COLUMN_KEY, c.DATA_TYPE, c.COLUMN_TYPE,
@@ -345,7 +350,7 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 	if err != nil {
 		return nil, errz.Err(err)
 	}
-	defer log.WarnIfCloseError(rows)
+	defer slg.WarnIfCloseError(log, rows)
 
 	for rows.Next() {
 		select {
@@ -365,7 +370,7 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 
 		if !curTblName.Valid || !colName.Valid {
 			// table may have been dropped during metadata collection
-			log.Debugf("table not found during metadata collection")
+			log.Debug("table not found during metadata collection")
 			continue
 		}
 
@@ -394,7 +399,7 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 						// The table was probably dropped while we were collecting
 						// metadata, but that's ok. We set the element to nil
 						// and we'll filter it out later.
-						log.Debugf("Failed to get row count for %q: ignoring: %v", curTblName.String, gErr)
+						log.Debug("Failed to get row count for %q: ignoring: %v", curTblName.String, gErr)
 						tblMetas[i] = nil
 						return nil
 					}

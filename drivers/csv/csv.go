@@ -9,7 +9,9 @@ import (
 	"io"
 	"strconv"
 
-	"github.com/neilotoole/lg"
+	"github.com/neilotoole/sq/libsq/core/slg"
+
+	"golang.org/x/exp/slog"
 
 	"github.com/neilotoole/sq/cli/output/csvw"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -27,7 +29,7 @@ const (
 
 // Provider implements driver.Provider.
 type Provider struct {
-	Log       lg.Log
+	Log       *slog.Logger
 	Scratcher driver.ScratchDatabaseOpener
 	Files     *source.Files
 }
@@ -46,7 +48,7 @@ func (d *Provider) DriverFor(typ source.Type) (driver.Driver, error) {
 
 // Driver implements driver.Driver.
 type driveri struct {
-	log       lg.Log
+	log       *slog.Logger
 	typ       source.Type
 	scratcher driver.ScratchDatabaseOpener
 	files     *source.Files
@@ -100,7 +102,7 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 	}
 
 	if src.Options != nil || len(src.Options) > 0 {
-		d.log.Debugf("opts: %v", src.Options.Encode())
+		d.log.Debug("opts: %v", src.Options.Encode())
 
 		key := "header"
 		v := src.Options.Get(key)
@@ -118,20 +120,20 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 
 // Ping implements driver.Driver.
 func (d *driveri) Ping(_ context.Context, src *source.Source) error {
-	d.log.Debugf("driver %q attempting to ping %q", d.typ, src)
+	d.log.Debug("driver %q attempting to ping %q", d.typ, src)
 
 	r, err := d.files.Open(src)
 	if err != nil {
 		return err
 	}
-	defer d.log.WarnIfCloseError(r)
+	slg.WarnIfCloseError(d.log, r)
 
 	return nil
 }
 
 // database implements driver.Database.
 type database struct {
-	log   lg.Log
+	log   *slog.Logger
 	src   *source.Source
 	impl  driver.Database
 	files *source.Files
@@ -195,7 +197,7 @@ func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error)
 
 // Close implements driver.Database.
 func (d *database) Close() error {
-	d.log.Debugf("Close database: %s", d.src)
+	d.log.Debug("Close database: %s", d.src)
 
 	return errz.Err(d.impl.Close())
 }
@@ -206,20 +208,21 @@ var (
 )
 
 // DetectCSV implements source.TypeDetectFunc.
-func DetectCSV(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (detected source.Type, score float32,
+func DetectCSV(ctx context.Context, log *slog.Logger, openFn source.FileOpenFunc) (detected source.Type, score float32,
 	err error,
 ) {
 	return detectType(ctx, TypeCSV, log, openFn)
 }
 
 // DetectTSV implements source.TypeDetectFunc.
-func DetectTSV(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (detected source.Type,
+func DetectTSV(ctx context.Context, log *slog.Logger, openFn source.FileOpenFunc) (detected source.Type,
 	score float32, err error,
 ) {
 	return detectType(ctx, TypeTSV, log, openFn)
 }
 
-func detectType(ctx context.Context, typ source.Type, log lg.Log, openFn source.FileOpenFunc) (detected source.Type,
+func detectType(ctx context.Context, typ source.Type, log *slog.Logger,
+	openFn source.FileOpenFunc) (detected source.Type,
 	score float32, err error,
 ) {
 	var r io.ReadCloser
@@ -227,7 +230,7 @@ func detectType(ctx context.Context, typ source.Type, log lg.Log, openFn source.
 	if err != nil {
 		return source.TypeNone, 0, errz.Err(err)
 	}
-	defer log.WarnIfCloseError(r)
+	defer slg.WarnIfCloseError(log, r)
 
 	delim := csvw.Comma
 	if typ == TypeTSV {

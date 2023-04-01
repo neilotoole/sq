@@ -7,7 +7,8 @@ import (
 	"io"
 	"math"
 
-	"github.com/neilotoole/lg"
+	"github.com/neilotoole/sq/libsq/core/slg"
+	"golang.org/x/exp/slog"
 
 	"github.com/neilotoole/sq/libsq"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -21,15 +22,15 @@ import (
 
 // DetectJSONA implements source.TypeDetectFunc for TypeJSONA.
 // Each line of input must be a valid JSON array.
-func DetectJSONA(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (detected source.Type, score float32,
-	err error,
+func DetectJSONA(ctx context.Context, log *slog.Logger,
+	openFn source.FileOpenFunc) (detected source.Type, score float32, err error,
 ) {
 	var r io.ReadCloser
 	r, err = openFn()
 	if err != nil {
 		return source.TypeNone, 0, errz.Err(err)
 	}
-	defer log.WarnIfCloseError(r)
+	defer slg.WarnIfCloseError(log, r)
 
 	sc := bufio.NewScanner(r)
 	var validLines int
@@ -90,13 +91,13 @@ func DetectJSONA(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (d
 	return source.TypeNone, 0, nil
 }
 
-func importJSONA(ctx context.Context, log lg.Log, job importJob) error {
+func importJSONA(ctx context.Context, log *slog.Logger, job importJob) error {
 	predictR, err := job.openFn()
 	if err != nil {
 		return errz.Err(err)
 	}
 
-	defer log.WarnIfCloseError(predictR)
+	defer slg.WarnIfCloseError(log, predictR)
 
 	colKinds, readMungeFns, err := detectColKindsJSONA(ctx, predictR)
 	if err != nil {
@@ -128,7 +129,7 @@ func importJSONA(ctx context.Context, log lg.Log, job importJob) error {
 	if err != nil {
 		return errz.Err(err)
 	}
-	defer log.WarnIfCloseError(r)
+	defer slg.WarnIfCloseError(log, r)
 
 	insertWriter := libsq.NewDBWriter(log, job.destDB, tblDef.Name, driver.Tuning.RecordChSize)
 
@@ -153,7 +154,7 @@ func importJSONA(ctx context.Context, log lg.Log, job importJob) error {
 		return err
 	}
 
-	log.Debugf("Inserted %d rows to %s.%s", inserted, job.destDB.Source().Handle, tblDef.Name)
+	log.Debug("Inserted %d rows to %s.%s", inserted, job.destDB.Source().Handle, tblDef.Name)
 	return nil
 }
 

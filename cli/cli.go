@@ -34,14 +34,15 @@ import (
 	"strings"
 	"sync"
 
+	"golang.org/x/exp/slog"
+
+	"github.com/neilotoole/sq/libsq/core/slg"
+
 	"github.com/fatih/color"
 	"github.com/mattn/go-colorable"
 	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-
-	"github.com/neilotoole/lg"
-	"github.com/neilotoole/lg/zaplg"
 
 	"github.com/neilotoole/sq/cli/buildinfo"
 	"github.com/neilotoole/sq/cli/config"
@@ -97,9 +98,10 @@ func Execute(ctx context.Context, stdin *os.File, stdout, stderr io.Writer, args
 // resulting in a command being executed. The caller must
 // invoke rc.Close.
 func ExecuteWith(ctx context.Context, rc *RunContext, args []string) error {
-	rc.Log.Debugf("EXECUTE: %s", strings.Join(args, " "))
-	rc.Log.Debugf("Build: %s %s %s", buildinfo.Version, buildinfo.Commit, buildinfo.Timestamp)
-	rc.Log.Debugf("Config (cfg version %q) from: %s", rc.Config.Version, rc.ConfigStore.Location())
+	log := slg.FromContext(ctx)
+	log.Debug("EXECUTE: %s", strings.Join(args, " "))
+	log.Debug("Build: %s %s %s", buildinfo.Version, buildinfo.Commit, buildinfo.Timestamp)
+	log.Debug("Config (cfg version %q) from: %s", rc.Config.Version, rc.ConfigStore.Location())
 
 	ctx = WithRunContext(ctx, rc)
 
@@ -326,6 +328,11 @@ type RunContext struct {
 	// be set before the command's runFunc is invoked.
 	Cmd *cobra.Command
 
+	// Log is the run's logger.
+	//
+	// Deprecated: access the logger via slg.FromContext.
+	Log *slog.Logger
+
 	// Args is the arg slice supplied by cobra for
 	// the currently executing command. This field will
 	// be set before the command's runFunc is invoked.
@@ -336,9 +343,6 @@ type RunContext struct {
 
 	// ConfigStore is run's config store.
 	ConfigStore config.Store
-
-	// Log is the run's logger.
-	Log lg.Log
 
 	initOnce sync.Once
 	initErr  error
@@ -378,8 +382,6 @@ func newDefaultRunContext(stdin *os.File, stdout, stderr io.Writer) (*RunContext
 	rc.Config = cfg
 
 	switch {
-	case rc.Log == nil:
-		rc.Log = lg.Discard()
 	case rc.clnup == nil:
 		rc.clnup = cleanup.New()
 	case rc.Config == nil:
@@ -414,7 +416,8 @@ func (rc *RunContext) init() error {
 // It must only be invoked once.
 func (rc *RunContext) doInit() error {
 	rc.clnup = cleanup.New()
-	log, cfg := rc.Log, rc.Config
+	cfg := rc.Config
+	log := rc.Log
 
 	// If the --output=/some/file flag is set, then we need to
 	// override rc.Out (which is typically stdout) to point it at
@@ -441,7 +444,7 @@ func (rc *RunContext) doInit() error {
 		rc.Out = f
 	}
 
-	rc.writers, rc.Out, rc.ErrOut = newWriters(rc.Log, rc.Cmd, rc.Config.Defaults, rc.Out, rc.ErrOut)
+	rc.writers, rc.Out, rc.ErrOut = newWriters(rc.Cmd, rc.Config.Defaults, rc.Out, rc.ErrOut)
 
 	var scratchSrcFunc driver.ScratchSrcFunc
 
@@ -450,15 +453,15 @@ func (rc *RunContext) doInit() error {
 	if scratchSrc == nil {
 		scratchSrcFunc = sqlite3.NewScratchSource
 	} else {
-		scratchSrcFunc = func(log lg.Log, name string) (src *source.Source, clnup func() error, err error) {
+		scratchSrcFunc = func(log *slog.Logger, name string) (src *source.Source, clnup func() error, err error) {
 			return scratchSrc, nil, nil
 		}
 	}
 
 	var err error
-	rc.files, err = source.NewFiles(log)
+	rc.files, err = source.NewFiles(rc.Log)
 	if err != nil {
-		log.WarnIfFuncError(rc.clnup.Run)
+		slg.WarnIfFuncError(rc.Log, rc.clnup.Run)
 		return err
 	}
 
@@ -540,7 +543,7 @@ func (rc *RunContext) Close() error {
 
 	err := rc.clnup.Run()
 	if err != nil && rc.Log != nil {
-		rc.Log.Warnf("failed to close RunContext: %v", err)
+		rc.Log.Warn("failed to close RunContext: %v", err)
 	}
 
 	return err
@@ -561,9 +564,9 @@ type writers struct {
 // newWriters returns a writers instance configured per defaults and/or
 // flags from cmd. The returned out2/errOut2 values may differ
 // from the out/errOut args (e.g. decorated to support colorization).
-func newWriters(log lg.Log, cmd *cobra.Command, defaults config.Defaults, out, errOut io.Writer) (w *writers,
-	out2, errOut2 io.Writer,
-) {
+func newWriters(cmd *cobra.Command, defaults config.Defaults, out,
+	errOut io.Writer,
+) (w *writers, out2, errOut2 io.Writer) {
 	var fm *output.Formatting
 	fm, out2, errOut2 = getWriterFormatting(cmd, out, errOut)
 
@@ -591,7 +594,7 @@ func newWriters(log lg.Log, cmd *cobra.Command, defaults config.Defaults, out, e
 		w.recordw = jsonw.NewStdRecordWriter(out2, fm)
 		w.metaw = jsonw.NewMetadataWriter(out2, fm)
 		w.srcw = jsonw.NewSourceWriter(out2, fm)
-		w.errw = jsonw.NewErrorWriter(log, errOut2, fm)
+		w.errw = jsonw.NewErrorWriter(errOut2, fm)
 		w.versionw = jsonw.NewVersionWriter(out2, fm)
 		w.pingw = jsonw.NewPingWriter(out2, fm)
 
@@ -731,12 +734,12 @@ func getFormat(cmd *cobra.Command, defaults config.Defaults) config.Format {
 
 // defaultLogging returns a log (and its associated closer) if
 // logging has been enabled via envars.
-func defaultLogging() (lg.Log, *cleanup.Cleanup, error) {
+func defaultLogging() (*slog.Logger, *cleanup.Cleanup, error) {
 	truncate, _ := strconv.ParseBool(os.Getenv(envarLogTruncate))
 
 	logFilePath, ok := os.LookupEnv(envarLogPath)
 	if !ok || logFilePath == "" || strings.TrimSpace(logFilePath) == "" {
-		return lg.Discard(), nil, nil
+		return slg.Discard(), nil, nil
 	}
 
 	// Let's try to create the dir holding the logfile... if it already exists,
@@ -744,7 +747,7 @@ func defaultLogging() (lg.Log, *cleanup.Cleanup, error) {
 	parent := filepath.Dir(logFilePath)
 	err := os.MkdirAll(parent, 0o750)
 	if err != nil {
-		return lg.Discard(), nil, errz.Wrapf(err, "failed to create parent dir of log file %s", logFilePath)
+		return slg.Discard(), nil, errz.Wrapf(err, "failed to create parent dir of log file %s", logFilePath)
 	}
 
 	flag := os.O_APPEND
@@ -754,12 +757,14 @@ func defaultLogging() (lg.Log, *cleanup.Cleanup, error) {
 
 	logFile, err := os.OpenFile(logFilePath, os.O_RDWR|os.O_CREATE|flag, 0o600)
 	if err != nil {
-		return lg.Discard(), nil, errz.Wrapf(err, "unable to open log file %q", logFilePath)
+		return slg.Discard(), nil, errz.Wrapf(err, "unable to open log file %q", logFilePath)
 	}
 	clnup := cleanup.New().AddE(logFile.Close)
 
-	log := zaplg.NewWith(logFile, "json", true, true, true, 0)
-	clnup.AddE(log.Sync)
+	log := slog.New(slog.NewJSONHandler(logFile))
+
+	// log := zaplg.NewWith(logFile, "json", true, true, true, 0)
+	// clnup.AddE(log.Sync)
 
 	return log, clnup, nil
 }
@@ -802,13 +807,13 @@ func defaultConfig() (*config.Config, config.Store, error) {
 // redundancy; ultimately err will print if non-nil (even if
 // rc or any of its fields are nil).
 func printError(rc *RunContext, err error) {
-	log := lg.Discard()
+	log := slg.Discard()
 	if rc != nil && rc.Log != nil {
 		log = rc.Log
 	}
 
 	if err == nil {
-		log.Warnf("printError called with nil error")
+		log.Warn("printError called with nil error")
 		return
 	}
 
@@ -833,7 +838,7 @@ func printError(rc *RunContext, err error) {
 		if cmd != nil {
 			cmdName = fmt.Sprintf("[cmd:%s] ", cmd.Name())
 		}
-		log.Errorf("%s [%T] %+v", cmdName, err, err)
+		log.Error("%s [%T] %+v", cmdName, err, err)
 
 		wrtrs := rc.writers
 		if wrtrs != nil && wrtrs.errw != nil {
@@ -861,7 +866,7 @@ func printError(rc *RunContext, err error) {
 
 	if bootstrapIsFormatJSON(rc) {
 		// The user wants JSON, either via defaults or flags.
-		jw := jsonw.NewErrorWriter(log, errOut, fm)
+		jw := jsonw.NewErrorWriter(errOut, fm)
 		jw.Error(err)
 		return
 	}

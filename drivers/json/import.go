@@ -11,7 +11,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/neilotoole/lg"
+	"github.com/neilotoole/sq/libsq/core/slg"
+
+	"golang.org/x/exp/slog"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -40,7 +42,7 @@ type importJob struct {
 	flatten bool
 }
 
-type importFunc func(ctx context.Context, log lg.Log, job importJob) error
+type importFunc func(ctx context.Context, log *slog.Logger, job importJob) error
 
 var (
 	_ importFunc = importJSON
@@ -422,7 +424,7 @@ type importSchema struct {
 	entityTbls map[*entity]*sqlmodel.TableDef
 }
 
-func execSchemaDelta(ctx context.Context, log lg.Log, drvr driver.SQLDriver, db sqlz.DB,
+func execSchemaDelta(ctx context.Context, log *slog.Logger, drvr driver.SQLDriver, db sqlz.DB,
 	curSchema, newSchema *importSchema,
 ) error {
 	var err error
@@ -433,7 +435,7 @@ func execSchemaDelta(ctx context.Context, log lg.Log, drvr driver.SQLDriver, db 
 				return err
 			}
 
-			log.Debugf("Created table %q", tblDef.Name)
+			log.Debug("Created table %q", tblDef.Name)
 		}
 		return nil
 	}
@@ -572,7 +574,9 @@ func decoderFindArrayClose(dec *stdj.Decoder) error {
 }
 
 // execInsertions performs db INSERT for each of the insertions.
-func execInsertions(ctx context.Context, log lg.Log, drvr driver.SQLDriver, db sqlz.DB, insertions []*insertion) error {
+func execInsertions(ctx context.Context, log *slog.Logger, drvr driver.SQLDriver,
+	db sqlz.DB, insertions []*insertion,
+) error {
 	// FIXME: This is an inefficient way of performing insertion.
 	//  We should be re-using the prepared statement, and probably
 	//  should batch the inserts as well. See driver.BatchInsert.
@@ -588,13 +592,13 @@ func execInsertions(ctx context.Context, log lg.Log, drvr driver.SQLDriver, db s
 
 		err = execer.Munge(insert.vals)
 		if err != nil {
-			log.WarnIfCloseError(execer)
+			slg.WarnIfCloseError(log, execer)
 			return err
 		}
 
 		_, err = execer.Exec(ctx, insert.vals...)
 		if err != nil {
-			log.WarnIfCloseError(execer)
+			slg.WarnIfCloseError(log, execer)
 			return err
 		}
 

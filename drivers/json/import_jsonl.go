@@ -7,7 +7,8 @@ import (
 	stdj "encoding/json"
 	"io"
 
-	"github.com/neilotoole/lg"
+	"github.com/neilotoole/sq/libsq/core/slg"
+	"golang.org/x/exp/slog"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/driver"
@@ -15,15 +16,15 @@ import (
 )
 
 // DetectJSONL implements source.TypeDetectFunc.
-func DetectJSONL(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (detected source.Type, score float32,
-	err error,
+func DetectJSONL(ctx context.Context, log *slog.Logger,
+	openFn source.FileOpenFunc) (detected source.Type, score float32, err error,
 ) {
 	var r io.ReadCloser
 	r, err = openFn()
 	if err != nil {
 		return source.TypeNone, 0, errz.Err(err)
 	}
-	defer log.WarnIfCloseError(r)
+	defer slg.WarnIfCloseError(log, r)
 
 	sc := bufio.NewScanner(r)
 	var validLines int
@@ -76,19 +77,19 @@ func DetectJSONL(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (d
 	return source.TypeNone, 0, nil
 }
 
-func importJSONL(ctx context.Context, log lg.Log, job importJob) error { //nolint:gocognit
+func importJSONL(ctx context.Context, log *slog.Logger, job importJob) error { //nolint:gocognit
 	r, err := job.openFn()
 	if err != nil {
 		return err
 	}
-	defer log.WarnIfCloseError(r)
+	defer slg.WarnIfCloseError(log, r)
 
 	drvr := job.destDB.SQLDriver()
 	db, err := job.destDB.DB().Conn(ctx)
 	if err != nil {
 		return errz.Err(err)
 	}
-	defer log.WarnIfCloseError(db)
+	defer slg.WarnIfCloseError(log, db)
 
 	proc := newProcessor(job.flatten)
 	scan := newLineScanner(ctx, r, '{')
@@ -109,7 +110,7 @@ func importJSONL(ctx context.Context, log lg.Log, job importJob) error { //nolin
 
 		if schemaModified {
 			if !hasMore || scan.validLineCount >= job.sampleSize {
-				log.Debugf("line[%d]: time to (re)build the schema", scan.totalLineCount)
+				log.Debug("line[%d]: time to (re)build the schema", scan.totalLineCount)
 				if curSchema == nil {
 					log.Debug("First time building the schema")
 				}

@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/slg"
+	"golang.org/x/exp/slog"
+
 	"github.com/go-sql-driver/mysql"
-	"github.com/neilotoole/lg"
 	"github.com/xo/dburl"
 
 	"github.com/neilotoole/sq/libsq/ast/sqlbuilder"
@@ -33,7 +35,7 @@ var _ driver.Provider = (*Provider)(nil)
 
 // Provider is the MySQL implementation of driver.Provider.
 type Provider struct {
-	Log lg.Log
+	Log *slog.Logger
 }
 
 // DriverFor implements driver.Provider.
@@ -49,7 +51,7 @@ var _ driver.SQLDriver = (*driveri)(nil)
 
 // driveri is the MySQL implementation of driver.Driver.
 type driveri struct {
-	log lg.Log
+	log *slog.Logger
 }
 
 // DriverMetadata implements driver.Driver.
@@ -256,13 +258,13 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 
 	colTypes, err := rows.ColumnTypes()
 	if err != nil {
-		d.log.WarnIfFuncError(rows.Close)
+		slg.WarnIfFuncError(d.log, rows.Close)
 		return nil, errz.Err(err)
 	}
 
 	err = rows.Err()
 	if err != nil {
-		d.log.WarnIfFuncError(rows.Close)
+		slg.WarnIfFuncError(d.log, rows.Close)
 		return nil, errz.Err(err)
 	}
 
@@ -319,7 +321,7 @@ func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 	if err != nil {
 		return err
 	}
-	defer d.log.WarnIfCloseError(dbase.DB())
+	slg.WarnIfCloseError(d.log, dbase.DB())
 
 	return dbase.DB().PingContext(ctx)
 }
@@ -340,7 +342,7 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 	if err != nil {
 		return 0, errz.Err(err)
 	}
-	defer d.log.WarnIfFuncError(db.Close)
+	defer slg.WarnIfFuncError(d.log, db.Close)
 
 	// Not sure about the Tx requirements?
 	tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
@@ -365,7 +367,7 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 		// Note: At the time of writing, this doesn't happen:
 		// zero is always returned (which we don't like).
 		// If this changes (driver changes?) then we'll revisit.
-		d.log.Warnf("Unexpectedly got non-zero (%d) rows affected from TRUNCATE", affected)
+		d.log.Warn("Unexpectedly got non-zero (%d) rows affected from TRUNCATE", affected)
 		return affected, errz.Err(tx.Commit())
 	}
 
@@ -376,7 +378,7 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 
 // database implements driver.Database.
 type database struct {
-	log  lg.Log
+	log  *slog.Logger
 	db   *sql.DB
 	src  *source.Source
 	drvr *driveri
@@ -409,7 +411,7 @@ func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error)
 
 // Close implements driver.Database.
 func (d *database) Close() error {
-	d.log.Debugf("Close database: %s", d.src)
+	d.log.Debug("Close database: %s", d.src)
 	return errz.Err(d.db.Close())
 }
 

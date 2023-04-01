@@ -46,21 +46,24 @@ require (
 	github.com/muesli/mango-cobra v1.2.0
 	github.com/muesli/roff v0.1.0
 	github.com/samber/lo v1.37.0
+	golang.org/x/exp v0.0.0-20230321023759-10a507213a29
+	google.golang.org/appengine v1.6.7
+//golang.org/x/exp v0.0.0-20221012211006-4de253d81b95 // older version that had slog.FromContext
+//golang.org/x/exp v0.0.0-20230321023759-10a507213a29
 )
 
 require (
 	github.com/golang-sql/sqlexp v0.1.0 // indirect
-	github.com/itchyny/gojq v0.12.12 // indirect
-	github.com/itchyny/timefmt-go v0.1.5 // indirect
 	github.com/klauspost/compress v1.11.13 // indirect
 	github.com/moby/patternmatcher v0.5.0 // indirect
 	github.com/moby/sys/sequential v0.5.0 // indirect
 	github.com/muesli/mango v0.1.0 // indirect
 	github.com/muesli/mango-pflag v0.1.0 // indirect
+	github.com/neilotoole/slogt v0.0.0-20230401122724-615bf182830b // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/rogpeppe/go-internal v1.9.0 // indirect
 	golang.org/x/crypto v0.4.0 // indirect
-	golang.org/x/exp v0.0.0-20221217163422-3c43f8badb15 // indirect
+
 )
 
 require (

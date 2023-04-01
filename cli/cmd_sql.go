@@ -160,7 +160,7 @@ func execSQLInsert(ctx context.Context, rc *RunContext, fromSrc, destSrc *source
 		return errz.Wrapf(err, "insert %s.%s failed", destSrc.Handle, destTbl)
 	}
 
-	rc.Log.Debugf("Rows affected: %d", affected)
+	rc.Log.Debug("Rows affected: %d", affected)
 
 	fmt.Fprintf(rc.Out, stringz.Plu("Inserted %d row(s) into %s.%s\n", int(affected)), affected, destSrc.Handle, destTbl)
 	return nil

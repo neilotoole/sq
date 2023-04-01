@@ -3,13 +3,13 @@ package ast
 import (
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	"github.com/neilotoole/slogt"
 
-	"github.com/neilotoole/lg/testlg"
+	"github.com/stretchr/testify/require"
 )
 
 func TestChildIndex(t *testing.T) {
-	log := testlg.New(t).Strict(true)
+	log := slogt.New(t)
 
 	// `@mydb1 | .user, .address | join(.uid == .uid) | .uid, .username, .country`
 	p := getSLQParser(fixtJoinQuery1)

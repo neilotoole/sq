@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/neilotoole/lg/testlg"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli/output"
@@ -206,7 +205,7 @@ func TestErrorWriter(t *testing.T) {
 			fm.Pretty = tc.pretty
 			fm.EnableColor(tc.color)
 
-			errw := jsonw.NewErrorWriter(testlg.New(t), buf, fm)
+			errw := jsonw.NewErrorWriter(buf, fm)
 			errw.Error(errz.New("err1"))
 			got := buf.String()
 

@@ -15,9 +15,11 @@ import (
 	"sync"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3" // Import for side effect of loading the driver
-	"github.com/neilotoole/lg"
+	"github.com/neilotoole/sq/libsq/core/slg"
 
+	"golang.org/x/exp/slog"
+
+	_ "github.com/mattn/go-sqlite3" // Import for side effect of loading the driver
 	"github.com/neilotoole/sq/libsq/ast/sqlbuilder"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -43,7 +45,7 @@ var _ driver.Provider = (*Provider)(nil)
 
 // Provider is the SQLite3 implementation of driver.Provider.
 type Provider struct {
-	Log lg.Log
+	Log *slog.Logger
 }
 
 // DriverFor implements driver.Provider.
@@ -59,7 +61,7 @@ var _ driver.Driver = (*driveri)(nil)
 
 // driveri is the SQLite3 implementation of driver.Driver.
 type driveri struct {
-	log lg.Log
+	log *slog.Logger
 }
 
 // DriverMetadata implements driver.Driver.
@@ -101,7 +103,7 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 	if err != nil {
 		return 0, errz.Err(err)
 	}
-	defer d.log.WarnIfFuncError(db.Close)
+	defer slg.WarnIfFuncError(d.log, db.Close)
 
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
@@ -148,7 +150,7 @@ func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 	if err != nil {
 		return err
 	}
-	defer d.log.WarnIfCloseError(dbase)
+	defer slg.WarnIfCloseError(d.log, dbase)
 
 	return dbase.DB().Ping()
 }
@@ -554,7 +556,7 @@ func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *sqlmodel.
 
 	_, err = stmt.ExecContext(ctx)
 	if err != nil {
-		d.log.WarnIfCloseError(stmt)
+		slg.WarnIfCloseError(d.log, stmt)
 		return errz.Err(err)
 	}
 
@@ -697,7 +699,7 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 	// column type info.
 	colTypes, err := rows.ColumnTypes()
 	if err != nil {
-		d.log.WarnIfFuncError(rows.Close)
+		slg.WarnIfFuncError(d.log, rows.Close)
 		return nil, errz.Err(err)
 	}
 
@@ -707,14 +709,14 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 	if rows.Next() {
 		colTypes, err = rows.ColumnTypes()
 		if err != nil {
-			d.log.WarnIfFuncError(rows.Close)
+			slg.WarnIfFuncError(d.log, rows.Close)
 			return nil, errz.Err(err)
 		}
 	}
 
 	err = rows.Err()
 	if err != nil {
-		d.log.WarnIfFuncError(rows.Close)
+		slg.WarnIfFuncError(d.log, rows.Close)
 		return nil, errz.Err(err)
 	}
 
@@ -744,7 +746,7 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 
 // database implements driver.Database.
 type database struct {
-	log  lg.Log
+	log  *slog.Logger
 	db   *sql.DB
 	src  *source.Source
 	drvr *driveri
@@ -817,11 +819,11 @@ func (d *database) Close() error {
 	defer d.closeMu.Unlock()
 
 	if d.closed {
-		d.log.Warnf("SQLite DB already closed: %v", d.src)
+		d.log.Warn("SQLite DB already closed: %v", d.src)
 		return nil
 	}
 
-	d.log.Debugf("Closing database: %s", d.src)
+	d.log.Debug("Closing database: %s", d.src)
 	err := errz.Err(d.db.Close())
 	d.closed = true
 	return err
@@ -831,14 +833,14 @@ func (d *database) Close() error {
 // function creates a new sqlite db file in the temp dir, and
 // src points at this file. The returned clnup func closes that
 // db file and deletes it.
-func NewScratchSource(log lg.Log, name string) (src *source.Source, clnup func() error, err error) {
+func NewScratchSource(log *slog.Logger, name string) (src *source.Source, clnup func() error, err error) {
 	name = stringz.SanitizeAlphaNumeric(name, '_')
 	_, f, cleanFn, err := source.TempDirFile(name + ".sqlite")
 	if err != nil {
 		return nil, cleanFn, err
 	}
 
-	log.Debugf("created sqlite3 scratch data source file: %s", f.Name())
+	log.Debug("created sqlite3 scratch data source file: %s", f.Name())
 
 	src = &source.Source{
 		Type:     Type,

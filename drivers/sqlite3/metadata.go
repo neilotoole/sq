@@ -8,7 +8,9 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/neilotoole/lg"
+	"github.com/neilotoole/sq/libsq/core/slg"
+
+	"golang.org/x/exp/slog"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -17,7 +19,7 @@ import (
 )
 
 // recordMetaFromColumnTypes returns recordMetaFromColumnTypes for rows.
-func recordMetaFromColumnTypes(log lg.Log, colTypes []*sql.ColumnType) (sqlz.RecordMeta, error) {
+func recordMetaFromColumnTypes(log *slog.Logger, colTypes []*sql.ColumnType) (sqlz.RecordMeta, error) {
 	recMeta := make([]*sqlz.FieldMeta, len(colTypes))
 	for i, colType := range colTypes {
 		// sqlite is very forgiving at times, e.g. execute
@@ -45,7 +47,7 @@ func recordMetaFromColumnTypes(log lg.Log, colTypes []*sql.ColumnType) (sqlz.Rec
 //
 // If the scan type is NOT a sql.NullTYPE, the corresponding sql.NullTYPE will
 // be set.
-func setScanType(log lg.Log, colType *sqlz.ColumnTypeData) {
+func setScanType(log *slog.Logger, colType *sqlz.ColumnTypeData) {
 	scanType, knd := colType.ScanType, colType.Kind
 
 	if scanType != nil {
@@ -72,7 +74,7 @@ func setScanType(log lg.Log, colType *sqlz.ColumnTypeData) {
 	switch knd {
 	default:
 		// Shouldn't happen?
-		log.Warnf("Unknown kind for col '%s' with database type '%s'", colType.Name, colType.DatabaseTypeName)
+		log.Warn("Unknown kind for col '%s' with database type '%s'", colType.Name, colType.DatabaseTypeName)
 		scanType = sqlz.RTypeAny
 
 	case kind.Text, kind.Decimal:
@@ -109,7 +111,7 @@ func setScanType(log lg.Log, colType *sqlz.ColumnTypeData) {
 // The scanType arg may be nil (it may not be available to the caller): when
 // non-nil it may be used to determine ambiguous cases. For example,
 // dbTypeName is empty string for "COUNT(*)"
-func kindFromDBTypeName(log lg.Log, colName, dbTypeName string, scanType reflect.Type) kind.Kind {
+func kindFromDBTypeName(log *slog.Logger, colName, dbTypeName string, scanType reflect.Type) kind.Kind {
 	if dbTypeName == "" {
 		// dbTypeName can be empty for functions such as COUNT() etc.
 		// But we can infer the type from scanType (if non-nil).
@@ -187,7 +189,7 @@ func kindFromDBTypeName(log lg.Log, colName, dbTypeName string, scanType reflect
 	// sq handles as kind.Text).
 	switch {
 	default:
-		log.Warnf("Unknown SQLite database type name %q for %q: using %q", dbTypeName, colName, kind.Unknown)
+		log.Warn("Unknown SQLite database type name %q for %q: using %q", dbTypeName, colName, kind.Unknown)
 		knd = kind.Unknown
 	case strings.Contains(dbTypeName, "INT"):
 		knd = kind.Int
@@ -234,7 +236,9 @@ func DBTypeForKind(knd kind.Kind) string {
 }
 
 // getTableMetadata returns metadata for tblName in db.
-func getTableMetadata(ctx context.Context, log lg.Log, db sqlz.DB, tblName string) (*source.TableMetadata, error) {
+func getTableMetadata(ctx context.Context, log *slog.Logger, db sqlz.DB,
+	tblName string,
+) (*source.TableMetadata, error) {
 	tblMeta := &source.TableMetadata{Name: tblName}
 	// Note that there's no easy way of getting the physical size of
 	// a table, so tblMeta.Size remains nil.
@@ -270,7 +274,7 @@ func getTableMetadata(ctx context.Context, log lg.Log, db sqlz.DB, tblName strin
 	if err != nil {
 		return nil, errz.Err(err)
 	}
-	defer log.WarnIfCloseError(rows)
+	defer slg.WarnIfCloseError(log, rows)
 
 	for rows.Next() {
 		col := &source.ColMetadata{}
@@ -301,7 +305,7 @@ func getTableMetadata(ctx context.Context, log lg.Log, db sqlz.DB, tblName strin
 
 // getAllTblMeta gets metadata for each of the
 // non-system tables in db.
-func getAllTblMeta(ctx context.Context, log lg.Log, db sqlz.DB) ([]*source.TableMetadata, error) {
+func getAllTblMeta(ctx context.Context, log *slog.Logger, db sqlz.DB) ([]*source.TableMetadata, error) {
 	// This query returns a row for each column of each table,
 	// order by table name then col id (ordinal).
 	// Results will look like:
@@ -334,7 +338,7 @@ ORDER BY m.name, p.cid
 	if err != nil {
 		return nil, errz.Err(err)
 	}
-	defer log.WarnIfCloseError(rows)
+	defer slg.WarnIfCloseError(log, rows)
 
 	for rows.Next() {
 		select {
@@ -407,7 +411,7 @@ ORDER BY m.name, p.cid
 }
 
 // getTblRowCounts returns the number of rows in each table.
-func getTblRowCounts(ctx context.Context, log lg.Log, db sqlz.DB, tblNames []string) ([]int64, error) {
+func getTblRowCounts(ctx context.Context, log *slog.Logger, db sqlz.DB, tblNames []string) ([]int64, error) {
 	// See: https://stackoverflow.com/questions/7524612/how-to-count-rows-from-multiple-tables-in-sqlite
 	//
 	// Several approaches were benchmarked. Ultimately the union-based
@@ -459,14 +463,14 @@ func getTblRowCounts(ctx context.Context, log lg.Log, db sqlz.DB, tblNames []str
 		for rows.Next() {
 			err = rows.Scan(&tblCounts[j])
 			if err != nil {
-				log.WarnIfCloseError(rows)
+				slg.WarnIfCloseError(log, rows)
 				return nil, errz.Err(err)
 			}
 			j++
 		}
 
 		if err = rows.Err(); err != nil {
-			log.WarnIfCloseError(rows)
+			slg.WarnIfCloseError(log, rows)
 			return nil, errz.Err(err)
 		}
 

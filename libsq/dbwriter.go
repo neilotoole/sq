@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"sync"
 
-	"github.com/neilotoole/lg"
+	"github.com/neilotoole/sq/libsq/core/slg"
+
+	"golang.org/x/exp/slog"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/sqlmodel"
@@ -16,7 +18,7 @@ import (
 // DBWriter implements RecordWriter, writing
 // records to a database table.
 type DBWriter struct {
-	log      lg.Log
+	log      *slog.Logger
 	wg       *sync.WaitGroup
 	cancelFn context.CancelFunc
 	destDB   driver.Database
@@ -67,7 +69,7 @@ func DBWriterCreateTableIfNotExistsHook(destTblName string) DBWriterPreWriteHook
 // The writer writes records from recordCh to destTbl
 // in destDB. The recChSize param controls the size of recordCh
 // returned by the writer's Open method.
-func NewDBWriter(log lg.Log, destDB driver.Database, destTbl string, recChSize int,
+func NewDBWriter(log *slog.Logger, destDB driver.Database, destTbl string, recChSize int,
 	preWriteHooks ...DBWriterPreWriteHook,
 ) *DBWriter {
 	return &DBWriter{
@@ -142,7 +144,7 @@ func (w *DBWriter) Open(ctx context.Context, cancelFn context.CancelFunc, recMet
 
 					err = <-w.bi.ErrCh // Wait for batch inserter to complete
 					if err != nil {
-						w.log.Error(err)
+						w.log.Error(err.Error())
 						w.addErrs(err)
 						w.rollback(tx, err)
 						return
@@ -150,10 +152,10 @@ func (w *DBWriter) Open(ctx context.Context, cancelFn context.CancelFunc, recMet
 
 					commitErr := errz.Err(tx.Commit())
 					if commitErr != nil {
-						w.log.Error(commitErr)
+						w.log.Error(commitErr.Error())
 						w.addErrs(commitErr)
 					} else {
-						w.log.Debugf("Tx commit success for %s.%s", w.destDB.Source().Handle, w.destTbl)
+						w.log.Debug("Tx commit success for %s.%s", w.destDB.Source().Handle, w.destTbl)
 					}
 
 					return
@@ -207,11 +209,11 @@ func (w *DBWriter) addErrs(errs ...error) {
 // need to close those manually.
 func (w *DBWriter) rollback(tx *sql.Tx, causeErrs ...error) {
 	// Guaranteed to be at least one causeErr
-	w.log.Errorf("failed to insert to %s.%s: tx rollback due to: %s",
+	w.log.Error("failed to insert to %s.%s: tx rollback due to: %s",
 		w.destDB.Source().Handle, w.destTbl, causeErrs[0])
 
 	rollbackErr := errz.Err(tx.Rollback())
-	w.log.WarnIfError(rollbackErr)
+	slg.WarnIfError(w.log, rollbackErr)
 
 	w.addErrs(causeErrs...)
 	w.addErrs(rollbackErr)

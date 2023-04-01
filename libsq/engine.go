@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/neilotoole/errgroup"
-	"github.com/neilotoole/lg"
+	"golang.org/x/exp/slog"
 
+	"github.com/neilotoole/errgroup"
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/sqlmodel"
@@ -16,7 +16,7 @@ import (
 
 // engine executes a queryModel and writes to a RecordWriter.
 type engine struct {
-	log lg.Log
+	log *slog.Logger
 
 	qc *QueryContext
 
@@ -34,7 +34,7 @@ type engine struct {
 	targetDB driver.Database
 }
 
-func newEngine(ctx context.Context, log lg.Log, qc *QueryContext, query string) (*engine, error) {
+func newEngine(ctx context.Context, log *slog.Logger, qc *QueryContext, query string) (*engine, error) {
 	a, err := ast.Parse(log, query)
 	if err != nil {
 		return nil, err
@@ -140,7 +140,7 @@ func (ng *engine) prepare(ctx context.Context, qm *queryModel) error {
 
 // execute executes the plan that was built by engine.prepare.
 func (ng *engine) execute(ctx context.Context, recw RecordWriter) error {
-	ng.log.Debugf("engine.execute: [%s]: %s", ng.targetDB.Source().Handle, ng.targetSQL)
+	ng.log.Debug("engine.execute: [%s]: %s", ng.targetDB.Source().Handle, ng.targetSQL)
 
 	err := ng.executeTasks(ctx)
 	if err != nil {
@@ -300,7 +300,7 @@ func (ng *engine) crossSourceJoin(ctx context.Context, fnJoin *ast.JoinNode) (fr
 // tasker is the interface for executing a DB task.
 type tasker interface {
 	// executeTask executes a task against the DB.
-	executeTask(ctx context.Context, log lg.Log) error
+	executeTask(ctx context.Context, log *slog.Logger) error
 }
 
 // joinCopyTask is a specification of a table data copy task to be performed
@@ -314,13 +314,13 @@ type joinCopyTask struct {
 	toTblName   string
 }
 
-func (jt *joinCopyTask) executeTask(ctx context.Context, log lg.Log) error {
+func (jt *joinCopyTask) executeTask(ctx context.Context, log *slog.Logger) error {
 	return execCopyTable(ctx, log, jt.fromDB, jt.fromTblName, jt.toDB, jt.toTblName)
 }
 
 // execCopyTable performs the work of copying fromDB.fromTblName to destDB.destTblName.
-func execCopyTable(ctx context.Context, log lg.Log, fromDB driver.Database, fromTblName string, destDB driver.Database,
-	destTblName string,
+func execCopyTable(ctx context.Context, log *slog.Logger, fromDB driver.Database,
+	fromTblName string, destDB driver.Database, destTblName string,
 ) error {
 	createTblHook := func(ctx context.Context, originRecMeta sqlz.RecordMeta, destDB driver.Database,
 		tx sqlz.DB,
@@ -349,7 +349,7 @@ func execCopyTable(ctx context.Context, log lg.Log, fromDB driver.Database, from
 	if err != nil {
 		return errz.Wrapf(err, "insert %s.%s failed", destDB.Source().Handle, destTblName)
 	}
-	log.Debugf("Copied %d rows to %s.%s", affected, destDB.Source().Handle, destTblName)
+	log.Debug("Copied %d rows to %s.%s", affected, destDB.Source().Handle, destTblName)
 	return nil
 }
 
@@ -370,7 +370,7 @@ func (qm *queryModel) String() string {
 }
 
 // buildQueryModel creates a queryModel instance from the AST.
-func buildQueryModel(log lg.Log, a *ast.AST) (*queryModel, error) {
+func buildQueryModel(log *slog.Logger, a *ast.AST) (*queryModel, error) {
 	if len(a.Segments()) == 0 {
 		return nil, errz.Errorf("query model error: query does not have enough segments")
 	}
@@ -411,7 +411,7 @@ func buildQueryModel(log lg.Log, a *ast.AST) (*queryModel, error) {
 					qm.Range.Text(), rr.Text())
 			}
 
-			log.Debugf("found row range: %q", rr.Text())
+			log.Debug("found row range: %q", rr.Text())
 			qm.Range = rr
 		}
 	}

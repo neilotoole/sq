@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/slg"
+
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/output"
@@ -235,7 +237,7 @@ func preprocessUserSLQ(ctx context.Context, rc *RunContext, args []string) (stri
 			if err != nil {
 				return "", err
 			}
-			defer log.WarnIfCloseError(dbase)
+			defer slg.WarnIfCloseError(log, dbase)
 
 			srcMeta, err := dbase.SourceMetadata(ctx)
 			if err != nil {

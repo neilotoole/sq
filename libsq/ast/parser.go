@@ -5,15 +5,15 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/antlr/antlr4/runtime/Go/antlr/v4"
-	"github.com/neilotoole/lg"
+	"golang.org/x/exp/slog"
 
+	"github.com/antlr/antlr4/runtime/Go/antlr/v4"
 	"github.com/neilotoole/sq/libsq/ast/internal/slq"
 )
 
 // parseSLQ processes SLQ input text according to the rules of the SQL grammar,
 // and returns a parse tree. It executes both lexer and parser phases.
-func parseSLQ(log lg.Log, input string) (*slq.QueryContext, error) {
+func parseSLQ(log *slog.Logger, input string) (*slq.QueryContext, error) {
 	lex := slq.NewSLQLexer(antlr.NewInputStream(input))
 	lex.RemoveErrorListeners() // the generated lexer has default listeners we don't want
 	lexErrs := &antlrErrorListener{name: "lexer", log: log}
@@ -39,7 +39,7 @@ func parseSLQ(log lg.Log, input string) (*slq.QueryContext, error) {
 }
 
 type antlrErrorListener struct {
-	log      lg.Log
+	log      *slog.Logger
 	name     string
 	errs     []string
 	warnings []string
@@ -123,7 +123,7 @@ var _ slq.SLQVisitor = (*parseTreeVisitor)(nil)
 // parseTreeVisitor implements slq.SLQVisitor to
 // generate the preliminary AST.
 type parseTreeVisitor struct {
-	log lg.Log
+	log *slog.Logger
 
 	// cur is the currently-active node of the AST.
 	// This value is modified as the tree is descended.
@@ -145,7 +145,7 @@ func (v *parseTreeVisitor) using(node Node, fn func() any) any {
 
 // Visit implements antlr.ParseTreeVisitor.
 func (v *parseTreeVisitor) Visit(ctx antlr.ParseTree) any {
-	v.log.Debugf("visiting %T: %v", ctx, ctx.GetText())
+	v.log.Debug("visiting %T: %v", ctx, ctx.GetText())
 
 	switch ctx := ctx.(type) {
 	case *slq.SegmentContext:
@@ -352,7 +352,7 @@ func (v *parseTreeVisitor) VisitAlias(ctx *slq.AliasContext) any {
 
 // VisitExpr implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitExpr(ctx *slq.ExprContext) any {
-	v.log.Debugf("visiting expr: %v", ctx.GetText())
+	v.log.Debug("visiting expr: %v", ctx.GetText())
 
 	// check if the expr is a selector, e.g. ".uid"
 	if selCtx := ctx.Selector(); selCtx != nil {
@@ -518,7 +518,7 @@ func (v *parseTreeVisitor) VisitJoinConstraint(ctx *slq.JoinConstraintContext) a
 
 // VisitTerminal implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitTerminal(ctx antlr.TerminalNode) any {
-	v.log.Debugf("visiting terminal: %q", ctx.GetText())
+	v.log.Debug("visiting terminal: %q", ctx.GetText())
 
 	val := ctx.GetText()
 
@@ -603,6 +603,6 @@ func (v *parseTreeVisitor) VisitRowRange(ctx *slq.RowRangeContext) any {
 
 // VisitErrorNode implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitErrorNode(ctx antlr.ErrorNode) any {
-	v.log.Debugf("error node: %v", ctx.GetText())
+	v.log.Debug("error node: %v", ctx.GetText())
 	return nil
 }

@@ -3,15 +3,15 @@ package ast
 import (
 	"reflect"
 
-	"github.com/neilotoole/lg"
+	"golang.org/x/exp/slog"
 )
 
 // nodeVisitorFn is a visitor function that the walker invokes for each node it visits.
-type nodeVisitorFn func(lg.Log, *Walker, Node) error
+type nodeVisitorFn func(*slog.Logger, *Walker, Node) error
 
 // Walker traverses a node tree (the AST, or a subset thereof).
 type Walker struct {
-	log      lg.Log
+	log      *slog.Logger
 	root     Node
 	visitors map[reflect.Type][]nodeVisitorFn
 	// state is a generic field to hold any data that a visitor function
@@ -20,7 +20,7 @@ type Walker struct {
 }
 
 // NewWalker returns a new Walker instance.
-func NewWalker(log lg.Log, node Node) *Walker {
+func NewWalker(log *slog.Logger, node Node) *Walker {
 	w := &Walker{log: log, root: node}
 	w.visitors = map[reflect.Type][]nodeVisitorFn{}
 	return w
@@ -73,12 +73,12 @@ func (w *Walker) visitChildren(node Node) error {
 }
 
 // walkWith is a convenience function for using Walker.
-func walkWith(log lg.Log, ast *AST, typ reflect.Type, fn nodeVisitorFn) error {
+func walkWith(log *slog.Logger, ast *AST, typ reflect.Type, fn nodeVisitorFn) error {
 	return NewWalker(log, ast).AddVisitor(typ, fn).Walk()
 }
 
 // narrowTblSel takes a generic selector, and if appropriate, converts it to a TblSel.
-func narrowTblSel(log lg.Log, _ *Walker, node Node) error {
+func narrowTblSel(log *slog.Logger, _ *Walker, node Node) error {
 	// node is guaranteed to be typeSelectorNode
 	sel, ok := node.(*SelectorNode)
 	if !ok {
@@ -87,7 +87,7 @@ func narrowTblSel(log lg.Log, _ *Walker, node Node) error {
 
 	seg, ok := sel.Parent().(*SegmentNode)
 	if !ok {
-		log.Debugf("parent is not a segment, but is %T", sel.Parent())
+		log.Debug("parent is not a segment, but is %T", sel.Parent())
 		return nil
 	}
 
@@ -99,7 +99,7 @@ func narrowTblSel(log lg.Log, _ *Walker, node Node) error {
 	if err != nil {
 		return err
 	}
-	log.Debugf("prevType: %s", prevType)
+	log.Debug("prevType: %s", prevType)
 
 	if prevType == typeHandleNode {
 		handleNode, ok := seg.Prev().Children()[0].(*HandleNode)
@@ -124,7 +124,7 @@ func narrowTblSel(log lg.Log, _ *Walker, node Node) error {
 
 // narrowTblColSel takes a generic selector, and if appropriate, replaces it
 // with a TblColSelectorNode.
-func narrowTblColSel(log lg.Log, w *Walker, node Node) error {
+func narrowTblColSel(log *slog.Logger, w *Walker, node Node) error {
 	// node is guaranteed to be type SelectorNode
 	sel, ok := node.(*SelectorNode)
 	if !ok {
@@ -153,7 +153,7 @@ func narrowTblColSel(log lg.Log, w *Walker, node Node) error {
 		}
 
 		if parent.SegIndex() <= selectableSeg.SegIndex() {
-			log.Debugf("skipping this selector because it's not after the final selectable segment")
+			log.Debug("skipping this selector because it's not after the final selectable segment")
 			return nil
 		}
 
@@ -176,7 +176,7 @@ func narrowTblColSel(log lg.Log, w *Walker, node Node) error {
 }
 
 // narrowColSel takes a generic selector, and if appropriate, converts it to a ColSel.
-func narrowColSel(log lg.Log, w *Walker, node Node) error {
+func narrowColSel(log *slog.Logger, w *Walker, node Node) error {
 	// node is guaranteed to be type SelectorNode
 	sel, ok := node.(*SelectorNode)
 	if !ok {
@@ -202,7 +202,7 @@ func narrowColSel(log lg.Log, w *Walker, node Node) error {
 		}
 
 		if parent.SegIndex() <= selectableSeg.SegIndex() {
-			log.Debugf("skipping this selector because it's not after the final selectable segment")
+			log.Debug("skipping this selector because it's not after the final selectable segment")
 			return nil
 		}
 
@@ -213,7 +213,7 @@ func narrowColSel(log lg.Log, w *Walker, node Node) error {
 		return nodeReplace(sel, colSel)
 
 	default:
-		log.Warnf("skipping this selector, as parent is not of a relevant type, but is %T", parent)
+		log.Warn("skipping this selector, as parent is not of a relevant type, but is %T", parent)
 	}
 
 	return nil
@@ -227,7 +227,7 @@ func narrowColSel(log lg.Log, w *Walker, node Node) error {
 //	@my1 | .tbluser | .uid > 4 | .uid, .email
 //
 // In this case, ".uid > 4" is the WHERE clause.
-func findWhereClause(_ lg.Log, _ *Walker, node Node) error {
+func findWhereClause(_ *slog.Logger, _ *Walker, node Node) error {
 	// node is guaranteed to be *ExprNode
 	expr, ok := node.(*ExprNode)
 	if !ok {
@@ -262,7 +262,7 @@ func findWhereClause(_ lg.Log, _ *Walker, node Node) error {
 }
 
 // determineJoinTables attempts to determine the tables that a JOIN refers to.
-func determineJoinTables(_ lg.Log, _ *Walker, node Node) error {
+func determineJoinTables(_ *slog.Logger, _ *Walker, node Node) error {
 	// node is guaranteed to be FnJoin
 	fnJoin, ok := node.(*JoinNode)
 	if !ok {
@@ -297,7 +297,7 @@ func determineJoinTables(_ lg.Log, _ *Walker, node Node) error {
 }
 
 // visitCheckRowRange validates the RowRangeNode element.
-func visitCheckRowRange(_ lg.Log, w *Walker, node Node) error {
+func visitCheckRowRange(_ *slog.Logger, w *Walker, node Node) error {
 	// node is guaranteed to be FnJoin
 	rr, ok := node.(*RowRangeNode)
 	if !ok {

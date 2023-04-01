@@ -5,7 +5,7 @@ import (
 	"math"
 	"strings"
 
-	"github.com/neilotoole/lg"
+	"golang.org/x/exp/slog"
 
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -35,7 +35,7 @@ var _ FragmentBuilder = (*BaseFragmentBuilder)(nil)
 
 // BaseFragmentBuilder is a default implementation of sqlbuilder.FragmentBuilder.
 type BaseFragmentBuilder struct {
-	Log lg.Log
+	Log *slog.Logger
 	// Quote is the driver-specific quote rune, e.g. " or `
 	Quote string
 

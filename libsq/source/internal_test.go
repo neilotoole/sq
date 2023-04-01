@@ -6,7 +6,8 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/neilotoole/lg/testlg"
+	"github.com/neilotoole/slogt"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -16,7 +17,7 @@ import (
 )
 
 func TestFiles_Open(t *testing.T) {
-	fs, err := NewFiles(testlg.New(t))
+	fs, err := NewFiles(slogt.New(t))
 	require.NoError(t, err)
 	t.Cleanup(func() { assert.NoError(t, fs.Close()) })
 

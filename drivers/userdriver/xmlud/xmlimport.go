@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/neilotoole/lg"
+	"golang.org/x/exp/slog"
 
 	"github.com/neilotoole/sq/drivers/userdriver"
 	"github.com/neilotoole/sq/libsq/core/cleanup"
@@ -25,7 +25,9 @@ import (
 const Genre = "xml"
 
 // Import implements userdriver.ImportFunc.
-func Import(ctx context.Context, log lg.Log, def *userdriver.DriverDef, data io.Reader, destDB driver.Database) error {
+func Import(ctx context.Context, log *slog.Logger, def *userdriver.DriverDef,
+	data io.Reader, destDB driver.Database,
+) error {
 	if def.Genre != Genre {
 		return errz.Errorf("xmlud.Import does not support genre %q", def.Genre)
 	}
@@ -54,7 +56,7 @@ func Import(ctx context.Context, log lg.Log, def *userdriver.DriverDef, data io.
 
 // importer does the work of importing data from XML.
 type importer struct {
-	log      lg.Log
+	log      *slog.Logger
 	def      *userdriver.DriverDef
 	data     io.Reader
 	destDB   driver.Database
@@ -271,7 +273,7 @@ func (im *importer) handleElemAttrs(elem xml.StartElement, curRow *rowState) err
 			attrCol := curRow.tbl.ColBySelector(attrSel)
 			if attrCol == nil {
 				if msg, ok := im.msgOncef("Skip: attr %q is not a column of table %q", attrSel, curRow.tbl.Name); ok {
-					im.log.Debugf(msg)
+					im.log.Debug(msg)
 				}
 
 				continue
@@ -347,7 +349,7 @@ func (im *importer) setSequenceColsVals(row *rowState, nextSeqVal int64) {
 			// Probably safer to override the value.
 			row.dirtyColVals[seqColName] = nextSeqVal
 
-			im.log.Warnf("%s.%s is a auto-generated sequence() column: ignoring the value found in input",
+			im.log.Warn("%s.%s is a auto-generated sequence() column: ignoring the value found in input",
 				row.tbl.Name, seqColName)
 			continue
 		}
@@ -568,7 +570,7 @@ func (im *importer) createTables(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		im.log.Debugf("Created table %s.%s", im.destDB.Source().Handle, tblDef.Name)
+		im.log.Debug("Created table %s.%s", im.destDB.Source().Handle, tblDef.Name)
 	}
 
 	return nil

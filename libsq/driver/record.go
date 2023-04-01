@@ -9,7 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neilotoole/lg"
+	"github.com/neilotoole/sq/libsq/core/slg"
+
+	"golang.org/x/exp/slog"
+
 	"go.uber.org/atomic"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -404,8 +407,8 @@ func (bi BatchInsert) Munge(rec []any) error {
 // it must be a sql.Conn or sql.Tx.
 //
 //nolint:gocognit
-func NewBatchInsert(ctx context.Context, log lg.Log, drvr SQLDriver, db sqlz.DB, destTbl string, destColNames []string,
-	batchSize int,
+func NewBatchInsert(ctx context.Context, log *slog.Logger, drvr SQLDriver, db sqlz.DB,
+	destTbl string, destColNames []string, batchSize int,
 ) (*BatchInsert, error) {
 	err := requireSingleConn(db)
 	if err != nil {
@@ -442,7 +445,7 @@ func NewBatchInsert(ctx context.Context, log lg.Log, drvr SQLDriver, db sqlz.DB,
 					// If there's already an error, we just log any
 					// error from inserter.Close: the pre-existing error
 					// is the primary concern.
-					log.WarnIfError(errz.Err(inserter.Close()))
+					slg.WarnIfError(log, errz.Err(inserter.Close()))
 				}
 			}
 

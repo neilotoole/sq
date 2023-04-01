@@ -7,10 +7,12 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/slg"
+
+	"golang.org/x/exp/slog"
+
 	"github.com/c2h5oh/datasize"
 	"github.com/neilotoole/errgroup"
-	"github.com/neilotoole/lg"
-
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
@@ -20,13 +22,13 @@ import (
 
 // kindFromDBTypeName determines the kind.Kind from the database
 // type name. For example, "VARCHAR" -> kind.Text.
-func kindFromDBTypeName(log lg.Log, colName, dbTypeName string) kind.Kind {
+func kindFromDBTypeName(log *slog.Logger, colName, dbTypeName string) kind.Kind {
 	var knd kind.Kind
 	dbTypeName = strings.ToUpper(dbTypeName)
 
 	switch dbTypeName {
 	default:
-		log.Warnf("Unknown SQLServer database type '%s' for column '%s': using %s", dbTypeName, colName, kind.Unknown)
+		log.Warn("Unknown SQLServer database type '%s' for column '%s': using %s", dbTypeName, colName, kind.Unknown)
 		knd = kind.Unknown
 	case "INT", "BIGINT", "SMALLINT", "TINYINT":
 		knd = kind.Int
@@ -105,7 +107,8 @@ func setScanType(ct *sqlz.ColumnTypeData, knd kind.Kind) {
 	}
 }
 
-func getSourceMetadata(ctx context.Context, log lg.Log, src *source.Source, db sqlz.DB) (*source.Metadata, error) {
+func getSourceMetadata(ctx context.Context, log *slog.Logger, src *source.Source, db sqlz.DB,
+) (*source.Metadata, error) {
 	const query = `SELECT DB_NAME(), SCHEMA_NAME(), SERVERPROPERTY('ProductVersion'), @@VERSION,
 (SELECT SUM(size) * 8192
 FROM sys.master_files WITH(NOWAIT)
@@ -150,7 +153,7 @@ GROUP BY database_id) AS total_size_bytes`
 				if hasErrCode(err, errCodeObjectNotExist) {
 					// This can happen if the table is dropped while
 					// we're collecting metadata. We log a warning and continue.
-					log.Warnf("table metadata: table %q appears not to exist (continuing regardless): %v",
+					log.Warn("table metadata: table %q appears not to exist (continuing regardless): %v",
 						tblNames[i], err)
 
 					return nil
@@ -179,7 +182,7 @@ GROUP BY database_id) AS total_size_bytes`
 	return md, nil
 }
 
-func getTableMetadata(ctx context.Context, log lg.Log, db sqlz.DB,
+func getTableMetadata(ctx context.Context, log *slog.Logger, db sqlz.DB,
 	tblCatalog, tblSchema, tblName, tblType string,
 ) (*source.TableMetadata, error) {
 	const tplTblUsage = `sp_spaceused '%s'`
@@ -284,7 +287,7 @@ func getTableMetadata(ctx context.Context, log lg.Log, db sqlz.DB,
 
 // getAllTables returns all of the table names, and the table types
 // (i.e. "BASE TABLE" or "VIEW").
-func getAllTables(ctx context.Context, log lg.Log, db sqlz.DB) (tblNames, tblTypes []string, err error) {
+func getAllTables(ctx context.Context, log *slog.Logger, db sqlz.DB) (tblNames, tblTypes []string, err error) {
 	const query = `SELECT TABLE_NAME, TABLE_TYPE FROM INFORMATION_SCHEMA.TABLES
 WHERE TABLE_TYPE='BASE TABLE' OR TABLE_TYPE='VIEW'
 ORDER BY TABLE_NAME ASC, TABLE_TYPE ASC`
@@ -293,7 +296,7 @@ ORDER BY TABLE_NAME ASC, TABLE_TYPE ASC`
 	if err != nil {
 		return nil, nil, err
 	}
-	defer log.WarnIfCloseError(rows)
+	defer slg.WarnIfCloseError(log, rows)
 
 	for rows.Next() {
 		var tblName, tblType string
@@ -313,8 +316,8 @@ ORDER BY TABLE_NAME ASC, TABLE_TYPE ASC`
 	return tblNames, tblTypes, nil
 }
 
-func getColumnMeta(ctx context.Context, log lg.Log, db sqlz.DB, tblCatalog, tblSchema, tblName string) ([]columnMeta,
-	error,
+func getColumnMeta(ctx context.Context, log *slog.Logger, db sqlz.DB, tblCatalog,
+	tblSchema, tblName string) ([]columnMeta, error,
 ) {
 	// TODO: sq doesn't use all of these columns, no need to select them all.
 
@@ -335,7 +338,7 @@ func getColumnMeta(ctx context.Context, log lg.Log, db sqlz.DB, tblCatalog, tblS
 		return nil, errz.Err(err)
 	}
 
-	defer func() { log.WarnIfCloseError(rows) }()
+	defer func() { slg.WarnIfCloseError(log, rows) }()
 
 	var cols []columnMeta
 
@@ -360,7 +363,7 @@ func getColumnMeta(ctx context.Context, log lg.Log, db sqlz.DB, tblCatalog, tblS
 	return cols, nil
 }
 
-func getConstraints(ctx context.Context, log lg.Log, db sqlz.DB,
+func getConstraints(ctx context.Context, log *slog.Logger, db sqlz.DB,
 	tblCatalog, tblSchema, tblName string,
 ) ([]constraintMeta, error) {
 	const query = `SELECT kcu.TABLE_CATALOG, kcu.TABLE_SCHEMA, kcu.TABLE_NAME,  tc.CONSTRAINT_TYPE,
@@ -379,7 +382,7 @@ func getConstraints(ctx context.Context, log lg.Log, db sqlz.DB,
 		return nil, errz.Err(err)
 	}
 
-	defer func() { log.WarnIfCloseError(rows) }()
+	defer func() { slg.WarnIfCloseError(log, rows) }()
 
 	var constraints []constraintMeta
 

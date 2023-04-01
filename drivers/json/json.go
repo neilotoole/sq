@@ -9,7 +9,9 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/neilotoole/lg"
+	"github.com/neilotoole/sq/libsq/core/slg"
+
+	"golang.org/x/exp/slog"
 
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -30,7 +32,7 @@ const (
 
 // Provider implements driver.Provider.
 type Provider struct {
-	Log       lg.Log
+	Log       *slog.Logger
 	Scratcher driver.ScratchDatabaseOpener
 	Files     *source.Files
 }
@@ -61,7 +63,7 @@ func (d *Provider) DriverFor(typ source.Type) (driver.Driver, error) {
 
 // Driver implements driver.Driver.
 type driveri struct {
-	log       lg.Log
+	log       *slog.Logger
 	typ       source.Type
 	importFn  importFunc
 	scratcher driver.ScratchDatabaseOpener
@@ -98,8 +100,8 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database
 
 	dbase.impl, err = d.scratcher.OpenScratch(ctx, src.Handle)
 	if err != nil {
-		d.log.WarnIfCloseError(r)
-		d.log.WarnIfFuncError(dbase.clnup.Run)
+		slg.WarnIfCloseError(d.log, r)
+		slg.WarnIfFuncError(d.log, dbase.clnup.Run)
 		return nil, err
 	}
 
@@ -113,8 +115,8 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database
 
 	err = d.importFn(ctx, d.log, job)
 	if err != nil {
-		d.log.WarnIfCloseError(r)
-		d.log.WarnIfFuncError(dbase.clnup.Run)
+		slg.WarnIfCloseError(d.log, r)
+		slg.WarnIfFuncError(d.log, dbase.clnup.Run)
 		return nil, err
 	}
 
@@ -142,20 +144,20 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 
 // Ping implements driver.Driver.
 func (d *driveri) Ping(_ context.Context, src *source.Source) error {
-	d.log.Debugf("driver %q attempting to ping %q", d.typ, src)
+	d.log.Debug("driver %q attempting to ping %q", d.typ, src)
 
 	r, err := d.files.Open(src)
 	if err != nil {
 		return err
 	}
-	defer d.log.WarnIfCloseError(r)
+	slg.WarnIfCloseError(d.log, r)
 
 	return nil
 }
 
 // database implements driver.Database.
 type database struct {
-	log   lg.Log
+	log   *slog.Logger
 	src   *source.Source
 	impl  driver.Database
 	clnup *cleanup.Cleanup
@@ -220,7 +222,7 @@ func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error)
 
 // Close implements driver.Database.
 func (d *database) Close() error {
-	d.log.Debugf("Close database: %s", d.src)
+	d.log.Debug("Close database: %s", d.src)
 
 	return errz.Combine(d.impl.Close(), d.clnup.Run())
 }

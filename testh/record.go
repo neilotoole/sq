@@ -7,7 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/neilotoole/lg"
+	"github.com/neilotoole/sq/libsq/core/slg"
+
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/drivers/sqlite3"
@@ -87,7 +88,7 @@ func RecordsFromTbl(tb testing.TB, handle, tbl string) (recMeta sqlz.RecordMeta,
 	sink, ok := recSinkCache[key]
 	if !ok {
 		th := New(tb)
-		th.Log = lg.Discard()
+		th.Log = slg.Discard()
 		src := th.Source(handle)
 		var err error
 		sink, err = th.QuerySQL(src, "SELECT * FROM "+tbl)

@@ -7,7 +7,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/neilotoole/lg"
+	"github.com/neilotoole/sq/libsq/core/slg"
+	"golang.org/x/exp/slog"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
@@ -17,7 +18,7 @@ import (
 
 // DetectJSON implements source.TypeDetectFunc.
 // The function returns TypeJSON for two varieties of input:.
-func DetectJSON(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (detected source.Type, score float32,
+func DetectJSON(ctx context.Context, log *slog.Logger, openFn source.FileOpenFunc) (detected source.Type, score float32,
 	err error,
 ) {
 	var r1, r2 io.ReadCloser
@@ -25,7 +26,7 @@ func DetectJSON(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (de
 	if err != nil {
 		return source.TypeNone, 0, errz.Err(err)
 	}
-	defer log.WarnIfCloseError(r1)
+	defer slg.WarnIfCloseError(log, r1)
 
 	dec := stdj.NewDecoder(r1)
 	var tok stdj.Token
@@ -52,7 +53,7 @@ func DetectJSON(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (de
 		if err != nil {
 			return source.TypeNone, 0, errz.Err(err)
 		}
-		defer log.WarnIfCloseError(r2)
+		defer slg.WarnIfCloseError(log, r2)
 
 		dec = stdj.NewDecoder(io.TeeReader(r2, buf))
 		var m map[string]any
@@ -94,7 +95,7 @@ func DetectJSON(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (de
 	if err != nil {
 		return source.TypeNone, 0, errz.Err(err)
 	}
-	defer log.WarnIfCloseError(r2)
+	defer slg.WarnIfCloseError(log, r2)
 
 	sc := newObjectInArrayScanner(r2)
 	var validObjCount int
@@ -129,19 +130,19 @@ func DetectJSON(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (de
 	return source.TypeNone, 0, nil
 }
 
-func importJSON(ctx context.Context, log lg.Log, job importJob) error {
+func importJSON(ctx context.Context, log *slog.Logger, job importJob) error {
 	r, err := job.openFn()
 	if err != nil {
 		return err
 	}
-	defer log.WarnIfCloseError(r)
+	defer slg.WarnIfCloseError(log, r)
 
 	drvr := job.destDB.SQLDriver()
 	db, err := job.destDB.DB().Conn(ctx)
 	if err != nil {
 		return errz.Err(err)
 	}
-	defer log.WarnIfCloseError(db)
+	defer slg.WarnIfCloseError(log, db)
 
 	proc := newProcessor(job.flatten)
 	scan := newObjectInArrayScanner(r)
@@ -166,7 +167,7 @@ func importJSON(ctx context.Context, log lg.Log, job importJob) error {
 
 		if schemaModified {
 			if !hasMore || scan.objCount >= job.sampleSize {
-				log.Debugf("line[%d]: time to (re)build the schema", scan.objCount)
+				log.Debug("line[%d]: time to (re)build the schema", scan.objCount)
 				if curSchema == nil {
 					log.Debug("First time building the schema")
 				}

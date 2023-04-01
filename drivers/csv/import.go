@@ -8,7 +8,10 @@ import (
 	"strconv"
 	"unicode/utf8"
 
-	"github.com/neilotoole/lg"
+	"golang.org/x/exp/slog"
+
+	"github.com/neilotoole/sq/libsq/core/slg"
+
 	"github.com/shopspring/decimal"
 
 	"github.com/neilotoole/sq/libsq"
@@ -27,7 +30,7 @@ const (
 )
 
 // importCSV loads the src CSV data to scratchDB.
-func importCSV(ctx context.Context, log lg.Log, src *source.Source, openFn source.FileOpenFunc,
+func importCSV(ctx context.Context, log *slog.Logger, src *source.Source, openFn source.FileOpenFunc,
 	scratchDB driver.Database,
 ) error {
 	// TODO: optPredictKind should be read from src.Options.
@@ -41,7 +44,7 @@ func importCSV(ctx context.Context, log lg.Log, src *source.Source, openFn sourc
 		return err
 	}
 
-	defer log.WarnIfCloseError(r)
+	defer slg.WarnIfCloseError(log, r)
 
 	// We add the CR filter reader to deal with CSV files exported
 	// from Excel which can have the DOS-style \r EOL markers.
@@ -101,7 +104,7 @@ func importCSV(ctx context.Context, log lg.Log, src *source.Source, openFn sourc
 		return err
 	}
 
-	log.Debugf("Inserted %d rows to %s.%s", inserted, scratchDB.Source().Handle, tblDef.Name)
+	log.Debug("Inserted %d rows to %s.%s", inserted, scratchDB.Source().Handle, tblDef.Name)
 	return nil
 }
 

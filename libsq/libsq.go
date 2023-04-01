@@ -12,7 +12,10 @@ package libsq
 import (
 	"context"
 
-	"github.com/neilotoole/lg"
+	"github.com/neilotoole/sq/libsq/core/slg"
+
+	"golang.org/x/exp/slog"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/driver"
@@ -87,7 +90,7 @@ type RecordWriter interface {
 
 // ExecuteSLQ executes the slq query, writing the results to recw.
 // The caller is responsible for closing qc.
-func ExecuteSLQ(ctx context.Context, log lg.Log, qc *QueryContext, query string, recw RecordWriter,
+func ExecuteSLQ(ctx context.Context, log *slog.Logger, qc *QueryContext, query string, recw RecordWriter,
 ) error {
 	ng, err := newEngine(ctx, log, qc, query)
 	if err != nil {
@@ -100,7 +103,7 @@ func ExecuteSLQ(ctx context.Context, log lg.Log, qc *QueryContext, query string,
 // SLQ2SQL simulates execution of a SLQ query, but instead of executing
 // the resulting SQL query, that ultimate SQL is returned. Effectively it is
 // equivalent to libsq.ExecuteSLQ, but without the execution.
-func SLQ2SQL(ctx context.Context, log lg.Log, qc *QueryContext, query string,
+func SLQ2SQL(ctx context.Context, log *slog.Logger, qc *QueryContext, query string,
 ) (targetSQL string, err error) {
 	var ng *engine
 	ng, err = newEngine(ctx, log, qc, query)
@@ -115,14 +118,14 @@ func SLQ2SQL(ctx context.Context, log lg.Log, qc *QueryContext, query string,
 // before recw has finished writing, thus the caller may wish
 // to wait for recw to complete.
 // The caller is responsible for closing dbase.
-func QuerySQL(ctx context.Context, log lg.Log, dbase driver.Database, recw RecordWriter, query string,
+func QuerySQL(ctx context.Context, log *slog.Logger, dbase driver.Database, recw RecordWriter, query string,
 	args ...any,
 ) error {
 	rows, err := dbase.DB().QueryContext(ctx, query, args...)
 	if err != nil {
 		return errz.Wrapf(err, `SQL query against %s failed: %s`, dbase.Source().Handle, query)
 	}
-	defer log.WarnIfCloseError(rows)
+	defer slg.WarnIfCloseError(log, rows)
 
 	// This next part is a bit ugly.
 	//
@@ -222,7 +225,7 @@ func QuerySQL(ctx context.Context, log lg.Log, dbase driver.Database, recw Recor
 		select {
 		// If ctx is done, then we just return, we're done.
 		case <-ctx.Done():
-			log.WarnIfError(ctx.Err())
+			slg.WarnIfError(log, ctx.Err())
 			cancelFn()
 			return ctx.Err()
 
@@ -231,7 +234,7 @@ func QuerySQL(ctx context.Context, log lg.Log, dbase driver.Database, recw Recor
 		// will be nil when the RecordWriter closes errCh on
 		// successful completion.
 		case err = <-errCh:
-			log.WarnIfError(err)
+			slg.WarnIfError(log, err)
 			cancelFn()
 			return err
 
@@ -246,7 +249,7 @@ func QuerySQL(ctx context.Context, log lg.Log, dbase driver.Database, recw Recor
 
 	// For extra safety, check rows.Err.
 	if rows.Err() != nil {
-		log.WarnIfError(err)
+		slg.WarnIfError(log, err)
 		cancelFn()
 		return errz.Err(rows.Err())
 	}

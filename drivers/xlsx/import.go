@@ -5,6 +5,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/slg"
+	"golang.org/x/exp/slog"
+
 	"github.com/tealeg/xlsx/v2"
 	"golang.org/x/sync/errgroup"
 
@@ -13,19 +16,17 @@ import (
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/source"
 
-	"github.com/neilotoole/lg"
-
 	"github.com/neilotoole/sq/libsq/core/sqlmodel"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
 )
 
 // xlsxToScratch loads the data in xlFile into scratchDB.
-func xlsxToScratch(ctx context.Context, log lg.Log, src *source.Source, xlFile *xlsx.File,
+func xlsxToScratch(ctx context.Context, log *slog.Logger, src *source.Source, xlFile *xlsx.File,
 	scratchDB driver.Database,
 ) error {
 	start := time.Now()
-	log.Debugf("Beginning import from XLSX %s to %s (%s)...", src.Handle, scratchDB.Source().Handle,
+	log.Debug("Beginning import from XLSX %s to %s (%s)...", src.Handle, scratchDB.Source().Handle,
 		scratchDB.Source().RedactedLocation())
 
 	hasHeader, _, err := options.HasHeader(src.Options)
@@ -49,7 +50,7 @@ func xlsxToScratch(ctx context.Context, log lg.Log, src *source.Source, xlFile *
 		}
 	}
 
-	log.Debugf("%d tables created (but not yet populated) in %s in %s",
+	log.Debug("%d tables created (but not yet populated) in %s in %s",
 		len(tblDefs), scratchDB.Source().Handle, time.Since(start))
 
 	var imported, skipped int
@@ -67,7 +68,7 @@ func xlsxToScratch(ctx context.Context, log lg.Log, src *source.Source, xlFile *
 		imported++
 	}
 
-	log.Debugf("%d sheets imported (%d sheets skipped) from %s to %s in %s",
+	log.Debug("%d sheets imported (%d sheets skipped) from %s to %s in %s",
 		imported, skipped, src.Handle, scratchDB.Source().Handle, time.Since(start))
 
 	return nil
@@ -75,7 +76,8 @@ func xlsxToScratch(ctx context.Context, log lg.Log, src *source.Source, xlFile *
 
 // importSheetToTable imports sheet's data to its scratch table.
 // The scratch table must already exist.
-func importSheetToTable(ctx context.Context, log lg.Log, sheet *xlsx.Sheet, hasHeader bool, scratchDB driver.Database,
+func importSheetToTable(ctx context.Context, log *slog.Logger, sheet *xlsx.Sheet,
+	hasHeader bool, scratchDB driver.Database,
 	tblDef *sqlmodel.TableDef,
 ) error {
 	startTime := time.Now()
@@ -84,7 +86,7 @@ func importSheetToTable(ctx context.Context, log lg.Log, sheet *xlsx.Sheet, hasH
 	if err != nil {
 		return errz.Err(err)
 	}
-	defer log.WarnIfCloseError(conn)
+	defer slg.WarnIfCloseError(log, conn)
 
 	drvr := scratchDB.SQLDriver()
 
@@ -135,7 +137,7 @@ func importSheetToTable(ctx context.Context, log lg.Log, sheet *xlsx.Sheet, hasH
 		return err
 	}
 
-	log.Debugf("Inserted %d rows from sheet %q into %s.%s in %s",
+	log.Debug("Inserted %d rows from sheet %q into %s.%s in %s",
 		bi.Written(), sheet.Name, scratchDB.Source().Handle, tblDef.Name, time.Since(startTime))
 
 	return nil
@@ -159,8 +161,8 @@ func isEmptyRow(row *xlsx.Row) bool {
 
 // buildTblDefsForSheets returns a TableDef for each sheet. If the
 // sheet is empty (has no data), the TableDef for that sheet will be nil.
-func buildTblDefsForSheets(ctx context.Context, log lg.Log, sheets []*xlsx.Sheet, hasHeader bool) ([]*sqlmodel.TableDef,
-	error,
+func buildTblDefsForSheets(ctx context.Context, log *slog.Logger,
+	sheets []*xlsx.Sheet, hasHeader bool) ([]*sqlmodel.TableDef, error,
 ) {
 	tblDefs := make([]*sqlmodel.TableDef, len(sheets))
 
@@ -188,10 +190,10 @@ func buildTblDefsForSheets(ctx context.Context, log lg.Log, sheets []*xlsx.Sheet
 // buildTblDefForSheet creates a table for the given sheet, and returns
 // a model of the table, or an error. If the sheet is empty, (nil,nil)
 // is returned.
-func buildTblDefForSheet(log lg.Log, sheet *xlsx.Sheet, hasHeader bool) (*sqlmodel.TableDef, error) {
+func buildTblDefForSheet(log *slog.Logger, sheet *xlsx.Sheet, hasHeader bool) (*sqlmodel.TableDef, error) {
 	maxCols := getRowsMaxCellCount(sheet)
 	if maxCols == 0 {
-		log.Warnf("sheet %q is empty: skipping")
+		log.Warn("sheet %q is empty: skipping")
 		return nil, nil //nolint:nilnil
 	}
 
@@ -249,7 +251,7 @@ func buildTblDefForSheet(log lg.Log, sheet *xlsx.Sheet, hasHeader bool) (*sqlmod
 		cols[i] = &sqlmodel.ColDef{Table: tblDef, Name: colName, Kind: colKinds[i]}
 	}
 	tblDef.Cols = cols
-	log.Debugf("sheet %q: using col names [%q]", sheet.Name, strings.Join(colNames, ", "))
+	log.Debug("sheet %q: using col names [%q]", sheet.Name, strings.Join(colNames, ", "))
 
 	return tblDef, nil
 }
@@ -304,11 +306,11 @@ func syncColNamesKinds(colNames []string, colKinds []kind.Kind) (names []string,
 	return colNames, colKinds
 }
 
-func rowToRecord(log lg.Log, destColKinds []kind.Kind, row *xlsx.Row, sheetName string, rowIndex int) []any {
+func rowToRecord(log *slog.Logger, destColKinds []kind.Kind, row *xlsx.Row, sheetName string, rowIndex int) []any {
 	vals := make([]any, len(destColKinds))
 	for j, cell := range row.Cells {
 		if j >= len(vals) {
-			log.Warnf("sheet %s[%d:%d]: skipping additional cells because there's more cells than expected (%d)",
+			log.Warn("sheet %s[%d:%d]: skipping additional cells because there's more cells than expected (%d)",
 				sheetName, rowIndex, j, len(destColKinds))
 			continue
 		}
@@ -321,7 +323,7 @@ func rowToRecord(log lg.Log, destColKinds []kind.Kind, row *xlsx.Row, sheetName 
 			if cell.IsTime() {
 				t, err := cell.GetTime(false)
 				if err != nil {
-					log.Warnf("sheet %s[%d:%d]: failed to get Excel time: %v", sheetName, rowIndex, j, err)
+					log.Warn("sheet %s[%d:%d]: failed to get Excel time: %v", sheetName, rowIndex, j, err)
 					vals[j] = nil
 					continue
 				}
@@ -348,7 +350,7 @@ func rowToRecord(log lg.Log, destColKinds []kind.Kind, row *xlsx.Row, sheetName 
 
 			// it's not an int, it's not a float, it's not empty string;
 			// just give up and make it a string.
-			log.Warnf("Failed to determine type of numeric cell [%s:%d:%d] from value: %q", sheetName, rowIndex, j,
+			log.Warn("Failed to determine type of numeric cell [%s:%d:%d] from value: %q", sheetName, rowIndex, j,
 				cell.Value)
 			vals[j] = cell.Value
 			// FIXME: prob should return an error here?
