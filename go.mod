@@ -45,7 +45,7 @@ replace github.com/docker/docker => github.com/docker/docker v20.10.3-0.20221013
 require (
 	github.com/muesli/mango-cobra v1.2.0
 	github.com/muesli/roff v0.1.0
-	github.com/neilotoole/slogt v0.0.0-20230401122724-615bf182830b
+	github.com/neilotoole/slogt v0.0.0-20230401125154-7cab8c3dce8d
 	github.com/samber/lo v1.37.0
 	golang.org/x/exp v0.0.0-20230321023759-10a507213a29
 //golang.org/x/exp v0.0.0-20221012211006-4de253d81b95 // older version that had slog.FromContext

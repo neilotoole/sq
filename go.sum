@@ -204,6 +204,8 @@ github.com/neilotoole/errgroup v0.1.5 h1:DxEGoIfFm5ooGicidR+okiHjoOaGRKFaSxDPVZu
 github.com/neilotoole/errgroup v0.1.5/go.mod h1:Q2nLGf+594h0CLBs/Mbg6qOr7GtqDK7C2S41udRnToE=
 github.com/neilotoole/slogt v0.0.0-20230401122724-615bf182830b h1:t53UrYOSwEmWFD8ZYFzJOjDVwQDUhGz5ZAbPFWgg7+c=
 github.com/neilotoole/slogt v0.0.0-20230401122724-615bf182830b/go.mod h1:N2nPVMllazwsFNK3YVzKR07Ydpiu1lBTWZQ5Mxcwthg=
+github.com/neilotoole/slogt v0.0.0-20230401125154-7cab8c3dce8d h1:5Kb77gz6ea41obKpWhviPeizzdONuBR8CKU4dKA2M2M=
+github.com/neilotoole/slogt v0.0.0-20230401125154-7cab8c3dce8d/go.mod h1:N2nPVMllazwsFNK3YVzKR07Ydpiu1lBTWZQ5Mxcwthg=
 github.com/opencontainers/go-digest v1.0.0 h1:apOUWs51W5PlhuyGyz9FCeeBIOUDA/6nW8Oi/yOhh5U=
 github.com/opencontainers/go-digest v1.0.0/go.mod h1:0JzlMkj0TRzQZfJkVvzbP0HBR3IKzErnv2BNG4W4MAM=
 github.com/opencontainers/image-spec v1.1.0-rc2 h1:2zx/Stx4Wc5pIPDvIxHXvXtQFW/7XWJGmnM7r3wg034=

@@ -91,6 +91,7 @@ func Execute(ctx context.Context, stdin *os.File, stdout, stderr io.Writer, args
 
 	defer rc.Close() // ok to call rc.Close on nil rc
 
+	ctx = slg.NewContext(ctx, rc.Log)
 	return ExecuteWith(ctx, rc, args)
 }
 
@@ -761,10 +762,13 @@ func defaultLogging() (*slog.Logger, *cleanup.Cleanup, error) {
 	}
 	clnup := cleanup.New().AddE(logFile.Close)
 
-	log := slog.New(slog.NewJSONHandler(logFile))
+	opts := slog.HandlerOptions{
+		AddSource:   true,
+		Level:       slog.LevelDebug,
+		ReplaceAttr: nil,
+	}
 
-	// log := zaplg.NewWith(logFile, "json", true, true, true, 0)
-	// clnup.AddE(log.Sync)
+	log := slog.New(opts.NewJSONHandler(logFile))
 
 	return log, clnup, nil
 }
