@@ -1,4 +1,4 @@
-package drivers_test
+package libsq_test
 
 import (
 	"testing"

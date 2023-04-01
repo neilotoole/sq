@@ -458,12 +458,16 @@ func (h *Helper) QuerySLQ(query string) (*RecordSink, error) {
 		_ = h.Source(handle)
 	}
 
-	srcs := h.srcs
-	dbases := h.Databases()
+	qc := &libsq.QueryContext{
+		Sources:      h.srcs,
+		DBOpener:     h.databases,
+		JoinDBOpener: h.databases,
+	}
+
 	sink := &RecordSink{}
 	recw := output.NewRecordWriterAdapter(sink)
 
-	err = libsq.ExecuteSLQ(h.Context, h.Log, dbases, dbases, srcs, query, recw)
+	err = libsq.ExecuteSLQ(h.Context, h.Log, qc, query, recw)
 	if err != nil {
 		return nil, err
 	}

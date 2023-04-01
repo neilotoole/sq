@@ -16,7 +16,7 @@ type completionFunc func(cmd *cobra.Command, args []string, toComplete string) (
 var (
 	_ completionFunc = completeDriverType
 	_ completionFunc = completeSLQ
-	_ completionFunc = new(handleTableCompleter).complete
+	_ completionFunc = (*handleTableCompleter)(nil).complete
 )
 
 // completeHandle is a completionFunc that suggests handles.
@@ -109,8 +109,6 @@ type handleTableCompleter struct {
 	// is set to 1 to if the command accepts only one argument.
 	max int
 }
-
-var _ completionFunc = (*handleTableCompleter)(nil).complete
 
 // complete is the completionFunc for handleTableCompleter.
 func (c *handleTableCompleter) complete(cmd *cobra.Command, args []string,
