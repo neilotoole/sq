@@ -21,7 +21,6 @@ require (
 	github.com/microsoft/go-mssqldb v0.19.0
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/neilotoole/errgroup v0.1.5
-	github.com/neilotoole/lg v0.3.0
 	github.com/pkg/errors v0.9.1
 	github.com/ryboe/q v1.0.18
 	github.com/segmentio/encoding v0.1.14 // Be very careful changing this encoding packge
@@ -45,9 +44,9 @@ replace github.com/docker/docker => github.com/docker/docker v20.10.3-0.20221013
 require (
 	github.com/muesli/mango-cobra v1.2.0
 	github.com/muesli/roff v0.1.0
+	github.com/neilotoole/slogt v0.0.0-20230401122724-615bf182830b
 	github.com/samber/lo v1.37.0
 	golang.org/x/exp v0.0.0-20230321023759-10a507213a29
-	google.golang.org/appengine v1.6.7
 //golang.org/x/exp v0.0.0-20221012211006-4de253d81b95 // older version that had slog.FromContext
 //golang.org/x/exp v0.0.0-20230321023759-10a507213a29
 )
@@ -59,7 +58,6 @@ require (
 	github.com/moby/sys/sequential v0.5.0 // indirect
 	github.com/muesli/mango v0.1.0 // indirect
 	github.com/muesli/mango-pflag v0.1.0 // indirect
-	github.com/neilotoole/slogt v0.0.0-20230401122724-615bf182830b // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/rogpeppe/go-internal v1.9.0 // indirect
 	golang.org/x/crypto v0.4.0 // indirect
@@ -97,8 +95,6 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/sethvargo/go-retry v0.2.3
 	github.com/sirupsen/logrus v1.9.0 // indirect
-	go.uber.org/zap v1.13.0 // indirect
-	golang.org/x/lint v0.0.0-20200302205851-738671d3881b // indirect
 	golang.org/x/mod v0.7.0
 	golang.org/x/sys v0.5.0 // indirect
 	golang.org/x/term v0.3.0
