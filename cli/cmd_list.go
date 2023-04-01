@@ -18,7 +18,7 @@ func newSrcListCmd() *cobra.Command {
 	return cmd
 }
 
-func execSrcList(cmd *cobra.Command, args []string) error {
+func execSrcList(cmd *cobra.Command, _ []string) error {
 	rc := RunContextFrom(cmd.Context())
 
 	return rc.writers.srcw.SourceSet(rc.Config.Sources)

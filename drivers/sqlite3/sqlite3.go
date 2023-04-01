@@ -73,7 +73,7 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 }
 
 // Open implements driver.Driver.
-func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
+func (d *driveri) Open(_ context.Context, src *source.Source) (driver.Database, error) {
 	d.log.Debug("Opening data source: ", src)
 
 	dsn, err := PathFromLocation(src)

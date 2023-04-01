@@ -35,7 +35,7 @@ func newSLQCmd() *cobra.Command {
 	return cmd
 }
 
-func execSLQ(cmd *cobra.Command, args []string) error {
+func execSLQ(cmd *cobra.Command, _ []string) error {
 	rc := RunContextFrom(cmd.Context())
 	srcs := rc.Config.Sources
 

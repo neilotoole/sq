@@ -36,7 +36,7 @@ type Record []any
 // These acceptable types, per the stdlib sql pkg, are:
 //
 //	nil, *int64, *float64, *bool, *string, *[]byte, *time.Time
-func ValidRecord(recMeta RecordMeta, rec Record) (i int, err error) {
+func ValidRecord(_ RecordMeta, rec Record) (i int, err error) {
 	// FIXME: ValidRecord should check the values of rec to see if they match recMeta's kinds
 
 	var val any

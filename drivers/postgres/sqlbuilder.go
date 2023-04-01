@@ -132,17 +132,16 @@ func replacePlaceholders(input string) string {
 		if i == -1 {
 			sb.WriteString(input)
 			break
-		} else {
-			// Found a ?
-			sb.WriteString(input[0:i])
-			sb.WriteRune('$')
-			sb.WriteString(strconv.Itoa(pCount))
-			pCount++
-			if i == len(input)-1 {
-				break
-			}
-			input = input[i+1:]
 		}
+		// Found a ?
+		sb.WriteString(input[0:i])
+		sb.WriteRune('$')
+		sb.WriteString(strconv.Itoa(pCount))
+		pCount++
+		if i == len(input)-1 {
+			break
+		}
+		input = input[i+1:]
 	}
 
 	return sb.String()

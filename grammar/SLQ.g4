@@ -2,10 +2,6 @@
 // The grammar is not yet finalized; it is subject to change in any new sq release.
 grammar SLQ;
 
-// alias, for columns, implements "col AS alias".
-// For example: ".first_name:given_name" : "given_name" is the alias.
-
-
 stmtList: ';'* query ( ';'+ query)* ';'*;
 
 query: segment ('|' segment)*;
@@ -68,24 +64,8 @@ funcs because of the several forms it can take.
 
  TODO: how to handle COUNT DISTINCT?
  */
-countFunc:
-//    : COUNT (LPAR (selector)? RPAR)?;
-//    : 'count' (LPAR (selector)? RPAR)? (ALIAS)?
-//    : 'count:count' // Deal with some pathological cases.
-//    | 'count():count'
-//    | 'count' (LPAR (selector)? RPAR)? (alias)?
+countFunc: 'count' (LPAR (selector)? RPAR)? (alias)?;
 
-//    | 'count' (LPAR (selector)? RPAR)? (':count')?
-//    | 'count' (LPAR (selector)? RPAR)? (ALIAS_RESERVED)?
-    | 'count' (LPAR (selector)? RPAR)? (alias)?
-    ;
-
-
-
-//COUNT: 'count';
-
-
-//ALIAS: ':' [a-zA-Z_][a-zA-Z0-9_]*;
 
 /*
 group_by
@@ -149,9 +129,9 @@ selector: NAME (NAME)?;
 // - .actor.first_name
 // - .actor.first_name:given_name
 // - ."actor".first_name
-selectorElement: selector (alias)?;
+selectorElement: (selector) (alias)?;
 
-alias: ALIAS_RESERVED | ':' ID;
+alias: ALIAS_RESERVED | ':' (ARG | ID);
 // The grammar has problems dealing with "reserved" lexer tokens.
 // Basically, there's a problem with using "column:KEYWORD".
 // ALIAS_RESERVED is a hack to deal with those cases.
@@ -167,6 +147,8 @@ ALIAS_RESERVED
     | ':order_by'
     | ':unique'
     ;
+
+ARG: '$' ID;
 
 // handleTable is a handle.table pair.
 // - @my1.user
@@ -254,7 +236,7 @@ NEQ: '!=';
 EQ: '==';
 
 
-NAME: '.' (ID | STRING);
+NAME: '.' (ARG | ID | STRING);
 
 // SEL can be .THING or .THING.OTHERTHING.
 // It can also be ."some name".OTHERTHING, etc.

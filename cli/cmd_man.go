@@ -22,7 +22,7 @@ func newManCmd() *cobra.Command {
 	return cmd
 }
 
-func execGenerateMan(cmd *cobra.Command, args []string) error {
+func execGenerateMan(cmd *cobra.Command, _ []string) error {
 	rc := RunContextFrom(cmd.Context())
 	manPage, err := mcobra.NewManPage(1, cmd.Root())
 	if err != nil {

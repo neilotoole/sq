@@ -1,6 +1,6 @@
 module github.com/neilotoole/sq
 
-go 1.19
+go 1.20
 
 require (
 	github.com/antlr/antlr4/runtime/Go/antlr/v4 v4.0.0-20230305170008-8188dc5388df
@@ -15,7 +15,7 @@ require (
 	github.com/jackc/pgx/v4 v4.6.0
 	github.com/magefile/mage v1.9.0
 	github.com/mattn/go-colorable v0.1.13
-	github.com/mattn/go-isatty v0.0.16
+	github.com/mattn/go-isatty v0.0.17
 	github.com/mattn/go-runewidth v0.0.14
 	github.com/mattn/go-sqlite3 v1.14.16
 	github.com/microsoft/go-mssqldb v0.19.0
@@ -50,12 +50,14 @@ require (
 
 require (
 	github.com/golang-sql/sqlexp v0.1.0 // indirect
+	github.com/itchyny/gojq v0.12.12 // indirect
+	github.com/itchyny/timefmt-go v0.1.5 // indirect
 	github.com/klauspost/compress v1.11.13 // indirect
 	github.com/moby/patternmatcher v0.5.0 // indirect
 	github.com/moby/sys/sequential v0.5.0 // indirect
 	github.com/muesli/mango v0.1.0 // indirect
 	github.com/muesli/mango-pflag v0.1.0 // indirect
-	github.com/rivo/uniseg v0.4.3 // indirect
+	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/rogpeppe/go-internal v1.9.0 // indirect
 	golang.org/x/crypto v0.4.0 // indirect
 	golang.org/x/exp v0.0.0-20221217163422-3c43f8badb15 // indirect
@@ -95,7 +97,7 @@ require (
 	go.uber.org/zap v1.13.0 // indirect
 	golang.org/x/lint v0.0.0-20200302205851-738671d3881b // indirect
 	golang.org/x/mod v0.7.0
-	golang.org/x/sys v0.3.0 // indirect
+	golang.org/x/sys v0.5.0 // indirect
 	golang.org/x/term v0.3.0
 	golang.org/x/text v0.5.0 // indirect
 	golang.org/x/tools v0.4.0 // indirect

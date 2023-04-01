@@ -387,7 +387,7 @@ func BenchmarkGetTblRowCounts(b *testing.B) {
 
 // benchGetTblRowCountsBaseline is a baseline impl of getTblRowCounts
 // for benchmark comparison.
-func benchGetTblRowCountsBaseline(ctx context.Context, log lg.Log, db sqlz.DB, tblNames []string) ([]int64, error) {
+func benchGetTblRowCountsBaseline(ctx context.Context, _ lg.Log, db sqlz.DB, tblNames []string) ([]int64, error) {
 	tblCounts := make([]int64, len(tblNames))
 
 	for i := range tblNames {

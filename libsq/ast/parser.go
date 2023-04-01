@@ -67,6 +67,8 @@ func (el *antlrErrorListener) String() string {
 }
 
 // SyntaxError implements antlr.ErrorListener.
+//
+//nolint:revive
 func (el *antlrErrorListener) SyntaxError(recognizer antlr.Recognizer, offendingSymbol any, line, column int,
 	msg string, e antlr.RecognitionException,
 ) {
@@ -75,6 +77,8 @@ func (el *antlrErrorListener) SyntaxError(recognizer antlr.Recognizer, offending
 }
 
 // ReportAmbiguity implements antlr.ErrorListener.
+//
+//nolint:revive
 func (el *antlrErrorListener) ReportAmbiguity(recognizer antlr.Parser, dfa *antlr.DFA, startIndex, stopIndex int,
 	exact bool, ambigAlts *antlr.BitSet, configs antlr.ATNConfigSet,
 ) {
@@ -85,6 +89,8 @@ func (el *antlrErrorListener) ReportAmbiguity(recognizer antlr.Parser, dfa *antl
 }
 
 // ReportAttemptingFullContext implements antlr.ErrorListener.
+//
+//nolint:revive
 func (el *antlrErrorListener) ReportAttemptingFullContext(recognizer antlr.Parser, dfa *antlr.DFA, startIndex,
 	stopIndex int, conflictingAlts *antlr.BitSet, configs antlr.ATNConfigSet,
 ) {
@@ -93,6 +99,8 @@ func (el *antlrErrorListener) ReportAttemptingFullContext(recognizer antlr.Parse
 }
 
 // ReportContextSensitivity implements antlr.ErrorListener.
+//
+//nolint:revive
 func (el *antlrErrorListener) ReportContextSensitivity(recognizer antlr.Parser, dfa *antlr.DFA, startIndex, stopIndex,
 	prediction int, configs antlr.ATNConfigSet,
 ) {
@@ -384,7 +392,7 @@ func (v *parseTreeVisitor) VisitCmpr(ctx *slq.CmprContext) any {
 }
 
 // VisitStmtList implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitStmtList(ctx *slq.StmtListContext) any {
+func (v *parseTreeVisitor) VisitStmtList(_ *slq.StmtListContext) any {
 	return nil // not using StmtList just yet
 }
 
@@ -400,7 +408,7 @@ func (v *parseTreeVisitor) VisitLiteral(ctx *slq.LiteralContext) any {
 }
 
 // VisitUnaryOperator implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitUnaryOperator(ctx *slq.UnaryOperatorContext) any {
+func (v *parseTreeVisitor) VisitUnaryOperator(_ *slq.UnaryOperatorContext) any {
 	return nil
 }
 

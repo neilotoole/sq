@@ -127,7 +127,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database
 }
 
 // Truncate implements driver.Driver.
-func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, reset bool) (int64, error) {
+func (d *driveri) Truncate(_ context.Context, _ *source.Source, _ string, _ bool) (int64, error) {
 	return 0, errz.Errorf("truncate not supported for %s", d.DriverMetadata().Type)
 }
 
@@ -141,7 +141,7 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 }
 
 // Ping implements driver.Driver.
-func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
+func (d *driveri) Ping(_ context.Context, src *source.Source) error {
 	d.log.Debugf("driver %q attempting to ping %q", d.typ, src)
 
 	r, err := d.files.Open(src)
