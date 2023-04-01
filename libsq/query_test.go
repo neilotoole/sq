@@ -1,8 +1,10 @@
-package drivers_test
+package libsq_test
 
 import (
 	"strings"
 	"testing"
+
+	"github.com/neilotoole/sq/libsq"
 
 	"golang.org/x/exp/slices"
 
@@ -10,7 +12,6 @@ import (
 
 	"github.com/neilotoole/sq/libsq/source"
 
-	"github.com/neilotoole/sq/libsq"
 	"github.com/stretchr/testify/require"
 
 	_ "github.com/mattn/go-sqlite3"
