@@ -150,7 +150,7 @@ func (d *driveri) Ping(_ context.Context, src *source.Source) error {
 	if err != nil {
 		return err
 	}
-	slg.WarnIfCloseError(d.log, r)
+	defer slg.WarnIfCloseError(d.log, r)
 
 	return nil
 }
