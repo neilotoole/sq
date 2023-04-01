@@ -99,7 +99,7 @@ func (d *driveri) SQLBuilder() (sqlbuilder.FragmentBuilder, sqlbuilder.QueryBuil
 }
 
 // Open implements driver.Driver.
-func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
+func (d *driveri) Open(_ context.Context, src *source.Source) (driver.Database, error) {
 	db, err := sql.Open(dbDrvr, src.Location)
 	if err != nil {
 		return nil, errz.Err(err)
@@ -118,7 +118,7 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 
 // Ping implements driver.Driver.
 func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
-	dbase, err := d.Open(context.TODO(), src)
+	dbase, err := d.Open(ctx, src)
 	if err != nil {
 		return err
 	}

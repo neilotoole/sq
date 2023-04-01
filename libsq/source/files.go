@@ -456,7 +456,7 @@ var _ TypeDetectFunc = DetectMagicNumber
 // DetectMagicNumber is a TypeDetectFunc that uses an external
 // pkg (h2non/filetype) to detect the "magic number" from
 // the start of files.
-func DetectMagicNumber(ctx context.Context, log lg.Log, openFn FileOpenFunc) (detected Type, score float32, err error) {
+func DetectMagicNumber(_ context.Context, log lg.Log, openFn FileOpenFunc) (detected Type, score float32, err error) {
 	var r io.ReadCloser
 	r, err = openFn()
 	if err != nil {

@@ -291,7 +291,7 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 }
 
 // Open implements driver.Driver.
-func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
+func (d *driveri) Open(_ context.Context, src *source.Source) (driver.Database, error) {
 	dsn, err := dsnFromLocation(src, true)
 	if err != nil {
 		return nil, err
@@ -327,7 +327,7 @@ func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 // Truncate implements driver.SQLDriver. Arg reset is
 // always ignored: the identity value is always reset by
 // the TRUNCATE statement.
-func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, reset bool) (affected int64,
+func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, _ bool) (affected int64,
 	err error,
 ) {
 	// https://dev.mysql.com/doc/refman/8.0/en/truncate-table.html

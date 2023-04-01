@@ -28,7 +28,7 @@ func newVersionCmd() *cobra.Command {
 	return cmd
 }
 
-func execVersion(cmd *cobra.Command, args []string) error {
+func execVersion(cmd *cobra.Command, _ []string) error {
 	rc := RunContextFrom(cmd.Context())
 
 	// We'd like to display that there's an update available, but

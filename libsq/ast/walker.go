@@ -78,7 +78,7 @@ func walkWith(log lg.Log, ast *AST, typ reflect.Type, fn nodeVisitorFn) error {
 }
 
 // narrowTblSel takes a generic selector, and if appropriate, converts it to a TblSel.
-func narrowTblSel(log lg.Log, w *Walker, node Node) error {
+func narrowTblSel(log lg.Log, _ *Walker, node Node) error {
 	// node is guaranteed to be typeSelectorNode
 	sel, ok := node.(*SelectorNode)
 	if !ok {
@@ -227,7 +227,7 @@ func narrowColSel(log lg.Log, w *Walker, node Node) error {
 //	@my1 | .tbluser | .uid > 4 | .uid, .email
 //
 // In this case, ".uid > 4" is the WHERE clause.
-func findWhereClause(log lg.Log, w *Walker, node Node) error {
+func findWhereClause(_ lg.Log, _ *Walker, node Node) error {
 	// node is guaranteed to be *ExprNode
 	expr, ok := node.(*ExprNode)
 	if !ok {
@@ -262,7 +262,7 @@ func findWhereClause(log lg.Log, w *Walker, node Node) error {
 }
 
 // determineJoinTables attempts to determine the tables that a JOIN refers to.
-func determineJoinTables(log lg.Log, w *Walker, node Node) error {
+func determineJoinTables(_ lg.Log, _ *Walker, node Node) error {
 	// node is guaranteed to be FnJoin
 	fnJoin, ok := node.(*JoinNode)
 	if !ok {
@@ -297,7 +297,7 @@ func determineJoinTables(log lg.Log, w *Walker, node Node) error {
 }
 
 // visitCheckRowRange validates the RowRangeNode element.
-func visitCheckRowRange(log lg.Log, w *Walker, node Node) error {
+func visitCheckRowRange(_ lg.Log, w *Walker, node Node) error {
 	// node is guaranteed to be FnJoin
 	rr, ok := node.(*RowRangeNode)
 	if !ok {

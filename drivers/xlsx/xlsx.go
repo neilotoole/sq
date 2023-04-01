@@ -41,7 +41,7 @@ var _ source.TypeDetectFunc = DetectXLSX
 
 // DetectXLSX implements source.TypeDetectFunc, returning
 // TypeXLSX and a score of 1.0 valid XLSX.
-func DetectXLSX(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (detected source.Type, score float32,
+func DetectXLSX(_ context.Context, log lg.Log, openFn source.FileOpenFunc) (detected source.Type, score float32,
 	err error,
 ) {
 	var r io.ReadCloser
@@ -119,7 +119,7 @@ func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Database,
 }
 
 // Truncate implements driver.Driver.
-func (d *Driver) Truncate(ctx context.Context, src *source.Source, tbl string, reset bool) (affected int64, err error) {
+func (d *Driver) Truncate(_ context.Context, src *source.Source, _ string, _ bool) (affected int64, err error) {
 	// TODO: WE could actually implement Truncate for xlsx.
 	//  It would just mean deleting the rows from a sheet, and then
 	//  saving the sheet.
@@ -137,7 +137,7 @@ func (d *Driver) ValidateSource(src *source.Source) (*source.Source, error) {
 }
 
 // Ping implements driver.Driver.
-func (d *Driver) Ping(ctx context.Context, src *source.Source) (err error) {
+func (d *Driver) Ping(_ context.Context, src *source.Source) (err error) {
 	r, err := d.files.Open(src)
 	if err != nil {
 		return err
@@ -189,7 +189,7 @@ func (d *database) Source() *source.Source {
 // rows are filtered out during import, and empty columns
 // are discarded. Thus SourceMetadata needs an overhaul to
 // bring its reporting into line with import.
-func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error) {
+func (d *database) SourceMetadata(_ context.Context) (*source.Metadata, error) {
 	meta := &source.Metadata{Handle: d.src.Handle}
 
 	var err error
@@ -250,7 +250,7 @@ func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error)
 }
 
 // TableMetadata implements driver.Database.
-func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
+func (d *database) TableMetadata(_ context.Context, tblName string) (*source.TableMetadata, error) {
 	b, err := d.files.ReadAll(d.src)
 	if err != nil {
 		return nil, errz.Err(err)

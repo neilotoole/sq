@@ -24,7 +24,7 @@ type pingWriter struct {
 }
 
 // Open implements output.PingWriter.
-func (p pingWriter) Open(srcs []*source.Source) error {
+func (p pingWriter) Open(_ []*source.Source) error {
 	return nil
 }
 

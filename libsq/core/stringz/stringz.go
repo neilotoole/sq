@@ -20,11 +20,15 @@ import (
 )
 
 // Redacted is the "xxxxx" string used for redacted
-// values, such as passwords.
+// values, such as passwords. We use "xxxxx" instead
+// of the arguably prettier "*****" because stdlib
+// uses this for redacted strings.
+//
+// See: url.URL.Redacted.
 const Redacted = "xxxxx"
 
 func init() { //nolint:gochecknoinits
-	rand.Seed(time.Now().UnixNano())
+	rand.New(rand.NewSource(time.Now().UnixNano())) //nolint:gosec
 }
 
 // Reverse reverses the input string.
@@ -392,7 +396,8 @@ func LineCount(r io.Reader, skipEmpty bool) int {
 		return i
 	}
 
-	for i = 0; sc.Scan(); i++ {
+	for i = 0; sc.Scan(); i++ { //nolint:revive
+		// no-op
 	}
 
 	return i

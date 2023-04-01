@@ -59,7 +59,7 @@ func (fn *FuncNode) AddChild(child Node) error {
 }
 
 // VisitFuncName implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitFuncName(ctx *slq.FuncNameContext) any {
+func (v *parseTreeVisitor) VisitFuncName(_ *slq.FuncNameContext) any {
 	// no-op
 	return nil
 }

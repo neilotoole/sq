@@ -13,6 +13,6 @@ func newHelpCmd() *cobra.Command {
 	return cmd
 }
 
-func execHelp(cmd *cobra.Command, args []string) error {
+func execHelp(cmd *cobra.Command, _ []string) error {
 	return cmd.Root().Help()
 }
