@@ -15,13 +15,13 @@ require (
 	github.com/jackc/pgx/v4 v4.6.0
 	github.com/magefile/mage v1.9.0
 	github.com/mattn/go-colorable v0.1.13
-	github.com/mattn/go-isatty v0.0.17
+	github.com/mattn/go-isatty v0.0.18
 	github.com/mattn/go-runewidth v0.0.14
 	github.com/mattn/go-sqlite3 v1.14.16
 	github.com/microsoft/go-mssqldb v0.19.0
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/neilotoole/errgroup v0.1.5
-	github.com/pkg/errors v0.9.1
+	github.com/pkg/errors v0.9.1 // indirect
 	github.com/ryboe/q v1.0.18
 	// Be very careful changing pkg segmentio/encoding. A specific version is by our json encoder.
 	github.com/segmentio/encoding v0.1.14
@@ -97,7 +97,7 @@ require (
 	github.com/sethvargo/go-retry v0.2.3
 	github.com/sirupsen/logrus v1.9.0 // indirect
 	golang.org/x/mod v0.7.0
-	golang.org/x/sys v0.5.0 // indirect
+	golang.org/x/sys v0.6.0 // indirect
 	golang.org/x/term v0.3.0
 	golang.org/x/text v0.5.0 // indirect
 	golang.org/x/tools v0.4.0 // indirect
