@@ -34,6 +34,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/neilotoole/sq/cli/buildinfo"
+
 	"golang.org/x/exp/slog"
 
 	"github.com/neilotoole/sq/libsq/core/slg"
@@ -44,7 +46,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/neilotoole/sq/cli/buildinfo"
 	"github.com/neilotoole/sq/cli/config"
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/csvw"
@@ -100,9 +101,9 @@ func Execute(ctx context.Context, stdin *os.File, stdout, stderr io.Writer, args
 // invoke rc.Close.
 func ExecuteWith(ctx context.Context, rc *RunContext, args []string) error {
 	log := slg.FromContext(ctx)
-	log.Debug("EXECUTE: %s", strings.Join(args, " "))
-	log.Debug("Build: %s %s %s", buildinfo.Version, buildinfo.Commit, buildinfo.Timestamp)
-	log.Debug("Config (cfg version %q) from: %s", rc.Config.Version, rc.ConfigStore.Location())
+	log.Debug("EXECUTE", "args", strings.Join(args, " "))
+	log.Debug("Build info", "build", buildinfo.Info())
+	log.Debug("Config", "version", rc.Config.Version, "filepath", rc.ConfigStore.Location())
 
 	ctx = WithRunContext(ctx, rc)
 

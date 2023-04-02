@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"golang.org/x/exp/slog"
+
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"golang.org/x/mod/semver"
 )
@@ -42,6 +44,16 @@ func (bi BuildInfo) String() string {
 		s += " " + bi.Timestamp
 	}
 	return s
+}
+
+// LogValue implements slog.LogValuer.
+func (bi BuildInfo) LogValue() slog.Value {
+	gv := slog.GroupValue(
+		slog.String("version", bi.Version),
+		slog.String("commit", bi.Commit),
+		slog.String("timestamp", bi.Timestamp))
+
+	return gv
 }
 
 // Info returns BuildInfo.

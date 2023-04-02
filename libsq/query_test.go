@@ -3,6 +3,9 @@ package libsq_test
 import (
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/neilotoole/slogt"
 
 	"github.com/neilotoole/sq/libsq"
 
@@ -115,4 +118,15 @@ func execQueryTestCase(t *testing.T, tc queryTestCase) {
 			require.Equal(t, tc.wantRecs, len(sink.Recs))
 		})
 	}
+}
+
+func TestSlog(t *testing.T) {
+	log := slogt.New(t)
+
+	log.Debug("hello %s", "world")
+	log.Error("huzzah")
+
+	time.Sleep(time.Second)
+	log.Debug("closing now")
+	t.Log("actually closing now")
 }
