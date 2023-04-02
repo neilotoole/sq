@@ -96,7 +96,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/sethvargo/go-retry v0.2.3
 	github.com/sirupsen/logrus v1.9.0 // indirect
-	golang.org/x/mod v0.7.0
+	golang.org/x/mod v0.9.0
 	golang.org/x/sys v0.6.0 // indirect
 	golang.org/x/term v0.3.0
 	golang.org/x/text v0.5.0 // indirect
