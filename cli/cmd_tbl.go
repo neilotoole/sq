@@ -70,7 +70,7 @@ func execTblCopy(cmd *cobra.Command, args []string) error {
 	}
 
 	if tblHandles[0].tbl == "" {
-		return errz.Errorf("arg %q does not specify a table name")
+		return errz.Errorf("arg {%s} does not specify a table name", args[0])
 	}
 
 	switch len(tblHandles) {
@@ -99,7 +99,7 @@ func execTblCopy(cmd *cobra.Command, args []string) error {
 
 	sqlDrvr, ok := tblHandles[0].drvr.(driver.SQLDriver)
 	if !ok {
-		return errz.Errorf("source type %q (%s) doesn't support dropping tables", tblHandles[0].src.Type,
+		return errz.Errorf("source type {%s} (%s) doesn't support dropping tables", tblHandles[0].src.Type,
 			tblHandles[0].src.Handle)
 	}
 
@@ -226,7 +226,7 @@ func execTblDrop(cmd *cobra.Command, args []string) (err error) {
 	for _, tblH := range tblHandles {
 		sqlDrvr, ok := tblH.drvr.(driver.SQLDriver)
 		if !ok {
-			return errz.Errorf("source type %q (%s) doesn't support dropping tables", tblH.src.Type, tblH.src.Handle)
+			return errz.Errorf("source type {%s} (%s) doesn't support dropping tables", tblH.src.Type, tblH.src.Handle)
 		}
 
 		var dbase driver.Database
@@ -276,13 +276,13 @@ func parseTableHandleArgs(dp driver.Provider, srcs *source.Set, args []string) (
 
 	for i := range tblHandles {
 		if tblHandles[i].tbl == "" {
-			return nil, errz.Errorf("arg[%d] %q doesn't specify a table", i, args[i])
+			return nil, errz.Errorf("arg[%d] {%s} doesn't specify a table", i, args[i])
 		}
 
 		if tblHandles[i].handle == "" {
 			// It's a table name without a handle, so we use the active src
 			if activeSrc == nil {
-				return nil, errz.Errorf("arg[%d] %q doesn't specify a handle and there's no active source",
+				return nil, errz.Errorf("arg[%d] {%s} doesn't specify a handle and there's no active source",
 					i, args[i])
 			}
 

@@ -4,6 +4,8 @@ import (
 	"context"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/lg"
+
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 
@@ -29,8 +31,8 @@ func completeHandle(max int) completionFunc {
 		}
 
 		rc := RunContextFrom(cmd.Context())
-		handles := rc.Config.Sources.Handles()
 
+		handles := rc.Config.Sources.Handles()
 		handles, _ = lo.Difference(handles, args)
 
 		return handles, cobra.ShellCompDirectiveNoFileComp
@@ -56,7 +58,7 @@ func completeDriverType(cmd *cobra.Command, _ []string, _ string) ([]string, cob
 	if rc.databases == nil {
 		err := rc.init()
 		if err != nil {
-			rc.Log.Error(err)
+			lg.Unexpected(rc.Log, err)
 			return nil, cobra.ShellCompDirectiveError
 		}
 	}
@@ -116,7 +118,7 @@ func (c *handleTableCompleter) complete(cmd *cobra.Command, args []string,
 ) ([]string, cobra.ShellCompDirective) {
 	rc := RunContextFrom(cmd.Context())
 	if err := rc.init(); err != nil {
-		rc.Log.Error(err)
+		lg.Unexpected(rc.Log, err)
 		return nil, cobra.ShellCompDirectiveError
 	}
 
@@ -169,7 +171,7 @@ func (c *handleTableCompleter) completeTableOnly(ctx context.Context, rc *RunCon
 	if c.onlySQL {
 		isSQL, err := handleIsSQLDriver(rc, activeSrc.Handle)
 		if err != nil {
-			rc.Log.Error(err)
+			lg.Unexpected(rc.Log, err)
 			return nil, cobra.ShellCompDirectiveError
 		}
 		if !isSQL {
@@ -179,7 +181,7 @@ func (c *handleTableCompleter) completeTableOnly(ctx context.Context, rc *RunCon
 
 	tables, err := getTableNamesForHandle(ctx, rc, activeSrc.Handle)
 	if err != nil {
-		rc.Log.Error(err)
+		lg.Unexpected(rc.Log, err)
 		return nil, cobra.ShellCompDirectiveError
 	}
 
@@ -212,7 +214,7 @@ func (c *handleTableCompleter) completeHandle(ctx context.Context, rc *RunContex
 		// partial table name, such as "@sakila_sl3.fil"
 		handle, partialTbl, err := source.ParseTableHandle(strings.TrimSuffix(toComplete, "."))
 		if err != nil {
-			rc.Log.Error(err)
+			lg.Unexpected(rc.Log, err)
 			return nil, cobra.ShellCompDirectiveError
 		}
 
@@ -220,7 +222,7 @@ func (c *handleTableCompleter) completeHandle(ctx context.Context, rc *RunContex
 			var isSQL bool
 			isSQL, err = handleIsSQLDriver(rc, handle)
 			if err != nil {
-				rc.Log.Error(err)
+				lg.Unexpected(rc.Log, err)
 				return nil, cobra.ShellCompDirectiveError
 			}
 
@@ -231,7 +233,7 @@ func (c *handleTableCompleter) completeHandle(ctx context.Context, rc *RunContex
 
 		tables, err := getTableNamesForHandle(ctx, rc, handle)
 		if err != nil {
-			rc.Log.Error(err)
+			lg.Unexpected(rc.Log, err)
 			return nil, cobra.ShellCompDirectiveError
 		}
 
@@ -253,7 +255,7 @@ func (c *handleTableCompleter) completeHandle(ctx context.Context, rc *RunContex
 			if c.onlySQL {
 				isSQL, err := handleIsSQLDriver(rc, handle)
 				if err != nil {
-					rc.Log.Error(err)
+					lg.Unexpected(rc.Log, err)
 					return nil, cobra.ShellCompDirectiveError
 				}
 				if !isSQL {
@@ -281,7 +283,7 @@ func (c *handleTableCompleter) completeHandle(ctx context.Context, rc *RunContex
 		// This means that we aren't able to get metadata for this source.
 		// This could be because the source is temporarily offline. The
 		// best we can do is just to return the handle, without the tables.
-		rc.Log.Warn(err)
+		lg.WarnIfError(rc.Log, "Fetch metadata", err)
 		return matchingHandles, cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace
 	}
 
@@ -309,14 +311,14 @@ func (c *handleTableCompleter) completeEither(ctx context.Context, rc *RunContex
 	var activeSrcTables []string
 	isSQL, err := handleIsSQLDriver(rc, activeSrc.Handle)
 	if err != nil {
-		rc.Log.Error(err)
+		lg.Unexpected(rc.Log, err)
 		return nil, cobra.ShellCompDirectiveError
 	}
 
 	if !c.onlySQL || isSQL {
 		activeSrcTables, err = getTableNamesForHandle(ctx, rc, activeSrc.Handle)
 		if err != nil {
-			rc.Log.Error(err)
+			lg.Unexpected(rc.Log, err)
 			return nil, cobra.ShellCompDirectiveError
 		}
 	}
@@ -330,7 +332,7 @@ func (c *handleTableCompleter) completeEither(ctx context.Context, rc *RunContex
 		if c.onlySQL {
 			isSQL, err = handleIsSQLDriver(rc, src.Handle)
 			if err != nil {
-				rc.Log.Error(err)
+				lg.Unexpected(rc.Log, err)
 				return nil, cobra.ShellCompDirectiveError
 			}
 			if !isSQL {

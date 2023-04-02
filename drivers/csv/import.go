@@ -8,7 +8,12 @@ import (
 	"strconv"
 	"unicode/utf8"
 
-	"github.com/neilotoole/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+
+	"github.com/neilotoole/sq/libsq/core/lg"
+
 	"github.com/shopspring/decimal"
 
 	"github.com/neilotoole/sq/libsq"
@@ -27,9 +32,10 @@ const (
 )
 
 // importCSV loads the src CSV data to scratchDB.
-func importCSV(ctx context.Context, log lg.Log, src *source.Source, openFn source.FileOpenFunc,
-	scratchDB driver.Database,
+func importCSV(ctx context.Context, src *source.Source,
+	openFn source.FileOpenFunc, scratchDB driver.Database,
 ) error {
+	log := lg.FromContext(ctx)
 	// TODO: optPredictKind should be read from src.Options.
 	const optPredictKind bool = true
 
@@ -41,7 +47,7 @@ func importCSV(ctx context.Context, log lg.Log, src *source.Source, openFn sourc
 		return err
 	}
 
-	defer log.WarnIfCloseError(r)
+	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
 
 	// We add the CR filter reader to deal with CSV files exported
 	// from Excel which can have the DOS-style \r EOL markers.
@@ -101,7 +107,10 @@ func importCSV(ctx context.Context, log lg.Log, src *source.Source, openFn sourc
 		return err
 	}
 
-	log.Debugf("Inserted %d rows to %s.%s", inserted, scratchDB.Source().Handle, tblDef.Name)
+	log.Debug("Inserted rows",
+		lga.Count, inserted,
+		lga.Target, source.Target(scratchDB.Source(), tblDef.Name),
+	)
 	return nil
 }
 
@@ -460,7 +469,7 @@ func getDelimFromOptions(opts options.Options) (r rune, ok bool, err error) {
 	r, ok = namedDelimiters[val]
 
 	if !ok {
-		err = errz.Errorf("unknown delimiter constant %q", val)
+		err = errz.Errorf("unknown delimiter constant {%s}", val)
 		return 0, false, err
 	}
 

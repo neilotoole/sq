@@ -3,21 +3,21 @@ package ast
 import (
 	"reflect"
 
+	"golang.org/x/exp/slog"
+
 	"github.com/samber/lo"
 
 	"github.com/ryboe/q"
-
-	"github.com/neilotoole/lg"
 )
 
 // Inspector provides functionality for AST interrogation.
 type Inspector struct {
-	log lg.Log
+	log *slog.Logger
 	ast *AST
 }
 
 // NewInspector returns an Inspector instance for ast.
-func NewInspector(log lg.Log, ast *AST) *Inspector {
+func NewInspector(log *slog.Logger, ast *AST) *Inspector {
 	return &Inspector{log: log, ast: ast}
 }
 
@@ -25,7 +25,7 @@ func NewInspector(log lg.Log, ast *AST) *Inspector {
 func (in *Inspector) CountNodes(typ reflect.Type) int {
 	count := 0
 	w := NewWalker(in.log, in.ast)
-	w.AddVisitor(typ, func(log lg.Log, w *Walker, node Node) error {
+	w.AddVisitor(typ, func(log *slog.Logger, w *Walker, node Node) error {
 		count++
 		if typ == typeSelectorNode {
 			// found it
@@ -43,7 +43,7 @@ func (in *Inspector) CountNodes(typ reflect.Type) int {
 func (in *Inspector) FindNodes(typ reflect.Type) []Node {
 	var nodes []Node
 	w := NewWalker(in.log, in.ast)
-	w.AddVisitor(typ, func(log lg.Log, w *Walker, node Node) error {
+	w.AddVisitor(typ, func(log *slog.Logger, w *Walker, node Node) error {
 		nodes = append(nodes, node)
 		return nil
 	})
@@ -59,14 +59,14 @@ func (in *Inspector) FindNodes(typ reflect.Type) []Node {
 func (in *Inspector) FindHandles() []string {
 	var handles []string
 
-	if err := walkWith(in.log, in.ast, typeHandleNode, func(log lg.Log, walker *Walker, node Node) error {
+	if err := walkWith(in.log, in.ast, typeHandleNode, func(log *slog.Logger, walker *Walker, node Node) error {
 		handles = append(handles, node.Text())
 		return nil
 	}); err != nil {
 		panic(err)
 	}
 
-	if err := walkWith(in.log, in.ast, typeTblSelectorNode, func(log lg.Log, walker *Walker, node Node) error {
+	if err := walkWith(in.log, in.ast, typeTblSelectorNode, func(log *slog.Logger, walker *Walker, node Node) error {
 		n, _ := node.(*TblSelectorNode)
 		if n.handle != "" {
 			handles = append(handles, n.handle)
@@ -143,7 +143,8 @@ func (in *Inspector) FindOrderByNode() (*OrderByNode, error) {
 			return node, nil
 		default:
 			// Shouldn't be possible
-			return nil, errorf("Segment {%s} has %d OrderByNode children, but should have a max of 1", segs[i])
+			return nil, errorf("segment {%s} has %d OrderByNode children, but max is 1",
+				segs[i], len(nodes))
 		}
 	}
 
@@ -166,7 +167,8 @@ func (in *Inspector) FindGroupByNode() (*GroupByNode, error) {
 			return node, nil
 		default:
 			// Shouldn't be possible
-			return nil, errorf("Segment {%s} has %d GroupByNode children, but should have a max of 1", segs[i])
+			return nil, errorf("segment {%s} has %d GroupByNode children, but max is 1",
+				segs[i], len(nodes))
 		}
 	}
 

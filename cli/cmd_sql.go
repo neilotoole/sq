@@ -5,6 +5,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
 	"github.com/neilotoole/sq/libsq"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/driver"
@@ -112,7 +116,7 @@ func execSQLPrint(ctx context.Context, rc *RunContext, fromSrc *source.Source) e
 	}
 
 	recw := output.NewRecordWriterAdapter(rc.writers.recordw)
-	err = libsq.QuerySQL(ctx, rc.Log, dbase, recw, args[0])
+	err = libsq.QuerySQL(ctx, dbase, recw, args[0])
 	if err != nil {
 		return err
 	}
@@ -150,9 +154,9 @@ func execSQLInsert(ctx context.Context, rc *RunContext, fromSrc, destSrc *source
 		driver.Tuning.RecordChSize,
 		libsq.DBWriterCreateTableIfNotExistsHook(destTbl),
 	)
-	err = libsq.QuerySQL(ctx, rc.Log, fromDB, inserter, args[0])
+	err = libsq.QuerySQL(ctx, fromDB, inserter, args[0])
 	if err != nil {
-		return errz.Wrapf(err, "insert %s.%s failed", destSrc.Handle, destTbl)
+		return errz.Wrapf(err, "insert to {%s} failed", source.Target(destSrc, destTbl))
 	}
 
 	affected, err := inserter.Wait() // Wait for the writer to finish processing
@@ -160,8 +164,10 @@ func execSQLInsert(ctx context.Context, rc *RunContext, fromSrc, destSrc *source
 		return errz.Wrapf(err, "insert %s.%s failed", destSrc.Handle, destTbl)
 	}
 
-	rc.Log.Debugf("Rows affected: %d", affected)
+	rc.Log.Debug(lgm.RowsAffected, lga.Count, affected)
 
-	fmt.Fprintf(rc.Out, stringz.Plu("Inserted %d row(s) into %s.%s\n", int(affected)), affected, destSrc.Handle, destTbl)
+	// TODO: Should really use a Printer here
+	fmt.Fprintf(rc.Out, stringz.Plu("Inserted %d row(s) into %s\n",
+		int(affected)), affected, source.Target(destSrc, destTbl))
 	return nil
 }

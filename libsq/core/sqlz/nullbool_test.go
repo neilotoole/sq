@@ -46,14 +46,14 @@ func TestNullBool_Scan(t *testing.T) {
 			if tt.expectValid == false {
 				continue
 			}
-			t.Errorf("[%d] %q: did not expect error: %v", i, tt.input, err)
+			t.Errorf("[%d] {%s}: did not expect error: %v", i, tt.input, err)
 			continue
 		}
 
-		require.Nil(t, err, "[%d] %q: did not expect error: %v", i, tt.input, err)
-		require.Equal(t, tt.expectValid, nb.Valid, "[%d] %q: expected Valid to be %v but got %v", i, tt.input,
+		require.Nil(t, err, "[%d] {%s}: did not expect error: %v", i, tt.input, err)
+		require.Equal(t, tt.expectValid, nb.Valid, "[%d] {%s}: expected Valid to be %v but got %v", i, tt.input,
 			tt.expectValid, nb.Valid)
-		require.Equal(t, tt.expectBool, nb.Bool, "[%d] %q: expected Bool to be %v but got %v", i, tt.input,
+		require.Equal(t, tt.expectBool, nb.Bool, "[%d] {%s}: expected Bool to be %v but got %v", i, tt.input,
 			tt.expectBool, nb.Bool)
 	}
 }

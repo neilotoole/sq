@@ -4,9 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/neilotoole/errgroup"
-	"github.com/neilotoole/lg"
+	"github.com/neilotoole/sq/libsq/core/lg"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
+	"golang.org/x/exp/slog"
+
+	"github.com/neilotoole/errgroup"
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/sqlmodel"
@@ -16,7 +20,7 @@ import (
 
 // engine executes a queryModel and writes to a RecordWriter.
 type engine struct {
-	log lg.Log
+	log *slog.Logger
 
 	qc *QueryContext
 
@@ -34,7 +38,9 @@ type engine struct {
 	targetDB driver.Database
 }
 
-func newEngine(ctx context.Context, log lg.Log, qc *QueryContext, query string) (*engine, error) {
+func newEngine(ctx context.Context, qc *QueryContext, query string) (*engine, error) {
+	log := lg.FromContext(ctx)
+
 	a, err := ast.Parse(log, query)
 	if err != nil {
 		return nil, err
@@ -80,7 +86,7 @@ func (ng *engine) prepare(ctx context.Context, qm *queryModel) error {
 			return err
 		}
 	default:
-		return errz.Errorf("unknown selectable %T: %q", node, node)
+		return errz.Errorf("unknown selectable %T(%s)", node, node)
 	}
 
 	fb, qb := ng.targetDB.SQLDriver().SQLBuilder()
@@ -140,14 +146,18 @@ func (ng *engine) prepare(ctx context.Context, qm *queryModel) error {
 
 // execute executes the plan that was built by engine.prepare.
 func (ng *engine) execute(ctx context.Context, recw RecordWriter) error {
-	ng.log.Debugf("engine.execute: [%s]: %s", ng.targetDB.Source().Handle, ng.targetSQL)
+	ng.log.Debug(
+		"Execute SQL query",
+		lga.Target, ng.targetDB.Source().Handle,
+		lga.SQL, ng.targetSQL,
+	)
 
 	err := ng.executeTasks(ctx)
 	if err != nil {
 		return err
 	}
 
-	return QuerySQL(ctx, ng.log, ng.targetDB, recw, ng.targetSQL)
+	return QuerySQL(ctx, ng.targetDB, recw, ng.targetSQL)
 }
 
 // executeTasks executes any tasks in engine.tasks.
@@ -158,7 +168,7 @@ func (ng *engine) executeTasks(ctx context.Context) error {
 	case 0:
 		return nil
 	case 1:
-		return ng.tasks[0].executeTask(ctx, ng.log)
+		return ng.tasks[0].executeTask(ctx)
 	default:
 	}
 
@@ -167,7 +177,7 @@ func (ng *engine) executeTasks(ctx context.Context) error {
 		task := task
 
 		g.Go(func() error {
-			return task.executeTask(gCtx, ng.log)
+			return task.executeTask(gCtx)
 		})
 	}
 
@@ -243,7 +253,7 @@ func (ng *engine) crossSourceJoin(ctx context.Context, fnJoin *ast.JoinNode) (fr
 ) {
 	leftTblName, rightTblName := fnJoin.LeftTbl().TblName(), fnJoin.RightTbl().TblName()
 	if leftTblName == rightTblName {
-		return "", nil, errz.Errorf("JOIN tables must have distinct names (or use aliases): duplicate tbl name %q",
+		return "", nil, errz.Errorf("JOIN tables must have distinct names (or use aliases): duplicate tbl name {%s}",
 			fnJoin.LeftTbl().TblName())
 	}
 
@@ -300,7 +310,7 @@ func (ng *engine) crossSourceJoin(ctx context.Context, fnJoin *ast.JoinNode) (fr
 // tasker is the interface for executing a DB task.
 type tasker interface {
 	// executeTask executes a task against the DB.
-	executeTask(ctx context.Context, log lg.Log) error
+	executeTask(ctx context.Context) error
 }
 
 // joinCopyTask is a specification of a table data copy task to be performed
@@ -314,14 +324,16 @@ type joinCopyTask struct {
 	toTblName   string
 }
 
-func (jt *joinCopyTask) executeTask(ctx context.Context, log lg.Log) error {
-	return execCopyTable(ctx, log, jt.fromDB, jt.fromTblName, jt.toDB, jt.toTblName)
+func (jt *joinCopyTask) executeTask(ctx context.Context) error {
+	return execCopyTable(ctx, jt.fromDB, jt.fromTblName, jt.toDB, jt.toTblName)
 }
 
 // execCopyTable performs the work of copying fromDB.fromTblName to destDB.destTblName.
-func execCopyTable(ctx context.Context, log lg.Log, fromDB driver.Database, fromTblName string, destDB driver.Database,
-	destTblName string,
+func execCopyTable(ctx context.Context, fromDB driver.Database, fromTblName string,
+	destDB driver.Database, destTblName string,
 ) error {
+	log := lg.FromContext(ctx)
+
 	createTblHook := func(ctx context.Context, originRecMeta sqlz.RecordMeta, destDB driver.Database,
 		tx sqlz.DB,
 	) error {
@@ -340,7 +352,7 @@ func execCopyTable(ctx context.Context, log lg.Log, fromDB driver.Database, from
 	inserter := NewDBWriter(log, destDB, destTblName, driver.Tuning.RecordChSize, createTblHook)
 
 	query := "SELECT * FROM " + fromDB.SQLDriver().Dialect().Enquote(fromTblName)
-	err := QuerySQL(ctx, log, fromDB, inserter, query)
+	err := QuerySQL(ctx, fromDB, inserter, query)
 	if err != nil {
 		return errz.Wrapf(err, "insert %s.%s failed", destDB.Source().Handle, destTblName)
 	}
@@ -349,7 +361,7 @@ func execCopyTable(ctx context.Context, log lg.Log, fromDB driver.Database, from
 	if err != nil {
 		return errz.Wrapf(err, "insert %s.%s failed", destDB.Source().Handle, destTblName)
 	}
-	log.Debugf("Copied %d rows to %s.%s", affected, destDB.Source().Handle, destTblName)
+	log.Debug("Copied %d rows to %s.%s", affected, destDB.Source().Handle, destTblName)
 	return nil
 }
 
@@ -370,7 +382,7 @@ func (qm *queryModel) String() string {
 }
 
 // buildQueryModel creates a queryModel instance from the AST.
-func buildQueryModel(log lg.Log, a *ast.AST) (*queryModel, error) {
+func buildQueryModel(log *slog.Logger, a *ast.AST) (*queryModel, error) {
 	if len(a.Segments()) == 0 {
 		return nil, errz.Errorf("query model error: query does not have enough segments")
 	}
@@ -390,7 +402,7 @@ func buildQueryModel(log lg.Log, a *ast.AST) (*queryModel, error) {
 	tabler, ok := tablerSeg.Children()[0].(ast.Tabler)
 	if !ok {
 		return nil, errz.Errorf(
-			"the final selectable segment must have exactly one selectable element, but found element %T(%q)",
+			"the final selectable segment must have exactly one selectable element, but found element %T(%s)",
 			tablerSeg.Children()[0], tablerSeg.Children()[0].Text())
 	}
 
@@ -402,16 +414,16 @@ func buildQueryModel(log lg.Log, a *ast.AST) (*queryModel, error) {
 		if rr, ok := seg.Children()[0].(*ast.RowRangeNode); ok {
 			if len(seg.Children()) != 1 {
 				return nil, errz.Errorf(
-					"segment [%d] with row range must have exactly one element, but found %d: %q",
+					"segment [%d] with row range must have exactly one element, but found %d: %s",
 					seg.SegIndex(), len(seg.Children()), seg.Text())
 			}
 
 			if qm.Range != nil {
-				return nil, errz.Errorf("only one row range permitted, but found %q and %q",
+				return nil, errz.Errorf("only one row range permitted, but found {%s} and {%s}",
 					qm.Range.Text(), rr.Text())
 			}
 
-			log.Debugf("found row range: %q", rr.Text())
+			log.Debug("found row range: %s", rr.Text())
 			qm.Range = rr
 		}
 	}

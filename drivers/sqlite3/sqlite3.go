@@ -15,9 +15,15 @@ import (
 	"sync"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3" // Import for side effect of loading the driver
-	"github.com/neilotoole/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+
+	"github.com/neilotoole/sq/libsq/core/lg"
+
+	"golang.org/x/exp/slog"
+
+	_ "github.com/mattn/go-sqlite3" // Import for side effect of loading the driver
 	"github.com/neilotoole/sq/libsq/ast/sqlbuilder"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -43,13 +49,13 @@ var _ driver.Provider = (*Provider)(nil)
 
 // Provider is the SQLite3 implementation of driver.Provider.
 type Provider struct {
-	Log lg.Log
+	Log *slog.Logger
 }
 
 // DriverFor implements driver.Provider.
 func (d *Provider) DriverFor(typ source.Type) (driver.Driver, error) {
 	if typ != Type {
-		return nil, errz.Errorf("unsupported driver type %q", typ)
+		return nil, errz.Errorf("unsupported driver type {%s}", typ)
 	}
 
 	return &driveri{log: d.Log}, nil
@@ -59,7 +65,7 @@ var _ driver.Driver = (*driveri)(nil)
 
 // driveri is the SQLite3 implementation of driver.Driver.
 type driveri struct {
-	log lg.Log
+	log *slog.Logger
 }
 
 // DriverMetadata implements driver.Driver.
@@ -74,7 +80,7 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 
 // Open implements driver.Driver.
 func (d *driveri) Open(_ context.Context, src *source.Source) (driver.Database, error) {
-	d.log.Debug("Opening data source: ", src)
+	d.log.Debug(lgm.OpenSrc, lga.Src, src)
 
 	dsn, err := PathFromLocation(src)
 	if err != nil {
@@ -82,7 +88,7 @@ func (d *driveri) Open(_ context.Context, src *source.Source) (driver.Database, 
 	}
 	db, err := sql.Open(dbDrvr, dsn)
 	if err != nil {
-		return nil, errz.Wrapf(err, "failed to open sqlite3 source with DSN %q", dsn)
+		return nil, errz.Wrapf(err, "failed to open sqlite3 source with DSN: %s", dsn)
 	}
 
 	return &database{log: d.log, db: db, src: src, drvr: d}, nil
@@ -101,7 +107,7 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 	if err != nil {
 		return 0, errz.Err(err)
 	}
-	defer d.log.WarnIfFuncError(db.Close)
+	defer lg.WarnIfFuncError(d.log, lgm.CloseDB, db.Close)
 
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
@@ -137,7 +143,7 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 // ValidateSource implements driver.Driver.
 func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 	if src.Type != Type {
-		return nil, errz.Errorf("expected driver type %q but got %q", Type, src.Type)
+		return nil, errz.Errorf("expected driver type {%s} but got {%s}", Type, src.Type)
 	}
 	return src, nil
 }
@@ -148,7 +154,7 @@ func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 	if err != nil {
 		return err
 	}
-	defer d.log.WarnIfCloseError(dbase)
+	defer lg.WarnIfCloseError(d.log, lgm.CloseDB, dbase)
 
 	return dbase.DB().Ping()
 }
@@ -554,7 +560,7 @@ func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *sqlmodel.
 
 	_, err = stmt.ExecContext(ctx)
 	if err != nil {
-		d.log.WarnIfCloseError(stmt)
+		lg.WarnIfCloseError(d.log, lgm.CloseDBStmt, stmt)
 		return errz.Err(err)
 	}
 
@@ -592,7 +598,7 @@ func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl, col 
 
 	_, err := db.ExecContext(ctx, q)
 	if err != nil {
-		return errz.Wrapf(err, "alter table: failed to add column %q to table %q", col, tbl)
+		return errz.Wrapf(err, "alter table: failed to add column {%s} to table {%s}", col, tbl)
 	}
 
 	return nil
@@ -697,7 +703,7 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 	// column type info.
 	colTypes, err := rows.ColumnTypes()
 	if err != nil {
-		d.log.WarnIfFuncError(rows.Close)
+		lg.WarnIfFuncError(d.log, lgm.CloseDBRows, rows.Close)
 		return nil, errz.Err(err)
 	}
 
@@ -707,14 +713,14 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 	if rows.Next() {
 		colTypes, err = rows.ColumnTypes()
 		if err != nil {
-			d.log.WarnIfFuncError(rows.Close)
+			lg.WarnIfFuncError(d.log, lgm.CloseDBRows, rows.Close)
 			return nil, errz.Err(err)
 		}
 	}
 
 	err = rows.Err()
 	if err != nil {
-		d.log.WarnIfFuncError(rows.Close)
+		lg.WarnIfFuncError(d.log, lgm.CloseDBRows, rows.Close)
 		return nil, errz.Err(err)
 	}
 
@@ -744,7 +750,7 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 
 // database implements driver.Database.
 type database struct {
-	log  lg.Log
+	log  *slog.Logger
 	db   *sql.DB
 	src  *source.Source
 	drvr *driveri
@@ -771,7 +777,7 @@ func (d *database) Source() *source.Source {
 
 // TableMetadata implements driver.Database.
 func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
-	return getTableMetadata(ctx, d.log, d.DB(), tblName)
+	return getTableMetadata(ctx, d.DB(), tblName)
 }
 
 // SourceMetadata implements driver.Database.
@@ -804,7 +810,7 @@ func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error)
 	meta.FQName = fi.Name() + "/" + meta.Schema
 	meta.Location = d.src.Location
 
-	meta.Tables, err = getAllTblMeta(ctx, d.log, d.db)
+	meta.Tables, err = getAllTblMeta(ctx, d.db)
 	if err != nil {
 		return nil, err
 	}
@@ -817,11 +823,11 @@ func (d *database) Close() error {
 	defer d.closeMu.Unlock()
 
 	if d.closed {
-		d.log.Warnf("SQLite DB already closed: %v", d.src)
+		d.log.Warn("SQLite DB already closed", lga.Src, d.src)
 		return nil
 	}
 
-	d.log.Debugf("Closing database: %s", d.src)
+	d.log.Debug(lgm.CloseDB, lga.Src, d.src)
 	err := errz.Err(d.db.Close())
 	d.closed = true
 	return err
@@ -831,14 +837,14 @@ func (d *database) Close() error {
 // function creates a new sqlite db file in the temp dir, and
 // src points at this file. The returned clnup func closes that
 // db file and deletes it.
-func NewScratchSource(log lg.Log, name string) (src *source.Source, clnup func() error, err error) {
+func NewScratchSource(log *slog.Logger, name string) (src *source.Source, clnup func() error, err error) {
 	name = stringz.SanitizeAlphaNumeric(name, '_')
 	_, f, cleanFn, err := source.TempDirFile(name + ".sqlite")
 	if err != nil {
 		return nil, cleanFn, err
 	}
 
-	log.Debugf("created sqlite3 scratch data source file: %s", f.Name())
+	log.Debug("Created sqlite3 scratchdb data file", lga.Path, f.Name())
 
 	src = &source.Source{
 		Type:     Type,
@@ -853,11 +859,11 @@ func NewScratchSource(log lg.Log, name string) (src *source.Source, clnup func()
 // from the source location, which should have the "sqlite3://" prefix.
 func PathFromLocation(src *source.Source) (string, error) {
 	if src.Type != Type {
-		return "", errz.Errorf("driver %q does not support %q", Type, src.Type)
+		return "", errz.Errorf("driver {%s} does not support {%s}", Type, src.Type)
 	}
 
 	if !strings.HasPrefix(src.Location, Prefix) {
-		return "", errz.Errorf("sqlite3 source location must begin with %q but was: %s", Prefix, src.RedactedLocation())
+		return "", errz.Errorf("sqlite3 source location must begin with {%s} but was: %s", Prefix, src.RedactedLocation())
 	}
 
 	loc := strings.TrimPrefix(src.Location, Prefix)

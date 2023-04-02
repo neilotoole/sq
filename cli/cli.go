@@ -34,16 +34,20 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/neilotoole/sq/libsq/core/lg"
+
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
+	"github.com/neilotoole/sq/cli/buildinfo"
+
+	"golang.org/x/exp/slog"
+
 	"github.com/fatih/color"
 	"github.com/mattn/go-colorable"
 	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/neilotoole/lg"
-	"github.com/neilotoole/lg/zaplg"
-
-	"github.com/neilotoole/sq/cli/buildinfo"
 	"github.com/neilotoole/sq/cli/config"
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/csvw"
@@ -90,6 +94,7 @@ func Execute(ctx context.Context, stdin *os.File, stdout, stderr io.Writer, args
 
 	defer rc.Close() // ok to call rc.Close on nil rc
 
+	ctx = lg.NewContext(ctx, rc.Log)
 	return ExecuteWith(ctx, rc, args)
 }
 
@@ -97,9 +102,13 @@ func Execute(ctx context.Context, stdin *os.File, stdout, stderr io.Writer, args
 // resulting in a command being executed. The caller must
 // invoke rc.Close.
 func ExecuteWith(ctx context.Context, rc *RunContext, args []string) error {
-	rc.Log.Debugf("EXECUTE: %s", strings.Join(args, " "))
-	rc.Log.Debugf("Build: %s %s %s", buildinfo.Version, buildinfo.Commit, buildinfo.Timestamp)
-	rc.Log.Debugf("Config (cfg version %q) from: %s", rc.Config.Version, rc.ConfigStore.Location())
+	log := lg.FromContext(ctx)
+	log.Debug("EXECUTE", "args", strings.Join(args, " "))
+	log.Debug("Build info", "build", buildinfo.Info())
+	log.Debug("Config",
+		lga.Version, rc.Config.Version,
+		lga.Path, rc.ConfigStore.Location(),
+	)
 
 	ctx = WithRunContext(ctx, rc)
 
@@ -326,6 +335,9 @@ type RunContext struct {
 	// be set before the command's runFunc is invoked.
 	Cmd *cobra.Command
 
+	// Log is the run's logger.
+	Log *slog.Logger
+
 	// Args is the arg slice supplied by cobra for
 	// the currently executing command. This field will
 	// be set before the command's runFunc is invoked.
@@ -336,9 +348,6 @@ type RunContext struct {
 
 	// ConfigStore is run's config store.
 	ConfigStore config.Store
-
-	// Log is the run's logger.
-	Log lg.Log
 
 	initOnce sync.Once
 	initErr  error
@@ -378,8 +387,6 @@ func newDefaultRunContext(stdin *os.File, stdout, stderr io.Writer) (*RunContext
 	rc.Config = cfg
 
 	switch {
-	case rc.Log == nil:
-		rc.Log = lg.Discard()
 	case rc.clnup == nil:
 		rc.clnup = cleanup.New()
 	case rc.Config == nil:
@@ -414,7 +421,7 @@ func (rc *RunContext) init() error {
 // It must only be invoked once.
 func (rc *RunContext) doInit() error {
 	rc.clnup = cleanup.New()
-	log, cfg := rc.Log, rc.Config
+	cfg, log := rc.Config, rc.Log
 
 	// If the --output=/some/file flag is set, then we need to
 	// override rc.Out (which is typically stdout) to point it at
@@ -441,7 +448,7 @@ func (rc *RunContext) doInit() error {
 		rc.Out = f
 	}
 
-	rc.writers, rc.Out, rc.ErrOut = newWriters(rc.Log, rc.Cmd, rc.Config.Defaults, rc.Out, rc.ErrOut)
+	rc.writers, rc.Out, rc.ErrOut = newWriters(rc.Cmd, rc.Config.Defaults, rc.Out, rc.ErrOut)
 
 	var scratchSrcFunc driver.ScratchSrcFunc
 
@@ -450,15 +457,15 @@ func (rc *RunContext) doInit() error {
 	if scratchSrc == nil {
 		scratchSrcFunc = sqlite3.NewScratchSource
 	} else {
-		scratchSrcFunc = func(log lg.Log, name string) (src *source.Source, clnup func() error, err error) {
+		scratchSrcFunc = func(log *slog.Logger, name string) (src *source.Source, clnup func() error, err error) {
 			return scratchSrc, nil, nil
 		}
 	}
 
 	var err error
-	rc.files, err = source.NewFiles(log)
+	rc.files, err = source.NewFiles(rc.Log)
 	if err != nil {
-		log.WarnIfFuncError(rc.clnup.Run)
+		lg.WarnIfFuncError(rc.Log, lga.Cleanup, rc.clnup.Run)
 		return err
 	}
 
@@ -501,14 +508,14 @@ func (rc *RunContext) doInit() error {
 		errs := userdriver.ValidateDriverDef(userDriverDef)
 		if len(errs) > 0 {
 			err := errz.Combine(errs...)
-			err = errz.Wrapf(err, "failed validation of user driver definition [%d] (%q) from config",
+			err = errz.Wrapf(err, "failed validation of user driver definition [%d] {%s} from config",
 				i, userDriverDef.Name)
 			return err
 		}
 
 		importFn, ok := userDriverImporters[userDriverDef.Genre]
 		if !ok {
-			return errz.Errorf("unsupported genre %q for user driver %q specified via config",
+			return errz.Errorf("unsupported genre {%s} for user driver {%s} specified via config",
 				userDriverDef.Genre, userDriverDef.Name)
 		}
 
@@ -540,7 +547,7 @@ func (rc *RunContext) Close() error {
 
 	err := rc.clnup.Run()
 	if err != nil && rc.Log != nil {
-		rc.Log.Warnf("failed to close RunContext: %v", err)
+		rc.Log.Warn("Failed to close RunContext", lga.Err, err)
 	}
 
 	return err
@@ -561,11 +568,12 @@ type writers struct {
 // newWriters returns a writers instance configured per defaults and/or
 // flags from cmd. The returned out2/errOut2 values may differ
 // from the out/errOut args (e.g. decorated to support colorization).
-func newWriters(log lg.Log, cmd *cobra.Command, defaults config.Defaults, out, errOut io.Writer) (w *writers,
-	out2, errOut2 io.Writer,
-) {
+func newWriters(cmd *cobra.Command, defaults config.Defaults, out,
+	errOut io.Writer,
+) (w *writers, out2, errOut2 io.Writer) {
 	var fm *output.Formatting
 	fm, out2, errOut2 = getWriterFormatting(cmd, out, errOut)
+	log := lg.FromContext(cmd.Context())
 
 	// Package tablew has writer impls for each of the writer interfaces,
 	// so we use its writers as the baseline. Later we check the format
@@ -731,7 +739,7 @@ func getFormat(cmd *cobra.Command, defaults config.Defaults) config.Format {
 
 // defaultLogging returns a log (and its associated closer) if
 // logging has been enabled via envars.
-func defaultLogging() (lg.Log, *cleanup.Cleanup, error) {
+func defaultLogging() (*slog.Logger, *cleanup.Cleanup, error) {
 	truncate, _ := strconv.ParseBool(os.Getenv(envarLogTruncate))
 
 	logFilePath, ok := os.LookupEnv(envarLogPath)
@@ -754,12 +762,26 @@ func defaultLogging() (lg.Log, *cleanup.Cleanup, error) {
 
 	logFile, err := os.OpenFile(logFilePath, os.O_RDWR|os.O_CREATE|flag, 0o600)
 	if err != nil {
-		return lg.Discard(), nil, errz.Wrapf(err, "unable to open log file %q", logFilePath)
+		return lg.Discard(), nil, errz.Wrapf(err, "unable to open log file: %s", logFilePath)
 	}
 	clnup := cleanup.New().AddE(logFile.Close)
 
-	log := zaplg.NewWith(logFile, "json", true, true, true, 0)
-	clnup.AddE(log.Sync)
+	replace := func(groups []string, a slog.Attr) slog.Attr {
+		// We want source to be "pkg/file.go".
+		if a.Key == slog.SourceKey {
+			fp := a.Value.String()
+			a.Value = slog.StringValue(filepath.Join(filepath.Base(filepath.Dir(fp)), filepath.Base(fp)))
+		}
+		return a
+	}
+
+	opts := slog.HandlerOptions{
+		AddSource:   true,
+		Level:       slog.LevelDebug,
+		ReplaceAttr: replace,
+	}
+
+	log := slog.New(opts.NewJSONHandler(logFile))
 
 	return log, clnup, nil
 }
@@ -808,7 +830,7 @@ func printError(rc *RunContext, err error) {
 	}
 
 	if err == nil {
-		log.Warnf("printError called with nil error")
+		log.Warn("printError called with nil error")
 		return
 	}
 
@@ -831,9 +853,10 @@ func printError(rc *RunContext, err error) {
 
 		cmdName := "unknown"
 		if cmd != nil {
-			cmdName = fmt.Sprintf("[cmd:%s] ", cmd.Name())
+			cmdName = cmd.Name()
 		}
-		log.Errorf("%s [%T] %+v", cmdName, err, err)
+
+		lg.Error(log, "nil command", err, lga.Cmd, cmdName)
 
 		wrtrs := rc.writers
 		if wrtrs != nil && wrtrs.errw != nil {

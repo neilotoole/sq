@@ -9,7 +9,13 @@ import (
 	"io"
 	"strconv"
 
-	"github.com/neilotoole/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+
+	"github.com/neilotoole/sq/libsq/core/lg"
+
+	"golang.org/x/exp/slog"
 
 	"github.com/neilotoole/sq/cli/output/csvw"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -27,7 +33,7 @@ const (
 
 // Provider implements driver.Provider.
 type Provider struct {
-	Log       lg.Log
+	Log       *slog.Logger
 	Scratcher driver.ScratchDatabaseOpener
 	Files     *source.Files
 }
@@ -41,12 +47,12 @@ func (d *Provider) DriverFor(typ source.Type) (driver.Driver, error) {
 		return &driveri{log: d.Log, typ: TypeTSV, scratcher: d.Scratcher, files: d.Files}, nil
 	}
 
-	return nil, errz.Errorf("unsupported driver type %q", typ)
+	return nil, errz.Errorf("unsupported driver type {%s}", typ)
 }
 
 // Driver implements driver.Driver.
 type driveri struct {
-	log       lg.Log
+	log       *slog.Logger
 	typ       source.Type
 	scratcher driver.ScratchDatabaseOpener
 	files     *source.Files
@@ -79,7 +85,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database
 		return nil, err
 	}
 
-	err = importCSV(ctx, d.log, src, d.files.OpenFunc(src), dbase.impl)
+	err = importCSV(ctx, src, d.files.OpenFunc(src), dbase.impl)
 	if err != nil {
 		return nil, err
 	}
@@ -96,11 +102,14 @@ func (d *driveri) Truncate(_ context.Context, _ *source.Source, _ string, _ bool
 // ValidateSource implements driver.Driver.
 func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 	if src.Type != d.typ {
-		return nil, errz.Errorf("expected source type %q but got %q", d.typ, src.Type)
+		return nil, errz.Errorf("expected source type {%s} but got {%s}", d.typ, src.Type)
 	}
 
 	if src.Options != nil || len(src.Options) > 0 {
-		d.log.Debugf("opts: %v", src.Options.Encode())
+		d.log.Debug("Validating source",
+			lga.Src, src,
+			lga.Opts, src.Options.Encode(),
+		)
 
 		key := "header"
 		v := src.Options.Get(key)
@@ -108,7 +117,7 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 		if v != "" {
 			_, err := strconv.ParseBool(v)
 			if err != nil {
-				return nil, errz.Errorf(`unable to parse option %q: %v`, key, err)
+				return nil, errz.Wrapf(err, "unable to parse option {%s} having value {%s}", key, v)
 			}
 		}
 	}
@@ -118,20 +127,18 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 
 // Ping implements driver.Driver.
 func (d *driveri) Ping(_ context.Context, src *source.Source) error {
-	d.log.Debugf("driver %q attempting to ping %q", d.typ, src)
-
 	r, err := d.files.Open(src)
 	if err != nil {
 		return err
 	}
-	defer d.log.WarnIfCloseError(r)
+	defer lg.WarnIfCloseError(d.log, lgm.CloseFileReader, r)
 
 	return nil
 }
 
 // database implements driver.Database.
 type database struct {
-	log   lg.Log
+	log   *slog.Logger
 	src   *source.Source
 	impl  driver.Database
 	files *source.Files
@@ -195,7 +202,7 @@ func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error)
 
 // Close implements driver.Database.
 func (d *database) Close() error {
-	d.log.Debugf("Close database: %s", d.src)
+	d.log.Debug(lgm.CloseDB, lga.Src, d.src)
 
 	return errz.Err(d.impl.Close())
 }
@@ -206,28 +213,29 @@ var (
 )
 
 // DetectCSV implements source.TypeDetectFunc.
-func DetectCSV(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (detected source.Type, score float32,
+func DetectCSV(ctx context.Context, openFn source.FileOpenFunc) (detected source.Type, score float32,
 	err error,
 ) {
-	return detectType(ctx, TypeCSV, log, openFn)
+	return detectType(ctx, TypeCSV, openFn)
 }
 
 // DetectTSV implements source.TypeDetectFunc.
-func DetectTSV(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (detected source.Type,
+func DetectTSV(ctx context.Context, openFn source.FileOpenFunc) (detected source.Type,
 	score float32, err error,
 ) {
-	return detectType(ctx, TypeTSV, log, openFn)
+	return detectType(ctx, TypeTSV, openFn)
 }
 
-func detectType(ctx context.Context, typ source.Type, log lg.Log, openFn source.FileOpenFunc) (detected source.Type,
-	score float32, err error,
-) {
+func detectType(ctx context.Context, typ source.Type,
+	openFn source.FileOpenFunc,
+) (detected source.Type, score float32, err error) {
+	log := lg.FromContext(ctx)
 	var r io.ReadCloser
 	r, err = openFn()
 	if err != nil {
 		return source.TypeNone, 0, errz.Err(err)
 	}
-	defer log.WarnIfCloseError(r)
+	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
 
 	delim := csvw.Comma
 	if typ == TypeTSV {

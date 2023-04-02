@@ -7,8 +7,15 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+
+	"github.com/neilotoole/sq/libsq/core/lg"
+
+	"golang.org/x/exp/slog"
+
 	"github.com/go-sql-driver/mysql"
-	"github.com/neilotoole/lg"
 	"github.com/xo/dburl"
 
 	"github.com/neilotoole/sq/libsq/ast/sqlbuilder"
@@ -33,13 +40,13 @@ var _ driver.Provider = (*Provider)(nil)
 
 // Provider is the MySQL implementation of driver.Provider.
 type Provider struct {
-	Log lg.Log
+	Log *slog.Logger
 }
 
 // DriverFor implements driver.Provider.
 func (p *Provider) DriverFor(typ source.Type) (driver.Driver, error) {
 	if typ != Type {
-		return nil, errz.Errorf("unsupported driver type %q", typ)
+		return nil, errz.Errorf("unsupported driver type {%s}", typ)
 	}
 
 	return &driveri{log: p.Log}, nil
@@ -49,7 +56,7 @@ var _ driver.SQLDriver = (*driveri)(nil)
 
 // driveri is the MySQL implementation of driver.Driver.
 type driveri struct {
-	log lg.Log
+	log *slog.Logger
 }
 
 // DriverMetadata implements driver.Driver.
@@ -107,7 +114,7 @@ func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl, col 
 
 	_, err := db.ExecContext(ctx, q)
 	if err != nil {
-		return errz.Wrapf(err, "alter table: failed to add column %q to table %q", col, tbl)
+		return errz.Wrapf(err, "alter table: failed to add column {%s} to table {%s}", col, tbl)
 	}
 
 	return nil
@@ -127,7 +134,7 @@ func (d *driveri) CurrentSchema(ctx context.Context, db sqlz.DB) (string, error)
 func (d *driveri) AlterTableRename(ctx context.Context, db sqlz.DB, tbl, newName string) error {
 	q := fmt.Sprintf("RENAME TABLE `%s` TO `%s`", tbl, newName)
 	_, err := db.ExecContext(ctx, q)
-	return errz.Wrapf(err, "alter table: failed to rename table %q to %q", tbl, newName)
+	return errz.Wrapf(err, "alter table: failed to rename table {%s} to {%s}", tbl, newName)
 }
 
 // AlterTableRenameColumn implements driver.SQLDriver.
@@ -256,13 +263,13 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 
 	colTypes, err := rows.ColumnTypes()
 	if err != nil {
-		d.log.WarnIfFuncError(rows.Close)
+		lg.WarnIfFuncError(d.log, lgm.CloseDBRows, rows.Close)
 		return nil, errz.Err(err)
 	}
 
 	err = rows.Err()
 	if err != nil {
-		d.log.WarnIfFuncError(rows.Close)
+		lg.WarnIfFuncError(d.log, lgm.CloseDBRows, rows.Close)
 		return nil, errz.Err(err)
 	}
 
@@ -308,7 +315,7 @@ func (d *driveri) Open(_ context.Context, src *source.Source) (driver.Database, 
 // ValidateSource implements driver.Driver.
 func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 	if src.Type != Type {
-		return nil, errz.Errorf("expected source type %q but got %q", Type, src.Type)
+		return nil, errz.Errorf("expected source type {%s} but got {%s}", Type, src.Type)
 	}
 	return src, nil
 }
@@ -319,7 +326,7 @@ func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 	if err != nil {
 		return err
 	}
-	defer d.log.WarnIfCloseError(dbase.DB())
+	defer lg.WarnIfCloseError(d.log, lgm.CloseDB, dbase.DB())
 
 	return dbase.DB().PingContext(ctx)
 }
@@ -340,7 +347,7 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 	if err != nil {
 		return 0, errz.Err(err)
 	}
-	defer d.log.WarnIfFuncError(db.Close)
+	defer lg.WarnIfFuncError(d.log, lgm.CloseDB, db.Close)
 
 	// Not sure about the Tx requirements?
 	tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
@@ -365,7 +372,7 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 		// Note: At the time of writing, this doesn't happen:
 		// zero is always returned (which we don't like).
 		// If this changes (driver changes?) then we'll revisit.
-		d.log.Warnf("Unexpectedly got non-zero (%d) rows affected from TRUNCATE", affected)
+		d.log.Warn("Unexpectedly got non-zero rows affected from TRUNCATE", lga.Count, affected)
 		return affected, errz.Err(tx.Commit())
 	}
 
@@ -376,7 +383,7 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 
 // database implements driver.Database.
 type database struct {
-	log  lg.Log
+	log  *slog.Logger
 	db   *sql.DB
 	src  *source.Source
 	drvr *driveri
@@ -399,17 +406,17 @@ func (d *database) Source() *source.Source {
 
 // TableMetadata implements driver.Database.
 func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
-	return getTableMetadata(ctx, d.log, d.db, tblName)
+	return getTableMetadata(ctx, d.db, tblName)
 }
 
 // SourceMetadata implements driver.Database.
 func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error) {
-	return getSourceMetadata(ctx, d.log, d.src, d.db)
+	return getSourceMetadata(ctx, d.src, d.db)
 }
 
 // Close implements driver.Database.
 func (d *database) Close() error {
-	d.log.Debugf("Close database: %s", d.src)
+	d.log.Debug(lgm.CloseDB, lga.Src, d.src)
 	return errz.Err(d.db.Close())
 }
 
@@ -450,7 +457,7 @@ func dsnFromLocation(src *source.Source, parseTime bool) (string, error) {
 
 	myCfg, err := mysql.ParseDSN(driverDSN) // verify
 	if err != nil {
-		return "", errz.Wrapf(err, "invalid source location: %q", driverDSN)
+		return "", errz.Wrapf(err, "invalid source location: %s", driverDSN)
 	}
 
 	myCfg.ParseTime = parseTime

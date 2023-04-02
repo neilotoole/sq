@@ -5,18 +5,18 @@ import (
 	"strconv"
 	"strings"
 
+	"golang.org/x/exp/slog"
+
 	"github.com/neilotoole/sq/libsq/core/stringz"
 
 	"github.com/neilotoole/sq/libsq/ast/sqlbuilder"
 	"github.com/neilotoole/sq/libsq/core/kind"
 
-	"github.com/neilotoole/lg"
-
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/sqlmodel"
 )
 
-func newFragmentBuilder(log lg.Log) *sqlbuilder.BaseFragmentBuilder {
+func newFragmentBuilder(log *slog.Logger) *sqlbuilder.BaseFragmentBuilder {
 	fb := &sqlbuilder.BaseFragmentBuilder{}
 	fb.Log = log
 	fb.Quote = `"`
@@ -28,7 +28,7 @@ func newFragmentBuilder(log lg.Log) *sqlbuilder.BaseFragmentBuilder {
 func dbTypeNameFromKind(knd kind.Kind) string {
 	switch knd { //nolint:exhaustive
 	default:
-		panic(fmt.Sprintf("unsupported datatype %q", knd))
+		panic(fmt.Sprintf("unsupported datatype {%s}", knd))
 	case kind.Unknown:
 		return "TEXT"
 	case kind.Text:

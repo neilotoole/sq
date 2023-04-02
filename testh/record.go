@@ -7,7 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/neilotoole/lg"
+	"github.com/neilotoole/sq/libsq/core/lg"
+
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/drivers/sqlite3"

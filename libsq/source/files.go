@@ -10,11 +10,17 @@ import (
 	"sync"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+
+	"github.com/neilotoole/sq/libsq/core/lg"
+
 	"github.com/djherbis/fscache"
+	"golang.org/x/exp/slog"
 
 	"github.com/h2non/filetype"
 	"github.com/h2non/filetype/matchers"
-	"github.com/neilotoole/lg"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/neilotoole/sq/libsq/core/cleanup"
@@ -35,7 +41,7 @@ import (
 // if we're reading long-running pipe from stdin). This entire thing
 // needs to be revisited.
 type Files struct {
-	log       lg.Log
+	log       *slog.Logger
 	mu        sync.Mutex
 	clnup     *cleanup.Cleanup
 	fcache    *fscache.FSCache
@@ -43,7 +49,7 @@ type Files struct {
 }
 
 // NewFiles returns a new Files instance.
-func NewFiles(log lg.Log) (*Files, error) {
+func NewFiles(log *slog.Logger) (*Files, error) {
 	fs := &Files{log: log, clnup: cleanup.New()}
 
 	tmpdir, err := os.MkdirTemp("", "sq_files_fscache_*")
@@ -53,14 +59,13 @@ func NewFiles(log lg.Log) (*Files, error) {
 
 	fcache, err := fscache.New(tmpdir, os.ModePerm, time.Hour)
 	if err != nil {
-		log.WarnIfFuncError(fs.clnup.Run)
 		return nil, errz.Err(err)
 	}
 
 	fs.clnup.AddE(func() error {
-		log.Debugf("About to clean fscache from dir: %s", tmpdir)
+		log.Debug("About to clean fscache from dir", lga.Path, tmpdir)
 		err = fcache.Clean()
-		log.WarnIfError(err)
+		lg.WarnIfError(log, "close file cache", err)
 
 		return err
 	})
@@ -82,7 +87,7 @@ func (fs *Files) Size(src *Source) (size int64, err error) {
 		return 0, err
 	}
 
-	defer fs.log.WarnIfCloseError(r)
+	defer lg.WarnIfCloseError(fs.log, lgm.CloseFileReader, r)
 
 	size, err = io.Copy(io.Discard, r)
 	if err != nil {
@@ -137,14 +142,14 @@ func (fs *Files) TypeStdin(ctx context.Context) (Type, error) {
 // add file copies f to fs's cache, returning a reader which the
 // caller is responsible for closing. f is closed by this method.
 func (fs *Files) addFile(f *os.File, key string) (fscache.ReadAtCloser, error) {
-	fs.log.Debugf("Adding file with key %q: %s", key, f.Name())
+	fs.log.Debug("Adding file", lga.Key, key, lga.Path, f.Name())
 	r, w, err := fs.fcache.Get(key)
 	if err != nil {
 		return nil, errz.Err(err)
 	}
 
 	if w == nil {
-		fs.log.WarnIfCloseError(r)
+		lg.WarnIfCloseError(fs.log, lgm.CloseFileReader, r)
 		return nil, errz.Errorf("failed to add to fscache (possibly previously added): %s", key)
 	}
 
@@ -153,17 +158,15 @@ func (fs *Files) addFile(f *os.File, key string) (fscache.ReadAtCloser, error) {
 	// everything is held up until f is fully copied. Hopefully we can
 	// do something with fscache so that the readers returned from
 	// fscache can lazily read from f.
-	copied, err := io.Copy(w, f)
+	_, err = io.Copy(w, f)
 	if err != nil {
-		fs.log.WarnIfCloseError(r)
+		lg.WarnIfCloseError(fs.log, lgm.CloseFileReader, r)
 		return nil, errz.Err(err)
 	}
 
-	fs.log.Debugf("Copied %d bytes to fscache from: %s", copied, key)
-
 	err = errz.Combine(w.Close(), f.Close())
 	if err != nil {
-		fs.log.WarnIfCloseError(r)
+		lg.WarnIfCloseError(fs.log, lgm.CloseFileReader, r)
 		return nil, err
 	}
 
@@ -296,7 +299,7 @@ func (fs *Files) fetch(loc string) (fpath string, err error) {
 
 	var u *url.URL
 	if u, ok = httpURL(loc); !ok {
-		return "", errz.Errorf("not a valid file location: %q", loc)
+		return "", errz.Errorf("not a valid file location: %s", loc)
 	}
 
 	var dlFile *os.File
@@ -320,7 +323,7 @@ func (fs *Files) fetch(loc string) (fpath string, err error) {
 
 // Close closes any open resources.
 func (fs *Files) Close() error {
-	fs.log.Debugf("Files.Close invoked: has %d clean funcs", fs.clnup.Len())
+	fs.log.Debug("Files.Close invoked: executing clean funcs", lga.Count, fs.clnup.Len())
 
 	return fs.clnup.Run()
 }
@@ -344,12 +347,20 @@ func (fs *Files) Type(ctx context.Context, loc string) (Type, error) {
 	if ploc.ext != "" {
 		mtype := mime.TypeByExtension(ploc.ext)
 		if mtype == "" {
-			fs.log.Debugf("unknown mime time for %q for %q", mtype, loc)
+			fs.log.Debug(
+				"unknown mime time",
+				lga.Type, mtype,
+				lga.Loc, loc,
+			)
 		} else {
 			if typ, ok := typeFromMediaType(mtype); ok {
 				return typ, nil
 			}
-			fs.log.Debugf("unknown source type for media type %q for %q", mtype, loc)
+			fs.log.Debug(
+				"unknown source type for media type",
+				lga.Type, mtype,
+				lga.Loc, loc,
+			)
 		}
 	}
 
@@ -390,19 +401,20 @@ func (fs *Files) detectType(ctx context.Context, loc string) (typ Type, ok bool,
 	default:
 	}
 
-	g, gctx := errgroup.WithContext(ctx)
+	g, gCtx := errgroup.WithContext(ctx)
+	gCtx = lg.NewContext(gCtx, fs.log)
 
 	for _, detectFn := range fs.detectFns {
 		detectFn := detectFn
 
 		g.Go(func() error {
 			select {
-			case <-gctx.Done():
-				return gctx.Err()
+			case <-gCtx.Done():
+				return gCtx.Err()
 			default:
 			}
 
-			gTyp, gScore, gErr := detectFn(gctx, fs.log, openFn)
+			gTyp, gScore, gErr := detectFn(gCtx, openFn)
 			if gErr != nil {
 				return gErr
 			}
@@ -416,7 +428,7 @@ func (fs *Files) detectType(ctx context.Context, loc string) (typ Type, ok bool,
 
 	err = g.Wait()
 	if err != nil {
-		fs.log.Error(err)
+		fs.log.Error(err.Error())
 		return TypeNone, false, errz.Err(err)
 	}
 	close(resultCh)
@@ -449,20 +461,22 @@ type FileOpenFunc func() (io.ReadCloser, error)
 // An error is returned only if an IO problem occurred.
 // The implementation gets access to the byte stream by invoking openFn,
 // and is responsible for closing any reader it opens.
-type TypeDetectFunc func(ctx context.Context, log lg.Log, openFn FileOpenFunc) (detected Type, score float32, err error)
+type TypeDetectFunc func(ctx context.Context, openFn FileOpenFunc) (detected Type, score float32, err error)
 
 var _ TypeDetectFunc = DetectMagicNumber
 
 // DetectMagicNumber is a TypeDetectFunc that uses an external
 // pkg (h2non/filetype) to detect the "magic number" from
 // the start of files.
-func DetectMagicNumber(_ context.Context, log lg.Log, openFn FileOpenFunc) (detected Type, score float32, err error) {
+func DetectMagicNumber(ctx context.Context, openFn FileOpenFunc,
+) (detected Type, score float32, err error) {
+	log := lg.FromContext(ctx)
 	var r io.ReadCloser
 	r, err = openFn()
 	if err != nil {
 		return TypeNone, 0, errz.Err(err)
 	}
-	defer log.WarnIfCloseError(r)
+	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
 
 	// We only have to pass the file header = first 261 bytes
 	head := make([]byte, 261)

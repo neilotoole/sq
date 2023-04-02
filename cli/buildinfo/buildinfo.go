@@ -5,6 +5,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
+	"golang.org/x/exp/slog"
+
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"golang.org/x/mod/semver"
 )
@@ -44,6 +48,16 @@ func (bi BuildInfo) String() string {
 	return s
 }
 
+// LogValue implements slog.LogValuer.
+func (bi BuildInfo) LogValue() slog.Value {
+	gv := slog.GroupValue(
+		slog.String(lga.Version, bi.Version),
+		slog.String(lga.Commit, bi.Commit),
+		slog.String(lga.Timestamp, bi.Timestamp))
+
+	return gv
+}
+
 // Info returns BuildInfo.
 func Info() BuildInfo {
 	return BuildInfo{
@@ -61,7 +75,7 @@ func init() { //nolint:gochecknoinits
 	if Version != "" && !semver.IsValid(Version) {
 		// We want to panic here because it is a pipeline/build failure
 		// to have an invalid non-empty Version.
-		panic(fmt.Sprintf("Invalid BuildInfo.Version value: %q", Version))
+		panic(fmt.Sprintf("Invalid BuildInfo.Version value: %s", Version))
 	}
 
 	if Timestamp != "" {

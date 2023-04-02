@@ -5,7 +5,7 @@ import (
 	"math"
 	"strings"
 
-	"github.com/neilotoole/lg"
+	"golang.org/x/exp/slog"
 
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -35,7 +35,7 @@ var _ FragmentBuilder = (*BaseFragmentBuilder)(nil)
 
 // BaseFragmentBuilder is a default implementation of sqlbuilder.FragmentBuilder.
 type BaseFragmentBuilder struct {
-	Log lg.Log
+	Log *slog.Logger
 	// Quote is the driver-specific quote rune, e.g. " or `
 	Quote string
 
@@ -266,7 +266,7 @@ func (fb *BaseFragmentBuilder) Function(fn *ast.FuncNode) (string, error) {
 func (fb *BaseFragmentBuilder) FromTable(tblSel *ast.TblSelectorNode) (string, error) {
 	tblName, _ := tblSel.SelValue()
 	if tblName == "" {
-		return "", errz.Errorf("selector has empty table name: %q", tblSel.Text())
+		return "", errz.Errorf("selector has empty table name: {%s}", tblSel.Text())
 	}
 
 	clause := fmt.Sprintf("FROM %v%s%v", fb.Quote, tblSel.TblName(), fb.Quote)

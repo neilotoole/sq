@@ -7,9 +7,12 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/core/lg"
+
+	"github.com/neilotoole/slogt"
+
 	"github.com/neilotoole/sq/testh/tutil"
 
-	"github.com/neilotoole/lg/testlg"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/drivers/json"
@@ -91,7 +94,9 @@ func TestTypeDetectorFuncs(t *testing.T) {
 			openFn := func() (io.ReadCloser, error) { return os.Open(filepath.Join("testdata", tc.fname)) }
 			detectFn := detectFns[tc.fn]
 
-			gotType, gotScore, gotErr := detectFn(context.Background(), testlg.New(t), openFn)
+			ctx := lg.NewContext(context.Background(), slogt.New(t))
+
+			gotType, gotScore, gotErr := detectFn(ctx, openFn)
 			if tc.wantErr {
 				require.Error(t, gotErr)
 				return

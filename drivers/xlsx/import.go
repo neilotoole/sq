@@ -2,8 +2,17 @@ package xlsx
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
+
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+
+	"github.com/neilotoole/sq/libsq/core/lg"
+
+	"golang.org/x/exp/slog"
 
 	"github.com/tealeg/xlsx/v2"
 	"golang.org/x/sync/errgroup"
@@ -13,27 +22,25 @@ import (
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/source"
 
-	"github.com/neilotoole/lg"
-
 	"github.com/neilotoole/sq/libsq/core/sqlmodel"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
 )
 
 // xlsxToScratch loads the data in xlFile into scratchDB.
-func xlsxToScratch(ctx context.Context, log lg.Log, src *source.Source, xlFile *xlsx.File,
-	scratchDB driver.Database,
-) error {
+func xlsxToScratch(ctx context.Context, src *source.Source, xlFile *xlsx.File, scratchDB driver.Database) error {
+	log := lg.FromContext(ctx)
 	start := time.Now()
-	log.Debugf("Beginning import from XLSX %s to %s (%s)...", src.Handle, scratchDB.Source().Handle,
-		scratchDB.Source().RedactedLocation())
+	log.Debug("Beginning import from XLSX",
+		lga.Src, src,
+		lga.Target, scratchDB.Source())
 
 	hasHeader, _, err := options.HasHeader(src.Options)
 	if err != nil {
 		return err
 	}
 
-	tblDefs, err := buildTblDefsForSheets(ctx, log, xlFile.Sheets, hasHeader)
+	tblDefs, err := buildTblDefsForSheets(ctx, xlFile.Sheets, hasHeader)
 	if err != nil {
 		return err
 	}
@@ -49,8 +56,10 @@ func xlsxToScratch(ctx context.Context, log lg.Log, src *source.Source, xlFile *
 		}
 	}
 
-	log.Debugf("%d tables created (but not yet populated) in %s in %s",
-		len(tblDefs), scratchDB.Source().Handle, time.Since(start))
+	log.Debug("Tables created (but not yet populated)",
+		lga.Count, len(tblDefs),
+		lga.Target, scratchDB.Source(),
+		lga.Elapsed, time.Since(start))
 
 	var imported, skipped int
 
@@ -60,38 +69,44 @@ func xlsxToScratch(ctx context.Context, log lg.Log, src *source.Source, xlFile *
 			skipped++
 			continue
 		}
-		err = importSheetToTable(ctx, log, xlFile.Sheets[i], hasHeader, scratchDB, tblDefs[i])
+		err = importSheetToTable(ctx, xlFile.Sheets[i], hasHeader, scratchDB, tblDefs[i])
 		if err != nil {
 			return err
 		}
 		imported++
 	}
 
-	log.Debugf("%d sheets imported (%d sheets skipped) from %s to %s in %s",
-		imported, skipped, src.Handle, scratchDB.Source().Handle, time.Since(start))
+	log.Debug("Sheets imported",
+		lga.Count, imported,
+		"skipped", skipped,
+		lga.From, src,
+		lga.To, scratchDB.Source(),
+		lga.Elapsed, time.Since(start),
+	)
 
 	return nil
 }
 
 // importSheetToTable imports sheet's data to its scratch table.
 // The scratch table must already exist.
-func importSheetToTable(ctx context.Context, log lg.Log, sheet *xlsx.Sheet, hasHeader bool, scratchDB driver.Database,
-	tblDef *sqlmodel.TableDef,
+func importSheetToTable(ctx context.Context, sheet *xlsx.Sheet, hasHeader bool,
+	scratchDB driver.Database, tblDef *sqlmodel.TableDef,
 ) error {
+	log := lg.FromContext(ctx)
 	startTime := time.Now()
 
 	conn, err := scratchDB.DB().Conn(ctx)
 	if err != nil {
 		return errz.Err(err)
 	}
-	defer log.WarnIfCloseError(conn)
+	defer lg.WarnIfCloseError(log, lgm.CloseDB, conn)
 
 	drvr := scratchDB.SQLDriver()
 
 	destColKinds := tblDef.ColKinds()
 
 	batchSize := driver.MaxBatchRows(drvr, len(destColKinds))
-	bi, err := driver.NewBatchInsert(ctx, log, drvr, conn, tblDef.Name, tblDef.ColNames(), batchSize)
+	bi, err := driver.NewBatchInsert(ctx, drvr, conn, tblDef.Name, tblDef.ColNames(), batchSize)
 	if err != nil {
 		return err
 	}
@@ -135,8 +150,11 @@ func importSheetToTable(ctx context.Context, log lg.Log, sheet *xlsx.Sheet, hasH
 		return err
 	}
 
-	log.Debugf("Inserted %d rows from sheet %q into %s.%s in %s",
-		bi.Written(), sheet.Name, scratchDB.Source().Handle, tblDef.Name, time.Since(startTime))
+	log.Debug("Inserted rows from sheet into table",
+		lga.Count, bi.Written(),
+		"sheet", sheet.Name,
+		lga.Target, source.Target(scratchDB.Source(), tblDef.Name),
+		lga.Elapsed, time.Since(startTime))
 
 	return nil
 }
@@ -159,16 +177,14 @@ func isEmptyRow(row *xlsx.Row) bool {
 
 // buildTblDefsForSheets returns a TableDef for each sheet. If the
 // sheet is empty (has no data), the TableDef for that sheet will be nil.
-func buildTblDefsForSheets(ctx context.Context, log lg.Log, sheets []*xlsx.Sheet, hasHeader bool) ([]*sqlmodel.TableDef,
-	error,
-) {
+func buildTblDefsForSheets(ctx context.Context, sheets []*xlsx.Sheet, hasHeader bool) ([]*sqlmodel.TableDef, error) {
 	tblDefs := make([]*sqlmodel.TableDef, len(sheets))
 
-	g, _ := errgroup.WithContext(ctx)
+	g, gCtx := errgroup.WithContext(ctx)
 	for i := range sheets {
 		i := i
 		g.Go(func() error {
-			tblDef, err := buildTblDefForSheet(log, sheets[i], hasHeader)
+			tblDef, err := buildTblDefForSheet(lg.FromContext(gCtx), sheets[i], hasHeader)
 			if err != nil {
 				return err
 			}
@@ -177,8 +193,7 @@ func buildTblDefsForSheets(ctx context.Context, log lg.Log, sheets []*xlsx.Sheet
 		})
 	}
 
-	err := g.Wait()
-	if err != nil {
+	if err := g.Wait(); err != nil {
 		return nil, err
 	}
 
@@ -188,10 +203,10 @@ func buildTblDefsForSheets(ctx context.Context, log lg.Log, sheets []*xlsx.Sheet
 // buildTblDefForSheet creates a table for the given sheet, and returns
 // a model of the table, or an error. If the sheet is empty, (nil,nil)
 // is returned.
-func buildTblDefForSheet(log lg.Log, sheet *xlsx.Sheet, hasHeader bool) (*sqlmodel.TableDef, error) {
+func buildTblDefForSheet(log *slog.Logger, sheet *xlsx.Sheet, hasHeader bool) (*sqlmodel.TableDef, error) {
 	maxCols := getRowsMaxCellCount(sheet)
 	if maxCols == 0 {
-		log.Warnf("sheet %q is empty: skipping")
+		log.Warn("sheet is empty: skipping", "sheet", sheet.Name)
 		return nil, nil //nolint:nilnil
 	}
 
@@ -249,7 +264,9 @@ func buildTblDefForSheet(log lg.Log, sheet *xlsx.Sheet, hasHeader bool) (*sqlmod
 		cols[i] = &sqlmodel.ColDef{Table: tblDef, Name: colName, Kind: colKinds[i]}
 	}
 	tblDef.Cols = cols
-	log.Debugf("sheet %q: using col names [%q]", sheet.Name, strings.Join(colNames, ", "))
+	log.Debug("Built table def",
+		"sheet", sheet.Name,
+		"cols", strings.Join(colNames, ", "))
 
 	return tblDef, nil
 }
@@ -304,11 +321,11 @@ func syncColNamesKinds(colNames []string, colKinds []kind.Kind) (names []string,
 	return colNames, colKinds
 }
 
-func rowToRecord(log lg.Log, destColKinds []kind.Kind, row *xlsx.Row, sheetName string, rowIndex int) []any {
+func rowToRecord(log *slog.Logger, destColKinds []kind.Kind, row *xlsx.Row, sheetName string, rowIndex int) []any {
 	vals := make([]any, len(destColKinds))
 	for j, cell := range row.Cells {
 		if j >= len(vals) {
-			log.Warnf("sheet %s[%d:%d]: skipping additional cells because there's more cells than expected (%d)",
+			log.Warn("Sheet %s[%d:%d]: skipping additional cells because there's more cells than expected (%d)",
 				sheetName, rowIndex, j, len(destColKinds))
 			continue
 		}
@@ -321,7 +338,7 @@ func rowToRecord(log lg.Log, destColKinds []kind.Kind, row *xlsx.Row, sheetName 
 			if cell.IsTime() {
 				t, err := cell.GetTime(false)
 				if err != nil {
-					log.Warnf("sheet %s[%d:%d]: failed to get Excel time: %v", sheetName, rowIndex, j, err)
+					log.Warn("Sheet %s[%d:%d]: failed to get Excel time: %v", sheetName, rowIndex, j, err)
 					vals[j] = nil
 					continue
 				}
@@ -348,8 +365,12 @@ func rowToRecord(log lg.Log, destColKinds []kind.Kind, row *xlsx.Row, sheetName 
 
 			// it's not an int, it's not a float, it's not empty string;
 			// just give up and make it a string.
-			log.Warnf("Failed to determine type of numeric cell [%s:%d:%d] from value: %q", sheetName, rowIndex, j,
-				cell.Value)
+			log.Warn("Failed to determine type of numeric cell",
+				"sheet", sheetName,
+				"cell", fmt.Sprintf("%d:%d", rowIndex, j),
+				lga.Val, cell.Value,
+			)
+
 			vals[j] = cell.Value
 			// FIXME: prob should return an error here?
 		case xlsx.CellTypeString:

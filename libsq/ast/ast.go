@@ -7,16 +7,18 @@ package ast
 import (
 	"reflect"
 
-	"github.com/antlr/antlr4/runtime/Go/antlr/v4"
+	"github.com/neilotoole/sq/libsq/core/lg"
 
-	"github.com/neilotoole/lg"
+	"golang.org/x/exp/slog"
+
+	"github.com/antlr/antlr4/runtime/Go/antlr/v4"
 
 	"github.com/neilotoole/sq/libsq/ast/internal/slq"
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
 // Parse parses the SLQ input string and builds the AST.
-func Parse(log lg.Log, input string) (*AST, error) { //nolint:staticcheck
+func Parse(log *slog.Logger, input string) (*AST, error) { //nolint:staticcheck
 	// REVISIT: We need a better solution for disabling parser logging.
 	log = lg.Discard() //nolint:staticcheck // Disable parser logging.
 	ptree, err := parseSLQ(log, input)
@@ -37,7 +39,7 @@ func Parse(log lg.Log, input string) (*AST, error) { //nolint:staticcheck
 }
 
 // buildAST constructs sq's AST from a parse tree.
-func buildAST(log lg.Log, query slq.IQueryContext) (*AST, error) {
+func buildAST(log *slog.Logger, query slq.IQueryContext) (*AST, error) {
 	if query == nil {
 		return nil, errorf("query is nil")
 	}
@@ -76,7 +78,7 @@ func buildAST(log lg.Log, query slq.IQueryContext) (*AST, error) {
 }
 
 // verify performs additional checks on the state of the built AST.
-func verify(log lg.Log, ast *AST) error {
+func verify(log *slog.Logger, ast *AST) error {
 	selCount := NewInspector(log, ast).CountNodes(typeSelectorNode)
 	if selCount != 0 {
 		return errorf("AST should have zero nodes of type %T but found %d",

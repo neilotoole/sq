@@ -7,10 +7,13 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/core/lg"
+
+	"github.com/neilotoole/slogt"
+
 	"github.com/neilotoole/sq/testh/tutil"
 
 	"github.com/neilotoole/errgroup"
-	"github.com/neilotoole/lg/testlg"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -53,7 +56,7 @@ func TestFiles_Type(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.loc, func(t *testing.T) {
-			fs, err := source.NewFiles(testlg.New(t))
+			fs, err := source.NewFiles(slogt.New(t))
 			require.NoError(t, err)
 			fs.AddTypeDetectors(testh.TypeDetectors()...)
 
@@ -95,7 +98,7 @@ func TestFiles_DetectType(t *testing.T) {
 
 		t.Run(filepath.Base(tc.loc), func(t *testing.T) {
 			ctx := context.Background()
-			fs, err := source.NewFiles(testlg.New(t))
+			fs, err := source.NewFiles(slogt.New(t))
 			require.NoError(t, err)
 			fs.AddTypeDetectors(testh.TypeDetectors()...)
 
@@ -129,7 +132,9 @@ func TestDetectMagicNumber(t *testing.T) {
 		t.Run(filepath.Base(tc.loc), func(t *testing.T) {
 			rFn := func() (io.ReadCloser, error) { return os.Open(tc.loc) }
 
-			typ, score, err := source.DetectMagicNumber(context.Background(), testlg.New(t), rFn)
+			ctx := lg.NewContext(context.Background(), slogt.New(t))
+
+			typ, score, err := source.DetectMagicNumber(ctx, rFn)
 			if tc.wantErr {
 				require.Error(t, err)
 				return
@@ -152,7 +157,7 @@ func TestFiles_NewReader(t *testing.T) {
 		Location: proj.Abs(fpath),
 	}
 
-	fs, err := source.NewFiles(testlg.New(t))
+	fs, err := source.NewFiles(slogt.New(t))
 	require.NoError(t, err)
 
 	g := &errgroup.Group{}

@@ -8,10 +8,16 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+
+	"github.com/neilotoole/sq/libsq/core/lg"
+
+	"golang.org/x/exp/slog"
+
 	"github.com/jackc/pgconn"
 	"github.com/neilotoole/errgroup"
-	"github.com/neilotoole/lg"
-
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
@@ -22,13 +28,18 @@ import (
 // kindFromDBTypeName determines the kind.Kind from the database
 // type name. For example, "VARCHAR" -> kind.Text.
 // See https://www.postgresql.org/docs/9.5/datatype.html
-func kindFromDBTypeName(log lg.Log, colName, dbTypeName string) kind.Kind {
+func kindFromDBTypeName(log *slog.Logger, colName, dbTypeName string) kind.Kind {
 	var knd kind.Kind
 	dbTypeName = strings.ToUpper(dbTypeName)
 
 	switch dbTypeName {
 	default:
-		log.Warnf("Unknown Postgres database type '%s' for column '%s': using %s", dbTypeName, colName, kind.Unknown)
+		log.Warn(
+			"Unknown Postgres column type: using alt type",
+			lga.DBType, dbTypeName,
+			lga.Col, colName,
+			lga.Alt, kind.Unknown,
+		)
 		knd = kind.Unknown
 	case "":
 		knd = kind.Unknown
@@ -79,7 +90,7 @@ func kindFromDBTypeName(log lg.Log, colName, dbTypeName string) kind.Kind {
 }
 
 // setScanType ensures that ctd's scan type field is set appropriately.
-func setScanType(log lg.Log, ctd *sqlz.ColumnTypeData, knd kind.Kind) {
+func setScanType(log *slog.Logger, ctd *sqlz.ColumnTypeData, knd kind.Kind) {
 	if knd == kind.Decimal {
 		// Force the use of string for decimal, as the driver will
 		// sometimes prefer float.
@@ -96,7 +107,9 @@ func setScanType(log lg.Log, ctd *sqlz.ColumnTypeData, knd kind.Kind) {
 // reported by the postgres driver's ColumnType.ScanType. This is necessary
 // because the pgx driver does not support the stdlib sql
 // driver.RowsColumnTypeNullable interface.
-func toNullableScanType(log lg.Log, colName, dbTypeName string, knd kind.Kind, pgScanType reflect.Type) reflect.Type {
+func toNullableScanType(log *slog.Logger, colName, dbTypeName string, knd kind.Kind,
+	pgScanType reflect.Type,
+) reflect.Type {
 	var nullableScanType reflect.Type
 
 	switch pgScanType {
@@ -108,9 +121,15 @@ func toNullableScanType(log lg.Log, colName, dbTypeName string, knd kind.Kind, p
 		// names so that we see the log warning for truly unknown types.
 		switch dbTypeName {
 		default:
-			log.Warnf("Unknown postgres scan type: col(%s) --> scan(%s) --> db(%s) --> kind(%s): using %s",
-				colName, pgScanType, dbTypeName, knd, sqlz.RTypeNullString)
 			nullableScanType = sqlz.RTypeNullString
+			log.Warn("Unknown Postgres scan type",
+				lga.Col, colName,
+				lga.ScanType, pgScanType,
+				lga.DBType, dbTypeName,
+				lga.Kind, knd,
+				lga.DefaultTo, nullableScanType,
+			)
+
 		case "":
 			// NOTE: the pgx driver currently reports an empty dbTypeName for certain
 			//  cols such as XML or MONEY.
@@ -157,7 +176,9 @@ func toNullableScanType(log lg.Log, colName, dbTypeName string, knd kind.Kind, p
 	return nullableScanType
 }
 
-func getSourceMetadata(ctx context.Context, log lg.Log, src *source.Source, db sqlz.DB) (*source.Metadata, error) {
+func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB) (*source.Metadata, error) {
+	log := lg.FromContext(ctx)
+
 	md := &source.Metadata{
 		Handle:       src.Handle,
 		Location:     src.Location,
@@ -182,12 +203,12 @@ current_setting('server_version'), version(), "current_user"()`
 	md.Schema = schema.String
 	md.FQName = md.Name + "." + schema.String
 
-	md.DBVars, err = getPgSettings(ctx, log, db)
+	md.DBVars, err = getPgSettings(ctx, db)
 	if err != nil {
 		return nil, err
 	}
 
-	tblNames, err := getAllTableNames(ctx, log, db)
+	tblNames, err := getAllTableNames(ctx, db)
 	if err != nil {
 		return nil, err
 	}
@@ -204,13 +225,15 @@ current_setting('server_version'), version(), "current_user"()`
 
 		i := i
 		g.Go(func() error {
-			tblMeta, mdErr := getTableMetadata(gctx, log, db, tblNames[i])
+			tblMeta, mdErr := getTableMetadata(gctx, db, tblNames[i])
 			if mdErr != nil {
 				if hasErrCode(mdErr, errCodeRelationNotExist) {
 					// If the table is dropped while we're collecting metadata,
 					// for example, we log a warning and suppress the error.
-					log.Warnf("table metadata collection: table %q appears not to exist (continuing regardless): %v",
-						tblNames[i], mdErr)
+					log.Warn("metadata collection: table not found (continuing regardless)",
+						lga.Table, tblNames[i],
+						lga.Err, mdErr,
+					)
 					return nil
 				}
 				return mdErr
@@ -254,13 +277,14 @@ func hasErrCode(err error, code string) bool {
 
 const errCodeRelationNotExist = "42P01"
 
-func getPgSettings(ctx context.Context, log lg.Log, db sqlz.DB) ([]source.DBVar, error) {
+func getPgSettings(ctx context.Context, db sqlz.DB) ([]source.DBVar, error) {
+	log := lg.FromContext(ctx)
 	rows, err := db.QueryContext(ctx, "SELECT name, setting FROM pg_settings ORDER BY name")
 	if err != nil {
 		return nil, errz.Err(err)
 	}
 
-	defer log.WarnIfCloseError(rows)
+	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
 	var dbVars []source.DBVar
 
 	for rows.Next() {
@@ -282,7 +306,9 @@ func getPgSettings(ctx context.Context, log lg.Log, db sqlz.DB) ([]source.DBVar,
 
 // getAllTable names returns all table (or view) names in the current
 // catalog & schema.
-func getAllTableNames(ctx context.Context, log lg.Log, db sqlz.DB) ([]string, error) {
+func getAllTableNames(ctx context.Context, db sqlz.DB) ([]string, error) {
+	log := lg.FromContext(ctx)
+
 	const tblNamesQuery = `SELECT table_name FROM information_schema.tables
 WHERE table_catalog = current_catalog AND table_schema = current_schema()
 ORDER BY table_name`
@@ -291,7 +317,7 @@ ORDER BY table_name`
 	if err != nil {
 		return nil, errz.Err(err)
 	}
-	defer log.WarnIfCloseError(rows)
+	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
 
 	var tblNames []string
 	for rows.Next() {
@@ -311,7 +337,9 @@ ORDER BY table_name`
 	return tblNames, nil
 }
 
-func getTableMetadata(ctx context.Context, log lg.Log, db sqlz.DB, tblName string) (*source.TableMetadata, error) {
+func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*source.TableMetadata, error) {
+	log := lg.FromContext(ctx)
+
 	const tblsQueryTpl = `SELECT table_catalog, table_schema, table_name, table_type, is_insertable_into,
   (SELECT COUNT(*) FROM "%s") AS table_row_count,
   pg_total_relation_size('%q') AS table_size,
@@ -334,10 +362,10 @@ AND table_name = $1`
 	tblMeta := tblMetaFromPgTable(pgTbl)
 	if tblMeta.Name != tblName {
 		// Shouldn't happen, but we'll error if it does
-		return nil, errz.Errorf("table %q not found in %s.%s", tblName, pgTbl.tableCatalog, pgTbl.tableSchema)
+		return nil, errz.Errorf("table {%s} not found in %s.%s", tblName, pgTbl.tableCatalog, pgTbl.tableSchema)
 	}
 
-	pgCols, err := getPgColumns(ctx, log, db, tblName)
+	pgCols, err := getPgColumns(ctx, db, tblName)
 	if err != nil {
 		return nil, err
 	}
@@ -348,7 +376,7 @@ AND table_name = $1`
 	}
 
 	// We need to fetch the constraints to set the PK etc.
-	pgConstraints, err := getPgConstraints(ctx, log, db, tblName)
+	pgConstraints, err := getPgConstraints(ctx, db, tblName)
 	if err != nil {
 		return nil, err
 	}
@@ -430,7 +458,9 @@ type pgColumn struct {
 }
 
 // getPgColumns queries the column metadata for tblName.
-func getPgColumns(ctx context.Context, log lg.Log, db sqlz.DB, tblName string) ([]*pgColumn, error) {
+func getPgColumns(ctx context.Context, db sqlz.DB, tblName string) ([]*pgColumn, error) {
+	log := lg.FromContext(ctx)
+
 	// colsQuery gets column information from information_schema.columns.
 	//
 	// It also has a subquery to get column comments. See:
@@ -477,7 +507,7 @@ ORDER BY cols.table_catalog, cols.table_schema, cols.table_name, cols.ordinal_po
 		return nil, errz.Err(err)
 	}
 
-	defer log.WarnIfCloseError(rows)
+	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
 
 	var cols []*pgColumn
 	for rows.Next() {
@@ -507,7 +537,7 @@ func scanPgColumn(rows *sql.Rows, c *pgColumn) error {
 	return errz.Err(err)
 }
 
-func colMetaFromPgColumn(log lg.Log, pgCol *pgColumn) *source.ColMetadata {
+func colMetaFromPgColumn(log *slog.Logger, pgCol *pgColumn) *source.ColMetadata {
 	colMeta := &source.ColMetadata{
 		Name:         pgCol.columnName,
 		Position:     pgCol.ordinalPosition,
@@ -526,7 +556,9 @@ func colMetaFromPgColumn(log lg.Log, pgCol *pgColumn) *source.ColMetadata {
 // empty, constraints for all tables in the current catalog & schema
 // are returned. If tblName is specified, constraints just for that
 // table are returned.
-func getPgConstraints(ctx context.Context, log lg.Log, db sqlz.DB, tblName string) ([]*pgConstraint, error) {
+func getPgConstraints(ctx context.Context, db sqlz.DB, tblName string) ([]*pgConstraint, error) {
+	log := lg.FromContext(ctx)
+
 	var args []any
 	query := `SELECT kcu.table_catalog,kcu.table_schema,kcu.table_name,kcu.column_name,
     kcu.ordinal_position,tc.constraint_name,tc.constraint_type,
@@ -562,7 +594,7 @@ WHERE kcu.table_catalog = current_catalog AND kcu.table_schema = current_schema(
 	if err != nil {
 		return nil, errz.Err(err)
 	}
-	defer log.WarnIfCloseError(rows)
+	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
 
 	var constraints []*pgConstraint
 
@@ -608,7 +640,7 @@ type pgConstraint struct {
 
 // setTblMetaConstraints updates tblMeta with constraints found
 // in pgConstraints.
-func setTblMetaConstraints(log lg.Log, tblMeta *source.TableMetadata, pgConstraints []*pgConstraint) {
+func setTblMetaConstraints(log *slog.Logger, tblMeta *source.TableMetadata, pgConstraints []*pgConstraint) {
 	for _, pgc := range pgConstraints {
 		fqTblName := pgc.tableCatalog + "." + pgc.tableSchema + "." + pgc.tableName
 		if fqTblName != tblMeta.FQName {
@@ -619,8 +651,10 @@ func setTblMetaConstraints(log lg.Log, tblMeta *source.TableMetadata, pgConstrai
 			colMeta := tblMeta.Column(pgc.columnName)
 			if colMeta == nil {
 				// Shouldn't happen
-				log.Warnf("No column %s.%s found matching constraint %q", tblMeta.Name, pgc.columnName,
-					pgc.constraintName)
+				log.Warn("No column found matching constraint",
+					lga.Target, tblMeta.Name+"."+pgc.columnName,
+					"constraint", pgc.constraintName,
+				)
 				continue
 			}
 			colMeta.PrimaryKey = true

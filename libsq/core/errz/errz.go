@@ -1,6 +1,7 @@
 // Package errz is sq's error package. It exists to combine
 // functionality from several error packages, including
-// annotating errors with stack trace.
+// annotating errors with stack trace. Most of it comes
+// from pkg/errors.
 //
 // At some point this package may become redundant, particularly in
 // light of the proposed stdlib multiple error support:
@@ -8,27 +9,25 @@
 package errz
 
 import (
-	pkgerrors "github.com/pkg/errors"
+	"fmt"
+	"path/filepath"
+
 	"go.uber.org/multierr"
+
+	"golang.org/x/exp/slog"
 )
 
-// Err is documented by pkg/errors.WithStack.
-var Err = pkgerrors.WithStack
-
-// Wrap is documented by pkg/errors.Wrap.
-var Wrap = pkgerrors.Wrap
-
-// Wrapf is documented by pkg/errors.Wrapf.
-var Wrapf = pkgerrors.Wrapf
-
-// New is documented by pkg/errors.New.
-var New = pkgerrors.New
-
-// Errorf is documented by pkg/errors.Errorf.
-var Errorf = pkgerrors.Errorf
-
-// Cause is documented by pkg/errors.Cause.
-var Cause = pkgerrors.Cause
+// Err annotates err with a stack trace at the point WithStack was called.
+// If err is nil, Err returns nil.
+func Err(err error) error {
+	if err == nil {
+		return nil
+	}
+	return &withStack{
+		err,
+		callers(),
+	}
+}
 
 // Append is documented by multierr.Append.
 var Append = multierr.Append
@@ -38,3 +37,42 @@ var Combine = multierr.Combine
 
 // Errors is documented by multierr.Errors.
 var Errors = multierr.Errors
+
+// logValue return a slog.Value for err.
+func logValue(err error) slog.Value {
+	if err == nil {
+		return slog.Value{}
+	}
+
+	c := Cause(err)
+	if c == nil {
+		// Shouldn't happen
+		return slog.Value{}
+	}
+
+	msgAttr := slog.String("msg", err.Error())
+	causeAttr := slog.String("cause", c.Error())
+	typeAttr := slog.String("type", fmt.Sprintf("%T", c))
+
+	if ws, ok := err.(*withStack); ok { //nolint:errorlint
+		st := ws.stack.StackTrace()
+
+		if len(st) > 0 {
+			f := st[0]
+			file := f.file()
+			funcName := f.name()
+			if funcName != unknown {
+				fp := filepath.Join(filepath.Base(filepath.Dir(file)), filepath.Base(file))
+				return slog.GroupValue(
+					msgAttr,
+					causeAttr,
+					typeAttr,
+					slog.String("func", funcName),
+					slog.String("source", fmt.Sprintf("%s:%d", fp, f.line())),
+				)
+			}
+		}
+	}
+
+	return slog.GroupValue(msgAttr, causeAttr, typeAttr)
+}

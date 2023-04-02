@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/neilotoole/lg"
+	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 
@@ -125,9 +125,9 @@ func Test_VerifyDriverDoesNotReportNullability(t *testing.T) {
 
 				// The col is indicated as nullable via its name/suffix
 				nullable, hasNullable := colType.Nullable()
-				require.False(t, hasNullable, "ColumnType.hasNullable is unfortunately expected to be false for %q",
+				require.False(t, hasNullable, "ColumnType.hasNullable is unfortunately expected to be false for {%s}",
 					colName)
-				require.False(t, nullable, "ColumnType.nullable is unfortunately expected to be false for %q", colName)
+				require.False(t, nullable, "ColumnType.nullable is unfortunately expected to be false for {%s}", colName)
 			}
 
 			for rows.Next() {
@@ -146,7 +146,7 @@ func TestGetTableColumnNames(t *testing.T) {
 			th := testh.New(t)
 			src := th.Source(handle)
 
-			colNames, err := postgres.GetTableColumnNames(th.Context, th.Log, th.Open(src).DB(), sakila.TblActor)
+			colNames, err := postgres.GetTableColumnNames(th.Context, th.Open(src).DB(), sakila.TblActor)
 			require.NoError(t, err)
 			require.Equal(t, sakila.TblActorCols(), colNames)
 		})

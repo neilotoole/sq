@@ -11,7 +11,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/neilotoole/lg/testlg"
+	"github.com/neilotoole/slogt"
+
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli"
@@ -48,7 +49,7 @@ func newTestRunCtx(t testing.TB, cfgStore config.Store) (rc *cli.RunContext, out
 		Stdin:       os.Stdin,
 		Out:         out,
 		ErrOut:      errOut,
-		Log:         testlg.New(t),
+		Log:         slogt.New(t),
 		Config:      cfg,
 		ConfigStore: cfgStore,
 	}

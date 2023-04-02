@@ -63,7 +63,7 @@ func checkPingOutputCSV(t *testing.T, h *Run, srcs ...source.Source) {
 
 	for i := 0; i < len(recs); i++ {
 		recHandle := recs[i][0]
-		require.True(t, handles[recHandle], "should have handle %q in map", recHandle)
+		require.True(t, handles[recHandle], "should have handle %s in map", recHandle)
 
 		_, err = time.ParseDuration(recs[i][1])
 		require.NoError(t, err, "should be a valid duration value")

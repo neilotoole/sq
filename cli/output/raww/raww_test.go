@@ -5,10 +5,11 @@ import (
 	"image/gif"
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/core/lg"
+
 	"github.com/neilotoole/sq/testh/fixt"
 	"github.com/neilotoole/sq/testh/proj"
 
-	"github.com/neilotoole/lg"
 	"github.com/neilotoole/sq/testh/testsrc"
 
 	"github.com/neilotoole/sq/cli/output/raww"

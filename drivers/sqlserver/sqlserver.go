@@ -9,9 +9,15 @@ import (
 	"strconv"
 	"strings"
 
-	mssql "github.com/microsoft/go-mssqldb"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
-	"github.com/neilotoole/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+
+	"github.com/neilotoole/sq/libsq/core/lg"
+
+	"golang.org/x/exp/slog"
+
+	mssql "github.com/microsoft/go-mssqldb"
 
 	"github.com/neilotoole/sq/libsq/ast/sqlbuilder"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -35,7 +41,7 @@ var _ driver.Provider = (*Provider)(nil)
 
 // Provider is the SQL Server implementation of driver.Provider.
 type Provider struct {
-	Log lg.Log
+	Log *slog.Logger
 }
 
 // DriverFor implements driver.Provider.
@@ -51,7 +57,7 @@ var _ driver.SQLDriver = (*driveri)(nil)
 
 // driveri is the SQL Server implementation of driver.Driver.
 type driveri struct {
-	log lg.Log
+	log *slog.Logger
 }
 
 // DriverMetadata implements driver.SQLDriver.
@@ -111,7 +117,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database
 
 	err = db.PingContext(ctx)
 	if err != nil {
-		d.log.WarnIfCloseError(db)
+		lg.WarnIfCloseError(d.log, lgm.CloseDB, db)
 		return nil, errz.Err(err)
 	}
 
@@ -133,7 +139,7 @@ func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 		return errz.Err(err)
 	}
 
-	defer d.log.WarnIfCloseError(db)
+	defer lg.WarnIfCloseError(d.log, lgm.CloseDB, db)
 
 	err = db.PingContext(ctx)
 	return errz.Err(err)
@@ -162,7 +168,7 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 	if err != nil {
 		return 0, errz.Err(err)
 	}
-	defer d.log.WarnIfFuncError(db.Close)
+	defer lg.WarnIfFuncError(d.log, lgm.CloseDB, db.Close)
 
 	affected, err = sqlz.ExecAffected(ctx, db, fmt.Sprintf("DELETE FROM %q", tbl))
 	if err != nil {
@@ -207,13 +213,13 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 
 	colTypes, err := rows.ColumnTypes()
 	if err != nil {
-		d.log.WarnIfFuncError(rows.Close)
+		lg.WarnIfFuncError(d.log, lgm.CloseDBRows, rows.Close)
 		return nil, errz.Err(err)
 	}
 
 	err = rows.Err()
 	if err != nil {
-		d.log.WarnIfFuncError(rows.Close)
+		lg.WarnIfFuncError(d.log, lgm.CloseDBRows, rows.Close)
 		return nil, errz.Err(err)
 	}
 
@@ -410,7 +416,7 @@ func (d *driveri) getTableColsMeta(ctx context.Context, db sqlz.DB, tblName stri
 
 	colTypes, err := rows.ColumnTypes()
 	if err != nil {
-		d.log.WarnIfFuncError(rows.Close)
+		lg.WarnIfFuncError(d.log, lgm.CloseDBRows, rows.Close)
 		return nil, errz.Err(err)
 	}
 
@@ -420,7 +426,7 @@ func (d *driveri) getTableColsMeta(ctx context.Context, db sqlz.DB, tblName stri
 
 	destCols, _, err := d.RecordMeta(colTypes)
 	if err != nil {
-		d.log.WarnIfFuncError(rows.Close)
+		lg.WarnIfFuncError(d.log, lgm.CloseDBRows, rows.Close)
 		return nil, errz.Err(err)
 	}
 
@@ -434,7 +440,7 @@ func (d *driveri) getTableColsMeta(ctx context.Context, db sqlz.DB, tblName stri
 
 // database implements driver.Database.
 type database struct {
-	log  lg.Log
+	log  *slog.Logger
 	drvr *driveri
 	db   *sql.DB
 	src  *source.Source
@@ -469,17 +475,17 @@ WHERE TABLE_NAME = @p1`
 		return nil, errz.Err(err)
 	}
 
-	return getTableMetadata(ctx, d.log, d.db, catalog, schema, tblName, tblType)
+	return getTableMetadata(ctx, d.db, catalog, schema, tblName, tblType)
 }
 
 // SourceMetadata implements driver.Database.
 func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error) {
-	return getSourceMetadata(ctx, d.log, d.src, d.db)
+	return getSourceMetadata(ctx, d.src, d.db)
 }
 
 // Close implements driver.Database.
 func (d *database) Close() error {
-	d.log.Debugf("Close database: %s", d.src)
+	d.log.Debug(lgm.CloseDB, lga.Src, d.src)
 
 	return errz.Err(d.db.Close())
 }

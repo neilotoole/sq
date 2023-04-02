@@ -126,7 +126,7 @@ func HasHeader(opts Options) (header, ok bool, err error) {
 
 	header, err = strconv.ParseBool(val)
 	if err != nil {
-		return false, false, errz.Errorf(`option %q: %v`, OptHasHeader, err)
+		return false, false, errz.Errorf(`option {%s}: %v`, OptHasHeader, err)
 	}
 
 	return header, true, nil
@@ -146,14 +146,14 @@ func GetColNames(o Options) (colNames []string, err error) {
 	val := strings.TrimSpace(o.Get(OptCols))
 	colNames = strings.Split(val, ",")
 	if val == "" || len(colNames) == 0 {
-		err = errz.Errorf("option %q: cannot be empty", OptCols)
+		err = errz.Errorf("option {%s}: cannot be empty", OptCols)
 		return nil, err
 	}
 
 	for i := range colNames {
 		colNames[i] = strings.TrimSpace(colNames[i])
 		if colNames[i] == "" {
-			err = errz.Errorf("option %q: column [%d] cannot be empty", OptCols, i)
+			err = errz.Errorf("option {%s}: column [%d] cannot be empty", OptCols, i)
 			return nil, err
 		}
 	}

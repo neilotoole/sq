@@ -3,7 +3,7 @@ package driver
 import (
 	"sync"
 
-	"github.com/neilotoole/lg"
+	"golang.org/x/exp/slog"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/source"
@@ -12,7 +12,7 @@ import (
 // NewRegistry returns a new Registry instance that provides
 // access to driver implementations. Note that Registry
 // implements Provider.
-func NewRegistry(log lg.Log) *Registry {
+func NewRegistry(log *slog.Logger) *Registry {
 	return &Registry{
 		log:       log,
 		providers: map[source.Type]Provider{},
@@ -21,8 +21,8 @@ func NewRegistry(log lg.Log) *Registry {
 
 // Registry provides access to driver implementations.
 type Registry struct {
+	log       *slog.Logger
 	mu        sync.Mutex
-	log       lg.Log
 	providers map[source.Type]Provider
 	types     []source.Type
 }
@@ -34,7 +34,7 @@ func (r *Registry) AddProvider(typ source.Type, p Provider) {
 	defer r.mu.Unlock()
 
 	if existingType, ok := r.providers[typ]; ok {
-		r.log.Warnf("failed to add driver provider (%T) for driver type %s: provider (%T) already registered", p, typ,
+		r.log.Warn("failed to add driver provider (%T) for driver type %s: provider (%T) already registered", p, typ,
 			existingType)
 		return
 	}
@@ -60,7 +60,7 @@ func (r *Registry) DriverFor(typ source.Type) (Driver, error) {
 
 	p, ok := r.providers[typ]
 	if !ok {
-		return nil, errz.Errorf("no registered driver for %q", typ)
+		return nil, errz.Errorf("no registered driver for {%s}", typ)
 	}
 
 	return p.DriverFor(typ)
@@ -73,7 +73,7 @@ func (r *Registry) DriversMetadata() []Metadata {
 		drv, err := r.DriverFor(typ)
 		if err != nil {
 			// Should never happen
-			r.log.Errorf("error getting %q driver: %v", typ, err)
+			r.log.Error("error getting {%s} driver: %v", typ, err)
 			continue
 		}
 		md = append(md, drv.DriverMetadata())
@@ -89,7 +89,7 @@ func (r *Registry) Drivers() []Driver {
 		drvr, err := r.DriverFor(typ)
 		if err != nil {
 			// Should never happen
-			r.log.Errorf("Error getting %q driver: %v", typ, err)
+			r.log.Error("Error getting {%s} driver: %v", typ, err)
 			continue
 		}
 		drvrs = append(drvrs, drvr)

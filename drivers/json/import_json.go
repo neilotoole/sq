@@ -7,7 +7,11 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/neilotoole/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+
+	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
@@ -17,15 +21,16 @@ import (
 
 // DetectJSON implements source.TypeDetectFunc.
 // The function returns TypeJSON for two varieties of input:.
-func DetectJSON(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (detected source.Type, score float32,
+func DetectJSON(ctx context.Context, openFn source.FileOpenFunc) (detected source.Type, score float32,
 	err error,
 ) {
+	log := lg.FromContext(ctx)
 	var r1, r2 io.ReadCloser
 	r1, err = openFn()
 	if err != nil {
 		return source.TypeNone, 0, errz.Err(err)
 	}
-	defer log.WarnIfCloseError(r1)
+	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r1)
 
 	dec := stdj.NewDecoder(r1)
 	var tok stdj.Token
@@ -52,7 +57,7 @@ func DetectJSON(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (de
 		if err != nil {
 			return source.TypeNone, 0, errz.Err(err)
 		}
-		defer log.WarnIfCloseError(r2)
+		defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r2)
 
 		dec = stdj.NewDecoder(io.TeeReader(r2, buf))
 		var m map[string]any
@@ -94,7 +99,7 @@ func DetectJSON(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (de
 	if err != nil {
 		return source.TypeNone, 0, errz.Err(err)
 	}
-	defer log.WarnIfCloseError(r2)
+	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r2)
 
 	sc := newObjectInArrayScanner(r2)
 	var validObjCount int
@@ -129,19 +134,21 @@ func DetectJSON(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (de
 	return source.TypeNone, 0, nil
 }
 
-func importJSON(ctx context.Context, log lg.Log, job importJob) error {
+func importJSON(ctx context.Context, job importJob) error {
+	log := lg.FromContext(ctx)
+
 	r, err := job.openFn()
 	if err != nil {
 		return err
 	}
-	defer log.WarnIfCloseError(r)
+	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
 
 	drvr := job.destDB.SQLDriver()
 	db, err := job.destDB.DB().Conn(ctx)
 	if err != nil {
 		return errz.Err(err)
 	}
-	defer log.WarnIfCloseError(db)
+	defer lg.WarnIfCloseError(log, lgm.CloseDB, db)
 
 	proc := newProcessor(job.flatten)
 	scan := newObjectInArrayScanner(r)
@@ -166,7 +173,7 @@ func importJSON(ctx context.Context, log lg.Log, job importJob) error {
 
 		if schemaModified {
 			if !hasMore || scan.objCount >= job.sampleSize {
-				log.Debugf("line[%d]: time to (re)build the schema", scan.objCount)
+				log.Debug("Time to (re)build the schema", lga.Line, scan.objCount)
 				if curSchema == nil {
 					log.Debug("First time building the schema")
 				}
@@ -177,7 +184,7 @@ func importJSON(ctx context.Context, log lg.Log, job importJob) error {
 					return err
 				}
 
-				err = execSchemaDelta(ctx, log, drvr, db, curSchema, newSchema)
+				err = execSchemaDelta(ctx, drvr, db, curSchema, newSchema)
 				if err != nil {
 					return err
 				}
@@ -194,7 +201,7 @@ func importJSON(ctx context.Context, log lg.Log, job importJob) error {
 					return err
 				}
 
-				err = execInsertions(ctx, log, drvr, db, insertions)
+				err = execInsertions(ctx, drvr, db, insertions)
 				if err != nil {
 					return err
 				}
@@ -231,7 +238,7 @@ func importJSON(ctx context.Context, log lg.Log, job importJob) error {
 			return err
 		}
 
-		err = execInsertions(ctx, log, drvr, db, insertions)
+		err = execInsertions(ctx, drvr, db, insertions)
 		if err != nil {
 			return err
 		}
@@ -444,7 +451,7 @@ func requireDelimToken(dec *stdj.Decoder, delim stdj.Delim) (stdj.Token, error) 
 	}
 
 	if tok != delim {
-		return tok, errz.Errorf("expected next token to be delimiter %q but got: %s", string(delim), formatToken(tok))
+		return tok, errz.Errorf("expected next token to be delimiter {%s} but got: %s", string(delim), formatToken(tok))
 	}
 
 	return tok, nil

@@ -180,7 +180,7 @@ func parseLoc(loc string) (*parsedLoc, error) {
 	if !strings.Contains(loc, "://") {
 		if strings.Contains(loc, ":/") {
 			// malformed location, such as "sqlite3:/path/to/file"
-			return nil, errz.Errorf("parse location: invalid scheme: %q", loc)
+			return nil, errz.Errorf("parse location: invalid scheme: %s", loc)
 		}
 
 		// no scheme: it's just a regular file path for a document such as an Excel file
@@ -202,7 +202,7 @@ func parseLoc(loc string) (*parsedLoc, error) {
 			var err error
 			ploc.port, err = strconv.Atoi(u.Port())
 			if err != nil {
-				return nil, errz.Wrapf(err, "parse location: invalid port %q: %q", u.Port(), loc)
+				return nil, errz.Wrapf(err, "parse location: invalid port {%s}: {%s}", u.Port(), loc)
 			}
 		}
 
@@ -254,7 +254,7 @@ func parseLoc(loc string) (*parsedLoc, error) {
 	if u.Port() != "" {
 		ploc.port, err = strconv.Atoi(u.Port())
 		if err != nil {
-			return nil, errz.Wrapf(err, "parse location: invalid port %q: %q", u.Port(), loc)
+			return nil, errz.Wrapf(err, "parse location: invalid port {%s}: %s", u.Port(), loc)
 		}
 	}
 
@@ -266,13 +266,13 @@ func parseLoc(loc string) (*parsedLoc, error) {
 
 		u2, err := url.ParseRequestURI(loc)
 		if err != nil {
-			return nil, errz.Wrapf(err, "parse location: %q", loc)
+			return nil, errz.Wrapf(err, "parse location: %s", loc)
 		}
 
 		vals, err := url.ParseQuery(u2.RawQuery)
 		if err != nil {
 			return nil,
-				errz.Wrapf(err, "parse location: %q", loc)
+				errz.Wrapf(err, "parse location: %s", loc)
 		}
 		ploc.name = vals.Get("database")
 	case "postgres":

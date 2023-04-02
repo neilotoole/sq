@@ -10,7 +10,13 @@ import (
 	"database/sql"
 	"io"
 
-	"github.com/neilotoole/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+
+	"github.com/neilotoole/sq/libsq/core/lg"
+
+	"golang.org/x/exp/slog"
 
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -20,11 +26,12 @@ import (
 
 // ImportFunc is a function that can import
 // data (as defined in def) to destDB.
-type ImportFunc func(ctx context.Context, log lg.Log, def *DriverDef, data io.Reader, destDB driver.Database) error
+type ImportFunc func(ctx context.Context, def *DriverDef,
+	data io.Reader, destDB driver.Database) error
 
 // Provider implements driver.Provider for a DriverDef.
 type Provider struct {
-	Log       lg.Log
+	Log       *slog.Logger
 	DriverDef *DriverDef
 	Scratcher driver.ScratchDatabaseOpener
 	Files     *source.Files
@@ -34,7 +41,7 @@ type Provider struct {
 // DriverFor implements driver.Provider.
 func (p *Provider) DriverFor(typ source.Type) (driver.Driver, error) {
 	if typ != source.Type(p.DriverDef.Name) {
-		return nil, errz.Errorf("unsupported driver type %q", typ)
+		return nil, errz.Errorf("unsupported driver type {%s}", typ)
 	}
 
 	return &drvr{
@@ -57,7 +64,7 @@ func (p *Provider) TypeDetectors() []source.TypeDetectFunc {
 
 // Driver implements driver.Driver.
 type drvr struct {
-	log       lg.Log
+	log       *slog.Logger
 	typ       source.Type
 	def       *DriverDef
 	files     *source.Files
@@ -84,7 +91,7 @@ func (d *drvr) Open(ctx context.Context, src *source.Source) (driver.Database, e
 		return nil, err
 	}
 
-	defer d.log.WarnIfCloseError(r)
+	defer lg.WarnIfCloseError(d.log, lgm.CloseFileReader, r)
 
 	scratchDB, err := d.scratcher.OpenScratch(ctx, src.Handle)
 	if err != nil {
@@ -92,9 +99,9 @@ func (d *drvr) Open(ctx context.Context, src *source.Source) (driver.Database, e
 	}
 	clnup.AddE(scratchDB.Close)
 
-	err = d.importFn(ctx, d.log, d.def, r, scratchDB)
+	err = d.importFn(ctx, d.def, r, scratchDB)
 	if err != nil {
-		d.log.WarnIfFuncError(clnup.Run)
+		lg.WarnIfFuncError(d.log, lgm.CloseDB, clnup.Run)
 		return nil, errz.Wrap(err, d.def.Name)
 	}
 
@@ -108,16 +115,19 @@ func (d *drvr) Truncate(_ context.Context, _ *source.Source, _ string, _ bool) (
 
 // ValidateSource implements driver.Driver.
 func (d *drvr) ValidateSource(src *source.Source) (*source.Source, error) {
-	d.log.Debugf("validating source: %q", src.RedactedLocation())
+	d.log.Debug("Validating source", lga.Src, src)
 	if string(src.Type) != d.def.Name {
-		return nil, errz.Errorf("expected source type %q but got %q", d.def.Name, src.Type)
+		return nil, errz.Errorf("expected source type {%s} but got {%s}", d.def.Name, src.Type)
 	}
 	return src, nil
 }
 
 // Ping implements driver.Driver.
 func (d *drvr) Ping(_ context.Context, src *source.Source) error {
-	d.log.Debugf("driver %q attempting to ping %q", d.typ, src)
+	d.log.Debug("Ping source",
+		lga.Driver, d.typ,
+		lga.Src, src,
+	)
 
 	r, err := d.files.Open(src)
 	if err != nil {
@@ -132,7 +142,7 @@ func (d *drvr) Ping(_ context.Context, src *source.Source) error {
 
 // database implements driver.Database.
 type database struct {
-	log  lg.Log
+	log  *slog.Logger
 	src  *source.Source
 	impl driver.Database
 
@@ -181,7 +191,7 @@ func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error)
 
 // Close implements driver.Database.
 func (d *database) Close() error {
-	d.log.Debugf("Close database: %s", d.src)
+	d.log.Debug(lgm.CloseDB, lga.Src, d.src)
 
 	// We don't need to explicitly invoke c.impl.Close
 	// because that's already been added to c.cleanup.

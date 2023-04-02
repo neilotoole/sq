@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/lg"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/spf13/cobra"
 	"golang.org/x/mod/semver"
@@ -42,7 +44,7 @@ func execVersion(cmd *cobra.Command, _ []string) error {
 		var err error
 		v, err := fetchBrewVersion(ctx)
 		if err != nil {
-			rc.Log.Error(err)
+			lg.Error(rc.Log, "Fetch brew version", err)
 		}
 
 		// OK if v is empty

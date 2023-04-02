@@ -133,7 +133,7 @@ func TestParseTableHandle(t *testing.T) {
 	for i, tc := range testCases {
 		tc := tc
 
-		t.Run(fmt.Sprintf("[%d]__%q", i, tc.input), func(t *testing.T) {
+		t.Run(fmt.Sprintf("[%d]__%s", i, tc.input), func(t *testing.T) {
 			handle, table, err := source.ParseTableHandle(tc.input)
 			if tc.valid {
 				assert.NoError(t, err)

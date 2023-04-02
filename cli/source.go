@@ -4,7 +4,10 @@ import (
 	"context"
 	"strings"
 
-	"github.com/neilotoole/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
+	"golang.org/x/exp/slog"
+
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -156,15 +159,22 @@ func checkStdinSource(ctx context.Context, rc *RunContext) (*source.Source, erro
 
 // newSource creates a new Source instance where the
 // driver type is known. Opts may be nil.
-func newSource(log lg.Log, dp driver.Provider, typ source.Type, handle, loc string,
+func newSource(log *slog.Logger, dp driver.Provider, typ source.Type, handle, loc string,
 	opts options.Options,
 ) (*source.Source, error) {
 	if opts == nil {
-		log.Debugf("Create new data source %q [%s] from %q",
-			handle, typ, source.RedactLocation(loc))
+		log.Debug("Create new data source",
+			lga.Handle, handle,
+			lga.Driver, typ,
+			lga.Loc, source.RedactLocation(loc),
+		)
 	} else {
-		log.Debugf("Create new data source %q [%s] from %q with opts %s",
-			handle, typ, source.RedactLocation(loc), opts.Encode())
+		log.Debug("Create new data source with opts",
+			lga.Handle, handle,
+			lga.Driver, typ,
+			lga.Loc, source.RedactLocation(loc),
+			lga.Opts, opts.Encode(),
+		)
 	}
 
 	err := source.VerifyLegalHandle(handle)
@@ -179,7 +189,7 @@ func newSource(log lg.Log, dp driver.Provider, typ source.Type, handle, loc stri
 
 	src := &source.Source{Handle: handle, Location: loc, Type: typ, Options: opts}
 
-	log.Debugf("validating provisional new data source: %q", src)
+	log.Debug("Validating provisional new data source", lga.Src, src)
 	canonicalSrc, err := drvr.ValidateSource(src)
 	if err != nil {
 		return nil, err

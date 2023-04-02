@@ -6,12 +6,16 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
+	"github.com/neilotoole/sq/libsq/core/lg"
+
+	"golang.org/x/exp/slog"
+
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 
 	"github.com/neilotoole/sq/libsq/core/cleanup"
-
-	"github.com/neilotoole/lg"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 
@@ -246,7 +250,7 @@ func (d Dialect) String() string {
 // Note that at this time instances returned by Open are cached
 // and then closed by Close. This may be a bad approach.
 type Databases struct {
-	log          lg.Log
+	log          *slog.Logger
 	drvrs        Provider
 	mu           sync.Mutex
 	scratchSrcFn ScratchSrcFunc
@@ -255,7 +259,7 @@ type Databases struct {
 }
 
 // NewDatabases returns a Databases instances.
-func NewDatabases(log lg.Log, drvrs Provider, scratchSrcFn ScratchSrcFunc) *Databases {
+func NewDatabases(log *slog.Logger, drvrs Provider, scratchSrcFn ScratchSrcFunc) *Databases {
 	return &Databases{
 		log:          log,
 		drvrs:        drvrs,
@@ -306,29 +310,31 @@ func (d *Databases) Open(ctx context.Context, src *source.Source) (Database, err
 //
 // OpenScratch implements ScratchDatabaseOpener.
 func (d *Databases) OpenScratch(ctx context.Context, name string) (Database, error) {
+	const msgCloseScratch = "close scratch db"
+
 	scratchSrc, cleanFn, err := d.scratchSrcFn(d.log, name)
 	if err != nil {
 		// if err is non-nil, cleanup is guaranteed to be nil
 		return nil, err
 	}
-	d.log.Debugf("Will open Scratch src %s: %s", scratchSrc.Handle, scratchSrc.RedactedLocation())
+	d.log.Debug("Opening scratch src", lga.Src, scratchSrc)
 
 	drvr, err := d.drvrs.DriverFor(scratchSrc.Type)
 	if err != nil {
-		d.log.WarnIfFuncError(cleanFn)
+		lg.WarnIfFuncError(d.log, msgCloseScratch, cleanFn)
 		return nil, err
 	}
 
 	sqlDrvr, ok := drvr.(SQLDriver)
 	if !ok {
-		d.log.WarnIfFuncError(cleanFn)
+		lg.WarnIfFuncError(d.log, msgCloseScratch, cleanFn)
 		return nil, errz.Errorf("driver for scratch source %s is not a SQLDriver but is %T", scratchSrc.Handle, drvr)
 	}
 
 	var backingDB Database
 	backingDB, err = sqlDrvr.Open(ctx, scratchSrc)
 	if err != nil {
-		d.log.WarnIfFuncError(cleanFn)
+		lg.WarnIfFuncError(d.log, msgCloseScratch, cleanFn)
 		return nil, err
 	}
 
@@ -357,13 +363,13 @@ func (d *Databases) OpenJoin(ctx context.Context, src1, src2 *source.Source, src
 		names = append(names, src.Handle)
 	}
 
-	d.log.Debugf("OpenJoin: [%s]", strings.Join(names, ","))
+	d.log.Debug("OpenJoin: [%s]", strings.Join(names, ","))
 	return d.OpenScratch(ctx, "joindb__"+strings.Join(names, "_"))
 }
 
 // Close closes d, invoking Close on any instances opened via d.Open.
 func (d *Databases) Close() error {
-	d.log.Debugf("Closing %d databases(s)", d.clnup.Len())
+	d.log.Debug("Closing databases(s)", lga.Count, d.clnup.Len())
 	return d.clnup.Run()
 }
 

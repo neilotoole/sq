@@ -8,11 +8,17 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+
+	"github.com/neilotoole/sq/libsq/core/lg"
+
+	"golang.org/x/exp/slog"
+
 	"github.com/jackc/pgx/v4"
 	// Import jackc/pgx, which is our postgres driver.
 	_ "github.com/jackc/pgx/v4/stdlib"
-	"github.com/neilotoole/lg"
-
 	"github.com/neilotoole/sq/libsq/ast/sqlbuilder"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -33,13 +39,13 @@ const (
 
 // Provider is the postgres implementation of driver.Provider.
 type Provider struct {
-	Log lg.Log
+	Log *slog.Logger
 }
 
 // DriverFor implements driver.Provider.
 func (p *Provider) DriverFor(typ source.Type) (driver.Driver, error) {
 	if typ != Type {
-		return nil, errz.Errorf("unsupported driver type %q", typ)
+		return nil, errz.Errorf("unsupported driver type {%s}", typ)
 	}
 
 	return &driveri{log: p.Log}, nil
@@ -47,7 +53,7 @@ func (p *Provider) DriverFor(typ source.Type) (driver.Driver, error) {
 
 // driveri is the postgres implementation of driver.Driver.
 type driveri struct {
-	log lg.Log
+	log *slog.Logger
 }
 
 // DriverMetadata implements driver.Driver.
@@ -111,7 +117,7 @@ func (d *driveri) Open(_ context.Context, src *source.Source) (driver.Database, 
 // ValidateSource implements driver.Driver.
 func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 	if src.Type != Type {
-		return nil, errz.Errorf("expected source type %q but got %q", Type, src.Type)
+		return nil, errz.Errorf("expected source type {%s} but got {%s}", Type, src.Type)
 	}
 	return src, nil
 }
@@ -123,7 +129,7 @@ func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 		return err
 	}
 
-	defer d.log.WarnIfCloseError(dbase.DB())
+	defer lg.WarnIfCloseError(d.log, lgm.CloseDB, dbase.DB())
 
 	return dbase.DB().Ping()
 }
@@ -212,7 +218,7 @@ func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl, col 
 
 	_, err := db.ExecContext(ctx, q)
 	if err != nil {
-		return errz.Wrapf(err, "alter table: failed to add column %q to table %q", col, tbl)
+		return errz.Wrapf(err, "alter table: failed to add column {%s} to table {%s}", col, tbl)
 	}
 
 	return nil
@@ -343,7 +349,7 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 		// When the table is empty, and colNames are not provided,
 		// then we need to fetch the table col names independently.
 		var err error
-		colNames, err = getTableColumnNames(ctx, d.log, db, tblName)
+		colNames, err = getTableColumnNames(ctx, db, tblName)
 		if err != nil {
 			return nil, err
 		}
@@ -369,13 +375,13 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 
 	colTypes, err := rows.ColumnTypes()
 	if err != nil {
-		d.log.WarnIfFuncError(rows.Close)
+		lg.WarnIfFuncError(d.log, lgm.CloseDBRows, rows.Close)
 		return nil, errz.Err(err)
 	}
 
 	err = rows.Err()
 	if err != nil {
-		d.log.WarnIfFuncError(rows.Close)
+		lg.WarnIfFuncError(d.log, lgm.CloseDBRows, rows.Close)
 		return nil, errz.Err(err)
 	}
 
@@ -404,8 +410,9 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 }
 
 // getTableColumnNames consults postgres's information_schema.columns table,
-// returning the names of the table's columns in oridinal order.
-func getTableColumnNames(ctx context.Context, log lg.Log, db sqlz.DB, tblName string) ([]string, error) {
+// returning the names of the table's columns in ordinal order.
+func getTableColumnNames(ctx context.Context, db sqlz.DB, tblName string) ([]string, error) {
+	log := lg.FromContext(ctx)
 	const query = `SELECT column_name FROM information_schema.columns
 	WHERE table_schema = CURRENT_SCHEMA()
 	AND table_name = $1
@@ -422,7 +429,7 @@ func getTableColumnNames(ctx context.Context, log lg.Log, db sqlz.DB, tblName st
 	for rows.Next() {
 		err = rows.Scan(&colName)
 		if err != nil {
-			log.WarnIfCloseError(rows)
+			lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
 			return nil, errz.Err(err)
 		}
 
@@ -430,7 +437,7 @@ func getTableColumnNames(ctx context.Context, log lg.Log, db sqlz.DB, tblName st
 	}
 
 	if rows.Err() != nil {
-		log.WarnIfCloseError(rows)
+		lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
 		return nil, errz.Err(err)
 	}
 
@@ -483,7 +490,7 @@ func (d *driveri) RecordMeta(colTypes []*sql.ColumnType) (sqlz.RecordMeta, drive
 
 // database is the postgres implementation of driver.Database.
 type database struct {
-	log  lg.Log
+	log  *slog.Logger
 	drvr *driveri
 	db   *sql.DB
 	src  *source.Source
@@ -506,17 +513,17 @@ func (d *database) Source() *source.Source {
 
 // TableMetadata implements driver.Database.
 func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
-	return getTableMetadata(ctx, d.log, d.DB(), tblName)
+	return getTableMetadata(ctx, d.DB(), tblName)
 }
 
 // SourceMetadata implements driver.Database.
 func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error) {
-	return getSourceMetadata(ctx, d.log, d.src, d.DB())
+	return getSourceMetadata(ctx, d.src, d.DB())
 }
 
 // Close implements driver.Database.
 func (d *database) Close() error {
-	d.log.Debugf("Close database: %s", d.src)
+	d.log.Debug(lgm.CloseDB, lga.Src, d.src)
 
 	err := d.db.Close()
 	if err != nil {

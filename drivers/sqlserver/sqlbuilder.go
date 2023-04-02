@@ -6,12 +6,14 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
+	"golang.org/x/exp/slog"
+
 	"github.com/neilotoole/sq/libsq/core/stringz"
 
 	"github.com/neilotoole/sq/libsq/ast/sqlbuilder"
 	"github.com/neilotoole/sq/libsq/core/kind"
-
-	"github.com/neilotoole/lg"
 
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -24,7 +26,7 @@ type fragBuilder struct {
 	sqlbuilder.BaseFragmentBuilder
 }
 
-func newFragmentBuilder(log lg.Log) *fragBuilder {
+func newFragmentBuilder(log *slog.Logger) *fragBuilder {
 	r := &fragBuilder{}
 	r.Log = log
 	r.Quote = `"`
@@ -62,7 +64,7 @@ func (fb *fragBuilder) Range(rr *ast.RowRangeNode) (string, error) {
 	}
 
 	sql := buf.String()
-	fb.Log.Debugf("returning SQL fragment: %s", sql)
+	fb.Log.Debug("Returning SQL fragment", lga.SQL, sql)
 	return sql, nil
 }
 
@@ -93,7 +95,7 @@ func (qb *queryBuilder) Render() (string, error) {
 func dbTypeNameFromKind(knd kind.Kind) string {
 	switch knd { //nolint:exhaustive // ignore kind.Null
 	default:
-		panic(fmt.Sprintf("unsupported datatype %q", knd))
+		panic(fmt.Sprintf("unsupported datatype {%s}", knd))
 	case kind.Unknown:
 		return "NVARCHAR(MAX)"
 	case kind.Text:

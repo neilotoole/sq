@@ -11,7 +11,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/neilotoole/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+
+	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -40,7 +44,7 @@ type importJob struct {
 	flatten bool
 }
 
-type importFunc func(ctx context.Context, log lg.Log, job importJob) error
+type importFunc func(ctx context.Context, job importJob) error
 
 var (
 	_ importFunc = importJSON
@@ -258,7 +262,7 @@ func (p *processor) doAddObject(ent *entity, m map[string]any) error {
 			} else if child.isArray {
 				// Child already exists
 				// Safety check
-				return errz.Errorf("JSON entity %q previously detected as array, but now detected as object",
+				return errz.Errorf("JSON entity {%s} previously detected as array, but now detected as object",
 					ent.String())
 			}
 
@@ -277,7 +281,8 @@ func (p *processor) doAddObject(ent *entity, m map[string]any) error {
 			if !ok {
 				p.markSchemaDirty(ent)
 				if stringz.InSlice(ent.fieldNames, fieldName) {
-					return errz.Errorf("JSON field %q was previously detected as a nested field (object or array)")
+					return errz.Errorf("JSON field {%s} was previously detected as a nested field (object or array)",
+						fieldName)
 				}
 
 				ent.fieldNames = append(ent.fieldNames, fieldName)
@@ -323,7 +328,8 @@ func (p *processor) buildInsertionsFlat(schema *importSchema) ([]*insertion, err
 			// For each entity, we get its values and add them to colVals.
 			for colName, val := range fieldVals {
 				if _, ok := colVals[colName]; ok {
-					return nil, errz.Errorf("column %q already exists, but found column with same name in %q", ent)
+					return nil, errz.Errorf("column {%s} already exists, but found column with same name in {%s}",
+						colName, ent)
 				}
 
 				colVals[colName] = val
@@ -422,9 +428,10 @@ type importSchema struct {
 	entityTbls map[*entity]*sqlmodel.TableDef
 }
 
-func execSchemaDelta(ctx context.Context, log lg.Log, drvr driver.SQLDriver, db sqlz.DB,
+func execSchemaDelta(ctx context.Context, drvr driver.SQLDriver, db sqlz.DB,
 	curSchema, newSchema *importSchema,
 ) error {
+	log := lg.FromContext(ctx)
 	var err error
 	if curSchema == nil {
 		for _, tblDef := range newSchema.tblDefs {
@@ -433,7 +440,7 @@ func execSchemaDelta(ctx context.Context, log lg.Log, drvr driver.SQLDriver, db 
 				return err
 			}
 
-			log.Debugf("Created table %q", tblDef.Name)
+			log.Debug("Created table", lga.Table, tblDef.Name)
 		}
 		return nil
 	}
@@ -572,11 +579,12 @@ func decoderFindArrayClose(dec *stdj.Decoder) error {
 }
 
 // execInsertions performs db INSERT for each of the insertions.
-func execInsertions(ctx context.Context, log lg.Log, drvr driver.SQLDriver, db sqlz.DB, insertions []*insertion) error {
+func execInsertions(ctx context.Context, drvr driver.SQLDriver, db sqlz.DB, insertions []*insertion) error {
 	// FIXME: This is an inefficient way of performing insertion.
 	//  We should be re-using the prepared statement, and probably
 	//  should batch the inserts as well. See driver.BatchInsert.
 
+	log := lg.FromContext(ctx)
 	var err error
 	var execer *driver.StmtExecer
 
@@ -588,13 +596,13 @@ func execInsertions(ctx context.Context, log lg.Log, drvr driver.SQLDriver, db s
 
 		err = execer.Munge(insert.vals)
 		if err != nil {
-			log.WarnIfCloseError(execer)
+			lg.WarnIfCloseError(log, lgm.CloseDBStmt, execer)
 			return err
 		}
 
 		_, err = execer.Exec(ctx, insert.vals...)
 		if err != nil {
-			log.WarnIfCloseError(execer)
+			lg.WarnIfCloseError(log, lgm.CloseDBStmt, execer)
 			return err
 		}
 

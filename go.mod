@@ -21,15 +21,15 @@ require (
 	github.com/microsoft/go-mssqldb v0.19.0
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/neilotoole/errgroup v0.1.5
-	github.com/neilotoole/lg v0.3.0
 	github.com/pkg/errors v0.9.1
 	github.com/ryboe/q v1.0.18
-	github.com/segmentio/encoding v0.1.14 // Be very careful changing this encoding packge
+	// Be very careful changing pkg segmentio/encoding. A specific version is by our json encoder.
+	github.com/segmentio/encoding v0.1.14
 	github.com/shopspring/decimal v1.3.1
 	github.com/spf13/cobra v1.6.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.1
-	github.com/tealeg/xlsx/v2 v2.0.1 // This package is no longer supported; switch to a different impl
+	github.com/tealeg/xlsx/v2 v2.0.1 // TODO: This package is no longer supported; switch to a different impl
 	github.com/testcontainers/testcontainers-go v0.17.0
 	github.com/xo/dburl v0.13.0
 	go.uber.org/atomic v1.10.0
@@ -45,13 +45,15 @@ replace github.com/docker/docker => github.com/docker/docker v20.10.3-0.20221013
 require (
 	github.com/muesli/mango-cobra v1.2.0
 	github.com/muesli/roff v0.1.0
+	github.com/neilotoole/slogt v0.0.0-20230402033048-91bc251cef6e
 	github.com/samber/lo v1.37.0
+	golang.org/x/exp v0.0.0-20230321023759-10a507213a29
+//golang.org/x/exp v0.0.0-20221012211006-4de253d81b95 // older version that had slog.FromContext
+//golang.org/x/exp v0.0.0-20230321023759-10a507213a29
 )
 
 require (
 	github.com/golang-sql/sqlexp v0.1.0 // indirect
-	github.com/itchyny/gojq v0.12.12 // indirect
-	github.com/itchyny/timefmt-go v0.1.5 // indirect
 	github.com/klauspost/compress v1.11.13 // indirect
 	github.com/moby/patternmatcher v0.5.0 // indirect
 	github.com/moby/sys/sequential v0.5.0 // indirect
@@ -60,7 +62,7 @@ require (
 	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/rogpeppe/go-internal v1.9.0 // indirect
 	golang.org/x/crypto v0.4.0 // indirect
-	golang.org/x/exp v0.0.0-20221217163422-3c43f8badb15 // indirect
+
 )
 
 require (
@@ -94,8 +96,6 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/sethvargo/go-retry v0.2.3
 	github.com/sirupsen/logrus v1.9.0 // indirect
-	go.uber.org/zap v1.13.0 // indirect
-	golang.org/x/lint v0.0.0-20200302205851-738671d3881b // indirect
 	golang.org/x/mod v0.7.0
 	golang.org/x/sys v0.5.0 // indirect
 	golang.org/x/term v0.3.0

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/neilotoole/lg"
-	"github.com/neilotoole/lg/testlg"
+	"github.com/neilotoole/slogt"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -124,7 +124,7 @@ func TestKindFromDBTypeName(t *testing.T) {
 		"TIME":                   kind.Time,
 	}
 
-	log := testlg.New(t)
+	log := slogt.New(t)
 	for dbTypeName, wantKind := range testCases {
 		gotKind := sqlite3.KindFromDBTypeName(log, "col", dbTypeName, nil)
 		require.Equal(t, wantKind, gotKind, "%s should produce %s but got %s", dbTypeName)
@@ -345,7 +345,7 @@ func TestGetTblRowCounts(t *testing.T) {
 
 	tblNames := createTypeTestTbls(th, src, numTables, true)
 
-	counts, err := sqlite3.GetTblRowCounts(th.Context, th.Log, db, tblNames)
+	counts, err := sqlite3.GetTblRowCounts(th.Context, db, tblNames)
 	require.NoError(t, err)
 	require.Equal(t, len(tblNames), len(counts))
 }
@@ -360,7 +360,7 @@ func BenchmarkGetTblRowCounts(b *testing.B) {
 
 	testCases := []struct {
 		name string
-		fn   func(ctx context.Context, log lg.Log, db sqlz.DB, tblNames []string) ([]int64, error)
+		fn   func(ctx context.Context, db sqlz.DB, tblNames []string) ([]int64, error)
 	}{
 		{name: "benchGetTblRowCountsBaseline", fn: benchGetTblRowCountsBaseline},
 		{name: "getTblRowCounts", fn: sqlite3.GetTblRowCounts},
@@ -370,10 +370,8 @@ func BenchmarkGetTblRowCounts(b *testing.B) {
 		tc := tc
 
 		b.Run(tc.name, func(b *testing.B) {
-			log := testlg.New(b)
-
 			for n := 0; n < b.N; n++ {
-				counts, err := tc.fn(th.Context, log, db, tblNames)
+				counts, err := tc.fn(th.Context, db, tblNames)
 				require.NoError(b, err)
 				require.Len(b, counts, len(tblNames))
 			}
@@ -387,7 +385,7 @@ func BenchmarkGetTblRowCounts(b *testing.B) {
 
 // benchGetTblRowCountsBaseline is a baseline impl of getTblRowCounts
 // for benchmark comparison.
-func benchGetTblRowCountsBaseline(ctx context.Context, _ lg.Log, db sqlz.DB, tblNames []string) ([]int64, error) {
+func benchGetTblRowCountsBaseline(ctx context.Context, db sqlz.DB, tblNames []string) ([]int64, error) {
 	tblCounts := make([]int64, len(tblNames))
 
 	for i := range tblNames {

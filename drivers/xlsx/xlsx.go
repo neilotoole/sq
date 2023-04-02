@@ -6,7 +6,14 @@ import (
 	"database/sql"
 	"io"
 
-	"github.com/neilotoole/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+
+	"github.com/neilotoole/sq/libsq/core/lg"
+
+	"golang.org/x/exp/slog"
+
 	"github.com/tealeg/xlsx/v2"
 
 	"github.com/neilotoole/sq/libsq/core/cleanup"
@@ -23,7 +30,7 @@ const (
 
 // Provider implements driver.Provider.
 type Provider struct {
-	Log       lg.Log
+	Log       *slog.Logger
 	Files     *source.Files
 	Scratcher driver.ScratchDatabaseOpener
 }
@@ -31,7 +38,7 @@ type Provider struct {
 // DriverFor implements driver.Provider.
 func (p *Provider) DriverFor(typ source.Type) (driver.Driver, error) {
 	if typ != Type {
-		return nil, errz.Errorf("unsupported driver type %q", typ)
+		return nil, errz.Errorf("unsupported driver type {%s}", typ)
 	}
 
 	return &Driver{log: p.Log, scratcher: p.Scratcher, files: p.Files}, nil
@@ -41,15 +48,16 @@ var _ source.TypeDetectFunc = DetectXLSX
 
 // DetectXLSX implements source.TypeDetectFunc, returning
 // TypeXLSX and a score of 1.0 valid XLSX.
-func DetectXLSX(_ context.Context, log lg.Log, openFn source.FileOpenFunc) (detected source.Type, score float32,
+func DetectXLSX(ctx context.Context, openFn source.FileOpenFunc) (detected source.Type, score float32,
 	err error,
 ) {
+	log := lg.FromContext(ctx)
 	var r io.ReadCloser
 	r, err = openFn()
 	if err != nil {
 		return source.TypeNone, 0, errz.Err(err)
 	}
-	defer log.WarnIfCloseError(r)
+	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
 
 	data, err := io.ReadAll(r)
 	if err != nil {
@@ -69,7 +77,7 @@ func DetectXLSX(_ context.Context, log lg.Log, openFn source.FileOpenFunc) (dete
 
 // Driver implements driver.Driver.
 type Driver struct {
-	log       lg.Log
+	log       *slog.Logger
 	scratcher driver.ScratchDatabaseOpener
 	files     *source.Files
 }
@@ -89,7 +97,7 @@ func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Database,
 	if err != nil {
 		return nil, err
 	}
-	defer d.log.WarnIfCloseError(r)
+	defer lg.WarnIfCloseError(d.log, lgm.CloseFileReader, r)
 
 	b, err := io.ReadAll(r)
 	if err != nil {
@@ -109,9 +117,9 @@ func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Database,
 	clnup := cleanup.New()
 	clnup.AddE(scratchDB.Close)
 
-	err = xlsxToScratch(ctx, d.log, src, xlFile, scratchDB)
+	err = xlsxToScratch(ctx, src, xlFile, scratchDB)
 	if err != nil {
-		d.log.WarnIfError(clnup.Run())
+		lg.WarnIfError(d.log, lgm.CloseDB, clnup.Run())
 		return nil, err
 	}
 
@@ -123,14 +131,14 @@ func (d *Driver) Truncate(_ context.Context, src *source.Source, _ string, _ boo
 	// TODO: WE could actually implement Truncate for xlsx.
 	//  It would just mean deleting the rows from a sheet, and then
 	//  saving the sheet.
-	return 0, errz.Errorf("source type %q (%s) doesn't support dropping tables", Type, src.Handle)
+	return 0, errz.Errorf("source type {%s} (%s) doesn't support dropping tables", Type, src.Handle)
 }
 
 // ValidateSource implements driver.Driver.
 func (d *Driver) ValidateSource(src *source.Source) (*source.Source, error) {
-	d.log.Debugf("Validating source: %q", src.RedactedLocation())
+	d.log.Debug("Validating source: {%s}", src.RedactedLocation())
 	if src.Type != Type {
-		return nil, errz.Errorf("expected source type %q but got %q", Type, src.Type)
+		return nil, errz.Errorf("expected source type {%s} but got {%s}", Type, src.Type)
 	}
 
 	return src, nil
@@ -143,7 +151,7 @@ func (d *Driver) Ping(_ context.Context, src *source.Source) (err error) {
 		return err
 	}
 
-	defer d.log.WarnIfCloseError(r)
+	defer lg.WarnIfCloseError(d.log, lgm.CloseFileReader, r)
 
 	b, err := io.ReadAll(r)
 	if err != nil {
@@ -160,7 +168,7 @@ func (d *Driver) Ping(_ context.Context, src *source.Source) (err error) {
 
 // database implements driver.Database.
 type database struct {
-	log   lg.Log
+	log   *slog.Logger
 	src   *source.Source
 	files *source.Files
 	impl  driver.Database
@@ -214,7 +222,7 @@ func (d *database) SourceMetadata(_ context.Context) (*source.Metadata, error) {
 
 	xlFile, err := xlsx.OpenBinary(b)
 	if err != nil {
-		return nil, errz.Errorf("unable to open XLSX file: ", d.src.Location, err)
+		return nil, errz.Wrapf(err, "unable to open XLSX file: %s", d.src.Location)
 	}
 
 	hasHeader, _, err := options.HasHeader(d.src.Options)
@@ -258,7 +266,7 @@ func (d *database) TableMetadata(_ context.Context, tblName string) (*source.Tab
 
 	xlFile, err := xlsx.OpenBinary(b)
 	if err != nil {
-		return nil, errz.Errorf("unable to open XLSX file: ", d.src.Location, err)
+		return nil, errz.Wrapf(err, "unable to open XLSX file: %s", d.src.Location)
 	}
 
 	hasHeader, _, err := options.HasHeader(d.src.Options)
@@ -294,12 +302,12 @@ func (d *database) TableMetadata(_ context.Context, tblName string) (*source.Tab
 		return tbl, nil
 	}
 
-	return nil, errz.Errorf("table %q not found", tblName)
+	return nil, errz.Errorf("table {%s} not found", tblName)
 }
 
 // Close implements driver.Database.
 func (d *database) Close() error {
-	d.log.Debugf("Close database: %s", d.src)
+	d.log.Debug(lgm.CloseDB, lga.Src, d.src)
 
 	// No need to explicitly invoke c.impl.Close because
 	// that's already added to c.clnup

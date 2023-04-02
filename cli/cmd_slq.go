@@ -5,6 +5,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+
+	"github.com/neilotoole/sq/libsq/core/lg"
+
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/output"
@@ -137,7 +141,7 @@ func execSLQInsert(ctx context.Context, rc *RunContext, destSrc *source.Source, 
 		Args:         nil,
 	}
 
-	execErr := libsq.ExecuteSLQ(ctx, rc.Log, qc, slq, inserter)
+	execErr := libsq.ExecuteSLQ(ctx, qc, slq, inserter)
 	affected, waitErr := inserter.Wait() // Wait for the writer to finish processing
 	if execErr != nil {
 		return errz.Wrapf(execErr, "insert %s.%s failed", destSrc.Handle, destTbl)
@@ -166,7 +170,7 @@ func execSLQPrint(ctx context.Context, rc *RunContext) error {
 	}
 
 	recw := output.NewRecordWriterAdapter(rc.writers.recordw)
-	execErr := libsq.ExecuteSLQ(ctx, rc.Log, qc, slq, recw)
+	execErr := libsq.ExecuteSLQ(ctx, qc, slq, recw)
 	_, waitErr := recw.Wait()
 	if execErr != nil {
 		return execErr
@@ -235,7 +239,7 @@ func preprocessUserSLQ(ctx context.Context, rc *RunContext, args []string) (stri
 			if err != nil {
 				return "", err
 			}
-			defer log.WarnIfCloseError(dbase)
+			defer lg.WarnIfCloseError(log, lgm.CloseDB, dbase)
 
 			srcMeta, err := dbase.SourceMetadata(ctx)
 			if err != nil {
@@ -278,7 +282,7 @@ func preprocessUserSLQ(ctx context.Context, rc *RunContext, args []string) (stri
 		handle := dsParts[0]
 		if len(handle) < 2 {
 			// handle name is too short
-			return "", errz.Errorf("invalid data source: %q", handle)
+			return "", errz.Errorf("invalid data source: %s", handle)
 		}
 
 		// Check that the handle actual exists

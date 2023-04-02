@@ -6,6 +6,10 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
+	"golang.org/x/exp/slog"
+
 	"github.com/xo/dburl"
 
 	"github.com/neilotoole/sq/libsq/core/options"
@@ -49,6 +53,8 @@ func ReservedHandles() []string {
 	return []string{StdinHandle, ActiveHandle, ScratchHandle, JoinHandle}
 }
 
+var _ slog.LogValuer = (*Source)(nil)
+
 // Source describes a data source.
 type Source struct {
 	// Handle is used to refer to a source, e.g. "@sakila".
@@ -65,8 +71,22 @@ type Source struct {
 	Options options.Options `yaml:"options,omitempty" json:"options,omitempty"`
 }
 
+// LogValue implements slog.LogValuer.
+func (s *Source) LogValue() slog.Value {
+	if s == nil {
+		return slog.Value{}
+	}
+
+	return slog.GroupValue(
+		slog.String(lga.Handle, s.Handle),
+		slog.String(lga.Driver, string(s.Type)),
+		slog.String(lga.Loc, s.RedactedLocation()),
+	)
+}
+
+// String returns a log/debug-friendly representation.
 func (s *Source) String() string {
-	return fmt.Sprintf("%s | %s | %s", s.Handle, s.Type, s.RedactedLocation())
+	return fmt.Sprintf("%s|%s| %s", s.Handle, s.Type, s.RedactedLocation())
 }
 
 // RedactedLocation returns s.Location, with the password component
@@ -161,4 +181,13 @@ func typeFromMediaType(mediatype string) (typ Type, ok bool) {
 	}
 
 	return TypeNone, false
+}
+
+// Target returns @handle.tbl. This is often used in log messages.
+func Target(src *Source, tbl string) string {
+	if src == nil {
+		return ""
+	}
+
+	return src.Handle + "." + tbl
 }

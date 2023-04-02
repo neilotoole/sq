@@ -11,7 +11,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/neilotoole/lg"
+	"github.com/neilotoole/sq/libsq/core/lg"
+
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+	"github.com/neilotoole/sq/libsq/source"
+
+	"golang.org/x/exp/slog"
 
 	"github.com/neilotoole/sq/drivers/userdriver"
 	"github.com/neilotoole/sq/libsq/core/cleanup"
@@ -25,13 +30,13 @@ import (
 const Genre = "xml"
 
 // Import implements userdriver.ImportFunc.
-func Import(ctx context.Context, log lg.Log, def *userdriver.DriverDef, data io.Reader, destDB driver.Database) error {
+func Import(ctx context.Context, def *userdriver.DriverDef, data io.Reader, destDB driver.Database) error {
 	if def.Genre != Genre {
-		return errz.Errorf("xmlud.Import does not support genre %q", def.Genre)
+		return errz.Errorf("xmlud.Import does not support genre {%s}", def.Genre)
 	}
 
 	im := &importer{
-		log:           log,
+		log:           lg.FromContext(ctx),
 		def:           def,
 		selStack:      newSelStack(),
 		rowStack:      newRowStack(),
@@ -54,7 +59,7 @@ func Import(ctx context.Context, log lg.Log, def *userdriver.DriverDef, data io.
 
 // importer does the work of importing data from XML.
 type importer struct {
-	log      lg.Log
+	log      *slog.Logger
 	def      *userdriver.DriverDef
 	data     io.Reader
 	destDB   driver.Database
@@ -141,12 +146,12 @@ func (im *importer) execImport(ctx context.Context, r io.Reader, destDB driver.D
 			// It's not a row element, it's a col element
 			curRow := im.rowStack.peek()
 			if curRow == nil {
-				return errz.Errorf("unable to parse XML: no current row on stack for elem %q", elem.Name.Local)
+				return errz.Errorf("unable to parse XML: no current row on stack for elem {%s}", elem.Name.Local)
 			}
 
 			col := curRow.tbl.ColBySelector(im.selStack.selector())
 			if col == nil {
-				if msg, ok := im.msgOncef("Skip: element %q is not a column of table %q", elem.Name.Local,
+				if msg, ok := im.msgOncef("Skip: element {%s} is not a column of table {%s}", elem.Name.Local,
 					curRow.tbl.Name); ok {
 					im.log.Debug(msg)
 				}
@@ -204,7 +209,7 @@ func (im *importer) convertVal(tbl string, col *userdriver.ColMapping, data any)
 
 	switch col.Kind { //nolint:exhaustive
 	default:
-		return nil, errz.Errorf("unknown data kind %q for col %s", col.Kind, col.Name)
+		return nil, errz.Errorf("unknown data kind {%s} for col %s", col.Kind, col.Name)
 	case kind.Text, kind.Time:
 		return data, nil
 	case kind.Int:
@@ -270,8 +275,8 @@ func (im *importer) handleElemAttrs(elem xml.StartElement, curRow *rowState) err
 			attrSel := baseSel + "/@" + attr.Name.Local
 			attrCol := curRow.tbl.ColBySelector(attrSel)
 			if attrCol == nil {
-				if msg, ok := im.msgOncef("Skip: attr %q is not a column of table %q", attrSel, curRow.tbl.Name); ok {
-					im.log.Debugf(msg)
+				if msg, ok := im.msgOncef("Skip: attr {%s} is not a column of table {%s}", attrSel, curRow.tbl.Name); ok {
+					im.log.Debug(msg)
 				}
 
 				continue
@@ -302,7 +307,7 @@ func (im *importer) setForeignColsVals(row *rowState) error {
 		parts := strings.Split(col.Foreign, "/")
 		// parts will look like [ "..", "channel_id" ]
 		if len(parts) != 2 || parts[0] != ".." {
-			return errz.Errorf(`%s.%s: "foreign" field should be of form "../col_name" but was %q`, row.tbl.Name,
+			return errz.Errorf(`%s.%s: "foreign" field should be of form "../col_name" but was {%s}`, row.tbl.Name,
 				col.Name, col.Foreign)
 		}
 
@@ -315,7 +320,7 @@ func (im *importer) setForeignColsVals(row *rowState) error {
 
 		fkVal, ok := parentRow.savedColVals[fkName]
 		if !ok {
-			return errz.Errorf(`%s.%s: unable to find foreign key value in parent table %q`, row.tbl.Name, col.Name,
+			return errz.Errorf(`%s.%s: unable to find foreign key value in parent table {%s}`, row.tbl.Name, col.Name,
 				parentRow.tbl.Name)
 		}
 
@@ -347,7 +352,7 @@ func (im *importer) setSequenceColsVals(row *rowState, nextSeqVal int64) {
 			// Probably safer to override the value.
 			row.dirtyColVals[seqColName] = nextSeqVal
 
-			im.log.Warnf("%s.%s is a auto-generated sequence() column: ignoring the value found in input",
+			im.log.Warn("%s.%s is a auto-generated sequence() column: ignoring the value found in input",
 				row.tbl.Name, seqColName)
 			continue
 		}
@@ -364,14 +369,14 @@ func (im *importer) saveRow(ctx context.Context, row *rowState) error {
 
 	tblDef, ok := im.tblDefs[row.tbl.Name]
 	if !ok {
-		return errz.Errorf("unable to find definition for table %q", row.tbl.Name)
+		return errz.Errorf("unable to find definition for table {%s}", row.tbl.Name)
 	}
 
 	if row.created() {
 		// Row already exists in the db
 		err := im.dbUpdate(ctx, row)
 		if err != nil {
-			return errz.Wrapf(err, "failed to update table %q", tblDef.Name)
+			return errz.Wrapf(err, "failed to update table {%s}", tblDef.Name)
 		}
 
 		row.markDirtyAsSaved()
@@ -403,7 +408,7 @@ func (im *importer) saveRow(ctx context.Context, row *rowState) error {
 
 	err = im.dbInsert(ctx, row)
 	if err != nil {
-		return errz.Wrapf(err, "failed to insert to table %q", tblDef.Name)
+		return errz.Wrapf(err, "failed to insert to table {%s}", tblDef.Name)
 	}
 
 	row.markDirtyAsSaved()
@@ -482,7 +487,7 @@ func (im *importer) dbUpdate(ctx context.Context, row *rowState) error {
 		}
 
 		// Else, we're missing a pk val
-		return errz.Errorf("failed to update table %q: primary key value %q not present", tblName, pkColName)
+		return errz.Errorf("failed to update table {%s}: primary key value {%s} not present", tblName, pkColName)
 	}
 
 	whereClause := whereBuilder.String()
@@ -568,7 +573,7 @@ func (im *importer) createTables(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		im.log.Debugf("Created table %s.%s", im.destDB.Source().Handle, tblDef.Name)
+		im.log.Debug("Created table", lga.Target, source.Target(im.destDB.Source(), tblDef.Name))
 	}
 
 	return nil

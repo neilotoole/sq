@@ -3,7 +3,8 @@ package mysql_test
 import (
 	"testing"
 
-	"github.com/neilotoole/lg/testlg"
+	"github.com/neilotoole/slogt"
+
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/drivers/mysql"
@@ -57,10 +58,10 @@ func TestKindFromDBTypeName(t *testing.T) {
 		"BOOLEAN":          kind.Bool,
 	}
 
-	log := testlg.New(t)
+	log := slogt.New(t)
 	for dbTypeName, wantKind := range testCases {
 		gotKind := mysql.KindFromDBTypeName(log, "col", dbTypeName)
-		require.Equal(t, wantKind, gotKind, "%q should produce %s but got %s", dbTypeName, wantKind, gotKind)
+		require.Equal(t, wantKind, gotKind, "{%s} should produce %s but got %s", dbTypeName, wantKind, gotKind)
 	}
 }
 

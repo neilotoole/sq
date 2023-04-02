@@ -11,10 +11,17 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+
+	"github.com/neilotoole/sq/libsq/core/lg"
+
+	"github.com/neilotoole/slogt"
+	"golang.org/x/exp/slog"
+
 	"github.com/neilotoole/sq/libsq/ast"
 
-	"github.com/neilotoole/lg"
-	"github.com/neilotoole/lg/testlg"
 	"github.com/neilotoole/sq/cli/config"
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/drivers/csv"
@@ -41,12 +48,21 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+func init() { //nolint:gochecknoinits
+	slogt.Default = slogt.Factory(func(w io.Writer) slog.Handler {
+		return slog.HandlerOptions{
+			Level:     slog.LevelDebug,
+			AddSource: true,
+		}.NewTextHandler(w)
+	})
+}
+
 // Helper encapsulates a test helper session.
 type Helper struct {
 	mu sync.Mutex
 
 	T   testing.TB
-	Log lg.Log
+	Log *slog.Logger
 
 	registry  *driver.Registry
 	files     *source.Files
@@ -68,7 +84,7 @@ type Helper struct {
 func New(t testing.TB) *Helper {
 	h := &Helper{
 		T:       t,
-		Log:     testlg.New(t),
+		Log:     slogt.New(t),
 		Cleanup: cleanup.New(),
 	}
 
@@ -141,7 +157,7 @@ func (h *Helper) init() {
 // not need to be explicitly invoked unless desired.
 func (h *Helper) Close() {
 	err := h.Cleanup.Run()
-	h.Log.WarnIfError(err)
+	lg.WarnIfError(h.Log, "helper cleanup", err)
 	assert.NoError(h.T, err)
 	h.cancelFn()
 }
@@ -179,7 +195,7 @@ func (h *Helper) Source(handle string) *source.Source {
 		// Skip the test if the envar for the handle is not set
 		handleEnvar := "SQ_TEST_SRC__" + strings.ToUpper(strings.TrimPrefix(handle, "@"))
 		if envar, ok := os.LookupEnv(handleEnvar); !ok || strings.TrimSpace(envar) == "" {
-			h.T.Skipf("Skip test %s because envar %q for %q is not set",
+			h.T.Skipf("Skip test %s because envar {%s} for {%s} is not set",
 				h.T.Name(), handleEnvar, handle)
 		}
 	}
@@ -307,7 +323,7 @@ func (h *Helper) DriverFor(src *source.Source) driver.Driver {
 // failing h's test on any error.
 func (h *Helper) RowCount(src *source.Source, tbl string) int64 {
 	dbase := h.openNew(src)
-	defer h.Log.WarnIfCloseError(dbase)
+	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, dbase)
 
 	query := "SELECT COUNT(*) FROM " + dbase.SQLDriver().Dialect().Enquote(tbl)
 	var count int64
@@ -322,7 +338,7 @@ func (h *Helper) CreateTable(dropAfter bool, src *source.Source, tblDef *sqlmode
 	data ...[]any,
 ) (affected int64) {
 	dbase := h.openNew(src)
-	defer h.Log.WarnIfCloseError(dbase)
+	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, dbase)
 
 	require.NoError(h.T, dbase.SQLDriver().CreateTable(h.Context, dbase.DB(), tblDef))
 	h.T.Logf("Created table %s.%s", src.Handle, tblDef.Name)
@@ -347,16 +363,16 @@ func (h *Helper) Insert(src *source.Source, tbl string, cols []string, records .
 	}
 
 	dbase := h.openNew(src)
-	defer h.Log.WarnIfCloseError(dbase)
+	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, dbase)
 
 	drvr := dbase.SQLDriver()
 
 	conn, err := dbase.DB().Conn(h.Context)
 	require.NoError(h.T, err)
-	defer h.Log.WarnIfCloseError(conn)
+	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, conn)
 
 	batchSize := driver.MaxBatchRows(drvr, len(cols))
-	bi, err := driver.NewBatchInsert(h.Context, h.Log, drvr, conn, tbl, cols, batchSize)
+	bi, err := driver.NewBatchInsert(h.Context, drvr, conn, tbl, cols, batchSize)
 	require.NoError(h.T, err)
 
 	for _, rec := range records {
@@ -402,7 +418,7 @@ func (h *Helper) CopyTable(dropAfter bool, src *source.Source, fromTable, toTabl
 	}
 
 	dbase := h.openNew(src)
-	defer h.Log.WarnIfCloseError(dbase)
+	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, dbase)
 
 	copied, err := dbase.SQLDriver().CopyTable(h.Context, dbase.DB(), fromTable, toTable, copyData)
 	require.NoError(h.T, err)
@@ -410,20 +426,23 @@ func (h *Helper) CopyTable(dropAfter bool, src *source.Source, fromTable, toTabl
 		h.Cleanup.Add(func() { h.DropTable(src, toTable) })
 	}
 
-	h.Log.Debugf("Copied table %s.%s --> %s.%s  (copy data=%v; drop after=%v; rows copied=%d)",
-		src.Handle, fromTable, src.Handle, toTable, copyData, dropAfter, copied)
+	h.Log.Debug("Copied table",
+		lga.From, source.Target(src, fromTable),
+		lga.To, source.Target(src, toTable),
+		"copy_data", copyData,
+		lga.Count, copied,
+		"drop_after", dropAfter,
+	)
 	return toTable
 }
 
 // DropTable drops tbl from src.
 func (h *Helper) DropTable(src *source.Source, tbl string) {
 	dbase := h.openNew(src)
-	defer func() {
-		h.Log.WarnIfError(errz.Err(dbase.Close()))
-	}()
+	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, dbase)
 
 	require.NoError(h.T, dbase.SQLDriver().DropTable(h.Context, dbase.DB(), tbl, true))
-	h.Log.Debugf("Dropped %s.%s", src.Handle, tbl)
+	h.Log.Debug("Dropped table", lga.Target, source.Target(src, tbl))
 }
 
 // QuerySQL uses libsq.QuerySQL to execute SQL query
@@ -435,7 +454,7 @@ func (h *Helper) QuerySQL(src *source.Source, query string, args ...any) (*Recor
 
 	sink := &RecordSink{}
 	recw := output.NewRecordWriterAdapter(sink)
-	err := libsq.QuerySQL(h.Context, h.Log, dbase, recw, query, args...)
+	err := libsq.QuerySQL(h.Context, dbase, recw, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -467,7 +486,7 @@ func (h *Helper) QuerySLQ(query string) (*RecordSink, error) {
 	sink := &RecordSink{}
 	recw := output.NewRecordWriterAdapter(sink)
 
-	err = libsq.ExecuteSLQ(h.Context, h.Log, qc, query, recw)
+	err = libsq.ExecuteSLQ(h.Context, qc, query, recw)
 	if err != nil {
 		return nil, err
 	}
@@ -523,7 +542,7 @@ func (h *Helper) InsertDefaultRow(src *source.Source, tbl string) {
 // TruncateTable truncates tbl in src.
 func (h *Helper) TruncateTable(src *source.Source, tbl string) (affected int64) {
 	dbase := h.openNew(src)
-	defer h.Log.WarnIfCloseError(dbase)
+	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, dbase)
 
 	affected, err := h.DriverFor(src).Truncate(h.Context, src, tbl, true)
 	require.NoError(h.T, err)
@@ -553,7 +572,7 @@ func (h *Helper) addUserDrivers() {
 		require.Empty(h.T, errs)
 
 		importFn, ok := userDriverImporters[userDriverDef.Genre]
-		require.True(h.T, ok, "unsupported genre %q for user driver %q specified via config",
+		require.True(h.T, ok, "unsupported genre {%s} for user driver {%s} specified via config",
 			userDriverDef.Genre, userDriverDef.Name)
 
 		// For each user driver definition, we register a
@@ -608,7 +627,7 @@ func (h *Helper) DiffDB(src *source.Source) {
 	h.T.Logf("Executing DiffDB for %s", src.Handle) // FIXME: zap this
 
 	beforeDB := h.openNew(src)
-	defer h.Log.WarnIfCloseError(beforeDB)
+	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, beforeDB)
 
 	beforeMeta, err := beforeDB.SourceMetadata(h.Context)
 	require.NoError(h.T, err)
@@ -618,7 +637,7 @@ func (h *Helper) DiffDB(src *source.Source) {
 		// table's row count match.
 
 		afterDB := h.openNew(src)
-		defer h.Log.WarnIfCloseError(afterDB)
+		defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, afterDB)
 
 		afterMeta, err := afterDB.SourceMetadata(h.Context)
 		require.NoError(h.T, err)
@@ -627,7 +646,7 @@ func (h *Helper) DiffDB(src *source.Source) {
 
 		for i, beforeTbl := range beforeMeta.Tables {
 			assert.Equal(h.T, beforeTbl.RowCount, afterMeta.Tables[i].RowCount,
-				"diffdb: %s: row count for %q is expected to be %d but got %d", src.Handle, beforeTbl.Name,
+				"diffdb: %s: row count for {%s} is expected to be %d but got %d", src.Handle, beforeTbl.Name,
 				beforeTbl.RowCount, afterMeta.Tables[i].RowCount)
 		}
 	})

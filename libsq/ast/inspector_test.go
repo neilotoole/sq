@@ -3,13 +3,13 @@ package ast
 import (
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	"github.com/neilotoole/slogt"
 
-	"github.com/neilotoole/lg/testlg"
+	"github.com/stretchr/testify/require"
 )
 
 func TestInspector_findSelectableSegments(t *testing.T) {
-	log := testlg.New(t).Strict(true)
+	log := slogt.New(t)
 
 	//  `@mydb1 | .user | .uid, .username`
 	ast, err := buildInitialAST(t, fixtSelect1)

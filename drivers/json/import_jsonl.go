@@ -7,7 +7,11 @@ import (
 	stdj "encoding/json"
 	"io"
 
-	"github.com/neilotoole/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+
+	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/driver"
@@ -15,15 +19,14 @@ import (
 )
 
 // DetectJSONL implements source.TypeDetectFunc.
-func DetectJSONL(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (detected source.Type, score float32,
-	err error,
-) {
+func DetectJSONL(ctx context.Context, openFn source.FileOpenFunc) (detected source.Type, score float32, err error) {
+	log := lg.FromContext(ctx)
 	var r io.ReadCloser
 	r, err = openFn()
 	if err != nil {
 		return source.TypeNone, 0, errz.Err(err)
 	}
-	defer log.WarnIfCloseError(r)
+	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
 
 	sc := bufio.NewScanner(r)
 	var validLines int
@@ -76,19 +79,21 @@ func DetectJSONL(ctx context.Context, log lg.Log, openFn source.FileOpenFunc) (d
 	return source.TypeNone, 0, nil
 }
 
-func importJSONL(ctx context.Context, log lg.Log, job importJob) error { //nolint:gocognit
+func importJSONL(ctx context.Context, job importJob) error { //nolint:gocognit
+	log := lg.FromContext(ctx)
+
 	r, err := job.openFn()
 	if err != nil {
 		return err
 	}
-	defer log.WarnIfCloseError(r)
+	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
 
 	drvr := job.destDB.SQLDriver()
 	db, err := job.destDB.DB().Conn(ctx)
 	if err != nil {
 		return errz.Err(err)
 	}
-	defer log.WarnIfCloseError(db)
+	defer lg.WarnIfCloseError(log, lgm.CloseDB, db)
 
 	proc := newProcessor(job.flatten)
 	scan := newLineScanner(ctx, r, '{')
@@ -109,7 +114,7 @@ func importJSONL(ctx context.Context, log lg.Log, job importJob) error { //nolin
 
 		if schemaModified {
 			if !hasMore || scan.validLineCount >= job.sampleSize {
-				log.Debugf("line[%d]: time to (re)build the schema", scan.totalLineCount)
+				log.Debug("Time to (re)build the schema", lga.Line, scan.totalLineCount)
 				if curSchema == nil {
 					log.Debug("First time building the schema")
 				}
@@ -120,7 +125,7 @@ func importJSONL(ctx context.Context, log lg.Log, job importJob) error { //nolin
 					return err
 				}
 
-				err = execSchemaDelta(ctx, log, drvr, db, curSchema, newSchema)
+				err = execSchemaDelta(ctx, drvr, db, curSchema, newSchema)
 				if err != nil {
 					return err
 				}
@@ -137,7 +142,7 @@ func importJSONL(ctx context.Context, log lg.Log, job importJob) error { //nolin
 					return err
 				}
 
-				err = execInsertions(ctx, log, drvr, db, insertions)
+				err = execInsertions(ctx, drvr, db, insertions)
 				if err != nil {
 					return err
 				}
@@ -185,7 +190,7 @@ func importJSONL(ctx context.Context, log lg.Log, job importJob) error { //nolin
 			return err
 		}
 
-		err = execInsertions(ctx, log, drvr, db, insertions)
+		err = execInsertions(ctx, drvr, db, insertions)
 		if err != nil {
 			return err
 		}

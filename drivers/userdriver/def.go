@@ -124,7 +124,7 @@ func (t *TableMapping) PKCols() ([]*ColMapping, error) {
 	}
 
 	if len(cols) == 0 {
-		return nil, errz.Errorf("no primary key column(s) defined for table %q", t.Name)
+		return nil, errz.Errorf("no primary key column(s) defined for table {%s}", t.Name)
 	}
 
 	return cols, nil
@@ -244,7 +244,7 @@ func ValidateDriverDef(def *DriverDef) []error {
 				}
 				if !foundIt {
 					errs = append(errs,
-						errz.Errorf("%s specified primary key %q not found in cols", tblName, pkColName))
+						errz.Errorf("{%s} specified primary key {%s} not found in cols", tblName, pkColName))
 				}
 			}
 		}
@@ -252,7 +252,7 @@ func ValidateDriverDef(def *DriverDef) []error {
 		for j, col := range tbl.Cols {
 			colName := fmt.Sprintf("%s.col[%d]", tblName, j)
 			if col.Name == "" {
-				errs = append(errs, errz.Errorf("%s name is empty", colName))
+				errs = append(errs, errz.Errorf("{%s} name is empty", colName))
 			} else {
 				colName = fmt.Sprintf("%s.col[%s]", tblName, col.Name)
 			}
@@ -261,7 +261,7 @@ func ValidateDriverDef(def *DriverDef) []error {
 			switch col.Kind { //nolint:exhaustive
 			default:
 			case kind.Unknown, kind.Null:
-				errs = append(errs, errz.Errorf("%s.kind (%s) is invalid", colName, col.Kind))
+				errs = append(errs, errz.Errorf("{%s}.kind {%s} is invalid", colName, col.Kind))
 			}
 		}
 	}
