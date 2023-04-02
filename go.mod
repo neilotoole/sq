@@ -20,7 +20,6 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.16
 	github.com/microsoft/go-mssqldb v0.19.0
 	github.com/mitchellh/go-homedir v1.1.0
-	github.com/neilotoole/errgroup v0.1.5
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/ryboe/q v1.0.18
 	// Be very careful changing pkg segmentio/encoding. A specific version is by our json encoder.

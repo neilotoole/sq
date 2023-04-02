@@ -13,9 +13,9 @@ import (
 
 	"github.com/neilotoole/sq/testh/tutil"
 
-	"github.com/neilotoole/errgroup"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/neilotoole/sq/drivers/csv"
 	"github.com/neilotoole/sq/drivers/mysql"

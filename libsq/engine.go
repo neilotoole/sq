@@ -10,12 +10,12 @@ import (
 
 	"golang.org/x/exp/slog"
 
-	"github.com/neilotoole/errgroup"
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/sqlmodel"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/driver"
+	"golang.org/x/sync/errgroup"
 )
 
 // engine executes a queryModel and writes to a RecordWriter.
@@ -172,7 +172,9 @@ func (ng *engine) executeTasks(ctx context.Context) error {
 	default:
 	}
 
-	g, gCtx := errgroup.WithContextN(ctx, driver.Tuning.ErrgroupNumG, driver.Tuning.ErrgroupQSize)
+	g, gCtx := errgroup.WithContext(ctx)
+	g.SetLimit(driver.Tuning.ErrgroupNumG)
+
 	for _, task := range ng.tasks {
 		task := task
 
