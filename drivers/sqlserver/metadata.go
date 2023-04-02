@@ -342,7 +342,7 @@ func getColumnMeta(ctx context.Context, db sqlz.DB, tblCatalog, tblSchema, tblNa
 		return nil, errz.Err(err)
 	}
 
-	defer func() { lg.WarnIfCloseError(log, lgm.CloseDBRows, rows) }()
+	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
 
 	var cols []columnMeta
 
@@ -386,7 +386,7 @@ func getConstraints(ctx context.Context, db sqlz.DB, tblCatalog, tblSchema, tblN
 		return nil, errz.Err(err)
 	}
 
-	defer func() { lg.WarnIfCloseError(log, lgm.CloseDBRows, rows) }()
+	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
 
 	var constraints []constraintMeta
 
