@@ -121,7 +121,7 @@ func (k *Kind) UnmarshalText(text []byte) error {
 func parse(text string) (Kind, error) {
 	switch strings.ToLower(text) {
 	default:
-		return Unknown, errz.Errorf("unrecognized kind name %q", text)
+		return Unknown, errz.Errorf("unrecognized kind name {%s}", text)
 	case "unknown":
 		return Unknown, nil
 	case "text":

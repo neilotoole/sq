@@ -91,7 +91,7 @@ func narrowTblSel(_ *slog.Logger, _ *Walker, node Node) error {
 	}
 
 	if seg.SegIndex() == 0 {
-		return errorf("@HANDLE must be first element: %q", sel.Text())
+		return errorf("@HANDLE must be first element: %s", sel.Text())
 	}
 
 	prevType, err := seg.Prev().ChildType()
@@ -283,12 +283,12 @@ func determineJoinTables(_ *slog.Logger, _ *Walker, node Node) error {
 
 	fnJoin.leftTbl, ok = prevSeg.Children()[0].(*TblSelectorNode)
 	if !ok {
-		return errorf("JOIN() expected table selector in previous segment, but was %T(%q)", prevSeg.Children()[0],
+		return errorf("JOIN() expected table selector in previous segment, but was %T(%s)", prevSeg.Children()[0],
 			prevSeg.Children()[0].Text())
 	}
 	fnJoin.rightTbl, ok = prevSeg.Children()[1].(*TblSelectorNode)
 	if !ok {
-		return errorf("JOIN() expected table selector in previous segment, but was %T(%q)", prevSeg.Children()[1],
+		return errorf("JOIN() expected table selector in previous segment, but was %T(%s)", prevSeg.Children()[1],
 			prevSeg.Children()[1].Text())
 	}
 	return nil

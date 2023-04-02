@@ -136,7 +136,7 @@ func (s *TblSelectorNode) String() string {
 	if err != nil {
 		selVal = "error: " + err.Error()
 	}
-	text += fmt.Sprintf(" | table: %q | datasource: %q", selVal, s.Handle())
+	text += fmt.Sprintf(" | table: {%s} | datasource: {%s}", selVal, s.Handle())
 	return text
 }
 

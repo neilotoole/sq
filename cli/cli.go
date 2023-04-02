@@ -508,14 +508,14 @@ func (rc *RunContext) doInit() error {
 		errs := userdriver.ValidateDriverDef(userDriverDef)
 		if len(errs) > 0 {
 			err := errz.Combine(errs...)
-			err = errz.Wrapf(err, "failed validation of user driver definition [%d] (%q) from config",
+			err = errz.Wrapf(err, "failed validation of user driver definition [%d] {%s} from config",
 				i, userDriverDef.Name)
 			return err
 		}
 
 		importFn, ok := userDriverImporters[userDriverDef.Genre]
 		if !ok {
-			return errz.Errorf("unsupported genre %q for user driver %q specified via config",
+			return errz.Errorf("unsupported genre {%s} for user driver {%s} specified via config",
 				userDriverDef.Genre, userDriverDef.Name)
 		}
 
@@ -762,7 +762,7 @@ func defaultLogging() (*slog.Logger, *cleanup.Cleanup, error) {
 
 	logFile, err := os.OpenFile(logFilePath, os.O_RDWR|os.O_CREATE|flag, 0o600)
 	if err != nil {
-		return lg.Discard(), nil, errz.Wrapf(err, "unable to open log file %q", logFilePath)
+		return lg.Discard(), nil, errz.Wrapf(err, "unable to open log file: %s", logFilePath)
 	}
 	clnup := cleanup.New().AddE(logFile.Close)
 

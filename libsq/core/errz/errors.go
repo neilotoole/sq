@@ -138,7 +138,7 @@ func (f *fundamental) Format(s fmt.State, verb rune) {
 	case 's':
 		_, _ = io.WriteString(s, f.msg)
 	case 'q':
-		_, _ = fmt.Fprintf(s, "%q", f.msg)
+		_, _ = fmt.Fprintf(s, "{%s}", f.msg)
 	}
 }
 
@@ -169,7 +169,7 @@ func (w *withStack) Format(s fmt.State, verb rune) {
 	case 's':
 		_, _ = io.WriteString(s, w.Error())
 	case 'q':
-		_, _ = fmt.Fprintf(s, "%q", w.Error())
+		_, _ = fmt.Fprintf(s, "{%s}", w.Error())
 	}
 }
 

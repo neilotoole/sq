@@ -209,7 +209,7 @@ func (im *importer) convertVal(tbl string, col *userdriver.ColMapping, data any)
 
 	switch col.Kind { //nolint:exhaustive
 	default:
-		return nil, errz.Errorf("unknown data kind %q for col %s", col.Kind, col.Name)
+		return nil, errz.Errorf("unknown data kind {%s} for col %s", col.Kind, col.Name)
 	case kind.Text, kind.Time:
 		return data, nil
 	case kind.Int:
@@ -275,7 +275,7 @@ func (im *importer) handleElemAttrs(elem xml.StartElement, curRow *rowState) err
 			attrSel := baseSel + "/@" + attr.Name.Local
 			attrCol := curRow.tbl.ColBySelector(attrSel)
 			if attrCol == nil {
-				if msg, ok := im.msgOncef("Skip: attr %q is not a column of table %q", attrSel, curRow.tbl.Name); ok {
+				if msg, ok := im.msgOncef("Skip: attr {%s} is not a column of table {%s}", attrSel, curRow.tbl.Name); ok {
 					im.log.Debug(msg)
 				}
 
@@ -307,7 +307,7 @@ func (im *importer) setForeignColsVals(row *rowState) error {
 		parts := strings.Split(col.Foreign, "/")
 		// parts will look like [ "..", "channel_id" ]
 		if len(parts) != 2 || parts[0] != ".." {
-			return errz.Errorf(`%s.%s: "foreign" field should be of form "../col_name" but was %q`, row.tbl.Name,
+			return errz.Errorf(`%s.%s: "foreign" field should be of form "../col_name" but was {%s}`, row.tbl.Name,
 				col.Name, col.Foreign)
 		}
 
@@ -320,7 +320,7 @@ func (im *importer) setForeignColsVals(row *rowState) error {
 
 		fkVal, ok := parentRow.savedColVals[fkName]
 		if !ok {
-			return errz.Errorf(`%s.%s: unable to find foreign key value in parent table %q`, row.tbl.Name, col.Name,
+			return errz.Errorf(`%s.%s: unable to find foreign key value in parent table {%s}`, row.tbl.Name, col.Name,
 				parentRow.tbl.Name)
 		}
 
@@ -369,14 +369,14 @@ func (im *importer) saveRow(ctx context.Context, row *rowState) error {
 
 	tblDef, ok := im.tblDefs[row.tbl.Name]
 	if !ok {
-		return errz.Errorf("unable to find definition for table %q", row.tbl.Name)
+		return errz.Errorf("unable to find definition for table {%s}", row.tbl.Name)
 	}
 
 	if row.created() {
 		// Row already exists in the db
 		err := im.dbUpdate(ctx, row)
 		if err != nil {
-			return errz.Wrapf(err, "failed to update table %q", tblDef.Name)
+			return errz.Wrapf(err, "failed to update table {%s}", tblDef.Name)
 		}
 
 		row.markDirtyAsSaved()
@@ -408,7 +408,7 @@ func (im *importer) saveRow(ctx context.Context, row *rowState) error {
 
 	err = im.dbInsert(ctx, row)
 	if err != nil {
-		return errz.Wrapf(err, "failed to insert to table %q", tblDef.Name)
+		return errz.Wrapf(err, "failed to insert to table {%s}", tblDef.Name)
 	}
 
 	row.markDirtyAsSaved()
@@ -487,7 +487,7 @@ func (im *importer) dbUpdate(ctx context.Context, row *rowState) error {
 		}
 
 		// Else, we're missing a pk val
-		return errz.Errorf("failed to update table %q: primary key value %q not present", tblName, pkColName)
+		return errz.Errorf("failed to update table {%s}: primary key value {%s} not present", tblName, pkColName)
 	}
 
 	whereClause := whereBuilder.String()

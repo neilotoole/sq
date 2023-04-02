@@ -375,7 +375,7 @@ func verifyLegalSource(s *Source) error {
 	}
 
 	if s.Type == TypeNone {
-		return errz.Errorf("source type is empty or unknown: %q", s.Type)
+		return errz.Errorf("source type is empty or unknown: {%s}", s.Type)
 	}
 
 	return nil

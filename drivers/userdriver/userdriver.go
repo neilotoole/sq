@@ -41,7 +41,7 @@ type Provider struct {
 // DriverFor implements driver.Provider.
 func (p *Provider) DriverFor(typ source.Type) (driver.Driver, error) {
 	if typ != source.Type(p.DriverDef.Name) {
-		return nil, errz.Errorf("unsupported driver type %q", typ)
+		return nil, errz.Errorf("unsupported driver type {%s}", typ)
 	}
 
 	return &drvr{
@@ -117,7 +117,7 @@ func (d *drvr) Truncate(_ context.Context, _ *source.Source, _ string, _ bool) (
 func (d *drvr) ValidateSource(src *source.Source) (*source.Source, error) {
 	d.log.Debug("Validating source", lga.Src, src)
 	if string(src.Type) != d.def.Name {
-		return nil, errz.Errorf("expected source type %q but got %q", d.def.Name, src.Type)
+		return nil, errz.Errorf("expected source type {%s} but got {%s}", d.def.Name, src.Type)
 	}
 	return src, nil
 }

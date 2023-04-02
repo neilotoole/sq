@@ -28,7 +28,7 @@ func newFragmentBuilder(log *slog.Logger) *sqlbuilder.BaseFragmentBuilder {
 func dbTypeNameFromKind(knd kind.Kind) string {
 	switch knd { //nolint:exhaustive
 	default:
-		panic(fmt.Sprintf("unsupported datatype %q", knd))
+		panic(fmt.Sprintf("unsupported datatype {%s}", knd))
 	case kind.Unknown:
 		return "TEXT"
 	case kind.Text:

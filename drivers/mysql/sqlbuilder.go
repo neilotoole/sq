@@ -46,7 +46,7 @@ func dbTypeNameFromKind(knd kind.Kind) string {
 	case kind.Bytes:
 		return "BLOB"
 	default:
-		panic(fmt.Sprintf("unsupported datatype %q", knd))
+		panic(fmt.Sprintf("unsupported datatype {%s}", knd))
 	}
 }
 

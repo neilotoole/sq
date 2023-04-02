@@ -451,7 +451,7 @@ func requireDelimToken(dec *stdj.Decoder, delim stdj.Delim) (stdj.Token, error) 
 	}
 
 	if tok != delim {
-		return tok, errz.Errorf("expected next token to be delimiter %q but got: %s", string(delim), formatToken(tok))
+		return tok, errz.Errorf("expected next token to be delimiter {%s} but got: %s", string(delim), formatToken(tok))
 	}
 
 	return tok, nil

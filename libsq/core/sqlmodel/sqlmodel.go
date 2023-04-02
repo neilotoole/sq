@@ -82,7 +82,7 @@ func (t *TableDef) ColsByName(cols []string) ([]*ColDef, error) {
 		}
 
 		if !found {
-			return nil, errz.Errorf("could not find column definition %q in table %q", name, t.Name)
+			return nil, errz.Errorf("could not find column definition {%s} in table {%s}", name, t.Name)
 		}
 	}
 	return defs, nil
@@ -95,7 +95,7 @@ func (t *TableDef) FindCol(name string) (*ColDef, error) {
 			return col, nil
 		}
 	}
-	return nil, errz.Errorf("could not find column definition %q in table %q", name, t.Name)
+	return nil, errz.Errorf("could not find column definition {%s} in table {%s}", name, t.Name)
 }
 
 // ColDef models a table column definition.

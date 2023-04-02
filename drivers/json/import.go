@@ -262,7 +262,7 @@ func (p *processor) doAddObject(ent *entity, m map[string]any) error {
 			} else if child.isArray {
 				// Child already exists
 				// Safety check
-				return errz.Errorf("JSON entity %q previously detected as array, but now detected as object",
+				return errz.Errorf("JSON entity {%s} previously detected as array, but now detected as object",
 					ent.String())
 			}
 

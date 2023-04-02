@@ -38,7 +38,7 @@ type Provider struct {
 // DriverFor implements driver.Provider.
 func (p *Provider) DriverFor(typ source.Type) (driver.Driver, error) {
 	if typ != Type {
-		return nil, errz.Errorf("unsupported driver type %q", typ)
+		return nil, errz.Errorf("unsupported driver type {%s}", typ)
 	}
 
 	return &Driver{log: p.Log, scratcher: p.Scratcher, files: p.Files}, nil
@@ -131,14 +131,14 @@ func (d *Driver) Truncate(_ context.Context, src *source.Source, _ string, _ boo
 	// TODO: WE could actually implement Truncate for xlsx.
 	//  It would just mean deleting the rows from a sheet, and then
 	//  saving the sheet.
-	return 0, errz.Errorf("source type %q (%s) doesn't support dropping tables", Type, src.Handle)
+	return 0, errz.Errorf("source type {%s} (%s) doesn't support dropping tables", Type, src.Handle)
 }
 
 // ValidateSource implements driver.Driver.
 func (d *Driver) ValidateSource(src *source.Source) (*source.Source, error) {
-	d.log.Debug("Validating source: %q", src.RedactedLocation())
+	d.log.Debug("Validating source: {%s}", src.RedactedLocation())
 	if src.Type != Type {
-		return nil, errz.Errorf("expected source type %q but got %q", Type, src.Type)
+		return nil, errz.Errorf("expected source type {%s} but got {%s}", Type, src.Type)
 	}
 
 	return src, nil

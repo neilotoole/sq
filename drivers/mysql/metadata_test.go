@@ -61,7 +61,7 @@ func TestKindFromDBTypeName(t *testing.T) {
 	log := slogt.New(t)
 	for dbTypeName, wantKind := range testCases {
 		gotKind := mysql.KindFromDBTypeName(log, "col", dbTypeName)
-		require.Equal(t, wantKind, gotKind, "%q should produce %s but got %s", dbTypeName, wantKind, gotKind)
+		require.Equal(t, wantKind, gotKind, "{%s} should produce %s but got %s", dbTypeName, wantKind, gotKind)
 	}
 }
 

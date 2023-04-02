@@ -47,7 +47,7 @@ func (d *Provider) DriverFor(typ source.Type) (driver.Driver, error) {
 		return &driveri{log: d.Log, typ: TypeTSV, scratcher: d.Scratcher, files: d.Files}, nil
 	}
 
-	return nil, errz.Errorf("unsupported driver type %q", typ)
+	return nil, errz.Errorf("unsupported driver type {%s}", typ)
 }
 
 // Driver implements driver.Driver.
@@ -102,7 +102,7 @@ func (d *driveri) Truncate(_ context.Context, _ *source.Source, _ string, _ bool
 // ValidateSource implements driver.Driver.
 func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 	if src.Type != d.typ {
-		return nil, errz.Errorf("expected source type %q but got %q", d.typ, src.Type)
+		return nil, errz.Errorf("expected source type {%s} but got {%s}", d.typ, src.Type)
 	}
 
 	if src.Options != nil || len(src.Options) > 0 {
@@ -117,7 +117,7 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 		if v != "" {
 			_, err := strconv.ParseBool(v)
 			if err != nil {
-				return nil, errz.Errorf(`unable to parse option %q: %v`, key, err)
+				return nil, errz.Errorf(`unable to parse option {%s}: %v`, key, err)
 			}
 		}
 	}

@@ -154,7 +154,7 @@ func nodeReplace(old, nu Node) error {
 
 	index := nodeChildIndex(parent, old)
 	if index < 0 {
-		return errorf("parent %T(%q) does not appear to have child %T(%q)", parent, parent.Text(), old, old.Text())
+		return errorf("parent %T(%s) does not appear to have child %T(%s)", parent, parent.Text(), old, old.Text())
 	}
 	siblings := parent.Children()
 	siblings[index] = nu

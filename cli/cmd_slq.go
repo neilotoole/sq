@@ -282,7 +282,7 @@ func preprocessUserSLQ(ctx context.Context, rc *RunContext, args []string) (stri
 		handle := dsParts[0]
 		if len(handle) < 2 {
 			// handle name is too short
-			return "", errz.Errorf("invalid data source: %q", handle)
+			return "", errz.Errorf("invalid data source: %s", handle)
 		}
 
 		// Check that the handle actual exists

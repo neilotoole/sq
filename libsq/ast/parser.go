@@ -211,7 +211,7 @@ func (v *parseTreeVisitor) VisitChildren(ctx antlr.RuleNode) any {
 	for _, child := range ctx.GetChildren() {
 		tree, ok := child.(antlr.ParseTree)
 		if !ok {
-			return errorf("unknown child node type: %T %q", child, child.GetPayload())
+			return errorf("unknown child node type: %T(%s)", child, child.GetPayload())
 		}
 
 		err := v.Visit(tree)

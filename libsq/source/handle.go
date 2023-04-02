@@ -22,7 +22,7 @@ var (
 //
 //	\A@[a-zA-Z][a-zA-Z0-9_]*$
 func VerifyLegalHandle(handle string) error {
-	const msg = `invalid data source handle %q: must begin with @, followed by a letter, followed by zero or more letters, digits, or underscores, e.g. "@my_db1"` //nolint:lll
+	const msg = `invalid data source handle {%s}: must begin with @, followed by a letter, followed by zero or more letters, digits, or underscores, e.g. "@my_db1"` //nolint:lll
 	matches := handlePattern.MatchString(handle)
 	if !matches {
 		return errz.Errorf(msg, handle)
@@ -36,7 +36,7 @@ func VerifyLegalHandle(handle string) error {
 //
 //	\A[a-zA-Z_][a-zA-Z0-9_]*$`
 func verifyLegalTableName(table string) error {
-	const msg = `invalid table name %q: must begin a letter or underscore, followed by zero or more letters, digits, or underscores, e.g. "tbl1" or "_tbl2"` //nolint:lll
+	const msg = `invalid table name {%s}: must begin a letter or underscore, followed by zero or more letters, digits, or underscores, e.g. "tbl1" or "_tbl2"` //nolint:lll
 
 	matches := tablePattern.MatchString(table)
 	if !matches {
@@ -145,7 +145,7 @@ func ParseTableHandle(input string) (handle, table string, err error) {
 		// input contains both handle and table
 		parts := strings.Split(trimmed, ".")
 		if len(parts) != 2 {
-			return "", "", errz.Errorf("invalid handle/table input %q", input)
+			return "", "", errz.Errorf("invalid handle/table input: %s", input)
 		}
 
 		err = VerifyLegalHandle(parts[0])

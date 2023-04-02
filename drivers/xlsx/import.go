@@ -364,7 +364,7 @@ func rowToRecord(log *slog.Logger, destColKinds []kind.Kind, row *xlsx.Row, shee
 
 			// it's not an int, it's not a float, it's not empty string;
 			// just give up and make it a string.
-			log.Warn("Failed to determine type of numeric cell [%s:%d:%d] from value: %q", sheetName, rowIndex, j,
+			log.Warn("Failed to determine type of numeric cell [%s:%d:%d] from value: {%s}", sheetName, rowIndex, j,
 				cell.Value)
 			vals[j] = cell.Value
 			// FIXME: prob should return an error here?

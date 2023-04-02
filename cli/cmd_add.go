@@ -152,7 +152,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 	}
 
 	if rc.registry.ProviderFor(typ) == nil {
-		return errz.Errorf("unsupported source type %q", typ)
+		return errz.Errorf("unsupported source type {%s}", typ)
 	}
 
 	var handle string

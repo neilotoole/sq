@@ -195,7 +195,7 @@ func (h *Helper) Source(handle string) *source.Source {
 		// Skip the test if the envar for the handle is not set
 		handleEnvar := "SQ_TEST_SRC__" + strings.ToUpper(strings.TrimPrefix(handle, "@"))
 		if envar, ok := os.LookupEnv(handleEnvar); !ok || strings.TrimSpace(envar) == "" {
-			h.T.Skipf("Skip test %s because envar %q for %q is not set",
+			h.T.Skipf("Skip test %s because envar {%s} for {%s} is not set",
 				h.T.Name(), handleEnvar, handle)
 		}
 	}
@@ -572,7 +572,7 @@ func (h *Helper) addUserDrivers() {
 		require.Empty(h.T, errs)
 
 		importFn, ok := userDriverImporters[userDriverDef.Genre]
-		require.True(h.T, ok, "unsupported genre %q for user driver %q specified via config",
+		require.True(h.T, ok, "unsupported genre {%s} for user driver {%s} specified via config",
 			userDriverDef.Genre, userDriverDef.Name)
 
 		// For each user driver definition, we register a
@@ -646,7 +646,7 @@ func (h *Helper) DiffDB(src *source.Source) {
 
 		for i, beforeTbl := range beforeMeta.Tables {
 			assert.Equal(h.T, beforeTbl.RowCount, afterMeta.Tables[i].RowCount,
-				"diffdb: %s: row count for %q is expected to be %d but got %d", src.Handle, beforeTbl.Name,
+				"diffdb: %s: row count for {%s} is expected to be %d but got %d", src.Handle, beforeTbl.Name,
 				beforeTbl.RowCount, afterMeta.Tables[i].RowCount)
 		}
 	})

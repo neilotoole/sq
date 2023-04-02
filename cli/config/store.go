@@ -53,7 +53,7 @@ func (fs *YAMLFileStore) Location() string {
 func (fs *YAMLFileStore) Load() (*Config, error) {
 	bytes, err := os.ReadFile(fs.Path)
 	if err != nil {
-		return nil, errz.Wrapf(err, "config: failed to load file %q", fs.Path)
+		return nil, errz.Wrapf(err, "config: failed to load file: %s", fs.Path)
 	}
 
 	loadHookFn := fs.HookLoad
@@ -136,13 +136,13 @@ func (fs *YAMLFileStore) loadExt(cfg *Config) error {
 	for _, f := range extCfgCandidates {
 		bytes, err := os.ReadFile(f)
 		if err != nil {
-			return errz.Wrapf(err, "error reading config ext file %q", f)
+			return errz.Wrapf(err, "error reading config ext file: %s", f)
 		}
 		ext := &Ext{}
 
 		err = yaml.Unmarshal(bytes, ext)
 		if err != nil {
-			return errz.Wrapf(err, "error parsing config ext file %q", f)
+			return errz.Wrapf(err, "error parsing config ext file: %s", f)
 		}
 
 		cfg.Ext.UserDrivers = append(cfg.Ext.UserDrivers, ext.UserDrivers...)

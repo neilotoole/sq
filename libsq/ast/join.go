@@ -118,7 +118,7 @@ func (jn *JoinNode) String() string {
 		rightTblName, _ = jn.rightTbl.SelValue()
 	}
 
-	text += fmt.Sprintf(" |  left_table: %q  |  right_table: %q", leftTblName, rightTblName)
+	text += fmt.Sprintf(" |  left_table: {%s}  |  right_table: {%s}", leftTblName, rightTblName)
 	return text
 }
 

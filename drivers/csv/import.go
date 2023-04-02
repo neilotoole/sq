@@ -469,7 +469,7 @@ func getDelimFromOptions(opts options.Options) (r rune, ok bool, err error) {
 	r, ok = namedDelimiters[val]
 
 	if !ok {
-		err = errz.Errorf("unknown delimiter constant %q", val)
+		err = errz.Errorf("unknown delimiter constant {%s}", val)
 		return 0, false, err
 	}
 

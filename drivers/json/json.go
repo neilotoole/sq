@@ -53,7 +53,7 @@ func (d *Provider) DriverFor(typ source.Type) (driver.Driver, error) {
 	case TypeJSONL:
 		importFn = importJSONL
 	default:
-		return nil, errz.Errorf("unsupported driver type %q", typ)
+		return nil, errz.Errorf("unsupported driver type {%s}", typ)
 	}
 
 	return &driveri{
@@ -140,7 +140,7 @@ func (d *driveri) Truncate(_ context.Context, _ *source.Source, _ string, _ bool
 // ValidateSource implements driver.Driver.
 func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 	if src.Type != d.typ {
-		return nil, errz.Errorf("expected source type %q but got %q", d.typ, src.Type)
+		return nil, errz.Errorf("expected source type {%s} but got {%s}", d.typ, src.Type)
 	}
 
 	return src, nil

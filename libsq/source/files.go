@@ -299,7 +299,7 @@ func (fs *Files) fetch(loc string) (fpath string, err error) {
 
 	var u *url.URL
 	if u, ok = httpURL(loc); !ok {
-		return "", errz.Errorf("not a valid file location: %q", loc)
+		return "", errz.Errorf("not a valid file location: %s", loc)
 	}
 
 	var dlFile *os.File

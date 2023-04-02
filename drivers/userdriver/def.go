@@ -124,7 +124,7 @@ func (t *TableMapping) PKCols() ([]*ColMapping, error) {
 	}
 
 	if len(cols) == 0 {
-		return nil, errz.Errorf("no primary key column(s) defined for table %q", t.Name)
+		return nil, errz.Errorf("no primary key column(s) defined for table {%s}", t.Name)
 	}
 
 	return cols, nil
@@ -244,7 +244,7 @@ func ValidateDriverDef(def *DriverDef) []error {
 				}
 				if !foundIt {
 					errs = append(errs,
-						errz.Errorf("%s specified primary key %q not found in cols", tblName, pkColName))
+						errz.Errorf("%s specified primary key {%s} not found in cols", tblName, pkColName))
 				}
 			}
 		}

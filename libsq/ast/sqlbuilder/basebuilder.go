@@ -266,7 +266,7 @@ func (fb *BaseFragmentBuilder) Function(fn *ast.FuncNode) (string, error) {
 func (fb *BaseFragmentBuilder) FromTable(tblSel *ast.TblSelectorNode) (string, error) {
 	tblName, _ := tblSel.SelValue()
 	if tblName == "" {
-		return "", errz.Errorf("selector has empty table name: %q", tblSel.Text())
+		return "", errz.Errorf("selector has empty table name: {%s}", tblSel.Text())
 	}
 
 	clause := fmt.Sprintf("FROM %v%s%v", fb.Quote, tblSel.TblName(), fb.Quote)

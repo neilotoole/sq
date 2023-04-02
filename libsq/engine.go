@@ -86,7 +86,7 @@ func (ng *engine) prepare(ctx context.Context, qm *queryModel) error {
 			return err
 		}
 	default:
-		return errz.Errorf("unknown selectable %T: %q", node, node)
+		return errz.Errorf("unknown selectable %T(%s)", node, node)
 	}
 
 	fb, qb := ng.targetDB.SQLDriver().SQLBuilder()
@@ -253,7 +253,7 @@ func (ng *engine) crossSourceJoin(ctx context.Context, fnJoin *ast.JoinNode) (fr
 ) {
 	leftTblName, rightTblName := fnJoin.LeftTbl().TblName(), fnJoin.RightTbl().TblName()
 	if leftTblName == rightTblName {
-		return "", nil, errz.Errorf("JOIN tables must have distinct names (or use aliases): duplicate tbl name %q",
+		return "", nil, errz.Errorf("JOIN tables must have distinct names (or use aliases): duplicate tbl name {%s}",
 			fnJoin.LeftTbl().TblName())
 	}
 
@@ -402,7 +402,7 @@ func buildQueryModel(log *slog.Logger, a *ast.AST) (*queryModel, error) {
 	tabler, ok := tablerSeg.Children()[0].(ast.Tabler)
 	if !ok {
 		return nil, errz.Errorf(
-			"the final selectable segment must have exactly one selectable element, but found element %T(%q)",
+			"the final selectable segment must have exactly one selectable element, but found element %T(%s)",
 			tablerSeg.Children()[0], tablerSeg.Children()[0].Text())
 	}
 
@@ -414,16 +414,16 @@ func buildQueryModel(log *slog.Logger, a *ast.AST) (*queryModel, error) {
 		if rr, ok := seg.Children()[0].(*ast.RowRangeNode); ok {
 			if len(seg.Children()) != 1 {
 				return nil, errz.Errorf(
-					"segment [%d] with row range must have exactly one element, but found %d: %q",
+					"segment [%d] with row range must have exactly one element, but found %d: %s",
 					seg.SegIndex(), len(seg.Children()), seg.Text())
 			}
 
 			if qm.Range != nil {
-				return nil, errz.Errorf("only one row range permitted, but found %q and %q",
+				return nil, errz.Errorf("only one row range permitted, but found {%s} and {%s}",
 					qm.Range.Text(), rr.Text())
 			}
 
-			log.Debug("found row range: %q", rr.Text())
+			log.Debug("found row range: %s", rr.Text())
 			qm.Range = rr
 		}
 	}

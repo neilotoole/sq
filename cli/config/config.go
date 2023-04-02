@@ -95,7 +95,7 @@ type Format string
 func (f *Format) UnmarshalText(text []byte) error {
 	switch Format(text) {
 	default:
-		return errz.Errorf("unknown output format %q", string(text))
+		return errz.Errorf("unknown output format {%s}", string(text))
 	case FormatJSON, FormatJSONA, FormatJSONL, FormatTable, FormatRaw,
 		FormatHTML, FormatMarkdown, FormatXLSX, FormatXML, FormatCSV, FormatTSV:
 	}

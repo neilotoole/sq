@@ -46,7 +46,7 @@ type Provider struct {
 // DriverFor implements driver.Provider.
 func (p *Provider) DriverFor(typ source.Type) (driver.Driver, error) {
 	if typ != Type {
-		return nil, errz.Errorf("unsupported driver type %q", typ)
+		return nil, errz.Errorf("unsupported driver type {%s}", typ)
 	}
 
 	return &driveri{log: p.Log}, nil
@@ -114,7 +114,7 @@ func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl, col 
 
 	_, err := db.ExecContext(ctx, q)
 	if err != nil {
-		return errz.Wrapf(err, "alter table: failed to add column %q to table %q", col, tbl)
+		return errz.Wrapf(err, "alter table: failed to add column {%s} to table {%s}", col, tbl)
 	}
 
 	return nil
@@ -134,7 +134,7 @@ func (d *driveri) CurrentSchema(ctx context.Context, db sqlz.DB) (string, error)
 func (d *driveri) AlterTableRename(ctx context.Context, db sqlz.DB, tbl, newName string) error {
 	q := fmt.Sprintf("RENAME TABLE `%s` TO `%s`", tbl, newName)
 	_, err := db.ExecContext(ctx, q)
-	return errz.Wrapf(err, "alter table: failed to rename table %q to %q", tbl, newName)
+	return errz.Wrapf(err, "alter table: failed to rename table {%s} to {%s}", tbl, newName)
 }
 
 // AlterTableRenameColumn implements driver.SQLDriver.
@@ -315,7 +315,7 @@ func (d *driveri) Open(_ context.Context, src *source.Source) (driver.Database, 
 // ValidateSource implements driver.Driver.
 func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 	if src.Type != Type {
-		return nil, errz.Errorf("expected source type %q but got %q", Type, src.Type)
+		return nil, errz.Errorf("expected source type {%s} but got {%s}", Type, src.Type)
 	}
 	return src, nil
 }
@@ -457,7 +457,7 @@ func dsnFromLocation(src *source.Source, parseTime bool) (string, error) {
 
 	myCfg, err := mysql.ParseDSN(driverDSN) // verify
 	if err != nil {
-		return "", errz.Wrapf(err, "invalid source location: %q", driverDSN)
+		return "", errz.Wrapf(err, "invalid source location: %s", driverDSN)
 	}
 
 	myCfg.ParseTime = parseTime

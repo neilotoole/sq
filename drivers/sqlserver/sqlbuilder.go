@@ -95,7 +95,7 @@ func (qb *queryBuilder) Render() (string, error) {
 func dbTypeNameFromKind(knd kind.Kind) string {
 	switch knd { //nolint:exhaustive // ignore kind.Null
 	default:
-		panic(fmt.Sprintf("unsupported datatype %q", knd))
+		panic(fmt.Sprintf("unsupported datatype {%s}", knd))
 	case kind.Unknown:
 		return "NVARCHAR(MAX)"
 	case kind.Text:
