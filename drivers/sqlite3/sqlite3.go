@@ -143,7 +143,7 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 // ValidateSource implements driver.Driver.
 func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 	if src.Type != Type {
-		return nil, errz.Errorf("expected driver type %q but got %q", Type, src.Type)
+		return nil, errz.Errorf("expected driver type {%s} but got {%s}", Type, src.Type)
 	}
 	return src, nil
 }
@@ -598,7 +598,7 @@ func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl, col 
 
 	_, err := db.ExecContext(ctx, q)
 	if err != nil {
-		return errz.Wrapf(err, "alter table: failed to add column %q to table %q", col, tbl)
+		return errz.Wrapf(err, "alter table: failed to add column {%s} to table {%s}", col, tbl)
 	}
 
 	return nil
@@ -859,11 +859,11 @@ func NewScratchSource(log *slog.Logger, name string) (src *source.Source, clnup 
 // from the source location, which should have the "sqlite3://" prefix.
 func PathFromLocation(src *source.Source) (string, error) {
 	if src.Type != Type {
-		return "", errz.Errorf("driver %q does not support %q", Type, src.Type)
+		return "", errz.Errorf("driver {%s} does not support {%s}", Type, src.Type)
 	}
 
 	if !strings.HasPrefix(src.Location, Prefix) {
-		return "", errz.Errorf("sqlite3 source location must begin with %q but was: %s", Prefix, src.RedactedLocation())
+		return "", errz.Errorf("sqlite3 source location must begin with {%s} but was: %s", Prefix, src.RedactedLocation())
 	}
 
 	loc := strings.TrimPrefix(src.Location, Prefix)
