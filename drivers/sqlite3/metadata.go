@@ -8,7 +8,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/slg"
+	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"golang.org/x/exp/slog"
 
@@ -274,7 +274,7 @@ func getTableMetadata(ctx context.Context, log *slog.Logger, db sqlz.DB,
 	if err != nil {
 		return nil, errz.Err(err)
 	}
-	defer slg.WarnIfCloseError(log, rows)
+	defer lg.WarnIfCloseError(log, rows)
 
 	for rows.Next() {
 		col := &source.ColMetadata{}
@@ -338,7 +338,7 @@ ORDER BY m.name, p.cid
 	if err != nil {
 		return nil, errz.Err(err)
 	}
-	defer slg.WarnIfCloseError(log, rows)
+	defer lg.WarnIfCloseError(log, rows)
 
 	for rows.Next() {
 		select {
@@ -463,14 +463,14 @@ func getTblRowCounts(ctx context.Context, log *slog.Logger, db sqlz.DB, tblNames
 		for rows.Next() {
 			err = rows.Scan(&tblCounts[j])
 			if err != nil {
-				slg.WarnIfCloseError(log, rows)
+				lg.WarnIfCloseError(log, rows)
 				return nil, errz.Err(err)
 			}
 			j++
 		}
 
 		if err = rows.Err(); err != nil {
-			slg.WarnIfCloseError(log, rows)
+			lg.WarnIfCloseError(log, rows)
 			return nil, errz.Err(err)
 		}
 

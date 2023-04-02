@@ -7,7 +7,8 @@ import (
 	"io"
 	"math"
 
-	"github.com/neilotoole/sq/libsq/core/slg"
+	"github.com/neilotoole/sq/libsq/core/lg"
+
 	"golang.org/x/exp/slog"
 
 	"github.com/neilotoole/sq/libsq"
@@ -30,7 +31,7 @@ func DetectJSONA(ctx context.Context, log *slog.Logger,
 	if err != nil {
 		return source.TypeNone, 0, errz.Err(err)
 	}
-	defer slg.WarnIfCloseError(log, r)
+	defer lg.WarnIfCloseError(log, r)
 
 	sc := bufio.NewScanner(r)
 	var validLines int
@@ -97,7 +98,7 @@ func importJSONA(ctx context.Context, log *slog.Logger, job importJob) error {
 		return errz.Err(err)
 	}
 
-	defer slg.WarnIfCloseError(log, predictR)
+	defer lg.WarnIfCloseError(log, predictR)
 
 	colKinds, readMungeFns, err := detectColKindsJSONA(ctx, predictR)
 	if err != nil {
@@ -129,7 +130,7 @@ func importJSONA(ctx context.Context, log *slog.Logger, job importJob) error {
 	if err != nil {
 		return errz.Err(err)
 	}
-	defer slg.WarnIfCloseError(log, r)
+	defer lg.WarnIfCloseError(log, r)
 
 	insertWriter := libsq.NewDBWriter(log, job.destDB, tblDef.Name, driver.Tuning.RecordChSize)
 

@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/neilotoole/slogt"
-	"github.com/neilotoole/sq/libsq/core/slg/lga"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/stretchr/testify/require"

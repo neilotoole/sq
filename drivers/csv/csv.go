@@ -9,7 +9,7 @@ import (
 	"io"
 	"strconv"
 
-	"github.com/neilotoole/sq/libsq/core/slg"
+	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"golang.org/x/exp/slog"
 
@@ -126,7 +126,7 @@ func (d *driveri) Ping(_ context.Context, src *source.Source) error {
 	if err != nil {
 		return err
 	}
-	defer slg.WarnIfCloseError(d.log, r)
+	defer lg.WarnIfCloseError(d.log, r)
 
 	return nil
 }
@@ -230,7 +230,7 @@ func detectType(ctx context.Context, typ source.Type, log *slog.Logger,
 	if err != nil {
 		return source.TypeNone, 0, errz.Err(err)
 	}
-	defer slg.WarnIfCloseError(log, r)
+	defer lg.WarnIfCloseError(log, r)
 
 	delim := csvw.Comma
 	if typ == TypeTSV {

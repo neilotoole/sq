@@ -1,11 +1,11 @@
-package slg_test
+package lg_test
 
 import (
 	"context"
 	"os"
 	"testing"
 
-	"github.com/neilotoole/sq/libsq/core/slg"
+	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"golang.org/x/exp/slog"
 )
@@ -19,8 +19,8 @@ func TestSlg(t *testing.T) {
 	handler := slog.NewTextHandler(os.Stdout)
 	log := slog.New(handler)
 
-	ctx = slg.NewContext(ctx, log)
-	log = slg.FromContext(ctx)
+	ctx = lg.NewContext(ctx, log)
+	log = lg.FromContext(ctx)
 
 	log.Info("huzzah")
 }

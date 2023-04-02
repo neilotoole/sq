@@ -7,7 +7,7 @@ package ast
 import (
 	"reflect"
 
-	"github.com/neilotoole/sq/libsq/core/slg"
+	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"golang.org/x/exp/slog"
 
@@ -20,7 +20,7 @@ import (
 // Parse parses the SLQ input string and builds the AST.
 func Parse(log *slog.Logger, input string) (*AST, error) { //nolint:staticcheck
 	// REVISIT: We need a better solution for disabling parser logging.
-	log = slg.Discard() //nolint:staticcheck // Disable parser logging.
+	log = lg.Discard() //nolint:staticcheck // Disable parser logging.
 	ptree, err := parseSLQ(log, input)
 	if err != nil {
 		return nil, err

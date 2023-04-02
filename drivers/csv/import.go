@@ -8,9 +8,9 @@ import (
 	"strconv"
 	"unicode/utf8"
 
-	"golang.org/x/exp/slog"
+	"github.com/neilotoole/sq/libsq/core/lg"
 
-	"github.com/neilotoole/sq/libsq/core/slg"
+	"golang.org/x/exp/slog"
 
 	"github.com/shopspring/decimal"
 
@@ -44,7 +44,7 @@ func importCSV(ctx context.Context, log *slog.Logger, src *source.Source, openFn
 		return err
 	}
 
-	defer slg.WarnIfCloseError(log, r)
+	defer lg.WarnIfCloseError(log, r)
 
 	// We add the CR filter reader to deal with CSV files exported
 	// from Excel which can have the DOS-style \r EOL markers.

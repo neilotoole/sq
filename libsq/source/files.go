@@ -10,8 +10,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/lg"
+
 	"github.com/djherbis/fscache"
-	"github.com/neilotoole/sq/libsq/core/slg"
 	"golang.org/x/exp/slog"
 
 	"github.com/h2non/filetype"
@@ -54,14 +55,14 @@ func NewFiles(log *slog.Logger) (*Files, error) {
 
 	fcache, err := fscache.New(tmpdir, os.ModePerm, time.Hour)
 	if err != nil {
-		slg.WarnIfFuncError(log, fs.clnup.Run)
+		lg.WarnIfFuncError(log, fs.clnup.Run)
 		return nil, errz.Err(err)
 	}
 
 	fs.clnup.AddE(func() error {
 		log.Debug("About to clean fscache from dir: %s", tmpdir)
 		err = fcache.Clean()
-		slg.WarnIfError(log, err)
+		lg.WarnIfError(log, err)
 
 		return err
 	})
@@ -83,7 +84,7 @@ func (fs *Files) Size(src *Source) (size int64, err error) {
 		return 0, err
 	}
 
-	defer slg.WarnIfCloseError(fs.log, r)
+	defer lg.WarnIfCloseError(fs.log, r)
 
 	size, err = io.Copy(io.Discard, r)
 	if err != nil {
@@ -145,7 +146,7 @@ func (fs *Files) addFile(f *os.File, key string) (fscache.ReadAtCloser, error) {
 	}
 
 	if w == nil {
-		slg.WarnIfCloseError(fs.log, r)
+		lg.WarnIfCloseError(fs.log, r)
 		return nil, errz.Errorf("failed to add to fscache (possibly previously added): %s", key)
 	}
 
@@ -156,7 +157,7 @@ func (fs *Files) addFile(f *os.File, key string) (fscache.ReadAtCloser, error) {
 	// fscache can lazily read from f.
 	copied, err := io.Copy(w, f)
 	if err != nil {
-		slg.WarnIfCloseError(fs.log, r)
+		lg.WarnIfCloseError(fs.log, r)
 		return nil, errz.Err(err)
 	}
 
@@ -164,7 +165,7 @@ func (fs *Files) addFile(f *os.File, key string) (fscache.ReadAtCloser, error) {
 
 	err = errz.Combine(w.Close(), f.Close())
 	if err != nil {
-		slg.WarnIfCloseError(fs.log, r)
+		lg.WarnIfCloseError(fs.log, r)
 		return nil, err
 	}
 
@@ -465,7 +466,7 @@ func DetectMagicNumber(_ context.Context, log *slog.Logger, openFn FileOpenFunc,
 	if err != nil {
 		return TypeNone, 0, errz.Err(err)
 	}
-	defer slg.WarnIfCloseError(log, r)
+	defer lg.WarnIfCloseError(log, r)
 
 	// We only have to pass the file header = first 261 bytes
 	head := make([]byte, 261)

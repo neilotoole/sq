@@ -34,13 +34,13 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/neilotoole/sq/libsq/core/slg/lga"
+	"github.com/neilotoole/sq/libsq/core/lg"
+
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"github.com/neilotoole/sq/cli/buildinfo"
 
 	"golang.org/x/exp/slog"
-
-	"github.com/neilotoole/sq/libsq/core/slg"
 
 	"github.com/fatih/color"
 	"github.com/mattn/go-colorable"
@@ -94,7 +94,7 @@ func Execute(ctx context.Context, stdin *os.File, stdout, stderr io.Writer, args
 
 	defer rc.Close() // ok to call rc.Close on nil rc
 
-	ctx = slg.NewContext(ctx, rc.Log)
+	ctx = lg.NewContext(ctx, rc.Log)
 	return ExecuteWith(ctx, rc, args)
 }
 
@@ -102,7 +102,7 @@ func Execute(ctx context.Context, stdin *os.File, stdout, stderr io.Writer, args
 // resulting in a command being executed. The caller must
 // invoke rc.Close.
 func ExecuteWith(ctx context.Context, rc *RunContext, args []string) error {
-	log := slg.FromContext(ctx)
+	log := lg.FromContext(ctx)
 	log.Debug("EXECUTE", "args", strings.Join(args, " "))
 	log.Debug("Build info", "build", buildinfo.Info())
 	log.Debug("Config", "version", rc.Config.Version, "filepath", rc.ConfigStore.Location())
@@ -465,7 +465,7 @@ func (rc *RunContext) doInit() error {
 	var err error
 	rc.files, err = source.NewFiles(rc.Log)
 	if err != nil {
-		slg.WarnIfFuncError(rc.Log, rc.clnup.Run)
+		lg.WarnIfFuncError(rc.Log, rc.clnup.Run)
 		return err
 	}
 
@@ -743,7 +743,7 @@ func defaultLogging() (*slog.Logger, *cleanup.Cleanup, error) {
 
 	logFilePath, ok := os.LookupEnv(envarLogPath)
 	if !ok || logFilePath == "" || strings.TrimSpace(logFilePath) == "" {
-		return slg.Discard(), nil, nil
+		return lg.Discard(), nil, nil
 	}
 
 	// Let's try to create the dir holding the logfile... if it already exists,
@@ -751,7 +751,7 @@ func defaultLogging() (*slog.Logger, *cleanup.Cleanup, error) {
 	parent := filepath.Dir(logFilePath)
 	err := os.MkdirAll(parent, 0o750)
 	if err != nil {
-		return slg.Discard(), nil, errz.Wrapf(err, "failed to create parent dir of log file %s", logFilePath)
+		return lg.Discard(), nil, errz.Wrapf(err, "failed to create parent dir of log file %s", logFilePath)
 	}
 
 	flag := os.O_APPEND
@@ -761,7 +761,7 @@ func defaultLogging() (*slog.Logger, *cleanup.Cleanup, error) {
 
 	logFile, err := os.OpenFile(logFilePath, os.O_RDWR|os.O_CREATE|flag, 0o600)
 	if err != nil {
-		return slg.Discard(), nil, errz.Wrapf(err, "unable to open log file %q", logFilePath)
+		return lg.Discard(), nil, errz.Wrapf(err, "unable to open log file %q", logFilePath)
 	}
 	clnup := cleanup.New().AddE(logFile.Close)
 
@@ -824,7 +824,7 @@ func defaultConfig() (*config.Config, config.Store, error) {
 // redundancy; ultimately err will print if non-nil (even if
 // rc or any of its fields are nil).
 func printError(rc *RunContext, err error) {
-	log := slg.Discard()
+	log := lg.Discard()
 	if rc != nil && rc.Log != nil {
 		log = rc.Log
 	}
@@ -856,7 +856,7 @@ func printError(rc *RunContext, err error) {
 			cmdName = cmd.Name()
 		}
 
-		slg.Error(log, "nil command", err, lga.Cmd, cmdName)
+		lg.Error(log, "nil command", err, lga.Cmd, cmdName)
 
 		wrtrs := rc.writers
 		if wrtrs != nil && wrtrs.errw != nil {

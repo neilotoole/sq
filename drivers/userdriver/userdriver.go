@@ -10,7 +10,8 @@ import (
 	"database/sql"
 	"io"
 
-	"github.com/neilotoole/sq/libsq/core/slg"
+	"github.com/neilotoole/sq/libsq/core/lg"
+
 	"golang.org/x/exp/slog"
 
 	"github.com/neilotoole/sq/libsq/core/cleanup"
@@ -86,7 +87,7 @@ func (d *drvr) Open(ctx context.Context, src *source.Source) (driver.Database, e
 		return nil, err
 	}
 
-	defer slg.WarnIfCloseError(d.log, r)
+	defer lg.WarnIfCloseError(d.log, r)
 
 	scratchDB, err := d.scratcher.OpenScratch(ctx, src.Handle)
 	if err != nil {
@@ -96,7 +97,7 @@ func (d *drvr) Open(ctx context.Context, src *source.Source) (driver.Database, e
 
 	err = d.importFn(ctx, d.log, d.def, r, scratchDB)
 	if err != nil {
-		slg.WarnIfFuncError(d.log, clnup.Run)
+		lg.WarnIfFuncError(d.log, clnup.Run)
 		return nil, errz.Wrap(err, d.def.Name)
 	}
 

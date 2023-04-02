@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/slg"
+	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"golang.org/x/exp/slog"
 
@@ -445,7 +445,7 @@ func NewBatchInsert(ctx context.Context, log *slog.Logger, drvr SQLDriver, db sq
 					// If there's already an error, we just log any
 					// error from inserter.Close: the pre-existing error
 					// is the primary concern.
-					slg.WarnIfError(log, errz.Err(inserter.Close()))
+					lg.WarnIfError(log, errz.Err(inserter.Close()))
 				}
 			}
 

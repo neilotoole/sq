@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/slg"
+	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"golang.org/x/exp/slog"
 
@@ -123,7 +123,7 @@ func pingSources(ctx context.Context, log *slog.Logger, dp driver.Provider, srcs
 	if err := w.Open(srcs); err != nil {
 		return err
 	}
-	defer slg.WarnIfFuncError(log, w.Close)
+	defer lg.WarnIfFuncError(log, w.Close)
 
 	resultCh := make(chan pingResult, len(srcs))
 
@@ -157,7 +157,7 @@ func pingSources(ctx context.Context, log *slog.Logger, dp driver.Provider, srcs
 			pingErrExists = true
 		}
 
-		slg.WarnIfError(log, w.Result(result.src, result.duration, result.err))
+		lg.WarnIfError(log, w.Result(result.src, result.duration, result.err))
 	}
 
 	// If there's at least one error, we return the

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/neilotoole/sq/libsq/core/slg"
+	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"golang.org/x/exp/slog"
 
@@ -317,20 +317,20 @@ func (d *Databases) OpenScratch(ctx context.Context, name string) (Database, err
 
 	drvr, err := d.drvrs.DriverFor(scratchSrc.Type)
 	if err != nil {
-		slg.WarnIfFuncError(d.log, cleanFn)
+		lg.WarnIfFuncError(d.log, cleanFn)
 		return nil, err
 	}
 
 	sqlDrvr, ok := drvr.(SQLDriver)
 	if !ok {
-		slg.WarnIfFuncError(d.log, cleanFn)
+		lg.WarnIfFuncError(d.log, cleanFn)
 		return nil, errz.Errorf("driver for scratch source %s is not a SQLDriver but is %T", scratchSrc.Handle, drvr)
 	}
 
 	var backingDB Database
 	backingDB, err = sqlDrvr.Open(ctx, scratchSrc)
 	if err != nil {
-		slg.WarnIfFuncError(d.log, cleanFn)
+		lg.WarnIfFuncError(d.log, cleanFn)
 		return nil, err
 	}
 

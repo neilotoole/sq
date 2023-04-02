@@ -7,7 +7,8 @@ import (
 	stdj "encoding/json"
 	"io"
 
-	"github.com/neilotoole/sq/libsq/core/slg"
+	"github.com/neilotoole/sq/libsq/core/lg"
+
 	"golang.org/x/exp/slog"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -24,7 +25,7 @@ func DetectJSONL(ctx context.Context, log *slog.Logger,
 	if err != nil {
 		return source.TypeNone, 0, errz.Err(err)
 	}
-	defer slg.WarnIfCloseError(log, r)
+	defer lg.WarnIfCloseError(log, r)
 
 	sc := bufio.NewScanner(r)
 	var validLines int
@@ -82,14 +83,14 @@ func importJSONL(ctx context.Context, log *slog.Logger, job importJob) error { /
 	if err != nil {
 		return err
 	}
-	defer slg.WarnIfCloseError(log, r)
+	defer lg.WarnIfCloseError(log, r)
 
 	drvr := job.destDB.SQLDriver()
 	db, err := job.destDB.DB().Conn(ctx)
 	if err != nil {
 		return errz.Err(err)
 	}
-	defer slg.WarnIfCloseError(log, db)
+	defer lg.WarnIfCloseError(log, db)
 
 	proc := newProcessor(job.flatten)
 	scan := newLineScanner(ctx, r, '{')

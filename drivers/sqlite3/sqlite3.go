@@ -15,7 +15,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/slg"
+	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"golang.org/x/exp/slog"
 
@@ -103,7 +103,7 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 	if err != nil {
 		return 0, errz.Err(err)
 	}
-	defer slg.WarnIfFuncError(d.log, db.Close)
+	defer lg.WarnIfFuncError(d.log, db.Close)
 
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
@@ -150,7 +150,7 @@ func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 	if err != nil {
 		return err
 	}
-	defer slg.WarnIfCloseError(d.log, dbase)
+	defer lg.WarnIfCloseError(d.log, dbase)
 
 	return dbase.DB().Ping()
 }
@@ -556,7 +556,7 @@ func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *sqlmodel.
 
 	_, err = stmt.ExecContext(ctx)
 	if err != nil {
-		slg.WarnIfCloseError(d.log, stmt)
+		lg.WarnIfCloseError(d.log, stmt)
 		return errz.Err(err)
 	}
 
@@ -699,7 +699,7 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 	// column type info.
 	colTypes, err := rows.ColumnTypes()
 	if err != nil {
-		slg.WarnIfFuncError(d.log, rows.Close)
+		lg.WarnIfFuncError(d.log, rows.Close)
 		return nil, errz.Err(err)
 	}
 
@@ -709,14 +709,14 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 	if rows.Next() {
 		colTypes, err = rows.ColumnTypes()
 		if err != nil {
-			slg.WarnIfFuncError(d.log, rows.Close)
+			lg.WarnIfFuncError(d.log, rows.Close)
 			return nil, errz.Err(err)
 		}
 	}
 
 	err = rows.Err()
 	if err != nil {
-		slg.WarnIfFuncError(d.log, rows.Close)
+		lg.WarnIfFuncError(d.log, rows.Close)
 		return nil, errz.Err(err)
 	}
 

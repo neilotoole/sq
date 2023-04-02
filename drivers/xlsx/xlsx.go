@@ -6,7 +6,8 @@ import (
 	"database/sql"
 	"io"
 
-	"github.com/neilotoole/sq/libsq/core/slg"
+	"github.com/neilotoole/sq/libsq/core/lg"
+
 	"golang.org/x/exp/slog"
 
 	"github.com/tealeg/xlsx/v2"
@@ -51,7 +52,7 @@ func DetectXLSX(_ context.Context, log *slog.Logger, openFn source.FileOpenFunc)
 	if err != nil {
 		return source.TypeNone, 0, errz.Err(err)
 	}
-	defer slg.WarnIfCloseError(log, r)
+	defer lg.WarnIfCloseError(log, r)
 
 	data, err := io.ReadAll(r)
 	if err != nil {
@@ -91,7 +92,7 @@ func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Database,
 	if err != nil {
 		return nil, err
 	}
-	defer slg.WarnIfCloseError(d.log, r)
+	defer lg.WarnIfCloseError(d.log, r)
 
 	b, err := io.ReadAll(r)
 	if err != nil {
@@ -113,7 +114,7 @@ func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Database,
 
 	err = xlsxToScratch(ctx, d.log, src, xlFile, scratchDB)
 	if err != nil {
-		slg.WarnIfError(d.log, clnup.Run())
+		lg.WarnIfError(d.log, clnup.Run())
 		return nil, err
 	}
 
@@ -145,7 +146,7 @@ func (d *Driver) Ping(_ context.Context, src *source.Source) (err error) {
 		return err
 	}
 
-	defer slg.WarnIfCloseError(d.log, r)
+	defer lg.WarnIfCloseError(d.log, r)
 
 	b, err := io.ReadAll(r)
 	if err != nil {

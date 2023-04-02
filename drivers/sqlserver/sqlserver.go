@@ -9,9 +9,9 @@ import (
 	"strconv"
 	"strings"
 
-	"golang.org/x/exp/slog"
+	"github.com/neilotoole/sq/libsq/core/lg"
 
-	"github.com/neilotoole/sq/libsq/core/slg"
+	"golang.org/x/exp/slog"
 
 	mssql "github.com/microsoft/go-mssqldb"
 
@@ -113,7 +113,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database
 
 	err = db.PingContext(ctx)
 	if err != nil {
-		slg.WarnIfCloseError(d.log, db)
+		lg.WarnIfCloseError(d.log, db)
 		return nil, errz.Err(err)
 	}
 
@@ -135,7 +135,7 @@ func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 		return errz.Err(err)
 	}
 
-	defer slg.WarnIfCloseError(d.log, db)
+	defer lg.WarnIfCloseError(d.log, db)
 
 	err = db.PingContext(ctx)
 	return errz.Err(err)
@@ -164,7 +164,7 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 	if err != nil {
 		return 0, errz.Err(err)
 	}
-	defer slg.WarnIfFuncError(d.log, db.Close)
+	defer lg.WarnIfFuncError(d.log, db.Close)
 
 	affected, err = sqlz.ExecAffected(ctx, db, fmt.Sprintf("DELETE FROM %q", tbl))
 	if err != nil {
@@ -209,13 +209,13 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 
 	colTypes, err := rows.ColumnTypes()
 	if err != nil {
-		slg.WarnIfFuncError(d.log, rows.Close)
+		lg.WarnIfFuncError(d.log, rows.Close)
 		return nil, errz.Err(err)
 	}
 
 	err = rows.Err()
 	if err != nil {
-		slg.WarnIfFuncError(d.log, rows.Close)
+		lg.WarnIfFuncError(d.log, rows.Close)
 		return nil, errz.Err(err)
 	}
 
@@ -412,7 +412,7 @@ func (d *driveri) getTableColsMeta(ctx context.Context, db sqlz.DB, tblName stri
 
 	colTypes, err := rows.ColumnTypes()
 	if err != nil {
-		slg.WarnIfFuncError(d.log, rows.Close)
+		lg.WarnIfFuncError(d.log, rows.Close)
 		return nil, errz.Err(err)
 	}
 
@@ -422,7 +422,7 @@ func (d *driveri) getTableColsMeta(ctx context.Context, db sqlz.DB, tblName stri
 
 	destCols, _, err := d.RecordMeta(colTypes)
 	if err != nil {
-		slg.WarnIfFuncError(d.log, rows.Close)
+		lg.WarnIfFuncError(d.log, rows.Close)
 		return nil, errz.Err(err)
 	}
 

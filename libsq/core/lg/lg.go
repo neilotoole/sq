@@ -1,15 +1,15 @@
-// Package slg contains utility functions for working with slog.
+// Package lg contains utility functions for working with slog.
 // It implements the slog.NewContext and slog.FromContext funcs
 // that have recently been zapped from the slog proposal. I think you
 // had it right the first time, Go team. Hopefully this package is short-lived
 // and those funcs are put back.
-package slg
+package lg
 
 import (
 	"context"
 	"io"
 
-	"github.com/neilotoole/sq/libsq/core/slg/lga"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"golang.org/x/exp/slog"
 )

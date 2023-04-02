@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"sync"
 
-	"github.com/neilotoole/sq/libsq/core/slg"
+	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"golang.org/x/exp/slog"
 
@@ -213,7 +213,7 @@ func (w *DBWriter) rollback(tx *sql.Tx, causeErrs ...error) {
 		w.destDB.Source().Handle, w.destTbl, causeErrs[0])
 
 	rollbackErr := errz.Err(tx.Rollback())
-	slg.WarnIfError(w.log, rollbackErr)
+	lg.WarnIfError(w.log, rollbackErr)
 
 	w.addErrs(causeErrs...)
 	w.addErrs(rollbackErr)

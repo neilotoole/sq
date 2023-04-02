@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/slg"
+	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"golang.org/x/exp/slog"
 
@@ -125,7 +125,7 @@ func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 		return err
 	}
 
-	defer slg.WarnIfCloseError(d.log, dbase.DB())
+	defer lg.WarnIfCloseError(d.log, dbase.DB())
 
 	return dbase.DB().Ping()
 }
@@ -371,13 +371,13 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 
 	colTypes, err := rows.ColumnTypes()
 	if err != nil {
-		slg.WarnIfFuncError(d.log, rows.Close)
+		lg.WarnIfFuncError(d.log, rows.Close)
 		return nil, errz.Err(err)
 	}
 
 	err = rows.Err()
 	if err != nil {
-		slg.WarnIfFuncError(d.log, rows.Close)
+		lg.WarnIfFuncError(d.log, rows.Close)
 		return nil, errz.Err(err)
 	}
 
@@ -424,7 +424,7 @@ func getTableColumnNames(ctx context.Context, log *slog.Logger, db sqlz.DB, tblN
 	for rows.Next() {
 		err = rows.Scan(&colName)
 		if err != nil {
-			slg.WarnIfCloseError(log, rows)
+			lg.WarnIfCloseError(log, rows)
 			return nil, errz.Err(err)
 		}
 
@@ -432,7 +432,7 @@ func getTableColumnNames(ctx context.Context, log *slog.Logger, db sqlz.DB, tblN
 	}
 
 	if rows.Err() != nil {
-		slg.WarnIfCloseError(log, rows)
+		lg.WarnIfCloseError(log, rows)
 		return nil, errz.Err(err)
 	}
 

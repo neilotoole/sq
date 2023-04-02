@@ -5,7 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/slg"
+	"github.com/neilotoole/sq/libsq/core/lg"
+
 	"golang.org/x/exp/slog"
 
 	"github.com/tealeg/xlsx/v2"
@@ -86,7 +87,7 @@ func importSheetToTable(ctx context.Context, log *slog.Logger, sheet *xlsx.Sheet
 	if err != nil {
 		return errz.Err(err)
 	}
-	defer slg.WarnIfCloseError(log, conn)
+	defer lg.WarnIfCloseError(log, conn)
 
 	drvr := scratchDB.SQLDriver()
 

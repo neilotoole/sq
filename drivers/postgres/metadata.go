@@ -8,7 +8,8 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/slg"
+	"github.com/neilotoole/sq/libsq/core/lg"
+
 	"golang.org/x/exp/slog"
 
 	"github.com/jackc/pgconn"
@@ -264,7 +265,7 @@ func getPgSettings(ctx context.Context, log *slog.Logger, db sqlz.DB) ([]source.
 		return nil, errz.Err(err)
 	}
 
-	defer slg.WarnIfCloseError(log, rows)
+	defer lg.WarnIfCloseError(log, rows)
 	var dbVars []source.DBVar
 
 	for rows.Next() {
@@ -295,7 +296,7 @@ ORDER BY table_name`
 	if err != nil {
 		return nil, errz.Err(err)
 	}
-	defer slg.WarnIfCloseError(log, rows)
+	defer lg.WarnIfCloseError(log, rows)
 
 	var tblNames []string
 	for rows.Next() {
@@ -483,7 +484,7 @@ ORDER BY cols.table_catalog, cols.table_schema, cols.table_name, cols.ordinal_po
 		return nil, errz.Err(err)
 	}
 
-	defer slg.WarnIfCloseError(log, rows)
+	defer lg.WarnIfCloseError(log, rows)
 
 	var cols []*pgColumn
 	for rows.Next() {
@@ -568,7 +569,7 @@ WHERE kcu.table_catalog = current_catalog AND kcu.table_schema = current_schema(
 	if err != nil {
 		return nil, errz.Err(err)
 	}
-	defer slg.WarnIfCloseError(log, rows)
+	defer lg.WarnIfCloseError(log, rows)
 
 	var constraints []*pgConstraint
 

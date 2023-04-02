@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/neilotoole/sq/libsq/core/slg"
+	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 
@@ -291,7 +291,7 @@ func BenchmarkDatabase_SourceMetadata(b *testing.B) {
 		handle := handle
 		b.Run(handle, func(b *testing.B) {
 			th := testh.New(b)
-			th.Log = slg.Discard()
+			th.Log = lg.Discard()
 			dbase := th.Open(th.Source(handle))
 			b.ResetTimer()
 
