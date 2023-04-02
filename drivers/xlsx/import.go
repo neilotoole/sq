@@ -87,7 +87,7 @@ func importSheetToTable(ctx context.Context, log *slog.Logger, sheet *xlsx.Sheet
 	if err != nil {
 		return errz.Err(err)
 	}
-	defer lg.WarnIfCloseError(log, conn)
+	defer lg.WarnIfCloseError(log, "close db conn", conn)
 
 	drvr := scratchDB.SQLDriver()
 

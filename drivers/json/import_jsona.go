@@ -31,7 +31,7 @@ func DetectJSONA(ctx context.Context, log *slog.Logger,
 	if err != nil {
 		return source.TypeNone, 0, errz.Err(err)
 	}
-	defer lg.WarnIfCloseError(log, r)
+	defer lg.WarnIfCloseError(log, "close file reader", r)
 
 	sc := bufio.NewScanner(r)
 	var validLines int
@@ -98,7 +98,7 @@ func importJSONA(ctx context.Context, log *slog.Logger, job importJob) error {
 		return errz.Err(err)
 	}
 
-	defer lg.WarnIfCloseError(log, predictR)
+	defer lg.WarnIfCloseError(log, "close file reader", predictR)
 
 	colKinds, readMungeFns, err := detectColKindsJSONA(ctx, predictR)
 	if err != nil {
@@ -130,7 +130,7 @@ func importJSONA(ctx context.Context, log *slog.Logger, job importJob) error {
 	if err != nil {
 		return errz.Err(err)
 	}
-	defer lg.WarnIfCloseError(log, r)
+	defer lg.WarnIfCloseError(log, "close file reader", r)
 
 	insertWriter := libsq.NewDBWriter(log, job.destDB, tblDef.Name, driver.Tuning.RecordChSize)
 

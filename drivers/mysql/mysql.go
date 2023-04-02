@@ -322,7 +322,7 @@ func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 	if err != nil {
 		return err
 	}
-	defer lg.WarnIfCloseError(d.log, dbase.DB())
+	defer lg.WarnIfCloseError(d.log, "close db", dbase.DB())
 
 	return dbase.DB().PingContext(ctx)
 }

@@ -125,7 +125,7 @@ func QuerySQL(ctx context.Context, log *slog.Logger, dbase driver.Database, recw
 	if err != nil {
 		return errz.Wrapf(err, `SQL query against %s failed: %s`, dbase.Source().Handle, query)
 	}
-	defer lg.WarnIfCloseError(log, rows)
+	defer lg.WarnIfCloseError(log, "close db rows", rows)
 
 	// This next part is a bit ugly.
 	//

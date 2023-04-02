@@ -2,22 +2,16 @@ package lg_test
 
 import (
 	"context"
-	"os"
 	"testing"
 
-	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/slogt"
 
-	"golang.org/x/exp/slog"
+	"github.com/neilotoole/sq/libsq/core/lg"
 )
 
-func TestSlg(t *testing.T) {
-	_ = t
-	// FIXME: delete
+func TestContext(t *testing.T) {
 	ctx := context.Background()
-	_ = ctx
-
-	handler := slog.NewTextHandler(os.Stdout)
-	log := slog.New(handler)
+	log := slogt.New(t)
 
 	ctx = lg.NewContext(ctx, log)
 	log = lg.FromContext(ctx)

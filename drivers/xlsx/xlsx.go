@@ -52,7 +52,7 @@ func DetectXLSX(_ context.Context, log *slog.Logger, openFn source.FileOpenFunc)
 	if err != nil {
 		return source.TypeNone, 0, errz.Err(err)
 	}
-	defer lg.WarnIfCloseError(log, r)
+	defer lg.WarnIfCloseError(log, "close file reader", r)
 
 	data, err := io.ReadAll(r)
 	if err != nil {
@@ -92,7 +92,7 @@ func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Database,
 	if err != nil {
 		return nil, err
 	}
-	defer lg.WarnIfCloseError(d.log, r)
+	defer lg.WarnIfCloseError(d.log, "close file reader", r)
 
 	b, err := io.ReadAll(r)
 	if err != nil {
@@ -146,7 +146,7 @@ func (d *Driver) Ping(_ context.Context, src *source.Source) (err error) {
 		return err
 	}
 
-	defer lg.WarnIfCloseError(d.log, r)
+	defer lg.WarnIfCloseError(d.log, "close file reader", r)
 
 	b, err := io.ReadAll(r)
 	if err != nil {

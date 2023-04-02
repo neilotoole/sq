@@ -27,7 +27,7 @@ func DetectJSON(ctx context.Context, log *slog.Logger, openFn source.FileOpenFun
 	if err != nil {
 		return source.TypeNone, 0, errz.Err(err)
 	}
-	defer lg.WarnIfCloseError(log, r1)
+	defer lg.WarnIfCloseError(log, "close file reader", r1)
 
 	dec := stdj.NewDecoder(r1)
 	var tok stdj.Token
@@ -54,7 +54,7 @@ func DetectJSON(ctx context.Context, log *slog.Logger, openFn source.FileOpenFun
 		if err != nil {
 			return source.TypeNone, 0, errz.Err(err)
 		}
-		defer lg.WarnIfCloseError(log, r2)
+		defer lg.WarnIfCloseError(log, "close file reader", r2)
 
 		dec = stdj.NewDecoder(io.TeeReader(r2, buf))
 		var m map[string]any
@@ -96,7 +96,7 @@ func DetectJSON(ctx context.Context, log *slog.Logger, openFn source.FileOpenFun
 	if err != nil {
 		return source.TypeNone, 0, errz.Err(err)
 	}
-	defer lg.WarnIfCloseError(log, r2)
+	defer lg.WarnIfCloseError(log, "close file reader", r2)
 
 	sc := newObjectInArrayScanner(r2)
 	var validObjCount int
@@ -136,14 +136,14 @@ func importJSON(ctx context.Context, log *slog.Logger, job importJob) error {
 	if err != nil {
 		return err
 	}
-	defer lg.WarnIfCloseError(log, r)
+	defer lg.WarnIfCloseError(log, "close file reader", r)
 
 	drvr := job.destDB.SQLDriver()
 	db, err := job.destDB.DB().Conn(ctx)
 	if err != nil {
 		return errz.Err(err)
 	}
-	defer lg.WarnIfCloseError(log, db)
+	defer lg.WarnIfCloseError(log, "close db", db)
 
 	proc := newProcessor(job.flatten)
 	scan := newObjectInArrayScanner(r)

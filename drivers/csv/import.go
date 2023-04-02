@@ -44,7 +44,7 @@ func importCSV(ctx context.Context, log *slog.Logger, src *source.Source, openFn
 		return err
 	}
 
-	defer lg.WarnIfCloseError(log, r)
+	defer lg.WarnIfCloseError(log, "close file reader", r)
 
 	// We add the CR filter reader to deal with CSV files exported
 	// from Excel which can have the DOS-style \r EOL markers.

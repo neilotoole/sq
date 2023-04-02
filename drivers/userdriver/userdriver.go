@@ -87,7 +87,7 @@ func (d *drvr) Open(ctx context.Context, src *source.Source) (driver.Database, e
 		return nil, err
 	}
 
-	defer lg.WarnIfCloseError(d.log, r)
+	defer lg.WarnIfCloseError(d.log, "close file reader", r)
 
 	scratchDB, err := d.scratcher.OpenScratch(ctx, src.Handle)
 	if err != nil {

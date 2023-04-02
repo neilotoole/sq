@@ -150,7 +150,7 @@ func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 	if err != nil {
 		return err
 	}
-	defer lg.WarnIfCloseError(d.log, dbase)
+	defer lg.WarnIfCloseError(d.log, "close db", dbase)
 
 	return dbase.DB().Ping()
 }
@@ -556,7 +556,7 @@ func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *sqlmodel.
 
 	_, err = stmt.ExecContext(ctx)
 	if err != nil {
-		lg.WarnIfCloseError(d.log, stmt)
+		lg.WarnIfCloseError(d.log, "close db stmt", stmt)
 		return errz.Err(err)
 	}
 

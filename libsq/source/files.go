@@ -84,7 +84,7 @@ func (fs *Files) Size(src *Source) (size int64, err error) {
 		return 0, err
 	}
 
-	defer lg.WarnIfCloseError(fs.log, r)
+	defer lg.WarnIfCloseError(fs.log, "close file reader", r)
 
 	size, err = io.Copy(io.Discard, r)
 	if err != nil {
@@ -146,7 +146,7 @@ func (fs *Files) addFile(f *os.File, key string) (fscache.ReadAtCloser, error) {
 	}
 
 	if w == nil {
-		lg.WarnIfCloseError(fs.log, r)
+		lg.WarnIfCloseError(fs.log, "close file reader", r)
 		return nil, errz.Errorf("failed to add to fscache (possibly previously added): %s", key)
 	}
 
@@ -157,7 +157,7 @@ func (fs *Files) addFile(f *os.File, key string) (fscache.ReadAtCloser, error) {
 	// fscache can lazily read from f.
 	copied, err := io.Copy(w, f)
 	if err != nil {
-		lg.WarnIfCloseError(fs.log, r)
+		lg.WarnIfCloseError(fs.log, "close file reader", r)
 		return nil, errz.Err(err)
 	}
 
@@ -165,7 +165,7 @@ func (fs *Files) addFile(f *os.File, key string) (fscache.ReadAtCloser, error) {
 
 	err = errz.Combine(w.Close(), f.Close())
 	if err != nil {
-		lg.WarnIfCloseError(fs.log, r)
+		lg.WarnIfCloseError(fs.log, "close file reader", r)
 		return nil, err
 	}
 
@@ -466,7 +466,7 @@ func DetectMagicNumber(_ context.Context, log *slog.Logger, openFn FileOpenFunc,
 	if err != nil {
 		return TypeNone, 0, errz.Err(err)
 	}
-	defer lg.WarnIfCloseError(log, r)
+	defer lg.WarnIfCloseError(log, "close file reader", r)
 
 	// We only have to pass the file header = first 261 bytes
 	head := make([]byte, 261)

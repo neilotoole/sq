@@ -87,7 +87,7 @@ func WarnIfFuncError(log *slog.Logger, fn func() error) {
 
 // WarnIfCloseError executes c.Close if is non-nil, and logs a warning
 // if c.Close returns an error.
-func WarnIfCloseError(log *slog.Logger, c io.Closer) {
+func WarnIfCloseError(log *slog.Logger, msg string, c io.Closer) {
 	if c == nil {
 		return
 	}
@@ -97,7 +97,11 @@ func WarnIfCloseError(log *slog.Logger, c io.Closer) {
 		return
 	}
 
-	log.Warn(err.Error(), lga.Err, err)
+	if msg == "" {
+		msg = "close error"
+	}
+
+	log.Warn(msg, lga.Err, err)
 }
 
 // Error logs an error if err is non-nil.

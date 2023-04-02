@@ -125,7 +125,7 @@ func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 		return err
 	}
 
-	defer lg.WarnIfCloseError(d.log, dbase.DB())
+	defer lg.WarnIfCloseError(d.log, "close db", dbase.DB())
 
 	return dbase.DB().Ping()
 }
@@ -424,7 +424,7 @@ func getTableColumnNames(ctx context.Context, log *slog.Logger, db sqlz.DB, tblN
 	for rows.Next() {
 		err = rows.Scan(&colName)
 		if err != nil {
-			lg.WarnIfCloseError(log, rows)
+			lg.WarnIfCloseError(log, "close db rows", rows)
 			return nil, errz.Err(err)
 		}
 
@@ -432,7 +432,7 @@ func getTableColumnNames(ctx context.Context, log *slog.Logger, db sqlz.DB, tblN
 	}
 
 	if rows.Err() != nil {
-		lg.WarnIfCloseError(log, rows)
+		lg.WarnIfCloseError(log, "close db rows", rows)
 		return nil, errz.Err(err)
 	}
 

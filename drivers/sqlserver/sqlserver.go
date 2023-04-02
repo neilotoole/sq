@@ -113,7 +113,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database
 
 	err = db.PingContext(ctx)
 	if err != nil {
-		lg.WarnIfCloseError(d.log, db)
+		lg.WarnIfCloseError(d.log, "close db", db)
 		return nil, errz.Err(err)
 	}
 
@@ -135,7 +135,7 @@ func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 		return errz.Err(err)
 	}
 
-	defer lg.WarnIfCloseError(d.log, db)
+	defer lg.WarnIfCloseError(d.log, "close db", db)
 
 	err = db.PingContext(ctx)
 	return errz.Err(err)

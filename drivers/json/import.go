@@ -593,13 +593,13 @@ func execInsertions(ctx context.Context, log *slog.Logger, drvr driver.SQLDriver
 
 		err = execer.Munge(insert.vals)
 		if err != nil {
-			lg.WarnIfCloseError(log, execer)
+			lg.WarnIfCloseError(log, "close db stmt", execer)
 			return err
 		}
 
 		_, err = execer.Exec(ctx, insert.vals...)
 		if err != nil {
-			lg.WarnIfCloseError(log, execer)
+			lg.WarnIfCloseError(log, "close db stmt", execer)
 			return err
 		}
 

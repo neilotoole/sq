@@ -182,7 +182,7 @@ ORDER BY cols.ordinal_position ASC`
 	if err != nil {
 		return nil, errz.Err(err)
 	}
-	defer lg.WarnIfCloseError(log, rows)
+	defer lg.WarnIfCloseError(log, "close db rows", rows)
 
 	var cols []*source.ColMetadata
 
@@ -294,7 +294,7 @@ func getDBVarsMeta(ctx context.Context, log *slog.Logger, db sqlz.DB) ([]source.
 	if err != nil {
 		return nil, errz.Err(err)
 	}
-	defer lg.WarnIfCloseError(log, rows)
+	defer lg.WarnIfCloseError(log, "close db rows", rows)
 
 	for rows.Next() {
 		var dbVar source.DBVar
@@ -351,7 +351,7 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 	if err != nil {
 		return nil, errz.Err(err)
 	}
-	defer lg.WarnIfCloseError(log, rows)
+	defer lg.WarnIfCloseError(log, "close db rows", rows)
 
 	for rows.Next() {
 		select {
