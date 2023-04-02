@@ -55,7 +55,7 @@ func TestRecordWriterAdapter(t *testing.T) {
 
 			sink := &testh.RecordSink{}
 			recw := output.NewRecordWriterAdapter(sink)
-			err := libsq.QuerySQL(th.Context, th.Log, dbase, recw, tc.sqlQuery)
+			err := libsq.QuerySQL(th.Context, dbase, recw, tc.sqlQuery)
 			require.NoError(t, err)
 			written, err := recw.Wait()
 			require.NoError(t, err)

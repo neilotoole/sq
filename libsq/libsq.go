@@ -16,8 +16,6 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/lg"
 
-	"golang.org/x/exp/slog"
-
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/driver"
@@ -92,9 +90,8 @@ type RecordWriter interface {
 
 // ExecuteSLQ executes the slq query, writing the results to recw.
 // The caller is responsible for closing qc.
-func ExecuteSLQ(ctx context.Context, log *slog.Logger, qc *QueryContext, query string, recw RecordWriter,
-) error {
-	ng, err := newEngine(ctx, log, qc, query)
+func ExecuteSLQ(ctx context.Context, qc *QueryContext, query string, recw RecordWriter) error {
+	ng, err := newEngine(ctx, qc, query)
 	if err != nil {
 		return err
 	}
@@ -105,10 +102,9 @@ func ExecuteSLQ(ctx context.Context, log *slog.Logger, qc *QueryContext, query s
 // SLQ2SQL simulates execution of a SLQ query, but instead of executing
 // the resulting SQL query, that ultimate SQL is returned. Effectively it is
 // equivalent to libsq.ExecuteSLQ, but without the execution.
-func SLQ2SQL(ctx context.Context, log *slog.Logger, qc *QueryContext, query string,
-) (targetSQL string, err error) {
+func SLQ2SQL(ctx context.Context, qc *QueryContext, query string) (targetSQL string, err error) {
 	var ng *engine
-	ng, err = newEngine(ctx, log, qc, query)
+	ng, err = newEngine(ctx, qc, query)
 	if err != nil {
 		return "", err
 	}
@@ -120,9 +116,9 @@ func SLQ2SQL(ctx context.Context, log *slog.Logger, qc *QueryContext, query stri
 // before recw has finished writing, thus the caller may wish
 // to wait for recw to complete.
 // The caller is responsible for closing dbase.
-func QuerySQL(ctx context.Context, log *slog.Logger, dbase driver.Database, recw RecordWriter, query string,
-	args ...any,
-) error {
+func QuerySQL(ctx context.Context, dbase driver.Database, recw RecordWriter, query string, args ...any) error {
+	log := lg.FromContext(ctx)
+
 	rows, err := dbase.DB().QueryContext(ctx, query, args...)
 	if err != nil {
 		return errz.Wrapf(err, `SQL query against %s failed: %s`, dbase.Source().Handle, query)

@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/neilotoole/sq/libsq/core/lg"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"golang.org/x/exp/slog"
@@ -36,7 +38,9 @@ type engine struct {
 	targetDB driver.Database
 }
 
-func newEngine(ctx context.Context, log *slog.Logger, qc *QueryContext, query string) (*engine, error) {
+func newEngine(ctx context.Context, qc *QueryContext, query string) (*engine, error) {
+	log := lg.FromContext(ctx)
+
 	a, err := ast.Parse(log, query)
 	if err != nil {
 		return nil, err
@@ -153,7 +157,7 @@ func (ng *engine) execute(ctx context.Context, recw RecordWriter) error {
 		return err
 	}
 
-	return QuerySQL(ctx, ng.log, ng.targetDB, recw, ng.targetSQL)
+	return QuerySQL(ctx, ng.targetDB, recw, ng.targetSQL)
 }
 
 // executeTasks executes any tasks in engine.tasks.
@@ -164,7 +168,7 @@ func (ng *engine) executeTasks(ctx context.Context) error {
 	case 0:
 		return nil
 	case 1:
-		return ng.tasks[0].executeTask(ctx, ng.log)
+		return ng.tasks[0].executeTask(ctx)
 	default:
 	}
 
@@ -173,7 +177,7 @@ func (ng *engine) executeTasks(ctx context.Context) error {
 		task := task
 
 		g.Go(func() error {
-			return task.executeTask(gCtx, ng.log)
+			return task.executeTask(gCtx)
 		})
 	}
 
@@ -306,7 +310,7 @@ func (ng *engine) crossSourceJoin(ctx context.Context, fnJoin *ast.JoinNode) (fr
 // tasker is the interface for executing a DB task.
 type tasker interface {
 	// executeTask executes a task against the DB.
-	executeTask(ctx context.Context, log *slog.Logger) error
+	executeTask(ctx context.Context) error
 }
 
 // joinCopyTask is a specification of a table data copy task to be performed
@@ -320,14 +324,16 @@ type joinCopyTask struct {
 	toTblName   string
 }
 
-func (jt *joinCopyTask) executeTask(ctx context.Context, log *slog.Logger) error {
-	return execCopyTable(ctx, log, jt.fromDB, jt.fromTblName, jt.toDB, jt.toTblName)
+func (jt *joinCopyTask) executeTask(ctx context.Context) error {
+	return execCopyTable(ctx, jt.fromDB, jt.fromTblName, jt.toDB, jt.toTblName)
 }
 
 // execCopyTable performs the work of copying fromDB.fromTblName to destDB.destTblName.
-func execCopyTable(ctx context.Context, log *slog.Logger, fromDB driver.Database,
-	fromTblName string, destDB driver.Database, destTblName string,
+func execCopyTable(ctx context.Context, fromDB driver.Database, fromTblName string,
+	destDB driver.Database, destTblName string,
 ) error {
+	log := lg.FromContext(ctx)
+
 	createTblHook := func(ctx context.Context, originRecMeta sqlz.RecordMeta, destDB driver.Database,
 		tx sqlz.DB,
 	) error {
@@ -346,7 +352,7 @@ func execCopyTable(ctx context.Context, log *slog.Logger, fromDB driver.Database
 	inserter := NewDBWriter(log, destDB, destTblName, driver.Tuning.RecordChSize, createTblHook)
 
 	query := "SELECT * FROM " + fromDB.SQLDriver().Dialect().Enquote(fromTblName)
-	err := QuerySQL(ctx, log, fromDB, inserter, query)
+	err := QuerySQL(ctx, fromDB, inserter, query)
 	if err != nil {
 		return errz.Wrapf(err, "insert %s.%s failed", destDB.Source().Handle, destTblName)
 	}

@@ -372,7 +372,7 @@ func (h *Helper) Insert(src *source.Source, tbl string, cols []string, records .
 	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, conn)
 
 	batchSize := driver.MaxBatchRows(drvr, len(cols))
-	bi, err := driver.NewBatchInsert(h.Context, h.Log, drvr, conn, tbl, cols, batchSize)
+	bi, err := driver.NewBatchInsert(h.Context, drvr, conn, tbl, cols, batchSize)
 	require.NoError(h.T, err)
 
 	for _, rec := range records {
@@ -454,7 +454,7 @@ func (h *Helper) QuerySQL(src *source.Source, query string, args ...any) (*Recor
 
 	sink := &RecordSink{}
 	recw := output.NewRecordWriterAdapter(sink)
-	err := libsq.QuerySQL(h.Context, h.Log, dbase, recw, query, args...)
+	err := libsq.QuerySQL(h.Context, dbase, recw, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -486,7 +486,7 @@ func (h *Helper) QuerySLQ(query string) (*RecordSink, error) {
 	sink := &RecordSink{}
 	recw := output.NewRecordWriterAdapter(sink)
 
-	err = libsq.ExecuteSLQ(h.Context, h.Log, qc, query, recw)
+	err = libsq.ExecuteSLQ(h.Context, qc, query, recw)
 	if err != nil {
 		return nil, err
 	}

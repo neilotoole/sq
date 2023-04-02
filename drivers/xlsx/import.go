@@ -27,9 +27,8 @@ import (
 )
 
 // xlsxToScratch loads the data in xlFile into scratchDB.
-func xlsxToScratch(ctx context.Context, log *slog.Logger, src *source.Source, xlFile *xlsx.File,
-	scratchDB driver.Database,
-) error {
+func xlsxToScratch(ctx context.Context, src *source.Source, xlFile *xlsx.File, scratchDB driver.Database) error {
+	log := lg.FromContext(ctx)
 	start := time.Now()
 	log.Debug("Beginning import from XLSX",
 		lga.Src, src,
@@ -40,7 +39,7 @@ func xlsxToScratch(ctx context.Context, log *slog.Logger, src *source.Source, xl
 		return err
 	}
 
-	tblDefs, err := buildTblDefsForSheets(ctx, log, xlFile.Sheets, hasHeader)
+	tblDefs, err := buildTblDefsForSheets(ctx, xlFile.Sheets, hasHeader)
 	if err != nil {
 		return err
 	}
@@ -69,7 +68,7 @@ func xlsxToScratch(ctx context.Context, log *slog.Logger, src *source.Source, xl
 			skipped++
 			continue
 		}
-		err = importSheetToTable(ctx, log, xlFile.Sheets[i], hasHeader, scratchDB, tblDefs[i])
+		err = importSheetToTable(ctx, xlFile.Sheets[i], hasHeader, scratchDB, tblDefs[i])
 		if err != nil {
 			return err
 		}
@@ -89,10 +88,10 @@ func xlsxToScratch(ctx context.Context, log *slog.Logger, src *source.Source, xl
 
 // importSheetToTable imports sheet's data to its scratch table.
 // The scratch table must already exist.
-func importSheetToTable(ctx context.Context, log *slog.Logger, sheet *xlsx.Sheet,
-	hasHeader bool, scratchDB driver.Database,
-	tblDef *sqlmodel.TableDef,
+func importSheetToTable(ctx context.Context, sheet *xlsx.Sheet, hasHeader bool,
+	scratchDB driver.Database, tblDef *sqlmodel.TableDef,
 ) error {
+	log := lg.FromContext(ctx)
 	startTime := time.Now()
 
 	conn, err := scratchDB.DB().Conn(ctx)
@@ -106,7 +105,7 @@ func importSheetToTable(ctx context.Context, log *slog.Logger, sheet *xlsx.Sheet
 	destColKinds := tblDef.ColKinds()
 
 	batchSize := driver.MaxBatchRows(drvr, len(destColKinds))
-	bi, err := driver.NewBatchInsert(ctx, log, drvr, conn, tblDef.Name, tblDef.ColNames(), batchSize)
+	bi, err := driver.NewBatchInsert(ctx, drvr, conn, tblDef.Name, tblDef.ColNames(), batchSize)
 	if err != nil {
 		return err
 	}
@@ -177,16 +176,14 @@ func isEmptyRow(row *xlsx.Row) bool {
 
 // buildTblDefsForSheets returns a TableDef for each sheet. If the
 // sheet is empty (has no data), the TableDef for that sheet will be nil.
-func buildTblDefsForSheets(ctx context.Context, log *slog.Logger,
-	sheets []*xlsx.Sheet, hasHeader bool) ([]*sqlmodel.TableDef, error,
-) {
+func buildTblDefsForSheets(ctx context.Context, sheets []*xlsx.Sheet, hasHeader bool) ([]*sqlmodel.TableDef, error) {
 	tblDefs := make([]*sqlmodel.TableDef, len(sheets))
 
-	g, _ := errgroup.WithContext(ctx)
+	g, gCtx := errgroup.WithContext(ctx)
 	for i := range sheets {
 		i := i
 		g.Go(func() error {
-			tblDef, err := buildTblDefForSheet(log, sheets[i], hasHeader)
+			tblDef, err := buildTblDefForSheet(lg.FromContext(gCtx), sheets[i], hasHeader)
 			if err != nil {
 				return err
 			}
@@ -195,8 +192,7 @@ func buildTblDefsForSheets(ctx context.Context, log *slog.Logger,
 		})
 	}
 
-	err := g.Wait()
-	if err != nil {
+	if err := g.Wait(); err != nil {
 		return nil, err
 	}
 

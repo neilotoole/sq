@@ -141,7 +141,7 @@ func execSLQInsert(ctx context.Context, rc *RunContext, destSrc *source.Source, 
 		Args:         nil,
 	}
 
-	execErr := libsq.ExecuteSLQ(ctx, rc.Log, qc, slq, inserter)
+	execErr := libsq.ExecuteSLQ(ctx, qc, slq, inserter)
 	affected, waitErr := inserter.Wait() // Wait for the writer to finish processing
 	if execErr != nil {
 		return errz.Wrapf(execErr, "insert %s.%s failed", destSrc.Handle, destTbl)
@@ -170,7 +170,7 @@ func execSLQPrint(ctx context.Context, rc *RunContext) error {
 	}
 
 	recw := output.NewRecordWriterAdapter(rc.writers.recordw)
-	execErr := libsq.ExecuteSLQ(ctx, rc.Log, qc, slq, recw)
+	execErr := libsq.ExecuteSLQ(ctx, qc, slq, recw)
 	_, waitErr := recw.Wait()
 	if execErr != nil {
 		return execErr

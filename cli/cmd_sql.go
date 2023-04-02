@@ -116,7 +116,7 @@ func execSQLPrint(ctx context.Context, rc *RunContext, fromSrc *source.Source) e
 	}
 
 	recw := output.NewRecordWriterAdapter(rc.writers.recordw)
-	err = libsq.QuerySQL(ctx, rc.Log, dbase, recw, args[0])
+	err = libsq.QuerySQL(ctx, dbase, recw, args[0])
 	if err != nil {
 		return err
 	}
@@ -154,7 +154,7 @@ func execSQLInsert(ctx context.Context, rc *RunContext, fromSrc, destSrc *source
 		driver.Tuning.RecordChSize,
 		libsq.DBWriterCreateTableIfNotExistsHook(destTbl),
 	)
-	err = libsq.QuerySQL(ctx, rc.Log, fromDB, inserter, args[0])
+	err = libsq.QuerySQL(ctx, fromDB, inserter, args[0])
 	if err != nil {
 		return errz.Wrapf(err, "insert to {%s} failed", source.Target(destSrc, destTbl))
 	}

@@ -13,8 +13,6 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/lg"
 
-	"golang.org/x/exp/slog"
-
 	"go.uber.org/atomic"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -409,9 +407,11 @@ func (bi BatchInsert) Munge(rec []any) error {
 // it must be a sql.Conn or sql.Tx.
 //
 //nolint:gocognit
-func NewBatchInsert(ctx context.Context, log *slog.Logger, drvr SQLDriver, db sqlz.DB,
+func NewBatchInsert(ctx context.Context, drvr SQLDriver, db sqlz.DB,
 	destTbl string, destColNames []string, batchSize int,
 ) (*BatchInsert, error) {
+	log := lg.FromContext(ctx)
+
 	err := requireSingleConn(db)
 	if err != nil {
 		return nil, err

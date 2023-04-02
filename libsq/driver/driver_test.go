@@ -298,7 +298,7 @@ func TestNewBatchInsert(t *testing.T) {
 
 			// Get records from TblActor that we'll write to the new tbl
 			recMeta, recs := testh.RecordsFromTbl(t, handle, sakila.TblActor)
-			bi, err := driver.NewBatchInsert(th.Context, th.Log, drvr, conn, tblName, recMeta.Names(), batchSize)
+			bi, err := driver.NewBatchInsert(th.Context, drvr, conn, tblName, recMeta.Names(), batchSize)
 			require.NoError(t, err)
 
 			for _, rec := range recs {

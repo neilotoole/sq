@@ -117,7 +117,7 @@ func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Database,
 	clnup := cleanup.New()
 	clnup.AddE(scratchDB.Close)
 
-	err = xlsxToScratch(ctx, d.log, src, xlFile, scratchDB)
+	err = xlsxToScratch(ctx, src, xlFile, scratchDB)
 	if err != nil {
 		lg.WarnIfError(d.log, lgm.CloseDB, clnup.Run())
 		return nil, err

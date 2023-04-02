@@ -96,7 +96,7 @@ func execQueryTestCase(t *testing.T, tc queryTestCase) {
 				Args:         tc.args,
 			}
 
-			gotSQL, gotErr := libsq.SLQ2SQL(th.Context, th.Log, qc, in)
+			gotSQL, gotErr := libsq.SLQ2SQL(th.Context, qc, in)
 			if tc.wantErr {
 				require.Error(t, gotErr)
 				return
