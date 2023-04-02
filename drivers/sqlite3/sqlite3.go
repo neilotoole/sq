@@ -15,6 +15,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -78,7 +80,7 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 
 // Open implements driver.Driver.
 func (d *driveri) Open(_ context.Context, src *source.Source) (driver.Database, error) {
-	d.log.Debug("Opening data source: ", src)
+	d.log.Debug("Opening data source", lga.Src, src)
 
 	dsn, err := PathFromLocation(src)
 	if err != nil {
@@ -821,11 +823,11 @@ func (d *database) Close() error {
 	defer d.closeMu.Unlock()
 
 	if d.closed {
-		d.log.Warn("SQLite DB already closed: %v", d.src)
+		d.log.Warn("SQLite DB already closed", lga.Src, d.src)
 		return nil
 	}
 
-	d.log.Debug("Closing database: %s", d.src)
+	d.log.Debug("Closing database", lga.Src, d.src)
 	err := errz.Err(d.db.Close())
 	d.closed = true
 	return err
@@ -842,7 +844,7 @@ func NewScratchSource(log *slog.Logger, name string) (src *source.Source, clnup 
 		return nil, cleanFn, err
 	}
 
-	log.Debug("created sqlite3 scratch data source file: %s", f.Name())
+	log.Debug("created sqlite3 scratch data source file", lga.Path, f.Name())
 
 	src = &source.Source{
 		Type:     Type,

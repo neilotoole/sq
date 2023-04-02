@@ -9,6 +9,8 @@ import (
 	"io"
 	"strconv"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -199,7 +201,7 @@ func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error)
 
 // Close implements driver.Database.
 func (d *database) Close() error {
-	d.log.Debug("Close database: %s", d.src)
+	d.log.Debug("Close database", lga.Src, d.src)
 
 	return errz.Err(d.impl.Close())
 }

@@ -6,6 +6,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
 	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"golang.org/x/exp/slog"
@@ -315,7 +317,7 @@ func (d *Databases) OpenScratch(ctx context.Context, name string) (Database, err
 		// if err is non-nil, cleanup is guaranteed to be nil
 		return nil, err
 	}
-	d.log.Debug("Will open Scratch src %s: %s", scratchSrc.Handle, scratchSrc.RedactedLocation())
+	d.log.Debug("Opening scratch src", lga.Src, scratchSrc)
 
 	drvr, err := d.drvrs.DriverFor(scratchSrc.Type)
 	if err != nil {
@@ -367,7 +369,7 @@ func (d *Databases) OpenJoin(ctx context.Context, src1, src2 *source.Source, src
 
 // Close closes d, invoking Close on any instances opened via d.Open.
 func (d *Databases) Close() error {
-	d.log.Debug("Closing %d databases(s)", d.clnup.Len())
+	d.log.Debug("Closing databases(s)", lga.Count, d.clnup.Len())
 	return d.clnup.Run()
 }
 

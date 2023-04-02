@@ -10,6 +10,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -61,7 +63,7 @@ func NewFiles(log *slog.Logger) (*Files, error) {
 	}
 
 	fs.clnup.AddE(func() error {
-		log.Debug("About to clean fscache from dir: %s", tmpdir)
+		log.Debug("About to clean fscache from dir", lga.Path, tmpdir)
 		err = fcache.Clean()
 		lg.WarnIfError(log, "close file cache", err)
 
@@ -140,7 +142,7 @@ func (fs *Files) TypeStdin(ctx context.Context) (Type, error) {
 // add file copies f to fs's cache, returning a reader which the
 // caller is responsible for closing. f is closed by this method.
 func (fs *Files) addFile(f *os.File, key string) (fscache.ReadAtCloser, error) {
-	fs.log.Debug("Adding file with key %q: %s", key, f.Name())
+	fs.log.Debug("Adding file", lga.Key, key, lga.Path, f.Name())
 	r, w, err := fs.fcache.Get(key)
 	if err != nil {
 		return nil, errz.Err(err)
@@ -156,13 +158,11 @@ func (fs *Files) addFile(f *os.File, key string) (fscache.ReadAtCloser, error) {
 	// everything is held up until f is fully copied. Hopefully we can
 	// do something with fscache so that the readers returned from
 	// fscache can lazily read from f.
-	copied, err := io.Copy(w, f)
+	_, err = io.Copy(w, f)
 	if err != nil {
 		lg.WarnIfCloseError(fs.log, lgm.CloseFileReader, r)
 		return nil, errz.Err(err)
 	}
-
-	fs.log.Debug("Copied %d bytes to fscache from: %s", copied, key)
 
 	err = errz.Combine(w.Close(), f.Close())
 	if err != nil {
@@ -323,7 +323,7 @@ func (fs *Files) fetch(loc string) (fpath string, err error) {
 
 // Close closes any open resources.
 func (fs *Files) Close() error {
-	fs.log.Debug("Files.Close invoked: has %d clean funcs", fs.clnup.Len())
+	fs.log.Debug("Files.Close invoked: executing clean funcs", lga.Count, fs.clnup.Len())
 
 	return fs.clnup.Run()
 }

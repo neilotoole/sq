@@ -5,6 +5,10 @@ import (
 	"database/sql"
 	"sync"
 
+	"github.com/neilotoole/sq/libsq/source"
+
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -157,7 +161,8 @@ func (w *DBWriter) Open(ctx context.Context, cancelFn context.CancelFunc, recMet
 						w.log.Error(commitErr.Error())
 						w.addErrs(commitErr)
 					} else {
-						w.log.Debug("Tx commit success for %s.%s", w.destDB.Source().Handle, w.destTbl)
+						w.log.Debug("Tx commit success",
+							lga.Target, source.Target(w.destDB.Source(), w.destTbl))
 					}
 
 					return

@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"unicode/utf8"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -106,7 +108,10 @@ func importCSV(ctx context.Context, log *slog.Logger, src *source.Source, openFn
 		return err
 	}
 
-	log.Debug("Inserted %d rows to %s.%s", inserted, scratchDB.Source().Handle, tblDef.Name)
+	log.Debug("Inserted rows",
+		lga.Count, inserted,
+		lga.Target, source.Target(scratchDB.Source(), tblDef.Name),
+	)
 	return nil
 }
 

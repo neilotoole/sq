@@ -46,6 +46,15 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+func init() { //nolint:gochecknoinits
+	slogt.Default = slogt.Factory(func(w io.Writer) slog.Handler {
+		return slog.HandlerOptions{
+			Level:     slog.LevelDebug,
+			AddSource: true,
+		}.NewTextHandler(w)
+	})
+}
+
 // Helper encapsulates a test helper session.
 type Helper struct {
 	mu sync.Mutex

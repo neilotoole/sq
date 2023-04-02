@@ -7,6 +7,6 @@ const (
 	CloseDBStmt     = "close db stmt"
 	CloseFileReader = "close file reader"
 	TxRollback      = "db tx rollback"
-	CtxDone         = "context done unexpectedly"
+	CtxDone         = "context unexpectedly done"
 	ReadDBRows      = "read db rows"
 )

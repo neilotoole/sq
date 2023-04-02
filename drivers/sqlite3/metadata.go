@@ -8,6 +8,8 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -76,7 +78,10 @@ func setScanType(log *slog.Logger, colType *sqlz.ColumnTypeData) {
 	switch knd {
 	default:
 		// Shouldn't happen?
-		log.Warn("Unknown kind for col '%s' with database type '%s'", colType.Name, colType.DatabaseTypeName)
+		log.Warn("Unknown kind for col",
+			lga.Col, colType.Name,
+			lga.DBType, colType.DatabaseTypeName,
+		)
 		scanType = sqlz.RTypeAny
 
 	case kind.Text, kind.Decimal:
