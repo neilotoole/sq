@@ -117,7 +117,7 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 		if v != "" {
 			_, err := strconv.ParseBool(v)
 			if err != nil {
-				return nil, errz.Errorf(`unable to parse option {%s}: %v`, key, err)
+				return nil, errz.Wrapf(err, "unable to parse option {%s} having value {%s}", key, v)
 			}
 		}
 	}

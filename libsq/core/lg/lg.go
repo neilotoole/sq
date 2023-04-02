@@ -24,7 +24,7 @@ func NewContext(ctx context.Context, l *slog.Logger) context.Context {
 	return context.WithValue(ctx, contextKey{}, l)
 }
 
-// FromContext returns the Logger stored in ctx by NewContext, or the default
+// FromContext returns the Logger stored in ctx by NewContext, or the Discard
 // Logger if there is none.
 func FromContext(ctx context.Context) *slog.Logger {
 	if l, ok := ctx.Value(contextKey{}).(*slog.Logger); ok {

@@ -3,6 +3,9 @@ package ast
 import (
 	"reflect"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+	"github.com/neilotoole/sq/libsq/core/stringz"
+
 	"golang.org/x/exp/slog"
 )
 
@@ -200,7 +203,7 @@ func narrowColSel(log *slog.Logger, w *Walker, node Node) error {
 		}
 
 		if parent.SegIndex() <= selectableSeg.SegIndex() {
-			log.Debug("skipping this selector because it's not after the final selectable segment")
+			log.Debug("Skipping this selector because it's not after the final selectable segment")
 			return nil
 		}
 
@@ -211,7 +214,7 @@ func narrowColSel(log *slog.Logger, w *Walker, node Node) error {
 		return nodeReplace(sel, colSel)
 
 	default:
-		log.Warn("skipping this selector, as parent is not of a relevant type, but is %T", parent)
+		log.Warn("Skipping this selector, as parent is not of a relevant type", lga.Type, stringz.Type(parent))
 	}
 
 	return nil

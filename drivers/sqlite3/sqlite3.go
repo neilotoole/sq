@@ -844,7 +844,7 @@ func NewScratchSource(log *slog.Logger, name string) (src *source.Source, clnup 
 		return nil, cleanFn, err
 	}
 
-	log.Debug("created sqlite3 scratch data source file", lga.Path, f.Name())
+	log.Debug("Created sqlite3 scratchdb data file", lga.Path, f.Name())
 
 	src = &source.Source{
 		Type:     Type,

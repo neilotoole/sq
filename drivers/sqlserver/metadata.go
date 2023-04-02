@@ -156,7 +156,7 @@ GROUP BY database_id) AS total_size_bytes`
 				if hasErrCode(err, errCodeObjectNotExist) {
 					// This can happen if the table is dropped while
 					// we're collecting metadata. We log a warning and continue.
-					log.Warn("table metadata: table %q appears not to exist (continuing regardless): %v",
+					log.Warn("Table metadata: table %q appears not to exist (continuing regardless): %v",
 						tblNames[i], err)
 
 					return nil

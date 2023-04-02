@@ -2,6 +2,7 @@ package xlsx
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -324,7 +325,7 @@ func rowToRecord(log *slog.Logger, destColKinds []kind.Kind, row *xlsx.Row, shee
 	vals := make([]any, len(destColKinds))
 	for j, cell := range row.Cells {
 		if j >= len(vals) {
-			log.Warn("sheet %s[%d:%d]: skipping additional cells because there's more cells than expected (%d)",
+			log.Warn("Sheet %s[%d:%d]: skipping additional cells because there's more cells than expected (%d)",
 				sheetName, rowIndex, j, len(destColKinds))
 			continue
 		}
@@ -337,7 +338,7 @@ func rowToRecord(log *slog.Logger, destColKinds []kind.Kind, row *xlsx.Row, shee
 			if cell.IsTime() {
 				t, err := cell.GetTime(false)
 				if err != nil {
-					log.Warn("sheet %s[%d:%d]: failed to get Excel time: %v", sheetName, rowIndex, j, err)
+					log.Warn("Sheet %s[%d:%d]: failed to get Excel time: %v", sheetName, rowIndex, j, err)
 					vals[j] = nil
 					continue
 				}
@@ -364,8 +365,12 @@ func rowToRecord(log *slog.Logger, destColKinds []kind.Kind, row *xlsx.Row, shee
 
 			// it's not an int, it's not a float, it's not empty string;
 			// just give up and make it a string.
-			log.Warn("Failed to determine type of numeric cell [%s:%d:%d] from value: {%s}", sheetName, rowIndex, j,
-				cell.Value)
+			log.Warn("Failed to determine type of numeric cell",
+				"sheet", sheetName,
+				"cell", fmt.Sprintf("%d:%d", rowIndex, j),
+				lga.Val, cell.Value,
+			)
+
 			vals[j] = cell.Value
 			// FIXME: prob should return an error here?
 		case xlsx.CellTypeString:

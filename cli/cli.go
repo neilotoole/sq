@@ -547,7 +547,7 @@ func (rc *RunContext) Close() error {
 
 	err := rc.clnup.Run()
 	if err != nil && rc.Log != nil {
-		rc.Log.Warn("failed to close RunContext", lga.Err, err)
+		rc.Log.Warn("Failed to close RunContext", lga.Err, err)
 	}
 
 	return err

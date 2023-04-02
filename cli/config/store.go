@@ -133,16 +133,16 @@ func (fs *YAMLFileStore) loadExt(cfg *Config) error {
 		}
 	}
 
-	for _, f := range extCfgCandidates {
-		bytes, err := os.ReadFile(f)
+	for _, fp := range extCfgCandidates {
+		bytes, err := os.ReadFile(fp)
 		if err != nil {
-			return errz.Wrapf(err, "error reading config ext file: %s", f)
+			return errz.Wrapf(err, "error reading config ext file: %s", fp)
 		}
 		ext := &Ext{}
 
 		err = yaml.Unmarshal(bytes, ext)
 		if err != nil {
-			return errz.Wrapf(err, "error parsing config ext file: %s", f)
+			return errz.Wrapf(err, "error parsing config ext file: %s", fp)
 		}
 
 		cfg.Ext.UserDrivers = append(cfg.Ext.UserDrivers, ext.UserDrivers...)
