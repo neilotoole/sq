@@ -279,7 +279,7 @@ func (p *processor) doAddObject(ent *entity, m map[string]any) error {
 			if !ok {
 				p.markSchemaDirty(ent)
 				if stringz.InSlice(ent.fieldNames, fieldName) {
-					return errz.Errorf("JSON field %q was previously detected as a nested field (object or array)")
+					return errz.Errorf("JSON field %q was previously detected as a nested field (object or array)", fieldName)
 				}
 
 				ent.fieldNames = append(ent.fieldNames, fieldName)
@@ -325,7 +325,8 @@ func (p *processor) buildInsertionsFlat(schema *importSchema) ([]*insertion, err
 			// For each entity, we get its values and add them to colVals.
 			for colName, val := range fieldVals {
 				if _, ok := colVals[colName]; ok {
-					return nil, errz.Errorf("column %q already exists, but found column with same name in %q", ent)
+					return nil, errz.Errorf("column {%s} already exists, but found column with same name in {%s}",
+						colName, ent)
 				}
 
 				colVals[colName] = val

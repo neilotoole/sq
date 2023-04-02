@@ -590,3 +590,8 @@ func SingleQuote(s string) string {
 	sb.WriteRune(q)
 	return sb.String()
 }
+
+// Type returns the printed type of v.
+func Type(v any) string {
+	return fmt.Sprintf("%T", v)
+}

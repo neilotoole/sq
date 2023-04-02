@@ -74,7 +74,7 @@ type OrderByTermNode struct {
 // AddChild accepts a single child of type *SelectorNode.
 func (n *OrderByTermNode) AddChild(child Node) error {
 	if len(n.children) > 0 {
-		return errorf("%s is only allowed a single child")
+		return errorf("%T is only allowed a single child", n)
 	}
 
 	selNode, ok := child.(*SelectorNode)

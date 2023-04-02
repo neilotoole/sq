@@ -5,6 +5,9 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/neilotoole/slogt"
+	"github.com/neilotoole/sq/libsq/core/slg/lga"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/stretchr/testify/require"
 )
@@ -37,4 +40,17 @@ type CustomError struct {
 
 func (e *CustomError) Error() string {
 	return e.msg
+}
+
+func TestLogError_LogValue(t *testing.T) {
+	log := slogt.New(t)
+	nakedErr := sql.ErrNoRows
+
+	log.Debug("naked", lga.Err, nakedErr)
+
+	zErr := errz.Err(nakedErr)
+	log.Debug("via errz.Err", lga.Err, zErr)
+
+	wrapErr := errz.Wrap(nakedErr, "wrap me")
+	log.Debug("via errz.Wrap", lga.Err, wrapErr)
 }

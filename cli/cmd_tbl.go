@@ -70,7 +70,7 @@ func execTblCopy(cmd *cobra.Command, args []string) error {
 	}
 
 	if tblHandles[0].tbl == "" {
-		return errz.Errorf("arg %q does not specify a table name")
+		return errz.Errorf("arg %q does not specify a table name", args[0])
 	}
 
 	switch len(tblHandles) {

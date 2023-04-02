@@ -34,6 +34,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/neilotoole/sq/libsq/core/slg/lga"
+
 	"github.com/neilotoole/sq/cli/buildinfo"
 
 	"golang.org/x/exp/slog"
@@ -763,10 +765,20 @@ func defaultLogging() (*slog.Logger, *cleanup.Cleanup, error) {
 	}
 	clnup := cleanup.New().AddE(logFile.Close)
 
+	replace := func(groups []string, a slog.Attr) slog.Attr {
+		// We want source to be "pkg/file.go".
+		// FIXME: uncomment this
+		// if a.Key == slog.SourceKey {
+		//	fp := a.Value.String()
+		//	a.Value = slog.StringValue(filepath.Join(filepath.Base(filepath.Dir(fp)), filepath.Base(fp)))
+		// }
+		return a
+	}
+
 	opts := slog.HandlerOptions{
 		AddSource:   true,
 		Level:       slog.LevelDebug,
-		ReplaceAttr: nil,
+		ReplaceAttr: replace,
 	}
 
 	log := slog.New(opts.NewJSONHandler(logFile))
@@ -841,9 +853,10 @@ func printError(rc *RunContext, err error) {
 
 		cmdName := "unknown"
 		if cmd != nil {
-			cmdName = fmt.Sprintf("[cmd:%s] ", cmd.Name())
+			cmdName = cmd.Name()
 		}
-		log.Error("%s [%T] %+v", cmdName, err, err)
+
+		slg.Error(log, "nil command", err, lga.Cmd, cmdName)
 
 		wrtrs := rc.writers
 		if wrtrs != nil && wrtrs.errw != nil {

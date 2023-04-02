@@ -1,4 +1,5 @@
-// Package slg implements the slog.NewContext and slog.FromContext funcs
+// Package slg contains utility functions for working with slog.
+// It implements the slog.NewContext and slog.FromContext funcs
 // that have recently been zapped from the slog proposal. I think you
 // had it right the first time, Go team. Hopefully this package is short-lived
 // and those funcs are put back.
@@ -7,6 +8,8 @@ package slg
 import (
 	"context"
 	"io"
+
+	"github.com/neilotoole/sq/libsq/core/slg/lga"
 
 	"golang.org/x/exp/slog"
 )
@@ -58,15 +61,18 @@ func (d discardHandler) WithGroup(_ string) slog.Handler {
 	return d
 }
 
-func WarnIfError(l *slog.Logger, err error) {
+// WarnIfError logs a warning if err is non-nil.
+func WarnIfError(log *slog.Logger, err error) {
 	if err == nil {
 		return
 	}
 
-	l.Warn(err.Error())
+	log.Warn(err.Error(), lga.Err, err)
 }
 
-func WarnIfFuncError(l *slog.Logger, fn func() error) {
+// WarnIfFuncError executes fn (if non-nil), and logs a warning
+// if fn returns an error.
+func WarnIfFuncError(log *slog.Logger, fn func() error) {
 	if fn == nil {
 		return
 	}
@@ -76,10 +82,12 @@ func WarnIfFuncError(l *slog.Logger, fn func() error) {
 		return
 	}
 
-	l.Warn(err.Error())
+	log.Warn(err.Error(), lga.Err, err)
 }
 
-func WarnIfCloseError(l *slog.Logger, c io.Closer) {
+// WarnIfCloseError executes c.Close if is non-nil, and logs a warning
+// if c.Close returns an error.
+func WarnIfCloseError(log *slog.Logger, c io.Closer) {
 	if c == nil {
 		return
 	}
@@ -89,5 +97,17 @@ func WarnIfCloseError(l *slog.Logger, c io.Closer) {
 		return
 	}
 
-	l.Warn(err.Error())
+	log.Warn(err.Error(), lga.Err, err)
+}
+
+// Error logs an error if err is non-nil.
+func Error(log *slog.Logger, msg string, err error, args ...any) {
+	if err == nil {
+		return
+	}
+
+	a := []any{lga.Err, err}
+	a = append(a, args...)
+
+	log.Error(msg, a...)
 }

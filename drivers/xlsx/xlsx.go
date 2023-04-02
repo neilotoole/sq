@@ -216,7 +216,7 @@ func (d *database) SourceMetadata(_ context.Context) (*source.Metadata, error) {
 
 	xlFile, err := xlsx.OpenBinary(b)
 	if err != nil {
-		return nil, errz.Errorf("unable to open XLSX file: ", d.src.Location, err)
+		return nil, errz.Wrapf(err, "unable to open XLSX file: %s", d.src.Location)
 	}
 
 	hasHeader, _, err := options.HasHeader(d.src.Options)
@@ -260,7 +260,7 @@ func (d *database) TableMetadata(_ context.Context, tblName string) (*source.Tab
 
 	xlFile, err := xlsx.OpenBinary(b)
 	if err != nil {
-		return nil, errz.Errorf("unable to open XLSX file: ", d.src.Location, err)
+		return nil, errz.Wrapf(err, "unable to open XLSX file: %s", d.src.Location)
 	}
 
 	hasHeader, _, err := options.HasHeader(d.src.Options)

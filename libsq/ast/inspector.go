@@ -143,7 +143,8 @@ func (in *Inspector) FindOrderByNode() (*OrderByNode, error) {
 			return node, nil
 		default:
 			// Shouldn't be possible
-			return nil, errorf("Segment {%s} has %d OrderByNode children, but should have a max of 1", segs[i])
+			return nil, errorf("segment {%s} has %d OrderByNode children, but max is 1",
+				segs[i], len(nodes))
 		}
 	}
 
@@ -166,7 +167,8 @@ func (in *Inspector) FindGroupByNode() (*GroupByNode, error) {
 			return node, nil
 		default:
 			// Shouldn't be possible
-			return nil, errorf("Segment {%s} has %d GroupByNode children, but should have a max of 1", segs[i])
+			return nil, errorf("segment {%s} has %d GroupByNode children, but max is 1",
+				segs[i], len(nodes))
 		}
 	}
 
