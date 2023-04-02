@@ -349,7 +349,7 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 		// When the table is empty, and colNames are not provided,
 		// then we need to fetch the table col names independently.
 		var err error
-		colNames, err = getTableColumnNames(ctx, d.log, db, tblName)
+		colNames, err = getTableColumnNames(ctx, db, tblName)
 		if err != nil {
 			return nil, err
 		}
@@ -410,8 +410,9 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 }
 
 // getTableColumnNames consults postgres's information_schema.columns table,
-// returning the names of the table's columns in oridinal order.
-func getTableColumnNames(ctx context.Context, log *slog.Logger, db sqlz.DB, tblName string) ([]string, error) {
+// returning the names of the table's columns in ordinal order.
+func getTableColumnNames(ctx context.Context, db sqlz.DB, tblName string) ([]string, error) {
+	log := lg.FromContext(ctx)
 	const query = `SELECT column_name FROM information_schema.columns
 	WHERE table_schema = CURRENT_SCHEMA()
 	AND table_name = $1
@@ -512,12 +513,12 @@ func (d *database) Source() *source.Source {
 
 // TableMetadata implements driver.Database.
 func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
-	return getTableMetadata(ctx, d.log, d.DB(), tblName)
+	return getTableMetadata(ctx, d.DB(), tblName)
 }
 
 // SourceMetadata implements driver.Database.
 func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error) {
-	return getSourceMetadata(ctx, d.log, d.src, d.DB())
+	return getSourceMetadata(ctx, d.src, d.DB())
 }
 
 // Close implements driver.Database.

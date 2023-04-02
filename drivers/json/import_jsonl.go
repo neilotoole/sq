@@ -125,7 +125,7 @@ func importJSONL(ctx context.Context, job importJob) error { //nolint:gocognit
 					return err
 				}
 
-				err = execSchemaDelta(ctx, log, drvr, db, curSchema, newSchema)
+				err = execSchemaDelta(ctx, drvr, db, curSchema, newSchema)
 				if err != nil {
 					return err
 				}
@@ -142,7 +142,7 @@ func importJSONL(ctx context.Context, job importJob) error { //nolint:gocognit
 					return err
 				}
 
-				err = execInsertions(ctx, log, drvr, db, insertions)
+				err = execInsertions(ctx, drvr, db, insertions)
 				if err != nil {
 					return err
 				}
@@ -190,7 +190,7 @@ func importJSONL(ctx context.Context, job importJob) error { //nolint:gocognit
 			return err
 		}
 
-		err = execInsertions(ctx, log, drvr, db, insertions)
+		err = execInsertions(ctx, drvr, db, insertions)
 		if err != nil {
 			return err
 		}

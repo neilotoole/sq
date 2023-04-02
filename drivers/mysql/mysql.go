@@ -406,12 +406,12 @@ func (d *database) Source() *source.Source {
 
 // TableMetadata implements driver.Database.
 func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
-	return getTableMetadata(ctx, d.log, d.db, tblName)
+	return getTableMetadata(ctx, d.db, tblName)
 }
 
 // SourceMetadata implements driver.Database.
 func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error) {
-	return getSourceMetadata(ctx, d.log, d.src, d.db)
+	return getSourceMetadata(ctx, d.src, d.db)
 }
 
 // Close implements driver.Database.

@@ -17,8 +17,6 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/lg"
 
-	"golang.org/x/exp/slog"
-
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlmodel"
@@ -430,9 +428,10 @@ type importSchema struct {
 	entityTbls map[*entity]*sqlmodel.TableDef
 }
 
-func execSchemaDelta(ctx context.Context, log *slog.Logger, drvr driver.SQLDriver, db sqlz.DB,
+func execSchemaDelta(ctx context.Context, drvr driver.SQLDriver, db sqlz.DB,
 	curSchema, newSchema *importSchema,
 ) error {
+	log := lg.FromContext(ctx)
 	var err error
 	if curSchema == nil {
 		for _, tblDef := range newSchema.tblDefs {
@@ -580,13 +579,12 @@ func decoderFindArrayClose(dec *stdj.Decoder) error {
 }
 
 // execInsertions performs db INSERT for each of the insertions.
-func execInsertions(ctx context.Context, log *slog.Logger, drvr driver.SQLDriver,
-	db sqlz.DB, insertions []*insertion,
-) error {
+func execInsertions(ctx context.Context, drvr driver.SQLDriver, db sqlz.DB, insertions []*insertion) error {
 	// FIXME: This is an inefficient way of performing insertion.
 	//  We should be re-using the prepared statement, and probably
 	//  should batch the inserts as well. See driver.BatchInsert.
 
+	log := lg.FromContext(ctx)
 	var err error
 	var execer *driver.StmtExecer
 

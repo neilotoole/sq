@@ -146,7 +146,7 @@ func TestGetTableColumnNames(t *testing.T) {
 			th := testh.New(t)
 			src := th.Source(handle)
 
-			colNames, err := postgres.GetTableColumnNames(th.Context, th.Log, th.Open(src).DB(), sakila.TblActor)
+			colNames, err := postgres.GetTableColumnNames(th.Context, th.Open(src).DB(), sakila.TblActor)
 			require.NoError(t, err)
 			require.Equal(t, sakila.TblActorCols(), colNames)
 		})

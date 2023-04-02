@@ -146,8 +146,7 @@ func getNewRecordFunc(rowMeta sqlz.RecordMeta) driver.NewRecordFunc {
 
 // getTableMetadata gets the metadata for a single table. It is the
 // implementation of driver.Database.TableMetadata.
-func getTableMetadata(ctx context.Context, log *slog.Logger, db sqlz.DB, tblName string,
-) (*source.TableMetadata, error) {
+func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*source.TableMetadata, error) {
 	query := `SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, TABLE_COMMENT, (DATA_LENGTH + INDEX_LENGTH) AS table_size,
 (SELECT COUNT(*) FROM ` + "`" + tblName + "`" + `) AS row_count
 FROM information_schema.TABLES
@@ -170,7 +169,7 @@ WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`
 		tblMeta.Size = &tblSize.Int64
 	}
 
-	tblMeta.Columns, err = getColumnMetadata(ctx, log, db, tblMeta.Name)
+	tblMeta.Columns, err = getColumnMetadata(ctx, db, tblMeta.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -179,9 +178,9 @@ WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`
 }
 
 // getColumnMetadata returns column metadata for tblName.
-func getColumnMetadata(ctx context.Context, log *slog.Logger, db sqlz.DB,
-	tblName string,
-) ([]*source.ColMetadata, error) {
+func getColumnMetadata(ctx context.Context, db sqlz.DB, tblName string) ([]*source.ColMetadata, error) {
+	log := lg.FromContext(ctx)
+
 	const query = `SELECT column_name, data_type, column_type, ordinal_position, column_default,
        is_nullable, column_key, column_comment, extra
 FROM information_schema.columns cols
@@ -245,8 +244,7 @@ ORDER BY cols.ordinal_position ASC`
 // reasonable results by spinning off a goroutine (via errgroup) for
 // each SELECT COUNT(*) query. That said, the testing/benchmarking was
 // far from exhaustive, and this entire thing has a bit of a code smell.
-func getSourceMetadata(ctx context.Context, log *slog.Logger, src *source.Source, db sqlz.DB,
-) (*source.Metadata, error) {
+func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB) (*source.Metadata, error) {
 	md := &source.Metadata{SourceType: Type, DBDriverType: Type, Handle: src.Handle, Location: src.Location}
 
 	g, gctx := errgroup.WithContext(ctx)
@@ -257,13 +255,13 @@ func getSourceMetadata(ctx context.Context, log *slog.Logger, src *source.Source
 
 	g.Go(func() error {
 		var err error
-		md.DBVars, err = getDBVarsMeta(gctx, log, db)
+		md.DBVars, err = getDBVarsMeta(gctx, db)
 		return err
 	})
 
 	g.Go(func() error {
 		var err error
-		md.Tables, err = getAllTblMetas(gctx, log, db)
+		md.Tables, err = getAllTblMetas(gctx, db)
 		return err
 	})
 
@@ -297,7 +295,8 @@ func setSourceSummaryMeta(ctx context.Context, db sqlz.DB, md *source.Metadata) 
 }
 
 // getDBVarsMeta returns the database variables.
-func getDBVarsMeta(ctx context.Context, log *slog.Logger, db sqlz.DB) ([]source.DBVar, error) {
+func getDBVarsMeta(ctx context.Context, db sqlz.DB) ([]source.DBVar, error) {
+	log := lg.FromContext(ctx)
 	var dbVars []source.DBVar
 
 	rows, err := db.QueryContext(ctx, "SHOW VARIABLES")
@@ -323,7 +322,9 @@ func getDBVarsMeta(ctx context.Context, log *slog.Logger, db sqlz.DB) ([]source.
 }
 
 // getAllTblMetas returns TableMetadata for each table/view in db.
-func getAllTblMetas(ctx context.Context, log *slog.Logger, db sqlz.DB) ([]*source.TableMetadata, error) {
+func getAllTblMetas(ctx context.Context, db sqlz.DB) ([]*source.TableMetadata, error) {
+	log := lg.FromContext(ctx)
+
 	const query = `SELECT t.TABLE_SCHEMA, t.TABLE_NAME, t.TABLE_TYPE, t.TABLE_COMMENT,
        (DATA_LENGTH + INDEX_LENGTH) AS table_size,
        c.COLUMN_NAME, c.ORDINAL_POSITION, c.COLUMN_KEY, c.DATA_TYPE, c.COLUMN_TYPE,

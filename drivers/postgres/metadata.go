@@ -176,8 +176,9 @@ func toNullableScanType(log *slog.Logger, colName, dbTypeName string, knd kind.K
 	return nullableScanType
 }
 
-func getSourceMetadata(ctx context.Context, log *slog.Logger, src *source.Source, db sqlz.DB,
-) (*source.Metadata, error) {
+func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB) (*source.Metadata, error) {
+	log := lg.FromContext(ctx)
+
 	md := &source.Metadata{
 		Handle:       src.Handle,
 		Location:     src.Location,
@@ -202,12 +203,12 @@ current_setting('server_version'), version(), "current_user"()`
 	md.Schema = schema.String
 	md.FQName = md.Name + "." + schema.String
 
-	md.DBVars, err = getPgSettings(ctx, log, db)
+	md.DBVars, err = getPgSettings(ctx, db)
 	if err != nil {
 		return nil, err
 	}
 
-	tblNames, err := getAllTableNames(ctx, log, db)
+	tblNames, err := getAllTableNames(ctx, db)
 	if err != nil {
 		return nil, err
 	}
@@ -224,7 +225,7 @@ current_setting('server_version'), version(), "current_user"()`
 
 		i := i
 		g.Go(func() error {
-			tblMeta, mdErr := getTableMetadata(gctx, log, db, tblNames[i])
+			tblMeta, mdErr := getTableMetadata(gctx, db, tblNames[i])
 			if mdErr != nil {
 				if hasErrCode(mdErr, errCodeRelationNotExist) {
 					// If the table is dropped while we're collecting metadata,
@@ -276,7 +277,8 @@ func hasErrCode(err error, code string) bool {
 
 const errCodeRelationNotExist = "42P01"
 
-func getPgSettings(ctx context.Context, log *slog.Logger, db sqlz.DB) ([]source.DBVar, error) {
+func getPgSettings(ctx context.Context, db sqlz.DB) ([]source.DBVar, error) {
+	log := lg.FromContext(ctx)
 	rows, err := db.QueryContext(ctx, "SELECT name, setting FROM pg_settings ORDER BY name")
 	if err != nil {
 		return nil, errz.Err(err)
@@ -304,7 +306,9 @@ func getPgSettings(ctx context.Context, log *slog.Logger, db sqlz.DB) ([]source.
 
 // getAllTable names returns all table (or view) names in the current
 // catalog & schema.
-func getAllTableNames(ctx context.Context, log *slog.Logger, db sqlz.DB) ([]string, error) {
+func getAllTableNames(ctx context.Context, db sqlz.DB) ([]string, error) {
+	log := lg.FromContext(ctx)
+
 	const tblNamesQuery = `SELECT table_name FROM information_schema.tables
 WHERE table_catalog = current_catalog AND table_schema = current_schema()
 ORDER BY table_name`
@@ -333,9 +337,9 @@ ORDER BY table_name`
 	return tblNames, nil
 }
 
-func getTableMetadata(ctx context.Context, log *slog.Logger, db sqlz.DB,
-	tblName string,
-) (*source.TableMetadata, error) {
+func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*source.TableMetadata, error) {
+	log := lg.FromContext(ctx)
+
 	const tblsQueryTpl = `SELECT table_catalog, table_schema, table_name, table_type, is_insertable_into,
   (SELECT COUNT(*) FROM "%s") AS table_row_count,
   pg_total_relation_size('%q') AS table_size,
@@ -361,7 +365,7 @@ AND table_name = $1`
 		return nil, errz.Errorf("table %q not found in %s.%s", tblName, pgTbl.tableCatalog, pgTbl.tableSchema)
 	}
 
-	pgCols, err := getPgColumns(ctx, log, db, tblName)
+	pgCols, err := getPgColumns(ctx, db, tblName)
 	if err != nil {
 		return nil, err
 	}
@@ -372,7 +376,7 @@ AND table_name = $1`
 	}
 
 	// We need to fetch the constraints to set the PK etc.
-	pgConstraints, err := getPgConstraints(ctx, log, db, tblName)
+	pgConstraints, err := getPgConstraints(ctx, db, tblName)
 	if err != nil {
 		return nil, err
 	}
@@ -454,7 +458,9 @@ type pgColumn struct {
 }
 
 // getPgColumns queries the column metadata for tblName.
-func getPgColumns(ctx context.Context, log *slog.Logger, db sqlz.DB, tblName string) ([]*pgColumn, error) {
+func getPgColumns(ctx context.Context, db sqlz.DB, tblName string) ([]*pgColumn, error) {
+	log := lg.FromContext(ctx)
+
 	// colsQuery gets column information from information_schema.columns.
 	//
 	// It also has a subquery to get column comments. See:
@@ -550,7 +556,9 @@ func colMetaFromPgColumn(log *slog.Logger, pgCol *pgColumn) *source.ColMetadata 
 // empty, constraints for all tables in the current catalog & schema
 // are returned. If tblName is specified, constraints just for that
 // table are returned.
-func getPgConstraints(ctx context.Context, log *slog.Logger, db sqlz.DB, tblName string) ([]*pgConstraint, error) {
+func getPgConstraints(ctx context.Context, db sqlz.DB, tblName string) ([]*pgConstraint, error) {
+	log := lg.FromContext(ctx)
+
 	var args []any
 	query := `SELECT kcu.table_catalog,kcu.table_schema,kcu.table_name,kcu.column_name,
     kcu.ordinal_position,tc.constraint_name,tc.constraint_type,
