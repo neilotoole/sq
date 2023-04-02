@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
 	"golang.org/x/exp/slog"
 
 	"github.com/neilotoole/errgroup"
@@ -140,7 +142,11 @@ func (ng *engine) prepare(ctx context.Context, qm *queryModel) error {
 
 // execute executes the plan that was built by engine.prepare.
 func (ng *engine) execute(ctx context.Context, recw RecordWriter) error {
-	ng.log.Debug("engine.execute: [%s]: %s", ng.targetDB.Source().Handle, ng.targetSQL)
+	ng.log.Debug(
+		"Execute SQL query",
+		lga.Target, ng.targetDB.Source().Handle,
+		lga.SQL, ng.targetSQL,
+	)
 
 	err := ng.executeTasks(ctx)
 	if err != nil {
