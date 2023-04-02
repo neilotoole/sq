@@ -357,7 +357,6 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 
 	// g is an errgroup for fetching the
 	// row count for each table.
-	// g, gCtx := errgroup.WithContextN(ctx, 32, 1024)
 	g, gCtx := errgroup.WithContext(ctx)
 	g.SetLimit(driver.Tuning.ErrgroupNumG)
 
