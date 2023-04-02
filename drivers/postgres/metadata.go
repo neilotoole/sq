@@ -121,9 +121,15 @@ func toNullableScanType(log *slog.Logger, colName, dbTypeName string, knd kind.K
 		// names so that we see the log warning for truly unknown types.
 		switch dbTypeName {
 		default:
-			log.Warn("Unknown postgres scan type: col(%s) --> scan(%s) --> db(%s) --> kind(%s): using %s",
-				colName, pgScanType, dbTypeName, knd, sqlz.RTypeNullString)
 			nullableScanType = sqlz.RTypeNullString
+			log.Warn("Unknown Postgres scan type",
+				lga.Col, colName,
+				lga.ScanType, pgScanType,
+				lga.DBType, dbTypeName,
+				lga.Kind, knd,
+				lga.DefaultTo, nullableScanType,
+			)
+
 		case "":
 			// NOTE: the pgx driver currently reports an empty dbTypeName for certain
 			//  cols such as XML or MONEY.
@@ -223,8 +229,10 @@ current_setting('server_version'), version(), "current_user"()`
 				if hasErrCode(mdErr, errCodeRelationNotExist) {
 					// If the table is dropped while we're collecting metadata,
 					// for example, we log a warning and suppress the error.
-					log.Warn("table metadata collection: table %q appears not to exist (continuing regardless): %v",
-						tblNames[i], mdErr)
+					log.Warn("metadata collection: table not found (continuing regardless)",
+						lga.Table, tblNames[i],
+						lga.Err, mdErr,
+					)
 					return nil
 				}
 				return mdErr
@@ -635,8 +643,10 @@ func setTblMetaConstraints(log *slog.Logger, tblMeta *source.TableMetadata, pgCo
 			colMeta := tblMeta.Column(pgc.columnName)
 			if colMeta == nil {
 				// Shouldn't happen
-				log.Warn("No column %s.%s found matching constraint %q", tblMeta.Name, pgc.columnName,
-					pgc.constraintName)
+				log.Warn("No column found matching constraint",
+					lga.Target, tblMeta.Name+"."+pgc.columnName,
+					"constraint", pgc.constraintName,
+				)
 				continue
 			}
 			colMeta.PrimaryKey = true

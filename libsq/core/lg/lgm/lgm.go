@@ -4,12 +4,13 @@
 package lgm
 
 const (
-	CloseDB         = "Close db"
-	CloseDBRows     = "Close db rows"
-	CloseDBStmt     = "Close db stmt"
+	CloseDB         = "Close DB"
+	CloseDBRows     = "Close DB rows"
+	CloseDBStmt     = "Close DB stmt"
 	CloseFileReader = "Close file reader"
-	TxRollback      = "Rollback db tx"
 	CtxDone         = "Context unexpectedly done"
-	ReadDBRows      = "Read db rows"
+	OpenSrc         = "Open source"
+	ReadDBRows      = "Read DB rows"
+	TxRollback      = "Rollback DB tx"
 	Unexpected      = "Unexpected"
 )

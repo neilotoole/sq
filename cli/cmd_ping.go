@@ -5,6 +5,8 @@ import (
 	"errors"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
 	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"github.com/spf13/cobra"
@@ -97,7 +99,7 @@ func execPing(cmd *cobra.Command, args []string) error {
 		timeout, _ = cmd.Flags().GetDuration(flagPingTimeout)
 	}
 
-	rc.Log.Debug("Using ping timeout value: %s", timeout)
+	rc.Log.Debug("Using ping timeout", lga.Val, timeout)
 
 	err := pingSources(cmd.Context(), rc.registry, srcs, rc.writers.pingw, timeout)
 	if errors.Is(err, context.Canceled) {

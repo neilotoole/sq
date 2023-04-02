@@ -7,6 +7,8 @@ import (
 	"io"
 	"math"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -145,7 +147,7 @@ func importJSONA(ctx context.Context, log *slog.Logger, job importJob) error {
 		return err
 	}
 
-	// After startInsertJSONA returns, we sill need to wait
+	// After startInsertJSONA returns, we still need to wait
 	// for the insertWriter to finish.
 	err = startInsertJSONA(ctx, recordCh, errCh, r, readMungeFns)
 	if err != nil {
@@ -157,7 +159,10 @@ func importJSONA(ctx context.Context, log *slog.Logger, job importJob) error {
 		return err
 	}
 
-	log.Debug("Inserted %d rows to %s.%s", inserted, job.destDB.Source().Handle, tblDef.Name)
+	log.Debug("Inserted rows",
+		lga.Count, inserted,
+		lga.Target, source.Target(job.destDB.Source(), tblDef.Name),
+	)
 	return nil
 }
 

@@ -372,7 +372,7 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 		// Note: At the time of writing, this doesn't happen:
 		// zero is always returned (which we don't like).
 		// If this changes (driver changes?) then we'll revisit.
-		d.log.Warn("Unexpectedly got non-zero (%d) rows affected from TRUNCATE", affected)
+		d.log.Warn("Unexpectedly got non-zero rows affected from TRUNCATE", lga.Count, affected)
 		return affected, errz.Err(tx.Commit())
 	}
 
@@ -416,7 +416,7 @@ func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error)
 
 // Close implements driver.Database.
 func (d *database) Close() error {
-	d.log.Debug("Close database", lga.Src, d.src)
+	d.log.Debug(lgm.CloseDB, lga.Src, d.src)
 	return errz.Err(d.db.Close())
 }
 

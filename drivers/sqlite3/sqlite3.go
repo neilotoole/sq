@@ -80,7 +80,7 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 
 // Open implements driver.Driver.
 func (d *driveri) Open(_ context.Context, src *source.Source) (driver.Database, error) {
-	d.log.Debug("Opening data source", lga.Src, src)
+	d.log.Debug(lgm.OpenSrc, lga.Src, src)
 
 	dsn, err := PathFromLocation(src)
 	if err != nil {
@@ -827,7 +827,7 @@ func (d *database) Close() error {
 		return nil
 	}
 
-	d.log.Debug("Close database", lga.Src, d.src)
+	d.log.Debug(lgm.CloseDB, lga.Src, d.src)
 	err := errz.Err(d.db.Close())
 	d.closed = true
 	return err

@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
 	"golang.org/x/exp/slog"
 
 	"github.com/neilotoole/sq/libsq/core/stringz"
@@ -62,7 +64,7 @@ func (fb *fragBuilder) Range(rr *ast.RowRangeNode) (string, error) {
 	}
 
 	sql := buf.String()
-	fb.Log.Debug("returning SQL fragment: %s", sql)
+	fb.Log.Debug("Returning SQL fragment", lga.SQL, sql)
 	return sql, nil
 }
 

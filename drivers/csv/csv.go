@@ -106,7 +106,10 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 	}
 
 	if src.Options != nil || len(src.Options) > 0 {
-		d.log.Debug("opts: %v", src.Options.Encode())
+		d.log.Debug("Validating source",
+			lga.Src, src,
+			lga.Opts, src.Options.Encode(),
+		)
 
 		key := "header"
 		v := src.Options.Get(key)
@@ -199,7 +202,7 @@ func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error)
 
 // Close implements driver.Database.
 func (d *database) Close() error {
-	d.log.Debug("Close database", lga.Src, d.src)
+	d.log.Debug(lgm.CloseDB, lga.Src, d.src)
 
 	return errz.Err(d.impl.Close())
 }

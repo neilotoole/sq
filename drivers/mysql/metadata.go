@@ -353,9 +353,9 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 	var curTblSize sql.NullInt64
 	var curTblMeta *source.TableMetadata
 
-	// gRowCount is an errgroup for fetching the
+	// g is an errgroup for fetching the
 	// row count for each table.
-	gRowCount, gctx := errgroup.WithContextN(ctx, 32, 1024)
+	g, gCtx := errgroup.WithContextN(ctx, 32, 1024)
 
 	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
@@ -381,7 +381,7 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 
 		if !curTblName.Valid || !colName.Valid {
 			// table may have been dropped during metadata collection
-			log.Debug("table not found during metadata collection")
+			log.Debug("Table not found during metadata collection")
 			continue
 		}
 
@@ -403,8 +403,8 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 			tblMetas = append(tblMetas, curTblMeta)
 
 			rowCountTbl, rowCount, i := curTblName.String, &curTblMeta.RowCount, len(tblMetas)-1
-			gRowCount.Go(func() error {
-				gErr := db.QueryRowContext(gctx, "SELECT COUNT(*) FROM `"+rowCountTbl+"`").Scan(rowCount)
+			g.Go(func() error {
+				gErr := db.QueryRowContext(gCtx, "SELECT COUNT(*) FROM `"+rowCountTbl+"`").Scan(rowCount)
 				if gErr != nil {
 					if hasErrCode(gErr, errNumTableNotExist) {
 						// The table was probably dropped while we were collecting
@@ -445,7 +445,7 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 		curTblMeta.Columns = append(curTblMeta.Columns, col)
 	}
 
-	err = gRowCount.Wait()
+	err = g.Wait()
 	if err != nil {
 		return nil, err
 	}

@@ -4,6 +4,8 @@ import (
 	"context"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
 	"golang.org/x/exp/slog"
 
 	"github.com/spf13/cobra"
@@ -161,11 +163,18 @@ func newSource(log *slog.Logger, dp driver.Provider, typ source.Type, handle, lo
 	opts options.Options,
 ) (*source.Source, error) {
 	if opts == nil {
-		log.Debug("Create new data source %q [%s] from %q",
-			handle, typ, source.RedactLocation(loc))
+		log.Debug("Create new data source",
+			lga.Handle, handle,
+			lga.Driver, typ,
+			lga.Loc, source.RedactLocation(loc),
+		)
 	} else {
-		log.Debug("Create new data source %q [%s] from %q with opts %s",
-			handle, typ, source.RedactLocation(loc), opts.Encode())
+		log.Debug("Create new data source with opts",
+			lga.Handle, handle,
+			lga.Driver, typ,
+			lga.Loc, source.RedactLocation(loc),
+			lga.Opts, opts.Encode(),
+		)
 	}
 
 	err := source.VerifyLegalHandle(handle)
@@ -180,7 +189,7 @@ func newSource(log *slog.Logger, dp driver.Provider, typ source.Type, handle, lo
 
 	src := &source.Source{Handle: handle, Location: loc, Type: typ, Options: opts}
 
-	log.Debug("validating provisional new data source: %q", src)
+	log.Debug("Validating provisional new data source", lga.Src, src)
 	canonicalSrc, err := drvr.ValidateSource(src)
 	if err != nil {
 		return nil, err

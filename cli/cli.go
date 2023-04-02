@@ -105,7 +105,7 @@ func ExecuteWith(ctx context.Context, rc *RunContext, args []string) error {
 	log := lg.FromContext(ctx)
 	log.Debug("EXECUTE", "args", strings.Join(args, " "))
 	log.Debug("Build info", "build", buildinfo.Info())
-	log.Debug("Config", "version", rc.Config.Version, "filepath", rc.ConfigStore.Location())
+	log.Debug("Config", "version", rc.Config.Version, lga.Path, rc.ConfigStore.Location())
 
 	ctx = WithRunContext(ctx, rc)
 
@@ -418,8 +418,7 @@ func (rc *RunContext) init() error {
 // It must only be invoked once.
 func (rc *RunContext) doInit() error {
 	rc.clnup = cleanup.New()
-	cfg := rc.Config
-	log := rc.Log
+	cfg, log := rc.Config, rc.Log
 
 	// If the --output=/some/file flag is set, then we need to
 	// override rc.Out (which is typically stdout) to point it at
@@ -463,7 +462,7 @@ func (rc *RunContext) doInit() error {
 	var err error
 	rc.files, err = source.NewFiles(rc.Log)
 	if err != nil {
-		lg.WarnIfFuncError(rc.Log, "cleanup", rc.clnup.Run)
+		lg.WarnIfFuncError(rc.Log, lga.Cleanup, rc.clnup.Run)
 		return err
 	}
 

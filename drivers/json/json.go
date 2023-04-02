@@ -9,6 +9,8 @@ import (
 	"context"
 	"database/sql"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -146,7 +148,7 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 
 // Ping implements driver.Driver.
 func (d *driveri) Ping(_ context.Context, src *source.Source) error {
-	d.log.Debug("driver %q attempting to ping %q", d.typ, src)
+	d.log.Debug("Ping source", lga.Src, src)
 
 	r, err := d.files.Open(src)
 	if err != nil {
@@ -224,7 +226,7 @@ func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error)
 
 // Close implements driver.Database.
 func (d *database) Close() error {
-	d.log.Debug("Close database: %s", d.src)
+	d.log.Debug(lgm.CloseDB, lga.Src, d.src)
 
 	return errz.Combine(d.impl.Close(), d.clnup.Run())
 }

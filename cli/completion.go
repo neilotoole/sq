@@ -181,7 +181,7 @@ func (c *handleTableCompleter) completeTableOnly(ctx context.Context, rc *RunCon
 
 	tables, err := getTableNamesForHandle(ctx, rc, activeSrc.Handle)
 	if err != nil {
-		rc.Log.Error(err.Error())
+		lg.Unexpected(rc.Log, err)
 		return nil, cobra.ShellCompDirectiveError
 	}
 
@@ -318,7 +318,7 @@ func (c *handleTableCompleter) completeEither(ctx context.Context, rc *RunContex
 	if !c.onlySQL || isSQL {
 		activeSrcTables, err = getTableNamesForHandle(ctx, rc, activeSrc.Handle)
 		if err != nil {
-			rc.Log.Error(err.Error())
+			lg.Unexpected(rc.Log, err)
 			return nil, cobra.ShellCompDirectiveError
 		}
 	}

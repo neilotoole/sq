@@ -283,7 +283,8 @@ func (p *processor) doAddObject(ent *entity, m map[string]any) error {
 			if !ok {
 				p.markSchemaDirty(ent)
 				if stringz.InSlice(ent.fieldNames, fieldName) {
-					return errz.Errorf("JSON field %q was previously detected as a nested field (object or array)", fieldName)
+					return errz.Errorf("JSON field {%s} was previously detected as a nested field (object or array)",
+						fieldName)
 				}
 
 				ent.fieldNames = append(ent.fieldNames, fieldName)
