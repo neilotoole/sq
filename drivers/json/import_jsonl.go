@@ -21,9 +21,8 @@ import (
 )
 
 // DetectJSONL implements source.TypeDetectFunc.
-func DetectJSONL(ctx context.Context, log *slog.Logger,
-	openFn source.FileOpenFunc) (detected source.Type, score float32, err error,
-) {
+func DetectJSONL(ctx context.Context, openFn source.FileOpenFunc) (detected source.Type, score float32, err error) {
+	log := lg.FromContext(ctx)
 	var r io.ReadCloser
 	r, err = openFn()
 	if err != nil {

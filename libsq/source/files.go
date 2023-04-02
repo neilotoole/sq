@@ -401,19 +401,20 @@ func (fs *Files) detectType(ctx context.Context, loc string) (typ Type, ok bool,
 	default:
 	}
 
-	g, gctx := errgroup.WithContext(ctx)
+	g, gCtx := errgroup.WithContext(ctx)
+	gCtx = lg.NewContext(gCtx, fs.log)
 
 	for _, detectFn := range fs.detectFns {
 		detectFn := detectFn
 
 		g.Go(func() error {
 			select {
-			case <-gctx.Done():
-				return gctx.Err()
+			case <-gCtx.Done():
+				return gCtx.Err()
 			default:
 			}
 
-			gTyp, gScore, gErr := detectFn(gctx, fs.log, openFn)
+			gTyp, gScore, gErr := detectFn(gCtx, openFn)
 			if gErr != nil {
 				return gErr
 			}
@@ -460,16 +461,16 @@ type FileOpenFunc func() (io.ReadCloser, error)
 // An error is returned only if an IO problem occurred.
 // The implementation gets access to the byte stream by invoking openFn,
 // and is responsible for closing any reader it opens.
-type TypeDetectFunc func(ctx context.Context, log *slog.Logger,
-	openFn FileOpenFunc) (detected Type, score float32, err error)
+type TypeDetectFunc func(ctx context.Context, openFn FileOpenFunc) (detected Type, score float32, err error)
 
 var _ TypeDetectFunc = DetectMagicNumber
 
 // DetectMagicNumber is a TypeDetectFunc that uses an external
 // pkg (h2non/filetype) to detect the "magic number" from
 // the start of files.
-func DetectMagicNumber(_ context.Context, log *slog.Logger, openFn FileOpenFunc,
+func DetectMagicNumber(ctx context.Context, openFn FileOpenFunc,
 ) (detected Type, score float32, err error) {
+	log := lg.FromContext(ctx)
 	var r io.ReadCloser
 	r, err = openFn()
 	if err != nil {

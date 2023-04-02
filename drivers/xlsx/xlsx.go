@@ -48,9 +48,10 @@ var _ source.TypeDetectFunc = DetectXLSX
 
 // DetectXLSX implements source.TypeDetectFunc, returning
 // TypeXLSX and a score of 1.0 valid XLSX.
-func DetectXLSX(_ context.Context, log *slog.Logger, openFn source.FileOpenFunc) (detected source.Type, score float32,
+func DetectXLSX(ctx context.Context, openFn source.FileOpenFunc) (detected source.Type, score float32,
 	err error,
 ) {
+	log := lg.FromContext(ctx)
 	var r io.ReadCloser
 	r, err = openFn()
 	if err != nil {

@@ -1,5 +1,5 @@
 // Package lgm ("log message") contains constants for log messages.
-// The start of each message should be capitalized, e.g. "Close db"
+// The start of each message should be capitalized, e.g. "Close DB"
 // instead of "close db".
 package lgm
 

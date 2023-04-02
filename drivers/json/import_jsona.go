@@ -27,9 +27,8 @@ import (
 
 // DetectJSONA implements source.TypeDetectFunc for TypeJSONA.
 // Each line of input must be a valid JSON array.
-func DetectJSONA(ctx context.Context, log *slog.Logger,
-	openFn source.FileOpenFunc) (detected source.Type, score float32, err error,
-) {
+func DetectJSONA(ctx context.Context, openFn source.FileOpenFunc) (detected source.Type, score float32, err error) {
+	log := lg.FromContext(ctx)
 	var r io.ReadCloser
 	r, err = openFn()
 	if err != nil {
