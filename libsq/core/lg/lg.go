@@ -62,12 +62,16 @@ func (d discardHandler) WithGroup(_ string) slog.Handler {
 }
 
 // WarnIfError logs a warning if err is non-nil.
-func WarnIfError(log *slog.Logger, err error) {
+func WarnIfError(log *slog.Logger, msg string, err error) {
 	if err == nil {
 		return
 	}
 
-	log.Warn(err.Error(), lga.Err, err)
+	if msg == "" {
+		msg = "error"
+	}
+
+	log.Warn(msg, lga.Err, err)
 }
 
 // WarnIfFuncError executes fn (if non-nil), and logs a warning

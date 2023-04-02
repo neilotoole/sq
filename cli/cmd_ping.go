@@ -157,7 +157,7 @@ func pingSources(ctx context.Context, log *slog.Logger, dp driver.Provider, srcs
 			pingErrExists = true
 		}
 
-		lg.WarnIfError(log, w.Result(result.src, result.duration, result.err))
+		lg.WarnIfError(log, "print ping result", w.Result(result.src, result.duration, result.err))
 	}
 
 	// If there's at least one error, we return the

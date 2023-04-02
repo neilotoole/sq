@@ -63,7 +63,7 @@ func NewFiles(log *slog.Logger) (*Files, error) {
 	fs.clnup.AddE(func() error {
 		log.Debug("About to clean fscache from dir: %s", tmpdir)
 		err = fcache.Clean()
-		lg.WarnIfError(log, err)
+		lg.WarnIfError(log, "", err)
 
 		return err
 	})

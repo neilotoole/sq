@@ -558,7 +558,7 @@ func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *sqlmodel.
 
 	_, err = stmt.ExecContext(ctx)
 	if err != nil {
-		lg.WarnIfCloseError(d.log, "close db stmt", stmt)
+		lg.WarnIfCloseError(d.log, lgm.CloseDBStmt, stmt)
 		return errz.Err(err)
 	}
 

@@ -11,6 +11,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+
 	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"golang.org/x/exp/slog"
@@ -593,13 +595,13 @@ func execInsertions(ctx context.Context, log *slog.Logger, drvr driver.SQLDriver
 
 		err = execer.Munge(insert.vals)
 		if err != nil {
-			lg.WarnIfCloseError(log, "close db stmt", execer)
+			lg.WarnIfCloseError(log, lgm.CloseDBStmt, execer)
 			return err
 		}
 
 		_, err = execer.Exec(ctx, insert.vals...)
 		if err != nil {
-			lg.WarnIfCloseError(log, "close db stmt", execer)
+			lg.WarnIfCloseError(log, lgm.CloseDBStmt, execer)
 			return err
 		}
 

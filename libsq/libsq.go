@@ -227,7 +227,7 @@ func QuerySQL(ctx context.Context, log *slog.Logger, dbase driver.Database, recw
 		select {
 		// If ctx is done, then we just return, we're done.
 		case <-ctx.Done():
-			lg.WarnIfError(log, ctx.Err())
+			lg.WarnIfError(log, "", ctx.Err())
 			cancelFn()
 			return ctx.Err()
 
@@ -236,7 +236,7 @@ func QuerySQL(ctx context.Context, log *slog.Logger, dbase driver.Database, recw
 		// will be nil when the RecordWriter closes errCh on
 		// successful completion.
 		case err = <-errCh:
-			lg.WarnIfError(log, err)
+			lg.WarnIfError(log, "", err)
 			cancelFn()
 			return err
 
@@ -251,7 +251,7 @@ func QuerySQL(ctx context.Context, log *slog.Logger, dbase driver.Database, recw
 
 	// For extra safety, check rows.Err.
 	if rows.Err() != nil {
-		lg.WarnIfError(log, err)
+		lg.WarnIfError(log, "", err)
 		cancelFn()
 		return errz.Err(rows.Err())
 	}
