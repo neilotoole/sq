@@ -11,6 +11,8 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+
 	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"github.com/neilotoole/slogt"
@@ -310,7 +312,7 @@ func (h *Helper) DriverFor(src *source.Source) driver.Driver {
 // failing h's test on any error.
 func (h *Helper) RowCount(src *source.Source, tbl string) int64 {
 	dbase := h.openNew(src)
-	defer lg.WarnIfCloseError(h.Log, "close db", dbase)
+	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, dbase)
 
 	query := "SELECT COUNT(*) FROM " + dbase.SQLDriver().Dialect().Enquote(tbl)
 	var count int64
@@ -325,7 +327,7 @@ func (h *Helper) CreateTable(dropAfter bool, src *source.Source, tblDef *sqlmode
 	data ...[]any,
 ) (affected int64) {
 	dbase := h.openNew(src)
-	defer lg.WarnIfCloseError(h.Log, "close db", dbase)
+	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, dbase)
 
 	require.NoError(h.T, dbase.SQLDriver().CreateTable(h.Context, dbase.DB(), tblDef))
 	h.T.Logf("Created table %s.%s", src.Handle, tblDef.Name)
@@ -350,13 +352,13 @@ func (h *Helper) Insert(src *source.Source, tbl string, cols []string, records .
 	}
 
 	dbase := h.openNew(src)
-	defer lg.WarnIfCloseError(h.Log, "close db", dbase)
+	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, dbase)
 
 	drvr := dbase.SQLDriver()
 
 	conn, err := dbase.DB().Conn(h.Context)
 	require.NoError(h.T, err)
-	defer lg.WarnIfCloseError(h.Log, "close db", conn)
+	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, conn)
 
 	batchSize := driver.MaxBatchRows(drvr, len(cols))
 	bi, err := driver.NewBatchInsert(h.Context, h.Log, drvr, conn, tbl, cols, batchSize)
@@ -405,7 +407,7 @@ func (h *Helper) CopyTable(dropAfter bool, src *source.Source, fromTable, toTabl
 	}
 
 	dbase := h.openNew(src)
-	defer lg.WarnIfCloseError(h.Log, "close db", dbase)
+	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, dbase)
 
 	copied, err := dbase.SQLDriver().CopyTable(h.Context, dbase.DB(), fromTable, toTable, copyData)
 	require.NoError(h.T, err)
@@ -526,7 +528,7 @@ func (h *Helper) InsertDefaultRow(src *source.Source, tbl string) {
 // TruncateTable truncates tbl in src.
 func (h *Helper) TruncateTable(src *source.Source, tbl string) (affected int64) {
 	dbase := h.openNew(src)
-	defer lg.WarnIfCloseError(h.Log, "close db", dbase)
+	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, dbase)
 
 	affected, err := h.DriverFor(src).Truncate(h.Context, src, tbl, true)
 	require.NoError(h.T, err)
@@ -611,7 +613,7 @@ func (h *Helper) DiffDB(src *source.Source) {
 	h.T.Logf("Executing DiffDB for %s", src.Handle) // FIXME: zap this
 
 	beforeDB := h.openNew(src)
-	defer lg.WarnIfCloseError(h.Log, "close db", beforeDB)
+	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, beforeDB)
 
 	beforeMeta, err := beforeDB.SourceMetadata(h.Context)
 	require.NoError(h.T, err)
@@ -621,7 +623,7 @@ func (h *Helper) DiffDB(src *source.Source) {
 		// table's row count match.
 
 		afterDB := h.openNew(src)
-		defer lg.WarnIfCloseError(h.Log, "close db", afterDB)
+		defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, afterDB)
 
 		afterMeta, err := afterDB.SourceMetadata(h.Context)
 		require.NoError(h.T, err)

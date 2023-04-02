@@ -6,6 +6,8 @@ import (
 	"database/sql"
 	"io"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+
 	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"golang.org/x/exp/slog"
@@ -52,7 +54,7 @@ func DetectXLSX(_ context.Context, log *slog.Logger, openFn source.FileOpenFunc)
 	if err != nil {
 		return source.TypeNone, 0, errz.Err(err)
 	}
-	defer lg.WarnIfCloseError(log, "close file reader", r)
+	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
 
 	data, err := io.ReadAll(r)
 	if err != nil {
@@ -92,7 +94,7 @@ func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Database,
 	if err != nil {
 		return nil, err
 	}
-	defer lg.WarnIfCloseError(d.log, "close file reader", r)
+	defer lg.WarnIfCloseError(d.log, lgm.CloseFileReader, r)
 
 	b, err := io.ReadAll(r)
 	if err != nil {
@@ -146,7 +148,7 @@ func (d *Driver) Ping(_ context.Context, src *source.Source) (err error) {
 		return err
 	}
 
-	defer lg.WarnIfCloseError(d.log, "close file reader", r)
+	defer lg.WarnIfCloseError(d.log, lgm.CloseFileReader, r)
 
 	b, err := io.ReadAll(r)
 	if err != nil {

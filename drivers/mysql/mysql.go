@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+
 	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"golang.org/x/exp/slog"
@@ -322,7 +324,7 @@ func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 	if err != nil {
 		return err
 	}
-	defer lg.WarnIfCloseError(d.log, "close db", dbase.DB())
+	defer lg.WarnIfCloseError(d.log, lgm.CloseDB, dbase.DB())
 
 	return dbase.DB().PingContext(ctx)
 }

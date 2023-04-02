@@ -9,6 +9,8 @@ import (
 	"context"
 	"database/sql"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+
 	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"golang.org/x/exp/slog"
@@ -100,7 +102,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database
 
 	dbase.impl, err = d.scratcher.OpenScratch(ctx, src.Handle)
 	if err != nil {
-		lg.WarnIfCloseError(d.log, "close file reader", r)
+		lg.WarnIfCloseError(d.log, lgm.CloseFileReader, r)
 		lg.WarnIfFuncError(d.log, dbase.clnup.Run)
 		return nil, err
 	}
@@ -115,7 +117,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database
 
 	err = d.importFn(ctx, d.log, job)
 	if err != nil {
-		lg.WarnIfCloseError(d.log, "close file reader", r)
+		lg.WarnIfCloseError(d.log, lgm.CloseFileReader, r)
 		lg.WarnIfFuncError(d.log, dbase.clnup.Run)
 		return nil, err
 	}
@@ -150,7 +152,7 @@ func (d *driveri) Ping(_ context.Context, src *source.Source) error {
 	if err != nil {
 		return err
 	}
-	defer lg.WarnIfCloseError(d.log, "close file reader", r)
+	defer lg.WarnIfCloseError(d.log, lgm.CloseFileReader, r)
 
 	return nil
 }

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+
 	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"github.com/spf13/cobra"
@@ -237,7 +239,7 @@ func preprocessUserSLQ(ctx context.Context, rc *RunContext, args []string) (stri
 			if err != nil {
 				return "", err
 			}
-			defer lg.WarnIfCloseError(log, "close db", dbase)
+			defer lg.WarnIfCloseError(log, lgm.CloseDB, dbase)
 
 			srcMeta, err := dbase.SourceMetadata(ctx)
 			if err != nil {

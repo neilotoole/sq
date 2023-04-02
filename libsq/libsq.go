@@ -12,6 +12,8 @@ package libsq
 import (
 	"context"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+
 	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"golang.org/x/exp/slog"
@@ -125,7 +127,7 @@ func QuerySQL(ctx context.Context, log *slog.Logger, dbase driver.Database, recw
 	if err != nil {
 		return errz.Wrapf(err, `SQL query against %s failed: %s`, dbase.Source().Handle, query)
 	}
-	defer lg.WarnIfCloseError(log, "close db rows", rows)
+	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
 
 	// This next part is a bit ugly.
 	//

@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+
 	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"golang.org/x/exp/slog"
@@ -296,7 +298,7 @@ ORDER BY TABLE_NAME ASC, TABLE_TYPE ASC`
 	if err != nil {
 		return nil, nil, err
 	}
-	defer lg.WarnIfCloseError(log, "close db rows", rows)
+	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
 
 	for rows.Next() {
 		var tblName, tblType string
@@ -338,7 +340,7 @@ func getColumnMeta(ctx context.Context, log *slog.Logger, db sqlz.DB, tblCatalog
 		return nil, errz.Err(err)
 	}
 
-	defer func() { lg.WarnIfCloseError(log, "close db rows", rows) }()
+	defer func() { lg.WarnIfCloseError(log, lgm.CloseDBRows, rows) }()
 
 	var cols []columnMeta
 
@@ -382,7 +384,7 @@ func getConstraints(ctx context.Context, log *slog.Logger, db sqlz.DB,
 		return nil, errz.Err(err)
 	}
 
-	defer func() { lg.WarnIfCloseError(log, "close db rows", rows) }()
+	defer func() { lg.WarnIfCloseError(log, lgm.CloseDBRows, rows) }()
 
 	var constraints []constraintMeta
 

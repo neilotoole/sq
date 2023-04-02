@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+
 	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"golang.org/x/exp/slog"
@@ -113,7 +115,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database
 
 	err = db.PingContext(ctx)
 	if err != nil {
-		lg.WarnIfCloseError(d.log, "close db", db)
+		lg.WarnIfCloseError(d.log, lgm.CloseDB, db)
 		return nil, errz.Err(err)
 	}
 
@@ -135,7 +137,7 @@ func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 		return errz.Err(err)
 	}
 
-	defer lg.WarnIfCloseError(d.log, "close db", db)
+	defer lg.WarnIfCloseError(d.log, lgm.CloseDB, db)
 
 	err = db.PingContext(ctx)
 	return errz.Err(err)

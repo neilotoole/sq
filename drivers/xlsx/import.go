@@ -5,6 +5,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+
 	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"golang.org/x/exp/slog"
@@ -87,7 +89,7 @@ func importSheetToTable(ctx context.Context, log *slog.Logger, sheet *xlsx.Sheet
 	if err != nil {
 		return errz.Err(err)
 	}
-	defer lg.WarnIfCloseError(log, "close db conn", conn)
+	defer lg.WarnIfCloseError(log, lgm.CloseDB, conn)
 
 	drvr := scratchDB.SQLDriver()
 

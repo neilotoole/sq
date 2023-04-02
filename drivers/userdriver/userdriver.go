@@ -10,6 +10,8 @@ import (
 	"database/sql"
 	"io"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+
 	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"golang.org/x/exp/slog"
@@ -87,7 +89,7 @@ func (d *drvr) Open(ctx context.Context, src *source.Source) (driver.Database, e
 		return nil, err
 	}
 
-	defer lg.WarnIfCloseError(d.log, "close file reader", r)
+	defer lg.WarnIfCloseError(d.log, lgm.CloseFileReader, r)
 
 	scratchDB, err := d.scratcher.OpenScratch(ctx, src.Handle)
 	if err != nil {

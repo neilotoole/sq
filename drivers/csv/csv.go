@@ -9,6 +9,8 @@ import (
 	"io"
 	"strconv"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+
 	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"golang.org/x/exp/slog"
@@ -126,7 +128,7 @@ func (d *driveri) Ping(_ context.Context, src *source.Source) error {
 	if err != nil {
 		return err
 	}
-	defer lg.WarnIfCloseError(d.log, "close file reader", r)
+	defer lg.WarnIfCloseError(d.log, lgm.CloseFileReader, r)
 
 	return nil
 }
@@ -230,7 +232,7 @@ func detectType(ctx context.Context, typ source.Type, log *slog.Logger,
 	if err != nil {
 		return source.TypeNone, 0, errz.Err(err)
 	}
-	defer lg.WarnIfCloseError(log, "close file reader", r)
+	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
 
 	delim := csvw.Comma
 	if typ == TypeTSV {

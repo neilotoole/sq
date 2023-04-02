@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+
 	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"golang.org/x/exp/slog"
@@ -125,7 +127,7 @@ func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 		return err
 	}
 
-	defer lg.WarnIfCloseError(d.log, "close db", dbase.DB())
+	defer lg.WarnIfCloseError(d.log, lgm.CloseDB, dbase.DB())
 
 	return dbase.DB().Ping()
 }
@@ -424,7 +426,7 @@ func getTableColumnNames(ctx context.Context, log *slog.Logger, db sqlz.DB, tblN
 	for rows.Next() {
 		err = rows.Scan(&colName)
 		if err != nil {
-			lg.WarnIfCloseError(log, "close db rows", rows)
+			lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
 			return nil, errz.Err(err)
 		}
 
@@ -432,7 +434,7 @@ func getTableColumnNames(ctx context.Context, log *slog.Logger, db sqlz.DB, tblN
 	}
 
 	if rows.Err() != nil {
-		lg.WarnIfCloseError(log, "close db rows", rows)
+		lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
 		return nil, errz.Err(err)
 	}
 

@@ -8,6 +8,8 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+
 	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"golang.org/x/exp/slog"
@@ -265,7 +267,7 @@ func getPgSettings(ctx context.Context, log *slog.Logger, db sqlz.DB) ([]source.
 		return nil, errz.Err(err)
 	}
 
-	defer lg.WarnIfCloseError(log, "close db rows", rows)
+	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
 	var dbVars []source.DBVar
 
 	for rows.Next() {
@@ -296,7 +298,7 @@ ORDER BY table_name`
 	if err != nil {
 		return nil, errz.Err(err)
 	}
-	defer lg.WarnIfCloseError(log, "close db rows", rows)
+	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
 
 	var tblNames []string
 	for rows.Next() {
@@ -484,7 +486,7 @@ ORDER BY cols.table_catalog, cols.table_schema, cols.table_name, cols.ordinal_po
 		return nil, errz.Err(err)
 	}
 
-	defer lg.WarnIfCloseError(log, "close db rows", rows)
+	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
 
 	var cols []*pgColumn
 	for rows.Next() {
@@ -569,7 +571,7 @@ WHERE kcu.table_catalog = current_catalog AND kcu.table_schema = current_schema(
 	if err != nil {
 		return nil, errz.Err(err)
 	}
-	defer lg.WarnIfCloseError(log, "close db rows", rows)
+	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
 
 	var constraints []*pgConstraint
 
