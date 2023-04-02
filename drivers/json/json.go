@@ -117,7 +117,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database
 		flatten:    true, // TODO: Should come from src.Options
 	}
 
-	err = d.importFn(ctx, d.log, job)
+	err = d.importFn(ctx, job)
 	if err != nil {
 		lg.WarnIfCloseError(d.log, lgm.CloseFileReader, r)
 		lg.WarnIfFuncError(d.log, lgm.CloseDB, dbase.clnup.Run)

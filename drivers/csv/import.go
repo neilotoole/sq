@@ -14,8 +14,6 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/lg"
 
-	"golang.org/x/exp/slog"
-
 	"github.com/shopspring/decimal"
 
 	"github.com/neilotoole/sq/libsq"
@@ -34,9 +32,10 @@ const (
 )
 
 // importCSV loads the src CSV data to scratchDB.
-func importCSV(ctx context.Context, log *slog.Logger, src *source.Source, openFn source.FileOpenFunc,
-	scratchDB driver.Database,
+func importCSV(ctx context.Context, src *source.Source,
+	openFn source.FileOpenFunc, scratchDB driver.Database,
 ) error {
+	log := lg.FromContext(ctx)
 	// TODO: optPredictKind should be read from src.Options.
 	const optPredictKind bool = true
 

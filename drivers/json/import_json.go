@@ -13,8 +13,6 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/lg"
 
-	"golang.org/x/exp/slog"
-
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
@@ -136,7 +134,9 @@ func DetectJSON(ctx context.Context, openFn source.FileOpenFunc) (detected sourc
 	return source.TypeNone, 0, nil
 }
 
-func importJSON(ctx context.Context, log *slog.Logger, job importJob) error {
+func importJSON(ctx context.Context, job importJob) error {
+	log := lg.FromContext(ctx)
+
 	r, err := job.openFn()
 	if err != nil {
 		return err

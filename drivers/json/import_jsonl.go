@@ -13,8 +13,6 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/lg"
 
-	"golang.org/x/exp/slog"
-
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
@@ -81,7 +79,9 @@ func DetectJSONL(ctx context.Context, openFn source.FileOpenFunc) (detected sour
 	return source.TypeNone, 0, nil
 }
 
-func importJSONL(ctx context.Context, log *slog.Logger, job importJob) error { //nolint:gocognit
+func importJSONL(ctx context.Context, job importJob) error { //nolint:gocognit
+	log := lg.FromContext(ctx)
+
 	r, err := job.openFn()
 	if err != nil {
 		return err

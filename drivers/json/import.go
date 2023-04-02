@@ -46,7 +46,7 @@ type importJob struct {
 	flatten bool
 }
 
-type importFunc func(ctx context.Context, log *slog.Logger, job importJob) error
+type importFunc func(ctx context.Context, job importJob) error
 
 var (
 	_ importFunc = importJSON

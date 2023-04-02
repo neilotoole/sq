@@ -13,8 +13,6 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/lg"
 
-	"golang.org/x/exp/slog"
-
 	"github.com/neilotoole/sq/libsq"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -95,7 +93,9 @@ func DetectJSONA(ctx context.Context, openFn source.FileOpenFunc) (detected sour
 	return source.TypeNone, 0, nil
 }
 
-func importJSONA(ctx context.Context, log *slog.Logger, job importJob) error {
+func importJSONA(ctx context.Context, job importJob) error {
+	log := lg.FromContext(ctx)
+
 	predictR, err := job.openFn()
 	if err != nil {
 		return errz.Err(err)
