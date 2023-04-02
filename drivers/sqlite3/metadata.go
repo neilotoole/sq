@@ -243,9 +243,8 @@ func DBTypeForKind(knd kind.Kind) string {
 }
 
 // getTableMetadata returns metadata for tblName in db.
-func getTableMetadata(ctx context.Context, log *slog.Logger, db sqlz.DB,
-	tblName string,
-) (*source.TableMetadata, error) {
+func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*source.TableMetadata, error) {
+	log := lg.FromContext(ctx)
 	tblMeta := &source.TableMetadata{Name: tblName}
 	// Note that there's no easy way of getting the physical size of
 	// a table, so tblMeta.Size remains nil.
@@ -312,7 +311,8 @@ func getTableMetadata(ctx context.Context, log *slog.Logger, db sqlz.DB,
 
 // getAllTblMeta gets metadata for each of the
 // non-system tables in db.
-func getAllTblMeta(ctx context.Context, log *slog.Logger, db sqlz.DB) ([]*source.TableMetadata, error) {
+func getAllTblMeta(ctx context.Context, db sqlz.DB) ([]*source.TableMetadata, error) {
+	log := lg.FromContext(ctx)
 	// This query returns a row for each column of each table,
 	// order by table name then col id (ordinal).
 	// Results will look like:
@@ -405,7 +405,7 @@ ORDER BY m.name, p.cid
 
 	// Separately, we need to get the row counts for the tables
 	var rowCounts []int64
-	rowCounts, err = getTblRowCounts(ctx, log, db, tblNames)
+	rowCounts, err = getTblRowCounts(ctx, db, tblNames)
 	if err != nil {
 		return nil, errz.Err(err)
 	}
@@ -418,7 +418,9 @@ ORDER BY m.name, p.cid
 }
 
 // getTblRowCounts returns the number of rows in each table.
-func getTblRowCounts(ctx context.Context, log *slog.Logger, db sqlz.DB, tblNames []string) ([]int64, error) {
+func getTblRowCounts(ctx context.Context, db sqlz.DB, tblNames []string) ([]int64, error) {
+	log := lg.FromContext(ctx)
+
 	// See: https://stackoverflow.com/questions/7524612/how-to-count-rows-from-multiple-tables-in-sqlite
 	//
 	// Several approaches were benchmarked. Ultimately the union-based

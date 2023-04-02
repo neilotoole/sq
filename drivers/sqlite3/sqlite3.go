@@ -777,7 +777,7 @@ func (d *database) Source() *source.Source {
 
 // TableMetadata implements driver.Database.
 func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
-	return getTableMetadata(ctx, d.log, d.DB(), tblName)
+	return getTableMetadata(ctx, d.DB(), tblName)
 }
 
 // SourceMetadata implements driver.Database.
@@ -810,7 +810,7 @@ func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error)
 	meta.FQName = fi.Name() + "/" + meta.Schema
 	meta.Location = d.src.Location
 
-	meta.Tables, err = getAllTblMeta(ctx, d.log, d.db)
+	meta.Tables, err = getAllTblMeta(ctx, d.db)
 	if err != nil {
 		return nil, err
 	}
