@@ -1,12 +1,15 @@
 // Package lgm ("log message") contains constants for log messages.
+// The start of each message should be capitalized, e.g. "Close db"
+// instead of "close db".
 package lgm
 
 const (
-	CloseDB         = "close db"
-	CloseDBRows     = "close db rows"
-	CloseDBStmt     = "close db stmt"
-	CloseFileReader = "close file reader"
-	TxRollback      = "db tx rollback"
-	CtxDone         = "context unexpectedly done"
-	ReadDBRows      = "read db rows"
+	CloseDB         = "Close db"
+	CloseDBRows     = "Close db rows"
+	CloseDBStmt     = "Close db stmt"
+	CloseFileReader = "Close file reader"
+	TxRollback      = "Rollback db tx"
+	CtxDone         = "Context unexpectedly done"
+	ReadDBRows      = "Read db rows"
+	Unexpected      = "Unexpected"
 )

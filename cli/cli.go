@@ -765,11 +765,10 @@ func defaultLogging() (*slog.Logger, *cleanup.Cleanup, error) {
 
 	replace := func(groups []string, a slog.Attr) slog.Attr {
 		// We want source to be "pkg/file.go".
-		// FIXME: uncomment this
-		// if a.Key == slog.SourceKey {
-		//	fp := a.Value.String()
-		//	a.Value = slog.StringValue(filepath.Join(filepath.Base(filepath.Dir(fp)), filepath.Base(fp)))
-		// }
+		if a.Key == slog.SourceKey {
+			fp := a.Value.String()
+			a.Value = slog.StringValue(filepath.Join(filepath.Base(filepath.Dir(fp)), filepath.Base(fp)))
+		}
 		return a
 	}
 

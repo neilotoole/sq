@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
 	"github.com/neilotoole/sq/libsq"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/driver"
@@ -160,8 +162,9 @@ func execSQLInsert(ctx context.Context, rc *RunContext, fromSrc, destSrc *source
 		return errz.Wrapf(err, "insert %s.%s failed", destSrc.Handle, destTbl)
 	}
 
-	rc.Log.Debug("Rows affected: %d", affected)
+	rc.Log.Debug("Rows affected", lga.Count, affected)
 
-	fmt.Fprintf(rc.Out, stringz.Plu("Inserted %d row(s) into %s.%s\n", int(affected)), affected, destSrc.Handle, destTbl)
+	fmt.Fprintf(rc.Out, stringz.Plu("Inserted %d row(s) into %s\n",
+		int(affected)), affected, source.Target(destSrc, destTbl))
 	return nil
 }

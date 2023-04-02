@@ -9,6 +9,8 @@ import (
 	"context"
 	"io"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"golang.org/x/exp/slog"
@@ -68,7 +70,7 @@ func WarnIfError(log *slog.Logger, msg string, err error) {
 	}
 
 	if msg == "" {
-		msg = "error"
+		msg = "Error"
 	}
 
 	log.Warn(msg, lga.Err, err)
@@ -87,7 +89,7 @@ func WarnIfFuncError(log *slog.Logger, msg string, fn func() error) {
 	}
 
 	if msg == "" {
-		msg = "func error"
+		msg = "Func error"
 	}
 
 	log.Warn(msg, lga.Err, err)
@@ -106,7 +108,7 @@ func WarnIfCloseError(log *slog.Logger, msg string, c io.Closer) {
 	}
 
 	if msg == "" {
-		msg = "close error"
+		msg = "Close error"
 	}
 
 	log.Warn(msg, lga.Err, err)
@@ -122,4 +124,14 @@ func Error(log *slog.Logger, msg string, err error, args ...any) {
 	a = append(a, args...)
 
 	log.Error(msg, a...)
+}
+
+// Unexpected is a convenience function for logging unexpected errors
+// for which there may not be any useful context message.
+func Unexpected(log *slog.Logger, err error) {
+	if err == nil {
+		return
+	}
+
+	log.Error(lgm.Unexpected, lga.Err, err)
 }

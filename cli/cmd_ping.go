@@ -7,8 +7,6 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/lg"
 
-	"golang.org/x/exp/slog"
-
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/output"
@@ -101,7 +99,7 @@ func execPing(cmd *cobra.Command, args []string) error {
 
 	rc.Log.Debug("Using ping timeout value: %s", timeout)
 
-	err := pingSources(cmd.Context(), rc.Log, rc.registry, srcs, rc.writers.pingw, timeout)
+	err := pingSources(cmd.Context(), rc.registry, srcs, rc.writers.pingw, timeout)
 	if errors.Is(err, context.Canceled) {
 		// It's common to cancel "sq ping". We don't want to print the cancel message.
 		return errNoMsg
@@ -117,13 +115,15 @@ func execPing(cmd *cobra.Command, args []string) error {
 // NOTE: This ping code has an ancient lineage, in that it was
 // originally laid down before context.Context was a thing. Thus,
 // the entire thing could probably be rewritten for simplicity.
-func pingSources(ctx context.Context, log *slog.Logger, dp driver.Provider, srcs []*source.Source, w output.PingWriter,
-	timeout time.Duration,
+func pingSources(ctx context.Context, dp driver.Provider, srcs []*source.Source,
+	w output.PingWriter, timeout time.Duration,
 ) error {
 	if err := w.Open(srcs); err != nil {
 		return err
 	}
-	defer lg.WarnIfFuncError(log, "close ping writer", w.Close)
+
+	log := lg.FromContext(ctx)
+	defer lg.WarnIfFuncError(log, "Close ping writer", w.Close)
 
 	resultCh := make(chan pingResult, len(srcs))
 
@@ -157,7 +157,8 @@ func pingSources(ctx context.Context, log *slog.Logger, dp driver.Provider, srcs
 			pingErrExists = true
 		}
 
-		lg.WarnIfError(log, "print ping result", w.Result(result.src, result.duration, result.err))
+		err := w.Result(result.src, result.duration, result.err)
+		lg.WarnIfError(log, "Print ping result", err)
 	}
 
 	// If there's at least one error, we return the
