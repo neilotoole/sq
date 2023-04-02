@@ -45,7 +45,7 @@ type Provider struct {
 // DriverFor implements driver.Provider.
 func (p *Provider) DriverFor(typ source.Type) (driver.Driver, error) {
 	if typ != Type {
-		return nil, errz.Errorf("unsupported driver type %q", typ)
+		return nil, errz.Errorf("unsupported driver type {%s}", typ)
 	}
 
 	return &driveri{log: p.Log}, nil
@@ -117,7 +117,7 @@ func (d *driveri) Open(_ context.Context, src *source.Source) (driver.Database, 
 // ValidateSource implements driver.Driver.
 func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 	if src.Type != Type {
-		return nil, errz.Errorf("expected source type %q but got %q", Type, src.Type)
+		return nil, errz.Errorf("expected source type {%s} but got {%s}", Type, src.Type)
 	}
 	return src, nil
 }
@@ -218,7 +218,7 @@ func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl, col 
 
 	_, err := db.ExecContext(ctx, q)
 	if err != nil {
-		return errz.Wrapf(err, "alter table: failed to add column %q to table %q", col, tbl)
+		return errz.Wrapf(err, "alter table: failed to add column {%s} to table {%s}", col, tbl)
 	}
 
 	return nil

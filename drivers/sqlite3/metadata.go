@@ -196,7 +196,7 @@ func kindFromDBTypeName(log *slog.Logger, colName, dbTypeName string, scanType r
 	// sq handles as kind.Text).
 	switch {
 	default:
-		log.Warn("Unknown SQLite database type name %q for %q: using %q", dbTypeName, colName, kind.Unknown)
+		log.Warn("Unknown SQLite database type name {%s} for {%s}: using {%s}", dbTypeName, colName, kind.Unknown)
 		knd = kind.Unknown
 	case strings.Contains(dbTypeName, "INT"):
 		knd = kind.Int
@@ -220,7 +220,7 @@ func kindFromDBTypeName(log *slog.Logger, colName, dbTypeName string, scanType r
 func DBTypeForKind(knd kind.Kind) string {
 	switch knd {
 	default:
-		panic(fmt.Sprintf("unknown kind %q", knd))
+		panic(fmt.Sprintf("unknown kind {%s}", knd))
 	case kind.Text, kind.Null, kind.Unknown:
 		return "TEXT"
 	case kind.Int:

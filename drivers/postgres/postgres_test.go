@@ -125,9 +125,9 @@ func Test_VerifyDriverDoesNotReportNullability(t *testing.T) {
 
 				// The col is indicated as nullable via its name/suffix
 				nullable, hasNullable := colType.Nullable()
-				require.False(t, hasNullable, "ColumnType.hasNullable is unfortunately expected to be false for %q",
+				require.False(t, hasNullable, "ColumnType.hasNullable is unfortunately expected to be false for {%s}",
 					colName)
-				require.False(t, nullable, "ColumnType.nullable is unfortunately expected to be false for %q", colName)
+				require.False(t, nullable, "ColumnType.nullable is unfortunately expected to be false for {%s}", colName)
 			}
 
 			for rows.Next() {

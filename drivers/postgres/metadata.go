@@ -362,7 +362,7 @@ AND table_name = $1`
 	tblMeta := tblMetaFromPgTable(pgTbl)
 	if tblMeta.Name != tblName {
 		// Shouldn't happen, but we'll error if it does
-		return nil, errz.Errorf("table %q not found in %s.%s", tblName, pgTbl.tableCatalog, pgTbl.tableSchema)
+		return nil, errz.Errorf("table {%s} not found in %s.%s", tblName, pgTbl.tableCatalog, pgTbl.tableSchema)
 	}
 
 	pgCols, err := getPgColumns(ctx, db, tblName)

@@ -55,7 +55,7 @@ type Provider struct {
 // DriverFor implements driver.Provider.
 func (d *Provider) DriverFor(typ source.Type) (driver.Driver, error) {
 	if typ != Type {
-		return nil, errz.Errorf("unsupported driver type %q", typ)
+		return nil, errz.Errorf("unsupported driver type {%s}", typ)
 	}
 
 	return &driveri{log: d.Log}, nil
@@ -88,7 +88,7 @@ func (d *driveri) Open(_ context.Context, src *source.Source) (driver.Database, 
 	}
 	db, err := sql.Open(dbDrvr, dsn)
 	if err != nil {
-		return nil, errz.Wrapf(err, "failed to open sqlite3 source with DSN %q", dsn)
+		return nil, errz.Wrapf(err, "failed to open sqlite3 source with DSN: %s", dsn)
 	}
 
 	return &database{log: d.log, db: db, src: src, drvr: d}, nil
