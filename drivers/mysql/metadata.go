@@ -410,7 +410,9 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 						// The table was probably dropped while we were collecting
 						// metadata, but that's ok. We set the element to nil
 						// and we'll filter it out later.
-						log.Debug("Failed to get row count for %q: ignoring: %v", curTblName.String, gErr)
+						log.Debug("Failed to get row count for table: ignoring error",
+							lga.Table, curTblName.String,
+							lga.Err, gErr)
 						tblMetas[i] = nil
 						return nil
 					}

@@ -11,6 +11,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+	"github.com/neilotoole/sq/libsq/source"
+
 	"golang.org/x/exp/slog"
 
 	"github.com/neilotoole/sq/drivers/userdriver"
@@ -143,12 +146,12 @@ func (im *importer) execImport(ctx context.Context, r io.Reader, destDB driver.D
 			// It's not a row element, it's a col element
 			curRow := im.rowStack.peek()
 			if curRow == nil {
-				return errz.Errorf("unable to parse XML: no current row on stack for elem %q", elem.Name.Local)
+				return errz.Errorf("unable to parse XML: no current row on stack for elem {%s}", elem.Name.Local)
 			}
 
 			col := curRow.tbl.ColBySelector(im.selStack.selector())
 			if col == nil {
-				if msg, ok := im.msgOncef("Skip: element %q is not a column of table %q", elem.Name.Local,
+				if msg, ok := im.msgOncef("Skip: element {%s} is not a column of table {%s}", elem.Name.Local,
 					curRow.tbl.Name); ok {
 					im.log.Debug(msg)
 				}
@@ -570,7 +573,7 @@ func (im *importer) createTables(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		im.log.Debug("Created table %s.%s", im.destDB.Source().Handle, tblDef.Name)
+		im.log.Debug("Created table", lga.Target, source.Target(im.destDB.Source(), tblDef.Name))
 	}
 
 	return nil

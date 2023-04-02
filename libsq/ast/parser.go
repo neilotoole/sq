@@ -5,6 +5,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+	"github.com/neilotoole/sq/libsq/core/stringz"
+
 	"golang.org/x/exp/slog"
 
 	"github.com/antlr/antlr4/runtime/Go/antlr/v4"
@@ -145,7 +148,10 @@ func (v *parseTreeVisitor) using(node Node, fn func() any) any {
 
 // Visit implements antlr.ParseTreeVisitor.
 func (v *parseTreeVisitor) Visit(ctx antlr.ParseTree) any {
-	v.log.Debug("visiting %T: %v", ctx, ctx.GetText())
+	v.log.Debug("Visit",
+		lga.Type, stringz.Type(ctx),
+		lga.Text, ctx.GetText(),
+	)
 
 	switch ctx := ctx.(type) {
 	case *slq.SegmentContext:
@@ -352,8 +358,6 @@ func (v *parseTreeVisitor) VisitAlias(ctx *slq.AliasContext) any {
 
 // VisitExpr implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitExpr(ctx *slq.ExprContext) any {
-	v.log.Debug("visiting expr: %v", ctx.GetText())
-
 	// check if the expr is a selector, e.g. ".uid"
 	if selCtx := ctx.Selector(); selCtx != nil {
 		selNode, err := newSelectorNode(v.cur, selCtx)
@@ -518,8 +522,6 @@ func (v *parseTreeVisitor) VisitJoinConstraint(ctx *slq.JoinConstraintContext) a
 
 // VisitTerminal implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitTerminal(ctx antlr.TerminalNode) any {
-	v.log.Debug("visiting terminal: %q", ctx.GetText())
-
 	val := ctx.GetText()
 
 	if isOperator(val) {

@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -170,7 +172,7 @@ func importJSON(ctx context.Context, log *slog.Logger, job importJob) error {
 
 		if schemaModified {
 			if !hasMore || scan.objCount >= job.sampleSize {
-				log.Debug("line[%d]: time to (re)build the schema", scan.objCount)
+				log.Debug("Time to (re)build the schema", lga.Line, scan.objCount)
 				if curSchema == nil {
 					log.Debug("First time building the schema")
 				}

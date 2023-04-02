@@ -209,7 +209,7 @@ func buildTblDefsForSheets(ctx context.Context, log *slog.Logger,
 func buildTblDefForSheet(log *slog.Logger, sheet *xlsx.Sheet, hasHeader bool) (*sqlmodel.TableDef, error) {
 	maxCols := getRowsMaxCellCount(sheet)
 	if maxCols == 0 {
-		log.Warn("sheet %q is empty: skipping")
+		log.Warn("sheet is empty: skipping", "sheet", sheet.Name)
 		return nil, nil //nolint:nilnil
 	}
 

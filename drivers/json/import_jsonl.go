@@ -7,6 +7,8 @@ import (
 	stdj "encoding/json"
 	"io"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -113,7 +115,7 @@ func importJSONL(ctx context.Context, log *slog.Logger, job importJob) error { /
 
 		if schemaModified {
 			if !hasMore || scan.validLineCount >= job.sampleSize {
-				log.Debug("line[%d]: time to (re)build the schema", scan.totalLineCount)
+				log.Debug("Time to (re)build the schema", lga.Line, scan.totalLineCount)
 				if curSchema == nil {
 					log.Debug("First time building the schema")
 				}

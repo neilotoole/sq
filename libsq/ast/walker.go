@@ -78,7 +78,7 @@ func walkWith(log *slog.Logger, ast *AST, typ reflect.Type, fn nodeVisitorFn) er
 }
 
 // narrowTblSel takes a generic selector, and if appropriate, converts it to a TblSel.
-func narrowTblSel(log *slog.Logger, _ *Walker, node Node) error {
+func narrowTblSel(_ *slog.Logger, _ *Walker, node Node) error {
 	// node is guaranteed to be typeSelectorNode
 	sel, ok := node.(*SelectorNode)
 	if !ok {
@@ -87,7 +87,6 @@ func narrowTblSel(log *slog.Logger, _ *Walker, node Node) error {
 
 	seg, ok := sel.Parent().(*SegmentNode)
 	if !ok {
-		log.Debug("parent is not a segment, but is %T", sel.Parent())
 		return nil
 	}
 
@@ -99,7 +98,6 @@ func narrowTblSel(log *slog.Logger, _ *Walker, node Node) error {
 	if err != nil {
 		return err
 	}
-	log.Debug("prevType: %s", prevType)
 
 	if prevType == typeHandleNode {
 		handleNode, ok := seg.Prev().Children()[0].(*HandleNode)

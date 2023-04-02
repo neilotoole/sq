@@ -25,4 +25,7 @@ const (
 	Target  = "target"
 	To      = "to"
 	Type    = "type"
+	Line    = "line"
+	Val     = "value"
+	Text    = "text"
 )

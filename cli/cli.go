@@ -333,8 +333,6 @@ type RunContext struct {
 	Cmd *cobra.Command
 
 	// Log is the run's logger.
-	//
-	// Deprecated: access the logger via slg.FromContext.
 	Log *slog.Logger
 
 	// Args is the arg slice supplied by cobra for
@@ -547,7 +545,7 @@ func (rc *RunContext) Close() error {
 
 	err := rc.clnup.Run()
 	if err != nil && rc.Log != nil {
-		rc.Log.Warn("failed to close RunContext: %v", err)
+		rc.Log.Warn("failed to close RunContext", lga.Err, err)
 	}
 
 	return err

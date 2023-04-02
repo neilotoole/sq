@@ -318,7 +318,7 @@ func createTypeTestTable(th *testh.Helper, src *source.Source, withData bool) (n
 	placeholders := th.SQLDriverFor(src).Dialect().Placeholders(len(typeTestColNames), 1)
 	insertStmt := fmt.Sprintf(insertTpl, actualTblName, strings.Join(typeTestColNames, ", "), placeholders)
 	for i, insertRowVals := range typeTestVals {
-		th.T.Logf("row[%d]: vals: %s", i, insertRowVals)
+		th.T.Logf("row[%d]: vals: %v", i, insertRowVals)
 		_, err := db.Exec(insertStmt, insertRowVals...)
 		require.NoError(t, err)
 	}

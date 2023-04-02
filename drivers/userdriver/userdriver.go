@@ -10,6 +10,8 @@ import (
 	"database/sql"
 	"io"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -113,7 +115,7 @@ func (d *drvr) Truncate(_ context.Context, _ *source.Source, _ string, _ bool) (
 
 // ValidateSource implements driver.Driver.
 func (d *drvr) ValidateSource(src *source.Source) (*source.Source, error) {
-	d.log.Debug("validating source: %q", src.RedactedLocation())
+	d.log.Debug("Validating source", lga.Src, src)
 	if string(src.Type) != d.def.Name {
 		return nil, errz.Errorf("expected source type %q but got %q", d.def.Name, src.Type)
 	}
@@ -122,7 +124,10 @@ func (d *drvr) ValidateSource(src *source.Source) (*source.Source, error) {
 
 // Ping implements driver.Driver.
 func (d *drvr) Ping(_ context.Context, src *source.Source) error {
-	d.log.Debug("driver %q attempting to ping %q", d.typ, src)
+	d.log.Debug("Ping source",
+		lga.Driver, d.typ,
+		lga.Src, src,
+	)
 
 	r, err := d.files.Open(src)
 	if err != nil {
@@ -186,7 +191,7 @@ func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error)
 
 // Close implements driver.Database.
 func (d *database) Close() error {
-	d.log.Debug("Close database: %s", d.src)
+	d.log.Debug("Close database", lga.Src, d.src)
 
 	// We don't need to explicitly invoke c.impl.Close
 	// because that's already been added to c.cleanup.
