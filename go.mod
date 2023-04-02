@@ -21,10 +21,10 @@ require (
 	github.com/microsoft/go-mssqldb v0.19.0
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/neilotoole/errgroup v0.1.5
-	github.com/pkg/errors v0.9.1
+	github.com/pkg/errors v0.9.1 // indirect
 	github.com/ryboe/q v1.0.18
 	// Be very careful changing pkg segmentio/encoding. A specific version is by our json encoder.
-	github.com/segmentio/encoding v0.1.14
+	github.com/segmentio/encoding v0.3.6
 	github.com/shopspring/decimal v1.3.1
 	github.com/spf13/cobra v1.6.1
 	github.com/spf13/pflag v1.0.5
@@ -61,6 +61,7 @@ require (
 	github.com/muesli/mango-pflag v0.1.0 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/rogpeppe/go-internal v1.9.0 // indirect
+	github.com/segmentio/asm v1.1.3 // indirect
 	golang.org/x/crypto v0.4.0 // indirect
 
 )
