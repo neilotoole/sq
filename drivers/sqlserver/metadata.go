@@ -109,8 +109,9 @@ func setScanType(ct *sqlz.ColumnTypeData, knd kind.Kind) {
 	}
 }
 
-func getSourceMetadata(ctx context.Context, log *slog.Logger, src *source.Source, db sqlz.DB,
-) (*source.Metadata, error) {
+func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB) (*source.Metadata, error) {
+	log := lg.FromContext(ctx)
+
 	const query = `SELECT DB_NAME(), SCHEMA_NAME(), SERVERPROPERTY('ProductVersion'), @@VERSION,
 (SELECT SUM(size) * 8192
 FROM sys.master_files WITH(NOWAIT)
@@ -132,7 +133,7 @@ GROUP BY database_id) AS total_size_bytes`
 	md.FQName = catalog + "." + schema
 	md.Schema = schema
 
-	tblNames, tblTypes, err := getAllTables(ctx, log, db)
+	tblNames, tblTypes, err := getAllTables(ctx, db)
 	if err != nil {
 		return nil, err
 	}
@@ -150,7 +151,7 @@ GROUP BY database_id) AS total_size_bytes`
 		i := i
 		g.Go(func() error {
 			var tblMeta *source.TableMetadata
-			tblMeta, err = getTableMetadata(gctx, log, db, catalog, schema, tblNames[i], tblTypes[i])
+			tblMeta, err = getTableMetadata(gctx, db, catalog, schema, tblNames[i], tblTypes[i])
 			if err != nil {
 				if hasErrCode(err, errCodeObjectNotExist) {
 					// This can happen if the table is dropped while
@@ -184,8 +185,8 @@ GROUP BY database_id) AS total_size_bytes`
 	return md, nil
 }
 
-func getTableMetadata(ctx context.Context, log *slog.Logger, db sqlz.DB,
-	tblCatalog, tblSchema, tblName, tblType string,
+func getTableMetadata(ctx context.Context, db sqlz.DB, tblCatalog,
+	tblSchema, tblName, tblType string,
 ) (*source.TableMetadata, error) {
 	const tplTblUsage = `sp_spaceused '%s'`
 
@@ -232,13 +233,13 @@ func getTableMetadata(ctx context.Context, log *slog.Logger, db sqlz.DB,
 	}
 
 	var dbCols []columnMeta
-	dbCols, err = getColumnMeta(ctx, log, db, tblCatalog, tblSchema, tblName)
+	dbCols, err = getColumnMeta(ctx, db, tblCatalog, tblSchema, tblName)
 	if err != nil {
 		return nil, err
 	}
 
 	var dbConstraints []constraintMeta
-	dbConstraints, err = getConstraints(ctx, log, db, tblCatalog, tblSchema, tblName)
+	dbConstraints, err = getConstraints(ctx, db, tblCatalog, tblSchema, tblName)
 	if err != nil {
 		return nil, errz.Err(err)
 	}
@@ -249,7 +250,7 @@ func getTableMetadata(ctx context.Context, log *slog.Logger, db sqlz.DB,
 			Name:         dbCols[i].ColumnName,
 			Position:     dbCols[i].OrdinalPosition,
 			BaseType:     dbCols[i].DataType,
-			Kind:         kindFromDBTypeName(log, dbCols[i].ColumnName, dbCols[i].DataType),
+			Kind:         kindFromDBTypeName(lg.FromContext(ctx), dbCols[i].ColumnName, dbCols[i].DataType),
 			Nullable:     dbCols[i].Nullable.Bool,
 			DefaultValue: dbCols[i].ColumnDefault.String,
 		}
@@ -289,7 +290,9 @@ func getTableMetadata(ctx context.Context, log *slog.Logger, db sqlz.DB,
 
 // getAllTables returns all of the table names, and the table types
 // (i.e. "BASE TABLE" or "VIEW").
-func getAllTables(ctx context.Context, log *slog.Logger, db sqlz.DB) (tblNames, tblTypes []string, err error) {
+func getAllTables(ctx context.Context, db sqlz.DB) (tblNames, tblTypes []string, err error) {
+	log := lg.FromContext(ctx)
+
 	const query = `SELECT TABLE_NAME, TABLE_TYPE FROM INFORMATION_SCHEMA.TABLES
 WHERE TABLE_TYPE='BASE TABLE' OR TABLE_TYPE='VIEW'
 ORDER BY TABLE_NAME ASC, TABLE_TYPE ASC`
@@ -318,11 +321,10 @@ ORDER BY TABLE_NAME ASC, TABLE_TYPE ASC`
 	return tblNames, tblTypes, nil
 }
 
-func getColumnMeta(ctx context.Context, log *slog.Logger, db sqlz.DB, tblCatalog,
-	tblSchema, tblName string) ([]columnMeta, error,
-) {
-	// TODO: sq doesn't use all of these columns, no need to select them all.
+func getColumnMeta(ctx context.Context, db sqlz.DB, tblCatalog, tblSchema, tblName string) ([]columnMeta, error) {
+	log := lg.FromContext(ctx)
 
+	// TODO: sq doesn't use all of these columns, no need to select them all.
 	const query = `SELECT
 		TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME,
 		COLUMN_NAME, ORDINAL_POSITION, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE,
@@ -365,9 +367,9 @@ func getColumnMeta(ctx context.Context, log *slog.Logger, db sqlz.DB, tblCatalog
 	return cols, nil
 }
 
-func getConstraints(ctx context.Context, log *slog.Logger, db sqlz.DB,
-	tblCatalog, tblSchema, tblName string,
-) ([]constraintMeta, error) {
+func getConstraints(ctx context.Context, db sqlz.DB, tblCatalog, tblSchema, tblName string) ([]constraintMeta, error) {
+	log := lg.FromContext(ctx)
+
 	const query = `SELECT kcu.TABLE_CATALOG, kcu.TABLE_SCHEMA, kcu.TABLE_NAME,  tc.CONSTRAINT_TYPE,
        kcu.COLUMN_NAME, kcu.CONSTRAINT_NAME
 		FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS tc

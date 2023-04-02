@@ -39,7 +39,7 @@ func TestImport_Ppl(t *testing.T) {
 	})
 
 	data := proj.ReadFile("drivers/userdriver/xmlud/testdata/people.xml")
-	err = xmlud.Import(th.Context, th.Log, udDef, bytes.NewReader(data), scratchDB)
+	err = xmlud.Import(th.Context, udDef, bytes.NewReader(data), scratchDB)
 	require.NoError(t, err)
 
 	srcMeta, err := scratchDB.SourceMetadata(th.Context)
@@ -84,7 +84,7 @@ func TestImport_RSS(t *testing.T) {
 	})
 
 	data := proj.ReadFile("drivers/userdriver/xmlud/testdata/nytimes_local.rss.xml")
-	err = xmlud.Import(th.Context, th.Log, udDef, bytes.NewReader(data), scratchDB)
+	err = xmlud.Import(th.Context, udDef, bytes.NewReader(data), scratchDB)
 	require.NoError(t, err)
 
 	srcMeta, err := scratchDB.SourceMetadata(th.Context)

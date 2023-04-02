@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/lg"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/source"
 
@@ -28,15 +30,13 @@ import (
 const Genre = "xml"
 
 // Import implements userdriver.ImportFunc.
-func Import(ctx context.Context, log *slog.Logger, def *userdriver.DriverDef,
-	data io.Reader, destDB driver.Database,
-) error {
+func Import(ctx context.Context, def *userdriver.DriverDef, data io.Reader, destDB driver.Database) error {
 	if def.Genre != Genre {
-		return errz.Errorf("xmlud.Import does not support genre %q", def.Genre)
+		return errz.Errorf("xmlud.Import does not support genre {%s}", def.Genre)
 	}
 
 	im := &importer{
-		log:           log,
+		log:           lg.FromContext(ctx),
 		def:           def,
 		selStack:      newSelStack(),
 		rowStack:      newRowStack(),

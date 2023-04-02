@@ -475,12 +475,12 @@ WHERE TABLE_NAME = @p1`
 		return nil, errz.Err(err)
 	}
 
-	return getTableMetadata(ctx, d.log, d.db, catalog, schema, tblName, tblType)
+	return getTableMetadata(ctx, d.db, catalog, schema, tblName, tblType)
 }
 
 // SourceMetadata implements driver.Database.
 func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error) {
-	return getSourceMetadata(ctx, d.log, d.src, d.db)
+	return getSourceMetadata(ctx, d.src, d.db)
 }
 
 // Close implements driver.Database.

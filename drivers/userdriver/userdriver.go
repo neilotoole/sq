@@ -26,7 +26,7 @@ import (
 
 // ImportFunc is a function that can import
 // data (as defined in def) to destDB.
-type ImportFunc func(ctx context.Context, log *slog.Logger, def *DriverDef,
+type ImportFunc func(ctx context.Context, def *DriverDef,
 	data io.Reader, destDB driver.Database) error
 
 // Provider implements driver.Provider for a DriverDef.
@@ -99,7 +99,7 @@ func (d *drvr) Open(ctx context.Context, src *source.Source) (driver.Database, e
 	}
 	clnup.AddE(scratchDB.Close)
 
-	err = d.importFn(ctx, d.log, d.def, r, scratchDB)
+	err = d.importFn(ctx, d.def, r, scratchDB)
 	if err != nil {
 		lg.WarnIfFuncError(d.log, lgm.CloseDB, clnup.Run)
 		return nil, errz.Wrap(err, d.def.Name)
