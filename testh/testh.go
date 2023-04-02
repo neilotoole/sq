@@ -146,7 +146,7 @@ func (h *Helper) init() {
 // not need to be explicitly invoked unless desired.
 func (h *Helper) Close() {
 	err := h.Cleanup.Run()
-	lg.WarnIfError(h.Log, "", err)
+	lg.WarnIfError(h.Log, "helper cleanup", err)
 	assert.NoError(h.T, err)
 	h.cancelFn()
 }
@@ -423,9 +423,7 @@ func (h *Helper) CopyTable(dropAfter bool, src *source.Source, fromTable, toTabl
 // DropTable drops tbl from src.
 func (h *Helper) DropTable(src *source.Source, tbl string) {
 	dbase := h.openNew(src)
-	defer func() {
-		lg.WarnIfError(h.Log, "", errz.Err(dbase.Close()))
-	}()
+	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, dbase)
 
 	require.NoError(h.T, dbase.SQLDriver().DropTable(h.Context, dbase.DB(), tbl, true))
 	h.Log.Debug("Dropped %s.%s", src.Handle, tbl)
