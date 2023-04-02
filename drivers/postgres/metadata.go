@@ -17,12 +17,12 @@ import (
 	"golang.org/x/exp/slog"
 
 	"github.com/jackc/pgconn"
-	"github.com/neilotoole/errgroup"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
+	"golang.org/x/sync/errgroup"
 )
 
 // kindFromDBTypeName determines the kind.Kind from the database
@@ -213,19 +213,19 @@ current_setting('server_version'), version(), "current_user"()`
 		return nil, err
 	}
 
-	g, gctx := errgroup.WithContextN(ctx, driver.Tuning.ErrgroupNumG, driver.Tuning.ErrgroupQSize)
+	g, gCtx := errgroup.WithContext(ctx)
+	g.SetLimit(driver.Tuning.ErrgroupNumG)
 	tblMetas := make([]*source.TableMetadata, len(tblNames))
-
 	for i := range tblNames {
 		select {
-		case <-gctx.Done():
-			return nil, errz.Err(gctx.Err())
+		case <-gCtx.Done():
+			return nil, errz.Err(gCtx.Err())
 		default:
 		}
 
 		i := i
 		g.Go(func() error {
-			tblMeta, mdErr := getTableMetadata(gctx, db, tblNames[i])
+			tblMeta, mdErr := getTableMetadata(gCtx, db, tblNames[i])
 			if mdErr != nil {
 				if hasErrCode(mdErr, errCodeRelationNotExist) {
 					// If the table is dropped while we're collecting metadata,

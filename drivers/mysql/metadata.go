@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/sync/errgroup"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
@@ -16,7 +18,6 @@ import (
 
 	"golang.org/x/exp/slog"
 
-	"github.com/neilotoole/errgroup"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
@@ -247,21 +248,21 @@ ORDER BY cols.ordinal_position ASC`
 func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB) (*source.Metadata, error) {
 	md := &source.Metadata{SourceType: Type, DBDriverType: Type, Handle: src.Handle, Location: src.Location}
 
-	g, gctx := errgroup.WithContext(ctx)
+	g, gCtx := errgroup.WithContext(ctx)
 
 	g.Go(func() error {
-		return setSourceSummaryMeta(gctx, db, md)
+		return setSourceSummaryMeta(gCtx, db, md)
 	})
 
 	g.Go(func() error {
 		var err error
-		md.DBVars, err = getDBVarsMeta(gctx, db)
+		md.DBVars, err = getDBVarsMeta(gCtx, db)
 		return err
 	})
 
 	g.Go(func() error {
 		var err error
-		md.Tables, err = getAllTblMetas(gctx, db)
+		md.Tables, err = getAllTblMetas(gCtx, db)
 		return err
 	})
 
@@ -356,7 +357,9 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 
 	// g is an errgroup for fetching the
 	// row count for each table.
-	g, gCtx := errgroup.WithContextN(ctx, 32, 1024)
+	// g, gCtx := errgroup.WithContextN(ctx, 32, 1024)
+	g, gCtx := errgroup.WithContext(ctx)
+	g.SetLimit(driver.Tuning.ErrgroupNumG)
 
 	rows, err := db.QueryContext(ctx, query)
 	if err != nil {

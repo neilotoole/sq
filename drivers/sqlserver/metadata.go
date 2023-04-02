@@ -7,6 +7,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
+	"github.com/neilotoole/sq/libsq/driver"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -14,12 +18,11 @@ import (
 	"golang.org/x/exp/slog"
 
 	"github.com/c2h5oh/datasize"
-	"github.com/neilotoole/errgroup"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
-	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
+	"golang.org/x/sync/errgroup"
 )
 
 // kindFromDBTypeName determines the kind.Kind from the database
@@ -138,26 +141,29 @@ GROUP BY database_id) AS total_size_bytes`
 		return nil, err
 	}
 
-	g, gctx := errgroup.WithContextN(ctx, driver.Tuning.ErrgroupNumG, driver.Tuning.ErrgroupQSize)
+	g, gCtx := errgroup.WithContext(ctx)
+	g.SetLimit(driver.Tuning.ErrgroupNumG)
 	tblMetas := make([]*source.TableMetadata, len(tblNames))
-
 	for i := range tblNames {
+		i := i
+
 		select {
-		case <-gctx.Done():
-			return nil, errz.Err(gctx.Err())
+		case <-gCtx.Done():
+			return nil, errz.Err(gCtx.Err())
 		default:
 		}
 
-		i := i
 		g.Go(func() error {
 			var tblMeta *source.TableMetadata
-			tblMeta, err = getTableMetadata(gctx, db, catalog, schema, tblNames[i], tblTypes[i])
+			tblMeta, err = getTableMetadata(gCtx, db, catalog, schema, tblNames[i], tblTypes[i])
 			if err != nil {
 				if hasErrCode(err, errCodeObjectNotExist) {
 					// This can happen if the table is dropped while
 					// we're collecting metadata. We log a warning and continue.
-					log.Warn("Table metadata: table %q appears not to exist (continuing regardless): %v",
-						tblNames[i], err)
+					log.Warn("Table metadata: table not found (continuing regardless)",
+						lga.Table, tblNames[i],
+						lga.Err, err,
+					)
 
 					return nil
 				}
