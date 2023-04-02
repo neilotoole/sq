@@ -105,7 +105,10 @@ func ExecuteWith(ctx context.Context, rc *RunContext, args []string) error {
 	log := lg.FromContext(ctx)
 	log.Debug("EXECUTE", "args", strings.Join(args, " "))
 	log.Debug("Build info", "build", buildinfo.Info())
-	log.Debug("Config", "version", rc.Config.Version, lga.Path, rc.ConfigStore.Location())
+	log.Debug("Config",
+		lga.Version, rc.Config.Version,
+		lga.Path, rc.ConfigStore.Location(),
+	)
 
 	ctx = WithRunContext(ctx, rc)
 
@@ -570,6 +573,7 @@ func newWriters(cmd *cobra.Command, defaults config.Defaults, out,
 ) (w *writers, out2, errOut2 io.Writer) {
 	var fm *output.Formatting
 	fm, out2, errOut2 = getWriterFormatting(cmd, out, errOut)
+	log := lg.FromContext(cmd.Context())
 
 	// Package tablew has writer impls for each of the writer interfaces,
 	// so we use its writers as the baseline. Later we check the format
@@ -595,7 +599,7 @@ func newWriters(cmd *cobra.Command, defaults config.Defaults, out,
 		w.recordw = jsonw.NewStdRecordWriter(out2, fm)
 		w.metaw = jsonw.NewMetadataWriter(out2, fm)
 		w.srcw = jsonw.NewSourceWriter(out2, fm)
-		w.errw = jsonw.NewErrorWriter(errOut2, fm)
+		w.errw = jsonw.NewErrorWriter(log, errOut2, fm)
 		w.versionw = jsonw.NewVersionWriter(out2, fm)
 		w.pingw = jsonw.NewPingWriter(out2, fm)
 
@@ -880,7 +884,7 @@ func printError(rc *RunContext, err error) {
 
 	if bootstrapIsFormatJSON(rc) {
 		// The user wants JSON, either via defaults or flags.
-		jw := jsonw.NewErrorWriter(errOut, fm)
+		jw := jsonw.NewErrorWriter(log, errOut, fm)
 		jw.Error(err)
 		return
 	}

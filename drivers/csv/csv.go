@@ -216,20 +216,19 @@ var (
 func DetectCSV(ctx context.Context, log *slog.Logger, openFn source.FileOpenFunc) (detected source.Type, score float32,
 	err error,
 ) {
-	return detectType(ctx, TypeCSV, log, openFn)
+	return detectType(ctx, log, TypeCSV, openFn)
 }
 
 // DetectTSV implements source.TypeDetectFunc.
 func DetectTSV(ctx context.Context, log *slog.Logger, openFn source.FileOpenFunc) (detected source.Type,
 	score float32, err error,
 ) {
-	return detectType(ctx, TypeTSV, log, openFn)
+	return detectType(ctx, log, TypeTSV, openFn)
 }
 
-func detectType(ctx context.Context, typ source.Type, log *slog.Logger,
-	openFn source.FileOpenFunc) (detected source.Type,
-	score float32, err error,
-) {
+func detectType(ctx context.Context, log *slog.Logger, typ source.Type,
+	openFn source.FileOpenFunc,
+) (detected source.Type, score float32, err error) {
 	var r io.ReadCloser
 	r, err = openFn()
 	if err != nil {

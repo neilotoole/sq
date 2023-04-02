@@ -11,6 +11,7 @@ const (
 	CtxDone         = "Context unexpectedly done"
 	OpenSrc         = "Open source"
 	ReadDBRows      = "Read DB rows"
+	RowsAffected    = "Rows affected"
 	TxRollback      = "Rollback DB tx"
 	Unexpected      = "Unexpected"
 )

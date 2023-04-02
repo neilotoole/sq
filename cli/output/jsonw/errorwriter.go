@@ -4,18 +4,23 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/neilotoole/sq/libsq/core/lg"
+
+	"golang.org/x/exp/slog"
+
 	"github.com/neilotoole/sq/cli/output"
 )
 
 // errorWriter implements output.ErrorWriter.
 type errorWriter struct {
+	log *slog.Logger
 	out io.Writer
 	fm  *output.Formatting
 }
 
 // NewErrorWriter returns an output.ErrorWriter that outputs in JSON.
-func NewErrorWriter(out io.Writer, fm *output.Formatting) output.ErrorWriter {
-	return &errorWriter{out: out, fm: fm}
+func NewErrorWriter(log *slog.Logger, out io.Writer, fm *output.Formatting) output.ErrorWriter {
+	return &errorWriter{log: log, out: out, fm: fm}
 }
 
 // Error implements output.ErrorWriter.
@@ -24,8 +29,7 @@ func (w *errorWriter) Error(err error) {
 	tplPretty := "{\n" + w.fm.Indent + "%s" + ": %s\n}"
 
 	b, err2 := encodeString(nil, err.Error(), false)
-	_ = err2 // FIXME: Do something with err2
-	// w.log.WarnIfError(err2)
+	lg.WarnIfError(w.log, "encode JSON string", err2)
 
 	key := w.fm.Key.Sprint(`"error"`)
 	val := w.fm.Error.Sprint(string(b)) // trim the newline

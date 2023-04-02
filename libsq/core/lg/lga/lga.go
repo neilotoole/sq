@@ -7,6 +7,7 @@ const (
 	Cmd       = "cmd"
 	Col       = "column"
 	Count     = "count"
+	Commit    = "commit"
 	Cleanup   = "cleanup"
 	DB        = "db"
 	DBType    = "db_type"
@@ -32,5 +33,7 @@ const (
 	Type      = "type"
 	Line      = "line"
 	Val       = "value"
+	Version   = "version"
+	Timestamp = "timestamp"
 	Text      = "text"
 )
