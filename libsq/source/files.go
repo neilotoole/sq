@@ -347,12 +347,20 @@ func (fs *Files) Type(ctx context.Context, loc string) (Type, error) {
 	if ploc.ext != "" {
 		mtype := mime.TypeByExtension(ploc.ext)
 		if mtype == "" {
-			fs.log.Debug("unknown mime time for %q for %q", mtype, loc)
+			fs.log.Debug(
+				"unknown mime time",
+				lga.Type, mtype,
+				lga.Loc, loc,
+			)
 		} else {
 			if typ, ok := typeFromMediaType(mtype); ok {
 				return typ, nil
 			}
-			fs.log.Debug("unknown source type for media type %q for %q", mtype, loc)
+			fs.log.Debug(
+				"unknown source type for media type",
+				lga.Type, mtype,
+				lga.Loc, loc,
+			)
 		}
 	}
 

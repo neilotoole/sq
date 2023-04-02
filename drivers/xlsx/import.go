@@ -5,6 +5,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -29,8 +31,9 @@ func xlsxToScratch(ctx context.Context, log *slog.Logger, src *source.Source, xl
 	scratchDB driver.Database,
 ) error {
 	start := time.Now()
-	log.Debug("Beginning import from XLSX %s to %s (%s)...", src.Handle, scratchDB.Source().Handle,
-		scratchDB.Source().RedactedLocation())
+	log.Debug("Beginning import from XLSX",
+		lga.Src, src,
+		lga.Target, scratchDB.Source())
 
 	hasHeader, _, err := options.HasHeader(src.Options)
 	if err != nil {
@@ -53,8 +56,10 @@ func xlsxToScratch(ctx context.Context, log *slog.Logger, src *source.Source, xl
 		}
 	}
 
-	log.Debug("%d tables created (but not yet populated) in %s in %s",
-		len(tblDefs), scratchDB.Source().Handle, time.Since(start))
+	log.Debug("Tables created (but not yet populated)",
+		lga.Count, len(tblDefs),
+		lga.Target, scratchDB.Source(),
+		lga.Elapsed, time.Since(start))
 
 	var imported, skipped int
 
@@ -71,8 +76,13 @@ func xlsxToScratch(ctx context.Context, log *slog.Logger, src *source.Source, xl
 		imported++
 	}
 
-	log.Debug("%d sheets imported (%d sheets skipped) from %s to %s in %s",
-		imported, skipped, src.Handle, scratchDB.Source().Handle, time.Since(start))
+	log.Debug("Sheets imported",
+		lga.Count, imported,
+		"skipped", skipped,
+		lga.From, src,
+		lga.To, scratchDB.Source(),
+		lga.Elapsed, time.Since(start),
+	)
 
 	return nil
 }
@@ -140,8 +150,11 @@ func importSheetToTable(ctx context.Context, log *slog.Logger, sheet *xlsx.Sheet
 		return err
 	}
 
-	log.Debug("Inserted %d rows from sheet %q into %s.%s in %s",
-		bi.Written(), sheet.Name, scratchDB.Source().Handle, tblDef.Name, time.Since(startTime))
+	log.Debug("Inserted rows from sheet into table",
+		lga.Count, bi.Written(),
+		"sheet", sheet.Name,
+		lga.Target, source.Target(scratchDB.Source(), tblDef.Name),
+		lga.Elapsed, time.Since(startTime))
 
 	return nil
 }
@@ -254,7 +267,9 @@ func buildTblDefForSheet(log *slog.Logger, sheet *xlsx.Sheet, hasHeader bool) (*
 		cols[i] = &sqlmodel.ColDef{Table: tblDef, Name: colName, Kind: colKinds[i]}
 	}
 	tblDef.Cols = cols
-	log.Debug("sheet %q: using col names [%q]", sheet.Name, strings.Join(colNames, ", "))
+	log.Debug("Built table def",
+		"sheet", sheet.Name,
+		"cols", strings.Join(colNames, ", "))
 
 	return tblDef, nil
 }

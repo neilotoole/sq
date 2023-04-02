@@ -11,6 +11,8 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -424,8 +426,13 @@ func (h *Helper) CopyTable(dropAfter bool, src *source.Source, fromTable, toTabl
 		h.Cleanup.Add(func() { h.DropTable(src, toTable) })
 	}
 
-	h.Log.Debug("Copied table %s.%s --> %s.%s  (copy data=%v; drop after=%v; rows copied=%d)",
-		src.Handle, fromTable, src.Handle, toTable, copyData, dropAfter, copied)
+	h.Log.Debug("Copied table",
+		lga.From, source.Target(src, fromTable),
+		lga.To, source.Target(src, toTable),
+		"copy_data", copyData,
+		lga.Count, copied,
+		"drop_after", dropAfter,
+	)
 	return toTable
 }
 
@@ -435,7 +442,7 @@ func (h *Helper) DropTable(src *source.Source, tbl string) {
 	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, dbase)
 
 	require.NoError(h.T, dbase.SQLDriver().DropTable(h.Context, dbase.DB(), tbl, true))
-	h.Log.Debug("Dropped %s.%s", src.Handle, tbl)
+	h.Log.Debug("Dropped table", lga.Target, source.Target(src, tbl))
 }
 
 // QuerySQL uses libsq.QuerySQL to execute SQL query

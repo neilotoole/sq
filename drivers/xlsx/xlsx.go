@@ -6,6 +6,8 @@ import (
 	"database/sql"
 	"io"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -299,12 +301,12 @@ func (d *database) TableMetadata(_ context.Context, tblName string) (*source.Tab
 		return tbl, nil
 	}
 
-	return nil, errz.Errorf("table %q not found", tblName)
+	return nil, errz.Errorf("table {%s} not found", tblName)
 }
 
 // Close implements driver.Database.
 func (d *database) Close() error {
-	d.log.Debug("Close database: %s", d.src)
+	d.log.Debug("Close database", lga.Src, d.src)
 
 	// No need to explicitly invoke c.impl.Close because
 	// that's already added to c.clnup

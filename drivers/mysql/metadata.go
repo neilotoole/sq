@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -38,7 +40,13 @@ func kindFromDBTypeName(log *slog.Logger, colName, dbTypeName string) kind.Kind 
 
 	switch dbTypeName {
 	default:
-		log.Warn("Unknown MySQL database type %q for column %q: using %q", dbTypeName, colName, kind.Unknown)
+		log.Warn(
+			"Unknown MySQL column type: using alt type",
+			lga.DBType, dbTypeName,
+			lga.Col, colName,
+			lga.Alt, kind.Unknown,
+		)
+
 		knd = kind.Unknown
 	case "":
 		knd = kind.Unknown
