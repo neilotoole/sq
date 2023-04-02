@@ -123,7 +123,7 @@ func pingSources(ctx context.Context, log *slog.Logger, dp driver.Provider, srcs
 	if err := w.Open(srcs); err != nil {
 		return err
 	}
-	defer lg.WarnIfFuncError(log, w.Close)
+	defer lg.WarnIfFuncError(log, "close ping writer", w.Close)
 
 	resultCh := make(chan pingResult, len(srcs))
 

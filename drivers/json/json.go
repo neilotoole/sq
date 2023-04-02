@@ -103,7 +103,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database
 	dbase.impl, err = d.scratcher.OpenScratch(ctx, src.Handle)
 	if err != nil {
 		lg.WarnIfCloseError(d.log, lgm.CloseFileReader, r)
-		lg.WarnIfFuncError(d.log, dbase.clnup.Run)
+		lg.WarnIfFuncError(d.log, lgm.CloseDB, dbase.clnup.Run)
 		return nil, err
 	}
 
@@ -118,7 +118,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database
 	err = d.importFn(ctx, d.log, job)
 	if err != nil {
 		lg.WarnIfCloseError(d.log, lgm.CloseFileReader, r)
-		lg.WarnIfFuncError(d.log, dbase.clnup.Run)
+		lg.WarnIfFuncError(d.log, lgm.CloseDB, dbase.clnup.Run)
 		return nil, err
 	}
 

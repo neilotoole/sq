@@ -99,7 +99,7 @@ func (d *drvr) Open(ctx context.Context, src *source.Source) (driver.Database, e
 
 	err = d.importFn(ctx, d.log, d.def, r, scratchDB)
 	if err != nil {
-		lg.WarnIfFuncError(d.log, clnup.Run)
+		lg.WarnIfFuncError(d.log, lgm.CloseDB, clnup.Run)
 		return nil, errz.Wrap(err, d.def.Name)
 	}
 

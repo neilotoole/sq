@@ -57,7 +57,6 @@ func NewFiles(log *slog.Logger) (*Files, error) {
 
 	fcache, err := fscache.New(tmpdir, os.ModePerm, time.Hour)
 	if err != nil {
-		lg.WarnIfFuncError(log, fs.clnup.Run)
 		return nil, errz.Err(err)
 	}
 

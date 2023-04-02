@@ -261,13 +261,13 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 
 	colTypes, err := rows.ColumnTypes()
 	if err != nil {
-		lg.WarnIfFuncError(d.log, rows.Close)
+		lg.WarnIfFuncError(d.log, lgm.CloseDBRows, rows.Close)
 		return nil, errz.Err(err)
 	}
 
 	err = rows.Err()
 	if err != nil {
-		lg.WarnIfFuncError(d.log, rows.Close)
+		lg.WarnIfFuncError(d.log, lgm.CloseDBRows, rows.Close)
 		return nil, errz.Err(err)
 	}
 
@@ -345,7 +345,7 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 	if err != nil {
 		return 0, errz.Err(err)
 	}
-	defer lg.WarnIfFuncError(d.log, db.Close)
+	defer lg.WarnIfFuncError(d.log, lgm.CloseDB, db.Close)
 
 	// Not sure about the Tx requirements?
 	tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})

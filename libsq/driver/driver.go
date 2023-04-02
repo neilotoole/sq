@@ -308,6 +308,8 @@ func (d *Databases) Open(ctx context.Context, src *source.Source) (Database, err
 //
 // OpenScratch implements ScratchDatabaseOpener.
 func (d *Databases) OpenScratch(ctx context.Context, name string) (Database, error) {
+	const msgCloseScratch = "close scratch db"
+
 	scratchSrc, cleanFn, err := d.scratchSrcFn(d.log, name)
 	if err != nil {
 		// if err is non-nil, cleanup is guaranteed to be nil
@@ -317,20 +319,20 @@ func (d *Databases) OpenScratch(ctx context.Context, name string) (Database, err
 
 	drvr, err := d.drvrs.DriverFor(scratchSrc.Type)
 	if err != nil {
-		lg.WarnIfFuncError(d.log, cleanFn)
+		lg.WarnIfFuncError(d.log, msgCloseScratch, cleanFn)
 		return nil, err
 	}
 
 	sqlDrvr, ok := drvr.(SQLDriver)
 	if !ok {
-		lg.WarnIfFuncError(d.log, cleanFn)
+		lg.WarnIfFuncError(d.log, msgCloseScratch, cleanFn)
 		return nil, errz.Errorf("driver for scratch source %s is not a SQLDriver but is %T", scratchSrc.Handle, drvr)
 	}
 
 	var backingDB Database
 	backingDB, err = sqlDrvr.Open(ctx, scratchSrc)
 	if err != nil {
-		lg.WarnIfFuncError(d.log, cleanFn)
+		lg.WarnIfFuncError(d.log, msgCloseScratch, cleanFn)
 		return nil, err
 	}
 

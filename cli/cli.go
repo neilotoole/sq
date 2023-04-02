@@ -465,7 +465,7 @@ func (rc *RunContext) doInit() error {
 	var err error
 	rc.files, err = source.NewFiles(rc.Log)
 	if err != nil {
-		lg.WarnIfFuncError(rc.Log, rc.clnup.Run)
+		lg.WarnIfFuncError(rc.Log, "cleanup", rc.clnup.Run)
 		return err
 	}
 
