@@ -11,8 +11,8 @@ require (
 	github.com/go-sql-driver/mysql v1.7.0
 	github.com/google/uuid v1.3.0
 	github.com/h2non/filetype v1.1.3
-	github.com/jackc/pgconn v1.5.0
-	github.com/jackc/pgx/v4 v4.6.0
+	github.com/jackc/pgconn v1.14.0
+	github.com/jackc/pgx/v4 v4.18.1
 	github.com/magefile/mage v1.9.0
 	github.com/mattn/go-colorable v0.1.13
 	github.com/mattn/go-isatty v0.0.18
@@ -33,7 +33,7 @@ require (
 	github.com/xo/dburl v0.13.0
 	go.uber.org/atomic v1.10.0
 	go.uber.org/multierr v1.9.0
-	golang.org/x/net v0.4.0
+	golang.org/x/net v0.6.0
 	golang.org/x/sync v0.1.0
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -60,7 +60,7 @@ require (
 	github.com/muesli/mango-pflag v0.1.0 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/rogpeppe/go-internal v1.9.0 // indirect
-	golang.org/x/crypto v0.4.0 // indirect
+	golang.org/x/crypto v0.6.0 // indirect
 
 )
 
@@ -81,9 +81,9 @@ require (
 	github.com/jackc/chunkreader/v2 v2.0.1 // indirect
 	github.com/jackc/pgio v1.0.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
-	github.com/jackc/pgproto3/v2 v2.0.1 // indirect
-	github.com/jackc/pgservicefile v0.0.0-20200307190119-3430c5407db8 // indirect
-	github.com/jackc/pgtype v1.3.0 // indirect
+	github.com/jackc/pgproto3/v2 v2.3.2 // indirect
+	github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect
+	github.com/jackc/pgtype v1.14.0 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
@@ -97,10 +97,9 @@ require (
 	github.com/sirupsen/logrus v1.9.0 // indirect
 	golang.org/x/mod v0.9.0
 	golang.org/x/sys v0.6.0 // indirect
-	golang.org/x/term v0.3.0
-	golang.org/x/text v0.5.0 // indirect
+	golang.org/x/term v0.5.0
+	golang.org/x/text v0.7.0 // indirect
 	golang.org/x/tools v0.4.0 // indirect
-	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	google.golang.org/genproto v0.0.0-20221207170731-23e4bf6bdc37 // indirect
 	google.golang.org/grpc v1.51.0 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
