@@ -93,7 +93,7 @@ require (
 	github.com/opencontainers/image-spec v1.1.0-rc2 // indirect
 	github.com/opencontainers/runc v1.1.4 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/sethvargo/go-retry v0.2.3
+	github.com/sethvargo/go-retry v0.2.4
 	github.com/sirupsen/logrus v1.9.0 // indirect
 	golang.org/x/mod v0.9.0
 	golang.org/x/sys v0.6.0 // indirect
