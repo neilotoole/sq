@@ -32,7 +32,7 @@ require (
 	github.com/testcontainers/testcontainers-go v0.17.0
 	github.com/xo/dburl v0.13.0
 	go.uber.org/atomic v1.10.0
-	go.uber.org/multierr v1.9.0
+	go.uber.org/multierr v1.11.0
 	golang.org/x/net v0.4.0
 	golang.org/x/sync v0.1.0
 	gopkg.in/yaml.v3 v3.0.1
