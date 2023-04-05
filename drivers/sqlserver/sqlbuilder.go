@@ -35,7 +35,7 @@ func newFragmentBuilder(log *slog.Logger) *fragBuilder {
 	return r
 }
 
-func (fb *fragBuilder) Range(rr *ast.RowRangeNode) (string, error) {
+func (fb *fragBuilder) Range(_ *sqlbuilder.BuildContext, rr *ast.RowRangeNode) (string, error) {
 	if rr == nil {
 		return "", nil
 	}

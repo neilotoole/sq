@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/neilotoole/sq/libsq/ast/sqlbuilder"
+
 	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -23,6 +25,7 @@ type engine struct {
 	log *slog.Logger
 
 	qc *QueryContext
+	bc *sqlbuilder.BuildContext
 
 	// tasks contains tasks that must be completed before targetSQL
 	// is executed against targetDB. Typically tasks is used to
@@ -54,6 +57,7 @@ func newEngine(ctx context.Context, qc *QueryContext, query string) (*engine, er
 	ng := &engine{
 		log: log,
 		qc:  qc,
+		bc:  &sqlbuilder.BuildContext{Args: qc.Args},
 	}
 
 	if err = ng.prepare(ctx, qModel); err != nil {
@@ -92,13 +96,13 @@ func (ng *engine) prepare(ctx context.Context, qm *queryModel) error {
 	fb, qb := ng.targetDB.SQLDriver().SQLBuilder()
 	qb.SetFrom(s)
 
-	if s, err = fb.SelectCols(qm.Cols); err != nil {
+	if s, err = fb.SelectCols(ng.bc, qm.Cols); err != nil {
 		return err
 	}
 	qb.SetColumns(s)
 
 	if qm.Distinct != nil {
-		if s, err = fb.Distinct(qm.Distinct); err != nil {
+		if s, err = fb.Distinct(ng.bc, qm.Distinct); err != nil {
 			return err
 		}
 
@@ -106,7 +110,7 @@ func (ng *engine) prepare(ctx context.Context, qm *queryModel) error {
 	}
 
 	if qm.Range != nil {
-		if s, err = fb.Range(qm.Range); err != nil {
+		if s, err = fb.Range(ng.bc, qm.Range); err != nil {
 			return err
 		}
 
@@ -114,7 +118,7 @@ func (ng *engine) prepare(ctx context.Context, qm *queryModel) error {
 	}
 
 	if qm.Where != nil {
-		if s, err = fb.Where(qm.Where); err != nil {
+		if s, err = fb.Where(ng.bc, qm.Where); err != nil {
 			return err
 		}
 
@@ -122,7 +126,7 @@ func (ng *engine) prepare(ctx context.Context, qm *queryModel) error {
 	}
 
 	if qm.OrderBy != nil {
-		if s, err = fb.OrderBy(qm.OrderBy); err != nil {
+		if s, err = fb.OrderBy(ng.bc, qm.OrderBy); err != nil {
 			return err
 		}
 
@@ -130,7 +134,7 @@ func (ng *engine) prepare(ctx context.Context, qm *queryModel) error {
 	}
 
 	if qm.GroupBy != nil {
-		if s, err = fb.GroupBy(qm.GroupBy); err != nil {
+		if s, err = fb.GroupBy(ng.bc, qm.GroupBy); err != nil {
 			return err
 		}
 		qb.SetGroupBy(s)
@@ -200,7 +204,7 @@ func (ng *engine) buildTableFromClause(ctx context.Context, tblSel *ast.TblSelec
 	}
 
 	fragBuilder, _ := fromConn.SQLDriver().SQLBuilder()
-	fromClause, err = fragBuilder.FromTable(tblSel)
+	fromClause, err = fragBuilder.FromTable(ng.bc, tblSel)
 	if err != nil {
 		return "", nil, err
 	}
@@ -240,7 +244,7 @@ func (ng *engine) singleSourceJoin(ctx context.Context, fnJoin *ast.JoinNode) (f
 	}
 
 	fragBuilder, _ := fromDB.SQLDriver().SQLBuilder()
-	fromClause, err = fragBuilder.Join(fnJoin)
+	fromClause, err = fragBuilder.Join(ng.bc, fnJoin)
 	if err != nil {
 		return "", nil, err
 	}
@@ -301,7 +305,7 @@ func (ng *engine) crossSourceJoin(ctx context.Context, fnJoin *ast.JoinNode) (fr
 	ng.tasks = append(ng.tasks, rightCopyTask)
 
 	joinDBFragBuilder, _ := joinDB.SQLDriver().SQLBuilder()
-	fromClause, err = joinDBFragBuilder.Join(fnJoin)
+	fromClause, err = joinDBFragBuilder.Join(ng.bc, fnJoin)
 	if err != nil {
 		return "", nil, err
 	}

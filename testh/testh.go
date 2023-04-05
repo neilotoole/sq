@@ -466,8 +466,9 @@ func (h *Helper) QuerySQL(src *source.Source, query string, args ...any) (*Recor
 	return sink, nil
 }
 
-// QuerySLQ executes the SLQ query.
-func (h *Helper) QuerySLQ(query string) (*RecordSink, error) {
+// QuerySLQ executes the SLQ query. Args are predefined variables for
+// substitution.
+func (h *Helper) QuerySLQ(query string, args map[string]string) (*RecordSink, error) {
 	// We need to ensure that each of the handles in the query is loaded.
 	a, err := ast.Parse(h.Log, query)
 	require.NoError(h.T, err)
@@ -481,6 +482,7 @@ func (h *Helper) QuerySLQ(query string) (*RecordSink, error) {
 		Sources:      h.srcs,
 		DBOpener:     h.databases,
 		JoinDBOpener: h.databases,
+		Args:         args,
 	}
 
 	sink := &RecordSink{}

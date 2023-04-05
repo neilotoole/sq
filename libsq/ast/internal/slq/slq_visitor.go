@@ -64,6 +64,9 @@ type SLQVisitor interface {
 	// Visit a parse tree produced by SLQParser#alias.
 	VisitAlias(ctx *AliasContext) interface{}
 
+	// Visit a parse tree produced by SLQParser#arg.
+	VisitArg(ctx *ArgContext) interface{}
+
 	// Visit a parse tree produced by SLQParser#handleTable.
 	VisitHandleTable(ctx *HandleTableContext) interface{}
 

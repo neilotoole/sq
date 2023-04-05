@@ -200,6 +200,8 @@ func (v *parseTreeVisitor) Visit(ctx antlr.ParseTree) any {
 		return v.VisitUniqueFunc(ctx)
 	case *slq.CountFuncContext:
 		return v.VisitCountFunc(ctx)
+	case *slq.ArgContext:
+		return v.VisitArg(ctx)
 	}
 
 	// should never be reached
@@ -398,17 +400,6 @@ func (v *parseTreeVisitor) VisitCmpr(ctx *slq.CmprContext) any {
 // VisitStmtList implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitStmtList(_ *slq.StmtListContext) any {
 	return nil // not using StmtList just yet
-}
-
-// VisitLiteral implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitLiteral(ctx *slq.LiteralContext) any {
-	node := &LiteralNode{}
-	node.ctx = ctx
-	node.text = ctx.GetText()
-	if err := node.SetParent(v.cur); err != nil {
-		return err
-	}
-	return v.cur.AddChild(node)
 }
 
 // VisitUnaryOperator implements slq.SLQVisitor.

@@ -83,6 +83,10 @@ func (v *BaseSLQVisitor) VisitAlias(ctx *AliasContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
+func (v *BaseSLQVisitor) VisitArg(ctx *ArgContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
 func (v *BaseSLQVisitor) VisitHandleTable(ctx *HandleTableContext) interface{} {
 	return v.VisitChildren(ctx)
 }

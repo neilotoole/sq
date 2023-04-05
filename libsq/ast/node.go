@@ -270,16 +270,6 @@ func (n *OperatorNode) String() string {
 	return nodeString(n)
 }
 
-// LiteralNode is a leaf node representing a literal such as a number or a string.
-type LiteralNode struct {
-	baseNode
-}
-
-// String returns a log/debug-friendly representation.
-func (n *LiteralNode) String() string {
-	return nodeString(n)
-}
-
 // WhereNode represents a SQL WHERE clause, i.e. a filter on the SELECT.
 type WhereNode struct {
 	baseNode

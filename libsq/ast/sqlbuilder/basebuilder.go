@@ -5,6 +5,8 @@ import (
 	"math"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/stringz"
+
 	"golang.org/x/exp/slog"
 
 	"github.com/neilotoole/sq/libsq/ast"
@@ -21,8 +23,9 @@ var baseOps = map[string]string{
 	`==`: `=`,
 }
 
-// BaseOps returns a default map of SLQ operator (e.g. "==" or "!=") to its default SQL rendering.
-// The returned map is a copy and can be safely modified by the caller.
+// BaseOps returns a default map of SLQ operator (e.g. "==" or "!=") to
+// its default SQL rendering. The returned map is a copy and can be safely
+// modified by the caller.
 func BaseOps() map[string]string {
 	ops := make(map[string]string, len(baseOps))
 	for k, v := range baseOps {
@@ -41,11 +44,14 @@ type BaseFragmentBuilder struct {
 
 	// QuoteFn quotes an identifier.
 	QuoteFn func(string) string
-	Ops     map[string]string
+
+	// Ops contains a map of SLQ operator to its SQL rendering.
+	// See BaseOps.
+	Ops map[string]string
 }
 
 // Distinct implements FragmentBuilder.
-func (fb *BaseFragmentBuilder) Distinct(n *ast.UniqueNode) (string, error) {
+func (fb *BaseFragmentBuilder) Distinct(_ *BuildContext, n *ast.UniqueNode) (string, error) {
 	if n == nil {
 		return "", nil
 	}
@@ -53,7 +59,7 @@ func (fb *BaseFragmentBuilder) Distinct(n *ast.UniqueNode) (string, error) {
 }
 
 // GroupBy implements FragmentBuilder.
-func (fb *BaseFragmentBuilder) GroupBy(gb *ast.GroupByNode) (string, error) {
+func (fb *BaseFragmentBuilder) GroupBy(bc *BuildContext, gb *ast.GroupByNode) (string, error) {
 	if gb == nil {
 		return "", nil
 	}
@@ -72,7 +78,7 @@ func (fb *BaseFragmentBuilder) GroupBy(gb *ast.GroupByNode) (string, error) {
 
 		switch child := child.(type) {
 		case *ast.FuncNode:
-			if term, err = fb.Function(child); err != nil {
+			if term, err = fb.Function(bc, child); err != nil {
 				return "", err
 			}
 		case ast.Selector:
@@ -91,7 +97,7 @@ func (fb *BaseFragmentBuilder) GroupBy(gb *ast.GroupByNode) (string, error) {
 }
 
 // OrderBy implements FragmentBuilder.
-func (fb *BaseFragmentBuilder) OrderBy(ob *ast.OrderByNode) (string, error) {
+func (fb *BaseFragmentBuilder) OrderBy(_ *BuildContext, ob *ast.OrderByNode) (string, error) {
 	if ob == nil {
 		return "", nil
 	}
@@ -126,7 +132,7 @@ func (fb *BaseFragmentBuilder) OrderBy(ob *ast.OrderByNode) (string, error) {
 }
 
 // Operator implements FragmentBuilder.
-func (fb *BaseFragmentBuilder) Operator(op *ast.OperatorNode) (string, error) {
+func (fb *BaseFragmentBuilder) Operator(_ *BuildContext, op *ast.OperatorNode) (string, error) {
 	if op == nil {
 		return "", nil
 	}
@@ -139,11 +145,11 @@ func (fb *BaseFragmentBuilder) Operator(op *ast.OperatorNode) (string, error) {
 }
 
 // Where implements FragmentBuilder.
-func (fb *BaseFragmentBuilder) Where(where *ast.WhereNode) (string, error) {
+func (fb *BaseFragmentBuilder) Where(bc *BuildContext, where *ast.WhereNode) (string, error) {
 	if where == nil {
 		return "", nil
 	}
-	sql, err := fb.Expr(where.Expr())
+	sql, err := fb.Expr(bc, where.Expr())
 	if err != nil {
 		return "", err
 	}
@@ -153,7 +159,7 @@ func (fb *BaseFragmentBuilder) Where(where *ast.WhereNode) (string, error) {
 }
 
 // Expr implements FragmentBuilder.
-func (fb *BaseFragmentBuilder) Expr(expr *ast.ExprNode) (string, error) {
+func (fb *BaseFragmentBuilder) Expr(bc *BuildContext, expr *ast.ExprNode) (string, error) {
 	if expr == nil {
 		return "", nil
 	}
@@ -168,15 +174,26 @@ func (fb *BaseFragmentBuilder) Expr(expr *ast.ExprNode) (string, error) {
 			}
 			sb.WriteString(val)
 		case *ast.OperatorNode:
-			val, err := fb.Operator(child)
+			val, err := fb.Operator(bc, child)
 			if err != nil {
 				return "", err
 			}
 
 			sb.WriteRune(sp)
 			sb.WriteString(val)
+		case *ast.ArgNode:
+			if bc.Args != nil {
+				val, ok := bc.Args[child.Key()]
+				if ok {
+					sb.WriteString(stringz.SingleQuote(val))
+					break
+				}
+			}
+
+			// It's an error if the arg is not supplied.
+			return "", errz.Errorf("no --arg value found for query variable %s", child.Text())
 		case *ast.ExprNode:
-			val, err := fb.Expr(child)
+			val, err := fb.Expr(bc, child)
 			if err != nil {
 				return "", err
 			}
@@ -192,7 +209,7 @@ func (fb *BaseFragmentBuilder) Expr(expr *ast.ExprNode) (string, error) {
 }
 
 // Function implements FragmentBuilder.
-func (fb *BaseFragmentBuilder) Function(fn *ast.FuncNode) (string, error) {
+func (fb *BaseFragmentBuilder) Function(_ *BuildContext, fn *ast.FuncNode) (string, error) {
 	sb := strings.Builder{}
 	fnName := strings.ToLower(fn.FuncName())
 	children := fn.Children()
@@ -263,7 +280,7 @@ func (fb *BaseFragmentBuilder) Function(fn *ast.FuncNode) (string, error) {
 }
 
 // FromTable implements FragmentBuilder.
-func (fb *BaseFragmentBuilder) FromTable(tblSel *ast.TblSelectorNode) (string, error) {
+func (fb *BaseFragmentBuilder) FromTable(_ *BuildContext, tblSel *ast.TblSelectorNode) (string, error) {
 	tblName, _ := tblSel.SelValue()
 	if tblName == "" {
 		return "", errz.Errorf("selector has empty table name: {%s}", tblSel.Text())
@@ -274,7 +291,7 @@ func (fb *BaseFragmentBuilder) FromTable(tblSel *ast.TblSelectorNode) (string, e
 }
 
 // Join implements FragmentBuilder.
-func (fb *BaseFragmentBuilder) Join(fnJoin *ast.JoinNode) (string, error) {
+func (fb *BaseFragmentBuilder) Join(_ *BuildContext, fnJoin *ast.JoinNode) (string, error) {
 	joinType := "INNER JOIN"
 	onClause := ""
 
@@ -441,7 +458,7 @@ func quoteTableOrColSelector(quote, selector string) (string, error) {
 }
 
 // Range implements FragmentBuilder.
-func (fb *BaseFragmentBuilder) Range(rr *ast.RowRangeNode) (string, error) {
+func (fb *BaseFragmentBuilder) Range(_ *BuildContext, rr *ast.RowRangeNode) (string, error) {
 	if rr == nil {
 		return "", nil
 	}
@@ -471,7 +488,7 @@ func (fb *BaseFragmentBuilder) Range(rr *ast.RowRangeNode) (string, error) {
 }
 
 // SelectCols implements FragmentBuilder.
-func (fb *BaseFragmentBuilder) SelectCols(cols []ast.ResultColumn) (string, error) {
+func (fb *BaseFragmentBuilder) SelectCols(bc *BuildContext, cols []ast.ResultColumn) (string, error) {
 	if len(cols) == 0 {
 		return "*", nil
 	}
@@ -494,7 +511,7 @@ func (fb *BaseFragmentBuilder) SelectCols(cols []ast.ResultColumn) (string, erro
 		case *ast.FuncNode:
 			// it's a function
 			var err error
-			if vals[i], err = fb.Function(col); err != nil {
+			if vals[i], err = fb.Function(bc, col); err != nil {
 				return "", err
 			}
 		default:
