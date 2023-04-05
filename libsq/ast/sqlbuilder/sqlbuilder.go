@@ -11,6 +11,16 @@ type BuildContext struct {
 	// The args map contains predefined variables that are
 	// substituted into the query. It may be empty or nil.
 	Args map[string]string
+
+	// QuoteIdentFunc quotes an identifier. For example:
+	//
+	//  my_table -->  "my_table"
+	QuoteIdentFunc func(ident string) string
+
+	// Quote is the quote char, typically double quote.
+	//
+	// TODO: Do we really need this if we have QuoteIdentFunc?
+	Quote string
 }
 
 // FragmentBuilder renders driver-specific SQL fragments.
@@ -38,6 +48,9 @@ type FragmentBuilder interface {
 
 	// Function renders a function fragment.
 	Function(bc *BuildContext, fn *ast.FuncNode) (string, error)
+
+	// Literal renders a literal fragment.
+	Literal(bc *BuildContext, lit *ast.LiteralNode) (string, error)
 
 	// Where renders a WHERE fragment.
 	Where(bc *BuildContext, where *ast.WhereNode) (string, error)
