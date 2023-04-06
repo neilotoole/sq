@@ -158,15 +158,20 @@ func ExecuteWith(ctx context.Context, rc *RunContext, args []string) error {
 			// look like: [query, arg1, arg2] -- noting that SetArgs
 			// doesn't want the first args element.
 			effectiveArgs := append([]string{"slq"}, args...)
+			if effectiveArgs, err = preprocessFlagArgVars(effectiveArgs); err != nil {
+				return err
+			}
 			rootCmd.SetArgs(effectiveArgs)
 		} else {
 			if cmd.Name() == rootCmd.Name() {
 				// Not sure why we have two paths to this, but it appears
 				// that we've found the root cmd again, so again
 				// we redirect to "slq" cmd.
-
-				a := append([]string{"slq"}, args...)
-				rootCmd.SetArgs(a)
+				effectiveArgs := append([]string{"slq"}, args...)
+				if effectiveArgs, err = preprocessFlagArgVars(effectiveArgs); err != nil {
+					return err
+				}
+				rootCmd.SetArgs(effectiveArgs)
 			} else {
 				// It's just a normal command like "sq ls" or such.
 

@@ -409,3 +409,32 @@ func TestSingleQuote(t *testing.T) {
 		})
 	}
 }
+
+func TestValidIdent(t *testing.T) {
+	testCases := []struct {
+		in      string
+		wantErr bool
+	}{
+		{in: "", wantErr: true},
+		{in: "hello world", wantErr: true},
+		{in: "hello", wantErr: false},
+		{in: "1", wantErr: true},
+		{in: "$hello", wantErr: true},
+		{in: "_hello", wantErr: true},
+		{in: "hello_", wantErr: false},
+		{in: "Hello_", wantErr: false},
+		{in: "Hello_1", wantErr: false},
+		{in: "Hello_!!", wantErr: true},
+	}
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tutil.Name(tc.in), func(t *testing.T) {
+			gotErr := stringz.ValidIdent(tc.in)
+			if tc.wantErr {
+				require.Error(t, gotErr)
+			} else {
+				require.NoError(t, gotErr)
+			}
+		})
+	}
+}

@@ -112,6 +112,9 @@ const (
 
 	flagSkipVerify      = "skip-verify"
 	flagSkipVerifyUsage = "Don't ping source before adding it"
+
+	flagArg      = "arg"
+	flagArgUsage = "Set a string value to a variable"
 )
 
 const (
