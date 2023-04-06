@@ -10,7 +10,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-//nolint:exhaustive
+//nolint:exhaustive,lll
 func TestQuery_expr(t *testing.T) {
 	testCases := []queryTestCase{
 		{
@@ -19,6 +19,13 @@ func TestQuery_expr(t *testing.T) {
 			wantSQL:  `SELECT * FROM "actor" WHERE "first_name" = 'TOM'`,
 			override: map[source.Type]string{mysql.Type: "SELECT * FROM `actor` WHERE `first_name` = 'TOM'"},
 			wantRecs: 2,
+		},
+		{
+			name:     "literal/two-strings",
+			in:       `@sakila | .actor | .first_name == "TOM" && .last_name == "MIRANDA"`,
+			wantSQL:  `SELECT * FROM "actor" WHERE "first_name" = 'TOM' AND "last_name" = "MIRANDA"`,
+			override: map[source.Type]string{mysql.Type: "SELECT * FROM `actor` WHERE `first_name` = 'TOM' AND `last_name` = 'MIRANDA'"},
+			wantRecs: 1,
 		},
 		{
 			name:     "literal/integer",
