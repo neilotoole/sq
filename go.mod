@@ -25,7 +25,7 @@ require (
 	// Be very careful changing pkg segmentio/encoding. A specific version is by our json encoder.
 	github.com/segmentio/encoding v0.1.14
 	github.com/shopspring/decimal v1.3.1
-	github.com/spf13/cobra v1.6.1
+	github.com/spf13/cobra v1.7.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.1
 	github.com/tealeg/xlsx/v2 v2.0.1 // TODO: This package is no longer supported; switch to a different impl
