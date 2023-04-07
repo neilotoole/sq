@@ -11,6 +11,7 @@ func doJoin(rc *Context, fnJoin *ast.JoinNode) (string, error) {
 	// FIXME: switch to using dialect.Dialect.Enquote.
 
 	quote := string(rc.Dialect.IdentQuote)
+	enquote := rc.Dialect.Enquote
 
 	joinType := "INNER JOIN"
 	onClause := ""
@@ -41,26 +42,18 @@ func doJoin(rc *Context, fnJoin *ast.JoinNode) (string, error) {
 
 			leftTblVal := fnJoin.LeftTbl().TblName()
 			leftOperand = fmt.Sprintf(
-				"%s%s%s.%s%s%s",
-				quote,
-				leftTblVal,
-				quote,
-				quote,
-				colVal,
-				quote,
+				"%s.%s",
+				enquote(leftTblVal),
+				enquote(colVal),
 			)
 
 			operator = "=="
 
 			rightTblVal := fnJoin.RightTbl().TblName()
 			rightOperand = fmt.Sprintf(
-				"%s%s%s.%s%s%s",
-				quote,
-				rightTblVal,
-				quote,
-				quote,
-				colVal,
-				quote,
+				"%s.%s",
+				enquote(rightTblVal),
+				enquote(colVal),
 			)
 		} else {
 			var err error
@@ -85,14 +78,10 @@ func doJoin(rc *Context, fnJoin *ast.JoinNode) (string, error) {
 	}
 
 	sql := fmt.Sprintf(
-		"FROM %s%s%s %s %s%s%s",
-		quote,
-		fnJoin.LeftTbl().TblName(),
-		quote,
+		"FROM %s %s %s",
+		enquote(fnJoin.LeftTbl().TblName()),
 		joinType,
-		quote,
-		fnJoin.RightTbl().TblName(),
-		quote,
+		enquote(fnJoin.RightTbl().TblName()),
 	)
 	sql = sqlAppend(sql, onClause)
 

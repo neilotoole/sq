@@ -25,7 +25,6 @@ func doSelectCols(rc *Context, cols []ast.ResultColumn) (string, error) {
 		}
 
 		switch col := col.(type) {
-		// FIXME: switch to using renderSelectorNode.
 		case *ast.ColSelectorNode:
 			if vals[i], err = renderSelectorNode(quote, col); err != nil {
 				return "", err
@@ -34,9 +33,7 @@ func doSelectCols(rc *Context, cols []ast.ResultColumn) (string, error) {
 			if vals[i], err = renderSelectorNode(quote, col); err != nil {
 				return "", err
 			}
-			// vals[i] = fmt.Sprintf("%s%s%s.%s%s%s", quote, col.TblName(), quote, quote, col.ColName(), quote)
 		case *ast.FuncNode:
-			// It's a function
 			if vals[i], err = rc.Renderer.Function(rc, col); err != nil {
 				return "", err
 			}
