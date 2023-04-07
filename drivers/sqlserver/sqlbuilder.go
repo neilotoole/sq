@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/ast/sqlbuilder"
+	"github.com/neilotoole/sq/libsq/ast/render"
 	"github.com/neilotoole/sq/libsq/core/kind"
 
 	"github.com/neilotoole/sq/libsq/ast"
@@ -13,7 +13,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/sqlmodel"
 )
 
-func renderRange(_ *sqlbuilder.BuildContext, _ *sqlbuilder.Renderer, rr *ast.RowRangeNode) (string, error) {
+func renderRange(_ *render.BuildContext, _ *render.Renderer, rr *ast.RowRangeNode) (string, error) {
 	if rr == nil {
 		return "", nil
 	}
@@ -45,7 +45,7 @@ func renderRange(_ *sqlbuilder.BuildContext, _ *sqlbuilder.Renderer, rr *ast.Row
 	return sql, nil
 }
 
-func preRender(_ *sqlbuilder.BuildContext, _ *sqlbuilder.Renderer, f *sqlbuilder.Fragments) error {
+func preRender(_ *render.BuildContext, _ *render.Renderer, f *render.Fragments) error {
 	// SQL Server handles range (OFFSET, LIMIT) a little differently. If the query has a range,
 	// then the ORDER BY clause is required. If ORDER BY is not specified, we use a trick (SELECT 0)
 	// to satisfy SQL Server. For example:

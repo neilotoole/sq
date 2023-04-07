@@ -19,7 +19,7 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 
-	"github.com/neilotoole/sq/libsq/ast/sqlbuilder"
+	"github.com/neilotoole/sq/libsq/ast/render"
 	"github.com/neilotoole/sq/libsq/core/sqlmodel"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/source"
@@ -85,7 +85,7 @@ type SQLDriver interface {
 	Dialect() dialect.Dialect
 
 	// Renderer returns the SQL renderer for this driver.
-	Renderer() *sqlbuilder.Renderer
+	Renderer() *render.Renderer
 
 	// CurrentSchema returns the current schema name.
 	CurrentSchema(ctx context.Context, db sqlz.DB) (string, error)

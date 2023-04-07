@@ -21,7 +21,7 @@ import (
 	"github.com/jackc/pgx/v4"
 	// Import jackc/pgx, which is our postgres driver.
 	_ "github.com/jackc/pgx/v4/stdlib"
-	"github.com/neilotoole/sq/libsq/ast/sqlbuilder"
+	"github.com/neilotoole/sq/libsq/ast/render"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlmodel"
@@ -104,8 +104,8 @@ func placeholders(numCols, numRows int) string {
 }
 
 // SQLBuilder implements driver.SQLDriver.
-func (d *driveri) Renderer() *sqlbuilder.Renderer {
-	r := sqlbuilder.NewDefaultRenderer()
+func (d *driveri) Renderer() *render.Renderer {
+	r := render.NewDefaultRenderer()
 	return r
 }
 

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/neilotoole/sq/libsq/ast/sqlbuilder"
+	"github.com/neilotoole/sq/libsq/ast/render"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
 
@@ -31,7 +31,7 @@ type engine struct {
 	// This field is set during engine.prepare. It can't be set before
 	// then because the target DB to use is calculated during engine.prepare,
 	// based on the input query and other context.
-	bc *sqlbuilder.BuildContext
+	bc *render.BuildContext
 
 	// tasks contains tasks that must be completed before targetSQL
 	// is executed against targetDB. Typically tasks is used to
@@ -130,7 +130,7 @@ func (ng *engine) buildTableFromClause(ctx context.Context, tblSel *ast.TblSelec
 		return "", nil, err
 	}
 
-	ng.bc = &sqlbuilder.BuildContext{
+	ng.bc = &render.BuildContext{
 		Args:    ng.qc.Args,
 		Dialect: fromConn.SQLDriver().Dialect(),
 	}
@@ -181,7 +181,7 @@ func (ng *engine) singleSourceJoin(ctx context.Context, fnJoin *ast.JoinNode) (f
 		return "", nil, err
 	}
 
-	ng.bc = &sqlbuilder.BuildContext{
+	ng.bc = &render.BuildContext{
 		Args:    ng.qc.Args,
 		Dialect: fromDB.SQLDriver().Dialect(),
 	}
@@ -224,7 +224,7 @@ func (ng *engine) crossSourceJoin(ctx context.Context, fnJoin *ast.JoinNode) (fr
 		return "", nil, err
 	}
 
-	ng.bc = &sqlbuilder.BuildContext{
+	ng.bc = &render.BuildContext{
 		Args:    ng.qc.Args,
 		Dialect: joinDB.SQLDriver().Dialect(),
 	}

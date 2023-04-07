@@ -3,7 +3,7 @@ package libsq
 import (
 	"context"
 
-	"github.com/neilotoole/sq/libsq/ast/sqlbuilder"
+	"github.com/neilotoole/sq/libsq/ast/render"
 
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -17,7 +17,7 @@ import (
 func (ng *engine) prepare(ctx context.Context, qm *queryModel) error {
 	var (
 		err   error
-		frags = &sqlbuilder.Fragments{}
+		frags = &render.Fragments{}
 	)
 
 	// After this switch, ng.bc will be set.

@@ -1,4 +1,4 @@
-package sqlbuilder
+package render
 
 import (
 	"github.com/neilotoole/sq/libsq/ast"
