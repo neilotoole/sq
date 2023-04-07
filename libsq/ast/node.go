@@ -5,10 +5,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/lg"
-
-	"golang.org/x/exp/slog"
-
 	"github.com/antlr/antlr4/runtime/Go/antlr/v4"
 )
 
@@ -243,8 +239,8 @@ func NodesHavingText(tree Node, text string) []Node {
 
 	var nodes []Node
 
-	w := NewWalker(lg.Discard(), tree)
-	w.AddVisitor(typeNode, func(log *slog.Logger, w *Walker, node Node) error {
+	w := NewWalker(tree)
+	w.AddVisitor(typeNode, func(w *Walker, node Node) error {
 		nodeText := node.Text()
 		if nodeText == text {
 			nodes = append(nodes, node)

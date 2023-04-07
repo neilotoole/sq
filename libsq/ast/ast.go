@@ -31,7 +31,7 @@ func Parse(log *slog.Logger, input string) (*AST, error) { //nolint:staticcheck
 		return nil, err
 	}
 
-	if err := verify(log, ast); err != nil {
+	if err := verify(ast); err != nil {
 		return nil, err
 	}
 
@@ -68,7 +68,7 @@ func buildAST(log *slog.Logger, query slq.IQueryContext) (*AST, error) {
 	}
 
 	for _, visitor := range visitors {
-		w := NewWalker(log, tree.ast).AddVisitor(visitor.typ, visitor.fn)
+		w := NewWalker(tree.ast).AddVisitor(visitor.typ, visitor.fn)
 		if err := w.Walk(); err != nil {
 			return nil, err
 		}
@@ -78,8 +78,8 @@ func buildAST(log *slog.Logger, query slq.IQueryContext) (*AST, error) {
 }
 
 // verify performs additional checks on the state of the built AST.
-func verify(log *slog.Logger, ast *AST) error {
-	selCount := NewInspector(log, ast).CountNodes(typeSelectorNode)
+func verify(ast *AST) error {
+	selCount := NewInspector(ast).CountNodes(typeSelectorNode)
 	if selCount != 0 {
 		return errorf("AST should have zero nodes of type %T but found %d",
 			(*SelectorNode)(nil), selCount)

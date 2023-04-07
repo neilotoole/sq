@@ -4,8 +4,6 @@ import (
 	"testing"
 
 	"github.com/neilotoole/slogt"
-	"golang.org/x/exp/slog"
-
 	"github.com/stretchr/testify/assert"
 )
 
@@ -20,10 +18,10 @@ func TestWalker(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, ast)
 
-	walker := NewWalker(log, ast)
+	walker := NewWalker(ast)
 	count := 0
 
-	visitor := func(log *slog.Logger, w *Walker, node Node) error {
+	visitor := func(w *Walker, node Node) error {
 		count++
 		return w.visitChildren(node)
 	}
@@ -34,14 +32,14 @@ func TestWalker(t *testing.T) {
 	assert.Equal(t, 1, count)
 
 	// test multiple visitors on the same node type
-	walker = NewWalker(log, ast)
+	walker = NewWalker(ast)
 	countA := 0
-	visitorA := func(log *slog.Logger, w *Walker, node Node) error {
+	visitorA := func(w *Walker, node Node) error {
 		countA++
 		return w.visitChildren(node)
 	}
 	countB := 0
-	visitorB := func(log *slog.Logger, w *Walker, node Node) error {
+	visitorB := func(w *Walker, node Node) error {
 		countB++
 		return w.visitChildren(node)
 	}

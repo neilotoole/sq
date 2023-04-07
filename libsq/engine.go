@@ -393,7 +393,7 @@ func buildQueryModel(log *slog.Logger, a *ast.AST) (*queryModel, error) {
 		return nil, errz.Errorf("query model error: query does not have enough segments")
 	}
 
-	insp := ast.NewInspector(log, a)
+	insp := ast.NewInspector(a)
 	tablerSeg, err := insp.FindFinalTablerSegment()
 	if err != nil {
 		return nil, err

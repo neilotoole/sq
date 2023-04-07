@@ -473,7 +473,7 @@ func (h *Helper) QuerySLQ(query string, args map[string]string) (*RecordSink, er
 	a, err := ast.Parse(h.Log, query)
 	require.NoError(h.T, err)
 
-	for _, handle := range ast.NewInspector(h.Log, a).FindHandles() {
+	for _, handle := range ast.NewInspector(a).FindHandles() {
 		// This triggers handle loading
 		_ = h.Source(handle)
 	}
