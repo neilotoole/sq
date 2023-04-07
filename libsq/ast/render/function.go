@@ -3,6 +3,8 @@ package render
 import (
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/stringz"
+
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
@@ -60,10 +62,7 @@ func doFunction(rc *Context, fn *ast.FuncNode) (string, error) {
 
 			if wasQuoted {
 				// The literal had quotes, so it's a regular string.
-				// FIXME: replace with stringz.SingleQuote
-				sb.WriteRune(singleQuote)
-				sb.WriteString(escapeLiteral(val))
-				sb.WriteRune(singleQuote)
+				sb.WriteString(stringz.SingleQuote(val))
 			} else {
 				sb.WriteString(val)
 			}

@@ -1,7 +1,6 @@
 package render
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/neilotoole/sq/libsq/ast"
@@ -9,6 +8,7 @@ import (
 
 func doSelectCols(rc *Context, cols []ast.ResultColumn) (string, error) {
 	quote := string(rc.Dialect.IdentQuote)
+	var err error
 
 	if len(cols) == 0 {
 		return "*", nil
@@ -27,12 +27,16 @@ func doSelectCols(rc *Context, cols []ast.ResultColumn) (string, error) {
 		switch col := col.(type) {
 		// FIXME: switch to using renderSelectorNode.
 		case *ast.ColSelectorNode:
-			vals[i] = fmt.Sprintf("%s%s%s", quote, col.ColName(), quote)
+			if vals[i], err = renderSelectorNode(quote, col); err != nil {
+				return "", err
+			}
 		case *ast.TblColSelectorNode:
-			vals[i] = fmt.Sprintf("%s%s%s.%s%s%s", quote, col.TblName(), quote, quote, col.ColName(), quote)
+			if vals[i], err = renderSelectorNode(quote, col); err != nil {
+				return "", err
+			}
+			// vals[i] = fmt.Sprintf("%s%s%s.%s%s%s", quote, col.TblName(), quote, quote, col.ColName(), quote)
 		case *ast.FuncNode:
-			// it's a function
-			var err error
+			// It's a function
 			if vals[i], err = rc.Renderer.Function(rc, col); err != nil {
 				return "", err
 			}
