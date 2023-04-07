@@ -1,12 +1,13 @@
+// Package render provides the mechanism for rendering ast into SQL.
 package render
 
 import (
 	"fmt"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/driver/dialect"
 
-	"github.com/neilotoole/sq/libsq/core/dialect"
+	"github.com/neilotoole/sq/libsq/core/errz"
 
 	"github.com/neilotoole/sq/libsq/ast"
 )

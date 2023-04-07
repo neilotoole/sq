@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/neilotoole/sq/libsq/core/dialect"
+	"github.com/neilotoole/sq/libsq/driver/dialect"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
