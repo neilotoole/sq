@@ -21,7 +21,7 @@ func doOrderBy(rc *Context, ob *ast.OrderByNode) (string, error) {
 			clause += ", "
 		}
 
-		sel, err := renderSelectorNode(string(rc.Dialect.IdentQuote), terms[i].Selector())
+		sel, err := renderSelectorNode(rc.Dialect, terms[i].Selector())
 		if err != nil {
 			return "", err
 		}

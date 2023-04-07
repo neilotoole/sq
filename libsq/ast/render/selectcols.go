@@ -7,7 +7,6 @@ import (
 )
 
 func doSelectCols(rc *Context, cols []ast.ResultColumn) (string, error) {
-	quote := string(rc.Dialect.IdentQuote)
 	var err error
 
 	if len(cols) == 0 {
@@ -26,11 +25,11 @@ func doSelectCols(rc *Context, cols []ast.ResultColumn) (string, error) {
 
 		switch col := col.(type) {
 		case *ast.ColSelectorNode:
-			if vals[i], err = renderSelectorNode(quote, col); err != nil {
+			if vals[i], err = renderSelectorNode(rc.Dialect, col); err != nil {
 				return "", err
 			}
 		case *ast.TblColSelectorNode:
-			if vals[i], err = renderSelectorNode(quote, col); err != nil {
+			if vals[i], err = renderSelectorNode(rc.Dialect, col); err != nil {
 				return "", err
 			}
 		case *ast.FuncNode:

@@ -2,7 +2,6 @@
 package render
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/neilotoole/sq/libsq/driver/dialect"
@@ -156,34 +155,15 @@ const (
 
 // renderSelectorNode renders a selector such as ".actor.first_name"
 // or ".last_name".
-func renderSelectorNode(quote string, node ast.Node) (string, error) {
+func renderSelectorNode(d dialect.Dialect, node ast.Node) (string, error) {
 	// FIXME: switch to using enquote
 	switch node := node.(type) {
 	case *ast.ColSelectorNode:
-		return fmt.Sprintf(
-			"%s%s%s",
-			quote,
-			node.ColName(),
-			quote,
-		), nil
+		return d.Enquote(node.ColName()), nil
 	case *ast.TblColSelectorNode:
-		return fmt.Sprintf(
-			"%s%s%s.%s%s%s",
-			quote,
-			node.TblName(),
-			quote,
-			quote,
-			node.ColName(),
-			quote,
-		), nil
+		return d.Enquote(node.TblName()) + "." + d.Enquote(node.ColName()), nil
 	case *ast.TblSelectorNode:
-		return fmt.Sprintf(
-			"%s%s%s",
-			quote,
-			node.TblName(),
-			quote,
-		), nil
-
+		return d.Enquote(node.TblName()), nil
 	default:
 		return "", errz.Errorf(
 			"expected selector node type, but got %T: %s",

@@ -30,7 +30,7 @@ func doGroupBy(rc *Context, gb *ast.GroupByNode) (string, error) {
 				return "", err
 			}
 		case ast.Selector:
-			if term, err = renderSelectorNode(string(rc.Dialect.IdentQuote), child); err != nil {
+			if term, err = renderSelectorNode(rc.Dialect, child); err != nil {
 				return "", err
 			}
 		default:

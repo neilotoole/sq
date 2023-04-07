@@ -23,7 +23,7 @@ func doExpr(rc *Context, expr *ast.ExprNode) (string, error) {
 
 		switch child := child.(type) {
 		case *ast.TblColSelectorNode, *ast.ColSelectorNode:
-			val, err := renderSelectorNode(string(rc.Dialect.IdentQuote), child)
+			val, err := renderSelectorNode(rc.Dialect, child)
 			if err != nil {
 				return "", err
 			}

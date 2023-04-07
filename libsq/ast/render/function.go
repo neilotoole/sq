@@ -44,7 +44,7 @@ func doFunction(rc *Context, fn *ast.FuncNode) (string, error) {
 
 		switch node := child.(type) {
 		case *ast.ColSelectorNode, *ast.TblColSelectorNode, *ast.TblSelectorNode:
-			s, err := renderSelectorNode(string(rc.Dialect.IdentQuote), node)
+			s, err := renderSelectorNode(rc.Dialect, node)
 			if err != nil {
 				return "", err
 			}

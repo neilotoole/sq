@@ -8,9 +8,6 @@ import (
 )
 
 func doJoin(rc *Context, fnJoin *ast.JoinNode) (string, error) {
-	// FIXME: switch to using dialect.Dialect.Enquote.
-
-	quote := string(rc.Dialect.IdentQuote)
 	enquote := rc.Dialect.Enquote
 
 	joinType := "INNER JOIN"
@@ -57,14 +54,14 @@ func doJoin(rc *Context, fnJoin *ast.JoinNode) (string, error) {
 			)
 		} else {
 			var err error
-			leftOperand, err = renderSelectorNode(quote, joinExpr.Children()[0])
+			leftOperand, err = renderSelectorNode(rc.Dialect, joinExpr.Children()[0])
 			if err != nil {
 				return "", err
 			}
 
 			operator = joinExpr.Children()[1].Text()
 
-			rightOperand, err = renderSelectorNode(quote, joinExpr.Children()[2])
+			rightOperand, err = renderSelectorNode(rc.Dialect, joinExpr.Children()[2])
 			if err != nil {
 				return "", err
 			}
