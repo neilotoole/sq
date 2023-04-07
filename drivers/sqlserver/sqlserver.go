@@ -108,13 +108,14 @@ func placeholders(numCols, numRows int) string {
 }
 
 // SQLBuilder implements driver.SQLDriver.
-func (d *driveri) SQLBuilder() (*sqlbuilder.Renderer, sqlbuilder.QueryBuilder) {
+func (d *driveri) Renderer() *sqlbuilder.Renderer {
 	r := sqlbuilder.NewDefaultRenderer()
 
-	// Custom function for rendering range.
+	// Custom functions for SQLServer specific stuff.
 	r.Range = renderRange
+	r.PreRender = preRender
 
-	return r, &queryBuilder{}
+	return r
 }
 
 // Open implements driver.Driver.

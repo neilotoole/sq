@@ -135,7 +135,7 @@ func (ng *engine) buildTableFromClause(ctx context.Context, tblSel *ast.TblSelec
 		Dialect: fromConn.SQLDriver().Dialect(),
 	}
 
-	rndr, _ := fromConn.SQLDriver().SQLBuilder()
+	rndr := fromConn.SQLDriver().Renderer()
 	fromClause, err = rndr.FromTable(ng.bc, rndr, tblSel)
 	if err != nil {
 		return "", nil, err
@@ -186,7 +186,7 @@ func (ng *engine) singleSourceJoin(ctx context.Context, fnJoin *ast.JoinNode) (f
 		Dialect: fromDB.SQLDriver().Dialect(),
 	}
 
-	rndr, _ := fromDB.SQLDriver().SQLBuilder()
+	rndr := fromDB.SQLDriver().Renderer()
 	fromClause, err = rndr.Join(ng.bc, rndr, fnJoin)
 	if err != nil {
 		return "", nil, err
@@ -254,7 +254,7 @@ func (ng *engine) crossSourceJoin(ctx context.Context, fnJoin *ast.JoinNode) (fr
 	ng.tasks = append(ng.tasks, leftCopyTask)
 	ng.tasks = append(ng.tasks, rightCopyTask)
 
-	rndr, _ := joinDB.SQLDriver().SQLBuilder()
+	rndr := joinDB.SQLDriver().Renderer()
 	fromClause, err = rndr.Join(ng.bc, rndr, fnJoin)
 	if err != nil {
 		return "", nil, err

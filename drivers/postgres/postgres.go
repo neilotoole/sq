@@ -104,9 +104,9 @@ func placeholders(numCols, numRows int) string {
 }
 
 // SQLBuilder implements driver.SQLDriver.
-func (d *driveri) SQLBuilder() (*sqlbuilder.Renderer, sqlbuilder.QueryBuilder) {
+func (d *driveri) Renderer() *sqlbuilder.Renderer {
 	r := sqlbuilder.NewDefaultRenderer()
-	return r, &sqlbuilder.BaseQueryBuilder{}
+	return r
 }
 
 // Open implements driver.Driver.

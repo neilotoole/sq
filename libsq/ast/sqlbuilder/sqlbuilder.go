@@ -1,10 +1,11 @@
-// Package sqlbuilder contains functionality for building SQL from
-// the ast.
 package sqlbuilder
 
 import (
-	"github.com/neilotoole/sq/libsq/ast"
+	"strings"
+
 	"github.com/neilotoole/sq/libsq/core/dialect"
+
+	"github.com/neilotoole/sq/libsq/ast"
 )
 
 // BuildContext contains context for building a query.
@@ -17,72 +18,123 @@ type BuildContext struct {
 	Args map[string]string
 }
 
-// FragmentBuilder renders driver-specific SQL fragments.
-type FragmentBuilder interface {
+// Renderer renders ast elements into SQL.
+type Renderer struct {
 	// FromTable renders a FROM table fragment.
-	FromTable(bc *BuildContext, tblSel *ast.TblSelectorNode) (string, error)
+	FromTable func(bc *BuildContext, r *Renderer, tblSel *ast.TblSelectorNode) (string, error)
 
 	// SelectCols renders a column names/expression fragment.
-	// It shouldn't render the actual SELECT keyword. Example:
+	// It shouldn't render the actual SELECT keyword. Example return value:
 	//
-	//   "first_name", "last name" AS given_name
-	SelectCols(bc *BuildContext, cols []ast.ResultColumn) (string, error)
+	//   "first_name" AS "given_name", "last name" AS "family_name"
+	SelectCols func(bc *BuildContext, r *Renderer, cols []ast.ResultColumn) (string, error)
 
 	// Range renders a row range fragment.
-	Range(bc *BuildContext, rr *ast.RowRangeNode) (string, error)
+	Range func(bc *BuildContext, r *Renderer, rr *ast.RowRangeNode) (string, error)
 
 	// OrderBy renders the ORDER BY fragment.
-	OrderBy(bc *BuildContext, ob *ast.OrderByNode) (string, error)
+	OrderBy func(bc *BuildContext, r *Renderer, ob *ast.OrderByNode) (string, error)
 
 	// GroupBy renders the GROUP BY fragment.
-	GroupBy(bc *BuildContext, gb *ast.GroupByNode) (string, error)
+	GroupBy func(bc *BuildContext, r *Renderer, gb *ast.GroupByNode) (string, error)
 
 	// Join renders a join fragment.
-	Join(bc *BuildContext, fnJoin *ast.JoinNode) (string, error)
+	Join func(bc *BuildContext, r *Renderer, fnJoin *ast.JoinNode) (string, error)
 
 	// Function renders a function fragment.
-	Function(bc *BuildContext, fn *ast.FuncNode) (string, error)
+	Function func(bc *BuildContext, r *Renderer, fn *ast.FuncNode) (string, error)
 
 	// Literal renders a literal fragment.
-	Literal(bc *BuildContext, lit *ast.LiteralNode) (string, error)
+	Literal func(bc *BuildContext, r *Renderer, lit *ast.LiteralNode) (string, error)
 
 	// Where renders a WHERE fragment.
-	Where(bc *BuildContext, where *ast.WhereNode) (string, error)
+	Where func(bc *BuildContext, r *Renderer, where *ast.WhereNode) (string, error)
 
 	// Expr renders an expression fragment.
-	Expr(bc *BuildContext, expr *ast.ExprNode) (string, error)
+	Expr func(bc *BuildContext, r *Renderer, expr *ast.ExprNode) (string, error)
 
 	// Operator renders an operator fragment.
-	Operator(bc *BuildContext, op *ast.OperatorNode) (string, error)
+	Operator func(bc *BuildContext, r *Renderer, op *ast.OperatorNode) (string, error)
 
 	// Distinct renders the DISTINCT fragment. Returns an
 	// empty string if n is nil.
-	Distinct(bc *BuildContext, n *ast.UniqueNode) (string, error)
+	Distinct func(bc *BuildContext, r *Renderer, n *ast.UniqueNode) (string, error)
+
+	// PreRender is a hook that is called before Render. It allows a final
+	// chance to customize f before rendering. It is nil by default.
+	PreRender func(bc *BuildContext, r *Renderer, f *Fragments) error
+
+	// Render renders f into a SQL query.
+	Render func(bc *BuildContext, r *Renderer, f *Fragments) (string, error)
 }
 
-// QueryBuilder provides an abstraction for building a SQL query.
-type QueryBuilder interface {
-	// SetColumns sets the columns to select.
-	SetColumns(cols string)
+// NewDefaultRenderer returns a Renderer that works for most SQL dialects.
+// Driver implementations can override specific rendering functions
+// as needed.
+func NewDefaultRenderer() *Renderer {
+	return &Renderer{
+		FromTable:  doFromTable,
+		SelectCols: doSelectCols,
+		Range:      doRange,
+		OrderBy:    doOrderBy,
+		GroupBy:    doGroupBy,
+		Join:       doJoin,
+		Function:   doFunction,
+		Literal:    doLiteral,
+		Where:      doWhere,
+		Expr:       doExpr,
+		Operator:   doOperator,
+		Distinct:   doDistinct,
+		Render:     doRender,
+	}
+}
 
-	// SetFrom sets the FROM clause.
-	SetFrom(from string)
+// Fragments holds the fragments of a SQL query.
+type Fragments struct {
+	Distinct string
+	Columns  string
+	From     string
+	Where    string
+	GroupBy  string
+	OrderBy  string
+	Range    string
+}
 
-	// SetWhere sets the WHERE clause.
-	SetWhere(where string)
+// Render implements QueryBuilder.
+func doRender(_ *BuildContext, _ *Renderer, f *Fragments) (string, error) {
+	sb := strings.Builder{}
 
-	// SetRange sets the LIMIT ... OFFSET clause.
-	SetRange(rng string)
+	sb.WriteString("SELECT")
 
-	// SetOrderBy sets the ORDER BY clause.
-	SetOrderBy(ob string)
+	if f.Distinct != "" {
+		sb.WriteRune(sp)
+		sb.WriteString(f.Distinct)
+	}
 
-	// SetGroupBy sets the GROUP BY clause.
-	SetGroupBy(gb string)
+	sb.WriteRune(sp)
+	sb.WriteString(f.Columns)
+	sb.WriteRune(sp)
+	sb.WriteString(f.From)
 
-	// SetDistinct sets the DISTINCT clause.
-	SetDistinct(d string)
+	if f.Where != "" {
+		sb.WriteRune(sp)
+		sb.WriteString(f.Where)
+	}
 
-	// Render renders the SQL query.
-	Render() (string, error)
+	if f.OrderBy != "" {
+		sb.WriteRune(sp)
+		sb.WriteString(f.OrderBy)
+	}
+
+	if f.GroupBy != "" {
+		sb.WriteRune(sp)
+		sb.WriteString(f.GroupBy)
+	}
+
+	if f.Range != "" {
+		sb.WriteRune(sp)
+		sb.WriteString(f.Range)
+	}
+
+	return sb.String(), nil
 }

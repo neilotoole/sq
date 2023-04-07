@@ -1,12 +1,9 @@
 package sqlserver
 
 import (
-	"bytes"
 	"fmt"
 	"strconv"
 	"strings"
-
-	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"github.com/neilotoole/sq/libsq/ast/sqlbuilder"
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -15,45 +12,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/sqlmodel"
 )
-
-var _ sqlbuilder.FragmentBuilder = (*fragBuilder)(nil)
-
-type fragBuilder struct {
-	sqlbuilder.BaseFragmentBuilder
-}
-
-func (fb *fragBuilder) Range(_ *sqlbuilder.BuildContext, rr *ast.RowRangeNode) (string, error) {
-	if rr == nil {
-		return "", nil
-	}
-
-	/*
-		SELECT * FROM actor
-			ORDER BY (SELECT 0)
-			OFFSET 1 ROWS
-			FETCH NEXT 2 ROWS ONLY;
-	*/
-
-	if rr.Limit < 0 && rr.Offset < 0 {
-		return "", nil
-	}
-
-	offset := 0
-	if rr.Offset > 0 {
-		offset = rr.Offset
-	}
-
-	buf := &bytes.Buffer{}
-	buf.WriteString(fmt.Sprintf("OFFSET %d ROWS", offset))
-
-	if rr.Limit > -1 {
-		buf.WriteString(fmt.Sprintf(" FETCH NEXT %d ROWS ONLY", rr.Limit))
-	}
-
-	sql := buf.String()
-	fb.Log.Debug("Returning SQL fragment", lga.SQL, sql)
-	return sql, nil
-}
 
 func renderRange(_ *sqlbuilder.BuildContext, _ *sqlbuilder.Renderer, rr *ast.RowRangeNode) (string, error) {
 	if rr == nil {
@@ -76,7 +34,7 @@ func renderRange(_ *sqlbuilder.BuildContext, _ *sqlbuilder.Renderer, rr *ast.Row
 		offset = rr.Offset
 	}
 
-	buf := &bytes.Buffer{}
+	var buf strings.Builder
 	buf.WriteString(fmt.Sprintf("OFFSET %d ROWS", offset))
 
 	if rr.Limit > -1 {
@@ -87,13 +45,7 @@ func renderRange(_ *sqlbuilder.BuildContext, _ *sqlbuilder.Renderer, rr *ast.Row
 	return sql, nil
 }
 
-var _ sqlbuilder.QueryBuilder = (*queryBuilder)(nil)
-
-type queryBuilder struct {
-	sqlbuilder.BaseQueryBuilder
-}
-
-func (qb *queryBuilder) Render() (string, error) {
+func preRender(_ *sqlbuilder.BuildContext, _ *sqlbuilder.Renderer, f *sqlbuilder.Fragments) error {
 	// SQL Server handles range (OFFSET, LIMIT) a little differently. If the query has a range,
 	// then the ORDER BY clause is required. If ORDER BY is not specified, we use a trick (SELECT 0)
 	// to satisfy SQL Server. For example:
@@ -102,13 +54,13 @@ func (qb *queryBuilder) Render() (string, error) {
 	//   ORDER BY (SELECT 0)
 	//   OFFSET 1 ROWS
 	//   FETCH NEXT 2 ROWS ONLY;
-	if qb.Range != "" {
-		if qb.OrderBy == "" {
-			qb.OrderBy = "ORDER BY (SELECT 0)"
+	if f.Range != "" {
+		if f.OrderBy == "" {
+			f.OrderBy = "ORDER BY (SELECT 0)"
 		}
 	}
 
-	return qb.BaseQueryBuilder.Render()
+	return nil
 }
 
 func dbTypeNameFromKind(knd kind.Kind) string {
