@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/dialect"
+
 	"golang.org/x/exp/slog"
 
 	"github.com/neilotoole/sq/libsq/core/stringz"
@@ -20,7 +22,7 @@ func newFragmentBuilder(log *slog.Logger) *sqlbuilder.BaseFragmentBuilder {
 		Log:     log,
 		Quote:   `"`,
 		QuoteFn: stringz.DoubleQuote,
-		Ops:     sqlbuilder.BaseOps(),
+		Ops:     dialect.DefaultOps(),
 	}
 }
 

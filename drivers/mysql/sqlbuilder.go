@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/dialect"
+
 	"golang.org/x/exp/slog"
 
 	"github.com/neilotoole/sq/libsq/core/stringz"
@@ -21,7 +23,7 @@ func newFragmentBuilder(log *slog.Logger) *sqlbuilder.BaseFragmentBuilder {
 	r.Log = log
 	r.Quote = "`"
 	r.QuoteFn = stringz.BacktickQuote
-	r.Ops = sqlbuilder.BaseOps()
+	r.Ops = dialect.DefaultOps()
 	return r
 }
 

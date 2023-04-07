@@ -29,9 +29,33 @@ type Dialect struct {
 
 	// MaxBatchValues is the maximum number of values in a batch insert.
 	MaxBatchValues int
+
+	// Ops is a map of SLQ operator (e.g. "==" or "!=") to
+	// its default SQL rendering.
+	Ops map[string]string
 }
 
 // String returns a log/debug-friendly representation.
 func (d Dialect) String() string {
 	return d.Type.String()
+}
+
+// defaultOps is a map of SLQ operator (e.g. "==" or "!=") to
+// its default SQL rendering.
+var defaultOps = map[string]string{
+	`==`: `=`,
+	`&&`: `AND`,
+	`||`: `OR`,
+	`!=`: `!=`,
+}
+
+// DefaultOps returns a default map of SLQ operator (e.g. "==" or "!=") to
+// its SQL rendering. The returned map is a copy and can be safely
+// modified by the caller.
+func DefaultOps() map[string]string {
+	ops := make(map[string]string, len(defaultOps))
+	for k, v := range defaultOps {
+		ops[k] = v
+	}
+	return ops
 }

@@ -15,16 +15,9 @@ type BuildContext struct {
 	// The args map contains predefined variables that are
 	// substituted into the query. It may be empty or nil.
 	Args map[string]string
-
-	// QuoteIdentFunc quotes an identifier. For example:
-	//
-	//  my_table -->  "my_table"
-	QuoteIdentFunc func(ident string) string
 }
 
 // FragmentBuilder renders driver-specific SQL fragments.
-//
-//nolint:dupl
 type FragmentBuilder interface {
 	// FromTable renders a FROM table fragment.
 	FromTable(bc *BuildContext, tblSel *ast.TblSelectorNode) (string, error)

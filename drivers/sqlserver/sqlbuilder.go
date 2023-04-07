@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/dialect"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"golang.org/x/exp/slog"
@@ -31,7 +33,7 @@ func newFragmentBuilder(log *slog.Logger) *fragBuilder {
 	r.Log = log
 	r.Quote = `"`
 	r.QuoteFn = stringz.DoubleQuote
-	r.Ops = sqlbuilder.BaseOps()
+	r.Ops = dialect.DefaultOps()
 	return r
 }
 

@@ -18,26 +18,6 @@ const (
 	sp          = ' '
 )
 
-// baseOps is a map of SLQ operator (e.g. "==" or "!=") to its default SQL rendering.
-var baseOps = map[string]string{
-	`==`: `=`,
-	`&&`: `AND`,
-	`||`: `OR`,
-	`!=`: `!=`,
-	// FIXME: How to handle IS NULL / IS NOT NULL
-}
-
-// BaseOps returns a default map of SLQ operator (e.g. "==" or "!=") to
-// its default SQL rendering. The returned map is a copy and can be safely
-// modified by the caller.
-func BaseOps() map[string]string {
-	ops := make(map[string]string, len(baseOps))
-	for k, v := range baseOps {
-		ops[k] = v
-	}
-	return ops
-}
-
 var _ FragmentBuilder = (*BaseFragmentBuilder)(nil)
 
 // BaseFragmentBuilder is a default implementation of sqlbuilder.FragmentBuilder.
@@ -50,7 +30,7 @@ type BaseFragmentBuilder struct {
 	QuoteFn func(string) string
 
 	// Ops contains a map of SLQ operator to its SQL rendering.
-	// See BaseOps.
+	// See DefaultOps.
 	Ops map[string]string
 }
 
@@ -426,6 +406,7 @@ func (fb *BaseFragmentBuilder) Join(_ *BuildContext, fnJoin *ast.JoinNode) (stri
 // renderSelectorNode renders a selector such as ".actor.first_name"
 // or ".last_name".
 func renderSelectorNode(quote string, node ast.Node) (string, error) {
+	// FIXME: switch to using enquote
 	switch node := node.(type) {
 	case *ast.ColSelectorNode:
 		return fmt.Sprintf(
@@ -485,6 +466,8 @@ func sqlAppend(existing, add string) string {
 //	.table.col -->  "table"."col"
 //
 // Thus, the selector must have exactly one or two periods.
+//
+// Deprecated: use renderSelectorNode.
 func quoteTableOrColSelector(quote, selector string) (string, error) {
 	if len(selector) < 2 || selector[0] != '.' {
 		return "", errz.Errorf("invalid selector: %s", selector)
