@@ -21,6 +21,10 @@ const (
 // baseOps is a map of SLQ operator (e.g. "==" or "!=") to its default SQL rendering.
 var baseOps = map[string]string{
 	`==`: `=`,
+	`&&`: `AND`,
+	`||`: `OR`,
+	`!=`: `!=`,
+	// FIXME: How to handle IS NULL / IS NOT NULL
 }
 
 // BaseOps returns a default map of SLQ operator (e.g. "==" or "!=") to
@@ -137,11 +141,24 @@ func (fb *BaseFragmentBuilder) Operator(_ *BuildContext, op *ast.OperatorNode) (
 		return "", nil
 	}
 
-	if val, ok := fb.Ops[op.Text()]; ok {
-		return val, nil
+	val, ok := fb.Ops[op.Text()]
+	if !ok {
+		return "", errz.Errorf("invalid operator: %s", op.Text())
 	}
 
-	return op.Text(), nil
+	rhs := ast.NodeNextSibling(op)
+	if lit, ok := rhs.(*ast.LiteralNode); ok && lit.Text() == "null" {
+		switch op.Text() {
+		case "==":
+			val = "IS"
+		case "!=":
+			val = "IS NOT"
+		default:
+			return "", errz.Errorf("invalid operator for null")
+		}
+	}
+
+	return val, nil
 }
 
 // Where implements FragmentBuilder.
@@ -163,9 +180,13 @@ func (fb *BaseFragmentBuilder) Expr(bc *BuildContext, expr *ast.ExprNode) (strin
 	if expr == nil {
 		return "", nil
 	}
-	var sb strings.Builder
 
-	for _, child := range expr.Children() {
+	var sb strings.Builder
+	for i, child := range expr.Children() {
+		if i > 0 {
+			sb.WriteRune(sp)
+		}
+
 		switch child := child.(type) {
 		case *ast.TblColSelectorNode, *ast.ColSelectorNode:
 			val, err := renderSelectorNode(fb.Quote, child)
@@ -179,7 +200,6 @@ func (fb *BaseFragmentBuilder) Expr(bc *BuildContext, expr *ast.ExprNode) (strin
 				return "", err
 			}
 
-			sb.WriteRune(sp)
 			sb.WriteString(val)
 		case *ast.ArgNode:
 			if bc.Args != nil {
@@ -197,17 +217,14 @@ func (fb *BaseFragmentBuilder) Expr(bc *BuildContext, expr *ast.ExprNode) (strin
 			if err != nil {
 				return "", err
 			}
-			sb.WriteRune(sp)
 			sb.WriteString(val)
 		case *ast.LiteralNode:
 			val, err := fb.Literal(bc, child)
 			if err != nil {
 				return "", err
 			}
-			sb.WriteRune(sp)
 			sb.WriteString(val)
 		default:
-			sb.WriteRune(sp)
 			sb.WriteString(child.Text())
 		}
 	}

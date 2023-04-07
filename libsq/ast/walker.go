@@ -31,6 +31,7 @@ func NewWalker(log *slog.Logger, node Node) *Walker {
 
 // AddVisitor adds a visitor function for the specified node type (and returns
 // the receiver Walker, to enabled chaining).
+// TODO: if typ is nil, what happens?
 func (w *Walker) AddVisitor(typ reflect.Type, visitor nodeVisitorFn) *Walker {
 	funcs := w.visitors[typ]
 	if funcs == nil {
@@ -48,17 +49,21 @@ func (w *Walker) Walk() error {
 }
 
 func (w *Walker) visit(node Node) error {
-	typ := reflect.TypeOf(node)
-	visitFns, ok := w.visitors[typ]
+	nodeType := reflect.TypeOf(node)
+	// w.log.Debug("Visit node", "type", nodeType.String(), "text", node.Context().GetText())
 
-	if ok {
-		for _, visitFn := range visitFns {
-			err := visitFn(w.log, w, node)
-			if err != nil {
-				return err
-			}
+	var visitFns []nodeVisitorFn
+	for fnType, fns := range w.visitors {
+		if nodeType.AssignableTo(fnType) {
+			visitFns = append(visitFns, fns...)
 		}
-		return nil
+	}
+
+	for _, visitFn := range visitFns {
+		err := visitFn(w.log, w, node)
+		if err != nil {
+			return err
+		}
 	}
 
 	return w.visitChildren(node)

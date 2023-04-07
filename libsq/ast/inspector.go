@@ -6,8 +6,6 @@ import (
 	"golang.org/x/exp/slog"
 
 	"github.com/samber/lo"
-
-	"github.com/ryboe/q"
 )
 
 // Inspector provides functionality for AST interrogation.
@@ -27,11 +25,6 @@ func (in *Inspector) CountNodes(typ reflect.Type) int {
 	w := NewWalker(in.log, in.ast)
 	w.AddVisitor(typ, func(log *slog.Logger, w *Walker, node Node) error {
 		count++
-		if typ == typeSelectorNode {
-			// found it
-			// FIXME: delete this
-			q.Q("found it", node)
-		}
 		return nil
 	})
 
