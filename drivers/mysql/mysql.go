@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/dialect"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
@@ -70,11 +72,12 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 }
 
 // Dialect implements driver.Driver.
-func (d *driveri) Dialect() driver.Dialect {
-	return driver.Dialect{
+func (d *driveri) Dialect() dialect.Dialect {
+	return dialect.Dialect{
 		Type:           Type,
 		Placeholders:   placeholders,
-		Quote:          '`',
+		IdentQuote:     '`',
+		Enquote:        stringz.BacktickQuote,
 		IntBool:        true,
 		MaxBatchValues: 250,
 	}
@@ -246,7 +249,7 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 	const queryTpl = "SELECT %s FROM %s LIMIT 0"
 
 	dialect := d.Dialect()
-	quote := string(dialect.Quote)
+	quote := string(dialect.IdentQuote)
 	tblNameQuoted := stringz.Surround(tblName, quote)
 
 	colsClause := "*"

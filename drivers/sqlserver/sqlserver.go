@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/dialect"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
@@ -71,11 +73,12 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 }
 
 // Dialect implements driver.SQLDriver.
-func (d *driveri) Dialect() driver.Dialect {
-	return driver.Dialect{
+func (d *driveri) Dialect() dialect.Dialect {
+	return dialect.Dialect{
 		Type:           Type,
 		Placeholders:   placeholders,
-		Quote:          '"',
+		IdentQuote:     '"',
+		Enquote:        stringz.DoubleQuote,
 		MaxBatchValues: 1000,
 	}
 }
@@ -196,7 +199,7 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 	const queryTpl = "SELECT %s FROM %s ORDER BY (SELECT 0) OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY"
 
 	dialect := d.Dialect()
-	quote := string(dialect.Quote)
+	quote := string(dialect.IdentQuote)
 	tblNameQuoted := stringz.Surround(tblName, quote)
 
 	colsClause := "*"
@@ -403,7 +406,7 @@ func (d *driveri) getTableColsMeta(ctx context.Context, db sqlz.DB, tblName stri
 	const queryTpl = "SELECT %s FROM %s ORDER BY (SELECT 0) OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY"
 
 	dialect := d.Dialect()
-	quote := string(dialect.Quote)
+	quote := string(dialect.IdentQuote)
 	tblNameQuoted := stringz.Surround(tblName, quote)
 	colNamesQuoted := stringz.SurroundSlice(colNames, quote)
 	colsJoined := strings.Join(colNamesQuoted, driver.Comma)

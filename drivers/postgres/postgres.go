@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/dialect"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
@@ -67,11 +69,12 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 }
 
 // Dialect implements driver.SQLDriver.
-func (d *driveri) Dialect() driver.Dialect {
-	return driver.Dialect{
+func (d *driveri) Dialect() dialect.Dialect {
+	return dialect.Dialect{
 		Type:           Type,
 		Placeholders:   placeholders,
-		Quote:          '"',
+		IdentQuote:     '"',
+		Enquote:        stringz.DoubleQuote,
 		MaxBatchValues: 1000,
 	}
 }
@@ -340,7 +343,7 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 	// 	(SELECT username FROM person LIMIT 1) AS username,
 	// 	(SELECT email FROM person LIMIT 1) AS email
 	// LIMIT 1;
-	quote := string(d.Dialect().Quote)
+	quote := string(d.Dialect().IdentQuote)
 	tblNameQuoted := stringz.Surround(tblName, quote)
 
 	var query string

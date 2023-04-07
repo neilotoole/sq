@@ -24,6 +24,8 @@ type BuildContext struct {
 }
 
 // FragmentBuilder renders driver-specific SQL fragments.
+//
+//nolint:dupl
 type FragmentBuilder interface {
 	// FromTable renders a FROM table fragment.
 	FromTable(bc *BuildContext, tblSel *ast.TblSelectorNode) (string, error)

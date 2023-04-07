@@ -6,16 +6,16 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/neilotoole/sq/libsq/core/dialect"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"golang.org/x/exp/slog"
 
-	"github.com/neilotoole/sq/libsq/core/kind"
-	"github.com/neilotoole/sq/libsq/core/stringz"
-
 	"github.com/neilotoole/sq/libsq/core/cleanup"
+	"github.com/neilotoole/sq/libsq/core/kind"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 
@@ -82,7 +82,7 @@ type SQLDriver interface {
 	Driver
 
 	// Dialect returns the SQL dialect.
-	Dialect() Dialect
+	Dialect() dialect.Dialect
 
 	// SQLBuilder returns the SQL builder for this driver.
 	SQLBuilder() (sqlbuilder.FragmentBuilder, sqlbuilder.QueryBuilder)
@@ -216,34 +216,6 @@ type Metadata struct {
 	// Monotable is true if this is a non-SQL document type that
 	// effectively has a single table, such as CSV.
 	Monotable bool `json:"monotable"`
-}
-
-// Dialect holds driver-specific SQL dialect values.
-type Dialect struct {
-	// Type is the dialect's driver source type.
-	Type source.Type `json:"type"`
-
-	// Placeholders returns a string a SQL placeholders string.
-	// For example "(?, ?, ?)" or "($1, $2, $3), ($4, $5, $6)".
-	Placeholders func(numCols, numRows int) string
-
-	// Quote is the quote rune, typically the double quote rune.
-	Quote rune `json:"quote"`
-
-	// IntBool is true if BOOLEAN is handled as an INT by the DB driver.
-	IntBool bool `json:"int_bool"`
-
-	// MaxBatchValues is the maximum number of values in a batch insert.
-	MaxBatchValues int
-}
-
-// Enquote returns s surrounded by d.Quote.
-func (d Dialect) Enquote(s string) string {
-	return stringz.Surround(s, string(d.Quote))
-}
-
-func (d Dialect) String() string {
-	return d.Type.String()
 }
 
 // Databases provides a mechanism for getting Database instances.

@@ -57,7 +57,6 @@ func newEngine(ctx context.Context, qc *QueryContext, query string) (*engine, er
 	ng := &engine{
 		log: log,
 		qc:  qc,
-		bc:  &sqlbuilder.BuildContext{Args: qc.Args},
 	}
 
 	if err = ng.prepare(ctx, qModel); err != nil {
@@ -91,6 +90,12 @@ func (ng *engine) prepare(ctx context.Context, qm *queryModel) error {
 		}
 	default:
 		return errz.Errorf("unknown selectable %T(%s)", node, node)
+	}
+
+	ng.targetDB.SQLDriver().Dialect()
+
+	ng.bc = &sqlbuilder.BuildContext{
+		Args: ng.qc.Args,
 	}
 
 	fb, qb := ng.targetDB.SQLDriver().SQLBuilder()
