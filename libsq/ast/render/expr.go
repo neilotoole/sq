@@ -9,7 +9,7 @@ import (
 )
 
 // Expr implements FragmentBuilder.
-func doExpr(bc *BuildContext, r *Renderer, expr *ast.ExprNode) (string, error) {
+func doExpr(rc *Context, r *Renderer, expr *ast.ExprNode) (string, error) {
 	if expr == nil {
 		return "", nil
 	}
@@ -22,21 +22,21 @@ func doExpr(bc *BuildContext, r *Renderer, expr *ast.ExprNode) (string, error) {
 
 		switch child := child.(type) {
 		case *ast.TblColSelectorNode, *ast.ColSelectorNode:
-			val, err := renderSelectorNode(string(bc.Dialect.IdentQuote), child)
+			val, err := renderSelectorNode(string(rc.Dialect.IdentQuote), child)
 			if err != nil {
 				return "", err
 			}
 			sb.WriteString(val)
 		case *ast.OperatorNode:
-			val, err := r.Operator(bc, r, child)
+			val, err := r.Operator(rc, r, child)
 			if err != nil {
 				return "", err
 			}
 
 			sb.WriteString(val)
 		case *ast.ArgNode:
-			if bc.Args != nil {
-				val, ok := bc.Args[child.Key()]
+			if rc.Args != nil {
+				val, ok := rc.Args[child.Key()]
 				if ok {
 					sb.WriteString(stringz.SingleQuote(val))
 					break
@@ -46,13 +46,13 @@ func doExpr(bc *BuildContext, r *Renderer, expr *ast.ExprNode) (string, error) {
 			// It's an error if the arg is not supplied.
 			return "", errz.Errorf("no --arg value found for query variable %s", child.Text())
 		case *ast.ExprNode:
-			val, err := r.Expr(bc, r, child)
+			val, err := r.Expr(rc, r, child)
 			if err != nil {
 				return "", err
 			}
 			sb.WriteString(val)
 		case *ast.LiteralNode:
-			val, err := r.Literal(bc, r, child)
+			val, err := r.Literal(rc, r, child)
 			if err != nil {
 				return "", err
 			}

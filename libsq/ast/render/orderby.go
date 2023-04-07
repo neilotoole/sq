@@ -5,7 +5,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
-func doOrderBy(bc *BuildContext, _ *Renderer, ob *ast.OrderByNode) (string, error) {
+func doOrderBy(rc *Context, _ *Renderer, ob *ast.OrderByNode) (string, error) {
 	if ob == nil {
 		return "", nil
 	}
@@ -21,7 +21,7 @@ func doOrderBy(bc *BuildContext, _ *Renderer, ob *ast.OrderByNode) (string, erro
 			clause += ", "
 		}
 
-		sel, err := renderSelectorNode(string(bc.Dialect.IdentQuote), terms[i].Selector())
+		sel, err := renderSelectorNode(string(rc.Dialect.IdentQuote), terms[i].Selector())
 		if err != nil {
 			return "", err
 		}

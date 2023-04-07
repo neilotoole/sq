@@ -12,8 +12,8 @@ import (
 	"github.com/neilotoole/sq/libsq/ast"
 )
 
-// BuildContext contains context for building a query.
-type BuildContext struct {
+// Context contains context for rendering a query.
+type Context struct {
 	// Dialect is the driver dialect.
 	Dialect dialect.Dialect
 
@@ -27,51 +27,51 @@ type BuildContext struct {
 // swapped with a custom implementation for a SQL dialect.
 type Renderer struct {
 	// FromTable renders a FROM table fragment.
-	FromTable func(bc *BuildContext, r *Renderer, tblSel *ast.TblSelectorNode) (string, error)
+	FromTable func(rc *Context, r *Renderer, tblSel *ast.TblSelectorNode) (string, error)
 
 	// SelectCols renders a column names/expression fragment.
 	// It shouldn't render the actual SELECT keyword. Example return value:
 	//
 	//   "first_name" AS "given_name", "last name" AS "family_name"
-	SelectCols func(bc *BuildContext, r *Renderer, cols []ast.ResultColumn) (string, error)
+	SelectCols func(rc *Context, r *Renderer, cols []ast.ResultColumn) (string, error)
 
 	// Range renders a row range fragment.
-	Range func(bc *BuildContext, r *Renderer, rr *ast.RowRangeNode) (string, error)
+	Range func(rc *Context, r *Renderer, rr *ast.RowRangeNode) (string, error)
 
 	// OrderBy renders the ORDER BY fragment.
-	OrderBy func(bc *BuildContext, r *Renderer, ob *ast.OrderByNode) (string, error)
+	OrderBy func(rc *Context, r *Renderer, ob *ast.OrderByNode) (string, error)
 
 	// GroupBy renders the GROUP BY fragment.
-	GroupBy func(bc *BuildContext, r *Renderer, gb *ast.GroupByNode) (string, error)
+	GroupBy func(rc *Context, r *Renderer, gb *ast.GroupByNode) (string, error)
 
 	// Join renders a join fragment.
-	Join func(bc *BuildContext, r *Renderer, fnJoin *ast.JoinNode) (string, error)
+	Join func(rc *Context, r *Renderer, fnJoin *ast.JoinNode) (string, error)
 
 	// Function renders a function fragment.
-	Function func(bc *BuildContext, r *Renderer, fn *ast.FuncNode) (string, error)
+	Function func(rc *Context, r *Renderer, fn *ast.FuncNode) (string, error)
 
 	// Literal renders a literal fragment.
-	Literal func(bc *BuildContext, r *Renderer, lit *ast.LiteralNode) (string, error)
+	Literal func(rc *Context, r *Renderer, lit *ast.LiteralNode) (string, error)
 
 	// Where renders a WHERE fragment.
-	Where func(bc *BuildContext, r *Renderer, where *ast.WhereNode) (string, error)
+	Where func(rc *Context, r *Renderer, where *ast.WhereNode) (string, error)
 
 	// Expr renders an expression fragment.
-	Expr func(bc *BuildContext, r *Renderer, expr *ast.ExprNode) (string, error)
+	Expr func(rc *Context, r *Renderer, expr *ast.ExprNode) (string, error)
 
 	// Operator renders an operator fragment.
-	Operator func(bc *BuildContext, r *Renderer, op *ast.OperatorNode) (string, error)
+	Operator func(rc *Context, r *Renderer, op *ast.OperatorNode) (string, error)
 
 	// Distinct renders the DISTINCT fragment. Returns an
 	// empty string if n is nil.
-	Distinct func(bc *BuildContext, r *Renderer, n *ast.UniqueNode) (string, error)
+	Distinct func(rc *Context, r *Renderer, n *ast.UniqueNode) (string, error)
 
 	// PreRender is a hook that is called before Render. It is a final
 	// opportunity to customize f before rendering. It is nil by default.
-	PreRender func(bc *BuildContext, r *Renderer, f *Fragments) error
+	PreRender func(rc *Context, r *Renderer, f *Fragments) error
 
 	// Render renders f into a SQL query.
-	Render func(bc *BuildContext, r *Renderer, f *Fragments) (string, error)
+	Render func(rc *Context, r *Renderer, f *Fragments) (string, error)
 }
 
 // NewDefaultRenderer returns a Renderer that works for most SQL dialects.
@@ -108,7 +108,7 @@ type Fragments struct {
 }
 
 // Render implements QueryBuilder.
-func doRender(_ *BuildContext, _ *Renderer, f *Fragments) (string, error) {
+func doRender(_ *Context, _ *Renderer, f *Fragments) (string, error) {
 	sb := strings.Builder{}
 
 	sb.WriteString("SELECT")

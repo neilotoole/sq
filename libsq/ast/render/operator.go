@@ -5,12 +5,12 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
-func doOperator(bc *BuildContext, _ *Renderer, op *ast.OperatorNode) (string, error) {
+func doOperator(rc *Context, _ *Renderer, op *ast.OperatorNode) (string, error) {
 	if op == nil {
 		return "", nil
 	}
 
-	val, ok := bc.Dialect.Ops[op.Text()]
+	val, ok := rc.Dialect.Ops[op.Text()]
 	if !ok {
 		return "", errz.Errorf("invalid operator: %s", op.Text())
 	}

@@ -6,7 +6,7 @@ import (
 )
 
 // Literal implement FragmentBuilder.
-func doLiteral(_ *BuildContext, _ *Renderer, lit *ast.LiteralNode) (string, error) {
+func doLiteral(_ *Context, _ *Renderer, lit *ast.LiteralNode) (string, error) {
 	switch lit.LiteralType() {
 	case ast.LiteralNull:
 		return "NULL", nil

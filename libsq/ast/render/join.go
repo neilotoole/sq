@@ -7,10 +7,10 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
-func doJoin(bc *BuildContext, _ *Renderer, fnJoin *ast.JoinNode) (string, error) {
+func doJoin(rc *Context, _ *Renderer, fnJoin *ast.JoinNode) (string, error) {
 	// FIXME: switch to using dialect.Dialect.Enquote.
 
-	quote := string(bc.Dialect.IdentQuote)
+	quote := string(rc.Dialect.IdentQuote)
 
 	joinType := "INNER JOIN"
 	onClause := ""

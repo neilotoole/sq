@@ -7,7 +7,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
-func doGroupBy(bc *BuildContext, r *Renderer, gb *ast.GroupByNode) (string, error) {
+func doGroupBy(rc *Context, r *Renderer, gb *ast.GroupByNode) (string, error) {
 	if gb == nil {
 		return "", nil
 	}
@@ -26,11 +26,11 @@ func doGroupBy(bc *BuildContext, r *Renderer, gb *ast.GroupByNode) (string, erro
 
 		switch child := child.(type) {
 		case *ast.FuncNode:
-			if term, err = r.Function(bc, r, child); err != nil {
+			if term, err = r.Function(rc, r, child); err != nil {
 				return "", err
 			}
 		case ast.Selector:
-			if term, err = renderSelectorNode(string(bc.Dialect.IdentQuote), child); err != nil {
+			if term, err = renderSelectorNode(string(rc.Dialect.IdentQuote), child); err != nil {
 				return "", err
 			}
 		default:

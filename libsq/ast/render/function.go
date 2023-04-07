@@ -7,7 +7,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
-func doFunction(bc *BuildContext, _ *Renderer, fn *ast.FuncNode) (string, error) {
+func doFunction(rc *Context, _ *Renderer, fn *ast.FuncNode) (string, error) {
 	sb := strings.Builder{}
 	fnName := strings.ToLower(fn.FuncName())
 	children := fn.Children()
@@ -42,7 +42,7 @@ func doFunction(bc *BuildContext, _ *Renderer, fn *ast.FuncNode) (string, error)
 
 		switch node := child.(type) {
 		case *ast.ColSelectorNode, *ast.TblColSelectorNode, *ast.TblSelectorNode:
-			s, err := renderSelectorNode(string(bc.Dialect.IdentQuote), node)
+			s, err := renderSelectorNode(string(rc.Dialect.IdentQuote), node)
 			if err != nil {
 				return "", err
 			}

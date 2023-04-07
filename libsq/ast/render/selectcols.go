@@ -7,8 +7,8 @@ import (
 	"github.com/neilotoole/sq/libsq/ast"
 )
 
-func doSelectCols(bc *BuildContext, r *Renderer, cols []ast.ResultColumn) (string, error) {
-	quote := string(bc.Dialect.IdentQuote)
+func doSelectCols(rc *Context, r *Renderer, cols []ast.ResultColumn) (string, error) {
+	quote := string(rc.Dialect.IdentQuote)
 
 	if len(cols) == 0 {
 		return "*", nil
@@ -21,7 +21,7 @@ func doSelectCols(bc *BuildContext, r *Renderer, cols []ast.ResultColumn) (strin
 		// "SELECT first_name AS given_name FROM actor".
 		var aliasFrag string
 		if col.Alias() != "" {
-			aliasFrag = " AS " + bc.Dialect.Enquote(col.Alias())
+			aliasFrag = " AS " + rc.Dialect.Enquote(col.Alias())
 		}
 
 		switch col := col.(type) {
@@ -33,7 +33,7 @@ func doSelectCols(bc *BuildContext, r *Renderer, cols []ast.ResultColumn) (strin
 		case *ast.FuncNode:
 			// it's a function
 			var err error
-			if vals[i], err = r.Function(bc, r, col); err != nil {
+			if vals[i], err = r.Function(rc, r, col); err != nil {
 				return "", err
 			}
 		default:
