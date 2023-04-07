@@ -5,7 +5,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
-func doOrderBy(rc *Context, _ *Renderer, ob *ast.OrderByNode) (string, error) {
+func doOrderBy(rc *Context, ob *ast.OrderByNode) (string, error) {
 	if ob == nil {
 		return "", nil
 	}

@@ -5,7 +5,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
-func doOperator(rc *Context, _ *Renderer, op *ast.OperatorNode) (string, error) {
+func doOperator(rc *Context, op *ast.OperatorNode) (string, error) {
 	if op == nil {
 		return "", nil
 	}

@@ -129,13 +129,14 @@ func (ng *engine) buildTableFromClause(ctx context.Context, tblSel *ast.TblSelec
 		return "", nil, err
 	}
 
+	rndr := fromConn.SQLDriver().Renderer()
 	ng.rc = &render.Context{
-		Args:    ng.qc.Args,
-		Dialect: fromConn.SQLDriver().Dialect(),
+		Renderer: rndr,
+		Args:     ng.qc.Args,
+		Dialect:  fromConn.SQLDriver().Dialect(),
 	}
 
-	rndr := fromConn.SQLDriver().Renderer()
-	fromClause, err = rndr.FromTable(ng.rc, rndr, tblSel)
+	fromClause, err = rndr.FromTable(ng.rc, tblSel)
 	if err != nil {
 		return "", nil, err
 	}
@@ -180,13 +181,14 @@ func (ng *engine) singleSourceJoin(ctx context.Context, fnJoin *ast.JoinNode) (f
 		return "", nil, err
 	}
 
+	rndr := fromDB.SQLDriver().Renderer()
 	ng.rc = &render.Context{
-		Args:    ng.qc.Args,
-		Dialect: fromDB.SQLDriver().Dialect(),
+		Renderer: rndr,
+		Args:     ng.qc.Args,
+		Dialect:  fromDB.SQLDriver().Dialect(),
 	}
 
-	rndr := fromDB.SQLDriver().Renderer()
-	fromClause, err = rndr.Join(ng.rc, rndr, fnJoin)
+	fromClause, err = rndr.Join(ng.rc, fnJoin)
 	if err != nil {
 		return "", nil, err
 	}
@@ -223,9 +225,11 @@ func (ng *engine) crossSourceJoin(ctx context.Context, fnJoin *ast.JoinNode) (fr
 		return "", nil, err
 	}
 
+	rndr := joinDB.SQLDriver().Renderer()
 	ng.rc = &render.Context{
-		Args:    ng.qc.Args,
-		Dialect: joinDB.SQLDriver().Dialect(),
+		Renderer: rndr,
+		Args:     ng.qc.Args,
+		Dialect:  joinDB.SQLDriver().Dialect(),
 	}
 
 	leftDB, err := ng.qc.DBOpener.Open(ctx, leftSrc)
@@ -253,8 +257,7 @@ func (ng *engine) crossSourceJoin(ctx context.Context, fnJoin *ast.JoinNode) (fr
 	ng.tasks = append(ng.tasks, leftCopyTask)
 	ng.tasks = append(ng.tasks, rightCopyTask)
 
-	rndr := joinDB.SQLDriver().Renderer()
-	fromClause, err = rndr.Join(ng.rc, rndr, fnJoin)
+	fromClause, err = rndr.Join(ng.rc, fnJoin)
 	if err != nil {
 		return "", nil, err
 	}

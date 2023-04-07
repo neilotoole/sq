@@ -32,51 +32,51 @@ func (ng *engine) prepare(ctx context.Context, qm *queryModel) error {
 		}
 	default:
 		// Should never happen
-		return errz.Errorf("unknown selectable %T: %s", node, node)
+		return errz.Errorf("unknown ast.Tabler %T: %s", node, node)
 	}
 
 	rndr := ng.targetDB.SQLDriver().Renderer()
 
-	if frags.Columns, err = rndr.SelectCols(ng.rc, rndr, qm.Cols); err != nil {
+	if frags.Columns, err = rndr.SelectCols(ng.rc, qm.Cols); err != nil {
 		return err
 	}
 
 	if qm.Distinct != nil {
-		if frags.Distinct, err = rndr.Distinct(ng.rc, rndr, qm.Distinct); err != nil {
+		if frags.Distinct, err = rndr.Distinct(ng.rc, qm.Distinct); err != nil {
 			return err
 		}
 	}
 
 	if qm.Range != nil {
-		if frags.Range, err = rndr.Range(ng.rc, rndr, qm.Range); err != nil {
+		if frags.Range, err = rndr.Range(ng.rc, qm.Range); err != nil {
 			return err
 		}
 	}
 
 	if qm.Where != nil {
-		if frags.Where, err = rndr.Where(ng.rc, rndr, qm.Where); err != nil {
+		if frags.Where, err = rndr.Where(ng.rc, qm.Where); err != nil {
 			return err
 		}
 	}
 
 	if qm.OrderBy != nil {
-		if frags.OrderBy, err = rndr.OrderBy(ng.rc, rndr, qm.OrderBy); err != nil {
+		if frags.OrderBy, err = rndr.OrderBy(ng.rc, qm.OrderBy); err != nil {
 			return err
 		}
 	}
 
 	if qm.GroupBy != nil {
-		if frags.GroupBy, err = rndr.GroupBy(ng.rc, rndr, qm.GroupBy); err != nil {
+		if frags.GroupBy, err = rndr.GroupBy(ng.rc, qm.GroupBy); err != nil {
 			return err
 		}
 	}
 
 	if rndr.PreRender != nil {
-		if err = rndr.PreRender(ng.rc, rndr, frags); err != nil {
+		if err = rndr.PreRender(ng.rc, frags); err != nil {
 			return err
 		}
 	}
 
-	ng.targetSQL, err = rndr.Render(ng.rc, rndr, frags)
+	ng.targetSQL, err = rndr.Render(ng.rc, frags)
 	return err
 }

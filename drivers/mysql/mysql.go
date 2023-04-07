@@ -92,7 +92,7 @@ func placeholders(numCols, numRows int) string {
 	return strings.Join(rows, driver.Comma)
 }
 
-// SQLBuilder implements driver.SQLDriver.
+// Renderer implements driver.SQLDriver.
 func (d *driveri) Renderer() *render.Renderer {
 	r := render.NewDefaultRenderer()
 	return r

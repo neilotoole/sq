@@ -7,7 +7,7 @@ import (
 	"github.com/neilotoole/sq/libsq/ast"
 )
 
-func doSelectCols(rc *Context, r *Renderer, cols []ast.ResultColumn) (string, error) {
+func doSelectCols(rc *Context, cols []ast.ResultColumn) (string, error) {
 	quote := string(rc.Dialect.IdentQuote)
 
 	if len(cols) == 0 {
@@ -33,7 +33,7 @@ func doSelectCols(rc *Context, r *Renderer, cols []ast.ResultColumn) (string, er
 		case *ast.FuncNode:
 			// it's a function
 			var err error
-			if vals[i], err = r.Function(rc, r, col); err != nil {
+			if vals[i], err = rc.Renderer.Function(rc, col); err != nil {
 				return "", err
 			}
 		default:

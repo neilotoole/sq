@@ -7,7 +7,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
-func doFunction(rc *Context, _ *Renderer, fn *ast.FuncNode) (string, error) {
+func doFunction(rc *Context, fn *ast.FuncNode) (string, error) {
 	sb := strings.Builder{}
 	fnName := strings.ToLower(fn.FuncName())
 	children := fn.Children()

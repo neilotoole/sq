@@ -7,7 +7,7 @@ import (
 	"github.com/neilotoole/sq/libsq/ast"
 )
 
-func doRange(_ *Context, _ *Renderer, rr *ast.RowRangeNode) (string, error) {
+func doRange(_ *Context, rr *ast.RowRangeNode) (string, error) {
 	if rr == nil {
 		return "", nil
 	}
