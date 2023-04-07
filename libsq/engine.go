@@ -100,16 +100,16 @@ func (ng *engine) prepare(ctx context.Context, qm *queryModel) error {
 		return errz.Errorf("unknown selectable %T: %s", node, node)
 	}
 
-	fb, qb := ng.targetDB.SQLDriver().SQLBuilder()
+	rndr, qb := ng.targetDB.SQLDriver().SQLBuilder()
 	qb.SetFrom(s)
 
-	if s, err = fb.SelectCols(ng.bc, qm.Cols); err != nil {
+	if s, err = rndr.SelectCols(ng.bc, rndr, qm.Cols); err != nil {
 		return err
 	}
 	qb.SetColumns(s)
 
 	if qm.Distinct != nil {
-		if s, err = fb.Distinct(ng.bc, qm.Distinct); err != nil {
+		if s, err = rndr.Distinct(ng.bc, rndr, qm.Distinct); err != nil {
 			return err
 		}
 
@@ -117,7 +117,7 @@ func (ng *engine) prepare(ctx context.Context, qm *queryModel) error {
 	}
 
 	if qm.Range != nil {
-		if s, err = fb.Range(ng.bc, qm.Range); err != nil {
+		if s, err = rndr.Range(ng.bc, rndr, qm.Range); err != nil {
 			return err
 		}
 
@@ -125,7 +125,7 @@ func (ng *engine) prepare(ctx context.Context, qm *queryModel) error {
 	}
 
 	if qm.Where != nil {
-		if s, err = fb.Where(ng.bc, qm.Where); err != nil {
+		if s, err = rndr.Where(ng.bc, rndr, qm.Where); err != nil {
 			return err
 		}
 
@@ -133,7 +133,7 @@ func (ng *engine) prepare(ctx context.Context, qm *queryModel) error {
 	}
 
 	if qm.OrderBy != nil {
-		if s, err = fb.OrderBy(ng.bc, qm.OrderBy); err != nil {
+		if s, err = rndr.OrderBy(ng.bc, rndr, qm.OrderBy); err != nil {
 			return err
 		}
 
@@ -141,7 +141,7 @@ func (ng *engine) prepare(ctx context.Context, qm *queryModel) error {
 	}
 
 	if qm.GroupBy != nil {
-		if s, err = fb.GroupBy(ng.bc, qm.GroupBy); err != nil {
+		if s, err = rndr.GroupBy(ng.bc, rndr, qm.GroupBy); err != nil {
 			return err
 		}
 		qb.SetGroupBy(s)
@@ -218,8 +218,8 @@ func (ng *engine) buildTableFromClause(ctx context.Context, tblSel *ast.TblSelec
 		Dialect: fromConn.SQLDriver().Dialect(),
 	}
 
-	fragBuilder, _ := fromConn.SQLDriver().SQLBuilder()
-	fromClause, err = fragBuilder.FromTable(ng.bc, tblSel)
+	rndr, _ := fromConn.SQLDriver().SQLBuilder()
+	fromClause, err = rndr.FromTable(ng.bc, rndr, tblSel)
 	if err != nil {
 		return "", nil, err
 	}
@@ -269,8 +269,8 @@ func (ng *engine) singleSourceJoin(ctx context.Context, fnJoin *ast.JoinNode) (f
 		Dialect: fromDB.SQLDriver().Dialect(),
 	}
 
-	fragBuilder, _ := fromDB.SQLDriver().SQLBuilder()
-	fromClause, err = fragBuilder.Join(ng.bc, fnJoin)
+	rndr, _ := fromDB.SQLDriver().SQLBuilder()
+	fromClause, err = rndr.Join(ng.bc, rndr, fnJoin)
 	if err != nil {
 		return "", nil, err
 	}
@@ -337,8 +337,8 @@ func (ng *engine) crossSourceJoin(ctx context.Context, fnJoin *ast.JoinNode) (fr
 	ng.tasks = append(ng.tasks, leftCopyTask)
 	ng.tasks = append(ng.tasks, rightCopyTask)
 
-	joinDBFragBuilder, _ := joinDB.SQLDriver().SQLBuilder()
-	fromClause, err = joinDBFragBuilder.Join(ng.bc, fnJoin)
+	rndr, _ := joinDB.SQLDriver().SQLBuilder()
+	fromClause, err = rndr.Join(ng.bc, rndr, fnJoin)
 	if err != nil {
 		return "", nil, err
 	}

@@ -6,13 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/dialect"
-
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
-
-	"golang.org/x/exp/slog"
-
-	"github.com/neilotoole/sq/libsq/core/stringz"
 
 	"github.com/neilotoole/sq/libsq/ast/sqlbuilder"
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -26,15 +20,6 @@ var _ sqlbuilder.FragmentBuilder = (*fragBuilder)(nil)
 
 type fragBuilder struct {
 	sqlbuilder.BaseFragmentBuilder
-}
-
-func newFragmentBuilder(log *slog.Logger) *fragBuilder {
-	r := &fragBuilder{}
-	r.Log = log
-	r.Quote = `"`
-	r.QuoteFn = stringz.DoubleQuote
-	r.Ops = dialect.DefaultOps()
-	return r
 }
 
 func (fb *fragBuilder) Range(_ *sqlbuilder.BuildContext, rr *ast.RowRangeNode) (string, error) {
@@ -67,6 +52,38 @@ func (fb *fragBuilder) Range(_ *sqlbuilder.BuildContext, rr *ast.RowRangeNode) (
 
 	sql := buf.String()
 	fb.Log.Debug("Returning SQL fragment", lga.SQL, sql)
+	return sql, nil
+}
+
+func renderRange(_ *sqlbuilder.BuildContext, _ *sqlbuilder.Renderer, rr *ast.RowRangeNode) (string, error) {
+	if rr == nil {
+		return "", nil
+	}
+
+	/*
+		SELECT * FROM actor
+			ORDER BY (SELECT 0)
+			OFFSET 1 ROWS
+			FETCH NEXT 2 ROWS ONLY;
+	*/
+
+	if rr.Limit < 0 && rr.Offset < 0 {
+		return "", nil
+	}
+
+	offset := 0
+	if rr.Offset > 0 {
+		offset = rr.Offset
+	}
+
+	buf := &bytes.Buffer{}
+	buf.WriteString(fmt.Sprintf("OFFSET %d ROWS", offset))
+
+	if rr.Limit > -1 {
+		buf.WriteString(fmt.Sprintf(" FETCH NEXT %d ROWS ONLY", rr.Limit))
+	}
+
+	sql := buf.String()
 	return sql, nil
 }
 

@@ -169,6 +169,7 @@ func (d *driveri) Dialect() dialect.Dialect {
 		IdentQuote:     '"',
 		Enquote:        stringz.DoubleQuote,
 		MaxBatchValues: 500,
+		Ops:            dialect.DefaultOps(),
 	}
 }
 
@@ -181,8 +182,9 @@ func placeholders(numCols, numRows int) string {
 }
 
 // SQLBuilder implements driver.SQLDriver.
-func (d *driveri) SQLBuilder() (sqlbuilder.FragmentBuilder, sqlbuilder.QueryBuilder) {
-	return newFragmentBuilder(d.log), &sqlbuilder.BaseQueryBuilder{}
+func (d *driveri) SQLBuilder() (*sqlbuilder.Renderer, sqlbuilder.QueryBuilder) {
+	r := sqlbuilder.NewDefaultRenderer()
+	return r, &sqlbuilder.BaseQueryBuilder{}
 }
 
 // CopyTable implements driver.SQLDriver.

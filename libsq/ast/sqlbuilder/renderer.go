@@ -47,10 +47,10 @@ type Renderer struct {
 	Distinct func(bc *BuildContext, r *Renderer, n *ast.UniqueNode) (string, error)
 }
 
-// DefaultRenderer returns a Renderer that works for most SQL dialects.
+// NewDefaultRenderer returns a Renderer that works for most SQL dialects.
 // Driver implementations can override specific rendering functions
 // as needed.
-func DefaultRenderer() *Renderer {
+func NewDefaultRenderer() *Renderer {
 	return &Renderer{
 		FromTable:  doFromTable,
 		SelectCols: doSelectCols,

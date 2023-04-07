@@ -80,6 +80,7 @@ func (d *driveri) Dialect() dialect.Dialect {
 		IdentQuote:     '"',
 		Enquote:        stringz.DoubleQuote,
 		MaxBatchValues: 1000,
+		Ops:            dialect.DefaultOps(),
 	}
 }
 
@@ -107,8 +108,13 @@ func placeholders(numCols, numRows int) string {
 }
 
 // SQLBuilder implements driver.SQLDriver.
-func (d *driveri) SQLBuilder() (sqlbuilder.FragmentBuilder, sqlbuilder.QueryBuilder) {
-	return newFragmentBuilder(d.log), &queryBuilder{}
+func (d *driveri) SQLBuilder() (*sqlbuilder.Renderer, sqlbuilder.QueryBuilder) {
+	r := sqlbuilder.NewDefaultRenderer()
+
+	// Custom function for rendering range.
+	r.Range = renderRange
+
+	return r, &queryBuilder{}
 }
 
 // Open implements driver.Driver.

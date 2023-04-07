@@ -85,7 +85,7 @@ type SQLDriver interface {
 	Dialect() dialect.Dialect
 
 	// SQLBuilder returns the SQL builder for this driver.
-	SQLBuilder() (sqlbuilder.FragmentBuilder, sqlbuilder.QueryBuilder)
+	SQLBuilder() (*sqlbuilder.Renderer, sqlbuilder.QueryBuilder)
 
 	// CurrentSchema returns the current schema name.
 	CurrentSchema(ctx context.Context, db sqlz.DB) (string, error)

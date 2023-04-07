@@ -5,27 +5,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/dialect"
-
-	"golang.org/x/exp/slog"
-
-	"github.com/neilotoole/sq/libsq/core/stringz"
-
-	"github.com/neilotoole/sq/libsq/ast/sqlbuilder"
 	"github.com/neilotoole/sq/libsq/core/kind"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/sqlmodel"
 )
-
-func newFragmentBuilder(log *slog.Logger) *sqlbuilder.BaseFragmentBuilder {
-	fb := &sqlbuilder.BaseFragmentBuilder{}
-	fb.Log = log
-	fb.Quote = `"`
-	fb.QuoteFn = stringz.DoubleQuote
-	fb.Ops = dialect.DefaultOps()
-	return fb
-}
 
 func dbTypeNameFromKind(knd kind.Kind) string {
 	switch knd { //nolint:exhaustive

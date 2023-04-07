@@ -80,6 +80,7 @@ func (d *driveri) Dialect() dialect.Dialect {
 		Enquote:        stringz.BacktickQuote,
 		IntBool:        true,
 		MaxBatchValues: 250,
+		Ops:            dialect.DefaultOps(),
 	}
 }
 
@@ -92,8 +93,9 @@ func placeholders(numCols, numRows int) string {
 }
 
 // SQLBuilder implements driver.SQLDriver.
-func (d *driveri) SQLBuilder() (sqlbuilder.FragmentBuilder, sqlbuilder.QueryBuilder) {
-	return newFragmentBuilder(d.log), &sqlbuilder.BaseQueryBuilder{}
+func (d *driveri) SQLBuilder() (*sqlbuilder.Renderer, sqlbuilder.QueryBuilder) {
+	r := sqlbuilder.NewDefaultRenderer()
+	return r, &sqlbuilder.BaseQueryBuilder{}
 }
 
 // RecordMeta implements driver.SQLDriver.

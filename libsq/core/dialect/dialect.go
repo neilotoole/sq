@@ -21,7 +21,7 @@ type Dialect struct {
 	IdentQuote rune `json:"quote"`
 
 	// Enquote is a function that quotes and escapes an
-	// identifier.
+	// identifier (such as a table or column name).
 	Enquote func(string) string
 
 	// IntBool is true if BOOLEAN is handled as an INT by the DB driver.
