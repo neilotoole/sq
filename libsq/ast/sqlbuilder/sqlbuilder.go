@@ -4,10 +4,14 @@ package sqlbuilder
 
 import (
 	"github.com/neilotoole/sq/libsq/ast"
+	"github.com/neilotoole/sq/libsq/core/dialect"
 )
 
 // BuildContext contains context for building a query.
 type BuildContext struct {
+	// Dialect is the driver dialect.
+	Dialect dialect.Dialect
+
 	// The args map contains predefined variables that are
 	// substituted into the query. It may be empty or nil.
 	Args map[string]string
@@ -16,11 +20,6 @@ type BuildContext struct {
 	//
 	//  my_table -->  "my_table"
 	QuoteIdentFunc func(ident string) string
-
-	// Quote is the quote char, typically double quote.
-	//
-	// TODO: Do we really need this if we have QuoteIdentFunc?
-	Quote string
 }
 
 // FragmentBuilder renders driver-specific SQL fragments.

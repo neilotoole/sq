@@ -250,7 +250,7 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 
 	dialect := d.Dialect()
 	quote := string(dialect.IdentQuote)
-	tblNameQuoted := stringz.Surround(tblName, quote)
+	tblNameQuoted := dialect.Enquote(tblName)
 
 	colsClause := "*"
 	if len(colNames) > 0 {

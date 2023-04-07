@@ -15,6 +15,9 @@ type Dialect struct {
 	// IdentQuote is the identifier quote rune. Most often this is
 	// double-quote, e.g. SELECT * FROM "my_table", but can be other
 	// values such as backtick, e.g. SELECT * FROM `my_table`.
+	//
+	// Arguably, this field should be deprecated. There's probably
+	// no reason not to always use Enquote.
 	IdentQuote rune `json:"quote"`
 
 	// Enquote is a function that quotes and escapes an

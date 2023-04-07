@@ -24,7 +24,13 @@ import (
 type engine struct {
 	log *slog.Logger
 
+	// qc is the context in which the query is executed.
 	qc *QueryContext
+
+	// bc is the BuildContext for rendering SQL.
+	// This field is set during engine.prepare. It can't be set before
+	// then because the target DB to use is calculated during engine.prepare,
+	// based on the input query and other context.
 	bc *sqlbuilder.BuildContext
 
 	// tasks contains tasks that must be completed before targetSQL
@@ -77,6 +83,7 @@ func (ng *engine) prepare(ctx context.Context, qm *queryModel) error {
 		err error
 	)
 
+	// After this switch, ng.bc will be set.
 	switch node := qm.Table.(type) {
 	case *ast.TblSelectorNode:
 		s, ng.targetDB, err = ng.buildTableFromClause(ctx, node)
@@ -89,13 +96,8 @@ func (ng *engine) prepare(ctx context.Context, qm *queryModel) error {
 			return err
 		}
 	default:
-		return errz.Errorf("unknown selectable %T(%s)", node, node)
-	}
-
-	ng.targetDB.SQLDriver().Dialect()
-
-	ng.bc = &sqlbuilder.BuildContext{
-		Args: ng.qc.Args,
+		// Should never happen
+		return errz.Errorf("unknown selectable %T: %s", node, node)
 	}
 
 	fb, qb := ng.targetDB.SQLDriver().SQLBuilder()
@@ -195,6 +197,9 @@ func (ng *engine) executeTasks(ctx context.Context) error {
 	return g.Wait()
 }
 
+// buildTableFromClause builds the "FROM table" fragment.
+//
+// When this function returns, ng.bc will be set.
 func (ng *engine) buildTableFromClause(ctx context.Context, tblSel *ast.TblSelectorNode) (fromClause string,
 	fromConn driver.Database, err error,
 ) {
@@ -208,6 +213,11 @@ func (ng *engine) buildTableFromClause(ctx context.Context, tblSel *ast.TblSelec
 		return "", nil, err
 	}
 
+	ng.bc = &sqlbuilder.BuildContext{
+		Args:    ng.qc.Args,
+		Dialect: fromConn.SQLDriver().Dialect(),
+	}
+
 	fragBuilder, _ := fromConn.SQLDriver().SQLBuilder()
 	fromClause, err = fragBuilder.FromTable(ng.bc, tblSel)
 	if err != nil {
@@ -217,6 +227,9 @@ func (ng *engine) buildTableFromClause(ctx context.Context, tblSel *ast.TblSelec
 	return fromClause, fromConn, nil
 }
 
+// buildJoinFromClause builds the "JOIN" clause.
+//
+// When this function returns, ng.bc will be set.
 func (ng *engine) buildJoinFromClause(ctx context.Context, fnJoin *ast.JoinNode) (fromClause string,
 	fromConn driver.Database, err error,
 ) {
@@ -235,6 +248,9 @@ func (ng *engine) buildJoinFromClause(ctx context.Context, fnJoin *ast.JoinNode)
 	return ng.singleSourceJoin(ctx, fnJoin)
 }
 
+// singleSourceJoin sets up a join against a single source.
+//
+// On return, ng.bc will be set.
 func (ng *engine) singleSourceJoin(ctx context.Context, fnJoin *ast.JoinNode) (fromClause string,
 	fromDB driver.Database, err error,
 ) {
@@ -248,6 +264,11 @@ func (ng *engine) singleSourceJoin(ctx context.Context, fnJoin *ast.JoinNode) (f
 		return "", nil, err
 	}
 
+	ng.bc = &sqlbuilder.BuildContext{
+		Args:    ng.qc.Args,
+		Dialect: fromDB.SQLDriver().Dialect(),
+	}
+
 	fragBuilder, _ := fromDB.SQLDriver().SQLBuilder()
 	fromClause, err = fragBuilder.Join(ng.bc, fnJoin)
 	if err != nil {
@@ -259,6 +280,8 @@ func (ng *engine) singleSourceJoin(ctx context.Context, fnJoin *ast.JoinNode) (f
 
 // crossSourceJoin returns a FROM clause that forms part of
 // the SQL SELECT statement against fromDB.
+//
+// On return, ng.bc will be set.
 func (ng *engine) crossSourceJoin(ctx context.Context, fnJoin *ast.JoinNode) (fromClause string, fromDB driver.Database,
 	err error,
 ) {
@@ -282,6 +305,11 @@ func (ng *engine) crossSourceJoin(ctx context.Context, fnJoin *ast.JoinNode) (fr
 	joinDB, err := ng.qc.JoinDBOpener.OpenJoin(ctx, leftSrc, rightSrc)
 	if err != nil {
 		return "", nil, err
+	}
+
+	ng.bc = &sqlbuilder.BuildContext{
+		Args:    ng.qc.Args,
+		Dialect: joinDB.SQLDriver().Dialect(),
 	}
 
 	leftDB, err := ng.qc.DBOpener.Open(ctx, leftSrc)
