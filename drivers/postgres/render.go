@@ -1,121 +1,40 @@
-package sqlserver
+package postgres
 
 import (
-	"bytes"
 	"fmt"
 	"strconv"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/lg/lga"
-
-	"golang.org/x/exp/slog"
-
-	"github.com/neilotoole/sq/libsq/core/stringz"
-
-	"github.com/neilotoole/sq/libsq/ast/sqlbuilder"
 	"github.com/neilotoole/sq/libsq/core/kind"
 
-	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/sqlmodel"
 )
 
-var _ sqlbuilder.FragmentBuilder = (*fragBuilder)(nil)
-
-type fragBuilder struct {
-	sqlbuilder.BaseFragmentBuilder
-}
-
-func newFragmentBuilder(log *slog.Logger) *fragBuilder {
-	r := &fragBuilder{}
-	r.Log = log
-	r.Quote = `"`
-	r.QuoteFn = stringz.DoubleQuote
-	r.Ops = sqlbuilder.BaseOps()
-	return r
-}
-
-func (fb *fragBuilder) Range(rr *ast.RowRangeNode) (string, error) {
-	if rr == nil {
-		return "", nil
-	}
-
-	/*
-		SELECT * FROM actor
-			ORDER BY (SELECT 0)
-			OFFSET 1 ROWS
-			FETCH NEXT 2 ROWS ONLY;
-	*/
-
-	if rr.Limit < 0 && rr.Offset < 0 {
-		return "", nil
-	}
-
-	offset := 0
-	if rr.Offset > 0 {
-		offset = rr.Offset
-	}
-
-	buf := &bytes.Buffer{}
-	buf.WriteString(fmt.Sprintf("OFFSET %d ROWS", offset))
-
-	if rr.Limit > -1 {
-		buf.WriteString(fmt.Sprintf(" FETCH NEXT %d ROWS ONLY", rr.Limit))
-	}
-
-	sql := buf.String()
-	fb.Log.Debug("Returning SQL fragment", lga.SQL, sql)
-	return sql, nil
-}
-
-var _ sqlbuilder.QueryBuilder = (*queryBuilder)(nil)
-
-type queryBuilder struct {
-	sqlbuilder.BaseQueryBuilder
-}
-
-func (qb *queryBuilder) Render() (string, error) {
-	// SQL Server handles range (OFFSET, LIMIT) a little differently. If the query has a range,
-	// then the ORDER BY clause is required. If ORDER BY is not specified, we use a trick (SELECT 0)
-	// to satisfy SQL Server. For example:
-	//
-	//   SELECT * FROM actor
-	//   ORDER BY (SELECT 0)
-	//   OFFSET 1 ROWS
-	//   FETCH NEXT 2 ROWS ONLY;
-	if qb.Range != "" {
-		if qb.OrderBy == "" {
-			qb.OrderBy = "ORDER BY (SELECT 0)"
-		}
-	}
-
-	return qb.BaseQueryBuilder.Render()
-}
-
 func dbTypeNameFromKind(knd kind.Kind) string {
-	switch knd { //nolint:exhaustive // ignore kind.Null
+	switch knd { //nolint:exhaustive
 	default:
 		panic(fmt.Sprintf("unsupported datatype {%s}", knd))
 	case kind.Unknown:
-		return "NVARCHAR(MAX)"
+		return "TEXT"
 	case kind.Text:
-		return "NVARCHAR(MAX)"
+		return "TEXT"
 	case kind.Int:
 		return "BIGINT"
 	case kind.Float:
-		return "FLOAT"
+		return "DOUBLE PRECISION"
 	case kind.Decimal:
 		return "DECIMAL"
 	case kind.Bool:
-		return "BIT"
+		return "BOOLEAN"
 	case kind.Datetime:
-		return "DATETIME"
+		return "TIMESTAMP"
 	case kind.Time:
 		return "TIME"
 	case kind.Date:
 		return "DATE"
 	case kind.Bytes:
-		return "VARBINARY(MAX)"
+		return "BYTEA"
 	}
 }
 
@@ -126,11 +45,11 @@ var createTblKindDefaults = map[kind.Kind]string{ //nolint:exhaustive
 	kind.Int:      `DEFAULT 0`,
 	kind.Float:    `DEFAULT 0`,
 	kind.Decimal:  `DEFAULT 0`,
-	kind.Bool:     `DEFAULT 0`,
-	kind.Datetime: `DEFAULT '1970-01-01T00:00:00'`,
-	kind.Date:     `DEFAULT '1970-01-01'`,
-	kind.Time:     `DEFAULT '00:00:00'`,
-	kind.Bytes:    `DEFAULT 0x`,
+	kind.Bool:     `DEFAULT false`,
+	kind.Datetime: "DEFAULT 'epoch'::timestamp",
+	kind.Date:     "DEFAULT 'epoch'::date",
+	kind.Time:     "DEFAULT '00:00:00'::time",
+	kind.Bytes:    "DEFAULT ''::bytea",
 	kind.Unknown:  `DEFAULT ''`,
 }
 
@@ -200,10 +119,9 @@ func replacePlaceholders(input string) string {
 			sb.WriteString(input)
 			break
 		}
-
 		// Found a ?
 		sb.WriteString(input[0:i])
-		sb.WriteString("@p")
+		sb.WriteRune('$')
 		sb.WriteString(strconv.Itoa(pCount))
 		pCount++
 		if i == len(input)-1 {

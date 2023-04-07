@@ -64,6 +64,9 @@ type SLQListener interface {
 	// EnterAlias is called when entering the alias production.
 	EnterAlias(c *AliasContext)
 
+	// EnterArg is called when entering the arg production.
+	EnterArg(c *ArgContext)
+
 	// EnterHandleTable is called when entering the handleTable production.
 	EnterHandleTable(c *HandleTableContext)
 
@@ -138,6 +141,9 @@ type SLQListener interface {
 
 	// ExitAlias is called when exiting the alias production.
 	ExitAlias(c *AliasContext)
+
+	// ExitArg is called when exiting the arg production.
+	ExitArg(c *ArgContext)
 
 	// ExitHandleTable is called when exiting the handleTable production.
 	ExitHandleTable(c *HandleTableContext)

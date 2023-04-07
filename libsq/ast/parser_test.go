@@ -115,7 +115,7 @@ func TestInspector_FindWhereClauses(t *testing.T) {
 	nRoot, err := buildAST(log, ptree)
 	require.Nil(t, err)
 
-	insp := NewInspector(log, nRoot)
+	insp := NewInspector(nRoot)
 	whereNodes, err := insp.FindWhereClauses()
 	require.NoError(t, err)
 	require.Len(t, whereNodes, 1)

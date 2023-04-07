@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/driver/dialect"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
@@ -18,7 +20,7 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"github.com/xo/dburl"
 
-	"github.com/neilotoole/sq/libsq/ast/sqlbuilder"
+	"github.com/neilotoole/sq/libsq/ast/render"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlmodel"
@@ -70,13 +72,15 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 }
 
 // Dialect implements driver.Driver.
-func (d *driveri) Dialect() driver.Dialect {
-	return driver.Dialect{
+func (d *driveri) Dialect() dialect.Dialect {
+	return dialect.Dialect{
 		Type:           Type,
 		Placeholders:   placeholders,
-		Quote:          '`',
+		IdentQuote:     '`',
+		Enquote:        stringz.BacktickQuote,
 		IntBool:        true,
 		MaxBatchValues: 250,
+		Ops:            dialect.DefaultOps(),
 	}
 }
 
@@ -88,9 +92,10 @@ func placeholders(numCols, numRows int) string {
 	return strings.Join(rows, driver.Comma)
 }
 
-// SQLBuilder implements driver.SQLDriver.
-func (d *driveri) SQLBuilder() (sqlbuilder.FragmentBuilder, sqlbuilder.QueryBuilder) {
-	return newFragmentBuilder(d.log), &sqlbuilder.BaseQueryBuilder{}
+// Renderer implements driver.SQLDriver.
+func (d *driveri) Renderer() *render.Renderer {
+	r := render.NewDefaultRenderer()
+	return r
 }
 
 // RecordMeta implements driver.SQLDriver.
@@ -246,8 +251,8 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 	const queryTpl = "SELECT %s FROM %s LIMIT 0"
 
 	dialect := d.Dialect()
-	quote := string(dialect.Quote)
-	tblNameQuoted := stringz.Surround(tblName, quote)
+	quote := string(dialect.IdentQuote)
+	tblNameQuoted := dialect.Enquote(tblName)
 
 	colsClause := "*"
 	if len(colNames) > 0 {

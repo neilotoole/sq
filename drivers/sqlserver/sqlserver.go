@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/driver/dialect"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
@@ -19,7 +21,7 @@ import (
 
 	mssql "github.com/microsoft/go-mssqldb"
 
-	"github.com/neilotoole/sq/libsq/ast/sqlbuilder"
+	"github.com/neilotoole/sq/libsq/ast/render"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlmodel"
@@ -71,12 +73,14 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 }
 
 // Dialect implements driver.SQLDriver.
-func (d *driveri) Dialect() driver.Dialect {
-	return driver.Dialect{
+func (d *driveri) Dialect() dialect.Dialect {
+	return dialect.Dialect{
 		Type:           Type,
 		Placeholders:   placeholders,
-		Quote:          '"',
+		IdentQuote:     '"',
+		Enquote:        stringz.DoubleQuote,
 		MaxBatchValues: 1000,
+		Ops:            dialect.DefaultOps(),
 	}
 }
 
@@ -103,9 +107,15 @@ func placeholders(numCols, numRows int) string {
 	return strings.Join(rows, driver.Comma)
 }
 
-// SQLBuilder implements driver.SQLDriver.
-func (d *driveri) SQLBuilder() (sqlbuilder.FragmentBuilder, sqlbuilder.QueryBuilder) {
-	return newFragmentBuilder(d.log), &queryBuilder{}
+// Renderer implements driver.SQLDriver.
+func (d *driveri) Renderer() *render.Renderer {
+	r := render.NewDefaultRenderer()
+
+	// Custom functions for SQLServer specific stuff.
+	r.Range = renderRange
+	r.PreRender = preRender
+
+	return r
 }
 
 // Open implements driver.Driver.
@@ -196,7 +206,7 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 	const queryTpl = "SELECT %s FROM %s ORDER BY (SELECT 0) OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY"
 
 	dialect := d.Dialect()
-	quote := string(dialect.Quote)
+	quote := string(dialect.IdentQuote)
 	tblNameQuoted := stringz.Surround(tblName, quote)
 
 	colsClause := "*"
@@ -403,7 +413,7 @@ func (d *driveri) getTableColsMeta(ctx context.Context, db sqlz.DB, tblName stri
 	const queryTpl = "SELECT %s FROM %s ORDER BY (SELECT 0) OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY"
 
 	dialect := d.Dialect()
-	quote := string(dialect.Quote)
+	quote := string(dialect.IdentQuote)
 	tblNameQuoted := stringz.Surround(tblName, quote)
 	colNamesQuoted := stringz.SurroundSlice(colNames, quote)
 	colsJoined := strings.Join(colNamesQuoted, driver.Comma)

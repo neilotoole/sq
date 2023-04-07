@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -594,4 +595,17 @@ func SingleQuote(s string) string {
 // Type returns the printed type of v.
 func Type(v any) string {
 	return fmt.Sprintf("%T", v)
+}
+
+var identRegex = regexp.MustCompile(`\A[a-zA-Z][a-zA-Z0-9_]*$`)
+
+// ValidIdent returns an error if s is not a valid identifier.
+// And identifier must start with a letter, and may contain letters,
+// numbers, and underscore.
+func ValidIdent(s string) error {
+	if identRegex.Match([]byte(s)) {
+		return nil
+	}
+
+	return errz.Errorf("invalid identifier: %s", s)
 }

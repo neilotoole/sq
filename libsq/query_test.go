@@ -65,11 +65,14 @@ func execQueryTestCase(t *testing.T, tc queryTestCase) {
 		t.Skip()
 	}
 
+	t.Helper()
 	srcs := testh.New(t).NewSourceSet(sakila.SQLLatest()...)
 	for _, src := range srcs.Items() {
 		src := src
 
 		t.Run(string(src.Type), func(t *testing.T) {
+			t.Helper()
+
 			if len(tc.onlyFor) > 0 {
 				if !slices.Contains(tc.onlyFor, src.Type) {
 					t.Skip()
@@ -110,7 +113,7 @@ func execQueryTestCase(t *testing.T, tc queryTestCase) {
 				return
 			}
 
-			sink, err := th.QuerySLQ(in)
+			sink, err := th.QuerySLQ(in, tc.args)
 			require.NoError(t, err)
 			require.Equal(t, tc.wantRecs, len(sink.Recs))
 		})

@@ -400,7 +400,7 @@ func TestRegistry_DriversMetadata_SQL(t *testing.T) {
 
 			dialect := sqlDrvr.Dialect()
 			require.Equal(t, typ, dialect.Type)
-			require.NotEmpty(t, dialect.Quote)
+			require.NotEmpty(t, dialect.IdentQuote)
 			require.NotNil(t, dialect.Placeholders)
 		})
 	}

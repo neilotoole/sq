@@ -41,7 +41,7 @@ func TestColumnAlias(t *testing.T) {
 
 			require.NoError(t, err)
 
-			insp := NewInspector(log, ast)
+			insp := NewInspector(ast)
 			nodes := insp.FindNodes(typeColSelectorNode)
 			require.Equal(t, 1, len(nodes))
 			colSel, ok := nodes[0].(*ColSelectorNode)

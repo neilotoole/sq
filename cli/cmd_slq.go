@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"golang.org/x/exp/slices"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -25,26 +27,38 @@ func newSLQCmd() *cobra.Command {
 		Short: "Execute SLQ query",
 		// This command is hidden, because it is effectively the root cmd.
 		Hidden:            true,
-		Args:              cobra.MaximumNArgs(1),
 		RunE:              execSLQ,
 		ValidArgsFunction: completeSLQ,
 	}
 
 	addQueryCmdFlags(cmd)
 
-	// Explicitly flagVersion because people like to do "sq --version"
+	cmd.Flags().StringArray(flagArg, nil, flagArgUsage)
+
+	// Explicitly add flagVersion because people like to do "sq --version"
 	// as much as "sq version".
 	cmd.Flags().Bool(flagVersion, false, flagVersionUsage)
 
 	return cmd
 }
 
-func execSLQ(cmd *cobra.Command, _ []string) error {
-	rc := RunContextFrom(cmd.Context())
+// execSLQ is sq's core command.
+func execSLQ(cmd *cobra.Command, args []string) error {
+	if len(args) == 0 {
+		msg := "no query"
+		if cmdFlagChanged(cmd, flagArg) {
+			msg += fmt.Sprintf(": maybe check flag --%s usage", flagArg)
+		}
+
+		return errz.New(msg)
+	}
+
+	ctx := cmd.Context()
+	rc := RunContextFrom(ctx)
 	srcs := rc.Config.Sources
 
 	// check if there's input on stdin
-	src, err := checkStdinSource(cmd.Context(), rc)
+	src, err := checkStdinSource(ctx, rc)
 	if err != nil {
 		return err
 	}
@@ -53,15 +67,13 @@ func execSLQ(cmd *cobra.Command, _ []string) error {
 		// We have a valid source on stdin.
 
 		// Add the source to the set.
-		err = srcs.Add(src)
-		if err != nil {
+		if err = srcs.Add(src); err != nil {
 			return err
 		}
 
 		// Set the stdin pipe data source as the active source,
 		// as it's commonly the only data source the user is acting upon.
-		_, err = srcs.SetActive(src.Handle)
-		if err != nil {
+		if _, err = srcs.SetActive(src.Handle); err != nil {
 			return err
 		}
 	} else {
@@ -74,10 +86,15 @@ func execSLQ(cmd *cobra.Command, _ []string) error {
 		}
 	}
 
+	mArgs, err := extractFlagArgsValues(cmd)
+	if err != nil {
+		return err
+	}
+
 	if !cmdFlagChanged(cmd, flagInsert) {
 		// The user didn't specify the --insert=@src.tbl flag,
 		// so we just want to print the records.
-		return execSLQPrint(cmd.Context(), rc)
+		return execSLQPrint(ctx, rc, mArgs)
 	}
 
 	// Instead of printing the records, they will be
@@ -101,12 +118,14 @@ func execSLQ(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	return execSLQInsert(cmd.Context(), rc, destSrc, destTbl)
+	return execSLQInsert(ctx, rc, mArgs, destSrc, destTbl)
 }
 
 // execSQLInsert executes the SLQ and inserts resulting records
 // into destTbl in destSrc.
-func execSLQInsert(ctx context.Context, rc *RunContext, destSrc *source.Source, destTbl string) error {
+func execSLQInsert(ctx context.Context, rc *RunContext, mArgs map[string]string,
+	destSrc *source.Source, destTbl string,
+) error {
 	args, srcs, dbases := rc.Args, rc.Config.Sources, rc.databases
 	slq, err := preprocessUserSLQ(ctx, rc, args)
 	if err != nil {
@@ -138,7 +157,7 @@ func execSLQInsert(ctx context.Context, rc *RunContext, destSrc *source.Source, 
 		Sources:      srcs,
 		DBOpener:     rc.databases,
 		JoinDBOpener: rc.databases,
-		Args:         nil,
+		Args:         mArgs,
 	}
 
 	execErr := libsq.ExecuteSLQ(ctx, qc, slq, inserter)
@@ -156,7 +175,7 @@ func execSLQInsert(ctx context.Context, rc *RunContext, destSrc *source.Source, 
 }
 
 // execSLQPrint executes the SLQ query, and prints output to writer.
-func execSLQPrint(ctx context.Context, rc *RunContext) error {
+func execSLQPrint(ctx context.Context, rc *RunContext, mArgs map[string]string) error {
 	slq, err := preprocessUserSLQ(ctx, rc, rc.Args)
 	if err != nil {
 		return err
@@ -166,7 +185,7 @@ func execSLQPrint(ctx context.Context, rc *RunContext) error {
 		Sources:      rc.Config.Sources,
 		DBOpener:     rc.databases,
 		JoinDBOpener: rc.databases,
-		Args:         nil,
+		Args:         mArgs,
 	}
 
 	recw := output.NewRecordWriterAdapter(rc.writers.recordw)
@@ -340,4 +359,114 @@ func addQueryCmdFlags(cmd *cobra.Command) {
 	_ = cmd.RegisterFlagCompletionFunc(flagDriver, completeDriverType)
 
 	cmd.Flags().StringP(flagSrcOptions, "", "", flagQuerySrcOptionsUsage)
+}
+
+// extractFlagArgsValues returns a map {key:value} of predefined variables
+// as supplied via --arg. For example:
+//
+//	sq --arg name TOM '.actor | .first_name == $name'
+//
+// See preprocessFlagArgVars.
+func extractFlagArgsValues(cmd *cobra.Command) (map[string]string, error) {
+	if !cmdFlagChanged(cmd, flagArg) {
+		return nil, nil //nolint:nilnil
+	}
+
+	arr, err := cmd.Flags().GetStringArray(flagArg)
+	if err != nil {
+		return nil, errz.Err(err)
+	}
+
+	if len(arr) == 0 {
+		return nil, nil //nolint:nilnil
+	}
+
+	mArgs := map[string]string{}
+	for _, kv := range arr {
+		k, v, ok := strings.Cut(kv, ":")
+		if !ok || k == "" {
+			return nil, errz.Errorf("invalid --%s value", flagArg)
+		}
+
+		if _, ok := mArgs[k]; ok {
+			// If the key already exists, don't overwrite. This mimics jq's
+			// behavior.
+
+			log := lg.FromContext(cmd.Context())
+			log.With("arg", k).Warn("Double use of --arg key; using first value.")
+
+			continue
+		}
+
+		mArgs[k] = v
+	}
+
+	return mArgs, nil
+}
+
+// preprocessFlagArgVars is a hack to support the predefined
+// variables "--arg" mechanism. We implement the mechanism in alignment
+// with how jq does it: "--arg name value".
+// See: https://stedolan.github.io/jq/manual/v1.6/
+//
+// For example:
+//
+//	sq --arg first TOM --arg last MIRANDA '.actor | .first_name == $first && .last_name == $last'
+//
+// However, cobra (or rather, pflag) doesn't support this type of flag input.
+// So, we have a hack. In the example above, the two elements "first" and "TOM"
+// are concatenated into a single flag value "first:TOM". Thus, the returned
+// slice will be shorter.
+//
+// This function needs to be called before cobra/pflag starts processing
+// the program args.
+//
+// Any code making use of flagArg will need to deconstruct the flag value.
+// Specifically, that means extractFlagArgsValues.
+func preprocessFlagArgVars(args []string) ([]string, error) {
+	const flg = "--" + flagArg
+
+	if len(args) == 0 {
+		return args, nil
+	}
+
+	if !slices.Contains(args, flg) {
+		return args, nil
+	}
+
+	rez := make([]string, 0, len(args))
+
+	var i int
+	for i = 0; i < len(args); {
+		if args[i] == flg {
+			val, err := extractFlagArgsSingleArg(args[i:])
+			if err != nil {
+				return nil, err
+			}
+			rez = append(rez, flg)
+			rez = append(rez, val)
+			i += 3
+			continue
+		}
+
+		rez = append(rez, args[i])
+		i++
+	}
+
+	return rez, nil
+}
+
+// args will look like ["--arg", "key", "value", "--other-flag"].
+// The function will return "key:value".
+// See preprocessFlagArgVars.
+func extractFlagArgsSingleArg(args []string) (string, error) {
+	if len(args) < 3 {
+		return "", errz.Errorf("invalid %s flag: must be '--%s key value'", flagArg, flagArg)
+	}
+
+	if err := stringz.ValidIdent(args[1]); err != nil {
+		return "", errz.Errorf("invalid --%s key: %s", flagArg, args[1])
+	}
+
+	return args[1] + ":" + args[2], nil
 }

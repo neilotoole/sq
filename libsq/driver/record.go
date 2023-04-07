@@ -354,7 +354,7 @@ func PrepareInsertStmt(ctx context.Context, drvr SQLDriver, db sqlz.Preparer, de
 	}
 
 	dialect := drvr.Dialect()
-	quote := string(dialect.Quote)
+	quote := string(dialect.IdentQuote)
 	tblNameQuoted, colNamesQuoted := stringz.Surround(destTbl, quote), stringz.SurroundSlice(destCols, quote)
 	colsJoined := strings.Join(colNamesQuoted, Comma)
 	placeholders := dialect.Placeholders(len(colNamesQuoted), numRows)

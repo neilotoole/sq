@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/neilotoole/sq/libsq/ast/render"
+
 	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -22,15 +24,21 @@ import (
 type engine struct {
 	log *slog.Logger
 
+	// qc is the context in which the query is executed.
 	qc *QueryContext
+
+	// rc is the Context for rendering SQL.
+	// This field is set during engine.prepare. It can't be set before
+	// then because the target DB to use is calculated during engine.prepare,
+	// based on the input query and other context.
+	rc *render.Context
 
 	// tasks contains tasks that must be completed before targetSQL
 	// is executed against targetDB. Typically tasks is used to
 	// set up the joindb before it is queried.
 	tasks []tasker
 
-	// targetSQL is the ultimate SQL query to be executed against
-	// targetDB.
+	// targetSQL is the ultimate SQL query to be executed against targetDB.
 	targetSQL string
 
 	// targetDB is the destination for the ultimate SQL query to
@@ -61,87 +69,6 @@ func newEngine(ctx context.Context, qc *QueryContext, query string) (*engine, er
 	}
 
 	return ng, nil
-}
-
-// prepare prepares the engine to execute queryModel.
-// When this method returns, targetDB and targetSQL will be set,
-// as will any tasks (which may be empty). The tasks must be executed
-// against targetDB before targetSQL is executed (the engine.execute
-// method does this work).
-func (ng *engine) prepare(ctx context.Context, qm *queryModel) error {
-	var (
-		s   string
-		err error
-	)
-
-	switch node := qm.Table.(type) {
-	case *ast.TblSelectorNode:
-		s, ng.targetDB, err = ng.buildTableFromClause(ctx, node)
-		if err != nil {
-			return err
-		}
-	case *ast.JoinNode:
-		s, ng.targetDB, err = ng.buildJoinFromClause(ctx, node)
-		if err != nil {
-			return err
-		}
-	default:
-		return errz.Errorf("unknown selectable %T(%s)", node, node)
-	}
-
-	fb, qb := ng.targetDB.SQLDriver().SQLBuilder()
-	qb.SetFrom(s)
-
-	if s, err = fb.SelectCols(qm.Cols); err != nil {
-		return err
-	}
-	qb.SetColumns(s)
-
-	if qm.Distinct != nil {
-		if s, err = fb.Distinct(qm.Distinct); err != nil {
-			return err
-		}
-
-		qb.SetDistinct(s)
-	}
-
-	if qm.Range != nil {
-		if s, err = fb.Range(qm.Range); err != nil {
-			return err
-		}
-
-		qb.SetRange(s)
-	}
-
-	if qm.Where != nil {
-		if s, err = fb.Where(qm.Where); err != nil {
-			return err
-		}
-
-		qb.SetWhere(s)
-	}
-
-	if qm.OrderBy != nil {
-		if s, err = fb.OrderBy(qm.OrderBy); err != nil {
-			return err
-		}
-
-		qb.SetOrderBy(s)
-	}
-
-	if qm.GroupBy != nil {
-		if s, err = fb.GroupBy(qm.GroupBy); err != nil {
-			return err
-		}
-		qb.SetGroupBy(s)
-	}
-
-	ng.targetSQL, err = qb.Render()
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 // execute executes the plan that was built by engine.prepare.
@@ -186,6 +113,9 @@ func (ng *engine) executeTasks(ctx context.Context) error {
 	return g.Wait()
 }
 
+// buildTableFromClause builds the "FROM table" fragment.
+//
+// When this function returns, ng.rc will be set.
 func (ng *engine) buildTableFromClause(ctx context.Context, tblSel *ast.TblSelectorNode) (fromClause string,
 	fromConn driver.Database, err error,
 ) {
@@ -199,8 +129,14 @@ func (ng *engine) buildTableFromClause(ctx context.Context, tblSel *ast.TblSelec
 		return "", nil, err
 	}
 
-	fragBuilder, _ := fromConn.SQLDriver().SQLBuilder()
-	fromClause, err = fragBuilder.FromTable(tblSel)
+	rndr := fromConn.SQLDriver().Renderer()
+	ng.rc = &render.Context{
+		Renderer: rndr,
+		Args:     ng.qc.Args,
+		Dialect:  fromConn.SQLDriver().Dialect(),
+	}
+
+	fromClause, err = rndr.FromTable(ng.rc, tblSel)
 	if err != nil {
 		return "", nil, err
 	}
@@ -208,6 +144,9 @@ func (ng *engine) buildTableFromClause(ctx context.Context, tblSel *ast.TblSelec
 	return fromClause, fromConn, nil
 }
 
+// buildJoinFromClause builds the "JOIN" clause.
+//
+// When this function returns, ng.rc will be set.
 func (ng *engine) buildJoinFromClause(ctx context.Context, fnJoin *ast.JoinNode) (fromClause string,
 	fromConn driver.Database, err error,
 ) {
@@ -226,6 +165,9 @@ func (ng *engine) buildJoinFromClause(ctx context.Context, fnJoin *ast.JoinNode)
 	return ng.singleSourceJoin(ctx, fnJoin)
 }
 
+// singleSourceJoin sets up a join against a single source.
+//
+// On return, ng.rc will be set.
 func (ng *engine) singleSourceJoin(ctx context.Context, fnJoin *ast.JoinNode) (fromClause string,
 	fromDB driver.Database, err error,
 ) {
@@ -239,8 +181,14 @@ func (ng *engine) singleSourceJoin(ctx context.Context, fnJoin *ast.JoinNode) (f
 		return "", nil, err
 	}
 
-	fragBuilder, _ := fromDB.SQLDriver().SQLBuilder()
-	fromClause, err = fragBuilder.Join(fnJoin)
+	rndr := fromDB.SQLDriver().Renderer()
+	ng.rc = &render.Context{
+		Renderer: rndr,
+		Args:     ng.qc.Args,
+		Dialect:  fromDB.SQLDriver().Dialect(),
+	}
+
+	fromClause, err = rndr.Join(ng.rc, fnJoin)
 	if err != nil {
 		return "", nil, err
 	}
@@ -250,6 +198,8 @@ func (ng *engine) singleSourceJoin(ctx context.Context, fnJoin *ast.JoinNode) (f
 
 // crossSourceJoin returns a FROM clause that forms part of
 // the SQL SELECT statement against fromDB.
+//
+// On return, ng.rc will be set.
 func (ng *engine) crossSourceJoin(ctx context.Context, fnJoin *ast.JoinNode) (fromClause string, fromDB driver.Database,
 	err error,
 ) {
@@ -273,6 +223,13 @@ func (ng *engine) crossSourceJoin(ctx context.Context, fnJoin *ast.JoinNode) (fr
 	joinDB, err := ng.qc.JoinDBOpener.OpenJoin(ctx, leftSrc, rightSrc)
 	if err != nil {
 		return "", nil, err
+	}
+
+	rndr := joinDB.SQLDriver().Renderer()
+	ng.rc = &render.Context{
+		Renderer: rndr,
+		Args:     ng.qc.Args,
+		Dialect:  joinDB.SQLDriver().Dialect(),
 	}
 
 	leftDB, err := ng.qc.DBOpener.Open(ctx, leftSrc)
@@ -300,8 +257,7 @@ func (ng *engine) crossSourceJoin(ctx context.Context, fnJoin *ast.JoinNode) (fr
 	ng.tasks = append(ng.tasks, leftCopyTask)
 	ng.tasks = append(ng.tasks, rightCopyTask)
 
-	joinDBFragBuilder, _ := joinDB.SQLDriver().SQLBuilder()
-	fromClause, err = joinDBFragBuilder.Join(fnJoin)
+	fromClause, err = rndr.Join(ng.rc, fnJoin)
 	if err != nil {
 		return "", nil, err
 	}
@@ -389,7 +345,7 @@ func buildQueryModel(log *slog.Logger, a *ast.AST) (*queryModel, error) {
 		return nil, errz.Errorf("query model error: query does not have enough segments")
 	}
 
-	insp := ast.NewInspector(log, a)
+	insp := ast.NewInspector(a)
 	tablerSeg, err := insp.FindFinalTablerSegment()
 	if err != nil {
 		return nil, err

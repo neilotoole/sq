@@ -15,6 +15,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/driver/dialect"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
@@ -24,7 +26,7 @@ import (
 	"golang.org/x/exp/slog"
 
 	_ "github.com/mattn/go-sqlite3" // Import for side effect of loading the driver
-	"github.com/neilotoole/sq/libsq/ast/sqlbuilder"
+	"github.com/neilotoole/sq/libsq/ast/render"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlmodel"
@@ -160,12 +162,14 @@ func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 }
 
 // Dialect implements driver.SQLDriver.
-func (d *driveri) Dialect() driver.Dialect {
-	return driver.Dialect{
+func (d *driveri) Dialect() dialect.Dialect {
+	return dialect.Dialect{
 		Type:           Type,
 		Placeholders:   placeholders,
-		Quote:          '"',
+		IdentQuote:     '"',
+		Enquote:        stringz.DoubleQuote,
 		MaxBatchValues: 500,
+		Ops:            dialect.DefaultOps(),
 	}
 }
 
@@ -178,8 +182,9 @@ func placeholders(numCols, numRows int) string {
 }
 
 // SQLBuilder implements driver.SQLDriver.
-func (d *driveri) SQLBuilder() (sqlbuilder.FragmentBuilder, sqlbuilder.QueryBuilder) {
-	return newFragmentBuilder(d.log), &sqlbuilder.BaseQueryBuilder{}
+func (d *driveri) Renderer() *render.Renderer {
+	r := render.NewDefaultRenderer()
+	return r
 }
 
 // CopyTable implements driver.SQLDriver.
@@ -682,7 +687,7 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 	const queryTpl = "SELECT %s FROM %s LIMIT 1"
 
 	dialect := d.Dialect()
-	quote := string(dialect.Quote)
+	quote := string(dialect.IdentQuote)
 	tblNameQuoted := stringz.Surround(tblName, quote)
 
 	colsClause := "*"

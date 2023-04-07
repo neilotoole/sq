@@ -150,6 +150,8 @@ ALIAS_RESERVED
 
 ARG: '$' ID;
 
+arg : ARG;
+
 // handleTable is a handle.table pair.
 // - @my1.user
 handleTable: HANDLE NAME;
@@ -188,6 +190,7 @@ rowRange:
 expr:
 	selector
 	| literal
+	| arg
 	| unaryOperator expr
 	| expr '||' expr
 	| expr ( '*' | '/' | '%') expr
@@ -203,6 +206,7 @@ literal: NN | NUMBER | STRING | NULL;
 
 unaryOperator: '-' | '+' | '~' | '!';
 
+NULL: 'null';
 ID: [a-zA-Z_][a-zA-Z0-9_]*;
 WS: [ \t\r\n]+ -> skip;
 LPAR: '(';
@@ -212,7 +216,7 @@ RBRA: ']';
 COMMA: ',';
 PIPE: '|';
 COLON: ':';
-NULL: 'null' | 'NULL';
+
 
 // NN: Natural Number {0,1,2,3, ...}
 NN: INTF;

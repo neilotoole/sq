@@ -134,6 +134,12 @@ func (s *BaseSLQListener) EnterAlias(ctx *AliasContext) {}
 // ExitAlias is called when production alias is exited.
 func (s *BaseSLQListener) ExitAlias(ctx *AliasContext) {}
 
+// EnterArg is called when production arg is entered.
+func (s *BaseSLQListener) EnterArg(ctx *ArgContext) {}
+
+// ExitArg is called when production arg is exited.
+func (s *BaseSLQListener) ExitArg(ctx *ArgContext) {}
+
 // EnterHandleTable is called when production handleTable is entered.
 func (s *BaseSLQListener) EnterHandleTable(ctx *HandleTableContext) {}
 

@@ -39,3 +39,22 @@ func TestAvg(t *testing.T) {
 	ast := mustParse(t, input)
 	require.NotNil(t, ast)
 }
+
+func TestNodePrevNextSibling(t *testing.T) {
+	const in = `@sakila | .actor | .actor_id == 2`
+
+	log := slogt.New(t)
+
+	a, err := Parse(log, in)
+	require.NoError(t, err)
+
+	equalsNode := NodesHavingText(a, "==")[0]
+
+	gotPrev := NodePrevSibling(equalsNode)
+	require.Equal(t, ".actor_id", gotPrev.Text())
+	require.Nil(t, NodePrevSibling(gotPrev))
+
+	gotNext := NodeNextSibling(equalsNode)
+	require.Equal(t, "2", gotNext.Text())
+	require.Nil(t, NodeNextSibling(gotNext))
+}

@@ -34,7 +34,8 @@ type Node interface {
 	// String returns a debug-friendly string representation.
 	String() string
 
-	// Text returns the node's text representation.
+	// Text returns the node's text value. This is convenience
+	// method for Node.Context().GetText().
 	Text() string
 }
 
@@ -185,6 +186,74 @@ func nodesAreOnlyOfType(nodes []Node, types ...reflect.Type) error {
 	return nil
 }
 
+// NodeNextSibling returns the node's next sibling, or nil.
+func NodeNextSibling(node Node) Node {
+	if node == nil {
+		return nil
+	}
+
+	parent := node.Parent()
+	if parent == nil {
+		return nil
+	}
+
+	i := nodeChildIndex(parent, node)
+	if i < 0 {
+		return nil
+	}
+
+	children := parent.Children()
+	if i >= len(children)-1 {
+		return nil
+	}
+
+	return children[i+1]
+}
+
+// NodePrevSibling returns the node's previous sibling, or nil.
+func NodePrevSibling(node Node) Node {
+	if node == nil {
+		return nil
+	}
+
+	parent := node.Parent()
+	if parent == nil {
+		return nil
+	}
+
+	i := nodeChildIndex(parent, node)
+	if i < 1 {
+		return nil
+	}
+
+	children := parent.Children()
+	return children[i-1]
+}
+
+// NodesHavingText returns any node whose node.Text()
+// method returns text.
+func NodesHavingText(tree Node, text string) []Node {
+	if tree == nil {
+		return nil
+	}
+
+	var nodes []Node
+
+	w := NewWalker(tree)
+	w.AddVisitor(typeNode, func(w *Walker, node Node) error {
+		nodeText := node.Text()
+		if nodeText == text {
+			nodes = append(nodes, node)
+		}
+		return nil
+	})
+
+	if err := w.Walk(); err != nil {
+		panic(err)
+	}
+	return nodes
+}
+
 // nodeChildIndex returns the index of child in parent's children, or -1.
 func nodeChildIndex(parent, child Node) int {
 	for i, node := range parent.Children() {
@@ -270,16 +339,6 @@ func (n *OperatorNode) String() string {
 	return nodeString(n)
 }
 
-// LiteralNode is a leaf node representing a literal such as a number or a string.
-type LiteralNode struct {
-	baseNode
-}
-
-// String returns a log/debug-friendly representation.
-func (n *LiteralNode) String() string {
-	return nodeString(n)
-}
-
 // WhereNode represents a SQL WHERE clause, i.e. a filter on the SELECT.
 type WhereNode struct {
 	baseNode
@@ -327,17 +386,21 @@ func isOperator(text string) bool {
 // Cached results from reflect.TypeOf for node types.
 var (
 	typeAST                = reflect.TypeOf((*AST)(nil))
-	typeSegmentNode        = reflect.TypeOf((*SegmentNode)(nil))
-	typeHandleNode         = reflect.TypeOf((*HandleNode)(nil))
-	typeSelectorNode       = reflect.TypeOf((*SelectorNode)(nil))
-	typeTblSelectorNode    = reflect.TypeOf((*TblSelectorNode)(nil))
-	typeTblColSelectorNode = reflect.TypeOf((*TblColSelectorNode)(nil))
 	typeColSelectorNode    = reflect.TypeOf((*ColSelectorNode)(nil))
-	typeJoinNode           = reflect.TypeOf((*JoinNode)(nil))
-	typeRowRangeNode       = reflect.TypeOf((*RowRangeNode)(nil))
-	typeOrderByNode        = reflect.TypeOf((*OrderByNode)(nil))
-	typeGroupByNode        = reflect.TypeOf((*GroupByNode)(nil))
 	typeExprNode           = reflect.TypeOf((*ExprNode)(nil))
 	typeFuncNode           = reflect.TypeOf((*FuncNode)(nil))
+	typeGroupByNode        = reflect.TypeOf((*GroupByNode)(nil))
+	typeHandleNode         = reflect.TypeOf((*HandleNode)(nil))
+	typeJoinNode           = reflect.TypeOf((*JoinNode)(nil))
+	typeNode               = reflect.TypeOf((*Node)(nil)).Elem()
+	_                      = reflect.TypeOf((*OperatorNode)(nil))
+	typeOrderByNode        = reflect.TypeOf((*OrderByNode)(nil))
+	typeRowRangeNode       = reflect.TypeOf((*RowRangeNode)(nil))
+	typeSegmentNode        = reflect.TypeOf((*SegmentNode)(nil))
+	_                      = reflect.TypeOf((*Selector)(nil)).Elem()
+	typeSelectorNode       = reflect.TypeOf((*SelectorNode)(nil))
+	_                      = reflect.TypeOf((*Tabler)(nil)).Elem()
+	typeTblColSelectorNode = reflect.TypeOf((*TblColSelectorNode)(nil))
+	typeTblSelectorNode    = reflect.TypeOf((*TblSelectorNode)(nil))
 	typeUniqueNode         = reflect.TypeOf((*UniqueNode)(nil))
 )

@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/driver/dialect"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
@@ -19,7 +21,7 @@ import (
 	"github.com/jackc/pgx/v4"
 	// Import jackc/pgx, which is our postgres driver.
 	_ "github.com/jackc/pgx/v4/stdlib"
-	"github.com/neilotoole/sq/libsq/ast/sqlbuilder"
+	"github.com/neilotoole/sq/libsq/ast/render"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlmodel"
@@ -67,12 +69,14 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 }
 
 // Dialect implements driver.SQLDriver.
-func (d *driveri) Dialect() driver.Dialect {
-	return driver.Dialect{
+func (d *driveri) Dialect() dialect.Dialect {
+	return dialect.Dialect{
 		Type:           Type,
 		Placeholders:   placeholders,
-		Quote:          '"',
+		IdentQuote:     '"',
+		Enquote:        stringz.DoubleQuote,
 		MaxBatchValues: 1000,
+		Ops:            dialect.DefaultOps(),
 	}
 }
 
@@ -99,9 +103,10 @@ func placeholders(numCols, numRows int) string {
 	return strings.Join(rows, driver.Comma)
 }
 
-// SQLBuilder implements driver.SQLDriver.
-func (d *driveri) SQLBuilder() (sqlbuilder.FragmentBuilder, sqlbuilder.QueryBuilder) {
-	return newFragmentBuilder(d.log), &sqlbuilder.BaseQueryBuilder{}
+// Renderer implements driver.SQLDriver.
+func (d *driveri) Renderer() *render.Renderer {
+	r := render.NewDefaultRenderer()
+	return r
 }
 
 // Open implements driver.Driver.
@@ -340,7 +345,7 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 	// 	(SELECT username FROM person LIMIT 1) AS username,
 	// 	(SELECT email FROM person LIMIT 1) AS email
 	// LIMIT 1;
-	quote := string(d.Dialect().Quote)
+	quote := string(d.Dialect().IdentQuote)
 	tblNameQuoted := stringz.Surround(tblName, quote)
 
 	var query string

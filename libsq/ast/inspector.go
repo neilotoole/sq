@@ -3,35 +3,25 @@ package ast
 import (
 	"reflect"
 
-	"golang.org/x/exp/slog"
-
 	"github.com/samber/lo"
-
-	"github.com/ryboe/q"
 )
 
 // Inspector provides functionality for AST interrogation.
 type Inspector struct {
-	log *slog.Logger
 	ast *AST
 }
 
 // NewInspector returns an Inspector instance for ast.
-func NewInspector(log *slog.Logger, ast *AST) *Inspector {
-	return &Inspector{log: log, ast: ast}
+func NewInspector(ast *AST) *Inspector {
+	return &Inspector{ast: ast}
 }
 
 // CountNodes counts the number of nodes having typ.
 func (in *Inspector) CountNodes(typ reflect.Type) int {
 	count := 0
-	w := NewWalker(in.log, in.ast)
-	w.AddVisitor(typ, func(log *slog.Logger, w *Walker, node Node) error {
+	w := NewWalker(in.ast)
+	w.AddVisitor(typ, func(w *Walker, node Node) error {
 		count++
-		if typ == typeSelectorNode {
-			// found it
-			// FIXME: delete this
-			q.Q("found it", node)
-		}
 		return nil
 	})
 
@@ -42,8 +32,8 @@ func (in *Inspector) CountNodes(typ reflect.Type) int {
 // FindNodes returns the nodes having typ.
 func (in *Inspector) FindNodes(typ reflect.Type) []Node {
 	var nodes []Node
-	w := NewWalker(in.log, in.ast)
-	w.AddVisitor(typ, func(log *slog.Logger, w *Walker, node Node) error {
+	w := NewWalker(in.ast)
+	w.AddVisitor(typ, func(w *Walker, node Node) error {
 		nodes = append(nodes, node)
 		return nil
 	})
@@ -59,14 +49,14 @@ func (in *Inspector) FindNodes(typ reflect.Type) []Node {
 func (in *Inspector) FindHandles() []string {
 	var handles []string
 
-	if err := walkWith(in.log, in.ast, typeHandleNode, func(log *slog.Logger, walker *Walker, node Node) error {
+	if err := walkWith(in.ast, typeHandleNode, func(walker *Walker, node Node) error {
 		handles = append(handles, node.Text())
 		return nil
 	}); err != nil {
 		panic(err)
 	}
 
-	if err := walkWith(in.log, in.ast, typeTblSelectorNode, func(log *slog.Logger, walker *Walker, node Node) error {
+	if err := walkWith(in.ast, typeTblSelectorNode, func(walker *Walker, node Node) error {
 		n, _ := node.(*TblSelectorNode)
 		if n.handle != "" {
 			handles = append(handles, n.handle)
