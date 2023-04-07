@@ -189,50 +189,6 @@ func sqlAppend(existing, add string) string {
 	return existing + " " + add
 }
 
-// quoteTableOrColSelector returns a quote table, col, or table/col
-// selector for use in a SQL statement. For example:
-//
-//	.table     -->  "table"
-//	.col       -->  "col"
-//	.table.col -->  "table"."col"
-//
-// Thus, the selector must have exactly one or two periods.
-//
-// Deprecated: use renderSelectorNode.
-func quoteTableOrColSelector(quote, selector string) (string, error) {
-	if len(selector) < 2 || selector[0] != '.' {
-		return "", errz.Errorf("invalid selector: %s", selector)
-	}
-
-	parts := strings.Split(selector[1:], ".")
-	switch len(parts) {
-	case 1:
-		return quote + parts[0] + quote, nil
-	case 2:
-		return quote + parts[0] + quote + "." + quote + parts[1] + quote, nil
-	default:
-		return "", errz.Errorf("invalid selector: %s", selector)
-	}
-}
-
-// escapeLiteral escapes the single quotes in s.
-//
-//	jessie's girl  -->  jessie''s girl
-//
-// See also: stringz.BacktickQuote.
-func escapeLiteral(s string) string {
-	sb := strings.Builder{}
-	for _, r := range s {
-		if r == singleQuote {
-			_, _ = sb.WriteRune(singleQuote)
-		}
-
-		_, _ = sb.WriteRune(r)
-	}
-
-	return sb.String()
-}
-
 // unquoteLiteral returns true if s is a double-quoted string, and also returns
 // the value with the quotes stripped. An error is returned if the string
 // is malformed.
