@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/neilotoole/sq/libsq/driver/dialect"
 
@@ -24,6 +25,22 @@ import (
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/source"
 )
+
+// SQLConfig encapsulates settings for sql.DB.
+type SQLConfig struct {
+	MaxOpenConns    int
+	MaxIdleConns    int
+	ConnMaxIdleTime time.Duration
+	ConnMaxLifetime time.Duration
+}
+
+// Apply applies c to db.
+func (c *SQLConfig) Apply(db *sql.DB) {
+	db.SetMaxOpenConns(c.MaxOpenConns)
+	db.SetMaxIdleConns(c.MaxIdleConns)
+	db.SetConnMaxIdleTime(c.ConnMaxIdleTime)
+	db.SetConnMaxLifetime(c.ConnMaxLifetime)
+}
 
 // Provider is a factory that returns Driver instances.
 type Provider interface {
@@ -315,7 +332,7 @@ func (d *Databases) OpenScratch(ctx context.Context, name string) (Database, err
 }
 
 // OpenJoin opens an appropriate database for use as
-// as a work DB for joining across sources.
+// a work DB for joining across sources.
 //
 // Note: There is much work to be done on this method. At this time, only
 // two sources are supported. Ultimately OpenJoin should be able to
@@ -348,11 +365,11 @@ func (d *Databases) Close() error {
 // Tuning holds tuning params. Ultimately these params
 // could come from user config or be dynamically calculated/adjusted?
 var Tuning = struct {
-	// ErrgroupNumG is the numG value for errgroup.WithContextN.
-	ErrgroupNumG int
-
-	// ErrgroupQSize is the qSize value for errgroup.WithContextN.
-	ErrgroupQSize int
+	// ErrgroupLimit is passed to errgroup.Group.SetLimit.
+	// Note that this is the limit for any one errgroup, but
+	// not a ceiling on the total number of goroutines spawned,
+	// as some errgroups may themselves start an errgroup.
+	ErrgroupLimit int
 
 	// RecordChSize is the size of the buffer chan for record
 	// insertion/writing.
@@ -361,11 +378,23 @@ var Tuning = struct {
 	// SampleSize is the number of samples that a detector should
 	// take to determine type.
 	SampleSize int
+
+	// MaxRetryInterval is the maximum interval to wait between retries.
+	MaxRetryInterval time.Duration
+
+	// SQLConfig holds config for sql.DB.
+	SQLConfig *SQLConfig
 }{
-	ErrgroupNumG:  16,
-	ErrgroupQSize: 16,
-	RecordChSize:  1024,
-	SampleSize:    1024,
+	ErrgroupLimit:    16,
+	RecordChSize:     1024,
+	SampleSize:       1024,
+	MaxRetryInterval: time.Second * 3,
+	SQLConfig: &SQLConfig{
+		MaxOpenConns:    50,
+		MaxIdleConns:    8,
+		ConnMaxIdleTime: time.Second * 10,
+		ConnMaxLifetime: 0,
+	},
 }
 
 // requireSingleConn returns nil if db is a type that guarantees a

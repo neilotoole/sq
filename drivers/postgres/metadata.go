@@ -3,10 +3,11 @@ package postgres
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"reflect"
 	"strings"
+
+	"github.com/neilotoole/sq/libsq/driver"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
@@ -16,11 +17,9 @@ import (
 
 	"golang.org/x/exp/slog"
 
-	"github.com/jackc/pgconn"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
-	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"golang.org/x/sync/errgroup"
 )
@@ -214,30 +213,39 @@ current_setting('server_version'), version(), "current_user"()`
 	}
 
 	g, gCtx := errgroup.WithContext(ctx)
-	g.SetLimit(driver.Tuning.ErrgroupNumG)
+	g.SetLimit(driver.Tuning.ErrgroupLimit)
 	tblMetas := make([]*source.TableMetadata, len(tblNames))
 	for i := range tblNames {
-		select {
-		case <-gCtx.Done():
-			return nil, errz.Err(gCtx.Err())
-		default:
-		}
-
 		i := i
 		g.Go(func() error {
-			tblMeta, mdErr := getTableMetadata(gCtx, db, tblNames[i])
+			select {
+			case <-gCtx.Done():
+				return gCtx.Err()
+			default:
+			}
+
+			var tblMeta *source.TableMetadata
+			var mdErr error
+
+			mdErr = doRetry(gCtx, func() error {
+				tblMeta, mdErr = getTableMetadata(gCtx, db, tblNames[i])
+				return mdErr
+			})
+
 			if mdErr != nil {
-				if hasErrCode(mdErr, errCodeRelationNotExist) {
-					// If the table is dropped while we're collecting metadata,
-					// for example, we log a warning and suppress the error.
+				switch {
+				case hasErrCode(err, errCodeRelationNotExist):
+					// For example, if the table is dropped while we're collecting
+					// metadata, we log a warning and suppress the error.
 					log.Warn("metadata collection: table not found (continuing regardless)",
 						lga.Table, tblNames[i],
 						lga.Err, mdErr,
 					)
-					return nil
+				default:
+					return err
 				}
-				return mdErr
 			}
+
 			tblMetas[i] = tblMeta
 			return nil
 		})
@@ -259,23 +267,6 @@ current_setting('server_version'), version(), "current_user"()`
 	}
 	return md, nil
 }
-
-// hasErrCode returns true if err (or its cause error)
-// is of type *pgconn.PgError and err.Number equals code.
-func hasErrCode(err error, code string) bool {
-	if err == nil {
-		return false
-	}
-	var pgErr *pgconn.PgError
-
-	if errors.As(err, &pgErr) {
-		return pgErr.Code == code
-	}
-
-	return false
-}
-
-const errCodeRelationNotExist = "42P01"
 
 func getPgSettings(ctx context.Context, db sqlz.DB) ([]source.DBVar, error) {
 	log := lg.FromContext(ctx)

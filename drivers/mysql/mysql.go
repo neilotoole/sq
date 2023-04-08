@@ -42,7 +42,8 @@ var _ driver.Provider = (*Provider)(nil)
 
 // Provider is the MySQL implementation of driver.Provider.
 type Provider struct {
-	Log *slog.Logger
+	Log       *slog.Logger
+	SQLConfig *driver.SQLConfig
 }
 
 // DriverFor implements driver.Provider.
@@ -51,14 +52,15 @@ func (p *Provider) DriverFor(typ source.Type) (driver.Driver, error) {
 		return nil, errz.Errorf("unsupported driver type {%s}", typ)
 	}
 
-	return &driveri{log: p.Log}, nil
+	return &driveri{log: p.Log, sqlConfig: p.SQLConfig}, nil
 }
 
 var _ driver.SQLDriver = (*driveri)(nil)
 
 // driveri is the MySQL implementation of driver.Driver.
 type driveri struct {
-	log *slog.Logger
+	log       *slog.Logger
+	sqlConfig *driver.SQLConfig
 }
 
 // DriverMetadata implements driver.Driver.
@@ -94,8 +96,7 @@ func placeholders(numCols, numRows int) string {
 
 // Renderer implements driver.SQLDriver.
 func (d *driveri) Renderer() *render.Renderer {
-	r := render.NewDefaultRenderer()
-	return r
+	return render.NewDefaultRenderer()
 }
 
 // RecordMeta implements driver.SQLDriver.
@@ -302,7 +303,7 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 	return destCols, nil
 }
 
-// Open implements driver.Driver.
+// Open implements driver.DatabaseOpener.
 func (d *driveri) Open(_ context.Context, src *source.Source) (driver.Database, error) {
 	dsn, err := dsnFromLocation(src, true)
 	if err != nil {
@@ -314,6 +315,7 @@ func (d *driveri) Open(_ context.Context, src *source.Source) (driver.Database, 
 		return nil, errz.Err(err)
 	}
 
+	d.sqlConfig.Apply(db)
 	return &database{log: d.log, db: db, src: src, drvr: d}, nil
 }
 

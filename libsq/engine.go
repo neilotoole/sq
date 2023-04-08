@@ -100,12 +100,17 @@ func (ng *engine) executeTasks(ctx context.Context) error {
 	}
 
 	g, gCtx := errgroup.WithContext(ctx)
-	g.SetLimit(driver.Tuning.ErrgroupNumG)
+	g.SetLimit(driver.Tuning.ErrgroupLimit)
 
 	for _, task := range ng.tasks {
 		task := task
 
 		g.Go(func() error {
+			select {
+			case <-gCtx.Done():
+				return gCtx.Err()
+			default:
+			}
 			return task.executeTask(gCtx)
 		})
 	}

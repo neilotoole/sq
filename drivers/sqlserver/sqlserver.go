@@ -43,7 +43,8 @@ var _ driver.Provider = (*Provider)(nil)
 
 // Provider is the SQL Server implementation of driver.Provider.
 type Provider struct {
-	Log *slog.Logger
+	Log       *slog.Logger
+	SQLConfig *driver.SQLConfig
 }
 
 // DriverFor implements driver.Provider.
@@ -52,14 +53,15 @@ func (p *Provider) DriverFor(typ source.Type) (driver.Driver, error) {
 		return nil, errz.Errorf("unsupported driver type %q", typ)
 	}
 
-	return &driveri{log: p.Log}, nil
+	return &driveri{log: p.Log, sqlConfig: p.SQLConfig}, nil
 }
 
 var _ driver.SQLDriver = (*driveri)(nil)
 
 // driveri is the SQL Server implementation of driver.Driver.
 type driveri struct {
-	log *slog.Logger
+	sqlConfig *driver.SQLConfig
+	log       *slog.Logger
 }
 
 // DriverMetadata implements driver.SQLDriver.
@@ -111,19 +113,21 @@ func placeholders(numCols, numRows int) string {
 func (d *driveri) Renderer() *render.Renderer {
 	r := render.NewDefaultRenderer()
 
-	// Custom functions for SQLServer specific stuff.
+	// Custom functions for SQLServer-specific stuff.
 	r.Range = renderRange
 	r.PreRender = preRender
 
 	return r
 }
 
-// Open implements driver.Driver.
+// Open implements driver.DatabaseOpener.
 func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
 	db, err := sql.Open(dbDrvr, src.Location)
 	if err != nil {
 		return nil, errz.Err(err)
 	}
+
+	d.sqlConfig.Apply(db)
 
 	err = db.PingContext(ctx)
 	if err != nil {

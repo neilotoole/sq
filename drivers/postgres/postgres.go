@@ -4,9 +4,18 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/jackc/pgx/v5/pgconn"
+
+	"github.com/neilotoole/sq/libsq/core/retry"
+
+	"github.com/jackc/pgx/v5/stdlib"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/jackc/pgx/v5"
 
@@ -20,8 +29,6 @@ import (
 
 	"golang.org/x/exp/slog"
 
-	// Import jackc/pgx, which is our postgres driver.
-	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/neilotoole/sq/libsq/ast/render"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -42,7 +49,8 @@ const (
 
 // Provider is the postgres implementation of driver.Provider.
 type Provider struct {
-	Log *slog.Logger
+	Log       *slog.Logger
+	SQLConfig *driver.SQLConfig
 }
 
 // DriverFor implements driver.Provider.
@@ -51,12 +59,13 @@ func (p *Provider) DriverFor(typ source.Type) (driver.Driver, error) {
 		return nil, errz.Errorf("unsupported driver type {%s}", typ)
 	}
 
-	return &driveri{log: p.Log}, nil
+	return &driveri{log: p.Log, sqlConfig: p.SQLConfig}, nil
 }
 
 // driveri is the postgres implementation of driver.Driver.
 type driveri struct {
-	log *slog.Logger
+	sqlConfig *driver.SQLConfig
+	log       *slog.Logger
 }
 
 // DriverMetadata implements driver.Driver.
@@ -106,17 +115,23 @@ func placeholders(numCols, numRows int) string {
 
 // Renderer implements driver.SQLDriver.
 func (d *driveri) Renderer() *render.Renderer {
-	r := render.NewDefaultRenderer()
-	return r
+	return render.NewDefaultRenderer()
 }
 
-// Open implements driver.Driver.
+// Open implements driver.DatabaseOpener.
 func (d *driveri) Open(_ context.Context, src *source.Source) (driver.Database, error) {
-	db, err := sql.Open(dbDrvr, src.Location)
+	dbCfg, err := pgxpool.ParseConfig(src.Location)
 	if err != nil {
 		return nil, errz.Err(err)
 	}
 
+	connStr := stdlib.RegisterConnConfig(dbCfg.ConnConfig)
+	db, err := sql.Open(dbDrvr, connStr)
+	if err != nil {
+		return nil, errz.Wrap(err, "failed to open postgres db")
+	}
+
+	d.sqlConfig.Apply(db)
 	return &database{log: d.log, db: db, src: src, drvr: d}, nil
 }
 
@@ -536,4 +551,38 @@ func (d *database) Close() error {
 		return errz.Err(err)
 	}
 	return nil
+}
+
+const (
+	errCodeRelationNotExist   = "42P01"
+	errCodeTooManyConnections = "53300"
+)
+
+// isErrTooManyConnections returns true if err is a postgres error
+// with code 53300 (too_many_connections).
+//
+// See: https://www.postgresql.org/docs/14/errcodes-appendix.html
+func isErrTooManyConnections(err error) bool {
+	return hasErrCode(err, errCodeTooManyConnections)
+}
+
+// hasErrCode returns true if err (or its cause error)
+// is of type *pgconn.PgError and err.Number equals code.
+// See: isErrTooManyConnections.
+func hasErrCode(err error, code string) bool {
+	if err == nil {
+		return false
+	}
+	var pgErr *pgconn.PgError
+
+	if errors.As(err, &pgErr) {
+		return pgErr.Code == code
+	}
+
+	return false
+}
+
+// doRetry executes fn with retry on isErrTooManyConnections.
+func doRetry(ctx context.Context, fn func() error) error {
+	return retry.Do(ctx, driver.Tuning.MaxRetryInterval, fn, isErrTooManyConnections)
 }

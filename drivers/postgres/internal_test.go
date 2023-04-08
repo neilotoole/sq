@@ -3,6 +3,10 @@ package postgres
 import (
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/core/errz"
+
+	"github.com/jackc/pgx/v5/pgconn"
+
 	"github.com/stretchr/testify/require"
 )
 
@@ -54,4 +58,15 @@ func Test_idSanitize(t *testing.T) {
 		got := idSanitize(input)
 		require.Equal(t, want, got)
 	}
+}
+
+func TestIsErrTooManyConnections(t *testing.T) {
+	var err error
+
+	err = &pgconn.PgError{Code: "53300"}
+	require.True(t, isErrTooManyConnections(err))
+
+	// Test with a wrapped error
+	err = errz.Err(err)
+	require.True(t, isErrTooManyConnections(err))
 }
