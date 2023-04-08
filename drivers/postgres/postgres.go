@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/jackc/pgx/v5"
+
 	"github.com/neilotoole/sq/libsq/driver/dialect"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -18,9 +20,8 @@ import (
 
 	"golang.org/x/exp/slog"
 
-	"github.com/jackc/pgx/v4"
 	// Import jackc/pgx, which is our postgres driver.
-	_ "github.com/jackc/pgx/v4/stdlib"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/neilotoole/sq/libsq/ast/render"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
