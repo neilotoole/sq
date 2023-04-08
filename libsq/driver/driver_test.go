@@ -472,15 +472,10 @@ func TestDatabase_SourceMetadata(t *testing.T) {
 }
 
 func TestDatabase_SourceMetadata_concurrent(t *testing.T) {
-	t.Skip("not ready yet")
-	const concurrency = 10
 	t.Parallel()
+	const concurrency = 10
 
 	handles := sakila.SQLLatest()
-	// handles = []string{sakila.Pg} // FIXME: delete
-	// handles = []string{sakila.SL3} // FIXME: delete
-	// handles = []string{sakila.My} // FIXME: delete
-	// handles = []string{sakila.MS} // FIXME: delete
 	for _, handle := range handles {
 		handle := handle
 
