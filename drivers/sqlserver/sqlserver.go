@@ -50,7 +50,7 @@ type Provider struct {
 // DriverFor implements driver.Provider.
 func (p *Provider) DriverFor(typ source.Type) (driver.Driver, error) {
 	if typ != Type {
-		return nil, errz.Errorf("unsupported driver type %q", typ)
+		return nil, errz.Errorf("unsupported driver type {%s}}", typ)
 	}
 
 	return &driveri{log: p.Log, sqlConfig: p.SQLConfig}, nil
