@@ -485,10 +485,13 @@ func (rc *RunContext) doInit() error {
 	rc.databases = driver.NewDatabases(log, rc.registry, scratchSrcFunc)
 	rc.clnup.AddC(rc.databases)
 
+	// TODO: this should come from user config.
+	sqlCfg := driver.Tuning.SQLConfig
+
 	rc.registry.AddProvider(sqlite3.Type, &sqlite3.Provider{Log: log})
-	rc.registry.AddProvider(postgres.Type, &postgres.Provider{Log: log})
-	rc.registry.AddProvider(sqlserver.Type, &sqlserver.Provider{Log: log})
-	rc.registry.AddProvider(mysql.Type, &mysql.Provider{Log: log})
+	rc.registry.AddProvider(postgres.Type, &postgres.Provider{Log: log, SQLConfig: sqlCfg})
+	rc.registry.AddProvider(sqlserver.Type, &sqlserver.Provider{Log: log, SQLConfig: sqlCfg})
+	rc.registry.AddProvider(mysql.Type, &mysql.Provider{Log: log, SQLConfig: sqlCfg})
 	csvp := &csv.Provider{Log: log, Scratcher: rc.databases, Files: rc.files}
 	rc.registry.AddProvider(csv.TypeCSV, csvp)
 	rc.registry.AddProvider(csv.TypeTSV, csvp)

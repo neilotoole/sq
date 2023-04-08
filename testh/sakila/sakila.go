@@ -28,7 +28,7 @@ const (
 	My               = My8
 	MS17             = "@sakila_ms17"
 	MS19             = "@sakila_ms19"
-	MS               = MS17
+	MS               = MS19
 )
 
 // AllHandles returns all the typical sakila handles. It does not

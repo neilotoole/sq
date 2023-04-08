@@ -17,8 +17,12 @@ func newInspectCmd() *cobra.Command {
 		RunE:  execInspect,
 		Short: "Inspect data source schema and stats",
 		Long: `Inspect a data source, or a particular table in a source,
-listing table details such as column names and row counts, etc. Use
-the --verbose flag to see more detail.
+listing table details such as column names and row counts, etc.
+
+NOTE: If a schema is large, it may take some time for the command to complete.
+
+Use the --verbose flag to see more detail.
+
 If @HANDLE is not provided, the active data source is assumed.`,
 		Example: `  # inspect active data source
   $ sq inspect

@@ -52,15 +52,19 @@ var _ driver.Provider = (*Provider)(nil)
 // Provider is the SQLite3 implementation of driver.Provider.
 type Provider struct {
 	Log *slog.Logger
+
+	// NOTE: Unlike other driver.SQLDriver impls, sqlite doesn't
+	// seem to benefit from applying a driver.SQLConfig to
+	// its sql.DB.
 }
 
 // DriverFor implements driver.Provider.
-func (d *Provider) DriverFor(typ source.Type) (driver.Driver, error) {
+func (p *Provider) DriverFor(typ source.Type) (driver.Driver, error) {
 	if typ != Type {
 		return nil, errz.Errorf("unsupported driver type {%s}", typ)
 	}
 
-	return &driveri{log: d.Log}, nil
+	return &driveri{log: p.Log}, nil
 }
 
 var _ driver.Driver = (*driveri)(nil)
@@ -80,7 +84,7 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 	}
 }
 
-// Open implements driver.Driver.
+// Open implements driver.DatabaseOpener.
 func (d *driveri) Open(_ context.Context, src *source.Source) (driver.Database, error) {
 	d.log.Debug(lgm.OpenSrc, lga.Src, src)
 
@@ -181,10 +185,9 @@ func placeholders(numCols, numRows int) string {
 	return strings.Join(rows, driver.Comma)
 }
 
-// SQLBuilder implements driver.SQLDriver.
+// Renderer implements driver.SQLDriver.
 func (d *driveri) Renderer() *render.Renderer {
-	r := render.NewDefaultRenderer()
-	return r
+	return render.NewDefaultRenderer()
 }
 
 // CopyTable implements driver.SQLDriver.

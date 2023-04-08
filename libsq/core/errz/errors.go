@@ -277,6 +277,8 @@ func (w *withMessage) Format(s fmt.State, verb rune) {
 // If the error does not implement Cause, the original error will
 // be returned. If the error is nil, nil will be returned without further
 // investigation.
+//
+// Deprecated: Use errors.Unwrap or errors.As.
 func Cause(err error) error {
 	type causer interface {
 		Cause() error

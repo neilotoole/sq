@@ -142,18 +142,17 @@ GROUP BY database_id) AS total_size_bytes`
 	}
 
 	g, gCtx := errgroup.WithContext(ctx)
-	g.SetLimit(driver.Tuning.ErrgroupNumG)
+	g.SetLimit(driver.Tuning.ErrgroupLimit)
 	tblMetas := make([]*source.TableMetadata, len(tblNames))
 	for i := range tblNames {
 		i := i
-
-		select {
-		case <-gCtx.Done():
-			return nil, errz.Err(gCtx.Err())
-		default:
-		}
-
 		g.Go(func() error {
+			select {
+			case <-gCtx.Done():
+				return gCtx.Err()
+			default:
+			}
+
 			var tblMeta *source.TableMetadata
 			tblMeta, err = getTableMetadata(gCtx, db, catalog, schema, tblNames[i], tblTypes[i])
 			if err != nil {

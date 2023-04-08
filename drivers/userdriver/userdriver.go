@@ -82,7 +82,7 @@ func (d *drvr) DriverMetadata() driver.Metadata {
 	}
 }
 
-// Open implements driver.Driver.
+// Open implements driver.DatabaseOpener.
 func (d *drvr) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
 	clnup := cleanup.New()
 

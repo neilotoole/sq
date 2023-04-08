@@ -93,7 +93,7 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 	return md
 }
 
-// Open implements driver.Driver.
+// Open implements driver.DatabaseOpener.
 func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
 	dbase := &database{log: d.log, src: src, clnup: cleanup.New(), files: d.files}
 

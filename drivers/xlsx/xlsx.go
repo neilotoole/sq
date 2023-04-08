@@ -91,7 +91,7 @@ func (d *Driver) DriverMetadata() driver.Metadata {
 	}
 }
 
-// Open implements driver.Driver.
+// Open implements driver.DatabaseOpener.
 func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
 	r, err := d.files.Open(src)
 	if err != nil {

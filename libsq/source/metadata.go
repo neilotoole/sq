@@ -54,6 +54,21 @@ type Metadata struct {
 	DBVars []DBVar `json:"db_variables,omitempty"`
 }
 
+// Table returns the named table, or nil.
+func (md *Metadata) Table(tblName string) *TableMetadata {
+	if md == nil {
+		return nil
+	}
+
+	for _, tbl := range md.Tables {
+		if tbl.Name == tblName {
+			return tbl
+		}
+	}
+
+	return nil
+}
+
 // Clone returns a deep copy of md. If md is nil, nil is returned.
 func (md *Metadata) Clone() *Metadata {
 	if md == nil {

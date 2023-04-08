@@ -16,7 +16,7 @@ func TestSakila_SQL(t *testing.T) {
 	// Verify that the latest-version aliases are as expected
 	require.Equal(t, sakila.Pg, sakila.Pg12)
 	require.Equal(t, sakila.My, sakila.My8)
-	require.Equal(t, sakila.MS, sakila.MS17)
+	require.Equal(t, sakila.MS, sakila.MS19)
 
 	handles := sakila.SQLAll()
 	for _, handle := range handles {

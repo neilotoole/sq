@@ -129,10 +129,12 @@ func (h *Helper) init() {
 		h.databases = driver.NewDatabases(log, h.registry, sqlite3.NewScratchSource)
 		h.Cleanup.AddC(h.databases)
 
+		sqlCfg := driver.Tuning.SQLConfig
+
 		h.registry.AddProvider(sqlite3.Type, &sqlite3.Provider{Log: log})
-		h.registry.AddProvider(postgres.Type, &postgres.Provider{Log: log})
-		h.registry.AddProvider(sqlserver.Type, &sqlserver.Provider{Log: log})
-		h.registry.AddProvider(mysql.Type, &mysql.Provider{Log: log})
+		h.registry.AddProvider(postgres.Type, &postgres.Provider{Log: log, SQLConfig: sqlCfg})
+		h.registry.AddProvider(sqlserver.Type, &sqlserver.Provider{Log: log, SQLConfig: sqlCfg})
+		h.registry.AddProvider(mysql.Type, &mysql.Provider{Log: log, SQLConfig: sqlCfg})
 
 		csvp := &csv.Provider{Log: log, Scratcher: h.databases, Files: h.files}
 		h.registry.AddProvider(csv.TypeCSV, csvp)

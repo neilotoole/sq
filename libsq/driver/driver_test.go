@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"testing"
 
+	"golang.org/x/sync/errgroup"
+
 	"github.com/neilotoole/sq/testh/tutil"
 
 	"github.com/stretchr/testify/assert"
@@ -465,6 +467,37 @@ func TestDatabase_SourceMetadata(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, sakila.TblActor, md.Tables[0].Name)
 			require.Equal(t, int64(sakila.TblActorCount), md.Tables[0].RowCount)
+		})
+	}
+}
+
+func TestDatabase_SourceMetadata_concurrent(t *testing.T) {
+	t.Parallel()
+	const concurrency = 10
+
+	handles := sakila.SQLLatest()
+	for _, handle := range handles {
+		handle := handle
+
+		t.Run(handle, func(t *testing.T) {
+			t.Parallel()
+
+			th, _, dbase, _ := testh.NewWith(t, handle)
+
+			g, gCtx := errgroup.WithContext(th.Context)
+			for i := 0; i < concurrency; i++ {
+				g.Go(func() error {
+					md, err := dbase.SourceMetadata(gCtx)
+					require.NoError(t, err)
+					require.NotNil(t, md)
+					gotTbl := md.Table(sakila.TblActor)
+					require.NotNil(t, gotTbl)
+					require.Equal(t, int64(sakila.TblActorCount), gotTbl.RowCount)
+					return nil
+				})
+			}
+
+			require.NoError(t, g.Wait())
 		})
 	}
 }

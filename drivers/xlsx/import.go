@@ -184,6 +184,12 @@ func buildTblDefsForSheets(ctx context.Context, sheets []*xlsx.Sheet, hasHeader 
 	for i := range sheets {
 		i := i
 		g.Go(func() error {
+			select {
+			case <-gCtx.Done():
+				return gCtx.Err()
+			default:
+			}
+
 			tblDef, err := buildTblDefForSheet(lg.FromContext(gCtx), sheets[i], hasHeader)
 			if err != nil {
 				return err
