@@ -39,7 +39,7 @@ const (
 	flagJSONLShort = "l"
 	flagJSONLUsage = "Output LF-delimited JSON objects"
 
-	flagMarkdown      = "markdown"
+	flagMarkdown      = "md"
 	flagMarkdownUsage = "Output Markdown"
 
 	flagAddActive      = "active"

@@ -5,13 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [v0.30.0] - 2003-03-27
+## [v0.31.0] - 2023-03-08
+
+### Added
+
+- [#173]: Predefined variables via `--arg` 
+  flag ([docs](https://sq.io/docs/query/#predefined-variables)):
+  ```shell
+  $ sq --arg first TOM '.actor | .first_name == $first'
+  ```
+
+### Changes
+- Use `--md` instead of `--markdown` for outputting Markdown.
+
+### Fixed
+
+- [#185]: `sq inspect` now better handles "too many connections" situations.
+- `go.mod`: Moved to `jackc/pgx` `v5`.
+- Refactor: switched to [`slog`](https://pkg.go.dev/golang.org/x/exp/slog) logging library.
+
+## [v0.30.0] - 2023-03-27
 
 ### Added
 
 - [#164]: Implemented `unique` function ([docs](https://sq.io/docs/query#unique)):
   ```shell
-  $sq '.actor | .first_name | unique'
+  $ sq '.actor | .first_name | unique'
   ```
   This is equivalent to:
   ```sql
@@ -242,6 +261,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - [#89]: Bug with SQL generated for joins.
 
+[#185]: https://github.com/neilotoole/sq/issues/185
+[#173]: https://github.com/neilotoole/sq/issues/173
 [#164]: https://github.com/neilotoole/sq/issues/164
 [#162]: https://github.com/neilotoole/sq/issues/162
 [#123]: https://github.com/neilotoole/sq/issues/123
@@ -282,3 +303,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [v0.28.0]: https://github.com/neilotoole/sq/compare/v0.27.0...v0.28.0
 [v0.29.0]: https://github.com/neilotoole/sq/compare/v0.28.0...v0.29.0
 [v0.30.0]: https://github.com/neilotoole/sq/compare/v0.29.0...v0.30.0
+[v0.31.0]: https://github.com/neilotoole/sq/compare/v0.30.0...v0.31.0
