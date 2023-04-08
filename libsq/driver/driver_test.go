@@ -544,6 +544,7 @@ func TestSQLDriver_AlterTableRename(t *testing.T) {
 
 			// Make a copy of the table to play with
 			tbl := th.CopyTable(true, src, sakila.TblActor, "", true)
+			defer th.DropTable(src, tbl)
 
 			newName := stringz.UniqSuffix("actor_copy_")
 			err := drvr.AlterTableRename(th.Context, dbase.DB(), tbl, newName)

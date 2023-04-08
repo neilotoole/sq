@@ -87,6 +87,7 @@ func TestCreateTblTestBytes(t *testing.T) {
 	data := []any{fixt.GopherFilename, fBytes}
 
 	require.Equal(t, int64(1), th.CreateTable(true, src, tblDef, data))
+	th.DropTable(src, tblDef.Name)
 }
 
 // TestOutputRaw verifies that the raw output format works.
@@ -117,6 +118,7 @@ func TestOutputRaw(t *testing.T) {
 			// Create the table and insert data
 			insertRow := []any{fixt.GopherFilename, wantBytes}
 			require.Equal(t, int64(1), th.CreateTable(true, src, tblDef, insertRow))
+			defer th.DropTable(src, tblDef.Name)
 
 			// 1. Query and check that libsq is returning bytes correctly.
 			query := fmt.Sprintf("SELECT col_bytes FROM %s WHERE col_name = '%s'",
