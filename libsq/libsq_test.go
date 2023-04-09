@@ -80,9 +80,15 @@ func TestQuerySQL_Smoke(t *testing.T) {
 			require.Equal(t, sakila.TblActorCount, len(sink.Recs))
 			require.Equal(t, len(tc.fieldTypes), len(sink.Recs[0]))
 			for i := range sink.Recs[0] {
-				require.Equal(t, tc.fieldTypes[i], reflect.TypeOf(sink.Recs[0][i]),
-					"expected field[%d] to have type %s but got %s", i, tc.fieldTypes[i],
-					reflect.TypeOf(sink.Recs[0][i]))
+				require.Equal(t,
+					tc.fieldTypes[i].String(),
+					reflect.TypeOf(sink.Recs[0][i]).String(),
+					"expected field[%d] {%s} to have type %s but got %s",
+					i,
+					sink.RecMeta[i].Name(),
+					tc.fieldTypes[i].String(),
+					reflect.TypeOf(sink.Recs[0][i]).String(),
+				)
 			}
 		})
 	}

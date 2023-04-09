@@ -3,9 +3,27 @@ package csv
 import (
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/options"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 )
+
+// hasHeaderRow returns true if a header row is explicitly
+// set in opts, or if detectHeaderRow detects that the first
+// row of recs seems to be a header.
+func hasHeaderRow(recs [][]string, opts options.Options) (bool, error) {
+	hasHeader, ok, err := options.HasHeader(opts)
+	if err != nil {
+		return false, err
+	}
+
+	if ok {
+		return hasHeader, nil
+	}
+
+	return detectHeaderRow(recs)
+}
 
 // detectHeaderRow returns true if recs has a header row.
 // The recs arg should be regularly shaped: each rec should

@@ -25,7 +25,7 @@ require (
 	github.com/shopspring/decimal v1.3.1
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.8.1
+	github.com/stretchr/testify v1.8.2
 	github.com/tealeg/xlsx/v2 v2.0.1 // TODO: This package is no longer supported; switch to a different impl
 	github.com/testcontainers/testcontainers-go v0.17.0
 	github.com/xo/dburl v0.13.1
@@ -44,6 +44,7 @@ require (
 	github.com/muesli/mango-cobra v1.2.0
 	github.com/muesli/roff v0.1.0
 	github.com/neilotoole/slogt v1.0.0
+	github.com/neilotoole/streamcache v0.2.0
 	github.com/samber/lo v1.37.0
 	golang.org/x/exp v0.0.0-20230321023759-10a507213a29
 //golang.org/x/exp v0.0.0-20221012211006-4de253d81b95 // older version that had slog.FromContext

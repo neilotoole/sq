@@ -4,9 +4,6 @@ package csv
 import (
 	"context"
 	"database/sql"
-	"encoding/csv"
-	"errors"
-	"io"
 	"strconv"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -17,7 +14,6 @@ import (
 
 	"golang.org/x/exp/slog"
 
-	"github.com/neilotoole/sq/cli/output/csvw"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
@@ -85,8 +81,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database
 		return nil, err
 	}
 
-	err = importCSV(ctx, src, d.files.OpenFunc(src), dbase.impl)
-	if err != nil {
+	if err = importCSV(ctx, src, d.files.OpenFunc(src), dbase.impl); err != nil {
 		return nil, err
 	}
 
@@ -95,7 +90,6 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database
 
 // Truncate implements driver.Driver.
 func (d *driveri) Truncate(_ context.Context, _ *source.Source, _ string, _ bool) (int64, error) {
-	// TODO: CSV could support Truncate for local files
 	return 0, errz.Errorf("truncate not supported for %s", d.DriverMetadata().Type)
 }
 
@@ -205,117 +199,4 @@ func (d *database) Close() error {
 	d.log.Debug(lgm.CloseDB, lga.Src, d.src)
 
 	return errz.Err(d.impl.Close())
-}
-
-var (
-	_ source.TypeDetectFunc = DetectCSV
-	_ source.TypeDetectFunc = DetectTSV
-)
-
-// DetectCSV implements source.TypeDetectFunc.
-func DetectCSV(ctx context.Context, openFn source.FileOpenFunc) (detected source.Type, score float32,
-	err error,
-) {
-	return detectType(ctx, TypeCSV, openFn)
-}
-
-// DetectTSV implements source.TypeDetectFunc.
-func DetectTSV(ctx context.Context, openFn source.FileOpenFunc) (detected source.Type,
-	score float32, err error,
-) {
-	return detectType(ctx, TypeTSV, openFn)
-}
-
-func detectType(ctx context.Context, typ source.Type,
-	openFn source.FileOpenFunc,
-) (detected source.Type, score float32, err error) {
-	log := lg.FromContext(ctx)
-	var r io.ReadCloser
-	r, err = openFn()
-	if err != nil {
-		return source.TypeNone, 0, errz.Err(err)
-	}
-	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
-
-	delim := csvw.Comma
-	if typ == TypeTSV {
-		delim = csvw.Tab
-	}
-
-	cr := csv.NewReader(&crFilterReader{r: r})
-	cr.Comma = delim
-	cr.FieldsPerRecord = -1
-
-	score = isCSV(ctx, cr)
-	if score > 0 {
-		return typ, score, nil
-	}
-
-	return source.TypeNone, 0, nil
-}
-
-const (
-	scoreNo       float32 = 0
-	scoreMaybe    float32 = 0.1
-	scoreProbably float32 = 0.2
-	// scoreYes is less than 1.0 because other detectors
-	// (e.g. XLSX) can be more confident.
-	scoreYes float32 = 0.9
-)
-
-// isCSV returns a score indicating the
-// the confidence that cr is reading legitimate CSV, where
-// a score <= 0 is not CSV, a score >= 1 is definitely CSV.
-func isCSV(ctx context.Context, cr *csv.Reader) (score float32) {
-	const (
-		maxRecords int = 100
-	)
-
-	var recordCount, totalFieldCount int
-	var avgFields float32
-
-	for i := 0; i < maxRecords; i++ {
-		select {
-		case <-ctx.Done():
-			return 0
-		default:
-		}
-
-		rec, err := cr.Read()
-		if err != nil {
-			if errors.Is(err, io.EOF) && rec == nil {
-				// This means end of data
-				break
-			}
-
-			// It's a genuine error
-			return scoreNo
-		}
-		totalFieldCount += len(rec)
-		recordCount++
-	}
-
-	if recordCount == 0 {
-		return scoreNo
-	}
-
-	avgFields = float32(totalFieldCount) / float32(recordCount)
-
-	if recordCount == 1 {
-		if avgFields <= 2 {
-			return scoreMaybe
-		}
-		return scoreProbably
-	}
-
-	// recordCount >= 2
-	switch {
-	case avgFields <= 1:
-		return scoreMaybe
-	case avgFields <= 2:
-		return scoreProbably
-	default:
-		// avgFields > 2
-		return scoreYes
-	}
 }

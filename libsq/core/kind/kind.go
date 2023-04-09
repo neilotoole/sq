@@ -36,7 +36,7 @@ const (
 	// Datetime indicates a date-time kind.
 	Datetime
 
-	// Date indicates a date-only kind.
+	// Date indicates a date-only kind. For example "2022-12-31".
 	Date
 
 	// Time indicates a time-only kind.
@@ -48,6 +48,7 @@ const (
 // such as a SQL VARCHAR or JSON boolean.
 type Kind int
 
+// String returns a log/debug-friendly representation.
 func (k Kind) String() string {
 	t, err := k.MarshalText()
 	if err != nil {

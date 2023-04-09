@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neilotoole/sq/testh/tutil"
+
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -98,6 +100,45 @@ func Test_predictColKinds(t *testing.T) {
 				maxExamine)
 
 			require.NoError(t, err)
+			require.Equal(t, tc.wantKinds, gotKinds)
+		})
+	}
+}
+
+func Test_detectColKinds(t *testing.T) {
+	testCases := []struct {
+		name      string
+		recs      [][]string
+		wantKinds []kind.Kind
+		wantErr   bool
+	}{
+		{
+			name:    "empty",
+			recs:    [][]string{},
+			wantErr: true,
+		},
+		{
+			name: "basic",
+			recs: [][]string{
+				{"1", "true", "hello", "0.0"},
+				{"2", "false", "world", "1"},
+				{"3", "true", "", "7.7"},
+				{"", "", "", ""},
+			},
+			wantKinds: []kind.Kind{kind.Int, kind.Bool, kind.Text, kind.Decimal},
+		},
+	}
+
+	for i, tc := range testCases {
+		tc := tc
+		t.Run(tutil.Name(i, tc.name), func(t *testing.T) {
+			gotKinds, _, gotErr := detectColKinds(tc.recs)
+			if tc.wantErr {
+				require.Error(t, gotErr)
+				return
+			}
+
+			require.NoError(t, gotErr)
 			require.Equal(t, tc.wantKinds, gotKinds)
 		})
 	}
