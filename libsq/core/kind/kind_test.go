@@ -61,7 +61,7 @@ func TestKind(t *testing.T) {
 	require.Equal(t, kind.Bytes, d, "d should not be mutated on UnmarshalText err")
 }
 
-func TestKindDetector(t *testing.T) {
+func TestDetector(t *testing.T) {
 	const (
 		fixtTime1              = "00:00:00"
 		fixtTime2              = "08:30:05"

@@ -220,7 +220,8 @@ func createTblDef(tblName string, colNames []string, kinds []kind.Kind) *sqlmode
 // kind is excluded from the list of candidate kinds. The first of any
 // remaining candidate kinds for each field is returned, or kind.Text if
 // no candidate kinds.
-func predictColKinds(expectFieldCount int, r *csv.Reader, readAheadRecs *[][]string, maxExamine int) ([]kind.Kind,
+func predictColKinds(expectFieldCount int, r *csv.Reader, readAheadRecs *[][]string,
+	maxExamine int) ([]kind.Kind,
 	error,
 ) {
 	// FIXME: [legacy] this function should switch to using kind.Detector
@@ -346,9 +347,17 @@ func getColNames(cr *csv.Reader, src *source.Source, readAheadRecs *[][]string) 
 		return nil, err
 	}
 
-	optHasHeaderRecord, _, err := options.HasHeader(src.Options)
+	optHasHeaderRecord, explicitHeaderOpt, err := options.HasHeader(src.Options)
 	if err != nil {
 		return nil, err
+	}
+
+	if !explicitHeaderOpt {
+		// If header option is not explicitly set, try to detect it.
+		optHasHeaderRecord, err = detectHeaderRow(*readAheadRecs)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if optHasHeaderRecord {
