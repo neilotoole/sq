@@ -24,12 +24,12 @@ func TestVal(t *testing.T) {
 	want := "hello"
 	var got any
 
-	if tutil.Val(nil) != nil {
+	if stringz.Val(nil) != nil {
 		t.FailNow()
 	}
 
 	var v0 any
-	if tutil.Val(v0) != nil {
+	if stringz.Val(v0) != nil {
 		t.FailNow()
 	}
 
@@ -42,7 +42,7 @@ func TestVal(t *testing.T) {
 
 	vals := []any{v1, v1a, v2, v3, v4, v5}
 	for _, val := range vals {
-		got = tutil.Val(val)
+		got = stringz.Val(val)
 
 		if got != want {
 			t.Errorf("expected %T(%v) but got %T(%v)", want, want, got, got)
@@ -50,26 +50,26 @@ func TestVal(t *testing.T) {
 	}
 
 	slice := []string{"a", "b"}
-	require.Equal(t, slice, tutil.Val(slice))
-	require.Equal(t, slice, tutil.Val(&slice))
+	require.Equal(t, slice, stringz.Val(slice))
+	require.Equal(t, slice, stringz.Val(&slice))
 
 	b := true
-	require.Equal(t, b, tutil.Val(b))
-	require.Equal(t, b, tutil.Val(&b))
+	require.Equal(t, b, stringz.Val(b))
+	require.Equal(t, b, stringz.Val(&b))
 
 	type structT struct {
 		f string
 	}
 
 	st1 := structT{f: "hello"}
-	require.Equal(t, st1, tutil.Val(st1))
-	require.Equal(t, st1, tutil.Val(&st1))
+	require.Equal(t, st1, stringz.Val(st1))
+	require.Equal(t, st1, stringz.Val(&st1))
 
 	var c chan int
-	require.Nil(t, tutil.Val(c))
+	require.Nil(t, stringz.Val(c))
 	c = make(chan int, 10)
-	require.Equal(t, c, tutil.Val(c))
-	require.Equal(t, c, tutil.Val(&c))
+	require.Equal(t, c, stringz.Val(c))
+	require.Equal(t, c, stringz.Val(&c))
 }
 
 func TestCopyRecords(t *testing.T) {
@@ -107,7 +107,7 @@ func TestCopyRecords(t *testing.T) {
 					require.False(t, recs[i][j] == recs2[i][j],
 						"pointer values should not be equal: %#v --> %#v", recs[i][j], recs2[i][j])
 
-					val1, val2 := tutil.Val(recs[i][j]), tutil.Val(recs2[i][j])
+					val1, val2 := stringz.Val(recs[i][j]), stringz.Val(recs2[i][j])
 					require.Equal(t, val1, val2,
 						"dereferenced values should be equal: %#v --> %#v", val1, val2)
 				}

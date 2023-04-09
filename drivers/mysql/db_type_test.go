@@ -6,8 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/neilotoole/sq/testh/tutil"
-
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli/output"
@@ -434,7 +432,7 @@ func TestDatabaseTypeJSON(t *testing.T) {
 			require.Equal(t, len(testVals), len(sink.Recs))
 			for i := range testVals {
 				for j := range testVals[i] {
-					require.Equal(t, testVals[i][j], tutil.Val(sink.Recs[i][j]))
+					require.Equal(t, testVals[i][j], stringz.Val(sink.Recs[i][j]))
 				}
 			}
 		})

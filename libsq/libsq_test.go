@@ -46,14 +46,8 @@ func TestQuerySQL_Smoke(t *testing.T) {
 			fieldTypes: wantActorFieldTypes,
 		},
 		{
-			handle: sakila.CSVActor,
-			fieldTypes: []reflect.Type{
-				// FIXME: change to wantActorFieldTypes when CSV driver detects field types automagically
-				sqlz.RTypeInt64P,
-				sqlz.RTypeStringP,
-				sqlz.RTypeStringP,
-				sqlz.RTypeStringP,
-			},
+			handle:     sakila.CSVActor,
+			fieldTypes: wantActorFieldTypes,
 		},
 		{
 			handle:     sakila.XLSX,

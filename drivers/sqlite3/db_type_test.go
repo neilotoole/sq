@@ -6,8 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/neilotoole/sq/testh/tutil"
-
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli/output"
@@ -192,7 +190,7 @@ func TestDatabaseTypes(t *testing.T) {
 				continue
 			}
 
-			require.Equal(t, wantVal, tutil.Val(gotVal),
+			require.Equal(t, wantVal, stringz.Val(gotVal),
 				"%s[%d][%d] (%s) expected %T(%v) but got %T(%v)",
 				actualTblName, i, j, typeTestColNames[j], wantVal, wantVal, gotVal, gotVal)
 		}

@@ -22,8 +22,6 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 )
 
-const sampleSize = 100
-
 // importCSV loads the src CSV data into scratchDB.
 func importCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFunc, scratchDB driver.Database) error {
 	log := lg.FromContext(ctx)
@@ -43,7 +41,7 @@ func importCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFu
 	}
 
 	cr := newCSVReader(r, delim)
-	recs, err := readRecords(cr, sampleSize)
+	recs, err := readRecords(cr, driver.Tuning.SampleSize)
 	if err != nil {
 		return err
 	}

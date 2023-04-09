@@ -232,9 +232,9 @@ func TestSQLDriver_PrepareUpdateStmt(t *testing.T) {
 
 			require.NoError(t, err)
 			require.Equal(t, 1, len(sink.Recs))
-			require.Equal(t, actorID, tutil.Val(sink.Recs[0][0]))
-			require.Equal(t, wantVals[0], tutil.Val(sink.Recs[0][1]))
-			require.Equal(t, wantVals[1], tutil.Val(sink.Recs[0][2]))
+			require.Equal(t, actorID, stringz.Val(sink.Recs[0][0]))
+			require.Equal(t, wantVals[0], stringz.Val(sink.Recs[0][1]))
+			require.Equal(t, wantVals[1], stringz.Val(sink.Recs[0][2]))
 		})
 	}
 }

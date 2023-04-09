@@ -4,6 +4,7 @@ import (
 	stdj "encoding/json"
 	"math/big"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -13,9 +14,12 @@ import (
 // Detector is used to detect the kind of a stream of values.
 // The caller adds values via Sample and then invokes Detect.
 type Detector struct {
-	kinds       map[Kind]struct{}
-	mungeFns    map[Kind]MungeFunc
-	dirty       bool
+	kinds    map[Kind]struct{}
+	mungeFns map[Kind]MungeFunc
+	dirty    bool
+
+	// foundString is set to true if any of the values passed
+	// to Detector.Sample had type string.
 	foundString bool
 }
 
@@ -78,7 +82,7 @@ func (d *Detector) Sample(v any) {
 	d.doSampleString(v.(string))
 }
 
-//nolint:gocognit
+//nolint:gocognit,funlen
 func (d *Detector) doSampleString(s string) {
 	if s == "" {
 		// Can't really do anything useful with this
@@ -86,6 +90,19 @@ func (d *Detector) doSampleString(s string) {
 	}
 
 	var err error
+
+	if d.has(Int) || d.has(Decimal) {
+		if strings.ContainsRune(s, '.') {
+			// Int cannot contain '.', e.g. "1.0".
+			d.delete(Int)
+		}
+
+		if strings.ContainsAny(s, "eE") {
+			// Int and Decimal cannot contain E.
+			// Most likely a float, e.g. "6.67428e-11"
+			d.delete(Int, Decimal)
+		}
+	}
 
 	if d.has(Decimal) {
 		// If Decimal is still a candidate, check that we can parse it
@@ -122,8 +139,8 @@ func (d *Detector) doSampleString(s string) {
 			d.delete(Bool)
 		} else {
 			// s can be parsed as bool, can't be time,
-			// but still could be int ("1" == true)
-			d.delete(Float, Time, Date, Datetime)
+			// but still could be a number ("1" == true)
+			d.delete(Time, Date, Datetime)
 		}
 	}
 
@@ -244,7 +261,7 @@ func (d *Detector) Detect() (kind Kind, mungeFn MungeFunc, err error) {
 			return Text, nil, nil
 		}
 
-		// If we haven't filtered any kinds, default to Text.
+		// If we haven't filtered any kinds, default to Null.
 		return Null, nil, nil
 	}
 
@@ -278,8 +295,16 @@ func (d *Detector) Detect() (kind Kind, mungeFn MungeFunc, err error) {
 		return Datetime, d.mungeFns[Datetime], nil
 	}
 
-	if d.foundString && d.has(Decimal) {
-		return Decimal, nil, nil
+	if d.foundString {
+		if d.has(Decimal, Int) {
+			// If we have to choose between Decimal and Int, we
+			// pick Int, as it's stricter.
+			return Int, nil, nil
+		}
+
+		if d.has(Decimal) {
+			return Decimal, nil, nil
+		}
 	}
 
 	if d.has(Int) {

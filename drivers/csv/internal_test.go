@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/core/stringz"
+
 	"github.com/neilotoole/sq/testh/tutil"
 
 	"github.com/stretchr/testify/require"
@@ -139,7 +141,7 @@ func Test_detectColKinds(t *testing.T) {
 			}
 
 			require.NoError(t, gotErr)
-			require.Equal(t, tc.wantKinds, gotKinds)
+			require.Equal(t, stringz.Strings(tc.wantKinds), stringz.Strings(gotKinds))
 		})
 	}
 }

@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/samber/lo"
+
 	"github.com/neilotoole/sq/testh/tutil"
 
 	"github.com/stretchr/testify/assert"
@@ -434,6 +436,62 @@ func TestValidIdent(t *testing.T) {
 				require.Error(t, gotErr)
 			} else {
 				require.NoError(t, gotErr)
+			}
+		})
+	}
+}
+
+func TestStrings(t *testing.T) {
+	testCases := []struct {
+		in   []any
+		want []any
+	}{
+		{
+			in:   nil,
+			want: []any{},
+		},
+		{
+			in:   []any{"hello", 1, true},
+			want: []any{"hello", "1", "true"},
+		},
+	}
+
+	for i, tc := range testCases {
+		tc := tc
+		t.Run(tutil.Name(i, tc.in), func(t *testing.T) {
+			got := stringz.Strings(tc.in)
+			require.Len(t, got, len(tc.in))
+
+			for j, v := range got {
+				require.Equal(t, tc.want[j], v)
+			}
+		})
+	}
+}
+
+func TestStringsD(t *testing.T) {
+	testCases := []struct {
+		in   []any
+		want []any
+	}{
+		{
+			in:   nil,
+			want: []any{},
+		},
+		{
+			in:   []any{"hello", lo.ToPtr("hello"), 1, lo.ToPtr(1), true, lo.ToPtr(true)},
+			want: []any{"hello", "hello", "1", "1", "true", "true"},
+		},
+	}
+
+	for i, tc := range testCases {
+		tc := tc
+		t.Run(tutil.Name(i, tc.in), func(t *testing.T) {
+			got := stringz.StringsD(tc.in)
+			require.Len(t, got, len(tc.in))
+
+			for j, v := range got {
+				require.Equal(t, tc.want[j], v)
 			}
 		})
 	}
