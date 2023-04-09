@@ -6,6 +6,9 @@ import (
 	"errors"
 	"io"
 
+	"github.com/neilotoole/sq/libsq/core/lg"
+
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/driver"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -19,9 +22,11 @@ import (
 // execInsert inserts the CSV records in readAheadRecs (followed by records
 // from the csv.Reader) via recw. The caller should wait on recw to complete.
 func execInsert(ctx context.Context, recw libsq.RecordWriter, recMeta sqlz.RecordMeta,
-	readAheadRecs [][]string, r *csv.Reader,
+	mungers []kind.MungeFunc, readAheadRecs [][]string, r *csv.Reader,
 ) error {
 	ctx, cancelFn := context.WithCancel(ctx)
+	// We don't do "defer cancelFn" here. The cancelFn is passed
+	// to recw.
 
 	recordCh, errCh, err := recw.Open(ctx, cancelFn, recMeta)
 	if err != nil {
@@ -32,7 +37,10 @@ func execInsert(ctx context.Context, recw libsq.RecordWriter, recMeta sqlz.Recor
 	// Before we continue reading from CSV, we first write out
 	// any CSV records we read earlier.
 	for i := range readAheadRecs {
-		rec := mungeCSV2InsertRecord(readAheadRecs[i])
+		var rec []any
+		if rec, err = mungeCSV2InsertRecord(ctx, mungers, readAheadRecs[i]); err != nil {
+			return err
+		}
 
 		select {
 		case err = <-errCh:
@@ -57,7 +65,10 @@ func execInsert(ctx context.Context, recw libsq.RecordWriter, recMeta sqlz.Recor
 			return errz.Wrap(err, "read from CSV data source")
 		}
 
-		rec := mungeCSV2InsertRecord(csvRecord)
+		rec, err := mungeCSV2InsertRecord(ctx, mungers, csvRecord)
+		if err != nil {
+			return err
+		}
 
 		select {
 		case err = <-errCh:
@@ -73,12 +84,28 @@ func execInsert(ctx context.Context, recw libsq.RecordWriter, recMeta sqlz.Recor
 
 // mungeCSV2InsertRecord returns a new []any containing
 // the values of the csvRec []string.
-func mungeCSV2InsertRecord(csvRec []string) []any {
+func mungeCSV2InsertRecord(ctx context.Context, mungers []kind.MungeFunc, csvRec []string) ([]any, error) {
+	var err error
 	a := make([]any, len(csvRec))
 	for i := range csvRec {
-		a[i] = csvRec[i]
+		if i >= len(mungers) {
+			lg.FromContext(ctx).Error("no munger for field", lga.Index, i, lga.Val, csvRec[i])
+			// Maybe should panic here, or return an error?
+			// But, in future we may be able to handle ragged-edge records,
+			// so maybe logging the error is best.
+			continue
+		}
+
+		if mungers[i] != nil {
+			a[i], err = mungers[i](csvRec[i])
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			a[i] = csvRec[i]
+		}
 	}
-	return a
+	return a, nil
 }
 
 func createTblDef(tblName string, colNames []string, kinds []kind.Kind) *sqlmodel.TableDef {

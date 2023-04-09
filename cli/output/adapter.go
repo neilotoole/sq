@@ -45,7 +45,7 @@ type RecordWriterAdapter struct {
 
 // adapterRecChSize is the size of the record chan (effectively
 // the buffer) used by RecordWriterAdapter.
-// Possibly this value should be user-configurable.
+// FIXME: adapterRecChSize should be user-configurable.
 const adapterRecChSize = 1000
 
 // NewRecordWriterAdapter returns a new RecordWriterAdapter.

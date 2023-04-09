@@ -860,7 +860,15 @@ func NewScratchSource(log *slog.Logger, name string) (src *source.Source, clnup 
 		Location: Prefix + f.Name(),
 	}
 
-	return src, cleanFn, nil
+	fn := func() error {
+		log.Debug("Deleting sqlite3 scratchdb data file", lga.Src, src, lga.Path, f.Name())
+		if cleanFn != nil {
+			return cleanFn()
+		}
+		return nil
+	}
+
+	return src, fn, nil
 }
 
 // PathFromLocation returns the absolute file path

@@ -7,6 +7,9 @@ import (
 	"io"
 	"unicode/utf8"
 
+	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/sqlz"
+
 	"github.com/neilotoole/sq/libsq/core/stringz"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -26,7 +29,7 @@ import (
 // or as the zero value for the kind of that field.
 //
 // TODO: emptyAsNull should come from config.
-const emptyAsNull = true //nolint:unused
+const emptyAsNull = true
 
 // importCSV loads the src CSV data into scratchDB.
 func importCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFunc, scratchDB driver.Database) error {
@@ -72,7 +75,7 @@ func importCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFu
 		}
 	}
 
-	kinds, _, err := detectColKinds(recs)
+	kinds, mungers, err := detectColKinds(recs)
 	if err != nil {
 		return err
 	}
@@ -90,8 +93,12 @@ func importCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFu
 		return err
 	}
 
+	if emptyAsNull {
+		configureEmptyNullMunge(mungers, recMeta)
+	}
+
 	insertWriter := libsq.NewDBWriter(log, scratchDB, tblDef.Name, driver.Tuning.RecordChSize)
-	err = execInsert(ctx, insertWriter, recMeta, recs, cr)
+	err = execInsert(ctx, insertWriter, recMeta, mungers, recs, cr)
 	if err != nil {
 		return err
 	}
@@ -106,6 +113,32 @@ func importCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFu
 		lga.Target, source.Target(scratchDB.Source(), tblDef.Name),
 	)
 	return nil
+}
+
+// configureEmptyNullMunge configures mungers to that empty string is
+// munged to nil.
+func configureEmptyNullMunge(mungers []kind.MungeFunc, recMeta sqlz.RecordMeta) {
+	kinds := recMeta.Kinds()
+	for i := range mungers {
+		if kinds[i] == kind.Text {
+			if mungers[i] == nil {
+				mungers[i] = kind.MungeEmptyStringAsNil
+				continue
+			}
+
+			// There's already a munger: wrap it
+			existing := mungers[i]
+			mungers[i] = func(v any) (any, error) {
+				var err error
+				v, err = existing(v)
+				if err != nil {
+					return v, err
+				}
+
+				return kind.MungeEmptyStringAsNil(v)
+			}
+		}
+	}
 }
 
 // namedDelimiters is map of named delimiter strings to

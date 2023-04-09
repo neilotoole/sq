@@ -6,9 +6,7 @@ import (
 )
 
 // detectColKinds detects the kinds of recs' columns.
-//
-// TODO: Do we need to return []kind.MungeFunc?
-func detectColKinds(recs [][]string) ([]kind.Kind, []kind.MungeFunc, error) { //nolint:unparam
+func detectColKinds(recs [][]string) ([]kind.Kind, []kind.MungeFunc, error) {
 	if len(recs) == 0 || len(recs[0]) == 0 {
 		return nil, nil, errz.New("no records")
 	}

@@ -34,6 +34,26 @@ type RecordSink struct {
 	Flushed []time.Time
 }
 
+// Result returns the first (and only) value returned from
+// a query like "SELECT COUNT(*) FROM actor". It is effectively
+// the same as RecordSink.Recs[0][0]. The function will panic
+// if there is no appropriate result.
+func (r *RecordSink) Result() any {
+	if len(r.Recs) == 0 || len(r.RecMeta) == 0 {
+		panic("record sink has no data")
+	}
+
+	if len(r.RecMeta) != 1 {
+		panic(fmt.Sprintf("record sink data should have 1 cold, but got %d", len(r.RecMeta)))
+	}
+
+	if len(r.Recs) != 1 {
+		panic(fmt.Sprintf("record sink should have 1 record, but got %d", len(r.Recs)))
+	}
+
+	return r.Recs[0][0]
+}
+
 // Open implements libsq.RecordWriter.
 func (r *RecordSink) Open(recMeta sqlz.RecordMeta) error {
 	r.mu.Lock()
