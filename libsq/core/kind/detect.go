@@ -98,7 +98,7 @@ func (d *Detector) doSampleString(s string) {
 		}
 
 		if strings.ContainsAny(s, "eE") {
-			// Int and Decimal cannot contain E.
+			// Int and Decimal cannot contain E or e.
 			// Most likely a float, e.g. "6.67428e-11"
 			d.delete(Int, Decimal)
 		}
