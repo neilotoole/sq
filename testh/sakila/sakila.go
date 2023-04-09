@@ -11,6 +11,7 @@ const (
 	XLSXSubset       = "@sakila_xlsx_subset"
 	XLSXNoHeader     = "@sakila_xlsx_noheader"
 	CSVActor         = "@sakila_csv_actor"
+	CSVAddress       = "@sakila_csv_address"
 	CSVActorHTTP     = "@sakila_csv_actor_http"
 	CSVActorNoHeader = "@sakila_csv_actor_noheader"
 	TSVActor         = "@sakila_tsv_actor"
@@ -75,6 +76,8 @@ func MSAll() []string {
 const (
 	TblActor          = "actor"
 	TblActorCount     = 200
+	TblAddress        = "address"
+	TblAddressCount   = 603
 	TblFilm           = "film"
 	TblFilmCount      = 1000
 	TblFilmActor      = "film_actor"
@@ -96,6 +99,16 @@ func TblActorCols() []string {
 // TblActorColKinds returns table "actor" column kinds.
 func TblActorColKinds() []kind.Kind {
 	return []kind.Kind{kind.Int, kind.Text, kind.Text, kind.Datetime}
+}
+
+// TblAddressCols returns table "address" column names.
+func TblAddressCols() []string {
+	return []string{"address_id", "address", "address2", "district", "city_id", "postal_code", "phone", "last_update"}
+}
+
+// TblAddressColKinds returns table "address" column kinds.
+func TblAddressColKinds() []kind.Kind {
+	return []kind.Kind{kind.Int, kind.Text, kind.Text, kind.Text, kind.Int, kind.Text, kind.Datetime}
 }
 
 // TblFilmActorCols returns table "film" column names.

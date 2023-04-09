@@ -57,6 +57,9 @@ sources:
       options:
         header:
           - 'true'
+    - handle: '@sakila_csv_address'
+      type: csv
+      location: '${SQ_ROOT}/drivers/csv/testdata/sakila-csv/address.csv'
     - handle: '@sakila_csv_actor_http'
       type: csv
       location: 'https://sq.io/testdata/actor.csv'

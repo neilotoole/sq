@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Upcoming
+
+### Added
+
+- [#187]: For `csv` sources, `sq` will now try to auto-detect if the CSV file
+  has a header row or not. Previously, this needed to be explicitly specified
+  via an awkward syntax:
+
+  ```shell
+  $ sq add ./actor.csv --opts=header=true`
+  ````
+  This change makes working with CSV files significantly lower friction.
+  A command like the below now almost always works as expected:
+
+  ```shell
+  $ cat ./actor.csv | sq .data
+  ```
+
+### Fixed
+
+- `sq` is now better at detecting the (data) kind of CSV fields. It now more
+  accurately distinguishes between `Decimal` and `Int`, and knows how to
+  handle `Datetime`.
+
 ## [v0.31.0] - 2023-03-08
 
 ### Added
@@ -261,6 +285,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - [#89]: Bug with SQL generated for joins.
 
+[#187]: https://github.com/neilotoole/sq/issues/187
 [#185]: https://github.com/neilotoole/sq/issues/185
 [#173]: https://github.com/neilotoole/sq/issues/173
 [#164]: https://github.com/neilotoole/sq/issues/164
@@ -304,3 +329,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [v0.29.0]: https://github.com/neilotoole/sq/compare/v0.28.0...v0.29.0
 [v0.30.0]: https://github.com/neilotoole/sq/compare/v0.29.0...v0.30.0
 [v0.31.0]: https://github.com/neilotoole/sq/compare/v0.30.0...v0.31.0
+[v0.32.0]: https://github.com/neilotoole/sq/compare/v0.31.0...v0.32.0
