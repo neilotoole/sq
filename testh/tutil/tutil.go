@@ -210,7 +210,8 @@ func Name(args ...any) string {
 	var parts []string
 	var s string
 	for _, a := range args {
-		s = fmt.Sprintf("%v", a)
+		v := stringz.Val(a)
+		s = fmt.Sprintf("%v", v)
 		if s == "" {
 			continue
 		}
@@ -234,35 +235,6 @@ func Name(args ...any) string {
 func SkipShort(t *testing.T, skip bool) {
 	if skip && testing.Short() {
 		t.Skip("Skipping long-running test because -short is true.")
-	}
-}
-
-// Val returns the fully dereferenced value of i. If i
-// is nil, nil is returned. If i has type *(*string),
-// Val(i) returns string.
-// Useful for testing.
-func Val(i any) any {
-	if i == nil {
-		return nil
-	}
-
-	v := reflect.ValueOf(i)
-	for {
-		if !v.IsValid() {
-			return nil
-		}
-
-		switch v.Kind() { //nolint:exhaustive
-		default:
-			return v.Interface()
-		case reflect.Ptr, reflect.Interface:
-			if v.IsNil() {
-				return nil
-			}
-			v = v.Elem()
-			// Loop again
-			continue
-		}
 	}
 }
 

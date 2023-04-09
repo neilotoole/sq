@@ -14,19 +14,19 @@
 name: Codacy Security Scan
 
 on:
-  push:
-    branches: [ "master" ]
-    paths-ignore:
-      - '**.md'
-      - 'sq.json' # This is updated by scoop; no need to run a new build
-      - '.github/**'
-  pull_request:
-    # The branches below must be a subset of the branches above
-    branches: [ "master" ]
-    paths-ignore:
-      - '**.md'
-      - 'sq.json' # This is updated by scoop; no need to run a new build
-      - '.github/**'
+#  push:
+#    branches: [ "master" ]
+#    paths-ignore:
+#      - '**.md'
+#      - 'sq.json' # This is updated by scoop; no need to run a new build
+#      - '.github/**'
+#  pull_request:
+#    # The branches below must be a subset of the branches above
+#    branches: [ "master" ]
+#    paths-ignore:
+#      - '**.md'
+#      - 'sq.json' # This is updated by scoop; no need to run a new build
+#      - '.github/**'
   schedule:
     - cron: '43 3 * * 0'
 

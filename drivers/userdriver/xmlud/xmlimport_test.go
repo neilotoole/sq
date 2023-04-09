@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -51,19 +51,19 @@ func TestImport_Ppl(t *testing.T) {
 	sink, err := th.QuerySQL(scratchDB.Source(), "SELECT * FROM person")
 	require.NoError(t, err)
 	require.Equal(t, 3, len(sink.Recs))
-	require.Equal(t, "Nikola", tutil.Val(sink.Recs[0][1]))
+	require.Equal(t, "Nikola", stringz.Val(sink.Recs[0][1]))
 	for i, rec := range sink.Recs {
 		// Verify that the primary id cols are sequential
-		require.Equal(t, int64(i+1), tutil.Val(rec[0]))
+		require.Equal(t, int64(i+1), stringz.Val(rec[0]))
 	}
 
 	sink, err = th.QuerySQL(scratchDB.Source(), "SELECT * FROM skill")
 	require.NoError(t, err)
 	require.Equal(t, 6, len(sink.Recs))
-	require.Equal(t, "Electrifying", tutil.Val(sink.Recs[0][2]))
+	require.Equal(t, "Electrifying", stringz.Val(sink.Recs[0][2]))
 	for i, rec := range sink.Recs {
 		// Verify that the primary id cols are sequential
-		require.Equal(t, int64(i+1), tutil.Val(rec[0]))
+		require.Equal(t, int64(i+1), stringz.Val(rec[0]))
 	}
 }
 
@@ -97,28 +97,28 @@ func TestImport_RSS(t *testing.T) {
 	sink, err := th.QuerySQL(scratchDB.Source(), "SELECT * FROM channel")
 	require.NoError(t, err)
 	require.Equal(t, 1, len(sink.Recs))
-	require.Equal(t, "NYT > World", tutil.Val(sink.Recs[0][1]))
+	require.Equal(t, "NYT > World", stringz.Val(sink.Recs[0][1]))
 	for i, rec := range sink.Recs {
 		// Verify that the primary id cols are sequential
-		require.Equal(t, int64(i+1), tutil.Val(rec[0]))
+		require.Equal(t, int64(i+1), stringz.Val(rec[0]))
 	}
 
 	sink, err = th.QuerySQL(scratchDB.Source(), "SELECT * FROM category")
 	require.NoError(t, err)
 	require.Equal(t, 251, len(sink.Recs))
-	require.EqualValues(t, "Extradition", tutil.Val(sink.Recs[0][2]))
+	require.EqualValues(t, "Extradition", stringz.Val(sink.Recs[0][2]))
 	for i, rec := range sink.Recs {
 		// Verify that the primary id cols are sequential
-		require.Equal(t, int64(i+1), tutil.Val(rec[0]))
+		require.Equal(t, int64(i+1), stringz.Val(rec[0]))
 	}
 
 	sink, err = th.QuerySQL(scratchDB.Source(), "SELECT * FROM item")
 	require.NoError(t, err)
 	require.Equal(t, 45, len(sink.Recs))
 	require.EqualValues(t, "Trilobites: Fishing for Clues to Solve Namibia’s Fairy Circle Mystery",
-		tutil.Val(sink.Recs[17][4]))
+		stringz.Val(sink.Recs[17][4]))
 	for i, rec := range sink.Recs {
 		// Verify that the primary id cols are sequential
-		require.Equal(t, int64(i+1), tutil.Val(rec[0]))
+		require.Equal(t, int64(i+1), stringz.Val(rec[0]))
 	}
 }

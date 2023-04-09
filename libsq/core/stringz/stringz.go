@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -608,4 +609,82 @@ func ValidIdent(s string) error {
 	}
 
 	return errz.Errorf("invalid identifier: %s", s)
+}
+
+// Strings returns a slice of [] for a. If a is empty or nil,
+// an empty slice is returned. A nil element is treated as empty string.
+func Strings[E any](a []E) []string {
+	if len(a) == 0 {
+		return []string{}
+	}
+
+	s := make([]string, len(a))
+	for i := range a {
+		switch v := any(a[i]).(type) {
+		case nil:
+			// nil is treated as empty string
+		case string:
+			s[i] = v
+		case fmt.Stringer:
+			s[i] = v.String()
+		default:
+			s[i] = fmt.Sprintf("%v", v)
+		}
+	}
+
+	return s
+}
+
+// StringsD works like Strings, but it first dereferences
+// every element of a. Thus if a is []any{*string, *int}, it
+// is treated as if it were []any{string, int}.
+func StringsD[E any](a []E) []string {
+	if len(a) == 0 {
+		return []string{}
+	}
+
+	s := make([]string, len(a))
+	for i := range a {
+		switch v := Val(a[i]).(type) {
+		case nil:
+			// nil is treated as empty string
+		case string:
+			s[i] = v
+		case fmt.Stringer:
+			s[i] = v.String()
+		default:
+			s[i] = fmt.Sprintf("%v", v)
+		}
+	}
+
+	return s
+}
+
+// Val returns the fully dereferenced value of i. If i
+// is nil, nil is returned. If i has type *(*string),
+// Val(i) returns string.
+// TODO: Should Val be renamed to Deref?
+func Val(i any) any {
+	if i == nil {
+		return nil
+	}
+
+	v := reflect.ValueOf(i)
+	for {
+		if !v.IsValid() {
+			return nil
+		}
+
+		switch v.Kind() { //nolint:exhaustive
+		default:
+			return v.Interface()
+		case reflect.Ptr, reflect.Interface:
+			if v.IsNil() {
+				return nil
+			}
+			v = v.Elem()
+			// Loop again
+			continue
+		}
+	}
 }
