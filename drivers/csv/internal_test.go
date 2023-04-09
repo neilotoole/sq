@@ -6,7 +6,6 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -59,50 +58,6 @@ func Test_isCSV(t *testing.T) {
 
 			got := isCSV(context.Background(), cr)
 			require.Equal(t, tc.want, got)
-		})
-	}
-}
-
-func Test_predictColKinds(t *testing.T) {
-	const maxExamine = 100
-
-	testCases := []struct {
-		wantKinds      []kind.Kind
-		readAheadInput [][]string
-		readerInput    string
-	}{
-		{
-			readAheadInput: [][]string{},
-			readerInput:    "",
-			wantKinds:      []kind.Kind{},
-		},
-		{
-			readAheadInput: [][]string{
-				{"1", "true", "hello", "0.0"},
-				{"2", "false", "world", "1"},
-				{"3", "true", "", "7.7"},
-				{"", "", "", ""},
-			},
-			wantKinds: []kind.Kind{kind.Int, kind.Bool, kind.Text, kind.Decimal},
-		},
-		{
-			readAheadInput: [][]string{},
-			readerInput:    "1,true,hello,0.0\n2,false,world,1\n3,true,,7.7\n,,,",
-			wantKinds:      []kind.Kind{kind.Int, kind.Bool, kind.Text, kind.Decimal},
-		},
-	}
-
-	for i, tc := range testCases {
-		tc := tc
-		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			gotKinds, err := predictColKinds(
-				len(tc.wantKinds),
-				csv.NewReader(strings.NewReader(tc.readerInput)),
-				&tc.readAheadInput,
-				maxExamine)
-
-			require.NoError(t, err)
-			require.Equal(t, tc.wantKinds, gotKinds)
 		})
 	}
 }

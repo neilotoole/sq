@@ -22,6 +22,12 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 )
 
+// emptyAsNull determines if an empty CSV field is treated as NULL
+// or as the zero value for the kind of that field.
+//
+// TODO: emptyAsNull should come from config.
+const emptyAsNull = true //nolint:unused
+
 // importCSV loads the src CSV data into scratchDB.
 func importCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFunc, scratchDB driver.Database) error {
 	log := lg.FromContext(ctx)
