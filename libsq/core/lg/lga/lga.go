@@ -17,6 +17,7 @@ const (
 	Err       = "error"
 	From      = "from"
 	Handle    = "handle"
+	Index     = "index"
 	Key       = "key"
 	Kind      = "kind"
 	Loc       = "loc"

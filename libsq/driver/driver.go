@@ -327,7 +327,7 @@ func (d *Databases) OpenScratch(ctx context.Context, name string) (Database, err
 		return nil, err
 	}
 
-	d.clnup.AddE(cleanFn)
+	// d.clnup.AddE(cleanFn) // FIXME: uncomment the cleanup line
 	return backingDB, nil
 }
 

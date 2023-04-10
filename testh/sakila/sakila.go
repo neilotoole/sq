@@ -103,12 +103,30 @@ func TblActorColKinds() []kind.Kind {
 
 // TblAddressCols returns table "address" column names.
 func TblAddressCols() []string {
-	return []string{"address_id", "address", "address2", "district", "city_id", "postal_code", "phone", "last_update"}
+	return []string{
+		"address_id",
+		"address",
+		"address2",
+		"district",
+		"city_id",
+		"postal_code",
+		"phone",
+		"last_update",
+	}
 }
 
 // TblAddressColKinds returns table "address" column kinds.
 func TblAddressColKinds() []kind.Kind {
-	return []kind.Kind{kind.Int, kind.Text, kind.Text, kind.Text, kind.Int, kind.Text, kind.Datetime}
+	return []kind.Kind{
+		kind.Int,      // address_id
+		kind.Text,     // address
+		kind.Text,     // address2
+		kind.Text,     // district
+		kind.Int,      // city_id
+		kind.Int,      // postal_code
+		kind.Text,     // phone
+		kind.Datetime, // last_update
+	}
 }
 
 // TblFilmActorCols returns table "film" column names.
