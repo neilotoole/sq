@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   via an awkward syntax:
 
   ```shell
-  $ sq add ./actor.csv --opts=header=true`
+  $ sq add ./actor.csv --opts=header=true
   ````
   This change makes working with CSV files significantly lower friction.
   A command like the below now almost always works as expected:
