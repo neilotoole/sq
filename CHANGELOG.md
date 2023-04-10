@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Upcoming
+## [v0.32.0] - 2023-04-09
 
 ### Added
 
@@ -28,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `sq` is now better at detecting the (data) kind of CSV fields. It now more
   accurately distinguishes between `Decimal` and `Int`, and knows how to
   handle `Datetime`.
+
+- [#189]: `sq` now treats CSV empty fields as `NULL`.
 
 ## [v0.31.0] - 2023-03-08
 
@@ -285,6 +287,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - [#89]: Bug with SQL generated for joins.
 
+[#189]: https://github.com/neilotoole/sq/issues/189
 [#187]: https://github.com/neilotoole/sq/issues/187
 [#185]: https://github.com/neilotoole/sq/issues/185
 [#173]: https://github.com/neilotoole/sq/issues/173
