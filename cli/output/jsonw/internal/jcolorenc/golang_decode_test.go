@@ -1929,7 +1929,7 @@ func TestStringKind(t *testing.T) {
 	}
 
 	if !reflect.DeepEqual(m1, m2) {
-		t.Error("Items should be equal after encoding and then decoding")
+		t.Error("Sources should be equal after encoding and then decoding")
 	}
 }
 

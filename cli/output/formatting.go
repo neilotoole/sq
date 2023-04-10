@@ -51,6 +51,9 @@ type Formatting struct {
 	// Handle is the color for source handles such as "@my_db"
 	Handle *color.Color
 
+	// Active is the color for an active handle (or group, etc).
+	Active *color.Color
+
 	// Header is the color for header elements in a table.
 	Header *color.Color
 
@@ -87,6 +90,7 @@ func NewFormatting() *Formatting {
 		Error:      color.New(color.FgRed, color.Bold),
 		Faint:      color.New(color.Faint),
 		Handle:     color.New(color.FgBlue),
+		Active:     color.New(color.FgBlue, color.Bold),
 		Header:     color.New(color.FgBlue, color.Bold),
 		Hilite:     color.New(color.FgHiBlue),
 		Key:        color.New(color.FgBlue, color.Bold),

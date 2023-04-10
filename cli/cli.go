@@ -234,6 +234,9 @@ func newCommandTree(rc *RunContext) (rootCmd *cobra.Command) {
 	addCmd(rc, rootCmd, newSrcListCmd())
 	addCmd(rc, rootCmd, newSrcRemoveCmd())
 	addCmd(rc, rootCmd, newScratchCmd())
+	addCmd(rc, rootCmd, newGroupCommand())
+	addCmd(rc, rootCmd, newGroupListCommand())
+	addCmd(rc, rootCmd, newMoveCmd())
 
 	addCmd(rc, rootCmd, newInspectCmd())
 	addCmd(rc, rootCmd, newPingCmd())

@@ -39,7 +39,7 @@ func execSrc(cmd *cobra.Command, args []string) error {
 		return rc.writers.srcw.Source(src)
 	}
 
-	src, err := cfg.Sources.SetActive(args[0])
+	src, err := cfg.Sources.SetActive(args[0], false)
 	if err != nil {
 		return err
 	}

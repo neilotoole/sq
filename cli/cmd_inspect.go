@@ -83,7 +83,7 @@ func execInspect(cmd *cobra.Command, args []string) error {
 
 			// Set the stdin pipe data source as the active source,
 			// as it's commonly the only data source the user is acting upon.
-			src, err = srcs.SetActive(src.Handle)
+			src, err = srcs.SetActive(src.Handle, false)
 			if err != nil {
 				return err
 			}

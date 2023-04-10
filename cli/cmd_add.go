@@ -226,7 +226,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 	if cfg.Sources.Active() == nil || cmdFlagTrue(cmd, flagAddActive) {
 		// If no current active data source, use this one, OR if
 		// flagAddActive is true.
-		_, err = cfg.Sources.SetActive(src.Handle)
+		_, err = cfg.Sources.SetActive(src.Handle, false)
 		if err != nil {
 			return err
 		}
@@ -244,8 +244,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	err = rc.ConfigStore.Save(rc.Config)
-	if err != nil {
+	if err = rc.ConfigStore.Save(rc.Config); err != nil {
 		return err
 	}
 

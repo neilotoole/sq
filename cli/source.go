@@ -51,7 +51,7 @@ func determineSources(ctx context.Context, rc *RunContext) error {
 			// We do this because the @stdin src is commonly the
 			// only data source the user cares about in a pipe
 			// situation.
-			_, err = srcs.SetActive(stdinSrc.Handle)
+			_, err = srcs.SetActive(stdinSrc.Handle, false)
 			if err != nil {
 				return err
 			}
@@ -85,7 +85,7 @@ func activeSrcFromFlagsOrConfig(cmd *cobra.Command, srcs *source.Set) (*source.S
 			return nil, errz.Wrapf(err, "flag --%s", flagActiveSrc)
 		}
 
-		activeSrc, err = srcs.SetActive(s.Handle)
+		activeSrc, err = srcs.SetActive(s.Handle, false)
 		if err != nil {
 			return nil, err
 		}

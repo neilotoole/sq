@@ -103,7 +103,7 @@ func (ru *Run) add(srcs ...source.Source) *Run {
 	}
 
 	if !hasActive {
-		_, err := ss.SetActive(srcs[0].Handle)
+		_, err := ss.SetActive(srcs[0].Handle, false)
 		require.NoError(ru.t, err)
 	}
 

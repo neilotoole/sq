@@ -39,6 +39,27 @@ func completeHandle(max int) completionFunc {
 	}
 }
 
+// completeGroup is a completionFunc that suggests groups.
+// The max arg is the maximum number of completions. Set to 0
+// for no limit.
+func completeGroup(max int) completionFunc {
+	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if max > 0 && len(args) >= max {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		rc := RunContextFrom(cmd.Context())
+
+		groups := rc.Config.Sources.Groups()
+
+		// Add the root group
+		groups = append([]string{"/"}, groups...)
+		groups, _ = lo.Difference(groups, args)
+
+		return groups, cobra.ShellCompDirectiveNoFileComp
+	}
+}
+
 // completeSLQ is a completionFunc that completes SLQ queries.
 // The completion functionality is rudimentary: it only
 // completes the "table select" segment (that is, the @HANDLE.NAME)
@@ -328,7 +349,7 @@ func (c *handleTableCompleter) completeEither(ctx context.Context, rc *RunContex
 		suggestions = append(suggestions, "."+table)
 	}
 
-	for _, src := range rc.Config.Sources.Items() {
+	for _, src := range rc.Config.Sources.Sources() {
 		if c.onlySQL {
 			isSQL, err = handleIsSQLDriver(rc, src.Handle)
 			if err != nil {

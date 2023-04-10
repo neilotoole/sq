@@ -327,7 +327,7 @@ func (d *Databases) OpenScratch(ctx context.Context, name string) (Database, err
 		return nil, err
 	}
 
-	// d.clnup.AddE(cleanFn) // FIXME: uncomment the cleanup line
+	d.clnup.AddE(cleanFn)
 	return backingDB, nil
 }
 
@@ -365,7 +365,7 @@ func (d *Databases) Close() error {
 // Tuning holds tuning params. Ultimately these params
 // could come from user config or be dynamically calculated/adjusted?
 var Tuning = struct {
-	// ErrgroupLimit is passed to errgroup.Group.SetLimit.
+	// ErrgroupLimit is passed to errgroup.ActiveGroup.SetLimit.
 	// Note that this is the limit for any one errgroup, but
 	// not a ceiling on the total number of goroutines spawned,
 	// as some errgroups may themselves start an errgroup.

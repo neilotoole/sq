@@ -11,39 +11,40 @@ import (
 
 func TestGroups(t *testing.T) {
 	srcs := []*source.Source{
-		{Handle: "@handle1", Location: "0"},
-		{Handle: "@group1/handle1", Location: "1"},
-		{Handle: "@group1/sub1/handle1", Location: "2"},
-		{Handle: "@group1/sub1/handle2", Location: "3"},
-		{Handle: "@group1/sub1/sub2/sub3/handle2", Location: "4"},
-		{Handle: "@group1/sub1/sub2/sub4/sub5/handle", Location: "5"},
-		{Handle: "@group2/sub1/sub2/handle", Location: "6"},
-		{Handle: "@g/handle", Location: "7"},
+		{Handle: "@db1", Location: "0"},
+		{Handle: "@prod/db1", Location: "1"},
+		{Handle: "@prod/sub1/db1", Location: "2"},
+		{Handle: "@prod/sub1/db2", Location: "3"},
+		{Handle: "@prod/sub1/sub2/sub3/db2", Location: "4"},
+		{Handle: "@prod/sub1/sub2/sub4/sub5/db", Location: "5"},
+		{Handle: "@staging/sub1/sub2/db", Location: "6"},
+		{Handle: "@dev/db", Location: "7"},
 	}
 
 	require.Equal(t, srcs[0].Group(), "")
-	require.Equal(t, srcs[1].Group(), "group1")
-	require.Equal(t, srcs[2].Group(), "group1/sub1")
-	require.Equal(t, srcs[5].Group(), "group1/sub1/sub2/sub4/sub5")
-	require.Equal(t, srcs[7].Group(), "g")
+	require.Equal(t, srcs[1].Group(), "prod")
+	require.Equal(t, srcs[2].Group(), "prod/sub1")
+	require.Equal(t, srcs[5].Group(), "prod/sub1/sub2/sub4/sub5")
+	require.Equal(t, srcs[7].Group(), "dev")
 
 	wantGroups := []string{
-		"g",
-		"group1",
-		"group1/sub1",
-		"group1/sub1/sub2",
-		"group1/sub1/sub2/sub3",
-		"group1/sub1/sub2/sub4",
-		"group1/sub1/sub2/sub4/sub5",
-		"group2",
-		"group2/sub1",
-		"group2/sub1/sub2",
+		source.DefaultGroup,
+		"dev",
+		"prod",
+		"prod/sub1",
+		"prod/sub1/sub2",
+		"prod/sub1/sub2/sub3",
+		"prod/sub1/sub2/sub4",
+		"prod/sub1/sub2/sub4/sub5",
+		"staging",
+		"staging/sub1",
+		"staging/sub1/sub2",
 	}
 
 	set := &source.Set{}
 
-	gotGroup := set.Group()
-	require.Equal(t, "", gotGroup)
+	gotGroup := set.ActiveGroup()
+	require.Equal(t, source.DefaultGroup, gotGroup)
 
 	for i := range srcs {
 		require.NoError(t, set.Add(srcs[i]))
@@ -59,20 +60,20 @@ func TestGroups(t *testing.T) {
 	gotGroups := set.Groups()
 	require.EqualValues(t, wantGroups, gotGroups)
 
-	gotErr := set.SetGroup("not_a_group")
+	gotErr := set.SetActiveGroup("not_a_group")
 	require.Error(t, gotErr)
 
 	groupTest := map[string]int{
-		"":                           len(srcs),
-		"group1":                     5,
-		"group1/sub1":                4,
-		"group1/sub1/sub2/sub4/sub5": 1,
-		"g":                          1,
-		"group1/sub1/sub2":           2,
+		"":                         len(srcs),
+		"prod":                     5,
+		"prod/sub1":                4,
+		"prod/sub1/sub2/sub4/sub5": 1,
+		"dev":                      1,
+		"prod/sub1/sub2":           2,
 	}
 
 	for g, wantCount := range groupTest {
-		gotSrcs, err := set.GroupItems(g)
+		gotSrcs, err := set.SourcesInGroup(g)
 		require.NoError(t, err)
 		require.Equal(t, wantCount, len(gotSrcs))
 	}

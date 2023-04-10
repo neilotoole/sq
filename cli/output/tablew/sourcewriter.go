@@ -9,6 +9,8 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 )
 
+var _ output.SourceWriter = (*sourceWriter)(nil)
+
 type sourceWriter struct {
 	tbl     *table
 	verbose bool
@@ -25,11 +27,17 @@ func NewSourceWriter(out io.Writer, fm *output.Formatting) output.SourceWriter {
 
 // SourceSet implements output.SourceWriter.
 func (w *sourceWriter) SourceSet(ss *source.Set) error {
+	group := ss.ActiveGroup()
+	items, err := ss.SourcesInGroup(group)
+	if err != nil {
+		return err
+	}
+
 	if !w.verbose {
 		// Print the short version
 		var rows [][]string
 
-		for i, src := range ss.Items() {
+		for i, src := range items {
 			row := []string{
 				src.Handle,
 				string(src.Type),
@@ -57,7 +65,7 @@ func (w *sourceWriter) SourceSet(ss *source.Set) error {
 
 	// "HANDLE", "DRIVER", "LOCATION", "OPTIONS"
 	var rows [][]string
-	for i, src := range ss.Items() {
+	for i, src := range items {
 		row := []string{
 			src.Handle,
 			string(src.Type),
@@ -150,4 +158,39 @@ func renderSrcOptions(src *source.Source) string {
 		opts = append(opts, fmt.Sprintf("%s=%s", key, v))
 	}
 	return strings.Join(opts, " ")
+}
+
+// ActiveGroup implements output.SourceWriter.
+func (w *sourceWriter) ActiveGroup(group string) error {
+	if group == "" {
+		return nil
+	}
+
+	_, err := w.tbl.fm.Handle.Fprintln(w.tbl.out, group)
+	return err
+}
+
+// SetActiveGroup implements output.SourceWriter.
+func (w *sourceWriter) SetActiveGroup(group string) error {
+	if !w.tbl.fm.Verbose {
+		// Only print the group if --verbose
+		return nil
+	}
+
+	_, err := w.tbl.fm.Handle.Fprintln(w.tbl.out, group)
+	return err
+}
+
+// Groups implements output.SourceWriter.
+func (w *sourceWriter) Groups(activeGroup string, groups []string) error {
+	for _, group := range groups {
+		if group == activeGroup {
+			w.tbl.fm.Active.Fprint(w.tbl.out, group)
+			fmt.Fprintln(w.tbl.out, "*")
+			continue
+		}
+
+		w.tbl.fm.Handle.Fprintln(w.tbl.out, group)
+	}
+	return nil
 }

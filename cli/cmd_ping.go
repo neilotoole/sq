@@ -71,7 +71,7 @@ func execPing(cmd *cobra.Command, args []string) error {
 
 	switch {
 	case pingAll:
-		srcs = cfg.Sources.Items()
+		srcs = cfg.Sources.Sources()
 	case len(args) == 0:
 		src := cfg.Sources.Active()
 		if src == nil {
