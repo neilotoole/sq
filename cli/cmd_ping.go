@@ -80,7 +80,7 @@ func execPing(cmd *cobra.Command, args []string) error {
 		srcs = []*source.Source{src}
 	default:
 		for _, arg := range args {
-			err := source.VerifyLegalHandle(arg)
+			err := source.ValidHandle(arg)
 			if err != nil {
 				return err
 			}

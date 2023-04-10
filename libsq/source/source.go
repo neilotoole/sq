@@ -18,6 +18,7 @@ import (
 // Type is a source type, e.g. "mysql", "postgres", "csv", etc.
 type Type string
 
+// String returns a log/debug-friendly representation.
 func (t Type) String() string {
 	return string(t)
 }
@@ -50,7 +51,14 @@ const (
 // ReservedHandles returns a slice of the handle names that
 // are reserved for sq use.
 func ReservedHandles() []string {
-	return []string{StdinHandle, ActiveHandle, ScratchHandle, JoinHandle}
+	return []string{
+		"@in", // Possible alias for @stdin
+		"@0",  // Possible alias for @stdin
+		StdinHandle,
+		ActiveHandle,
+		ScratchHandle,
+		JoinHandle,
+	}
 }
 
 var _ slog.LogValuer = (*Source)(nil)
@@ -87,6 +95,22 @@ func (s *Source) LogValue() slog.Value {
 // String returns a log/debug-friendly representation.
 func (s *Source) String() string {
 	return fmt.Sprintf("%s|%s| %s", s.Handle, s.Type, s.RedactedLocation())
+}
+
+// Group returns the source's group.
+func (s *Source) Group() string {
+	return groupFromHandle(s.Handle)
+}
+
+func groupFromHandle(h string) string {
+	// Trim the leading @
+	h = h[1:]
+	i := strings.LastIndex(h, "/")
+	if i == -1 {
+		return ""
+	}
+
+	return h[0:i]
 }
 
 // RedactedLocation returns s.Location, with the password component

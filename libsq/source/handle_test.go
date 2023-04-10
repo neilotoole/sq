@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/neilotoole/sq/testh/tutil"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -17,42 +19,47 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 )
 
-func TestVerifyLegalHandle(t *testing.T) {
-	fails := []struct {
-		handle string
-		msg    string
+func TestValidHandle(t *testing.T) {
+	testCases := []struct {
+		in      string
+		wantErr bool
 	}{
-		{"", "empty is invalid"},
-		{"  ", "no whitespace"},
-		{"handle", "must start with @"},
-		{"@", "needs at least one char"},
-		{"1handle", "must start with @"},
-		{"@ handle", "no whitespace"},
-		{"@handle ", "no whitespace"},
-		{"@handle#", "no special chars"},
-		{"@1handle", "2nd char must be letter"},
-		{"@1", "2nd char must be letter"},
-		{"@?handle", "2nd char must be letter"},
-		{"@?handle#", "no special chars"},
-		{"@ha\nndle", "no newlines"},
+		{in: "", wantErr: true},
+		{in: "  ", wantErr: true},
+		{in: "handle", wantErr: true},
+		{in: "@", wantErr: true},
+		{in: "1handle", wantErr: true},
+		{in: "@ handle", wantErr: true},
+		{in: "@handle ", wantErr: true},
+		{in: "@handle#", wantErr: true},
+		{in: "@1handle", wantErr: true},
+		{in: "@1", wantErr: true},
+		{in: "@?handle", wantErr: true},
+		{in: "@?handle#", wantErr: true},
+		{in: "@ha\nndle", wantErr: true},
+		{in: "@group/handle"},
+		{in: "@group/sub/sub2/handle"},
+		{in: "@group/handle"},
+		{in: "@group/", wantErr: true},
+		{in: "@group/wub/", wantErr: true},
+		{in: "@handle"},
+		{in: "@handle1"},
+		{in: "@h1"},
+		{in: "@h_"},
+		{in: "@h__1"},
+		{in: "@h__1__a___"},
 	}
 
-	for i, fail := range fails {
-		require.Error(t, source.VerifyLegalHandle(fail.handle), fmt.Sprintf("[%d] %s]", i, fail.msg))
-	}
-
-	passes := []string{
-		"@handle",
-		"@handle1",
-		"@h1",
-		"@h_",
-		"@h__",
-		"@h__1",
-		"@h__1__a___",
-	}
-
-	for i, pass := range passes {
-		require.Nil(t, source.VerifyLegalHandle(pass), fmt.Sprintf("[%d] should pass", i))
+	for i, tc := range testCases {
+		tc := tc
+		t.Run(tutil.Name(i, tc.in), func(t *testing.T) {
+			gotErr := source.ValidHandle(tc.in)
+			if tc.wantErr {
+				require.Error(t, gotErr)
+			} else {
+				require.NoError(t, gotErr)
+			}
+		})
 	}
 }
 

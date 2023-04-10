@@ -5,6 +5,9 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/samber/lo"
+	"golang.org/x/exp/slices"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 )
@@ -25,11 +28,14 @@ type Set struct {
 // to YAML etc. (we don't want to expose setData's exported
 // fields directly on Set.)
 //
-// This seemed like a good idea t the time, but probably wasn't.
+// This seemed like a good idea at the time, but probably wasn't.
 type setData struct {
 	ActiveSrc  string    `yaml:"active" json:"active"`
 	ScratchSrc string    `yaml:"scratch" json:"scratch"`
 	Items      []*Source `yaml:"items" json:"items"`
+
+	// Group is the active group. It is "" (empty string) by default.
+	Group string `yaml:"group" json:"group"`
 }
 
 // Data returns the internal representation of the set data.
@@ -311,6 +317,123 @@ func (s *Set) Clone() *Set {
 	}
 }
 
+// Groups returns the sorted set of groups, as defined
+// via the handle names.
+//
+// Given a set of handles:
+//
+//	@handle1
+//	@group1/handle2
+//	@group1/handle3
+//	@group2/handle4
+//	@group2/sub1/handle5
+//	@group2/sub1/sub2/sub3/handle6
+//
+// Then these groups will be returned.
+//
+//	group1
+//	group2
+//	group2/sub1
+//	group2/sub1/sub2
+//	group2/sub1/sub2/sub3
+//
+// Note that there is no group for the plain "@handle1".
+// The "empty" or "default" group is assumed.
+func (s *Set) Groups() []string {
+	groups := make([]string, 0, len(s.data.Items))
+	for _, src := range s.data.Items {
+		h := src.Handle
+
+		if !strings.ContainsRune(h, '/') {
+			continue
+		}
+
+		// Trim the '@' prefix
+		h = h[1:]
+
+		parts := strings.Split(h, "/")
+		parts = parts[:len(parts)-1]
+
+		groups = append(groups, parts[0])
+
+		for i := 1; i < len(parts); i++ {
+			arr := parts[0 : i+1]
+			g := strings.Join(arr, "/")
+			groups = append(groups, g)
+		}
+	}
+
+	slices.Sort(groups)
+	groups = lo.Uniq(groups)
+	return groups
+}
+
+// Group returns the active group, which may be
+// the root group (empty string).
+func (s *Set) Group() string {
+	return s.data.Group
+}
+
+// GroupExists returns false if group does not exist.
+func (s *Set) GroupExists(group string) bool {
+	err := s.groupExists(group)
+	return err == nil
+}
+
+func (s *Set) groupExists(group string) error {
+	group = strings.TrimSpace(group)
+	if group == "" {
+		return nil
+	}
+
+	groups := s.Groups()
+	if !slices.Contains(groups, group) {
+		return errz.Errorf("group does not exist: %s", group)
+	}
+
+	return nil
+}
+
+// SetGroup sets the active group, returning an error
+// if group does not exist.
+func (s *Set) SetGroup(group string) error {
+	group = strings.TrimSpace(group)
+	if group == "" {
+		s.data.Group = ""
+		return nil
+	}
+
+	if err := s.groupExists(group); err != nil {
+		return err
+	}
+
+	s.data.Group = group
+	return nil
+}
+
+// GroupItems returns all sources that are children of group.
+// If group is "", all sources are returned.
+func (s *Set) GroupItems(group string) ([]*Source, error) {
+	group = strings.TrimSpace(group)
+	if group == "" {
+		return s.Items(), nil
+	}
+
+	if err := s.groupExists(group); err != nil {
+		return nil, err
+	}
+
+	rez := make([]*Source, 0)
+	for i := range s.data.Items {
+		srcGroup := s.data.Items[i].Group()
+		if srcGroup == group || strings.HasPrefix(srcGroup, group+"/") {
+			rez = append(rez, s.data.Items[i])
+		}
+	}
+
+	return rez, nil
+}
+
 // VerifySetIntegrity verifies the internal state of s.
 // Typically this func is invoked after s has been loaded
 // from config, verifying that the config is not corrupt.
@@ -365,7 +488,7 @@ func verifyLegalSource(s *Source) error {
 		return errz.New("source is nil")
 	}
 
-	err := VerifyLegalHandle(s.Handle)
+	err := ValidHandle(s.Handle)
 	if err != nil {
 		return err
 	}

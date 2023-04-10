@@ -12,17 +12,23 @@ import (
 )
 
 var (
-	handlePattern = regexp.MustCompile(`\A@[a-zA-Z][a-zA-Z0-9_]*$`)
+	handlePattern = regexp.MustCompile(`\A@([a-zA-Z][a-zA-Z0-9_]*)(/[a-zA-Z][a-zA-Z0-9_]*)*$`)
 	tablePattern  = regexp.MustCompile(`\A[a-zA-Z_][a-zA-Z0-9_]*$`)
 )
 
-// VerifyLegalHandle returns an error if handle is
+// ValidHandle returns an error if handle is
 // not an acceptable source handle value.
 // Valid input must match:
 //
-//	\A@[a-zA-Z][a-zA-Z0-9_]*$
-func VerifyLegalHandle(handle string) error {
-	const msg = `invalid data source handle {%s}: must begin with @, followed by a letter, followed by zero or more letters, digits, or underscores, e.g. "@my_db1"` //nolint:lll
+//	\A@([a-zA-Z][a-zA-Z0-9_]*)(/[a-zA-Z][a-zA-Z0-9_]*)*$
+//
+// Examples:
+//
+//	@handle
+//	@group/handle
+//	@group/sub/sub2/handle
+func ValidHandle(handle string) error {
+	const msg = `invalid data source handle: %s`
 	matches := handlePattern.MatchString(handle)
 	if !matches {
 		return errz.Errorf(msg, handle)
@@ -31,12 +37,12 @@ func VerifyLegalHandle(handle string) error {
 	return nil
 }
 
-// verifyLegalTableName returns an error if table is not an
+// validTableName returns an error if table is not an
 // acceptable table name. Valid input must match:
 //
 //	\A[a-zA-Z_][a-zA-Z0-9_]*$`
-func verifyLegalTableName(table string) error {
-	const msg = `invalid table name {%s}: must begin a letter or underscore, followed by zero or more letters, digits, or underscores, e.g. "tbl1" or "_tbl2"` //nolint:lll
+func validTableName(table string) error {
+	const msg = `invalid table name: %s`
 
 	matches := tablePattern.MatchString(table)
 	if !matches {
@@ -135,7 +141,7 @@ func ParseTableHandle(input string) (handle, table string, err error) {
 	if strings.Contains(trimmed, ".") {
 		if trimmed[0] == '.' {
 			// starts with a period; so it's only the table name
-			err = verifyLegalTableName(trimmed[1:])
+			err = validTableName(trimmed[1:])
 			if err != nil {
 				return "", "", err
 			}
@@ -148,12 +154,12 @@ func ParseTableHandle(input string) (handle, table string, err error) {
 			return "", "", errz.Errorf("invalid handle/table input: %s", input)
 		}
 
-		err = VerifyLegalHandle(parts[0])
+		err = ValidHandle(parts[0])
 		if err != nil {
 			return "", "", err
 		}
 
-		err = verifyLegalTableName(parts[1])
+		err = validTableName(parts[1])
 		if err != nil {
 			return "", "", err
 		}
@@ -162,7 +168,7 @@ func ParseTableHandle(input string) (handle, table string, err error) {
 	}
 
 	// input does not contain a period, therefore it must be a handle by itself
-	err = VerifyLegalHandle(trimmed)
+	err = ValidHandle(trimmed)
 	if err != nil {
 		return "", "", err
 	}

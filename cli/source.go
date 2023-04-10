@@ -177,7 +177,7 @@ func newSource(log *slog.Logger, dp driver.Provider, typ source.Type, handle, lo
 		)
 	}
 
-	err := source.VerifyLegalHandle(handle)
+	err := source.ValidHandle(handle)
 	if err != nil {
 		return nil, err
 	}

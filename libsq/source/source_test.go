@@ -1,18 +1,81 @@
 package source_test
 
 import (
-	"strings"
 	"testing"
 
-	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/testh/tutil"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/source"
 )
 
-func TestWubble(t *testing.T) {
-	t.Log(strings.ToUpper(stringz.Uniq32()))
+func TestGroups(t *testing.T) {
+	srcs := []*source.Source{
+		{Handle: "@handle1", Location: "0"},
+		{Handle: "@group1/handle1", Location: "1"},
+		{Handle: "@group1/sub1/handle1", Location: "2"},
+		{Handle: "@group1/sub1/handle2", Location: "3"},
+		{Handle: "@group1/sub1/sub2/sub3/handle2", Location: "4"},
+		{Handle: "@group1/sub1/sub2/sub4/sub5/handle", Location: "5"},
+		{Handle: "@group2/sub1/sub2/handle", Location: "6"},
+		{Handle: "@g/handle", Location: "7"},
+	}
+
+	require.Equal(t, srcs[0].Group(), "")
+	require.Equal(t, srcs[1].Group(), "group1")
+	require.Equal(t, srcs[2].Group(), "group1/sub1")
+	require.Equal(t, srcs[5].Group(), "group1/sub1/sub2/sub4/sub5")
+	require.Equal(t, srcs[7].Group(), "g")
+
+	wantGroups := []string{
+		"g",
+		"group1",
+		"group1/sub1",
+		"group1/sub1/sub2",
+		"group1/sub1/sub2/sub3",
+		"group1/sub1/sub2/sub4",
+		"group1/sub1/sub2/sub4/sub5",
+		"group2",
+		"group2/sub1",
+		"group2/sub1/sub2",
+	}
+
+	set := &source.Set{}
+
+	gotGroup := set.Group()
+	require.Equal(t, "", gotGroup)
+
+	for i := range srcs {
+		require.NoError(t, set.Add(srcs[i]))
+	}
+
+	for _, src := range srcs {
+		require.True(t, set.Exists(src.Handle))
+		gotSrc, err := set.Get(src.Handle)
+		require.NoError(t, err)
+		require.Equal(t, *src, *gotSrc)
+	}
+
+	gotGroups := set.Groups()
+	require.EqualValues(t, wantGroups, gotGroups)
+
+	gotErr := set.SetGroup("not_a_group")
+	require.Error(t, gotErr)
+
+	groupTest := map[string]int{
+		"":                           len(srcs),
+		"group1":                     5,
+		"group1/sub1":                4,
+		"group1/sub1/sub2/sub4/sub5": 1,
+		"g":                          1,
+		"group1/sub1/sub2":           2,
+	}
+
+	for g, wantCount := range groupTest {
+		gotSrcs, err := set.GroupItems(g)
+		require.NoError(t, err)
+		require.Equal(t, wantCount, len(gotSrcs))
+	}
 }
 
 func TestRedactedLocation(t *testing.T) {
