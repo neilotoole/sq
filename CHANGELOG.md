@@ -288,7 +288,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - [#89]: Bug with SQL generated for joins.
 
-[#189]: https://github.com/neilotoole/sq/issues/191
+[#191]: https://github.com/neilotoole/sq/issues/191
 [#189]: https://github.com/neilotoole/sq/issues/189
 [#187]: https://github.com/neilotoole/sq/issues/187
 [#185]: https://github.com/neilotoole/sq/issues/185
