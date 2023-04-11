@@ -707,22 +707,26 @@ func (s *Set) SourcesInGroup(group string) ([]*Source, error) {
 func (s *Set) sourcesInGroup(group string) ([]*Source, error) {
 	group = strings.TrimSpace(group)
 	if group == "" || group == "/" {
-		return s.data.Sources, nil
+		srcs := make([]*Source, len(s.data.Sources))
+		copy(srcs, s.data.Sources)
+		Sort(srcs)
+		return srcs, nil
 	}
 
 	if err := s.groupExists(group); err != nil {
 		return nil, err
 	}
 
-	rez := make([]*Source, 0)
+	srcs := make([]*Source, 0)
 	for i := range s.data.Sources {
 		srcGroup := s.data.Sources[i].Group()
 		if srcGroup == group || strings.HasPrefix(srcGroup, group+"/") {
-			rez = append(rez, s.data.Sources[i])
+			srcs = append(srcs, s.data.Sources[i])
 		}
 	}
 
-	return rez, nil
+	Sort(srcs)
+	return srcs, nil
 }
 
 // VerifySetIntegrity verifies the internal state of s.

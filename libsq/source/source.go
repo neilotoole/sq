@@ -6,6 +6,8 @@ import (
 	"net/url"
 	"strings"
 
+	"golang.org/x/exp/slices"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"golang.org/x/exp/slog"
@@ -134,6 +136,13 @@ func (s *Source) Clone() *Source {
 		Location: s.Location,
 		Options:  s.Options.Clone(),
 	}
+}
+
+// Sort sorts a slice of srcs by handle.
+func Sort(srcs []*Source) {
+	slices.SortFunc(srcs, func(a, b *Source) bool {
+		return a.Handle < b.Handle
+	})
 }
 
 // RedactLocation returns a redacted version of the source
