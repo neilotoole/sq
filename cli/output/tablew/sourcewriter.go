@@ -160,8 +160,8 @@ func renderSrcOptions(src *source.Source) string {
 	return strings.Join(opts, " ")
 }
 
-// ActiveGroup implements output.SourceWriter.
-func (w *sourceWriter) ActiveGroup(group string) error {
+// Group implements output.SourceWriter.
+func (w *sourceWriter) Group(group string) error {
 	if group == "" {
 		return nil
 	}

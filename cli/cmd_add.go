@@ -169,8 +169,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		return errz.Errorf("handle reserved for system use: %s", handle)
 	}
 
-	err = source.ValidHandle(handle)
-	if err != nil {
+	if err = source.ValidHandle(handle); err != nil {
 		return err
 	}
 

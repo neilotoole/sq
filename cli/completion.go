@@ -4,6 +4,8 @@ import (
 	"context"
 	"strings"
 
+	"golang.org/x/exp/slices"
+
 	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"github.com/samber/lo"
@@ -31,10 +33,13 @@ func completeHandle(max int) completionFunc {
 		}
 
 		rc := RunContextFrom(cmd.Context())
-
 		handles := rc.Config.Sources.Handles()
-		handles, _ = lo.Difference(handles, args)
+		handles = lo.Reject(handles, func(item string, index int) bool {
+			return !strings.HasPrefix(item, toComplete)
+		})
 
+		slices.Sort(handles) // REVISIT: what's the logic for sorting or not?
+		handles, _ = lo.Difference(handles, args)
 		return handles, cobra.ShellCompDirectiveNoFileComp
 	}
 }
@@ -49,13 +54,10 @@ func completeGroup(max int) completionFunc {
 		}
 
 		rc := RunContextFrom(cmd.Context())
-
 		groups := rc.Config.Sources.Groups()
-
-		// Add the root group
-		groups = append([]string{"/"}, groups...)
 		groups, _ = lo.Difference(groups, args)
-
+		groups = lo.Uniq(groups)
+		slices.Sort(groups)
 		return groups, cobra.ShellCompDirectiveNoFileComp
 	}
 }

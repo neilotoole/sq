@@ -94,8 +94,8 @@ func (w *sourceWriter) Removed(srcs ...*source.Source) error {
 	return writeJSON(w.out, w.fm, srcs2)
 }
 
-// ActiveGroup implements output.SourceWriter.
-func (w *sourceWriter) ActiveGroup(group string) error {
+// Group implements output.SourceWriter.
+func (w *sourceWriter) Group(group string) error {
 	if group == "" {
 		group = "/"
 	}

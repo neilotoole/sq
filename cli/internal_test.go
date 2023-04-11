@@ -3,6 +3,8 @@ package cli
 import (
 	"testing"
 
+	"github.com/neilotoole/sq/testh/tutil"
+
 	"github.com/stretchr/testify/require"
 )
 
@@ -82,6 +84,25 @@ func Test_preprocessFlagArgVars(t *testing.T) {
 
 			require.NoError(t, gotErr)
 			require.EqualValues(t, tc.want, got)
+		})
+	}
+}
+
+func Test_lastHandlePart(t *testing.T) {
+	testCases := []struct {
+		in   string
+		want string
+	}{
+		{"@handle", "handle"},
+		{"@prod/db", "db"},
+		{"@prod/sub/db", "db"},
+	}
+
+	for i, tc := range testCases {
+		tc := tc
+		t.Run(tutil.Name(i, tc.in), func(t *testing.T) {
+			got := lastHandlePart(tc.in)
+			require.Equal(t, tc.want, got)
 		})
 	}
 }

@@ -319,6 +319,21 @@ func PrefixSlice(a []string, w string) []string {
 	return ret
 }
 
+// SuffixSlice returns a new slice containing each element
+// of a with suffix w. If a is nil, nil is returned.
+func SuffixSlice(a []string, w string) []string {
+	if a == nil {
+		return nil
+	}
+	if len(a) == 0 {
+		return []string{}
+	}
+	for i := range a {
+		a[i] += w
+	}
+	return a
+}
+
 const (
 	// DateFormat is the layout for dates (without a time component), such as 2006-01-02.
 	DateFormat = "2006-01-02"

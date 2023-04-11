@@ -125,8 +125,17 @@ func (s *Set) Add(src *Source) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	if err := ValidHandle(src.Handle); err != nil {
+		return err
+	}
+
 	if i, _ := s.indexOf(src.Handle); i != -1 {
 		return errz.Errorf("source with handle %s already exists", src.Handle)
+	}
+
+	groups := s.groups()
+	if slices.Contains(groups, src.Handle[1:]) {
+		return errz.Errorf("handle clashes with existing group")
 	}
 
 	s.data.Sources = append(s.data.Sources, src)
@@ -206,6 +215,93 @@ func (s *Set) renameSource(oldHandle, newHandle string) (*Source, error) {
 	}
 
 	return src, nil
+}
+
+// RenameGroup renames oldGroup to newGroup. Each affected source
+// is returned.
+func (s *Set) RenameGroup(oldGroup, newGroup string) ([]*Source, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if oldGroup == "/" || oldGroup == "" {
+		return nil, errz.New("cannot rename root group")
+	}
+
+	if err := ValidGroup(oldGroup); err != nil {
+		return nil, err
+	}
+	if err := ValidGroup(newGroup); err != nil {
+		return nil, err
+	}
+
+	if newGroup == "/" {
+		newGroup = ""
+	}
+
+	oldHandles, err := s.handlesInGroup(oldGroup)
+	if err != nil {
+		return nil, err
+	}
+
+	var affectedSrcs []*Source
+
+	var newHandle string
+	for _, oldHandle := range oldHandles {
+		if newGroup == "" {
+			if i := strings.LastIndex(oldHandle, "/"); i != -1 {
+				newHandle = "@" + oldHandle[i+i:]
+			}
+		} else { // else, it's a non-root new group
+			newHandle = strings.Replace(oldHandle, oldGroup, newGroup, 1)
+		}
+
+		var src *Source
+		if src, err = s.renameSource(oldHandle, newHandle); err != nil {
+			return nil, err
+		}
+
+		affectedSrcs = append(affectedSrcs, src)
+	}
+
+	if s.data.ActiveGroup == oldGroup {
+		s.data.ActiveGroup = newGroup
+	}
+
+	return affectedSrcs, nil
+}
+
+// MoveHandleToGroup moves renames handle to be in group.
+//
+//	$ sq mv @prod/db production
+//	@production/db
+//
+//	$ sq mv @prod/db /
+//	@db
+func (s *Set) MoveHandleToGroup(handle, newGroup string) (*Source, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	src, err := s.get(handle)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := ValidGroup(newGroup); err != nil {
+		return nil, err
+	}
+
+	var newHandle string
+	oldGroup := src.Group()
+
+	switch {
+	case newGroup == "/":
+		newHandle = strings.Replace(handle, oldGroup+"/", "", 1)
+	case oldGroup == "":
+		newHandle = "@" + newGroup + "/" + handle[1:]
+	default:
+		newHandle = strings.Replace(handle, oldGroup, newGroup, 1)
+	}
+
+	return s.renameSource(handle, newHandle)
 }
 
 // ActiveHandle returns the handle of the active source,
@@ -421,7 +517,7 @@ func (s *Set) handlesInGroup(group string) ([]string, error) {
 		return nil, err
 	}
 
-	groupSrcs, err := s.sourcesInGroup(s.activeGroup())
+	groupSrcs, err := s.sourcesInGroup(group)
 	if err != nil {
 		return nil, err
 	}
@@ -490,8 +586,8 @@ func (s *Set) Groups() []string {
 }
 
 func (s *Set) groups() []string {
-	groups := make([]string, 1, len(s.data.Sources))
-	groups[0] = "/"
+	groups := make([]string, 0, len(s.data.Sources)+1)
+	groups = append(groups, "/")
 	for _, src := range s.data.Sources {
 		h := src.Handle
 

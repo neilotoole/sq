@@ -65,8 +65,8 @@ type SourceWriter interface {
 	// Removed is called when sources are removed from the source set.
 	Removed(srcs ...*source.Source) error
 
-	// ActiveGroup prints the active group.
-	ActiveGroup(group string) error
+	// Group prints the group.
+	Group(group string) error
 
 	// SetActiveGroup is called when the group is set.
 	SetActiveGroup(group string) error

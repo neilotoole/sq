@@ -13,6 +13,7 @@ import (
 
 var (
 	handlePattern = regexp.MustCompile(`\A@([a-zA-Z][a-zA-Z0-9_]*)(/[a-zA-Z][a-zA-Z0-9_]*)*$`)
+	groupPattern  = regexp.MustCompile(`\A([a-zA-Z][a-zA-Z0-9_]*)(/[a-zA-Z][a-zA-Z0-9_]*)*$`)
 	tablePattern  = regexp.MustCompile(`\A[a-zA-Z_][a-zA-Z0-9_]*$`)
 )
 
@@ -27,6 +28,8 @@ var (
 //	@handle
 //	@group/handle
 //	@group/sub/sub2/handle
+//
+// See also: IsValidHandle.
 func ValidHandle(handle string) error {
 	const msg = `invalid data source handle: %s`
 	matches := handlePattern.MatchString(handle)
@@ -35,6 +38,13 @@ func ValidHandle(handle string) error {
 	}
 
 	return nil
+}
+
+// IsValidHandle returns false if handle is not a valid handle.
+//
+// See also: ValidHandle.
+func IsValidHandle(handle string) bool {
+	return handlePattern.MatchString(handle)
 }
 
 // validTableName returns an error if table is not an
@@ -48,6 +58,32 @@ func validTableName(table string) error {
 	if !matches {
 		return errz.Errorf(msg, table)
 	}
+	return nil
+}
+
+// IsValidGroup returns true if group is a valid group.
+// Examples:
+//
+//	/
+//	prod
+//	prod/customer
+//	prod/customer/pg
+//
+// Note that "/" is a special case, representing the root group.
+func IsValidGroup(group string) bool {
+	if group == "" || group == "/" {
+		return true
+	}
+
+	return groupPattern.MatchString(group)
+}
+
+// ValidGroup returns an error if group is not a valid group name.
+func ValidGroup(group string) error {
+	if !IsValidGroup(group) {
+		return errz.Errorf("invalid group: %s", group)
+	}
+
 	return nil
 }
 

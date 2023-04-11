@@ -34,7 +34,7 @@ func execGroup(cmd *cobra.Command, args []string) error {
 	if len(args) == 0 {
 		// Get the active group
 		group := cfg.Sources.ActiveGroup()
-		return rc.writers.srcw.ActiveGroup(group)
+		return rc.writers.srcw.Group(group)
 	}
 
 	group := strings.TrimSpace(args[0])

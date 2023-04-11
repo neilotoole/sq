@@ -19,6 +19,33 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 )
 
+func TestIsValidGroup(t *testing.T) {
+	testCases := []struct {
+		in    string
+		valid bool
+	}{
+		{"", true},
+		{" ", false},
+		{"/", true},
+		{"//", false},
+		{"prod", true},
+		{"/prod", false},
+		{"prod/", false},
+		{"prod/user", true},
+		{"prod/user/", false},
+		{"prod/user/pg", true},
+		{"pr_od", true},
+	}
+
+	for i, tc := range testCases {
+		tc := tc
+		t.Run(tutil.Name(i, tc.in), func(t *testing.T) {
+			gotValid := source.IsValidGroup(tc.in)
+			require.Equal(t, tc.valid, gotValid)
+		})
+	}
+}
+
 func TestValidHandle(t *testing.T) {
 	testCases := []struct {
 		in      string
