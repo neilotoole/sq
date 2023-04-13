@@ -90,7 +90,7 @@ func NewFormatting() *Formatting {
 		Error:      color.New(color.FgRed, color.Bold),
 		Faint:      color.New(color.Faint),
 		Handle:     color.New(color.FgBlue),
-		Active:     color.New(color.FgBlue, color.Bold),
+		Active:     color.New(color.FgGreen, color.Bold),
 		Header:     color.New(color.FgBlue, color.Bold),
 		Hilite:     color.New(color.FgHiBlue),
 		Key:        color.New(color.FgBlue, color.Bold),

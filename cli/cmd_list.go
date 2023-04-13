@@ -1,25 +1,62 @@
 package cli
 
 import (
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/spf13/cobra"
 )
 
 func newSrcListCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "ls",
-		Short: "List data sources",
-		Long:  "List data sources.",
-		Args:  cobra.ExactArgs(0),
-		RunE:  execSrcList,
+		Use:   "ls [GROUP]",
+		Short: "List sources and groups.",
+		Long: `List data sources for active group. If GROUP is specified, list for only that group.
+If --group is set, list groups instead of sources.
+
+The source list includes all descendants of the group: direct children, and also
+any further descendants.
+`,
+		Args:              cobra.MaximumNArgs(1),
+		ValidArgsFunction: completeGroup(1),
+		RunE:              execSrcList,
+		Example: `  # List sources in active group
+  $ sq ls
+
+  # List sources in the "prod" group
+  $ sq ls prod
+
+  # List sources in the root group (will list all sources)
+  $ sq ls /
+
+  # List groups instead of sources
+  $ sq ls -g`,
 	}
 
 	cmd.Flags().BoolP(flagHeader, flagHeaderShort, false, flagHeaderUsage)
 	cmd.Flags().BoolP(flagJSON, flagJSONShort, false, flagJSONUsage)
+	cmd.Flags().BoolP(flagListGroups, flagListGroupsShort, true, flagListGroupsUsage)
+
 	return cmd
 }
 
-func execSrcList(cmd *cobra.Command, _ []string) error {
+func execSrcList(cmd *cobra.Command, args []string) error {
 	rc := RunContextFrom(cmd.Context())
+	srcs := rc.Config.Sources
 
-	return rc.writers.srcw.SourceSet(rc.Config.Sources)
+	if len(args) == 1 {
+		if err := srcs.SetActiveGroup(args[0]); err != nil {
+			return err
+		}
+	}
+
+	if cmdFlagTrue(cmd, flagListGroups) {
+		if len(args) > 0 {
+			return errz.New("invalid: the --group / -g flag does not take arguments")
+		}
+		// Print groups instead of sources.
+		//
+		//  $ sq ls -g
+		return rc.writers.srcw.Groups(srcs.ActiveGroup(), srcs.Groups())
+	}
+
+	return rc.writers.srcw.SourceSet(srcs)
 }

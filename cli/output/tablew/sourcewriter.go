@@ -45,11 +45,11 @@ func (w *sourceWriter) SourceSet(ss *source.Set) error {
 			}
 
 			if ss.Active() != nil && ss.Active().Handle == src.Handle {
-				row[0] = w.tbl.fm.Handle.Sprintf(row[0]) + "*" // add the star to indicate active src
+				row[0] = w.tbl.fm.Active.Sprintf(row[0])
 
-				w.tbl.tblImpl.SetCellTrans(i, 0, w.tbl.fm.Bold.SprintFunc())
-				w.tbl.tblImpl.SetCellTrans(i, 1, w.tbl.fm.Bold.SprintFunc())
-				w.tbl.tblImpl.SetCellTrans(i, 2, w.tbl.fm.Bold.SprintFunc())
+				w.tbl.tblImpl.SetCellTrans(i, 0, w.tbl.fm.Active.SprintFunc())
+				w.tbl.tblImpl.SetCellTrans(i, 1, w.tbl.fm.Active.SprintFunc())
+				w.tbl.tblImpl.SetCellTrans(i, 2, w.tbl.fm.Active.SprintFunc())
 			}
 
 			rows = append(rows, row)
@@ -74,13 +74,13 @@ func (w *sourceWriter) SourceSet(ss *source.Set) error {
 		}
 
 		if ss.Active() != nil && ss.Active().Handle == src.Handle {
-			row[0] = w.tbl.fm.Handle.Sprintf(row[0]) + "*" // add the star to indicate active src
+			row[0] = w.tbl.fm.Active.Sprintf(row[0])
 
-			w.tbl.tblImpl.SetCellTrans(i, 0, w.tbl.fm.Bold.SprintFunc())
-			w.tbl.tblImpl.SetCellTrans(i, 1, w.tbl.fm.Bold.SprintFunc())
-			w.tbl.tblImpl.SetCellTrans(i, 2, w.tbl.fm.Bold.SprintFunc())
-			w.tbl.tblImpl.SetCellTrans(i, 3, w.tbl.fm.Bold.SprintFunc())
-			w.tbl.tblImpl.SetCellTrans(i, 4, w.tbl.fm.Bold.SprintFunc())
+			w.tbl.tblImpl.SetCellTrans(i, 0, w.tbl.fm.Active.SprintFunc())
+			w.tbl.tblImpl.SetCellTrans(i, 1, w.tbl.fm.Active.SprintFunc())
+			w.tbl.tblImpl.SetCellTrans(i, 2, w.tbl.fm.Active.SprintFunc())
+			w.tbl.tblImpl.SetCellTrans(i, 3, w.tbl.fm.Active.SprintFunc())
+			w.tbl.tblImpl.SetCellTrans(i, 4, w.tbl.fm.Active.SprintFunc())
 		}
 
 		rows = append(rows, row)
@@ -177,7 +177,7 @@ func (w *sourceWriter) SetActiveGroup(group string) error {
 		return nil
 	}
 
-	_, err := w.tbl.fm.Handle.Fprintln(w.tbl.out, group)
+	_, err := w.tbl.fm.Active.Fprintln(w.tbl.out, group)
 	return err
 }
 
@@ -185,8 +185,7 @@ func (w *sourceWriter) SetActiveGroup(group string) error {
 func (w *sourceWriter) Groups(activeGroup string, groups []string) error {
 	for _, group := range groups {
 		if group == activeGroup {
-			w.tbl.fm.Active.Fprint(w.tbl.out, group)
-			fmt.Fprintln(w.tbl.out, "*")
+			w.tbl.fm.Active.Fprintln(w.tbl.out, group)
 			continue
 		}
 

@@ -289,7 +289,7 @@ func createTypeTestTable(th *testh.Helper, src *source.Source, withData bool) (r
 func TestDatabaseTypes(t *testing.T) {
 	t.Parallel()
 
-	testCases := []string{sakila.MS17}
+	testCases := []string{sakila.MS}
 	for _, handle := range testCases {
 		handle := handle
 
@@ -335,7 +335,7 @@ func Test_MSSQLDB_DriverIssue196(t *testing.T) {
 
 	// Create the demonstration table
 	th := testh.New(t)
-	src := th.Source(sakila.MS17)
+	src := th.Source(sakila.MS)
 	db := th.Open(src).DB()
 	_, err := db.ExecContext(th.Context, createStmt)
 	require.NoError(t, err)

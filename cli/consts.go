@@ -24,6 +24,10 @@ const (
 	flagHandleShort = "h"
 	flagHandleUsage = "Handle for the source"
 
+	flagListGroups      = "groups"
+	flagListGroupsShort = "g"
+	flagListGroupsUsage = "List groups instead of sources"
+
 	flagHelp = "help"
 
 	flagInsert      = "insert"

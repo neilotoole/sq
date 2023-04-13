@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
@@ -47,6 +48,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
 )
+
+// Timeout for tests to open (and ping) their DBs.
+const dbOpenTimeout = time.Second * 2
 
 func init() { //nolint:gochecknoinits
 	slogt.Default = slogt.Factory(func(w io.Writer) slog.Handler {
@@ -280,8 +284,13 @@ func (h *Helper) NewSourceSet(handles ...string) *source.Set {
 // same Database instance. The opened Database will be closed
 // during h.Close.
 func (h *Helper) Open(src *source.Source) driver.Database {
-	dbase, err := h.Databases().Open(h.Context, src)
+	ctx, cancelFn := context.WithTimeout(h.Context, dbOpenTimeout)
+	defer cancelFn()
+
+	dbase, err := h.Databases().Open(ctx, src)
 	require.NoError(h.T, err)
+
+	require.NoError(h.T, dbase.DB().PingContext(ctx))
 	return dbase
 }
 

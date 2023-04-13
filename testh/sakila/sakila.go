@@ -23,8 +23,8 @@ const (
 	Pg11             = "@sakila_pg11"
 	Pg12             = "@sakila_pg12"
 	Pg               = Pg12
-	My56             = "@sakila_my56" // FIXME: rename to @sakila_my5_6
-	My57             = "@sakila_my57" // FIXME: rename to @sakila_my5_7
+	My56             = "@sakila_my56" // TODO: rename to @sakila_my5_6
+	My57             = "@sakila_my57" // TODO: rename to @sakila_my5_7
 	My8              = "@sakila_my8"
 	My               = My8
 	MS17             = "@sakila_ms17"
@@ -35,18 +35,51 @@ const (
 // AllHandles returns all the typical sakila handles. It does not
 // include monotable handles such as @sakila_csv_actor.
 func AllHandles() []string {
-	return []string{SL3, Pg9, Pg10, Pg11, Pg12, My56, My57, My8, MS17, MS19, XLSX}
+	return []string{
+		SL3,
+		Pg9,
+		// Pg10,
+		// Pg11,
+		Pg12,
+		My56,
+		My57,
+		My8,
+		// MS17,
+		MS19,
+		XLSX,
+	}
 }
 
 // SQLAll returns all the sakila SQL handles.
 func SQLAll() []string {
-	return []string{SL3, Pg9, Pg10, Pg11, Pg12, My56, My57, My8, MS17, MS19}
+	return []string{
+		SL3,
+		Pg9,
+		// Pg10,
+		// Pg11,
+		Pg12,
+		My56,
+		My57,
+		My8,
+		// MS17,
+		MS19,
+	}
 }
 
 // SQLAllExternal is the same as SQLAll, but only includes
 // external (non-embedded) sources. That is, it excludes SL3.
 func SQLAllExternal() []string {
-	return []string{Pg9, Pg10, Pg11, Pg12, My56, My57, My8, MS17, MS19}
+	return []string{
+		Pg9,
+		// Pg10,
+		// Pg11,
+		Pg12,
+		My56,
+		My57,
+		My8,
+		// MS17,
+		MS19,
+	}
 }
 
 // SQLLatest returns the handles for the latest
@@ -59,7 +92,12 @@ func SQLLatest() []string {
 
 // PgAll returns the handles for all postgres versions.
 func PgAll() []string {
-	return []string{Pg9, Pg10, Pg11, Pg12}
+	return []string{
+		Pg9,
+		// Pg10,
+		// Pg11,
+		Pg12,
+	}
 }
 
 // MyAll returns the handles for all MySQL versions.
@@ -69,7 +107,10 @@ func MyAll() []string {
 
 // MSAll returns the handles for all SQL Server versions.
 func MSAll() []string {
-	return []string{MS17}
+	return []string{
+		// MS17,
+		MS19,
+	}
 }
 
 // Facts regarding the sakila database.

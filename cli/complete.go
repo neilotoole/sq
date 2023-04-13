@@ -62,6 +62,26 @@ func completeGroup(max int) completionFunc {
 	}
 }
 
+// completeHandleOrGroup returns the matching list of handles+groups.
+func completeHandleOrGroup(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	switch {
+	case toComplete == "":
+		items, _ := completeHandle(0)(cmd, args, toComplete)
+		groups, _ := completeGroup(0)(cmd, args, toComplete)
+		items = append(items, groups...)
+		items = lo.Uniq(items)
+		return items, cobra.ShellCompDirectiveNoFileComp
+	case toComplete == "/":
+		return []string{}, cobra.ShellCompDirectiveNoFileComp
+	case toComplete[0] == '@':
+		return completeHandle(0)(cmd, args, toComplete)
+	case source.IsValidGroup(toComplete):
+		return completeGroup(0)(cmd, args, toComplete)
+	default:
+		return nil, cobra.ShellCompDirectiveError
+	}
+}
+
 // completeSLQ is a completionFunc that completes SLQ queries.
 // The completion functionality is rudimentary: it only
 // completes the "table select" segment (that is, the @HANDLE.NAME)

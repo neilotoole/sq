@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Upcoming
+
+### Added
+
+- [#192]: `sq` now has a mechanism to group sources. A source handle can
+  now be scoped. For example, instead of `@sakila_prod`, `@sakila_staging`, etc,
+  you can use `@prod/sakila`, `@staging/sakila`. Use `sq group prod` to
+  set the active group (which `sq ls` respects). See [docs](https://sq.io/docs/sources#source-groups).
+- `sq group GROUP` sets the active group to `GROUP`.
+- `sq group` returns the active group (default is `/`, the root group).
+- `sq ls GROUP` lists the sources in `GROUP`.
+- `sq ls --groups` (or `sq ls -g`) lists all groups.
+
+### Changed
+
+- `sq ls` now shows the active item in a distinct color. It no longer adds
+  an asterisk to the active item.
+- `sq ls` now sorts alphabetically when using `--table` format.
+- `sq ls` now shows the sources in the active group only. But note that
+  the default active group is `/` (the root group), so the default behavior
+  of `sq ls` is the same as before.
+
+
 ## [v0.32.0] - 2023-04-09
 
 ### Added
@@ -288,13 +311,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - [#89]: Bug with SQL generated for joins.
 
-[#191]: https://github.com/neilotoole/sq/issues/191
-[#189]: https://github.com/neilotoole/sq/issues/189
-[#187]: https://github.com/neilotoole/sq/issues/187
-[#185]: https://github.com/neilotoole/sq/issues/185
-[#173]: https://github.com/neilotoole/sq/issues/173
-[#164]: https://github.com/neilotoole/sq/issues/164
-[#162]: https://github.com/neilotoole/sq/issues/162
 [#123]: https://github.com/neilotoole/sq/issues/123
 [#142]: https://github.com/neilotoole/sq/issues/142
 [#144]: https://github.com/neilotoole/sq/issues/144
@@ -304,6 +320,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#158]: https://github.com/neilotoole/sq/issues/158
 [#15]: https://github.com/neilotoole/sq/issues/15
 [#160]: https://github.com/neilotoole/sq/issues/160
+[#162]: https://github.com/neilotoole/sq/issues/162
+[#164]: https://github.com/neilotoole/sq/issues/164
+[#173]: https://github.com/neilotoole/sq/issues/173
+[#185]: https://github.com/neilotoole/sq/issues/185
+[#187]: https://github.com/neilotoole/sq/issues/187
+[#189]: https://github.com/neilotoole/sq/issues/189
+[#191]: https://github.com/neilotoole/sq/issues/191
+[#191]: https://github.com/neilotoole/sq/issues/192
 [#89]: https://github.com/neilotoole/sq/pull/89
 [#91]: https://github.com/neilotoole/sq/pull/91
 [#95]: https://github.com/neilotoole/sq/issues/93

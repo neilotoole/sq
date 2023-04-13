@@ -97,6 +97,10 @@ func execMoveHandleToGroup(cmd *cobra.Command, oldHandle, newGroup string) error
 	return rc.writers.srcw.Source(src)
 }
 
+// execMoveRenameHandle renames a handle.
+//
+//	$ sq mv @sakila_db @sakiladb
+//	$ sq mv @sakiladb @sakila/db
 func execMoveRenameHandle(cmd *cobra.Command, oldHandle, newHandle string) error {
 	rc := RunContextFrom(cmd.Context())
 	src, err := rc.Config.Sources.RenameSource(oldHandle, newHandle)
@@ -112,43 +116,32 @@ func execMoveRenameHandle(cmd *cobra.Command, oldHandle, newHandle string) error
 }
 
 // completeMove is a completionFunc for the "mv" command.
+// Example invocations:
+//
+//	$ sq mv @old_handle @new_handle				# Rename handle
+//	$ sq mv @prod/old_handle @dev/old_handle	# Rename handle in group
+//	$ sq mv @prod/old_handle /					# Move handle to root group
+//	$ sq mv @prod/old_handle dev				# Move handle to group
+//	$ sq mv prod dev							# Rename group
 func completeMove(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-	// srcs := RunContextFrom(cmd.Context()).Config.Sources
-
-	// Example invocation:
-	//
-	//  sq mv @old_handle @new_handle
-	//  sq mv
-	//
 	switch len(args) {
 	case 0:
-		// no args yet, so first
-		c := completeHandle(2)
-		return c(cmd, args, toComplete)
-
+		// No args yet, so first arg could be a handle or group.
+		return completeHandleOrGroup(cmd, args, toComplete)
 	case 1:
-		switch {
-		default:
-			return nil, cobra.ShellCompDirectiveError
-		case source.IsValidHandle(args[0]):
-			// First argument is a valid handle.
-			// The 2nd argument can be a handle or group.
-			return completeMove2ndArg(cmd, args, toComplete)
-		case source.IsValidGroup(args[0]):
-			c := completeGroup(0)
-			return c(cmd, args, toComplete)
-		}
-
-	// case 1:
-	//	return []string{"."}, cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace
+		// Continue below.
 	default:
+		// Maximum two values (the 2nd arg is in toComplete), so it's an error.
 		return nil, cobra.ShellCompDirectiveError
 	}
-}
 
-func completeMove2ndArg(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-	if !source.IsValidHandle(args[0]) {
-		return []string{}, cobra.ShellCompDirectiveError
+	// We're processing the 2nd cmd arg.
+	// Note that the 2nd cmd arg value is found in toComplete, not args[1].
+	arg0 := args[0]
+
+	if !source.IsValidHandle(arg0) && !source.IsValidGroup(arg0) {
+		// arg0 is not valid.
+		return nil, cobra.ShellCompDirectiveError
 	}
 
 	var items []string
@@ -157,22 +150,44 @@ func completeMove2ndArg(cmd *cobra.Command, args []string, toComplete string) ([
 
 	switch {
 	case toComplete == "":
-		items = []string{"@"}
-		items = append(items, groups...)
-		return items, cobra.ShellCompDirectiveNoFileComp
+		switch {
+		case source.IsValidHandle(arg0):
+			// If arg0 is a handle, the 2nd arg can be either
+			// a handle or group.
+			items = []string{"@"}
+			items = append(items, groups...)
+			return items, cobra.ShellCompDirectiveNoFileComp
+
+			// return completeHandleOrGroup(cmd, args, toComplete)
+		case source.IsValidGroup(arg0):
+			// If arg0 is a group, the 2nd arg can only be a group.
+			return completeGroup(0)(cmd, args, toComplete)
+		default:
+			// Shouldn't be possible.
+			return nil, cobra.ShellCompDirectiveError
+		}
 	case toComplete == "/":
 		// If toComplete is "/" (root), then it's a move to root.
-		// We don't need any other suggestions. E.g.
 		//
 		//  $ sq mv @prod/db /
 		//  @db
+		//
+		//  $ sq mv prod /
+		//  /
+		//
+		// No need to offer any other possibilities.
 		return []string{}, cobra.ShellCompDirectiveNoFileComp
 	case toComplete[0] == '@':
+		// If toComplete is a handle, then the arg0 must be a handle.
+		if !source.IsValidHandle(arg0) {
+			return nil, cobra.ShellCompDirectiveError
+		}
+
 		// Get rid of the "/" root group
 		items = groups[1:]
 		items = stringz.PrefixSlice(items, "@")
 		items = stringz.SuffixSlice(items, "/")
-		h := lastHandlePart(args[0])
+		h := lastHandlePart(arg0)
 		count := len(items)
 		for i := 0; i < count; i++ {
 			// Also offer the group plus the original name.
@@ -180,11 +195,20 @@ func completeMove2ndArg(cmd *cobra.Command, args []string, toComplete string) ([
 		}
 
 		items = lo.Without(items, args[0])
-
+		items = lo.Reject(items, func(item string, index int) bool {
+			return !strings.HasPrefix(item, toComplete)
+		})
 		return items, cobra.ShellCompDirectiveNoFileComp
 	default:
+		// toComplete must be a group. Continue below.
 	}
 
+	// toComplete must be a group.
+	if !source.IsValidGroup(toComplete) {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	items = append(items, groups...)
 	items = lo.Reject(items, func(item string, index int) bool {
 		return !strings.HasPrefix(item, toComplete)
 	})

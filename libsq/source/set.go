@@ -482,7 +482,7 @@ func (s *Set) remove(handle string) error {
 	return nil
 }
 
-// Handles returns the set of all source handles.
+// Handles returns a new slice containing the set of all source handles.
 func (s *Set) Handles() []string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
