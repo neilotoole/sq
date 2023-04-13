@@ -130,15 +130,13 @@ func (w *sourceWriter) Removed(srcs ...*source.Source) error {
 		return nil
 	}
 
-	fmt.Fprintf(w.tbl.out, "Removed: ")
+	w.tbl.fm.Faint.Fprint(w.tbl.out, "Removed ")
+	w.tbl.fm.Number.Fprint(w.tbl.out, len(srcs))
+	w.tbl.fm.Faint.Fprintln(w.tbl.out, " sources")
 
-	for i, src := range srcs {
-		if i > 0 {
-			w.tbl.fm.Faint.Fprint(w.tbl.out, ", ")
-		}
-		w.tbl.fm.Handle.Fprint(w.tbl.out, src.Handle)
+	for _, src := range srcs {
+		w.tbl.fm.Handle.Fprintln(w.tbl.out, src.Handle)
 	}
-	fmt.Fprintln(w.tbl.out)
 	return nil
 }
 

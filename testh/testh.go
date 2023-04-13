@@ -49,7 +49,9 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Timeout for tests to open (and ping) their DBs.
+// dbOpenTimeout is the timeout for tests to open (and ping) their DBs.
+// This should be a low value, because, well, we can either connect
+// or not.
 const dbOpenTimeout = time.Second * 2
 
 func init() { //nolint:gochecknoinits

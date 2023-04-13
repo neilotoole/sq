@@ -48,7 +48,7 @@ const (
 
 	flagAddActive      = "active"
 	flagAddActiveShort = "a"
-	flagAddActiveUsage = "Make this the active source"
+	flagAddActiveUsage = "Make this the active source and active group"
 
 	flagMonochrome      = "monochrome"
 	flagMonochromeShort = "M"

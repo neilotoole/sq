@@ -1,10 +1,13 @@
 package source
 
 import (
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
 	"unicode"
+
+	"golang.org/x/exp/slices"
 
 	"github.com/neilotoole/sq/libsq/core/stringz"
 
@@ -31,7 +34,7 @@ var (
 //
 // See also: IsValidHandle.
 func ValidHandle(handle string) error {
-	const msg = `invalid data source handle: %s`
+	const msg = `invalid source handle: %s`
 	matches := handlePattern.MatchString(handle)
 	if !matches {
 		return errz.Errorf(msg, handle)
@@ -99,13 +102,13 @@ var handleTypeAliases = map[string]string{
 // SuggestHandle suggests a handle based on location and type.
 // If typ is TypeNone, the type will be inferred from loc.
 // The takenFn is used to determine if a suggested handle
-// is free to be used (e.g. "@sakila_csv" -> "@sakila_csv_1", etc).
+// is free to be used (e.g. "@csv/sakila" -> "@csv/sakila1", etc).
 //
 // If the base name (derived from loc) contains illegal handle runes,
 // those are replaced with underscore. If the handle would start with
 // a number or underscore, it will be prefixed with "h" (for "handle").
 // Thus "123.xlsx" becomes "@h123_xlsx".
-func SuggestHandle(typ Type, loc string, takenFn func(string) bool) (string, error) {
+func SuggestHandle(srcs *Set, typ Type, loc string) (string, error) {
 	ploc, err := parseLoc(loc)
 	if err != nil {
 		return "", err
@@ -128,6 +131,13 @@ func SuggestHandle(typ Type, loc string, takenFn func(string) bool) (string, err
 	}
 	// make sure there's nothing funky loc ext or name
 	ext = stringz.SanitizeAlphaNumeric(ext, '_')
+	// NOTE: We used to utilize ext in the suggested handle name,
+	// e.g. "@actor_csv". With the advent of source groups, we now
+	// use the active group instead, e.g. "@prod/actor". So, it's
+	// probably safe to rip out all the ext stuff, although maybe
+	// UX reports will suggest that "@prod/csv/actor" is preferable,
+	// and thus we would still need ext.
+	_ = ext
 	name := stringz.SanitizeAlphaNumeric(ploc.name, '_')
 
 	// if the name is empty, we use "h" (for "handle"), e.g "@h".
@@ -139,22 +149,31 @@ func SuggestHandle(typ Type, loc string, takenFn func(string) bool) (string, err
 		name = "h" + name
 	}
 
-	base := "@" + name
-	if ext != "" {
-		base += "_" + ext
+	g := srcs.ActiveGroup()
+	switch g {
+	case "/", "":
+		g = ""
+	default:
+		g += "/"
 	}
 
+	base := "@" + g + name
+
 	// Beginning with base as candidate, check if
-	// candidate is taken; if so, append _N, where
-	// N is a count starting at 1.
+	// candidate is taken; if so, append N, where
+	// N is a count starting at 1. For example:
+	//
+	//  @actor
+	//  @actor2
+	//  @actor3
 	candidate := base
-	var count int
+	count := 1
 	for {
-		if count > 0 {
-			candidate = base + "_" + strconv.Itoa(count)
+		if count > 1 {
+			candidate = base + strconv.Itoa(count)
 		}
 
-		if !takenFn(candidate) {
+		if !srcs.Exists(candidate) && !srcs.GroupExists(candidate[1:]) {
 			return candidate, nil
 		}
 
@@ -210,4 +229,29 @@ func ParseTableHandle(input string) (handle, table string, err error) {
 	}
 
 	return trimmed, "", err
+}
+
+// Contains returns true if srcs contains s, where s is a Source or a source handle.
+func Contains[S *Source | ~string](srcs []*Source, s S) bool {
+	if len(srcs) == 0 {
+		return false
+	}
+
+	switch s := any(s).(type) {
+	case *Source:
+		return slices.Contains(srcs, s)
+	case string:
+		for i := range srcs {
+			if srcs[i] != nil {
+				if srcs[i].Handle == s {
+					return true
+				}
+			}
+		}
+	default:
+		// Can never happen
+		panic(fmt.Sprintf("unknown type %T: %v", s, s))
+	}
+
+	return false
 }

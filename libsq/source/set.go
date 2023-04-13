@@ -406,6 +406,10 @@ func (s *Set) setActive(handle string, force bool) (*Source, error) {
 		return nil, nil //nolint:nilnil
 	}
 
+	if err := ValidHandle(handle); err != nil {
+		return nil, err
+	}
+
 	if force {
 		s.data.ActiveSrc = handle
 		src, _ := s.get(handle)
@@ -451,10 +455,44 @@ func (s *Set) Remove(handle string) error {
 	return s.remove(handle)
 }
 
+// RemoveGroup removes all sources that are children of group.
+// The removed sources are returned. If group was the active
+// group, the active group is set to "/" (root group).
+func (s *Set) RemoveGroup(group string) ([]*Source, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	activeGroup := s.activeGroup()
+
+	srcs, err := s.sourcesInGroup(group)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range srcs {
+		if err = s.remove(srcs[i].Handle); err != nil {
+			return nil, err
+		}
+	}
+
+	if err = s.groupExists(activeGroup); err != nil {
+		if err = s.setActiveGroup("/"); err != nil {
+			return nil, err
+		}
+	}
+
+	return srcs, nil
+}
+
+// remove handle from the set. By virtue of removing
+// handle, the active source and active group may be reset
+// to their defaults.
 func (s *Set) remove(handle string) error {
 	if len(s.data.Sources) == 0 {
 		return errz.Errorf(msgUnknownSrc, handle)
 	}
+
+	activeG := s.activeGroup()
 
 	i, _ := s.indexOf(handle)
 	if i == -1 {
@@ -479,6 +517,17 @@ func (s *Set) remove(handle string) error {
 
 	s.data.Sources = pre
 	s.data.Sources = append(s.data.Sources, post...)
+
+	if s.data.ActiveSrc == handle {
+		s.data.ActiveSrc = ""
+	}
+
+	if err := s.groupExists(activeG); err != nil {
+		if err = s.setActiveGroup("/"); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 

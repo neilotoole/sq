@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
@@ -8,47 +9,75 @@ import (
 
 func newSrcRemoveCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use: "rm @HANDLE1 [@HANDLE2...]",
-		Example: `  # Remove @my1 data source
-  $ sq rm @my1
+		Use: "rm @HANDLE|GROUP",
 
-  # Remove multiple data sources
-  $ sq rm @my1 @pg1 @sqlserver1`,
-		Short:             "Remove data source",
-		Long:              "Remove data source.",
+		Short: "Remove data source or group",
+		Long: `Remove data source or group. Removing a group removes
+all sources in that group. On return, the active source or active group
+may have changed, if that source or group was removed.`,
 		Args:              cobra.MinimumNArgs(1),
 		RunE:              execSrcRemove,
-		ValidArgsFunction: completeHandle(0),
+		ValidArgsFunction: completeHandleOrGroup,
+		Example: `  # Remove @sakila source
+  $ sq rm @sakila_db
+
+  # Remove multiple data sources
+  $ sq rm @sakila/pg @sakila_my
+
+  # Remove the "prod" group (and all its children)
+  $ sq rm prod
+
+  # Remove a mix of sources and groups
+  $ sq rm @staging/sakila_db @staging/backup_db dev`,
 	}
 
 	cmd.Flags().BoolP(flagJSON, flagJSONShort, false, flagJSONUsage)
-
 	return cmd
 }
 
+// execSrcRemove removes sources and groups. The elements of
+// args can be a handle, or a group.
 func execSrcRemove(cmd *cobra.Command, args []string) error {
 	rc := RunContextFrom(cmd.Context())
-	cfg := rc.Config
+	cfg, srcs := rc.Config, rc.Config.Sources
 
 	args = lo.Uniq(args)
-	srcs := make([]*source.Source, len(args))
-	for i := range args {
-		src, err := cfg.Sources.Get(args[i])
-		if err != nil {
-			return err
-		}
+	var removed []*source.Source
+	for _, arg := range args {
+		switch {
+		case source.IsValidHandle(arg):
+			if source.Contains(removed, arg) {
+				// removed may already contain the handle
+				// by virtue of its group having been removed.
+				continue
+			}
 
-		err = cfg.Sources.Remove(src.Handle)
-		if err != nil {
-			return err
-		}
+			src, err := srcs.Get(arg)
+			if err != nil {
+				return err
+			}
 
-		srcs[i] = src
+			err = srcs.Remove(src.Handle)
+			if err != nil {
+				return err
+			}
+			removed = append(removed, src)
+		case source.IsValidGroup(arg):
+			removedViaGroup, err := srcs.RemoveGroup(arg)
+			if err != nil {
+				return err
+			}
+
+			removed = append(removed, removedViaGroup...)
+		default:
+			return errz.Errorf("invalid arg: %s", arg)
+		}
 	}
 
 	if err := rc.ConfigStore.Save(cfg); err != nil {
 		return err
 	}
-
-	return rc.writers.srcw.Removed(srcs...)
+	lo.Uniq(removed)
+	source.Sort(removed)
+	return rc.writers.srcw.Removed(removed...)
 }

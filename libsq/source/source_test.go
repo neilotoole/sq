@@ -158,3 +158,23 @@ func TestShortLocation(t *testing.T) {
 		})
 	}
 }
+
+func TestContains(t *testing.T) {
+	src1 := &source.Source{Handle: "@src1"}
+	src2 := &source.Source{Handle: "@src2"}
+
+	var srcs []*source.Source
+	require.False(t, source.Contains(nil, (*source.Source)(nil)))
+	require.False(t, source.Contains(nil, ""))
+	require.False(t, source.Contains(srcs, src1.Handle))
+	srcs = make([]*source.Source, 0)
+	require.False(t, source.Contains(srcs, src1.Handle))
+	srcs = append(srcs, src1)
+	require.True(t, source.Contains(srcs, src1))
+	require.True(t, source.Contains(srcs, src1.Handle))
+	require.False(t, source.Contains(srcs, src2))
+	require.False(t, source.Contains(srcs, src2.Handle))
+	srcs = append(srcs, src2)
+	require.True(t, source.Contains(srcs, src2))
+	require.True(t, source.Contains(srcs, src2.Handle))
+}

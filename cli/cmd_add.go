@@ -21,16 +21,26 @@ import (
 
 func newSrcAddCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "add [--handle @HANDLE] LOCATION",
-		RunE:  execSrcAdd,
-		Args:  cobra.ExactArgs(1),
-		Short: "Add data source",
-		Long:  `Add data source specified by LOCATION, optionally identified by @HANDLE.`,
+		Use:  "add [--handle @HANDLE] LOCATION",
+		RunE: execSrcAdd,
+		Args: cobra.ExactArgs(1),
 		Example: `
 When adding a data source, LOCATION is the only required arg.
 
-  # Add a postgres source with handle "@sakila_pg"
-  $ sq add -h @sakila_pg 'postgres://user:pass@localhost/sakila'
+  $ sq add ./actor.csv
+  @actor  csv  actor.csv
+
+Note that sq generated the handle "@actor". But you can explicitly specify
+a handle.
+
+  # Add a postgres source with handle "@sakila/pg"
+  $ sq add -h @sakila/pg 'postgres://user:pass@localhost/sakila'
+
+This handle format "@sakila/pg" includes a group, "sakila". Using a group
+is entirely optional: it is a way to organize sources. For example:
+
+  $ sq add -h @dev/pg 'postgres://user:pass@dev.db.example.com/sakila'
+  $ sq add -h @prod/pg 'postgres://user:pass@prod.db.acme.com/sakila'
 
 The format of LOCATION is driver-specific,but is generally a DB connection
 string, a file path, or a URL.
@@ -89,7 +99,8 @@ minimum, the following drivers are bundled:
   xlsx       Microsoft Excel XLSX 
 
 If there isn't already an active source, the newly added source becomes the
-active source. Otherwise you can use --active to make the new source active.
+active source (and its group becomes the active group). Otherwise you can
+use flag --active to make the new source (and its group) active.
 
 More examples:
 
@@ -116,7 +127,12 @@ More examples:
   $ sq add ./testdata/person.csv --opts=header=true
 
   # Add a CSV source from a URL (will be downloaded)
-  $ sq add https://sq.io/testdata/actor.csv`,
+  $ sq add https://sq.io/testdata/actor.csv
+
+  # Add a source, and make it the active source (and group)
+  $ sq add ./actor.csv -h @csv/actor`,
+		Short: "Add data source",
+		Long:  `Add data source specified by LOCATION, optionally identified by @HANDLE.`,
 	}
 
 	cmd.Flags().StringP(flagDriver, flagDriverShort, "", flagDriverUsage)
@@ -159,7 +175,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 	if cmdFlagChanged(cmd, flagHandle) {
 		handle, _ = cmd.Flags().GetString(flagHandle)
 	} else {
-		handle, err = source.SuggestHandle(typ, loc, cfg.Sources.Exists)
+		handle, err = source.SuggestHandle(rc.Config.Sources, typ, loc)
 		if err != nil {
 			return errz.Wrap(err, "unable to suggest a handle: use --handle flag")
 		}
@@ -225,8 +241,12 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 	if cfg.Sources.Active() == nil || cmdFlagTrue(cmd, flagAddActive) {
 		// If no current active data source, use this one, OR if
 		// flagAddActive is true.
-		_, err = cfg.Sources.SetActive(src.Handle, false)
-		if err != nil {
+		if _, err = cfg.Sources.SetActive(src.Handle, false); err != nil {
+			return err
+		}
+
+		// Likewise with the group.
+		if err = cfg.Sources.SetActiveGroup(src.Group()); err != nil {
 			return err
 		}
 	}

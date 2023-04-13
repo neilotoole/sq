@@ -138,10 +138,19 @@ func (s *Source) Clone() *Source {
 	}
 }
 
-// Sort sorts a slice of srcs by handle.
+// Sort sorts a slice of sources by handle.
 func Sort(srcs []*Source) {
 	slices.SortFunc(srcs, func(a, b *Source) bool {
-		return a.Handle < b.Handle
+		switch {
+		case a == nil && b == nil:
+			return false
+		case a == nil:
+			return true
+		case b == nil:
+			return false
+		default:
+			return a.Handle < b.Handle
+		}
 	})
 }
 

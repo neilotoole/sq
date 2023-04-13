@@ -14,12 +14,21 @@ func newGroupCommand() *cobra.Command {
 		ValidArgsFunction: completeGroup(1),
 		Short:             "Get or set active group",
 		Long: `Get or set active group. If no argument provided, get the active group.
-Otherwise, set GROUP as the active group.`,
-		Example: `  # Get active group
+Otherwise, set GROUP as the active group. An error is returned if GROUP does
+not exist.
+
+Use 'sq ls -g' to list groups.`,
+		Example: `  # Get active group ("dev" in this case).
   $ sq group
+  dev
 
   # Set "prod" as active group
-  $ sq group prod`,
+  $ sq group prod
+  prod
+
+  # Reset to the root group
+  $ sq group /
+  /`,
 	}
 
 	cmd.Flags().BoolP(flagJSON, flagJSONShort, false, flagJSONUsage)

@@ -26,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `sq ls` now shows the sources in the active group only. But note that
   the default active group is `/` (the root group), so the default behavior
   of `sq ls` is the same as before.
+- `sq add hello.csv` will now generate the handle `@hello` instead of `@hello_csv`.
+  On a second invocation, it will return `@hello1` instead of `@hello_csv_1`. Why
+  this change? Well, with the availability of the source group mechanism, the `_`
+  somehow don't look like they belong. And more importantly, they're a pain to type.
 
 
 ## [v0.32.0] - 2023-04-09

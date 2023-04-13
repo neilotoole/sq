@@ -4,18 +4,19 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/neilotoole/sq/drivers/sqlserver"
+	"github.com/neilotoole/sq/drivers/xlsx"
+
+	"github.com/neilotoole/sq/drivers/csv"
+
 	"github.com/neilotoole/sq/testh/tutil"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/sq/drivers/csv"
 	"github.com/neilotoole/sq/drivers/mysql"
 	"github.com/neilotoole/sq/drivers/postgres"
 	"github.com/neilotoole/sq/drivers/sqlite3"
-	"github.com/neilotoole/sq/drivers/sqlserver"
-	"github.com/neilotoole/sq/drivers/xlsx"
-	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/source"
 )
 
@@ -97,42 +98,124 @@ func TestSuggestHandle(t *testing.T) {
 		want  string
 		taken []string
 	}{
-		{typ: csv.TypeCSV, loc: "/path/to/actor.csv", want: "@actor_csv"},
-		{typ: source.TypeNone, loc: "/path/to/actor.csv", want: "@actor_csv"},
-		{typ: xlsx.Type, loc: "/path/to/sakila.xlsx", want: "@sakila_xlsx"},
-		{typ: xlsx.Type, loc: "/path/to/123_sakila.xlsx", want: "@h123_sakila_xlsx"},
-		{typ: xlsx.Type, loc: "/path/to/__sakila.xlsx", want: "@h__sakila_xlsx"},
-		{typ: xlsx.Type, loc: "/path/to/sakila.something.xlsx", want: "@sakila_something_xlsx"},
-		{typ: xlsx.Type, loc: "/path/to/😀abc123😀", want: "@h_abc123__xlsx"},
-		{typ: source.TypeNone, loc: "/path/to/sakila.xlsx", want: "@sakila_xlsx"},
 		{
-			typ: xlsx.Type, loc: "/path/to/sakila.xlsx", want: "@sakila_xlsx_2",
-			taken: []string{"@sakila_xlsx", "@sakila_xlsx_1"},
+			typ:  csv.TypeCSV,
+			loc:  "/path/to/actor.csv",
+			want: "@actor",
 		},
-		{typ: sqlite3.Type, loc: "sqlite3:///path/to/sakila.db", want: "@sakila_sqlite"},
-		{typ: source.TypeNone, loc: "sqlite3:///path/to/sakila.db", want: "@sakila_sqlite"},
-		{typ: sqlite3.Type, loc: "/path/to/sakila.db", want: "@sakila_sqlite"},
-		{typ: sqlserver.Type, loc: "sqlserver://sakila_p_ssW0rd@localhost?database=sakila", want: "@sakila_mssql"},
-		{typ: source.TypeNone, loc: "sqlserver://sakila_p_ssW0rd@localhost?database=sakila", want: "@sakila_mssql"},
 		{
-			typ: source.TypeNone, loc: "sqlserver://sakila_p_ssW0rd@localhost?database=sakila", want: "@sakila_mssql_1",
-			taken: []string{"@sakila_mssql"},
+			typ:  source.TypeNone,
+			loc:  "/path/to/actor.csv",
+			want: "@actor",
 		},
-		{typ: postgres.Type, loc: "postgres://sakila_p_ssW0rd@localhost/sakila?sslmode=disable", want: "@sakila_pg"},
-		{typ: source.TypeNone, loc: "postgres://sakila_p_ssW0rd@localhost/sakila?sslmode=disable", want: "@sakila_pg"},
-		{typ: postgres.Type, loc: "postgres://sakila_p_ssW0rd@localhost/sakila?sslmode=disable", want: "@sakila_pg"},
-		{typ: mysql.Type, loc: "mysql://sakila_p_ssW0rd@localhost:3306/sakila", want: "@sakila_my"},
-		{typ: source.TypeNone, loc: "mysql://sakila_p_ssW0rd@localhost:3306/sakila", want: "@sakila_my"},
+		{
+			typ:  xlsx.Type,
+			loc:  "/path/to/sakila.xlsx",
+			want: "@sakila",
+		},
+		{
+			typ:  xlsx.Type,
+			loc:  "/path/to/123_sakila.xlsx",
+			want: "@h123_sakila",
+		},
+		{
+			typ:  xlsx.Type,
+			loc:  "/path/to/__sakila.xlsx",
+			want: "@h__sakila",
+		},
+		{
+			typ:  xlsx.Type,
+			loc:  "/path/to/sakila.something.xlsx",
+			want: "@sakila_something",
+		},
+		{
+			typ:  xlsx.Type,
+			loc:  "/path/to/😀abc123😀",
+			want: "@h_abc123_",
+		},
+		{
+			typ:  source.TypeNone,
+			loc:  "/path/to/sakila.xlsx",
+			want: "@sakila",
+		},
+		{
+			typ:   xlsx.Type,
+			loc:   "/path/to/sakila.xlsx",
+			want:  "@sakila2",
+			taken: []string{"@sakila", "@sakila1"},
+		},
+		{
+			typ:  sqlite3.Type,
+			loc:  "sqlite3:///path/to/sakila.db",
+			want: "@sakila",
+		},
+		{
+			typ:  source.TypeNone,
+			loc:  "sqlite3:///path/to/sakila.db",
+			want: "@sakila",
+		},
+		{
+			typ:  sqlite3.Type,
+			loc:  "/path/to/sakila.db",
+			want: "@sakila",
+		},
+		{
+			typ:  sqlserver.Type,
+			loc:  "sqlserver://sakila_p_ssW0rd@localhost?database=sakila",
+			want: "@sakila",
+		},
+		{
+			typ:  source.TypeNone,
+			loc:  "sqlserver://sakila_p_ssW0rd@localhost?database=sakila",
+			want: "@sakila",
+		},
+		{
+			typ:   source.TypeNone,
+			loc:   "sqlserver://sakila_p_ssW0rd@localhost?database=sakila",
+			want:  "@sakila2",
+			taken: []string{"@sakila"},
+		},
+		{
+			typ:  postgres.Type,
+			loc:  "postgres://sakila_p_ssW0rd@localhost/sakila",
+			want: "@sakila",
+		},
+		{
+			typ:  source.TypeNone,
+			loc:  "postgres://sakila_p_ssW0rd@localhost/sakila",
+			want: "@sakila",
+		},
+		{
+			typ:  postgres.Type,
+			loc:  "postgres://sakila_p_ssW0rd@localhost/sakila",
+			want: "@sakila",
+		},
+		{
+			typ:  mysql.Type,
+			loc:  "mysql://sakila_p_ssW0rd@localhost:3306/sakila",
+			want: "@sakila",
+		},
+		{
+			typ:  source.TypeNone,
+			loc:  "mysql://sakila_p_ssW0rd@localhost:3306/sakila",
+			want: "@sakila",
+		},
 	}
 
-	for _, tc := range testCases {
+	for i, tc := range testCases {
 		tc := tc
-		t.Run(tc.typ.String()+"__"+tc.loc, func(t *testing.T) {
-			takenFn := func(handle string) bool {
-				return stringz.InSlice(tc.taken, handle)
+		t.Run(tutil.Name(i, tc.typ, tc.loc), func(t *testing.T) {
+			set := &source.Set{}
+			for i := range tc.taken {
+				err := set.Add(&source.Source{
+					Handle:   tc.taken[i],
+					Type:     sqlite3.Type,
+					Location: "/tmp/taken.db",
+				})
+				require.NoError(t, err)
 			}
 
-			got, err := source.SuggestHandle(tc.typ, tc.loc, takenFn)
+			got, err := source.SuggestHandle(set, tc.typ, tc.loc)
 			require.NoError(t, err)
 			require.Equal(t, tc.want, got)
 		})
