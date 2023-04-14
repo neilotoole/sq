@@ -173,7 +173,7 @@ func SuggestHandle(srcs *Set, typ Type, loc string) (string, error) {
 			candidate = base + strconv.Itoa(count)
 		}
 
-		if !srcs.Exists(candidate) && !srcs.GroupExists(candidate[1:]) {
+		if !srcs.IsExistingSource(candidate) && !srcs.IsExistingGroup(candidate[1:]) {
 			return candidate, nil
 		}
 

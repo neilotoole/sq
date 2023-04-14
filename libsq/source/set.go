@@ -16,14 +16,20 @@ const (
 	msgUnknownSrc  = "unknown source %s"
 	msgNoActiveSrc = "no active source"
 
-	// DefaultGroup is the identifier for the default group.
-	DefaultGroup = "/"
+	// RootGroup is the identifier for the default root group.
+	RootGroup = "/"
 )
 
 // Set is a set of sources. Typically it is loaded from config
-// at a start of a run.
+// at a start of a run. Set's methods are safe for concurrent use.
 type Set struct {
-	mu   sync.Mutex
+	// mu is the mutex used by exported methods. A method
+	// should never call an exported method. Many exported methods
+	// have an internal equivalent, e.g. "Get" and "get", which should
+	// be used instead.
+	mu sync.Mutex
+
+	// data holds the set's adata.
 	data setData
 }
 
@@ -38,6 +44,8 @@ type setData struct {
 	ActiveSrc string `yaml:"active" json:"active"`
 
 	// ActiveGroup is the active group. It is "" (empty string) or "/" by default.
+	// The "correct" value is "/", but we also support empty string
+	// so that the zero value is useful.
 	ActiveGroup string `yaml:"active_group" json:"active_group"`
 
 	// ScratchSrc is the handle of the scratchdb source.
@@ -129,24 +137,33 @@ func (s *Set) Add(src *Source) error {
 		return err
 	}
 
-	if i, _ := s.indexOf(src.Handle); i != -1 {
-		return errz.Errorf("source with handle %s already exists", src.Handle)
+	if s.isExistingHandle(src.Handle) {
+		return errz.Errorf("conflict: source with handle %s already exists", src.Handle)
 	}
 
-	groups := s.groups()
-	if slices.Contains(groups, src.Handle[1:]) {
-		return errz.Errorf("handle clashes with existing group")
+	srcGroup := src.Group()
+	if s.isExistingHandle("@" + srcGroup) {
+		return errz.Errorf("conflict: source's group %q conflicts with existing handle %s",
+			srcGroup, "@"+srcGroup)
+	}
+
+	if s.isExistingGroup(src.Handle[1:]) {
+		return errz.Errorf("conflict: handle %s clashes with existing group %q",
+			src.Handle, src.Handle[1])
 	}
 
 	s.data.Sources = append(s.data.Sources, src)
 	return nil
 }
 
-// Exists returns true if handle already exists loc the set.
-func (s *Set) Exists(handle string) bool {
+// IsExistingSource returns true if handle already exists in the set.
+func (s *Set) IsExistingSource(handle string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.isExistingHandle(handle)
+}
 
+func (s *Set) isExistingHandle(handle string) bool {
 	i, _ := s.indexOf(handle)
 	return i != -1
 }
@@ -192,9 +209,23 @@ func (s *Set) renameSource(oldHandle, newHandle string) (*Source, error) {
 		return nil, err
 	}
 
+	if newHandle == oldHandle {
+		// no-op
+		return src, nil
+	}
+
+	if s.isExistingHandle(newHandle) {
+		return nil, errz.Errorf("conflict: new handle %s already exists", newHandle)
+	}
+
+	if s.isExistingGroup(newHandle[1:]) {
+		return nil, errz.Errorf("conflict: new handle %s conflicts with existing group %q",
+			newHandle, newHandle[1:])
+	}
+
 	oldGroup := src.Group()
 
-	// rename the handle
+	// Do the actual renaming of the handle.
 	src.Handle = newHandle
 
 	if s.data.ActiveSrc == oldHandle {
@@ -205,7 +236,7 @@ func (s *Set) renameSource(oldHandle, newHandle string) (*Source, error) {
 
 	if oldGroup == s.activeGroup() {
 		// oldGroup was the active group
-		if err = s.groupExists(oldGroup); err != nil {
+		if err = s.requireGroupExists(oldGroup); err != nil {
 			// oldGroup no longer exists, so...
 			// we set the
 			if err = s.setActiveGroup(src.Group()); err != nil {
@@ -218,7 +249,8 @@ func (s *Set) renameSource(oldHandle, newHandle string) (*Source, error) {
 }
 
 // RenameGroup renames oldGroup to newGroup. Each affected source
-// is returned.
+// is returned. This effectively "moves" sources in oldGroup to newGroup,
+// by renaming those sources.
 func (s *Set) RenameGroup(oldGroup, newGroup string) ([]*Source, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -231,6 +263,15 @@ func (s *Set) RenameGroup(oldGroup, newGroup string) ([]*Source, error) {
 	}
 	if err := ValidGroup(newGroup); err != nil {
 		return nil, err
+	}
+
+	if err := s.requireGroupExists(oldGroup); err != nil {
+		return nil, err
+	}
+
+	if s.isExistingHandle("@" + newGroup) {
+		return nil, errz.Errorf("conflict: new group %q conflicts with existing handle %s",
+			newGroup, "@"+newGroup)
 	}
 
 	if newGroup == "/" {
@@ -248,7 +289,7 @@ func (s *Set) RenameGroup(oldGroup, newGroup string) ([]*Source, error) {
 	for _, oldHandle := range oldHandles {
 		if newGroup == "" {
 			if i := strings.LastIndex(oldHandle, "/"); i != -1 {
-				newHandle = "@" + oldHandle[i+i:]
+				newHandle = "@" + oldHandle[i+1:]
 			}
 		} else { // else, it's a non-root new group
 			newHandle = strings.Replace(oldHandle, oldGroup, newGroup, 1)
@@ -269,14 +310,14 @@ func (s *Set) RenameGroup(oldGroup, newGroup string) ([]*Source, error) {
 	return affectedSrcs, nil
 }
 
-// MoveHandleToGroup moves renames handle to be in group.
+// MoveHandleToGroup moves renames handle to be in toGroup.
 //
 //	$ sq mv @prod/db production
 //	@production/db
 //
 //	$ sq mv @prod/db /
 //	@db
-func (s *Set) MoveHandleToGroup(handle, newGroup string) (*Source, error) {
+func (s *Set) MoveHandleToGroup(handle, toGroup string) (*Source, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -285,20 +326,25 @@ func (s *Set) MoveHandleToGroup(handle, newGroup string) (*Source, error) {
 		return nil, err
 	}
 
-	if err := ValidGroup(newGroup); err != nil {
+	if err := ValidGroup(toGroup); err != nil {
 		return nil, err
+	}
+
+	if s.isExistingHandle("@" + toGroup) {
+		return nil, errz.Errorf("conflict: dest group %q conflicts with existing handle %s",
+			toGroup, "@"+toGroup)
 	}
 
 	var newHandle string
 	oldGroup := src.Group()
 
 	switch {
-	case newGroup == "/":
+	case toGroup == "/":
 		newHandle = strings.Replace(handle, oldGroup+"/", "", 1)
 	case oldGroup == "":
-		newHandle = "@" + newGroup + "/" + handle[1:]
+		newHandle = "@" + toGroup + "/" + handle[1:]
 	default:
-		newHandle = strings.Replace(handle, oldGroup, newGroup, 1)
+		newHandle = strings.Replace(handle, oldGroup, toGroup, 1)
 	}
 
 	return s.renameSource(handle, newHandle)
@@ -475,7 +521,7 @@ func (s *Set) RemoveGroup(group string) ([]*Source, error) {
 		}
 	}
 
-	if err = s.groupExists(activeGroup); err != nil {
+	if err = s.requireGroupExists(activeGroup); err != nil {
 		if err = s.setActiveGroup("/"); err != nil {
 			return nil, err
 		}
@@ -522,10 +568,8 @@ func (s *Set) remove(handle string) error {
 		s.data.ActiveSrc = ""
 	}
 
-	if err := s.groupExists(activeG); err != nil {
-		if err = s.setActiveGroup("/"); err != nil {
-			return err
-		}
+	if !s.isExistingGroup(activeG) {
+		return s.setActiveGroup(RootGroup)
 	}
 
 	return nil
@@ -562,7 +606,7 @@ func (s *Set) handlesInGroup(group string) ([]string, error) {
 		return s.handles(), nil
 	}
 
-	if err := s.groupExists(group); err != nil {
+	if err := s.requireGroupExists(group); err != nil {
 		return nil, err
 	}
 
@@ -697,26 +741,29 @@ func (s *Set) activeGroup() string {
 	return s.data.ActiveGroup
 }
 
-// GroupExists returns false if group does not exist.
-func (s *Set) GroupExists(group string) bool {
+// IsExistingGroup returns false if group does not exist.
+func (s *Set) IsExistingGroup(group string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	err := s.groupExists(group)
-	return err == nil
+	return s.isExistingGroup(group)
 }
 
-func (s *Set) groupExists(group string) error {
+func (s *Set) isExistingGroup(group string) bool {
 	group = strings.TrimSpace(group)
 	if group == "" || group == "/" {
-		return nil
+		return true
 	}
 
 	groups := s.groups()
-	if !slices.Contains(groups, group) {
+	return slices.Contains(groups, group)
+}
+
+// requireGroupExists returns an error if group does not exist.
+func (s *Set) requireGroupExists(group string) error {
+	if !s.isExistingGroup(group) {
 		return errz.Errorf("group does not exist: %s", group)
 	}
-
 	return nil
 }
 
@@ -736,7 +783,7 @@ func (s *Set) setActiveGroup(group string) error {
 		return nil
 	}
 
-	if err := s.groupExists(group); err != nil {
+	if err := s.requireGroupExists(group); err != nil {
 		return err
 	}
 
@@ -762,7 +809,7 @@ func (s *Set) sourcesInGroup(group string) ([]*Source, error) {
 		return srcs, nil
 	}
 
-	if err := s.groupExists(group); err != nil {
+	if err := s.requireGroupExists(group); err != nil {
 		return nil, err
 	}
 

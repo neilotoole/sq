@@ -189,7 +189,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if cfg.Sources.Exists(handle) {
+	if cfg.Sources.IsExistingSource(handle) {
 		return errz.Errorf("source handle already exists: %s", handle)
 	}
 
