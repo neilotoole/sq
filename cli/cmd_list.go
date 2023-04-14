@@ -5,10 +5,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func newSrcListCmd() *cobra.Command {
+func newListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "ls [GROUP]",
-		Short: "List sources and groups.",
+		Short: "List sources and groups",
 		Long: `List data sources for active group. If GROUP is specified, list for only that group.
 If --group is set, list groups instead of sources.
 
@@ -17,7 +17,7 @@ any further descendants.
 `,
 		Args:              cobra.MaximumNArgs(1),
 		ValidArgsFunction: completeGroup(1),
-		RunE:              execSrcList,
+		RunE:              execList,
 		Example: `  # List sources in active group
   $ sq ls
 
@@ -38,7 +38,7 @@ any further descendants.
 	return cmd
 }
 
-func execSrcList(cmd *cobra.Command, args []string) error {
+func execList(cmd *cobra.Command, args []string) error {
 	rc := RunContextFrom(cmd.Context())
 	srcs := rc.Config.Sources
 

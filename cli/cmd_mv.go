@@ -15,9 +15,12 @@ import (
 
 func newMoveCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:               "mv OLD NEW",
-		Short:             "Move/rename sources and groups",
-		Long:              "Move/rename sources and groups.",
+		Use:   "mv OLD NEW",
+		Short: "Move/rename sources and groups",
+		Long: `Move/rename sources and groups.
+
+The mv command works analogously to the UNIX "mv" command, where
+source handles are files, and groups are directories.`,
 		Args:              cobra.ExactArgs(2),
 		ValidArgsFunction: completeMove,
 		RunE:              execMove,
@@ -35,8 +38,7 @@ func newMoveCmd() *cobra.Command {
 
   # Rename the group "production" to "prod". This will rename
   # any sources already in that group.
-  $ sq mv production prod
-`,
+  $ sq mv production prod`,
 	}
 
 	return cmd

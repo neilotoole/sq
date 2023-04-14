@@ -101,7 +101,7 @@ const (
 
 	flagVerbose      = "verbose"
 	flagVerboseShort = "v"
-	flagVerboseUsage = "Print verbose output, if applicable"
+	flagVerboseUsage = "Print verbose outputaa"
 
 	flagVersion      = "version"
 	flagVersionUsage = "Print sq version"

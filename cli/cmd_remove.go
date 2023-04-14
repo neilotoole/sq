@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func newSrcRemoveCmd() *cobra.Command {
+func newRemoveCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use: "rm @HANDLE|GROUP",
 
@@ -16,7 +16,7 @@ func newSrcRemoveCmd() *cobra.Command {
 all sources in that group. On return, the active source or active group
 may have changed, if that source or group was removed.`,
 		Args:              cobra.MinimumNArgs(1),
-		RunE:              execSrcRemove,
+		RunE:              execRemove,
 		ValidArgsFunction: completeHandleOrGroup,
 		Example: `  # Remove @sakila source
   $ sq rm @sakila_db
@@ -35,9 +35,9 @@ may have changed, if that source or group was removed.`,
 	return cmd
 }
 
-// execSrcRemove removes sources and groups. The elements of
+// execRemove removes sources and groups. The elements of
 // args can be a handle, or a group.
-func execSrcRemove(cmd *cobra.Command, args []string) error {
+func execRemove(cmd *cobra.Command, args []string) error {
 	rc := RunContextFrom(cmd.Context())
 	cfg, srcs := rc.Config, rc.Config.Sources
 
