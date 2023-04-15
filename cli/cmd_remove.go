@@ -39,7 +39,7 @@ may have changed, if that source or group was removed.`,
 // args can be a handle, or a group.
 func execRemove(cmd *cobra.Command, args []string) error {
 	rc := RunContextFrom(cmd.Context())
-	cfg, srcs := rc.Config, rc.Config.Sources
+	cfg, ss := rc.Config, rc.Config.Sources
 
 	args = lo.Uniq(args)
 	var removed []*source.Source
@@ -52,18 +52,18 @@ func execRemove(cmd *cobra.Command, args []string) error {
 				continue
 			}
 
-			src, err := srcs.Get(arg)
+			src, err := ss.Get(arg)
 			if err != nil {
 				return err
 			}
 
-			err = srcs.Remove(src.Handle)
+			err = ss.Remove(src.Handle)
 			if err != nil {
 				return err
 			}
 			removed = append(removed, src)
 		case source.IsValidGroup(arg):
-			removedViaGroup, err := srcs.RemoveGroup(arg)
+			removedViaGroup, err := ss.RemoveGroup(arg)
 			if err != nil {
 				return err
 			}

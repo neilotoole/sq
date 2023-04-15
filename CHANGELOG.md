@@ -31,7 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   On a second invocation, it will return `@hello1` instead of `@hello_csv_1`. Why
   this change? Well, with the availability of the source group mechanism, the `_` character
   in the handle somehow looked ugly. And more importantly, `_` is a relative pain to type.
-
+- `sq ping` has changed to support groups. Instead of `sq ping --all`, you can
+  do `sq ping GROUP`, e.g. `sq ping /`.
 
 ## [v0.32.0] - 2023-04-09
 

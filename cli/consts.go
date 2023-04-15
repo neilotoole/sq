@@ -95,10 +95,6 @@ const (
 	flagPingTimeout      = "timeout"
 	flagPingTimeoutUsage = "Max time to wait for ping"
 
-	flagPingAll      = "all"
-	flagPingAllShort = "a"
-	flagPingAllUsage = "Ping all sources"
-
 	flagVerbose      = "verbose"
 	flagVerboseShort = "v"
 	flagVerboseUsage = "Verbose output"

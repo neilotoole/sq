@@ -118,7 +118,7 @@ More examples:
   $ sq add 'sqlserver://user:pass@localhost?database=sakila' 
 
   # Add a sqlite db, and immediately make it the active source
-  $ sq add --active ./testdata/sqlite1.db
+  $ sq add ./testdata/sqlite1.db --active 
 
   # Add an Excel spreadsheet, with options
   $ sq add ./testdata/test1.xlsx --opts=header=true
@@ -276,7 +276,11 @@ func readPassword(ctx context.Context, stdin *os.File, stdout io.Writer, fm *out
 	errCh := make(chan error)
 
 	// Check if there is something to read on STDIN.
-	stat, _ := stdin.Stat()
+	stat, err := stdin.Stat()
+	if err != nil {
+		// Shouldn't happen
+		return nil, errz.Err(err)
+	}
 	if (stat.Mode() & os.ModeCharDevice) == 0 {
 		b, err := io.ReadAll(stdin)
 		if err != nil {

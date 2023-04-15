@@ -5,6 +5,8 @@ import (
 	"errors"
 	"time"
 
+	"github.com/samber/lo"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -19,29 +21,32 @@ import (
 
 func newPingCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:               "ping [@HANDLE [@HANDLE_N]]",
+		Use:               "ping [@HANDLE|GROUP]*",
 		RunE:              execPing,
-		ValidArgsFunction: completeHandle(0),
+		ValidArgsFunction: completeHandleOrGroup,
 
 		Short: "Ping data sources",
-		Long: `Ping data sources to check connection health. If no arguments provided, the
-active data source is pinged. Provide the handles of one or more sources
-to ping those sources, or --all to ping all sources.
+		Long: `Ping data sources (or groups of sources) to check connection health.
+If no arguments provided, the active data source is pinged. Otherwise, ping
+the specified sources or groups.
 
 The exit code is 1 if ping fails for any of the sources.`,
-		Example: `  # ping active data source
+		Example: `  # Ping active data source.
   $ sq ping
 
-  # ping all data sources
-  $ sq ping --all
-
-  # ping @my1 and @pg1
+  # Ping @my1 and @pg1.
   $ sq ping @my1 @pg1
 
-  # ping @my1 with 2s timeout
-  $ sq ping @my1 --timeout=2s
+  # Ping sources in the root group (i.e. all sources).
+  $ sq ping /
 
-  # output in TSV format
+  # Ping sources in the "prod" and "staging" groups.
+  $ sq ping prod staging
+
+  # Ping @my1 with 2s timeout.
+  $ sq ping @my1 --timeout 2s
+
+  # Output in TSV format.
   $ sq ping --tsv @my1`,
 	}
 
@@ -50,49 +55,49 @@ The exit code is 1 if ping fails for any of the sources.`,
 	cmd.Flags().BoolP(flagTSV, flagTSVShort, false, flagTSVUsage)
 	cmd.Flags().BoolP(flagJSON, flagJSONShort, false, flagJSONUsage)
 	cmd.Flags().Duration(flagPingTimeout, time.Second*10, flagPingTimeoutUsage)
-	cmd.Flags().BoolP(flagPingAll, flagPingAllShort, false, flagPingAllUsage)
-
 	return cmd
 }
 
 func execPing(cmd *cobra.Command, args []string) error {
 	rc := RunContextFrom(cmd.Context())
-	cfg := rc.Config
+	cfg, ss := rc.Config, rc.Config.Sources
 	var srcs []*source.Source
 
 	// args can be:
 	// [empty] : ping active source
 	// @handle1 @handleN: ping multiple sources
+	// @handle1 group1: ping sources, or those in groups.
 
-	var pingAll bool
-	if cmd.Flags().Changed(flagPingAll) {
-		pingAll, _ = cmd.Flags().GetBool(flagPingAll)
-	}
-
-	switch {
-	case pingAll:
-		srcs = cfg.Sources.Sources()
-	case len(args) == 0:
+	args = lo.Uniq(args)
+	if len(args) == 0 {
 		src := cfg.Sources.Active()
 		if src == nil {
 			return errz.New(msgNoActiveSrc)
 		}
 		srcs = []*source.Source{src}
-	default:
+	} else {
 		for _, arg := range args {
-			err := source.ValidHandle(arg)
-			if err != nil {
-				return err
-			}
+			switch {
+			case source.IsValidHandle(arg):
+				src, err := ss.Get(arg)
+				if err != nil {
+					return err
+				}
+				srcs = append(srcs, src)
+			case source.IsValidGroup(arg):
+				groupSrcs, err := ss.SourcesInGroup(arg)
+				if err != nil {
+					return err
+				}
 
-			src, err := cfg.Sources.Get(arg)
-			if err != nil {
-				return err
+				srcs = append(srcs, groupSrcs...)
+			default:
+				return errz.Errorf("invalid arg: %s", arg)
 			}
-
-			srcs = append(srcs, src)
 		}
 	}
+
+	srcs = lo.Uniq(srcs)
 
 	timeout := cfg.Defaults.PingTimeout
 	if cmdFlagChanged(cmd, flagPingTimeout) {
