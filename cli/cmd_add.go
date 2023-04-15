@@ -42,7 +42,7 @@ is entirely optional: it is a way to organize sources. For example:
   $ sq add -h @dev/pg 'postgres://user:pass@dev.db.example.com/sakila'
   $ sq add -h @prod/pg 'postgres://user:pass@prod.db.acme.com/sakila'
 
-The format of LOCATION is driver-specific,but is generally a DB connection
+The format of LOCATION is driver-specific, but is generally a DB connection
 string, a file path, or a URL.
 
   DRIVER://USER:PASS@HOST:PORT/DBNAME

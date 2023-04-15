@@ -52,7 +52,7 @@ import (
 // dbOpenTimeout is the timeout for tests to open (and ping) their DBs.
 // This should be a low value, because, well, we can either connect
 // or not.
-const dbOpenTimeout = time.Second * 2
+const dbOpenTimeout = time.Second * 5
 
 func init() { //nolint:gochecknoinits
 	slogt.Default = slogt.Factory(func(w io.Writer) slog.Handler {

@@ -5,18 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Upcoming
+## [v0.33.0] - 2023-04-15
+
+The headline feature is [source groups](https://sq.io/docs/source#groups).
+This is the biggest change to the `sq` CLI in some time, and should
+make working with lots of sources much easier.
 
 ### Added
 
 - [#192]: `sq` now has a mechanism to group sources. A source handle can
   now be scoped. For example, instead of `@sakila_prod`, `@sakila_staging`, etc,
   you can use `@prod/sakila`, `@staging/sakila`. Use `sq group prod` to
-  set the active group (which `sq ls` respects). See [docs](https://sq.io/docs/sources#source-groups).
+  set the active group (which `sq ls` respects). See [docs](https://sq.io/docs/source#groups).
 - `sq group GROUP` sets the active group to `GROUP`.
 - `sq group` returns the active group (default is `/`, the root group).
 - `sq ls GROUP` lists the sources in `GROUP`.
-- `sq ls --groups` (or `sq ls -g`) lists all groups.
+- `sq ls --group` (or `sq ls -g`) lists all groups.
 - `sq mv` moves/renames sources and groups.
 
 ### Changed
@@ -333,11 +337,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#187]: https://github.com/neilotoole/sq/issues/187
 [#189]: https://github.com/neilotoole/sq/issues/189
 [#191]: https://github.com/neilotoole/sq/issues/191
-[#191]: https://github.com/neilotoole/sq/issues/192
+[#192]: https://github.com/neilotoole/sq/issues/192
 [#89]: https://github.com/neilotoole/sq/pull/89
 [#91]: https://github.com/neilotoole/sq/pull/91
 [#95]: https://github.com/neilotoole/sq/issues/93
 [#98]: https://github.com/neilotoole/sq/issues/98
+
 [v0.15.11]: https://github.com/neilotoole/sq/compare/v0.15.4...v0.15.11
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
@@ -365,3 +370,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [v0.30.0]: https://github.com/neilotoole/sq/compare/v0.29.0...v0.30.0
 [v0.31.0]: https://github.com/neilotoole/sq/compare/v0.30.0...v0.31.0
 [v0.32.0]: https://github.com/neilotoole/sq/compare/v0.31.0...v0.32.0
+[v0.33.0]: https://github.com/neilotoole/sq/compare/v0.32.0...v0.33.0
