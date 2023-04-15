@@ -891,15 +891,15 @@ type Group struct {
 	Groups []*Group `json:"groups,omitempty" yaml:"groups,omitempty"`
 }
 
-// Count returns counts for g.
+// Counts returns counts for g.
 //
 // - directSrc: direct source child members of g
-// - allSrc: all source descendants of g
+// - totalSrc: all source descendants of g
 // - directGroup: direct group child members of g
-// - allGroup: all group descendants of g
+// - totalGroup: all group descendants of g
 //
 // If g is empty, {0,0,0,0} is returned.
-func (g *Group) Count() (directSrc, allSrc, directGroup, allGroup int) {
+func (g *Group) Counts() (directSrc, totalSrc, directGroup, totalGroup int) {
 	if g == nil {
 		return 0, 0, 0, 0
 	}
@@ -907,16 +907,16 @@ func (g *Group) Count() (directSrc, allSrc, directGroup, allGroup int) {
 	directSrc = len(g.Sources)
 	directGroup = len(g.Groups)
 
-	allSrc = directSrc
-	allGroup = directGroup
+	totalSrc = directSrc
+	totalGroup = directGroup
 
 	for i := range g.Groups {
-		_, srcCount, _, groupCount := g.Groups[i].Count()
-		allSrc += srcCount
-		allGroup += groupCount
+		_, srcCount, _, groupCount := g.Groups[i].Counts()
+		totalSrc += srcCount
+		totalGroup += groupCount
 	}
 
-	return directSrc, allSrc, directGroup, allGroup
+	return directSrc, totalSrc, directGroup, totalGroup
 }
 
 // String returns a log/debug friendly representation.

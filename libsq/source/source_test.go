@@ -513,7 +513,7 @@ func TestSet_Tree(t *testing.T) {
 	gotTree, err := ss.Tree(source.RootGroup)
 	require.NoError(t, err)
 
-	directSrcCount, allSrcCount, directGroupCount, allGroupCount := gotTree.Count()
+	directSrcCount, allSrcCount, directGroupCount, allGroupCount := gotTree.Counts()
 	require.Equal(t, 2, directSrcCount)
 	require.Equal(t, directSrcCount, len(gotTree.Sources))
 	require.Equal(t, 11, allSrcCount)
@@ -526,7 +526,7 @@ func TestSet_Tree(t *testing.T) {
 	// Try with a subgroup
 	gotTree, err = ss.Tree("dev")
 	require.NoError(t, err)
-	directSrcCount, allSrcCount, directGroupCount, allGroupCount = gotTree.Count()
+	directSrcCount, allSrcCount, directGroupCount, allGroupCount = gotTree.Counts()
 	require.Equal(t, 1, directSrcCount)
 	require.Equal(t, directSrcCount, len(gotTree.Sources))
 	require.Equal(t, 4, allSrcCount)

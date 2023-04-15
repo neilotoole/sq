@@ -3,6 +3,7 @@ package tablew
 import (
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/neilotoole/sq/cli/output"
@@ -12,28 +13,28 @@ import (
 var _ output.SourceWriter = (*sourceWriter)(nil)
 
 type sourceWriter struct {
-	tbl     *table
-	verbose bool
+	tbl *table
 }
 
 // NewSourceWriter returns a source writer that outputs source
 // details in text table format.
 func NewSourceWriter(out io.Writer, fm *output.Formatting) output.SourceWriter {
 	tbl := &table{out: out, fm: fm, header: fm.ShowHeader}
-	w := &sourceWriter{tbl: tbl, verbose: fm.Verbose}
+	w := &sourceWriter{tbl: tbl}
 	w.tbl.reset()
 	return w
 }
 
 // SourceSet implements output.SourceWriter.
 func (w *sourceWriter) SourceSet(ss *source.Set) error {
+	fm := w.tbl.fm
 	group := ss.ActiveGroup()
 	items, err := ss.SourcesInGroup(group)
 	if err != nil {
 		return err
 	}
 
-	if !w.verbose {
+	if !fm.Verbose {
 		// Print the short version
 		var rows [][]string
 
@@ -45,18 +46,18 @@ func (w *sourceWriter) SourceSet(ss *source.Set) error {
 			}
 
 			if ss.Active() != nil && ss.Active().Handle == src.Handle {
-				row[0] = w.tbl.fm.Active.Sprintf(row[0])
+				row[0] = fm.Active.Sprintf(row[0])
 
-				w.tbl.tblImpl.SetCellTrans(i, 0, w.tbl.fm.Active.SprintFunc())
-				w.tbl.tblImpl.SetCellTrans(i, 1, w.tbl.fm.Active.SprintFunc())
-				w.tbl.tblImpl.SetCellTrans(i, 2, w.tbl.fm.Active.SprintFunc())
+				w.tbl.tblImpl.SetCellTrans(i, 0, fm.Active.SprintFunc())
+				w.tbl.tblImpl.SetCellTrans(i, 1, fm.Active.SprintFunc())
+				w.tbl.tblImpl.SetCellTrans(i, 2, fm.Active.SprintFunc())
 			}
 
 			rows = append(rows, row)
 		}
 
 		w.tbl.tblImpl.SetHeaderDisable(true)
-		w.tbl.tblImpl.SetColTrans(0, w.tbl.fm.Handle.SprintFunc())
+		w.tbl.tblImpl.SetColTrans(0, fm.Handle.SprintFunc())
 		w.tbl.appendRowsAndRenderAll(rows)
 		return nil
 	}
@@ -74,20 +75,20 @@ func (w *sourceWriter) SourceSet(ss *source.Set) error {
 		}
 
 		if ss.Active() != nil && ss.Active().Handle == src.Handle {
-			row[0] = w.tbl.fm.Active.Sprintf(row[0])
+			row[0] = fm.Active.Sprintf(row[0])
 
-			w.tbl.tblImpl.SetCellTrans(i, 0, w.tbl.fm.Active.SprintFunc())
-			w.tbl.tblImpl.SetCellTrans(i, 1, w.tbl.fm.Active.SprintFunc())
-			w.tbl.tblImpl.SetCellTrans(i, 2, w.tbl.fm.Active.SprintFunc())
-			w.tbl.tblImpl.SetCellTrans(i, 3, w.tbl.fm.Active.SprintFunc())
-			w.tbl.tblImpl.SetCellTrans(i, 4, w.tbl.fm.Active.SprintFunc())
+			w.tbl.tblImpl.SetCellTrans(i, 0, fm.Active.SprintFunc())
+			w.tbl.tblImpl.SetCellTrans(i, 1, fm.Active.SprintFunc())
+			w.tbl.tblImpl.SetCellTrans(i, 2, fm.Active.SprintFunc())
+			w.tbl.tblImpl.SetCellTrans(i, 3, fm.Active.SprintFunc())
+			w.tbl.tblImpl.SetCellTrans(i, 4, fm.Active.SprintFunc())
 		}
 
 		rows = append(rows, row)
 	}
 
-	w.tbl.tblImpl.SetHeaderDisable(!w.tbl.fm.ShowHeader)
-	w.tbl.tblImpl.SetColTrans(0, w.tbl.fm.Handle.SprintFunc())
+	w.tbl.tblImpl.SetHeaderDisable(!fm.ShowHeader)
+	w.tbl.tblImpl.SetColTrans(0, fm.Handle.SprintFunc())
 	w.tbl.tblImpl.SetHeader([]string{"HANDLE", "DRIVER", "LOCATION", "OPTIONS"})
 	w.tbl.appendRowsAndRenderAll(rows)
 	return nil
@@ -95,7 +96,7 @@ func (w *sourceWriter) SourceSet(ss *source.Set) error {
 
 // Source implements output.SourceWriter.
 func (w *sourceWriter) Source(src *source.Source) error {
-	if !w.verbose {
+	if !w.tbl.fm.Verbose {
 		var rows [][]string
 		row := []string{
 			src.Handle,
@@ -126,7 +127,7 @@ func (w *sourceWriter) Source(src *source.Source) error {
 
 // Removed implements output.SourceWriter.
 func (w *sourceWriter) Removed(srcs ...*source.Source) error {
-	if !w.verbose || len(srcs) == 0 {
+	if !w.tbl.fm.Verbose || len(srcs) == 0 {
 		return nil
 	}
 
@@ -182,14 +183,81 @@ func (w *sourceWriter) SetActiveGroup(group string) error {
 // Groups implements output.SourceWriter.
 func (w *sourceWriter) Groups(tree *source.Group) error {
 	groups := tree.AllGroups()
+	fm := w.tbl.fm
 
-	for _, group := range groups {
-		if group.Active {
-			w.tbl.fm.Active.Fprintln(w.tbl.out, group.Name)
-			continue
+	if !fm.Verbose {
+		for _, group := range groups {
+			if group.Active {
+				fm.Active.Fprintln(w.tbl.out, group.Name)
+				continue
+			}
+
+			fm.Handle.Fprintln(w.tbl.out, group.Name)
+		}
+		return nil
+	}
+
+	// Verbose output
+	headers := []string{
+		"GROUP",
+		"SOURCES",
+		"TOTAL",
+		"SUBGROUPS",
+		"TOTAL",
+		"ACTIVE",
+	}
+	w.tbl.tblImpl.SetHeader(headers)
+
+	var rows [][]string
+	for _, g := range groups {
+		directSrcCount, totalSrcCount, directGroupCount, totalGroupCount := g.Counts()
+		row := []string{
+			g.Name,
+			strconv.Itoa(directSrcCount),
+			strconv.Itoa(totalSrcCount),
+			strconv.Itoa(directGroupCount),
+			strconv.Itoa(totalGroupCount),
+			strconv.FormatBool(g.Active),
 		}
 
-		w.tbl.fm.Handle.Fprintln(w.tbl.out, group.Name)
+		if g.Active {
+			row[0] = fm.Active.Sprintf(row[0])
+		} else {
+			// Don't render value for active==false. It's just noise.
+			row[5] = ""
+		}
+
+		rowEmptyZeroes(fm, row)
+		rows = append(rows, row)
 	}
+
+	w.tbl.tblImpl.SetColTrans(0, fm.Handle.SprintFunc())
+	w.tbl.tblImpl.SetColTrans(1, fm.Number.SprintFunc())
+	w.tbl.tblImpl.SetColTrans(2, fm.Number.SprintFunc())
+	w.tbl.tblImpl.SetColTrans(3, fm.Number.SprintFunc())
+	w.tbl.tblImpl.SetColTrans(4, fm.Number.SprintFunc())
+	w.tbl.tblImpl.SetColTrans(5, fm.Bool.SprintFunc())
+
+	w.tbl.appendRowsAndRenderAll(rows)
 	return nil
+}
+
+// rowEmptyZeroes sets "0" to empty string. This seems to
+// help with visual clutter.
+func rowEmptyZeroes(_ *output.Formatting, row []string) {
+	for i := range row {
+		if row[i] == "0" {
+			row[i] = ""
+		}
+	}
+}
+
+// rowEmptyZeroes prints "0" via fm.Faint. This seems to
+// help with visual clutter.
+func rowFaintZeroes(fm *output.Formatting, row []string) { //nolint:unused
+	for i := range row {
+		if row[i] == "0" {
+			row[i] = fm.Faint.Sprintf(row[i])
+		}
+	}
 }
