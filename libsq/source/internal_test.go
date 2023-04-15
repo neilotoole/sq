@@ -6,6 +6,8 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/neilotoole/sq/testh/tutil"
+
 	"github.com/neilotoole/slogt"
 
 	"github.com/stretchr/testify/assert"
@@ -14,6 +16,14 @@ import (
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/testsrc"
+)
+
+// Export for testing.
+var (
+	FilesDetectTypeFn = func(fs *Files, ctx context.Context, loc string) (typ Type, ok bool, err error) {
+		return fs.detectType(ctx, loc)
+	}
+	GroupsFilterOnlyDirectChildren = groupsFilterOnlyDirectChildren
 )
 
 func TestFiles_Open(t *testing.T) {
@@ -187,7 +197,29 @@ func TestParseLoc(t *testing.T) {
 	}
 }
 
-// FilesDetectTypeFn exports Files.detectType for testing.
-var FilesDetectTypeFn = func(fs *Files, ctx context.Context, loc string) (typ Type, ok bool, err error) {
-	return fs.detectType(ctx, loc)
+func TestGroupsFilterOnlyDirectChildren(t *testing.T) {
+	testCases := []struct {
+		parent string
+		groups []string
+		want   []string
+	}{
+		{
+			parent: "/",
+			groups: []string{"/", "prod", "prod/customer", "staging"},
+			want:   []string{"prod", "staging"},
+		},
+		{
+			parent: "prod",
+			groups: []string{"/", "prod", "prod/customer", "prod/backup", "staging"},
+			want:   []string{"prod/customer", "prod/backup"},
+		},
+	}
+
+	for i, tc := range testCases {
+		tc := tc
+		t.Run(tutil.Name(i, tc.want), func(t *testing.T) {
+			got := GroupsFilterOnlyDirectChildren(tc.parent, tc.groups)
+			require.EqualValues(t, tc.want, got)
+		})
+	}
 }

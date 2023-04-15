@@ -6,6 +6,8 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/errz"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"golang.org/x/exp/slog"
@@ -18,6 +20,7 @@ import (
 // Type is a source type, e.g. "mysql", "postgres", "csv", etc.
 type Type string
 
+// String returns a log/debug-friendly representation.
 func (t Type) String() string {
 	return string(t)
 }
@@ -50,7 +53,14 @@ const (
 // ReservedHandles returns a slice of the handle names that
 // are reserved for sq use.
 func ReservedHandles() []string {
-	return []string{StdinHandle, ActiveHandle, ScratchHandle, JoinHandle}
+	return []string{
+		"@in", // Possible alias for @stdin
+		"@0",  // Possible alias for @stdin
+		StdinHandle,
+		ActiveHandle,
+		ScratchHandle,
+		JoinHandle,
+	}
 }
 
 var _ slog.LogValuer = (*Source)(nil)
@@ -89,6 +99,25 @@ func (s *Source) String() string {
 	return fmt.Sprintf("%s|%s| %s", s.Handle, s.Type, s.RedactedLocation())
 }
 
+// Group returns the source's group. If s is in the root group,
+// the empty string is returned.
+//
+// FIXME: For root group, should "/" be returned instead of empty string?
+func (s *Source) Group() string {
+	return groupFromHandle(s.Handle)
+}
+
+func groupFromHandle(h string) string {
+	// Trim the leading @
+	h = h[1:]
+	i := strings.LastIndex(h, "/")
+	if i == -1 {
+		return ""
+	}
+
+	return h[0:i]
+}
+
 // RedactedLocation returns s.Location, with the password component
 // of the location masked.
 func (s *Source) RedactedLocation() string {
@@ -110,6 +139,23 @@ func (s *Source) Clone() *Source {
 		Location: s.Location,
 		Options:  s.Options.Clone(),
 	}
+}
+
+// RedactSources returns a new slice, where each element
+// is a clone of the input *Source with its location field
+// redacted. This is useful for printing.
+func RedactSources(srcs ...*Source) []*Source {
+	a := make([]*Source, len(srcs))
+	for i := range a {
+		if srcs[i] == nil {
+			continue
+		}
+
+		a[i] = srcs[i].Clone()
+		a[i].Location = a[i].RedactedLocation()
+	}
+
+	return a
 }
 
 // RedactLocation returns a redacted version of the source
@@ -190,4 +236,26 @@ func Target(src *Source, tbl string) string {
 	}
 
 	return src.Handle + "." + tbl
+}
+
+// validSource performs basic checking on source s.
+func validSource(s *Source) error {
+	if s == nil {
+		return errz.New("source is nil")
+	}
+
+	err := ValidHandle(s.Handle)
+	if err != nil {
+		return err
+	}
+
+	if strings.TrimSpace(s.Location) == "" {
+		return errz.New("source location is empty")
+	}
+
+	if s.Type == TypeNone {
+		return errz.Errorf("source type is empty or unknown: {%s}", s.Type)
+	}
+
+	return nil
 }

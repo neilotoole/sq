@@ -227,18 +227,18 @@ func newCommandTree(rc *RunContext) (rootCmd *cobra.Command) {
 	})
 
 	addCmd(rc, rootCmd, slqCmd)
-	addCmd(rc, rootCmd, newSQLCmd())
 
-	addCmd(rc, rootCmd, newSrcCommand())
 	addCmd(rc, rootCmd, newSrcAddCmd())
-	addCmd(rc, rootCmd, newSrcListCmd())
-	addCmd(rc, rootCmd, newSrcRemoveCmd())
-	addCmd(rc, rootCmd, newScratchCmd())
+	addCmd(rc, rootCmd, newSrcCommand())
+	addCmd(rc, rootCmd, newGroupCommand())
+	addCmd(rc, rootCmd, newListCmd())
+	addCmd(rc, rootCmd, newMoveCmd())
+	addCmd(rc, rootCmd, newRemoveCmd())
 
 	addCmd(rc, rootCmd, newInspectCmd())
 	addCmd(rc, rootCmd, newPingCmd())
-
-	addCmd(rc, rootCmd, newVersionCmd())
+	addCmd(rc, rootCmd, newSQLCmd())
+	addCmd(rc, rootCmd, newScratchCmd())
 
 	driverCmd := addCmd(rc, rootCmd, newDriverCmd())
 	addCmd(rc, driverCmd, newDriverListCmd())
@@ -247,8 +247,8 @@ func newCommandTree(rc *RunContext) (rootCmd *cobra.Command) {
 	addCmd(rc, tblCmd, newTblCopyCmd())
 	addCmd(rc, tblCmd, newTblTruncateCmd())
 	addCmd(rc, tblCmd, newTblDropCmd())
-
 	addCmd(rc, rootCmd, newCompletionCmd())
+	addCmd(rc, rootCmd, newVersionCmd())
 	addCmd(rc, rootCmd, newManCmd())
 
 	return rootCmd

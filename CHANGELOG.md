@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.33.0] - 2023-04-15
+
+The headline feature is [source groups](https://sq.io/docs/source#groups).
+This is the biggest change to the `sq` CLI in some time, and should
+make working with lots of sources much easier.
+
+### Added
+
+- [#192]: `sq` now has a mechanism to group sources. A source handle can
+  now be scoped. For example, instead of `@sakila_prod`, `@sakila_staging`, etc,
+  you can use `@prod/sakila`, `@staging/sakila`. Use `sq group prod` to
+  set the active group (which `sq ls` respects). See [docs](https://sq.io/docs/source#groups).
+- `sq group GROUP` sets the active group to `GROUP`.
+- `sq group` returns the active group (default is `/`, the root group).
+- `sq ls GROUP` lists the sources in `GROUP`.
+- `sq ls --group` (or `sq ls -g`) lists all groups.
+- `sq mv` moves/renames sources and groups.
+
+### Changed
+
+- `sq ls` now shows the active item in a distinct color. It no longer adds
+  an asterisk to the active item.
+- `sq ls` now sorts alphabetically when using `--table` format.
+- `sq ls` now shows the sources in the active group only. But note that
+  the default active group is `/` (the root group), so the default behavior
+  of `sq ls` is the same as before.
+- `sq add hello.csv` will now generate the handle `@hello` instead of `@hello_csv`.
+  On a second invocation, it will return `@hello1` instead of `@hello_csv_1`. Why
+  this change? Well, with the availability of the source group mechanism, the `_` character
+  in the handle somehow looked ugly. And more importantly, `_` is a relative pain to type.
+- `sq ping` has changed to support groups. Instead of `sq ping --all`, you can
+  do `sq ping GROUP`, e.g. `sq ping /`.
+
 ## [v0.32.0] - 2023-04-09
 
 ### Added
@@ -288,13 +321,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - [#89]: Bug with SQL generated for joins.
 
-[#191]: https://github.com/neilotoole/sq/issues/191
-[#189]: https://github.com/neilotoole/sq/issues/189
-[#187]: https://github.com/neilotoole/sq/issues/187
-[#185]: https://github.com/neilotoole/sq/issues/185
-[#173]: https://github.com/neilotoole/sq/issues/173
-[#164]: https://github.com/neilotoole/sq/issues/164
-[#162]: https://github.com/neilotoole/sq/issues/162
 [#123]: https://github.com/neilotoole/sq/issues/123
 [#142]: https://github.com/neilotoole/sq/issues/142
 [#144]: https://github.com/neilotoole/sq/issues/144
@@ -304,10 +330,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#158]: https://github.com/neilotoole/sq/issues/158
 [#15]: https://github.com/neilotoole/sq/issues/15
 [#160]: https://github.com/neilotoole/sq/issues/160
+[#162]: https://github.com/neilotoole/sq/issues/162
+[#164]: https://github.com/neilotoole/sq/issues/164
+[#173]: https://github.com/neilotoole/sq/issues/173
+[#185]: https://github.com/neilotoole/sq/issues/185
+[#187]: https://github.com/neilotoole/sq/issues/187
+[#189]: https://github.com/neilotoole/sq/issues/189
+[#191]: https://github.com/neilotoole/sq/issues/191
+[#192]: https://github.com/neilotoole/sq/issues/192
 [#89]: https://github.com/neilotoole/sq/pull/89
 [#91]: https://github.com/neilotoole/sq/pull/91
 [#95]: https://github.com/neilotoole/sq/issues/93
 [#98]: https://github.com/neilotoole/sq/issues/98
+
 [v0.15.11]: https://github.com/neilotoole/sq/compare/v0.15.4...v0.15.11
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
@@ -335,3 +370,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [v0.30.0]: https://github.com/neilotoole/sq/compare/v0.29.0...v0.30.0
 [v0.31.0]: https://github.com/neilotoole/sq/compare/v0.30.0...v0.31.0
 [v0.32.0]: https://github.com/neilotoole/sq/compare/v0.31.0...v0.32.0
+[v0.33.0]: https://github.com/neilotoole/sq/compare/v0.32.0...v0.33.0

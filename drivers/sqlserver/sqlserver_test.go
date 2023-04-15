@@ -68,7 +68,7 @@ func TestDriverBehavior(t *testing.T) {
 func TestDriver_CreateTable_NotNullDefault(t *testing.T) {
 	t.Parallel()
 
-	testCases := []string{sakila.MS17}
+	testCases := []string{sakila.MS}
 	for _, handle := range testCases {
 		handle := handle
 

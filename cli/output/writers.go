@@ -55,14 +55,24 @@ type MetadataWriter interface {
 
 // SourceWriter can output data source details.
 type SourceWriter interface {
-	// SourceSet outputs details of the source set.
+	// SourceSet outputs details of the source set. Specifically it prints
+	// the sources from srcs' active group.
 	SourceSet(srcs *source.Set) error
 
 	// Source outputs details of the source.
-	Source(src *source.Source) error
+	Source(ss *source.Set, src *source.Source) error
 
 	// Removed is called when sources are removed from the source set.
 	Removed(srcs ...*source.Source) error
+
+	// Group prints the group.
+	Group(group *source.Group) error
+
+	// SetActiveGroup is called when the group is set.
+	SetActiveGroup(group *source.Group) error
+
+	// Groups prints a list of groups.
+	Groups(tree *source.Group) error
 }
 
 // ErrorWriter outputs errors.

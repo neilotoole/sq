@@ -5,7 +5,8 @@ import "github.com/spf13/cobra"
 func newHelpCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "help",
-		Short:  "Show sq help",
+		Short:  "Show help",
+		Long:   "Show help.",
 		Hidden: true,
 		RunE:   execHelp,
 	}

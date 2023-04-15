@@ -21,8 +21,29 @@ import (
 func newVersionCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "version",
-		Short: "Print sq version",
+		Short: "Show version info",
+		Long:  "Show version info. Use --verbose for more detail.",
 		RunE:  execVersion,
+		Example: `  # Show version (note that an update is available)
+  $ sq version
+  sq v0.32.0    Update available: v0.33.0
+
+  # Verbose output
+  $ sq version -v
+  sq v0.32.0    #4e176716    2023-04-15T15:46:00Z    Update available: v0.33.0
+
+  # JSON output
+  $ sq version -j
+  {
+    "version": "v0.32.0",
+    "commit": "4e176716",
+    "timestamp": "2023-04-15T15:53:38Z",
+    "latest_version": "v0.33.0"
+  }
+
+  # Extract just the semver string
+  $ sq version -j | jq -r .version
+  v0.32.0`,
 	}
 
 	cmd.Flags().BoolP(flagJSON, flagJSONShort, false, flagJSONUsage)

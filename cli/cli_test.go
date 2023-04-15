@@ -41,7 +41,7 @@ func TestSmoke(t *testing.T) {
 		{a: []string{"--version"}},
 		{a: []string{"help"}},
 		{a: []string{"--help"}},
-		{a: []string{"ping", "--all"}},
+		{a: []string{"ping", "/"}},
 		{a: []string{"ping", "--help"}},
 		{a: []string{"ping"}, errBecause: "no active data source"},
 	}

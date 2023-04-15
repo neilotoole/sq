@@ -1,10 +1,13 @@
 package source
 
 import (
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
 	"unicode"
+
+	"golang.org/x/exp/slices"
 
 	"github.com/neilotoole/sq/libsq/core/stringz"
 
@@ -12,17 +15,26 @@ import (
 )
 
 var (
-	handlePattern = regexp.MustCompile(`\A@[a-zA-Z][a-zA-Z0-9_]*$`)
+	handlePattern = regexp.MustCompile(`\A@([a-zA-Z][a-zA-Z0-9_]*)(/[a-zA-Z][a-zA-Z0-9_]*)*$`)
+	groupPattern  = regexp.MustCompile(`\A([a-zA-Z][a-zA-Z0-9_]*)(/[a-zA-Z][a-zA-Z0-9_]*)*$`)
 	tablePattern  = regexp.MustCompile(`\A[a-zA-Z_][a-zA-Z0-9_]*$`)
 )
 
-// VerifyLegalHandle returns an error if handle is
+// ValidHandle returns an error if handle is
 // not an acceptable source handle value.
 // Valid input must match:
 //
-//	\A@[a-zA-Z][a-zA-Z0-9_]*$
-func VerifyLegalHandle(handle string) error {
-	const msg = `invalid data source handle {%s}: must begin with @, followed by a letter, followed by zero or more letters, digits, or underscores, e.g. "@my_db1"` //nolint:lll
+//	\A@([a-zA-Z][a-zA-Z0-9_]*)(/[a-zA-Z][a-zA-Z0-9_]*)*$
+//
+// Examples:
+//
+//	@handle
+//	@group/handle
+//	@group/sub/sub2/handle
+//
+// See also: IsValidHandle.
+func ValidHandle(handle string) error {
+	const msg = `invalid source handle: %s`
 	matches := handlePattern.MatchString(handle)
 	if !matches {
 		return errz.Errorf(msg, handle)
@@ -31,17 +43,50 @@ func VerifyLegalHandle(handle string) error {
 	return nil
 }
 
-// verifyLegalTableName returns an error if table is not an
+// IsValidHandle returns false if handle is not a valid handle.
+//
+// See also: ValidHandle.
+func IsValidHandle(handle string) bool {
+	return handlePattern.MatchString(handle)
+}
+
+// validTableName returns an error if table is not an
 // acceptable table name. Valid input must match:
 //
 //	\A[a-zA-Z_][a-zA-Z0-9_]*$`
-func verifyLegalTableName(table string) error {
-	const msg = `invalid table name {%s}: must begin a letter or underscore, followed by zero or more letters, digits, or underscores, e.g. "tbl1" or "_tbl2"` //nolint:lll
+func validTableName(table string) error {
+	const msg = `invalid table name: %s`
 
 	matches := tablePattern.MatchString(table)
 	if !matches {
 		return errz.Errorf(msg, table)
 	}
+	return nil
+}
+
+// IsValidGroup returns true if group is a valid group.
+// Examples:
+//
+//	/
+//	prod
+//	prod/customer
+//	prod/customer/pg
+//
+// Note that "/" is a special case, representing the root group.
+func IsValidGroup(group string) bool {
+	if group == "" || group == "/" {
+		return true
+	}
+
+	return groupPattern.MatchString(group)
+}
+
+// ValidGroup returns an error if group is not a valid group name.
+func ValidGroup(group string) error {
+	if !IsValidGroup(group) {
+		return errz.Errorf("invalid group: %s", group)
+	}
+
 	return nil
 }
 
@@ -57,13 +102,13 @@ var handleTypeAliases = map[string]string{
 // SuggestHandle suggests a handle based on location and type.
 // If typ is TypeNone, the type will be inferred from loc.
 // The takenFn is used to determine if a suggested handle
-// is free to be used (e.g. "@sakila_csv" -> "@sakila_csv_1", etc).
+// is free to be used (e.g. "@csv/sakila" -> "@csv/sakila1", etc).
 //
 // If the base name (derived from loc) contains illegal handle runes,
 // those are replaced with underscore. If the handle would start with
 // a number or underscore, it will be prefixed with "h" (for "handle").
 // Thus "123.xlsx" becomes "@h123_xlsx".
-func SuggestHandle(typ Type, loc string, takenFn func(string) bool) (string, error) {
+func SuggestHandle(srcs *Set, typ Type, loc string) (string, error) {
 	ploc, err := parseLoc(loc)
 	if err != nil {
 		return "", err
@@ -86,6 +131,13 @@ func SuggestHandle(typ Type, loc string, takenFn func(string) bool) (string, err
 	}
 	// make sure there's nothing funky loc ext or name
 	ext = stringz.SanitizeAlphaNumeric(ext, '_')
+	// NOTE: We used to utilize ext in the suggested handle name,
+	// e.g. "@actor_csv". With the advent of source groups, we now
+	// use the active group instead, e.g. "@prod/actor". So, it's
+	// probably safe to rip out all the ext stuff, although maybe
+	// UX reports will suggest that "@prod/csv/actor" is preferable,
+	// and thus we would still need ext.
+	_ = ext
 	name := stringz.SanitizeAlphaNumeric(ploc.name, '_')
 
 	// if the name is empty, we use "h" (for "handle"), e.g "@h".
@@ -97,22 +149,31 @@ func SuggestHandle(typ Type, loc string, takenFn func(string) bool) (string, err
 		name = "h" + name
 	}
 
-	base := "@" + name
-	if ext != "" {
-		base += "_" + ext
+	g := srcs.ActiveGroup()
+	switch g {
+	case "/", "":
+		g = ""
+	default:
+		g += "/"
 	}
 
+	base := "@" + g + name
+
 	// Beginning with base as candidate, check if
-	// candidate is taken; if so, append _N, where
-	// N is a count starting at 1.
+	// candidate is taken; if so, append N, where
+	// N is a count starting at 1. For example:
+	//
+	//  @actor
+	//  @actor2
+	//  @actor3
 	candidate := base
-	var count int
+	count := 1
 	for {
-		if count > 0 {
-			candidate = base + "_" + strconv.Itoa(count)
+		if count > 1 {
+			candidate = base + strconv.Itoa(count)
 		}
 
-		if !takenFn(candidate) {
+		if !srcs.IsExistingSource(candidate) && !srcs.IsExistingGroup(candidate[1:]) {
 			return candidate, nil
 		}
 
@@ -135,7 +196,7 @@ func ParseTableHandle(input string) (handle, table string, err error) {
 	if strings.Contains(trimmed, ".") {
 		if trimmed[0] == '.' {
 			// starts with a period; so it's only the table name
-			err = verifyLegalTableName(trimmed[1:])
+			err = validTableName(trimmed[1:])
 			if err != nil {
 				return "", "", err
 			}
@@ -148,12 +209,12 @@ func ParseTableHandle(input string) (handle, table string, err error) {
 			return "", "", errz.Errorf("invalid handle/table input: %s", input)
 		}
 
-		err = VerifyLegalHandle(parts[0])
+		err = ValidHandle(parts[0])
 		if err != nil {
 			return "", "", err
 		}
 
-		err = verifyLegalTableName(parts[1])
+		err = validTableName(parts[1])
 		if err != nil {
 			return "", "", err
 		}
@@ -162,10 +223,35 @@ func ParseTableHandle(input string) (handle, table string, err error) {
 	}
 
 	// input does not contain a period, therefore it must be a handle by itself
-	err = VerifyLegalHandle(trimmed)
+	err = ValidHandle(trimmed)
 	if err != nil {
 		return "", "", err
 	}
 
 	return trimmed, "", err
+}
+
+// Contains returns true if srcs contains s, where s is a Source or a source handle.
+func Contains[S *Source | ~string](srcs []*Source, s S) bool {
+	if len(srcs) == 0 {
+		return false
+	}
+
+	switch s := any(s).(type) {
+	case *Source:
+		return slices.Contains(srcs, s)
+	case string:
+		for i := range srcs {
+			if srcs[i] != nil {
+				if srcs[i].Handle == s {
+					return true
+				}
+			}
+		}
+	default:
+		// Can never happen
+		panic(fmt.Sprintf("unknown type %T: %v", s, s))
+	}
+
+	return false
 }

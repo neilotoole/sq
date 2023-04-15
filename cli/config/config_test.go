@@ -35,7 +35,7 @@ func TestFileStore_LoadSaveLoad(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
 	require.NotNil(t, cfg.Sources)
-	require.Equal(t, expectGood01SrcCount, len(cfg.Sources.Items()))
+	require.Equal(t, expectGood01SrcCount, len(cfg.Sources.Sources()))
 
 	f, err := os.CreateTemp("", "*.sq.yml")
 	require.NoError(t, err)
@@ -50,7 +50,7 @@ func TestFileStore_LoadSaveLoad(t *testing.T) {
 	cfg2, err := fs.Load()
 	require.NoError(t, err)
 	require.NotNil(t, cfg2)
-	require.Equal(t, expectGood01SrcCount, len(cfg2.Sources.Items()))
+	require.Equal(t, expectGood01SrcCount, len(cfg2.Sources.Sources()))
 	require.EqualValues(t, cfg, cfg2)
 }
 

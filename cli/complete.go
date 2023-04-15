@@ -4,6 +4,8 @@ import (
 	"context"
 	"strings"
 
+	"golang.org/x/exp/slices"
+
 	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"github.com/samber/lo"
@@ -31,11 +33,52 @@ func completeHandle(max int) completionFunc {
 		}
 
 		rc := RunContextFrom(cmd.Context())
-
 		handles := rc.Config.Sources.Handles()
-		handles, _ = lo.Difference(handles, args)
+		handles = lo.Reject(handles, func(item string, index int) bool {
+			return !strings.HasPrefix(item, toComplete)
+		})
 
+		slices.Sort(handles) // REVISIT: what's the logic for sorting or not?
+		handles, _ = lo.Difference(handles, args)
 		return handles, cobra.ShellCompDirectiveNoFileComp
+	}
+}
+
+// completeGroup is a completionFunc that suggests groups.
+// The max arg is the maximum number of completions. Set to 0
+// for no limit.
+func completeGroup(max int) completionFunc {
+	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if max > 0 && len(args) >= max {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		rc := RunContextFrom(cmd.Context())
+		groups := rc.Config.Sources.Groups()
+		groups, _ = lo.Difference(groups, args)
+		groups = lo.Uniq(groups)
+		slices.Sort(groups)
+		return groups, cobra.ShellCompDirectiveNoFileComp
+	}
+}
+
+// completeHandleOrGroup returns the matching list of handles+groups.
+func completeHandleOrGroup(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	switch {
+	case toComplete == "":
+		items, _ := completeHandle(0)(cmd, args, toComplete)
+		groups, _ := completeGroup(0)(cmd, args, toComplete)
+		items = append(items, groups...)
+		items = lo.Uniq(items)
+		return items, cobra.ShellCompDirectiveNoFileComp
+	case toComplete == "/":
+		return []string{}, cobra.ShellCompDirectiveNoFileComp
+	case toComplete[0] == '@':
+		return completeHandle(0)(cmd, args, toComplete)
+	case source.IsValidGroup(toComplete):
+		return completeGroup(0)(cmd, args, toComplete)
+	default:
+		return nil, cobra.ShellCompDirectiveError
 	}
 }
 
@@ -328,7 +371,7 @@ func (c *handleTableCompleter) completeEither(ctx context.Context, rc *RunContex
 		suggestions = append(suggestions, "."+table)
 	}
 
-	for _, src := range rc.Config.Sources.Items() {
+	for _, src := range rc.Config.Sources.Sources() {
 		if c.onlySQL {
 			isSQL, err = handleIsSQLDriver(rc, src.Handle)
 			if err != nil {

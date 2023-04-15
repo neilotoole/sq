@@ -24,6 +24,10 @@ const (
 	flagHandleShort = "h"
 	flagHandleUsage = "Handle for the source"
 
+	flagListGroup      = "group"
+	flagListGroupShort = "g"
+	flagListGroupUsage = "List groups instead of sources"
+
 	flagHelp = "help"
 
 	flagInsert      = "insert"
@@ -91,16 +95,12 @@ const (
 	flagPingTimeout      = "timeout"
 	flagPingTimeoutUsage = "Max time to wait for ping"
 
-	flagPingAll      = "all"
-	flagPingAllShort = "a"
-	flagPingAllUsage = "Ping all sources"
-
 	flagVerbose      = "verbose"
 	flagVerboseShort = "v"
-	flagVerboseUsage = "Print verbose output, if applicable"
+	flagVerboseUsage = "Verbose output"
 
 	flagVersion      = "version"
-	flagVersionUsage = "Print sq version"
+	flagVersionUsage = "Print version info"
 
 	flagXLSX      = "xlsx"
 	flagXLSXShort = "x"

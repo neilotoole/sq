@@ -158,6 +158,8 @@ handleTable: HANDLE NAME;
 
 // handle is a source handle.
 // - @sakila
+// - @work/acme/sakila
+// - @home/csv/actor
 handle: HANDLE;
 
 // rowRange specifies a range of rows. It gets turned into
@@ -247,7 +249,8 @@ NAME: '.' (ARG | ID | STRING);
 //SEL: '.' (ID | STRING) ('.' (ID | STRING))*;
 
 // HANDLE: @mydb1 or @postgres_db2 etc.
-HANDLE: '@' ID;
+
+HANDLE: '@' ID ('/' ID)*;
 
 STRING: '"' (ESC | ~["\\])* '"';
 fragment ESC: '\\' (["\\/bfnrt] | UNICODE);

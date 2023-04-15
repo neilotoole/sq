@@ -67,7 +67,7 @@ func execQueryTestCase(t *testing.T, tc queryTestCase) {
 
 	t.Helper()
 	srcs := testh.New(t).NewSourceSet(sakila.SQLLatest()...)
-	for _, src := range srcs.Items() {
+	for _, src := range srcs.Sources() {
 		src := src
 
 		t.Run(string(src.Type), func(t *testing.T) {
@@ -86,7 +86,7 @@ func execQueryTestCase(t *testing.T, tc queryTestCase) {
 				want = overrideWant
 			}
 
-			_, err := srcs.SetActive(src.Handle)
+			_, err := srcs.SetActive(src.Handle, false)
 			require.NoError(t, err)
 
 			th := testh.New(t)

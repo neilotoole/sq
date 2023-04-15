@@ -13,16 +13,16 @@ func newRootCmd() *cobra.Command {
 		Short: "sq",
 		Long: `sq is a swiss-army knife for wrangling data.
 
-Use sq to query Postgres, SQLite, SQLServer, MySQL, CSV, TSV
-and Excel, and output in text, JSON, CSV, Excel, HTML, etc., or
-output to a database table.
+Use sq to query Postgres, SQLite, SQLServer, MySQL, CSV, Excel, etc,
+and output in text, JSON, CSV, Excel and so on, or
+write output to a database table.
 
 You can query using sq's own jq-like syntax, or in native SQL.
 
-Execute "sq completion --help" for instructions to install shell completion.
+Use "sq inspect" to view schema metadata. Use the "sq tbl" commands
+to copy, truncate and drop tables. 
 
-More at https://sq.io
-`,
+See docs and more: https://sq.io`,
 		Example: `  # pipe an Excel file and output the first 10 rows from sheet1
   $ cat data.xlsx | sq '.sheet1 | .[0:10]'
 
