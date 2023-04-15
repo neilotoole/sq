@@ -510,7 +510,7 @@ func (s *Set) RemoveGroup(group string) ([]*Source, error) {
 
 	activeGroup := s.activeGroup()
 
-	srcs, err := s.sourcesInGroup(group)
+	srcs, err := s.sourcesInGroup(group, false)
 	if err != nil {
 		return nil, err
 	}
@@ -610,7 +610,7 @@ func (s *Set) handlesInGroup(group string) ([]string, error) {
 		return nil, err
 	}
 
-	groupSrcs, err := s.sourcesInGroup(group)
+	groupSrcs, err := s.sourcesInGroup(group, false)
 	if err != nil {
 		return nil, err
 	}
@@ -708,23 +708,6 @@ func (s *Set) groups() []string {
 	return groups
 }
 
-// GroupMeta holds metadata about a group.
-type GroupMeta struct {
-	// Name is the group name, which may be "/" for the root group.
-	Name string
-
-	// Children is the count of direct src children of the group.
-	Children int
-
-	// Descendants is the total number of source descendants of the
-	// group.
-	Descendants int
-}
-
-// // GroupsMeta returns group metadata.
-// func (s *Set) GroupsMeta() []GroupMeta {
-// }
-
 // ActiveGroup returns the active group, which may be
 // the root group, represented by "/".
 func (s *Set) ActiveGroup() string {
@@ -797,14 +780,25 @@ func (s *Set) SourcesInGroup(group string) ([]*Source, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	return s.sourcesInGroup(group)
+	return s.sourcesInGroup(group, false)
 }
 
-func (s *Set) sourcesInGroup(group string) ([]*Source, error) {
+func (s *Set) sourcesInGroup(group string, directMembersOnly bool) ([]*Source, error) {
 	group = strings.TrimSpace(group)
 	if group == "" || group == "/" {
 		srcs := make([]*Source, len(s.data.Sources))
 		copy(srcs, s.data.Sources)
+
+		if directMembersOnly {
+			srcs = lo.Reject(srcs, func(item *Source, index int) bool {
+				srcGroup := item.Group()
+				if srcGroup == "/" || srcGroup == "" {
+					return false
+				}
+				return srcGroup != group
+			})
+		}
+
 		Sort(srcs)
 		return srcs, nil
 	}
@@ -821,8 +815,161 @@ func (s *Set) sourcesInGroup(group string) ([]*Source, error) {
 		}
 	}
 
+	if directMembersOnly {
+		srcs = lo.Reject(srcs, func(item *Source, index int) bool {
+			return item.Group() != group
+		})
+	}
+
 	Sort(srcs)
 	return srcs, nil
+}
+
+// Tree returns a new Group representing the structure of the set
+// starting at fromGroup downwards. If fromGroup is empty, RootGroup is used.
+// The Group structure is a snapshot of the Set at the time Tree is invoked.
+// Thus, any change to Set structure is not reflected in the Group. However,
+// the Source elements of Group are pointers back to the Set elements, and
+// thus changes to the fields of a Source are reflected in the Set.
+func (s *Set) Tree(fromGroup string) (*Group, error) {
+	if s == nil {
+		return nil, nil //nolint:nilnil
+	}
+
+	if fromGroup == "" {
+		fromGroup = RootGroup
+	}
+
+	if err := ValidGroup(fromGroup); err != nil {
+		return nil, err
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return s.tree(fromGroup)
+}
+
+func (s *Set) tree(fromGroup string) (*Group, error) {
+	group := &Group{
+		Name: fromGroup,
+	}
+
+	var err error
+	if group.Sources, err = s.sourcesInGroup(fromGroup, true); err != nil {
+		return nil, err
+	}
+
+	// This part does a bunch of repeated work, but probably doesn't matter.
+	groupNames := s.groups()
+	// We only want the direct children of fromGroup.
+	groupNames = groupsFilterOnlyDirectChildren(fromGroup, groupNames)
+
+	group.Children = make([]*Group, len(groupNames))
+	for i := range groupNames {
+		if group.Children[i], err = s.tree(groupNames[i]); err != nil {
+			return nil, err
+		}
+	}
+
+	return group, nil
+}
+
+// Group models the hierarchical group structure of a set.
+type Group struct {
+	// Name is the group name.
+	Name string
+
+	// Sources are the direct members of the group.
+	Sources []*Source
+
+	// Children holds any subgroups.
+	Children []*Group
+}
+
+// Count returns counts for g.
+//
+// - directSrc: direct source child members of g
+// - allSrc: all source descendants of g
+// - directGroup: direct group child members of g
+// - allGroup: all group descendants of g
+//
+// If g is empty, {0,0,0,0} is returned.
+func (g *Group) Count() (directSrc, allSrc, directGroup, allGroup int) {
+	if g == nil {
+		return 0, 0, 0, 0
+	}
+
+	directSrc = len(g.Sources)
+	directGroup = len(g.Children)
+
+	allSrc = directSrc
+	allGroup = directGroup
+
+	for i := range g.Children {
+		_, srcCount, _, groupCount := g.Children[i].Count()
+		allSrc += srcCount
+		allGroup += groupCount
+	}
+
+	return directSrc, allSrc, directGroup, allGroup
+}
+
+// String returns a log/debug friendly representation.
+func (g *Group) String() string {
+	return g.Name
+}
+
+// AllSources returns a new flattened slice of *Source containing
+// all the sources in g and its descendants.
+func (g *Group) AllSources() []*Source {
+	if g == nil {
+		return []*Source{}
+	}
+
+	srcs := make([]*Source, 0, len(g.Sources))
+	srcs = append(srcs, g.Sources...)
+	for i := range g.Children {
+		srcs = append(srcs, g.Children[i].AllSources()...)
+	}
+
+	Sort(srcs)
+	return srcs
+}
+
+// AllGroups returns a new flattened slice of Groups containing g
+// and any subgroups.
+func (g *Group) AllGroups() []*Group {
+	if g == nil {
+		return []*Group{}
+	}
+	groups := make([]*Group, 1, len(g.Children)+1)
+	groups[0] = g
+	for i := range g.Children {
+		groups = append(groups, g.Children[i].AllGroups()...)
+	}
+
+	SortGroups(groups)
+	return groups
+}
+
+// groupsFilterOnlyDirectChildren rejects from groups any element that
+// is not a direct child of parentGroup.
+func groupsFilterOnlyDirectChildren(parentGroup string, groups []string) []string {
+	groups = lo.Reject(groups, func(item string, index int) bool {
+		if parentGroup == "/" {
+			return strings.ContainsRune(item, '/')
+		}
+
+		if !strings.HasPrefix(item, parentGroup+"/") {
+			return true
+		}
+
+		item = strings.TrimPrefix(item, parentGroup+"/")
+		return strings.ContainsRune(item, '/')
+	})
+
+	return groups
 }
 
 // VerifySetIntegrity verifies the internal state of s.
@@ -873,24 +1020,34 @@ func VerifySetIntegrity(ss *Set) (repaired bool, err error) {
 	return repaired, nil
 }
 
-// validSource performs basic checking on source s.
-func validSource(s *Source) error {
-	if s == nil {
-		return errz.New("source is nil")
-	}
+// Sort sorts a slice of sources by handle.
+func Sort(srcs []*Source) {
+	slices.SortFunc(srcs, func(a, b *Source) bool {
+		switch {
+		case a == nil && b == nil:
+			return false
+		case a == nil:
+			return true
+		case b == nil:
+			return false
+		default:
+			return a.Handle < b.Handle
+		}
+	})
+}
 
-	err := ValidHandle(s.Handle)
-	if err != nil {
-		return err
-	}
-
-	if strings.TrimSpace(s.Location) == "" {
-		return errz.New("source location is empty")
-	}
-
-	if s.Type == TypeNone {
-		return errz.Errorf("source type is empty or unknown: {%s}", s.Type)
-	}
-
-	return nil
+// SortGroups sorts a slice of groups by name.
+func SortGroups(groups []*Group) {
+	slices.SortFunc(groups, func(a, b *Group) bool {
+		switch {
+		case a == nil && b == nil:
+			return false
+		case a == nil:
+			return true
+		case b == nil:
+			return false
+		default:
+			return a.Name < b.Name
+		}
+	})
 }

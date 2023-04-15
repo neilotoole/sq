@@ -639,7 +639,7 @@ func (h *Helper) DiffDB(src *source.Source) {
 		return
 	}
 
-	h.T.Logf("Executing DiffDB for %s", src.Handle) // FIXME: zap this
+	h.T.Logf("Executing DiffDB for %s", src.Handle)
 
 	beforeDB := h.openNew(src)
 	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, beforeDB)

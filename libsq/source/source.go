@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"strings"
 
-	"golang.org/x/exp/slices"
+	"github.com/neilotoole/sq/libsq/core/errz"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
@@ -99,7 +99,10 @@ func (s *Source) String() string {
 	return fmt.Sprintf("%s|%s| %s", s.Handle, s.Type, s.RedactedLocation())
 }
 
-// Group returns the source's group.
+// Group returns the source's group. If s is in the root group,
+// the empty string is returned.
+//
+// FIXME: For root group, should "/" be returned instead of empty string?
 func (s *Source) Group() string {
 	return groupFromHandle(s.Handle)
 }
@@ -136,22 +139,6 @@ func (s *Source) Clone() *Source {
 		Location: s.Location,
 		Options:  s.Options.Clone(),
 	}
-}
-
-// Sort sorts a slice of sources by handle.
-func Sort(srcs []*Source) {
-	slices.SortFunc(srcs, func(a, b *Source) bool {
-		switch {
-		case a == nil && b == nil:
-			return false
-		case a == nil:
-			return true
-		case b == nil:
-			return false
-		default:
-			return a.Handle < b.Handle
-		}
-	})
 }
 
 // RedactLocation returns a redacted version of the source
@@ -232,4 +219,26 @@ func Target(src *Source, tbl string) string {
 	}
 
 	return src.Handle + "." + tbl
+}
+
+// validSource performs basic checking on source s.
+func validSource(s *Source) error {
+	if s == nil {
+		return errz.New("source is nil")
+	}
+
+	err := ValidHandle(s.Handle)
+	if err != nil {
+		return err
+	}
+
+	if strings.TrimSpace(s.Location) == "" {
+		return errz.New("source location is empty")
+	}
+
+	if s.Type == TypeNone {
+		return errz.Errorf("source type is empty or unknown: {%s}", s.Type)
+	}
+
+	return nil
 }

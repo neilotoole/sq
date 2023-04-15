@@ -28,7 +28,7 @@ func newSource(handle string) *source.Source {
 	}
 }
 
-func TestGroups(t *testing.T) {
+func TestSet_Groups(t *testing.T) {
 	srcs := []*source.Source{
 		{Handle: "@db1", Location: "0"},
 		{Handle: "@prod/db1", Location: "1"},
@@ -487,4 +487,48 @@ func TestSet_RenameSource_conflictsWithExistingGroup(t *testing.T) {
 	gotSrc, err = ss.RenameSource(src1.Handle, "@prod")
 	require.Error(t, err)
 	require.Nil(t, gotSrc)
+}
+
+func TestSet_Tree(t *testing.T) {
+	ss := &source.Set{}
+
+	require.NoError(t, ss.Add(newSource("@sakila_csv")))
+	require.NoError(t, ss.Add(newSource("@sakila_tsv")))
+	require.NoError(t, ss.Add(newSource("@dev/db1")))
+	require.NoError(t, ss.Add(newSource("@dev/pg/db1")))
+	require.NoError(t, ss.Add(newSource("@dev/pg/db2")))
+	require.NoError(t, ss.Add(newSource("@dev/pg/db3")))
+	require.NoError(t, ss.Add(newSource("@staging/db1")))
+	require.NoError(t, ss.Add(newSource("@prod/pg/db1")))
+	require.NoError(t, ss.Add(newSource("@prod/pg/db2")))
+	require.NoError(t, ss.Add(newSource("@prod/pg/backup/db1")))
+	require.NoError(t, ss.Add(newSource("@prod/pg/backup/db2")))
+
+	gotSrcs := ss.Sources()
+	require.Len(t, gotSrcs, 11)
+
+	gotGroupNames := ss.Groups()
+	require.Len(t, gotGroupNames, 7)
+
+	gotTree, err := ss.Tree(source.RootGroup)
+	require.NoError(t, err)
+
+	directSrcCount, allSrcCount, directGroupCount, allGroupCount := gotTree.Count()
+	require.Equal(t, 2, directSrcCount)
+	require.Equal(t, directSrcCount, len(gotTree.Sources))
+	require.Equal(t, 11, allSrcCount)
+	require.Equal(t, 3, directGroupCount)
+	require.Equal(t, directGroupCount, len(gotTree.Children))
+	require.Equal(t, 6, allGroupCount)
+
+	// Try with a subgroup
+	gotTree, err = ss.Tree("dev")
+	require.NoError(t, err)
+	directSrcCount, allSrcCount, directGroupCount, allGroupCount = gotTree.Count()
+	require.Equal(t, 1, directSrcCount)
+	require.Equal(t, directSrcCount, len(gotTree.Sources))
+	require.Equal(t, 4, allSrcCount)
+	require.Equal(t, 1, directGroupCount)
+	require.Equal(t, directGroupCount, len(gotTree.Children))
+	require.Equal(t, 1, allGroupCount)
 }
