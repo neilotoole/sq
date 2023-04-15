@@ -46,7 +46,6 @@ func (w *sourceWriter) SourceSet(ss *source.Set) error {
 	}
 
 	srcs := ss.Sources()
-
 	for _, src := range srcs {
 		if !slices.Contains(handles, src.Handle) {
 			if err = ss.Remove(src.Handle); err != nil {
@@ -99,7 +98,8 @@ func (w *sourceWriter) Group(group *source.Group) error {
 	if group == nil {
 		return nil
 	}
-	// m := map[string]string{"group": group.Name}
+
+	group.RedactLocations()
 	return writeJSON(w.out, w.fm, group)
 }
 
@@ -108,10 +108,13 @@ func (w *sourceWriter) SetActiveGroup(group *source.Group) error {
 	if group == nil {
 		return nil
 	}
+
+	group.RedactLocations()
 	return writeJSON(w.out, w.fm, group)
 }
 
 // Groups implements output.SourceWriter.
 func (w *sourceWriter) Groups(tree *source.Group) error {
+	tree.RedactLocations()
 	return writeJSON(w.out, w.fm, tree)
 }

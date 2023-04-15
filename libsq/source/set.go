@@ -941,6 +941,23 @@ func (g *Group) AllSources() []*Source {
 	return srcs
 }
 
+// RedactLocations modifies g, cloning each descendant Source, and setting
+// the Source.Location field of each contained source to its redacted value.
+func (g *Group) RedactLocations() {
+	if g == nil {
+		return
+	}
+
+	for i := range g.Sources {
+		g.Sources[i] = g.Sources[i].Clone()
+		g.Sources[i].Location = g.Sources[i].RedactedLocation()
+	}
+
+	for i := range g.Groups {
+		g.Groups[i].RedactLocations()
+	}
+}
+
 // AllGroups returns a new flattened slice of Groups containing g
 // and any subgroups.
 func (g *Group) AllGroups() []*Group {

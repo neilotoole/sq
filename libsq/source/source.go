@@ -141,6 +141,23 @@ func (s *Source) Clone() *Source {
 	}
 }
 
+// RedactSources returns a new slice, where each element
+// is a clone of the input *Source with its location field
+// redacted. This is useful for printing.
+func RedactSources(srcs ...*Source) []*Source {
+	a := make([]*Source, len(srcs))
+	for i := range a {
+		if srcs[i] == nil {
+			continue
+		}
+
+		a[i] = srcs[i].Clone()
+		a[i].Location = a[i].RedactedLocation()
+	}
+
+	return a
+}
+
 // RedactLocation returns a redacted version of the source
 // location loc, with the password component (if any) of
 // the location masked.
