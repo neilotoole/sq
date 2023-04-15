@@ -38,7 +38,7 @@ func (w *sourceWriter) SourceSet(ss *source.Set) error {
 		// Print the short version
 		var rows [][]string
 
-		for i, src := range items {
+		for _, src := range items {
 			row := []string{
 				src.Handle,
 				string(src.Type),
@@ -47,10 +47,6 @@ func (w *sourceWriter) SourceSet(ss *source.Set) error {
 
 			if ss.Active() != nil && ss.Active().Handle == src.Handle {
 				row[0] = fm.Active.Sprintf(row[0])
-
-				w.tbl.tblImpl.SetCellTrans(i, 0, fm.Active.SprintFunc())
-				w.tbl.tblImpl.SetCellTrans(i, 1, fm.Active.SprintFunc())
-				w.tbl.tblImpl.SetCellTrans(i, 2, fm.Active.SprintFunc())
 			}
 
 			rows = append(rows, row)
@@ -64,24 +60,20 @@ func (w *sourceWriter) SourceSet(ss *source.Set) error {
 
 	// Else print verbose
 
-	// "HANDLE", "DRIVER", "LOCATION", "OPTIONS"
+	// "HANDLE", "DRIVER", "LOCATION", "ACTIVE", "OPTIONS"
 	var rows [][]string
-	for i, src := range items {
+	for _, src := range items {
 		row := []string{
 			src.Handle,
 			string(src.Type),
 			src.RedactedLocation(),
+			"",
 			renderSrcOptions(src),
 		}
 
 		if ss.Active() != nil && ss.Active().Handle == src.Handle {
 			row[0] = fm.Active.Sprintf(row[0])
-
-			w.tbl.tblImpl.SetCellTrans(i, 0, fm.Active.SprintFunc())
-			w.tbl.tblImpl.SetCellTrans(i, 1, fm.Active.SprintFunc())
-			w.tbl.tblImpl.SetCellTrans(i, 2, fm.Active.SprintFunc())
-			w.tbl.tblImpl.SetCellTrans(i, 3, fm.Active.SprintFunc())
-			w.tbl.tblImpl.SetCellTrans(i, 4, fm.Active.SprintFunc())
+			row[3] = fm.Bool.Sprintf("active")
 		}
 
 		rows = append(rows, row)
@@ -89,13 +81,22 @@ func (w *sourceWriter) SourceSet(ss *source.Set) error {
 
 	w.tbl.tblImpl.SetHeaderDisable(!fm.ShowHeader)
 	w.tbl.tblImpl.SetColTrans(0, fm.Handle.SprintFunc())
-	w.tbl.tblImpl.SetHeader([]string{"HANDLE", "DRIVER", "LOCATION", "OPTIONS"})
+	w.tbl.tblImpl.SetHeader([]string{"HANDLE", "DRIVER", "LOCATION", "ACTIVE", "OPTIONS"})
 	w.tbl.appendRowsAndRenderAll(rows)
 	return nil
 }
 
 // Source implements output.SourceWriter.
-func (w *sourceWriter) Source(src *source.Source) error {
+func (w *sourceWriter) Source(ss *source.Set, src *source.Source) error {
+	if src == nil {
+		return nil
+	}
+
+	var isActiveSrc bool
+	if ss != nil && ss.Active() == src {
+		isActiveSrc = true
+	}
+
 	if !w.tbl.fm.Verbose {
 		var rows [][]string
 		row := []string{
@@ -104,7 +105,13 @@ func (w *sourceWriter) Source(src *source.Source) error {
 			source.ShortLocation(src.Location),
 		}
 		rows = append(rows, row)
-		w.tbl.tblImpl.SetColTrans(0, w.tbl.fm.Number.SprintFunc())
+
+		if isActiveSrc {
+			w.tbl.tblImpl.SetColTrans(0, w.tbl.fm.Active.SprintFunc())
+		} else {
+			w.tbl.tblImpl.SetColTrans(0, w.tbl.fm.Handle.SprintFunc())
+		}
+
 		w.tbl.tblImpl.SetHeaderDisable(true)
 		w.tbl.appendRowsAndRenderAll(rows)
 		return nil
@@ -119,7 +126,12 @@ func (w *sourceWriter) Source(src *source.Source) error {
 	}
 	rows = append(rows, row)
 
-	w.tbl.tblImpl.SetColTrans(0, w.tbl.fm.Number.SprintFunc())
+	if isActiveSrc {
+		w.tbl.tblImpl.SetColTrans(0, w.tbl.fm.Active.SprintFunc())
+	} else {
+		w.tbl.tblImpl.SetColTrans(0, w.tbl.fm.Handle.SprintFunc())
+	}
+
 	w.tbl.tblImpl.SetHeaderDisable(true)
 	w.tbl.appendRowsAndRenderAll(rows)
 	return nil
@@ -160,17 +172,27 @@ func renderSrcOptions(src *source.Source) string {
 }
 
 // Group implements output.SourceWriter.
-func (w *sourceWriter) Group(group string) error {
-	if group == "" {
+func (w *sourceWriter) Group(group *source.Group) error {
+	if group == nil {
 		return nil
 	}
+	fm := w.tbl.fm
 
-	_, err := w.tbl.fm.Handle.Fprintln(w.tbl.out, group)
-	return err
+	if !fm.Verbose {
+		if group.Active {
+			_, err := fm.Active.Fprintln(w.tbl.out, group)
+			return err
+		}
+		_, err := fm.Handle.Fprintln(w.tbl.out, group)
+		return err
+	}
+
+	// fm.Verbose is true
+	return w.renderGroups([]*source.Group{group})
 }
 
 // SetActiveGroup implements output.SourceWriter.
-func (w *sourceWriter) SetActiveGroup(group string) error {
+func (w *sourceWriter) SetActiveGroup(group *source.Group) error {
 	if !w.tbl.fm.Verbose {
 		// Only print the group if --verbose
 		return nil
@@ -180,9 +202,7 @@ func (w *sourceWriter) SetActiveGroup(group string) error {
 	return err
 }
 
-// Groups implements output.SourceWriter.
-func (w *sourceWriter) Groups(tree *source.Group) error {
-	groups := tree.AllGroups()
+func (w *sourceWriter) renderGroups(groups []*source.Group) error {
 	fm := w.tbl.fm
 
 	if !fm.Verbose {
@@ -222,6 +242,7 @@ func (w *sourceWriter) Groups(tree *source.Group) error {
 
 		if g.Active {
 			row[0] = fm.Active.Sprintf(row[0])
+			row[5] = fm.Bool.Sprintf("active")
 		} else {
 			// Don't render value for active==false. It's just noise.
 			row[5] = ""
@@ -240,6 +261,12 @@ func (w *sourceWriter) Groups(tree *source.Group) error {
 
 	w.tbl.appendRowsAndRenderAll(rows)
 	return nil
+}
+
+// Groups implements output.SourceWriter.
+func (w *sourceWriter) Groups(tree *source.Group) error {
+	groups := tree.AllGroups()
+	return w.renderGroups(groups)
 }
 
 // rowEmptyZeroes sets "0" to empty string. This seems to

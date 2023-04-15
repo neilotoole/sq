@@ -28,8 +28,14 @@ any further descendants.
   # List sources in the root group (will list all sources)
   $ sq ls /
 
-  # List groups instead of sources
-  $ sq ls -g`,
+  # List groups (all) instead of sources
+  $ sq ls -g
+
+  # Print verbose group details
+  $ sq ls -gv
+
+  # List subgroups in "prod" group
+  $ sq ls -g prod`,
 	}
 
 	cmd.Flags().BoolP(flagHeader, flagHeaderShort, false, flagHeaderUsage)
@@ -43,26 +49,39 @@ func execList(cmd *cobra.Command, args []string) error {
 	rc := RunContextFrom(cmd.Context())
 	srcs := rc.Config.Sources
 
-	if len(args) == 1 {
-		if err := srcs.SetActiveGroup(args[0]); err != nil {
-			return err
-		}
-	}
-
 	if cmdFlagTrue(cmd, flagListGroups) {
-		if len(args) > 0 {
-			return errz.New("invalid: the --group / -g flag does not take arguments")
-		}
-		// Print groups instead of sources.
-		//
-		//  $ sq ls -g
+		// We're listing groups, not sources.
 
-		tree, err := srcs.Tree(source.RootGroup)
+		var fromGroup string
+		switch len(args) {
+		case 0:
+			fromGroup = source.RootGroup
+		case 1:
+			if err := source.ValidGroup(args[0]); err != nil {
+				return errz.Wrapf(err, "invalid value for --%s", flagListGroups)
+			}
+			fromGroup = args[0]
+		default:
+			return errz.Errorf("invalid: --%s takes a max of 1 arg", flagListGroups)
+		}
+
+		tree, err := srcs.Tree(fromGroup)
 		if err != nil {
 			return err
 		}
 
 		return rc.writers.srcw.Groups(tree)
+	}
+
+	// We're listing sources, not groups.
+
+	if len(args) == 1 {
+		// We want to list the sources in a group. To do this, we
+		// (temporarily) set the active group, and then continue below.
+		// $ sq ls prod
+		if err := srcs.SetActiveGroup(args[0]); err != nil {
+			return err
+		}
 	}
 
 	return rc.writers.srcw.SourceSet(srcs)

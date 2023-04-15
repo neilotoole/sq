@@ -60,16 +60,16 @@ type SourceWriter interface {
 	SourceSet(srcs *source.Set) error
 
 	// Source outputs details of the source.
-	Source(src *source.Source) error
+	Source(ss *source.Set, src *source.Source) error
 
 	// Removed is called when sources are removed from the source set.
 	Removed(srcs ...*source.Source) error
 
 	// Group prints the group.
-	Group(group string) error
+	Group(group *source.Group) error
 
 	// SetActiveGroup is called when the group is set.
-	SetActiveGroup(group string) error
+	SetActiveGroup(group *source.Group) error
 
 	// Groups prints a list of groups.
 	Groups(tree *source.Group) error

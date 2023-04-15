@@ -42,8 +42,13 @@ func execGroup(cmd *cobra.Command, args []string) error {
 
 	if len(args) == 0 {
 		// Get the active group
-		group := cfg.Sources.ActiveGroup()
-		return rc.writers.srcw.Group(group)
+		groupName := cfg.Sources.ActiveGroup()
+		tree, err := cfg.Sources.Tree(groupName)
+		if err != nil {
+			return err
+		}
+
+		return rc.writers.srcw.Group(tree)
 	}
 
 	group := strings.TrimSpace(args[0])
@@ -59,5 +64,11 @@ func execGroup(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return rc.writers.srcw.SetActiveGroup(group)
+	groupName := cfg.Sources.ActiveGroup()
+	tree, err := cfg.Sources.Tree(groupName)
+	if err != nil {
+		return err
+	}
+
+	return rc.writers.srcw.Group(tree)
 }

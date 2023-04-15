@@ -79,7 +79,12 @@ func execMoveRenameGroup(cmd *cobra.Command, oldGroup, newGroup string) error {
 		return err
 	}
 
-	return rc.writers.srcw.Group(newGroup)
+	tree, err := rc.Config.Sources.Tree(newGroup)
+	if err != nil {
+		return err
+	}
+
+	return rc.writers.srcw.Group(tree)
 }
 
 // execMoveHandleToGroup moves a source to a group.
@@ -104,7 +109,7 @@ func execMoveHandleToGroup(cmd *cobra.Command, oldHandle, newGroup string) error
 		return err
 	}
 
-	return rc.writers.srcw.Source(src)
+	return rc.writers.srcw.Source(rc.Config.Sources, src)
 }
 
 // execMoveRenameHandle renames a handle.
@@ -126,7 +131,7 @@ func execMoveRenameHandle(cmd *cobra.Command, oldHandle, newHandle string) error
 		return err
 	}
 
-	return rc.writers.srcw.Source(src)
+	return rc.writers.srcw.Source(rc.Config.Sources, src)
 }
 
 // completeMove is a completionFunc for the "mv" command.

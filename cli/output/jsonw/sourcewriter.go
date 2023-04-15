@@ -70,7 +70,7 @@ func (w *sourceWriter) SourceSet(ss *source.Set) error {
 }
 
 // Source implements output.SourceWriter.
-func (w *sourceWriter) Source(src *source.Source) error {
+func (w *sourceWriter) Source(_ *source.Set, src *source.Source) error {
 	if src == nil {
 		return nil
 	}
@@ -95,21 +95,20 @@ func (w *sourceWriter) Removed(srcs ...*source.Source) error {
 }
 
 // Group implements output.SourceWriter.
-func (w *sourceWriter) Group(group string) error {
-	if group == "" {
-		group = "/"
+func (w *sourceWriter) Group(group *source.Group) error {
+	if group == nil {
+		return nil
 	}
-	m := map[string]string{"group": group}
-	return writeJSON(w.out, w.fm, m)
+	// m := map[string]string{"group": group.Name}
+	return writeJSON(w.out, w.fm, group)
 }
 
 // SetActiveGroup implements output.SourceWriter.
-func (w *sourceWriter) SetActiveGroup(group string) error {
-	if group == "" {
-		group = "/"
+func (w *sourceWriter) SetActiveGroup(group *source.Group) error {
+	if group == nil {
+		return nil
 	}
-	m := map[string]string{"group": group}
-	return writeJSON(w.out, w.fm, m)
+	return writeJSON(w.out, w.fm, group)
 }
 
 // Groups implements output.SourceWriter.
