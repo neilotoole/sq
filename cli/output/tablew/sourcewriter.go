@@ -54,26 +54,27 @@ func (w *sourceWriter) SourceSet(ss *source.Set) error {
 
 		w.tbl.tblImpl.SetHeaderDisable(true)
 		w.tbl.tblImpl.SetColTrans(0, fm.Handle.SprintFunc())
+		w.tbl.tblImpl.SetColTrans(2, fm.Location.SprintFunc())
 		w.tbl.appendRowsAndRenderAll(rows)
 		return nil
 	}
 
 	// Else print verbose
 
-	// "HANDLE", "DRIVER", "LOCATION", "ACTIVE", "OPTIONS"
+	// "HANDLE", "ACTIVE", "DRIVER", "LOCATION", "OPTIONS"
 	var rows [][]string
 	for _, src := range items {
 		row := []string{
 			src.Handle,
+			"",
 			string(src.Type),
 			src.RedactedLocation(),
-			"",
 			renderSrcOptions(src),
 		}
 
 		if ss.Active() != nil && ss.Active().Handle == src.Handle {
 			row[0] = fm.Active.Sprintf(row[0])
-			row[3] = fm.Bool.Sprintf("active")
+			row[1] = fm.Bool.Sprintf("active")
 		}
 
 		rows = append(rows, row)
@@ -81,7 +82,8 @@ func (w *sourceWriter) SourceSet(ss *source.Set) error {
 
 	w.tbl.tblImpl.SetHeaderDisable(!fm.ShowHeader)
 	w.tbl.tblImpl.SetColTrans(0, fm.Handle.SprintFunc())
-	w.tbl.tblImpl.SetHeader([]string{"HANDLE", "DRIVER", "LOCATION", "ACTIVE", "OPTIONS"})
+	w.tbl.tblImpl.SetColTrans(3, fm.Location.SprintFunc())
+	w.tbl.tblImpl.SetHeader([]string{"HANDLE", "ACTIVE", "DRIVER", "LOCATION", "OPTIONS"})
 	w.tbl.appendRowsAndRenderAll(rows)
 	return nil
 }
@@ -112,6 +114,7 @@ func (w *sourceWriter) Source(ss *source.Set, src *source.Source) error {
 			w.tbl.tblImpl.SetColTrans(0, w.tbl.fm.Handle.SprintFunc())
 		}
 
+		w.tbl.tblImpl.SetColTrans(2, w.tbl.fm.Location.SprintFunc())
 		w.tbl.tblImpl.SetHeaderDisable(true)
 		w.tbl.appendRowsAndRenderAll(rows)
 		return nil
@@ -132,6 +135,7 @@ func (w *sourceWriter) Source(ss *source.Set, src *source.Source) error {
 		w.tbl.tblImpl.SetColTrans(0, w.tbl.fm.Handle.SprintFunc())
 	}
 
+	w.tbl.tblImpl.SetColTrans(2, w.tbl.fm.Location.SprintFunc())
 	w.tbl.tblImpl.SetHeaderDisable(true)
 	w.tbl.appendRowsAndRenderAll(rows)
 	return nil

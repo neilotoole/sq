@@ -51,6 +51,9 @@ type Formatting struct {
 	// Handle is the color for source handles such as "@my_db"
 	Handle *color.Color
 
+	// Location is the color for Source.Location values.
+	Location *color.Color
+
 	// Active is the color for an active handle (or group, etc).
 	Active *color.Color
 
@@ -93,6 +96,7 @@ func NewFormatting() *Formatting {
 		Active:     color.New(color.FgGreen, color.Bold),
 		Header:     color.New(color.FgBlue, color.Bold),
 		Hilite:     color.New(color.FgHiBlue),
+		Location:   color.New(color.FgGreen),
 		Key:        color.New(color.FgBlue, color.Bold),
 		Null:       color.New(color.Faint),
 		Number:     color.New(color.FgCyan),
