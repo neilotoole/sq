@@ -852,7 +852,8 @@ func (s *Set) Tree(fromGroup string) (*Group, error) {
 
 func (s *Set) tree(fromGroup string) (*Group, error) {
 	group := &Group{
-		Name: fromGroup,
+		Name:   fromGroup,
+		Active: fromGroup == s.activeGroup(),
 	}
 
 	var err error
@@ -865,9 +866,9 @@ func (s *Set) tree(fromGroup string) (*Group, error) {
 	// We only want the direct children of fromGroup.
 	groupNames = groupsFilterOnlyDirectChildren(fromGroup, groupNames)
 
-	group.Children = make([]*Group, len(groupNames))
+	group.Groups = make([]*Group, len(groupNames))
 	for i := range groupNames {
-		if group.Children[i], err = s.tree(groupNames[i]); err != nil {
+		if group.Groups[i], err = s.tree(groupNames[i]); err != nil {
 			return nil, err
 		}
 	}
@@ -877,14 +878,17 @@ func (s *Set) tree(fromGroup string) (*Group, error) {
 
 // Group models the hierarchical group structure of a set.
 type Group struct {
-	// Name is the group name.
-	Name string
+	// Name is the group name. For the root group, this is source.RootGroup ("/").
+	Name string `json:"name" yaml:"name"`
+
+	// Active is true if this is the active group in the set.
+	Active bool `json:"active" yaml:"active"`
 
 	// Sources are the direct members of the group.
-	Sources []*Source
+	Sources []*Source `json:"sources,omitempty" yaml:"sources,omitempty"`
 
-	// Children holds any subgroups.
-	Children []*Group
+	// Groups holds any subgroups.
+	Groups []*Group `json:"groups,omitempty" yaml:"groups,omitempty"`
 }
 
 // Count returns counts for g.
@@ -901,13 +905,13 @@ func (g *Group) Count() (directSrc, allSrc, directGroup, allGroup int) {
 	}
 
 	directSrc = len(g.Sources)
-	directGroup = len(g.Children)
+	directGroup = len(g.Groups)
 
 	allSrc = directSrc
 	allGroup = directGroup
 
-	for i := range g.Children {
-		_, srcCount, _, groupCount := g.Children[i].Count()
+	for i := range g.Groups {
+		_, srcCount, _, groupCount := g.Groups[i].Count()
 		allSrc += srcCount
 		allGroup += groupCount
 	}
@@ -929,8 +933,8 @@ func (g *Group) AllSources() []*Source {
 
 	srcs := make([]*Source, 0, len(g.Sources))
 	srcs = append(srcs, g.Sources...)
-	for i := range g.Children {
-		srcs = append(srcs, g.Children[i].AllSources()...)
+	for i := range g.Groups {
+		srcs = append(srcs, g.Groups[i].AllSources()...)
 	}
 
 	Sort(srcs)
@@ -943,10 +947,10 @@ func (g *Group) AllGroups() []*Group {
 	if g == nil {
 		return []*Group{}
 	}
-	groups := make([]*Group, 1, len(g.Children)+1)
+	groups := make([]*Group, 1, len(g.Groups)+1)
 	groups[0] = g
-	for i := range g.Children {
-		groups = append(groups, g.Children[i].AllGroups()...)
+	for i := range g.Groups {
+		groups = append(groups, g.Groups[i].AllGroups()...)
 	}
 
 	SortGroups(groups)

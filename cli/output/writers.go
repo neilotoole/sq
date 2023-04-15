@@ -72,7 +72,7 @@ type SourceWriter interface {
 	SetActiveGroup(group string) error
 
 	// Groups prints a list of groups.
-	Groups(activeGroup string, groups []string) error
+	Groups(tree *source.Group) error
 }
 
 // ErrorWriter outputs errors.

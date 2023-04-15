@@ -2,6 +2,7 @@ package cli
 
 import (
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/source"
 	"github.com/spf13/cobra"
 )
 
@@ -55,7 +56,13 @@ func execList(cmd *cobra.Command, args []string) error {
 		// Print groups instead of sources.
 		//
 		//  $ sq ls -g
-		return rc.writers.srcw.Groups(srcs.ActiveGroup(), srcs.Groups())
+
+		tree, err := srcs.Tree(source.RootGroup)
+		if err != nil {
+			return err
+		}
+
+		return rc.writers.srcw.Groups(tree)
 	}
 
 	return rc.writers.srcw.SourceSet(srcs)

@@ -180,14 +180,16 @@ func (w *sourceWriter) SetActiveGroup(group string) error {
 }
 
 // Groups implements output.SourceWriter.
-func (w *sourceWriter) Groups(activeGroup string, groups []string) error {
+func (w *sourceWriter) Groups(tree *source.Group) error {
+	groups := tree.AllGroups()
+
 	for _, group := range groups {
-		if group == activeGroup {
-			w.tbl.fm.Active.Fprintln(w.tbl.out, group)
+		if group.Active {
+			w.tbl.fm.Active.Fprintln(w.tbl.out, group.Name)
 			continue
 		}
 
-		w.tbl.fm.Handle.Fprintln(w.tbl.out, group)
+		w.tbl.fm.Handle.Fprintln(w.tbl.out, group.Name)
 	}
 	return nil
 }

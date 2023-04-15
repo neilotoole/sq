@@ -113,7 +113,6 @@ func (w *sourceWriter) SetActiveGroup(group string) error {
 }
 
 // Groups implements output.SourceWriter.
-func (w *sourceWriter) Groups(activeGroup string, groups []string) error {
-	_ = activeGroup
-	return writeJSON(w.out, w.fm, groups)
+func (w *sourceWriter) Groups(tree *source.Group) error {
+	return writeJSON(w.out, w.fm, tree)
 }
