@@ -125,6 +125,8 @@ func (t *Table) SetColTrans(col int, trans textTransFunc) {
 }
 
 // SetCellTrans sets the cell transformer.
+//
+// REVISIT: does this even work? How does it interact with SetColTrans?
 func (t *Table) SetCellTrans(row, col int, trans textTransFunc) {
 	t.cellTrans[fmt.Sprintf("[%v][%v]", row, col)] = trans
 }

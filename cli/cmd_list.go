@@ -40,7 +40,7 @@ any further descendants.
 
 	cmd.Flags().BoolP(flagHeader, flagHeaderShort, false, flagHeaderUsage)
 	cmd.Flags().BoolP(flagJSON, flagJSONShort, false, flagJSONUsage)
-	cmd.Flags().BoolP(flagListGroups, flagListGroupsShort, true, flagListGroupsUsage)
+	cmd.Flags().BoolP(flagListGroup, flagListGroupShort, false, flagListGroupUsage)
 
 	return cmd
 }
@@ -49,7 +49,7 @@ func execList(cmd *cobra.Command, args []string) error {
 	rc := RunContextFrom(cmd.Context())
 	srcs := rc.Config.Sources
 
-	if cmdFlagTrue(cmd, flagListGroups) {
+	if cmdFlagTrue(cmd, flagListGroup) {
 		// We're listing groups, not sources.
 
 		var fromGroup string
@@ -58,11 +58,11 @@ func execList(cmd *cobra.Command, args []string) error {
 			fromGroup = source.RootGroup
 		case 1:
 			if err := source.ValidGroup(args[0]); err != nil {
-				return errz.Wrapf(err, "invalid value for --%s", flagListGroups)
+				return errz.Wrapf(err, "invalid value for --%s", flagListGroup)
 			}
 			fromGroup = args[0]
 		default:
-			return errz.Errorf("invalid: --%s takes a max of 1 arg", flagListGroups)
+			return errz.Errorf("invalid: --%s takes a max of 1 arg", flagListGroup)
 		}
 
 		tree, err := srcs.Tree(fromGroup)

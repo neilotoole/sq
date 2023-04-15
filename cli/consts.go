@@ -24,9 +24,9 @@ const (
 	flagHandleShort = "h"
 	flagHandleUsage = "Handle for the source"
 
-	flagListGroups      = "groups"
-	flagListGroupsShort = "g"
-	flagListGroupsUsage = "List groups instead of sources"
+	flagListGroup      = "group"
+	flagListGroupShort = "g"
+	flagListGroupUsage = "List groups instead of sources"
 
 	flagHelp = "help"
 
@@ -48,7 +48,7 @@ const (
 
 	flagAddActive      = "active"
 	flagAddActiveShort = "a"
-	flagAddActiveUsage = "Make this the active source and active group"
+	flagAddActiveUsage = "Make this the active source"
 
 	flagMonochrome      = "monochrome"
 	flagMonochromeShort = "M"
@@ -101,10 +101,10 @@ const (
 
 	flagVerbose      = "verbose"
 	flagVerboseShort = "v"
-	flagVerboseUsage = "Print verbose outputaa"
+	flagVerboseUsage = "Verbose output"
 
 	flagVersion      = "version"
-	flagVersionUsage = "Print sq version"
+	flagVersionUsage = "Print version info"
 
 	flagXLSX      = "xlsx"
 	flagXLSXShort = "x"

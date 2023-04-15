@@ -99,8 +99,8 @@ minimum, the following drivers are bundled:
   xlsx       Microsoft Excel XLSX 
 
 If there isn't already an active source, the newly added source becomes the
-active source (and its group becomes the active group). Otherwise you can
-use flag --active to make the new source (and its group) active.
+active source (but the active group does not change). Otherwise you can
+use flag --active to make the new source active.
 
 More examples:
 
@@ -245,10 +245,8 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		// Likewise with the group.
-		if err = cfg.Sources.SetActiveGroup(src.Group()); err != nil {
-			return err
-		}
+		// However, we do not set the active group to the src's group.
+		// In UX testing, it led to confused users.
 	}
 
 	drvr, err := rc.registry.DriverFor(src.Type)
