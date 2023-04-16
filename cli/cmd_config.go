@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"path/filepath"
+
 	"github.com/neilotoole/sq/cli/config"
 
 	"github.com/neilotoole/sq/cli/flag"
@@ -39,7 +41,7 @@ func newConfigDirCmd() *cobra.Command {
 
 func execConfigDir(cmd *cobra.Command, _ []string) error {
 	rc := RunContextFrom(cmd.Context())
-	path := rc.ConfigStore.Location()
+	path := filepath.Dir(rc.ConfigStore.Location())
 	var origin string
 	if store, ok := rc.ConfigStore.(*config.YAMLFileStore); ok {
 		origin = store.PathOrigin

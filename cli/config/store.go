@@ -1,7 +1,6 @@
 package config
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"os"
@@ -11,8 +10,6 @@ import (
 	"github.com/neilotoole/sq/cli/flag"
 
 	"github.com/spf13/pflag"
-
-	"github.com/mitchellh/go-homedir"
 
 	"github.com/neilotoole/sq/cli/buildinfo"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -230,7 +227,7 @@ func (DiscardStore) Location() string {
 
 // DefaultLoad loads sq config from the default location
 // (~/.config/sq/sq.yml) or the location specified in envars.
-func DefaultLoad(_ context.Context, osArgs []string) (*Config, Store, error) {
+func DefaultLoad(osArgs []string) (*Config, Store, error) {
 	var (
 		cfgDir string
 		origin string
@@ -244,7 +241,12 @@ func DefaultLoad(_ context.Context, osArgs []string) (*Config, Store, error) {
 		origin = originEnv
 	} else {
 		origin = originDefault
-		cfgDir, err = getDefaultConfigDir()
+
+		// if _, err = maybeMigrateLegacyConfigDir(); err != nil {
+		//	return nil, nil, err
+		// }
+
+		cfgDir, err = getLegacyDefaultConfigDir()
 		if err != nil {
 			return nil, nil, err
 		}
@@ -300,14 +302,75 @@ func getConfigDirFromFlag(osArgs []string) (dir string, ok bool, err error) {
 	return dir, true, nil
 }
 
-func getDefaultConfigDir() (string, error) {
-	// envar not set, let's use the default
-	home, err := homedir.Dir()
+// maybeMigrateLegacyConfigDir maybe migrates config from the legacy dir
+// to the new default dir.
+func maybeMigrateLegacyConfigDir() (bool, error) { //nolint:unused
+	legacyDir, err := getLegacyDefaultConfigDir()
+	if err != nil {
+		return false, err
+	}
+
+	newDir, err := getDefaultConfigDir()
+	if err != nil {
+		return false, err
+	}
+
+	if fileExists(filepath.Join(newDir, "sq.yml")) {
+		// new config already exists, nothing to do.
+		return false, nil
+	}
+
+	if !fileExists(filepath.Join(legacyDir, "sq.yml")) {
+		// Legacy config doesn't exist, nothing to do.
+		return false, nil
+	}
+
+	// So, the legacy dir does exist, and the new one doesn't... time
+	// to migrate!
+
+	if err = os.Rename(legacyDir, newDir); err != nil {
+		return false, errz.Wrapf(err, "failed to migrate legacy config dir: %s  -->  %s",
+			legacyDir, newDir)
+	}
+
+	//nolint:forbidigo
+	fmt.Printf("Migrated legacy config dir (one-time operation): %s --> %s\n", legacyDir, newDir)
+
+	// lg.FromContext(ctx).Debug("Migrated legacy config dir", lga.From, legacyDir, lga.To, newDir)
+
+	return true, nil
+}
+
+// fileExists returns true if os.Stat returns no error.
+func fileExists(name string) bool { //nolint:unused
+	if _, err := os.Stat(name); err == nil {
+		return true
+	}
+
+	return false
+}
+
+// getLegacyDefaultConfigDir returns "~/.config/sq".
+// Going forward, we should be using getDefaultConfigDir.
+func getLegacyDefaultConfigDir() (string, error) {
+	home, err := os.UserHomeDir()
 	if err != nil {
 		// TODO: we should be able to run without the homedir... revisit this
-		return "", errz.Wrap(err, "unable to get user home dir for config purposes")
+		return "", errz.Wrap(err, "unable to get user home dir")
 	}
 
 	cfgDir := filepath.Join(home, ".config", "sq")
 	return cfgDir, nil
+}
+
+// getDefaultConfigDir returns the dir to store sq's config.
+// It is basically os.UserConfigDir() + "/sq".
+func getDefaultConfigDir() (string, error) { //nolint:unused
+	d, err := os.UserConfigDir()
+	if err != nil {
+		// TODO: we should be able to run without the homedir... revisit this
+		return "", errz.Wrap(err, "unable to get user config dir")
+	}
+
+	return filepath.Join(d, "sq"), nil
 }
