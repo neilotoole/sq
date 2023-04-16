@@ -120,7 +120,6 @@ make working with lots of sources much easier.
   200
   ```
 
-
 ## [v0.29.0] - 2023-03-26
 
 ### Added
@@ -321,6 +320,11 @@ make working with lots of sources much easier.
 
 - [#89]: Bug with SQL generated for joins.
 
+[#15]: https://github.com/neilotoole/sq/issues/15
+[#89]: https://github.com/neilotoole/sq/pull/89
+[#91]: https://github.com/neilotoole/sq/pull/91
+[#95]: https://github.com/neilotoole/sq/issues/93
+[#98]: https://github.com/neilotoole/sq/issues/98
 [#123]: https://github.com/neilotoole/sq/issues/123
 [#142]: https://github.com/neilotoole/sq/issues/142
 [#144]: https://github.com/neilotoole/sq/issues/144
@@ -328,7 +332,6 @@ make working with lots of sources much easier.
 [#153]: https://github.com/neilotoole/sq/issues/153
 [#155]: https://github.com/neilotoole/sq/issues/155
 [#158]: https://github.com/neilotoole/sq/issues/158
-[#15]: https://github.com/neilotoole/sq/issues/15
 [#160]: https://github.com/neilotoole/sq/issues/160
 [#162]: https://github.com/neilotoole/sq/issues/162
 [#164]: https://github.com/neilotoole/sq/issues/164
@@ -338,15 +341,11 @@ make working with lots of sources much easier.
 [#189]: https://github.com/neilotoole/sq/issues/189
 [#191]: https://github.com/neilotoole/sq/issues/191
 [#192]: https://github.com/neilotoole/sq/issues/192
-[#89]: https://github.com/neilotoole/sq/pull/89
-[#91]: https://github.com/neilotoole/sq/pull/91
-[#95]: https://github.com/neilotoole/sq/issues/93
-[#98]: https://github.com/neilotoole/sq/issues/98
 
-[v0.15.11]: https://github.com/neilotoole/sq/compare/v0.15.4...v0.15.11
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
 [v0.15.4]: https://github.com/neilotoole/sq/compare/v0.15.3...v0.15.4
+[v0.15.11]: https://github.com/neilotoole/sq/compare/v0.15.4...v0.15.11
 [v0.16.0]: https://github.com/neilotoole/sq/compare/v0.15.11...v0.16.0
 [v0.16.1]: https://github.com/neilotoole/sq/compare/v0.16.0...v0.16.1
 [v0.17.0]: https://github.com/neilotoole/sq/compare/v0.16.1...v0.17.0
