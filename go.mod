@@ -45,8 +45,6 @@ require (
 	github.com/neilotoole/slogt v1.0.0
 	github.com/samber/lo v1.38.1
 	golang.org/x/exp v0.0.0-20230321023759-10a507213a29
-//golang.org/x/exp v0.0.0-20221012211006-4de253d81b95 // older version that had slog.FromContext
-//golang.org/x/exp v0.0.0-20230321023759-10a507213a29
 )
 
 require (
