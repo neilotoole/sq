@@ -49,10 +49,10 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// dbOpenTimeout is the timeout for tests to open (and ping) their DBs.
+// defaultDBOpenTimeout is the timeout for tests to open (and ping) their DBs.
 // This should be a low value, because, well, we can either connect
 // or not.
-const dbOpenTimeout = time.Second * 60
+const defaultDBOpenTimeout = time.Second * 5
 
 func init() { //nolint:gochecknoinits
 	slogt.Default = slogt.Factory(func(w io.Writer) slog.Handler {
@@ -61,6 +61,22 @@ func init() { //nolint:gochecknoinits
 			AddSource: true,
 		}.NewTextHandler(w)
 	})
+}
+
+// Option is a functional option type used with New to
+// configure the helper.
+type Option func(h *Helper)
+
+// OptLongDB allows a longer DB timeout, which is necessary
+// for some tests. Usage:
+//
+//	testh.New(t, testh.OptLongDB())
+//
+// Most tests don't need this.
+func OptLongDB() Option {
+	return func(h *Helper) {
+		h.dbOpenTimeout = time.Second * 60
+	}
 }
 
 // Helper encapsulates a test helper session.
@@ -83,15 +99,22 @@ type Helper struct {
 	cancelFn context.CancelFunc
 
 	Cleanup *cleanup.Cleanup
+
+	dbOpenTimeout time.Duration
 }
 
 // New returns a new Helper. The helper's Close func will be
 // automatically invoked via t.Cleanup.
-func New(t testing.TB) *Helper {
+func New(t testing.TB, opts ...Option) *Helper {
 	h := &Helper{
-		T:       t,
-		Log:     slogt.New(t),
-		Cleanup: cleanup.New(),
+		T:             t,
+		Log:           slogt.New(t),
+		Cleanup:       cleanup.New(),
+		dbOpenTimeout: defaultDBOpenTimeout,
+	}
+
+	for _, opt := range opts {
+		opt(h)
 	}
 
 	ctx, cancelFn := context.WithCancel(context.Background())
@@ -286,7 +309,7 @@ func (h *Helper) NewSourceSet(handles ...string) *source.Set {
 // same Database instance. The opened Database will be closed
 // during h.Close.
 func (h *Helper) Open(src *source.Source) driver.Database {
-	ctx, cancelFn := context.WithTimeout(h.Context, dbOpenTimeout)
+	ctx, cancelFn := context.WithTimeout(h.Context, h.dbOpenTimeout)
 	defer cancelFn()
 
 	dbase, err := h.Databases().Open(ctx, src)
