@@ -22,7 +22,6 @@ require (
 	github.com/ryboe/q v1.0.18
 	// Be very careful changing pkg segmentio/encoding. A specific version is by our json encoder.
 	github.com/segmentio/encoding v0.1.14
-	github.com/shopspring/decimal v1.3.1
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.2
@@ -44,8 +43,7 @@ require (
 	github.com/muesli/mango-cobra v1.2.0
 	github.com/muesli/roff v0.1.0
 	github.com/neilotoole/slogt v1.0.0
-	github.com/neilotoole/streamcache v0.2.0
-	github.com/samber/lo v1.37.0
+	github.com/samber/lo v1.38.1
 	golang.org/x/exp v0.0.0-20230321023759-10a507213a29
 //golang.org/x/exp v0.0.0-20221012211006-4de253d81b95 // older version that had slog.FromContext
 //golang.org/x/exp v0.0.0-20230321023759-10a507213a29
