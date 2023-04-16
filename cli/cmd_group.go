@@ -3,6 +3,8 @@ package cli
 import (
 	"strings"
 
+	"github.com/neilotoole/sq/cli/flag"
+
 	"github.com/spf13/cobra"
 )
 
@@ -31,7 +33,7 @@ Use 'sq ls -g' to list groups.`,
   /`,
 	}
 
-	cmd.Flags().BoolP(flagJSON, flagJSONShort, false, flagJSONUsage)
+	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 
 	return cmd
 }

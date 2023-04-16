@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/spf13/cobra"
@@ -38,9 +39,9 @@ any further descendants.
   $ sq ls -g prod`,
 	}
 
-	cmd.Flags().BoolP(flagHeader, flagHeaderShort, false, flagHeaderUsage)
-	cmd.Flags().BoolP(flagJSON, flagJSONShort, false, flagJSONUsage)
-	cmd.Flags().BoolP(flagListGroup, flagListGroupShort, false, flagListGroupUsage)
+	cmd.Flags().BoolP(flag.Header, flag.HeaderShort, false, flag.HeaderUsage)
+	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
+	cmd.Flags().BoolP(flag.ListGroup, flag.ListGroupShort, false, flag.ListGroupUsage)
 
 	return cmd
 }
@@ -49,7 +50,7 @@ func execList(cmd *cobra.Command, args []string) error {
 	rc := RunContextFrom(cmd.Context())
 	srcs := rc.Config.Sources
 
-	if cmdFlagTrue(cmd, flagListGroup) {
+	if cmdFlagTrue(cmd, flag.ListGroup) {
 		// We're listing groups, not sources.
 
 		var fromGroup string
@@ -58,11 +59,11 @@ func execList(cmd *cobra.Command, args []string) error {
 			fromGroup = source.RootGroup
 		case 1:
 			if err := source.ValidGroup(args[0]); err != nil {
-				return errz.Wrapf(err, "invalid value for --%s", flagListGroup)
+				return errz.Wrapf(err, "invalid value for --%s", flag.ListGroup)
 			}
 			fromGroup = args[0]
 		default:
-			return errz.Errorf("invalid: --%s takes a max of 1 arg", flagListGroup)
+			return errz.Errorf("invalid: --%s takes a max of 1 arg", flag.ListGroup)
 		}
 
 		tree, err := srcs.Tree(fromGroup)

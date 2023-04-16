@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/neilotoole/sq/cli/flag"
 	"github.com/spf13/cobra"
 )
 
@@ -27,9 +28,9 @@ func newDriverListCmd() *cobra.Command {
 		RunE:  execDriverList,
 	}
 
-	cmd.Flags().BoolP(flagJSON, flagJSONShort, false, flagJSONUsage)
-	cmd.Flags().BoolP(flagTable, flagTableShort, false, flagTableUsage)
-	cmd.Flags().BoolP(flagHeader, flagHeaderShort, false, flagHeaderUsage)
+	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
+	cmd.Flags().BoolP(flag.Table, flag.TableShort, false, flag.TableUsage)
+	cmd.Flags().BoolP(flag.Header, flag.HeaderShort, false, flag.HeaderUsage)
 
 	return cmd
 }

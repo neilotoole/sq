@@ -3,6 +3,8 @@ package cli
 import (
 	"fmt"
 
+	"github.com/neilotoole/sq/cli/flag"
+
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -52,8 +54,8 @@ func newTblCopyCmd() *cobra.Command {
 `,
 	}
 
-	cmd.Flags().BoolP(flagJSON, flagJSONShort, false, flagJSONUsage)
-	cmd.Flags().Bool(flagTblData, true, flagTblDataUsage)
+	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
+	cmd.Flags().Bool(flag.TblData, true, flag.TblDataUsage)
 
 	return cmd
 }
@@ -104,8 +106,8 @@ func execTblCopy(cmd *cobra.Command, args []string) error {
 	}
 
 	copyData := true // copy data by default
-	if cmdFlagChanged(cmd, flagTblData) {
-		copyData, err = cmd.Flags().GetBool(flagTblData)
+	if cmdFlagChanged(cmd, flag.TblData) {
+		copyData, err = cmd.Flags().GetBool(flag.TblData)
 		if err != nil {
 			return errz.Err(err)
 		}
@@ -162,8 +164,8 @@ only applies to SQL sources.`,
 `,
 	}
 
-	cmd.Flags().BoolP(flagJSON, flagJSONShort, false, flagJSONUsage)
-	cmd.Flags().BoolP(flagTable, flagTableShort, false, flagTableUsage)
+	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
+	cmd.Flags().BoolP(flag.Table, flag.TableShort, false, flag.TableUsage)
 
 	return cmd
 }

@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neilotoole/sq/cli/flag"
+
 	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -46,7 +48,7 @@ func newVersionCmd() *cobra.Command {
   v0.32.0`,
 	}
 
-	cmd.Flags().BoolP(flagJSON, flagJSONShort, false, flagJSONUsage)
+	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 
 	return cmd
 }

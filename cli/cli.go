@@ -34,6 +34,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/neilotoole/sq/cli/flag"
+
 	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -213,7 +215,7 @@ func newCommandTree(rc *RunContext) (rootCmd *cobra.Command) {
 	// or else cobra tries to do its own (unwanted) thing.
 	// The behavior of cobra in this regard seems to have
 	// changed? This particular incantation currently does the trick.
-	rootCmd.Flags().Bool(flagHelp, false, "Show sq help")
+	rootCmd.Flags().Bool(flag.Help, false, "Show sq help")
 
 	helpCmd := addCmd(rc, rootCmd, newHelpCmd())
 	rootCmd.SetHelpCommand(helpCmd)
@@ -272,7 +274,7 @@ func addCmd(rc *RunContext, parentCmd, cmd *cobra.Command) *cobra.Command {
 
 	if cmd.Name() != "help" {
 		// Don't add the --help flag to the help command.
-		cmd.Flags().Bool(flagHelp, false, "help for "+cmd.Name())
+		cmd.Flags().Bool(flag.Help, false, "help for "+cmd.Name())
 	}
 
 	cmd.DisableAutoGenTag = true
@@ -286,7 +288,7 @@ func addCmd(rc *RunContext, parentCmd, cmd *cobra.Command) *cobra.Command {
 
 	runE := cmd.RunE
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
-		if cmd.Flags().Changed(flagVersion) {
+		if cmd.Flags().Changed(flag.Version) {
 			// Bit of a hack: flag --version on any command
 			// results in execVersion being invoked
 			return execVersion(cmd, args)
@@ -431,22 +433,22 @@ func (rc *RunContext) doInit() error {
 	// If the --output=/some/file flag is set, then we need to
 	// override rc.Out (which is typically stdout) to point it at
 	// the output destination file.
-	if cmdFlagChanged(rc.Cmd, flagOutput) {
-		fpath, _ := rc.Cmd.Flags().GetString(flagOutput)
+	if cmdFlagChanged(rc.Cmd, flag.Output) {
+		fpath, _ := rc.Cmd.Flags().GetString(flag.Output)
 		fpath, err := filepath.Abs(fpath)
 		if err != nil {
-			return errz.Wrapf(err, "failed to get absolute path for --%s", flagOutput)
+			return errz.Wrapf(err, "failed to get absolute path for --%s", flag.Output)
 		}
 
 		// Ensure the parent dir exists
 		err = os.MkdirAll(filepath.Dir(fpath), os.ModePerm)
 		if err != nil {
-			return errz.Wrapf(err, "failed to make parent dir for --%s", flagOutput)
+			return errz.Wrapf(err, "failed to make parent dir for --%s", flag.Output)
 		}
 
 		f, err := os.Create(fpath)
 		if err != nil {
-			return errz.Wrapf(err, "failed to open file specified by flag --%s", flagOutput)
+			return errz.Wrapf(err, "failed to open file specified by flag --%s", flag.Output)
 		}
 
 		rc.clnup.AddC(f) // Make sure the file gets closed eventually
@@ -653,26 +655,26 @@ func newWriters(cmd *cobra.Command, defaults config.Defaults, out,
 func getWriterFormatting(cmd *cobra.Command, out, errOut io.Writer) (fm *output.Formatting, out2, errOut2 io.Writer) {
 	fm = output.NewFormatting()
 
-	if cmdFlagChanged(cmd, flagPretty) {
-		fm.Pretty, _ = cmd.Flags().GetBool(flagPretty)
+	if cmdFlagChanged(cmd, flag.Pretty) {
+		fm.Pretty, _ = cmd.Flags().GetBool(flag.Pretty)
 	}
 
-	if cmdFlagChanged(cmd, flagVerbose) {
-		fm.Verbose, _ = cmd.Flags().GetBool(flagVerbose)
+	if cmdFlagChanged(cmd, flag.Verbose) {
+		fm.Verbose, _ = cmd.Flags().GetBool(flag.Verbose)
 	}
 
-	if cmdFlagChanged(cmd, flagHeader) {
-		fm.ShowHeader, _ = cmd.Flags().GetBool(flagHeader)
+	if cmdFlagChanged(cmd, flag.Header) {
+		fm.ShowHeader, _ = cmd.Flags().GetBool(flag.Header)
 	}
 
 	// TODO: Should get this default value from config
 	colorize := true
 
-	if cmdFlagChanged(cmd, flagOutput) {
+	if cmdFlagChanged(cmd, flag.Output) {
 		// We're outputting to a file, thus no color.
 		colorize = false
-	} else if cmdFlagChanged(cmd, flagMonochrome) {
-		if mono, _ := cmd.Flags().GetBool(flagMonochrome); mono {
+	} else if cmdFlagChanged(cmd, flag.Monochrome) {
+		if mono, _ := cmd.Flags().GetBool(flag.Monochrome); mono {
 			colorize = false
 		}
 	}
@@ -716,27 +718,27 @@ func getFormat(cmd *cobra.Command, defaults config.Defaults) config.Format {
 
 	switch {
 	// cascade through the format flags in low-to-high order of precedence.
-	case cmdFlagChanged(cmd, flagTSV):
+	case cmdFlagChanged(cmd, flag.TSV):
 		format = config.FormatTSV
-	case cmdFlagChanged(cmd, flagCSV):
+	case cmdFlagChanged(cmd, flag.CSV):
 		format = config.FormatCSV
-	case cmdFlagChanged(cmd, flagXLSX):
+	case cmdFlagChanged(cmd, flag.XLSX):
 		format = config.FormatXLSX
-	case cmdFlagChanged(cmd, flagXML):
+	case cmdFlagChanged(cmd, flag.XML):
 		format = config.FormatXML
-	case cmdFlagChanged(cmd, flagRaw):
+	case cmdFlagChanged(cmd, flag.Raw):
 		format = config.FormatRaw
-	case cmdFlagChanged(cmd, flagHTML):
+	case cmdFlagChanged(cmd, flag.HTML):
 		format = config.FormatHTML
-	case cmdFlagChanged(cmd, flagMarkdown):
+	case cmdFlagChanged(cmd, flag.Markdown):
 		format = config.FormatMarkdown
-	case cmdFlagChanged(cmd, flagTable):
+	case cmdFlagChanged(cmd, flag.Table):
 		format = config.FormatTable
-	case cmdFlagChanged(cmd, flagJSONL):
+	case cmdFlagChanged(cmd, flag.JSONL):
 		format = config.FormatJSONL
-	case cmdFlagChanged(cmd, flagJSONA):
+	case cmdFlagChanged(cmd, flag.JSONA):
 		format = config.FormatJSONA
-	case cmdFlagChanged(cmd, flagJSON):
+	case cmdFlagChanged(cmd, flag.JSON):
 		format = config.FormatJSON
 	default:
 		// no format flag, use the config value
@@ -763,12 +765,12 @@ func defaultLogging() (*slog.Logger, *cleanup.Cleanup, error) {
 		return lg.Discard(), nil, errz.Wrapf(err, "failed to create parent dir of log file %s", logFilePath)
 	}
 
-	flag := os.O_APPEND
+	fileFlag := os.O_APPEND
 	if truncate {
-		flag = os.O_TRUNC
+		fileFlag = os.O_TRUNC
 	}
 
-	logFile, err := os.OpenFile(logFilePath, os.O_RDWR|os.O_CREATE|flag, 0o600)
+	logFile, err := os.OpenFile(logFilePath, os.O_RDWR|os.O_CREATE|fileFlag, 0o600)
 	if err != nil {
 		return lg.Discard(), nil, errz.Wrapf(err, "unable to open log file: %s", logFilePath)
 	}
@@ -912,12 +914,12 @@ func cmdFlagChanged(cmd *cobra.Command, name string) bool {
 		return false
 	}
 
-	flag := cmd.Flag(name)
-	if flag == nil {
+	f := cmd.Flag(name)
+	if f == nil {
 		return false
 	}
 
-	return flag.Changed
+	return f.Changed
 }
 
 // cmdFlagTrue returns true if flag name has been changed
@@ -952,10 +954,10 @@ func bootstrapIsFormatJSON(rc *RunContext) bool {
 	// If args were provided, create a new flag set and check
 	// for the --json flag.
 	if len(rc.Args) > 0 {
-		flags := pflag.NewFlagSet("bootstrap", pflag.ContinueOnError)
+		flagSet := pflag.NewFlagSet("bootstrap", pflag.ContinueOnError)
 
-		jsonFlag := flags.BoolP(flagJSON, flagJSONShort, false, flagJSONUsage)
-		err := flags.Parse(rc.Args)
+		jsonFlag := flagSet.BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
+		err := flagSet.Parse(rc.Args)
 		if err != nil {
 			return false
 		}

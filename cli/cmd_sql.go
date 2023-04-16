@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/cli/flag"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -49,9 +51,9 @@ flag is set, sq attempts to determine the appropriate mode.`,
 	addQueryCmdFlags(cmd)
 
 	// User explicitly wants to execute the SQL using sql.DB.Query
-	cmd.Flags().Bool(flagSQLQuery, false, flagSQLQueryUsage)
+	cmd.Flags().Bool(flag.SQLQuery, false, flag.SQLQueryUsage)
 	// User explicitly wants to execute the SQL using sql.DB.Exec
-	cmd.Flags().Bool(flagSQLExec, false, flagSQLExecUsage)
+	cmd.Flags().Bool(flag.SQLExec, false, flag.SQLExecUsage)
 
 	return cmd
 }
@@ -80,7 +82,7 @@ func execSQL(cmd *cobra.Command, args []string) error {
 	// determineSources successfully returns.
 	activeSrc := srcs.Active()
 
-	if !cmdFlagChanged(cmd, flagInsert) {
+	if !cmdFlagChanged(cmd, flag.Insert) {
 		// The user didn't specify the --insert=@src.tbl flag,
 		// so we just want to print the records.
 		return execSQLPrint(cmd.Context(), rc, activeSrc)
@@ -88,14 +90,14 @@ func execSQL(cmd *cobra.Command, args []string) error {
 
 	// Instead of printing the records, they will be
 	// written to another database
-	insertTo, _ := cmd.Flags().GetString(flagInsert)
+	insertTo, _ := cmd.Flags().GetString(flag.Insert)
 	if insertTo == "" {
-		return errz.Errorf("invalid --%s value: empty", flagInsert)
+		return errz.Errorf("invalid --%s value: empty", flag.Insert)
 	}
 
 	destHandle, destTbl, err := source.ParseTableHandle(insertTo)
 	if err != nil {
-		return errz.Wrapf(err, "invalid --%s value", flagInsert)
+		return errz.Wrapf(err, "invalid --%s value", flag.Insert)
 	}
 
 	destSrc, err := srcs.Get(destHandle)

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/neilotoole/sq/cli/flag"
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -43,8 +44,8 @@ If @HANDLE is not provided, the active data source is assumed.`,
   $ cat data.xlsx | sq inspect`,
 	}
 
-	cmd.Flags().BoolP(flagJSON, flagJSONShort, false, flagJSONUsage)
-	cmd.Flags().BoolP(flagTable, flagTableShort, false, flagTableUsage)
+	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
+	cmd.Flags().BoolP(flag.Table, flag.TableShort, false, flag.TableUsage)
 
 	return cmd
 }
@@ -140,7 +141,7 @@ func execInspect(cmd *cobra.Command, args []string) error {
 
 	// This is a bit hacky, but it works... if not "--verbose", then just zap
 	// the DBVars, as we usually don't want to see those
-	if !cmdFlagTrue(cmd, flagVerbose) {
+	if !cmdFlagTrue(cmd, flag.Verbose) {
 		meta.DBVars = nil
 	}
 
