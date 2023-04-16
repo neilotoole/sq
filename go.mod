@@ -19,7 +19,7 @@ require (
 	github.com/microsoft/go-mssqldb v0.19.0
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/ryboe/q v1.0.18
+	github.com/ryboe/q v1.0.19
 	// Be very careful changing pkg segmentio/encoding. A specific version is by our json encoder.
 	github.com/segmentio/encoding v0.1.14
 	github.com/spf13/cobra v1.7.0
