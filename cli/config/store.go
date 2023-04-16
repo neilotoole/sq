@@ -1,10 +1,18 @@
 package config
 
 import (
+	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/neilotoole/sq/cli/flag"
+
+	"github.com/spf13/pflag"
+
+	"github.com/mitchellh/go-homedir"
 
 	"github.com/neilotoole/sq/cli/buildinfo"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -31,6 +39,9 @@ type YAMLFileStore struct {
 	// Path is the location of the config file
 	Path string
 
+	// PathOrigin is one of "flag", "env", or "default".
+	PathOrigin string
+
 	// If HookLoad is non-nil, it is invoked by Load
 	// on Path's bytes before the YAML is unmarshalled.
 	// This allows expansion of variables etc.
@@ -40,8 +51,16 @@ type YAMLFileStore struct {
 	ExtPaths []string
 }
 
+// Origin of the config path.
+const (
+	originFlag    = "flag"
+	originEnv     = "env"
+	originDefault = "default"
+)
+
+// String returns a log/debug-friendly representation.
 func (fs *YAMLFileStore) String() string {
-	return fmt.Sprintf("config filestore: %v", fs.Path)
+	return fmt.Sprintf("config via %s: %v", fs.PathOrigin, fs.Path)
 }
 
 // Location implements Store.
@@ -49,7 +68,7 @@ func (fs *YAMLFileStore) Location() string {
 	return fs.Path
 }
 
-// Load reads config from disk.
+// Load reads config from disk. It implements Store.
 func (fs *YAMLFileStore) Load() (*Config, error) {
 	bytes, err := os.ReadFile(fs.Path)
 	if err != nil {
@@ -151,7 +170,7 @@ func (fs *YAMLFileStore) loadExt(cfg *Config) error {
 	return nil
 }
 
-// Save writes config to disk.
+// Save writes config to disk. It implements Store.
 func (fs *YAMLFileStore) Save(cfg *Config) error {
 	if fs == nil {
 		return errz.New("config file store is nil")
@@ -207,4 +226,88 @@ func (DiscardStore) Save(*Config) error {
 // Location returns /dev/null.
 func (DiscardStore) Location() string {
 	return "/dev/null"
+}
+
+// DefaultLoad loads sq config from the default location
+// (~/.config/sq/sq.yml) or the location specified in envars.
+func DefaultLoad(_ context.Context, osArgs []string) (*Config, Store, error) {
+	var (
+		cfgDir string
+		origin string
+		ok     bool
+		err    error
+	)
+
+	if cfgDir, ok, _ = getConfigDirFromFlag(osArgs); ok {
+		origin = originFlag
+	} else if cfgDir, ok = os.LookupEnv(EnvarConfigDir); ok {
+		origin = originEnv
+	} else {
+		origin = originDefault
+		cfgDir, err = getDefaultConfigDir()
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	cfgPath := filepath.Join(cfgDir, "sq.yml")
+	extDir := filepath.Join(cfgDir, "ext")
+	cfgStore := &YAMLFileStore{
+		Path:       cfgPath,
+		PathOrigin: origin,
+		ExtPaths:   []string{extDir},
+	}
+
+	if !cfgStore.FileExists() {
+		cfg := New()
+		return cfg, cfgStore, nil
+	}
+
+	// file does exist, let's try to load it
+	cfg, err := cfgStore.Load()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return cfg, cfgStore, nil
+}
+
+// getConfigDirFromFlag parses osArgs looking for flag.ConfigDirUsage.
+// We need to do manual flag parsing because config is loaded before
+// cobra is initialized.
+func getConfigDirFromFlag(osArgs []string) (dir string, ok bool, err error) {
+	fs := pflag.NewFlagSet("bootstrap", pflag.ContinueOnError)
+	fs.ParseErrorsWhitelist.UnknownFlags = true
+	fs.SetOutput(io.Discard)
+
+	_ = fs.String(flag.ConfigDir, "", flag.ConfigDirUsage)
+	if err = fs.Parse(osArgs); err != nil {
+		return "", false, errz.Err(err)
+	}
+
+	if !fs.Changed(flag.ConfigDir) {
+		return "", false, nil
+	}
+
+	if dir, err = fs.GetString(flag.ConfigDir); err != nil {
+		return "", false, errz.Err(err)
+	}
+
+	if dir == "" {
+		return "", false, nil
+	}
+
+	return dir, true, nil
+}
+
+func getDefaultConfigDir() (string, error) {
+	// envar not set, let's use the default
+	home, err := homedir.Dir()
+	if err != nil {
+		// TODO: we should be able to run without the homedir... revisit this
+		return "", errz.Wrap(err, "unable to get user home dir for config purposes")
+	}
+
+	cfgDir := filepath.Join(home, ".config", "sq")
+	return cfgDir, nil
 }

@@ -23,8 +23,9 @@ func newDriverCmd() *cobra.Command {
 func newDriverListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "ls",
-		Short: "List available drivers.",
-		Args:  cobra.ExactArgs(0),
+		Short: "List available drivers",
+		Long:  "List available drivers.",
+		Args:  cobra.NoArgs,
 		RunE:  execDriverList,
 	}
 

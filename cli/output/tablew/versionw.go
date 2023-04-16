@@ -11,14 +11,14 @@ import (
 
 var _ output.VersionWriter = (*versionWriter)(nil)
 
-// versionWriter implements output.VersionWriter for JSON.
+// versionWriter implements output.VersionWriter for text.
 type versionWriter struct {
 	out io.Writer
 	fm  *output.Formatting
 }
 
 // NewVersionWriter returns a new output.VersionWriter instance
-// that outputs version info in JSON.
+// that outputs version info in text.
 func NewVersionWriter(out io.Writer, fm *output.Formatting) output.VersionWriter {
 	return &versionWriter{out: out, fm: fm}
 }

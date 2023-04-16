@@ -6,8 +6,4 @@ const (
 	msgEmptyQueryString  = "query string is empty"
 	msgSrcNoData         = "source has no data"
 	msgSrcEmptyTableName = "source has empty table name"
-
-	envarLogPath     = "SQ_LOGFILE"
-	envarLogTruncate = "SQ_LOGFILE_TRUNCATE"
-	envarConfigDir   = "SQ_CONFIGDIR"
 )

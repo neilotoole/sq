@@ -10,10 +10,16 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 )
 
+const (
+	EnvarLogPath     = "SQ_LOGFILE"
+	EnvarLogTruncate = "SQ_LOGFILE_TRUNCATE"
+	EnvarConfigDir   = "SQ_CONFIGDIR"
+)
+
 // Config holds application config/session data.
 type Config struct {
 	// Version is the config version. This will allow sq to
-	// upgrade config files if needed.
+	// upgrade config files if needed. It must be a valid semver.
 	Version string `yaml:"version" json:"version"`
 
 	// Defaults contains default settings, such as output format.
@@ -26,6 +32,7 @@ type Config struct {
 	Ext Ext `yaml:"-" json:"-"`
 }
 
+// String returns a log/debug-friendly representation.
 func (c *Config) String() string {
 	return stringz.SprintJSON(c)
 }

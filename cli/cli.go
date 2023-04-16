@@ -46,7 +46,6 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/mattn/go-colorable"
-	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
@@ -88,7 +87,7 @@ var errNoMsg = errors.New("")
 // Execute builds a RunContext using ctx and default
 // settings, and invokes ExecuteWith.
 func Execute(ctx context.Context, stdin *os.File, stdout, stderr io.Writer, args []string) error {
-	rc, err := newDefaultRunContext(stdin, stdout, stderr)
+	rc, err := newDefaultRunContext(ctx, stdin, stdout, stderr, args)
 	if err != nil {
 		printError(rc, err)
 		return err
@@ -242,13 +241,17 @@ func newCommandTree(rc *RunContext) (rootCmd *cobra.Command) {
 	addCmd(rc, rootCmd, newSQLCmd())
 	addCmd(rc, rootCmd, newScratchCmd())
 
-	driverCmd := addCmd(rc, rootCmd, newDriverCmd())
-	addCmd(rc, driverCmd, newDriverListCmd())
-
 	tblCmd := addCmd(rc, rootCmd, newTblCmd())
 	addCmd(rc, tblCmd, newTblCopyCmd())
 	addCmd(rc, tblCmd, newTblTruncateCmd())
 	addCmd(rc, tblCmd, newTblDropCmd())
+
+	driverCmd := addCmd(rc, rootCmd, newDriverCmd())
+	addCmd(rc, driverCmd, newDriverListCmd())
+
+	configCmd := addCmd(rc, rootCmd, newConfigCmd())
+	addCmd(rc, configCmd, newConfigDirCmd())
+
 	addCmd(rc, rootCmd, newCompletionCmd())
 	addCmd(rc, rootCmd, newVersionCmd())
 	addCmd(rc, rootCmd, newManCmd())
@@ -378,7 +381,9 @@ type RunContext struct {
 // example if there's a config error). We do this to provide
 // enough framework so that such an error can be logged or
 // printed per the normal mechanisms if at all possible.
-func newDefaultRunContext(stdin *os.File, stdout, stderr io.Writer) (*RunContext, error) {
+func newDefaultRunContext(ctx context.Context, stdin *os.File,
+	stdout, stderr io.Writer, args []string,
+) (*RunContext, error) {
 	rc := &RunContext{
 		Stdin:  stdin,
 		Out:    stdout,
@@ -389,7 +394,7 @@ func newDefaultRunContext(stdin *os.File, stdout, stderr io.Writer) (*RunContext
 	rc.Log = log
 	rc.clnup = clnup
 
-	cfg, cfgStore, configErr := defaultConfig()
+	cfg, cfgStore, configErr := config.DefaultLoad(lg.NewContext(ctx, log), args)
 	rc.ConfigStore = cfgStore
 	rc.Config = cfg
 
@@ -573,6 +578,7 @@ type writers struct {
 	errw     output.ErrorWriter
 	pingw    output.PingWriter
 	versionw output.VersionWriter
+	configw  output.ConfigWriter
 }
 
 // newWriters returns a writers instance configured per defaults and/or
@@ -597,6 +603,7 @@ func newWriters(cmd *cobra.Command, defaults config.Defaults, out,
 		pingw:    tablew.NewPingWriter(out2, fm),
 		errw:     tablew.NewErrorWriter(errOut2, fm),
 		versionw: tablew.NewVersionWriter(out2, fm),
+		configw:  tablew.NewConfigWriter(out2, fm),
 	}
 
 	// Invoke getFormat to see if the format was specified
@@ -612,6 +619,7 @@ func newWriters(cmd *cobra.Command, defaults config.Defaults, out,
 		w.errw = jsonw.NewErrorWriter(log, errOut2, fm)
 		w.versionw = jsonw.NewVersionWriter(out2, fm)
 		w.pingw = jsonw.NewPingWriter(out2, fm)
+		w.configw = jsonw.NewConfigWriter(out2, fm)
 
 	case config.FormatTable:
 	// Table is the base format, already set above, no need to do anything.
@@ -750,9 +758,9 @@ func getFormat(cmd *cobra.Command, defaults config.Defaults) config.Format {
 // defaultLogging returns a log (and its associated closer) if
 // logging has been enabled via envars.
 func defaultLogging() (*slog.Logger, *cleanup.Cleanup, error) {
-	truncate, _ := strconv.ParseBool(os.Getenv(envarLogTruncate))
+	truncate, _ := strconv.ParseBool(os.Getenv(config.EnvarLogTruncate))
 
-	logFilePath, ok := os.LookupEnv(envarLogPath)
+	logFilePath, ok := os.LookupEnv(config.EnvarLogPath)
 	if !ok || logFilePath == "" || strings.TrimSpace(logFilePath) == "" {
 		return lg.Discard(), nil, nil
 	}
@@ -794,39 +802,6 @@ func defaultLogging() (*slog.Logger, *cleanup.Cleanup, error) {
 	log := slog.New(opts.NewJSONHandler(logFile))
 
 	return log, clnup, nil
-}
-
-// defaultConfig loads sq config from the default location
-// (~/.config/sq/sq.yml) or the location specified in envars.
-func defaultConfig() (*config.Config, config.Store, error) {
-	cfgDir, ok := os.LookupEnv(envarConfigDir)
-	if !ok {
-		// envar not set, let's use the default
-		home, err := homedir.Dir()
-		if err != nil {
-			// TODO: we should be able to run without the homedir... revisit this
-			return nil, nil, errz.Wrap(err, "unable to get user home dir for config purposes")
-		}
-
-		cfgDir = filepath.Join(home, ".config", "sq")
-	}
-
-	cfgPath := filepath.Join(cfgDir, "sq.yml")
-	extDir := filepath.Join(cfgDir, "ext")
-	cfgStore := &config.YAMLFileStore{Path: cfgPath, ExtPaths: []string{extDir}}
-
-	if !cfgStore.FileExists() {
-		cfg := config.New()
-		return cfg, cfgStore, nil
-	}
-
-	// file does exist, let's try to load it
-	cfg, err := cfgStore.Load()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return cfg, cfgStore, nil
 }
 
 // printError is the centralized function for printing

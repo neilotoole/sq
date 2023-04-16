@@ -103,6 +103,13 @@ type VersionWriter interface {
 	Version(info buildinfo.BuildInfo, latestVersion string) error
 }
 
+// ConfigWriter prints config.
+type ConfigWriter interface {
+	// Dir prints the config dir. The origin may be empty, or one
+	// of "flag", "env", "default".
+	Dir(path, origin string) error
+}
+
 // FlushThreshold is the size in bytes after which a writer
 // should flush any internal buffer.
 const FlushThreshold = 1000

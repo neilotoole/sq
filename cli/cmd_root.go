@@ -87,5 +87,6 @@ See docs and more: https://sq.io`,
 	cmd.Flags().Bool(flag.Version, false, flag.VersionUsage)
 	cmd.PersistentFlags().BoolP(flag.Monochrome, flag.MonochromeShort, false, flag.MonochromeUsage)
 	cmd.PersistentFlags().BoolP(flag.Verbose, flag.VerboseShort, false, flag.VerboseUsage)
+	cmd.PersistentFlags().String(flag.ConfigDir, "", flag.ConfigDirUsage)
 	return cmd
 }
