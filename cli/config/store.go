@@ -260,7 +260,7 @@ func DefaultLoad(osArgs []string) (*Config, Store, error) {
 
 	if cfgDir, ok, _ = getConfigDirFromFlag(osArgs); ok {
 		origin = originFlag
-	} else if cfgDir, ok = os.LookupEnv(EnvarConfigDir); ok {
+	} else if cfgDir, ok = getConfigDirFromEnv(); ok {
 		origin = originEnv
 	} else {
 		origin = originDefault
@@ -291,7 +291,7 @@ func DefaultLoad(osArgs []string) (*Config, Store, error) {
 	return cfg, cfgStore, nil
 }
 
-// getConfigDirFromFlag parses osArgs looking for flag.ConfigDirUsage.
+// getConfigDirFromFlag parses osArgs looking for flag.ConfigUsage.
 // We need to do manual flag parsing because config is loaded before
 // cobra is initialized.
 func getConfigDirFromFlag(osArgs []string) (dir string, ok bool, err error) {
@@ -299,16 +299,16 @@ func getConfigDirFromFlag(osArgs []string) (dir string, ok bool, err error) {
 	fs.ParseErrorsWhitelist.UnknownFlags = true
 	fs.SetOutput(io.Discard)
 
-	_ = fs.String(flag.ConfigDir, "", flag.ConfigDirUsage)
+	_ = fs.String(flag.Config, "", flag.ConfigUsage)
 	if err = fs.Parse(osArgs); err != nil {
 		return "", false, errz.Err(err)
 	}
 
-	if !fs.Changed(flag.ConfigDir) {
+	if !fs.Changed(flag.Config) {
 		return "", false, nil
 	}
 
-	if dir, err = fs.GetString(flag.ConfigDir); err != nil {
+	if dir, err = fs.GetString(flag.Config); err != nil {
 		return "", false, errz.Err(err)
 	}
 
@@ -329,4 +329,16 @@ func getDefaultConfigDir() (string, error) {
 
 	cfgDir := filepath.Join(home, ".config", "sq")
 	return cfgDir, nil
+}
+
+func getConfigDirFromEnv() (string, bool) {
+	if cfgDir, ok := os.LookupEnv(EnvarConfig); ok && cfgDir != "" {
+		return cfgDir, ok
+	}
+
+	if cfgDir, ok := os.LookupEnv(EnvarConfigDir); ok && cfgDir != "" {
+		return cfgDir, ok
+	}
+
+	return "", false
 }

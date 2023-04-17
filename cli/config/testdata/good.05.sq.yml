@@ -1,5 +1,4 @@
 # This file has an empty active source.
-version: v0.0.0-dev
 defaults:
     output_format: table
     output_header: false

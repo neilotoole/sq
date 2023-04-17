@@ -105,11 +105,13 @@ type VersionWriter interface {
 
 // ConfigWriter prints config.
 type ConfigWriter interface {
-	// Dir prints the config dir. The origin may be empty, or one
+	// Location prints the config location. The origin may be empty, or one
 	// of "flag", "env", "default".
-	Dir(path, origin string) error
+	Location(loc, origin string) error
 }
 
 // FlushThreshold is the size in bytes after which a writer
 // should flush any internal buffer.
+//
+// TODO: Move FlushThreshold to config
 const FlushThreshold = 1000

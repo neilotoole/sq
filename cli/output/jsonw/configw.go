@@ -19,17 +19,17 @@ func NewConfigWriter(out io.Writer, fm *output.Formatting) output.ConfigWriter {
 	return &configWriter{out: out, fm: fm}
 }
 
-// Dir implements output.ConfigWriter.
-func (w *configWriter) Dir(path, origin string) error {
-	type dirInfo struct {
-		Path   string `json:"path"`
-		Origin string `json:"origin,omitempty"`
+// Location implements output.ConfigWriter.
+func (w *configWriter) Location(loc, origin string) error {
+	type cfgInfo struct {
+		Location string `json:"location"`
+		Origin   string `json:"origin,omitempty"`
 	}
 
-	d := dirInfo{
-		Path:   path,
-		Origin: origin,
+	c := cfgInfo{
+		Location: loc,
+		Origin:   origin,
 	}
 
-	return writeJSON(w.out, w.fm, d)
+	return writeJSON(w.out, w.fm, c)
 }

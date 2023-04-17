@@ -18,20 +18,20 @@ func newConfigCmd() *cobra.Command {
 			return cmd.Help()
 		},
 
-		Example: `  # Print config dir
-  $ sq config dir`,
+		Example: `  # Print config location
+  $ sq config location`,
 	}
 
 	return cmd
 }
 
-func newConfigDirCmd() *cobra.Command {
+func newConfigLocationCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "dir",
-		Short: "Print config dir",
-		Long:  "Print config dir. Use --verbose for more detail.",
+		Use:   "location",
+		Short: "Print config location",
+		Long:  "Print config location. Use --verbose for more detail.",
 		Args:  cobra.ExactArgs(0),
-		RunE:  execConfigDir,
+		RunE:  execConfigLocation,
 	}
 
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
@@ -39,7 +39,7 @@ func newConfigDirCmd() *cobra.Command {
 	return cmd
 }
 
-func execConfigDir(cmd *cobra.Command, _ []string) error {
+func execConfigLocation(cmd *cobra.Command, _ []string) error {
 	rc := RunContextFrom(cmd.Context())
 	path := filepath.Dir(rc.ConfigStore.Location())
 	var origin string
@@ -47,5 +47,5 @@ func execConfigDir(cmd *cobra.Command, _ []string) error {
 		origin = store.PathOrigin
 	}
 
-	return rc.writers.configw.Dir(path, origin)
+	return rc.writers.configw.Location(path, origin)
 }

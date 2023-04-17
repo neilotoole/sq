@@ -21,7 +21,7 @@ func NewConfigWriter(out io.Writer, fm *output.Formatting) output.ConfigWriter {
 }
 
 // Dir implements output.ConfigWriter.
-func (w *configWriter) Dir(path, origin string) error {
+func (w *configWriter) Location(path, origin string) error {
 	fmt.Fprintln(w.out, path)
 	if w.fm.Verbose && origin != "" {
 		w.fm.Faint.Fprint(w.out, "Origin: ")

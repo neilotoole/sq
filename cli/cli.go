@@ -250,7 +250,7 @@ func newCommandTree(rc *RunContext) (rootCmd *cobra.Command) {
 	addCmd(rc, driverCmd, newDriverListCmd())
 
 	configCmd := addCmd(rc, rootCmd, newConfigCmd())
-	addCmd(rc, configCmd, newConfigDirCmd())
+	addCmd(rc, configCmd, newConfigLocationCmd())
 
 	addCmd(rc, rootCmd, newCompletionCmd())
 	addCmd(rc, rootCmd, newVersionCmd())

@@ -14,7 +14,7 @@ import (
 // This is basically how far back in time the config upgrade process
 // can support. If the config dates from prior to this (unlikely),
 // then the user needs to start with a new config.
-const minConfigVersion = "v0.14.5"
+const minConfigVersion = "v0.0.0-dev"
 
 // upgradeFunc performs a (single) upgrade of the config file. Typically
 // a func will read the config data from disk, perform some transformation
@@ -112,6 +112,8 @@ func (r upgradeRegistry) getUpgradeFuncs(startingVersion, targetVersion string) 
 	return upgradeFns
 }
 
+// loadVersion loads the version from the config file.
+// If the field is not present, minConfigVersion (and no error) is returned.
 func loadVersion(path string) (string, error) {
 	bytes, err := os.ReadFile(path)
 	if err != nil {
@@ -137,7 +139,7 @@ func loadVersion(path string) (string, error) {
 		return s, nil
 	}
 
-	return "", errz.New("config: 'version' field not found")
+	return minConfigVersion, nil
 }
 
 // checkNeedsUpgrade checks on the config version, returning needsUpgrade

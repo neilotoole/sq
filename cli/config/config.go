@@ -13,7 +13,13 @@ import (
 const (
 	EnvarLogPath     = "SQ_LOGFILE"
 	EnvarLogTruncate = "SQ_LOGFILE_TRUNCATE"
-	EnvarConfigDir   = "SQ_CONFIGDIR"
+
+	// EnvarConfigDir is the legacy envar for config location.
+	// Instead use EnvarConfig.
+	EnvarConfigDir = "SQ_CONFIGDIR"
+
+	// EnvarConfig is the envar for config location.
+	EnvarConfig = "SQ_CONFIG"
 )
 
 // Config holds application config/session data.

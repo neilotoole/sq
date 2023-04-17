@@ -19,8 +19,8 @@ func Test_getConfigDirFromFlag(t *testing.T) {
 	}{
 		{in: nil, wantOK: false},
 		{in: []string{}, wantOK: false},
-		{in: []string{"sq", "--" + flag.ConfigDir + "=/home"}, wantOK: true, want: "/home"},
-		{in: []string{"sq", "--" + flag.ConfigDir, "/home"}, wantOK: true, want: "/home"},
+		{in: []string{"sq", "--" + flag.Config + "=/home"}, wantOK: true, want: "/home"},
+		{in: []string{"sq", "--" + flag.Config, "/home"}, wantOK: true, want: "/home"},
 		{in: []string{"sq", "some", "args"}, wantOK: false, want: ""},
 		{in: []string{"sq", "--some=value", "args"}, wantOK: false, want: ""},
 	}

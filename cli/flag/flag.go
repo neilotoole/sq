@@ -117,6 +117,6 @@ const (
 	Arg      = "arg"
 	ArgUsage = "Set a string value to a variable"
 
-	ConfigDir      = "config.dir"
-	ConfigDirUsage = "Use config dir"
+	Config      = "config"
+	ConfigUsage = "load config from here"
 )
