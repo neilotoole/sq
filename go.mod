@@ -27,7 +27,7 @@ require (
 	github.com/stretchr/testify v1.8.2
 	github.com/tealeg/xlsx/v2 v2.0.1 // TODO: This package is no longer supported; switch to a different impl
 	github.com/testcontainers/testcontainers-go v0.19.0
-	github.com/xo/dburl v0.13.1
+	github.com/xo/dburl v0.14.2
 	go.uber.org/atomic v1.10.0
 	go.uber.org/multierr v1.11.0
 	golang.org/x/net v0.9.0
