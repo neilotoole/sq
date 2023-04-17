@@ -46,6 +46,9 @@ type YAMLFileStore struct {
 
 	// ExtPaths holds locations of potential ext config, both dirs and files (with suffix ".sq.yml")
 	ExtPaths []string
+
+	// upgradeReg holds upgrade funcs for upgrading the config file.
+	upgradeReg upgradeRegistry
 }
 
 // Origin of the config path.
@@ -67,6 +70,22 @@ func (fs *YAMLFileStore) Location() string {
 
 // Load reads config from disk. It implements Store.
 func (fs *YAMLFileStore) Load() (*Config, error) {
+	needsUpgrade, foundVers, err := checkNeedsUpgrade(fs.Path)
+	if err != nil {
+		return nil, err
+	}
+
+	if needsUpgrade {
+		_, err = fs.UpgradeConfig(foundVers, buildinfo.Version)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return fs.doLoad()
+}
+
+func (fs *YAMLFileStore) doLoad() (*Config, error) {
 	bytes, err := os.ReadFile(fs.Path)
 	if err != nil {
 		return nil, errz.Wrapf(err, "config: failed to load file: %s", fs.Path)
@@ -182,9 +201,13 @@ func (fs *YAMLFileStore) Save(cfg *Config) error {
 		return errz.Wrap(err, "failed to marshal config to YAML")
 	}
 
+	return fs.doSave(data)
+}
+
+func (fs *YAMLFileStore) doSave(data []byte) error {
 	// It's possible that the parent dir of fs.Path doesn't exist.
 	dir := filepath.Dir(fs.Path)
-	err = os.MkdirAll(dir, 0o750)
+	err := os.MkdirAll(dir, 0o750)
 	if err != nil {
 		return errz.Wrapf(err, "failed to make parent dir of sq config file: %s", dir)
 	}
@@ -241,13 +264,7 @@ func DefaultLoad(osArgs []string) (*Config, Store, error) {
 		origin = originEnv
 	} else {
 		origin = originDefault
-
-		// if _, err = maybeMigrateLegacyConfigDir(); err != nil {
-		//	return nil, nil, err
-		// }
-
-		cfgDir, err = getLegacyDefaultConfigDir()
-		if err != nil {
+		if cfgDir, err = getDefaultConfigDir(); err != nil {
 			return nil, nil, err
 		}
 	}
@@ -302,57 +319,8 @@ func getConfigDirFromFlag(osArgs []string) (dir string, ok bool, err error) {
 	return dir, true, nil
 }
 
-// maybeMigrateLegacyConfigDir maybe migrates config from the legacy dir
-// to the new default dir.
-func maybeMigrateLegacyConfigDir() (bool, error) { //nolint:unused
-	legacyDir, err := getLegacyDefaultConfigDir()
-	if err != nil {
-		return false, err
-	}
-
-	newDir, err := getDefaultConfigDir()
-	if err != nil {
-		return false, err
-	}
-
-	if fileExists(filepath.Join(newDir, "sq.yml")) {
-		// new config already exists, nothing to do.
-		return false, nil
-	}
-
-	if !fileExists(filepath.Join(legacyDir, "sq.yml")) {
-		// Legacy config doesn't exist, nothing to do.
-		return false, nil
-	}
-
-	// So, the legacy dir does exist, and the new one doesn't... time
-	// to migrate!
-
-	if err = os.Rename(legacyDir, newDir); err != nil {
-		return false, errz.Wrapf(err, "failed to migrate legacy config dir: %s  -->  %s",
-			legacyDir, newDir)
-	}
-
-	//nolint:forbidigo
-	fmt.Printf("Migrated legacy config dir (one-time operation): %s --> %s\n", legacyDir, newDir)
-
-	// lg.FromContext(ctx).Debug("Migrated legacy config dir", lga.From, legacyDir, lga.To, newDir)
-
-	return true, nil
-}
-
-// fileExists returns true if os.Stat returns no error.
-func fileExists(name string) bool { //nolint:unused
-	if _, err := os.Stat(name); err == nil {
-		return true
-	}
-
-	return false
-}
-
-// getLegacyDefaultConfigDir returns "~/.config/sq".
-// Going forward, we should be using getDefaultConfigDir.
-func getLegacyDefaultConfigDir() (string, error) {
+// getDefaultConfigDir returns "~/.config/sq".
+func getDefaultConfigDir() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		// TODO: we should be able to run without the homedir... revisit this
@@ -361,16 +329,4 @@ func getLegacyDefaultConfigDir() (string, error) {
 
 	cfgDir := filepath.Join(home, ".config", "sq")
 	return cfgDir, nil
-}
-
-// getDefaultConfigDir returns the dir to store sq's config.
-// It is basically os.UserConfigDir() + "/sq".
-func getDefaultConfigDir() (string, error) { //nolint:unused
-	d, err := os.UserConfigDir()
-	if err != nil {
-		// TODO: we should be able to run without the homedir... revisit this
-		return "", errz.Wrap(err, "unable to get user config dir")
-	}
-
-	return filepath.Join(d, "sq"), nil
 }
