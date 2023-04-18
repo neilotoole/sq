@@ -213,6 +213,7 @@ func (t *table) sprintFloat64(num float64) string {
 	return t.fm.Number.Sprint(stringz.FormatFloat(num))
 }
 
+// reset resets the table internals.
 func (t *table) reset() {
 	t.tblImpl = internal.NewTable(t.out)
 	t.setTableWriterOptions()

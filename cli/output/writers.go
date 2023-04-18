@@ -9,6 +9,8 @@ package output
 import (
 	"time"
 
+	"github.com/neilotoole/sq/cli/config"
+
 	"github.com/neilotoole/sq/cli/buildinfo"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/driver"
@@ -108,6 +110,9 @@ type ConfigWriter interface {
 	// Location prints the config location. The origin may be empty, or one
 	// of "flag", "env", "default".
 	Location(loc, origin string) error
+
+	// Options prints config options.
+	Options(opts *config.Options) error
 }
 
 // FlushThreshold is the size in bytes after which a writer

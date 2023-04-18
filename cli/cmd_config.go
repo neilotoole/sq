@@ -32,10 +32,19 @@ func newConfigLocationCmd() *cobra.Command {
 		Long:  "Print config location. Use --verbose for more detail.",
 		Args:  cobra.ExactArgs(0),
 		RunE:  execConfigLocation,
+		Example: `  # Print config location
+  $ sq config location   
+  /Users/neilotoole/.config/sq
+
+  # Print location, also show origin (flag, env, default)
+  $ sq config location -v
+  /Users/neilotoole/.config/sq
+  Origin: env`,
 	}
 
-	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 	cmd.Flags().BoolP(flag.Table, flag.TableShort, false, flag.TableUsage)
+	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
+	cmd.Flags().BoolP(flag.YAML, flag.YAMLShort, false, flag.YAMLUsage)
 	return cmd
 }
 
@@ -48,4 +57,26 @@ func execConfigLocation(cmd *cobra.Command, _ []string) error {
 	}
 
 	return rc.writers.configw.Location(path, origin)
+}
+
+func newConfigGetCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "get",
+		Short: "Print config",
+		Long:  "Print config.",
+		Args:  cobra.ExactArgs(0),
+		RunE:  execConfigGet,
+	}
+
+	cmd.Flags().BoolP(flag.Table, flag.TableShort, false, flag.TableUsage)
+	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
+	cmd.Flags().BoolP(flag.YAML, flag.YAMLShort, false, flag.YAMLUsage)
+	return cmd
+}
+
+func execConfigGet(cmd *cobra.Command, _ []string) error {
+	rc := RunContextFrom(cmd.Context())
+
+	opts := rc.Config.Options
+	return rc.writers.configw.Options(&opts)
 }

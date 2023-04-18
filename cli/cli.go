@@ -34,6 +34,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/neilotoole/sq/cli/output/yamlw"
+
 	"github.com/neilotoole/sq/cli/flag"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -250,6 +252,7 @@ func newCommandTree(rc *RunContext) (rootCmd *cobra.Command) {
 	addCmd(rc, driverCmd, newDriverListCmd())
 
 	configCmd := addCmd(rc, rootCmd, newConfigCmd())
+	addCmd(rc, configCmd, newConfigGetCmd())
 	addCmd(rc, configCmd, newConfigLocationCmd())
 
 	addCmd(rc, rootCmd, newCompletionCmd())
@@ -460,7 +463,7 @@ func (rc *RunContext) doInit() error {
 		rc.Out = f
 	}
 
-	rc.writers, rc.Out, rc.ErrOut = newWriters(rc.Cmd, rc.Config.Defaults, rc.Out, rc.ErrOut)
+	rc.writers, rc.Out, rc.ErrOut = newWriters(rc.Cmd, rc.Config.Options, rc.Out, rc.ErrOut)
 
 	var scratchSrcFunc driver.ScratchSrcFunc
 
@@ -584,11 +587,11 @@ type writers struct {
 // newWriters returns a writers instance configured per defaults and/or
 // flags from cmd. The returned out2/errOut2 values may differ
 // from the out/errOut args (e.g. decorated to support colorization).
-func newWriters(cmd *cobra.Command, defaults config.Defaults, out,
+func newWriters(cmd *cobra.Command, opts config.Options, out,
 	errOut io.Writer,
 ) (w *writers, out2, errOut2 io.Writer) {
 	var fm *output.Formatting
-	fm, out2, errOut2 = getWriterFormatting(cmd, out, errOut)
+	fm, out2, errOut2 = getWriterFormatting(cmd, &opts, out, errOut)
 	log := lg.FromContext(cmd.Context())
 
 	// Package tablew has writer impls for each of the writer interfaces,
@@ -608,7 +611,7 @@ func newWriters(cmd *cobra.Command, defaults config.Defaults, out,
 
 	// Invoke getFormat to see if the format was specified
 	// via config or flag.
-	format := getFormat(cmd, defaults)
+	format := getFormat(cmd, opts)
 
 	switch format { //nolint:exhaustive
 	default:
@@ -652,6 +655,9 @@ func newWriters(cmd *cobra.Command, defaults config.Defaults, out,
 
 	case config.FormatJSONL:
 		w.recordw = jsonw.NewObjectRecordWriter(out2, fm)
+
+	case config.FormatYAML:
+		w.configw = yamlw.NewConfigWriter(out2, fm)
 	}
 
 	return w, out2, errOut2
@@ -660,7 +666,9 @@ func newWriters(cmd *cobra.Command, defaults config.Defaults, out,
 // getWriterFormatting returns a Formatting instance and
 // colorable or non-colorable writers. It is permissible
 // for the cmd arg to be nil.
-func getWriterFormatting(cmd *cobra.Command, out, errOut io.Writer) (fm *output.Formatting, out2, errOut2 io.Writer) {
+func getWriterFormatting(cmd *cobra.Command, opts *config.Options,
+	out, errOut io.Writer,
+) (fm *output.Formatting, out2, errOut2 io.Writer) {
 	fm = output.NewFormatting()
 
 	if cmdFlagChanged(cmd, flag.Pretty) {
@@ -673,6 +681,8 @@ func getWriterFormatting(cmd *cobra.Command, out, errOut io.Writer) (fm *output.
 
 	if cmdFlagChanged(cmd, flag.Header) {
 		fm.ShowHeader, _ = cmd.Flags().GetBool(flag.Header)
+	} else if opts != nil {
+		fm.ShowHeader = opts.Header
 	}
 
 	// TODO: Should get this default value from config
@@ -721,7 +731,7 @@ func getWriterFormatting(cmd *cobra.Command, out, errOut io.Writer) (fm *output.
 	return fm, out2, errOut2
 }
 
-func getFormat(cmd *cobra.Command, defaults config.Defaults) config.Format {
+func getFormat(cmd *cobra.Command, defaults config.Options) config.Format {
 	var format config.Format
 
 	switch {
@@ -748,6 +758,8 @@ func getFormat(cmd *cobra.Command, defaults config.Defaults) config.Format {
 		format = config.FormatJSONA
 	case cmdFlagChanged(cmd, flag.JSON):
 		format = config.FormatJSON
+	case cmdFlagChanged(cmd, flag.YAML):
+		format = config.FormatYAML
 	default:
 		// no format flag, use the config value
 		format = defaults.Format
@@ -864,8 +876,16 @@ func printError(rc *RunContext, err error) {
 	// in json, specified via flags (by directly using the pflag
 	// package) or via sq config's default output format.
 
+	var opts *config.Options
+	if rc != nil && rc.Config != nil {
+		var zero config.Options
+		if rc.Config.Options != zero {
+			opts = &rc.Config.Options
+		}
+	}
+
 	// getWriterFormatting works even if cmd is nil
-	fm, _, errOut := getWriterFormatting(cmd, os.Stdout, os.Stderr)
+	fm, _, errOut := getWriterFormatting(cmd, opts, os.Stdout, os.Stderr)
 
 	if bootstrapIsFormatJSON(rc) {
 		// The user wants JSON, either via defaults or flags.
@@ -923,7 +943,7 @@ func bootstrapIsFormatJSON(rc *RunContext) bool {
 
 	defaultFormat := config.FormatTable
 	if rc.Config != nil {
-		defaultFormat = rc.Config.Defaults.Format
+		defaultFormat = rc.Config.Options.Format
 	}
 
 	// If args were provided, create a new flag set and check

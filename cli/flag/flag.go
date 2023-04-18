@@ -107,6 +107,10 @@ const (
 	XLSXShort = "x"
 	XLSXUsage = "Output Excel XLSX"
 
+	YAML      = "yaml"
+	YAMLShort = "y"
+	YAMLUsage = "Output YAML"
+
 	XML      = "xml"
 	XMLShort = "X"
 	XMLUsage = "Output XML"

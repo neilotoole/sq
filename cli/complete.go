@@ -168,7 +168,7 @@ func (c *handleTableCompleter) complete(cmd *cobra.Command, args []string,
 	// We don't want the user to wait around forever for
 	// shell completion, so we set a timeout. Typically
 	// this is something like 500ms.
-	ctx, cancelFn := context.WithTimeout(cmd.Context(), rc.Config.Defaults.ShellCompletionTimeout)
+	ctx, cancelFn := context.WithTimeout(cmd.Context(), rc.Config.Options.ShellCompletionTimeout)
 	defer cancelFn()
 
 	if c.max > 0 && len(args) >= c.max {

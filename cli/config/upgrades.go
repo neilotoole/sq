@@ -54,6 +54,7 @@ func execUpgradeExample_v0_15_0(fs *YAMLFileStore) error { //nolint:unused,reviv
 }
 
 // execUpgrade_v0_34_0 does the following:
+// - "version" is renamed to "config_version".
 // - "defaults" is renamed to "options".
 //
 // FIXME: WIP.
@@ -63,11 +64,18 @@ func execUpgrade_v0_34_0(fs *YAMLFileStore) error { //nolint:revive,stylecheck
 		return errz.Wrap(err, "failed to read config file")
 	}
 
-	// Do something with data
+	// Load data
 	var m map[string]any
 	if err = yaml.Unmarshal(data, &m); err != nil {
 		return errz.Wrapf(err, "failed to unmarshal config file: %s", fs.Path)
 	}
+
+	// Do your actions
+	m["options"] = m["defaults"]
+	delete(m, "defaults")
+
+	m["config_version"] = m["version"]
+	delete(m, "version")
 
 	// Marshal m back into []byte
 	data, err = yaml.Marshal(m)
