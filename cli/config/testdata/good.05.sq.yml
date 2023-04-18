@@ -1,5 +1,5 @@
 # This file has an empty active source.
-defaults:
+options:
     output_format: table
     output_header: false
     ping_timeout: 10s

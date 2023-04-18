@@ -4,6 +4,8 @@ import (
 	"context"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
 	"golang.org/x/exp/slices"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -32,7 +34,7 @@ func completeHandle(max int) completionFunc {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		rc := RunContextFrom(cmd.Context())
+		rc := getRunContext(cmd)
 		handles := rc.Config.Sources.Handles()
 		handles = lo.Reject(handles, func(item string, index int) bool {
 			return !strings.HasPrefix(item, toComplete)
@@ -53,7 +55,7 @@ func completeGroup(max int) completionFunc {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		rc := RunContextFrom(cmd.Context())
+		rc := getRunContext(cmd)
 		groups := rc.Config.Sources.Groups()
 		groups, _ = lo.Difference(groups, args)
 		groups = lo.Uniq(groups)
@@ -97,7 +99,7 @@ func completeSLQ(cmd *cobra.Command, args []string, toComplete string) ([]string
 
 // completeDriverType is a completionFunc that suggests drivers.
 func completeDriverType(cmd *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
-	rc := RunContextFrom(cmd.Context())
+	rc := getRunContext(cmd)
 	if rc.databases == nil {
 		err := rc.init()
 		if err != nil {
@@ -159,7 +161,7 @@ type handleTableCompleter struct {
 func (c *handleTableCompleter) complete(cmd *cobra.Command, args []string,
 	toComplete string,
 ) ([]string, cobra.ShellCompDirective) {
-	rc := RunContextFrom(cmd.Context())
+	rc := getRunContext(cmd)
 	if err := rc.init(); err != nil {
 		lg.Unexpected(rc.Log, err)
 		return nil, cobra.ShellCompDirectiveError
@@ -342,38 +344,39 @@ func (c *handleTableCompleter) completeHandle(ctx context.Context, rc *RunContex
 func (c *handleTableCompleter) completeEither(ctx context.Context, rc *RunContext,
 	_ []string, _ string,
 ) ([]string, cobra.ShellCompDirective) {
+	var suggestions []string
+
 	// There's no input yet.
 	// Therefore we want to return a union of all handles
 	// plus the tables from the active source.
 	activeSrc := rc.Config.Sources.Active()
-	if activeSrc == nil {
-		rc.Log.Error("Active source is nil")
-		return nil, cobra.ShellCompDirectiveError
-	}
-
-	var activeSrcTables []string
-	isSQL, err := handleIsSQLDriver(rc, activeSrc.Handle)
-	if err != nil {
-		lg.Unexpected(rc.Log, err)
-		return nil, cobra.ShellCompDirectiveError
-	}
-
-	if !c.onlySQL || isSQL {
-		activeSrcTables, err = getTableNamesForHandle(ctx, rc, activeSrc.Handle)
+	if activeSrc != nil {
+		var activeSrcTables []string
+		isSQL, err := handleIsSQLDriver(rc, activeSrc.Handle)
 		if err != nil {
 			lg.Unexpected(rc.Log, err)
 			return nil, cobra.ShellCompDirectiveError
 		}
-	}
 
-	var suggestions []string
-	for _, table := range activeSrcTables {
-		suggestions = append(suggestions, "."+table)
+		if !c.onlySQL || isSQL {
+			activeSrcTables, err = getTableNamesForHandle(ctx, rc, activeSrc.Handle)
+			if err != nil {
+				// This can happen if the active source is offline.
+				// Log the error, but continue below, because we still want to
+				// list the handles.
+				rc.Log.Warn("completion: failed to get table metadata from active source",
+					lga.Err, err, lga.Src, activeSrc)
+			}
+		}
+
+		for _, table := range activeSrcTables {
+			suggestions = append(suggestions, "."+table)
+		}
 	}
 
 	for _, src := range rc.Config.Sources.Sources() {
 		if c.onlySQL {
-			isSQL, err = handleIsSQLDriver(rc, src.Handle)
+			isSQL, err := handleIsSQLDriver(rc, src.Handle)
 			if err != nil {
 				lg.Unexpected(rc.Log, err)
 				return nil, cobra.ShellCompDirectiveError

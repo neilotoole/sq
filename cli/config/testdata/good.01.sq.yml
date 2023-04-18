@@ -1,4 +1,4 @@
-defaults:
+options:
   ping_timeout: 10s
   shell_completion_timeout: 1s
   output_format: table
@@ -14,14 +14,14 @@ sources:
     - handle: '@xl1'
       type: xlsx
       location: ${SQ_ROOT}/drivers/xlsx/testdata/test_header.xlsx
-      defaults:
+      options:
         header:
           - "true"
 
     - handle: '@csv1'
       type: csv
       location: ${SQ_ROOT}/drivers/csv/testdata/person_comma_header.csv
-      defaults:
+      options:
         header:
           - "true"
 
@@ -72,7 +72,7 @@ sources:
     - handle: '@xl_header'
       type: xlsx
       location: ${SQ_ROOT}/drivers/xlsx/testdata/test_header.xlsx
-      defaults:
+      options:
         header:
           - "true"
 
@@ -87,7 +87,7 @@ sources:
     - handle: '@csv_person_comma_header'
       type: csv
       location: ${SQ_ROOT}/drivers/csv/testdata/person_comma_header.csv
-      defaults:
+      options:
         header:
           - "true"
 
@@ -106,7 +106,7 @@ sources:
     - handle: '@tsv_person_noheader_cols'
       type: tsv
       location: ${SQ_ROOT}/drivers/csv/testdata/person_noheader.tsv
-      defaults:
+      options:
         cols:
           - uid,username,email
 
@@ -145,7 +145,7 @@ sources:
     - handle: '@csvbig'
       type: csv
       location: ${SQ_ROOT}/drivers/csv/testdata/person_comma_header_big.csv
-      defaults:
+      options:
         header:
           - "true"
 
