@@ -93,7 +93,7 @@ func execQueryTestCase(t *testing.T, tc queryTestCase) {
 			dbases := th.Databases()
 
 			qc := &libsq.QueryContext{
-				Sources:      coll,
+				Collection:   coll,
 				DBOpener:     dbases,
 				JoinDBOpener: dbases,
 				Args:         tc.args,

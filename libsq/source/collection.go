@@ -30,15 +30,15 @@ type Collection struct {
 	mu sync.Mutex
 
 	// data holds the set's adata.
-	data setData
+	data collData
 }
 
-// setData holds Collection's for the purposes of serialization
-// to YAML etc. (we don't want to expose setData's exported
+// collData holds Collection data for the purposes of serialization
+// to YAML etc. (we don't want to expose collData's exported
 // fields directly on Collection.)
 //
 // This seemed like a good idea at the time, but probably wasn't.
-type setData struct {
+type collData struct {
 	// ActiveSrc is the active source. It may be empty.
 	ActiveSrc string `yaml:"active_source" json:"active_source"`
 
@@ -50,7 +50,7 @@ type setData struct {
 	// ScratchSrc is the handle of the scratchdb source.
 	ScratchSrc string `yaml:"scratch" json:"scratch"`
 
-	// Sources holds the set's sources.
+	// Sources holds the collection's sources.
 	Sources []*Source `yaml:"sources" json:"sources"`
 }
 
@@ -626,7 +626,7 @@ func (c *Collection) Clone() *Collection {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	data := setData{
+	data := collData{
 		ActiveGroup: c.data.ActiveGroup,
 		ActiveSrc:   c.data.ActiveSrc,
 		ScratchSrc:  c.data.ScratchSrc,

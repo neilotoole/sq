@@ -119,7 +119,6 @@ func (md *Metadata) String() string {
 }
 
 // DBVar models a key-value pair for driver config.
-// REVISIT: maybe better named as SourceSetting or such?
 type DBVar struct {
 	Name  string `json:"name"`
 	Value string `json:"value"`

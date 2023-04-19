@@ -40,7 +40,7 @@ func determineSources(ctx context.Context, rc *RunContext) error {
 	if stdinSrc != nil {
 		// We have a valid source on stdin.
 
-		// Add the stdin source to the set.
+		// Add the stdin source to coll.
 		err = coll.Add(stdinSrc)
 		if err != nil {
 			return err
@@ -71,8 +71,8 @@ func determineSources(ctx context.Context, rc *RunContext) error {
 // activeSrcFromFlagsOrConfig gets the active source, either
 // from flagActiveSrc or from srcs.Active. An error is returned
 // if the flag src is not found: if the flag src is found,
-// it is set as the active src on srcs. If the flag was not
-// set and there is no active src in srcs, (nil, nil) is
+// it is set as the active src on coll. If the flag was not
+// set and there is no active src in coll, (nil, nil) is
 // returned.
 func activeSrcFromFlagsOrConfig(cmd *cobra.Command, coll *source.Collection) (*source.Source, error) {
 	var activeSrc *source.Source

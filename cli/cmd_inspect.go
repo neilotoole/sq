@@ -55,7 +55,7 @@ func execInspect(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	rc := RunContextFrom(ctx)
 
-	srcs := rc.Config.Collection
+	coll := rc.Config.Collection
 
 	var src *source.Source
 	var table string
@@ -78,20 +78,20 @@ func execInspect(cmd *cobra.Command, args []string) error {
 			// We have a valid source on stdin.
 
 			// Add the source to the set.
-			err = srcs.Add(src)
+			err = coll.Add(src)
 			if err != nil {
 				return err
 			}
 
 			// Collection the stdin pipe data source as the active source,
 			// as it's commonly the only data source the user is acting upon.
-			src, err = srcs.SetActive(src.Handle, false)
+			src, err = coll.SetActive(src.Handle, false)
 			if err != nil {
 				return err
 			}
 		} else {
 			// No source on stdin. Let's see if there's an active source.
-			src = srcs.Active()
+			src = coll.Active()
 			if src == nil {
 				return errz.Errorf("no data source specified and no active data source")
 			}
@@ -108,12 +108,12 @@ func execInspect(cmd *cobra.Command, args []string) error {
 		}
 
 		if handle == "" {
-			src = srcs.Active()
+			src = coll.Active()
 			if src == nil {
 				return errz.Errorf("no data source specified and no active data source")
 			}
 		} else {
-			src, err = srcs.Get(handle)
+			src, err = coll.Get(handle)
 			if err != nil {
 				return err
 			}

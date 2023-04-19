@@ -124,7 +124,7 @@ func (ng *engine) executeTasks(ctx context.Context) error {
 func (ng *engine) buildTableFromClause(ctx context.Context, tblSel *ast.TblSelectorNode) (fromClause string,
 	fromConn driver.Database, err error,
 ) {
-	src, err := ng.qc.Sources.Get(tblSel.Handle())
+	src, err := ng.qc.Collection.Get(tblSel.Handle())
 	if err != nil {
 		return "", nil, err
 	}
@@ -176,7 +176,7 @@ func (ng *engine) buildJoinFromClause(ctx context.Context, fnJoin *ast.JoinNode)
 func (ng *engine) singleSourceJoin(ctx context.Context, fnJoin *ast.JoinNode) (fromClause string,
 	fromDB driver.Database, err error,
 ) {
-	src, err := ng.qc.Sources.Get(fnJoin.LeftTbl().Handle())
+	src, err := ng.qc.Collection.Get(fnJoin.LeftTbl().Handle())
 	if err != nil {
 		return "", nil, err
 	}
@@ -214,12 +214,12 @@ func (ng *engine) crossSourceJoin(ctx context.Context, fnJoin *ast.JoinNode) (fr
 			fnJoin.LeftTbl().TblName())
 	}
 
-	leftSrc, err := ng.qc.Sources.Get(fnJoin.LeftTbl().Handle())
+	leftSrc, err := ng.qc.Collection.Get(fnJoin.LeftTbl().Handle())
 	if err != nil {
 		return "", nil, err
 	}
 
-	rightSrc, err := ng.qc.Sources.Get(fnJoin.RightTbl().Handle())
+	rightSrc, err := ng.qc.Collection.Get(fnJoin.RightTbl().Handle())
 	if err != nil {
 		return "", nil, err
 	}

@@ -156,7 +156,7 @@ func execSLQInsert(ctx context.Context, rc *RunContext, mArgs map[string]string,
 	)
 
 	qc := &libsq.QueryContext{
-		Sources:      coll,
+		Collection:   coll,
 		DBOpener:     rc.databases,
 		JoinDBOpener: rc.databases,
 		Args:         mArgs,
@@ -184,7 +184,7 @@ func execSLQPrint(ctx context.Context, rc *RunContext, mArgs map[string]string) 
 	}
 
 	qc := &libsq.QueryContext{
-		Sources:      rc.Config.Collection,
+		Collection:   rc.Config.Collection,
 		DBOpener:     rc.databases,
 		JoinDBOpener: rc.databases,
 		Args:         mArgs,

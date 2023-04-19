@@ -233,11 +233,11 @@ func (h *Helper) Source(handle string) *source.Source {
 
 	if h.coll == nil {
 		// It might be expected that we would simply use the
-		// collection (h.srcs) to return the source, but this
+		// collection (h.coll) to return the source, but this
 		// method also uses a cache. This is because this
 		// method makes a copy the data file of file-based sources
 		// as mentioned in the method godoc.
-		h.coll = mustLoadSourceSet(t)
+		h.coll = mustLoadCollection(t)
 		h.srcCache = map[string]*source.Source{}
 	}
 
@@ -297,11 +297,11 @@ func (h *Helper) Source(handle string) *source.Source {
 // new *source.Collection incorporating the supplied handles. See
 // Helper.Source for more on the behavior.
 func (h *Helper) NewCollection(handles ...string) *source.Collection {
-	srcs := &source.Collection{}
+	coll := &source.Collection{}
 	for _, handle := range handles {
-		require.NoError(h.T, srcs.Add(h.Source(handle)))
+		require.NoError(h.T, coll.Add(h.Source(handle)))
 	}
-	return srcs
+	return coll
 }
 
 // Open opens a Database for src via h's internal Databases
@@ -515,7 +515,7 @@ func (h *Helper) QuerySLQ(query string, args map[string]string) (*RecordSink, er
 	}
 
 	qc := &libsq.QueryContext{
-		Sources:      h.coll,
+		Collection:   h.coll,
 		DBOpener:     h.databases,
 		JoinDBOpener: h.databases,
 		Args:         args,
@@ -690,7 +690,7 @@ func (h *Helper) DiffDB(src *source.Source) {
 	})
 }
 
-func mustLoadSourceSet(t testing.TB) *source.Collection {
+func mustLoadCollection(t testing.TB) *source.Collection {
 	hookExpand := func(data []byte) ([]byte, error) {
 		// expand vars such as "${SQ_ROOT}"
 		return []byte(proj.Expand(string(data))), nil
