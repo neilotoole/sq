@@ -154,7 +154,7 @@ func (h *Helper) init() {
 			assert.NoError(h.T, err)
 		})
 
-		h.files.AddTypeDetectors(source.DetectMagicNumber)
+		h.files.AddDriverDetectors(source.DetectMagicNumber)
 
 		h.databases = driver.NewDatabases(log, h.registry, sqlite3.NewScratchSource)
 		h.Cleanup.AddC(h.databases)
@@ -169,16 +169,16 @@ func (h *Helper) init() {
 		csvp := &csv.Provider{Log: log, Scratcher: h.databases, Files: h.files}
 		h.registry.AddProvider(csv.TypeCSV, csvp)
 		h.registry.AddProvider(csv.TypeTSV, csvp)
-		h.files.AddTypeDetectors(csv.DetectCSV, csv.DetectTSV)
+		h.files.AddDriverDetectors(csv.DetectCSV, csv.DetectTSV)
 
 		jsonp := &json.Provider{Log: log, Scratcher: h.databases, Files: h.files}
 		h.registry.AddProvider(json.TypeJSON, jsonp)
 		h.registry.AddProvider(json.TypeJSONA, jsonp)
 		h.registry.AddProvider(json.TypeJSONL, jsonp)
-		h.files.AddTypeDetectors(json.DetectJSON, json.DetectJSONA, json.DetectJSONL)
+		h.files.AddDriverDetectors(json.DetectJSON, json.DetectJSONA, json.DetectJSONL)
 
 		h.registry.AddProvider(xlsx.Type, &xlsx.Provider{Log: log, Scratcher: h.databases, Files: h.files})
-		h.files.AddTypeDetectors(xlsx.DetectXLSX)
+		h.files.AddDriverDetectors(xlsx.DetectXLSX)
 
 		h.addUserDrivers()
 	})
@@ -625,7 +625,7 @@ func (h *Helper) addUserDrivers() {
 		}
 
 		h.registry.AddProvider(source.DriverType(userDriverDef.Name), udp)
-		h.files.AddTypeDetectors(udp.TypeDetectors()...)
+		h.files.AddDriverDetectors(udp.Detectors()...)
 	}
 }
 
@@ -717,8 +717,8 @@ func DriverDefsFrom(t testing.TB, cfgFiles ...string) []*userdriver.DriverDef {
 	return userDriverDefs
 }
 
-// TypeDetectors returns the common set of TypeDetectorFuncs.
-func TypeDetectors() []source.DriverDetectFunc {
+// DriverDetectors returns the common set of TypeDetectorFuncs.
+func DriverDetectors() []source.DriverDetectFunc {
 	return []source.DriverDetectFunc{
 		source.DetectMagicNumber,
 		xlsx.DetectXLSX,

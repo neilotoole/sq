@@ -19,7 +19,7 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 )
 
-func TestTypeDetectorFuncs(t *testing.T) {
+func TestDriverDetectorFuncs(t *testing.T) {
 	detectFns := map[source.DriverType]source.DriverDetectFunc{ //nolint:exhaustive
 		json.TypeJSON:  json.DetectJSON,
 		json.TypeJSONA: json.DetectJSONA,
@@ -29,7 +29,8 @@ func TestTypeDetectorFuncs(t *testing.T) {
 	testCases := []struct {
 		fn    source.DriverType
 		fname string
-		want  source.DriverType // Note: that the zero value is source.TypeNone
+		// Note that the zero value is source.TypeNone
+		want source.DriverType
 		// If wantScore is zero, it's not inspected. If non-zero,
 		// gotScore is tested against wantScore
 		wantScore float32

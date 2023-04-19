@@ -223,7 +223,7 @@ func (rc *RunContext) doInit() error {
 	// because databases could depend upon the existence of
 	// files (such as a sqlite db file).
 	rc.clnup.AddE(rc.files.Close)
-	rc.files.AddTypeDetectors(source.DetectMagicNumber)
+	rc.files.AddDriverDetectors(source.DetectMagicNumber)
 
 	rc.registry = driver.NewRegistry(log)
 	rc.databases = driver.NewDatabases(log, rc.registry, scratchSrcFunc)
@@ -239,16 +239,16 @@ func (rc *RunContext) doInit() error {
 	csvp := &csv.Provider{Log: log, Scratcher: rc.databases, Files: rc.files}
 	rc.registry.AddProvider(csv.TypeCSV, csvp)
 	rc.registry.AddProvider(csv.TypeTSV, csvp)
-	rc.files.AddTypeDetectors(csv.DetectCSV, csv.DetectTSV)
+	rc.files.AddDriverDetectors(csv.DetectCSV, csv.DetectTSV)
 
 	jsonp := &json.Provider{Log: log, Scratcher: rc.databases, Files: rc.files}
 	rc.registry.AddProvider(json.TypeJSON, jsonp)
 	rc.registry.AddProvider(json.TypeJSONA, jsonp)
 	rc.registry.AddProvider(json.TypeJSONL, jsonp)
-	rc.files.AddTypeDetectors(json.DetectJSON, json.DetectJSONA, json.DetectJSONL)
+	rc.files.AddDriverDetectors(json.DetectJSON, json.DetectJSONA, json.DetectJSONL)
 
 	rc.registry.AddProvider(xlsx.Type, &xlsx.Provider{Log: log, Scratcher: rc.databases, Files: rc.files})
-	rc.files.AddTypeDetectors(xlsx.DetectXLSX)
+	rc.files.AddDriverDetectors(xlsx.DetectXLSX)
 	// One day we may have more supported user driver genres.
 	userDriverImporters := map[string]userdriver.ImportFunc{
 		xmlud.Genre: xmlud.Import,
@@ -282,7 +282,7 @@ func (rc *RunContext) doInit() error {
 		}
 
 		rc.registry.AddProvider(source.DriverType(userDriverDef.Name), udp)
-		rc.files.AddTypeDetectors(udp.TypeDetectors()...)
+		rc.files.AddDriverDetectors(udp.Detectors()...)
 	}
 
 	return nil

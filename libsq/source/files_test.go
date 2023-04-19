@@ -58,7 +58,7 @@ func TestFiles_Type(t *testing.T) {
 		t.Run(tc.loc, func(t *testing.T) {
 			fs, err := source.NewFiles(slogt.New(t))
 			require.NoError(t, err)
-			fs.AddTypeDetectors(testh.TypeDetectors()...)
+			fs.AddDriverDetectors(testh.DriverDetectors()...)
 
 			gotType, gotErr := fs.DriverType(context.Background(), tc.loc)
 			if tc.wantErr {
@@ -100,7 +100,7 @@ func TestFiles_DetectType(t *testing.T) {
 			ctx := context.Background()
 			fs, err := source.NewFiles(slogt.New(t))
 			require.NoError(t, err)
-			fs.AddTypeDetectors(testh.TypeDetectors()...)
+			fs.AddDriverDetectors(testh.DriverDetectors()...)
 
 			typ, ok, err := source.FilesDetectTypeFn(fs, ctx, tc.loc)
 			if tc.wantErr {

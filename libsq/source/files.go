@@ -73,8 +73,8 @@ func NewFiles(log *slog.Logger) (*Files, error) {
 	return fs, nil
 }
 
-// AddTypeDetectors adds type detectors.
-func (fs *Files) AddTypeDetectors(detectFns ...DriverDetectFunc) {
+// AddDriverDetectors adds driver type detectors.
+func (fs *Files) AddDriverDetectors(detectFns ...DriverDetectFunc) {
 	fs.detectFns = append(fs.detectFns, detectFns...)
 }
 
