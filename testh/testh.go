@@ -75,7 +75,7 @@ type Option func(h *Helper)
 // Most tests don't need this.
 func OptLongDB() Option {
 	return func(h *Helper) {
-		h.dbOpenTimeout = time.Second * 60
+		h.dbOpenTimeout = time.Second * 120
 	}
 }
 
