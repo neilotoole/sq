@@ -200,7 +200,7 @@ func (h *Helper) Close() {
 // instance of *source.Source will be returned for multiple invocations
 // of this method on the same Helper instance.
 //
-// For certain file-based source types, the returned src's Location
+// For certain file-based driver types, the returned src's Location
 // may point to a copy of the file. This helps avoid tests dirtying
 // a version-controlled data file.
 //
@@ -624,7 +624,7 @@ func (h *Helper) addUserDrivers() {
 			Files:     h.files,
 		}
 
-		h.registry.AddProvider(source.Type(userDriverDef.Name), udp)
+		h.registry.AddProvider(source.DriverType(userDriverDef.Name), udp)
 		h.files.AddTypeDetectors(udp.TypeDetectors()...)
 	}
 }
@@ -659,7 +659,7 @@ func (h *Helper) Files() *source.Files {
 // returned by Helper.Source.
 func (h *Helper) DiffDB(src *source.Source) {
 	if !h.DriverFor(src).DriverMetadata().IsSQL {
-		// SkipDiffDB for non-SQL source types
+		// SkipDiffDB for non-SQL driver types
 		return
 	}
 
@@ -718,8 +718,8 @@ func DriverDefsFrom(t testing.TB, cfgFiles ...string) []*userdriver.DriverDef {
 }
 
 // TypeDetectors returns the common set of TypeDetectorFuncs.
-func TypeDetectors() []source.TypeDetectFunc {
-	return []source.TypeDetectFunc{
+func TypeDetectors() []source.DriverDetectFunc {
+	return []source.DriverDetectFunc{
 		source.DetectMagicNumber,
 		xlsx.DetectXLSX,
 		csv.DetectCSV, csv.DetectTSV,

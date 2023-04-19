@@ -45,7 +45,7 @@ func (c *SQLConfig) Apply(db *sql.DB) {
 // Provider is a factory that returns Driver instances.
 type Provider interface {
 	// DriverFor returns a driver instance for the given type.
-	DriverFor(typ source.Type) (Driver, error)
+	DriverFor(typ source.DriverType) (Driver, error)
 }
 
 // DatabaseOpener opens a Database.
@@ -73,8 +73,8 @@ type ScratchDatabaseOpener interface {
 	OpenScratch(ctx context.Context, name string) (Database, error)
 }
 
-// Driver is the interface that must be implemented for a data
-// source type.
+// Driver is the core interface that must be implemented for each type
+// of data source.
 type Driver interface {
 	DatabaseOpener
 
@@ -217,8 +217,8 @@ type Database interface {
 
 // Metadata holds driver metadata.
 type Metadata struct {
-	// Type is the driver source type, e.g. "mysql" or "csv", etc.
-	Type source.Type `json:"type"`
+	// Type is the driver type, e.g. "mysql" or "csv", etc.
+	Type source.DriverType `json:"type"`
 
 	// Description is typically the long name of the driver, e.g.
 	// "MySQL" or "Microsoft Excel XLSX".

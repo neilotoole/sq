@@ -141,7 +141,7 @@ type parsedLoc struct {
 
 	// typ is the associated source driver type, which may
 	// be empty until later determination.
-	typ Type
+	typ DriverType
 
 	// scheme is the original location scheme
 	scheme string

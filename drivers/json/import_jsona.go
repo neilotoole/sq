@@ -23,9 +23,11 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 )
 
-// DetectJSONA implements source.TypeDetectFunc for TypeJSONA.
+// DetectJSONA implements source.DriverDetectFunc for TypeJSONA.
 // Each line of input must be a valid JSON array.
-func DetectJSONA(ctx context.Context, openFn source.FileOpenFunc) (detected source.Type, score float32, err error) {
+func DetectJSONA(ctx context.Context, openFn source.FileOpenFunc) (detected source.DriverType,
+	score float32, err error,
+) {
 	log := lg.FromContext(ctx)
 	var r io.ReadCloser
 	r, err = openFn()

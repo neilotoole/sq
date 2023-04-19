@@ -141,7 +141,7 @@ func TestHelper_Files(t *testing.T) {
 	th := testh.New(t)
 	fs := th.Files()
 
-	typ, err := fs.Type(th.Context, src.Location)
+	typ, err := fs.DriverType(th.Context, src.Location)
 	require.NoError(t, err)
 	require.Equal(t, src.Type, typ)
 

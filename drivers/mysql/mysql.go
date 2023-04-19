@@ -32,7 +32,7 @@ import (
 
 const (
 	// Type is the MySQL source driver type.
-	Type = source.Type("mysql")
+	Type = source.DriverType("mysql")
 
 	// dbDrvr is the backing MySQL SQL driver impl name.
 	dbDrvr = "mysql"
@@ -47,7 +47,7 @@ type Provider struct {
 }
 
 // DriverFor implements driver.Provider.
-func (p *Provider) DriverFor(typ source.Type) (driver.Driver, error) {
+func (p *Provider) DriverFor(typ source.DriverType) (driver.Driver, error) {
 	if typ != Type {
 		return nil, errz.Errorf("unsupported driver type {%s}", typ)
 	}
@@ -322,7 +322,7 @@ func (d *driveri) Open(_ context.Context, src *source.Source) (driver.Database, 
 // ValidateSource implements driver.Driver.
 func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 	if src.Type != Type {
-		return nil, errz.Errorf("expected source type {%s} but got {%s}", Type, src.Type)
+		return nil, errz.Errorf("expected driver type {%s} but got {%s}", Type, src.Type)
 	}
 	return src, nil
 }

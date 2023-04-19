@@ -108,7 +108,7 @@ var handleTypeAliases = map[string]string{
 // those are replaced with underscore. If the handle starts with
 // a number or underscore, it will be prefixed with "h" (for "handle").
 // Thus "123.xlsx" becomes "@h123_xlsx".
-func SuggestHandle(coll *Collection, typ Type, loc string) (string, error) {
+func SuggestHandle(coll *Collection, typ DriverType, loc string) (string, error) {
 	ploc, err := parseLoc(loc)
 	if err != nil {
 		return "", err

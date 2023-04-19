@@ -19,9 +19,9 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 )
 
-// DetectJSON implements source.TypeDetectFunc.
+// DetectJSON implements source.DriverDetectFunc.
 // The function returns TypeJSON for two varieties of input:.
-func DetectJSON(ctx context.Context, openFn source.FileOpenFunc) (detected source.Type, score float32,
+func DetectJSON(ctx context.Context, openFn source.FileOpenFunc) (detected source.DriverType, score float32,
 	err error,
 ) {
 	log := lg.FromContext(ctx)

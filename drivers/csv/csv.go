@@ -21,10 +21,10 @@ import (
 
 const (
 	// TypeCSV is the CSV driver type.
-	TypeCSV = source.Type("csv")
+	TypeCSV = source.DriverType("csv")
 
 	// TypeTSV is the TSV driver type.
-	TypeTSV = source.Type("tsv")
+	TypeTSV = source.DriverType("tsv")
 )
 
 // Provider implements driver.Provider.
@@ -35,7 +35,7 @@ type Provider struct {
 }
 
 // DriverFor implements driver.Provider.
-func (d *Provider) DriverFor(typ source.Type) (driver.Driver, error) {
+func (d *Provider) DriverFor(typ source.DriverType) (driver.Driver, error) {
 	switch typ { //nolint:exhaustive
 	case TypeCSV:
 		return &driveri{log: d.Log, typ: TypeCSV, scratcher: d.Scratcher, files: d.Files}, nil
@@ -49,7 +49,7 @@ func (d *Provider) DriverFor(typ source.Type) (driver.Driver, error) {
 // Driver implements driver.Driver.
 type driveri struct {
 	log       *slog.Logger
-	typ       source.Type
+	typ       source.DriverType
 	scratcher driver.ScratchDatabaseOpener
 	files     *source.Files
 }
@@ -96,7 +96,7 @@ func (d *driveri) Truncate(_ context.Context, _ *source.Source, _ string, _ bool
 // ValidateSource implements driver.Driver.
 func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 	if src.Type != d.typ {
-		return nil, errz.Errorf("expected source type {%s} but got {%s}", d.typ, src.Type)
+		return nil, errz.Errorf("expected driver type {%s} but got {%s}", d.typ, src.Type)
 	}
 
 	if src.Options != nil || len(src.Options) > 0 {

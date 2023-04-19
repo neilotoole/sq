@@ -17,7 +17,7 @@ func TestQuery_filter(t *testing.T) {
 			name:     "filter/equal",
 			in:       `@sakila | .actor | .actor_id == 1`,
 			wantSQL:  `SELECT * FROM "actor" WHERE "actor_id" = 1`,
-			override: map[source.Type]string{mysql.Type: "SELECT * FROM `actor` WHERE `actor_id` = 1"},
+			override: map[source.DriverType]string{mysql.Type: "SELECT * FROM `actor` WHERE `actor_id` = 1"},
 			wantRecs: 1,
 		},
 	}

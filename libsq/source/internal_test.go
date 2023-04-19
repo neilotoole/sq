@@ -20,7 +20,7 @@ import (
 
 // Export for testing.
 var (
-	FilesDetectTypeFn = func(fs *Files, ctx context.Context, loc string) (typ Type, ok bool, err error) {
+	FilesDetectTypeFn = func(fs *Files, ctx context.Context, loc string) (typ DriverType, ok bool, err error) {
 		return fs.detectType(ctx, loc)
 	}
 	GroupsFilterOnlyDirectChildren = groupsFilterOnlyDirectChildren

@@ -73,7 +73,7 @@ there instead of prompting the user:
   $ sq add 'postgres://user@localhost/sakila' -p < password.txt
 
 Flag --opts sets source-specific options. Generally, opts are relevant
-to document source types (such as a CSV file). The most common
+to document driver types (such as a CSV file). The most common
 use is to specify that the document has a header row:
 
   $ sq add actor.csv --opts=header=true
@@ -154,23 +154,23 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 
 	loc := source.AbsLocation(strings.TrimSpace(args[0]))
 	var err error
-	var typ source.Type
+	var typ source.DriverType
 
 	if cmdFlagChanged(cmd, flag.Driver) {
 		val, _ := cmd.Flags().GetString(flag.Driver)
-		typ = source.Type(strings.TrimSpace(val))
+		typ = source.DriverType(strings.TrimSpace(val))
 	} else {
-		typ, err = rc.files.Type(cmd.Context(), loc)
+		typ, err = rc.files.DriverType(cmd.Context(), loc)
 		if err != nil {
 			return err
 		}
 		if typ == source.TypeNone {
-			return errz.Errorf("unable to determine source type: use --driver flag")
+			return errz.Errorf("unable to determine driver type: use --driver flag")
 		}
 	}
 
 	if rc.registry.ProviderFor(typ) == nil {
-		return errz.Errorf("unsupported source type {%s}", typ)
+		return errz.Errorf("unsupported driver type {%s}", typ)
 	}
 
 	var handle string

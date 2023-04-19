@@ -281,7 +281,7 @@ func (rc *RunContext) doInit() error {
 			Files:     rc.files,
 		}
 
-		rc.registry.AddProvider(source.Type(userDriverDef.Name), udp)
+		rc.registry.AddProvider(source.DriverType(userDriverDef.Name), udp)
 		rc.files.AddTypeDetectors(udp.TypeDetectors()...)
 	}
 

@@ -38,7 +38,7 @@ import (
 
 const (
 	// Type is the sqlite3 source driver type.
-	Type source.Type = "sqlite3"
+	Type source.DriverType = "sqlite3"
 
 	// dbDrvr is the backing sqlite3 SQL driver impl name.
 	dbDrvr = "sqlite3"
@@ -59,7 +59,7 @@ type Provider struct {
 }
 
 // DriverFor implements driver.Provider.
-func (p *Provider) DriverFor(typ source.Type) (driver.Driver, error) {
+func (p *Provider) DriverFor(typ source.DriverType) (driver.Driver, error) {
 	if typ != Type {
 		return nil, errz.Errorf("unsupported driver type {%s}", typ)
 	}

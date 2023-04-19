@@ -33,7 +33,7 @@ import (
 
 const (
 	// Type is the SQL Server source driver type.
-	Type = source.Type("sqlserver")
+	Type = source.DriverType("sqlserver")
 
 	// dbDrvr is the backing SQL Server driver impl name.
 	dbDrvr = "sqlserver"
@@ -48,7 +48,7 @@ type Provider struct {
 }
 
 // DriverFor implements driver.Provider.
-func (p *Provider) DriverFor(typ source.Type) (driver.Driver, error) {
+func (p *Provider) DriverFor(typ source.DriverType) (driver.Driver, error) {
 	if typ != Type {
 		return nil, errz.Errorf("unsupported driver type {%s}}", typ)
 	}
@@ -141,7 +141,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database
 // ValidateSource implements driver.Driver.
 func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 	if src.Type != Type {
-		return nil, errz.Errorf("expected source type %q but got %q", Type, src.Type)
+		return nil, errz.Errorf("expected driver type %q but got %q", Type, src.Type)
 	}
 	return src, nil
 }

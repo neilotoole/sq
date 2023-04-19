@@ -45,7 +45,7 @@ type Files struct {
 	mu        sync.Mutex
 	clnup     *cleanup.Cleanup
 	fcache    *fscache.FSCache
-	detectFns []TypeDetectFunc
+	detectFns []DriverDetectFunc
 }
 
 // NewFiles returns a new Files instance.
@@ -74,7 +74,7 @@ func NewFiles(log *slog.Logger) (*Files, error) {
 }
 
 // AddTypeDetectors adds type detectors.
-func (fs *Files) AddTypeDetectors(detectFns ...TypeDetectFunc) {
+func (fs *Files) AddTypeDetectors(detectFns ...DriverDetectFunc) {
 	fs.detectFns = append(fs.detectFns, detectFns...)
 }
 
@@ -122,7 +122,7 @@ func (fs *Files) AddStdin(f *os.File) error {
 // by AddStdin. An error is returned if AddStdin was not
 // first invoked. If the type cannot be detected, TypeNone and
 // nil are returned.
-func (fs *Files) TypeStdin(ctx context.Context) (Type, error) {
+func (fs *Files) TypeStdin(ctx context.Context) (DriverType, error) {
 	if !fs.fcache.Exists(StdinHandle) {
 		return TypeNone, errz.New("must invoke AddStdin before invoking TypeStdin")
 	}
@@ -333,8 +333,8 @@ func (fs *Files) CleanupE(fn func() error) {
 	fs.clnup.AddE(fn)
 }
 
-// Type returns the source type of location.
-func (fs *Files) Type(ctx context.Context, loc string) (Type, error) {
+// DriverType returns the driver type of loc.
+func (fs *Files) DriverType(ctx context.Context, loc string) (DriverType, error) {
 	ploc, err := parseLoc(loc)
 	if err != nil {
 		return TypeNone, err
@@ -348,7 +348,7 @@ func (fs *Files) Type(ctx context.Context, loc string) (Type, error) {
 		mtype := mime.TypeByExtension(ploc.ext)
 		if mtype == "" {
 			fs.log.Debug(
-				"unknown mime time",
+				"unknown mime type",
 				lga.Type, mtype,
 				lga.Loc, loc,
 			)
@@ -357,7 +357,7 @@ func (fs *Files) Type(ctx context.Context, loc string) (Type, error) {
 				return typ, nil
 			}
 			fs.log.Debug(
-				"unknown source type for media type",
+				"unknown driver type for media type",
 				lga.Type, mtype,
 				lga.Loc, loc,
 			)
@@ -371,19 +371,19 @@ func (fs *Files) Type(ctx context.Context, loc string) (Type, error) {
 	}
 
 	if !ok {
-		return TypeNone, errz.Errorf("unable to determine source type: %s", loc)
+		return TypeNone, errz.Errorf("unable to determine driver type: %s", loc)
 	}
 
 	return typ, nil
 }
 
-func (fs *Files) detectType(ctx context.Context, loc string) (typ Type, ok bool, err error) {
+func (fs *Files) detectType(ctx context.Context, loc string) (typ DriverType, ok bool, err error) {
 	if len(fs.detectFns) == 0 {
 		return TypeNone, false, nil
 	}
 
 	type result struct {
-		typ   Type
+		typ   DriverType
 		score float32
 	}
 
@@ -453,7 +453,7 @@ func (fs *Files) detectType(ctx context.Context, loc string) (typ Type, ok bool,
 // is responsible for closing the returned ReadCloser.
 type FileOpenFunc func() (io.ReadCloser, error)
 
-// TypeDetectFunc interrogates a byte stream to determine
+// DriverDetectFunc interrogates a byte stream to determine
 // the source driver type. A score is returned indicating
 // the confidence that the driver type has been detected.
 // A score <= 0 is failure, a score >= 1 is success; intermediate
@@ -461,15 +461,15 @@ type FileOpenFunc func() (io.ReadCloser, error)
 // An error is returned only if an IO problem occurred.
 // The implementation gets access to the byte stream by invoking openFn,
 // and is responsible for closing any reader it opens.
-type TypeDetectFunc func(ctx context.Context, openFn FileOpenFunc) (detected Type, score float32, err error)
+type DriverDetectFunc func(ctx context.Context, openFn FileOpenFunc) (detected DriverType, score float32, err error)
 
-var _ TypeDetectFunc = DetectMagicNumber
+var _ DriverDetectFunc = DetectMagicNumber
 
-// DetectMagicNumber is a TypeDetectFunc that uses an external
+// DetectMagicNumber is a DriverDetectFunc that uses an external
 // pkg (h2non/filetype) to detect the "magic number" from
 // the start of files.
 func DetectMagicNumber(ctx context.Context, openFn FileOpenFunc,
-) (detected Type, score float32, err error) {
+) (detected DriverType, score float32, err error) {
 	log := lg.FromContext(ctx)
 	var r io.ReadCloser
 	r, err = openFn()
