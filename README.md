@@ -138,8 +138,7 @@ address                 603    address_id, address, address2, district, city_id,
 category                16     category_id, name, last_update
 ```
 
-Use the `--verbose` (`-v`) flag to see more detail. And use `--json` (`-j`) to output in JSON (
-output abbreviated):
+Use the `--verbose` (`-v`) flag to see more detail. And use `--json` (`-j`) to output in JSON (output abbreviated):
 
 ```shell
 $ sq inspect -j
