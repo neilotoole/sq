@@ -62,7 +62,7 @@ The exit code is 1 if ping fails for any of the sources.`,
 
 func execPing(cmd *cobra.Command, args []string) error {
 	rc := RunContextFrom(cmd.Context())
-	cfg, ss := rc.Config, rc.Config.Sources
+	cfg, coll := rc.Config, rc.Config.Collection
 	var srcs []*source.Source
 
 	// args can be:
@@ -72,7 +72,7 @@ func execPing(cmd *cobra.Command, args []string) error {
 
 	args = lo.Uniq(args)
 	if len(args) == 0 {
-		src := cfg.Sources.Active()
+		src := cfg.Collection.Active()
 		if src == nil {
 			return errz.New(msgNoActiveSrc)
 		}
@@ -81,13 +81,13 @@ func execPing(cmd *cobra.Command, args []string) error {
 		for _, arg := range args {
 			switch {
 			case source.IsValidHandle(arg):
-				src, err := ss.Get(arg)
+				src, err := coll.Get(arg)
 				if err != nil {
 					return err
 				}
 				srcs = append(srcs, src)
 			case source.IsValidGroup(arg):
-				groupSrcs, err := ss.SourcesInGroup(arg)
+				groupSrcs, err := coll.SourcesInGroup(arg)
 				if err != nil {
 					return err
 				}

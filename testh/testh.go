@@ -92,7 +92,7 @@ type Helper struct {
 
 	initOnce sync.Once
 
-	srcs     *source.Set
+	coll     *source.Collection
 	srcCache map[string]*source.Source
 
 	Context  context.Context
@@ -231,13 +231,13 @@ func (h *Helper) Source(handle string) *source.Source {
 		}
 	}
 
-	if h.srcs == nil {
+	if h.coll == nil {
 		// It might be expected that we would simply use the
-		// source set (h.srcs) to return the source, but this
+		// collection (h.srcs) to return the source, but this
 		// method also uses a cache. This is because this
 		// method makes a copy the data file of file-based sources
 		// as mentioned in the method godoc.
-		h.srcs = mustLoadSourceSet(t)
+		h.coll = mustLoadSourceSet(t)
 		h.srcCache = map[string]*source.Source{}
 	}
 
@@ -247,7 +247,7 @@ func (h *Helper) Source(handle string) *source.Source {
 		return src
 	}
 
-	src, err := h.srcs.Get(handle)
+	src, err := h.coll.Get(handle)
 	require.NoError(t, err,
 		"source %s was not found in %s", handle, testsrc.PathSrcsConfig)
 
@@ -293,11 +293,11 @@ func (h *Helper) Source(handle string) *source.Source {
 	return src
 }
 
-// NewSourceSet is a convenience function for building a
-// new *source.Set incorporating the supplied handles. See
+// NewCollection is a convenience function for building a
+// new *source.Collection incorporating the supplied handles. See
 // Helper.Source for more on the behavior.
-func (h *Helper) NewSourceSet(handles ...string) *source.Set {
-	srcs := &source.Set{}
+func (h *Helper) NewCollection(handles ...string) *source.Collection {
+	srcs := &source.Collection{}
 	for _, handle := range handles {
 		require.NoError(h.T, srcs.Add(h.Source(handle)))
 	}
@@ -515,7 +515,7 @@ func (h *Helper) QuerySLQ(query string, args map[string]string) (*RecordSink, er
 	}
 
 	qc := &libsq.QueryContext{
-		Sources:      h.srcs,
+		Sources:      h.coll,
 		DBOpener:     h.databases,
 		JoinDBOpener: h.databases,
 		Args:         args,
@@ -690,7 +690,7 @@ func (h *Helper) DiffDB(src *source.Source) {
 	})
 }
 
-func mustLoadSourceSet(t testing.TB) *source.Set {
+func mustLoadSourceSet(t testing.TB) *source.Collection {
 	hookExpand := func(data []byte) ([]byte, error) {
 		// expand vars such as "${SQ_ROOT}"
 		return []byte(proj.Expand(string(data))), nil
@@ -700,9 +700,9 @@ func mustLoadSourceSet(t testing.TB) *source.Set {
 	cfg, err := fs.Load()
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
-	require.NotNil(t, cfg.Sources)
+	require.NotNil(t, cfg.Collection)
 
-	return cfg.Sources
+	return cfg.Collection
 }
 
 // DriverDefsFrom builds DriverDef values from cfg files.

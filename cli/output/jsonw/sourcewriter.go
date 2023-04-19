@@ -22,40 +22,40 @@ func NewSourceWriter(out io.Writer, fm *output.Formatting) output.SourceWriter {
 	return &sourceWriter{out: out, fm: fm}
 }
 
-// SourceSet implements output.SourceWriter.
-func (w *sourceWriter) SourceSet(ss *source.Set) error {
-	if ss == nil {
+// Collection implements output.SourceWriter.
+func (w *sourceWriter) Collection(coll *source.Collection) error {
+	if coll == nil {
 		return nil
 	}
 
-	// This is a bit hacky. Basically we want to JSON-print ss.Data().
+	// This is a bit hacky. Basically we want to JSON-print coll.Data().
 	// But, we want to do it just for the active group.
-	// So, our hack is that we clone the source set, and remove any
+	// So, our hack is that we clone the coll, and remove any
 	// sources that are not in the active group.
 	//
 	// This whole function, including what it outputs, should be revisited.
-	ss = ss.Clone()
-	group := ss.ActiveGroup()
+	coll = coll.Clone()
+	group := coll.ActiveGroup()
 
 	// We store the active src handle
-	activeHandle := ss.ActiveHandle()
+	activeHandle := coll.ActiveHandle()
 
-	handles, err := ss.HandlesInGroup(group)
+	handles, err := coll.HandlesInGroup(group)
 	if err != nil {
 		return err
 	}
 
-	srcs := ss.Sources()
+	srcs := coll.Sources()
 	for _, src := range srcs {
 		if !slices.Contains(handles, src.Handle) {
-			if err = ss.Remove(src.Handle); err != nil {
+			if err = coll.Remove(src.Handle); err != nil {
 				// Should never happen
 				return err
 			}
 		}
 	}
 
-	srcs = ss.Sources()
+	srcs = coll.Sources()
 	for i := range srcs {
 		srcs[i].Location = srcs[i].RedactedLocation()
 	}
@@ -63,13 +63,13 @@ func (w *sourceWriter) SourceSet(ss *source.Set) error {
 	// HACK: we set the activeHandle back, even though that
 	// active source may have been removed (because it is not in
 	// the active group). This whole thing is a mess.
-	_, _ = ss.SetActive(activeHandle, true)
+	_, _ = coll.SetActive(activeHandle, true)
 
-	return writeJSON(w.out, w.fm, ss.Data())
+	return writeJSON(w.out, w.fm, coll.Data())
 }
 
 // Source implements output.SourceWriter.
-func (w *sourceWriter) Source(_ *source.Set, src *source.Source) error {
+func (w *sourceWriter) Source(_ *source.Collection, src *source.Source) error {
 	if src == nil {
 		return nil
 	}

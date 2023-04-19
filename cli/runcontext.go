@@ -202,7 +202,7 @@ func (rc *RunContext) doInit() error {
 	var scratchSrcFunc driver.ScratchSrcFunc
 
 	// scratchSrc could be nil, and that's ok
-	scratchSrc := cfg.Sources.Scratch()
+	scratchSrc := cfg.Collection.Scratch()
 	if scratchSrc == nil {
 		scratchSrcFunc = sqlite3.NewScratchSource
 	} else {

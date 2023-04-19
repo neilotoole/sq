@@ -27,19 +27,19 @@ Use the --verbose flag to see more detail.
 If @HANDLE is not provided, the active data source is assumed.`,
 		Example: `  # inspect active data source
   $ sq inspect
-  
+
   # inspect @pg1 data source
   $ sq inspect @pg1
-  
+
   # inspect @pg1 data source, showing verbose output
   $ sq inspect -v @pg1
 
   # inspect 'actor' in @pg1 data source
   $ sq inspect @pg1.actor
-  
+
   # inspect 'actor' in active data source
   $ sq inspect .actor
-  
+
   # inspect piped data
   $ cat data.xlsx | sq inspect`,
 	}
@@ -55,7 +55,7 @@ func execInspect(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	rc := RunContextFrom(ctx)
 
-	srcs := rc.Config.Sources
+	srcs := rc.Config.Collection
 
 	var src *source.Source
 	var table string
@@ -83,7 +83,7 @@ func execInspect(cmd *cobra.Command, args []string) error {
 				return err
 			}
 
-			// Set the stdin pipe data source as the active source,
+			// Collection the stdin pipe data source as the active source,
 			// as it's commonly the only data source the user is acting upon.
 			src, err = srcs.SetActive(src.Handle, false)
 			if err != nil {

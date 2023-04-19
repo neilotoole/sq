@@ -128,7 +128,7 @@ func (fs *YAMLFileStore) doLoad() (*Config, error) {
 
 	initCfg(cfg)
 
-	repaired, err := source.VerifyIntegrity(cfg.Sources)
+	repaired, err := source.VerifyIntegrity(cfg.Collection)
 	if err != nil {
 		if repaired {
 			// The config was repaired. Save the changes.
@@ -305,7 +305,7 @@ func DefaultLoad(osArgs []string) (*Config, Store, error) {
 		return nil, nil, err
 	}
 
-	if _, err = source.VerifyIntegrity(cfg.Sources); err != nil {
+	if _, err = source.VerifyIntegrity(cfg.Collection); err != nil {
 		return nil, nil, err
 	}
 

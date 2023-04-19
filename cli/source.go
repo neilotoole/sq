@@ -22,10 +22,10 @@ import (
 // from any combination of stdin, flags or cfg. It will
 // mutate rc.Config.Sources as necessary. If no error
 // is returned, it is guaranteed that there's an active
-// source on the source set.
+// source on the collection.
 func determineSources(ctx context.Context, rc *RunContext) error {
-	cmd, srcs := rc.Cmd, rc.Config.Sources
-	activeSrc, err := activeSrcFromFlagsOrConfig(cmd, srcs)
+	cmd, coll := rc.Cmd, rc.Config.Collection
+	activeSrc, err := activeSrcFromFlagsOrConfig(cmd, coll)
 	if err != nil {
 		return err
 	}
@@ -41,7 +41,7 @@ func determineSources(ctx context.Context, rc *RunContext) error {
 		// We have a valid source on stdin.
 
 		// Add the stdin source to the set.
-		err = srcs.Add(stdinSrc)
+		err = coll.Add(stdinSrc)
 		if err != nil {
 			return err
 		}
@@ -53,7 +53,7 @@ func determineSources(ctx context.Context, rc *RunContext) error {
 			// We do this because the @stdin src is commonly the
 			// only data source the user cares about in a pipe
 			// situation.
-			_, err = srcs.SetActive(stdinSrc.Handle, false)
+			_, err = coll.SetActive(stdinSrc.Handle, false)
 			if err != nil {
 				return err
 			}
@@ -74,7 +74,7 @@ func determineSources(ctx context.Context, rc *RunContext) error {
 // it is set as the active src on srcs. If the flag was not
 // set and there is no active src in srcs, (nil, nil) is
 // returned.
-func activeSrcFromFlagsOrConfig(cmd *cobra.Command, srcs *source.Set) (*source.Source, error) {
+func activeSrcFromFlagsOrConfig(cmd *cobra.Command, coll *source.Collection) (*source.Source, error) {
 	var activeSrc *source.Source
 
 	if cmdFlagChanged(cmd, flag.ActiveSrc) {
@@ -82,17 +82,17 @@ func activeSrcFromFlagsOrConfig(cmd *cobra.Command, srcs *source.Set) (*source.S
 		// just for this query.
 
 		handle, _ := cmd.Flags().GetString(flag.ActiveSrc)
-		s, err := srcs.Get(handle)
+		s, err := coll.Get(handle)
 		if err != nil {
 			return nil, errz.Wrapf(err, "flag --%s", flag.ActiveSrc)
 		}
 
-		activeSrc, err = srcs.SetActive(s.Handle, false)
+		activeSrc, err = coll.SetActive(s.Handle, false)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		activeSrc = srcs.Active()
+		activeSrc = coll.Active()
 	}
 	return activeSrc, nil
 }

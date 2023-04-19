@@ -26,7 +26,7 @@ var (
 )
 
 // completeHandle is a completionFunc that suggests handles.
-// The max arg is the maximum number of completions. Set to 0
+// The max arg is the maximum number of completions. Collection to 0
 // for no limit.
 func completeHandle(max int) completionFunc {
 	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -35,7 +35,7 @@ func completeHandle(max int) completionFunc {
 		}
 
 		rc := getRunContext(cmd)
-		handles := rc.Config.Sources.Handles()
+		handles := rc.Config.Collection.Handles()
 		handles = lo.Reject(handles, func(item string, index int) bool {
 			return !strings.HasPrefix(item, toComplete)
 		})
@@ -47,7 +47,7 @@ func completeHandle(max int) completionFunc {
 }
 
 // completeGroup is a completionFunc that suggests groups.
-// The max arg is the maximum number of completions. Set to 0
+// The max arg is the maximum number of completions. Collection to 0
 // for no limit.
 func completeGroup(max int) completionFunc {
 	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -56,7 +56,7 @@ func completeGroup(max int) completionFunc {
 		}
 
 		rc := getRunContext(cmd)
-		groups := rc.Config.Sources.Groups()
+		groups := rc.Config.Collection.Groups()
 		groups, _ = lo.Difference(groups, args)
 		groups = lo.Uniq(groups)
 		slices.Sort(groups)
@@ -207,7 +207,7 @@ func (c *handleTableCompleter) complete(cmd *cobra.Command, args []string,
 func (c *handleTableCompleter) completeTableOnly(ctx context.Context, rc *RunContext, _ []string,
 	toComplete string,
 ) ([]string, cobra.ShellCompDirective) {
-	activeSrc := rc.Config.Sources.Active()
+	activeSrc := rc.Config.Collection.Active()
 	if activeSrc == nil {
 		rc.Log.Error("Active source is nil")
 		return nil, cobra.ShellCompDirectiveError
@@ -292,7 +292,7 @@ func (c *handleTableCompleter) completeHandle(ctx context.Context, rc *RunContex
 		return suggestions, cobra.ShellCompDirectiveNoFileComp
 	}
 
-	handles := rc.Config.Sources.Handles()
+	handles := rc.Config.Collection.Handles()
 	// Else, we're dealing with just a handle so far
 	var matchingHandles []string
 	for _, handle := range handles {
@@ -349,7 +349,7 @@ func (c *handleTableCompleter) completeEither(ctx context.Context, rc *RunContex
 	// There's no input yet.
 	// Therefore we want to return a union of all handles
 	// plus the tables from the active source.
-	activeSrc := rc.Config.Sources.Active()
+	activeSrc := rc.Config.Collection.Active()
 	if activeSrc != nil {
 		var activeSrcTables []string
 		isSQL, err := handleIsSQLDriver(rc, activeSrc.Handle)
@@ -374,7 +374,7 @@ func (c *handleTableCompleter) completeEither(ctx context.Context, rc *RunContex
 		}
 	}
 
-	for _, src := range rc.Config.Sources.Sources() {
+	for _, src := range rc.Config.Collection.Sources() {
 		if c.onlySQL {
 			isSQL, err := handleIsSQLDriver(rc, src.Handle)
 			if err != nil {
@@ -393,7 +393,7 @@ func (c *handleTableCompleter) completeEither(ctx context.Context, rc *RunContex
 }
 
 func handleIsSQLDriver(rc *RunContext, handle string) (bool, error) {
-	src, err := rc.Config.Sources.Get(handle)
+	src, err := rc.Config.Collection.Get(handle)
 	if err != nil {
 		return false, err
 	}
@@ -407,7 +407,7 @@ func handleIsSQLDriver(rc *RunContext, handle string) (bool, error) {
 }
 
 func getTableNamesForHandle(ctx context.Context, rc *RunContext, handle string) ([]string, error) {
-	src, err := rc.Config.Sources.Get(handle)
+	src, err := rc.Config.Collection.Get(handle)
 	if err != nil {
 		return nil, err
 	}

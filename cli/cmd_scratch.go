@@ -53,23 +53,23 @@ func execScratch(cmd *cobra.Command, args []string) error {
 
 	if len(args) == 0 {
 		// Print the scratch src
-		src = cfg.Sources.Scratch()
+		src = cfg.Collection.Scratch()
 		if src == nil {
 			src = defaultScratch
 		}
 
-		return rc.writers.srcw.Source(cfg.Sources, src)
+		return rc.writers.srcw.Source(cfg.Collection, src)
 	}
 
-	// Set the scratch src
+	// Collection the scratch src
 
 	switch args[0] {
 	case "internal", "internal:file", "internal:mem":
 		// TODO: currently only supports file sqlite3 db, fairly trivial to do mem as well
-		_, _ = cfg.Sources.SetScratch("")
+		_, _ = cfg.Collection.SetScratch("")
 		src = defaultScratch
 	default:
-		src, err = cfg.Sources.SetScratch(args[0])
+		src, err = cfg.Collection.SetScratch(args[0])
 		if err != nil {
 			return err
 		}
@@ -80,5 +80,5 @@ func execScratch(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return rc.writers.srcw.Source(cfg.Sources, src)
+	return rc.writers.srcw.Source(cfg.Collection, src)
 }

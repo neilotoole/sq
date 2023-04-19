@@ -77,10 +77,10 @@ func execSQL(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	srcs := rc.Config.Sources
+	coll := rc.Config.Collection
 	// activeSrc is guaranteed to be non-nil after
 	// determineSources successfully returns.
-	activeSrc := srcs.Active()
+	activeSrc := coll.Active()
 
 	if !cmdFlagChanged(cmd, flag.Insert) {
 		// The user didn't specify the --insert=@src.tbl flag,
@@ -100,7 +100,7 @@ func execSQL(cmd *cobra.Command, args []string) error {
 		return errz.Wrapf(err, "invalid --%s value", flag.Insert)
 	}
 
-	destSrc, err := srcs.Get(destHandle)
+	destSrc, err := coll.Get(destHandle)
 	if err != nil {
 		return err
 	}

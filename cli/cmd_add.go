@@ -83,22 +83,22 @@ Use query string encoding for multiple options, e.g. "--opts a=b&x=y".
 If flag --driver is omitted, sq will attempt to determine the
 type from LOCATION via file suffix, content type, etc.. If the result
 is ambiguous, explicitly specify the driver type.
-  
+
   $ sq add --driver=tsv ./mystery.data
 
 Available source driver types can be listed via "sq driver ls". At a
 minimum, the following drivers are bundled:
 
-  sqlite3    SQLite                               
-  postgres   PostgreSQL                           
-  sqlserver  Microsoft SQL Server / Azure SQL Edge                 
-  mysql      MySQL                                
-  csv        Comma-Separated Values               
-  tsv        Tab-Separated Values                 
-  json       JSON                                 
-  jsona      JSON Array: LF-delimited JSON arrays 
+  sqlite3    SQLite
+  postgres   PostgreSQL
+  sqlserver  Microsoft SQL Server / Azure SQL Edge
+  mysql      MySQL
+  csv        Comma-Separated Values
+  tsv        Tab-Separated Values
+  json       JSON
+  jsona      JSON Array: LF-delimited JSON arrays
   jsonl      JSON Lines: LF-delimited JSON objects
-  xlsx       Microsoft Excel XLSX 
+  xlsx       Microsoft Excel XLSX
 
 If there isn't already an active source, the newly added source becomes the
 active source (but the active group does not change). Otherwise you can
@@ -117,14 +117,14 @@ More examples:
   $ sq add -h @sakila_pg --d postgres 'postgres://user:pass@localhost/sakila'
 
   # Add a SQL Server source; will have generated handle @sakila_mssql or similar
-  $ sq add 'sqlserver://user:pass@localhost?database=sakila' 
+  $ sq add 'sqlserver://user:pass@localhost?database=sakila'
 
   # Add a sqlite db, and immediately make it the active source
-  $ sq add ./testdata/sqlite1.db --active 
+  $ sq add ./testdata/sqlite1.db --active
 
   # Add an Excel spreadsheet, with options
   $ sq add ./testdata/test1.xlsx --opts=header=true
-  
+
   # Add a CSV source, with options
   $ sq add ./testdata/person.csv --opts=header=true
 
@@ -177,7 +177,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 	if cmdFlagChanged(cmd, flag.Handle) {
 		handle, _ = cmd.Flags().GetString(flag.Handle)
 	} else {
-		handle, err = source.SuggestHandle(rc.Config.Sources, typ, loc)
+		handle, err = source.SuggestHandle(rc.Config.Collection, typ, loc)
 		if err != nil {
 			return errz.Wrap(err, "unable to suggest a handle: use --handle flag")
 		}
@@ -191,7 +191,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if cfg.Sources.IsExistingSource(handle) {
+	if cfg.Collection.IsExistingSource(handle) {
 		return errz.Errorf("source handle already exists: %s", handle)
 	}
 
@@ -235,15 +235,15 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	err = cfg.Sources.Add(src)
+	err = cfg.Collection.Add(src)
 	if err != nil {
 		return err
 	}
 
-	if cfg.Sources.Active() == nil || cmdFlagTrue(cmd, flag.AddActive) {
+	if cfg.Collection.Active() == nil || cmdFlagTrue(cmd, flag.AddActive) {
 		// If no current active data source, use this one, OR if
 		// flagAddActive is true.
-		if _, err = cfg.Sources.SetActive(src.Handle, false); err != nil {
+		if _, err = cfg.Collection.SetActive(src.Handle, false); err != nil {
 			return err
 		}
 
@@ -267,7 +267,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return rc.writers.srcw.Source(rc.Config.Sources, src)
+	return rc.writers.srcw.Source(rc.Config.Collection, src)
 }
 
 // readPassword reads a password from stdin pipe, or if nothing on stdin,

@@ -62,13 +62,13 @@ func Test_Upgrade_v0_34_0(t *testing.T) {
 	require.Equal(t, nextVers, cfg.Version)
 	require.Equal(t, config.FormatJSON, cfg.Options.Format)
 	require.Equal(t, time.Second*100, cfg.Options.PingTimeout)
-	require.Len(t, cfg.Sources.Sources(), 1)
-	src0 := cfg.Sources.Sources()[0]
+	require.Len(t, cfg.Collection.Sources(), 1)
+	src0 := cfg.Collection.Sources()[0]
 	require.Equal(t, handle, src0.Handle)
 	require.Equal(t, postgres.Type, src0.Type)
-	require.Equal(t, "prod", cfg.Sources.ActiveGroup())
-	require.NotNil(t, cfg.Sources.Active())
-	require.Equal(t, handle, cfg.Sources.Active().Handle)
+	require.Equal(t, "prod", cfg.Collection.ActiveGroup())
+	require.NotNil(t, cfg.Collection.Active())
+	require.Equal(t, handle, cfg.Collection.Active().Handle)
 
 	wantCfgRaw, err := os.ReadFile(filepath.Join(testdataDir, "want.sq.yml"))
 	require.NoError(t, err)

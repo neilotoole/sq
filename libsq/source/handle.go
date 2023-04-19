@@ -105,10 +105,10 @@ var handleTypeAliases = map[string]string{
 // is free to be used (e.g. "@csv/sakila" -> "@csv/sakila1", etc).
 //
 // If the base name (derived from loc) contains illegal handle runes,
-// those are replaced with underscore. If the handle would start with
+// those are replaced with underscore. If the handle starts with
 // a number or underscore, it will be prefixed with "h" (for "handle").
 // Thus "123.xlsx" becomes "@h123_xlsx".
-func SuggestHandle(srcs *Set, typ Type, loc string) (string, error) {
+func SuggestHandle(coll *Collection, typ Type, loc string) (string, error) {
 	ploc, err := parseLoc(loc)
 	if err != nil {
 		return "", err
@@ -149,7 +149,7 @@ func SuggestHandle(srcs *Set, typ Type, loc string) (string, error) {
 		name = "h" + name
 	}
 
-	g := srcs.ActiveGroup()
+	g := coll.ActiveGroup()
 	switch g {
 	case "/", "":
 		g = ""
@@ -173,7 +173,7 @@ func SuggestHandle(srcs *Set, typ Type, loc string) (string, error) {
 			candidate = base + strconv.Itoa(count)
 		}
 
-		if !srcs.IsExistingSource(candidate) && !srcs.IsExistingGroup(candidate[1:]) {
+		if !coll.IsExistingSource(candidate) && !coll.IsExistingGroup(candidate[1:]) {
 			return candidate, nil
 		}
 

@@ -66,7 +66,7 @@ func execTblCopy(cmd *cobra.Command, args []string) error {
 		return errz.New("one or two table args required")
 	}
 
-	tblHandles, err := parseTableHandleArgs(rc.registry, rc.Config.Sources, args)
+	tblHandles, err := parseTableHandleArgs(rc.registry, rc.Config.Collection, args)
 	if err != nil {
 		return err
 	}
@@ -173,7 +173,7 @@ only applies to SQL sources.`,
 func execTblTruncate(cmd *cobra.Command, args []string) (err error) {
 	rc := RunContextFrom(cmd.Context())
 	var tblHandles []tblHandle
-	tblHandles, err = parseTableHandleArgs(rc.registry, rc.Config.Sources, args)
+	tblHandles, err = parseTableHandleArgs(rc.registry, rc.Config.Collection, args)
 	if err != nil {
 		return err
 	}
@@ -220,7 +220,7 @@ only applies to SQL sources.`,
 func execTblDrop(cmd *cobra.Command, args []string) (err error) {
 	rc := RunContextFrom(cmd.Context())
 	var tblHandles []tblHandle
-	tblHandles, err = parseTableHandleArgs(rc.registry, rc.Config.Sources, args)
+	tblHandles, err = parseTableHandleArgs(rc.registry, rc.Config.Collection, args)
 	if err != nil {
 		return err
 	}
@@ -254,13 +254,13 @@ func execTblDrop(cmd *cobra.Command, args []string) (err error) {
 // It returns a slice of tblHandle, one for each arg. If an arg
 // does not have a HANDLE, the active src is assumed: it's an error
 // if no active src. It is also an error if len(args) is zero.
-func parseTableHandleArgs(dp driver.Provider, srcs *source.Set, args []string) ([]tblHandle, error) {
+func parseTableHandleArgs(dp driver.Provider, coll *source.Collection, args []string) ([]tblHandle, error) {
 	if len(args) == 0 {
 		return nil, errz.New(msgInvalidArgs)
 	}
 
 	var tblHandles []tblHandle
-	activeSrc := srcs.Active()
+	activeSrc := coll.Active()
 
 	// We iterate over the args several times, because we want
 	// to present error checks consistently.
@@ -291,7 +291,7 @@ func parseTableHandleArgs(dp driver.Provider, srcs *source.Set, args []string) (
 			tblHandles[i].handle = activeSrc.Handle
 		}
 
-		src, err := srcs.Get(tblHandles[i].handle)
+		src, err := coll.Get(tblHandles[i].handle)
 		if err != nil {
 			return nil, err
 		}

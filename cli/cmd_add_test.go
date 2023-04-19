@@ -93,7 +93,7 @@ func TestCmdAdd(t *testing.T) {
 			require.NoError(t, err)
 
 			// Verify that the src was actually added
-			gotSrc, err := ru.rc.Config.Sources.Get(tc.wantHandle)
+			gotSrc, err := ru.rc.Config.Collection.Get(tc.wantHandle)
 			require.NoError(t, err)
 			require.Equal(t, tc.wantHandle, gotSrc.Handle)
 			require.Equal(t, tc.wantType, gotSrc.Type)

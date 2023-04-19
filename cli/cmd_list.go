@@ -48,7 +48,7 @@ any further descendants.
 
 func execList(cmd *cobra.Command, args []string) error {
 	rc := RunContextFrom(cmd.Context())
-	srcs := rc.Config.Sources
+	coll := rc.Config.Collection
 
 	if cmdFlagTrue(cmd, flag.ListGroup) {
 		// We're listing groups, not sources.
@@ -66,7 +66,7 @@ func execList(cmd *cobra.Command, args []string) error {
 			return errz.Errorf("invalid: --%s takes a max of 1 arg", flag.ListGroup)
 		}
 
-		tree, err := srcs.Tree(fromGroup)
+		tree, err := coll.Tree(fromGroup)
 		if err != nil {
 			return err
 		}
@@ -80,10 +80,10 @@ func execList(cmd *cobra.Command, args []string) error {
 		// We want to list the sources in a group. To do this, we
 		// (temporarily) set the active group, and then continue below.
 		// $ sq ls prod
-		if err := srcs.SetActiveGroup(args[0]); err != nil {
+		if err := coll.SetActiveGroup(args[0]); err != nil {
 			return err
 		}
 	}
 
-	return rc.writers.srcw.SourceSet(srcs)
+	return rc.writers.srcw.Collection(coll)
 }

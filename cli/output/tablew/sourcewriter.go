@@ -25,11 +25,11 @@ func NewSourceWriter(out io.Writer, fm *output.Formatting) output.SourceWriter {
 	return w
 }
 
-// SourceSet implements output.SourceWriter.
-func (w *sourceWriter) SourceSet(ss *source.Set) error {
+// Collection implements output.SourceWriter.
+func (w *sourceWriter) Collection(coll *source.Collection) error {
 	fm := w.tbl.fm
-	group := ss.ActiveGroup()
-	items, err := ss.SourcesInGroup(group)
+	group := coll.ActiveGroup()
+	items, err := coll.SourcesInGroup(group)
 	if err != nil {
 		return err
 	}
@@ -45,7 +45,7 @@ func (w *sourceWriter) SourceSet(ss *source.Set) error {
 				source.ShortLocation(src.Location),
 			}
 
-			if ss.Active() != nil && ss.Active().Handle == src.Handle {
+			if coll.Active() != nil && coll.Active().Handle == src.Handle {
 				row[0] = fm.Active.Sprintf(row[0])
 			}
 
@@ -72,7 +72,7 @@ func (w *sourceWriter) SourceSet(ss *source.Set) error {
 			renderSrcOptions(src),
 		}
 
-		if ss.Active() != nil && ss.Active().Handle == src.Handle {
+		if coll.Active() != nil && coll.Active().Handle == src.Handle {
 			row[0] = fm.Active.Sprintf(row[0])
 			row[1] = fm.Bool.Sprintf("active")
 		}
@@ -89,13 +89,13 @@ func (w *sourceWriter) SourceSet(ss *source.Set) error {
 }
 
 // Source implements output.SourceWriter.
-func (w *sourceWriter) Source(ss *source.Set, src *source.Source) error {
+func (w *sourceWriter) Source(coll *source.Collection, src *source.Source) error {
 	if src == nil {
 		return nil
 	}
 
 	var isActiveSrc bool
-	if ss != nil && ss.Active() == src {
+	if coll != nil && coll.Active() == src {
 		isActiveSrc = true
 	}
 

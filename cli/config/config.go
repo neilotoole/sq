@@ -33,8 +33,8 @@ type Config struct {
 	// Options contains default settings, such as output format.
 	Options Options `yaml:"options" json:"options"`
 
-	// Sources is the set of data sources.
-	Sources *source.Set `yaml:"collection" json:"collection"`
+	// Collection is the set of data sources.
+	Collection *source.Collection `yaml:"collection" json:"collection"`
 
 	// Ext holds sq config extensions, such as user driver config.
 	Ext Ext `yaml:"-" json:"-"`
@@ -83,8 +83,8 @@ func New() *Config {
 
 // initCfg checks if required values are present, and if not, sets them.
 func initCfg(cfg *Config) {
-	if cfg.Sources == nil {
-		cfg.Sources = &source.Set{}
+	if cfg.Collection == nil {
+		cfg.Collection = &source.Collection{}
 	}
 
 	if cfg.Version == "" {

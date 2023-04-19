@@ -57,7 +57,7 @@ func execSLQ(cmd *cobra.Command, args []string) error {
 
 	ctx := cmd.Context()
 	rc := RunContextFrom(ctx)
-	srcs := rc.Config.Sources
+	coll := rc.Config.Collection
 
 	// check if there's input on stdin
 	src, err := checkStdinSource(ctx, rc)
@@ -69,18 +69,18 @@ func execSLQ(cmd *cobra.Command, args []string) error {
 		// We have a valid source on stdin.
 
 		// Add the source to the set.
-		if err = srcs.Add(src); err != nil {
+		if err = coll.Add(src); err != nil {
 			return err
 		}
 
-		// Set the stdin pipe data source as the active source,
+		// Collection the stdin pipe data source as the active source,
 		// as it's commonly the only data source the user is acting upon.
-		if _, err = srcs.SetActive(src.Handle, false); err != nil {
+		if _, err = coll.SetActive(src.Handle, false); err != nil {
 			return err
 		}
 	} else {
-		// No source on stdin, so we're using the source set.
-		src = srcs.Active()
+		// No source on stdin, so we're using the collection.
+		src = coll.Active()
 		if src == nil {
 			// TODO: Should sq be modified to support executing queries
 			// 	even when there's no active data source. Probably.
@@ -115,7 +115,7 @@ func execSLQ(cmd *cobra.Command, args []string) error {
 		return errz.Errorf("invalid value for --%s: must be @HANDLE.TABLE", flag.Insert)
 	}
 
-	destSrc, err := srcs.Get(destHandle)
+	destSrc, err := coll.Get(destHandle)
 	if err != nil {
 		return err
 	}
@@ -128,7 +128,7 @@ func execSLQ(cmd *cobra.Command, args []string) error {
 func execSLQInsert(ctx context.Context, rc *RunContext, mArgs map[string]string,
 	destSrc *source.Source, destTbl string,
 ) error {
-	args, srcs, dbases := rc.Args, rc.Config.Sources, rc.databases
+	args, coll, dbases := rc.Args, rc.Config.Collection, rc.databases
 	slq, err := preprocessUserSLQ(ctx, rc, args)
 	if err != nil {
 		return err
@@ -156,7 +156,7 @@ func execSLQInsert(ctx context.Context, rc *RunContext, mArgs map[string]string,
 	)
 
 	qc := &libsq.QueryContext{
-		Sources:      srcs,
+		Sources:      coll,
 		DBOpener:     rc.databases,
 		JoinDBOpener: rc.databases,
 		Args:         mArgs,
@@ -184,7 +184,7 @@ func execSLQPrint(ctx context.Context, rc *RunContext, mArgs map[string]string) 
 	}
 
 	qc := &libsq.QueryContext{
-		Sources:      rc.Config.Sources,
+		Sources:      rc.Config.Collection,
 		DBOpener:     rc.databases,
 		JoinDBOpener: rc.databases,
 		Args:         mArgs,
@@ -225,8 +225,8 @@ func execSLQPrint(ctx context.Context, rc *RunContext, mArgs map[string]string) 
 //
 //	$ sq '.person'  -->  $ sq '@active.person'
 func preprocessUserSLQ(ctx context.Context, rc *RunContext, args []string) (string, error) {
-	log, reg, dbases, srcs := rc.Log, rc.registry, rc.databases, rc.Config.Sources
-	activeSrc := srcs.Active()
+	log, reg, dbases, coll := rc.Log, rc.registry, rc.databases, rc.Config.Collection
+	activeSrc := coll.Active()
 
 	if len(args) == 0 {
 		// Special handling for the case where no args are supplied
@@ -307,7 +307,7 @@ func preprocessUserSLQ(ctx context.Context, rc *RunContext, args []string) (stri
 		}
 
 		// Check that the handle actual exists
-		_, err := srcs.Get(handle)
+		_, err := coll.Get(handle)
 		if err != nil {
 			return "", err
 		}

@@ -25,7 +25,7 @@ import (
 // QueryContext encapsulates the context a SLQ query is executed within.
 type QueryContext struct {
 	// Sources is the set of sources.
-	Sources *source.Set
+	Sources *source.Collection
 
 	// DBOpener is used to open databases.
 	DBOpener driver.DatabaseOpener

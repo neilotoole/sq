@@ -44,8 +44,8 @@ func execGroup(cmd *cobra.Command, args []string) error {
 
 	if len(args) == 0 {
 		// Get the active group
-		groupName := cfg.Sources.ActiveGroup()
-		tree, err := cfg.Sources.Tree(groupName)
+		groupName := cfg.Collection.ActiveGroup()
+		tree, err := cfg.Collection.Tree(groupName)
 		if err != nil {
 			return err
 		}
@@ -58,7 +58,7 @@ func execGroup(cmd *cobra.Command, args []string) error {
 	if group == "/" {
 		group = ""
 	}
-	if err := cfg.Sources.SetActiveGroup(group); err != nil {
+	if err := cfg.Collection.SetActiveGroup(group); err != nil {
 		return err
 	}
 
@@ -66,8 +66,8 @@ func execGroup(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	groupName := cfg.Sources.ActiveGroup()
-	tree, err := cfg.Sources.Tree(groupName)
+	groupName := cfg.Collection.ActiveGroup()
+	tree, err := cfg.Collection.Tree(groupName)
 	if err != nil {
 		return err
 	}
