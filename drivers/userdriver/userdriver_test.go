@@ -32,7 +32,7 @@ func TestDriver(t *testing.T) {
 		t.Run(tc.handle, func(t *testing.T) {
 			t.Parallel()
 
-			th := testh.New(t)
+			th := testh.New(t, testh.OptLongOpen())
 			src := th.Source(tc.handle)
 
 			drvr := th.DriverFor(src)
@@ -89,7 +89,7 @@ func TestValidateDriverDef(t *testing.T) {
 		{
 			title: "driver name is missing, should return with 1 error",
 			yml: `user_drivers:
-- driver: 
+- driver:
   genre: xml
   title: People
   selector: /people`,
@@ -99,9 +99,9 @@ func TestValidateDriverDef(t *testing.T) {
 			title: "missing genre, title, selector and tables",
 			yml: `user_drivers:
 - driver: ppl
-  genre: 
-  title: 
-  selector: 
+  genre:
+  title:
+  selector:
   tables:`,
 			wantErrs: 4,
 		},
@@ -113,8 +113,8 @@ func TestValidateDriverDef(t *testing.T) {
   title: People
   selector: /people
   tables:
-  - table: 
-    selector: 
+  - table:
+    selector:
     cols:`,
 			wantErrs: 3,
 		},
@@ -131,7 +131,7 @@ func TestValidateDriverDef(t *testing.T) {
     primary_key:
       - first_name
     cols:
-    - col: 
+    - col:
       kind: int
     - col: first_name
       selector: ./firstName

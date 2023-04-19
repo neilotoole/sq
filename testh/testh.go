@@ -67,13 +67,14 @@ func init() { //nolint:gochecknoinits
 // configure the helper.
 type Option func(h *Helper)
 
-// OptLongDB allows a longer DB timeout, which is necessary
-// for some tests. Usage:
+// OptLongOpen allows a longer DB open timeout, which is necessary
+// for some tests. Note that DB open performs an import for file-based
+// sources, so it can take some time. Usage:
 //
-//	testh.New(t, testh.OptLongDB())
+//	testh.New(t, testh.OptLongOpen())
 //
 // Most tests don't need this.
-func OptLongDB() Option {
+func OptLongOpen() Option {
 	return func(h *Helper) {
 		h.dbOpenTimeout = time.Second * 120
 	}

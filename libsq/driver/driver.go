@@ -50,7 +50,11 @@ type Provider interface {
 
 // DatabaseOpener opens a Database.
 type DatabaseOpener interface {
-	// Open returns a Database instance for src.
+	// Open returns a Database instance for src. This operation can
+	// take a long time if opening the DB requires an import of data.
+	// For example, with file-based sources such as CSV, invoking Open
+	// will ultimately read and import all CSV rows from the file.
+	// Thus, set a timeout on ctx as appropriate for the source.
 	Open(ctx context.Context, src *source.Source) (Database, error)
 }
 

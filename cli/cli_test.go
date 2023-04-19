@@ -152,7 +152,7 @@ func TestOutputRaw(t *testing.T) {
 			require.NoError(t, err)
 
 			// 2. Now test that stdout also gets the same data
-			ru = newRun(t, nil).add(*src)
+			ru = newRun(t, nil).add(*src).hush()
 			err = ru.Exec("sql", "--raw", query)
 			require.NoError(t, err)
 			require.Equal(t, wantBytes, ru.out.Bytes())

@@ -28,12 +28,12 @@ func Test_Smoke_Subset(t *testing.T) {
 func Test_Smoke_Full(t *testing.T) {
 	tutil.SkipShort(t, true)
 
-	// This test fails (in GH workflow) on Windows without testh.OptLongDB.
+	// This test fails (in GH workflow) on Windows without testh.OptLongOpen.
 	// That's probably worth looking into further. It shouldn't be that slow,
 	// even on Windows. However, we are going to rewrite the xlsx driver eventually,
 	// so it can wait until then.
 	// See: https://github.com/neilotoole/sq/issues/200
-	th := testh.New(t, testh.OptLongDB())
+	th := testh.New(t, testh.OptLongOpen())
 	src := th.Source(sakila.XLSX)
 
 	sink, err := th.QuerySQL(src, "SELECT * FROM actor")
