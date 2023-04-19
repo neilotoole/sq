@@ -1,8 +1,6 @@
 package cli
 
 import (
-	"path/filepath"
-
 	"github.com/neilotoole/sq/cli/config"
 
 	"github.com/neilotoole/sq/cli/flag"
@@ -27,11 +25,12 @@ func newConfigCmd() *cobra.Command {
 
 func newConfigLocationCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "location",
-		Short: "Print config location",
-		Long:  "Print config location. Use --verbose for more detail.",
-		Args:  cobra.ExactArgs(0),
-		RunE:  execConfigLocation,
+		Use:     "location",
+		Aliases: []string{"loc"},
+		Short:   "Print config location",
+		Long:    "Print config location. Use --verbose for more detail.",
+		Args:    cobra.ExactArgs(0),
+		RunE:    execConfigLocation,
 		Example: `  # Print config location
   $ sq config location   
   /Users/neilotoole/.config/sq
@@ -50,7 +49,7 @@ func newConfigLocationCmd() *cobra.Command {
 
 func execConfigLocation(cmd *cobra.Command, _ []string) error {
 	rc := RunContextFrom(cmd.Context())
-	path := filepath.Dir(rc.ConfigStore.Location())
+	path := rc.ConfigStore.Location()
 	var origin string
 	if store, ok := rc.ConfigStore.(*config.YAMLFileStore); ok {
 		origin = store.PathOrigin

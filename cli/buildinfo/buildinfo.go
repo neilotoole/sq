@@ -1,8 +1,12 @@
 // Package buildinfo hosts build info variables populated via ldflags.
+//
+// For testing, you can override the build version
+// using envar SQ_BUILD_VERSION (panics if not a valid semver).
 package buildinfo
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -85,7 +89,19 @@ func init() { //nolint:gochecknoinits
 			Timestamp = t
 		}
 	}
+
+	if v, ok := os.LookupEnv(EnvOverrideVersion); ok {
+		if !semver.IsValid(v) {
+			panic(fmt.Sprintf("Invalid semver value from %s: %s", EnvOverrideVersion, v))
+		}
+
+		Version = v
+	}
 }
+
+// EnvOverrideVersion is used for testing build version, e.g. for
+// config upgrades.
+const EnvOverrideVersion = `SQ_BUILD_VERSION`
 
 // IsDefaultVersion returns true if Version is empty or DefaultVersion.
 func IsDefaultVersion() bool {

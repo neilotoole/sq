@@ -10,6 +10,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// Export for testing.
+var (
+	LoadVersion = loadVersion
+)
+
 func Test_getConfigDirFromFlag(t *testing.T) {
 	testCases := []struct {
 		in      []string

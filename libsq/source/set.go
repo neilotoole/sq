@@ -39,9 +39,8 @@ type Set struct {
 //
 // This seemed like a good idea at the time, but probably wasn't.
 type setData struct {
-	// ActiveSrc is the active source.
-	// TODO: Rename tag to "active_src" to match "active_group".
-	ActiveSrc string `yaml:"active" json:"active"`
+	// ActiveSrc is the active source. It may be empty.
+	ActiveSrc string `yaml:"active_source" json:"active_source"`
 
 	// ActiveGroup is the active group. It is "" (empty string) or "/" by default.
 	// The "correct" value is "/", but we also support empty string
@@ -52,9 +51,7 @@ type setData struct {
 	ScratchSrc string `yaml:"scratch" json:"scratch"`
 
 	// Sources holds the set's sources.
-	//
-	// TODO: Rename tag to "sources".
-	Sources []*Source `yaml:"items" json:"items"`
+	Sources []*Source `yaml:"sources" json:"sources"`
 }
 
 // Data returns the internal representation of the set data.
@@ -122,9 +119,6 @@ func (s *Set) Sources() []*Source {
 
 // String returns a log/debug friendly representation.
 func (s *Set) String() string {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	return stringz.SprintJSON(s)
 }
 
@@ -993,13 +987,13 @@ func groupsFilterOnlyDirectChildren(parentGroup string, groups []string) []strin
 	return groups
 }
 
-// VerifySetIntegrity verifies the internal state of s.
+// VerifyIntegrity verifies the internal state of s.
 // Typically this func is invoked after s has been loaded
 // from config, verifying that the config is not corrupt.
 // If err is returned non-nil, repaired may be returned true
 // to indicate that ss has been repaired and modified. The
 // caller should save the config to persist the repair.
-func VerifySetIntegrity(ss *Set) (repaired bool, err error) {
+func VerifyIntegrity(ss *Set) (repaired bool, err error) {
 	if ss == nil {
 		return false, errz.New("source set is nil")
 	}

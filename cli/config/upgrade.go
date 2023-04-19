@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/neilotoole/sq/cli/buildinfo"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -117,23 +118,51 @@ func (r upgradeRegistry) getUpgradeFuncs(startingVersion, targetVersion string) 
 func loadVersion(path string) (string, error) {
 	bytes, err := os.ReadFile(path)
 	if err != nil {
-		return "", errz.Wrapf(err, "config: failed to load file: %s", path)
+		return "", errz.Wrapf(err, "failed to load file: %s", path)
 	}
 
 	m := map[string]any{}
 	err = yaml.Unmarshal(bytes, &m)
 	if err != nil {
-		return "", errz.Wrapf(err, "config: %s: failed to unmarshal config YAML", path)
+		return "", errz.Wrap(err, "failed to unmarshal config YAML")
 	}
 
 	if v, ok := m["version"]; ok {
+		// Legacy "version" field.
 		s, ok := v.(string)
 		if !ok {
-			return "", errz.Errorf("config: invalid value for 'version' field: %s", v)
+			return "", errz.Errorf("invalid value for 'version' field: %s", v)
+		}
+
+		s = strings.TrimSpace(s)
+		if s == "" {
+			// We could return an error here, but it's probably slightly
+			// better to carry on in the absence of the version.
+			return minConfigVersion, nil
 		}
 
 		if !semver.IsValid(s) {
-			return "", errz.Errorf("config: invalid semver value for 'version' field: %s", s)
+			return "", errz.Errorf("invalid semver value for 'version' field: %s", s)
+		}
+
+		return s, nil
+	}
+
+	if v, ok := m["config_version"]; ok {
+		s, ok := v.(string)
+		if !ok {
+			return "", errz.Errorf("invalid value for 'config_version' field: %s", v)
+		}
+
+		s = strings.TrimSpace(s)
+		if s == "" {
+			// We could return an error here, but it's probably slightly
+			// better to carry on in the absence of the version.
+			return minConfigVersion, nil
+		}
+
+		if !semver.IsValid(s) {
+			return "", errz.Errorf("invalid semver value for 'config_version' field: %s", s)
 		}
 
 		return s, nil
@@ -151,16 +180,13 @@ func checkNeedsUpgrade(path string) (needsUpgrade bool, foundVers string, err er
 	}
 
 	if semver.Compare(foundVers, minConfigVersion) < 0 {
-		return false, foundVers, errz.Errorf("config: version %q is less than minimum value %q",
+		return false, foundVers, errz.Errorf("version %q is less than minimum value %q",
 			foundVers, minConfigVersion)
 	}
 
-	if buildinfo.IsDefaultVersion() {
-		// We're on a local build, nothing to do here.
-		return false, foundVers, nil
-	}
+	buildVers := buildinfo.Version
 
-	switch semver.Compare(foundVers, buildinfo.Version) {
+	switch semver.Compare(foundVers, buildVers) {
 	case 0:
 		// Versions are the same, nothing to do here
 		return false, foundVers, nil
@@ -168,9 +194,9 @@ func checkNeedsUpgrade(path string) (needsUpgrade bool, foundVers string, err er
 		// sq version is less than config version:
 		// - user needs to upgrade sq
 		// - but we make an exception if sq is prerelease
-		if semver.Prerelease(buildinfo.Version) == "" {
+		if semver.Prerelease(buildVers) == "" {
 			return false, foundVers, errz.Errorf("config: version %q is newer than sq version %q: upgrade sq to a newer version",
-				foundVers, buildinfo.Version)
+				foundVers, buildVers)
 		}
 		return false, foundVers, nil
 

@@ -4,6 +4,8 @@ package config
 import (
 	"time"
 
+	"github.com/neilotoole/sq/cli/buildinfo"
+
 	"github.com/neilotoole/sq/drivers/userdriver"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
@@ -32,7 +34,7 @@ type Config struct {
 	Options Options `yaml:"options" json:"options"`
 
 	// Sources is the set of data sources.
-	Sources *source.Set `yaml:"sources" json:"sources"`
+	Sources *source.Set `yaml:"collection" json:"collection"`
 
 	// Ext holds sq config extensions, such as user driver config.
 	Ext Ext `yaml:"-" json:"-"`
@@ -83,6 +85,10 @@ func New() *Config {
 func initCfg(cfg *Config) {
 	if cfg.Sources == nil {
 		cfg.Sources = &source.Set{}
+	}
+
+	if cfg.Version == "" {
+		cfg.Version = buildinfo.Version
 	}
 
 	if cfg.Options.Format == "" {

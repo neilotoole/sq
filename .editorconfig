@@ -1,4 +1,26 @@
+root = true
+
+[*]
+charset = utf-8
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.go]
+indent_style = tab
+
+[*.md]
+max_line_length = off
+trim_trailing_whitespace = false
+
 # Override for Makefile
 [{Makefile, makefile, GNUmakefile}]
 indent_style = tab
 indent_size = 4
+
+[*.yml]
+indent_style = space
+indent_size = 2
+
+

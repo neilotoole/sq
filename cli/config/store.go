@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/ioz"
+
 	"github.com/neilotoole/sq/cli/flag"
 
 	"github.com/spf13/pflag"
@@ -63,22 +65,41 @@ func (fs *YAMLFileStore) String() string {
 	return fmt.Sprintf("config via %s: %v", fs.PathOrigin, fs.Path)
 }
 
-// Location implements Store.
+// Location implements Store. It returns the location of the config dir.
 func (fs *YAMLFileStore) Location() string {
-	return fs.Path
+	return filepath.Dir(fs.Path)
 }
 
 // Load reads config from disk. It implements Store.
 func (fs *YAMLFileStore) Load() (*Config, error) {
-	needsUpgrade, foundVers, err := checkNeedsUpgrade(fs.Path)
-	if err != nil {
-		return nil, err
+	if fs.upgradeReg == nil {
+		// Use the package-level registry by default.
+		// This is not ideal, but test code can change this
+		// if needed.
+		fs.upgradeReg = defaultUpgradeReg
 	}
 
-	if needsUpgrade {
+	mightNeedUpgrade, foundVers, err := checkNeedsUpgrade(fs.Path)
+	if err != nil {
+		return nil, errz.Wrapf(err, "config: %s", fs.Path)
+	}
+
+	if mightNeedUpgrade {
 		_, err = fs.UpgradeConfig(foundVers, buildinfo.Version)
 		if err != nil {
 			return nil, err
+		}
+
+		// We do a cycle of loading and saving the config after the upgrade,
+		// because the upgrade may have written YAML via a map, which
+		// doesn't preserve order. Loading and saving should fix that.
+		cfg, err := fs.doLoad()
+		if err != nil {
+			return nil, errz.Wrapf(err, "config: %s: load failed after config upgrade", fs.Path)
+		}
+
+		if err = fs.Save(cfg); err != nil {
+			return nil, errz.Wrapf(err, "config: %s: save failed after config upgrade", fs.Path)
 		}
 	}
 
@@ -107,7 +128,7 @@ func (fs *YAMLFileStore) doLoad() (*Config, error) {
 
 	initCfg(cfg)
 
-	repaired, err := source.VerifySetIntegrity(cfg.Sources)
+	repaired, err := source.VerifyIntegrity(cfg.Sources)
 	if err != nil {
 		if repaired {
 			// The config was repaired. Save the changes.
@@ -192,13 +213,9 @@ func (fs *YAMLFileStore) Save(cfg *Config) error {
 		return errz.New("config file store is nil")
 	}
 
-	if buildinfo.Version != "" {
-		cfg.Version = buildinfo.Version
-	}
-
-	data, err := yaml.Marshal(cfg)
+	data, err := ioz.MarshalYAML(cfg)
 	if err != nil {
-		return errz.Wrap(err, "failed to marshal config to YAML")
+		return err
 	}
 
 	return fs.doSave(data)
@@ -285,6 +302,10 @@ func DefaultLoad(osArgs []string) (*Config, Store, error) {
 	// file does exist, let's try to load it
 	cfg, err := cfgStore.Load()
 	if err != nil {
+		return nil, nil, err
+	}
+
+	if _, err = source.VerifyIntegrity(cfg.Sources); err != nil {
 		return nil, nil, err
 	}
 

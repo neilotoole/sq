@@ -1,6 +1,6 @@
-sources:
-  items:
+collection:
+  sources:
     - handle: "@sl1"
-      # type is empty: illegal
-      type:
+      # driver is empty: illegal
+      driver:
       location: sqlite3://${SQ_ROOT}/drivers/sqlite3/testdata/sqtest.db

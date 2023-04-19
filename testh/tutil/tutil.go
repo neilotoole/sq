@@ -3,11 +3,16 @@ package tutil
 
 import (
 	"fmt"
+	"io"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/otiai10/copy"
 	"github.com/stretchr/testify/require"
 )
 
@@ -248,3 +253,67 @@ var (
 	_ AssertCompareFunc = require.GreaterOrEqual
 	_ AssertCompareFunc = require.Greater
 )
+
+// DirCopy copies the contents of sourceDir to a temp dir.
+// If keep is false, temp dir will be cleaned up on test exit.
+func DirCopy(t *testing.T, sourceDir string, keep bool) (tmpDir string) {
+	var err error
+	if keep {
+		tmpDir, err = os.MkdirTemp("", sanitizeTestName(t.Name())+"_*")
+		require.NoError(t, err)
+	} else {
+		tmpDir = t.TempDir()
+	}
+
+	err = copy.Copy(sourceDir, tmpDir)
+	require.NoError(t, err)
+	t.Logf("Copied %s -> %s", sourceDir, tmpDir)
+	return tmpDir
+}
+
+// sanitizeTestName sanitizes a test name. This impl is copied
+// from testing.T.TempDir.
+func sanitizeTestName(name string) string {
+	// Drop unusual characters (such as path separators or
+	// characters interacting with globs) from the directory name to
+	// avoid surprising os.MkdirTemp behavior.
+	mapper := func(r rune) rune {
+		if r < utf8.RuneSelf {
+			const allowed = "!#$%&()+,-.=@^_{}~ "
+			if '0' <= r && r <= '9' ||
+				'a' <= r && r <= 'z' ||
+				'A' <= r && r <= 'Z' {
+				return r
+			}
+			if strings.ContainsRune(allowed, r) {
+				return r
+			}
+		} else if unicode.IsLetter(r) || unicode.IsNumber(r) {
+			return r
+		}
+		return -1
+	}
+	pattern := strings.Map(mapper, name)
+	return pattern
+}
+
+// Writer returns an io.Writer whose Write method invokes t.Log.
+// A newline is prepended to the log output.
+func Writer(t testing.TB) io.Writer {
+	return &tWriter{t}
+}
+
+var _ io.Writer = (*tWriter)(nil)
+
+type tWriter struct {
+	t testing.TB
+}
+
+func (t *tWriter) Write(p []byte) (n int, err error) {
+	if len(p) == 0 {
+		return 0, nil
+	}
+
+	t.t.Log("\n" + string(p))
+	return len(p), nil
+}

@@ -71,7 +71,7 @@ func execMoveRenameGroup(cmd *cobra.Command, oldGroup, newGroup string) error {
 		return err
 	}
 
-	if _, err = source.VerifySetIntegrity(rc.Config.Sources); err != nil {
+	if _, err = source.VerifyIntegrity(rc.Config.Sources); err != nil {
 		return err
 	}
 
@@ -101,7 +101,7 @@ func execMoveHandleToGroup(cmd *cobra.Command, oldHandle, newGroup string) error
 		return err
 	}
 
-	if _, err = source.VerifySetIntegrity(rc.Config.Sources); err != nil {
+	if _, err = source.VerifyIntegrity(rc.Config.Sources); err != nil {
 		return err
 	}
 
@@ -123,7 +123,7 @@ func execMoveRenameHandle(cmd *cobra.Command, oldHandle, newHandle string) error
 		return err
 	}
 
-	if _, err = source.VerifySetIntegrity(rc.Config.Sources); err != nil {
+	if _, err = source.VerifyIntegrity(rc.Config.Sources); err != nil {
 		return err
 	}
 

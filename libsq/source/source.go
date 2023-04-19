@@ -71,7 +71,7 @@ type Source struct {
 	Handle string `yaml:"handle" json:"handle"`
 
 	// Type is the driver type, e.g. postgres.Type.
-	Type Type `yaml:"type" json:"type"`
+	Type Type `yaml:"driver" json:"driver"`
 
 	// Location is the source location, such as a DB connection URI,
 	// or a file path.
@@ -250,11 +250,11 @@ func validSource(s *Source) error {
 	}
 
 	if strings.TrimSpace(s.Location) == "" {
-		return errz.New("source location is empty")
+		return errz.Errorf("%s: location is empty", s.Handle)
 	}
 
 	if s.Type == TypeNone {
-		return errz.Errorf("source type is empty or unknown: {%s}", s.Type)
+		return errz.Errorf("%s: driver type is empty or unknown: %s", s.Handle, s.Type)
 	}
 
 	return nil
