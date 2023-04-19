@@ -66,8 +66,8 @@ func execQueryTestCase(t *testing.T, tc queryTestCase) {
 	}
 
 	t.Helper()
-	srcs := testh.New(t).NewSourceSet(sakila.SQLLatest()...)
-	for _, src := range srcs.Sources() {
+	coll := testh.New(t).NewCollection(sakila.SQLLatest()...)
+	for _, src := range coll.Sources() {
 		src := src
 
 		t.Run(string(src.Type), func(t *testing.T) {
@@ -86,14 +86,14 @@ func execQueryTestCase(t *testing.T, tc queryTestCase) {
 				want = overrideWant
 			}
 
-			_, err := srcs.SetActive(src.Handle, false)
+			_, err := coll.SetActive(src.Handle, false)
 			require.NoError(t, err)
 
 			th := testh.New(t)
 			dbases := th.Databases()
 
 			qc := &libsq.QueryContext{
-				Sources:      srcs,
+				Collection:   coll,
 				DBOpener:     dbases,
 				JoinDBOpener: dbases,
 				Args:         tc.args,

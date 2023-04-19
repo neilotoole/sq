@@ -66,12 +66,12 @@ func execMove(cmd *cobra.Command, args []string) error {
 //	prod
 func execMoveRenameGroup(cmd *cobra.Command, oldGroup, newGroup string) error {
 	rc := RunContextFrom(cmd.Context())
-	_, err := rc.Config.Sources.RenameGroup(oldGroup, newGroup)
+	_, err := rc.Config.Collection.RenameGroup(oldGroup, newGroup)
 	if err != nil {
 		return err
 	}
 
-	if _, err = source.VerifySetIntegrity(rc.Config.Sources); err != nil {
+	if _, err = source.VerifyIntegrity(rc.Config.Collection); err != nil {
 		return err
 	}
 
@@ -79,7 +79,7 @@ func execMoveRenameGroup(cmd *cobra.Command, oldGroup, newGroup string) error {
 		return err
 	}
 
-	tree, err := rc.Config.Sources.Tree(newGroup)
+	tree, err := rc.Config.Collection.Tree(newGroup)
 	if err != nil {
 		return err
 	}
@@ -96,12 +96,12 @@ func execMoveRenameGroup(cmd *cobra.Command, oldGroup, newGroup string) error {
 //	@sakiladb
 func execMoveHandleToGroup(cmd *cobra.Command, oldHandle, newGroup string) error {
 	rc := RunContextFrom(cmd.Context())
-	src, err := rc.Config.Sources.MoveHandleToGroup(oldHandle, newGroup)
+	src, err := rc.Config.Collection.MoveHandleToGroup(oldHandle, newGroup)
 	if err != nil {
 		return err
 	}
 
-	if _, err = source.VerifySetIntegrity(rc.Config.Sources); err != nil {
+	if _, err = source.VerifyIntegrity(rc.Config.Collection); err != nil {
 		return err
 	}
 
@@ -109,7 +109,7 @@ func execMoveHandleToGroup(cmd *cobra.Command, oldHandle, newGroup string) error
 		return err
 	}
 
-	return rc.writers.srcw.Source(rc.Config.Sources, src)
+	return rc.writers.srcw.Source(rc.Config.Collection, src)
 }
 
 // execMoveRenameHandle renames a handle.
@@ -118,12 +118,12 @@ func execMoveHandleToGroup(cmd *cobra.Command, oldHandle, newGroup string) error
 //	$ sq mv @sakiladb @sakila/db
 func execMoveRenameHandle(cmd *cobra.Command, oldHandle, newHandle string) error {
 	rc := RunContextFrom(cmd.Context())
-	src, err := rc.Config.Sources.RenameSource(oldHandle, newHandle)
+	src, err := rc.Config.Collection.RenameSource(oldHandle, newHandle)
 	if err != nil {
 		return err
 	}
 
-	if _, err = source.VerifySetIntegrity(rc.Config.Sources); err != nil {
+	if _, err = source.VerifyIntegrity(rc.Config.Collection); err != nil {
 		return err
 	}
 
@@ -131,7 +131,7 @@ func execMoveRenameHandle(cmd *cobra.Command, oldHandle, newHandle string) error
 		return err
 	}
 
-	return rc.writers.srcw.Source(rc.Config.Sources, src)
+	return rc.writers.srcw.Source(rc.Config.Collection, src)
 }
 
 // completeMove is a completionFunc for the "mv" command.

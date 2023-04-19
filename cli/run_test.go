@@ -24,7 +24,7 @@ import (
 // with buffers for out and errOut (instead of the
 // rc writing to stdout and stderr). The contents of
 // these buffers can be written to t.Log() if desired.
-// The srcs args are added to rc.Config.Set.
+// The srcs args are added to rc.Config.Collection.
 //
 // If cfgStore is nil, a new one is created in a temp dir.
 func newTestRunCtx(t testing.TB, cfgStore config.Store) (rc *cli.RunContext, out, errOut *bytes.Buffer) {
@@ -83,7 +83,7 @@ func newRun(t *testing.T, from *Run) *Run {
 	return ru
 }
 
-// add adds srcs to ru.rc.Config.Set. If the source set
+// add adds srcs to ru.rc.Config.Collection. If the collection
 // does not already have an active source, the first element
 // of srcs is used as the active source.
 func (ru *Run) add(srcs ...source.Source) *Run {
@@ -94,16 +94,16 @@ func (ru *Run) add(srcs ...source.Source) *Run {
 		return ru
 	}
 
-	ss := ru.rc.Config.Sources
-	hasActive := ru.rc.Config.Sources.Active() != nil
+	coll := ru.rc.Config.Collection
+	hasActive := ru.rc.Config.Collection.Active() != nil
 
 	for _, src := range srcs {
 		src := src
-		require.NoError(ru.t, ss.Add(&src))
+		require.NoError(ru.t, coll.Add(&src))
 	}
 
 	if !hasActive {
-		_, err := ss.SetActive(srcs[0].Handle, false)
+		_, err := coll.SetActive(srcs[0].Handle, false)
 		require.NoError(ru.t, err)
 	}
 
@@ -185,7 +185,7 @@ func (ru *Run) mustReadCSV() [][]string {
 }
 
 // hush suppresses the printing of output collected in out
-// and errOut to t.Log. Set to true for tests
+// and errOut to t.Log. Collection to true for tests
 // that output excessive content, binary files, etc.
 func (ru *Run) hush() *Run {
 	ru.hushOutput = true

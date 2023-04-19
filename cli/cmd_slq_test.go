@@ -173,7 +173,7 @@ func TestCmdSLQ_ActiveSrcHandle(t *testing.T) {
 	// 1. Verify that the query works as expected using the actual src handle
 	ru := newRun(t, nil).add(*src).hush()
 
-	require.Equal(t, src.Handle, ru.rc.Config.Sources.Active().Handle)
+	require.Equal(t, src.Handle, ru.rc.Config.Collection.Active().Handle)
 	err := ru.Exec("slq", "--header=false", "--csv", "@sakila_sl3.actor")
 	require.NoError(t, err)
 	recs := ru.mustReadCSV()
@@ -181,7 +181,7 @@ func TestCmdSLQ_ActiveSrcHandle(t *testing.T) {
 
 	// 2. Verify that it works using source.ActiveHandle as the src handle
 	ru = newRun(t, nil).add(*src).hush()
-	require.Equal(t, src.Handle, ru.rc.Config.Sources.Active().Handle)
+	require.Equal(t, src.Handle, ru.rc.Config.Collection.Active().Handle)
 	err = ru.Exec("slq", "--header=false", "--csv", source.ActiveHandle+".actor")
 	require.NoError(t, err)
 	recs = ru.mustReadCSV()

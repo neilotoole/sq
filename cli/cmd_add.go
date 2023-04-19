@@ -8,6 +8,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/neilotoole/sq/cli/flag"
+
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
@@ -81,22 +83,22 @@ Use query string encoding for multiple options, e.g. "--opts a=b&x=y".
 If flag --driver is omitted, sq will attempt to determine the
 type from LOCATION via file suffix, content type, etc.. If the result
 is ambiguous, explicitly specify the driver type.
-  
+
   $ sq add --driver=tsv ./mystery.data
 
 Available source driver types can be listed via "sq driver ls". At a
 minimum, the following drivers are bundled:
 
-  sqlite3    SQLite                               
-  postgres   PostgreSQL                           
-  sqlserver  Microsoft SQL Server / Azure SQL Edge                 
-  mysql      MySQL                                
-  csv        Comma-Separated Values               
-  tsv        Tab-Separated Values                 
-  json       JSON                                 
-  jsona      JSON Array: LF-delimited JSON arrays 
+  sqlite3    SQLite
+  postgres   PostgreSQL
+  sqlserver  Microsoft SQL Server / Azure SQL Edge
+  mysql      MySQL
+  csv        Comma-Separated Values
+  tsv        Tab-Separated Values
+  json       JSON
+  jsona      JSON Array: LF-delimited JSON arrays
   jsonl      JSON Lines: LF-delimited JSON objects
-  xlsx       Microsoft Excel XLSX 
+  xlsx       Microsoft Excel XLSX
 
 If there isn't already an active source, the newly added source becomes the
 active source (but the active group does not change). Otherwise you can
@@ -115,14 +117,14 @@ More examples:
   $ sq add -h @sakila_pg --d postgres 'postgres://user:pass@localhost/sakila'
 
   # Add a SQL Server source; will have generated handle @sakila_mssql or similar
-  $ sq add 'sqlserver://user:pass@localhost?database=sakila' 
+  $ sq add 'sqlserver://user:pass@localhost?database=sakila'
 
   # Add a sqlite db, and immediately make it the active source
-  $ sq add ./testdata/sqlite1.db --active 
+  $ sq add ./testdata/sqlite1.db --active
 
   # Add an Excel spreadsheet, with options
   $ sq add ./testdata/test1.xlsx --opts=header=true
-  
+
   # Add a CSV source, with options
   $ sq add ./testdata/person.csv --opts=header=true
 
@@ -135,14 +137,14 @@ More examples:
 		Long:  `Add data source specified by LOCATION, optionally identified by @HANDLE.`,
 	}
 
-	cmd.Flags().StringP(flagDriver, flagDriverShort, "", flagDriverUsage)
-	panicOn(cmd.RegisterFlagCompletionFunc(flagDriver, completeDriverType))
-	cmd.Flags().StringP(flagSrcOptions, "", "", flagSrcOptionsUsage)
-	cmd.Flags().StringP(flagHandle, flagHandleShort, "", flagHandleUsage)
-	cmd.Flags().BoolP(flagPasswordPrompt, flagPasswordPromptShort, false, flagPasswordPromptUsage)
-	cmd.Flags().Bool(flagSkipVerify, false, flagSkipVerifyUsage)
-	cmd.Flags().BoolP(flagJSON, flagJSONShort, false, flagJSONUsage)
-	cmd.Flags().BoolP(flagAddActive, flagAddActiveShort, false, flagAddActiveUsage)
+	cmd.Flags().StringP(flag.Driver, flag.DriverShort, "", flag.DriverUsage)
+	panicOn(cmd.RegisterFlagCompletionFunc(flag.Driver, completeDriverType))
+	cmd.Flags().StringP(flag.SrcOptions, "", "", flag.SrcOptionsUsage)
+	cmd.Flags().StringP(flag.Handle, flag.HandleShort, "", flag.HandleUsage)
+	cmd.Flags().BoolP(flag.PasswordPrompt, flag.PasswordPromptShort, false, flag.PasswordPromptUsage)
+	cmd.Flags().Bool(flag.SkipVerify, false, flag.SkipVerifyUsage)
+	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
+	cmd.Flags().BoolP(flag.AddActive, flag.AddActiveShort, false, flag.AddActiveUsage)
 	return cmd
 }
 
@@ -154,8 +156,8 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 	var err error
 	var typ source.Type
 
-	if cmdFlagChanged(cmd, flagDriver) {
-		val, _ := cmd.Flags().GetString(flagDriver)
+	if cmdFlagChanged(cmd, flag.Driver) {
+		val, _ := cmd.Flags().GetString(flag.Driver)
 		typ = source.Type(strings.TrimSpace(val))
 	} else {
 		typ, err = rc.files.Type(cmd.Context(), loc)
@@ -172,10 +174,10 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 	}
 
 	var handle string
-	if cmdFlagChanged(cmd, flagHandle) {
-		handle, _ = cmd.Flags().GetString(flagHandle)
+	if cmdFlagChanged(cmd, flag.Handle) {
+		handle, _ = cmd.Flags().GetString(flag.Handle)
 	} else {
-		handle, err = source.SuggestHandle(rc.Config.Sources, typ, loc)
+		handle, err = source.SuggestHandle(rc.Config.Collection, typ, loc)
 		if err != nil {
 			return errz.Wrap(err, "unable to suggest a handle: use --handle flag")
 		}
@@ -189,13 +191,13 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if cfg.Sources.IsExistingSource(handle) {
+	if cfg.Collection.IsExistingSource(handle) {
 		return errz.Errorf("source handle already exists: %s", handle)
 	}
 
 	var opts options.Options
-	if cmdFlagChanged(cmd, flagSrcOptions) {
-		val, _ := cmd.Flags().GetString(flagSrcOptions)
+	if cmdFlagChanged(cmd, flag.SrcOptions) {
+		val, _ := cmd.Flags().GetString(flag.SrcOptions)
 		val = strings.TrimSpace(val)
 		if val != "" {
 			opts, err = options.ParseOptions(val)
@@ -215,7 +217,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 
 	// If the -p flag is set, sq looks for password input on stdin,
 	// or sq prompts the user.
-	if cmdFlagTrue(cmd, flagPasswordPrompt) {
+	if cmdFlagTrue(cmd, flag.PasswordPrompt) {
 		var passwd []byte
 		passwd, err = readPassword(cmd.Context(), rc.Stdin, rc.Out, rc.writers.fm)
 		if err != nil {
@@ -233,15 +235,15 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	err = cfg.Sources.Add(src)
+	err = cfg.Collection.Add(src)
 	if err != nil {
 		return err
 	}
 
-	if cfg.Sources.Active() == nil || cmdFlagTrue(cmd, flagAddActive) {
+	if cfg.Collection.Active() == nil || cmdFlagTrue(cmd, flag.AddActive) {
 		// If no current active data source, use this one, OR if
 		// flagAddActive is true.
-		if _, err = cfg.Sources.SetActive(src.Handle, false); err != nil {
+		if _, err = cfg.Collection.SetActive(src.Handle, false); err != nil {
 			return err
 		}
 
@@ -254,7 +256,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if !cmdFlagTrue(cmd, flagSkipVerify) {
+	if !cmdFlagTrue(cmd, flag.SkipVerify) {
 		// Typically we want to ping the source before adding it.
 		if err = drvr.Ping(cmd.Context(), src); err != nil {
 			return err
@@ -265,7 +267,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return rc.writers.srcw.Source(rc.Config.Sources, src)
+	return rc.writers.srcw.Source(rc.Config.Collection, src)
 }
 
 // readPassword reads a password from stdin pipe, or if nothing on stdin,

@@ -1,7 +1,8 @@
-defaults:
+config_version: v0.34.0
+options:
 
-sources:
-  active: ""
+collection:
+  active_source: ""
   scratch: ""
-  items:
+  sources:
 

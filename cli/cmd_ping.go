@@ -5,6 +5,8 @@ import (
 	"errors"
 	"time"
 
+	"github.com/neilotoole/sq/cli/flag"
+
 	"github.com/samber/lo"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -50,17 +52,17 @@ The exit code is 1 if ping fails for any of the sources.`,
   $ sq ping --tsv @my1`,
 	}
 
-	cmd.Flags().BoolP(flagTable, flagTableShort, false, flagTableUsage)
-	cmd.Flags().BoolP(flagCSV, flagCSVShort, false, flagCSVUsage)
-	cmd.Flags().BoolP(flagTSV, flagTSVShort, false, flagTSVUsage)
-	cmd.Flags().BoolP(flagJSON, flagJSONShort, false, flagJSONUsage)
-	cmd.Flags().Duration(flagPingTimeout, time.Second*10, flagPingTimeoutUsage)
+	cmd.Flags().BoolP(flag.Table, flag.TableShort, false, flag.TableUsage)
+	cmd.Flags().BoolP(flag.CSV, flag.CSVShort, false, flag.CSVUsage)
+	cmd.Flags().BoolP(flag.TSV, flag.TSVShort, false, flag.TSVUsage)
+	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
+	cmd.Flags().Duration(flag.PingTimeout, time.Second*10, flag.PingTimeoutUsage)
 	return cmd
 }
 
 func execPing(cmd *cobra.Command, args []string) error {
 	rc := RunContextFrom(cmd.Context())
-	cfg, ss := rc.Config, rc.Config.Sources
+	cfg, coll := rc.Config, rc.Config.Collection
 	var srcs []*source.Source
 
 	// args can be:
@@ -70,7 +72,7 @@ func execPing(cmd *cobra.Command, args []string) error {
 
 	args = lo.Uniq(args)
 	if len(args) == 0 {
-		src := cfg.Sources.Active()
+		src := cfg.Collection.Active()
 		if src == nil {
 			return errz.New(msgNoActiveSrc)
 		}
@@ -79,13 +81,13 @@ func execPing(cmd *cobra.Command, args []string) error {
 		for _, arg := range args {
 			switch {
 			case source.IsValidHandle(arg):
-				src, err := ss.Get(arg)
+				src, err := coll.Get(arg)
 				if err != nil {
 					return err
 				}
 				srcs = append(srcs, src)
 			case source.IsValidGroup(arg):
-				groupSrcs, err := ss.SourcesInGroup(arg)
+				groupSrcs, err := coll.SourcesInGroup(arg)
 				if err != nil {
 					return err
 				}
@@ -99,9 +101,9 @@ func execPing(cmd *cobra.Command, args []string) error {
 
 	srcs = lo.Uniq(srcs)
 
-	timeout := cfg.Defaults.PingTimeout
-	if cmdFlagChanged(cmd, flagPingTimeout) {
-		timeout, _ = cmd.Flags().GetDuration(flagPingTimeout)
+	timeout := cfg.Options.PingTimeout
+	if cmdFlagChanged(cmd, flag.PingTimeout) {
+		timeout, _ = cmd.Flags().GetDuration(flag.PingTimeout)
 	}
 
 	rc.Log.Debug("Using ping timeout", lga.Val, timeout)

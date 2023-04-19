@@ -23,11 +23,12 @@ type PingWriter struct {
 	out io.Writer
 	fm  *output.Formatting
 
-	// handleLenMax is the maximum width of any of
+	// handleLenMax is the maximum width of
 	// the sources' handles.
 	handleWidthMax int
 }
 
+// Open implements output.PingWriter.
 func (w *PingWriter) Open(srcs []*source.Source) error {
 	for _, src := range srcs {
 		if len(src.Handle) > w.handleWidthMax {
@@ -37,6 +38,7 @@ func (w *PingWriter) Open(srcs []*source.Source) error {
 	return nil
 }
 
+// Result implements output.PingWriter.
 func (w *PingWriter) Result(src *source.Source, d time.Duration, err error) error {
 	w.fm.Number.Fprintf(w.out, "%-"+strconv.Itoa(w.handleWidthMax)+"s", src.Handle)
 	fmt.Fprintf(w.out, "%10s  ", d.Truncate(time.Millisecond).String())

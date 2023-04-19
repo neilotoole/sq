@@ -205,7 +205,7 @@ func TestSuggestHandle(t *testing.T) {
 	for i, tc := range testCases {
 		tc := tc
 		t.Run(tutil.Name(i, tc.typ, tc.loc), func(t *testing.T) {
-			set := &source.Set{}
+			set := &source.Collection{}
 			for i := range tc.taken {
 				err := set.Add(&source.Source{
 					Handle:   tc.taken[i],

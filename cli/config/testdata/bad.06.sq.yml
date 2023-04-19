@@ -1,6 +1,6 @@
-sources:
-  items:
+collection:
+  sources:
     - handle: "@sl1"
-      type: sqlite3
+      driver: sqlite3
       # location is empty: illegal
       location:

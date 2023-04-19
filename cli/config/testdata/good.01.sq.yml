@@ -1,164 +1,165 @@
-defaults:
+config_version: v0.34.0
+options:
   ping_timeout: 10s
   shell_completion_timeout: 1s
   output_format: table
   output_header: true
-sources:
-  active: '@sl1'
+collection:
+  active_source: '@sl1'
   scratch: ""
-  items:
+  sources:
     - handle: '@sl1'
-      type: sqlite3
+      driver: sqlite3
       location: sqlite3://${SQ_ROOT}/drivers/sqlite3/testdata/sqtest.db
 
     - handle: '@xl1'
-      type: xlsx
+      driver: xlsx
       location: ${SQ_ROOT}/drivers/xlsx/testdata/test_header.xlsx
-      defaults:
+      options:
         header:
           - "true"
 
     - handle: '@csv1'
-      type: csv
+      driver: csv
       location: ${SQ_ROOT}/drivers/csv/testdata/person_comma_header.csv
-      defaults:
+      options:
         header:
           - "true"
 
     - handle: '@ms1'
-      type: sqlserver
+      driver: sqlserver
       location: sqlserver://sq:p_ssW0rd@localhost?database=sqtest
 
     - handle: '@my1'
-      type: mysql
+      driver: mysql
       location: mysql://sq:p_ssW0rd@localhost:3306/sqtest
 
     - handle: '@pg1'
-      type: postgres
+      driver: postgres
       location: postgres://sq:p_ssW0rd@localhost/sqtest?sslmode=disable
 
     - handle: '@ms_sqtest'
-      type: sqlserver
+      driver: sqlserver
       location: sqlserver://sq:p_ssW0rd@localhost?database=sqtest
 
     - handle: '@ms_sqtype'
-      type: sqlserver
+      driver: sqlserver
       location: sqlserver://sq:p_ssW0rd@localhost?database=sqtype
 
     - handle: '@pg_sqtest'
-      type: postgres
+      driver: postgres
       location: postgres://sq:p_ssW0rd@localhost/sqtest?sslmode=disable
 
     - handle: '@pg_sqtype'
-      type: postgres
+      driver: postgres
       location: postgres://sq:p_ssW0rd@localhost/sqtype?sslmode=disable
 
     - handle: '@sl_sqtest'
-      type: sqlite3
+      driver: sqlite3
       location: sqlite3://${SQ_ROOT}/drivers/sqlite3/testdata/sqtest.db
 
     - handle: '@sl_sqtype'
-      type: sqlite3
+      driver: sqlite3
       location: sqlite3://${SQ_ROOT}/drivers/sqlite3/testdata/sqtype.db
 
     - handle: '@my_sqtest'
-      type: mysql
+      driver: mysql
       location: mysql://sq:p_ssW0rd@localhost:3306/sqtest
 
     - handle: '@my_sqtype'
-      type: mysql
+      driver: mysql
       location: mysql://sq:p_ssW0rd@localhost:3306/sqtype
 
     - handle: '@xl_header'
-      type: xlsx
+      driver: xlsx
       location: ${SQ_ROOT}/drivers/xlsx/testdata/test_header.xlsx
-      defaults:
+      options:
         header:
           - "true"
 
     - handle: '@xl_noheader'
-      type: xlsx
+      driver: xlsx
       location: ${SQ_ROOT}/drivers/xlsx/testdata/test_noheader.xlsx
 
     - handle: '@xl_remote'
-      type: xlsx
+      driver: xlsx
       location: http://neilotoole.io/sq/test/test1.xlsx
 
     - handle: '@csv_person_comma_header'
-      type: csv
+      driver: csv
       location: ${SQ_ROOT}/drivers/csv/testdata/person_comma_header.csv
-      defaults:
+      options:
         header:
           - "true"
 
     - handle: '@csv_person_comma_noheader'
-      type: csv
+      driver: csv
       location: ${SQ_ROOT}/drivers/csv/testdata/person_comma_noheader.csv
 
     - handle: '@tsv_person_header'
-      type: tsv
+      driver: tsv
       location: ${SQ_ROOT}/drivers/csv/testdata/person_header.tsv
 
     - handle: '@tsv_person_noheader'
-      type: tsv
+      driver: tsv
       location: ${SQ_ROOT}/drivers/csv/testdata/person_noheader.tsv
 
     - handle: '@tsv_person_noheader_cols'
-      type: tsv
+      driver: tsv
       location: ${SQ_ROOT}/drivers/csv/testdata/person_noheader.tsv
-      defaults:
+      options:
         cols:
           - uid,username,email
 
     - handle: '@rss_basic'
-      type: rss
+      driver: rss
       location: ${SQ_ROOT}/libsq/driver/userdriver/testdata/basic.rss.xml
 
     - handle: '@nytimes'
-      type: rss
+      driver: rss
       location: http://www.nytimes.com/services/xml/rss/nyt/World.xml
 
     - handle: '@myfriends'
-      type: ppl
+      driver: ppl
       location: ${SQ_ROOT}/libsq/driver/userdriver/testdata/people.xml
 
     - handle: '@peeps'
-      type: ppl
+      driver: ppl
       location: ${SQ_ROOT}/libsq/driver/userdriver/testdata/people2.xml
 
     - handle: '@ds_invalid_creds'
-      type: mysql
+      driver: mysql
       location: mysql://root:badpass@localhost:3306/sqtest
 
     - handle: '@ds_invalid_port'
-      type: mysql
+      driver: mysql
       location: mysql://root:root@localhost:33661/sqtest
 
     - handle: '@ds_invalid_host'
-      type: mysql
+      driver: mysql
       location: mysql://root:root@news.google.com:80/sqtest
 
     - handle: '@ds_invalid_db'
-      type: mysql
+      driver: mysql
       location: mysql://sq:sq@localhost:3306/not_a_db
 
     - handle: '@csvbig'
-      type: csv
+      driver: csv
       location: ${SQ_ROOT}/drivers/csv/testdata/person_comma_header_big.csv
-      defaults:
+      options:
         header:
           - "true"
 
     - handle: '@sl_sakila'
-      type: sqlite3
+      driver: sqlite3
       location: sqlite3://${SQ_ROOT}/examples/sakila/sqlite-sakila-db/sakila.db
 
     - handle: '@my_sakila'
-      type: mysql
+      driver: mysql
       location: mysql://root:sakila@localhost:33067/sakila
 
     - handle: '@pg_sakila'
-      type: postgres
+      driver: postgres
       location: postgres://sq:p_ssW0rd@localhost:54321/sakila?sslmode=disable
 
 

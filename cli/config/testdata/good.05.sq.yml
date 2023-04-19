@@ -1,11 +1,11 @@
 # This file has an empty active source.
-version: v0.0.0-dev
-defaults:
+config_version: v0.34.0
+options:
     output_format: table
     output_header: false
     ping_timeout: 10s
     shell_completion_timeout: 500ms
-sources:
-    active: ""
+collection:
+    active_source: ""
     scratch: ""
-    items: []
+    sources: []

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/neilotoole/sq/cli/flag"
 	"github.com/spf13/cobra"
 
 	// Import the providers package to initialize provider implementations.
@@ -83,8 +84,9 @@ See docs and more: https://sq.io`,
 	}
 
 	addQueryCmdFlags(cmd)
-	cmd.Flags().Bool(flagVersion, false, flagVersionUsage)
-	cmd.PersistentFlags().BoolP(flagMonochrome, flagMonochromeShort, false, flagMonochromeUsage)
-	cmd.PersistentFlags().BoolP(flagVerbose, flagVerboseShort, false, flagVerboseUsage)
+	cmd.Flags().Bool(flag.Version, false, flag.VersionUsage)
+	cmd.PersistentFlags().BoolP(flag.Monochrome, flag.MonochromeShort, false, flag.MonochromeUsage)
+	cmd.PersistentFlags().BoolP(flag.Verbose, flag.VerboseShort, false, flag.VerboseUsage)
+	cmd.PersistentFlags().String(flag.Config, "", flag.ConfigUsage)
 	return cmd
 }

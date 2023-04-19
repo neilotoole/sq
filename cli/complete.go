@@ -4,6 +4,8 @@ import (
 	"context"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
 	"golang.org/x/exp/slices"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -24,7 +26,7 @@ var (
 )
 
 // completeHandle is a completionFunc that suggests handles.
-// The max arg is the maximum number of completions. Set to 0
+// The max arg is the maximum number of completions. Collection to 0
 // for no limit.
 func completeHandle(max int) completionFunc {
 	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -32,8 +34,8 @@ func completeHandle(max int) completionFunc {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		rc := RunContextFrom(cmd.Context())
-		handles := rc.Config.Sources.Handles()
+		rc := getRunContext(cmd)
+		handles := rc.Config.Collection.Handles()
 		handles = lo.Reject(handles, func(item string, index int) bool {
 			return !strings.HasPrefix(item, toComplete)
 		})
@@ -45,7 +47,7 @@ func completeHandle(max int) completionFunc {
 }
 
 // completeGroup is a completionFunc that suggests groups.
-// The max arg is the maximum number of completions. Set to 0
+// The max arg is the maximum number of completions. Collection to 0
 // for no limit.
 func completeGroup(max int) completionFunc {
 	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -53,8 +55,8 @@ func completeGroup(max int) completionFunc {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		rc := RunContextFrom(cmd.Context())
-		groups := rc.Config.Sources.Groups()
+		rc := getRunContext(cmd)
+		groups := rc.Config.Collection.Groups()
 		groups, _ = lo.Difference(groups, args)
 		groups = lo.Uniq(groups)
 		slices.Sort(groups)
@@ -97,7 +99,7 @@ func completeSLQ(cmd *cobra.Command, args []string, toComplete string) ([]string
 
 // completeDriverType is a completionFunc that suggests drivers.
 func completeDriverType(cmd *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
-	rc := RunContextFrom(cmd.Context())
+	rc := getRunContext(cmd)
 	if rc.databases == nil {
 		err := rc.init()
 		if err != nil {
@@ -159,7 +161,7 @@ type handleTableCompleter struct {
 func (c *handleTableCompleter) complete(cmd *cobra.Command, args []string,
 	toComplete string,
 ) ([]string, cobra.ShellCompDirective) {
-	rc := RunContextFrom(cmd.Context())
+	rc := getRunContext(cmd)
 	if err := rc.init(); err != nil {
 		lg.Unexpected(rc.Log, err)
 		return nil, cobra.ShellCompDirectiveError
@@ -168,7 +170,7 @@ func (c *handleTableCompleter) complete(cmd *cobra.Command, args []string,
 	// We don't want the user to wait around forever for
 	// shell completion, so we set a timeout. Typically
 	// this is something like 500ms.
-	ctx, cancelFn := context.WithTimeout(cmd.Context(), rc.Config.Defaults.ShellCompletionTimeout)
+	ctx, cancelFn := context.WithTimeout(cmd.Context(), rc.Config.Options.ShellCompletionTimeout)
 	defer cancelFn()
 
 	if c.max > 0 && len(args) >= c.max {
@@ -205,7 +207,7 @@ func (c *handleTableCompleter) complete(cmd *cobra.Command, args []string,
 func (c *handleTableCompleter) completeTableOnly(ctx context.Context, rc *RunContext, _ []string,
 	toComplete string,
 ) ([]string, cobra.ShellCompDirective) {
-	activeSrc := rc.Config.Sources.Active()
+	activeSrc := rc.Config.Collection.Active()
 	if activeSrc == nil {
 		rc.Log.Error("Active source is nil")
 		return nil, cobra.ShellCompDirectiveError
@@ -290,7 +292,7 @@ func (c *handleTableCompleter) completeHandle(ctx context.Context, rc *RunContex
 		return suggestions, cobra.ShellCompDirectiveNoFileComp
 	}
 
-	handles := rc.Config.Sources.Handles()
+	handles := rc.Config.Collection.Handles()
 	// Else, we're dealing with just a handle so far
 	var matchingHandles []string
 	for _, handle := range handles {
@@ -342,38 +344,39 @@ func (c *handleTableCompleter) completeHandle(ctx context.Context, rc *RunContex
 func (c *handleTableCompleter) completeEither(ctx context.Context, rc *RunContext,
 	_ []string, _ string,
 ) ([]string, cobra.ShellCompDirective) {
+	var suggestions []string
+
 	// There's no input yet.
 	// Therefore we want to return a union of all handles
 	// plus the tables from the active source.
-	activeSrc := rc.Config.Sources.Active()
-	if activeSrc == nil {
-		rc.Log.Error("Active source is nil")
-		return nil, cobra.ShellCompDirectiveError
-	}
-
-	var activeSrcTables []string
-	isSQL, err := handleIsSQLDriver(rc, activeSrc.Handle)
-	if err != nil {
-		lg.Unexpected(rc.Log, err)
-		return nil, cobra.ShellCompDirectiveError
-	}
-
-	if !c.onlySQL || isSQL {
-		activeSrcTables, err = getTableNamesForHandle(ctx, rc, activeSrc.Handle)
+	activeSrc := rc.Config.Collection.Active()
+	if activeSrc != nil {
+		var activeSrcTables []string
+		isSQL, err := handleIsSQLDriver(rc, activeSrc.Handle)
 		if err != nil {
 			lg.Unexpected(rc.Log, err)
 			return nil, cobra.ShellCompDirectiveError
 		}
+
+		if !c.onlySQL || isSQL {
+			activeSrcTables, err = getTableNamesForHandle(ctx, rc, activeSrc.Handle)
+			if err != nil {
+				// This can happen if the active source is offline.
+				// Log the error, but continue below, because we still want to
+				// list the handles.
+				rc.Log.Warn("completion: failed to get table metadata from active source",
+					lga.Err, err, lga.Src, activeSrc)
+			}
+		}
+
+		for _, table := range activeSrcTables {
+			suggestions = append(suggestions, "."+table)
+		}
 	}
 
-	var suggestions []string
-	for _, table := range activeSrcTables {
-		suggestions = append(suggestions, "."+table)
-	}
-
-	for _, src := range rc.Config.Sources.Sources() {
+	for _, src := range rc.Config.Collection.Sources() {
 		if c.onlySQL {
-			isSQL, err = handleIsSQLDriver(rc, src.Handle)
+			isSQL, err := handleIsSQLDriver(rc, src.Handle)
 			if err != nil {
 				lg.Unexpected(rc.Log, err)
 				return nil, cobra.ShellCompDirectiveError
@@ -390,7 +393,7 @@ func (c *handleTableCompleter) completeEither(ctx context.Context, rc *RunContex
 }
 
 func handleIsSQLDriver(rc *RunContext, handle string) (bool, error) {
-	src, err := rc.Config.Sources.Get(handle)
+	src, err := rc.Config.Collection.Get(handle)
 	if err != nil {
 		return false, err
 	}
@@ -404,7 +407,7 @@ func handleIsSQLDriver(rc *RunContext, handle string) (bool, error) {
 }
 
 func getTableNamesForHandle(ctx context.Context, rc *RunContext, handle string) ([]string, error) {
-	src, err := rc.Config.Sources.Get(handle)
+	src, err := rc.Config.Collection.Get(handle)
 	if err != nil {
 		return nil, err
 	}

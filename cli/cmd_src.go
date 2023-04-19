@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/neilotoole/sq/cli/flag"
 	"github.com/spf13/cobra"
 )
 
@@ -20,7 +21,7 @@ func newSrcCommand() *cobra.Command {
 source. Otherwise, set @HANDLE as the active data source.`,
 	}
 
-	cmd.Flags().BoolP(flagJSON, flagJSONShort, false, flagJSONUsage)
+	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 
 	return cmd
 }
@@ -31,15 +32,15 @@ func execSrc(cmd *cobra.Command, args []string) error {
 
 	if len(args) == 0 {
 		// Get the active data source
-		src := cfg.Sources.Active()
+		src := cfg.Collection.Active()
 		if src == nil {
 			return nil
 		}
 
-		return rc.writers.srcw.Source(cfg.Sources, src)
+		return rc.writers.srcw.Source(cfg.Collection, src)
 	}
 
-	src, err := cfg.Sources.SetActive(args[0], false)
+	src, err := cfg.Collection.SetActive(args[0], false)
 	if err != nil {
 		return err
 	}
@@ -49,5 +50,5 @@ func execSrc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return rc.writers.srcw.Source(cfg.Sources, src)
+	return rc.writers.srcw.Source(cfg.Collection, src)
 }

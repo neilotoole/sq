@@ -1,24 +1,14 @@
 // Package cli implements sq's CLI. The spf13/cobra library
-// is used, with some notable modifications. Although cobra
-// provides excellent functionality, it has some issues.
+// is used, with some notable modifications.
+//
+// Although cobra provides excellent functionality, it has some issues.
 // Most prominently, its documentation suggests reliance
 // upon package-level constructs for initializing the
 // command tree (bad for testing).
 //
 // Thus, this cmd package deviates from cobra's suggested
 // usage pattern by eliminating all pkg-level constructs
-// (which makes testing easier), and also replaces cobra's
-// Command.RunE func signature with a signature that accepts
-// as its first argument the RunContext type.
-//
-// RunContext is similar to context.Context (and contains
-// an instance of that), but also encapsulates injectable
-// resources such as config and logging.
-//
-// Update (Dec 2020): recent releases of cobra now support
-// accessing Context from the cobra.Command. At some point
-// it may make sense to revisit the way commands are
-// constructed, to use this now-standard cobra mechanism.
+// (which makes testing easier).
 //
 // The entry point to this pkg is the Execute function.
 package cli
@@ -34,6 +24,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/neilotoole/sq/cli/flag"
+
 	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -42,35 +34,13 @@ import (
 
 	"golang.org/x/exp/slog"
 
-	"github.com/fatih/color"
-	"github.com/mattn/go-colorable"
-	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
 	"github.com/neilotoole/sq/cli/config"
-	"github.com/neilotoole/sq/cli/output"
-	"github.com/neilotoole/sq/cli/output/csvw"
-	"github.com/neilotoole/sq/cli/output/htmlw"
 	"github.com/neilotoole/sq/cli/output/jsonw"
-	"github.com/neilotoole/sq/cli/output/markdownw"
-	"github.com/neilotoole/sq/cli/output/raww"
-	"github.com/neilotoole/sq/cli/output/tablew"
-	"github.com/neilotoole/sq/cli/output/xlsxw"
-	"github.com/neilotoole/sq/cli/output/xmlw"
-	"github.com/neilotoole/sq/drivers/csv"
-	"github.com/neilotoole/sq/drivers/json"
-	"github.com/neilotoole/sq/drivers/mysql"
-	"github.com/neilotoole/sq/drivers/postgres"
-	"github.com/neilotoole/sq/drivers/sqlite3"
-	"github.com/neilotoole/sq/drivers/sqlserver"
-	"github.com/neilotoole/sq/drivers/userdriver"
-	"github.com/neilotoole/sq/drivers/userdriver/xmlud"
-	"github.com/neilotoole/sq/drivers/xlsx"
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/driver"
-	"github.com/neilotoole/sq/libsq/source"
 )
 
 func init() { //nolint:gochecknoinits
@@ -86,7 +56,7 @@ var errNoMsg = errors.New("")
 // Execute builds a RunContext using ctx and default
 // settings, and invokes ExecuteWith.
 func Execute(ctx context.Context, stdin *os.File, stdout, stderr io.Writer, args []string) error {
-	rc, err := newDefaultRunContext(stdin, stdout, stderr)
+	rc, err := newDefaultRunContext(ctx, stdin, stdout, stderr, args)
 	if err != nil {
 		printError(rc, err)
 		return err
@@ -116,8 +86,8 @@ func ExecuteWith(ctx context.Context, rc *RunContext, args []string) error {
 	var err error
 
 	// The following is a workaround for the fact that cobra doesn't
-	// currently (as of 2017) support executing the root command with
-	// arbitrary args. That is to say, if you execute:
+	// currently (as of 2017, so yeah, "currently") support executing
+	// the root command with arbitrary args. That is to say, if you execute:
 	//
 	//   $ sq @sakila_sl3.actor
 	//
@@ -213,7 +183,7 @@ func newCommandTree(rc *RunContext) (rootCmd *cobra.Command) {
 	// or else cobra tries to do its own (unwanted) thing.
 	// The behavior of cobra in this regard seems to have
 	// changed? This particular incantation currently does the trick.
-	rootCmd.Flags().Bool(flagHelp, false, "Show sq help")
+	rootCmd.Flags().Bool(flag.Help, false, "Show sq help")
 
 	helpCmd := addCmd(rc, rootCmd, newHelpCmd())
 	rootCmd.SetHelpCommand(helpCmd)
@@ -240,13 +210,18 @@ func newCommandTree(rc *RunContext) (rootCmd *cobra.Command) {
 	addCmd(rc, rootCmd, newSQLCmd())
 	addCmd(rc, rootCmd, newScratchCmd())
 
-	driverCmd := addCmd(rc, rootCmd, newDriverCmd())
-	addCmd(rc, driverCmd, newDriverListCmd())
-
 	tblCmd := addCmd(rc, rootCmd, newTblCmd())
 	addCmd(rc, tblCmd, newTblCopyCmd())
 	addCmd(rc, tblCmd, newTblTruncateCmd())
 	addCmd(rc, tblCmd, newTblDropCmd())
+
+	driverCmd := addCmd(rc, rootCmd, newDriverCmd())
+	addCmd(rc, driverCmd, newDriverListCmd())
+
+	configCmd := addCmd(rc, rootCmd, newConfigCmd())
+	addCmd(rc, configCmd, newConfigGetCmd())
+	addCmd(rc, configCmd, newConfigLocationCmd())
+
 	addCmd(rc, rootCmd, newCompletionCmd())
 	addCmd(rc, rootCmd, newVersionCmd())
 	addCmd(rc, rootCmd, newManCmd())
@@ -272,7 +247,7 @@ func addCmd(rc *RunContext, parentCmd, cmd *cobra.Command) *cobra.Command {
 
 	if cmd.Name() != "help" {
 		// Don't add the --help flag to the help command.
-		cmd.Flags().Bool(flagHelp, false, "help for "+cmd.Name())
+		cmd.Flags().Bool(flag.Help, false, "help for "+cmd.Name())
 	}
 
 	cmd.DisableAutoGenTag = true
@@ -286,7 +261,7 @@ func addCmd(rc *RunContext, parentCmd, cmd *cobra.Command) *cobra.Command {
 
 	runE := cmd.RunE
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
-		if cmd.Flags().Changed(flagVersion) {
+		if cmd.Flags().Changed(flag.Version) {
 			// Bit of a hack: flag --version on any command
 			// results in execVersion being invoked
 			return execVersion(cmd, args)
@@ -304,453 +279,12 @@ func addCmd(rc *RunContext, parentCmd, cmd *cobra.Command) *cobra.Command {
 	return cmd
 }
 
-type runContextKey struct{}
-
-// WithRunContext returns ctx with rc added as a value.
-func WithRunContext(ctx context.Context, rc *RunContext) context.Context {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
-	return context.WithValue(ctx, runContextKey{}, rc)
-}
-
-// RunContextFrom extracts the RunContext added to ctx via WithRunContext.
-func RunContextFrom(ctx context.Context) *RunContext {
-	return ctx.Value(runContextKey{}).(*RunContext)
-}
-
-// RunContext is a container for injectable resources passed
-// to all execX funcs. The Close method should be invoked when
-// the RunContext is no longer needed.
-type RunContext struct {
-	// Stdin typically is os.Stdin, but can be changed for testing.
-	Stdin *os.File
-
-	// Out is the output destination.
-	// If nil, default to stdout.
-	Out io.Writer
-
-	// ErrOut is the error output destination.
-	// If nil, default to stderr.
-	ErrOut io.Writer
-
-	// Cmd is the command instance provided by cobra for
-	// the currently executing command. This field will
-	// be set before the command's runFunc is invoked.
-	Cmd *cobra.Command
-
-	// Log is the run's logger.
-	Log *slog.Logger
-
-	// Args is the arg slice supplied by cobra for
-	// the currently executing command. This field will
-	// be set before the command's runFunc is invoked.
-	Args []string
-
-	// Config is the run's config.
-	Config *config.Config
-
-	// ConfigStore is run's config store.
-	ConfigStore config.Store
-
-	initOnce sync.Once
-	initErr  error
-
-	// writers holds the various writer types that
-	// the CLI uses to print output.
-	writers *writers
-
-	registry  *driver.Registry
-	files     *source.Files
-	databases *driver.Databases
-	clnup     *cleanup.Cleanup
-}
-
-// newDefaultRunContext returns a RunContext configured
-// with standard values for logging, config, etc. This
-// effectively is the bootstrap mechanism for sq.
-//
-// Note: This func always returns a RunContext, even if
-// an error occurs during bootstrap of the RunContext (for
-// example if there's a config error). We do this to provide
-// enough framework so that such an error can be logged or
-// printed per the normal mechanisms if at all possible.
-func newDefaultRunContext(stdin *os.File, stdout, stderr io.Writer) (*RunContext, error) {
-	rc := &RunContext{
-		Stdin:  stdin,
-		Out:    stdout,
-		ErrOut: stderr,
-	}
-
-	log, clnup, loggingErr := defaultLogging()
-	rc.Log = log
-	rc.clnup = clnup
-
-	cfg, cfgStore, configErr := defaultConfig()
-	rc.ConfigStore = cfgStore
-	rc.Config = cfg
-
-	switch {
-	case rc.clnup == nil:
-		rc.clnup = cleanup.New()
-	case rc.Config == nil:
-		rc.Config = config.New()
-	}
-
-	if configErr != nil {
-		// configErr is more important, return that first
-		return rc, configErr
-	}
-
-	if loggingErr != nil {
-		return rc, loggingErr
-	}
-
-	return rc, nil
-}
-
-// init is invoked by cobra prior to the command RunE being
-// invoked. It sets up the registry, databases, writers and related
-// fundamental components. Subsequent invocations of this method
-// are no-op.
-func (rc *RunContext) init() error {
-	rc.initOnce.Do(func() {
-		rc.initErr = rc.doInit()
-	})
-
-	return rc.initErr
-}
-
-// doInit performs the actual work of initializing rc.
-// It must only be invoked once.
-func (rc *RunContext) doInit() error {
-	rc.clnup = cleanup.New()
-	cfg, log := rc.Config, rc.Log
-
-	// If the --output=/some/file flag is set, then we need to
-	// override rc.Out (which is typically stdout) to point it at
-	// the output destination file.
-	if cmdFlagChanged(rc.Cmd, flagOutput) {
-		fpath, _ := rc.Cmd.Flags().GetString(flagOutput)
-		fpath, err := filepath.Abs(fpath)
-		if err != nil {
-			return errz.Wrapf(err, "failed to get absolute path for --%s", flagOutput)
-		}
-
-		// Ensure the parent dir exists
-		err = os.MkdirAll(filepath.Dir(fpath), os.ModePerm)
-		if err != nil {
-			return errz.Wrapf(err, "failed to make parent dir for --%s", flagOutput)
-		}
-
-		f, err := os.Create(fpath)
-		if err != nil {
-			return errz.Wrapf(err, "failed to open file specified by flag --%s", flagOutput)
-		}
-
-		rc.clnup.AddC(f) // Make sure the file gets closed eventually
-		rc.Out = f
-	}
-
-	rc.writers, rc.Out, rc.ErrOut = newWriters(rc.Cmd, rc.Config.Defaults, rc.Out, rc.ErrOut)
-
-	var scratchSrcFunc driver.ScratchSrcFunc
-
-	// scratchSrc could be nil, and that's ok
-	scratchSrc := cfg.Sources.Scratch()
-	if scratchSrc == nil {
-		scratchSrcFunc = sqlite3.NewScratchSource
-	} else {
-		scratchSrcFunc = func(log *slog.Logger, name string) (src *source.Source, clnup func() error, err error) {
-			return scratchSrc, nil, nil
-		}
-	}
-
-	var err error
-	rc.files, err = source.NewFiles(rc.Log)
-	if err != nil {
-		lg.WarnIfFuncError(rc.Log, lga.Cleanup, rc.clnup.Run)
-		return err
-	}
-
-	// Note: it's important that files.Close is invoked
-	// after databases.Close (hence added to clnup first),
-	// because databases could depend upon the existence of
-	// files (such as a sqlite db file).
-	rc.clnup.AddE(rc.files.Close)
-	rc.files.AddTypeDetectors(source.DetectMagicNumber)
-
-	rc.registry = driver.NewRegistry(log)
-	rc.databases = driver.NewDatabases(log, rc.registry, scratchSrcFunc)
-	rc.clnup.AddC(rc.databases)
-
-	// TODO: this should come from user config.
-	sqlCfg := driver.Tuning.SQLConfig
-
-	rc.registry.AddProvider(sqlite3.Type, &sqlite3.Provider{Log: log})
-	rc.registry.AddProvider(postgres.Type, &postgres.Provider{Log: log, SQLConfig: sqlCfg})
-	rc.registry.AddProvider(sqlserver.Type, &sqlserver.Provider{Log: log, SQLConfig: sqlCfg})
-	rc.registry.AddProvider(mysql.Type, &mysql.Provider{Log: log, SQLConfig: sqlCfg})
-	csvp := &csv.Provider{Log: log, Scratcher: rc.databases, Files: rc.files}
-	rc.registry.AddProvider(csv.TypeCSV, csvp)
-	rc.registry.AddProvider(csv.TypeTSV, csvp)
-	rc.files.AddTypeDetectors(csv.DetectCSV, csv.DetectTSV)
-
-	jsonp := &json.Provider{Log: log, Scratcher: rc.databases, Files: rc.files}
-	rc.registry.AddProvider(json.TypeJSON, jsonp)
-	rc.registry.AddProvider(json.TypeJSONA, jsonp)
-	rc.registry.AddProvider(json.TypeJSONL, jsonp)
-	rc.files.AddTypeDetectors(json.DetectJSON, json.DetectJSONA, json.DetectJSONL)
-
-	rc.registry.AddProvider(xlsx.Type, &xlsx.Provider{Log: log, Scratcher: rc.databases, Files: rc.files})
-	rc.files.AddTypeDetectors(xlsx.DetectXLSX)
-	// One day we may have more supported user driver genres.
-	userDriverImporters := map[string]userdriver.ImportFunc{
-		xmlud.Genre: xmlud.Import,
-	}
-
-	for i, userDriverDef := range cfg.Ext.UserDrivers {
-		userDriverDef := userDriverDef
-
-		errs := userdriver.ValidateDriverDef(userDriverDef)
-		if len(errs) > 0 {
-			err := errz.Combine(errs...)
-			err = errz.Wrapf(err, "failed validation of user driver definition [%d] {%s} from config",
-				i, userDriverDef.Name)
-			return err
-		}
-
-		importFn, ok := userDriverImporters[userDriverDef.Genre]
-		if !ok {
-			return errz.Errorf("unsupported genre {%s} for user driver {%s} specified via config",
-				userDriverDef.Genre, userDriverDef.Name)
-		}
-
-		// For each user driver definition, we register a
-		// distinct userdriver.Provider instance.
-		udp := &userdriver.Provider{
-			Log:       log,
-			DriverDef: userDriverDef,
-			ImportFn:  importFn,
-			Scratcher: rc.databases,
-			Files:     rc.files,
-		}
-
-		rc.registry.AddProvider(source.Type(userDriverDef.Name), udp)
-		rc.files.AddTypeDetectors(udp.TypeDetectors()...)
-	}
-
-	return nil
-}
-
-// Close should be invoked to dispose of any open resources
-// held by rc. If an error occurs during Close and rc.Log
-// is not nil, that error is logged at WARN level before
-// being returned.
-func (rc *RunContext) Close() error {
-	if rc == nil {
-		return nil
-	}
-
-	err := rc.clnup.Run()
-	if err != nil && rc.Log != nil {
-		rc.Log.Warn("Failed to close RunContext", lga.Err, err)
-	}
-
-	return err
-}
-
-// writers is a container for the various output writers.
-type writers struct {
-	fm *output.Formatting
-
-	recordw  output.RecordWriter
-	metaw    output.MetadataWriter
-	srcw     output.SourceWriter
-	errw     output.ErrorWriter
-	pingw    output.PingWriter
-	versionw output.VersionWriter
-}
-
-// newWriters returns a writers instance configured per defaults and/or
-// flags from cmd. The returned out2/errOut2 values may differ
-// from the out/errOut args (e.g. decorated to support colorization).
-func newWriters(cmd *cobra.Command, defaults config.Defaults, out,
-	errOut io.Writer,
-) (w *writers, out2, errOut2 io.Writer) {
-	var fm *output.Formatting
-	fm, out2, errOut2 = getWriterFormatting(cmd, out, errOut)
-	log := lg.FromContext(cmd.Context())
-
-	// Package tablew has writer impls for each of the writer interfaces,
-	// so we use its writers as the baseline. Later we check the format
-	// flags and set the various writer fields depending upon which
-	// writers the format implements.
-	w = &writers{
-		fm:       fm,
-		recordw:  tablew.NewRecordWriter(out2, fm),
-		metaw:    tablew.NewMetadataWriter(out2, fm),
-		srcw:     tablew.NewSourceWriter(out2, fm),
-		pingw:    tablew.NewPingWriter(out2, fm),
-		errw:     tablew.NewErrorWriter(errOut2, fm),
-		versionw: tablew.NewVersionWriter(out2, fm),
-	}
-
-	// Invoke getFormat to see if the format was specified
-	// via config or flag.
-	format := getFormat(cmd, defaults)
-
-	switch format { //nolint:exhaustive
-	default:
-		// No format specified, use JSON
-		w.recordw = jsonw.NewStdRecordWriter(out2, fm)
-		w.metaw = jsonw.NewMetadataWriter(out2, fm)
-		w.srcw = jsonw.NewSourceWriter(out2, fm)
-		w.errw = jsonw.NewErrorWriter(log, errOut2, fm)
-		w.versionw = jsonw.NewVersionWriter(out2, fm)
-		w.pingw = jsonw.NewPingWriter(out2, fm)
-
-	case config.FormatTable:
-	// Table is the base format, already set above, no need to do anything.
-
-	case config.FormatTSV:
-		w.recordw = csvw.NewRecordWriter(out2, fm.ShowHeader, csvw.Tab)
-		w.pingw = csvw.NewPingWriter(out2, csvw.Tab)
-
-	case config.FormatCSV:
-		w.recordw = csvw.NewRecordWriter(out2, fm.ShowHeader, csvw.Comma)
-		w.pingw = csvw.NewPingWriter(out2, csvw.Comma)
-
-	case config.FormatXML:
-		w.recordw = xmlw.NewRecordWriter(out2, fm)
-
-	case config.FormatXLSX:
-		w.recordw = xlsxw.NewRecordWriter(out2, fm.ShowHeader)
-
-	case config.FormatRaw:
-		w.recordw = raww.NewRecordWriter(out2)
-
-	case config.FormatHTML:
-		w.recordw = htmlw.NewRecordWriter(out2)
-
-	case config.FormatMarkdown:
-		w.recordw = markdownw.NewRecordWriter(out2)
-
-	case config.FormatJSONA:
-		w.recordw = jsonw.NewArrayRecordWriter(out2, fm)
-
-	case config.FormatJSONL:
-		w.recordw = jsonw.NewObjectRecordWriter(out2, fm)
-	}
-
-	return w, out2, errOut2
-}
-
-// getWriterFormatting returns a Formatting instance and
-// colorable or non-colorable writers. It is permissible
-// for the cmd arg to be nil.
-func getWriterFormatting(cmd *cobra.Command, out, errOut io.Writer) (fm *output.Formatting, out2, errOut2 io.Writer) {
-	fm = output.NewFormatting()
-
-	if cmdFlagChanged(cmd, flagPretty) {
-		fm.Pretty, _ = cmd.Flags().GetBool(flagPretty)
-	}
-
-	if cmdFlagChanged(cmd, flagVerbose) {
-		fm.Verbose, _ = cmd.Flags().GetBool(flagVerbose)
-	}
-
-	if cmdFlagChanged(cmd, flagHeader) {
-		fm.ShowHeader, _ = cmd.Flags().GetBool(flagHeader)
-	}
-
-	// TODO: Should get this default value from config
-	colorize := true
-
-	if cmdFlagChanged(cmd, flagOutput) {
-		// We're outputting to a file, thus no color.
-		colorize = false
-	} else if cmdFlagChanged(cmd, flagMonochrome) {
-		if mono, _ := cmd.Flags().GetBool(flagMonochrome); mono {
-			colorize = false
-		}
-	}
-
-	if !colorize {
-		color.NoColor = true // TODO: shouldn't rely on package-level var
-		fm.EnableColor(false)
-		out2 = out
-		errOut2 = errOut
-		return fm, out2, errOut2
-	}
-
-	// We do want to colorize
-	if !isColorTerminal(out) {
-		// But out can't be colorized.
-		color.NoColor = true
-		fm.EnableColor(false)
-		out2, errOut2 = out, errOut
-		return fm, out2, errOut2
-	}
-
-	// out can be colorized.
-	color.NoColor = false
-	fm.EnableColor(true)
-	out2 = colorable.NewColorable(out.(*os.File))
-
-	// Check if we can colorize errOut
-	if isColorTerminal(errOut) {
-		errOut2 = colorable.NewColorable(errOut.(*os.File))
-	} else {
-		// errOut2 can't be colorized, but since we're colorizing
-		// out, we'll apply the non-colorable filter to errOut.
-		errOut2 = colorable.NewNonColorable(errOut)
-	}
-
-	return fm, out2, errOut2
-}
-
-func getFormat(cmd *cobra.Command, defaults config.Defaults) config.Format {
-	var format config.Format
-
-	switch {
-	// cascade through the format flags in low-to-high order of precedence.
-	case cmdFlagChanged(cmd, flagTSV):
-		format = config.FormatTSV
-	case cmdFlagChanged(cmd, flagCSV):
-		format = config.FormatCSV
-	case cmdFlagChanged(cmd, flagXLSX):
-		format = config.FormatXLSX
-	case cmdFlagChanged(cmd, flagXML):
-		format = config.FormatXML
-	case cmdFlagChanged(cmd, flagRaw):
-		format = config.FormatRaw
-	case cmdFlagChanged(cmd, flagHTML):
-		format = config.FormatHTML
-	case cmdFlagChanged(cmd, flagMarkdown):
-		format = config.FormatMarkdown
-	case cmdFlagChanged(cmd, flagTable):
-		format = config.FormatTable
-	case cmdFlagChanged(cmd, flagJSONL):
-		format = config.FormatJSONL
-	case cmdFlagChanged(cmd, flagJSONA):
-		format = config.FormatJSONA
-	case cmdFlagChanged(cmd, flagJSON):
-		format = config.FormatJSON
-	default:
-		// no format flag, use the config value
-		format = defaults.Format
-	}
-	return format
-}
-
 // defaultLogging returns a log (and its associated closer) if
 // logging has been enabled via envars.
 func defaultLogging() (*slog.Logger, *cleanup.Cleanup, error) {
-	truncate, _ := strconv.ParseBool(os.Getenv(envarLogTruncate))
+	truncate, _ := strconv.ParseBool(os.Getenv(config.EnvarLogTruncate))
 
-	logFilePath, ok := os.LookupEnv(envarLogPath)
+	logFilePath, ok := os.LookupEnv(config.EnvarLogPath)
 	if !ok || logFilePath == "" || strings.TrimSpace(logFilePath) == "" {
 		return lg.Discard(), nil, nil
 	}
@@ -763,12 +297,12 @@ func defaultLogging() (*slog.Logger, *cleanup.Cleanup, error) {
 		return lg.Discard(), nil, errz.Wrapf(err, "failed to create parent dir of log file %s", logFilePath)
 	}
 
-	flag := os.O_APPEND
+	fileFlag := os.O_APPEND
 	if truncate {
-		flag = os.O_TRUNC
+		fileFlag = os.O_TRUNC
 	}
 
-	logFile, err := os.OpenFile(logFilePath, os.O_RDWR|os.O_CREATE|flag, 0o600)
+	logFile, err := os.OpenFile(logFilePath, os.O_RDWR|os.O_CREATE|fileFlag, 0o600)
 	if err != nil {
 		return lg.Discard(), nil, errz.Wrapf(err, "unable to open log file: %s", logFilePath)
 	}
@@ -792,39 +326,6 @@ func defaultLogging() (*slog.Logger, *cleanup.Cleanup, error) {
 	log := slog.New(opts.NewJSONHandler(logFile))
 
 	return log, clnup, nil
-}
-
-// defaultConfig loads sq config from the default location
-// (~/.config/sq/sq.yml) or the location specified in envars.
-func defaultConfig() (*config.Config, config.Store, error) {
-	cfgDir, ok := os.LookupEnv(envarConfigDir)
-	if !ok {
-		// envar not set, let's use the default
-		home, err := homedir.Dir()
-		if err != nil {
-			// TODO: we should be able to run without the homedir... revisit this
-			return nil, nil, errz.Wrap(err, "unable to get user home dir for config purposes")
-		}
-
-		cfgDir = filepath.Join(home, ".config", "sq")
-	}
-
-	cfgPath := filepath.Join(cfgDir, "sq.yml")
-	extDir := filepath.Join(cfgDir, "ext")
-	cfgStore := &config.YAMLFileStore{Path: cfgPath, ExtPaths: []string{extDir}}
-
-	if !cfgStore.FileExists() {
-		cfg := config.New()
-		return cfg, cfgStore, nil
-	}
-
-	// file does exist, let's try to load it
-	cfg, err := cfgStore.Load()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return cfg, cfgStore, nil
 }
 
 // printError is the centralized function for printing
@@ -887,8 +388,16 @@ func printError(rc *RunContext, err error) {
 	// in json, specified via flags (by directly using the pflag
 	// package) or via sq config's default output format.
 
+	var opts *config.Options
+	if rc != nil && rc.Config != nil {
+		var zero config.Options
+		if rc.Config.Options != zero {
+			opts = &rc.Config.Options
+		}
+	}
+
 	// getWriterFormatting works even if cmd is nil
-	fm, _, errOut := getWriterFormatting(cmd, os.Stdout, os.Stderr)
+	fm, _, errOut := getWriterFormatting(cmd, opts, os.Stdout, os.Stderr)
 
 	if bootstrapIsFormatJSON(rc) {
 		// The user wants JSON, either via defaults or flags.
@@ -912,12 +421,12 @@ func cmdFlagChanged(cmd *cobra.Command, name string) bool {
 		return false
 	}
 
-	flag := cmd.Flag(name)
-	if flag == nil {
+	f := cmd.Flag(name)
+	if f == nil {
 		return false
 	}
 
-	return flag.Changed
+	return f.Changed
 }
 
 // cmdFlagTrue returns true if flag name has been changed
@@ -946,16 +455,16 @@ func bootstrapIsFormatJSON(rc *RunContext) bool {
 
 	defaultFormat := config.FormatTable
 	if rc.Config != nil {
-		defaultFormat = rc.Config.Defaults.Format
+		defaultFormat = rc.Config.Options.Format
 	}
 
 	// If args were provided, create a new flag set and check
 	// for the --json flag.
 	if len(rc.Args) > 0 {
-		flags := pflag.NewFlagSet("bootstrap", pflag.ContinueOnError)
+		flagSet := pflag.NewFlagSet("bootstrap", pflag.ContinueOnError)
 
-		jsonFlag := flags.BoolP(flagJSON, flagJSONShort, false, flagJSONUsage)
-		err := flags.Parse(rc.Args)
+		jsonFlag := flagSet.BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
+		err := flagSet.Parse(rc.Args)
 		if err != nil {
 			return false
 		}

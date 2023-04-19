@@ -28,7 +28,7 @@ func newSource(handle string) *source.Source {
 	}
 }
 
-func TestSet_Groups(t *testing.T) {
+func TestCollection_Groups(t *testing.T) {
 	srcs := []*source.Source{
 		{Handle: "@db1", Location: "0"},
 		{Handle: "@prod/db1", Location: "1"},
@@ -60,26 +60,26 @@ func TestSet_Groups(t *testing.T) {
 		"staging/sub1/sub2",
 	}
 
-	set := &source.Set{}
+	coll := &source.Collection{}
 
-	gotGroup := set.ActiveGroup()
+	gotGroup := coll.ActiveGroup()
 	require.Equal(t, source.RootGroup, gotGroup)
 
 	for i := range srcs {
-		require.NoError(t, set.Add(srcs[i]))
+		require.NoError(t, coll.Add(srcs[i]))
 	}
 
 	for _, src := range srcs {
-		require.True(t, set.IsExistingSource(src.Handle))
-		gotSrc, err := set.Get(src.Handle)
+		require.True(t, coll.IsExistingSource(src.Handle))
+		gotSrc, err := coll.Get(src.Handle)
 		require.NoError(t, err)
 		require.Equal(t, *src, *gotSrc)
 	}
 
-	gotGroups := set.Groups()
+	gotGroups := coll.Groups()
 	require.EqualValues(t, wantGroups, gotGroups)
 
-	gotErr := set.SetActiveGroup("not_a_group")
+	gotErr := coll.SetActiveGroup("not_a_group")
 	require.Error(t, gotErr)
 
 	groupTest := map[string]int{
@@ -92,7 +92,7 @@ func TestSet_Groups(t *testing.T) {
 	}
 
 	for g, wantCount := range groupTest {
-		gotSrcs, err := set.SourcesInGroup(g)
+		gotSrcs, err := coll.SourcesInGroup(g)
 		require.NoError(t, err)
 		require.Equal(t, wantCount, len(gotSrcs))
 	}
@@ -231,97 +231,97 @@ func TestContains(t *testing.T) {
 	require.True(t, source.Contains(srcs, src2.Handle))
 }
 
-func TestSet_Active(t *testing.T) {
-	ss := &source.Set{}
+func TestCollection_Active(t *testing.T) {
+	coll := &source.Collection{}
 
-	activeSrc := ss.Active()
+	activeSrc := coll.Active()
 	require.Nil(t, activeSrc)
-	require.Equal(t, source.RootGroup, ss.ActiveGroup())
+	require.Equal(t, source.RootGroup, coll.ActiveGroup())
 
-	require.Error(t, ss.SetActiveGroup("non_exist"))
+	require.Error(t, coll.SetActiveGroup("non_exist"))
 
 	sakilaSrc := newSource("@sakila")
 
 	// Test that the active group and
-	require.NoError(t, ss.Add(sakilaSrc))
-	gotSrc, err := ss.Get(sakilaSrc.Handle)
+	require.NoError(t, coll.Add(sakilaSrc))
+	gotSrc, err := coll.Get(sakilaSrc.Handle)
 	require.NoError(t, err)
 	require.Equal(t, sakilaSrc, gotSrc)
-	require.Equal(t, source.RootGroup, ss.ActiveGroup(),
+	require.Equal(t, source.RootGroup, coll.ActiveGroup(),
 		"active group should not have changed due to adding a source")
-	require.Nil(t, ss.Active())
+	require.Nil(t, coll.Active())
 
 	// Test setting the active source
-	gotSrc, err = ss.SetActive(sakilaSrc.Handle, false)
+	gotSrc, err = coll.SetActive(sakilaSrc.Handle, false)
 	require.NoError(t, err)
 	require.Equal(t, sakilaSrc, gotSrc)
-	require.Equal(t, gotSrc, ss.Active())
+	require.Equal(t, gotSrc, coll.Active())
 
 	// Test removing the active source
-	require.NoError(t, ss.Remove(ss.ActiveHandle()))
-	require.Nil(t, ss.Active())
+	require.NoError(t, coll.Remove(coll.ActiveHandle()))
+	require.Nil(t, coll.Active())
 
 	// Test group
 	sakilaProdSrc := newSource("@prod/sakila")
-	require.NoError(t, ss.Add(sakilaProdSrc))
-	require.Equal(t, source.RootGroup, ss.ActiveGroup(),
+	require.NoError(t, coll.Add(sakilaProdSrc))
+	require.Equal(t, source.RootGroup, coll.ActiveGroup(),
 		"adding a grouped src should not set the active group")
 
-	gotSrc, err = ss.SetActive(sakilaProdSrc.Handle, false)
+	gotSrc, err = coll.SetActive(sakilaProdSrc.Handle, false)
 	require.NoError(t, err)
 	require.Equal(t, sakilaProdSrc, gotSrc)
-	require.Equal(t, source.RootGroup, ss.ActiveGroup(),
+	require.Equal(t, source.RootGroup, coll.ActiveGroup(),
 		"setting active src should not set active group")
 
-	require.NoError(t, ss.SetActiveGroup(prodGroup))
-	require.Equal(t, prodGroup, ss.ActiveGroup())
-	gotSrcs, err := ss.RemoveGroup(prodGroup)
+	require.NoError(t, coll.SetActiveGroup(prodGroup))
+	require.Equal(t, prodGroup, coll.ActiveGroup())
+	gotSrcs, err := coll.RemoveGroup(prodGroup)
 	require.NoError(t, err)
 	require.Equal(t, sakilaProdSrc, gotSrcs[0])
-	require.Equal(t, source.RootGroup, ss.ActiveGroup(),
+	require.Equal(t, source.RootGroup, coll.ActiveGroup(),
 		"active group should have been reset to root")
-	require.False(t, ss.IsExistingGroup(prodGroup))
-	require.Empty(t, ss.Sources())
+	require.False(t, coll.IsExistingGroup(prodGroup))
+	require.Empty(t, coll.Sources())
 }
 
-func TestSet_RenameGroup_toRoot(t *testing.T) {
-	ss := &source.Set{}
+func TestCollection_RenameGroup_toRoot(t *testing.T) {
+	coll := &source.Collection{}
 
-	gotSrcs, err := ss.RenameGroup(source.RootGroup, prodGroup)
+	gotSrcs, err := coll.RenameGroup(source.RootGroup, prodGroup)
 	require.Error(t, err, "can't rename root group")
 	require.Nil(t, gotSrcs)
 
 	src := newSource("@prod/sakila")
 	originalHandle := src.Handle
-	require.NoError(t, ss.Add(src))
+	require.NoError(t, coll.Add(src))
 
-	gotSrcs, err = ss.SourcesInGroup(prodGroup)
+	gotSrcs, err = coll.SourcesInGroup(prodGroup)
 	require.NoError(t, err)
 	require.Len(t, gotSrcs, 1)
 	require.Equal(t, src, gotSrcs[0])
 
 	// Rename "prod" group to root effectively moves all prod sources
 	// into root. The prod group will cease to exist.
-	gotSrcs, err = ss.RenameGroup(prodGroup, source.RootGroup)
+	gotSrcs, err = coll.RenameGroup(prodGroup, source.RootGroup)
 	require.NoError(t, err)
 	require.Len(t, gotSrcs, 1)
-	require.Equal(t, source.RootGroup, ss.ActiveGroup())
+	require.Equal(t, source.RootGroup, coll.ActiveGroup())
 	require.Equal(t, "@sakila", src.Handle, "src should have new handle")
 
-	require.False(t, ss.IsExistingGroup(prodGroup))
-	gotSrc, err := ss.Get(originalHandle)
+	require.False(t, coll.IsExistingGroup(prodGroup))
+	gotSrc, err := coll.Get(originalHandle)
 	require.Error(t, err, "original handle no longer exists")
 	require.Nil(t, gotSrc)
 
-	gotSrcs, err = ss.SourcesInGroup(prodGroup)
+	gotSrcs, err = coll.SourcesInGroup(prodGroup)
 	require.Error(t, err, "group should not not exist")
 	require.Empty(t, gotSrcs)
 
-	gotSrc, err = ss.Get("@sakila")
+	gotSrc, err = coll.Get("@sakila")
 	require.NoError(t, err, "should be available via new handle")
 	require.Equal(t, src.Location, gotSrc.Location)
 
-	gotSrcs, err = ss.SourcesInGroup(source.RootGroup)
+	gotSrcs, err = coll.SourcesInGroup(source.RootGroup)
 	require.NoError(t, err)
 	require.Len(t, gotSrcs, 1)
 	require.Equal(t, src, gotSrcs[0])
@@ -329,188 +329,194 @@ func TestSet_RenameGroup_toRoot(t *testing.T) {
 	// Do the same as above, but rename "prod" group to "prod/customer".
 }
 
-func TestSet_RenameGroup_toOther(t *testing.T) {
-	ss := &source.Set{}
+func TestCollection_RenameGroup_toOther(t *testing.T) {
+	coll := &source.Collection{}
 
 	src := newSource("@prod/sakila")
 	originalHandle := src.Handle
-	require.NoError(t, ss.Add(src))
+	require.NoError(t, coll.Add(src))
 
 	// Rename "prod" group to "dev/customer" effectively moves all prod sources
 	// into "dev/customer". The prod group will cease to exist.
-	gotSrcs, err := ss.RenameGroup(prodGroup, devCustGroup)
+	gotSrcs, err := coll.RenameGroup(prodGroup, devCustGroup)
 	require.NoError(t, err)
 	require.Len(t, gotSrcs, 1)
-	require.Equal(t, source.RootGroup, ss.ActiveGroup())
+	require.Equal(t, source.RootGroup, coll.ActiveGroup())
 	require.Equal(t, "@dev/customer/sakila", src.Handle,
 		"src should have new handle")
 
-	require.False(t, ss.IsExistingGroup(prodGroup))
-	gotSrc, err := ss.Get(originalHandle)
+	require.False(t, coll.IsExistingGroup(prodGroup))
+	gotSrc, err := coll.Get(originalHandle)
 	require.Error(t, err, "original handle no longer exists")
 	require.Nil(t, gotSrc)
 
-	gotSrcs, err = ss.SourcesInGroup(prodGroup)
+	gotSrcs, err = coll.SourcesInGroup(prodGroup)
 	require.Error(t, err, "group should not not exist")
 	require.Empty(t, gotSrcs)
 
-	gotSrc, err = ss.Get("@dev/customer/sakila")
+	gotSrc, err = coll.Get("@dev/customer/sakila")
 	require.NoError(t, err, "should be available via new handle")
 	require.Equal(t, src.Location, gotSrc.Location)
 
-	gotSrcs, err = ss.SourcesInGroup(devCustGroup)
+	gotSrcs, err = coll.SourcesInGroup(devCustGroup)
 	require.NoError(t, err)
 	require.Len(t, gotSrcs, 1)
 	require.Equal(t, src, gotSrcs[0])
 }
 
-func TestSet_Add_conflictsWithGroup(t *testing.T) {
-	ss := &source.Set{}
+func TestCollection_Add_conflictsWithGroup(t *testing.T) {
+	coll := &source.Collection{}
 
 	src1 := newSource("@prod/sakila")
-	require.NoError(t, ss.Add(src1))
-	require.True(t, ss.IsExistingGroup(prodGroup))
+	require.NoError(t, coll.Add(src1))
+	require.True(t, coll.IsExistingGroup(prodGroup))
 
 	src2 := newSource("@prod")
-	require.Error(t, ss.Add(src2), "handle conflicts with existing group")
+	require.Error(t, coll.Add(src2), "handle conflicts with existing group")
 }
 
-func TestSet_Add_groupConflictsWithSource(t *testing.T) {
-	ss := &source.Set{}
+func TestCollection_Add_groupConflictsWithSource(t *testing.T) {
+	coll := &source.Collection{}
 
 	src1 := newSource("@sakila")
-	require.NoError(t, ss.Add(src1))
+	require.NoError(t, coll.Add(src1))
 
 	src2 := newSource("@sakila/sakiladb")
-	require.Error(t, ss.Add(src2), "handle group (sakila) conflicts with source @sakila")
+	require.Error(t, coll.Add(src2), "handle group (sakila) conflicts with source @sakila")
 }
 
-func TestSet_RenameGroup(t *testing.T) {
-	ss := &source.Set{}
+func TestCollection_RenameGroup(t *testing.T) {
+	coll := &source.Collection{}
 
 	src1 := newSource("@prod/sakila")
-	require.NoError(t, ss.Add(src1))
+	require.NoError(t, coll.Add(src1))
 
-	gotSrcs, err := ss.RenameGroup(devGroup, prodGroup)
+	gotSrcs, err := coll.RenameGroup(devGroup, prodGroup)
 	require.Error(t, err, "group dev does not exist")
 	require.Nil(t, gotSrcs)
 
-	gotSrcs, err = ss.RenameGroup(prodGroup, devGroup)
+	gotSrcs, err = coll.RenameGroup(prodGroup, devGroup)
 	require.NoError(t, err)
 	require.Equal(t, gotSrcs[0].Handle, "@dev/sakila")
 }
 
-func TestSet_RenameGroup_conflictsWithSource(t *testing.T) {
-	ss := &source.Set{}
+func TestCollection_RenameGroup_conflictsWithSource(t *testing.T) {
+	coll := &source.Collection{}
 
 	src1 := newSource("@sakila")
-	require.NoError(t, ss.Add(src1))
+	require.NoError(t, coll.Add(src1))
 
 	src2 := newSource("@prod/db")
-	require.NoError(t, ss.Add(src2))
+	require.NoError(t, coll.Add(src2))
 
-	_, err := ss.RenameGroup("prod", "sakila")
+	_, err := coll.RenameGroup("prod", "sakila")
 	require.Error(t, err, "should be a conflict error")
 }
 
-func TestSet_MoveHandleToGroup(t *testing.T) {
-	ss := &source.Set{}
+func TestCollection_MoveHandleToGroup(t *testing.T) {
+	coll := &source.Collection{}
 
 	src1 := newSource("@sakila")
-	require.NoError(t, ss.Add(src1))
+	require.NoError(t, coll.Add(src1))
 
-	gotSrc, err := ss.MoveHandleToGroup(src1.Handle, "/")
+	gotSrc, err := coll.MoveHandleToGroup(src1.Handle, "/")
 	// This is effectively no-op
 	require.NoError(t, err)
 	require.Equal(t, src1, gotSrc)
 
-	gotSrc, err = ss.MoveHandleToGroup(src1.Handle, prodGroup)
+	gotSrc, err = coll.MoveHandleToGroup(src1.Handle, prodGroup)
 	require.NoError(t, err, "it is legal to move a handle to a non-existing group")
 	require.Equal(t, "@prod/sakila", gotSrc.Handle)
 	require.Equal(t, prodGroup, gotSrc.Group())
 }
 
-func TestSet_MoveHandleToGroup_conflictsWithExistingSource(t *testing.T) {
-	ss := &source.Set{}
+func TestCollection_MoveHandleToGroup_conflictsWithExistingSource(t *testing.T) {
+	coll := &source.Collection{}
 
 	src1 := newSource("@sakila")
-	require.NoError(t, ss.Add(src1))
+	require.NoError(t, coll.Add(src1))
 
 	src2 := newSource("@prod/db")
-	require.NoError(t, ss.Add(src2))
+	require.NoError(t, coll.Add(src2))
 
-	gotSrc, err := ss.MoveHandleToGroup(src1.Handle, "sakila")
+	gotSrc, err := coll.MoveHandleToGroup(src1.Handle, "sakila")
 	// This is effectively no-op
 	require.Error(t, err, "group 'sakila' should conflict with handle @sakila")
 	require.Nil(t, gotSrc)
 }
 
-func TestSet_RenameSource(t *testing.T) {
-	ss := &source.Set{}
+func TestCollection_RenameSource(t *testing.T) {
+	coll := &source.Collection{}
 
 	src1 := newSource("@sakila")
-	require.NoError(t, ss.Add(src1))
+	require.NoError(t, coll.Add(src1))
 
-	gotSrc, err := ss.RenameSource(src1.Handle, "@sakila2")
+	gotSrc, err := coll.RenameSource(src1.Handle, "@sakila2")
 	require.NoError(t, err)
 	require.Equal(t, "@sakila2", gotSrc.Handle)
 	require.Equal(t, src1, gotSrc)
 }
 
-func TestSet_RenameSource_conflictsWithExistingHandle(t *testing.T) {
-	ss := &source.Set{}
+func TestCollection_RenameSource_conflictsWithExistingHandle(t *testing.T) {
+	coll := &source.Collection{}
 
 	src1 := newSource("@prod/sakila")
-	require.NoError(t, ss.Add(src1))
+	require.NoError(t, coll.Add(src1))
 
 	src2 := newSource("@dev/sakila")
-	require.NoError(t, ss.Add(src2))
+	require.NoError(t, coll.Add(src2))
 
-	gotSrc, err := ss.RenameSource(src2.Handle, src1.Handle)
+	gotSrc, err := coll.RenameSource(src2.Handle, src1.Handle)
 	require.Error(t, err)
 	require.Nil(t, gotSrc)
 }
 
-func TestSet_RenameSource_conflictsWithExistingGroup(t *testing.T) {
-	ss := &source.Set{}
+func TestCollection_RenameSource_conflictsWithExistingGroup(t *testing.T) {
+	coll := &source.Collection{}
 
 	src1 := newSource("@prod/sakila")
-	require.NoError(t, ss.Add(src1))
+	require.NoError(t, coll.Add(src1))
 
 	src2 := newSource("@dev/sakila")
-	require.NoError(t, ss.Add(src2))
+	require.NoError(t, coll.Add(src2))
 
-	gotSrc, err := ss.RenameSource(src1.Handle, "/")
+	gotSrc, err := coll.RenameSource(src1.Handle, "/")
 	require.Error(t, err)
 	require.Nil(t, gotSrc)
 
-	gotSrc, err = ss.RenameSource(src1.Handle, "@prod")
+	gotSrc, err = coll.RenameSource(src1.Handle, "@prod")
 	require.Error(t, err)
 	require.Nil(t, gotSrc)
 }
 
-func TestSet_Tree(t *testing.T) {
-	ss := &source.Set{}
+func TestCollection_Tree(t *testing.T) {
+	coll := &source.Collection{}
 
-	require.NoError(t, ss.Add(newSource("@sakila_csv")))
-	require.NoError(t, ss.Add(newSource("@sakila_tsv")))
-	require.NoError(t, ss.Add(newSource("@dev/db1")))
-	require.NoError(t, ss.Add(newSource("@dev/pg/db1")))
-	require.NoError(t, ss.Add(newSource("@dev/pg/db2")))
-	require.NoError(t, ss.Add(newSource("@dev/pg/db3")))
-	require.NoError(t, ss.Add(newSource("@staging/db1")))
-	require.NoError(t, ss.Add(newSource("@prod/pg/db1")))
-	require.NoError(t, ss.Add(newSource("@prod/pg/db2")))
-	require.NoError(t, ss.Add(newSource("@prod/pg/backup/db1")))
-	require.NoError(t, ss.Add(newSource("@prod/pg/backup/db2")))
+	handles := []string{
+		"@sakila_csv",
+		"@sakila_tsv",
+		"@dev/db1",
+		"@dev/pg/db1",
+		"@dev/pg/db2",
+		"@dev/pg/db3",
+		"@staging/db1",
+		"@prod/pg/db1",
+		"@prod/pg/db2",
+		"@prod/pg/backup/db1",
+		"@prod/pg/backup/db2",
+	}
 
-	gotSrcs := ss.Sources()
+	for _, handle := range handles {
+		require.NoError(t, coll.Add(newSource(handle)))
+	}
+
+	gotSrcs := coll.Sources()
 	require.Len(t, gotSrcs, 11)
 
-	gotGroupNames := ss.Groups()
+	gotGroupNames := coll.Groups()
 	require.Len(t, gotGroupNames, 7)
 
-	gotTree, err := ss.Tree(source.RootGroup)
+	gotTree, err := coll.Tree(source.RootGroup)
 	require.NoError(t, err)
 
 	directSrcCount, allSrcCount, directGroupCount, allGroupCount := gotTree.Counts()
@@ -524,7 +530,7 @@ func TestSet_Tree(t *testing.T) {
 	require.False(t, gotTree.Groups[0].Active)
 
 	// Try with a subgroup
-	gotTree, err = ss.Tree("dev")
+	gotTree, err = coll.Tree("dev")
 	require.NoError(t, err)
 	directSrcCount, allSrcCount, directGroupCount, allGroupCount = gotTree.Counts()
 	require.Equal(t, 1, directSrcCount)

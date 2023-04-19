@@ -4,6 +4,8 @@ import (
 	"context"
 	"strings"
 
+	"github.com/neilotoole/sq/cli/flag"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"golang.org/x/exp/slog"
@@ -20,10 +22,10 @@ import (
 // from any combination of stdin, flags or cfg. It will
 // mutate rc.Config.Sources as necessary. If no error
 // is returned, it is guaranteed that there's an active
-// source on the source set.
+// source on the collection.
 func determineSources(ctx context.Context, rc *RunContext) error {
-	cmd, srcs := rc.Cmd, rc.Config.Sources
-	activeSrc, err := activeSrcFromFlagsOrConfig(cmd, srcs)
+	cmd, coll := rc.Cmd, rc.Config.Collection
+	activeSrc, err := activeSrcFromFlagsOrConfig(cmd, coll)
 	if err != nil {
 		return err
 	}
@@ -38,20 +40,20 @@ func determineSources(ctx context.Context, rc *RunContext) error {
 	if stdinSrc != nil {
 		// We have a valid source on stdin.
 
-		// Add the stdin source to the set.
-		err = srcs.Add(stdinSrc)
+		// Add the stdin source to coll.
+		err = coll.Add(stdinSrc)
 		if err != nil {
 			return err
 		}
 
-		if !cmdFlagChanged(cmd, flagActiveSrc) {
+		if !cmdFlagChanged(cmd, flag.ActiveSrc) {
 			// If the user has not explicitly set an active
 			// source via flag, then we set the stdin pipe data
 			// source as the active source.
 			// We do this because the @stdin src is commonly the
 			// only data source the user cares about in a pipe
 			// situation.
-			_, err = srcs.SetActive(stdinSrc.Handle, false)
+			_, err = coll.SetActive(stdinSrc.Handle, false)
 			if err != nil {
 				return err
 			}
@@ -69,28 +71,28 @@ func determineSources(ctx context.Context, rc *RunContext) error {
 // activeSrcFromFlagsOrConfig gets the active source, either
 // from flagActiveSrc or from srcs.Active. An error is returned
 // if the flag src is not found: if the flag src is found,
-// it is set as the active src on srcs. If the flag was not
-// set and there is no active src in srcs, (nil, nil) is
+// it is set as the active src on coll. If the flag was not
+// set and there is no active src in coll, (nil, nil) is
 // returned.
-func activeSrcFromFlagsOrConfig(cmd *cobra.Command, srcs *source.Set) (*source.Source, error) {
+func activeSrcFromFlagsOrConfig(cmd *cobra.Command, coll *source.Collection) (*source.Source, error) {
 	var activeSrc *source.Source
 
-	if cmdFlagChanged(cmd, flagActiveSrc) {
+	if cmdFlagChanged(cmd, flag.ActiveSrc) {
 		// The user explicitly wants to set an active source
 		// just for this query.
 
-		handle, _ := cmd.Flags().GetString(flagActiveSrc)
-		s, err := srcs.Get(handle)
+		handle, _ := cmd.Flags().GetString(flag.ActiveSrc)
+		s, err := coll.Get(handle)
 		if err != nil {
-			return nil, errz.Wrapf(err, "flag --%s", flagActiveSrc)
+			return nil, errz.Wrapf(err, "flag --%s", flag.ActiveSrc)
 		}
 
-		activeSrc, err = srcs.SetActive(s.Handle, false)
+		activeSrc, err = coll.SetActive(s.Handle, false)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		activeSrc = srcs.Active()
+		activeSrc = coll.Active()
 	}
 	return activeSrc, nil
 }
@@ -118,8 +120,8 @@ func checkStdinSource(ctx context.Context, rc *RunContext) (*source.Source, erro
 
 	// It's possible the user supplied source options
 	var opts options.Options
-	if cmd.Flags().Changed(flagSrcOptions) {
-		val, _ := cmd.Flags().GetString(flagSrcOptions)
+	if cmd.Flags().Changed(flag.SrcOptions) {
+		val, _ := cmd.Flags().GetString(flag.SrcOptions)
 		val = strings.TrimSpace(val)
 
 		if val != "" {
@@ -131,8 +133,8 @@ func checkStdinSource(ctx context.Context, rc *RunContext) (*source.Source, erro
 	}
 
 	typ := source.TypeNone
-	if cmd.Flags().Changed(flagDriver) {
-		val, _ := cmd.Flags().GetString(flagDriver)
+	if cmd.Flags().Changed(flag.Driver) {
+		val, _ := cmd.Flags().GetString(flag.Driver)
 		typ = source.Type(val)
 		if rc.registry.ProviderFor(typ) == nil {
 			return nil, errz.Errorf("unknown driver type: %s", typ)

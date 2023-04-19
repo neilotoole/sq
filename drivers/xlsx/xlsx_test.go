@@ -26,15 +26,14 @@ func Test_Smoke_Subset(t *testing.T) {
 }
 
 func Test_Smoke_Full(t *testing.T) {
-	// Recently the testh db timeout was shortened significantly.
-	// But now this test is failing with "context deadline exceeded"
-	// on the GH windows workflow. There probably needs to be a mechanism
-	// to allow longer timeouts for some tests, e.g. this one.
-	// Skipping for now.
-	t.Skip()
 	tutil.SkipShort(t, true)
 
-	th := testh.New(t)
+	// This test fails (in GH workflow) on Windows without testh.OptLongDB.
+	// That's probably worth looking into further. It shouldn't be that slow,
+	// even on Windows. However, we are going to rewrite the xlsx driver eventually,
+	// so it can wait until then.
+	// See: https://github.com/neilotoole/sq/issues/200
+	th := testh.New(t, testh.OptLongDB())
 	src := th.Source(sakila.XLSX)
 
 	sink, err := th.QuerySQL(src, "SELECT * FROM actor")

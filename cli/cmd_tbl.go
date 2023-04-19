@@ -3,6 +3,8 @@ package cli
 import (
 	"fmt"
 
+	"github.com/neilotoole/sq/cli/flag"
+
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -52,8 +54,8 @@ func newTblCopyCmd() *cobra.Command {
 `,
 	}
 
-	cmd.Flags().BoolP(flagJSON, flagJSONShort, false, flagJSONUsage)
-	cmd.Flags().Bool(flagTblData, true, flagTblDataUsage)
+	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
+	cmd.Flags().Bool(flag.TblData, true, flag.TblDataUsage)
 
 	return cmd
 }
@@ -64,7 +66,7 @@ func execTblCopy(cmd *cobra.Command, args []string) error {
 		return errz.New("one or two table args required")
 	}
 
-	tblHandles, err := parseTableHandleArgs(rc.registry, rc.Config.Sources, args)
+	tblHandles, err := parseTableHandleArgs(rc.registry, rc.Config.Collection, args)
 	if err != nil {
 		return err
 	}
@@ -104,8 +106,8 @@ func execTblCopy(cmd *cobra.Command, args []string) error {
 	}
 
 	copyData := true // copy data by default
-	if cmdFlagChanged(cmd, flagTblData) {
-		copyData, err = cmd.Flags().GetBool(flagTblData)
+	if cmdFlagChanged(cmd, flag.TblData) {
+		copyData, err = cmd.Flags().GetBool(flag.TblData)
 		if err != nil {
 			return errz.Err(err)
 		}
@@ -162,8 +164,8 @@ only applies to SQL sources.`,
 `,
 	}
 
-	cmd.Flags().BoolP(flagJSON, flagJSONShort, false, flagJSONUsage)
-	cmd.Flags().BoolP(flagTable, flagTableShort, false, flagTableUsage)
+	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
+	cmd.Flags().BoolP(flag.Table, flag.TableShort, false, flag.TableUsage)
 
 	return cmd
 }
@@ -171,7 +173,7 @@ only applies to SQL sources.`,
 func execTblTruncate(cmd *cobra.Command, args []string) (err error) {
 	rc := RunContextFrom(cmd.Context())
 	var tblHandles []tblHandle
-	tblHandles, err = parseTableHandleArgs(rc.registry, rc.Config.Sources, args)
+	tblHandles, err = parseTableHandleArgs(rc.registry, rc.Config.Collection, args)
 	if err != nil {
 		return err
 	}
@@ -218,7 +220,7 @@ only applies to SQL sources.`,
 func execTblDrop(cmd *cobra.Command, args []string) (err error) {
 	rc := RunContextFrom(cmd.Context())
 	var tblHandles []tblHandle
-	tblHandles, err = parseTableHandleArgs(rc.registry, rc.Config.Sources, args)
+	tblHandles, err = parseTableHandleArgs(rc.registry, rc.Config.Collection, args)
 	if err != nil {
 		return err
 	}
@@ -252,13 +254,13 @@ func execTblDrop(cmd *cobra.Command, args []string) (err error) {
 // It returns a slice of tblHandle, one for each arg. If an arg
 // does not have a HANDLE, the active src is assumed: it's an error
 // if no active src. It is also an error if len(args) is zero.
-func parseTableHandleArgs(dp driver.Provider, srcs *source.Set, args []string) ([]tblHandle, error) {
+func parseTableHandleArgs(dp driver.Provider, coll *source.Collection, args []string) ([]tblHandle, error) {
 	if len(args) == 0 {
 		return nil, errz.New(msgInvalidArgs)
 	}
 
 	var tblHandles []tblHandle
-	activeSrc := srcs.Active()
+	activeSrc := coll.Active()
 
 	// We iterate over the args several times, because we want
 	// to present error checks consistently.
@@ -289,7 +291,7 @@ func parseTableHandleArgs(dp driver.Provider, srcs *source.Set, args []string) (
 			tblHandles[i].handle = activeSrc.Handle
 		}
 
-		src, err := srcs.Get(tblHandles[i].handle)
+		src, err := coll.Get(tblHandles[i].handle)
 		if err != nil {
 			return nil, err
 		}

@@ -9,6 +9,8 @@ package output
 import (
 	"time"
 
+	"github.com/neilotoole/sq/cli/config"
+
 	"github.com/neilotoole/sq/cli/buildinfo"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/driver"
@@ -55,14 +57,14 @@ type MetadataWriter interface {
 
 // SourceWriter can output data source details.
 type SourceWriter interface {
-	// SourceSet outputs details of the source set. Specifically it prints
-	// the sources from srcs' active group.
-	SourceSet(srcs *source.Set) error
+	// Collection outputs details of the collection. Specifically it prints
+	// the sources from coll's active group.
+	Collection(coll *source.Collection) error
 
 	// Source outputs details of the source.
-	Source(ss *source.Set, src *source.Source) error
+	Source(coll *source.Collection, src *source.Source) error
 
-	// Removed is called when sources are removed from the source set.
+	// Removed is called when sources are removed from the collection.
 	Removed(srcs ...*source.Source) error
 
 	// Group prints the group.
@@ -103,6 +105,18 @@ type VersionWriter interface {
 	Version(info buildinfo.BuildInfo, latestVersion string) error
 }
 
+// ConfigWriter prints config.
+type ConfigWriter interface {
+	// Location prints the config location. The origin may be empty, or one
+	// of "flag", "env", "default".
+	Location(loc, origin string) error
+
+	// Options prints config options.
+	Options(opts *config.Options) error
+}
+
 // FlushThreshold is the size in bytes after which a writer
 // should flush any internal buffer.
+//
+// TODO: Move FlushThreshold to config
 const FlushThreshold = 1000

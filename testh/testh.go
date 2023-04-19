@@ -49,10 +49,10 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// dbOpenTimeout is the timeout for tests to open (and ping) their DBs.
+// defaultDBOpenTimeout is the timeout for tests to open (and ping) their DBs.
 // This should be a low value, because, well, we can either connect
 // or not.
-const dbOpenTimeout = time.Second * 60
+const defaultDBOpenTimeout = time.Second * 5
 
 func init() { //nolint:gochecknoinits
 	slogt.Default = slogt.Factory(func(w io.Writer) slog.Handler {
@@ -61,6 +61,22 @@ func init() { //nolint:gochecknoinits
 			AddSource: true,
 		}.NewTextHandler(w)
 	})
+}
+
+// Option is a functional option type used with New to
+// configure the helper.
+type Option func(h *Helper)
+
+// OptLongDB allows a longer DB timeout, which is necessary
+// for some tests. Usage:
+//
+//	testh.New(t, testh.OptLongDB())
+//
+// Most tests don't need this.
+func OptLongDB() Option {
+	return func(h *Helper) {
+		h.dbOpenTimeout = time.Second * 60
+	}
 }
 
 // Helper encapsulates a test helper session.
@@ -76,22 +92,29 @@ type Helper struct {
 
 	initOnce sync.Once
 
-	srcs     *source.Set
+	coll     *source.Collection
 	srcCache map[string]*source.Source
 
 	Context  context.Context
 	cancelFn context.CancelFunc
 
 	Cleanup *cleanup.Cleanup
+
+	dbOpenTimeout time.Duration
 }
 
 // New returns a new Helper. The helper's Close func will be
 // automatically invoked via t.Cleanup.
-func New(t testing.TB) *Helper {
+func New(t testing.TB, opts ...Option) *Helper {
 	h := &Helper{
-		T:       t,
-		Log:     slogt.New(t),
-		Cleanup: cleanup.New(),
+		T:             t,
+		Log:           slogt.New(t),
+		Cleanup:       cleanup.New(),
+		dbOpenTimeout: defaultDBOpenTimeout,
+	}
+
+	for _, opt := range opts {
+		opt(h)
 	}
 
 	ctx, cancelFn := context.WithCancel(context.Background())
@@ -208,13 +231,13 @@ func (h *Helper) Source(handle string) *source.Source {
 		}
 	}
 
-	if h.srcs == nil {
+	if h.coll == nil {
 		// It might be expected that we would simply use the
-		// source set (h.srcs) to return the source, but this
+		// collection (h.coll) to return the source, but this
 		// method also uses a cache. This is because this
 		// method makes a copy the data file of file-based sources
 		// as mentioned in the method godoc.
-		h.srcs = mustLoadSourceSet(t)
+		h.coll = mustLoadCollection(t)
 		h.srcCache = map[string]*source.Source{}
 	}
 
@@ -224,7 +247,7 @@ func (h *Helper) Source(handle string) *source.Source {
 		return src
 	}
 
-	src, err := h.srcs.Get(handle)
+	src, err := h.coll.Get(handle)
 	require.NoError(t, err,
 		"source %s was not found in %s", handle, testsrc.PathSrcsConfig)
 
@@ -270,15 +293,15 @@ func (h *Helper) Source(handle string) *source.Source {
 	return src
 }
 
-// NewSourceSet is a convenience function for building a
-// new *source.Set incorporating the supplied handles. See
+// NewCollection is a convenience function for building a
+// new *source.Collection incorporating the supplied handles. See
 // Helper.Source for more on the behavior.
-func (h *Helper) NewSourceSet(handles ...string) *source.Set {
-	srcs := &source.Set{}
+func (h *Helper) NewCollection(handles ...string) *source.Collection {
+	coll := &source.Collection{}
 	for _, handle := range handles {
-		require.NoError(h.T, srcs.Add(h.Source(handle)))
+		require.NoError(h.T, coll.Add(h.Source(handle)))
 	}
-	return srcs
+	return coll
 }
 
 // Open opens a Database for src via h's internal Databases
@@ -286,7 +309,7 @@ func (h *Helper) NewSourceSet(handles ...string) *source.Set {
 // same Database instance. The opened Database will be closed
 // during h.Close.
 func (h *Helper) Open(src *source.Source) driver.Database {
-	ctx, cancelFn := context.WithTimeout(h.Context, dbOpenTimeout)
+	ctx, cancelFn := context.WithTimeout(h.Context, h.dbOpenTimeout)
 	defer cancelFn()
 
 	dbase, err := h.Databases().Open(ctx, src)
@@ -492,7 +515,7 @@ func (h *Helper) QuerySLQ(query string, args map[string]string) (*RecordSink, er
 	}
 
 	qc := &libsq.QueryContext{
-		Sources:      h.srcs,
+		Collection:   h.coll,
 		DBOpener:     h.databases,
 		JoinDBOpener: h.databases,
 		Args:         args,
@@ -667,7 +690,7 @@ func (h *Helper) DiffDB(src *source.Source) {
 	})
 }
 
-func mustLoadSourceSet(t testing.TB) *source.Set {
+func mustLoadCollection(t testing.TB) *source.Collection {
 	hookExpand := func(data []byte) ([]byte, error) {
 		// expand vars such as "${SQ_ROOT}"
 		return []byte(proj.Expand(string(data))), nil
@@ -677,9 +700,9 @@ func mustLoadSourceSet(t testing.TB) *source.Set {
 	cfg, err := fs.Load()
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
-	require.NotNil(t, cfg.Sources)
+	require.NotNil(t, cfg.Collection)
 
-	return cfg.Sources
+	return cfg.Collection
 }
 
 // DriverDefsFrom builds DriverDef values from cfg files.

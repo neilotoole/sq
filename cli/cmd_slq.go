@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/cli/flag"
+
 	"golang.org/x/exp/slices"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
@@ -33,11 +35,11 @@ func newSLQCmd() *cobra.Command {
 
 	addQueryCmdFlags(cmd)
 
-	cmd.Flags().StringArray(flagArg, nil, flagArgUsage)
+	cmd.Flags().StringArray(flag.Arg, nil, flag.ArgUsage)
 
 	// Explicitly add flagVersion because people like to do "sq --version"
 	// as much as "sq version".
-	cmd.Flags().Bool(flagVersion, false, flagVersionUsage)
+	cmd.Flags().Bool(flag.Version, false, flag.VersionUsage)
 
 	return cmd
 }
@@ -46,8 +48,8 @@ func newSLQCmd() *cobra.Command {
 func execSLQ(cmd *cobra.Command, args []string) error {
 	if len(args) == 0 {
 		msg := "no query"
-		if cmdFlagChanged(cmd, flagArg) {
-			msg += fmt.Sprintf(": maybe check flag --%s usage", flagArg)
+		if cmdFlagChanged(cmd, flag.Arg) {
+			msg += fmt.Sprintf(": maybe check flag --%s usage", flag.Arg)
 		}
 
 		return errz.New(msg)
@@ -55,7 +57,7 @@ func execSLQ(cmd *cobra.Command, args []string) error {
 
 	ctx := cmd.Context()
 	rc := RunContextFrom(ctx)
-	srcs := rc.Config.Sources
+	coll := rc.Config.Collection
 
 	// check if there's input on stdin
 	src, err := checkStdinSource(ctx, rc)
@@ -67,18 +69,18 @@ func execSLQ(cmd *cobra.Command, args []string) error {
 		// We have a valid source on stdin.
 
 		// Add the source to the set.
-		if err = srcs.Add(src); err != nil {
+		if err = coll.Add(src); err != nil {
 			return err
 		}
 
-		// Set the stdin pipe data source as the active source,
+		// Collection the stdin pipe data source as the active source,
 		// as it's commonly the only data source the user is acting upon.
-		if _, err = srcs.SetActive(src.Handle, false); err != nil {
+		if _, err = coll.SetActive(src.Handle, false); err != nil {
 			return err
 		}
 	} else {
-		// No source on stdin, so we're using the source set.
-		src = srcs.Active()
+		// No source on stdin, so we're using the collection.
+		src = coll.Active()
 		if src == nil {
 			// TODO: Should sq be modified to support executing queries
 			// 	even when there's no active data source. Probably.
@@ -91,7 +93,7 @@ func execSLQ(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if !cmdFlagChanged(cmd, flagInsert) {
+	if !cmdFlagChanged(cmd, flag.Insert) {
 		// The user didn't specify the --insert=@src.tbl flag,
 		// so we just want to print the records.
 		return execSLQPrint(ctx, rc, mArgs)
@@ -99,21 +101,21 @@ func execSLQ(cmd *cobra.Command, args []string) error {
 
 	// Instead of printing the records, they will be
 	// written to another database
-	insertTo, _ := cmd.Flags().GetString(flagInsert)
+	insertTo, _ := cmd.Flags().GetString(flag.Insert)
 	if insertTo == "" {
-		return errz.Errorf("invalid --%s value: empty", flagInsert)
+		return errz.Errorf("invalid --%s value: empty", flag.Insert)
 	}
 
 	destHandle, destTbl, err := source.ParseTableHandle(insertTo)
 	if err != nil {
-		return errz.Wrapf(err, "invalid --%s value", flagInsert)
+		return errz.Wrapf(err, "invalid --%s value", flag.Insert)
 	}
 
 	if destTbl == "" {
-		return errz.Errorf("invalid value for --%s: must be @HANDLE.TABLE", flagInsert)
+		return errz.Errorf("invalid value for --%s: must be @HANDLE.TABLE", flag.Insert)
 	}
 
-	destSrc, err := srcs.Get(destHandle)
+	destSrc, err := coll.Get(destHandle)
 	if err != nil {
 		return err
 	}
@@ -126,7 +128,7 @@ func execSLQ(cmd *cobra.Command, args []string) error {
 func execSLQInsert(ctx context.Context, rc *RunContext, mArgs map[string]string,
 	destSrc *source.Source, destTbl string,
 ) error {
-	args, srcs, dbases := rc.Args, rc.Config.Sources, rc.databases
+	args, coll, dbases := rc.Args, rc.Config.Collection, rc.databases
 	slq, err := preprocessUserSLQ(ctx, rc, args)
 	if err != nil {
 		return err
@@ -154,7 +156,7 @@ func execSLQInsert(ctx context.Context, rc *RunContext, mArgs map[string]string,
 	)
 
 	qc := &libsq.QueryContext{
-		Sources:      srcs,
+		Collection:   coll,
 		DBOpener:     rc.databases,
 		JoinDBOpener: rc.databases,
 		Args:         mArgs,
@@ -182,7 +184,7 @@ func execSLQPrint(ctx context.Context, rc *RunContext, mArgs map[string]string) 
 	}
 
 	qc := &libsq.QueryContext{
-		Sources:      rc.Config.Sources,
+		Collection:   rc.Config.Collection,
 		DBOpener:     rc.databases,
 		JoinDBOpener: rc.databases,
 		Args:         mArgs,
@@ -223,8 +225,8 @@ func execSLQPrint(ctx context.Context, rc *RunContext, mArgs map[string]string) 
 //
 //	$ sq '.person'  -->  $ sq '@active.person'
 func preprocessUserSLQ(ctx context.Context, rc *RunContext, args []string) (string, error) {
-	log, reg, dbases, srcs := rc.Log, rc.registry, rc.databases, rc.Config.Sources
-	activeSrc := srcs.Active()
+	log, reg, dbases, coll := rc.Log, rc.registry, rc.databases, rc.Config.Collection
+	activeSrc := coll.Active()
 
 	if len(args) == 0 {
 		// Special handling for the case where no args are supplied
@@ -305,7 +307,7 @@ func preprocessUserSLQ(ctx context.Context, rc *RunContext, args []string) (stri
 		}
 
 		// Check that the handle actual exists
-		_, err := srcs.Get(handle)
+		_, err := coll.Get(handle)
 		if err != nil {
 			return "", err
 		}
@@ -331,33 +333,33 @@ func preprocessUserSLQ(ctx context.Context, rc *RunContext, args []string) (stri
 
 // addQueryCmdFlags sets the common flags for the slq/sql commands.
 func addQueryCmdFlags(cmd *cobra.Command) {
-	cmd.Flags().StringP(flagOutput, flagOutputShort, "", flagOutputUsage)
+	cmd.Flags().StringP(flag.Output, flag.OutputShort, "", flag.OutputUsage)
 
-	cmd.Flags().BoolP(flagJSON, flagJSONShort, false, flagJSONUsage)
-	cmd.Flags().BoolP(flagJSONA, flagJSONAShort, false, flagJSONAUsage)
-	cmd.Flags().BoolP(flagJSONL, flagJSONLShort, false, flagJSONLUsage)
-	cmd.Flags().BoolP(flagTable, flagTableShort, false, flagTableUsage)
-	cmd.Flags().BoolP(flagXML, flagXMLShort, false, flagXMLUsage)
-	cmd.Flags().BoolP(flagXLSX, flagXLSXShort, false, flagXLSXUsage)
-	cmd.Flags().BoolP(flagCSV, flagCSVShort, false, flagCSVUsage)
-	cmd.Flags().BoolP(flagTSV, flagTSVShort, false, flagTSVUsage)
-	cmd.Flags().BoolP(flagRaw, flagRawShort, false, flagRawUsage)
-	cmd.Flags().Bool(flagHTML, false, flagHTMLUsage)
-	cmd.Flags().Bool(flagMarkdown, false, flagMarkdownUsage)
-	cmd.Flags().BoolP(flagHeader, flagHeaderShort, false, flagHeaderUsage)
-	cmd.Flags().BoolP(flagPretty, "", true, flagPrettyUsage)
+	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
+	cmd.Flags().BoolP(flag.JSONA, flag.JSONAShort, false, flag.JSONAUsage)
+	cmd.Flags().BoolP(flag.JSONL, flag.JSONLShort, false, flag.JSONLUsage)
+	cmd.Flags().BoolP(flag.Table, flag.TableShort, false, flag.TableUsage)
+	cmd.Flags().BoolP(flag.XML, flag.XMLShort, false, flag.XMLUsage)
+	cmd.Flags().BoolP(flag.XLSX, flag.XLSXShort, false, flag.XLSXUsage)
+	cmd.Flags().BoolP(flag.CSV, flag.CSVShort, false, flag.CSVUsage)
+	cmd.Flags().BoolP(flag.TSV, flag.TSVShort, false, flag.TSVUsage)
+	cmd.Flags().BoolP(flag.Raw, flag.RawShort, false, flag.RawUsage)
+	cmd.Flags().Bool(flag.HTML, false, flag.HTMLUsage)
+	cmd.Flags().Bool(flag.Markdown, false, flag.MarkdownUsage)
+	cmd.Flags().BoolP(flag.Header, flag.HeaderShort, false, flag.HeaderUsage)
+	cmd.Flags().BoolP(flag.Pretty, "", true, flag.PrettyUsage)
 
-	cmd.Flags().StringP(flagInsert, "", "", flagInsertUsage)
-	_ = cmd.RegisterFlagCompletionFunc(flagInsert, (&handleTableCompleter{onlySQL: true, handleRequired: true}).complete)
+	cmd.Flags().StringP(flag.Insert, "", "", flag.InsertUsage)
+	_ = cmd.RegisterFlagCompletionFunc(flag.Insert, (&handleTableCompleter{onlySQL: true, handleRequired: true}).complete)
 
-	cmd.Flags().StringP(flagActiveSrc, "", "", flagActiveSrcUsage)
-	_ = cmd.RegisterFlagCompletionFunc(flagActiveSrc, completeHandle(0))
+	cmd.Flags().StringP(flag.ActiveSrc, "", "", flag.ActiveSrcUsage)
+	_ = cmd.RegisterFlagCompletionFunc(flag.ActiveSrc, completeHandle(0))
 
 	// The driver flag can be used if data is piped to sq over stdin
-	cmd.Flags().StringP(flagDriver, "", "", flagQueryDriverUsage)
-	_ = cmd.RegisterFlagCompletionFunc(flagDriver, completeDriverType)
+	cmd.Flags().StringP(flag.Driver, "", "", flag.QueryDriverUsage)
+	_ = cmd.RegisterFlagCompletionFunc(flag.Driver, completeDriverType)
 
-	cmd.Flags().StringP(flagSrcOptions, "", "", flagQuerySrcOptionsUsage)
+	cmd.Flags().StringP(flag.SrcOptions, "", "", flag.QuerySrcOptionsUsage)
 }
 
 // extractFlagArgsValues returns a map {key:value} of predefined variables
@@ -367,11 +369,11 @@ func addQueryCmdFlags(cmd *cobra.Command) {
 //
 // See preprocessFlagArgVars.
 func extractFlagArgsValues(cmd *cobra.Command) (map[string]string, error) {
-	if !cmdFlagChanged(cmd, flagArg) {
+	if !cmdFlagChanged(cmd, flag.Arg) {
 		return nil, nil //nolint:nilnil
 	}
 
-	arr, err := cmd.Flags().GetStringArray(flagArg)
+	arr, err := cmd.Flags().GetStringArray(flag.Arg)
 	if err != nil {
 		return nil, errz.Err(err)
 	}
@@ -384,7 +386,7 @@ func extractFlagArgsValues(cmd *cobra.Command) (map[string]string, error) {
 	for _, kv := range arr {
 		k, v, ok := strings.Cut(kv, ":")
 		if !ok || k == "" {
-			return nil, errz.Errorf("invalid --%s value", flagArg)
+			return nil, errz.Errorf("invalid --%s value", flag.Arg)
 		}
 
 		if _, ok := mArgs[k]; ok {
@@ -423,7 +425,7 @@ func extractFlagArgsValues(cmd *cobra.Command) (map[string]string, error) {
 // Any code making use of flagArg will need to deconstruct the flag value.
 // Specifically, that means extractFlagArgsValues.
 func preprocessFlagArgVars(args []string) ([]string, error) {
-	const flg = "--" + flagArg
+	const flg = "--" + flag.Arg
 
 	if len(args) == 0 {
 		return args, nil
@@ -460,11 +462,11 @@ func preprocessFlagArgVars(args []string) ([]string, error) {
 // See preprocessFlagArgVars.
 func extractFlagArgsSingleArg(args []string) (string, error) {
 	if len(args) < 3 {
-		return "", errz.Errorf("invalid %s flag: must be '--%s key value'", flagArg, flagArg)
+		return "", errz.Errorf("invalid %s flag: must be '--%s key value'", flag.Arg, flag.Arg)
 	}
 
 	if err := stringz.ValidIdent(args[1]); err != nil {
-		return "", errz.Errorf("invalid --%s key: %s", flagArg, args[1])
+		return "", errz.Errorf("invalid --%s key: %s", flag.Arg, args[1])
 	}
 
 	return args[1] + ":" + args[2], nil
