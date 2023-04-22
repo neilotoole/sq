@@ -15,9 +15,14 @@ func newConfigCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
 		},
-
 		Example: `  # Print config location
-  $ sq config location`,
+  $ sq config location
+
+  # Show config
+  $ sq config get
+
+  # Edit config
+  $ sq config edit`,
 	}
 
 	return cmd
@@ -32,7 +37,7 @@ func newConfigLocationCmd() *cobra.Command {
 		Args:    cobra.ExactArgs(0),
 		RunE:    execConfigLocation,
 		Example: `  # Print config location
-  $ sq config location   
+  $ sq config location
   /Users/neilotoole/.config/sq
 
   # Print location, also show origin (flag, env, default)
@@ -61,8 +66,8 @@ func execConfigLocation(cmd *cobra.Command, _ []string) error {
 func newConfigGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get",
-		Short: "Print config",
-		Long:  "Print config.",
+		Short: "Show config",
+		Long:  "Show config.",
 		Args:  cobra.ExactArgs(0),
 		RunE:  execConfigGet,
 	}
