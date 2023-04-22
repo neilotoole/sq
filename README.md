@@ -1,4 +1,4 @@
-[![Go Coverage](https://github.com/neilotoole/sq/wiki/coverage.svg)](https://raw.githack.com/wiki/neilotoole/sq/coverage.html)
+[//]: # ([![Go Coverage]&#40;https://github.com/neilotoole/sq/wiki/coverage.svg&#41;]&#40;https://raw.githack.com/wiki/neilotoole/sq/coverage.html&#41;)
 [![Go Reference](https://pkg.go.dev/badge/github.com/neilotoole/sq.svg)](https://pkg.go.dev/github.com/neilotoole/sq)
 
 # sq: data wrangler
