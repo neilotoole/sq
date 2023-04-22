@@ -15,10 +15,10 @@ env:
 
 jobs:
 
-  go-test:
+  test-linux-darwin:
     strategy:
       matrix:
-        os: [ ubuntu-22.04, macos-12, windows-2022 ]
+        os: [ ubuntu-22.04, macos-12]
 
     runs-on: ${{ matrix.os }}
 
@@ -45,6 +45,7 @@ jobs:
         run: go build -v ./...
 
       # Run tests with nice formatting. Save the original log in /tmp/gotest.log
+      # https://github.com/GoTestTools/gotestfmt#github-actions
       - name: Run tests
         run: |
           set -euo pipefail
@@ -57,7 +58,24 @@ jobs:
         with:
           name: test-log
           path: gotest.log
-          if-no-files-found: error
+          if-no-files-found: warn
+
+  test-windows:
+    runs-on: windows-2022
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Set up Go
+      uses: actions/setup-go@v3
+      with:
+        go-version: ${{ env.GO_VERSION }}
+
+    - name: Run tests
+      run: |
+        go test -v ./...
 
   go-lint:
     runs-on: ubuntu-22.04
@@ -241,7 +259,8 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     needs:
       - go-lint
-      - go-test
+      - test-linux-darwin
+      - test-windows
       - binaries-darwin
       - binaries-linux-amd64
       - binaries-linux-arm64
