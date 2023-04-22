@@ -1,6 +1,6 @@
 [//]: # ([![Go Coverage]&#40;https://github.com/neilotoole/sq/wiki/coverage.svg&#41;]&#40;https://raw.githack.com/wiki/neilotoole/sq/coverage.html&#41;)
 [![Go Reference](https://pkg.go.dev/badge/github.com/neilotoole/sq.svg)](https://pkg.go.dev/github.com/neilotoole/sq)
-![main](https://github.com/github/docs/actions/workflows/main.yml/badge.svg)
+![main workflow](https://github.com/neilotoole/sq/actions/workflows/main.yml/badge.svg)
 
 
 # sq: data wrangler
