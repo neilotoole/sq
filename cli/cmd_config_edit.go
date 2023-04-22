@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/neilotoole/sq/cli/editor"
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -29,5 +30,13 @@ func execConfigEdit(cmd *cobra.Command, args []string) error {
 	_ = args
 	_ = rc
 
-	return errz.New("not implemented")
+	ed := editor.NewDefaultEditor(editorEnvs)
+	fp := "/Users/neilotoole/work/sq/sq/scratch/config-test.yml"
+	if err := ed.Launch(fp); err != nil {
+		return errz.Wrapf(err, "edit %s", fp)
+	}
+
+	return nil
 }
+
+var editorEnvs = []string{"SQ_EDITOR", "EDITOR"}
