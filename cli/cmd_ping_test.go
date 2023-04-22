@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"context"
 	"encoding/csv"
 	"testing"
 	"time"
@@ -14,14 +15,15 @@ import (
 
 func TestCmdPing(t *testing.T) {
 	t.Parallel()
+	ctx := context.Background()
 
-	err := newRun(t, nil).Exec("ping")
+	err := newRun(ctx, t, nil).Exec("ping")
 	require.Error(t, err, "no active data source")
 
-	err = newRun(t, nil).Exec("ping", "invalid_handle")
+	err = newRun(ctx, t, nil).Exec("ping", "invalid_handle")
 	require.Error(t, err)
 
-	err = newRun(t, nil).Exec("ping", "@not_a_handle")
+	err = newRun(ctx, t, nil).Exec("ping", "@not_a_handle")
 	require.Error(t, err)
 
 	var ru *Run
@@ -29,17 +31,17 @@ func TestCmdPing(t *testing.T) {
 	th := testh.New(t)
 	src1, src2 := th.Source(sakila.CSVActor), th.Source(sakila.CSVActorNoHeader)
 
-	ru = newRun(t, nil).add(*src1)
+	ru = newRun(ctx, t, nil).add(*src1)
 	err = ru.Exec("ping", "--csv", src1.Handle)
 	require.NoError(t, err)
 	checkPingOutputCSV(t, ru, *src1)
 
-	ru = newRun(t, nil).add(*src2)
+	ru = newRun(ctx, t, nil).add(*src2)
 	err = ru.Exec("ping", "--csv", src2.Handle)
 	require.NoError(t, err)
 	checkPingOutputCSV(t, ru, *src2)
 
-	ru = newRun(t, nil).add(*src1, *src2)
+	ru = newRun(ctx, t, nil).add(*src1, *src2)
 	err = ru.Exec("ping", "--csv", src1.Handle, src2.Handle)
 	require.NoError(t, err)
 	checkPingOutputCSV(t, ru, *src1, *src2)

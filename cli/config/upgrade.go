@@ -1,9 +1,13 @@
 package config
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"github.com/neilotoole/sq/cli/buildinfo"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -50,12 +54,14 @@ func init() { //nolint:gochecknoinits
 // UpgradeConfig runs all the registered upgrade funcs between cfg.Version
 // and targetVersion. Typically this is checked by Load, but can be
 // explicitly invoked for testing etc.
-func (fs *YAMLFileStore) UpgradeConfig(startVersion, targetVersion string) (*Config, error) {
+func (fs *YAMLFileStore) UpgradeConfig(ctx context.Context, startVersion, targetVersion string) (*Config, error) {
 	if !semver.IsValid(targetVersion) {
 		return nil, errz.Errorf("invalid semver for config version {%s}", targetVersion)
 	}
 
-	// fs.log.Debugf("Starting config upgrade: %s --> %s", cfg.Version, targetVersion)
+	log := lg.FromContext(ctx)
+
+	log.Debug("Starting config upgrade", lga.From, startVersion, lga.To, targetVersion)
 	var err error
 	upgradeFns := fs.upgradeReg.getUpgradeFuncs(startVersion, targetVersion)
 
@@ -67,15 +73,15 @@ func (fs *YAMLFileStore) UpgradeConfig(startVersion, targetVersion string) (*Con
 	}
 
 	// Do a final update of the version
-	cfg, err := fs.doLoad()
+	cfg, err := fs.doLoad(ctx)
 	if err != nil {
 		return nil, err
 	}
 	cfg.Version = targetVersion
 
-	// fs.log.Debugf("Setting config_version to: %s", targetVersion)
+	log.Debug("Setting config_version", lga.Val, targetVersion)
 
-	err = fs.Save(cfg)
+	err = fs.Save(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}

@@ -62,7 +62,7 @@ func execGroup(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if err := rc.ConfigStore.Save(cfg); err != nil {
+	if err := rc.ConfigStore.Save(cmd.Context(), cfg); err != nil {
 		return err
 	}
 

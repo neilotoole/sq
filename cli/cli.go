@@ -281,12 +281,12 @@ func addCmd(rc *RunContext, parentCmd, cmd *cobra.Command) *cobra.Command {
 
 // defaultLogging returns a log (and its associated closer) if
 // logging has been enabled via envars.
-func defaultLogging() (*slog.Logger, *cleanup.Cleanup, error) {
+func defaultLogging() (*slog.Logger, slog.Handler, *cleanup.Cleanup, error) {
 	truncate, _ := strconv.ParseBool(os.Getenv(config.EnvarLogTruncate))
 
 	logFilePath, ok := os.LookupEnv(config.EnvarLogPath)
 	if !ok || logFilePath == "" || strings.TrimSpace(logFilePath) == "" {
-		return lg.Discard(), nil, nil
+		return lg.Discard(), nil, nil, nil
 	}
 
 	// Let's try to create the dir holding the logfile... if it already exists,
@@ -294,7 +294,7 @@ func defaultLogging() (*slog.Logger, *cleanup.Cleanup, error) {
 	parent := filepath.Dir(logFilePath)
 	err := os.MkdirAll(parent, 0o750)
 	if err != nil {
-		return lg.Discard(), nil, errz.Wrapf(err, "failed to create parent dir of log file %s", logFilePath)
+		return lg.Discard(), nil, nil, errz.Wrapf(err, "failed to create parent dir of log file %s", logFilePath)
 	}
 
 	fileFlag := os.O_APPEND
@@ -304,7 +304,7 @@ func defaultLogging() (*slog.Logger, *cleanup.Cleanup, error) {
 
 	logFile, err := os.OpenFile(logFilePath, os.O_RDWR|os.O_CREATE|fileFlag, 0o600)
 	if err != nil {
-		return lg.Discard(), nil, errz.Wrapf(err, "unable to open log file: %s", logFilePath)
+		return lg.Discard(), nil, nil, errz.Wrapf(err, "unable to open log file: %s", logFilePath)
 	}
 	clnup := cleanup.New().AddE(logFile.Close)
 
@@ -317,15 +317,13 @@ func defaultLogging() (*slog.Logger, *cleanup.Cleanup, error) {
 		return a
 	}
 
-	opts := slog.HandlerOptions{
+	h := slog.HandlerOptions{
 		AddSource:   true,
 		Level:       slog.LevelDebug,
 		ReplaceAttr: replace,
-	}
+	}.NewJSONHandler(logFile)
 
-	log := slog.New(opts.NewJSONHandler(logFile))
-
-	return log, clnup, nil
+	return slog.New(h), h, clnup, nil
 }
 
 // printError is the centralized function for printing

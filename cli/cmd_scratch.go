@@ -75,7 +75,7 @@ func execScratch(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	err = rc.ConfigStore.Save(rc.Config)
+	err = rc.ConfigStore.Save(cmd.Context(), rc.Config)
 	if err != nil {
 		return err
 	}

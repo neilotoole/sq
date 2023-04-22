@@ -1,11 +1,15 @@
 package config_test
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/neilotoole/slogt"
+	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"github.com/neilotoole/sq/cli/buildinfo"
 
@@ -30,6 +34,9 @@ func setBuildVersion(t testing.TB, vers string) {
 }
 
 func Test_Upgrade_v0_34_0(t *testing.T) {
+	log := slogt.New(t)
+	ctx := lg.NewContext(context.Background(), log)
+
 	const (
 		prevVers    = "v0.33.0"
 		nextVers    = "v0.34.0"
@@ -52,7 +59,7 @@ func Test_Upgrade_v0_34_0(t *testing.T) {
 	t.Logf("config file (before): %s", cfgFile)
 	_ = ioz.FPrintFile(tutil.Writer(t), cfgFile)
 
-	cfg, cfgStore, err := config.DefaultLoad(nil)
+	cfg, cfgStore, err := config.DefaultLoad(ctx, nil)
 	require.NoError(t, err)
 
 	t.Logf("config file (after): %s", cfgFile)

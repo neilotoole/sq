@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/neilotoole/sq/libsq/core/lg/slogbuf"
+
 	"github.com/neilotoole/sq/cli/config"
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/drivers/csv"
@@ -114,20 +116,25 @@ type RunContext struct {
 // example if there's a config error). We do this to provide
 // enough framework so that such an error can be logged or
 // printed per the normal mechanisms if at all possible.
-func newDefaultRunContext(_ context.Context, stdin *os.File,
+func newDefaultRunContext(ctx context.Context, stdin *os.File,
 	stdout, stderr io.Writer, args []string,
 ) (*RunContext, error) {
+	// logbuf holds log records until defaultLogging is completed.
+	log, logbuf := slogbuf.New()
+
 	rc := &RunContext{
 		Stdin:  stdin,
 		Out:    stdout,
 		ErrOut: stderr,
 	}
 
-	cfg, cfgStore, configErr := config.DefaultLoad(args)
+	cfg, cfgStore, configErr := config.DefaultLoad(lg.NewContext(ctx, log), args)
 	rc.ConfigStore = cfgStore
 	rc.Config = cfg
 
-	log, clnup, loggingErr := defaultLogging()
+	log, logHandler, clnup, loggingErr := defaultLogging()
+
+	_ = logbuf.Flush(ctx, logHandler)
 	rc.Log = log
 	rc.clnup = clnup
 

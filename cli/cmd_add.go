@@ -263,7 +263,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	if err = rc.ConfigStore.Save(rc.Config); err != nil {
+	if err = rc.ConfigStore.Save(cmd.Context(), rc.Config); err != nil {
 		return err
 	}
 

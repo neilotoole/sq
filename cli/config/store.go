@@ -1,11 +1,15 @@
 package config
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"github.com/neilotoole/sq/libsq/core/ioz"
 
@@ -23,10 +27,10 @@ import (
 // Store saves and loads config.
 type Store interface {
 	// Save writes config to the store.
-	Save(cfg *Config) error
+	Save(ctx context.Context, cfg *Config) error
 
 	// Load reads config from the store.
-	Load() (*Config, error)
+	Load(ctx context.Context) (*Config, error)
 
 	// Location returns the location of the store, typically
 	// a file path.
@@ -71,7 +75,10 @@ func (fs *YAMLFileStore) Location() string {
 }
 
 // Load reads config from disk. It implements Store.
-func (fs *YAMLFileStore) Load() (*Config, error) {
+func (fs *YAMLFileStore) Load(ctx context.Context) (*Config, error) {
+	log := lg.FromContext(ctx)
+	log.Debug("Loading config from file", lga.Path, fs.Path)
+
 	if fs.upgradeReg == nil {
 		// Use the package-level registry by default.
 		// This is not ideal, but test code can change this
@@ -85,28 +92,28 @@ func (fs *YAMLFileStore) Load() (*Config, error) {
 	}
 
 	if mightNeedUpgrade {
-		_, err = fs.UpgradeConfig(foundVers, buildinfo.Version)
-		if err != nil {
+		log.Info("Upgrade config?", lga.From, foundVers, lga.To, buildinfo.Version)
+		if _, err = fs.UpgradeConfig(ctx, foundVers, buildinfo.Version); err != nil {
 			return nil, err
 		}
 
 		// We do a cycle of loading and saving the config after the upgrade,
 		// because the upgrade may have written YAML via a map, which
 		// doesn't preserve order. Loading and saving should fix that.
-		cfg, err := fs.doLoad()
+		cfg, err := fs.doLoad(ctx)
 		if err != nil {
 			return nil, errz.Wrapf(err, "config: %s: load failed after config upgrade", fs.Path)
 		}
 
-		if err = fs.Save(cfg); err != nil {
+		if err = fs.Save(ctx, cfg); err != nil {
 			return nil, errz.Wrapf(err, "config: %s: save failed after config upgrade", fs.Path)
 		}
 	}
 
-	return fs.doLoad()
+	return fs.doLoad(ctx)
 }
 
-func (fs *YAMLFileStore) doLoad() (*Config, error) {
+func (fs *YAMLFileStore) doLoad(ctx context.Context) (*Config, error) {
 	bytes, err := os.ReadFile(fs.Path)
 	if err != nil {
 		return nil, errz.Wrapf(err, "config: failed to load file: %s", fs.Path)
@@ -132,7 +139,7 @@ func (fs *YAMLFileStore) doLoad() (*Config, error) {
 	if err != nil {
 		if repaired {
 			// The config was repaired. Save the changes.
-			err = errz.Combine(err, fs.Save(cfg))
+			err = errz.Combine(err, fs.Save(ctx, cfg))
 		}
 		return nil, errz.Wrapf(err, "config: %s", fs.Path)
 	}
@@ -208,7 +215,7 @@ func (fs *YAMLFileStore) loadExt(cfg *Config) error {
 }
 
 // Save writes config to disk. It implements Store.
-func (fs *YAMLFileStore) Save(cfg *Config) error {
+func (fs *YAMLFileStore) Save(_ context.Context, cfg *Config) error {
 	if fs == nil {
 		return errz.New("config file store is nil")
 	}
@@ -251,12 +258,12 @@ type DiscardStore struct{}
 var _ Store = (*DiscardStore)(nil)
 
 // Load returns a new empty Config.
-func (DiscardStore) Load() (*Config, error) {
+func (DiscardStore) Load(context.Context) (*Config, error) {
 	return New(), nil
 }
 
 // Save is no-op.
-func (DiscardStore) Save(*Config) error {
+func (DiscardStore) Save(context.Context, *Config) error {
 	return nil
 }
 
@@ -267,7 +274,7 @@ func (DiscardStore) Location() string {
 
 // DefaultLoad loads sq config from the default location
 // (~/.config/sq/sq.yml) or the location specified in envars.
-func DefaultLoad(osArgs []string) (*Config, Store, error) {
+func DefaultLoad(ctx context.Context, osArgs []string) (*Config, Store, error) {
 	var (
 		cfgDir string
 		origin string
@@ -300,7 +307,7 @@ func DefaultLoad(osArgs []string) (*Config, Store, error) {
 	}
 
 	// file does exist, let's try to load it
-	cfg, err := cfgStore.Load()
+	cfg, err := cfgStore.Load(ctx)
 	if err != nil {
 		return nil, nil, err
 	}

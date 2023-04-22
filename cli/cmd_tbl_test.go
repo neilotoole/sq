@@ -24,7 +24,7 @@ func TestCmdTblCopy(t *testing.T) {
 			srcTblHandle := src.Handle + "." + sakila.TblActor
 			destTbl1 := stringz.UniqTableName(sakila.TblActor)
 
-			ru1 := newRun(t, nil).add(*src)
+			ru1 := newRun(th.Context, t, nil).add(*src)
 			err := ru1.Exec("tbl", "copy", "--data=false", srcTblHandle, src.Handle+"."+destTbl1)
 			require.NoError(t, err)
 			defer th.DropTable(src, destTbl1)
@@ -32,7 +32,7 @@ func TestCmdTblCopy(t *testing.T) {
 				"should not have copied any rows because --data=false")
 
 			// --data=true
-			ru2 := newRun(t, nil).add(*src)
+			ru2 := newRun(th.Context, t, nil).add(*src)
 			destTbl2 := stringz.UniqTableName(sakila.TblActor)
 			err = ru2.Exec("tbl", "copy", "--data=true", srcTblHandle, src.Handle+"."+destTbl2)
 			require.NoError(t, err)
@@ -68,7 +68,7 @@ func TestCmdTblDrop(t *testing.T) {
 			require.Equal(t, destTblName, tblMeta.Name)
 			require.Equal(t, int64(sakila.TblActorCount), tblMeta.RowCount)
 
-			err = newRun(t, nil).add(*src).Exec("tbl", "drop", src.Handle+"."+destTblName)
+			err = newRun(th.Context, t, nil).add(*src).Exec("tbl", "drop", src.Handle+"."+destTblName)
 			require.NoError(t, err)
 			needsDrop = false
 
@@ -98,7 +98,7 @@ func TestCmdTblTruncate(t *testing.T) {
 			require.Equal(t, destTblName, tblMeta.Name)
 			require.Equal(t, int64(sakila.TblActorCount), tblMeta.RowCount)
 
-			err = newRun(t, nil).add(*src).Exec("tbl", "truncate", src.Handle+"."+destTblName)
+			err = newRun(th.Context, t, nil).add(*src).Exec("tbl", "truncate", src.Handle+"."+destTblName)
 			require.NoError(t, err)
 			tblMeta, err = th.Open(src).TableMetadata(th.Context, destTblName)
 			require.NoError(t, err)

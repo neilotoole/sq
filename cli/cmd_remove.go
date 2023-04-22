@@ -75,7 +75,7 @@ func execRemove(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	if err := rc.ConfigStore.Save(cfg); err != nil {
+	if err := rc.ConfigStore.Save(cmd.Context(), cfg); err != nil {
 		return err
 	}
 	lo.Uniq(removed)
