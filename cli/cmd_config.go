@@ -18,11 +18,14 @@ func newConfigCmd() *cobra.Command {
 		Example: `  # Print config location
   $ sq config location
 
-  # Show config
+  # Show default options
   $ sq config get
 
-  # Edit config
-  $ sq config edit`,
+  # Edit default options
+  $ sq config edit
+
+  # Edit config for source
+  $ sq config edit @sakila`,
 	}
 
 	return cmd
