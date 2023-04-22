@@ -118,7 +118,6 @@ jobs:
         chart: 'true'
         amend: 'false'
       if: |
-        matrix.os == 'ubuntu-22.04' &&
         github.event_name == 'push'
       continue-on-error: true
 
