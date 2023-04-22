@@ -45,7 +45,7 @@ func execSrc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	err = rc.ConfigStore.Save(cfg)
+	err = rc.ConfigStore.Save(cmd.Context(), cfg)
 	if err != nil {
 		return err
 	}

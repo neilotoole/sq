@@ -13,6 +13,8 @@ import (
 	"context"
 	"sync"
 
+	"github.com/neilotoole/sq/libsq/core/errz"
+
 	"golang.org/x/exp/slog"
 )
 
@@ -50,6 +52,10 @@ func (b *Buffer) append(h *handler, record slog.Record) {
 // log records to dest, Flush returns immediately (and does not write
 // any remaining records). The buffer drains, even if an error occurs.
 func (b *Buffer) Flush(ctx context.Context, dest slog.Handler) error {
+	if dest == nil {
+		return errz.New("flush log buffer: dest is nil")
+	}
+
 	b.mu.Lock()
 	defer b.mu.Unlock()
 

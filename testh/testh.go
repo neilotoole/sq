@@ -238,7 +238,7 @@ func (h *Helper) Source(handle string) *source.Source {
 		// method also uses a cache. This is because this
 		// method makes a copy the data file of file-based sources
 		// as mentioned in the method godoc.
-		h.coll = mustLoadCollection(t)
+		h.coll = mustLoadCollection(h.Context, t)
 		h.srcCache = map[string]*source.Source{}
 	}
 
@@ -691,14 +691,14 @@ func (h *Helper) DiffDB(src *source.Source) {
 	})
 }
 
-func mustLoadCollection(t testing.TB) *source.Collection {
+func mustLoadCollection(ctx context.Context, t testing.TB) *source.Collection {
 	hookExpand := func(data []byte) ([]byte, error) {
 		// expand vars such as "${SQ_ROOT}"
 		return []byte(proj.Expand(string(data))), nil
 	}
 
 	fs := &config.YAMLFileStore{Path: proj.Rel(testsrc.PathSrcsConfig), HookLoad: hookExpand}
-	cfg, err := fs.Load()
+	cfg, err := fs.Load(ctx)
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
 	require.NotNil(t, cfg.Collection)

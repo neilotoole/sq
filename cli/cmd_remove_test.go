@@ -13,13 +13,13 @@ func TestCmdRemove(t *testing.T) {
 	th := testh.New(t)
 
 	// 1. Should fail if bad handle
-	ru := newRun(t, nil)
+	ru := newRun(th.Context, t, nil)
 	err := ru.Exec("rm", "@not_a_source")
 	require.Error(t, err)
 
 	// 2. Check normal operation
 	src := th.Source(sakila.SL3)
-	ru = newRun(t, nil).add(*src)
+	ru = newRun(th.Context, t, nil).add(*src)
 
 	// The src we just added should be the active src
 	activeSrc := ru.rc.Config.Collection.Active()

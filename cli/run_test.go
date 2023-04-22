@@ -27,7 +27,8 @@ import (
 // The srcs args are added to rc.Config.Collection.
 //
 // If cfgStore is nil, a new one is created in a temp dir.
-func newTestRunCtx(t testing.TB, cfgStore config.Store) (rc *cli.RunContext, out, errOut *bytes.Buffer) {
+func newTestRunCtx(ctx context.Context, t testing.TB, cfgStore config.Store,
+) (rc *cli.RunContext, out, errOut *bytes.Buffer) {
 	out = &bytes.Buffer{}
 	errOut = &bytes.Buffer{}
 
@@ -39,9 +40,9 @@ func newTestRunCtx(t testing.TB, cfgStore config.Store) (rc *cli.RunContext, out
 		require.NoError(t, err)
 		cfgStore = &config.YAMLFileStore{Path: filepath.Join(cfgDir, "sq.yml")}
 		cfg = config.New()
-		require.NoError(t, cfgStore.Save(cfg))
+		require.NoError(t, cfgStore.Save(ctx, cfg))
 	} else {
-		cfg, err = cfgStore.Load()
+		cfg, err = cfgStore.Load(ctx)
 		require.NoError(t, err)
 	}
 
@@ -73,13 +74,13 @@ type Run struct {
 // newRun returns a new run instance for testing sq commands.
 // If from is non-nil, its config is used. This allows sequential
 // commands to use the same config.
-func newRun(t *testing.T, from *Run) *Run {
+func newRun(ctx context.Context, t *testing.T, from *Run) *Run {
 	ru := &Run{t: t}
 	var cfgStore config.Store
 	if from != nil {
 		cfgStore = from.rc.ConfigStore
 	}
-	ru.rc, ru.out, ru.errOut = newTestRunCtx(t, cfgStore)
+	ru.rc, ru.out, ru.errOut = newTestRunCtx(ctx, t, cfgStore)
 	return ru
 }
 

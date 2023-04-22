@@ -28,7 +28,7 @@ func TestCmdSLQ_Insert_Create(t *testing.T) {
 
 	destTbl := stringz.UniqSuffix(sakila.TblActor + "_copy")
 
-	ru := newRun(t, nil).add(*originSrc)
+	ru := newRun(th.Context, t, nil).add(*originSrc)
 	if destSrc.Handle != originSrc.Handle {
 		ru.add(*destSrc)
 	}
@@ -68,7 +68,7 @@ func TestCmdSLQ_Insert(t *testing.T) {
 					// of it (without data).
 					tblName := th.CopyTable(true, destSrc, sakila.TblActor, "", false)
 
-					ru := newRun(t, nil).add(*originSrc)
+					ru := newRun(th.Context, t, nil).add(*originSrc)
 					if destSrc.Handle != originSrc.Handle {
 						ru.add(*destSrc)
 					}
@@ -92,8 +92,9 @@ func TestCmdSLQ_Insert(t *testing.T) {
 func TestCmdSLQ_CSV(t *testing.T) {
 	t.Parallel()
 
-	src := testh.New(t).Source(sakila.CSVActor)
-	ru := newRun(t, nil).add(*src)
+	th := testh.New(t)
+	src := th.Source(sakila.CSVActor)
+	ru := newRun(th.Context, t, nil).add(*src)
 	err := ru.Exec("slq", "--header=false", "--csv", fmt.Sprintf("%s.data", src.Handle))
 	require.NoError(t, err)
 
@@ -105,8 +106,9 @@ func TestCmdSLQ_CSV(t *testing.T) {
 func TestCmdSLQ_OutputFlag(t *testing.T) {
 	t.Parallel()
 
-	src := testh.New(t).Source(sakila.SL3)
-	ru := newRun(t, nil).add(*src)
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
+	ru := newRun(th.Context, t, nil).add(*src)
 	outputFile, err := os.CreateTemp("", t.Name())
 	require.NoError(t, err)
 
@@ -143,7 +145,7 @@ func TestCmdSLQ_Join(t *testing.T) {
 					th := testh.New(t)
 					src1, src2 := th.Source(h1), th.Source(h2)
 
-					ru := newRun(t, nil).add(*src1)
+					ru := newRun(th.Context, t, nil).add(*src1)
 					if src2.Handle != src1.Handle {
 						ru.add(*src2)
 					}
@@ -168,10 +170,11 @@ func TestCmdSLQ_Join(t *testing.T) {
 // TestCmdSLQ_ActiveSrcHandle verifies that source.ActiveHandle is
 // interpreted as the active src in a SLQ query.
 func TestCmdSLQ_ActiveSrcHandle(t *testing.T) {
-	src := testh.New(t).Source(sakila.SL3)
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
 
 	// 1. Verify that the query works as expected using the actual src handle
-	ru := newRun(t, nil).add(*src).hush()
+	ru := newRun(th.Context, t, nil).add(*src).hush()
 
 	require.Equal(t, src.Handle, ru.rc.Config.Collection.Active().Handle)
 	err := ru.Exec("slq", "--header=false", "--csv", "@sakila_sl3.actor")
@@ -180,7 +183,7 @@ func TestCmdSLQ_ActiveSrcHandle(t *testing.T) {
 	require.Equal(t, sakila.TblActorCount, len(recs))
 
 	// 2. Verify that it works using source.ActiveHandle as the src handle
-	ru = newRun(t, nil).add(*src).hush()
+	ru = newRun(th.Context, t, nil).add(*src).hush()
 	require.Equal(t, src.Handle, ru.rc.Config.Collection.Active().Handle)
 	err = ru.Exec("slq", "--header=false", "--csv", source.ActiveHandle+".actor")
 	require.NoError(t, err)

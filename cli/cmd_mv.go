@@ -75,7 +75,7 @@ func execMoveRenameGroup(cmd *cobra.Command, oldGroup, newGroup string) error {
 		return err
 	}
 
-	if err = rc.ConfigStore.Save(rc.Config); err != nil {
+	if err = rc.ConfigStore.Save(cmd.Context(), rc.Config); err != nil {
 		return err
 	}
 
@@ -105,7 +105,7 @@ func execMoveHandleToGroup(cmd *cobra.Command, oldHandle, newGroup string) error
 		return err
 	}
 
-	if err = rc.ConfigStore.Save(rc.Config); err != nil {
+	if err = rc.ConfigStore.Save(cmd.Context(), rc.Config); err != nil {
 		return err
 	}
 
@@ -127,7 +127,7 @@ func execMoveRenameHandle(cmd *cobra.Command, oldHandle, newHandle string) error
 		return err
 	}
 
-	if err = rc.ConfigStore.Save(rc.Config); err != nil {
+	if err = rc.ConfigStore.Save(cmd.Context(), rc.Config); err != nil {
 		return err
 	}
 

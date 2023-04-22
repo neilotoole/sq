@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -44,7 +45,7 @@ func TestCmdSQL_Insert(t *testing.T) {
 					// of it (without data).
 					tblName := th.CopyTable(true, destSrc, sakila.TblActor, "", false)
 
-					ru := newRun(t, nil).add(*originSrc)
+					ru := newRun(th.Context, t, nil).add(*originSrc)
 					if destSrc.Handle != originSrc.Handle {
 						ru.add(*destSrc)
 					}
@@ -92,7 +93,7 @@ func TestCmdSQL_SelectFromUserDriver(t *testing.T) {
 				th := testh.New(t)
 				src := th.Source(handle)
 
-				ru := newRun(t, nil).add(*src)
+				ru := newRun(th.Context, t, nil).add(*src)
 
 				udDefs := testh.DriverDefsFrom(t, testsrc.PathDriverDefPpl, testsrc.PathDriverDefRSS)
 				for _, udDef := range udDefs {
@@ -146,7 +147,7 @@ func TestCmdSQL_StdinQuery(t *testing.T) {
 			f, err := os.Open(tc.fpath)
 			require.NoError(t, err)
 
-			ru := newRun(t, nil).hush()
+			ru := newRun(context.Background(), t, nil).hush()
 			ru.rc.Stdin = f
 
 			args := []string{"sql", "--header=false", "SELECT * FROM " + tc.tbl}
