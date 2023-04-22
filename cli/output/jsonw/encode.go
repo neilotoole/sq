@@ -199,10 +199,10 @@ type punc struct {
 	null []byte
 }
 
-func newPunc(fm *output.Formatting) punc {
+func newPunc(pr *output.Printing) punc {
 	var p punc
 
-	if fm == nil || fm.IsMonochrome() || !fm.Pretty {
+	if pr == nil || pr.IsMonochrome() || !pr.Pretty {
 		p.comma = append(p.comma, ',')
 		p.colon = append(p.colon, ':')
 		p.lBrace = append(p.lBrace, '{')
@@ -213,7 +213,7 @@ func newPunc(fm *output.Formatting) punc {
 		return p
 	}
 
-	clrs := internal.NewColors(fm)
+	clrs := internal.NewColors(pr)
 	p.comma = clrs.AppendPunc(p.comma, ',')
 	p.colon = clrs.AppendPunc(p.colon, ':')
 	p.lBrace = clrs.AppendPunc(p.lBrace, '{')
@@ -224,10 +224,10 @@ func newPunc(fm *output.Formatting) punc {
 	return p
 }
 
-func getFieldEncoders(recMeta sqlz.RecordMeta, fm *output.Formatting) []func(b []byte, v any) ([]byte, error) {
+func getFieldEncoders(recMeta sqlz.RecordMeta, pr *output.Printing) []func(b []byte, v any) ([]byte, error) {
 	encodeFns := make([]func(b []byte, v any) ([]byte, error), len(recMeta))
 
-	if fm.IsMonochrome() {
+	if pr.IsMonochrome() {
 		enc := monoEncoder{}
 
 		for i := 0; i < len(recMeta); i++ {
@@ -246,7 +246,7 @@ func getFieldEncoders(recMeta sqlz.RecordMeta, fm *output.Formatting) []func(b [
 		return encodeFns
 	}
 
-	clrs := internal.NewColors(fm)
+	clrs := internal.NewColors(pr)
 
 	// Else, we want color encoders
 	enc := &colorEncoder{clrs: clrs}

@@ -135,7 +135,7 @@ func checkStdinSource(ctx context.Context, rc *RunContext) (*source.Source, erro
 	typ := source.TypeNone
 	if cmd.Flags().Changed(flag.Driver) {
 		val, _ := cmd.Flags().GetString(flag.Driver)
-		typ = source.Type(val)
+		typ = source.DriverType(val)
 		if rc.registry.ProviderFor(typ) == nil {
 			return nil, errz.Errorf("unknown driver type: %s", typ)
 		}
@@ -161,7 +161,7 @@ func checkStdinSource(ctx context.Context, rc *RunContext) (*source.Source, erro
 
 // newSource creates a new Source instance where the
 // driver type is known. Opts may be nil.
-func newSource(log *slog.Logger, dp driver.Provider, typ source.Type, handle, loc string,
+func newSource(log *slog.Logger, dp driver.Provider, typ source.DriverType, handle, loc string,
 	opts options.Options,
 ) (*source.Source, error) {
 	if opts == nil {

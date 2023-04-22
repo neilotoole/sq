@@ -30,7 +30,7 @@ func TestCmdAdd(t *testing.T) {
 		driver     string // --driver flag
 		handle     string // --handle flag
 		wantHandle string
-		wantType   source.Type
+		wantType   source.DriverType
 		wantErr    bool
 	}{
 		{loc: "", wantErr: true},

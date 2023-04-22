@@ -25,7 +25,7 @@ import (
 
 const (
 	// Type is the sq source driver type for XLSX.
-	Type = source.Type("xlsx")
+	Type = source.DriverType("xlsx")
 )
 
 // Provider implements driver.Provider.
@@ -36,7 +36,7 @@ type Provider struct {
 }
 
 // DriverFor implements driver.Provider.
-func (p *Provider) DriverFor(typ source.Type) (driver.Driver, error) {
+func (p *Provider) DriverFor(typ source.DriverType) (driver.Driver, error) {
 	if typ != Type {
 		return nil, errz.Errorf("unsupported driver type {%s}", typ)
 	}
@@ -44,11 +44,11 @@ func (p *Provider) DriverFor(typ source.Type) (driver.Driver, error) {
 	return &Driver{log: p.Log, scratcher: p.Scratcher, files: p.Files}, nil
 }
 
-var _ source.TypeDetectFunc = DetectXLSX
+var _ source.DriverDetectFunc = DetectXLSX
 
-// DetectXLSX implements source.TypeDetectFunc, returning
+// DetectXLSX implements source.DriverDetectFunc, returning
 // TypeXLSX and a score of 1.0 valid XLSX.
-func DetectXLSX(ctx context.Context, openFn source.FileOpenFunc) (detected source.Type, score float32,
+func DetectXLSX(ctx context.Context, openFn source.FileOpenFunc) (detected source.DriverType, score float32,
 	err error,
 ) {
 	log := lg.FromContext(ctx)
@@ -131,14 +131,14 @@ func (d *Driver) Truncate(_ context.Context, src *source.Source, _ string, _ boo
 	// TODO: WE could actually implement Truncate for xlsx.
 	//  It would just mean deleting the rows from a sheet, and then
 	//  saving the sheet.
-	return 0, errz.Errorf("source type {%s} (%s) doesn't support dropping tables", Type, src.Handle)
+	return 0, errz.Errorf("driver type {%s} (%s) doesn't support dropping tables", Type, src.Handle)
 }
 
 // ValidateSource implements driver.Driver.
 func (d *Driver) ValidateSource(src *source.Source) (*source.Source, error) {
 	d.log.Debug("Validating source: {%s}", src.RedactedLocation())
 	if src.Type != Type {
-		return nil, errz.Errorf("expected source type {%s} but got {%s}", Type, src.Type)
+		return nil, errz.Errorf("expected driver type {%s} but got {%s}", Type, src.Type)
 	}
 
 	return src, nil

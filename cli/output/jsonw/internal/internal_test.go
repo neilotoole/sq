@@ -59,18 +59,18 @@ func TestEncode(t *testing.T) {
 		tc := tc
 
 		t.Run(tc.name, func(t *testing.T) {
-			fm := output.NewFormatting()
-			fm.Pretty = tc.pretty
-			fm.EnableColor(tc.color)
+			pr := output.NewPrinting()
+			pr.Pretty = tc.pretty
+			pr.EnableColor(tc.color)
 
 			buf := &bytes.Buffer{}
 			enc := jcolorenc.NewEncoder(buf)
 			enc.SetEscapeHTML(false)
 			enc.SetSortMapKeys(tc.sortMap)
-			enc.SetColors(internal.NewColors(fm))
+			enc.SetColors(internal.NewColors(pr))
 
-			if fm.Pretty {
-				enc.SetIndent("", fm.Indent)
+			if pr.Pretty {
+				enc.SetIndent("", pr.Indent)
 			}
 
 			require.NoError(t, enc.Encode(tc.v))
@@ -99,15 +99,15 @@ func TestEncode_Slice(t *testing.T) {
 		tc := tc
 
 		t.Run(tc.name, func(t *testing.T) {
-			fm := output.NewFormatting()
-			fm.Pretty = tc.pretty
-			fm.EnableColor(tc.color)
+			pr := output.NewPrinting()
+			pr.Pretty = tc.pretty
+			pr.EnableColor(tc.color)
 
 			buf := &bytes.Buffer{}
 			enc := jcolorenc.NewEncoder(buf)
 			enc.SetEscapeHTML(false)
-			enc.SetColors(internal.NewColors(fm))
-			if fm.Pretty {
+			enc.SetColors(internal.NewColors(pr))
+			if pr.Pretty {
 				enc.SetIndent("", "  ")
 			}
 
@@ -149,17 +149,17 @@ func TestEncode_SmallStruct(t *testing.T) {
 		tc := tc
 
 		t.Run(fmt.Sprintf("pretty_%v__color_%v", tc.pretty, tc.color), func(t *testing.T) {
-			fm := output.NewFormatting()
-			fm.Pretty = tc.pretty
-			fm.EnableColor(tc.color)
+			pr := output.NewPrinting()
+			pr.Pretty = tc.pretty
+			pr.EnableColor(tc.color)
 
 			buf := &bytes.Buffer{}
 			enc := jcolorenc.NewEncoder(buf)
 			enc.SetEscapeHTML(false)
 			enc.SetSortMapKeys(true)
-			enc.SetColors(internal.NewColors(fm))
+			enc.SetColors(internal.NewColors(pr))
 
-			if fm.Pretty {
+			if pr.Pretty {
 				enc.SetIndent("", "  ")
 			}
 
@@ -204,17 +204,17 @@ func TestEncode_Map_Nested(t *testing.T) {
 		tc := tc
 
 		t.Run(fmt.Sprintf("pretty_%v__color_%v", tc.pretty, tc.color), func(t *testing.T) {
-			fm := output.NewFormatting()
-			fm.Pretty = tc.pretty
-			fm.EnableColor(tc.color)
+			pr := output.NewPrinting()
+			pr.Pretty = tc.pretty
+			pr.EnableColor(tc.color)
 
 			buf := &bytes.Buffer{}
 			enc := jcolorenc.NewEncoder(buf)
 			enc.SetEscapeHTML(false)
 			enc.SetSortMapKeys(true)
-			enc.SetColors(internal.NewColors(fm))
+			enc.SetColors(internal.NewColors(pr))
 
-			if fm.Pretty {
+			if pr.Pretty {
 				enc.SetIndent("", "  ")
 			}
 
@@ -257,17 +257,17 @@ func TestEncode_Map_StringNotInterface(t *testing.T) {
 		tc := tc
 
 		t.Run(fmt.Sprintf("size_%d__pretty_%v__color_%v", len(tc.v), tc.pretty, tc.color), func(t *testing.T) {
-			fm := output.NewFormatting()
-			fm.Pretty = tc.pretty
-			fm.EnableColor(tc.color)
+			pr := output.NewPrinting()
+			pr.Pretty = tc.pretty
+			pr.EnableColor(tc.color)
 
 			buf := &bytes.Buffer{}
 			enc := jcolorenc.NewEncoder(buf)
 			enc.SetEscapeHTML(false)
 			enc.SetSortMapKeys(tc.sortMap)
-			enc.SetColors(internal.NewColors(fm))
-			if fm.Pretty {
-				enc.SetIndent("", fm.Indent)
+			enc.SetColors(internal.NewColors(pr))
+			if pr.Pretty {
+				enc.SetIndent("", pr.Indent)
 			}
 
 			require.NoError(t, enc.Encode(tc.v))
@@ -305,17 +305,17 @@ func TestEncode_RawMessage(t *testing.T) {
 		tc := tc
 
 		t.Run(tc.name, func(t *testing.T) {
-			fm := output.NewFormatting()
-			fm.Pretty = tc.pretty
-			fm.EnableColor(tc.color)
+			pr := output.NewPrinting()
+			pr.Pretty = tc.pretty
+			pr.EnableColor(tc.color)
 
 			buf := &bytes.Buffer{}
 			enc := jcolorenc.NewEncoder(buf)
 			enc.SetEscapeHTML(false)
 			enc.SetSortMapKeys(true)
-			enc.SetColors(internal.NewColors(fm))
-			if fm.Pretty {
-				enc.SetIndent("", fm.Indent)
+			enc.SetColors(internal.NewColors(pr))
+			if pr.Pretty {
+				enc.SetIndent("", pr.Indent)
 			}
 
 			err := enc.Encode(tc.v)
@@ -362,17 +362,17 @@ func TestEncode_Map_StringRawMessage(t *testing.T) {
 
 		name := fmt.Sprintf("size_%d__pretty_%v__color_%v__sort_%v", len(tc.v), tc.pretty, tc.color, tc.sortMap)
 		t.Run(name, func(t *testing.T) {
-			fm := output.NewFormatting()
-			fm.Pretty = tc.pretty
-			fm.EnableColor(tc.color)
+			pr := output.NewPrinting()
+			pr.Pretty = tc.pretty
+			pr.EnableColor(tc.color)
 
 			buf := &bytes.Buffer{}
 			enc := jcolorenc.NewEncoder(buf)
 			enc.SetEscapeHTML(false)
 			enc.SetSortMapKeys(tc.sortMap)
-			enc.SetColors(internal.NewColors(fm))
-			if fm.Pretty {
-				enc.SetIndent("", fm.Indent)
+			enc.SetColors(internal.NewColors(pr))
+			if pr.Pretty {
+				enc.SetIndent("", pr.Indent)
 			}
 
 			require.NoError(t, enc.Encode(tc.v))
@@ -404,17 +404,17 @@ func TestEncode_BigStruct(t *testing.T) {
 		tc := tc
 
 		t.Run(fmt.Sprintf("pretty_%v__color_%v", tc.pretty, tc.color), func(t *testing.T) {
-			fm := output.NewFormatting()
-			fm.Pretty = tc.pretty
-			fm.EnableColor(tc.color)
+			pr := output.NewPrinting()
+			pr.Pretty = tc.pretty
+			pr.EnableColor(tc.color)
 
 			buf := &bytes.Buffer{}
 			enc := jcolorenc.NewEncoder(buf)
 			enc.SetEscapeHTML(false)
 			enc.SetSortMapKeys(true)
-			enc.SetColors(internal.NewColors(fm))
+			enc.SetColors(internal.NewColors(pr))
 
-			if fm.Pretty {
+			if pr.Pretty {
 				enc.SetIndent("", "  ")
 			}
 
@@ -434,16 +434,16 @@ func TestEncode_BigStruct(t *testing.T) {
 //	for non-string map keys. It's possible we don't actually need
 //	to address this for sq purposes.
 func TestEncode_Map_Not_StringInterface(t *testing.T) {
-	fm := output.NewFormatting()
-	fm.Pretty = true
-	fm.EnableColor(true)
+	pr := output.NewPrinting()
+	pr.Pretty = true
+	pr.EnableColor(true)
 
 	buf := &bytes.Buffer{}
 	enc := jcolorenc.NewEncoder(buf)
 	enc.SetEscapeHTML(false)
 	enc.SetSortMapKeys(true)
-	enc.SetColors(internal.NewColors(fm))
-	if fm.Pretty {
+	enc.SetColors(internal.NewColors(pr))
+	if pr.Pretty {
 		enc.SetIndent("", "  ")
 	}
 

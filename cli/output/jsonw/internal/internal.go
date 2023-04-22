@@ -103,20 +103,20 @@ func newColor(c *fcolor.Color) Color {
 	return Color{Prefix: b[:i], Suffix: b[i+1:]}
 }
 
-// NewColors builds a Colors instance from a Formatting instance.
-func NewColors(fm *output.Formatting) Colors {
-	if fm == nil || fm.IsMonochrome() {
+// NewColors builds a Colors instance from a Printing instance.
+func NewColors(pr *output.Printing) Colors {
+	if pr == nil || pr.IsMonochrome() {
 		return Colors{}
 	}
 
 	return Colors{
-		Null:   newColor(fm.Null),
-		Bool:   newColor(fm.Bool),
-		Bytes:  newColor(fm.Bytes),
-		Number: newColor(fm.Number),
-		String: newColor(fm.String),
-		Time:   newColor(fm.Datetime),
-		Key:    newColor(fm.Key),
-		Punc:   newColor(fm.Punc),
+		Null:   newColor(pr.Null),
+		Bool:   newColor(pr.Bool),
+		Bytes:  newColor(pr.Bytes),
+		Number: newColor(pr.Number),
+		String: newColor(pr.String),
+		Time:   newColor(pr.Datetime),
+		Key:    newColor(pr.Key),
+		Punc:   newColor(pr.Punc),
 	}
 }

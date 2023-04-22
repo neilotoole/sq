@@ -13,12 +13,12 @@ var _ output.ConfigWriter = (*configWriter)(nil)
 // configWriter implements output.ConfigWriter.
 type configWriter struct {
 	out io.Writer
-	fm  *output.Formatting
+	pr  *output.Printing
 }
 
 // NewConfigWriter returns a new output.ConfigWriter.
-func NewConfigWriter(out io.Writer, fm *output.Formatting) output.ConfigWriter {
-	return &configWriter{out: out, fm: fm}
+func NewConfigWriter(out io.Writer, pr *output.Printing) output.ConfigWriter {
+	return &configWriter{out: out, pr: pr}
 }
 
 // Location implements output.ConfigWriter.
@@ -33,7 +33,7 @@ func (w *configWriter) Location(loc, origin string) error {
 		Origin:   origin,
 	}
 
-	return writeJSON(w.out, w.fm, c)
+	return writeJSON(w.out, w.pr, c)
 }
 
 // Options implements output.ConfigWriter.
@@ -42,5 +42,5 @@ func (w *configWriter) Options(opts *config.Options) error {
 		return nil
 	}
 
-	return writeJSON(w.out, w.fm, opts)
+	return writeJSON(w.out, w.pr, opts)
 }

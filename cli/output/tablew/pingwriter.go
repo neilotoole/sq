@@ -14,14 +14,14 @@ import (
 
 // NewPingWriter returns a new instance. It is not safe for
 // concurrent use.
-func NewPingWriter(out io.Writer, fm *output.Formatting) *PingWriter {
-	return &PingWriter{out: out, fm: fm}
+func NewPingWriter(out io.Writer, pr *output.Printing) *PingWriter {
+	return &PingWriter{out: out, pr: pr}
 }
 
 // PingWriter implements output.PingWriter.
 type PingWriter struct {
 	out io.Writer
-	fm  *output.Formatting
+	pr  *output.Printing
 
 	// handleLenMax is the maximum width of
 	// the sources' handles.
@@ -40,7 +40,7 @@ func (w *PingWriter) Open(srcs []*source.Source) error {
 
 // Result implements output.PingWriter.
 func (w *PingWriter) Result(src *source.Source, d time.Duration, err error) error {
-	w.fm.Number.Fprintf(w.out, "%-"+strconv.Itoa(w.handleWidthMax)+"s", src.Handle)
+	w.pr.Number.Fprintf(w.out, "%-"+strconv.Itoa(w.handleWidthMax)+"s", src.Handle)
 	fmt.Fprintf(w.out, "%10s  ", d.Truncate(time.Millisecond).String())
 
 	// The ping result is one of:
@@ -50,15 +50,15 @@ func (w *PingWriter) Result(src *source.Source, d time.Duration, err error) erro
 
 	switch {
 	case err == nil:
-		w.fm.Success.Fprintf(w.out, "pong")
+		w.pr.Success.Fprintf(w.out, "pong")
 
 	case errors.Is(err, context.DeadlineExceeded):
-		w.fm.Error.Fprintf(w.out, "fail")
+		w.pr.Error.Fprintf(w.out, "fail")
 		// Special rendering for timeout error
 		fmt.Fprint(w.out, "  timeout exceeded")
 
 	default: // err other than timeout err
-		w.fm.Error.Fprintf(w.out, "fail")
+		w.pr.Error.Fprintf(w.out, "fail")
 		fmt.Fprintf(w.out, "  %s", err)
 	}
 

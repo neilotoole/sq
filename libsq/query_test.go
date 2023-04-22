@@ -44,11 +44,11 @@ type queryTestCase struct {
 	// override allows an alternative "wantSQL" for a specific driver type.
 	// For example, MySQL uses backtick as the quote char, so it needs
 	// a separate wantSQL string.
-	override map[source.Type]string
+	override map[source.DriverType]string
 
 	// onlyFor indicates that this test should only run on sources of
 	// the specified types. When empty, the test is executed on all types.
-	onlyFor []source.Type
+	onlyFor []source.DriverType
 
 	// skipExec indicates that the resulting query should not be executed.
 	// Some SLQ inputs we wantSQL to test don't actually have corresponding

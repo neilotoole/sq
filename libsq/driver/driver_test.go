@@ -333,7 +333,7 @@ func TestNewBatchInsert(t *testing.T) {
 }
 
 // coreDrivers is a slice of the core driver types.
-var coreDrivers = []source.Type{
+var coreDrivers = []source.DriverType{
 	postgres.Type,
 	sqlserver.Type,
 	sqlite3.Type,
@@ -344,7 +344,7 @@ var coreDrivers = []source.Type{
 }
 
 // sqlDrivers is a slice of the SQL driver types.
-var sqlDrivers = []source.Type{
+var sqlDrivers = []source.DriverType{
 	postgres.Type,
 	sqlserver.Type,
 	sqlite3.Type,
@@ -352,7 +352,7 @@ var sqlDrivers = []source.Type{
 }
 
 // docDrivers is a slice of the doc driver types.
-var docDrivers = []source.Type{
+var docDrivers = []source.DriverType{
 	csv.TypeCSV,
 	csv.TypeTSV,
 	xlsx.Type,
@@ -365,7 +365,7 @@ func TestRegistry_DriversMetadata_All(t *testing.T) {
 	metas := reg.DriversMetadata()
 	require.Equal(t, len(metas), len(reg.Drivers()))
 
-	m := map[source.Type]driver.Metadata{}
+	m := map[source.DriverType]driver.Metadata{}
 	for i := range metas {
 		m[metas[i].Type] = metas[i]
 	}

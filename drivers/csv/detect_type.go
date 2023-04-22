@@ -14,27 +14,27 @@ import (
 )
 
 var (
-	_ source.TypeDetectFunc = DetectCSV
-	_ source.TypeDetectFunc = DetectTSV
+	_ source.DriverDetectFunc = DetectCSV
+	_ source.DriverDetectFunc = DetectTSV
 )
 
-// DetectCSV implements source.TypeDetectFunc.
-func DetectCSV(ctx context.Context, openFn source.FileOpenFunc) (detected source.Type, score float32,
+// DetectCSV implements source.DriverDetectFunc.
+func DetectCSV(ctx context.Context, openFn source.FileOpenFunc) (detected source.DriverType, score float32,
 	err error,
 ) {
 	return detectType(ctx, TypeCSV, openFn)
 }
 
-// DetectTSV implements source.TypeDetectFunc.
-func DetectTSV(ctx context.Context, openFn source.FileOpenFunc) (detected source.Type,
+// DetectTSV implements source.DriverDetectFunc.
+func DetectTSV(ctx context.Context, openFn source.FileOpenFunc) (detected source.DriverType,
 	score float32, err error,
 ) {
 	return detectType(ctx, TypeTSV, openFn)
 }
 
-func detectType(ctx context.Context, typ source.Type,
+func detectType(ctx context.Context, typ source.DriverType,
 	openFn source.FileOpenFunc,
-) (detected source.Type, score float32, err error) {
+) (detected source.DriverType, score float32, err error) {
 	log := lg.FromContext(ctx)
 	var r io.ReadCloser
 	r, err = openFn()

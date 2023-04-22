@@ -24,7 +24,7 @@ func TestCmdInspect(t *testing.T) {
 	testCases := []struct {
 		handle   string
 		wantErr  bool
-		wantType source.Type
+		wantType source.DriverType
 		wantTbls []string
 	}{
 		{
@@ -117,7 +117,7 @@ func TestCmdInspect_Stdin(t *testing.T) {
 	testCases := []struct {
 		fpath    string
 		wantErr  bool
-		wantType source.Type
+		wantType source.DriverType
 		wantTbls []string
 	}{
 		{fpath: proj.Abs(sakila.PathCSVActor), wantType: csv.TypeCSV, wantTbls: []string{source.MonotableName}},

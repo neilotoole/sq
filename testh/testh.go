@@ -154,7 +154,7 @@ func (h *Helper) init() {
 			assert.NoError(h.T, err)
 		})
 
-		h.files.AddTypeDetectors(source.DetectMagicNumber)
+		h.files.AddDriverDetectors(source.DetectMagicNumber)
 
 		h.databases = driver.NewDatabases(log, h.registry, sqlite3.NewScratchSource)
 		h.Cleanup.AddC(h.databases)
@@ -169,16 +169,16 @@ func (h *Helper) init() {
 		csvp := &csv.Provider{Log: log, Scratcher: h.databases, Files: h.files}
 		h.registry.AddProvider(csv.TypeCSV, csvp)
 		h.registry.AddProvider(csv.TypeTSV, csvp)
-		h.files.AddTypeDetectors(csv.DetectCSV, csv.DetectTSV)
+		h.files.AddDriverDetectors(csv.DetectCSV, csv.DetectTSV)
 
 		jsonp := &json.Provider{Log: log, Scratcher: h.databases, Files: h.files}
 		h.registry.AddProvider(json.TypeJSON, jsonp)
 		h.registry.AddProvider(json.TypeJSONA, jsonp)
 		h.registry.AddProvider(json.TypeJSONL, jsonp)
-		h.files.AddTypeDetectors(json.DetectJSON, json.DetectJSONA, json.DetectJSONL)
+		h.files.AddDriverDetectors(json.DetectJSON, json.DetectJSONA, json.DetectJSONL)
 
 		h.registry.AddProvider(xlsx.Type, &xlsx.Provider{Log: log, Scratcher: h.databases, Files: h.files})
-		h.files.AddTypeDetectors(xlsx.DetectXLSX)
+		h.files.AddDriverDetectors(xlsx.DetectXLSX)
 
 		h.addUserDrivers()
 	})
@@ -200,7 +200,7 @@ func (h *Helper) Close() {
 // instance of *source.Source will be returned for multiple invocations
 // of this method on the same Helper instance.
 //
-// For certain file-based source types, the returned src's Location
+// For certain file-based driver types, the returned src's Location
 // may point to a copy of the file. This helps avoid tests dirtying
 // a version-controlled data file.
 //
@@ -624,8 +624,8 @@ func (h *Helper) addUserDrivers() {
 			Files:     h.files,
 		}
 
-		h.registry.AddProvider(source.Type(userDriverDef.Name), udp)
-		h.files.AddTypeDetectors(udp.TypeDetectors()...)
+		h.registry.AddProvider(source.DriverType(userDriverDef.Name), udp)
+		h.files.AddDriverDetectors(udp.Detectors()...)
 	}
 }
 
@@ -659,7 +659,7 @@ func (h *Helper) Files() *source.Files {
 // returned by Helper.Source.
 func (h *Helper) DiffDB(src *source.Source) {
 	if !h.DriverFor(src).DriverMetadata().IsSQL {
-		// SkipDiffDB for non-SQL source types
+		// SkipDiffDB for non-SQL driver types
 		return
 	}
 
@@ -717,9 +717,9 @@ func DriverDefsFrom(t testing.TB, cfgFiles ...string) []*userdriver.DriverDef {
 	return userDriverDefs
 }
 
-// TypeDetectors returns the common set of TypeDetectorFuncs.
-func TypeDetectors() []source.TypeDetectFunc {
-	return []source.TypeDetectFunc{
+// DriverDetectors returns the common set of TypeDetectorFuncs.
+func DriverDetectors() []source.DriverDetectFunc {
+	return []source.DriverDetectFunc{
 		source.DetectMagicNumber,
 		xlsx.DetectXLSX,
 		csv.DetectCSV, csv.DetectTSV,

@@ -17,16 +17,16 @@ import (
 	"github.com/neilotoole/sq/libsq/core/options"
 )
 
-// Type is a source type, e.g. "mysql", "postgres", "csv", etc.
-type Type string
+// DriverType is a driver type, e.g. "mysql", "postgres", "csv", etc.
+type DriverType string
 
 // String returns a log/debug-friendly representation.
-func (t Type) String() string {
+func (t DriverType) String() string {
 	return string(t)
 }
 
-// TypeNone is the zero value of driver.Type.
-const TypeNone = Type("")
+// TypeNone is the zero value of DriverType.
+const TypeNone = DriverType("")
 
 const (
 	// StdinHandle is the reserved handle for stdin pipe input.
@@ -71,7 +71,7 @@ type Source struct {
 	Handle string `yaml:"handle" json:"handle"`
 
 	// Type is the driver type, e.g. postgres.Type.
-	Type Type `yaml:"driver" json:"driver"`
+	Type DriverType `yaml:"driver" json:"driver"`
 
 	// Location is the source location, such as a DB connection URI,
 	// or a file path.
@@ -198,13 +198,13 @@ func (s *Source) ShortLocation() string {
 }
 
 const (
-	typeSL3  = Type("sqlite3")
-	typePg   = Type("postgres")
-	typeMS   = Type("sqlserver")
-	typeMy   = Type("mysql")
-	typeXLSX = Type("xlsx")
-	typeCSV  = Type("csv")
-	typeTSV  = Type("tsv")
+	typeSL3  = DriverType("sqlite3")
+	typePg   = DriverType("postgres")
+	typeMS   = DriverType("sqlserver")
+	typeMy   = DriverType("mysql")
+	typeXLSX = DriverType("xlsx")
+	typeCSV  = DriverType("csv")
+	typeTSV  = DriverType("tsv")
 )
 
 // typeFromMediaType returns the driver type corresponding to mediatype.
@@ -216,7 +216,7 @@ const (
 // Note that we don't rely on this function for types such
 // as application/json, because JSON can map to multiple
 // driver types (json, jsona, jsonl).
-func typeFromMediaType(mediatype string) (typ Type, ok bool) {
+func typeFromMediaType(mediatype string) (typ DriverType, ok bool) {
 	switch {
 	case strings.Contains(mediatype, `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`):
 		return typeXLSX, true

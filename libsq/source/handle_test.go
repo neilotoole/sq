@@ -93,7 +93,7 @@ func TestValidHandle(t *testing.T) {
 
 func TestSuggestHandle(t *testing.T) {
 	testCases := []struct {
-		typ   source.Type
+		typ   source.DriverType
 		loc   string
 		want  string
 		taken []string

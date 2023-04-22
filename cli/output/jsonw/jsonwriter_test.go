@@ -83,7 +83,7 @@ func TestRecordWriters(t *testing.T) {
 		name      string
 		pretty    bool
 		color     bool
-		factoryFn func(io.Writer, *output.Formatting) output.RecordWriter
+		factoryFn func(io.Writer, *output.Printing) output.RecordWriter
 		multiline bool
 		want      string
 	}{
@@ -152,11 +152,11 @@ func TestRecordWriters(t *testing.T) {
 			}
 
 			buf := &bytes.Buffer{}
-			fm := output.NewFormatting()
-			fm.EnableColor(tc.color)
-			fm.Pretty = tc.pretty
+			pr := output.NewPrinting()
+			pr.EnableColor(tc.color)
+			pr.Pretty = tc.pretty
 
-			w := tc.factoryFn(buf, fm)
+			w := tc.factoryFn(buf, pr)
 
 			require.NoError(t, w.Open(recMeta))
 			require.NoError(t, w.WriteRecords(recs))
@@ -203,11 +203,11 @@ func TestErrorWriter(t *testing.T) {
 
 		t.Run(t.Name(), func(t *testing.T) {
 			buf := &bytes.Buffer{}
-			fm := output.NewFormatting()
-			fm.Pretty = tc.pretty
-			fm.EnableColor(tc.color)
+			pr := output.NewPrinting()
+			pr.Pretty = tc.pretty
+			pr.EnableColor(tc.color)
 
-			errw := jsonw.NewErrorWriter(slogt.New(t), buf, fm)
+			errw := jsonw.NewErrorWriter(slogt.New(t), buf, pr)
 			errw.Error(errz.New("err1"))
 			got := buf.String()
 

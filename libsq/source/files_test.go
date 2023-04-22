@@ -34,7 +34,7 @@ import (
 func TestFiles_Type(t *testing.T) {
 	testCases := []struct {
 		loc      string
-		wantType source.Type
+		wantType source.DriverType
 		wantErr  bool
 	}{
 		{loc: proj.Expand("sqlite3://${SQ_ROOT}/drivers/sqlite3/testdata/sakila.db"), wantType: sqlite3.Type},
@@ -58,9 +58,9 @@ func TestFiles_Type(t *testing.T) {
 		t.Run(tc.loc, func(t *testing.T) {
 			fs, err := source.NewFiles(slogt.New(t))
 			require.NoError(t, err)
-			fs.AddTypeDetectors(testh.TypeDetectors()...)
+			fs.AddDriverDetectors(testh.DriverDetectors()...)
 
-			gotType, gotErr := fs.Type(context.Background(), tc.loc)
+			gotType, gotErr := fs.DriverType(context.Background(), tc.loc)
 			if tc.wantErr {
 				require.Error(t, gotErr)
 				return
@@ -75,7 +75,7 @@ func TestFiles_Type(t *testing.T) {
 func TestFiles_DetectType(t *testing.T) {
 	testCases := []struct {
 		loc      string
-		wantType source.Type
+		wantType source.DriverType
 		wantOK   bool
 		wantErr  bool
 	}{
@@ -100,7 +100,7 @@ func TestFiles_DetectType(t *testing.T) {
 			ctx := context.Background()
 			fs, err := source.NewFiles(slogt.New(t))
 			require.NoError(t, err)
-			fs.AddTypeDetectors(testh.TypeDetectors()...)
+			fs.AddDriverDetectors(testh.DriverDetectors()...)
 
 			typ, ok, err := source.FilesDetectTypeFn(fs, ctx, tc.loc)
 			if tc.wantErr {
@@ -118,7 +118,7 @@ func TestFiles_DetectType(t *testing.T) {
 func TestDetectMagicNumber(t *testing.T) {
 	testCases := []struct {
 		loc       string
-		wantType  source.Type
+		wantType  source.DriverType
 		wantScore float32
 		wantErr   bool
 	}{
@@ -182,7 +182,7 @@ func TestFiles_NewReader(t *testing.T) {
 func TestFiles_Stdin(t *testing.T) {
 	testCases := []struct {
 		fpath    string
-		wantType source.Type
+		wantType source.DriverType
 		wantErr  bool
 	}{
 		{fpath: proj.Abs(sakila.PathCSVActor), wantType: csv.TypeCSV},

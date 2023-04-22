@@ -73,7 +73,7 @@ there instead of prompting the user:
   $ sq add 'postgres://user@localhost/sakila' -p < password.txt
 
 Flag --opts sets source-specific options. Generally, opts are relevant
-to document source types (such as a CSV file). The most common
+to document driver types (such as a CSV file). The most common
 use is to specify that the document has a header row:
 
   $ sq add actor.csv --opts=header=true
@@ -154,23 +154,23 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 
 	loc := source.AbsLocation(strings.TrimSpace(args[0]))
 	var err error
-	var typ source.Type
+	var typ source.DriverType
 
 	if cmdFlagChanged(cmd, flag.Driver) {
 		val, _ := cmd.Flags().GetString(flag.Driver)
-		typ = source.Type(strings.TrimSpace(val))
+		typ = source.DriverType(strings.TrimSpace(val))
 	} else {
-		typ, err = rc.files.Type(cmd.Context(), loc)
+		typ, err = rc.files.DriverType(cmd.Context(), loc)
 		if err != nil {
 			return err
 		}
 		if typ == source.TypeNone {
-			return errz.Errorf("unable to determine source type: use --driver flag")
+			return errz.Errorf("unable to determine driver type: use --driver flag")
 		}
 	}
 
 	if rc.registry.ProviderFor(typ) == nil {
-		return errz.Errorf("unsupported source type {%s}", typ)
+		return errz.Errorf("unsupported driver type {%s}", typ)
 	}
 
 	var handle string
@@ -219,7 +219,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 	// or sq prompts the user.
 	if cmdFlagTrue(cmd, flag.PasswordPrompt) {
 		var passwd []byte
-		passwd, err = readPassword(cmd.Context(), rc.Stdin, rc.Out, rc.writers.fm)
+		passwd, err = readPassword(cmd.Context(), rc.Stdin, rc.Out, rc.writers.pr)
 		if err != nil {
 			return err
 		}
@@ -273,7 +273,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 // readPassword reads a password from stdin pipe, or if nothing on stdin,
 // it prints a prompt to stdout, and then accepts input (which must be
 // followed by a return).
-func readPassword(ctx context.Context, stdin *os.File, stdout io.Writer, fm *output.Formatting) ([]byte, error) {
+func readPassword(ctx context.Context, stdin *os.File, stdout io.Writer, pr *output.Printing) ([]byte, error) {
 	resultCh := make(chan []byte)
 	errCh := make(chan error)
 
@@ -297,7 +297,7 @@ func readPassword(ctx context.Context, stdin *os.File, stdout io.Writer, fm *out
 	go func() {
 		buf := &bytes.Buffer{}
 		fmt.Fprint(buf, "Password: ")
-		fm.Faint.Fprint(buf, "[ENTER]")
+		pr.Faint.Fprint(buf, "[ENTER]")
 		fmt.Fprint(buf, " ")
 		stdout.Write(buf.Bytes())
 

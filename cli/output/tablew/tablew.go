@@ -28,7 +28,7 @@ import (
 
 // table encapsulates our table implementation.
 type table struct {
-	fm     *output.Formatting
+	pr     *output.Printing
 	out    io.Writer
 	header bool
 
@@ -43,7 +43,7 @@ func (t *table) renderResultCell(knd kind.Kind, val any) string { //nolint:funle
 		if !val.Valid {
 			return t.sprintNull()
 		}
-		return t.fm.String.Sprint(val.String)
+		return t.pr.String.Sprint(val.String)
 	case *string:
 		if val == nil {
 			return t.sprintNull()
@@ -55,15 +55,15 @@ func (t *table) renderResultCell(knd kind.Kind, val any) string { //nolint:funle
 
 		switch knd { //nolint:exhaustive // ignore kind.Unknown and kind.Null
 		case kind.Datetime, kind.Date, kind.Time:
-			return t.fm.Datetime.Sprint(*val)
+			return t.pr.Datetime.Sprint(*val)
 		case kind.Decimal, kind.Float, kind.Int:
-			return t.fm.Number.Sprint(*val)
+			return t.pr.Number.Sprint(*val)
 		case kind.Bool:
-			return t.fm.Bool.Sprint(*val)
+			return t.pr.Bool.Sprint(*val)
 		case kind.Bytes:
 			return t.sprintBytes([]byte(*val))
 		case kind.Text:
-			return t.fm.String.Sprint(*val)
+			return t.pr.String.Sprint(*val)
 		default:
 			// Shouldn't happen
 			return *val
@@ -90,7 +90,7 @@ func (t *table) renderResultCell(knd kind.Kind, val any) string { //nolint:funle
 		return t.sprintFloat64(float64(*val))
 	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
 		s := fmt.Sprintf("%d", val)
-		return t.fm.Number.Sprint(s)
+		return t.pr.Number.Sprint(s)
 	case *int:
 		if val == nil {
 			return t.sprintNull()
@@ -147,12 +147,12 @@ func (t *table) renderResultCell(knd kind.Kind, val any) string { //nolint:funle
 		}
 		return t.sprintInt64(val.Int64)
 	case bool:
-		return t.fm.Bool.Sprint(strconv.FormatBool(val))
+		return t.pr.Bool.Sprint(strconv.FormatBool(val))
 	case *bool:
 		if val == nil {
 			return t.sprintNull()
 		}
-		return t.fm.Bool.Sprint(strconv.FormatBool(*val))
+		return t.pr.Bool.Sprint(strconv.FormatBool(*val))
 	case *time.Time:
 		if val == nil {
 			return t.sprintNull()
@@ -168,13 +168,13 @@ func (t *table) renderResultCell(knd kind.Kind, val any) string { //nolint:funle
 			s = val.Format(stringz.DateFormat)
 		}
 
-		return t.fm.Datetime.Sprint(s)
+		return t.pr.Datetime.Sprint(s)
 
 	case *sql.NullBool:
 		if !val.Valid {
 			return t.sprintNull()
 		}
-		return t.fm.Bool.Sprint(strconv.FormatBool(val.Bool))
+		return t.pr.Bool.Sprint(strconv.FormatBool(val.Bool))
 	case nil:
 		return t.sprintNull()
 	case []byte:
@@ -198,19 +198,19 @@ func (t *table) renderResultCell(knd kind.Kind, val any) string { //nolint:funle
 
 func (t *table) sprintBytes(b []byte) string {
 	s := fmt.Sprintf("[%d bytes]", len(b))
-	return t.fm.Bytes.Sprint(s)
+	return t.pr.Bytes.Sprint(s)
 }
 
 func (t *table) sprintNull() string {
-	return t.fm.Null.Sprint("NULL")
+	return t.pr.Null.Sprint("NULL")
 }
 
 func (t *table) sprintInt64(num int64) string {
-	return t.fm.Number.Sprint(strconv.FormatInt(num, 10))
+	return t.pr.Number.Sprint(strconv.FormatInt(num, 10))
 }
 
 func (t *table) sprintFloat64(num float64) string {
-	return t.fm.Number.Sprint(stringz.FormatFloat(num))
+	return t.pr.Number.Sprint(stringz.FormatFloat(num))
 }
 
 // reset resets the table internals.
@@ -232,7 +232,7 @@ func (t *table) setTableWriterOptions() {
 	t.tblImpl.SetBorders(internal.Border{Left: false, Top: false, Right: false, Bottom: false})
 	t.tblImpl.SetAutoFormatHeaders(false)
 	t.tblImpl.SetHeaderDisable(!t.header)
-	t.tblImpl.SetHeaderTrans(t.fm.Header.SprintFunc())
+	t.tblImpl.SetHeaderTrans(t.pr.Header.SprintFunc())
 }
 
 func (t *table) appendRowsAndRenderAll(rows [][]string) {

@@ -29,11 +29,11 @@ type Metadata struct {
 	Schema string `json:"schema,omitempty"`
 
 	// SourceType is the source driver type.
-	SourceType Type `json:"driver"`
+	SourceType DriverType `json:"driver"`
 
 	// DBDriverType is the type of the underling DB driver.
 	// This is the same value as SourceType for SQL database types.
-	DBDriverType Type `json:"db_driver"`
+	DBDriverType DriverType `json:"db_driver"`
 
 	// DBProduct is the DB product string, such as "PostgreSQL 9.6.17 on x86_64-pc-linux-gnu".
 	DBProduct string `json:"db_product"`

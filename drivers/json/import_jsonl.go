@@ -18,8 +18,10 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 )
 
-// DetectJSONL implements source.TypeDetectFunc.
-func DetectJSONL(ctx context.Context, openFn source.FileOpenFunc) (detected source.Type, score float32, err error) {
+// DetectJSONL implements source.DriverDetectFunc.
+func DetectJSONL(ctx context.Context, openFn source.FileOpenFunc) (detected source.DriverType,
+	score float32, err error,
+) {
 	log := lg.FromContext(ctx)
 	var r io.ReadCloser
 	r, err = openFn()

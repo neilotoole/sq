@@ -24,7 +24,7 @@ import (
 
 // writers is a container for the various output writers.
 type writers struct {
-	fm *output.Formatting
+	pr *output.Printing
 
 	recordw  output.RecordWriter
 	metaw    output.MetadataWriter
@@ -38,11 +38,10 @@ type writers struct {
 // newWriters returns a writers instance configured per defaults and/or
 // flags from cmd. The returned out2/errOut2 values may differ
 // from the out/errOut args (e.g. decorated to support colorization).
-func newWriters(cmd *cobra.Command, opts config.Options, out,
-	errOut io.Writer,
+func newWriters(cmd *cobra.Command, opts config.Options, out, errOut io.Writer,
 ) (w *writers, out2, errOut2 io.Writer) {
-	var fm *output.Formatting
-	fm, out2, errOut2 = getWriterFormatting(cmd, &opts, out, errOut)
+	var pr *output.Printing
+	pr, out2, errOut2 = getPrinting(cmd, &opts, out, errOut)
 	log := lg.FromContext(cmd.Context())
 
 	// Package tablew has writer impls for each of the writer interfaces,
@@ -50,47 +49,48 @@ func newWriters(cmd *cobra.Command, opts config.Options, out,
 	// flags and set the various writer fields depending upon which
 	// writers the format implements.
 	w = &writers{
-		fm:       fm,
-		recordw:  tablew.NewRecordWriter(out2, fm),
-		metaw:    tablew.NewMetadataWriter(out2, fm),
-		srcw:     tablew.NewSourceWriter(out2, fm),
-		pingw:    tablew.NewPingWriter(out2, fm),
-		errw:     tablew.NewErrorWriter(errOut2, fm),
-		versionw: tablew.NewVersionWriter(out2, fm),
-		configw:  tablew.NewConfigWriter(out2, fm),
+		pr:       pr,
+		recordw:  tablew.NewRecordWriter(out2, pr),
+		metaw:    tablew.NewMetadataWriter(out2, pr),
+		srcw:     tablew.NewSourceWriter(out2, pr),
+		pingw:    tablew.NewPingWriter(out2, pr),
+		errw:     tablew.NewErrorWriter(errOut2, pr),
+		versionw: tablew.NewVersionWriter(out2, pr),
+		configw:  tablew.NewConfigWriter(out2, pr),
 	}
 
 	// Invoke getFormat to see if the format was specified
 	// via config or flag.
 	format := getFormat(cmd, opts)
 
-	switch format { //nolint:exhaustive
+	//nolint:exhaustive
+	switch format {
 	default:
 		// No format specified, use JSON
-		w.recordw = jsonw.NewStdRecordWriter(out2, fm)
-		w.metaw = jsonw.NewMetadataWriter(out2, fm)
-		w.srcw = jsonw.NewSourceWriter(out2, fm)
-		w.errw = jsonw.NewErrorWriter(log, errOut2, fm)
-		w.versionw = jsonw.NewVersionWriter(out2, fm)
-		w.pingw = jsonw.NewPingWriter(out2, fm)
-		w.configw = jsonw.NewConfigWriter(out2, fm)
+		w.recordw = jsonw.NewStdRecordWriter(out2, pr)
+		w.metaw = jsonw.NewMetadataWriter(out2, pr)
+		w.srcw = jsonw.NewSourceWriter(out2, pr)
+		w.errw = jsonw.NewErrorWriter(log, errOut2, pr)
+		w.versionw = jsonw.NewVersionWriter(out2, pr)
+		w.pingw = jsonw.NewPingWriter(out2, pr)
+		w.configw = jsonw.NewConfigWriter(out2, pr)
 
 	case config.FormatTable:
 	// Table is the base format, already set above, no need to do anything.
 
 	case config.FormatTSV:
-		w.recordw = csvw.NewRecordWriter(out2, fm.ShowHeader, csvw.Tab)
+		w.recordw = csvw.NewRecordWriter(out2, pr.ShowHeader, csvw.Tab)
 		w.pingw = csvw.NewPingWriter(out2, csvw.Tab)
 
 	case config.FormatCSV:
-		w.recordw = csvw.NewRecordWriter(out2, fm.ShowHeader, csvw.Comma)
+		w.recordw = csvw.NewRecordWriter(out2, pr.ShowHeader, csvw.Comma)
 		w.pingw = csvw.NewPingWriter(out2, csvw.Comma)
 
 	case config.FormatXML:
-		w.recordw = xmlw.NewRecordWriter(out2, fm)
+		w.recordw = xmlw.NewRecordWriter(out2, pr)
 
 	case config.FormatXLSX:
-		w.recordw = xlsxw.NewRecordWriter(out2, fm.ShowHeader)
+		w.recordw = xlsxw.NewRecordWriter(out2, pr.ShowHeader)
 
 	case config.FormatRaw:
 		w.recordw = raww.NewRecordWriter(out2)
@@ -102,39 +102,39 @@ func newWriters(cmd *cobra.Command, opts config.Options, out,
 		w.recordw = markdownw.NewRecordWriter(out2)
 
 	case config.FormatJSONA:
-		w.recordw = jsonw.NewArrayRecordWriter(out2, fm)
+		w.recordw = jsonw.NewArrayRecordWriter(out2, pr)
 
 	case config.FormatJSONL:
-		w.recordw = jsonw.NewObjectRecordWriter(out2, fm)
+		w.recordw = jsonw.NewObjectRecordWriter(out2, pr)
 
 	case config.FormatYAML:
-		w.configw = yamlw.NewConfigWriter(out2, fm)
-		w.metaw = yamlw.NewMetadataWriter(out2, fm)
+		w.configw = yamlw.NewConfigWriter(out2, pr)
+		w.metaw = yamlw.NewMetadataWriter(out2, pr)
 	}
 
 	return w, out2, errOut2
 }
 
-// getWriterFormatting returns a Formatting instance and
+// getPrinting returns a Printing instance and
 // colorable or non-colorable writers. It is permissible
 // for the cmd arg to be nil.
-func getWriterFormatting(cmd *cobra.Command, opts *config.Options,
+func getPrinting(cmd *cobra.Command, opts *config.Options,
 	out, errOut io.Writer,
-) (fm *output.Formatting, out2, errOut2 io.Writer) {
-	fm = output.NewFormatting()
+) (pr *output.Printing, out2, errOut2 io.Writer) {
+	pr = output.NewPrinting()
 
 	if cmdFlagChanged(cmd, flag.Pretty) {
-		fm.Pretty, _ = cmd.Flags().GetBool(flag.Pretty)
+		pr.Pretty, _ = cmd.Flags().GetBool(flag.Pretty)
 	}
 
 	if cmdFlagChanged(cmd, flag.Verbose) {
-		fm.Verbose, _ = cmd.Flags().GetBool(flag.Verbose)
+		pr.Verbose, _ = cmd.Flags().GetBool(flag.Verbose)
 	}
 
 	if cmdFlagChanged(cmd, flag.Header) {
-		fm.ShowHeader, _ = cmd.Flags().GetBool(flag.Header)
+		pr.ShowHeader, _ = cmd.Flags().GetBool(flag.Header)
 	} else if opts != nil {
-		fm.ShowHeader = opts.Header
+		pr.ShowHeader = opts.Header
 	}
 
 	// TODO: Should get this default value from config
@@ -151,24 +151,24 @@ func getWriterFormatting(cmd *cobra.Command, opts *config.Options,
 
 	if !colorize {
 		color.NoColor = true // TODO: shouldn't rely on package-level var
-		fm.EnableColor(false)
+		pr.EnableColor(false)
 		out2 = out
 		errOut2 = errOut
-		return fm, out2, errOut2
+		return pr, out2, errOut2
 	}
 
 	// We do want to colorize
 	if !isColorTerminal(out) {
 		// But out can't be colorized.
 		color.NoColor = true
-		fm.EnableColor(false)
+		pr.EnableColor(false)
 		out2, errOut2 = out, errOut
-		return fm, out2, errOut2
+		return pr, out2, errOut2
 	}
 
 	// out can be colorized.
 	color.NoColor = false
-	fm.EnableColor(true)
+	pr.EnableColor(true)
 	out2 = colorable.NewColorable(out.(*os.File))
 
 	// Check if we can colorize errOut
@@ -180,7 +180,7 @@ func getWriterFormatting(cmd *cobra.Command, opts *config.Options,
 		errOut2 = colorable.NewNonColorable(errOut)
 	}
 
-	return fm, out2, errOut2
+	return pr, out2, errOut2
 }
 
 func getFormat(cmd *cobra.Command, defaults config.Options) config.Format {

@@ -5,8 +5,8 @@ import "github.com/neilotoole/sq/libsq/source"
 
 // Dialect holds driver-specific SQL dialect values and functions.
 type Dialect struct {
-	// Type is the dialect's driver source type.
-	Type source.Type `json:"type"`
+	// Type is the dialect's driver type.
+	Type source.DriverType `json:"type"`
 
 	// Placeholders returns a string a SQL placeholders string.
 	// For example "(?, ?, ?)" or "($1, $2, $3), ($4, $5, $6)".

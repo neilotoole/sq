@@ -39,8 +39,8 @@ type Provider struct {
 }
 
 // DriverFor implements driver.Provider.
-func (p *Provider) DriverFor(typ source.Type) (driver.Driver, error) {
-	if typ != source.Type(p.DriverDef.Name) {
+func (p *Provider) DriverFor(typ source.DriverType) (driver.Driver, error) {
+	if typ != source.DriverType(p.DriverDef.Name) {
 		return nil, errz.Errorf("unsupported driver type {%s}", typ)
 	}
 
@@ -54,18 +54,18 @@ func (p *Provider) DriverFor(typ source.Type) (driver.Driver, error) {
 	}, nil
 }
 
-// TypeDetectors returns funcs that can detect the source type.
-func (p *Provider) TypeDetectors() []source.TypeDetectFunc {
+// Detectors returns funcs that can detect the driver type.
+func (p *Provider) Detectors() []source.DriverDetectFunc {
 	// TODO: it should be possible to return type detectors that
 	//  can detect based upon the DriverDef. So, as of right
 	//  now these detectors do nothing.
-	return []source.TypeDetectFunc{}
+	return []source.DriverDetectFunc{}
 }
 
 // Driver implements driver.Driver.
 type drvr struct {
 	log       *slog.Logger
-	typ       source.Type
+	typ       source.DriverType
 	def       *DriverDef
 	files     *source.Files
 	scratcher driver.ScratchDatabaseOpener
@@ -75,7 +75,7 @@ type drvr struct {
 // DriverMetadata implements driver.Driver.
 func (d *drvr) DriverMetadata() driver.Metadata {
 	return driver.Metadata{
-		Type:        source.Type(d.def.Name),
+		Type:        source.DriverType(d.def.Name),
 		Description: d.def.Title,
 		Doc:         d.def.Doc,
 		UserDefined: true,
@@ -117,7 +117,7 @@ func (d *drvr) Truncate(_ context.Context, _ *source.Source, _ string, _ bool) (
 func (d *drvr) ValidateSource(src *source.Source) (*source.Source, error) {
 	d.log.Debug("Validating source", lga.Src, src)
 	if string(src.Type) != d.def.Name {
-		return nil, errz.Errorf("expected source type {%s} but got {%s}", d.def.Name, src.Type)
+		return nil, errz.Errorf("expected driver type {%s} but got {%s}", d.def.Name, src.Type)
 	}
 	return src, nil
 }

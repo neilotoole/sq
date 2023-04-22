@@ -24,7 +24,7 @@ import (
 // recordWriter implements output.RecordWriter.
 type recordWriter struct {
 	out io.Writer
-	fm  *output.Formatting
+	pr  *output.Printing
 
 	recMeta sqlz.RecordMeta
 
@@ -52,8 +52,8 @@ const (
 )
 
 // NewRecordWriter returns an output.RecordWriter instance for XML.
-func NewRecordWriter(out io.Writer, fm *output.Formatting) output.RecordWriter {
-	return &recordWriter{out: out, fm: fm, elemColor: fm.Key.Add(color.Faint)}
+func NewRecordWriter(out io.Writer, pr *output.Printing) output.RecordWriter {
+	return &recordWriter{out: out, pr: pr, elemColor: pr.Key.Add(color.Faint)}
 }
 
 // Open implements output.RecordWriter.
@@ -61,8 +61,8 @@ func (w *recordWriter) Open(recMeta sqlz.RecordMeta) error {
 	w.recMeta = recMeta
 
 	var indent, newline string
-	if w.fm.Pretty {
-		indent = w.fm.Indent
+	if w.pr.Pretty {
+		indent = w.pr.Indent
 		newline = "\n"
 	}
 
@@ -79,7 +79,7 @@ func (w *recordWriter) Open(recMeta sqlz.RecordMeta) error {
 		w.tplFieldStart[i] = newline + indent + indent + w.elemColor.Sprintf("<%s>", elementName)
 		w.tplFieldEnd[i] = w.elemColor.Sprintf("</%s>", elementName)
 
-		if w.fm.IsMonochrome() {
+		if w.pr.IsMonochrome() {
 			w.fieldPrintFns[i] = monoPrint
 			continue
 		}
@@ -88,20 +88,20 @@ func (w *recordWriter) Open(recMeta sqlz.RecordMeta) error {
 		default:
 			w.fieldPrintFns[i] = monoPrint
 		case kind.Datetime, kind.Date, kind.Time:
-			w.fieldPrintFns[i] = w.fm.Datetime.FprintFunc()
+			w.fieldPrintFns[i] = w.pr.Datetime.FprintFunc()
 		case kind.Int, kind.Decimal, kind.Float:
-			w.fieldPrintFns[i] = w.fm.Number.FprintFunc()
+			w.fieldPrintFns[i] = w.pr.Number.FprintFunc()
 		case kind.Bool:
-			w.fieldPrintFns[i] = w.fm.Bool.FprintFunc()
+			w.fieldPrintFns[i] = w.pr.Bool.FprintFunc()
 		case kind.Bytes:
-			w.fieldPrintFns[i] = w.fm.Bytes.FprintFunc()
+			w.fieldPrintFns[i] = w.pr.Bytes.FprintFunc()
 		case kind.Text:
-			w.fieldPrintFns[i] = w.fm.String.FprintFunc()
+			w.fieldPrintFns[i] = w.pr.String.FprintFunc()
 		}
 	}
 
 	w.outBuf = &bytes.Buffer{}
-	w.outBuf.WriteString(w.fm.Faint.Sprint(decl))
+	w.outBuf.WriteString(w.pr.Faint.Sprint(decl))
 	return nil
 }
 

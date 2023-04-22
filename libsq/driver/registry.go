@@ -15,7 +15,7 @@ import (
 func NewRegistry(log *slog.Logger) *Registry {
 	return &Registry{
 		log:       log,
-		providers: map[source.Type]Provider{},
+		providers: map[source.DriverType]Provider{},
 	}
 }
 
@@ -23,13 +23,13 @@ func NewRegistry(log *slog.Logger) *Registry {
 type Registry struct {
 	log       *slog.Logger
 	mu        sync.Mutex
-	providers map[source.Type]Provider
-	types     []source.Type
+	providers map[source.DriverType]Provider
+	types     []source.DriverType
 }
 
 // AddProvider registers the provider for the specified driver type.
 // This method has no effect if there's already a provider for typ.
-func (r *Registry) AddProvider(typ source.Type, p Provider) {
+func (r *Registry) AddProvider(typ source.DriverType, p Provider) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -45,7 +45,7 @@ func (r *Registry) AddProvider(typ source.Type, p Provider) {
 
 // ProviderFor returns the provider for typ, or nil if no
 // registered provider.
-func (r *Registry) ProviderFor(typ source.Type) Provider {
+func (r *Registry) ProviderFor(typ source.DriverType) Provider {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -54,7 +54,7 @@ func (r *Registry) ProviderFor(typ source.Type) Provider {
 }
 
 // DriverFor implements Provider.
-func (r *Registry) DriverFor(typ source.Type) (Driver, error) {
+func (r *Registry) DriverFor(typ source.DriverType) (Driver, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 

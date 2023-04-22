@@ -12,13 +12,13 @@ var _ output.VersionWriter = (*versionWriter)(nil)
 // versionWriter implements output.VersionWriter for JSON.
 type versionWriter struct {
 	out io.Writer
-	fm  *output.Formatting
+	pr  *output.Printing
 }
 
 // NewVersionWriter returns a new output.VersionWriter instance
 // that outputs version info in JSON.
-func NewVersionWriter(out io.Writer, fm *output.Formatting) output.VersionWriter {
-	return &versionWriter{out: out, fm: fm}
+func NewVersionWriter(out io.Writer, pr *output.Printing) output.VersionWriter {
+	return &versionWriter{out: out, pr: pr}
 }
 
 func (w *versionWriter) Version(info buildinfo.BuildInfo, latestVersion string) error {
@@ -32,5 +32,5 @@ func (w *versionWriter) Version(info buildinfo.BuildInfo, latestVersion string) 
 		LatestVersion: latestVersion,
 	}
 
-	return writeJSON(w.out, w.fm, bi)
+	return writeJSON(w.out, w.pr, bi)
 }

@@ -25,13 +25,13 @@ import (
 
 const (
 	// TypeJSON is the plain-old JSON driver type.
-	TypeJSON = source.Type("json")
+	TypeJSON = source.DriverType("json")
 
 	// TypeJSONA is the JSON Array driver type.
-	TypeJSONA = source.Type("jsona")
+	TypeJSONA = source.DriverType("jsona")
 
 	// TypeJSONL is the JSON Lines driver type.
-	TypeJSONL = source.Type("jsonl")
+	TypeJSONL = source.DriverType("jsonl")
 )
 
 // Provider implements driver.Provider.
@@ -42,7 +42,7 @@ type Provider struct {
 }
 
 // DriverFor implements driver.Provider.
-func (d *Provider) DriverFor(typ source.Type) (driver.Driver, error) {
+func (d *Provider) DriverFor(typ source.DriverType) (driver.Driver, error) {
 	var importFn importFunc
 
 	switch typ { //nolint:exhaustive
@@ -68,7 +68,7 @@ func (d *Provider) DriverFor(typ source.Type) (driver.Driver, error) {
 // Driver implements driver.Driver.
 type driveri struct {
 	log       *slog.Logger
-	typ       source.Type
+	typ       source.DriverType
 	importFn  importFunc
 	scratcher driver.ScratchDatabaseOpener
 	files     *source.Files
@@ -140,7 +140,7 @@ func (d *driveri) Truncate(_ context.Context, _ *source.Source, _ string, _ bool
 // ValidateSource implements driver.Driver.
 func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 	if src.Type != d.typ {
-		return nil, errz.Errorf("expected source type {%s} but got {%s}", d.typ, src.Type)
+		return nil, errz.Errorf("expected driver type {%s} but got {%s}", d.typ, src.Type)
 	}
 
 	return src, nil
@@ -232,7 +232,7 @@ func (d *database) Close() error {
 }
 
 var (
-	_ source.TypeDetectFunc = DetectJSON
-	_ source.TypeDetectFunc = DetectJSONA
-	_ source.TypeDetectFunc = DetectJSONL
+	_ source.DriverDetectFunc = DetectJSON
+	_ source.DriverDetectFunc = DetectJSONA
+	_ source.DriverDetectFunc = DetectJSONL
 )

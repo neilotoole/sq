@@ -16,12 +16,12 @@ var _ output.ConfigWriter = (*configWriter)(nil)
 type configWriter struct {
 	p   printer.Printer
 	out io.Writer
-	fm  *output.Formatting
+	pr  *output.Printing
 }
 
 // NewConfigWriter returns a new output.ConfigWriter.
-func NewConfigWriter(out io.Writer, fm *output.Formatting) output.ConfigWriter {
-	return &configWriter{out: out, fm: fm, p: newPrinter(fm)}
+func NewConfigWriter(out io.Writer, pr *output.Printing) output.ConfigWriter {
+	return &configWriter{out: out, pr: pr, p: newPrinter(pr)}
 }
 
 // Location implements output.ConfigWriter.
