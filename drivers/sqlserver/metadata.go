@@ -166,6 +166,7 @@ GROUP BY database_id) AS total_size_bytes`
 
 					return nil
 				}
+
 				return err
 			}
 			tblMetas[i] = tblMeta
