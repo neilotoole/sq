@@ -16,7 +16,7 @@ require (
 	github.com/mattn/go-isatty v0.0.18
 	github.com/mattn/go-runewidth v0.0.14
 	github.com/mattn/go-sqlite3 v1.14.16
-	github.com/microsoft/go-mssqldb v0.19.0
+	github.com/microsoft/go-mssqldb v0.21.0
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/ryboe/q v1.0.19
