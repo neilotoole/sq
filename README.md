@@ -1,3 +1,6 @@
+[![Go Coverage](https://github.com/neilotoole/sq/wiki/coverage.svg)](https://raw.githack.com/wiki/neilotoole/sq/coverage.html)
+
+
 # sq: data wrangler
 
 `sq` is a command line tool that provides `jq`-style access to
