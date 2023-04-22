@@ -111,6 +111,7 @@ jobs:
     - name: Test
       run: go test -v ./...
 
+    # https://github.com/ncruces/go-coverage-report
     - name: Update coverage report
       uses: ncruces/go-coverage-report@v0
       with:
