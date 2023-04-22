@@ -14,13 +14,13 @@ import (
 )
 
 // writeJSON prints a JSON representation of v to out, using specs
-// from fm.
-func writeJSON(out io.Writer, fm *output.Formatting, v any) error {
+// from pr.
+func writeJSON(out io.Writer, pr *output.Printing, v any) error {
 	enc := jcolorenc.NewEncoder(out)
-	enc.SetColors(internal.NewColors(fm))
+	enc.SetColors(internal.NewColors(pr))
 	enc.SetEscapeHTML(false)
-	if fm.Pretty {
-		enc.SetIndent("", fm.Indent)
+	if pr.Pretty {
+		enc.SetIndent("", pr.Indent)
 	}
 
 	err := enc.Encode(v)
@@ -49,10 +49,10 @@ func writeJSON(out io.Writer, fm *output.Formatting, v any) error {
 //	    "last_update": "2020-06-11T02:50:54Z"
 //	  }
 //	]
-func NewStdRecordWriter(out io.Writer, fm *output.Formatting) output.RecordWriter {
+func NewStdRecordWriter(out io.Writer, pr *output.Printing) output.RecordWriter {
 	return &stdWriter{
 		out: out,
-		fm:  fm,
+		pr:  pr,
 	}
 }
 
@@ -60,7 +60,7 @@ func NewStdRecordWriter(out io.Writer, fm *output.Formatting) output.RecordWrite
 type stdWriter struct {
 	err error
 	out io.Writer
-	fm  *output.Formatting
+	pr  *output.Printing
 
 	// b is used as a buffer by writeRecord
 	b []byte
@@ -91,9 +91,9 @@ func (w *stdWriter) Open(recMeta sqlz.RecordMeta) error {
 			footer: []byte("]"),
 		}
 	} else {
-		w.encodeFns = getFieldEncoders(recMeta, w.fm)
+		w.encodeFns = getFieldEncoders(recMeta, w.pr)
 
-		tpl, err := newStdTemplate(recMeta, w.fm)
+		tpl, err := newStdTemplate(recMeta, w.pr)
 		if err != nil {
 			w.err = err
 			return err
@@ -172,7 +172,7 @@ func (w *stdWriter) Close() error {
 		return w.err
 	}
 
-	if w.recsWritten && w.fm.Pretty {
+	if w.recsWritten && w.pr.Pretty {
 		w.outBuf.WriteRune('\n')
 	}
 
@@ -189,10 +189,10 @@ type stdTemplate struct {
 	footer []byte
 }
 
-func newStdTemplate(recMeta sqlz.RecordMeta, fm *output.Formatting) (*stdTemplate, error) {
+func newStdTemplate(recMeta sqlz.RecordMeta, pr *output.Printing) (*stdTemplate, error) {
 	tpl := make([][]byte, len(recMeta)+1)
-	clrs := internal.NewColors(fm)
-	pnc := newPunc(fm)
+	clrs := internal.NewColors(pr)
+	pnc := newPunc(pr)
 
 	fieldNames := make([][]byte, len(recMeta))
 
@@ -202,12 +202,12 @@ func newStdTemplate(recMeta sqlz.RecordMeta, fm *output.Formatting) (*stdTemplat
 		if err != nil {
 			return nil, errz.Err(err)
 		}
-		if !fm.IsMonochrome() {
+		if !pr.IsMonochrome() {
 			fieldNames[i] = clrs.AppendKey(nil, fieldNames[i])
 		}
 	}
 
-	if !fm.Pretty {
+	if !pr.Pretty {
 		tpl[0] = append(tpl[0], pnc.lBrace...)
 		tpl[0] = append(tpl[0], fieldNames[0]...)
 		tpl[0] = append(tpl[0], pnc.colon...)
@@ -231,10 +231,10 @@ func newStdTemplate(recMeta sqlz.RecordMeta, fm *output.Formatting) (*stdTemplat
 	}
 
 	// Else we're doing pretty printing
-	tpl[0] = append(tpl[0], []byte("\n"+fm.Indent)...)
+	tpl[0] = append(tpl[0], []byte("\n"+pr.Indent)...)
 	tpl[0] = append(tpl[0], pnc.lBrace...)
 	tpl[0] = append(tpl[0], '\n')
-	tpl[0] = append(tpl[0], strings.Repeat(fm.Indent, 2)...)
+	tpl[0] = append(tpl[0], strings.Repeat(pr.Indent, 2)...)
 
 	tpl[0] = append(tpl[0], fieldNames[0]...)
 	tpl[0] = append(tpl[0], pnc.colon...)
@@ -243,7 +243,7 @@ func newStdTemplate(recMeta sqlz.RecordMeta, fm *output.Formatting) (*stdTemplat
 	for i := 1; i < len(fieldNames); i++ {
 		tpl[i] = append(tpl[i], pnc.comma...)
 		tpl[i] = append(tpl[i], '\n')
-		tpl[i] = append(tpl[i], strings.Repeat(fm.Indent, 2)...)
+		tpl[i] = append(tpl[i], strings.Repeat(pr.Indent, 2)...)
 		tpl[i] = append(tpl[i], fieldNames[i]...)
 		tpl[i] = append(tpl[i], pnc.colon...)
 		tpl[i] = append(tpl[i], ' ')
@@ -252,7 +252,7 @@ func newStdTemplate(recMeta sqlz.RecordMeta, fm *output.Formatting) (*stdTemplat
 	last := len(recMeta)
 
 	tpl[last] = append(tpl[last], '\n')
-	tpl[last] = append(tpl[last], fm.Indent...)
+	tpl[last] = append(tpl[last], pr.Indent...)
 	tpl[last] = append(tpl[last], pnc.rBrace...)
 
 	stdTpl := &stdTemplate{recTpl: tpl}
@@ -268,10 +268,10 @@ func newStdTemplate(recMeta sqlz.RecordMeta, fm *output.Formatting) (*stdTemplat
 //
 //	{"actor_id": 1, "first_name": "PENELOPE", "last_name": "GUINESS", "last_update": "2020-06-11T02:50:54Z"}
 //	{"actor_id": 2, "first_name": "NICK", "last_name": "WAHLBERG", "last_update": "2020-06-11T02:50:54Z"}
-func NewObjectRecordWriter(out io.Writer, fm *output.Formatting) output.RecordWriter {
+func NewObjectRecordWriter(out io.Writer, pr *output.Printing) output.RecordWriter {
 	return &lineRecordWriter{
 		out:      out,
-		fm:       fm,
+		pr:       pr,
 		newTplFn: newJSONObjectsTemplate,
 	}
 }
@@ -281,10 +281,10 @@ func NewObjectRecordWriter(out io.Writer, fm *output.Formatting) output.RecordWr
 //
 //	[1, "PENELOPE", "GUINESS", "2020-06-11T02:50:54Z"]
 //	[2, "NICK", "WAHLBERG", "2020-06-11T02:50:54Z"]
-func NewArrayRecordWriter(out io.Writer, fm *output.Formatting) output.RecordWriter {
+func NewArrayRecordWriter(out io.Writer, pr *output.Printing) output.RecordWriter {
 	return &lineRecordWriter{
 		out:      out,
-		fm:       fm,
+		pr:       pr,
 		newTplFn: newJSONArrayTemplate,
 	}
 }
@@ -300,7 +300,7 @@ func NewArrayRecordWriter(out io.Writer, fm *output.Formatting) output.RecordWri
 type lineRecordWriter struct {
 	err     error
 	out     io.Writer
-	fm      *output.Formatting
+	pr      *output.Printing
 	recMeta sqlz.RecordMeta
 
 	// outBuf holds the output of the writer prior to flushing.
@@ -308,7 +308,7 @@ type lineRecordWriter struct {
 
 	// newTplFn is invoked during open to get the "template" for
 	// generating output.
-	newTplFn func(sqlz.RecordMeta, *output.Formatting) ([][]byte, error)
+	newTplFn func(sqlz.RecordMeta, *output.Printing) ([][]byte, error)
 
 	// tpl is a slice of []byte, where len(tpl) == len(recMeta) + 1.
 	tpl [][]byte
@@ -326,11 +326,11 @@ func (w *lineRecordWriter) Open(recMeta sqlz.RecordMeta) error {
 	w.outBuf = &bytes.Buffer{}
 	w.recMeta = recMeta
 
-	w.tpl, w.err = w.newTplFn(recMeta, w.fm)
+	w.tpl, w.err = w.newTplFn(recMeta, w.pr)
 	if w.err != nil {
 		return w.err
 	}
-	w.encodeFns = getFieldEncoders(recMeta, w.fm)
+	w.encodeFns = getFieldEncoders(recMeta, w.pr)
 	return nil
 }
 
@@ -394,10 +394,10 @@ func (w *lineRecordWriter) Close() error {
 	return w.Flush()
 }
 
-func newJSONObjectsTemplate(recMeta sqlz.RecordMeta, fm *output.Formatting) ([][]byte, error) {
+func newJSONObjectsTemplate(recMeta sqlz.RecordMeta, pr *output.Printing) ([][]byte, error) {
 	tpl := make([][]byte, len(recMeta)+1)
-	clrs := internal.NewColors(fm)
-	pnc := newPunc(fm)
+	clrs := internal.NewColors(pr)
+	pnc := newPunc(pr)
 
 	fieldNames := make([][]byte, len(recMeta))
 	var err error
@@ -406,7 +406,7 @@ func newJSONObjectsTemplate(recMeta sqlz.RecordMeta, fm *output.Formatting) ([][
 		if err != nil {
 			return nil, errz.Err(err)
 		}
-		if !fm.IsMonochrome() {
+		if !pr.IsMonochrome() {
 			fieldNames[i] = clrs.AppendKey(nil, fieldNames[i])
 		}
 	}
@@ -414,20 +414,20 @@ func newJSONObjectsTemplate(recMeta sqlz.RecordMeta, fm *output.Formatting) ([][
 	tpl[0] = append(tpl[0], pnc.lBrace...)
 	tpl[0] = append(tpl[0], fieldNames[0]...)
 	tpl[0] = append(tpl[0], pnc.colon...)
-	if fm.Pretty {
+	if pr.Pretty {
 		tpl[0] = append(tpl[0], ' ')
 	}
 
 	for i := 1; i < len(fieldNames); i++ {
 		tpl[i] = append(tpl[i], pnc.comma...)
-		if fm.Pretty {
+		if pr.Pretty {
 			tpl[i] = append(tpl[i], ' ')
 		}
 
 		tpl[i] = append(tpl[i], fieldNames[i]...)
 
 		tpl[i] = append(tpl[i], pnc.colon...)
-		if fm.Pretty {
+		if pr.Pretty {
 			tpl[i] = append(tpl[i], ' ')
 		}
 	}
@@ -438,15 +438,15 @@ func newJSONObjectsTemplate(recMeta sqlz.RecordMeta, fm *output.Formatting) ([][
 	return tpl, nil
 }
 
-func newJSONArrayTemplate(recMeta sqlz.RecordMeta, fm *output.Formatting) ([][]byte, error) {
+func newJSONArrayTemplate(recMeta sqlz.RecordMeta, pr *output.Printing) ([][]byte, error) {
 	tpl := make([][]byte, len(recMeta)+1)
-	pnc := newPunc(fm)
+	pnc := newPunc(pr)
 
 	tpl[0] = append(tpl[0], pnc.lBracket...)
 
 	for i := 1; i < len(recMeta); i++ {
 		tpl[i] = append(tpl[i], pnc.comma...)
-		if fm.Pretty {
+		if pr.Pretty {
 			tpl[i] = append(tpl[i], ' ')
 		}
 	}

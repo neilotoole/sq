@@ -396,19 +396,19 @@ func printError(rc *RunContext, err error) {
 		}
 	}
 
-	// getWriterFormatting works even if cmd is nil
-	fm, _, errOut := getWriterFormatting(cmd, opts, os.Stdout, os.Stderr)
+	// getPrinting works even if cmd is nil
+	pr, _, errOut := getPrinting(cmd, opts, os.Stdout, os.Stderr)
 
 	if bootstrapIsFormatJSON(rc) {
 		// The user wants JSON, either via defaults or flags.
-		jw := jsonw.NewErrorWriter(log, errOut, fm)
+		jw := jsonw.NewErrorWriter(log, errOut, pr)
 		jw.Error(err)
 		return
 	}
 
 	// The user didn't want JSON, so we just print to stderr.
 	if isColorTerminal(os.Stderr) {
-		fm.Error.Fprintln(os.Stderr, "sq: "+err.Error())
+		pr.Error.Fprintln(os.Stderr, "sq: "+err.Error())
 	} else {
 		fmt.Fprintln(os.Stderr, "sq: "+err.Error())
 	}

@@ -71,16 +71,16 @@ func TestRecordWriter_Actor(t *testing.T) {
 		tc := tc
 
 		t.Run(tc.name, func(t *testing.T) {
-			fm := output.NewFormatting()
-			fm.EnableColor(tc.color)
-			fm.Pretty = tc.pretty
+			pr := output.NewPrinting()
+			pr.EnableColor(tc.color)
+			pr.Pretty = tc.pretty
 
 			recMeta, recs := testh.RecordsFromTbl(t, sakila.SL3, sakila.TblActor)
 			recs = recs[0:tc.numRecs]
 
 			buf := &bytes.Buffer{}
 
-			w := xmlw.NewRecordWriter(buf, fm)
+			w := xmlw.NewRecordWriter(buf, pr)
 			require.NoError(t, w.Open(recMeta))
 			require.NoError(t, w.WriteRecords(recs))
 			require.NoError(t, w.Close())
@@ -91,13 +91,13 @@ func TestRecordWriter_Actor(t *testing.T) {
 }
 
 func TestRecordWriter_TblTypes(t *testing.T) {
-	fm := output.NewFormatting()
-	fm.EnableColor(false)
+	pr := output.NewPrinting()
+	pr.EnableColor(false)
 
 	recMeta, recs := testh.RecordsFromTbl(t, testsrc.MiscDB, testsrc.TblTypes)
 	buf := &bytes.Buffer{}
 
-	w := xmlw.NewRecordWriter(buf, fm)
+	w := xmlw.NewRecordWriter(buf, pr)
 	require.NoError(t, w.Open(recMeta))
 	require.NoError(t, w.WriteRecords(recs))
 	require.NoError(t, w.Close())

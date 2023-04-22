@@ -219,7 +219,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 	// or sq prompts the user.
 	if cmdFlagTrue(cmd, flag.PasswordPrompt) {
 		var passwd []byte
-		passwd, err = readPassword(cmd.Context(), rc.Stdin, rc.Out, rc.writers.fm)
+		passwd, err = readPassword(cmd.Context(), rc.Stdin, rc.Out, rc.writers.pr)
 		if err != nil {
 			return err
 		}
@@ -273,7 +273,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 // readPassword reads a password from stdin pipe, or if nothing on stdin,
 // it prints a prompt to stdout, and then accepts input (which must be
 // followed by a return).
-func readPassword(ctx context.Context, stdin *os.File, stdout io.Writer, fm *output.Formatting) ([]byte, error) {
+func readPassword(ctx context.Context, stdin *os.File, stdout io.Writer, pr *output.Printing) ([]byte, error) {
 	resultCh := make(chan []byte)
 	errCh := make(chan error)
 
@@ -297,7 +297,7 @@ func readPassword(ctx context.Context, stdin *os.File, stdout io.Writer, fm *out
 	go func() {
 		buf := &bytes.Buffer{}
 		fmt.Fprint(buf, "Password: ")
-		fm.Faint.Fprint(buf, "[ENTER]")
+		pr.Faint.Fprint(buf, "[ENTER]")
 		fmt.Fprint(buf, " ")
 		stdout.Write(buf.Bytes())
 

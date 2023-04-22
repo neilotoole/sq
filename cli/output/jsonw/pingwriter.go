@@ -14,13 +14,13 @@ import (
 var _ output.PingWriter = (*pingWriter)(nil)
 
 // NewPingWriter returns JSON impl of output.PingWriter.
-func NewPingWriter(out io.Writer, fm *output.Formatting) output.PingWriter {
-	return &pingWriter{out: out, fm: fm}
+func NewPingWriter(out io.Writer, pr *output.Printing) output.PingWriter {
+	return &pingWriter{out: out, pr: pr}
 }
 
 type pingWriter struct {
 	out io.Writer
-	fm  *output.Formatting
+	pr  *output.Printing
 }
 
 // Open implements output.PingWriter.
@@ -46,7 +46,7 @@ func (p pingWriter) Result(src *source.Source, d time.Duration, err error) error
 	}
 
 	enc := jcolorenc.NewEncoder(p.out)
-	enc.SetColors(internal.NewColors(p.fm))
+	enc.SetColors(internal.NewColors(p.pr))
 	enc.SetEscapeHTML(false)
 	enc.SetIndent("", "  ")
 

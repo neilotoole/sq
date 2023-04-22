@@ -15,7 +15,7 @@ import (
 )
 
 // writeYAML prints a YAML representation of v to out, using specs
-// from fm.
+// from pr.
 func writeYAML(p printer.Printer, out io.Writer, v any) error {
 	b, err := goccy.Marshal(v)
 	if err != nil {
@@ -28,42 +28,42 @@ func writeYAML(p printer.Printer, out io.Writer, v any) error {
 	return errz.Err(err)
 }
 
-func newPrinter(fm *output.Formatting) printer.Printer {
+func newPrinter(pr *output.Printing) printer.Printer {
 	var p printer.Printer
 	p.LineNumber = false
 	p.Bool = func() *printer.Property {
 		return &printer.Property{
-			Prefix: formatColor(fm.Bool),
+			Prefix: formatColor(pr.Bool),
 			Suffix: reset,
 		}
 	}
 	p.Number = func() *printer.Property {
 		return &printer.Property{
-			Prefix: formatColor(fm.Number),
+			Prefix: formatColor(pr.Number),
 			Suffix: reset,
 		}
 	}
 	p.MapKey = func() *printer.Property {
 		return &printer.Property{
-			Prefix: formatColor(fm.Key),
+			Prefix: formatColor(pr.Key),
 			Suffix: reset,
 		}
 	}
 	p.Anchor = func() *printer.Property {
 		return &printer.Property{
-			Prefix: formatColor(fm.Faint),
+			Prefix: formatColor(pr.Faint),
 			Suffix: reset,
 		}
 	}
 	p.Alias = func() *printer.Property {
 		return &printer.Property{
-			Prefix: formatColor(fm.Faint),
+			Prefix: formatColor(pr.Faint),
 			Suffix: reset,
 		}
 	}
 	p.String = func() *printer.Property {
 		return &printer.Property{
-			Prefix: formatColor(fm.String),
+			Prefix: formatColor(pr.String),
 			Suffix: reset,
 		}
 	}

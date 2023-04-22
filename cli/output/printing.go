@@ -2,8 +2,8 @@ package output
 
 import "github.com/fatih/color"
 
-// Formatting describes color and pretty-printing options.
-type Formatting struct {
+// Printing describes color and pretty-printing options.
+type Printing struct {
 	monochrome bool
 
 	// ShowHeader indicates that a header (e.g. a header row) should
@@ -15,7 +15,7 @@ type Formatting struct {
 	Verbose bool
 
 	// Pretty indicates that output should be pretty-printed.
-	// Typically this means indentation, new lines, etc, but
+	// Typically this means indentation, new lines, etc., but
 	// varies by output format.
 	Pretty bool
 
@@ -81,10 +81,10 @@ type Formatting struct {
 	Success *color.Color
 }
 
-// NewFormatting returns a Formatting instance. Color and pretty-print
+// NewPrinting returns a Printing instance. Color and pretty-print
 // are enabled. The default indent is two spaces.
-func NewFormatting() *Formatting {
-	fm := &Formatting{
+func NewPrinting() *Printing {
+	pr := &Printing{
 		ShowHeader: true,
 		Verbose:    false,
 		Pretty:     true,
@@ -110,57 +110,38 @@ func NewFormatting() *Formatting {
 		Success:    color.New(color.FgGreen, color.Bold),
 	}
 
-	fm.EnableColor(true)
-	return fm
+	pr.EnableColor(true)
+	return pr
+}
+
+func (pr *Printing) colors() []*color.Color {
+	return []*color.Color{
+		pr.Active, pr.Bold, pr.Bold, pr.Bytes, pr.Datetime,
+		pr.Error, pr.Faint, pr.Handle, pr.Header, pr.Hilite,
+		pr.Key, pr.Location, pr.Null, pr.Number,
+		pr.Punc, pr.String, pr.Success,
+	}
 }
 
 // IsMonochrome returns true if in monochrome (no color) mode.
 // Default is false (color enabled) for a new instance.
-func (f *Formatting) IsMonochrome() bool {
-	return f.monochrome
+func (pr *Printing) IsMonochrome() bool {
+	return pr.monochrome
 }
 
 // EnableColor enables or disables all colors.
-func (f *Formatting) EnableColor(enable bool) {
+func (pr *Printing) EnableColor(enable bool) {
 	if enable {
-		f.monochrome = false
+		pr.monochrome = false
 
-		f.Active.EnableColor()
-		f.Bold.EnableColor()
-		f.Bool.EnableColor()
-		f.Bytes.EnableColor()
-		f.Datetime.EnableColor()
-		f.Error.EnableColor()
-		f.Faint.EnableColor()
-		f.Handle.EnableColor()
-		f.Header.EnableColor()
-		f.Hilite.EnableColor()
-		f.Key.EnableColor()
-		f.Location.EnableColor()
-		f.Null.EnableColor()
-		f.Number.EnableColor()
-		f.Punc.EnableColor()
-		f.String.EnableColor()
-		f.Success.EnableColor()
-	} else {
-		f.monochrome = true
+		for _, clr := range pr.colors() {
+			clr.EnableColor()
+		}
+		return
+	}
 
-		f.Active.DisableColor()
-		f.Bold.DisableColor()
-		f.Bool.DisableColor()
-		f.Bytes.DisableColor()
-		f.Datetime.DisableColor()
-		f.Error.DisableColor()
-		f.Faint.DisableColor()
-		f.Handle.DisableColor()
-		f.Header.DisableColor()
-		f.Hilite.DisableColor()
-		f.Key.DisableColor()
-		f.Location.DisableColor()
-		f.Null.DisableColor()
-		f.Number.DisableColor()
-		f.Punc.DisableColor()
-		f.String.DisableColor()
-		f.Success.DisableColor()
+	pr.monochrome = true
+	for _, clr := range pr.colors() {
+		clr.DisableColor()
 	}
 }

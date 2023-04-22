@@ -18,8 +18,8 @@ type mdWriter struct {
 
 // NewMetadataWriter returns a new output.MetadataWriter instance
 // that outputs metadata in table format.
-func NewMetadataWriter(out io.Writer, fm *output.Formatting) output.MetadataWriter {
-	tbl := &table{out: out, fm: fm, header: true}
+func NewMetadataWriter(out io.Writer, pr *output.Printing) output.MetadataWriter {
+	tbl := &table{out: out, pr: pr, header: true}
 	w := &mdWriter{tbl: tbl}
 	w.tbl.reset()
 	return w
@@ -29,7 +29,7 @@ func NewMetadataWriter(out io.Writer, fm *output.Formatting) output.MetadataWrit
 func (w *mdWriter) DriverMetadata(drvrs []driver.Metadata) error {
 	headers := []string{"DRIVER", "DESCRIPTION", "USER-DEFINED", "DOC"}
 	w.tbl.tblImpl.SetHeader(headers)
-	w.tbl.tblImpl.SetColTrans(2, w.tbl.fm.Bool.SprintFunc())
+	w.tbl.tblImpl.SetColTrans(2, w.tbl.pr.Bool.SprintFunc())
 
 	var rows [][]string
 	for _, md := range drvrs {
@@ -58,14 +58,14 @@ func (w *mdWriter) TableMetadata(tblMeta *source.TableMetadata) error {
 		size = stringz.ByteSized(*tblMeta.Size, 1, "")
 	}
 
-	if w.tbl.fm.Verbose {
+	if w.tbl.pr.Verbose {
 		headers = []string{"TABLE", "ROWS", "TYPE", "SIZE", "NUM COLS", "COL NAMES", "COL TYPES"}
 
 		w.tbl.tblImpl.SetHeader(headers)
-		w.tbl.tblImpl.SetColTrans(0, w.tbl.fm.Handle.SprintFunc())
-		w.tbl.tblImpl.SetColTrans(1, w.tbl.fm.Number.SprintFunc())
-		w.tbl.tblImpl.SetColTrans(3, w.tbl.fm.Number.SprintFunc())
-		w.tbl.tblImpl.SetColTrans(4, w.tbl.fm.Number.SprintFunc())
+		w.tbl.tblImpl.SetColTrans(0, w.tbl.pr.Handle.SprintFunc())
+		w.tbl.tblImpl.SetColTrans(1, w.tbl.pr.Number.SprintFunc())
+		w.tbl.tblImpl.SetColTrans(3, w.tbl.pr.Number.SprintFunc())
+		w.tbl.tblImpl.SetColTrans(4, w.tbl.pr.Number.SprintFunc())
 
 		row := []string{
 			tblMeta.Name,
@@ -81,8 +81,8 @@ func (w *mdWriter) TableMetadata(tblMeta *source.TableMetadata) error {
 		headers = []string{"TABLE", "ROWS", "COL NAMES"}
 
 		w.tbl.tblImpl.SetHeader(headers)
-		w.tbl.tblImpl.SetColTrans(0, w.tbl.fm.Handle.SprintFunc())
-		w.tbl.tblImpl.SetColTrans(1, w.tbl.fm.Number.SprintFunc())
+		w.tbl.tblImpl.SetColTrans(0, w.tbl.pr.Handle.SprintFunc())
+		w.tbl.tblImpl.SetColTrans(1, w.tbl.pr.Number.SprintFunc())
 
 		row := []string{
 			tblMeta.Name,
@@ -103,9 +103,9 @@ func (w *mdWriter) SourceMetadata(meta *source.Metadata) error {
 
 	if meta.Name == meta.FQName {
 		headers = []string{"HANDLE", "DRIVER", "NAME", "SIZE", "TABLES", "LOCATION"}
-		w.tbl.tblImpl.SetColTrans(0, w.tbl.fm.Handle.SprintFunc())
-		w.tbl.tblImpl.SetColTrans(3, w.tbl.fm.Number.SprintFunc())
-		w.tbl.tblImpl.SetColTrans(4, w.tbl.fm.Number.SprintFunc())
+		w.tbl.tblImpl.SetColTrans(0, w.tbl.pr.Handle.SprintFunc())
+		w.tbl.tblImpl.SetColTrans(3, w.tbl.pr.Number.SprintFunc())
+		w.tbl.tblImpl.SetColTrans(4, w.tbl.pr.Number.SprintFunc())
 		row = []string{
 			meta.Handle,
 			meta.SourceType.String(),
@@ -116,9 +116,9 @@ func (w *mdWriter) SourceMetadata(meta *source.Metadata) error {
 		}
 	} else {
 		headers = []string{"HANDLE", "DRIVER", "NAME", "FQ NAME", "SIZE", "TABLES", "LOCATION"}
-		w.tbl.tblImpl.SetColTrans(0, w.tbl.fm.Handle.SprintFunc())
-		w.tbl.tblImpl.SetColTrans(4, w.tbl.fm.Number.SprintFunc())
-		w.tbl.tblImpl.SetColTrans(5, w.tbl.fm.Number.SprintFunc())
+		w.tbl.tblImpl.SetColTrans(0, w.tbl.pr.Handle.SprintFunc())
+		w.tbl.tblImpl.SetColTrans(4, w.tbl.pr.Number.SprintFunc())
+		w.tbl.tblImpl.SetColTrans(5, w.tbl.pr.Number.SprintFunc())
 		row = []string{
 			meta.Handle,
 			meta.SourceType.String(),
@@ -135,18 +135,18 @@ func (w *mdWriter) SourceMetadata(meta *source.Metadata) error {
 	w.tbl.reset()
 	fmt.Fprintln(w.tbl.out)
 
-	if w.tbl.fm.Verbose {
+	if w.tbl.pr.Verbose {
 		headers = []string{"TABLE", "ROWS", "TYPE", "SIZE", "NUM COLS", "COL NAMES", "COL TYPES"}
 		w.tbl.tblImpl.SetHeader(headers)
-		w.tbl.tblImpl.SetColTrans(0, w.tbl.fm.Handle.SprintFunc())
-		w.tbl.tblImpl.SetColTrans(1, w.tbl.fm.Number.SprintFunc())
-		w.tbl.tblImpl.SetColTrans(3, w.tbl.fm.Number.SprintFunc())
-		w.tbl.tblImpl.SetColTrans(4, w.tbl.fm.Number.SprintFunc())
+		w.tbl.tblImpl.SetColTrans(0, w.tbl.pr.Handle.SprintFunc())
+		w.tbl.tblImpl.SetColTrans(1, w.tbl.pr.Number.SprintFunc())
+		w.tbl.tblImpl.SetColTrans(3, w.tbl.pr.Number.SprintFunc())
+		w.tbl.tblImpl.SetColTrans(4, w.tbl.pr.Number.SprintFunc())
 	} else {
 		headers = []string{"TABLE", "ROWS", "COL NAMES"}
 		w.tbl.tblImpl.SetHeader(headers)
-		w.tbl.tblImpl.SetColTrans(0, w.tbl.fm.Handle.SprintFunc())
-		w.tbl.tblImpl.SetColTrans(1, w.tbl.fm.Number.SprintFunc())
+		w.tbl.tblImpl.SetColTrans(0, w.tbl.pr.Handle.SprintFunc())
+		w.tbl.tblImpl.SetColTrans(1, w.tbl.pr.Number.SprintFunc())
 	}
 
 	var rows [][]string
@@ -165,7 +165,7 @@ func (w *mdWriter) SourceMetadata(meta *source.Metadata) error {
 			size = stringz.ByteSized(*tbl.Size, 1, "")
 		}
 
-		if w.tbl.fm.Verbose {
+		if w.tbl.pr.Verbose {
 			row = []string{
 				tbl.Name,
 				fmt.Sprintf("%d", tbl.RowCount),

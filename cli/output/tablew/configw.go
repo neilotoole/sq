@@ -18,8 +18,8 @@ type configWriter struct {
 }
 
 // NewConfigWriter returns a new output.ConfigWriter.
-func NewConfigWriter(out io.Writer, fm *output.Formatting) output.ConfigWriter {
-	tbl := &table{out: out, fm: fm, header: fm.ShowHeader}
+func NewConfigWriter(out io.Writer, pr *output.Printing) output.ConfigWriter {
+	tbl := &table{out: out, pr: pr, header: pr.ShowHeader}
 	tbl.reset()
 	return &configWriter{tbl: tbl}
 }
@@ -27,9 +27,9 @@ func NewConfigWriter(out io.Writer, fm *output.Formatting) output.ConfigWriter {
 // Location implements output.ConfigWriter.
 func (w *configWriter) Location(path, origin string) error {
 	fmt.Fprintln(w.tbl.out, path)
-	if w.tbl.fm.Verbose && origin != "" {
-		w.tbl.fm.Faint.Fprint(w.tbl.out, "Origin: ")
-		w.tbl.fm.String.Fprintln(w.tbl.out, origin)
+	if w.tbl.pr.Verbose && origin != "" {
+		w.tbl.pr.Faint.Fprint(w.tbl.out, "Origin: ")
+		w.tbl.pr.String.Fprintln(w.tbl.out, origin)
 	}
 
 	return nil
@@ -41,23 +41,23 @@ func (w *configWriter) Options(opts *config.Options) error {
 		return nil
 	}
 
-	t, fm := w.tbl.tblImpl, w.tbl.fm
-	if fm.ShowHeader {
+	t, pr := w.tbl.tblImpl, w.tbl.pr
+	if pr.ShowHeader {
 		t.SetHeader([]string{"KEY", "VALUE"})
 	}
-	t.SetColTrans(0, fm.Key.SprintFunc())
+	t.SetColTrans(0, pr.Key.SprintFunc())
 
 	var rows [][]string
 	rows = append(rows, []string{"output_format", string(opts.Format)})
 
 	rows = append(rows, []string{"output_header", strconv.FormatBool(opts.Header)})
-	t.SetCellTrans(1, 1, fm.Bool.SprintFunc())
+	t.SetCellTrans(1, 1, pr.Bool.SprintFunc())
 
 	rows = append(rows, []string{"ping_timeout", fmt.Sprintf("%v", opts.PingTimeout)})
-	t.SetCellTrans(2, 1, fm.Datetime.SprintFunc())
+	t.SetCellTrans(2, 1, pr.Datetime.SprintFunc())
 
 	rows = append(rows, []string{"shell_completion_timeout", fmt.Sprintf("%v", opts.ShellCompletionTimeout)})
-	t.SetCellTrans(3, 1, fm.Datetime.SprintFunc())
+	t.SetCellTrans(3, 1, pr.Datetime.SprintFunc())
 
 	w.tbl.appendRowsAndRenderAll(rows)
 	return nil

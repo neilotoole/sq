@@ -13,13 +13,13 @@ var _ output.SourceWriter = (*sourceWriter)(nil)
 
 type sourceWriter struct {
 	out io.Writer
-	fm  *output.Formatting
+	pr  *output.Printing
 }
 
 // NewSourceWriter returns a source writer that outputs source
 // details in text table format.
-func NewSourceWriter(out io.Writer, fm *output.Formatting) output.SourceWriter {
-	return &sourceWriter{out: out, fm: fm}
+func NewSourceWriter(out io.Writer, pr *output.Printing) output.SourceWriter {
+	return &sourceWriter{out: out, pr: pr}
 }
 
 // Collection implements output.SourceWriter.
@@ -65,7 +65,7 @@ func (w *sourceWriter) Collection(coll *source.Collection) error {
 	// the active group). This whole thing is a mess.
 	_, _ = coll.SetActive(activeHandle, true)
 
-	return writeJSON(w.out, w.fm, coll.Data())
+	return writeJSON(w.out, w.pr, coll.Data())
 }
 
 // Source implements output.SourceWriter.
@@ -76,12 +76,12 @@ func (w *sourceWriter) Source(_ *source.Collection, src *source.Source) error {
 
 	src = src.Clone()
 	src.Location = src.RedactedLocation()
-	return writeJSON(w.out, w.fm, src)
+	return writeJSON(w.out, w.pr, src)
 }
 
 // Removed implements output.SourceWriter.
 func (w *sourceWriter) Removed(srcs ...*source.Source) error {
-	if !w.fm.Verbose || len(srcs) == 0 {
+	if !w.pr.Verbose || len(srcs) == 0 {
 		return nil
 	}
 
@@ -90,7 +90,7 @@ func (w *sourceWriter) Removed(srcs ...*source.Source) error {
 		srcs2[i] = srcs[i].Clone()
 		srcs2[i].Location = srcs2[i].RedactedLocation()
 	}
-	return writeJSON(w.out, w.fm, srcs2)
+	return writeJSON(w.out, w.pr, srcs2)
 }
 
 // Group implements output.SourceWriter.
@@ -100,7 +100,7 @@ func (w *sourceWriter) Group(group *source.Group) error {
 	}
 
 	group.RedactLocations()
-	return writeJSON(w.out, w.fm, group)
+	return writeJSON(w.out, w.pr, group)
 }
 
 // SetActiveGroup implements output.SourceWriter.
@@ -110,11 +110,11 @@ func (w *sourceWriter) SetActiveGroup(group *source.Group) error {
 	}
 
 	group.RedactLocations()
-	return writeJSON(w.out, w.fm, group)
+	return writeJSON(w.out, w.pr, group)
 }
 
 // Groups implements output.SourceWriter.
 func (w *sourceWriter) Groups(tree *source.Group) error {
 	tree.RedactLocations()
-	return writeJSON(w.out, w.fm, tree)
+	return writeJSON(w.out, w.pr, tree)
 }
