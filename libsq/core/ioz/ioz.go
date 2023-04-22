@@ -57,3 +57,8 @@ func MarshalYAML(v any) ([]byte, error) {
 	}
 	return buf.Bytes(), nil
 }
+
+// UnmarshallYAML is our standard mechanism for decoding YAML.
+func UnmarshallYAML(data []byte, v any) error {
+	return errz.Err(yaml.Unmarshal(data, v))
+}

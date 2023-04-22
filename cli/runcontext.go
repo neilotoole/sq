@@ -116,8 +116,8 @@ type RunContext struct {
 // example if there's a config error). We do this to provide
 // enough framework so that such an error can be logged or
 // printed per the normal mechanisms if at all possible.
-func newDefaultRunContext(ctx context.Context, stdin *os.File,
-	stdout, stderr io.Writer, args []string,
+func newDefaultRunContext(ctx context.Context,
+	stdin *os.File, stdout, stderr io.Writer, args []string,
 ) (*RunContext, error) {
 	// logbuf holds log records until defaultLogging is completed.
 	log, logbuf := slogbuf.New()

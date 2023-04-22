@@ -220,6 +220,10 @@ func (fs *YAMLFileStore) Save(_ context.Context, cfg *Config) error {
 		return errz.New("config file store is nil")
 	}
 
+	if err := Valid(cfg); err != nil {
+		return err
+	}
+
 	data, err := ioz.MarshalYAML(cfg)
 	if err != nil {
 		return err

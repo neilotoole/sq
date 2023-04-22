@@ -122,5 +122,5 @@ const (
 	ArgUsage = "Set a string value to a variable"
 
 	Config      = "config"
-	ConfigUsage = "load config from here"
+	ConfigUsage = "Load config from here"
 )

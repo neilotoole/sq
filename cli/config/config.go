@@ -4,6 +4,8 @@ package config
 import (
 	"time"
 
+	"golang.org/x/mod/semver"
+
 	"github.com/neilotoole/sq/cli/buildinfo"
 
 	"github.com/neilotoole/sq/drivers/userdriver"
@@ -144,3 +146,22 @@ const (
 	FormatTSV      Format = "tsv"
 	FormatYAML     Format = "yaml"
 )
+
+// Valid returns an error if cfg is not valid.
+func Valid(cfg *Config) error {
+	if cfg == nil {
+		return errz.New("config is nil")
+	}
+
+	if !semver.IsValid(cfg.Version) {
+		return errz.Errorf("config: invalid '.config_version': %s", cfg.Version)
+	}
+
+	if cfg.Collection != nil {
+		if _, err := source.VerifyIntegrity(cfg.Collection); err != nil {
+			return errz.Wrap(err, "config: invalid '.sources'")
+		}
+	}
+
+	return nil
+}
