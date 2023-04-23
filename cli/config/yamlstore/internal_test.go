@@ -12,7 +12,7 @@ import (
 
 // Export for testing.
 var (
-	LoadVersion = LoadVersionFromFile
+	LoadVersion = loadVersionFromFile
 )
 
 func Test_getConfigDirFromFlag(t *testing.T) {

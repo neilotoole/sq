@@ -41,8 +41,8 @@ type Store struct {
 	// ExtPaths holds locations of potential ext config, both dirs and files (with suffix ".sq.yml")
 	ExtPaths []string
 
-	// upgradeReg holds upgrade funcs for upgrading the config file.
-	upgradeReg UpgradeRegistry
+	// UpgradeRegistry holds upgrade funcs for upgrading the config file.
+	UpgradeRegistry UpgradeRegistry
 }
 
 // String returns a log/debug-friendly representation.
@@ -60,34 +60,29 @@ func (fs *Store) Load(ctx context.Context) (*config.Config, error) {
 	log := lg.FromContext(ctx)
 	log.Debug("Loading config from file", lga.Path, fs.Path)
 
-	if fs.upgradeReg == nil {
-		// Use the package-level registry by default.
-		// This is not ideal, but test code can change this
-		// if needed.
-		fs.upgradeReg = DefaultUpgradeRegistry
-	}
-
-	mightNeedUpgrade, foundVers, err := checkNeedsUpgrade(fs.Path)
-	if err != nil {
-		return nil, errz.Wrapf(err, "config: %s", fs.Path)
-	}
-
-	if mightNeedUpgrade {
-		log.Info("Upgrade config?", lga.From, foundVers, lga.To, buildinfo.Version)
-		if _, err = fs.UpgradeConfig(ctx, foundVers, buildinfo.Version); err != nil {
-			return nil, err
-		}
-
-		// We do a cycle of loading and saving the config after the upgrade,
-		// because the upgrade may have written YAML via a map, which
-		// doesn't preserve order. Loading and saving should fix that.
-		cfg, err := fs.doLoad(ctx)
+	if fs.UpgradeRegistry != nil {
+		mightNeedUpgrade, foundVers, err := checkNeedsUpgrade(fs.Path)
 		if err != nil {
-			return nil, errz.Wrapf(err, "config: %s: load failed after config upgrade", fs.Path)
+			return nil, errz.Wrapf(err, "config: %s", fs.Path)
 		}
 
-		if err = fs.Save(ctx, cfg); err != nil {
-			return nil, errz.Wrapf(err, "config: %s: save failed after config upgrade", fs.Path)
+		if mightNeedUpgrade {
+			log.Info("Upgrade config?", lga.From, foundVers, lga.To, buildinfo.Version)
+			if _, err = fs.doUpgrade(ctx, foundVers, buildinfo.Version); err != nil {
+				return nil, err
+			}
+
+			// We do a cycle of loading and saving the config after the upgrade,
+			// because the upgrade may have written YAML via a map, which
+			// doesn't preserve order. Loading and saving should fix that.
+			cfg, err := fs.doLoad(ctx)
+			if err != nil {
+				return nil, errz.Wrapf(err, "config: %s: load failed after config upgrade", fs.Path)
+			}
+
+			if err = fs.Save(ctx, cfg); err != nil {
+				return nil, errz.Wrapf(err, "config: %s: save failed after config upgrade", fs.Path)
+			}
 		}
 	}
 
@@ -175,9 +170,9 @@ func (fs *Store) Write(data []byte) error {
 	return nil
 }
 
-// FileExists returns true if the backing file can be accessed, false if it doesn't
+// fileExists returns true if the backing file can be accessed, false if it doesn't
 // exist or on any error.
-func (fs *Store) FileExists() bool {
+func (fs *Store) fileExists() bool {
 	_, err := os.Stat(fs.Path)
 	return err == nil
 }

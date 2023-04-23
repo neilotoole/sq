@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/neilotoole/sq/cli/config/yamlstore"
+	v0_34_0 "github.com/neilotoole/sq/cli/config/yamlstore/upgrades/v0.34.0"
 	"github.com/neilotoole/sq/libsq/core/lg/slogbuf"
 
 	"github.com/neilotoole/sq/cli/config"
@@ -129,9 +130,12 @@ func newDefaultRunContext(ctx context.Context,
 		ErrOut: stderr,
 	}
 
-	cfg, cfgStore, configErr := yamlstore.DefaultLoad(lg.NewContext(ctx, log), args)
-	rc.ConfigStore = cfgStore
-	rc.Config = cfg
+	upgrades := yamlstore.UpgradeRegistry{
+		v0_34_0.Version: v0_34_0.Upgrade,
+	}
+
+	var configErr error
+	rc.Config, rc.ConfigStore, configErr = yamlstore.DefaultLoad(lg.NewContext(ctx, log), args, upgrades)
 
 	log, logHandler, clnup, loggingErr := defaultLogging()
 	rc.Log = log

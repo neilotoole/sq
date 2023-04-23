@@ -15,7 +15,7 @@ import (
 
 // DefaultLoad loads sq config from the default location
 // (~/.config/sq/sq.yml) or the location specified in envars.
-func DefaultLoad(ctx context.Context, osArgs []string) (*config.Config, config.Store, error) {
+func DefaultLoad(ctx context.Context, osArgs []string, upgrades UpgradeRegistry) (*config.Config, config.Store, error) {
 	var (
 		cfgDir string
 		origin string
@@ -37,12 +37,13 @@ func DefaultLoad(ctx context.Context, osArgs []string) (*config.Config, config.S
 	cfgPath := filepath.Join(cfgDir, "sq.yml")
 	extDir := filepath.Join(cfgDir, "ext")
 	cfgStore := &Store{
-		Path:       cfgPath,
-		PathOrigin: origin,
-		ExtPaths:   []string{extDir},
+		Path:            cfgPath,
+		PathOrigin:      origin,
+		ExtPaths:        []string{extDir},
+		UpgradeRegistry: upgrades,
 	}
 
-	if !cfgStore.FileExists() {
+	if !cfgStore.fileExists() {
 		cfg := config.New()
 		return cfg, cfgStore, nil
 	}
