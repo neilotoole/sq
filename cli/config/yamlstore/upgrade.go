@@ -29,7 +29,7 @@ const MinConfigVersion = "v0.0.0-dev"
 // bind the config file YAML to the Config object, as they may differ
 // significantly. Instead, the func should bind the YAML to a map, and
 // manipulate that map directly.
-type UpgradeFunc func(ctx context.Context, fs *Store) error
+type UpgradeFunc func(ctx context.Context, before []byte) (after []byte, err error)
 
 // UpgradeRegistry is a map of config_version to upgrade funcs.
 type UpgradeRegistry map[string]UpgradeFunc
@@ -69,11 +69,18 @@ func (fs *Store) UpgradeConfig(ctx context.Context,
 	var err error
 	upgradeFns := fs.upgradeReg.getUpgradeFuncs(startVersion, targetVersion)
 
-	for _, fn := range upgradeFns {
-		err = fn(ctx, fs)
+	data, err := os.ReadFile(fs.Path)
+	if err != nil {
+		return nil, err
+	}
+
+	for vers, fn := range upgradeFns {
+		log.Debug("Attempting config upgrade", lga.To, vers)
+		data, err = fn(ctx, data)
 		if err != nil {
 			return nil, err
 		}
+		log.Debug("Upgrade successful", lga.To, vers)
 	}
 
 	// Do a final update of the version

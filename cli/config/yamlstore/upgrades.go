@@ -2,14 +2,14 @@ package yamlstore
 
 import (
 	"context"
-	"os"
 
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
-
-	"github.com/neilotoole/sq/libsq/core/errz"
 )
+
+const Version = "v0.34.0"
 
 // ExecUpgrade_v0_34_0 does the following:
 // - "version" is renamed to "config_version".
@@ -21,20 +21,14 @@ import (
 // - "config_version" is set to "v0.34.0".
 //
 // FIXME: WIP.
-func ExecUpgrade_v0_34_0(ctx context.Context, fs *Store) error { //nolint:revive,stylecheck
-	const vers = "v0.34.0"
+func ExecUpgrade_v0_34_0(ctx context.Context, before []byte) (after []byte, err error) { //nolint:revive,stylecheck
 	log := lg.FromContext(ctx)
-	log.Info("Starting config upgrade", lga.To, vers)
-
-	data, err := os.ReadFile(fs.Path)
-	if err != nil {
-		return errz.Wrap(err, "failed to read config file")
-	}
+	log.Info("Starting config upgrade", lga.To, Version)
 
 	// Load data
 	var m map[string]any
-	if err = ioz.UnmarshallYAML(data, &m); err != nil {
-		return errz.Wrapf(err, "failed to unmarshal config file: %s", fs.Path)
+	if err = ioz.UnmarshallYAML(before, &m); err != nil {
+		return nil, errz.Wrap(err, "failed to unmarshal config")
 	}
 
 	// Do your actions
@@ -47,7 +41,7 @@ func ExecUpgrade_v0_34_0(ctx context.Context, fs *Store) error { //nolint:revive
 
 	opts, ok := m["options"].(map[string]any)
 	if !ok {
-		return errz.Errorf("corrupt config: invalid 'options' field")
+		return nil, errz.Errorf("corrupt config: invalid 'options' field")
 	}
 
 	opts["format"] = opts["output_format"]
@@ -61,7 +55,7 @@ func ExecUpgrade_v0_34_0(ctx context.Context, fs *Store) error { //nolint:revive
 
 	sources, ok := m["sources"].(map[string]any)
 	if !ok {
-		return errz.Errorf("corrupt config: invalid 'sources' field")
+		return nil, errz.Errorf("corrupt config: invalid 'sources' field")
 	}
 
 	sources["active_source"] = sources["active"]
@@ -69,18 +63,18 @@ func ExecUpgrade_v0_34_0(ctx context.Context, fs *Store) error { //nolint:revive
 
 	items, ok := sources["items"].([]any)
 	if !ok {
-		return errz.Errorf("corrupt config: invalid 'sources.items' field")
+		return nil, errz.Errorf("corrupt config: invalid 'sources.items' field")
 	}
 
 	for i := 0; i < len(items); i++ {
 		src, ok := items[i].(map[string]any)
 		if !ok {
-			return errz.Errorf("corrupt config: invalid 'sources.items[%d]' field", i)
+			return nil, errz.Errorf("corrupt config: invalid 'sources.items[%d]' field", i)
 		}
 
 		typ, ok := src["type"].(string)
 		if !ok {
-			return errz.Errorf("corrupt config: invalid 'sources.items[%d].type' field", i)
+			return nil, errz.Errorf("corrupt config: invalid 'sources.items[%d].type' field", i)
 		}
 
 		srcDriver := typ
@@ -111,19 +105,13 @@ func ExecUpgrade_v0_34_0(ctx context.Context, fs *Store) error { //nolint:revive
 	m["collection"] = sources
 	delete(m, "sources")
 
-	m["config_version"] = vers
+	m["config_version"] = Version
 
 	// Marshal m back into []byte
-	data, err = ioz.MarshalYAML(m)
+	after, err = ioz.MarshalYAML(m)
 	if err != nil {
-		return errz.Wrapf(err, "failed to upgrade %s to %s", fs.Path, vers)
+		return nil, errz.Wrapf(err, "failed to upgrade config to %s", Version)
 	}
 
-	// Then write results
-	if err = fs.Write(data); err != nil {
-		return errz.Wrapf(err, "failed to save config file: %s", fs.Path)
-	}
-
-	// fs.log.Debugf("SUCCESS: config upgraded to v0.34.0")
-	return nil
+	return after, nil
 }
