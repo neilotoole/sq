@@ -6,9 +6,9 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 
-	"github.com/neilotoole/sq/cli/config/options"
+	"github.com/neilotoole/sq/libsq/core/options"
 
-	"github.com/neilotoole/sq/cli/config/options/format"
+	"github.com/neilotoole/sq/cli/output/format"
 
 	"github.com/fatih/color"
 	"github.com/mattn/go-colorable"

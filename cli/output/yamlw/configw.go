@@ -3,7 +3,7 @@ package yamlw
 import (
 	"io"
 
-	"github.com/neilotoole/sq/cli/config/options"
+	"github.com/neilotoole/sq/libsq/core/options"
 
 	"github.com/goccy/go-yaml/printer"
 

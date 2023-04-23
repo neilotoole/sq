@@ -10,7 +10,7 @@ import (
 
 	"github.com/neilotoole/sq/cli"
 
-	"github.com/neilotoole/sq/cli/config/options/format"
+	"github.com/neilotoole/sq/cli/output/format"
 
 	"github.com/neilotoole/slogt"
 	"github.com/neilotoole/sq/libsq/core/lg"

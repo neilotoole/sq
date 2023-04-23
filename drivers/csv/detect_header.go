@@ -3,7 +3,7 @@ package csv
 import (
 	"strings"
 
-	options2 "github.com/neilotoole/sq/cli/config/options"
+	"github.com/neilotoole/sq/libsq/core/options"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -12,7 +12,7 @@ import (
 // hasHeaderRow returns true if a header row is explicitly
 // set in opts, or if detectHeaderRow detects that the first
 // row of recs seems to be a header.
-func hasHeaderRow(recs [][]string, opts options2.Options) (bool, error) {
+func hasHeaderRow(recs [][]string, opts options.Options) (bool, error) {
 	if OptImportHeader.IsSet(opts) {
 		return OptImportHeader.Get(opts), nil
 	}

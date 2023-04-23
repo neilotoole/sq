@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	options2 "github.com/neilotoole/sq/cli/config/options"
+	"github.com/neilotoole/sq/libsq/core/options"
 
 	"github.com/neilotoole/sq/libsq/source"
 
@@ -77,7 +77,7 @@ func execConfigEditOptions(cmd *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	opts := options2.Options{}
+	opts := options.Options{}
 	if err = ioz.UnmarshallYAML(after, &opts); err != nil {
 		return err
 	}

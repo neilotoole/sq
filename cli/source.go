@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	options2 "github.com/neilotoole/sq/cli/config/options"
+	"github.com/neilotoole/sq/libsq/core/options"
 
 	"github.com/neilotoole/sq/cli/flag"
 
@@ -120,7 +120,7 @@ func checkStdinSource(ctx context.Context, rc *RunContext) (*source.Source, erro
 	// If we got this far, we have pipe input
 
 	// It's possible the user supplied source options
-	opts := options2.Options{}
+	opts := options.Options{}
 	if cmd.Flags().Changed(flag.SrcOptions) {
 		val, _ := cmd.Flags().GetString(flag.SrcOptions)
 		val = strings.TrimSpace(val)
@@ -164,7 +164,7 @@ func checkStdinSource(ctx context.Context, rc *RunContext) (*source.Source, erro
 // newSource creates a new Source instance where the
 // driver type is known. Opts may be nil.
 func newSource(log *slog.Logger, dp driver.Provider, typ source.DriverType, handle, loc string,
-	opts options2.Options,
+	opts options.Options,
 ) (*source.Source, error) {
 	if opts == nil {
 		log.Debug("Create new data source",

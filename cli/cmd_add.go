@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	options2 "github.com/neilotoole/sq/cli/config/options"
+	"github.com/neilotoole/sq/libsq/core/options"
 
 	"github.com/neilotoole/sq/cli/flag"
 
@@ -196,7 +196,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		return errz.Errorf("source handle already exists: %s", handle)
 	}
 
-	var opts options2.Options
+	var opts options.Options
 	if cmdFlagChanged(cmd, flag.SrcOptions) {
 		val, _ := cmd.Flags().GetString(flag.SrcOptions)
 		val = strings.TrimSpace(val)

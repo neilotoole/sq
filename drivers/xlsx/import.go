@@ -25,7 +25,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
 
-	options2 "github.com/neilotoole/sq/cli/config/options"
+	"github.com/neilotoole/sq/libsq/core/options"
 )
 
 // OptImportHeader allows the user to specify whether the imported XLSX
@@ -34,7 +34,7 @@ import (
 // to go away, because it doesn't really work well with the fact that
 // an XLSX workbook has multiple sheets, each of which could have a
 // header row.
-var OptImportHeader = options2.NewBool("driver.xlsx.header", false, "")
+var OptImportHeader = options.NewBool("driver.xlsx.header", false, "")
 
 // xlsxToScratch loads the data in xlFile into scratchDB.
 func xlsxToScratch(ctx context.Context, src *source.Source, xlFile *xlsx.File, scratchDB driver.Database) error {

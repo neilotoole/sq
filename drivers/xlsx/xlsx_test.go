@@ -3,7 +3,7 @@ package xlsx_test
 import (
 	"testing"
 
-	options2 "github.com/neilotoole/sq/cli/config/options"
+	"github.com/neilotoole/sq/libsq/core/options"
 
 	"github.com/neilotoole/sq/testh/tutil"
 
@@ -52,7 +52,7 @@ func Test_XLSX_BadDateRecognition(t *testing.T) {
 		Handle:   "@xlsx_bad_date",
 		Type:     xlsx.Type,
 		Location: proj.Abs("drivers/xlsx/testdata/problem_with_recognizing_date_colA.xlsx"),
-		Options:  options2.Options{xlsx.OptImportHeader.Key(): true},
+		Options:  options.Options{xlsx.OptImportHeader.Key(): true},
 	}
 
 	require.True(t, src.Options.IsSet(xlsx.OptImportHeader))

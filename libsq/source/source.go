@@ -14,7 +14,7 @@ import (
 
 	"github.com/xo/dburl"
 
-	"github.com/neilotoole/sq/cli/config/options"
+	"github.com/neilotoole/sq/libsq/core/options"
 )
 
 // DriverType is a driver type, e.g. "mysql", "postgres", "csv", etc.

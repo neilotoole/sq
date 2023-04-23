@@ -9,7 +9,7 @@ package output
 import (
 	"time"
 
-	"github.com/neilotoole/sq/cli/config/options"
+	"github.com/neilotoole/sq/libsq/core/options"
 
 	"github.com/neilotoole/sq/cli/buildinfo"
 	"github.com/neilotoole/sq/libsq/core/sqlz"

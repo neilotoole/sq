@@ -2,7 +2,7 @@
 package config
 
 import (
-	"github.com/neilotoole/sq/cli/config/options"
+	"github.com/neilotoole/sq/libsq/core/options"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"golang.org/x/mod/semver"
