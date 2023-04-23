@@ -6,13 +6,14 @@ import (
 	"os"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/ioz"
+
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"github.com/neilotoole/sq/cli/buildinfo"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"golang.org/x/mod/semver"
-	"gopkg.in/yaml.v3"
 )
 
 // minConfigVersion is the minimum semver value of Config.Version.
@@ -128,7 +129,7 @@ func loadVersion(path string) (string, error) {
 	}
 
 	m := map[string]any{}
-	err = yaml.Unmarshal(bytes, &m)
+	err = ioz.UnmarshallYAML(bytes, &m)
 	if err != nil {
 		return "", errz.Wrap(err, "failed to unmarshal config YAML")
 	}

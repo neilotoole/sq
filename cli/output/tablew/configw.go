@@ -3,9 +3,8 @@ package tablew
 import (
 	"fmt"
 	"io"
-	"strconv"
 
-	"github.com/neilotoole/sq/cli/config"
+	"github.com/neilotoole/sq/cli/config/options"
 
 	"github.com/neilotoole/sq/cli/output"
 )
@@ -36,7 +35,7 @@ func (w *configWriter) Location(path, origin string) error {
 }
 
 // Options implements output.ConfigWriter.
-func (w *configWriter) Options(opts *config.Options) error {
+func (w *configWriter) Options(opts options.Options) error {
 	if opts == nil {
 		return nil
 	}
@@ -47,17 +46,27 @@ func (w *configWriter) Options(opts *config.Options) error {
 	}
 	t.SetColTrans(0, pr.Key.SprintFunc())
 
+	// FIXME: Verbose functionality should show defaults
 	var rows [][]string
-	rows = append(rows, []string{"output_format", string(opts.Format)})
 
-	rows = append(rows, []string{"output_header", strconv.FormatBool(opts.Header)})
-	t.SetCellTrans(1, 1, pr.Bool.SprintFunc())
+	keys := opts.Keys()
+	for _, k := range keys {
+		rows = append(rows, []string{k, fmt.Sprintf("%v", opts[k])})
 
-	rows = append(rows, []string{"ping_timeout", fmt.Sprintf("%v", opts.PingTimeout)})
-	t.SetCellTrans(2, 1, pr.Datetime.SprintFunc())
+		// FIXME: need to check type of Opt from registry, and SetCellTrans
+		// appropriately
+	}
 
-	rows = append(rows, []string{"shell_completion_timeout", fmt.Sprintf("%v", opts.ShellCompletionTimeout)})
-	t.SetCellTrans(3, 1, pr.Datetime.SprintFunc())
+	// rows = append(rows, []string{"output_format", string(opts.Format)})
+	//
+	// rows = append(rows, []string{"output_header", strconv.FormatBool(opts.Header)})
+	// t.SetCellTrans(1, 1, pr.Bool.SprintFunc())
+	//
+	// rows = append(rows, []string{"ping_timeout", fmt.Sprintf("%v", opts.PingTimeout)})
+	// t.SetCellTrans(2, 1, pr.Datetime.SprintFunc())
+	//
+	// rows = append(rows, []string{"shell_completion_timeout", fmt.Sprintf("%v", opts.ShellCompletionTimeout)})
+	// t.SetCellTrans(3, 1, pr.Datetime.SprintFunc())
 
 	w.tbl.appendRowsAndRenderAll(rows)
 	return nil

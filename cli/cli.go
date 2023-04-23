@@ -24,6 +24,10 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/neilotoole/sq/cli/config/options"
+
+	"github.com/neilotoole/sq/cli/config/options/format"
+
 	"github.com/neilotoole/sq/cli/flag"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -387,12 +391,11 @@ func printError(rc *RunContext, err error) {
 	// in json, specified via flags (by directly using the pflag
 	// package) or via sq config's default output format.
 
-	var opts *config.Options
-	if rc != nil && rc.Config != nil {
-		var zero config.Options
-		if rc.Config.Options != zero {
-			opts = &rc.Config.Options
-		}
+	opts := options.Options{}
+	if rc != nil && rc.Config != nil && rc.Config.Options != nil {
+		opts = rc.Config.Options
+	} else {
+		opts, _ = options.DefaultRegistry.Process(opts)
 	}
 
 	// getPrinting works even if cmd is nil
@@ -452,9 +455,9 @@ func bootstrapIsFormatJSON(rc *RunContext) bool {
 		return false
 	}
 
-	defaultFormat := config.FormatTable
+	defaultFormat := format.Table
 	if rc.Config != nil {
-		defaultFormat = rc.Config.Options.Format
+		defaultFormat = OptOutputFormat.Get(rc.Config.Options)
 	}
 
 	// If args were provided, create a new flag set and check
@@ -470,14 +473,14 @@ func bootstrapIsFormatJSON(rc *RunContext) bool {
 
 		// No --json flag, return true if the config file default is JSON
 		if jsonFlag == nil {
-			return defaultFormat == config.FormatJSON
+			return defaultFormat == format.JSON
 		}
 
 		return *jsonFlag
 	}
 
 	// No args, return true if the config file default is JSON
-	return defaultFormat == config.FormatJSON
+	return defaultFormat == format.JSON
 }
 
 func panicOn(err error) {

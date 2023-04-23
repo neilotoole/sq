@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/ioz"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
@@ -46,7 +48,6 @@ import (
 	"github.com/neilotoole/sq/testh/testsrc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/yaml.v3"
 )
 
 // defaultDBOpenTimeout is the timeout for tests to open (and ping) their DBs.
@@ -711,7 +712,7 @@ func DriverDefsFrom(t testing.TB, cfgFiles ...string) []*userdriver.DriverDef {
 	var userDriverDefs []*userdriver.DriverDef
 	for _, f := range cfgFiles {
 		ext := &config.Ext{}
-		require.NoError(t, yaml.Unmarshal(proj.ReadFile(f), ext))
+		require.NoError(t, ioz.UnmarshallYAML(proj.ReadFile(f), ext))
 		userDriverDefs = append(userDriverDefs, ext.UserDrivers...)
 	}
 	return userDriverDefs

@@ -3,9 +3,9 @@ package yamlw
 import (
 	"io"
 
-	"github.com/goccy/go-yaml/printer"
+	"github.com/neilotoole/sq/cli/config/options"
 
-	"github.com/neilotoole/sq/cli/config"
+	"github.com/goccy/go-yaml/printer"
 
 	"github.com/neilotoole/sq/cli/output"
 )
@@ -40,7 +40,7 @@ func (w *configWriter) Location(loc, origin string) error {
 }
 
 // Options implements output.ConfigWriter.
-func (w *configWriter) Options(opts *config.Options) error {
+func (w *configWriter) Options(opts options.Options) error {
 	if opts == nil {
 		return nil
 	}

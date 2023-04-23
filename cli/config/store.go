@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/neilotoole/sq/cli/config/options"
+
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
@@ -20,8 +22,6 @@ import (
 	"github.com/neilotoole/sq/cli/buildinfo"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/source"
-
-	"gopkg.in/yaml.v3"
 )
 
 // Store saves and loads config.
@@ -128,9 +128,14 @@ func (fs *YAMLFileStore) doLoad(ctx context.Context) (*Config, error) {
 	}
 
 	cfg := &Config{}
-	err = yaml.Unmarshal(bytes, cfg)
+	err = ioz.UnmarshallYAML(bytes, cfg)
 	if err != nil {
 		return nil, errz.Wrapf(err, "config: %s: failed to unmarshal config YAML", fs.Path)
+	}
+
+	cfg.Options, err = options.DefaultRegistry.Process(cfg.Options)
+	if err != nil {
+		return nil, err
 	}
 
 	initCfg(cfg)
@@ -203,7 +208,7 @@ func (fs *YAMLFileStore) loadExt(cfg *Config) error {
 		}
 		ext := &Ext{}
 
-		err = yaml.Unmarshal(bytes, ext)
+		err = ioz.UnmarshallYAML(bytes, ext)
 		if err != nil {
 			return errz.Wrapf(err, "error parsing config ext file: %s", fp)
 		}

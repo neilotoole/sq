@@ -1,5 +1,7 @@
 // Package options is the home of the Options type, used to control
 // optional behavior of core types such as Source.
+//
+// Deprecated: use config/options instead.
 package options
 
 import (

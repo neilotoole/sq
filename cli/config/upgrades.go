@@ -6,7 +6,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/ioz"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"gopkg.in/yaml.v3"
 )
 
 // execUpgrade_v0_34_0 does the following:
@@ -28,16 +27,31 @@ func execUpgrade_v0_34_0(fs *YAMLFileStore) error { //nolint:revive,stylecheck
 
 	// Load data
 	var m map[string]any
-	if err = yaml.Unmarshal(data, &m); err != nil {
+	if err = ioz.UnmarshallYAML(data, &m); err != nil {
 		return errz.Wrapf(err, "failed to unmarshal config file: %s", fs.Path)
 	}
 
 	// Do your actions
-	m["options"] = m["defaults"]
-	delete(m, "defaults")
 
 	m["config_version"] = m["version"]
 	delete(m, "version")
+
+	m["options"] = m["defaults"]
+	delete(m, "defaults")
+
+	opts, ok := m["options"].(map[string]any)
+	if !ok {
+		return errz.Errorf("corrupt config: invalid 'options' field")
+	}
+
+	opts["format"] = opts["output_format"]
+	delete(opts, "output_format")
+	opts["format.header"] = opts["output_header"]
+	delete(opts, "output_header")
+	opts["ping.timeout"] = opts["ping_timeout"]
+	delete(opts, "ping_timeout")
+	opts["shell-completion.timeout"] = opts["shell_completion_timeout"]
+	delete(opts, "shell_completion_timeout")
 
 	sources, ok := m["sources"].(map[string]any)
 	if !ok {
@@ -63,8 +77,24 @@ func execUpgrade_v0_34_0(fs *YAMLFileStore) error { //nolint:revive,stylecheck
 			return errz.Errorf("corrupt config: invalid 'sources.items[%d].type' field", i)
 		}
 
-		src["driver"] = typ
+		srcDriver := typ
+		src["driver"] = srcDriver
 		delete(src, "type")
+
+		srcOpts, ok := src["options"].(map[string]any)
+		if ok && srcOpts != nil {
+			if headers, ok := srcOpts["header"].([]interface{}); ok && len(headers) >= 1 {
+				if b, ok := headers[0].(bool); ok {
+					switch srcDriver {
+					case "csv", "tsv":
+						srcOpts["driver.csv.header"] = b
+					case "xlsx":
+						srcOpts["driver.xlsx.header"] = b
+					}
+				}
+			}
+			delete(srcOpts, "header")
+		}
 	}
 
 	// Rename sources.items to sources.sources.

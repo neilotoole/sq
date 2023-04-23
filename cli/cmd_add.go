@@ -8,6 +8,8 @@ import (
 	"os"
 	"strings"
 
+	options2 "github.com/neilotoole/sq/cli/config/options"
+
 	"github.com/neilotoole/sq/cli/flag"
 
 	"github.com/neilotoole/sq/cli/output"
@@ -16,7 +18,6 @@ import (
 
 	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/source"
 )
@@ -195,16 +196,19 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		return errz.Errorf("source handle already exists: %s", handle)
 	}
 
-	var opts options.Options
+	var opts options2.Options
 	if cmdFlagChanged(cmd, flag.SrcOptions) {
 		val, _ := cmd.Flags().GetString(flag.SrcOptions)
 		val = strings.TrimSpace(val)
-		if val != "" {
-			opts, err = options.ParseOptions(val)
-			if err != nil {
-				return err
-			}
-		}
+		_ = val
+		// FIXME: Deal with option flags
+
+		// if val != "" {
+		// 	opts, err = options.ParseOptions(val)
+		// 	if err != nil {
+		// 		return err
+		// 	}
+		// }
 	}
 
 	if typ == sqlite3.Type {

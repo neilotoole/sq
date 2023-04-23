@@ -3,6 +3,9 @@ package cli
 import (
 	"context"
 	"strings"
+	"time"
+
+	"github.com/neilotoole/sq/cli/config/options"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
@@ -14,6 +17,15 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/libsq/source"
+)
+
+// CompletionTimeout determines how long to wait until for long-running
+// shell completion operations (such as fetching table names from a DB) before
+// giving up.
+var CompletionTimeout = options.NewDuration(
+	"shell-completion.timeout",
+	time.Millisecond*500,
+	"How long shell completion should wait before giving up.",
 )
 
 // completionFunc is a shell completion function.
@@ -170,7 +182,7 @@ func (c *handleTableCompleter) complete(cmd *cobra.Command, args []string,
 	// We don't want the user to wait around forever for
 	// shell completion, so we set a timeout. Typically
 	// this is something like 500ms.
-	ctx, cancelFn := context.WithTimeout(cmd.Context(), rc.Config.Options.ShellCompletionTimeout)
+	ctx, cancelFn := context.WithTimeout(cmd.Context(), CompletionTimeout.Get(rc.Config.Options))
 	defer cancelFn()
 
 	if c.max > 0 && len(args) >= c.max {

@@ -8,6 +8,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neilotoole/sq/cli"
+
+	"github.com/neilotoole/sq/cli/config/options/format"
+
 	"github.com/neilotoole/slogt"
 	"github.com/neilotoole/sq/libsq/core/lg"
 
@@ -67,9 +71,9 @@ func Test_Upgrade_v0_34_0(t *testing.T) {
 
 	require.Equal(t, cfgDir, cfgStore.Location())
 	require.Equal(t, nextVers, cfg.Version)
-	require.Equal(t, config.FormatJSON, cfg.Options.Format)
-	require.Equal(t, time.Second*100, cfg.Options.PingTimeout)
-	require.Len(t, cfg.Collection.Sources(), 1)
+	require.Equal(t, format.JSON, cli.OptOutputFormat.Get(cfg.Options))
+	require.Equal(t, time.Second*100, cli.OptPingTimeout.Get(cfg.Options))
+	require.Len(t, cfg.Collection.Sources(), 3)
 	src0 := cfg.Collection.Sources()[0]
 	require.Equal(t, handle, src0.Handle)
 	require.Equal(t, postgres.Type, src0.Type)
@@ -77,7 +81,7 @@ func Test_Upgrade_v0_34_0(t *testing.T) {
 	require.NotNil(t, cfg.Collection.Active())
 	require.Equal(t, handle, cfg.Collection.Active().Handle)
 
-	wantCfgRaw, err := os.ReadFile(filepath.Join(testdataDir, "want.sq.yml"))
+	wantCfgRaw, err := os.ReadFile(filepath.Join(testdataDir, "want2.sq.yml"))
 	require.NoError(t, err)
 
 	gotCfgRaw, err := os.ReadFile(filepath.Join(cfgDir, "sq.yml"))

@@ -19,13 +19,22 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
-	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/source"
 
 	"github.com/neilotoole/sq/libsq/core/sqlmodel"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
+
+	options2 "github.com/neilotoole/sq/cli/config/options"
 )
+
+// OptImportHeader allows the user to specify whether the imported XLSX
+// file has a header or not. If not set, the importer will try to
+// detect if the input has a header. This option will probably need
+// to go away, because it doesn't really work well with the fact that
+// an XLSX workbook has multiple sheets, each of which could have a
+// header row.
+var OptImportHeader = options2.NewBool("driver.xlsx.header", false, "")
 
 // xlsxToScratch loads the data in xlFile into scratchDB.
 func xlsxToScratch(ctx context.Context, src *source.Source, xlFile *xlsx.File, scratchDB driver.Database) error {
@@ -35,11 +44,10 @@ func xlsxToScratch(ctx context.Context, src *source.Source, xlFile *xlsx.File, s
 		lga.Src, src,
 		lga.Target, scratchDB.Source())
 
-	hasHeader, _, err := options.HasHeader(src.Options)
-	if err != nil {
-		return err
-	}
+	hasHeader := OptImportHeader.Get(src.Options)
 
+	// TODO: Like the csv driver, the xlsx driver should detect
+	// the presence of a header.
 	tblDefs, err := buildTblDefsForSheets(ctx, xlFile.Sheets, hasHeader)
 	if err != nil {
 		return err

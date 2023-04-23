@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/neilotoole/sq/cli/config/options"
+
 	"github.com/neilotoole/sq/libsq/driver/dialect"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -41,6 +43,15 @@ func (c *SQLConfig) Apply(db *sql.DB) {
 	db.SetConnMaxIdleTime(c.ConnMaxIdleTime)
 	db.SetConnMaxLifetime(c.ConnMaxLifetime)
 }
+
+var (
+	// TODO: merge these options with SQLConfig.
+
+	ConnMaxOpen     = options.NewInt("conn.max-open", 0, "")
+	ConnMaxIdle     = options.NewInt("conn.max-idle", 0, "")
+	ConnMaxIdleTime = options.NewDuration("conn.max-idle-time", 0, "")
+	ConnMaxLifetime = options.NewDuration("conn.max-lifetime", 0, "")
+)
 
 // Provider is a factory that returns Driver instances.
 type Provider interface {

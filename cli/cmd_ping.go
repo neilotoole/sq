@@ -5,6 +5,8 @@ import (
 	"errors"
 	"time"
 
+	"github.com/neilotoole/sq/cli/config/options"
+
 	"github.com/neilotoole/sq/cli/flag"
 
 	"github.com/samber/lo"
@@ -19,6 +21,13 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
+)
+
+// OptPingTimeout controls ping timeout.
+var OptPingTimeout = options.NewDuration(
+	"ping.timeout",
+	time.Second*10,
+	"How long to wait before ping timeout occurs.",
 )
 
 func newPingCmd() *cobra.Command {
@@ -101,7 +110,7 @@ func execPing(cmd *cobra.Command, args []string) error {
 
 	srcs = lo.Uniq(srcs)
 
-	timeout := cfg.Options.PingTimeout
+	timeout := OptPingTimeout.Get(rc.Config.Options)
 	if cmdFlagChanged(cmd, flag.PingTimeout) {
 		timeout, _ = cmd.Flags().GetDuration(flag.PingTimeout)
 	}

@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/core/ioz"
+
 	"github.com/neilotoole/sq/libsq/core/stringz"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/yaml.v3"
 
 	"github.com/neilotoole/sq/cli/config"
 	"github.com/neilotoole/sq/drivers/userdriver/xmlud"
@@ -26,7 +27,7 @@ func TestImport_Ppl(t *testing.T) {
 	th := testh.New(t)
 
 	ext := &config.Ext{}
-	require.NoError(t, yaml.Unmarshal(proj.ReadFile(testsrc.PathDriverDefPpl), ext))
+	require.NoError(t, ioz.UnmarshallYAML(proj.ReadFile(testsrc.PathDriverDefPpl), ext))
 	require.Equal(t, 1, len(ext.UserDrivers))
 	udDef := ext.UserDrivers[0]
 	require.Equal(t, driverPpl, udDef.Name)
@@ -71,7 +72,7 @@ func TestImport_RSS(t *testing.T) {
 	th := testh.New(t)
 
 	ext := &config.Ext{}
-	require.NoError(t, yaml.Unmarshal(proj.ReadFile(testsrc.PathDriverDefRSS), ext))
+	require.NoError(t, ioz.UnmarshallYAML(proj.ReadFile(testsrc.PathDriverDefRSS), ext))
 	require.Equal(t, 1, len(ext.UserDrivers))
 	udDef := ext.UserDrivers[0]
 	require.Equal(t, driverRSS, udDef.Name)

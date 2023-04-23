@@ -18,18 +18,29 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/lg"
 
+	options2 "github.com/neilotoole/sq/cli/config/options"
 	"github.com/neilotoole/sq/libsq"
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 )
 
-// emptyAsNull determines if an empty CSV field is treated as NULL
+// OptImportHeader allows the user to specify whether the imported CSV
+// file has a header or not. If not set, the importer will try to
+// detect if the input has a header.
+var OptImportHeader = options2.NewBool("driver.csv.header", false, "")
+
+// OptEmptyAsNull determines if an empty CSV field is treated as NULL
 // or as the zero value for the kind of that field.
-//
-// TODO: emptyAsNull should come from config.
-const emptyAsNull = true
+var OptEmptyAsNull = options2.NewBool("driver.csv.empty-as-null", true, "")
+
+// OptDelim specifies the CSV delimiter to use.
+var OptDelim = options2.NewString(
+	"driver.csv.delim",
+	"comma",
+	`Possible values are: comma, space, pipe, tab, colon, semi, period.
+Default is comma.`,
+)
 
 // importCSV loads the src CSV data into scratchDB.
 func importCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFunc, scratchDB driver.Database) error {
@@ -93,7 +104,7 @@ func importCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFu
 		return err
 	}
 
-	if emptyAsNull {
+	if OptEmptyAsNull.Get(src.Options) {
 		configureEmptyNullMunge(mungers, recMeta)
 	}
 
@@ -177,20 +188,12 @@ func getDelimiter(src *source.Source) (rune, error) {
 // getDelimFromOptions returns ok as true and the delimiter rune if a
 // valid value is provided in src.Options, returns ok as false if
 // no valid value provided, and an error if the provided value is invalid.
-func getDelimFromOptions(opts options.Options) (r rune, ok bool, err error) {
+func getDelimFromOptions(opts options2.Options) (r rune, ok bool, err error) {
 	if len(opts) == 0 {
 		return 0, false, nil
 	}
 
-	_, ok = opts[options.OptDelim]
-	if !ok {
-		return 0, false, nil
-	}
-
-	val := opts.Get(options.OptDelim)
-	if val == "" {
-		return 0, false, nil
-	}
+	val := OptDelim.Get(opts)
 
 	if len(val) == 1 {
 		r, _ = utf8.DecodeRuneInString(val)

@@ -18,7 +18,6 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 )
@@ -225,10 +224,7 @@ func (d *database) SourceMetadata(_ context.Context) (*source.Metadata, error) {
 		return nil, errz.Wrapf(err, "unable to open XLSX file: %s", d.src.Location)
 	}
 
-	hasHeader, _, err := options.HasHeader(d.src.Options)
-	if err != nil {
-		return nil, err
-	}
+	hasHeader := OptImportHeader.Get(d.src.Options)
 
 	for _, sheet := range xlFile.Sheets {
 		tbl := &source.TableMetadata{Name: sheet.Name, RowCount: int64(len(sheet.Rows))}
@@ -269,10 +265,7 @@ func (d *database) TableMetadata(_ context.Context, tblName string) (*source.Tab
 		return nil, errz.Wrapf(err, "unable to open XLSX file: %s", d.src.Location)
 	}
 
-	hasHeader, _, err := options.HasHeader(d.src.Options)
-	if err != nil {
-		return nil, err
-	}
+	hasHeader := OptImportHeader.Get(d.src.Options)
 
 	for _, sheet := range xlFile.Sheets {
 		if sheet.Name != tblName {

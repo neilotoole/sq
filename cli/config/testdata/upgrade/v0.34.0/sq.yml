@@ -12,4 +12,15 @@ sources:
   - handle: '@prod/sakila'
     type: postgres
     location: postgres://sakila:p_ssW0rd@localhost/sakila
-
+  - handle: "@csv/person"
+    type: csv
+    location: /Users/neilotoole/work/sq/sq/drivers/csv/testdata/person.csv
+    options:
+      header:
+      - "true"
+  - handle: "@xl_demo"
+    type: xlsx
+    location: /Users/neilotoole/sq/xl_demo.xlsx
+    options:
+      header:
+      - "true"

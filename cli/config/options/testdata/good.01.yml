@@ -1,0 +1,10 @@
+options:
+  format: csv
+  format.header: true
+  ping.timeout: 10s
+  shell-completion.timeout: 10s
+
+  conn.max-open: 50
+  conn.max-idle: 100
+  conn.max-idle-time: 100s
+  conn.max-lifetime: 5m

@@ -314,6 +314,7 @@ func (t *tWriter) Write(p []byte) (n int, err error) {
 		return 0, nil
 	}
 
+	t.t.Helper()
 	t.t.Log("\n" + string(p))
 	return len(p), nil
 }
