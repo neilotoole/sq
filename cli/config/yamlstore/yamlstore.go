@@ -42,7 +42,7 @@ type Store struct {
 	ExtPaths []string
 
 	// upgradeReg holds upgrade funcs for upgrading the config file.
-	upgradeReg upgradeRegistry
+	upgradeReg UpgradeRegistry
 }
 
 // String returns a log/debug-friendly representation.
@@ -64,7 +64,7 @@ func (fs *Store) Load(ctx context.Context) (*config.Config, error) {
 		// Use the package-level registry by default.
 		// This is not ideal, but test code can change this
 		// if needed.
-		fs.upgradeReg = defaultUpgradeReg
+		fs.upgradeReg = DefaultUpgradeRegistry
 	}
 
 	mightNeedUpgrade, foundVers, err := checkNeedsUpgrade(fs.Path)

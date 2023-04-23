@@ -23,19 +23,19 @@ import (
 // then the user needs to start with a new config.
 const MinConfigVersion = "v0.0.0-dev"
 
-// upgradeFunc performs a (single) upgrade of the config file. Typically
+// UpgradeFunc performs a (single) upgrade of the config file. Typically
 // a func will read the config data from disk, perform some transformation
 // on it, and write it back out to disk. Note that the func should not
 // bind the config file YAML to the Config object, as they may differ
 // significantly. Instead, the func should bind the YAML to a map, and
 // manipulate that map directly.
-type upgradeFunc func(ctx context.Context, fs *Store) error
+type UpgradeFunc func(ctx context.Context, fs *Store) error
 
-// upgradeRegistry is a map of config_version to upgrade funcs.
-type upgradeRegistry map[string]upgradeFunc
+// UpgradeRegistry is a map of config_version to upgrade funcs.
+type UpgradeRegistry map[string]UpgradeFunc
 
-// defaultUpgradeReg is the default upgrade registry.
-var defaultUpgradeReg = upgradeRegistry{}
+// DefaultUpgradeRegistry is the default upgrade registry.
+var DefaultUpgradeRegistry = UpgradeRegistry{}
 
 func init() { //nolint:gochecknoinits
 	if !buildinfo.IsDefaultVersion() && semver.Compare(buildinfo.Version, MinConfigVersion) < 0 {
@@ -50,7 +50,7 @@ func init() { //nolint:gochecknoinits
 	// types, as these may change between versions. Instead, the upgrade
 	// function should directly manipulate the yaml/map.
 
-	defaultUpgradeReg["v0.34.0"] = ExecUpgrade_v0_34_0
+	DefaultUpgradeRegistry["v0.34.0"] = ExecUpgrade_v0_34_0
 }
 
 // UpgradeConfig runs all the registered upgrade funcs between cfg.Version
@@ -96,8 +96,8 @@ func (fs *Store) UpgradeConfig(ctx context.Context,
 // getUpgradeFuncs returns the funcs required to upgrade from startingVersion
 // to targetVersion. We iterate over the set of registered funcs; if the
 // version (the key) is greater than startingVersion, and less than or equal
-// to targetVersion, that upgradeFunc will be included in the return value.
-func (r upgradeRegistry) getUpgradeFuncs(startingVersion, targetVersion string) []upgradeFunc {
+// to targetVersion, that UpgradeFunc will be included in the return value.
+func (r UpgradeRegistry) getUpgradeFuncs(startingVersion, targetVersion string) []UpgradeFunc {
 	if len(r) == 0 {
 		return nil
 	}
@@ -115,7 +115,7 @@ func (r upgradeRegistry) getUpgradeFuncs(startingVersion, targetVersion string) 
 
 	semver.Sort(vers)
 
-	upgradeFns := make([]upgradeFunc, len(vers))
+	upgradeFns := make([]UpgradeFunc, len(vers))
 	for i, v := range vers {
 		upgradeFns[i] = r[v]
 	}
