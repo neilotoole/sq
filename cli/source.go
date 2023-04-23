@@ -4,19 +4,15 @@ import (
 	"context"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/options"
-
 	"github.com/neilotoole/sq/cli/flag"
-
-	"github.com/neilotoole/sq/libsq/core/lg/lga"
-
-	"golang.org/x/exp/slog"
-
-	"github.com/spf13/cobra"
-
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
+
+	"github.com/spf13/cobra"
+	"golang.org/x/exp/slog"
 )
 
 // determineSources figures out what the active source is
