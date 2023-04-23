@@ -113,13 +113,18 @@ func (o Int) Get(opts Options) int {
 		return o.defaultVal
 	}
 
-	var i int
-	i, ok = v.(int)
-	if !ok {
+	switch i := v.(type) {
+	case int:
+		return i
+	case int64:
+		return int(i)
+	case uint64:
+		return int(i)
+	case uint:
+		return int(i)
+	default:
 		return o.defaultVal
 	}
-
-	return i
 }
 
 var _ Opt = Bool{}

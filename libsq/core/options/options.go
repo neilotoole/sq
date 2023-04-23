@@ -17,6 +17,8 @@ import (
 	"fmt"
 	"sync"
 
+	"golang.org/x/exp/slog"
+
 	"github.com/samber/lo"
 	"golang.org/x/exp/slices"
 
@@ -46,6 +48,17 @@ func (r *Registry) Add(opt Opt) {
 	}
 
 	r.opts = append(r.opts, opt)
+}
+
+// LogValue implements slog.LogValuer.
+func (r *Registry) LogValue() slog.Value {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	as := make([]slog.Attr, len(r.opts))
+	for i, opt := range r.opts {
+		as[i] = slog.String(opt.Key(), fmt.Sprintf("%T", opt))
+	}
+	return slog.GroupValue(as...)
 }
 
 // Get returns the Opt registered in r using key, or nil.
@@ -105,9 +118,10 @@ func process(options Options, opts []Opt) (Options, error) {
 		}
 	}
 
+	var err error
 	for _, o := range opts {
 		if n, ok := o.(Processor); ok {
-			if _, err := n.Process(o2); err != nil {
+			if o2, err = n.Process(o2); err != nil {
 				return nil, err
 			}
 		}

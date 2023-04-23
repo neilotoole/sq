@@ -47,10 +47,10 @@ func (c *SQLConfig) Apply(db *sql.DB) {
 var (
 	// TODO: merge these options with SQLConfig.
 
-	ConnMaxOpen     = options.NewInt("conn.max-open", 0, "")
-	ConnMaxIdle     = options.NewInt("conn.max-idle", 0, "")
-	ConnMaxIdleTime = options.NewDuration("conn.max-idle-time", 0, "")
-	ConnMaxLifetime = options.NewDuration("conn.max-lifetime", 0, "")
+	OptConnMaxOpen     = options.NewInt("conn.max-open", 0, "")
+	OptConnMaxIdle     = options.NewInt("conn.max-idle", 0, "")
+	OptConnMaxIdleTime = options.NewDuration("conn.max-idle-time", 0, "")
+	OptConnMaxLifetime = options.NewDuration("conn.max-lifetime", 0, "")
 )
 
 // Provider is a factory that returns Driver instances.

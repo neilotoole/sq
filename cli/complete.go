@@ -19,10 +19,10 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 )
 
-// CompletionTimeout determines how long to wait until for long-running
+// OptShellCompletionTimeout determines how long to wait until for long-running
 // shell completion operations (such as fetching table names from a DB) before
 // giving up.
-var CompletionTimeout = options.NewDuration(
+var OptShellCompletionTimeout = options.NewDuration(
 	"shell-completion.timeout",
 	time.Millisecond*500,
 	"How long shell completion should wait before giving up.",
@@ -182,7 +182,7 @@ func (c *handleTableCompleter) complete(cmd *cobra.Command, args []string,
 	// We don't want the user to wait around forever for
 	// shell completion, so we set a timeout. Typically
 	// this is something like 500ms.
-	ctx, cancelFn := context.WithTimeout(cmd.Context(), CompletionTimeout.Get(rc.Config.Options))
+	ctx, cancelFn := context.WithTimeout(cmd.Context(), OptShellCompletionTimeout.Get(rc.Config.Options))
 	defer cancelFn()
 
 	if c.max > 0 && len(args) >= c.max {
