@@ -59,7 +59,7 @@ func execConfigLocation(cmd *cobra.Command, _ []string) error {
 	rc := RunContextFrom(cmd.Context())
 	path := rc.ConfigStore.Location()
 	var origin string
-	if store, ok := rc.ConfigStore.(*yamlstore.YAMLFileStore); ok {
+	if store, ok := rc.ConfigStore.(*yamlstore.Store); ok {
 		origin = store.PathOrigin
 	}
 

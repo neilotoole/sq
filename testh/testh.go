@@ -699,7 +699,7 @@ func mustLoadCollection(ctx context.Context, t testing.TB) *source.Collection {
 		return []byte(proj.Expand(string(data))), nil
 	}
 
-	fs := &yamlstore.YAMLFileStore{Path: proj.Rel(testsrc.PathSrcsConfig), HookLoad: hookExpand}
+	fs := &yamlstore.Store{Path: proj.Rel(testsrc.PathSrcsConfig), HookLoad: hookExpand}
 	cfg, err := fs.Load(ctx)
 	require.NoError(t, err)
 	require.NotNil(t, cfg)

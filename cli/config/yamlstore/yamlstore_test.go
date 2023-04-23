@@ -19,7 +19,7 @@ import (
 func TestFileStore_Nil_Save(t *testing.T) {
 	t.Parallel()
 
-	var f *yamlstore.YAMLFileStore
+	var f *yamlstore.Store
 
 	// noinspection GoNilness
 	err := f.Save(context.Background(), config.New())
@@ -30,7 +30,7 @@ func TestFileStore_LoadSaveLoad(t *testing.T) {
 	t.Parallel()
 
 	// good.01.sq.yml has a bunch of fixtures in it
-	fs := &yamlstore.YAMLFileStore{Path: "testdata/good.01.sq.yml", HookLoad: hookExpand}
+	fs := &yamlstore.Store{Path: "testdata/good.01.sq.yml", HookLoad: hookExpand}
 	const expectGood01SrcCount = 34
 
 	cfg, err := fs.Load(context.Background())
@@ -71,7 +71,7 @@ func TestFileStore_Load(t *testing.T) {
 
 	t.Logf("%d good fixtures, %d bad fixtures", len(good), len(bad))
 
-	fs := &yamlstore.YAMLFileStore{HookLoad: hookExpand}
+	fs := &yamlstore.Store{HookLoad: hookExpand}
 
 	for _, match := range good {
 		match := match

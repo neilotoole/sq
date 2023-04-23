@@ -21,7 +21,7 @@ import (
 // - "config_version" is set to "v0.34.0".
 //
 // FIXME: WIP.
-func ExecUpgrade_v0_34_0(ctx context.Context, fs *YAMLFileStore) error { //nolint:revive,stylecheck
+func ExecUpgrade_v0_34_0(ctx context.Context, fs *Store) error { //nolint:revive,stylecheck
 	const vers = "v0.34.0"
 	log := lg.FromContext(ctx)
 	log.Info("Starting config upgrade", lga.To, vers)

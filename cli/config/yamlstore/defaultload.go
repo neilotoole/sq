@@ -36,7 +36,7 @@ func DefaultLoad(ctx context.Context, osArgs []string) (*config.Config, config.S
 
 	cfgPath := filepath.Join(cfgDir, "sq.yml")
 	extDir := filepath.Join(cfgDir, "ext")
-	cfgStore := &YAMLFileStore{
+	cfgStore := &Store{
 		Path:       cfgPath,
 		PathOrigin: origin,
 		ExtPaths:   []string{extDir},
@@ -111,10 +111,3 @@ func getConfigDirFromEnv() (string, bool) {
 
 	return "", false
 }
-
-// Origin of the config path.
-const (
-	originFlag    = "flag"
-	originEnv     = "env"
-	originDefault = "default"
-)

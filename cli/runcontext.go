@@ -134,10 +134,12 @@ func newDefaultRunContext(ctx context.Context,
 	rc.Config = cfg
 
 	log, logHandler, clnup, loggingErr := defaultLogging()
-
-	_ = logbuf.Flush(ctx, logHandler)
 	rc.Log = log
 	rc.clnup = clnup
+
+	if err := logbuf.Flush(ctx, logHandler); err != nil {
+		return rc, err
+	}
 
 	switch {
 	case rc.clnup == nil:

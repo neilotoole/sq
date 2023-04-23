@@ -16,8 +16,17 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 )
 
-// YAMLFileStore provides persistence of config via YAML file.
-type YAMLFileStore struct {
+// Origin of the config path.
+// See Store.PathOrigin.
+const (
+	originFlag    = "flag"
+	originEnv     = "env"
+	originDefault = "default"
+)
+
+// Store provides persistence of config via YAML file.
+// It implements config.Store.
+type Store struct {
 	// Path is the location of the config file
 	Path string
 
@@ -37,17 +46,17 @@ type YAMLFileStore struct {
 }
 
 // String returns a log/debug-friendly representation.
-func (fs *YAMLFileStore) String() string {
+func (fs *Store) String() string {
 	return fmt.Sprintf("config via %s: %v", fs.PathOrigin, fs.Path)
 }
 
 // Location implements Store. It returns the location of the config dir.
-func (fs *YAMLFileStore) Location() string {
+func (fs *Store) Location() string {
 	return filepath.Dir(fs.Path)
 }
 
 // Load reads config from disk. It implements Store.
-func (fs *YAMLFileStore) Load(ctx context.Context) (*config.Config, error) {
+func (fs *Store) Load(ctx context.Context) (*config.Config, error) {
 	log := lg.FromContext(ctx)
 	log.Debug("Loading config from file", lga.Path, fs.Path)
 
@@ -85,7 +94,7 @@ func (fs *YAMLFileStore) Load(ctx context.Context) (*config.Config, error) {
 	return fs.doLoad(ctx)
 }
 
-func (fs *YAMLFileStore) doLoad(ctx context.Context) (*config.Config, error) {
+func (fs *Store) doLoad(ctx context.Context) (*config.Config, error) {
 	bytes, err := os.ReadFile(fs.Path)
 	if err != nil {
 		return nil, errz.Wrapf(err, "config: failed to load file: %s", fs.Path)
@@ -132,7 +141,7 @@ func (fs *YAMLFileStore) doLoad(ctx context.Context) (*config.Config, error) {
 }
 
 // Save writes config to disk. It implements Store.
-func (fs *YAMLFileStore) Save(_ context.Context, cfg *config.Config) error {
+func (fs *Store) Save(_ context.Context, cfg *config.Config) error {
 	if fs == nil {
 		return errz.New("config file store is nil")
 	}
@@ -150,7 +159,7 @@ func (fs *YAMLFileStore) Save(_ context.Context, cfg *config.Config) error {
 }
 
 // Write writes the config bytes to disk.
-func (fs *YAMLFileStore) Write(data []byte) error {
+func (fs *Store) Write(data []byte) error {
 	// It's possible that the parent dir of fs.Path doesn't exist.
 	dir := filepath.Dir(fs.Path)
 	err := os.MkdirAll(dir, 0o750)
@@ -168,7 +177,7 @@ func (fs *YAMLFileStore) Write(data []byte) error {
 
 // FileExists returns true if the backing file can be accessed, false if it doesn't
 // exist or on any error.
-func (fs *YAMLFileStore) FileExists() bool {
+func (fs *Store) FileExists() bool {
 	_, err := os.Stat(fs.Path)
 	return err == nil
 }

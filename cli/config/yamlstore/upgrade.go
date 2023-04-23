@@ -29,7 +29,7 @@ const MinConfigVersion = "v0.0.0-dev"
 // bind the config file YAML to the Config object, as they may differ
 // significantly. Instead, the func should bind the YAML to a map, and
 // manipulate that map directly.
-type upgradeFunc func(ctx context.Context, fs *YAMLFileStore) error
+type upgradeFunc func(ctx context.Context, fs *Store) error
 
 // upgradeRegistry is a map of config_version to upgrade funcs.
 type upgradeRegistry map[string]upgradeFunc
@@ -56,7 +56,7 @@ func init() { //nolint:gochecknoinits
 // UpgradeConfig runs all the registered upgrade funcs between cfg.Version
 // and targetVersion. Typically this is checked by Load, but can be
 // explicitly invoked for testing etc.
-func (fs *YAMLFileStore) UpgradeConfig(ctx context.Context,
+func (fs *Store) UpgradeConfig(ctx context.Context,
 	startVersion, targetVersion string,
 ) (*config.Config, error) {
 	log := lg.FromContext(ctx)

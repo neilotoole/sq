@@ -11,7 +11,7 @@ import (
 )
 
 // loadExt loads extension config files into cfg.
-func (fs *YAMLFileStore) loadExt(cfg *config.Config) error {
+func (fs *Store) loadExt(cfg *config.Config) error {
 	const extSuffix = ".sq.yml"
 	var extCfgCandidates []string
 
