@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/neilotoole/sq/cli/config/yamlstore"
 	"github.com/neilotoole/sq/libsq/core/lg/slogbuf"
 
 	"github.com/neilotoole/sq/cli/config"
@@ -128,7 +129,7 @@ func newDefaultRunContext(ctx context.Context,
 		ErrOut: stderr,
 	}
 
-	cfg, cfgStore, configErr := config.DefaultLoad(lg.NewContext(ctx, log), args)
+	cfg, cfgStore, configErr := yamlstore.DefaultLoad(lg.NewContext(ctx, log), args)
 	rc.ConfigStore = cfgStore
 	rc.Config = cfg
 

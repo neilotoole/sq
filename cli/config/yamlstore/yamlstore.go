@@ -1,13 +1,13 @@
-package config
+package yamlstore
 
 import (
 	"context"
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/neilotoole/sq/cli/buildinfo"
+	"github.com/neilotoole/sq/cli/config"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -47,7 +47,7 @@ func (fs *YAMLFileStore) Location() string {
 }
 
 // Load reads config from disk. It implements Store.
-func (fs *YAMLFileStore) Load(ctx context.Context) (*Config, error) {
+func (fs *YAMLFileStore) Load(ctx context.Context) (*config.Config, error) {
 	log := lg.FromContext(ctx)
 	log.Debug("Loading config from file", lga.Path, fs.Path)
 
@@ -85,7 +85,7 @@ func (fs *YAMLFileStore) Load(ctx context.Context) (*Config, error) {
 	return fs.doLoad(ctx)
 }
 
-func (fs *YAMLFileStore) doLoad(ctx context.Context) (*Config, error) {
+func (fs *YAMLFileStore) doLoad(ctx context.Context) (*config.Config, error) {
 	bytes, err := os.ReadFile(fs.Path)
 	if err != nil {
 		return nil, errz.Wrapf(err, "config: failed to load file: %s", fs.Path)
@@ -99,19 +99,20 @@ func (fs *YAMLFileStore) doLoad(ctx context.Context) (*Config, error) {
 		}
 	}
 
-	cfg := &Config{}
+	cfg := config.New()
 	err = ioz.UnmarshallYAML(bytes, cfg)
 	if err != nil {
 		return nil, errz.Wrapf(err, "config: %s: failed to unmarshal config YAML", fs.Path)
+	}
+
+	if cfg.Version == "" {
+		cfg.Version = buildinfo.Version
 	}
 
 	cfg.Options, err = options.DefaultRegistry.Process(cfg.Options)
 	if err != nil {
 		return nil, err
 	}
-
-	// TODO: Do we still need to call initCfg even after DefaultRegistry.Process?
-	initCfg(cfg)
 
 	repaired, err := source.VerifyIntegrity(cfg.Collection)
 	if err != nil {
@@ -130,75 +131,13 @@ func (fs *YAMLFileStore) doLoad(ctx context.Context) (*Config, error) {
 	return cfg, nil
 }
 
-// loadExt loads extension config files into cfg.
-func (fs *YAMLFileStore) loadExt(cfg *Config) error {
-	const extSuffix = ".sq.yml"
-	var extCfgCandidates []string
-
-	for _, extPath := range fs.ExtPaths {
-		// TODO: This seems overly complicated: could just use glob
-		//  for any files in the same or child dir?
-		if fiExtPath, err := os.Stat(extPath); err == nil {
-			// path exists
-
-			if fiExtPath.IsDir() {
-				files, err := os.ReadDir(extPath)
-				if err != nil {
-					// just continue; no means of logging this yet (logging may
-					// not have bootstrapped), and we shouldn't stop bootstrap
-					// because of bad sqext files.
-					continue
-				}
-
-				for _, file := range files {
-					if file.IsDir() {
-						// We don't currently descend through sub dirs
-						continue
-					}
-
-					if !strings.HasSuffix(file.Name(), extSuffix) {
-						continue
-					}
-
-					extCfgCandidates = append(extCfgCandidates, filepath.Join(extPath, file.Name()))
-				}
-
-				continue
-			}
-
-			// it's a file
-			if !strings.HasSuffix(fiExtPath.Name(), extSuffix) {
-				continue
-			}
-			extCfgCandidates = append(extCfgCandidates, filepath.Join(extPath, fiExtPath.Name()))
-		}
-	}
-
-	for _, fp := range extCfgCandidates {
-		bytes, err := os.ReadFile(fp)
-		if err != nil {
-			return errz.Wrapf(err, "error reading config ext file: %s", fp)
-		}
-		ext := &Ext{}
-
-		err = ioz.UnmarshallYAML(bytes, ext)
-		if err != nil {
-			return errz.Wrapf(err, "error parsing config ext file: %s", fp)
-		}
-
-		cfg.Ext.UserDrivers = append(cfg.Ext.UserDrivers, ext.UserDrivers...)
-	}
-
-	return nil
-}
-
 // Save writes config to disk. It implements Store.
-func (fs *YAMLFileStore) Save(_ context.Context, cfg *Config) error {
+func (fs *YAMLFileStore) Save(_ context.Context, cfg *config.Config) error {
 	if fs == nil {
 		return errz.New("config file store is nil")
 	}
 
-	if err := Valid(cfg); err != nil {
+	if err := config.Valid(cfg); err != nil {
 		return err
 	}
 

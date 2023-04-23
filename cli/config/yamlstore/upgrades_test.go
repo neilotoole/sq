@@ -1,4 +1,4 @@
-package config_test
+package yamlstore_test
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/neilotoole/sq/cli"
+	"github.com/neilotoole/sq/cli/config/yamlstore"
 
 	"github.com/neilotoole/sq/cli/output/format"
 
@@ -56,14 +57,14 @@ func Test_Upgrade_v0_34_0(t *testing.T) {
 
 	cfgFile := filepath.Join(cfgDir, "sq.yml")
 
-	gotPrevVers, err := config.LoadVersion(cfgFile)
+	gotPrevVers, err := yamlstore.LoadVersion(cfgFile)
 	require.NoError(t, err)
 	require.Equal(t, prevVers, gotPrevVers)
 
 	t.Logf("config file (before): %s", cfgFile)
 	_ = ioz.FPrintFile(tutil.Writer(t), cfgFile)
 
-	cfg, cfgStore, err := config.DefaultLoad(ctx, nil)
+	cfg, cfgStore, err := yamlstore.DefaultLoad(ctx, nil)
 	require.NoError(t, err)
 
 	t.Logf("config file (after): %s", cfgFile)

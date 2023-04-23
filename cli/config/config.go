@@ -7,8 +7,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"golang.org/x/mod/semver"
 
-	"github.com/neilotoole/sq/cli/buildinfo"
-
 	"github.com/neilotoole/sq/drivers/userdriver"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/source"
@@ -55,29 +53,22 @@ type Ext struct {
 
 // New returns a config instance with default options set.
 func New() *Config {
-	cfg := &Config{}
+	cfg := &Config{
+		Collection: &source.Collection{},
+		Options:    options.Options{},
+	}
 
 	// By default, we want header to be true; this is
 	// ugly wrt initCfg, as the zero value of a bool
 	// is false, but we actually want it to be true for Header.
-	cfg.Options["format.header"] = true
+	// cfg.Options["format.header"] = true
 	// FIXME: use options.DefaultRegistry.Process(cfg.Options)
 
-	initCfg(cfg)
+	// if cfg.Version == "" {
+	//	cfg.Version = buildinfo.Version
+	// }
+
 	return cfg
-}
-
-// initCfg checks if required values are present, and if not, sets them.
-func initCfg(cfg *Config) {
-	if cfg.Collection == nil {
-		cfg.Collection = &source.Collection{}
-	}
-
-	if cfg.Version == "" {
-		cfg.Version = buildinfo.Version
-	}
-
-	// FIXME: Use options.DefaultRegistry.Process(cfg.Options)
 }
 
 // Valid returns an error if cfg is not valid.

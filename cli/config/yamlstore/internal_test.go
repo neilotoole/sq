@@ -1,4 +1,4 @@
-package config
+package yamlstore
 
 import (
 	"strings"
@@ -12,7 +12,7 @@ import (
 
 // Export for testing.
 var (
-	LoadVersion = loadVersion
+	LoadVersion = LoadVersionFromFile
 )
 
 func Test_getConfigDirFromFlag(t *testing.T) {

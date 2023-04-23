@@ -1,4 +1,4 @@
-package config_test
+package yamlstore_test
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/neilotoole/sq/cli/config/yamlstore"
 	"github.com/neilotoole/sq/testh/tutil"
 
 	"github.com/stretchr/testify/assert"
@@ -18,7 +19,7 @@ import (
 func TestFileStore_Nil_Save(t *testing.T) {
 	t.Parallel()
 
-	var f *config.YAMLFileStore
+	var f *yamlstore.YAMLFileStore
 
 	// noinspection GoNilness
 	err := f.Save(context.Background(), config.New())
@@ -29,7 +30,7 @@ func TestFileStore_LoadSaveLoad(t *testing.T) {
 	t.Parallel()
 
 	// good.01.sq.yml has a bunch of fixtures in it
-	fs := &config.YAMLFileStore{Path: "testdata/good.01.sq.yml", HookLoad: hookExpand}
+	fs := &yamlstore.YAMLFileStore{Path: "testdata/good.01.sq.yml", HookLoad: hookExpand}
 	const expectGood01SrcCount = 34
 
 	cfg, err := fs.Load(context.Background())
@@ -70,7 +71,7 @@ func TestFileStore_Load(t *testing.T) {
 
 	t.Logf("%d good fixtures, %d bad fixtures", len(good), len(bad))
 
-	fs := &config.YAMLFileStore{HookLoad: hookExpand}
+	fs := &yamlstore.YAMLFileStore{HookLoad: hookExpand}
 
 	for _, match := range good {
 		match := match

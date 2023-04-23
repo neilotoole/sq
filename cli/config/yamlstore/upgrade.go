@@ -1,4 +1,4 @@
-package config
+package yamlstore
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/neilotoole/sq/cli/config"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -16,11 +17,11 @@ import (
 	"golang.org/x/mod/semver"
 )
 
-// minConfigVersion is the minimum semver value of Config.Version.
+// MinConfigVersion is the minimum semver value of Config.Version.
 // This is basically how far back in time the config upgrade process
 // can support. If the config dates from prior to this (unlikely),
 // then the user needs to start with a new config.
-const minConfigVersion = "v0.0.0-dev"
+const MinConfigVersion = "v0.0.0-dev"
 
 // upgradeFunc performs a (single) upgrade of the config file. Typically
 // a func will read the config data from disk, perform some transformation
@@ -37,9 +38,9 @@ type upgradeRegistry map[string]upgradeFunc
 var defaultUpgradeReg = upgradeRegistry{}
 
 func init() { //nolint:gochecknoinits
-	if !buildinfo.IsDefaultVersion() && semver.Compare(buildinfo.Version, minConfigVersion) < 0 {
+	if !buildinfo.IsDefaultVersion() && semver.Compare(buildinfo.Version, MinConfigVersion) < 0 {
 		panic(fmt.Sprintf("buildinfo.Version %q is less than minimum config version %q",
-			buildinfo.Version, minConfigVersion))
+			buildinfo.Version, MinConfigVersion))
 	}
 
 	// For each upgrade, register the upgrade func as below:
@@ -55,14 +56,16 @@ func init() { //nolint:gochecknoinits
 // UpgradeConfig runs all the registered upgrade funcs between cfg.Version
 // and targetVersion. Typically this is checked by Load, but can be
 // explicitly invoked for testing etc.
-func (fs *YAMLFileStore) UpgradeConfig(ctx context.Context, startVersion, targetVersion string) (*Config, error) {
+func (fs *YAMLFileStore) UpgradeConfig(ctx context.Context,
+	startVersion, targetVersion string,
+) (*config.Config, error) {
+	log := lg.FromContext(ctx)
+	log.Debug("Starting config upgrade", lga.From, startVersion, lga.To, targetVersion)
+
 	if !semver.IsValid(targetVersion) {
 		return nil, errz.Errorf("invalid semver for config version {%s}", targetVersion)
 	}
 
-	log := lg.FromContext(ctx)
-
-	log.Debug("Starting config upgrade", lga.From, startVersion, lga.To, targetVersion)
 	var err error
 	upgradeFns := fs.upgradeReg.getUpgradeFuncs(startVersion, targetVersion)
 
@@ -120,9 +123,9 @@ func (r upgradeRegistry) getUpgradeFuncs(startingVersion, targetVersion string) 
 	return upgradeFns
 }
 
-// loadVersion loads the version from the config file.
+// LoadVersionFromFile loads the version from the config file.
 // If the field is not present, minConfigVersion (and no error) is returned.
-func loadVersion(path string) (string, error) {
+func LoadVersionFromFile(path string) (string, error) {
 	bytes, err := os.ReadFile(path)
 	if err != nil {
 		return "", errz.Wrapf(err, "failed to load file: %s", path)
@@ -145,7 +148,7 @@ func loadVersion(path string) (string, error) {
 		if s == "" {
 			// We could return an error here, but it's probably slightly
 			// better to carry on in the absence of the version.
-			return minConfigVersion, nil
+			return MinConfigVersion, nil
 		}
 
 		if !semver.IsValid(s) {
@@ -165,7 +168,7 @@ func loadVersion(path string) (string, error) {
 		if s == "" {
 			// We could return an error here, but it's probably slightly
 			// better to carry on in the absence of the version.
-			return minConfigVersion, nil
+			return MinConfigVersion, nil
 		}
 
 		if !semver.IsValid(s) {
@@ -175,20 +178,20 @@ func loadVersion(path string) (string, error) {
 		return s, nil
 	}
 
-	return minConfigVersion, nil
+	return MinConfigVersion, nil
 }
 
 // checkNeedsUpgrade checks on the config version, returning needsUpgrade
 // if applicable. The returned foundVers is a valid semver.
 func checkNeedsUpgrade(path string) (needsUpgrade bool, foundVers string, err error) {
-	foundVers, err = loadVersion(path)
+	foundVers, err = LoadVersionFromFile(path)
 	if err != nil {
 		return false, "", err
 	}
 
-	if semver.Compare(foundVers, minConfigVersion) < 0 {
+	if semver.Compare(foundVers, MinConfigVersion) < 0 {
 		return false, foundVers, errz.Errorf("version %q is less than minimum value %q",
-			foundVers, minConfigVersion)
+			foundVers, MinConfigVersion)
 	}
 
 	buildVers := buildinfo.Version
