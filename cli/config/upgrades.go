@@ -1,14 +1,17 @@
 package config
 
 import (
+	"context"
 	"os"
 
 	"github.com/neilotoole/sq/libsq/core/ioz"
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
-// execUpgrade_v0_34_0 does the following:
+// ExecUpgrade_v0_34_0 does the following:
 // - "version" is renamed to "config_version".
 // - "active" is renamed to "active_source".
 // - "defaults" is renamed to "options".
@@ -18,8 +21,11 @@ import (
 // - "config_version" is set to "v0.34.0".
 //
 // FIXME: WIP.
-func execUpgrade_v0_34_0(fs *YAMLFileStore) error { //nolint:revive,stylecheck
+func ExecUpgrade_v0_34_0(ctx context.Context, fs *YAMLFileStore) error { //nolint:revive,stylecheck
 	const vers = "v0.34.0"
+	log := lg.FromContext(ctx)
+	log.Info("Starting config upgrade", lga.To, vers)
+
 	data, err := os.ReadFile(fs.Path)
 	if err != nil {
 		return errz.Wrap(err, "failed to read config file")
@@ -114,7 +120,7 @@ func execUpgrade_v0_34_0(fs *YAMLFileStore) error { //nolint:revive,stylecheck
 	}
 
 	// Then write results
-	if err = fs.doSave(data); err != nil {
+	if err = fs.Write(data); err != nil {
 		return errz.Wrapf(err, "failed to save config file: %s", fs.Path)
 	}
 

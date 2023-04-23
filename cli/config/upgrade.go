@@ -28,7 +28,7 @@ const minConfigVersion = "v0.0.0-dev"
 // bind the config file YAML to the Config object, as they may differ
 // significantly. Instead, the func should bind the YAML to a map, and
 // manipulate that map directly.
-type upgradeFunc func(fs *YAMLFileStore) error
+type upgradeFunc func(ctx context.Context, fs *YAMLFileStore) error
 
 // upgradeRegistry is a map of config_version to upgrade funcs.
 type upgradeRegistry map[string]upgradeFunc
@@ -43,13 +43,13 @@ func init() { //nolint:gochecknoinits
 	}
 
 	// For each upgrade, register the upgrade func as below:
-	//  defaultUpgradeReg["v0.34.0"] = execUpgrade_v0_34_0
+	//  defaultUpgradeReg["v0.34.0"] = ExecUpgrade_v0_34_0
 	//
 	// IMPORTANT: the upgrade function should not use any defined struct
 	// types, as these may change between versions. Instead, the upgrade
 	// function should directly manipulate the yaml/map.
 
-	defaultUpgradeReg["v0.34.0"] = execUpgrade_v0_34_0
+	defaultUpgradeReg["v0.34.0"] = ExecUpgrade_v0_34_0
 }
 
 // UpgradeConfig runs all the registered upgrade funcs between cfg.Version
@@ -67,7 +67,7 @@ func (fs *YAMLFileStore) UpgradeConfig(ctx context.Context, startVersion, target
 	upgradeFns := fs.upgradeReg.getUpgradeFuncs(startVersion, targetVersion)
 
 	for _, fn := range upgradeFns {
-		err = fn(fs)
+		err = fn(ctx, fs)
 		if err != nil {
 			return nil, err
 		}

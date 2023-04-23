@@ -1,0 +1,235 @@
+package config
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/neilotoole/sq/cli/buildinfo"
+	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/ioz"
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/source"
+)
+
+// YAMLFileStore provides persistence of config via YAML file.
+type YAMLFileStore struct {
+	// Path is the location of the config file
+	Path string
+
+	// PathOrigin is one of "flag", "env", or "default".
+	PathOrigin string
+
+	// If HookLoad is non-nil, it is invoked by Load
+	// on Path's bytes before the YAML is unmarshalled.
+	// This allows expansion of variables etc.
+	HookLoad func(data []byte) ([]byte, error)
+
+	// ExtPaths holds locations of potential ext config, both dirs and files (with suffix ".sq.yml")
+	ExtPaths []string
+
+	// upgradeReg holds upgrade funcs for upgrading the config file.
+	upgradeReg upgradeRegistry
+}
+
+// String returns a log/debug-friendly representation.
+func (fs *YAMLFileStore) String() string {
+	return fmt.Sprintf("config via %s: %v", fs.PathOrigin, fs.Path)
+}
+
+// Location implements Store. It returns the location of the config dir.
+func (fs *YAMLFileStore) Location() string {
+	return filepath.Dir(fs.Path)
+}
+
+// Load reads config from disk. It implements Store.
+func (fs *YAMLFileStore) Load(ctx context.Context) (*Config, error) {
+	log := lg.FromContext(ctx)
+	log.Debug("Loading config from file", lga.Path, fs.Path)
+
+	if fs.upgradeReg == nil {
+		// Use the package-level registry by default.
+		// This is not ideal, but test code can change this
+		// if needed.
+		fs.upgradeReg = defaultUpgradeReg
+	}
+
+	mightNeedUpgrade, foundVers, err := checkNeedsUpgrade(fs.Path)
+	if err != nil {
+		return nil, errz.Wrapf(err, "config: %s", fs.Path)
+	}
+
+	if mightNeedUpgrade {
+		log.Info("Upgrade config?", lga.From, foundVers, lga.To, buildinfo.Version)
+		if _, err = fs.UpgradeConfig(ctx, foundVers, buildinfo.Version); err != nil {
+			return nil, err
+		}
+
+		// We do a cycle of loading and saving the config after the upgrade,
+		// because the upgrade may have written YAML via a map, which
+		// doesn't preserve order. Loading and saving should fix that.
+		cfg, err := fs.doLoad(ctx)
+		if err != nil {
+			return nil, errz.Wrapf(err, "config: %s: load failed after config upgrade", fs.Path)
+		}
+
+		if err = fs.Save(ctx, cfg); err != nil {
+			return nil, errz.Wrapf(err, "config: %s: save failed after config upgrade", fs.Path)
+		}
+	}
+
+	return fs.doLoad(ctx)
+}
+
+func (fs *YAMLFileStore) doLoad(ctx context.Context) (*Config, error) {
+	bytes, err := os.ReadFile(fs.Path)
+	if err != nil {
+		return nil, errz.Wrapf(err, "config: failed to load file: %s", fs.Path)
+	}
+
+	loadHookFn := fs.HookLoad
+	if loadHookFn != nil {
+		bytes, err = loadHookFn(bytes)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	cfg := &Config{}
+	err = ioz.UnmarshallYAML(bytes, cfg)
+	if err != nil {
+		return nil, errz.Wrapf(err, "config: %s: failed to unmarshal config YAML", fs.Path)
+	}
+
+	cfg.Options, err = options.DefaultRegistry.Process(cfg.Options)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: Do we still need to call initCfg even after DefaultRegistry.Process?
+	initCfg(cfg)
+
+	repaired, err := source.VerifyIntegrity(cfg.Collection)
+	if err != nil {
+		if repaired {
+			// The config was repaired. Save the changes.
+			err = errz.Combine(err, fs.Save(ctx, cfg))
+		}
+		return nil, errz.Wrapf(err, "config: %s", fs.Path)
+	}
+
+	err = fs.loadExt(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	return cfg, nil
+}
+
+// loadExt loads extension config files into cfg.
+func (fs *YAMLFileStore) loadExt(cfg *Config) error {
+	const extSuffix = ".sq.yml"
+	var extCfgCandidates []string
+
+	for _, extPath := range fs.ExtPaths {
+		// TODO: This seems overly complicated: could just use glob
+		//  for any files in the same or child dir?
+		if fiExtPath, err := os.Stat(extPath); err == nil {
+			// path exists
+
+			if fiExtPath.IsDir() {
+				files, err := os.ReadDir(extPath)
+				if err != nil {
+					// just continue; no means of logging this yet (logging may
+					// not have bootstrapped), and we shouldn't stop bootstrap
+					// because of bad sqext files.
+					continue
+				}
+
+				for _, file := range files {
+					if file.IsDir() {
+						// We don't currently descend through sub dirs
+						continue
+					}
+
+					if !strings.HasSuffix(file.Name(), extSuffix) {
+						continue
+					}
+
+					extCfgCandidates = append(extCfgCandidates, filepath.Join(extPath, file.Name()))
+				}
+
+				continue
+			}
+
+			// it's a file
+			if !strings.HasSuffix(fiExtPath.Name(), extSuffix) {
+				continue
+			}
+			extCfgCandidates = append(extCfgCandidates, filepath.Join(extPath, fiExtPath.Name()))
+		}
+	}
+
+	for _, fp := range extCfgCandidates {
+		bytes, err := os.ReadFile(fp)
+		if err != nil {
+			return errz.Wrapf(err, "error reading config ext file: %s", fp)
+		}
+		ext := &Ext{}
+
+		err = ioz.UnmarshallYAML(bytes, ext)
+		if err != nil {
+			return errz.Wrapf(err, "error parsing config ext file: %s", fp)
+		}
+
+		cfg.Ext.UserDrivers = append(cfg.Ext.UserDrivers, ext.UserDrivers...)
+	}
+
+	return nil
+}
+
+// Save writes config to disk. It implements Store.
+func (fs *YAMLFileStore) Save(_ context.Context, cfg *Config) error {
+	if fs == nil {
+		return errz.New("config file store is nil")
+	}
+
+	if err := Valid(cfg); err != nil {
+		return err
+	}
+
+	data, err := ioz.MarshalYAML(cfg)
+	if err != nil {
+		return err
+	}
+
+	return fs.Write(data)
+}
+
+// Write writes the config bytes to disk.
+func (fs *YAMLFileStore) Write(data []byte) error {
+	// It's possible that the parent dir of fs.Path doesn't exist.
+	dir := filepath.Dir(fs.Path)
+	err := os.MkdirAll(dir, 0o750)
+	if err != nil {
+		return errz.Wrapf(err, "failed to make parent dir of sq config file: %s", dir)
+	}
+
+	err = os.WriteFile(fs.Path, data, 0o600)
+	if err != nil {
+		return errz.Wrap(err, "failed to save config file")
+	}
+
+	return nil
+}
+
+// FileExists returns true if the backing file can be accessed, false if it doesn't
+// exist or on any error.
+func (fs *YAMLFileStore) FileExists() bool {
+	_, err := os.Stat(fs.Path)
+	return err == nil
+}
