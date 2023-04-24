@@ -6,9 +6,10 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/neilotoole/sq/cli"
 	"github.com/neilotoole/sq/cli/config/yamlstore"
+	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/testh/tutil"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -29,6 +30,8 @@ func TestFileStore_Nil_Save(t *testing.T) {
 func TestFileStore_LoadSaveLoad(t *testing.T) {
 	t.Parallel()
 
+	const wantVers = `v0.34.0`
+
 	// good.01.sq.yml has a bunch of fixtures in it
 	fs := &yamlstore.Store{Path: "testdata/good.01.sq.yml", HookLoad: hookExpand}
 	const expectGood01SrcCount = 34
@@ -37,6 +40,7 @@ func TestFileStore_LoadSaveLoad(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
 	require.NotNil(t, cfg.Collection)
+	require.Equal(t, wantVers, cfg.Version)
 	require.Equal(t, expectGood01SrcCount, len(cfg.Collection.Sources()))
 
 	f, err := os.CreateTemp("", "*.sq.yml")
@@ -64,6 +68,10 @@ var hookExpand = func(data []byte) ([]byte, error) {
 func TestFileStore_Load(t *testing.T) {
 	t.Parallel()
 
+	// Force loading of the cli pkg so that the option is registered.
+	var _ options.Opt = cli.OptOutputFormat
+	var _ options.Opt = cli.OptPrintHeader
+
 	good, err := filepath.Glob("testdata/good.*")
 	require.NoError(t, err)
 	bad, err := filepath.Glob("testdata/bad.*")
@@ -88,7 +96,7 @@ func TestFileStore_Load(t *testing.T) {
 		match := match
 		t.Run(tutil.Name(match), func(t *testing.T) {
 			fs.Path = match
-			_, err = fs.Load(context.Background())
+			_, err := fs.Load(context.Background())
 			require.Error(t, err, match)
 		})
 	}

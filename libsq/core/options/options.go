@@ -21,8 +21,6 @@ import (
 
 	"github.com/samber/lo"
 	"golang.org/x/exp/slices"
-
-	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
 // DefaultRegistry is the default Registry. The constructor functions
@@ -108,7 +106,7 @@ func (r *Registry) Process(options Options) (Options, error) {
 
 func process(options Options, opts []Opt) (Options, error) {
 	if options == nil {
-		return nil, errz.New("options is nil")
+		return nil, nil //nolint:nilnil
 	}
 
 	o2 := Options{}

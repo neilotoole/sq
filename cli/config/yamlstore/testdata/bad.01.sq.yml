@@ -1,0 +1,2 @@
+options:
+  ping.timeout: not_a_duration

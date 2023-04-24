@@ -1,6 +1,8 @@
 package options
 
 import (
+	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -161,6 +163,56 @@ func (o Bool) Get(opts Options) bool {
 	}
 
 	return b
+}
+
+// Process implements options.Processor. It converts matching
+// string values in opts into bool. If no match found,
+// the input arg is returned unchanged. Otherwise, a clone is
+// returned.
+func (o Bool) Process(opts Options) (Options, error) {
+	if opts == nil {
+		return nil, nil //nolint:nilnil
+	}
+
+	v, ok := opts[o.key]
+	if !ok || v == nil {
+		return opts, nil
+	}
+
+	if _, ok = v.(bool); ok {
+		// Happy path
+		return opts, nil
+	}
+
+	opts = opts.Clone()
+
+	switch v := v.(type) {
+	case string:
+		if v == "" {
+			// Empty string is effectively nil
+			delete(opts, o.key)
+			return opts, nil
+		}
+
+		// It could be a string like "true"
+		b, err := strconv.ParseBool(v)
+		if err != nil {
+			return nil, errz.Wrapf(err, "invalid bool value for {%s}: %v", o.key, v)
+		}
+		opts[o.key] = b
+	default:
+		// Well, we don't know what this is... maybe a number like "1"?
+		// Last-ditch effort. Print the value to a string, and check
+		// if we can parse the string into a bool.
+		s := fmt.Sprintf("%v", v)
+		b, err := strconv.ParseBool(s)
+		if err != nil {
+			return nil, errz.Wrapf(err, "invalid bool value for {%s}: %v", o.key, v)
+		}
+		opts[o.key] = b
+	}
+
+	return opts, nil
 }
 
 var _ Opt = Duration{}

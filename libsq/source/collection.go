@@ -40,12 +40,12 @@ type Collection struct {
 // This seemed like a good idea at the time, but probably wasn't.
 type collData struct {
 	// ActiveSrc is the active source. It may be empty.
-	ActiveSrc string `yaml:"active_source" json:"active_source"`
+	ActiveSrc string `yaml:"active.source" json:"active.source"`
 
 	// ActiveGroup is the active group. It is "" (empty string) or "/" by default.
 	// The "correct" value is "/", but we also support empty string
 	// so that the zero value is useful.
-	ActiveGroup string `yaml:"active_group" json:"active_group"`
+	ActiveGroup string `yaml:"active.group" json:"active.group"`
 
 	// ScratchSrc is the handle of the scratchdb source.
 	ScratchSrc string `yaml:"scratch" json:"scratch"`
@@ -115,6 +115,20 @@ func (c *Collection) Sources() []*Source {
 	copy(srcs, c.data.Sources)
 
 	return srcs
+}
+
+// Visit visits each source.
+func (c *Collection) Visit(fn func(src *Source) error) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	for i := range c.data.Sources {
+		if err := fn(c.data.Sources[i]); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // String returns a log/debug friendly representation.

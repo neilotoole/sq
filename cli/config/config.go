@@ -29,7 +29,7 @@ const (
 type Config struct {
 	// Version is the config version. This will allow sq to
 	// upgrade config files if needed. It must be a valid semver.
-	Version string `yaml:"config_version" json:"config_version"`
+	Version string `yaml:"config.version" json:"config_version"`
 
 	// Options contains default settings, such as output format.
 	Options options.Options `yaml:"options" json:"options"`
@@ -49,7 +49,7 @@ func (c *Config) String() string {
 // Ext holds additional config (extensions) loaded from other
 // config files, e.g. ~/.config/sq/ext/*.sq.yml.
 type Ext struct {
-	UserDrivers []*userdriver.DriverDef `yaml:"user_drivers" json:"user_drivers"`
+	UserDrivers []*userdriver.DriverDef `yaml:"user.drivers" json:"user.drivers"`
 }
 
 // New returns a config instance with default options set.

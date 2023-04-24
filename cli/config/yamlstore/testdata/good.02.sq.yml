@@ -2,7 +2,7 @@ config_version: v0.34.0
 options:
 
 collection:
-  active_source: ""
+  active.source: ""
   scratch: ""
   sources:
 

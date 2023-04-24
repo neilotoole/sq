@@ -1,7 +1,9 @@
+// Package v0_34_0 upgrades YAML config to v0.34.0.
 package v0_34_0 //nolint:stylecheck,revive,cyclop
 
 import (
 	"context"
+	"strconv"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
@@ -12,18 +14,17 @@ import (
 const Version = "v0.34.0"
 
 // Upgrade does the following:
-// - "version" is renamed to "config_version".
-// - "active" is renamed to "active_source".
+// - "version" is renamed to "config.version".
 // - "defaults" is renamed to "options".
+// - "sources.active" is renamed to "active.source".
+// - "sources.active_group" is renamed to "active.group"
 // - "sources.items[].type" is renamed to "sources.items[].driver".
 // - "sources.items" is renamed to "sources.sources".
 // - "sources" is renamed to "collection".
-// - "config_version" is set to "v0.34.0".
-//
-// FIXME: WIP.
+// - "config.version" is set to "v0.34.0".
 func Upgrade(ctx context.Context, before []byte) (after []byte, err error) {
 	log := lg.FromContext(ctx)
-	log.Info("Starting config upgrade", lga.To, Version)
+	log.Info("Starting config upgrade step", lga.To, Version)
 
 	// Load data
 	var m map[string]any
@@ -33,7 +34,7 @@ func Upgrade(ctx context.Context, before []byte) (after []byte, err error) {
 
 	// Do your actions
 
-	m["config_version"] = m["version"]
+	m["config.version"] = m["version"]
 	delete(m, "version")
 
 	m["options"] = m["defaults"]
@@ -58,8 +59,10 @@ func Upgrade(ctx context.Context, before []byte) (after []byte, err error) {
 		return nil, errz.Errorf("corrupt config: invalid 'sources' field")
 	}
 
-	sources["active_source"] = sources["active"]
+	sources["active.source"] = sources["active"]
 	delete(sources, "active")
+	sources["active.group"] = sources["active_group"]
+	delete(sources, "active_group")
 
 	items, ok := sources["items"].([]any)
 	if !ok {
@@ -84,15 +87,24 @@ func Upgrade(ctx context.Context, before []byte) (after []byte, err error) {
 		srcOpts, ok := src["options"].(map[string]any)
 		if ok && srcOpts != nil {
 			if headers, ok := srcOpts["header"].([]interface{}); ok && len(headers) >= 1 {
-				if b, ok := headers[0].(bool); ok {
-					switch srcDriver {
-					case "csv", "tsv":
-						srcOpts["driver.csv.header"] = b
-					case "xlsx":
-						srcOpts["driver.xlsx.header"] = b
-					}
+				var hasHeader bool
+				switch v := headers[0].(type) {
+				case bool:
+					hasHeader = v
+				case string:
+					hasHeader, _ = strconv.ParseBool(v)
+				default:
+					return nil, errz.Errorf("corrupt config: invalid 'sources.items[%d].options.header' field", i)
+				}
+
+				switch srcDriver {
+				case "csv", "tsv":
+					srcOpts["driver.csv.header"] = hasHeader
+				case "xlsx":
+					srcOpts["driver.xlsx.header"] = hasHeader
 				}
 			}
+
 			delete(srcOpts, "header")
 		}
 	}
@@ -105,13 +117,15 @@ func Upgrade(ctx context.Context, before []byte) (after []byte, err error) {
 	m["collection"] = sources
 	delete(m, "sources")
 
-	m["config_version"] = Version
+	m["config.version"] = Version
 
 	// Marshal m back into []byte
 	after, err = ioz.MarshalYAML(m)
 	if err != nil {
 		return nil, errz.Wrapf(err, "failed to upgrade config to %s", Version)
 	}
+
+	log.Info("SUCCESS: Config upgrade step completed", lga.To, Version)
 
 	return after, nil
 }

@@ -1,11 +1,11 @@
-config_version: v0.34.0
+config.version: v0.34.0
 options:
-  ping_timeout: 10s
-  shell_completion_timeout: 1s
-  output_format: table
-  output_header: true
+  ping.timeout: 10s
+  shell-completion.timeout: 1s
+  format: table
+  format.header: true
 collection:
-  active_source: '@sl1'
+  active.source: '@sl1'
   scratch: ""
   sources:
     - handle: '@sl1'
@@ -16,15 +16,13 @@ collection:
       driver: xlsx
       location: ${SQ_ROOT}/drivers/xlsx/testdata/test_header.xlsx
       options:
-        header:
-          - "true"
+        driver.xlsx.header: false
 
     - handle: '@csv1'
       driver: csv
       location: ${SQ_ROOT}/drivers/csv/testdata/person_comma_header.csv
       options:
-        header:
-          - "true"
+        driver.csv.header: true
 
     - handle: '@ms1'
       driver: sqlserver
@@ -74,8 +72,7 @@ collection:
       driver: xlsx
       location: ${SQ_ROOT}/drivers/xlsx/testdata/test_header.xlsx
       options:
-        header:
-          - "true"
+        driver.xlsx.header: true
 
     - handle: '@xl_noheader'
       driver: xlsx
@@ -89,8 +86,7 @@ collection:
       driver: csv
       location: ${SQ_ROOT}/drivers/csv/testdata/person_comma_header.csv
       options:
-        header:
-          - "true"
+        driver.csv.header: true
 
     - handle: '@csv_person_comma_noheader'
       driver: csv
@@ -107,9 +103,6 @@ collection:
     - handle: '@tsv_person_noheader_cols'
       driver: tsv
       location: ${SQ_ROOT}/drivers/csv/testdata/person_noheader.tsv
-      options:
-        cols:
-          - uid,username,email
 
     - handle: '@rss_basic'
       driver: rss
@@ -147,8 +140,7 @@ collection:
       driver: csv
       location: ${SQ_ROOT}/drivers/csv/testdata/person_comma_header_big.csv
       options:
-        header:
-          - "true"
+        driver.csv.header: true
 
     - handle: '@sl_sakila'
       driver: sqlite3
@@ -162,7 +154,3 @@ collection:
       driver: postgres
       location: postgres://sq:p_ssW0rd@localhost:54321/sakila?sslmode=disable
 
-
-notification:
-  enabled: []
-  destinations: []

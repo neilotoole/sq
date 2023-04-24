@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neilotoole/sq/cli/buildinfo"
 	"github.com/neilotoole/sq/cli/config/yamlstore"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 
@@ -727,4 +728,15 @@ func DriverDetectors() []source.DriverDetectFunc {
 		csv.DetectCSV, csv.DetectTSV,
 		/*json.DetectJSON,*/ json.DetectJSONA, json.DetectJSONL, // FIXME: enable DetectJSON when it's ready
 	}
+}
+
+// SetBuildVersion sets the build version for the lifecycle
+// of test t.
+func SetBuildVersion(t testing.TB, vers string) {
+	prevVers := buildinfo.Version
+	t.Setenv(buildinfo.EnvOverrideVersion, vers)
+	buildinfo.Version = vers
+	t.Cleanup(func() {
+		buildinfo.Version = prevVers
+	})
 }

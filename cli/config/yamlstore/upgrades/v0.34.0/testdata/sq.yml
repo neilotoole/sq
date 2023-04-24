@@ -5,22 +5,22 @@ defaults:
   ping_timeout: 100s
   shell_completion_timeout: 500ms
 sources:
-  active: "@prod/sakila"
+  active: "@prod/pg"
   active_group: prod
   scratch: ""
   items:
-  - handle: '@prod/sakila'
+  - handle: '@prod/pg'
     type: postgres
     location: postgres://sakila:p_ssW0rd@localhost/sakila
-  - handle: "@csv/person"
+  - handle: "@csv"
     type: csv
-    location: /Users/neilotoole/work/sq/sq/drivers/csv/testdata/person.csv
+    location: /Users/neilotoole/sq/person.csv
     options:
       header:
       - "true"
-  - handle: "@xl_demo"
+  - handle: "@xlsx"
     type: xlsx
     location: /Users/neilotoole/sq/xl_demo.xlsx
     options:
       header:
-      - "true"
+      - "false"

@@ -54,13 +54,17 @@ func (fs *Store) doUpgrade(ctx context.Context,
 		return nil, err
 	}
 
-	for vers, fn := range upgradeFns {
-		log.Debug("Attempting config upgrade", lga.To, vers)
+	for _, fn := range upgradeFns {
+		log.Debug("Attempting config upgrade step")
 		data, err = fn(ctx, data)
 		if err != nil {
 			return nil, err
 		}
-		log.Debug("Upgrade successful", lga.To, vers)
+		log.Debug("Config upgrade step successful")
+	}
+
+	if err = fs.Write(data); err != nil {
+		return nil, err
 	}
 
 	// Do a final update of the version
@@ -68,9 +72,9 @@ func (fs *Store) doUpgrade(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-	cfg.Version = targetVersion
 
-	log.Debug("Setting config_version", lga.Val, targetVersion)
+	log.Debug("Setting config.version", lga.Val, targetVersion)
+	cfg.Version = targetVersion
 
 	err = fs.Save(ctx, cfg)
 	if err != nil {
@@ -110,9 +114,9 @@ func (r UpgradeRegistry) getUpgradeFuncs(startingVersion, targetVersion string) 
 	return upgradeFns
 }
 
-// loadVersionFromFile loads the version from the config file.
+// LoadVersionFromFile loads the version from the config file.
 // If the field is not present, minConfigVersion (and no error) is returned.
-func loadVersionFromFile(path string) (string, error) {
+func LoadVersionFromFile(path string) (string, error) {
 	bytes, err := os.ReadFile(path)
 	if err != nil {
 		return "", errz.Wrapf(err, "failed to load file: %s", path)
@@ -171,7 +175,7 @@ func loadVersionFromFile(path string) (string, error) {
 // checkNeedsUpgrade checks on the config version, returning needsUpgrade
 // if applicable. The returned foundVers is a valid semver.
 func checkNeedsUpgrade(path string) (needsUpgrade bool, foundVers string, err error) {
-	foundVers, err = loadVersionFromFile(path)
+	foundVers, err = LoadVersionFromFile(path)
 	if err != nil {
 		return false, "", err
 	}

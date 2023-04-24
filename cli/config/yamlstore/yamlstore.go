@@ -1,3 +1,5 @@
+// Package yamlstore contains an implementation of config.Store that
+// uses YAML files for persistence.
 package yamlstore
 
 import (
@@ -113,9 +115,17 @@ func (fs *Store) doLoad(ctx context.Context) (*config.Config, error) {
 		cfg.Version = buildinfo.Version
 	}
 
+	if cfg.Options == nil {
+		cfg.Options = options.Options{}
+	}
+
 	cfg.Options, err = options.DefaultRegistry.Process(cfg.Options)
 	if err != nil {
 		return nil, err
+	}
+
+	if cfg.Collection == nil {
+		cfg.Collection = &source.Collection{}
 	}
 
 	repaired, err := source.VerifyIntegrity(cfg.Collection)

@@ -6,6 +6,6 @@ options:
     ping_timeout: 10s
     shell_completion_timeout: 500ms
 collection:
-    active_source: ""
+    active.source: ""
     scratch: ""
     sources: []
