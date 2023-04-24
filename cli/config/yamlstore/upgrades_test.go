@@ -64,7 +64,7 @@ func Test_Upgrade_v0_34_0(t *testing.T) {
 	t.Logf("config file (before): %s", cfgFile)
 	_ = ioz.FPrintFile(tutil.Writer(t), cfgFile)
 
-	cfg, cfgStore, err := yamlstore.DefaultLoad(ctx, nil, nil)
+	cfg, cfgStore, err := yamlstore.Load(ctx, nil, nil)
 	require.NoError(t, err)
 
 	t.Logf("config file (after): %s", cfgFile)

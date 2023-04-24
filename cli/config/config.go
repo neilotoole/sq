@@ -2,6 +2,7 @@
 package config
 
 import (
+	"github.com/neilotoole/sq/cli/buildinfo"
 	"github.com/neilotoole/sq/libsq/core/options"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -56,6 +57,7 @@ func New() *Config {
 	cfg := &Config{
 		Collection: &source.Collection{},
 		Options:    options.Options{},
+		Version:    buildinfo.Version,
 	}
 
 	// By default, we want header to be true; this is
@@ -63,6 +65,7 @@ func New() *Config {
 	// is false, but we actually want it to be true for Header.
 	// cfg.Options["format.header"] = true
 	// FIXME: use options.DefaultRegistry.Process(cfg.Options)
+	// Also, do this for each Source in cfg.Collection.
 
 	// if cfg.Version == "" {
 	//	cfg.Version = buildinfo.Version

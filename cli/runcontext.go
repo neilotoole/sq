@@ -135,9 +135,9 @@ func newDefaultRunContext(ctx context.Context,
 	}
 
 	var configErr error
-	rc.Config, rc.ConfigStore, configErr = yamlstore.DefaultLoad(lg.NewContext(ctx, log), args, upgrades)
+	rc.Config, rc.ConfigStore, configErr = yamlstore.Load(lg.NewContext(ctx, log), args, upgrades)
 
-	log, logHandler, clnup, loggingErr := defaultLogging()
+	log, logHandler, clnup, logErr := defaultLogging()
 	rc.Log = log
 	rc.clnup = clnup
 
@@ -157,8 +157,8 @@ func newDefaultRunContext(ctx context.Context,
 		return rc, configErr
 	}
 
-	if loggingErr != nil {
-		return rc, loggingErr
+	if logErr != nil {
+		return rc, logErr
 	}
 
 	return rc, nil

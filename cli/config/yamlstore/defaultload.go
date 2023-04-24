@@ -13,9 +13,9 @@ import (
 	"github.com/spf13/pflag"
 )
 
-// DefaultLoad loads sq config from the default location
-// (~/.config/sq/sq.yml) or the location specified in envars.
-func DefaultLoad(ctx context.Context, osArgs []string, upgrades UpgradeRegistry) (*config.Config, config.Store, error) {
+// Load loads sq config from the default location (~/.config/sq/sq.yml) or
+// the location specified in envars or flags.
+func Load(ctx context.Context, osArgs []string, upgrades UpgradeRegistry) (*config.Config, config.Store, error) {
 	var (
 		cfgDir string
 		origin string
@@ -106,6 +106,7 @@ func getConfigDirFromEnv() (string, bool) {
 		return cfgDir, ok
 	}
 
+	// Legacy envar, will eventually remove.
 	if cfgDir, ok := os.LookupEnv(config.EnvarConfigDir); ok && cfgDir != "" {
 		return cfgDir, ok
 	}
