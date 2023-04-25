@@ -41,7 +41,7 @@ func (w *PingWriter) Open(srcs []*source.Source) error {
 // Result implements output.PingWriter.
 func (w *PingWriter) Result(src *source.Source, d time.Duration, err error) error {
 	w.pr.Number.Fprintf(w.out, "%-"+strconv.Itoa(w.handleWidthMax)+"s", src.Handle)
-	fmt.Fprintf(w.out, "%10s  ", d.Truncate(time.Millisecond).String())
+	w.pr.Duration.Fprintf(w.out, "%10s  ", d.Truncate(time.Millisecond).String())
 
 	// The ping result is one of:
 	// - success
