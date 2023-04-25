@@ -98,9 +98,9 @@ func execInspect(cmd *cobra.Command, args []string) error {
 		}
 	} else {
 		// We received an argument, which can be one of these forms:
-		//   @my1			-- inspect the named source
-		//   @my1.tbluser	-- inspect a table of the named source
-		//   .tbluser		-- inspect a table from the active source
+		//   @sakila			  -- inspect the named source
+		//   @sakila.actor	-- inspect a table of the named source
+		//   .actor		      -- inspect a table from the active source
 		var handle string
 		handle, table, err = source.ParseTableHandle(args[0])
 		if err != nil {
@@ -118,6 +118,10 @@ func execInspect(cmd *cobra.Command, args []string) error {
 				return err
 			}
 		}
+	}
+
+	if err = applySourceOptions(cmd, src); err != nil {
+		return err
 	}
 
 	dbase, err := rc.databases.Open(ctx, src)

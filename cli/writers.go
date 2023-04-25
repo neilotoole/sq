@@ -127,7 +127,9 @@ func newWriters(cmd *cobra.Command, opts options.Options, out, errOut io.Writer,
 
 // getPrinting returns a Printing instance and
 // colorable or non-colorable writers. It is permissible
-// for the cmd arg to be nil.
+// for the cmd arg to be nil. The caller should use the returned
+// io.Writer instances instead of the supplied writers, as they
+// may be decorated for dealing with color, etc.
 func getPrinting(cmd *cobra.Command, opts options.Options,
 	out, errOut io.Writer,
 ) (pr *output.Printing, out2, errOut2 io.Writer) {
@@ -141,9 +143,13 @@ func getPrinting(cmd *cobra.Command, opts options.Options,
 		pr.Verbose, _ = cmd.Flags().GetBool(flag.Verbose)
 	}
 
-	if cmdFlagChanged(cmd, flag.Header) {
+	switch {
+	case cmdFlagChanged(cmd, flag.Header):
 		pr.ShowHeader, _ = cmd.Flags().GetBool(flag.Header)
-	} else if opts != nil {
+	case cmdFlagChanged(cmd, flag.NoHeader):
+		b, _ := cmd.Flags().GetBool(flag.NoHeader)
+		pr.ShowHeader = !b
+	case opts != nil:
 		pr.ShowHeader = OptPrintHeader.Get(opts)
 	}
 

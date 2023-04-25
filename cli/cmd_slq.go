@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/neilotoole/sq/cli/flag"
+	"github.com/neilotoole/sq/drivers/csv"
 
 	"golang.org/x/exp/slices"
 
@@ -93,6 +94,10 @@ func execSLQ(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	if err = applyCollectionOptions(cmd, rc.Config.Collection); err != nil {
+		return err
+	}
+
 	if !cmdFlagChanged(cmd, flag.Insert) {
 		// The user didn't specify the --insert=@src.tbl flag,
 		// so we just want to print the records.
@@ -129,6 +134,7 @@ func execSLQInsert(ctx context.Context, rc *RunContext, mArgs map[string]string,
 	destSrc *source.Source, destTbl string,
 ) error {
 	args, coll, dbases := rc.Args, rc.Config.Collection, rc.databases
+
 	slq, err := preprocessUserSLQ(ctx, rc, args)
 	if err != nil {
 		return err
@@ -346,20 +352,31 @@ func addQueryCmdFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolP(flag.Raw, flag.RawShort, false, flag.RawUsage)
 	cmd.Flags().Bool(flag.HTML, false, flag.HTMLUsage)
 	cmd.Flags().Bool(flag.Markdown, false, flag.MarkdownUsage)
+
 	cmd.Flags().BoolP(flag.Header, flag.HeaderShort, false, flag.HeaderUsage)
+	cmd.Flags().BoolP(flag.NoHeader, flag.NoHeaderShort, false, flag.NoHeaderUsage)
+	cmd.MarkFlagsMutuallyExclusive(flag.Header, flag.NoHeader)
+
 	cmd.Flags().BoolP(flag.Pretty, "", true, flag.PrettyUsage)
 
 	cmd.Flags().StringP(flag.Insert, "", "", flag.InsertUsage)
-	_ = cmd.RegisterFlagCompletionFunc(flag.Insert, (&handleTableCompleter{onlySQL: true, handleRequired: true}).complete)
+
+	panicOn(cmd.RegisterFlagCompletionFunc(flag.Insert,
+		(&handleTableCompleter{onlySQL: true, handleRequired: true}).complete))
 
 	cmd.Flags().StringP(flag.ActiveSrc, "", "", flag.ActiveSrcUsage)
-	_ = cmd.RegisterFlagCompletionFunc(flag.ActiveSrc, completeHandle(0))
+	panicOn(cmd.RegisterFlagCompletionFunc(flag.ActiveSrc, completeHandle(0)))
 
 	// The driver flag can be used if data is piped to sq over stdin
 	cmd.Flags().StringP(flag.Driver, "", "", flag.QueryDriverUsage)
-	_ = cmd.RegisterFlagCompletionFunc(flag.Driver, completeDriverType)
+	panicOn(cmd.RegisterFlagCompletionFunc(flag.Driver, completeDriverType))
 
-	cmd.Flags().StringP(flag.SrcOptions, "", "", flag.QuerySrcOptionsUsage)
+	cmd.Flags().BoolP(flag.XLSXImportHeader, "", false, flag.XLSXImportHeaderUsage)
+
+	cmd.Flags().BoolP(flag.CSVImportHeader, "", false, flag.CSVImportHeaderUsage)
+	cmd.Flags().BoolP(flag.CSVEmptyAsNull, "", true, flag.CSVEmptyAsNullUsage)
+	cmd.Flags().StringP(flag.CSVDelim, "", flag.CSVDelimDefault, flag.CSVDelimUsage)
+	panicOn(cmd.RegisterFlagCompletionFunc(flag.CSVDelim, completeStrings(1, csv.NamedDelims()...)))
 }
 
 // extractFlagArgsValues returns a map {key:value} of predefined variables

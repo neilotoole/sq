@@ -3,6 +3,8 @@ package cli
 import (
 	"testing"
 
+	"github.com/neilotoole/slogt"
+	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/testh/tutil"
 
 	"github.com/stretchr/testify/require"
@@ -105,4 +107,10 @@ func Test_lastHandlePart(t *testing.T) {
 			require.Equal(t, tc.want, got)
 		})
 	}
+}
+
+func TestOptions(t *testing.T) {
+	reg := options.DefaultRegistry
+	log := slogt.New(t)
+	log.Debug("DefaultRegistry", "reg", reg)
 }

@@ -152,16 +152,46 @@ func configureEmptyNullMunge(mungers []kind.MungeFunc, recMeta sqlz.RecordMeta) 
 	}
 }
 
+const (
+	delimCommaKey  = "comma"
+	delimComma     = ','
+	delimSpaceKey  = "space"
+	delimSpace     = ' '
+	delimPipeKey   = "pipe"
+	delimPipe      = '|'
+	delimTabKey    = "tab"
+	delimTab       = '\t'
+	delimColonKey  = "colon"
+	delimColon     = ':'
+	delimSemiKey   = "semi"
+	delimSemi      = ';'
+	delimPeriodKey = "period"
+	delimPeriod    = '.'
+)
+
+// NamedDelims returns the named delimiters, such as [comma, tab, pipe...].
+func NamedDelims() []string {
+	return []string{
+		delimCommaKey,
+		delimTabKey,
+		delimSemiKey,
+		delimColonKey,
+		delimSpaceKey,
+		delimPipeKey,
+		delimPeriodKey,
+	}
+}
+
 // namedDelimiters is map of named delimiter strings to
 // rune value. For example, "comma" maps to ',' and "pipe" maps to '|'.
 var namedDelimiters = map[string]rune{
-	"comma":  ',',
-	"space":  ' ',
-	"pipe":   '|',
-	"tab":    '\t',
-	"colon":  ':',
-	"semi":   ';',
-	"period": '.',
+	delimCommaKey:  delimComma,
+	delimSpaceKey:  delimSpace,
+	delimPipeKey:   delimPipe,
+	delimTabKey:    delimTab,
+	delimColonKey:  delimColon,
+	delimSemiKey:   delimSemi,
+	delimPeriodKey: delimPeriod,
 }
 
 // getDelimiter returns the delimiter for src. An explicit

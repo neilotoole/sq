@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"strings"
 
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -115,21 +114,6 @@ func checkStdinSource(ctx context.Context, rc *RunContext) (*source.Source, erro
 
 	// If we got this far, we have pipe input
 
-	// It's possible the user supplied source options
-	opts := options.Options{}
-	if cmd.Flags().Changed(flag.SrcOptions) {
-		val, _ := cmd.Flags().GetString(flag.SrcOptions)
-		val = strings.TrimSpace(val)
-		_ = val
-		// FIXME: Deal with option flags
-		// if val != "" {
-		// 	opts, err = options.ParseOptions(val)
-		// 	if err != nil {
-		// 		return nil, err
-		// 	}
-		// }
-	}
-
 	typ := source.TypeNone
 	if cmd.Flags().Changed(flag.Driver) {
 		val, _ := cmd.Flags().GetString(flag.Driver)
@@ -154,7 +138,7 @@ func checkStdinSource(ctx context.Context, rc *RunContext) (*source.Source, erro
 		}
 	}
 
-	return newSource(rc.Log, rc.registry, typ, source.StdinHandle, source.StdinHandle, opts)
+	return newSource(rc.Log, rc.registry, typ, source.StdinHandle, source.StdinHandle, options.Options{})
 }
 
 // newSource creates a new Source instance where the

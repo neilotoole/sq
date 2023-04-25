@@ -1,6 +1,5 @@
 // Package options implements config options. This package is currently a bit
 // of an experiment. Objectives:
-//
 //   - Options are key-value pairs.
 //   - Options can come from default config, individual source config, and flags.
 //   - Support the ability to edit config in $EDITOR, providing contextual information
@@ -57,6 +56,21 @@ func (r *Registry) LogValue() slog.Value {
 		as[i] = slog.String(opt.Key(), fmt.Sprintf("%T", opt))
 	}
 	return slog.GroupValue(as...)
+}
+
+// Visit visits each Opt in r. Be careful with concurrent access
+// to this method.
+func (r *Registry) Visit(fn func(opt Opt) error) error {
+	if r == nil {
+		return nil
+	}
+
+	for i := range r.opts {
+		if err := fn(r.opts[i]); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Get returns the Opt registered in r using key, or nil.
@@ -156,6 +170,17 @@ func (o Options) Keys() []string {
 func (o Options) IsSet(opt Opt) bool {
 	_, ok := o[opt.Key()]
 	return ok
+}
+
+// Merge overlays each of overlays onto base, returning a new Options.
+func Merge(base Options, overlays ...Options) Options {
+	o := base.Clone()
+	for _, overlay := range overlays {
+		for k, v := range overlay {
+			o[k] = v
+		}
+	}
+	return o
 }
 
 // Processor performs processing on o.

@@ -37,6 +37,17 @@ var (
 	_ completionFunc = (*handleTableCompleter)(nil).complete
 )
 
+// completeStrings completes from a slice of string.
+func completeStrings(max int, a ...string) completionFunc {
+	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if max > 0 && len(args) >= max {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+		a, _ = lo.Difference(a, args)
+		return a, cobra.ShellCompDirectiveNoFileComp
+	}
+}
+
 // completeHandle is a completionFunc that suggests handles.
 // The max arg is the maximum number of completions. Collection to 0
 // for no limit.

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 // Opt is an option type. Concrete impls exist for various types,
@@ -129,6 +130,76 @@ func (o Int) Get(opts Options) int {
 	}
 }
 
+// Process implements options.Processor. It converts matching
+// values in opts into bool. If no match found,
+// the input arg is returned unchanged. Otherwise, a clone is
+// returned.
+func (o Int) Process(opts Options) (Options, error) {
+	if opts == nil {
+		return nil, nil //nolint:nilnil
+	}
+
+	v, ok := opts[o.key]
+	if !ok || v == nil {
+		return opts, nil
+	}
+
+	if _, ok = v.(int); ok {
+		// Happy path
+		return opts, nil
+	}
+
+	opts = opts.Clone()
+
+	var i int
+	switch v := v.(type) {
+	case float32:
+		i = int(v)
+	case float64:
+		i = int(v)
+	case uint:
+		i = int(v)
+	case uint8:
+		i = int(v)
+	case uint16:
+		i = int(v)
+	case uint32:
+		i = int(v)
+	case uint64:
+		i = int(v)
+	case int8:
+		i = int(v)
+	case int16:
+		i = int(v)
+	case int32:
+		i = int(v)
+	case int64:
+		i = int(v)
+	case string:
+		if v == "" {
+			// Empty string is effectively nil
+			delete(opts, o.key)
+			return opts, nil
+		}
+
+		var err error
+		if i, err = strconv.Atoi(v); err != nil {
+			return nil, errz.Wrapf(err, "invalid int value for {%s}: %v", o.key, v)
+		}
+	default:
+		// This shouldn't happen, but it's a last-ditch effort.
+		// Print v as a string, and try to parse it.
+		s := fmt.Sprintf("%v", v)
+		var err error
+		if i, err = strconv.Atoi(s); err != nil {
+			return nil, errz.Wrapf(err, "invalid int value for {%s}: %v", o.key, v)
+		}
+	}
+
+	opts[o.key] = i
+	return opts, nil
+}
+
 var _ Opt = Bool{}
 
 // NewBool returns an options.Bool instance.
@@ -195,7 +266,7 @@ func (o Bool) Process(opts Options) (Options, error) {
 		}
 
 		// It could be a string like "true"
-		b, err := strconv.ParseBool(v)
+		b, err := stringz.ParseBool(v)
 		if err != nil {
 			return nil, errz.Wrapf(err, "invalid bool value for {%s}: %v", o.key, v)
 		}
@@ -205,7 +276,7 @@ func (o Bool) Process(opts Options) (Options, error) {
 		// Last-ditch effort. Print the value to a string, and check
 		// if we can parse the string into a bool.
 		s := fmt.Sprintf("%v", v)
-		b, err := strconv.ParseBool(s)
+		b, err := stringz.ParseBool(s)
 		if err != nil {
 			return nil, errz.Wrapf(err, "invalid bool value for {%s}: %v", o.key, v)
 		}

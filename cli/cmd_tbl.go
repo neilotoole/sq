@@ -113,6 +113,10 @@ func execTblCopy(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	if err = applyCollectionOptions(cmd, rc.Config.Collection); err != nil {
+		return err
+	}
+
 	var dbase driver.Database
 	dbase, err = rc.databases.Open(cmd.Context(), tblHandles[0].src)
 	if err != nil {
@@ -178,6 +182,10 @@ func execTblTruncate(cmd *cobra.Command, args []string) (err error) {
 		return err
 	}
 
+	if err = applyCollectionOptions(cmd, rc.Config.Collection); err != nil {
+		return err
+	}
+
 	for _, tblH := range tblHandles {
 		var affected int64
 		affected, err = tblH.drvr.Truncate(cmd.Context(), tblH.src, tblH.tbl, true)
@@ -222,6 +230,10 @@ func execTblDrop(cmd *cobra.Command, args []string) (err error) {
 	var tblHandles []tblHandle
 	tblHandles, err = parseTableHandleArgs(rc.registry, rc.Config.Collection, args)
 	if err != nil {
+		return err
+	}
+
+	if err = applyCollectionOptions(cmd, rc.Config.Collection); err != nil {
 		return err
 	}
 

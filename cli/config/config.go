@@ -49,7 +49,7 @@ func (c *Config) String() string {
 // Ext holds additional config (extensions) loaded from other
 // config files, e.g. ~/.config/sq/ext/*.sq.yml.
 type Ext struct {
-	UserDrivers []*userdriver.DriverDef `yaml:"user.drivers" json:"user.drivers"`
+	UserDrivers []*userdriver.DriverDef `yaml:"user_drivers" json:"user_drivers"`
 }
 
 // New returns a config instance with default options set.
@@ -59,17 +59,6 @@ func New() *Config {
 		Options:    options.Options{},
 		Version:    buildinfo.Version,
 	}
-
-	// By default, we want header to be true; this is
-	// ugly wrt initCfg, as the zero value of a bool
-	// is false, but we actually want it to be true for Header.
-	// cfg.Options["format.header"] = true
-	// FIXME: use options.DefaultRegistry.Process(cfg.Options)
-	// Also, do this for each Source in cfg.Collection.
-
-	// if cfg.Version == "" {
-	//	cfg.Version = buildinfo.Version
-	// }
 
 	return cfg
 }
