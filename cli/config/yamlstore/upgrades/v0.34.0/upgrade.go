@@ -97,12 +97,7 @@ func Upgrade(ctx context.Context, before []byte) (after []byte, err error) {
 					return nil, errz.Errorf("corrupt config: invalid 'sources.items[%d].options.header' field", i)
 				}
 
-				switch srcDriver {
-				case "csv", "tsv":
-					srcOpts["driver.csv.header"] = hasHeader
-				case "xlsx":
-					srcOpts["driver.xlsx.header"] = hasHeader
-				}
+				srcOpts["ingest.header"] = hasHeader
 			}
 
 			delete(srcOpts, "header")

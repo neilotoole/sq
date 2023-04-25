@@ -84,7 +84,7 @@ const (
 
 	// SrcOptions is deprecated.
 	//
-	// //Deprecated: Use specific options like flag.CSVImportHeader.
+	// Deprecated: Use specific options like flag.IngestHeader.
 	SrcOptions      = "opts"
 	SrcOptionsUsage = "Driver-dependent data source options"
 
@@ -131,11 +131,8 @@ const (
 	Config      = "config"
 	ConfigUsage = "Load config from here"
 
-	XLSXImportHeader      = "driver.xlsx.header"
-	XLSXImportHeaderUsage = "Indicate that input Excel worksheets have header row"
-
-	CSVImportHeader      = "driver.csv.header"
-	CSVImportHeaderUsage = "Indicate that input CSV has header row"
+	IngestHeader      = "ingest.header"
+	IngestHeaderUsage = "Treat first row of import data as header"
 
 	CSVEmptyAsNull      = "driver.csv.empty-as-null"
 	CSVEmptyAsNullUsage = "Treat empty CSV fields as null"

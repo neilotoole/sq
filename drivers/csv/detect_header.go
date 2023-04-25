@@ -3,6 +3,7 @@ package csv
 import (
 	"strings"
 
+	"github.com/neilotoole/sq/drivers"
 	"github.com/neilotoole/sq/libsq/core/options"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -13,8 +14,8 @@ import (
 // set in opts, or if detectHeaderRow detects that the first
 // row of recs seems to be a header.
 func hasHeaderRow(recs [][]string, opts options.Options) (bool, error) {
-	if OptImportHeader.IsSet(opts) {
-		return OptImportHeader.Get(opts), nil
+	if drivers.OptIngestHeader.IsSet(opts) {
+		return drivers.OptIngestHeader.Get(opts), nil
 	}
 
 	return detectHeaderRow(recs)

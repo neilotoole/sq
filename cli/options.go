@@ -9,7 +9,7 @@ import (
 )
 
 // getFlagOptions builds options.Options from flags. In effect, a flag
-// such as --driver.csv.header is mapped to an option.Opt of the same name.
+// such as --ingest.header is mapped to an option.Opt of the same name.
 //
 // See also: getCmdOptions, applySourceOptions, applyCollectionOptions.
 func getFlagOptions(flags *pflag.FlagSet, reg *options.Registry) (options.Options, error) {

@@ -130,25 +130,25 @@ func TestCmdSQL_StdinQuery(t *testing.T) {
 	}{
 		{
 			fpath:     proj.Abs(sakila.PathCSVActorNoHeader),
-			flags:     map[string]string{flag.CSVImportHeader: "false"},
+			flags:     map[string]string{flag.IngestHeader: "false"},
 			tbl:       source.MonotableName,
 			wantCount: sakila.TblActorCount,
 		},
 		{
 			fpath:     proj.Abs(sakila.PathCSVActor),
-			flags:     map[string]string{flag.CSVImportHeader: "true"},
+			flags:     map[string]string{flag.IngestHeader: "true"},
 			tbl:       source.MonotableName,
 			wantCount: sakila.TblActorCount,
 		},
 		{
 			fpath:     proj.Abs(sakila.PathXLSXActorHeader),
-			flags:     map[string]string{flag.XLSXImportHeader: "true"},
+			flags:     map[string]string{flag.IngestHeader: "true"},
 			tbl:       sakila.TblActor,
 			wantCount: sakila.TblActorCount,
 		},
 		{
 			fpath:     proj.Abs(sakila.PathXLSXSubset),
-			flags:     map[string]string{flag.XLSXImportHeader: "true"},
+			flags:     map[string]string{flag.IngestHeader: "true"},
 			tbl:       sakila.TblActor,
 			wantCount: sakila.TblActorCount,
 		},

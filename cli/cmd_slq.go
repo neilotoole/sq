@@ -371,9 +371,7 @@ func addQueryCmdFlags(cmd *cobra.Command) {
 	cmd.Flags().StringP(flag.Driver, "", "", flag.QueryDriverUsage)
 	panicOn(cmd.RegisterFlagCompletionFunc(flag.Driver, completeDriverType))
 
-	cmd.Flags().BoolP(flag.XLSXImportHeader, "", false, flag.XLSXImportHeaderUsage)
-
-	cmd.Flags().BoolP(flag.CSVImportHeader, "", false, flag.CSVImportHeaderUsage)
+	cmd.Flags().BoolP(flag.IngestHeader, "", false, flag.IngestHeaderUsage)
 	cmd.Flags().BoolP(flag.CSVEmptyAsNull, "", true, flag.CSVEmptyAsNullUsage)
 	cmd.Flags().StringP(flag.CSVDelim, "", flag.CSVDelimDefault, flag.CSVDelimUsage)
 	panicOn(cmd.RegisterFlagCompletionFunc(flag.CSVDelim, completeStrings(1, csv.NamedDelims()...)))

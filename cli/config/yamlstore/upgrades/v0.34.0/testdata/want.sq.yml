@@ -16,9 +16,9 @@ collection:
     driver: csv
     location: /Users/neilotoole/sq/person.csv
     options:
-      driver.csv.header: true
+      ingest.header: true
   - handle: "@xlsx"
     driver: xlsx
     location: /Users/neilotoole/sq/xl_demo.xlsx
     options:
-      driver.xlsx.header: false
+      ingest.header: false

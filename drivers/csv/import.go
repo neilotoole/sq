@@ -25,16 +25,6 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 )
 
-// OptImportHeader allows the user to specify whether the imported CSV
-// file has a header or not. If not set, the importer will try to
-// detect if the input has a header.
-var OptImportHeader = options.NewBool(
-	"driver.csv.header",
-	false,
-	"",
-	"source", "csv",
-)
-
 // OptEmptyAsNull determines if an empty CSV field is treated as NULL
 // or as the zero value for the kind of that field.
 var OptEmptyAsNull = options.NewBool(
