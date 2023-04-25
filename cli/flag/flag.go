@@ -84,7 +84,7 @@ const (
 
 	// SrcOptions is deprecated.
 	//
-	// Deprecated: Use specific options like flag.IngestHeader.
+	// //Deprecated: Use specific options like flag.IngestHeader.
 	SrcOptions      = "opts"
 	SrcOptionsUsage = "Driver-dependent data source options"
 
