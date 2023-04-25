@@ -84,7 +84,7 @@ const (
 
 	// SrcOptions is deprecated.
 	//
-	// Deprecated FIXME: Use specific options like flag.CSVImportHeader.
+	// //Deprecated: Use specific options like flag.CSVImportHeader.
 	SrcOptions      = "opts"
 	SrcOptionsUsage = "Driver-dependent data source options"
 

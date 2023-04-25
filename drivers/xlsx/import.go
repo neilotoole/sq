@@ -34,7 +34,13 @@ import (
 // to go away, because it doesn't really work well with the fact that
 // an XLSX workbook has multiple sheets, each of which could have a
 // header row.
-var OptImportHeader = options.NewBool("driver.xlsx.header", false, "")
+var OptImportHeader = options.NewBool(
+	"driver.xlsx.header",
+	false,
+	"",
+	"source",
+	"xlsx",
+)
 
 // xlsxToScratch loads the data in xlFile into scratchDB.
 func xlsxToScratch(ctx context.Context, src *source.Source, xlFile *xlsx.File, scratchDB driver.Database) error {

@@ -27,11 +27,16 @@ type Opt interface {
 
 	// IsSet returns true if this Opt is set in opts.
 	IsSet(opts Options) bool
+
+	// Tags returns any tags on this Opt instance. For example, an Opt might
+	// have tags [source, csv].
+	Tags() []string
 }
 
 type baseOpt struct {
 	key     string
 	comment string
+	tags    []string
 }
 
 // Key implements options.Opt.
@@ -53,11 +58,20 @@ func (o baseOpt) String() string {
 	return o.key
 }
 
+// Tags implements options.Opt.
+func (o baseOpt) Tags() []string {
+	return o.tags
+}
+
 var _ Opt = String{}
 
 // NewString returns an options.String instance.
-func NewString(key, defaultVal, comment string) String {
-	opt := String{baseOpt: baseOpt{key: key, comment: comment}, defaultVal: defaultVal}
+func NewString(key, defaultVal, comment string, tags ...string) String {
+	opt := String{
+		baseOpt:    baseOpt{key: key, comment: comment, tags: tags},
+		defaultVal: defaultVal,
+	}
+
 	DefaultRegistry.Add(opt)
 	return opt
 }
@@ -92,8 +106,11 @@ func (o String) Get(opts Options) string {
 var _ Opt = Int{}
 
 // NewInt returns an options.Int instance.
-func NewInt(key string, defaultVal int, comment string) Int {
-	opt := Int{baseOpt: baseOpt{key: key, comment: comment}, defaultVal: defaultVal}
+func NewInt(key string, defaultVal int, comment string, tags ...string) Int {
+	opt := Int{
+		baseOpt:    baseOpt{key: key, comment: comment, tags: tags},
+		defaultVal: defaultVal,
+	}
 	DefaultRegistry.Add(opt)
 	return opt
 }
@@ -203,8 +220,11 @@ func (o Int) Process(opts Options) (Options, error) {
 var _ Opt = Bool{}
 
 // NewBool returns an options.Bool instance.
-func NewBool(key string, defaultVal bool, comment string) Bool {
-	opt := Bool{baseOpt: baseOpt{key: key, comment: comment}, defaultVal: defaultVal}
+func NewBool(key string, defaultVal bool, comment string, tags ...string) Bool {
+	opt := Bool{
+		baseOpt:    baseOpt{key: key, comment: comment, tags: tags},
+		defaultVal: defaultVal,
+	}
 	DefaultRegistry.Add(opt)
 	return opt
 }
@@ -289,8 +309,11 @@ func (o Bool) Process(opts Options) (Options, error) {
 var _ Opt = Duration{}
 
 // NewDuration returns an options.Duration instance.
-func NewDuration(key string, defaultVal time.Duration, comment string) Duration {
-	opt := Duration{baseOpt: baseOpt{key: key, comment: comment}, defaultVal: defaultVal}
+func NewDuration(key string, defaultVal time.Duration, comment string, tags ...string) Duration {
+	opt := Duration{
+		baseOpt:    baseOpt{key: key, comment: comment, tags: tags},
+		defaultVal: defaultVal,
+	}
 	DefaultRegistry.Add(opt)
 	return opt
 }

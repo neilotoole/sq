@@ -28,8 +28,18 @@ import (
 )
 
 var (
-	OptPrintHeader  = options.NewBool("format.header", true, "Controls whether a header row is printed.")
-	OptOutputFormat = NewFormatOpt("format", format.Table, "Specify the output format.")
+	OptPrintHeader = options.NewBool(
+		"format.header",
+		true,
+		"Controls whether a header row is printed.",
+		"format",
+	)
+	OptOutputFormat = NewFormatOpt(
+		"format",
+		format.Table,
+		"Specify the output format.",
+		"format",
+	)
 )
 
 // writers is a container for the various output writers.
@@ -238,8 +248,8 @@ func getFormat(cmd *cobra.Command, defaults options.Options) format.Format {
 var _ options.Opt = FormatOpt{}
 
 // NewFormatOpt returns an options.FormatOpt instance.
-func NewFormatOpt(key string, defaultVal format.Format, comment string) FormatOpt {
-	opt := FormatOpt{key: key, defaultVal: defaultVal, comment: comment}
+func NewFormatOpt(key string, defaultVal format.Format, comment string, tags ...string) FormatOpt {
+	opt := FormatOpt{key: key, defaultVal: defaultVal, comment: comment, tags: tags}
 	options.DefaultRegistry.Add(opt)
 	return opt
 }
@@ -249,6 +259,12 @@ type FormatOpt struct {
 	key        string
 	comment    string
 	defaultVal format.Format
+	tags       []string
+}
+
+// Tags implements options.Opt.
+func (o FormatOpt) Tags() []string {
+	return o.tags
 }
 
 // Key implements options.Opt.

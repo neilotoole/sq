@@ -28,11 +28,21 @@ import (
 // OptImportHeader allows the user to specify whether the imported CSV
 // file has a header or not. If not set, the importer will try to
 // detect if the input has a header.
-var OptImportHeader = options.NewBool("driver.csv.header", false, "")
+var OptImportHeader = options.NewBool(
+	"driver.csv.header",
+	false,
+	"",
+	"source", "csv",
+)
 
 // OptEmptyAsNull determines if an empty CSV field is treated as NULL
 // or as the zero value for the kind of that field.
-var OptEmptyAsNull = options.NewBool("driver.csv.empty-as-null", true, "")
+var OptEmptyAsNull = options.NewBool(
+	"driver.csv.empty-as-null",
+	true,
+	"",
+	"source", "csv",
+)
 
 // OptDelim specifies the CSV delimiter to use.
 var OptDelim = options.NewString(
@@ -40,6 +50,7 @@ var OptDelim = options.NewString(
 	"comma",
 	`Possible values are: comma, space, pipe, tab, colon, semi, period.
 Default is comma.`,
+	"sources", "csv",
 )
 
 // importCSV loads the src CSV data into scratchDB.
