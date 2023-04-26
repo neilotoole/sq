@@ -1,4 +1,4 @@
-package config
+package yamlstore
 
 import (
 	"strings"
@@ -8,11 +8,6 @@ import (
 
 	"github.com/neilotoole/sq/testh/tutil"
 	"github.com/stretchr/testify/require"
-)
-
-// Export for testing.
-var (
-	LoadVersion = loadVersion
 )
 
 func Test_getConfigDirFromFlag(t *testing.T) {

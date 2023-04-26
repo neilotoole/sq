@@ -164,11 +164,11 @@ func renderSrcOptions(src *source.Source) string {
 
 	opts := make([]string, 0, len(src.Options))
 
-	for key, vals := range src.Options {
+	for key, val := range src.Options {
 		if key == "" {
 			continue
 		}
-		v := strings.Join(vals, ",")
+		v := val
 		// TODO: add color here to distinguish the keys/values
 		opts = append(opts, fmt.Sprintf("%s=%s", key, v))
 	}

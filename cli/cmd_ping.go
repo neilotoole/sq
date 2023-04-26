@@ -5,6 +5,8 @@ import (
 	"errors"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/options"
+
 	"github.com/neilotoole/sq/cli/flag"
 
 	"github.com/samber/lo"
@@ -19,6 +21,13 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
+)
+
+// OptPingTimeout controls ping timeout.
+var OptPingTimeout = options.NewDuration(
+	"ping.timeout",
+	time.Second*10,
+	"How long to wait before ping timeout occurs.",
 )
 
 func newPingCmd() *cobra.Command {
@@ -101,14 +110,15 @@ func execPing(cmd *cobra.Command, args []string) error {
 
 	srcs = lo.Uniq(srcs)
 
-	timeout := cfg.Options.PingTimeout
-	if cmdFlagChanged(cmd, flag.PingTimeout) {
-		timeout, _ = cmd.Flags().GetDuration(flag.PingTimeout)
+	cmdOpts, err := getCmdOptions(cmd)
+	if err != nil {
+		return err
 	}
+	timeout := OptPingTimeout.Get(cmdOpts)
 
 	rc.Log.Debug("Using ping timeout", lga.Val, timeout)
 
-	err := pingSources(cmd.Context(), rc.registry, srcs, rc.writers.pingw, timeout)
+	err = pingSources(cmd.Context(), rc.driverReg, srcs, rc.writers.pingw, timeout)
 	if errors.Is(err, context.Canceled) {
 		// It's common to cancel "sq ping". We don't want to print the cancel message.
 		return errNoMsg

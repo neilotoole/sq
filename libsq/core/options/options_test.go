@@ -1,1 +1,150 @@
-package options
+package options_test
+
+import (
+	"os"
+	"testing"
+	"time"
+
+	"github.com/neilotoole/slogt"
+	"github.com/neilotoole/sq/testh/tutil"
+
+	"github.com/neilotoole/sq/cli"
+	"github.com/neilotoole/sq/cli/output/format"
+
+	"github.com/neilotoole/sq/libsq/driver"
+
+	"github.com/neilotoole/sq/libsq/core/options"
+
+	"github.com/neilotoole/sq/libsq/core/ioz"
+	"github.com/stretchr/testify/require"
+)
+
+type config struct {
+	Options options.Options `yaml:"options"`
+}
+
+func TestOptions(t *testing.T) {
+	log := slogt.New(t)
+	b, err := os.ReadFile("testdata/good.01.yml")
+	require.NoError(t, err)
+
+	reg := &options.Registry{}
+	cli.RegisterDefaultOpts(reg)
+	log.Debug("Registry", "reg", reg)
+
+	cfg := &config{Options: options.Options{}}
+	require.NoError(t, ioz.UnmarshallYAML(b, cfg))
+	cfg.Options, err = reg.Process(cfg.Options)
+	require.NoError(t, err)
+
+	require.Equal(t, format.CSV, cli.OptOutputFormat.Get(cfg.Options))
+	require.Equal(t, true, cli.OptPrintHeader.Get(cfg.Options))
+	require.Equal(t, time.Second*10, cli.OptPingTimeout.Get(cfg.Options))
+	require.Equal(t, time.Millisecond*500, cli.OptShellCompletionTimeout.Get(cfg.Options))
+
+	require.Equal(t, 50, driver.OptConnMaxOpen.Get(cfg.Options))
+	require.Equal(t, 100, driver.OptConnMaxIdle.Get(cfg.Options))
+	require.Equal(t, time.Second*100, driver.OptConnMaxIdleTime.Get(cfg.Options))
+	require.Equal(t, time.Minute*5, driver.OptConnMaxLifetime.Get(cfg.Options))
+}
+
+func TestInt(t *testing.T) {
+	testCases := []struct {
+		key        string
+		defaultVal int
+		input      any
+		want       int
+		wantErr    bool
+	}{
+		{"int", 8, 7, 7, false},
+		{"uint", 8, uint(7), 7, false},
+		{"int64", 8, int64(7), 7, false},
+		{"uint64", 8, uint64(7), 7, false},
+		{"string", 8, "7", 7, false},
+		{"string_bad", 8, "not_int", 0, true},
+		{"nil", 8, nil, 8, false},
+	}
+
+	for i, tc := range testCases {
+		tc := tc
+		t.Run(tutil.Name(i, tc.key), func(t *testing.T) {
+			reg := &options.Registry{}
+
+			opt := options.NewInt(tc.key, tc.defaultVal, "")
+			reg.Add(opt)
+
+			o := options.Options{tc.key: tc.input}
+
+			o2, err := reg.Process(o)
+			if tc.wantErr {
+				require.Error(t, err)
+				require.Nil(t, o2)
+				return
+			}
+
+			require.NoError(t, err)
+			require.NotNil(t, o2)
+
+			got := opt.Get(o2)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestBool(t *testing.T) {
+	testCases := []struct {
+		key        string
+		defaultVal bool
+		input      any
+		want       bool
+		wantErr    bool
+	}{
+		{"bool_true", false, true, true, false},
+		{"bool_false", true, false, false, false},
+		{"int_1", false, int(1), true, false},
+		{"int_0", true, int(0), false, false},
+		{"string_int_1", false, "1", true, false},
+		{"string_int_0", true, "0", false, false},
+		{"string_true", false, "true", true, false},
+		{"string_false", true, "false", false, false},
+		{"string_bad", true, "not_bool", false, true},
+		{"nil", true, nil, true, false},
+	}
+
+	for i, tc := range testCases {
+		tc := tc
+		t.Run(tutil.Name(i, tc.key), func(t *testing.T) {
+			reg := &options.Registry{}
+
+			opt := options.NewBool(tc.key, tc.defaultVal, "")
+			reg.Add(opt)
+
+			o := options.Options{tc.key: tc.input}
+			o2, err := reg.Process(o)
+			if tc.wantErr {
+				require.Error(t, err)
+				require.Nil(t, o2)
+				return
+			}
+
+			require.NoError(t, err)
+			require.NotNil(t, o2)
+
+			got := opt.Get(o2)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestMerge(t *testing.T) {
+	o1 := options.Options{"a": 1, "b": 1, "c": 1}
+	o2 := options.Options{"b": 2, "c": 2}
+	o3 := options.Options{"c": 3}
+
+	got := options.Merge(o1, o2)
+	require.NotEqual(t, o1, got)
+	require.Equal(t, got, options.Options{"a": 1, "b": 2, "c": 2})
+	got = options.Merge(o1, o2, o3)
+	require.NotEqual(t, o1, got)
+	require.Equal(t, got, options.Options{"a": 1, "b": 2, "c": 3})
+}

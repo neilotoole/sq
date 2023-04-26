@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neilotoole/sq/drivers"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
@@ -19,7 +20,6 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
-	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/source"
 
 	"github.com/neilotoole/sq/libsq/core/sqlmodel"
@@ -35,11 +35,10 @@ func xlsxToScratch(ctx context.Context, src *source.Source, xlFile *xlsx.File, s
 		lga.Src, src,
 		lga.Target, scratchDB.Source())
 
-	hasHeader, _, err := options.HasHeader(src.Options)
-	if err != nil {
-		return err
-	}
+	hasHeader := drivers.OptIngestHeader.Get(src.Options)
 
+	// TODO: Like the csv driver, the xlsx driver should detect
+	// the presence of a header.
 	tblDefs, err := buildTblDefsForSheets(ctx, xlFile.Sheets, hasHeader)
 	if err != nil {
 		return err

@@ -4,9 +4,14 @@ import (
 	"io"
 	"os"
 
+	"github.com/neilotoole/sq/libsq/core/errz"
+
+	"github.com/neilotoole/sq/libsq/core/options"
+
+	"github.com/neilotoole/sq/cli/output/format"
+
 	"github.com/fatih/color"
 	"github.com/mattn/go-colorable"
-	"github.com/neilotoole/sq/cli/config"
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/csvw"
@@ -20,6 +25,21 @@ import (
 	"github.com/neilotoole/sq/cli/output/yamlw"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/spf13/cobra"
+)
+
+var (
+	OptPrintHeader = options.NewBool(
+		"format.header",
+		true,
+		"Controls whether a header row is printed.",
+		"format",
+	)
+	OptOutputFormat = NewFormatOpt(
+		"format",
+		format.Table,
+		"Specify the output format.",
+		"format",
+	)
 )
 
 // writers is a container for the various output writers.
@@ -38,10 +58,10 @@ type writers struct {
 // newWriters returns a writers instance configured per defaults and/or
 // flags from cmd. The returned out2/errOut2 values may differ
 // from the out/errOut args (e.g. decorated to support colorization).
-func newWriters(cmd *cobra.Command, opts config.Options, out, errOut io.Writer,
+func newWriters(cmd *cobra.Command, opts options.Options, out, errOut io.Writer,
 ) (w *writers, out2, errOut2 io.Writer) {
 	var pr *output.Printing
-	pr, out2, errOut2 = getPrinting(cmd, &opts, out, errOut)
+	pr, out2, errOut2 = getPrinting(cmd, opts, out, errOut)
 	log := lg.FromContext(cmd.Context())
 
 	// Package tablew has writer impls for each of the writer interfaces,
@@ -61,10 +81,10 @@ func newWriters(cmd *cobra.Command, opts config.Options, out, errOut io.Writer,
 
 	// Invoke getFormat to see if the format was specified
 	// via config or flag.
-	format := getFormat(cmd, opts)
+	fm := getFormat(cmd, opts)
 
 	//nolint:exhaustive
-	switch format {
+	switch fm {
 	default:
 		// No format specified, use JSON
 		w.recordw = jsonw.NewStdRecordWriter(out2, pr)
@@ -75,39 +95,39 @@ func newWriters(cmd *cobra.Command, opts config.Options, out, errOut io.Writer,
 		w.pingw = jsonw.NewPingWriter(out2, pr)
 		w.configw = jsonw.NewConfigWriter(out2, pr)
 
-	case config.FormatTable:
+	case format.Table:
 	// Table is the base format, already set above, no need to do anything.
 
-	case config.FormatTSV:
+	case format.TSV:
 		w.recordw = csvw.NewRecordWriter(out2, pr.ShowHeader, csvw.Tab)
 		w.pingw = csvw.NewPingWriter(out2, csvw.Tab)
 
-	case config.FormatCSV:
+	case format.CSV:
 		w.recordw = csvw.NewRecordWriter(out2, pr.ShowHeader, csvw.Comma)
 		w.pingw = csvw.NewPingWriter(out2, csvw.Comma)
 
-	case config.FormatXML:
+	case format.XML:
 		w.recordw = xmlw.NewRecordWriter(out2, pr)
 
-	case config.FormatXLSX:
+	case format.XLSX:
 		w.recordw = xlsxw.NewRecordWriter(out2, pr.ShowHeader)
 
-	case config.FormatRaw:
+	case format.Raw:
 		w.recordw = raww.NewRecordWriter(out2)
 
-	case config.FormatHTML:
+	case format.HTML:
 		w.recordw = htmlw.NewRecordWriter(out2)
 
-	case config.FormatMarkdown:
+	case format.Markdown:
 		w.recordw = markdownw.NewRecordWriter(out2)
 
-	case config.FormatJSONA:
+	case format.JSONA:
 		w.recordw = jsonw.NewArrayRecordWriter(out2, pr)
 
-	case config.FormatJSONL:
+	case format.JSONL:
 		w.recordw = jsonw.NewObjectRecordWriter(out2, pr)
 
-	case config.FormatYAML:
+	case format.YAML:
 		w.configw = yamlw.NewConfigWriter(out2, pr)
 		w.metaw = yamlw.NewMetadataWriter(out2, pr)
 	}
@@ -117,8 +137,10 @@ func newWriters(cmd *cobra.Command, opts config.Options, out, errOut io.Writer,
 
 // getPrinting returns a Printing instance and
 // colorable or non-colorable writers. It is permissible
-// for the cmd arg to be nil.
-func getPrinting(cmd *cobra.Command, opts *config.Options,
+// for the cmd arg to be nil. The caller should use the returned
+// io.Writer instances instead of the supplied writers, as they
+// may be decorated for dealing with color, etc.
+func getPrinting(cmd *cobra.Command, opts options.Options,
 	out, errOut io.Writer,
 ) (pr *output.Printing, out2, errOut2 io.Writer) {
 	pr = output.NewPrinting()
@@ -131,10 +153,14 @@ func getPrinting(cmd *cobra.Command, opts *config.Options,
 		pr.Verbose, _ = cmd.Flags().GetBool(flag.Verbose)
 	}
 
-	if cmdFlagChanged(cmd, flag.Header) {
+	switch {
+	case cmdFlagChanged(cmd, flag.Header):
 		pr.ShowHeader, _ = cmd.Flags().GetBool(flag.Header)
-	} else if opts != nil {
-		pr.ShowHeader = opts.Header
+	case cmdFlagChanged(cmd, flag.NoHeader):
+		b, _ := cmd.Flags().GetBool(flag.NoHeader)
+		pr.ShowHeader = !b
+	case opts != nil:
+		pr.ShowHeader = OptPrintHeader.Get(opts)
 	}
 
 	// TODO: Should get this default value from config
@@ -183,38 +209,130 @@ func getPrinting(cmd *cobra.Command, opts *config.Options,
 	return pr, out2, errOut2
 }
 
-func getFormat(cmd *cobra.Command, defaults config.Options) config.Format {
-	var format config.Format
+func getFormat(cmd *cobra.Command, defaults options.Options) format.Format {
+	var fm format.Format
 
 	switch {
 	// cascade through the format flags in low-to-high order of precedence.
 	case cmdFlagChanged(cmd, flag.TSV):
-		format = config.FormatTSV
+		fm = format.TSV
 	case cmdFlagChanged(cmd, flag.CSV):
-		format = config.FormatCSV
+		fm = format.CSV
 	case cmdFlagChanged(cmd, flag.XLSX):
-		format = config.FormatXLSX
+		fm = format.XLSX
 	case cmdFlagChanged(cmd, flag.XML):
-		format = config.FormatXML
+		fm = format.XML
 	case cmdFlagChanged(cmd, flag.Raw):
-		format = config.FormatRaw
+		fm = format.Raw
 	case cmdFlagChanged(cmd, flag.HTML):
-		format = config.FormatHTML
+		fm = format.HTML
 	case cmdFlagChanged(cmd, flag.Markdown):
-		format = config.FormatMarkdown
+		fm = format.Markdown
 	case cmdFlagChanged(cmd, flag.Table):
-		format = config.FormatTable
+		fm = format.Table
 	case cmdFlagChanged(cmd, flag.JSONL):
-		format = config.FormatJSONL
+		fm = format.JSONL
 	case cmdFlagChanged(cmd, flag.JSONA):
-		format = config.FormatJSONA
+		fm = format.JSONA
 	case cmdFlagChanged(cmd, flag.JSON):
-		format = config.FormatJSON
+		fm = format.JSON
 	case cmdFlagChanged(cmd, flag.YAML):
-		format = config.FormatYAML
+		fm = format.YAML
 	default:
 		// no format flag, use the config value
-		format = defaults.Format
+		fm = OptOutputFormat.Get(defaults)
 	}
-	return format
+	return fm
+}
+
+var _ options.Opt = FormatOpt{}
+
+// NewFormatOpt returns an options.FormatOpt instance.
+func NewFormatOpt(key string, defaultVal format.Format, comment string, tags ...string) FormatOpt {
+	return FormatOpt{key: key, defaultVal: defaultVal, comment: comment, tags: tags}
+}
+
+// FormatOpt is an options.Opt for format.Format.
+type FormatOpt struct {
+	key        string
+	comment    string
+	defaultVal format.Format
+	tags       []string
+}
+
+// Tags implements options.Opt.
+func (o FormatOpt) Tags() []string {
+	return o.tags
+}
+
+// Key implements options.Opt.
+func (o FormatOpt) Key() string {
+	return o.key
+}
+
+// String implements options.Opt.
+func (o FormatOpt) String() string {
+	return o.key
+}
+
+// IsSet implements options.Opt.
+func (o FormatOpt) IsSet(opts options.Options) bool {
+	if opts == nil {
+		return false
+	}
+
+	return opts.IsSet(o)
+}
+
+// Process implements options.Processor. It converts matching
+// string values in opts into format.Format. If no match found,
+// the input arg is returned unchanged. Otherwise, a clone is
+// returned.
+func (o FormatOpt) Process(opts options.Options) (options.Options, error) {
+	if opts == nil {
+		return nil, nil
+	}
+
+	v, ok := opts[o.key]
+	if !ok || v == nil {
+		return opts, nil
+	}
+
+	// v should be a string
+	var s string
+	s, ok = v.(string)
+	if !ok {
+		return nil, errz.Errorf("option {%s} should be {%T} but got {%T}: %v",
+			o.key, s, v, v)
+	}
+
+	var f format.Format
+	if err := f.UnmarshalText([]byte(s)); err != nil {
+		return nil, errz.Wrapf(err, "option {%s} should is not a valid {%T}: %v", o.key, f, s)
+	}
+
+	opts = opts.Clone()
+	opts[o.key] = f
+	return opts, nil
+}
+
+// Get returns o's value in opts. If opts is nil, or no value
+// is set, o's default value is returned.
+func (o FormatOpt) Get(opts options.Options) format.Format {
+	if opts == nil {
+		return o.defaultVal
+	}
+
+	v, ok := opts[o.key]
+	if !ok {
+		return o.defaultVal
+	}
+
+	var f format.Format
+	f, ok = v.(format.Format)
+	if !ok {
+		return o.defaultVal
+	}
+
+	return f
 }

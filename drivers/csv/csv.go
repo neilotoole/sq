@@ -4,7 +4,6 @@ package csv
 import (
 	"context"
 	"database/sql"
-	"strconv"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
@@ -100,20 +99,23 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 	}
 
 	if src.Options != nil || len(src.Options) > 0 {
-		d.log.Debug("Validating source",
-			lga.Src, src,
-			lga.Opts, src.Options.Encode(),
-		)
+		d.log.Error("FIXME: need to validate source")
+		// FIXME: Validate source
 
-		key := "header"
-		v := src.Options.Get(key)
-
-		if v != "" {
-			_, err := strconv.ParseBool(v)
-			if err != nil {
-				return nil, errz.Wrapf(err, "unable to parse option {%s} having value {%s}", key, v)
-			}
-		}
+		// d.log.Debug("Validating source",
+		// 	lga.Src, src,
+		// 	lga.Opts, src.Options.Encode(),
+		// )
+		//
+		// key := "header"
+		// v := src.Options.Get(key)
+		//
+		// if v != "" {
+		// 	_, err := strconv.ParseBool(v)
+		// 	if err != nil {
+		// 		return nil, errz.Wrapf(err, "unable to parse option {%s} having value {%s}", key, v)
+		// 	}
+		// }
 	}
 
 	return src, nil

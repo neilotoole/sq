@@ -3,9 +3,10 @@ package userdriver_test
 import (
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/core/ioz"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/yaml.v3"
 
 	"github.com/neilotoole/sq/cli/config"
 	"github.com/neilotoole/sq/drivers/userdriver"
@@ -175,6 +176,6 @@ func TestValidateDriverDef(t *testing.T) {
 
 func defsFromString(t *testing.T, yml string) []*userdriver.DriverDef {
 	ext := &config.Ext{}
-	require.NoError(t, yaml.Unmarshal([]byte(yml), ext))
+	require.NoError(t, ioz.UnmarshallYAML([]byte(yml), ext))
 	return ext.UserDrivers
 }

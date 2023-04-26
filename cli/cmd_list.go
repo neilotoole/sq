@@ -39,7 +39,9 @@ any further descendants.
   $ sq ls -g prod`,
 	}
 
-	cmd.Flags().BoolP(flag.Header, flag.HeaderShort, false, flag.HeaderUsage)
+	cmd.Flags().BoolP(flag.Header, flag.HeaderShort, true, flag.HeaderUsage)
+	cmd.Flags().BoolP(flag.NoHeader, flag.NoHeaderShort, false, flag.NoHeaderUsage)
+	cmd.MarkFlagsMutuallyExclusive(flag.Header, flag.NoHeader)
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 	cmd.Flags().BoolP(flag.ListGroup, flag.ListGroupShort, false, flag.ListGroupUsage)
 

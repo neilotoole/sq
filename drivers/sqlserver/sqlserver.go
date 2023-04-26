@@ -489,6 +489,8 @@ WHERE TABLE_NAME = @p1`
 		return nil, errz.Err(err)
 	}
 
+	// TODO: getTableMetadata can cause deadlock in the DB. Needs further investigation.
+	// But a quick hack would be to use retry on a deadlock error.
 	return getTableMetadata(ctx, d.db, catalog, schema, tblName, tblType)
 }
 

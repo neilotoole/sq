@@ -1,4 +1,4 @@
-config_version: v0.33.0
+config.version: v0.34.0
 collection:
   sources:
     - handle: '@sakila_sl3'
@@ -38,26 +38,22 @@ collection:
       driver: xlsx
       location: '${SQ_ROOT}/drivers/xlsx/testdata/sakila.xlsx'
       options:
-        header:
-          - 'true'
+        ingest.header: true
     - handle: '@sakila_xlsx_subset'
       driver: xlsx
       location: '${SQ_ROOT}/drivers/xlsx/testdata/sakila_subset.xlsx'
       options:
-        header:
-          - 'true'
+        ingest.header: true
     - handle: '@sakila_xlsx_noheader'
       driver: xlsx
       location: '${SQ_ROOT}/drivers/xlsx/testdata/sakila_noheader.xlsx'
       options:
-        header:
-          - 'false'
+        ingest.header: false
     - handle: '@sakila_csv_actor'
       driver: csv
       location: '${SQ_ROOT}/drivers/csv/testdata/sakila-csv/actor.csv'
       options:
-        header:
-          - 'true'
+        ingest.header: true
     - handle: '@sakila_csv_address'
       driver: csv
       location: '${SQ_ROOT}/drivers/csv/testdata/sakila-csv/address.csv'
@@ -65,34 +61,29 @@ collection:
       driver: csv
       location: 'https://sq.io/testdata/actor.csv'
       options:
-        header:
-          - 'true'
+        ingest.header: true
     - handle: '@sakila_csv_actor_noheader'
       driver: csv
       location: '${SQ_ROOT}/drivers/csv/testdata/sakila-csv-noheader/actor.csv'
       options:
-        header:
-          - 'false'
+        ingest.header: false
     - handle: '@sakila_tsv_actor'
       driver: tsv
       location: '${SQ_ROOT}/drivers/csv/testdata/sakila-tsv/actor.tsv'
       options:
-        header:
-          - 'true'
+        ingest.header: true
     - handle: '@sakila_tsv_actor_noheader'
       driver: tsv
       location: '${SQ_ROOT}/drivers/csv/testdata/sakila-tsv-noheader/actor.tsv'
       options:
-        header:
-          - 'false'
+        ingest.header: false
 
     - handle: '@csv_person'
       driver: csv
       location: '${SQ_ROOT}/drivers/csv/testdata/person.csv'
     - handle: '@csv_person_big'
       options:
-        header:
-          - 'true'
+        ingest.header: true
       driver: csv
       location: '${SQ_ROOT}/drivers/csv/testdata/person_big.csv'
     - handle: '@csv_person_noheader'
@@ -107,9 +98,6 @@ collection:
     - handle: '@tsv_person_noheader_cols'
       driver: tsv
       location: '${SQ_ROOT}/drivers/csv/testdata/person_noheader.tsv'
-      options:
-        cols:
-          - uid,username,email
     - handle: '@xl_header'
       driver: xlsx
       location: '${SQ_ROOT}/drivers/xlsx/testdata/test_header.xlsx'

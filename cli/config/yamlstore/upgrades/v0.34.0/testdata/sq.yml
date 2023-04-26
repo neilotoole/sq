@@ -1,0 +1,26 @@
+version: v0.33.0
+defaults:
+  output_format: json
+  output_header: true
+  ping_timeout: 100s
+  shell_completion_timeout: 500ms
+sources:
+  active: "@prod/pg"
+  active_group: prod
+  scratch: ""
+  items:
+  - handle: '@prod/pg'
+    type: postgres
+    location: postgres://sakila:p_ssW0rd@localhost/sakila
+  - handle: "@csv"
+    type: csv
+    location: /Users/neilotoole/sq/person.csv
+    options:
+      header:
+      - "true"
+  - handle: "@xlsx"
+    type: xlsx
+    location: /Users/neilotoole/sq/xl_demo.xlsx
+    options:
+      header:
+      - "false"

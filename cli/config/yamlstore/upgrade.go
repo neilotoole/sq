@@ -1,10 +1,13 @@
-package config
+package yamlstore
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"strings"
+
+	"github.com/neilotoole/sq/cli/config"
+	"github.com/neilotoole/sq/libsq/core/ioz"
+	"github.com/neilotoole/sq/libsq/core/options"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -12,74 +15,67 @@ import (
 	"github.com/neilotoole/sq/cli/buildinfo"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"golang.org/x/mod/semver"
-	"gopkg.in/yaml.v3"
 )
 
-// minConfigVersion is the minimum semver value of Config.Version.
+// MinConfigVersion is the minimum semver value of Config.Version.
 // This is basically how far back in time the config upgrade process
 // can support. If the config dates from prior to this (unlikely),
 // then the user needs to start with a new config.
-const minConfigVersion = "v0.0.0-dev"
+const MinConfigVersion = "v0.0.0-dev"
 
-// upgradeFunc performs a (single) upgrade of the config file. Typically
+// UpgradeFunc performs a (single) upgrade of the config file. Typically
 // a func will read the config data from disk, perform some transformation
 // on it, and write it back out to disk. Note that the func should not
 // bind the config file YAML to the Config object, as they may differ
 // significantly. Instead, the func should bind the YAML to a map, and
 // manipulate that map directly.
-type upgradeFunc func(fs *YAMLFileStore) error
+type UpgradeFunc func(ctx context.Context, before []byte) (after []byte, err error)
 
-// upgradeRegistry is a map of config_version to upgrade funcs.
-type upgradeRegistry map[string]upgradeFunc
+// UpgradeRegistry is a map of config_version to upgrade funcs.
+type UpgradeRegistry map[string]UpgradeFunc
 
-// defaultUpgradeReg is the default upgrade registry.
-var defaultUpgradeReg = upgradeRegistry{}
-
-func init() { //nolint:gochecknoinits
-	if !buildinfo.IsDefaultVersion() && semver.Compare(buildinfo.Version, minConfigVersion) < 0 {
-		panic(fmt.Sprintf("buildinfo.Version %q is less than minimum config version %q",
-			buildinfo.Version, minConfigVersion))
-	}
-
-	// For each upgrade, register the upgrade func as below:
-	//  defaultUpgradeReg["v0.34.0"] = execUpgrade_v0_34_0
-	//
-	// IMPORTANT: the upgrade function should not use any defined struct
-	// types, as these may change between versions. Instead, the upgrade
-	// function should directly manipulate the yaml/map.
-
-	defaultUpgradeReg["v0.34.0"] = execUpgrade_v0_34_0
-}
-
-// UpgradeConfig runs all the registered upgrade funcs between cfg.Version
+// doUpgrade runs all the registered upgrade funcs between cfg.Version
 // and targetVersion. Typically this is checked by Load, but can be
 // explicitly invoked for testing etc.
-func (fs *YAMLFileStore) UpgradeConfig(ctx context.Context, startVersion, targetVersion string) (*Config, error) {
+func (fs *Store) doUpgrade(ctx context.Context, optsReg *options.Registry,
+	startVersion, targetVersion string,
+) (*config.Config, error) {
+	log := lg.FromContext(ctx)
+	log.Debug("Starting config upgrade", lga.From, startVersion, lga.To, targetVersion)
+
 	if !semver.IsValid(targetVersion) {
 		return nil, errz.Errorf("invalid semver for config version {%s}", targetVersion)
 	}
 
-	log := lg.FromContext(ctx)
-
-	log.Debug("Starting config upgrade", lga.From, startVersion, lga.To, targetVersion)
 	var err error
-	upgradeFns := fs.upgradeReg.getUpgradeFuncs(startVersion, targetVersion)
+	upgradeFns := fs.UpgradeRegistry.getUpgradeFuncs(startVersion, targetVersion)
 
-	for _, fn := range upgradeFns {
-		err = fn(fs)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	// Do a final update of the version
-	cfg, err := fs.doLoad(ctx)
+	data, err := os.ReadFile(fs.Path)
 	if err != nil {
 		return nil, err
 	}
-	cfg.Version = targetVersion
 
-	log.Debug("Setting config_version", lga.Val, targetVersion)
+	for _, fn := range upgradeFns {
+		log.Debug("Attempting config upgrade step")
+		data, err = fn(ctx, data)
+		if err != nil {
+			return nil, err
+		}
+		log.Debug("Config upgrade step successful")
+	}
+
+	if err = fs.Write(data); err != nil {
+		return nil, err
+	}
+
+	// Do a final update of the version
+	cfg, err := fs.doLoad(ctx, optsReg)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Debug("Setting config.version", lga.Val, targetVersion)
+	cfg.Version = targetVersion
 
 	err = fs.Save(ctx, cfg)
 	if err != nil {
@@ -92,8 +88,8 @@ func (fs *YAMLFileStore) UpgradeConfig(ctx context.Context, startVersion, target
 // getUpgradeFuncs returns the funcs required to upgrade from startingVersion
 // to targetVersion. We iterate over the set of registered funcs; if the
 // version (the key) is greater than startingVersion, and less than or equal
-// to targetVersion, that upgradeFunc will be included in the return value.
-func (r upgradeRegistry) getUpgradeFuncs(startingVersion, targetVersion string) []upgradeFunc {
+// to targetVersion, that UpgradeFunc will be included in the return value.
+func (r UpgradeRegistry) getUpgradeFuncs(startingVersion, targetVersion string) []UpgradeFunc {
 	if len(r) == 0 {
 		return nil
 	}
@@ -111,7 +107,7 @@ func (r upgradeRegistry) getUpgradeFuncs(startingVersion, targetVersion string) 
 
 	semver.Sort(vers)
 
-	upgradeFns := make([]upgradeFunc, len(vers))
+	upgradeFns := make([]UpgradeFunc, len(vers))
 	for i, v := range vers {
 		upgradeFns[i] = r[v]
 	}
@@ -119,16 +115,16 @@ func (r upgradeRegistry) getUpgradeFuncs(startingVersion, targetVersion string) 
 	return upgradeFns
 }
 
-// loadVersion loads the version from the config file.
+// LoadVersionFromFile loads the version from the config file.
 // If the field is not present, minConfigVersion (and no error) is returned.
-func loadVersion(path string) (string, error) {
+func LoadVersionFromFile(path string) (string, error) {
 	bytes, err := os.ReadFile(path)
 	if err != nil {
 		return "", errz.Wrapf(err, "failed to load file: %s", path)
 	}
 
 	m := map[string]any{}
-	err = yaml.Unmarshal(bytes, &m)
+	err = ioz.UnmarshallYAML(bytes, &m)
 	if err != nil {
 		return "", errz.Wrap(err, "failed to unmarshal config YAML")
 	}
@@ -144,7 +140,7 @@ func loadVersion(path string) (string, error) {
 		if s == "" {
 			// We could return an error here, but it's probably slightly
 			// better to carry on in the absence of the version.
-			return minConfigVersion, nil
+			return MinConfigVersion, nil
 		}
 
 		if !semver.IsValid(s) {
@@ -164,7 +160,7 @@ func loadVersion(path string) (string, error) {
 		if s == "" {
 			// We could return an error here, but it's probably slightly
 			// better to carry on in the absence of the version.
-			return minConfigVersion, nil
+			return MinConfigVersion, nil
 		}
 
 		if !semver.IsValid(s) {
@@ -174,20 +170,20 @@ func loadVersion(path string) (string, error) {
 		return s, nil
 	}
 
-	return minConfigVersion, nil
+	return MinConfigVersion, nil
 }
 
 // checkNeedsUpgrade checks on the config version, returning needsUpgrade
 // if applicable. The returned foundVers is a valid semver.
 func checkNeedsUpgrade(path string) (needsUpgrade bool, foundVers string, err error) {
-	foundVers, err = loadVersion(path)
+	foundVers, err = LoadVersionFromFile(path)
 	if err != nil {
 		return false, "", err
 	}
 
-	if semver.Compare(foundVers, minConfigVersion) < 0 {
+	if semver.Compare(foundVers, MinConfigVersion) < 0 {
 		return false, foundVers, errz.Errorf("version %q is less than minimum value %q",
-			foundVers, minConfigVersion)
+			foundVers, MinConfigVersion)
 	}
 
 	buildVers := buildinfo.Version

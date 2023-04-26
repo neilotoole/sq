@@ -44,6 +44,9 @@ type Printing struct {
 	// Datetime is the color for time-related values.
 	Datetime *color.Color
 
+	// Duration is the color for time duration values.
+	Duration *color.Color
+
 	// Error is the color for error elements such as an error message.
 	Error *color.Color
 
@@ -96,6 +99,7 @@ func NewPrinting() *Printing {
 		Bool:       color.New(color.FgYellow),
 		Bytes:      color.New(color.Faint),
 		Datetime:   color.New(color.FgGreen, color.Faint),
+		Duration:   color.New(color.FgGreen, color.Faint),
 		Error:      color.New(color.FgRed, color.Bold),
 		Faint:      color.New(color.Faint),
 		Handle:     color.New(color.FgBlue),
@@ -116,7 +120,7 @@ func NewPrinting() *Printing {
 
 func (pr *Printing) colors() []*color.Color {
 	return []*color.Color{
-		pr.Active, pr.Bold, pr.Bold, pr.Bytes, pr.Datetime,
+		pr.Active, pr.Bold, pr.Bold, pr.Bytes, pr.Datetime, pr.Duration,
 		pr.Error, pr.Faint, pr.Handle, pr.Header, pr.Hilite,
 		pr.Key, pr.Location, pr.Null, pr.Number,
 		pr.Punc, pr.String, pr.Success,

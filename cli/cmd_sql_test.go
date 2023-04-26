@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/testh/tutil"
 
 	"github.com/stretchr/testify/require"
@@ -94,8 +96,8 @@ func TestCmdSQL_SelectFromUserDriver(t *testing.T) {
 				src := th.Source(handle)
 
 				ru := newRun(th.Context, t, nil).add(*src)
-
 				udDefs := testh.DriverDefsFrom(t, testsrc.PathDriverDefPpl, testsrc.PathDriverDefRSS)
+				require.Len(t, udDefs, 2)
 				for _, udDef := range udDefs {
 					require.Empty(t, userdriver.ValidateDriverDef(udDef))
 				}
@@ -122,26 +124,44 @@ func TestCmdSQL_StdinQuery(t *testing.T) {
 	testCases := []struct {
 		fpath     string
 		tbl       string
-		srcHeader bool
+		flags     map[string]string
 		wantCount int
 		wantErr   bool
 	}{
-		{fpath: proj.Abs(sakila.PathCSVActorNoHeader), tbl: source.MonotableName, wantCount: sakila.TblActorCount},
 		{
-			fpath: proj.Abs(sakila.PathXLSXActorHeader), srcHeader: true, tbl: sakila.TblActor,
+			fpath:     proj.Abs(sakila.PathCSVActorNoHeader),
+			flags:     map[string]string{flag.IngestHeader: "false"},
+			tbl:       source.MonotableName,
 			wantCount: sakila.TblActorCount,
 		},
 		{
-			fpath: proj.Abs(sakila.PathXLSXSubset), srcHeader: true, tbl: sakila.TblActor,
+			fpath:     proj.Abs(sakila.PathCSVActor),
+			flags:     map[string]string{flag.IngestHeader: "true"},
+			tbl:       source.MonotableName,
 			wantCount: sakila.TblActorCount,
 		},
-		{fpath: proj.Abs("README.md"), wantErr: true},
+		{
+			fpath:     proj.Abs(sakila.PathXLSXActorHeader),
+			flags:     map[string]string{flag.IngestHeader: "true"},
+			tbl:       sakila.TblActor,
+			wantCount: sakila.TblActorCount,
+		},
+		{
+			fpath:     proj.Abs(sakila.PathXLSXSubset),
+			flags:     map[string]string{flag.IngestHeader: "true"},
+			tbl:       sakila.TblActor,
+			wantCount: sakila.TblActorCount,
+		},
+		{
+			fpath:   proj.Abs("README.md"),
+			wantErr: true,
+		},
 	}
 
-	for _, tc := range testCases {
+	for i, tc := range testCases {
 		tc := tc
-
-		t.Run(tutil.Name(tc.fpath), func(t *testing.T) {
+		name := tutil.Name(i, filepath.Base(filepath.Dir(tc.fpath)), filepath.Base(tc.fpath))
+		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
 			f, err := os.Open(tc.fpath)
@@ -150,10 +170,11 @@ func TestCmdSQL_StdinQuery(t *testing.T) {
 			ru := newRun(context.Background(), t, nil).hush()
 			ru.rc.Stdin = f
 
-			args := []string{"sql", "--header=false", "SELECT * FROM " + tc.tbl}
-			if tc.srcHeader {
-				args = append(args, "--opts=header=true")
+			args := []string{"sql", "--header=false"} // Don't print the header in output
+			for k, v := range tc.flags {
+				args = append(args, fmt.Sprintf("--%s=%s", k, v))
 			}
+			args = append(args, "SELECT * FROM "+tc.tbl)
 
 			err = ru.Exec(args...)
 			if tc.wantErr {

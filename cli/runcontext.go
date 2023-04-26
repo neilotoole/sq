@@ -7,7 +7,10 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/neilotoole/sq/cli/config/yamlstore"
+	v0_34_0 "github.com/neilotoole/sq/cli/config/yamlstore/upgrades/v0.34.0"
 	"github.com/neilotoole/sq/libsq/core/lg/slogbuf"
+	"github.com/neilotoole/sq/libsq/core/options"
 
 	"github.com/neilotoole/sq/cli/config"
 	"github.com/neilotoole/sq/cli/flag"
@@ -101,10 +104,13 @@ type RunContext struct {
 	// the CLI uses to print output.
 	writers *writers
 
-	registry  *driver.Registry
+	driverReg *driver.Registry
+
 	files     *source.Files
 	databases *driver.Databases
 	clnup     *cleanup.Cleanup
+
+	OptionsRegistry *options.Registry
 }
 
 // newDefaultRunContext returns a RunContext configured
@@ -128,15 +134,20 @@ func newDefaultRunContext(ctx context.Context,
 		ErrOut: stderr,
 	}
 
-	cfg, cfgStore, configErr := config.DefaultLoad(lg.NewContext(ctx, log), args)
-	rc.ConfigStore = cfgStore
-	rc.Config = cfg
+	upgrades := yamlstore.UpgradeRegistry{
+		v0_34_0.Version: v0_34_0.Upgrade,
+	}
 
-	log, logHandler, clnup, loggingErr := defaultLogging()
+	var configErr error
+	rc.Config, rc.ConfigStore, configErr = yamlstore.Load(lg.NewContext(ctx, log), args, nil, upgrades)
 
-	_ = logbuf.Flush(ctx, logHandler)
+	log, logHandler, clnup, logErr := defaultLogging()
 	rc.Log = log
 	rc.clnup = clnup
+
+	if err := logbuf.Flush(ctx, logHandler); err != nil {
+		return rc, err
+	}
 
 	switch {
 	case rc.clnup == nil:
@@ -150,15 +161,15 @@ func newDefaultRunContext(ctx context.Context,
 		return rc, configErr
 	}
 
-	if loggingErr != nil {
-		return rc, loggingErr
+	if logErr != nil {
+		return rc, logErr
 	}
 
 	return rc, nil
 }
 
 // init is invoked by cobra prior to the command RunE being
-// invoked. It sets up the registry, databases, writers and related
+// invoked. It sets up the driverReg, databases, writers and related
 // fundamental components. Subsequent invocations of this method
 // are no-op.
 func (rc *RunContext) init() error {
@@ -178,6 +189,10 @@ func (rc *RunContext) init() error {
 func (rc *RunContext) doInit() error {
 	rc.clnup = cleanup.New()
 	cfg, log := rc.Config, rc.Log
+
+	if rc.OptionsRegistry == nil {
+		rc.OptionsRegistry = &options.Registry{}
+	}
 
 	// If the --output=/some/file flag is set, then we need to
 	// override rc.Out (which is typically stdout) to point it at
@@ -232,29 +247,29 @@ func (rc *RunContext) doInit() error {
 	rc.clnup.AddE(rc.files.Close)
 	rc.files.AddDriverDetectors(source.DetectMagicNumber)
 
-	rc.registry = driver.NewRegistry(log)
-	rc.databases = driver.NewDatabases(log, rc.registry, scratchSrcFunc)
+	rc.driverReg = driver.NewRegistry(log)
+	rc.databases = driver.NewDatabases(log, rc.driverReg, scratchSrcFunc)
 	rc.clnup.AddC(rc.databases)
 
 	// TODO: this should come from user config.
 	sqlCfg := driver.Tuning.SQLConfig
 
-	rc.registry.AddProvider(sqlite3.Type, &sqlite3.Provider{Log: log})
-	rc.registry.AddProvider(postgres.Type, &postgres.Provider{Log: log, SQLConfig: sqlCfg})
-	rc.registry.AddProvider(sqlserver.Type, &sqlserver.Provider{Log: log, SQLConfig: sqlCfg})
-	rc.registry.AddProvider(mysql.Type, &mysql.Provider{Log: log, SQLConfig: sqlCfg})
+	rc.driverReg.AddProvider(sqlite3.Type, &sqlite3.Provider{Log: log})
+	rc.driverReg.AddProvider(postgres.Type, &postgres.Provider{Log: log, SQLConfig: sqlCfg})
+	rc.driverReg.AddProvider(sqlserver.Type, &sqlserver.Provider{Log: log, SQLConfig: sqlCfg})
+	rc.driverReg.AddProvider(mysql.Type, &mysql.Provider{Log: log, SQLConfig: sqlCfg})
 	csvp := &csv.Provider{Log: log, Scratcher: rc.databases, Files: rc.files}
-	rc.registry.AddProvider(csv.TypeCSV, csvp)
-	rc.registry.AddProvider(csv.TypeTSV, csvp)
+	rc.driverReg.AddProvider(csv.TypeCSV, csvp)
+	rc.driverReg.AddProvider(csv.TypeTSV, csvp)
 	rc.files.AddDriverDetectors(csv.DetectCSV, csv.DetectTSV)
 
 	jsonp := &json.Provider{Log: log, Scratcher: rc.databases, Files: rc.files}
-	rc.registry.AddProvider(json.TypeJSON, jsonp)
-	rc.registry.AddProvider(json.TypeJSONA, jsonp)
-	rc.registry.AddProvider(json.TypeJSONL, jsonp)
+	rc.driverReg.AddProvider(json.TypeJSON, jsonp)
+	rc.driverReg.AddProvider(json.TypeJSONA, jsonp)
+	rc.driverReg.AddProvider(json.TypeJSONL, jsonp)
 	rc.files.AddDriverDetectors(json.DetectJSON, json.DetectJSONA, json.DetectJSONL)
 
-	rc.registry.AddProvider(xlsx.Type, &xlsx.Provider{Log: log, Scratcher: rc.databases, Files: rc.files})
+	rc.driverReg.AddProvider(xlsx.Type, &xlsx.Provider{Log: log, Scratcher: rc.databases, Files: rc.files})
 	rc.files.AddDriverDetectors(xlsx.DetectXLSX)
 	// One day we may have more supported user driver genres.
 	userDriverImporters := map[string]userdriver.ImportFunc{
@@ -288,7 +303,7 @@ func (rc *RunContext) doInit() error {
 			Files:     rc.files,
 		}
 
-		rc.registry.AddProvider(source.DriverType(userDriverDef.Name), udp)
+		rc.driverReg.AddProvider(source.DriverType(userDriverDef.Name), udp)
 		rc.files.AddDriverDetectors(udp.Detectors()...)
 	}
 

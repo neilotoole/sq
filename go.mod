@@ -31,7 +31,7 @@ require (
 	go.uber.org/multierr v1.11.0
 	golang.org/x/net v0.9.0
 	golang.org/x/sync v0.1.0
-	gopkg.in/yaml.v3 v3.0.1
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
 // https://golang.testcontainers.org/quickstart/#2-install-testcontainers-for-go

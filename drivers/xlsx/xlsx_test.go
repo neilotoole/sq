@@ -3,12 +3,14 @@ package xlsx_test
 import (
 	"testing"
 
+	"github.com/neilotoole/sq/drivers"
+	"github.com/neilotoole/sq/libsq/core/options"
+
 	"github.com/neilotoole/sq/testh/tutil"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/drivers/xlsx"
-	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/proj"
@@ -51,12 +53,12 @@ func Test_XLSX_BadDateRecognition(t *testing.T) {
 		Handle:   "@xlsx_bad_date",
 		Type:     xlsx.Type,
 		Location: proj.Abs("drivers/xlsx/testdata/problem_with_recognizing_date_colA.xlsx"),
-		Options:  options.Options{"header": []string{"true"}},
+		Options:  options.Options{drivers.OptIngestHeader.Key(): true},
 	}
 
-	hasHeader, ok, err := options.HasHeader(src.Options)
-	require.NoError(t, err)
-	require.True(t, ok)
+	require.True(t, src.Options.IsSet(drivers.OptIngestHeader))
+
+	hasHeader := drivers.OptIngestHeader.Get(src.Options)
 	require.True(t, hasHeader)
 
 	sink, err := th.QuerySQL(src, "SELECT * FROM Summary")

@@ -18,7 +18,11 @@ const (
 
 	Header      = "header"
 	HeaderShort = "h"
-	HeaderUsage = "Print header row in output (default true)"
+	HeaderUsage = "Print header row"
+
+	NoHeader      = "no-header"
+	NoHeaderShort = "H"
+	NoHeaderUsage = "Don't print header row"
 
 	Handle      = "handle"
 	HandleShort = "h"
@@ -78,6 +82,9 @@ const (
 	SQLQuery      = "query"
 	SQLQueryUsage = "Execute the SQL as a query (as opposed to statement)"
 
+	// SrcOptions is deprecated.
+	//
+	// //Deprecated: Use specific options like flag.IngestHeader.
 	SrcOptions      = "opts"
 	SrcOptionsUsage = "Driver-dependent data source options"
 
@@ -123,4 +130,14 @@ const (
 
 	Config      = "config"
 	ConfigUsage = "Load config from here"
+
+	IngestHeader      = "ingest.header"
+	IngestHeaderUsage = "Treat first row of import data as header"
+
+	CSVEmptyAsNull      = "driver.csv.empty-as-null"
+	CSVEmptyAsNullUsage = "Treat empty CSV fields as null"
+
+	CSVDelim        = "driver.csv.delim"
+	CSVDelimUsage   = "CSV delimiter: one of comma, space, pipe, tab, colon, semi, period"
+	CSVDelimDefault = "comma"
 )

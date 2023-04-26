@@ -34,6 +34,7 @@ const (
 	Type      = "type"
 	Line      = "line"
 	Val       = "value"
+	Via       = "via"
 	Version   = "version"
 	Timestamp = "timestamp"
 	Text      = "text"

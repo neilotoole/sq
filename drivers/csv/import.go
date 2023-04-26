@@ -25,11 +25,23 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 )
 
-// emptyAsNull determines if an empty CSV field is treated as NULL
+// OptEmptyAsNull determines if an empty CSV field is treated as NULL
 // or as the zero value for the kind of that field.
-//
-// TODO: emptyAsNull should come from config.
-const emptyAsNull = true
+var OptEmptyAsNull = options.NewBool(
+	"driver.csv.empty-as-null",
+	true,
+	"",
+	"source", "csv",
+)
+
+// OptDelim specifies the CSV delimiter to use.
+var OptDelim = options.NewString(
+	"driver.csv.delim",
+	"comma",
+	`Possible values are: comma, space, pipe, tab, colon, semi, period.
+Default is comma.`,
+	"sources", "csv",
+)
 
 // importCSV loads the src CSV data into scratchDB.
 func importCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFunc, scratchDB driver.Database) error {
@@ -93,7 +105,7 @@ func importCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFu
 		return err
 	}
 
-	if emptyAsNull {
+	if OptEmptyAsNull.Get(src.Options) {
 		configureEmptyNullMunge(mungers, recMeta)
 	}
 
@@ -141,16 +153,46 @@ func configureEmptyNullMunge(mungers []kind.MungeFunc, recMeta sqlz.RecordMeta) 
 	}
 }
 
+const (
+	delimCommaKey  = "comma"
+	delimComma     = ','
+	delimSpaceKey  = "space"
+	delimSpace     = ' '
+	delimPipeKey   = "pipe"
+	delimPipe      = '|'
+	delimTabKey    = "tab"
+	delimTab       = '\t'
+	delimColonKey  = "colon"
+	delimColon     = ':'
+	delimSemiKey   = "semi"
+	delimSemi      = ';'
+	delimPeriodKey = "period"
+	delimPeriod    = '.'
+)
+
+// NamedDelims returns the named delimiters, such as [comma, tab, pipe...].
+func NamedDelims() []string {
+	return []string{
+		delimCommaKey,
+		delimTabKey,
+		delimSemiKey,
+		delimColonKey,
+		delimSpaceKey,
+		delimPipeKey,
+		delimPeriodKey,
+	}
+}
+
 // namedDelimiters is map of named delimiter strings to
 // rune value. For example, "comma" maps to ',' and "pipe" maps to '|'.
 var namedDelimiters = map[string]rune{
-	"comma":  ',',
-	"space":  ' ',
-	"pipe":   '|',
-	"tab":    '\t',
-	"colon":  ':',
-	"semi":   ';',
-	"period": '.',
+	delimCommaKey:  delimComma,
+	delimSpaceKey:  delimSpace,
+	delimPipeKey:   delimPipe,
+	delimTabKey:    delimTab,
+	delimColonKey:  delimColon,
+	delimSemiKey:   delimSemi,
+	delimPeriodKey: delimPeriod,
 }
 
 // getDelimiter returns the delimiter for src. An explicit
@@ -182,15 +224,7 @@ func getDelimFromOptions(opts options.Options) (r rune, ok bool, err error) {
 		return 0, false, nil
 	}
 
-	_, ok = opts[options.OptDelim]
-	if !ok {
-		return 0, false, nil
-	}
-
-	val := opts.Get(options.OptDelim)
-	if val == "" {
-		return 0, false, nil
-	}
+	val := OptDelim.Get(opts)
 
 	if len(val) == 1 {
 		r, _ = utf8.DecodeRuneInString(val)

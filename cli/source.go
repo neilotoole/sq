@@ -2,20 +2,16 @@ package cli
 
 import (
 	"context"
-	"strings"
 
 	"github.com/neilotoole/sq/cli/flag"
-
-	"github.com/neilotoole/sq/libsq/core/lg/lga"
-
-	"golang.org/x/exp/slog"
-
-	"github.com/spf13/cobra"
-
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
+
+	"github.com/spf13/cobra"
+	"golang.org/x/exp/slog"
 )
 
 // determineSources figures out what the active source is
@@ -118,25 +114,11 @@ func checkStdinSource(ctx context.Context, rc *RunContext) (*source.Source, erro
 
 	// If we got this far, we have pipe input
 
-	// It's possible the user supplied source options
-	var opts options.Options
-	if cmd.Flags().Changed(flag.SrcOptions) {
-		val, _ := cmd.Flags().GetString(flag.SrcOptions)
-		val = strings.TrimSpace(val)
-
-		if val != "" {
-			opts, err = options.ParseOptions(val)
-			if err != nil {
-				return nil, err
-			}
-		}
-	}
-
 	typ := source.TypeNone
 	if cmd.Flags().Changed(flag.Driver) {
 		val, _ := cmd.Flags().GetString(flag.Driver)
 		typ = source.DriverType(val)
-		if rc.registry.ProviderFor(typ) == nil {
+		if rc.driverReg.ProviderFor(typ) == nil {
 			return nil, errz.Errorf("unknown driver type: %s", typ)
 		}
 	}
@@ -156,7 +138,7 @@ func checkStdinSource(ctx context.Context, rc *RunContext) (*source.Source, erro
 		}
 	}
 
-	return newSource(rc.Log, rc.registry, typ, source.StdinHandle, source.StdinHandle, opts)
+	return newSource(rc.Log, rc.driverReg, typ, source.StdinHandle, source.StdinHandle, options.Options{})
 }
 
 // newSource creates a new Source instance where the
@@ -175,7 +157,7 @@ func newSource(log *slog.Logger, dp driver.Provider, typ source.DriverType, hand
 			lga.Handle, handle,
 			lga.Driver, typ,
 			lga.Loc, source.RedactLocation(loc),
-			lga.Opts, opts.Encode(),
+			// lga.Opts, opts.Encode(), // FIXME: encode opts for debugging
 		)
 	}
 

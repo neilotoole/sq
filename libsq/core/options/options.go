@@ -1,162 +1,186 @@
-// Package options is the home of the Options type, used to control
-// optional behavior of core types such as Source.
+// Package options implements config options. This package is currently a bit
+// of an experiment. Objectives:
+//   - Options are key-value pairs.
+//   - Options can come from default config, individual source config, and flags.
+//   - Support the ability to edit config in $EDITOR, providing contextual information
+//     about the Opt instance.
+//   - Values are strongly typed (e.g. int, time.Duration)
+//   - An individual Opt instance can be specified near where it is used.
+//   - New types of Opt can be defined, near where they are used.
+//
+// It is noted that these requirements could probably largely be met using
+// packages such as spf13/viper. AGain, this is largely an experiment.
 package options
 
 import (
-	"net/url"
-	"strconv"
-	"strings"
+	"fmt"
+	"sync"
 
-	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/stringz"
+	"golang.org/x/exp/slog"
+
+	"github.com/samber/lo"
+	"golang.org/x/exp/slices"
 )
 
-// Options are optional values akin to url.Values.
-type Options url.Values
+// Registry is a registry of Opt instances.
+type Registry struct {
+	mu   sync.Mutex
+	opts []Opt
+}
 
-// Clone returns a deep copy of o. If o is nil, nil is returned.
+// Add adds an Opt to r. It panics if opt is already registered.
+func (r *Registry) Add(opt Opt) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for i := range r.opts {
+		if r.opts[i].Key() == opt.Key() {
+			panic(fmt.Sprintf("Opt %s is already registered", opt.Key()))
+		}
+	}
+
+	r.opts = append(r.opts, opt)
+}
+
+// LogValue implements slog.LogValuer.
+func (r *Registry) LogValue() slog.Value {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	as := make([]slog.Attr, len(r.opts))
+	for i, opt := range r.opts {
+		as[i] = slog.String(opt.Key(), fmt.Sprintf("%T", opt))
+	}
+	return slog.GroupValue(as...)
+}
+
+// Visit visits each Opt in r. Be careful with concurrent access
+// to this method.
+func (r *Registry) Visit(fn func(opt Opt) error) error {
+	if r == nil {
+		return nil
+	}
+
+	for i := range r.opts {
+		if err := fn(r.opts[i]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Get returns the Opt registered in r using key, or nil.
+func (r *Registry) Get(key string) Opt {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for _, opt := range r.opts {
+		if opt.Key() == key {
+			return opt
+		}
+	}
+	return nil
+}
+
+// Keys returns the keys of each Opt in r.
+func (r *Registry) Keys() []string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	keys := make([]string, len(r.opts))
+	for i := range r.opts {
+		keys[i] = r.opts[i].Key()
+	}
+	return keys
+}
+
+// Opts returns a new slice containing each Opt registered with r.
+func (r *Registry) Opts() []Opt {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	opts := make([]Opt, len(r.opts))
+	copy(opts, r.opts)
+	return opts
+}
+
+// Process implements options.Processor. It processes arg options, returning a
+// new Options. Process should be invoked after the Options has been loaded from
+// config, but before it is used by the program. Process iterates over the
+// registered Opts, and invokes Process for each Opt that implements Processor.
+// This facilitates munging of underlying values, e.g. for options.Duration, a
+// string "1m30s" is converted to a time.Duration.
+func (r *Registry) Process(options Options) (Options, error) {
+	return process(options, r.Opts())
+}
+
+func process(options Options, opts []Opt) (Options, error) {
+	if options == nil {
+		return nil, nil //nolint:nilnil
+	}
+
+	o2 := Options{}
+	for _, opt := range opts {
+		if v, ok := options[opt.Key()]; ok {
+			o2[opt.Key()] = v
+		}
+	}
+
+	var err error
+	for _, o := range opts {
+		if n, ok := o.(Processor); ok {
+			if o2, err = n.Process(o2); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	return o2, nil
+}
+
+// Options is a map of Opt.Key to a value.
+type Options map[string]any
+
+// Clone clones o.
 func (o Options) Clone() Options {
 	if o == nil {
 		return nil
 	}
 
-	n := Options{}
-	for key, vals := range o {
-		if vals == nil {
-			n[key] = nil
-			continue
-		}
-
-		nvals := make([]string, len(vals))
-		copy(nvals, vals)
-		n[key] = nvals
+	o2 := Options{}
+	for k, v := range o {
+		o2[k] = v
 	}
 
-	return n
+	return o2
 }
 
-// ParseOptions parses the URL-encoded options string. If allowedOpts is
-// non-empty, the options are tested for basic correctness.
-// See url.ParseQuery.
-func ParseOptions(options string, allowedOpts ...string) (Options, error) {
-	vals, err := url.ParseQuery(options)
-	if err != nil {
-		return nil, errz.Wrap(err, "unable to parse --opts flag: value should be in URL-encoded query format")
-	}
+// Keys returns the sorted set of keys in o.
+func (o Options) Keys() []string {
+	keys := lo.Keys(o)
+	slices.Sort(keys)
+	return keys
+}
 
-	opts := Options(vals)
+// IsSet returns true if opt is set on o.
+func (o Options) IsSet(opt Opt) bool {
+	_, ok := o[opt.Key()]
+	return ok
+}
 
-	if len(allowedOpts) > 0 {
-		err := verifyOptions(opts, allowedOpts...)
-		if err != nil {
-			return nil, err
+// Merge overlays each of overlays onto base, returning a new Options.
+func Merge(base Options, overlays ...Options) Options {
+	o := base.Clone()
+	for _, overlay := range overlays {
+		for k, v := range overlay {
+			o[k] = v
 		}
 	}
-
-	return opts, nil
+	return o
 }
 
-// Add is documented by url.Values.Add.
-func (o Options) Add(key, value string) {
-	url.Values(o).Add(key, value)
-}
-
-// Get is documented by url.Values.Get.
-func (o Options) Get(key string) string {
-	return url.Values(o).Get(key)
-}
-
-// Encode is documented by url.Values.Encode.
-func (o Options) Encode() string {
-	return url.Values(o).Encode()
-}
-
-const (
-	// OptHasHeader is the key for a header option.
-	OptHasHeader = "header"
-
-	// OptCols is the key for a cols option.
-	OptCols = "cols"
-
-	// OptDelim the key for a delimiter option.
-	OptDelim = "delim"
-)
-
-// verifyOptions returns an error if opts contains any
-// illegal or unknown values. If opts or allowedOpts are empty,
-// nil is returned.
-func verifyOptions(opts Options, allowedOpts ...string) error {
-	if len(opts) == 0 || len(allowedOpts) == 0 {
-		return nil
-	}
-
-	for key := range opts {
-		if !stringz.InSlice(allowedOpts, key) {
-			return errz.Errorf("illegal option name %s", key)
-		}
-	}
-
-	// OptHasHeader must be a bool, we can verify that here.
-	if vals, ok := opts[OptHasHeader]; ok {
-		if len(vals) != 1 {
-			return errz.Errorf("illegal value for opt %s: only 1 value permitted", OptHasHeader)
-		}
-
-		if _, err := strconv.ParseBool(vals[0]); err != nil {
-			return errz.Wrapf(err, "illegal value for opt %s", OptHasHeader)
-		}
-	}
-
-	return nil
-}
-
-// HasHeader checks if src.Options has "header=true".
-func HasHeader(opts Options) (header, ok bool, err error) {
-	if len(opts) == 0 {
-		return false, false, nil
-	}
-
-	if _, ok = opts[OptHasHeader]; !ok {
-		return false, false, nil
-	}
-	val := opts.Get(OptHasHeader)
-	if val == "" {
-		return false, false, nil
-	}
-
-	header, err = strconv.ParseBool(val)
-	if err != nil {
-		return false, false, errz.Errorf(`option {%s}: %v`, OptHasHeader, err)
-	}
-
-	return header, true, nil
-}
-
-// GetColNames returns column names specified like "--opts=cols=A,B,C".
-func GetColNames(o Options) (colNames []string, err error) {
-	if len(o) == 0 {
-		return nil, nil
-	}
-
-	_, ok := o[OptCols]
-	if !ok {
-		return nil, nil
-	}
-
-	val := strings.TrimSpace(o.Get(OptCols))
-	colNames = strings.Split(val, ",")
-	if val == "" || len(colNames) == 0 {
-		err = errz.Errorf("option {%s}: cannot be empty", OptCols)
-		return nil, err
-	}
-
-	for i := range colNames {
-		colNames[i] = strings.TrimSpace(colNames[i])
-		if colNames[i] == "" {
-			err = errz.Errorf("option {%s}: column [%d] cannot be empty", OptCols, i)
-			return nil, err
-		}
-	}
-
-	return colNames, nil
+// Processor performs processing on o.
+type Processor interface {
+	// Process processes o. The returned Options may be a new instance,
+	// with mutated values.
+	Process(o Options) (Options, error)
 }

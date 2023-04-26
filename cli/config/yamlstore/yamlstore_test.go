@@ -1,4 +1,4 @@
-package config_test
+package yamlstore_test
 
 import (
 	"context"
@@ -6,8 +6,10 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/neilotoole/sq/cli"
+	"github.com/neilotoole/sq/cli/config/yamlstore"
+	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/testh/tutil"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -18,7 +20,7 @@ import (
 func TestFileStore_Nil_Save(t *testing.T) {
 	t.Parallel()
 
-	var f *config.YAMLFileStore
+	var f *yamlstore.Store
 
 	// noinspection GoNilness
 	err := f.Save(context.Background(), config.New())
@@ -28,14 +30,20 @@ func TestFileStore_Nil_Save(t *testing.T) {
 func TestFileStore_LoadSaveLoad(t *testing.T) {
 	t.Parallel()
 
+	const wantVers = `v0.34.0`
+
 	// good.01.sq.yml has a bunch of fixtures in it
-	fs := &config.YAMLFileStore{Path: "testdata/good.01.sq.yml", HookLoad: hookExpand}
+	fs := &yamlstore.Store{Path: "testdata/good.01.sq.yml", HookLoad: hookExpand}
 	const expectGood01SrcCount = 34
 
-	cfg, err := fs.Load(context.Background())
+	optsReg := &options.Registry{}
+	cli.RegisterDefaultOpts(optsReg)
+
+	cfg, err := fs.Load(context.Background(), optsReg)
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
 	require.NotNil(t, cfg.Collection)
+	require.Equal(t, wantVers, cfg.Version)
 	require.Equal(t, expectGood01SrcCount, len(cfg.Collection.Sources()))
 
 	f, err := os.CreateTemp("", "*.sq.yml")
@@ -48,7 +56,7 @@ func TestFileStore_LoadSaveLoad(t *testing.T) {
 	err = fs.Save(context.Background(), cfg)
 	require.NoError(t, err)
 
-	cfg2, err := fs.Load(context.Background())
+	cfg2, err := fs.Load(context.Background(), optsReg)
 	require.NoError(t, err)
 	require.NotNil(t, cfg2)
 	require.Equal(t, expectGood01SrcCount, len(cfg2.Collection.Sources()))
@@ -63,6 +71,9 @@ var hookExpand = func(data []byte) ([]byte, error) {
 func TestFileStore_Load(t *testing.T) {
 	t.Parallel()
 
+	optsReg := &options.Registry{}
+	cli.RegisterDefaultOpts(optsReg)
+
 	good, err := filepath.Glob("testdata/good.*")
 	require.NoError(t, err)
 	bad, err := filepath.Glob("testdata/bad.*")
@@ -70,7 +81,7 @@ func TestFileStore_Load(t *testing.T) {
 
 	t.Logf("%d good fixtures, %d bad fixtures", len(good), len(bad))
 
-	fs := &config.YAMLFileStore{HookLoad: hookExpand}
+	fs := &yamlstore.Store{HookLoad: hookExpand}
 
 	for _, match := range good {
 		match := match
@@ -78,7 +89,7 @@ func TestFileStore_Load(t *testing.T) {
 			t.Parallel()
 
 			fs.Path = match
-			_, err = fs.Load(context.Background())
+			_, err = fs.Load(context.Background(), optsReg)
 			require.NoError(t, err, match)
 		})
 	}
@@ -87,7 +98,7 @@ func TestFileStore_Load(t *testing.T) {
 		match := match
 		t.Run(tutil.Name(match), func(t *testing.T) {
 			fs.Path = match
-			_, err = fs.Load(context.Background())
+			_, err := fs.Load(context.Background(), optsReg)
 			require.Error(t, err, match)
 		})
 	}

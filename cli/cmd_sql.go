@@ -62,10 +62,9 @@ func execSQL(cmd *cobra.Command, args []string) error {
 	rc := RunContextFrom(cmd.Context())
 	switch len(args) {
 	default:
-		// FIXME: we should allow multiple args and concat them
 		return errz.New("a single query string is required")
 	case 0:
-		return errz.New("empty SQL query string")
+		return errz.New("no SQL query string")
 	case 1:
 		if strings.TrimSpace(args[0]) == "" {
 			return errz.New("empty SQL query string")
@@ -81,6 +80,10 @@ func execSQL(cmd *cobra.Command, args []string) error {
 	// activeSrc is guaranteed to be non-nil after
 	// determineSources successfully returns.
 	activeSrc := coll.Active()
+
+	if err = applySourceOptions(cmd, activeSrc); err != nil {
+		return err
+	}
 
 	if !cmdFlagChanged(cmd, flag.Insert) {
 		// The user didn't specify the --insert=@src.tbl flag,

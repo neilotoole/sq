@@ -12,6 +12,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neilotoole/sq/cli"
+	"github.com/neilotoole/sq/cli/buildinfo"
+	"github.com/neilotoole/sq/cli/config/yamlstore"
+	"github.com/neilotoole/sq/libsq/core/ioz"
+	"github.com/neilotoole/sq/libsq/core/options"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
@@ -46,7 +52,6 @@ import (
 	"github.com/neilotoole/sq/testh/testsrc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/yaml.v3"
 )
 
 // defaultDBOpenTimeout is the timeout for tests to open (and ping) their DBs.
@@ -697,8 +702,11 @@ func mustLoadCollection(ctx context.Context, t testing.TB) *source.Collection {
 		return []byte(proj.Expand(string(data))), nil
 	}
 
-	fs := &config.YAMLFileStore{Path: proj.Rel(testsrc.PathSrcsConfig), HookLoad: hookExpand}
-	cfg, err := fs.Load(ctx)
+	optsReg := &options.Registry{}
+	cli.RegisterDefaultOpts(optsReg)
+
+	fs := &yamlstore.Store{Path: proj.Rel(testsrc.PathSrcsConfig), HookLoad: hookExpand}
+	cfg, err := fs.Load(ctx, optsReg)
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
 	require.NotNil(t, cfg.Collection)
@@ -711,7 +719,7 @@ func DriverDefsFrom(t testing.TB, cfgFiles ...string) []*userdriver.DriverDef {
 	var userDriverDefs []*userdriver.DriverDef
 	for _, f := range cfgFiles {
 		ext := &config.Ext{}
-		require.NoError(t, yaml.Unmarshal(proj.ReadFile(f), ext))
+		require.NoError(t, ioz.UnmarshallYAML(proj.ReadFile(f), ext))
 		userDriverDefs = append(userDriverDefs, ext.UserDrivers...)
 	}
 	return userDriverDefs
@@ -725,4 +733,15 @@ func DriverDetectors() []source.DriverDetectFunc {
 		csv.DetectCSV, csv.DetectTSV,
 		/*json.DetectJSON,*/ json.DetectJSONA, json.DetectJSONL, // FIXME: enable DetectJSON when it's ready
 	}
+}
+
+// SetBuildVersion sets the build version for the lifecycle
+// of test t.
+func SetBuildVersion(t testing.TB, vers string) {
+	prevVers := buildinfo.Version
+	t.Setenv(buildinfo.EnvOverrideVersion, vers)
+	buildinfo.Version = vers
+	t.Cleanup(func() {
+		buildinfo.Version = prevVers
+	})
 }

@@ -8,6 +8,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/options"
+
 	"github.com/neilotoole/sq/cli/flag"
 
 	"github.com/neilotoole/sq/cli/output"
@@ -16,7 +18,6 @@ import (
 
 	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/source"
 )
@@ -145,6 +146,7 @@ More examples:
 	cmd.Flags().Bool(flag.SkipVerify, false, flag.SkipVerifyUsage)
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 	cmd.Flags().BoolP(flag.AddActive, flag.AddActiveShort, false, flag.AddActiveUsage)
+
 	return cmd
 }
 
@@ -169,7 +171,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	if rc.registry.ProviderFor(typ) == nil {
+	if rc.driverReg.ProviderFor(typ) == nil {
 		return errz.Errorf("unsupported driver type {%s}", typ)
 	}
 
@@ -199,12 +201,15 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 	if cmdFlagChanged(cmd, flag.SrcOptions) {
 		val, _ := cmd.Flags().GetString(flag.SrcOptions)
 		val = strings.TrimSpace(val)
-		if val != "" {
-			opts, err = options.ParseOptions(val)
-			if err != nil {
-				return err
-			}
-		}
+		_ = val
+		// FIXME: Deal with option flags
+
+		// if val != "" {
+		// 	opts, err = options.ParseOptions(val)
+		// 	if err != nil {
+		// 		return err
+		// 	}
+		// }
 	}
 
 	if typ == sqlite3.Type {
@@ -230,7 +235,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	src, err := newSource(rc.Log, rc.registry, typ, handle, loc, opts)
+	src, err := newSource(rc.Log, rc.driverReg, typ, handle, loc, opts)
 	if err != nil {
 		return err
 	}
@@ -251,7 +256,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		// In UX testing, it led to confused users.
 	}
 
-	drvr, err := rc.registry.DriverFor(src.Type)
+	drvr, err := rc.driverReg.DriverFor(src.Type)
 	if err != nil {
 		return err
 	}

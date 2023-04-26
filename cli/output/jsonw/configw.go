@@ -3,7 +3,7 @@ package jsonw
 import (
 	"io"
 
-	"github.com/neilotoole/sq/cli/config"
+	"github.com/neilotoole/sq/libsq/core/options"
 
 	"github.com/neilotoole/sq/cli/output"
 )
@@ -37,7 +37,7 @@ func (w *configWriter) Location(loc, origin string) error {
 }
 
 // Options implements output.ConfigWriter.
-func (w *configWriter) Options(opts *config.Options) error {
+func (w *configWriter) Options(opts options.Options) error {
 	if opts == nil {
 		return nil
 	}

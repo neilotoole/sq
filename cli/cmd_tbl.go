@@ -66,7 +66,7 @@ func execTblCopy(cmd *cobra.Command, args []string) error {
 		return errz.New("one or two table args required")
 	}
 
-	tblHandles, err := parseTableHandleArgs(rc.registry, rc.Config.Collection, args)
+	tblHandles, err := parseTableHandleArgs(rc.driverReg, rc.Config.Collection, args)
 	if err != nil {
 		return err
 	}
@@ -111,6 +111,10 @@ func execTblCopy(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return errz.Err(err)
 		}
+	}
+
+	if err = applyCollectionOptions(cmd, rc.Config.Collection); err != nil {
+		return err
 	}
 
 	var dbase driver.Database
@@ -173,8 +177,12 @@ only applies to SQL sources.`,
 func execTblTruncate(cmd *cobra.Command, args []string) (err error) {
 	rc := RunContextFrom(cmd.Context())
 	var tblHandles []tblHandle
-	tblHandles, err = parseTableHandleArgs(rc.registry, rc.Config.Collection, args)
+	tblHandles, err = parseTableHandleArgs(rc.driverReg, rc.Config.Collection, args)
 	if err != nil {
+		return err
+	}
+
+	if err = applyCollectionOptions(cmd, rc.Config.Collection); err != nil {
 		return err
 	}
 
@@ -220,8 +228,12 @@ only applies to SQL sources.`,
 func execTblDrop(cmd *cobra.Command, args []string) (err error) {
 	rc := RunContextFrom(cmd.Context())
 	var tblHandles []tblHandle
-	tblHandles, err = parseTableHandleArgs(rc.registry, rc.Config.Collection, args)
+	tblHandles, err = parseTableHandleArgs(rc.driverReg, rc.Config.Collection, args)
 	if err != nil {
+		return err
+	}
+
+	if err = applyCollectionOptions(cmd, rc.Config.Collection); err != nil {
 		return err
 	}
 

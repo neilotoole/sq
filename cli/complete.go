@@ -3,6 +3,9 @@ package cli
 import (
 	"context"
 	"strings"
+	"time"
+
+	"github.com/neilotoole/sq/libsq/core/options"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
@@ -16,6 +19,15 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 )
 
+// OptShellCompletionTimeout determines how long to wait until for long-running
+// shell completion operations (such as fetching table names from a DB) before
+// giving up.
+var OptShellCompletionTimeout = options.NewDuration(
+	"shell-completion.timeout",
+	time.Millisecond*500,
+	"How long shell completion should wait before giving up.",
+)
+
 // completionFunc is a shell completion function.
 type completionFunc func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective)
 
@@ -24,6 +36,17 @@ var (
 	_ completionFunc = completeSLQ
 	_ completionFunc = (*handleTableCompleter)(nil).complete
 )
+
+// completeStrings completes from a slice of string.
+func completeStrings(max int, a ...string) completionFunc {
+	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if max > 0 && len(args) >= max {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+		a, _ = lo.Difference(a, args)
+		return a, cobra.ShellCompDirectiveNoFileComp
+	}
+}
 
 // completeHandle is a completionFunc that suggests handles.
 // The max arg is the maximum number of completions. Collection to 0
@@ -108,9 +131,9 @@ func completeDriverType(cmd *cobra.Command, _ []string, _ string) ([]string, cob
 		}
 	}
 
-	drivers := rc.registry.Drivers()
+	drivers := rc.driverReg.Drivers()
 	types := make([]string, len(drivers))
-	for i, driver := range rc.registry.Drivers() {
+	for i, driver := range rc.driverReg.Drivers() {
 		types[i] = string(driver.DriverMetadata().Type)
 	}
 
@@ -170,7 +193,7 @@ func (c *handleTableCompleter) complete(cmd *cobra.Command, args []string,
 	// We don't want the user to wait around forever for
 	// shell completion, so we set a timeout. Typically
 	// this is something like 500ms.
-	ctx, cancelFn := context.WithTimeout(cmd.Context(), rc.Config.Options.ShellCompletionTimeout)
+	ctx, cancelFn := context.WithTimeout(cmd.Context(), OptShellCompletionTimeout.Get(rc.Config.Options))
 	defer cancelFn()
 
 	if c.max > 0 && len(args) >= c.max {
@@ -398,7 +421,7 @@ func handleIsSQLDriver(rc *RunContext, handle string) (bool, error) {
 		return false, err
 	}
 
-	driver, err := rc.registry.DriverFor(src.Type)
+	driver, err := rc.driverReg.DriverFor(src.Type)
 	if err != nil {
 		return false, err
 	}
