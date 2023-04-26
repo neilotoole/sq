@@ -13,6 +13,7 @@ import (
 
 	"github.com/neilotoole/slogt"
 	"github.com/neilotoole/sq/cli/config/yamlstore"
+	"github.com/neilotoole/sq/libsq/core/options"
 
 	"github.com/stretchr/testify/require"
 
@@ -33,6 +34,9 @@ func newTestRunCtx(ctx context.Context, t testing.TB, cfgStore config.Store,
 	out = &bytes.Buffer{}
 	errOut = &bytes.Buffer{}
 
+	optsReg := &options.Registry{}
+	cli.RegisterDefaultOpts(optsReg)
+
 	var cfg *config.Config
 	var err error
 	if cfgStore == nil {
@@ -43,17 +47,18 @@ func newTestRunCtx(ctx context.Context, t testing.TB, cfgStore config.Store,
 		cfg = config.New()
 		require.NoError(t, cfgStore.Save(ctx, cfg))
 	} else {
-		cfg, err = cfgStore.Load(ctx)
+		cfg, err = cfgStore.Load(ctx, optsReg)
 		require.NoError(t, err)
 	}
 
 	rc = &cli.RunContext{
-		Stdin:       os.Stdin,
-		Out:         out,
-		ErrOut:      errOut,
-		Log:         slogt.New(t),
-		Config:      cfg,
-		ConfigStore: cfgStore,
+		Stdin:           os.Stdin,
+		Out:             out,
+		ErrOut:          errOut,
+		Log:             slogt.New(t),
+		Config:          cfg,
+		ConfigStore:     cfgStore,
+		OptionsRegistry: optsReg,
 	}
 
 	return rc, out, errOut

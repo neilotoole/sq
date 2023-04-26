@@ -12,8 +12,8 @@ import (
 // Opt is an option type. Concrete impls exist for various types,
 // such as options.Int or options.Duration. Each concrete type must implement
 // a "Get(o Options) T" method that returns the appropriate type T. It
-// should also provide a NewT(...) T constructor. The constructor must
-// invoke Registry.Add on options.DefaultRegistry.
+// should also provide a NewT(...) T constructor. The caller typically
+// registers the new Opt in a options.Registry via Registry.Add.
 //
 // An impl can (optionally) implement options.Processor if it needs
 // to munge the underlying value. For example, options.Duration converts a
@@ -67,13 +67,10 @@ var _ Opt = String{}
 
 // NewString returns an options.String instance.
 func NewString(key, defaultVal, comment string, tags ...string) String {
-	opt := String{
+	return String{
 		baseOpt:    baseOpt{key: key, comment: comment, tags: tags},
 		defaultVal: defaultVal,
 	}
-
-	DefaultRegistry.Add(opt)
-	return opt
 }
 
 // String is an options.Opt for type string.
@@ -107,12 +104,10 @@ var _ Opt = Int{}
 
 // NewInt returns an options.Int instance.
 func NewInt(key string, defaultVal int, comment string, tags ...string) Int {
-	opt := Int{
+	return Int{
 		baseOpt:    baseOpt{key: key, comment: comment, tags: tags},
 		defaultVal: defaultVal,
 	}
-	DefaultRegistry.Add(opt)
-	return opt
 }
 
 // Int is an options.Opt for type int.
@@ -221,12 +216,10 @@ var _ Opt = Bool{}
 
 // NewBool returns an options.Bool instance.
 func NewBool(key string, defaultVal bool, comment string, tags ...string) Bool {
-	opt := Bool{
+	return Bool{
 		baseOpt:    baseOpt{key: key, comment: comment, tags: tags},
 		defaultVal: defaultVal,
 	}
-	DefaultRegistry.Add(opt)
-	return opt
 }
 
 // Bool is an options.Opt for type bool.
@@ -310,12 +303,10 @@ var _ Opt = Duration{}
 
 // NewDuration returns an options.Duration instance.
 func NewDuration(key string, defaultVal time.Duration, comment string, tags ...string) Duration {
-	opt := Duration{
+	return Duration{
 		baseOpt:    baseOpt{key: key, comment: comment, tags: tags},
 		defaultVal: defaultVal,
 	}
-	DefaultRegistry.Add(opt)
-	return opt
 }
 
 // Duration is an options.Opt for time.Duration.

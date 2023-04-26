@@ -22,11 +22,6 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-// DefaultRegistry is the default Registry. The constructor functions
-// for each concrete options.Opt type should invoke Registry.Add on
-// options.DefaultRegistry.
-var DefaultRegistry = &Registry{}
-
 // Registry is a registry of Opt instances.
 type Registry struct {
 	mu   sync.Mutex

@@ -14,6 +14,7 @@ import (
 	"github.com/neilotoole/sq/drivers"
 	"github.com/neilotoole/sq/drivers/csv"
 	"github.com/neilotoole/sq/drivers/xlsx"
+	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/testh"
 
 	"github.com/neilotoole/sq/cli/output/format"
@@ -58,7 +59,10 @@ func TestUpgrade(t *testing.T) {
 		v0_34_0.Version: v0_34_0.Upgrade,
 	}
 
-	cfg, cfgStore, err := yamlstore.Load(ctx, nil, upgrades)
+	optsReg := &options.Registry{}
+	cli.RegisterDefaultOpts(optsReg)
+
+	cfg, cfgStore, err := yamlstore.Load(ctx, nil, optsReg, upgrades)
 	require.NoError(t, err)
 
 	require.Equal(t, cfgDir, cfgStore.Location())

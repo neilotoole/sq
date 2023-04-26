@@ -171,7 +171,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	if rc.registry.ProviderFor(typ) == nil {
+	if rc.driverReg.ProviderFor(typ) == nil {
 		return errz.Errorf("unsupported driver type {%s}", typ)
 	}
 
@@ -235,7 +235,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	src, err := newSource(rc.Log, rc.registry, typ, handle, loc, opts)
+	src, err := newSource(rc.Log, rc.driverReg, typ, handle, loc, opts)
 	if err != nil {
 		return err
 	}
@@ -256,7 +256,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		// In UX testing, it led to confused users.
 	}
 
-	drvr, err := rc.registry.DriverFor(src.Type)
+	drvr, err := rc.driverReg.DriverFor(src.Type)
 	if err != nil {
 		return err
 	}

@@ -231,7 +231,7 @@ func execSLQPrint(ctx context.Context, rc *RunContext, mArgs map[string]string) 
 //
 //	$ sq '.person'  -->  $ sq '@active.person'
 func preprocessUserSLQ(ctx context.Context, rc *RunContext, args []string) (string, error) {
-	log, reg, dbases, coll := rc.Log, rc.registry, rc.databases, rc.Config.Collection
+	log, reg, dbases, coll := rc.Log, rc.driverReg, rc.databases, rc.Config.Collection
 	activeSrc := coll.Active()
 
 	if len(args) == 0 {

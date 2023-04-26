@@ -28,12 +28,13 @@ func TestOptions(t *testing.T) {
 	b, err := os.ReadFile("testdata/good.01.yml")
 	require.NoError(t, err)
 
-	reg := options.DefaultRegistry
-	log.Debug("DefaultRegistry", "reg", reg)
+	reg := &options.Registry{}
+	cli.RegisterDefaultOpts(reg)
+	log.Debug("Registry", "reg", reg)
 
 	cfg := &config{Options: options.Options{}}
 	require.NoError(t, ioz.UnmarshallYAML(b, cfg))
-	cfg.Options, err = options.DefaultRegistry.Process(cfg.Options)
+	cfg.Options, err = reg.Process(cfg.Options)
 	require.NoError(t, err)
 
 	require.Equal(t, format.CSV, cli.OptOutputFormat.Get(cfg.Options))
@@ -45,14 +46,6 @@ func TestOptions(t *testing.T) {
 	require.Equal(t, 100, driver.OptConnMaxIdle.Get(cfg.Options))
 	require.Equal(t, time.Second*100, driver.OptConnMaxIdleTime.Get(cfg.Options))
 	require.Equal(t, time.Minute*5, driver.OptConnMaxLifetime.Get(cfg.Options))
-}
-
-func tempDefaultRegistry(t *testing.T) {
-	prevReg := options.DefaultRegistry
-	options.DefaultRegistry = &options.Registry{}
-	t.Cleanup(func() {
-		options.DefaultRegistry = prevReg
-	})
 }
 
 func TestInt(t *testing.T) {
@@ -75,12 +68,14 @@ func TestInt(t *testing.T) {
 	for i, tc := range testCases {
 		tc := tc
 		t.Run(tutil.Name(i, tc.key), func(t *testing.T) {
-			tempDefaultRegistry(t)
+			reg := &options.Registry{}
 
 			opt := options.NewInt(tc.key, tc.defaultVal, "")
+			reg.Add(opt)
+
 			o := options.Options{tc.key: tc.input}
 
-			o2, err := options.DefaultRegistry.Process(o)
+			o2, err := reg.Process(o)
 			if tc.wantErr {
 				require.Error(t, err)
 				require.Nil(t, o2)
@@ -119,12 +114,13 @@ func TestBool(t *testing.T) {
 	for i, tc := range testCases {
 		tc := tc
 		t.Run(tutil.Name(i, tc.key), func(t *testing.T) {
-			tempDefaultRegistry(t)
+			reg := &options.Registry{}
 
 			opt := options.NewBool(tc.key, tc.defaultVal, "")
-			o := options.Options{tc.key: tc.input}
+			reg.Add(opt)
 
-			o2, err := options.DefaultRegistry.Process(o)
+			o := options.Options{tc.key: tc.input}
+			o2, err := reg.Process(o)
 			if tc.wantErr {
 				require.Error(t, err)
 				require.Nil(t, o2)

@@ -80,8 +80,8 @@ func printError(rc *RunContext, err error) {
 	opts := options.Options{}
 	if rc != nil && rc.Config != nil && rc.Config.Options != nil {
 		opts = rc.Config.Options
-	} else {
-		opts, _ = options.DefaultRegistry.Process(opts)
+	} else if rc != nil && rc.OptionsRegistry != nil {
+		opts, _ = rc.OptionsRegistry.Process(opts)
 	}
 
 	// getPrinting works even if cmd is nil

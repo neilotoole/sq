@@ -12,9 +12,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neilotoole/sq/cli"
 	"github.com/neilotoole/sq/cli/buildinfo"
 	"github.com/neilotoole/sq/cli/config/yamlstore"
 	"github.com/neilotoole/sq/libsq/core/ioz"
+	"github.com/neilotoole/sq/libsq/core/options"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
@@ -700,8 +702,11 @@ func mustLoadCollection(ctx context.Context, t testing.TB) *source.Collection {
 		return []byte(proj.Expand(string(data))), nil
 	}
 
+	optsReg := &options.Registry{}
+	cli.RegisterDefaultOpts(optsReg)
+
 	fs := &yamlstore.Store{Path: proj.Rel(testsrc.PathSrcsConfig), HookLoad: hookExpand}
-	cfg, err := fs.Load(ctx)
+	cfg, err := fs.Load(ctx, optsReg)
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
 	require.NotNil(t, cfg.Collection)

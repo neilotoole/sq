@@ -1,8 +1,11 @@
 package cli
 
 import (
+	"github.com/neilotoole/sq/drivers"
+	"github.com/neilotoole/sq/drivers/csv"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -58,7 +61,7 @@ func getCmdOptions(cmd *cobra.Command) (options.Options, error) {
 		configOpts = options.Options{}
 	}
 
-	flagOpts, err := getFlagOptions(cmd.Flags(), options.DefaultRegistry)
+	flagOpts, err := getFlagOptions(cmd.Flags(), rc.OptionsRegistry)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +82,7 @@ func applySourceOptions(cmd *cobra.Command, src *source.Source) error {
 		defaultOpts = options.Options{}
 	}
 
-	flagOpts, err := getFlagOptions(cmd.Flags(), options.DefaultRegistry)
+	flagOpts, err := getFlagOptions(cmd.Flags(), rc.OptionsRegistry)
 	if err != nil {
 		return err
 	}
@@ -103,4 +106,20 @@ func applyCollectionOptions(cmd *cobra.Command, coll *source.Collection) error {
 	return coll.Visit(func(src *source.Source) error {
 		return applySourceOptions(cmd, src)
 	})
+}
+
+// RegisterDefaultOpts registers the options.Opt instances
+// that the CLI knows about. It panics if an opt is added twice.
+func RegisterDefaultOpts(reg *options.Registry) {
+	reg.Add(driver.OptConnMaxOpen)
+	reg.Add(driver.OptConnMaxIdle)
+	reg.Add(driver.OptConnMaxIdleTime)
+	reg.Add(driver.OptConnMaxLifetime)
+	reg.Add(drivers.OptIngestHeader)
+	reg.Add(csv.OptDelim)
+	reg.Add(csv.OptEmptyAsNull)
+	reg.Add(OptOutputFormat)
+	reg.Add(OptPrintHeader)
+	reg.Add(OptPingTimeout)
+	reg.Add(OptShellCompletionTimeout)
 }

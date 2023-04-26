@@ -249,9 +249,7 @@ var _ options.Opt = FormatOpt{}
 
 // NewFormatOpt returns an options.FormatOpt instance.
 func NewFormatOpt(key string, defaultVal format.Format, comment string, tags ...string) FormatOpt {
-	opt := FormatOpt{key: key, defaultVal: defaultVal, comment: comment, tags: tags}
-	options.DefaultRegistry.Add(opt)
-	return opt
+	return FormatOpt{key: key, defaultVal: defaultVal, comment: comment, tags: tags}
 }
 
 // FormatOpt is an options.Opt for format.Format.

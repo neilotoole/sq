@@ -58,7 +58,7 @@ func (fs *Store) Location() string {
 }
 
 // Load reads config from disk. It implements Store.
-func (fs *Store) Load(ctx context.Context) (*config.Config, error) {
+func (fs *Store) Load(ctx context.Context, optsReg *options.Registry) (*config.Config, error) {
 	log := lg.FromContext(ctx)
 	log.Debug("Loading config from file", lga.Path, fs.Path)
 
@@ -70,14 +70,14 @@ func (fs *Store) Load(ctx context.Context) (*config.Config, error) {
 
 		if mightNeedUpgrade {
 			log.Info("Upgrade config?", lga.From, foundVers, lga.To, buildinfo.Version)
-			if _, err = fs.doUpgrade(ctx, foundVers, buildinfo.Version); err != nil {
+			if _, err = fs.doUpgrade(ctx, optsReg, foundVers, buildinfo.Version); err != nil {
 				return nil, err
 			}
 
 			// We do a cycle of loading and saving the config after the upgrade,
 			// because the upgrade may have written YAML via a map, which
 			// doesn't preserve order. Loading and saving should fix that.
-			cfg, err := fs.doLoad(ctx)
+			cfg, err := fs.doLoad(ctx, optsReg)
 			if err != nil {
 				return nil, errz.Wrapf(err, "config: %s: load failed after config upgrade", fs.Path)
 			}
@@ -88,10 +88,10 @@ func (fs *Store) Load(ctx context.Context) (*config.Config, error) {
 		}
 	}
 
-	return fs.doLoad(ctx)
+	return fs.doLoad(ctx, optsReg)
 }
 
-func (fs *Store) doLoad(ctx context.Context) (*config.Config, error) {
+func (fs *Store) doLoad(ctx context.Context, optsReg *options.Registry) (*config.Config, error) {
 	bytes, err := os.ReadFile(fs.Path)
 	if err != nil {
 		return nil, errz.Wrapf(err, "config: failed to load file: %s", fs.Path)
@@ -119,7 +119,7 @@ func (fs *Store) doLoad(ctx context.Context) (*config.Config, error) {
 		cfg.Options = options.Options{}
 	}
 
-	cfg.Options, err = options.DefaultRegistry.Process(cfg.Options)
+	cfg.Options, err = optsReg.Process(cfg.Options)
 	if err != nil {
 		return nil, err
 	}

@@ -36,7 +36,10 @@ func TestFileStore_LoadSaveLoad(t *testing.T) {
 	fs := &yamlstore.Store{Path: "testdata/good.01.sq.yml", HookLoad: hookExpand}
 	const expectGood01SrcCount = 34
 
-	cfg, err := fs.Load(context.Background())
+	optsReg := &options.Registry{}
+	cli.RegisterDefaultOpts(optsReg)
+
+	cfg, err := fs.Load(context.Background(), optsReg)
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
 	require.NotNil(t, cfg.Collection)
@@ -53,7 +56,7 @@ func TestFileStore_LoadSaveLoad(t *testing.T) {
 	err = fs.Save(context.Background(), cfg)
 	require.NoError(t, err)
 
-	cfg2, err := fs.Load(context.Background())
+	cfg2, err := fs.Load(context.Background(), optsReg)
 	require.NoError(t, err)
 	require.NotNil(t, cfg2)
 	require.Equal(t, expectGood01SrcCount, len(cfg2.Collection.Sources()))
@@ -68,9 +71,8 @@ var hookExpand = func(data []byte) ([]byte, error) {
 func TestFileStore_Load(t *testing.T) {
 	t.Parallel()
 
-	// Force loading of the cli pkg so that the option is registered.
-	var _ options.Opt = cli.OptOutputFormat
-	var _ options.Opt = cli.OptPrintHeader
+	optsReg := &options.Registry{}
+	cli.RegisterDefaultOpts(optsReg)
 
 	good, err := filepath.Glob("testdata/good.*")
 	require.NoError(t, err)
@@ -87,7 +89,7 @@ func TestFileStore_Load(t *testing.T) {
 			t.Parallel()
 
 			fs.Path = match
-			_, err = fs.Load(context.Background())
+			_, err = fs.Load(context.Background(), optsReg)
 			require.NoError(t, err, match)
 		})
 	}
@@ -96,7 +98,7 @@ func TestFileStore_Load(t *testing.T) {
 		match := match
 		t.Run(tutil.Name(match), func(t *testing.T) {
 			fs.Path = match
-			_, err := fs.Load(context.Background())
+			_, err := fs.Load(context.Background(), optsReg)
 			require.Error(t, err, match)
 		})
 	}

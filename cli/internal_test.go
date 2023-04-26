@@ -109,8 +109,15 @@ func Test_lastHandlePart(t *testing.T) {
 	}
 }
 
-func TestOptions(t *testing.T) {
-	reg := options.DefaultRegistry
+func TestRegisterDefaultOpts(t *testing.T) {
 	log := slogt.New(t)
-	log.Debug("DefaultRegistry", "reg", reg)
+	reg := &options.Registry{}
+
+	log.Debug("options.Registry (before)", "reg", reg)
+	RegisterDefaultOpts(reg)
+
+	log.Debug("options.Registry (after)", "reg", reg)
+
+	keys := reg.Keys()
+	require.Len(t, keys, 11)
 }

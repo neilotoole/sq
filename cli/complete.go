@@ -131,9 +131,9 @@ func completeDriverType(cmd *cobra.Command, _ []string, _ string) ([]string, cob
 		}
 	}
 
-	drivers := rc.registry.Drivers()
+	drivers := rc.driverReg.Drivers()
 	types := make([]string, len(drivers))
-	for i, driver := range rc.registry.Drivers() {
+	for i, driver := range rc.driverReg.Drivers() {
 		types[i] = string(driver.DriverMetadata().Type)
 	}
 
@@ -421,7 +421,7 @@ func handleIsSQLDriver(rc *RunContext, handle string) (bool, error) {
 		return false, err
 	}
 
-	driver, err := rc.registry.DriverFor(src.Type)
+	driver, err := rc.driverReg.DriverFor(src.Type)
 	if err != nil {
 		return false, err
 	}

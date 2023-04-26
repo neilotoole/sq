@@ -9,19 +9,24 @@ import (
 	"github.com/neilotoole/sq/cli/config"
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/spf13/pflag"
 )
 
 // Load loads sq config from the default location (~/.config/sq/sq.yml) or
 // the location specified in envars or flags.
-func Load(ctx context.Context, osArgs []string, upgrades UpgradeRegistry) (*config.Config, config.Store, error) {
+func Load(ctx context.Context, osArgs []string, optsReg *options.Registry,
+	upgrades UpgradeRegistry,
+) (*config.Config, config.Store, error) {
 	var (
 		cfgDir string
 		origin string
 		ok     bool
 		err    error
 	)
+
+	_ = options.Registry{}
 
 	if cfgDir, ok, _ = getConfigDirFromFlag(osArgs); ok {
 		origin = originFlag
@@ -49,7 +54,7 @@ func Load(ctx context.Context, osArgs []string, upgrades UpgradeRegistry) (*conf
 	}
 
 	// file does exist, let's try to load it
-	cfg, err := cfgStore.Load(ctx)
+	cfg, err := cfgStore.Load(ctx, optsReg)
 	if err != nil {
 		return nil, nil, err
 	}
