@@ -26,8 +26,6 @@ func Load(ctx context.Context, osArgs []string, optsReg *options.Registry,
 		err    error
 	)
 
-	_ = options.Registry{}
-
 	if cfgDir, ok, _ = getConfigDirFromFlag(osArgs); ok {
 		origin = originFlag
 	} else if cfgDir, ok = getConfigDirFromEnv(); ok {
