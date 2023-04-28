@@ -49,8 +49,7 @@ const (
 
 // Provider is the postgres implementation of driver.Provider.
 type Provider struct {
-	Log       *slog.Logger
-	SQLConfig *driver.SQLConfig
+	Log *slog.Logger
 }
 
 // DriverFor implements driver.Provider.
@@ -59,13 +58,12 @@ func (p *Provider) DriverFor(typ source.DriverType) (driver.Driver, error) {
 		return nil, errz.Errorf("unsupported driver type {%s}", typ)
 	}
 
-	return &driveri{log: p.Log, sqlConfig: p.SQLConfig}, nil
+	return &driveri{log: p.Log}, nil
 }
 
 // driveri is the postgres implementation of driver.Driver.
 type driveri struct {
-	sqlConfig *driver.SQLConfig
-	log       *slog.Logger
+	log *slog.Logger
 }
 
 // DriverMetadata implements driver.Driver.
@@ -119,20 +117,39 @@ func (d *driveri) Renderer() *render.Renderer {
 }
 
 // Open implements driver.DatabaseOpener.
-func (d *driveri) Open(_ context.Context, src *source.Source) (driver.Database, error) {
+func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
+	lg.From(ctx).Debug(lgm.OpenSrc, lga.Src, src)
+
+	db, err := d.doOpen(ctx, src)
+	if err != nil {
+		return nil, err
+	}
+
+	return &database{log: d.log, db: db, src: src, drvr: d}, nil
+}
+
+func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
 	dbCfg, err := pgxpool.ParseConfig(src.Location)
 	if err != nil {
 		return nil, errz.Err(err)
 	}
 
 	connStr := stdlib.RegisterConnConfig(dbCfg.ConnConfig)
-	db, err := sql.Open(dbDrvr, connStr)
-	if err != nil {
+
+	var db *sql.DB
+	if err := doRetry(ctx, func() error {
+		var dbErr error
+		db, dbErr = sql.Open(dbDrvr, connStr)
+		if dbErr != nil {
+			lg.From(ctx).Error("postgres open, may retry", lga.Err, dbErr)
+		}
+		return dbErr
+	}); err != nil {
 		return nil, errz.Wrap(err, "failed to open postgres db")
 	}
 
-	d.sqlConfig.Apply(db)
-	return &database{log: d.log, db: db, src: src, drvr: d}, nil
+	driver.ConfigureDB(ctx, db, src.Options)
+	return db, nil
 }
 
 // ValidateSource implements driver.Driver.
@@ -167,8 +184,7 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 
 	// RESTART IDENTITY and CASCADE/RESTRICT are from pg 8.2 onwards
 	// FIXME: should first check the pg version for < pg8.2 support
-
-	db, err := sql.Open(dbDrvr, src.Location)
+	db, err := d.doOpen(ctx, src)
 	if err != nil {
 		return affected, errz.Err(err)
 	}
@@ -433,7 +449,7 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 // getTableColumnNames consults postgres's information_schema.columns table,
 // returning the names of the table's columns in ordinal order.
 func getTableColumnNames(ctx context.Context, db sqlz.DB, tblName string) ([]string, error) {
-	log := lg.FromContext(ctx)
+	log := lg.From(ctx)
 	const query = `SELECT column_name FROM information_schema.columns
 	WHERE table_schema = CURRENT_SCHEMA()
 	AND table_name = $1

@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/testh/tutil"
 
 	"github.com/neilotoole/slogt"
@@ -27,7 +28,9 @@ var (
 )
 
 func TestFiles_Open(t *testing.T) {
-	fs, err := NewFiles(slogt.New(t))
+	ctx := lg.NewContext(context.Background(), slogt.New(t))
+
+	fs, err := NewFiles(ctx)
 	require.NoError(t, err)
 	t.Cleanup(func() { assert.NoError(t, fs.Close()) })
 

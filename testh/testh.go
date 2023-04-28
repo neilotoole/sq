@@ -124,8 +124,9 @@ func New(t testing.TB, opts ...Option) *Helper {
 	}
 
 	ctx, cancelFn := context.WithCancel(context.Background())
-	h.Context = ctx
 	h.cancelFn = cancelFn
+
+	h.Context = lg.NewContext(ctx, h.Log)
 
 	t.Cleanup(h.Close)
 	return h
@@ -150,7 +151,7 @@ func (h *Helper) init() {
 		h.registry = driver.NewRegistry(log)
 
 		var err error
-		h.files, err = source.NewFiles(log)
+		h.files, err = source.NewFiles(h.Context)
 		require.NoError(h.T, err)
 
 		h.Cleanup.Add(func() {
@@ -164,12 +165,10 @@ func (h *Helper) init() {
 		h.databases = driver.NewDatabases(log, h.registry, sqlite3.NewScratchSource)
 		h.Cleanup.AddC(h.databases)
 
-		sqlCfg := driver.Tuning.SQLConfig
-
 		h.registry.AddProvider(sqlite3.Type, &sqlite3.Provider{Log: log})
-		h.registry.AddProvider(postgres.Type, &postgres.Provider{Log: log, SQLConfig: sqlCfg})
-		h.registry.AddProvider(sqlserver.Type, &sqlserver.Provider{Log: log, SQLConfig: sqlCfg})
-		h.registry.AddProvider(mysql.Type, &mysql.Provider{Log: log, SQLConfig: sqlCfg})
+		h.registry.AddProvider(postgres.Type, &postgres.Provider{Log: log})
+		h.registry.AddProvider(sqlserver.Type, &sqlserver.Provider{Log: log})
+		h.registry.AddProvider(mysql.Type, &mysql.Provider{Log: log})
 
 		csvp := &csv.Provider{Log: log, Scratcher: h.databases, Files: h.files}
 		h.registry.AddProvider(csv.TypeCSV, csvp)
@@ -333,6 +332,7 @@ func (h *Helper) Open(src *source.Source) driver.Database {
 // than Open, as the Database returned by Open can be closed by test code,
 // potentially causing problems during Cleanup.
 func (h *Helper) openNew(src *source.Source) driver.Database {
+	h.Log.Debug("openNew", lga.Src, src)
 	reg := h.Registry()
 	drvr, err := reg.DriverFor(src.Type)
 	require.NoError(h.T, err)

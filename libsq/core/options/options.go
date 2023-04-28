@@ -167,6 +167,19 @@ func (o Options) IsSet(opt Opt) bool {
 	return ok
 }
 
+// LogValue implements slog.LogValuer.
+func (o Options) LogValue() slog.Value {
+	if o == nil {
+		return slog.Value{}
+	}
+
+	attrs := make([]slog.Attr, 0, len(o))
+	for k, v := range o {
+		attrs = append(attrs, slog.Any(k, v))
+	}
+	return slog.GroupValue(attrs...)
+}
+
 // Merge overlays each of overlays onto base, returning a new Options.
 func Merge(base Options, overlays ...Options) Options {
 	o := base.Clone()

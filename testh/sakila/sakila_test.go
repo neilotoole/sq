@@ -10,9 +10,7 @@ import (
 )
 
 // TestSakila_SQL is a sanity check for Sakila SQL test sources.
-func TestSakila_SQL(t *testing.T) {
-	t.Parallel()
-
+func TestSakila_SQL(t *testing.T) { //nolint:tparallel
 	// Verify that the latest-version aliases are as expected
 	require.Equal(t, sakila.Pg, sakila.Pg12)
 	require.Equal(t, sakila.My, sakila.My8)

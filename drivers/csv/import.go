@@ -45,7 +45,7 @@ Default is comma.`,
 
 // importCSV loads the src CSV data into scratchDB.
 func importCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFunc, scratchDB driver.Database) error {
-	log := lg.FromContext(ctx)
+	log := lg.From(ctx)
 
 	var err error
 	var r io.ReadCloser
@@ -109,7 +109,7 @@ func importCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFu
 		configureEmptyNullMunge(mungers, recMeta)
 	}
 
-	insertWriter := libsq.NewDBWriter(log, scratchDB, tblDef.Name, driver.Tuning.RecordChSize)
+	insertWriter := libsq.NewDBWriter(scratchDB, tblDef.Name, driver.Tuning.RecordChSize)
 	err = execInsert(ctx, insertWriter, recMeta, mungers, recs, cr)
 	if err != nil {
 		return err

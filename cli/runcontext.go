@@ -83,9 +83,6 @@ type RunContext struct {
 	// be set before the command's runFunc is invoked.
 	Cmd *cobra.Command
 
-	// Log is the run's logger.
-	Log *slog.Logger
-
 	// Args is the arg slice supplied by cobra for
 	// the currently executing command. This field will
 	// be set before the command's runFunc is invoked.
@@ -124,61 +121,65 @@ type RunContext struct {
 // printed per the normal mechanisms if at all possible.
 func newDefaultRunContext(ctx context.Context,
 	stdin *os.File, stdout, stderr io.Writer, args []string,
-) (*RunContext, error) {
+) (*RunContext, *slog.Logger, error) {
 	// logbuf holds log records until defaultLogging is completed.
 	log, logbuf := slogbuf.New()
 
 	rc := &RunContext{
-		Stdin:  stdin,
-		Out:    stdout,
-		ErrOut: stderr,
+		Stdin:           stdin,
+		Out:             stdout,
+		ErrOut:          stderr,
+		OptionsRegistry: &options.Registry{},
 	}
+
+	RegisterDefaultOpts(rc.OptionsRegistry)
 
 	upgrades := yamlstore.UpgradeRegistry{
 		v0_34_0.Version: v0_34_0.Upgrade,
 	}
 
 	var configErr error
-	rc.Config, rc.ConfigStore, configErr = yamlstore.Load(lg.NewContext(ctx, log), args, nil, upgrades)
+	rc.Config, rc.ConfigStore, configErr = yamlstore.Load(lg.NewContext(ctx, log),
+		args, rc.OptionsRegistry, upgrades)
 
-	log, logHandler, clnup, logErr := defaultLogging()
-	rc.Log = log
-	rc.clnup = clnup
+	log, logHandler, logCloser, logErr := defaultLogging(ctx)
 
-	if err := logbuf.Flush(ctx, logHandler); err != nil {
-		return rc, err
+	rc.clnup = cleanup.New().AddE(logCloser)
+	if logErr != nil {
+		stderrLog, h := stderrLogger()
+		_ = logbuf.Flush(ctx, h)
+		return rc, stderrLog, logErr
 	}
 
-	switch {
-	case rc.clnup == nil:
-		rc.clnup = cleanup.New()
-	case rc.Config == nil:
+	if logHandler != nil {
+		if err := logbuf.Flush(ctx, logHandler); err != nil {
+			return rc, log, err
+		}
+	}
+
+	if rc.Config == nil {
 		rc.Config = config.New()
 	}
 
 	if configErr != nil {
 		// configErr is more important, return that first
-		return rc, configErr
+		return rc, log, configErr
 	}
 
-	if logErr != nil {
-		return rc, logErr
-	}
-
-	return rc, nil
+	return rc, log, nil
 }
 
 // init is invoked by cobra prior to the command RunE being
 // invoked. It sets up the driverReg, databases, writers and related
 // fundamental components. Subsequent invocations of this method
 // are no-op.
-func (rc *RunContext) init() error {
+func (rc *RunContext) init(ctx context.Context) error {
 	if rc == nil {
 		return errz.New("fatal: RunContext is nil")
 	}
 
 	rc.initOnce.Do(func() {
-		rc.initErr = rc.doInit()
+		rc.initErr = rc.doInit(ctx)
 	})
 
 	return rc.initErr
@@ -186,13 +187,9 @@ func (rc *RunContext) init() error {
 
 // doInit performs the actual work of initializing rc.
 // It must only be invoked once.
-func (rc *RunContext) doInit() error {
+func (rc *RunContext) doInit(ctx context.Context) error {
 	rc.clnup = cleanup.New()
-	cfg, log := rc.Config, rc.Log
-
-	if rc.OptionsRegistry == nil {
-		rc.OptionsRegistry = &options.Registry{}
-	}
+	cfg, log := rc.Config, lg.From(ctx)
 
 	// If the --output=/some/file flag is set, then we need to
 	// override rc.Out (which is typically stdout) to point it at
@@ -228,15 +225,15 @@ func (rc *RunContext) doInit() error {
 	if scratchSrc == nil {
 		scratchSrcFunc = sqlite3.NewScratchSource
 	} else {
-		scratchSrcFunc = func(log *slog.Logger, name string) (src *source.Source, clnup func() error, err error) {
+		scratchSrcFunc = func(_ context.Context, name string) (src *source.Source, clnup func() error, err error) {
 			return scratchSrc, nil, nil
 		}
 	}
 
 	var err error
-	rc.files, err = source.NewFiles(rc.Log)
+	rc.files, err = source.NewFiles(ctx)
 	if err != nil {
-		lg.WarnIfFuncError(rc.Log, lga.Cleanup, rc.clnup.Run)
+		lg.WarnIfFuncError(log, lga.Cleanup, rc.clnup.Run)
 		return err
 	}
 
@@ -251,13 +248,10 @@ func (rc *RunContext) doInit() error {
 	rc.databases = driver.NewDatabases(log, rc.driverReg, scratchSrcFunc)
 	rc.clnup.AddC(rc.databases)
 
-	// TODO: this should come from user config.
-	sqlCfg := driver.Tuning.SQLConfig
-
 	rc.driverReg.AddProvider(sqlite3.Type, &sqlite3.Provider{Log: log})
-	rc.driverReg.AddProvider(postgres.Type, &postgres.Provider{Log: log, SQLConfig: sqlCfg})
-	rc.driverReg.AddProvider(sqlserver.Type, &sqlserver.Provider{Log: log, SQLConfig: sqlCfg})
-	rc.driverReg.AddProvider(mysql.Type, &mysql.Provider{Log: log, SQLConfig: sqlCfg})
+	rc.driverReg.AddProvider(postgres.Type, &postgres.Provider{Log: log})
+	rc.driverReg.AddProvider(sqlserver.Type, &sqlserver.Provider{Log: log})
+	rc.driverReg.AddProvider(mysql.Type, &mysql.Provider{Log: log})
 	csvp := &csv.Provider{Log: log, Scratcher: rc.databases, Files: rc.files}
 	rc.driverReg.AddProvider(csv.TypeCSV, csvp)
 	rc.driverReg.AddProvider(csv.TypeTSV, csvp)
@@ -319,10 +313,5 @@ func (rc *RunContext) Close() error {
 		return nil
 	}
 
-	err := rc.clnup.Run()
-	if err != nil && rc.Log != nil {
-		rc.Log.Warn("Failed to close RunContext", lga.Err, err)
-	}
-
-	return err
+	return errz.Wrap(rc.clnup.Run(), "Close RunContext")
 }

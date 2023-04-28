@@ -51,7 +51,7 @@ var _ source.DriverDetectFunc = DetectXLSX
 func DetectXLSX(ctx context.Context, openFn source.FileOpenFunc) (detected source.DriverType, score float32,
 	err error,
 ) {
-	log := lg.FromContext(ctx)
+	log := lg.From(ctx)
 	var r io.ReadCloser
 	r, err = openFn()
 	if err != nil {
@@ -93,6 +93,8 @@ func (d *Driver) DriverMetadata() driver.Metadata {
 
 // Open implements driver.DatabaseOpener.
 func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
+	lg.From(ctx).Debug(lgm.OpenSrc, lga.Src, src)
+
 	r, err := d.files.Open(src)
 	if err != nil {
 		return nil, err

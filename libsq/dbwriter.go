@@ -13,8 +13,6 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/lg"
 
-	"golang.org/x/exp/slog"
-
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/sqlmodel"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
@@ -24,7 +22,6 @@ import (
 // DBWriter implements RecordWriter, writing
 // records to a database table.
 type DBWriter struct {
-	log      *slog.Logger
 	wg       *sync.WaitGroup
 	cancelFn context.CancelFunc
 	destDB   driver.Database
@@ -75,11 +72,10 @@ func DBWriterCreateTableIfNotExistsHook(destTblName string) DBWriterPreWriteHook
 // The writer writes records from recordCh to destTbl
 // in destDB. The recChSize param controls the size of recordCh
 // returned by the writer's Open method.
-func NewDBWriter(log *slog.Logger, destDB driver.Database, destTbl string, recChSize int,
+func NewDBWriter(destDB driver.Database, destTbl string, recChSize int,
 	preWriteHooks ...DBWriterPreWriteHook,
 ) *DBWriter {
 	return &DBWriter{
-		log:           log,
 		destDB:        destDB,
 		destTbl:       destTbl,
 		recordCh:      make(chan sqlz.Record, recChSize),
@@ -109,7 +105,7 @@ func (w *DBWriter) Open(ctx context.Context, cancelFn context.CancelFunc, recMet
 	for _, hook := range w.preWriteHooks {
 		err = hook(ctx, recMeta, w.destDB, tx)
 		if err != nil {
-			w.rollback(tx, err)
+			w.rollback(ctx, tx, err)
 			return nil, nil, err
 		}
 	}
@@ -117,7 +113,7 @@ func (w *DBWriter) Open(ctx context.Context, cancelFn context.CancelFunc, recMet
 	batchSize := driver.MaxBatchRows(w.destDB.SQLDriver(), len(recMeta.Names()))
 	w.bi, err = driver.NewBatchInsert(ctx, w.destDB.SQLDriver(), tx, w.destTbl, recMeta.Names(), batchSize)
 	if err != nil {
-		w.rollback(tx, err)
+		w.rollback(ctx, tx, err)
 		return nil, nil, err
 	}
 
@@ -135,7 +131,7 @@ func (w *DBWriter) Open(ctx context.Context, cancelFn context.CancelFunc, recMet
 			select {
 			case <-ctx.Done():
 				// ctx is done (e.g. cancelled), so we're going to rollback.
-				w.rollback(tx, ctx.Err())
+				w.rollback(ctx, tx, ctx.Err())
 				return
 
 			case rec := <-w.recordCh:
@@ -150,18 +146,18 @@ func (w *DBWriter) Open(ctx context.Context, cancelFn context.CancelFunc, recMet
 
 					err = <-w.bi.ErrCh // Wait for batch inserter to complete
 					if err != nil {
-						w.log.Error(err.Error())
+						lg.From(ctx).Error(err.Error())
 						w.addErrs(err)
-						w.rollback(tx, err)
+						w.rollback(ctx, tx, err)
 						return
 					}
 
 					commitErr := errz.Err(tx.Commit())
 					if commitErr != nil {
-						w.log.Error(commitErr.Error())
+						lg.From(ctx).Error(commitErr.Error())
 						w.addErrs(commitErr)
 					} else {
-						w.log.Debug("Tx commit success",
+						lg.From(ctx).Debug("Tx commit success",
 							lga.Target, source.Target(w.destDB.Source(), w.destTbl))
 					}
 
@@ -171,7 +167,7 @@ func (w *DBWriter) Open(ctx context.Context, cancelFn context.CancelFunc, recMet
 				// rec is not nil, therefore we write it to the db
 				err = w.doInsert(ctx, rec)
 				if err != nil {
-					w.rollback(tx, err)
+					w.rollback(ctx, tx, err)
 					return
 				}
 
@@ -212,15 +208,15 @@ func (w *DBWriter) addErrs(errs ...error) {
 }
 
 // rollback rolls back tx. Note that rollback or commit of the tx
-// will close all of the tx's prepared statements, so we don't
+// will close each of the tx's prepared statements, so we don't
 // need to close those manually.
-func (w *DBWriter) rollback(tx *sql.Tx, causeErrs ...error) {
+func (w *DBWriter) rollback(ctx context.Context, tx *sql.Tx, causeErrs ...error) {
 	// Guaranteed to be at least one causeErr
-	w.log.Error("failed to insert to %s.%s: tx rollback due to: %s",
+	lg.From(ctx).Error("failed to insert to %s.%s: tx rollback due to: %s",
 		w.destDB.Source().Handle, w.destTbl, causeErrs[0])
 
 	rollbackErr := errz.Err(tx.Rollback())
-	lg.WarnIfError(w.log, lgm.TxRollback, rollbackErr)
+	lg.WarnIfError(lg.From(ctx), lgm.TxRollback, rollbackErr)
 
 	w.addErrs(causeErrs...)
 	w.addErrs(rollbackErr)

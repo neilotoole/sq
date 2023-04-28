@@ -11,14 +11,13 @@ import (
 	"time"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
+	"golang.org/x/exp/slog"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"github.com/djherbis/fscache"
-	"golang.org/x/exp/slog"
-
 	"github.com/h2non/filetype"
 	"github.com/h2non/filetype/matchers"
 	"golang.org/x/sync/errgroup"
@@ -49,8 +48,8 @@ type Files struct {
 }
 
 // NewFiles returns a new Files instance.
-func NewFiles(log *slog.Logger) (*Files, error) {
-	fs := &Files{log: log, clnup: cleanup.New()}
+func NewFiles(ctx context.Context) (*Files, error) {
+	fs := &Files{clnup: cleanup.New(), log: lg.From(ctx)}
 
 	tmpdir, err := os.MkdirTemp("", "sq_files_fscache_*")
 	if err != nil {
@@ -62,13 +61,7 @@ func NewFiles(log *slog.Logger) (*Files, error) {
 		return nil, errz.Err(err)
 	}
 
-	fs.clnup.AddE(func() error {
-		log.Debug("About to clean fscache from dir", lga.Path, tmpdir)
-		err = fcache.Clean()
-		lg.WarnIfError(log, "close file cache", err)
-
-		return err
-	})
+	fs.clnup.AddE(fcache.Clean)
 	fs.fcache = fcache
 	return fs, nil
 }
@@ -470,7 +463,7 @@ var _ DriverDetectFunc = DetectMagicNumber
 // the start of files.
 func DetectMagicNumber(ctx context.Context, openFn FileOpenFunc,
 ) (detected DriverType, score float32, err error) {
-	log := lg.FromContext(ctx)
+	log := lg.From(ctx)
 	var r io.ReadCloser
 	r, err = openFn()
 	if err != nil {

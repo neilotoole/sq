@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/neilotoole/sq/cli/flag"
+	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 
@@ -153,7 +154,6 @@ func execSQLInsert(ctx context.Context, rc *RunContext, fromSrc, destSrc *source
 	// stack.
 
 	inserter := libsq.NewDBWriter(
-		rc.Log,
 		destDB,
 		destTbl,
 		driver.Tuning.RecordChSize,
@@ -169,7 +169,7 @@ func execSQLInsert(ctx context.Context, rc *RunContext, fromSrc, destSrc *source
 		return errz.Wrapf(err, "insert %s.%s failed", destSrc.Handle, destTbl)
 	}
 
-	rc.Log.Debug(lgm.RowsAffected, lga.Count, affected)
+	lg.From(ctx).Debug(lgm.RowsAffected, lga.Count, affected)
 
 	// TODO: Should really use a Printer here
 	fmt.Fprintf(rc.Out, stringz.Plu("Inserted %d row(s) into %s\n",

@@ -21,11 +21,8 @@ import (
 // and logging errors. This func has a lot of (possibly needless)
 // redundancy; ultimately err will print if non-nil (even if
 // rc or any of its fields are nil).
-func printError(rc *RunContext, err error) {
-	log := lg.Discard()
-	if rc != nil && rc.Log != nil {
-		log = rc.Log
-	}
+func printError(ctx context.Context, rc *RunContext, err error) {
+	log := lg.From(ctx)
 
 	if err == nil {
 		log.Warn("printError called with nil error")

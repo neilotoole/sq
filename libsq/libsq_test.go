@@ -88,9 +88,7 @@ func TestQuerySQL_Smoke(t *testing.T) {
 	}
 }
 
-func TestQuerySQL_Count(t *testing.T) {
-	t.Parallel()
-
+func TestQuerySQL_Count(t *testing.T) { //nolint:tparallel
 	testCases := sakila.SQLAll()
 	for _, handle := range testCases {
 		handle := handle

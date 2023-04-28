@@ -14,7 +14,7 @@ func TestContext(t *testing.T) {
 	log := slogt.New(t)
 
 	ctx = lg.NewContext(ctx, log)
-	log = lg.FromContext(ctx)
+	log = lg.From(ctx)
 
 	log.Info("huzzah")
 }

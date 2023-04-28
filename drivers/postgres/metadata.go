@@ -176,7 +176,7 @@ func toNullableScanType(log *slog.Logger, colName, dbTypeName string, knd kind.K
 }
 
 func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB) (*source.Metadata, error) {
-	log := lg.FromContext(ctx)
+	log := lg.From(ctx)
 
 	md := &source.Metadata{
 		Handle:       src.Handle,
@@ -269,7 +269,7 @@ current_setting('server_version'), version(), "current_user"()`
 }
 
 func getPgSettings(ctx context.Context, db sqlz.DB) ([]source.DBVar, error) {
-	log := lg.FromContext(ctx)
+	log := lg.From(ctx)
 	rows, err := db.QueryContext(ctx, "SELECT name, setting FROM pg_settings ORDER BY name")
 	if err != nil {
 		return nil, errz.Err(err)
@@ -298,7 +298,7 @@ func getPgSettings(ctx context.Context, db sqlz.DB) ([]source.DBVar, error) {
 // getAllTable names returns all table (or view) names in the current
 // catalog & schema.
 func getAllTableNames(ctx context.Context, db sqlz.DB) ([]string, error) {
-	log := lg.FromContext(ctx)
+	log := lg.From(ctx)
 
 	const tblNamesQuery = `SELECT table_name FROM information_schema.tables
 WHERE table_catalog = current_catalog AND table_schema = current_schema()
@@ -329,7 +329,7 @@ ORDER BY table_name`
 }
 
 func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*source.TableMetadata, error) {
-	log := lg.FromContext(ctx)
+	log := lg.From(ctx)
 
 	const tblsQueryTpl = `SELECT table_catalog, table_schema, table_name, table_type, is_insertable_into,
   (SELECT COUNT(*) FROM "%s") AS table_row_count,
@@ -450,7 +450,7 @@ type pgColumn struct {
 
 // getPgColumns queries the column metadata for tblName.
 func getPgColumns(ctx context.Context, db sqlz.DB, tblName string) ([]*pgColumn, error) {
-	log := lg.FromContext(ctx)
+	log := lg.From(ctx)
 
 	// colsQuery gets column information from information_schema.columns.
 	//
@@ -460,8 +460,8 @@ func getPgColumns(ctx context.Context, db sqlz.DB, tblName string) ([]*pgColumn,
 	const colsQuery = `SELECT table_catalog,
   table_schema,
   table_name,
-  column_name, 
-  ordinal_position, 
+  column_name,
+  ordinal_position,
   column_default,
   is_nullable,
   data_type,
@@ -548,7 +548,7 @@ func colMetaFromPgColumn(log *slog.Logger, pgCol *pgColumn) *source.ColMetadata 
 // are returned. If tblName is specified, constraints just for that
 // table are returned.
 func getPgConstraints(ctx context.Context, db sqlz.DB, tblName string) ([]*pgConstraint, error) {
-	log := lg.FromContext(ctx)
+	log := lg.From(ctx)
 
 	var args []any
 	query := `SELECT kcu.table_catalog,kcu.table_schema,kcu.table_name,kcu.column_name,

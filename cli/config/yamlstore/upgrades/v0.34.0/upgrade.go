@@ -23,7 +23,7 @@ const Version = "v0.34.0"
 // - "sources" is renamed to "collection".
 // - "config.version" is set to "v0.34.0".
 func Upgrade(ctx context.Context, before []byte) (after []byte, err error) {
-	log := lg.FromContext(ctx)
+	log := lg.From(ctx)
 	log.Info("Starting config upgrade step", lga.To, Version)
 
 	// Load data

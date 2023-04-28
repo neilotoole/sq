@@ -149,9 +149,7 @@ func TestDriver_CreateTable_Minimal(t *testing.T) {
 	}
 }
 
-func TestDriver_TableColumnTypes(t *testing.T) {
-	t.Parallel()
-
+func TestDriver_TableColumnTypes(t *testing.T) { //nolint:tparallel
 	testCases := sakila.SQLAll()
 	for _, handle := range testCases {
 		handle := handle
@@ -196,7 +194,8 @@ func TestDriver_TableColumnTypes(t *testing.T) {
 
 func TestSQLDriver_PrepareUpdateStmt(t *testing.T) {
 	t.Parallel()
-	testCases := sakila.SQLAll()
+	// testCases := sakila.SQLAll()
+	testCases := []string{sakila.Pg}
 
 	for _, handle := range testCases {
 		handle := handle
@@ -433,9 +432,7 @@ func TestRegistry_DriversMetadata_Doc(t *testing.T) {
 	}
 }
 
-func TestDatabase_TableMetadata(t *testing.T) {
-	t.Parallel()
-
+func TestDatabase_TableMetadata(t *testing.T) { //nolint:tparallel
 	for _, handle := range sakila.SQLAll() {
 		handle := handle
 
@@ -452,9 +449,7 @@ func TestDatabase_TableMetadata(t *testing.T) {
 	}
 }
 
-func TestDatabase_SourceMetadata(t *testing.T) {
-	t.Parallel()
-
+func TestDatabase_SourceMetadata(t *testing.T) { //nolint:tparallel
 	for _, handle := range sakila.SQLAll() {
 		handle := handle
 

@@ -53,7 +53,7 @@ func execConfigEdit(cmd *cobra.Command, args []string) error {
 
 func execConfigEditOptions(cmd *cobra.Command, _ []string) error {
 	ctx := cmd.Context()
-	rc, log := RunContextFrom(ctx), lg.FromContext(ctx)
+	rc, log := RunContextFrom(ctx), logFrom(cmd)
 	cfg := rc.Config
 
 	before, err := ioz.MarshalYAML(cfg.Options)
@@ -94,7 +94,7 @@ func execConfigEditOptions(cmd *cobra.Command, _ []string) error {
 
 func execConfigEditSource(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
-	rc, log := RunContextFrom(ctx), lg.FromContext(ctx)
+	rc, log := RunContextFrom(ctx), logFrom(cmd)
 	cfg := rc.Config
 
 	src, err := cfg.Collection.Get(args[0])

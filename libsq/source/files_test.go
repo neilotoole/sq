@@ -56,7 +56,9 @@ func TestFiles_Type(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.loc, func(t *testing.T) {
-			fs, err := source.NewFiles(slogt.New(t))
+			ctx := lg.NewContext(context.Background(), slogt.New(t))
+
+			fs, err := source.NewFiles(ctx)
 			require.NoError(t, err)
 			fs.AddDriverDetectors(testh.DriverDetectors()...)
 
@@ -97,8 +99,8 @@ func TestFiles_DetectType(t *testing.T) {
 		tc := tc
 
 		t.Run(filepath.Base(tc.loc), func(t *testing.T) {
-			ctx := context.Background()
-			fs, err := source.NewFiles(slogt.New(t))
+			ctx := lg.NewContext(context.Background(), slogt.New(t))
+			fs, err := source.NewFiles(ctx)
 			require.NoError(t, err)
 			fs.AddDriverDetectors(testh.DriverDetectors()...)
 
@@ -148,6 +150,7 @@ func TestDetectMagicNumber(t *testing.T) {
 }
 
 func TestFiles_NewReader(t *testing.T) {
+	ctx := lg.NewContext(context.Background(), slogt.New(t))
 	fpath := sakila.PathCSVActor
 	wantBytes := proj.ReadFile(fpath)
 
@@ -157,7 +160,7 @@ func TestFiles_NewReader(t *testing.T) {
 		Location: proj.Abs(fpath),
 	}
 
-	fs, err := source.NewFiles(slogt.New(t))
+	fs, err := source.NewFiles(ctx)
 	require.NoError(t, err)
 
 	g := &errgroup.Group{}

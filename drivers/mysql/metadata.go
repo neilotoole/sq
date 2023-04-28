@@ -180,7 +180,7 @@ WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`
 
 // getColumnMetadata returns column metadata for tblName.
 func getColumnMetadata(ctx context.Context, db sqlz.DB, tblName string) ([]*source.ColMetadata, error) {
-	log := lg.FromContext(ctx)
+	log := lg.From(ctx)
 
 	const query = `SELECT column_name, data_type, column_type, ordinal_position, column_default,
        is_nullable, column_key, column_comment, extra
@@ -298,7 +298,7 @@ func setSourceSummaryMeta(ctx context.Context, db sqlz.DB, md *source.Metadata) 
 
 // getDBVarsMeta returns the database variables.
 func getDBVarsMeta(ctx context.Context, db sqlz.DB) ([]source.DBVar, error) {
-	log := lg.FromContext(ctx)
+	log := lg.From(ctx)
 	var dbVars []source.DBVar
 
 	rows, err := db.QueryContext(ctx, "SHOW VARIABLES")
@@ -325,7 +325,7 @@ func getDBVarsMeta(ctx context.Context, db sqlz.DB) ([]source.DBVar, error) {
 
 // getAllTblMetas returns TableMetadata for each table/view in db.
 func getAllTblMetas(ctx context.Context, db sqlz.DB) ([]*source.TableMetadata, error) {
-	log := lg.FromContext(ctx)
+	log := lg.From(ctx)
 
 	const query = `SELECT t.TABLE_SCHEMA, t.TABLE_NAME, t.TABLE_TYPE, t.TABLE_COMMENT,
        (DATA_LENGTH + INDEX_LENGTH) AS table_size,

@@ -40,7 +40,7 @@ type UpgradeRegistry map[string]UpgradeFunc
 func (fs *Store) doUpgrade(ctx context.Context, optsReg *options.Registry,
 	startVersion, targetVersion string,
 ) (*config.Config, error) {
-	log := lg.FromContext(ctx)
+	log := lg.From(ctx)
 	log.Debug("Starting config upgrade", lga.From, startVersion, lga.To, targetVersion)
 
 	if !semver.IsValid(targetVersion) {

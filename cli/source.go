@@ -5,13 +5,13 @@ import (
 
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 
 	"github.com/spf13/cobra"
-	"golang.org/x/exp/slog"
 )
 
 // determineSources figures out what the active source is
@@ -138,14 +138,16 @@ func checkStdinSource(ctx context.Context, rc *RunContext) (*source.Source, erro
 		}
 	}
 
-	return newSource(rc.Log, rc.driverReg, typ, source.StdinHandle, source.StdinHandle, options.Options{})
+	return newSource(ctx, rc.driverReg, typ, source.StdinHandle, source.StdinHandle, options.Options{})
 }
 
 // newSource creates a new Source instance where the
 // driver type is known. Opts may be nil.
-func newSource(log *slog.Logger, dp driver.Provider, typ source.DriverType, handle, loc string,
+func newSource(ctx context.Context, dp driver.Provider, typ source.DriverType, handle, loc string,
 	opts options.Options,
 ) (*source.Source, error) {
+	log := lg.From(ctx)
+
 	if opts == nil {
 		log.Debug("Create new data source",
 			lga.Handle, handle,

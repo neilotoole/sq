@@ -116,7 +116,7 @@ func execPing(cmd *cobra.Command, args []string) error {
 	}
 	timeout := OptPingTimeout.Get(cmdOpts)
 
-	rc.Log.Debug("Using ping timeout", lga.Val, timeout)
+	logFrom(cmd).Debug("Using ping timeout", lga.Val, timeout)
 
 	err = pingSources(cmd.Context(), rc.driverReg, srcs, rc.writers.pingw, timeout)
 	if errors.Is(err, context.Canceled) {
@@ -141,7 +141,7 @@ func pingSources(ctx context.Context, dp driver.Provider, srcs []*source.Source,
 		return err
 	}
 
-	log := lg.FromContext(ctx)
+	log := lg.From(ctx)
 	defer lg.WarnIfFuncError(log, "Close ping writer", w.Close)
 
 	resultCh := make(chan pingResult, len(srcs))

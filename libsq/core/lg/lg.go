@@ -19,15 +19,21 @@ import (
 type contextKey struct{}
 
 // NewContext returns a context that contains the given Logger.
-// Use FromContext to retrieve the Logger.
+// Use From to retrieve the Logger.
 func NewContext(ctx context.Context, l *slog.Logger) context.Context {
 	return context.WithValue(ctx, contextKey{}, l)
 }
 
-// FromContext returns the Logger stored in ctx by NewContext, or the Discard
-// Logger if there is none.
-func FromContext(ctx context.Context) *slog.Logger {
-	if l, ok := ctx.Value(contextKey{}).(*slog.Logger); ok {
+// From returns the Logger stored in ctx by NewContext, or the Discard
+// Logger if there is none. This function is typically named FromContext,
+// but we're experimenting with simply naming it From.
+func From(ctx context.Context) *slog.Logger {
+	v := ctx.Value(contextKey{})
+	if v == nil {
+		return Discard()
+	}
+
+	if l, ok := v.(*slog.Logger); ok {
 		return l
 	}
 	return Discard()

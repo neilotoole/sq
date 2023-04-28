@@ -46,15 +46,15 @@ var errNoMsg = errors.New("")
 // Execute builds a RunContext using ctx and default
 // settings, and invokes ExecuteWith.
 func Execute(ctx context.Context, stdin *os.File, stdout, stderr io.Writer, args []string) error {
-	rc, err := newDefaultRunContext(ctx, stdin, stdout, stderr, args)
+	rc, log, err := newDefaultRunContext(ctx, stdin, stdout, stderr, args)
 	if err != nil {
-		printError(rc, err)
+		printError(ctx, rc, err)
 		return err
 	}
 
 	defer rc.Close() // ok to call rc.Close on nil rc
 
-	ctx = lg.NewContext(ctx, rc.Log)
+	ctx = lg.NewContext(ctx, log)
 	return ExecuteWith(ctx, rc, args)
 }
 
@@ -62,7 +62,7 @@ func Execute(ctx context.Context, stdin *os.File, stdout, stderr io.Writer, args
 // resulting in a command being executed. The caller must
 // invoke rc.Close.
 func ExecuteWith(ctx context.Context, rc *RunContext, args []string) error {
-	log := lg.FromContext(ctx)
+	log := lg.From(ctx)
 	log.Debug("EXECUTE", "args", strings.Join(args, " "))
 	log.Debug("Build info", "build", buildinfo.Info())
 	log.Debug("Config",
@@ -147,7 +147,7 @@ func ExecuteWith(ctx context.Context, rc *RunContext, args []string) error {
 	// sub-command, and ultimately execute that command.
 	err = rootCmd.ExecuteContext(ctx)
 	if err != nil {
-		printError(rc, err)
+		printError(ctx, rc, err)
 	}
 
 	return err
@@ -178,7 +178,7 @@ func newCommandTree(rc *RunContext) (rootCmd *cobra.Command) {
 	helpCmd := addCmd(rc, rootCmd, newHelpCmd())
 	rootCmd.SetHelpCommand(helpCmd)
 
-	// From the end user's perspective, slqCmd is *effectively* the
+	// logFrom the end user's perspective, slqCmd is *effectively* the
 	// root cmd. We need to perform some trickery to make it output help
 	// such that "sq help" and "sq --help" output the same thing.
 	slqCmd := newSLQCmd()
@@ -246,7 +246,7 @@ func addCmd(rc *RunContext, parentCmd, cmd *cobra.Command) *cobra.Command {
 	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
 		rc.Cmd = cmd
 		rc.Args = args
-		err := rc.init()
+		err := rc.init(cmd.Context())
 		return err
 	}
 

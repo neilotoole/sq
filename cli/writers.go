@@ -23,7 +23,6 @@ import (
 	"github.com/neilotoole/sq/cli/output/xlsxw"
 	"github.com/neilotoole/sq/cli/output/xmlw"
 	"github.com/neilotoole/sq/cli/output/yamlw"
-	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/spf13/cobra"
 )
 
@@ -62,7 +61,7 @@ func newWriters(cmd *cobra.Command, opts options.Options, out, errOut io.Writer,
 ) (w *writers, out2, errOut2 io.Writer) {
 	var pr *output.Printing
 	pr, out2, errOut2 = getPrinting(cmd, opts, out, errOut)
-	log := lg.FromContext(cmd.Context())
+	log := logFrom(cmd)
 
 	// Package tablew has writer impls for each of the writer interfaces,
 	// so we use its writers as the baseline. Later we check the format
