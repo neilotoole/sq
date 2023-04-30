@@ -38,7 +38,7 @@ func (w *configWriter) Location(loc, origin string) error {
 
 // Options implements output.ConfigWriter.
 func (w *configWriter) Options(_ *options.Registry, o options.Options) error {
-	if o == nil {
+	if len(o) == 0 {
 		return nil
 	}
 

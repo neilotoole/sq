@@ -2,6 +2,8 @@ package cli
 
 import (
 	"github.com/neilotoole/sq/cli/config/yamlstore"
+	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/options"
 
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/spf13/cobra"
@@ -10,6 +12,7 @@ import (
 func newConfigCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "config",
+		Args:  cobra.NoArgs,
 		Short: "Manage config",
 		Long:  "Manage config.",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -68,16 +71,23 @@ func execConfigLocation(cmd *cobra.Command, _ []string) error {
 
 func newConfigGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Show config",
-		Long:  "Show config. In table output format, use --verbose to see defaults.",
-		Args:  cobra.ExactArgs(0),
-		RunE:  execConfigGet,
-		Example: `  # Show config
+		Use:               "get",
+		Short:             "Show config",
+		Long:              "Show config. In table output format, use --verbose to see defaults.",
+		Args:              cobra.MaximumNArgs(1),
+		ValidArgsFunction: completeOptKey,
+		RunE:              execConfigGet,
+		Example: `  # Show all config
   $ sq config get
 
   # Also show defaults
-  $ sq config get -v`,
+  $ sq config get -v
+
+  # Show individual option
+  $ sq config get conn.max-open
+
+  # Show config for source
+  # sq config get --src @sakila`,
 	}
 
 	cmd.Flags().BoolP(flag.Table, flag.TableShort, false, flag.TableUsage)
@@ -86,8 +96,27 @@ func newConfigGetCmd() *cobra.Command {
 	return cmd
 }
 
-func execConfigGet(cmd *cobra.Command, _ []string) error {
+func execConfigGet(cmd *cobra.Command, args []string) error {
 	rc := RunContextFrom(cmd.Context())
 
-	return rc.writers.configw.Options(rc.OptionsRegistry, rc.Config.Options)
+	if len(args) == 0 {
+		return rc.writers.configw.Options(rc.OptionsRegistry, rc.Config.Options)
+	}
+
+	// Print just a single option, e.g.
+	//  $ sq config get conn.max-open
+	opt := rc.OptionsRegistry.Get(args[0])
+	if opt == nil {
+		return errz.Errorf("invalid option key: %s", args[0])
+	}
+
+	// A bit of a hack... create a new registry with just the desired opt.
+	reg := &options.Registry{}
+	reg.Add(opt)
+	o := options.Options{}
+	if v, ok := rc.Config.Options[opt.Key()]; ok {
+		o[opt.Key()] = v
+	}
+
+	return rc.writers.configw.Options(reg, o)
 }
