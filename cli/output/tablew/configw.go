@@ -35,39 +35,95 @@ func (w *configWriter) Location(path, origin string) error {
 }
 
 // Options implements output.ConfigWriter.
-func (w *configWriter) Options(opts options.Options) error {
-	if opts == nil {
+func (w *configWriter) Options(reg *options.Registry, o options.Options) error {
+	if o == nil {
 		return nil
 	}
 
-	t, pr := w.tbl.tblImpl, w.tbl.pr
+	if w.tbl.pr.Verbose {
+		w.tbl.pr.ShowHeader = true
+	} else {
+		w.tbl.pr.ShowHeader = false
+	}
+
+	w.doPrintOptions(reg, o)
+	return nil
+}
+
+// Options implements output.ConfigWriter.
+func (w *configWriter) doPrintOptions(reg *options.Registry, o options.Options) {
+	if o == nil {
+		return
+	}
+
+	t, pr, verbose := w.tbl.tblImpl, w.tbl.pr, w.tbl.pr.Verbose
+
 	if pr.ShowHeader {
-		t.SetHeader([]string{"KEY", "VALUE", "DEFAULT"})
+		headers := []string{"KEY", "VALUE"}
+		if verbose {
+			headers = []string{"KEY", "VALUE", "DEFAULT"}
+		}
+
+		t.SetHeader(headers)
 	}
 	t.SetColTrans(0, pr.Key.SprintFunc())
 
-	// FIXME: Verbose functionality should show defaults
 	var rows [][]string
 
-	keys := opts.Keys()
+	keys := o.Keys()
 	for _, k := range keys {
-		rows = append(rows, []string{k, fmt.Sprintf("%v", opts[k])})
+		opt := reg.Get(k)
+		if opt == nil {
+			// Shouldn't happen, but print anyway just in case
+			row := []string{
+				k,
+				pr.Error.Sprintf("%v", o[k]),
+			}
+			if verbose {
+				// Can't know default in this situation.
+				row = append(row, "")
+			}
 
-		// FIXME: need to check type of Opt from registry, and SetCellTrans
-		// appropriately
+			rows = append(rows, row)
+			continue
+		}
+
+		clr := pr.String
+		switch opt.(type) {
+		case options.Bool:
+			clr = pr.Bool
+		case options.Int:
+			clr = pr.Number
+		default:
+		}
+
+		row := []string{
+			k,
+			clr.Sprintf("%v", o[k]),
+		}
+
+		if verbose {
+			defaultVal := pr.Faint.Sprintf("%v", opt.GetAny(nil))
+			//			defaultVal := pr.Faint.Sprintf(clr.Sprintf("%v", opt.GetAny(nil)))
+
+			row = append(row, defaultVal)
+		}
+
+		rows = append(rows, row)
 	}
 
-	// rows = append(rows, []string{"output_format", string(opts.Format)})
-	//
-	// rows = append(rows, []string{"output_header", strconv.FormatBool(opts.Header)})
-	// t.SetCellTrans(1, 1, pr.Bool.SprintFunc())
-	//
-	// rows = append(rows, []string{"ping_timeout", fmt.Sprintf("%v", opts.PingTimeout)})
-	// t.SetCellTrans(2, 1, pr.Datetime.SprintFunc())
-	//
-	// rows = append(rows, []string{"shell_completion_timeout", fmt.Sprintf("%v", opts.ShellCompletionTimeout)})
-	// t.SetCellTrans(3, 1, pr.Datetime.SprintFunc())
-
 	w.tbl.appendRowsAndRenderAll(rows)
-	return nil
+}
+
+// SetOption implements output.ConfigWriter.
+func (w *configWriter) SetOption(_ *options.Registry, o options.Options, opt options.Opt) error {
+	if !w.tbl.pr.Verbose {
+		// No output unless verbose
+		return nil
+	}
+
+	// It's verbose
+	o = options.Effective(o, opt)
+	w.tbl.pr.ShowHeader = false
+	return w.Options(nil, o)
 }

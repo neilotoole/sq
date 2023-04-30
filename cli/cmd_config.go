@@ -84,5 +84,5 @@ func newConfigGetCmd() *cobra.Command {
 func execConfigGet(cmd *cobra.Command, _ []string) error {
 	rc := RunContextFrom(cmd.Context())
 
-	return rc.writers.configw.Options(rc.Config.Options)
+	return rc.writers.configw.Options(rc.OptionsRegistry, rc.Config.Options)
 }

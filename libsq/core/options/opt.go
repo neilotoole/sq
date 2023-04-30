@@ -17,8 +17,8 @@ import (
 // constructor. The caller typically registers the new Opt in a options.Registry
 // via Registry.Add.
 //
-// An impl can (optionally) implement options.Processor if it needs
-// to munge the underlying value. For example, options.Duration converts a
+// An impl should implement the Process method to appropriately munge the
+// backing value. For example, options.Duration converts a
 // string such as "1m30s" into a time.Duration.
 type Opt interface {
 	// Key returns the Opt key, such as "ping.timeout".
@@ -31,12 +31,18 @@ type Opt interface {
 	IsSet(o Options) bool
 
 	// GetAny returns the value of this Opt in o. Generally, prefer
-	// use of the concrete strongly-typed Get method.
+	// use of the concrete strongly-typed Get method. If o is nil or
+	// empty, or the Opt is not in o, the Opt's default value is
+	// returned.
 	GetAny(o Options) any
 
 	// Tags returns any tags on this Opt instance. For example, an Opt might
 	// have tags [source, csv].
 	Tags() []string
+
+	// Process processes o. The returned Options may be a new instance,
+	// with mutated values. This is typ
+	Process(o Options) (Options, error)
 }
 
 type baseOpt struct {
@@ -73,6 +79,11 @@ func (op baseOpt) String() string {
 // Tags implements options.Opt.
 func (op baseOpt) Tags() []string {
 	return op.tags
+}
+
+// Process implements options.Opt.
+func (op baseOpt) Process(o Options) (Options, error) {
+	return o, nil
 }
 
 var _ Opt = String{}
@@ -164,7 +175,7 @@ func (op Int) Get(o Options) int {
 	}
 }
 
-// Process implements options.Processor. It converts matching
+// Process implements options.Opt. It converts matching
 // values in o into bool. If no match found,
 // the input arg is returned unchanged. Otherwise, a clone is
 // returned.
@@ -276,7 +287,7 @@ func (op Bool) Get(o Options) bool {
 	return b
 }
 
-// Process implements options.Processor. It converts matching
+// Process implements options.Opt. It converts matching
 // string values in o into bool. If no match found,
 // the input arg is returned unchanged. Otherwise, a clone is
 // returned.
@@ -342,7 +353,7 @@ type Duration struct {
 	defaultVal time.Duration
 }
 
-// Process implements options.Processor. It converts matching
+// Process implements options.Opt. It converts matching
 // string values in o into time.Duration. If no match found,
 // the input arg is returned unchanged. Otherwise, a clone is
 // returned.

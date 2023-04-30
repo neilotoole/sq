@@ -104,34 +104,28 @@ func (r *Registry) Opts() []Opt {
 	return opts
 }
 
-// Process implements options.Processor. It processes arg options, returning a
-// new Options. Process should be invoked after the Options has been loaded from
-// config, but before it is used by the program. Process iterates over the
-// registered Opts, and invokes Process for each Opt that implements Processor.
-// This facilitates munging of underlying values, e.g. for options.Duration, a
-// string "1m30s" is converted to a time.Duration.
+// Process processes o, returning a new Options. Process should be invoked
+// after the Options has been loaded from config, but before it is used by the
+// program. Process iterates over the registered Opts, and invokes Process for
+// each Opt that implements Processor. This facilitates munging of backing
+// values, e.g. for options.Duration, a string "1m30s" is converted to a time.Duration.
 func (r *Registry) Process(o Options) (Options, error) {
-	return process(o, r.Opts())
-}
-
-func process(options Options, opts []Opt) (Options, error) {
-	if options == nil {
+	if o == nil {
 		return nil, nil //nolint:nilnil
 	}
 
+	opts := r.opts
 	o2 := Options{}
 	for _, opt := range opts {
-		if v, ok := options[opt.Key()]; ok {
+		if v, ok := o[opt.Key()]; ok {
 			o2[opt.Key()] = v
 		}
 	}
 
 	var err error
-	for _, o := range opts {
-		if n, ok := o.(Processor); ok {
-			if o2, err = n.Process(o2); err != nil {
-				return nil, err
-			}
+	for _, opt := range opts {
+		if o2, err = opt.Process(o2); err != nil {
+			return nil, err
 		}
 	}
 

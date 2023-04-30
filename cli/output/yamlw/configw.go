@@ -40,10 +40,20 @@ func (w *configWriter) Location(loc, origin string) error {
 }
 
 // Options implements output.ConfigWriter.
-func (w *configWriter) Options(opts options.Options) error {
-	if opts == nil {
+func (w *configWriter) Options(_ *options.Registry, o options.Options) error {
+	if o == nil {
 		return nil
 	}
 
-	return writeYAML(w.p, w.out, opts)
+	return writeYAML(w.p, w.out, o)
+}
+
+// SetOption implements output.ConfigWriter.
+func (w *configWriter) SetOption(_ *options.Registry, o options.Options, opt options.Opt) error {
+	if !w.pr.Verbose {
+		return nil
+	}
+
+	o = options.Effective(o, opt)
+	return w.Options(nil, o)
 }

@@ -37,10 +37,20 @@ func (w *configWriter) Location(loc, origin string) error {
 }
 
 // Options implements output.ConfigWriter.
-func (w *configWriter) Options(opts options.Options) error {
-	if opts == nil {
+func (w *configWriter) Options(_ *options.Registry, o options.Options) error {
+	if o == nil {
 		return nil
 	}
 
-	return writeJSON(w.out, w.pr, opts)
+	return writeJSON(w.out, w.pr, o)
+}
+
+// SetOption implements output.ConfigWriter.
+func (w *configWriter) SetOption(_ *options.Registry, o options.Options, opt options.Opt) error {
+	if !w.pr.Verbose {
+		return nil
+	}
+
+	o = options.Effective(o, opt)
+	return writeJSON(w.out, w.pr, o)
 }

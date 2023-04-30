@@ -71,6 +71,9 @@ type Printing struct {
 	// Null is the color for null.
 	Null *color.Color
 
+	// Normal is the default color.
+	Normal *color.Color
+
 	// Number is the color for number values, including int, float, decimal etc.
 	Number *color.Color
 
@@ -107,6 +110,7 @@ func NewPrinting() *Printing {
 		Hilite:     color.New(color.FgHiBlue),
 		Key:        color.New(color.FgBlue, color.Bold),
 		Location:   color.New(color.FgGreen),
+		Normal:     color.New(),
 		Null:       color.New(color.Faint),
 		Number:     color.New(color.FgCyan),
 		Punc:       color.New(color.Bold),
@@ -122,7 +126,7 @@ func (pr *Printing) colors() []*color.Color {
 	return []*color.Color{
 		pr.Active, pr.Bold, pr.Bold, pr.Bytes, pr.Datetime, pr.Duration,
 		pr.Error, pr.Faint, pr.Handle, pr.Header, pr.Hilite,
-		pr.Key, pr.Location, pr.Null, pr.Number,
+		pr.Key, pr.Location, pr.Normal, pr.Null, pr.Number,
 		pr.Punc, pr.String, pr.Success,
 	}
 }

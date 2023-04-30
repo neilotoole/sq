@@ -41,11 +41,9 @@ func execConfigSet(cmd *cobra.Command, args []string) error {
 	o := options.Options{}
 	o[opt.Key()] = args[1]
 	var err error
-	if opt, ok := opt.(options.Processor); ok {
-		o, err = opt.Process(o)
-		if err != nil {
-			return err
-		}
+
+	if o, err = opt.Process(o); err != nil {
+		return err
 	}
 
 	rc.Config.Options[opt.Key()] = o[opt.Key()]
@@ -55,7 +53,7 @@ func execConfigSet(cmd *cobra.Command, args []string) error {
 
 	lg.From(ctx).Info("Set config value", lga.Val, o)
 
-	return rc.writers.configw.Options(o)
+	return rc.writers.configw.SetOption(rc.OptionsRegistry, o, opt)
 }
 
 func completeConfigSet(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
