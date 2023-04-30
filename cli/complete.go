@@ -5,6 +5,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/stringz"
+
+	"github.com/neilotoole/sq/cli/output/format"
+
 	"github.com/neilotoole/sq/libsq/core/options"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -138,6 +142,54 @@ func completeDriverType(cmd *cobra.Command, _ []string, _ string) ([]string, cob
 	}
 
 	return types, cobra.ShellCompDirectiveNoFileComp
+}
+
+// completeOptKey is a completionFunc that completes keys for options.Opt.
+func completeOptKey(cmd *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	rc := getRunContext(cmd)
+	keys := rc.OptionsRegistry.Keys()
+
+	keys = lo.Filter(keys, func(item string, index int) bool {
+		return strings.HasPrefix(item, toComplete)
+	})
+
+	if len(keys) == 0 && len(toComplete) > 0 {
+		logFrom(cmd).Warn("Invalid option key", lga.Key, toComplete)
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	return keys, cobra.ShellCompDirectiveNoFileComp
+}
+
+// completeOptValue is a completionFunc that completes values for options.Opt.
+// It expects that args[0] is a valid Opt key.
+func completeOptValue(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	if len(args) != 1 {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	rc := getRunContext(cmd)
+	opt := rc.OptionsRegistry.Get(args[0])
+	if opt == nil {
+		logFrom(cmd).Warn("Invalid option key", lga.Key, args[0])
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	var a []string
+	switch opt.(type) {
+	case FormatOpt:
+		a = stringz.Strings(format.All())
+	case options.Bool:
+		a = []string{"true", "false"}
+	default:
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	a = lo.Filter(a, func(item string, index int) bool {
+		return strings.HasPrefix(item, toComplete)
+	})
+
+	return a, cobra.ShellCompDirectiveNoFileComp
 }
 
 // completeTblCopy is a completionFunc for the "tbl copy" command.

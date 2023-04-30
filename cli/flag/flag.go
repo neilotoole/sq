@@ -140,4 +140,8 @@ const (
 	CSVDelim        = "driver.csv.delim"
 	CSVDelimUsage   = "CSV delimiter: one of comma, space, pipe, tab, colon, semi, period"
 	CSVDelimDefault = "comma"
+
+	ConfigSetDelete      = "delete"
+	ConfigSetDeleteShort = "D"
+	ConfigSetDeleteUsage = "Unset this option"
 )

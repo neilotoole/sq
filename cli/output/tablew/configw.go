@@ -42,7 +42,7 @@ func (w *configWriter) Options(opts options.Options) error {
 
 	t, pr := w.tbl.tblImpl, w.tbl.pr
 	if pr.ShowHeader {
-		t.SetHeader([]string{"KEY", "VALUE"})
+		t.SetHeader([]string{"KEY", "VALUE", "DEFAULT"})
 	}
 	t.SetColTrans(0, pr.Key.SprintFunc())
 

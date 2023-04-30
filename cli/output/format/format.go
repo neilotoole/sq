@@ -41,3 +41,21 @@ const (
 	TSV      Format = "tsv"
 	YAML     Format = "yaml"
 )
+
+// All returns a new slice containing all format.Format values.
+func All() []Format {
+	return []Format{
+		JSON,
+		JSONL,
+		JSONA,
+		Table,
+		Raw,
+		HTML,
+		Markdown,
+		XLSX,
+		XML,
+		CSV,
+		TSV,
+		YAML,
+	}
+}

@@ -307,7 +307,7 @@ func (op FormatOpt) Process(o options.Options) (options.Options, error) {
 
 	var f format.Format
 	if err := f.UnmarshalText([]byte(s)); err != nil {
-		return nil, errz.Wrapf(err, "option {%s} should is not a valid {%T}: %v", op.key, f, s)
+		return nil, errz.Wrapf(err, "option {%s} is not a valid {%T}", op.key, f)
 	}
 
 	o = o.Clone()

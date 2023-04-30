@@ -210,6 +210,7 @@ func newCommandTree(rc *RunContext) (rootCmd *cobra.Command) {
 
 	configCmd := addCmd(rc, rootCmd, newConfigCmd())
 	addCmd(rc, configCmd, newConfigGetCmd())
+	addCmd(rc, configCmd, newConfigSetCmd())
 	addCmd(rc, configCmd, newConfigLocationCmd())
 	addCmd(rc, configCmd, newConfigEditCmd())
 
