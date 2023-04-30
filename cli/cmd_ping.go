@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/neilotoole/sq/libsq/core/options"
@@ -116,7 +117,7 @@ func execPing(cmd *cobra.Command, args []string) error {
 	}
 	timeout := OptPingTimeout.Get(cmdOpts)
 
-	logFrom(cmd).Debug("Using ping timeout", lga.Val, timeout)
+	logFrom(cmd).Debug("Using ping timeout", lga.Val, fmt.Sprintf("%v", timeout))
 
 	err = pingSources(cmd.Context(), rc.driverReg, srcs, rc.writers.pingw, timeout)
 	if errors.Is(err, context.Canceled) {

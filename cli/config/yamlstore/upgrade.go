@@ -129,57 +129,44 @@ func LoadVersionFromFile(path string) (string, error) {
 		return "", errz.Wrap(err, "failed to unmarshal config YAML")
 	}
 
-	if v, ok := m["version"]; ok {
-		// Legacy "version" field.
-		s, ok := v.(string)
-		if !ok {
-			return "", errz.Errorf("invalid value for 'version' field: %s", v)
-		}
+	// These are all the historical names for the version field
+	// in the config YAML.
+	candidates := []string{"version", "config_version", "config.version"}
 
-		s = strings.TrimSpace(s)
-		if s == "" {
-			// We could return an error here, but it's probably slightly
-			// better to carry on in the absence of the version.
-			return MinConfigVersion, nil
-		}
+	for _, field := range candidates {
+		if v, ok := m[field]; ok {
+			// Legacy "version" field.
+			s, ok := v.(string)
+			if !ok {
+				return "", errz.Errorf("invalid value for {%s} field: %s", field, v)
+			}
 
-		if !semver.IsValid(s) {
-			return "", errz.Errorf("invalid semver value for 'version' field: %s", s)
-		}
+			s = strings.TrimSpace(s)
+			if s == "" {
+				continue
+			}
 
-		return s, nil
+			if !semver.IsValid(s) {
+				return "", errz.Errorf("invalid semver value for {%s} field: %s", field, s)
+			}
+
+			return s, nil
+		}
 	}
 
-	if v, ok := m["config_version"]; ok {
-		s, ok := v.(string)
-		if !ok {
-			return "", errz.Errorf("invalid value for 'config_version' field: %s", v)
-		}
-
-		s = strings.TrimSpace(s)
-		if s == "" {
-			// We could return an error here, but it's probably slightly
-			// better to carry on in the absence of the version.
-			return MinConfigVersion, nil
-		}
-
-		if !semver.IsValid(s) {
-			return "", errz.Errorf("invalid semver value for 'config_version' field: %s", s)
-		}
-
-		return s, nil
-	}
-
-	return MinConfigVersion, nil
+	return "", errz.Errorf("config file does not have a version field: %v", path)
 }
 
 // checkNeedsUpgrade checks on the config version, returning needsUpgrade
 // if applicable. The returned foundVers is a valid semver.
-func checkNeedsUpgrade(path string) (needsUpgrade bool, foundVers string, err error) {
+func checkNeedsUpgrade(ctx context.Context, path string) (needsUpgrade bool, foundVers string, err error) {
 	foundVers, err = LoadVersionFromFile(path)
 	if err != nil {
 		return false, "", err
 	}
+
+	lg.From(ctx).Debug("Found config version in file",
+		lga.Version, foundVers, lga.Path, path)
 
 	if semver.Compare(foundVers, MinConfigVersion) < 0 {
 		return false, foundVers, errz.Errorf("version %q is less than minimum value %q",

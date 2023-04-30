@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -26,7 +27,7 @@ func defaultLogging(ctx context.Context) (log *slog.Logger, h slog.Handler, clos
 		return lg.Discard(), nil, nil, nil
 	}
 
-	lg.From(ctx).Debug("Logging: enabled via envar", lga.Key, config.EnvarLogPath)
+	lg.From(ctx).Debug("Logging: enabled via envar", lga.Key, config.EnvarLogPath, lga.Val, logFilePath)
 
 	// Let's try to create the dir holding the logfile... if it already exists,
 	// then os.MkdirAll will just no-op
@@ -42,31 +43,44 @@ func defaultLogging(ctx context.Context) (log *slog.Logger, h slog.Handler, clos
 	}
 	closer = logFile.Close
 
-	h = slog.HandlerOptions{
-		AddSource:   true,
-		Level:       slog.LevelDebug,
-		ReplaceAttr: logSourceReplace,
-	}.NewJSONHandler(logFile)
-
+	h = newJSONHandler(logFile)
 	return slog.New(h), h, closer, nil
 }
 
 func stderrLogger() (*slog.Logger, slog.Handler) {
-	h := slog.HandlerOptions{
-		AddSource:   true,
-		Level:       slog.LevelDebug,
-		ReplaceAttr: logSourceReplace,
-	}.NewJSONHandler(os.Stderr)
+	h := newJSONHandler(os.Stderr)
 	return slog.New(h), h
 }
 
-// logSourceReplace overrides the default slog.SourceKey attr
+func newJSONHandler(w io.Writer) slog.Handler {
+	return slog.HandlerOptions{
+		AddSource:   true,
+		Level:       slog.LevelDebug,
+		ReplaceAttr: slogReplaceAttrs,
+	}.NewJSONHandler(w)
+}
+
+func slogReplaceAttrs(groups []string, a slog.Attr) slog.Attr {
+	a = slogReplaceSource(groups, a)
+	a = slogReplaceDuration(groups, a)
+	return a
+}
+
+// slogReplaceSource overrides the default slog.SourceKey attr
 // to print "pkg/file.go" instead.
-func logSourceReplace(_ []string, a slog.Attr) slog.Attr {
+func slogReplaceSource(_ []string, a slog.Attr) slog.Attr {
 	// We want source to be "pkg/file.go".
 	if a.Key == slog.SourceKey {
 		fp := a.Value.String()
 		a.Value = slog.StringValue(filepath.Join(filepath.Base(filepath.Dir(fp)), filepath.Base(fp)))
+	}
+	return a
+}
+
+// slogReplaceDuration prints the friendly version of duration.
+func slogReplaceDuration(_ []string, a slog.Attr) slog.Attr {
+	if a.Value.Kind() == slog.KindDuration {
+		a.Value = slog.StringValue(a.Value.Duration().String())
 	}
 	return a
 }

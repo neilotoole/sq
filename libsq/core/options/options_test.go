@@ -156,3 +156,13 @@ func TestOptions_LogValue(t *testing.T) {
 
 	log.Debug("Logging options", lga.Opts, o1)
 }
+
+func TestEffective(t *testing.T) {
+	optHello := options.NewString("hello", "world", "")
+	optCount := options.NewInt("count", 1, "")
+
+	in := options.Options{"count": 7}
+	want := options.Options{"count": 7, "hello": "world"}
+	got := options.Effective(in, optHello, optCount)
+	require.Equal(t, want, got)
+}

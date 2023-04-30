@@ -9,8 +9,6 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/options"
-	"github.com/samber/lo"
-
 	"github.com/neilotoole/sq/libsq/driver/dialect"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -32,27 +30,21 @@ import (
 
 // ConfigureDB configures DB using o. It is no-op if o is nil.
 func ConfigureDB(ctx context.Context, db *sql.DB, o options.Options) {
-	if o == nil {
-		return
-	}
-
-	o2 := lo.PickBy(o, func(key string, value any) bool {
-		return strings.HasPrefix(key, "conn.")
-	})
+	o2 := options.Effective(o, OptConnMaxOpen, OptConnMaxIdle, OptConnMaxIdleTime, OptConnMaxLifetime)
 
 	lg.From(ctx).Debug("Setting config on DB conn", "config", o2)
 
-	db.SetMaxOpenConns(OptConnMaxOpen.Get(o))
-	db.SetMaxIdleConns(OptConnMaxIdle.Get(o))
-	db.SetConnMaxIdleTime(OptConnMaxIdleTime.Get(o))
-	db.SetConnMaxLifetime(OptConnMaxLifetime.Get(o))
+	db.SetMaxOpenConns(OptConnMaxOpen.Get(o2))
+	db.SetMaxIdleConns(OptConnMaxIdle.Get(o2))
+	db.SetConnMaxIdleTime(OptConnMaxIdleTime.Get(o2))
+	db.SetConnMaxLifetime(OptConnMaxLifetime.Get(o2))
 }
 
 var (
 	// OptConnMaxOpen controls sql.DB.SetMaxOpenConn.
 	OptConnMaxOpen = options.NewInt(
 		"conn.max-open",
-		3,
+		10,
 		"",
 		"source", "sql",
 	)

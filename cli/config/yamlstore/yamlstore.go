@@ -63,7 +63,7 @@ func (fs *Store) Load(ctx context.Context, optsReg *options.Registry) (*config.C
 	log.Debug("Loading config from file", lga.Path, fs.Path)
 
 	if fs.UpgradeRegistry != nil {
-		mightNeedUpgrade, foundVers, err := checkNeedsUpgrade(fs.Path)
+		mightNeedUpgrade, foundVers, err := checkNeedsUpgrade(ctx, fs.Path)
 		if err != nil {
 			return nil, errz.Wrapf(err, "config: %s", fs.Path)
 		}

@@ -324,6 +324,11 @@ func getDBVarsMeta(ctx context.Context, db sqlz.DB) ([]source.DBVar, error) {
 }
 
 // getAllTblMetas returns TableMetadata for each table/view in db.
+//
+// NOTE: getAllTblMetas has the potential to become deadlocked. It spawns
+// a number of goroutines, which can bump up against the max conn limit.
+// This function should be revisited to see if there's a better way
+// to implement it.
 func getAllTblMetas(ctx context.Context, db sqlz.DB) ([]*source.TableMetadata, error) {
 	log := lg.From(ctx)
 

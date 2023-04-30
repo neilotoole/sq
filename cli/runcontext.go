@@ -138,8 +138,10 @@ func newDefaultRunContext(ctx context.Context,
 		v0_34_0.Version: v0_34_0.Upgrade,
 	}
 
+	ctx = lg.NewContext(ctx, log)
+
 	var configErr error
-	rc.Config, rc.ConfigStore, configErr = yamlstore.Load(lg.NewContext(ctx, log),
+	rc.Config, rc.ConfigStore, configErr = yamlstore.Load(ctx,
 		args, rc.OptionsRegistry, upgrades)
 
 	log, logHandler, logCloser, logErr := defaultLogging(ctx)
