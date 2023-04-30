@@ -410,7 +410,7 @@ func (bi BatchInsert) Munge(rec []any) error {
 func NewBatchInsert(ctx context.Context, drvr SQLDriver, db sqlz.DB,
 	destTbl string, destColNames []string, batchSize int,
 ) (*BatchInsert, error) {
-	log := lg.FromContext(ctx)
+	log := lg.From(ctx)
 
 	err := requireSingleConn(db)
 	if err != nil {

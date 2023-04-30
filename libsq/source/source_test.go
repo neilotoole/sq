@@ -3,7 +3,10 @@ package source_test
 import (
 	"testing"
 
+	"github.com/neilotoole/slogt"
 	"github.com/neilotoole/sq/drivers/sqlite3"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/testh/proj"
 
 	"github.com/neilotoole/sq/testh/tutil"
@@ -540,4 +543,21 @@ func TestCollection_Tree(t *testing.T) {
 	require.Equal(t, directGroupCount, len(gotTree.Groups))
 	require.Equal(t, 1, allGroupCount)
 	require.False(t, gotTree.Active)
+}
+
+func TestSource_LogValue(t *testing.T) {
+	log := slogt.New(t)
+
+	src := &source.Source{
+		Handle:   "@sakila",
+		Type:     sqlite3.Type,
+		Location: "/tmp/sakila.db",
+		Options:  nil,
+	}
+
+	log.Debug("src with nil Options", lga.Src, src)
+
+	src.Options = options.Options{"a": 1, "b": true, "c": "hello"}
+
+	log.Debug("src with non-nil Options", lga.Src, src)
 }

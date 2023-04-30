@@ -36,7 +36,7 @@ func Import(ctx context.Context, def *userdriver.DriverDef, data io.Reader, dest
 	}
 
 	im := &importer{
-		log:           lg.FromContext(ctx),
+		log:           lg.From(ctx),
 		def:           def,
 		selStack:      newSelStack(),
 		rowStack:      newRowStack(),

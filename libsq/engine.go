@@ -47,7 +47,7 @@ type engine struct {
 }
 
 func newEngine(ctx context.Context, qc *QueryContext, query string) (*engine, error) {
-	log := lg.FromContext(ctx)
+	log := lg.From(ctx)
 
 	a, err := ast.Parse(log, query)
 	if err != nil {
@@ -295,7 +295,7 @@ func (jt *joinCopyTask) executeTask(ctx context.Context) error {
 func execCopyTable(ctx context.Context, fromDB driver.Database, fromTblName string,
 	destDB driver.Database, destTblName string,
 ) error {
-	log := lg.FromContext(ctx)
+	log := lg.From(ctx)
 
 	createTblHook := func(ctx context.Context, originRecMeta sqlz.RecordMeta, destDB driver.Database,
 		tx sqlz.DB,
@@ -312,7 +312,7 @@ func execCopyTable(ctx context.Context, fromDB driver.Database, fromTblName stri
 		return nil
 	}
 
-	inserter := NewDBWriter(log, destDB, destTblName, driver.Tuning.RecordChSize, createTblHook)
+	inserter := NewDBWriter(destDB, destTblName, driver.Tuning.RecordChSize, createTblHook)
 
 	query := "SELECT * FROM " + fromDB.SQLDriver().Dialect().Enquote(fromTblName)
 	err := QuerySQL(ctx, fromDB, inserter, query)

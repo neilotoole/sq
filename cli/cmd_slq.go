@@ -7,7 +7,6 @@ import (
 
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/drivers/csv"
-
 	"golang.org/x/exp/slices"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
@@ -154,7 +153,6 @@ func execSLQInsert(ctx context.Context, rc *RunContext, mArgs map[string]string,
 	// stack.
 
 	inserter := libsq.NewDBWriter(
-		rc.Log,
 		destDB,
 		destTbl,
 		driver.Tuning.RecordChSize,
@@ -231,7 +229,7 @@ func execSLQPrint(ctx context.Context, rc *RunContext, mArgs map[string]string) 
 //
 //	$ sq '.person'  -->  $ sq '@active.person'
 func preprocessUserSLQ(ctx context.Context, rc *RunContext, args []string) (string, error) {
-	log, reg, dbases, coll := rc.Log, rc.driverReg, rc.databases, rc.Config.Collection
+	log, reg, dbases, coll := lg.From(ctx), rc.driverReg, rc.databases, rc.Config.Collection
 	activeSrc := coll.Active()
 
 	if len(args) == 0 {
@@ -408,7 +406,7 @@ func extractFlagArgsValues(cmd *cobra.Command) (map[string]string, error) {
 			// If the key already exists, don't overwrite. This mimics jq's
 			// behavior.
 
-			log := lg.FromContext(cmd.Context())
+			log := logFrom(cmd)
 			log.With("arg", k).Warn("Double use of --arg key; using first value.")
 
 			continue

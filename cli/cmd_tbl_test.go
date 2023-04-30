@@ -10,9 +10,7 @@ import (
 	"github.com/neilotoole/sq/testh/sakila"
 )
 
-func TestCmdTblCopy(t *testing.T) {
-	t.Parallel()
-
+func TestCmdTblCopy(t *testing.T) { //nolint:tparallel
 	for _, handle := range sakila.SQLAll() {
 		handle := handle
 
@@ -43,9 +41,7 @@ func TestCmdTblCopy(t *testing.T) {
 	}
 }
 
-func TestCmdTblDrop(t *testing.T) {
-	t.Parallel()
-
+func TestCmdTblDrop(t *testing.T) { //nolint:tparallel
 	for _, handle := range sakila.SQLAll() {
 		handle := handle
 

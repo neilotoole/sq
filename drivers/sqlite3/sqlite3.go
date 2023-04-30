@@ -85,9 +85,18 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 }
 
 // Open implements driver.DatabaseOpener.
-func (d *driveri) Open(_ context.Context, src *source.Source) (driver.Database, error) {
-	d.log.Debug(lgm.OpenSrc, lga.Src, src)
+func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
+	lg.From(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
+	db, err := d.doOpen(ctx, src)
+	if err != nil {
+		return nil, err
+	}
+
+	return &database{log: d.log, db: db, src: src, drvr: d}, nil
+}
+
+func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
 	dsn, err := PathFromLocation(src)
 	if err != nil {
 		return nil, err
@@ -97,19 +106,15 @@ func (d *driveri) Open(_ context.Context, src *source.Source) (driver.Database, 
 		return nil, errz.Wrapf(err, "failed to open sqlite3 source with DSN: %s", dsn)
 	}
 
-	return &database{log: d.log, db: db, src: src, drvr: d}, nil
+	driver.ConfigureDB(ctx, db, src.Options)
+	return db, nil
 }
 
 // Truncate implements driver.Driver.
 func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, reset bool) (affected int64,
 	err error,
 ) {
-	dsn, err := PathFromLocation(src)
-	if err != nil {
-		return 0, err
-	}
-
-	db, err := sql.Open(dbDrvr, dsn)
+	db, err := d.doOpen(ctx, src)
 	if err != nil {
 		return 0, errz.Err(err)
 	}
@@ -845,7 +850,8 @@ func (d *database) Close() error {
 // function creates a new sqlite db file in the temp dir, and
 // src points at this file. The returned clnup func closes that
 // db file and deletes it.
-func NewScratchSource(log *slog.Logger, name string) (src *source.Source, clnup func() error, err error) {
+func NewScratchSource(ctx context.Context, name string) (src *source.Source, clnup func() error, err error) {
+	log := lg.From(ctx)
 	name = stringz.SanitizeAlphaNumeric(name, '_')
 	_, f, cleanFn, err := source.TempDirFile(name + ".sqlite")
 	if err != nil {

@@ -11,7 +11,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/neilotoole/slogt"
 	"github.com/neilotoole/sq/cli/config/yamlstore"
 	"github.com/neilotoole/sq/libsq/core/options"
 
@@ -55,7 +54,6 @@ func newTestRunCtx(ctx context.Context, t testing.TB, cfgStore config.Store,
 		Stdin:           os.Stdin,
 		Out:             out,
 		ErrOut:          errOut,
-		Log:             slogt.New(t),
 		Config:          cfg,
 		ConfigStore:     cfgStore,
 		OptionsRegistry: optsReg,
@@ -67,6 +65,7 @@ func newTestRunCtx(ctx context.Context, t testing.TB, cfgStore config.Store,
 // run is a helper for testing sq commands.
 type Run struct {
 	t      *testing.T
+	ctx    context.Context
 	mu     sync.Mutex
 	rc     *cli.RunContext
 	out    *bytes.Buffer
@@ -81,7 +80,8 @@ type Run struct {
 // If from is non-nil, its config is used. This allows sequential
 // commands to use the same config.
 func newRun(ctx context.Context, t *testing.T, from *Run) *Run {
-	ru := &Run{t: t}
+	ru := &Run{t: t, ctx: ctx}
+
 	var cfgStore config.Store
 	if from != nil {
 		cfgStore = from.rc.ConfigStore

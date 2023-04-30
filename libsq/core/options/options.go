@@ -15,6 +15,7 @@ package options
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"golang.org/x/exp/slog"
 
@@ -109,8 +110,8 @@ func (r *Registry) Opts() []Opt {
 // registered Opts, and invokes Process for each Opt that implements Processor.
 // This facilitates munging of underlying values, e.g. for options.Duration, a
 // string "1m30s" is converted to a time.Duration.
-func (r *Registry) Process(options Options) (Options, error) {
-	return process(options, r.Opts())
+func (r *Registry) Process(o Options) (Options, error) {
+	return process(o, r.Opts())
 }
 
 func process(options Options, opts []Opt) (Options, error) {
@@ -167,6 +168,31 @@ func (o Options) IsSet(opt Opt) bool {
 	return ok
 }
 
+// LogValue implements slog.LogValuer.
+func (o Options) LogValue() slog.Value {
+	if o == nil {
+		return slog.Value{}
+	}
+
+	attrs := make([]slog.Attr, 0, len(o))
+	for k, v := range o {
+		switch v := v.(type) {
+		case int:
+			attrs = append(attrs, slog.Int(k, v))
+		case string:
+			attrs = append(attrs, slog.String(k, v))
+		case bool:
+			attrs = append(attrs, slog.Bool(k, v))
+		case time.Duration:
+			attrs = append(attrs, slog.Duration(k, v))
+		default:
+			attrs = append(attrs, slog.Any(k, v))
+		}
+	}
+
+	return slog.GroupValue(attrs...)
+}
+
 // Merge overlays each of overlays onto base, returning a new Options.
 func Merge(base Options, overlays ...Options) Options {
 	o := base.Clone()
@@ -176,6 +202,19 @@ func Merge(base Options, overlays ...Options) Options {
 		}
 	}
 	return o
+}
+
+// Effective returns a new Options containing the effective values
+// of each Opt. That is to say, the returned Options contains either
+// the actual value of each Opt in o, or the default value for that Opt,
+// but it will not contain values for any Opt not in opts.
+func Effective(o Options, opts ...Opt) Options {
+	o2 := Options{}
+	for _, opt := range opts {
+		v := opt.GetAny(o)
+		o2[opt.Key()] = v
+	}
+	return o2
 }
 
 // Processor performs processing on o.

@@ -23,7 +23,6 @@ import (
 	"github.com/neilotoole/sq/cli/output/xlsxw"
 	"github.com/neilotoole/sq/cli/output/xmlw"
 	"github.com/neilotoole/sq/cli/output/yamlw"
-	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/spf13/cobra"
 )
 
@@ -62,7 +61,7 @@ func newWriters(cmd *cobra.Command, opts options.Options, out, errOut io.Writer,
 ) (w *writers, out2, errOut2 io.Writer) {
 	var pr *output.Printing
 	pr, out2, errOut2 = getPrinting(cmd, opts, out, errOut)
-	log := lg.FromContext(cmd.Context())
+	log := logFrom(cmd)
 
 	// Package tablew has writer impls for each of the writer interfaces,
 	// so we use its writers as the baseline. Later we check the format
@@ -247,7 +246,7 @@ func getFormat(cmd *cobra.Command, defaults options.Options) format.Format {
 
 var _ options.Opt = FormatOpt{}
 
-// NewFormatOpt returns an options.FormatOpt instance.
+// NewFormatOpt returns a new FormatOpt instance.
 func NewFormatOpt(key string, defaultVal format.Format, comment string, tags ...string) FormatOpt {
 	return FormatOpt{key: key, defaultVal: defaultVal, comment: comment, tags: tags}
 }
@@ -261,41 +260,41 @@ type FormatOpt struct {
 }
 
 // Tags implements options.Opt.
-func (o FormatOpt) Tags() []string {
-	return o.tags
+func (op FormatOpt) Tags() []string {
+	return op.tags
 }
 
 // Key implements options.Opt.
-func (o FormatOpt) Key() string {
-	return o.key
+func (op FormatOpt) Key() string {
+	return op.key
 }
 
 // String implements options.Opt.
-func (o FormatOpt) String() string {
-	return o.key
+func (op FormatOpt) String() string {
+	return op.key
 }
 
 // IsSet implements options.Opt.
-func (o FormatOpt) IsSet(opts options.Options) bool {
-	if opts == nil {
+func (op FormatOpt) IsSet(o options.Options) bool {
+	if o == nil {
 		return false
 	}
 
-	return opts.IsSet(o)
+	return o.IsSet(op)
 }
 
 // Process implements options.Processor. It converts matching
-// string values in opts into format.Format. If no match found,
+// string values in o into format.Format. If no match found,
 // the input arg is returned unchanged. Otherwise, a clone is
 // returned.
-func (o FormatOpt) Process(opts options.Options) (options.Options, error) {
-	if opts == nil {
+func (op FormatOpt) Process(o options.Options) (options.Options, error) {
+	if o == nil {
 		return nil, nil
 	}
 
-	v, ok := opts[o.key]
+	v, ok := o[op.key]
 	if !ok || v == nil {
-		return opts, nil
+		return o, nil
 	}
 
 	// v should be a string
@@ -303,35 +302,40 @@ func (o FormatOpt) Process(opts options.Options) (options.Options, error) {
 	s, ok = v.(string)
 	if !ok {
 		return nil, errz.Errorf("option {%s} should be {%T} but got {%T}: %v",
-			o.key, s, v, v)
+			op.key, s, v, v)
 	}
 
 	var f format.Format
 	if err := f.UnmarshalText([]byte(s)); err != nil {
-		return nil, errz.Wrapf(err, "option {%s} should is not a valid {%T}: %v", o.key, f, s)
+		return nil, errz.Wrapf(err, "option {%s} should is not a valid {%T}: %v", op.key, f, s)
 	}
 
-	opts = opts.Clone()
-	opts[o.key] = f
-	return opts, nil
+	o = o.Clone()
+	o[op.key] = f
+	return o, nil
 }
 
-// Get returns o's value in opts. If opts is nil, or no value
-// is set, o's default value is returned.
-func (o FormatOpt) Get(opts options.Options) format.Format {
-	if opts == nil {
-		return o.defaultVal
+// GetAny implements options.Opt.
+func (op FormatOpt) GetAny(o options.Options) any {
+	return op.Get(o)
+}
+
+// Get returns op's value in o. If o is nil, or no value
+// is set, op's default value is returned.
+func (op FormatOpt) Get(o options.Options) format.Format {
+	if o == nil {
+		return op.defaultVal
 	}
 
-	v, ok := opts[o.key]
+	v, ok := o[op.key]
 	if !ok {
-		return o.defaultVal
+		return op.defaultVal
 	}
 
 	var f format.Format
 	f, ok = v.(format.Format)
 	if !ok {
-		return o.defaultVal
+		return op.defaultVal
 	}
 
 	return f

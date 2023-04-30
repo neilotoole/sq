@@ -11,9 +11,11 @@ import (
 
 // Opt is an option type. Concrete impls exist for various types,
 // such as options.Int or options.Duration. Each concrete type must implement
-// a "Get(o Options) T" method that returns the appropriate type T. It
-// should also provide a NewT(...) T constructor. The caller typically
-// registers the new Opt in a options.Registry via Registry.Add.
+// a "Get(o Options) T" method that returns the appropriate type T. The
+// value returned by that Get method will be the same as that returned
+// by the generic Opt.GetAny method. The impl should also provide a NewT(...) T
+// constructor. The caller typically registers the new Opt in a options.Registry
+// via Registry.Add.
 //
 // An impl can (optionally) implement options.Processor if it needs
 // to munge the underlying value. For example, options.Duration converts a
@@ -25,8 +27,12 @@ type Opt interface {
 	// String returns a log/debug friendly representation.
 	String() string
 
-	// IsSet returns true if this Opt is set in opts.
-	IsSet(opts Options) bool
+	// IsSet returns true if this Opt is set in o.
+	IsSet(o Options) bool
+
+	// GetAny returns the value of this Opt in o. Generally, prefer
+	// use of the concrete strongly-typed Get method.
+	GetAny(o Options) any
 
 	// Tags returns any tags on this Opt instance. For example, an Opt might
 	// have tags [source, csv].
@@ -40,27 +46,33 @@ type baseOpt struct {
 }
 
 // Key implements options.Opt.
-func (o baseOpt) Key() string {
-	return o.key
+func (op baseOpt) Key() string {
+	return op.key
 }
 
 // IsSet implements options.Opt.
-func (o baseOpt) IsSet(opts Options) bool {
-	if opts == nil {
+func (op baseOpt) IsSet(o Options) bool {
+	if o == nil {
 		return false
 	}
 
-	return opts.IsSet(o)
+	return o.IsSet(op)
+}
+
+// GetAny is required by options.Opt. It needs to be implemented
+// by the concrete type.
+func (op baseOpt) GetAny(_ Options) any {
+	panic("not implemented")
 }
 
 // String implements options.Opt.
-func (o baseOpt) String() string {
-	return o.key
+func (op baseOpt) String() string {
+	return op.key
 }
 
 // Tags implements options.Opt.
-func (o baseOpt) Tags() []string {
-	return o.tags
+func (op baseOpt) Tags() []string {
+	return op.tags
 }
 
 var _ Opt = String{}
@@ -79,22 +91,27 @@ type String struct {
 	defaultVal string
 }
 
-// Get returns o's value in opts. If opts is nil, or no value
-// is set, o's default value is returned.
-func (o String) Get(opts Options) string {
-	if opts == nil {
-		return o.defaultVal
+// GetAny implements options.Opt.
+func (op String) GetAny(o Options) any {
+	return op.Get(o)
+}
+
+// Get returns op's value in o. If o is nil, or no value
+// is set, op's default value is returned.
+func (op String) Get(o Options) string {
+	if o == nil {
+		return op.defaultVal
 	}
 
-	v, ok := opts[o.key]
+	v, ok := o[op.key]
 	if !ok {
-		return o.defaultVal
+		return op.defaultVal
 	}
 
 	var s string
 	s, ok = v.(string)
 	if !ok {
-		return o.defaultVal
+		return op.defaultVal
 	}
 
 	return s
@@ -116,16 +133,21 @@ type Int struct {
 	defaultVal int
 }
 
-// Get returns o's value in opts. If opts is nil, or no value
-// is set, o's default value is returned.
-func (o Int) Get(opts Options) int {
-	if opts == nil {
-		return o.defaultVal
+// GetAny implements options.Opt.
+func (op Int) GetAny(o Options) any {
+	return op.Get(o)
+}
+
+// Get returns op's value in o. If o is nil, or no value
+// is set, op's default value is returned.
+func (op Int) Get(o Options) int {
+	if o == nil {
+		return op.defaultVal
 	}
 
-	v, ok := opts[o.key]
+	v, ok := o[op.key]
 	if !ok || v == nil {
-		return o.defaultVal
+		return op.defaultVal
 	}
 
 	switch i := v.(type) {
@@ -138,30 +160,30 @@ func (o Int) Get(opts Options) int {
 	case uint:
 		return int(i)
 	default:
-		return o.defaultVal
+		return op.defaultVal
 	}
 }
 
 // Process implements options.Processor. It converts matching
-// values in opts into bool. If no match found,
+// values in o into bool. If no match found,
 // the input arg is returned unchanged. Otherwise, a clone is
 // returned.
-func (o Int) Process(opts Options) (Options, error) {
-	if opts == nil {
+func (op Int) Process(o Options) (Options, error) {
+	if o == nil {
 		return nil, nil //nolint:nilnil
 	}
 
-	v, ok := opts[o.key]
+	v, ok := o[op.key]
 	if !ok || v == nil {
-		return opts, nil
+		return o, nil
 	}
 
 	if _, ok = v.(int); ok {
 		// Happy path
-		return opts, nil
+		return o, nil
 	}
 
-	opts = opts.Clone()
+	o = o.Clone()
 
 	var i int
 	switch v := v.(type) {
@@ -190,13 +212,13 @@ func (o Int) Process(opts Options) (Options, error) {
 	case string:
 		if v == "" {
 			// Empty string is effectively nil
-			delete(opts, o.key)
-			return opts, nil
+			delete(o, op.key)
+			return o, nil
 		}
 
 		var err error
 		if i, err = strconv.Atoi(v); err != nil {
-			return nil, errz.Wrapf(err, "invalid int value for {%s}: %v", o.key, v)
+			return nil, errz.Wrapf(err, "invalid int value for {%s}: %v", op.key, v)
 		}
 	default:
 		// This shouldn't happen, but it's a last-ditch effort.
@@ -204,12 +226,12 @@ func (o Int) Process(opts Options) (Options, error) {
 		s := fmt.Sprintf("%v", v)
 		var err error
 		if i, err = strconv.Atoi(s); err != nil {
-			return nil, errz.Wrapf(err, "invalid int value for {%s}: %v", o.key, v)
+			return nil, errz.Wrapf(err, "invalid int value for {%s}: %v", op.key, v)
 		}
 	}
 
-	opts[o.key] = i
-	return opts, nil
+	o[op.key] = i
+	return o, nil
 }
 
 var _ Opt = Bool{}
@@ -228,62 +250,67 @@ type Bool struct {
 	defaultVal bool
 }
 
-// Get returns o's value in opts. If opts is nil, or no value
-// is set, o's default value is returned.
-func (o Bool) Get(opts Options) bool {
-	if opts == nil {
-		return o.defaultVal
+// GetAny implements options.Opt.
+func (op Bool) GetAny(opts Options) any {
+	return op.Get(opts)
+}
+
+// Get returns op's value in o. If o is nil, or no value
+// is set, op's default value is returned.
+func (op Bool) Get(o Options) bool {
+	if o == nil {
+		return op.defaultVal
 	}
 
-	v, ok := opts[o.key]
+	v, ok := o[op.key]
 	if !ok || v == nil {
-		return o.defaultVal
+		return op.defaultVal
 	}
 
 	var b bool
 	b, ok = v.(bool)
 	if !ok {
-		return o.defaultVal
+		return op.defaultVal
 	}
 
 	return b
 }
 
 // Process implements options.Processor. It converts matching
-// string values in opts into bool. If no match found,
+// string values in o into bool. If no match found,
 // the input arg is returned unchanged. Otherwise, a clone is
 // returned.
-func (o Bool) Process(opts Options) (Options, error) {
-	if opts == nil {
+func (op Bool) Process(o Options) (Options, error) {
+	if o == nil {
 		return nil, nil //nolint:nilnil
 	}
 
-	v, ok := opts[o.key]
+	v, ok := o[op.key]
 	if !ok || v == nil {
-		return opts, nil
+		return o, nil
 	}
 
 	if _, ok = v.(bool); ok {
 		// Happy path
-		return opts, nil
+		return o, nil
 	}
 
-	opts = opts.Clone()
+	o = o.Clone()
 
 	switch v := v.(type) {
 	case string:
 		if v == "" {
 			// Empty string is effectively nil
-			delete(opts, o.key)
-			return opts, nil
+			delete(o, op.key)
+			return o, nil
 		}
 
 		// It could be a string like "true"
 		b, err := stringz.ParseBool(v)
 		if err != nil {
-			return nil, errz.Wrapf(err, "invalid bool value for {%s}: %v", o.key, v)
+			return nil, errz.Wrapf(err, "invalid bool value for {%s}: %v", op.key, v)
 		}
-		opts[o.key] = b
+		o[op.key] = b
 	default:
 		// Well, we don't know what this is... maybe a number like "1"?
 		// Last-ditch effort. Print the value to a string, and check
@@ -291,12 +318,12 @@ func (o Bool) Process(opts Options) (Options, error) {
 		s := fmt.Sprintf("%v", v)
 		b, err := stringz.ParseBool(s)
 		if err != nil {
-			return nil, errz.Wrapf(err, "invalid bool value for {%s}: %v", o.key, v)
+			return nil, errz.Wrapf(err, "invalid bool value for {%s}: %v", op.key, v)
 		}
-		opts[o.key] = b
+		o[op.key] = b
 	}
 
-	return opts, nil
+	return o, nil
 }
 
 var _ Opt = Duration{}
@@ -316,17 +343,17 @@ type Duration struct {
 }
 
 // Process implements options.Processor. It converts matching
-// string values in opts into time.Duration. If no match found,
+// string values in o into time.Duration. If no match found,
 // the input arg is returned unchanged. Otherwise, a clone is
 // returned.
-func (o Duration) Process(opts Options) (Options, error) {
-	if opts == nil {
+func (op Duration) Process(o Options) (Options, error) {
+	if o == nil {
 		return nil, nil //nolint:nilnil
 	}
 
-	v, ok := opts[o.key]
+	v, ok := o[op.key]
 	if !ok || v == nil {
-		return opts, nil
+		return o, nil
 	}
 
 	// v should be a string
@@ -334,35 +361,40 @@ func (o Duration) Process(opts Options) (Options, error) {
 	s, ok = v.(string)
 	if !ok {
 		return nil, errz.Errorf("option {%s} should be {%T} but got {%T}: %v",
-			o.key, s, v, v)
+			op.key, s, v, v)
 	}
 
 	d, err := time.ParseDuration(s)
 	if err != nil {
-		return nil, errz.Wrapf(err, "options {%s} is not a valid duration", o.key)
+		return nil, errz.Wrapf(err, "options {%s} is not a valid duration", op.key)
 	}
 
-	opts = opts.Clone()
-	opts[o.key] = d
-	return opts, nil
+	o = o.Clone()
+	o[op.key] = d
+	return o, nil
 }
 
-// Get returns o's value in opts. If opts is nil, or no value
-// is set, o's default value is returned.
-func (o Duration) Get(opts Options) time.Duration {
-	if opts == nil {
-		return o.defaultVal
+// GetAny implements options.Opt.
+func (op Duration) GetAny(o Options) any {
+	return op.Get(o)
+}
+
+// Get returns op's value in o. If o is nil, or no value
+// is set, op's default value is returned.
+func (op Duration) Get(o Options) time.Duration {
+	if o == nil {
+		return op.defaultVal
 	}
 
-	v, ok := opts[o.key]
+	v, ok := o[op.key]
 	if !ok {
-		return o.defaultVal
+		return op.defaultVal
 	}
 
 	var d time.Duration
 	d, ok = v.(time.Duration)
 	if !ok {
-		return o.defaultVal
+		return op.defaultVal
 	}
 
 	return d

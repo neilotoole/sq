@@ -91,6 +91,7 @@ func (s *Source) LogValue() slog.Value {
 		slog.String(lga.Handle, s.Handle),
 		slog.String(lga.Driver, string(s.Type)),
 		slog.String(lga.Loc, s.RedactedLocation()),
+		slog.Any(lga.Opts, s.Options),
 	)
 }
 

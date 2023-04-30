@@ -29,7 +29,7 @@ import (
 
 // xlsxToScratch loads the data in xlFile into scratchDB.
 func xlsxToScratch(ctx context.Context, src *source.Source, xlFile *xlsx.File, scratchDB driver.Database) error {
-	log := lg.FromContext(ctx)
+	log := lg.From(ctx)
 	start := time.Now()
 	log.Debug("Beginning import from XLSX",
 		lga.Src, src,
@@ -91,7 +91,7 @@ func xlsxToScratch(ctx context.Context, src *source.Source, xlFile *xlsx.File, s
 func importSheetToTable(ctx context.Context, sheet *xlsx.Sheet, hasHeader bool,
 	scratchDB driver.Database, tblDef *sqlmodel.TableDef,
 ) error {
-	log := lg.FromContext(ctx)
+	log := lg.From(ctx)
 	startTime := time.Now()
 
 	conn, err := scratchDB.DB().Conn(ctx)
@@ -189,7 +189,7 @@ func buildTblDefsForSheets(ctx context.Context, sheets []*xlsx.Sheet, hasHeader 
 			default:
 			}
 
-			tblDef, err := buildTblDefForSheet(lg.FromContext(gCtx), sheets[i], hasHeader)
+			tblDef, err := buildTblDefForSheet(lg.From(gCtx), sheets[i], hasHeader)
 			if err != nil {
 				return err
 			}

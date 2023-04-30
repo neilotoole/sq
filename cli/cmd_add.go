@@ -235,7 +235,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	src, err := newSource(rc.Log, rc.driverReg, typ, handle, loc, opts)
+	src, err := newSource(cmd.Context(), rc.driverReg, typ, handle, loc, opts)
 	if err != nil {
 		return err
 	}

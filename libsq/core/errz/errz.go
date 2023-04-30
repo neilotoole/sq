@@ -9,6 +9,8 @@
 package errz
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 
@@ -75,4 +77,9 @@ func logValue(err error) slog.Value {
 	}
 
 	return slog.GroupValue(msgAttr, causeAttr, typeAttr)
+}
+
+// IsErrContextDeadlineExceeded returns true if err is context.DeadlineExceeded.
+func IsErrContextDeadlineExceeded(err error) bool {
+	return errors.Is(err, context.DeadlineExceeded)
 }

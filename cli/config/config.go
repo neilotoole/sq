@@ -14,8 +14,7 @@ import (
 )
 
 const (
-	EnvarLogPath     = "SQ_LOGFILE"
-	EnvarLogTruncate = "SQ_LOGFILE_TRUNCATE"
+	EnvarLogPath = "SQ_LOGFILE"
 
 	// EnvarConfigDir is the legacy envar for config location.
 	// Instead use EnvarConfig.

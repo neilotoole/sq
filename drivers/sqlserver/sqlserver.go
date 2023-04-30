@@ -43,8 +43,7 @@ var _ driver.Provider = (*Provider)(nil)
 
 // Provider is the SQL Server implementation of driver.Provider.
 type Provider struct {
-	Log       *slog.Logger
-	SQLConfig *driver.SQLConfig
+	Log *slog.Logger
 }
 
 // DriverFor implements driver.Provider.
@@ -53,15 +52,14 @@ func (p *Provider) DriverFor(typ source.DriverType) (driver.Driver, error) {
 		return nil, errz.Errorf("unsupported driver type {%s}}", typ)
 	}
 
-	return &driveri{log: p.Log, sqlConfig: p.SQLConfig}, nil
+	return &driveri{log: p.Log}, nil
 }
 
 var _ driver.SQLDriver = (*driveri)(nil)
 
 // driveri is the SQL Server implementation of driver.Driver.
 type driveri struct {
-	sqlConfig *driver.SQLConfig
-	log       *slog.Logger
+	log *slog.Logger
 }
 
 // DriverMetadata implements driver.SQLDriver.
@@ -122,12 +120,12 @@ func (d *driveri) Renderer() *render.Renderer {
 
 // Open implements driver.DatabaseOpener.
 func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
-	db, err := sql.Open(dbDrvr, src.Location)
-	if err != nil {
-		return nil, errz.Err(err)
-	}
+	lg.From(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
-	d.sqlConfig.Apply(db)
+	db, err := d.doOpen(ctx, src)
+	if err != nil {
+		return nil, err
+	}
 
 	err = db.PingContext(ctx)
 	if err != nil {
@@ -136,6 +134,16 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database
 	}
 
 	return &database{log: d.log, db: db, src: src, drvr: d}, nil
+}
+
+func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
+	db, err := sql.Open(dbDrvr, src.Location)
+	if err != nil {
+		return nil, errz.Err(err)
+	}
+
+	driver.ConfigureDB(ctx, db, src.Options)
+	return db, nil
 }
 
 // ValidateSource implements driver.Driver.
@@ -148,7 +156,7 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 
 // Ping implements driver.Driver.
 func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
-	db, err := sql.Open(dbDrvr, src.Location)
+	db, err := d.doOpen(ctx, src)
 	if err != nil {
 		return errz.Err(err)
 	}
@@ -178,7 +186,7 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 	//
 	// See: https://stackoverflow.com/questions/253849/cannot-truncate-table-because-it-is-being-referenced-by-a-foreign-key-constraint
 
-	db, err := sql.Open(dbDrvr, src.Location)
+	db, err := d.doOpen(ctx, src)
 	if err != nil {
 		return 0, errz.Err(err)
 	}

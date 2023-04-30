@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/neilotoole/slogt"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/testh/tutil"
 
 	"github.com/neilotoole/sq/cli"
@@ -147,4 +148,21 @@ func TestMerge(t *testing.T) {
 	got = options.Merge(o1, o2, o3)
 	require.NotEqual(t, o1, got)
 	require.Equal(t, got, options.Options{"a": 1, "b": 2, "c": 3})
+}
+
+func TestOptions_LogValue(t *testing.T) {
+	o1 := options.Options{"a": 1, "b": true, "c": "hello"}
+	log := slogt.New(t)
+
+	log.Debug("Logging options", lga.Opts, o1)
+}
+
+func TestEffective(t *testing.T) {
+	optHello := options.NewString("hello", "world", "")
+	optCount := options.NewInt("count", 1, "")
+
+	in := options.Options{"count": 7}
+	want := options.Options{"count": 7, "hello": "world"}
+	got := options.Effective(in, optHello, optCount)
+	require.Equal(t, want, got)
 }

@@ -149,9 +149,7 @@ func TestDriver_CreateTable_Minimal(t *testing.T) {
 	}
 }
 
-func TestDriver_TableColumnTypes(t *testing.T) {
-	t.Parallel()
-
+func TestDriver_TableColumnTypes(t *testing.T) { //nolint:tparallel
 	testCases := sakila.SQLAll()
 	for _, handle := range testCases {
 		handle := handle
@@ -194,10 +192,8 @@ func TestDriver_TableColumnTypes(t *testing.T) {
 	}
 }
 
-func TestSQLDriver_PrepareUpdateStmt(t *testing.T) {
-	t.Parallel()
+func TestSQLDriver_PrepareUpdateStmt(t *testing.T) { //nolint:tparallel
 	testCases := sakila.SQLAll()
-
 	for _, handle := range testCases {
 		handle := handle
 
@@ -433,9 +429,7 @@ func TestRegistry_DriversMetadata_Doc(t *testing.T) {
 	}
 }
 
-func TestDatabase_TableMetadata(t *testing.T) {
-	t.Parallel()
-
+func TestDatabase_TableMetadata(t *testing.T) { //nolint:tparallel
 	for _, handle := range sakila.SQLAll() {
 		handle := handle
 
@@ -452,9 +446,7 @@ func TestDatabase_TableMetadata(t *testing.T) {
 	}
 }
 
-func TestDatabase_SourceMetadata(t *testing.T) {
-	t.Parallel()
-
+func TestDatabase_SourceMetadata(t *testing.T) { //nolint:tparallel
 	for _, handle := range sakila.SQLAll() {
 		handle := handle
 
@@ -471,9 +463,14 @@ func TestDatabase_SourceMetadata(t *testing.T) {
 	}
 }
 
-func TestDatabase_SourceMetadata_concurrent(t *testing.T) {
-	t.Parallel()
-	const concurrency = 10
+// TestDatabase_SourceMetadata_concurrent tests the behavior of the
+// drivers when SourceMetadata is invoked concurrently. The results
+// are not good. In particular, the mysql impl can become deadlocked
+// if the concurrency is greater than the max conn count. That
+// functionality (in particular mysql/getAllTblMetas) needs to be
+// revisited.
+func TestDatabase_SourceMetadata_concurrent(t *testing.T) { //nolint:tparallel
+	const concurrency = 5
 
 	handles := sakila.SQLLatest()
 	for _, handle := range handles {

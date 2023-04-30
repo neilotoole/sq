@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/retry"
+
 	"github.com/neilotoole/sq/libsq/driver/dialect"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -42,8 +44,7 @@ var _ driver.Provider = (*Provider)(nil)
 
 // Provider is the MySQL implementation of driver.Provider.
 type Provider struct {
-	Log       *slog.Logger
-	SQLConfig *driver.SQLConfig
+	Log *slog.Logger
 }
 
 // DriverFor implements driver.Provider.
@@ -52,15 +53,14 @@ func (p *Provider) DriverFor(typ source.DriverType) (driver.Driver, error) {
 		return nil, errz.Errorf("unsupported driver type {%s}", typ)
 	}
 
-	return &driveri{log: p.Log, sqlConfig: p.SQLConfig}, nil
+	return &driveri{log: p.Log}, nil
 }
 
 var _ driver.SQLDriver = (*driveri)(nil)
 
 // driveri is the MySQL implementation of driver.Driver.
 type driveri struct {
-	log       *slog.Logger
-	sqlConfig *driver.SQLConfig
+	log *slog.Logger
 }
 
 // DriverMetadata implements driver.Driver.
@@ -304,7 +304,18 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 }
 
 // Open implements driver.DatabaseOpener.
-func (d *driveri) Open(_ context.Context, src *source.Source) (driver.Database, error) {
+func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
+	lg.From(ctx).Debug(lgm.OpenSrc, lga.Src, src)
+
+	db, err := d.doOpen(ctx, src)
+	if err != nil {
+		return nil, errz.Err(err)
+	}
+
+	return &database{log: d.log, db: db, src: src, drvr: d}, nil
+}
+
+func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
 	dsn, err := dsnFromLocation(src, true)
 	if err != nil {
 		return nil, err
@@ -315,8 +326,8 @@ func (d *driveri) Open(_ context.Context, src *source.Source) (driver.Database, 
 		return nil, errz.Err(err)
 	}
 
-	d.sqlConfig.Apply(db)
-	return &database{log: d.log, db: db, src: src, drvr: d}, nil
+	driver.ConfigureDB(ctx, db, src.Options)
+	return db, nil
 }
 
 // ValidateSource implements driver.Driver.
@@ -329,13 +340,13 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 
 // Ping implements driver.Driver.
 func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
-	dbase, err := d.Open(ctx, src)
+	db, err := d.doOpen(ctx, src)
 	if err != nil {
 		return err
 	}
-	defer lg.WarnIfCloseError(d.log, lgm.CloseDB, dbase.DB())
+	defer lg.WarnIfCloseError(d.log, lgm.CloseDB, db)
 
-	return dbase.DB().PingContext(ctx)
+	return db.PingContext(ctx)
 }
 
 // Truncate implements driver.SQLDriver. Arg reset is
@@ -345,12 +356,7 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 	err error,
 ) {
 	// https://dev.mysql.com/doc/refman/8.0/en/truncate-table.html
-	dsn, err := dsnFromLocation(src, true)
-	if err != nil {
-		return 0, err
-	}
-
-	db, err := sql.Open(dbDrvr, dsn)
+	db, err := d.doOpen(ctx, src)
 	if err != nil {
 		return 0, errz.Err(err)
 	}
@@ -442,7 +448,15 @@ func hasErrCode(err error, code uint16) bool {
 	return false
 }
 
-const errNumTableNotExist = uint16(1146)
+// https://dev.mysql.com/doc/mysql-errors/8.0/en/server-error-reference.html
+const (
+	errNumTableNotExist = uint16(1146)
+	errNumConCount      = uint16(1040)
+)
+
+func isErrTooManyConnections(err error) bool {
+	return hasErrCode(err, errNumConCount)
+}
 
 // dsnFromLocation builds the mysql driver DSN from src.Location.
 // If parseTime is true, the param "parseTime=true" is added. This
@@ -471,4 +485,9 @@ func dsnFromLocation(src *source.Source, parseTime bool) (string, error) {
 	driverDSN = myCfg.FormatDSN()
 
 	return driverDSN, nil
+}
+
+// doRetry executes fn with retry on isErrTooManyConnections.
+func doRetry(ctx context.Context, fn func() error) error {
+	return retry.Do(ctx, driver.Tuning.MaxRetryInterval, fn, isErrTooManyConnections)
 }

@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/options"
-
 	"github.com/neilotoole/sq/libsq/driver/dialect"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -28,46 +28,48 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 )
 
-// SQLConfig encapsulates settings for sql.DB.
-type SQLConfig struct {
-	MaxOpenConns    int
-	MaxIdleConns    int
-	ConnMaxIdleTime time.Duration
-	ConnMaxLifetime time.Duration
-}
+// ConfigureDB configures DB using o. It is no-op if o is nil.
+func ConfigureDB(ctx context.Context, db *sql.DB, o options.Options) {
+	o2 := options.Effective(o, OptConnMaxOpen, OptConnMaxIdle, OptConnMaxIdleTime, OptConnMaxLifetime)
 
-// Apply applies c to db.
-func (c *SQLConfig) Apply(db *sql.DB) {
-	db.SetMaxOpenConns(c.MaxOpenConns)
-	db.SetMaxIdleConns(c.MaxIdleConns)
-	db.SetConnMaxIdleTime(c.ConnMaxIdleTime)
-	db.SetConnMaxLifetime(c.ConnMaxLifetime)
+	lg.From(ctx).Debug("Setting config on DB conn", "config", o2)
+
+	db.SetMaxOpenConns(OptConnMaxOpen.Get(o2))
+	db.SetMaxIdleConns(OptConnMaxIdle.Get(o2))
+	db.SetConnMaxIdleTime(OptConnMaxIdleTime.Get(o2))
+	db.SetConnMaxLifetime(OptConnMaxLifetime.Get(o2))
 }
 
 var (
-	// TODO: merge these options with SQLConfig.
-
+	// OptConnMaxOpen controls sql.DB.SetMaxOpenConn.
 	OptConnMaxOpen = options.NewInt(
 		"conn.max-open",
 		0,
-		"",
+		`Maximum number of open connections to the database.
+A value of zero indicates no limit.`,
 		"source", "sql",
 	)
+
+	// OptConnMaxIdle controls sql.DB.SetMaxIdleConns.
 	OptConnMaxIdle = options.NewInt(
 		"conn.max-idle",
-		0,
+		2,
 		"",
 		"source", "sql",
 	)
+
+	// OptConnMaxIdleTime controls sql.DB.SetConnMaxIdleTime.
 	OptConnMaxIdleTime = options.NewDuration(
 		"conn.max-idle-time",
-		0,
+		time.Second*2,
 		"",
 		"source", "sql",
 	)
+
+	// OptConnMaxLifetime controls sql.DB.SetConnMaxLifetime.
 	OptConnMaxLifetime = options.NewDuration(
 		"conn.max-lifetime",
-		0,
+		time.Minute*10,
 		"",
 		"source", "sql",
 	)
@@ -304,6 +306,8 @@ func NewDatabases(log *slog.Logger, drvrs Provider, scratchSrcFn ScratchSrcFunc)
 //
 // Open implements DatabaseOpener.
 func (d *Databases) Open(ctx context.Context, src *source.Source) (Database, error) {
+	lg.From(ctx).Debug(lgm.OpenSrc, lga.Src, src)
+
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -336,7 +340,7 @@ func (d *Databases) Open(ctx context.Context, src *source.Source) (Database, err
 func (d *Databases) OpenScratch(ctx context.Context, name string) (Database, error) {
 	const msgCloseScratch = "close scratch db"
 
-	scratchSrc, cleanFn, err := d.scratchSrcFn(d.log, name)
+	scratchSrc, cleanFn, err := d.scratchSrcFn(ctx, name)
 	if err != nil {
 		// if err is non-nil, cleanup is guaranteed to be nil
 		return nil, err
@@ -399,6 +403,8 @@ func (d *Databases) Close() error {
 
 // Tuning holds tuning params. Ultimately these params
 // could come from user config or be dynamically calculated/adjusted?
+//
+// FIXME: move all of these to options.Options.
 var Tuning = struct {
 	// ErrgroupLimit is passed to errgroup.Group.SetLimit.
 	// Note that this is the limit for any one errgroup, but
@@ -416,20 +422,11 @@ var Tuning = struct {
 
 	// MaxRetryInterval is the maximum interval to wait between retries.
 	MaxRetryInterval time.Duration
-
-	// SQLConfig holds config for sql.DB.
-	SQLConfig *SQLConfig
 }{
 	ErrgroupLimit:    16,
 	RecordChSize:     1024,
 	SampleSize:       1024,
 	MaxRetryInterval: time.Second * 3,
-	SQLConfig: &SQLConfig{
-		MaxOpenConns:    50,
-		MaxIdleConns:    8,
-		ConnMaxIdleTime: time.Second * 10,
-		ConnMaxLifetime: 0,
-	},
 }
 
 // requireSingleConn returns nil if db is a type that guarantees a

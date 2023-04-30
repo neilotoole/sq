@@ -180,7 +180,7 @@ WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`
 
 // getColumnMetadata returns column metadata for tblName.
 func getColumnMetadata(ctx context.Context, db sqlz.DB, tblName string) ([]*source.ColMetadata, error) {
-	log := lg.FromContext(ctx)
+	log := lg.From(ctx)
 
 	const query = `SELECT column_name, data_type, column_type, ordinal_position, column_default,
        is_nullable, column_key, column_comment, extra
@@ -229,7 +229,7 @@ ORDER BY cols.ordinal_position ASC`
 // Multiple queries are required to build the SourceMetadata, and this
 // impl makes use of errgroup to make concurrent queries. In the initial
 // relatively sequential implementation of this function, the main perf
-// roadblock was getting the row count for each table/view. For accuracy
+// roadblock was getting the row count for each table/view. For accuracy,
 // it is necessary to perform "SELECT COUNT(*) FROM tbl" for each table/view.
 // For other databases (such as sqlite) it was performant to UNION ALL
 // these SELECTs into one (or a few) queries, e.g.:
@@ -246,25 +246,36 @@ ORDER BY cols.ordinal_position ASC`
 // each SELECT COUNT(*) query. That said, the testing/benchmarking was
 // far from exhaustive, and this entire thing has a bit of a code smell.
 func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB) (*source.Metadata, error) {
-	md := &source.Metadata{SourceType: Type, DBDriverType: Type, Handle: src.Handle, Location: src.Location}
+	md := &source.Metadata{
+		SourceType:   Type,
+		DBDriverType: Type,
+		Handle:       src.Handle,
+		Location:     src.Location,
+	}
 
 	g, gCtx := errgroup.WithContext(ctx)
 	g.SetLimit(driver.Tuning.ErrgroupLimit)
 
 	g.Go(func() error {
-		return setSourceSummaryMeta(gCtx, db, md)
+		return doRetry(gCtx, func() error {
+			return setSourceSummaryMeta(gCtx, db, md)
+		})
 	})
 
 	g.Go(func() error {
-		var err error
-		md.DBVars, err = getDBVarsMeta(gCtx, db)
-		return err
+		return doRetry(gCtx, func() error {
+			var err error
+			md.DBVars, err = getDBVarsMeta(gCtx, db)
+			return err
+		})
 	})
 
 	g.Go(func() error {
-		var err error
-		md.Tables, err = getAllTblMetas(gCtx, db)
-		return err
+		return doRetry(gCtx, func() error {
+			var err error
+			md.Tables, err = getAllTblMetas(gCtx, db)
+			return err
+		})
 	})
 
 	err := g.Wait()
@@ -298,7 +309,7 @@ func setSourceSummaryMeta(ctx context.Context, db sqlz.DB, md *source.Metadata) 
 
 // getDBVarsMeta returns the database variables.
 func getDBVarsMeta(ctx context.Context, db sqlz.DB) ([]source.DBVar, error) {
-	log := lg.FromContext(ctx)
+	log := lg.From(ctx)
 	var dbVars []source.DBVar
 
 	rows, err := db.QueryContext(ctx, "SHOW VARIABLES")
@@ -324,8 +335,13 @@ func getDBVarsMeta(ctx context.Context, db sqlz.DB) ([]source.DBVar, error) {
 }
 
 // getAllTblMetas returns TableMetadata for each table/view in db.
+//
+// NOTE: getAllTblMetas has the potential to become deadlocked. It spawns
+// a number of goroutines, which can bump up against the max conn limit.
+// This function should be revisited to see if there's a better way
+// to implement it.
 func getAllTblMetas(ctx context.Context, db sqlz.DB) ([]*source.TableMetadata, error) {
-	log := lg.FromContext(ctx)
+	log := lg.From(ctx)
 
 	const query = `SELECT t.TABLE_SCHEMA, t.TABLE_NAME, t.TABLE_TYPE, t.TABLE_COMMENT,
        (DATA_LENGTH + INDEX_LENGTH) AS table_size,
