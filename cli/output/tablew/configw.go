@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/samber/lo"
+
 	"github.com/neilotoole/sq/libsq/core/options"
 
 	"github.com/neilotoole/sq/cli/output"
@@ -46,12 +48,14 @@ func (w *configWriter) Options(reg *options.Registry, o options.Options) error {
 		w.tbl.pr.ShowHeader = false
 	}
 
-	w.doPrintOptions(reg, o)
+	w.doPrintOptions(reg, o, true)
 	return nil
 }
 
 // Options implements output.ConfigWriter.
-func (w *configWriter) doPrintOptions(reg *options.Registry, o options.Options) {
+// If printUnset is true and we're in verbose mode, unset options
+// are also printed.
+func (w *configWriter) doPrintOptions(reg *options.Registry, o options.Options, printUnset bool) {
 	if o == nil {
 		return
 	}
@@ -104,9 +108,30 @@ func (w *configWriter) doPrintOptions(reg *options.Registry, o options.Options) 
 
 		if verbose {
 			defaultVal := pr.Faint.Sprintf("%v", opt.GetAny(nil))
-			//			defaultVal := pr.Faint.Sprintf(clr.Sprintf("%v", opt.GetAny(nil)))
-
 			row = append(row, defaultVal)
+		}
+
+		rows = append(rows, row)
+	}
+
+	if !printUnset || !verbose {
+		w.tbl.appendRowsAndRenderAll(rows)
+		return
+	}
+
+	// Also print the unset opts
+	allKeys := reg.Keys()
+	setKeys := o.Keys()
+	unsetKeys, _ := lo.Difference(allKeys, setKeys)
+
+	// keyColor := pr.
+
+	for _, k := range unsetKeys {
+		opt := reg.Get(k)
+		row := []string{
+			pr.Faint.Sprintf("%v", k),
+			"", // opt is unset, so it doesn't have a value
+			pr.Faint.Sprintf("%v", opt.GetAny(nil)),
 		}
 
 		rows = append(rows, row)

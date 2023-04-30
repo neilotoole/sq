@@ -70,9 +70,14 @@ func newConfigGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get",
 		Short: "Show config",
-		Long:  "Show config.",
+		Long:  "Show config. In table output format, use --verbose to see defaults.",
 		Args:  cobra.ExactArgs(0),
 		RunE:  execConfigGet,
+		Example: `  # Show config
+  $ sq config get
+
+  # Also show defaults
+  $ sq config get -v`,
 	}
 
 	cmd.Flags().BoolP(flag.Table, flag.TableShort, false, flag.TableUsage)
