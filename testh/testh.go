@@ -702,11 +702,14 @@ func mustLoadCollection(ctx context.Context, t testing.TB) *source.Collection {
 		return []byte(proj.Expand(string(data))), nil
 	}
 
-	optsReg := &options.Registry{}
-	cli.RegisterDefaultOpts(optsReg)
+	fs := &yamlstore.Store{
+		Path:            proj.Rel(testsrc.PathSrcsConfig),
+		OptionsRegistry: &options.Registry{},
+		HookLoad:        hookExpand,
+	}
+	cli.RegisterDefaultOpts(fs.OptionsRegistry)
 
-	fs := &yamlstore.Store{Path: proj.Rel(testsrc.PathSrcsConfig), HookLoad: hookExpand}
-	cfg, err := fs.Load(ctx, optsReg)
+	cfg, err := fs.Load(ctx)
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
 	require.NotNil(t, cfg.Collection)

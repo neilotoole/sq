@@ -42,11 +42,14 @@ func newTestRunCtx(ctx context.Context, t testing.TB, cfgStore config.Store,
 		var cfgDir string
 		cfgDir, err = os.MkdirTemp("", "sq_test")
 		require.NoError(t, err)
-		cfgStore = &yamlstore.Store{Path: filepath.Join(cfgDir, "sq.yml")}
+		cfgStore = &yamlstore.Store{
+			Path:            filepath.Join(cfgDir, "sq.yml"),
+			OptionsRegistry: optsReg,
+		}
 		cfg = config.New()
 		require.NoError(t, cfgStore.Save(ctx, cfg))
 	} else {
-		cfg, err = cfgStore.Load(ctx, optsReg)
+		cfg, err = cfgStore.Load(ctx)
 		require.NoError(t, err)
 	}
 

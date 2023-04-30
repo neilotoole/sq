@@ -45,6 +45,9 @@ type Store struct {
 
 	// UpgradeRegistry holds upgrade funcs for upgrading the config file.
 	UpgradeRegistry UpgradeRegistry
+
+	// OptionsRegistry holds options.
+	OptionsRegistry *options.Registry
 }
 
 // String returns a log/debug-friendly representation.
@@ -58,7 +61,7 @@ func (fs *Store) Location() string {
 }
 
 // Load reads config from disk. It implements Store.
-func (fs *Store) Load(ctx context.Context, optsReg *options.Registry) (*config.Config, error) {
+func (fs *Store) Load(ctx context.Context) (*config.Config, error) {
 	log := lg.From(ctx)
 	log.Debug("Loading config from file", lga.Path, fs.Path)
 
@@ -70,14 +73,14 @@ func (fs *Store) Load(ctx context.Context, optsReg *options.Registry) (*config.C
 
 		if mightNeedUpgrade {
 			log.Info("Upgrade config?", lga.From, foundVers, lga.To, buildinfo.Version)
-			if _, err = fs.doUpgrade(ctx, optsReg, foundVers, buildinfo.Version); err != nil {
+			if _, err = fs.doUpgrade(ctx, foundVers, buildinfo.Version); err != nil {
 				return nil, err
 			}
 
 			// We do a cycle of loading and saving the config after the upgrade,
 			// because the upgrade may have written YAML via a map, which
 			// doesn't preserve order. Loading and saving should fix that.
-			cfg, err := fs.doLoad(ctx, optsReg)
+			cfg, err := fs.doLoad(ctx)
 			if err != nil {
 				return nil, errz.Wrapf(err, "config: %s: load failed after config upgrade", fs.Path)
 			}
@@ -88,10 +91,10 @@ func (fs *Store) Load(ctx context.Context, optsReg *options.Registry) (*config.C
 		}
 	}
 
-	return fs.doLoad(ctx, optsReg)
+	return fs.doLoad(ctx)
 }
 
-func (fs *Store) doLoad(ctx context.Context, optsReg *options.Registry) (*config.Config, error) {
+func (fs *Store) doLoad(ctx context.Context) (*config.Config, error) {
 	bytes, err := os.ReadFile(fs.Path)
 	if err != nil {
 		return nil, errz.Wrapf(err, "config: failed to load file: %s", fs.Path)
@@ -119,7 +122,7 @@ func (fs *Store) doLoad(ctx context.Context, optsReg *options.Registry) (*config
 		cfg.Options = options.Options{}
 	}
 
-	cfg.Options, err = optsReg.Process(cfg.Options)
+	cfg.Options, err = fs.OptionsRegistry.Process(cfg.Options)
 	if err != nil {
 		return nil, err
 	}
@@ -151,7 +154,7 @@ func (fs *Store) Save(_ context.Context, cfg *config.Config) error {
 		return errz.New("config file store is nil")
 	}
 
-	if err := config.Valid(cfg); err != nil {
+	if err := canonicalizeConfig(fs.OptionsRegistry, cfg); err != nil {
 		return err
 	}
 
@@ -185,4 +188,37 @@ func (fs *Store) Write(data []byte) error {
 func (fs *Store) fileExists() bool {
 	_, err := os.Stat(fs.Path)
 	return err == nil
+}
+
+// canonicalizeConfig checks cfg's validity, and patches cfg to the canonical
+// form,cfg's validity. For example, an unknown or nil value in an
+// options.Options is deleted.
+func canonicalizeConfig(optsReg *options.Registry, cfg *config.Config) error {
+	var err error
+	if err = config.Valid(cfg); err != nil {
+		return err
+	}
+
+	cfg.Options, err = optsReg.Process(cfg.Options)
+	if err != nil {
+		return errz.Wrapf(err, "processing 'config.options'")
+	}
+
+	cfg.Options = options.DeleteNil(cfg.Options)
+	if cfg.Collection == nil {
+		return nil
+	}
+
+	if err = cfg.Collection.Visit(func(src *source.Source) error {
+		if src.Options, err = optsReg.Process(src.Options); err != nil {
+			return errz.Wrapf(err, "processing source options for %s", src.Handle)
+		}
+
+		src.Options = options.DeleteNil(src.Options)
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	return config.Valid(cfg)
 }

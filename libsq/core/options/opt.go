@@ -367,6 +367,11 @@ func (op Duration) Process(o Options) (Options, error) {
 		return o, nil
 	}
 
+	if _, ok = v.(time.Duration); ok {
+		// v is already a duration, nothing to do here.
+		return o, nil
+	}
+
 	// v should be a string
 	var s string
 	s, ok = v.(string)

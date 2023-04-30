@@ -166,3 +166,10 @@ func TestEffective(t *testing.T) {
 	got := options.Effective(in, optHello, optCount)
 	require.Equal(t, want, got)
 }
+
+func TestDeleteNil(t *testing.T) {
+	o := options.Options{"a": 1, "b": nil, "c": nil, "d": 2, "e": nil}
+	got := options.DeleteNil(o)
+	require.Lenf(t, o, 5, "o should not be modified")
+	require.Equal(t, options.Options{"a": 1, "d": 2}, got)
+}

@@ -2,8 +2,6 @@ package config
 
 import (
 	"context"
-
-	"github.com/neilotoole/sq/libsq/core/options"
 )
 
 // Store saves and loads config.
@@ -12,7 +10,7 @@ type Store interface {
 	Save(ctx context.Context, cfg *Config) error
 
 	// Load reads config from the store.
-	Load(ctx context.Context, optsReg *options.Registry) (*Config, error)
+	Load(ctx context.Context) (*Config, error)
 
 	// Location returns the location of the store, typically
 	// a file path.
@@ -26,7 +24,7 @@ type DiscardStore struct{}
 var _ Store = (*DiscardStore)(nil)
 
 // Load returns a new empty Config.
-func (DiscardStore) Load(context.Context, *options.Registry) (*Config, error) {
+func (DiscardStore) Load(context.Context) (*Config, error) {
 	return New(), nil
 }
 

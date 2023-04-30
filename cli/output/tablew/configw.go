@@ -116,7 +116,7 @@ func (w *configWriter) doPrintOptions(reg *options.Registry, o options.Options) 
 }
 
 // SetOption implements output.ConfigWriter.
-func (w *configWriter) SetOption(_ *options.Registry, o options.Options, opt options.Opt) error {
+func (w *configWriter) SetOption(reg *options.Registry, o options.Options, opt options.Opt) error {
 	if !w.tbl.pr.Verbose {
 		// No output unless verbose
 		return nil
@@ -125,5 +125,5 @@ func (w *configWriter) SetOption(_ *options.Registry, o options.Options, opt opt
 	// It's verbose
 	o = options.Effective(o, opt)
 	w.tbl.pr.ShowHeader = false
-	return w.Options(nil, o)
+	return w.Options(reg, o)
 }

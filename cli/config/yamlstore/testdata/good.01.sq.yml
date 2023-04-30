@@ -16,13 +16,13 @@ collection:
       driver: xlsx
       location: ${SQ_ROOT}/drivers/xlsx/testdata/test_header.xlsx
       options:
-        driver.xlsx.header: false
+        ingest.header: false
 
     - handle: '@csv1'
       driver: csv
       location: ${SQ_ROOT}/drivers/csv/testdata/person_comma_header.csv
       options:
-        driver.csv.header: true
+        ingest.header: true
 
     - handle: '@ms1'
       driver: sqlserver
@@ -72,7 +72,7 @@ collection:
       driver: xlsx
       location: ${SQ_ROOT}/drivers/xlsx/testdata/test_header.xlsx
       options:
-        driver.xlsx.header: true
+        ingest.header: true
 
     - handle: '@xl_noheader'
       driver: xlsx
@@ -86,7 +86,7 @@ collection:
       driver: csv
       location: ${SQ_ROOT}/drivers/csv/testdata/person_comma_header.csv
       options:
-        driver.csv.header: true
+        ingest.header: true
 
     - handle: '@csv_person_comma_noheader'
       driver: csv
@@ -140,7 +140,7 @@ collection:
       driver: csv
       location: ${SQ_ROOT}/drivers/csv/testdata/person_comma_header_big.csv
       options:
-        driver.csv.header: true
+        ingest.header: true
 
     - handle: '@sl_sakila'
       driver: sqlite3

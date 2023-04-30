@@ -298,6 +298,16 @@ func (op FormatOpt) Process(o options.Options) (options.Options, error) {
 	}
 
 	// v should be a string
+	switch v := v.(type) {
+	case string:
+		// continue below
+	case format.Format:
+		return o, nil
+	default:
+		return nil, errz.Errorf("option {%s} should be {%T} or {%T} but got {%T}: %v",
+			op.key, format.Format(""), "", v, v)
+	}
+
 	var s string
 	s, ok = v.(string)
 	if !ok {

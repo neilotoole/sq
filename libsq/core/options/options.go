@@ -217,3 +217,19 @@ type Processor interface {
 	// with mutated values.
 	Process(o Options) (Options, error)
 }
+
+// DeleteNil deletes any keys with nil values.
+func DeleteNil(o Options) Options {
+	if o == nil {
+		return nil
+	}
+
+	o = o.Clone()
+	for k, v := range o {
+		if v == nil {
+			delete(o, k)
+		}
+	}
+
+	return o
+}
