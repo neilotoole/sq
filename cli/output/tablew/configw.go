@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/fatih/color"
+
 	"github.com/samber/lo"
 
 	"github.com/neilotoole/sq/libsq/core/options"
@@ -92,14 +94,7 @@ func (w *configWriter) doPrintOptions(reg *options.Registry, o options.Options, 
 			continue
 		}
 
-		clr := pr.String
-		switch opt.(type) {
-		case options.Bool:
-			clr = pr.Bool
-		case options.Int:
-			clr = pr.Number
-		default:
-		}
+		clr := getOptColor(pr, opt)
 
 		row := []string{
 			k,
@@ -151,4 +146,21 @@ func (w *configWriter) SetOption(reg *options.Registry, o options.Options, opt o
 	o = options.Effective(o, opt)
 	w.tbl.pr.ShowHeader = false
 	return w.Options(reg, o)
+}
+
+func getOptColor(pr *output.Printing, opt options.Opt) *color.Color {
+	if opt == nil {
+		return pr.Null
+	}
+
+	clr := pr.String
+	switch opt.(type) {
+	case options.Bool:
+		clr = pr.Bool
+	case options.Int:
+		clr = pr.Number
+	default:
+	}
+
+	return clr
 }

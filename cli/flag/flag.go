@@ -5,6 +5,9 @@ const (
 	ActiveSrc      = "src"
 	ActiveSrcUsage = "Override the active source for this query"
 
+	ConfigSrc      = "src"
+	ConfigSrcUsage = "Config for source"
+
 	CSV      = "csv"
 	CSVShort = "c"
 	CSVUsage = "Output CSV"

@@ -20,6 +20,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/fatih/color"
+
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/tablew/internal"
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -255,4 +257,23 @@ func (t *table) renderAll() {
 func (t *table) renderRow(row []string) {
 	t.tblImpl.Append(row)
 	t.tblImpl.RenderAll() // Send output
+}
+
+func getColorForVal(pr *output.Printing, v any) *color.Color {
+	switch v.(type) {
+	case nil:
+		return pr.Null
+	case int, int64, float32, float64, uint, uint64:
+		return pr.Number
+	case bool:
+		return pr.Bool
+	case string:
+		return pr.String
+	case time.Time:
+		return pr.Datetime
+	case time.Duration:
+		return pr.Duration
+	default:
+		return pr.Normal
+	}
 }
