@@ -7,6 +7,7 @@
 # Feel free to adopt and change it for your needs.
 #
 # @neilotoole: ^^ Well, it's less strict now!
+# Based on: https://gist.github.com/maratori/47a4d00457a92aa426dbd48a18776322
 
 run:
   # Timeout for analysis, e.g. 30s, 5m.
