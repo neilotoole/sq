@@ -44,8 +44,9 @@ var (
 	// OptConnMaxOpen controls sql.DB.SetMaxOpenConn.
 	OptConnMaxOpen = options.NewInt(
 		"conn.max-open",
-		10,
-		"",
+		0,
+		`Maximum number of open connections to the database.
+A value of zero indicates no limit.`,
 		"source", "sql",
 	)
 

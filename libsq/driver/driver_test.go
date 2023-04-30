@@ -470,10 +470,10 @@ func TestDatabase_SourceMetadata(t *testing.T) { //nolint:tparallel
 // drivers when SourceMetadata is invoked concurrently. The results
 // are not good. In particular, the mysql impl can become deadlocked
 // if the concurrency is greater than the max conn count. That
-// impl (in particular mysql/getAllTblMetas) needs to be
+// functionality (in particular mysql/getAllTblMetas) needs to be
 // revisited.
 func TestDatabase_SourceMetadata_concurrent(t *testing.T) { //nolint:tparallel
-	const concurrency = 1
+	const concurrency = 5
 
 	handles := sakila.SQLLatest()
 	for _, handle := range handles {

@@ -229,7 +229,7 @@ ORDER BY cols.ordinal_position ASC`
 // Multiple queries are required to build the SourceMetadata, and this
 // impl makes use of errgroup to make concurrent queries. In the initial
 // relatively sequential implementation of this function, the main perf
-// roadblock was getting the row count for each table/view. For accuracy
+// roadblock was getting the row count for each table/view. For accuracy,
 // it is necessary to perform "SELECT COUNT(*) FROM tbl" for each table/view.
 // For other databases (such as sqlite) it was performant to UNION ALL
 // these SELECTs into one (or a few) queries, e.g.:
@@ -246,25 +246,36 @@ ORDER BY cols.ordinal_position ASC`
 // each SELECT COUNT(*) query. That said, the testing/benchmarking was
 // far from exhaustive, and this entire thing has a bit of a code smell.
 func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB) (*source.Metadata, error) {
-	md := &source.Metadata{SourceType: Type, DBDriverType: Type, Handle: src.Handle, Location: src.Location}
+	md := &source.Metadata{
+		SourceType:   Type,
+		DBDriverType: Type,
+		Handle:       src.Handle,
+		Location:     src.Location,
+	}
 
 	g, gCtx := errgroup.WithContext(ctx)
 	g.SetLimit(driver.Tuning.ErrgroupLimit)
 
 	g.Go(func() error {
-		return setSourceSummaryMeta(gCtx, db, md)
+		return doRetry(gCtx, func() error {
+			return setSourceSummaryMeta(gCtx, db, md)
+		})
 	})
 
 	g.Go(func() error {
-		var err error
-		md.DBVars, err = getDBVarsMeta(gCtx, db)
-		return err
+		return doRetry(gCtx, func() error {
+			var err error
+			md.DBVars, err = getDBVarsMeta(gCtx, db)
+			return err
+		})
 	})
 
 	g.Go(func() error {
-		var err error
-		md.Tables, err = getAllTblMetas(gCtx, db)
-		return err
+		return doRetry(gCtx, func() error {
+			var err error
+			md.Tables, err = getAllTblMetas(gCtx, db)
+			return err
+		})
 	})
 
 	err := g.Wait()

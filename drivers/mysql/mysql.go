@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/retry"
+
 	"github.com/neilotoole/sq/libsq/driver/dialect"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -446,7 +448,15 @@ func hasErrCode(err error, code uint16) bool {
 	return false
 }
 
-const errNumTableNotExist = uint16(1146)
+// https://dev.mysql.com/doc/mysql-errors/8.0/en/server-error-reference.html
+const (
+	errNumTableNotExist = uint16(1146)
+	errNumConCount      = uint16(1040)
+)
+
+func isErrTooManyConnections(err error) bool {
+	return hasErrCode(err, errNumConCount)
+}
 
 // dsnFromLocation builds the mysql driver DSN from src.Location.
 // If parseTime is true, the param "parseTime=true" is added. This
@@ -475,4 +485,9 @@ func dsnFromLocation(src *source.Source, parseTime bool) (string, error) {
 	driverDSN = myCfg.FormatDSN()
 
 	return driverDSN, nil
+}
+
+// doRetry executes fn with retry on isErrTooManyConnections.
+func doRetry(ctx context.Context, fn func() error) error {
+	return retry.Do(ctx, driver.Tuning.MaxRetryInterval, fn, isErrTooManyConnections)
 }
