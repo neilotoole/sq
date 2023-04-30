@@ -192,11 +192,8 @@ func TestDriver_TableColumnTypes(t *testing.T) { //nolint:tparallel
 	}
 }
 
-func TestSQLDriver_PrepareUpdateStmt(t *testing.T) {
-	t.Parallel()
-	// testCases := sakila.SQLAll()
-	testCases := []string{sakila.Pg}
-
+func TestSQLDriver_PrepareUpdateStmt(t *testing.T) { //nolint:tparallel
+	testCases := sakila.SQLAll()
 	for _, handle := range testCases {
 		handle := handle
 

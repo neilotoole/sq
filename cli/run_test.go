@@ -12,7 +12,6 @@ import (
 	"testing"
 
 	"github.com/neilotoole/sq/cli/config/yamlstore"
-	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/options"
 
 	"github.com/stretchr/testify/require"
@@ -82,9 +81,6 @@ type Run struct {
 // commands to use the same config.
 func newRun(ctx context.Context, t *testing.T, from *Run) *Run {
 	ru := &Run{t: t, ctx: ctx}
-
-	log := lg.From(ctx)
-	_ = log
 
 	var cfgStore config.Store
 	if from != nil {

@@ -22,7 +22,7 @@ import (
 // all returned values will be nil.
 func defaultLogging(ctx context.Context) (log *slog.Logger, h slog.Handler, closer func() error, err error) {
 	logFilePath, ok := os.LookupEnv(config.EnvarLogPath)
-	if !ok || logFilePath == "" || strings.TrimSpace(logFilePath) == "" {
+	if !ok || strings.TrimSpace(logFilePath) == "" {
 		lg.From(ctx).Debug("Logging: not enabled via envar", lga.Key, config.EnvarLogPath)
 		return lg.Discard(), nil, nil, nil
 	}
