@@ -29,18 +29,20 @@ type Registry struct {
 	opts []Opt
 }
 
-// Add adds an Opt to r. It panics if opt is already registered.
-func (r *Registry) Add(opt Opt) {
+// Add adds opts to r. It panics if any element of opts is already registered.
+func (r *Registry) Add(opts ...Opt) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	for i := range r.opts {
-		if r.opts[i].Key() == opt.Key() {
-			panic(fmt.Sprintf("Opt %s is already registered", opt.Key()))
+	for _, opt := range opts {
+		for i := range r.opts {
+			if r.opts[i].Key() == opt.Key() {
+				panic(fmt.Sprintf("Opt %s is already registered", opt.Key()))
+			}
 		}
-	}
 
-	r.opts = append(r.opts, opt)
+		r.opts = append(r.opts, opt)
+	}
 }
 
 // LogValue implements slog.LogValuer.
