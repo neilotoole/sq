@@ -5,6 +5,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neilotoole/sq/cli/flag"
+
 	"github.com/neilotoole/sq/libsq/core/stringz"
 
 	"github.com/neilotoole/sq/cli/output/format"
@@ -145,9 +147,31 @@ func completeDriverType(cmd *cobra.Command, _ []string, _ string) ([]string, cob
 }
 
 // completeOptKey is a completionFunc that completes keys for options.Opt.
+// If flag.ConfigSrc is set on cmd, the returned completions are limited to
+// Opt keys appropriate to that source. For example, if the source is Excel,
+// then "driver.csv.delim" won't be offered.
 func completeOptKey(cmd *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	rc := getRunContext(cmd)
 	keys := rc.OptionsRegistry.Keys()
+
+	if cmdFlagChanged(cmd, flag.ConfigSrc) {
+		// If using with --src, then we only want to show the opts
+		// that apply to that source.
+		handle, err := cmd.Flags().GetString(flag.ConfigSrc)
+		if err != nil {
+			return nil, cobra.ShellCompDirectiveError
+		}
+
+		src, err := rc.Config.Collection.Get(handle)
+		if err != nil {
+			return nil, cobra.ShellCompDirectiveError
+		}
+
+		opts := filterOptionsForSrc(src, rc.OptionsRegistry.Opts()...)
+		keys = lo.Map(opts, func(item options.Opt, index int) string {
+			return item.Key()
+		})
+	}
 
 	keys = lo.Filter(keys, func(item string, index int) bool {
 		return strings.HasPrefix(item, toComplete)

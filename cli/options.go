@@ -113,19 +113,21 @@ func applyCollectionOptions(cmd *cobra.Command, coll *source.Collection) error {
 }
 
 // RegisterDefaultOpts registers the options.Opt instances
-// that the CLI knows about. It panics if an opt is added twice.
+// that the CLI knows about.
 func RegisterDefaultOpts(reg *options.Registry) {
-	reg.Add(driver.OptConnMaxOpen)
-	reg.Add(driver.OptConnMaxIdle)
-	reg.Add(driver.OptConnMaxIdleTime)
-	reg.Add(driver.OptConnMaxLifetime)
-	reg.Add(drivers.OptIngestHeader)
-	reg.Add(csv.OptDelim)
-	reg.Add(csv.OptEmptyAsNull)
-	reg.Add(OptOutputFormat)
-	reg.Add(OptPrintHeader)
-	reg.Add(OptPingTimeout)
-	reg.Add(OptShellCompletionTimeout)
+	reg.Add(
+		OptOutputFormat,
+		OptPrintHeader,
+		OptShellCompletionTimeout,
+		OptPingTimeout,
+		driver.OptConnMaxOpen,
+		driver.OptConnMaxIdle,
+		driver.OptConnMaxIdleTime,
+		driver.OptConnMaxLifetime,
+		drivers.OptIngestHeader,
+		csv.OptDelim,
+		csv.OptEmptyAsNull,
+	)
 }
 
 // filterOptionsForSrc returns a new slice containing only those

@@ -57,7 +57,7 @@ func (r *Registry) LogValue() slog.Value {
 }
 
 // Visit visits each Opt in r. Be careful with concurrent access
-// to this method.
+// via this method.
 func (r *Registry) Visit(fn func(opt Opt) error) error {
 	if r == nil {
 		return nil
