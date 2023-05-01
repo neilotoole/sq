@@ -7,8 +7,6 @@ import (
 
 	"github.com/neilotoole/sq/cli/config"
 	"github.com/neilotoole/sq/libsq/core/ioz"
-	"github.com/neilotoole/sq/libsq/core/options"
-
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
@@ -37,9 +35,7 @@ type UpgradeRegistry map[string]UpgradeFunc
 // doUpgrade runs all the registered upgrade funcs between cfg.Version
 // and targetVersion. Typically this is checked by Load, but can be
 // explicitly invoked for testing etc.
-func (fs *Store) doUpgrade(ctx context.Context, optsReg *options.Registry,
-	startVersion, targetVersion string,
-) (*config.Config, error) {
+func (fs *Store) doUpgrade(ctx context.Context, startVersion, targetVersion string) (*config.Config, error) {
 	log := lg.From(ctx)
 	log.Debug("Starting config upgrade", lga.From, startVersion, lga.To, targetVersion)
 
@@ -69,7 +65,7 @@ func (fs *Store) doUpgrade(ctx context.Context, optsReg *options.Registry,
 	}
 
 	// Do a final update of the version
-	cfg, err := fs.doLoad(ctx, optsReg)
+	cfg, err := fs.doLoad(ctx)
 	if err != nil {
 		return nil, err
 	}

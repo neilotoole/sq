@@ -5,6 +5,9 @@ const (
 	ActiveSrc      = "src"
 	ActiveSrcUsage = "Override the active source for this query"
 
+	ConfigSrc      = "src"
+	ConfigSrcUsage = "Config for source"
+
 	CSV      = "csv"
 	CSVShort = "c"
 	CSVUsage = "Output CSV"
@@ -140,4 +143,8 @@ const (
 	CSVDelim        = "driver.csv.delim"
 	CSVDelimUsage   = "CSV delimiter: one of comma, space, pipe, tab, colon, semi, period"
 	CSVDelimDefault = "comma"
+
+	ConfigSetDelete      = "delete"
+	ConfigSetDeleteShort = "D"
+	ConfigSetDeleteUsage = "Unset this option"
 )

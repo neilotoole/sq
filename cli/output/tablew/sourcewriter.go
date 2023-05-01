@@ -1,7 +1,6 @@
 package tablew
 
 import (
-	"fmt"
 	"io"
 	"strconv"
 	"strings"
@@ -69,7 +68,7 @@ func (w *sourceWriter) Collection(coll *source.Collection) error {
 			"",
 			string(src.Type),
 			src.RedactedLocation(),
-			renderSrcOptions(src),
+			renderSrcOptions(pr, src),
 		}
 
 		if coll.Active() != nil && coll.Active().Handle == src.Handle {
@@ -125,7 +124,7 @@ func (w *sourceWriter) Source(coll *source.Collection, src *source.Source) error
 		src.Handle,
 		string(src.Type),
 		src.RedactedLocation(),
-		renderSrcOptions(src),
+		renderSrcOptions(w.tbl.pr, src),
 	}
 	rows = append(rows, row)
 
@@ -157,7 +156,7 @@ func (w *sourceWriter) Removed(srcs ...*source.Source) error {
 	return nil
 }
 
-func renderSrcOptions(src *source.Source) string {
+func renderSrcOptions(pr *output.Printing, src *source.Source) string {
 	if src == nil || src.Options == nil || len(src.Options) == 0 {
 		return ""
 	}
@@ -168,9 +167,10 @@ func renderSrcOptions(src *source.Source) string {
 		if key == "" {
 			continue
 		}
-		v := val
-		// TODO: add color here to distinguish the keys/values
-		opts = append(opts, fmt.Sprintf("%s=%s", key, v))
+		clr := getColorForVal(pr, val)
+		s := pr.Faint.Sprint(pr.Key.Sprintf("%s", key)) +
+			pr.Faint.Sprint("=") + pr.Faint.Sprint(clr.Sprintf("%v", val))
+		opts = append(opts, s)
 	}
 	return strings.Join(opts, " ")
 }

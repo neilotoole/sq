@@ -29,17 +29,20 @@ func TestFileStore_Nil_Save(t *testing.T) {
 
 func TestFileStore_LoadSaveLoad(t *testing.T) {
 	t.Parallel()
+	ctx := context.Background()
 
 	const wantVers = `v0.34.0`
 
 	// good.01.sq.yml has a bunch of fixtures in it
-	fs := &yamlstore.Store{Path: "testdata/good.01.sq.yml", HookLoad: hookExpand}
+	fs := &yamlstore.Store{
+		Path:            "testdata/good.01.sq.yml",
+		HookLoad:        hookExpand,
+		OptionsRegistry: &options.Registry{},
+	}
+	cli.RegisterDefaultOpts(fs.OptionsRegistry)
 	const expectGood01SrcCount = 34
 
-	optsReg := &options.Registry{}
-	cli.RegisterDefaultOpts(optsReg)
-
-	cfg, err := fs.Load(context.Background(), optsReg)
+	cfg, err := fs.Load(ctx)
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
 	require.NotNil(t, cfg.Collection)
@@ -53,10 +56,10 @@ func TestFileStore_LoadSaveLoad(t *testing.T) {
 	fs.Path = f.Name()
 	t.Logf("writing to tmp file: %s", fs.Path)
 
-	err = fs.Save(context.Background(), cfg)
+	err = fs.Save(ctx, cfg)
 	require.NoError(t, err)
 
-	cfg2, err := fs.Load(context.Background(), optsReg)
+	cfg2, err := fs.Load(ctx)
 	require.NoError(t, err)
 	require.NotNil(t, cfg2)
 	require.Equal(t, expectGood01SrcCount, len(cfg2.Collection.Sources()))
@@ -81,7 +84,10 @@ func TestFileStore_Load(t *testing.T) {
 
 	t.Logf("%d good fixtures, %d bad fixtures", len(good), len(bad))
 
-	fs := &yamlstore.Store{HookLoad: hookExpand}
+	fs := &yamlstore.Store{
+		HookLoad:        hookExpand,
+		OptionsRegistry: optsReg,
+	}
 
 	for _, match := range good {
 		match := match
@@ -89,7 +95,7 @@ func TestFileStore_Load(t *testing.T) {
 			t.Parallel()
 
 			fs.Path = match
-			_, err = fs.Load(context.Background(), optsReg)
+			_, err = fs.Load(context.Background())
 			require.NoError(t, err, match)
 		})
 	}
@@ -98,7 +104,7 @@ func TestFileStore_Load(t *testing.T) {
 		match := match
 		t.Run(tutil.Name(match), func(t *testing.T) {
 			fs.Path = match
-			_, err := fs.Load(context.Background(), optsReg)
+			_, err := fs.Load(context.Background())
 			require.Error(t, err, match)
 		})
 	}

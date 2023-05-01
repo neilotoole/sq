@@ -1,14 +1,18 @@
 package cli
 
 import (
+	"strings"
+
 	"github.com/neilotoole/sq/drivers"
 	"github.com/neilotoole/sq/drivers/csv"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"golang.org/x/exp/slices"
 )
 
 // getFlagOptions builds options.Options from flags. In effect, a flag
@@ -109,17 +113,56 @@ func applyCollectionOptions(cmd *cobra.Command, coll *source.Collection) error {
 }
 
 // RegisterDefaultOpts registers the options.Opt instances
-// that the CLI knows about. It panics if an opt is added twice.
+// that the CLI knows about.
 func RegisterDefaultOpts(reg *options.Registry) {
-	reg.Add(driver.OptConnMaxOpen)
-	reg.Add(driver.OptConnMaxIdle)
-	reg.Add(driver.OptConnMaxIdleTime)
-	reg.Add(driver.OptConnMaxLifetime)
-	reg.Add(drivers.OptIngestHeader)
-	reg.Add(csv.OptDelim)
-	reg.Add(csv.OptEmptyAsNull)
-	reg.Add(OptOutputFormat)
-	reg.Add(OptPrintHeader)
-	reg.Add(OptPingTimeout)
-	reg.Add(OptShellCompletionTimeout)
+	reg.Add(
+		OptOutputFormat,
+		OptPrintHeader,
+		OptShellCompletionTimeout,
+		OptPingTimeout,
+		driver.OptConnMaxOpen,
+		driver.OptConnMaxIdle,
+		driver.OptConnMaxIdleTime,
+		driver.OptConnMaxLifetime,
+		drivers.OptIngestHeader,
+		csv.OptDelim,
+		csv.OptEmptyAsNull,
+	)
+}
+
+// filterOptionsForSrc returns a new slice containing only those
+// opts that are applicable to src.
+func filterOptionsForSrc(src *source.Source, opts ...options.Opt) []options.Opt {
+	if len(opts) == 0 || src == nil {
+		return opts
+	}
+
+	opts = lo.Reject(opts, func(opt options.Opt, index int) bool {
+		if opt == nil {
+			return true
+		}
+
+		tags := opt.Tags()
+		if len(tags) == 0 {
+			return true
+		}
+
+		// Every source opt has tag "source".
+		if !slices.Contains(tags, "source") {
+			return true
+		}
+
+		key := opt.Key()
+		// Let's say the src has driver type "xlsx".
+		// If the opt has key "driver.csv.delim", we want to reject it.
+		// Thus, if the key has contains "driver", then it must also contain
+		// the src driver type.
+		if strings.Contains(key, "driver") && !strings.Contains(key, string(src.Type)) {
+			return true
+		}
+
+		return false
+	})
+
+	return opts
 }

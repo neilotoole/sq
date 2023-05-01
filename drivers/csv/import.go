@@ -40,7 +40,7 @@ var OptDelim = options.NewString(
 	"comma",
 	`Possible values are: comma, space, pipe, tab, colon, semi, period.
 Default is comma.`,
-	"sources", "csv",
+	"source", "csv",
 )
 
 // importCSV loads the src CSV data into scratchDB.

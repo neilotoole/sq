@@ -112,7 +112,10 @@ type ConfigWriter interface {
 	Location(loc, origin string) error
 
 	// Options prints config options.
-	Options(opts options.Options) error
+	Options(reg *options.Registry, o options.Options) error
+
+	// SetOption is called when an option is set.
+	SetOption(reg *options.Registry, o options.Options, opt options.Opt) error
 }
 
 // FlushThreshold is the size in bytes after which a writer

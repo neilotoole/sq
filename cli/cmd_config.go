@@ -2,7 +2,6 @@ package cli
 
 import (
 	"github.com/neilotoole/sq/cli/config/yamlstore"
-
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/spf13/cobra"
 )
@@ -10,6 +9,7 @@ import (
 func newConfigCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "config",
+		Args:  cobra.NoArgs,
 		Short: "Manage config",
 		Long:  "Manage config.",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -64,25 +64,4 @@ func execConfigLocation(cmd *cobra.Command, _ []string) error {
 	}
 
 	return rc.writers.configw.Location(path, origin)
-}
-
-func newConfigGetCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Show config",
-		Long:  "Show config.",
-		Args:  cobra.ExactArgs(0),
-		RunE:  execConfigGet,
-	}
-
-	cmd.Flags().BoolP(flag.Table, flag.TableShort, false, flag.TableUsage)
-	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
-	cmd.Flags().BoolP(flag.YAML, flag.YAMLShort, false, flag.YAMLUsage)
-	return cmd
-}
-
-func execConfigGet(cmd *cobra.Command, _ []string) error {
-	rc := RunContextFrom(cmd.Context())
-
-	return rc.writers.configw.Options(rc.Config.Options)
 }

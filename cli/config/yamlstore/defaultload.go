@@ -44,6 +44,7 @@ func Load(ctx context.Context, osArgs []string, optsReg *options.Registry,
 		PathOrigin:      origin,
 		ExtPaths:        []string{extDir},
 		UpgradeRegistry: upgrades,
+		OptionsRegistry: optsReg,
 	}
 
 	if !cfgStore.fileExists() {
@@ -52,7 +53,7 @@ func Load(ctx context.Context, osArgs []string, optsReg *options.Registry,
 	}
 
 	// file does exist, let's try to load it
-	cfg, err := cfgStore.Load(ctx, optsReg)
+	cfg, err := cfgStore.Load(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
