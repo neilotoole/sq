@@ -41,6 +41,8 @@ type importJob struct {
 	// flatten specifies that the fields of nested JSON objects are
 	// imported as fields of the single top-level table, with a
 	// scoped column name.
+	//
+	// TODO: flatten come from src.Options
 	flatten bool
 }
 

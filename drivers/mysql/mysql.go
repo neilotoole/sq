@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/options"
+
 	"github.com/neilotoole/sq/libsq/core/retry"
 
 	"github.com/neilotoole/sq/libsq/driver/dialect"
@@ -488,6 +490,6 @@ func dsnFromLocation(src *source.Source, parseTime bool) (string, error) {
 }
 
 // doRetry executes fn with retry on isErrTooManyConnections.
-func doRetry(ctx context.Context, fn func() error) error {
-	return retry.Do(ctx, driver.Tuning.MaxRetryInterval, fn, isErrTooManyConnections)
+func doRetry(ctx context.Context, o options.Options, fn func() error) error {
+	return retry.Do(ctx, driver.OptMaxRetryInterval.Get(o), fn, isErrTooManyConnections)
 }

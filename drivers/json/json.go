@@ -9,6 +9,8 @@ import (
 	"context"
 	"database/sql"
 
+	"github.com/neilotoole/sq/drivers"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
@@ -115,8 +117,8 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database
 		fromSrc:    src,
 		openFn:     d.files.OpenFunc(src),
 		destDB:     dbase.impl,
-		sampleSize: driver.Tuning.SampleSize,
-		flatten:    true, // TODO: Should come from src.Options
+		sampleSize: drivers.OptIngestSampleSize.Get(src.Options),
+		flatten:    true,
 	}
 
 	err = d.importFn(ctx, job)
@@ -232,9 +234,3 @@ func (d *database) Close() error {
 
 	return errz.Combine(d.impl.Close(), d.clnup.Run())
 }
-
-var (
-	_ source.DriverDetectFunc = DetectJSON
-	_ source.DriverDetectFunc = DetectJSONA
-	_ source.DriverDetectFunc = DetectJSONL
-)

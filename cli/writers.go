@@ -39,6 +39,13 @@ var (
 		"Specify the output format.",
 		"format",
 	)
+
+	OptOutputFlushThreshold = options.NewInt(
+		"output.flush-threshold",
+		1000,
+		`Size in bytes after which output writers should flush any internal buffer.
+Generally, it is not necessary to fiddle this knob.`,
+	)
 )
 
 // writers is a container for the various output writers.
@@ -143,6 +150,7 @@ func getPrinting(cmd *cobra.Command, opts options.Options,
 	out, errOut io.Writer,
 ) (pr *output.Printing, out2, errOut2 io.Writer) {
 	pr = output.NewPrinting()
+	pr.FlushThreshold = OptOutputFlushThreshold.Get(opts)
 
 	if cmdFlagChanged(cmd, flag.Pretty) {
 		pr.Pretty, _ = cmd.Flags().GetBool(flag.Pretty)

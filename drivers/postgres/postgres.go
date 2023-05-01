@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/options"
+
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/neilotoole/sq/libsq/core/retry"
@@ -137,7 +139,7 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 	connStr := stdlib.RegisterConnConfig(dbCfg.ConnConfig)
 
 	var db *sql.DB
-	if err := doRetry(ctx, func() error {
+	if err := doRetry(ctx, src.Options, func() error {
 		var dbErr error
 		db, dbErr = sql.Open(dbDrvr, connStr)
 		if dbErr != nil {
@@ -599,6 +601,6 @@ func hasErrCode(err error, code string) bool {
 }
 
 // doRetry executes fn with retry on isErrTooManyConnections.
-func doRetry(ctx context.Context, fn func() error) error {
-	return retry.Do(ctx, driver.Tuning.MaxRetryInterval, fn, isErrTooManyConnections)
+func doRetry(ctx context.Context, o options.Options, fn func() error) error {
+	return retry.Do(ctx, driver.OptMaxRetryInterval.Get(o), fn, isErrTooManyConnections)
 }

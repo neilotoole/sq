@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neilotoole/sq/drivers"
+
 	"github.com/neilotoole/sq/cli"
 	"github.com/neilotoole/sq/cli/buildinfo"
 	"github.com/neilotoole/sq/cli/config/yamlstore"
@@ -179,7 +181,11 @@ func (h *Helper) init() {
 		h.registry.AddProvider(json.TypeJSON, jsonp)
 		h.registry.AddProvider(json.TypeJSONA, jsonp)
 		h.registry.AddProvider(json.TypeJSONL, jsonp)
-		h.files.AddDriverDetectors(json.DetectJSON, json.DetectJSONA, json.DetectJSONL)
+		h.files.AddDriverDetectors(
+			json.DetectJSON(drivers.OptIngestSampleSize.Get(nil)),
+			json.DetectJSONA(drivers.OptIngestSampleSize.Get(nil)),
+			json.DetectJSONL(drivers.OptIngestSampleSize.Get(nil)),
+		)
 
 		h.registry.AddProvider(xlsx.Type, &xlsx.Provider{Log: log, Scratcher: h.databases, Files: h.files})
 		h.files.AddDriverDetectors(xlsx.DetectXLSX)
@@ -734,7 +740,7 @@ func DriverDetectors() []source.DriverDetectFunc {
 		source.DetectMagicNumber,
 		xlsx.DetectXLSX,
 		csv.DetectCSV, csv.DetectTSV,
-		/*json.DetectJSON,*/ json.DetectJSONA, json.DetectJSONL, // FIXME: enable DetectJSON when it's ready
+		/*json.DetectJSON,*/ json.DetectJSONA(1000), json.DetectJSONL(1000), // FIXME: enable DetectJSON when it's ready
 	}
 }
 

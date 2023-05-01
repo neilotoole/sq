@@ -211,7 +211,7 @@ func (w *recordWriter) writeRecord(rec sqlz.Record) error {
 
 	w.outBuf.WriteString(w.tplRecEnd)
 
-	if w.outBuf.Len() > output.FlushThreshold {
+	if w.outBuf.Len() > w.pr.FlushThreshold {
 		return w.Flush()
 	}
 

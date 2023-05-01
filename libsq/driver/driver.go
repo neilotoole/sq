@@ -55,7 +55,7 @@ A value of zero indicates no limit.`,
 		"conn.max-idle",
 		2,
 		"",
-		"source", "sql",
+		"source",
 	)
 
 	// OptConnMaxIdleTime controls sql.DB.SetConnMaxIdleTime.
@@ -63,7 +63,7 @@ A value of zero indicates no limit.`,
 		"conn.max-idle-time",
 		time.Second*2,
 		"",
-		"source", "sql",
+		"source",
 	)
 
 	// OptConnMaxLifetime controls sql.DB.SetConnMaxLifetime.
@@ -71,7 +71,20 @@ A value of zero indicates no limit.`,
 		"conn.max-lifetime",
 		time.Minute*10,
 		"",
-		"source", "sql",
+		"source",
+	)
+
+	// OptMaxRetryInterval is the maximum interval to wait
+	// between retries.
+	OptMaxRetryInterval = options.NewDuration(
+		"retry.max-interval",
+		time.Second*3,
+		`The maximum interval to wait between retries.
+If an operation is retryable (for example, if the DB has too many clients),
+repeated retry operations backoff, typically using a Fibonacci or exponential
+backoff. This option controls the maximum interval between retry attempts.
+`,
+		"source",
 	)
 )
 

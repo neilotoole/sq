@@ -120,11 +120,13 @@ func RegisterDefaultOpts(reg *options.Registry) {
 		OptPrintHeader,
 		OptShellCompletionTimeout,
 		OptPingTimeout,
+		OptOutputFlushThreshold,
 		driver.OptConnMaxOpen,
 		driver.OptConnMaxIdle,
 		driver.OptConnMaxIdleTime,
 		driver.OptConnMaxLifetime,
 		drivers.OptIngestHeader,
+		drivers.OptIngestSampleSize,
 		csv.OptDelim,
 		csv.OptEmptyAsNull,
 	)

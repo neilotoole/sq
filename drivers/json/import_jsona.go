@@ -23,76 +23,78 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 )
 
-// DetectJSONA implements source.DriverDetectFunc for TypeJSONA.
+// DetectJSONA returns a source.DriverDetectFunc for TypeJSONA.
 // Each line of input must be a valid JSON array.
-func DetectJSONA(ctx context.Context, openFn source.FileOpenFunc) (detected source.DriverType,
-	score float32, err error,
-) {
-	log := lg.From(ctx)
-	var r io.ReadCloser
-	r, err = openFn()
-	if err != nil {
-		return source.TypeNone, 0, errz.Err(err)
-	}
-	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
+func DetectJSONA(sampleSize int) source.DriverDetectFunc {
+	return func(ctx context.Context, openFn source.FileOpenFunc) (detected source.DriverType,
+		score float32, err error,
+	) {
+		log := lg.From(ctx)
+		var r io.ReadCloser
+		r, err = openFn()
+		if err != nil {
+			return source.TypeNone, 0, errz.Err(err)
+		}
+		defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
 
-	sc := bufio.NewScanner(r)
-	var validLines int
-	var line []byte
+		sc := bufio.NewScanner(r)
+		var validLines int
+		var line []byte
 
-	for sc.Scan() {
-		select {
-		case <-ctx.Done():
-			return source.TypeNone, 0, ctx.Err()
-		default:
+		for sc.Scan() {
+			select {
+			case <-ctx.Done():
+				return source.TypeNone, 0, ctx.Err()
+			default:
+			}
+
+			if err = sc.Err(); err != nil {
+				return source.TypeNone, 0, errz.Err(err)
+			}
+
+			line = sc.Bytes()
+			if len(line) == 0 {
+				// Probably want to skip blank lines? Maybe
+				continue
+			}
+
+			// Each line of JSONA must open with left bracket
+			if line[0] != '[' {
+				return source.TypeNone, 0, nil
+			}
+
+			// If the line is JSONA, it should marshall into []any
+			var fields []any
+			err = stdj.Unmarshal(line, &fields)
+			if err != nil {
+				return source.TypeNone, 0, nil
+			}
+
+			// JSONA must consist only of values, not objects. Any object
+			// would get marshalled into a map[string]any, so
+			// we check for that.
+			for _, field := range fields {
+				if _, ok := field.(map[string]any); ok {
+					return source.TypeNone, 0, nil
+				}
+			}
+
+			validLines++
+			if validLines >= sampleSize {
+				break
+			}
 		}
 
 		if err = sc.Err(); err != nil {
 			return source.TypeNone, 0, errz.Err(err)
 		}
 
-		line = sc.Bytes()
-		if len(line) == 0 {
-			// Probably want to skip blank lines? Maybe
-			continue
+		if validLines > 0 {
+			return TypeJSONA, 1.0, nil
 		}
 
-		// Each line of JSONA must open with left bracket
-		if line[0] != '[' {
-			return source.TypeNone, 0, nil
-		}
-
-		// If the line is JSONA, it should marshall into []any
-		var fields []any
-		err = stdj.Unmarshal(line, &fields)
-		if err != nil {
-			return source.TypeNone, 0, nil
-		}
-
-		// JSONA must consist only of values, not objects. Any object
-		// would get marshalled into a map[string]any, so
-		// we check for that.
-		for _, field := range fields {
-			if _, ok := field.(map[string]any); ok {
-				return source.TypeNone, 0, nil
-			}
-		}
-
-		validLines++
-		if validLines >= driver.Tuning.SampleSize {
-			break
-		}
+		return source.TypeNone, 0, nil
 	}
-
-	if err = sc.Err(); err != nil {
-		return source.TypeNone, 0, errz.Err(err)
-	}
-
-	if validLines > 0 {
-		return TypeJSONA, 1.0, nil
-	}
-
-	return source.TypeNone, 0, nil
 }
 
 func importJSONA(ctx context.Context, job importJob) error {
@@ -105,7 +107,7 @@ func importJSONA(ctx context.Context, job importJob) error {
 
 	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, predictR)
 
-	colKinds, readMungeFns, err := detectColKindsJSONA(ctx, predictR)
+	colKinds, readMungeFns, err := detectColKindsJSONA(ctx, predictR, job.sampleSize)
 	if err != nil {
 		return err
 	}
@@ -232,7 +234,7 @@ func startInsertJSONA(ctx context.Context, recordCh chan<- sqlz.Record, errCh <-
 // detectColKindsJSONA reads JSONA lines from r, and returns
 // the kind of each field. The []readMungeFunc may contain a munge
 // func that should be applied to each value (or the element may be nil).
-func detectColKindsJSONA(ctx context.Context, r io.Reader) ([]kind.Kind, []kind.MungeFunc, error) {
+func detectColKindsJSONA(ctx context.Context, r io.Reader, sampleSize int) ([]kind.Kind, []kind.MungeFunc, error) {
 	var (
 		err            error
 		totalLineCount int
@@ -252,7 +254,7 @@ func detectColKindsJSONA(ctx context.Context, r io.Reader) ([]kind.Kind, []kind.
 		default:
 		}
 
-		if jLineCount > driver.Tuning.SampleSize {
+		if jLineCount > sampleSize {
 			break
 		}
 

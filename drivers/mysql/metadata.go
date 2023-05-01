@@ -257,13 +257,13 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB) (*so
 	g.SetLimit(driver.Tuning.ErrgroupLimit)
 
 	g.Go(func() error {
-		return doRetry(gCtx, func() error {
+		return doRetry(gCtx, src.Options, func() error {
 			return setSourceSummaryMeta(gCtx, db, md)
 		})
 	})
 
 	g.Go(func() error {
-		return doRetry(gCtx, func() error {
+		return doRetry(gCtx, src.Options, func() error {
 			var err error
 			md.DBVars, err = getDBVarsMeta(gCtx, db)
 			return err
@@ -271,7 +271,7 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB) (*so
 	})
 
 	g.Go(func() error {
-		return doRetry(gCtx, func() error {
+		return doRetry(gCtx, src.Options, func() error {
 			var err error
 			md.Tables, err = getAllTblMetas(gCtx, db)
 			return err

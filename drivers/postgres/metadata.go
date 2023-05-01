@@ -227,7 +227,7 @@ current_setting('server_version'), version(), "current_user"()`
 			var tblMeta *source.TableMetadata
 			var mdErr error
 
-			mdErr = doRetry(gCtx, func() error {
+			mdErr = doRetry(gCtx, src.Options, func() error {
 				tblMeta, mdErr = getTableMetadata(gCtx, db, tblNames[i])
 				return mdErr
 			})

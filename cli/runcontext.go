@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/neilotoole/sq/drivers"
+
 	"github.com/neilotoole/sq/cli/config/yamlstore"
 	v0_34_0 "github.com/neilotoole/sq/cli/config/yamlstore/upgrades/v0.34.0"
 	"github.com/neilotoole/sq/libsq/core/lg/slogbuf"
@@ -263,7 +265,12 @@ func (rc *RunContext) doInit(ctx context.Context) error {
 	rc.driverReg.AddProvider(json.TypeJSON, jsonp)
 	rc.driverReg.AddProvider(json.TypeJSONA, jsonp)
 	rc.driverReg.AddProvider(json.TypeJSONL, jsonp)
-	rc.files.AddDriverDetectors(json.DetectJSON, json.DetectJSONA, json.DetectJSONL)
+	sampleSize := drivers.OptIngestSampleSize.Get(cfg.Options)
+	rc.files.AddDriverDetectors(
+		json.DetectJSON(sampleSize),
+		json.DetectJSONA(sampleSize),
+		json.DetectJSONL(sampleSize),
+	)
 
 	rc.driverReg.AddProvider(xlsx.Type, &xlsx.Provider{Log: log, Scratcher: rc.databases, Files: rc.files})
 	rc.files.AddDriverDetectors(xlsx.DetectXLSX)
