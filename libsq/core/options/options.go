@@ -13,6 +13,7 @@
 package options
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -22,6 +23,32 @@ import (
 	"github.com/samber/lo"
 	"golang.org/x/exp/slices"
 )
+
+type contextKey struct{}
+
+// NewContext returns a context that contains the given Options.
+// Use FromContext to retrieve the Options.
+//
+// NOTE: It's questionable whether we need to engage in this context
+// business with Options. This is a bit of an experiment.
+func NewContext(ctx context.Context, o Options) context.Context {
+	return context.WithValue(ctx, contextKey{}, o)
+}
+
+// FromContext returns the Options stored in ctx by NewContext, or nil
+// if no such Options.
+func FromContext(ctx context.Context) Options {
+	v := ctx.Value(contextKey{})
+	if v == nil {
+		return nil
+	}
+
+	if v, ok := v.(Options); ok {
+		return v
+	}
+
+	return nil
+}
 
 // Registry is a registry of Opt instances.
 type Registry struct {

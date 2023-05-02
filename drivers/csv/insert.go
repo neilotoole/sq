@@ -89,7 +89,7 @@ func mungeCSV2InsertRecord(ctx context.Context, mungers []kind.MungeFunc, csvRec
 	a := make([]any, len(csvRec))
 	for i := range csvRec {
 		if i >= len(mungers) {
-			lg.From(ctx).Error("no munger for field", lga.Index, i, lga.Val, csvRec[i])
+			lg.FromContext(ctx).Error("no munger for field", lga.Index, i, lga.Val, csvRec[i])
 			// Maybe should panic here, or return an error?
 			// But, in future we may be able to handle ragged-edge records,
 			// so maybe logging the error is best.

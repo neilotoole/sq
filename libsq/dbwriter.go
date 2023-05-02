@@ -146,7 +146,7 @@ func (w *DBWriter) Open(ctx context.Context, cancelFn context.CancelFunc, recMet
 
 					err = <-w.bi.ErrCh // Wait for batch inserter to complete
 					if err != nil {
-						lg.From(ctx).Error(err.Error())
+						lg.FromContext(ctx).Error(err.Error())
 						w.addErrs(err)
 						w.rollback(ctx, tx, err)
 						return
@@ -154,10 +154,10 @@ func (w *DBWriter) Open(ctx context.Context, cancelFn context.CancelFunc, recMet
 
 					commitErr := errz.Err(tx.Commit())
 					if commitErr != nil {
-						lg.From(ctx).Error(commitErr.Error())
+						lg.FromContext(ctx).Error(commitErr.Error())
 						w.addErrs(commitErr)
 					} else {
-						lg.From(ctx).Debug("Tx commit success",
+						lg.FromContext(ctx).Debug("Tx commit success",
 							lga.Target, source.Target(w.destDB.Source(), w.destTbl))
 					}
 
@@ -212,11 +212,11 @@ func (w *DBWriter) addErrs(errs ...error) {
 // need to close those manually.
 func (w *DBWriter) rollback(ctx context.Context, tx *sql.Tx, causeErrs ...error) {
 	// Guaranteed to be at least one causeErr
-	lg.From(ctx).Error("failed to insert to %s.%s: tx rollback due to: %s",
+	lg.FromContext(ctx).Error("failed to insert to %s.%s: tx rollback due to: %s",
 		w.destDB.Source().Handle, w.destTbl, causeErrs[0])
 
 	rollbackErr := errz.Err(tx.Rollback())
-	lg.WarnIfError(lg.From(ctx), lgm.TxRollback, rollbackErr)
+	lg.WarnIfError(lg.FromContext(ctx), lgm.TxRollback, rollbackErr)
 
 	w.addErrs(causeErrs...)
 	w.addErrs(rollbackErr)

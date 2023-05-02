@@ -1,6 +1,7 @@
 package options_test
 
 import (
+	"context"
 	"os"
 	"testing"
 	"time"
@@ -172,4 +173,17 @@ func TestDeleteNil(t *testing.T) {
 	got := options.DeleteNil(o)
 	require.Lenf(t, o, 5, "o should not be modified")
 	require.Equal(t, options.Options{"a": 1, "d": 2}, got)
+}
+
+func TestContext(t *testing.T) {
+	ctx := context.Background()
+
+	ctx = options.NewContext(ctx, nil)
+	gotOpts := options.FromContext(ctx)
+	require.Nil(t, gotOpts)
+
+	opts := options.Options{"a": 1}
+	ctx = options.NewContext(ctx, opts)
+	gotOpts = options.FromContext(ctx)
+	require.Equal(t, opts, gotOpts)
 }

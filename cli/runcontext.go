@@ -193,7 +193,7 @@ func (rc *RunContext) init(ctx context.Context) error {
 // It must only be invoked once.
 func (rc *RunContext) doInit(ctx context.Context) error {
 	rc.clnup = cleanup.New()
-	cfg, log := rc.Config, lg.From(ctx)
+	cfg, log := rc.Config, lg.FromContext(ctx)
 
 	// If the --output=/some/file flag is set, then we need to
 	// override rc.Out (which is typically stdout) to point it at

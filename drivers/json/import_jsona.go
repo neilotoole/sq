@@ -29,7 +29,7 @@ func DetectJSONA(sampleSize int) source.DriverDetectFunc {
 	return func(ctx context.Context, openFn source.FileOpenFunc) (detected source.DriverType,
 		score float32, err error,
 	) {
-		log := lg.From(ctx)
+		log := lg.FromContext(ctx)
 		var r io.ReadCloser
 		r, err = openFn()
 		if err != nil {
@@ -98,7 +98,7 @@ func DetectJSONA(sampleSize int) source.DriverDetectFunc {
 }
 
 func importJSONA(ctx context.Context, job importJob) error {
-	log := lg.From(ctx)
+	log := lg.FromContext(ctx)
 
 	predictR, err := job.openFn()
 	if err != nil {
@@ -139,7 +139,11 @@ func importJSONA(ctx context.Context, job importJob) error {
 	}
 	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
 
-	insertWriter := libsq.NewDBWriter(job.destDB, tblDef.Name, driver.Tuning.RecordChSize)
+	insertWriter := libsq.NewDBWriter(
+		job.destDB,
+		tblDef.Name,
+		driver.OptRecordChannelSize.Get(job.destDB.Source().Options),
+	)
 
 	var cancelFn context.CancelFunc
 	ctx, cancelFn = context.WithCancel(ctx)

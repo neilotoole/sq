@@ -7,6 +7,8 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/options"
+
 	"github.com/neilotoole/sq/libsq/driver"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -176,7 +178,8 @@ func toNullableScanType(log *slog.Logger, colName, dbTypeName string, knd kind.K
 }
 
 func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB) (*source.Metadata, error) {
-	log := lg.From(ctx)
+	log := lg.FromContext(ctx)
+	ctx = options.NewContext(ctx, src.Options)
 
 	md := &source.Metadata{
 		Handle:       src.Handle,
@@ -213,7 +216,7 @@ current_setting('server_version'), version(), "current_user"()`
 	}
 
 	g, gCtx := errgroup.WithContext(ctx)
-	g.SetLimit(driver.Tuning.ErrgroupLimit)
+	g.SetLimit(driver.OptErrgroupLimit.Get(src.Options))
 	tblMetas := make([]*source.TableMetadata, len(tblNames))
 	for i := range tblNames {
 		i := i
@@ -227,7 +230,7 @@ current_setting('server_version'), version(), "current_user"()`
 			var tblMeta *source.TableMetadata
 			var mdErr error
 
-			mdErr = doRetry(gCtx, src.Options, func() error {
+			mdErr = doRetry(gCtx, func() error {
 				tblMeta, mdErr = getTableMetadata(gCtx, db, tblNames[i])
 				return mdErr
 			})
@@ -269,7 +272,7 @@ current_setting('server_version'), version(), "current_user"()`
 }
 
 func getPgSettings(ctx context.Context, db sqlz.DB) ([]source.DBVar, error) {
-	log := lg.From(ctx)
+	log := lg.FromContext(ctx)
 	rows, err := db.QueryContext(ctx, "SELECT name, setting FROM pg_settings ORDER BY name")
 	if err != nil {
 		return nil, errz.Err(err)
@@ -298,7 +301,7 @@ func getPgSettings(ctx context.Context, db sqlz.DB) ([]source.DBVar, error) {
 // getAllTable names returns all table (or view) names in the current
 // catalog & schema.
 func getAllTableNames(ctx context.Context, db sqlz.DB) ([]string, error) {
-	log := lg.From(ctx)
+	log := lg.FromContext(ctx)
 
 	const tblNamesQuery = `SELECT table_name FROM information_schema.tables
 WHERE table_catalog = current_catalog AND table_schema = current_schema()
@@ -329,7 +332,7 @@ ORDER BY table_name`
 }
 
 func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*source.TableMetadata, error) {
-	log := lg.From(ctx)
+	log := lg.FromContext(ctx)
 
 	const tblsQueryTpl = `SELECT table_catalog, table_schema, table_name, table_type, is_insertable_into,
   (SELECT COUNT(*) FROM "%s") AS table_row_count,
@@ -450,7 +453,7 @@ type pgColumn struct {
 
 // getPgColumns queries the column metadata for tblName.
 func getPgColumns(ctx context.Context, db sqlz.DB, tblName string) ([]*pgColumn, error) {
-	log := lg.From(ctx)
+	log := lg.FromContext(ctx)
 
 	// colsQuery gets column information from information_schema.columns.
 	//
@@ -548,7 +551,7 @@ func colMetaFromPgColumn(log *slog.Logger, pgCol *pgColumn) *source.ColMetadata 
 // are returned. If tblName is specified, constraints just for that
 // table are returned.
 func getPgConstraints(ctx context.Context, db sqlz.DB, tblName string) ([]*pgConstraint, error) {
-	log := lg.From(ctx)
+	log := lg.FromContext(ctx)
 
 	var args []any
 	query := `SELECT kcu.table_catalog,kcu.table_schema,kcu.table_name,kcu.column_name,

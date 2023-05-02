@@ -32,7 +32,7 @@ import (
 func ConfigureDB(ctx context.Context, db *sql.DB, o options.Options) {
 	o2 := options.Effective(o, OptConnMaxOpen, OptConnMaxIdle, OptConnMaxIdleTime, OptConnMaxLifetime)
 
-	lg.From(ctx).Debug("Setting config on DB conn", "config", o2)
+	lg.FromContext(ctx).Debug("Setting config on DB conn", "config", o2)
 
 	db.SetMaxOpenConns(OptConnMaxOpen.Get(o2))
 	db.SetMaxIdleConns(OptConnMaxIdle.Get(o2))
@@ -81,10 +81,31 @@ A value of zero indicates no limit.`,
 		time.Second*3,
 		`The maximum interval to wait between retries.
 If an operation is retryable (for example, if the DB has too many clients),
-repeated retry operations backoff, typically using a Fibonacci or exponential
+repeated retry operations back off, typically using a Fibonacci or exponential
 backoff. This option controls the maximum interval between retry attempts.
 `,
 		"source",
+	)
+
+	// OptErrgroupLimit controls the maximum number of goroutines that can be spawned
+	// by an errgroup.
+	OptErrgroupLimit = options.NewInt("errgroup.limit",
+		16,
+		`Controls the maximum number of goroutines that can be spawned
+by an errgroup. Note that this is the limit for any one errgroup, but not a
+ceiling on the total number of goroutines spawned, as some errgroups may
+themselves start an errgroup.
+
+This knob is primarily for internal use. Ultimately this knob should go away,
+in favor of dynamic errgroup limit setting based on availability
+of additional DB conns, etc.`,
+		"internal")
+
+	// OptRecordChannelSize is the size of the buffer chan for record
+	// insertion/writing.
+	OptRecordChannelSize = options.NewInt("internal.record-buffer-size",
+		1024,
+		`Controls the size of the buffer channel for record insertion/writing.`,
 	)
 )
 
@@ -319,7 +340,7 @@ func NewDatabases(log *slog.Logger, drvrs Provider, scratchSrcFn ScratchSrcFunc)
 //
 // Open implements DatabaseOpener.
 func (d *Databases) Open(ctx context.Context, src *source.Source) (Database, error) {
-	lg.From(ctx).Debug(lgm.OpenSrc, lga.Src, src)
+	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
 	d.mu.Lock()
 	defer d.mu.Unlock()

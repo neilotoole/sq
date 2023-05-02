@@ -23,7 +23,7 @@ func DetectJSON(sampleSize int) source.DriverDetectFunc {
 	return func(ctx context.Context, openFn source.FileOpenFunc) (detected source.DriverType, score float32,
 		err error,
 	) {
-		log := lg.From(ctx)
+		log := lg.FromContext(ctx)
 		var r1, r2 io.ReadCloser
 		r1, err = openFn()
 		if err != nil {
@@ -135,7 +135,7 @@ func DetectJSON(sampleSize int) source.DriverDetectFunc {
 }
 
 func importJSON(ctx context.Context, job importJob) error {
-	log := lg.From(ctx)
+	log := lg.FromContext(ctx)
 
 	r, err := job.openFn()
 	if err != nil {

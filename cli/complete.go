@@ -308,14 +308,14 @@ func (c *handleTableCompleter) completeTableOnly(ctx context.Context, rc *RunCon
 ) ([]string, cobra.ShellCompDirective) {
 	activeSrc := rc.Config.Collection.Active()
 	if activeSrc == nil {
-		lg.From(ctx).Error("Active source is nil")
+		lg.FromContext(ctx).Error("Active source is nil")
 		return nil, cobra.ShellCompDirectiveError
 	}
 
 	if c.onlySQL {
 		isSQL, err := handleIsSQLDriver(rc, activeSrc.Handle)
 		if err != nil {
-			lg.Unexpected(lg.From(ctx), err)
+			lg.Unexpected(lg.FromContext(ctx), err)
 			return nil, cobra.ShellCompDirectiveError
 		}
 		if !isSQL {
@@ -325,7 +325,7 @@ func (c *handleTableCompleter) completeTableOnly(ctx context.Context, rc *RunCon
 
 	tables, err := getTableNamesForHandle(ctx, rc, activeSrc.Handle)
 	if err != nil {
-		lg.Unexpected(lg.From(ctx), err)
+		lg.Unexpected(lg.FromContext(ctx), err)
 		return nil, cobra.ShellCompDirectiveError
 	}
 
@@ -358,7 +358,7 @@ func (c *handleTableCompleter) completeHandle(ctx context.Context, rc *RunContex
 		// partial table name, such as "@sakila_sl3.fil"
 		handle, partialTbl, err := source.ParseTableHandle(strings.TrimSuffix(toComplete, "."))
 		if err != nil {
-			lg.Unexpected(lg.From(ctx), err)
+			lg.Unexpected(lg.FromContext(ctx), err)
 			return nil, cobra.ShellCompDirectiveError
 		}
 
@@ -366,7 +366,7 @@ func (c *handleTableCompleter) completeHandle(ctx context.Context, rc *RunContex
 			var isSQL bool
 			isSQL, err = handleIsSQLDriver(rc, handle)
 			if err != nil {
-				lg.Unexpected(lg.From(ctx), err)
+				lg.Unexpected(lg.FromContext(ctx), err)
 				return nil, cobra.ShellCompDirectiveError
 			}
 
@@ -377,7 +377,7 @@ func (c *handleTableCompleter) completeHandle(ctx context.Context, rc *RunContex
 
 		tables, err := getTableNamesForHandle(ctx, rc, handle)
 		if err != nil {
-			lg.Unexpected(lg.From(ctx), err)
+			lg.Unexpected(lg.FromContext(ctx), err)
 			return nil, cobra.ShellCompDirectiveError
 		}
 
@@ -399,7 +399,7 @@ func (c *handleTableCompleter) completeHandle(ctx context.Context, rc *RunContex
 			if c.onlySQL {
 				isSQL, err := handleIsSQLDriver(rc, handle)
 				if err != nil {
-					lg.Unexpected(lg.From(ctx), err)
+					lg.Unexpected(lg.FromContext(ctx), err)
 					return nil, cobra.ShellCompDirectiveError
 				}
 				if !isSQL {
@@ -427,7 +427,7 @@ func (c *handleTableCompleter) completeHandle(ctx context.Context, rc *RunContex
 		// This means that we aren't able to get metadata for this source.
 		// This could be because the source is temporarily offline. The
 		// best we can do is just to return the handle, without the tables.
-		lg.WarnIfError(lg.From(ctx), "Fetch metadata", err)
+		lg.WarnIfError(lg.FromContext(ctx), "Fetch metadata", err)
 		return matchingHandles, cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace
 	}
 
@@ -453,7 +453,7 @@ func (c *handleTableCompleter) completeEither(ctx context.Context, rc *RunContex
 		var activeSrcTables []string
 		isSQL, err := handleIsSQLDriver(rc, activeSrc.Handle)
 		if err != nil {
-			lg.Unexpected(lg.From(ctx), err)
+			lg.Unexpected(lg.FromContext(ctx), err)
 			return nil, cobra.ShellCompDirectiveError
 		}
 
@@ -463,7 +463,7 @@ func (c *handleTableCompleter) completeEither(ctx context.Context, rc *RunContex
 				// This can happen if the active source is offline.
 				// Log the error, but continue below, because we still want to
 				// list the handles.
-				lg.From(ctx).Warn("completion: failed to get table metadata from active source",
+				lg.FromContext(ctx).Warn("completion: failed to get table metadata from active source",
 					lga.Err, err, lga.Src, activeSrc)
 			}
 		}
@@ -477,7 +477,7 @@ func (c *handleTableCompleter) completeEither(ctx context.Context, rc *RunContex
 		if c.onlySQL {
 			isSQL, err := handleIsSQLDriver(rc, src.Handle)
 			if err != nil {
-				lg.Unexpected(lg.From(ctx), err)
+				lg.Unexpected(lg.FromContext(ctx), err)
 				return nil, cobra.ShellCompDirectiveError
 			}
 			if !isSQL {

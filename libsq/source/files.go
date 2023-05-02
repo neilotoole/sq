@@ -49,7 +49,7 @@ type Files struct {
 
 // NewFiles returns a new Files instance.
 func NewFiles(ctx context.Context) (*Files, error) {
-	fs := &Files{clnup: cleanup.New(), log: lg.From(ctx)}
+	fs := &Files{clnup: cleanup.New(), log: lg.FromContext(ctx)}
 
 	tmpdir, err := os.MkdirTemp("", "sq_files_fscache_*")
 	if err != nil {
@@ -463,7 +463,7 @@ var _ DriverDetectFunc = DetectMagicNumber
 // the start of files.
 func DetectMagicNumber(ctx context.Context, openFn FileOpenFunc,
 ) (detected DriverType, score float32, err error) {
-	log := lg.From(ctx)
+	log := lg.FromContext(ctx)
 	var r io.ReadCloser
 	r, err = openFn()
 	if err != nil {

@@ -307,7 +307,7 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 
 // Open implements driver.DatabaseOpener.
 func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
-	lg.From(ctx).Debug(lgm.OpenSrc, lga.Src, src)
+	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
 	db, err := d.doOpen(ctx, src)
 	if err != nil {
@@ -490,6 +490,7 @@ func dsnFromLocation(src *source.Source, parseTime bool) (string, error) {
 }
 
 // doRetry executes fn with retry on isErrTooManyConnections.
-func doRetry(ctx context.Context, o options.Options, fn func() error) error {
-	return retry.Do(ctx, driver.OptMaxRetryInterval.Get(o), fn, isErrTooManyConnections)
+func doRetry(ctx context.Context, fn func() error) error {
+	maxRetryInterval := driver.OptMaxRetryInterval.Get(options.FromContext(ctx))
+	return retry.Do(ctx, maxRetryInterval, fn, isErrTooManyConnections)
 }

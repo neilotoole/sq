@@ -23,11 +23,11 @@ import (
 func defaultLogging(ctx context.Context) (log *slog.Logger, h slog.Handler, closer func() error, err error) {
 	logFilePath, ok := os.LookupEnv(config.EnvarLogPath)
 	if !ok || strings.TrimSpace(logFilePath) == "" {
-		lg.From(ctx).Debug("Logging: not enabled via envar", lga.Key, config.EnvarLogPath)
+		lg.FromContext(ctx).Debug("Logging: not enabled via envar", lga.Key, config.EnvarLogPath)
 		return lg.Discard(), nil, nil, nil
 	}
 
-	lg.From(ctx).Debug("Logging: enabled via envar", lga.Key, config.EnvarLogPath, lga.Val, logFilePath)
+	lg.FromContext(ctx).Debug("Logging: enabled via envar", lga.Key, config.EnvarLogPath, lga.Val, logFilePath)
 
 	// Let's try to create the dir holding the logfile... if it already exists,
 	// then os.MkdirAll will just no-op
@@ -98,7 +98,7 @@ func logFrom(cmd *cobra.Command) *slog.Logger {
 		return lg.Discard()
 	}
 
-	log := lg.From(ctx)
+	log := lg.FromContext(ctx)
 	if log == nil {
 		return lg.Discard()
 	}

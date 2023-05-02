@@ -80,9 +80,9 @@ func execConfigSet(cmd *cobra.Command, args []string) error {
 	}
 
 	if src != nil {
-		lg.From(ctx).Info("Set default config value", lga.Val, o)
+		lg.FromContext(ctx).Info("Set default config value", lga.Val, o)
 	} else {
-		lg.From(ctx).Info("Set source config value", lga.Src, src, lga.Val, o)
+		lg.FromContext(ctx).Info("Set source config value", lga.Src, src, lga.Val, o)
 	}
 
 	return rc.writers.configw.SetOption(rc.OptionsRegistry, o, opt)

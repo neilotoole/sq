@@ -146,7 +146,7 @@ func checkStdinSource(ctx context.Context, rc *RunContext) (*source.Source, erro
 func newSource(ctx context.Context, dp driver.Provider, typ source.DriverType, handle, loc string,
 	opts options.Options,
 ) (*source.Source, error) {
-	log := lg.From(ctx)
+	log := lg.FromContext(ctx)
 
 	if opts == nil {
 		log.Debug("Create new data source",

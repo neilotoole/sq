@@ -142,7 +142,7 @@ func pingSources(ctx context.Context, dp driver.Provider, srcs []*source.Source,
 		return err
 	}
 
-	log := lg.From(ctx)
+	log := lg.FromContext(ctx)
 	defer lg.WarnIfFuncError(log, "Close ping writer", w.Close)
 
 	resultCh := make(chan pingResult, len(srcs))

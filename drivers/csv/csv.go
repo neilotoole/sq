@@ -68,7 +68,7 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 
 // Open implements driver.DatabaseOpener.
 func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
-	lg.From(ctx).Debug(lgm.OpenSrc, lga.Src, src)
+	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
 	dbase := &database{
 		log:   d.log,

@@ -84,7 +84,7 @@ func (d *drvr) DriverMetadata() driver.Metadata {
 
 // Open implements driver.DatabaseOpener.
 func (d *drvr) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
-	lg.From(ctx).Debug(lgm.OpenSrc, lga.Src, src)
+	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
 	clnup := cleanup.New()
 

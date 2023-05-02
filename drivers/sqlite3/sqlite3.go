@@ -86,7 +86,7 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 
 // Open implements driver.DatabaseOpener.
 func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
-	lg.From(ctx).Debug(lgm.OpenSrc, lga.Src, src)
+	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
 	db, err := d.doOpen(ctx, src)
 	if err != nil {
@@ -851,7 +851,7 @@ func (d *database) Close() error {
 // src points at this file. The returned clnup func closes that
 // db file and deletes it.
 func NewScratchSource(ctx context.Context, name string) (src *source.Source, clnup func() error, err error) {
-	log := lg.From(ctx)
+	log := lg.FromContext(ctx)
 	name = stringz.SanitizeAlphaNumeric(name, '_')
 	_, f, cleanFn, err := source.TempDirFile(name + ".sqlite")
 	if err != nil {

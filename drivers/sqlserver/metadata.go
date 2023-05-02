@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/options"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"github.com/neilotoole/sq/libsq/driver"
@@ -113,7 +115,8 @@ func setScanType(ct *sqlz.ColumnTypeData, knd kind.Kind) {
 }
 
 func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB) (*source.Metadata, error) {
-	log := lg.From(ctx)
+	log := lg.FromContext(ctx)
+	ctx = options.NewContext(ctx, src.Options)
 
 	const query = `SELECT DB_NAME(), SCHEMA_NAME(), SERVERPROPERTY('ProductVersion'), @@VERSION,
 (SELECT SUM(size) * 8192
@@ -142,7 +145,7 @@ GROUP BY database_id) AS total_size_bytes`
 	}
 
 	g, gCtx := errgroup.WithContext(ctx)
-	g.SetLimit(driver.Tuning.ErrgroupLimit)
+	g.SetLimit(driver.OptErrgroupLimit.Get(src.Options))
 	tblMetas := make([]*source.TableMetadata, len(tblNames))
 	for i := range tblNames {
 		i := i
@@ -256,7 +259,7 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblCatalog,
 			Name:         dbCols[i].ColumnName,
 			Position:     dbCols[i].OrdinalPosition,
 			BaseType:     dbCols[i].DataType,
-			Kind:         kindFromDBTypeName(lg.From(ctx), dbCols[i].ColumnName, dbCols[i].DataType),
+			Kind:         kindFromDBTypeName(lg.FromContext(ctx), dbCols[i].ColumnName, dbCols[i].DataType),
 			Nullable:     dbCols[i].Nullable.Bool,
 			DefaultValue: dbCols[i].ColumnDefault.String,
 		}
@@ -297,7 +300,7 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblCatalog,
 // getAllTables returns all of the table names, and the table types
 // (i.e. "BASE TABLE" or "VIEW").
 func getAllTables(ctx context.Context, db sqlz.DB) (tblNames, tblTypes []string, err error) {
-	log := lg.From(ctx)
+	log := lg.FromContext(ctx)
 
 	const query = `SELECT TABLE_NAME, TABLE_TYPE FROM INFORMATION_SCHEMA.TABLES
 WHERE TABLE_TYPE='BASE TABLE' OR TABLE_TYPE='VIEW'
@@ -328,7 +331,7 @@ ORDER BY TABLE_NAME ASC, TABLE_TYPE ASC`
 }
 
 func getColumnMeta(ctx context.Context, db sqlz.DB, tblCatalog, tblSchema, tblName string) ([]columnMeta, error) {
-	log := lg.From(ctx)
+	log := lg.FromContext(ctx)
 
 	// TODO: sq doesn't use all of these columns, no need to select them all.
 	const query = `SELECT
@@ -374,7 +377,7 @@ func getColumnMeta(ctx context.Context, db sqlz.DB, tblCatalog, tblSchema, tblNa
 }
 
 func getConstraints(ctx context.Context, db sqlz.DB, tblCatalog, tblSchema, tblName string) ([]constraintMeta, error) {
-	log := lg.From(ctx)
+	log := lg.FromContext(ctx)
 
 	const query = `SELECT kcu.TABLE_CATALOG, kcu.TABLE_SCHEMA, kcu.TABLE_NAME,  tc.CONSTRAINT_TYPE,
        kcu.COLUMN_NAME, kcu.CONSTRAINT_NAME

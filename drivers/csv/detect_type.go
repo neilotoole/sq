@@ -35,7 +35,7 @@ func DetectTSV(ctx context.Context, openFn source.FileOpenFunc) (detected source
 func detectType(ctx context.Context, typ source.DriverType,
 	openFn source.FileOpenFunc,
 ) (detected source.DriverType, score float32, err error) {
-	log := lg.From(ctx)
+	log := lg.FromContext(ctx)
 	var r io.ReadCloser
 	r, err = openFn()
 	if err != nil {

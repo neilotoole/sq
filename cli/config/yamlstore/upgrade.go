@@ -36,7 +36,7 @@ type UpgradeRegistry map[string]UpgradeFunc
 // and targetVersion. Typically this is checked by Load, but can be
 // explicitly invoked for testing etc.
 func (fs *Store) doUpgrade(ctx context.Context, startVersion, targetVersion string) (*config.Config, error) {
-	log := lg.From(ctx)
+	log := lg.FromContext(ctx)
 	log.Debug("Starting config upgrade", lga.From, startVersion, lga.To, targetVersion)
 
 	if !semver.IsValid(targetVersion) {
@@ -161,7 +161,7 @@ func checkNeedsUpgrade(ctx context.Context, path string) (needsUpgrade bool, fou
 		return false, "", err
 	}
 
-	lg.From(ctx).Debug("Found config version in file",
+	lg.FromContext(ctx).Debug("Found config version in file",
 		lga.Version, foundVers, lga.Path, path)
 
 	if semver.Compare(foundVers, MinConfigVersion) < 0 {

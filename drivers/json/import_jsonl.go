@@ -23,7 +23,7 @@ func DetectJSONL(sampleSize int) source.DriverDetectFunc {
 	return func(ctx context.Context, openFn source.FileOpenFunc) (detected source.DriverType,
 		score float32, err error,
 	) {
-		log := lg.From(ctx)
+		log := lg.FromContext(ctx)
 		var r io.ReadCloser
 		r, err = openFn()
 		if err != nil {
@@ -86,7 +86,7 @@ func DetectJSONL(sampleSize int) source.DriverDetectFunc {
 // DetectJSONL implements source.DriverDetectFunc.
 
 func importJSONL(ctx context.Context, job importJob) error { //nolint:gocognit
-	log := lg.From(ctx)
+	log := lg.FromContext(ctx)
 
 	r, err := job.openFn()
 	if err != nil {

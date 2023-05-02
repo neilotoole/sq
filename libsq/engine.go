@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/neilotoole/sq/libsq/core/options"
+
 	"github.com/neilotoole/sq/libsq/ast/render"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -47,7 +49,7 @@ type engine struct {
 }
 
 func newEngine(ctx context.Context, qc *QueryContext, query string) (*engine, error) {
-	log := lg.From(ctx)
+	log := lg.FromContext(ctx)
 
 	a, err := ast.Parse(log, query)
 	if err != nil {
@@ -100,7 +102,7 @@ func (ng *engine) executeTasks(ctx context.Context) error {
 	}
 
 	g, gCtx := errgroup.WithContext(ctx)
-	g.SetLimit(driver.Tuning.ErrgroupLimit)
+	g.SetLimit(driver.OptErrgroupLimit.Get(options.FromContext(ctx)))
 
 	for _, task := range ng.tasks {
 		task := task
@@ -295,7 +297,7 @@ func (jt *joinCopyTask) executeTask(ctx context.Context) error {
 func execCopyTable(ctx context.Context, fromDB driver.Database, fromTblName string,
 	destDB driver.Database, destTblName string,
 ) error {
-	log := lg.From(ctx)
+	log := lg.FromContext(ctx)
 
 	createTblHook := func(ctx context.Context, originRecMeta sqlz.RecordMeta, destDB driver.Database,
 		tx sqlz.DB,
@@ -312,7 +314,12 @@ func execCopyTable(ctx context.Context, fromDB driver.Database, fromTblName stri
 		return nil
 	}
 
-	inserter := NewDBWriter(destDB, destTblName, driver.Tuning.RecordChSize, createTblHook)
+	inserter := NewDBWriter(
+		destDB,
+		destTblName,
+		driver.OptRecordChannelSize.Get(destDB.Source().Options),
+		createTblHook,
+	)
 
 	query := "SELECT * FROM " + fromDB.SQLDriver().Dialect().Enquote(fromTblName)
 	err := QuerySQL(ctx, fromDB, inserter, query)

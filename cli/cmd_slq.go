@@ -155,7 +155,7 @@ func execSLQInsert(ctx context.Context, rc *RunContext, mArgs map[string]string,
 	inserter := libsq.NewDBWriter(
 		destDB,
 		destTbl,
-		driver.Tuning.RecordChSize,
+		driver.OptRecordChannelSize.Get(destSrc.Options),
 		libsq.DBWriterCreateTableIfNotExistsHook(destTbl),
 	)
 
@@ -229,7 +229,7 @@ func execSLQPrint(ctx context.Context, rc *RunContext, mArgs map[string]string) 
 //
 //	$ sq '.person'  -->  $ sq '@active.person'
 func preprocessUserSLQ(ctx context.Context, rc *RunContext, args []string) (string, error) {
-	log, reg, dbases, coll := lg.From(ctx), rc.driverReg, rc.databases, rc.Config.Collection
+	log, reg, dbases, coll := lg.FromContext(ctx), rc.driverReg, rc.databases, rc.Config.Collection
 	activeSrc := coll.Active()
 
 	if len(args) == 0 {
