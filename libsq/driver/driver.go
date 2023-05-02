@@ -54,7 +54,10 @@ A value of zero indicates no limit.`,
 	OptConnMaxIdle = options.NewInt(
 		"conn.max-idle",
 		2,
-		"",
+		`Set the maximum number of connections in the idle connection pool.
+If conn.max-open is greater than 0 but less than the new conn.max-idle,
+then the new conn.max-idle will be reduced to match the conn.max-open limit.
+If n <= 0, no idle connections are retained.`,
 		"source",
 	)
 
@@ -62,7 +65,9 @@ A value of zero indicates no limit.`,
 	OptConnMaxIdleTime = options.NewDuration(
 		"conn.max-idle-time",
 		time.Second*2,
-		"",
+		`Sets the maximum amount of time a connection may be idle.
+Expired connections may be closed lazily before reuse. If n <= 0,
+connections are not closed due to a connection's idle time.`,
 		"source",
 	)
 
@@ -70,7 +75,9 @@ A value of zero indicates no limit.`,
 	OptConnMaxLifetime = options.NewDuration(
 		"conn.max-lifetime",
 		time.Minute*10,
-		"",
+		`Set the maximum amount of time a connection may be reused.
+Expired connections may be closed lazily before reuse.
+If n <= 0, connections are not closed due to a connection's age.`,
 		"source",
 	)
 
@@ -82,8 +89,7 @@ A value of zero indicates no limit.`,
 		`The maximum interval to wait between retries.
 If an operation is retryable (for example, if the DB has too many clients),
 repeated retry operations back off, typically using a Fibonacci or exponential
-backoff. This option controls the maximum interval between retry attempts.
-`,
+backoff. This option controls the maximum interval between retry attempts.`,
 		"source",
 	)
 
@@ -96,7 +102,7 @@ by an errgroup. Note that this is the limit for any one errgroup, but not a
 ceiling on the total number of goroutines spawned, as some errgroups may
 themselves start an errgroup.
 
-This knob is primarily for internal use. Ultimately this knob should go away,
+This knob is primarily for internal use. Ultimately it should go away
 in favor of dynamic errgroup limit setting based on availability
 of additional DB conns, etc.`,
 		"internal")

@@ -32,7 +32,8 @@ import (
 var OptEmptyAsNull = options.NewBool(
 	"driver.csv.empty-as-null",
 	true,
-	"",
+	`When true, empty CSV cells are treated as NULL. When false,
+the zero value for that type is used, e.g. empty string or 0.`,
 	"source", "csv",
 )
 
@@ -40,8 +41,8 @@ var OptEmptyAsNull = options.NewBool(
 var OptDelim = options.NewString(
 	"driver.csv.delim",
 	"comma",
-	`Possible values are: comma, space, pipe, tab, colon, semi, period.
-Default is comma.`,
+	`Delimiter to use for CSV files. Default is "comma".
+Possible values are: comma, space, pipe, tab, colon, semi, period.`,
 	"source", "csv",
 )
 

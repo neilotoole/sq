@@ -32,13 +32,13 @@ const (
 	JSONL    Format = "jsonl"
 	JSONA    Format = "jsona"
 	Table    Format = "table"
-	Raw      Format = "raw"
 	HTML     Format = "html"
 	Markdown Format = "markdown"
 	XLSX     Format = "xlsx"
 	XML      Format = "xml"
 	CSV      Format = "csv"
 	TSV      Format = "tsv"
+	Raw      Format = "raw"
 	YAML     Format = "yaml"
 )
 

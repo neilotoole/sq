@@ -24,6 +24,9 @@ type Opt interface {
 	// Key returns the Opt key, such as "ping.timeout".
 	Key() string
 
+	// Comment returns the Opt's comment.
+	Comment() string
+
 	// String returns a log/debug friendly representation.
 	String() string
 
@@ -54,6 +57,11 @@ type baseOpt struct {
 // Key implements options.Opt.
 func (op baseOpt) Key() string {
 	return op.key
+}
+
+// Comment implements options.Opt.
+func (op baseOpt) Comment() string {
+	return op.comment
 }
 
 // IsSet implements options.Opt.
