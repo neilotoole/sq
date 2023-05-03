@@ -25,11 +25,11 @@ handful of minor breaking changes ☢️.
 
 ### Changed
 
-- ☢️Envar `SQ_CONFIG` replaces `SQ_CONFIGDIR`. 
-- ☢️Format flag `--table` is renamed to `--text`. This is changed because the flag
-  often outputs text in a table format, but sometimes it's just plain text. Thus
+- ☢️ Envar `SQ_CONFIG` replaces `SQ_CONFIGDIR`. 
+- ☢️ Format flag `--table` is renamed to `--text`. This is changed because while the
+  output is mostly in table format, sometimes it's just plain text. Thus
   `table` was not quite accurate.
-- ☢️The flag to explicitly specify a driver when piping input to `sq` has been
+- ☢️ The flag to explicitly specify a driver when piping input to `sq` has been
   renamed from `--driver` to `--ingest.driver`. This change is made to align
   the naming of all the ingest options and reduce ambiguity.
   ```shell
