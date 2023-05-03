@@ -171,12 +171,6 @@ func newCommandTree(rc *RunContext) (rootCmd *cobra.Command) {
 	rootCmd.SetErr(rc.ErrOut)
 	rootCmd.Flags().SortFlags = false
 
-	// The --help flag must be explicitly added to rootCmd,
-	// or else cobra tries to do its own (unwanted) thing.
-	// The behavior of cobra in this regard seems to have
-	// changed? This particular incantation currently does the trick.
-	rootCmd.Flags().Bool(flag.Help, false, "Show sq help")
-
 	helpCmd := addCmd(rc, rootCmd, newHelpCmd())
 	rootCmd.SetHelpCommand(helpCmd)
 

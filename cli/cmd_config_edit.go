@@ -61,7 +61,7 @@ func execConfigEditOptions(cmd *cobra.Command, _ []string) error {
 	ctx := cmd.Context()
 	rc, log := RunContextFrom(ctx), logFrom(cmd)
 	cfg := rc.Config
-	cmdOpts, err := getCmdOptions(cmd)
+	cmdOpts, err := getOptionsFromCmd(cmd)
 	if err != nil {
 		return err
 	}
@@ -110,7 +110,7 @@ func execConfigEditSource(cmd *cobra.Command, args []string) error {
 	rc, log := RunContextFrom(ctx), logFrom(cmd)
 	cfg := rc.Config
 
-	cmdOpts, err := getCmdOptions(cmd)
+	cmdOpts, err := getOptionsFromCmd(cmd)
 	if err != nil {
 		return err
 	}
@@ -122,7 +122,7 @@ func execConfigEditSource(cmd *cobra.Command, args []string) error {
 	}
 
 	opts := rc.OptionsRegistry.Opts()
-	opts = filterOptionsForSrc(src, opts...)
+	opts = filterOptionsForSrc(src.Type, opts...)
 	srcReg := &options.Registry{}
 	srcReg.Add(opts...)
 

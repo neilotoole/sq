@@ -11,7 +11,7 @@ func newConfigCmd() *cobra.Command {
 		Use:   "config",
 		Args:  cobra.NoArgs,
 		Short: "Manage config",
-		Long:  `Manage config. `,
+		Long:  `View and edit base and source-specific config.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
 		},
@@ -55,7 +55,6 @@ func newConfigLocationCmd() *cobra.Command {
   Origin: env`,
 	}
 
-	cmd.Flags().BoolP(flag.Text, flag.TextShort, false, flag.TextUsage)
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 	cmd.Flags().BoolP(flag.YAML, flag.YAMLShort, false, flag.YAMLUsage)
 	return cmd

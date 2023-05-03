@@ -38,7 +38,6 @@ Use the --verbose flag (in text output format) to see all options.`,
   $ sq config get --src @active`,
 	}
 
-	cmd.Flags().BoolP(flag.Text, flag.TextShort, false, flag.TextUsage)
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 	cmd.Flags().BoolP(flag.YAML, flag.YAMLShort, false, flag.YAMLUsage)
 
@@ -72,7 +71,7 @@ func execConfigGet(cmd *cobra.Command, args []string) error {
 
 		// Create a new registry that only contains Opts applicable
 		// to this source.
-		opts := filterOptionsForSrc(src, reg.Opts()...)
+		opts := filterOptionsForSrc(src.Type, reg.Opts()...)
 		reg = &options.Registry{}
 		reg.Add(opts...)
 	}

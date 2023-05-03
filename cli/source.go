@@ -115,8 +115,8 @@ func checkStdinSource(ctx context.Context, rc *RunContext) (*source.Source, erro
 	// If we got this far, we have pipe input
 
 	typ := source.TypeNone
-	if cmd.Flags().Changed(flag.Driver) {
-		val, _ := cmd.Flags().GetString(flag.Driver)
+	if cmd.Flags().Changed(flag.IngestDriver) {
+		val, _ := cmd.Flags().GetString(flag.IngestDriver)
 		typ = source.DriverType(val)
 		if rc.driverReg.ProviderFor(typ) == nil {
 			return nil, errz.Errorf("unknown driver type: %s", typ)
@@ -138,7 +138,14 @@ func checkStdinSource(ctx context.Context, rc *RunContext) (*source.Source, erro
 		}
 	}
 
-	return newSource(ctx, rc.driverReg, typ, source.StdinHandle, source.StdinHandle, options.Options{})
+	return newSource(
+		ctx,
+		rc.driverReg,
+		typ,
+		source.StdinHandle,
+		source.StdinHandle,
+		options.Options{},
+	)
 }
 
 // newSource creates a new Source instance where the

@@ -62,10 +62,9 @@ The exit code is 1 if ping fails for any of the sources.`,
   $ sq ping --tsv @my1`,
 	}
 
-	cmd.Flags().BoolP(flag.Text, flag.TextShort, false, flag.TextUsage)
+	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 	cmd.Flags().BoolP(flag.CSV, flag.CSVShort, false, flag.CSVUsage)
 	cmd.Flags().BoolP(flag.TSV, flag.TSVShort, false, flag.TSVUsage)
-	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 	cmd.Flags().Duration(flag.PingTimeout, time.Second*10, flag.PingTimeoutUsage)
 	return cmd
 }
@@ -111,7 +110,7 @@ func execPing(cmd *cobra.Command, args []string) error {
 
 	srcs = lo.Uniq(srcs)
 
-	cmdOpts, err := getCmdOptions(cmd)
+	cmdOpts, err := getOptionsFromCmd(cmd)
 	if err != nil {
 		return err
 	}

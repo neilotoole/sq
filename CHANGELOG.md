@@ -10,7 +10,8 @@ Breaking changes are annotated with ☢️.
 
 ## Upcoming
 
-This release completely overhauls `sq`'s config mechanism.
+This release completely overhauls `sq`'s config mechanism. There are a
+handful of minor breaking changes ☢️.
 
 ### Added
 
@@ -28,6 +29,36 @@ This release completely overhauls `sq`'s config mechanism.
 - ☢️Format flag `--table` is renamed to `--text`. This is changed because the flag
   often outputs text in a table format, but sometimes it's just plain text. Thus
   `table` was not quite accurate.
+- ☢️The flag to explicitly specify a driver when piping input to `sq` has been
+  renamed from `--driver` to `--ingest.driver`. This change is made to align
+  the naming of all the ingest options and reduce ambiguity.
+  ```shell
+  # previously
+  $ cat mystery.data | sq --driver=csv '.data'
+  
+  # now
+  $ cat mystery.data | sq --ingest.driver=csv '.data'
+  ```
+- ☢️ `sq add` no longer has the generic `--opts x=y` mechanism. This flag was
+  ambiguous and confusing. Instead use explicit option flags.
+  ```shell
+  # previously
+  $ sq add ./actor.csv --opts=header=false
+  
+  # now
+  $ sq add ./actor.csv --ingest.header=false
+   ```
+- ☢️ The short form of the `sq add --handle` flag has been changed from `-h` to
+  `-n`. While this is not ideal, the `-h` shorthand is already in use everywhere
+  else as the short form of `--header`.
+    ```shell
+  # previously
+  $ sq add ./actor.csv -h @actor
+  
+  # now
+  $ sq add ./actor.csv -n @actor
+   ```
+
 
 ## [v0.33.0] - 2023-04-15
 

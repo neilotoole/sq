@@ -1,6 +1,8 @@
 package cli
 
-import "github.com/spf13/cobra"
+import (
+	"github.com/spf13/cobra"
+)
 
 func newHelpCmd() *cobra.Command {
 	cmd := &cobra.Command{

@@ -169,7 +169,7 @@ func completeOptKey(cmd *cobra.Command, _ []string, toComplete string) ([]string
 			return nil, cobra.ShellCompDirectiveError
 		}
 
-		opts := filterOptionsForSrc(src, rc.OptionsRegistry.Opts()...)
+		opts := filterOptionsForSrc(src.Type, rc.OptionsRegistry.Opts()...)
 		keys = lo.Map(opts, func(item options.Opt, index int) string {
 			return item.Key()
 		})

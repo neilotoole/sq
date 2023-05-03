@@ -337,41 +337,34 @@ func preprocessUserSLQ(ctx context.Context, rc *RunContext, args []string) (stri
 
 // addQueryCmdFlags sets the common flags for the slq/sql commands.
 func addQueryCmdFlags(cmd *cobra.Command) {
-	cmd.Flags().StringP(flag.Output, flag.OutputShort, "", flag.OutputUsage)
-
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 	cmd.Flags().BoolP(flag.JSONA, flag.JSONAShort, false, flag.JSONAUsage)
 	cmd.Flags().BoolP(flag.JSONL, flag.JSONLShort, false, flag.JSONLUsage)
-	cmd.Flags().BoolP(flag.Text, flag.TextShort, false, flag.TextUsage)
-	cmd.Flags().BoolP(flag.XML, flag.XMLShort, false, flag.XMLUsage)
-	cmd.Flags().BoolP(flag.XLSX, flag.XLSXShort, false, flag.XLSXUsage)
 	cmd.Flags().BoolP(flag.CSV, flag.CSVShort, false, flag.CSVUsage)
 	cmd.Flags().BoolP(flag.TSV, flag.TSVShort, false, flag.TSVUsage)
-	cmd.Flags().BoolP(flag.Raw, flag.RawShort, false, flag.RawUsage)
 	cmd.Flags().Bool(flag.HTML, false, flag.HTMLUsage)
 	cmd.Flags().Bool(flag.Markdown, false, flag.MarkdownUsage)
+	cmd.Flags().BoolP(flag.Raw, flag.RawShort, false, flag.RawUsage)
+	cmd.Flags().BoolP(flag.XLSX, flag.XLSXShort, false, flag.XLSXUsage)
+	cmd.Flags().BoolP(flag.XML, flag.XMLShort, false, flag.XMLUsage)
+	cmd.Flags().Bool(flag.Pretty, true, flag.PrettyUsage)
 
-	cmd.Flags().BoolP(flag.Header, flag.HeaderShort, false, flag.HeaderUsage)
-	cmd.Flags().BoolP(flag.NoHeader, flag.NoHeaderShort, false, flag.NoHeaderUsage)
-	cmd.MarkFlagsMutuallyExclusive(flag.Header, flag.NoHeader)
+	cmd.Flags().StringP(flag.Output, flag.OutputShort, "", flag.OutputUsage)
 
-	cmd.Flags().BoolP(flag.Pretty, "", true, flag.PrettyUsage)
-
-	cmd.Flags().StringP(flag.Insert, "", "", flag.InsertUsage)
-
+	cmd.Flags().String(flag.Insert, "", flag.InsertUsage)
 	panicOn(cmd.RegisterFlagCompletionFunc(flag.Insert,
 		(&handleTableCompleter{onlySQL: true, handleRequired: true}).complete))
 
-	cmd.Flags().StringP(flag.ActiveSrc, "", "", flag.ActiveSrcUsage)
+	cmd.Flags().String(flag.ActiveSrc, "", flag.ActiveSrcUsage)
 	panicOn(cmd.RegisterFlagCompletionFunc(flag.ActiveSrc, completeHandle(0)))
 
 	// The driver flag can be used if data is piped to sq over stdin
-	cmd.Flags().StringP(flag.Driver, "", "", flag.QueryDriverUsage)
-	panicOn(cmd.RegisterFlagCompletionFunc(flag.Driver, completeDriverType))
+	cmd.Flags().String(flag.IngestDriver, "", flag.IngestDriverUsage)
+	panicOn(cmd.RegisterFlagCompletionFunc(flag.IngestDriver, completeDriverType))
 
-	cmd.Flags().BoolP(flag.IngestHeader, "", false, flag.IngestHeaderUsage)
-	cmd.Flags().BoolP(flag.CSVEmptyAsNull, "", true, flag.CSVEmptyAsNullUsage)
-	cmd.Flags().StringP(flag.CSVDelim, "", flag.CSVDelimDefault, flag.CSVDelimUsage)
+	cmd.Flags().Bool(flag.IngestHeader, false, flag.IngestHeaderUsage)
+	cmd.Flags().Bool(flag.CSVEmptyAsNull, true, flag.CSVEmptyAsNullUsage)
+	cmd.Flags().String(flag.CSVDelim, flag.CSVDelimDefault, flag.CSVDelimUsage)
 	panicOn(cmd.RegisterFlagCompletionFunc(flag.CSVDelim, completeStrings(1, csv.NamedDelims()...)))
 }
 

@@ -176,7 +176,7 @@ func newWriters(cmd *cobra.Command, opts options.Options, out, errOut io.Writer,
 // io.Writer instances instead of the supplied writers, as they
 // may be decorated for dealing with color, etc.
 // The supplied opts must already have flags merged into it
-// via getCmdOptions.
+// via getOptionsFromCmd.
 func getPrinting(cmd *cobra.Command, opts options.Options, out, errOut io.Writer,
 ) (pr *output.Printing, out2, errOut2 io.Writer) {
 	pr = output.NewPrinting()

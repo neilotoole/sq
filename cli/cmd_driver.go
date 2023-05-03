@@ -31,10 +31,6 @@ func newDriverListCmd() *cobra.Command {
 
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 	cmd.Flags().BoolP(flag.YAML, flag.YAMLShort, false, flag.YAMLUsage)
-	cmd.Flags().BoolP(flag.Text, flag.TextShort, false, flag.TextUsage)
-	cmd.Flags().BoolP(flag.Header, flag.HeaderShort, false, flag.HeaderUsage)
-	cmd.Flags().BoolP(flag.NoHeader, flag.NoHeaderShort, false, flag.NoHeaderUsage)
-	cmd.MarkFlagsMutuallyExclusive(flag.Header, flag.NoHeader)
 
 	return cmd
 }

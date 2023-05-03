@@ -110,7 +110,7 @@ func TestCmdAdd_SQLite_Path(t *testing.T) {
 	const h1 = `@s1`
 
 	ru := newRun(ctx, t, nil)
-	require.NoError(t, ru.Exec("add", "-j", "sqlite3://test.db", "-h", h1))
+	require.NoError(t, ru.Exec("add", "-j", "sqlite3://test.db", "--handle", h1))
 	got := ru.BindMap()
 
 	absPath, err := filepath.Abs("test.db")
@@ -134,7 +134,7 @@ func TestCmdAdd_Active(t *testing.T) {
 
 	// Add a new source. It should become the active source.
 	ru = newRun(ctx, t, ru)
-	require.NoError(t, ru.Exec("add", proj.Abs(sakila.PathCSVActor), "-h", h1))
+	require.NoError(t, ru.Exec("add", proj.Abs(sakila.PathCSVActor), "--handle", h1))
 	ru = newRun(ctx, t, ru)
 	require.NoError(t, ru.Exec("src", "-j"))
 	m := ru.BindMap()
@@ -143,7 +143,7 @@ func TestCmdAdd_Active(t *testing.T) {
 	// Add a second src, without the --active flag. The active src
 	// should remain h1.
 	ru = newRun(ctx, t, ru)
-	require.NoError(t, ru.Exec("add", proj.Abs(sakila.PathCSVActor), "-h", h2))
+	require.NoError(t, ru.Exec("add", proj.Abs(sakila.PathCSVActor), "--handle", h2))
 	ru = newRun(ctx, t, ru)
 	require.NoError(t, ru.Exec("src", "-j"))
 	m = ru.BindMap()
@@ -152,7 +152,7 @@ func TestCmdAdd_Active(t *testing.T) {
 	// Add a third src, this time with the --active flag. The active src
 	// should become h3.
 	ru = newRun(ctx, t, ru)
-	require.NoError(t, ru.Exec("add", proj.Abs(sakila.PathCSVActor), "-h", h3, "--active"))
+	require.NoError(t, ru.Exec("add", proj.Abs(sakila.PathCSVActor), "--handle", h3, "--active"))
 	ru = newRun(ctx, t, ru)
 	require.NoError(t, ru.Exec("src", "-j"))
 	m = ru.BindMap()
@@ -160,7 +160,7 @@ func TestCmdAdd_Active(t *testing.T) {
 
 	// Same again with a fourth src, but this time using the shorthand -a flag.
 	ru = newRun(ctx, t, ru)
-	require.NoError(t, ru.Exec("add", proj.Abs(sakila.PathCSVActor), "-h", h4, "-a"))
+	require.NoError(t, ru.Exec("add", proj.Abs(sakila.PathCSVActor), "--handle", h4, "-a"))
 	ru = newRun(ctx, t, ru)
 	require.NoError(t, ru.Exec("src", "-j"))
 	m = ru.BindMap()

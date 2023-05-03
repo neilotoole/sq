@@ -23,6 +23,7 @@ const (
 	Loc       = "loc"
 	Opts      = "opts"
 	Path      = "path"
+	Pid       = "pid"
 	Query     = "query"
 	SLQ       = "slq"
 	SQL       = "sql"

@@ -126,6 +126,7 @@ func newDefaultRunContext(ctx context.Context,
 ) (*RunContext, *slog.Logger, error) {
 	// logbuf holds log records until defaultLogging is completed.
 	log, logbuf := slogbuf.New()
+	log = log.With(lga.Pid, os.Getpid())
 
 	rc := &RunContext{
 		Stdin:           stdin,
@@ -147,7 +148,6 @@ func newDefaultRunContext(ctx context.Context,
 		args, rc.OptionsRegistry, upgrades)
 
 	log, logHandler, logCloser, logErr := defaultLogging(ctx)
-
 	rc.clnup = cleanup.New().AddE(logCloser)
 	if logErr != nil {
 		stderrLog, h := stderrLogger()
@@ -159,6 +159,9 @@ func newDefaultRunContext(ctx context.Context,
 		if err := logbuf.Flush(ctx, logHandler); err != nil {
 			return rc, log, err
 		}
+	}
+	if log != nil {
+		log = log.With(lga.Pid, os.Getpid())
 	}
 
 	if rc.Config == nil {
@@ -220,7 +223,7 @@ func (rc *RunContext) doInit(ctx context.Context) error {
 		rc.Out = f
 	}
 
-	cmdOpts, err := getCmdOptions(rc.Cmd)
+	cmdOpts, err := getOptionsFromCmd(rc.Cmd)
 	if err != nil {
 		return err
 	}
