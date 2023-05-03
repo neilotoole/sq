@@ -117,7 +117,7 @@ func SLQ2SQL(ctx context.Context, qc *QueryContext, query string) (targetSQL str
 // to wait for recw to complete.
 // The caller is responsible for closing dbase.
 func QuerySQL(ctx context.Context, dbase driver.Database, recw RecordWriter, query string, args ...any) error {
-	log := lg.From(ctx)
+	log := lg.FromContext(ctx)
 
 	rows, err := dbase.DB().QueryContext(ctx, query, args...)
 	if err != nil {

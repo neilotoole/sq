@@ -156,7 +156,7 @@ func execSQLInsert(ctx context.Context, rc *RunContext, fromSrc, destSrc *source
 	inserter := libsq.NewDBWriter(
 		destDB,
 		destTbl,
-		driver.Tuning.RecordChSize,
+		driver.OptTuningRecChanSize.Get(destSrc.Options),
 		libsq.DBWriterCreateTableIfNotExistsHook(destTbl),
 	)
 	err = libsq.QuerySQL(ctx, fromDB, inserter, args[0])
@@ -169,7 +169,7 @@ func execSQLInsert(ctx context.Context, rc *RunContext, fromSrc, destSrc *source
 		return errz.Wrapf(err, "insert %s.%s failed", destSrc.Handle, destTbl)
 	}
 
-	lg.From(ctx).Debug(lgm.RowsAffected, lga.Count, affected)
+	lg.FromContext(ctx).Debug(lgm.RowsAffected, lga.Count, affected)
 
 	// TODO: Should really use a Printer here
 	fmt.Fprintf(rc.Out, stringz.Plu("Inserted %d row(s) into %s\n",

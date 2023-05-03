@@ -32,7 +32,7 @@ import (
 func ConfigureDB(ctx context.Context, db *sql.DB, o options.Options) {
 	o2 := options.Effective(o, OptConnMaxOpen, OptConnMaxIdle, OptConnMaxIdleTime, OptConnMaxLifetime)
 
-	lg.From(ctx).Debug("Setting config on DB conn", "config", o2)
+	lg.FromContext(ctx).Debug("Setting config on DB conn", "config", o2)
 
 	db.SetMaxOpenConns(OptConnMaxOpen.Get(o2))
 	db.SetMaxIdleConns(OptConnMaxIdle.Get(o2))
@@ -54,24 +54,64 @@ A value of zero indicates no limit.`,
 	OptConnMaxIdle = options.NewInt(
 		"conn.max-idle",
 		2,
-		"",
-		"source", "sql",
+		`Set the maximum number of connections in the idle connection pool.
+If conn.max-open is greater than 0 but less than the new conn.max-idle,
+then the new conn.max-idle will be reduced to match the conn.max-open limit.
+If n <= 0, no idle connections are retained.`,
+		"source",
 	)
 
 	// OptConnMaxIdleTime controls sql.DB.SetConnMaxIdleTime.
 	OptConnMaxIdleTime = options.NewDuration(
 		"conn.max-idle-time",
 		time.Second*2,
-		"",
-		"source", "sql",
+		`Sets the maximum amount of time a connection may be idle.
+Expired connections may be closed lazily before reuse. If n <= 0,
+connections are not closed due to a connection's idle time.`,
+		"source",
 	)
 
 	// OptConnMaxLifetime controls sql.DB.SetConnMaxLifetime.
 	OptConnMaxLifetime = options.NewDuration(
 		"conn.max-lifetime",
 		time.Minute*10,
-		"",
-		"source", "sql",
+		`Set the maximum amount of time a connection may be reused.
+Expired connections may be closed lazily before reuse.
+If n <= 0, connections are not closed due to a connection's age.`,
+		"source",
+	)
+
+	// OptMaxRetryInterval is the maximum interval to wait
+	// between retries.
+	OptMaxRetryInterval = options.NewDuration(
+		"retry.max-interval",
+		time.Second*3,
+		`The maximum interval to wait between retries.
+If an operation is retryable (for example, if the DB has too many clients),
+repeated retry operations back off, typically using a Fibonacci backoff.`,
+		"source",
+	)
+
+	// OptTuningErrgroupLimit controls the maximum number of goroutines that can be spawned
+	// by an errgroup.
+	OptTuningErrgroupLimit = options.NewInt("tuning.errgroup-limit",
+		16,
+		`Controls the maximum number of goroutines that can be spawned
+by an errgroup. Note that this is the limit for any one errgroup, but not a
+ceiling on the total number of goroutines spawned, as some errgroups may
+themselves start an errgroup.
+
+This knob is primarily for internal use. Ultimately it should go away
+in favor of dynamic errgroup limit setting based on availability
+of additional DB conns, etc.`,
+		"tuning")
+
+	// OptTuningRecChanSize is the size of the buffer chan for record
+	// insertion/writing.
+	OptTuningRecChanSize = options.NewInt("tuning.record-buffer",
+		1024,
+		`Controls the size of the buffer channel for record insertion/writing.`,
+		"tuning",
 	)
 )
 
@@ -306,7 +346,7 @@ func NewDatabases(log *slog.Logger, drvrs Provider, scratchSrcFn ScratchSrcFunc)
 //
 // Open implements DatabaseOpener.
 func (d *Databases) Open(ctx context.Context, src *source.Source) (Database, error) {
-	lg.From(ctx).Debug(lgm.OpenSrc, lga.Src, src)
+	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -397,7 +437,7 @@ func (d *Databases) OpenJoin(ctx context.Context, src1, src2 *source.Source, src
 
 // Close closes d, invoking Close on any instances opened via d.Open.
 func (d *Databases) Close() error {
-	d.log.Debug("Closing databases(s)", lga.Count, d.clnup.Len())
+	d.log.Debug("Closing databases(s)...", lga.Count, d.clnup.Len())
 	return d.clnup.Run()
 }
 

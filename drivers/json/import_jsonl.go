@@ -14,75 +14,79 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 )
 
-// DetectJSONL implements source.DriverDetectFunc.
-func DetectJSONL(ctx context.Context, openFn source.FileOpenFunc) (detected source.DriverType,
-	score float32, err error,
-) {
-	log := lg.From(ctx)
-	var r io.ReadCloser
-	r, err = openFn()
-	if err != nil {
-		return source.TypeNone, 0, errz.Err(err)
-	}
-	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
+// DetectJSONL returns a source.DriverDetectFunc that can
+// detect JSONL.
+func DetectJSONL(sampleSize int) source.DriverDetectFunc {
+	return func(ctx context.Context, openFn source.FileOpenFunc) (detected source.DriverType,
+		score float32, err error,
+	) {
+		log := lg.FromContext(ctx)
+		var r io.ReadCloser
+		r, err = openFn()
+		if err != nil {
+			return source.TypeNone, 0, errz.Err(err)
+		}
+		defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
 
-	sc := bufio.NewScanner(r)
-	var validLines int
-	var line []byte
+		sc := bufio.NewScanner(r)
+		var validLines int
+		var line []byte
 
-	for sc.Scan() {
-		select {
-		case <-ctx.Done():
-			return source.TypeNone, 0, ctx.Err()
-		default:
+		for sc.Scan() {
+			select {
+			case <-ctx.Done():
+				return source.TypeNone, 0, ctx.Err()
+			default:
+			}
+
+			if err = sc.Err(); err != nil {
+				return source.TypeNone, 0, errz.Err(err)
+			}
+
+			line = sc.Bytes()
+			line = bytes.TrimSpace(line)
+			if len(line) == 0 {
+				// Probably want to skip blank lines? Maybe
+				continue
+			}
+
+			// Each line of JSONL must be braced
+			if line[0] != '{' || line[len(line)-1] != '}' {
+				return source.TypeNone, 0, nil
+			}
+
+			// If the line is JSONL, it should marshall into map[string]any
+			var vals map[string]any
+			err = stdj.Unmarshal(line, &vals)
+			if err != nil {
+				return source.TypeNone, 0, nil
+			}
+
+			validLines++
+			if validLines >= sampleSize {
+				break
+			}
 		}
 
 		if err = sc.Err(); err != nil {
 			return source.TypeNone, 0, errz.Err(err)
 		}
 
-		line = sc.Bytes()
-		line = bytes.TrimSpace(line)
-		if len(line) == 0 {
-			// Probably want to skip blank lines? Maybe
-			continue
+		if validLines > 0 {
+			return TypeJSONL, 1.0, nil
 		}
 
-		// Each line of JSONL must be braced
-		if line[0] != '{' || line[len(line)-1] != '}' {
-			return source.TypeNone, 0, nil
-		}
-
-		// If the line is JSONL, it should marshall into map[string]any
-		var vals map[string]any
-		err = stdj.Unmarshal(line, &vals)
-		if err != nil {
-			return source.TypeNone, 0, nil
-		}
-
-		validLines++
-		if validLines >= driver.Tuning.SampleSize {
-			break
-		}
+		return source.TypeNone, 0, nil
 	}
-
-	if err = sc.Err(); err != nil {
-		return source.TypeNone, 0, errz.Err(err)
-	}
-
-	if validLines > 0 {
-		return TypeJSONL, 1.0, nil
-	}
-
-	return source.TypeNone, 0, nil
 }
 
+// DetectJSONL implements source.DriverDetectFunc.
+
 func importJSONL(ctx context.Context, job importJob) error { //nolint:gocognit
-	log := lg.From(ctx)
+	log := lg.FromContext(ctx)
 
 	r, err := job.openFn()
 	if err != nil {

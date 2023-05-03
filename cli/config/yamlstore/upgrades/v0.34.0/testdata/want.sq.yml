@@ -1,7 +1,7 @@
 config.version: v0.34.0
 options:
   format: json
-  format.header: true
+  header: true
   ping.timeout: 1m40s
   shell-completion.timeout: 500ms
 collection:

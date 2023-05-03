@@ -4,6 +4,8 @@ import (
 	"io"
 	"os"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 
 	"github.com/neilotoole/sq/libsq/core/options"
@@ -28,16 +30,50 @@ import (
 
 var (
 	OptPrintHeader = options.NewBool(
-		"format.header",
+		"header",
 		true,
-		"Controls whether a header row is printed.",
+		`Controls whether a header row is printed. This applies only
+to certain formats, such as "text" or "csv".`,
 		"format",
 	)
 	OptOutputFormat = NewFormatOpt(
 		"format",
-		format.Table,
-		"Specify the output format.",
+		format.Text,
+		`Specify the output format. Some formats are only implemented
+for a subset of sq's commands. If the specified format is not available for
+a particular command, sq falls back to 'text'. Available formats:
+  text, csv, tsv, xlsx,
+  json, jsona, jsonl,
+  markdown, html, xml, yaml, raw`,
 		"format",
+	)
+
+	OptVerbose = options.NewBool(
+		"verbose",
+		false,
+		`Print verbose output.`,
+		"format",
+	)
+
+	OptMonochrome = options.NewBool(
+		"monochrome",
+		false,
+		`Don't print color output.`,
+		"format",
+	)
+
+	OptPretty = options.NewBool(
+		"pretty",
+		true,
+		`Prettyify output. Only applies to some output formats.`,
+		"format",
+	)
+
+	OptTuningFlushThreshold = options.NewInt(
+		"tuning.flush-threshold",
+		1000,
+		`Size in bytes after which output writers should flush any internal buffer.
+Generally, it is not necessary to fiddle this knob.`,
 	)
 )
 
@@ -80,7 +116,7 @@ func newWriters(cmd *cobra.Command, opts options.Options, out, errOut io.Writer,
 
 	// Invoke getFormat to see if the format was specified
 	// via config or flag.
-	fm := getFormat(cmd, opts)
+	fm := getFormat(cmd, opts) // FIXME: is this still needed, or use standard opts mechanism?
 
 	//nolint:exhaustive
 	switch fm {
@@ -94,7 +130,7 @@ func newWriters(cmd *cobra.Command, opts options.Options, out, errOut io.Writer,
 		w.pingw = jsonw.NewPingWriter(out2, pr)
 		w.configw = jsonw.NewConfigWriter(out2, pr)
 
-	case format.Table:
+	case format.Text:
 	// Table is the base format, already set above, no need to do anything.
 
 	case format.TSV:
@@ -139,18 +175,15 @@ func newWriters(cmd *cobra.Command, opts options.Options, out, errOut io.Writer,
 // for the cmd arg to be nil. The caller should use the returned
 // io.Writer instances instead of the supplied writers, as they
 // may be decorated for dealing with color, etc.
-func getPrinting(cmd *cobra.Command, opts options.Options,
-	out, errOut io.Writer,
+// The supplied opts must already have flags merged into it
+// via getOptionsFromCmd.
+func getPrinting(cmd *cobra.Command, opts options.Options, out, errOut io.Writer,
 ) (pr *output.Printing, out2, errOut2 io.Writer) {
 	pr = output.NewPrinting()
 
-	if cmdFlagChanged(cmd, flag.Pretty) {
-		pr.Pretty, _ = cmd.Flags().GetBool(flag.Pretty)
-	}
-
-	if cmdFlagChanged(cmd, flag.Verbose) {
-		pr.Verbose, _ = cmd.Flags().GetBool(flag.Verbose)
-	}
+	pr.Verbose = OptVerbose.Get(opts)
+	pr.FlushThreshold = OptTuningFlushThreshold.Get(opts)
+	pr.Pretty = OptPretty.Get(opts)
 
 	switch {
 	case cmdFlagChanged(cmd, flag.Header):
@@ -162,20 +195,15 @@ func getPrinting(cmd *cobra.Command, opts options.Options,
 		pr.ShowHeader = OptPrintHeader.Get(opts)
 	}
 
-	// TODO: Should get this default value from config
-	colorize := true
+	colorize := !OptMonochrome.Get(opts)
 
 	if cmdFlagChanged(cmd, flag.Output) {
 		// We're outputting to a file, thus no color.
 		colorize = false
-	} else if cmdFlagChanged(cmd, flag.Monochrome) {
-		if mono, _ := cmd.Flags().GetBool(flag.Monochrome); mono {
-			colorize = false
-		}
 	}
 
 	if !colorize {
-		color.NoColor = true // TODO: shouldn't rely on package-level var
+		color.NoColor = true
 		pr.EnableColor(false)
 		out2 = out
 		errOut2 = errOut
@@ -205,6 +233,8 @@ func getPrinting(cmd *cobra.Command, opts options.Options,
 		errOut2 = colorable.NewNonColorable(errOut)
 	}
 
+	logFrom(cmd).Debug("Constructed output.Printing", lga.Val, pr)
+
 	return pr, out2, errOut2
 }
 
@@ -227,8 +257,8 @@ func getFormat(cmd *cobra.Command, defaults options.Options) format.Format {
 		fm = format.HTML
 	case cmdFlagChanged(cmd, flag.Markdown):
 		fm = format.Markdown
-	case cmdFlagChanged(cmd, flag.Table):
-		fm = format.Table
+	case cmdFlagChanged(cmd, flag.Text):
+		fm = format.Text
 	case cmdFlagChanged(cmd, flag.JSONL):
 		fm = format.JSONL
 	case cmdFlagChanged(cmd, flag.JSONA):
@@ -257,6 +287,11 @@ type FormatOpt struct {
 	comment    string
 	defaultVal format.Format
 	tags       []string
+}
+
+// Comment implements options.Opt.
+func (op FormatOpt) Comment() string {
+	return op.comment
 }
 
 // Tags implements options.Opt.

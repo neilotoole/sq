@@ -12,9 +12,12 @@ const (
 	CSVShort = "c"
 	CSVUsage = "Output CSV"
 
-	Driver      = "driver"
-	DriverShort = "d"
-	DriverUsage = "Explicitly specify the data source driver to use"
+	AddDriver      = "driver"
+	AddDriverShort = "d"
+	AddDriverUsage = "Explicitly specify the driver to use"
+
+	IngestDriver      = "ingest.driver"
+	IngestDriverUsage = "Explicitly specify the driver to use for ingesting data"
 
 	HTML      = "html"
 	HTMLUsage = "Output HTML table"
@@ -28,7 +31,7 @@ const (
 	NoHeaderUsage = "Don't print header row"
 
 	Handle      = "handle"
-	HandleShort = "h"
+	HandleShort = "n"
 	HandleUsage = "Handle for the source"
 
 	ListGroup      = "group"
@@ -72,9 +75,6 @@ const (
 	Pretty      = "pretty"
 	PrettyUsage = "Pretty-print output"
 
-	QueryDriverUsage     = "Explicitly specify the data source driver to use when piping input"
-	QuerySrcOptionsUsage = "Driver-dependent data source options when piping input"
-
 	Raw      = "raw"
 	RawShort = "r"
 	RawUsage = "Output each record field in raw format without any encoding or delimiter"
@@ -88,6 +88,7 @@ const (
 	// SrcOptions is deprecated.
 	//
 	// //Deprecated: Use specific options like flag.IngestHeader.
+	// FIXME: get rid of SrcOptions.
 	SrcOptions      = "opts"
 	SrcOptionsUsage = "Driver-dependent data source options"
 
@@ -95,10 +96,9 @@ const (
 	TSVShort = "T"
 	TSVUsage = "Output TSV"
 
-	Table = "table" // TODO: Rename "table" to "text" (output is not always a table).
-
-	TableShort = "t"
-	TableUsage = "Output text table"
+	Text      = "text"
+	TextShort = "t"
+	TextUsage = "Output text"
 
 	TblData      = "data"
 	TblDataUsage = "Copy table data"

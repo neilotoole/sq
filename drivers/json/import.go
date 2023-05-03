@@ -41,6 +41,8 @@ type importJob struct {
 	// flatten specifies that the fields of nested JSON objects are
 	// imported as fields of the single top-level table, with a
 	// scoped column name.
+	//
+	// TODO: flatten come from src.Options
 	flatten bool
 }
 
@@ -431,7 +433,7 @@ type importSchema struct {
 func execSchemaDelta(ctx context.Context, drvr driver.SQLDriver, db sqlz.DB,
 	curSchema, newSchema *importSchema,
 ) error {
-	log := lg.From(ctx)
+	log := lg.FromContext(ctx)
 	var err error
 	if curSchema == nil {
 		for _, tblDef := range newSchema.tblDefs {
@@ -584,7 +586,7 @@ func execInsertions(ctx context.Context, drvr driver.SQLDriver, db sqlz.DB, inse
 	//  We should be re-using the prepared statement, and probably
 	//  should batch the inserts as well. See driver.BatchInsert.
 
-	log := lg.From(ctx)
+	log := lg.FromContext(ctx)
 	var err error
 	var execer *driver.StmtExecer
 

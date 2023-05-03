@@ -111,7 +111,8 @@ func FormatFloat(f float64) string {
 }
 
 // ByteSized returns a human-readable byte size, e.g. "2.1 MB", "3.0 TB", etc.
-// TODO: replace this usage with "github.com/c2h5oh/datasize"
+// TODO: replace this usage with "github.com/c2h5oh/datasize",
+// or maybe https://github.com/docker/go-units/.
 func ByteSized(size int64, precision int, sep string) string {
 	f := float64(size)
 	tpl := "%." + strconv.Itoa(precision) + "f" + sep

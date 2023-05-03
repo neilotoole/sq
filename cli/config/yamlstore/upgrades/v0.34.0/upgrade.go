@@ -23,7 +23,7 @@ const Version = "v0.34.0"
 // - "sources" is renamed to "collection".
 // - "config.version" is set to "v0.34.0".
 func Upgrade(ctx context.Context, before []byte) (after []byte, err error) {
-	log := lg.From(ctx)
+	log := lg.FromContext(ctx)
 	log.Info("Starting config upgrade step", lga.To, Version)
 
 	// Load data
@@ -47,7 +47,7 @@ func Upgrade(ctx context.Context, before []byte) (after []byte, err error) {
 
 	opts["format"] = opts["output_format"]
 	delete(opts, "output_format")
-	opts["format.header"] = opts["output_header"]
+	opts["header"] = opts["output_header"]
 	delete(opts, "output_header")
 	opts["ping.timeout"] = opts["ping_timeout"]
 	delete(opts, "ping_timeout")

@@ -2,8 +2,8 @@ config.version: v0.34.0
 options:
   ping.timeout: 10s
   shell-completion.timeout: 1s
-  format: table
-  format.header: true
+  format: text
+  header: true
 collection:
   active.source: '@sl1'
   scratch: ""

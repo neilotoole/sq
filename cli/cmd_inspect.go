@@ -45,7 +45,6 @@ If @HANDLE is not provided, the active data source is assumed.`,
 	}
 
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
-	cmd.Flags().BoolP(flag.Table, flag.TableShort, false, flag.TableUsage)
 	cmd.Flags().BoolP(flag.YAML, flag.YAMLShort, false, flag.YAMLUsage)
 
 	return cmd

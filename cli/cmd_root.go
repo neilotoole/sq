@@ -21,7 +21,7 @@ write output to a database table.
 You can query using sq's own jq-like syntax, or in native SQL.
 
 Use "sq inspect" to view schema metadata. Use the "sq tbl" commands
-to copy, truncate and drop tables. 
+to copy, truncate and drop tables.
 
 See docs and more: https://sq.io`,
 		Example: `  # pipe an Excel file and output the first 10 rows from sheet1
@@ -54,10 +54,10 @@ See docs and more: https://sq.io`,
   # output in JSON
   $ sq -j '.person | .uid, .username, .email'
 
-  # output in table format (with header)
+  # output in text format (with header)
   $ sq -th '.person | .uid, .username, .email'
 
-  # output in table format (no header)
+  # output in text format (no header)
   $ sq -t '.person | .uid, .username, .email'
 
   # output to a HTML file
@@ -79,12 +79,22 @@ See docs and more: https://sq.io`,
   $ sq tbl truncate @sakila_sl3.actor2
 
   # drop table
-  $ sq tbl drop @sakila_sl3.actor2
-`,
+  $ sq tbl drop @sakila_sl3.actor2`,
 	}
+
+	// The --help flag must be explicitly added to rootCmd,
+	// or else cobra tries to do its own (unwanted) thing.
+	// The behavior of cobra in this regard seems to have
+	// changed? This particular incantation currently does the trick.
+	cmd.PersistentFlags().Bool(flag.Help, false, "Show help")
 
 	addQueryCmdFlags(cmd)
 	cmd.Flags().Bool(flag.Version, false, flag.VersionUsage)
+
+	cmd.PersistentFlags().BoolP(flag.Text, flag.TextShort, false, flag.TextUsage)
+	cmd.PersistentFlags().BoolP(flag.Header, flag.HeaderShort, true, flag.HeaderUsage)
+	cmd.PersistentFlags().BoolP(flag.NoHeader, flag.NoHeaderShort, false, flag.NoHeaderUsage)
+	cmd.MarkFlagsMutuallyExclusive(flag.Header, flag.NoHeader)
 	cmd.PersistentFlags().BoolP(flag.Monochrome, flag.MonochromeShort, false, flag.MonochromeUsage)
 	cmd.PersistentFlags().BoolP(flag.Verbose, flag.VerboseShort, false, flag.VerboseUsage)
 	cmd.PersistentFlags().String(flag.Config, "", flag.ConfigUsage)

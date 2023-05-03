@@ -62,7 +62,7 @@ func (fs *Store) Location() string {
 
 // Load reads config from disk. It implements Store.
 func (fs *Store) Load(ctx context.Context) (*config.Config, error) {
-	log := lg.From(ctx)
+	log := lg.FromContext(ctx)
 	log.Debug("Loading config from file", lga.Path, fs.Path)
 
 	if fs.UpgradeRegistry != nil {

@@ -7,6 +7,8 @@ import (
 	"os"
 	"testing"
 
+	"github.com/neilotoole/sq/drivers"
+
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -30,7 +32,7 @@ func newImportJob(fromSrc *source.Source, openFn source.FileOpenFunc, destDB dri
 	flatten bool,
 ) importJob {
 	if sampleSize <= 0 {
-		sampleSize = driver.Tuning.SampleSize
+		sampleSize = drivers.OptIngestSampleSize.Get(fromSrc.Options)
 	}
 
 	return importJob{
@@ -60,7 +62,7 @@ func TestDetectColKindsJSONA(t *testing.T) {
 			require.NoError(t, err)
 			t.Cleanup(func() { require.NoError(t, f.Close()) })
 
-			kinds, _, err := detectColKindsJSONA(context.Background(), f)
+			kinds, _, err := detectColKindsJSONA(context.Background(), f, 1000)
 			require.NoError(t, err)
 			require.Equal(t, tc.wantKinds, kinds)
 		})

@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/drivers/csv"
 
 	"github.com/neilotoole/sq/cli/flag"
 
@@ -37,13 +37,13 @@ Note that sq generated the handle "@actor". But you can explicitly specify
 a handle.
 
   # Add a postgres source with handle "@sakila/pg"
-  $ sq add -h @sakila/pg 'postgres://user:pass@localhost/sakila'
+  $ sq add --handle @sakila/pg 'postgres://user:pass@localhost/sakila'
 
 This handle format "@sakila/pg" includes a group, "sakila". Using a group
 is entirely optional: it is a way to organize sources. For example:
 
-  $ sq add -h @dev/pg 'postgres://user:pass@dev.db.example.com/sakila'
-  $ sq add -h @prod/pg 'postgres://user:pass@prod.db.acme.com/sakila'
+  $ sq add --handle @dev/pg 'postgres://user:pass@dev.db.example.com/sakila'
+  $ sq add --handle @prod/pg 'postgres://user:pass@prod.db.acme.com/sakila'
 
 The format of LOCATION is driver-specific, but is generally a DB connection
 string, a file path, or a URL.
@@ -73,13 +73,9 @@ there instead of prompting the user:
   $ echo 'open:;"_Ses@me' > password.txt
   $ sq add 'postgres://user@localhost/sakila' -p < password.txt
 
-Flag --opts sets source-specific options. Generally, opts are relevant
-to document driver types (such as a CSV file). The most common
-use is to specify that the document has a header row:
+There are various driver-specific options available. For example:
 
-  $ sq add actor.csv --opts=header=true
-
-Use query string encoding for multiple options, e.g. "--opts a=b&x=y".
+  $ sq add actor.csv --ingest.header=false --driver.csv.delim=colon
 
 If flag --driver is omitted, sq will attempt to determine the
 type from LOCATION via file suffix, content type, etc.. If the result
@@ -112,40 +108,50 @@ More examples:
   Password: ****
 
   # Explicitly set flags
-  $ sq add --handle=@sakila_pg --driver=postgres 'postgres://user:pass@localhost/sakila'
+  $ sq add --handle @sakila_pg --driver postgres 'postgres://user:pass@localhost/sakila'
 
   # Same as above, but with short flags
-  $ sq add -h @sakila_pg --d postgres 'postgres://user:pass@localhost/sakila'
+  $ sq add -n @sakila_pg -d postgres 'postgres://user:pass@localhost/sakila'
 
-  # Add a SQL Server source; will have generated handle @sakila_mssql or similar
+  # Add a SQL Server source; will have generated handle @sakila
   $ sq add 'sqlserver://user:pass@localhost?database=sakila'
 
   # Add a sqlite db, and immediately make it the active source
   $ sq add ./testdata/sqlite1.db --active
 
   # Add an Excel spreadsheet, with options
-  $ sq add ./testdata/test1.xlsx --opts=header=true
+  $ sq add ./testdata/test1.xlsx --ingest.header=true
 
   # Add a CSV source, with options
-  $ sq add ./testdata/person.csv --opts=header=true
+  $ sq add ./testdata/person.csv --ingest.header=true
 
   # Add a CSV source from a URL (will be downloaded)
   $ sq add https://sq.io/testdata/actor.csv
 
   # Add a source, and make it the active source (and group)
-  $ sq add ./actor.csv -h @csv/actor`,
+  $ sq add ./actor.csv --handle @csv/actor
+
+  # Add a currently unreachable source
+  $ sq add 'postgres://user:pass@db.offline.com/sakila' --skip-verify`,
 		Short: "Add data source",
 		Long:  `Add data source specified by LOCATION, optionally identified by @HANDLE.`,
 	}
 
-	cmd.Flags().StringP(flag.Driver, flag.DriverShort, "", flag.DriverUsage)
-	panicOn(cmd.RegisterFlagCompletionFunc(flag.Driver, completeDriverType))
-	cmd.Flags().StringP(flag.SrcOptions, "", "", flag.SrcOptionsUsage)
+	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
+
+	cmd.Flags().StringP(flag.AddDriver, flag.AddDriverShort, "", flag.AddDriverUsage)
+	panicOn(cmd.RegisterFlagCompletionFunc(flag.AddDriver, completeDriverType))
+
 	cmd.Flags().StringP(flag.Handle, flag.HandleShort, "", flag.HandleUsage)
 	cmd.Flags().BoolP(flag.PasswordPrompt, flag.PasswordPromptShort, false, flag.PasswordPromptUsage)
 	cmd.Flags().Bool(flag.SkipVerify, false, flag.SkipVerifyUsage)
-	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 	cmd.Flags().BoolP(flag.AddActive, flag.AddActiveShort, false, flag.AddActiveUsage)
+
+	cmd.Flags().Bool(flag.IngestHeader, false, flag.IngestHeaderUsage)
+
+	cmd.Flags().Bool(flag.CSVEmptyAsNull, true, flag.CSVEmptyAsNullUsage)
+	cmd.Flags().String(flag.CSVDelim, flag.CSVDelimDefault, flag.CSVDelimUsage)
+	panicOn(cmd.RegisterFlagCompletionFunc(flag.CSVDelim, completeStrings(1, csv.NamedDelims()...)))
 
 	return cmd
 }
@@ -158,8 +164,8 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 	var err error
 	var typ source.DriverType
 
-	if cmdFlagChanged(cmd, flag.Driver) {
-		val, _ := cmd.Flags().GetString(flag.Driver)
+	if cmdFlagChanged(cmd, flag.AddDriver) {
+		val, _ := cmd.Flags().GetString(flag.AddDriver)
 		typ = source.DriverType(strings.TrimSpace(val))
 	} else {
 		typ, err = rc.files.DriverType(cmd.Context(), loc)
@@ -197,21 +203,6 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		return errz.Errorf("source handle already exists: %s", handle)
 	}
 
-	var opts options.Options
-	if cmdFlagChanged(cmd, flag.SrcOptions) {
-		val, _ := cmd.Flags().GetString(flag.SrcOptions)
-		val = strings.TrimSpace(val)
-		_ = val
-		// FIXME: Deal with option flags
-
-		// if val != "" {
-		// 	opts, err = options.ParseOptions(val)
-		// 	if err != nil {
-		// 		return err
-		// 	}
-		// }
-	}
-
 	if typ == sqlite3.Type {
 		// Special handling for SQLite, because it's a file-based DB.
 		loc, err = sqlite3.MungeLocation(loc)
@@ -224,24 +215,33 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 	// or sq prompts the user.
 	if cmdFlagTrue(cmd, flag.PasswordPrompt) {
 		var passwd []byte
-		passwd, err = readPassword(cmd.Context(), rc.Stdin, rc.Out, rc.writers.pr)
-		if err != nil {
+		if passwd, err = readPassword(cmd.Context(), rc.Stdin, rc.Out, rc.writers.pr); err != nil {
 			return err
 		}
 
-		loc, err = source.LocationWithPassword(loc, string(passwd))
-		if err != nil {
+		if loc, err = source.LocationWithPassword(loc, string(passwd)); err != nil {
 			return err
 		}
 	}
 
-	src, err := newSource(cmd.Context(), rc.driverReg, typ, handle, loc, opts)
+	o, err := getSrcOptionsFromFlags(cmd.Flags(), rc.OptionsRegistry, typ)
 	if err != nil {
 		return err
 	}
 
-	err = cfg.Collection.Add(src)
+	src, err := newSource(
+		cmd.Context(),
+		rc.driverReg,
+		typ,
+		handle,
+		loc,
+		o,
+	)
 	if err != nil {
+		return err
+	}
+
+	if err = cfg.Collection.Add(src); err != nil {
 		return err
 	}
 
@@ -252,7 +252,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		// However, we do not set the active group to the src's group.
+		// However, we do not set the active group to be the new src's group.
 		// In UX testing, it led to confused users.
 	}
 
@@ -263,12 +263,17 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 
 	if !cmdFlagTrue(cmd, flag.SkipVerify) {
 		// Typically we want to ping the source before adding it.
+		// But, sometimes not, for example if a source is temporarily offline.
 		if err = drvr.Ping(cmd.Context(), src); err != nil {
 			return err
 		}
 	}
 
 	if err = rc.ConfigStore.Save(cmd.Context(), rc.Config); err != nil {
+		return err
+	}
+
+	if src, err = rc.Config.Collection.Get(src.Handle); err != nil {
 		return err
 	}
 

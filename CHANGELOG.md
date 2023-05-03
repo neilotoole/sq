@@ -5,19 +5,60 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+Breaking changes are annotated with ☢️.
+
+
 ## Upcoming
 
-This release overhauls `sq`'s config mechanism.
+This release completely overhauls `sq`'s config mechanism. There are a
+handful of minor breaking changes ☢️.
 
 ### Added
 
 - `sq config get` prints config. DOCS
+- `sq config set` sets config values.
+- `sq config edit` edits config.
+  - Editor can be specified via `$EDITOR` or `$SQ_EDITOR`.
 - `sq config location` prints the location of the config dir.
 - `--config` flag is now honored globally.
+- Many more knobs are exposed in config.
 
 ### Changed
 
-- Envar `SQ_CONFIG` replaces `SQ_CONFIGDIR`.
+- ☢️Envar `SQ_CONFIG` replaces `SQ_CONFIGDIR`. 
+- ☢️Format flag `--table` is renamed to `--text`. This is changed because the flag
+  often outputs text in a table format, but sometimes it's just plain text. Thus
+  `table` was not quite accurate.
+- ☢️The flag to explicitly specify a driver when piping input to `sq` has been
+  renamed from `--driver` to `--ingest.driver`. This change is made to align
+  the naming of all the ingest options and reduce ambiguity.
+  ```shell
+  # previously
+  $ cat mystery.data | sq --driver=csv '.data'
+  
+  # now
+  $ cat mystery.data | sq --ingest.driver=csv '.data'
+  ```
+- ☢️ `sq add` no longer has the generic `--opts x=y` mechanism. This flag was
+  ambiguous and confusing. Instead use explicit option flags.
+  ```shell
+  # previously
+  $ sq add ./actor.csv --opts=header=false
+  
+  # now
+  $ sq add ./actor.csv --ingest.header=false
+   ```
+- ☢️ The short form of the `sq add --handle` flag has been changed from `-h` to
+  `-n`. While this is not ideal, the `-h` shorthand is already in use everywhere
+  else as the short form of `--header`.
+    ```shell
+  # previously
+  $ sq add ./actor.csv -h @actor
+  
+  # now
+  $ sq add ./actor.csv -n @actor
+   ```
+
 
 ## [v0.33.0] - 2023-04-15
 
@@ -119,7 +160,7 @@ make working with lots of sources much easier.
 
 - The `count` function has been changed ([docs](https://sq.io/docs/query#count))
   - Added no-args version: `.actor | count` equivalent to `SELECT COUNT(*) AS "count" FROM "actor"`.
-  - **BREAKING CHANGE**: The "star" version (`.actor | count(*)`) is no longer supported; use the
+  - ☢️ The "star" version (`.actor | count(*)`) is no longer supported; use the
     naked version instead.
 - Function columns are now named according to the `sq` token, not the SQL token.
   ```shell

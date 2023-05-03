@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/options"
+
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/neilotoole/sq/libsq/core/retry"
@@ -118,7 +120,7 @@ func (d *driveri) Renderer() *render.Renderer {
 
 // Open implements driver.DatabaseOpener.
 func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
-	lg.From(ctx).Debug(lgm.OpenSrc, lga.Src, src)
+	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
 	db, err := d.doOpen(ctx, src)
 	if err != nil {
@@ -129,6 +131,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database
 }
 
 func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
+	ctx = options.NewContext(ctx, src.Options)
 	dbCfg, err := pgxpool.ParseConfig(src.Location)
 	if err != nil {
 		return nil, errz.Err(err)
@@ -141,7 +144,7 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 		var dbErr error
 		db, dbErr = sql.Open(dbDrvr, connStr)
 		if dbErr != nil {
-			lg.From(ctx).Error("postgres open, may retry", lga.Err, dbErr)
+			lg.FromContext(ctx).Error("postgres open, may retry", lga.Err, dbErr)
 		}
 		return dbErr
 	}); err != nil {
@@ -449,7 +452,7 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 // getTableColumnNames consults postgres's information_schema.columns table,
 // returning the names of the table's columns in ordinal order.
 func getTableColumnNames(ctx context.Context, db sqlz.DB, tblName string) ([]string, error) {
-	log := lg.From(ctx)
+	log := lg.FromContext(ctx)
 	const query = `SELECT column_name FROM information_schema.columns
 	WHERE table_schema = CURRENT_SCHEMA()
 	AND table_name = $1
@@ -560,7 +563,7 @@ func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error)
 
 // Close implements driver.Database.
 func (d *database) Close() error {
-	d.log.Debug(lgm.CloseDB, lga.Src, d.src)
+	d.log.Debug(lgm.CloseDB, lga.Handle, d.src.Handle)
 
 	err := d.db.Close()
 	if err != nil {
@@ -600,5 +603,6 @@ func hasErrCode(err error, code string) bool {
 
 // doRetry executes fn with retry on isErrTooManyConnections.
 func doRetry(ctx context.Context, fn func() error) error {
-	return retry.Do(ctx, driver.Tuning.MaxRetryInterval, fn, isErrTooManyConnections)
+	maxRetryInterval := driver.OptMaxRetryInterval.Get(options.FromContext(ctx))
+	return retry.Do(ctx, maxRetryInterval, fn, isErrTooManyConnections)
 }

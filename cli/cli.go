@@ -22,6 +22,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/spf13/pflag"
+
 	"github.com/neilotoole/sq/cli/flag"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -62,11 +64,11 @@ func Execute(ctx context.Context, stdin *os.File, stdout, stderr io.Writer, args
 // resulting in a command being executed. The caller must
 // invoke rc.Close.
 func ExecuteWith(ctx context.Context, rc *RunContext, args []string) error {
-	log := lg.From(ctx)
+	log := lg.FromContext(ctx)
 	log.Debug("EXECUTE", "args", strings.Join(args, " "))
 	log.Debug("Build info", "build", buildinfo.Info())
 	log.Debug("Config",
-		lga.Version, rc.Config.Version,
+		"config.version", rc.Config.Version,
 		lga.Path, rc.ConfigStore.Location(),
 	)
 
@@ -169,12 +171,6 @@ func newCommandTree(rc *RunContext) (rootCmd *cobra.Command) {
 	rootCmd.SetErr(rc.ErrOut)
 	rootCmd.Flags().SortFlags = false
 
-	// The --help flag must be explicitly added to rootCmd,
-	// or else cobra tries to do its own (unwanted) thing.
-	// The behavior of cobra in this regard seems to have
-	// changed? This particular incantation currently does the trick.
-	rootCmd.Flags().Bool(flag.Help, false, "Show sq help")
-
 	helpCmd := addCmd(rc, rootCmd, newHelpCmd())
 	rootCmd.SetHelpCommand(helpCmd)
 
@@ -266,7 +262,22 @@ func addCmd(rc *RunContext, parentCmd, cmd *cobra.Command) *cobra.Command {
 	cmd.SilenceErrors = true
 	cmd.SilenceUsage = true
 
+	cmd.Flags().SetNormalizeFunc(applyFlagAliases)
+
 	parentCmd.AddCommand(cmd)
 
 	return cmd
+}
+
+func applyFlagAliases(f *pflag.FlagSet, name string) pflag.NormalizedName {
+	if f == nil {
+		return pflag.NormalizedName(name)
+	}
+	switch name {
+	case "table":
+		// Legacy: flag --text was once named --table.
+		name = flag.Text
+	default:
+	}
+	return pflag.NormalizedName(name)
 }

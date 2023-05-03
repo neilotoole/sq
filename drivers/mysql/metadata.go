@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/options"
+
 	"golang.org/x/sync/errgroup"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -180,7 +182,7 @@ WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`
 
 // getColumnMetadata returns column metadata for tblName.
 func getColumnMetadata(ctx context.Context, db sqlz.DB, tblName string) ([]*source.ColMetadata, error) {
-	log := lg.From(ctx)
+	log := lg.FromContext(ctx)
 
 	const query = `SELECT column_name, data_type, column_type, ordinal_position, column_default,
        is_nullable, column_key, column_comment, extra
@@ -246,6 +248,8 @@ ORDER BY cols.ordinal_position ASC`
 // each SELECT COUNT(*) query. That said, the testing/benchmarking was
 // far from exhaustive, and this entire thing has a bit of a code smell.
 func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB) (*source.Metadata, error) {
+	ctx = options.NewContext(ctx, src.Options)
+
 	md := &source.Metadata{
 		SourceType:   Type,
 		DBDriverType: Type,
@@ -254,7 +258,7 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB) (*so
 	}
 
 	g, gCtx := errgroup.WithContext(ctx)
-	g.SetLimit(driver.Tuning.ErrgroupLimit)
+	g.SetLimit(driver.OptTuningErrgroupLimit.Get(src.Options))
 
 	g.Go(func() error {
 		return doRetry(gCtx, func() error {
@@ -309,7 +313,7 @@ func setSourceSummaryMeta(ctx context.Context, db sqlz.DB, md *source.Metadata) 
 
 // getDBVarsMeta returns the database variables.
 func getDBVarsMeta(ctx context.Context, db sqlz.DB) ([]source.DBVar, error) {
-	log := lg.From(ctx)
+	log := lg.FromContext(ctx)
 	var dbVars []source.DBVar
 
 	rows, err := db.QueryContext(ctx, "SHOW VARIABLES")
@@ -341,7 +345,7 @@ func getDBVarsMeta(ctx context.Context, db sqlz.DB) ([]source.DBVar, error) {
 // This function should be revisited to see if there's a better way
 // to implement it.
 func getAllTblMetas(ctx context.Context, db sqlz.DB) ([]*source.TableMetadata, error) {
-	log := lg.From(ctx)
+	log := lg.FromContext(ctx)
 
 	const query = `SELECT t.TABLE_SCHEMA, t.TABLE_NAME, t.TABLE_TYPE, t.TABLE_COMMENT,
        (DATA_LENGTH + INDEX_LENGTH) AS table_size,
@@ -375,7 +379,7 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 	// g is an errgroup for fetching the
 	// row count for each table.
 	g, gCtx := errgroup.WithContext(ctx)
-	g.SetLimit(driver.Tuning.ErrgroupLimit)
+	g.SetLimit(driver.OptTuningErrgroupLimit.Get(options.FromContext(ctx)))
 
 	rows, err := db.QueryContext(ctx, query)
 	if err != nil {

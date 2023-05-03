@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/options"
+
 	"github.com/neilotoole/sq/libsq/core/retry"
 
 	"github.com/neilotoole/sq/libsq/driver/dialect"
@@ -305,7 +307,7 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 
 // Open implements driver.DatabaseOpener.
 func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
-	lg.From(ctx).Debug(lgm.OpenSrc, lga.Src, src)
+	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
 	db, err := d.doOpen(ctx, src)
 	if err != nil {
@@ -429,7 +431,7 @@ func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error)
 
 // Close implements driver.Database.
 func (d *database) Close() error {
-	d.log.Debug(lgm.CloseDB, lga.Src, d.src)
+	d.log.Debug(lgm.CloseDB, lga.Handle, d.src.Handle)
 	return errz.Err(d.db.Close())
 }
 
@@ -489,5 +491,6 @@ func dsnFromLocation(src *source.Source, parseTime bool) (string, error) {
 
 // doRetry executes fn with retry on isErrTooManyConnections.
 func doRetry(ctx context.Context, fn func() error) error {
-	return retry.Do(ctx, driver.Tuning.MaxRetryInterval, fn, isErrTooManyConnections)
+	maxRetryInterval := driver.OptMaxRetryInterval.Get(options.FromContext(ctx))
+	return retry.Do(ctx, maxRetryInterval, fn, isErrTooManyConnections)
 }

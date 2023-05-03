@@ -11,17 +11,23 @@ func newConfigCmd() *cobra.Command {
 		Use:   "config",
 		Args:  cobra.NoArgs,
 		Short: "Manage config",
-		Long:  "Manage config.",
+		Long:  `View and edit base and source-specific config.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
 		},
 		Example: `  # Print config location
   $ sq config location
 
-  # Show default options
+  # Show base config
   $ sq config get
 
-  # Edit default options
+  # Show base config including unset and default values.
+  $ sq config get -v
+
+  # Set config value
+  $ sq config set format json
+
+  # Edit base config
   $ sq config edit
 
   # Edit config for source
@@ -49,7 +55,6 @@ func newConfigLocationCmd() *cobra.Command {
   Origin: env`,
 	}
 
-	cmd.Flags().BoolP(flag.Table, flag.TableShort, false, flag.TableUsage)
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 	cmd.Flags().BoolP(flag.YAML, flag.YAMLShort, false, flag.YAMLUsage)
 	return cmd

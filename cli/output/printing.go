@@ -1,10 +1,17 @@
 package output
 
-import "github.com/fatih/color"
+import (
+	"github.com/fatih/color"
+	"golang.org/x/exp/slog"
+)
 
 // Printing describes color and pretty-printing options.
 type Printing struct {
 	monochrome bool
+
+	// FlushThreshold is the size in bytes after which an output writer
+	// should flush any internal buffer.
+	FlushThreshold int
 
 	// ShowHeader indicates that a header (e.g. a header row) should
 	// be printed where applicable.
@@ -91,35 +98,54 @@ type Printing struct {
 // are enabled. The default indent is two spaces.
 func NewPrinting() *Printing {
 	pr := &Printing{
-		ShowHeader: true,
-		Verbose:    false,
-		Pretty:     true,
-		Redact:     true,
-		monochrome: false,
-		Indent:     "  ",
-		Active:     color.New(color.FgGreen, color.Bold),
-		Bold:       color.New(color.Bold),
-		Bool:       color.New(color.FgYellow),
-		Bytes:      color.New(color.Faint),
-		Datetime:   color.New(color.FgGreen, color.Faint),
-		Duration:   color.New(color.FgGreen, color.Faint),
-		Error:      color.New(color.FgRed, color.Bold),
-		Faint:      color.New(color.Faint),
-		Handle:     color.New(color.FgBlue),
-		Header:     color.New(color.FgBlue, color.Bold),
-		Hilite:     color.New(color.FgHiBlue),
-		Key:        color.New(color.FgBlue, color.Bold),
-		Location:   color.New(color.FgGreen),
-		Normal:     color.New(),
-		Null:       color.New(color.Faint),
-		Number:     color.New(color.FgCyan),
-		Punc:       color.New(color.Bold),
-		String:     color.New(color.FgGreen),
-		Success:    color.New(color.FgGreen, color.Bold),
+		ShowHeader:     true,
+		Verbose:        false,
+		Pretty:         true,
+		Redact:         true,
+		FlushThreshold: 1000,
+		monochrome:     false,
+		Indent:         "  ",
+		Active:         color.New(color.FgGreen, color.Bold),
+		Bold:           color.New(color.Bold),
+		Bool:           color.New(color.FgYellow),
+		Bytes:          color.New(color.Faint),
+		Datetime:       color.New(color.FgGreen, color.Faint),
+		Duration:       color.New(color.FgGreen, color.Faint),
+		Error:          color.New(color.FgRed, color.Bold),
+		Faint:          color.New(color.Faint),
+		Handle:         color.New(color.FgBlue),
+		Header:         color.New(color.FgBlue),
+		// Header:         color.New(color.FgBlue, color.Bold),
+		Hilite:   color.New(color.FgHiBlue),
+		Key:      color.New(color.FgBlue, color.Bold),
+		Location: color.New(color.FgGreen),
+		Normal:   color.New(),
+		Null:     color.New(color.Faint),
+		Number:   color.New(color.FgCyan),
+		Punc:     color.New(color.Bold),
+		String:   color.New(color.FgGreen),
+		Success:  color.New(color.FgGreen, color.Bold),
 	}
 
 	pr.EnableColor(true)
 	return pr
+}
+
+// LogValue implements slog.LogValuer.
+func (pr *Printing) LogValue() slog.Value {
+	if pr == nil {
+		return slog.Value{}
+	}
+
+	return slog.GroupValue(
+		slog.Bool("verbose", pr.Verbose),
+		slog.Bool("header", pr.ShowHeader),
+		slog.Bool("monochrome", pr.monochrome),
+		slog.Bool("pretty", pr.Pretty),
+		slog.Bool("redact", pr.Redact),
+		slog.Int("flush-threshold", pr.FlushThreshold),
+		slog.String("indent", pr.Indent),
+	)
 }
 
 func (pr *Printing) colors() []*color.Color {

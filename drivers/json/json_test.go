@@ -20,10 +20,12 @@ import (
 )
 
 func TestDriverDetectorFuncs(t *testing.T) {
+	const sampleSize = 1000
+
 	detectFns := map[source.DriverType]source.DriverDetectFunc{ //nolint:exhaustive
-		json.TypeJSON:  json.DetectJSON,
-		json.TypeJSONA: json.DetectJSONA,
-		json.TypeJSONL: json.DetectJSONL,
+		json.TypeJSON:  json.DetectJSON(sampleSize),
+		json.TypeJSONA: json.DetectJSONA(sampleSize),
+		json.TypeJSONL: json.DetectJSONL(sampleSize),
 	}
 
 	testCases := []struct {

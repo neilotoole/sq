@@ -9,6 +9,8 @@ import (
 	"context"
 	"database/sql"
 
+	"github.com/neilotoole/sq/drivers"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
@@ -95,7 +97,7 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 
 // Open implements driver.DatabaseOpener.
 func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
-	lg.From(ctx).Debug(lgm.OpenSrc, lga.Src, src)
+	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
 	dbase := &database{log: d.log, src: src, clnup: cleanup.New(), files: d.files}
 
@@ -115,8 +117,8 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database
 		fromSrc:    src,
 		openFn:     d.files.OpenFunc(src),
 		destDB:     dbase.impl,
-		sampleSize: driver.Tuning.SampleSize,
-		flatten:    true, // TODO: Should come from src.Options
+		sampleSize: drivers.OptIngestSampleSize.Get(src.Options),
+		flatten:    true,
 	}
 
 	err = d.importFn(ctx, job)
@@ -228,13 +230,7 @@ func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error)
 
 // Close implements driver.Database.
 func (d *database) Close() error {
-	d.log.Debug(lgm.CloseDB, lga.Src, d.src)
+	d.log.Debug(lgm.CloseDB, lga.Handle, d.src.Handle)
 
 	return errz.Combine(d.impl.Close(), d.clnup.Run())
 }
-
-var (
-	_ source.DriverDetectFunc = DetectJSON
-	_ source.DriverDetectFunc = DetectJSONA
-	_ source.DriverDetectFunc = DetectJSONL
-)

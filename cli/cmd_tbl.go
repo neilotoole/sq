@@ -169,7 +169,6 @@ only applies to SQL sources.`,
 	}
 
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
-	cmd.Flags().BoolP(flag.Table, flag.TableShort, false, flag.TableUsage)
 
 	return cmd
 }

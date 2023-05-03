@@ -15,127 +15,127 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
-	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 )
 
-// DetectJSON implements source.DriverDetectFunc.
-// The function returns TypeJSON for two varieties of input:.
-func DetectJSON(ctx context.Context, openFn source.FileOpenFunc) (detected source.DriverType, score float32,
-	err error,
-) {
-	log := lg.From(ctx)
-	var r1, r2 io.ReadCloser
-	r1, err = openFn()
-	if err != nil {
-		return source.TypeNone, 0, errz.Err(err)
-	}
-	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r1)
+// DetectJSON returns a source.DriverDetectFunc that can detect JSON.
+func DetectJSON(sampleSize int) source.DriverDetectFunc {
+	return func(ctx context.Context, openFn source.FileOpenFunc) (detected source.DriverType, score float32,
+		err error,
+	) {
+		log := lg.FromContext(ctx)
+		var r1, r2 io.ReadCloser
+		r1, err = openFn()
+		if err != nil {
+			return source.TypeNone, 0, errz.Err(err)
+		}
+		defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r1)
 
-	dec := stdj.NewDecoder(r1)
-	var tok stdj.Token
-	tok, err = dec.Token()
-	if err != nil {
-		return source.TypeNone, 0, nil
-	}
+		dec := stdj.NewDecoder(r1)
+		var tok stdj.Token
+		tok, err = dec.Token()
+		if err != nil {
+			return source.TypeNone, 0, nil
+		}
 
-	delim, ok := tok.(stdj.Delim)
-	if !ok {
-		return source.TypeNone, 0, nil
-	}
+		delim, ok := tok.(stdj.Delim)
+		if !ok {
+			return source.TypeNone, 0, nil
+		}
 
-	switch delim {
-	default:
-		return source.TypeNone, 0, nil
-	case leftBrace:
-		// The input is a single JSON object
+		switch delim {
+		default:
+			return source.TypeNone, 0, nil
+		case leftBrace:
+			// The input is a single JSON object
+			r2, err = openFn()
+
+			// buf gets a copy of what is read from r2
+			buf := &buffer{}
+
+			if err != nil {
+				return source.TypeNone, 0, errz.Err(err)
+			}
+			defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r2)
+
+			dec = stdj.NewDecoder(io.TeeReader(r2, buf))
+			var m map[string]any
+			err = dec.Decode(&m)
+			if err != nil {
+				return source.TypeNone, 0, nil
+			}
+
+			if dec.More() {
+				// The input is supposed to be just a single object, so
+				// it shouldn't have more tokens
+				return source.TypeNone, 0, nil
+			}
+
+			// If the input is all on a single line, then it could be
+			// either JSON or JSONL. For single-line input, prefer JSONL.
+			lineCount := stringz.LineCount(bytes.NewReader(buf.b), true)
+			switch lineCount {
+			case -1:
+				// should never happen
+				return source.TypeNone, 0, errz.New("unknown problem reading JSON input")
+			case 0:
+				// should never happen
+				return source.TypeNone, 0, errz.New("JSON input is empty")
+			case 1:
+				// If the input is a JSON object on a single line, it could
+				// be TypeJSON or TypeJSONL. In deference to TypeJSONL, we
+				// return 0.9 instead of 1.0
+				return TypeJSON, 0.9, nil
+			default:
+				return TypeJSON, 1.0, nil
+			}
+
+		case leftBracket:
+			// The input is one or more JSON objects inside an array
+		}
+
 		r2, err = openFn()
-
-		// buf gets a copy of what is read from r2
-		buf := &buffer{}
-
 		if err != nil {
 			return source.TypeNone, 0, errz.Err(err)
 		}
 		defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r2)
 
-		dec = stdj.NewDecoder(io.TeeReader(r2, buf))
-		var m map[string]any
-		err = dec.Decode(&m)
-		if err != nil {
-			return source.TypeNone, 0, nil
+		sc := newObjectInArrayScanner(r2)
+		var validObjCount int
+		var obj map[string]any
+
+		for {
+			select {
+			case <-ctx.Done():
+				return source.TypeNone, 0, ctx.Err()
+			default:
+			}
+
+			obj, _, err = sc.next()
+			if err != nil {
+				return source.TypeNone, 0, ctx.Err()
+			}
+
+			if obj == nil { // end of input
+				break
+			}
+
+			validObjCount++
+			if validObjCount >= sampleSize {
+				break
+			}
 		}
 
-		if dec.More() {
-			// The input is supposed to be just a single object, so
-			// it shouldn't have more tokens
-			return source.TypeNone, 0, nil
-		}
-
-		// If the input is all on a single line, then it could be
-		// either JSON or JSONL. For single-line input, prefer JSONL.
-		lineCount := stringz.LineCount(bytes.NewReader(buf.b), true)
-		switch lineCount {
-		case -1:
-			// should never happen
-			return source.TypeNone, 0, errz.New("unknown problem reading JSON input")
-		case 0:
-			// should never happen
-			return source.TypeNone, 0, errz.New("JSON input is empty")
-		case 1:
-			// If the input is a JSON object on a single line, it could
-			// be TypeJSON or TypeJSONL. In deference to TypeJSONL, we
-			// return 0.9 instead of 1.0
-			return TypeJSON, 0.9, nil
-		default:
+		if validObjCount > 0 {
 			return TypeJSON, 1.0, nil
 		}
 
-	case leftBracket:
-		// The input is one or more JSON objects inside an array
+		return source.TypeNone, 0, nil
 	}
-
-	r2, err = openFn()
-	if err != nil {
-		return source.TypeNone, 0, errz.Err(err)
-	}
-	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r2)
-
-	sc := newObjectInArrayScanner(r2)
-	var validObjCount int
-	var obj map[string]any
-
-	for {
-		select {
-		case <-ctx.Done():
-			return source.TypeNone, 0, ctx.Err()
-		default:
-		}
-
-		obj, _, err = sc.next()
-		if err != nil {
-			return source.TypeNone, 0, ctx.Err()
-		}
-
-		if obj == nil { // end of input
-			break
-		}
-
-		validObjCount++
-		if validObjCount >= driver.Tuning.SampleSize {
-			break
-		}
-	}
-
-	if validObjCount > 0 {
-		return TypeJSON, 1.0, nil
-	}
-
-	return source.TypeNone, 0, nil
 }
 
 func importJSON(ctx context.Context, job importJob) error {
-	log := lg.From(ctx)
+	log := lg.FromContext(ctx)
 
 	r, err := job.openFn()
 	if err != nil {

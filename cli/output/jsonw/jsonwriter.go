@@ -147,7 +147,7 @@ func (w *stdWriter) writeRecord(rec sqlz.Record) error {
 	w.outBuf.Write(w.b)
 	w.b = w.b[:0]
 
-	if w.outBuf.Len() > output.FlushThreshold {
+	if w.outBuf.Len() > w.pr.FlushThreshold {
 		return w.Flush()
 	}
 
@@ -366,7 +366,7 @@ func (w *lineRecordWriter) writeRecord(rec sqlz.Record) error {
 	b = append(b, w.tpl[len(w.recMeta)]...)
 	w.outBuf.Write(b)
 
-	if w.outBuf.Len() > output.FlushThreshold {
+	if w.outBuf.Len() > w.pr.FlushThreshold {
 		return w.Flush()
 	}
 

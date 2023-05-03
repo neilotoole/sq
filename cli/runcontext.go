@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/neilotoole/sq/drivers"
+
 	"github.com/neilotoole/sq/cli/config/yamlstore"
 	v0_34_0 "github.com/neilotoole/sq/cli/config/yamlstore/upgrades/v0.34.0"
 	"github.com/neilotoole/sq/libsq/core/lg/slogbuf"
@@ -124,6 +126,7 @@ func newDefaultRunContext(ctx context.Context,
 ) (*RunContext, *slog.Logger, error) {
 	// logbuf holds log records until defaultLogging is completed.
 	log, logbuf := slogbuf.New()
+	log = log.With(lga.Pid, os.Getpid())
 
 	rc := &RunContext{
 		Stdin:           stdin,
@@ -145,7 +148,6 @@ func newDefaultRunContext(ctx context.Context,
 		args, rc.OptionsRegistry, upgrades)
 
 	log, logHandler, logCloser, logErr := defaultLogging(ctx)
-
 	rc.clnup = cleanup.New().AddE(logCloser)
 	if logErr != nil {
 		stderrLog, h := stderrLogger()
@@ -157,6 +159,9 @@ func newDefaultRunContext(ctx context.Context,
 		if err := logbuf.Flush(ctx, logHandler); err != nil {
 			return rc, log, err
 		}
+	}
+	if log != nil {
+		log = log.With(lga.Pid, os.Getpid())
 	}
 
 	if rc.Config == nil {
@@ -191,7 +196,7 @@ func (rc *RunContext) init(ctx context.Context) error {
 // It must only be invoked once.
 func (rc *RunContext) doInit(ctx context.Context) error {
 	rc.clnup = cleanup.New()
-	cfg, log := rc.Config, lg.From(ctx)
+	cfg, log := rc.Config, lg.FromContext(ctx)
 
 	// If the --output=/some/file flag is set, then we need to
 	// override rc.Out (which is typically stdout) to point it at
@@ -218,7 +223,11 @@ func (rc *RunContext) doInit(ctx context.Context) error {
 		rc.Out = f
 	}
 
-	rc.writers, rc.Out, rc.ErrOut = newWriters(rc.Cmd, rc.Config.Options, rc.Out, rc.ErrOut)
+	cmdOpts, err := getOptionsFromCmd(rc.Cmd)
+	if err != nil {
+		return err
+	}
+	rc.writers, rc.Out, rc.ErrOut = newWriters(rc.Cmd, cmdOpts, rc.Out, rc.ErrOut)
 
 	var scratchSrcFunc driver.ScratchSrcFunc
 
@@ -232,7 +241,6 @@ func (rc *RunContext) doInit(ctx context.Context) error {
 		}
 	}
 
-	var err error
 	rc.files, err = source.NewFiles(ctx)
 	if err != nil {
 		lg.WarnIfFuncError(log, lga.Cleanup, rc.clnup.Run)
@@ -263,7 +271,12 @@ func (rc *RunContext) doInit(ctx context.Context) error {
 	rc.driverReg.AddProvider(json.TypeJSON, jsonp)
 	rc.driverReg.AddProvider(json.TypeJSONA, jsonp)
 	rc.driverReg.AddProvider(json.TypeJSONL, jsonp)
-	rc.files.AddDriverDetectors(json.DetectJSON, json.DetectJSONA, json.DetectJSONL)
+	sampleSize := drivers.OptIngestSampleSize.Get(cfg.Options)
+	rc.files.AddDriverDetectors(
+		json.DetectJSON(sampleSize),
+		json.DetectJSONA(sampleSize),
+		json.DetectJSONL(sampleSize),
+	)
 
 	rc.driverReg.AddProvider(xlsx.Type, &xlsx.Provider{Log: log, Scratcher: rc.databases, Files: rc.files})
 	rc.files.AddDriverDetectors(xlsx.DetectXLSX)

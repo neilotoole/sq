@@ -117,9 +117,3 @@ type ConfigWriter interface {
 	// SetOption is called when an option is set.
 	SetOption(reg *options.Registry, o options.Options, opt options.Opt) error
 }
-
-// FlushThreshold is the size in bytes after which a writer
-// should flush any internal buffer.
-//
-// TODO: Move FlushThreshold to config
-const FlushThreshold = 1000

@@ -119,8 +119,6 @@ func (w *configWriter) doPrintOptions(reg *options.Registry, o options.Options, 
 	setKeys := o.Keys()
 	unsetKeys, _ := lo.Difference(allKeys, setKeys)
 
-	// keyColor := pr.
-
 	for _, k := range unsetKeys {
 		opt := reg.Get(k)
 		row := []string{
@@ -136,16 +134,21 @@ func (w *configWriter) doPrintOptions(reg *options.Registry, o options.Options, 
 }
 
 // SetOption implements output.ConfigWriter.
-func (w *configWriter) SetOption(reg *options.Registry, o options.Options, opt options.Opt) error {
+func (w *configWriter) SetOption(_ *options.Registry, o options.Options, opt options.Opt) error {
 	if !w.tbl.pr.Verbose {
 		// No output unless verbose
 		return nil
 	}
 
+	reg2 := &options.Registry{}
+	reg2.Add(opt)
+	o = options.Options{opt.Key(): opt.GetAny(o)}
+
 	// It's verbose
 	o = options.Effective(o, opt)
-	w.tbl.pr.ShowHeader = false
-	return w.Options(reg, o)
+	w.tbl.pr.ShowHeader = true
+	w.doPrintOptions(reg2, o, false)
+	return nil
 }
 
 func getOptColor(pr *output.Printing, opt options.Opt) *color.Color {

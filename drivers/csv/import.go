@@ -7,6 +7,8 @@ import (
 	"io"
 	"unicode/utf8"
 
+	"github.com/neilotoole/sq/drivers"
+
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 
@@ -30,7 +32,8 @@ import (
 var OptEmptyAsNull = options.NewBool(
 	"driver.csv.empty-as-null",
 	true,
-	"",
+	`When true, empty CSV cells are treated as NULL. When false,
+the zero value for that type is used, e.g. empty string or 0.`,
 	"source", "csv",
 )
 
@@ -38,14 +41,14 @@ var OptEmptyAsNull = options.NewBool(
 var OptDelim = options.NewString(
 	"driver.csv.delim",
 	"comma",
-	`Possible values are: comma, space, pipe, tab, colon, semi, period.
-Default is comma.`,
+	`Delimiter to use for CSV files. Default is "comma".
+Possible values are: comma, space, pipe, tab, colon, semi, period.`,
 	"source", "csv",
 )
 
 // importCSV loads the src CSV data into scratchDB.
 func importCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFunc, scratchDB driver.Database) error {
-	log := lg.From(ctx)
+	log := lg.FromContext(ctx)
 
 	var err error
 	var r io.ReadCloser
@@ -62,7 +65,7 @@ func importCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFu
 	}
 
 	cr := newCSVReader(r, delim)
-	recs, err := readRecords(cr, driver.Tuning.SampleSize)
+	recs, err := readRecords(cr, drivers.OptIngestSampleSize.Get(src.Options))
 	if err != nil {
 		return err
 	}
@@ -109,7 +112,11 @@ func importCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFu
 		configureEmptyNullMunge(mungers, recMeta)
 	}
 
-	insertWriter := libsq.NewDBWriter(scratchDB, tblDef.Name, driver.Tuning.RecordChSize)
+	insertWriter := libsq.NewDBWriter(
+		scratchDB,
+		tblDef.Name,
+		driver.OptTuningRecChanSize.Get(scratchDB.Source().Options),
+	)
 	err = execInsert(ctx, insertWriter, recMeta, mungers, recs, cr)
 	if err != nil {
 		return err

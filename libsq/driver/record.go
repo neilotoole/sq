@@ -410,7 +410,7 @@ func (bi BatchInsert) Munge(rec []any) error {
 func NewBatchInsert(ctx context.Context, drvr SQLDriver, db sqlz.DB,
 	destTbl string, destColNames []string, batchSize int,
 ) (*BatchInsert, error) {
-	log := lg.From(ctx)
+	log := lg.FromContext(ctx)
 
 	err := requireSingleConn(db)
 	if err != nil {
@@ -551,7 +551,7 @@ func MaxBatchRows(drvr SQLDriver, numCols int) int {
 // that checks the values of rec against destMeta and
 // performs necessary munging. For example, if any element
 // is a ptr to an empty string and the dest type
-// is a not of kind Text, the empty string was probably
+// is not of kind Text, the empty string was probably
 // intended to mean nil. This happens when the original
 // source doesn't handle nil, e.g. with CSV, where nil is
 // effectively represented by "".

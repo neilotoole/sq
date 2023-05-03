@@ -24,8 +24,10 @@ func newVersionCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "version",
 		Short: "Show version info",
-		Long:  "Show version info. Use --verbose for more detail.",
-		RunE:  execVersion,
+		Long: `Show version info. Use --verbose for more detail.
+The output will note if a new version of sq is available.
+Before upgrading, check the changelog: https://sq.io/changelog`,
+		RunE: execVersion,
 		Example: `  # Show version (note that an update is available)
   $ sq version
   sq v0.32.0    Update available: v0.33.0

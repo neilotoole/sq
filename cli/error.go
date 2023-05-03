@@ -22,7 +22,7 @@ import (
 // redundancy; ultimately err will print if non-nil (even if
 // rc or any of its fields are nil).
 func printError(ctx context.Context, rc *RunContext, err error) {
-	log := lg.From(ctx)
+	log := lg.FromContext(ctx)
 
 	if err == nil {
 		log.Warn("printError called with nil error")
@@ -108,7 +108,7 @@ func bootstrapIsFormatJSON(rc *RunContext) bool {
 		return false
 	}
 
-	defaultFormat := format.Table
+	defaultFormat := format.Text
 	if rc.Config != nil {
 		defaultFormat = OptOutputFormat.Get(rc.Config.Options)
 	}
