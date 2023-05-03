@@ -7,11 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Breaking changes are annotated with ☢️.
 
-
 ## Upcoming
 
-This release completely overhauls `sq`'s config mechanism. There are a
-handful of minor breaking changes ☢️.
+This release significantly overhauls `sq`'s config mechanism. There are 
+several minor breaking changes ☢️.
 
 ### Added
 
@@ -30,8 +29,8 @@ handful of minor breaking changes ☢️.
   output is mostly in table format, sometimes it's just plain text. Thus
   `table` was not quite accurate.
 - ☢️ The flag to explicitly specify a driver when piping input to `sq` has been
-  renamed from `--driver` to `--ingest.driver`. This change is made to align
-  the naming of all the ingest options and reduce ambiguity.
+  renamed from `--driver` to `--ingest.driver`. This change aligns
+  the naming of the ingest options and reduces ambiguity.
   ```shell
   # previously
   $ cat mystery.data | sq --driver=csv '.data'
@@ -40,7 +39,7 @@ handful of minor breaking changes ☢️.
   $ cat mystery.data | sq --ingest.driver=csv '.data'
   ```
 - ☢️ `sq add` no longer has the generic `--opts x=y` mechanism. This flag was
-  ambiguous and confusing. Instead use explicit option flags.
+  ambiguous and confusing. Instead, use explicit option flags.
   ```shell
   # previously
   $ sq add ./actor.csv --opts=header=false
@@ -58,7 +57,6 @@ handful of minor breaking changes ☢️.
   # now
   $ sq add ./actor.csv -n @actor
    ```
-
 
 ## [v0.33.0] - 2023-04-15
 
