@@ -5,19 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+Breaking changes are annotated with ☢️.
+
+
 ## Upcoming
 
-This release overhauls `sq`'s config mechanism.
+This release completely overhauls `sq`'s config mechanism.
 
 ### Added
 
 - `sq config get` prints config. DOCS
+- `sq config set` sets config values.
+- `sq config edit` edits config.
+  - Editor can be specified via `$EDITOR` or `$SQ_EDITOR`.
 - `sq config location` prints the location of the config dir.
 - `--config` flag is now honored globally.
+- Many more knobs are exposed in config.
 
 ### Changed
 
-- Envar `SQ_CONFIG` replaces `SQ_CONFIGDIR`.
+- ☢️Envar `SQ_CONFIG` replaces `SQ_CONFIGDIR`. 
+- ☢️Format flag `--table` is renamed to `--text`. This is changed because the flag
+  often outputs text in a table format, but sometimes it's just plain text. Thus
+  `table` was not quite accurate.
 
 ## [v0.33.0] - 2023-04-15
 
@@ -119,7 +129,7 @@ make working with lots of sources much easier.
 
 - The `count` function has been changed ([docs](https://sq.io/docs/query#count))
   - Added no-args version: `.actor | count` equivalent to `SELECT COUNT(*) AS "count" FROM "actor"`.
-  - **BREAKING CHANGE**: The "star" version (`.actor | count(*)`) is no longer supported; use the
+  - ☢️ The "star" version (`.actor | count(*)`) is no longer supported; use the
     naked version instead.
 - Function columns are now named according to the `sq` token, not the SQL token.
   ```shell

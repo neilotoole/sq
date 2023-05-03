@@ -88,14 +88,13 @@ If n <= 0, connections are not closed due to a connection's age.`,
 		time.Second*3,
 		`The maximum interval to wait between retries.
 If an operation is retryable (for example, if the DB has too many clients),
-repeated retry operations back off, typically using a Fibonacci or exponential
-backoff. This option controls the maximum interval between retry attempts.`,
+repeated retry operations back off, typically using a Fibonacci backoff.`,
 		"source",
 	)
 
-	// OptErrgroupLimit controls the maximum number of goroutines that can be spawned
+	// OptTuningErrgroupLimit controls the maximum number of goroutines that can be spawned
 	// by an errgroup.
-	OptErrgroupLimit = options.NewInt("errgroup.limit",
+	OptTuningErrgroupLimit = options.NewInt("tuning.errgroup-limit",
 		16,
 		`Controls the maximum number of goroutines that can be spawned
 by an errgroup. Note that this is the limit for any one errgroup, but not a
@@ -105,13 +104,14 @@ themselves start an errgroup.
 This knob is primarily for internal use. Ultimately it should go away
 in favor of dynamic errgroup limit setting based on availability
 of additional DB conns, etc.`,
-		"internal")
+		"tuning")
 
-	// OptRecordChannelSize is the size of the buffer chan for record
+	// OptTuningRecChanSize is the size of the buffer chan for record
 	// insertion/writing.
-	OptRecordChannelSize = options.NewInt("internal.record-buffer-size",
+	OptTuningRecChanSize = options.NewInt("tuning.record-buffer",
 		1024,
 		`Controls the size of the buffer channel for record insertion/writing.`,
+		"tuning",
 	)
 )
 
@@ -437,7 +437,7 @@ func (d *Databases) OpenJoin(ctx context.Context, src1, src2 *source.Source, src
 
 // Close closes d, invoking Close on any instances opened via d.Open.
 func (d *Databases) Close() error {
-	d.log.Debug("Closing databases(s)", lga.Count, d.clnup.Len())
+	d.log.Debug("Closing databases(s)...", lga.Count, d.clnup.Len())
 	return d.clnup.Run()
 }
 

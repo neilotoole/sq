@@ -145,7 +145,7 @@ GROUP BY database_id) AS total_size_bytes`
 	}
 
 	g, gCtx := errgroup.WithContext(ctx)
-	g.SetLimit(driver.OptErrgroupLimit.Get(src.Options))
+	g.SetLimit(driver.OptTuningErrgroupLimit.Get(src.Options))
 	tblMetas := make([]*source.TableMetadata, len(tblNames))
 	for i := range tblNames {
 		i := i

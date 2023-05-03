@@ -1,4 +1,4 @@
-config_version: v0.34.0
+config.version: v0.34.0
 
 collection:
   active_source: ""

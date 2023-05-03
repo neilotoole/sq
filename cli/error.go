@@ -108,7 +108,7 @@ func bootstrapIsFormatJSON(rc *RunContext) bool {
 		return false
 	}
 
-	defaultFormat := format.Table
+	defaultFormat := format.Text
 	if rc.Config != nil {
 		defaultFormat = OptOutputFormat.Get(rc.Config.Options)
 	}

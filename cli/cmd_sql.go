@@ -156,7 +156,7 @@ func execSQLInsert(ctx context.Context, rc *RunContext, fromSrc, destSrc *source
 	inserter := libsq.NewDBWriter(
 		destDB,
 		destTbl,
-		driver.OptRecordChannelSize.Get(destSrc.Options),
+		driver.OptTuningRecChanSize.Get(destSrc.Options),
 		libsq.DBWriterCreateTableIfNotExistsHook(destTbl),
 	)
 	err = libsq.QuerySQL(ctx, fromDB, inserter, args[0])

@@ -142,7 +142,7 @@ func importJSONA(ctx context.Context, job importJob) error {
 	insertWriter := libsq.NewDBWriter(
 		job.destDB,
 		tblDef.Name,
-		driver.OptRecordChannelSize.Get(job.destDB.Source().Options),
+		driver.OptTuningRecChanSize.Get(job.destDB.Source().Options),
 	)
 
 	var cancelFn context.CancelFunc

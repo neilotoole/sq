@@ -1,10 +1,10 @@
 # This file has an empty active source.
-config_version: v0.34.0
+config.version: v0.34.0
 options:
-    output_format: table
-    output_header: false
-    ping_timeout: 10s
-    shell_completion_timeout: 500ms
+    format: table
+    header: false
+    ping.timeout: 10s
+    shell-completion.timeout: 500ms
 collection:
     active.source: ""
     scratch: ""

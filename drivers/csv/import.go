@@ -115,7 +115,7 @@ func importCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFu
 	insertWriter := libsq.NewDBWriter(
 		scratchDB,
 		tblDef.Name,
-		driver.OptRecordChannelSize.Get(scratchDB.Source().Options),
+		driver.OptTuningRecChanSize.Get(scratchDB.Source().Options),
 	)
 	err = execInsert(ctx, insertWriter, recMeta, mungers, recs, cr)
 	if err != nil {

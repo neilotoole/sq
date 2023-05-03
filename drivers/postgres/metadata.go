@@ -216,7 +216,7 @@ current_setting('server_version'), version(), "current_user"()`
 	}
 
 	g, gCtx := errgroup.WithContext(ctx)
-	g.SetLimit(driver.OptErrgroupLimit.Get(src.Options))
+	g.SetLimit(driver.OptTuningErrgroupLimit.Get(src.Options))
 	tblMetas := make([]*source.TableMetadata, len(tblNames))
 	for i := range tblNames {
 		i := i

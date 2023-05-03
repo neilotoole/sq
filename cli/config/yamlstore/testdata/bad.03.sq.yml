@@ -1,2 +1,2 @@
 options:
-  format.header: not_a_bool
+  header: not_a_bool

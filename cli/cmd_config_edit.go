@@ -1,10 +1,12 @@
 package cli
 
 import (
+	"bufio"
 	"bytes"
-	"fmt"
 	"os"
 	"strings"
+
+	"github.com/neilotoole/sq/libsq/source"
 
 	"github.com/neilotoole/sq/libsq/core/options"
 
@@ -38,8 +40,14 @@ func newConfigEditCmd() *cobra.Command {
 		Example: `  # Edit default options
   $ sq config edit
 
+  # Edit default options, but show additional help/context.
+  $ sq config edit -v
+
   # Edit config for source @sakila
   $ sq config edit @sakila
+
+  # Same as above, with additional help/context.
+  $ sq config edit @sakila -v
 
   # Use a different editor
   $ SQ_EDITOR=nano sq config edit`,
@@ -53,8 +61,17 @@ func execConfigEditOptions(cmd *cobra.Command, _ []string) error {
 	ctx := cmd.Context()
 	rc, log := RunContextFrom(ctx), logFrom(cmd)
 	cfg := rc.Config
+	cmdOpts, err := getCmdOptions(cmd)
+	if err != nil {
+		return err
+	}
+	verbose := OptVerbose.Get(cmdOpts)
 
-	before := []byte(getOptionsEditableText(rc.OptionsRegistry, rc.Config.Options))
+	optsText, err := getOptionsEditableText(rc.OptionsRegistry, rc.Config.Options, verbose)
+	if err != nil {
+		return err
+	}
+	before := []byte(optsText)
 
 	ed := shelleditor.NewDefaultEditor(editorEnvs...)
 	after, tmpFile, err := ed.LaunchTempFile("sq", ".yml", bytes.NewReader(before))
@@ -93,6 +110,12 @@ func execConfigEditSource(cmd *cobra.Command, args []string) error {
 	rc, log := RunContextFrom(ctx), logFrom(cmd)
 	cfg := rc.Config
 
+	cmdOpts, err := getCmdOptions(cmd)
+	if err != nil {
+		return err
+	}
+	verbose := OptVerbose.Get(cmdOpts)
+
 	src, err := cfg.Collection.Get(args[0])
 	if err != nil {
 		return err
@@ -103,8 +126,39 @@ func execConfigEditSource(cmd *cobra.Command, args []string) error {
 	srcReg := &options.Registry{}
 	srcReg.Add(opts...)
 
-	before := []byte(getOptionsEditableText(srcReg, src.Options))
+	tmpSrc := src.Clone()
+	tmpSrc.Options = nil
+	header, err := ioz.MarshalYAML(tmpSrc)
+	if err != nil {
+		return err
+	}
 
+	sb := strings.Builder{}
+	sb.Write(header)
+	sb.WriteString("options:\n")
+
+	optionsText, err := getOptionsEditableText(srcReg, src.Options, verbose)
+	if err != nil {
+		return err
+	}
+
+	// Add indentation
+	sc := bufio.NewScanner(strings.NewReader(optionsText))
+	var line string
+	for sc.Scan() {
+		line = sc.Text()
+		if line != "" {
+			sb.WriteString("  ") // indent
+		}
+		sb.WriteString(line)
+		sb.WriteRune('\n')
+	}
+
+	if err = sc.Err(); err != nil {
+		return errz.Err(err)
+	}
+
+	before := []byte(sb.String())
 	ed := shelleditor.NewDefaultEditor(editorEnvs...)
 	fname := strings.ReplaceAll(src.Handle[1:], "/", "__")
 	after, tmpFile, err := ed.LaunchTempFile(fname, ".yml", bytes.NewReader(before))
@@ -122,9 +176,8 @@ func execConfigEditSource(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	src2 := src.Clone()
-	src2.Options = options.Options{}
-	if err = ioz.UnmarshallYAML(after, &src2.Options); err != nil {
+	src2 := &source.Source{}
+	if err = ioz.UnmarshallYAML(after, &src2); err != nil {
 		return err
 	}
 
@@ -139,10 +192,7 @@ func execConfigEditSource(cmd *cobra.Command, args []string) error {
 
 	*src = *src2
 
-	// FIXME: We should really be able to edit the entire source,
-	// including location, handle, type, etc.
-
-	// TODO: if --verbose, show diff
+	// TODO: if --verbose, show diff between config before and after.
 	if err = rc.ConfigStore.Save(ctx, cfg); err != nil {
 		return err
 	}
@@ -152,21 +202,64 @@ func execConfigEditSource(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func getOptionsEditableText(reg *options.Registry, o options.Options) string {
+func getOptionsEditableText(reg *options.Registry, o options.Options, verbose bool) (string, error) {
 	sb := strings.Builder{}
-	for i, opt := range reg.Opts() {
-		if i > 0 {
-			sb.WriteString("\n\n")
-		}
-		sb.WriteString("# ")
-		sb.WriteString(strings.ReplaceAll(opt.Comment(), "\n", "\n# "))
-		sb.WriteRune('\n')
-		if !o.IsSet(opt) {
+	if verbose {
+		for i, opt := range reg.Opts() {
+			if i > 0 {
+				sb.WriteString("\n")
+			}
 			sb.WriteString("# ")
+			sb.WriteString(strings.ReplaceAll(opt.Comment(), "\n", "\n# "))
+			sb.WriteRune('\n')
+			if !o.IsSet(opt) {
+				sb.WriteString("#")
+			}
+
+			b, err := ioz.MarshalYAML(map[string]any{opt.Key(): opt.GetAny(o)})
+			if err != nil {
+				return "", err
+			}
+
+			sb.WriteString(string(b))
 		}
-		sb.WriteString(opt.Key())
-		sb.WriteString(fmt.Sprintf(": %v\n", opt.GetAny(o)))
+
+		return sb.String(), nil
 	}
 
-	return sb.String()
+	// Not verbose
+	for _, opt := range reg.Opts() {
+		// First we print the opts that have been set
+		if !o.IsSet(opt) {
+			continue
+		}
+
+		b, err := ioz.MarshalYAML(map[string]any{opt.Key(): opt.GetAny(o)})
+		if err != nil {
+			return "", err
+		}
+
+		sb.WriteString(string(b))
+	}
+
+	if len(o) > 0 && len(o) != len(reg.Opts()) {
+		sb.WriteRune('\n')
+	}
+
+	// Now we print the unset opts
+	for _, opt := range reg.Opts() {
+		if o.IsSet(opt) {
+			continue
+		}
+
+		sb.WriteString("#")
+		b, err := ioz.MarshalYAML(map[string]any{opt.Key(): opt.GetAny(o)})
+		if err != nil {
+			return "", err
+		}
+
+		sb.WriteString(string(b))
+	}
+
+	return sb.String(), nil
 }

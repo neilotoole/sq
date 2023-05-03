@@ -220,7 +220,11 @@ func (rc *RunContext) doInit(ctx context.Context) error {
 		rc.Out = f
 	}
 
-	rc.writers, rc.Out, rc.ErrOut = newWriters(rc.Cmd, rc.Config.Options, rc.Out, rc.ErrOut)
+	cmdOpts, err := getCmdOptions(rc.Cmd)
+	if err != nil {
+		return err
+	}
+	rc.writers, rc.Out, rc.ErrOut = newWriters(rc.Cmd, cmdOpts, rc.Out, rc.ErrOut)
 
 	var scratchSrcFunc driver.ScratchSrcFunc
 
@@ -234,7 +238,6 @@ func (rc *RunContext) doInit(ctx context.Context) error {
 		}
 	}
 
-	var err error
 	rc.files, err = source.NewFiles(ctx)
 	if err != nil {
 		lg.WarnIfFuncError(log, lga.Cleanup, rc.clnup.Run)

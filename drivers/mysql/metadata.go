@@ -258,7 +258,7 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB) (*so
 	}
 
 	g, gCtx := errgroup.WithContext(ctx)
-	g.SetLimit(driver.OptErrgroupLimit.Get(src.Options))
+	g.SetLimit(driver.OptTuningErrgroupLimit.Get(src.Options))
 
 	g.Go(func() error {
 		return doRetry(gCtx, func() error {
@@ -379,7 +379,7 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 	// g is an errgroup for fetching the
 	// row count for each table.
 	g, gCtx := errgroup.WithContext(ctx)
-	g.SetLimit(driver.OptErrgroupLimit.Get(options.FromContext(ctx)))
+	g.SetLimit(driver.OptTuningErrgroupLimit.Get(options.FromContext(ctx)))
 
 	rows, err := db.QueryContext(ctx, query)
 	if err != nil {

@@ -38,7 +38,7 @@ import (
 // the implementation currently requires that we read the entire source
 // file into fscache before it's available to be read (which is awful
 // if we're reading long-running pipe from stdin). This entire thing
-// needs to be revisited.
+// needs to be revisited. Maybe Files even becomes a fs.FS.
 type Files struct {
 	log       *slog.Logger
 	mu        sync.Mutex

@@ -12,9 +12,12 @@ func (f *Format) UnmarshalText(text []byte) error {
 	switch Format(text) {
 	default:
 		return errz.Errorf("unknown output format {%s}", string(text))
-	case JSON, JSONA, JSONL, Table, Raw,
+	case JSON, JSONA, JSONL, Text, Raw,
 		HTML, Markdown, XLSX, XML,
 		CSV, TSV, YAML:
+	case "table":
+		// Legacy: the "text" format used to be named "table".
+		// text = []byte(Text)
 	}
 
 	*f = Format(text)
@@ -28,10 +31,10 @@ func (f Format) String() string {
 
 // Output format values.
 const (
+	Text     Format = "text"
 	JSON     Format = "json"
 	JSONL    Format = "jsonl"
 	JSONA    Format = "jsona"
-	Table    Format = "table"
 	HTML     Format = "html"
 	Markdown Format = "markdown"
 	XLSX     Format = "xlsx"
@@ -45,10 +48,10 @@ const (
 // All returns a new slice containing all format.Format values.
 func All() []Format {
 	return []Format{
+		Text,
 		JSON,
 		JSONL,
 		JSONA,
-		Table,
 		Raw,
 		HTML,
 		Markdown,

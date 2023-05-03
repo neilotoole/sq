@@ -17,7 +17,8 @@ func newConfigSetCmd() *cobra.Command {
 		Args:              cobra.ExactArgs(2),
 		ValidArgsFunction: completeConfigSet,
 		Short:             "Set config value",
-		Long:              `Set config value globally, or for a specific source.`,
+		Long: `Set config value globally, or for a specific source.
+Use "sq config get -v" to see available options.`,
 		Example: `  # Set default output format
   $ sq config set format json
 
@@ -28,7 +29,7 @@ func newConfigSetCmd() *cobra.Command {
   $ sq config set --src @sakila conn.max-open 50`,
 	}
 
-	cmd.Flags().BoolP(flag.Table, flag.TableShort, false, flag.TableUsage)
+	cmd.Flags().BoolP(flag.Text, flag.TextShort, false, flag.TextUsage)
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 	cmd.Flags().BoolP(flag.YAML, flag.YAMLShort, false, flag.YAMLUsage)
 

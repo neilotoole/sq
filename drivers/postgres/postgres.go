@@ -563,7 +563,7 @@ func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error)
 
 // Close implements driver.Database.
 func (d *database) Close() error {
-	d.log.Debug(lgm.CloseDB, lga.Src, d.src)
+	d.log.Debug(lgm.CloseDB, lga.Handle, d.src.Handle)
 
 	err := d.db.Close()
 	if err != nil {

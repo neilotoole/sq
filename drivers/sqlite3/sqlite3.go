@@ -840,7 +840,7 @@ func (d *database) Close() error {
 		return nil
 	}
 
-	d.log.Debug(lgm.CloseDB, lga.Src, d.src)
+	d.log.Debug(lgm.CloseDB, lga.Handle, d.src.Handle)
 	err := errz.Err(d.db.Close())
 	d.closed = true
 	return err

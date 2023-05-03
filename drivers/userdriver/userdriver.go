@@ -193,7 +193,7 @@ func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error)
 
 // Close implements driver.Database.
 func (d *database) Close() error {
-	d.log.Debug(lgm.CloseDB, lga.Src, d.src)
+	d.log.Debug(lgm.CloseDB, lga.Handle, d.src.Handle)
 
 	// We don't need to explicitly invoke c.impl.Close
 	// because that's already been added to c.cleanup.

@@ -12,14 +12,14 @@ func newConfigGetCmd() *cobra.Command {
 		Use:   "get",
 		Short: "Show config",
 		Long: `Show config. By default, only explicitly set options are shown.
-Use the --verbose flag (in text output format) to see default options.`,
+Use the --verbose flag (in text output format) to see all options.`,
 		Args:              cobra.MaximumNArgs(1),
 		ValidArgsFunction: completeOptKey,
 		RunE:              execConfigGet,
-		Example: `  # Show all config
+		Example: `  # Show base config
   $ sq config get
 
-  # Also show defaults
+  # Also show defaults and unset options.
   $ sq config get -v
 
   # Show individual option
@@ -28,7 +28,7 @@ Use the --verbose flag (in text output format) to see default options.`,
   # Show config for source
   $ sq config get --src @sakila
 
-  # Show config for source, including defaults
+  # Show config for source, including defaults and unset options.
   $ sq config get --src @sakila -v
 
   # Show individual option for src
@@ -38,7 +38,7 @@ Use the --verbose flag (in text output format) to see default options.`,
   $ sq config get --src @active`,
 	}
 
-	cmd.Flags().BoolP(flag.Table, flag.TableShort, false, flag.TableUsage)
+	cmd.Flags().BoolP(flag.Text, flag.TextShort, false, flag.TextUsage)
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 	cmd.Flags().BoolP(flag.YAML, flag.YAMLShort, false, flag.YAMLUsage)
 

@@ -155,7 +155,7 @@ func execSLQInsert(ctx context.Context, rc *RunContext, mArgs map[string]string,
 	inserter := libsq.NewDBWriter(
 		destDB,
 		destTbl,
-		driver.OptRecordChannelSize.Get(destSrc.Options),
+		driver.OptTuningRecChanSize.Get(destSrc.Options),
 		libsq.DBWriterCreateTableIfNotExistsHook(destTbl),
 	)
 
@@ -342,7 +342,7 @@ func addQueryCmdFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 	cmd.Flags().BoolP(flag.JSONA, flag.JSONAShort, false, flag.JSONAUsage)
 	cmd.Flags().BoolP(flag.JSONL, flag.JSONLShort, false, flag.JSONLUsage)
-	cmd.Flags().BoolP(flag.Table, flag.TableShort, false, flag.TableUsage)
+	cmd.Flags().BoolP(flag.Text, flag.TextShort, false, flag.TextUsage)
 	cmd.Flags().BoolP(flag.XML, flag.XMLShort, false, flag.XMLUsage)
 	cmd.Flags().BoolP(flag.XLSX, flag.XLSXShort, false, flag.XLSXUsage)
 	cmd.Flags().BoolP(flag.CSV, flag.CSVShort, false, flag.CSVUsage)

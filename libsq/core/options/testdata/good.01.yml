@@ -1,6 +1,6 @@
 options:
   format: csv
-  format.header: true
+  header: true
   ping.timeout: 10s
   shell-completion.timeout: 500ms
 

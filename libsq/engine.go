@@ -77,7 +77,8 @@ func newEngine(ctx context.Context, qc *QueryContext, query string) (*engine, er
 func (ng *engine) execute(ctx context.Context, recw RecordWriter) error {
 	ng.log.Debug(
 		"Execute SQL query",
-		lga.Target, ng.targetDB.Source().Handle,
+		lga.Src, ng.targetDB.Source(),
+		// lga.Target, ng.targetDB.Source().Handle,
 		lga.SQL, ng.targetSQL,
 	)
 
@@ -102,7 +103,7 @@ func (ng *engine) executeTasks(ctx context.Context) error {
 	}
 
 	g, gCtx := errgroup.WithContext(ctx)
-	g.SetLimit(driver.OptErrgroupLimit.Get(options.FromContext(ctx)))
+	g.SetLimit(driver.OptTuningErrgroupLimit.Get(options.FromContext(ctx)))
 
 	for _, task := range ng.tasks {
 		task := task
@@ -317,7 +318,7 @@ func execCopyTable(ctx context.Context, fromDB driver.Database, fromTblName stri
 	inserter := NewDBWriter(
 		destDB,
 		destTblName,
-		driver.OptRecordChannelSize.Get(destDB.Source().Options),
+		driver.OptTuningRecChanSize.Get(destDB.Source().Options),
 		createTblHook,
 	)
 

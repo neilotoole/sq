@@ -117,21 +117,24 @@ func applyCollectionOptions(cmd *cobra.Command, coll *source.Collection) error {
 func RegisterDefaultOpts(reg *options.Registry) {
 	reg.Add(
 		OptOutputFormat,
+		OptVerbose,
 		OptPrintHeader,
+		OptMonochrome,
+		OptPretty,
 		OptPingTimeout,
+		OptShellCompletionTimeout,
 		driver.OptConnMaxOpen,
 		driver.OptConnMaxIdle,
 		driver.OptConnMaxIdleTime,
 		driver.OptConnMaxLifetime,
 		driver.OptMaxRetryInterval,
-		driver.OptErrgroupLimit,
-		driver.OptRecordChannelSize,
+		driver.OptTuningErrgroupLimit,
+		driver.OptTuningRecChanSize,
+		OptTuningFlushThreshold,
 		drivers.OptIngestHeader,
 		drivers.OptIngestSampleSize,
 		csv.OptDelim,
 		csv.OptEmptyAsNull,
-		OptOutputFlushThreshold,
-		OptShellCompletionTimeout,
 	)
 }
 

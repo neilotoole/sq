@@ -95,10 +95,9 @@ const (
 	TSVShort = "T"
 	TSVUsage = "Output TSV"
 
-	Table = "table" // TODO: Rename "table" to "text" (output is not always a table).
-
-	TableShort = "t"
-	TableUsage = "Output text table"
+	Text      = "text"
+	TextShort = "t"
+	TextUsage = "Output text"
 
 	TblData      = "data"
 	TblDataUsage = "Copy table data"

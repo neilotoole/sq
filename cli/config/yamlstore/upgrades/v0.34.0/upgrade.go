@@ -47,7 +47,7 @@ func Upgrade(ctx context.Context, before []byte) (after []byte, err error) {
 
 	opts["format"] = opts["output_format"]
 	delete(opts, "output_format")
-	opts["format.header"] = opts["output_header"]
+	opts["header"] = opts["output_header"]
 	delete(opts, "output_header")
 	opts["ping.timeout"] = opts["ping_timeout"]
 	delete(opts, "ping_timeout")
