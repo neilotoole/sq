@@ -349,6 +349,9 @@ func addQueryCmdFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolP(flag.XML, flag.XMLShort, false, flag.XMLUsage)
 	cmd.Flags().BoolP(flag.Compact, flag.CompactShort, false, flag.CompactUsage)
 
+	_ = addOptionFlag(cmd.Flags(), OptTimestampFormat)
+	// FIXME: Add completion function for OptTimestampFormat
+
 	cmd.Flags().StringP(flag.Output, flag.OutputShort, "", flag.OutputUsage)
 
 	cmd.Flags().String(flag.Insert, "", flag.InsertUsage)

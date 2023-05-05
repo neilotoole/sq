@@ -24,7 +24,7 @@ func NewVerboseOpt(opt options.Opt, o options.Options) VerboseOpt {
 		Key:          opt.Key(),
 		DefaultValue: opt.GetAny(nil),
 		IsSet:        o.IsSet(opt),
-		Comment:      opt.Comment(),
+		Comment:      opt.Doc(),
 		Value:        opt.GetAny(o),
 		Type:         reflect.TypeOf(opt.GetAny(nil)).String(),
 	}

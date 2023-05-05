@@ -210,7 +210,7 @@ func getOptionsEditableText(reg *options.Registry, o options.Options, verbose bo
 				sb.WriteString("\n")
 			}
 			sb.WriteString("# ")
-			sb.WriteString(strings.ReplaceAll(opt.Comment(), "\n", "\n# "))
+			sb.WriteString(strings.ReplaceAll(opt.Doc(), "\n", "\n# "))
 			sb.WriteRune('\n')
 			if !o.IsSet(opt) {
 				sb.WriteString("#")

@@ -67,7 +67,7 @@ func TestUpgrade(t *testing.T) {
 
 	require.Equal(t, cfgDir, cfgStore.Location())
 	require.Equal(t, nextVers, cfg.Version)
-	require.Equal(t, format.JSON, cli.OptOutputFormat.Get(cfg.Options))
+	require.Equal(t, format.JSON, cli.OptFormat.Get(cfg.Options))
 	require.Equal(t, time.Second*100, cli.OptPingTimeout.Get(cfg.Options))
 	require.Len(t, cfg.Collection.Sources(), 3)
 	src0 := cfg.Collection.Sources()[0]

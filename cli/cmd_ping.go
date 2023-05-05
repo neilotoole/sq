@@ -27,8 +27,10 @@ import (
 // OptPingTimeout controls ping timeout.
 var OptPingTimeout = options.NewDuration(
 	"ping.timeout",
+	0,
 	time.Second*10,
-	"How long to wait before ping timeout occurs.",
+	"ping timeout duration",
+	"How long to wait before ping timeout occurs. For example: 500ms or 2m10s.",
 )
 
 func newPingCmd() *cobra.Command {

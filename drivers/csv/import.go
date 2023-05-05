@@ -31,19 +31,25 @@ import (
 // or as the zero value for the kind of that field.
 var OptEmptyAsNull = options.NewBool(
 	"driver.csv.empty-as-null",
+	0,
 	true,
-	`When true, empty CSV cells are treated as NULL. When false,
+	"Treat ingest empty CSV fields as NULL",
+	`When true, empty CSV fields are treated as NULL. When false,
 the zero value for that type is used, e.g. empty string or 0.`,
-	"source", "csv",
+	"source",
+	"csv",
 )
 
 // OptDelim specifies the CSV delimiter to use.
 var OptDelim = options.NewString(
 	"driver.csv.delim",
-	"comma",
+	0,
+	delimCommaKey,
+	"Delimiter for ingest CSV data",
 	`Delimiter to use for CSV files. Default is "comma".
 Possible values are: comma, space, pipe, tab, colon, semi, period.`,
-	"source", "csv",
+	"source",
+	"csv",
 )
 
 // importCSV loads the src CSV data into scratchDB.
