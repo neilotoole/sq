@@ -1,7 +1,9 @@
-package jsonw
+package yamlw
 
 import (
 	"io"
+
+	"github.com/goccy/go-yaml/printer"
 
 	"golang.org/x/exp/slices"
 
@@ -12,6 +14,7 @@ import (
 var _ output.SourceWriter = (*sourceWriter)(nil)
 
 type sourceWriter struct {
+	p   printer.Printer
 	out io.Writer
 	pr  *output.Printing
 }
@@ -19,7 +22,7 @@ type sourceWriter struct {
 // NewSourceWriter returns a source writer that outputs source
 // details in text table format.
 func NewSourceWriter(out io.Writer, pr *output.Printing) output.SourceWriter {
-	return &sourceWriter{out: out, pr: pr}
+	return &sourceWriter{out: out, pr: pr, p: newPrinter(pr)}
 }
 
 // Collection implements output.SourceWriter.
@@ -28,7 +31,7 @@ func (w *sourceWriter) Collection(coll *source.Collection) error {
 		return nil
 	}
 
-	// This is a bit hacky. Basically we want to JSON-print coll.Data().
+	// This is a bit hacky. Basically we want to YAML-print coll.Data().
 	// But, we want to do it just for the active group.
 	// So, our hack is that we clone the coll, and remove any
 	// sources that are not in the active group.
@@ -65,7 +68,7 @@ func (w *sourceWriter) Collection(coll *source.Collection) error {
 	// the active group). This whole thing is a mess.
 	_, _ = coll.SetActive(activeHandle, true)
 
-	return writeJSON(w.out, w.pr, coll.Data())
+	return writeYAML(w.out, w.p, coll.Data())
 }
 
 // Source implements output.SourceWriter.
@@ -76,7 +79,7 @@ func (w *sourceWriter) Source(_ *source.Collection, src *source.Source) error {
 
 	src = src.Clone()
 	src.Location = src.RedactedLocation()
-	return writeJSON(w.out, w.pr, src)
+	return writeYAML(w.out, w.p, src)
 }
 
 // Removed implements output.SourceWriter.
@@ -90,7 +93,7 @@ func (w *sourceWriter) Removed(srcs ...*source.Source) error {
 		srcs2[i] = srcs[i].Clone()
 		srcs2[i].Location = srcs2[i].RedactedLocation()
 	}
-	return writeJSON(w.out, w.pr, srcs2)
+	return writeYAML(w.out, w.p, srcs2)
 }
 
 // Group implements output.SourceWriter.
@@ -100,7 +103,7 @@ func (w *sourceWriter) Group(group *source.Group) error {
 	}
 
 	source.RedactGroup(group)
-	return writeJSON(w.out, w.pr, group)
+	return writeYAML(w.out, w.p, group)
 }
 
 // SetActiveGroup implements output.SourceWriter.
@@ -110,11 +113,11 @@ func (w *sourceWriter) SetActiveGroup(group *source.Group) error {
 	}
 
 	source.RedactGroup(group)
-	return writeJSON(w.out, w.pr, group)
+	return writeYAML(w.out, w.p, group)
 }
 
 // Groups implements output.SourceWriter.
 func (w *sourceWriter) Groups(tree *source.Group) error {
 	source.RedactGroup(tree)
-	return writeJSON(w.out, w.pr, tree)
+	return writeYAML(w.out, w.p, tree)
 }

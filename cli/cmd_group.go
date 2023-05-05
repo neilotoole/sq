@@ -35,6 +35,7 @@ Use 'sq ls -g' to list groups.`,
 
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 	cmd.Flags().Bool(flag.Pretty, true, flag.PrettyUsage)
+	cmd.Flags().BoolP(flag.YAML, flag.YAMLShort, false, flag.YAMLUsage)
 
 	return cmd
 }

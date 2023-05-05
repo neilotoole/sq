@@ -18,24 +18,24 @@ func newConfigSetCmd() *cobra.Command {
 		Args:              cobra.RangeArgs(1, 2),
 		ValidArgsFunction: completeConfigSet,
 		Short:             "Set config value",
-		Long: `Set config value globally, or for a specific source.
+		Long: `Set base config value, or set value for a specific source.
 Use "sq config get -v" to see available options.`,
-		Example: `  # Set default output format
+		Example: `  # Set base output format
   $ sq config set format json
 
-  # Set default max DB connections
+  # Set base max DB connections
   $ sq config set conn.max-open 10
 
   # Set max DB connections for source @sakila
   $ sq config set --src @sakila conn.max-open 50
 
-  # Delete an option (reset to default value)
+  # Delete an option (resets to default value)
   $ sq config set -D conn.max-open`,
 	}
 
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
-	cmd.Flags().BoolP(flag.YAML, flag.YAMLShort, false, flag.YAMLUsage)
 	cmd.Flags().Bool(flag.Pretty, true, flag.PrettyUsage)
+	cmd.Flags().BoolP(flag.YAML, flag.YAMLShort, false, flag.YAMLUsage)
 
 	cmd.Flags().String(flag.ConfigSrc, "", flag.ConfigSrcUsage)
 	panicOn(cmd.RegisterFlagCompletionFunc(flag.ConfigSrc, completeHandle(1)))

@@ -41,6 +41,7 @@ any further descendants.
 
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 	cmd.Flags().Bool(flag.Pretty, true, flag.PrettyUsage)
+	cmd.Flags().BoolP(flag.YAML, flag.YAMLShort, false, flag.YAMLUsage)
 	cmd.Flags().BoolP(flag.ListGroup, flag.ListGroupShort, false, flag.ListGroupUsage)
 
 	return cmd

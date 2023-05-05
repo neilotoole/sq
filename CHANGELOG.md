@@ -9,8 +9,8 @@ Breaking changes are annotated with ☢️.
 
 ## Upcoming
 
-This release significantly overhauls `sq`'s config mechanism. There are 
-several minor breaking changes ☢️.
+This release significantly overhauls `sq`'s config mechanism ([#199]). There 
+are several minor breaking changes ☢️.
 
 ### Added
 
@@ -21,11 +21,26 @@ several minor breaking changes ☢️.
 - `sq config location` prints the location of the config dir.
 - `--config` flag is now honored globally.
 - Many more knobs are exposed in config.
-- Added flags `--log.file` and `--log.level`. These values can also
-  be set in config via `sq config edit` or `sq config set log.level DEBUG` etc.
+- Added flags `--log`, `--log.file` and `--log.level`.
+  - These values can also be set in config via `sq config edit` or `sq config set log.level DEBUG` etc.
+  - And they can also be set via envars, e.g.
+    ```shell
+    export SQ_LOG=true
+    export SQ_LOG_FILE=/var/log/sq.log
+    export SQ_LOG_LEVEL=WARN
+    ```
+- Several more commands support YAML output:
+  - [`sq group`](https://sq.io/docs/cmd/group)
+  - [`sq ls`](https://sq.io/docs/cmd/ls)
+  - [`sq mv`](https://sq.io/docs/cmd/mv)
+  - [`sq rm`](https://sq.io/docs/cmd/rm)
+  - [`sq src`](https://sq.io/docs/cmd/src)
+
 
 ### Changed
 
+- The structure of `sq`'s config file (`sq.yml`) has changed. The config
+  file is automatically upgraded when using the new version.
 - ☢️ Envar `SQ_CONFIG` replaces `SQ_CONFIGDIR`. 
 - ☢️ Envar `SQ_LOG_FILE` replaces `SQ_LOGFILE`.
 - ☢️ Format flag `--table` is renamed to `--text`. This is changed because while the
@@ -397,6 +412,7 @@ make working with lots of sources much easier.
 [#189]: https://github.com/neilotoole/sq/issues/189
 [#191]: https://github.com/neilotoole/sq/issues/191
 [#192]: https://github.com/neilotoole/sq/issues/192
+[#199]: https://github.com/neilotoole/sq/issues/199
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
