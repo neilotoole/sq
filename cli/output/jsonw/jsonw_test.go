@@ -154,7 +154,7 @@ func TestRecordWriters(t *testing.T) {
 			buf := &bytes.Buffer{}
 			pr := output.NewPrinting()
 			pr.EnableColor(tc.color)
-			pr.Pretty = tc.pretty
+			pr.Compact = !tc.pretty
 
 			w := tc.factoryFn(buf, pr)
 
@@ -204,7 +204,7 @@ func TestErrorWriter(t *testing.T) {
 		t.Run(t.Name(), func(t *testing.T) {
 			buf := &bytes.Buffer{}
 			pr := output.NewPrinting()
-			pr.Pretty = tc.pretty
+			pr.Compact = !tc.pretty
 			pr.EnableColor(tc.color)
 
 			errw := jsonw.NewErrorWriter(slogt.New(t), buf, pr)

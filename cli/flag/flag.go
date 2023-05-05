@@ -9,7 +9,7 @@ const (
 	ConfigSrcUsage = "Config for source"
 
 	CSV      = "csv"
-	CSVShort = "c"
+	CSVShort = "C"
 	CSVUsage = "Output CSV"
 
 	AddDriver      = "driver"
@@ -72,8 +72,9 @@ const (
 	PasswordPromptShort = "p"
 	PasswordPromptUsage = "Read password from stdin or prompt"
 
-	Pretty      = "pretty"
-	PrettyUsage = "Pretty-print output"
+	Compact      = "compact"
+	CompactShort = "c"
+	CompactUsage = "Compact instead of pretty-printed output"
 
 	Raw      = "raw"
 	RawShort = "r"

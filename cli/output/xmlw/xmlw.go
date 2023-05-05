@@ -61,7 +61,7 @@ func (w *recordWriter) Open(recMeta sqlz.RecordMeta) error {
 	w.recMeta = recMeta
 
 	var indent, newline string
-	if w.pr.Pretty {
+	if !w.pr.Compact {
 		indent = w.pr.Indent
 		newline = "\n"
 	}

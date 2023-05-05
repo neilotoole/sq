@@ -11,7 +11,7 @@ func newConfigCmd() *cobra.Command {
 		Use:   "config",
 		Args:  cobra.NoArgs,
 		Short: "Manage config",
-		Long:  `View and edit base and source-specific config.`,
+		Long:  `View and edit config.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
 		},
@@ -24,14 +24,17 @@ func newConfigCmd() *cobra.Command {
   # Show base config including unset and default values.
   $ sq config get -v
 
-  # Set config value
+  # Set option value
   $ sq config set format json
 
   # Edit base config
   $ sq config edit
 
   # Edit config for source
-  $ sq config edit @sakila`,
+  $ sq config edit @sakila
+
+  # Delete option (reset to default value)
+  $ sq config set -D log.level`,
 	}
 
 	return cmd

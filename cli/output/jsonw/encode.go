@@ -202,7 +202,7 @@ type punc struct {
 func newPunc(pr *output.Printing) punc {
 	var p punc
 
-	if pr == nil || pr.IsMonochrome() || !pr.Pretty {
+	if pr == nil || pr.IsMonochrome() || pr.Compact {
 		p.comma = append(p.comma, ',')
 		p.colon = append(p.colon, ':')
 		p.lBrace = append(p.lBrace, '{')

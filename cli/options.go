@@ -133,7 +133,7 @@ func RegisterDefaultOpts(reg *options.Registry) {
 		OptVerbose,
 		OptPrintHeader,
 		OptMonochrome,
-		OptPretty,
+		OptCompact,
 		OptPingTimeout,
 		OptShellCompletionTimeout,
 		OptLogEnabled,

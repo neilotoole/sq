@@ -35,7 +35,7 @@ func (w *errorWriter) Error(err error) {
 	val := w.pr.Error.Sprint(string(b)) // trim the newline
 
 	var s string
-	if w.pr.Pretty {
+	if !w.pr.Compact {
 		s = fmt.Sprintf(tplPretty, key, val)
 	} else {
 		s = fmt.Sprintf(tplNoPretty, key, val)

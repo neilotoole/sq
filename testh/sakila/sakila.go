@@ -234,4 +234,5 @@ const (
 	PathCSVActor         = "drivers/csv/testdata/sakila-csv/actor.csv"
 	PathCSVActorNoHeader = "drivers/csv/testdata/sakila-csv-noheader/actor.csv"
 	PathTSVActor         = "drivers/csv/testdata/sakila-tsv/actor.tsv"
+	PathTSVActorNoHeader = "drivers/csv/testdata/sakila-tsv-noheader/actor.tsv"
 )

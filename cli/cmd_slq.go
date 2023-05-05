@@ -347,7 +347,7 @@ func addQueryCmdFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolP(flag.Raw, flag.RawShort, false, flag.RawUsage)
 	cmd.Flags().BoolP(flag.XLSX, flag.XLSXShort, false, flag.XLSXUsage)
 	cmd.Flags().BoolP(flag.XML, flag.XMLShort, false, flag.XMLUsage)
-	cmd.Flags().Bool(flag.Pretty, true, flag.PrettyUsage)
+	cmd.Flags().BoolP(flag.Compact, flag.CompactShort, false, flag.CompactUsage)
 
 	cmd.Flags().StringP(flag.Output, flag.OutputShort, "", flag.OutputUsage)
 

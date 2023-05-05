@@ -55,7 +55,7 @@ func newTblCopyCmd() *cobra.Command {
 	}
 
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
-	cmd.Flags().Bool(flag.Pretty, true, flag.PrettyUsage)
+	cmd.Flags().BoolP(flag.Compact, flag.CompactShort, false, flag.CompactUsage)
 	cmd.Flags().Bool(flag.TblData, true, flag.TblDataUsage)
 
 	return cmd

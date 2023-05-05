@@ -21,14 +21,14 @@ are several minor breaking changes ☢️.
 - `sq config location` prints the location of the config dir.
 - `--config` flag is now honored globally.
 - Many more knobs are exposed in config.
-- Added flags `--log`, `--log.file` and `--log.level`.
-  - These values can also be set in config via `sq config edit` or `sq config set log.level DEBUG` etc.
-  - And they can also be set via envars, e.g.
-    ```shell
-    export SQ_LOG=true
-    export SQ_LOG_FILE=/var/log/sq.log
-    export SQ_LOG_LEVEL=WARN
-    ```
+- Logging is much more configurable. There are new knobs:
+  ```shell
+  $ sq config set log true
+  $ sq config set log.level INFO
+  $ sq config set log.file /var/log/sq.log
+  ```
+  There are also equivalent flags  (`--log`, `--log.file` and `--log.level`) and
+  envars (`SQ_LOG`, `SQ_LOG_FILE` and `SQ_LOG_LEVEL`).
 - Several more commands support YAML output:
   - [`sq group`](https://sq.io/docs/cmd/group)
   - [`sq ls`](https://sq.io/docs/cmd/ls)
@@ -41,6 +41,9 @@ are several minor breaking changes ☢️.
 
 - The structure of `sq`'s config file (`sq.yml`) has changed. The config
   file is automatically upgraded when using the new version.
+- The default location of the `sq` log file has changed. The new location
+  is platform-dependent. Use `sq config get log.file -v` to view the location,
+  or `sq config set log.file /path/to/sq.log` to set it.
 - ☢️ Envar `SQ_CONFIG` replaces `SQ_CONFIGDIR`. 
 - ☢️ Envar `SQ_LOG_FILE` replaces `SQ_LOGFILE`.
 - ☢️ Format flag `--table` is renamed to `--text`. This is changed because while the
@@ -75,6 +78,13 @@ are several minor breaking changes ☢️.
   # now
   $ sq add ./actor.csv -n @actor
    ```
+- ☢️ The `--pretty` flag has been removed. Its only previous use was with the
+  `json` format, where if `--pretty=false` would output the JSON in compact form.
+  To better align with jq, there is now a `--compact` / `-c` flag that behaves
+  identically to `jq`.
+- ☢️ Because of the above `--compact` / `-c` flag, the short form of the `--csv`
+  flag is changing from `-c` to `-C`. It's an unfortunate change, but alignment
+  with jq's behavior is an overarching principle that justifies the change.
 
 ## [v0.33.0] - 2023-04-15
 
