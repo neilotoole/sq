@@ -6,6 +6,8 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/neilotoole/sq/libsq/core/timez"
+
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/jsonw/internal"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -19,15 +21,15 @@ import (
 type monoEncoder struct{}
 
 func (e monoEncoder) encodeTime(b []byte, v any) ([]byte, error) {
-	return e.doEncodeTime(b, v, stringz.TimeFormat)
+	return e.doEncodeTime(b, v, timez.TimeFormat)
 }
 
 func (e monoEncoder) encodeDatetime(b []byte, v any) ([]byte, error) {
-	return e.doEncodeTime(b, v, stringz.DatetimeFormat)
+	return e.doEncodeTime(b, v, timez.DatetimeFormat)
 }
 
 func (e monoEncoder) encodeDate(b []byte, v any) ([]byte, error) {
-	return e.doEncodeTime(b, v, stringz.DateFormat)
+	return e.doEncodeTime(b, v, timez.DateFormat)
 }
 
 func (e monoEncoder) doEncodeTime(b []byte, v any, layout string) ([]byte, error) {
@@ -82,7 +84,7 @@ func (e monoEncoder) encodeAny(b []byte, v any) ([]byte, error) {
 
 	case *time.Time:
 		b = append(b, '"')
-		b = v.AppendFormat(b, stringz.DatetimeFormat)
+		b = v.AppendFormat(b, timez.DatetimeFormat)
 		b = append(b, '"')
 		return b, nil
 	}
@@ -95,15 +97,15 @@ type colorEncoder struct {
 }
 
 func (e *colorEncoder) encodeTime(b []byte, v any) ([]byte, error) {
-	return e.doEncodeTime(b, v, stringz.TimeFormat)
+	return e.doEncodeTime(b, v, timez.TimeFormat)
 }
 
 func (e *colorEncoder) encodeDatetime(b []byte, v any) ([]byte, error) {
-	return e.doEncodeTime(b, v, stringz.DatetimeFormat)
+	return e.doEncodeTime(b, v, timez.DatetimeFormat)
 }
 
 func (e *colorEncoder) encodeDate(b []byte, v any) ([]byte, error) {
-	return e.doEncodeTime(b, v, stringz.DateFormat)
+	return e.doEncodeTime(b, v, timez.DateFormat)
 }
 
 func (e *colorEncoder) doEncodeTime(b []byte, v any, layout string) ([]byte, error) {
@@ -179,7 +181,7 @@ func (e *colorEncoder) encodeAny(b []byte, v any) ([]byte, error) {
 	case *time.Time:
 		b = append(b, e.clrs.Time.Prefix...)
 		b = append(b, '"')
-		b = v.AppendFormat(b, stringz.DatetimeFormat)
+		b = v.AppendFormat(b, timez.DatetimeFormat)
 		b = append(b, '"')
 		return append(b, e.clrs.Time.Suffix...), nil
 	}

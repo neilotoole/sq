@@ -20,6 +20,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/timez"
+
 	"github.com/fatih/color"
 
 	"github.com/neilotoole/sq/cli/output"
@@ -163,11 +165,11 @@ func (t *table) renderResultCell(knd kind.Kind, val any) string { //nolint:funle
 		var s string
 		switch knd { //nolint:exhaustive
 		default:
-			s = val.Format(stringz.DatetimeFormat)
+			s = val.Format(timez.DatetimeFormat)
 		case kind.Time:
-			s = val.Format(stringz.TimeFormat)
+			s = val.Format(timez.TimeFormat)
 		case kind.Date:
-			s = val.Format(stringz.DateFormat)
+			s = val.Format(timez.DateFormat)
 		}
 
 		return t.pr.Datetime.Sprint(s)

@@ -8,10 +8,11 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/timez"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
-	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 const (
@@ -89,11 +90,11 @@ func (w *RecordWriter) WriteRecords(recs []sqlz.Record) error {
 			case *time.Time:
 				switch w.recMeta[i].Kind() { //nolint:exhaustive
 				default:
-					fields[i] = val.Format(stringz.DatetimeFormat)
+					fields[i] = val.Format(timez.DatetimeFormat)
 				case kind.Time:
-					fields[i] = val.Format(stringz.TimeFormat)
+					fields[i] = val.Format(timez.TimeFormat)
 				case kind.Date:
-					fields[i] = val.Format(stringz.DateFormat)
+					fields[i] = val.Format(timez.DateFormat)
 				}
 			}
 		}

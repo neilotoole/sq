@@ -9,11 +9,12 @@ import (
 	"os"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/timez"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"golang.org/x/exp/slog"
 
-	"github.com/neilotoole/sq/libsq/core/stringz"
 	"golang.org/x/mod/semver"
 )
 
@@ -84,7 +85,7 @@ func init() { //nolint:gochecknoinits
 
 	if Timestamp != "" {
 		// Make sure Timestamp is normalized
-		t := stringz.TimestampToRFC3339(Timestamp)
+		t := timez.TimestampToRFC3339(Timestamp)
 		if t != "" {
 			Timestamp = t
 		}

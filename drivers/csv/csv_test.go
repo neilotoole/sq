@@ -3,6 +3,8 @@ package csv_test
 import (
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/core/timez"
+
 	"github.com/neilotoole/sq/libsq/core/stringz"
 
 	"github.com/samber/lo"
@@ -69,7 +71,7 @@ func TestEmptyAsNull(t *testing.T) {
 
 	require.Equal(t, stringz.Strings(sakila.TblAddressColKinds()), stringz.Strings(sink.RecMeta.Kinds()))
 
-	ts, err := stringz.ParseTimestampUTC("2020-02-15T06:59:28Z")
+	ts, err := timez.ParseTimestampUTC("2020-02-15T06:59:28Z")
 	require.NoError(t, err)
 
 	rec0 := sink.Recs[0]

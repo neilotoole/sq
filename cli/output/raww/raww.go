@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/timez"
+
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 
@@ -62,11 +64,11 @@ func (w *recordWriter) WriteRecords(recs []sqlz.Record) error {
 			case *time.Time:
 				switch w.recMeta[i].Kind() { //nolint:exhaustive
 				default:
-					fmt.Fprint(w.out, val.Format(stringz.DatetimeFormat))
+					fmt.Fprint(w.out, val.Format(timez.DatetimeFormat))
 				case kind.Time:
-					fmt.Fprint(w.out, val.Format(stringz.TimeFormat))
+					fmt.Fprint(w.out, val.Format(timez.TimeFormat))
 				case kind.Date:
-					fmt.Fprint(w.out, val.Format(stringz.DateFormat))
+					fmt.Fprint(w.out, val.Format(timez.DateFormat))
 				}
 			default:
 				// should never happen

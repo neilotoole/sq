@@ -10,8 +10,9 @@ package fixt
 import (
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/timez"
+
 	"github.com/neilotoole/sq/libsq/core/kind"
-	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 // These consts are test fixtures for various data types.
@@ -46,8 +47,8 @@ var (
 	BytesZ    = []byte("")
 	Datetime  = mustParseTime(time.RFC3339, "2017-07-07T07:07:07-00:00").UTC()
 	DatetimeZ = mustParseTime(time.RFC3339, "1989-11-09T00:00:00-00:00").UTC()
-	Date      = mustParseTime(stringz.DateFormat, "2017-07-07").UTC()
-	DateZ     = mustParseTime(stringz.DateFormat, "1989-11-09").UTC()
+	Date      = mustParseTime(timez.DateFormat, "2017-07-07").UTC()
+	DateZ     = mustParseTime(timez.DateFormat, "1989-11-09").UTC()
 )
 
 func mustParseTime(layout, value string) time.Time {

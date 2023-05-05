@@ -3,7 +3,6 @@ package stringz_test
 import (
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/samber/lo"
 
@@ -305,57 +304,6 @@ func TestLineCount(t *testing.T) {
 			require.Equal(t, tc.skipEmpty, count)
 		})
 	}
-}
-
-func TestTimestampUTC(t *testing.T) {
-	tm := time.Date(2021, 0o1, 0o1, 7, 7, 7, 0, time.UTC)
-	s := stringz.TimestampUTC(tm)
-	t.Log(s)
-	require.Equal(t, "2021-01-01T07:07:07.000Z", s)
-
-	s = stringz.TimestampUTC(time.Now().UTC())
-	t.Log(s)
-}
-
-func TestParseDateOrTimestampUTC(t *testing.T) {
-	testCases := []struct {
-		in      string
-		want    int64
-		wantErr bool
-	}{
-		{in: "", wantErr: true},
-		{in: "not_a_time", wantErr: true},
-		{in: "2021-01-16T18:18:49.348-0700", want: 1610846329},
-		{in: "2021-01-16T18:26:39.216-07:00", want: 1610846799},
-		{in: "2021-01-16T18:26:39-07:00", want: 1610846799},
-		{in: "2021-01-17T01:26:39.216Z", want: 1610846799},
-		{in: "2021-01-17", want: 1610841600},
-	}
-
-	for i, tc := range testCases {
-		tc := tc
-		t.Run(tutil.Name(i, tc.in), func(t *testing.T) {
-			tm, err := stringz.ParseDateOrTimestampUTC(tc.in)
-			if tc.wantErr {
-				require.Error(t, err)
-				return
-			}
-
-			require.NoError(t, err)
-			t.Logf("Got: %s", stringz.TimestampUTC(tm))
-			ut := tm.Unix()
-			require.Equal(t, tc.want, ut)
-		})
-	}
-}
-
-func TestZuluTimestamp(t *testing.T) {
-	const (
-		input = `2022-12-30T09:36:31-0700`
-		want  = `2022-12-30T16:36:31Z`
-	)
-	got := stringz.TimestampToRFC3339(input)
-	require.Equal(t, want, got)
 }
 
 func TestDoubleQuote(t *testing.T) {
