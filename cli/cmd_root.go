@@ -98,5 +98,8 @@ See docs and more: https://sq.io`,
 	cmd.PersistentFlags().BoolP(flag.Monochrome, flag.MonochromeShort, false, flag.MonochromeUsage)
 	cmd.PersistentFlags().BoolP(flag.Verbose, flag.VerboseShort, false, flag.VerboseUsage)
 	cmd.PersistentFlags().String(flag.Config, "", flag.ConfigUsage)
+	cmd.PersistentFlags().Bool(flag.LogEnabled, false, flag.LogEnabledUsage)
+	cmd.PersistentFlags().String(flag.LogFile, "", flag.LogFileUsage)
+	cmd.PersistentFlags().String(flag.LogLevel, "", flag.LogLevelUsage)
 	return cmd
 }

@@ -8,7 +8,8 @@ import (
 func newDriverCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "driver",
-		Short: "List or manage drivers",
+		Short: "Manage drivers",
+		Long:  "Manage drivers.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
 		},
@@ -23,14 +24,15 @@ func newDriverCmd() *cobra.Command {
 func newDriverListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "ls",
-		Short: "List available drivers",
-		Long:  "List available drivers.",
+		Short: "List installed drivers",
+		Long:  "List installed drivers.",
 		Args:  cobra.NoArgs,
 		RunE:  execDriverList,
 	}
 
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 	cmd.Flags().BoolP(flag.YAML, flag.YAMLShort, false, flag.YAMLUsage)
+	cmd.Flags().Bool(flag.Pretty, true, flag.PrettyUsage)
 
 	return cmd
 }

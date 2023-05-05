@@ -25,12 +25,12 @@ func NewMetadataWriter(out io.Writer, pr *output.Printing) output.MetadataWriter
 
 // DriverMetadata implements output.MetadataWriter.
 func (w *mdWriter) DriverMetadata(md []driver.Metadata) error {
-	return writeYAML(w.yp, w.out, md)
+	return writeYAML(w.out, w.yp, md)
 }
 
 // TableMetadata implements output.MetadataWriter.
 func (w *mdWriter) TableMetadata(md *source.TableMetadata) error {
-	return writeYAML(w.yp, w.out, md)
+	return writeYAML(w.out, w.yp, md)
 }
 
 // SourceMetadata implements output.MetadataWriter.
@@ -38,5 +38,5 @@ func (w *mdWriter) SourceMetadata(md *source.Metadata) error {
 	md2 := *md // Shallow copy is fine
 	md2.Location = source.RedactLocation(md2.Location)
 
-	return writeYAML(w.yp, w.out, &md2)
+	return writeYAML(w.out, w.yp, &md2)
 }

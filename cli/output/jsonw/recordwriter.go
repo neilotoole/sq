@@ -1,4 +1,3 @@
-// Package jsonw implements output writers for JSON.
 package jsonw
 
 import (
@@ -8,28 +7,9 @@ import (
 
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/jsonw/internal"
-	jcolorenc "github.com/neilotoole/sq/cli/output/jsonw/internal/jcolorenc"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 )
-
-// writeJSON prints a JSON representation of v to out, using specs
-// from pr.
-func writeJSON(out io.Writer, pr *output.Printing, v any) error {
-	enc := jcolorenc.NewEncoder(out)
-	enc.SetColors(internal.NewColors(pr))
-	enc.SetEscapeHTML(false)
-	if pr.Pretty {
-		enc.SetIndent("", pr.Indent)
-	}
-
-	err := enc.Encode(v)
-	if err != nil {
-		return errz.Err(err)
-	}
-
-	return nil
-}
 
 // NewStdRecordWriter returns a record writer that outputs each
 // record as a JSON object that is an element of JSON array. This is

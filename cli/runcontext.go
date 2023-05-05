@@ -147,7 +147,7 @@ func newDefaultRunContext(ctx context.Context,
 	rc.Config, rc.ConfigStore, configErr = yamlstore.Load(ctx,
 		args, rc.OptionsRegistry, upgrades)
 
-	log, logHandler, logCloser, logErr := defaultLogging(ctx)
+	log, logHandler, logCloser, logErr := defaultLogging(ctx, args, rc.Config)
 	rc.clnup = cleanup.New().AddE(logCloser)
 	if logErr != nil {
 		stderrLog, h := stderrLogger()
@@ -160,9 +160,12 @@ func newDefaultRunContext(ctx context.Context,
 			return rc, log, err
 		}
 	}
-	if log != nil {
-		log = log.With(lga.Pid, os.Getpid())
+
+	if log == nil {
+		log = lg.Discard()
 	}
+
+	log = log.With(lga.Pid, os.Getpid())
 
 	if rc.Config == nil {
 		rc.Config = config.New()

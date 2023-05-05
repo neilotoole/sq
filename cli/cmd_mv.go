@@ -3,6 +3,8 @@ package cli
 import (
 	"strings"
 
+	"github.com/neilotoole/sq/cli/flag"
+
 	"github.com/neilotoole/sq/libsq/core/stringz"
 
 	"golang.org/x/exp/slices"
@@ -40,6 +42,10 @@ source handles are files, and groups are directories.`,
   # any sources already in that group.
   $ sq mv production prod`,
 	}
+
+	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
+	cmd.Flags().Bool(flag.Pretty, true, flag.PrettyUsage)
+	cmd.Flags().BoolP(flag.YAML, flag.YAMLShort, false, flag.YAMLUsage)
 
 	return cmd
 }

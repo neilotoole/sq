@@ -1,9 +1,10 @@
 package cli
 
 import (
+	"fmt"
+
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/source"
@@ -14,30 +15,38 @@ func newConfigSetCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:               "set",
 		RunE:              execConfigSet,
-		Args:              cobra.ExactArgs(2),
+		Args:              cobra.RangeArgs(1, 2),
 		ValidArgsFunction: completeConfigSet,
 		Short:             "Set config value",
-		Long: `Set config value globally, or for a specific source.
+		Long: `Set base config value, or set value for a specific source.
 Use "sq config get -v" to see available options.`,
-		Example: `  # Set default output format
+		Example: `  # Set base output format
   $ sq config set format json
 
-  # Set default max DB connections
+  # Set base max DB connections
   $ sq config set conn.max-open 10
 
   # Set max DB connections for source @sakila
-  $ sq config set --src @sakila conn.max-open 50`,
+  $ sq config set --src @sakila conn.max-open 50
+
+  # Delete an option (resets to default value)
+  $ sq config set -D conn.max-open`,
 	}
 
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
+	cmd.Flags().Bool(flag.Pretty, true, flag.PrettyUsage)
 	cmd.Flags().BoolP(flag.YAML, flag.YAMLShort, false, flag.YAMLUsage)
 
 	cmd.Flags().String(flag.ConfigSrc, "", flag.ConfigSrcUsage)
 	panicOn(cmd.RegisterFlagCompletionFunc(flag.ConfigSrc, completeHandle(1)))
+
+	cmd.Flags().BoolP(flag.ConfigDelete, flag.ConfigDeleteShort, false, flag.ConfigDeleteUsage)
+
 	return cmd
 }
 
 func execConfigSet(cmd *cobra.Command, args []string) error {
+	log := logFrom(cmd)
 	rc, ctx := RunContextFrom(cmd.Context()), cmd.Context()
 
 	o := rc.Config.Options
@@ -66,6 +75,25 @@ func execConfigSet(cmd *cobra.Command, args []string) error {
 		o = src.Options
 	}
 
+	if cmdFlagChanged(cmd, flag.ConfigDelete) {
+		if len(args) > 1 {
+			return errz.Errorf("accepts 1 arg when used with --%s flag", flag.ConfigDelete)
+		}
+
+		delete(o, opt.Key())
+		if src == nil {
+			log.Info("Unset base config value", lga.Key, opt.Key())
+		} else {
+			log.Info("Unset source config value", lga.Src, src, lga.Key, opt.Key())
+		}
+
+		if err := rc.ConfigStore.Save(ctx, rc.Config); err != nil {
+			return err
+		}
+
+		return rc.writers.configw.UnsetOption(opt)
+	}
+
 	o2 := options.Options{}
 	o2[opt.Key()] = args[1]
 	var err error
@@ -79,20 +107,35 @@ func execConfigSet(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if src != nil {
-		lg.FromContext(ctx).Info("Set default config value", lga.Val, o)
+	if src == nil {
+		log.Info(
+			"Set base config value",
+			lga.Key, opt.Key(),
+			lga.Val, o[opt.Key()],
+		)
 	} else {
-		lg.FromContext(ctx).Info("Set source config value", lga.Src, src, lga.Val, o)
+		log.Info(
+			"Set source config value",
+			lga.Key, opt.Key(),
+			lga.Src, src,
+			lga.Val, o,
+		)
 	}
 
-	return rc.writers.configw.SetOption(rc.OptionsRegistry, o, opt)
+	return rc.writers.configw.SetOption(o, opt)
 }
 
 func completeConfigSet(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	switch len(args) {
 	case 0:
 		return completeOptKey(cmd, args, toComplete)
+
 	case 1:
+		if cmdFlagChanged(cmd, flag.ConfigDelete) {
+			logFrom(cmd).Warn(fmt.Sprintf("No 2nd arg when using --%s flag", flag.ConfigDelete))
+			return nil, cobra.ShellCompDirectiveError
+		}
+
 		return completeOptValue(cmd, args, toComplete)
 	default:
 		// Maximum of two args

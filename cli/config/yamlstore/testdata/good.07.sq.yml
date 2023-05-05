@@ -1,0 +1,7 @@
+# This file has custom log.level "off" (not an actual defined slog.Level).
+config.version: v0.34.0
+options:
+    format: table
+    header: false
+
+

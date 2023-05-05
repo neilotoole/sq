@@ -8,7 +8,9 @@ Note that there are three implementations of `output.RecordWriter`.
 - `NewArrayRecordWriter` outputs each record on its own line as an element of a JSON array.
 - `NewObjectRecordWriter` outputs each record as a JSON object on its own line.
 
-These `RecordWriter`s correspond to the `--json`, `--jsona`, and `--jsonl` flags (where `jsonl` means "JSON Lines"). There are also other writer implementations, such as an `output.ErrorWriter` and an `output.MetadataWriter`.
+These `RecordWriter`s correspond to the `--json`, `--jsona`, and `--jsonl` flags
+(where `jsonl` means "JSON Lines"). There are also other writer implementations,
+such as an `output.ErrorWriter` and an `output.MetadataWriter`.
 
 
 #### Standard JSON `--json`:

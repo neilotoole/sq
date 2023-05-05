@@ -7,6 +7,13 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/stringz"
+
+	"github.com/neilotoole/sq/libsq/core/options"
+
+	"github.com/neilotoole/sq/cli/flag"
+	"github.com/neilotoole/sq/libsq/core/lg/userlogdir"
+
 	"github.com/neilotoole/sq/cli/config"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -15,19 +22,50 @@ import (
 	"golang.org/x/exp/slog"
 )
 
+var (
+	OptLogEnabled = options.NewBool(
+		"log",
+		false,
+		"Enable logging.",
+	)
+
+	OptLogFile = options.NewString(
+		"log.file",
+		getDefaultLogFilePath(),
+		`Path to log file. Empty value disables logging.`)
+
+	OptLogLevel = NewLogLevelOpt(
+		"log.level",
+		slog.LevelDebug,
+		`Log level, one of DEBUG, INFO, WARN, ERROR.`)
+)
+
 // defaultLogging returns a *slog.Logger, its slog.Handler, and
 // possibly a *cleanup.Cleanup, which the caller is responsible
 // for invoking at the appropriate time. If an error is returned, the
 // other returned values will be nil. If logging is not enabled,
-// all returned values will be nil.
-func defaultLogging(ctx context.Context) (log *slog.Logger, h slog.Handler, closer func() error, err error) {
-	logFilePath, ok := os.LookupEnv(config.EnvarLogPath)
-	if !ok || strings.TrimSpace(logFilePath) == "" {
-		lg.FromContext(ctx).Debug("Logging: not enabled via envar", lga.Key, config.EnvarLogPath)
-		return lg.Discard(), nil, nil, nil
+// the returned values will also be nil.
+func defaultLogging(ctx context.Context, osArgs []string, cfg *config.Config,
+) (log *slog.Logger, h slog.Handler, closer func() error, err error) {
+	bootLog := lg.FromContext(ctx)
+
+	enabled := getLogEnabled(ctx, osArgs, cfg)
+	if !enabled {
+		return nil, nil, nil, nil
 	}
 
-	lg.FromContext(ctx).Debug("Logging: enabled via envar", lga.Key, config.EnvarLogPath, lga.Val, logFilePath)
+	// First, get the log file path. It can come from flag, envar, or config.
+	logFilePath := strings.TrimSpace(getLogFilePath(ctx, osArgs, cfg))
+	if logFilePath == "" {
+		bootLog.Debug("Logging: not enabled (log file path not set)")
+		return nil, nil, nil, nil
+	}
+
+	lvl := getLogLevel(ctx, osArgs, cfg)
+
+	// Allow for $HOME/sq.log etc.
+	logFilePath = os.ExpandEnv(logFilePath)
+	bootLog.Debug("Logging: enabled", lga.Path, logFilePath)
 
 	// Let's try to create the dir holding the logfile... if it already exists,
 	// then os.MkdirAll will just no-op
@@ -43,19 +81,19 @@ func defaultLogging(ctx context.Context) (log *slog.Logger, h slog.Handler, clos
 	}
 	closer = logFile.Close
 
-	h = newJSONHandler(logFile)
+	h = newJSONHandler(logFile, lvl)
 	return slog.New(h), h, closer, nil
 }
 
 func stderrLogger() (*slog.Logger, slog.Handler) {
-	h := newJSONHandler(os.Stderr)
+	h := newJSONHandler(os.Stderr, slog.LevelDebug)
 	return slog.New(h), h
 }
 
-func newJSONHandler(w io.Writer) slog.Handler {
+func newJSONHandler(w io.Writer, lvl slog.Leveler) slog.Handler {
 	return slog.HandlerOptions{
 		AddSource:   true,
-		Level:       slog.LevelDebug,
+		Level:       lvl,
 		ReplaceAttr: slogReplaceAttrs,
 	}.NewJSONHandler(w)
 }
@@ -104,4 +142,282 @@ func logFrom(cmd *cobra.Command) *slog.Logger {
 	}
 
 	return log
+}
+
+// getLogEnabled determines if logging is enabled based on flags, envars, or config.
+// Any error is logged to the ctx logger.
+func getLogEnabled(ctx context.Context, osArgs []string, cfg *config.Config) bool {
+	bootLog := lg.FromContext(ctx)
+	var enabled bool
+
+	val, ok, err := getBootstrapFlagValue(flag.LogEnabled, "", flag.LogEnabledUsage, osArgs)
+	if err != nil {
+		bootLog.Error("Reading log 'enabled' from flag", lga.Flag, flag.LogEnabled, lga.Err, err)
+	}
+	if ok {
+		bootLog.Debug("Using log 'enabled' specified via flag", lga.Flag, flag.LogEnabled, lga.Val, val)
+
+		enabled, err = stringz.ParseBool(val)
+		if err != nil {
+			bootLog.Error(
+				"Reading bool flag",
+				lga.Flag, flag.LogEnabled,
+				lga.Val, val,
+			)
+			// When in doubt, enable logging?
+			return true
+		}
+
+		return enabled
+	}
+
+	val, ok = os.LookupEnv(config.EnvarLogEnabled)
+	if ok {
+		bootLog.Debug("Using log 'enabled' specified via envar",
+			lga.Env, config.EnvarLogEnabled,
+			lga.Val, val,
+		)
+
+		enabled, err = stringz.ParseBool(val)
+		if err != nil {
+			bootLog.Error(
+				"Reading bool envar",
+				lga.Env, config.EnvarLogEnabled,
+				lga.Val, val,
+			)
+
+			// When in doubt, enable logging?
+			return true
+		}
+
+		return enabled
+	}
+
+	var o options.Options
+	if cfg != nil {
+		o = cfg.Options
+	}
+
+	enabled = OptLogEnabled.Get(o)
+	bootLog.Debug("Using log 'enabled' specified via config", lga.Key, OptLogEnabled.Key(), lga.Val, enabled)
+	return enabled
+}
+
+// getLogLevel gets the log level, based on flags, envars, or config.
+// Any error is logged to the ctx logger.
+func getLogLevel(ctx context.Context, osArgs []string, cfg *config.Config) slog.Level {
+	bootLog := lg.FromContext(ctx)
+
+	val, ok, err := getBootstrapFlagValue(flag.LogLevel, "", flag.LogLevelUsage, osArgs)
+	if err != nil {
+		bootLog.Error("Reading log level from flag", lga.Flag, flag.LogLevel, lga.Err, err)
+	}
+	if ok {
+		bootLog.Debug("Using log level specified via flag", lga.Flag, flag.LogLevel, lga.Val, val)
+
+		lvl := new(slog.Level)
+		if err = lvl.UnmarshalText([]byte(val)); err != nil {
+			bootLog.Error("Invalid log level specified via flag",
+				lga.Flag, flag.LogLevel,
+				lga.Val, val,
+				lga.Err, err)
+		} else {
+			return *lvl
+		}
+	}
+
+	val, ok = os.LookupEnv(config.EnvarLogLevel)
+	if ok {
+		bootLog.Debug("Using log level specified via envar",
+			lga.Env, config.EnvarLogLevel,
+			lga.Val, val)
+
+		lvl := new(slog.Level)
+		if err = lvl.UnmarshalText([]byte(val)); err != nil {
+			bootLog.Error("Invalid log level specified by envar",
+				lga.Env, config.EnvarLogLevel,
+				lga.Val, val,
+				lga.Err, err)
+		} else {
+			return *lvl
+		}
+	}
+
+	var o options.Options
+	if cfg != nil {
+		o = cfg.Options
+	}
+
+	lvl := OptLogLevel.Get(o)
+	bootLog.Debug("Using log level specified via config", lga.Key, OptLogLevel.Key(), lga.Val, lvl)
+	return lvl
+}
+
+// getLogFilePath gets the log file path, based on flags, envars, or config.
+// If a log file is not specified (and thus logging is disabled), empty string
+// is returned.
+func getLogFilePath(ctx context.Context, osArgs []string, cfg *config.Config) string {
+	bootLog := lg.FromContext(ctx)
+
+	fp, ok, err := getBootstrapFlagValue(flag.LogFile, "", flag.LogFileUsage, osArgs)
+	if err != nil {
+		bootLog.Error("Reading log file from flag", lga.Flag, flag.LogFile, lga.Err, err)
+	}
+	if ok {
+		bootLog.Debug("Log file specified via flag", lga.Flag, flag.LogFile, lga.Path, fp)
+		return fp
+	}
+
+	fp, ok = os.LookupEnv(config.EnvarLogPath)
+	if ok {
+		bootLog.Debug("Log file specified via envar", lga.Env, config.EnvarLogPath, lga.Path, fp)
+		return fp
+	}
+
+	var o options.Options
+	if cfg != nil {
+		o = cfg.Options
+	}
+
+	fp = OptLogFile.Get(o)
+	bootLog = bootLog.With(lga.Key, OptLogFile.Key(), lga.Path, fp)
+
+	if !o.IsSet(OptLogFile) {
+		bootLog.Debug("Log file not explicitly set in config; using default")
+		return fp
+	}
+
+	if fp == "" {
+		bootLog.Debug(`Log file explicitly set to "" in config; logging disabled`)
+	}
+
+	bootLog.Debug("Log file specified via config")
+	return fp
+}
+
+// getDefaultLogFilePath returns the OS-dependent log file path,
+// or an empty string if it can't be determined. The file (and its
+// parent dir) may not exist.
+func getDefaultLogFilePath() string {
+	p, err := userlogdir.UserLogDir()
+	if err != nil {
+		return ""
+	}
+
+	return filepath.Join(p, "sq", "sq.log")
+}
+
+var _ options.Opt = LogLevelOpt{}
+
+// NewLogLevelOpt returns a new LogLevelOpt instance.
+func NewLogLevelOpt(key string, defaultVal slog.Level, comment string, tags ...string) LogLevelOpt {
+	return LogLevelOpt{key: key, defaultVal: defaultVal, comment: comment, tags: tags}
+}
+
+// LogLevelOpt is an options.Opt for slog.Level.
+type LogLevelOpt struct {
+	key        string
+	comment    string
+	defaultVal slog.Level
+	tags       []string
+}
+
+// Comment implements options.Opt.
+func (op LogLevelOpt) Comment() string {
+	return op.comment
+}
+
+// Tags implements options.Opt.
+func (op LogLevelOpt) Tags() []string {
+	return op.tags
+}
+
+// Key implements options.Opt.
+func (op LogLevelOpt) Key() string {
+	return op.key
+}
+
+// String implements options.Opt.
+func (op LogLevelOpt) String() string {
+	return op.key
+}
+
+// IsSet implements options.Opt.
+func (op LogLevelOpt) IsSet(o options.Options) bool {
+	if o == nil {
+		return false
+	}
+
+	return o.IsSet(op)
+}
+
+// Process implements options.Processor. It converts matching
+// string values in o into slog.Level. If no match found,
+// the input arg is returned unchanged. Otherwise, a clone is
+// returned.
+func (op LogLevelOpt) Process(o options.Options) (options.Options, error) {
+	if o == nil {
+		return nil, nil
+	}
+
+	v, ok := o[op.key]
+	if !ok || v == nil {
+		return o, nil
+	}
+
+	// v should be a string
+	switch x := v.(type) {
+	case string:
+	// continue below
+	case int:
+		v = slog.Level(x)
+		// continue below
+	case slog.Level:
+		return o, nil
+	default:
+		return nil, errz.Errorf("option {%s} should be {%T} or {%T} but got {%T}: %v",
+			op.key, slog.LevelDebug, "", x, x)
+	}
+
+	var s string
+	s, ok = v.(string)
+	if !ok {
+		return nil, errz.Errorf("option {%s} should be {%T} but got {%T}: %v",
+			op.key, s, v, v)
+	}
+
+	var lvl slog.Level
+	if err := lvl.UnmarshalText([]byte(s)); err != nil {
+		return nil, errz.Wrapf(err, "option {%s} is not a valid {%T}", op.key, lvl)
+	}
+
+	o = o.Clone()
+	o[op.key] = lvl
+	return o, nil
+}
+
+// GetAny implements options.Opt.
+func (op LogLevelOpt) GetAny(o options.Options) any {
+	return op.Get(o)
+}
+
+// Get returns op's value in o. If o is nil, or no value
+// is set, op's default value is returned.
+func (op LogLevelOpt) Get(o options.Options) slog.Level {
+	if o == nil {
+		return op.defaultVal
+	}
+
+	v, ok := o[op.key]
+	if !ok {
+		return op.defaultVal
+	}
+
+	var lvl slog.Level
+	lvl, ok = v.(slog.Level)
+	if !ok {
+		return op.defaultVal
+	}
+
+	return lvl
 }

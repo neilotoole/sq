@@ -16,7 +16,7 @@ import (
 
 // writeYAML prints a YAML representation of v to out, using specs
 // from pr.
-func writeYAML(p printer.Printer, out io.Writer, v any) error {
+func writeYAML(out io.Writer, p printer.Printer, v any) error {
 	b, err := goccy.Marshal(v)
 	if err != nil {
 		return errz.Err(err)

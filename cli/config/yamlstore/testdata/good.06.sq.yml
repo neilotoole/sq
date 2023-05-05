@@ -1,0 +1,9 @@
+# This file has log.level in lowercase and empty log.file
+config.version: v0.34.0
+options:
+    format: table
+    header: false
+    log.level: debug
+    log.file:
+
+

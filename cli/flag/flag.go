@@ -85,13 +85,6 @@ const (
 	SQLQuery      = "query"
 	SQLQueryUsage = "Execute the SQL as a query (as opposed to statement)"
 
-	// SrcOptions is deprecated.
-	//
-	// //Deprecated: Use specific options like flag.IngestHeader.
-	// FIXME: get rid of SrcOptions.
-	SrcOptions      = "opts"
-	SrcOptionsUsage = "Driver-dependent data source options"
-
 	TSV      = "tsv"
 	TSVShort = "T"
 	TSVUsage = "Output TSV"
@@ -135,7 +128,7 @@ const (
 	ConfigUsage = "Load config from here"
 
 	IngestHeader      = "ingest.header"
-	IngestHeaderUsage = "Treat first row of import data as header"
+	IngestHeaderUsage = "Treat first row of ingest data as header"
 
 	CSVEmptyAsNull      = "driver.csv.empty-as-null"
 	CSVEmptyAsNullUsage = "Treat empty CSV fields as null"
@@ -144,7 +137,16 @@ const (
 	CSVDelimUsage   = "CSV delimiter: one of comma, space, pipe, tab, colon, semi, period"
 	CSVDelimDefault = "comma"
 
-	ConfigSetDelete      = "delete"
-	ConfigSetDeleteShort = "D"
-	ConfigSetDeleteUsage = "Unset this option"
+	ConfigDelete      = "delete"
+	ConfigDeleteShort = "D"
+	ConfigDeleteUsage = "Reset this option to default value"
+
+	LogEnabled      = "log"
+	LogEnabledUsage = "Enable logging"
+
+	LogFile      = "log.file"
+	LogFileUsage = "Path to log file; empty disables logging"
+
+	LogLevel      = "log.level"
+	LogLevelUsage = "Log level: one of DEBUG, INFO, WARN, ERROR"
 )
