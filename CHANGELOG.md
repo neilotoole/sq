@@ -21,10 +21,13 @@ several minor breaking changes ☢️.
 - `sq config location` prints the location of the config dir.
 - `--config` flag is now honored globally.
 - Many more knobs are exposed in config.
+- Added flags `--log.file` and `--log.level`. These values can also
+  be set in config via `sq config edit` or `sq config set log.level DEBUG` etc.
 
 ### Changed
 
 - ☢️ Envar `SQ_CONFIG` replaces `SQ_CONFIGDIR`. 
+- ☢️ Envar `SQ_LOG_FILE` replaces `SQ_LOGFILE`.
 - ☢️ Format flag `--table` is renamed to `--text`. This is changed because while the
   output is mostly in table format, sometimes it's just plain text. Thus
   `table` was not quite accurate.

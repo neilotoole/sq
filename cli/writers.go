@@ -238,11 +238,10 @@ func getPrinting(cmd *cobra.Command, opts options.Options, out, errOut io.Writer
 	return pr, out2, errOut2
 }
 
-func getFormat(cmd *cobra.Command, defaults options.Options) format.Format {
+func getFormat(cmd *cobra.Command, o options.Options) format.Format {
 	var fm format.Format
 
 	switch {
-	// cascade through the format flags in low-to-high order of precedence.
 	case cmdFlagChanged(cmd, flag.TSV):
 		fm = format.TSV
 	case cmdFlagChanged(cmd, flag.CSV):
@@ -269,7 +268,7 @@ func getFormat(cmd *cobra.Command, defaults options.Options) format.Format {
 		fm = format.YAML
 	default:
 		// no format flag, use the config value
-		fm = OptOutputFormat.Get(defaults)
+		fm = OptOutputFormat.Get(o)
 	}
 	return fm
 }

@@ -18,17 +18,13 @@ import (
 )
 
 func TestFileStore_Nil_Save(t *testing.T) {
-	t.Parallel()
-
 	var f *yamlstore.Store
 
-	// noinspection GoNilness
 	err := f.Save(context.Background(), config.New())
 	require.Error(t, err)
 }
 
 func TestFileStore_LoadSaveLoad(t *testing.T) {
-	t.Parallel()
 	ctx := context.Background()
 
 	const wantVers = `v0.34.0`
@@ -72,8 +68,6 @@ var hookExpand = func(data []byte) ([]byte, error) {
 }
 
 func TestFileStore_Load(t *testing.T) {
-	t.Parallel()
-
 	optsReg := &options.Registry{}
 	cli.RegisterDefaultOpts(optsReg)
 
@@ -92,8 +86,6 @@ func TestFileStore_Load(t *testing.T) {
 	for _, match := range good {
 		match := match
 		t.Run(tutil.Name(match), func(t *testing.T) {
-			t.Parallel()
-
 			fs.Path = match
 			_, err = fs.Load(context.Background())
 			require.NoError(t, err, match)

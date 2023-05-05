@@ -1,7 +1,11 @@
 package cli
 
 import (
+	"io"
+
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 // cmdFlagChanged returns true if cmd is non-nil and
@@ -32,4 +36,28 @@ func cmdFlagTrue(cmd *cobra.Command, name string) bool {
 	}
 
 	return b
+}
+
+// getBootstrapFlagValue parses osArgs looking for flg. The flag is always
+// treated as string. This function exists because some components such
+// as logging and config interrogate flags before cobra has loaded.
+func getBootstrapFlagValue(flg, flgShort, flgUsage string, osArgs []string) (val string, ok bool, err error) {
+	fs := pflag.NewFlagSet("bootstrap", pflag.ContinueOnError)
+	fs.ParseErrorsWhitelist.UnknownFlags = true
+	fs.SetOutput(io.Discard)
+
+	_ = fs.StringP(flg, flgShort, "", flgUsage)
+	if err = fs.Parse(osArgs); err != nil {
+		return "", false, errz.Err(err)
+	}
+
+	if !fs.Changed(flg) {
+		return "", false, nil
+	}
+
+	if val, err = fs.GetString(flg); err != nil {
+		return "", false, errz.Err(err)
+	}
+
+	return val, true, nil
 }

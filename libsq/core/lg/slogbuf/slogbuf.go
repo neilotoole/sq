@@ -63,6 +63,11 @@ func (b *Buffer) Flush(ctx context.Context, dest slog.Handler) error {
 
 	for i := range b.entries {
 		d, h, rec := dest, b.entries[i].handler, b.entries[i].record
+
+		if !d.Enabled(ctx, rec.Level) {
+			continue
+		}
+
 		d = d.WithAttrs(h.attrs)
 		for _, g := range h.groups {
 			d = d.WithGroup(g)

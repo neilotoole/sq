@@ -14,7 +14,14 @@ import (
 )
 
 const (
-	EnvarLogPath = "SQ_LOGFILE"
+	// EnvarLogPath is the log file path.
+	EnvarLogPath = "SQ_LOG_FILE"
+
+	// EnvarLogLevel is the log level. It maps to a slog.Level.
+	EnvarLogLevel = "SQ_LOG_LEVEL"
+
+	// EnvarLogEnabled turns logging on or off.
+	EnvarLogEnabled = "SQ_LOG"
 
 	// EnvarConfigDir is the legacy envar for config location.
 	// Instead use EnvarConfig.

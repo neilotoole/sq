@@ -124,7 +124,7 @@ func (fs *Store) doLoad(ctx context.Context) (*config.Config, error) {
 
 	cfg.Options, err = fs.OptionsRegistry.Process(cfg.Options)
 	if err != nil {
-		return nil, err
+		return nil, errz.Wrapf(err, "config: %s", fs.Path)
 	}
 
 	if cfg.Collection == nil {
