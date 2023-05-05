@@ -73,7 +73,7 @@ func TestRecordWriter_Actor(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			pr := output.NewPrinting()
 			pr.EnableColor(tc.color)
-			pr.Pretty = tc.pretty
+			pr.Compact = !tc.pretty
 
 			recMeta, recs := testh.RecordsFromTbl(t, sakila.SL3, sakila.TblActor)
 			recs = recs[0:tc.numRecs]

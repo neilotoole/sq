@@ -12,7 +12,8 @@ func newConfigGetCmd() *cobra.Command {
 		Use:   "get",
 		Short: "Show config",
 		Long: `Show config. By default, only explicitly set options are shown.
-Use the --verbose flag (in text output format) to see all options.`,
+Use the -v flag to see all options. When flag --src is provided, show config
+just for that source.`,
 		Args:              cobra.MaximumNArgs(1),
 		ValidArgsFunction: completeOptKey,
 		RunE:              execConfigGet,
@@ -40,7 +41,7 @@ Use the --verbose flag (in text output format) to see all options.`,
 
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 	cmd.Flags().BoolP(flag.YAML, flag.YAMLShort, false, flag.YAMLUsage)
-	cmd.Flags().Bool(flag.Pretty, true, flag.PrettyUsage)
+	cmd.Flags().BoolP(flag.Compact, flag.CompactShort, false, flag.CompactUsage)
 
 	cmd.Flags().String(flag.ConfigSrc, "", flag.ConfigSrcUsage)
 	panicOn(cmd.RegisterFlagCompletionFunc(flag.ConfigSrc, completeHandle(1)))

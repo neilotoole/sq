@@ -21,10 +21,10 @@ type Printing struct {
 	// applicable.
 	Verbose bool
 
-	// Pretty indicates that output should be pretty-printed.
+	// Compact indicates that output should not be pretty-printed.
 	// Typically this means indentation, new lines, etc., but
 	// varies by output format.
-	Pretty bool
+	Compact bool
 
 	// Indent is the indent string to use when pretty-printing,
 	// typically two spaces.
@@ -100,7 +100,7 @@ func NewPrinting() *Printing {
 	pr := &Printing{
 		ShowHeader:     true,
 		Verbose:        false,
-		Pretty:         true,
+		Compact:        false,
 		Redact:         true,
 		FlushThreshold: 1000,
 		monochrome:     false,
@@ -141,7 +141,7 @@ func (pr *Printing) LogValue() slog.Value {
 		slog.Bool("verbose", pr.Verbose),
 		slog.Bool("header", pr.ShowHeader),
 		slog.Bool("monochrome", pr.monochrome),
-		slog.Bool("pretty", pr.Pretty),
+		slog.Bool("compact", pr.Compact),
 		slog.Bool("redact", pr.Redact),
 		slog.Int("flush-threshold", pr.FlushThreshold),
 		slog.String("indent", pr.Indent),

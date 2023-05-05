@@ -16,7 +16,7 @@ func writeJSON(out io.Writer, pr *output.Printing, v any) error {
 	enc := jcolorenc.NewEncoder(out)
 	enc.SetColors(internal.NewColors(pr))
 	enc.SetEscapeHTML(false)
-	if pr.Pretty {
+	if !pr.Compact {
 		enc.SetIndent("", pr.Indent)
 	}
 

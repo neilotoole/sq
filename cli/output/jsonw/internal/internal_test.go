@@ -33,26 +33,91 @@ func TestEncode(t *testing.T) {
 		v       any
 		want    string
 	}{
-		{name: "nil", pretty: true, v: nil, want: "null\n"},
-		{name: "slice_empty", pretty: true, v: []int{}, want: "[]\n"},
-		{name: "slice_1_pretty", pretty: true, v: []any{1}, want: "[\n  1\n]\n"},
-		{name: "slice_1_no_pretty", v: []any{1}, want: "[1]\n"},
-		{name: "slice_2_pretty", pretty: true, v: []any{1, true}, want: "[\n  1,\n  true\n]\n"},
-		{name: "slice_2_no_pretty", v: []any{1, true}, want: "[1,true]\n"},
-		{name: "map_int_empty", pretty: true, v: map[string]int{}, want: "{}\n"},
-		{name: "map_interface_empty", pretty: true, v: map[string]any{}, want: "{}\n"},
-		{name: "map_interface_empty_sorted", pretty: true, sortMap: true, v: map[string]any{}, want: "{}\n"},
-		{name: "map_1_pretty", pretty: true, sortMap: true, v: map[string]any{"one": 1}, want: "{\n  \"one\": 1\n}\n"},
-		{name: "map_1_no_pretty", sortMap: true, v: map[string]any{"one": 1}, want: "{\"one\":1}\n"},
 		{
-			name: "map_2_pretty", pretty: true, sortMap: true, v: map[string]any{"one": 1, "two": 2},
-			want: "{\n  \"one\": 1,\n  \"two\": 2\n}\n",
+			name:   "nil",
+			pretty: true,
+			v:      nil,
+			want:   "null\n",
 		},
 		{
-			name: "map_2_no_pretty", sortMap: true, v: map[string]any{"one": 1, "two": 2},
-			want: "{\"one\":1,\"two\":2}\n",
+			name:   "slice_empty",
+			pretty: true,
+			v:      []int{},
+			want:   "[]\n",
 		},
-		{name: "tinystruct", pretty: true, v: TinyStruct{FBool: true}, want: "{\n  \"f_bool\": true\n}\n"},
+		{
+			name:   "slice_1_pretty",
+			pretty: true,
+			v:      []any{1},
+			want:   "[\n  1\n]\n",
+		},
+		{
+			name: "slice_1_no_pretty",
+			v:    []any{1},
+			want: "[1]\n",
+		},
+		{
+			name:   "slice_2_pretty",
+			pretty: true,
+			v:      []any{1, true},
+			want:   "[\n  1,\n  true\n]\n",
+		},
+		{
+			name: "slice_2_no_pretty",
+			v:    []any{1, true},
+			want: "[1,true]\n",
+		},
+		{
+			name:   "map_int_empty",
+			pretty: true,
+			v:      map[string]int{},
+			want:   "{}\n",
+		},
+		{
+			name:   "map_interface_empty",
+			pretty: true,
+			v:      map[string]any{},
+			want:   "{}\n",
+		},
+		{
+			name:    "map_interface_empty_sorted",
+			pretty:  true,
+			sortMap: true,
+			v:       map[string]any{},
+			want:    "{}\n",
+		},
+		{
+			name:    "map_1_pretty",
+			pretty:  true,
+			sortMap: true,
+			v:       map[string]any{"one": 1},
+			want:    "{\n  \"one\": 1\n}\n",
+		},
+		{
+			name:    "map_1_no_pretty",
+			sortMap: true,
+			v:       map[string]any{"one": 1},
+			want:    "{\"one\":1}\n",
+		},
+		{
+			name:    "map_2_pretty",
+			pretty:  true,
+			sortMap: true,
+			v:       map[string]any{"one": 1, "two": 2},
+			want:    "{\n  \"one\": 1,\n  \"two\": 2\n}\n",
+		},
+		{
+			name:    "map_2_no_pretty",
+			sortMap: true,
+			v:       map[string]any{"one": 1, "two": 2},
+			want:    "{\"one\":1,\"two\":2}\n",
+		},
+		{
+			name:   "tinystruct",
+			pretty: true,
+			v:      TinyStruct{FBool: true},
+			want:   "{\n  \"f_bool\": true\n}\n",
+		},
 	}
 
 	for _, tc := range testCases {
@@ -60,7 +125,7 @@ func TestEncode(t *testing.T) {
 
 		t.Run(tc.name, func(t *testing.T) {
 			pr := output.NewPrinting()
-			pr.Pretty = tc.pretty
+			pr.Compact = !tc.pretty
 			pr.EnableColor(tc.color)
 
 			buf := &bytes.Buffer{}
@@ -69,7 +134,7 @@ func TestEncode(t *testing.T) {
 			enc.SetSortMapKeys(tc.sortMap)
 			enc.SetColors(internal.NewColors(pr))
 
-			if pr.Pretty {
+			if !pr.Compact {
 				enc.SetIndent("", pr.Indent)
 			}
 
@@ -88,11 +153,36 @@ func TestEncode_Slice(t *testing.T) {
 		v      []any
 		want   string
 	}{
-		{name: "nil", pretty: true, v: nil, want: "null\n"},
-		{name: "empty", pretty: true, v: []any{}, want: "[]\n"},
-		{name: "one", pretty: true, v: []any{1}, want: "[\n  1\n]\n"},
-		{name: "two", pretty: true, v: []any{1, true}, want: "[\n  1,\n  true\n]\n"},
-		{name: "three", pretty: true, v: []any{1, true, "hello"}, want: "[\n  1,\n  true,\n  \"hello\"\n]\n"},
+		{
+			name:   "nil",
+			pretty: true,
+			v:      nil,
+			want:   "null\n",
+		},
+		{
+			name:   "empty",
+			pretty: true,
+			v:      []any{},
+			want:   "[]\n",
+		},
+		{
+			name:   "one",
+			pretty: true,
+			v:      []any{1},
+			want:   "[\n  1\n]\n",
+		},
+		{
+			name:   "two",
+			pretty: true,
+			v:      []any{1, true},
+			want:   "[\n  1,\n  true\n]\n",
+		},
+		{
+			name:   "three",
+			pretty: true,
+			v:      []any{1, true, "hello"},
+			want:   "[\n  1,\n  true,\n  \"hello\"\n]\n",
+		},
 	}
 
 	for _, tc := range testCases {
@@ -100,14 +190,14 @@ func TestEncode_Slice(t *testing.T) {
 
 		t.Run(tc.name, func(t *testing.T) {
 			pr := output.NewPrinting()
-			pr.Pretty = tc.pretty
+			pr.Compact = !tc.pretty
 			pr.EnableColor(tc.color)
 
 			buf := &bytes.Buffer{}
 			enc := jcolorenc.NewEncoder(buf)
 			enc.SetEscapeHTML(false)
 			enc.SetColors(internal.NewColors(pr))
-			if pr.Pretty {
+			if !pr.Compact {
 				enc.SetIndent("", "  ")
 			}
 
@@ -136,12 +226,14 @@ func TestEncode_SmallStruct(t *testing.T) {
 		want   string
 	}{
 		{
-			pretty: false, color: false,
-			want: "{\"f_int\":7,\"f_slice\":[64,true],\"f_map\":{\"m_float64\":64.64,\"m_string\":\"hello\"},\"f_tinystruct\":{\"f_bool\":true},\"f_string\":\"hello\"}\n",
+			pretty: false,
+			color:  false,
+			want:   "{\"f_int\":7,\"f_slice\":[64,true],\"f_map\":{\"m_float64\":64.64,\"m_string\":\"hello\"},\"f_tinystruct\":{\"f_bool\":true},\"f_string\":\"hello\"}\n",
 		},
 		{
-			pretty: true, color: false,
-			want: "{\n  \"f_int\": 7,\n  \"f_slice\": [\n    64,\n    true\n  ],\n  \"f_map\": {\n    \"m_float64\": 64.64,\n    \"m_string\": \"hello\"\n  },\n  \"f_tinystruct\": {\n    \"f_bool\": true\n  },\n  \"f_string\": \"hello\"\n}\n",
+			pretty: true,
+			color:  false,
+			want:   "{\n  \"f_int\": 7,\n  \"f_slice\": [\n    64,\n    true\n  ],\n  \"f_map\": {\n    \"m_float64\": 64.64,\n    \"m_string\": \"hello\"\n  },\n  \"f_tinystruct\": {\n    \"f_bool\": true\n  },\n  \"f_string\": \"hello\"\n}\n",
 		},
 	}
 
@@ -150,7 +242,7 @@ func TestEncode_SmallStruct(t *testing.T) {
 
 		t.Run(fmt.Sprintf("pretty_%v__color_%v", tc.pretty, tc.color), func(t *testing.T) {
 			pr := output.NewPrinting()
-			pr.Pretty = tc.pretty
+			pr.Compact = !tc.pretty
 			pr.EnableColor(tc.color)
 
 			buf := &bytes.Buffer{}
@@ -159,7 +251,7 @@ func TestEncode_SmallStruct(t *testing.T) {
 			enc.SetSortMapKeys(true)
 			enc.SetColors(internal.NewColors(pr))
 
-			if pr.Pretty {
+			if !pr.Compact {
 				enc.SetIndent("", "  ")
 			}
 
@@ -205,7 +297,7 @@ func TestEncode_Map_Nested(t *testing.T) {
 
 		t.Run(fmt.Sprintf("pretty_%v__color_%v", tc.pretty, tc.color), func(t *testing.T) {
 			pr := output.NewPrinting()
-			pr.Pretty = tc.pretty
+			pr.Compact = !tc.pretty
 			pr.EnableColor(tc.color)
 
 			buf := &bytes.Buffer{}
@@ -214,7 +306,7 @@ func TestEncode_Map_Nested(t *testing.T) {
 			enc.SetSortMapKeys(true)
 			enc.SetColors(internal.NewColors(pr))
 
-			if pr.Pretty {
+			if !pr.Compact {
 				enc.SetIndent("", "  ")
 			}
 
@@ -237,19 +329,53 @@ func TestEncode_Map_StringNotInterface(t *testing.T) {
 		v       map[string]bool
 		want    string
 	}{
-		{pretty: false, sortMap: true, v: map[string]bool{}, want: "{}\n"},
-		{pretty: false, sortMap: false, v: map[string]bool{}, want: "{}\n"},
-		{pretty: true, sortMap: true, v: map[string]bool{}, want: "{}\n"},
-		{pretty: true, sortMap: false, v: map[string]bool{}, want: "{}\n"},
-		{pretty: false, sortMap: true, v: map[string]bool{"one": true}, want: "{\"one\":true}\n"},
-		{pretty: false, sortMap: false, v: map[string]bool{"one": true}, want: "{\"one\":true}\n"},
 		{
-			pretty: false, sortMap: true, v: map[string]bool{"one": true, "two": false},
-			want: "{\"one\":true,\"two\":false}\n",
+			pretty:  false,
+			sortMap: true,
+			v:       map[string]bool{},
+			want:    "{}\n",
 		},
 		{
-			pretty: true, sortMap: true, v: map[string]bool{"one": true, "two": false},
-			want: "{\n  \"one\": true,\n  \"two\": false\n}\n",
+			pretty:  false,
+			sortMap: false,
+			v:       map[string]bool{},
+			want:    "{}\n",
+		},
+		{
+			pretty:  true,
+			sortMap: true,
+			v:       map[string]bool{},
+			want:    "{}\n",
+		},
+		{
+			pretty:  true,
+			sortMap: false,
+			v:       map[string]bool{},
+			want:    "{}\n",
+		},
+		{
+			pretty:  false,
+			sortMap: true,
+			v:       map[string]bool{"one": true},
+			want:    "{\"one\":true}\n",
+		},
+		{
+			pretty:  false,
+			sortMap: false,
+			v:       map[string]bool{"one": true},
+			want:    "{\"one\":true}\n",
+		},
+		{
+			pretty:  false,
+			sortMap: true,
+			v:       map[string]bool{"one": true, "two": false},
+			want:    "{\"one\":true,\"two\":false}\n",
+		},
+		{
+			pretty:  true,
+			sortMap: true,
+			v:       map[string]bool{"one": true, "two": false},
+			want:    "{\n  \"one\": true,\n  \"two\": false\n}\n",
 		},
 	}
 
@@ -258,7 +384,7 @@ func TestEncode_Map_StringNotInterface(t *testing.T) {
 
 		t.Run(fmt.Sprintf("size_%d__pretty_%v__color_%v", len(tc.v), tc.pretty, tc.color), func(t *testing.T) {
 			pr := output.NewPrinting()
-			pr.Pretty = tc.pretty
+			pr.Compact = !tc.pretty
 			pr.EnableColor(tc.color)
 
 			buf := &bytes.Buffer{}
@@ -266,7 +392,7 @@ func TestEncode_Map_StringNotInterface(t *testing.T) {
 			enc.SetEscapeHTML(false)
 			enc.SetSortMapKeys(tc.sortMap)
 			enc.SetColors(internal.NewColors(pr))
-			if pr.Pretty {
+			if !pr.Compact {
 				enc.SetIndent("", pr.Indent)
 			}
 
@@ -292,12 +418,29 @@ func TestEncode_RawMessage(t *testing.T) {
 		v      any
 		want   string
 	}{
-		{name: "empty", pretty: false, v: jcolorenc.RawMessage(`{}`), want: "{}\n"},
-		{name: "no_pretty", pretty: false, v: raw, want: "{\"one\":1,\"two\":2}\n"},
-		{name: "pretty", pretty: true, v: raw, want: "{\n  \"one\": 1,\n  \"two\": 2\n}\n"},
 		{
-			name: "pretty_struct", pretty: true, v: RawStruct{FString: "hello", FRaw: raw},
-			want: "{\n  \"f_string\": \"hello\",\n  \"f_raw\": {\n    \"one\": 1,\n    \"two\": 2\n  }\n}\n",
+			name:   "empty",
+			pretty: false,
+			v:      jcolorenc.RawMessage(`{}`),
+			want:   "{}\n",
+		},
+		{
+			name:   "no_pretty",
+			pretty: false,
+			v:      raw,
+			want:   "{\"one\":1,\"two\":2}\n",
+		},
+		{
+			name:   "pretty",
+			pretty: true,
+			v:      raw,
+			want:   "{\n  \"one\": 1,\n  \"two\": 2\n}\n",
+		},
+		{
+			name:   "pretty_struct",
+			pretty: true,
+			v:      RawStruct{FString: "hello", FRaw: raw},
+			want:   "{\n  \"f_string\": \"hello\",\n  \"f_raw\": {\n    \"one\": 1,\n    \"two\": 2\n  }\n}\n",
 		},
 	}
 
@@ -306,7 +449,7 @@ func TestEncode_RawMessage(t *testing.T) {
 
 		t.Run(tc.name, func(t *testing.T) {
 			pr := output.NewPrinting()
-			pr.Pretty = tc.pretty
+			pr.Compact = !tc.pretty
 			pr.EnableColor(tc.color)
 
 			buf := &bytes.Buffer{}
@@ -314,7 +457,7 @@ func TestEncode_RawMessage(t *testing.T) {
 			enc.SetEscapeHTML(false)
 			enc.SetSortMapKeys(true)
 			enc.SetColors(internal.NewColors(pr))
-			if pr.Pretty {
+			if !pr.Compact {
 				enc.SetIndent("", pr.Indent)
 			}
 
@@ -339,21 +482,47 @@ func TestEncode_Map_StringRawMessage(t *testing.T) {
 		v       map[string]jcolorenc.RawMessage
 		want    string
 	}{
-		{pretty: false, sortMap: true, v: map[string]jcolorenc.RawMessage{}, want: "{}\n"},
-		{pretty: false, sortMap: false, v: map[string]jcolorenc.RawMessage{}, want: "{}\n"},
-		{pretty: true, sortMap: true, v: map[string]jcolorenc.RawMessage{}, want: "{}\n"},
-		{pretty: true, sortMap: false, v: map[string]jcolorenc.RawMessage{}, want: "{}\n"},
 		{
-			pretty: false, sortMap: true, v: map[string]jcolorenc.RawMessage{"msg1": raw, "msg2": raw},
-			want: "{\"msg1\":{\"one\":1,\"two\":2},\"msg2\":{\"one\":1,\"two\":2}}\n",
+			pretty:  false,
+			sortMap: true,
+			v:       map[string]jcolorenc.RawMessage{},
+			want:    "{}\n",
 		},
 		{
-			pretty: true, sortMap: true, v: map[string]jcolorenc.RawMessage{"msg1": raw, "msg2": raw},
-			want: "{\n  \"msg1\": {\n    \"one\": 1,\n    \"two\": 2\n  },\n  \"msg2\": {\n    \"one\": 1,\n    \"two\": 2\n  }\n}\n",
+			pretty:  false,
+			sortMap: false,
+			v:       map[string]jcolorenc.RawMessage{},
+			want:    "{}\n",
 		},
 		{
-			pretty: true, sortMap: false, v: map[string]jcolorenc.RawMessage{"msg1": raw},
-			want: "{\n  \"msg1\": {\n    \"one\": 1,\n    \"two\": 2\n  }\n}\n",
+			pretty:  true,
+			sortMap: true,
+			v:       map[string]jcolorenc.RawMessage{},
+			want:    "{}\n",
+		},
+		{
+			pretty:  true,
+			sortMap: false,
+			v:       map[string]jcolorenc.RawMessage{},
+			want:    "{}\n",
+		},
+		{
+			pretty:  false,
+			sortMap: true,
+			v:       map[string]jcolorenc.RawMessage{"msg1": raw, "msg2": raw},
+			want:    "{\"msg1\":{\"one\":1,\"two\":2},\"msg2\":{\"one\":1,\"two\":2}}\n",
+		},
+		{
+			pretty:  true,
+			sortMap: true,
+			v:       map[string]jcolorenc.RawMessage{"msg1": raw, "msg2": raw},
+			want:    "{\n  \"msg1\": {\n    \"one\": 1,\n    \"two\": 2\n  },\n  \"msg2\": {\n    \"one\": 1,\n    \"two\": 2\n  }\n}\n",
+		},
+		{
+			pretty:  true,
+			sortMap: false,
+			v:       map[string]jcolorenc.RawMessage{"msg1": raw},
+			want:    "{\n  \"msg1\": {\n    \"one\": 1,\n    \"two\": 2\n  }\n}\n",
 		},
 	}
 
@@ -363,7 +532,7 @@ func TestEncode_Map_StringRawMessage(t *testing.T) {
 		name := fmt.Sprintf("size_%d__pretty_%v__color_%v__sort_%v", len(tc.v), tc.pretty, tc.color, tc.sortMap)
 		t.Run(name, func(t *testing.T) {
 			pr := output.NewPrinting()
-			pr.Pretty = tc.pretty
+			pr.Compact = !tc.pretty
 			pr.EnableColor(tc.color)
 
 			buf := &bytes.Buffer{}
@@ -371,7 +540,7 @@ func TestEncode_Map_StringRawMessage(t *testing.T) {
 			enc.SetEscapeHTML(false)
 			enc.SetSortMapKeys(tc.sortMap)
 			enc.SetColors(internal.NewColors(pr))
-			if pr.Pretty {
+			if !pr.Compact {
 				enc.SetIndent("", pr.Indent)
 			}
 
@@ -405,7 +574,7 @@ func TestEncode_BigStruct(t *testing.T) {
 
 		t.Run(fmt.Sprintf("pretty_%v__color_%v", tc.pretty, tc.color), func(t *testing.T) {
 			pr := output.NewPrinting()
-			pr.Pretty = tc.pretty
+			pr.Compact = !tc.pretty
 			pr.EnableColor(tc.color)
 
 			buf := &bytes.Buffer{}
@@ -414,7 +583,7 @@ func TestEncode_BigStruct(t *testing.T) {
 			enc.SetSortMapKeys(true)
 			enc.SetColors(internal.NewColors(pr))
 
-			if pr.Pretty {
+			if !pr.Compact {
 				enc.SetIndent("", "  ")
 			}
 
@@ -430,12 +599,11 @@ func TestEncode_BigStruct(t *testing.T) {
 // has a fast path).
 //
 // NOTE: Currently the encoder is broken wrt colors enabled
-//
-//	for non-string map keys. It's possible we don't actually need
-//	to address this for sq purposes.
+// for non-string map keys. It's possible we don't actually need
+// to address this for sq purposes.
 func TestEncode_Map_Not_StringInterface(t *testing.T) {
 	pr := output.NewPrinting()
-	pr.Pretty = true
+	pr.Compact = false
 	pr.EnableColor(true)
 
 	buf := &bytes.Buffer{}
@@ -443,7 +611,7 @@ func TestEncode_Map_Not_StringInterface(t *testing.T) {
 	enc.SetEscapeHTML(false)
 	enc.SetSortMapKeys(true)
 	enc.SetColors(internal.NewColors(pr))
-	if pr.Pretty {
+	if !pr.Compact {
 		enc.SetIndent("", "  ")
 	}
 

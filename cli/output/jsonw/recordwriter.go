@@ -152,7 +152,7 @@ func (w *stdWriter) Close() error {
 		return w.err
 	}
 
-	if w.recsWritten && w.pr.Pretty {
+	if w.recsWritten && !w.pr.Compact {
 		w.outBuf.WriteRune('\n')
 	}
 
@@ -187,7 +187,7 @@ func newStdTemplate(recMeta sqlz.RecordMeta, pr *output.Printing) (*stdTemplate,
 		}
 	}
 
-	if !pr.Pretty {
+	if pr.Compact {
 		tpl[0] = append(tpl[0], pnc.lBrace...)
 		tpl[0] = append(tpl[0], fieldNames[0]...)
 		tpl[0] = append(tpl[0], pnc.colon...)
@@ -394,20 +394,20 @@ func newJSONObjectsTemplate(recMeta sqlz.RecordMeta, pr *output.Printing) ([][]b
 	tpl[0] = append(tpl[0], pnc.lBrace...)
 	tpl[0] = append(tpl[0], fieldNames[0]...)
 	tpl[0] = append(tpl[0], pnc.colon...)
-	if pr.Pretty {
+	if !pr.Compact {
 		tpl[0] = append(tpl[0], ' ')
 	}
 
 	for i := 1; i < len(fieldNames); i++ {
 		tpl[i] = append(tpl[i], pnc.comma...)
-		if pr.Pretty {
+		if !pr.Compact {
 			tpl[i] = append(tpl[i], ' ')
 		}
 
 		tpl[i] = append(tpl[i], fieldNames[i]...)
 
 		tpl[i] = append(tpl[i], pnc.colon...)
-		if pr.Pretty {
+		if !pr.Compact {
 			tpl[i] = append(tpl[i], ' ')
 		}
 	}
@@ -426,7 +426,7 @@ func newJSONArrayTemplate(recMeta sqlz.RecordMeta, pr *output.Printing) ([][]byt
 
 	for i := 1; i < len(recMeta); i++ {
 		tpl[i] = append(tpl[i], pnc.comma...)
-		if pr.Pretty {
+		if !pr.Compact {
 			tpl[i] = append(tpl[i], ' ')
 		}
 	}

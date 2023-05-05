@@ -62,10 +62,10 @@ a particular command, sq falls back to 'text'. Available formats:
 		"format",
 	)
 
-	OptPretty = options.NewBool(
-		"pretty",
-		true,
-		`Prettyify output. Only applies to some output formats.`,
+	OptCompact = options.NewBool(
+		"compact",
+		false,
+		`Compact instead of pretty-printed output`,
 		"format",
 	)
 
@@ -184,7 +184,7 @@ func getPrinting(cmd *cobra.Command, opts options.Options, out, errOut io.Writer
 
 	pr.Verbose = OptVerbose.Get(opts)
 	pr.FlushThreshold = OptTuningFlushThreshold.Get(opts)
-	pr.Pretty = OptPretty.Get(opts)
+	pr.Compact = OptCompact.Get(opts)
 
 	switch {
 	case cmdFlagChanged(cmd, flag.Header):

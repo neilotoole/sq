@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/core/options"
+
 	"github.com/neilotoole/sq/testh/tutil"
 
 	"github.com/neilotoole/sq/drivers/csv"
@@ -24,50 +26,168 @@ import (
 func TestCmdAdd(t *testing.T) {
 	t.Parallel()
 
+	type query struct {
+		// q is the SLQ query to execute
+		q        string
+		wantRows int
+		wantCols int
+	}
+
+	actorDataQuery := &query{
+		q:        ".data",
+		wantRows: sakila.TblActorCount,
+		wantCols: len(sakila.TblActorCols()),
+	}
+
 	th := testh.New(t)
 
 	testCases := []struct {
-		loc        string // first arg to "add" cmd
-		driver     string // --driver flag
-		handle     string // --handle flag
-		wantHandle string
-		wantType   source.DriverType
-		wantErr    bool
+		loc         string // first arg to "add" cmd
+		driver      string // --driver flag
+		handle      string // --handle flag
+		wantHandle  string
+		wantType    source.DriverType
+		wantOptions options.Options
+		wantErr     bool
+		query       *query
 	}{
-		{loc: "", wantErr: true},
-		{loc: "   ", wantErr: true},
-		{loc: "/", wantErr: true},
-		{loc: "../../", wantErr: true},
-		{loc: "does/not/exist", wantErr: true},
-		{loc: "_", wantErr: true},
-		{loc: ".", wantErr: true},
-		{loc: "/", wantErr: true},
-		{loc: "../does/not/exist.csv", wantErr: true},
-		{loc: proj.Rel(sakila.PathCSVActor), handle: "@h1", wantHandle: "@h1", wantType: csv.TypeCSV}, // relative path
-		{loc: proj.Abs(sakila.PathCSVActor), handle: "@h1", wantHandle: "@h1", wantType: csv.TypeCSV}, // absolute path
-		{loc: proj.Abs(sakila.PathCSVActor), wantHandle: "@actor", wantType: csv.TypeCSV},
-		{loc: proj.Abs(sakila.PathCSVActor), driver: "csv", wantHandle: "@actor", wantType: csv.TypeCSV},
-		{loc: proj.Abs(sakila.PathCSVActor), driver: "xlsx", wantErr: true},
-		// sqlite can be added both with and without the scheme "sqlite://"
 		{
-			loc: "sqlite3://" + proj.Abs(sakila.PathSL3), wantHandle: "@sakila",
-			wantType: sqlite3.Type,
-		}, // with scheme
+			loc:     "",
+			wantErr: true,
+		},
 		{
-			loc: proj.Abs(sakila.PathSL3), wantHandle: "@sakila",
-			wantType: sqlite3.Type,
-		}, // without scheme, abs path
+			loc:     "   ",
+			wantErr: true,
+		},
 		{
-			loc: proj.Rel(sakila.PathSL3), wantHandle: "@sakila",
-			wantType: sqlite3.Type,
-		}, // without scheme, relative path
-		{loc: th.Source(sakila.Pg).Location, wantHandle: "@sakila", wantType: postgres.Type},
-		{loc: th.Source(sakila.MS).Location, wantHandle: "@sakila", wantType: sqlserver.Type},
-		{loc: th.Source(sakila.My).Location, wantHandle: "@sakila", wantType: mysql.Type},
-		{loc: proj.Abs(sakila.PathCSVActor), handle: source.StdinHandle, wantErr: true},   // reserved handle
-		{loc: proj.Abs(sakila.PathCSVActor), handle: source.ActiveHandle, wantErr: true},  // reserved handle
-		{loc: proj.Abs(sakila.PathCSVActor), handle: source.ScratchHandle, wantErr: true}, // reserved handle
-		{loc: proj.Abs(sakila.PathCSVActor), handle: source.JoinHandle, wantErr: true},    // reserved handle
+			loc:     "/",
+			wantErr: true,
+		},
+		{
+			loc:     "../../",
+			wantErr: true,
+		},
+		{
+			loc:     "does/not/exist",
+			wantErr: true,
+		},
+		{
+			loc:     "_",
+			wantErr: true,
+		},
+		{
+			loc:     ".",
+			wantErr: true,
+		},
+		{
+			loc:     "/",
+			wantErr: true,
+		},
+		{
+			loc:     "../does/not/exist.csv",
+			wantErr: true,
+		},
+		{
+			loc:        proj.Rel(sakila.PathCSVActor),
+			handle:     "@h1",
+			wantHandle: "@h1",
+			wantType:   csv.TypeCSV,
+			query:      actorDataQuery,
+		},
+		{
+			loc:        proj.Abs(sakila.PathCSVActor),
+			handle:     "@h1",
+			wantHandle: "@h1",
+			wantType:   csv.TypeCSV,
+		},
+		{
+			loc:        proj.Abs(sakila.PathCSVActor),
+			wantHandle: "@actor",
+			wantType:   csv.TypeCSV,
+		},
+		{
+			loc:        proj.Abs(sakila.PathCSVActor),
+			driver:     "csv",
+			wantHandle: "@actor",
+			wantType:   csv.TypeCSV,
+		},
+		{
+			loc:     proj.Abs(sakila.PathCSVActor),
+			driver:  "xlsx",
+			wantErr: true,
+		},
+		{
+			loc:        proj.Rel(sakila.PathTSVActor),
+			handle:     "@h1",
+			wantHandle: "@h1",
+			wantType:   csv.TypeTSV,
+			query:      actorDataQuery,
+		},
+		{
+			loc:        proj.Rel(sakila.PathTSVActorNoHeader),
+			handle:     "@h1",
+			wantHandle: "@h1",
+			wantType:   csv.TypeTSV,
+			query:      actorDataQuery,
+		},
+		{
+			// sqlite can be added both with and without the scheme "sqlite://"
+			loc:        "sqlite3://" + proj.Abs(sakila.PathSL3),
+			wantHandle: "@sakila",
+			wantType:   sqlite3.Type,
+		},
+
+		{
+			// with scheme
+			loc:        proj.Abs(sakila.PathSL3),
+			wantHandle: "@sakila",
+			wantType:   sqlite3.Type,
+		},
+
+		{
+			// without scheme, abs path
+			loc:        proj.Rel(sakila.PathSL3),
+			wantHandle: "@sakila",
+			wantType:   sqlite3.Type,
+		},
+		{
+			// without scheme, relative path
+			loc:        th.Source(sakila.Pg).Location,
+			wantHandle: "@sakila",
+			wantType:   postgres.Type,
+		},
+		{
+			loc:        th.Source(sakila.MS).Location,
+			wantHandle: "@sakila",
+			wantType:   sqlserver.Type,
+		},
+		{
+			loc:        th.Source(sakila.My).Location,
+			wantHandle: "@sakila",
+			wantType:   mysql.Type,
+		},
+		{
+			loc:     proj.Abs(sakila.PathCSVActor),
+			handle:  source.StdinHandle, // reserved handle
+			wantErr: true,
+		},
+
+		{
+			loc:     proj.Abs(sakila.PathCSVActor),
+			handle:  source.ActiveHandle, // reserved handle
+			wantErr: true,
+		},
+
+		{
+			loc:     proj.Abs(sakila.PathCSVActor),
+			handle:  source.ScratchHandle, // reserved handle
+			wantErr: true,
+		},
+		{
+			loc:     proj.Abs(sakila.PathCSVActor),
+			handle:  source.JoinHandle, // reserved handle
+			wantErr: true,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -98,6 +218,21 @@ func TestCmdAdd(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, tc.wantHandle, gotSrc.Handle)
 			require.Equal(t, tc.wantType, gotSrc.Type)
+			require.Equal(t, len(tc.wantOptions), len(gotSrc.Options))
+
+			if tc.query == nil {
+				return
+			}
+
+			ru = newRun(th.Context, t, ru)
+			err = ru.Exec(tc.query.q, "--json")
+			var results []map[string]any
+			ru.Bind(&results)
+			require.NoError(t, err)
+			require.Equal(t, tc.query.wantRows, len(results))
+			if tc.query.wantRows > 0 {
+				require.Equal(t, tc.query.wantCols, len(results[0]))
+			}
 		})
 	}
 }
