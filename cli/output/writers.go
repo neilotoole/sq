@@ -112,13 +112,13 @@ type ConfigWriter interface {
 	Location(loc, origin string) error
 
 	// Opt prints a single options.Opt.
-	Opt(reg *options.Registry, o options.Options, opt options.Opt) error
+	Opt(o options.Options, opt options.Opt) error
 
 	// Options prints config options.
 	Options(reg *options.Registry, o options.Options) error
 
 	// SetOption is called when an option is set.
-	SetOption(reg *options.Registry, o options.Options, opt options.Opt) error
+	SetOption(o options.Options, opt options.Opt) error
 
 	// UnsetOption is called when an option is unset.
 	UnsetOption(opt options.Opt) error

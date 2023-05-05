@@ -122,7 +122,7 @@ func execConfigSet(cmd *cobra.Command, args []string) error {
 		)
 	}
 
-	return rc.writers.configw.SetOption(rc.OptionsRegistry, o, opt)
+	return rc.writers.configw.SetOption(o, opt)
 }
 
 func completeConfigSet(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {

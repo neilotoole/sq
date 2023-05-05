@@ -2,8 +2,8 @@ package jsonw
 
 import (
 	"io"
-	"reflect"
 
+	"github.com/neilotoole/sq/cli/output/outputx"
 	"github.com/neilotoole/sq/libsq/core/options"
 
 	"github.com/neilotoole/sq/cli/output"
@@ -38,8 +38,8 @@ func (w *configWriter) Location(loc, origin string) error {
 }
 
 // Opt implements output.ConfigWriter.
-func (w *configWriter) Opt(reg *options.Registry, o options.Options, opt options.Opt) error {
-	if reg == nil || o == nil || opt == nil {
+func (w *configWriter) Opt(o options.Options, opt options.Opt) error {
+	if o == nil || opt == nil {
 		return nil
 	}
 
@@ -49,7 +49,7 @@ func (w *configWriter) Opt(reg *options.Registry, o options.Options, opt options
 		return writeJSON(w.out, w.pr, o2)
 	}
 
-	vo := newVerboseOpt(opt, o2)
+	vo := outputx.NewVerboseOpt(opt, o2)
 	return writeJSON(w.out, w.pr, vo)
 }
 
@@ -63,28 +63,22 @@ func (w *configWriter) Options(reg *options.Registry, o options.Options) error {
 		return writeJSON(w.out, w.pr, o)
 	}
 
-	o2 := o.Clone()
-	for _, opt := range reg.Opts() {
-		if !o2.IsSet(opt) {
-			o2[opt.Key()] = opt.GetAny(nil)
-		}
-	}
-
-	m := map[string]verboseOpt{}
-	for _, key := range o.Keys() {
-		m[key] = newVerboseOpt(reg.Get(key), o)
+	opts := reg.Opts()
+	m := map[string]outputx.VerboseOpt{}
+	for _, opt := range opts {
+		m[opt.Key()] = outputx.NewVerboseOpt(opt, o)
 	}
 
 	return writeJSON(w.out, w.pr, m)
 }
 
 // SetOption implements output.ConfigWriter.
-func (w *configWriter) SetOption(_ *options.Registry, o options.Options, opt options.Opt) error {
+func (w *configWriter) SetOption(o options.Options, opt options.Opt) error {
 	if !w.pr.Verbose {
 		return nil
 	}
 
-	vo := newVerboseOpt(opt, o)
+	vo := outputx.NewVerboseOpt(opt, o)
 	return writeJSON(w.out, w.pr, vo)
 }
 
@@ -95,29 +89,6 @@ func (w *configWriter) UnsetOption(opt options.Opt) error {
 	}
 
 	o := options.Options{opt.Key(): opt.GetAny(nil)}
-	vo := newVerboseOpt(opt, o)
+	vo := outputx.NewVerboseOpt(opt, o)
 	return writeJSON(w.out, w.pr, vo)
-}
-
-// verboseOpt is a verbose realization of an options.Opt value.
-type verboseOpt struct {
-	Key          string `json:"key"`
-	Type         string `json:"type"`
-	IsSet        bool   `json:"is_set"`
-	DefaultValue any    `json:"default_value"`
-	Value        any    `json:"value"`
-	Comment      string `json:"comment"`
-}
-
-func newVerboseOpt(opt options.Opt, o options.Options) verboseOpt {
-	v := verboseOpt{
-		Key:          opt.Key(),
-		DefaultValue: opt.GetAny(nil),
-		IsSet:        o.IsSet(opt),
-		Comment:      opt.Comment(),
-		Value:        opt.GetAny(o),
-		Type:         reflect.TypeOf(opt.GetAny(nil)).String(),
-	}
-
-	return v
 }

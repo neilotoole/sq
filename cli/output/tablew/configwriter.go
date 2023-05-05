@@ -39,8 +39,8 @@ func (w *configWriter) Location(path, origin string) error {
 }
 
 // Opt implements output.ConfigWriter.
-func (w *configWriter) Opt(reg *options.Registry, o options.Options, opt options.Opt) error {
-	if reg == nil || o == nil || opt == nil {
+func (w *configWriter) Opt(o options.Options, opt options.Opt) error {
+	if o == nil || opt == nil {
 		return nil
 	}
 
@@ -146,7 +146,7 @@ func (w *configWriter) doPrintOptions(reg *options.Registry, o options.Options, 
 }
 
 // SetOption implements output.ConfigWriter.
-func (w *configWriter) SetOption(_ *options.Registry, o options.Options, opt options.Opt) error {
+func (w *configWriter) SetOption(o options.Options, opt options.Opt) error {
 	if !w.tbl.pr.Verbose {
 		// No output unless verbose
 		return nil
