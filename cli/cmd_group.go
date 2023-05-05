@@ -34,6 +34,7 @@ Use 'sq ls -g' to list groups.`,
 	}
 
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
+	cmd.Flags().Bool(flag.Pretty, true, flag.PrettyUsage)
 
 	return cmd
 }

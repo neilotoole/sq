@@ -137,10 +137,9 @@ const (
 	CSVDelimUsage   = "CSV delimiter: one of comma, space, pipe, tab, colon, semi, period"
 	CSVDelimDefault = "comma"
 
-	// FIXME: implement ConfigSetDelete.
-	ConfigSetDelete      = "delete"
-	ConfigSetDeleteShort = "D"
-	ConfigSetDeleteUsage = "Unset this option"
+	ConfigDelete      = "delete"
+	ConfigDeleteShort = "D"
+	ConfigDeleteUsage = "Reset this option to default value"
 
 	LogEnabled      = "log"
 	LogEnabledUsage = "Enable logging"

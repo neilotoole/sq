@@ -73,6 +73,11 @@ func completeHandle(max int) completionFunc {
 
 		slices.Sort(handles) // REVISIT: what's the logic for sorting or not?
 		handles, _ = lo.Difference(handles, args)
+
+		if rc.Config.Collection.Active() != nil {
+			handles = append([]string{source.ActiveHandle}, handles...)
+		}
+
 		return handles, cobra.ShellCompDirectiveNoFileComp
 	}
 }
@@ -173,6 +178,22 @@ func completeOptKey(cmd *cobra.Command, _ []string, toComplete string) ([]string
 		keys = lo.Map(opts, func(item options.Opt, index int) string {
 			return item.Key()
 		})
+
+		if cmdFlagChanged(cmd, flag.ConfigDelete) {
+			if len(src.Options) == 0 {
+				// Nothing to delete
+				return nil, cobra.ShellCompDirectiveError
+			}
+
+			// There are options to delete
+			return src.Options.Keys(), cobra.ShellCompDirectiveDefault
+		}
+	}
+
+	if cmdFlagChanged(cmd, flag.ConfigDelete) {
+		// At this stage, we have to offer all opts, because the user
+		// input could become: $ sq config set -D ingest.header --src @csv
+		return rc.OptionsRegistry.Keys(), cobra.ShellCompDirectiveDefault
 	}
 
 	keys = lo.Filter(keys, func(item string, index int) bool {
@@ -402,6 +423,7 @@ func (c *handleTableCompleter) completeHandle(ctx context.Context, rc *RunContex
 	}
 
 	handles := rc.Config.Collection.Handles()
+	handles = append([]string{source.ActiveHandle}, handles...)
 	// Else, we're dealing with just a handle so far
 	var matchingHandles []string
 	for _, handle := range handles {

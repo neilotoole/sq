@@ -372,9 +372,7 @@ func (dec *Decoder) InputOffset() int64 {
 
 // Encoder is documented at https://golang.org/pkg/encoding/json/#Encoder
 type Encoder struct {
-	writer io.Writer
-	// prefix   string
-	// indent   string
+	writer   io.Writer
 	buffer   *bytes.Buffer
 	err      error
 	flags    AppendFlags

@@ -22,6 +22,7 @@ source. Otherwise, set @HANDLE as the active data source.`,
 	}
 
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
+	cmd.Flags().Bool(flag.Pretty, true, flag.PrettyUsage)
 
 	return cmd
 }

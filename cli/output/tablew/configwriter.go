@@ -38,6 +38,18 @@ func (w *configWriter) Location(path, origin string) error {
 	return nil
 }
 
+// Opt implements output.ConfigWriter.
+func (w *configWriter) Opt(reg *options.Registry, o options.Options, opt options.Opt) error {
+	if reg == nil || o == nil || opt == nil {
+		return nil
+	}
+
+	o2 := options.Options{opt.Key(): o[opt.Key()]}
+	reg2 := &options.Registry{}
+	reg2.Add(opt)
+	return w.Options(reg2, o2)
+}
+
 // Options implements output.ConfigWriter.
 func (w *configWriter) Options(reg *options.Registry, o options.Options) error {
 	if o == nil {
@@ -148,6 +160,21 @@ func (w *configWriter) SetOption(_ *options.Registry, o options.Options, opt opt
 	o = options.Effective(o, opt)
 	w.tbl.pr.ShowHeader = true
 	w.doPrintOptions(reg2, o, false)
+	return nil
+}
+
+// UnsetOption implements output.ConfigWriter.
+func (w *configWriter) UnsetOption(opt options.Opt) error {
+	if !w.tbl.pr.Verbose {
+		// No output unless verbose
+		return nil
+	}
+
+	reg := &options.Registry{}
+	reg.Add(opt)
+	o := options.Options{}
+
+	w.doPrintOptions(reg, o, true)
 	return nil
 }
 

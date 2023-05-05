@@ -33,6 +33,7 @@ may have changed, if that source or group was removed.`,
 	}
 
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
+	cmd.Flags().Bool(flag.Pretty, true, flag.PrettyUsage)
 	return cmd
 }
 

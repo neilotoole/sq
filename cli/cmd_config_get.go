@@ -40,6 +40,7 @@ Use the --verbose flag (in text output format) to see all options.`,
 
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 	cmd.Flags().BoolP(flag.YAML, flag.YAMLShort, false, flag.YAMLUsage)
+	cmd.Flags().Bool(flag.Pretty, true, flag.PrettyUsage)
 
 	cmd.Flags().String(flag.ConfigSrc, "", flag.ConfigSrcUsage)
 	panicOn(cmd.RegisterFlagCompletionFunc(flag.ConfigSrc, completeHandle(1)))
@@ -87,13 +88,5 @@ func execConfigGet(cmd *cobra.Command, args []string) error {
 		return errz.Errorf("invalid option key: %s", args[0])
 	}
 
-	// A bit of a hack... create a new registry with just the desired opt.
-	reg2 := &options.Registry{}
-	reg2.Add(opt)
-	o2 := options.Options{}
-	if v, ok := o[opt.Key()]; ok {
-		o2[opt.Key()] = v
-	}
-
-	return rc.writers.configw.Options(reg2, o2)
+	return rc.writers.configw.Opt(reg, o, opt)
 }

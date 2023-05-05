@@ -1,11 +1,10 @@
-package yamlw
+package jsonw
 
 import (
 	"io"
+	"reflect"
 
 	"github.com/neilotoole/sq/libsq/core/options"
-
-	"github.com/goccy/go-yaml/printer"
 
 	"github.com/neilotoole/sq/cli/output"
 )
@@ -14,14 +13,13 @@ var _ output.ConfigWriter = (*configWriter)(nil)
 
 // configWriter implements output.ConfigWriter.
 type configWriter struct {
-	p   printer.Printer
 	out io.Writer
 	pr  *output.Printing
 }
 
 // NewConfigWriter returns a new output.ConfigWriter.
 func NewConfigWriter(out io.Writer, pr *output.Printing) output.ConfigWriter {
-	return &configWriter{out: out, pr: pr, p: newPrinter(pr)}
+	return &configWriter{out: out, pr: pr}
 }
 
 // Location implements output.ConfigWriter.
@@ -36,7 +34,7 @@ func (w *configWriter) Location(loc, origin string) error {
 		Origin:   origin,
 	}
 
-	return writeYAML(w.p, w.out, c)
+	return writeJSON(w.out, w.pr, c)
 }
 
 // Opt implements output.ConfigWriter.
@@ -46,18 +44,38 @@ func (w *configWriter) Opt(reg *options.Registry, o options.Options, opt options
 	}
 
 	o2 := options.Options{opt.Key(): o[opt.Key()]}
-	reg2 := &options.Registry{}
-	reg2.Add(opt)
-	return w.Options(reg2, o2)
+
+	if !w.pr.Verbose {
+		return writeJSON(w.out, w.pr, o2)
+	}
+
+	vo := newVerboseOpt(opt, o2)
+	return writeJSON(w.out, w.pr, vo)
 }
 
 // Options implements output.ConfigWriter.
-func (w *configWriter) Options(_ *options.Registry, o options.Options) error {
+func (w *configWriter) Options(reg *options.Registry, o options.Options) error {
 	if len(o) == 0 {
 		return nil
 	}
 
-	return writeYAML(w.p, w.out, o)
+	if !w.pr.Verbose {
+		return writeJSON(w.out, w.pr, o)
+	}
+
+	o2 := o.Clone()
+	for _, opt := range reg.Opts() {
+		if !o2.IsSet(opt) {
+			o2[opt.Key()] = opt.GetAny(nil)
+		}
+	}
+
+	m := map[string]verboseOpt{}
+	for _, key := range o.Keys() {
+		m[key] = newVerboseOpt(reg.Get(key), o)
+	}
+
+	return writeJSON(w.out, w.pr, m)
 }
 
 // SetOption implements output.ConfigWriter.
@@ -66,8 +84,8 @@ func (w *configWriter) SetOption(_ *options.Registry, o options.Options, opt opt
 		return nil
 	}
 
-	o = options.Effective(o, opt)
-	return w.Options(nil, o)
+	vo := newVerboseOpt(opt, o)
+	return writeJSON(w.out, w.pr, vo)
 }
 
 // UnsetOption implements output.ConfigWriter.
@@ -77,5 +95,29 @@ func (w *configWriter) UnsetOption(opt options.Opt) error {
 	}
 
 	o := options.Options{opt.Key(): opt.GetAny(nil)}
-	return w.Options(nil, o)
+	vo := newVerboseOpt(opt, o)
+	return writeJSON(w.out, w.pr, vo)
+}
+
+// verboseOpt is a verbose realization of an options.Opt value.
+type verboseOpt struct {
+	Key          string `json:"key"`
+	Type         string `json:"type"`
+	IsSet        bool   `json:"is_set"`
+	DefaultValue any    `json:"default_value"`
+	Value        any    `json:"value"`
+	Comment      string `json:"comment"`
+}
+
+func newVerboseOpt(opt options.Opt, o options.Options) verboseOpt {
+	v := verboseOpt{
+		Key:          opt.Key(),
+		DefaultValue: opt.GetAny(nil),
+		IsSet:        o.IsSet(opt),
+		Comment:      opt.Comment(),
+		Value:        opt.GetAny(o),
+		Type:         reflect.TypeOf(opt.GetAny(nil)).String(),
+	}
+
+	return v
 }
