@@ -317,8 +317,8 @@ func getDefaultLogFilePath() string {
 var _ options.Opt = LogLevelOpt{}
 
 // NewLogLevelOpt returns a new LogLevelOpt instance.
-func NewLogLevelOpt(key string, defaultVal slog.Level, usage, doc string) LogLevelOpt {
-	opt := options.NewBaseOpt(key, 0, usage, doc)
+func NewLogLevelOpt(key string, defaultVal slog.Level, usage, help string) LogLevelOpt {
+	opt := options.NewBaseOpt(key, 0, usage, help)
 	return LogLevelOpt{BaseOpt: opt, defaultVal: defaultVal}
 }
 

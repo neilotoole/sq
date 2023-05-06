@@ -60,6 +60,11 @@ func completeStrings(max int, a ...string) completionFunc { //nolint:unparam
 	}
 }
 
+// completeBool returns "true" and "false".
+func completeBool(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
+	return []string{"true", "false"}, cobra.ShellCompDirectiveNoFileComp
+}
+
 // completeHandle is a completionFunc that suggests handles.
 // The max arg is the maximum number of completions. Collection to 0
 // for no limit.

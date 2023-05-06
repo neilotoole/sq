@@ -488,7 +488,7 @@ func ValidIdent(s string) error {
 	return errz.Errorf("invalid identifier: %s", s)
 }
 
-// Strings returns a slice of [] for a. If a is empty or nil,
+// Strings returns a []string for a. If a is empty or nil,
 // an empty slice is returned. A nil element is treated as empty string.
 func Strings[E any](a []E) []string {
 	if len(a) == 0 {
@@ -540,6 +540,7 @@ func StringsD[E any](a []E) []string {
 // Val returns the fully dereferenced value of i. If i
 // is nil, nil is returned. If i has type *(*string),
 // Val(i) returns string.
+//
 // TODO: Should Val be renamed to Deref?
 func Val(i any) any {
 	if i == nil {
@@ -564,4 +565,30 @@ func Val(i any) any {
 			continue
 		}
 	}
+}
+
+// VisitLines visits the lines of s, returning a new string built from
+// applying fn to each line.
+func VisitLines(s string, fn func(i int, line string) string) string {
+	var sb strings.Builder
+
+	sc := bufio.NewScanner(strings.NewReader(s))
+	var line string
+	for i := 0; sc.Scan(); i++ {
+		line = sc.Text()
+		line = fn(i, line)
+		if i > 0 {
+			sb.WriteRune('\n')
+		}
+		sb.WriteString(line)
+	}
+
+	return sb.String()
+}
+
+// IndentLines returns a new string built from indenting each line of s.
+func IndentLines(s, indent string) string {
+	return VisitLines(s, func(_ int, line string) string {
+		return indent + line
+	})
 }

@@ -12,7 +12,9 @@ var OptIngestHeader = options.NewBool(
 	false,
 	"Ingest data has a header row",
 	`Specifies whether ingested data has a header row or not.
-If not set, the ingester *may* try to detect if the input has a header.`,
+If not set, the ingester *may* try to detect if the input has a header.
+Generally it is best to leave this option unset and allow the ingester
+to detect the header.`,
 	"source",
 )
 

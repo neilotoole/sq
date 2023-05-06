@@ -52,8 +52,8 @@ Possible values are: comma, space, pipe, tab, colon, semi, period.`,
 	"csv",
 )
 
-// importCSV loads the src CSV data into scratchDB.
-func importCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFunc, scratchDB driver.Database) error {
+// ingestCSV loads the src CSV data into scratchDB.
+func ingestCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFunc, scratchDB driver.Database) error {
 	log := lg.FromContext(ctx)
 
 	var err error
@@ -76,7 +76,7 @@ func importCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFu
 		return err
 	}
 
-	headerPresent, err := hasHeaderRow(recs, src.Options)
+	headerPresent, err := hasHeaderRow(ctx, recs, src.Options)
 	if err != nil {
 		return err
 	}

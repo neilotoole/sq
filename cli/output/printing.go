@@ -11,6 +11,7 @@ import (
 
 // Printing describes color and pretty-printing options.
 type Printing struct {
+	// monochrome is controlled by EnableColor.
 	monochrome bool
 
 	// FlushThreshold is the size in bytes after which an output writer
@@ -41,15 +42,20 @@ type Printing struct {
 	Redact bool
 
 	// FormatDatetime formats a timestamp e.g. 2020-11-12T13:14:15Z.
-	// Defaults to timefmt.DefaultDatetime.
+	// Defaults to timez.DefaultDatetime.
 	FormatDatetime func(time time.Time) string
 
+	// FormatDatetimeAsNumber indicates that datetime values should be
+	// rendered as naked numbers (instead of as a string) if possible.
+	// See cli.OptDatetimeFormatNumber.
+	FormatDatetimeAsNumber bool
+
 	// FormatTime formats a time of day, e.g. 13:14:15.
-	// Defaults to timefmt.DefaultTime.
+	// Defaults to timez.DefaultTime.
 	FormatTime func(time time.Time) string
 
 	// FormatDate formats a date, e.g. 2020-11-12.
-	// Defaults to timefmt.DefaultDate.
+	// Defaults to timez.DefaultDate.
 	FormatDate func(time time.Time) string
 
 	// Active is the color for an active handle (or group, etc).

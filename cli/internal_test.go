@@ -119,5 +119,5 @@ func TestRegisterDefaultOpts(t *testing.T) {
 	log.Debug("options.Registry (after)", "reg", reg)
 
 	keys := reg.Keys()
-	require.Len(t, keys, 25)
+	require.Len(t, keys, 26)
 }

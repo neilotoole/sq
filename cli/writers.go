@@ -3,6 +3,11 @@ package cli
 import (
 	"io"
 	"os"
+	"strings"
+
+	"github.com/neilotoole/sq/libsq/core/stringz"
+
+	"github.com/mitchellh/go-wordwrap"
 
 	"github.com/neilotoole/sq/libsq/core/timez"
 
@@ -40,6 +45,7 @@ var (
 to certain formats, such as "text" or "csv".`,
 		"format",
 	)
+
 	OptFormat = NewFormatOpt(
 		"format",
 		format.Text,
@@ -88,6 +94,10 @@ a particular command, sq falls back to 'text'. Available formats:
 Generally, it is not necessary to fiddle this knob.`,
 	)
 
+	timeLayoutsList = "Predefined values:\n" + stringz.IndentLines(
+		wordwrap.WrapString(strings.Join(timez.NamedLayouts(), ", "), 64),
+		"  ")
+
 	OptDatetimeFormat = options.NewString(
 		"format.datetime",
 		0,
@@ -95,11 +105,32 @@ Generally, it is not necessary to fiddle this knob.`,
 		"Timestamp format: constant such as RFC3339 or a strftime format",
 		`Timestamp format. This can be one of several predefined constants such
 as "RFC3339" or "Unix", or a strftime format such as "%Y-%m-%d %H:%M:%S".
-Available predefined values are:
-  ANSIC, DateOnly, DateTime, TimeOnly, ISO8601, RFC1123, RFC1123Z,
-  RFC3339, RFC3339Milli, RFC3339MilliZ, RFC3339Nano, RFC3339Z,
-  RFC822, RFC8222Z, RFC850, Unix, UnixDate, UnixMicro, UnixMilli, UnixNano`,
+
+`+timeLayoutsList,
 	)
+
+	OptDatetimeFormatAsNumber = options.NewBool(
+		"format.datetime.number",
+		0,
+		true,
+		"Render numeric datetime value as number instead of string",
+		`Render numeric datetime value as number instead of string, if possible.
+If format.datetime renders a numeric value (e.g. a Unix timestamp such
+as "1591843854"), that value is typically rendered as a string. For some output
+formats, such as JSON, it can be useful to instead render the value as a naked
+number instead of a string. Note that this option is no-op if the rendered value
+is not numeric.
+
+  format.datetime.number=false
+  [{"first_name":"PENELOPE","last_update":"1591843854"}]
+  format.datetime.number=true
+  [{"first_name":"PENELOPE","last_update":1591843854}]
+`,
+	)
+
+	// FIXME: add opts OptDateFormatNumber and OptTimeFormatNumber.
+	// The doc should note that OptDatetimeFormatNumber has primacy, and
+	// to setting that flag instead.
 
 	OptDateFormat = options.NewString(
 		"format.date",
@@ -108,11 +139,12 @@ Available predefined values are:
 		"Date format: constant such as DateOnly or a strftime format",
 		`Date format. This can be one of several predefined constants such
 as "DateOnly" or "Unix", or a strftime format such as "%Y-%m-%d".
-Available predefined values are:
-  ANSIC, DateOnly, DateTime, TimeOnly, ISO8601, RFC1123, RFC1123Z,
-  RFC3339, RFC3339Milli, RFC3339MilliZ, RFC3339Nano, RFC3339Z,
-  RFC822, RFC8222Z, RFC850, Unix, UnixDate, UnixMicro, UnixMilli, UnixNano`,
+Note that date values are sometimes programmatically indistinguishable
+from datetime values. In that situation, use format.datetime instead.
+
+`+timeLayoutsList,
 	)
+
 	OptTimeFormat = options.NewString(
 		"format.time",
 		0,
@@ -120,10 +152,10 @@ Available predefined values are:
 		"Time format: constant such as TimeOnly or a strftime format",
 		`Time format. This can be one of several predefined constants such
 as "TimeOnly" or "Unix", or a strftime format such as "%Y-%m-%d".
-Available predefined values are:
-  ANSIC, DateOnly, DateTime, TimeOnly, ISO8601, RFC1123, RFC1123Z,
-  RFC3339, RFC3339Milli, RFC3339MilliZ, RFC3339Nano, RFC3339Z,
-  RFC822, RFC8222Z, RFC850, Unix, UnixDate, UnixMicro, UnixMilli, UnixNano`,
+Note that time values are sometimes programmatically indistinguishable
+from datetime values. In that situation, use format.datetime instead.
+
+`+timeLayoutsList,
 	)
 )
 
@@ -232,8 +264,12 @@ func getPrinting(cmd *cobra.Command, opts options.Options, out, errOut io.Writer
 ) (pr *output.Printing, out2, errOut2 io.Writer) {
 	pr = output.NewPrinting()
 
-	timestampLayout := OptDatetimeFormat.Get(opts)
-	pr.FormatDatetime = timez.FormatFunc(timestampLayout)
+	pr.FormatDatetime = timez.FormatFunc(OptDatetimeFormat.Get(opts))
+	pr.FormatDatetimeAsNumber = OptDatetimeFormatAsNumber.Get(opts)
+
+	pr.FormatTime = timez.FormatFunc(OptTimeFormat.Get(opts))
+	// FIXME: add asNumber options for for FormatTime and FormatDate.
+	pr.FormatDate = timez.FormatFunc(OptDateFormat.Get(opts))
 
 	pr.Verbose = OptVerbose.Get(opts)
 	pr.FlushThreshold = OptTuningFlushThreshold.Get(opts)
@@ -330,8 +366,8 @@ func getFormat(cmd *cobra.Command, o options.Options) format.Format {
 var _ options.Opt = FormatOpt{}
 
 // NewFormatOpt returns a new FormatOpt instance.
-func NewFormatOpt(key string, defaultVal format.Format, usage, doc string) FormatOpt {
-	opt := options.NewBaseOpt(key, 0, usage, doc)
+func NewFormatOpt(key string, defaultVal format.Format, usage, help string) FormatOpt {
+	opt := options.NewBaseOpt(key, 0, usage, help)
 	return FormatOpt{BaseOpt: opt, defaultVal: defaultVal}
 }
 

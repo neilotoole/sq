@@ -1,6 +1,7 @@
 package stringz_test
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 
@@ -443,4 +444,37 @@ func TestStringsD(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestVisitLines(t *testing.T) {
+	const input = `In Xanadu did
+Kubla Khan a stately
+pleasure dome decree.
+
+`
+	const want = `1. In Xanadu did<<
+2. Kubla Khan a stately<<
+3. pleasure dome decree.<<
+4. <<`
+
+	got := stringz.VisitLines(input, func(i int, line string) string {
+		return strconv.Itoa(i+1) + ". " + line + "<<"
+	})
+
+	require.Equal(t, want, got)
+}
+
+func TestIndentLines(t *testing.T) {
+	const input = `In Xanadu did
+Kubla Khan a stately
+pleasure dome decree.
+
+`
+	const want = `__In Xanadu did
+__Kubla Khan a stately
+__pleasure dome decree.
+__`
+
+	got := stringz.IndentLines(input, "__")
+	require.Equal(t, got, want)
 }

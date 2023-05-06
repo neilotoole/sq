@@ -29,12 +29,13 @@ type Opt interface {
 	Short() rune
 
 	// Usage is a one-line description of the Opt. Additional detail can be
-	// found in Doc.
+	// found in Help.
 	Usage() string
 
-	// Doc returns the Opt's doc text, which typically provides more detail
-	// than Usage.
-	Doc() string
+	// Help returns the Opt's help text, which typically provides more detail
+	// than Usage. The text must be plaintext (not markdown). Linebreaks are
+	// recommended at 100 chars.
+	Help() string
 
 	// String returns a log/debug friendly representation.
 	String() string
@@ -67,17 +68,17 @@ type BaseOpt struct {
 	key   string
 	short rune
 	usage string
-	doc   string
+	help  string
 	tags  []string
 }
 
 // NewBaseOpt returns a new BaseOpt.
-func NewBaseOpt(key string, short rune, usage, doc string, tags ...string) BaseOpt {
+func NewBaseOpt(key string, short rune, usage, help string, tags ...string) BaseOpt {
 	return BaseOpt{
 		key:   key,
 		short: short,
 		usage: usage,
-		doc:   doc,
+		help:  help,
 		tags:  tags,
 	}
 }
@@ -98,8 +99,8 @@ func (op BaseOpt) Usage() string {
 }
 
 // Doc implements options.Opt.
-func (op BaseOpt) Doc() string {
-	return op.doc
+func (op BaseOpt) Help() string {
+	return op.help
 }
 
 // IsSet implements options.Opt.
@@ -140,9 +141,9 @@ func (op BaseOpt) Process(o Options) (Options, error) {
 var _ Opt = String{}
 
 // NewString returns an options.String instance.
-func NewString(key string, short rune, defaultVal, usage, doc string, tags ...string) String {
+func NewString(key string, short rune, defaultVal, usage, help string, tags ...string) String {
 	return String{
-		BaseOpt:    BaseOpt{key: key, short: short, usage: usage, doc: doc, tags: tags},
+		BaseOpt:    BaseOpt{key: key, short: short, usage: usage, help: help, tags: tags},
 		defaultVal: defaultVal,
 	}
 }
@@ -187,9 +188,9 @@ func (op String) Get(o Options) string {
 var _ Opt = Int{}
 
 // NewInt returns an options.Int instance.
-func NewInt(key string, short rune, defaultVal int, usage, doc string, tags ...string) Int {
+func NewInt(key string, short rune, defaultVal int, usage, help string, tags ...string) Int {
 	return Int{
-		BaseOpt:    BaseOpt{key: key, short: short, usage: usage, doc: doc, tags: tags},
+		BaseOpt:    BaseOpt{key: key, short: short, usage: usage, help: help, tags: tags},
 		defaultVal: defaultVal,
 	}
 }
@@ -309,9 +310,9 @@ func (op Int) Process(o Options) (Options, error) {
 var _ Opt = Bool{}
 
 // NewBool returns an options.Bool instance.
-func NewBool(key string, short rune, defaultVal bool, usage, doc string, tags ...string) Bool {
+func NewBool(key string, short rune, defaultVal bool, usage, help string, tags ...string) Bool {
 	return Bool{
-		BaseOpt:    BaseOpt{key: key, short: short, usage: usage, doc: doc, tags: tags},
+		BaseOpt:    BaseOpt{key: key, short: short, usage: usage, help: help, tags: tags},
 		defaultVal: defaultVal,
 	}
 }
@@ -406,9 +407,9 @@ func (op Bool) Process(o Options) (Options, error) {
 var _ Opt = Duration{}
 
 // NewDuration returns an options.Duration instance.
-func NewDuration(key string, short rune, defaultVal time.Duration, usage, doc string, tags ...string) Duration {
+func NewDuration(key string, short rune, defaultVal time.Duration, usage, help string, tags ...string) Duration {
 	return Duration{
-		BaseOpt:    BaseOpt{key: key, short: short, usage: usage, doc: doc, tags: tags},
+		BaseOpt:    BaseOpt{key: key, short: short, usage: usage, help: help, tags: tags},
 		defaultVal: defaultVal,
 	}
 }

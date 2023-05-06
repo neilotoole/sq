@@ -82,7 +82,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database
 		return nil, err
 	}
 
-	if err = importCSV(ctx, src, d.files.OpenFunc(src), dbase.impl); err != nil {
+	if err = ingestCSV(ctx, src, d.files.OpenFunc(src), dbase.impl); err != nil {
 		return nil, err
 	}
 

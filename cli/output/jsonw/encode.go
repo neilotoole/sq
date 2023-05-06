@@ -17,30 +17,39 @@ import (
 // monoEncoder provides methods for encoding JSON values
 // without colorization (that is, in monochrome).
 type monoEncoder struct {
-	formatDatetime func(time.Time) string
-	formatDate     func(time.Time) string
-	formatTime     func(time.Time) string
+	formatDatetime         func(time.Time) string
+	formatDatetimeAsNumber bool
+	formatDate             func(time.Time) string
+	formatDateAsNumber     bool
+	formatTime             func(time.Time) string
+	formatTimeAsNumber     bool
 }
 
 func (e monoEncoder) encodeTime(b []byte, v any) ([]byte, error) {
-	return e.doEncodeTime(b, v, e.formatTime)
+	return e.doEncodeTime(b, v, e.formatTime, e.formatTimeAsNumber)
 }
 
 func (e monoEncoder) encodeDatetime(b []byte, v any) ([]byte, error) {
-	return e.doEncodeTime(b, v, e.formatDatetime)
+	return e.doEncodeTime(b, v, e.formatDatetime, e.formatDatetimeAsNumber)
 }
 
 func (e monoEncoder) encodeDate(b []byte, v any) ([]byte, error) {
-	return e.doEncodeTime(b, v, e.formatDate)
+	return e.doEncodeTime(b, v, e.formatDate, e.formatDateAsNumber)
 }
 
-func (e monoEncoder) doEncodeTime(b []byte, v any, fn func(time.Time) string) ([]byte, error) {
+func (e monoEncoder) doEncodeTime(b []byte, v any, fn func(time.Time) string, asNumber bool) ([]byte, error) {
 	switch v := v.(type) {
 	case nil:
 		return append(b, "null"...), nil
 	case *time.Time:
-		b = append(b, '"')
 		s := fn(*v)
+		if asNumber {
+			if i, err := strconv.ParseInt(s, 10, 64); err == nil {
+				b = strconv.AppendInt(b, i, 10)
+				return b, nil
+			}
+		}
+		b = append(b, '"')
 		b = append(b, []byte(s)...)
 		b = append(b, '"')
 		return b, nil
@@ -86,38 +95,37 @@ func (e monoEncoder) encodeAny(b []byte, v any) ([]byte, error) {
 		return b, nil
 
 	case *time.Time:
-		// We really shouldn't hit this path... instead, we should be
-		// hitting encodeTime.
-		b = append(b, '"')
-		s := e.formatDatetime(*v)
-		b = append(b, []byte(s)...)
-		b = append(b, '"')
-		return b, nil
+		// We really shouldn't be hitting this path? Instead should
+		// hit encodeTime.
+		return e.doEncodeTime(b, v, e.formatDatetime, e.formatDatetimeAsNumber)
 	}
 }
 
 // colorEncoder provides methods for encoding JSON values
 // with color.
 type colorEncoder struct {
-	clrs           internal.Colors
-	formatDatetime func(time.Time) string
-	formatDate     func(time.Time) string
-	formatTime     func(time.Time) string
+	clrs                   internal.Colors
+	formatDatetime         func(time.Time) string
+	formatDatetimeAsNumber bool
+	formatDate             func(time.Time) string
+	formatDateAsNumber     bool
+	formatTime             func(time.Time) string
+	formatTimeAsNumber     bool
 }
 
 func (e *colorEncoder) encodeTime(b []byte, v any) ([]byte, error) {
-	return e.doEncodeTime(b, v, e.formatTime)
+	return e.doEncodeTime(b, v, e.formatTime, e.formatTimeAsNumber)
 }
 
 func (e *colorEncoder) encodeDatetime(b []byte, v any) ([]byte, error) {
-	return e.doEncodeTime(b, v, e.formatDatetime)
+	return e.doEncodeTime(b, v, e.formatDatetime, e.formatDatetimeAsNumber)
 }
 
 func (e *colorEncoder) encodeDate(b []byte, v any) ([]byte, error) {
-	return e.doEncodeTime(b, v, e.formatDate)
+	return e.doEncodeTime(b, v, e.formatDate, e.formatDateAsNumber)
 }
 
-func (e *colorEncoder) doEncodeTime(b []byte, v any, fn func(time.Time) string) ([]byte, error) {
+func (e *colorEncoder) doEncodeTime(b []byte, v any, fn func(time.Time) string, asNumber bool) ([]byte, error) {
 	start := len(b)
 
 	switch v := v.(type) {
@@ -125,12 +133,22 @@ func (e *colorEncoder) doEncodeTime(b []byte, v any, fn func(time.Time) string) 
 		return e.clrs.AppendNull(b), nil
 	case *time.Time:
 		b = append(b, e.clrs.Time.Prefix...)
-		b = append(b, '"')
 		s := fn(*v)
+
+		if asNumber {
+			if i, err := strconv.ParseInt(s, 10, 64); err == nil {
+				b = strconv.AppendInt(b, i, 10)
+				b = append(b, e.clrs.Time.Suffix...)
+				return b, nil
+			}
+		}
+
+		b = append(b, '"')
 		b = append(b, []byte(s)...)
 		b = append(b, '"')
 		b = append(b, e.clrs.Time.Suffix...)
 		return b, nil
+
 	case *string:
 		// If we've got a string, assume it's in the correct format
 		b = append(b, e.clrs.Time.Prefix...)
@@ -189,14 +207,16 @@ func (e *colorEncoder) encodeAny(b []byte, v any) ([]byte, error) {
 		return append(b, e.clrs.String.Suffix...), nil
 
 	case *time.Time:
-		b = append(b, e.clrs.Time.Prefix...)
-		b = append(b, '"')
 		// We really shouldn't be hitting this path? Instead should
 		// hit encodeTime.
-		s := e.formatDatetime(*v)
-		b = append(b, []byte(s)...)
-		b = append(b, '"')
-		return append(b, e.clrs.Time.Suffix...), nil
+		return e.doEncodeTime(b, v, e.formatDatetime, e.formatDatetimeAsNumber)
+		// b = append(b, e.clrs.Time.Prefix...)
+		// b = append(b, '"')
+
+		// s := e.formatDatetime(*v)
+		// b = append(b, []byte(s)...)
+		// b = append(b, '"')
+		// return append(b, e.clrs.Time.Suffix...), nil
 	}
 }
 
@@ -244,9 +264,10 @@ func getFieldEncoders(recMeta sqlz.RecordMeta, pr *output.Printing) []func(b []b
 
 	if pr.IsMonochrome() {
 		enc := monoEncoder{
-			formatDatetime: pr.FormatDatetime,
-			formatDate:     pr.FormatDate,
-			formatTime:     pr.FormatTime,
+			formatDatetime:         pr.FormatDatetime,
+			formatDatetimeAsNumber: pr.FormatDatetimeAsNumber,
+			formatDate:             pr.FormatDate,
+			formatTime:             pr.FormatTime,
 		}
 
 		for i := 0; i < len(recMeta); i++ {
@@ -269,10 +290,11 @@ func getFieldEncoders(recMeta sqlz.RecordMeta, pr *output.Printing) []func(b []b
 
 	// Else, we want color encoders
 	enc := &colorEncoder{
-		clrs:           clrs,
-		formatDatetime: pr.FormatDatetime,
-		formatDate:     pr.FormatDate,
-		formatTime:     pr.FormatTime,
+		clrs:                   clrs,
+		formatDatetime:         pr.FormatDatetime,
+		formatDatetimeAsNumber: pr.FormatDatetimeAsNumber,
+		formatDate:             pr.FormatDate,
+		formatTime:             pr.FormatTime,
 	}
 	for i := 0; i < len(recMeta); i++ {
 		switch recMeta[i].Kind() { //nolint:exhaustive
