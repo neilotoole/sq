@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/timefmt"
+
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/drivers/csv"
 	"golang.org/x/exp/slices"
@@ -349,7 +351,8 @@ func addQueryCmdFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolP(flag.XML, flag.XMLShort, false, flag.XMLUsage)
 	cmd.Flags().BoolP(flag.Compact, flag.CompactShort, false, flag.CompactUsage)
 
-	_ = addOptionFlag(cmd.Flags(), OptTimestampFormat)
+	key := addOptionFlag(cmd.Flags(), OptTimestampFormat)
+	panicOn(cmd.RegisterFlagCompletionFunc(key, completeStrings(1, timefmt.NamedLayouts()...)))
 	// FIXME: Add completion function for OptTimestampFormat
 
 	cmd.Flags().StringP(flag.Output, flag.OutputShort, "", flag.OutputUsage)

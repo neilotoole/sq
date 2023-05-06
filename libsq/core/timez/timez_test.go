@@ -4,10 +4,28 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
+	"github.com/ncruces/go-strftime"
+
 	"github.com/neilotoole/sq/libsq/core/timez"
 	"github.com/neilotoole/sq/testh/tutil"
 	"github.com/stretchr/testify/require"
 )
+
+var (
+	mar1, _    = timez.ParseDateUTC("2023-03-01")
+	mar1denver time.Time
+	denver     *time.Location
+)
+
+func init() { //nolint:gochecknoinits
+	var err error
+	if denver, err = time.LoadLocation("America/Denver"); err != nil {
+		panic(err)
+	}
+	mar1denver = mar1.In(denver)
+}
 
 func TestTimestampUTC(t *testing.T) {
 	tm := time.Date(2021, 0o1, 0o1, 7, 7, 7, 0, time.UTC)
@@ -58,4 +76,25 @@ func TestZuluTimestamp(t *testing.T) {
 	)
 	got := timez.TimestampToRFC3339(input)
 	require.Equal(t, want, got)
+}
+
+func TestTimeTest(t *testing.T) {
+	// FIXME: delete TestTimeTest
+	stdlib := mar1denver.Format(time.RFC3339)
+	moi := mar1denver.Format(timez.RFC3339Variant)
+	iso8601 := mar1denver.Format(timez.ISO8601)
+	_ = moi
+	// assert.Equal(t, stdlib, moi)
+	assert.Equal(t, stdlib, iso8601)
+}
+
+func TestNamedLayout(t *testing.T) {
+	epoch := "%s"
+
+	s := strftime.Format(epoch, time.Now())
+	t.Log(s)
+
+	unix, err := strftime.Layout("%s")
+	require.NoError(t, err)
+	t.Log(unix)
 }

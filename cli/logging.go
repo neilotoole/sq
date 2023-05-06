@@ -394,3 +394,8 @@ func (op LogLevelOpt) Get(o options.Options) slog.Level {
 
 	return lvl
 }
+
+// GetAny implements options.Opt.
+func (op LogLevelOpt) GetAny(o options.Options) any {
+	return op.Get(o)
+}

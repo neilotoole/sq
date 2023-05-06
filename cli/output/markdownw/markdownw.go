@@ -93,11 +93,11 @@ func (w *RecordWriter) writeRecord(rec sqlz.Record) error {
 		case *time.Time:
 			switch w.recMeta[i].Kind() { //nolint:exhaustive
 			default:
-				s = val.Format(timez.DatetimeFormat)
+				s = val.Format(timez.DefaultTimestampFormat)
 			case kind.Time:
-				s = val.Format(timez.TimeFormat)
+				s = val.Format(timez.DefaultTimeFormat)
 			case kind.Date:
-				s = val.Format(timez.DateFormat)
+				s = val.Format(timez.DefaultDateFormat)
 			}
 		}
 

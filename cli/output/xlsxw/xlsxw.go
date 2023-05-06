@@ -97,7 +97,7 @@ func (w *recordWriter) WriteRecords(recs []sqlz.Record) error {
 					// TODO: Maybe there's a way of setting a specific
 					//  time (as opposed to date or datetime) value, but
 					//  for now we just use a string.
-					cell.SetValue(val.Format(timez.TimeFormat))
+					cell.SetValue(val.Format(timez.DefaultTimeFormat))
 				}
 			default:
 				// should never happen

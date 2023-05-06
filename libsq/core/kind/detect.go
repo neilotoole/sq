@@ -357,7 +357,7 @@ func detectKindTime(s string) (ok bool, format string) {
 	}
 
 	const timeNoSecsFormat = "15:04"
-	formats := []string{timez.TimeFormat, timeNoSecsFormat, time.Kitchen}
+	formats := []string{timez.DefaultTimeFormat, timeNoSecsFormat, time.Kitchen}
 	var err error
 
 	for _, f := range formats {
@@ -380,7 +380,7 @@ func detectKindDate(s string) (ok bool, format string) {
 		format3 = "2006-01-02"
 	)
 
-	formats := []string{timez.DateFormat, format1, format2, format3}
+	formats := []string{timez.DefaultDateFormat, format1, format2, format3}
 	var err error
 
 	for _, f := range formats {
@@ -398,7 +398,7 @@ func detectKindDatetime(s string) (ok bool, format string) {
 	}
 
 	formats := []string{
-		timez.DatetimeFormat, // RFC3339Nano
+		timez.DefaultTimestampFormat, // RFC3339Nano
 		time.ANSIC,
 		time.UnixDate,
 		time.RubyDate,

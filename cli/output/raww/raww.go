@@ -64,11 +64,11 @@ func (w *recordWriter) WriteRecords(recs []sqlz.Record) error {
 			case *time.Time:
 				switch w.recMeta[i].Kind() { //nolint:exhaustive
 				default:
-					fmt.Fprint(w.out, val.Format(timez.DatetimeFormat))
+					fmt.Fprint(w.out, val.Format(timez.DefaultTimestampFormat))
 				case kind.Time:
-					fmt.Fprint(w.out, val.Format(timez.TimeFormat))
+					fmt.Fprint(w.out, val.Format(timez.DefaultTimeFormat))
 				case kind.Date:
-					fmt.Fprint(w.out, val.Format(timez.DateFormat))
+					fmt.Fprint(w.out, val.Format(timez.DefaultDateFormat))
 				}
 			default:
 				// should never happen

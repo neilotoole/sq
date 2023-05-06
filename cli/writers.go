@@ -4,6 +4,8 @@ import (
 	"io"
 	"os"
 
+	"github.com/neilotoole/sq/libsq/core/timefmt"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -202,6 +204,9 @@ func getPrinting(cmd *cobra.Command, opts options.Options, out, errOut io.Writer
 ) (pr *output.Printing, out2, errOut2 io.Writer) {
 	pr = output.NewPrinting()
 
+	timestampLayout := OptTimestampFormat.Get(opts)
+	pr.FormatDatetime = timefmt.FormatFunc(timestampLayout)
+
 	pr.Verbose = OptVerbose.Get(opts)
 	pr.FlushThreshold = OptTuningFlushThreshold.Get(opts)
 	pr.Compact = OptCompact.Get(opts)
@@ -349,6 +354,11 @@ func (op FormatOpt) Process(o options.Options) (options.Options, error) {
 	o = o.Clone()
 	o[key] = f
 	return o, nil
+}
+
+// GetAny implements options.Opt.
+func (op FormatOpt) GetAny(o options.Options) any {
+	return op.Get(o)
 }
 
 // Get returns op's value in o. If o is nil, or no value

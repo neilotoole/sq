@@ -114,7 +114,7 @@ func (op BaseOpt) IsSet(o Options) bool {
 // GetAny is required by options.Opt. It needs to be implemented
 // by the concrete type.
 func (op BaseOpt) GetAny(_ Options) any {
-	panic("not implemented")
+	panic(fmt.Sprintf("not implemented for: %s", op.key))
 }
 
 // DefaultAny implements options.Opt.

@@ -21,15 +21,15 @@ import (
 type monoEncoder struct{}
 
 func (e monoEncoder) encodeTime(b []byte, v any) ([]byte, error) {
-	return e.doEncodeTime(b, v, timez.TimeFormat)
+	return e.doEncodeTime(b, v, timez.DefaultTimeFormat)
 }
 
 func (e monoEncoder) encodeDatetime(b []byte, v any) ([]byte, error) {
-	return e.doEncodeTime(b, v, timez.DatetimeFormat)
+	return e.doEncodeTime(b, v, timez.DefaultTimestampFormat)
 }
 
 func (e monoEncoder) encodeDate(b []byte, v any) ([]byte, error) {
-	return e.doEncodeTime(b, v, timez.DateFormat)
+	return e.doEncodeTime(b, v, timez.DefaultDateFormat)
 }
 
 func (e monoEncoder) doEncodeTime(b []byte, v any, layout string) ([]byte, error) {
@@ -84,7 +84,7 @@ func (e monoEncoder) encodeAny(b []byte, v any) ([]byte, error) {
 
 	case *time.Time:
 		b = append(b, '"')
-		b = v.AppendFormat(b, timez.DatetimeFormat)
+		b = v.AppendFormat(b, timez.DefaultTimestampFormat)
 		b = append(b, '"')
 		return b, nil
 	}
@@ -97,15 +97,15 @@ type colorEncoder struct {
 }
 
 func (e *colorEncoder) encodeTime(b []byte, v any) ([]byte, error) {
-	return e.doEncodeTime(b, v, timez.TimeFormat)
+	return e.doEncodeTime(b, v, timez.DefaultTimeFormat)
 }
 
 func (e *colorEncoder) encodeDatetime(b []byte, v any) ([]byte, error) {
-	return e.doEncodeTime(b, v, timez.DatetimeFormat)
+	return e.doEncodeTime(b, v, timez.DefaultTimestampFormat)
 }
 
 func (e *colorEncoder) encodeDate(b []byte, v any) ([]byte, error) {
-	return e.doEncodeTime(b, v, timez.DateFormat)
+	return e.doEncodeTime(b, v, timez.DefaultDateFormat)
 }
 
 func (e *colorEncoder) doEncodeTime(b []byte, v any, layout string) ([]byte, error) {
@@ -181,7 +181,7 @@ func (e *colorEncoder) encodeAny(b []byte, v any) ([]byte, error) {
 	case *time.Time:
 		b = append(b, e.clrs.Time.Prefix...)
 		b = append(b, '"')
-		b = v.AppendFormat(b, timez.DatetimeFormat)
+		b = v.AppendFormat(b, timez.DefaultTimestampFormat)
 		b = append(b, '"')
 		return append(b, e.clrs.Time.Suffix...), nil
 	}

@@ -151,6 +151,8 @@ github.com/muesli/mango-pflag v0.1.0 h1:UADqbYgpUyRoBja3g6LUL+3LErjpsOwaC9ywvBWe
 github.com/muesli/mango-pflag v0.1.0/go.mod h1:YEQomTxaCUp8PrbhFh10UfbhbQrM/xJ4i2PB8VTLLW0=
 github.com/muesli/roff v0.1.0 h1:YD0lalCotmYuF5HhZliKWlIx7IEhiXeSfq7hNjFqGF8=
 github.com/muesli/roff v0.1.0/go.mod h1:pjAHQM9hdUUwm/krAfrLGgJkXJ+YuhtsfZ42kieB2Ig=
+github.com/ncruces/go-strftime v0.1.9 h1:bY0MQC28UADQmHmaF5dgpLmImcShSi2kHU9XLdhx/f4=
+github.com/ncruces/go-strftime v0.1.9/go.mod h1:Fwc5htZGVVkseilnfgOVb9mKy6w1naJmn9CehxcKcls=
 github.com/neilotoole/shelleditor v0.3.2 h1:6qkZK5i2vq4DW6tEidfCVNxejtYtX53tYWK/dhyKB1M=
 github.com/neilotoole/shelleditor v0.3.2/go.mod h1:x65ZIBL2U9aCsTuRv4iD5ArhH+n5goHtA5rZiPfdfLE=
 github.com/neilotoole/slogt v1.0.0 h1:gf8//fSbbUuwj7UGakTSNv8V07BIVBbPJcTxueaEmSg=

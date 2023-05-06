@@ -1,6 +1,10 @@
 package output
 
 import (
+	"time"
+
+	"github.com/neilotoole/sq/libsq/core/timefmt"
+
 	"github.com/fatih/color"
 	"golang.org/x/exp/slog"
 )
@@ -35,6 +39,18 @@ type Printing struct {
 	//
 	// TODO: Redact is not being honored by the writers.
 	Redact bool
+
+	// FormatDatetime formats a timestamp e.g. 2020-11-12T13:14:15Z.
+	// Defaults to timefmt.RFC3339Z.
+	FormatDatetime func(time time.Time) string
+
+	// FormatTime formats a time of day, e.g. 13:14:15.
+	// Defaults to timefmt.TimeOnly.
+	FormatTime func(time time.Time) string
+
+	//  FormatDate formats a date, e.g. 2020-11-12.
+	// Defaults to timefmt.DateOnly.
+	FormatDate func(time time.Time) string
 
 	// Active is the color for an active handle (or group, etc).
 	Active *color.Color
@@ -103,6 +119,9 @@ func NewPrinting() *Printing {
 		Compact:        false,
 		Redact:         true,
 		FlushThreshold: 1000,
+		FormatDatetime: timefmt.FormatFunc(timefmt.RFC3339Z),
+		FormatTime:     timefmt.FormatFunc(timefmt.TimeOnly),
+		FormatDate:     timefmt.FormatFunc(timefmt.DateOnly),
 		monochrome:     false,
 		Indent:         "  ",
 		Active:         color.New(color.FgGreen, color.Bold),
@@ -115,16 +134,15 @@ func NewPrinting() *Printing {
 		Faint:          color.New(color.Faint),
 		Handle:         color.New(color.FgBlue),
 		Header:         color.New(color.FgBlue),
-		// Header:         color.New(color.FgBlue, color.Bold),
-		Hilite:   color.New(color.FgHiBlue),
-		Key:      color.New(color.FgBlue, color.Bold),
-		Location: color.New(color.FgGreen),
-		Normal:   color.New(),
-		Null:     color.New(color.Faint),
-		Number:   color.New(color.FgCyan),
-		Punc:     color.New(color.Bold),
-		String:   color.New(color.FgGreen),
-		Success:  color.New(color.FgGreen, color.Bold),
+		Hilite:         color.New(color.FgHiBlue),
+		Key:            color.New(color.FgBlue, color.Bold),
+		Location:       color.New(color.FgGreen),
+		Normal:         color.New(),
+		Null:           color.New(color.Faint),
+		Number:         color.New(color.FgCyan),
+		Punc:           color.New(color.Bold),
+		String:         color.New(color.FgGreen),
+		Success:        color.New(color.FgGreen, color.Bold),
 	}
 
 	pr.EnableColor(true)

@@ -1,3 +1,6 @@
+// Package timez contains time functionality. The package contains constants
+// for both Go's weird time format, and the more standard strftime format.
+// Constants in Go format have prefix G, and strftime constants have prefix S.
 package timez
 
 import (
@@ -8,14 +11,16 @@ import (
 )
 
 const (
-	// DateFormat is the layout for dates (without a time component), such as 2006-01-02.
-	DateFormat = "2006-01-02"
+	// DefaultDateFormat is the layout for dates (without a time component),
+	// such as 2006-01-02.
+	DefaultDateFormat = time.DateOnly
 
-	// TimeFormat is the layout for 24-hour time (without a date component), such as 15:04:05.
-	TimeFormat = "15:04:05"
+	// DefaultTimeFormat is the layout for 24-hour time (without a date component),
+	// such as 15:04:05.
+	DefaultTimeFormat = time.TimeOnly
 
-	// DatetimeFormat is the layout for a date/time timestamp.
-	DatetimeFormat = time.RFC3339Nano
+	// DefaultTimestampFormat is the layout for a date/time timestamp.
+	DefaultTimestampFormat = time.RFC3339Nano
 )
 
 const (
@@ -25,8 +30,8 @@ const (
 	// RFC3339MilliZulu is the same as RFC3339Milli, but in zulu time.
 	RFC3339MilliZulu = "2006-01-02T15:04:05.000Z"
 
-	// rfc3339variant is a variant using "-0700" suffix.
-	rfc3339variant = "2006-01-02T15:04:05-0700"
+	// RFC3339Variant is a variant using "-0700" suffix.
+	RFC3339Variant = "2006-01-02T15:04:05-0700"
 
 	// RFC3339Zulu is an RFC3339 format, in Zulu time.
 	RFC3339Zulu = "2006-01-02T15:04:05Z"
@@ -36,7 +41,7 @@ const (
 	ISO8601 = "2006-01-02T15:04:05.000Z0700"
 
 	// DateOnly is a date-only format.
-	DateOnly = "2006-01-02"
+	DateOnly = time.DateOnly
 )
 
 // TimestampUTC returns the RFC3339Milli representation of t in UTC.
@@ -92,7 +97,7 @@ func ParseTimestampUTC(s string) (time.Time, error) {
 		return t.UTC(), nil
 	}
 
-	t, err = time.Parse(rfc3339variant, s)
+	t, err = time.Parse(RFC3339Variant, s)
 	if err == nil {
 		return t.UTC(), nil
 	}
@@ -113,13 +118,13 @@ func ParseLocalDate(s string) (time.Time, error) {
 		return t, nil
 	}
 
-	// There's a 'T' in s, which means its probably a timestamp.
+	// There's a 'T' in s, which means it's probably a timestamp.
 	return time.Time{}, errz.Errorf("invalid date format: %s", s)
 }
 
-// ParseUTCDate accepts a date string s, returning the UTC midnight
+// ParseDateUTC accepts a date string s, returning the UTC midnight
 // time of that date. Arg s must in format "2006-01-02".
-func ParseUTCDate(s string) (time.Time, error) {
+func ParseDateUTC(s string) (time.Time, error) {
 	if !strings.ContainsRune(s, 'T') {
 		// It's a date
 		t, err := time.ParseInLocation("2006-01-02", s, time.UTC)
@@ -135,13 +140,13 @@ func ParseUTCDate(s string) (time.Time, error) {
 }
 
 // ParseDateOrTimestampUTC attempts to parse s as either
-// a date (see ParseUTCDate), or timestamp (see ParseTimestampUTC).
+// a date (see ParseDateUTC), or timestamp (see ParseTimestampUTC).
 // The returned time is in UTC.
 func ParseDateOrTimestampUTC(s string) (time.Time, error) {
 	if strings.ContainsRune(s, 'T') {
 		return ParseTimestampUTC(s)
 	}
 
-	t, err := ParseUTCDate(s)
+	t, err := ParseDateUTC(s)
 	return t.UTC(), err
 }
