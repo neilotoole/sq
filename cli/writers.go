@@ -122,7 +122,7 @@ If format.datetime renders a numeric value (e.g. a Unix timestamp such
 as "1591843854"), that value is typically rendered as a string. For some output
 formats, such as JSON, it can be useful to instead render the value as a naked
 number instead of a string. Note that this option is no-op if the rendered value
-is not numeric.
+is not an integer.
 
   format.datetime.number=false
   [{"first_name":"PENELOPE","last_update":"1591843854"}]
@@ -148,6 +148,24 @@ from datetime values. In that situation, use format.datetime instead.
 `+timeLayoutsList,
 	)
 
+	OptDateFormatAsNumber = options.NewBool(
+		"format.date.number",
+		0,
+		true,
+		"Render numeric date value as number instead of string",
+		`Render numeric date value as number instead of string, if possible.
+If format.date renders a numeric value (e.g. a year such as "1979"), that value
+is typically rendered as a string. For some output formats, such as JSON, it can
+be useful to instead render the value as a naked number instead of a string.
+Note that this option is no-op if the rendered value is not an integer.
+
+  format.date.number=false
+  [{"first_name":"PENELOPE","birth_year":"1979"}]
+  format.date.number=true
+  [{"first_name":"PENELOPE","birth_year":1979}]
+`,
+	)
+
 	OptTimeFormat = options.NewString(
 		"format.time",
 		0,
@@ -159,6 +177,24 @@ Note that time values are sometimes programmatically indistinguishable
 from datetime values. In that situation, use format.datetime instead.
 
 `+timeLayoutsList,
+	)
+
+	OptTimeFormatAsNumber = options.NewBool(
+		"format.time.number",
+		0,
+		true,
+		"Render numeric time value as number instead of string",
+		`Render numeric time value as number instead of string, if possible.
+If format.time renders a numeric value (e.g. "59"), that value
+is typically rendered as a string. For some output formats, such as JSON, it can
+be useful to instead render the value as a naked number instead of a string.
+Note that this option is no-op if the rendered value is not an integer.
+
+  format.time.number=false
+  [{"first_name":"PENELOPE","favorite_minute":"59"}]
+  format.time.number=true
+  [{"first_name":"PENELOPE","favorite_minute":59}]
+`,
 	)
 )
 
@@ -269,10 +305,10 @@ func getPrinting(cmd *cobra.Command, opts options.Options, out, errOut io.Writer
 
 	pr.FormatDatetime = timez.FormatFunc(OptDatetimeFormat.Get(opts))
 	pr.FormatDatetimeAsNumber = OptDatetimeFormatAsNumber.Get(opts)
-
 	pr.FormatTime = timez.FormatFunc(OptTimeFormat.Get(opts))
-	// FIXME: add asNumber options for for FormatTime and FormatDate.
+	pr.FormatTimeAsNumber = OptTimeFormatAsNumber.Get(opts)
 	pr.FormatDate = timez.FormatFunc(OptDateFormat.Get(opts))
+	pr.FormatDateAsNumber = OptDateFormatAsNumber.Get(opts)
 
 	pr.Verbose = OptVerbose.Get(opts)
 	pr.FlushThreshold = OptTuningFlushThreshold.Get(opts)

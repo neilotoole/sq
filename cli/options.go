@@ -136,7 +136,9 @@ func RegisterDefaultOpts(reg *options.Registry) {
 		OptDatetimeFormat,
 		OptDatetimeFormatAsNumber,
 		OptDateFormat,
+		OptDateFormatAsNumber,
 		OptTimeFormat,
+		OptTimeFormatAsNumber,
 		OptVerbose,
 		OptPrintHeader,
 		OptMonochrome,
@@ -253,6 +255,11 @@ func addTimeFormatOptsFlags(cmd *cobra.Command) {
 
 	key = addOptionFlag(cmd.Flags(), OptDateFormat)
 	panicOn(cmd.RegisterFlagCompletionFunc(key, completeStrings(-1, timez.NamedLayouts()...)))
+	key = addOptionFlag(cmd.Flags(), OptDateFormatAsNumber)
+	panicOn(cmd.RegisterFlagCompletionFunc(key, completeBool))
+
 	key = addOptionFlag(cmd.Flags(), OptTimeFormat)
 	panicOn(cmd.RegisterFlagCompletionFunc(key, completeStrings(-1, timez.NamedLayouts()...)))
+	key = addOptionFlag(cmd.Flags(), OptTimeFormatAsNumber)
+	panicOn(cmd.RegisterFlagCompletionFunc(key, completeBool))
 }

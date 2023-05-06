@@ -17,7 +17,7 @@ type VerboseOpt struct {
 	IsSet        bool   `json:"is_set"`
 	DefaultValue any    `json:"default_value"`
 	Value        any    `json:"value"`
-	Doc          string `json:"doc"`
+	Help         string `json:"help"`
 }
 
 // NewVerboseOpt returns a VerboseOpt built from opt and o.
@@ -27,7 +27,7 @@ func NewVerboseOpt(opt options.Opt, o options.Options) VerboseOpt {
 		Usage:        opt.Usage(),
 		DefaultValue: opt.GetAny(nil),
 		IsSet:        o.IsSet(opt),
-		Doc:          opt.Help(),
+		Help:         opt.Help(),
 		Value:        opt.GetAny(o),
 		Type:         reflect.TypeOf(opt.GetAny(nil)).String(),
 	}

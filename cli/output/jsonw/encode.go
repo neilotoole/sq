@@ -210,13 +210,6 @@ func (e *colorEncoder) encodeAny(b []byte, v any) ([]byte, error) {
 		// We really shouldn't be hitting this path? Instead should
 		// hit encodeTime.
 		return e.doEncodeTime(b, v, e.formatDatetime, e.formatDatetimeAsNumber)
-		// b = append(b, e.clrs.Time.Prefix...)
-		// b = append(b, '"')
-
-		// s := e.formatDatetime(*v)
-		// b = append(b, []byte(s)...)
-		// b = append(b, '"')
-		// return append(b, e.clrs.Time.Suffix...), nil
 	}
 }
 
@@ -267,7 +260,9 @@ func getFieldEncoders(recMeta sqlz.RecordMeta, pr *output.Printing) []func(b []b
 			formatDatetime:         pr.FormatDatetime,
 			formatDatetimeAsNumber: pr.FormatDatetimeAsNumber,
 			formatDate:             pr.FormatDate,
+			formatDateAsNumber:     pr.FormatDateAsNumber,
 			formatTime:             pr.FormatTime,
+			formatTimeAsNumber:     pr.FormatTimeAsNumber,
 		}
 
 		for i := 0; i < len(recMeta); i++ {
@@ -294,7 +289,9 @@ func getFieldEncoders(recMeta sqlz.RecordMeta, pr *output.Printing) []func(b []b
 		formatDatetime:         pr.FormatDatetime,
 		formatDatetimeAsNumber: pr.FormatDatetimeAsNumber,
 		formatDate:             pr.FormatDate,
+		formatDateAsNumber:     pr.FormatDateAsNumber,
 		formatTime:             pr.FormatTime,
+		formatTimeAsNumber:     pr.FormatTimeAsNumber,
 	}
 	for i := 0; i < len(recMeta); i++ {
 		switch recMeta[i].Kind() { //nolint:exhaustive
