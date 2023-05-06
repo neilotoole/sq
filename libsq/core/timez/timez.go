@@ -1,6 +1,4 @@
-// Package timez contains time functionality. The package contains constants
-// for both Go's weird time format, and the more standard strftime format.
-// Constants in Go format have prefix G, and strftime constants have prefix S.
+// Package timez contains time functionality.
 package timez
 
 import (
@@ -11,50 +9,31 @@ import (
 )
 
 const (
-	// DefaultDateFormat is the layout for dates (without a time component),
-	// such as 2006-01-02.
-	DefaultDateFormat = time.DateOnly
+	// ISO8601 is (our definition of) the ISO8601 timestamp with millisecond
+	// precision.
+	ISO8601 = "2006-01-02T15:04:05.000Z07:00"
 
-	// DefaultTimeFormat is the layout for 24-hour time (without a date component),
-	// such as 15:04:05.
-	DefaultTimeFormat = time.TimeOnly
-
-	// DefaultTimestampFormat is the layout for a date/time timestamp.
-	DefaultTimestampFormat = time.RFC3339Nano
-)
-
-const (
-	// RFC3339Milli is an RFC3339 format with millisecond precision.
-	RFC3339Milli = "2006-01-02T15:04:05.000Z07:00"
-
-	// RFC3339MilliZulu is the same as RFC3339Milli, but in zulu time.
-	RFC3339MilliZulu = "2006-01-02T15:04:05.000Z"
+	// ISO8601Z is the same as ISO8601, but in zulu time.
+	ISO8601Z = "2006-01-02T15:04:05.000Z"
 
 	// RFC3339Variant is a variant using "-0700" suffix.
 	RFC3339Variant = "2006-01-02T15:04:05-0700"
 
-	// RFC3339Zulu is an RFC3339 format, in Zulu time.
-	RFC3339Zulu = "2006-01-02T15:04:05Z"
-
-	// ISO8601 is similar to RFC3339Milli, but doesn't have the colon
-	// in the timezone offset.
-	ISO8601 = "2006-01-02T15:04:05.000Z07:00"
-
-	// DateOnly is a date-only format.
-	DateOnly = time.DateOnly
+	// RFC3339Z is an RFC3339 format, in zulu time.
+	RFC3339Z = "2006-01-02T15:04:05Z"
 )
 
-// TimestampUTC returns the RFC3339Milli representation of t in UTC.
+// TimestampUTC returns the ISO8601 representation of t in UTC.
 func TimestampUTC(t time.Time) string {
-	return t.UTC().Format(RFC3339Milli)
+	return t.UTC().Format(ISO8601)
 }
 
 // DateUTC returns a date representation (2020-10-31) of t in UTC.
 func DateUTC(t time.Time) string {
-	return t.UTC().Format(DateOnly)
+	return t.UTC().Format(time.DateOnly)
 }
 
-// TimestampToRFC3339 takes a RFC3339Milli, ISO8601 or RFC3339
+// TimestampToRFC3339 takes a ISO8601, ISO8601_X or RFC3339
 // timestamp, and returns RFC3339. That is, the milliseconds are dropped.
 // On error, the empty string is returned.
 func TimestampToRFC3339(s string) string {
@@ -62,10 +41,10 @@ func TimestampToRFC3339(s string) string {
 	if err != nil {
 		return ""
 	}
-	return t.UTC().Format(RFC3339Zulu)
+	return t.UTC().Format(RFC3339Z)
 }
 
-// TimestampToDate takes a RFC3339Milli, ISO8601 or RFC3339
+// TimestampToDate takes a ISO8601, ISO8601_X or RFC3339
 // timestamp, and returns just the date component.
 // On error, the empty string is returned.
 func TimestampToDate(s string) string {
@@ -73,26 +52,20 @@ func TimestampToDate(s string) string {
 	if err != nil {
 		return ""
 	}
-	return t.UTC().Format(DateOnly)
+	return t.UTC().Format(time.DateOnly)
 }
 
 // ParseTimestampUTC is the counterpart of TimestampUTC. It attempts
-// to parse s first in RFC3339Milli, then time.RFC3339 format, falling
-// back to the subtly different ISO8601 format.
+// to parse s first in ISO8601, then time.RFC3339 format, falling
+// back to the subtly different variants.
 func ParseTimestampUTC(s string) (time.Time, error) {
-	t, err := time.Parse(RFC3339Milli, s)
+	t, err := time.Parse(ISO8601, s)
 	if err == nil {
 		return t.UTC(), nil
 	}
 
 	// Fallback to RFC3339
 	t, err = time.Parse(time.RFC3339, s)
-	if err == nil {
-		return t.UTC(), nil
-	}
-
-	// Fallback to ISO8601
-	t, err = time.Parse(ISO8601, s)
 	if err == nil {
 		return t.UTC(), nil
 	}

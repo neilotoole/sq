@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/timefmt"
+	"github.com/neilotoole/sq/libsq/core/timez"
 
 	"github.com/neilotoole/sq/drivers"
 	"github.com/neilotoole/sq/drivers/csv"
@@ -244,9 +244,9 @@ func addOptionFlag(flags *pflag.FlagSet, opt options.Opt) (key string) {
 
 func addTimeFormatOptions(cmd *cobra.Command) {
 	key := addOptionFlag(cmd.Flags(), OptDatetimeFormat)
-	panicOn(cmd.RegisterFlagCompletionFunc(key, completeStrings(-1, timefmt.NamedLayouts()...)))
+	panicOn(cmd.RegisterFlagCompletionFunc(key, completeStrings(-1, timez.NamedLayouts()...)))
 	key = addOptionFlag(cmd.Flags(), OptDateFormat)
-	panicOn(cmd.RegisterFlagCompletionFunc(key, completeStrings(-1, timefmt.NamedLayouts()...)))
+	panicOn(cmd.RegisterFlagCompletionFunc(key, completeStrings(-1, timez.NamedLayouts()...)))
 	key = addOptionFlag(cmd.Flags(), OptTimeFormat)
-	panicOn(cmd.RegisterFlagCompletionFunc(key, completeStrings(-1, timefmt.NamedLayouts()...)))
+	panicOn(cmd.RegisterFlagCompletionFunc(key, completeStrings(-1, timez.NamedLayouts()...)))
 }

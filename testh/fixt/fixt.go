@@ -10,8 +10,6 @@ package fixt
 import (
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/timez"
-
 	"github.com/neilotoole/sq/libsq/core/kind"
 )
 
@@ -47,8 +45,8 @@ var (
 	BytesZ    = []byte("")
 	Datetime  = mustParseTime(time.RFC3339, "2017-07-07T07:07:07-00:00").UTC()
 	DatetimeZ = mustParseTime(time.RFC3339, "1989-11-09T00:00:00-00:00").UTC()
-	Date      = mustParseTime(timez.DefaultDateFormat, "2017-07-07").UTC()
-	DateZ     = mustParseTime(timez.DefaultDateFormat, "1989-11-09").UTC()
+	Date      = mustParseTime(time.DateOnly, "2017-07-07").UTC()
+	DateZ     = mustParseTime(time.DateOnly, "1989-11-09").UTC()
 )
 
 func mustParseTime(layout, value string) time.Time {

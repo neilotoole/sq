@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/timefmt"
+	"github.com/neilotoole/sq/libsq/core/timez"
 
 	"github.com/neilotoole/sq/cli/flag"
 
@@ -234,8 +234,8 @@ func completeOptValue(cmd *cobra.Command, args []string, toComplete string) ([]s
 			// We return the default directive, so that the shell will offer
 			// regular ol' file completion.
 			return a, cobra.ShellCompDirectiveDefault
-		case OptDatetimeFormat.Key():
-			return timefmt.NamedLayouts(), cobra.ShellCompDirectiveNoFileComp
+		case OptDatetimeFormat.Key(), OptTimeFormat.Key(), OptDateFormat.Key():
+			return timez.NamedLayouts(), cobra.ShellCompDirectiveNoFileComp
 		}
 
 	case LogLevelOpt:

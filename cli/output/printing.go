@@ -3,7 +3,7 @@ package output
 import (
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/timefmt"
+	"github.com/neilotoole/sq/libsq/core/timez"
 
 	"github.com/fatih/color"
 	"golang.org/x/exp/slog"
@@ -41,15 +41,15 @@ type Printing struct {
 	Redact bool
 
 	// FormatDatetime formats a timestamp e.g. 2020-11-12T13:14:15Z.
-	// Defaults to timefmt.RFC3339Z.
+	// Defaults to timefmt.DefaultDatetime.
 	FormatDatetime func(time time.Time) string
 
 	// FormatTime formats a time of day, e.g. 13:14:15.
-	// Defaults to timefmt.TimeOnly.
+	// Defaults to timefmt.DefaultTime.
 	FormatTime func(time time.Time) string
 
-	//  FormatDate formats a date, e.g. 2020-11-12.
-	// Defaults to timefmt.DateOnly.
+	// FormatDate formats a date, e.g. 2020-11-12.
+	// Defaults to timefmt.DefaultDate.
 	FormatDate func(time time.Time) string
 
 	// Active is the color for an active handle (or group, etc).
@@ -119,9 +119,9 @@ func NewPrinting() *Printing {
 		Compact:        false,
 		Redact:         true,
 		FlushThreshold: 1000,
-		FormatDatetime: timefmt.FormatFunc(timefmt.RFC3339Z),
-		FormatTime:     timefmt.FormatFunc(timefmt.TimeOnly),
-		FormatDate:     timefmt.FormatFunc(timefmt.DateOnly),
+		FormatDatetime: timez.FormatFunc(timez.DefaultDatetime),
+		FormatTime:     timez.FormatFunc(timez.DefaultTime),
+		FormatDate:     timez.FormatFunc(timez.DefaultDate),
 		monochrome:     false,
 		Indent:         "  ",
 		Active:         color.New(color.FgGreen, color.Bold),

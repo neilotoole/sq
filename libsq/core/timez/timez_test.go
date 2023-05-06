@@ -10,9 +10,10 @@ import (
 )
 
 var (
-	mar1, _    = timez.ParseDateUTC("2023-03-01")
-	mar1denver time.Time
-	denver     *time.Location
+	mar1UTC, _  = timez.ParseDateUTC("2023-03-01")
+	denver      *time.Location
+	nov12denver time.Time
+	mar1denver  time.Time
 )
 
 func init() { //nolint:gochecknoinits
@@ -20,7 +21,8 @@ func init() { //nolint:gochecknoinits
 	if denver, err = time.LoadLocation("America/Denver"); err != nil {
 		panic(err)
 	}
-	mar1denver = mar1.In(denver)
+	nov12denver = time.Date(2020, 11, 12, 13, 14, 15, 12345678, denver)
+	mar1denver = mar1UTC.In(denver)
 }
 
 func TestTimestampUTC(t *testing.T) {
@@ -72,4 +74,16 @@ func TestZuluTimestamp(t *testing.T) {
 	)
 	got := timez.TimestampToRFC3339(input)
 	require.Equal(t, want, got)
+}
+
+func TestFormatFunc(t *testing.T) {
+	layouts := timez.NamedLayouts()
+	// Add some custom layouts
+	layouts = append(layouts, "%Y/%m/%d", "%s")
+
+	for _, layout := range layouts {
+		fn := timez.FormatFunc(layout)
+		got := fn(nov12denver)
+		t.Logf("%16s: %s", layout, got)
+	}
 }

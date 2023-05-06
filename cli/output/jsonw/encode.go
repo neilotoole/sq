@@ -6,8 +6,6 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/neilotoole/sq/libsq/core/timez"
-
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/jsonw/internal"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -18,27 +16,32 @@ import (
 
 // monoEncoder provides methods for encoding JSON values
 // without colorization (that is, in monochrome).
-type monoEncoder struct{}
+type monoEncoder struct {
+	formatDatetime func(time.Time) string
+	formatDate     func(time.Time) string
+	formatTime     func(time.Time) string
+}
 
 func (e monoEncoder) encodeTime(b []byte, v any) ([]byte, error) {
-	return e.doEncodeTime(b, v, timez.DefaultTimeFormat)
+	return e.doEncodeTime(b, v, e.formatTime)
 }
 
 func (e monoEncoder) encodeDatetime(b []byte, v any) ([]byte, error) {
-	return e.doEncodeTime(b, v, timez.DefaultTimestampFormat)
+	return e.doEncodeTime(b, v, e.formatDatetime)
 }
 
 func (e monoEncoder) encodeDate(b []byte, v any) ([]byte, error) {
-	return e.doEncodeTime(b, v, timez.DefaultDateFormat)
+	return e.doEncodeTime(b, v, e.formatDate)
 }
 
-func (e monoEncoder) doEncodeTime(b []byte, v any, layout string) ([]byte, error) {
+func (e monoEncoder) doEncodeTime(b []byte, v any, fn func(time.Time) string) ([]byte, error) {
 	switch v := v.(type) {
 	case nil:
 		return append(b, "null"...), nil
 	case *time.Time:
 		b = append(b, '"')
-		b = v.AppendFormat(b, layout)
+		s := fn(*v)
+		b = append(b, []byte(s)...)
 		b = append(b, '"')
 		return b, nil
 	case *string:
@@ -83,8 +86,11 @@ func (e monoEncoder) encodeAny(b []byte, v any) ([]byte, error) {
 		return b, nil
 
 	case *time.Time:
+		// We really shouldn't hit this path... instead, we should be
+		// hitting encodeTime.
 		b = append(b, '"')
-		b = v.AppendFormat(b, timez.DefaultTimestampFormat)
+		s := e.formatDatetime(*v)
+		b = append(b, []byte(s)...)
 		b = append(b, '"')
 		return b, nil
 	}
@@ -93,22 +99,25 @@ func (e monoEncoder) encodeAny(b []byte, v any) ([]byte, error) {
 // colorEncoder provides methods for encoding JSON values
 // with color.
 type colorEncoder struct {
-	clrs internal.Colors
+	clrs           internal.Colors
+	formatDatetime func(time.Time) string
+	formatDate     func(time.Time) string
+	formatTime     func(time.Time) string
 }
 
 func (e *colorEncoder) encodeTime(b []byte, v any) ([]byte, error) {
-	return e.doEncodeTime(b, v, timez.DefaultTimeFormat)
+	return e.doEncodeTime(b, v, e.formatTime)
 }
 
 func (e *colorEncoder) encodeDatetime(b []byte, v any) ([]byte, error) {
-	return e.doEncodeTime(b, v, timez.DefaultTimestampFormat)
+	return e.doEncodeTime(b, v, e.formatDatetime)
 }
 
 func (e *colorEncoder) encodeDate(b []byte, v any) ([]byte, error) {
-	return e.doEncodeTime(b, v, timez.DefaultDateFormat)
+	return e.doEncodeTime(b, v, e.formatDate)
 }
 
-func (e *colorEncoder) doEncodeTime(b []byte, v any, layout string) ([]byte, error) {
+func (e *colorEncoder) doEncodeTime(b []byte, v any, fn func(time.Time) string) ([]byte, error) {
 	start := len(b)
 
 	switch v := v.(type) {
@@ -117,7 +126,8 @@ func (e *colorEncoder) doEncodeTime(b []byte, v any, layout string) ([]byte, err
 	case *time.Time:
 		b = append(b, e.clrs.Time.Prefix...)
 		b = append(b, '"')
-		b = v.AppendFormat(b, layout)
+		s := fn(*v)
+		b = append(b, []byte(s)...)
 		b = append(b, '"')
 		b = append(b, e.clrs.Time.Suffix...)
 		return b, nil
@@ -181,7 +191,10 @@ func (e *colorEncoder) encodeAny(b []byte, v any) ([]byte, error) {
 	case *time.Time:
 		b = append(b, e.clrs.Time.Prefix...)
 		b = append(b, '"')
-		b = v.AppendFormat(b, timez.DefaultTimestampFormat)
+		// We really shouldn't be hitting this path? Instead should
+		// hit encodeTime.
+		s := e.formatDatetime(*v)
+		b = append(b, []byte(s)...)
 		b = append(b, '"')
 		return append(b, e.clrs.Time.Suffix...), nil
 	}
@@ -230,7 +243,11 @@ func getFieldEncoders(recMeta sqlz.RecordMeta, pr *output.Printing) []func(b []b
 	encodeFns := make([]func(b []byte, v any) ([]byte, error), len(recMeta))
 
 	if pr.IsMonochrome() {
-		enc := monoEncoder{}
+		enc := monoEncoder{
+			formatDatetime: pr.FormatDatetime,
+			formatDate:     pr.FormatDate,
+			formatTime:     pr.FormatTime,
+		}
 
 		for i := 0; i < len(recMeta); i++ {
 			switch recMeta[i].Kind() { //nolint:exhaustive
@@ -251,7 +268,12 @@ func getFieldEncoders(recMeta sqlz.RecordMeta, pr *output.Printing) []func(b []b
 	clrs := internal.NewColors(pr)
 
 	// Else, we want color encoders
-	enc := &colorEncoder{clrs: clrs}
+	enc := &colorEncoder{
+		clrs:           clrs,
+		formatDatetime: pr.FormatDatetime,
+		formatDate:     pr.FormatDate,
+		formatTime:     pr.FormatTime,
+	}
 	for i := 0; i < len(recMeta); i++ {
 		switch recMeta[i].Kind() { //nolint:exhaustive
 		case kind.Time:

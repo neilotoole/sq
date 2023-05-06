@@ -4,7 +4,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/neilotoole/sq/libsq/core/timefmt"
+	"github.com/neilotoole/sq/libsq/core/timez"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
@@ -195,7 +195,7 @@ func newWriters(cmd *cobra.Command, opts options.Options, out, errOut io.Writer,
 		w.recordw = xmlw.NewRecordWriter(out2, pr)
 
 	case format.XLSX:
-		w.recordw = xlsxw.NewRecordWriter(out2, pr.ShowHeader)
+		w.recordw = xlsxw.NewRecordWriter(out2, pr)
 
 	case format.Raw:
 		w.recordw = raww.NewRecordWriter(out2, pr)
@@ -233,7 +233,7 @@ func getPrinting(cmd *cobra.Command, opts options.Options, out, errOut io.Writer
 	pr = output.NewPrinting()
 
 	timestampLayout := OptDatetimeFormat.Get(opts)
-	pr.FormatDatetime = timefmt.FormatFunc(timestampLayout)
+	pr.FormatDatetime = timez.FormatFunc(timestampLayout)
 
 	pr.Verbose = OptVerbose.Get(opts)
 	pr.FlushThreshold = OptTuningFlushThreshold.Get(opts)
