@@ -50,12 +50,12 @@ var (
 )
 
 // completeStrings completes from a slice of string.
-func completeStrings(max int, a ...string) completionFunc {
+func completeStrings(max int, a ...string) completionFunc { //nolint:unparam
 	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if max > 0 && len(args) >= max {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
-		a, _ = lo.Difference(a, args)
+
 		return a, cobra.ShellCompDirectiveNoFileComp
 	}
 }
@@ -234,7 +234,7 @@ func completeOptValue(cmd *cobra.Command, args []string, toComplete string) ([]s
 			// We return the default directive, so that the shell will offer
 			// regular ol' file completion.
 			return a, cobra.ShellCompDirectiveDefault
-		case OptTimestampFormat.Key():
+		case OptDatetimeFormat.Key():
 			return timefmt.NamedLayouts(), cobra.ShellCompDirectiveNoFileComp
 		}
 

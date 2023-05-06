@@ -88,14 +88,42 @@ a particular command, sq falls back to 'text'. Available formats:
 Generally, it is not necessary to fiddle this knob.`,
 	)
 
-	OptTimestampFormat = options.NewString(
-		"format.timestamp",
+	OptDatetimeFormat = options.NewString(
+		"format.datetime",
 		0,
 		"RFC3339",
 		"Timestamp format: constant such as RFC3339 or a strftime format",
 		`Timestamp format. This can be one of several predefined constants such
-as "RFC3339" or "unix", or a strftime format such as "%Y-%m-%d %H:%M:%S".`,
-		// TODO: List valid constants for format.timestamp
+as "RFC3339" or "Unix", or a strftime format such as "%Y-%m-%d %H:%M:%S".
+Available predefined values are:
+  ANSIC, DateOnly, DateTime, TimeOnly, ISO8601, RFC1123, RFC1123Z,
+  RFC3339, RFC3339Milli, RFC3339MilliZ, RFC3339Nano, RFC3339Z,
+  RFC822, RFC8222Z, RFC850, Unix, UnixDate, UnixMicro, UnixMilli, UnixNano`,
+	)
+
+	OptDateFormat = options.NewString(
+		"format.date",
+		0,
+		"DateOnly",
+		"Date format: constant such as DateOnly or a strftime format",
+		`Date format. This can be one of several predefined constants such
+as "DateOnly" or "Unix", or a strftime format such as "%Y-%m-%d".
+Available predefined values are:
+  ANSIC, DateOnly, DateTime, TimeOnly, ISO8601, RFC1123, RFC1123Z,
+  RFC3339, RFC3339Milli, RFC3339MilliZ, RFC3339Nano, RFC3339Z,
+  RFC822, RFC8222Z, RFC850, Unix, UnixDate, UnixMicro, UnixMilli, UnixNano`,
+	)
+	OptTimeFormat = options.NewString(
+		"format.time",
+		0,
+		"TimeOnly",
+		"Time format: constant such as TimeOnly or a strftime format",
+		`Time format. This can be one of several predefined constants such
+as "TimeOnly" or "Unix", or a strftime format such as "%Y-%m-%d".
+Available predefined values are:
+  ANSIC, DateOnly, DateTime, TimeOnly, ISO8601, RFC1123, RFC1123Z,
+  RFC3339, RFC3339Milli, RFC3339MilliZ, RFC3339Nano, RFC3339Z,
+  RFC822, RFC8222Z, RFC850, Unix, UnixDate, UnixMicro, UnixMilli, UnixNano`,
 	)
 )
 
@@ -156,11 +184,11 @@ func newWriters(cmd *cobra.Command, opts options.Options, out, errOut io.Writer,
 	// Table is the base format, already set above, no need to do anything.
 
 	case format.TSV:
-		w.recordw = csvw.NewRecordWriter(out2, pr.ShowHeader, csvw.Tab)
+		w.recordw = csvw.NewRecordWriter(out2, pr, csvw.Tab)
 		w.pingw = csvw.NewPingWriter(out2, csvw.Tab)
 
 	case format.CSV:
-		w.recordw = csvw.NewRecordWriter(out2, pr.ShowHeader, csvw.Comma)
+		w.recordw = csvw.NewRecordWriter(out2, pr, csvw.Comma)
 		w.pingw = csvw.NewPingWriter(out2, csvw.Comma)
 
 	case format.XML:
@@ -170,13 +198,13 @@ func newWriters(cmd *cobra.Command, opts options.Options, out, errOut io.Writer,
 		w.recordw = xlsxw.NewRecordWriter(out2, pr.ShowHeader)
 
 	case format.Raw:
-		w.recordw = raww.NewRecordWriter(out2)
+		w.recordw = raww.NewRecordWriter(out2, pr)
 
 	case format.HTML:
-		w.recordw = htmlw.NewRecordWriter(out2)
+		w.recordw = htmlw.NewRecordWriter(out2, pr)
 
 	case format.Markdown:
-		w.recordw = markdownw.NewRecordWriter(out2)
+		w.recordw = markdownw.NewRecordWriter(out2, pr)
 
 	case format.JSONA:
 		w.recordw = jsonw.NewArrayRecordWriter(out2, pr)
@@ -204,7 +232,7 @@ func getPrinting(cmd *cobra.Command, opts options.Options, out, errOut io.Writer
 ) (pr *output.Printing, out2, errOut2 io.Writer) {
 	pr = output.NewPrinting()
 
-	timestampLayout := OptTimestampFormat.Get(opts)
+	timestampLayout := OptDatetimeFormat.Get(opts)
 	pr.FormatDatetime = timefmt.FormatFunc(timestampLayout)
 
 	pr.Verbose = OptVerbose.Get(opts)

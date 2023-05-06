@@ -5,6 +5,8 @@ import (
 	"os"
 	"testing"
 
+	"github.com/neilotoole/sq/cli/output"
+
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli/output/htmlw"
@@ -30,7 +32,8 @@ func TestRecordWriter(t *testing.T) {
 			recs = recs[0:tc.numRecs]
 
 			buf := &bytes.Buffer{}
-			w := htmlw.NewRecordWriter(buf)
+			pr := output.NewPrinting()
+			w := htmlw.NewRecordWriter(buf, pr)
 			require.NoError(t, w.Open(recMeta))
 
 			require.NoError(t, w.WriteRecords(recs))

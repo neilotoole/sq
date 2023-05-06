@@ -153,7 +153,7 @@ More examples:
 
 	cmd.Flags().Bool(flag.CSVEmptyAsNull, true, flag.CSVEmptyAsNullUsage)
 	cmd.Flags().String(flag.CSVDelim, flag.CSVDelimDefault, flag.CSVDelimUsage)
-	panicOn(cmd.RegisterFlagCompletionFunc(flag.CSVDelim, completeStrings(1, csv.NamedDelims()...)))
+	panicOn(cmd.RegisterFlagCompletionFunc(flag.CSVDelim, completeStrings(-1, csv.NamedDelims()...)))
 
 	return cmd
 }

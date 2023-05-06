@@ -6,8 +6,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/timez"
-
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 
@@ -23,6 +21,7 @@ import (
 // encoding, etc.
 type recordWriter struct {
 	out     io.Writer
+	pr      *output.Printing
 	recMeta sqlz.RecordMeta
 }
 
@@ -31,8 +30,8 @@ type recordWriter struct {
 // such as a gif etc. The elements of each record are directly
 // written to the backing writer without any separator, or
 // encoding, etc..
-func NewRecordWriter(out io.Writer) output.RecordWriter {
-	return &recordWriter{out: out}
+func NewRecordWriter(out io.Writer, pr *output.Printing) output.RecordWriter {
+	return &recordWriter{out: out, pr: pr}
 }
 
 // Open implements output.RecordWriter.
@@ -64,11 +63,11 @@ func (w *recordWriter) WriteRecords(recs []sqlz.Record) error {
 			case *time.Time:
 				switch w.recMeta[i].Kind() { //nolint:exhaustive
 				default:
-					fmt.Fprint(w.out, val.Format(timez.DefaultTimestampFormat))
+					fmt.Fprint(w.out, w.pr.FormatDatetime(*val))
 				case kind.Time:
-					fmt.Fprint(w.out, val.Format(timez.DefaultTimeFormat))
+					fmt.Fprint(w.out, w.pr.FormatTime(*val))
 				case kind.Date:
-					fmt.Fprint(w.out, val.Format(timez.DefaultDateFormat))
+					fmt.Fprint(w.out, w.pr.FormatDate(*val))
 				}
 			default:
 				// should never happen

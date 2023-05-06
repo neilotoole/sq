@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/timefmt"
+
 	"github.com/neilotoole/sq/drivers"
 	"github.com/neilotoole/sq/drivers/csv"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -131,7 +133,9 @@ func applyCollectionOptions(cmd *cobra.Command, coll *source.Collection) error {
 func RegisterDefaultOpts(reg *options.Registry) {
 	reg.Add(
 		OptFormat,
-		OptTimestampFormat,
+		OptDatetimeFormat,
+		OptDateFormat,
+		OptTimeFormat,
 		OptVerbose,
 		OptPrintHeader,
 		OptMonochrome,
@@ -236,4 +240,13 @@ func addOptionFlag(flags *pflag.FlagSet, opt options.Opt) (key string) {
 
 	flags.StringP(key, string(opt.Short()), defVal, opt.Usage())
 	return key
+}
+
+func addTimeFormatOptions(cmd *cobra.Command) {
+	key := addOptionFlag(cmd.Flags(), OptDatetimeFormat)
+	panicOn(cmd.RegisterFlagCompletionFunc(key, completeStrings(-1, timefmt.NamedLayouts()...)))
+	key = addOptionFlag(cmd.Flags(), OptDateFormat)
+	panicOn(cmd.RegisterFlagCompletionFunc(key, completeStrings(-1, timefmt.NamedLayouts()...)))
+	key = addOptionFlag(cmd.Flags(), OptTimeFormat)
+	panicOn(cmd.RegisterFlagCompletionFunc(key, completeStrings(-1, timefmt.NamedLayouts()...)))
 }

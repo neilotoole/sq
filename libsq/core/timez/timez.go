@@ -38,7 +38,7 @@ const (
 
 	// ISO8601 is similar to RFC3339Milli, but doesn't have the colon
 	// in the timezone offset.
-	ISO8601 = "2006-01-02T15:04:05.000Z0700"
+	ISO8601 = "2006-01-02T15:04:05.000Z07:00"
 
 	// DateOnly is a date-only format.
 	DateOnly = time.DateOnly

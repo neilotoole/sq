@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/timez"
+	"github.com/neilotoole/sq/cli/output"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -28,13 +28,14 @@ type RecordWriter struct {
 	recMeta     sqlz.RecordMeta
 	csvW        *csv.Writer
 	needsHeader bool
+	pr          *output.Printing
 }
 
 // NewRecordWriter returns a writer instance.
-func NewRecordWriter(out io.Writer, header bool, sep rune) *RecordWriter {
+func NewRecordWriter(out io.Writer, pr *output.Printing, sep rune) *RecordWriter {
 	csvW := csv.NewWriter(out)
 	csvW.Comma = sep
-	return &RecordWriter{needsHeader: header, csvW: csvW}
+	return &RecordWriter{needsHeader: pr.ShowHeader, csvW: csvW, pr: pr}
 }
 
 // Open implements output.RecordWriter.
@@ -90,11 +91,11 @@ func (w *RecordWriter) WriteRecords(recs []sqlz.Record) error {
 			case *time.Time:
 				switch w.recMeta[i].Kind() { //nolint:exhaustive
 				default:
-					fields[i] = val.Format(timez.DefaultTimestampFormat)
+					fields[i] = w.pr.FormatDatetime(*val)
 				case kind.Time:
-					fields[i] = val.Format(timez.DefaultTimeFormat)
+					fields[i] = w.pr.FormatTime(*val)
 				case kind.Date:
-					fields[i] = val.Format(timez.DefaultDateFormat)
+					fields[i] = w.pr.FormatDate(*val)
 				}
 			}
 		}

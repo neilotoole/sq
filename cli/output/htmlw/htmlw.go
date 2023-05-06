@@ -10,8 +10,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/timez"
-
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq/core/kind"
 
@@ -23,13 +21,14 @@ import (
 // RecordWriter implements output.RecordWriter.
 type recordWriter struct {
 	recMeta sqlz.RecordMeta
+	pr      *output.Printing
 	out     io.Writer
 	buf     *bytes.Buffer
 }
 
 // NewRecordWriter an output.RecordWriter for HTML.
-func NewRecordWriter(out io.Writer) output.RecordWriter {
-	return &recordWriter{out: out}
+func NewRecordWriter(out io.Writer, pr *output.Printing) output.RecordWriter {
+	return &recordWriter{out: out, pr: pr}
 }
 
 // Open implements output.RecordWriter.
@@ -114,11 +113,11 @@ func (w *recordWriter) writeRecord(rec sqlz.Record) error {
 		case *time.Time:
 			switch w.recMeta[i].Kind() { //nolint:exhaustive
 			default:
-				s = val.Format(timez.DefaultTimestampFormat)
+				s = w.pr.FormatDatetime(*val)
 			case kind.Time:
-				s = val.Format(timez.DefaultTimeFormat)
+				s = w.pr.FormatTime(*val)
 			case kind.Date:
-				s = val.Format(timez.DefaultDateFormat)
+				s = w.pr.FormatDate(*val)
 			}
 		}
 

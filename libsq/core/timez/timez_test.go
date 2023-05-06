@@ -4,10 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-
-	"github.com/ncruces/go-strftime"
-
 	"github.com/neilotoole/sq/libsq/core/timez"
 	"github.com/neilotoole/sq/testh/tutil"
 	"github.com/stretchr/testify/require"
@@ -76,25 +72,4 @@ func TestZuluTimestamp(t *testing.T) {
 	)
 	got := timez.TimestampToRFC3339(input)
 	require.Equal(t, want, got)
-}
-
-func TestTimeTest(t *testing.T) {
-	// FIXME: delete TestTimeTest
-	stdlib := mar1denver.Format(time.RFC3339)
-	moi := mar1denver.Format(timez.RFC3339Variant)
-	iso8601 := mar1denver.Format(timez.ISO8601)
-	_ = moi
-	// assert.Equal(t, stdlib, moi)
-	assert.Equal(t, stdlib, iso8601)
-}
-
-func TestNamedLayout(t *testing.T) {
-	epoch := "%s"
-
-	s := strftime.Format(epoch, time.Now())
-	t.Log(s)
-
-	unix, err := strftime.Layout("%s")
-	require.NoError(t, err)
-	t.Log(unix)
 }

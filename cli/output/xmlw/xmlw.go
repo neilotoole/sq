@@ -10,8 +10,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/timez"
-
 	"github.com/fatih/color"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -200,11 +198,11 @@ func (w *recordWriter) writeRecord(rec sqlz.Record) error {
 		case *time.Time:
 			switch w.recMeta[i].Kind() { //nolint:exhaustive
 			default:
-				w.fieldPrintFns[i](w.outBuf, val.Format(timez.DefaultTimestampFormat))
+				w.fieldPrintFns[i](w.outBuf, w.pr.FormatDatetime(*val))
 			case kind.Time:
-				w.fieldPrintFns[i](w.outBuf, val.Format(timez.DefaultTimeFormat))
+				w.fieldPrintFns[i](w.outBuf, w.pr.FormatTime(*val))
 			case kind.Date:
-				w.fieldPrintFns[i](w.outBuf, val.Format(timez.DefaultDateFormat))
+				w.fieldPrintFns[i](w.outBuf, w.pr.FormatDate(*val))
 			}
 		}
 
