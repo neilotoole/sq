@@ -120,4 +120,19 @@ func TestRegisterDefaultOpts(t *testing.T) {
 
 	keys := reg.Keys()
 	require.Len(t, keys, 26)
+
+	for _, opt := range reg.Opts() {
+		opt := opt
+		t.Run(opt.Key(), func(t *testing.T) {
+			require.NotNil(t, opt)
+			require.NotEmpty(t, opt.Key())
+			require.NotNil(t, opt.GetAny(nil))
+			require.NotNil(t, opt.DefaultAny())
+			require.Equal(t, opt.GetAny(nil), opt.DefaultAny())
+			require.NotEmpty(t, opt.Usage())
+			require.True(t, opt.Short() >= 0)
+			require.Equal(t, opt.Key(), opt.String())
+			require.NotEmpty(t, opt.Help())
+		})
+	}
 }

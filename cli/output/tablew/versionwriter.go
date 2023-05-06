@@ -45,5 +45,16 @@ func (w *versionWriter) Version(bi buildinfo.BuildInfo, latestVersion string) er
 	}
 
 	fmt.Fprintln(w.out)
+
+	if w.pr.Verbose {
+		// Follow GNU standards (mostly)
+		// https://www.gnu.org/prep/standards/html_node/_002d_002dversion.html#g_t_002d_002dversion
+		const notice = `
+Copyright (c) 2023 Neil O'Toole
+MIT License:  https://opensource.org/license/mit
+Website:      https://sq.io
+Source code:  https://github.com/neilotoole/sq`
+		w.pr.Faint.Fprintln(w.out, notice)
+	}
 	return nil
 }

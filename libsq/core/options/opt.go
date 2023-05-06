@@ -98,7 +98,7 @@ func (op BaseOpt) Usage() string {
 	return op.usage
 }
 
-// Doc implements options.Opt.
+// Help implements options.Opt.
 func (op BaseOpt) Help() string {
 	return op.help
 }
@@ -115,12 +115,12 @@ func (op BaseOpt) IsSet(o Options) bool {
 // GetAny is required by options.Opt. It needs to be implemented
 // by the concrete type.
 func (op BaseOpt) GetAny(_ Options) any {
-	panic(fmt.Sprintf("not implemented for: %s", op.key))
+	panic(fmt.Sprintf("GetAny not implemented for: %s", op.key))
 }
 
 // DefaultAny implements options.Opt.
 func (op BaseOpt) DefaultAny() any {
-	return op.GetAny(nil)
+	panic(fmt.Sprintf("DefaultAny not implemented for: %s", op.key))
 }
 
 // String implements options.Opt.
@@ -157,6 +157,11 @@ type String struct {
 // GetAny implements options.Opt.
 func (op String) GetAny(o Options) any {
 	return op.Get(o)
+}
+
+// DefaultAny implements options.Opt.
+func (op String) DefaultAny() any {
+	return op.defaultVal
 }
 
 // Default returns the default value of op.
@@ -209,6 +214,11 @@ func (op Int) Default() int {
 // GetAny implements options.Opt.
 func (op Int) GetAny(o Options) any {
 	return op.Get(o)
+}
+
+// DefaultAny implements options.Opt.
+func (op Int) DefaultAny() any {
+	return op.defaultVal
 }
 
 // Get returns op's value in o. If o is nil, or no value
@@ -326,6 +336,11 @@ type Bool struct {
 // GetAny implements options.Opt.
 func (op Bool) GetAny(opts Options) any {
 	return op.Get(opts)
+}
+
+// DefaultAny implements options.Opt.
+func (op Bool) DefaultAny() any {
+	return op.defaultVal
 }
 
 // Get returns op's value in o. If o is nil, or no value
@@ -460,6 +475,11 @@ func (op Duration) Process(o Options) (Options, error) {
 // GetAny implements options.Opt.
 func (op Duration) GetAny(o Options) any {
 	return op.Get(o)
+}
+
+// DefaultAny implements options.Opt.
+func (op Duration) DefaultAny() any {
+	return op.defaultVal
 }
 
 // Get returns op's value in o. If o is nil, or no value

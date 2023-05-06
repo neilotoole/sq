@@ -399,3 +399,8 @@ func (op LogLevelOpt) Get(o options.Options) slog.Level {
 func (op LogLevelOpt) GetAny(o options.Options) any {
 	return op.Get(o)
 }
+
+// DefaultAny implements options.Opt.
+func (op LogLevelOpt) DefaultAny() any {
+	return op.defaultVal
+}

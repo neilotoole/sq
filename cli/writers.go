@@ -50,9 +50,12 @@ to certain formats, such as "text" or "csv".`,
 		"format",
 		format.Text,
 		"Output format",
-		`Specify the output format. Some formats are only implemented
-for a subset of sq's commands. If the specified format is not available for
-a particular command, sq falls back to 'text'. Available formats:
+
+		`
+Specify the output format. Some formats are only implemented for a subset of
+sq's commands. If the specified format is not available for a particular
+command, sq falls back to 'text'. Available formats:
+
   text, csv, tsv, xlsx,
   json, jsona, jsonl,
   markdown, html, xml, yaml, raw`,
@@ -423,6 +426,11 @@ func (op FormatOpt) Process(o options.Options) (options.Options, error) {
 // GetAny implements options.Opt.
 func (op FormatOpt) GetAny(o options.Options) any {
 	return op.Get(o)
+}
+
+// DefaultAny implements options.Opt.
+func (op FormatOpt) DefaultAny() any {
+	return op.defaultVal
 }
 
 // Get returns op's value in o. If o is nil, or no value
