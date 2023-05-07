@@ -59,7 +59,7 @@ func (w *configWriter) Opt(o options.Options, opt options.Opt) error {
 
 // Options implements output.ConfigWriter.
 func (w *configWriter) Options(reg *options.Registry, o options.Options) error {
-	if len(o) == 0 {
+	if len(o) == 0 && !w.pr.Verbose {
 		return nil
 	}
 

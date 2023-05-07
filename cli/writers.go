@@ -53,7 +53,7 @@ to certain formats, such as "text" or "csv".`,
 
 		`Specify the output format. Some formats are only implemented for a subset of
 sq's commands. If the specified format is not available for a particular
-command, sq falls back to 'text'. Available formats:
+command, sq falls back to "text". Available formats:
 
   text, csv, tsv, xlsx,
   json, jsona, jsonl,
