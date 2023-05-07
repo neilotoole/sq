@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Breaking changes are annotated with ☢️.
 
+## [v0.34.1] - 2023-05-07
+
+### Fixed
+
+- Fixed a minor issue where `sq ls -jv` and `sq ls -yv` produced no output
+  if config contained no explicitly set options.
+
 ## [v0.34.0] - 2023-05-07
 
 This release significantly overhauls `sq`'s config mechanism ([#199]).
