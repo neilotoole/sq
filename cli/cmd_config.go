@@ -27,6 +27,9 @@ func newConfigCmd() *cobra.Command {
   # Set option value
   $ sq config set format json
 
+  # Help for an option
+  $ sq config set format --help
+
   # Edit base config
   $ sq config edit
 

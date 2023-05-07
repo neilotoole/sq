@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neilotoole/sq/cli/output"
+
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli/output/csvw"
@@ -24,7 +26,10 @@ func TestDateTimeHandling(t *testing.T) {
 	recMeta := testh.NewRecordMeta(colNames, kinds)
 	buf := &bytes.Buffer{}
 
-	w := csvw.NewRecordWriter(buf, false, csvw.Tab)
+	pr := output.NewPrinting()
+	pr.ShowHeader = false
+
+	w := csvw.NewRecordWriter(buf, pr, csvw.Tab)
 	require.NoError(t, w.Open(recMeta))
 
 	rec := sqlz.Record{&when, &when, &when}

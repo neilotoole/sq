@@ -198,11 +198,11 @@ func (w *recordWriter) writeRecord(rec sqlz.Record) error {
 		case *time.Time:
 			switch w.recMeta[i].Kind() { //nolint:exhaustive
 			default:
-				w.fieldPrintFns[i](w.outBuf, val.Format(stringz.DatetimeFormat))
+				w.fieldPrintFns[i](w.outBuf, w.pr.FormatDatetime(*val))
 			case kind.Time:
-				w.fieldPrintFns[i](w.outBuf, val.Format(stringz.TimeFormat))
+				w.fieldPrintFns[i](w.outBuf, w.pr.FormatTime(*val))
 			case kind.Date:
-				w.fieldPrintFns[i](w.outBuf, val.Format(stringz.DateFormat))
+				w.fieldPrintFns[i](w.outBuf, w.pr.FormatDate(*val))
 			}
 		}
 

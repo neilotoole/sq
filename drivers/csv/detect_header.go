@@ -1,7 +1,11 @@
 package csv
 
 import (
+	"context"
 	"strings"
+
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"github.com/neilotoole/sq/drivers"
 	"github.com/neilotoole/sq/libsq/core/options"
@@ -13,9 +17,13 @@ import (
 // hasHeaderRow returns true if a header row is explicitly
 // set in opts, or if detectHeaderRow detects that the first
 // row of recs seems to be a header.
-func hasHeaderRow(recs [][]string, opts options.Options) (bool, error) {
+func hasHeaderRow(ctx context.Context, recs [][]string, opts options.Options) (bool, error) {
 	if drivers.OptIngestHeader.IsSet(opts) {
-		return drivers.OptIngestHeader.Get(opts), nil
+		b := drivers.OptIngestHeader.Get(opts)
+		lg.FromContext(ctx).Debug("CSV ingest header explicitly specified: skipping header detection",
+			lga.Key, drivers.OptIngestHeader.Key(),
+			lga.Val, b)
+		return b, nil
 	}
 
 	return detectHeaderRow(recs)

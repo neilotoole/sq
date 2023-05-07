@@ -25,19 +25,26 @@ import (
 var (
 	OptLogEnabled = options.NewBool(
 		"log",
+		0,
 		false,
+		"Enable logging",
 		"Enable logging.",
 	)
 
 	OptLogFile = options.NewString(
 		"log.file",
+		0,
 		getDefaultLogFilePath(),
-		`Path to log file. Empty value disables logging.`)
+		"Log file path",
+		`Path to log file. Empty value disables logging.`,
+	)
 
 	OptLogLevel = NewLogLevelOpt(
 		"log.level",
 		slog.LevelDebug,
-		`Log level, one of DEBUG, INFO, WARN, ERROR.`)
+		`Log level, one of: DEBUG, INFO, WARN, ERROR`,
+		"Log level, one of: DEBUG, INFO, WARN, ERROR.",
+	)
 )
 
 // defaultLogging returns a *slog.Logger, its slog.Handler, and
@@ -310,45 +317,15 @@ func getDefaultLogFilePath() string {
 var _ options.Opt = LogLevelOpt{}
 
 // NewLogLevelOpt returns a new LogLevelOpt instance.
-func NewLogLevelOpt(key string, defaultVal slog.Level, comment string, tags ...string) LogLevelOpt {
-	return LogLevelOpt{key: key, defaultVal: defaultVal, comment: comment, tags: tags}
+func NewLogLevelOpt(key string, defaultVal slog.Level, usage, help string) LogLevelOpt {
+	opt := options.NewBaseOpt(key, 0, usage, help)
+	return LogLevelOpt{BaseOpt: opt, defaultVal: defaultVal}
 }
 
 // LogLevelOpt is an options.Opt for slog.Level.
 type LogLevelOpt struct {
-	key        string
-	comment    string
+	options.BaseOpt
 	defaultVal slog.Level
-	tags       []string
-}
-
-// Comment implements options.Opt.
-func (op LogLevelOpt) Comment() string {
-	return op.comment
-}
-
-// Tags implements options.Opt.
-func (op LogLevelOpt) Tags() []string {
-	return op.tags
-}
-
-// Key implements options.Opt.
-func (op LogLevelOpt) Key() string {
-	return op.key
-}
-
-// String implements options.Opt.
-func (op LogLevelOpt) String() string {
-	return op.key
-}
-
-// IsSet implements options.Opt.
-func (op LogLevelOpt) IsSet(o options.Options) bool {
-	if o == nil {
-		return false
-	}
-
-	return o.IsSet(op)
 }
 
 // Process implements options.Processor. It converts matching
@@ -360,7 +337,8 @@ func (op LogLevelOpt) Process(o options.Options) (options.Options, error) {
 		return nil, nil
 	}
 
-	v, ok := o[op.key]
+	key := op.Key()
+	v, ok := o[key]
 	if !ok || v == nil {
 		return o, nil
 	}
@@ -376,29 +354,24 @@ func (op LogLevelOpt) Process(o options.Options) (options.Options, error) {
 		return o, nil
 	default:
 		return nil, errz.Errorf("option {%s} should be {%T} or {%T} but got {%T}: %v",
-			op.key, slog.LevelDebug, "", x, x)
+			key, slog.LevelDebug, "", x, x)
 	}
 
 	var s string
 	s, ok = v.(string)
 	if !ok {
 		return nil, errz.Errorf("option {%s} should be {%T} but got {%T}: %v",
-			op.key, s, v, v)
+			key, s, v, v)
 	}
 
 	var lvl slog.Level
 	if err := lvl.UnmarshalText([]byte(s)); err != nil {
-		return nil, errz.Wrapf(err, "option {%s} is not a valid {%T}", op.key, lvl)
+		return nil, errz.Wrapf(err, "option {%s} is not a valid {%T}", key, lvl)
 	}
 
 	o = o.Clone()
-	o[op.key] = lvl
+	o[key] = lvl
 	return o, nil
-}
-
-// GetAny implements options.Opt.
-func (op LogLevelOpt) GetAny(o options.Options) any {
-	return op.Get(o)
 }
 
 // Get returns op's value in o. If o is nil, or no value
@@ -408,7 +381,7 @@ func (op LogLevelOpt) Get(o options.Options) slog.Level {
 		return op.defaultVal
 	}
 
-	v, ok := o[op.key]
+	v, ok := o[op.Key()]
 	if !ok {
 		return op.defaultVal
 	}
@@ -420,4 +393,14 @@ func (op LogLevelOpt) Get(o options.Options) slog.Level {
 	}
 
 	return lvl
+}
+
+// GetAny implements options.Opt.
+func (op LogLevelOpt) GetAny(o options.Options) any {
+	return op.Get(o)
+}
+
+// DefaultAny implements options.Opt.
+func (op LogLevelOpt) DefaultAny() any {
+	return op.defaultVal
 }

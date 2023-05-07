@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/neilotoole/sq/cli/output"
+
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli/output/markdownw"
@@ -41,7 +43,7 @@ func TestRecordWriter(t *testing.T) {
 			recs = recs[0:tc.numRecs]
 
 			buf := &bytes.Buffer{}
-			w := markdownw.NewRecordWriter(buf)
+			w := markdownw.NewRecordWriter(buf, output.NewPrinting())
 			require.NoError(t, w.Open(recMeta))
 
 			require.NoError(t, w.WriteRecords(recs))

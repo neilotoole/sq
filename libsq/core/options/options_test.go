@@ -39,7 +39,7 @@ func TestOptions(t *testing.T) {
 	cfg.Options, err = reg.Process(cfg.Options)
 	require.NoError(t, err)
 
-	require.Equal(t, format.CSV, cli.OptOutputFormat.Get(cfg.Options))
+	require.Equal(t, format.CSV, cli.OptFormat.Get(cfg.Options))
 	require.Equal(t, true, cli.OptPrintHeader.Get(cfg.Options))
 	require.Equal(t, time.Second*10, cli.OptPingTimeout.Get(cfg.Options))
 	require.Equal(t, time.Millisecond*500, cli.OptShellCompletionTimeout.Get(cfg.Options))
@@ -72,7 +72,7 @@ func TestInt(t *testing.T) {
 		t.Run(tutil.Name(i, tc.key), func(t *testing.T) {
 			reg := &options.Registry{}
 
-			opt := options.NewInt(tc.key, tc.defaultVal, "")
+			opt := options.NewInt(tc.key, 0, tc.defaultVal, "", "")
 			reg.Add(opt)
 
 			o := options.Options{tc.key: tc.input}
@@ -118,7 +118,7 @@ func TestBool(t *testing.T) {
 		t.Run(tutil.Name(i, tc.key), func(t *testing.T) {
 			reg := &options.Registry{}
 
-			opt := options.NewBool(tc.key, tc.defaultVal, "")
+			opt := options.NewBool(tc.key, 0, tc.defaultVal, "", "")
 			reg.Add(opt)
 
 			o := options.Options{tc.key: tc.input}
@@ -159,8 +159,8 @@ func TestOptions_LogValue(t *testing.T) {
 }
 
 func TestEffective(t *testing.T) {
-	optHello := options.NewString("hello", "world", "")
-	optCount := options.NewInt("count", 1, "")
+	optHello := options.NewString("hello", 0, "world", "", "")
+	optCount := options.NewInt("count", 0, 1, "", "")
 
 	in := options.Options{"count": 7}
 	want := options.Options{"count": 7, "hello": "world"}

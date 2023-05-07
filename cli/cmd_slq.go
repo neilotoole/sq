@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/drivers/csv"
 	"golang.org/x/exp/slices"
@@ -330,7 +332,8 @@ func preprocessUserSLQ(ctx context.Context, rc *RunContext, args []string) (stri
 	query := strings.Join(args, " ")
 	query = fmt.Sprintf("%s | %s", activeSrc.Handle, query)
 
-	log.Debug("The query didn't start with @handle, so the active src was prepended: ", query)
+	log.Debug("The query didn't start with @handle, so the active src was prepended",
+		lga.Query, query)
 
 	return query, nil
 }
@@ -349,6 +352,8 @@ func addQueryCmdFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolP(flag.XML, flag.XMLShort, false, flag.XMLUsage)
 	cmd.Flags().BoolP(flag.Compact, flag.CompactShort, false, flag.CompactUsage)
 
+	addTimeFormatOptsFlags(cmd)
+
 	cmd.Flags().StringP(flag.Output, flag.OutputShort, "", flag.OutputUsage)
 
 	cmd.Flags().String(flag.Insert, "", flag.InsertUsage)
@@ -365,7 +370,7 @@ func addQueryCmdFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool(flag.IngestHeader, false, flag.IngestHeaderUsage)
 	cmd.Flags().Bool(flag.CSVEmptyAsNull, true, flag.CSVEmptyAsNullUsage)
 	cmd.Flags().String(flag.CSVDelim, flag.CSVDelimDefault, flag.CSVDelimUsage)
-	panicOn(cmd.RegisterFlagCompletionFunc(flag.CSVDelim, completeStrings(1, csv.NamedDelims()...)))
+	panicOn(cmd.RegisterFlagCompletionFunc(flag.CSVDelim, completeStrings(-1, csv.NamedDelims()...)))
 }
 
 // extractFlagArgsValues returns a map {key:value} of predefined variables

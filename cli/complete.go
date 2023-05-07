@@ -5,6 +5,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/timez"
+
 	"github.com/neilotoole/sq/cli/flag"
 
 	"github.com/neilotoole/sq/libsq/core/stringz"
@@ -30,7 +32,9 @@ import (
 // giving up.
 var OptShellCompletionTimeout = options.NewDuration(
 	"shell-completion.timeout",
+	0,
 	time.Millisecond*500,
+	"shell completion timeout",
 	`How long shell completion should wait before giving up. This can
 become relevant when shell completion inspects a source's metadata, e.g. to
 offer a list of tables in a source.`,
@@ -46,14 +50,19 @@ var (
 )
 
 // completeStrings completes from a slice of string.
-func completeStrings(max int, a ...string) completionFunc {
+func completeStrings(max int, a ...string) completionFunc { //nolint:unparam
 	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if max > 0 && len(args) >= max {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
-		a, _ = lo.Difference(a, args)
+
 		return a, cobra.ShellCompDirectiveNoFileComp
 	}
+}
+
+// completeBool returns "true" and "false".
+func completeBool(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
+	return []string{"true", "false"}, cobra.ShellCompDirectiveNoFileComp
 }
 
 // completeHandle is a completionFunc that suggests handles.
@@ -225,11 +234,15 @@ func completeOptValue(cmd *cobra.Command, args []string, toComplete string) ([]s
 	var a []string
 	switch opt.(type) {
 	case options.String:
-		if opt.Key() == OptLogFile.Key() {
+		switch opt.Key() {
+		case OptLogFile.Key():
 			// We return the default directive, so that the shell will offer
 			// regular ol' file completion.
 			return a, cobra.ShellCompDirectiveDefault
+		case OptDatetimeFormat.Key(), OptTimeFormat.Key(), OptDateFormat.Key():
+			return timez.NamedLayouts(), cobra.ShellCompDirectiveNoFileComp
 		}
+
 	case LogLevelOpt:
 		a = []string{"debug", "DEBUG", "info", "INFO", "warn", "WARN", "error", "ERROR"}
 	case FormatOpt:

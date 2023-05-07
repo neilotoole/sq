@@ -2,6 +2,9 @@ package cli
 
 import (
 	"fmt"
+	"strings"
+
+	"github.com/samber/lo"
 
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -13,13 +16,14 @@ import (
 
 func newConfigSetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:               "set",
+		Use:               "set OPTION VALUE",
 		RunE:              execConfigSet,
 		Args:              cobra.RangeArgs(1, 2),
 		ValidArgsFunction: completeConfigSet,
 		Short:             "Set config value",
-		Long: `Set base config value, or set value for a specific source.
-Use "sq config get -v" to see available options.`,
+		Long: `Set option value, for base config, or for a specified source.
+To get help for an individual option, use "sq config set OPTION --help".
+Use "sq config get -v" to list available options.`,
 		Example: `  # Set base output format
   $ sq config set format json
 
@@ -30,7 +34,10 @@ Use "sq config get -v" to see available options.`,
   $ sq config set --src @sakila conn.max-open 50
 
   # Delete an option (resets to default value)
-  $ sq config set -D conn.max-open`,
+  $ sq config set -D conn.max-open
+
+  # Help for an individual option
+  $ sq config set conn.max-open --help`,
 	}
 
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
@@ -41,6 +48,8 @@ Use "sq config get -v" to see available options.`,
 	panicOn(cmd.RegisterFlagCompletionFunc(flag.ConfigSrc, completeHandle(1)))
 
 	cmd.Flags().BoolP(flag.ConfigDelete, flag.ConfigDeleteShort, false, flag.ConfigDeleteUsage)
+
+	cmd.SetHelpFunc(helpConfigSet)
 
 	return cmd
 }
@@ -141,4 +150,50 @@ func completeConfigSet(cmd *cobra.Command, args []string, toComplete string) ([]
 		// Maximum of two args
 		return nil, cobra.ShellCompDirectiveError
 	}
+}
+
+// helpConfigSet is a custom help function for "sq config set KEY".
+func helpConfigSet(cmd *cobra.Command, arr []string) {
+	hlp := cmd.Parent().HelpFunc()
+	rc := RunContextFrom(cmd.Context())
+	if rc == nil || rc.OptionsRegistry == nil || len(arr) < 4 {
+		hlp(cmd, arr)
+		return
+	}
+
+	// Flags are not parsed yet. Do a poor man's parsing to
+	// eliminate noise.
+	a := lo.Reject(arr, func(item string, index int) bool {
+		if strings.HasPrefix(item, "-") {
+			return true
+		}
+
+		if index-1 > 0 {
+			if arr[index-1] == "--src" {
+				return true
+			}
+		}
+
+		return false
+	})
+
+	key := a[len(a)-1]
+	opt := rc.OptionsRegistry.Get(key)
+	if opt == nil {
+		hlp(cmd, arr)
+		return
+	}
+
+	const tpl = `Set config value.
+
+Usage:
+  sq config set %s %v
+
+%s
+
+See docs for more: https://sq.io/docs/config
+`
+
+	w := cmd.OutOrStdout()
+	fmt.Fprintf(w, tpl, key, opt.DefaultAny(), opt.Help())
 }

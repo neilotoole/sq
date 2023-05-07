@@ -1,7 +1,10 @@
 package cli
 
 import (
+	"fmt"
 	"strings"
+
+	"github.com/neilotoole/sq/libsq/core/timez"
 
 	"github.com/neilotoole/sq/drivers"
 	"github.com/neilotoole/sq/drivers/csv"
@@ -129,7 +132,13 @@ func applyCollectionOptions(cmd *cobra.Command, coll *source.Collection) error {
 // that the CLI knows about.
 func RegisterDefaultOpts(reg *options.Registry) {
 	reg.Add(
-		OptOutputFormat,
+		OptFormat,
+		OptDatetimeFormat,
+		OptDatetimeFormatAsNumber,
+		OptDateFormat,
+		OptDateFormatAsNumber,
+		OptTimeFormat,
+		OptTimeFormatAsNumber,
 		OptVerbose,
 		OptPrintHeader,
 		OptMonochrome,
@@ -189,4 +198,68 @@ func filterOptionsForSrc(typ source.DriverType, opts ...options.Opt) []options.O
 	})
 
 	return opts
+}
+
+// addOptionFlag adds a flag derived from opt to flags, returning the key.
+func addOptionFlag(flags *pflag.FlagSet, opt options.Opt) (key string) {
+	key = opt.Key()
+	switch opt := opt.(type) {
+	case options.Int:
+		if opt.Short() == 0 {
+			flags.Int(key, opt.Get(nil), opt.Usage())
+			return key
+		}
+
+		flags.IntP(key, string(opt.Short()), opt.Get(nil), opt.Usage())
+		return key
+	case options.Bool:
+		if opt.Short() == 0 {
+			flags.Bool(key, opt.Get(nil), opt.Usage())
+			return key
+		}
+
+		flags.BoolP(key, string(opt.Short()), opt.Get(nil), opt.Usage())
+		return
+	case options.Duration:
+		if opt.Short() == 0 {
+			flags.Duration(key, opt.Get(nil), opt.Usage())
+			return key
+		}
+
+		flags.DurationP(key, string(opt.Short()), opt.Get(nil), opt.Usage())
+	default:
+		// Treat as string
+	}
+
+	defVal := ""
+	if v := opt.GetAny(nil); v != nil {
+		defVal = fmt.Sprintf("%v", v)
+	}
+
+	if opt.Short() == 0 {
+		flags.String(key, defVal, opt.Usage())
+		return key
+	}
+
+	flags.StringP(key, string(opt.Short()), defVal, opt.Usage())
+	return key
+}
+
+// addTimeFormatOptsFlags adds the time format Opts flags to cmd.
+// See: OptDatetimeFormat, OptDateFormat, OptTimeFormat.
+func addTimeFormatOptsFlags(cmd *cobra.Command) {
+	key := addOptionFlag(cmd.Flags(), OptDatetimeFormat)
+	panicOn(cmd.RegisterFlagCompletionFunc(key, completeStrings(-1, timez.NamedLayouts()...)))
+	key = addOptionFlag(cmd.Flags(), OptDatetimeFormatAsNumber)
+	panicOn(cmd.RegisterFlagCompletionFunc(key, completeBool))
+
+	key = addOptionFlag(cmd.Flags(), OptDateFormat)
+	panicOn(cmd.RegisterFlagCompletionFunc(key, completeStrings(-1, timez.NamedLayouts()...)))
+	key = addOptionFlag(cmd.Flags(), OptDateFormatAsNumber)
+	panicOn(cmd.RegisterFlagCompletionFunc(key, completeBool))
+
+	key = addOptionFlag(cmd.Flags(), OptTimeFormat)
+	panicOn(cmd.RegisterFlagCompletionFunc(key, completeStrings(-1, timez.NamedLayouts()...)))
+	key = addOptionFlag(cmd.Flags(), OptTimeFormatAsNumber)
+	panicOn(cmd.RegisterFlagCompletionFunc(key, completeBool))
 }

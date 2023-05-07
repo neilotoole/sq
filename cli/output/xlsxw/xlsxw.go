@@ -5,10 +5,8 @@ import (
 	"io"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/kind"
-	"github.com/neilotoole/sq/libsq/core/stringz"
-
 	"github.com/neilotoole/sq/cli/output"
+	"github.com/neilotoole/sq/libsq/core/kind"
 
 	"github.com/tealeg/xlsx/v2"
 
@@ -18,6 +16,7 @@ import (
 
 type recordWriter struct {
 	recMeta sqlz.RecordMeta
+	pr      *output.Printing
 	out     io.Writer
 	header  bool
 	xfile   *xlsx.File
@@ -25,8 +24,8 @@ type recordWriter struct {
 }
 
 // NewRecordWriter returns an output.RecordWriter instance for XLSX.
-func NewRecordWriter(out io.Writer, header bool) output.RecordWriter {
-	return &recordWriter{out: out, header: header}
+func NewRecordWriter(out io.Writer, pr *output.Printing) output.RecordWriter {
+	return &recordWriter{out: out, header: pr.ShowHeader}
 }
 
 // Open implements output.RecordWriter.
@@ -97,7 +96,7 @@ func (w *recordWriter) WriteRecords(recs []sqlz.Record) error {
 					// TODO: Maybe there's a way of setting a specific
 					//  time (as opposed to date or datetime) value, but
 					//  for now we just use a string.
-					cell.SetValue(val.Format(stringz.TimeFormat))
+					cell.SetValue(w.pr.FormatTime(*val))
 				}
 			default:
 				// should never happen

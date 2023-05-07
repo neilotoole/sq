@@ -1,12 +1,17 @@
 package output
 
 import (
+	"time"
+
+	"github.com/neilotoole/sq/libsq/core/timez"
+
 	"github.com/fatih/color"
 	"golang.org/x/exp/slog"
 )
 
 // Printing describes color and pretty-printing options.
 type Printing struct {
+	// monochrome is controlled by EnableColor.
 	monochrome bool
 
 	// FlushThreshold is the size in bytes after which an output writer
@@ -35,6 +40,33 @@ type Printing struct {
 	//
 	// TODO: Redact is not being honored by the writers.
 	Redact bool
+
+	// FormatDatetime formats a timestamp e.g. 2020-11-12T13:14:15Z.
+	// Defaults to timez.DefaultDatetime.
+	FormatDatetime func(time time.Time) string
+
+	// FormatDatetimeAsNumber indicates that datetime values should be
+	// rendered as naked numbers (instead of as a string) if possible.
+	// See cli.OptDatetimeFormatAsNumber.
+	FormatDatetimeAsNumber bool
+
+	// FormatTime formats a time of day, e.g. 13:14:15.
+	// Defaults to timez.DefaultTime.
+	FormatTime func(time time.Time) string
+
+	// FormatTimeAsNumber indicates that time values should be
+	// rendered as naked numbers (instead of as a string) if possible.
+	// See cli.OptTimeFormatAsNumber.
+	FormatTimeAsNumber bool
+
+	// FormatDate formats a date, e.g. 2020-11-12.
+	// Defaults to timez.DefaultDate.
+	FormatDate func(time time.Time) string
+
+	// FormatDateAsNumber indicates that date values should be
+	// rendered as naked numbers (instead of as a string) if possible.
+	// See cli.OptDateFormatAsNumber.
+	FormatDateAsNumber bool
 
 	// Active is the color for an active handle (or group, etc).
 	Active *color.Color
@@ -98,33 +130,38 @@ type Printing struct {
 // are enabled. The default indent is two spaces.
 func NewPrinting() *Printing {
 	pr := &Printing{
-		ShowHeader:     true,
-		Verbose:        false,
-		Compact:        false,
-		Redact:         true,
-		FlushThreshold: 1000,
-		monochrome:     false,
-		Indent:         "  ",
-		Active:         color.New(color.FgGreen, color.Bold),
-		Bold:           color.New(color.Bold),
-		Bool:           color.New(color.FgYellow),
-		Bytes:          color.New(color.Faint),
-		Datetime:       color.New(color.FgGreen, color.Faint),
-		Duration:       color.New(color.FgGreen, color.Faint),
-		Error:          color.New(color.FgRed, color.Bold),
-		Faint:          color.New(color.Faint),
-		Handle:         color.New(color.FgBlue),
-		Header:         color.New(color.FgBlue),
-		// Header:         color.New(color.FgBlue, color.Bold),
-		Hilite:   color.New(color.FgHiBlue),
-		Key:      color.New(color.FgBlue, color.Bold),
-		Location: color.New(color.FgGreen),
-		Normal:   color.New(),
-		Null:     color.New(color.Faint),
-		Number:   color.New(color.FgCyan),
-		Punc:     color.New(color.Bold),
-		String:   color.New(color.FgGreen),
-		Success:  color.New(color.FgGreen, color.Bold),
+		ShowHeader:             true,
+		Verbose:                false,
+		Compact:                false,
+		Redact:                 true,
+		FlushThreshold:         1000,
+		FormatDatetime:         timez.FormatFunc(timez.DefaultDatetime),
+		FormatDatetimeAsNumber: false,
+		FormatTime:             timez.FormatFunc(timez.DefaultTime),
+		FormatTimeAsNumber:     false,
+		FormatDate:             timez.FormatFunc(timez.DefaultDate),
+		FormatDateAsNumber:     false,
+		monochrome:             false,
+		Indent:                 "  ",
+		Active:                 color.New(color.FgGreen, color.Bold),
+		Bold:                   color.New(color.Bold),
+		Bool:                   color.New(color.FgYellow),
+		Bytes:                  color.New(color.Faint),
+		Datetime:               color.New(color.FgGreen, color.Faint),
+		Duration:               color.New(color.FgGreen, color.Faint),
+		Error:                  color.New(color.FgRed, color.Bold),
+		Faint:                  color.New(color.Faint),
+		Handle:                 color.New(color.FgBlue),
+		Header:                 color.New(color.FgBlue),
+		Hilite:                 color.New(color.FgHiBlue),
+		Key:                    color.New(color.FgBlue, color.Bold),
+		Location:               color.New(color.FgGreen),
+		Normal:                 color.New(),
+		Null:                   color.New(color.Faint),
+		Number:                 color.New(color.FgCyan),
+		Punc:                   color.New(color.Bold),
+		String:                 color.New(color.FgGreen),
+		Success:                color.New(color.FgGreen, color.Bold),
 	}
 
 	pr.EnableColor(true)
@@ -145,6 +182,9 @@ func (pr *Printing) LogValue() slog.Value {
 		slog.Bool("redact", pr.Redact),
 		slog.Int("flush-threshold", pr.FlushThreshold),
 		slog.String("indent", pr.Indent),
+		slog.Bool("format.datetime.number", pr.FormatDatetimeAsNumber),
+		slog.Bool("format.date.number", pr.FormatDateAsNumber),
+		slog.Bool("format.time.number", pr.FormatTimeAsNumber),
 	)
 }
 

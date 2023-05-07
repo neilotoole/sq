@@ -394,7 +394,7 @@ func buildQueryModel(log *slog.Logger, a *ast.AST) (*queryModel, error) {
 					qm.Range.Text(), rr.Text())
 			}
 
-			log.Debug("found row range: %s", rr.Text())
+			log.Debug("Found row range", lga.Val, rr.Text())
 			qm.Range = rr
 		}
 	}

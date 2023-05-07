@@ -3,6 +3,13 @@ package cli
 import (
 	"io"
 	"os"
+	"strings"
+
+	"github.com/neilotoole/sq/libsq/core/stringz"
+
+	"github.com/mitchellh/go-wordwrap"
+
+	"github.com/neilotoole/sq/libsq/core/timez"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
@@ -31,49 +38,163 @@ import (
 var (
 	OptPrintHeader = options.NewBool(
 		"header",
+		0,
 		true,
+		"Print header row",
 		`Controls whether a header row is printed. This applies only
 to certain formats, such as "text" or "csv".`,
 		"format",
 	)
-	OptOutputFormat = NewFormatOpt(
+
+	OptFormat = NewFormatOpt(
 		"format",
 		format.Text,
-		`Specify the output format. Some formats are only implemented
-for a subset of sq's commands. If the specified format is not available for
-a particular command, sq falls back to 'text'. Available formats:
+		"Output format",
+
+		`
+Specify the output format. Some formats are only implemented for a subset of
+sq's commands. If the specified format is not available for a particular
+command, sq falls back to 'text'. Available formats:
+
   text, csv, tsv, xlsx,
   json, jsona, jsonl,
   markdown, html, xml, yaml, raw`,
-		"format",
 	)
 
 	OptVerbose = options.NewBool(
 		"verbose",
+		'v',
 		false,
+		"Print verbose output",
 		`Print verbose output.`,
 		"format",
 	)
 
 	OptMonochrome = options.NewBool(
 		"monochrome",
+		'M',
 		false,
+		"Don't print color output",
 		`Don't print color output.`,
 		"format",
 	)
 
 	OptCompact = options.NewBool(
 		"compact",
+		'c',
 		false,
-		`Compact instead of pretty-printed output`,
+		"Compact instead of pretty-printed output",
+		`Compact instead of pretty-printed output.`,
 		"format",
 	)
 
 	OptTuningFlushThreshold = options.NewInt(
 		"tuning.flush-threshold",
+		0,
 		1000,
+		"Output writer buffer flush threshold in bytes",
 		`Size in bytes after which output writers should flush any internal buffer.
 Generally, it is not necessary to fiddle this knob.`,
+	)
+
+	timeLayoutsList = "Predefined values:\n" + stringz.IndentLines(
+		wordwrap.WrapString(strings.Join(timez.NamedLayouts(), ", "), 64),
+		"  ")
+
+	OptDatetimeFormat = options.NewString(
+		"format.datetime",
+		0,
+		"RFC3339",
+		"Timestamp format: constant such as RFC3339 or a strftime format",
+		`Timestamp format. This can be one of several predefined constants such
+as "RFC3339" or "Unix", or a strftime format such as "%Y-%m-%d %H:%M:%S".
+
+`+timeLayoutsList,
+	)
+
+	OptDatetimeFormatAsNumber = options.NewBool(
+		"format.datetime.number",
+		0,
+		true,
+		"Render numeric datetime value as number instead of string",
+		`Render numeric datetime value as number instead of string, if possible.
+If format.datetime renders a numeric value (e.g. a Unix timestamp such
+as "1591843854"), that value is typically rendered as a string. For some output
+formats, such as JSON, it can be useful to instead render the value as a naked
+number instead of a string. Note that this option is no-op if the rendered value
+is not an integer.
+
+  format.datetime.number=false
+  [{"first_name":"PENELOPE","last_update":"1591843854"}]
+  format.datetime.number=true
+  [{"first_name":"PENELOPE","last_update":1591843854}]
+`,
+	)
+
+	// FIXME: add opts OptDateFormatNumber and OptTimeFormatNumber.
+	// The doc should note that OptDatetimeFormatNumber has primacy, and
+	// to setting that flag instead.
+
+	OptDateFormat = options.NewString(
+		"format.date",
+		0,
+		"DateOnly",
+		"Date format: constant such as DateOnly or a strftime format",
+		`Date format. This can be one of several predefined constants such
+as "DateOnly" or "Unix", or a strftime format such as "%Y-%m-%d".
+Note that date values are sometimes programmatically indistinguishable
+from datetime values. In that situation, use format.datetime instead.
+
+`+timeLayoutsList,
+	)
+
+	OptDateFormatAsNumber = options.NewBool(
+		"format.date.number",
+		0,
+		true,
+		"Render numeric date value as number instead of string",
+		`Render numeric date value as number instead of string, if possible.
+If format.date renders a numeric value (e.g. a year such as "1979"), that value
+is typically rendered as a string. For some output formats, such as JSON, it can
+be useful to instead render the value as a naked number instead of a string.
+Note that this option is no-op if the rendered value is not an integer.
+
+  format.date.number=false
+  [{"first_name":"PENELOPE","birth_year":"1979"}]
+  format.date.number=true
+  [{"first_name":"PENELOPE","birth_year":1979}]
+`,
+	)
+
+	OptTimeFormat = options.NewString(
+		"format.time",
+		0,
+		"TimeOnly",
+		"Time format: constant such as TimeOnly or a strftime format",
+		`Time format. This can be one of several predefined constants such
+as "TimeOnly" or "Unix", or a strftime format such as "%Y-%m-%d".
+Note that time values are sometimes programmatically indistinguishable
+from datetime values. In that situation, use format.datetime instead.
+
+`+timeLayoutsList,
+	)
+
+	OptTimeFormatAsNumber = options.NewBool(
+		"format.time.number",
+		0,
+		true,
+		"Render numeric time value as number instead of string",
+		`Render numeric time value as number instead of string, if possible.
+If format.time renders a numeric value (e.g. "59"), that value
+is typically rendered as a string. For some output formats, such as JSON, it can
+be useful to instead render the value as a naked number instead of a string.
+Note that this option is no-op if the rendered value is not an integer.
+
+  format.time.number=false
+  [{"first_name":"PENELOPE","favorite_minute":"59"}]
+  format.time.number=true
+  [{"first_name":"PENELOPE","favorite_minute":59}]
+`,
 	)
 )
 
@@ -134,27 +255,27 @@ func newWriters(cmd *cobra.Command, opts options.Options, out, errOut io.Writer,
 	// Table is the base format, already set above, no need to do anything.
 
 	case format.TSV:
-		w.recordw = csvw.NewRecordWriter(out2, pr.ShowHeader, csvw.Tab)
+		w.recordw = csvw.NewRecordWriter(out2, pr, csvw.Tab)
 		w.pingw = csvw.NewPingWriter(out2, csvw.Tab)
 
 	case format.CSV:
-		w.recordw = csvw.NewRecordWriter(out2, pr.ShowHeader, csvw.Comma)
+		w.recordw = csvw.NewRecordWriter(out2, pr, csvw.Comma)
 		w.pingw = csvw.NewPingWriter(out2, csvw.Comma)
 
 	case format.XML:
 		w.recordw = xmlw.NewRecordWriter(out2, pr)
 
 	case format.XLSX:
-		w.recordw = xlsxw.NewRecordWriter(out2, pr.ShowHeader)
+		w.recordw = xlsxw.NewRecordWriter(out2, pr)
 
 	case format.Raw:
-		w.recordw = raww.NewRecordWriter(out2)
+		w.recordw = raww.NewRecordWriter(out2, pr)
 
 	case format.HTML:
-		w.recordw = htmlw.NewRecordWriter(out2)
+		w.recordw = htmlw.NewRecordWriter(out2, pr)
 
 	case format.Markdown:
-		w.recordw = markdownw.NewRecordWriter(out2)
+		w.recordw = markdownw.NewRecordWriter(out2, pr)
 
 	case format.JSONA:
 		w.recordw = jsonw.NewArrayRecordWriter(out2, pr)
@@ -181,6 +302,13 @@ func newWriters(cmd *cobra.Command, opts options.Options, out, errOut io.Writer,
 func getPrinting(cmd *cobra.Command, opts options.Options, out, errOut io.Writer,
 ) (pr *output.Printing, out2, errOut2 io.Writer) {
 	pr = output.NewPrinting()
+
+	pr.FormatDatetime = timez.FormatFunc(OptDatetimeFormat.Get(opts))
+	pr.FormatDatetimeAsNumber = OptDatetimeFormatAsNumber.Get(opts)
+	pr.FormatTime = timez.FormatFunc(OptTimeFormat.Get(opts))
+	pr.FormatTimeAsNumber = OptTimeFormatAsNumber.Get(opts)
+	pr.FormatDate = timez.FormatFunc(OptDateFormat.Get(opts))
+	pr.FormatDateAsNumber = OptDateFormatAsNumber.Get(opts)
 
 	pr.Verbose = OptVerbose.Get(opts)
 	pr.FlushThreshold = OptTuningFlushThreshold.Get(opts)
@@ -269,7 +397,7 @@ func getFormat(cmd *cobra.Command, o options.Options) format.Format {
 		fm = format.YAML
 	default:
 		// no format flag, use the config value
-		fm = OptOutputFormat.Get(o)
+		fm = OptFormat.Get(o)
 	}
 	return fm
 }
@@ -277,45 +405,15 @@ func getFormat(cmd *cobra.Command, o options.Options) format.Format {
 var _ options.Opt = FormatOpt{}
 
 // NewFormatOpt returns a new FormatOpt instance.
-func NewFormatOpt(key string, defaultVal format.Format, comment string, tags ...string) FormatOpt {
-	return FormatOpt{key: key, defaultVal: defaultVal, comment: comment, tags: tags}
+func NewFormatOpt(key string, defaultVal format.Format, usage, help string) FormatOpt {
+	opt := options.NewBaseOpt(key, 0, usage, help)
+	return FormatOpt{BaseOpt: opt, defaultVal: defaultVal}
 }
 
 // FormatOpt is an options.Opt for format.Format.
 type FormatOpt struct {
-	key        string
-	comment    string
+	options.BaseOpt
 	defaultVal format.Format
-	tags       []string
-}
-
-// Comment implements options.Opt.
-func (op FormatOpt) Comment() string {
-	return op.comment
-}
-
-// Tags implements options.Opt.
-func (op FormatOpt) Tags() []string {
-	return op.tags
-}
-
-// Key implements options.Opt.
-func (op FormatOpt) Key() string {
-	return op.key
-}
-
-// String implements options.Opt.
-func (op FormatOpt) String() string {
-	return op.key
-}
-
-// IsSet implements options.Opt.
-func (op FormatOpt) IsSet(o options.Options) bool {
-	if o == nil {
-		return false
-	}
-
-	return o.IsSet(op)
 }
 
 // Process implements options.Processor. It converts matching
@@ -327,7 +425,8 @@ func (op FormatOpt) Process(o options.Options) (options.Options, error) {
 		return nil, nil
 	}
 
-	v, ok := o[op.key]
+	key := op.Key()
+	v, ok := o[key]
 	if !ok || v == nil {
 		return o, nil
 	}
@@ -340,29 +439,34 @@ func (op FormatOpt) Process(o options.Options) (options.Options, error) {
 		return o, nil
 	default:
 		return nil, errz.Errorf("option {%s} should be {%T} or {%T} but got {%T}: %v",
-			op.key, format.Format(""), "", v, v)
+			key, format.Format(""), "", v, v)
 	}
 
 	var s string
 	s, ok = v.(string)
 	if !ok {
 		return nil, errz.Errorf("option {%s} should be {%T} but got {%T}: %v",
-			op.key, s, v, v)
+			key, s, v, v)
 	}
 
 	var f format.Format
 	if err := f.UnmarshalText([]byte(s)); err != nil {
-		return nil, errz.Wrapf(err, "option {%s} is not a valid {%T}", op.key, f)
+		return nil, errz.Wrapf(err, "option {%s} is not a valid {%T}", key, f)
 	}
 
 	o = o.Clone()
-	o[op.key] = f
+	o[key] = f
 	return o, nil
 }
 
 // GetAny implements options.Opt.
 func (op FormatOpt) GetAny(o options.Options) any {
 	return op.Get(o)
+}
+
+// DefaultAny implements options.Opt.
+func (op FormatOpt) DefaultAny() any {
+	return op.defaultVal
 }
 
 // Get returns op's value in o. If o is nil, or no value
@@ -372,7 +476,7 @@ func (op FormatOpt) Get(o options.Options) format.Format {
 		return op.defaultVal
 	}
 
-	v, ok := o[op.key]
+	v, ok := o[op.Key()]
 	if !ok {
 		return op.defaultVal
 	}

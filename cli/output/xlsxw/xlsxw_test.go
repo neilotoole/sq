@@ -5,6 +5,8 @@ import (
 	"os"
 	"testing"
 
+	"github.com/neilotoole/sq/cli/output"
+
 	"github.com/neilotoole/sq/testh/testsrc"
 
 	"github.com/neilotoole/sq/cli/output/xlsxw"
@@ -42,7 +44,8 @@ func TestRecordWriter(t *testing.T) {
 			}
 
 			buf := &bytes.Buffer{}
-			w := xlsxw.NewRecordWriter(buf, true)
+			pr := output.NewPrinting()
+			w := xlsxw.NewRecordWriter(buf, pr)
 			require.NoError(t, w.Open(recMeta))
 
 			require.NoError(t, w.WriteRecords(recs))

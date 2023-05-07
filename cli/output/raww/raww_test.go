@@ -5,6 +5,8 @@ import (
 	"image/gif"
 	"testing"
 
+	"github.com/neilotoole/sq/cli/output"
+
 	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"github.com/neilotoole/sq/testh/fixt"
@@ -40,7 +42,7 @@ func TestRecordWriter_TblActor(t *testing.T) {
 			recs = recs[0:tc.numRecs]
 
 			buf := &bytes.Buffer{}
-			w := raww.NewRecordWriter(buf)
+			w := raww.NewRecordWriter(buf, output.NewPrinting())
 			require.NoError(t, w.Open(recMeta))
 			require.NoError(t, w.WriteRecords(recs))
 			require.NoError(t, w.Close())
@@ -60,7 +62,7 @@ func TestRecordWriter_TblBytes(t *testing.T) {
 	fBytes := proj.ReadFile(fixt.GopherPath)
 
 	buf := &bytes.Buffer{}
-	w := raww.NewRecordWriter(buf)
+	w := raww.NewRecordWriter(buf, output.NewPrinting())
 	require.NoError(t, w.Open(sink.RecMeta))
 	require.NoError(t, w.WriteRecords(sink.Recs))
 	require.NoError(t, w.Close())

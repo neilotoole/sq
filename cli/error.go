@@ -110,7 +110,7 @@ func bootstrapIsFormatJSON(rc *RunContext) bool {
 
 	defaultFormat := format.Text
 	if rc.Config != nil {
-		defaultFormat = OptOutputFormat.Get(rc.Config.Options)
+		defaultFormat = OptFormat.Get(rc.Config.Options)
 	}
 
 	// If args were provided, create a new flag set and check

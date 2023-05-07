@@ -83,7 +83,7 @@ are several minor breaking changes ☢️.
   To better align with jq, there is now a `--compact` / `-c` flag that behaves
   identically to `jq`.
 - ☢️ Because of the above `--compact` / `-c` flag, the short form of the `--csv`
-  flag is changing from `-c` to `-C`. It's an unfortunate change, but alignment
+  flag is changing from `-c` to `-C`. It's an unfortunate situation, but alignment
   with jq's behavior is an overarching principle that justifies the change.
 
 ## [v0.33.0] - 2023-04-15

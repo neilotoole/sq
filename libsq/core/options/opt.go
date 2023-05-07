@@ -24,8 +24,18 @@ type Opt interface {
 	// Key returns the Opt key, such as "ping.timeout".
 	Key() string
 
-	// Comment returns the Opt's comment.
-	Comment() string
+	// Short is the short key. The zero value indicates no short key.
+	// For example, if the key is "json", the short key could be 'j'.
+	Short() rune
+
+	// Usage is a one-line description of the Opt. Additional detail can be
+	// found in Help.
+	Usage() string
+
+	// Help returns the Opt's help text, which typically provides more detail
+	// than Usage. The text must be plaintext (not markdown). Linebreaks are
+	// recommended at 100 chars.
+	Help() string
 
 	// String returns a log/debug friendly representation.
 	String() string
@@ -39,6 +49,10 @@ type Opt interface {
 	// returned.
 	GetAny(o Options) any
 
+	// DefaultAny returns the default value of this Opt. Generally, prefer
+	// use of the concrete strongly-typed Default method.
+	DefaultAny() any
+
 	// Tags returns any tags on this Opt instance. For example, an Opt might
 	// have tags [source, csv].
 	Tags() []string
@@ -48,24 +62,49 @@ type Opt interface {
 	Process(o Options) (Options, error)
 }
 
-type baseOpt struct {
-	key     string
-	comment string
-	tags    []string
+// BaseOpt is a partial implementation of options.Opt that concrete
+// types can build on.
+type BaseOpt struct {
+	key   string
+	short rune
+	usage string
+	help  string
+	tags  []string
+}
+
+// NewBaseOpt returns a new BaseOpt.
+func NewBaseOpt(key string, short rune, usage, help string, tags ...string) BaseOpt {
+	return BaseOpt{
+		key:   key,
+		short: short,
+		usage: usage,
+		help:  help,
+		tags:  tags,
+	}
 }
 
 // Key implements options.Opt.
-func (op baseOpt) Key() string {
+func (op BaseOpt) Key() string {
 	return op.key
 }
 
-// Comment implements options.Opt.
-func (op baseOpt) Comment() string {
-	return op.comment
+// Short implements options.Opt.
+func (op BaseOpt) Short() rune {
+	return op.short
+}
+
+// Usage implements options.Opt.
+func (op BaseOpt) Usage() string {
+	return op.usage
+}
+
+// Help implements options.Opt.
+func (op BaseOpt) Help() string {
+	return op.help
 }
 
 // IsSet implements options.Opt.
-func (op baseOpt) IsSet(o Options) bool {
+func (op BaseOpt) IsSet(o Options) bool {
 	if o == nil {
 		return false
 	}
@@ -75,44 +114,59 @@ func (op baseOpt) IsSet(o Options) bool {
 
 // GetAny is required by options.Opt. It needs to be implemented
 // by the concrete type.
-func (op baseOpt) GetAny(_ Options) any {
-	panic("not implemented")
+func (op BaseOpt) GetAny(_ Options) any {
+	panic(fmt.Sprintf("GetAny not implemented for: %s", op.key))
+}
+
+// DefaultAny implements options.Opt.
+func (op BaseOpt) DefaultAny() any {
+	panic(fmt.Sprintf("DefaultAny not implemented for: %s", op.key))
 }
 
 // String implements options.Opt.
-func (op baseOpt) String() string {
+func (op BaseOpt) String() string {
 	return op.key
 }
 
 // Tags implements options.Opt.
-func (op baseOpt) Tags() []string {
+func (op BaseOpt) Tags() []string {
 	return op.tags
 }
 
 // Process implements options.Opt.
-func (op baseOpt) Process(o Options) (Options, error) {
+func (op BaseOpt) Process(o Options) (Options, error) {
 	return o, nil
 }
 
 var _ Opt = String{}
 
 // NewString returns an options.String instance.
-func NewString(key, defaultVal, comment string, tags ...string) String {
+func NewString(key string, short rune, defaultVal, usage, help string, tags ...string) String {
 	return String{
-		baseOpt:    baseOpt{key: key, comment: comment, tags: tags},
+		BaseOpt:    BaseOpt{key: key, short: short, usage: usage, help: help, tags: tags},
 		defaultVal: defaultVal,
 	}
 }
 
 // String is an options.Opt for type string.
 type String struct {
-	baseOpt
+	BaseOpt
 	defaultVal string
 }
 
 // GetAny implements options.Opt.
 func (op String) GetAny(o Options) any {
 	return op.Get(o)
+}
+
+// DefaultAny implements options.Opt.
+func (op String) DefaultAny() any {
+	return op.defaultVal
+}
+
+// Default returns the default value of op.
+func (op String) Default() string {
+	return op.defaultVal
 }
 
 // Get returns op's value in o. If o is nil, or no value
@@ -139,22 +193,32 @@ func (op String) Get(o Options) string {
 var _ Opt = Int{}
 
 // NewInt returns an options.Int instance.
-func NewInt(key string, defaultVal int, comment string, tags ...string) Int {
+func NewInt(key string, short rune, defaultVal int, usage, help string, tags ...string) Int {
 	return Int{
-		baseOpt:    baseOpt{key: key, comment: comment, tags: tags},
+		BaseOpt:    BaseOpt{key: key, short: short, usage: usage, help: help, tags: tags},
 		defaultVal: defaultVal,
 	}
 }
 
 // Int is an options.Opt for type int.
 type Int struct {
-	baseOpt
+	BaseOpt
 	defaultVal int
+}
+
+// Default returns the default value of op.
+func (op Int) Default() int {
+	return op.defaultVal
 }
 
 // GetAny implements options.Opt.
 func (op Int) GetAny(o Options) any {
 	return op.Get(o)
+}
+
+// DefaultAny implements options.Opt.
+func (op Int) DefaultAny() any {
+	return op.defaultVal
 }
 
 // Get returns op's value in o. If o is nil, or no value
@@ -256,22 +320,27 @@ func (op Int) Process(o Options) (Options, error) {
 var _ Opt = Bool{}
 
 // NewBool returns an options.Bool instance.
-func NewBool(key string, defaultVal bool, comment string, tags ...string) Bool {
+func NewBool(key string, short rune, defaultVal bool, usage, help string, tags ...string) Bool {
 	return Bool{
-		baseOpt:    baseOpt{key: key, comment: comment, tags: tags},
+		BaseOpt:    BaseOpt{key: key, short: short, usage: usage, help: help, tags: tags},
 		defaultVal: defaultVal,
 	}
 }
 
 // Bool is an options.Opt for type bool.
 type Bool struct {
-	baseOpt
+	BaseOpt
 	defaultVal bool
 }
 
 // GetAny implements options.Opt.
 func (op Bool) GetAny(opts Options) any {
 	return op.Get(opts)
+}
+
+// DefaultAny implements options.Opt.
+func (op Bool) DefaultAny() any {
+	return op.defaultVal
 }
 
 // Get returns op's value in o. If o is nil, or no value
@@ -293,6 +362,11 @@ func (op Bool) Get(o Options) bool {
 	}
 
 	return b
+}
+
+// Default returns the default value of op.
+func (op Bool) Default() bool {
+	return op.defaultVal
 }
 
 // Process implements options.Opt. It converts matching
@@ -348,16 +422,16 @@ func (op Bool) Process(o Options) (Options, error) {
 var _ Opt = Duration{}
 
 // NewDuration returns an options.Duration instance.
-func NewDuration(key string, defaultVal time.Duration, comment string, tags ...string) Duration {
+func NewDuration(key string, short rune, defaultVal time.Duration, usage, help string, tags ...string) Duration {
 	return Duration{
-		baseOpt:    baseOpt{key: key, comment: comment, tags: tags},
+		BaseOpt:    BaseOpt{key: key, short: short, usage: usage, help: help, tags: tags},
 		defaultVal: defaultVal,
 	}
 }
 
 // Duration is an options.Opt for time.Duration.
 type Duration struct {
-	baseOpt
+	BaseOpt
 	defaultVal time.Duration
 }
 
@@ -401,6 +475,11 @@ func (op Duration) Process(o Options) (Options, error) {
 // GetAny implements options.Opt.
 func (op Duration) GetAny(o Options) any {
 	return op.Get(o)
+}
+
+// DefaultAny implements options.Opt.
+func (op Duration) DefaultAny() any {
+	return op.defaultVal
 }
 
 // Get returns op's value in o. If o is nil, or no value

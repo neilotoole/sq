@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/timez"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 )
@@ -355,7 +357,7 @@ func detectKindTime(s string) (ok bool, format string) {
 	}
 
 	const timeNoSecsFormat = "15:04"
-	formats := []string{stringz.TimeFormat, timeNoSecsFormat, time.Kitchen}
+	formats := []string{time.TimeOnly, timeNoSecsFormat, time.Kitchen}
 	var err error
 
 	for _, f := range formats {
@@ -378,7 +380,7 @@ func detectKindDate(s string) (ok bool, format string) {
 		format3 = "2006-01-02"
 	)
 
-	formats := []string{stringz.DateFormat, format1, format2, format3}
+	formats := []string{time.DateOnly, format1, format2, format3}
 	var err error
 
 	for _, f := range formats {
@@ -396,7 +398,10 @@ func detectKindDatetime(s string) (ok bool, format string) {
 	}
 
 	formats := []string{
-		stringz.DatetimeFormat, // RFC3339Nano
+		time.RFC3339,
+		timez.RFC3339Z,
+		timez.ISO8601,
+		time.RFC3339Nano,
 		time.ANSIC,
 		time.UnixDate,
 		time.RubyDate,
@@ -405,7 +410,6 @@ func detectKindDatetime(s string) (ok bool, format string) {
 		time.RFC850,
 		time.RFC1123,
 		time.RFC1123Z,
-		time.RFC3339,
 		time.Stamp,
 		time.StampMilli,
 		time.StampMicro,

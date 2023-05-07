@@ -163,11 +163,15 @@ func (t *table) renderResultCell(knd kind.Kind, val any) string { //nolint:funle
 		var s string
 		switch knd { //nolint:exhaustive
 		default:
-			s = val.Format(stringz.DatetimeFormat)
+			s = t.pr.FormatDatetime(*val)
+
+			// s = val.Format(timez.DefaultTimestampFormat)
 		case kind.Time:
-			s = val.Format(stringz.TimeFormat)
+			s = t.pr.FormatTime(*val)
+			// s = val.Format(timez.DefaultTimeFormat)
 		case kind.Date:
-			s = val.Format(stringz.DateFormat)
+			s = t.pr.FormatDate(*val)
+			// s = val.Format(timez.DefaultDateFormat)
 		}
 
 		return t.pr.Datetime.Sprint(s)

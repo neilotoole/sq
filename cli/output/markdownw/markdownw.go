@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neilotoole/sq/cli/output"
+
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
@@ -19,13 +21,14 @@ import (
 // RecordWriter implements output.RecordWriter.
 type RecordWriter struct {
 	recMeta sqlz.RecordMeta
+	pr      *output.Printing
 	out     io.Writer
 	buf     *bytes.Buffer
 }
 
 // NewRecordWriter returns a writer instance.
-func NewRecordWriter(out io.Writer) *RecordWriter {
-	return &RecordWriter{out: out}
+func NewRecordWriter(out io.Writer, pr *output.Printing) *RecordWriter {
+	return &RecordWriter{out: out, pr: pr}
 }
 
 // Open implements output.RecordWriter.
@@ -91,11 +94,11 @@ func (w *RecordWriter) writeRecord(rec sqlz.Record) error {
 		case *time.Time:
 			switch w.recMeta[i].Kind() { //nolint:exhaustive
 			default:
-				s = val.Format(stringz.DatetimeFormat)
+				s = w.pr.FormatDatetime(*val)
 			case kind.Time:
-				s = val.Format(stringz.TimeFormat)
+				s = w.pr.FormatTime(*val)
 			case kind.Date:
-				s = val.Format(stringz.DateFormat)
+				s = w.pr.FormatDate(*val)
 			}
 		}
 
