@@ -35,8 +35,9 @@ func newConfigEditCmd() *cobra.Command {
 
 			return execConfigEditSource(cmd, args)
 		},
-		Short: "Edit config or source options",
-		Long:  `Edit config or source options in the editor specified in envar $SQ_EDITOR or $EDITOR.`,
+		Short: "Edit config in $EDITOR",
+		Long: `Edit config or source options in the editor specified
+in envar $SQ_EDITOR or $EDITOR.`,
 		Example: `  # Edit default options
   $ sq config edit
 

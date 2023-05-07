@@ -10,8 +10,8 @@ import (
 func newConfigGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get",
-		Short: "Show config",
-		Long: `Show config. By default, only explicitly set options are shown.
+		Short: "Show config option",
+		Long: `Show config option. By default, only explicitly set options are shown.
 Use the -v flag to see all options. When flag --src is provided, show config
 just for that source.`,
 		Args:              cobra.ExactArgs(1),

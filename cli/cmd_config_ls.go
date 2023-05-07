@@ -10,7 +10,7 @@ import (
 func newConfigListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "ls [--src @HANDLE]",
-		Short: "Show config",
+		Short: "List config options",
 		Long: `Show config. By default, only explicitly set options are shown.
 Use the -v flag to see all options. When flag --src is provided, show config
 just for that source.`,

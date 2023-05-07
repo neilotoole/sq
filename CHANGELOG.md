@@ -7,14 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Breaking changes are annotated with ☢️.
 
-## Upcoming
+## [v0.34.0] - 2023-05-07
 
-This release significantly overhauls `sq`'s config mechanism ([#199]). There 
-are several minor breaking changes ☢️.
+This release significantly overhauls `sq`'s config mechanism ([#199]).
+For an overview, see the new [config docs](https://sq.io/docs/config).
+
+Alas, this release has several minor breaking changes ☢️. 
 
 ### Added
 
-- `sq config get` prints config. DOCS
+- `sq config ls` shows config.
+- `sq config get` gets individual config option.
 - `sq config set` sets config values.
 - `sq config edit` edits config.
   - Editor can be specified via `$EDITOR` or `$SQ_EDITOR`.
@@ -452,3 +455,4 @@ make working with lots of sources much easier.
 [v0.31.0]: https://github.com/neilotoole/sq/compare/v0.30.0...v0.31.0
 [v0.32.0]: https://github.com/neilotoole/sq/compare/v0.31.0...v0.32.0
 [v0.33.0]: https://github.com/neilotoole/sq/compare/v0.32.0...v0.33.0
+[v0.34.0]: https://github.com/neilotoole/sq/compare/v0.33.0...v0.34.0
