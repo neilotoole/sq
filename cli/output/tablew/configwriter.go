@@ -108,9 +108,19 @@ func (w *configWriter) doPrintOptions(reg *options.Registry, o options.Options, 
 
 		clr := getOptColor(pr, opt)
 
+		val, ok := o[k]
+		if !ok || val == nil {
+			if verbose {
+				val = ""
+			} else {
+				val = "NULL"
+			}
+			clr = pr.Null
+		}
+
 		row := []string{
 			k,
-			clr.Sprintf("%v", o[k]),
+			clr.Sprintf("%v", val),
 		}
 
 		if verbose {

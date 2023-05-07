@@ -103,6 +103,10 @@ func execConfigSet(cmd *cobra.Command, args []string) error {
 		return rc.writers.configw.UnsetOption(opt)
 	}
 
+	if len(args) < 2 {
+		return errz.Errorf("accepts 2 args, received %d", len(args))
+	}
+
 	o2 := options.Options{}
 	o2[opt.Key()] = args[1]
 	var err error
