@@ -19,21 +19,33 @@ func newConfigCmd() *cobra.Command {
   $ sq config location
 
   # Show base config
-  $ sq config get
+  $ sq config ls
 
   # Show base config including unset and default values.
-  $ sq config get -v
+  $ sq config ls -v
 
-  # Set option value
+  # Show base config in maximum detail (YAML format)
+  $ sq config ls -yv
+
+  # Get base value of an option
+  $ sq config get format
+
+  # Get source-specific value of an option
+  $ sq config get --src @sakila conn.max-open
+
+  # Set base option value
   $ sq config set format json
+
+  # Set source-specific option value
+  $ sq config set --src @sakila conn.max-open 50
 
   # Help for an option
   $ sq config set format --help
 
-  # Edit base config
+  # Edit base config in $EDITOR
   $ sq config edit
 
-  # Edit config for source
+  # Edit config for source in $EDITOR
   $ sq config edit @sakila
 
   # Delete option (reset to default value)
