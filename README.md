@@ -3,19 +3,21 @@
 ![Main pipeline](https://github.com/neilotoole/sq/actions/workflows/main.yml/badge.svg)
 
 
-# sq: data wrangler
+# sq data wrangler
 
 `sq` is a command line tool that provides `jq`-style access to
 structured data sources: SQL databases, or document formats like CSV or Excel.
 
 ![sq](./splash.png)
 
-`sq` can perform cross-source [joins](https://sq.io/docs/query/#cross-source-joins),
-execute jq-like [queries](https://sq.io/docs/query) or database-native [SQL](https://sq.io/docs/cmd/sql/),
-and output to a multitude of formats including [JSON](https://sq.io/docs/output#json),
+`sq` executes jq-like [queries](https://sq.io/docs/query), or database-native [SQL](https://sq.io/docs/cmd/sql/).
+It can perform cross-source [joins](https://sq.io/docs/query/#cross-source-joins).
+
+`sq` outputs to a multitude of formats including [JSON](https://sq.io/docs/output#json),
 [Excel](https://sq.io/docs/output#xlsx), [CSV](https://sq.io/docs/output#csv),
 [HTML](https://sq.io/docs/output#html), [Markdown](https://sq.io/docs/output#markdown) 
-and [XML](https://sq.io/docs/output#xml), or [insert](https://sq.io/docs/output#insert) directly to a SQL database.
+and [XML](https://sq.io/docs/output#xml), and can [insert](https://sq.io/docs/output#insert) query 
+results directly to a SQL database.
 `sq` can also [inspect](https://sq.io/docs/cmd/inspect) sources to view metadata about the source structure (tables,
 columns, size) and has commands for common database operations to
 [copy](https://sq.io/docs/cmd/tbl-copy), [truncate](https://sq.io/docs/cmd/tbl-truncate),
@@ -53,7 +55,7 @@ go install github.com/neilotoole/sq
 
 See other [install options](https://sq.io/docs/install/).
 
-## Quickstart
+## Overview
 
 Use `sq help` to see command help. Docs are over at [sq.io](https://sq.io).
 Read the [overview](https://sq.io/docs/overview/), and 
@@ -192,7 +194,7 @@ TABLE  ROWS  TYPE   SIZE  NUM COLS  COL NAMES                                   
 actor  200   table  -     4         actor_id, first_name, last_name, last_update  numeric, VARCHAR(45), VARCHAR(45), TIMESTAMP
 ```
 
-### Insert Output Into Database Source
+### Insert query results
 
 `sq` query results can be [output](https://sq.io/docs/output) in various formats 
 (JSON, XML, CSV, etc), and can also be "outputted" as an
@@ -203,9 +205,9 @@ or copy an Excel worksheet into a SQLite table, or a push a CSV file into
 a SQL Server table etc.
 
 > **Note:** If you want to copy a table inside the same (database) source,
-> use `sq tbl copy` instead, which uses the database's native table copy functionality.
+> use [`sq tbl copy`](https://sq.io/docs/cmd/tbl-copy) instead, which uses the database's native table copy functionality.
 
-For this example, we'll insert an Excel worksheet into our `@sakila_sl3`
+For this example, we'll insert an Excel worksheet into our `@sakila`
 SQLite database. First, we
 download the XLSX file, and `sq add` it as a source.
 
@@ -225,7 +227,7 @@ uid  username    email                  address_id
 
 Now, execute the same query, but this time `sq` inserts the results into a new 
 table (`person`)
-in `@sakila` (the SQLite source):
+in the SQLite `@sakila` source:
 
 ```shell
 $ sq @xl_demo.person --insert @sakila.person
@@ -243,7 +245,7 @@ uid  username    email                  address_id
 [...]
 ```
 
-### Cross-Source Join
+### Cross-source join
 
 `sq` has rudimentary support for cross-source [joins](https://sq.io/docs/query#join). That is, you can join an Excel worksheet with a
 CSV file, or Postgres table, etc.
@@ -261,7 +263,7 @@ augustus@caesar.org    Ulan Bator
 plato@athens.gr        Washington
 ```
 
-### Table Commands
+### Table commands
 
 `sq` provides several handy commands for working with tables:
 [`tbl copy`](/docs/cmd/tbl-copy), [`tbl truncate`](/docs/cmd/tbl-truncate)
@@ -280,7 +282,7 @@ $ sq tbl drop .actor_copy
 Dropped table @sakila.actor_copy
 ```
 
-### UNIX Pipes
+### UNIX pipes
 
 For file-based sources (such as CSV or XLSX), you can `sq add` the source file,
 but you can also pipe it:
@@ -315,7 +317,7 @@ jsonl      JSON Lines: LF-delimited JSON objects
 xlsx       Microsoft Excel XLSX                 
 ```
 
-## Output Formats
+## Output formats
 
 `sq` has many [output formats](https://sq.io/docs/output):
 
@@ -349,7 +351,7 @@ See [CHANGELOG.md](./CHANGELOG.md).
   Sakila.
 - Date rendering via [`ncruces/go-strftime`](https://github.com/ncruces/go-strftime).
 
-## Similar / Related / Noteworthy Projects
+## Similar, related, or noteworthy projects
 
 - [usql](https://github.com/xo/usql)
 - [textql](https://github.com/dinedal/textql)
