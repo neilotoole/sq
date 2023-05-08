@@ -5,7 +5,7 @@
 
 # sq data wrangler
 
-`sq` is a command line tool that provides `jq`-style access to
+`sq` is a command line tool that provides jq-style access to
 structured data sources: SQL databases, or document formats like CSV or Excel.
 
 ![sq](./splash.png)
@@ -13,7 +13,8 @@ structured data sources: SQL databases, or document formats like CSV or Excel.
 `sq` executes jq-like [queries](https://sq.io/docs/query), or database-native [SQL](https://sq.io/docs/cmd/sql/).
 It can perform cross-source [joins](https://sq.io/docs/query/#cross-source-joins).
 
-`sq` outputs to a multitude of formats including [JSON](https://sq.io/docs/output#json),
+`sq` outputs to a multitude of [formats](https://sq.io/docs/output#formats)
+including [JSON](https://sq.io/docs/output#json),
 [Excel](https://sq.io/docs/output#xlsx), [CSV](https://sq.io/docs/output#csv),
 [HTML](https://sq.io/docs/output#html), [Markdown](https://sq.io/docs/output#markdown) 
 and [XML](https://sq.io/docs/output#xml), and can [insert](https://sq.io/docs/output#insert) query 
