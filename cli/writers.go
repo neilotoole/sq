@@ -57,7 +57,7 @@ command, sq falls back to "text". Available formats:
 
   text, csv, tsv, xlsx,
   json, jsona, jsonl,
-  markdown, html, xml, yaml, raw`,
+  markdown, html, xlsx, xml, yaml, raw`,
 	)
 
 	OptVerbose = options.NewBool(

@@ -53,7 +53,7 @@ const (
 	JSONLShort = "l"
 	JSONLUsage = "Output LF-delimited JSON objects"
 
-	Markdown      = "md"
+	Markdown      = "markdown"
 	MarkdownUsage = "Output Markdown"
 
 	AddActive      = "active"

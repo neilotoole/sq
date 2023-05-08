@@ -40,6 +40,10 @@ func Upgrade(ctx context.Context, before []byte) (after []byte, err error) {
 	m["options"] = m["defaults"]
 	delete(m, "defaults")
 
+	if m["options"] == nil {
+		m["options"] = map[string]any{}
+	}
+
 	opts, ok := m["options"].(map[string]any)
 	if !ok {
 		return nil, errz.Errorf("corrupt config: invalid 'options' field")

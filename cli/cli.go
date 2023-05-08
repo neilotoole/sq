@@ -278,6 +278,8 @@ func applyFlagAliases(f *pflag.FlagSet, name string) pflag.NormalizedName {
 	case "table":
 		// Legacy: flag --text was once named --table.
 		name = flag.Text
+	case "md":
+		name = flag.Markdown
 	default:
 	}
 	return pflag.NormalizedName(name)
