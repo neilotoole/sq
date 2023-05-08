@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Breaking changes are annotated with ☢️.
 
+## [v0.34.2] - 2023-05-08
+
+### Fixed
+
+- Both `--markdown` and the alias `--md` are now supported.
+
 ## [v0.34.1] - 2023-05-07
 
 ### Fixed
@@ -463,3 +469,5 @@ make working with lots of sources much easier.
 [v0.32.0]: https://github.com/neilotoole/sq/compare/v0.31.0...v0.32.0
 [v0.33.0]: https://github.com/neilotoole/sq/compare/v0.32.0...v0.33.0
 [v0.34.0]: https://github.com/neilotoole/sq/compare/v0.33.0...v0.34.0
+[v0.34.1]: https://github.com/neilotoole/sq/compare/v0.34.0...v0.34.1
+[v0.34.2]: https://github.com/neilotoole/sq/compare/v0.34.1...v0.34.2
