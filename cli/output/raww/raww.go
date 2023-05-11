@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -20,6 +21,7 @@ import (
 // written to the backing writer without any separator, or
 // encoding, etc.
 type recordWriter struct {
+	mu      sync.Mutex
 	out     io.Writer
 	pr      *output.Printing
 	recMeta sqlz.RecordMeta
@@ -42,6 +44,9 @@ func (w *recordWriter) Open(recMeta sqlz.RecordMeta) error {
 
 // WriteRecords implements output.RecordWriter.
 func (w *recordWriter) WriteRecords(recs []sqlz.Record) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
 	if len(recs) == 0 {
 		return nil
 	}

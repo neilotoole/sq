@@ -2,12 +2,14 @@ package tablew
 
 import (
 	"io"
+	"sync"
 
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 )
 
 type recordWriter struct {
+	mu       sync.Mutex
 	tbl      *table
 	recMeta  sqlz.RecordMeta
 	rowCount int
@@ -49,6 +51,8 @@ func (w *recordWriter) Close() error {
 
 // WriteRecords implements output.RecordWriter.
 func (w *recordWriter) WriteRecords(recs []sqlz.Record) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
 	kinds := w.recMeta.Kinds()
 
 	var tblRows [][]string

@@ -9,6 +9,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/neilotoole/sq/cli/output"
@@ -20,6 +21,7 @@ import (
 
 // RecordWriter implements output.RecordWriter.
 type RecordWriter struct {
+	mu      sync.Mutex
 	recMeta sqlz.RecordMeta
 	pr      *output.Printing
 	out     io.Writer
@@ -111,6 +113,9 @@ func (w *RecordWriter) writeRecord(rec sqlz.Record) error {
 
 // WriteRecords implements output.RecordWriter.
 func (w *RecordWriter) WriteRecords(recs []sqlz.Record) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
 	var err error
 	for _, rec := range recs {
 		err = w.writeRecord(rec)

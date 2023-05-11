@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/neilotoole/sq/cli/output"
@@ -25,6 +26,7 @@ const (
 
 // RecordWriter implements output.RecordWriter.
 type RecordWriter struct {
+	mu          sync.Mutex
 	recMeta     sqlz.RecordMeta
 	csvW        *csv.Writer
 	needsHeader bool
@@ -58,6 +60,9 @@ func (w *RecordWriter) Close() error {
 
 // WriteRecords implements output.RecordWriter.
 func (w *RecordWriter) WriteRecords(recs []sqlz.Record) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
 	if w.needsHeader {
 		headerRow := w.recMeta.Names()
 

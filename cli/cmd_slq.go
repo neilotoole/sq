@@ -350,6 +350,7 @@ func addQueryCmdFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolP(flag.Raw, flag.RawShort, false, flag.RawUsage)
 	cmd.Flags().BoolP(flag.XLSX, flag.XLSXShort, false, flag.XLSXUsage)
 	cmd.Flags().BoolP(flag.XML, flag.XMLShort, false, flag.XMLUsage)
+	cmd.Flags().BoolP(flag.YAML, flag.YAMLShort, false, flag.YAMLUsage)
 	cmd.Flags().BoolP(flag.Compact, flag.CompactShort, false, flag.CompactUsage)
 
 	addTimeFormatOptsFlags(cmd)

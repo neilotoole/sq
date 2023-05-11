@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Breaking changes are annotated with ☢️.
 
+## Upcoming
+
+### Added
+
+- Results can now be output in [YAML](https://sq.io/docs/output#yaml).
+
+### Fixed
+
+- `sq config get OPT --text` now prints only the value, not `KEY VALUE`.
+  If you want to see key and value, consider using `--yaml`, or `--text --verbose`.
+
+
 ## [v0.34.2] - 2023-05-08
 
 ### Fixed
@@ -97,7 +109,7 @@ Alas, this release has several minor breaking changes ☢️.
 - ☢️ The `--pretty` flag has been removed. Its only previous use was with the
   `json` format, where if `--pretty=false` would output the JSON in compact form.
   To better align with jq, there is now a `--compact` / `-c` flag that behaves
-  identically to `jq`.
+  identically to jq.
 - ☢️ Because of the above `--compact` / `-c` flag, the short form of the `--csv`
   flag is changing from `-c` to `-C`. It's an unfortunate situation, but alignment
   with jq's behavior is an overarching principle that justifies the change.

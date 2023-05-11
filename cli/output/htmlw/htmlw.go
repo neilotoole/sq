@@ -8,6 +8,7 @@ import (
 	"html"
 	"io"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/neilotoole/sq/cli/output"
@@ -20,6 +21,7 @@ import (
 
 // RecordWriter implements output.RecordWriter.
 type recordWriter struct {
+	mu      sync.Mutex
 	recMeta sqlz.RecordMeta
 	pr      *output.Printing
 	out     io.Writer
@@ -65,6 +67,8 @@ func (w *recordWriter) Open(recMeta sqlz.RecordMeta) error {
 
 // Flush implements output.RecordWriter.
 func (w *recordWriter) Flush() error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
 	_, err := w.buf.WriteTo(w.out) // resets buf
 	return errz.Err(err)
 }
@@ -132,6 +136,8 @@ func (w *recordWriter) writeRecord(rec sqlz.Record) error {
 
 // WriteRecords implements output.RecordWriter.
 func (w *recordWriter) WriteRecords(recs []sqlz.Record) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
 	var err error
 	for _, rec := range recs {
 		err = w.writeRecord(rec)

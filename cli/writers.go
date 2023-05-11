@@ -286,6 +286,7 @@ func newWriters(cmd *cobra.Command, opts options.Options, out, errOut io.Writer,
 		w.configw = yamlw.NewConfigWriter(out2, pr)
 		w.metaw = yamlw.NewMetadataWriter(out2, pr)
 		w.srcw = yamlw.NewSourceWriter(out2, pr)
+		w.recordw = yamlw.NewRecordWriter(out2, pr)
 	}
 
 	return w, out2, errOut2
