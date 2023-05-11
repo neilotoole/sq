@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"strings"
+	"sync"
 
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/jsonw/internal"
@@ -38,6 +39,7 @@ func NewStdRecordWriter(out io.Writer, pr *output.Printing) output.RecordWriter 
 
 // stdWriter outputs records in standard JSON format.
 type stdWriter struct {
+	mu  sync.Mutex
 	err error
 	out io.Writer
 	pr  *output.Printing
@@ -89,6 +91,8 @@ func (w *stdWriter) Open(recMeta sqlz.RecordMeta) error {
 
 // WriteRecords implements output.RecordWriter.
 func (w *stdWriter) WriteRecords(recs []sqlz.Record) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
 	if w.err != nil {
 		return w.err
 	}
@@ -136,6 +140,8 @@ func (w *stdWriter) writeRecord(rec sqlz.Record) error {
 
 // Flush implements output.RecordWriter.
 func (w *stdWriter) Flush() error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
 	if w.err != nil {
 		return w.err
 	}
@@ -278,6 +284,7 @@ func NewArrayRecordWriter(out io.Writer, pr *output.Printing) output.RecordWrite
 // surround the output of each encode func. Therefore there
 // are len(rec)+1 tpl elements.
 type lineRecordWriter struct {
+	mu      sync.Mutex
 	err     error
 	out     io.Writer
 	pr      *output.Printing
@@ -316,6 +323,8 @@ func (w *lineRecordWriter) Open(recMeta sqlz.RecordMeta) error {
 
 // WriteRecords implements output.RecordWriter.
 func (w *lineRecordWriter) WriteRecords(recs []sqlz.Record) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
 	if w.err != nil {
 		return w.err
 	}

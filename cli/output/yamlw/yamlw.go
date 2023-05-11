@@ -31,6 +31,10 @@ func writeYAML(out io.Writer, p printer.Printer, v any) error {
 func newPrinter(pr *output.Printing) printer.Printer {
 	var p printer.Printer
 	p.LineNumber = false
+	if pr.IsMonochrome() {
+		return p
+	}
+
 	p.Bool = func() *printer.Property {
 		return &printer.Property{
 			Prefix: formatColor(pr.Bool),

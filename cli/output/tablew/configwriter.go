@@ -44,6 +44,15 @@ func (w *configWriter) Opt(o options.Options, opt options.Opt) error {
 		return nil
 	}
 
+	if !w.tbl.pr.Verbose {
+		if !o.IsSet(opt) {
+			return nil
+		}
+		clr := getOptColor(w.tbl.pr, opt)
+		clr.Fprintln(w.tbl.out, opt.GetAny(o))
+		return nil
+	}
+
 	o2 := options.Options{opt.Key(): o[opt.Key()]}
 	reg2 := &options.Registry{}
 	reg2.Add(opt)
