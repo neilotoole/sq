@@ -29,6 +29,12 @@ on:
 #      - '.github/**'
   schedule:
     - cron: '43 3 * * 0'
+      paths-ignore:
+        - 'grammar/grun/**'
+        - 'cli/testdata/*.rb'
+        - 'magefile.go'
+        # jcolorenc has a bunch of "unsafe" stuff in it
+        - 'cli/output/jsonw/internal/jcolorenc/**'
 
 permissions:
   contents: read
