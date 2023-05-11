@@ -7,11 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Breaking changes are annotated with ☢️.
 
-## Upcoming
+## [v0.35.0] - 2023-05-10
 
 ### Added
 
-- Results can now be output in [YAML](https://sq.io/docs/output#yaml).
+- [#8]: Results can now be output in [YAML](https://sq.io/docs/output#yaml).
 
 ### Fixed
 
@@ -429,6 +429,7 @@ make working with lots of sources much easier.
 
 - [#89]: Bug with SQL generated for joins.
 
+[#8]: https://github.com/neilotoole/sq/issues/8
 [#15]: https://github.com/neilotoole/sq/issues/15
 [#89]: https://github.com/neilotoole/sq/pull/89
 [#91]: https://github.com/neilotoole/sq/pull/91
@@ -483,3 +484,4 @@ make working with lots of sources much easier.
 [v0.34.0]: https://github.com/neilotoole/sq/compare/v0.33.0...v0.34.0
 [v0.34.1]: https://github.com/neilotoole/sq/compare/v0.34.0...v0.34.1
 [v0.34.2]: https://github.com/neilotoole/sq/compare/v0.34.1...v0.34.2
+[v0.35.0]: https://github.com/neilotoole/sq/compare/v0.34.2...v0.35.0
