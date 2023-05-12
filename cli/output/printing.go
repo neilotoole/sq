@@ -83,6 +83,18 @@ type Printing struct {
 	// Datetime is the color for time-related values.
 	Datetime *color.Color
 
+	// DiffPlus is the color for diff plus "+" elements.
+	DiffPlus *color.Color
+
+	// DiffMinus is the color for diff minus "-" elements.
+	DiffMinus *color.Color
+
+	// DiffSection is the color for diff section elements.
+	DiffSection *color.Color
+
+	// DiffNormal is the color for regular diff text.
+	DiffNormal *color.Color
+
 	// Duration is the color for time duration values.
 	Duration *color.Color
 
@@ -148,6 +160,10 @@ func NewPrinting() *Printing {
 		Bool:                   color.New(color.FgYellow),
 		Bytes:                  color.New(color.Faint),
 		Datetime:               color.New(color.FgGreen, color.Faint),
+		DiffMinus:              color.New(color.FgRed),
+		DiffNormal:             color.New(color.Faint),
+		DiffPlus:               color.New(color.FgGreen),
+		DiffSection:            color.New(color.FgCyan),
 		Duration:               color.New(color.FgGreen, color.Faint),
 		Error:                  color.New(color.FgRed, color.Bold),
 		Faint:                  color.New(color.Faint),
@@ -191,6 +207,7 @@ func (pr *Printing) LogValue() slog.Value {
 func (pr *Printing) colors() []*color.Color {
 	return []*color.Color{
 		pr.Active, pr.Bold, pr.Bold, pr.Bytes, pr.Datetime, pr.Duration,
+		pr.DiffMinus, pr.DiffPlus, pr.DiffNormal, pr.DiffSection,
 		pr.Error, pr.Faint, pr.Handle, pr.Header, pr.Hilite,
 		pr.Key, pr.Location, pr.Normal, pr.Null, pr.Number,
 		pr.Punc, pr.String, pr.Success,
