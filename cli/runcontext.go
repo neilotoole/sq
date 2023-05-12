@@ -179,11 +179,11 @@ func newDefaultRunContext(ctx context.Context,
 	return rc, log, nil
 }
 
-// init is invoked by cobra prior to the command RunE being
+// Init is invoked by cobra prior to the command RunE being
 // invoked. It sets up the driverReg, databases, writers and related
 // fundamental components. Subsequent invocations of this method
 // are no-op.
-func (rc *RunContext) init(ctx context.Context) error {
+func (rc *RunContext) Init(ctx context.Context) error {
 	if rc == nil {
 		return errz.New("fatal: RunContext is nil")
 	}

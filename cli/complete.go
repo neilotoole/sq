@@ -146,7 +146,7 @@ func completeSLQ(cmd *cobra.Command, args []string, toComplete string) ([]string
 func completeDriverType(cmd *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
 	rc := getRunContext(cmd)
 	if rc.databases == nil {
-		err := rc.init(cmd.Context())
+		err := rc.Init(cmd.Context())
 		if err != nil {
 			lg.Unexpected(logFrom(cmd), err)
 			return nil, cobra.ShellCompDirectiveError
@@ -305,7 +305,7 @@ func (c *handleTableCompleter) complete(cmd *cobra.Command, args []string,
 	toComplete string,
 ) ([]string, cobra.ShellCompDirective) {
 	rc := getRunContext(cmd)
-	if err := rc.init(cmd.Context()); err != nil {
+	if err := rc.Init(cmd.Context()); err != nil {
 		lg.Unexpected(logFrom(cmd), err)
 		return nil, cobra.ShellCompDirectiveError
 	}

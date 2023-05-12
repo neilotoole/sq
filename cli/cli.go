@@ -246,7 +246,7 @@ func addCmd(rc *RunContext, parentCmd, cmd *cobra.Command) *cobra.Command {
 	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
 		rc.Cmd = cmd
 		rc.Args = args
-		err := rc.init(cmd.Context())
+		err := rc.Init(cmd.Context())
 		return err
 	}
 
