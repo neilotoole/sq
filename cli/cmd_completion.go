@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/neilotoole/sq/cli/run"
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -59,7 +60,7 @@ PS> sq completion powershell > sq.ps1
 }
 
 func execCompletion(cmd *cobra.Command, args []string) error {
-	rc := RunContextFrom(cmd.Context())
+	rc := run.FromContext(cmd.Context())
 	switch args[0] {
 	case "bash":
 		return cmd.Root().GenBashCompletion(rc.Out)

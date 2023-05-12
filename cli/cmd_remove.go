@@ -2,6 +2,7 @@ package cli
 
 import (
 	"github.com/neilotoole/sq/cli/flag"
+	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/samber/lo"
@@ -41,7 +42,7 @@ may have changed, if that source or group was removed.`,
 // execRemove removes sources and groups. The elements of
 // args can be a handle, or a group.
 func execRemove(cmd *cobra.Command, args []string) error {
-	rc := RunContextFrom(cmd.Context())
+	rc := run.FromContext(cmd.Context())
 	cfg, coll := rc.Config, rc.Config.Collection
 
 	args = lo.Uniq(args)
@@ -82,5 +83,5 @@ func execRemove(cmd *cobra.Command, args []string) error {
 	}
 	lo.Uniq(removed)
 	source.Sort(removed)
-	return rc.writers.Source.Removed(removed...)
+	return rc.Writers.Source.Removed(removed...)
 }

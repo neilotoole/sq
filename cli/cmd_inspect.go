@@ -2,6 +2,7 @@ package cli
 
 import (
 	"github.com/neilotoole/sq/cli/flag"
+	"github.com/neilotoole/sq/cli/run"
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -53,7 +54,7 @@ If @HANDLE is not provided, the active data source is assumed.`,
 
 func execInspect(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
-	rc := RunContextFrom(ctx)
+	rc := run.FromContext(ctx)
 
 	coll := rc.Config.Collection
 
@@ -124,7 +125,7 @@ func execInspect(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	dbase, err := rc.databases.Open(ctx, src)
+	dbase, err := rc.Databases.Open(ctx, src)
 	if err != nil {
 		return errz.Wrapf(err, "failed to inspect %s", src.Handle)
 	}
@@ -136,7 +137,7 @@ func execInspect(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		return rc.writers.Metadata.TableMetadata(tblMeta)
+		return rc.Writers.Metadata.TableMetadata(tblMeta)
 	}
 
 	meta, err := dbase.SourceMetadata(ctx)
@@ -150,5 +151,5 @@ func execInspect(cmd *cobra.Command, args []string) error {
 		meta.DBVars = nil
 	}
 
-	return rc.writers.Metadata.SourceMetadata(meta)
+	return rc.Writers.Metadata.SourceMetadata(meta)
 }

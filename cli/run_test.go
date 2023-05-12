@@ -11,6 +11,8 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/neilotoole/sq/cli/run"
+
 	"github.com/neilotoole/sq/cli/config/yamlstore"
 	"github.com/neilotoole/sq/libsq/core/options"
 
@@ -29,7 +31,7 @@ import (
 //
 // If cfgStore is nil, a new one is created in a temp dir.
 func newTestRunCtx(ctx context.Context, t testing.TB, cfgStore config.Store,
-) (rc *cli.RunContext, out, errOut *bytes.Buffer) {
+) (rc *run.Run, out, errOut *bytes.Buffer) {
 	out = &bytes.Buffer{}
 	errOut = &bytes.Buffer{}
 
@@ -53,7 +55,7 @@ func newTestRunCtx(ctx context.Context, t testing.TB, cfgStore config.Store,
 		require.NoError(t, err)
 	}
 
-	rc = &cli.RunContext{
+	rc = &run.Run{
 		Stdin:           os.Stdin,
 		Out:             out,
 		ErrOut:          errOut,
@@ -66,11 +68,11 @@ func newTestRunCtx(ctx context.Context, t testing.TB, cfgStore config.Store,
 }
 
 // run is a helper for testing sq commands.
-type Run struct {
+type TestRun struct {
 	t      *testing.T
 	ctx    context.Context
 	mu     sync.Mutex
-	rc     *cli.RunContext
+	rc     *run.Run
 	out    *bytes.Buffer
 	errOut *bytes.Buffer
 	used   bool
@@ -79,11 +81,11 @@ type Run struct {
 	hushOutput bool
 }
 
-// newRun returns a new run instance for testing sq commands.
+// NewTestRun returns a new run instance for testing sq commands.
 // If from is non-nil, its config is used. This allows sequential
 // commands to use the same config.
-func newRun(ctx context.Context, t *testing.T, from *Run) *Run {
-	ru := &Run{t: t, ctx: ctx}
+func NewTestRun(ctx context.Context, t *testing.T, from *TestRun) *TestRun {
+	ru := &TestRun{t: t, ctx: ctx}
 
 	var cfgStore config.Store
 	if from != nil {
@@ -96,7 +98,7 @@ func newRun(ctx context.Context, t *testing.T, from *Run) *Run {
 // add adds srcs to ru.rc.Config.Collection. If the collection
 // does not already have an active source, the first element
 // of srcs is used as the active source.
-func (ru *Run) add(srcs ...source.Source) *Run {
+func (ru *TestRun) add(srcs ...source.Source) *TestRun {
 	ru.mu.Lock()
 	defer ru.mu.Unlock()
 
@@ -127,17 +129,17 @@ func (ru *Run) add(srcs ...source.Source) *Run {
 // occurs on the client side during execution, that error is returned.
 // Either ru.out or ru.errOut will be filled, according to what the
 // CLI outputs.
-func (ru *Run) Exec(args ...string) error {
+func (ru *TestRun) Exec(args ...string) error {
 	ru.mu.Lock()
 	defer ru.mu.Unlock()
 
 	return ru.doExec(args)
 }
 
-func (ru *Run) doExec(args []string) error {
+func (ru *TestRun) doExec(args []string) error {
 	defer func() { ru.used = true }()
 
-	require.False(ru.t, ru.used, "Run instance must only be used once")
+	require.False(ru.t, ru.used, "TestRun instance must only be used once")
 
 	ctx, cancelFn := context.WithCancel(context.Background())
 	ru.t.Cleanup(cancelFn)
@@ -165,8 +167,8 @@ func (ru *Run) doExec(args []string) error {
 	return closeErr
 }
 
-// Bind marshals Run.Out to v (as JSON), failing the test on any error.
-func (ru *Run) Bind(v any) *Run {
+// Bind marshals ru.Out to v (as JSON), failing the test on any error.
+func (ru *TestRun) Bind(v any) *TestRun {
 	ru.mu.Lock()
 	defer ru.mu.Unlock()
 
@@ -176,7 +178,7 @@ func (ru *Run) Bind(v any) *Run {
 }
 
 // BindMap is a convenience method for binding ru.Out to a map.
-func (ru *Run) BindMap() map[string]any {
+func (ru *TestRun) BindMap() map[string]any {
 	m := map[string]any{}
 	ru.Bind(&m)
 	return m
@@ -185,7 +187,7 @@ func (ru *Run) BindMap() map[string]any {
 // mustReadCSV reads CSV from ru.out and returns all records,
 // failing the testing on any problem. Obviously the Exec call
 // should have specified "--csv".
-func (ru *Run) mustReadCSV() [][]string {
+func (ru *TestRun) mustReadCSV() [][]string {
 	ru.mu.Lock()
 	defer ru.mu.Unlock()
 
@@ -197,7 +199,7 @@ func (ru *Run) mustReadCSV() [][]string {
 // hush suppresses the printing of output collected in out
 // and errOut to t.Log. Collection to true for tests
 // that output excessive content, binary files, etc.
-func (ru *Run) hush() *Run {
+func (ru *TestRun) hush() *TestRun {
 	ru.hushOutput = true
 	return ru
 }

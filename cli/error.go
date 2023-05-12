@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/neilotoole/sq/cli/run"
+
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/output/format"
 	"github.com/neilotoole/sq/cli/output/jsonw"
@@ -21,7 +23,7 @@ import (
 // and logging errors. This func has a lot of (possibly needless)
 // redundancy; ultimately err will print if non-nil (even if
 // rc or any of its fields are nil).
-func printError(ctx context.Context, rc *RunContext, err error) {
+func printError(ctx context.Context, rc *run.Run, err error) {
 	log := lg.FromContext(ctx)
 
 	if err == nil {
@@ -53,7 +55,7 @@ func printError(ctx context.Context, rc *RunContext, err error) {
 
 		lg.Error(log, "nil command", err, lga.Cmd, cmdName)
 
-		wrtrs := rc.writers
+		wrtrs := rc.Writers
 		if wrtrs != nil && wrtrs.Error != nil {
 			// If we have an errorWriter, we print to it
 			// and return.
@@ -102,7 +104,7 @@ func printError(ctx context.Context, rc *RunContext, err error) {
 // bootstrapIsFormatJSON is a last-gasp attempt to check if the user
 // supplied --json=true on the command line, to determine if a
 // bootstrap error (hopefully rare) should be output in JSON.
-func bootstrapIsFormatJSON(rc *RunContext) bool {
+func bootstrapIsFormatJSON(rc *run.Run) bool {
 	// If no RunContext, assume false
 	if rc == nil {
 		return false

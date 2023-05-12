@@ -8,6 +8,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/neilotoole/sq/cli/run"
+
 	"github.com/neilotoole/sq/drivers/csv"
 
 	"github.com/neilotoole/sq/cli/flag"
@@ -159,7 +161,7 @@ More examples:
 }
 
 func execSrcAdd(cmd *cobra.Command, args []string) error {
-	rc := RunContextFrom(cmd.Context())
+	rc := run.FromContext(cmd.Context())
 	cfg := rc.Config
 
 	loc := source.AbsLocation(strings.TrimSpace(args[0]))
@@ -170,7 +172,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		val, _ := cmd.Flags().GetString(flag.AddDriver)
 		typ = source.DriverType(strings.TrimSpace(val))
 	} else {
-		typ, err = rc.files.DriverType(cmd.Context(), loc)
+		typ, err = rc.Files.DriverType(cmd.Context(), loc)
 		if err != nil {
 			return err
 		}
@@ -179,7 +181,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	if rc.driverReg.ProviderFor(typ) == nil {
+	if rc.DriverRegistry.ProviderFor(typ) == nil {
 		return errz.Errorf("unsupported driver type {%s}", typ)
 	}
 
@@ -217,7 +219,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 	// or sq prompts the user.
 	if cmdFlagTrue(cmd, flag.PasswordPrompt) {
 		var passwd []byte
-		if passwd, err = readPassword(cmd.Context(), rc.Stdin, rc.Out, rc.writers.Printing); err != nil {
+		if passwd, err = readPassword(cmd.Context(), rc.Stdin, rc.Out, rc.Writers.Printing); err != nil {
 			return err
 		}
 
@@ -233,7 +235,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 
 	src, err := newSource(
 		cmd.Context(),
-		rc.driverReg,
+		rc.DriverRegistry,
 		typ,
 		handle,
 		loc,
@@ -258,7 +260,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		// In UX testing, it led to confused users.
 	}
 
-	drvr, err := rc.driverReg.DriverFor(src.Type)
+	drvr, err := rc.DriverRegistry.DriverFor(src.Type)
 	if err != nil {
 		return err
 	}
@@ -279,7 +281,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return rc.writers.Source.Source(rc.Config.Collection, src)
+	return rc.Writers.Source.Source(rc.Config.Collection, src)
 }
 
 // readPassword reads a password from stdin pipe, or if nothing on stdin,
@@ -305,7 +307,7 @@ func readPassword(ctx context.Context, stdin *os.File, stdout io.Writer, pr *out
 		return b, nil
 	}
 
-	// Run this is a goroutine so that we can handle ctrl-c.
+	// This is a goroutine so that we can handle ctrl-c.
 	go func() {
 		buf := &bytes.Buffer{}
 		fmt.Fprint(buf, "Password: ")

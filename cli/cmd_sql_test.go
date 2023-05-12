@@ -47,7 +47,7 @@ func TestCmdSQL_Insert(t *testing.T) {
 					// of it (without data).
 					tblName := th.CopyTable(true, destSrc, sakila.TblActor, "", false)
 
-					ru := newRun(th.Context, t, nil).add(*originSrc)
+					ru := NewTestRun(th.Context, t, nil).add(*originSrc)
 					if destSrc.Handle != originSrc.Handle {
 						ru.add(*destSrc)
 					}
@@ -95,7 +95,7 @@ func TestCmdSQL_SelectFromUserDriver(t *testing.T) {
 				th := testh.New(t)
 				src := th.Source(handle)
 
-				ru := newRun(th.Context, t, nil).add(*src)
+				ru := NewTestRun(th.Context, t, nil).add(*src)
 				udDefs := testh.DriverDefsFrom(t, testsrc.PathDriverDefPpl, testsrc.PathDriverDefRSS)
 				require.Len(t, udDefs, 2)
 				for _, udDef := range udDefs {
@@ -167,7 +167,7 @@ func TestCmdSQL_StdinQuery(t *testing.T) {
 			f, err := os.Open(tc.fpath)
 			require.NoError(t, err)
 
-			ru := newRun(context.Background(), t, nil).hush()
+			ru := NewTestRun(context.Background(), t, nil).hush()
 			ru.rc.Stdin = f
 
 			args := []string{"sql", "--header=false"} // Don't print the header in output

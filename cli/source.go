@@ -3,6 +3,8 @@ package cli
 import (
 	"context"
 
+	"github.com/neilotoole/sq/cli/run"
+
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -19,7 +21,7 @@ import (
 // mutate rc.Config.Sources as necessary. If no error
 // is returned, it is guaranteed that there's an active
 // source on the collection.
-func determineSources(ctx context.Context, rc *RunContext) error {
+func determineSources(ctx context.Context, rc *run.Run) error {
 	cmd, coll := rc.Cmd, rc.Config.Collection
 	activeSrc, err := activeSrcFromFlagsOrConfig(cmd, coll)
 	if err != nil {
@@ -98,7 +100,7 @@ func activeSrcFromFlagsOrConfig(cmd *cobra.Command, coll *source.Collection) (*s
 // input, a new source instance with handle @stdin is constructed
 // and returned. If the pipe has no data (size is zero),
 // then (nil,nil) is returned.
-func checkStdinSource(ctx context.Context, rc *RunContext) (*source.Source, error) {
+func checkStdinSource(ctx context.Context, rc *run.Run) (*source.Source, error) {
 	cmd := rc.Cmd
 
 	f := rc.Stdin
@@ -118,18 +120,18 @@ func checkStdinSource(ctx context.Context, rc *RunContext) (*source.Source, erro
 	if cmd.Flags().Changed(flag.IngestDriver) {
 		val, _ := cmd.Flags().GetString(flag.IngestDriver)
 		typ = source.DriverType(val)
-		if rc.driverReg.ProviderFor(typ) == nil {
+		if rc.DriverRegistry.ProviderFor(typ) == nil {
 			return nil, errz.Errorf("unknown driver type: %s", typ)
 		}
 	}
 
-	err = rc.files.AddStdin(f)
+	err = rc.Files.AddStdin(f)
 	if err != nil {
 		return nil, err
 	}
 
 	if typ == source.TypeNone {
-		typ, err = rc.files.TypeStdin(ctx)
+		typ, err = rc.Files.TypeStdin(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -140,7 +142,7 @@ func checkStdinSource(ctx context.Context, rc *RunContext) (*source.Source, erro
 
 	return newSource(
 		ctx,
-		rc.driverReg,
+		rc.DriverRegistry,
 		typ,
 		source.StdinHandle,
 		source.StdinHandle,

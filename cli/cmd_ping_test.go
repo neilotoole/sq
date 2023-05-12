@@ -17,31 +17,31 @@ func TestCmdPing(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 
-	err := newRun(ctx, t, nil).Exec("ping")
+	err := NewTestRun(ctx, t, nil).Exec("ping")
 	require.Error(t, err, "no active data source")
 
-	err = newRun(ctx, t, nil).Exec("ping", "invalid_handle")
+	err = NewTestRun(ctx, t, nil).Exec("ping", "invalid_handle")
 	require.Error(t, err)
 
-	err = newRun(ctx, t, nil).Exec("ping", "@not_a_handle")
+	err = NewTestRun(ctx, t, nil).Exec("ping", "@not_a_handle")
 	require.Error(t, err)
 
-	var ru *Run
+	var ru *TestRun
 
 	th := testh.New(t)
 	src1, src2 := th.Source(sakila.CSVActor), th.Source(sakila.CSVActorNoHeader)
 
-	ru = newRun(ctx, t, nil).add(*src1)
+	ru = NewTestRun(ctx, t, nil).add(*src1)
 	err = ru.Exec("ping", "--csv", src1.Handle)
 	require.NoError(t, err)
 	checkPingOutputCSV(t, ru, *src1)
 
-	ru = newRun(ctx, t, nil).add(*src2)
+	ru = NewTestRun(ctx, t, nil).add(*src2)
 	err = ru.Exec("ping", "--csv", src2.Handle)
 	require.NoError(t, err)
 	checkPingOutputCSV(t, ru, *src2)
 
-	ru = newRun(ctx, t, nil).add(*src1, *src2)
+	ru = NewTestRun(ctx, t, nil).add(*src1, *src2)
 	err = ru.Exec("ping", "--csv", src1.Handle, src2.Handle)
 	require.NoError(t, err)
 	checkPingOutputCSV(t, ru, *src1, *src2)
@@ -49,7 +49,7 @@ func TestCmdPing(t *testing.T) {
 
 // checkPintOutputCSV reads CSV records from h.out, and verifies
 // that there's an appropriate record for each of srcs.
-func checkPingOutputCSV(t *testing.T, h *Run, srcs ...source.Source) {
+func checkPingOutputCSV(t *testing.T, h *TestRun, srcs ...source.Source) {
 	recs, err := csv.NewReader(h.out).ReadAll()
 	require.NoError(t, err)
 	require.Equal(t, len(srcs), len(recs))

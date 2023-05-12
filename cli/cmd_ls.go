@@ -2,6 +2,7 @@ package cli
 
 import (
 	"github.com/neilotoole/sq/cli/flag"
+	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/spf13/cobra"
@@ -48,7 +49,7 @@ any further descendants.
 }
 
 func execList(cmd *cobra.Command, args []string) error {
-	rc := RunContextFrom(cmd.Context())
+	rc := run.FromContext(cmd.Context())
 	coll := rc.Config.Collection
 
 	if cmdFlagTrue(cmd, flag.ListGroup) {
@@ -72,7 +73,7 @@ func execList(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		return rc.writers.Source.Groups(tree)
+		return rc.Writers.Source.Groups(tree)
 	}
 
 	// We're listing sources, not groups.
@@ -86,5 +87,5 @@ func execList(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	return rc.writers.Source.Collection(coll)
+	return rc.Writers.Source.Collection(coll)
 }

@@ -7,6 +7,8 @@ import (
 	"context"
 	"strings"
 
+	"github.com/neilotoole/sq/cli/run"
+
 	"github.com/neilotoole/sq/cli/output/diffw"
 
 	"github.com/aymanbagabas/go-udiff"
@@ -44,7 +46,7 @@ func newDiffCmd() *cobra.Command {
 
 // execDiff compares schemas or tables.
 func execDiff(cmd *cobra.Command, args []string) error {
-	rc := RunContextFrom(cmd.Context())
+	rc := run.FromContext(cmd.Context())
 
 	handle1, table1, err := source.ParseTableHandle(args[0])
 	if err != nil {
@@ -68,7 +70,7 @@ func execDiff(cmd *cobra.Command, args []string) error {
 	return doTableDiff(cmd.Context(), rc, handle1, table1, handle2, table2)
 }
 
-func doTableDiff(ctx context.Context, rc *RunContext, handle1, table1, handle2, table2 string) error {
+func doTableDiff(ctx context.Context, rc *run.Run, handle1, table1, handle2, table2 string) error {
 	_, coll := rc.Config, rc.Config.Collection
 
 	src1, err := coll.Get(handle1)
@@ -81,11 +83,11 @@ func doTableDiff(ctx context.Context, rc *RunContext, handle1, table1, handle2, 
 		return err
 	}
 
-	dbase1, err := rc.databases.Open(ctx, src1)
+	dbase1, err := rc.Databases.Open(ctx, src1)
 	if err != nil {
 		return err
 	}
-	dbase2, err := rc.databases.Open(ctx, src2)
+	dbase2, err := rc.Databases.Open(ctx, src2)
 	if err != nil {
 		return err
 	}
@@ -104,7 +106,7 @@ func doTableDiff(ctx context.Context, rc *RunContext, handle1, table1, handle2, 
 }
 
 //nolint:gocritic
-func printTableDiff(ctx context.Context, rc *RunContext,
+func printTableDiff(ctx context.Context, rc *run.Run,
 	src1 *source.Source, tblMeta1 *source.TableMetadata,
 	src2 *source.Source, tblMeta2 *source.TableMetadata,
 ) error {

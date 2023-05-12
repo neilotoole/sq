@@ -5,6 +5,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neilotoole/sq/cli/run"
+
 	"github.com/neilotoole/sq/libsq/core/timez"
 
 	"github.com/neilotoole/sq/cli/flag"
@@ -145,17 +147,17 @@ func completeSLQ(cmd *cobra.Command, args []string, toComplete string) ([]string
 // completeDriverType is a completionFunc that suggests drivers.
 func completeDriverType(cmd *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
 	rc := getRunContext(cmd)
-	if rc.databases == nil {
-		err := rc.Init(cmd.Context())
+	if rc.Databases == nil {
+		err := PreRun(cmd.Context(), rc)
 		if err != nil {
 			lg.Unexpected(logFrom(cmd), err)
 			return nil, cobra.ShellCompDirectiveError
 		}
 	}
 
-	drivers := rc.driverReg.Drivers()
+	drivers := rc.DriverRegistry.Drivers()
 	types := make([]string, len(drivers))
-	for i, driver := range rc.driverReg.Drivers() {
+	for i, driver := range rc.DriverRegistry.Drivers() {
 		types[i] = string(driver.DriverMetadata().Type)
 	}
 
@@ -305,7 +307,7 @@ func (c *handleTableCompleter) complete(cmd *cobra.Command, args []string,
 	toComplete string,
 ) ([]string, cobra.ShellCompDirective) {
 	rc := getRunContext(cmd)
-	if err := rc.Init(cmd.Context()); err != nil {
+	if err := PreRun(cmd.Context(), rc); err != nil {
 		lg.Unexpected(logFrom(cmd), err)
 		return nil, cobra.ShellCompDirectiveError
 	}
@@ -347,7 +349,7 @@ func (c *handleTableCompleter) complete(cmd *cobra.Command, args []string,
 // completeTableOnly returns suggestions given input beginning with
 // a period. Effectively this is completion for tables in the
 // active src.
-func (c *handleTableCompleter) completeTableOnly(ctx context.Context, rc *RunContext, _ []string,
+func (c *handleTableCompleter) completeTableOnly(ctx context.Context, rc *run.Run, _ []string,
 	toComplete string,
 ) ([]string, cobra.ShellCompDirective) {
 	activeSrc := rc.Config.Collection.Active()
@@ -385,7 +387,7 @@ func (c *handleTableCompleter) completeTableOnly(ctx context.Context, rc *RunCon
 
 // completeHandle returns suggestions given input beginning with
 // a '@'. The returned suggestions could be @HANDLE, or @HANDLE.TABLE.
-func (c *handleTableCompleter) completeHandle(ctx context.Context, rc *RunContext, _ []string,
+func (c *handleTableCompleter) completeHandle(ctx context.Context, rc *run.Run, _ []string,
 	toComplete string,
 ) ([]string, cobra.ShellCompDirective) {
 	// We're dealing with a handle.
@@ -485,7 +487,7 @@ func (c *handleTableCompleter) completeHandle(ctx context.Context, rc *RunContex
 }
 
 // completeEither returns a union of all handles plus the tables from the active source.
-func (c *handleTableCompleter) completeEither(ctx context.Context, rc *RunContext,
+func (c *handleTableCompleter) completeEither(ctx context.Context, rc *run.Run,
 	_ []string, _ string,
 ) ([]string, cobra.ShellCompDirective) {
 	var suggestions []string
@@ -536,13 +538,13 @@ func (c *handleTableCompleter) completeEither(ctx context.Context, rc *RunContex
 	return suggestions, cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace
 }
 
-func handleIsSQLDriver(rc *RunContext, handle string) (bool, error) {
+func handleIsSQLDriver(rc *run.Run, handle string) (bool, error) {
 	src, err := rc.Config.Collection.Get(handle)
 	if err != nil {
 		return false, err
 	}
 
-	driver, err := rc.driverReg.DriverFor(src.Type)
+	driver, err := rc.DriverRegistry.DriverFor(src.Type)
 	if err != nil {
 		return false, err
 	}
@@ -550,13 +552,13 @@ func handleIsSQLDriver(rc *RunContext, handle string) (bool, error) {
 	return driver.DriverMetadata().IsSQL, nil
 }
 
-func getTableNamesForHandle(ctx context.Context, rc *RunContext, handle string) ([]string, error) {
+func getTableNamesForHandle(ctx context.Context, rc *run.Run, handle string) ([]string, error) {
 	src, err := rc.Config.Collection.Get(handle)
 	if err != nil {
 		return nil, err
 	}
 
-	db, err := rc.databases.Open(ctx, src)
+	db, err := rc.Databases.Open(ctx, src)
 	if err != nil {
 		return nil, err
 	}

@@ -6,6 +6,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/neilotoole/sq/cli/run"
+
 	"github.com/neilotoole/sq/libsq/source"
 
 	"github.com/neilotoole/sq/libsq/core/options"
@@ -60,7 +62,7 @@ in envar $SQ_EDITOR or $EDITOR.`,
 // execConfigEditOptions edits the default options.
 func execConfigEditOptions(cmd *cobra.Command, _ []string) error {
 	ctx := cmd.Context()
-	rc, log := RunContextFrom(ctx), logFrom(cmd)
+	rc, log := run.FromContext(ctx), logFrom(cmd)
 	cfg := rc.Config
 	cmdOpts, err := getOptionsFromCmd(cmd)
 	if err != nil {
@@ -108,7 +110,7 @@ func execConfigEditOptions(cmd *cobra.Command, _ []string) error {
 // execConfigEditSource edits an individual source's config.
 func execConfigEditSource(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
-	rc, log := RunContextFrom(ctx), logFrom(cmd)
+	rc, log := run.FromContext(ctx), logFrom(cmd)
 	cfg := rc.Config
 
 	cmdOpts, err := getOptionsFromCmd(cmd)

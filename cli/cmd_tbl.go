@@ -3,6 +3,8 @@ package cli
 import (
 	"fmt"
 
+	"github.com/neilotoole/sq/cli/run"
+
 	"github.com/neilotoole/sq/cli/flag"
 
 	"github.com/spf13/cobra"
@@ -62,12 +64,12 @@ func newTblCopyCmd() *cobra.Command {
 }
 
 func execTblCopy(cmd *cobra.Command, args []string) error {
-	rc := RunContextFrom(cmd.Context())
+	rc := run.FromContext(cmd.Context())
 	if len(args) == 0 || len(args) > 2 {
 		return errz.New("one or two table args required")
 	}
 
-	tblHandles, err := parseTableHandleArgs(rc.driverReg, rc.Config.Collection, args)
+	tblHandles, err := parseTableHandleArgs(rc.DriverRegistry, rc.Config.Collection, args)
 	if err != nil {
 		return err
 	}
@@ -119,7 +121,7 @@ func execTblCopy(cmd *cobra.Command, args []string) error {
 	}
 
 	var dbase driver.Database
-	dbase, err = rc.databases.Open(cmd.Context(), tblHandles[0].src)
+	dbase, err = rc.Databases.Open(cmd.Context(), tblHandles[0].src)
 	if err != nil {
 		return err
 	}
@@ -175,9 +177,9 @@ only applies to SQL sources.`,
 }
 
 func execTblTruncate(cmd *cobra.Command, args []string) (err error) {
-	rc := RunContextFrom(cmd.Context())
+	rc := run.FromContext(cmd.Context())
 	var tblHandles []tblHandle
-	tblHandles, err = parseTableHandleArgs(rc.driverReg, rc.Config.Collection, args)
+	tblHandles, err = parseTableHandleArgs(rc.DriverRegistry, rc.Config.Collection, args)
 	if err != nil {
 		return err
 	}
@@ -226,9 +228,9 @@ only applies to SQL sources.`,
 }
 
 func execTblDrop(cmd *cobra.Command, args []string) (err error) {
-	rc := RunContextFrom(cmd.Context())
+	rc := run.FromContext(cmd.Context())
 	var tblHandles []tblHandle
-	tblHandles, err = parseTableHandleArgs(rc.driverReg, rc.Config.Collection, args)
+	tblHandles, err = parseTableHandleArgs(rc.DriverRegistry, rc.Config.Collection, args)
 	if err != nil {
 		return err
 	}
@@ -244,7 +246,7 @@ func execTblDrop(cmd *cobra.Command, args []string) (err error) {
 		}
 
 		var dbase driver.Database
-		dbase, err = rc.databases.Open(cmd.Context(), tblH.src)
+		dbase, err = rc.Databases.Open(cmd.Context(), tblH.src)
 		if err != nil {
 			return err
 		}

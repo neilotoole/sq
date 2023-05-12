@@ -2,6 +2,7 @@ package cli
 
 import (
 	"github.com/neilotoole/sq/cli/flag"
+	"github.com/neilotoole/sq/cli/run"
 	"github.com/spf13/cobra"
 )
 
@@ -38,7 +39,7 @@ func newDriverListCmd() *cobra.Command {
 }
 
 func execDriverList(cmd *cobra.Command, _ []string) error {
-	rc := RunContextFrom(cmd.Context())
-	drvrs := rc.driverReg.DriversMetadata()
-	return rc.writers.Metadata.DriverMetadata(drvrs)
+	rc := run.FromContext(cmd.Context())
+	drvrs := rc.DriverRegistry.DriversMetadata()
+	return rc.Writers.Metadata.DriverMetadata(drvrs)
 }

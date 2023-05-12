@@ -3,6 +3,8 @@ package cli
 import (
 	"strings"
 
+	"github.com/neilotoole/sq/cli/run"
+
 	"github.com/neilotoole/sq/cli/flag"
 
 	"github.com/neilotoole/sq/libsq/core/stringz"
@@ -71,7 +73,7 @@ func execMove(cmd *cobra.Command, args []string) error {
 //	$ sq mv production prod
 //	prod
 func execMoveRenameGroup(cmd *cobra.Command, oldGroup, newGroup string) error {
-	rc := RunContextFrom(cmd.Context())
+	rc := run.FromContext(cmd.Context())
 	_, err := rc.Config.Collection.RenameGroup(oldGroup, newGroup)
 	if err != nil {
 		return err
@@ -90,7 +92,7 @@ func execMoveRenameGroup(cmd *cobra.Command, oldGroup, newGroup string) error {
 		return err
 	}
 
-	return rc.writers.Source.Group(tree)
+	return rc.Writers.Source.Group(tree)
 }
 
 // execMoveHandleToGroup moves a source to a group.
@@ -101,7 +103,7 @@ func execMoveRenameGroup(cmd *cobra.Command, oldGroup, newGroup string) error {
 //	$ sq mv @prod/sakiladb /
 //	@sakiladb
 func execMoveHandleToGroup(cmd *cobra.Command, oldHandle, newGroup string) error {
-	rc := RunContextFrom(cmd.Context())
+	rc := run.FromContext(cmd.Context())
 	src, err := rc.Config.Collection.MoveHandleToGroup(oldHandle, newGroup)
 	if err != nil {
 		return err
@@ -115,7 +117,7 @@ func execMoveHandleToGroup(cmd *cobra.Command, oldHandle, newGroup string) error
 		return err
 	}
 
-	return rc.writers.Source.Source(rc.Config.Collection, src)
+	return rc.Writers.Source.Source(rc.Config.Collection, src)
 }
 
 // execMoveRenameHandle renames a handle.
@@ -123,7 +125,7 @@ func execMoveHandleToGroup(cmd *cobra.Command, oldHandle, newGroup string) error
 //	$ sq mv @sakila_db @sakiladb
 //	$ sq mv @sakiladb @sakila/db
 func execMoveRenameHandle(cmd *cobra.Command, oldHandle, newHandle string) error {
-	rc := RunContextFrom(cmd.Context())
+	rc := run.FromContext(cmd.Context())
 	src, err := rc.Config.Collection.RenameSource(oldHandle, newHandle)
 	if err != nil {
 		return err
@@ -137,7 +139,7 @@ func execMoveRenameHandle(cmd *cobra.Command, oldHandle, newHandle string) error
 		return err
 	}
 
-	return rc.writers.Source.Source(rc.Config.Collection, src)
+	return rc.Writers.Source.Source(rc.Config.Collection, src)
 }
 
 // completeMove is a completionFunc for the "mv" command.

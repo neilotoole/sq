@@ -5,9 +5,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"sync"
 
-	"github.com/neilotoole/sq/cli/output"
+	"github.com/neilotoole/sq/cli/run"
 
 	"github.com/neilotoole/sq/drivers"
 
@@ -37,28 +36,12 @@ import (
 	"golang.org/x/exp/slog"
 )
 
-type runContextKey struct{}
-
-// WithRunContext returns ctx with rc added as a value.
-func WithRunContext(ctx context.Context, rc *RunContext) context.Context {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
-	return context.WithValue(ctx, runContextKey{}, rc)
-}
-
-// RunContextFrom extracts the RunContext added to ctx via WithRunContext.
-func RunContextFrom(ctx context.Context) *RunContext {
-	return ctx.Value(runContextKey{}).(*RunContext)
-}
-
 // getRunContext is a convenience function for getting RunContext
 // from the cmd.Context().
-func getRunContext(cmd *cobra.Command) *RunContext {
-	rc := RunContextFrom(cmd.Context())
+func getRunContext(cmd *cobra.Command) *run.Run {
+	rc := run.FromContext(cmd.Context())
 	if rc.Cmd == nil {
-		// rc.Cmd is usually set by the cmd.PreRunE that is added
+		// rc.Cmd is usually set by the cmd.PreRun that is added
 		// by addCmd. But some commands (I'm looking at you __complete) don't
 		// interact with that mechanism. So, we set the field here for those
 		// odd cases.
@@ -67,54 +50,7 @@ func getRunContext(cmd *cobra.Command) *RunContext {
 	return rc
 }
 
-// RunContext is a container for injectable resources passed
-// to all execX funcs. The Close method should be invoked when
-// the RunContext is no longer needed.
-type RunContext struct {
-	// Stdin typically is os.Stdin, but can be changed for testing.
-	Stdin *os.File
-
-	// Out is the output destination.
-	// If nil, default to stdout.
-	Out io.Writer
-
-	// ErrOut is the error output destination.
-	// If nil, default to stderr.
-	ErrOut io.Writer
-
-	// Cmd is the command instance provided by cobra for
-	// the currently executing command. This field will
-	// be set before the command's runFunc is invoked.
-	Cmd *cobra.Command
-
-	// Args is the arg slice supplied by cobra for
-	// the currently executing command. This field will
-	// be set before the command's runFunc is invoked.
-	Args []string
-
-	// Config is the run's config.
-	Config *config.Config
-
-	// ConfigStore is run's config store.
-	ConfigStore config.Store
-
-	initOnce sync.Once
-	initErr  error
-
-	// writers holds the various writer types that
-	// the CLI uses to print output.
-	writers *output.Writers
-
-	driverReg *driver.Registry
-
-	files     *source.Files
-	databases *driver.Databases
-	clnup     *cleanup.Cleanup
-
-	OptionsRegistry *options.Registry
-}
-
-// newDefaultRunContext returns a RunContext configured
+// newRunContext returns a RunContext configured
 // with standard values for logging, config, etc. This
 // effectively is the bootstrap mechanism for sq.
 //
@@ -123,14 +59,14 @@ type RunContext struct {
 // example if there's a config error). We do this to provide
 // enough framework so that such an error can be logged or
 // printed per the normal mechanisms if at all possible.
-func newDefaultRunContext(ctx context.Context,
+func newRunContext(ctx context.Context,
 	stdin *os.File, stdout, stderr io.Writer, args []string,
-) (*RunContext, *slog.Logger, error) {
+) (*run.Run, *slog.Logger, error) {
 	// logbuf holds log records until defaultLogging is completed.
 	log, logbuf := slogbuf.New()
 	log = log.With(lga.Pid, os.Getpid())
 
-	rc := &RunContext{
+	rc := &run.Run{
 		Stdin:           stdin,
 		Out:             stdout,
 		ErrOut:          stderr,
@@ -150,7 +86,7 @@ func newDefaultRunContext(ctx context.Context,
 		args, rc.OptionsRegistry, upgrades)
 
 	log, logHandler, logCloser, logErr := defaultLogging(ctx, args, rc.Config)
-	rc.clnup = cleanup.New().AddE(logCloser)
+	rc.Cleanup = cleanup.New().AddE(logCloser)
 	if logErr != nil {
 		stderrLog, h := stderrLogger()
 		_ = logbuf.Flush(ctx, h)
@@ -181,26 +117,21 @@ func newDefaultRunContext(ctx context.Context,
 	return rc, log, nil
 }
 
-// Init is invoked by cobra prior to the command RunE being
+// PreRun is invoked by cobra prior to the command RunE being
 // invoked. It sets up the driverReg, databases, Writers and related
 // fundamental components. Subsequent invocations of this method
 // are no-op.
-func (rc *RunContext) Init(ctx context.Context) error {
+func PreRun(ctx context.Context, rc *run.Run) error {
 	if rc == nil {
-		return errz.New("fatal: RunContext is nil")
+		return errz.New("RunContext is nil")
 	}
 
-	rc.initOnce.Do(func() {
-		rc.initErr = rc.doInit(ctx)
-	})
+	if rc.Cleanup != nil {
+		lg.FromContext(ctx).Error("RunContext already initialized")
+		return errz.New("RunContext already initialized")
+	}
 
-	return rc.initErr
-}
-
-// doInit performs the actual work of initializing rc.
-// It must only be invoked once.
-func (rc *RunContext) doInit(ctx context.Context) error {
-	rc.clnup = cleanup.New()
+	rc.Cleanup = cleanup.New()
 	cfg, log := rc.Config, lg.FromContext(ctx)
 
 	// If the --output=/some/file flag is set, then we need to
@@ -224,7 +155,7 @@ func (rc *RunContext) doInit(ctx context.Context) error {
 			return errz.Wrapf(err, "failed to open file specified by flag --%s", flag.Output)
 		}
 
-		rc.clnup.AddC(f) // Make sure the file gets closed eventually
+		rc.Cleanup.AddC(f) // Make sure the file gets closed eventually
 		rc.Out = f
 	}
 
@@ -232,7 +163,7 @@ func (rc *RunContext) doInit(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	rc.writers, rc.Out, rc.ErrOut = newWriters(rc.Cmd, cmdOpts, rc.Out, rc.ErrOut)
+	rc.Writers, rc.Out, rc.ErrOut = newWriters(rc.Cmd, cmdOpts, rc.Out, rc.ErrOut)
 
 	var scratchSrcFunc driver.ScratchSrcFunc
 
@@ -246,9 +177,9 @@ func (rc *RunContext) doInit(ctx context.Context) error {
 		}
 	}
 
-	rc.files, err = source.NewFiles(ctx)
+	rc.Files, err = source.NewFiles(ctx)
 	if err != nil {
-		lg.WarnIfFuncError(log, lga.Cleanup, rc.clnup.Run)
+		lg.WarnIfFuncError(log, lga.Cleanup, rc.Cleanup.Run)
 		return err
 	}
 
@@ -256,35 +187,35 @@ func (rc *RunContext) doInit(ctx context.Context) error {
 	// after databases.Close (hence added to clnup first),
 	// because databases could depend upon the existence of
 	// files (such as a sqlite db file).
-	rc.clnup.AddE(rc.files.Close)
-	rc.files.AddDriverDetectors(source.DetectMagicNumber)
+	rc.Cleanup.AddE(rc.Files.Close)
+	rc.Files.AddDriverDetectors(source.DetectMagicNumber)
 
-	rc.driverReg = driver.NewRegistry(log)
-	rc.databases = driver.NewDatabases(log, rc.driverReg, scratchSrcFunc)
-	rc.clnup.AddC(rc.databases)
+	rc.DriverRegistry = driver.NewRegistry(log)
+	rc.Databases = driver.NewDatabases(log, rc.DriverRegistry, scratchSrcFunc)
+	rc.Cleanup.AddC(rc.Databases)
 
-	rc.driverReg.AddProvider(sqlite3.Type, &sqlite3.Provider{Log: log})
-	rc.driverReg.AddProvider(postgres.Type, &postgres.Provider{Log: log})
-	rc.driverReg.AddProvider(sqlserver.Type, &sqlserver.Provider{Log: log})
-	rc.driverReg.AddProvider(mysql.Type, &mysql.Provider{Log: log})
-	csvp := &csv.Provider{Log: log, Scratcher: rc.databases, Files: rc.files}
-	rc.driverReg.AddProvider(csv.TypeCSV, csvp)
-	rc.driverReg.AddProvider(csv.TypeTSV, csvp)
-	rc.files.AddDriverDetectors(csv.DetectCSV, csv.DetectTSV)
+	rc.DriverRegistry.AddProvider(sqlite3.Type, &sqlite3.Provider{Log: log})
+	rc.DriverRegistry.AddProvider(postgres.Type, &postgres.Provider{Log: log})
+	rc.DriverRegistry.AddProvider(sqlserver.Type, &sqlserver.Provider{Log: log})
+	rc.DriverRegistry.AddProvider(mysql.Type, &mysql.Provider{Log: log})
+	csvp := &csv.Provider{Log: log, Scratcher: rc.Databases, Files: rc.Files}
+	rc.DriverRegistry.AddProvider(csv.TypeCSV, csvp)
+	rc.DriverRegistry.AddProvider(csv.TypeTSV, csvp)
+	rc.Files.AddDriverDetectors(csv.DetectCSV, csv.DetectTSV)
 
-	jsonp := &json.Provider{Log: log, Scratcher: rc.databases, Files: rc.files}
-	rc.driverReg.AddProvider(json.TypeJSON, jsonp)
-	rc.driverReg.AddProvider(json.TypeJSONA, jsonp)
-	rc.driverReg.AddProvider(json.TypeJSONL, jsonp)
+	jsonp := &json.Provider{Log: log, Scratcher: rc.Databases, Files: rc.Files}
+	rc.DriverRegistry.AddProvider(json.TypeJSON, jsonp)
+	rc.DriverRegistry.AddProvider(json.TypeJSONA, jsonp)
+	rc.DriverRegistry.AddProvider(json.TypeJSONL, jsonp)
 	sampleSize := drivers.OptIngestSampleSize.Get(cfg.Options)
-	rc.files.AddDriverDetectors(
+	rc.Files.AddDriverDetectors(
 		json.DetectJSON(sampleSize),
 		json.DetectJSONA(sampleSize),
 		json.DetectJSONL(sampleSize),
 	)
 
-	rc.driverReg.AddProvider(xlsx.Type, &xlsx.Provider{Log: log, Scratcher: rc.databases, Files: rc.files})
-	rc.files.AddDriverDetectors(xlsx.DetectXLSX)
+	rc.DriverRegistry.AddProvider(xlsx.Type, &xlsx.Provider{Log: log, Scratcher: rc.Databases, Files: rc.Files})
+	rc.Files.AddDriverDetectors(xlsx.DetectXLSX)
 	// One day we may have more supported user driver genres.
 	userDriverImporters := map[string]userdriver.ImportFunc{
 		xmlud.Genre: xmlud.Import,
@@ -313,25 +244,13 @@ func (rc *RunContext) doInit(ctx context.Context) error {
 			Log:       log,
 			DriverDef: userDriverDef,
 			ImportFn:  importFn,
-			Scratcher: rc.databases,
-			Files:     rc.files,
+			Scratcher: rc.Databases,
+			Files:     rc.Files,
 		}
 
-		rc.driverReg.AddProvider(source.DriverType(userDriverDef.Name), udp)
-		rc.files.AddDriverDetectors(udp.Detectors()...)
+		rc.DriverRegistry.AddProvider(source.DriverType(userDriverDef.Name), udp)
+		rc.Files.AddDriverDetectors(udp.Detectors()...)
 	}
 
 	return nil
-}
-
-// Close should be invoked to dispose of any open resources
-// held by rc. If an error occurs during Close and rc.Log
-// is not nil, that error is logged at WARN level before
-// being returned.
-func (rc *RunContext) Close() error {
-	if rc == nil {
-		return nil
-	}
-
-	return errz.Wrap(rc.clnup.Run(), "Close RunContext")
 }

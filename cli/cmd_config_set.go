@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/cli/run"
+
 	"github.com/samber/lo"
 
 	"github.com/neilotoole/sq/cli/flag"
@@ -56,7 +58,7 @@ Use "sq config get -v" to list available options.`,
 
 func execConfigSet(cmd *cobra.Command, args []string) error {
 	log := logFrom(cmd)
-	rc, ctx := RunContextFrom(cmd.Context()), cmd.Context()
+	rc, ctx := run.FromContext(cmd.Context()), cmd.Context()
 
 	o := rc.Config.Options
 
@@ -100,7 +102,7 @@ func execConfigSet(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		return rc.writers.Config.UnsetOption(opt)
+		return rc.Writers.Config.UnsetOption(opt)
 	}
 
 	if len(args) < 2 {
@@ -135,7 +137,7 @@ func execConfigSet(cmd *cobra.Command, args []string) error {
 		)
 	}
 
-	return rc.writers.Config.SetOption(o, opt)
+	return rc.Writers.Config.SetOption(o, opt)
 }
 
 func completeConfigSet(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -159,7 +161,7 @@ func completeConfigSet(cmd *cobra.Command, args []string, toComplete string) ([]
 // helpConfigSet is a custom help function for "sq config set KEY".
 func helpConfigSet(cmd *cobra.Command, arr []string) {
 	hlp := cmd.Parent().HelpFunc()
-	rc := RunContextFrom(cmd.Context())
+	rc := run.FromContext(cmd.Context())
 	if rc == nil || rc.OptionsRegistry == nil || len(arr) < 4 {
 		hlp(cmd, arr)
 		return

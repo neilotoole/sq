@@ -22,6 +22,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/neilotoole/sq/cli/run"
+
 	"github.com/spf13/pflag"
 
 	"github.com/neilotoole/sq/cli/flag"
@@ -48,7 +50,7 @@ var errNoMsg = errors.New("")
 // Execute builds a RunContext using ctx and default
 // settings, and invokes ExecuteWith.
 func Execute(ctx context.Context, stdin *os.File, stdout, stderr io.Writer, args []string) error {
-	rc, log, err := newDefaultRunContext(ctx, stdin, stdout, stderr, args)
+	rc, log, err := newRunContext(ctx, stdin, stdout, stderr, args)
 	if err != nil {
 		printError(ctx, rc, err)
 		return err
@@ -63,7 +65,7 @@ func Execute(ctx context.Context, stdin *os.File, stdout, stderr io.Writer, args
 // ExecuteWith invokes the cobra CLI framework, ultimately
 // resulting in a command being executed. The caller must
 // invoke rc.Close.
-func ExecuteWith(ctx context.Context, rc *RunContext, args []string) error {
+func ExecuteWith(ctx context.Context, rc *run.Run, args []string) error {
 	log := lg.FromContext(ctx)
 	log.Debug("EXECUTE", "args", strings.Join(args, " "))
 	log.Debug("Build info", "build", buildinfo.Info())
@@ -72,7 +74,7 @@ func ExecuteWith(ctx context.Context, rc *RunContext, args []string) error {
 		lga.Path, rc.ConfigStore.Location(),
 	)
 
-	ctx = WithRunContext(ctx, rc)
+	ctx = run.NewContext(ctx, rc)
 
 	rootCmd := newCommandTree(rc)
 	var err error
@@ -161,7 +163,7 @@ var cobraMu sync.Mutex
 
 // newCommandTree builds sq's command tree, returning
 // the root cobra command.
-func newCommandTree(rc *RunContext) (rootCmd *cobra.Command) {
+func newCommandTree(rc *run.Run) (rootCmd *cobra.Command) {
 	cobraMu.Lock()
 	defer cobraMu.Unlock()
 
@@ -233,7 +235,7 @@ func hasMatchingChildCommand(cmd *cobra.Command, s string) bool {
 }
 
 // addCmd adds the command returned by cmdFn to parentCmd.
-func addCmd(rc *RunContext, parentCmd, cmd *cobra.Command) *cobra.Command {
+func addCmd(rc *run.Run, parentCmd, cmd *cobra.Command) *cobra.Command {
 	cmd.Flags().SortFlags = false
 
 	if cmd.Name() != "help" {
@@ -246,7 +248,7 @@ func addCmd(rc *RunContext, parentCmd, cmd *cobra.Command) *cobra.Command {
 	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
 		rc.Cmd = cmd
 		rc.Args = args
-		err := rc.Init(cmd.Context())
+		err := PreRun(cmd.Context(), rc)
 		return err
 	}
 

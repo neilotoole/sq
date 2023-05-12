@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/cli/run"
+
 	"github.com/neilotoole/sq/libsq/core/timez"
 
 	"github.com/neilotoole/sq/drivers"
@@ -73,7 +75,7 @@ func getSrcOptionsFromFlags(flags *pflag.FlagSet, reg *options.Registry,
 //
 // See also: getOptionsFromFlags, applySourceOptions, applyCollectionOptions.
 func getOptionsFromCmd(cmd *cobra.Command) (options.Options, error) {
-	rc := RunContextFrom(cmd.Context())
+	rc := run.FromContext(cmd.Context())
 	var configOpts options.Options
 	if rc.Config != nil && rc.Config.Options != nil {
 		configOpts = rc.Config.Options
@@ -95,7 +97,7 @@ func getOptionsFromCmd(cmd *cobra.Command) (options.Options, error) {
 //
 // See also: getOptionsFromFlags, getOptionsFromCmd, applyCollectionOptions.
 func applySourceOptions(cmd *cobra.Command, src *source.Source) error {
-	rc := RunContextFrom(cmd.Context())
+	rc := run.FromContext(cmd.Context())
 
 	defaultOpts := rc.Config.Options
 	if defaultOpts == nil {

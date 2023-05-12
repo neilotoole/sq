@@ -2,6 +2,7 @@ package cli
 
 import (
 	"github.com/neilotoole/sq/cli/flag"
+	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/spf13/cobra"
@@ -46,7 +47,7 @@ just for that source.`,
 }
 
 func execConfigList(cmd *cobra.Command, _ []string) error {
-	rc := RunContextFrom(cmd.Context())
+	rc := run.FromContext(cmd.Context())
 
 	o := rc.Config.Options
 	reg := rc.OptionsRegistry
@@ -74,5 +75,5 @@ func execConfigList(cmd *cobra.Command, _ []string) error {
 		reg.Add(opts...)
 	}
 
-	return rc.writers.Config.Options(reg, o)
+	return rc.Writers.Config.Options(reg, o)
 }

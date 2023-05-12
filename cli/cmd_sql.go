@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/cli/run"
+
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/libsq/core/lg"
 
@@ -60,7 +62,7 @@ flag is set, sq attempts to determine the appropriate mode.`,
 }
 
 func execSQL(cmd *cobra.Command, args []string) error {
-	rc := RunContextFrom(cmd.Context())
+	rc := run.FromContext(cmd.Context())
 	switch len(args) {
 	default:
 		return errz.New("a single query string is required")
@@ -114,14 +116,14 @@ func execSQL(cmd *cobra.Command, args []string) error {
 
 // execSQLPrint executes the SQL and prints resulting records
 // to the configured writer.
-func execSQLPrint(ctx context.Context, rc *RunContext, fromSrc *source.Source) error {
+func execSQLPrint(ctx context.Context, rc *run.Run, fromSrc *source.Source) error {
 	args := rc.Args
-	dbase, err := rc.databases.Open(ctx, fromSrc)
+	dbase, err := rc.Databases.Open(ctx, fromSrc)
 	if err != nil {
 		return err
 	}
 
-	recw := output.NewRecordWriterAdapter(rc.writers.Record)
+	recw := output.NewRecordWriterAdapter(rc.Writers.Record)
 	err = libsq.QuerySQL(ctx, dbase, recw, args[0])
 	if err != nil {
 		return err
@@ -132,9 +134,11 @@ func execSQLPrint(ctx context.Context, rc *RunContext, fromSrc *source.Source) e
 
 // execSQLInsert executes the SQL and inserts resulting records
 // into destTbl in destSrc.
-func execSQLInsert(ctx context.Context, rc *RunContext, fromSrc, destSrc *source.Source, destTbl string) error {
+func execSQLInsert(ctx context.Context, rc *run.Run,
+	fromSrc, destSrc *source.Source, destTbl string,
+) error {
 	args := rc.Args
-	dbases := rc.databases
+	dbases := rc.Databases
 	ctx, cancelFn := context.WithCancel(ctx)
 	defer cancelFn()
 

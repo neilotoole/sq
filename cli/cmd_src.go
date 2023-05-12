@@ -2,6 +2,7 @@ package cli
 
 import (
 	"github.com/neilotoole/sq/cli/flag"
+	"github.com/neilotoole/sq/cli/run"
 	"github.com/spf13/cobra"
 )
 
@@ -29,7 +30,7 @@ source. Otherwise, set @HANDLE as the active data source.`,
 }
 
 func execSrc(cmd *cobra.Command, args []string) error {
-	rc := RunContextFrom(cmd.Context())
+	rc := run.FromContext(cmd.Context())
 	cfg := rc.Config
 
 	if len(args) == 0 {
@@ -39,7 +40,7 @@ func execSrc(cmd *cobra.Command, args []string) error {
 			return nil
 		}
 
-		return rc.writers.Source.Source(cfg.Collection, src)
+		return rc.Writers.Source.Source(cfg.Collection, src)
 	}
 
 	src, err := cfg.Collection.SetActive(args[0], false)
@@ -52,5 +53,5 @@ func execSrc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return rc.writers.Source.Source(cfg.Collection, src)
+	return rc.Writers.Source.Source(cfg.Collection, src)
 }

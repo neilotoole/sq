@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/cli/run"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"github.com/neilotoole/sq/cli/flag"
@@ -58,7 +60,7 @@ func execSLQ(cmd *cobra.Command, args []string) error {
 	}
 
 	ctx := cmd.Context()
-	rc := RunContextFrom(ctx)
+	rc := run.FromContext(ctx)
 	coll := rc.Config.Collection
 
 	// check if there's input on stdin
@@ -131,10 +133,10 @@ func execSLQ(cmd *cobra.Command, args []string) error {
 
 // execSQLInsert executes the SLQ and inserts resulting records
 // into destTbl in destSrc.
-func execSLQInsert(ctx context.Context, rc *RunContext, mArgs map[string]string,
+func execSLQInsert(ctx context.Context, rc *run.Run, mArgs map[string]string,
 	destSrc *source.Source, destTbl string,
 ) error {
-	args, coll, dbases := rc.Args, rc.Config.Collection, rc.databases
+	args, coll, dbases := rc.Args, rc.Config.Collection, rc.Databases
 
 	slq, err := preprocessUserSLQ(ctx, rc, args)
 	if err != nil {
@@ -163,8 +165,8 @@ func execSLQInsert(ctx context.Context, rc *RunContext, mArgs map[string]string,
 
 	qc := &libsq.QueryContext{
 		Collection:   coll,
-		DBOpener:     rc.databases,
-		JoinDBOpener: rc.databases,
+		DBOpener:     rc.Databases,
+		JoinDBOpener: rc.Databases,
 		Args:         mArgs,
 	}
 
@@ -183,7 +185,7 @@ func execSLQInsert(ctx context.Context, rc *RunContext, mArgs map[string]string,
 }
 
 // execSLQPrint executes the SLQ query, and prints output to writer.
-func execSLQPrint(ctx context.Context, rc *RunContext, mArgs map[string]string) error {
+func execSLQPrint(ctx context.Context, rc *run.Run, mArgs map[string]string) error {
 	slq, err := preprocessUserSLQ(ctx, rc, rc.Args)
 	if err != nil {
 		return err
@@ -191,12 +193,12 @@ func execSLQPrint(ctx context.Context, rc *RunContext, mArgs map[string]string) 
 
 	qc := &libsq.QueryContext{
 		Collection:   rc.Config.Collection,
-		DBOpener:     rc.databases,
-		JoinDBOpener: rc.databases,
+		DBOpener:     rc.Databases,
+		JoinDBOpener: rc.Databases,
 		Args:         mArgs,
 	}
 
-	recw := output.NewRecordWriterAdapter(rc.writers.Record)
+	recw := output.NewRecordWriterAdapter(rc.Writers.Record)
 	execErr := libsq.ExecuteSLQ(ctx, qc, slq, recw)
 	_, waitErr := recw.Wait()
 	if execErr != nil {
@@ -230,8 +232,8 @@ func execSLQPrint(ctx context.Context, rc *RunContext, mArgs map[string]string) 
 // segment is the table name.
 //
 //	$ sq '.person'  -->  $ sq '@active.person'
-func preprocessUserSLQ(ctx context.Context, rc *RunContext, args []string) (string, error) {
-	log, reg, dbases, coll := lg.FromContext(ctx), rc.driverReg, rc.databases, rc.Config.Collection
+func preprocessUserSLQ(ctx context.Context, rc *run.Run, args []string) (string, error) {
+	log, reg, dbases, coll := lg.FromContext(ctx), rc.DriverRegistry, rc.Databases, rc.Config.Collection
 	activeSrc := coll.Active()
 
 	if len(args) == 0 {
