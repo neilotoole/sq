@@ -43,8 +43,8 @@ Use 'sq ls -g' to list groups.`,
 }
 
 func execGroup(cmd *cobra.Command, args []string) error {
-	rc := run.FromContext(cmd.Context())
-	cfg := rc.Config
+	ru := run.FromContext(cmd.Context())
+	cfg := ru.Config
 
 	if len(args) == 0 {
 		// Get the active group
@@ -54,7 +54,7 @@ func execGroup(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		return rc.Writers.Source.Group(tree)
+		return ru.Writers.Source.Group(tree)
 	}
 
 	group := strings.TrimSpace(args[0])
@@ -66,7 +66,7 @@ func execGroup(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if err := rc.ConfigStore.Save(cmd.Context(), cfg); err != nil {
+	if err := ru.ConfigStore.Save(cmd.Context(), cfg); err != nil {
 		return err
 	}
 
@@ -76,5 +76,5 @@ func execGroup(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return rc.Writers.Source.Group(tree)
+	return ru.Writers.Source.Group(tree)
 }

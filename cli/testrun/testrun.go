@@ -55,11 +55,11 @@ func New(ctx context.Context, t *testing.T, from *TestRun) *TestRun {
 
 // newRun returns a Run for testing, along
 // with buffers for out and errOut (instead of the
-// rc writing to stdout and stderr). The contents of
+// ru writing to stdout and stderr). The contents of
 // these buffers can be written to t.Log() if desired.
 //
 // If cfgStore is nil, a new one is created in a temp dir.
-func newRun(ctx context.Context, t testing.TB, cfgStore config.Store) (rc *run.Run, out, errOut *bytes.Buffer) {
+func newRun(ctx context.Context, t testing.TB, cfgStore config.Store) (ru *run.Run, out, errOut *bytes.Buffer) {
 	out = &bytes.Buffer{}
 	errOut = &bytes.Buffer{}
 
@@ -83,7 +83,7 @@ func newRun(ctx context.Context, t testing.TB, cfgStore config.Store) (rc *run.R
 		require.NoError(t, err)
 	}
 
-	rc = &run.Run{
+	ru = &run.Run{
 		Stdin:           os.Stdin,
 		Out:             out,
 		ErrOut:          errOut,
@@ -92,7 +92,7 @@ func newRun(ctx context.Context, t testing.TB, cfgStore config.Store) (rc *run.R
 		OptionsRegistry: optsReg,
 	}
 
-	return rc, out, errOut
+	return ru, out, errOut
 }
 
 // Add adds srcs to tr.Run.Config.Collection. If the collection
@@ -147,7 +147,7 @@ func (tr *TestRun) doExec(args []string) error {
 	execErr := cli.ExecuteWith(ctx, tr.Run, args)
 
 	if !tr.hushOutput {
-		// We log the CLI's output now (before calling rc.Close) because
+		// We log the CLI's output now (before calling ru.Close) because
 		// it reads better in testing's output that way.
 		if tr.Out.Len() > 0 {
 			tr.T.Log(strings.TrimSuffix(tr.Out.String(), "\n"))

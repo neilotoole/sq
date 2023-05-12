@@ -25,12 +25,12 @@ func newManCmd() *cobra.Command {
 }
 
 func execGenerateMan(cmd *cobra.Command, _ []string) error {
-	rc := run.FromContext(cmd.Context())
+	ru := run.FromContext(cmd.Context())
 	manPage, err := mcobra.NewManPage(1, cmd.Root())
 	if err != nil {
 		return err
 	}
 
-	_, err = fmt.Fprint(rc.Out, manPage.Build(roff.NewDocument()))
+	_, err = fmt.Fprint(ru.Out, manPage.Build(roff.NewDocument()))
 	return err
 }

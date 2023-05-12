@@ -73,26 +73,26 @@ func execMove(cmd *cobra.Command, args []string) error {
 //	$ sq mv production prod
 //	prod
 func execMoveRenameGroup(cmd *cobra.Command, oldGroup, newGroup string) error {
-	rc := run.FromContext(cmd.Context())
-	_, err := rc.Config.Collection.RenameGroup(oldGroup, newGroup)
+	ru := run.FromContext(cmd.Context())
+	_, err := ru.Config.Collection.RenameGroup(oldGroup, newGroup)
 	if err != nil {
 		return err
 	}
 
-	if _, err = source.VerifyIntegrity(rc.Config.Collection); err != nil {
+	if _, err = source.VerifyIntegrity(ru.Config.Collection); err != nil {
 		return err
 	}
 
-	if err = rc.ConfigStore.Save(cmd.Context(), rc.Config); err != nil {
+	if err = ru.ConfigStore.Save(cmd.Context(), ru.Config); err != nil {
 		return err
 	}
 
-	tree, err := rc.Config.Collection.Tree(newGroup)
+	tree, err := ru.Config.Collection.Tree(newGroup)
 	if err != nil {
 		return err
 	}
 
-	return rc.Writers.Source.Group(tree)
+	return ru.Writers.Source.Group(tree)
 }
 
 // execMoveHandleToGroup moves a source to a group.
@@ -103,21 +103,21 @@ func execMoveRenameGroup(cmd *cobra.Command, oldGroup, newGroup string) error {
 //	$ sq mv @prod/sakiladb /
 //	@sakiladb
 func execMoveHandleToGroup(cmd *cobra.Command, oldHandle, newGroup string) error {
-	rc := run.FromContext(cmd.Context())
-	src, err := rc.Config.Collection.MoveHandleToGroup(oldHandle, newGroup)
+	ru := run.FromContext(cmd.Context())
+	src, err := ru.Config.Collection.MoveHandleToGroup(oldHandle, newGroup)
 	if err != nil {
 		return err
 	}
 
-	if _, err = source.VerifyIntegrity(rc.Config.Collection); err != nil {
+	if _, err = source.VerifyIntegrity(ru.Config.Collection); err != nil {
 		return err
 	}
 
-	if err = rc.ConfigStore.Save(cmd.Context(), rc.Config); err != nil {
+	if err = ru.ConfigStore.Save(cmd.Context(), ru.Config); err != nil {
 		return err
 	}
 
-	return rc.Writers.Source.Source(rc.Config.Collection, src)
+	return ru.Writers.Source.Source(ru.Config.Collection, src)
 }
 
 // execMoveRenameHandle renames a handle.
@@ -125,21 +125,21 @@ func execMoveHandleToGroup(cmd *cobra.Command, oldHandle, newGroup string) error
 //	$ sq mv @sakila_db @sakiladb
 //	$ sq mv @sakiladb @sakila/db
 func execMoveRenameHandle(cmd *cobra.Command, oldHandle, newHandle string) error {
-	rc := run.FromContext(cmd.Context())
-	src, err := rc.Config.Collection.RenameSource(oldHandle, newHandle)
+	ru := run.FromContext(cmd.Context())
+	src, err := ru.Config.Collection.RenameSource(oldHandle, newHandle)
 	if err != nil {
 		return err
 	}
 
-	if _, err = source.VerifyIntegrity(rc.Config.Collection); err != nil {
+	if _, err = source.VerifyIntegrity(ru.Config.Collection); err != nil {
 		return err
 	}
 
-	if err = rc.ConfigStore.Save(cmd.Context(), rc.Config); err != nil {
+	if err = ru.ConfigStore.Save(cmd.Context(), ru.Config); err != nil {
 		return err
 	}
 
-	return rc.Writers.Source.Source(rc.Config.Collection, src)
+	return ru.Writers.Source.Source(ru.Config.Collection, src)
 }
 
 // completeMove is a completionFunc for the "mv" command.

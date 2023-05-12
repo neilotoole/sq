@@ -36,21 +36,21 @@ import (
 	"golang.org/x/exp/slog"
 )
 
-// getRunContext is a convenience function for getting Run
+// getRun is a convenience function for getting Run
 // from the cmd.Context().
-func getRunContext(cmd *cobra.Command) *run.Run {
-	rc := run.FromContext(cmd.Context())
-	if rc.Cmd == nil {
-		// rc.Cmd is usually set by the cmd.PreRun that is added
+func getRun(cmd *cobra.Command) *run.Run {
+	ru := run.FromContext(cmd.Context())
+	if ru.Cmd == nil {
+		// ru.Cmd is usually set by the cmd.preRun that is added
 		// by addCmd. But some commands (I'm looking at you __complete) don't
 		// interact with that mechanism. So, we set the field here for those
 		// odd cases.
-		rc.Cmd = cmd
+		ru.Cmd = cmd
 	}
-	return rc
+	return ru
 }
 
-// newRunContext returns a Run configured
+// newRun returns a Run configured
 // with standard values for logging, config, etc. This
 // effectively is the bootstrap mechanism for sq.
 //
@@ -59,21 +59,21 @@ func getRunContext(cmd *cobra.Command) *run.Run {
 // example if there's a config error). We do this to provide
 // enough framework so that such an error can be logged or
 // printed per the normal mechanisms if at all possible.
-func newRunContext(ctx context.Context,
+func newRun(ctx context.Context,
 	stdin *os.File, stdout, stderr io.Writer, args []string,
 ) (*run.Run, *slog.Logger, error) {
 	// logbuf holds log records until defaultLogging is completed.
 	log, logbuf := slogbuf.New()
 	log = log.With(lga.Pid, os.Getpid())
 
-	rc := &run.Run{
+	ru := &run.Run{
 		Stdin:           stdin,
 		Out:             stdout,
 		ErrOut:          stderr,
 		OptionsRegistry: &options.Registry{},
 	}
 
-	RegisterDefaultOpts(rc.OptionsRegistry)
+	RegisterDefaultOpts(ru.OptionsRegistry)
 
 	upgrades := yamlstore.UpgradeRegistry{
 		v0_34_0.Version: v0_34_0.Upgrade,
@@ -82,20 +82,20 @@ func newRunContext(ctx context.Context,
 	ctx = lg.NewContext(ctx, log)
 
 	var configErr error
-	rc.Config, rc.ConfigStore, configErr = yamlstore.Load(ctx,
-		args, rc.OptionsRegistry, upgrades)
+	ru.Config, ru.ConfigStore, configErr = yamlstore.Load(ctx,
+		args, ru.OptionsRegistry, upgrades)
 
-	log, logHandler, logCloser, logErr := defaultLogging(ctx, args, rc.Config)
-	rc.Cleanup = cleanup.New().AddE(logCloser)
+	log, logHandler, logCloser, logErr := defaultLogging(ctx, args, ru.Config)
+	ru.Cleanup = cleanup.New().AddE(logCloser)
 	if logErr != nil {
 		stderrLog, h := stderrLogger()
 		_ = logbuf.Flush(ctx, h)
-		return rc, stderrLog, logErr
+		return ru, stderrLog, logErr
 	}
 
 	if logHandler != nil {
 		if err := logbuf.Flush(ctx, logHandler); err != nil {
-			return rc, log, err
+			return ru, log, err
 		}
 	}
 
@@ -105,40 +105,42 @@ func newRunContext(ctx context.Context,
 
 	log = log.With(lga.Pid, os.Getpid())
 
-	if rc.Config == nil {
-		rc.Config = config.New()
+	if ru.Config == nil {
+		ru.Config = config.New()
 	}
 
 	if configErr != nil {
 		// configErr is more important, return that first
-		return rc, log, configErr
+		return ru, log, configErr
 	}
 
-	return rc, log, nil
+	return ru, log, nil
 }
 
-// PreRun is invoked by cobra prior to the command RunE being
-// invoked. It sets up the driverReg, databases, Writers and related
+// preRun is invoked by cobra prior to the command's RunE being
+// invoked. It sets up the driver registry, databases, writers and related
 // fundamental components. Subsequent invocations of this method
 // are no-op.
-func PreRun(ctx context.Context, rc *run.Run) error {
-	if rc == nil {
+func preRun(cmd *cobra.Command, ru *run.Run) error {
+	if ru == nil {
 		return errz.New("Run is nil")
 	}
 
-	if rc.Cleanup != nil {
+	ctx := cmd.Context()
+
+	if ru.Cleanup != nil {
 		lg.FromContext(ctx).Error("Run already initialized")
 		return errz.New("Run already initialized")
 	}
 
-	rc.Cleanup = cleanup.New()
-	cfg, log := rc.Config, lg.FromContext(ctx)
+	ru.Cleanup = cleanup.New()
+	cfg, log := ru.Config, lg.FromContext(ctx)
 
 	// If the --output=/some/file flag is set, then we need to
-	// override rc.Out (which is typically stdout) to point it at
+	// override ru.Out (which is typically stdout) to point it at
 	// the output destination file.
-	if cmdFlagChanged(rc.Cmd, flag.Output) {
-		fpath, _ := rc.Cmd.Flags().GetString(flag.Output)
+	if cmdFlagChanged(ru.Cmd, flag.Output) {
+		fpath, _ := ru.Cmd.Flags().GetString(flag.Output)
 		fpath, err := filepath.Abs(fpath)
 		if err != nil {
 			return errz.Wrapf(err, "failed to get absolute path for --%s", flag.Output)
@@ -155,15 +157,15 @@ func PreRun(ctx context.Context, rc *run.Run) error {
 			return errz.Wrapf(err, "failed to open file specified by flag --%s", flag.Output)
 		}
 
-		rc.Cleanup.AddC(f) // Make sure the file gets closed eventually
-		rc.Out = f
+		ru.Cleanup.AddC(f) // Make sure the file gets closed eventually
+		ru.Out = f
 	}
 
-	cmdOpts, err := getOptionsFromCmd(rc.Cmd)
+	cmdOpts, err := getOptionsFromCmd(ru.Cmd)
 	if err != nil {
 		return err
 	}
-	rc.Writers, rc.Out, rc.ErrOut = newWriters(rc.Cmd, cmdOpts, rc.Out, rc.ErrOut)
+	ru.Writers, ru.Out, ru.ErrOut = newWriters(ru.Cmd, cmdOpts, ru.Out, ru.ErrOut)
 
 	var scratchSrcFunc driver.ScratchSrcFunc
 
@@ -177,9 +179,9 @@ func PreRun(ctx context.Context, rc *run.Run) error {
 		}
 	}
 
-	rc.Files, err = source.NewFiles(ctx)
+	ru.Files, err = source.NewFiles(ctx)
 	if err != nil {
-		lg.WarnIfFuncError(log, lga.Cleanup, rc.Cleanup.Run)
+		lg.WarnIfFuncError(log, lga.Cleanup, ru.Cleanup.Run)
 		return err
 	}
 
@@ -187,35 +189,35 @@ func PreRun(ctx context.Context, rc *run.Run) error {
 	// after databases.Close (hence added to clnup first),
 	// because databases could depend upon the existence of
 	// files (such as a sqlite db file).
-	rc.Cleanup.AddE(rc.Files.Close)
-	rc.Files.AddDriverDetectors(source.DetectMagicNumber)
+	ru.Cleanup.AddE(ru.Files.Close)
+	ru.Files.AddDriverDetectors(source.DetectMagicNumber)
 
-	rc.DriverRegistry = driver.NewRegistry(log)
-	rc.Databases = driver.NewDatabases(log, rc.DriverRegistry, scratchSrcFunc)
-	rc.Cleanup.AddC(rc.Databases)
+	ru.DriverRegistry = driver.NewRegistry(log)
+	ru.Databases = driver.NewDatabases(log, ru.DriverRegistry, scratchSrcFunc)
+	ru.Cleanup.AddC(ru.Databases)
 
-	rc.DriverRegistry.AddProvider(sqlite3.Type, &sqlite3.Provider{Log: log})
-	rc.DriverRegistry.AddProvider(postgres.Type, &postgres.Provider{Log: log})
-	rc.DriverRegistry.AddProvider(sqlserver.Type, &sqlserver.Provider{Log: log})
-	rc.DriverRegistry.AddProvider(mysql.Type, &mysql.Provider{Log: log})
-	csvp := &csv.Provider{Log: log, Scratcher: rc.Databases, Files: rc.Files}
-	rc.DriverRegistry.AddProvider(csv.TypeCSV, csvp)
-	rc.DriverRegistry.AddProvider(csv.TypeTSV, csvp)
-	rc.Files.AddDriverDetectors(csv.DetectCSV, csv.DetectTSV)
+	ru.DriverRegistry.AddProvider(sqlite3.Type, &sqlite3.Provider{Log: log})
+	ru.DriverRegistry.AddProvider(postgres.Type, &postgres.Provider{Log: log})
+	ru.DriverRegistry.AddProvider(sqlserver.Type, &sqlserver.Provider{Log: log})
+	ru.DriverRegistry.AddProvider(mysql.Type, &mysql.Provider{Log: log})
+	csvp := &csv.Provider{Log: log, Scratcher: ru.Databases, Files: ru.Files}
+	ru.DriverRegistry.AddProvider(csv.TypeCSV, csvp)
+	ru.DriverRegistry.AddProvider(csv.TypeTSV, csvp)
+	ru.Files.AddDriverDetectors(csv.DetectCSV, csv.DetectTSV)
 
-	jsonp := &json.Provider{Log: log, Scratcher: rc.Databases, Files: rc.Files}
-	rc.DriverRegistry.AddProvider(json.TypeJSON, jsonp)
-	rc.DriverRegistry.AddProvider(json.TypeJSONA, jsonp)
-	rc.DriverRegistry.AddProvider(json.TypeJSONL, jsonp)
+	jsonp := &json.Provider{Log: log, Scratcher: ru.Databases, Files: ru.Files}
+	ru.DriverRegistry.AddProvider(json.TypeJSON, jsonp)
+	ru.DriverRegistry.AddProvider(json.TypeJSONA, jsonp)
+	ru.DriverRegistry.AddProvider(json.TypeJSONL, jsonp)
 	sampleSize := drivers.OptIngestSampleSize.Get(cfg.Options)
-	rc.Files.AddDriverDetectors(
+	ru.Files.AddDriverDetectors(
 		json.DetectJSON(sampleSize),
 		json.DetectJSONA(sampleSize),
 		json.DetectJSONL(sampleSize),
 	)
 
-	rc.DriverRegistry.AddProvider(xlsx.Type, &xlsx.Provider{Log: log, Scratcher: rc.Databases, Files: rc.Files})
-	rc.Files.AddDriverDetectors(xlsx.DetectXLSX)
+	ru.DriverRegistry.AddProvider(xlsx.Type, &xlsx.Provider{Log: log, Scratcher: ru.Databases, Files: ru.Files})
+	ru.Files.AddDriverDetectors(xlsx.DetectXLSX)
 	// One day we may have more supported user driver genres.
 	userDriverImporters := map[string]userdriver.ImportFunc{
 		xmlud.Genre: xmlud.Import,
@@ -244,12 +246,12 @@ func PreRun(ctx context.Context, rc *run.Run) error {
 			Log:       log,
 			DriverDef: userDriverDef,
 			ImportFn:  importFn,
-			Scratcher: rc.Databases,
-			Files:     rc.Files,
+			Scratcher: ru.Databases,
+			Files:     ru.Files,
 		}
 
-		rc.DriverRegistry.AddProvider(source.DriverType(userDriverDef.Name), udp)
-		rc.Files.AddDriverDetectors(udp.Detectors()...)
+		ru.DriverRegistry.AddProvider(source.DriverType(userDriverDef.Name), udp)
+		ru.Files.AddDriverDetectors(udp.Detectors()...)
 	}
 
 	return nil

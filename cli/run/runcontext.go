@@ -17,13 +17,13 @@ import (
 
 type runContextKey struct{}
 
-// NewContext returns ctx with rc added as a value.
-func NewContext(ctx context.Context, rc *Run) context.Context {
+// NewContext returns ctx with ru added as a value.
+func NewContext(ctx context.Context, ru *Run) context.Context {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 
-	return context.WithValue(ctx, runContextKey{}, rc)
+	return context.WithValue(ctx, runContextKey{}, ru)
 }
 
 // FromContext extracts the Run added to ctx via NewContext.
@@ -76,13 +76,13 @@ type Run struct {
 }
 
 // Close should be invoked to dispose of any open resources
-// held by rc. If an error occurs during Close and rc.Log
+// held by ru. If an error occurs during Close and ru.Log
 // is not nil, that error is logged at WARN level before
 // being returned.
-func (rc *Run) Close() error {
-	if rc == nil {
+func (ru *Run) Close() error {
+	if ru == nil {
 		return nil
 	}
 
-	return errz.Wrap(rc.Cleanup.Run(), "Close Run")
+	return errz.Wrap(ru.Cleanup.Run(), "Close Run")
 }

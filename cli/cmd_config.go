@@ -80,12 +80,12 @@ func newConfigLocationCmd() *cobra.Command {
 }
 
 func execConfigLocation(cmd *cobra.Command, _ []string) error {
-	rc := run.FromContext(cmd.Context())
-	path := rc.ConfigStore.Location()
+	ru := run.FromContext(cmd.Context())
+	path := ru.ConfigStore.Location()
 	var origin string
-	if store, ok := rc.ConfigStore.(*yamlstore.Store); ok {
+	if store, ok := ru.ConfigStore.(*yamlstore.Store); ok {
 		origin = store.PathOrigin
 	}
 
-	return rc.Writers.Config.Location(path, origin)
+	return ru.Writers.Config.Location(path, origin)
 }

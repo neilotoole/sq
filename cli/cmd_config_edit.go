@@ -62,15 +62,15 @@ in envar $SQ_EDITOR or $EDITOR.`,
 // execConfigEditOptions edits the default options.
 func execConfigEditOptions(cmd *cobra.Command, _ []string) error {
 	ctx := cmd.Context()
-	rc, log := run.FromContext(ctx), logFrom(cmd)
-	cfg := rc.Config
+	ru, log := run.FromContext(ctx), logFrom(cmd)
+	cfg := ru.Config
 	cmdOpts, err := getOptionsFromCmd(cmd)
 	if err != nil {
 		return err
 	}
 	verbose := OptVerbose.Get(cmdOpts)
 
-	optsText, err := getOptionsEditableText(rc.OptionsRegistry, rc.Config.Options, verbose)
+	optsText, err := getOptionsEditableText(ru.OptionsRegistry, ru.Config.Options, verbose)
 	if err != nil {
 		return err
 	}
@@ -99,19 +99,19 @@ func execConfigEditOptions(cmd *cobra.Command, _ []string) error {
 
 	// TODO: if --verbose, show diff
 	cfg.Options = opts
-	if err = rc.ConfigStore.Save(ctx, cfg); err != nil {
+	if err = ru.ConfigStore.Save(ctx, cfg); err != nil {
 		return err
 	}
 
-	log.Debug("Edit config: changes saved", lga.Path, rc.ConfigStore.Location())
+	log.Debug("Edit config: changes saved", lga.Path, ru.ConfigStore.Location())
 	return nil
 }
 
 // execConfigEditSource edits an individual source's config.
 func execConfigEditSource(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
-	rc, log := run.FromContext(ctx), logFrom(cmd)
-	cfg := rc.Config
+	ru, log := run.FromContext(ctx), logFrom(cmd)
+	cfg := ru.Config
 
 	cmdOpts, err := getOptionsFromCmd(cmd)
 	if err != nil {
@@ -124,7 +124,7 @@ func execConfigEditSource(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	opts := rc.OptionsRegistry.Opts()
+	opts := ru.OptionsRegistry.Opts()
 	opts = filterOptionsForSrc(src.Type, opts...)
 	srcReg := &options.Registry{}
 	srcReg.Add(opts...)
@@ -196,12 +196,12 @@ func execConfigEditSource(cmd *cobra.Command, args []string) error {
 	*src = *src2
 
 	// TODO: if --verbose, show diff between config before and after.
-	if err = rc.ConfigStore.Save(ctx, cfg); err != nil {
+	if err = ru.ConfigStore.Save(ctx, cfg); err != nil {
 		return err
 	}
 
 	log.Debug("Edit source config: changes saved",
-		lga.Src, src2.Handle, lga.Path, rc.ConfigStore.Location())
+		lga.Src, src2.Handle, lga.Path, ru.ConfigStore.Location())
 	return nil
 }
 

@@ -57,8 +57,8 @@ func TestSmoke(t *testing.T) {
 			ctx := context.Background()
 
 			tr := testrun.New(ctx, t, nil)
-			rc, out, errOut := tr.Run, tr.Out, tr.ErrOut
-			err := cli.ExecuteWith(ctx, rc, tc.a)
+			ru, out, errOut := tr.Run, tr.Out, tr.ErrOut
+			err := cli.ExecuteWith(ctx, ru, tc.a)
 
 			// We log sq's output before doing assert, because it reads
 			// better in testing's output that way.

@@ -46,7 +46,7 @@ func newDiffCmd() *cobra.Command {
 
 // execDiff compares schemas or tables.
 func execDiff(cmd *cobra.Command, args []string) error {
-	rc := run.FromContext(cmd.Context())
+	ru := run.FromContext(cmd.Context())
 
 	handle1, table1, err := source.ParseTableHandle(args[0])
 	if err != nil {
@@ -67,11 +67,11 @@ func execDiff(cmd *cobra.Command, args []string) error {
 		return errz.Errorf("invalid input: TABLE value in @HANDLE.TABLE must not be empty")
 	}
 
-	return doTableDiff(cmd.Context(), rc, handle1, table1, handle2, table2)
+	return doTableDiff(cmd.Context(), ru, handle1, table1, handle2, table2)
 }
 
-func doTableDiff(ctx context.Context, rc *run.Run, handle1, table1, handle2, table2 string) error {
-	_, coll := rc.Config, rc.Config.Collection
+func doTableDiff(ctx context.Context, ru *run.Run, handle1, table1, handle2, table2 string) error {
+	_, coll := ru.Config, ru.Config.Collection
 
 	src1, err := coll.Get(handle1)
 	if err != nil {
@@ -83,11 +83,11 @@ func doTableDiff(ctx context.Context, rc *run.Run, handle1, table1, handle2, tab
 		return err
 	}
 
-	dbase1, err := rc.Databases.Open(ctx, src1)
+	dbase1, err := ru.Databases.Open(ctx, src1)
 	if err != nil {
 		return err
 	}
-	dbase2, err := rc.Databases.Open(ctx, src2)
+	dbase2, err := ru.Databases.Open(ctx, src2)
 	if err != nil {
 		return err
 	}
@@ -102,11 +102,11 @@ func doTableDiff(ctx context.Context, rc *run.Run, handle1, table1, handle2, tab
 		return err
 	}
 
-	return printTableDiff(ctx, rc, src1, tblMeta1, src2, tblMeta2)
+	return printTableDiff(ctx, ru, src1, tblMeta1, src2, tblMeta2)
 }
 
 //nolint:gocritic
-func printTableDiff(ctx context.Context, rc *run.Run,
+func printTableDiff(ctx context.Context, ru *run.Run,
 	src1 *source.Source, tblMeta1 *source.TableMetadata,
 	src2 *source.Source, tblMeta2 *source.TableMetadata,
 ) error {
@@ -136,8 +136,8 @@ func printTableDiff(ctx context.Context, rc *run.Run,
 	}
 
 	printCfg := diffw.NewConfig()
-	// return diffw.PrintSG(rc.Out, printCfg, unified)
-	return diffw.Print2(rc.Out, printCfg, unified)
+	// return diffw.PrintSG(ru.Out, printCfg, unified)
+	return diffw.Print2(ru.Out, printCfg, unified)
 
 	//fdr := diff.NewFileDiffReader(strings.NewReader(unified))
 	//fdiff, err := fdr.Read()
@@ -150,12 +150,12 @@ func printTableDiff(ctx context.Context, rc *run.Run,
 	//	return errz.Err(err)
 	//}
 	//
-	//_, err = fmt.Fprintln(rc.Out, string(out))
+	//_, err = fmt.Fprintln(ru.Out, string(out))
 	//return errz.Err(err)
 
 	// diff.NewMultiFileDiffReader(diffFile)
 
-	// fmt.Fprintf(rc.Out, unified)
+	// fmt.Fprintf(ru.Out, unified)
 
 	//
 	//
@@ -165,8 +165,8 @@ func printTableDiff(ctx context.Context, rc *run.Run,
 	//
 	//`
 	//
-	//	fmt.Fprintf(rc.Out, tpl, src1.Handle, tblMeta1.Name, buf1.String())
-	//	fmt.Fprintf(rc.Out, "\n\n")
-	//	fmt.Fprintf(rc.Out, tpl, src2.Handle, tblMeta2.Name, buf2.String())
+	//	fmt.Fprintf(ru.Out, tpl, src1.Handle, tblMeta1.Name, buf1.String())
+	//	fmt.Fprintf(ru.Out, "\n\n")
+	//	fmt.Fprintf(ru.Out, tpl, src2.Handle, tblMeta2.Name, buf2.String())
 	//return nil
 }

@@ -75,15 +75,15 @@ func getSrcOptionsFromFlags(flags *pflag.FlagSet, reg *options.Registry,
 //
 // See also: getOptionsFromFlags, applySourceOptions, applyCollectionOptions.
 func getOptionsFromCmd(cmd *cobra.Command) (options.Options, error) {
-	rc := run.FromContext(cmd.Context())
+	ru := run.FromContext(cmd.Context())
 	var configOpts options.Options
-	if rc.Config != nil && rc.Config.Options != nil {
-		configOpts = rc.Config.Options
+	if ru.Config != nil && ru.Config.Options != nil {
+		configOpts = ru.Config.Options
 	} else {
 		configOpts = options.Options{}
 	}
 
-	flagOpts, err := getOptionsFromFlags(cmd.Flags(), rc.OptionsRegistry)
+	flagOpts, err := getOptionsFromFlags(cmd.Flags(), ru.OptionsRegistry)
 	if err != nil {
 		return nil, err
 	}
@@ -97,14 +97,14 @@ func getOptionsFromCmd(cmd *cobra.Command) (options.Options, error) {
 //
 // See also: getOptionsFromFlags, getOptionsFromCmd, applyCollectionOptions.
 func applySourceOptions(cmd *cobra.Command, src *source.Source) error {
-	rc := run.FromContext(cmd.Context())
+	ru := run.FromContext(cmd.Context())
 
-	defaultOpts := rc.Config.Options
+	defaultOpts := ru.Config.Options
 	if defaultOpts == nil {
 		defaultOpts = options.Options{}
 	}
 
-	flagOpts, err := getOptionsFromFlags(cmd.Flags(), rc.OptionsRegistry)
+	flagOpts, err := getOptionsFromFlags(cmd.Flags(), ru.OptionsRegistry)
 	if err != nil {
 		return err
 	}

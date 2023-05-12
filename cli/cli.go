@@ -24,8 +24,6 @@ import (
 
 	"github.com/neilotoole/sq/cli/run"
 
-	"github.com/spf13/pflag"
-
 	"github.com/neilotoole/sq/cli/flag"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -41,6 +39,14 @@ func init() { //nolint:gochecknoinits
 	cobra.EnableCommandSorting = false
 }
 
+const (
+	msgInvalidArgs       = "invalid args"
+	msgNoActiveSrc       = "no active data source"
+	msgEmptyQueryString  = "query string is empty"
+	msgSrcNoData         = "source has no data"
+	msgSrcEmptyTableName = "source has empty table name"
+)
+
 // errNoMsg is a sentinel error indicating that a command
 // has failed, but that no error message should be printed.
 // This is useful in the case where any error information may
@@ -50,33 +56,33 @@ var errNoMsg = errors.New("")
 // Execute builds a Run using ctx and default
 // settings, and invokes ExecuteWith.
 func Execute(ctx context.Context, stdin *os.File, stdout, stderr io.Writer, args []string) error {
-	rc, log, err := newRunContext(ctx, stdin, stdout, stderr, args)
+	ru, log, err := newRun(ctx, stdin, stdout, stderr, args)
 	if err != nil {
-		printError(ctx, rc, err)
+		printError(ctx, ru, err)
 		return err
 	}
 
-	defer rc.Close() // ok to call rc.Close on nil rc
+	defer ru.Close() // ok to call ru.Close on nil ru
 
 	ctx = lg.NewContext(ctx, log)
-	return ExecuteWith(ctx, rc, args)
+	return ExecuteWith(ctx, ru, args)
 }
 
 // ExecuteWith invokes the cobra CLI framework, ultimately
 // resulting in a command being executed. The caller must
-// invoke rc.Close.
-func ExecuteWith(ctx context.Context, rc *run.Run, args []string) error {
+// invoke ru.Close.
+func ExecuteWith(ctx context.Context, ru *run.Run, args []string) error {
 	log := lg.FromContext(ctx)
 	log.Debug("EXECUTE", "args", strings.Join(args, " "))
 	log.Debug("Build info", "build", buildinfo.Info())
 	log.Debug("Config",
-		"config.version", rc.Config.Version,
-		lga.Path, rc.ConfigStore.Location(),
+		"config.version", ru.Config.Version,
+		lga.Path, ru.ConfigStore.Location(),
 	)
 
-	ctx = run.NewContext(ctx, rc)
+	ctx = run.NewContext(ctx, ru)
 
-	rootCmd := newCommandTree(rc)
+	rootCmd := newCommandTree(ru)
 	var err error
 
 	// The following is a workaround for the fact that cobra doesn't
@@ -90,7 +96,7 @@ func ExecuteWith(ctx context.Context, rc *run.Run, args []string) error {
 	// an "unknown command" error.
 	//
 	// NOTE: This entire mechanism is ancient. Perhaps cobra
-	//  now handles this situation?
+	// now handles this situation?
 
 	// We need to perform handling for autocomplete
 	if len(args) > 0 && args[0] == "__complete" {
@@ -151,7 +157,7 @@ func ExecuteWith(ctx context.Context, rc *run.Run, args []string) error {
 	// sub-command, and ultimately execute that command.
 	err = rootCmd.ExecuteContext(ctx)
 	if err != nil {
-		printError(ctx, rc, err)
+		printError(ctx, ru, err)
 	}
 
 	return err
@@ -163,17 +169,17 @@ var cobraMu sync.Mutex
 
 // newCommandTree builds sq's command tree, returning
 // the root cobra command.
-func newCommandTree(rc *run.Run) (rootCmd *cobra.Command) {
+func newCommandTree(ru *run.Run) (rootCmd *cobra.Command) {
 	cobraMu.Lock()
 	defer cobraMu.Unlock()
 
 	rootCmd = newRootCmd()
 	rootCmd.DisableAutoGenTag = true
-	rootCmd.SetOut(rc.Out)
-	rootCmd.SetErr(rc.ErrOut)
+	rootCmd.SetOut(ru.Out)
+	rootCmd.SetErr(ru.ErrOut)
 	rootCmd.Flags().SortFlags = false
 
-	helpCmd := addCmd(rc, rootCmd, newHelpCmd())
+	helpCmd := addCmd(ru, rootCmd, newHelpCmd())
 	rootCmd.SetHelpCommand(helpCmd)
 
 	// logFrom the end user's perspective, slqCmd is *effectively* the
@@ -184,40 +190,40 @@ func newCommandTree(rc *run.Run) (rootCmd *cobra.Command) {
 		panicOn(rootCmd.Help())
 	})
 
-	addCmd(rc, rootCmd, slqCmd)
+	addCmd(ru, rootCmd, slqCmd)
 
-	addCmd(rc, rootCmd, newSrcAddCmd())
-	addCmd(rc, rootCmd, newSrcCommand())
-	addCmd(rc, rootCmd, newGroupCommand())
-	addCmd(rc, rootCmd, newListCmd())
-	addCmd(rc, rootCmd, newMoveCmd())
-	addCmd(rc, rootCmd, newRemoveCmd())
+	addCmd(ru, rootCmd, newSrcAddCmd())
+	addCmd(ru, rootCmd, newSrcCommand())
+	addCmd(ru, rootCmd, newGroupCommand())
+	addCmd(ru, rootCmd, newListCmd())
+	addCmd(ru, rootCmd, newMoveCmd())
+	addCmd(ru, rootCmd, newRemoveCmd())
 
-	addCmd(rc, rootCmd, newInspectCmd())
-	addCmd(rc, rootCmd, newPingCmd())
-	addCmd(rc, rootCmd, newSQLCmd())
-	addCmd(rc, rootCmd, newScratchCmd())
+	addCmd(ru, rootCmd, newInspectCmd())
+	addCmd(ru, rootCmd, newPingCmd())
+	addCmd(ru, rootCmd, newSQLCmd())
+	addCmd(ru, rootCmd, newScratchCmd())
 
-	tblCmd := addCmd(rc, rootCmd, newTblCmd())
-	addCmd(rc, tblCmd, newTblCopyCmd())
-	addCmd(rc, tblCmd, newTblTruncateCmd())
-	addCmd(rc, tblCmd, newTblDropCmd())
+	tblCmd := addCmd(ru, rootCmd, newTblCmd())
+	addCmd(ru, tblCmd, newTblCopyCmd())
+	addCmd(ru, tblCmd, newTblTruncateCmd())
+	addCmd(ru, tblCmd, newTblDropCmd())
 
-	addCmd(rc, rootCmd, newDiffCmd())
+	addCmd(ru, rootCmd, newDiffCmd())
 
-	driverCmd := addCmd(rc, rootCmd, newDriverCmd())
-	addCmd(rc, driverCmd, newDriverListCmd())
+	driverCmd := addCmd(ru, rootCmd, newDriverCmd())
+	addCmd(ru, driverCmd, newDriverListCmd())
 
-	configCmd := addCmd(rc, rootCmd, newConfigCmd())
-	addCmd(rc, configCmd, newConfigListCmd())
-	addCmd(rc, configCmd, newConfigGetCmd())
-	addCmd(rc, configCmd, newConfigSetCmd())
-	addCmd(rc, configCmd, newConfigLocationCmd())
-	addCmd(rc, configCmd, newConfigEditCmd())
+	configCmd := addCmd(ru, rootCmd, newConfigCmd())
+	addCmd(ru, configCmd, newConfigListCmd())
+	addCmd(ru, configCmd, newConfigGetCmd())
+	addCmd(ru, configCmd, newConfigSetCmd())
+	addCmd(ru, configCmd, newConfigLocationCmd())
+	addCmd(ru, configCmd, newConfigEditCmd())
 
-	addCmd(rc, rootCmd, newCompletionCmd())
-	addCmd(rc, rootCmd, newVersionCmd())
-	addCmd(rc, rootCmd, newManCmd())
+	addCmd(ru, rootCmd, newCompletionCmd())
+	addCmd(ru, rootCmd, newVersionCmd())
+	addCmd(ru, rootCmd, newManCmd())
 
 	return rootCmd
 }
@@ -235,7 +241,7 @@ func hasMatchingChildCommand(cmd *cobra.Command, s string) bool {
 }
 
 // addCmd adds the command returned by cmdFn to parentCmd.
-func addCmd(rc *run.Run, parentCmd, cmd *cobra.Command) *cobra.Command {
+func addCmd(ru *run.Run, parentCmd, cmd *cobra.Command) *cobra.Command {
 	cmd.Flags().SortFlags = false
 
 	if cmd.Name() != "help" {
@@ -246,9 +252,9 @@ func addCmd(rc *run.Run, parentCmd, cmd *cobra.Command) *cobra.Command {
 	cmd.DisableAutoGenTag = true
 
 	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
-		rc.Cmd = cmd
-		rc.Args = args
-		err := PreRun(cmd.Context(), rc)
+		ru.Cmd = cmd
+		ru.Args = args
+		err := preRun(cmd, ru)
 		return err
 	}
 
@@ -272,19 +278,4 @@ func addCmd(rc *run.Run, parentCmd, cmd *cobra.Command) *cobra.Command {
 	parentCmd.AddCommand(cmd)
 
 	return cmd
-}
-
-func applyFlagAliases(f *pflag.FlagSet, name string) pflag.NormalizedName {
-	if f == nil {
-		return pflag.NormalizedName(name)
-	}
-	switch name {
-	case "table":
-		// Legacy: flag --text was once named --table.
-		name = flag.Text
-	case "md":
-		name = flag.Markdown
-	default:
-	}
-	return pflag.NormalizedName(name)
 }

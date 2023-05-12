@@ -161,8 +161,8 @@ More examples:
 }
 
 func execSrcAdd(cmd *cobra.Command, args []string) error {
-	rc := run.FromContext(cmd.Context())
-	cfg := rc.Config
+	ru := run.FromContext(cmd.Context())
+	cfg := ru.Config
 
 	loc := source.AbsLocation(strings.TrimSpace(args[0]))
 	var err error
@@ -172,7 +172,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		val, _ := cmd.Flags().GetString(flag.AddDriver)
 		typ = source.DriverType(strings.TrimSpace(val))
 	} else {
-		typ, err = rc.Files.DriverType(cmd.Context(), loc)
+		typ, err = ru.Files.DriverType(cmd.Context(), loc)
 		if err != nil {
 			return err
 		}
@@ -181,7 +181,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	if rc.DriverRegistry.ProviderFor(typ) == nil {
+	if ru.DriverRegistry.ProviderFor(typ) == nil {
 		return errz.Errorf("unsupported driver type {%s}", typ)
 	}
 
@@ -189,7 +189,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 	if cmdFlagChanged(cmd, flag.Handle) {
 		handle, _ = cmd.Flags().GetString(flag.Handle)
 	} else {
-		handle, err = source.SuggestHandle(rc.Config.Collection, typ, loc)
+		handle, err = source.SuggestHandle(ru.Config.Collection, typ, loc)
 		if err != nil {
 			return errz.Wrap(err, "unable to suggest a handle: use --handle flag")
 		}
@@ -219,7 +219,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 	// or sq prompts the user.
 	if cmdFlagTrue(cmd, flag.PasswordPrompt) {
 		var passwd []byte
-		if passwd, err = readPassword(cmd.Context(), rc.Stdin, rc.Out, rc.Writers.Printing); err != nil {
+		if passwd, err = readPassword(cmd.Context(), ru.Stdin, ru.Out, ru.Writers.Printing); err != nil {
 			return err
 		}
 
@@ -228,14 +228,14 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	o, err := getSrcOptionsFromFlags(cmd.Flags(), rc.OptionsRegistry, typ)
+	o, err := getSrcOptionsFromFlags(cmd.Flags(), ru.OptionsRegistry, typ)
 	if err != nil {
 		return err
 	}
 
 	src, err := newSource(
 		cmd.Context(),
-		rc.DriverRegistry,
+		ru.DriverRegistry,
 		typ,
 		handle,
 		loc,
@@ -260,7 +260,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		// In UX testing, it led to confused users.
 	}
 
-	drvr, err := rc.DriverRegistry.DriverFor(src.Type)
+	drvr, err := ru.DriverRegistry.DriverFor(src.Type)
 	if err != nil {
 		return err
 	}
@@ -273,15 +273,15 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	if err = rc.ConfigStore.Save(cmd.Context(), rc.Config); err != nil {
+	if err = ru.ConfigStore.Save(cmd.Context(), ru.Config); err != nil {
 		return err
 	}
 
-	if src, err = rc.Config.Collection.Get(src.Handle); err != nil {
+	if src, err = ru.Config.Collection.Get(src.Handle); err != nil {
 		return err
 	}
 
-	return rc.Writers.Source.Source(rc.Config.Collection, src)
+	return ru.Writers.Source.Source(ru.Config.Collection, src)
 }
 
 // readPassword reads a password from stdin pipe, or if nothing on stdin,

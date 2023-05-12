@@ -42,8 +42,8 @@ may have changed, if that source or group was removed.`,
 // execRemove removes sources and groups. The elements of
 // args can be a handle, or a group.
 func execRemove(cmd *cobra.Command, args []string) error {
-	rc := run.FromContext(cmd.Context())
-	cfg, coll := rc.Config, rc.Config.Collection
+	ru := run.FromContext(cmd.Context())
+	cfg, coll := ru.Config, ru.Config.Collection
 
 	args = lo.Uniq(args)
 	var removed []*source.Source
@@ -78,10 +78,10 @@ func execRemove(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	if err := rc.ConfigStore.Save(cmd.Context(), cfg); err != nil {
+	if err := ru.ConfigStore.Save(cmd.Context(), cfg); err != nil {
 		return err
 	}
 	lo.Uniq(removed)
 	source.Sort(removed)
-	return rc.Writers.Source.Removed(removed...)
+	return ru.Writers.Source.Removed(removed...)
 }

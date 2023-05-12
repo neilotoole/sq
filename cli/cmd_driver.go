@@ -39,7 +39,7 @@ func newDriverListCmd() *cobra.Command {
 }
 
 func execDriverList(cmd *cobra.Command, _ []string) error {
-	rc := run.FromContext(cmd.Context())
-	drvrs := rc.DriverRegistry.DriversMetadata()
-	return rc.Writers.Metadata.DriverMetadata(drvrs)
+	ru := run.FromContext(cmd.Context())
+	drvrs := ru.DriverRegistry.DriversMetadata()
+	return ru.Writers.Metadata.DriverMetadata(drvrs)
 }

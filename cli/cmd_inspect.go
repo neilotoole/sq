@@ -54,9 +54,9 @@ If @HANDLE is not provided, the active data source is assumed.`,
 
 func execInspect(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
-	rc := run.FromContext(ctx)
+	ru := run.FromContext(ctx)
 
-	coll := rc.Config.Collection
+	coll := ru.Config.Collection
 
 	var src *source.Source
 	var table string
@@ -70,7 +70,7 @@ func execInspect(cmd *cobra.Command, args []string) error {
 		// - We're inspecting the active src
 
 		// check if there's input on stdin
-		src, err = checkStdinSource(ctx, rc)
+		src, err = checkStdinSource(ctx, ru)
 		if err != nil {
 			return err
 		}
@@ -125,7 +125,7 @@ func execInspect(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	dbase, err := rc.Databases.Open(ctx, src)
+	dbase, err := ru.Databases.Open(ctx, src)
 	if err != nil {
 		return errz.Wrapf(err, "failed to inspect %s", src.Handle)
 	}
@@ -137,7 +137,7 @@ func execInspect(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		return rc.Writers.Metadata.TableMetadata(tblMeta)
+		return ru.Writers.Metadata.TableMetadata(tblMeta)
 	}
 
 	meta, err := dbase.SourceMetadata(ctx)
@@ -151,5 +151,5 @@ func execInspect(cmd *cobra.Command, args []string) error {
 		meta.DBVars = nil
 	}
 
-	return rc.Writers.Metadata.SourceMetadata(meta)
+	return ru.Writers.Metadata.SourceMetadata(meta)
 }

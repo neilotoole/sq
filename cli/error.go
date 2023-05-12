@@ -22,8 +22,8 @@ import (
 // printError is the centralized function for printing
 // and logging errors. This func has a lot of (possibly needless)
 // redundancy; ultimately err will print if non-nil (even if
-// rc or any of its fields are nil).
-func printError(ctx context.Context, rc *run.Run, err error) {
+// ru or any of its fields are nil).
+func printError(ctx context.Context, ru *run.Run, err error) {
 	log := lg.FromContext(ctx)
 
 	if err == nil {
@@ -45,8 +45,8 @@ func printError(ctx context.Context, rc *run.Run, err error) {
 	}
 
 	var cmd *cobra.Command
-	if rc != nil {
-		cmd = rc.Cmd
+	if ru != nil {
+		cmd = ru.Cmd
 
 		cmdName := "unknown"
 		if cmd != nil {
@@ -55,7 +55,7 @@ func printError(ctx context.Context, rc *run.Run, err error) {
 
 		lg.Error(log, "nil command", err, lga.Cmd, cmdName)
 
-		wrtrs := rc.Writers
+		wrtrs := ru.Writers
 		if wrtrs != nil && wrtrs.Error != nil {
 			// If we have an errorWriter, we print to it
 			// and return.
@@ -77,16 +77,16 @@ func printError(ctx context.Context, rc *run.Run, err error) {
 	// package) or via sq config's default output format.
 
 	opts := options.Options{}
-	if rc != nil && rc.Config != nil && rc.Config.Options != nil {
-		opts = rc.Config.Options
-	} else if rc != nil && rc.OptionsRegistry != nil {
-		opts, _ = rc.OptionsRegistry.Process(opts)
+	if ru != nil && ru.Config != nil && ru.Config.Options != nil {
+		opts = ru.Config.Options
+	} else if ru != nil && ru.OptionsRegistry != nil {
+		opts, _ = ru.OptionsRegistry.Process(opts)
 	}
 
 	// getPrinting works even if cmd is nil
 	pr, _, errOut := getPrinting(cmd, opts, os.Stdout, os.Stderr)
 
-	if bootstrapIsFormatJSON(rc) {
+	if bootstrapIsFormatJSON(ru) {
 		// The user wants JSON, either via defaults or flags.
 		jw := jsonw.NewErrorWriter(log, errOut, pr)
 		jw.Error(err)
@@ -104,24 +104,24 @@ func printError(ctx context.Context, rc *run.Run, err error) {
 // bootstrapIsFormatJSON is a last-gasp attempt to check if the user
 // supplied --json=true on the command line, to determine if a
 // bootstrap error (hopefully rare) should be output in JSON.
-func bootstrapIsFormatJSON(rc *run.Run) bool {
+func bootstrapIsFormatJSON(ru *run.Run) bool {
 	// If no Run, assume false
-	if rc == nil {
+	if ru == nil {
 		return false
 	}
 
 	defaultFormat := format.Text
-	if rc.Config != nil {
-		defaultFormat = OptFormat.Get(rc.Config.Options)
+	if ru.Config != nil {
+		defaultFormat = OptFormat.Get(ru.Config.Options)
 	}
 
 	// If args were provided, create a new flag set and check
 	// for the --json flag.
-	if len(rc.Args) > 0 {
+	if len(ru.Args) > 0 {
 		flagSet := pflag.NewFlagSet("bootstrap", pflag.ContinueOnError)
 
 		jsonFlag := flagSet.BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
-		err := flagSet.Parse(rc.Args)
+		err := flagSet.Parse(ru.Args)
 		if err != nil {
 			return false
 		}

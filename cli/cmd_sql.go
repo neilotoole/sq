@@ -62,7 +62,7 @@ flag is set, sq attempts to determine the appropriate mode.`,
 }
 
 func execSQL(cmd *cobra.Command, args []string) error {
-	rc := run.FromContext(cmd.Context())
+	ru := run.FromContext(cmd.Context())
 	switch len(args) {
 	default:
 		return errz.New("a single query string is required")
@@ -74,12 +74,12 @@ func execSQL(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	err := determineSources(cmd.Context(), rc)
+	err := determineSources(cmd.Context(), ru)
 	if err != nil {
 		return err
 	}
 
-	coll := rc.Config.Collection
+	coll := ru.Config.Collection
 	// activeSrc is guaranteed to be non-nil after
 	// determineSources successfully returns.
 	activeSrc := coll.Active()
@@ -91,7 +91,7 @@ func execSQL(cmd *cobra.Command, args []string) error {
 	if !cmdFlagChanged(cmd, flag.Insert) {
 		// The user didn't specify the --insert=@src.tbl flag,
 		// so we just want to print the records.
-		return execSQLPrint(cmd.Context(), rc, activeSrc)
+		return execSQLPrint(cmd.Context(), ru, activeSrc)
 	}
 
 	// Instead of printing the records, they will be
@@ -111,19 +111,19 @@ func execSQL(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return execSQLInsert(cmd.Context(), rc, activeSrc, destSrc, destTbl)
+	return execSQLInsert(cmd.Context(), ru, activeSrc, destSrc, destTbl)
 }
 
 // execSQLPrint executes the SQL and prints resulting records
 // to the configured writer.
-func execSQLPrint(ctx context.Context, rc *run.Run, fromSrc *source.Source) error {
-	args := rc.Args
-	dbase, err := rc.Databases.Open(ctx, fromSrc)
+func execSQLPrint(ctx context.Context, ru *run.Run, fromSrc *source.Source) error {
+	args := ru.Args
+	dbase, err := ru.Databases.Open(ctx, fromSrc)
 	if err != nil {
 		return err
 	}
 
-	recw := output.NewRecordWriterAdapter(rc.Writers.Record)
+	recw := output.NewRecordWriterAdapter(ru.Writers.Record)
 	err = libsq.QuerySQL(ctx, dbase, recw, args[0])
 	if err != nil {
 		return err
@@ -134,11 +134,11 @@ func execSQLPrint(ctx context.Context, rc *run.Run, fromSrc *source.Source) erro
 
 // execSQLInsert executes the SQL and inserts resulting records
 // into destTbl in destSrc.
-func execSQLInsert(ctx context.Context, rc *run.Run,
+func execSQLInsert(ctx context.Context, ru *run.Run,
 	fromSrc, destSrc *source.Source, destTbl string,
 ) error {
-	args := rc.Args
-	dbases := rc.Databases
+	args := ru.Args
+	dbases := ru.Databases
 	ctx, cancelFn := context.WithCancel(ctx)
 	defer cancelFn()
 
@@ -154,7 +154,7 @@ func execSQLInsert(ctx context.Context, rc *run.Run,
 
 	// Note: We don't need to worry about closing fromDB and
 	// destDB because they are closed by dbases.Close, which
-	// is invoked by rc.Close, and rc is closed further up the
+	// is invoked by ru.Close, and ru is closed further up the
 	// stack.
 
 	inserter := libsq.NewDBWriter(
@@ -176,7 +176,7 @@ func execSQLInsert(ctx context.Context, rc *run.Run,
 	lg.FromContext(ctx).Debug(lgm.RowsAffected, lga.Count, affected)
 
 	// TODO: Should really use a Printer here
-	fmt.Fprintf(rc.Out, stringz.Plu("Inserted %d row(s) into %s\n",
+	fmt.Fprintf(ru.Out, stringz.Plu("Inserted %d row(s) into %s\n",
 		int(affected)), affected, source.Target(destSrc, destTbl))
 	return nil
 }

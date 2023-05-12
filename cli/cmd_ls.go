@@ -49,8 +49,8 @@ any further descendants.
 }
 
 func execList(cmd *cobra.Command, args []string) error {
-	rc := run.FromContext(cmd.Context())
-	coll := rc.Config.Collection
+	ru := run.FromContext(cmd.Context())
+	coll := ru.Config.Collection
 
 	if cmdFlagTrue(cmd, flag.ListGroup) {
 		// We're listing groups, not sources.
@@ -73,7 +73,7 @@ func execList(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		return rc.Writers.Source.Groups(tree)
+		return ru.Writers.Source.Groups(tree)
 	}
 
 	// We're listing sources, not groups.
@@ -87,5 +87,5 @@ func execList(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	return rc.Writers.Source.Collection(coll)
+	return ru.Writers.Source.Collection(coll)
 }

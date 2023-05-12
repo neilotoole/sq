@@ -59,7 +59,7 @@ Before upgrading, check the changelog: https://sq.io/changelog`,
 }
 
 func execVersion(cmd *cobra.Command, _ []string) error {
-	rc := run.FromContext(cmd.Context())
+	ru := run.FromContext(cmd.Context())
 
 	// We'd like to display that there's an update available, but
 	// we don't want to wait around long for that.
@@ -91,7 +91,7 @@ func execVersion(cmd *cobra.Command, _ []string) error {
 		}
 	}
 
-	return rc.Writers.Version.Version(buildinfo.Info(), latestVersion)
+	return ru.Writers.Version.Version(buildinfo.Info(), latestVersion)
 }
 
 func fetchBrewVersion(ctx context.Context) (string, error) {
