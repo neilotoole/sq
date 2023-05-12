@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neilotoole/sq/cli/testrun"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -28,16 +30,16 @@ func TestCmdSLQ_Insert_Create(t *testing.T) {
 
 	destTbl := stringz.UniqSuffix(sakila.TblActor + "_copy")
 
-	ru := NewTestRun(th.Context, t, nil).add(*originSrc)
+	tr := testrun.New(th.Context, t, nil).Add(*originSrc)
 	if destSrc.Handle != originSrc.Handle {
-		ru.add(*destSrc)
+		tr.Add(*destSrc)
 	}
 
 	insertTo := fmt.Sprintf("%s.%s", destSrc.Handle, destTbl)
 	cols := stringz.PrefixSlice(sakila.TblActorCols(), ".")
 	query := fmt.Sprintf("%s.%s | %s", originSrc.Handle, srcTbl, strings.Join(cols, ", "))
 
-	err := ru.Exec("slq", "--insert="+insertTo, query)
+	err := tr.Exec("slq", "--insert="+insertTo, query)
 	require.NoError(t, err)
 
 	sink, err := th.QuerySQL(destSrc, "select * from "+destTbl)
@@ -68,16 +70,16 @@ func TestCmdSLQ_Insert(t *testing.T) {
 					// of it (without data).
 					tblName := th.CopyTable(true, destSrc, sakila.TblActor, "", false)
 
-					ru := NewTestRun(th.Context, t, nil).add(*originSrc)
+					tr := testrun.New(th.Context, t, nil).Add(*originSrc)
 					if destSrc.Handle != originSrc.Handle {
-						ru.add(*destSrc)
+						tr.Add(*destSrc)
 					}
 
 					insertTo := fmt.Sprintf("%s.%s", destSrc.Handle, tblName)
 					cols := stringz.PrefixSlice(sakila.TblActorCols(), ".")
 					query := fmt.Sprintf("%s.%s | %s", originSrc.Handle, srcTbl, strings.Join(cols, ", "))
 
-					err := ru.Exec("slq", "--insert="+insertTo, query)
+					err := tr.Exec("slq", "--insert="+insertTo, query)
 					require.NoError(t, err)
 
 					sink, err := th.QuerySQL(destSrc, "select * from "+tblName)
@@ -94,11 +96,11 @@ func TestCmdSLQ_CSV(t *testing.T) {
 
 	th := testh.New(t)
 	src := th.Source(sakila.CSVActor)
-	ru := NewTestRun(th.Context, t, nil).add(*src)
-	err := ru.Exec("slq", "--header=false", "--csv", fmt.Sprintf("%s.data", src.Handle))
+	tr := testrun.New(th.Context, t, nil).Add(*src)
+	err := tr.Exec("slq", "--header=false", "--csv", fmt.Sprintf("%s.data", src.Handle))
 	require.NoError(t, err)
 
-	recs := ru.MustReadCSV()
+	recs := tr.MustReadCSV()
 	require.Equal(t, sakila.TblActorCount, len(recs))
 }
 
@@ -108,7 +110,7 @@ func TestCmdSLQ_OutputFlag(t *testing.T) {
 
 	th := testh.New(t)
 	src := th.Source(sakila.SL3)
-	ru := NewTestRun(th.Context, t, nil).add(*src)
+	tr := testrun.New(th.Context, t, nil).Add(*src)
 	outputFile, err := os.CreateTemp("", t.Name())
 	require.NoError(t, err)
 
@@ -117,7 +119,7 @@ func TestCmdSLQ_OutputFlag(t *testing.T) {
 		assert.NoError(t, os.Remove(outputFile.Name()))
 	})
 
-	err = ru.Exec("slq",
+	err = tr.Exec("slq",
 		"--header=false", "--csv", fmt.Sprintf("%s.%s", src.Handle, sakila.TblActor),
 		"--output", outputFile.Name())
 	require.NoError(t, err)
@@ -145,17 +147,17 @@ func TestCmdSLQ_Join(t *testing.T) {
 					th := testh.New(t)
 					src1, src2 := th.Source(h1), th.Source(h2)
 
-					ru := NewTestRun(th.Context, t, nil).add(*src1)
+					tr := testrun.New(th.Context, t, nil).Add(*src1)
 					if src2.Handle != src1.Handle {
-						ru.add(*src2)
+						tr.Add(*src2)
 					}
 
 					query := fmt.Sprintf(queryTpl, src1.Handle, src2.Handle, sakila.MillerCustID)
 
-					err := ru.Exec("slq", "--header=false", "--csv", query)
+					err := tr.Exec("slq", "--header=false", "--csv", query)
 					require.NoError(t, err)
 
-					recs := ru.MustReadCSV()
+					recs := tr.MustReadCSV()
 					require.Equal(t, 1, len(recs), "should only be one matching record")
 					require.Equal(t, 3, len(recs[0]), "should have three fields")
 					require.Equal(t, strconv.Itoa(sakila.MillerCustID), recs[0][0])
@@ -174,19 +176,19 @@ func TestCmdSLQ_ActiveSrcHandle(t *testing.T) {
 	src := th.Source(sakila.SL3)
 
 	// 1. Verify that the query works as expected using the actual src handle
-	ru := NewTestRun(th.Context, t, nil).add(*src).Hush()
+	tr := testrun.New(th.Context, t, nil).Add(*src).Hush()
 
-	require.Equal(t, src.Handle, ru.Run.Config.Collection.Active().Handle)
-	err := ru.Exec("slq", "--header=false", "--csv", "@sakila_sl3.actor")
+	require.Equal(t, src.Handle, tr.Run.Config.Collection.Active().Handle)
+	err := tr.Exec("slq", "--header=false", "--csv", "@sakila_sl3.actor")
 	require.NoError(t, err)
-	recs := ru.MustReadCSV()
+	recs := tr.MustReadCSV()
 	require.Equal(t, sakila.TblActorCount, len(recs))
 
 	// 2. Verify that it works using source.ActiveHandle as the src handle
-	ru = NewTestRun(th.Context, t, nil).add(*src).Hush()
-	require.Equal(t, src.Handle, ru.Run.Config.Collection.Active().Handle)
-	err = ru.Exec("slq", "--header=false", "--csv", source.ActiveHandle+".actor")
+	tr = testrun.New(th.Context, t, nil).Add(*src).Hush()
+	require.Equal(t, src.Handle, tr.Run.Config.Collection.Active().Handle)
+	err = tr.Exec("slq", "--header=false", "--csv", source.ActiveHandle+".actor")
 	require.NoError(t, err)
-	recs = ru.MustReadCSV()
+	recs = tr.MustReadCSV()
 	require.Equal(t, sakila.TblActorCount, len(recs))
 }

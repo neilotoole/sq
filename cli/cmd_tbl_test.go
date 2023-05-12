@@ -3,6 +3,8 @@ package cli_test
 import (
 	"testing"
 
+	"github.com/neilotoole/sq/cli/testrun"
+
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/stringz"
@@ -22,17 +24,17 @@ func TestCmdTblCopy(t *testing.T) { //nolint:tparallel
 			srcTblHandle := src.Handle + "." + sakila.TblActor
 			destTbl1 := stringz.UniqTableName(sakila.TblActor)
 
-			ru1 := NewTestRun(th.Context, t, nil).add(*src)
-			err := ru1.Exec("tbl", "copy", "--data=false", srcTblHandle, src.Handle+"."+destTbl1)
+			tr1 := testrun.New(th.Context, t, nil).Add(*src)
+			err := tr1.Exec("tbl", "copy", "--data=false", srcTblHandle, src.Handle+"."+destTbl1)
 			require.NoError(t, err)
 			defer th.DropTable(src, destTbl1)
 			require.Equal(t, int64(0), th.RowCount(src, destTbl1),
 				"should not have copied any rows because --data=false")
 
 			// --data=true
-			ru2 := NewTestRun(th.Context, t, nil).add(*src)
+			tr2 := testrun.New(th.Context, t, nil).Add(*src)
 			destTbl2 := stringz.UniqTableName(sakila.TblActor)
-			err = ru2.Exec("tbl", "copy", "--data=true", srcTblHandle, src.Handle+"."+destTbl2)
+			err = tr2.Exec("tbl", "copy", "--data=true", srcTblHandle, src.Handle+"."+destTbl2)
 			require.NoError(t, err)
 			defer th.DropTable(src, destTbl2)
 			require.Equal(t, int64(sakila.TblActorCount), th.RowCount(src, destTbl2),
@@ -64,7 +66,7 @@ func TestCmdTblDrop(t *testing.T) { //nolint:tparallel
 			require.Equal(t, destTblName, tblMeta.Name)
 			require.Equal(t, int64(sakila.TblActorCount), tblMeta.RowCount)
 
-			err = NewTestRun(th.Context, t, nil).add(*src).Exec("tbl", "drop", src.Handle+"."+destTblName)
+			err = testrun.New(th.Context, t, nil).Add(*src).Exec("tbl", "drop", src.Handle+"."+destTblName)
 			require.NoError(t, err)
 			needsDrop = false
 
@@ -94,7 +96,7 @@ func TestCmdTblTruncate(t *testing.T) {
 			require.Equal(t, destTblName, tblMeta.Name)
 			require.Equal(t, int64(sakila.TblActorCount), tblMeta.RowCount)
 
-			err = NewTestRun(th.Context, t, nil).add(*src).Exec("tbl", "truncate", src.Handle+"."+destTblName)
+			err = testrun.New(th.Context, t, nil).Add(*src).Exec("tbl", "truncate", src.Handle+"."+destTblName)
 			require.NoError(t, err)
 			tblMeta, err = th.Open(src).TableMetadata(th.Context, destTblName)
 			require.NoError(t, err)

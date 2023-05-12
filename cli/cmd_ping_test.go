@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neilotoole/sq/cli/testrun"
+
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/source"
@@ -17,39 +19,39 @@ func TestCmdPing(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 
-	err := NewTestRun(ctx, t, nil).Exec("ping")
+	err := testrun.New(ctx, t, nil).Exec("ping")
 	require.Error(t, err, "no active data source")
 
-	err = NewTestRun(ctx, t, nil).Exec("ping", "invalid_handle")
+	err = testrun.New(ctx, t, nil).Exec("ping", "invalid_handle")
 	require.Error(t, err)
 
-	err = NewTestRun(ctx, t, nil).Exec("ping", "@not_a_handle")
+	err = testrun.New(ctx, t, nil).Exec("ping", "@not_a_handle")
 	require.Error(t, err)
 
-	var ru *TestRun
+	var tr *testrun.TestRun
 
 	th := testh.New(t)
 	src1, src2 := th.Source(sakila.CSVActor), th.Source(sakila.CSVActorNoHeader)
 
-	ru = NewTestRun(ctx, t, nil).add(*src1)
-	err = ru.Exec("ping", "--csv", src1.Handle)
+	tr = testrun.New(ctx, t, nil).Add(*src1)
+	err = tr.Exec("ping", "--csv", src1.Handle)
 	require.NoError(t, err)
-	checkPingOutputCSV(t, ru, *src1)
+	checkPingOutputCSV(t, tr, *src1)
 
-	ru = NewTestRun(ctx, t, nil).add(*src2)
-	err = ru.Exec("ping", "--csv", src2.Handle)
+	tr = testrun.New(ctx, t, nil).Add(*src2)
+	err = tr.Exec("ping", "--csv", src2.Handle)
 	require.NoError(t, err)
-	checkPingOutputCSV(t, ru, *src2)
+	checkPingOutputCSV(t, tr, *src2)
 
-	ru = NewTestRun(ctx, t, nil).add(*src1, *src2)
-	err = ru.Exec("ping", "--csv", src1.Handle, src2.Handle)
+	tr = testrun.New(ctx, t, nil).Add(*src1, *src2)
+	err = tr.Exec("ping", "--csv", src1.Handle, src2.Handle)
 	require.NoError(t, err)
-	checkPingOutputCSV(t, ru, *src1, *src2)
+	checkPingOutputCSV(t, tr, *src1, *src2)
 }
 
 // checkPintOutputCSV reads CSV records from h.out, and verifies
 // that there's an appropriate record for each of srcs.
-func checkPingOutputCSV(t *testing.T, h *TestRun, srcs ...source.Source) {
+func checkPingOutputCSV(t *testing.T, h *testrun.TestRun, srcs ...source.Source) {
 	recs, err := csv.NewReader(h.Out).ReadAll()
 	require.NoError(t, err)
 	require.Equal(t, len(srcs), len(recs))
