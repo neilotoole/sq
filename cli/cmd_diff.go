@@ -3,8 +3,6 @@ package cli
 // FIXME: remove nolint
 
 import (
-	"strings"
-
 	"github.com/neilotoole/sq/cli/diff"
 
 	"github.com/neilotoole/sq/cli/run"
@@ -46,11 +44,6 @@ func execDiff(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return errz.Wrapf(err, "invalid input (2nd arg): %s", args[1])
 	}
-
-	handle1 = strings.TrimSpace(handle1)
-	table1 = strings.TrimSpace(table1)
-	handle2 = strings.TrimSpace(handle2)
-	table2 = strings.TrimSpace(table2)
 
 	if table1 == "" || table2 == "" {
 		return errz.Errorf("invalid input: TABLE value in @HANDLE.TABLE must not be empty")

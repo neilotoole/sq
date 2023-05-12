@@ -126,14 +126,17 @@ func preRun(cmd *cobra.Command, ru *run.Run) error {
 		return errz.New("Run is nil")
 	}
 
-	ctx := cmd.Context()
-
-	if ru.Cleanup != nil {
-		lg.FromContext(ctx).Error("Run already initialized")
-		return errz.New("Run already initialized")
+	if ru.Writers != nil {
+		// If ru.Writers is already set, then this function has already been
+		// called on ru. That's ok, just return.
+		return nil
 	}
 
-	ru.Cleanup = cleanup.New()
+	if ru.Cleanup == nil {
+		ru.Cleanup = cleanup.New()
+	}
+
+	ctx := cmd.Context()
 	cfg, log := ru.Config, lg.FromContext(ctx)
 
 	// If the --output=/some/file flag is set, then we need to
