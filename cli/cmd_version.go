@@ -89,7 +89,7 @@ func execVersion(cmd *cobra.Command, _ []string) error {
 		}
 	}
 
-	return rc.writers.versionw.Version(buildinfo.Info(), latestVersion)
+	return rc.writers.Version.Version(buildinfo.Info(), latestVersion)
 }
 
 func fetchBrewVersion(ctx context.Context) (string, error) {

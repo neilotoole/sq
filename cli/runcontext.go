@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/neilotoole/sq/cli/output"
+
 	"github.com/neilotoole/sq/drivers"
 
 	"github.com/neilotoole/sq/cli/config/yamlstore"
@@ -101,7 +103,7 @@ type RunContext struct {
 
 	// writers holds the various writer types that
 	// the CLI uses to print output.
-	writers *writers
+	writers *output.Writers
 
 	driverReg *driver.Registry
 
@@ -180,7 +182,7 @@ func newDefaultRunContext(ctx context.Context,
 }
 
 // Init is invoked by cobra prior to the command RunE being
-// invoked. It sets up the driverReg, databases, writers and related
+// invoked. It sets up the driverReg, databases, Writers and related
 // fundamental components. Subsequent invocations of this method
 // are no-op.
 func (rc *RunContext) Init(ctx context.Context) error {

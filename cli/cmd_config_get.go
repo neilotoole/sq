@@ -73,5 +73,5 @@ func execConfigGet(cmd *cobra.Command, args []string) error {
 		return errz.Errorf("invalid option key: %s", args[0])
 	}
 
-	return rc.writers.configw.Opt(o, opt)
+	return rc.writers.Config.Opt(o, opt)
 }

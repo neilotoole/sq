@@ -72,7 +72,7 @@ func execList(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		return rc.writers.srcw.Groups(tree)
+		return rc.writers.Source.Groups(tree)
 	}
 
 	// We're listing sources, not groups.
@@ -86,5 +86,5 @@ func execList(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	return rc.writers.srcw.Collection(coll)
+	return rc.writers.Source.Collection(coll)
 }

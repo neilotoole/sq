@@ -82,5 +82,5 @@ func execRemove(cmd *cobra.Command, args []string) error {
 	}
 	lo.Uniq(removed)
 	source.Sort(removed)
-	return rc.writers.srcw.Removed(removed...)
+	return rc.writers.Source.Removed(removed...)
 }

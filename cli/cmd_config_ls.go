@@ -74,5 +74,5 @@ func execConfigList(cmd *cobra.Command, _ []string) error {
 		reg.Add(opts...)
 	}
 
-	return rc.writers.configw.Options(reg, o)
+	return rc.writers.Config.Options(reg, o)
 }

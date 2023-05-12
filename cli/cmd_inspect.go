@@ -136,7 +136,7 @@ func execInspect(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		return rc.writers.metaw.TableMetadata(tblMeta)
+		return rc.writers.Metadata.TableMetadata(tblMeta)
 	}
 
 	meta, err := dbase.SourceMetadata(ctx)
@@ -150,5 +150,5 @@ func execInspect(cmd *cobra.Command, args []string) error {
 		meta.DBVars = nil
 	}
 
-	return rc.writers.metaw.SourceMetadata(meta)
+	return rc.writers.Metadata.SourceMetadata(meta)
 }

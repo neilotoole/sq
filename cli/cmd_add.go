@@ -217,7 +217,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 	// or sq prompts the user.
 	if cmdFlagTrue(cmd, flag.PasswordPrompt) {
 		var passwd []byte
-		if passwd, err = readPassword(cmd.Context(), rc.Stdin, rc.Out, rc.writers.pr); err != nil {
+		if passwd, err = readPassword(cmd.Context(), rc.Stdin, rc.Out, rc.writers.Printing); err != nil {
 			return err
 		}
 
@@ -279,7 +279,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return rc.writers.srcw.Source(rc.Config.Collection, src)
+	return rc.writers.Source.Source(rc.Config.Collection, src)
 }
 
 // readPassword reads a password from stdin pipe, or if nothing on stdin,

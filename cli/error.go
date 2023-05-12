@@ -54,10 +54,10 @@ func printError(ctx context.Context, rc *RunContext, err error) {
 		lg.Error(log, "nil command", err, lga.Cmd, cmdName)
 
 		wrtrs := rc.writers
-		if wrtrs != nil && wrtrs.errw != nil {
+		if wrtrs != nil && wrtrs.Error != nil {
 			// If we have an errorWriter, we print to it
 			// and return.
-			wrtrs.errw.Error(err)
+			wrtrs.Error.Error(err)
 			return
 		}
 

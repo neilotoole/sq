@@ -123,3 +123,16 @@ type ConfigWriter interface {
 	// UnsetOption is called when an option is unset.
 	UnsetOption(opt options.Opt) error
 }
+
+// Writers is a container for the various output Writers.
+type Writers struct {
+	Printing *Printing
+
+	Record   RecordWriter
+	Metadata MetadataWriter
+	Source   SourceWriter
+	Error    ErrorWriter
+	Ping     PingWriter
+	Version  VersionWriter
+	Config   ConfigWriter
+}

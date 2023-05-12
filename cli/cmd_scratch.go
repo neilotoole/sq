@@ -58,7 +58,7 @@ func execScratch(cmd *cobra.Command, args []string) error {
 			src = defaultScratch
 		}
 
-		return rc.writers.srcw.Source(cfg.Collection, src)
+		return rc.writers.Source.Source(cfg.Collection, src)
 	}
 
 	// Collection the scratch src
@@ -80,5 +80,5 @@ func execScratch(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return rc.writers.srcw.Source(cfg.Collection, src)
+	return rc.writers.Source.Source(cfg.Collection, src)
 }

@@ -196,7 +196,7 @@ func execSLQPrint(ctx context.Context, rc *RunContext, mArgs map[string]string) 
 		Args:         mArgs,
 	}
 
-	recw := output.NewRecordWriterAdapter(rc.writers.recordw)
+	recw := output.NewRecordWriterAdapter(rc.writers.Record)
 	execErr := libsq.ExecuteSLQ(ctx, qc, slq, recw)
 	_, waitErr := recw.Wait()
 	if execErr != nil {

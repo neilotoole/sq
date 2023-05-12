@@ -121,7 +121,7 @@ func execSQLPrint(ctx context.Context, rc *RunContext, fromSrc *source.Source) e
 		return err
 	}
 
-	recw := output.NewRecordWriterAdapter(rc.writers.recordw)
+	recw := output.NewRecordWriterAdapter(rc.writers.Record)
 	err = libsq.QuerySQL(ctx, dbase, recw, args[0])
 	if err != nil {
 		return err

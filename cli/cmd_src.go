@@ -39,7 +39,7 @@ func execSrc(cmd *cobra.Command, args []string) error {
 			return nil
 		}
 
-		return rc.writers.srcw.Source(cfg.Collection, src)
+		return rc.writers.Source.Source(cfg.Collection, src)
 	}
 
 	src, err := cfg.Collection.SetActive(args[0], false)
@@ -52,5 +52,5 @@ func execSrc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return rc.writers.srcw.Source(cfg.Collection, src)
+	return rc.writers.Source.Source(cfg.Collection, src)
 }

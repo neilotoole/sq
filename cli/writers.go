@@ -92,7 +92,7 @@ command, sq falls back to "text". Available formats:
 		0,
 		1000,
 		"Output writer buffer flush threshold in bytes",
-		`Size in bytes after which output writers should flush any internal buffer.
+		`Size in bytes after which output Writers should flush any internal buffer.
 Generally, it is not necessary to fiddle this knob.`,
 	)
 
@@ -197,41 +197,28 @@ Note that this option is no-op if the rendered value is not an integer.
 	)
 )
 
-// writers is a container for the various output writers.
-type writers struct {
-	pr *output.Printing
-
-	recordw  output.RecordWriter
-	metaw    output.MetadataWriter
-	srcw     output.SourceWriter
-	errw     output.ErrorWriter
-	pingw    output.PingWriter
-	versionw output.VersionWriter
-	configw  output.ConfigWriter
-}
-
-// newWriters returns a writers instance configured per defaults and/or
+// newWriters returns a Writers instance configured per defaults and/or
 // flags from cmd. The returned out2/errOut2 values may differ
 // from the out/errOut args (e.g. decorated to support colorization).
 func newWriters(cmd *cobra.Command, opts options.Options, out, errOut io.Writer,
-) (w *writers, out2, errOut2 io.Writer) {
+) (w *output.Writers, out2, errOut2 io.Writer) {
 	var pr *output.Printing
 	pr, out2, errOut2 = getPrinting(cmd, opts, out, errOut)
 	log := logFrom(cmd)
 
 	// Package tablew has writer impls for each of the writer interfaces,
-	// so we use its writers as the baseline. Later we check the format
+	// so we use its Writers as the baseline. Later we check the format
 	// flags and set the various writer fields depending upon which
-	// writers the format implements.
-	w = &writers{
-		pr:       pr,
-		recordw:  tablew.NewRecordWriter(out2, pr),
-		metaw:    tablew.NewMetadataWriter(out2, pr),
-		srcw:     tablew.NewSourceWriter(out2, pr),
-		pingw:    tablew.NewPingWriter(out2, pr),
-		errw:     tablew.NewErrorWriter(errOut2, pr),
-		versionw: tablew.NewVersionWriter(out2, pr),
-		configw:  tablew.NewConfigWriter(out2, pr),
+	// Writers the format implements.
+	w = &output.Writers{
+		Printing: pr,
+		Record:   tablew.NewRecordWriter(out2, pr),
+		Metadata: tablew.NewMetadataWriter(out2, pr),
+		Source:   tablew.NewSourceWriter(out2, pr),
+		Ping:     tablew.NewPingWriter(out2, pr),
+		Error:    tablew.NewErrorWriter(errOut2, pr),
+		Version:  tablew.NewVersionWriter(out2, pr),
+		Config:   tablew.NewConfigWriter(out2, pr),
 	}
 
 	// Invoke getFormat to see if the format was specified
@@ -242,60 +229,60 @@ func newWriters(cmd *cobra.Command, opts options.Options, out, errOut io.Writer,
 	switch fm {
 	default:
 		// No format specified, use JSON
-		w.recordw = jsonw.NewStdRecordWriter(out2, pr)
-		w.metaw = jsonw.NewMetadataWriter(out2, pr)
-		w.srcw = jsonw.NewSourceWriter(out2, pr)
-		w.errw = jsonw.NewErrorWriter(log, errOut2, pr)
-		w.versionw = jsonw.NewVersionWriter(out2, pr)
-		w.pingw = jsonw.NewPingWriter(out2, pr)
-		w.configw = jsonw.NewConfigWriter(out2, pr)
+		w.Record = jsonw.NewStdRecordWriter(out2, pr)
+		w.Metadata = jsonw.NewMetadataWriter(out2, pr)
+		w.Source = jsonw.NewSourceWriter(out2, pr)
+		w.Error = jsonw.NewErrorWriter(log, errOut2, pr)
+		w.Version = jsonw.NewVersionWriter(out2, pr)
+		w.Ping = jsonw.NewPingWriter(out2, pr)
+		w.Config = jsonw.NewConfigWriter(out2, pr)
 
 	case format.Text:
 	// Table is the base format, already set above, no need to do anything.
 
 	case format.TSV:
-		w.recordw = csvw.NewRecordWriter(out2, pr, csvw.Tab)
-		w.pingw = csvw.NewPingWriter(out2, csvw.Tab)
+		w.Record = csvw.NewRecordWriter(out2, pr, csvw.Tab)
+		w.Ping = csvw.NewPingWriter(out2, csvw.Tab)
 
 	case format.CSV:
-		w.recordw = csvw.NewRecordWriter(out2, pr, csvw.Comma)
-		w.pingw = csvw.NewPingWriter(out2, csvw.Comma)
+		w.Record = csvw.NewRecordWriter(out2, pr, csvw.Comma)
+		w.Ping = csvw.NewPingWriter(out2, csvw.Comma)
 
 	case format.XML:
-		w.recordw = xmlw.NewRecordWriter(out2, pr)
+		w.Record = xmlw.NewRecordWriter(out2, pr)
 
 	case format.XLSX:
-		w.recordw = xlsxw.NewRecordWriter(out2, pr)
+		w.Record = xlsxw.NewRecordWriter(out2, pr)
 
 	case format.Raw:
-		w.recordw = raww.NewRecordWriter(out2, pr)
+		w.Record = raww.NewRecordWriter(out2, pr)
 
 	case format.HTML:
-		w.recordw = htmlw.NewRecordWriter(out2, pr)
+		w.Record = htmlw.NewRecordWriter(out2, pr)
 
 	case format.Markdown:
-		w.recordw = markdownw.NewRecordWriter(out2, pr)
+		w.Record = markdownw.NewRecordWriter(out2, pr)
 
 	case format.JSONA:
-		w.recordw = jsonw.NewArrayRecordWriter(out2, pr)
+		w.Record = jsonw.NewArrayRecordWriter(out2, pr)
 
 	case format.JSONL:
-		w.recordw = jsonw.NewObjectRecordWriter(out2, pr)
+		w.Record = jsonw.NewObjectRecordWriter(out2, pr)
 
 	case format.YAML:
-		w.configw = yamlw.NewConfigWriter(out2, pr)
-		w.metaw = yamlw.NewMetadataWriter(out2, pr)
-		w.srcw = yamlw.NewSourceWriter(out2, pr)
-		w.recordw = yamlw.NewRecordWriter(out2, pr)
+		w.Config = yamlw.NewConfigWriter(out2, pr)
+		w.Metadata = yamlw.NewMetadataWriter(out2, pr)
+		w.Source = yamlw.NewSourceWriter(out2, pr)
+		w.Record = yamlw.NewRecordWriter(out2, pr)
 	}
 
 	return w, out2, errOut2
 }
 
 // getPrinting returns a Printing instance and
-// colorable or non-colorable writers. It is permissible
+// colorable or non-colorable Writers. It is permissible
 // for the cmd arg to be nil. The caller should use the returned
-// io.Writer instances instead of the supplied writers, as they
+// io.Writer instances instead of the supplied Writers, as they
 // may be decorated for dealing with color, etc.
 // The supplied opts must already have flags merged into it
 // via getOptionsFromCmd.

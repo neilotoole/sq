@@ -52,7 +52,7 @@ func execGroup(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		return rc.writers.srcw.Group(tree)
+		return rc.writers.Source.Group(tree)
 	}
 
 	group := strings.TrimSpace(args[0])
@@ -74,5 +74,5 @@ func execGroup(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return rc.writers.srcw.Group(tree)
+	return rc.writers.Source.Group(tree)
 }

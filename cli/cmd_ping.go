@@ -122,7 +122,7 @@ func execPing(cmd *cobra.Command, args []string) error {
 
 	logFrom(cmd).Debug("Using ping timeout", lga.Val, fmt.Sprintf("%v", timeout))
 
-	err = pingSources(cmd.Context(), rc.driverReg, srcs, rc.writers.pingw, timeout)
+	err = pingSources(cmd.Context(), rc.driverReg, srcs, rc.writers.Ping, timeout)
 	if errors.Is(err, context.Canceled) {
 		// It's common to cancel "sq ping". We don't want to print the cancel message.
 		return errNoMsg

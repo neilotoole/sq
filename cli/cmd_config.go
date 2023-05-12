@@ -86,5 +86,5 @@ func execConfigLocation(cmd *cobra.Command, _ []string) error {
 		origin = store.PathOrigin
 	}
 
-	return rc.writers.configw.Location(path, origin)
+	return rc.writers.Config.Location(path, origin)
 }

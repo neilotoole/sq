@@ -100,7 +100,7 @@ func execConfigSet(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		return rc.writers.configw.UnsetOption(opt)
+		return rc.writers.Config.UnsetOption(opt)
 	}
 
 	if len(args) < 2 {
@@ -135,7 +135,7 @@ func execConfigSet(cmd *cobra.Command, args []string) error {
 		)
 	}
 
-	return rc.writers.configw.SetOption(o, opt)
+	return rc.writers.Config.SetOption(o, opt)
 }
 
 func completeConfigSet(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
