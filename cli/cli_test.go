@@ -54,7 +54,7 @@ func TestSmoke(t *testing.T) {
 			t.Parallel()
 			ctx := context.Background()
 
-			rc, out, errOut := newTestRunCtx(ctx, t, nil)
+			rc, out, errOut := NewRunForTesting(ctx, t, nil)
 			err := cli.ExecuteWith(ctx, rc, tc.a)
 
 			// We log sq's output before doing assert, because it reads
@@ -144,7 +144,7 @@ func TestOutputRaw(t *testing.T) {
 				os.RemoveAll(outputPath)
 			})
 
-			ru := NewTestRun(th.Context, t, nil).add(*src).hush()
+			ru := NewTestRun(th.Context, t, nil).add(*src).Hush()
 			err = ru.Exec("sql", "--raw", "--output="+outputPath, query)
 			require.NoError(t, err)
 
@@ -155,10 +155,10 @@ func TestOutputRaw(t *testing.T) {
 			require.NoError(t, err)
 
 			// 2. Now test that stdout also gets the same data
-			ru = NewTestRun(th.Context, t, nil).add(*src).hush()
+			ru = NewTestRun(th.Context, t, nil).add(*src).Hush()
 			err = ru.Exec("sql", "--raw", query)
 			require.NoError(t, err)
-			require.Equal(t, wantBytes, ru.out.Bytes())
+			require.Equal(t, wantBytes, ru.Out.Bytes())
 		})
 	}
 }

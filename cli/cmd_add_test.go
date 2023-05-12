@@ -214,7 +214,7 @@ func TestCmdAdd(t *testing.T) {
 			require.NoError(t, err)
 
 			// Verify that the src was actually added
-			gotSrc, err := ru.rc.Config.Collection.Get(tc.wantHandle)
+			gotSrc, err := ru.Run.Config.Collection.Get(tc.wantHandle)
 			require.NoError(t, err)
 			require.Equal(t, tc.wantHandle, gotSrc.Handle)
 			require.Equal(t, tc.wantType, gotSrc.Type)
@@ -265,7 +265,7 @@ func TestCmdAdd_Active(t *testing.T) {
 	// Verify that initially there are no sources.
 	ru := NewTestRun(ctx, t, nil)
 	require.NoError(t, ru.Exec("ls"))
-	require.Zero(t, ru.out.Len())
+	require.Zero(t, ru.Out.Len())
 
 	// Add a new source. It should become the active source.
 	ru = NewTestRun(ctx, t, ru)

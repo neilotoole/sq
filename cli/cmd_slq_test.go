@@ -98,7 +98,7 @@ func TestCmdSLQ_CSV(t *testing.T) {
 	err := ru.Exec("slq", "--header=false", "--csv", fmt.Sprintf("%s.data", src.Handle))
 	require.NoError(t, err)
 
-	recs := ru.mustReadCSV()
+	recs := ru.MustReadCSV()
 	require.Equal(t, sakila.TblActorCount, len(recs))
 }
 
@@ -155,7 +155,7 @@ func TestCmdSLQ_Join(t *testing.T) {
 					err := ru.Exec("slq", "--header=false", "--csv", query)
 					require.NoError(t, err)
 
-					recs := ru.mustReadCSV()
+					recs := ru.MustReadCSV()
 					require.Equal(t, 1, len(recs), "should only be one matching record")
 					require.Equal(t, 3, len(recs[0]), "should have three fields")
 					require.Equal(t, strconv.Itoa(sakila.MillerCustID), recs[0][0])
@@ -174,19 +174,19 @@ func TestCmdSLQ_ActiveSrcHandle(t *testing.T) {
 	src := th.Source(sakila.SL3)
 
 	// 1. Verify that the query works as expected using the actual src handle
-	ru := NewTestRun(th.Context, t, nil).add(*src).hush()
+	ru := NewTestRun(th.Context, t, nil).add(*src).Hush()
 
-	require.Equal(t, src.Handle, ru.rc.Config.Collection.Active().Handle)
+	require.Equal(t, src.Handle, ru.Run.Config.Collection.Active().Handle)
 	err := ru.Exec("slq", "--header=false", "--csv", "@sakila_sl3.actor")
 	require.NoError(t, err)
-	recs := ru.mustReadCSV()
+	recs := ru.MustReadCSV()
 	require.Equal(t, sakila.TblActorCount, len(recs))
 
 	// 2. Verify that it works using source.ActiveHandle as the src handle
-	ru = NewTestRun(th.Context, t, nil).add(*src).hush()
-	require.Equal(t, src.Handle, ru.rc.Config.Collection.Active().Handle)
+	ru = NewTestRun(th.Context, t, nil).add(*src).Hush()
+	require.Equal(t, src.Handle, ru.Run.Config.Collection.Active().Handle)
 	err = ru.Exec("slq", "--header=false", "--csv", source.ActiveHandle+".actor")
 	require.NoError(t, err)
-	recs = ru.mustReadCSV()
+	recs = ru.MustReadCSV()
 	require.Equal(t, sakila.TblActorCount, len(recs))
 }

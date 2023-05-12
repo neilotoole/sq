@@ -68,7 +68,7 @@ func TestCmdInspect(t *testing.T) {
 			}
 
 			md := &source.Metadata{}
-			require.NoError(t, json.Unmarshal(ru.out.Bytes(), md))
+			require.NoError(t, json.Unmarshal(ru.Out.Bytes(), md))
 			require.Equal(t, tc.wantType, md.SourceType)
 			require.Equal(t, src.Handle, md.Handle)
 			require.Equal(t, src.Location, md.Location)
@@ -92,7 +92,7 @@ func TestCmdInspectSmoke(t *testing.T) {
 	require.NoError(t, err, "should pass because there is an active src")
 
 	md := &source.Metadata{}
-	require.NoError(t, json.Unmarshal(ru.out.Bytes(), md))
+	require.NoError(t, json.Unmarshal(ru.Out.Bytes(), md))
 	require.Equal(t, sqlite3.Type, md.SourceType)
 	require.Equal(t, sakila.SL3, md.Handle)
 	require.Equal(t, src.RedactedLocation(), md.Location)
@@ -107,7 +107,7 @@ func TestCmdInspectSmoke(t *testing.T) {
 	require.NoError(t, err)
 
 	md = &source.Metadata{}
-	require.NoError(t, json.Unmarshal(ru.out.Bytes(), md))
+	require.NoError(t, json.Unmarshal(ru.Out.Bytes(), md))
 	require.Equal(t, csv.TypeCSV, md.SourceType)
 	require.Equal(t, sakila.CSVActor, md.Handle)
 	require.Equal(t, src.Location, md.Location)
@@ -134,7 +134,7 @@ func TestCmdInspect_Stdin(t *testing.T) {
 			require.NoError(t, err)
 
 			ru := NewTestRun(ctx, t, nil)
-			ru.rc.Stdin = f
+			ru.Run.Stdin = f
 
 			err = ru.Exec("inspect", "--json")
 			if tc.wantErr {
@@ -145,7 +145,7 @@ func TestCmdInspect_Stdin(t *testing.T) {
 			require.NoError(t, err, "should read from stdin")
 
 			md := &source.Metadata{}
-			require.NoError(t, json.Unmarshal(ru.out.Bytes(), md))
+			require.NoError(t, json.Unmarshal(ru.Out.Bytes(), md))
 			require.Equal(t, tc.wantType, md.SourceType)
 			require.Equal(t, source.StdinHandle, md.Handle)
 			require.Equal(t, source.StdinHandle, md.Location)

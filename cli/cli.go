@@ -47,7 +47,7 @@ func init() { //nolint:gochecknoinits
 // already have been printed as part of the command output.
 var errNoMsg = errors.New("")
 
-// Execute builds a RunContext using ctx and default
+// Execute builds a Run using ctx and default
 // settings, and invokes ExecuteWith.
 func Execute(ctx context.Context, stdin *os.File, stdout, stderr io.Writer, args []string) error {
 	rc, log, err := newRunContext(ctx, stdin, stdout, stderr, args)

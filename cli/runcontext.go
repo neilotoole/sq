@@ -36,7 +36,7 @@ import (
 	"golang.org/x/exp/slog"
 )
 
-// getRunContext is a convenience function for getting RunContext
+// getRunContext is a convenience function for getting Run
 // from the cmd.Context().
 func getRunContext(cmd *cobra.Command) *run.Run {
 	rc := run.FromContext(cmd.Context())
@@ -50,12 +50,12 @@ func getRunContext(cmd *cobra.Command) *run.Run {
 	return rc
 }
 
-// newRunContext returns a RunContext configured
+// newRunContext returns a Run configured
 // with standard values for logging, config, etc. This
 // effectively is the bootstrap mechanism for sq.
 //
-// Note: This func always returns a RunContext, even if
-// an error occurs during bootstrap of the RunContext (for
+// Note: This func always returns a Run, even if
+// an error occurs during bootstrap of the Run (for
 // example if there's a config error). We do this to provide
 // enough framework so that such an error can be logged or
 // printed per the normal mechanisms if at all possible.
@@ -123,12 +123,12 @@ func newRunContext(ctx context.Context,
 // are no-op.
 func PreRun(ctx context.Context, rc *run.Run) error {
 	if rc == nil {
-		return errz.New("RunContext is nil")
+		return errz.New("Run is nil")
 	}
 
 	if rc.Cleanup != nil {
-		lg.FromContext(ctx).Error("RunContext already initialized")
-		return errz.New("RunContext already initialized")
+		lg.FromContext(ctx).Error("Run already initialized")
+		return errz.New("Run already initialized")
 	}
 
 	rc.Cleanup = cleanup.New()

@@ -23,14 +23,14 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 )
 
-// newTestRunCtx returns a RunContext for testing, along
+// NewRunForTesting returns a Run for testing, along
 // with buffers for out and errOut (instead of the
 // rc writing to stdout and stderr). The contents of
 // these buffers can be written to t.Log() if desired.
 // The srcs args are added to rc.Config.Collection.
 //
 // If cfgStore is nil, a new one is created in a temp dir.
-func newTestRunCtx(ctx context.Context, t testing.TB, cfgStore config.Store,
+func NewRunForTesting(ctx context.Context, t testing.TB, cfgStore config.Store,
 ) (rc *run.Run, out, errOut *bytes.Buffer) {
 	out = &bytes.Buffer{}
 	errOut = &bytes.Buffer{}
@@ -69,12 +69,12 @@ func newTestRunCtx(ctx context.Context, t testing.TB, cfgStore config.Store,
 
 // run is a helper for testing sq commands.
 type TestRun struct {
-	t      *testing.T
+	T      *testing.T
 	ctx    context.Context
 	mu     sync.Mutex
-	rc     *run.Run
-	out    *bytes.Buffer
-	errOut *bytes.Buffer
+	Run    *run.Run
+	Out    *bytes.Buffer
+	ErrOut *bytes.Buffer
 	used   bool
 
 	// When true, out and errOut are not logged.
@@ -85,13 +85,13 @@ type TestRun struct {
 // If from is non-nil, its config is used. This allows sequential
 // commands to use the same config.
 func NewTestRun(ctx context.Context, t *testing.T, from *TestRun) *TestRun {
-	ru := &TestRun{t: t, ctx: ctx}
+	ru := &TestRun{T: t, ctx: ctx}
 
 	var cfgStore config.Store
 	if from != nil {
-		cfgStore = from.rc.ConfigStore
+		cfgStore = from.Run.ConfigStore
 	}
-	ru.rc, ru.out, ru.errOut = newTestRunCtx(ctx, t, cfgStore)
+	ru.Run, ru.Out, ru.ErrOut = NewRunForTesting(ctx, t, cfgStore)
 	return ru
 }
 
@@ -106,17 +106,17 @@ func (ru *TestRun) add(srcs ...source.Source) *TestRun {
 		return ru
 	}
 
-	coll := ru.rc.Config.Collection
-	hasActive := ru.rc.Config.Collection.Active() != nil
+	coll := ru.Run.Config.Collection
+	hasActive := ru.Run.Config.Collection.Active() != nil
 
 	for _, src := range srcs {
 		src := src
-		require.NoError(ru.t, coll.Add(&src))
+		require.NoError(ru.T, coll.Add(&src))
 	}
 
 	if !hasActive {
 		_, err := coll.SetActive(srcs[0].Handle, false)
-		require.NoError(ru.t, err)
+		require.NoError(ru.T, err)
 	}
 
 	return ru
@@ -125,7 +125,7 @@ func (ru *TestRun) add(srcs ...source.Source) *TestRun {
 // Exec executes the sq command specified by args. If the first
 // element of args is not "sq", that value is prepended to the
 // args for execution. This method may only be invoked once.
-// The backing RunContext will also be closed. If an error
+// The backing Run will also be closed. If an error
 // occurs on the client side during execution, that error is returned.
 // Either ru.out or ru.errOut will be filled, according to what the
 // CLI outputs.
@@ -139,25 +139,25 @@ func (ru *TestRun) Exec(args ...string) error {
 func (ru *TestRun) doExec(args []string) error {
 	defer func() { ru.used = true }()
 
-	require.False(ru.t, ru.used, "TestRun instance must only be used once")
+	require.False(ru.T, ru.used, "TestRun instance must only be used once")
 
 	ctx, cancelFn := context.WithCancel(context.Background())
-	ru.t.Cleanup(cancelFn)
+	ru.T.Cleanup(cancelFn)
 
-	execErr := cli.ExecuteWith(ctx, ru.rc, args)
+	execErr := cli.ExecuteWith(ctx, ru.Run, args)
 
 	if !ru.hushOutput {
 		// We log the CLI's output now (before calling rc.Close) because
 		// it reads better in testing's output that way.
-		if ru.out.Len() > 0 {
-			ru.t.Log(strings.TrimSuffix(ru.out.String(), "\n"))
+		if ru.Out.Len() > 0 {
+			ru.T.Log(strings.TrimSuffix(ru.Out.String(), "\n"))
 		}
-		if ru.errOut.Len() > 0 {
-			ru.t.Log(strings.TrimSuffix(ru.errOut.String(), "\n"))
+		if ru.ErrOut.Len() > 0 {
+			ru.T.Log(strings.TrimSuffix(ru.ErrOut.String(), "\n"))
 		}
 	}
 
-	closeErr := ru.rc.Close()
+	closeErr := ru.Run.Close()
 	if execErr != nil {
 		// We return the ExecuteWith err first
 		return execErr
@@ -172,8 +172,8 @@ func (ru *TestRun) Bind(v any) *TestRun {
 	ru.mu.Lock()
 	defer ru.mu.Unlock()
 
-	err := json.Unmarshal(ru.out.Bytes(), &v)
-	require.NoError(ru.t, err)
+	err := json.Unmarshal(ru.Out.Bytes(), &v)
+	require.NoError(ru.T, err)
 	return ru
 }
 
@@ -184,22 +184,22 @@ func (ru *TestRun) BindMap() map[string]any {
 	return m
 }
 
-// mustReadCSV reads CSV from ru.out and returns all records,
+// MustReadCSV reads CSV from ru.out and returns all records,
 // failing the testing on any problem. Obviously the Exec call
 // should have specified "--csv".
-func (ru *TestRun) mustReadCSV() [][]string {
+func (ru *TestRun) MustReadCSV() [][]string {
 	ru.mu.Lock()
 	defer ru.mu.Unlock()
 
-	recs, err := csv.NewReader(ru.out).ReadAll()
-	require.NoError(ru.t, err)
+	recs, err := csv.NewReader(ru.Out).ReadAll()
+	require.NoError(ru.T, err)
 	return recs
 }
 
-// hush suppresses the printing of output collected in out
+// Hush suppresses the printing of output collected in out
 // and errOut to t.Log. Collection to true for tests
 // that output excessive content, binary files, etc.
-func (ru *TestRun) hush() *TestRun {
+func (ru *TestRun) Hush() *TestRun {
 	ru.hushOutput = true
 	return ru
 }

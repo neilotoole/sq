@@ -22,13 +22,13 @@ func TestCmdRemove(t *testing.T) {
 	ru = NewTestRun(th.Context, t, nil).add(*src)
 
 	// The src we just added should be the active src
-	activeSrc := ru.rc.Config.Collection.Active()
+	activeSrc := ru.Run.Config.Collection.Active()
 	require.NotNil(t, activeSrc)
 	require.Equal(t, src.Handle, activeSrc.Handle)
 
 	err = ru.Exec("rm", src.Handle)
 	require.NoError(t, err)
 
-	activeSrc = ru.rc.Config.Collection.Active()
+	activeSrc = ru.Run.Config.Collection.Active()
 	require.Nil(t, activeSrc, "should be no active src anymore")
 }

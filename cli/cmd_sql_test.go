@@ -101,11 +101,11 @@ func TestCmdSQL_SelectFromUserDriver(t *testing.T) {
 				for _, udDef := range udDefs {
 					require.Empty(t, userdriver.ValidateDriverDef(udDef))
 				}
-				ru.rc.Config.Ext.UserDrivers = append(ru.rc.Config.Ext.UserDrivers, udDefs...)
+				ru.Run.Config.Ext.UserDrivers = append(ru.Run.Config.Ext.UserDrivers, udDefs...)
 
 				err := ru.Exec("sql", "--csv", "--header=false", "SELECT * FROM "+wantTbl.tblName)
 				require.NoError(t, err)
-				recs := ru.mustReadCSV()
+				recs := ru.MustReadCSV()
 				require.Equal(t, wantTbl.wantRows, len(recs),
 					"expected %d rows in tbl {%s} but got %d", wantTbl.wantRows,
 					wantTbl, len(recs))
@@ -167,8 +167,8 @@ func TestCmdSQL_StdinQuery(t *testing.T) {
 			f, err := os.Open(tc.fpath)
 			require.NoError(t, err)
 
-			ru := NewTestRun(context.Background(), t, nil).hush()
-			ru.rc.Stdin = f
+			ru := NewTestRun(context.Background(), t, nil).Hush()
+			ru.Run.Stdin = f
 
 			args := []string{"sql", "--header=false"} // Don't print the header in output
 			for k, v := range tc.flags {
@@ -183,7 +183,7 @@ func TestCmdSQL_StdinQuery(t *testing.T) {
 			}
 
 			require.NoError(t, err)
-			results := ru.mustReadCSV()
+			results := ru.MustReadCSV()
 			require.Equal(t, tc.wantCount, len(results))
 		})
 	}

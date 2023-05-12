@@ -105,7 +105,7 @@ func printError(ctx context.Context, rc *run.Run, err error) {
 // supplied --json=true on the command line, to determine if a
 // bootstrap error (hopefully rare) should be output in JSON.
 func bootstrapIsFormatJSON(rc *run.Run) bool {
-	// If no RunContext, assume false
+	// If no Run, assume false
 	if rc == nil {
 		return false
 	}
