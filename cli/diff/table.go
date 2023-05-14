@@ -1,7 +1,6 @@
 package diff
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 
@@ -9,8 +8,6 @@ import (
 
 	"github.com/aymanbagabas/go-udiff"
 	"github.com/aymanbagabas/go-udiff/myers"
-	"github.com/neilotoole/sq/cli/output"
-	"github.com/neilotoole/sq/cli/output/yamlw"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/source"
@@ -49,29 +46,16 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, handle1, table1, handle2, t
 }
 
 func buildTableDiff(td1, td2 *tableData) (*tableDiff, error) {
-	pr := output.NewPrinting()
-	// We want monochrome yaml; any colorization happens to the diff text
-	// after it's computed.
-	pr.EnableColor(false)
+	var (
+		body1, body2 string
+		err          error
+	)
 
-	var body1, body2 string
-
-	if td1.tblMeta != nil {
-		buf1 := &bytes.Buffer{}
-		w1 := yamlw.NewMetadataWriter(buf1, pr)
-		if err := w1.TableMetadata(td1.tblMeta); err != nil {
-			return nil, err
-		}
-		body1 = buf1.String()
+	if body1, err = renderTableMeta2YAML(td1.tblMeta); err != nil {
+		return nil, err
 	}
-
-	if td2.tblMeta != nil {
-		buf2 := &bytes.Buffer{}
-		w2 := yamlw.NewMetadataWriter(buf2, pr)
-		if err := w2.TableMetadata(td2.tblMeta); err != nil {
-			return nil, err
-		}
-		body2 = buf2.String()
+	if body2, err = renderTableMeta2YAML(td2.tblMeta); err != nil {
+		return nil, err
 	}
 
 	edits := myers.ComputeEdits(body1, body2)
@@ -85,15 +69,15 @@ func buildTableDiff(td1, td2 *tableData) (*tableDiff, error) {
 		return nil, errz.Err(err)
 	}
 
-	tdiff := &tableDiff{
+	tblDiff := &tableDiff{
 		td1: td1,
 		td2: td2,
-		header: fmt.Sprintf("diff %s.%s %s.%s",
+		header: fmt.Sprintf("sq diff %s.%s %s.%s",
 			td1.srcMeta.Handle, td1.tblName, td2.srcMeta.Handle, td2.tblName),
 		diff: unified,
 	}
 
-	return tdiff, nil
+	return tblDiff, nil
 }
 
 func fetchTableMeta(ctx context.Context, ru *run.Run, handle, table string) (

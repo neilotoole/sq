@@ -1,10 +1,8 @@
 package diff
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/samber/lo"
 
@@ -12,8 +10,6 @@ import (
 
 	"github.com/aymanbagabas/go-udiff"
 	"github.com/aymanbagabas/go-udiff/myers"
-	"github.com/neilotoole/sq/cli/output"
-	"github.com/neilotoole/sq/cli/output/yamlw"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/source"
@@ -21,7 +17,7 @@ import (
 )
 
 // ExecSourceDiff diffs handle1 and handle2.
-func ExecSourceDiff(ctx context.Context, ru *run.Run, handle1, handle2 string) error {
+func ExecSourceDiff(ctx context.Context, ru *run.Run, summary bool, handle1, handle2 string) error {
 	var (
 		sd1 = &sourceData{handle: handle1}
 		sd2 = &sourceData{handle: handle2}
@@ -51,6 +47,10 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, handle1, handle2 string) e
 		return err
 	}
 
+	if summary {
+		return nil
+	}
+
 	for _, tblDiff := range tblDiffs {
 		if err := Print(ru.Out, ru.Writers.Printing, tblDiff.header, tblDiff.diff); err != nil {
 			return err
@@ -66,7 +66,7 @@ func buildSourceDiff(sd1, sd2 *sourceData) (srcDiff *sourceDiff, tblDiffs []*tab
 		return nil, nil, err
 	}
 
-	tblDiffs, err = buildTableDiffs(sd1, sd2)
+	tblDiffs, err = buildSourceTableDiffs(sd1, sd2)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -74,7 +74,7 @@ func buildSourceDiff(sd1, sd2 *sourceData) (srcDiff *sourceDiff, tblDiffs []*tab
 	return srcDiff, tblDiffs, nil
 }
 
-func buildTableDiffs(sd1, sd2 *sourceData) ([]*tableDiff, error) {
+func buildSourceTableDiffs(sd1, sd2 *sourceData) ([]*tableDiff, error) {
 	var allTblNames []string
 
 	for _, tbl := range sd1.srcMeta.Tables {
@@ -113,41 +113,17 @@ func buildTableDiffs(sd1, sd2 *sourceData) ([]*tableDiff, error) {
 }
 
 func buildSourceSummaryDiff(sd1, sd2 *sourceData) (*sourceDiff, error) {
-	pr := output.NewPrinting()
-	// We want monochrome yaml; any colorization happens to the diff text
-	// after it's computed.
-	pr.EnableColor(false)
+	var (
+		body1, body2 string
+		err          error
+	)
 
-	// Work with copies of the data, because we mutate it.
-	sd1 = sd1.clone()
-	sd2 = sd2.clone()
-
-	// We'll handle each table individually, so we don't need want
-	// to print the tables now.
-	sd1.srcMeta.Tables = nil
-	sd2.srcMeta.Tables = nil
-
-	// REVISIT: Maybe show DBVars when --verbose?
-	// dbVars1, dbVars2 := sd1.srcMeta.DBVars, sd2.srcMeta.DBVars
-	// _, _ = dbVars1, dbVars2
-	sd1.srcMeta.DBVars = nil
-	sd2.srcMeta.DBVars = nil
-
-	buf1, buf2 := &bytes.Buffer{}, &bytes.Buffer{}
-	w1, w2 := yamlw.NewMetadataWriter(buf1, pr), yamlw.NewMetadataWriter(buf2, pr)
-
-	if err := w1.SourceMetadata(sd1.srcMeta); err != nil {
+	if body1, err = renderSourceMeta2YAML(sd1.srcMeta); err != nil {
 		return nil, err
 	}
-	if err := w2.SourceMetadata(sd2.srcMeta); err != nil {
+	if body2, err = renderSourceMeta2YAML(sd2.srcMeta); err != nil {
 		return nil, err
 	}
-
-	body1, body2 := buf1.String(), buf2.String()
-
-	// Trim the unwanted "tables: []" part
-	body1 = strings.Replace(body1, "\ntables: []", "", 1)
-	body2 = strings.Replace(body2, "\ntables: []", "", 1)
 
 	edits := myers.ComputeEdits(body1, body2)
 	unified, err := udiff.ToUnified(
@@ -163,7 +139,7 @@ func buildSourceSummaryDiff(sd1, sd2 *sourceData) (*sourceDiff, error) {
 	diff := &sourceDiff{
 		sd1:    sd1,
 		sd2:    sd2,
-		header: fmt.Sprintf("diff %s %s", sd1.handle, sd2.handle),
+		header: fmt.Sprintf("sq diff --summary %s %s", sd1.handle, sd2.handle),
 		diff:   unified,
 	}
 

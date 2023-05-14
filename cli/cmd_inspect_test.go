@@ -71,7 +71,7 @@ func TestCmdInspect(t *testing.T) {
 
 			md := &source.Metadata{}
 			require.NoError(t, json.Unmarshal(tr.Out.Bytes(), md))
-			require.Equal(t, tc.wantType, md.SourceType)
+			require.Equal(t, tc.wantType, md.Driver)
 			require.Equal(t, src.Handle, md.Handle)
 			require.Equal(t, src.Location, md.Location)
 			require.Equal(t, tc.wantTbls, md.TableNames())
@@ -95,7 +95,7 @@ func TestCmdInspectSmoke(t *testing.T) {
 
 	md := &source.Metadata{}
 	require.NoError(t, json.Unmarshal(tr.Out.Bytes(), md))
-	require.Equal(t, sqlite3.Type, md.SourceType)
+	require.Equal(t, sqlite3.Type, md.Driver)
 	require.Equal(t, sakila.SL3, md.Handle)
 	require.Equal(t, src.RedactedLocation(), md.Location)
 	require.Equal(t, sakila.AllTblsViews(), md.TableNames())
@@ -110,7 +110,7 @@ func TestCmdInspectSmoke(t *testing.T) {
 
 	md = &source.Metadata{}
 	require.NoError(t, json.Unmarshal(tr.Out.Bytes(), md))
-	require.Equal(t, csv.TypeCSV, md.SourceType)
+	require.Equal(t, csv.TypeCSV, md.Driver)
 	require.Equal(t, sakila.CSVActor, md.Handle)
 	require.Equal(t, src.Location, md.Location)
 	require.Equal(t, []string{source.MonotableName}, md.TableNames())
@@ -148,7 +148,7 @@ func TestCmdInspect_Stdin(t *testing.T) {
 
 			md := &source.Metadata{}
 			require.NoError(t, json.Unmarshal(tr.Out.Bytes(), md))
-			require.Equal(t, tc.wantType, md.SourceType)
+			require.Equal(t, tc.wantType, md.Driver)
 			require.Equal(t, source.StdinHandle, md.Handle)
 			require.Equal(t, source.StdinHandle, md.Location)
 			require.Equal(t, tc.wantTbls, md.TableNames())

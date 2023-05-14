@@ -30,7 +30,7 @@ type sourceData struct {
 	srcMeta *source.Metadata
 }
 
-func (sd *sourceData) clone() *sourceData {
+func (sd *sourceData) clone() *sourceData { //nolint:unused // REVISIT: no longer needed?
 	if sd == nil {
 		return nil
 	}
@@ -50,7 +50,7 @@ type tableData struct {
 	srcMeta *source.Metadata
 }
 
-func (td *tableData) clone() *tableData { //nolint:unused
+func (td *tableData) clone() *tableData { //nolint:unused // REVISIT: no longer needed?
 	if td == nil {
 		return nil
 	}
@@ -63,12 +63,14 @@ func (td *tableData) clone() *tableData { //nolint:unused
 	}
 }
 
+// sourceDiff is a container for a source diff.
 type sourceDiff struct {
 	sd1, sd2 *sourceData
 	header   string
 	diff     string
 }
 
+// tableDiff is a container for a table diff.
 type tableDiff struct {
 	td1, td2 *tableData
 	header   string

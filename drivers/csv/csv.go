@@ -182,7 +182,7 @@ func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error)
 
 	md.Handle = d.src.Handle
 	md.Location = d.src.Location
-	md.SourceType = d.src.Type
+	md.Driver = d.src.Type
 
 	md.Name, err = source.LocationFileName(d.src)
 	if err != nil {

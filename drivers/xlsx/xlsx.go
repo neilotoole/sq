@@ -215,7 +215,7 @@ func (d *database) SourceMetadata(_ context.Context) (*source.Metadata, error) {
 
 	meta.FQName = meta.Name
 	meta.Location = d.src.Location
-	meta.SourceType = Type
+	meta.Driver = Type
 
 	b, err := d.files.ReadAll(d.src)
 	if err != nil {

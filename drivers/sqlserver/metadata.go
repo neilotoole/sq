@@ -124,7 +124,7 @@ FROM sys.master_files WITH(NOWAIT)
 WHERE database_id = DB_ID()
 GROUP BY database_id) AS total_size_bytes`
 
-	md := &source.Metadata{SourceType: Type, DBDriverType: Type}
+	md := &source.Metadata{Driver: Type, DBDriver: Type}
 	md.Handle = src.Handle
 	md.Location = src.Location
 

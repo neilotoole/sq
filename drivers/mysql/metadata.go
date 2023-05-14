@@ -251,10 +251,10 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB) (*so
 	ctx = options.NewContext(ctx, src.Options)
 
 	md := &source.Metadata{
-		SourceType:   Type,
-		DBDriverType: Type,
-		Handle:       src.Handle,
-		Location:     src.Location,
+		Driver:   Type,
+		DBDriver: Type,
+		Handle:   src.Handle,
+		Location: src.Location,
 	}
 
 	g, gCtx := errgroup.WithContext(ctx)

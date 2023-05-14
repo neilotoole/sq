@@ -150,4 +150,7 @@ const (
 
 	LogLevel      = "log.level"
 	LogLevelUsage = "Log level: one of DEBUG, INFO, WARN, ERROR"
+
+	DiffSummary      = "summary"
+	DiffSummaryUsage = "Show summary-level diff only"
 )

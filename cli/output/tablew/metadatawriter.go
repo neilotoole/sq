@@ -108,7 +108,7 @@ func (w *mdWriter) SourceMetadata(meta *source.Metadata) error {
 		w.tbl.tblImpl.SetColTrans(4, w.tbl.pr.Number.SprintFunc())
 		row = []string{
 			meta.Handle,
-			meta.SourceType.String(),
+			meta.Driver.String(),
 			meta.Name,
 			stringz.ByteSized(meta.Size, 1, ""),
 			fmt.Sprintf("%d", len(meta.Tables)),
@@ -121,7 +121,7 @@ func (w *mdWriter) SourceMetadata(meta *source.Metadata) error {
 		w.tbl.tblImpl.SetColTrans(5, w.tbl.pr.Number.SprintFunc())
 		row = []string{
 			meta.Handle,
-			meta.SourceType.String(),
+			meta.Driver.String(),
 			meta.Name,
 			meta.FQName,
 			stringz.ByteSized(meta.Size, 1, ""),

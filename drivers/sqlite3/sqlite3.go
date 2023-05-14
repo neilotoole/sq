@@ -797,7 +797,7 @@ func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.T
 func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error) {
 	// https://stackoverflow.com/questions/9646353/how-to-find-sqlite-database-file-version
 
-	meta := &source.Metadata{Handle: d.src.Handle, SourceType: Type, DBDriverType: dbDrvr}
+	meta := &source.Metadata{Handle: d.src.Handle, Driver: Type, DBDriver: dbDrvr}
 
 	dsn, err := PathFromLocation(d.src)
 	if err != nil {
