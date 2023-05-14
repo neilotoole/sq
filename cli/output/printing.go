@@ -89,6 +89,9 @@ type Printing struct {
 	// DiffMinus is the color for diff minus "-" elements.
 	DiffMinus *color.Color
 
+	// DiffHeader is the color for diff header elements.
+	DiffHeader *color.Color
+
 	// DiffSection is the color for diff section elements.
 	DiffSection *color.Color
 
@@ -160,6 +163,7 @@ func NewPrinting() *Printing {
 		Bool:                   color.New(color.FgYellow),
 		Bytes:                  color.New(color.Faint),
 		Datetime:               color.New(color.FgGreen, color.Faint),
+		DiffHeader:             color.New(color.Bold),
 		DiffMinus:              color.New(color.FgRed),
 		DiffNormal:             color.New(color.Faint),
 		DiffPlus:               color.New(color.FgGreen),
@@ -207,7 +211,7 @@ func (pr *Printing) LogValue() slog.Value {
 func (pr *Printing) colors() []*color.Color {
 	return []*color.Color{
 		pr.Active, pr.Bold, pr.Bold, pr.Bytes, pr.Datetime, pr.Duration,
-		pr.DiffMinus, pr.DiffPlus, pr.DiffNormal, pr.DiffSection,
+		pr.DiffHeader, pr.DiffMinus, pr.DiffPlus, pr.DiffNormal, pr.DiffSection,
 		pr.Error, pr.Faint, pr.Handle, pr.Header, pr.Hilite,
 		pr.Key, pr.Location, pr.Normal, pr.Null, pr.Number,
 		pr.Punc, pr.String, pr.Success,

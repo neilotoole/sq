@@ -15,7 +15,7 @@ for use with test `sq diff`.
   ```sql
   DELETE FROM actor WHERE actor_id=2;
   ```
-- The `actor` table has an extra column.
+- There's a new table `awards`.
 
 
 ## sakila_whitespace.db
