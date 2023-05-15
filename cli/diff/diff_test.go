@@ -7,8 +7,8 @@ import (
 
 	"github.com/neilotoole/sq/cli/output"
 
-	"github.com/aymanbagabas/go-udiff"
-	"github.com/aymanbagabas/go-udiff/myers"
+	"github.com/neilotoole/sq/cli/diff/internal/go-udiff"
+	"github.com/neilotoole/sq/cli/diff/internal/go-udiff/myers"
 	"github.com/stretchr/testify/require"
 )
 
@@ -19,6 +19,8 @@ const (
 
 	alphaShortBefore = "a: 1\nb: 2\nc: 3\nd: 4\ne: 5\nf: 6\ng: 7\nh: 8\ni: 9\nj: 10\n"
 	alphaShortAfter  = "a: 1\nb: 2\nc: 3\nd: 4\ne: 5\nf: X\ng: 7\nh: 8\ni: 9\nj: 10\n"
+
+	numLines = 3
 )
 
 func TestMyers(t *testing.T) {
@@ -29,6 +31,7 @@ func TestMyers(t *testing.T) {
 		"after",
 		left,
 		edits,
+		numLines,
 	)
 
 	require.NoError(t, err)
@@ -48,6 +51,7 @@ func TestMyersDiff(t *testing.T) {
 		"after",
 		left,
 		edits,
+		numLines,
 	)
 
 	require.NoError(t, err)

@@ -8,8 +8,8 @@ import (
 
 	"golang.org/x/exp/slices"
 
-	"github.com/aymanbagabas/go-udiff"
-	"github.com/aymanbagabas/go-udiff/myers"
+	"github.com/neilotoole/sq/cli/diff/internal/go-udiff"
+	"github.com/neilotoole/sq/cli/diff/internal/go-udiff/myers"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/source"
@@ -17,7 +17,7 @@ import (
 )
 
 // ExecSourceDiff diffs handle1 and handle2.
-func ExecSourceDiff(ctx context.Context, ru *run.Run, summary bool, handle1, handle2 string) error {
+func ExecSourceDiff(ctx context.Context, ru *run.Run, numLines int, summary bool, handle1, handle2 string) error {
 	var (
 		sd1 = &sourceData{handle: handle1}
 		sd2 = &sourceData{handle: handle2}
@@ -38,7 +38,7 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, summary bool, handle1, han
 		return err
 	}
 
-	srcDiff, tblDiffs, err := buildSourceDiff(sd1, sd2)
+	srcDiff, tblDiffs, err := buildSourceDiff(numLines, sd1, sd2)
 	if err != nil {
 		return err
 	}
@@ -60,13 +60,13 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, summary bool, handle1, han
 	return nil
 }
 
-func buildSourceDiff(sd1, sd2 *sourceData) (srcDiff *sourceDiff, tblDiffs []*tableDiff, err error) {
-	srcDiff, err = buildSourceSummaryDiff(sd1, sd2)
+func buildSourceDiff(numLines int, sd1, sd2 *sourceData) (srcDiff *sourceDiff, tblDiffs []*tableDiff, err error) {
+	srcDiff, err = buildSourceSummaryDiff(numLines, sd1, sd2)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	tblDiffs, err = buildSourceTableDiffs(sd1, sd2)
+	tblDiffs, err = buildSourceTableDiffs(numLines, sd1, sd2)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -74,7 +74,7 @@ func buildSourceDiff(sd1, sd2 *sourceData) (srcDiff *sourceDiff, tblDiffs []*tab
 	return srcDiff, tblDiffs, nil
 }
 
-func buildSourceTableDiffs(sd1, sd2 *sourceData) ([]*tableDiff, error) {
+func buildSourceTableDiffs(numLines int, sd1, sd2 *sourceData) ([]*tableDiff, error) {
 	var allTblNames []string
 
 	for _, tbl := range sd1.srcMeta.Tables {
@@ -101,7 +101,7 @@ func buildSourceTableDiffs(sd1, sd2 *sourceData) ([]*tableDiff, error) {
 			srcMeta: sd2.srcMeta,
 		}
 
-		dff, err := buildTableDiff(td1, td2)
+		dff, err := buildTableDiff(numLines, td1, td2)
 		if err != nil {
 			return nil, err
 		}
@@ -112,7 +112,7 @@ func buildSourceTableDiffs(sd1, sd2 *sourceData) ([]*tableDiff, error) {
 	return diffs, nil
 }
 
-func buildSourceSummaryDiff(sd1, sd2 *sourceData) (*sourceDiff, error) {
+func buildSourceSummaryDiff(numLines int, sd1, sd2 *sourceData) (*sourceDiff, error) {
 	var (
 		body1, body2 string
 		err          error
@@ -131,6 +131,7 @@ func buildSourceSummaryDiff(sd1, sd2 *sourceData) (*sourceDiff, error) {
 		sd2.handle,
 		body1,
 		edits,
+		numLines,
 	)
 	if err != nil {
 		return nil, errz.Err(err)

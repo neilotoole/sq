@@ -6,15 +6,15 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/aymanbagabas/go-udiff"
-	"github.com/aymanbagabas/go-udiff/myers"
+	"github.com/neilotoole/sq/cli/diff/internal/go-udiff"
+	"github.com/neilotoole/sq/cli/diff/internal/go-udiff/myers"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/source"
 )
 
 // ExecTableDiff diffs handle1.table1 and handle2.table2.
-func ExecTableDiff(ctx context.Context, ru *run.Run, handle1, table1, handle2, table2 string) error {
+func ExecTableDiff(ctx context.Context, ru *run.Run, numLines int, handle1, table1, handle2, table2 string) error {
 	td1, td2 := &tableData{tblName: table1}, &tableData{tblName: table2}
 
 	g, gCtx := errgroup.WithContext(ctx)
@@ -32,7 +32,7 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, handle1, table1, handle2, t
 		return err
 	}
 
-	tblDiff, err := buildTableDiff(td1, td2)
+	tblDiff, err := buildTableDiff(numLines, td1, td2)
 	if err != nil {
 		return err
 	}
@@ -45,7 +45,7 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, handle1, table1, handle2, t
 	return Print(ru.Out, ru.Writers.Printing, tblDiff.header, tblDiff.diff)
 }
 
-func buildTableDiff(td1, td2 *tableData) (*tableDiff, error) {
+func buildTableDiff(lines int, td1, td2 *tableData) (*tableDiff, error) {
 	var (
 		body1, body2 string
 		err          error
@@ -64,6 +64,7 @@ func buildTableDiff(td1, td2 *tableData) (*tableDiff, error) {
 		td2.src.Handle+"."+td2.tblName,
 		body1,
 		edits,
+		lines,
 	)
 	if err != nil {
 		return nil, errz.Err(err)
@@ -73,7 +74,7 @@ func buildTableDiff(td1, td2 *tableData) (*tableDiff, error) {
 		td1: td1,
 		td2: td2,
 		header: fmt.Sprintf("sq diff %s.%s %s.%s",
-			td1.srcMeta.Handle, td1.tblName, td2.srcMeta.Handle, td2.tblName),
+			td1.src.Handle, td1.tblName, td2.src.Handle, td2.tblName),
 		diff: unified,
 	}
 

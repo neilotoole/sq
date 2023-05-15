@@ -48,11 +48,11 @@ require (
 	github.com/neilotoole/slogt v1.0.0
 	github.com/otiai10/copy v1.11.0
 	github.com/samber/lo v1.38.1
+	github.com/sourcegraph/go-diff v0.7.0
 	golang.org/x/exp v0.0.0-20230420155640-133eef4313cb
 )
 
 require (
-	github.com/aymanbagabas/go-udiff v0.1.1 // indirect
 	github.com/cpuguy83/dockercfg v0.3.1 // indirect
 	github.com/golang-sql/sqlexp v0.1.0 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
@@ -66,7 +66,6 @@ require (
 	github.com/muesli/mango-pflag v0.1.0 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/rogpeppe/go-internal v1.10.0 // indirect
-	github.com/sourcegraph/go-diff v0.7.0 // indirect
 	golang.org/x/crypto v0.8.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect

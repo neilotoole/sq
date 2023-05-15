@@ -153,4 +153,8 @@ const (
 
 	DiffSummary      = "summary"
 	DiffSummaryUsage = "Show summary-level diff only"
+
+	DiffNumLines      = "lines"
+	DiffNumLinesShort = "n"
+	DiffNumLinesUsage = "Number of lines surrounding diff"
 )
