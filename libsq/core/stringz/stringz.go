@@ -82,9 +82,9 @@ func ParseBool(s string) (bool, error) {
 			return b, errz.Err(err)
 		}
 		return b, nil
-	case "1", "yes", "Yes", "YES", "y", "Y":
+	case "1", "yes", "Yes", "YES", "y", "Y", "on", "ON":
 		return true, nil
-	case "0", "no", "No", "NO", "n", "N":
+	case "0", "no", "No", "NO", "n", "N", "off", "OFF":
 		return false, nil
 	}
 }

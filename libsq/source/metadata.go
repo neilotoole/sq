@@ -50,8 +50,10 @@ type Metadata struct {
 	// Tables is the metadata for each table loc the source.
 	Tables []*TableMetadata `json:"tables"`
 
-	// DBVars are configuration name-value pairs from the DB.
-	DBVars []DBVar `json:"db_variables,omitempty"`
+	// DBProperties are name-value pairs from the DB.
+	// Typically the value is a scalar such as integer or string, but
+	// it can be a nested value such as map or array.
+	DBSettings map[string]any `json:"db_properties,omitempty"`
 }
 
 // Table returns the named table, or nil.
@@ -88,8 +90,11 @@ func (md *Metadata) Clone() *Metadata {
 		Size:      md.Size,
 	}
 
-	if md.DBVars != nil {
-		copy(c.DBVars, md.DBVars)
+	if md.DBSettings != nil {
+		c.DBSettings = make(map[string]any, len(md.DBSettings))
+		for k, v := range md.DBSettings {
+			c.DBSettings[k] = v
+		}
 	}
 
 	if md.Tables != nil {

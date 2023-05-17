@@ -148,7 +148,7 @@ func execInspect(cmd *cobra.Command, args []string) error {
 	// This is a bit hacky, but it works... if not "--verbose", then just zap
 	// the DBVars, as we usually don't want to see those
 	if !cmdFlagTrue(cmd, flag.Verbose) {
-		meta.DBVars = nil
+		meta.DBSettings = nil
 	}
 
 	return ru.Writers.Metadata.SourceMetadata(meta)

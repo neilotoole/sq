@@ -139,6 +139,10 @@ GROUP BY database_id) AS total_size_bytes`
 	md.FQName = catalog + "." + schema
 	md.Schema = schema
 
+	if md.DBSettings, err = getDBProperties(ctx, db); err != nil {
+		return nil, err
+	}
+
 	tblNames, tblTypes, err := getAllTables(ctx, db)
 	if err != nil {
 		return nil, err
