@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Breaking changes are annotated with ☢️.
 
+## Upcoming
+
+The major feature is the long-awaited `sq diff`.
+
+## Added
+
+- `sq diff` compares two sources, or tables.
+
+
+
 ## [v0.35.0] - 2023-05-10
 
 ### Added

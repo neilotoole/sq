@@ -15,6 +15,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/samber/lo"
+	"golang.org/x/exp/slices"
+
 	"github.com/neilotoole/sq/libsq/driver/dialect"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -827,7 +830,45 @@ func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error)
 	if err != nil {
 		return nil, err
 	}
+
+	meta.DBVars, err = d.getDBVars(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	return meta, nil
+}
+
+func (d *database) getDBVars(ctx context.Context) ([]source.DBVar, error) {
+	pragmas, err := d.listPragmas(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	m, err := d.getPragmas(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	dbVars := make([]source.DBVar, 0, len(pragmas))
+	keys := lo.Keys(m)
+	slices.Sort(keys)
+
+	for _, key := range keys {
+		val, ok := m[key]
+		if !ok || val == nil {
+			continue
+		}
+
+		dbVar := source.DBVar{
+			Name:  key,
+			Value: fmt.Sprintf("%v", val),
+		}
+
+		dbVars = append(dbVars, dbVar)
+	}
+
+	return dbVars, nil
 }
 
 // Close implements driver.Database.
