@@ -11,8 +11,11 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 )
 
-func (d *database) getPragmas(ctx context.Context) (map[string]any, error) {
-	pragmas, err := d.listPragmas(ctx)
+// getDBSettings returns a map of the DB's settings, as exposed
+// via SQLite's pragma mechanism.
+// See: https://www.sqlite.org/pragma.html
+func (d *database) getDBSettings(ctx context.Context) (map[string]any, error) {
+	pragmas, err := d.listPragmaNames(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +119,9 @@ func (d *database) readPragma(ctx context.Context, pragma string) (any, error) {
 	return arr, nil
 }
 
-func (d *database) listPragmas(ctx context.Context) ([]string, error) {
+// listPragmaNames lists the pragmas from pragma_pragma_list.
+// See: https://www.sqlite.org/pragma.html#pragma_pragma_list
+func (d *database) listPragmaNames(ctx context.Context) ([]string, error) {
 	const qPragmas = `SELECT name FROM pragma_pragma_list ORDER BY name`
 
 	rows, err := d.db.QueryContext(ctx, qPragmas)

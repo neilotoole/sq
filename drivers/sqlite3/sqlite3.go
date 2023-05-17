@@ -840,12 +840,12 @@ func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error)
 }
 
 func (d *database) getDBVars(ctx context.Context) ([]source.DBVar, error) {
-	pragmas, err := d.listPragmas(ctx)
+	pragmas, err := d.listPragmaNames(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	m, err := d.getPragmas(ctx)
+	m, err := d.getDBSettings(ctx)
 	if err != nil {
 		return nil, err
 	}
