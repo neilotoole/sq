@@ -51,6 +51,9 @@ type MetadataWriter interface {
 	// SourceMetadata writes the source metadata.
 	SourceMetadata(srcMeta *source.Metadata) error
 
+	// DBProperties writes the DB properties.
+	DBProperties(props map[string]any) error
+
 	// DriverMetadata writes the metadata for the drivers.
 	DriverMetadata(drvrs []driver.Metadata) error
 }

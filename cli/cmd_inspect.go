@@ -23,31 +23,38 @@ listing table details such as column names and row counts, etc.
 
 NOTE: If a schema is large, it may take some time for the command to complete.
 
-Use the --verbose flag to see more detail.
+The --dbprops flag shows the database properties for a source's *underlying*
+database. The flag is disregarded when inspecting a table.
+
+Use the --verbose flag to see more detail in some output formats.
 
 If @HANDLE is not provided, the active data source is assumed.`,
-		Example: `  # inspect active data source
+		Example: `  # Inspect active data source
   $ sq inspect
 
-  # inspect @pg1 data source
+  # Inspect @pg1 data source
   $ sq inspect @pg1
 
-  # inspect @pg1 data source, showing verbose output
+  # Inspect @pg1 data source, showing verbose output
   $ sq inspect -v @pg1
 
-  # inspect 'actor' in @pg1 data source
+  # Show DB properties for @pg1
+  $ sq inspect --dbprops @pg1
+
+  # Inspect 'actor' in @pg1 data source
   $ sq inspect @pg1.actor
 
-  # inspect 'actor' in active data source
+  # Inspect 'actor' in active data source
   $ sq inspect .actor
 
-  # inspect piped data
+  # Inspect piped data
   $ cat data.xlsx | sq inspect`,
 	}
 
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 	cmd.Flags().BoolP(flag.Compact, flag.CompactShort, false, flag.CompactUsage)
 	cmd.Flags().BoolP(flag.YAML, flag.YAMLShort, false, flag.YAMLUsage)
+	cmd.Flags().BoolP(flag.InspectDBProps, flag.InspectDBPropsShort, false, flag.InspectDBPropsUsage)
 
 	return cmd
 }
@@ -140,7 +147,17 @@ func execInspect(cmd *cobra.Command, args []string) error {
 		return ru.Writers.Metadata.TableMetadata(tblMeta)
 	}
 
-	meta, err := dbase.SourceMetadata(ctx)
+	if cmdFlagTrue(cmd, flag.InspectDBProps) {
+		sqlDrvr := dbase.SQLDriver()
+		var props map[string]any
+		if props, err = sqlDrvr.DBProperties(ctx, dbase.DB()); err != nil {
+			return err
+		}
+
+		return ru.Writers.Metadata.DBProperties(props)
+	}
+
+	srcMeta, err := dbase.SourceMetadata(ctx)
 	if err != nil {
 		return errz.Wrapf(err, "failed to read %s source metadata", src.Handle)
 	}
@@ -148,8 +165,8 @@ func execInspect(cmd *cobra.Command, args []string) error {
 	// This is a bit hacky, but it works... if not "--verbose", then just zap
 	// the DBVars, as we usually don't want to see those
 	if !cmdFlagTrue(cmd, flag.Verbose) {
-		meta.DBSettings = nil
+		srcMeta.DBProperties = nil
 	}
 
-	return ru.Writers.Metadata.SourceMetadata(meta)
+	return ru.Writers.Metadata.SourceMetadata(srcMeta)
 }

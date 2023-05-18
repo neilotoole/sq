@@ -6,16 +6,18 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/sqlz"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 )
 
-// getDBSettings returns a map of the DB's settings, as exposed
+// getDBProperties returns a map of the DB's settings, as exposed
 // via SQLite's pragma mechanism.
 // See: https://www.sqlite.org/pragma.html
-func (d *database) getDBSettings(ctx context.Context) (map[string]any, error) {
-	pragmas, err := d.listPragmaNames(ctx)
+func getDBProperties(ctx context.Context, db sqlz.DB) (map[string]any, error) {
+	pragmas, err := listPragmaNames(ctx, db)
 	if err != nil {
 		return nil, err
 	}
@@ -23,7 +25,7 @@ func (d *database) getDBSettings(ctx context.Context) (map[string]any, error) {
 	m := make(map[string]any, len(pragmas))
 	for _, pragma := range pragmas {
 		var val any
-		val, err = d.readPragma(ctx, pragma)
+		val, err = readPragma(ctx, db, pragma)
 		if err != nil {
 			return nil, errz.Wrapf(err, "read pragma: %s", pragma)
 		}
@@ -38,14 +40,14 @@ func (d *database) getDBSettings(ctx context.Context) (map[string]any, error) {
 
 // readPragma reads the values of pragma from the DB,and returns its value,
 // which is either a scalar value such as a string, or a map[string]any.
-func (d *database) readPragma(ctx context.Context, pragma string) (any, error) {
+func readPragma(ctx context.Context, db sqlz.DB, pragma string) (any, error) {
 	var (
 		q    = fmt.Sprintf(`SELECT * FROM "pragma_%s"`, pragma)
 		rows *sql.Rows
 		err  error
 	)
 
-	if rows, err = d.db.QueryContext(ctx, q); err != nil {
+	if rows, err = db.QueryContext(ctx, q); err != nil {
 		if strings.HasPrefix(err.Error(), "no such table") {
 			// Some of the pragmas can't be selected from. Ignore these.
 			// SQLite returns a generic (1) SQLITE_ERROR in this case,
@@ -121,10 +123,10 @@ func (d *database) readPragma(ctx context.Context, pragma string) (any, error) {
 
 // listPragmaNames lists the pragmas from pragma_pragma_list.
 // See: https://www.sqlite.org/pragma.html#pragma_pragma_list
-func (d *database) listPragmaNames(ctx context.Context) ([]string, error) {
+func listPragmaNames(ctx context.Context, db sqlz.DB) ([]string, error) {
 	const qPragmas = `SELECT name FROM pragma_pragma_list ORDER BY name`
 
-	rows, err := d.db.QueryContext(ctx, qPragmas)
+	rows, err := db.QueryContext(ctx, qPragmas)
 	if err != nil {
 		return nil, errz.Err(err)
 	}

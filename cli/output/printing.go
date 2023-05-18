@@ -188,6 +188,49 @@ func NewPrinting() *Printing {
 	return pr
 }
 
+// Clone returns a clone of pr.
+func (pr *Printing) Clone() *Printing {
+	return &Printing{
+		monochrome:             pr.monochrome,
+		FlushThreshold:         pr.FlushThreshold,
+		ShowHeader:             pr.ShowHeader,
+		Verbose:                pr.Verbose,
+		Compact:                pr.Compact,
+		Indent:                 pr.Indent,
+		Redact:                 pr.Redact,
+		FormatDatetime:         pr.FormatDatetime,
+		FormatDatetimeAsNumber: pr.FormatDatetimeAsNumber,
+		FormatTime:             pr.FormatTime,
+		FormatTimeAsNumber:     pr.FormatTimeAsNumber,
+		FormatDate:             pr.FormatDate,
+		FormatDateAsNumber:     pr.FormatDateAsNumber,
+		Active:                 pr.Active,
+		Bold:                   pr.Bold,
+		Bool:                   pr.Bool,
+		Bytes:                  pr.Bytes,
+		Datetime:               pr.Datetime,
+		DiffPlus:               pr.DiffPlus,
+		DiffMinus:              pr.DiffMinus,
+		DiffHeader:             pr.DiffHeader,
+		DiffSection:            pr.DiffSection,
+		DiffNormal:             pr.DiffNormal,
+		Duration:               pr.Duration,
+		Error:                  pr.Error,
+		Faint:                  pr.Faint,
+		Handle:                 pr.Handle,
+		Header:                 pr.Header,
+		Hilite:                 pr.Hilite,
+		Key:                    pr.Key,
+		Location:               pr.Location,
+		Null:                   pr.Null,
+		Normal:                 pr.Normal,
+		Number:                 pr.Number,
+		Punc:                   pr.Punc,
+		String:                 pr.String,
+		Success:                pr.Success,
+	}
+}
+
 // LogValue implements slog.LogValuer.
 func (pr *Printing) LogValue() slog.Value {
 	if pr == nil {

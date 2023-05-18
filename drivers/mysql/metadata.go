@@ -270,7 +270,7 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB) (*so
 	g.Go(func() error {
 		return doRetry(gCtx, func() error {
 			var err error
-			md.DBSettings, err = getDBSettings(gCtx, db)
+			md.DBProperties, err = getDBProperties(gCtx, db)
 			return err
 		})
 	})
@@ -312,8 +312,8 @@ func setSourceSummaryMeta(ctx context.Context, db sqlz.DB, md *source.Metadata) 
 	return nil
 }
 
-// getDBSettings returns the db settings as observed via "SHOW VARIABLES".
-func getDBSettings(ctx context.Context, db sqlz.DB) (map[string]any, error) {
+// getDBProperties returns the db settings as observed via "SHOW VARIABLES".
+func getDBProperties(ctx context.Context, db sqlz.DB) (map[string]any, error) {
 	log := lg.FromContext(ctx)
 
 	rows, err := db.QueryContext(ctx, "SHOW VARIABLES")

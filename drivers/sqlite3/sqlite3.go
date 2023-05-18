@@ -74,6 +74,11 @@ type driveri struct {
 	log *slog.Logger
 }
 
+// DBProperties implements driver.SQLDriver.
+func (d *driveri) DBProperties(ctx context.Context, db sqlz.DB) (map[string]any, error) {
+	return getDBProperties(ctx, db)
+}
+
 // DriverMetadata implements driver.Driver.
 func (d *driveri) DriverMetadata() driver.Metadata {
 	return driver.Metadata{
@@ -806,7 +811,7 @@ func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error)
 
 	const q = "SELECT sqlite_version(), (SELECT name FROM pragma_database_list ORDER BY seq limit 1);"
 
-	err = d.DB().QueryRowContext(ctx, q).Scan(&meta.DBVersion, &meta.Schema)
+	err = d.db.QueryRowContext(ctx, q).Scan(&meta.DBVersion, &meta.Schema)
 	if err != nil {
 		return nil, errz.Err(err)
 	}
@@ -828,7 +833,7 @@ func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error)
 		return nil, err
 	}
 
-	meta.DBSettings, err = d.getDBSettings(ctx)
+	meta.DBProperties, err = getDBProperties(ctx, d.db)
 	if err != nil {
 		return nil, err
 	}

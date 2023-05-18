@@ -208,7 +208,7 @@ current_setting('server_version'), version(), "current_user"()`
 	md.Schema = schema.String
 	md.FQName = md.Name + "." + schema.String
 
-	md.DBSettings, err = getPgSettings(ctx, db)
+	md.DBProperties, err = getPgSettings(ctx, db)
 	if err != nil {
 		return nil, err
 	}

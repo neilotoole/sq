@@ -256,6 +256,11 @@ func (d *database) SourceMetadata(_ context.Context) (*source.Metadata, error) {
 	return meta, nil
 }
 
+// DBProperties implements driver.Database. It returns an empty map.
+func (d *database) DBProperties(_ context.Context) (map[string]any, error) {
+	return map[string]any{}, nil
+}
+
 // TableMetadata implements driver.Database.
 func (d *database) TableMetadata(_ context.Context, tblName string) (*source.TableMetadata, error) {
 	b, err := d.files.ReadAll(d.src)

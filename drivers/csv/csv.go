@@ -100,26 +100,6 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 		return nil, errz.Errorf("expected driver type {%s} but got {%s}", d.typ, src.Type)
 	}
 
-	if src.Options != nil || len(src.Options) > 0 {
-		d.log.Error("FIXME: need to validate source")
-		// FIXME: Validate source
-
-		// d.log.Debug("Validating source",
-		// 	lga.Src, src,
-		// 	lga.Opts, src.Options.Encode(),
-		// )
-		//
-		// key := "header"
-		// v := src.Options.Get(key)
-		//
-		// if v != "" {
-		// 	_, err := strconv.ParseBool(v)
-		// 	if err != nil {
-		// 		return nil, errz.Wrapf(err, "unable to parse option {%s} having value {%s}", key, v)
-		// 	}
-		// }
-	}
-
 	return src, nil
 }
 

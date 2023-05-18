@@ -37,3 +37,11 @@ func (w *mdWriter) SourceMetadata(md *source.Metadata) error {
 
 	return writeJSON(w.out, w.pr, &md2)
 }
+
+// DBProperties implements output.MetadataWriter.
+func (w *mdWriter) DBProperties(props map[string]any) error {
+	if len(props) == 0 {
+		return nil
+	}
+	return writeJSON(w.out, w.pr, props)
+}

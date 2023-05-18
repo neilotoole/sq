@@ -157,4 +157,8 @@ const (
 	DiffNumLines      = "lines"
 	DiffNumLinesShort = "n"
 	DiffNumLinesUsage = "Number of lines surrounding diff"
+
+	InspectDBProps      = "dbprops"
+	InspectDBPropsShort = "p"
+	InspectDBPropsUsage = "Show DB properties only"
 )

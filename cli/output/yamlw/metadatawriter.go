@@ -40,3 +40,12 @@ func (w *mdWriter) SourceMetadata(md *source.Metadata) error {
 
 	return writeYAML(w.out, w.yp, &md2)
 }
+
+// DBProperties implements output.MetadataWriter.
+func (w *mdWriter) DBProperties(props map[string]any) error {
+	if len(props) == 0 {
+		return nil
+	}
+
+	return writeYAML(w.out, w.yp, props)
+}

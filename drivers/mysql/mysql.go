@@ -65,6 +65,11 @@ type driveri struct {
 	log *slog.Logger
 }
 
+// DBProperties implements driver.SQLDriver.
+func (d *driveri) DBProperties(ctx context.Context, db sqlz.DB) (map[string]any, error) {
+	return getDBProperties(ctx, db)
+}
+
 // DriverMetadata implements driver.Driver.
 func (d *driveri) DriverMetadata() driver.Metadata {
 	return driver.Metadata{

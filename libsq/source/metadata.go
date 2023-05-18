@@ -53,7 +53,7 @@ type Metadata struct {
 	// DBProperties are name-value pairs from the DB.
 	// Typically the value is a scalar such as integer or string, but
 	// it can be a nested value such as map or array.
-	DBSettings map[string]any `json:"db_properties,omitempty"`
+	DBProperties map[string]any `json:"db_properties,omitempty"`
 }
 
 // Table returns the named table, or nil.
@@ -90,10 +90,10 @@ func (md *Metadata) Clone() *Metadata {
 		Size:      md.Size,
 	}
 
-	if md.DBSettings != nil {
-		c.DBSettings = make(map[string]any, len(md.DBSettings))
-		for k, v := range md.DBSettings {
-			c.DBSettings[k] = v
+	if md.DBProperties != nil {
+		c.DBProperties = make(map[string]any, len(md.DBProperties))
+		for k, v := range md.DBProperties {
+			c.DBProperties[k] = v
 		}
 	}
 
