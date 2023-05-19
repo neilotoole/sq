@@ -7,11 +7,13 @@ import (
 	"io"
 	"os"
 
-	"github.com/neilotoole/sq/cli/config"
 	"github.com/neilotoole/sq/cli/output"
+
+	"github.com/neilotoole/sq/libsq/core/options"
+
+	"github.com/neilotoole/sq/cli/config"
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/spf13/cobra"
@@ -40,12 +42,10 @@ type Run struct {
 	// Stdin typically is os.Stdin, but can be changed for testing.
 	Stdin *os.File
 
-	// Out is the output destination.
-	// If nil, default to stdout.
+	// Out is the output destination, typically os.Stdout.
 	Out io.Writer
 
-	// ErrOut is the error output destination.
-	// If nil, default to stderr.
+	// ErrOut is the error output destination, typically os.Stderr.
 	ErrOut io.Writer
 
 	// Cmd is the command instance provided by cobra for
@@ -61,20 +61,27 @@ type Run struct {
 	// Config is the run's config.
 	Config *config.Config
 
-	// ConfigStore is run's config store.
+	// ConfigStore manages config persistence.
 	ConfigStore config.Store
+
+	// OptionsRegistry is a registry of CLI options.Opt instances.
+	OptionsRegistry *options.Registry
+
+	// DriverRegistry is a registry of driver implementations.
+	DriverRegistry *driver.Registry
+
+	// Files manages file access.
+	Files *source.Files
+
+	// Databases mediates access to databases.
+	Databases *driver.Databases
 
 	// Writers holds the various writer types that
 	// the CLI uses to print output.
 	Writers *output.Writers
 
-	DriverRegistry *driver.Registry
-
-	Files     *source.Files
-	Databases *driver.Databases
-	Cleanup   *cleanup.Cleanup
-
-	OptionsRegistry *options.Registry
+	// Cleanup holds cleanup functions.
+	Cleanup *cleanup.Cleanup
 }
 
 // Close should be invoked to dispose of any open resources
