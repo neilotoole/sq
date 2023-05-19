@@ -50,17 +50,16 @@ func getRun(cmd *cobra.Command) *run.Run {
 	return ru
 }
 
-// newRun returns a Run configured
-// with standard values for logging, config, etc. This
-// effectively is the bootstrap mechanism for sq.
+// newRun returns a run.Run configured with standard values for logging,
+// config, etc. This effectively is the bootstrap mechanism for sq.
+// Note that the run.Run is not fully configured for use by a command
+// until preRun is executed on it.
 //
-// Note: This func always returns a Run, even if
-// an error occurs during bootstrap of the Run (for
-// example if there's a config error). We do this to provide
-// enough framework so that such an error can be logged or
-// printed per the normal mechanisms if at all possible.
-func newRun(ctx context.Context,
-	stdin *os.File, stdout, stderr io.Writer, args []string,
+// Note: This func always returns a Run, even if an error occurs during
+// bootstrap of the Run (for example if there's a config error). We do this
+// to provide enough framework so that such an error can be logged or
+// printed per the normal mechanisms, if at all possible.
+func newRun(ctx context.Context, stdin *os.File, stdout, stderr io.Writer, args []string,
 ) (*run.Run, *slog.Logger, error) {
 	// logbuf holds log records until defaultLogging is completed.
 	log, logbuf := slogbuf.New()
