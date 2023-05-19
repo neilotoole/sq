@@ -182,7 +182,7 @@ func newCommandTree(ru *run.Run) (rootCmd *cobra.Command) {
 	helpCmd := addCmd(ru, rootCmd, newHelpCmd())
 	rootCmd.SetHelpCommand(helpCmd)
 
-	// logFrom the end user's perspective, slqCmd is *effectively* the
+	// From the end user's perspective, slqCmd is *effectively* the
 	// root cmd. We need to perform some trickery to make it output help
 	// such that "sq help" and "sq --help" output the same thing.
 	slqCmd := newSLQCmd()
