@@ -1,3 +1,5 @@
+// Package run holds the run.Run construct, which encapsulates CLI state
+// for a command execution.
 package run
 
 import (
@@ -15,7 +17,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type runContextKey struct{}
+type runKey struct{}
 
 // NewContext returns ctx with ru added as a value.
 func NewContext(ctx context.Context, ru *Run) context.Context {
@@ -23,12 +25,12 @@ func NewContext(ctx context.Context, ru *Run) context.Context {
 		ctx = context.Background()
 	}
 
-	return context.WithValue(ctx, runContextKey{}, ru)
+	return context.WithValue(ctx, runKey{}, ru)
 }
 
 // FromContext extracts the Run added to ctx via NewContext.
 func FromContext(ctx context.Context) *Run {
-	return ctx.Value(runContextKey{}).(*Run)
+	return ctx.Value(runKey{}).(*Run)
 }
 
 // Run is a container for injectable resources passed
