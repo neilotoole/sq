@@ -195,22 +195,24 @@ func preRun(cmd *cobra.Command, ru *run.Run) error {
 	ru.Files.AddDriverDetectors(source.DetectMagicNumber)
 
 	ru.DriverRegistry = driver.NewRegistry(log)
-	ru.Databases = driver.NewDatabases(log, ru.DriverRegistry, scratchSrcFunc)
+	dr := ru.DriverRegistry
+
+	ru.Databases = driver.NewDatabases(log, dr, scratchSrcFunc)
 	ru.Cleanup.AddC(ru.Databases)
 
-	ru.DriverRegistry.AddProvider(sqlite3.Type, &sqlite3.Provider{Log: log})
-	ru.DriverRegistry.AddProvider(postgres.Type, &postgres.Provider{Log: log})
-	ru.DriverRegistry.AddProvider(sqlserver.Type, &sqlserver.Provider{Log: log})
-	ru.DriverRegistry.AddProvider(mysql.Type, &mysql.Provider{Log: log})
+	dr.AddProvider(sqlite3.Type, &sqlite3.Provider{Log: log})
+	dr.AddProvider(postgres.Type, &postgres.Provider{Log: log})
+	dr.AddProvider(sqlserver.Type, &sqlserver.Provider{Log: log})
+	dr.AddProvider(mysql.Type, &mysql.Provider{Log: log})
 	csvp := &csv.Provider{Log: log, Scratcher: ru.Databases, Files: ru.Files}
-	ru.DriverRegistry.AddProvider(csv.TypeCSV, csvp)
-	ru.DriverRegistry.AddProvider(csv.TypeTSV, csvp)
+	dr.AddProvider(csv.TypeCSV, csvp)
+	dr.AddProvider(csv.TypeTSV, csvp)
 	ru.Files.AddDriverDetectors(csv.DetectCSV, csv.DetectTSV)
 
 	jsonp := &json.Provider{Log: log, Scratcher: ru.Databases, Files: ru.Files}
-	ru.DriverRegistry.AddProvider(json.TypeJSON, jsonp)
-	ru.DriverRegistry.AddProvider(json.TypeJSONA, jsonp)
-	ru.DriverRegistry.AddProvider(json.TypeJSONL, jsonp)
+	dr.AddProvider(json.TypeJSON, jsonp)
+	dr.AddProvider(json.TypeJSONA, jsonp)
+	dr.AddProvider(json.TypeJSONL, jsonp)
 	sampleSize := drivers.OptIngestSampleSize.Get(cfg.Options)
 	ru.Files.AddDriverDetectors(
 		json.DetectJSON(sampleSize),
@@ -218,7 +220,7 @@ func preRun(cmd *cobra.Command, ru *run.Run) error {
 		json.DetectJSONL(sampleSize),
 	)
 
-	ru.DriverRegistry.AddProvider(xlsx.Type, &xlsx.Provider{Log: log, Scratcher: ru.Databases, Files: ru.Files})
+	dr.AddProvider(xlsx.Type, &xlsx.Provider{Log: log, Scratcher: ru.Databases, Files: ru.Files})
 	ru.Files.AddDriverDetectors(xlsx.DetectXLSX)
 	// One day we may have more supported user driver genres.
 	userDriverImporters := map[string]userdriver.ImportFunc{
