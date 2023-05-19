@@ -48,7 +48,6 @@ require (
 	github.com/neilotoole/slogt v1.0.0
 	github.com/otiai10/copy v1.11.0
 	github.com/samber/lo v1.38.1
-	github.com/sourcegraph/go-diff v0.7.0
 	golang.org/x/exp v0.0.0-20230420155640-133eef4313cb
 )
 

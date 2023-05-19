@@ -148,8 +148,7 @@ func completeSLQ(cmd *cobra.Command, args []string, toComplete string) ([]string
 func completeDriverType(cmd *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
 	ru := getRun(cmd)
 	if ru.Databases == nil {
-		err := preRun(cmd, ru)
-		if err != nil {
+		if err := preRun(cmd, ru); err != nil {
 			lg.Unexpected(logFrom(cmd), err)
 			return nil, cobra.ShellCompDirectiveError
 		}

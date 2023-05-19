@@ -254,8 +254,7 @@ func addCmd(ru *run.Run, parentCmd, cmd *cobra.Command) *cobra.Command {
 	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
 		ru.Cmd = cmd
 		ru.Args = args
-		err := preRun(cmd, ru)
-		return err
+		return preRun(cmd, ru)
 	}
 
 	runE := cmd.RunE

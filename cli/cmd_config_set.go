@@ -61,7 +61,6 @@ func execConfigSet(cmd *cobra.Command, args []string) error {
 	ru, ctx := run.FromContext(cmd.Context()), cmd.Context()
 
 	o := ru.Config.Options
-
 	opt := ru.OptionsRegistry.Get(args[0])
 	if opt == nil {
 		return errz.Errorf("invalid config key: %s", args[0])

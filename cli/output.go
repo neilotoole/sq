@@ -92,7 +92,7 @@ command, sq falls back to "text". Available formats:
 		0,
 		1000,
 		"Output writer buffer flush threshold in bytes",
-		`Size in bytes after which output Writers should flush any internal buffer.
+		`Size in bytes after which output writers should flush any internal buffer.
 Generally, it is not necessary to fiddle this knob.`,
 	)
 
@@ -197,7 +197,7 @@ Note that this option is no-op if the rendered value is not an integer.
 	)
 )
 
-// newWriters returns a Writers instance configured per defaults and/or
+// newWriters returns an output.Writers instance configured per defaults and/or
 // flags from cmd. The returned out2/errOut2 values may differ
 // from the out/errOut args (e.g. decorated to support colorization).
 func newWriters(cmd *cobra.Command, opts options.Options, out, errOut io.Writer,
@@ -209,7 +209,7 @@ func newWriters(cmd *cobra.Command, opts options.Options, out, errOut io.Writer,
 	// Package tablew has writer impls for each of the writer interfaces,
 	// so we use its Writers as the baseline. Later we check the format
 	// flags and set the various writer fields depending upon which
-	// Writers the format implements.
+	// writers the format implements.
 	w = &output.Writers{
 		Printing: pr,
 		Record:   tablew.NewRecordWriter(out2, pr),
@@ -280,9 +280,9 @@ func newWriters(cmd *cobra.Command, opts options.Options, out, errOut io.Writer,
 }
 
 // getPrinting returns a Printing instance and
-// colorable or non-colorable Writers. It is permissible
+// colorable or non-colorable writers. It is permissible
 // for the cmd arg to be nil. The caller should use the returned
-// io.Writer instances instead of the supplied Writers, as they
+// io.Writer instances instead of the supplied writers, as they
 // may be decorated for dealing with color, etc.
 // The supplied opts must already have flags merged into it
 // via getOptionsFromCmd.

@@ -31,7 +31,6 @@ The major feature is the long-awaited `sq diff`.
   or map. This change is made because some databases (e.g. SQLite) feature
   complex data in some property values.
 
-
 ## [v0.35.0] - 2023-05-10
 
 ### Added

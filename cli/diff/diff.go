@@ -17,10 +17,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/stringz"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
-
-	// This package has some useful stuff that we're experimenting with.
-	// Eventually delete this.
-	_ "github.com/sourcegraph/go-diff/diff"
 )
 
 // sourceData encapsulates data about a source.
@@ -121,19 +117,3 @@ func Print(w io.Writer, pr *output.Printing, header, dif string) error {
 	_, err := fmt.Fprintln(w, after)
 	return errz.Err(err)
 }
-
-// func PrintSG(w io.Writer, pr *output.Printing, u string) error {
-//	fdr := sgdiff.NewFileDiffReader(strings.NewReader(u))
-//	fdiff, err := fdr.Read()
-//	if err != nil {
-//		return errz.Err(err)
-//	}
-//
-//	out, err := sgdiff.PrintFileDiff(fdiff)
-//	if err != nil {
-//		return errz.Err(err)
-//	}
-//
-//	_, err = fmt.Fprintln(w, string(out))
-//	return errz.Err(err)
-//}
