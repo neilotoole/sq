@@ -22,9 +22,8 @@ var OptDiffNumLines = options.NewInt(
 
 func newDiffCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:    "diff @HANDLE1[.TABLE] @HANDLE2[.TABLE]",
-		Hidden: true, // hidden during development
-		Short:  "Compare sources, or tables",
+		Use:   "diff @HANDLE1[.TABLE] @HANDLE2[.TABLE]",
+		Short: "Compare sources, or tables",
 		Long: `BETA: Compare sources, or tables.
 
 When comparing sources, use flag --summary to perform only a high-level
