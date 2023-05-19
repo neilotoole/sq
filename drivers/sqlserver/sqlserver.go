@@ -167,15 +167,19 @@ func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 	return errz.Err(err)
 }
 
+// DBProperties implements driver.SQLDriver.
+func (d *driveri) DBProperties(ctx context.Context, db sqlz.DB) (map[string]any, error) {
+	return getDBProperties(ctx, db)
+}
+
 // Truncate implements driver.Driver. Due to a quirk of SQL Server, the
 // operation is implemented in two statements. First "DELETE FROM tbl" to
 // delete all rows. Then, if reset is true, the table sequence counter
 // is reset via RESEED.
 //
 //nolint:lll
-func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, reset bool) (affected int64,
-	err error,
-) {
+func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, reset bool,
+) (affected int64, err error) {
 	// https://docs.microsoft.com/en-us/sql/t-sql/statements/truncate-table-transact-sql?view=sql-server-ver15
 
 	// When there are foreign key constraints on mssql tables,

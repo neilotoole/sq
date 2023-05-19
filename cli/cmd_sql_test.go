@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neilotoole/sq/cli/testrun"
+
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/testh/tutil"
 
@@ -47,15 +49,15 @@ func TestCmdSQL_Insert(t *testing.T) {
 					// of it (without data).
 					tblName := th.CopyTable(true, destSrc, sakila.TblActor, "", false)
 
-					ru := newRun(th.Context, t, nil).add(*originSrc)
+					tr := testrun.New(th.Context, t, nil).Add(*originSrc)
 					if destSrc.Handle != originSrc.Handle {
-						ru.add(*destSrc)
+						tr.Add(*destSrc)
 					}
 
 					insertTo := fmt.Sprintf("%s.%s", destSrc.Handle, tblName)
 					query := fmt.Sprintf("SELECT %s FROM %s", strings.Join(sakila.TblActorCols(), ", "), originTbl)
 
-					err := ru.Exec("sql", "--insert="+insertTo, query)
+					err := tr.Exec("sql", "--insert="+insertTo, query)
 					require.NoError(t, err)
 
 					sink, err := th.QuerySQL(destSrc, "select * from "+tblName)
@@ -95,17 +97,17 @@ func TestCmdSQL_SelectFromUserDriver(t *testing.T) {
 				th := testh.New(t)
 				src := th.Source(handle)
 
-				ru := newRun(th.Context, t, nil).add(*src)
+				tr := testrun.New(th.Context, t, nil).Add(*src)
 				udDefs := testh.DriverDefsFrom(t, testsrc.PathDriverDefPpl, testsrc.PathDriverDefRSS)
 				require.Len(t, udDefs, 2)
 				for _, udDef := range udDefs {
 					require.Empty(t, userdriver.ValidateDriverDef(udDef))
 				}
-				ru.rc.Config.Ext.UserDrivers = append(ru.rc.Config.Ext.UserDrivers, udDefs...)
+				tr.Run.Config.Ext.UserDrivers = append(tr.Run.Config.Ext.UserDrivers, udDefs...)
 
-				err := ru.Exec("sql", "--csv", "--header=false", "SELECT * FROM "+wantTbl.tblName)
+				err := tr.Exec("sql", "--csv", "--header=false", "SELECT * FROM "+wantTbl.tblName)
 				require.NoError(t, err)
-				recs := ru.mustReadCSV()
+				recs := tr.MustReadCSV()
 				require.Equal(t, wantTbl.wantRows, len(recs),
 					"expected %d rows in tbl {%s} but got %d", wantTbl.wantRows,
 					wantTbl, len(recs))
@@ -167,8 +169,8 @@ func TestCmdSQL_StdinQuery(t *testing.T) {
 			f, err := os.Open(tc.fpath)
 			require.NoError(t, err)
 
-			ru := newRun(context.Background(), t, nil).hush()
-			ru.rc.Stdin = f
+			tr := testrun.New(context.Background(), t, nil).Hush()
+			tr.Run.Stdin = f
 
 			args := []string{"sql", "--header=false"} // Don't print the header in output
 			for k, v := range tc.flags {
@@ -176,14 +178,14 @@ func TestCmdSQL_StdinQuery(t *testing.T) {
 			}
 			args = append(args, "SELECT * FROM "+tc.tbl)
 
-			err = ru.Exec(args...)
+			err = tr.Exec(args...)
 			if tc.wantErr {
 				require.Error(t, err)
 				return
 			}
 
 			require.NoError(t, err)
-			results := ru.mustReadCSV()
+			results := tr.MustReadCSV()
 			require.Equal(t, tc.wantCount, len(results))
 		})
 	}

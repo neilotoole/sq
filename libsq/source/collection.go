@@ -951,8 +951,6 @@ func (g *Group) AllSources() []*Source {
 
 // RedactGroup modifies g, cloning each descendant Source, and setting
 // the Source.Location field of each contained source to its redacted value.
-//
-// TODO: consider moving this to a function instead of a method.
 func RedactGroup(g *Group) {
 	if g == nil {
 		return

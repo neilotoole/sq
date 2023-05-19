@@ -175,6 +175,11 @@ func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 	return dbase.DB().Ping()
 }
 
+// DBProperties implements driver.SQLDriver.
+func (d *driveri) DBProperties(ctx context.Context, db sqlz.DB) (map[string]any, error) {
+	return getPgSettings(ctx, db)
+}
+
 // Truncate implements driver.Driver.
 // Note that Truncate makes a separate query to determine the
 // row count of tbl before executing TRUNCATE. This row count

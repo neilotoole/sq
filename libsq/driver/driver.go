@@ -251,7 +251,7 @@ type SQLDriver interface {
 		where string) (*StmtExecer, error)
 
 	// CreateTable creates the table defined by tblDef. Some implementations
-	// may not honor all of the fields of tblDef, e.g. an impl might not
+	// may not honor every field of tblDef, e.g. an impl might not
 	// build the foreign key constraints. At a minimum the implementation
 	// must honor the table name and column names and kinds from tblDef.
 	CreateTable(ctx context.Context, db sqlz.DB, tblDef *sqlmodel.TableDef) error
@@ -279,6 +279,11 @@ type SQLDriver interface {
 
 	// AlterTableRenameColumn renames a column.
 	AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, col, newName string) error
+
+	// DBProperties returns a map of key-value database properties. The value
+	// is often a scalar such as an int, string, or bool, but can be a nested
+	// map or array.
+	DBProperties(ctx context.Context, db sqlz.DB) (map[string]any, error)
 }
 
 // Database models a database handle. It is conceptually equivalent to
@@ -288,18 +293,23 @@ type Database interface {
 	// DB returns the sql.DB object for this Database.
 	DB() *sql.DB
 
-	// SQLDriver returns the underlying database driver. This
-	// may be different from the type reported by the
-	// Database source.
+	// SQLDriver returns the underlying database driver. The type of the SQLDriver
+	// may be different from the driver type reported by the Source.
 	SQLDriver() SQLDriver
 
 	// Source returns the data source for which this connection was opened.
 	Source() *source.Source
 
 	// SourceMetadata returns metadata about the data source.
+	//
+	// TODO: SourceMetadata doesn't really belong on driver.Database. It
+	// should be moved to driver.Driver.
 	SourceMetadata(ctx context.Context) (*source.Metadata, error)
 
 	// TableMetadata returns metadata for the specified table in the data source.
+	//
+	// TODO: TableMetadata doesn't really belong on driver.Database. It
+	// should be moved to driver.Driver.
 	TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error)
 
 	// Close is invoked to close and release any underlying resources.

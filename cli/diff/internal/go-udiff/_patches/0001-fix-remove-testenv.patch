@@ -1,0 +1,50 @@
+From 19e4b9d424cb70882b6cdbac1be5977684cf0127 Mon Sep 17 00:00:00 2001
+From: Ayman Bagabas <ayman.bagabas@gmail.com>
+Date: Sun, 16 Apr 2023 02:49:56 -0400
+Subject: [PATCH 1/1] fix: remove testenv
+
+Signed-off-by: Ayman Bagabas <ayman.bagabas@gmail.com>
+---
+ diff_test.go              | 2 --
+ difftest/difftest_test.go | 2 --
+ 2 files changed, 4 deletions(-)
+
+diff --git a/diff_test.go b/diff_test.go
+index 90a343b078b2..5edf55ea6315 100644
+--- a/diff_test.go
++++ b/diff_test.go
+@@ -17,7 +17,6 @@ import (
+ 
+ 	diff "github.com/aymanbagabas/go-udiff"
+ 	"github.com/aymanbagabas/go-udiff/difftest"
+-	"golang.org/x/tools/internal/testenv"
+ )
+ 
+ func TestApply(t *testing.T) {
+@@ -112,7 +111,6 @@ func TestLineEdits(t *testing.T) {
+ }
+ 
+ func TestToUnified(t *testing.T) {
+-	testenv.NeedsTool(t, "patch")
+ 	for _, tc := range difftest.TestCases {
+ 		t.Run(tc.Name, func(t *testing.T) {
+ 			unified, err := diff.ToUnified(difftest.FileA, difftest.FileB, tc.In, tc.Edits)
+diff --git a/difftest/difftest_test.go b/difftest/difftest_test.go
+index d2dbc5c531a7..da5a3348a189 100644
+--- a/difftest/difftest_test.go
++++ b/difftest/difftest_test.go
+@@ -16,11 +16,9 @@ import (
+ 	"testing"
+ 
+ 	"github.com/aymanbagabas/go-udiff/difftest"
+-	"golang.org/x/tools/internal/testenv"
+ )
+ 
+ func TestVerifyUnified(t *testing.T) {
+-	testenv.NeedsTool(t, "diff")
+ 	for _, test := range difftest.TestCases {
+ 		t.Run(test.Name, func(t *testing.T) {
+ 			if test.NoDiff {
+-- 
+2.40.0
+

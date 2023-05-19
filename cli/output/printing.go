@@ -83,6 +83,21 @@ type Printing struct {
 	// Datetime is the color for time-related values.
 	Datetime *color.Color
 
+	// DiffPlus is the color for diff plus "+" elements.
+	DiffPlus *color.Color
+
+	// DiffMinus is the color for diff minus "-" elements.
+	DiffMinus *color.Color
+
+	// DiffHeader is the color for diff header elements.
+	DiffHeader *color.Color
+
+	// DiffSection is the color for diff section elements.
+	DiffSection *color.Color
+
+	// DiffNormal is the color for regular diff text.
+	DiffNormal *color.Color
+
 	// Duration is the color for time duration values.
 	Duration *color.Color
 
@@ -148,6 +163,11 @@ func NewPrinting() *Printing {
 		Bool:                   color.New(color.FgYellow),
 		Bytes:                  color.New(color.Faint),
 		Datetime:               color.New(color.FgGreen, color.Faint),
+		DiffHeader:             color.New(color.Bold),
+		DiffMinus:              color.New(color.FgRed),
+		DiffNormal:             color.New(color.Faint),
+		DiffPlus:               color.New(color.FgGreen),
+		DiffSection:            color.New(color.FgCyan),
 		Duration:               color.New(color.FgGreen, color.Faint),
 		Error:                  color.New(color.FgRed, color.Bold),
 		Faint:                  color.New(color.Faint),
@@ -166,6 +186,49 @@ func NewPrinting() *Printing {
 
 	pr.EnableColor(true)
 	return pr
+}
+
+// Clone returns a clone of pr.
+func (pr *Printing) Clone() *Printing {
+	return &Printing{
+		monochrome:             pr.monochrome,
+		FlushThreshold:         pr.FlushThreshold,
+		ShowHeader:             pr.ShowHeader,
+		Verbose:                pr.Verbose,
+		Compact:                pr.Compact,
+		Indent:                 pr.Indent,
+		Redact:                 pr.Redact,
+		FormatDatetime:         pr.FormatDatetime,
+		FormatDatetimeAsNumber: pr.FormatDatetimeAsNumber,
+		FormatTime:             pr.FormatTime,
+		FormatTimeAsNumber:     pr.FormatTimeAsNumber,
+		FormatDate:             pr.FormatDate,
+		FormatDateAsNumber:     pr.FormatDateAsNumber,
+		Active:                 pr.Active,
+		Bold:                   pr.Bold,
+		Bool:                   pr.Bool,
+		Bytes:                  pr.Bytes,
+		Datetime:               pr.Datetime,
+		DiffPlus:               pr.DiffPlus,
+		DiffMinus:              pr.DiffMinus,
+		DiffHeader:             pr.DiffHeader,
+		DiffSection:            pr.DiffSection,
+		DiffNormal:             pr.DiffNormal,
+		Duration:               pr.Duration,
+		Error:                  pr.Error,
+		Faint:                  pr.Faint,
+		Handle:                 pr.Handle,
+		Header:                 pr.Header,
+		Hilite:                 pr.Hilite,
+		Key:                    pr.Key,
+		Location:               pr.Location,
+		Null:                   pr.Null,
+		Normal:                 pr.Normal,
+		Number:                 pr.Number,
+		Punc:                   pr.Punc,
+		String:                 pr.String,
+		Success:                pr.Success,
+	}
 }
 
 // LogValue implements slog.LogValuer.
@@ -191,6 +254,7 @@ func (pr *Printing) LogValue() slog.Value {
 func (pr *Printing) colors() []*color.Color {
 	return []*color.Color{
 		pr.Active, pr.Bold, pr.Bold, pr.Bytes, pr.Datetime, pr.Duration,
+		pr.DiffHeader, pr.DiffMinus, pr.DiffPlus, pr.DiffNormal, pr.DiffSection,
 		pr.Error, pr.Faint, pr.Handle, pr.Header, pr.Hilite,
 		pr.Key, pr.Location, pr.Normal, pr.Null, pr.Number,
 		pr.Punc, pr.String, pr.Success,

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -251,10 +252,10 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB) (*so
 	ctx = options.NewContext(ctx, src.Options)
 
 	md := &source.Metadata{
-		SourceType:   Type,
-		DBDriverType: Type,
-		Handle:       src.Handle,
-		Location:     src.Location,
+		Driver:   Type,
+		DBDriver: Type,
+		Handle:   src.Handle,
+		Location: src.Location,
 	}
 
 	g, gCtx := errgroup.WithContext(ctx)
@@ -269,7 +270,7 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB) (*so
 	g.Go(func() error {
 		return doRetry(gCtx, func() error {
 			var err error
-			md.DBVars, err = getDBVarsMeta(gCtx, db)
+			md.DBProperties, err = getDBProperties(gCtx, db)
 			return err
 		})
 	})
@@ -311,10 +312,9 @@ func setSourceSummaryMeta(ctx context.Context, db sqlz.DB, md *source.Metadata) 
 	return nil
 }
 
-// getDBVarsMeta returns the database variables.
-func getDBVarsMeta(ctx context.Context, db sqlz.DB) ([]source.DBVar, error) {
+// getDBProperties returns the db settings as observed via "SHOW VARIABLES".
+func getDBProperties(ctx context.Context, db sqlz.DB) (map[string]any, error) {
 	log := lg.FromContext(ctx)
-	var dbVars []source.DBVar
 
 	rows, err := db.QueryContext(ctx, "SHOW VARIABLES")
 	if err != nil {
@@ -322,20 +322,36 @@ func getDBVarsMeta(ctx context.Context, db sqlz.DB) ([]source.DBVar, error) {
 	}
 	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
 
+	m := map[string]any{}
 	for rows.Next() {
-		var dbVar source.DBVar
-		err = rows.Scan(&dbVar.Name, &dbVar.Value)
+		var name string
+		var val string
+
+		err = rows.Scan(&name, &val)
 		if err != nil {
 			return nil, errz.Err(err)
 		}
-		dbVars = append(dbVars, dbVar)
+
+		// Narrow setting to bool or int if possible.
+		var (
+			v any = val
+			i int
+			b bool
+		)
+		if i, err = strconv.Atoi(val); err == nil {
+			v = i
+		} else if b, err = stringz.ParseBool(val); err == nil {
+			v = b
+		}
+
+		m[name] = v
 	}
-	err = rows.Err()
-	if err != nil {
+
+	if err = rows.Err(); err != nil {
 		return nil, errz.Err(err)
 	}
 
-	return dbVars, nil
+	return m, nil
 }
 
 // getAllTblMetas returns TableMetadata for each table/view in db.

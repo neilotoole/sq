@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/neilotoole/sq/cli/run"
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -59,16 +60,16 @@ PS> sq completion powershell > sq.ps1
 }
 
 func execCompletion(cmd *cobra.Command, args []string) error {
-	rc := RunContextFrom(cmd.Context())
+	ru := run.FromContext(cmd.Context())
 	switch args[0] {
 	case "bash":
-		return cmd.Root().GenBashCompletion(rc.Out)
+		return cmd.Root().GenBashCompletion(ru.Out)
 	case "zsh":
-		return cmd.Root().GenZshCompletion(rc.Out)
+		return cmd.Root().GenZshCompletion(ru.Out)
 	case "fish":
-		return cmd.Root().GenFishCompletion(rc.Out, true)
+		return cmd.Root().GenFishCompletion(ru.Out, true)
 	case "powershell":
-		return cmd.Root().GenPowerShellCompletion(rc.Out)
+		return cmd.Root().GenPowerShellCompletion(ru.Out)
 	default:
 		return errz.Errorf("invalid arg: %s", args[0])
 	}

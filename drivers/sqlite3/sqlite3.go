@@ -74,6 +74,11 @@ type driveri struct {
 	log *slog.Logger
 }
 
+// DBProperties implements driver.SQLDriver.
+func (d *driveri) DBProperties(ctx context.Context, db sqlz.DB) (map[string]any, error) {
+	return getDBProperties(ctx, db)
+}
+
 // DriverMetadata implements driver.Driver.
 func (d *driveri) DriverMetadata() driver.Metadata {
 	return driver.Metadata{
@@ -797,7 +802,7 @@ func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.T
 func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error) {
 	// https://stackoverflow.com/questions/9646353/how-to-find-sqlite-database-file-version
 
-	meta := &source.Metadata{Handle: d.src.Handle, SourceType: Type, DBDriverType: dbDrvr}
+	meta := &source.Metadata{Handle: d.src.Handle, Driver: Type, DBDriver: dbDrvr}
 
 	dsn, err := PathFromLocation(d.src)
 	if err != nil {
@@ -806,7 +811,7 @@ func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error)
 
 	const q = "SELECT sqlite_version(), (SELECT name FROM pragma_database_list ORDER BY seq limit 1);"
 
-	err = d.DB().QueryRowContext(ctx, q).Scan(&meta.DBVersion, &meta.Schema)
+	err = d.db.QueryRowContext(ctx, q).Scan(&meta.DBVersion, &meta.Schema)
 	if err != nil {
 		return nil, errz.Err(err)
 	}
@@ -827,6 +832,12 @@ func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error)
 	if err != nil {
 		return nil, err
 	}
+
+	meta.DBProperties, err = getDBProperties(ctx, d.db)
+	if err != nil {
+		return nil, err
+	}
+
 	return meta, nil
 }
 

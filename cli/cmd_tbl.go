@@ -3,6 +3,8 @@ package cli
 import (
 	"fmt"
 
+	"github.com/neilotoole/sq/cli/run"
+
 	"github.com/neilotoole/sq/cli/flag"
 
 	"github.com/spf13/cobra"
@@ -62,12 +64,12 @@ func newTblCopyCmd() *cobra.Command {
 }
 
 func execTblCopy(cmd *cobra.Command, args []string) error {
-	rc := RunContextFrom(cmd.Context())
+	ru := run.FromContext(cmd.Context())
 	if len(args) == 0 || len(args) > 2 {
 		return errz.New("one or two table args required")
 	}
 
-	tblHandles, err := parseTableHandleArgs(rc.driverReg, rc.Config.Collection, args)
+	tblHandles, err := parseTableHandleArgs(ru.DriverRegistry, ru.Config.Collection, args)
 	if err != nil {
 		return err
 	}
@@ -114,12 +116,12 @@ func execTblCopy(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	if err = applyCollectionOptions(cmd, rc.Config.Collection); err != nil {
+	if err = applyCollectionOptions(cmd, ru.Config.Collection); err != nil {
 		return err
 	}
 
 	var dbase driver.Database
-	dbase, err = rc.databases.Open(cmd.Context(), tblHandles[0].src)
+	dbase, err = ru.Databases.Open(cmd.Context(), tblHandles[0].src)
 	if err != nil {
 		return err
 	}
@@ -144,7 +146,7 @@ func execTblCopy(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	fmt.Fprintln(rc.Out, msg)
+	fmt.Fprintln(ru.Out, msg)
 	return nil
 }
 
@@ -175,14 +177,14 @@ only applies to SQL sources.`,
 }
 
 func execTblTruncate(cmd *cobra.Command, args []string) (err error) {
-	rc := RunContextFrom(cmd.Context())
+	ru := run.FromContext(cmd.Context())
 	var tblHandles []tblHandle
-	tblHandles, err = parseTableHandleArgs(rc.driverReg, rc.Config.Collection, args)
+	tblHandles, err = parseTableHandleArgs(ru.DriverRegistry, ru.Config.Collection, args)
 	if err != nil {
 		return err
 	}
 
-	if err = applyCollectionOptions(cmd, rc.Config.Collection); err != nil {
+	if err = applyCollectionOptions(cmd, ru.Config.Collection); err != nil {
 		return err
 	}
 
@@ -195,7 +197,7 @@ func execTblTruncate(cmd *cobra.Command, args []string) (err error) {
 
 		msg := fmt.Sprintf("Truncated %d row(s) from %s.%s", affected, tblH.src.Handle, tblH.tbl)
 		msg = stringz.Plu(msg, int(affected))
-		fmt.Fprintln(rc.Out, msg)
+		fmt.Fprintln(ru.Out, msg)
 	}
 
 	return nil
@@ -226,14 +228,14 @@ only applies to SQL sources.`,
 }
 
 func execTblDrop(cmd *cobra.Command, args []string) (err error) {
-	rc := RunContextFrom(cmd.Context())
+	ru := run.FromContext(cmd.Context())
 	var tblHandles []tblHandle
-	tblHandles, err = parseTableHandleArgs(rc.driverReg, rc.Config.Collection, args)
+	tblHandles, err = parseTableHandleArgs(ru.DriverRegistry, ru.Config.Collection, args)
 	if err != nil {
 		return err
 	}
 
-	if err = applyCollectionOptions(cmd, rc.Config.Collection); err != nil {
+	if err = applyCollectionOptions(cmd, ru.Config.Collection); err != nil {
 		return err
 	}
 
@@ -244,7 +246,7 @@ func execTblDrop(cmd *cobra.Command, args []string) (err error) {
 		}
 
 		var dbase driver.Database
-		dbase, err = rc.databases.Open(cmd.Context(), tblH.src)
+		dbase, err = ru.Databases.Open(cmd.Context(), tblH.src)
 		if err != nil {
 			return err
 		}
@@ -253,7 +255,7 @@ func execTblDrop(cmd *cobra.Command, args []string) (err error) {
 			return err
 		}
 
-		fmt.Fprintf(rc.Out, "Dropped table %s.%s\n", tblH.src.Handle, tblH.tbl)
+		fmt.Fprintf(ru.Out, "Dropped table %s.%s\n", tblH.src.Handle, tblH.tbl)
 	}
 
 	return nil

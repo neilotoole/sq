@@ -21,6 +21,12 @@ run:
     # another encoder, and it uses a bunch of unsafe etc.
     - cli/output/jsonw/internal/jcolorenc
 
+    # go-udiff is an internal fork of a package for which there
+    # is an open issue. Hopefully we can just rely on the original
+    # package at some point.
+    # See: https://github.com/aymanbagabas/go-udiff/issues/5
+    - cli/diff/internal/go-udiff
+
     # This package is such a mess, and needs to be rewritten completely.
     - cli/output/tablew/internal
 

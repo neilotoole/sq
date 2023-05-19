@@ -2,6 +2,7 @@ package cli
 
 import (
 	"github.com/neilotoole/sq/cli/flag"
+	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/spf13/cobra"
@@ -38,10 +39,10 @@ just for that source.`,
 }
 
 func execConfigGet(cmd *cobra.Command, args []string) error {
-	rc := RunContextFrom(cmd.Context())
+	ru := run.FromContext(cmd.Context())
 
-	o := rc.Config.Options
-	reg := rc.OptionsRegistry
+	o := ru.Config.Options
+	reg := ru.OptionsRegistry
 
 	if cmdFlagChanged(cmd, flag.ConfigSrc) {
 		handle, err := cmd.Flags().GetString(flag.ConfigSrc)
@@ -49,7 +50,7 @@ func execConfigGet(cmd *cobra.Command, args []string) error {
 			return errz.Err(err)
 		}
 
-		src, err := rc.Config.Collection.Get(handle)
+		src, err := ru.Config.Collection.Get(handle)
 		if err != nil {
 			return err
 		}
@@ -73,5 +74,5 @@ func execConfigGet(cmd *cobra.Command, args []string) error {
 		return errz.Errorf("invalid option key: %s", args[0])
 	}
 
-	return rc.writers.configw.Opt(o, opt)
+	return ru.Writers.Config.Opt(o, opt)
 }

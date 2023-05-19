@@ -2,6 +2,7 @@ package cli
 
 import (
 	"github.com/neilotoole/sq/cli/flag"
+	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/spf13/cobra"
@@ -46,10 +47,10 @@ just for that source.`,
 }
 
 func execConfigList(cmd *cobra.Command, _ []string) error {
-	rc := RunContextFrom(cmd.Context())
+	ru := run.FromContext(cmd.Context())
 
-	o := rc.Config.Options
-	reg := rc.OptionsRegistry
+	o := ru.Config.Options
+	reg := ru.OptionsRegistry
 
 	if cmdFlagChanged(cmd, flag.ConfigSrc) {
 		handle, err := cmd.Flags().GetString(flag.ConfigSrc)
@@ -57,7 +58,7 @@ func execConfigList(cmd *cobra.Command, _ []string) error {
 			return errz.Err(err)
 		}
 
-		src, err := rc.Config.Collection.Get(handle)
+		src, err := ru.Config.Collection.Get(handle)
 		if err != nil {
 			return err
 		}
@@ -74,5 +75,5 @@ func execConfigList(cmd *cobra.Command, _ []string) error {
 		reg.Add(opts...)
 	}
 
-	return rc.writers.configw.Options(reg, o)
+	return ru.Writers.Config.Options(reg, o)
 }

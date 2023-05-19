@@ -3,6 +3,8 @@ package cli
 import (
 	"context"
 
+	"github.com/neilotoole/sq/cli/run"
+
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -16,11 +18,11 @@ import (
 
 // determineSources figures out what the active source is
 // from any combination of stdin, flags or cfg. It will
-// mutate rc.Config.Sources as necessary. If no error
+// mutate ru.Config.Collection as necessary. If no error
 // is returned, it is guaranteed that there's an active
 // source on the collection.
-func determineSources(ctx context.Context, rc *RunContext) error {
-	cmd, coll := rc.Cmd, rc.Config.Collection
+func determineSources(ctx context.Context, ru *run.Run) error {
+	cmd, coll := ru.Cmd, ru.Config.Collection
 	activeSrc, err := activeSrcFromFlagsOrConfig(cmd, coll)
 	if err != nil {
 		return err
@@ -28,7 +30,7 @@ func determineSources(ctx context.Context, rc *RunContext) error {
 	// Note: ^ activeSrc could still be nil
 
 	// check if there's input on stdin
-	stdinSrc, err := checkStdinSource(ctx, rc)
+	stdinSrc, err := checkStdinSource(ctx, ru)
 	if err != nil {
 		return err
 	}
@@ -98,10 +100,10 @@ func activeSrcFromFlagsOrConfig(cmd *cobra.Command, coll *source.Collection) (*s
 // input, a new source instance with handle @stdin is constructed
 // and returned. If the pipe has no data (size is zero),
 // then (nil,nil) is returned.
-func checkStdinSource(ctx context.Context, rc *RunContext) (*source.Source, error) {
-	cmd := rc.Cmd
+func checkStdinSource(ctx context.Context, ru *run.Run) (*source.Source, error) {
+	cmd := ru.Cmd
 
-	f := rc.Stdin
+	f := ru.Stdin
 	info, err := f.Stat()
 	if err != nil {
 		return nil, errz.Wrap(err, "failed to get stat on stdin")
@@ -118,18 +120,18 @@ func checkStdinSource(ctx context.Context, rc *RunContext) (*source.Source, erro
 	if cmd.Flags().Changed(flag.IngestDriver) {
 		val, _ := cmd.Flags().GetString(flag.IngestDriver)
 		typ = source.DriverType(val)
-		if rc.driverReg.ProviderFor(typ) == nil {
+		if ru.DriverRegistry.ProviderFor(typ) == nil {
 			return nil, errz.Errorf("unknown driver type: %s", typ)
 		}
 	}
 
-	err = rc.files.AddStdin(f)
+	err = ru.Files.AddStdin(f)
 	if err != nil {
 		return nil, err
 	}
 
 	if typ == source.TypeNone {
-		typ, err = rc.files.TypeStdin(ctx)
+		typ, err = ru.Files.TypeStdin(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -140,7 +142,7 @@ func checkStdinSource(ctx context.Context, rc *RunContext) (*source.Source, erro
 
 	return newSource(
 		ctx,
-		rc.driverReg,
+		ru.DriverRegistry,
 		typ,
 		source.StdinHandle,
 		source.StdinHandle,

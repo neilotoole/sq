@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/neilotoole/sq/cli/testrun"
+
 	"github.com/neilotoole/sq/libsq/core/options"
 
 	"github.com/neilotoole/sq/testh/tutil"
@@ -204,8 +206,8 @@ func TestCmdAdd(t *testing.T) {
 				args = append(args, "--driver="+tc.driver)
 			}
 
-			ru := newRun(th.Context, t, nil)
-			err := ru.Exec(args...)
+			tr := testrun.New(th.Context, t, nil)
+			err := tr.Exec(args...)
 			if tc.wantErr {
 				require.Error(t, err)
 				return
@@ -214,7 +216,7 @@ func TestCmdAdd(t *testing.T) {
 			require.NoError(t, err)
 
 			// Verify that the src was actually added
-			gotSrc, err := ru.rc.Config.Collection.Get(tc.wantHandle)
+			gotSrc, err := tr.Run.Config.Collection.Get(tc.wantHandle)
 			require.NoError(t, err)
 			require.Equal(t, tc.wantHandle, gotSrc.Handle)
 			require.Equal(t, tc.wantType, gotSrc.Type)
@@ -224,10 +226,10 @@ func TestCmdAdd(t *testing.T) {
 				return
 			}
 
-			ru = newRun(th.Context, t, ru)
-			err = ru.Exec(tc.query.q, "--json")
+			tr = testrun.New(th.Context, t, tr)
+			err = tr.Exec(tc.query.q, "--json")
 			var results []map[string]any
-			ru.Bind(&results)
+			tr.Bind(&results)
 			require.NoError(t, err)
 			require.Equal(t, tc.query.wantRows, len(results))
 			if tc.query.wantRows > 0 {
@@ -244,9 +246,9 @@ func TestCmdAdd_SQLite_Path(t *testing.T) {
 
 	const h1 = `@s1`
 
-	ru := newRun(ctx, t, nil)
-	require.NoError(t, ru.Exec("add", "-j", "sqlite3://test.db", "--handle", h1))
-	got := ru.BindMap()
+	tr := testrun.New(ctx, t, nil)
+	require.NoError(t, tr.Exec("add", "-j", "sqlite3://test.db", "--handle", h1))
+	got := tr.BindMap()
 
 	absPath, err := filepath.Abs("test.db")
 	require.NoError(t, err)
@@ -263,41 +265,41 @@ func TestCmdAdd_Active(t *testing.T) {
 	const h1, h2, h3, h4 = "@h1", "@h2", "@h3", "@h4"
 
 	// Verify that initially there are no sources.
-	ru := newRun(ctx, t, nil)
-	require.NoError(t, ru.Exec("ls"))
-	require.Zero(t, ru.out.Len())
+	tr := testrun.New(ctx, t, nil)
+	require.NoError(t, tr.Exec("ls"))
+	require.Zero(t, tr.Out.Len())
 
 	// Add a new source. It should become the active source.
-	ru = newRun(ctx, t, ru)
-	require.NoError(t, ru.Exec("add", proj.Abs(sakila.PathCSVActor), "--handle", h1))
-	ru = newRun(ctx, t, ru)
-	require.NoError(t, ru.Exec("src", "-j"))
-	m := ru.BindMap()
+	tr = testrun.New(ctx, t, tr)
+	require.NoError(t, tr.Exec("add", proj.Abs(sakila.PathCSVActor), "--handle", h1))
+	tr = testrun.New(ctx, t, tr)
+	require.NoError(t, tr.Exec("src", "-j"))
+	m := tr.BindMap()
 	require.Equal(t, h1, m["handle"])
 
 	// Add a second src, without the --active flag. The active src
 	// should remain h1.
-	ru = newRun(ctx, t, ru)
-	require.NoError(t, ru.Exec("add", proj.Abs(sakila.PathCSVActor), "--handle", h2))
-	ru = newRun(ctx, t, ru)
-	require.NoError(t, ru.Exec("src", "-j"))
-	m = ru.BindMap()
+	tr = testrun.New(ctx, t, tr)
+	require.NoError(t, tr.Exec("add", proj.Abs(sakila.PathCSVActor), "--handle", h2))
+	tr = testrun.New(ctx, t, tr)
+	require.NoError(t, tr.Exec("src", "-j"))
+	m = tr.BindMap()
 	require.Equal(t, h1, m["handle"], "active source should still be %s", h1)
 
 	// Add a third src, this time with the --active flag. The active src
 	// should become h3.
-	ru = newRun(ctx, t, ru)
-	require.NoError(t, ru.Exec("add", proj.Abs(sakila.PathCSVActor), "--handle", h3, "--active"))
-	ru = newRun(ctx, t, ru)
-	require.NoError(t, ru.Exec("src", "-j"))
-	m = ru.BindMap()
+	tr = testrun.New(ctx, t, tr)
+	require.NoError(t, tr.Exec("add", proj.Abs(sakila.PathCSVActor), "--handle", h3, "--active"))
+	tr = testrun.New(ctx, t, tr)
+	require.NoError(t, tr.Exec("src", "-j"))
+	m = tr.BindMap()
 	require.Equal(t, h3, m["handle"], "active source now be %s", h3)
 
 	// Same again with a fourth src, but this time using the shorthand -a flag.
-	ru = newRun(ctx, t, ru)
-	require.NoError(t, ru.Exec("add", proj.Abs(sakila.PathCSVActor), "--handle", h4, "-a"))
-	ru = newRun(ctx, t, ru)
-	require.NoError(t, ru.Exec("src", "-j"))
-	m = ru.BindMap()
+	tr = testrun.New(ctx, t, tr)
+	require.NoError(t, tr.Exec("add", proj.Abs(sakila.PathCSVActor), "--handle", h4, "-a"))
+	tr = testrun.New(ctx, t, tr)
+	require.NoError(t, tr.Exec("src", "-j"))
+	m = tr.BindMap()
 	require.Equal(t, h4, m["handle"], "active source now be %s", h4)
 }

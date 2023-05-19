@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/cli/run"
+
 	"github.com/samber/lo"
 
 	"github.com/neilotoole/sq/cli/flag"
@@ -56,11 +58,10 @@ Use "sq config get -v" to list available options.`,
 
 func execConfigSet(cmd *cobra.Command, args []string) error {
 	log := logFrom(cmd)
-	rc, ctx := RunContextFrom(cmd.Context()), cmd.Context()
+	ru, ctx := run.FromContext(cmd.Context()), cmd.Context()
 
-	o := rc.Config.Options
-
-	opt := rc.OptionsRegistry.Get(args[0])
+	o := ru.Config.Options
+	opt := ru.OptionsRegistry.Get(args[0])
 	if opt == nil {
 		return errz.Errorf("invalid config key: %s", args[0])
 	}
@@ -72,7 +73,7 @@ func execConfigSet(cmd *cobra.Command, args []string) error {
 			return errz.Err(err)
 		}
 
-		src, err = rc.Config.Collection.Get(handle)
+		src, err = ru.Config.Collection.Get(handle)
 		if err != nil {
 			return err
 		}
@@ -96,11 +97,11 @@ func execConfigSet(cmd *cobra.Command, args []string) error {
 			log.Info("Unset source config value", lga.Src, src, lga.Key, opt.Key())
 		}
 
-		if err := rc.ConfigStore.Save(ctx, rc.Config); err != nil {
+		if err := ru.ConfigStore.Save(ctx, ru.Config); err != nil {
 			return err
 		}
 
-		return rc.writers.configw.UnsetOption(opt)
+		return ru.Writers.Config.UnsetOption(opt)
 	}
 
 	if len(args) < 2 {
@@ -116,7 +117,7 @@ func execConfigSet(cmd *cobra.Command, args []string) error {
 	}
 
 	o[opt.Key()] = o2[opt.Key()]
-	if err = rc.ConfigStore.Save(ctx, rc.Config); err != nil {
+	if err = ru.ConfigStore.Save(ctx, ru.Config); err != nil {
 		return err
 	}
 
@@ -135,9 +136,10 @@ func execConfigSet(cmd *cobra.Command, args []string) error {
 		)
 	}
 
-	return rc.writers.configw.SetOption(o, opt)
+	return ru.Writers.Config.SetOption(o, opt)
 }
 
+// completeConfigSet is the completion func for "config set".
 func completeConfigSet(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	switch len(args) {
 	case 0:
@@ -159,8 +161,8 @@ func completeConfigSet(cmd *cobra.Command, args []string, toComplete string) ([]
 // helpConfigSet is a custom help function for "sq config set KEY".
 func helpConfigSet(cmd *cobra.Command, arr []string) {
 	hlp := cmd.Parent().HelpFunc()
-	rc := RunContextFrom(cmd.Context())
-	if rc == nil || rc.OptionsRegistry == nil || len(arr) < 4 {
+	ru := run.FromContext(cmd.Context())
+	if ru == nil || ru.OptionsRegistry == nil || len(arr) < 4 {
 		hlp(cmd, arr)
 		return
 	}
@@ -182,7 +184,7 @@ func helpConfigSet(cmd *cobra.Command, arr []string) {
 	})
 
 	key := a[len(a)-1]
-	opt := rc.OptionsRegistry.Get(key)
+	opt := ru.OptionsRegistry.Get(key)
 	if opt == nil {
 		hlp(cmd, arr)
 		return

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/neilotoole/sq/cli/run"
+
 	"github.com/neilotoole/sq/libsq/core/options"
 
 	"github.com/neilotoole/sq/cli/flag"
@@ -74,8 +76,8 @@ The exit code is 1 if ping fails for any of the sources.`,
 }
 
 func execPing(cmd *cobra.Command, args []string) error {
-	rc := RunContextFrom(cmd.Context())
-	cfg, coll := rc.Config, rc.Config.Collection
+	ru := run.FromContext(cmd.Context())
+	cfg, coll := ru.Config, ru.Config.Collection
 	var srcs []*source.Source
 
 	// args can be:
@@ -122,7 +124,7 @@ func execPing(cmd *cobra.Command, args []string) error {
 
 	logFrom(cmd).Debug("Using ping timeout", lga.Val, fmt.Sprintf("%v", timeout))
 
-	err = pingSources(cmd.Context(), rc.driverReg, srcs, rc.writers.pingw, timeout)
+	err = pingSources(cmd.Context(), ru.DriverRegistry, srcs, ru.Writers.Ping, timeout)
 	if errors.Is(err, context.Canceled) {
 		// It's common to cancel "sq ping". We don't want to print the cancel message.
 		return errNoMsg

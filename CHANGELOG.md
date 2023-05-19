@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Breaking changes are annotated with ☢️.
 
+## Upcoming
+
+The major feature is the long-awaited `sq diff`.
+
+## Added
+
+- [#229]: `sq diff` compares two sources, or tables.
+- `sq inspect --dbprops` is a new mode that returns only the DB properties.
+  Relatedly, the properties mechanism is now implemented for all four supported
+  DB types (previously, it was only implemented for Postgres and MySQL).
+
+## Changed
+
+- `sq inspect -v` previously returned DB properties in a field named `db_variables`.
+  This field has been renamed to `db_properties`. The renaming reflects the fact
+  that some of those properties aren't really variables in the sense that they
+  can be modified (e.g. DB server version or such).
+- The structure of the former `db_variables` (now `db_properties`) field has
+  changed. Previously it was an array of `{"name": "XX", "value": "YY"}` tuples,
+  but now is a map, where the keys are strings, and the values can be either
+  a scalar (`bool`, `int`, `string`, etc), or a nested value such as an array
+  or map. This change is made because some databases (e.g. SQLite) feature
+  complex data in some property values.
+
 ## [v0.35.0] - 2023-05-10
 
 ### Added
@@ -452,6 +476,7 @@ make working with lots of sources much easier.
 [#191]: https://github.com/neilotoole/sq/issues/191
 [#192]: https://github.com/neilotoole/sq/issues/192
 [#199]: https://github.com/neilotoole/sq/issues/199
+[#229]: https://github.com/neilotoole/sq/issues/229
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3

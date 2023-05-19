@@ -6,6 +6,8 @@ import (
 	"os"
 	"testing"
 
+	"github.com/neilotoole/sq/cli/testrun"
+
 	"github.com/neilotoole/sq/testh/tutil"
 
 	"github.com/stretchr/testify/require"
@@ -59,17 +61,17 @@ func TestCmdInspect(t *testing.T) {
 			th := testh.New(t)
 			src := th.Source(tc.handle)
 
-			ru := newRun(th.Context, t, nil).add(*src)
+			tr := testrun.New(th.Context, t, nil).Add(*src)
 
-			err := ru.Exec("inspect", "--json")
+			err := tr.Exec("inspect", "--json")
 			if tc.wantErr {
 				require.Error(t, err)
 				return
 			}
 
 			md := &source.Metadata{}
-			require.NoError(t, json.Unmarshal(ru.out.Bytes(), md))
-			require.Equal(t, tc.wantType, md.SourceType)
+			require.NoError(t, json.Unmarshal(tr.Out.Bytes(), md))
+			require.Equal(t, tc.wantType, md.Driver)
 			require.Equal(t, src.Handle, md.Handle)
 			require.Equal(t, src.Location, md.Location)
 			require.Equal(t, tc.wantTbls, md.TableNames())
@@ -81,34 +83,34 @@ func TestCmdInspectSmoke(t *testing.T) {
 	th := testh.New(t)
 	src := th.Source(sakila.SL3)
 
-	ru := newRun(th.Context, t, nil)
-	err := ru.Exec("inspect")
+	tr := testrun.New(th.Context, t, nil)
+	err := tr.Exec("inspect")
 	require.Error(t, err, "should fail because no active src")
 
-	ru = newRun(th.Context, t, nil)
-	ru.add(*src) // now have an active src
+	tr = testrun.New(th.Context, t, nil)
+	tr.Add(*src) // now have an active src
 
-	err = ru.Exec("inspect", "--json")
+	err = tr.Exec("inspect", "--json")
 	require.NoError(t, err, "should pass because there is an active src")
 
 	md := &source.Metadata{}
-	require.NoError(t, json.Unmarshal(ru.out.Bytes(), md))
-	require.Equal(t, sqlite3.Type, md.SourceType)
+	require.NoError(t, json.Unmarshal(tr.Out.Bytes(), md))
+	require.Equal(t, sqlite3.Type, md.Driver)
 	require.Equal(t, sakila.SL3, md.Handle)
 	require.Equal(t, src.RedactedLocation(), md.Location)
 	require.Equal(t, sakila.AllTblsViews(), md.TableNames())
 
 	// Try one more source for good measure
-	ru = newRun(th.Context, t, nil)
+	tr = testrun.New(th.Context, t, nil)
 	src = th.Source(sakila.CSVActor)
-	ru.add(*src)
+	tr.Add(*src)
 
-	err = ru.Exec("inspect", "--json", src.Handle)
+	err = tr.Exec("inspect", "--json", src.Handle)
 	require.NoError(t, err)
 
 	md = &source.Metadata{}
-	require.NoError(t, json.Unmarshal(ru.out.Bytes(), md))
-	require.Equal(t, csv.TypeCSV, md.SourceType)
+	require.NoError(t, json.Unmarshal(tr.Out.Bytes(), md))
+	require.Equal(t, csv.TypeCSV, md.Driver)
 	require.Equal(t, sakila.CSVActor, md.Handle)
 	require.Equal(t, src.Location, md.Location)
 	require.Equal(t, []string{source.MonotableName}, md.TableNames())
@@ -133,10 +135,10 @@ func TestCmdInspect_Stdin(t *testing.T) {
 			f, err := os.Open(tc.fpath) // No need to close f
 			require.NoError(t, err)
 
-			ru := newRun(ctx, t, nil)
-			ru.rc.Stdin = f
+			tr := testrun.New(ctx, t, nil)
+			tr.Run.Stdin = f
 
-			err = ru.Exec("inspect", "--json")
+			err = tr.Exec("inspect", "--json")
 			if tc.wantErr {
 				require.Error(t, err)
 				return
@@ -145,8 +147,8 @@ func TestCmdInspect_Stdin(t *testing.T) {
 			require.NoError(t, err, "should read from stdin")
 
 			md := &source.Metadata{}
-			require.NoError(t, json.Unmarshal(ru.out.Bytes(), md))
-			require.Equal(t, tc.wantType, md.SourceType)
+			require.NoError(t, json.Unmarshal(tr.Out.Bytes(), md))
+			require.Equal(t, tc.wantType, md.Driver)
 			require.Equal(t, source.StdinHandle, md.Handle)
 			require.Equal(t, source.StdinHandle, md.Location)
 			require.Equal(t, tc.wantTbls, md.TableNames())

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/libsq/source"
 
@@ -40,8 +41,8 @@ source. Otherwise, set @HANDLE or an internal db as the scratch data source. The
 }
 
 func execScratch(cmd *cobra.Command, args []string) error {
-	rc := RunContextFrom(cmd.Context())
-	cfg := rc.Config
+	ru := run.FromContext(cmd.Context())
+	cfg := ru.Config
 
 	var src *source.Source
 	var err error
@@ -58,7 +59,7 @@ func execScratch(cmd *cobra.Command, args []string) error {
 			src = defaultScratch
 		}
 
-		return rc.writers.srcw.Source(cfg.Collection, src)
+		return ru.Writers.Source.Source(cfg.Collection, src)
 	}
 
 	// Collection the scratch src
@@ -75,10 +76,10 @@ func execScratch(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	err = rc.ConfigStore.Save(cmd.Context(), rc.Config)
+	err = ru.ConfigStore.Save(cmd.Context(), ru.Config)
 	if err != nil {
 		return err
 	}
 
-	return rc.writers.srcw.Source(cfg.Collection, src)
+	return ru.Writers.Source.Source(cfg.Collection, src)
 }

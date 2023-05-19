@@ -5,7 +5,10 @@ import (
 	"database/sql"
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
+
+	"github.com/neilotoole/sq/libsq/core/stringz"
 
 	"github.com/neilotoole/sq/libsq/core/options"
 
@@ -182,10 +185,10 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB) (*so
 	ctx = options.NewContext(ctx, src.Options)
 
 	md := &source.Metadata{
-		Handle:       src.Handle,
-		Location:     src.Location,
-		SourceType:   src.Type,
-		DBDriverType: src.Type,
+		Handle:   src.Handle,
+		Location: src.Location,
+		Driver:   src.Type,
+		DBDriver: src.Type,
 	}
 
 	var schema sql.NullString
@@ -205,7 +208,7 @@ current_setting('server_version'), version(), "current_user"()`
 	md.Schema = schema.String
 	md.FQName = md.Name + "." + schema.String
 
-	md.DBVars, err = getPgSettings(ctx, db)
+	md.DBProperties, err = getPgSettings(ctx, db)
 	if err != nil {
 		return nil, err
 	}
@@ -271,31 +274,57 @@ current_setting('server_version'), version(), "current_user"()`
 	return md, nil
 }
 
-func getPgSettings(ctx context.Context, db sqlz.DB) ([]source.DBVar, error) {
-	log := lg.FromContext(ctx)
-	rows, err := db.QueryContext(ctx, "SELECT name, setting FROM pg_settings ORDER BY name")
+func getPgSettings(ctx context.Context, db sqlz.DB) (map[string]any, error) {
+	rows, err := db.QueryContext(ctx, "SELECT name, setting, vartype FROM pg_settings ORDER BY name")
 	if err != nil {
 		return nil, errz.Err(err)
 	}
 
-	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
-	var dbVars []source.DBVar
+	defer lg.WarnIfCloseError(lg.FromContext(ctx), lgm.CloseDBRows, rows)
 
+	m := map[string]any{}
 	for rows.Next() {
-		v := source.DBVar{}
-		err = rows.Scan(&v.Name, &v.Value)
-		if err != nil {
+		var (
+			name    string
+			setting string
+			typ     string
+			val     any
+		)
+		if err = rows.Scan(&name, &setting, &typ); err != nil {
 			return nil, errz.Err(err)
 		}
-		dbVars = append(dbVars, v)
+
+		// Narrow the setting value bool, int, etc.
+		val = setting
+		switch typ {
+		case "integer":
+			var i int
+			if i, err = strconv.Atoi(setting); err == nil {
+				val = i
+			}
+		case "bool":
+			var b bool
+			if b, err = stringz.ParseBool(setting); err == nil {
+				val = b
+			}
+		case "real":
+			var f float64
+			if f, err = strconv.ParseFloat(setting, 64); err == nil {
+				val = f
+			}
+		case "enum", "string":
+		default:
+			// Leave as string
+		}
+
+		m[name] = val
 	}
 
-	err = closeRows(rows)
-	if err != nil {
+	if err = closeRows(rows); err != nil {
 		return nil, err
 	}
 
-	return dbVars, nil
+	return m, nil
 }
 
 // getAllTable names returns all table (or view) names in the current

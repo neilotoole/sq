@@ -124,7 +124,7 @@ FROM sys.master_files WITH(NOWAIT)
 WHERE database_id = DB_ID()
 GROUP BY database_id) AS total_size_bytes`
 
-	md := &source.Metadata{SourceType: Type, DBDriverType: Type}
+	md := &source.Metadata{Driver: Type, DBDriver: Type}
 	md.Handle = src.Handle
 	md.Location = src.Location
 
@@ -138,6 +138,10 @@ GROUP BY database_id) AS total_size_bytes`
 	md.Name = catalog
 	md.FQName = catalog + "." + schema
 	md.Schema = schema
+
+	if md.DBProperties, err = getDBProperties(ctx, db); err != nil {
+		return nil, err
+	}
 
 	tblNames, tblTypes, err := getAllTables(ctx, db)
 	if err != nil {

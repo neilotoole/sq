@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/cli/run"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"github.com/neilotoole/sq/cli/flag"
@@ -58,11 +60,11 @@ func execSLQ(cmd *cobra.Command, args []string) error {
 	}
 
 	ctx := cmd.Context()
-	rc := RunContextFrom(ctx)
-	coll := rc.Config.Collection
+	ru := run.FromContext(ctx)
+	coll := ru.Config.Collection
 
 	// check if there's input on stdin
-	src, err := checkStdinSource(ctx, rc)
+	src, err := checkStdinSource(ctx, ru)
 	if err != nil {
 		return err
 	}
@@ -95,14 +97,14 @@ func execSLQ(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if err = applyCollectionOptions(cmd, rc.Config.Collection); err != nil {
+	if err = applyCollectionOptions(cmd, ru.Config.Collection); err != nil {
 		return err
 	}
 
 	if !cmdFlagChanged(cmd, flag.Insert) {
 		// The user didn't specify the --insert=@src.tbl flag,
 		// so we just want to print the records.
-		return execSLQPrint(ctx, rc, mArgs)
+		return execSLQPrint(ctx, ru, mArgs)
 	}
 
 	// Instead of printing the records, they will be
@@ -126,17 +128,17 @@ func execSLQ(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return execSLQInsert(ctx, rc, mArgs, destSrc, destTbl)
+	return execSLQInsert(ctx, ru, mArgs, destSrc, destTbl)
 }
 
 // execSQLInsert executes the SLQ and inserts resulting records
 // into destTbl in destSrc.
-func execSLQInsert(ctx context.Context, rc *RunContext, mArgs map[string]string,
+func execSLQInsert(ctx context.Context, ru *run.Run, mArgs map[string]string,
 	destSrc *source.Source, destTbl string,
 ) error {
-	args, coll, dbases := rc.Args, rc.Config.Collection, rc.databases
+	args, coll, dbases := ru.Args, ru.Config.Collection, ru.Databases
 
-	slq, err := preprocessUserSLQ(ctx, rc, args)
+	slq, err := preprocessUserSLQ(ctx, ru, args)
 	if err != nil {
 		return err
 	}
@@ -151,7 +153,7 @@ func execSLQInsert(ctx context.Context, rc *RunContext, mArgs map[string]string,
 
 	// Note: We don't need to worry about closing fromConn and
 	// destConn because they are closed by databases.Close, which
-	// is invoked by rc.Close, and rc is closed further up the
+	// is invoked by ru.Close, and ru is closed further up the
 	// stack.
 
 	inserter := libsq.NewDBWriter(
@@ -163,8 +165,8 @@ func execSLQInsert(ctx context.Context, rc *RunContext, mArgs map[string]string,
 
 	qc := &libsq.QueryContext{
 		Collection:   coll,
-		DBOpener:     rc.databases,
-		JoinDBOpener: rc.databases,
+		DBOpener:     ru.Databases,
+		JoinDBOpener: ru.Databases,
 		Args:         mArgs,
 	}
 
@@ -178,25 +180,25 @@ func execSLQInsert(ctx context.Context, rc *RunContext, mArgs map[string]string,
 		return errz.Wrapf(waitErr, "insert %s.%s failed", destSrc.Handle, destTbl)
 	}
 
-	fmt.Fprintf(rc.Out, stringz.Plu("Inserted %d row(s) into %s.%s\n", int(affected)), affected, destSrc.Handle, destTbl)
+	fmt.Fprintf(ru.Out, stringz.Plu("Inserted %d row(s) into %s.%s\n", int(affected)), affected, destSrc.Handle, destTbl)
 	return nil
 }
 
 // execSLQPrint executes the SLQ query, and prints output to writer.
-func execSLQPrint(ctx context.Context, rc *RunContext, mArgs map[string]string) error {
-	slq, err := preprocessUserSLQ(ctx, rc, rc.Args)
+func execSLQPrint(ctx context.Context, ru *run.Run, mArgs map[string]string) error {
+	slq, err := preprocessUserSLQ(ctx, ru, ru.Args)
 	if err != nil {
 		return err
 	}
 
 	qc := &libsq.QueryContext{
-		Collection:   rc.Config.Collection,
-		DBOpener:     rc.databases,
-		JoinDBOpener: rc.databases,
+		Collection:   ru.Config.Collection,
+		DBOpener:     ru.Databases,
+		JoinDBOpener: ru.Databases,
 		Args:         mArgs,
 	}
 
-	recw := output.NewRecordWriterAdapter(rc.writers.recordw)
+	recw := output.NewRecordWriterAdapter(ru.Writers.Record)
 	execErr := libsq.ExecuteSLQ(ctx, qc, slq, recw)
 	_, waitErr := recw.Wait()
 	if execErr != nil {
@@ -230,8 +232,8 @@ func execSLQPrint(ctx context.Context, rc *RunContext, mArgs map[string]string) 
 // segment is the table name.
 //
 //	$ sq '.person'  -->  $ sq '@active.person'
-func preprocessUserSLQ(ctx context.Context, rc *RunContext, args []string) (string, error) {
-	log, reg, dbases, coll := lg.FromContext(ctx), rc.driverReg, rc.databases, rc.Config.Collection
+func preprocessUserSLQ(ctx context.Context, ru *run.Run, args []string) (string, error) {
+	log, reg, dbases, coll := lg.FromContext(ctx), ru.DriverRegistry, ru.Databases, ru.Config.Collection
 	activeSrc := coll.Active()
 
 	if len(args) == 0 {

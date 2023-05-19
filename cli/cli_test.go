@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neilotoole/sq/cli/testrun"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -54,8 +56,9 @@ func TestSmoke(t *testing.T) {
 			t.Parallel()
 			ctx := context.Background()
 
-			rc, out, errOut := newTestRunCtx(ctx, t, nil)
-			err := cli.ExecuteWith(ctx, rc, tc.a)
+			tr := testrun.New(ctx, t, nil)
+			ru, out, errOut := tr.Run, tr.Out, tr.ErrOut
+			err := cli.ExecuteWith(ctx, ru, tc.a)
 
 			// We log sq's output before doing assert, because it reads
 			// better in testing's output that way.
@@ -144,8 +147,8 @@ func TestOutputRaw(t *testing.T) {
 				os.RemoveAll(outputPath)
 			})
 
-			ru := newRun(th.Context, t, nil).add(*src).hush()
-			err = ru.Exec("sql", "--raw", "--output="+outputPath, query)
+			tr := testrun.New(th.Context, t, nil).Add(*src).Hush()
+			err = tr.Exec("sql", "--raw", "--output="+outputPath, query)
 			require.NoError(t, err)
 
 			outputBytes, err := os.ReadFile(outputPath)
@@ -155,10 +158,10 @@ func TestOutputRaw(t *testing.T) {
 			require.NoError(t, err)
 
 			// 2. Now test that stdout also gets the same data
-			ru = newRun(th.Context, t, nil).add(*src).hush()
-			err = ru.Exec("sql", "--raw", query)
+			tr = testrun.New(th.Context, t, nil).Add(*src).Hush()
+			err = tr.Exec("sql", "--raw", query)
 			require.NoError(t, err)
-			require.Equal(t, wantBytes, ru.out.Bytes())
+			require.Equal(t, wantBytes, tr.Out.Bytes())
 		})
 	}
 }

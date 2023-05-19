@@ -14,6 +14,16 @@ import (
 	"github.com/neilotoole/sq/cli/output"
 )
 
+// MarshalToString renders v to a string.
+func MarshalToString(pr *output.Printing, v any) (string, error) {
+	p := newPrinter(pr)
+	buf := &bytes.Buffer{}
+	if err := writeYAML(buf, p, v); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
+}
+
 // writeYAML prints a YAML representation of v to out, using specs
 // from pr.
 func writeYAML(out io.Writer, p printer.Printer, v any) error {

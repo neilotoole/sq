@@ -546,6 +546,7 @@ func TestSQLDriver_AlterTableRename(t *testing.T) {
 			newName := stringz.UniqSuffix("actor_copy_")
 			err := drvr.AlterTableRename(th.Context, dbase.DB(), tbl, newName)
 			require.NoError(t, err)
+			defer th.DropTable(src, newName)
 
 			md, err := dbase.TableMetadata(th.Context, newName)
 			require.NoError(t, err)

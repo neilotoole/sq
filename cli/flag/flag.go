@@ -150,4 +150,15 @@ const (
 
 	LogLevel      = "log.level"
 	LogLevelUsage = "Log level: one of DEBUG, INFO, WARN, ERROR"
+
+	DiffSummary      = "summary"
+	DiffSummaryUsage = "Show summary-level diff only"
+
+	DiffNumLines      = "lines"
+	DiffNumLinesShort = "n"
+	DiffNumLinesUsage = "Number of lines surrounding diff"
+
+	InspectDBProps      = "dbprops"
+	InspectDBPropsShort = "p"
+	InspectDBPropsUsage = "Show DB properties only"
 )

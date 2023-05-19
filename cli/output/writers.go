@@ -51,6 +51,9 @@ type MetadataWriter interface {
 	// SourceMetadata writes the source metadata.
 	SourceMetadata(srcMeta *source.Metadata) error
 
+	// DBProperties writes the DB properties.
+	DBProperties(props map[string]any) error
+
 	// DriverMetadata writes the metadata for the drivers.
 	DriverMetadata(drvrs []driver.Metadata) error
 }
@@ -122,4 +125,17 @@ type ConfigWriter interface {
 
 	// UnsetOption is called when an option is unset.
 	UnsetOption(opt options.Opt) error
+}
+
+// Writers is a container for the various output Writers.
+type Writers struct {
+	Printing *Printing
+
+	Record   RecordWriter
+	Metadata MetadataWriter
+	Source   SourceWriter
+	Error    ErrorWriter
+	Ping     PingWriter
+	Version  VersionWriter
+	Config   ConfigWriter
 }
