@@ -1,5 +1,5 @@
 // Package cli implements sq's CLI. The spf13/cobra library
-// is used, with some notable modifications.
+// provides the core command processing.
 //
 // Although cobra provides excellent functionality, it has some issues.
 // Most prominently, its documentation suggests reliance
@@ -9,6 +9,10 @@
 // Thus, this cmd package deviates from cobra's suggested
 // usage pattern by eliminating all pkg-level constructs
 // (which makes testing easier).
+//
+// All interaction with cobra should happen inside this package.
+// That is to say, the spf13/cobra package should not be imported
+// anywhere outside this package.
 //
 // The entry point to this pkg is the Execute function.
 package cli
