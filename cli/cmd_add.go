@@ -307,7 +307,7 @@ func readPassword(ctx context.Context, stdin *os.File, stdout io.Writer, pr *out
 		return b, nil
 	}
 
-	// This is a goroutine so that we can handle ctrl-c.
+	// Input is read in a goroutine so that we can handle ctrl-c.
 	go func() {
 		buf := &bytes.Buffer{}
 		fmt.Fprint(buf, "Password: ")
