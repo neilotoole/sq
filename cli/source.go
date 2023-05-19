@@ -18,7 +18,7 @@ import (
 
 // determineSources figures out what the active source is
 // from any combination of stdin, flags or cfg. It will
-// mutate ru.Config.Sources as necessary. If no error
+// mutate ru.Config.Collection as necessary. If no error
 // is returned, it is guaranteed that there's an active
 // source on the collection.
 func determineSources(ctx context.Context, ru *run.Run) error {
