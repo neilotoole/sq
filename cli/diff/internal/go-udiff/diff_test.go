@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -111,6 +112,10 @@ func TestLineEdits(t *testing.T) {
 }
 
 func TestToUnified(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipping diff test on windows because of patch behavior")
+	}
+
 	for _, tc := range difftest.TestCases {
 		t.Run(tc.Name, func(t *testing.T) {
 			unified, err := diff.ToUnified(difftest.FileA, difftest.FileB, tc.In, tc.Edits, 3)
