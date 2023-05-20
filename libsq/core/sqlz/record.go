@@ -1,6 +1,7 @@
 package sqlz
 
 import (
+	"bytes"
 	"database/sql"
 	"fmt"
 	"reflect"
@@ -50,6 +51,96 @@ func ValidRecord(_ RecordMeta, rec Record) (i int, err error) {
 	}
 
 	return -1, nil
+}
+
+// EqualRecords returns true if rec1 and rec2 contain
+// the same values.
+func EqualRecords(rec1, rec2 Record) bool { //nolint:gocognit
+	switch {
+	case rec1 == nil && rec2 == nil:
+		return true
+	case rec1 == nil || rec2 == nil:
+		return false
+	case len(rec1) != len(rec2):
+		return false
+	}
+
+	var i int
+	var v1, v2 any
+
+	for i, v1 = range rec1 {
+		v2 = rec2[i]
+
+		if v1 == nil && v2 == nil {
+			continue
+		}
+
+		if v1 == nil || v2 == nil {
+			return false
+		}
+
+		switch v1 := v1.(type) {
+		case *string:
+			v2, ok := v2.(*string)
+			if !ok {
+				return false
+			}
+
+			if *v1 != *v2 {
+				return false
+			}
+		case *bool:
+			v2, ok := v2.(*bool)
+			if !ok {
+				return false
+			}
+
+			if *v1 != *v2 {
+				return false
+			}
+		case *int64:
+			v2, ok := v2.(*int64)
+			if !ok {
+				return false
+			}
+
+			if *v1 != *v2 {
+				return false
+			}
+		case *float64:
+			v2, ok := v2.(*float64)
+			if !ok {
+				return false
+			}
+
+			if *v1 != *v2 {
+				return false
+			}
+		case *time.Time:
+			v2, ok := v2.(*time.Time)
+			if !ok {
+				return false
+			}
+
+			if *v1 != *v2 {
+				return false
+			}
+		case *[]byte:
+			v2, ok := v2.(*[]byte)
+			if !ok {
+				return false
+			}
+
+			if !bytes.Equal(*v1, *v2) {
+				return false
+			}
+		default:
+			// Shouldn't happen
+			return false
+		}
+	}
+
+	return true
 }
 
 // FieldMeta is a bit of a strange entity, and in an ideal

@@ -19,6 +19,24 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
+// Elements configures what source elements to compare.
+type Elements struct {
+	// Summary compares a summary of the sources.
+	Summary bool
+
+	// DBProperties compares DB properties.
+	DBProperties bool
+
+	// Table compares table structure.
+	Table bool
+
+	// RowCount compares table row count.
+	RowCount bool
+
+	// Data compares each row in a table. Caution: this can be slow.
+	Data bool
+}
+
 // sourceData encapsulates data about a source.
 type sourceData struct {
 	handle  string
@@ -78,6 +96,15 @@ type dbPropsDiff struct {
 	sd1, sd2 *sourceData
 	header   string
 	diff     string
+}
+
+// dataDiff is a container for a table data diff.
+type dataDiff struct {
+	td1, td2 *tableData //nolint:unused
+	query    string     //nolint:unused
+	row      int64      //nolint:unused
+	header   string     //nolint:unused
+	diff     string     //nolint:unused
 }
 
 // Print prints dif to w. If pr is nil, printing is in monochrome.

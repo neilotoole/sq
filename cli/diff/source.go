@@ -16,19 +16,9 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-type Options struct {
-	Summary      bool
-	DBProperties bool
-	Tables       bool
-	RowCount     bool
-	Data         bool
-}
-
-// ExecSourceDiff diffs handle1 and handle2. If diffProps is true, the
-// source database properties are diffed. If diffTables is true, the
-// individual tables are also diffed.
+// ExecSourceDiff diffs handle1 and handle2.
 func ExecSourceDiff(ctx context.Context, ru *run.Run, numLines int,
-	opts *Options, handle1, handle2 string,
+	elems *Elements, handle1, handle2 string,
 ) error {
 	var (
 		sd1 = &sourceData{handle: handle1}
@@ -53,7 +43,7 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, numLines int,
 		return err
 	}
 
-	if opts.Summary {
+	if elems.Summary {
 		srcDiff, err := buildSourceSummaryDiff(numLines, sd1, sd2)
 		if err != nil {
 			return err
@@ -64,7 +54,7 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, numLines int,
 		}
 	}
 
-	if opts.DBProperties {
+	if elems.DBProperties {
 		propsDiff, err := buildDBPropsDiff(numLines, sd1, sd2)
 		if err != nil {
 			return err
@@ -74,8 +64,8 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, numLines int,
 		}
 	}
 
-	if opts.Tables {
-		tblDiffs, err := buildSourceTableDiffs(numLines, opts.RowCount, sd1, sd2)
+	if elems.Table {
+		tblDiffs, err := buildSourceTableDiffs(numLines, elems.RowCount, sd1, sd2)
 		if err != nil {
 			return err
 		}

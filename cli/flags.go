@@ -3,8 +3,6 @@ package cli
 import (
 	"io"
 
-	"github.com/neilotoole/sq/cli/flag"
-
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -75,19 +73,4 @@ func getBootstrapFlagValue(flg, flgShort, flgUsage string, osArgs []string) (val
 	}
 
 	return val, true, nil
-}
-
-func applyFlagAliases(f *pflag.FlagSet, name string) pflag.NormalizedName {
-	if f == nil {
-		return pflag.NormalizedName(name)
-	}
-	switch name {
-	case "table":
-		// Legacy: flag --text was once named --table.
-		name = flag.Text
-	case "md":
-		name = flag.Markdown
-	default:
-	}
-	return pflag.NormalizedName(name)
 }

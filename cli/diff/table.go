@@ -14,36 +14,59 @@ import (
 )
 
 // ExecTableDiff diffs handle1.table1 and handle2.table2.
-func ExecTableDiff(ctx context.Context, ru *run.Run, numLines int, handle1, table1, handle2, table2 string) error {
+func ExecTableDiff(ctx context.Context, ru *run.Run, numLines int, elems *Elements,
+	handle1, table1, handle2, table2 string,
+) error {
 	td1, td2 := &tableData{tblName: table1}, &tableData{tblName: table2}
 
-	g, gCtx := errgroup.WithContext(ctx)
-	g.Go(func() error {
+	if elems.Table {
+		g, gCtx := errgroup.WithContext(ctx)
+		g.Go(func() error {
+			var err error
+			td1.src, td1.tblMeta, err = fetchTableMeta(gCtx, ru, handle1, table1)
+			return err
+		})
+		g.Go(func() error {
+			var err error
+			td2.src, td2.tblMeta, err = fetchTableMeta(gCtx, ru, handle2, table2)
+			return err
+		})
+		if err := g.Wait(); err != nil {
+			return err
+		}
+
+		tblDiff, err := buildTableDiff(numLines, elems.RowCount, td1, td2)
+		if err != nil {
+			return err
+		}
+
+		if err = Print(ru.Out, ru.Writers.Printing, tblDiff.header, tblDiff.diff); err != nil {
+			return err
+		}
+	}
+
+	if !elems.Data {
+		return nil
+	}
+
+	// We want to diff table data. Make sure that the src has already
+	// been set.
+	if td1.src == nil {
 		var err error
-		td1.src, td1.tblMeta, err = fetchTableMeta(gCtx, ru, handle1, table1)
-		return err
-	})
-	g.Go(func() error {
+		if td1.src, err = ru.Config.Collection.Get(handle1); err != nil {
+			return err
+		}
+	}
+
+	if td2.src == nil {
 		var err error
-		td2.src, td2.tblMeta, err = fetchTableMeta(gCtx, ru, handle2, table2)
-		return err
-	})
-	if err := g.Wait(); err != nil {
-		return err
+		if td2.src, err = ru.Config.Collection.Get(handle2); err != nil {
+			return err
+		}
 	}
 
-	// TODO: showRowCounts should come from config
-	tblDiff, err := buildTableDiff(numLines, true, td1, td2)
-	if err != nil {
-		return err
-	}
-
-	if ru.Writers.Printing.IsMonochrome() {
-		_, err := fmt.Fprintln(ru.Out, tblDiff)
-		return errz.Err(err)
-	}
-
-	return Print(ru.Out, ru.Writers.Printing, tblDiff.header, tblDiff.diff)
+	_, err := buildTableDataDiff(ctx, ru, td1, td2)
+	return err
 }
 
 func buildTableDiff(lines int, showRowCounts bool, td1, td2 *tableData) (*tableDiff, error) {

@@ -278,8 +278,6 @@ func addCmd(ru *run.Run, parentCmd, cmd *cobra.Command) *cobra.Command {
 	cmd.SilenceErrors = true
 	cmd.SilenceUsage = true
 
-	cmd.Flags().SetNormalizeFunc(applyFlagAliases)
-
 	parentCmd.AddCommand(cmd)
 
 	return cmd

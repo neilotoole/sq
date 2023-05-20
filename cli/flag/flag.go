@@ -159,23 +159,23 @@ const (
 	DiffSummaryShort = "s"
 	DiffSummaryUsage = "Compare source summary"
 
-	DiffTables      = "tables"
-	DiffTablesShort = "T"
-	DiffTablesUsage = "Compare table structure"
+	DiffTable      = "table"
+	DiffTableShort = "T"
+	DiffTableUsage = "Compare table structure"
 
 	DiffDBProps      = "dbprops"
 	DiffDBPropsShort = "p"
 	DiffDBPropsUsage = "Compare DB properties"
 
-	DiffRowCount      = "counts"
+	DiffRowCount      = "count"
 	DiffRowCountShort = "c"
 	DiffRowCountUsage = "When comparing tables, include row counts"
 
 	DiffData      = "data"
 	DiffDataShort = "d"
-	DiffDataUsage = "Compare values of each data row (caution: slow)"
+	DiffDataUsage = "Compare values of each data row (caution: may be slow)"
 
 	DiffAll      = "all"
 	DiffAllShort = "a"
-	DiffAllUsage = "Compare everything (caution: slow)"
+	DiffAllUsage = "Compare everything (caution: may be slow)"
 )
