@@ -192,6 +192,10 @@ func populateRecordDiff(lines int, pr *output.Printing, recDiff *recordDiff) err
 }
 
 func renderRecord2YAML(pr *output.Printing, recMeta record.Meta, rec record.Record) (string, error) {
+	if rec == nil {
+		return "", nil
+	}
+
 	buf := &bytes.Buffer{}
 	yw := yamlw.NewRecordWriter(buf, pr)
 	if err := yw.Open(recMeta); err != nil {
