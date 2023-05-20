@@ -23,9 +23,23 @@ import (
 )
 
 var (
-	OptLogEnabled = options.NewBool("log", "", 0, false, "Enable logging", "Enable logging.")
+	OptLogEnabled = options.NewBool(
+		"log",
+		"",
+		0,
+		false,
+		"Enable logging",
+		"Enable logging.",
+	)
 
-	OptLogFile = options.NewString("log.file", "", 0, getDefaultLogFilePath(), "Log file path", `Path to log file. Empty value disables logging.`)
+	OptLogFile = options.NewString(
+		"log.file",
+		"",
+		0,
+		getDefaultLogFilePath(),
+		"Log file path",
+		`Path to log file. Empty value disables logging.`,
+	)
 
 	OptLogLevel = NewLogLevelOpt(
 		"log.level",

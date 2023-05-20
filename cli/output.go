@@ -36,14 +36,21 @@ import (
 )
 
 var (
-	OptPrintHeader = options.NewBool("header", "", 0, true, "Print header row", `Controls whether a header row is printed. This applies only
-to certain formats, such as "text" or "csv".`, "format")
+	OptPrintHeader = options.NewBool(
+		"header",
+		"",
+		0,
+		true,
+		"Print header row",
+		`Controls whether a header row is printed. This applies only
+to certain formats, such as "text" or "csv".`,
+		"format",
+	)
 
 	OptFormat = NewFormatOpt(
 		"format",
 		format.Text,
 		"Output format",
-
 		`Specify the output format. Some formats are only implemented for a subset of
 sq's commands. If the specified format is not available for a particular
 command, sq falls back to "text". Available formats:
@@ -53,25 +60,69 @@ command, sq falls back to "text". Available formats:
   markdown, html, xlsx, xml, yaml, raw`,
 	)
 
-	OptVerbose = options.NewBool("verbose", "", 'v', false, "Print verbose output", `Print verbose output.`, "format")
+	OptVerbose = options.NewBool(
+		"verbose",
+		"",
+		'v',
+		false,
+		"Print verbose output",
+		`Print verbose output.`,
+		"format",
+	)
 
-	OptMonochrome = options.NewBool("monochrome", "", 'M', false, "Don't print color output", `Don't print color output.`, "format")
+	OptMonochrome = options.NewBool(
+		"monochrome",
+		"",
+		'M',
+		false,
+		"Don't print color output",
+		`Don't print color output.`,
+		"format",
+	)
 
-	OptCompact = options.NewBool("compact", "", 'c', false, "Compact instead of pretty-printed output", `Compact instead of pretty-printed output.`, "format")
+	OptCompact = options.NewBool(
+		"compact",
+		"",
+		'c',
+		false,
+		"Compact instead of pretty-printed output",
+		`Compact instead of pretty-printed output.`,
+		"format",
+	)
 
-	OptTuningFlushThreshold = options.NewInt("tuning.flush-threshold", "", 0, 1000, "Output writer buffer flush threshold in bytes", `Size in bytes after which output writers should flush any internal buffer.
-Generally, it is not necessary to fiddle this knob.`)
+	OptTuningFlushThreshold = options.NewInt(
+		"tuning.flush-threshold",
+		"",
+		0,
+		1000,
+		"Output writer buffer flush threshold in bytes",
+		`Size in bytes after which output writers should flush any internal buffer.
+Generally, it is not necessary to fiddle this knob.`,
+	)
 
 	timeLayoutsList = "Predefined values:\n" + stringz.IndentLines(
 		wordwrap.WrapString(strings.Join(timez.NamedLayouts(), ", "), 64),
 		"  ")
 
-	OptDatetimeFormat = options.NewString("format.datetime", "", 0, "RFC3339", "Timestamp format: constant such as RFC3339 or a strftime format", `Timestamp format. This can be one of several predefined constants such
+	OptDatetimeFormat = options.NewString(
+		"format.datetime",
+		"",
+		0,
+		"RFC3339",
+		"Timestamp format: constant such as RFC3339 or a strftime format",
+		`Timestamp format. This can be one of several predefined constants such
 as "RFC3339" or "Unix", or a strftime format such as "%Y-%m-%d %H:%M:%S".
 
-`+timeLayoutsList)
+`+timeLayoutsList,
+	)
 
-	OptDatetimeFormatAsNumber = options.NewBool("format.datetime.number", "", 0, true, "Render numeric datetime value as number instead of string", `Render numeric datetime value as number instead of string, if possible.
+	OptDatetimeFormatAsNumber = options.NewBool(
+		"format.datetime.number",
+		"",
+		0,
+		true,
+		"Render numeric datetime value as number instead of string",
+		`Render numeric datetime value as number instead of string, if possible.
 If format.datetime renders a numeric value (e.g. a Unix timestamp such
 as "1591843854"), that value is typically rendered as a string. For some output
 formats, such as JSON, it can be useful to instead render the value as a naked
@@ -82,20 +133,34 @@ is not an integer.
   [{"first_name":"PENELOPE","last_update":"1591843854"}]
   format.datetime.number=true
   [{"first_name":"PENELOPE","last_update":1591843854}]
-`)
+`,
+	)
 
 	// FIXME: add opts OptDateFormatNumber and OptTimeFormatNumber.
 	// The doc should note that OptDatetimeFormatNumber has primacy, and
 	// to setting that flag instead.
 
-	OptDateFormat = options.NewString("format.date", "", 0, "DateOnly", "Date format: constant such as DateOnly or a strftime format", `Date format. This can be one of several predefined constants such
+	OptDateFormat = options.NewString(
+		"format.date",
+		"",
+		0,
+		"DateOnly",
+		"Date format: constant such as DateOnly or a strftime format",
+		`Date format. This can be one of several predefined constants such
 as "DateOnly" or "Unix", or a strftime format such as "%Y-%m-%d".
 Note that date values are sometimes programmatically indistinguishable
 from datetime values. In that situation, use format.datetime instead.
 
-`+timeLayoutsList)
+`+timeLayoutsList,
+	)
 
-	OptDateFormatAsNumber = options.NewBool("format.date.number", "", 0, true, "Render numeric date value as number instead of string", `Render numeric date value as number instead of string, if possible.
+	OptDateFormatAsNumber = options.NewBool(
+		"format.date.number",
+		"",
+		0,
+		true,
+		"Render numeric date value as number instead of string",
+		`Render numeric date value as number instead of string, if possible.
 If format.date renders a numeric value (e.g. a year such as "1979"), that value
 is typically rendered as a string. For some output formats, such as JSON, it can
 be useful to instead render the value as a naked number instead of a string.
@@ -105,16 +170,30 @@ Note that this option is no-op if the rendered value is not an integer.
   [{"first_name":"PENELOPE","birth_year":"1979"}]
   format.date.number=true
   [{"first_name":"PENELOPE","birth_year":1979}]
-`)
+`,
+	)
 
-	OptTimeFormat = options.NewString("format.time", "", 0, "TimeOnly", "Time format: constant such as TimeOnly or a strftime format", `Time format. This can be one of several predefined constants such
+	OptTimeFormat = options.NewString(
+		"format.time",
+		"",
+		0,
+		"TimeOnly",
+		"Time format: constant such as TimeOnly or a strftime format",
+		`Time format. This can be one of several predefined constants such
 as "TimeOnly" or "Unix", or a strftime format such as "%Y-%m-%d".
 Note that time values are sometimes programmatically indistinguishable
 from datetime values. In that situation, use format.datetime instead.
 
-`+timeLayoutsList)
+`+timeLayoutsList,
+	)
 
-	OptTimeFormatAsNumber = options.NewBool("format.time.number", "", 0, true, "Render numeric time value as number instead of string", `Render numeric time value as number instead of string, if possible.
+	OptTimeFormatAsNumber = options.NewBool(
+		"format.time.number",
+		"",
+		0,
+		true,
+		"Render numeric time value as number instead of string",
+		`Render numeric time value as number instead of string, if possible.
 If format.time renders a numeric value (e.g. "59"), that value
 is typically rendered as a string. For some output formats, such as JSON, it can
 be useful to instead render the value as a naked number instead of a string.
@@ -124,7 +203,8 @@ Note that this option is no-op if the rendered value is not an integer.
   [{"first_name":"PENELOPE","favorite_minute":"59"}]
   format.time.number=true
   [{"first_name":"PENELOPE","favorite_minute":59}]
-`)
+`,
+	)
 )
 
 // newWriters returns an output.Writers instance configured per defaults and/or

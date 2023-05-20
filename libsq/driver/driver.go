@@ -110,14 +110,22 @@ repeated retry operations back off, typically using a Fibonacci backoff.`,
 
 	// OptTuningErrgroupLimit controls the maximum number of goroutines that can be spawned
 	// by an errgroup.
-	OptTuningErrgroupLimit = options.NewInt("tuning.errgroup-limit", "", 0, 16, "Max goroutines in any one errgroup", `Controls the maximum number of goroutines that can be spawned
+	OptTuningErrgroupLimit = options.NewInt(
+		"tuning.errgroup-limit",
+		"",
+		0,
+		16,
+		"Max goroutines in any one errgroup",
+		`Controls the maximum number of goroutines that can be spawned
 by an errgroup. Note that this is the limit for any one errgroup, but not a
 ceiling on the total number of goroutines spawned, as some errgroups may
 themselves start an errgroup.
 
 This knob is primarily for internal use. Ultimately it should go away
 in favor of dynamic errgroup limit setting based on availability
-of additional DB conns, etc.`, "tuning")
+of additional DB conns, etc.`,
+		"tuning",
+	)
 
 	// OptTuningRecChanSize is the size of the buffer chan for record
 	// insertion/writing.

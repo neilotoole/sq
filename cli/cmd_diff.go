@@ -13,12 +13,12 @@ import (
 )
 
 var OptDiffNumLines = options.NewInt(
-	"diff.num-lines",
-	"lines",
-	'n',
+	"diff.lines",
+	"unified",
+	'U',
 	3,
-	"Number of lines to show surrounding diff",
-	`Number of lines >= 0 to show surrounding diff.`,
+	"Generate diffs with <n> lines of context",
+	`Generate diffs with <n> lines of context, where n >= 0.`,
 )
 
 var allDiffOptionFlags = []string{
@@ -39,8 +39,8 @@ func newDiffCmd() *cobra.Command {
 When comparing sources, use flag --summary to perform only a high-level
 diff. Note that this may miss column-level differences.
 
-Flag --lines (-n) controls the number of lines to show surrounding a diff. The
-default is 3.`,
+Flag --unified (-U) controls the number of lines to show surrounding a diff. The
+default is 3, but this can be changed via "sq config set diff.lines".`,
 		Args: cobra.ExactArgs(2),
 		ValidArgsFunction: (&handleTableCompleter{
 			handleRequired: true,
@@ -52,7 +52,7 @@ default is 3.`,
   $ sq diff @prod/sakila @staging/sakila
 
   # As above, but show 7 lines surrounding each diff
-  $ sq diff @prod/sakila @staging/sakila -n7
+  $ sq diff @prod/sakila @staging/sakila -U7
 
   # Diff sources, but don't diff individual tables (summary diff only)
   $ sq diff --tables=false @prod/sakila @staging/sakila
@@ -110,7 +110,7 @@ func execDiff(cmd *cobra.Command, args []string) error {
 		diffOpts := getDiffSourceOptions(cmd)
 		return diff.ExecSourceDiff(ctx, ru, numLines, diffOpts, handle1, handle2)
 	case table1 == "" || table2 == "":
-		return errz.Errorf("invalid args: both must be @HANDLE or @HANDLE.TABLE")
+		return errz.Errorf("invalid args: both must be either @HANDLE or @HANDLE.TABLE")
 	default:
 		return diff.ExecTableDiff(ctx, ru, numLines, handle1, table1, handle2, table2)
 	}

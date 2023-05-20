@@ -32,9 +32,16 @@ import (
 // OptShellCompletionTimeout determines how long to wait until for long-running
 // shell completion operations (such as fetching table names from a DB) before
 // giving up.
-var OptShellCompletionTimeout = options.NewDuration("shell-completion.timeout", "", 0, time.Millisecond*500, "shell completion timeout", `How long shell completion should wait before giving up. This can
+var OptShellCompletionTimeout = options.NewDuration(
+	"shell-completion.timeout",
+	"",
+	0,
+	time.Millisecond*500,
+	"shell completion timeout",
+	`How long shell completion should wait before giving up. This can
 become relevant when shell completion inspects a source's metadata, e.g. to
-offer a list of tables in a source.`)
+offer a list of tables in a source.`,
+)
 
 // completionFunc is a shell completion function.
 type completionFunc func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective)
