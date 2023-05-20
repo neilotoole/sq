@@ -94,13 +94,11 @@ See docs and more: https://sq.io`,
 	addQueryCmdFlags(cmd)
 	cmd.Flags().Bool(flag.Version, false, flag.VersionUsage)
 
-	cmd.PersistentFlags().BoolP(flag.Text, flag.TextShort, false, flag.TextUsage)
-	cmd.PersistentFlags().BoolP(flag.Header, flag.HeaderShort, true, flag.HeaderUsage)
-	cmd.PersistentFlags().BoolP(flag.NoHeader, flag.NoHeaderShort, false, flag.NoHeaderUsage)
-	cmd.MarkFlagsMutuallyExclusive(flag.Header, flag.NoHeader)
 	cmd.PersistentFlags().BoolP(flag.Monochrome, flag.MonochromeShort, false, flag.MonochromeUsage)
 	cmd.PersistentFlags().BoolP(flag.Verbose, flag.VerboseShort, false, flag.VerboseUsage)
+
 	cmd.PersistentFlags().String(flag.Config, "", flag.ConfigUsage)
+
 	cmd.PersistentFlags().Bool(flag.LogEnabled, false, flag.LogEnabledUsage)
 	cmd.PersistentFlags().String(flag.LogFile, "", flag.LogFileUsage)
 	cmd.PersistentFlags().String(flag.LogLevel, "", flag.LogLevelUsage)

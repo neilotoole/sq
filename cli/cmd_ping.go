@@ -67,6 +67,7 @@ The exit code is 1 if ping fails for any of the sources.`,
   $ sq ping --tsv @my1`,
 	}
 
+	addTextFlags(cmd)
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 	cmd.Flags().BoolP(flag.CSV, flag.CSVShort, false, flag.CSVUsage)
 	cmd.Flags().BoolP(flag.TSV, flag.TSVShort, false, flag.TSVUsage)

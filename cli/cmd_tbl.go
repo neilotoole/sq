@@ -52,10 +52,10 @@ func newTblCopyCmd() *cobra.Command {
   $ sq tbl copy .actor
 
   # Copy table structure, but don't copy table data
-  $ sq tbl copy --data=false .actor
-`,
+  $ sq tbl copy --data=false .actor`,
 	}
 
+	addTextFlags(cmd)
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 	cmd.Flags().BoolP(flag.Compact, flag.CompactShort, false, flag.CompactUsage)
 	cmd.Flags().Bool(flag.TblData, true, flag.TblDataUsage)
@@ -167,10 +167,10 @@ only applies to SQL sources.`,
   $ sq tbl truncate .payment
 
   # truncate multiple tables
-  $ sq tbl truncate .payment @sakila_sl3.actor
-`,
+  $ sq tbl truncate .payment @sakila_sl3.actor`,
 	}
 
+	addTextFlags(cmd)
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 
 	return cmd
@@ -220,8 +220,7 @@ only applies to SQL sources.`,
   $ sq tbl drop .payment
 
   # drop multiple tables
-  $ sq drop .payment @sakila_sl3.actor
-`,
+  $ sq drop .payment @sakila_sl3.actor`,
 	}
 
 	return cmd

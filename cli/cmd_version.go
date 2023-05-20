@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/ioz"
+
 	"github.com/neilotoole/sq/cli/run"
 
 	"github.com/neilotoole/sq/cli/flag"
@@ -51,7 +53,7 @@ Before upgrading, check the changelog: https://sq.io/changelog`,
   $ sq version -j | jq -r .version
   v0.32.0`,
 	}
-
+	addTextFlags(cmd)
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 	cmd.Flags().BoolP(flag.Compact, flag.CompactShort, false, flag.CompactUsage)
 
@@ -94,6 +96,8 @@ func execVersion(cmd *cobra.Command, _ []string) error {
 	return ru.Writers.Version.Version(buildinfo.Info(), latestVersion)
 }
 
+// fetchBrewVersion fetches the latest available sq version via
+// the published brew formula.
 func fetchBrewVersion(ctx context.Context) (string, error) {
 	const u = `https://raw.githubusercontent.com/neilotoole/homebrew-sq/master/sq.rb`
 
@@ -102,11 +106,11 @@ func fetchBrewVersion(ctx context.Context) (string, error) {
 		return "", errz.Err(err)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req) //nolint:bodyclose
 	if err != nil {
 		return "", errz.Wrap(err, "failed to check sq brew repo")
 	}
-	defer resp.Body.Close()
+	defer ioz.Close(ctx, resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
 		return "", errz.Errorf("failed to check sq brew repo: %d %s",

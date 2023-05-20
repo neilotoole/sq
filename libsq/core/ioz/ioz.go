@@ -3,13 +3,34 @@ package ioz
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"os"
+
+	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"github.com/goccy/go-yaml"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
+
+// Close is a convenience function to close c, logging a warning
+// if c.Close returns an error. This is useful in defer, e.g.
+//
+//	defer ioz.Close(ctx, c)
+func Close(ctx context.Context, c io.Closer) {
+	if c == nil {
+		return
+	}
+
+	err := c.Close()
+	if ctx == nil {
+		return
+	}
+
+	log := lg.FromContext(ctx)
+	lg.WarnIfError(log, "Close", err)
+}
 
 // PrintFile reads file from name and writes it to stdout.
 func PrintFile(name string) error {

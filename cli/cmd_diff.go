@@ -101,8 +101,7 @@ func execDiff(cmd *cobra.Command, args []string) error {
 
 	numLines := OptDiffNumLines.Get(o)
 	if numLines < 0 {
-		return errz.Errorf("config: {%s} must be a non-negative integer, but got %d",
-			flag.DiffNumLines, numLines)
+		return errz.Errorf("number of lines to show must be >= 0")
 	}
 
 	switch {

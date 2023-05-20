@@ -178,12 +178,4 @@ const (
 	DiffAll      = "all"
 	DiffAllShort = "a"
 	DiffAllUsage = "Compare everything (caution: slow)"
-
-	DiffUnifiedLines          = "unified"
-	DiffUnifiedLinesShort     = "U"
-	DiffUnifiedLineShortUsage = "Generate diffs with <n> lines of context"
-
-	DiffNumLines      = "lines"
-	DiffNumLinesShort = "n"
-	DiffNumLinesUsage = "Number of lines surrounding diff"
 )
