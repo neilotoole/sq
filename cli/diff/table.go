@@ -32,7 +32,8 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, numLines int, handle1, tabl
 		return err
 	}
 
-	tblDiff, err := buildTableDiff(numLines, td1, td2)
+	// TODO: showRowCounts should come from config
+	tblDiff, err := buildTableDiff(numLines, true, td1, td2)
 	if err != nil {
 		return err
 	}
@@ -45,16 +46,16 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, numLines int, handle1, tabl
 	return Print(ru.Out, ru.Writers.Printing, tblDiff.header, tblDiff.diff)
 }
 
-func buildTableDiff(lines int, td1, td2 *tableData) (*tableDiff, error) {
+func buildTableDiff(lines int, showRowCounts bool, td1, td2 *tableData) (*tableDiff, error) {
 	var (
 		body1, body2 string
 		err          error
 	)
 
-	if body1, err = renderTableMeta2YAML(td1.tblMeta); err != nil {
+	if body1, err = renderTableMeta2YAML(showRowCounts, td1.tblMeta); err != nil {
 		return nil, err
 	}
-	if body2, err = renderTableMeta2YAML(td2.tblMeta); err != nil {
+	if body2, err = renderTableMeta2YAML(showRowCounts, td2.tblMeta); err != nil {
 		return nil, err
 	}
 

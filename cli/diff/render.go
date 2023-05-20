@@ -58,7 +58,7 @@ func renderSourceMeta2YAML(sm *source.Metadata) (string, error) {
 // The returned YAML is subtly different from that
 // returned by yamlw.NewSourceWriter. For example, it
 // adds a "column_count" field.
-func renderTableMeta2YAML(tm *source.TableMetadata) (string, error) {
+func renderTableMeta2YAML(showRowCounts bool, tm *source.TableMetadata) (string, error) {
 	if tm == nil {
 		return "", nil
 	}
@@ -66,11 +66,13 @@ func renderTableMeta2YAML(tm *source.TableMetadata) (string, error) {
 	// tableMeta hosts values of source.TableMetadata in the
 	// structure that diff wants.
 	type tableMeta struct {
-		Name        string                `json:"name" yaml:"name"`
-		FQName      string                `json:"name_fq,omitempty" yaml:"name_fq,omitempty"`
-		TableType   string                `json:"table_type,omitempty" yaml:"table_type,omitempty"`
-		DBTableType string                `json:"table_type_db,omitempty" yaml:"table_type_db,omitempty"`
-		RowCount    int64                 `json:"row_count" yaml:"row_count"`
+		Name        string `json:"name" yaml:"name"`
+		FQName      string `json:"name_fq,omitempty" yaml:"name_fq,omitempty"`
+		TableType   string `json:"table_type,omitempty" yaml:"table_type,omitempty"`
+		DBTableType string `json:"table_type_db,omitempty" yaml:"table_type_db,omitempty"`
+		// RowCount is a pointer, because its display is controlled
+		// by a variable.
+		RowCount    *int64                `json:"row_count,omitempty" yaml:"row_count,omitempty"`
 		Size        *int64                `json:"size,omitempty" yaml:"size,omitempty"`
 		Comment     string                `json:"comment,omitempty" yaml:"comment,omitempty"`
 		ColumnCount int64                 `json:"column_count" yaml:"column_count"`
@@ -82,7 +84,6 @@ func renderTableMeta2YAML(tm *source.TableMetadata) (string, error) {
 		FQName:      tm.FQName,
 		TableType:   tm.TableType,
 		DBTableType: tm.DBTableType,
-		RowCount:    tm.RowCount,
 		// TODO: Printing of Size should be controlled by a param,
 		// e.g. "show-volatile-fields". Until then, we omit it.
 		Size:        nil,
@@ -91,7 +92,25 @@ func renderTableMeta2YAML(tm *source.TableMetadata) (string, error) {
 		Columns:     tm.Columns,
 	}
 
+	if showRowCounts {
+		tmr.RowCount = &tm.RowCount
+	}
+
 	b, err := ioz.MarshalYAML(tmr)
+	if err != nil {
+		return "", err
+	}
+
+	return string(b), nil
+}
+
+// renderDBProperties2YAML returns a YAML rendering of db properties.
+func renderDBProperties2YAML(props map[string]any) (string, error) {
+	if len(props) == 0 {
+		return "", nil
+	}
+
+	b, err := ioz.MarshalYAML(props)
 	if err != nil {
 		return "", err
 	}

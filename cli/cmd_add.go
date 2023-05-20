@@ -217,7 +217,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 
 	// If the -p flag is set, sq looks for password input on stdin,
 	// or sq prompts the user.
-	if cmdFlagTrue(cmd, flag.PasswordPrompt) {
+	if cmdFlagIsSetTrue(cmd, flag.PasswordPrompt) {
 		var passwd []byte
 		if passwd, err = readPassword(cmd.Context(), ru.Stdin, ru.Out, ru.Writers.Printing); err != nil {
 			return err
@@ -249,7 +249,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if cfg.Collection.Active() == nil || cmdFlagTrue(cmd, flag.AddActive) {
+	if cfg.Collection.Active() == nil || cmdFlagIsSetTrue(cmd, flag.AddActive) {
 		// If no current active data source, use this one, OR if
 		// flagAddActive is true.
 		if _, err = cfg.Collection.SetActive(src.Handle, false); err != nil {
@@ -265,7 +265,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if !cmdFlagTrue(cmd, flag.SkipVerify) {
+	if !cmdFlagIsSetTrue(cmd, flag.SkipVerify) {
 		// Typically we want to ping the source before adding it.
 		// But, sometimes not, for example if a source is temporarily offline.
 		if err = drvr.Ping(cmd.Context(), src); err != nil {

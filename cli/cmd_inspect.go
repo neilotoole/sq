@@ -147,7 +147,7 @@ func execInspect(cmd *cobra.Command, args []string) error {
 		return ru.Writers.Metadata.TableMetadata(tblMeta)
 	}
 
-	if cmdFlagTrue(cmd, flag.InspectDBProps) {
+	if cmdFlagIsSetTrue(cmd, flag.InspectDBProps) {
 		sqlDrvr := dbase.SQLDriver()
 		var props map[string]any
 		if props, err = sqlDrvr.DBProperties(ctx, dbase.DB()); err != nil {
@@ -164,7 +164,7 @@ func execInspect(cmd *cobra.Command, args []string) error {
 
 	// This is a bit hacky, but it works... if not "--verbose", then just zap
 	// the DBVars, as we usually don't want to see those
-	if !cmdFlagTrue(cmd, flag.Verbose) {
+	if !cmdFlagIsSetTrue(cmd, flag.Verbose) {
 		srcMeta.DBProperties = nil
 	}
 

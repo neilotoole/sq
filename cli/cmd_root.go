@@ -82,6 +82,9 @@ See docs and more: https://sq.io`,
   $ sq tbl drop @sakila_sl3.actor2`,
 	}
 
+	cmd.Flags().SortFlags = false
+	cmd.PersistentFlags().SortFlags = false
+
 	// The --help flag must be explicitly added to rootCmd,
 	// or else cobra tries to do its own (unwanted) thing.
 	// The behavior of cobra in this regard seems to have

@@ -73,6 +73,13 @@ type tableDiff struct {
 	diff     string
 }
 
+// dbPropsDiff is a container for a DB properties diff.
+type dbPropsDiff struct {
+	sd1, sd2 *sourceData
+	header   string
+	diff     string
+}
+
 // Print prints dif to w. If pr is nil, printing is in monochrome.
 func Print(w io.Writer, pr *output.Printing, header, dif string) error {
 	if dif == "" {

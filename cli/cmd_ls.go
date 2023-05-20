@@ -52,7 +52,7 @@ func execList(cmd *cobra.Command, args []string) error {
 	ru := run.FromContext(cmd.Context())
 	coll := ru.Config.Collection
 
-	if cmdFlagTrue(cmd, flag.ListGroup) {
+	if cmdFlagIsSetTrue(cmd, flag.ListGroup) {
 		// We're listing groups, not sources.
 
 		var fromGroup string

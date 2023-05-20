@@ -24,6 +24,12 @@ type Opt interface {
 	// Key returns the Opt key, such as "ping.timeout".
 	Key() string
 
+	// Flag is the long flag name to use, which is typically the same value
+	// as returned by Opt.Key. However, a distinct value can be supplied, such
+	// that flag usage and config usage have different keys. For example,
+	// an Opt might have a key "diff.num-lines", but a flag "lines".
+	Flag() string
+
 	// Short is the short key. The zero value indicates no short key.
 	// For example, if the key is "json", the short key could be 'j'.
 	Short() rune
@@ -66,16 +72,23 @@ type Opt interface {
 // types can build on.
 type BaseOpt struct {
 	key   string
+	flag  string
 	short rune
 	usage string
 	help  string
 	tags  []string
 }
 
-// NewBaseOpt returns a new BaseOpt.
-func NewBaseOpt(key string, short rune, usage, help string, tags ...string) BaseOpt {
+// NewBaseOpt returns a new BaseOpt. If flag is empty string, key is
+// used as the flag value.
+func NewBaseOpt(key, flag string, short rune, usage, help string, tags ...string) BaseOpt {
+	if flag == "" {
+		flag = key
+	}
+
 	return BaseOpt{
 		key:   key,
+		flag:  flag,
 		short: short,
 		usage: usage,
 		help:  help,
@@ -86,6 +99,11 @@ func NewBaseOpt(key string, short rune, usage, help string, tags ...string) Base
 // Key implements options.Opt.
 func (op BaseOpt) Key() string {
 	return op.key
+}
+
+// Flag implements options.Opt.
+func (op BaseOpt) Flag() string {
+	return op.flag
 }
 
 // Short implements options.Opt.
@@ -140,10 +158,11 @@ func (op BaseOpt) Process(o Options) (Options, error) {
 
 var _ Opt = String{}
 
-// NewString returns an options.String instance.
-func NewString(key string, short rune, defaultVal, usage, help string, tags ...string) String {
+// NewString returns an options.String instance. If flag is empty, the
+// value of key is used.
+func NewString(key, flag string, short rune, defaultVal, usage, help string, tags ...string) String {
 	return String{
-		BaseOpt:    BaseOpt{key: key, short: short, usage: usage, help: help, tags: tags},
+		BaseOpt:    NewBaseOpt(key, flag, short, usage, help, tags...),
 		defaultVal: defaultVal,
 	}
 }
@@ -192,10 +211,11 @@ func (op String) Get(o Options) string {
 
 var _ Opt = Int{}
 
-// NewInt returns an options.Int instance.
-func NewInt(key string, short rune, defaultVal int, usage, help string, tags ...string) Int {
+// NewInt returns an options.Int instance. If flag is empty, the
+// value of key is used.
+func NewInt(key, flag string, short rune, defaultVal int, usage, help string, tags ...string) Int {
 	return Int{
-		BaseOpt:    BaseOpt{key: key, short: short, usage: usage, help: help, tags: tags},
+		BaseOpt:    NewBaseOpt(key, flag, short, usage, help, tags...),
 		defaultVal: defaultVal,
 	}
 }
@@ -319,10 +339,11 @@ func (op Int) Process(o Options) (Options, error) {
 
 var _ Opt = Bool{}
 
-// NewBool returns an options.Bool instance.
-func NewBool(key string, short rune, defaultVal bool, usage, help string, tags ...string) Bool {
+// NewBool returns an options.Bool instance. If flag is empty, the value
+// of key is used.
+func NewBool(key, flag string, short rune, defaultVal bool, usage, help string, tags ...string) Bool {
 	return Bool{
-		BaseOpt:    BaseOpt{key: key, short: short, usage: usage, help: help, tags: tags},
+		BaseOpt:    NewBaseOpt(key, flag, short, usage, help, tags...),
 		defaultVal: defaultVal,
 	}
 }
@@ -421,10 +442,11 @@ func (op Bool) Process(o Options) (Options, error) {
 
 var _ Opt = Duration{}
 
-// NewDuration returns an options.Duration instance.
-func NewDuration(key string, short rune, defaultVal time.Duration, usage, help string, tags ...string) Duration {
+// NewDuration returns an options.Duration instance. If flag is empty, the
+// value of key is used.
+func NewDuration(key, flag string, short rune, defaultVal time.Duration, usage, help string, tags ...string) Duration {
 	return Duration{
-		BaseOpt:    BaseOpt{key: key, short: short, usage: usage, help: help, tags: tags},
+		BaseOpt:    NewBaseOpt(key, flag, short, usage, help, tags...),
 		defaultVal: defaultVal,
 	}
 }
@@ -475,6 +497,11 @@ func (op Duration) Process(o Options) (Options, error) {
 // GetAny implements options.Opt.
 func (op Duration) GetAny(o Options) any {
 	return op.Get(o)
+}
+
+// Default returns the default value of op.
+func (op Duration) Default() time.Duration {
+	return op.defaultVal
 }
 
 // DefaultAny implements options.Opt.

@@ -198,6 +198,8 @@ func (s *Source) ShortLocation() string {
 	return ShortLocation(s.Location)
 }
 
+// Redefine the DriverType values here rather than introducing
+// a circular dependency on the driver impl packages.
 const (
 	typeSL3  = DriverType("sqlite3")
 	typePg   = DriverType("postgres")

@@ -182,6 +182,7 @@ func newCommandTree(ru *run.Run) (rootCmd *cobra.Command) {
 	rootCmd.SetOut(ru.Out)
 	rootCmd.SetErr(ru.ErrOut)
 	rootCmd.Flags().SortFlags = false
+	rootCmd.PersistentFlags().SortFlags = false
 
 	helpCmd := addCmd(ru, rootCmd, newHelpCmd())
 	rootCmd.SetHelpCommand(helpCmd)
@@ -247,6 +248,7 @@ func hasMatchingChildCommand(cmd *cobra.Command, s string) bool {
 // addCmd adds the command returned by cmdFn to parentCmd.
 func addCmd(ru *run.Run, parentCmd, cmd *cobra.Command) *cobra.Command {
 	cmd.Flags().SortFlags = false
+	cmd.PersistentFlags().SortFlags = false
 
 	if cmd.Name() != "help" {
 		// Don't add the --help flag to the help command.

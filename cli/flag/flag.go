@@ -142,6 +142,10 @@ const (
 	ConfigDeleteShort = "D"
 	ConfigDeleteUsage = "Reset this option to default value"
 
+	InspectDBProps      = "dbprops"
+	InspectDBPropsShort = "p"
+	InspectDBPropsUsage = "Show DB properties only"
+
 	LogEnabled      = "log"
 	LogEnabledUsage = "Enable logging"
 
@@ -152,13 +156,30 @@ const (
 	LogLevelUsage = "Log level: one of DEBUG, INFO, WARN, ERROR"
 
 	DiffSummary      = "summary"
-	DiffSummaryUsage = "Show summary-level diff only"
+	DiffSummaryShort = "s"
+	DiffSummaryUsage = "Compare source summary"
+
+	DiffTables      = "tables"
+	DiffTablesShort = "T"
+	DiffTablesUsage = "Compare table structure"
+
+	DiffDBProps      = "dbprops"
+	DiffDBPropsShort = "p"
+	DiffDBPropsUsage = "Compare DB properties"
+
+	DiffRowCount      = "counts"
+	DiffRowCountShort = "c"
+	DiffRowCountUsage = "When comparing tables, include row counts"
+
+	DiffData      = "data"
+	DiffDataShort = "d"
+	DiffDataUsage = "Compare values of each data row (caution: slow)"
+
+	DiffAll      = "all"
+	DiffAllShort = "a"
+	DiffAllUsage = "Compare everything (caution: slow)"
 
 	DiffNumLines      = "lines"
 	DiffNumLinesShort = "n"
 	DiffNumLinesUsage = "Number of lines surrounding diff"
-
-	InspectDBProps      = "dbprops"
-	InspectDBPropsShort = "p"
-	InspectDBPropsUsage = "Show DB properties only"
 )

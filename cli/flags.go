@@ -25,13 +25,26 @@ func cmdFlagChanged(cmd *cobra.Command, name string) bool {
 	return f.Changed
 }
 
-// cmdFlagTrue returns true if flag name has been changed
+// cmdFlagIsSetTrue returns true if flag name has been changed
 // and the flag value is true.
-func cmdFlagTrue(cmd *cobra.Command, name string) bool {
+// Contrast with cmdFlagIsSetTrue.
+func cmdFlagIsSetTrue(cmd *cobra.Command, name string) bool {
 	if !cmdFlagChanged(cmd, name) {
 		return false
 	}
 
+	b, err := cmd.Flags().GetBool(name)
+	if err != nil {
+		panic(err) // Should never happen
+	}
+
+	return b
+}
+
+// cmdFlagIsSetTrue returns the bool value of flag name. If the flag
+// has not been set, its default value is returned.
+// Contrast with cmdFlagIsSetTrue.
+func cmdFlagBool(cmd *cobra.Command, name string) bool {
 	b, err := cmd.Flags().GetBool(name)
 	if err != nil {
 		panic(err) // Should never happen

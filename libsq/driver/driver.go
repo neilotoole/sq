@@ -44,6 +44,7 @@ var (
 	// OptConnMaxOpen controls sql.DB.SetMaxOpenConn.
 	OptConnMaxOpen = options.NewInt(
 		"conn.max-open",
+		"",
 		0,
 		0,
 		"Max open connections to DB",
@@ -56,6 +57,7 @@ A value of zero indicates no limit.`,
 	// OptConnMaxIdle controls sql.DB.SetMaxIdleConns.
 	OptConnMaxIdle = options.NewInt(
 		"conn.max-idle",
+		"",
 		0,
 		2,
 		"Max connections in idle connection pool",
@@ -69,6 +71,7 @@ If n <= 0, no idle connections are retained.`,
 	// OptConnMaxIdleTime controls sql.DB.SetConnMaxIdleTime.
 	OptConnMaxIdleTime = options.NewDuration(
 		"conn.max-idle-time",
+		"",
 		0,
 		time.Second*2,
 		"Max connection idle time",
@@ -81,6 +84,7 @@ connections are not closed due to a connection's idle time.`,
 	// OptConnMaxLifetime controls sql.DB.SetConnMaxLifetime.
 	OptConnMaxLifetime = options.NewDuration(
 		"conn.max-lifetime",
+		"",
 		0,
 		time.Minute*10,
 		"Max connection lifetime",
@@ -94,6 +98,7 @@ If n <= 0, connections are not closed due to a connection's age.`,
 	// between retries.
 	OptMaxRetryInterval = options.NewDuration(
 		"retry.max-interval",
+		"",
 		0,
 		time.Second*3,
 		"Max interval between retries",
@@ -105,26 +110,20 @@ repeated retry operations back off, typically using a Fibonacci backoff.`,
 
 	// OptTuningErrgroupLimit controls the maximum number of goroutines that can be spawned
 	// by an errgroup.
-	OptTuningErrgroupLimit = options.NewInt(
-		"tuning.errgroup-limit",
-		0,
-		16,
-		"Max goroutines in any one errgroup",
-		`Controls the maximum number of goroutines that can be spawned
+	OptTuningErrgroupLimit = options.NewInt("tuning.errgroup-limit", "", 0, 16, "Max goroutines in any one errgroup", `Controls the maximum number of goroutines that can be spawned
 by an errgroup. Note that this is the limit for any one errgroup, but not a
 ceiling on the total number of goroutines spawned, as some errgroups may
 themselves start an errgroup.
 
 This knob is primarily for internal use. Ultimately it should go away
 in favor of dynamic errgroup limit setting based on availability
-of additional DB conns, etc.`,
-		"tuning",
-	)
+of additional DB conns, etc.`, "tuning")
 
 	// OptTuningRecChanSize is the size of the buffer chan for record
 	// insertion/writing.
 	OptTuningRecChanSize = options.NewInt(
 		"tuning.record-buffer",
+		"",
 		0,
 		1024,
 		"Size of record buffer",
