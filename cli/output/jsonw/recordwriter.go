@@ -6,10 +6,11 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/neilotoole/sq/libsq/core/record"
+
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/jsonw/internal"
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/sqlz"
 )
 
 // NewStdRecordWriter returns a record writer that outputs each
@@ -50,7 +51,7 @@ type stdWriter struct {
 	// outBuf is used to hold output prior to flushing.
 	outBuf *bytes.Buffer
 
-	recMeta     sqlz.RecordMeta
+	recMeta     record.Meta
 	recsWritten bool
 
 	tpl       *stdTemplate
@@ -58,7 +59,7 @@ type stdWriter struct {
 }
 
 // Open implements output.RecordWriter.
-func (w *stdWriter) Open(recMeta sqlz.RecordMeta) error {
+func (w *stdWriter) Open(recMeta record.Meta) error {
 	if w.err != nil {
 		return w.err
 	}
@@ -90,7 +91,7 @@ func (w *stdWriter) Open(recMeta sqlz.RecordMeta) error {
 }
 
 // WriteRecords implements output.RecordWriter.
-func (w *stdWriter) WriteRecords(recs []sqlz.Record) error {
+func (w *stdWriter) WriteRecords(recs []record.Record) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if w.err != nil {
@@ -108,7 +109,7 @@ func (w *stdWriter) WriteRecords(recs []sqlz.Record) error {
 	return nil
 }
 
-func (w *stdWriter) writeRecord(rec sqlz.Record) error {
+func (w *stdWriter) writeRecord(rec record.Record) error {
 	var err error
 
 	if w.recsWritten {
@@ -175,7 +176,7 @@ type stdTemplate struct {
 	footer []byte
 }
 
-func newStdTemplate(recMeta sqlz.RecordMeta, pr *output.Printing) (*stdTemplate, error) {
+func newStdTemplate(recMeta record.Meta, pr *output.Printing) (*stdTemplate, error) {
 	tpl := make([][]byte, len(recMeta)+1)
 	clrs := internal.NewColors(pr)
 	pnc := newPunc(pr)
@@ -288,14 +289,14 @@ type lineRecordWriter struct {
 	err     error
 	out     io.Writer
 	pr      *output.Printing
-	recMeta sqlz.RecordMeta
+	recMeta record.Meta
 
 	// outBuf holds the output of the writer prior to flushing.
 	outBuf *bytes.Buffer
 
 	// newTplFn is invoked during open to get the "template" for
 	// generating output.
-	newTplFn func(sqlz.RecordMeta, *output.Printing) ([][]byte, error)
+	newTplFn func(record.Meta, *output.Printing) ([][]byte, error)
 
 	// tpl is a slice of []byte, where len(tpl) == len(recMeta) + 1.
 	tpl [][]byte
@@ -305,7 +306,7 @@ type lineRecordWriter struct {
 }
 
 // Open implements output.RecordWriter.
-func (w *lineRecordWriter) Open(recMeta sqlz.RecordMeta) error {
+func (w *lineRecordWriter) Open(recMeta record.Meta) error {
 	if w.err != nil {
 		return w.err
 	}
@@ -322,7 +323,7 @@ func (w *lineRecordWriter) Open(recMeta sqlz.RecordMeta) error {
 }
 
 // WriteRecords implements output.RecordWriter.
-func (w *lineRecordWriter) WriteRecords(recs []sqlz.Record) error {
+func (w *lineRecordWriter) WriteRecords(recs []record.Record) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if w.err != nil {
@@ -340,7 +341,7 @@ func (w *lineRecordWriter) WriteRecords(recs []sqlz.Record) error {
 	return nil
 }
 
-func (w *lineRecordWriter) writeRecord(rec sqlz.Record) error {
+func (w *lineRecordWriter) writeRecord(rec record.Record) error {
 	var err error
 	b := make([]byte, 0, 10)
 
@@ -383,7 +384,7 @@ func (w *lineRecordWriter) Close() error {
 	return w.Flush()
 }
 
-func newJSONObjectsTemplate(recMeta sqlz.RecordMeta, pr *output.Printing) ([][]byte, error) {
+func newJSONObjectsTemplate(recMeta record.Meta, pr *output.Printing) ([][]byte, error) {
 	tpl := make([][]byte, len(recMeta)+1)
 	clrs := internal.NewColors(pr)
 	pnc := newPunc(pr)
@@ -427,7 +428,7 @@ func newJSONObjectsTemplate(recMeta sqlz.RecordMeta, pr *output.Printing) ([][]b
 	return tpl, nil
 }
 
-func newJSONArrayTemplate(recMeta sqlz.RecordMeta, pr *output.Printing) ([][]byte, error) {
+func newJSONArrayTemplate(recMeta record.Meta, pr *output.Printing) ([][]byte, error) {
 	tpl := make([][]byte, len(recMeta)+1)
 	pnc := newPunc(pr)
 

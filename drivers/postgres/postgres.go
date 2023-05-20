@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/record"
+
 	"github.com/neilotoole/sq/libsq/core/options"
 
 	"github.com/jackc/pgx/v5/pgconn"
@@ -440,7 +442,7 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 
 func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName string,
 	colNames []string,
-) (sqlz.RecordMeta, error) {
+) (record.Meta, error) {
 	colTypes, err := d.TableColumnTypes(ctx, db, tblName, colNames)
 	if err != nil {
 		return nil, err
@@ -495,22 +497,22 @@ func getTableColumnNames(ctx context.Context, db sqlz.DB, tblName string) ([]str
 }
 
 // RecordMeta implements driver.SQLDriver.
-func (d *driveri) RecordMeta(colTypes []*sql.ColumnType) (sqlz.RecordMeta, driver.NewRecordFunc, error) {
+func (d *driveri) RecordMeta(colTypes []*sql.ColumnType) (record.Meta, driver.NewRecordFunc, error) {
 	// The jackc/pgx driver doesn't report nullability (sql.ColumnType)
 	// Apparently this is due to what postgres sends over the wire.
 	// See https://github.com/jackc/pgx/issues/276#issuecomment-526831493
 	// So, we'll set the scan type for each column to the nullable
 	// version below.
 
-	recMeta := make(sqlz.RecordMeta, len(colTypes))
+	recMeta := make(record.Meta, len(colTypes))
 	for i, colType := range colTypes {
 		knd := kindFromDBTypeName(d.log, colType.Name(), colType.DatabaseTypeName())
-		colTypeData := sqlz.NewColumnTypeData(colType, knd)
+		colTypeData := record.NewColumnTypeData(colType, knd)
 		setScanType(d.log, colTypeData, knd)
-		recMeta[i] = sqlz.NewFieldMeta(colTypeData)
+		recMeta[i] = record.NewFieldMeta(colTypeData)
 	}
 
-	mungeFn := func(vals []any) (sqlz.Record, error) {
+	mungeFn := func(vals []any) (record.Record, error) {
 		// postgres doesn't need to do any special munging, so we
 		// just use the default munging.
 		rec, skipped := driver.NewRecordFromScanRow(recMeta, vals, nil)

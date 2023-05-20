@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/record"
+
 	"github.com/neilotoole/sq/libsq/core/stringz"
 
 	"github.com/neilotoole/sq/libsq/core/options"
@@ -94,7 +96,7 @@ func kindFromDBTypeName(log *slog.Logger, colName, dbTypeName string) kind.Kind 
 }
 
 // setScanType ensures that ctd's scan type field is set appropriately.
-func setScanType(log *slog.Logger, ctd *sqlz.ColumnTypeData, knd kind.Kind) {
+func setScanType(log *slog.Logger, ctd *record.ColumnTypeData, knd kind.Kind) {
 	if knd == kind.Decimal {
 		// Force the use of string for decimal, as the driver will
 		// sometimes prefer float.

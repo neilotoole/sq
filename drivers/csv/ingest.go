@@ -7,11 +7,11 @@ import (
 	"io"
 	"unicode/utf8"
 
+	"github.com/neilotoole/sq/libsq/core/record"
+
 	"github.com/neilotoole/sq/drivers"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
-	"github.com/neilotoole/sq/libsq/core/sqlz"
-
 	"github.com/neilotoole/sq/libsq/core/stringz"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -144,7 +144,7 @@ func ingestCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFu
 
 // configureEmptyNullMunge configures mungers to that empty string is
 // munged to nil.
-func configureEmptyNullMunge(mungers []kind.MungeFunc, recMeta sqlz.RecordMeta) {
+func configureEmptyNullMunge(mungers []kind.MungeFunc, recMeta record.Meta) {
 	kinds := recMeta.Kinds()
 	for i := range mungers {
 		if kinds[i] == kind.Text {

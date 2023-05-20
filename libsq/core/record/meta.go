@@ -1,147 +1,13 @@
-package sqlz
+package record
 
 import (
-	"bytes"
 	"database/sql"
 	"fmt"
 	"reflect"
 	"strconv"
-	"time"
 
-	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 )
-
-// Record is a []any row of field values returned from a query.
-//
-// In the codebase, we distinguish between a "Record" and
-// a "ScanRow", although both are []any and are closely related.
-//
-// An instance of ScanRow is passed to the sql rows.Scan method, and
-// its elements may include implementations of the sql.Scanner interface
-// such as sql.NullString, sql.NullInt64 or even driver-specific types.
-//
-// A Record is typically built from a ScanRow, unwrapping and
-// munging elements such that the Record only contains standard types:
-//
-//	nil, *int64, *float64, *bool, *string, *[]byte, *time.Time
-//
-// It is an error for a Record to contain elements of any other type.
-type Record []any
-
-// ValidRecord checks that each element of the record vals is
-// of an acceptable type. On the first unacceptable element,
-// the index of that element and an error are returned. On
-// success (-1, nil) is returned.
-//
-// These acceptable types, per the stdlib sql pkg, are:
-//
-//	nil, *int64, *float64, *bool, *string, *[]byte, *time.Time
-func ValidRecord(_ RecordMeta, rec Record) (i int, err error) {
-	// FIXME: ValidRecord should check the values of rec to see if they match recMeta's kinds
-
-	var val any
-	for i, val = range rec {
-		switch val := val.(type) {
-		case nil, *int64, *float64, *bool, *string, *[]byte, *time.Time:
-			continue
-		default:
-			return i, errz.Errorf("field [%d] has unacceptable record value type %T", i, val)
-		}
-	}
-
-	return -1, nil
-}
-
-// EqualRecords returns true if rec1 and rec2 contain
-// the same values.
-func EqualRecords(rec1, rec2 Record) bool { //nolint:gocognit
-	switch {
-	case rec1 == nil && rec2 == nil:
-		return true
-	case rec1 == nil || rec2 == nil:
-		return false
-	case len(rec1) != len(rec2):
-		return false
-	}
-
-	var i int
-	var v1, v2 any
-
-	for i, v1 = range rec1 {
-		v2 = rec2[i]
-
-		if v1 == nil && v2 == nil {
-			continue
-		}
-
-		if v1 == nil || v2 == nil {
-			return false
-		}
-
-		switch v1 := v1.(type) {
-		case *string:
-			v2, ok := v2.(*string)
-			if !ok {
-				return false
-			}
-
-			if *v1 != *v2 {
-				return false
-			}
-		case *bool:
-			v2, ok := v2.(*bool)
-			if !ok {
-				return false
-			}
-
-			if *v1 != *v2 {
-				return false
-			}
-		case *int64:
-			v2, ok := v2.(*int64)
-			if !ok {
-				return false
-			}
-
-			if *v1 != *v2 {
-				return false
-			}
-		case *float64:
-			v2, ok := v2.(*float64)
-			if !ok {
-				return false
-			}
-
-			if *v1 != *v2 {
-				return false
-			}
-		case *time.Time:
-			v2, ok := v2.(*time.Time)
-			if !ok {
-				return false
-			}
-
-			if *v1 != *v2 {
-				return false
-			}
-		case *[]byte:
-			v2, ok := v2.(*[]byte)
-			if !ok {
-				return false
-			}
-
-			if !bytes.Equal(*v1, *v2) {
-				return false
-			}
-		default:
-			// Shouldn't happen
-			return false
-		}
-	}
-
-	return true
-}
 
 // FieldMeta is a bit of a strange entity, and in an ideal
 // world, it wouldn't exist. It's here because:
@@ -224,12 +90,12 @@ func (fm *FieldMeta) Kind() kind.Kind {
 	return fm.data.Kind
 }
 
-// RecordMeta is a slice of *FieldMeta, encapsulating the metadata
+// Meta is a slice of *FieldMeta, encapsulating the metadata
 // for a record.
-type RecordMeta []*FieldMeta
+type Meta []*FieldMeta
 
 // Names returns the column names.
-func (rm RecordMeta) Names() []string {
+func (rm Meta) Names() []string {
 	names := make([]string, len(rm))
 	for i, col := range rm {
 		names[i] = col.Name()
@@ -240,7 +106,7 @@ func (rm RecordMeta) Names() []string {
 
 // NewScanRow returns a new []any that can be scanned
 // into by sql.Rows.Scan.
-func (rm RecordMeta) NewScanRow() []any {
+func (rm Meta) NewScanRow() []any {
 	dests := make([]any, len(rm))
 
 	for i, col := range rm {
@@ -258,7 +124,7 @@ func (rm RecordMeta) NewScanRow() []any {
 }
 
 // Kinds returns the data kinds for the record.
-func (rm RecordMeta) Kinds() []kind.Kind {
+func (rm Meta) Kinds() []kind.Kind {
 	kinds := make([]kind.Kind, len(rm))
 	for i, col := range rm {
 		kinds[i] = col.Kind()
@@ -268,7 +134,7 @@ func (rm RecordMeta) Kinds() []kind.Kind {
 }
 
 // ScanTypes returns the scan types for the record.
-func (rm RecordMeta) ScanTypes() []reflect.Type {
+func (rm Meta) ScanTypes() []reflect.Type {
 	scanTypes := make([]reflect.Type, len(rm))
 	for i, col := range rm {
 		scanTypes[i] = col.ScanType()
@@ -323,7 +189,7 @@ func NewColumnTypeData(col *sql.ColumnType, knd kind.Kind) *ColumnTypeData {
 // currently kind.Unknown or kind.Null. This function can be used to set
 // the kind after-the-fact, which is useful for some databases
 // that don't always return sufficient type info upfront.
-func SetKindIfUnknown(meta RecordMeta, i int, k kind.Kind) {
+func SetKindIfUnknown(meta Meta, i int, k kind.Kind) {
 	if meta[i].data.Kind == kind.Unknown || meta[i].data.Kind == kind.Null {
 		meta[i].data.Kind = k
 	}

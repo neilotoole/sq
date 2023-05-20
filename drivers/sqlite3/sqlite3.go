@@ -15,6 +15,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/record"
+
 	"github.com/neilotoole/sq/libsq/driver/dialect"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -238,13 +240,13 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable 
 }
 
 // RecordMeta implements driver.SQLDriver.
-func (d *driveri) RecordMeta(colTypes []*sql.ColumnType) (sqlz.RecordMeta, driver.NewRecordFunc, error) {
+func (d *driveri) RecordMeta(colTypes []*sql.ColumnType) (record.Meta, driver.NewRecordFunc, error) {
 	recMeta, err := recordMetaFromColumnTypes(d.log, colTypes)
 	if err != nil {
 		return nil, nil, errz.Err(err)
 	}
 
-	mungeFn := func(vals []any) (sqlz.Record, error) {
+	mungeFn := func(vals []any) (record.Record, error) {
 		rec := newRecordFromScanRow(recMeta, vals)
 		return rec, nil
 	}
@@ -259,11 +261,13 @@ func (d *driveri) RecordMeta(colTypes []*sql.ColumnType) (sqlz.RecordMeta, drive
 // make a copy of any sql.RawBytes. The row slice
 // can be reused by rows.Scan after this function returns.
 //
-// Note that this function can modify the kind of the RecordMeta elements
+// Note that this function can modify the kind of the record.Meta elements
 // if the kind is currently unknown. That is, if meta[0].Kind() returns
 // kind.Unknown, but this function detects that row[0] is an *int64, then
 // the kind will be set to kind.Int.
-func newRecordFromScanRow(meta sqlz.RecordMeta, row []any) (rec sqlz.Record) { //nolint:funlen,gocognit,gocyclo,cyclop
+//
+//nolint:funlen,gocognit,gocyclo,cyclop
+func newRecordFromScanRow(meta record.Meta, row []any) (rec record.Record) {
 	rec = make([]any, len(row))
 
 	for i := 0; i < len(row); i++ {
@@ -287,32 +291,32 @@ func newRecordFromScanRow(meta sqlz.RecordMeta, row []any) (rec sqlz.Record) { /
 		case nil:
 			rec[i] = nil
 		case *int64:
-			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+			record.SetKindIfUnknown(meta, i, kind.Int)
 			v := *col
 			rec[i] = &v
 		case int64:
-			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+			record.SetKindIfUnknown(meta, i, kind.Int)
 			rec[i] = &col
 		case *float64:
-			sqlz.SetKindIfUnknown(meta, i, kind.Float)
+			record.SetKindIfUnknown(meta, i, kind.Float)
 			v := *col
 			rec[i] = &v
 		case float64:
-			sqlz.SetKindIfUnknown(meta, i, kind.Float)
+			record.SetKindIfUnknown(meta, i, kind.Float)
 			rec[i] = &col
 		case *bool:
-			sqlz.SetKindIfUnknown(meta, i, kind.Bool)
+			record.SetKindIfUnknown(meta, i, kind.Bool)
 			v := *col
 			rec[i] = &v
 		case bool:
-			sqlz.SetKindIfUnknown(meta, i, kind.Bool)
+			record.SetKindIfUnknown(meta, i, kind.Bool)
 			rec[i] = &col
 		case *string:
-			sqlz.SetKindIfUnknown(meta, i, kind.Text)
+			record.SetKindIfUnknown(meta, i, kind.Text)
 			v := *col
 			rec[i] = &v
 		case string:
-			sqlz.SetKindIfUnknown(meta, i, kind.Text)
+			record.SetKindIfUnknown(meta, i, kind.Text)
 			rec[i] = &col
 		case *[]byte:
 			if col == nil || *col == nil {
@@ -325,7 +329,7 @@ func newRecordFromScanRow(meta sqlz.RecordMeta, row []any) (rec sqlz.Record) { /
 				// switch to a string.
 				s := string(*col)
 				rec[i] = &s
-				sqlz.SetKindIfUnknown(meta, i, kind.Text)
+				record.SetKindIfUnknown(meta, i, kind.Text)
 				continue
 			}
 
@@ -337,7 +341,7 @@ func newRecordFromScanRow(meta sqlz.RecordMeta, row []any) (rec sqlz.Record) { /
 				copy(dest, *col)
 				rec[i] = &dest
 			}
-			sqlz.SetKindIfUnknown(meta, i, kind.Bytes)
+			record.SetKindIfUnknown(meta, i, kind.Bytes)
 		case *sql.NullInt64:
 			if col.Valid {
 				v := col.Int64
@@ -345,7 +349,7 @@ func newRecordFromScanRow(meta sqlz.RecordMeta, row []any) (rec sqlz.Record) { /
 			} else {
 				rec[i] = nil
 			}
-			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+			record.SetKindIfUnknown(meta, i, kind.Int)
 		case *sql.NullString:
 			if col.Valid {
 				v := col.String
@@ -353,7 +357,7 @@ func newRecordFromScanRow(meta sqlz.RecordMeta, row []any) (rec sqlz.Record) { /
 			} else {
 				rec[i] = nil
 			}
-			sqlz.SetKindIfUnknown(meta, i, kind.Text)
+			record.SetKindIfUnknown(meta, i, kind.Text)
 		case *sql.RawBytes:
 			if col == nil || *col == nil {
 				// Explicitly set rec[i] so that its type becomes nil
@@ -373,7 +377,7 @@ func newRecordFromScanRow(meta sqlz.RecordMeta, row []any) (rec sqlz.Record) { /
 					// Else treat it as an empty string
 					var s string
 					rec[i] = &s
-					sqlz.SetKindIfUnknown(meta, i, kind.Text)
+					record.SetKindIfUnknown(meta, i, kind.Text)
 				}
 
 				continue
@@ -387,7 +391,7 @@ func newRecordFromScanRow(meta sqlz.RecordMeta, row []any) (rec sqlz.Record) { /
 			} else {
 				str := string(dest)
 				rec[i] = &str
-				sqlz.SetKindIfUnknown(meta, i, kind.Text)
+				record.SetKindIfUnknown(meta, i, kind.Text)
 			}
 
 		case *sql.NullFloat64:
@@ -397,7 +401,7 @@ func newRecordFromScanRow(meta sqlz.RecordMeta, row []any) (rec sqlz.Record) { /
 			} else {
 				rec[i] = nil
 			}
-			sqlz.SetKindIfUnknown(meta, i, kind.Float)
+			record.SetKindIfUnknown(meta, i, kind.Float)
 		case *sql.NullBool:
 			if col.Valid {
 				v := col.Bool
@@ -405,7 +409,7 @@ func newRecordFromScanRow(meta sqlz.RecordMeta, row []any) (rec sqlz.Record) { /
 			} else {
 				rec[i] = nil
 			}
-			sqlz.SetKindIfUnknown(meta, i, kind.Bool)
+			record.SetKindIfUnknown(meta, i, kind.Bool)
 		case *sqlz.NullBool:
 			// This custom NullBool type is only used by sqlserver at this time.
 			// Possibly this code should skip this item, and allow
@@ -416,7 +420,7 @@ func newRecordFromScanRow(meta sqlz.RecordMeta, row []any) (rec sqlz.Record) { /
 			} else {
 				rec[i] = nil
 			}
-			sqlz.SetKindIfUnknown(meta, i, kind.Bool)
+			record.SetKindIfUnknown(meta, i, kind.Bool)
 		case *sql.NullTime:
 			if col.Valid {
 				v := col.Time
@@ -424,107 +428,107 @@ func newRecordFromScanRow(meta sqlz.RecordMeta, row []any) (rec sqlz.Record) { /
 			} else {
 				rec[i] = nil
 			}
-			sqlz.SetKindIfUnknown(meta, i, kind.Datetime)
+			record.SetKindIfUnknown(meta, i, kind.Datetime)
 		case *time.Time:
 			v := *col
 			rec[i] = &v
-			sqlz.SetKindIfUnknown(meta, i, kind.Datetime)
+			record.SetKindIfUnknown(meta, i, kind.Datetime)
 		case time.Time:
 			v := col
 			rec[i] = &v
-			sqlz.SetKindIfUnknown(meta, i, kind.Datetime)
+			record.SetKindIfUnknown(meta, i, kind.Datetime)
 
 		// REVISIT: We probably don't need any of the below cases
 		// for sqlite?
 		case *int:
 			v := int64(*col)
 			rec[i] = &v
-			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case int:
 			v := int64(col)
 			rec[i] = &v
-			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case *int8:
 			v := int64(*col)
 			rec[i] = &v
-			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case int8:
 			v := int64(col)
 			rec[i] = &v
-			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case *int16:
 			v := int64(*col)
 			rec[i] = &v
-			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case int16:
 			v := int64(col)
 			rec[i] = &v
-			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case *int32:
 			v := int64(*col)
 			rec[i] = &v
-			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case int32:
 			v := int64(col)
 			rec[i] = &v
-			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case *uint:
 			v := int64(*col)
 			rec[i] = &v
-			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case uint:
 			v := int64(col)
 			rec[i] = &v
-			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case *uint8:
 			v := int64(*col)
 			rec[i] = &v
-			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case uint8:
 			v := int64(col)
 			rec[i] = &v
-			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case *uint16:
 			v := int64(*col)
 			rec[i] = &v
-			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case uint16:
 			v := int64(col)
 			rec[i] = &v
-			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case *uint32:
 			v := int64(*col)
 			rec[i] = &v
-			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case uint32:
 			v := int64(col)
 			rec[i] = &v
-			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case *float32:
 			v := float64(*col)
 			rec[i] = &v
-			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case float32:
 			v := int64(col)
 			rec[i] = &v
-			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+			record.SetKindIfUnknown(meta, i, kind.Int)
 		}
 
 		if rec[i] != nil && meta[i].Kind() == kind.Decimal {
@@ -752,7 +756,7 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 
 func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName string,
 	colNames []string,
-) (sqlz.RecordMeta, error) {
+) (record.Meta, error) {
 	colTypes, err := d.TableColumnTypes(ctx, db, tblName, colNames)
 	if err != nil {
 		return nil, err

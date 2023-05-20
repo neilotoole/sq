@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/record"
+
 	"github.com/neilotoole/sq/libsq/core/options"
 
 	"golang.org/x/sync/errgroup"
@@ -84,13 +86,13 @@ func kindFromDBTypeName(log *slog.Logger, colName, dbTypeName string) kind.Kind 
 	return knd
 }
 
-func recordMetaFromColumnTypes(log *slog.Logger, colTypes []*sql.ColumnType) sqlz.RecordMeta {
-	recMeta := make(sqlz.RecordMeta, len(colTypes))
+func recordMetaFromColumnTypes(log *slog.Logger, colTypes []*sql.ColumnType) record.Meta {
+	recMeta := make(record.Meta, len(colTypes))
 
 	for i, colType := range colTypes {
 		knd := kindFromDBTypeName(log, colType.Name(), colType.DatabaseTypeName())
-		colTypeData := sqlz.NewColumnTypeData(colType, knd)
-		recMeta[i] = sqlz.NewFieldMeta(colTypeData)
+		colTypeData := record.NewColumnTypeData(colType, knd)
+		recMeta[i] = record.NewFieldMeta(colTypeData)
 	}
 
 	return recMeta
@@ -100,8 +102,8 @@ func recordMetaFromColumnTypes(log *slog.Logger, colTypes []*sql.ColumnType) sql
 // with the standard driver.NewRecordFromScanRow, munges any skipped fields.
 // In particular sql.NullTime is unboxed to *time.Time, and TIME fields
 // are munged from RawBytes to string.
-func getNewRecordFunc(rowMeta sqlz.RecordMeta) driver.NewRecordFunc {
-	return func(row []any) (sqlz.Record, error) {
+func getNewRecordFunc(rowMeta record.Meta) driver.NewRecordFunc {
+	return func(row []any) (record.Record, error) {
 		rec, skipped := driver.NewRecordFromScanRow(rowMeta, row, nil)
 		// We iterate over each element of val, checking for certain
 		// conditions. A more efficient approach might be to (in
@@ -510,8 +512,8 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 }
 
 // newInsertMungeFunc is lifted from driver.DefaultInsertMungeFunc.
-func newInsertMungeFunc(destTbl string, destMeta sqlz.RecordMeta) driver.InsertMungeFunc {
-	return func(rec sqlz.Record) error {
+func newInsertMungeFunc(destTbl string, destMeta record.Meta) driver.InsertMungeFunc {
+	return func(rec record.Record) error {
 		if len(rec) != len(destMeta) {
 			return errz.Errorf("insert record has %d vals but dest table %s has %d cols (%s)",
 				len(rec), destTbl, len(destMeta), strings.Join(destMeta.Names(), ","))
@@ -588,7 +590,7 @@ func mungeSetDatetimeFromString(s string, i int, rec []any) {
 
 // mungeSetZeroValue is invoked when rec[i] is nil, but
 // destMeta[i] is not nullable.
-func mungeSetZeroValue(i int, rec []any, destMeta sqlz.RecordMeta) {
+func mungeSetZeroValue(i int, rec []any, destMeta record.Meta) {
 	// REVISIT: do we need to do special handling for kind.Datetime
 	//  and kind.Time (e.g. "00:00" for time)?
 	z := reflect.Zero(destMeta[i].ScanType()).Interface()

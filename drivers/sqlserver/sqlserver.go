@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/record"
+
 	"github.com/neilotoole/sq/libsq/driver/dialect"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -258,16 +260,16 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 }
 
 // RecordMeta implements driver.SQLDriver.
-func (d *driveri) RecordMeta(colTypes []*sql.ColumnType) (sqlz.RecordMeta, driver.NewRecordFunc, error) {
-	recMeta := make([]*sqlz.FieldMeta, len(colTypes))
+func (d *driveri) RecordMeta(colTypes []*sql.ColumnType) (record.Meta, driver.NewRecordFunc, error) {
+	recMeta := make([]*record.FieldMeta, len(colTypes))
 	for i, colType := range colTypes {
 		kind := kindFromDBTypeName(d.log, colType.Name(), colType.DatabaseTypeName())
-		colTypeData := sqlz.NewColumnTypeData(colType, kind)
+		colTypeData := record.NewColumnTypeData(colType, kind)
 		setScanType(colTypeData, kind)
-		recMeta[i] = sqlz.NewFieldMeta(colTypeData)
+		recMeta[i] = record.NewFieldMeta(colTypeData)
 	}
 
-	mungeFn := func(vals []any) (sqlz.Record, error) {
+	mungeFn := func(vals []any) (record.Record, error) {
 		// sqlserver doesn't need to do any special munging, so we
 		// just use the default munging.
 		rec, skipped := driver.NewRecordFromScanRow(recMeta, vals, nil)
@@ -419,9 +421,9 @@ func (d *driveri) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl str
 	return execer, nil
 }
 
-func (d *driveri) getTableColsMeta(ctx context.Context, db sqlz.DB, tblName string, colNames []string) (sqlz.RecordMeta,
-	error,
-) {
+func (d *driveri) getTableColsMeta(ctx context.Context, db sqlz.DB,
+	tblName string, colNames []string,
+) (record.Meta, error) {
 	// SQLServer has this unusual incantation for its LIMIT equivalent:
 	//
 	// SELECT username, email, address_id FROM person

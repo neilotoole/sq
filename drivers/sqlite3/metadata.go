@@ -8,6 +8,8 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/record"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
@@ -23,8 +25,8 @@ import (
 )
 
 // recordMetaFromColumnTypes returns recordMetaFromColumnTypes for rows.
-func recordMetaFromColumnTypes(log *slog.Logger, colTypes []*sql.ColumnType) (sqlz.RecordMeta, error) {
-	recMeta := make([]*sqlz.FieldMeta, len(colTypes))
+func recordMetaFromColumnTypes(log *slog.Logger, colTypes []*sql.ColumnType) (record.Meta, error) {
+	recMeta := make([]*record.FieldMeta, len(colTypes))
 	for i, colType := range colTypes {
 		// sqlite is very forgiving at times, e.g. execute
 		// a query with a non-existent column name.
@@ -33,12 +35,12 @@ func recordMetaFromColumnTypes(log *slog.Logger, colTypes []*sql.ColumnType) (sq
 		dbTypeName := colType.DatabaseTypeName()
 
 		kind := kindFromDBTypeName(log, colType.Name(), dbTypeName, colType.ScanType())
-		colTypeData := sqlz.NewColumnTypeData(colType, kind)
+		colTypeData := record.NewColumnTypeData(colType, kind)
 
 		// It's necessary to explicitly set the scan type because
 		// the backing driver doesn't set it for whatever reason.
 		setScanType(log, colTypeData) // FIXME: legacy?
-		recMeta[i] = sqlz.NewFieldMeta(colTypeData)
+		recMeta[i] = record.NewFieldMeta(colTypeData)
 	}
 
 	return recMeta, nil
@@ -51,7 +53,7 @@ func recordMetaFromColumnTypes(log *slog.Logger, colTypes []*sql.ColumnType) (sq
 //
 // If the scan type is NOT a sql.NullTYPE, the corresponding sql.NullTYPE will
 // be set.
-func setScanType(log *slog.Logger, colType *sqlz.ColumnTypeData) {
+func setScanType(log *slog.Logger, colType *record.ColumnTypeData) {
 	scanType, knd := colType.ScanType, colType.Kind
 
 	if scanType != nil {

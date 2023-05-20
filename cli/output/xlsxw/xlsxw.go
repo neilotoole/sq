@@ -5,17 +5,18 @@ import (
 	"io"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/record"
+
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq/core/kind"
 
 	"github.com/tealeg/xlsx/v2"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/sqlz"
 )
 
 type recordWriter struct {
-	recMeta sqlz.RecordMeta
+	recMeta record.Meta
 	pr      *output.Printing
 	out     io.Writer
 	header  bool
@@ -29,7 +30,7 @@ func NewRecordWriter(out io.Writer, pr *output.Printing) output.RecordWriter {
 }
 
 // Open implements output.RecordWriter.
-func (w *recordWriter) Open(recMeta sqlz.RecordMeta) error {
+func (w *recordWriter) Open(recMeta record.Meta) error {
 	w.recMeta = recMeta
 	w.xfile = xlsx.NewFile()
 
@@ -67,7 +68,7 @@ func (w *recordWriter) Close() error {
 }
 
 // WriteRecords implements output.RecordWriter.
-func (w *recordWriter) WriteRecords(recs []sqlz.Record) error {
+func (w *recordWriter) WriteRecords(recs []record.Record) error {
 	for _, rec := range recs {
 		row := w.sheet.AddRow()
 

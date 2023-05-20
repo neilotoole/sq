@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/record"
+
 	"github.com/neilotoole/sq/libsq/core/kind"
 
 	"github.com/fatih/color"
@@ -16,8 +18,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 
 	goccy "github.com/goccy/go-yaml"
-	"github.com/neilotoole/sq/libsq/core/sqlz"
-
 	"github.com/neilotoole/sq/cli/output"
 )
 
@@ -35,7 +35,7 @@ type recordWriter struct {
 	mu         sync.Mutex
 	out        io.Writer
 	pr         *output.Printing
-	recMeta    sqlz.RecordMeta
+	recMeta    record.Meta
 	fieldNames []string
 	buf        *bytes.Buffer
 	enc        *goccy.Encoder
@@ -45,7 +45,7 @@ type recordWriter struct {
 }
 
 // Open implements output.RecordWriter.
-func (w *recordWriter) Open(recMeta sqlz.RecordMeta) error {
+func (w *recordWriter) Open(recMeta record.Meta) error {
 	w.recMeta = recMeta
 	w.fieldNames = w.recMeta.Names()
 	w.buf = &bytes.Buffer{}
@@ -98,7 +98,7 @@ func (w *recordWriter) Open(recMeta sqlz.RecordMeta) error {
 }
 
 // WriteRecords implements output.RecordWriter.
-func (w *recordWriter) WriteRecords(recs []sqlz.Record) error {
+func (w *recordWriter) WriteRecords(recs []record.Record) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
@@ -180,7 +180,7 @@ func (w *recordWriter) Close() error {
 
 // renderTime renders the *time.Time val into a fully-rendered string
 // ready for writing out.
-func (w *recordWriter) renderTime(fieldMeta *sqlz.FieldMeta, val any) (string, error) {
+func (w *recordWriter) renderTime(fieldMeta *record.FieldMeta, val any) (string, error) {
 	if val == nil {
 		return w.null, nil
 	}

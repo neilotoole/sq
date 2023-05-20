@@ -1,48 +1,40 @@
 package diff
 
 import (
+	"bytes"
 	"context"
+	"fmt"
+
+	"github.com/neilotoole/sq/cli/diff/internal/go-udiff"
+	"github.com/neilotoole/sq/cli/diff/internal/go-udiff/myers"
+
+	"github.com/neilotoole/sq/cli/output"
+
+	"github.com/neilotoole/sq/cli/output/yamlw"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
+	"github.com/neilotoole/sq/libsq/core/lg"
+
+	"github.com/neilotoole/sq/libsq/core/record"
 
 	"github.com/neilotoole/sq/libsq/core/stringz"
-
-	"github.com/neilotoole/sq/libsq/core/sqlz"
 
 	"github.com/neilotoole/sq/libsq"
 
 	"github.com/neilotoole/sq/cli/run"
 )
 
-//
-// func buildTableDataDiffOld(ctx context.Context, ru *run.Run, td1, td2 *tableData) (*dataDiff, error) {
-//	qc := &libsq.QueryContext{
-//		Collection:   ru.Config.Collection,
-//		DBOpener:     ru.Databases,
-//		JoinDBOpener: ru.Databases,
-//	}
-//
-//	query1 := td1.src.Handle + "." + stringz.DoubleQuote(td1.tblName)
-//	recw1 := newSyncRecordWriter(ctx)
-//	adapter1 := output.NewRecordWriterAdapter(recw1)
-//	execErr := libsq.ExecuteSLQ(ctx, qc, query1, adapter1)
-//	written, waitErr := adapter1.Wait()
-//	if execErr != nil {
-//		return nil, execErr
-//	}
-//
-//	if waitErr != nil {
-//		return nil, waitErr
-//	}
-//
-//	time.Sleep(time.Second)
-//
-//	fmt.Fprintf(ru.Out, "written: %d\n", written)
-//
-//	return nil, nil
-// }
+func findDataDiffs(ctx context.Context, ru *run.Run, lines int,
+	td1, td2 *tableData,
+) (*recordDiff, error) {
+	const chSize = 100
 
-func buildTableDataDiff(ctx context.Context, ru *run.Run, td1, td2 *tableData) (*dataDiff, error) { //nolint:unparam
+	log := lg.FromContext(ctx).
+		With("a", td1.src.Handle+"."+td1.tblName).
+		With("b", td2.src.Handle+"."+td2.tblName)
+
 	qc := &libsq.QueryContext{
 		Collection:   ru.Config.Collection,
 		DBOpener:     ru.Databases,
@@ -53,14 +45,12 @@ func buildTableDataDiff(ctx context.Context, ru *run.Run, td1, td2 *tableData) (
 	query2 := td2.src.Handle + "." + stringz.DoubleQuote(td2.tblName)
 
 	errCh := make(chan error, 5)
-
-	recw1 := &dataRecordWriter{
-		recCh: make(chan sqlz.Record, adapterRecChSize),
+	recw1 := &recWriter{
+		recCh: make(chan record.Record, chSize),
 		errCh: errCh,
 	}
-
-	recw2 := &dataRecordWriter{
-		recCh: make(chan sqlz.Record, adapterRecChSize),
+	recw2 := &recWriter{
+		recCh: make(chan record.Record, chSize),
 		errCh: errCh,
 	}
 
@@ -86,104 +76,156 @@ func buildTableDataDiff(ctx context.Context, ru *run.Run, td1, td2 *tableData) (
 		}
 	}()
 
-	var rec1, rec2 sqlz.Record
-	var err error
+	var (
+		rec1, rec2 record.Record
+		i          = -1
+		err        error
+		found      bool
+	)
 
 	for {
+		i++
 		rec1 = nil
 		rec2 = nil
 		err = nil
 
 		select {
-		case rec1 = <-recw1.recCh:
-		case <-ctx.Done():
-			err = ctx.Err()
 		case err = <-errCh:
+		case <-ctx.Done():
+			err = errz.Err(ctx.Err())
+		case rec1 = <-recw1.recCh:
 		}
 		if err != nil {
 			cancelFn()
+			log.Error("table diff", lga.Err, err)
 			break
 		}
 
 		select {
-		case rec2 = <-recw2.recCh:
-		case <-ctx.Done():
-			err = ctx.Err()
 		case err = <-errCh:
+		case <-ctx.Done():
+			err = errz.Err(ctx.Err())
+		case rec2 = <-recw2.recCh:
 		}
 		if err != nil {
 			cancelFn()
+			log.Error("table diff", lga.Err, err)
 			break
 		}
+
+		if rec1 == nil && rec2 == nil {
+			log.Debug("End of records")
+			break
+		}
+
+		if record.Equal(rec1, rec2) {
+			continue
+		}
+
+		// We've got a diff!
+		log.Debug("Found a table diff", "row", i)
+		found = true
+		break
 	}
 
-	_ = rec1
-	_ = rec2
+	if err != nil {
+		return nil, err
+	}
 
-	return nil, errz.New("not implemented")
+	if !found {
+		log.Debug("No diff")
+		return nil, nil //nolint:nilnil
+	}
+
+	recDiff := &recordDiff{
+		td1:      td1,
+		td2:      td2,
+		recMeta1: recw1.recMeta,
+		recMeta2: recw2.recMeta,
+		rec1:     rec1,
+		rec2:     rec2,
+		row:      i,
+	}
+
+	if err = populateRecordDiff(lines, ru.Writers.Printing, recDiff); err != nil {
+		return nil, err
+	}
+
+	return recDiff, nil
 }
 
-var _ libsq.RecordWriter = (*dataRecordWriter)(nil)
+func populateRecordDiff(lines int, pr *output.Printing, recDiff *recordDiff) error {
+	pr = pr.Clone()
+	pr.EnableColor(false)
 
-type dataRecordWriter struct {
-	recCh chan sqlz.Record
-	errCh chan error
+	var (
+		handleTbl1 = recDiff.td1.src.Handle + "." + recDiff.td1.tblName
+		handleTbl2 = recDiff.td2.src.Handle + "." + recDiff.td2.tblName
+
+		body1, body2 string
+		err          error
+	)
+
+	if body1, err = renderRecord2YAML(pr, recDiff.recMeta1, recDiff.rec1); err != nil {
+		return err
+	}
+	if body2, err = renderRecord2YAML(pr, recDiff.recMeta1, recDiff.rec2); err != nil {
+		return err
+	}
+
+	edits := myers.ComputeEdits(body1, body2)
+	recDiff.diff, err = udiff.ToUnified(
+		handleTbl1,
+		handleTbl2,
+		body1,
+		edits,
+		lines,
+	)
+	if err != nil {
+		return errz.Err(err)
+	}
+
+	recDiff.header = fmt.Sprintf("sq diff %s %s | .[%d]",
+		handleTbl1, handleTbl2, recDiff.row)
+
+	return nil
+}
+
+func renderRecord2YAML(pr *output.Printing, recMeta record.Meta, rec record.Record) (string, error) {
+	buf := &bytes.Buffer{}
+	yw := yamlw.NewRecordWriter(buf, pr)
+	if err := yw.Open(recMeta); err != nil {
+		return "", err
+	}
+	if err := yw.WriteRecords([]record.Record{rec}); err != nil {
+		return "", err
+	}
+	if err := yw.Flush(); err != nil {
+		return "", err
+	}
+	if err := yw.Close(); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
+}
+
+var _ libsq.RecordWriter = (*recWriter)(nil)
+
+type recWriter struct {
+	recCh   chan record.Record
+	errCh   chan error
+	recMeta record.Meta
 }
 
 // Open implements libsq.RecordWriter.
-func (d *dataRecordWriter) Open(_ context.Context, _ context.CancelFunc, _ sqlz.RecordMeta,
-) (recCh chan<- sqlz.Record, errCh <-chan error, err error) {
+func (d *recWriter) Open(_ context.Context, _ context.CancelFunc, recMeta record.Meta,
+) (recCh chan<- record.Record, errCh <-chan error, err error) {
+	d.recMeta = recMeta
 	return d.recCh, d.errCh, nil
 }
 
 // Wait implements libsq.RecordWriter.
-func (d *dataRecordWriter) Wait() (written int64, err error) {
-	// We don't actually use this.
+func (d *recWriter) Wait() (written int64, err error) {
+	// We don't actually use the return values.
 	return 0, nil
 }
-
-// var _ output.RecordWriter = (*syncRecordWriter)(nil)
-
-// adapterRecChSize is the size of the record chan (effectively
-// the buffer) used by RecordWriterAdapter.
-// FIXME: adapterRecChSize should be user-configurable.
-const adapterRecChSize = 1000
-
-//
-// func newSyncRecordWriter(ctx context.Context) *syncRecordWriter { //nolint:unused
-// 	return &syncRecordWriter{
-// 		ctx:   ctx,
-// 		recCh: make(chan sqlz.Record, adapterRecChSize),
-// 	}
-// }
-//
-// type syncRecordWriter struct {
-// 	ctx     context.Context
-// 	recCh   chan sqlz.Record
-// 	written atomic.Int64
-// }
-//
-// func (s syncRecordWriter) Open(recMeta sqlz.RecordMeta) error {
-// 	return nil
-// }
-//
-// func (s syncRecordWriter) WriteRecords(recs []sqlz.Record) error {
-// 	fmt.Printf("recs: %d\n", len(recs))
-// 	for i := range recs {
-// 		select {
-// 		case <-s.ctx.Done():
-// 			return s.ctx.Err()
-// 		case s.recCh <- recs[i]:
-// 			s.written.Inc()
-// 		}
-// 	}
-// 	return nil
-// }
-//
-// func (s syncRecordWriter) Flush() error {
-// 	return nil
-// }
-//
-// func (s syncRecordWriter) Close() error {
-// 	return nil
-// }

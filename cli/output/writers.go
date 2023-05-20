@@ -9,10 +9,11 @@ package output
 import (
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/record"
+
 	"github.com/neilotoole/sq/libsq/core/options"
 
 	"github.com/neilotoole/sq/cli/buildinfo"
-	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 )
@@ -29,10 +30,10 @@ import (
 type RecordWriter interface {
 	// Open instructs the writer to prepare to write records
 	// described by recMeta.
-	Open(recMeta sqlz.RecordMeta) error
+	Open(recMeta record.Meta) error
 
 	// WriteRecords writes rec to the destination.
-	WriteRecords(recs []sqlz.Record) error
+	WriteRecords(recs []record.Record) error
 
 	// Flush advises the writer to flush any internal
 	// buffer. Note that the writer may implement an independent

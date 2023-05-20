@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"reflect"
 
-	"github.com/neilotoole/sq/libsq/core/sqlz"
+	"github.com/neilotoole/sq/libsq/core/record"
 )
 
 // stdlibColumnType exists to verify that sql.ColumnType
@@ -21,5 +21,5 @@ type stdlibColumnType interface {
 
 var (
 	_ stdlibColumnType = (*sql.ColumnType)(nil)
-	_ stdlibColumnType = (*sqlz.FieldMeta)(nil)
+	_ stdlibColumnType = (*record.FieldMeta)(nil)
 )

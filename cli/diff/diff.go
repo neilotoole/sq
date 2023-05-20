@@ -11,6 +11,8 @@ import (
 	"io"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/record"
+
 	"github.com/neilotoole/sq/libsq/source"
 
 	"github.com/neilotoole/sq/cli/output"
@@ -98,13 +100,14 @@ type dbPropsDiff struct {
 	diff     string
 }
 
-// dataDiff is a container for a table data diff.
-type dataDiff struct {
-	td1, td2 *tableData //nolint:unused
-	query    string     //nolint:unused
-	row      int64      //nolint:unused
-	header   string     //nolint:unused
-	diff     string     //nolint:unused
+// recordDiff is a container for a single record diff.
+type recordDiff struct {
+	td1, td2           *tableData
+	recMeta1, recMeta2 record.Meta
+	rec1, rec2         record.Record
+	row                int
+	header             string
+	diff               string
 }
 
 // Print prints dif to w. If pr is nil, printing is in monochrome.

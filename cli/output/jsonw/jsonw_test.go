@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/record"
+
 	"github.com/neilotoole/slogt"
 
 	"github.com/stretchr/testify/require"
@@ -16,7 +18,6 @@ import (
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/jsonw"
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/fixt"
 )
@@ -145,7 +146,7 @@ func TestRecordWriters(t *testing.T) {
 			v0, v1, v2, v3, v4, v5, v6, v7, v8 := int64(64), float64(64.64), "10000000000000000.99", true, "hello", time.Unix(0,
 				0).UTC(), time.Unix(0, 0).UTC(), time.Unix(0, 0).UTC(), []byte("hello")
 
-			recs := []sqlz.Record{
+			recs := []record.Record{
 				{&v0, &v1, &v2, &v3, &v4, &v5, &v6, &v7, &v8},
 				{nil, nil, nil, nil, nil, nil, nil, nil, nil},
 				{&v0, &v1, &v2, &v3, &v4, &v5, &v6, &v7, &v8},

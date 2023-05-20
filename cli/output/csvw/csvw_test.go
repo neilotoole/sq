@@ -5,13 +5,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/record"
+
 	"github.com/neilotoole/sq/cli/output"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli/output/csvw"
 	"github.com/neilotoole/sq/libsq/core/kind"
-	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/testh"
 )
 
@@ -32,8 +33,8 @@ func TestDateTimeHandling(t *testing.T) {
 	w := csvw.NewRecordWriter(buf, pr, csvw.Tab)
 	require.NoError(t, w.Open(recMeta))
 
-	rec := sqlz.Record{&when, &when, &when}
-	require.NoError(t, w.WriteRecords([]sqlz.Record{rec}))
+	rec := record.Record{&when, &when, &when}
+	require.NoError(t, w.WriteRecords([]record.Record{rec}))
 	require.NoError(t, w.Close())
 
 	require.Equal(t, want, buf.String())

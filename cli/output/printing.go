@@ -190,6 +190,11 @@ func NewPrinting() *Printing {
 
 // Clone returns a clone of pr.
 func (pr *Printing) Clone() *Printing {
+	cp := func(c *color.Color) *color.Color {
+		x := *c
+		return &x
+	}
+
 	return &Printing{
 		monochrome:             pr.monochrome,
 		FlushThreshold:         pr.FlushThreshold,
@@ -204,30 +209,30 @@ func (pr *Printing) Clone() *Printing {
 		FormatTimeAsNumber:     pr.FormatTimeAsNumber,
 		FormatDate:             pr.FormatDate,
 		FormatDateAsNumber:     pr.FormatDateAsNumber,
-		Active:                 pr.Active,
-		Bold:                   pr.Bold,
-		Bool:                   pr.Bool,
-		Bytes:                  pr.Bytes,
-		Datetime:               pr.Datetime,
-		DiffPlus:               pr.DiffPlus,
-		DiffMinus:              pr.DiffMinus,
-		DiffHeader:             pr.DiffHeader,
-		DiffSection:            pr.DiffSection,
-		DiffNormal:             pr.DiffNormal,
-		Duration:               pr.Duration,
-		Error:                  pr.Error,
-		Faint:                  pr.Faint,
-		Handle:                 pr.Handle,
-		Header:                 pr.Header,
-		Hilite:                 pr.Hilite,
-		Key:                    pr.Key,
-		Location:               pr.Location,
-		Null:                   pr.Null,
-		Normal:                 pr.Normal,
-		Number:                 pr.Number,
-		Punc:                   pr.Punc,
-		String:                 pr.String,
-		Success:                pr.Success,
+		Active:                 cp(pr.Active),
+		Bold:                   cp(pr.Bold),
+		Bool:                   cp(pr.Bool),
+		Bytes:                  cp(pr.Bytes),
+		Datetime:               cp(pr.Datetime),
+		DiffPlus:               cp(pr.DiffPlus),
+		DiffMinus:              cp(pr.DiffMinus),
+		DiffHeader:             cp(pr.DiffHeader),
+		DiffSection:            cp(pr.DiffSection),
+		DiffNormal:             cp(pr.DiffNormal),
+		Duration:               cp(pr.Duration),
+		Error:                  cp(pr.Error),
+		Faint:                  cp(pr.Faint),
+		Handle:                 cp(pr.Handle),
+		Header:                 cp(pr.Header),
+		Hilite:                 cp(pr.Hilite),
+		Key:                    cp(pr.Key),
+		Location:               cp(pr.Location),
+		Null:                   cp(pr.Null),
+		Normal:                 cp(pr.Normal),
+		Number:                 cp(pr.Number),
+		Punc:                   cp(pr.Punc),
+		String:                 cp(pr.String),
+		Success:                cp(pr.Success),
 	}
 }
 

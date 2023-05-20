@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/record"
+
 	"github.com/fatih/color"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -18,7 +20,6 @@ import (
 	"github.com/neilotoole/sq/cli/output"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/sqlz"
 )
 
 // recordWriter implements output.RecordWriter.
@@ -26,7 +27,7 @@ type recordWriter struct {
 	out io.Writer
 	pr  *output.Printing
 
-	recMeta sqlz.RecordMeta
+	recMeta record.Meta
 
 	// outBuf holds output prior to flushing.
 	outBuf *bytes.Buffer
@@ -57,7 +58,7 @@ func NewRecordWriter(out io.Writer, pr *output.Printing) output.RecordWriter {
 }
 
 // Open implements output.RecordWriter.
-func (w *recordWriter) Open(recMeta sqlz.RecordMeta) error {
+func (w *recordWriter) Open(recMeta record.Meta) error {
 	w.recMeta = recMeta
 
 	var indent, newline string
@@ -136,7 +137,7 @@ func (w *recordWriter) Close() error {
 // WriteRecords implements output.RecordWriter.
 // Note that (by design) the XML element is omitted for any nil value
 // in a record.
-func (w *recordWriter) WriteRecords(recs []sqlz.Record) error {
+func (w *recordWriter) WriteRecords(recs []record.Record) error {
 	if len(recs) == 0 {
 		return nil
 	}
@@ -158,7 +159,7 @@ func (w *recordWriter) WriteRecords(recs []sqlz.Record) error {
 	return nil
 }
 
-func (w *recordWriter) writeRecord(rec sqlz.Record) error {
+func (w *recordWriter) writeRecord(rec record.Record) error {
 	var err error
 	tmpBuf := &bytes.Buffer{}
 

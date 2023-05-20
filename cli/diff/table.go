@@ -65,8 +65,16 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, numLines int, elems *Elemen
 		}
 	}
 
-	_, err := buildTableDataDiff(ctx, ru, td1, td2)
-	return err
+	recDiff, err := findDataDiffs(ctx, ru, numLines, td1, td2)
+	if err != nil {
+		return err
+	}
+
+	if recDiff == nil {
+		return nil
+	}
+
+	return Print(ru.Out, ru.Writers.Printing, recDiff.header, recDiff.diff)
 }
 
 func buildTableDiff(lines int, showRowCounts bool, td1, td2 *tableData) (*tableDiff, error) {

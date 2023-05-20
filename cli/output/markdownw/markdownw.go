@@ -12,17 +12,18 @@ import (
 	"sync"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/record"
+
 	"github.com/neilotoole/sq/cli/output"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
-	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 // RecordWriter implements output.RecordWriter.
 type RecordWriter struct {
 	mu      sync.Mutex
-	recMeta sqlz.RecordMeta
+	recMeta record.Meta
 	pr      *output.Printing
 	out     io.Writer
 	buf     *bytes.Buffer
@@ -34,7 +35,7 @@ func NewRecordWriter(out io.Writer, pr *output.Printing) *RecordWriter {
 }
 
 // Open implements output.RecordWriter.
-func (w *RecordWriter) Open(recMeta sqlz.RecordMeta) error {
+func (w *RecordWriter) Open(recMeta record.Meta) error {
 	w.recMeta = recMeta
 	w.buf = &bytes.Buffer{}
 
@@ -71,7 +72,7 @@ func (w *RecordWriter) Close() error {
 	return w.Flush()
 }
 
-func (w *RecordWriter) writeRecord(rec sqlz.Record) error {
+func (w *RecordWriter) writeRecord(rec record.Record) error {
 	var s string
 	for i, field := range rec {
 		w.buf.WriteString("| ")
@@ -112,7 +113,7 @@ func (w *RecordWriter) writeRecord(rec sqlz.Record) error {
 }
 
 // WriteRecords implements output.RecordWriter.
-func (w *RecordWriter) WriteRecords(recs []sqlz.Record) error {
+func (w *RecordWriter) WriteRecords(recs []record.Record) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 

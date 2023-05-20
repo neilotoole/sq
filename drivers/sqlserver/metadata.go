@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/record"
+
 	"github.com/neilotoole/sq/libsq/core/options"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -72,7 +74,7 @@ func kindFromDBTypeName(log *slog.Logger, colName, dbTypeName string) kind.Kind 
 // Most importantly, if ct is nullable column, setwe  colTypeData.ScanType to a
 // nullable type. This is because the driver doesn't
 // report nullable scan types.
-func setScanType(ct *sqlz.ColumnTypeData, knd kind.Kind) {
+func setScanType(ct *record.ColumnTypeData, knd kind.Kind) {
 	if knd == kind.Decimal {
 		// The driver wants us to use []byte instead of string for DECIMAL,
 		// but we want to use string.

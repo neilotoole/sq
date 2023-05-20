@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/record"
+
 	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"github.com/stretchr/testify/require"
@@ -28,7 +30,7 @@ var (
 // may be inconsistent.
 //
 // This function effectively exists to speed up testing times.
-func RecordsFromTbl(tb testing.TB, handle, tbl string) (recMeta sqlz.RecordMeta, recs []sqlz.Record) {
+func RecordsFromTbl(tb testing.TB, handle, tbl string) (recMeta record.Meta, recs []record.Record) {
 	recSinkMu.Lock()
 	defer recSinkMu.Unlock()
 
@@ -46,7 +48,7 @@ func RecordsFromTbl(tb testing.TB, handle, tbl string) (recMeta sqlz.RecordMeta,
 
 	// Make copies so that the caller can mutate their records
 	// without it affecting other callers
-	recMeta = make(sqlz.RecordMeta, len(sink.RecMeta))
+	recMeta = make(record.Meta, len(sink.RecMeta))
 
 	// Don't need to make a deep copy of each FieldMeta because
 	// the type is effectively immutable
@@ -56,12 +58,12 @@ func RecordsFromTbl(tb testing.TB, handle, tbl string) (recMeta sqlz.RecordMeta,
 	return recMeta, recs
 }
 
-// NewRecordMeta builds a new RecordMeta instance for testing.
-func NewRecordMeta(colNames []string, colKinds []kind.Kind) sqlz.RecordMeta {
-	recMeta := make(sqlz.RecordMeta, len(colNames))
+// NewRecordMeta builds a new record.Meta instance for testing.
+func NewRecordMeta(colNames []string, colKinds []kind.Kind) record.Meta {
+	recMeta := make(record.Meta, len(colNames))
 	for i := range colNames {
 		knd := colKinds[i]
-		ct := &sqlz.ColumnTypeData{
+		ct := &record.ColumnTypeData{
 			Name:             colNames[i],
 			HasNullable:      true,
 			Nullable:         true,
@@ -70,23 +72,23 @@ func NewRecordMeta(colNames []string, colKinds []kind.Kind) sqlz.RecordMeta {
 			Kind:             knd,
 		}
 
-		recMeta[i] = sqlz.NewFieldMeta(ct)
+		recMeta[i] = record.NewFieldMeta(ct)
 	}
 
 	return recMeta
 }
 
 // CopyRecords returns a deep copy of recs.
-func CopyRecords(recs []sqlz.Record) []sqlz.Record {
+func CopyRecords(recs []record.Record) []record.Record {
 	if recs == nil {
 		return recs
 	}
 
 	if len(recs) == 0 {
-		return []sqlz.Record{}
+		return []record.Record{}
 	}
 
-	r2 := make([]sqlz.Record, len(recs))
+	r2 := make([]record.Record, len(recs))
 	for i := range recs {
 		r2[i] = CopyRecord(recs[i])
 	}
@@ -94,16 +96,16 @@ func CopyRecords(recs []sqlz.Record) []sqlz.Record {
 }
 
 // CopyRecord returns a deep copy of rec.
-func CopyRecord(rec sqlz.Record) sqlz.Record {
+func CopyRecord(rec record.Record) record.Record {
 	if rec == nil {
 		return nil
 	}
 
 	if len(rec) == 0 {
-		return sqlz.Record{}
+		return record.Record{}
 	}
 
-	r2 := make(sqlz.Record, len(rec))
+	r2 := make(record.Record, len(rec))
 	for i := range rec {
 		val := rec[i]
 		switch val := val.(type) {
@@ -175,10 +177,10 @@ type RecordSink struct {
 	mu sync.Mutex
 
 	// RecMeta holds the recMeta received via Open.
-	RecMeta sqlz.RecordMeta
+	RecMeta record.Meta
 
 	// Recs holds the records received via WriteRecords.
-	Recs []sqlz.Record
+	Recs []record.Record
 
 	// Closed tracks the times Close was invoked.
 	Closed []time.Time
@@ -208,7 +210,7 @@ func (r *RecordSink) Result() any {
 }
 
 // Open implements libsq.RecordWriter.
-func (r *RecordSink) Open(recMeta sqlz.RecordMeta) error {
+func (r *RecordSink) Open(recMeta record.Meta) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -217,7 +219,7 @@ func (r *RecordSink) Open(recMeta sqlz.RecordMeta) error {
 }
 
 // WriteRecords implements libsq.RecordWriter.
-func (r *RecordSink) WriteRecords(recs []sqlz.Record) error {
+func (r *RecordSink) WriteRecords(recs []record.Record) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 

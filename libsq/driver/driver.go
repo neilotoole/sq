@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/record"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/driver/dialect"
@@ -228,7 +230,7 @@ type SQLDriver interface {
 	//
 	// RecordMeta also returns a NewRecordFunc which can be
 	// applied to the scan row from sql.Rows.
-	RecordMeta(colTypes []*sql.ColumnType) (sqlz.RecordMeta, NewRecordFunc, error)
+	RecordMeta(colTypes []*sql.ColumnType) (record.Meta, NewRecordFunc, error)
 
 	// PrepareInsertStmt prepares a statement for inserting
 	// values to destColNames in destTbl. numRows specifies

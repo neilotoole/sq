@@ -7,6 +7,8 @@ import (
 	"io"
 	"math"
 
+	"github.com/neilotoole/sq/libsq/core/record"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
@@ -17,7 +19,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlmodel"
-	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
@@ -175,7 +176,7 @@ func importJSONA(ctx context.Context, job importJob) error {
 
 // startInsertJSONA reads JSON records from r and sends
 // them on recordCh.
-func startInsertJSONA(ctx context.Context, recordCh chan<- sqlz.Record, errCh <-chan error, r io.Reader,
+func startInsertJSONA(ctx context.Context, recordCh chan<- record.Record, errCh <-chan error, r io.Reader,
 	mungeFns []kind.MungeFunc,
 ) error {
 	defer close(recordCh)

@@ -9,11 +9,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/record"
+
 	"github.com/neilotoole/sq/cli/output"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
-	"github.com/neilotoole/sq/libsq/core/sqlz"
 )
 
 const (
@@ -27,7 +28,7 @@ const (
 // RecordWriter implements output.RecordWriter.
 type RecordWriter struct {
 	mu          sync.Mutex
-	recMeta     sqlz.RecordMeta
+	recMeta     record.Meta
 	csvW        *csv.Writer
 	needsHeader bool
 	pr          *output.Printing
@@ -41,7 +42,7 @@ func NewRecordWriter(out io.Writer, pr *output.Printing, sep rune) *RecordWriter
 }
 
 // Open implements output.RecordWriter.
-func (w *RecordWriter) Open(recMeta sqlz.RecordMeta) error {
+func (w *RecordWriter) Open(recMeta record.Meta) error {
 	w.recMeta = recMeta
 	return nil
 }
@@ -59,7 +60,7 @@ func (w *RecordWriter) Close() error {
 }
 
 // WriteRecords implements output.RecordWriter.
-func (w *RecordWriter) WriteRecords(recs []sqlz.Record) error {
+func (w *RecordWriter) WriteRecords(recs []record.Record) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
