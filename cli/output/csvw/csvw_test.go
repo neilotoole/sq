@@ -29,6 +29,7 @@ func TestDateTimeHandling(t *testing.T) {
 
 	pr := output.NewPrinting()
 	pr.ShowHeader = false
+	pr.EnableColor(false)
 
 	w := csvw.NewTabRecordWriter(buf, pr)
 	require.NoError(t, w.Open(recMeta))

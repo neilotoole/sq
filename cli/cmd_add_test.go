@@ -260,9 +260,9 @@ func TestCmdAdd_SQLite_Path(t *testing.T) {
 
 func TestCmdAdd_Active(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
 
 	const h1, h2, h3, h4 = "@h1", "@h2", "@h3", "@h4"
+	ctx := context.Background()
 
 	// Verify that initially there are no sources.
 	tr := testrun.New(ctx, t, nil)

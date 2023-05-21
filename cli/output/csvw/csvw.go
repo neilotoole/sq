@@ -113,8 +113,11 @@ func (w *RecordWriter) WriteRecords(recs []record.Record) error {
 			case *float64:
 				fields[i] = w.pr.Number.Sprintf("%v", *val)
 			case *[]byte:
-				// REVISIT: What should we do for bytes? Encode to base64?
-				fields[i] = fmt.Sprintf("%v", string(*val))
+				var size int
+				if val != nil {
+					size = len(*val)
+				}
+				fields[i] = w.pr.Bytes.Sprintf("[%d bytes]", size)
 			case *time.Time:
 				switch w.recMeta[i].Kind() { //nolint:exhaustive
 				default:
