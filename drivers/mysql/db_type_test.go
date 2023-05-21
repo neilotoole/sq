@@ -332,8 +332,6 @@ func createTypeTestTable(th *testh.Helper, src *source.Source, withData bool) (n
 func TestDatabaseTypes(t *testing.T) {
 	const wantRowCount = 3
 
-	t.Parallel()
-
 	testCases := sakila.MyAll()
 	for _, handle := range testCases {
 		handle := handle

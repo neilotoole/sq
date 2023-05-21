@@ -41,7 +41,7 @@ func TestOptions(t *testing.T) {
 
 	require.Equal(t, format.CSV, cli.OptFormat.Get(cfg.Options))
 	require.Equal(t, true, cli.OptPrintHeader.Get(cfg.Options))
-	require.Equal(t, time.Second*10, cli.OptPingTimeout.Get(cfg.Options))
+	require.Equal(t, time.Second*10, cli.OptPingCmdTimeout.Get(cfg.Options))
 	require.Equal(t, time.Millisecond*500, cli.OptShellCompletionTimeout.Get(cfg.Options))
 
 	require.Equal(t, 50, driver.OptConnMaxOpen.Get(cfg.Options))

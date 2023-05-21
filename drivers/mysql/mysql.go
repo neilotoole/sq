@@ -318,7 +318,11 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database
 
 	db, err := d.doOpen(ctx, src)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, err
+	}
+
+	if err = driver.OpeningPing(ctx, src, db); err != nil {
+		return nil, err
 	}
 
 	return &database{log: d.log, db: db, src: src, drvr: d}, nil
@@ -355,7 +359,7 @@ func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 	}
 	defer lg.WarnIfCloseError(d.log, lgm.CloseDB, db)
 
-	return db.PingContext(ctx)
+	return errz.Wrapf(db.PingContext(ctx), "ping %s", src.Handle)
 }
 
 // Truncate implements driver.SQLDriver. Arg reset is

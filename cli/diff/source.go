@@ -17,7 +17,7 @@ import (
 )
 
 // ExecSourceDiff diffs handle1 and handle2.
-func ExecSourceDiff(ctx context.Context, ru *run.Run, numLines int,
+func ExecSourceDiff(ctx context.Context, ru *run.Run, cfg *Config,
 	elems *Elements, handle1, handle2 string,
 ) error {
 	var (
@@ -44,7 +44,7 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, numLines int,
 	}
 
 	if elems.Summary {
-		srcDiff, err := buildSourceSummaryDiff(numLines, sd1, sd2)
+		srcDiff, err := buildSourceSummaryDiff(cfg, sd1, sd2)
 		if err != nil {
 			return err
 		}
@@ -55,7 +55,7 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, numLines int,
 	}
 
 	if elems.DBProperties {
-		propsDiff, err := buildDBPropsDiff(numLines, sd1, sd2)
+		propsDiff, err := buildDBPropsDiff(cfg, sd1, sd2)
 		if err != nil {
 			return err
 		}
@@ -65,7 +65,7 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, numLines int,
 	}
 
 	if elems.Table {
-		tblDiffs, err := buildSourceTableDiffs(numLines, elems.RowCount, sd1, sd2)
+		tblDiffs, err := buildSourceTableDiffs(cfg, elems.RowCount, sd1, sd2)
 		if err != nil {
 			return err
 		}
@@ -79,7 +79,7 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, numLines int,
 	return nil
 }
 
-func buildSourceTableDiffs(numLines int, showRowCounts bool, sd1, sd2 *sourceData) ([]*tableDiff, error) {
+func buildSourceTableDiffs(cfg *Config, showRowCounts bool, sd1, sd2 *sourceData) ([]*tableDiff, error) {
 	var allTblNames []string
 
 	for _, tbl := range sd1.srcMeta.Tables {
@@ -106,7 +106,7 @@ func buildSourceTableDiffs(numLines int, showRowCounts bool, sd1, sd2 *sourceDat
 			srcMeta: sd2.srcMeta,
 		}
 
-		dff, err := buildTableDiff(numLines, showRowCounts, td1, td2)
+		dff, err := buildTableStructureDiff(cfg, showRowCounts, td1, td2)
 		if err != nil {
 			return nil, err
 		}
@@ -117,7 +117,7 @@ func buildSourceTableDiffs(numLines int, showRowCounts bool, sd1, sd2 *sourceDat
 	return diffs, nil
 }
 
-func buildSourceSummaryDiff(numLines int, sd1, sd2 *sourceData) (*sourceDiff, error) {
+func buildSourceSummaryDiff(cfg *Config, sd1, sd2 *sourceData) (*sourceDiff, error) {
 	var (
 		body1, body2 string
 		err          error
@@ -136,7 +136,7 @@ func buildSourceSummaryDiff(numLines int, sd1, sd2 *sourceData) (*sourceDiff, er
 		sd2.handle,
 		body1,
 		edits,
-		numLines,
+		cfg.Lines,
 	)
 	if err != nil {
 		return nil, errz.Err(err)
@@ -152,7 +152,7 @@ func buildSourceSummaryDiff(numLines int, sd1, sd2 *sourceData) (*sourceDiff, er
 	return diff, nil
 }
 
-func buildDBPropsDiff(numLines int, sd1, sd2 *sourceData) (*dbPropsDiff, error) {
+func buildDBPropsDiff(cfg *Config, sd1, sd2 *sourceData) (*dbPropsDiff, error) {
 	var (
 		body1, body2 string
 		err          error
@@ -171,20 +171,18 @@ func buildDBPropsDiff(numLines int, sd1, sd2 *sourceData) (*dbPropsDiff, error) 
 		sd2.handle,
 		body1,
 		edits,
-		numLines,
+		cfg.Lines,
 	)
 	if err != nil {
 		return nil, errz.Err(err)
 	}
 
-	diff := &dbPropsDiff{
+	return &dbPropsDiff{
 		sd1:    sd1,
 		sd2:    sd2,
 		header: fmt.Sprintf("sq diff --dbprops %s %s", sd1.handle, sd2.handle),
 		diff:   unified,
-	}
-
-	return diff, nil
+	}, nil
 }
 
 func sortTables(tbls []*source.TableMetadata) { //nolint:unused

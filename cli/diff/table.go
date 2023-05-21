@@ -14,7 +14,7 @@ import (
 )
 
 // ExecTableDiff diffs handle1.table1 and handle2.table2.
-func ExecTableDiff(ctx context.Context, ru *run.Run, numLines int, elems *Elements,
+func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Elements,
 	handle1, table1, handle2, table2 string,
 ) error {
 	td1, td2 := &tableData{tblName: table1}, &tableData{tblName: table2}
@@ -35,7 +35,7 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, numLines int, elems *Elemen
 			return err
 		}
 
-		tblDiff, err := buildTableDiff(numLines, elems.RowCount, td1, td2)
+		tblDiff, err := buildTableStructureDiff(cfg, elems.RowCount, td1, td2)
 		if err != nil {
 			return err
 		}
@@ -65,19 +65,19 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, numLines int, elems *Elemen
 		}
 	}
 
-	recDiff, err := findRecordDiff(ctx, ru, numLines, td1, td2)
+	tblDataDiff, err := buildTableDataDiff(ctx, ru, cfg, td1, td2)
 	if err != nil {
 		return err
 	}
 
-	if recDiff == nil {
+	if tblDataDiff == nil {
 		return nil
 	}
 
-	return Print(ru.Out, ru.Writers.Printing, recDiff.header, recDiff.diff)
+	return Print(ru.Out, ru.Writers.Printing, tblDataDiff.header, tblDataDiff.diff)
 }
 
-func buildTableDiff(lines int, showRowCounts bool, td1, td2 *tableData) (*tableDiff, error) {
+func buildTableStructureDiff(cfg *Config, showRowCounts bool, td1, td2 *tableData) (*tableDiff, error) {
 	var (
 		body1, body2 string
 		err          error
@@ -96,7 +96,7 @@ func buildTableDiff(lines int, showRowCounts bool, td1, td2 *tableData) (*tableD
 		td2.src.Handle+"."+td2.tblName,
 		body1,
 		edits,
-		lines,
+		cfg.Lines,
 	)
 	if err != nil {
 		return nil, errz.Err(err)
@@ -120,6 +120,7 @@ func fetchTableMeta(ctx context.Context, ru *run.Run, handle, table string) (
 	if err != nil {
 		return nil, nil, err
 	}
+
 	dbase, err := ru.Databases.Open(ctx, src)
 	if err != nil {
 		return nil, nil, err

@@ -96,6 +96,17 @@ If n <= 0, connections are not closed due to a connection's age.`,
 		"source",
 	)
 
+	// OptConnOpenTimeout controls connection open timeout.
+	OptConnOpenTimeout = options.NewDuration(
+		"conn.open-timeout",
+		"",
+		0,
+		time.Second,
+		"Connection open timeout",
+		"Max time to wait before a connection open operation times out.",
+		"source",
+	)
+
 	// OptMaxRetryInterval is the maximum interval to wait
 	// between retries.
 	OptMaxRetryInterval = options.NewDuration(
@@ -349,6 +360,8 @@ type Metadata struct {
 	Monotable bool `json:"monotable"`
 }
 
+var _ DatabaseOpener = (*Databases)(nil)
+
 // Databases provides a mechanism for getting Database instances.
 // Note that at this time instances returned by Open are cached
 // and then closed by Close. This may be a bad approach.
@@ -486,6 +499,23 @@ func requireSingleConn(db sqlz.DB) error {
 	case *sql.Conn, *sql.Tx:
 	default:
 		return errz.Errorf("db must be guaranteed single-connection (sql.Conn or sql.Tx) but was %T", db)
+	}
+
+	return nil
+}
+
+// OpeningPing is a standardized mechanism to ping db using
+// driver.OptConnOpenTimeout. This should be invoked by each SQL
+// driver impl in its Open method. If the ping fails, db is closed.
+func OpeningPing(ctx context.Context, src *source.Source, db *sql.DB) error {
+	o := options.FromContext(ctx)
+	timeout := OptConnOpenTimeout.Get(o)
+	ctx, cancelFn := context.WithTimeout(ctx, timeout)
+	defer cancelFn()
+
+	if err := db.PingContext(ctx); err != nil {
+		lg.WarnIfCloseError(lg.FromContext(ctx), lgm.CloseDB, db)
+		return errz.Wrapf(err, "open %s", src.Handle)
 	}
 
 	return nil

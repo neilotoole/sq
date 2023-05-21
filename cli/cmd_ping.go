@@ -26,14 +26,17 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 )
 
-// OptPingTimeout controls ping timeout.
-var OptPingTimeout = options.NewDuration(
+// OptPingCmdTimeout controls timeout for the ping command.
+// This timeout applies only to the "sq ping" command: this is a different
+// value from driver.OptConnOpenTimeout, which applies to generic ping
+// operations.
+var OptPingCmdTimeout = options.NewDuration(
 	"ping.timeout",
 	"",
 	0,
 	time.Second*10,
-	"ping timeout duration",
-	"How long to wait before ping timeout occurs. For example: 500ms or 2m10s.",
+	"ping command timeout duration",
+	"How long the ping command waits before timeout occurs. Example: 500ms or 2m10s.",
 )
 
 func newPingCmd() *cobra.Command {
@@ -122,7 +125,7 @@ func execPing(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	timeout := OptPingTimeout.Get(cmdOpts)
+	timeout := OptPingCmdTimeout.Get(cmdOpts)
 
 	logFrom(cmd).Debug("Using ping timeout", lga.Val, fmt.Sprintf("%v", timeout))
 

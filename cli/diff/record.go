@@ -7,28 +7,41 @@ import (
 
 	"github.com/neilotoole/sq/cli/diff/internal/go-udiff"
 	"github.com/neilotoole/sq/cli/diff/internal/go-udiff/myers"
-
 	"github.com/neilotoole/sq/cli/output"
-
 	"github.com/neilotoole/sq/cli/output/yamlw"
-
-	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/lg/lga"
-
-	"github.com/neilotoole/sq/libsq/core/lg"
-
-	"github.com/neilotoole/sq/libsq/core/record"
-
-	"github.com/neilotoole/sq/libsq/core/stringz"
-
-	"github.com/neilotoole/sq/libsq"
-
 	"github.com/neilotoole/sq/cli/run"
+	"github.com/neilotoole/sq/libsq"
+	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+	"github.com/neilotoole/sq/libsq/core/record"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 )
+
+// recordDiff is a container for a single record diff.
+//
+//nolint:unused
+type recordDiff struct {
+	td1, td2           *tableData
+	recMeta1, recMeta2 record.Meta
+	rec1, rec2         record.Record
+	row                int
+	header             string
+	diff               string
+}
 
 // findRecordDiff compares the row data in td1 and td2, returning
 // a recordDiff instance if there's a difference between the
 // equivalent rows. The function stops when it finds the first difference.
+//
+// NOTE: findRecordDiff (and the functions it calls) are currently unused.
+// Instead diff is using a naive implementation that renders all table
+// data to text, and then diffs that text. That impl can be horribly
+// inefficient for large result sets. findRecordDiff demonstrates one
+// possibly better path. The code is left here as a guilty reminder
+// to tackle this issue.
+//
+//nolint:unused
 func findRecordDiff(ctx context.Context, ru *run.Run, lines int,
 	td1, td2 *tableData,
 ) (*recordDiff, error) {
@@ -38,11 +51,7 @@ func findRecordDiff(ctx context.Context, ru *run.Run, lines int,
 		With("a", td1.src.Handle+"."+td1.tblName).
 		With("b", td2.src.Handle+"."+td2.tblName)
 
-	qc := &libsq.QueryContext{
-		Collection:   ru.Config.Collection,
-		DBOpener:     ru.Databases,
-		JoinDBOpener: ru.Databases,
-	}
+	qc := run.NewQueryContext(ru)
 
 	query1 := td1.src.Handle + "." + stringz.DoubleQuote(td1.tblName)
 	query2 := td2.src.Handle + "." + stringz.DoubleQuote(td2.tblName)
@@ -156,8 +165,7 @@ func findRecordDiff(ctx context.Context, ru *run.Run, lines int,
 	return recDiff, nil
 }
 
-type recordPrinterFunc func() output.RecordWriter
-
+//nolint:unused
 func populateRecordDiff(lines int, pr *output.Printing, recDiff *recordDiff) error {
 	pr = pr.Clone()
 	pr.EnableColor(false)
@@ -195,6 +203,7 @@ func populateRecordDiff(lines int, pr *output.Printing, recDiff *recordDiff) err
 	return nil
 }
 
+//nolint:unused
 func renderRecord2YAML(pr *output.Printing, recMeta record.Meta, rec record.Record) (string, error) {
 	if rec == nil {
 		return "", nil
@@ -219,7 +228,6 @@ func renderRecord2YAML(pr *output.Printing, recMeta record.Meta, rec record.Reco
 
 var _ libsq.RecordWriter = (*recWriter)(nil)
 
-// recWriter
 type recWriter struct {
 	recCh   chan record.Record
 	errCh   chan error

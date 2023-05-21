@@ -129,10 +129,8 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database
 		return nil, err
 	}
 
-	err = db.PingContext(ctx)
-	if err != nil {
-		lg.WarnIfCloseError(d.log, lgm.CloseDB, db)
-		return nil, errz.Err(err)
+	if err = driver.OpeningPing(ctx, src, db); err != nil {
+		return nil, err
 	}
 
 	return &database{log: d.log, db: db, src: src, drvr: d}, nil
@@ -160,13 +158,11 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 	db, err := d.doOpen(ctx, src)
 	if err != nil {
-		return errz.Err(err)
+		return err
 	}
-
 	defer lg.WarnIfCloseError(d.log, lgm.CloseDB, db)
 
-	err = db.PingContext(ctx)
-	return errz.Err(err)
+	return errz.Wrapf(db.PingContext(ctx), "ping %s", src.Handle)
 }
 
 // DBProperties implements driver.SQLDriver.

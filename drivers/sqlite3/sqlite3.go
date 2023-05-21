@@ -100,6 +100,10 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database
 		return nil, err
 	}
 
+	if err = driver.OpeningPing(ctx, src, db); err != nil {
+		return nil, err
+	}
+
 	return &database{log: d.log, db: db, src: src, drvr: d}, nil
 }
 
@@ -168,13 +172,13 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 
 // Ping implements driver.Driver.
 func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
-	dbase, err := d.Open(ctx, src)
+	db, err := d.doOpen(ctx, src)
 	if err != nil {
 		return err
 	}
-	defer lg.WarnIfCloseError(d.log, lgm.CloseDB, dbase)
+	defer lg.WarnIfCloseError(d.log, lgm.CloseDB, db)
 
-	return dbase.DB().Ping()
+	return errz.Wrapf(db.PingContext(ctx), "ping %s", src.Handle)
 }
 
 // Dialect implements driver.SQLDriver.

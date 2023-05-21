@@ -11,8 +11,6 @@ import (
 	"io"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/record"
-
 	"github.com/neilotoole/sq/libsq/source"
 
 	"github.com/neilotoole/sq/cli/output"
@@ -21,7 +19,19 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
-// Elements configures what source elements to compare.
+// Config contains parameters to control diff behavior.
+type Config struct {
+	// Lines controls the number of lines of context surrounding
+	// a diff.
+	Lines int
+
+	// RecordWriterFn is a factory function that returns
+	// an output.RecordWriter used to generate diff text for
+	// data diffs.
+	RecordWriterFn func(w io.Writer, pr *output.Printing) output.RecordWriter
+}
+
+// Elements determines what source elements to compare.
 type Elements struct {
 	// Summary compares a summary of the sources.
 	Summary bool
@@ -100,14 +110,12 @@ type dbPropsDiff struct {
 	diff     string
 }
 
-// recordDiff is a container for a single record diff.
-type recordDiff struct {
-	td1, td2           *tableData
-	recMeta1, recMeta2 record.Meta
-	rec1, rec2         record.Record
-	row                int
-	header             string
-	diff               string
+// tableDataDiff is a container for a table's data diff.
+type tableDataDiff struct {
+	td1, td2 *tableData
+	// recMeta1, recMeta2 record.Meta
+	header string
+	diff   string
 }
 
 // Print prints dif to w. If pr is nil, printing is in monochrome.

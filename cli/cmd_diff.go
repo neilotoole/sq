@@ -3,6 +3,7 @@ package cli
 import (
 	"github.com/neilotoole/sq/cli/diff"
 	"github.com/neilotoole/sq/cli/flag"
+	"github.com/neilotoole/sq/cli/output/yamlw"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/samber/lo"
@@ -116,20 +117,24 @@ func execDiff(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	numLines := OptDiffNumLines.Get(o)
-	if numLines < 0 {
+	diffCfg := &diff.Config{
+		Lines:          OptDiffNumLines.Get(o),
+		RecordWriterFn: yamlw.NewRecordWriter,
+	}
+
+	if diffCfg.Lines < 0 {
 		return errz.Errorf("number of lines to show must be >= 0")
 	}
 
 	switch {
 	case table1 == "" && table2 == "":
 		elems := getDiffSourceElements(cmd)
-		return diff.ExecSourceDiff(ctx, ru, numLines, elems, handle1, handle2)
+		return diff.ExecSourceDiff(ctx, ru, diffCfg, elems, handle1, handle2)
 	case table1 == "" || table2 == "":
 		return errz.Errorf("invalid args: both must be either @HANDLE or @HANDLE.TABLE")
 	default:
 		elems := getDiffTableElements(cmd)
-		return diff.ExecTableDiff(ctx, ru, numLines, elems, handle1, table1, handle2, table2)
+		return diff.ExecTableDiff(ctx, ru, diffCfg, elems, handle1, table1, handle2, table2)
 	}
 }
 
