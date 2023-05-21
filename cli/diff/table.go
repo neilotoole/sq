@@ -65,7 +65,7 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, numLines int, elems *Elemen
 		}
 	}
 
-	recDiff, err := findDataDiffs(ctx, ru, numLines, td1, td2)
+	recDiff, err := findRecordDiff(ctx, ru, numLines, td1, td2)
 	if err != nil {
 		return err
 	}

@@ -26,7 +26,10 @@ import (
 	"github.com/neilotoole/sq/cli/run"
 )
 
-func findDataDiffs(ctx context.Context, ru *run.Run, lines int,
+// findRecordDiff compares the row data in td1 and td2, returning
+// a recordDiff instance if there's a difference between the
+// equivalent rows. The function stops when it finds the first difference.
+func findRecordDiff(ctx context.Context, ru *run.Run, lines int,
 	td1, td2 *tableData,
 ) (*recordDiff, error) {
 	const chSize = 100
@@ -54,9 +57,9 @@ func findDataDiffs(ctx context.Context, ru *run.Run, lines int,
 		errCh: errCh,
 	}
 
-	ctx2, cancelFn := context.WithCancel(ctx)
+	gCtx, cancelFn := context.WithCancel(ctx)
 	go func() {
-		err := libsq.ExecuteSLQ(ctx2, qc, query1, recw1)
+		err := libsq.ExecuteSLQ(gCtx, qc, query1, recw1)
 		if err != nil {
 			cancelFn()
 			select {
@@ -66,7 +69,7 @@ func findDataDiffs(ctx context.Context, ru *run.Run, lines int,
 		}
 	}()
 	go func() {
-		err := libsq.ExecuteSLQ(ctx2, qc, query2, recw2)
+		err := libsq.ExecuteSLQ(gCtx, qc, query2, recw2)
 		if err != nil {
 			cancelFn()
 			select {
@@ -97,7 +100,7 @@ func findDataDiffs(ctx context.Context, ru *run.Run, lines int,
 		}
 		if err != nil {
 			cancelFn()
-			log.Error("table diff", lga.Err, err)
+			log.Error("Table diff", lga.Err, err)
 			break
 		}
 
@@ -109,12 +112,12 @@ func findDataDiffs(ctx context.Context, ru *run.Run, lines int,
 		}
 		if err != nil {
 			cancelFn()
-			log.Error("table diff", lga.Err, err)
+			log.Error("Table diff", lga.Err, err)
 			break
 		}
 
 		if rec1 == nil && rec2 == nil {
-			log.Debug("End of records")
+			// End of data, no diff found
 			break
 		}
 
@@ -133,7 +136,6 @@ func findDataDiffs(ctx context.Context, ru *run.Run, lines int,
 	}
 
 	if !found {
-		log.Debug("No diff")
 		return nil, nil //nolint:nilnil
 	}
 
@@ -153,6 +155,8 @@ func findDataDiffs(ctx context.Context, ru *run.Run, lines int,
 
 	return recDiff, nil
 }
+
+type recordPrinterFunc func() output.RecordWriter
 
 func populateRecordDiff(lines int, pr *output.Printing, recDiff *recordDiff) error {
 	pr = pr.Clone()
@@ -215,6 +219,7 @@ func renderRecord2YAML(pr *output.Printing, recMeta record.Meta, rec record.Reco
 
 var _ libsq.RecordWriter = (*recWriter)(nil)
 
+// recWriter
 type recWriter struct {
 	recCh   chan record.Record
 	errCh   chan error
@@ -230,6 +235,6 @@ func (d *recWriter) Open(_ context.Context, _ context.CancelFunc, recMeta record
 
 // Wait implements libsq.RecordWriter.
 func (d *recWriter) Wait() (written int64, err error) {
-	// We don't actually use the return values.
+	// We don't actually use Wait(), so just return zero values.
 	return 0, nil
 }
