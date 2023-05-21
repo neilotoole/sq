@@ -14,7 +14,6 @@ import (
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq"
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 // buildTableDataDiff compares the row data in td1 and td2, returning
@@ -32,13 +31,9 @@ import (
 func buildTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config,
 	td1, td2 *tableData,
 ) (*tableDataDiff, error) {
-	// log := lg.FromContext(ctx).
-	//	With("a", td1.src.Handle+"."+td1.tblName).
-	//	With("b", td2.src.Handle+"."+td2.tblName)
-
 	qc := run.NewQueryContext(ru)
-	query1 := td1.src.Handle + "." + stringz.DoubleQuote(td1.tblName)
-	query2 := td2.src.Handle + "." + stringz.DoubleQuote(td2.tblName)
+	query1 := td1.src.Handle + "." + td1.tblName
+	query2 := td2.src.Handle + "." + td2.tblName
 
 	pr := ru.Writers.Printing.Clone()
 	pr.EnableColor(false)
@@ -49,10 +44,20 @@ func buildTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config,
 
 	g, gCtx := errgroup.WithContext(ctx)
 	g.Go(func() error {
-		return libsq.ExecuteSLQ(gCtx, qc, query1, recw1)
+		if err := libsq.ExecuteSLQ(gCtx, qc, query1, recw1); err != nil {
+			return err
+		}
+
+		_, err := recw1.Wait()
+		return err
 	})
 	g.Go(func() error {
-		return libsq.ExecuteSLQ(gCtx, qc, query2, recw2)
+		if err := libsq.ExecuteSLQ(gCtx, qc, query2, recw2); err != nil {
+			return err
+		}
+
+		_, err := recw2.Wait()
+		return err
 	})
 	if err := g.Wait(); err != nil {
 		return nil, err

@@ -3,7 +3,7 @@ package cli
 import (
 	"github.com/neilotoole/sq/cli/diff"
 	"github.com/neilotoole/sq/cli/flag"
-	"github.com/neilotoole/sq/cli/output/yamlw"
+	"github.com/neilotoole/sq/cli/output/jsonw"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/samber/lo"
@@ -118,8 +118,9 @@ func execDiff(cmd *cobra.Command, args []string) error {
 	}
 
 	diffCfg := &diff.Config{
-		Lines:          OptDiffNumLines.Get(o),
-		RecordWriterFn: yamlw.NewRecordWriter,
+		Lines: OptDiffNumLines.Get(o),
+		// RecordWriterFn: yamlw.NewRecordWriter,
+		RecordWriterFn: jsonw.NewObjectRecordWriter,
 	}
 
 	if diffCfg.Lines < 0 {
