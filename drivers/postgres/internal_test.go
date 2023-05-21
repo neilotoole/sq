@@ -3,8 +3,6 @@ package postgres
 import (
 	"testing"
 
-	"github.com/neilotoole/sq/libsq/core/errz"
-
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/stretchr/testify/require"
@@ -71,6 +69,6 @@ func TestIsErrTooManyConnections(t *testing.T) {
 	require.True(t, isErrTooManyConnections(err))
 
 	// Test with a wrapped error
-	err = errz.Err(err)
+	err = errw(err)
 	require.True(t, isErrTooManyConnections(err))
 }

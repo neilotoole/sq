@@ -216,6 +216,9 @@ type SQLDriver interface {
 	// Dialect returns the SQL dialect.
 	Dialect() dialect.Dialect
 
+	// ErrWrapFunc returns a func that wraps the driver's errors.
+	ErrWrapFunc() func(error) error
+
 	// Renderer returns the SQL renderer for this driver.
 	Renderer() *render.Renderer
 

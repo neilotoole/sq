@@ -200,7 +200,7 @@ current_setting('server_version'), version(), "current_user"()`
 	err := db.QueryRowContext(ctx, summaryQuery).
 		Scan(&md.Name, &schema, &md.Size, &md.DBVersion, &md.DBProduct, &md.User)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	if !schema.Valid {
@@ -261,7 +261,7 @@ current_setting('server_version'), version(), "current_user"()`
 
 	err = g.Wait()
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	// If a table wasn't found (possibly dropped while querying), then
@@ -279,7 +279,7 @@ current_setting('server_version'), version(), "current_user"()`
 func getPgSettings(ctx context.Context, db sqlz.DB) (map[string]any, error) {
 	rows, err := db.QueryContext(ctx, "SELECT name, setting, vartype FROM pg_settings ORDER BY name")
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	defer lg.WarnIfCloseError(lg.FromContext(ctx), lgm.CloseDBRows, rows)
@@ -293,7 +293,7 @@ func getPgSettings(ctx context.Context, db sqlz.DB) (map[string]any, error) {
 			val     any
 		)
 		if err = rows.Scan(&name, &setting, &typ); err != nil {
-			return nil, errz.Err(err)
+			return nil, errw(err)
 		}
 
 		// Narrow the setting value bool, int, etc.
@@ -340,7 +340,7 @@ ORDER BY table_name`
 
 	rows, err := db.QueryContext(ctx, tblNamesQuery)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
 
@@ -349,7 +349,7 @@ ORDER BY table_name`
 		var s string
 		err = rows.Scan(&s)
 		if err != nil {
-			return nil, errz.Err(err)
+			return nil, errw(err)
 		}
 		tblNames = append(tblNames, s)
 	}
@@ -381,7 +381,7 @@ AND table_name = $1`
 		Scan(&pgTbl.tableCatalog, &pgTbl.tableSchema, &pgTbl.tableName, &pgTbl.tableType, &pgTbl.isInsertable,
 			&pgTbl.rowCount, &pgTbl.size, &pgTbl.oid, &pgTbl.comment)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	tblMeta := tblMetaFromPgTable(pgTbl)
@@ -529,7 +529,7 @@ ORDER BY cols.table_catalog, cols.table_schema, cols.table_name, cols.ordinal_po
 
 	rows, err := db.QueryContext(ctx, colsQuery, tblName)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
@@ -559,7 +559,7 @@ func scanPgColumn(rows *sql.Rows, c *pgColumn) error {
 		&c.datetimePrecision, &c.domainCatalog, &c.domainSchema, &c.domainName,
 		&c.udtCatalog, &c.udtSchema, &c.udtName,
 		&c.isIdentity, &c.isGenerated, &c.isUpdatable, &c.comment)
-	return errz.Err(err)
+	return errw(err)
 }
 
 func colMetaFromPgColumn(log *slog.Logger, pgCol *pgColumn) *source.ColMetadata {
@@ -617,7 +617,7 @@ WHERE kcu.table_catalog = current_catalog AND kcu.table_schema = current_schema(
 
 	rows, err := db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
 
@@ -628,7 +628,7 @@ WHERE kcu.table_catalog = current_catalog AND kcu.table_schema = current_schema(
 		err = rows.Scan(&pgc.tableCatalog, &pgc.tableSchema, &pgc.tableName, &pgc.columnName, &pgc.ordinalPosition,
 			&pgc.constraintName, &pgc.constraintType, &pgc.constraintDef, &pgc.constraintFKeyTableName)
 		if err != nil {
-			return nil, errz.Err(err)
+			return nil, errw(err)
 		}
 
 		constraints = append(constraints, pgc)
@@ -701,7 +701,7 @@ func closeRows(rows *sql.Rows) error {
 	err1 := rows.Err()
 	err2 := rows.Close()
 	if err1 != nil {
-		return errz.Err(err1)
+		return errw(err1)
 	}
-	return errz.Err(err2)
+	return errw(err2)
 }

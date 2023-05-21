@@ -64,6 +64,12 @@ type driveri struct {
 	log *slog.Logger
 }
 
+// ErrWrapFunc implements driver.SQLDriver.
+func (d *driveri) ErrWrapFunc() func(error) error {
+	// FIXME: implement wrapping for sqlserver
+	return errz.Err
+}
+
 // DriverMetadata implements driver.SQLDriver.
 func (d *driveri) DriverMetadata() driver.Metadata {
 	return driver.Metadata{

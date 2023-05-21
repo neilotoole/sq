@@ -76,6 +76,12 @@ type driveri struct {
 	log *slog.Logger
 }
 
+// ErrWrapFunc implements driver.SQLDriver.
+func (d *driveri) ErrWrapFunc() func(error) error {
+	// FIXME: implement wrapping for sqlite
+	return errz.Err
+}
+
 // DBProperties implements driver.SQLDriver.
 func (d *driveri) DBProperties(ctx context.Context, db sqlz.DB) (map[string]any, error) {
 	return getDBProperties(ctx, db)

@@ -4,7 +4,6 @@ package postgres
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -12,8 +11,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/record"
 
 	"github.com/neilotoole/sq/libsq/core/options"
-
-	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/neilotoole/sq/libsq/core/retry"
 
@@ -68,6 +65,11 @@ func (p *Provider) DriverFor(typ source.DriverType) (driver.Driver, error) {
 // driveri is the postgres implementation of driver.Driver.
 type driveri struct {
 	log *slog.Logger
+}
+
+// ErrWrapFunc implements driver.SQLDriver.
+func (d *driveri) ErrWrapFunc() func(error) error {
+	return errw
 }
 
 // DriverMetadata implements driver.Driver.
@@ -140,19 +142,19 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 	ctx = options.NewContext(ctx, src.Options)
 	dbCfg, err := pgxpool.ParseConfig(src.Location)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	connStr := stdlib.RegisterConnConfig(dbCfg.ConnConfig)
 
 	var db *sql.DB
 	if err := doRetry(ctx, func() error {
-		var dbErr error
-		db, dbErr = sql.Open(dbDrvr, connStr)
-		if dbErr != nil {
-			lg.FromContext(ctx).Error("postgres open, may retry", lga.Err, dbErr)
+		var err2 error
+		db, err2 = sql.Open(dbDrvr, connStr)
+		if err2 != nil {
+			lg.FromContext(ctx).Error("postgres open, may retry", lga.Err, err2)
 		}
-		return dbErr
+		return err2
 	}); err != nil {
 		return nil, errz.Wrap(err, "failed to open postgres db")
 	}
@@ -199,13 +201,13 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 	// FIXME: should first check the pg version for < pg8.2 support
 	db, err := d.doOpen(ctx, src)
 	if err != nil {
-		return affected, errz.Err(err)
+		return affected, errw(err)
 	}
 
 	affectedQuery := "SELECT COUNT(*) FROM " + idSanitize(tbl)
 	err = db.QueryRowContext(ctx, affectedQuery).Scan(&affected)
 	if err != nil {
-		return 0, errz.Err(err)
+		return 0, errw(err)
 	}
 
 	truncateQuery := "TRUNCATE TABLE " + idSanitize(tbl)
@@ -216,7 +218,7 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 	// We could add RESTRICT here; alternative is CASCADE
 	_, err = db.ExecContext(ctx, truncateQuery)
 	if err != nil {
-		return 0, errz.Err(err)
+		return 0, errw(err)
 	}
 
 	return affected, nil
@@ -235,14 +237,14 @@ func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *sqlmodel.
 	stmt := buildCreateTableStmt(tblDef)
 
 	_, err := db.ExecContext(ctx, stmt)
-	return errz.Err(err)
+	return errw(err)
 }
 
 // CurrentSchema implements driver.SQLDriver.
 func (d *driveri) CurrentSchema(ctx context.Context, db sqlz.DB) (string, error) {
 	var name string
 	if err := db.QueryRowContext(ctx, `SELECT CURRENT_SCHEMA()`).Scan(&name); err != nil {
-		return "", errz.Err(err)
+		return "", errw(err)
 	}
 
 	return name, nil
@@ -252,14 +254,14 @@ func (d *driveri) CurrentSchema(ctx context.Context, db sqlz.DB) (string, error)
 func (d *driveri) AlterTableRename(ctx context.Context, db sqlz.DB, tbl, newName string) error {
 	q := fmt.Sprintf(`ALTER TABLE %q RENAME TO %q`, tbl, newName)
 	_, err := db.ExecContext(ctx, q)
-	return errz.Wrapf(err, "alter table: failed to rename table {%s} to {%s}", tbl, newName)
+	return errz.Wrapf(errw(err), "alter table: failed to rename table {%s} to {%s}", tbl, newName)
 }
 
 // AlterTableRenameColumn implements driver.SQLDriver.
 func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, col, newName string) error {
 	q := fmt.Sprintf("ALTER TABLE %q RENAME COLUMN %q TO %q", tbl, col, newName)
 	_, err := db.ExecContext(ctx, q)
-	return errz.Wrapf(err, "alter table: failed to rename column {%s.%s} to {%s}", tbl, col, newName)
+	return errz.Wrapf(errw(err), "alter table: failed to rename column {%s.%s} to {%s}", tbl, col, newName)
 }
 
 // AlterTableAddColumn implements driver.SQLDriver.
@@ -324,10 +326,10 @@ func newStmtExecFunc(stmt *sql.Stmt) driver.StmtExecFunc {
 	return func(ctx context.Context, args ...any) (int64, error) {
 		res, err := stmt.ExecContext(ctx, args...)
 		if err != nil {
-			return 0, errz.Err(err)
+			return 0, errw(err)
 		}
 		affected, err := res.RowsAffected()
-		return affected, errz.Err(err)
+		return affected, errw(err)
 	}
 }
 
@@ -341,7 +343,7 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable 
 
 	affected, err := sqlz.ExecAffected(ctx, db, stmt)
 	if err != nil {
-		return 0, errz.Err(err)
+		return 0, errw(err)
 	}
 
 	return affected, nil
@@ -355,7 +357,7 @@ WHERE table_name = $1`
 	var count int64
 	err := db.QueryRowContext(ctx, query, tbl).Scan(&count)
 	if err != nil {
-		return false, errz.Err(err)
+		return false, errw(err)
 	}
 
 	return count == 1, nil
@@ -372,7 +374,7 @@ func (d *driveri) DropTable(ctx context.Context, db sqlz.DB, tbl string, ifExist
 	}
 
 	_, err := db.ExecContext(ctx, stmt)
-	return errz.Err(err)
+	return errw(err)
 }
 
 // TableColumnTypes implements driver.SQLDriver.
@@ -420,24 +422,24 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 
 	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	colTypes, err := rows.ColumnTypes()
 	if err != nil {
 		lg.WarnIfFuncError(d.log, lgm.CloseDBRows, rows.Close)
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	err = rows.Err()
 	if err != nil {
 		lg.WarnIfFuncError(d.log, lgm.CloseDBRows, rows.Close)
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	err = rows.Close()
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	return colTypes, nil
@@ -470,7 +472,7 @@ func getTableColumnNames(ctx context.Context, db sqlz.DB, tblName string) ([]str
 
 	rows, err := db.QueryContext(ctx, query, tblName)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	var colNames []string
@@ -480,7 +482,7 @@ func getTableColumnNames(ctx context.Context, db sqlz.DB, tblName string) ([]str
 		err = rows.Scan(&colName)
 		if err != nil {
 			lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
-			return nil, errz.Err(err)
+			return nil, errw(err)
 		}
 
 		colNames = append(colNames, colName)
@@ -488,12 +490,12 @@ func getTableColumnNames(ctx context.Context, db sqlz.DB, tblName string) ([]str
 
 	if rows.Err() != nil {
 		lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	err = rows.Close()
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	return colNames, nil
@@ -577,46 +579,9 @@ func (d *database) Close() error {
 
 	err := d.db.Close()
 	if err != nil {
-		return errz.Err(err)
+		return errw(err)
 	}
 	return nil
-}
-
-const (
-	errCodeRelationNotExist   = "42P01"
-	errCodeTooManyConnections = "53300"
-)
-
-// isErrTooManyConnections returns true if err is a postgres error
-// with code 53300 (too_many_connections).
-//
-// See: https://www.postgresql.org/docs/14/errcodes-appendix.html
-func isErrTooManyConnections(err error) bool {
-	return hasErrCode(err, errCodeTooManyConnections)
-}
-
-// isErrRelationNotExist  returns true if err is a postgres error
-// with code 42P01 (undefined_table).
-//
-// See: https://www.postgresql.org/docs/14/errcodes-appendix.html
-func isErrRelationNotExist(err error) bool {
-	return hasErrCode(err, errCodeRelationNotExist)
-}
-
-// hasErrCode returns true if err (or its cause error)
-// is of type *pgconn.PgError and err.Number equals code.
-// See: isErrTooManyConnections.
-func hasErrCode(err error, code string) bool {
-	if err == nil {
-		return false
-	}
-	var pgErr *pgconn.PgError
-
-	if errors.As(err, &pgErr) {
-		return pgErr.Code == code
-	}
-
-	return false
 }
 
 // doRetry executes fn with retry on isErrTooManyConnections.

@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/neilotoole/sq/libsq/core/lg"
-
 	"github.com/neilotoole/sq/libsq/core/errz"
+
+	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"github.com/neilotoole/sq/libsq/source"
 

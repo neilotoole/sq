@@ -5,6 +5,10 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
+	"github.com/neilotoole/sq/libsq/core/lg"
+
 	"github.com/samber/lo"
 	"golang.org/x/exp/slices"
 
@@ -37,6 +41,7 @@ func buildTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config,
 	qc := run.NewQueryContext(ru)
 	query1 := td1.src.Handle + "." + td1.tblName
 	query2 := td2.src.Handle + "." + td2.tblName
+	log := lg.FromContext(ctx).With("a", query1).With("b", query2)
 
 	pr := ru.Writers.Printing.Clone()
 	pr.EnableColor(false)
@@ -48,7 +53,11 @@ func buildTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config,
 	g, gCtx := errgroup.WithContext(ctx)
 	g.Go(func() error {
 		if err := libsq.ExecuteSLQ(gCtx, qc, query1, recw1); err != nil {
-			return err
+			if errz.IsErrRelationNotExist(err) {
+				// It's totally ok if a table is not found.
+				log.Debug("Diff: table not found", lga.Src, td1.src, lga.Table, td1.tblName)
+				return nil
+			}
 		}
 
 		_, err := recw1.Wait()
@@ -56,7 +65,10 @@ func buildTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config,
 	})
 	g.Go(func() error {
 		if err := libsq.ExecuteSLQ(gCtx, qc, query2, recw2); err != nil {
-			return err
+			if errz.IsErrRelationNotExist(err) {
+				log.Debug("Diff: table not found", lga.Src, td2.src, lga.Table, td2.tblName)
+				return nil
+			}
 		}
 
 		_, err := recw2.Wait()

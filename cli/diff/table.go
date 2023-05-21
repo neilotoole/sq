@@ -19,23 +19,34 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Element
 ) error {
 	td1, td2 := &tableData{tblName: table1}, &tableData{tblName: table2}
 
+	var err error
+	td1.src, err = ru.Config.Collection.Get(handle1)
+	if err != nil {
+		return err
+	}
+	td2.src, err = ru.Config.Collection.Get(handle2)
+	if err != nil {
+		return err
+	}
+
 	if elems.Table {
 		g, gCtx := errgroup.WithContext(ctx)
 		g.Go(func() error {
-			var err error
-			td1.src, td1.tblMeta, err = fetchTableMeta(gCtx, ru, handle1, table1)
-			return err
+			var gErr error
+			td1.tblMeta, gErr = fetchTableMeta(gCtx, ru, td1.src, table1)
+			return gErr
 		})
 		g.Go(func() error {
-			var err error
-			td2.src, td2.tblMeta, err = fetchTableMeta(gCtx, ru, handle2, table2)
-			return err
+			var gErr error
+			td2.tblMeta, gErr = fetchTableMeta(gCtx, ru, td2.src, table2)
+			return gErr
 		})
-		if err := g.Wait(); err != nil {
+		if err = g.Wait(); err != nil {
 			return err
 		}
 
-		tblDiff, err := buildTableStructureDiff(cfg, elems.RowCount, td1, td2)
+		var tblDiff *tableDiff
+		tblDiff, err = buildTableStructureDiff(cfg, elems.RowCount, td1, td2)
 		if err != nil {
 			return err
 		}
@@ -47,22 +58,6 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Element
 
 	if !elems.Data {
 		return nil
-	}
-
-	// We want to diff table data. Make sure that the src has already
-	// been set.
-	if td1.src == nil {
-		var err error
-		if td1.src, err = ru.Config.Collection.Get(handle1); err != nil {
-			return err
-		}
-	}
-
-	if td2.src == nil {
-		var err error
-		if td2.src, err = ru.Config.Collection.Get(handle2); err != nil {
-			return err
-		}
 	}
 
 	tblDataDiff, err := buildTableDataDiff(ctx, ru, cfg, td1, td2)
@@ -113,22 +108,22 @@ func buildTableStructureDiff(cfg *Config, showRowCounts bool, td1, td2 *tableDat
 	return tblDiff, nil
 }
 
-func fetchTableMeta(ctx context.Context, ru *run.Run, handle, table string) (
-	*source.Source, *source.TableMetadata, error,
+// fetchTableMeta returns the source.TableMetadata for table. If the table
+// does not exist, {nil,nil} is returned.
+func fetchTableMeta(ctx context.Context, ru *run.Run, src *source.Source, table string) (
+	*source.TableMetadata, error,
 ) {
-	src, err := ru.Config.Collection.Get(handle)
-	if err != nil {
-		return nil, nil, err
-	}
-
 	dbase, err := ru.Databases.Open(ctx, src)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	md, err := dbase.TableMetadata(ctx, table)
 	if err != nil {
-		return nil, nil, err
+		if errz.IsErrRelationNotExist(err) {
+			return nil, nil //nolint:nilnil
+		}
+		return nil, err
 	}
 
-	return src, md, nil
+	return md, nil
 }

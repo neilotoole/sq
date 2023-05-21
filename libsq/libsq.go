@@ -119,10 +119,11 @@ func SLQ2SQL(ctx context.Context, qc *QueryContext, query string) (targetSQL str
 // The caller is responsible for closing dbase.
 func QuerySQL(ctx context.Context, dbase driver.Database, recw RecordWriter, query string, args ...any) error {
 	log := lg.FromContext(ctx)
+	errw := dbase.SQLDriver().ErrWrapFunc()
 
 	rows, err := dbase.DB().QueryContext(ctx, query, args...)
 	if err != nil {
-		return errz.Wrapf(err, `SQL query against %s failed: %s`, dbase.Source().Handle, query)
+		return errz.Wrapf(errw(err), `SQL query against %s failed: %s`, dbase.Source().Handle, query)
 	}
 	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
 
@@ -153,25 +154,25 @@ func QuerySQL(ctx context.Context, dbase driver.Database, recw RecordWriter, que
 	// false, we still make use of the earlier partially-complete []ColumnType.
 	colTypes, err := rows.ColumnTypes()
 	if err != nil {
-		return errz.Err(err)
+		return errw(err)
 	}
 
 	hasNext := rows.Next()
 	if rows.Err() != nil {
-		return errz.Err(rows.Err())
+		return errw(rows.Err())
 	}
 
 	if hasNext {
 		colTypes, err = rows.ColumnTypes()
 		if err != nil {
-			return errz.Err(err)
+			return errw(err)
 		}
 	}
 
 	drvr := dbase.SQLDriver()
 	recMeta, recFromScanRowFn, err := drvr.RecordMeta(colTypes)
 	if err != nil {
-		return err
+		return errw(err)
 	}
 
 	// We create a new ctx to pass to recw.Open; we use
@@ -181,7 +182,7 @@ func QuerySQL(ctx context.Context, dbase driver.Database, recw RecordWriter, que
 	recordCh, errCh, err := recw.Open(ctx, cancelFn, recMeta)
 	if err != nil {
 		cancelFn()
-		return err
+		return errw(err)
 	}
 	defer close(recordCh)
 
@@ -198,7 +199,7 @@ func QuerySQL(ctx context.Context, dbase driver.Database, recw RecordWriter, que
 		err = rows.Scan(scanRow...)
 		if err != nil {
 			cancelFn()
-			return errz.Wrapf(err, "query against %s", dbase.Source().Handle)
+			return errz.Wrapf(errw(err), "query against %s", dbase.Source().Handle)
 		}
 
 		// recFromScanRowFn returns a new Record with appropriate
@@ -235,7 +236,7 @@ func QuerySQL(ctx context.Context, dbase driver.Database, recw RecordWriter, que
 		case err = <-errCh:
 			lg.WarnIfError(log, "write record", err)
 			cancelFn()
-			return err
+			return errw(err)
 
 		// Otherwise, we send the record to recordCh. When
 		// that send completes, the loop begins again for the
@@ -250,7 +251,7 @@ func QuerySQL(ctx context.Context, dbase driver.Database, recw RecordWriter, que
 	if rows.Err() != nil {
 		lg.WarnIfError(log, lgm.ReadDBRows, err)
 		cancelFn()
-		return errz.Err(rows.Err())
+		return errw(rows.Err())
 	}
 
 	return nil
