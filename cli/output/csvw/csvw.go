@@ -117,7 +117,7 @@ func (w *RecordWriter) WriteRecords(recs []record.Record) error {
 				if val != nil {
 					size = len(*val)
 				}
-				fields[i] = w.pr.Bytes.Sprintf("[%d]byte", size)
+				fields[i] = w.pr.Bytes.Sprintf("[%d bytes]", size)
 			case *time.Time:
 				switch w.recMeta[i].Kind() { //nolint:exhaustive
 				default:
