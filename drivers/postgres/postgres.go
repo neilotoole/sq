@@ -595,6 +595,14 @@ func isErrTooManyConnections(err error) bool {
 	return hasErrCode(err, errCodeTooManyConnections)
 }
 
+// isErrRelationNotExist  returns true if err is a postgres error
+// with code 42P01 (undefined_table).
+//
+// See: https://www.postgresql.org/docs/14/errcodes-appendix.html
+func isErrRelationNotExist(err error) bool {
+	return hasErrCode(err, errCodeRelationNotExist)
+}
+
 // hasErrCode returns true if err (or its cause error)
 // is of type *pgconn.PgError and err.Number equals code.
 // See: isErrTooManyConnections.

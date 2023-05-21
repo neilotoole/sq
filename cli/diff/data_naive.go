@@ -5,6 +5,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/samber/lo"
+	"golang.org/x/exp/slices"
+
 	"github.com/neilotoole/sq/cli/diff/internal/go-udiff"
 	"github.com/neilotoole/sq/cli/diff/internal/go-udiff/myers"
 
@@ -86,4 +89,57 @@ func buildTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config,
 		header: fmt.Sprintf("sq diff --data %s %s", query1, query2),
 		diff:   unified,
 	}, nil
+}
+
+// execSourceDataDiff executes a diff all tables found in either source.
+func execSourceDataDiff(ctx context.Context, ru *run.Run, cfg *Config, sd1, sd2 *sourceData) error {
+	allTblNames := append(sd1.srcMeta.TableNames(), sd2.srcMeta.TableNames()...)
+	allTblNames = lo.Uniq(allTblNames)
+	slices.Sort(allTblNames)
+
+	tblDataDiffs := make([]*tableDataDiff, 0, len(allTblNames))
+	for _, tbl := range allTblNames {
+		select {
+		case <-ctx.Done():
+			return errz.Err(ctx.Err())
+		default:
+		}
+		td1 := &tableData{
+			tblName: tbl,
+			src:     sd1.src,
+			srcMeta: sd1.srcMeta,
+		}
+		td2 := &tableData{
+			tblName: tbl,
+			src:     sd2.src,
+			srcMeta: sd2.srcMeta,
+		}
+
+		tblDataDiff, err := buildTableDataDiff(ctx, ru, cfg, td1, td2)
+		if err != nil {
+			return err
+		}
+
+		if tblDataDiff != nil {
+			tblDataDiffs = append(tblDataDiffs, tblDataDiff)
+		}
+	}
+
+	slices.SortFunc(tblDataDiffs, func(a, b *tableDataDiff) bool {
+		return a.td1.tblName < b.td1.tblName
+	})
+
+	for _, tblDataDiff := range tblDataDiffs {
+		select {
+		case <-ctx.Done():
+			return errz.Err(ctx.Err())
+		default:
+		}
+
+		if err := Print(ru.Out, ru.Writers.Printing, tblDataDiff.header, tblDataDiff.diff); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

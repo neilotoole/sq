@@ -65,7 +65,7 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, cfg *Config,
 	}
 
 	if elems.Table {
-		tblDiffs, err := buildSourceTableDiffs(cfg, elems.RowCount, sd1, sd2)
+		tblDiffs, err := buildSourceTableDiffs(ctx, cfg, elems.RowCount, sd1, sd2)
 		if err != nil {
 			return err
 		}
@@ -76,23 +76,29 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, cfg *Config,
 		}
 	}
 
+	if elems.Data {
+		// We're going for it... diff all table data.
+		return execSourceDataDiff(ctx, ru, cfg, sd1, sd2)
+	}
+
 	return nil
 }
 
-func buildSourceTableDiffs(cfg *Config, showRowCounts bool, sd1, sd2 *sourceData) ([]*tableDiff, error) {
-	var allTblNames []string
-
-	for _, tbl := range sd1.srcMeta.Tables {
-		allTblNames = append(allTblNames, tbl.Name)
-	}
-	for _, tbl := range sd2.srcMeta.Tables {
-		allTblNames = append(allTblNames, tbl.Name)
-	}
+func buildSourceTableDiffs(ctx context.Context, cfg *Config, showRowCounts bool,
+	sd1, sd2 *sourceData,
+) ([]*tableDiff, error) {
+	allTblNames := append(sd1.srcMeta.TableNames(), sd2.srcMeta.TableNames()...)
 	allTblNames = lo.Uniq(allTblNames)
 	slices.Sort(allTblNames)
 
 	var diffs []*tableDiff
 	for _, tblName := range allTblNames {
+		select {
+		case <-ctx.Done():
+			return nil, errz.Err(ctx.Err())
+		default:
+		}
+
 		td1 := &tableData{
 			tblName: tblName,
 			tblMeta: sd1.srcMeta.Table(tblName),

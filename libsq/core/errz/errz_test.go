@@ -3,6 +3,7 @@ package errz_test
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/neilotoole/slogt"
@@ -53,4 +54,21 @@ func TestLogError_LogValue(t *testing.T) {
 
 	wrapErr := errz.Wrap(nakedErr, "wrap me")
 	log.Debug("via errz.Wrap", lga.Err, wrapErr)
+}
+
+func TestIsErrRelationNotExist(t *testing.T) {
+	var err error
+	require.False(t, errz.IsErrRelationNotExist(err))
+	require.False(t, errz.IsErrRelationNotExist(errz.New("huzzah")))
+
+	var rne1 *errz.RelationNotExistError
+	require.True(t, errz.IsErrRelationNotExist(rne1))
+
+	var rne2 *errz.RelationNotExistError
+	require.True(t, errors.As(rne1, &rne2))
+
+	err = errz.RelationNotExist(errz.New("huzzah"))
+	require.True(t, errz.IsErrRelationNotExist(err))
+	err = fmt.Errorf("wrap me: %w", err)
+	require.True(t, errz.IsErrRelationNotExist(err))
 }

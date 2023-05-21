@@ -10,7 +10,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var GetTableColumnNames = getTableColumnNames
+// Export for testing.
+var (
+	GetTableColumnNames   = getTableColumnNames
+	IsErrRelationNotExist = isErrRelationNotExist
+)
 
 func TestPlaceholders(t *testing.T) {
 	testCases := []struct {

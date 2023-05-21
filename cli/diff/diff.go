@@ -25,9 +25,9 @@ type Config struct {
 	Lines int
 
 	// RecordWriterFn is a factory function that returns
-	// an output.RecordWriter used to generate diff text for
+	// an output.RecordWriter used to generate diff text
 	// when comparing table data.
-	RecordWriterFn func(w io.Writer, pr *output.Printing) output.RecordWriter
+	RecordWriterFn output.NewRecordWriterFunc
 }
 
 // Elements determines what source elements to compare.

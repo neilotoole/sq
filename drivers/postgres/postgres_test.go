@@ -301,3 +301,10 @@ func BenchmarkDatabase_SourceMetadata(b *testing.B) {
 		})
 	}
 }
+
+func TestIsErrRelationDoesNotExist(t *testing.T) {
+	th, src, _, _ := testh.NewWith(t, sakila.Pg)
+	_, err := th.QuerySQL(src, "SELECT * FROM tbl_does_not_exist")
+	require.Error(t, err)
+	require.True(t, postgres.IsErrRelationNotExist(err))
+}
