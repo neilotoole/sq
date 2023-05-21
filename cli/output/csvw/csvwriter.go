@@ -105,23 +105,24 @@ func (w *RecordWriter) WriteRecords(recs []record.Record) error {
 			case nil:
 				// nil is rendered as empty string, which this cell already is
 			case *int64:
-				fields[i] = strconv.FormatInt(*val, 10)
+				fields[i] = w.pr.Number.Sprint(strconv.FormatInt(*val, 10))
 			case *string:
-				fields[i] = *val
+				fields[i] = w.pr.String.Sprint(*val)
 			case *bool:
-				fields[i] = strconv.FormatBool(*val)
+				fields[i] = w.pr.Bool.Sprint(*val)
 			case *float64:
-				fields[i] = fmt.Sprintf("%v", *val)
+				fields[i] = w.pr.Number.Sprintf("%v", *val)
 			case *[]byte:
+				// REVISIT: What should we do for bytes? Encode to base64?
 				fields[i] = fmt.Sprintf("%v", string(*val))
 			case *time.Time:
 				switch w.recMeta[i].Kind() { //nolint:exhaustive
 				default:
-					fields[i] = w.pr.FormatDatetime(*val)
+					fields[i] = w.pr.Datetime.Sprint(w.pr.FormatDatetime(*val))
 				case kind.Time:
-					fields[i] = w.pr.FormatTime(*val)
+					fields[i] = w.pr.Datetime.Sprint(w.pr.FormatTime(*val))
 				case kind.Date:
-					fields[i] = w.pr.FormatDate(*val)
+					fields[i] = w.pr.Datetime.Sprint(w.pr.FormatDate(*val))
 				}
 			}
 		}
