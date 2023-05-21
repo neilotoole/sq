@@ -3,9 +3,11 @@ package cli
 import (
 	"github.com/neilotoole/sq/cli/diff"
 	"github.com/neilotoole/sq/cli/flag"
-	"github.com/neilotoole/sq/cli/output/jsonw"
+	"github.com/neilotoole/sq/cli/output/format"
+	"github.com/neilotoole/sq/cli/output/tablew"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/samber/lo"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -21,6 +23,29 @@ var OptDiffNumLines = options.NewInt(
 	"Generate diffs with <n> lines of context",
 	`Generate diffs with <n> lines of context, where n >= 0.`,
 )
+
+var OptDiffDataFormat = format.NewOpt(
+	"diff.data-format",
+	"data-format",
+	'f',
+	format.Text,
+	"Diff data format",
+	`Specify the output format to use when comparing table data.
+Available formats:
+
+  text, csv, tsv,
+  json, jsona, jsonl,
+  markdown, html, xml, yaml`,
+)
+
+// diffFormats contains fewer formats than those in format.All.
+// That's because some of them are not text-based, e.g. XLSX,
+// and thus cause trouble with the text/line-based diff functionality.
+var diffFormats = []format.Format{
+	format.Text, format.CSV, format.TSV,
+	format.JSON, format.JSONA, format.JSONL,
+	format.Markdown, format.HTML, format.XML, format.YAML,
+}
 
 var allDiffElementsFlags = []string{
 	flag.DiffAll,
@@ -80,6 +105,15 @@ The default can be changed via "sq config set diff.lines".`,
 	}
 
 	addOptionFlag(cmd.Flags(), OptDiffNumLines)
+	addOptionFlag(cmd.Flags(), OptDiffDataFormat)
+	panicOn(cmd.RegisterFlagCompletionFunc(
+		OptDiffDataFormat.Flag(),
+		completeStrings(-1, stringz.Strings(diffFormats)...),
+	))
+
+	cmd.Flags().BoolP(flag.Header, flag.HeaderShort, true, flag.HeaderUsage)
+	cmd.Flags().BoolP(flag.NoHeader, flag.NoHeaderShort, false, flag.NoHeaderUsage)
+	cmd.MarkFlagsMutuallyExclusive(flag.Header, flag.NoHeader)
 
 	cmd.Flags().BoolP(flag.DiffSummary, flag.DiffSummaryShort, false, flag.DiffSummaryUsage)
 	cmd.Flags().BoolP(flag.DiffDBProps, flag.DiffDBPropsShort, false, flag.DiffDBPropsUsage)
@@ -117,10 +151,17 @@ func execDiff(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	f := OptDiffDataFormat.Get(o)
+	recwFn := getRecordWriterFunc(f)
+	if recwFn == nil {
+		// Shouldn't happen
+		logFrom(cmd).Warn("No record writer impl for format", "format", f)
+		recwFn = tablew.NewRecordWriter
+	}
+
 	diffCfg := &diff.Config{
-		Lines: OptDiffNumLines.Get(o),
-		// RecordWriterFn: yamlw.NewRecordWriter,
-		RecordWriterFn: jsonw.NewObjectRecordWriter,
+		Lines:          OptDiffNumLines.Get(o),
+		RecordWriterFn: recwFn,
 	}
 
 	if diffCfg.Lines < 0 {

@@ -13,6 +13,8 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
+var _ output.NewRecordWriterFunc = NewStdRecordWriter
+
 // NewStdRecordWriter returns a record writer that outputs each
 // record as a JSON object that is an element of JSON array. This is
 // to say, standard JSON. For example:
@@ -250,6 +252,8 @@ func newStdTemplate(recMeta record.Meta, pr *output.Printing) (*stdTemplate, err
 	return stdTpl, nil
 }
 
+var _ output.NewRecordWriterFunc = NewObjectRecordWriter
+
 // NewObjectRecordWriter writes out each record as a JSON object
 // on its own line. For example:
 //
@@ -262,6 +266,8 @@ func NewObjectRecordWriter(out io.Writer, pr *output.Printing) output.RecordWrit
 		newTplFn: newJSONObjectsTemplate,
 	}
 }
+
+var _ output.NewRecordWriterFunc = NewArrayRecordWriter
 
 // NewArrayRecordWriter returns a RecordWriter that outputs each
 // record as a JSON array on its own line. For example:

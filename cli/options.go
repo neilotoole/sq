@@ -151,6 +151,7 @@ func RegisterDefaultOpts(reg *options.Registry) {
 		OptLogFile,
 		OptLogLevel,
 		OptDiffNumLines,
+		OptDiffDataFormat,
 		driver.OptConnMaxOpen,
 		driver.OptConnMaxIdle,
 		driver.OptConnMaxIdleTime,

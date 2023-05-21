@@ -24,6 +24,8 @@ type recordWriter struct {
 	sheet   *xlsx.Sheet
 }
 
+var _ output.NewRecordWriterFunc = NewRecordWriter
+
 // NewRecordWriter returns an output.RecordWriter instance for XLSX.
 func NewRecordWriter(out io.Writer, pr *output.Printing) output.RecordWriter {
 	return &recordWriter{out: out, header: pr.ShowHeader}

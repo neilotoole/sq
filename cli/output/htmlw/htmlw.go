@@ -29,6 +29,8 @@ type recordWriter struct {
 	buf     *bytes.Buffer
 }
 
+var _ output.NewRecordWriterFunc = NewRecordWriter
+
 // NewRecordWriter an output.RecordWriter for HTML.
 func NewRecordWriter(out io.Writer, pr *output.Printing) output.RecordWriter {
 	return &recordWriter{out: out, pr: pr}

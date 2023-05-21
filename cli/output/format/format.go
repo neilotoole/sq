@@ -18,6 +18,7 @@ func (f *Format) UnmarshalText(text []byte) error {
 	case "table":
 		// Legacy: the "text" format used to be named "table".
 		// text = []byte(Text)
+		// FIXME: Probably should return an error now?
 	}
 
 	*f = Format(text)

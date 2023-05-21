@@ -13,8 +13,6 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
-	"github.com/neilotoole/sq/libsq/core/errz"
-
 	"github.com/neilotoole/sq/libsq/core/options"
 
 	"github.com/neilotoole/sq/cli/output/format"
@@ -47,8 +45,10 @@ to certain formats, such as "text" or "csv".`,
 		"format",
 	)
 
-	OptFormat = NewFormatOpt(
+	OptFormat = format.NewOpt(
 		"format",
+		"",
+		0,
 		format.Text,
 		"Output format",
 		`Specify the output format. Some formats are only implemented for a subset of
@@ -136,10 +136,6 @@ is not an integer.
 `,
 	)
 
-	// FIXME: add opts OptDateFormatNumber and OptTimeFormatNumber.
-	// The doc should note that OptDatetimeFormatNumber has primacy, and
-	// to setting that flag instead.
-
 	OptDateFormat = options.NewString(
 		"format.date",
 		"",
@@ -210,10 +206,10 @@ Note that this option is no-op if the rendered value is not an integer.
 // newWriters returns an output.Writers instance configured per defaults and/or
 // flags from cmd. The returned out2/errOut2 values may differ
 // from the out/errOut args (e.g. decorated to support colorization).
-func newWriters(cmd *cobra.Command, opts options.Options, out, errOut io.Writer,
+func newWriters(cmd *cobra.Command, o options.Options, out, errOut io.Writer,
 ) (w *output.Writers, out2, errOut2 io.Writer) {
 	var pr *output.Printing
-	pr, out2, errOut2 = getPrinting(cmd, opts, out, errOut)
+	pr, out2, errOut2 = getPrinting(cmd, o, out, errOut)
 	log := logFrom(cmd)
 
 	// Package tablew has writer impls for each of the writer interfaces,
@@ -233,13 +229,12 @@ func newWriters(cmd *cobra.Command, opts options.Options, out, errOut io.Writer,
 
 	// Invoke getFormat to see if the format was specified
 	// via config or flag.
-	fm := getFormat(cmd, opts) // FIXME: is this still needed, or use standard opts mechanism?
+	fm := getFormat(cmd, o)
 
 	//nolint:exhaustive
 	switch fm {
 	default:
 		// No format specified, use JSON
-		w.Record = jsonw.NewStdRecordWriter(out2, pr)
 		w.Metadata = jsonw.NewMetadataWriter(out2, pr)
 		w.Source = jsonw.NewSourceWriter(out2, pr)
 		w.Error = jsonw.NewErrorWriter(log, errOut2, pr)
@@ -248,45 +243,63 @@ func newWriters(cmd *cobra.Command, opts options.Options, out, errOut io.Writer,
 		w.Config = jsonw.NewConfigWriter(out2, pr)
 
 	case format.Text:
-	// Table is the base format, already set above, no need to do anything.
+		// Don't delete this case, it's actually needed due to
+		// the slightly odd logic that determines format.
 
 	case format.TSV:
-		w.Record = csvw.NewRecordWriter(out2, pr, csvw.Tab)
 		w.Ping = csvw.NewPingWriter(out2, csvw.Tab)
 
 	case format.CSV:
-		w.Record = csvw.NewRecordWriter(out2, pr, csvw.Comma)
 		w.Ping = csvw.NewPingWriter(out2, csvw.Comma)
-
-	case format.XML:
-		w.Record = xmlw.NewRecordWriter(out2, pr)
-
-	case format.XLSX:
-		w.Record = xlsxw.NewRecordWriter(out2, pr)
-
-	case format.Raw:
-		w.Record = raww.NewRecordWriter(out2, pr)
-
-	case format.HTML:
-		w.Record = htmlw.NewRecordWriter(out2, pr)
-
-	case format.Markdown:
-		w.Record = markdownw.NewRecordWriter(out2, pr)
-
-	case format.JSONA:
-		w.Record = jsonw.NewArrayRecordWriter(out2, pr)
-
-	case format.JSONL:
-		w.Record = jsonw.NewObjectRecordWriter(out2, pr)
 
 	case format.YAML:
 		w.Config = yamlw.NewConfigWriter(out2, pr)
 		w.Metadata = yamlw.NewMetadataWriter(out2, pr)
 		w.Source = yamlw.NewSourceWriter(out2, pr)
-		w.Record = yamlw.NewRecordWriter(out2, pr)
+	}
+
+	recwFn := getRecordWriterFunc(fm)
+	if recwFn == nil {
+		// We can still continue, because w.Record was already set above.
+		log.Warn("No record writer impl for format", "format", fm)
+	} else {
+		w.Record = recwFn(out2, pr)
 	}
 
 	return w, out2, errOut2
+}
+
+// getRecordWriterFunc returns a func that creates a new output.RecordWriter
+// for format f. If no matching format, nil is returned.
+func getRecordWriterFunc(f format.Format) output.NewRecordWriterFunc {
+	switch f {
+	case format.Text:
+		return tablew.NewRecordWriter
+	case format.CSV:
+		return csvw.NewCommaRecordWriter
+	case format.TSV:
+		return csvw.NewTabRecordWriter
+	case format.JSON:
+		return jsonw.NewStdRecordWriter
+	case format.JSONA:
+		return jsonw.NewArrayRecordWriter
+	case format.JSONL:
+		return jsonw.NewObjectRecordWriter
+	case format.HTML:
+		return htmlw.NewRecordWriter
+	case format.Markdown:
+		return markdownw.NewRecordWriter
+	case format.XML:
+		return xmlw.NewRecordWriter
+	case format.XLSX:
+		return xlsxw.NewRecordWriter
+	case format.YAML:
+		return yamlw.NewRecordWriter
+	case format.Raw:
+		return raww.NewRecordWriter
+	default:
+		return nil
+	}
 }
 
 // getPrinting returns a Printing instance and
@@ -397,92 +410,4 @@ func getFormat(cmd *cobra.Command, o options.Options) format.Format {
 		fm = OptFormat.Get(o)
 	}
 	return fm
-}
-
-var _ options.Opt = FormatOpt{}
-
-// NewFormatOpt returns a new FormatOpt instance.
-func NewFormatOpt(key string, defaultVal format.Format, usage, help string) FormatOpt {
-	opt := options.NewBaseOpt(key, "", 0, usage, help)
-	return FormatOpt{BaseOpt: opt, defaultVal: defaultVal}
-}
-
-// FormatOpt is an options.Opt for format.Format.
-type FormatOpt struct {
-	options.BaseOpt
-	defaultVal format.Format
-}
-
-// Process implements options.Processor. It converts matching
-// string values in o into format.Format. If no match found,
-// the input arg is returned unchanged. Otherwise, a clone is
-// returned.
-func (op FormatOpt) Process(o options.Options) (options.Options, error) {
-	if o == nil {
-		return nil, nil
-	}
-
-	key := op.Key()
-	v, ok := o[key]
-	if !ok || v == nil {
-		return o, nil
-	}
-
-	// v should be a string
-	switch v := v.(type) {
-	case string:
-		// continue below
-	case format.Format:
-		return o, nil
-	default:
-		return nil, errz.Errorf("option {%s} should be {%T} or {%T} but got {%T}: %v",
-			key, format.Format(""), "", v, v)
-	}
-
-	var s string
-	s, ok = v.(string)
-	if !ok {
-		return nil, errz.Errorf("option {%s} should be {%T} but got {%T}: %v",
-			key, s, v, v)
-	}
-
-	var f format.Format
-	if err := f.UnmarshalText([]byte(s)); err != nil {
-		return nil, errz.Wrapf(err, "option {%s} is not a valid {%T}", key, f)
-	}
-
-	o = o.Clone()
-	o[key] = f
-	return o, nil
-}
-
-// GetAny implements options.Opt.
-func (op FormatOpt) GetAny(o options.Options) any {
-	return op.Get(o)
-}
-
-// DefaultAny implements options.Opt.
-func (op FormatOpt) DefaultAny() any {
-	return op.defaultVal
-}
-
-// Get returns op's value in o. If o is nil, or no value
-// is set, op's default value is returned.
-func (op FormatOpt) Get(o options.Options) format.Format {
-	if o == nil {
-		return op.defaultVal
-	}
-
-	v, ok := o[op.Key()]
-	if !ok {
-		return op.defaultVal
-	}
-
-	var f format.Format
-	f, ok = v.(format.Format)
-	if !ok {
-		return op.defaultVal
-	}
-
-	return f
 }

@@ -21,13 +21,12 @@ import (
 
 // Config contains parameters to control diff behavior.
 type Config struct {
-	// Lines controls the number of lines of context surrounding
-	// a diff.
+	// Lines specifies the number of lines of context surrounding a diff.
 	Lines int
 
 	// RecordWriterFn is a factory function that returns
 	// an output.RecordWriter used to generate diff text for
-	// data diffs.
+	// when comparing table data.
 	RecordWriterFn func(w io.Writer, pr *output.Printing) output.RecordWriter
 }
 

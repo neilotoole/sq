@@ -29,16 +29,36 @@ const (
 type RecordWriter struct {
 	mu          sync.Mutex
 	recMeta     record.Meta
-	csvW        *csv.Writer
+	cw          *csv.Writer
 	needsHeader bool
 	pr          *output.Printing
 }
 
-// NewRecordWriter returns a writer instance.
-func NewRecordWriter(out io.Writer, pr *output.Printing, sep rune) *RecordWriter {
-	csvW := csv.NewWriter(out)
-	csvW.Comma = sep
-	return &RecordWriter{needsHeader: pr.ShowHeader, csvW: csvW, pr: pr}
+var (
+	_ output.NewRecordWriterFunc = NewCommaRecordWriter
+	_ output.NewRecordWriterFunc = NewTabRecordWriter
+)
+
+// NewCommaRecordWriter returns writer instance that uses csvw.Comma.
+func NewCommaRecordWriter(out io.Writer, pr *output.Printing) output.RecordWriter {
+	return newRecordWriter(out, pr, Comma)
+}
+
+// NewTabRecordWriter returns writer instance that uses csvw.Comma.
+func NewTabRecordWriter(out io.Writer, pr *output.Printing) output.RecordWriter {
+	return newRecordWriter(out, pr, Tab)
+}
+
+// newRecordWriter returns a writer instance using sep.
+func newRecordWriter(out io.Writer, pr *output.Printing, sep rune) output.RecordWriter {
+	cw := csv.NewWriter(out)
+	cw.Comma = sep
+	return &RecordWriter{needsHeader: pr.ShowHeader, cw: cw, pr: pr}
+}
+
+// SetComma sets the CSV writer comma value.
+func (w *RecordWriter) SetComma(c rune) {
+	w.cw.Comma = c
 }
 
 // Open implements output.RecordWriter.
@@ -49,14 +69,14 @@ func (w *RecordWriter) Open(recMeta record.Meta) error {
 
 // Flush implements output.RecordWriter.
 func (w *RecordWriter) Flush() error {
-	w.csvW.Flush()
+	w.cw.Flush()
 	return nil
 }
 
 // Close implements output.RecordWriter.
 func (w *RecordWriter) Close() error {
-	w.csvW.Flush()
-	return w.csvW.Error()
+	w.cw.Flush()
+	return w.cw.Error()
 }
 
 // WriteRecords implements output.RecordWriter.
@@ -67,7 +87,7 @@ func (w *RecordWriter) WriteRecords(recs []record.Record) error {
 	if w.needsHeader {
 		headerRow := w.recMeta.Names()
 
-		err := w.csvW.Write(headerRow)
+		err := w.cw.Write(headerRow)
 		if err != nil {
 			return errz.Wrap(err, "failed to write header record")
 		}
@@ -106,12 +126,12 @@ func (w *RecordWriter) WriteRecords(recs []record.Record) error {
 			}
 		}
 
-		err := w.csvW.Write(fields)
+		err := w.cw.Write(fields)
 		if err != nil {
 			return errz.Wrap(err, "failed to write records")
 		}
 	}
 
-	w.csvW.Flush()
-	return w.csvW.Error()
+	w.cw.Flush()
+	return w.cw.Error()
 }

@@ -7,6 +7,7 @@
 package output
 
 import (
+	"io"
 	"time"
 
 	"github.com/neilotoole/sq/libsq/core/record"
@@ -140,3 +141,6 @@ type Writers struct {
 	Version  VersionWriter
 	Config   ConfigWriter
 }
+
+// NewRecordWriterFunc is a func type that returns an output.RecordWriter.
+type NewRecordWriterFunc func(out io.Writer, pr *Printing) RecordWriter

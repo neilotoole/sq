@@ -29,8 +29,10 @@ type RecordWriter struct {
 	buf     *bytes.Buffer
 }
 
+var _ output.NewRecordWriterFunc = NewRecordWriter
+
 // NewRecordWriter returns a writer instance.
-func NewRecordWriter(out io.Writer, pr *output.Printing) *RecordWriter {
+func NewRecordWriter(out io.Writer, pr *output.Printing) output.RecordWriter {
 	return &RecordWriter{out: out, pr: pr}
 }
 

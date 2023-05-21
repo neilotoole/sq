@@ -27,6 +27,8 @@ type recordWriter struct {
 	recMeta record.Meta
 }
 
+var _ output.NewRecordWriterFunc = NewRecordWriter
+
 // NewRecordWriter returns an output.RecordWriter instance for
 // raw output. This is typically used to output a single blob result,
 // such as a gif etc. The elements of each record are directly

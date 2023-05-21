@@ -21,6 +21,8 @@ import (
 	"github.com/neilotoole/sq/cli/output"
 )
 
+var _ output.NewRecordWriterFunc = NewRecordWriter
+
 // NewRecordWriter returns an output.RecordWriter that writes YAML.
 func NewRecordWriter(out io.Writer, pr *output.Printing) output.RecordWriter {
 	return &recordWriter{
@@ -28,8 +30,6 @@ func NewRecordWriter(out io.Writer, pr *output.Printing) output.RecordWriter {
 		pr:  pr,
 	}
 }
-
-var _ output.RecordWriter = (*recordWriter)(nil)
 
 type recordWriter struct {
 	mu         sync.Mutex
