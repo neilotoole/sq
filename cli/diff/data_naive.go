@@ -45,7 +45,7 @@ func buildTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config,
 
 	buf1, buf2 := &bytes.Buffer{}, &bytes.Buffer{}
 	w1, w2 := cfg.RecordWriterFn(buf1, pr), cfg.RecordWriterFn(buf2, pr)
-	recw1, recw2 := output.NewRecordWriterAdapter(w1), output.NewRecordWriterAdapter(w2)
+	recw1, recw2 := output.NewRecordWriterAdapter(ctx, w1), output.NewRecordWriterAdapter(ctx, w2)
 
 	g, gCtx := errgroup.WithContext(ctx)
 	g.Go(func() error {

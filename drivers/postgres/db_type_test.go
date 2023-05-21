@@ -451,7 +451,7 @@ func TestDatabaseTypes(t *testing.T) {
 			t.Cleanup(func() { th.DropTable(src, actualTblName) })
 
 			sink := &testh.RecordSink{}
-			recw := output.NewRecordWriterAdapter(sink)
+			recw := output.NewRecordWriterAdapter(th.Context, sink)
 			err := libsq.QuerySQL(th.Context, th.Open(src), recw,
 				fmt.Sprintf("SELECT * FROM %s", actualTblName))
 			require.NoError(t, err)

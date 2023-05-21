@@ -5,6 +5,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/driver"
+
 	"github.com/neilotoole/sq/libsq/core/record"
 
 	"go.uber.org/atomic"
@@ -44,14 +47,11 @@ type RecordWriterAdapter struct {
 	FlushAfterDuration time.Duration
 }
 
-// adapterRecChSize is the size of the record chan (effectively
-// the buffer) used by RecordWriterAdapter.
-// FIXME: adapterRecChSize should be user-configurable.
-const adapterRecChSize = 1000
-
 // NewRecordWriterAdapter returns a new RecordWriterAdapter.
-func NewRecordWriterAdapter(rw RecordWriter) *RecordWriterAdapter {
-	recCh := make(chan record.Record, adapterRecChSize)
+// The size of the internal buffer is controlled by driver.OptTuningRecChanSize.
+func NewRecordWriterAdapter(ctx context.Context, rw RecordWriter) *RecordWriterAdapter {
+	chSize := driver.OptTuningRecChanSize.Get(options.FromContext(ctx))
+	recCh := make(chan record.Record, chSize)
 
 	return &RecordWriterAdapter{rw: rw, recCh: recCh, wg: &sync.WaitGroup{}, written: atomic.NewInt64(0)}
 }

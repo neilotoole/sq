@@ -103,7 +103,7 @@ If n <= 0, connections are not closed due to a connection's age.`,
 		0,
 		time.Second,
 		"Connection open timeout",
-		"Max time to wait before a connection open operation times out.",
+		"Max time to wait before a connection open timeout occurs.",
 		"source",
 	)
 

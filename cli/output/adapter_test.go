@@ -54,7 +54,7 @@ func TestRecordWriterAdapter(t *testing.T) {
 			dbase := th.Open(src)
 
 			sink := &testh.RecordSink{}
-			recw := output.NewRecordWriterAdapter(sink)
+			recw := output.NewRecordWriterAdapter(th.Context, sink)
 			err := libsq.QuerySQL(th.Context, dbase, recw, tc.sqlQuery)
 			require.NoError(t, err)
 			written, err := recw.Wait()
@@ -92,12 +92,13 @@ func TestRecordWriterAdapter_FlushAfterN(t *testing.T) {
 		t.Run(fmt.Sprintf("flustAfter_%d__wantFlushed_%d", flushAfterN, wantFlushed), func(t *testing.T) {
 			t.Parallel()
 
+			ctx := context.Background()
 			sink := &testh.RecordSink{}
-			recw := output.NewRecordWriterAdapter(sink)
+			recw := output.NewRecordWriterAdapter(ctx, sink)
 
 			recw.FlushAfterN = int64(flushAfterN)
 			recw.FlushAfterDuration = -1 // not testing duration
-			recCh, _, err := recw.Open(context.Background(), nil, recMeta)
+			recCh, _, err := recw.Open(ctx, nil, recMeta)
 			require.NoError(t, err)
 
 			// Write some records
@@ -145,13 +146,14 @@ func TestRecordWriterAdapter_FlushAfterDuration(t *testing.T) {
 		t.Run(fmt.Sprintf("flushAfter_%s__wantFlushed_%d", tc.flushAfter, tc.wantFlushed), func(t *testing.T) {
 			t.Parallel()
 
+			ctx := context.Background()
 			sink := &testh.RecordSink{}
-			recw := output.NewRecordWriterAdapter(sink)
+			recw := output.NewRecordWriterAdapter(ctx, sink)
 
 			recw.FlushAfterN = -1 // not testing FlushAfterN
 			recw.FlushAfterDuration = tc.flushAfter
 
-			recCh, _, err := recw.Open(context.Background(), nil, recMeta)
+			recCh, _, err := recw.Open(ctx, nil, recMeta)
 			require.NoError(t, err)
 
 			// Write some records

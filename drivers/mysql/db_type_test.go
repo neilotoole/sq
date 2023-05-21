@@ -329,7 +329,7 @@ func createTypeTestTable(th *testh.Helper, src *source.Source, withData bool) (n
 // for various database types, inserts known data, and checks that
 // the returned data matches the inserted data, including verifying
 // that NULL is handled correctly.
-func TestDatabaseTypes(t *testing.T) {
+func TestDatabaseTypes(t *testing.T) { //nolint:tparallel
 	const wantRowCount = 3
 
 	testCases := sakila.MyAll()
@@ -347,7 +347,7 @@ func TestDatabaseTypes(t *testing.T) {
 			t.Cleanup(func() { th.DropTable(src, actualTblName) })
 
 			sink := &testh.RecordSink{}
-			recw := output.NewRecordWriterAdapter(sink)
+			recw := output.NewRecordWriterAdapter(th.Context, sink)
 			err := libsq.QuerySQL(th.Context, th.Open(src), recw,
 				fmt.Sprintf("SELECT * FROM %s", actualTblName))
 			require.NoError(t, err)
@@ -420,7 +420,7 @@ func TestDatabaseTypeJSON(t *testing.T) {
 
 			// Query the inserted data
 			sink := &testh.RecordSink{}
-			recw := output.NewRecordWriterAdapter(sink)
+			recw := output.NewRecordWriterAdapter(th.Context, sink)
 			err = libsq.QuerySQL(th.Context, th.Open(src), recw, fmt.Sprintf("SELECT * FROM %s", actualTblName))
 			require.NoError(t, err)
 			written, err := recw.Wait()
