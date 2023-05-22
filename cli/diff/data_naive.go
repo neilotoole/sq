@@ -4,6 +4,10 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"time"
+
+	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/driver"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
@@ -105,53 +109,135 @@ func buildTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config,
 
 // execSourceDataDiff executes a diff all tables found in either source.
 func execSourceDataDiff(ctx context.Context, ru *run.Run, cfg *Config, sd1, sd2 *sourceData) error {
+	o := options.FromContext(ctx)
+
 	allTblNames := append(sd1.srcMeta.TableNames(), sd2.srcMeta.TableNames()...)
 	allTblNames = lo.Uniq(allTblNames)
 	slices.Sort(allTblNames)
 
-	tblDataDiffs := make([]*tableDataDiff, 0, len(allTblNames))
-	for _, tbl := range allTblNames {
-		select {
-		case <-ctx.Done():
-			return errz.Err(ctx.Err())
-		default:
-		}
-		td1 := &tableData{
-			tblName: tbl,
-			src:     sd1.src,
-			srcMeta: sd1.srcMeta,
-		}
-		td2 := &tableData{
-			tblName: tbl,
-			src:     sd2.src,
-			srcMeta: sd2.srcMeta,
-		}
+	diffs := make([]*tableDataDiff, len(allTblNames))
 
-		tblDataDiff, err := buildTableDataDiff(ctx, ru, cfg, td1, td2)
-		if err != nil {
-			return err
-		}
-
-		if tblDataDiff != nil {
-			tblDataDiffs = append(tblDataDiffs, tblDataDiff)
-		}
+	// mIndex is a map of table name to its index in allTblNames.
+	mIndex := make(map[string]int, len(allTblNames))
+	for i := range allTblNames {
+		mIndex[allTblNames[i]] = i
 	}
 
-	slices.SortFunc(tblDataDiffs, func(a, b *tableDataDiff) bool {
-		return a.td1.tblName < b.td1.tblName
-	})
+	g, gCtx := errgroup.WithContext(ctx)
+	g.SetLimit(driver.OptTuningErrgroupLimit.Get(o))
+	diffCh := make(chan *tableDataDiff, driver.OptTuningRecChanSize.Get(o))
 
-	for _, tblDataDiff := range tblDataDiffs {
-		select {
-		case <-ctx.Done():
-			return errz.Err(ctx.Err())
-		default:
-		}
+	printErrCh := make(chan error, 1)
+	printIndex := 0
 
-		if err := Print(ru.Out, ru.Writers.Printing, tblDataDiff.header, tblDataDiff.diff); err != nil {
-			return err
+	go func() {
+		// This is the read/print goroutine. Further down, in an errgroup, we spin
+		// up multiple goroutines to build a tableDataDiff for each table. Those
+		// errgroup goroutines write their results to diffCh. But they can be sent
+		// on diffCh in any order.
+		//
+		// This goroutine reads *tblDataDiff from diffCh, and looks up the index
+		// of that table in mIndex. Then, it sets diffs[i] with the tableDataDiff.
+		//
+		// Note that we want to print the diffs in the order specified by
+		// allTblNames. A printIndex counter is maintained. After the goroutine
+		// inserts a value into diffs, we then check if the next (as defined by
+		// printIndex) element of diffs is non-nil. If so, the goroutine prints
+		// that diff, and advances the printIndex counter.
+
+		defer func() { close(printErrCh) }()
+
+		var tblDataDiff *tableDataDiff
+		for {
+			select {
+			case <-gCtx.Done():
+				return
+			case tblDataDiff = <-diffCh:
+				if tblDataDiff == nil {
+					// Channel is closed, means we're done.
+					return
+				}
+			}
+
+			diffIndex, ok := mIndex[tblDataDiff.td1.tblName]
+			if !ok {
+				// Shouldn't happen
+				err := errz.Errorf("Index not found for table: %s", tblDataDiff.td1.tblName)
+				printErrCh <- err
+				return
+			}
+
+			// Put tblDataDiff into diffs.
+			diffs[diffIndex] = tblDataDiff
+
+			// Now check if the next diff is available to print.
+			for {
+				select {
+				case <-gCtx.Done():
+					return
+				default:
+				}
+
+				if printIndex >= len(diffs) {
+					return
+				}
+
+				if diffs[printIndex] == nil {
+					break
+				}
+
+				tblDataDiff = diffs[printIndex]
+				if err := Print(ru.Out, ru.Writers.Printing, tblDataDiff.header, tblDataDiff.diff); err != nil {
+					printErrCh <- err
+					return
+				}
+
+				printIndex++
+			}
 		}
+	}()
+
+	for _, tblName := range allTblNames {
+		tblName := tblName
+
+		// Add a little delay to allow the goroutine to get a head start
+		// on its successors. Benchmark: does this actually help?
+		time.Sleep(time.Microsecond * 10)
+
+		g.Go(func() error {
+			select {
+			case <-gCtx.Done():
+				return errz.Err(gCtx.Err())
+			default:
+			}
+
+			td1 := &tableData{
+				tblName: tblName,
+				src:     sd1.src,
+				srcMeta: sd1.srcMeta,
+			}
+			td2 := &tableData{
+				tblName: tblName,
+				src:     sd2.src,
+				srcMeta: sd2.srcMeta,
+			}
+
+			tblDataDiff, err := buildTableDataDiff(gCtx, ru, cfg, td1, td2)
+			if err != nil {
+				return err
+			}
+
+			diffCh <- tblDataDiff
+			return nil
+		})
 	}
 
-	return nil
+	if err := g.Wait(); err != nil {
+		return err
+	}
+	close(diffCh)
+
+	// This has the effect of waiting until the print goroutine completes.
+	err := <-printErrCh
+	return err
 }
