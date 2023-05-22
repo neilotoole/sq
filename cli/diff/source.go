@@ -17,7 +17,9 @@ import (
 )
 
 // ExecSourceDiff diffs handle1 and handle2.
-func ExecSourceDiff(ctx context.Context, ru *run.Run, numLines int, summary bool, handle1, handle2 string) error {
+func ExecSourceDiff(ctx context.Context, ru *run.Run, cfg *Config,
+	elems *Elements, handle1, handle2 string,
+) error {
 	var (
 		sd1 = &sourceData{handle: handle1}
 		sd2 = &sourceData{handle: handle2}
@@ -26,6 +28,9 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, numLines int, summary bool
 	g, gCtx := errgroup.WithContext(ctx)
 	g.Go(func() error {
 		var err error
+		// TODO: This mechanism fetches the entire source metadata. That's
+		// only necessary if both opts.DBProperties and opts.Tables are true.
+		// This mechanism can be improved to only fetch the relevant data.
 		sd1.src, sd1.srcMeta, err = fetchSourceMeta(gCtx, ru, handle1)
 		return err
 	})
@@ -38,56 +43,62 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, numLines int, summary bool
 		return err
 	}
 
-	srcDiff, tblDiffs, err := buildSourceDiff(numLines, sd1, sd2)
-	if err != nil {
-		return err
-	}
-
-	if err := Print(ru.Out, ru.Writers.Printing, srcDiff.header, srcDiff.diff); err != nil {
-		return err
-	}
-
-	if summary {
-		return nil
-	}
-
-	for _, tblDiff := range tblDiffs {
-		if err := Print(ru.Out, ru.Writers.Printing, tblDiff.header, tblDiff.diff); err != nil {
+	if elems.Summary {
+		srcDiff, err := buildSourceSummaryDiff(cfg, sd1, sd2)
+		if err != nil {
 			return err
 		}
+
+		if err = Print(ru.Out, ru.Writers.Printing, srcDiff.header, srcDiff.diff); err != nil {
+			return err
+		}
+	}
+
+	if elems.DBProperties {
+		propsDiff, err := buildDBPropsDiff(cfg, sd1, sd2)
+		if err != nil {
+			return err
+		}
+		if err = Print(ru.Out, ru.Writers.Printing, propsDiff.header, propsDiff.diff); err != nil {
+			return err
+		}
+	}
+
+	if elems.Table {
+		tblDiffs, err := buildSourceTableDiffs(ctx, cfg, elems.RowCount, sd1, sd2)
+		if err != nil {
+			return err
+		}
+		for _, tblDiff := range tblDiffs {
+			if err := Print(ru.Out, ru.Writers.Printing, tblDiff.header, tblDiff.diff); err != nil {
+				return err
+			}
+		}
+	}
+
+	if elems.Data {
+		// We're going for it... diff all table data.
+		return execSourceDataDiff(ctx, ru, cfg, sd1, sd2)
 	}
 
 	return nil
 }
 
-func buildSourceDiff(numLines int, sd1, sd2 *sourceData) (srcDiff *sourceDiff, tblDiffs []*tableDiff, err error) {
-	srcDiff, err = buildSourceSummaryDiff(numLines, sd1, sd2)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	tblDiffs, err = buildSourceTableDiffs(numLines, sd1, sd2)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return srcDiff, tblDiffs, nil
-}
-
-func buildSourceTableDiffs(numLines int, sd1, sd2 *sourceData) ([]*tableDiff, error) {
-	var allTblNames []string
-
-	for _, tbl := range sd1.srcMeta.Tables {
-		allTblNames = append(allTblNames, tbl.Name)
-	}
-	for _, tbl := range sd2.srcMeta.Tables {
-		allTblNames = append(allTblNames, tbl.Name)
-	}
+func buildSourceTableDiffs(ctx context.Context, cfg *Config, showRowCounts bool,
+	sd1, sd2 *sourceData,
+) ([]*tableDiff, error) {
+	allTblNames := append(sd1.srcMeta.TableNames(), sd2.srcMeta.TableNames()...)
 	allTblNames = lo.Uniq(allTblNames)
 	slices.Sort(allTblNames)
 
 	var diffs []*tableDiff
 	for _, tblName := range allTblNames {
+		select {
+		case <-ctx.Done():
+			return nil, errz.Err(ctx.Err())
+		default:
+		}
+
 		td1 := &tableData{
 			tblName: tblName,
 			tblMeta: sd1.srcMeta.Table(tblName),
@@ -101,7 +112,7 @@ func buildSourceTableDiffs(numLines int, sd1, sd2 *sourceData) ([]*tableDiff, er
 			srcMeta: sd2.srcMeta,
 		}
 
-		dff, err := buildTableDiff(numLines, td1, td2)
+		dff, err := buildTableStructureDiff(cfg, showRowCounts, td1, td2)
 		if err != nil {
 			return nil, err
 		}
@@ -112,7 +123,7 @@ func buildSourceTableDiffs(numLines int, sd1, sd2 *sourceData) ([]*tableDiff, er
 	return diffs, nil
 }
 
-func buildSourceSummaryDiff(numLines int, sd1, sd2 *sourceData) (*sourceDiff, error) {
+func buildSourceSummaryDiff(cfg *Config, sd1, sd2 *sourceData) (*sourceDiff, error) {
 	var (
 		body1, body2 string
 		err          error
@@ -131,7 +142,7 @@ func buildSourceSummaryDiff(numLines int, sd1, sd2 *sourceData) (*sourceDiff, er
 		sd2.handle,
 		body1,
 		edits,
-		numLines,
+		cfg.Lines,
 	)
 	if err != nil {
 		return nil, errz.Err(err)
@@ -145,6 +156,39 @@ func buildSourceSummaryDiff(numLines int, sd1, sd2 *sourceData) (*sourceDiff, er
 	}
 
 	return diff, nil
+}
+
+func buildDBPropsDiff(cfg *Config, sd1, sd2 *sourceData) (*dbPropsDiff, error) {
+	var (
+		body1, body2 string
+		err          error
+	)
+
+	if body1, err = renderDBProperties2YAML(sd1.srcMeta.DBProperties); err != nil {
+		return nil, err
+	}
+	if body2, err = renderDBProperties2YAML(sd2.srcMeta.DBProperties); err != nil {
+		return nil, err
+	}
+
+	edits := myers.ComputeEdits(body1, body2)
+	unified, err := udiff.ToUnified(
+		sd1.handle,
+		sd2.handle,
+		body1,
+		edits,
+		cfg.Lines,
+	)
+	if err != nil {
+		return nil, errz.Err(err)
+	}
+
+	return &dbPropsDiff{
+		sd1:    sd1,
+		sd2:    sd2,
+		header: fmt.Sprintf("sq diff --dbprops %s %s", sd1.handle, sd2.handle),
+		diff:   unified,
+	}, nil
 }
 
 func sortTables(tbls []*source.TableMetadata) { //nolint:unused

@@ -198,7 +198,7 @@ func execSLQPrint(ctx context.Context, ru *run.Run, mArgs map[string]string) err
 		Args:         mArgs,
 	}
 
-	recw := output.NewRecordWriterAdapter(ru.Writers.Record)
+	recw := output.NewRecordWriterAdapter(ctx, ru.Writers.Record)
 	execErr := libsq.ExecuteSLQ(ctx, qc, slq, recw)
 	_, waitErr := recw.Wait()
 	if execErr != nil {
@@ -340,8 +340,16 @@ func preprocessUserSLQ(ctx context.Context, ru *run.Run, args []string) (string,
 	return query, nil
 }
 
+func addTextFlags(cmd *cobra.Command) {
+	cmd.Flags().BoolP(flag.Text, flag.TextShort, false, flag.TextUsage)
+	cmd.Flags().BoolP(flag.Header, flag.HeaderShort, true, flag.HeaderUsage)
+	cmd.Flags().BoolP(flag.NoHeader, flag.NoHeaderShort, false, flag.NoHeaderUsage)
+	cmd.MarkFlagsMutuallyExclusive(flag.Header, flag.NoHeader)
+}
+
 // addQueryCmdFlags sets the common flags for the slq/sql commands.
 func addQueryCmdFlags(cmd *cobra.Command) {
+	addTextFlags(cmd)
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 	cmd.Flags().BoolP(flag.JSONA, flag.JSONAShort, false, flag.JSONAUsage)
 	cmd.Flags().BoolP(flag.JSONL, flag.JSONLShort, false, flag.JSONLUsage)

@@ -25,7 +25,7 @@ func newConfigSetCmd() *cobra.Command {
 		Short:             "Set config value",
 		Long: `Set option value, for base config, or for a specified source.
 To get help for an individual option, use "sq config set OPTION --help".
-Use "sq config get -v" to list available options.`,
+Use "sq config ls -v" to list available options.`,
 		Example: `  # Set base output format
   $ sq config set format json
 
@@ -42,6 +42,7 @@ Use "sq config get -v" to list available options.`,
   $ sq config set conn.max-open --help`,
 	}
 
+	addTextFlags(cmd)
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 	cmd.Flags().BoolP(flag.Compact, flag.CompactShort, false, flag.CompactUsage)
 	cmd.Flags().BoolP(flag.YAML, flag.YAMLShort, false, flag.YAMLUsage)

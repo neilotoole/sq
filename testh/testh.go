@@ -501,7 +501,7 @@ func (h *Helper) QuerySQL(src *source.Source, query string, args ...any) (*Recor
 	dbase := h.Open(src)
 
 	sink := &RecordSink{}
-	recw := output.NewRecordWriterAdapter(sink)
+	recw := output.NewRecordWriterAdapter(h.Context, sink)
 	err := libsq.QuerySQL(h.Context, dbase, recw, query, args...)
 	if err != nil {
 		return nil, err
@@ -534,7 +534,7 @@ func (h *Helper) QuerySLQ(query string, args map[string]string) (*RecordSink, er
 	}
 
 	sink := &RecordSink{}
-	recw := output.NewRecordWriterAdapter(sink)
+	recw := output.NewRecordWriterAdapter(h.Context, sink)
 
 	err = libsq.ExecuteSLQ(h.Context, qc, query, recw)
 	if err != nil {

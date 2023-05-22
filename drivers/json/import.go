@@ -11,6 +11,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/record"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
@@ -54,8 +56,8 @@ var (
 	_ importFunc = importJSONL
 )
 
-// getRecMeta returns RecordMeta to use with RecordWriter.Open.
-func getRecMeta(ctx context.Context, scratchDB driver.Database, tblDef *sqlmodel.TableDef) (sqlz.RecordMeta, error) {
+// getRecMeta returns record.Meta to use with RecordWriter.Open.
+func getRecMeta(ctx context.Context, scratchDB driver.Database, tblDef *sqlmodel.TableDef) (record.Meta, error) {
 	colTypes, err := scratchDB.SQLDriver().TableColumnTypes(ctx, scratchDB.DB(), tblDef.Name, tblDef.ColNames())
 	if err != nil {
 		return nil, err

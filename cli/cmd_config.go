@@ -74,6 +74,7 @@ func newConfigLocationCmd() *cobra.Command {
   Origin: env`,
 	}
 
+	addTextFlags(cmd)
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 	cmd.Flags().BoolP(flag.YAML, flag.YAMLShort, false, flag.YAMLUsage)
 	return cmd

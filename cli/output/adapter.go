@@ -5,10 +5,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/driver"
+
+	"github.com/neilotoole/sq/libsq/core/record"
+
 	"go.uber.org/atomic"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/sqlz"
 )
 
 // RecordWriterAdapter implements libsq.RecordWriter and
@@ -26,7 +30,7 @@ import (
 type RecordWriterAdapter struct {
 	rw       RecordWriter
 	wg       *sync.WaitGroup
-	recCh    chan sqlz.Record
+	recCh    chan record.Record
 	errCh    chan error
 	errs     []error
 	written  *atomic.Int64
@@ -43,22 +47,19 @@ type RecordWriterAdapter struct {
 	FlushAfterDuration time.Duration
 }
 
-// adapterRecChSize is the size of the record chan (effectively
-// the buffer) used by RecordWriterAdapter.
-// FIXME: adapterRecChSize should be user-configurable.
-const adapterRecChSize = 1000
-
 // NewRecordWriterAdapter returns a new RecordWriterAdapter.
-func NewRecordWriterAdapter(rw RecordWriter) *RecordWriterAdapter {
-	recCh := make(chan sqlz.Record, adapterRecChSize)
+// The size of the internal buffer is controlled by driver.OptTuningRecChanSize.
+func NewRecordWriterAdapter(ctx context.Context, rw RecordWriter) *RecordWriterAdapter {
+	chSize := driver.OptTuningRecChanSize.Get(options.FromContext(ctx))
+	recCh := make(chan record.Record, chSize)
 
 	return &RecordWriterAdapter{rw: rw, recCh: recCh, wg: &sync.WaitGroup{}, written: atomic.NewInt64(0)}
 }
 
 // Open implements libsq.RecordWriter.
 func (w *RecordWriterAdapter) Open(ctx context.Context, cancelFn context.CancelFunc,
-	recMeta sqlz.RecordMeta,
-) (chan<- sqlz.Record, <-chan error, error) {
+	recMeta record.Meta,
+) (chan<- record.Record, <-chan error, error) {
 	w.cancelFn = cancelFn
 
 	err := w.rw.Open(recMeta)
@@ -119,7 +120,7 @@ func (w *RecordWriterAdapter) Open(ctx context.Context, cancelFn context.CancelF
 
 				// We could accumulate a bunch of recs into a slice here,
 				// but we'll worry about that if benchmarking shows it'll matter.
-				writeErr := w.rw.WriteRecords([]sqlz.Record{rec})
+				writeErr := w.rw.WriteRecords([]record.Record{rec})
 				if writeErr != nil {
 					w.addErrs(writeErr)
 					return

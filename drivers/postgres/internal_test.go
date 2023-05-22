@@ -3,14 +3,16 @@ package postgres
 import (
 	"testing"
 
-	"github.com/neilotoole/sq/libsq/core/errz"
-
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/stretchr/testify/require"
 )
 
-var GetTableColumnNames = getTableColumnNames
+// Export for testing.
+var (
+	GetTableColumnNames   = getTableColumnNames
+	IsErrRelationNotExist = isErrRelationNotExist
+)
 
 func TestPlaceholders(t *testing.T) {
 	testCases := []struct {
@@ -67,6 +69,6 @@ func TestIsErrTooManyConnections(t *testing.T) {
 	require.True(t, isErrTooManyConnections(err))
 
 	// Test with a wrapped error
-	err = errz.Err(err)
+	err = errw(err)
 	require.True(t, isErrTooManyConnections(err))
 }

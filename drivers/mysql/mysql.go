@@ -3,35 +3,27 @@ package mysql
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/options"
-
-	"github.com/neilotoole/sq/libsq/core/retry"
-
-	"github.com/neilotoole/sq/libsq/driver/dialect"
-
-	"github.com/neilotoole/sq/libsq/core/lg/lga"
-
-	"github.com/neilotoole/sq/libsq/core/lg/lgm"
-
-	"github.com/neilotoole/sq/libsq/core/lg"
-
-	"golang.org/x/exp/slog"
-
 	"github.com/go-sql-driver/mysql"
-	"github.com/xo/dburl"
-
 	"github.com/neilotoole/sq/libsq/ast/render"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/record"
+	"github.com/neilotoole/sq/libsq/core/retry"
 	"github.com/neilotoole/sq/libsq/core/sqlmodel"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
+	"github.com/neilotoole/sq/libsq/driver/dialect"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/xo/dburl"
+	"golang.org/x/exp/slog"
 )
 
 const (
@@ -63,6 +55,11 @@ var _ driver.SQLDriver = (*driveri)(nil)
 // driveri is the MySQL implementation of driver.Driver.
 type driveri struct {
 	log *slog.Logger
+}
+
+// ErrWrapFunc implements driver.SQLDriver.
+func (d *driveri) ErrWrapFunc() func(error) error {
+	return errw
 }
 
 // DBProperties implements driver.SQLDriver.
@@ -107,7 +104,7 @@ func (d *driveri) Renderer() *render.Renderer {
 }
 
 // RecordMeta implements driver.SQLDriver.
-func (d *driveri) RecordMeta(colTypes []*sql.ColumnType) (sqlz.RecordMeta, driver.NewRecordFunc, error) {
+func (d *driveri) RecordMeta(colTypes []*sql.ColumnType) (record.Meta, driver.NewRecordFunc, error) {
 	recMeta := recordMetaFromColumnTypes(d.log, colTypes)
 	mungeFn := getNewRecordFunc(recMeta)
 	return recMeta, mungeFn, nil
@@ -118,7 +115,7 @@ func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *sqlmodel.
 	createStmt := buildCreateTableStmt(tblDef)
 
 	_, err := db.ExecContext(ctx, createStmt)
-	return errz.Err(err)
+	return errw(err)
 }
 
 // AlterTableAddColumn implements driver.SQLDriver.
@@ -127,7 +124,7 @@ func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl, col 
 
 	_, err := db.ExecContext(ctx, q)
 	if err != nil {
-		return errz.Wrapf(err, "alter table: failed to add column {%s} to table {%s}", col, tbl)
+		return errz.Wrapf(errw(err), "alter table: failed to add column {%s} to table {%s}", col, tbl)
 	}
 
 	return nil
@@ -137,7 +134,7 @@ func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl, col 
 func (d *driveri) CurrentSchema(ctx context.Context, db sqlz.DB) (string, error) {
 	var name string
 	if err := db.QueryRowContext(ctx, `SELECT DATABASE()`).Scan(&name); err != nil {
-		return "", errz.Err(err)
+		return "", errw(err)
 	}
 
 	return name, nil
@@ -147,14 +144,14 @@ func (d *driveri) CurrentSchema(ctx context.Context, db sqlz.DB) (string, error)
 func (d *driveri) AlterTableRename(ctx context.Context, db sqlz.DB, tbl, newName string) error {
 	q := fmt.Sprintf("RENAME TABLE `%s` TO `%s`", tbl, newName)
 	_, err := db.ExecContext(ctx, q)
-	return errz.Wrapf(err, "alter table: failed to rename table {%s} to {%s}", tbl, newName)
+	return errz.Wrapf(errw(err), "alter table: failed to rename table {%s} to {%s}", tbl, newName)
 }
 
 // AlterTableRenameColumn implements driver.SQLDriver.
 func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, col, newName string) error {
 	q := fmt.Sprintf("ALTER TABLE `%s` RENAME COLUMN `%s` TO `%s`", tbl, col, newName)
 	_, err := db.ExecContext(ctx, q)
-	return errz.Wrapf(err, "alter table: failed to rename column {%s.%s} to {%s}", tbl, col, newName)
+	return errz.Wrapf(errw(err), "alter table: failed to rename column {%s.%s} to {%s}", tbl, col, newName)
 }
 
 // PrepareInsertStmt implements driver.SQLDriver.
@@ -202,10 +199,10 @@ func newStmtExecFunc(stmt *sql.Stmt) driver.StmtExecFunc {
 	return func(ctx context.Context, args ...any) (int64, error) {
 		res, err := stmt.ExecContext(ctx, args...)
 		if err != nil {
-			return 0, errz.Err(err)
+			return 0, errw(err)
 		}
 		affected, err := res.RowsAffected()
-		return affected, errz.Err(err)
+		return affected, errw(err)
 	}
 }
 
@@ -219,7 +216,7 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable 
 
 	affected, err := sqlz.ExecAffected(ctx, db, stmt)
 	if err != nil {
-		return 0, errz.Err(err)
+		return 0, errw(err)
 	}
 
 	return affected, nil
@@ -232,7 +229,7 @@ func (d *driveri) TableExists(ctx context.Context, db sqlz.DB, tbl string) (bool
 	var count int64
 	err := db.QueryRowContext(ctx, query, tbl).Scan(&count)
 	if err != nil {
-		return false, errz.Err(err)
+		return false, errw(err)
 	}
 
 	return count == 1, nil
@@ -249,7 +246,7 @@ func (d *driveri) DropTable(ctx context.Context, db sqlz.DB, tbl string, ifExist
 	}
 
 	_, err := db.ExecContext(ctx, stmt)
-	return errz.Err(err)
+	return errw(err)
 }
 
 // TableColumnTypes implements driver.SQLDriver.
@@ -271,24 +268,24 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 	query := fmt.Sprintf(queryTpl, colsClause, tblNameQuoted)
 	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	colTypes, err := rows.ColumnTypes()
 	if err != nil {
 		lg.WarnIfFuncError(d.log, lgm.CloseDBRows, rows.Close)
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	err = rows.Err()
 	if err != nil {
 		lg.WarnIfFuncError(d.log, lgm.CloseDBRows, rows.Close)
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	err = rows.Close()
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	return colTypes, nil
@@ -296,7 +293,7 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 
 func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName string,
 	colNames []string,
-) (sqlz.RecordMeta, error) {
+) (record.Meta, error) {
 	colTypes, err := d.TableColumnTypes(ctx, db, tblName, colNames)
 	if err != nil {
 		return nil, err
@@ -316,7 +313,11 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database
 
 	db, err := d.doOpen(ctx, src)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, err
+	}
+
+	if err = driver.OpeningPing(ctx, src, db); err != nil {
+		return nil, err
 	}
 
 	return &database{log: d.log, db: db, src: src, drvr: d}, nil
@@ -330,7 +331,7 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 
 	db, err := sql.Open(dbDrvr, dsn)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	driver.ConfigureDB(ctx, db, src.Options)
@@ -353,7 +354,7 @@ func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 	}
 	defer lg.WarnIfCloseError(d.log, lgm.CloseDB, db)
 
-	return db.PingContext(ctx)
+	return errz.Wrapf(errw(db.PingContext(ctx)), "ping %s", src.Handle)
 }
 
 // Truncate implements driver.SQLDriver. Arg reset is
@@ -365,14 +366,14 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 	// https://dev.mysql.com/doc/refman/8.0/en/truncate-table.html
 	db, err := d.doOpen(ctx, src)
 	if err != nil {
-		return 0, errz.Err(err)
+		return 0, errw(err)
 	}
 	defer lg.WarnIfFuncError(d.log, lgm.CloseDB, db.Close)
 
 	// Not sure about the Tx requirements?
 	tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
-		return 0, errz.Err(err)
+		return 0, errw(err)
 	}
 
 	// For whatever reason, the "affected" count from TRUNCATE
@@ -380,12 +381,12 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 	var beforeCount int64
 	err = tx.QueryRowContext(ctx, fmt.Sprintf("SELECT COUNT(*) FROM `%s`", tbl)).Scan(&beforeCount)
 	if err != nil {
-		return 0, errz.Append(err, errz.Err(tx.Rollback()))
+		return 0, errz.Append(err, errw(tx.Rollback()))
 	}
 
 	affected, err = sqlz.ExecAffected(ctx, tx, fmt.Sprintf("TRUNCATE TABLE `%s`", tbl))
 	if err != nil {
-		return affected, errz.Append(err, errz.Err(tx.Rollback()))
+		return affected, errz.Append(err, errw(tx.Rollback()))
 	}
 
 	if affected != 0 {
@@ -393,12 +394,12 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 		// zero is always returned (which we don't like).
 		// If this changes (driver changes?) then we'll revisit.
 		d.log.Warn("Unexpectedly got non-zero rows affected from TRUNCATE", lga.Count, affected)
-		return affected, errz.Err(tx.Commit())
+		return affected, errw(tx.Commit())
 	}
 
 	// TRUNCATE succeeded, therefore tbl is empty, therefore
 	// the count of truncated rows must be beforeCount?
-	return beforeCount, errz.Err(tx.Commit())
+	return beforeCount, errw(tx.Commit())
 }
 
 // database implements driver.Database.
@@ -437,32 +438,7 @@ func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error)
 // Close implements driver.Database.
 func (d *database) Close() error {
 	d.log.Debug(lgm.CloseDB, lga.Handle, d.src.Handle)
-	return errz.Err(d.db.Close())
-}
-
-// hasErrCode returns true if err (or its cause error)
-// is of type *mysql.MySQLError and err.Number equals code.
-func hasErrCode(err error, code uint16) bool {
-	if err == nil {
-		return false
-	}
-
-	var mysqlErr *mysql.MySQLError
-	if errors.As(err, &mysqlErr) {
-		return mysqlErr.Number == code
-	}
-
-	return false
-}
-
-// https://dev.mysql.com/doc/mysql-errors/8.0/en/server-error-reference.html
-const (
-	errNumTableNotExist = uint16(1146)
-	errNumConCount      = uint16(1040)
-)
-
-func isErrTooManyConnections(err error) bool {
-	return hasErrCode(err, errNumConCount)
+	return errw(d.db.Close())
 }
 
 // dsnFromLocation builds the mysql driver DSN from src.Location.
@@ -475,7 +451,7 @@ func dsnFromLocation(src *source.Source, parseTime bool) (string, error) {
 
 	u, err := dburl.Parse(src.Location)
 	if err != nil {
-		return "", errz.Wrapf(err, "invalid source location %s", src.RedactedLocation())
+		return "", errz.Wrapf(errw(err), "invalid source location %s", src.RedactedLocation())
 	}
 
 	// Convert the location to the desired driver DSN.
@@ -485,7 +461,7 @@ func dsnFromLocation(src *source.Source, parseTime bool) (string, error) {
 
 	myCfg, err := mysql.ParseDSN(driverDSN) // verify
 	if err != nil {
-		return "", errz.Wrapf(err, "invalid source location: %s", driverDSN)
+		return "", errz.Wrapf(errw(err), "invalid source location: %s", driverDSN)
 	}
 
 	myCfg.ParseTime = parseTime

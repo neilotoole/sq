@@ -6,6 +6,8 @@ import (
 	"errors"
 	"io"
 
+	"github.com/neilotoole/sq/libsq/core/record"
+
 	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -16,12 +18,11 @@ import (
 
 	"github.com/neilotoole/sq/libsq"
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/sqlz"
 )
 
 // execInsert inserts the CSV records in readAheadRecs (followed by records
 // from the csv.Reader) via recw. The caller should wait on recw to complete.
-func execInsert(ctx context.Context, recw libsq.RecordWriter, recMeta sqlz.RecordMeta,
+func execInsert(ctx context.Context, recw libsq.RecordWriter, recMeta record.Meta,
 	mungers []kind.MungeFunc, readAheadRecs [][]string, r *csv.Reader,
 ) error {
 	ctx, cancelFn := context.WithCancel(ctx)
@@ -120,8 +121,8 @@ func createTblDef(tblName string, colNames []string, kinds []kind.Kind) *sqlmode
 	return tbl
 }
 
-// getRecMeta returns RecordMeta to use with RecordWriter.Open.
-func getRecMeta(ctx context.Context, scratchDB driver.Database, tblDef *sqlmodel.TableDef) (sqlz.RecordMeta, error) {
+// getRecMeta returns record.Meta to use with RecordWriter.Open.
+func getRecMeta(ctx context.Context, scratchDB driver.Database, tblDef *sqlmodel.TableDef) (record.Meta, error) {
 	colTypes, err := scratchDB.SQLDriver().TableColumnTypes(ctx, scratchDB.DB(), tblDef.Name, tblDef.ColNames())
 	if err != nil {
 		return nil, err

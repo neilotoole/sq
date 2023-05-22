@@ -122,14 +122,14 @@ func SuggestHandle(coll *Collection, typ DriverType, loc string) (string, error)
 	ext := typ.String()
 	if ext == "" {
 		if len(ploc.ext) > 0 {
-			ext = ploc.ext[1:] // trim the leading period loc ".xlsx" etc
+			ext = ploc.ext[1:] // trim the leading period in ".xlsx" etc
 		}
 	}
 
 	if alias, ok := handleTypeAliases[ext]; ok {
 		ext = alias
 	}
-	// make sure there's nothing funky loc ext or name
+	// make sure there's nothing funky in ext or name
 	ext = stringz.SanitizeAlphaNumeric(ext, '_')
 	// NOTE: We used to utilize ext in the suggested handle name,
 	// e.g. "@actor_csv". With the advent of source groups, we now

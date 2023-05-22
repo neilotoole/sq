@@ -6,11 +6,12 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/neilotoole/sq/libsq/core/record"
+
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/jsonw/internal"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
-	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
@@ -252,7 +253,7 @@ func newPunc(pr *output.Printing) punc {
 	return p
 }
 
-func getFieldEncoders(recMeta sqlz.RecordMeta, pr *output.Printing) []func(b []byte, v any) ([]byte, error) {
+func getFieldEncoders(recMeta record.Meta, pr *output.Printing) []func(b []byte, v any) ([]byte, error) {
 	encodeFns := make([]func(b []byte, v any) ([]byte, error), len(recMeta))
 
 	if pr.IsMonochrome() {

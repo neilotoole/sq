@@ -3,9 +3,12 @@ package cli
 import (
 	"github.com/neilotoole/sq/cli/diff"
 	"github.com/neilotoole/sq/cli/flag"
-	"github.com/neilotoole/sq/libsq/core/options"
-
+	"github.com/neilotoole/sq/cli/output/format"
+	"github.com/neilotoole/sq/cli/output/tablew"
 	"github.com/neilotoole/sq/cli/run"
+	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/samber/lo"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/source"
@@ -13,12 +16,45 @@ import (
 )
 
 var OptDiffNumLines = options.NewInt(
-	"diff.num-lines",
-	'n',
+	"diff.lines",
+	"unified",
+	'U',
 	3,
-	"Number of lines to show surrounding diff",
-	`Number of lines to show surrounding diff.`,
+	"Generate diffs with <n> lines of context",
+	`Generate diffs with <n> lines of context, where n >= 0.`,
 )
+
+var OptDiffDataFormat = format.NewOpt(
+	"diff.data-format",
+	"data-format",
+	'f',
+	format.Text,
+	"Diff data format",
+	`Specify the output format to use when comparing table data.
+Available formats:
+
+  text, csv, tsv,
+  json, jsona, jsonl,
+  markdown, html, xml, yaml`,
+)
+
+// diffFormats contains fewer formats than those in format.All.
+// That's because some of them are not text-based, e.g. XLSX,
+// and thus cause trouble with the text/line-based diff functionality.
+var diffFormats = []format.Format{
+	format.Text, format.CSV, format.TSV,
+	format.JSON, format.JSONA, format.JSONL,
+	format.Markdown, format.HTML, format.XML, format.YAML,
+}
+
+var allDiffElementsFlags = []string{
+	flag.DiffAll,
+	flag.DiffSummary,
+	flag.DiffTable,
+	flag.DiffDBProps,
+	flag.DiffRowCount,
+	flag.DiffData,
+}
 
 func newDiffCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -26,37 +62,76 @@ func newDiffCmd() *cobra.Command {
 		Short: "Compare sources, or tables",
 		Long: `BETA: Compare sources, or tables.
 
-When comparing sources, use flag --summary to perform only a high-level
-diff. Note that this may miss column-level differences.
+When comparing sources, by default the source summary, table structure,
+and table row counts are compared.
 
-Flag --lines (-n) controls the number of lines to show surrounding a diff. The
-default is 3.`,
+When comparing tables, by default the table structure and table row counts
+are compared.
+
+Use flags to specify the elements you want to compare. See the examples.
+Note that --summary and --dbprops only apply to source diff, not table diff.
+
+Flag --unified (-U) controls the number of lines to show surrounding a diff.
+The default can be changed via "sq config set diff.lines".`,
 		Args: cobra.ExactArgs(2),
 		ValidArgsFunction: (&handleTableCompleter{
 			handleRequired: true,
 			max:            2,
 		}).complete,
 		RunE: execDiff,
-		Example: `  # Diff sources
+		Example: `  # Diff sources (compare default elements).
   $ sq diff @prod/sakila @staging/sakila
 
-  # As above, but show 7 lines surrounding each diff
-  $ sq @prod/sakila @staging/sakila -n7
+  # As above, but show 7 lines surrounding each diff.
+  $ sq diff @prod/sakila @staging/sakila -U7
 
-  # Diff sources, summary only
-  $ sq diff --summary @prod/sakila @staging/sakila
+  # Diff sources, but only compare source summary.
+  $ sq diff @prod/sakila @staging/sakila --summary
 
-  # Compare "actor" table in prod vs staging
-  $ sq diff @prod/sakila.actor @staging/sakila.actor`,
+  # Compare source summary, and DB properties.
+  $ sq diff @prod/sakila @staging/sakila -sp
+
+  # Compare schema table structure, and row counts.
+  $ sq diff @prod/sakila @staging/sakila --Tc
+
+  # Compare everything, including table data. Caution: this can be slow.
+  $ sq diff @prod/sakila @staging/sakila --all
+
+  # Compare actor table in prod vs staging
+  $ sq diff @prod/sakila.actor @staging/sakila.actor
+
+  # Compare data in the actor tables. Caution: this can be slow.
+  $ sq diff @prod/sakila.actor @staging/sakila.actor --data`,
 	}
 
-	cmd.Flags().Bool(flag.DiffSummary, false, flag.DiffSummaryUsage)
-	cmd.Flags().IntP(flag.DiffNumLines, flag.DiffNumLinesShort, OptDiffNumLines.Default(), flag.DiffNumLinesUsage)
+	addOptionFlag(cmd.Flags(), OptDiffNumLines)
+	addOptionFlag(cmd.Flags(), OptDiffDataFormat)
+	panicOn(cmd.RegisterFlagCompletionFunc(
+		OptDiffDataFormat.Flag(),
+		completeStrings(-1, stringz.Strings(diffFormats)...),
+	))
+
+	cmd.Flags().BoolP(flag.Header, flag.HeaderShort, true, flag.HeaderUsage)
+	cmd.Flags().BoolP(flag.NoHeader, flag.NoHeaderShort, false, flag.NoHeaderUsage)
+	cmd.MarkFlagsMutuallyExclusive(flag.Header, flag.NoHeader)
+
+	cmd.Flags().BoolP(flag.DiffSummary, flag.DiffSummaryShort, false, flag.DiffSummaryUsage)
+	cmd.Flags().BoolP(flag.DiffDBProps, flag.DiffDBPropsShort, false, flag.DiffDBPropsUsage)
+	cmd.Flags().BoolP(flag.DiffTable, flag.DiffTableShort, false, flag.DiffTableUsage)
+	cmd.Flags().BoolP(flag.DiffRowCount, flag.DiffRowCountShort, false, flag.DiffRowCountUsage)
+	cmd.Flags().BoolP(flag.DiffData, flag.DiffDataShort, false, flag.DiffDataUsage)
+	cmd.Flags().BoolP(flag.DiffAll, flag.DiffAllShort, false, flag.DiffAllUsage)
+
+	// If flag.DiffAll is provided, no other diff elements flag can be provided.
+	nonAllFlags := lo.Drop(allDiffElementsFlags, 0)
+	for i := range nonAllFlags {
+		cmd.MarkFlagsMutuallyExclusive(flag.DiffAll, nonAllFlags[i])
+	}
 
 	return cmd
 }
 
-// execDiff compares schemas or tables.
+// execDiff compares sources or tables.
 func execDiff(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	ru := run.FromContext(ctx)
@@ -71,38 +146,100 @@ func execDiff(cmd *cobra.Command, args []string) error {
 		return errz.Wrapf(err, "invalid input (2nd arg): %s", args[1])
 	}
 
-	showSummary := cmdFlagTrue(cmd, flag.DiffSummary)
-
 	o, err := getOptionsFromCmd(cmd)
 	if err != nil {
 		return err
 	}
 
-	// TODO: Unify num lines flag with option
-	numLines := OptDiffNumLines.Get(o)
-	if numLines < 0 {
-		return errz.Errorf("config: {%s} must be a non-negative integer, but got %d",
-			flag.DiffNumLines, numLines)
+	f := OptDiffDataFormat.Get(o)
+	recwFn := getRecordWriterFunc(f)
+	if recwFn == nil {
+		// Shouldn't happen
+		logFrom(cmd).Warn("No record writer impl for format", "format", f)
+		recwFn = tablew.NewRecordWriter
 	}
 
-	if cmdFlagChanged(cmd, flag.DiffNumLines) {
-		numLines, err = cmd.Flags().GetInt(flag.DiffNumLines)
-		if err != nil {
-			return errz.Err(err)
-		}
+	diffCfg := &diff.Config{
+		Lines:          OptDiffNumLines.Get(o),
+		RecordWriterFn: recwFn,
+	}
 
-		if numLines < 0 {
-			return errz.Errorf("flag --%s must be a non-negative integer, but got %d",
-				flag.DiffNumLines, numLines)
-		}
+	if diffCfg.Lines < 0 {
+		return errz.Errorf("number of lines to show must be >= 0")
 	}
 
 	switch {
 	case table1 == "" && table2 == "":
-		return diff.ExecSourceDiff(ctx, ru, numLines, showSummary, handle1, handle2)
+		elems := getDiffSourceElements(cmd)
+		return diff.ExecSourceDiff(ctx, ru, diffCfg, elems, handle1, handle2)
 	case table1 == "" || table2 == "":
-		return errz.Errorf("invalid args: both must be @HANDLE or @HANDLE.TABLE")
+		return errz.Errorf("invalid args: both must be either @HANDLE or @HANDLE.TABLE")
 	default:
-		return diff.ExecTableDiff(ctx, ru, numLines, handle1, table1, handle2, table2)
+		elems := getDiffTableElements(cmd)
+		return diff.ExecTableDiff(ctx, ru, diffCfg, elems, handle1, table1, handle2, table2)
 	}
+}
+
+func getDiffSourceElements(cmd *cobra.Command) *diff.Elements {
+	if !isAnyDiffElementsFlagChanged(cmd) {
+		// Default
+		return &diff.Elements{
+			Summary:      true,
+			DBProperties: false,
+			Table:        true,
+			RowCount:     true,
+			Data:         false,
+		}
+	}
+
+	if cmdFlagChanged(cmd, flag.DiffAll) {
+		return &diff.Elements{
+			Summary:      true,
+			DBProperties: true,
+			Table:        true,
+			RowCount:     true,
+			Data:         true,
+		}
+	}
+
+	return &diff.Elements{
+		Summary:      cmdFlagIsSetTrue(cmd, flag.DiffSummary),
+		DBProperties: cmdFlagIsSetTrue(cmd, flag.DiffDBProps),
+		Table:        cmdFlagIsSetTrue(cmd, flag.DiffTable),
+		RowCount:     cmdFlagIsSetTrue(cmd, flag.DiffRowCount),
+		Data:         cmdFlagIsSetTrue(cmd, flag.DiffData),
+	}
+}
+
+func getDiffTableElements(cmd *cobra.Command) *diff.Elements {
+	if !isAnyDiffElementsFlagChanged(cmd) {
+		// Default
+		return &diff.Elements{
+			Table:    true,
+			RowCount: true,
+		}
+	}
+
+	if cmdFlagChanged(cmd, flag.DiffAll) {
+		return &diff.Elements{
+			Table:    true,
+			RowCount: true,
+			Data:     true,
+		}
+	}
+
+	return &diff.Elements{
+		Table:    cmdFlagIsSetTrue(cmd, flag.DiffTable),
+		RowCount: cmdFlagIsSetTrue(cmd, flag.DiffRowCount),
+		Data:     cmdFlagIsSetTrue(cmd, flag.DiffData),
+	}
+}
+
+func isAnyDiffElementsFlagChanged(cmd *cobra.Command) bool {
+	for _, name := range allDiffElementsFlags {
+		if cmdFlagChanged(cmd, name) {
+			return true
+		}
+	}
+	return false
 }

@@ -14,47 +14,74 @@ import (
 )
 
 // ExecTableDiff diffs handle1.table1 and handle2.table2.
-func ExecTableDiff(ctx context.Context, ru *run.Run, numLines int, handle1, table1, handle2, table2 string) error {
+func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Elements,
+	handle1, table1, handle2, table2 string,
+) error {
 	td1, td2 := &tableData{tblName: table1}, &tableData{tblName: table2}
 
-	g, gCtx := errgroup.WithContext(ctx)
-	g.Go(func() error {
-		var err error
-		td1.src, td1.tblMeta, err = fetchTableMeta(gCtx, ru, handle1, table1)
-		return err
-	})
-	g.Go(func() error {
-		var err error
-		td2.src, td2.tblMeta, err = fetchTableMeta(gCtx, ru, handle2, table2)
-		return err
-	})
-	if err := g.Wait(); err != nil {
+	var err error
+	td1.src, err = ru.Config.Collection.Get(handle1)
+	if err != nil {
 		return err
 	}
-
-	tblDiff, err := buildTableDiff(numLines, td1, td2)
+	td2.src, err = ru.Config.Collection.Get(handle2)
 	if err != nil {
 		return err
 	}
 
-	if ru.Writers.Printing.IsMonochrome() {
-		_, err := fmt.Fprintln(ru.Out, tblDiff)
-		return errz.Err(err)
+	if elems.Table {
+		g, gCtx := errgroup.WithContext(ctx)
+		g.Go(func() error {
+			var gErr error
+			td1.tblMeta, gErr = fetchTableMeta(gCtx, ru, td1.src, table1)
+			return gErr
+		})
+		g.Go(func() error {
+			var gErr error
+			td2.tblMeta, gErr = fetchTableMeta(gCtx, ru, td2.src, table2)
+			return gErr
+		})
+		if err = g.Wait(); err != nil {
+			return err
+		}
+
+		var tblDiff *tableDiff
+		tblDiff, err = buildTableStructureDiff(cfg, elems.RowCount, td1, td2)
+		if err != nil {
+			return err
+		}
+
+		if err = Print(ru.Out, ru.Writers.Printing, tblDiff.header, tblDiff.diff); err != nil {
+			return err
+		}
 	}
 
-	return Print(ru.Out, ru.Writers.Printing, tblDiff.header, tblDiff.diff)
+	if !elems.Data {
+		return nil
+	}
+
+	tblDataDiff, err := buildTableDataDiff(ctx, ru, cfg, td1, td2)
+	if err != nil {
+		return err
+	}
+
+	if tblDataDiff == nil {
+		return nil
+	}
+
+	return Print(ru.Out, ru.Writers.Printing, tblDataDiff.header, tblDataDiff.diff)
 }
 
-func buildTableDiff(lines int, td1, td2 *tableData) (*tableDiff, error) {
+func buildTableStructureDiff(cfg *Config, showRowCounts bool, td1, td2 *tableData) (*tableDiff, error) {
 	var (
 		body1, body2 string
 		err          error
 	)
 
-	if body1, err = renderTableMeta2YAML(td1.tblMeta); err != nil {
+	if body1, err = renderTableMeta2YAML(showRowCounts, td1.tblMeta); err != nil {
 		return nil, err
 	}
-	if body2, err = renderTableMeta2YAML(td2.tblMeta); err != nil {
+	if body2, err = renderTableMeta2YAML(showRowCounts, td2.tblMeta); err != nil {
 		return nil, err
 	}
 
@@ -64,7 +91,7 @@ func buildTableDiff(lines int, td1, td2 *tableData) (*tableDiff, error) {
 		td2.src.Handle+"."+td2.tblName,
 		body1,
 		edits,
-		lines,
+		cfg.Lines,
 	)
 	if err != nil {
 		return nil, errz.Err(err)
@@ -81,21 +108,22 @@ func buildTableDiff(lines int, td1, td2 *tableData) (*tableDiff, error) {
 	return tblDiff, nil
 }
 
-func fetchTableMeta(ctx context.Context, ru *run.Run, handle, table string) (
-	*source.Source, *source.TableMetadata, error,
+// fetchTableMeta returns the source.TableMetadata for table. If the table
+// does not exist, {nil,nil} is returned.
+func fetchTableMeta(ctx context.Context, ru *run.Run, src *source.Source, table string) (
+	*source.TableMetadata, error,
 ) {
-	src, err := ru.Config.Collection.Get(handle)
-	if err != nil {
-		return nil, nil, err
-	}
 	dbase, err := ru.Databases.Open(ctx, src)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	md, err := dbase.TableMetadata(ctx, table)
 	if err != nil {
-		return nil, nil, err
+		if errz.IsErrNotExist(err) {
+			return nil, nil //nolint:nilnil
+		}
+		return nil, err
 	}
 
-	return src, md, nil
+	return md, nil
 }

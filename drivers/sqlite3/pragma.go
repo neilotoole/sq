@@ -27,7 +27,7 @@ func getDBProperties(ctx context.Context, db sqlz.DB) (map[string]any, error) {
 		var val any
 		val, err = readPragma(ctx, db, pragma)
 		if err != nil {
-			return nil, errz.Wrapf(err, "read pragma: %s", pragma)
+			return nil, errz.Wrapf(errw(err), "read pragma: %s", pragma)
 		}
 
 		if val != nil {
@@ -55,7 +55,7 @@ func readPragma(ctx context.Context, db sqlz.DB, pragma string) (any, error) {
 			return nil, nil
 		}
 
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	defer lg.WarnIfCloseError(lg.FromContext(ctx), lgm.CloseDBRows, rows)
@@ -66,7 +66,7 @@ func readPragma(ctx context.Context, db sqlz.DB, pragma string) (any, error) {
 
 	cols, err := rows.Columns()
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	switch len(cols) {
@@ -76,7 +76,7 @@ func readPragma(ctx context.Context, db sqlz.DB, pragma string) (any, error) {
 	case 1:
 		var val any
 		if err = rows.Scan(&val); err != nil {
-			return nil, errz.Err(err)
+			return nil, errw(err)
 		}
 
 		return val, nil
@@ -91,7 +91,7 @@ func readPragma(ctx context.Context, db sqlz.DB, pragma string) (any, error) {
 			vals[i] = new(any)
 		}
 		if err = rows.Scan(vals...); err != nil {
-			return nil, errz.Err(err)
+			return nil, errw(err)
 		}
 
 		m := map[string]any{}
@@ -128,7 +128,7 @@ func listPragmaNames(ctx context.Context, db sqlz.DB) ([]string, error) {
 
 	rows, err := db.QueryContext(ctx, qPragmas)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	defer lg.WarnIfCloseError(lg.FromContext(ctx), lgm.CloseDBRows, rows)
@@ -139,14 +139,14 @@ func listPragmaNames(ctx context.Context, db sqlz.DB) ([]string, error) {
 	)
 	for rows.Next() {
 		if err = rows.Scan(&name); err != nil {
-			return nil, errz.Err(err)
+			return nil, errw(err)
 		}
 
 		names = append(names, name)
 	}
 
 	if err = rows.Err(); err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	return names, nil

@@ -21,14 +21,14 @@ import (
 )
 
 // getOptionsFromFlags builds options.Options from flags. In effect, a flag
-// such as --ingest.header is mapped to an option.Opt of the same name.
+// such as --ingest.header is mapped to an option.Opt of the same name. Note
+// however that Opt.Flag and Opt.Key can differ.
 //
 // See also: getOptionsFromCmd, applySourceOptions, applyCollectionOptions.
 func getOptionsFromFlags(flags *pflag.FlagSet, reg *options.Registry) (options.Options, error) {
 	o := options.Options{}
 	err := reg.Visit(func(opt options.Opt) error {
-		key := opt.Key()
-		f := flags.Lookup(key)
+		f := flags.Lookup(opt.Flag())
 		if f == nil {
 			return nil
 		}
@@ -42,7 +42,7 @@ func getOptionsFromFlags(flags *pflag.FlagSet, reg *options.Registry) (options.O
 			return nil
 		}
 
-		o[key] = f.Value.String()
+		o[opt.Key()] = f.Value.String()
 		return nil
 	})
 	if err != nil {
@@ -145,16 +145,18 @@ func RegisterDefaultOpts(reg *options.Registry) {
 		OptPrintHeader,
 		OptMonochrome,
 		OptCompact,
-		OptPingTimeout,
+		OptPingCmdTimeout,
 		OptShellCompletionTimeout,
 		OptLogEnabled,
 		OptLogFile,
 		OptLogLevel,
 		OptDiffNumLines,
+		OptDiffDataFormat,
 		driver.OptConnMaxOpen,
 		driver.OptConnMaxIdle,
 		driver.OptConnMaxIdleTime,
 		driver.OptConnMaxLifetime,
+		driver.OptConnOpenTimeout,
 		driver.OptMaxRetryInterval,
 		driver.OptTuningErrgroupLimit,
 		driver.OptTuningRecChanSize,
@@ -203,29 +205,31 @@ func filterOptionsForSrc(typ source.DriverType, opts ...options.Opt) []options.O
 	return opts
 }
 
-// addOptionFlag adds a flag derived from opt to flags, returning the key.
+// addOptionFlag adds a flag derived from opt to flags, returning the
+// flag name used.
 func addOptionFlag(flags *pflag.FlagSet, opt options.Opt) (key string) {
-	key = opt.Key()
+	key = opt.Flag()
+
 	switch opt := opt.(type) {
 	case options.Int:
 		if opt.Short() == 0 {
-			flags.Int(key, opt.Get(nil), opt.Usage())
+			flags.Int(key, opt.Default(), opt.Usage())
 			return key
 		}
 
-		flags.IntP(key, string(opt.Short()), opt.Get(nil), opt.Usage())
+		flags.IntP(key, string(opt.Short()), opt.Default(), opt.Usage())
 		return key
 	case options.Bool:
 		if opt.Short() == 0 {
-			flags.Bool(key, opt.Get(nil), opt.Usage())
+			flags.Bool(key, opt.Default(), opt.Usage())
 			return key
 		}
 
-		flags.BoolP(key, string(opt.Short()), opt.Get(nil), opt.Usage())
+		flags.BoolP(key, string(opt.Short()), opt.Default(), opt.Usage())
 		return
 	case options.Duration:
 		if opt.Short() == 0 {
-			flags.Duration(key, opt.Get(nil), opt.Usage())
+			flags.Duration(key, opt.Default(), opt.Usage())
 			return key
 		}
 
@@ -235,7 +239,7 @@ func addOptionFlag(flags *pflag.FlagSet, opt options.Opt) (key string) {
 	}
 
 	defVal := ""
-	if v := opt.GetAny(nil); v != nil {
+	if v := opt.DefaultAny(); v != nil {
 		defVal = fmt.Sprintf("%v", v)
 	}
 

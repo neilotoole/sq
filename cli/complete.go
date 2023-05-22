@@ -34,6 +34,7 @@ import (
 // giving up.
 var OptShellCompletionTimeout = options.NewDuration(
 	"shell-completion.timeout",
+	"",
 	0,
 	time.Millisecond*500,
 	"shell completion timeout",
@@ -246,7 +247,7 @@ func completeOptValue(cmd *cobra.Command, args []string, toComplete string) ([]s
 
 	case LogLevelOpt:
 		a = []string{"debug", "DEBUG", "info", "INFO", "warn", "WARN", "error", "ERROR"}
-	case FormatOpt:
+	case format.Opt:
 		a = stringz.Strings(format.All())
 	case options.Bool:
 		a = []string{"true", "false"}

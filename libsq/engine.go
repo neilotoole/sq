@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/neilotoole/sq/libsq/core/record"
+
 	"github.com/neilotoole/sq/libsq/core/options"
 
 	"github.com/neilotoole/sq/libsq/ast/render"
@@ -300,7 +302,7 @@ func execCopyTable(ctx context.Context, fromDB driver.Database, fromTblName stri
 ) error {
 	log := lg.FromContext(ctx)
 
-	createTblHook := func(ctx context.Context, originRecMeta sqlz.RecordMeta, destDB driver.Database,
+	createTblHook := func(ctx context.Context, originRecMeta record.Meta, destDB driver.Database,
 		tx sqlz.DB,
 	) error {
 		destColNames := originRecMeta.Names()

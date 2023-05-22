@@ -3,6 +3,8 @@ package output
 import (
 	"time"
 
+	"github.com/samber/lo"
+
 	"github.com/neilotoole/sq/libsq/core/timez"
 
 	"github.com/fatih/color"
@@ -189,7 +191,12 @@ func NewPrinting() *Printing {
 }
 
 // Clone returns a clone of pr.
-func (pr *Printing) Clone() *Printing {
+func (pr *Printing) CloneOld() *Printing {
+	cp := func(c *color.Color) *color.Color {
+		x := *c
+		return &x
+	}
+
 	return &Printing{
 		monochrome:             pr.monochrome,
 		FlushThreshold:         pr.FlushThreshold,
@@ -204,31 +211,77 @@ func (pr *Printing) Clone() *Printing {
 		FormatTimeAsNumber:     pr.FormatTimeAsNumber,
 		FormatDate:             pr.FormatDate,
 		FormatDateAsNumber:     pr.FormatDateAsNumber,
-		Active:                 pr.Active,
-		Bold:                   pr.Bold,
-		Bool:                   pr.Bool,
-		Bytes:                  pr.Bytes,
-		Datetime:               pr.Datetime,
-		DiffPlus:               pr.DiffPlus,
-		DiffMinus:              pr.DiffMinus,
-		DiffHeader:             pr.DiffHeader,
-		DiffSection:            pr.DiffSection,
-		DiffNormal:             pr.DiffNormal,
-		Duration:               pr.Duration,
-		Error:                  pr.Error,
-		Faint:                  pr.Faint,
-		Handle:                 pr.Handle,
-		Header:                 pr.Header,
-		Hilite:                 pr.Hilite,
-		Key:                    pr.Key,
-		Location:               pr.Location,
-		Null:                   pr.Null,
-		Normal:                 pr.Normal,
-		Number:                 pr.Number,
-		Punc:                   pr.Punc,
-		String:                 pr.String,
-		Success:                pr.Success,
+		Active:                 cp(pr.Active),
+		Bold:                   cp(pr.Bold),
+		Bool:                   cp(pr.Bool),
+		Bytes:                  cp(pr.Bytes),
+		Datetime:               cp(pr.Datetime),
+		DiffPlus:               cp(pr.DiffPlus),
+		DiffMinus:              cp(pr.DiffMinus),
+		DiffHeader:             cp(pr.DiffHeader),
+		DiffSection:            cp(pr.DiffSection),
+		DiffNormal:             cp(pr.DiffNormal),
+		Duration:               cp(pr.Duration),
+		Error:                  cp(pr.Error),
+		Faint:                  cp(pr.Faint),
+		Handle:                 cp(pr.Handle),
+		Header:                 cp(pr.Header),
+		Hilite:                 cp(pr.Hilite),
+		Key:                    cp(pr.Key),
+		Location:               cp(pr.Location),
+		Null:                   cp(pr.Null),
+		Normal:                 cp(pr.Normal),
+		Number:                 cp(pr.Number),
+		Punc:                   cp(pr.Punc),
+		String:                 cp(pr.String),
+		Success:                cp(pr.Success),
 	}
+}
+
+// Clone returns a clone of pr.
+func (pr *Printing) Clone() *Printing {
+	pr2 := &Printing{
+		monochrome:             pr.monochrome,
+		FlushThreshold:         pr.FlushThreshold,
+		ShowHeader:             pr.ShowHeader,
+		Verbose:                pr.Verbose,
+		Compact:                pr.Compact,
+		Indent:                 pr.Indent,
+		Redact:                 pr.Redact,
+		FormatDatetime:         pr.FormatDatetime,
+		FormatDatetimeAsNumber: pr.FormatDatetimeAsNumber,
+		FormatTime:             pr.FormatTime,
+		FormatTimeAsNumber:     pr.FormatTimeAsNumber,
+		FormatDate:             pr.FormatDate,
+		FormatDateAsNumber:     pr.FormatDateAsNumber,
+	}
+
+	pr2.Active = lo.ToPtr(*pr.Active)
+	pr2.Bold = lo.ToPtr(*pr.Bold)
+	pr2.Bool = lo.ToPtr(*pr.Bool)
+	pr2.Bytes = lo.ToPtr(*pr.Bytes)
+	pr2.Datetime = lo.ToPtr(*pr.Datetime)
+	pr2.DiffPlus = lo.ToPtr(*pr.DiffPlus)
+	pr2.DiffMinus = lo.ToPtr(*pr.DiffMinus)
+	pr2.DiffHeader = lo.ToPtr(*pr.DiffHeader)
+	pr2.DiffSection = lo.ToPtr(*pr.DiffSection)
+	pr2.DiffNormal = lo.ToPtr(*pr.DiffNormal)
+	pr2.Duration = lo.ToPtr(*pr.Duration)
+	pr2.Error = lo.ToPtr(*pr.Error)
+	pr2.Faint = lo.ToPtr(*pr.Faint)
+	pr2.Handle = lo.ToPtr(*pr.Handle)
+	pr2.Header = lo.ToPtr(*pr.Header)
+	pr2.Hilite = lo.ToPtr(*pr.Hilite)
+	pr2.Key = lo.ToPtr(*pr.Key)
+	pr2.Location = lo.ToPtr(*pr.Location)
+	pr2.Null = lo.ToPtr(*pr.Null)
+	pr2.Normal = lo.ToPtr(*pr.Normal)
+	pr2.Number = lo.ToPtr(*pr.Number)
+	pr2.Punc = lo.ToPtr(*pr.Punc)
+	pr2.String = lo.ToPtr(*pr.String)
+	pr2.Success = lo.ToPtr(*pr.Success)
+
+	return pr2
 }
 
 // LogValue implements slog.LogValuer.

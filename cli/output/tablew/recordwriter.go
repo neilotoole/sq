@@ -4,14 +4,15 @@ import (
 	"io"
 	"sync"
 
+	"github.com/neilotoole/sq/libsq/core/record"
+
 	"github.com/neilotoole/sq/cli/output"
-	"github.com/neilotoole/sq/libsq/core/sqlz"
 )
 
 type recordWriter struct {
 	mu       sync.Mutex
 	tbl      *table
-	recMeta  sqlz.RecordMeta
+	recMeta  record.Meta
 	rowCount int
 }
 
@@ -24,7 +25,7 @@ func NewRecordWriter(out io.Writer, pr *output.Printing) output.RecordWriter {
 }
 
 // Open implements output.RecordWriter.
-func (w *recordWriter) Open(recMeta sqlz.RecordMeta) error {
+func (w *recordWriter) Open(recMeta record.Meta) error {
 	w.recMeta = recMeta
 	return nil
 }
@@ -50,7 +51,7 @@ func (w *recordWriter) Close() error {
 }
 
 // WriteRecords implements output.RecordWriter.
-func (w *recordWriter) WriteRecords(recs []sqlz.Record) error {
+func (w *recordWriter) WriteRecords(recs []record.Record) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	kinds := w.recMeta.Kinds()

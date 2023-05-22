@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/record"
+
 	"github.com/neilotoole/sq/testh/tutil"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
@@ -12,7 +14,6 @@ import (
 	_ "github.com/ryboe/q" // keep the q lib around
 
 	"github.com/neilotoole/sq/drivers/csv"
-	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/testh"
@@ -75,7 +76,7 @@ func TestVal(t *testing.T) {
 func TestCopyRecords(t *testing.T) {
 	v1, v2, v3, v4, v5, v6 := int64(1), float64(1.1), true, "hello", []byte("hello"), time.Unix(0, 0)
 
-	testCases := map[string][]sqlz.Record{
+	testCases := map[string][]record.Record{
 		"nil":   nil,
 		"empty": {},
 		"vals": {

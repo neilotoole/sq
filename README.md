@@ -331,6 +331,7 @@ xlsx       Microsoft Excel XLSX
 - `--xlsx`: [XLSX](https://sq.io/docs/output#xlsx) (Microsoft Excel)
 - `--html`: [HTML](https://sq.io/docs/output#html)
 - `--xml`: [XML](https://sq.io/docs/output#xml)
+- `--yaml`: [YAML](https://sq.io/docs/output#yaml)
 - `--markdown`: [Markdown](https://sq.io/docs/output#markdown)
 - `--raw`: [Raw](https://sq.io/docs/output#raw) (bytes)
 

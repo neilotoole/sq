@@ -41,7 +41,7 @@ func printError(ctx context.Context, ru *run.Run, err error) {
 	case errors.Is(err, context.Canceled):
 		err = errz.New("canceled")
 	case errors.Is(err, context.DeadlineExceeded):
-		err = errz.New("timeout")
+		err = errz.Wrap(err, "timeout")
 	}
 
 	var cmd *cobra.Command

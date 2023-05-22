@@ -11,22 +11,25 @@ import (
 	"sync"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/record"
+
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq/core/kind"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 // RecordWriter implements output.RecordWriter.
 type recordWriter struct {
 	mu      sync.Mutex
-	recMeta sqlz.RecordMeta
+	recMeta record.Meta
 	pr      *output.Printing
 	out     io.Writer
 	buf     *bytes.Buffer
 }
+
+var _ output.NewRecordWriterFunc = NewRecordWriter
 
 // NewRecordWriter an output.RecordWriter for HTML.
 func NewRecordWriter(out io.Writer, pr *output.Printing) output.RecordWriter {
@@ -34,7 +37,7 @@ func NewRecordWriter(out io.Writer, pr *output.Printing) output.RecordWriter {
 }
 
 // Open implements output.RecordWriter.
-func (w *recordWriter) Open(recMeta sqlz.RecordMeta) error {
+func (w *recordWriter) Open(recMeta record.Meta) error {
 	w.recMeta = recMeta
 	w.buf = &bytes.Buffer{}
 
@@ -91,7 +94,7 @@ func (w *recordWriter) Close() error {
 	return errz.Err(err)
 }
 
-func (w *recordWriter) writeRecord(rec sqlz.Record) error {
+func (w *recordWriter) writeRecord(rec record.Record) error {
 	w.buf.WriteString("    <tr>\n")
 
 	var s string
@@ -135,7 +138,7 @@ func (w *recordWriter) writeRecord(rec sqlz.Record) error {
 }
 
 // WriteRecords implements output.RecordWriter.
-func (w *recordWriter) WriteRecords(recs []sqlz.Record) error {
+func (w *recordWriter) WriteRecords(recs []record.Record) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	var err error

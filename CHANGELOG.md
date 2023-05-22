@@ -9,7 +9,7 @@ Breaking changes are annotated with ☢️.
 
 ## Upcoming
 
-The major feature is the long-awaited `sq diff`.
+The major feature is the long-gestating `sq diff`.
 
 ## Added
 
@@ -17,6 +17,7 @@ The major feature is the long-awaited `sq diff`.
 - `sq inspect --dbprops` is a new mode that returns only the DB properties.
   Relatedly, the properties mechanism is now implemented for all four supported
   DB types (previously, it was only implemented for Postgres and MySQL).
+- [CSV](https://sq.io/docs/output/#csv-tsv) format now colorizes output.
 
 ## Changed
 
@@ -25,11 +26,13 @@ The major feature is the long-awaited `sq diff`.
   that some of those properties aren't really variables in the sense that they
   can be modified (e.g. DB server version or such).
 - The structure of the former `db_variables` (now `db_properties`) field has
-  changed. Previously it was an array of `{"name": "XX", "value": "YY"}` tuples,
+  changed. Previously it was an array of `{"name": "XX", "value": "YY"}` values,
   but now is a map, where the keys are strings, and the values can be either
-  a scalar (`bool`, `int`, `string`, etc), or a nested value such as an array
+  a scalar (`bool`, `int`, `string`, etc.), or a nested value such as an array
   or map. This change is made because some databases (e.g. SQLite) feature
   complex data in some property values.
+- CSV format now renders byte sequences as `[777 bytes]` instead of dumping
+  the raw bytes.
 
 ## [v0.35.0] - 2023-05-10
 

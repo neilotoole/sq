@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/record"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/driver/dialect"
@@ -44,6 +46,7 @@ var (
 	// OptConnMaxOpen controls sql.DB.SetMaxOpenConn.
 	OptConnMaxOpen = options.NewInt(
 		"conn.max-open",
+		"",
 		0,
 		0,
 		"Max open connections to DB",
@@ -56,6 +59,7 @@ A value of zero indicates no limit.`,
 	// OptConnMaxIdle controls sql.DB.SetMaxIdleConns.
 	OptConnMaxIdle = options.NewInt(
 		"conn.max-idle",
+		"",
 		0,
 		2,
 		"Max connections in idle connection pool",
@@ -69,6 +73,7 @@ If n <= 0, no idle connections are retained.`,
 	// OptConnMaxIdleTime controls sql.DB.SetConnMaxIdleTime.
 	OptConnMaxIdleTime = options.NewDuration(
 		"conn.max-idle-time",
+		"",
 		0,
 		time.Second*2,
 		"Max connection idle time",
@@ -81,6 +86,7 @@ connections are not closed due to a connection's idle time.`,
 	// OptConnMaxLifetime controls sql.DB.SetConnMaxLifetime.
 	OptConnMaxLifetime = options.NewDuration(
 		"conn.max-lifetime",
+		"",
 		0,
 		time.Minute*10,
 		"Max connection lifetime",
@@ -90,10 +96,22 @@ If n <= 0, connections are not closed due to a connection's age.`,
 		"source",
 	)
 
+	// OptConnOpenTimeout controls connection open timeout.
+	OptConnOpenTimeout = options.NewDuration(
+		"conn.open-timeout",
+		"",
+		0,
+		time.Second,
+		"Connection open timeout",
+		"Max time to wait before a connection open timeout occurs.",
+		"source",
+	)
+
 	// OptMaxRetryInterval is the maximum interval to wait
 	// between retries.
 	OptMaxRetryInterval = options.NewDuration(
 		"retry.max-interval",
+		"",
 		0,
 		time.Second*3,
 		"Max interval between retries",
@@ -107,6 +125,7 @@ repeated retry operations back off, typically using a Fibonacci backoff.`,
 	// by an errgroup.
 	OptTuningErrgroupLimit = options.NewInt(
 		"tuning.errgroup-limit",
+		"",
 		0,
 		16,
 		"Max goroutines in any one errgroup",
@@ -125,6 +144,7 @@ of additional DB conns, etc.`,
 	// insertion/writing.
 	OptTuningRecChanSize = options.NewInt(
 		"tuning.record-buffer",
+		"",
 		0,
 		1024,
 		"Size of record buffer",
@@ -196,6 +216,9 @@ type SQLDriver interface {
 	// Dialect returns the SQL dialect.
 	Dialect() dialect.Dialect
 
+	// ErrWrapFunc returns a func that wraps the driver's errors.
+	ErrWrapFunc() func(error) error
+
 	// Renderer returns the SQL renderer for this driver.
 	Renderer() *render.Renderer
 
@@ -221,7 +244,7 @@ type SQLDriver interface {
 	//
 	// RecordMeta also returns a NewRecordFunc which can be
 	// applied to the scan row from sql.Rows.
-	RecordMeta(colTypes []*sql.ColumnType) (sqlz.RecordMeta, NewRecordFunc, error)
+	RecordMeta(colTypes []*sql.ColumnType) (record.Meta, NewRecordFunc, error)
 
 	// PrepareInsertStmt prepares a statement for inserting
 	// values to destColNames in destTbl. numRows specifies
@@ -339,6 +362,8 @@ type Metadata struct {
 	// effectively has a single table, such as CSV.
 	Monotable bool `json:"monotable"`
 }
+
+var _ DatabaseOpener = (*Databases)(nil)
 
 // Databases provides a mechanism for getting Database instances.
 // Note that at this time instances returned by Open are cached
@@ -477,6 +502,23 @@ func requireSingleConn(db sqlz.DB) error {
 	case *sql.Conn, *sql.Tx:
 	default:
 		return errz.Errorf("db must be guaranteed single-connection (sql.Conn or sql.Tx) but was %T", db)
+	}
+
+	return nil
+}
+
+// OpeningPing is a standardized mechanism to ping db using
+// driver.OptConnOpenTimeout. This should be invoked by each SQL
+// driver impl in its Open method. If the ping fails, db is closed.
+func OpeningPing(ctx context.Context, src *source.Source, db *sql.DB) error {
+	o := options.FromContext(ctx)
+	timeout := OptConnOpenTimeout.Get(o)
+	ctx, cancelFn := context.WithTimeout(ctx, timeout)
+	defer cancelFn()
+
+	if err := db.PingContext(ctx); err != nil {
+		lg.WarnIfCloseError(lg.FromContext(ctx), lgm.CloseDB, db)
+		return errz.Wrapf(err, "open %s", src.Handle)
 	}
 
 	return nil

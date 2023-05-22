@@ -8,6 +8,8 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/record"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
@@ -16,15 +18,14 @@ import (
 
 	"golang.org/x/exp/slog"
 
-	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/source"
 )
 
 // recordMetaFromColumnTypes returns recordMetaFromColumnTypes for rows.
-func recordMetaFromColumnTypes(log *slog.Logger, colTypes []*sql.ColumnType) (sqlz.RecordMeta, error) {
-	recMeta := make([]*sqlz.FieldMeta, len(colTypes))
+func recordMetaFromColumnTypes(log *slog.Logger, colTypes []*sql.ColumnType) (record.Meta, error) {
+	recMeta := make([]*record.FieldMeta, len(colTypes))
 	for i, colType := range colTypes {
 		// sqlite is very forgiving at times, e.g. execute
 		// a query with a non-existent column name.
@@ -33,12 +34,12 @@ func recordMetaFromColumnTypes(log *slog.Logger, colTypes []*sql.ColumnType) (sq
 		dbTypeName := colType.DatabaseTypeName()
 
 		kind := kindFromDBTypeName(log, colType.Name(), dbTypeName, colType.ScanType())
-		colTypeData := sqlz.NewColumnTypeData(colType, kind)
+		colTypeData := record.NewColumnTypeData(colType, kind)
 
 		// It's necessary to explicitly set the scan type because
 		// the backing driver doesn't set it for whatever reason.
 		setScanType(log, colTypeData) // FIXME: legacy?
-		recMeta[i] = sqlz.NewFieldMeta(colTypeData)
+		recMeta[i] = record.NewFieldMeta(colTypeData)
 	}
 
 	return recMeta, nil
@@ -51,7 +52,7 @@ func recordMetaFromColumnTypes(log *slog.Logger, colTypes []*sql.ColumnType) (sq
 //
 // If the scan type is NOT a sql.NullTYPE, the corresponding sql.NullTYPE will
 // be set.
-func setScanType(log *slog.Logger, colType *sqlz.ColumnTypeData) {
+func setScanType(log *slog.Logger, colType *record.ColumnTypeData) {
 	scanType, knd := colType.ScanType, colType.Kind
 
 	if scanType != nil {
@@ -262,7 +263,7 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*source.
 	query := fmt.Sprintf(tpl, tblMeta.Name, tblMeta.Name)
 	err := db.QueryRowContext(ctx, query).Scan(&tblMeta.RowCount, &tblMeta.DBTableType, &schema)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	switch tblMeta.DBTableType {
@@ -282,7 +283,7 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*source.
 	query = fmt.Sprintf("PRAGMA TABLE_INFO('%s')", tblMeta.Name)
 	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
 
@@ -293,7 +294,7 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*source.
 		pkValue := &sql.NullInt64{}
 		err = rows.Scan(&col.Position, &col.Name, &col.BaseType, &notnull, defaultValue, pkValue)
 		if err != nil {
-			return nil, errz.Err(err)
+			return nil, errw(err)
 		}
 
 		col.PrimaryKey = pkValue.Int64 > 0 // pkVal can be 0,1,2 etc
@@ -307,7 +308,7 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*source.
 
 	err = rows.Err()
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	return tblMeta, nil
@@ -347,7 +348,7 @@ ORDER BY m.name, p.cid
 
 	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
 
@@ -365,7 +366,7 @@ ORDER BY m.name, p.cid
 
 		err = rows.Scan(&curTblName, &curTblType, &col.Position, &col.Name, &col.BaseType, &notnull, colDefault, pkValue)
 		if err != nil {
-			return nil, errz.Err(err)
+			return nil, errw(err)
 		}
 
 		if strings.HasPrefix(curTblName, "sqlite_") {
@@ -404,14 +405,14 @@ ORDER BY m.name, p.cid
 
 	err = rows.Err()
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	// Separately, we need to get the row counts for the tables
 	var rowCounts []int64
 	rowCounts, err = getTblRowCounts(ctx, db, tblNames)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	for i := range rowCounts {
@@ -470,26 +471,26 @@ func getTblRowCounts(ctx context.Context, db sqlz.DB, tblNames []string) ([]int6
 
 		rows, err := db.QueryContext(ctx, query)
 		if err != nil {
-			return nil, errz.Err(err)
+			return nil, errw(err)
 		}
 
 		for rows.Next() {
 			err = rows.Scan(&tblCounts[j])
 			if err != nil {
 				lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
-				return nil, errz.Err(err)
+				return nil, errw(err)
 			}
 			j++
 		}
 
 		if err = rows.Err(); err != nil {
 			lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
-			return nil, errz.Err(err)
+			return nil, errw(err)
 		}
 
 		err = rows.Close()
 		if err != nil {
-			return nil, errz.Err(err)
+			return nil, errw(err)
 		}
 
 		terms = 0

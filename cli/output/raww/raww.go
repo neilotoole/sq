@@ -7,12 +7,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/record"
+
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 
 	"github.com/neilotoole/sq/cli/output"
-
-	"github.com/neilotoole/sq/libsq/core/sqlz"
 )
 
 // recordWriter implements output.RecordWriter for raw output.
@@ -24,8 +24,10 @@ type recordWriter struct {
 	mu      sync.Mutex
 	out     io.Writer
 	pr      *output.Printing
-	recMeta sqlz.RecordMeta
+	recMeta record.Meta
 }
+
+var _ output.NewRecordWriterFunc = NewRecordWriter
 
 // NewRecordWriter returns an output.RecordWriter instance for
 // raw output. This is typically used to output a single blob result,
@@ -37,13 +39,13 @@ func NewRecordWriter(out io.Writer, pr *output.Printing) output.RecordWriter {
 }
 
 // Open implements output.RecordWriter.
-func (w *recordWriter) Open(recMeta sqlz.RecordMeta) error {
+func (w *recordWriter) Open(recMeta record.Meta) error {
 	w.recMeta = recMeta
 	return nil
 }
 
 // WriteRecords implements output.RecordWriter.
-func (w *recordWriter) WriteRecords(recs []sqlz.Record) error {
+func (w *recordWriter) WriteRecords(recs []record.Record) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 

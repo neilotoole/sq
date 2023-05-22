@@ -7,11 +7,11 @@ import (
 	"io"
 	"unicode/utf8"
 
+	"github.com/neilotoole/sq/libsq/core/record"
+
 	"github.com/neilotoole/sq/drivers"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
-	"github.com/neilotoole/sq/libsq/core/sqlz"
-
 	"github.com/neilotoole/sq/libsq/core/stringz"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -31,6 +31,7 @@ import (
 // or as the zero value for the kind of that field.
 var OptEmptyAsNull = options.NewBool(
 	"driver.csv.empty-as-null",
+	"",
 	0,
 	true,
 	"Treat ingest empty CSV fields as NULL",
@@ -43,6 +44,7 @@ the zero value for that type is used, e.g. empty string or 0.`,
 // OptDelim specifies the CSV delimiter to use.
 var OptDelim = options.NewString(
 	"driver.csv.delim",
+	"",
 	0,
 	delimCommaKey,
 	"Delimiter for ingest CSV data",
@@ -142,7 +144,7 @@ func ingestCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFu
 
 // configureEmptyNullMunge configures mungers to that empty string is
 // munged to nil.
-func configureEmptyNullMunge(mungers []kind.MungeFunc, recMeta sqlz.RecordMeta) {
+func configureEmptyNullMunge(mungers []kind.MungeFunc, recMeta record.Meta) {
 	kinds := recMeta.Kinds()
 	for i := range mungers {
 		if kinds[i] == kind.Text {

@@ -3,8 +3,6 @@ package cli
 import (
 	"io"
 
-	"github.com/neilotoole/sq/cli/flag"
-
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -25,13 +23,26 @@ func cmdFlagChanged(cmd *cobra.Command, name string) bool {
 	return f.Changed
 }
 
-// cmdFlagTrue returns true if flag name has been changed
+// cmdFlagIsSetTrue returns true if flag name has been changed
 // and the flag value is true.
-func cmdFlagTrue(cmd *cobra.Command, name string) bool {
+// Contrast with cmdFlagIsSetTrue.
+func cmdFlagIsSetTrue(cmd *cobra.Command, name string) bool {
 	if !cmdFlagChanged(cmd, name) {
 		return false
 	}
 
+	b, err := cmd.Flags().GetBool(name)
+	if err != nil {
+		panic(err) // Should never happen
+	}
+
+	return b
+}
+
+// cmdFlagIsSetTrue returns the bool value of flag name. If the flag
+// has not been set, its default value is returned.
+// Contrast with cmdFlagIsSetTrue.
+func cmdFlagBool(cmd *cobra.Command, name string) bool { //nolint:unused
 	b, err := cmd.Flags().GetBool(name)
 	if err != nil {
 		panic(err) // Should never happen
@@ -62,19 +73,4 @@ func getBootstrapFlagValue(flg, flgShort, flgUsage string, osArgs []string) (val
 	}
 
 	return val, true, nil
-}
-
-func applyFlagAliases(f *pflag.FlagSet, name string) pflag.NormalizedName {
-	if f == nil {
-		return pflag.NormalizedName(name)
-	}
-	switch name {
-	case "table":
-		// Legacy: flag --text was once named --table.
-		name = flag.Text
-	case "md":
-		name = flag.Markdown
-	default:
-	}
-	return pflag.NormalizedName(name)
 }

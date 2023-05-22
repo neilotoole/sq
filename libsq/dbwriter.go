@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"sync"
 
+	"github.com/neilotoole/sq/libsq/core/record"
+
 	"github.com/neilotoole/sq/libsq/source"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -26,7 +28,7 @@ type DBWriter struct {
 	cancelFn context.CancelFunc
 	destDB   driver.Database
 	destTbl  string
-	recordCh chan sqlz.Record
+	recordCh chan record.Record
 	bi       *driver.BatchInsert
 	errCh    chan error
 	errs     []error
@@ -40,12 +42,12 @@ type DBWriter struct {
 
 // DBWriterPreWriteHook is a function that is invoked before DBWriter
 // begins writing.
-type DBWriterPreWriteHook func(ctx context.Context, recMeta sqlz.RecordMeta, destDB driver.Database, tx sqlz.DB) error
+type DBWriterPreWriteHook func(ctx context.Context, recMeta record.Meta, destDB driver.Database, tx sqlz.DB) error
 
 // DBWriterCreateTableIfNotExistsHook returns a hook that
 // creates destTblName if it does not exist.
 func DBWriterCreateTableIfNotExistsHook(destTblName string) DBWriterPreWriteHook {
-	return func(ctx context.Context, recMeta sqlz.RecordMeta, destDB driver.Database, tx sqlz.DB) error {
+	return func(ctx context.Context, recMeta record.Meta, destDB driver.Database, tx sqlz.DB) error {
 		tblExists, err := destDB.SQLDriver().TableExists(ctx, destDB.DB(), destTblName)
 		if err != nil {
 			return errz.Err(err)
@@ -78,7 +80,7 @@ func NewDBWriter(destDB driver.Database, destTbl string, recChSize int,
 	return &DBWriter{
 		destDB:        destDB,
 		destTbl:       destTbl,
-		recordCh:      make(chan sqlz.Record, recChSize),
+		recordCh:      make(chan record.Record, recChSize),
 		errCh:         make(chan error, 3),
 		wg:            &sync.WaitGroup{},
 		preWriteHooks: preWriteHooks,
@@ -91,8 +93,8 @@ func NewDBWriter(destDB driver.Database, destTbl string, recChSize int,
 }
 
 // Open implements RecordWriter.
-func (w *DBWriter) Open(ctx context.Context, cancelFn context.CancelFunc, recMeta sqlz.RecordMeta) (chan<- sqlz.Record,
-	<-chan error, error,
+func (w *DBWriter) Open(ctx context.Context, cancelFn context.CancelFunc, recMeta record.Meta) (
+	chan<- record.Record, <-chan error, error,
 ) {
 	w.cancelFn = cancelFn
 
@@ -222,7 +224,7 @@ func (w *DBWriter) rollback(ctx context.Context, tx *sql.Tx, causeErrs ...error)
 	w.addErrs(rollbackErr)
 }
 
-func (w *DBWriter) doInsert(ctx context.Context, rec sqlz.Record) error {
+func (w *DBWriter) doInsert(ctx context.Context, rec record.Record) error {
 	err := w.bi.Munge(rec)
 	if err != nil {
 		return err

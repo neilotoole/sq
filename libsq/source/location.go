@@ -166,7 +166,7 @@ type parsedLoc struct {
 	// ext is the file extension, if applicable.
 	ext string
 
-	// dsn is the connection "data source name" that can be used loc a
+	// dsn is the connection "data source name" that can be used in a
 	// call to sql/Open. Empty for non-SQL locations.
 	dsn string
 }

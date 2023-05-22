@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/record"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -32,12 +34,12 @@ import (
 //
 // Thus a func instance might unbox sql.NullString et al, or deal
 // with any driver specific quirks.
-type NewRecordFunc func(scanRow []any) (rec sqlz.Record, err error)
+type NewRecordFunc func(scanRow []any) (rec record.Record, err error)
 
 // InsertMungeFunc is invoked on vals before insertion (or
 // update, despite the name). Note that InsertMungeFunc operates
 // on the vals slice, while NewRecordFunc returns a new slice.
-type InsertMungeFunc func(vals sqlz.Record) error
+type InsertMungeFunc func(vals record.Record) error
 
 // StmtExecFunc is provided by driver implementations to wrap
 // execution of a prepared statement. Typically the func will
@@ -47,7 +49,8 @@ type StmtExecFunc func(ctx context.Context, args ...any) (affected int64, err er
 
 // NewStmtExecer returns a new StmtExecer instance. The caller is responsible
 // for invoking Close on the returned StmtExecer.
-func NewStmtExecer(stmt *sql.Stmt, mungeFn InsertMungeFunc, execFn StmtExecFunc, destMeta sqlz.RecordMeta) *StmtExecer {
+func NewStmtExecer(stmt *sql.Stmt, mungeFn InsertMungeFunc, execFn StmtExecFunc, destMeta record.Meta,
+) *StmtExecer {
 	return &StmtExecer{
 		stmt:     stmt,
 		mungeFn:  mungeFn,
@@ -65,11 +68,11 @@ type StmtExecer struct {
 	stmt     *sql.Stmt
 	mungeFn  InsertMungeFunc
 	execFn   StmtExecFunc
-	destMeta sqlz.RecordMeta
+	destMeta record.Meta
 }
 
-// DestMeta returns the RecordMeta for the destination table columns.
-func (x *StmtExecer) DestMeta() sqlz.RecordMeta {
+// DestMeta returns the record.Meta for the destination table columns.
+func (x *StmtExecer) DestMeta() record.Meta {
 	return x.destMeta
 }
 
@@ -115,7 +118,7 @@ func (x *StmtExecer) Close() error {
 // REVISIT: Do we need the skip mechanism at all?
 //
 //nolint:funlen,gocognit,gocyclo,cyclop
-func NewRecordFromScanRow(meta sqlz.RecordMeta, row []any, skip []int) (rec sqlz.Record, skipped []int) {
+func NewRecordFromScanRow(meta record.Meta, row []any, skip []int) (rec record.Record, skipped []int) {
 	rec = make([]any, len(row))
 
 	// For convenience, make a map of the skip row indices.
@@ -559,8 +562,8 @@ func MaxBatchRows(drvr SQLDriver, numCols int) int {
 // The returned InsertMungeFunc accounts for common cases, but it's
 // possible that certain databases will require a custom
 // InsertMungeFunc.
-func DefaultInsertMungeFunc(destTbl string, destMeta sqlz.RecordMeta) InsertMungeFunc {
-	return func(rec sqlz.Record) error {
+func DefaultInsertMungeFunc(destTbl string, destMeta record.Meta) InsertMungeFunc {
+	return func(rec record.Record) error {
 		if len(rec) != len(destMeta) {
 			return errz.Errorf("insert record has %d vals but dest table %s has %d cols (%s)",
 				len(rec), destTbl, len(destMeta), strings.Join(destMeta.Names(), Comma))
@@ -610,7 +613,7 @@ func DefaultInsertMungeFunc(destTbl string, destMeta sqlz.RecordMeta) InsertMung
 
 // mungeSetZeroValue is invoked when rec[i] is nil, but
 // destMeta[i] is not nullable.
-func mungeSetZeroValue(i int, rec []any, destMeta sqlz.RecordMeta) {
+func mungeSetZeroValue(i int, rec []any, destMeta record.Meta) {
 	// REVISIT: do we need to do special handling for kind.Datetime
 	//  and kind.Time (e.g. "00:00" for time)?
 	z := reflect.Zero(destMeta[i].ScanType()).Interface()

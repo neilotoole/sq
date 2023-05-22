@@ -90,14 +90,13 @@ func (fs *Files) Size(src *Source) (size int64, err error) {
 	return size, nil
 }
 
-// AddStdin copies f to fs's cache: the stdin data loc f
+// AddStdin copies f to fs's cache: the stdin data in f
 // is later accessible via fs.Open(src) where src.Handle
 // is StdinHandle; f's type can be detected via TypeStdin.
 // Note that f is closed by this method.
 //
-// DESIGN: it's possible we'll ditch AddStdin and TypeStdin
-//
-//	loc some future version; this mechanism is a stopgap.
+// REVISIT: it's possible we'll ditch AddStdin and TypeStdin
+// in some future version; this mechanism is a stopgap.
 func (fs *Files) AddStdin(f *os.File) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -515,7 +514,7 @@ func httpURL(s string) (u *url.URL, ok bool) {
 	return u, true
 }
 
-// TempDirFile creates a new temporary file loc a new temp dir,
+// TempDirFile creates a new temporary file in a new temp dir,
 // opens the file for reading and writing, and returns the resulting *os.File,
 // as well as the parent dir.
 // It is the caller's responsibility to close the file and remove the temp

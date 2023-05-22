@@ -4,10 +4,11 @@ package sqlserver
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/neilotoole/sq/libsq/core/record"
 
 	"github.com/neilotoole/sq/libsq/driver/dialect"
 
@@ -18,8 +19,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"golang.org/x/exp/slog"
-
-	mssql "github.com/microsoft/go-mssqldb"
 
 	"github.com/neilotoole/sq/libsq/ast/render"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -60,6 +59,11 @@ var _ driver.SQLDriver = (*driveri)(nil)
 // driveri is the SQL Server implementation of driver.Driver.
 type driveri struct {
 	log *slog.Logger
+}
+
+// ErrWrapFunc implements driver.SQLDriver.
+func (d *driveri) ErrWrapFunc() func(error) error {
+	return errw
 }
 
 // DriverMetadata implements driver.SQLDriver.
@@ -127,10 +131,8 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database
 		return nil, err
 	}
 
-	err = db.PingContext(ctx)
-	if err != nil {
-		lg.WarnIfCloseError(d.log, lgm.CloseDB, db)
-		return nil, errz.Err(err)
+	if err = driver.OpeningPing(ctx, src, db); err != nil {
+		return nil, err
 	}
 
 	return &database{log: d.log, db: db, src: src, drvr: d}, nil
@@ -139,7 +141,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database
 func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
 	db, err := sql.Open(dbDrvr, src.Location)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	driver.ConfigureDB(ctx, db, src.Options)
@@ -158,13 +160,12 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 	db, err := d.doOpen(ctx, src)
 	if err != nil {
-		return errz.Err(err)
+		return err
 	}
-
 	defer lg.WarnIfCloseError(d.log, lgm.CloseDB, db)
 
 	err = db.PingContext(ctx)
-	return errz.Err(err)
+	return errz.Wrapf(errw(err), "ping %s", src.Handle)
 }
 
 // DBProperties implements driver.SQLDriver.
@@ -192,19 +193,19 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 
 	db, err := d.doOpen(ctx, src)
 	if err != nil {
-		return 0, errz.Err(err)
+		return 0, errw(err)
 	}
 	defer lg.WarnIfFuncError(d.log, lgm.CloseDB, db.Close)
 
 	affected, err = sqlz.ExecAffected(ctx, db, fmt.Sprintf("DELETE FROM %q", tbl))
 	if err != nil {
-		return affected, errz.Wrapf(err, "truncate: failed to delete from %q", tbl)
+		return affected, errz.Wrapf(errw(err), "truncate: failed to delete from %q", tbl)
 	}
 
 	if reset {
 		_, err = db.ExecContext(ctx, fmt.Sprintf("DBCC CHECKIDENT ('%s', RESEED, 1)", tbl))
 		if err != nil {
-			return affected, errz.Wrapf(err, "truncate: deleted %d rows from %q but RESEED failed", affected, tbl)
+			return affected, errz.Wrapf(errw(err), "truncate: deleted %d rows from %q but RESEED failed", affected, tbl)
 		}
 	}
 
@@ -234,40 +235,40 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 	query := fmt.Sprintf(queryTpl, colsClause, tblNameQuoted)
 	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	colTypes, err := rows.ColumnTypes()
 	if err != nil {
 		lg.WarnIfFuncError(d.log, lgm.CloseDBRows, rows.Close)
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	err = rows.Err()
 	if err != nil {
 		lg.WarnIfFuncError(d.log, lgm.CloseDBRows, rows.Close)
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	err = rows.Close()
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	return colTypes, nil
 }
 
 // RecordMeta implements driver.SQLDriver.
-func (d *driveri) RecordMeta(colTypes []*sql.ColumnType) (sqlz.RecordMeta, driver.NewRecordFunc, error) {
-	recMeta := make([]*sqlz.FieldMeta, len(colTypes))
+func (d *driveri) RecordMeta(colTypes []*sql.ColumnType) (record.Meta, driver.NewRecordFunc, error) {
+	recMeta := make([]*record.FieldMeta, len(colTypes))
 	for i, colType := range colTypes {
 		kind := kindFromDBTypeName(d.log, colType.Name(), colType.DatabaseTypeName())
-		colTypeData := sqlz.NewColumnTypeData(colType, kind)
+		colTypeData := record.NewColumnTypeData(colType, kind)
 		setScanType(colTypeData, kind)
-		recMeta[i] = sqlz.NewFieldMeta(colTypeData)
+		recMeta[i] = record.NewFieldMeta(colTypeData)
 	}
 
-	mungeFn := func(vals []any) (sqlz.Record, error) {
+	mungeFn := func(vals []any) (record.Record, error) {
 		// sqlserver doesn't need to do any special munging, so we
 		// just use the default munging.
 		rec, skipped := driver.NewRecordFromScanRow(recMeta, vals, nil)
@@ -288,7 +289,7 @@ WHERE table_schema = 'dbo' AND table_name = @p1`
 	var count int64
 	err := db.QueryRowContext(ctx, query, tbl).Scan(&count)
 	if err != nil {
-		return false, errz.Err(err)
+		return false, errw(err)
 	}
 
 	return count == 1, nil
@@ -298,7 +299,7 @@ WHERE table_schema = 'dbo' AND table_name = @p1`
 func (d *driveri) CurrentSchema(ctx context.Context, db sqlz.DB) (string, error) {
 	var name string
 	if err := db.QueryRowContext(ctx, `SELECT SCHEMA_NAME()`).Scan(&name); err != nil {
-		return "", errz.Err(err)
+		return "", errw(err)
 	}
 
 	return name, nil
@@ -309,7 +310,7 @@ func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *sqlmodel.
 	stmt := buildCreateTableStmt(tblDef)
 
 	_, err := db.ExecContext(ctx, stmt)
-	return errz.Err(err)
+	return errw(err)
 }
 
 // AlterTableAddColumn implements driver.SQLDriver.
@@ -317,7 +318,7 @@ func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl, col 
 	q := fmt.Sprintf("ALTER TABLE %q ADD %q ", tbl, col) + dbTypeNameFromKind(knd)
 
 	_, err := db.ExecContext(ctx, q)
-	return errz.Wrapf(err, "alter table: failed to add column %q to table %q", col, tbl)
+	return errz.Wrapf(errw(err), "alter table: failed to add column %q to table %q", col, tbl)
 }
 
 // AlterTableRename implements driver.SQLDriver.
@@ -329,7 +330,7 @@ func (d *driveri) AlterTableRename(ctx context.Context, db sqlz.DB, tbl, newName
 
 	q := fmt.Sprintf(`exec sp_rename '[%s].[%s]', '%s'`, schema, tbl, newName)
 	_, err = db.ExecContext(ctx, q)
-	return errz.Wrapf(err, "alter table: failed to rename table %q to %q", tbl, newName)
+	return errz.Wrapf(errw(err), "alter table: failed to rename table %q to %q", tbl, newName)
 }
 
 // AlterTableRenameColumn implements driver.SQLDriver.
@@ -341,7 +342,7 @@ func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, c
 
 	q := fmt.Sprintf(`exec sp_rename '[%s].[%s].[%s]', '%s'`, schema, tbl, col, newName)
 	_, err = db.ExecContext(ctx, q)
-	return errz.Wrapf(err, "alter table: failed to rename column {%s.%s.%s} to {%s}", schema, tbl, col, newName)
+	return errz.Wrapf(errw(err), "alter table: failed to rename column {%s.%s.%s} to {%s}", schema, tbl, col, newName)
 }
 
 // CopyTable implements driver.SQLDriver.
@@ -356,7 +357,7 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable 
 
 	affected, err := sqlz.ExecAffected(ctx, db, stmt)
 	if err != nil {
-		return 0, errz.Err(err)
+		return 0, errw(err)
 	}
 
 	return affected, nil
@@ -373,7 +374,7 @@ func (d *driveri) DropTable(ctx context.Context, db sqlz.DB, tbl string, ifExist
 	}
 
 	_, err := db.ExecContext(ctx, stmt)
-	return errz.Err(err)
+	return errw(err)
 }
 
 // PrepareInsertStmt implements driver.SQLDriver.
@@ -419,9 +420,9 @@ func (d *driveri) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl str
 	return execer, nil
 }
 
-func (d *driveri) getTableColsMeta(ctx context.Context, db sqlz.DB, tblName string, colNames []string) (sqlz.RecordMeta,
-	error,
-) {
+func (d *driveri) getTableColsMeta(ctx context.Context, db sqlz.DB,
+	tblName string, colNames []string,
+) (record.Meta, error) {
 	// SQLServer has this unusual incantation for its LIMIT equivalent:
 	//
 	// SELECT username, email, address_id FROM person
@@ -437,28 +438,28 @@ func (d *driveri) getTableColsMeta(ctx context.Context, db sqlz.DB, tblName stri
 	query := fmt.Sprintf(queryTpl, colsJoined, tblNameQuoted)
 	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	colTypes, err := rows.ColumnTypes()
 	if err != nil {
 		lg.WarnIfFuncError(d.log, lgm.CloseDBRows, rows.Close)
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	if rows.Err() != nil {
-		return nil, errz.Err(rows.Err())
+		return nil, errw(rows.Err())
 	}
 
 	destCols, _, err := d.RecordMeta(colTypes)
 	if err != nil {
 		lg.WarnIfFuncError(d.log, lgm.CloseDBRows, rows.Close)
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	err = rows.Close()
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	return destCols, nil
@@ -498,7 +499,7 @@ WHERE TABLE_NAME = @p1`
 	var catalog, schema, tblType string
 	err := d.db.QueryRowContext(ctx, query, tblName).Scan(&catalog, &schema, &tblType)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	// TODO: getTableMetadata can cause deadlock in the DB. Needs further investigation.
@@ -515,7 +516,7 @@ func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error)
 func (d *database) Close() error {
 	d.log.Debug(lgm.CloseDB, lga.Handle, d.src.Handle)
 
-	return errz.Err(d.db.Close())
+	return errw(d.db.Close())
 }
 
 // newStmtExecFunc returns a StmtExecFunc that has logic to deal with
@@ -527,25 +528,25 @@ func newStmtExecFunc(stmt *sql.Stmt, db sqlz.DB, tbl string) driver.StmtExecFunc
 		if err == nil {
 			var affected int64
 			affected, err = res.RowsAffected()
-			return affected, errz.Err(err)
+			return affected, errw(err)
 		}
 
 		if !hasErrCode(err, errCodeIdentityInsert) {
-			return 0, errz.Err(err)
+			return 0, errw(err)
 		}
 
 		idErr := setIdentityInsert(ctx, db, tbl, true)
 		if idErr != nil {
-			return 0, errz.Combine(err, idErr)
+			return 0, errz.Combine(errw(err), idErr)
 		}
 
 		res, err = stmt.ExecContext(ctx, args...)
 		if err != nil {
-			return 0, errz.Err(err)
+			return 0, errw(err)
 		}
 
 		affected, err := res.RowsAffected()
-		return affected, errz.Err(err)
+		return affected, errw(err)
 	}
 }
 
@@ -566,29 +567,5 @@ func setIdentityInsert(ctx context.Context, db sqlz.DB, tbl string, on bool) err
 
 	query := fmt.Sprintf("SET IDENTITY_INSERT %q %s", tbl, mode)
 	_, err := db.ExecContext(ctx, query)
-	return errz.Wrapf(err, "failed to SET IDENTITY INSERT %s %s", tbl, mode)
-}
-
-// mssql error codes
-//
-//nolint:lll
-const (
-	// See: https://docs.microsoft.com/en-us/sql/relational-databases/errors-events/database-engine-events-and-errors?view=sql-server-ver15
-	errCodeIdentityInsert int32 = 544
-	errCodeObjectNotExist int32 = 15009
-)
-
-// hasErrCode returns true if err (or its cause err) is
-// of type mssql.Error and err.Number equals code.
-func hasErrCode(err error, code int32) bool {
-	if err == nil {
-		return false
-	}
-
-	var msErr mssql.Error
-	if errors.As(err, &msErr) {
-		return msErr.Number == code
-	}
-
-	return false
+	return errz.Wrapf(errw(err), "failed to SET IDENTITY INSERT %s %s", tbl, mode)
 }

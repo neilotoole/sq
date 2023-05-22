@@ -25,6 +25,7 @@ import (
 var (
 	OptLogEnabled = options.NewBool(
 		"log",
+		"",
 		0,
 		false,
 		"Enable logging",
@@ -33,6 +34,7 @@ var (
 
 	OptLogFile = options.NewString(
 		"log.file",
+		"",
 		0,
 		getDefaultLogFilePath(),
 		"Log file path",
@@ -318,7 +320,7 @@ var _ options.Opt = LogLevelOpt{}
 
 // NewLogLevelOpt returns a new LogLevelOpt instance.
 func NewLogLevelOpt(key string, defaultVal slog.Level, usage, help string) LogLevelOpt {
-	opt := options.NewBaseOpt(key, 0, usage, help)
+	opt := options.NewBaseOpt(key, "", 0, usage, help)
 	return LogLevelOpt{BaseOpt: opt, defaultVal: defaultVal}
 }
 

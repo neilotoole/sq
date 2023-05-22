@@ -12,12 +12,13 @@ package libsq
 import (
 	"context"
 
+	"github.com/neilotoole/sq/libsq/core/record"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 )
@@ -78,8 +79,8 @@ type RecordWriter interface {
 	// construction. This mechanism exists to enable a goroutine to wait
 	// on the writer outside the function that invoked Open, without
 	// having to pass cancelFn around.
-	Open(ctx context.Context, cancelFn context.CancelFunc,
-		recMeta sqlz.RecordMeta) (recCh chan<- sqlz.Record, errCh <-chan error, err error)
+	Open(ctx context.Context, cancelFn context.CancelFunc, recMeta record.Meta) (
+		recCh chan<- record.Record, errCh <-chan error, err error)
 
 	// Wait waits for the writer to complete and returns the number of
 	// written rows and any error (which may be a multierr).
@@ -118,10 +119,11 @@ func SLQ2SQL(ctx context.Context, qc *QueryContext, query string) (targetSQL str
 // The caller is responsible for closing dbase.
 func QuerySQL(ctx context.Context, dbase driver.Database, recw RecordWriter, query string, args ...any) error {
 	log := lg.FromContext(ctx)
+	errw := dbase.SQLDriver().ErrWrapFunc()
 
 	rows, err := dbase.DB().QueryContext(ctx, query, args...)
 	if err != nil {
-		return errz.Wrapf(err, `SQL query against %s failed: %s`, dbase.Source().Handle, query)
+		return errz.Wrapf(errw(err), `SQL query against %s failed: %s`, dbase.Source().Handle, query)
 	}
 	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
 
@@ -142,7 +144,7 @@ func QuerySQL(ctx context.Context, dbase driver.Database, recw RecordWriter, que
 	// returns false, and a following call to rows.ColumnTypes will return
 	// an error (because the rows.Next call closed rows). But we still need
 	// the column type info even for an empty table, because it's needed
-	// to construct the RecordMeta which, amongst other things, is used to
+	// to construct the record.Meta which, amongst other things, is used to
 	// show column header info to the user, which we still want to do even
 	// for an empty table.
 	//
@@ -152,25 +154,25 @@ func QuerySQL(ctx context.Context, dbase driver.Database, recw RecordWriter, que
 	// false, we still make use of the earlier partially-complete []ColumnType.
 	colTypes, err := rows.ColumnTypes()
 	if err != nil {
-		return errz.Err(err)
+		return errw(err)
 	}
 
 	hasNext := rows.Next()
 	if rows.Err() != nil {
-		return errz.Err(rows.Err())
+		return errw(rows.Err())
 	}
 
 	if hasNext {
 		colTypes, err = rows.ColumnTypes()
 		if err != nil {
-			return errz.Err(err)
+			return errw(err)
 		}
 	}
 
 	drvr := dbase.SQLDriver()
 	recMeta, recFromScanRowFn, err := drvr.RecordMeta(colTypes)
 	if err != nil {
-		return err
+		return errw(err)
 	}
 
 	// We create a new ctx to pass to recw.Open; we use
@@ -180,7 +182,7 @@ func QuerySQL(ctx context.Context, dbase driver.Database, recw RecordWriter, que
 	recordCh, errCh, err := recw.Open(ctx, cancelFn, recMeta)
 	if err != nil {
 		cancelFn()
-		return err
+		return errw(err)
 	}
 	defer close(recordCh)
 
@@ -192,12 +194,12 @@ func QuerySQL(ctx context.Context, dbase driver.Database, recw RecordWriter, que
 	scanRow := recMeta.NewScanRow()
 
 	for hasNext {
-		var rec sqlz.Record
+		var rec record.Record
 
 		err = rows.Scan(scanRow...)
 		if err != nil {
 			cancelFn()
-			return errz.Wrapf(err, "query against %s", dbase.Source().Handle)
+			return errz.Wrapf(errw(err), "query against %s", dbase.Source().Handle)
 		}
 
 		// recFromScanRowFn returns a new Record with appropriate
@@ -212,7 +214,7 @@ func QuerySQL(ctx context.Context, dbase driver.Database, recw RecordWriter, que
 		// Note: ultimately we should be able to ditch this
 		//  check when we have more confidence in the codebase.
 		var i int
-		i, err = sqlz.ValidRecord(recMeta, rec)
+		i, err = record.Valid(recMeta, rec)
 		if err != nil {
 			cancelFn()
 			return errz.Wrapf(err, "column [%d] (%s): unacceptable munged type %T", i, recMeta[i].Name(), rec[i])
@@ -234,7 +236,7 @@ func QuerySQL(ctx context.Context, dbase driver.Database, recw RecordWriter, que
 		case err = <-errCh:
 			lg.WarnIfError(log, "write record", err)
 			cancelFn()
-			return err
+			return errw(err)
 
 		// Otherwise, we send the record to recordCh. When
 		// that send completes, the loop begins again for the
@@ -249,7 +251,7 @@ func QuerySQL(ctx context.Context, dbase driver.Database, recw RecordWriter, que
 	if rows.Err() != nil {
 		lg.WarnIfError(log, lgm.ReadDBRows, err)
 		cancelFn()
-		return errz.Err(rows.Err())
+		return errw(rows.Err())
 	}
 
 	return nil

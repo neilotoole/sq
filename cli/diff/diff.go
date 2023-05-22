@@ -19,6 +19,35 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
+// Config contains parameters to control diff behavior.
+type Config struct {
+	// Lines specifies the number of lines of context surrounding a diff.
+	Lines int
+
+	// RecordWriterFn is a factory function that returns
+	// an output.RecordWriter used to generate diff text
+	// when comparing table data.
+	RecordWriterFn output.NewRecordWriterFunc
+}
+
+// Elements determines what source elements to compare.
+type Elements struct {
+	// Summary compares a summary of the sources.
+	Summary bool
+
+	// DBProperties compares DB properties.
+	DBProperties bool
+
+	// Table compares table structure.
+	Table bool
+
+	// RowCount compares table row count.
+	RowCount bool
+
+	// Data compares each row in a table. Caution: this can be slow.
+	Data bool
+}
+
 // sourceData encapsulates data about a source.
 type sourceData struct {
 	handle  string
@@ -71,6 +100,21 @@ type tableDiff struct {
 	td1, td2 *tableData
 	header   string
 	diff     string
+}
+
+// dbPropsDiff is a container for a DB properties diff.
+type dbPropsDiff struct {
+	sd1, sd2 *sourceData
+	header   string
+	diff     string
+}
+
+// tableDataDiff is a container for a table's data diff.
+type tableDataDiff struct {
+	td1, td2 *tableData
+	// recMeta1, recMeta2 record.Meta
+	header string
+	diff   string
 }
 
 // Print prints dif to w. If pr is nil, printing is in monochrome.

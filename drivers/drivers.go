@@ -8,6 +8,7 @@ import "github.com/neilotoole/sq/libsq/core/options"
 // If not set, the ingester *may* try to detect if the input has a header.
 var OptIngestHeader = options.NewBool(
 	"ingest.header",
+	"",
 	0,
 	false,
 	"Ingest data has a header row",
@@ -22,6 +23,7 @@ to detect the header.`,
 // should take to determine type.
 var OptIngestSampleSize = options.NewInt(
 	"ingest.sample-size",
+	"",
 	0,
 	1024,
 	"Ingest data sample size for type detection",

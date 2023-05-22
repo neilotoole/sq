@@ -15,6 +15,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/record"
+
 	"github.com/neilotoole/sq/libsq/driver/dialect"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -74,6 +76,11 @@ type driveri struct {
 	log *slog.Logger
 }
 
+// ErrWrapFunc implements driver.SQLDriver.
+func (d *driveri) ErrWrapFunc() func(error) error {
+	return errw
+}
+
 // DBProperties implements driver.SQLDriver.
 func (d *driveri) DBProperties(ctx context.Context, db sqlz.DB) (map[string]any, error) {
 	return getDBProperties(ctx, db)
@@ -98,6 +105,10 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database
 		return nil, err
 	}
 
+	if err = driver.OpeningPing(ctx, src, db); err != nil {
+		return nil, err
+	}
+
 	return &database{log: d.log, db: db, src: src, drvr: d}, nil
 }
 
@@ -108,7 +119,7 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 	}
 	db, err := sql.Open(dbDrvr, dsn)
 	if err != nil {
-		return nil, errz.Wrapf(err, "failed to open sqlite3 source with DSN: %s", dsn)
+		return nil, errz.Wrapf(errw(err), "failed to open sqlite3 source with DSN: %s", dsn)
 	}
 
 	driver.ConfigureDB(ctx, db, src.Options)
@@ -121,18 +132,18 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 ) {
 	db, err := d.doOpen(ctx, src)
 	if err != nil {
-		return 0, errz.Err(err)
+		return 0, errw(err)
 	}
 	defer lg.WarnIfFuncError(d.log, lgm.CloseDB, db.Close)
 
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
-		return 0, errz.Err(err)
+		return 0, errw(err)
 	}
 
 	affected, err = sqlz.ExecAffected(ctx, tx, fmt.Sprintf("DELETE FROM %q", tbl))
 	if err != nil {
-		return affected, errz.Append(err, errz.Err(tx.Rollback()))
+		return affected, errz.Append(err, errw(tx.Rollback()))
 	}
 
 	if reset {
@@ -142,18 +153,18 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 		var count int64
 		err = tx.QueryRowContext(ctx, q).Scan(&count)
 		if err != nil {
-			return 0, errz.Append(err, errz.Err(tx.Rollback()))
+			return 0, errz.Append(err, errw(tx.Rollback()))
 		}
 
 		if count > 0 {
 			_, err = tx.ExecContext(ctx, "UPDATE sqlite_sequence SET seq = 0 WHERE name = ?", tbl)
 			if err != nil {
-				return 0, errz.Append(err, errz.Err(tx.Rollback()))
+				return 0, errz.Append(err, errw(tx.Rollback()))
 			}
 		}
 	}
 
-	return affected, errz.Err(tx.Commit())
+	return affected, errw(tx.Commit())
 }
 
 // ValidateSource implements driver.Driver.
@@ -166,13 +177,13 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 
 // Ping implements driver.Driver.
 func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
-	dbase, err := d.Open(ctx, src)
+	db, err := d.doOpen(ctx, src)
 	if err != nil {
 		return err
 	}
-	defer lg.WarnIfCloseError(d.log, lgm.CloseDB, dbase)
+	defer lg.WarnIfCloseError(d.log, lgm.CloseDB, db)
 
-	return dbase.DB().Ping()
+	return errz.Wrapf(db.PingContext(ctx), "ping %s", src.Handle)
 }
 
 // Dialect implements driver.SQLDriver.
@@ -212,7 +223,7 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable 
 	err := db.QueryRowContext(ctx, fmt.Sprintf("SELECT sql FROM sqlite_master WHERE type='table' AND name='%s'",
 		fromTable)).Scan(&originTblCreateStmt)
 	if err != nil {
-		return 0, errz.Err(err)
+		return 0, errw(err)
 	}
 
 	// A simple replace of the table name should work to mutate the
@@ -221,7 +232,7 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable 
 
 	_, err = db.ExecContext(ctx, destTblCreateStmt)
 	if err != nil {
-		return 0, errz.Err(err)
+		return 0, errw(err)
 	}
 
 	if !copyData {
@@ -231,20 +242,20 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable 
 	stmt := fmt.Sprintf("INSERT INTO %q SELECT * FROM %q", toTable, fromTable)
 	affected, err := sqlz.ExecAffected(ctx, db, stmt)
 	if err != nil {
-		return 0, errz.Err(err)
+		return 0, errw(err)
 	}
 
 	return affected, nil
 }
 
 // RecordMeta implements driver.SQLDriver.
-func (d *driveri) RecordMeta(colTypes []*sql.ColumnType) (sqlz.RecordMeta, driver.NewRecordFunc, error) {
+func (d *driveri) RecordMeta(colTypes []*sql.ColumnType) (record.Meta, driver.NewRecordFunc, error) {
 	recMeta, err := recordMetaFromColumnTypes(d.log, colTypes)
 	if err != nil {
-		return nil, nil, errz.Err(err)
+		return nil, nil, errw(err)
 	}
 
-	mungeFn := func(vals []any) (sqlz.Record, error) {
+	mungeFn := func(vals []any) (record.Record, error) {
 		rec := newRecordFromScanRow(recMeta, vals)
 		return rec, nil
 	}
@@ -259,11 +270,13 @@ func (d *driveri) RecordMeta(colTypes []*sql.ColumnType) (sqlz.RecordMeta, drive
 // make a copy of any sql.RawBytes. The row slice
 // can be reused by rows.Scan after this function returns.
 //
-// Note that this function can modify the kind of the RecordMeta elements
+// Note that this function can modify the kind of the record.Meta elements
 // if the kind is currently unknown. That is, if meta[0].Kind() returns
 // kind.Unknown, but this function detects that row[0] is an *int64, then
 // the kind will be set to kind.Int.
-func newRecordFromScanRow(meta sqlz.RecordMeta, row []any) (rec sqlz.Record) { //nolint:funlen,gocognit,gocyclo,cyclop
+//
+//nolint:funlen,gocognit,gocyclo,cyclop
+func newRecordFromScanRow(meta record.Meta, row []any) (rec record.Record) {
 	rec = make([]any, len(row))
 
 	for i := 0; i < len(row); i++ {
@@ -287,32 +300,32 @@ func newRecordFromScanRow(meta sqlz.RecordMeta, row []any) (rec sqlz.Record) { /
 		case nil:
 			rec[i] = nil
 		case *int64:
-			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+			record.SetKindIfUnknown(meta, i, kind.Int)
 			v := *col
 			rec[i] = &v
 		case int64:
-			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+			record.SetKindIfUnknown(meta, i, kind.Int)
 			rec[i] = &col
 		case *float64:
-			sqlz.SetKindIfUnknown(meta, i, kind.Float)
+			record.SetKindIfUnknown(meta, i, kind.Float)
 			v := *col
 			rec[i] = &v
 		case float64:
-			sqlz.SetKindIfUnknown(meta, i, kind.Float)
+			record.SetKindIfUnknown(meta, i, kind.Float)
 			rec[i] = &col
 		case *bool:
-			sqlz.SetKindIfUnknown(meta, i, kind.Bool)
+			record.SetKindIfUnknown(meta, i, kind.Bool)
 			v := *col
 			rec[i] = &v
 		case bool:
-			sqlz.SetKindIfUnknown(meta, i, kind.Bool)
+			record.SetKindIfUnknown(meta, i, kind.Bool)
 			rec[i] = &col
 		case *string:
-			sqlz.SetKindIfUnknown(meta, i, kind.Text)
+			record.SetKindIfUnknown(meta, i, kind.Text)
 			v := *col
 			rec[i] = &v
 		case string:
-			sqlz.SetKindIfUnknown(meta, i, kind.Text)
+			record.SetKindIfUnknown(meta, i, kind.Text)
 			rec[i] = &col
 		case *[]byte:
 			if col == nil || *col == nil {
@@ -325,7 +338,7 @@ func newRecordFromScanRow(meta sqlz.RecordMeta, row []any) (rec sqlz.Record) { /
 				// switch to a string.
 				s := string(*col)
 				rec[i] = &s
-				sqlz.SetKindIfUnknown(meta, i, kind.Text)
+				record.SetKindIfUnknown(meta, i, kind.Text)
 				continue
 			}
 
@@ -337,7 +350,7 @@ func newRecordFromScanRow(meta sqlz.RecordMeta, row []any) (rec sqlz.Record) { /
 				copy(dest, *col)
 				rec[i] = &dest
 			}
-			sqlz.SetKindIfUnknown(meta, i, kind.Bytes)
+			record.SetKindIfUnknown(meta, i, kind.Bytes)
 		case *sql.NullInt64:
 			if col.Valid {
 				v := col.Int64
@@ -345,7 +358,7 @@ func newRecordFromScanRow(meta sqlz.RecordMeta, row []any) (rec sqlz.Record) { /
 			} else {
 				rec[i] = nil
 			}
-			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+			record.SetKindIfUnknown(meta, i, kind.Int)
 		case *sql.NullString:
 			if col.Valid {
 				v := col.String
@@ -353,7 +366,7 @@ func newRecordFromScanRow(meta sqlz.RecordMeta, row []any) (rec sqlz.Record) { /
 			} else {
 				rec[i] = nil
 			}
-			sqlz.SetKindIfUnknown(meta, i, kind.Text)
+			record.SetKindIfUnknown(meta, i, kind.Text)
 		case *sql.RawBytes:
 			if col == nil || *col == nil {
 				// Explicitly set rec[i] so that its type becomes nil
@@ -373,7 +386,7 @@ func newRecordFromScanRow(meta sqlz.RecordMeta, row []any) (rec sqlz.Record) { /
 					// Else treat it as an empty string
 					var s string
 					rec[i] = &s
-					sqlz.SetKindIfUnknown(meta, i, kind.Text)
+					record.SetKindIfUnknown(meta, i, kind.Text)
 				}
 
 				continue
@@ -387,7 +400,7 @@ func newRecordFromScanRow(meta sqlz.RecordMeta, row []any) (rec sqlz.Record) { /
 			} else {
 				str := string(dest)
 				rec[i] = &str
-				sqlz.SetKindIfUnknown(meta, i, kind.Text)
+				record.SetKindIfUnknown(meta, i, kind.Text)
 			}
 
 		case *sql.NullFloat64:
@@ -397,7 +410,7 @@ func newRecordFromScanRow(meta sqlz.RecordMeta, row []any) (rec sqlz.Record) { /
 			} else {
 				rec[i] = nil
 			}
-			sqlz.SetKindIfUnknown(meta, i, kind.Float)
+			record.SetKindIfUnknown(meta, i, kind.Float)
 		case *sql.NullBool:
 			if col.Valid {
 				v := col.Bool
@@ -405,7 +418,7 @@ func newRecordFromScanRow(meta sqlz.RecordMeta, row []any) (rec sqlz.Record) { /
 			} else {
 				rec[i] = nil
 			}
-			sqlz.SetKindIfUnknown(meta, i, kind.Bool)
+			record.SetKindIfUnknown(meta, i, kind.Bool)
 		case *sqlz.NullBool:
 			// This custom NullBool type is only used by sqlserver at this time.
 			// Possibly this code should skip this item, and allow
@@ -416,7 +429,7 @@ func newRecordFromScanRow(meta sqlz.RecordMeta, row []any) (rec sqlz.Record) { /
 			} else {
 				rec[i] = nil
 			}
-			sqlz.SetKindIfUnknown(meta, i, kind.Bool)
+			record.SetKindIfUnknown(meta, i, kind.Bool)
 		case *sql.NullTime:
 			if col.Valid {
 				v := col.Time
@@ -424,107 +437,107 @@ func newRecordFromScanRow(meta sqlz.RecordMeta, row []any) (rec sqlz.Record) { /
 			} else {
 				rec[i] = nil
 			}
-			sqlz.SetKindIfUnknown(meta, i, kind.Datetime)
+			record.SetKindIfUnknown(meta, i, kind.Datetime)
 		case *time.Time:
 			v := *col
 			rec[i] = &v
-			sqlz.SetKindIfUnknown(meta, i, kind.Datetime)
+			record.SetKindIfUnknown(meta, i, kind.Datetime)
 		case time.Time:
 			v := col
 			rec[i] = &v
-			sqlz.SetKindIfUnknown(meta, i, kind.Datetime)
+			record.SetKindIfUnknown(meta, i, kind.Datetime)
 
 		// REVISIT: We probably don't need any of the below cases
 		// for sqlite?
 		case *int:
 			v := int64(*col)
 			rec[i] = &v
-			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case int:
 			v := int64(col)
 			rec[i] = &v
-			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case *int8:
 			v := int64(*col)
 			rec[i] = &v
-			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case int8:
 			v := int64(col)
 			rec[i] = &v
-			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case *int16:
 			v := int64(*col)
 			rec[i] = &v
-			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case int16:
 			v := int64(col)
 			rec[i] = &v
-			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case *int32:
 			v := int64(*col)
 			rec[i] = &v
-			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case int32:
 			v := int64(col)
 			rec[i] = &v
-			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case *uint:
 			v := int64(*col)
 			rec[i] = &v
-			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case uint:
 			v := int64(col)
 			rec[i] = &v
-			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case *uint8:
 			v := int64(*col)
 			rec[i] = &v
-			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case uint8:
 			v := int64(col)
 			rec[i] = &v
-			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case *uint16:
 			v := int64(*col)
 			rec[i] = &v
-			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case uint16:
 			v := int64(col)
 			rec[i] = &v
-			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case *uint32:
 			v := int64(*col)
 			rec[i] = &v
-			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case uint32:
 			v := int64(col)
 			rec[i] = &v
-			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case *float32:
 			v := float64(*col)
 			rec[i] = &v
-			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case float32:
 			v := int64(col)
 			rec[i] = &v
-			sqlz.SetKindIfUnknown(meta, i, kind.Int)
+			record.SetKindIfUnknown(meta, i, kind.Int)
 		}
 
 		if rec[i] != nil && meta[i].Kind() == kind.Decimal {
@@ -564,7 +577,7 @@ func (d *driveri) DropTable(ctx context.Context, db sqlz.DB, tbl string, ifExist
 	}
 
 	_, err := db.ExecContext(ctx, stmt)
-	return errz.Err(err)
+	return errw(err)
 }
 
 // CreateTable implements driver.SQLDriver.
@@ -573,16 +586,16 @@ func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *sqlmodel.
 
 	stmt, err := db.PrepareContext(ctx, query)
 	if err != nil {
-		return errz.Err(err)
+		return errw(err)
 	}
 
 	_, err = stmt.ExecContext(ctx)
 	if err != nil {
 		lg.WarnIfCloseError(d.log, lgm.CloseDBStmt, stmt)
-		return errz.Err(err)
+		return errw(err)
 	}
 
-	return errz.Err(stmt.Close())
+	return errw(stmt.Close())
 }
 
 // CurrentSchema implements driver.SQLDriver.
@@ -590,7 +603,7 @@ func (d *driveri) CurrentSchema(ctx context.Context, db sqlz.DB) (string, error)
 	const q = `SELECT name FROM pragma_database_list ORDER BY seq limit 1`
 	var name string
 	if err := db.QueryRowContext(ctx, q).Scan(&name); err != nil {
-		return "", errz.Err(err)
+		return "", errw(err)
 	}
 
 	return name, nil
@@ -600,14 +613,14 @@ func (d *driveri) CurrentSchema(ctx context.Context, db sqlz.DB) (string, error)
 func (d *driveri) AlterTableRename(ctx context.Context, db sqlz.DB, tbl, newName string) error {
 	q := fmt.Sprintf(`ALTER TABLE %q RENAME TO %q`, tbl, newName)
 	_, err := db.ExecContext(ctx, q)
-	return errz.Wrapf(err, "alter table: failed to rename table {%s} to {%s}", tbl, newName)
+	return errz.Wrapf(errw(err), "alter table: failed to rename table {%s} to {%s}", tbl, newName)
 }
 
 // AlterTableRenameColumn implements driver.SQLDriver.
 func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, col, newName string) error {
 	q := fmt.Sprintf("ALTER TABLE %q RENAME COLUMN %q TO %q", tbl, col, newName)
 	_, err := db.ExecContext(ctx, q)
-	return errz.Wrapf(err, "alter table: failed to rename column {%s.%s} to {%s}", tbl, col, newName)
+	return errz.Wrapf(errw(err), "alter table: failed to rename column {%s.%s} to {%s}", tbl, col, newName)
 }
 
 // AlterTableAddColumn implements driver.SQLDriver.
@@ -616,7 +629,7 @@ func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl, col 
 
 	_, err := db.ExecContext(ctx, q)
 	if err != nil {
-		return errz.Wrapf(err, "alter table: failed to add column {%s} to table {%s}", col, tbl)
+		return errz.Wrapf(errw(err), "alter table: failed to add column {%s} to table {%s}", col, tbl)
 	}
 
 	return nil
@@ -629,7 +642,7 @@ func (d *driveri) TableExists(ctx context.Context, db sqlz.DB, tbl string) (bool
 	var count int64
 	err := db.QueryRowContext(ctx, query, tbl).Scan(&count)
 	if err != nil {
-		return false, errz.Err(err)
+		return false, errw(err)
 	}
 
 	return count == 1, nil
@@ -682,10 +695,10 @@ func newStmtExecFunc(stmt *sql.Stmt) driver.StmtExecFunc {
 	return func(ctx context.Context, args ...any) (int64, error) {
 		res, err := stmt.ExecContext(ctx, args...)
 		if err != nil {
-			return 0, errz.Err(err)
+			return 0, errw(err)
 		}
 		affected, err := res.RowsAffected()
-		return affected, errz.Err(err)
+		return affected, errw(err)
 	}
 }
 
@@ -712,7 +725,7 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 	query := fmt.Sprintf(queryTpl, colsClause, tblNameQuoted)
 	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	// We invoke rows.ColumnTypes twice.
@@ -722,7 +735,7 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 	colTypes, err := rows.ColumnTypes()
 	if err != nil {
 		lg.WarnIfFuncError(d.log, lgm.CloseDBRows, rows.Close)
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	// If the table does have rows, we invoke rows.ColumnTypes again,
@@ -732,19 +745,19 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 		colTypes, err = rows.ColumnTypes()
 		if err != nil {
 			lg.WarnIfFuncError(d.log, lgm.CloseDBRows, rows.Close)
-			return nil, errz.Err(err)
+			return nil, errw(err)
 		}
 	}
 
 	err = rows.Err()
 	if err != nil {
 		lg.WarnIfFuncError(d.log, lgm.CloseDBRows, rows.Close)
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	err = rows.Close()
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	return colTypes, nil
@@ -752,7 +765,7 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 
 func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName string,
 	colNames []string,
-) (sqlz.RecordMeta, error) {
+) (record.Meta, error) {
 	colTypes, err := d.TableColumnTypes(ctx, db, tblName, colNames)
 	if err != nil {
 		return nil, err
@@ -813,14 +826,14 @@ func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error)
 
 	err = d.db.QueryRowContext(ctx, q).Scan(&meta.DBVersion, &meta.Schema)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	meta.DBProduct = "SQLite3 v" + meta.DBVersion
 
 	fi, err := os.Stat(dsn)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	meta.Size = fi.Size()
@@ -852,7 +865,7 @@ func (d *database) Close() error {
 	}
 
 	d.log.Debug(lgm.CloseDB, lga.Handle, d.src.Handle)
-	err := errz.Err(d.db.Close())
+	err := errw(d.db.Close())
 	d.closed = true
 	return err
 }
@@ -933,12 +946,12 @@ func MungeLocation(loc string) (string, error) {
 	// relative or absolute.
 	u, err := url.Parse(loc2)
 	if err != nil {
-		return "", errz.Wrapf(err, "invalid location: %s", loc)
+		return "", errz.Wrapf(errw(err), "invalid location: %s", loc)
 	}
 
 	fp, err := filepath.Abs(u.Path)
 	if err != nil {
-		return "", errz.Wrapf(err, "invalid location: %s", loc)
+		return "", errz.Wrapf(errw(err), "invalid location: %s", loc)
 	}
 
 	fp = filepath.ToSlash(fp)
