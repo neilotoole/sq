@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/core/errz"
+
 	"golang.org/x/sync/errgroup"
 
 	"github.com/neilotoole/sq/testh/tutil"
@@ -609,6 +611,18 @@ func TestSQLDriver_CurrentSchema(t *testing.T) {
 			require.NoError(t, err)
 			require.NotNil(t, md)
 			require.Equal(t, md.Schema, got)
+		})
+	}
+}
+
+func TestSQLDriver_ErrWrap_IsErrNotExist(t *testing.T) {
+	for _, h := range sakila.SQLLatest() {
+		h := h
+		t.Run(h, func(t *testing.T) {
+			th, _, _, _ := testh.NewWith(t, h)
+			_, err := th.QuerySLQ(h+".does_not_exist", nil)
+			require.Error(t, err)
+			require.True(t, errz.IsErrNotExist(err))
 		})
 	}
 }

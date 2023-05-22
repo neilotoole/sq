@@ -11,13 +11,13 @@ import (
 // errw wraps any error from the db. It should be called at
 // every interaction with the db. If err is nil, nil is returned.
 // Certain errors will be wrapped in specific error types,
-// e.g, errz.RelationNotExistError.
+// e.g, errz.NotExistError.
 func errw(err error) error {
 	switch {
 	case err == nil:
 		return nil
 	case hasErrCode(err, errCodeRelationNotExist):
-		return errz.RelationNotExist(err)
+		return errz.NotExist(err)
 	default:
 		return errz.Err(err)
 	}

@@ -9,7 +9,6 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/source"
 )
 
@@ -44,7 +43,7 @@ func TestHasErrCode(t *testing.T) {
 	require.True(t, hasErrCode(err, errNumTableNotExist))
 
 	// Test that a wrapped error works
-	err = errz.Err(err)
+	err = errw(err)
 	require.True(t, hasErrCode(err, errNumTableNotExist))
 }
 

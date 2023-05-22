@@ -119,7 +119,7 @@ func fetchTableMeta(ctx context.Context, ru *run.Run, src *source.Source, table 
 	}
 	md, err := dbase.TableMetadata(ctx, table)
 	if err != nil {
-		if errz.IsErrRelationNotExist(err) {
+		if errz.IsErrNotExist(err) {
 			return nil, nil //nolint:nilnil
 		}
 		return nil, err

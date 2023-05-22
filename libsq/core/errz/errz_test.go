@@ -58,17 +58,17 @@ func TestLogError_LogValue(t *testing.T) {
 
 func TestIsErrRelationNotExist(t *testing.T) {
 	var err error
-	require.False(t, errz.IsErrRelationNotExist(err))
-	require.False(t, errz.IsErrRelationNotExist(errz.New("huzzah")))
+	require.False(t, errz.IsErrNotExist(err))
+	require.False(t, errz.IsErrNotExist(errz.New("huzzah")))
 
-	var rne1 *errz.RelationNotExistError
-	require.True(t, errz.IsErrRelationNotExist(rne1))
+	var rne1 *errz.NotExistError
+	require.True(t, errz.IsErrNotExist(rne1))
 
-	var rne2 *errz.RelationNotExistError
+	var rne2 *errz.NotExistError
 	require.True(t, errors.As(rne1, &rne2))
 
-	err = errz.RelationNotExist(errz.New("huzzah"))
-	require.True(t, errz.IsErrRelationNotExist(err))
+	err = errz.NotExist(errz.New("huzzah"))
+	require.True(t, errz.IsErrNotExist(err))
 	err = fmt.Errorf("wrap me: %w", err)
-	require.True(t, errz.IsErrRelationNotExist(err))
+	require.True(t, errz.IsErrNotExist(err))
 }

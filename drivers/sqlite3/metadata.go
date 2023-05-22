@@ -18,7 +18,6 @@ import (
 
 	"golang.org/x/exp/slog"
 
-	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/source"
@@ -264,7 +263,7 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*source.
 	query := fmt.Sprintf(tpl, tblMeta.Name, tblMeta.Name)
 	err := db.QueryRowContext(ctx, query).Scan(&tblMeta.RowCount, &tblMeta.DBTableType, &schema)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	switch tblMeta.DBTableType {
@@ -284,7 +283,7 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*source.
 	query = fmt.Sprintf("PRAGMA TABLE_INFO('%s')", tblMeta.Name)
 	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
 
@@ -295,7 +294,7 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*source.
 		pkValue := &sql.NullInt64{}
 		err = rows.Scan(&col.Position, &col.Name, &col.BaseType, &notnull, defaultValue, pkValue)
 		if err != nil {
-			return nil, errz.Err(err)
+			return nil, errw(err)
 		}
 
 		col.PrimaryKey = pkValue.Int64 > 0 // pkVal can be 0,1,2 etc
@@ -309,7 +308,7 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*source.
 
 	err = rows.Err()
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	return tblMeta, nil
@@ -349,7 +348,7 @@ ORDER BY m.name, p.cid
 
 	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
 
@@ -367,7 +366,7 @@ ORDER BY m.name, p.cid
 
 		err = rows.Scan(&curTblName, &curTblType, &col.Position, &col.Name, &col.BaseType, &notnull, colDefault, pkValue)
 		if err != nil {
-			return nil, errz.Err(err)
+			return nil, errw(err)
 		}
 
 		if strings.HasPrefix(curTblName, "sqlite_") {
@@ -406,14 +405,14 @@ ORDER BY m.name, p.cid
 
 	err = rows.Err()
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	// Separately, we need to get the row counts for the tables
 	var rowCounts []int64
 	rowCounts, err = getTblRowCounts(ctx, db, tblNames)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	for i := range rowCounts {
@@ -472,26 +471,26 @@ func getTblRowCounts(ctx context.Context, db sqlz.DB, tblNames []string) ([]int6
 
 		rows, err := db.QueryContext(ctx, query)
 		if err != nil {
-			return nil, errz.Err(err)
+			return nil, errw(err)
 		}
 
 		for rows.Next() {
 			err = rows.Scan(&tblCounts[j])
 			if err != nil {
 				lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
-				return nil, errz.Err(err)
+				return nil, errw(err)
 			}
 			j++
 		}
 
 		if err = rows.Err(); err != nil {
 			lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
-			return nil, errz.Err(err)
+			return nil, errw(err)
 		}
 
 		err = rows.Close()
 		if err != nil {
-			return nil, errz.Err(err)
+			return nil, errw(err)
 		}
 
 		terms = 0

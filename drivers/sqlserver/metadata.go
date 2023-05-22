@@ -22,7 +22,6 @@ import (
 	"golang.org/x/exp/slog"
 
 	"github.com/c2h5oh/datasize"
-	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/source"
@@ -134,7 +133,7 @@ GROUP BY database_id) AS total_size_bytes`
 	err := db.QueryRowContext(ctx, query).
 		Scan(&catalog, &schema, &md.DBVersion, &md.DBProduct, &md.Size)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	md.Name = catalog
@@ -185,7 +184,7 @@ GROUP BY database_id) AS total_size_bytes`
 
 	err = g.Wait()
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	// If a table wasn't found (possibly dropped while querying), then
@@ -220,20 +219,20 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblCatalog,
 	row := db.QueryRowContext(ctx, fmt.Sprintf(tplTblUsage, tblName))
 	err := row.Scan(&tblMeta.Name, &rowCount, &reserved, &data, &indexSize, &unused)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	if rowCount.Valid {
 		tblMeta.RowCount, err = strconv.ParseInt(strings.TrimSpace(rowCount.String), 10, 64)
 		if err != nil {
-			return nil, errz.Err(err)
+			return nil, errw(err)
 		}
 	} else {
 		// We can't get the "row count" for a VIEW from sp_spaceused,
 		// so we need to select it the old-fashioned way.
 		err = db.QueryRowContext(ctx, fmt.Sprintf("SELECT COUNT(*) FROM %q", tblName)).Scan(&tblMeta.RowCount)
 		if err != nil {
-			return nil, errz.Err(err)
+			return nil, errw(err)
 		}
 	}
 
@@ -241,7 +240,7 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblCatalog,
 		var byteCount datasize.ByteSize
 		err = byteCount.UnmarshalText([]byte(reserved.String))
 		if err != nil {
-			return nil, errz.Err(err)
+			return nil, errw(err)
 		}
 		size := int64(byteCount.Bytes())
 		tblMeta.Size = &size
@@ -256,7 +255,7 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblCatalog,
 	var dbConstraints []constraintMeta
 	dbConstraints, err = getConstraints(ctx, db, tblCatalog, tblSchema, tblName)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	cols := make([]*source.ColMetadata, len(dbCols))
@@ -322,7 +321,7 @@ ORDER BY TABLE_NAME ASC, TABLE_TYPE ASC`
 		var tblName, tblType string
 		err = rows.Scan(&tblName, &tblType)
 		if err != nil {
-			return nil, nil, errz.Err(err)
+			return nil, nil, errw(err)
 		}
 
 		tblNames = append(tblNames, tblName)
@@ -330,7 +329,7 @@ ORDER BY TABLE_NAME ASC, TABLE_TYPE ASC`
 	}
 
 	if rows.Err() != nil {
-		return nil, nil, errz.Err(rows.Err())
+		return nil, nil, errw(rows.Err())
 	}
 
 	return tblNames, tblTypes, nil
@@ -354,7 +353,7 @@ func getColumnMeta(ctx context.Context, db sqlz.DB, tblCatalog, tblSchema, tblNa
 
 	rows, err := db.QueryContext(ctx, query, tblCatalog, tblSchema, tblName)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
@@ -369,14 +368,14 @@ func getColumnMeta(ctx context.Context, db sqlz.DB, tblCatalog, tblSchema, tblNa
 			&c.CharSetName, &c.CollationCatalog, &c.CollationSchema, &c.CollationName, &c.DomainCatalog,
 			&c.DomainSchema, &c.DomainName)
 		if err != nil {
-			return nil, errz.Err(err)
+			return nil, errw(err)
 		}
 
 		cols = append(cols, c)
 	}
 
 	if err = rows.Err(); err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	return cols, nil
@@ -398,7 +397,7 @@ func getConstraints(ctx context.Context, db sqlz.DB, tblCatalog, tblSchema, tblN
 
 	rows, err := db.QueryContext(ctx, query, tblCatalog, tblSchema, tblName)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
@@ -410,14 +409,14 @@ func getConstraints(ctx context.Context, db sqlz.DB, tblCatalog, tblSchema, tblN
 		err = rows.Scan(&c.TableCatalog, &c.TableSchema, &c.TableName, &c.ConstraintType, &c.ColumnName,
 			&c.ConstraintName)
 		if err != nil {
-			return nil, errz.Err(err)
+			return nil, errw(err)
 		}
 
 		constraints = append(constraints, c)
 	}
 
 	if err = rows.Err(); err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	return constraints, nil

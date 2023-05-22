@@ -4,29 +4,29 @@ import (
 	"errors"
 )
 
-// RelationNotExistError indicates that a relation, such
+// NotExistError indicates that a DB object, such
 // as a table, does not exist.
-type RelationNotExistError struct {
+type NotExistError struct {
 	error
 }
 
 // Unwrap satisfies the stdlib errors.Unwrap function.
-func (e *RelationNotExistError) Unwrap() error { return e.error }
+func (e *NotExistError) Unwrap() error { return e.error }
 
-// RelationNotExist returns a RelationNotExistError, or nil.
-func RelationNotExist(err error) error {
+// NotExist returns a NotExistError, or nil.
+func NotExist(err error) error {
 	if err == nil {
 		return nil
 	}
-	return &RelationNotExistError{error: Err(err)}
+	return &NotExistError{error: Err(err)}
 }
 
-// IsErrRelationNotExist returns true if err is non-nil and
-// err is or contains RelationNotExistError.
-func IsErrRelationNotExist(err error) bool {
+// IsErrNotExist returns true if err is non-nil and
+// err is or contains NotExistError.
+func IsErrNotExist(err error) bool {
 	if err == nil {
 		return false
 	}
-	var e *RelationNotExistError
+	var e *NotExistError
 	return errors.As(err, &e)
 }

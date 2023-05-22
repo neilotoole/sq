@@ -53,7 +53,7 @@ func buildTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config,
 	g, gCtx := errgroup.WithContext(ctx)
 	g.Go(func() error {
 		if err := libsq.ExecuteSLQ(gCtx, qc, query1, recw1); err != nil {
-			if errz.IsErrRelationNotExist(err) {
+			if errz.IsErrNotExist(err) {
 				// It's totally ok if a table is not found.
 				log.Debug("Diff: table not found", lga.Src, td1.src, lga.Table, td1.tblName)
 				return nil
@@ -65,7 +65,7 @@ func buildTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config,
 	})
 	g.Go(func() error {
 		if err := libsq.ExecuteSLQ(gCtx, qc, query2, recw2); err != nil {
-			if errz.IsErrRelationNotExist(err) {
+			if errz.IsErrNotExist(err) {
 				log.Debug("Diff: table not found", lga.Src, td2.src, lga.Table, td2.tblName)
 				return nil
 			}

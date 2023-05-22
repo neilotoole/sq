@@ -3,7 +3,6 @@ package sqlserver
 import (
 	"context"
 
-	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
@@ -36,7 +35,7 @@ func getSysConfigurations(ctx context.Context, db sqlz.DB) (map[string]any, erro
 	m := map[string]any{}
 	rows, err := db.QueryContext(ctx, configQuery)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	defer lg.WarnIfCloseError(lg.FromContext(ctx), lgm.CloseDBRows, rows)
@@ -46,14 +45,14 @@ func getSysConfigurations(ctx context.Context, db sqlz.DB) (map[string]any, erro
 		var val int
 
 		if err = rows.Scan(&name, &val); err != nil {
-			return nil, errz.Err(err)
+			return nil, errw(err)
 		}
 
 		m[name] = val
 	}
 
 	if err = rows.Err(); err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	return m, nil
@@ -68,7 +67,7 @@ func getServerProperties(ctx context.Context, db sqlz.DB) (map[string]any, error
 	m := map[string]any{}
 	rows, err := db.QueryContext(ctx, serverPropertiesQuery)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	defer lg.WarnIfCloseError(lg.FromContext(ctx), lgm.CloseDBRows, rows)
@@ -78,7 +77,7 @@ func getServerProperties(ctx context.Context, db sqlz.DB) (map[string]any, error
 		var val any
 
 		if err = rows.Scan(&name, &val); err != nil {
-			return nil, errz.Err(err)
+			return nil, errw(err)
 		}
 
 		if val == nil {
@@ -89,7 +88,7 @@ func getServerProperties(ctx context.Context, db sqlz.DB) (map[string]any, error
 	}
 
 	if err = rows.Err(); err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	return m, nil

@@ -165,7 +165,7 @@ WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`
 	err := db.QueryRowContext(ctx, query, tblName).
 		Scan(&schema, &tblMeta.Name, &tblMeta.DBTableType, &tblMeta.Comment, &tblSize, &tblMeta.RowCount)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	tblMeta.TableType = canonicalTableType(tblMeta.DBTableType)
@@ -195,7 +195,7 @@ ORDER BY cols.ordinal_position ASC`
 
 	rows, err := db.QueryContext(ctx, query, tblName)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
 
@@ -209,7 +209,7 @@ ORDER BY cols.ordinal_position ASC`
 		err = rows.Scan(&col.Name, &col.BaseType, &col.ColumnType, &col.Position, defVal, &isNullable, &colKey,
 			&col.Comment, &extra)
 		if err != nil {
-			return nil, errz.Err(err)
+			return nil, errw(err)
 		}
 
 		if strings.EqualFold("YES", isNullable) {
@@ -226,7 +226,7 @@ ORDER BY cols.ordinal_position ASC`
 		cols = append(cols, col)
 	}
 
-	return cols, errz.Err(rows.Err())
+	return cols, errw(rows.Err())
 }
 
 // getSourceMetadata is the implementation of driver.Database.SourceMetadata.
@@ -303,7 +303,7 @@ func setSourceSummaryMeta(ctx context.Context, db sqlz.DB, md *source.Metadata) 
 	err := db.QueryRowContext(ctx, summaryQuery).Scan(&version, &versionComment, &versionOS, &versionArch, &schema,
 		&md.User, &md.Size)
 	if err != nil {
-		return errz.Err(err)
+		return errw(err)
 	}
 
 	md.Name = schema
@@ -320,7 +320,7 @@ func getDBProperties(ctx context.Context, db sqlz.DB) (map[string]any, error) {
 
 	rows, err := db.QueryContext(ctx, "SHOW VARIABLES")
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
 
@@ -331,7 +331,7 @@ func getDBProperties(ctx context.Context, db sqlz.DB) (map[string]any, error) {
 
 		err = rows.Scan(&name, &val)
 		if err != nil {
-			return nil, errz.Err(err)
+			return nil, errw(err)
 		}
 
 		// Narrow setting to bool or int if possible.
@@ -350,7 +350,7 @@ func getDBProperties(ctx context.Context, db sqlz.DB) (map[string]any, error) {
 	}
 
 	if err = rows.Err(); err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	return m, nil
@@ -401,7 +401,7 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 
 	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
 
@@ -418,7 +418,7 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 		err = rows.Scan(&schema, &curTblName, &curTblType, &curTblComment, &curTblSize, &colName, &colPosition,
 			&colKey, &colBaseType, &colColumnType, &colNullable, &colDefault, &colComment, &colExtra)
 		if err != nil {
-			return nil, errz.Err(err)
+			return nil, errw(err)
 		}
 
 		if !curTblName.Valid || !colName.Valid {
@@ -459,7 +459,7 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 						return nil
 					}
 
-					return errz.Err(gErr)
+					return errw(gErr)
 				}
 				return nil
 			})
@@ -494,7 +494,7 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 
 	err = rows.Err()
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	// tblMetas may contain nil elements if we failed to get the row

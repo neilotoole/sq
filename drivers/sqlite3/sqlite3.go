@@ -78,8 +78,7 @@ type driveri struct {
 
 // ErrWrapFunc implements driver.SQLDriver.
 func (d *driveri) ErrWrapFunc() func(error) error {
-	// FIXME: implement wrapping for sqlite
-	return errz.Err
+	return errw
 }
 
 // DBProperties implements driver.SQLDriver.
@@ -120,7 +119,7 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 	}
 	db, err := sql.Open(dbDrvr, dsn)
 	if err != nil {
-		return nil, errz.Wrapf(err, "failed to open sqlite3 source with DSN: %s", dsn)
+		return nil, errz.Wrapf(errw(err), "failed to open sqlite3 source with DSN: %s", dsn)
 	}
 
 	driver.ConfigureDB(ctx, db, src.Options)
@@ -133,18 +132,18 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 ) {
 	db, err := d.doOpen(ctx, src)
 	if err != nil {
-		return 0, errz.Err(err)
+		return 0, errw(err)
 	}
 	defer lg.WarnIfFuncError(d.log, lgm.CloseDB, db.Close)
 
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
-		return 0, errz.Err(err)
+		return 0, errw(err)
 	}
 
 	affected, err = sqlz.ExecAffected(ctx, tx, fmt.Sprintf("DELETE FROM %q", tbl))
 	if err != nil {
-		return affected, errz.Append(err, errz.Err(tx.Rollback()))
+		return affected, errz.Append(err, errw(tx.Rollback()))
 	}
 
 	if reset {
@@ -154,18 +153,18 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 		var count int64
 		err = tx.QueryRowContext(ctx, q).Scan(&count)
 		if err != nil {
-			return 0, errz.Append(err, errz.Err(tx.Rollback()))
+			return 0, errz.Append(err, errw(tx.Rollback()))
 		}
 
 		if count > 0 {
 			_, err = tx.ExecContext(ctx, "UPDATE sqlite_sequence SET seq = 0 WHERE name = ?", tbl)
 			if err != nil {
-				return 0, errz.Append(err, errz.Err(tx.Rollback()))
+				return 0, errz.Append(err, errw(tx.Rollback()))
 			}
 		}
 	}
 
-	return affected, errz.Err(tx.Commit())
+	return affected, errw(tx.Commit())
 }
 
 // ValidateSource implements driver.Driver.
@@ -224,7 +223,7 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable 
 	err := db.QueryRowContext(ctx, fmt.Sprintf("SELECT sql FROM sqlite_master WHERE type='table' AND name='%s'",
 		fromTable)).Scan(&originTblCreateStmt)
 	if err != nil {
-		return 0, errz.Err(err)
+		return 0, errw(err)
 	}
 
 	// A simple replace of the table name should work to mutate the
@@ -233,7 +232,7 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable 
 
 	_, err = db.ExecContext(ctx, destTblCreateStmt)
 	if err != nil {
-		return 0, errz.Err(err)
+		return 0, errw(err)
 	}
 
 	if !copyData {
@@ -243,7 +242,7 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable 
 	stmt := fmt.Sprintf("INSERT INTO %q SELECT * FROM %q", toTable, fromTable)
 	affected, err := sqlz.ExecAffected(ctx, db, stmt)
 	if err != nil {
-		return 0, errz.Err(err)
+		return 0, errw(err)
 	}
 
 	return affected, nil
@@ -253,7 +252,7 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable 
 func (d *driveri) RecordMeta(colTypes []*sql.ColumnType) (record.Meta, driver.NewRecordFunc, error) {
 	recMeta, err := recordMetaFromColumnTypes(d.log, colTypes)
 	if err != nil {
-		return nil, nil, errz.Err(err)
+		return nil, nil, errw(err)
 	}
 
 	mungeFn := func(vals []any) (record.Record, error) {
@@ -578,7 +577,7 @@ func (d *driveri) DropTable(ctx context.Context, db sqlz.DB, tbl string, ifExist
 	}
 
 	_, err := db.ExecContext(ctx, stmt)
-	return errz.Err(err)
+	return errw(err)
 }
 
 // CreateTable implements driver.SQLDriver.
@@ -587,16 +586,16 @@ func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *sqlmodel.
 
 	stmt, err := db.PrepareContext(ctx, query)
 	if err != nil {
-		return errz.Err(err)
+		return errw(err)
 	}
 
 	_, err = stmt.ExecContext(ctx)
 	if err != nil {
 		lg.WarnIfCloseError(d.log, lgm.CloseDBStmt, stmt)
-		return errz.Err(err)
+		return errw(err)
 	}
 
-	return errz.Err(stmt.Close())
+	return errw(stmt.Close())
 }
 
 // CurrentSchema implements driver.SQLDriver.
@@ -604,7 +603,7 @@ func (d *driveri) CurrentSchema(ctx context.Context, db sqlz.DB) (string, error)
 	const q = `SELECT name FROM pragma_database_list ORDER BY seq limit 1`
 	var name string
 	if err := db.QueryRowContext(ctx, q).Scan(&name); err != nil {
-		return "", errz.Err(err)
+		return "", errw(err)
 	}
 
 	return name, nil
@@ -614,14 +613,14 @@ func (d *driveri) CurrentSchema(ctx context.Context, db sqlz.DB) (string, error)
 func (d *driveri) AlterTableRename(ctx context.Context, db sqlz.DB, tbl, newName string) error {
 	q := fmt.Sprintf(`ALTER TABLE %q RENAME TO %q`, tbl, newName)
 	_, err := db.ExecContext(ctx, q)
-	return errz.Wrapf(err, "alter table: failed to rename table {%s} to {%s}", tbl, newName)
+	return errz.Wrapf(errw(err), "alter table: failed to rename table {%s} to {%s}", tbl, newName)
 }
 
 // AlterTableRenameColumn implements driver.SQLDriver.
 func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, col, newName string) error {
 	q := fmt.Sprintf("ALTER TABLE %q RENAME COLUMN %q TO %q", tbl, col, newName)
 	_, err := db.ExecContext(ctx, q)
-	return errz.Wrapf(err, "alter table: failed to rename column {%s.%s} to {%s}", tbl, col, newName)
+	return errz.Wrapf(errw(err), "alter table: failed to rename column {%s.%s} to {%s}", tbl, col, newName)
 }
 
 // AlterTableAddColumn implements driver.SQLDriver.
@@ -630,7 +629,7 @@ func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl, col 
 
 	_, err := db.ExecContext(ctx, q)
 	if err != nil {
-		return errz.Wrapf(err, "alter table: failed to add column {%s} to table {%s}", col, tbl)
+		return errz.Wrapf(errw(err), "alter table: failed to add column {%s} to table {%s}", col, tbl)
 	}
 
 	return nil
@@ -643,7 +642,7 @@ func (d *driveri) TableExists(ctx context.Context, db sqlz.DB, tbl string) (bool
 	var count int64
 	err := db.QueryRowContext(ctx, query, tbl).Scan(&count)
 	if err != nil {
-		return false, errz.Err(err)
+		return false, errw(err)
 	}
 
 	return count == 1, nil
@@ -696,10 +695,10 @@ func newStmtExecFunc(stmt *sql.Stmt) driver.StmtExecFunc {
 	return func(ctx context.Context, args ...any) (int64, error) {
 		res, err := stmt.ExecContext(ctx, args...)
 		if err != nil {
-			return 0, errz.Err(err)
+			return 0, errw(err)
 		}
 		affected, err := res.RowsAffected()
-		return affected, errz.Err(err)
+		return affected, errw(err)
 	}
 }
 
@@ -726,7 +725,7 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 	query := fmt.Sprintf(queryTpl, colsClause, tblNameQuoted)
 	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	// We invoke rows.ColumnTypes twice.
@@ -736,7 +735,7 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 	colTypes, err := rows.ColumnTypes()
 	if err != nil {
 		lg.WarnIfFuncError(d.log, lgm.CloseDBRows, rows.Close)
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	// If the table does have rows, we invoke rows.ColumnTypes again,
@@ -746,19 +745,19 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 		colTypes, err = rows.ColumnTypes()
 		if err != nil {
 			lg.WarnIfFuncError(d.log, lgm.CloseDBRows, rows.Close)
-			return nil, errz.Err(err)
+			return nil, errw(err)
 		}
 	}
 
 	err = rows.Err()
 	if err != nil {
 		lg.WarnIfFuncError(d.log, lgm.CloseDBRows, rows.Close)
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	err = rows.Close()
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	return colTypes, nil
@@ -827,14 +826,14 @@ func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error)
 
 	err = d.db.QueryRowContext(ctx, q).Scan(&meta.DBVersion, &meta.Schema)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	meta.DBProduct = "SQLite3 v" + meta.DBVersion
 
 	fi, err := os.Stat(dsn)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	meta.Size = fi.Size()
@@ -866,7 +865,7 @@ func (d *database) Close() error {
 	}
 
 	d.log.Debug(lgm.CloseDB, lga.Handle, d.src.Handle)
-	err := errz.Err(d.db.Close())
+	err := errw(d.db.Close())
 	d.closed = true
 	return err
 }
@@ -947,12 +946,12 @@ func MungeLocation(loc string) (string, error) {
 	// relative or absolute.
 	u, err := url.Parse(loc2)
 	if err != nil {
-		return "", errz.Wrapf(err, "invalid location: %s", loc)
+		return "", errz.Wrapf(errw(err), "invalid location: %s", loc)
 	}
 
 	fp, err := filepath.Abs(u.Path)
 	if err != nil {
-		return "", errz.Wrapf(err, "invalid location: %s", loc)
+		return "", errz.Wrapf(errw(err), "invalid location: %s", loc)
 	}
 
 	fp = filepath.ToSlash(fp)
