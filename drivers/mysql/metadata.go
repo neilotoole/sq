@@ -561,7 +561,7 @@ func getTableRowCounts(ctx context.Context, db sqlz.DB, tblNames []string) (map[
 			// We could also do this entire thing in a transaction, but where's
 			// the fun in that...
 			schema, tblName, ok := extractTblNameFromNotExistErr(err)
-			if ok {
+			if ok && tblName != "" {
 				log.Warn("Table doesn't exist, will try again without that table",
 					lga.Schema, schema, lga.Table, tblName)
 				tblNames = lo.Without(tblNames, tblName)
