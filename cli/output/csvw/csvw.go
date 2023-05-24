@@ -86,7 +86,9 @@ func (w *RecordWriter) WriteRecords(recs []record.Record) error {
 
 	if w.needsHeader {
 		headerRow := w.recMeta.Names()
-
+		for i := range headerRow {
+			headerRow[i] = w.pr.Header.Sprint(headerRow[i])
+		}
 		err := w.cw.Write(headerRow)
 		if err != nil {
 			return errz.Wrap(err, "failed to write header record")

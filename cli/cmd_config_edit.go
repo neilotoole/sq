@@ -180,7 +180,7 @@ func execConfigEditSource(cmd *cobra.Command, args []string) error {
 	}
 
 	src2 := &source.Source{}
-	if err = ioz.UnmarshallYAML(after, &src2); err != nil {
+	if err = ioz.UnmarshallYAML(after, src2); err != nil {
 		return err
 	}
 

@@ -33,6 +33,17 @@ The major feature is the long-gestating `sq diff`.
   complex data in some property values.
 - CSV format now renders byte sequences as `[777 bytes]` instead of dumping
   the raw bytes.
+- ☢️ TSV format (`--tsv`) no longer has a shorthand form `-T`. Apparently that
+  shorthand wasn't used much, and `-T` is needed elsewhere.
+- ☢️ Likewise, `--xml` no longer has shorthand `-X`.
+- In addition to the format flags `--text`, `--json`, etc., there is now
+  a `--format=FORMAT` flag, e.g. `--format=json`. This will allow `sq` to
+  continue to expand the number of output formats, without needing to have
+  a dedicated flag for each format.
+
+## Fixed
+
+- `sq config edit @source` was failing to save any edits.
 
 ## [v0.35.0] - 2023-05-10
 

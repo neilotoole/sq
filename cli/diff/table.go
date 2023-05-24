@@ -29,7 +29,7 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Element
 		return err
 	}
 
-	if elems.Table {
+	if elems.Schema {
 		g, gCtx := errgroup.WithContext(ctx)
 		g.Go(func() error {
 			var gErr error

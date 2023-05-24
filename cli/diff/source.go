@@ -43,7 +43,7 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, cfg *Config,
 		return err
 	}
 
-	if elems.Summary {
+	if elems.Overview {
 		srcDiff, err := buildSourceSummaryDiff(cfg, sd1, sd2)
 		if err != nil {
 			return err
@@ -64,7 +64,7 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, cfg *Config,
 		}
 	}
 
-	if elems.Table {
+	if elems.Schema {
 		tblDiffs, err := buildSourceTableDiffs(ctx, cfg, elems.RowCount, sd1, sd2)
 		if err != nil {
 			return err

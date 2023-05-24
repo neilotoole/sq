@@ -32,16 +32,16 @@ type Config struct {
 
 // Elements determines what source elements to compare.
 type Elements struct {
-	// Summary compares a summary of the sources.
-	Summary bool
+	// Overview compares a summary of the sources.
+	Overview bool
 
 	// DBProperties compares DB properties.
 	DBProperties bool
 
-	// Table compares table structure.
-	Table bool
+	// Schema compares table/schema structure.
+	Schema bool
 
-	// RowCount compares table row count.
+	// RowCount compares table row count when comparing schemata.
 	RowCount bool
 
 	// Data compares each row in a table. Caution: this can be slow.

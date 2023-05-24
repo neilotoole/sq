@@ -47,8 +47,8 @@ to certain formats, such as "text" or "csv".`,
 
 	OptFormat = format.NewOpt(
 		"format",
-		"",
-		0,
+		"format",
+		'f',
 		format.Text,
 		"Output format",
 		`Specify the output format. Some formats are only implemented for a subset of
