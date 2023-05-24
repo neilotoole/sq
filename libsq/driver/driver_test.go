@@ -448,7 +448,9 @@ func TestDatabase_TableMetadata(t *testing.T) { //nolint:tparallel
 	}
 }
 
-func TestDatabase_SourceMetadata(t *testing.T) { //nolint:tparallel
+func TestDatabase_SourceMetadata(t *testing.T) {
+	t.Parallel()
+
 	for _, handle := range sakila.SQLAll() {
 		handle := handle
 
@@ -466,13 +468,9 @@ func TestDatabase_SourceMetadata(t *testing.T) { //nolint:tparallel
 }
 
 // TestDatabase_SourceMetadata_concurrent tests the behavior of the
-// drivers when SourceMetadata is invoked concurrently. The results
-// are not good. In particular, the mysql impl can become deadlocked
-// if the concurrency is greater than the max conn count. That
-// functionality (in particular mysql/getAllTblMetas) needs to be
-// revisited.
+// drivers when SourceMetadata is invoked concurrently.
 func TestDatabase_SourceMetadata_concurrent(t *testing.T) { //nolint:tparallel
-	const concurrency = 5
+	const concurrency = 10
 
 	handles := sakila.SQLLatest()
 	for _, handle := range handles {
@@ -482,7 +480,6 @@ func TestDatabase_SourceMetadata_concurrent(t *testing.T) { //nolint:tparallel
 			t.Parallel()
 
 			th, _, dbase, _ := testh.NewWith(t, handle)
-
 			g, gCtx := errgroup.WithContext(th.Context)
 			for i := 0; i < concurrency; i++ {
 				g.Go(func() error {

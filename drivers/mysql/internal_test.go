@@ -12,7 +12,11 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 )
 
-var KindFromDBTypeName = kindFromDBTypeName
+// Export for testing.
+var (
+	KindFromDBTypeName     = kindFromDBTypeName
+	GetTableRowCountsBatch = getTableRowCountsBatch
+)
 
 func TestPlaceholders(t *testing.T) {
 	testCases := []struct {

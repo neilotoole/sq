@@ -161,21 +161,20 @@ GROUP BY database_id) AS total_size_bytes`
 			default:
 			}
 
-			var tblMeta *source.TableMetadata
-			tblMeta, err = getTableMetadata(gCtx, db, catalog, schema, tblNames[i], tblTypes[i])
-			if err != nil {
-				if hasErrCode(err, errCodeObjectNotExist) {
+			tblMeta, gErr := getTableMetadata(gCtx, db, catalog, schema, tblNames[i], tblTypes[i])
+			if gErr != nil {
+				if hasErrCode(gErr, errCodeObjectNotExist) {
 					// This can happen if the table is dropped while
 					// we're collecting metadata. We log a warning and continue.
 					log.Warn("Table metadata: table not found (continuing regardless)",
 						lga.Table, tblNames[i],
-						lga.Err, err,
+						lga.Err, gErr,
 					)
 
 					return nil
 				}
 
-				return err
+				return gErr
 			}
 			tblMetas[i] = tblMeta
 			return nil

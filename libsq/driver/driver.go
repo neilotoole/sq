@@ -517,8 +517,11 @@ func OpeningPing(ctx context.Context, src *source.Source, db *sql.DB) error {
 	defer cancelFn()
 
 	if err := db.PingContext(ctx); err != nil {
-		lg.WarnIfCloseError(lg.FromContext(ctx), lgm.CloseDB, db)
-		return errz.Wrapf(err, "open %s", src.Handle)
+		err = errz.Wrapf(err, "open ping %s", src.Handle)
+		log := lg.FromContext(ctx)
+		log.Error("Failed opening ping", lga.Src, src, lga.Err, err)
+		lg.WarnIfCloseError(log, lgm.CloseDB, db)
+		return err
 	}
 
 	return nil
