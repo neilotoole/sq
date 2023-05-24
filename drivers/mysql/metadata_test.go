@@ -65,10 +65,11 @@ func TestKindFromDBTypeName(t *testing.T) {
 	}
 }
 
-func TestDatabase_SourceMetadata(t *testing.T) {
+func TestDatabase_SourceMetadata_MySQL(t *testing.T) {
 	t.Parallel()
 
-	for _, handle := range sakila.MyAll() {
+	handles := sakila.MyAll()
+	for _, handle := range handles {
 		handle := handle
 
 		t.Run(handle, func(t *testing.T) {
@@ -103,4 +104,14 @@ func TestDatabase_TableMetadata(t *testing.T) {
 			require.Equal(t, sakila.TblActor, md.Name)
 		})
 	}
+}
+
+func TestGetTableRowCounts(t *testing.T) {
+	th, _, dbase, _ := testh.NewWith(t, sakila.My)
+
+	counts, err := mysql.GetTableRowCountsBatch(th.Context, dbase.DB(), []string{sakila.TblActor, sakila.TblFilm})
+	require.NoError(t, err)
+	require.Len(t, counts, 2)
+	require.Equal(t, int64(sakila.TblActorCount), counts[sakila.TblActor])
+	require.Equal(t, int64(sakila.TblFilmCount), counts[sakila.TblFilm])
 }

@@ -3,11 +3,16 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/go-sql-driver/mysql"
+
+	"github.com/samber/lo"
 
 	"github.com/neilotoole/sq/libsq/core/record"
 
@@ -357,11 +362,6 @@ func getDBProperties(ctx context.Context, db sqlz.DB) (map[string]any, error) {
 }
 
 // getAllTblMetas returns TableMetadata for each table/view in db.
-//
-// NOTE: getAllTblMetas has the potential to become deadlocked. It spawns
-// a number of goroutines, which can bump up against the max conn limit.
-// This function should be revisited to see if there's a better way
-// to implement it.
 func getAllTblMetas(ctx context.Context, db sqlz.DB) ([]*source.TableMetadata, error) {
 	log := lg.FromContext(ctx)
 
@@ -388,16 +388,13 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 	// |sakila      |actor     |BASE TABLE|             |32768     |last_update|4               |          |timestamp|timestamp           |NO         |CURRENT_TIMESTAMP|              |on update CURRENT_TIMESTAMP|
 	// |sakila      |actor_info|VIEW      |VIEW         |NULL      |actor_id   |1               |          |smallint |smallint(5) unsigned|NO         |0                |              |                           |
 
-	var tblMetas []*source.TableMetadata
-	var schema string
-	var curTblName, curTblType, curTblComment sql.NullString
-	var curTblSize sql.NullInt64
-	var curTblMeta *source.TableMetadata
-
-	// g is an errgroup for fetching the
-	// row count for each table.
-	g, gCtx := errgroup.WithContext(ctx)
-	g.SetLimit(driver.OptTuningErrgroupLimit.Get(options.FromContext(ctx)))
+	var (
+		tblMetas                              []*source.TableMetadata
+		schema                                string
+		curTblName, curTblType, curTblComment sql.NullString
+		curTblSize                            sql.NullInt64
+		curTblMeta                            *source.TableMetadata
+	)
 
 	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
@@ -443,26 +440,6 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 			}
 
 			tblMetas = append(tblMetas, curTblMeta)
-
-			rowCountTbl, rowCount, i := curTblName.String, &curTblMeta.RowCount, len(tblMetas)-1
-			g.Go(func() error {
-				gErr := db.QueryRowContext(gCtx, "SELECT COUNT(*) FROM `"+rowCountTbl+"`").Scan(rowCount)
-				if gErr != nil {
-					if hasErrCode(gErr, errNumTableNotExist) {
-						// The table was probably dropped while we were collecting
-						// metadata, but that's ok. We set the element to nil
-						// and we'll filter it out later.
-						log.Debug("Failed to get row count for table: ignoring error",
-							lga.Table, curTblName.String,
-							lga.Err, gErr)
-						tblMetas[i] = nil
-						return nil
-					}
-
-					return errw(gErr)
-				}
-				return nil
-			})
 		}
 
 		col := &source.ColMetadata{
@@ -487,11 +464,6 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 		curTblMeta.Columns = append(curTblMeta.Columns, col)
 	}
 
-	err = g.Wait()
-	if err != nil {
-		return nil, err
-	}
-
 	err = rows.Err()
 	if err != nil {
 		return nil, errw(err)
@@ -501,14 +473,153 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 	// count for the table (which can happen if the table is dropped
 	// during the metadata collection process). So we filter out any
 	// nil elements.
-	retTblMetas := make([]*source.TableMetadata, 0, len(tblMetas))
+	tblMetas = lo.Reject(tblMetas, func(item *source.TableMetadata, index int) bool {
+		return item == nil
+	})
+
+	tblNames := make([]string, 0, len(tblMetas))
 	for i := range tblMetas {
 		if tblMetas[i] != nil {
-			retTblMetas = append(retTblMetas, tblMetas[i])
+			tblNames = append(tblNames, tblMetas[i].Name)
 		}
 	}
 
-	return retTblMetas, nil
+	// We still need to populate table row counts.
+	var mTblRowCounts map[string]int64
+	if mTblRowCounts, err = getTableRowCountsBatch(ctx, db, tblNames); err != nil {
+		return nil, err
+	}
+
+	for i := range tblMetas {
+		tblMetas[i].RowCount = mTblRowCounts[tblMetas[i].Name]
+	}
+
+	return tblMetas, nil
+}
+
+// getTableRowCountsBatch invokes getTableRowCounts, but batches tblNames
+// into chunks, because MySQL will error if the query becomes too large.
+func getTableRowCountsBatch(ctx context.Context, db sqlz.DB, tblNames []string) (map[string]int64, error) {
+	// TODO: What value should batchSize be?
+	const batchSize = 100
+	var (
+		all     = map[string]int64{}
+		batches = lo.Chunk(tblNames, batchSize)
+	)
+
+	for i := range batches {
+		got, err := getTableRowCounts(ctx, db, batches[i])
+		if err != nil {
+			return nil, err
+		}
+
+		for k, v := range got {
+			all[k] = v
+		}
+	}
+
+	return all, nil
+}
+
+// getTableRowCounts returns a map of table name to count of rows
+// in that table, as returned by "SELECT COUNT(*) FROM tblName".
+// If a table does not exist, the error is logged, but then
+// disregarded, as it's possible that a table can be deleted during
+// the operation. Thus the length of the returned map may be less
+// than len(tblNames).
+func getTableRowCounts(ctx context.Context, db sqlz.DB, tblNames []string) (map[string]int64, error) {
+	log := lg.FromContext(ctx)
+
+	var rows *sql.Rows
+	var err error
+
+	for {
+		if len(tblNames) == 0 {
+			return map[string]int64{}, nil
+		}
+
+		var qb strings.Builder
+		for i := 0; i < len(tblNames); i++ {
+			if i > 0 {
+				qb.WriteString("\nUNION\n")
+			}
+			qb.WriteString(fmt.Sprintf("SELECT %s AS tn, COUNT(*) AS rc FROM %s",
+				stringz.SingleQuote(tblNames[i]), stringz.BacktickQuote(tblNames[i])))
+		}
+
+		query := qb.String()
+		rows, err = db.QueryContext(ctx, query)
+		if err == nil {
+			// The query is good, continue below.
+			break
+		}
+
+		err = errw(err)
+		if errz.IsErrNotExist(err) {
+			// Sometimes a table can get deleted during the operation. If so,
+			// we just remove that table from the list, and try again.
+			// We could also do this entire thing in a transaction, but where's
+			// the fun in that...
+			schema, tblName, ok := extractTblNameFromNotExistErr(err)
+			if ok && tblName != "" {
+				log.Warn("Table doesn't exist, will try again without that table",
+					lga.Schema, schema, lga.Table, tblName)
+				tblNames = lo.Without(tblNames, tblName)
+				continue
+			}
+		}
+		return nil, err
+	}
+
+	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
+
+	var (
+		m       = make(map[string]int64, len(tblNames))
+		count   int64
+		tblName string
+	)
+	for rows.Next() {
+		if err = rows.Scan(&tblName, &count); err != nil {
+			return nil, errw(err)
+		}
+
+		m[tblName] = count
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, errw(err)
+	}
+
+	return m, nil
+}
+
+// extractTblNameFromNotExistErr is a filthy hack to extract schema
+// and table from err 1146 (table doesn't exist).
+func extractTblNameFromNotExistErr(err error) (schema, table string, ok bool) {
+	if err == nil {
+		return "", "", false
+	}
+
+	var e *mysql.MySQLError
+	if !errors.As(err, &e) {
+		return "", "", false
+	}
+
+	if e.Number != errNumTableNotExist {
+		return "", "", false
+	}
+
+	s := strings.TrimSuffix(strings.TrimPrefix(e.Message, "Table '"), "' doesn't exist")
+
+	if s == "" {
+		return "", "", false
+	}
+
+	if schema, table, ok = strings.Cut(s, "."); ok {
+		return schema, table, ok
+	}
+
+	return "", "", false
 }
 
 // newInsertMungeFunc is lifted from driver.DefaultInsertMungeFunc.

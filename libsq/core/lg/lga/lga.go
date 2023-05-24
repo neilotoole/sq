@@ -31,6 +31,7 @@ const (
 	SQL       = "sql"
 	Src       = "src"
 	ScanType  = "scan_type"
+	Schema    = "schema"
 	Table     = "table"
 	Target    = "target"
 	To        = "to"
