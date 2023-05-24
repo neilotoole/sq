@@ -25,11 +25,11 @@ var OptDiffNumLines = options.NewInt(
 )
 
 var OptDiffDataFormat = format.NewOpt(
-	"diff.data-format",
-	"data-format",
+	"diff.data.format",
+	"format",
 	'f',
 	format.Text,
-	"Diff data format",
+	"Output format (json, csv…) when comparing data",
 	`Specify the output format to use when comparing table data.
 Available formats:
 
@@ -49,8 +49,8 @@ var diffFormats = []format.Format{
 
 var allDiffElementsFlags = []string{
 	flag.DiffAll,
-	flag.DiffSummary,
-	flag.DiffTable,
+	flag.DiffOverview,
+	flag.DiffSchema,
 	flag.DiffDBProps,
 	flag.DiffRowCount,
 	flag.DiffData,
@@ -58,66 +58,103 @@ var allDiffElementsFlags = []string{
 
 func newDiffCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "diff @HANDLE1[.TABLE] @HANDLE2[.TABLE]",
-		Short: "Compare sources, or tables",
-		Long: `BETA: Compare sources, or tables.
+		Use:   "diff @HANDLE1[.TABLE] @HANDLE2[.TABLE] [--data]",
+		Short: "BETA: Compare sources, or tables",
+		Long: `BETA: Compare the metadata or row data of sources or tables.
 
-When comparing sources, by default the source summary, table structure,
-and table row counts are compared.
+CAUTION: This feature is in BETA testing. Please report any issues:
 
-When comparing tables, by default the table structure and table row counts
-are compared.
+  https://github.com/neilotoole/sq/issues/new/choose
+
+When comparing sources ("source diff"), by default the source overview, schema,
+and table row counts are compared. Row data is not compared.
+
+When comparing tables ("table diff"), by default the table schema and table
+row counts are compared. Row data is not compared.
 
 Use flags to specify the elements you want to compare. See the examples.
-Note that --summary and --dbprops only apply to source diff, not table diff.
+
+Flag --data diffs the values of each row in the compared tables. Use with
+caution with large tables.
+
+Use --format with --data to specify the format to render the diff records.
+Line-based formats (e.g. "text" or "jsonl") are often the most ergonomic,
+although "yaml" may be preferable for comparing column values. The
+available formats are:
+
+  text, csv, tsv,
+  json, jsona, jsonl,
+  markdown, html, xml, yaml
+
+The default format can be changed via:
+
+  $ sq config set diff.data.format
+
+The --format flag only applies with data diffs (--data). Metadata diffs are
+always output in YAML.
+
+Note that --overview and --dbprops only apply to source diffs, not table diffs.
 
 Flag --unified (-U) controls the number of lines to show surrounding a diff.
-The default can be changed via "sq config set diff.lines".`,
+The default (3) can be changed via:
+
+  $ sq config set diff.lines`,
 		Args: cobra.ExactArgs(2),
 		ValidArgsFunction: (&handleTableCompleter{
 			handleRequired: true,
 			max:            2,
 		}).complete,
 		RunE: execDiff,
-		Example: `  # Diff sources (compare default elements).
+		Example: `
+  Metadata diff
+  -------------
+
+  # Diff sources (compare default elements).
   $ sq diff @prod/sakila @staging/sakila
 
   # As above, but show 7 lines surrounding each diff.
   $ sq diff @prod/sakila @staging/sakila -U7
 
-  # Diff sources, but only compare source summary.
-  $ sq diff @prod/sakila @staging/sakila --summary
+  # Diff sources, but only compare source overview.
+  $ sq diff @prod/sakila @staging/sakila --overview
 
-  # Compare source summary, and DB properties.
-  $ sq diff @prod/sakila @staging/sakila -sp
+  # Diff sources, but only DB properties.
+  $ sq diff @prod/sakila @staging/sakila --dbprops
+
+  # Compare source overview, and DB properties.
+  $ sq diff @prod/sakila @staging/sakila -OP
+
+  # Diff sources, but only compare schema.
+  $ sq diff @prod/sakila @staging/sakila --schema
 
   # Compare schema table structure, and row counts.
-  $ sq diff @prod/sakila @staging/sakila --Tc
+  $ sq diff @prod/sakila @staging/sakila --SN
 
-  # Compare everything, including table data. Caution: this can be slow.
+  # Compare the data of each table. Caution: may be slow.
+  $ sq diff @prod/sakila @staging/sakila --data
+
+  # Compare everything, including table data. Caution: can be slow.
   $ sq diff @prod/sakila @staging/sakila --all
 
-  # Compare actor table in prod vs staging
+  # Compare metadata of actor table in prod vs staging
   $ sq diff @prod/sakila.actor @staging/sakila.actor
 
-  # Compare data in the actor tables. Caution: this can be slow.
-  $ sq diff @prod/sakila.actor @staging/sakila.actor --data`,
+  Row data diff
+  -------------
+
+  # Compare data in the actor tables. Caution: can be slow.
+  $ sq diff @prod/sakila.actor @staging/sakila.actor --data
+
+  # Compare data in the actor tables, but output in JSONL.
+  $ sq diff @prod/sakila.actor @staging/sakila.actor --data --format jsonl`,
 	}
 
 	addOptionFlag(cmd.Flags(), OptDiffNumLines)
 	addOptionFlag(cmd.Flags(), OptDiffDataFormat)
-	panicOn(cmd.RegisterFlagCompletionFunc(
-		OptDiffDataFormat.Flag(),
-		completeStrings(-1, stringz.Strings(diffFormats)...),
-	))
 
-	cmd.Flags().BoolP(flag.Header, flag.HeaderShort, true, flag.HeaderUsage)
-	cmd.Flags().BoolP(flag.NoHeader, flag.NoHeaderShort, false, flag.NoHeaderUsage)
-	cmd.MarkFlagsMutuallyExclusive(flag.Header, flag.NoHeader)
-
-	cmd.Flags().BoolP(flag.DiffSummary, flag.DiffSummaryShort, false, flag.DiffSummaryUsage)
+	cmd.Flags().BoolP(flag.DiffOverview, flag.DiffOverviewShort, false, flag.DiffOverviewUsage)
 	cmd.Flags().BoolP(flag.DiffDBProps, flag.DiffDBPropsShort, false, flag.DiffDBPropsUsage)
-	cmd.Flags().BoolP(flag.DiffTable, flag.DiffTableShort, false, flag.DiffTableUsage)
+	cmd.Flags().BoolP(flag.DiffSchema, flag.DiffSchemaShort, false, flag.DiffSchemaUsage)
 	cmd.Flags().BoolP(flag.DiffRowCount, flag.DiffRowCountShort, false, flag.DiffRowCountUsage)
 	cmd.Flags().BoolP(flag.DiffData, flag.DiffDataShort, false, flag.DiffDataUsage)
 	cmd.Flags().BoolP(flag.DiffAll, flag.DiffAllShort, false, flag.DiffAllUsage)
@@ -127,6 +164,11 @@ The default can be changed via "sq config set diff.lines".`,
 	for i := range nonAllFlags {
 		cmd.MarkFlagsMutuallyExclusive(flag.DiffAll, nonAllFlags[i])
 	}
+
+	panicOn(cmd.RegisterFlagCompletionFunc(
+		OptDiffDataFormat.Flag(),
+		completeStrings(-1, stringz.Strings(diffFormats)...),
+	))
 
 	return cmd
 }
@@ -184,9 +226,9 @@ func getDiffSourceElements(cmd *cobra.Command) *diff.Elements {
 	if !isAnyDiffElementsFlagChanged(cmd) {
 		// Default
 		return &diff.Elements{
-			Summary:      true,
+			Overview:     true,
 			DBProperties: false,
-			Table:        true,
+			Schema:       true,
 			RowCount:     true,
 			Data:         false,
 		}
@@ -194,18 +236,18 @@ func getDiffSourceElements(cmd *cobra.Command) *diff.Elements {
 
 	if cmdFlagChanged(cmd, flag.DiffAll) {
 		return &diff.Elements{
-			Summary:      true,
+			Overview:     true,
 			DBProperties: true,
-			Table:        true,
+			Schema:       true,
 			RowCount:     true,
 			Data:         true,
 		}
 	}
 
 	return &diff.Elements{
-		Summary:      cmdFlagIsSetTrue(cmd, flag.DiffSummary),
+		Overview:     cmdFlagIsSetTrue(cmd, flag.DiffOverview),
 		DBProperties: cmdFlagIsSetTrue(cmd, flag.DiffDBProps),
-		Table:        cmdFlagIsSetTrue(cmd, flag.DiffTable),
+		Schema:       cmdFlagIsSetTrue(cmd, flag.DiffSchema),
 		RowCount:     cmdFlagIsSetTrue(cmd, flag.DiffRowCount),
 		Data:         cmdFlagIsSetTrue(cmd, flag.DiffData),
 	}
@@ -215,21 +257,21 @@ func getDiffTableElements(cmd *cobra.Command) *diff.Elements {
 	if !isAnyDiffElementsFlagChanged(cmd) {
 		// Default
 		return &diff.Elements{
-			Table:    true,
+			Schema:   true,
 			RowCount: true,
 		}
 	}
 
 	if cmdFlagChanged(cmd, flag.DiffAll) {
 		return &diff.Elements{
-			Table:    true,
+			Schema:   true,
 			RowCount: true,
 			Data:     true,
 		}
 	}
 
 	return &diff.Elements{
-		Table:    cmdFlagIsSetTrue(cmd, flag.DiffTable),
+		Schema:   cmdFlagIsSetTrue(cmd, flag.DiffSchema),
 		RowCount: cmdFlagIsSetTrue(cmd, flag.DiffRowCount),
 		Data:     cmdFlagIsSetTrue(cmd, flag.DiffData),
 	}

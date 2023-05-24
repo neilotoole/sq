@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/cli/output/format"
+
 	"github.com/neilotoole/sq/cli/run"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -347,21 +349,18 @@ func addTextFlags(cmd *cobra.Command) {
 	cmd.MarkFlagsMutuallyExclusive(flag.Header, flag.NoHeader)
 }
 
-// addQueryCmdFlags sets the common flags for the slq/sql commands.
+// addQueryCmdFlags sets the common flags for the slq and sql commands.
 func addQueryCmdFlags(cmd *cobra.Command) {
-	addTextFlags(cmd)
-	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
-	cmd.Flags().BoolP(flag.JSONA, flag.JSONAShort, false, flag.JSONAUsage)
-	cmd.Flags().BoolP(flag.JSONL, flag.JSONLShort, false, flag.JSONLUsage)
-	cmd.Flags().BoolP(flag.CSV, flag.CSVShort, false, flag.CSVUsage)
-	cmd.Flags().BoolP(flag.TSV, flag.TSVShort, false, flag.TSVUsage)
-	cmd.Flags().Bool(flag.HTML, false, flag.HTMLUsage)
-	cmd.Flags().Bool(flag.Markdown, false, flag.MarkdownUsage)
-	cmd.Flags().BoolP(flag.Raw, flag.RawShort, false, flag.RawUsage)
-	cmd.Flags().BoolP(flag.XLSX, flag.XLSXShort, false, flag.XLSXUsage)
-	cmd.Flags().BoolP(flag.XML, flag.XMLShort, false, flag.XMLUsage)
-	cmd.Flags().BoolP(flag.YAML, flag.YAMLShort, false, flag.YAMLUsage)
-	cmd.Flags().BoolP(flag.Compact, flag.CompactShort, false, flag.CompactUsage)
+	addOptionFlag(cmd.Flags(), OptFormat)
+	panicOn(cmd.RegisterFlagCompletionFunc(
+		OptFormat.Flag(),
+		completeStrings(-1, stringz.Strings(format.All())...),
+	))
+	addResultFormatFlags(cmd)
+	cmd.MarkFlagsMutuallyExclusive(append(
+		[]string{OptFormat.Flag()},
+		flag.OutputFormatFlags...,
+	)...)
 
 	addTimeFormatOptsFlags(cmd)
 
@@ -382,6 +381,28 @@ func addQueryCmdFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool(flag.CSVEmptyAsNull, true, flag.CSVEmptyAsNullUsage)
 	cmd.Flags().String(flag.CSVDelim, flag.CSVDelimDefault, flag.CSVDelimUsage)
 	panicOn(cmd.RegisterFlagCompletionFunc(flag.CSVDelim, completeStrings(-1, csv.NamedDelims()...)))
+}
+
+// addResultFormatFlags adds the individual flags that control result
+// output format, e.g. --text, --json, --csv, etc. It does not add
+// the --format flag, because not every command treats that flag the same.
+func addResultFormatFlags(cmd *cobra.Command) {
+	addTextFlags(cmd)
+	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
+	cmd.Flags().BoolP(flag.JSONA, flag.JSONAShort, false, flag.JSONAUsage)
+	cmd.Flags().BoolP(flag.JSONL, flag.JSONLShort, false, flag.JSONLUsage)
+	cmd.Flags().BoolP(flag.CSV, flag.CSVShort, false, flag.CSVUsage)
+	cmd.Flags().Bool(flag.TSV, false, flag.TSVUsage)
+	cmd.Flags().Bool(flag.HTML, false, flag.HTMLUsage)
+	cmd.Flags().Bool(flag.Markdown, false, flag.MarkdownUsage)
+	cmd.Flags().BoolP(flag.Raw, flag.RawShort, false, flag.RawUsage)
+	cmd.Flags().BoolP(flag.XLSX, flag.XLSXShort, false, flag.XLSXUsage)
+	cmd.Flags().Bool(flag.XML, false, flag.XMLUsage)
+	cmd.Flags().BoolP(flag.YAML, flag.YAMLShort, false, flag.YAMLUsage)
+
+	cmd.MarkFlagsMutuallyExclusive(flag.OutputFormatFlags...)
+
+	cmd.Flags().BoolP(flag.Compact, flag.CompactShort, false, flag.CompactUsage)
 }
 
 // extractFlagArgsValues returns a map {key:value} of predefined variables

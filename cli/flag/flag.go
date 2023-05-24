@@ -87,7 +87,6 @@ const (
 	SQLQueryUsage = "Execute the SQL as a query (as opposed to statement)"
 
 	TSV      = "tsv"
-	TSVShort = "T"
 	TSVUsage = "Output TSV"
 
 	Text      = "text"
@@ -116,7 +115,6 @@ const (
 	YAMLUsage = "Output YAML"
 
 	XML      = "xml"
-	XMLShort = "X"
 	XMLUsage = "Output XML"
 
 	SkipVerify      = "skip-verify"
@@ -155,21 +153,21 @@ const (
 	LogLevel      = "log.level"
 	LogLevelUsage = "Log level: one of DEBUG, INFO, WARN, ERROR"
 
-	DiffSummary      = "summary"
-	DiffSummaryShort = "s"
-	DiffSummaryUsage = "Compare source summary"
+	DiffOverview      = "overview"
+	DiffOverviewShort = "O"
+	DiffOverviewUsage = "Compare source overview"
 
-	DiffTable      = "table"
-	DiffTableShort = "T"
-	DiffTableUsage = "Compare table structure"
+	DiffSchema      = "schema"
+	DiffSchemaShort = "S"
+	DiffSchemaUsage = "Compare schema structure"
 
 	DiffDBProps      = "dbprops"
-	DiffDBPropsShort = "p"
+	DiffDBPropsShort = "P"
 	DiffDBPropsUsage = "Compare DB properties"
 
 	DiffRowCount      = "count"
-	DiffRowCountShort = "c"
-	DiffRowCountUsage = "When comparing tables, include row counts"
+	DiffRowCountShort = "N"
+	DiffRowCountUsage = "When comparing table schema structure, include row counts"
 
 	DiffData      = "data"
 	DiffDataShort = "d"
@@ -179,3 +177,19 @@ const (
 	DiffAllShort = "a"
 	DiffAllUsage = "Compare everything (caution: may be slow)"
 )
+
+// OutputFormatFlags is the set of flags that control output format.
+var OutputFormatFlags = []string{
+	Text,
+	JSON,
+	JSONA,
+	JSONL,
+	CSV,
+	TSV,
+	HTML,
+	Markdown,
+	Raw,
+	XLSX,
+	XML,
+	YAML,
+}

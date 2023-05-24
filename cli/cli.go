@@ -247,6 +247,7 @@ func hasMatchingChildCommand(cmd *cobra.Command, s string) bool {
 
 // addCmd adds the command returned by cmdFn to parentCmd.
 func addCmd(ru *run.Run, parentCmd, cmd *cobra.Command) *cobra.Command {
+	cmd.DisableFlagsInUseLine = true
 	cmd.Flags().SortFlags = false
 	cmd.PersistentFlags().SortFlags = false
 
