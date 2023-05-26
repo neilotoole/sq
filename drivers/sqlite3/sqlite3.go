@@ -815,7 +815,7 @@ func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.T
 func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error) {
 	// https://stackoverflow.com/questions/9646353/how-to-find-sqlite-database-file-version
 
-	meta := &source.Metadata{Handle: d.src.Handle, Driver: Type, DBDriver: dbDrvr}
+	md := &source.Metadata{Handle: d.src.Handle, Driver: Type, DBDriver: dbDrvr}
 
 	dsn, err := PathFromLocation(d.src)
 	if err != nil {
@@ -824,34 +824,36 @@ func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error)
 
 	const q = "SELECT sqlite_version(), (SELECT name FROM pragma_database_list ORDER BY seq limit 1);"
 
-	err = d.db.QueryRowContext(ctx, q).Scan(&meta.DBVersion, &meta.Schema)
+	err = d.db.QueryRowContext(ctx, q).Scan(&md.DBVersion, &md.Schema)
 	if err != nil {
 		return nil, errw(err)
 	}
 
-	meta.DBProduct = "SQLite3 v" + meta.DBVersion
+	md.DBProduct = "SQLite3 v" + md.DBVersion
 
 	fi, err := os.Stat(dsn)
 	if err != nil {
 		return nil, errw(err)
 	}
 
-	meta.Size = fi.Size()
-	meta.Name = fi.Name()
-	meta.FQName = fi.Name() + "/" + meta.Schema
-	meta.Location = d.src.Location
+	md.Size = fi.Size()
+	md.Name = fi.Name()
+	md.FQName = fi.Name() + "/" + md.Schema
+	md.Location = d.src.Location
 
-	meta.Tables, err = getAllTblMeta(ctx, d.db)
+	md.Tables, err = getAllTblMeta(ctx, d.db)
 	if err != nil {
 		return nil, err
 	}
 
-	meta.DBProperties, err = getDBProperties(ctx, d.db)
+	md.TableCount = int64(len(md.Tables))
+
+	md.DBProperties, err = getDBProperties(ctx, d.db)
 	if err != nil {
 		return nil, err
 	}
 
-	return meta, nil
+	return md, nil
 }
 
 // Close implements driver.Database.

@@ -162,7 +162,7 @@ const (
 	DiffSchemaUsage = "Compare schema structure"
 
 	DiffDBProps      = "dbprops"
-	DiffDBPropsShort = "P"
+	DiffDBPropsShort = "B"
 	DiffDBPropsUsage = "Compare DB properties"
 
 	DiffRowCount      = "count"

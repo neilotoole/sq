@@ -60,19 +60,27 @@ func newDiffCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "diff @HANDLE1[.TABLE] @HANDLE2[.TABLE] [--data]",
 		Short: "BETA: Compare sources, or tables",
-		Long: `BETA: Compare the metadata or row data of sources or tables.
+		Long: `BETA: Compare metadata, or row data, of sources and tables.
 
-CAUTION: This feature is in BETA testing. Please report any issues:
+CAUTION: This feature is in beta testing. Please report any issues:
 
   https://github.com/neilotoole/sq/issues/new/choose
 
-When comparing sources ("source diff"), by default the source overview, schema,
-and table row counts are compared. Row data is not compared.
+When comparing sources ("source diff"), the default behavior is to diff the
+source overview, schema, and table row counts. Table row data is not compared.
 
-When comparing tables ("table diff"), by default the table schema and table
-row counts are compared. Row data is not compared.
+When comparing tables ("table diff"), the default is to diff table schema and
+row counts. Table row data is not compared.
 
-Use flags to specify the elements you want to compare. See the examples.
+Use flags to specify the elements you want to compare. The available
+elements are:
+
+  --overview   source metadata, without schema (source diff only)
+  --dbprops    database/server properties (source diff only)
+  --schema     schema structure, for database or individual table
+  --counts     show row counts when using --schema
+  --data       row data values
+  --all        all of the above
 
 Flag --data diffs the values of each row in the compared tables. Use with
 caution with large tables.
@@ -88,7 +96,7 @@ available formats are:
 
 The default format can be changed via:
 
-  $ sq config set diff.data.format
+  $ sq config set diff.data.format FORMAT
 
 The --format flag only applies with data diffs (--data). Metadata diffs are
 always output in YAML.
@@ -98,7 +106,7 @@ Note that --overview and --dbprops only apply to source diffs, not table diffs.
 Flag --unified (-U) controls the number of lines to show surrounding a diff.
 The default (3) can be changed via:
 
-  $ sq config set diff.lines`,
+  $ sq config set diff.lines N`,
 		Args: cobra.ExactArgs(2),
 		ValidArgsFunction: (&handleTableCompleter{
 			handleRequired: true,
@@ -122,7 +130,7 @@ The default (3) can be changed via:
   $ sq diff @prod/sakila @staging/sakila --dbprops
 
   # Compare source overview, and DB properties.
-  $ sq diff @prod/sakila @staging/sakila -OP
+  $ sq diff @prod/sakila @staging/sakila -OB
 
   # Diff sources, but only compare schema.
   $ sq diff @prod/sakila @staging/sakila --schema
@@ -130,23 +138,23 @@ The default (3) can be changed via:
   # Compare schema table structure, and row counts.
   $ sq diff @prod/sakila @staging/sakila --SN
 
-  # Compare the data of each table. Caution: may be slow.
-  $ sq diff @prod/sakila @staging/sakila --data
-
   # Compare everything, including table data. Caution: can be slow.
   $ sq diff @prod/sakila @staging/sakila --all
 
-  # Compare metadata of actor table in prod vs staging
+  # Compare metadata of actor table in prod vs staging.
   $ sq diff @prod/sakila.actor @staging/sakila.actor
 
   Row data diff
   -------------
 
-  # Compare data in the actor tables. Caution: can be slow.
+  # Compare data in the actor tables.
   $ sq diff @prod/sakila.actor @staging/sakila.actor --data
 
   # Compare data in the actor tables, but output in JSONL.
-  $ sq diff @prod/sakila.actor @staging/sakila.actor --data --format jsonl`,
+  $ sq diff @prod/sakila.actor @staging/sakila.actor --data --format jsonl
+
+  # Compare data in all tables and views. Caution: may be slow.
+  $ sq diff @prod/sakila @staging/sakila --data`,
 	}
 
 	addOptionFlag(cmd.Flags(), OptDiffNumLines)

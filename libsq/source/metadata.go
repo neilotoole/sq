@@ -47,10 +47,10 @@ type Metadata struct {
 	// Size is the physical size of the source in bytes, e.g. DB file size.
 	Size int64 `json:"size" yaml:"size"`
 
-	// TableCount is the number of talb
+	// TableCount is the count of tables (including views).
 	TableCount int64 `json:"table_count" yaml:"table_count"`
 
-	// Tables is the metadata for each table in the source.
+	// Tables is the metadata for each table/view in the source.
 	Tables []*TableMetadata `json:"tables"`
 
 	// DBProperties are name-value pairs from the DB.

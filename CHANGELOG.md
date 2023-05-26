@@ -9,7 +9,7 @@ Breaking changes are annotated with ☢️.
 
 ## Upcoming
 
-The major feature is the long-gestating `sq diff`.
+The major feature is the long-gestating [`sq diff`](https://sq.io/docs/diff).
 
 ## Added
 
@@ -35,7 +35,7 @@ The major feature is the long-gestating `sq diff`.
   the raw bytes.
 - ☢️ TSV format (`--tsv`) no longer has a shorthand form `-T`. Apparently that
   shorthand wasn't used much, and `-T` is needed elsewhere.
-- ☢️ Likewise, `--xml` no longer has shorthand `-X`.
+- ☢️ Likewise, `--xml` no longer has shorthand `-X`. And `--markdown` has lost alias `--md`.
 - In addition to the format flags `--text`, `--json`, etc., there is now
   a `--format=FORMAT` flag, e.g. `--format=json`. This will allow `sq` to
   continue to expand the number of output formats, without needing to have
