@@ -18,7 +18,7 @@ import (
 )
 
 func Test_Smoke_Subset(t *testing.T) {
-	th := testh.New(t)
+	th := testh.New(t, testh.OptLongOpen())
 	src := th.Source(sakila.XLSXSubset)
 
 	sink, err := th.QuerySQL(src, "SELECT * FROM actor")
