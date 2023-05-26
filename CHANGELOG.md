@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Breaking changes are annotated with ☢️.
 
-## Upcoming
+## [v0.36.0] - 2023-05-25
 
 The major feature is the long-gestating [`sq diff`](https://sq.io/docs/diff).
 
@@ -524,3 +524,4 @@ make working with lots of sources much easier.
 [v0.34.1]: https://github.com/neilotoole/sq/compare/v0.34.0...v0.34.1
 [v0.34.2]: https://github.com/neilotoole/sq/compare/v0.34.1...v0.34.2
 [v0.35.0]: https://github.com/neilotoole/sq/compare/v0.34.2...v0.35.0
+[v0.36.0]: https://github.com/neilotoole/sq/compare/v0.35.0...v0.36.0
