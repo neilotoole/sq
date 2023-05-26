@@ -1,12 +1,12 @@
 {
-    "version": "0.36.0",
+    "version": "0.36.1",
     "architecture": {
         "64bit": {
-            "url": "https://github.com/neilotoole/sq/releases/download/v0.36.0/sq-0.36.0-windows-amd64.zip",
+            "url": "https://github.com/neilotoole/sq/releases/download/v0.36.1/sq-0.36.1-windows-amd64.zip",
             "bin": [
                 "sq.exe"
             ],
-            "hash": "73c42eb27203f3f1b54ed5a3bcf041a1464d72a85469d6f7d6fa1ce98002e3bf"
+            "hash": "8f4f1e4071ca5f47b689eddda184f2ae1db73d8d25f445f7e8c5ccfe0b2f3e0b"
         }
     },
     "homepage": "https://sq.io",
