@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Breaking changes are annotated with ☢️.
 
+## [v0.36.1] - 2023-05-26
+
+### Fixed
+
+- `sq diff`: Renamed `--count` flag to `--counts` as intended.
+
 ## [v0.36.0] - 2023-05-25
 
 The major feature is the long-gestating [`sq diff`](https://sq.io/docs/diff).
