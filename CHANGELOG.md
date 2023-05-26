@@ -531,3 +531,4 @@ make working with lots of sources much easier.
 [v0.34.2]: https://github.com/neilotoole/sq/compare/v0.34.1...v0.34.2
 [v0.35.0]: https://github.com/neilotoole/sq/compare/v0.34.2...v0.35.0
 [v0.36.0]: https://github.com/neilotoole/sq/compare/v0.35.0...v0.36.0
+[v0.36.1]: https://github.com/neilotoole/sq/compare/v0.36.0...v0.36.1
