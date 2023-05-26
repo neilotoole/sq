@@ -9,7 +9,7 @@
 `sq` is a command line tool that provides jq-style access to
 structured data sources: SQL databases, or document formats like CSV or Excel.
 
-![sq](./splash.png)
+![sq](.images/splash.png)
 
 `sq` executes jq-like [queries](https://sq.io/docs/query), or database-native [SQL](https://sq.io/docs/cmd/sql/).
 It can perform cross-source [joins](https://sq.io/docs/query/#cross-source-joins).
@@ -191,10 +191,16 @@ category.csv  customer.csv  film_actor.csv     film_text.csv	  payment.csv	 sale
 Note that you can also inspect an individual table:
 
 ```shell
-$ sq inspect -v @sakila.actor
-TABLE  ROWS  TYPE   SIZE  NUM COLS  COL NAMES                                     COL TYPES
-actor  200   table  -     4         actor_id, first_name, last_name, last_update  numeric, VARCHAR(45), VARCHAR(45), TIMESTAMP
+$ sq inspect @sakila.actor
+TABLE  ROWS  TYPE   SIZE  NUM COLS  COL NAMES
+actor  200   table  -     4         actor_id, first_name, last_name, last_update
 ```
+
+### Diff
+
+Use [`sq diff`](https://sq.io/docs/diff) to compare source metadata, or row data.
+
+![sq diff](.images/sq_diff_table_data.png)
 
 ### Insert query results
 

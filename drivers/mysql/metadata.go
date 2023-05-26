@@ -295,6 +295,8 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB) (*so
 		return nil, err
 	}
 
+	md.TableCount = int64(len(md.Tables))
+
 	return md, nil
 }
 

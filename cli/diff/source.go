@@ -44,7 +44,7 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, cfg *Config,
 	}
 
 	if elems.Overview {
-		srcDiff, err := buildSourceSummaryDiff(cfg, sd1, sd2)
+		srcDiff, err := buildSourceOverviewDiff(cfg, sd1, sd2)
 		if err != nil {
 			return err
 		}
@@ -123,7 +123,7 @@ func buildSourceTableDiffs(ctx context.Context, cfg *Config, showRowCounts bool,
 	return diffs, nil
 }
 
-func buildSourceSummaryDiff(cfg *Config, sd1, sd2 *sourceData) (*sourceDiff, error) {
+func buildSourceOverviewDiff(cfg *Config, sd1, sd2 *sourceData) (*sourceOverviewDiff, error) {
 	var (
 		body1, body2 string
 		err          error
@@ -148,10 +148,10 @@ func buildSourceSummaryDiff(cfg *Config, sd1, sd2 *sourceData) (*sourceDiff, err
 		return nil, errz.Err(err)
 	}
 
-	diff := &sourceDiff{
+	diff := &sourceOverviewDiff{
 		sd1:    sd1,
 		sd2:    sd2,
-		header: fmt.Sprintf("sq diff --summary %s %s", sd1.handle, sd2.handle),
+		header: fmt.Sprintf("sq diff --overview %s %s", sd1.handle, sd2.handle),
 		diff:   unified,
 	}
 

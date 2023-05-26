@@ -88,8 +88,8 @@ func (td *tableData) clone() *tableData { //nolint:unused // REVISIT: no longer 
 	}
 }
 
-// sourceDiff is a container for a source diff.
-type sourceDiff struct {
+// sourceOverviewDiff is a container for a source overview diff.
+type sourceOverviewDiff struct {
 	sd1, sd2 *sourceData
 	header   string
 	diff     string

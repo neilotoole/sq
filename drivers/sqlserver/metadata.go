@@ -195,6 +195,8 @@ GROUP BY database_id) AS total_size_bytes`
 			md.Tables = append(md.Tables, tblMetas[i])
 		}
 	}
+
+	md.TableCount = int64(len(md.Tables))
 	return md, nil
 }
 

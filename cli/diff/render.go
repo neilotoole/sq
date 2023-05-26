@@ -43,7 +43,7 @@ func renderSourceMeta2YAML(sm *source.Metadata) (string, error) {
 		DBVersion:  sm.DBVersion,
 		User:       sm.User,
 		Size:       sm.Size,
-		TableCount: int64(len(sm.Tables)),
+		TableCount: sm.TableCount,
 	}
 
 	b, err := ioz.MarshalYAML(smr)

@@ -29,25 +29,31 @@ database. The flag is disregarded when inspecting a table.
 Use the --verbose flag to see more detail in some output formats.
 
 If @HANDLE is not provided, the active data source is assumed.`,
-		Example: `  # Inspect active data source
+		Example: `  # Inspect active data source.
   $ sq inspect
 
-  # Inspect @pg1 data source
+  # Inspect @pg1 data source.
   $ sq inspect @pg1
 
-  # Inspect @pg1 data source, showing verbose output
+  # Inspect @pg1 data source, showing verbose output.
   $ sq inspect -v @pg1
 
-  # Show DB properties for @pg1
+  # Show output in JSON (useful for piping to jq).
+  $ sq inspect --json @pg1
+
+  # Show output in YAML.
+  $ sq inspect --yaml @pg1
+
+  # Show DB properties for @pg1.
   $ sq inspect --dbprops @pg1
 
-  # Inspect 'actor' in @pg1 data source
+  # Inspect table "actor" in @pg1 data source.
   $ sq inspect @pg1.actor
 
-  # Inspect 'actor' in active data source
+  # Inspect "actor" in active data source.
   $ sq inspect .actor
 
-  # Inspect piped data
+  # Inspect piped data.
   $ cat data.xlsx | sq inspect`,
 	}
 
