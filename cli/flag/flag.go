@@ -165,7 +165,7 @@ const (
 	DiffDBPropsShort = "B"
 	DiffDBPropsUsage = "Compare DB properties"
 
-	DiffRowCount      = "count"
+	DiffRowCount      = "counts"
 	DiffRowCountShort = "N"
 	DiffRowCountUsage = "When comparing table schema structure, include row counts"
 
