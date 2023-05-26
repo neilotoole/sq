@@ -32,9 +32,6 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-// https://golang.testcontainers.org/quickstart/#2-install-testcontainers-for-go
-replace github.com/docker/docker => github.com/docker/docker v20.10.3-0.20221013203545-33ab36d6b304+incompatible
-
 require (
 	github.com/goccy/go-yaml v1.11.0
 	github.com/jackc/pgx/v5 v5.3.1
