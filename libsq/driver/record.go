@@ -154,25 +154,21 @@ func NewRecordFromScanRow(meta record.Meta, row []any, skip []int) (rec record.R
 		case nil:
 			rec[i] = nil
 		case *int64:
-			v := *col
-			rec[i] = &v
+			rec[i] = *col
 		case int64:
-			rec[i] = &col
+			rec[i] = col
 		case *float64:
-			v := *col
-			rec[i] = &v
+			rec[i] = *col
 		case float64:
-			rec[i] = &col
+			rec[i] = col
 		case *bool:
-			v := *col
-			rec[i] = &v
+			rec[i] = *col
 		case bool:
-			rec[i] = &col
+			rec[i] = col
 		case *string:
-			v := *col
-			rec[i] = &v
+			rec[i] = *col
 		case string:
-			rec[i] = &col
+			rec[i] = col
 		case *[]byte:
 			if col == nil || *col == nil {
 				rec[i] = nil
@@ -183,31 +179,28 @@ func NewRecordFromScanRow(meta record.Meta, row []any, skip []int) (rec record.R
 				// We only want to use []byte for KindByte. Otherwise
 				// switch to a string.
 				s := string(*col)
-				rec[i] = &s
+				rec[i] = s
 				continue
 			}
 
 			if len(*col) == 0 {
-				v := []byte{}
-				rec[i] = &v
+				rec[i] = []byte{}
 			} else {
 				dest := make([]byte, len(*col))
 				copy(dest, *col)
-				rec[i] = &dest
+				rec[i] = dest
 			}
 
 		case *sql.NullInt64:
 			if col.Valid {
-				v := col.Int64
-				rec[i] = &v
+				rec[i] = col.Int64
 			} else {
 				rec[i] = nil
 			}
 
 		case *sql.NullString:
 			if col.Valid {
-				v := col.String
-				rec[i] = &v
+				rec[i] = col.String
 			} else {
 				rec[i] = nil
 			}
@@ -225,12 +218,10 @@ func NewRecordFromScanRow(meta record.Meta, row []any, skip []int) (rec record.R
 			// need to copy.
 			if len(*col) == 0 {
 				if knd == kind.Bytes {
-					v := []byte{}
-					rec[i] = &v
+					rec[i] = []byte{}
 				} else {
 					// Else treat it as an empty string
-					var s string
-					rec[i] = &s
+					rec[i] = ""
 				}
 
 				continue
@@ -240,24 +231,21 @@ func NewRecordFromScanRow(meta record.Meta, row []any, skip []int) (rec record.R
 			copy(dest, *col)
 
 			if knd == kind.Bytes {
-				rec[i] = &dest
+				rec[i] = dest
 			} else {
-				str := string(dest)
-				rec[i] = &str
+				rec[i] = string(dest)
 			}
 
 		case *sql.NullFloat64:
 			if col.Valid {
-				v := col.Float64
-				rec[i] = &v
+				rec[i] = col.Float64
 			} else {
 				rec[i] = nil
 			}
 
 		case *sql.NullBool:
 			if col.Valid {
-				v := col.Bool
-				rec[i] = &v
+				rec[i] = col.Bool
 			} else {
 				rec[i] = nil
 			}
@@ -267,51 +255,39 @@ func NewRecordFromScanRow(meta record.Meta, row []any, skip []int) (rec record.R
 			// Possibly this code should skip this item, and allow
 			// the sqlserver munge func handle the conversion?
 			if col.Valid {
-				v := col.Bool
-				rec[i] = &v
+				rec[i] = col.Bool
 			} else {
 				rec[i] = nil
 			}
 
 		case *sql.NullTime:
 			if col.Valid {
-				v := col.Time
-				rec[i] = &v
+				rec[i] = col.Time
 			} else {
 				rec[i] = nil
 			}
 
 		case *time.Time:
-			v := *col
-			rec[i] = &v
+			rec[i] = *col
 
 		case *int:
-			v := int64(*col)
-			rec[i] = &v
+			rec[i] = int64(*col)
 		case *int8:
-			v := int64(*col)
-			rec[i] = &v
+			rec[i] = int64(*col)
 		case *int16:
-			v := int64(*col)
-			rec[i] = &v
+			rec[i] = int64(*col)
 		case *int32:
-			v := int64(*col)
-			rec[i] = &v
+			rec[i] = int64(*col)
 		case *uint:
-			v := int64(*col)
-			rec[i] = &v
+			rec[i] = int64(*col)
 		case *uint8:
-			v := int64(*col)
-			rec[i] = &v
+			rec[i] = int64(*col)
 		case *uint16:
-			v := int64(*col)
-			rec[i] = &v
+			rec[i] = int64(*col)
 		case *uint32:
-			v := int64(*col)
-			rec[i] = &v
+			rec[i] = int64(*col)
 		case *float32:
-			v := float64(*col)
-			rec[i] = &v
+			rec[i] = float64(*col)
 		}
 
 		if rec[i] != nil && meta[i].Kind() == kind.Decimal {
@@ -322,17 +298,14 @@ func NewRecordFromScanRow(meta record.Meta, row []any, skip []int) (rec record.R
 				// Do nothing, it's already string
 
 			case *[]byte:
-				v := string(*col)
-				rec[i] = &v
+				rec[i] = string(*col)
 
 			case *float64:
-				v := stringz.FormatFloat(*col)
-				rec[i] = &v
+				rec[i] = stringz.FormatFloat(*col)
 
 			default:
 				// Shouldn't happen
-				v := fmt.Sprintf("%v", col)
-				rec[i] = &v
+				rec[i] = fmt.Sprintf("%v", col)
 			}
 		}
 	}
