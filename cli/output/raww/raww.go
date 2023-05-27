@@ -57,24 +57,24 @@ func (w *recordWriter) WriteRecords(recs []record.Record) error {
 		for i, val := range rec {
 			switch val := val.(type) {
 			case nil:
-			case *[]byte:
-				_, _ = w.out.Write(*val)
-			case *string:
-				_, _ = w.out.Write([]byte(*val))
-			case *bool:
-				fmt.Fprint(w.out, strconv.FormatBool(*val))
-			case *int64:
-				fmt.Fprint(w.out, strconv.FormatInt(*val, 10))
-			case *float64:
-				fmt.Fprint(w.out, stringz.FormatFloat(*val))
-			case *time.Time:
+			case []byte:
+				_, _ = w.out.Write(val)
+			case string:
+				_, _ = w.out.Write([]byte(val))
+			case bool:
+				fmt.Fprint(w.out, strconv.FormatBool(val))
+			case int64:
+				fmt.Fprint(w.out, strconv.FormatInt(val, 10))
+			case float64:
+				fmt.Fprint(w.out, stringz.FormatFloat(val))
+			case time.Time:
 				switch w.recMeta[i].Kind() { //nolint:exhaustive
 				default:
-					fmt.Fprint(w.out, w.pr.FormatDatetime(*val))
+					fmt.Fprint(w.out, w.pr.FormatDatetime(val))
 				case kind.Time:
-					fmt.Fprint(w.out, w.pr.FormatTime(*val))
+					fmt.Fprint(w.out, w.pr.FormatTime(val))
 				case kind.Date:
-					fmt.Fprint(w.out, w.pr.FormatDate(*val))
+					fmt.Fprint(w.out, w.pr.FormatDate(val))
 				}
 			default:
 				// should never happen

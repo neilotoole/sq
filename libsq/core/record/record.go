@@ -4,6 +4,7 @@ package record
 
 import (
 	"bytes"
+	"fmt"
 	"time"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -34,9 +35,7 @@ type Record []any
 // These acceptable types, per the stdlib sql pkg, are:
 //
 //	nil, int64, float64, bool, string, []byte, time.Time
-func Valid(_ Meta, rec Record) (i int, err error) {
-	// FIXME: Valid should check the values of rec to see if they match recMeta's kinds
-
+func Valid(rec Record) (i int, err error) {
 	var val any
 	for i, val = range rec {
 		switch val := val.(type) {
@@ -91,4 +90,51 @@ func Equal(a, b Record) bool {
 	}
 
 	return true
+}
+
+// CloneSlice returns a deep copy of recs.
+func CloneSlice(recs []Record) []Record {
+	if recs == nil {
+		return recs
+	}
+
+	if len(recs) == 0 {
+		return []Record{}
+	}
+
+	r2 := make([]Record, len(recs))
+	for i := range recs {
+		r2[i] = Clone(recs[i])
+	}
+	return r2
+}
+
+// Clone returns a deep copy of rec.
+func Clone(rec Record) Record {
+	if rec == nil {
+		return nil
+	}
+
+	if len(rec) == 0 {
+		return Record{}
+	}
+
+	r2 := make(Record, len(rec))
+	for i := range rec {
+		val := rec[i]
+		switch val := val.(type) {
+		case nil:
+			continue
+		case int64, bool, float64, string, time.Time:
+			r2[i] = val
+		case []byte:
+			b := make([]byte, len(val))
+			copy(b, val)
+			r2[i] = b
+		default:
+			panic(fmt.Sprintf("field [%d] has unacceptable record value type %T", i, val))
+		}
+	}
+
+	return r2
 }

@@ -107,24 +107,24 @@ func (w *recordWriter) writeRecord(rec record.Record) error {
 			// should never happen
 		case nil:
 			// nil is rendered as empty string, which this cell already is
-		case *int64:
-			s = strconv.FormatInt(*val, 10)
-		case *string:
-			s = html.EscapeString(*val)
-		case *bool:
-			s = strconv.FormatBool(*val)
-		case *float64:
-			s = stringz.FormatFloat(*val)
-		case *[]byte:
-			s = base64.StdEncoding.EncodeToString(*val)
-		case *time.Time:
+		case int64:
+			s = strconv.FormatInt(val, 10)
+		case string:
+			s = html.EscapeString(val)
+		case bool:
+			s = strconv.FormatBool(val)
+		case float64:
+			s = stringz.FormatFloat(val)
+		case []byte:
+			s = base64.StdEncoding.EncodeToString(val)
+		case time.Time:
 			switch w.recMeta[i].Kind() { //nolint:exhaustive
 			default:
-				s = w.pr.FormatDatetime(*val)
+				s = w.pr.FormatDatetime(val)
 			case kind.Time:
-				s = w.pr.FormatTime(*val)
+				s = w.pr.FormatTime(val)
 			case kind.Date:
-				s = w.pr.FormatDate(*val)
+				s = w.pr.FormatDate(val)
 			}
 		}
 

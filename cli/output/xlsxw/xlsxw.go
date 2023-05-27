@@ -79,27 +79,27 @@ func (w *recordWriter) WriteRecords(recs []record.Record) error {
 
 			switch val := val.(type) {
 			case nil:
-			case *[]byte:
-				cell.SetValue(*val)
-			case *string:
-				cell.SetString(*val)
-			case *bool:
-				cell.SetBool(*val)
-			case *int64:
-				cell.SetInt64(*val)
-			case *float64:
-				cell.SetFloat(*val)
-			case *time.Time:
+			case []byte:
+				cell.SetValue(val)
+			case string:
+				cell.SetString(val)
+			case bool:
+				cell.SetBool(val)
+			case int64:
+				cell.SetInt64(val)
+			case float64:
+				cell.SetFloat(val)
+			case time.Time:
 				switch w.recMeta[i].Kind() { //nolint:exhaustive
 				default:
-					cell.SetDateTime(*val)
+					cell.SetDateTime(val)
 				case kind.Date:
-					cell.SetDate(*val)
+					cell.SetDate(val)
 				case kind.Time:
 					// TODO: Maybe there's a way of setting a specific
 					//  time (as opposed to date or datetime) value, but
 					//  for now we just use a string.
-					cell.SetValue(w.pr.FormatTime(*val))
+					cell.SetValue(w.pr.FormatTime(val))
 				}
 			default:
 				// should never happen

@@ -134,7 +134,8 @@ func TestOutputRaw(t *testing.T) {
 
 			require.Equal(t, 1, len(sink.Recs))
 			require.Equal(t, kind.Bytes, sink.RecMeta[0].Kind())
-			dbBytes := *(sink.Recs[0][0].(*[]byte))
+			dbBytes, ok := sink.Recs[0][0].([]byte)
+			require.True(t, ok)
 			require.Equal(t, fixt.GopherSize, len(dbBytes))
 			require.Equal(t, wantBytes, dbBytes)
 

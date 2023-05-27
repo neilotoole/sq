@@ -19,10 +19,10 @@ func TestQuerySQL_Smoke(t *testing.T) {
 	t.Parallel()
 
 	wantActorFieldTypes := []reflect.Type{
-		sqlz.RTypeInt64P,
-		sqlz.RTypeStringP,
-		sqlz.RTypeStringP,
-		sqlz.RTypeTimeP,
+		sqlz.RTypeInt64,
+		sqlz.RTypeString,
+		sqlz.RTypeString,
+		sqlz.RTypeTime,
 	}
 
 	testCases := []struct {
@@ -105,9 +105,9 @@ func TestQuerySQL_Count(t *testing.T) { //nolint:tparallel
 
 			sink, err = th.QuerySQL(src, "SELECT COUNT(*) FROM "+sakila.TblActor)
 			require.NoError(t, err)
-			count, ok := sink.Recs[0][0].(*int64)
+			count, ok := sink.Recs[0][0].(int64)
 			require.True(t, ok)
-			require.Equal(t, int64(sakila.TblActorCount), *count)
+			require.Equal(t, int64(sakila.TblActorCount), count)
 		})
 	}
 }

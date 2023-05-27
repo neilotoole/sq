@@ -106,28 +106,28 @@ func (w *RecordWriter) WriteRecords(recs []record.Record) error {
 				fields[i] = fmt.Sprintf("%v", val)
 			case nil:
 				// nil is rendered as empty string, which this cell already is
-			case *int64:
-				fields[i] = w.pr.Number.Sprint(strconv.FormatInt(*val, 10))
-			case *string:
-				fields[i] = w.pr.String.Sprint(*val)
-			case *bool:
-				fields[i] = w.pr.Bool.Sprint(*val)
-			case *float64:
-				fields[i] = w.pr.Number.Sprintf("%v", *val)
-			case *[]byte:
+			case int64:
+				fields[i] = w.pr.Number.Sprint(strconv.FormatInt(val, 10))
+			case string:
+				fields[i] = w.pr.String.Sprint(val)
+			case bool:
+				fields[i] = w.pr.Bool.Sprint(val)
+			case float64:
+				fields[i] = w.pr.Number.Sprintf("%v", val)
+			case []byte:
 				var size int
 				if val != nil {
-					size = len(*val)
+					size = len(val)
 				}
 				fields[i] = w.pr.Bytes.Sprintf("[%d bytes]", size)
-			case *time.Time:
+			case time.Time:
 				switch w.recMeta[i].Kind() { //nolint:exhaustive
 				default:
-					fields[i] = w.pr.Datetime.Sprint(w.pr.FormatDatetime(*val))
+					fields[i] = w.pr.Datetime.Sprint(w.pr.FormatDatetime(val))
 				case kind.Time:
-					fields[i] = w.pr.Datetime.Sprint(w.pr.FormatTime(*val))
+					fields[i] = w.pr.Datetime.Sprint(w.pr.FormatTime(val))
 				case kind.Date:
-					fields[i] = w.pr.Datetime.Sprint(w.pr.FormatDate(*val))
+					fields[i] = w.pr.Datetime.Sprint(w.pr.FormatDate(val))
 				}
 			}
 		}

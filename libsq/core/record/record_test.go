@@ -51,9 +51,9 @@ func TestEqual(t *testing.T) {
 	for i, tc := range testCases {
 		tc := tc
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			_, err := record.Valid(nil, tc.a)
+			_, err := record.Valid(tc.a)
 			require.NoError(t, err)
-			_, err = record.Valid(nil, tc.b)
+			_, err = record.Valid(tc.b)
 			require.NoError(t, err)
 
 			got := record.Equal(tc.a, tc.b)

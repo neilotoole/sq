@@ -80,7 +80,7 @@ func TestCopyRecords(t *testing.T) {
 		"nil":   nil,
 		"empty": {},
 		"vals": {
-			{nil, &v1, &v2, &v3, &v4, &v5, &v6},
+			{nil, v1, v2, v3, v4, v5, v6},
 			// {nil, &v1, &v2, &v3, &v4, &v5, &v6},
 		},
 	}
@@ -89,7 +89,7 @@ func TestCopyRecords(t *testing.T) {
 		name, recs := name, recs
 
 		t.Run(name, func(t *testing.T) {
-			recs2 := testh.CopyRecords(recs)
+			recs2 := record.CloneSlice(recs)
 			require.True(t, len(recs) == len(recs2))
 
 			if recs == nil {
@@ -104,9 +104,6 @@ func TestCopyRecords(t *testing.T) {
 						require.True(t, recs2[i][j] == nil)
 						continue
 					}
-
-					require.False(t, recs[i][j] == recs2[i][j],
-						"pointer values should not be equal: %#v --> %#v", recs[i][j], recs2[i][j])
 
 					val1, val2 := stringz.Val(recs[i][j]), stringz.Val(recs2[i][j])
 					require.Equal(t, val1, val2,
