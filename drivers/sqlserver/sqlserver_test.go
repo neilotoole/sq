@@ -106,10 +106,10 @@ func TestDriver_CreateTable_NotNullDefault(t *testing.T) {
 			// Check kind.Bytes is handled correctly
 			const iBytes = 8 // the index of col_bytes
 			require.Equal(t, kind.Bytes, colKinds[iBytes])
-			b, ok := sink.Recs[0][iBytes].(*[]byte)
+			b, ok := sink.Recs[0][iBytes].([]byte)
 			require.True(t, ok)
 			require.NotNil(t, b)
-			require.Equal(t, 0, len(*b), "b should be non-nil but zero length")
+			require.Equal(t, 0, len(b), "b should be non-nil but zero length")
 		})
 	}
 }
