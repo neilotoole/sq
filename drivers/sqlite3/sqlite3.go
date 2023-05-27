@@ -301,32 +301,28 @@ func newRecordFromScanRow(meta record.Meta, row []any) (rec record.Record) {
 			rec[i] = nil
 		case *int64:
 			record.SetKindIfUnknown(meta, i, kind.Int)
-			v := *col
-			rec[i] = &v
+			rec[i] = *col
 		case int64:
 			record.SetKindIfUnknown(meta, i, kind.Int)
-			rec[i] = &col
+			rec[i] = col
 		case *float64:
 			record.SetKindIfUnknown(meta, i, kind.Float)
-			v := *col
-			rec[i] = &v
+			rec[i] = *col
 		case float64:
 			record.SetKindIfUnknown(meta, i, kind.Float)
-			rec[i] = &col
+			rec[i] = col
 		case *bool:
 			record.SetKindIfUnknown(meta, i, kind.Bool)
-			v := *col
-			rec[i] = &v
+			rec[i] = *col
 		case bool:
 			record.SetKindIfUnknown(meta, i, kind.Bool)
-			rec[i] = &col
+			rec[i] = col
 		case *string:
 			record.SetKindIfUnknown(meta, i, kind.Text)
-			v := *col
-			rec[i] = &v
+			rec[i] = *col
 		case string:
 			record.SetKindIfUnknown(meta, i, kind.Text)
-			rec[i] = &col
+			rec[i] = col
 		case *[]byte:
 			if col == nil || *col == nil {
 				rec[i] = nil
@@ -337,32 +333,29 @@ func newRecordFromScanRow(meta record.Meta, row []any) (rec record.Record) {
 				// We only want to use []byte for kind.Bytes. Otherwise
 				// switch to a string.
 				s := string(*col)
-				rec[i] = &s
+				rec[i] = s
 				record.SetKindIfUnknown(meta, i, kind.Text)
 				continue
 			}
 
 			if len(*col) == 0 {
-				v := []byte{}
-				rec[i] = &v
+				rec[i] = []byte{}
 			} else {
 				dest := make([]byte, len(*col))
 				copy(dest, *col)
-				rec[i] = &dest
+				rec[i] = dest
 			}
 			record.SetKindIfUnknown(meta, i, kind.Bytes)
 		case *sql.NullInt64:
 			if col.Valid {
-				v := col.Int64
-				rec[i] = &v
+				rec[i] = col.Int64
 			} else {
 				rec[i] = nil
 			}
 			record.SetKindIfUnknown(meta, i, kind.Int)
 		case *sql.NullString:
 			if col.Valid {
-				v := col.String
-				rec[i] = &v
+				rec[i] = col.String
 			} else {
 				rec[i] = nil
 			}
@@ -380,12 +373,11 @@ func newRecordFromScanRow(meta record.Meta, row []any) (rec record.Record) {
 			// need to copy.
 			if len(*col) == 0 {
 				if knd == kind.Bytes {
-					v := []byte{}
-					rec[i] = &v
+					rec[i] = []byte{}
 				} else {
 					// Else treat it as an empty string
 					var s string
-					rec[i] = &s
+					rec[i] = s
 					record.SetKindIfUnknown(meta, i, kind.Text)
 				}
 
@@ -396,25 +388,23 @@ func newRecordFromScanRow(meta record.Meta, row []any) (rec record.Record) {
 			copy(dest, *col)
 
 			if knd == kind.Bytes {
-				rec[i] = &dest
+				rec[i] = dest
 			} else {
-				str := string(dest)
-				rec[i] = &str
+				s := string(dest)
+				rec[i] = s
 				record.SetKindIfUnknown(meta, i, kind.Text)
 			}
 
 		case *sql.NullFloat64:
 			if col.Valid {
-				v := col.Float64
-				rec[i] = &v
+				rec[i] = col.Float64
 			} else {
 				rec[i] = nil
 			}
 			record.SetKindIfUnknown(meta, i, kind.Float)
 		case *sql.NullBool:
 			if col.Valid {
-				v := col.Bool
-				rec[i] = &v
+				rec[i] = col.Bool
 			} else {
 				rec[i] = nil
 			}
@@ -424,119 +414,97 @@ func newRecordFromScanRow(meta record.Meta, row []any) (rec record.Record) {
 			// Possibly this code should skip this item, and allow
 			// the sqlserver munge func handle the conversion?
 			if col.Valid {
-				v := col.Bool
-				rec[i] = &v
+				rec[i] = col.Bool
 			} else {
 				rec[i] = nil
 			}
 			record.SetKindIfUnknown(meta, i, kind.Bool)
 		case *sql.NullTime:
 			if col.Valid {
-				v := col.Time
-				rec[i] = &v
+				rec[i] = col.Time
 			} else {
 				rec[i] = nil
 			}
 			record.SetKindIfUnknown(meta, i, kind.Datetime)
 		case *time.Time:
-			v := *col
-			rec[i] = &v
+			rec[i] = *col
 			record.SetKindIfUnknown(meta, i, kind.Datetime)
 		case time.Time:
-			v := col
-			rec[i] = &v
+			rec[i] = col
 			record.SetKindIfUnknown(meta, i, kind.Datetime)
 
 		// REVISIT: We probably don't need any of the below cases
 		// for sqlite?
 		case *int:
-			v := int64(*col)
-			rec[i] = &v
+			rec[i] = int64(*col)
 			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case int:
-			v := int64(col)
-			rec[i] = &v
+			rec[i] = int64(col)
 			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case *int8:
-			v := int64(*col)
-			rec[i] = &v
+			rec[i] = int64(*col)
 			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case int8:
-			v := int64(col)
-			rec[i] = &v
+			rec[i] = int64(col)
 			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case *int16:
-			v := int64(*col)
-			rec[i] = &v
+			rec[i] = int64(*col)
 			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case int16:
-			v := int64(col)
-			rec[i] = &v
+			rec[i] = int64(col)
 			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case *int32:
-			v := int64(*col)
-			rec[i] = &v
+			rec[i] = int64(*col)
 			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case int32:
-			v := int64(col)
-			rec[i] = &v
+			rec[i] = int64(col)
 			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case *uint:
-			v := int64(*col)
-			rec[i] = &v
+			rec[i] = int64(*col)
 			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case uint:
-			v := int64(col)
-			rec[i] = &v
+			rec[i] = int64(col)
 			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case *uint8:
-			v := int64(*col)
-			rec[i] = &v
+			rec[i] = int64(*col)
 			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case uint8:
-			v := int64(col)
-			rec[i] = &v
+			rec[i] = int64(col)
 			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case *uint16:
-			v := int64(*col)
-			rec[i] = &v
+			rec[i] = int64(*col)
 			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case uint16:
-			v := int64(col)
-			rec[i] = &v
+			rec[i] = int64(col)
 			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case *uint32:
-			v := int64(*col)
-			rec[i] = &v
+			rec[i] = int64(*col)
 			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case uint32:
-			v := int64(col)
-			rec[i] = &v
+			rec[i] = int64(col)
 			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case *float32:
-			v := float64(*col)
-			rec[i] = &v
+			rec[i] = float64(*col)
 			record.SetKindIfUnknown(meta, i, kind.Int)
 
 		case float32:
-			v := int64(col)
-			rec[i] = &v
+			rec[i] = int64(col)
 			record.SetKindIfUnknown(meta, i, kind.Int)
 		}
 
@@ -548,17 +516,15 @@ func newRecordFromScanRow(meta record.Meta, row []any) (rec record.Record) {
 				// Do nothing, it's already string
 
 			case *[]byte:
-				v := string(*col)
-				rec[i] = &v
+				rec[i] = string(*col)
 
 			case *float64:
-				v := stringz.FormatFloat(*col)
-				rec[i] = &v
+				rec[i] = stringz.FormatFloat(*col)
 
 			default:
 				// Shouldn't happen
 				v := fmt.Sprintf("%v", col)
-				rec[i] = &v
+				rec[i] = v
 			}
 		}
 	}
