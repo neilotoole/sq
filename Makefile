@@ -24,5 +24,5 @@ gen:
 
 .PHONY: fmt
 fmt:
-	# Use gofumpt instead of "go fmt"
+	@# Use gofumpt instead of "go fmt"
 	@gofumpt -w .
