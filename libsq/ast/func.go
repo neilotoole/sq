@@ -12,13 +12,23 @@ var (
 // FuncNode models a function. For example, "COUNT()".
 type FuncNode struct {
 	baseNode
-	fnName string
-	alias  string
+	fnName      string
+	alias       string
+	proprietary bool
 }
 
 // FuncName returns the function name.
 func (fn *FuncNode) FuncName() string {
 	return fn.fnName
+}
+
+// IsProprietary returns true if this is a DB-proprietary function, as
+// opposed to a portable function. For example, SQLite has
+// a "strftime" function. In the SLQ, this is referenced
+// as "_strftime": SLQ uses the underscore to indicate a proprietary
+// function.
+func (fn *FuncNode) IsProprietary() bool {
+	return fn.proprietary
 }
 
 // String returns a log/debug-friendly representation.
@@ -109,6 +119,10 @@ func (v *parseTreeVisitor) VisitFuncElement(ctx *slq.FuncElementContext) any {
 // VisitFunc implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitFunc(ctx *slq.FuncContext) any {
 	node := &FuncNode{fnName: ctx.FuncName().GetText()}
+	if node.fnName[0] == '_' {
+		node.fnName = node.fnName[1:]
+	}
+
 	node.ctx = ctx
 	node.text = ctx.GetText()
 	if err := node.SetParent(v.cur); err != nil {
@@ -123,6 +137,9 @@ func (v *parseTreeVisitor) VisitFunc(ctx *slq.FuncContext) any {
 
 	if node.alias == "" {
 		node.alias = ctx.GetText()
+		if node.alias[0] == '_' {
+			node.alias = node.alias[1:]
+		}
 	}
 
 	return v.cur.AddChild(node)
