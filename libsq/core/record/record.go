@@ -21,7 +21,7 @@ import (
 // A Record is typically built from a ScanRow, unwrapping and
 // munging elements such that the Record only contains standard types:
 //
-//	nil, *int64, *float64, *bool, *string, *[]byte, *time.Time
+//	nil, int64, float64, bool, string, []byte, time.Time
 //
 // It is an error for a Record to contain elements of any other type.
 type Record []any
@@ -33,14 +33,14 @@ type Record []any
 //
 // These acceptable types, per the stdlib sql pkg, are:
 //
-//	nil, *int64, *float64, *bool, *string, *[]byte, *time.Time
+//	nil, int64, float64, bool, string, []byte, time.Time
 func Valid(_ Meta, rec Record) (i int, err error) {
 	// FIXME: Valid should check the values of rec to see if they match recMeta's kinds
 
 	var val any
 	for i, val = range rec {
 		switch val := val.(type) {
-		case nil, *int64, *float64, *bool, *string, *[]byte, *time.Time:
+		case nil, int64, float64, bool, string, []byte, time.Time:
 			continue
 		default:
 			return i, errz.Errorf("field [%d] has unacceptable record value type %T", i, val)
@@ -50,9 +50,8 @@ func Valid(_ Meta, rec Record) (i int, err error) {
 	return -1, nil
 }
 
-// Equal returns true if rec1 and rec2 contain
-// the same values.
-func Equal(a, b Record) bool { //nolint:gocognit
+// Equal returns true if each element of a and b are equal values.
+func Equal(a, b Record) bool {
 	switch {
 	case a == nil && b == nil:
 		return true
@@ -62,77 +61,31 @@ func Equal(a, b Record) bool { //nolint:gocognit
 		return false
 	}
 
-	var i int
-	var va, vb any
-
-	for i, va = range a {
-		vb = b[i]
-
-		if va == nil && vb == nil {
-			continue
-		}
-
-		if va == nil || vb == nil {
-			return false
-		}
-
-		switch va := va.(type) {
-		case *string:
-			vb, ok := vb.(*string)
-			if !ok {
+	var ok bool
+	for i := range a {
+		switch va := a[i].(type) {
+		case nil:
+			if b[i] != nil {
 				return false
 			}
-
-			if *va != *vb {
+		case []byte:
+			var vb []byte
+			if vb, ok = b[i].([]byte); !ok {
 				return false
 			}
-		case *bool:
-			vb, ok := vb.(*bool)
-			if !ok {
+			if !bytes.Equal(va, vb) {
 				return false
 			}
-
-			if *va != *vb {
-				return false
-			}
-		case *int64:
-			vb, ok := vb.(*int64)
-			if !ok {
-				return false
-			}
-
-			if *va != *vb {
-				return false
-			}
-		case *float64:
-			vb, ok := vb.(*float64)
-			if !ok {
-				return false
-			}
-
-			if *va != *vb {
-				return false
-			}
-		case *time.Time:
-			vb, ok := vb.(*time.Time)
-			if !ok {
-				return false
-			}
-
-			if *va != *vb {
-				return false
-			}
-		case *[]byte:
-			vb, ok := vb.(*[]byte)
-			if !ok {
-				return false
-			}
-
-			if !bytes.Equal(*va, *vb) {
+		case int64, float64, bool, string, time.Time:
+			switch vb := b[i].(type) {
+			case int64, float64, bool, string, time.Time:
+				if vb != va {
+					return false
+				}
+			default:
 				return false
 			}
 		default:
-			// Shouldn't happen
 			return false
 		}
 	}
