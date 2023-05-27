@@ -28,12 +28,24 @@ cmpr: LT_EQ | LT | GT_EQ | GT | EQ | NEQ;
 
 funcElement: func (alias)?;
 func: funcName '(' ( expr ( ',' expr)* | '*')? ')';
-funcName: ID;
+funcName
+  : 'sum'
+	| 'avg'
+	| 'max'
+	| 'min'
+	| 'where'
+	| PROPRIETARY_FUNC_NAME
+  ;
+
+// PROPRIETARY_FUNC_NAME is a DB-native func, which is invoked by prefixing
+// an underscore to the func name, e.g. _date(xyz).
+PROPRIETARY_FUNC_NAME: '_' ID;
+
 
 join: ('join') '(' joinConstraint ')';
 
 joinConstraint
-    : selector cmpr selector // .user.uid == .address.userid
+  : selector cmpr selector // .user.uid == .address.userid
 	| selector ; // .uid
 
 /*

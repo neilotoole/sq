@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Breaking changes are annotated with ☢️.
 
+
+## [v0.36.2] - 2023-05-27
+
+### Changed
+
+- ☢️ [Proprietary database functions](https://sq.io/docs/query/#proprietary-functions) are now 
+  invoked by prefixing the function name with an underscore. For example:
+  ```shell
+  # mysql "date_format" func
+  $ sq '@sakila/mysql | .payment | _date_format(.payment_date, "%m")'
+  
+  # Postgres "date_trunc" func
+  $ sq '@sakila/postgres | .payment | _date_trunc("month", .payment_date)'
+  ```
+
 ## [v0.36.1] - 2023-05-26
 
 ### Fixed
@@ -532,3 +547,4 @@ make working with lots of sources much easier.
 [v0.35.0]: https://github.com/neilotoole/sq/compare/v0.34.2...v0.35.0
 [v0.36.0]: https://github.com/neilotoole/sq/compare/v0.35.0...v0.36.0
 [v0.36.1]: https://github.com/neilotoole/sq/compare/v0.36.0...v0.36.1
+[v0.36.2]: https://github.com/neilotoole/sq/compare/v0.36.1...v0.36.2
