@@ -39,17 +39,14 @@ type table struct {
 
 func (t *table) renderResultCell(knd kind.Kind, val any) string { //nolint:funlen,cyclop,gocognit,gocyclo
 	switch val := val.(type) {
-	case string:
-		return val
+	case nil:
+		return t.sprintNull()
 	case *sql.NullString:
 		if !val.Valid {
 			return t.sprintNull()
 		}
 		return t.pr.String.Sprint(val.String)
-	case *string:
-		if val == nil {
-			return t.sprintNull()
-		}
+	case string:
 
 		// Although val is string, we allow for the case where
 		// the kind is not kind.Text: for example, sqlite returns
@@ -57,18 +54,18 @@ func (t *table) renderResultCell(knd kind.Kind, val any) string { //nolint:funle
 
 		switch knd { //nolint:exhaustive // ignore kind.Unknown and kind.Null
 		case kind.Datetime, kind.Date, kind.Time:
-			return t.pr.Datetime.Sprint(*val)
+			return t.pr.Datetime.Sprint(val)
 		case kind.Decimal, kind.Float, kind.Int:
-			return t.pr.Number.Sprint(*val)
+			return t.pr.Number.Sprint(val)
 		case kind.Bool:
-			return t.pr.Bool.Sprint(*val)
+			return t.pr.Bool.Sprint(val)
 		case kind.Bytes:
-			return t.sprintBytes([]byte(*val))
+			return t.sprintBytes([]byte(val))
 		case kind.Text:
-			return t.pr.String.Sprint(*val)
+			return t.pr.String.Sprint(val)
 		default:
 			// Shouldn't happen
-			return *val
+			return val
 		}
 
 	case float64:
@@ -155,22 +152,22 @@ func (t *table) renderResultCell(knd kind.Kind, val any) string { //nolint:funle
 			return t.sprintNull()
 		}
 		return t.pr.Bool.Sprint(strconv.FormatBool(*val))
-	case *time.Time:
-		if val == nil {
+	case time.Time:
+		if val.IsZero() {
 			return t.sprintNull()
 		}
 
 		var s string
 		switch knd { //nolint:exhaustive
 		default:
-			s = t.pr.FormatDatetime(*val)
+			s = t.pr.FormatDatetime(val)
 
 			// s = val.Format(timez.DefaultTimestampFormat)
 		case kind.Time:
-			s = t.pr.FormatTime(*val)
+			s = t.pr.FormatTime(val)
 			// s = val.Format(timez.DefaultTimeFormat)
 		case kind.Date:
-			s = t.pr.FormatDate(*val)
+			s = t.pr.FormatDate(val)
 			// s = val.Format(timez.DefaultDateFormat)
 		}
 
@@ -181,8 +178,7 @@ func (t *table) renderResultCell(knd kind.Kind, val any) string { //nolint:funle
 			return t.sprintNull()
 		}
 		return t.pr.Bool.Sprint(strconv.FormatBool(val.Bool))
-	case nil:
-		return t.sprintNull()
+
 	case []byte:
 		return t.sprintBytes(val)
 	case *[]byte:

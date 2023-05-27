@@ -54,7 +54,7 @@ func RecordsFromTbl(tb testing.TB, handle, tbl string) (recMeta record.Meta, rec
 	// the type is effectively immutable
 	copy(recMeta, sink.RecMeta)
 
-	recs = CopyRecords(sink.Recs)
+	recs = record.CloneSlice(sink.Recs)
 	return recMeta, recs
 }
 
@@ -76,66 +76,6 @@ func NewRecordMeta(colNames []string, colKinds []kind.Kind) record.Meta {
 	}
 
 	return recMeta
-}
-
-// CopyRecords returns a deep copy of recs.
-func CopyRecords(recs []record.Record) []record.Record {
-	if recs == nil {
-		return recs
-	}
-
-	if len(recs) == 0 {
-		return []record.Record{}
-	}
-
-	r2 := make([]record.Record, len(recs))
-	for i := range recs {
-		r2[i] = CopyRecord(recs[i])
-	}
-	return r2
-}
-
-// CopyRecord returns a deep copy of rec.
-func CopyRecord(rec record.Record) record.Record {
-	if rec == nil {
-		return nil
-	}
-
-	if len(rec) == 0 {
-		return record.Record{}
-	}
-
-	r2 := make(record.Record, len(rec))
-	for i := range rec {
-		val := rec[i]
-		switch val := val.(type) {
-		case nil:
-			continue
-		case *int64:
-			v := *val
-			r2[i] = &v
-		case *bool:
-			v := *val
-			r2[i] = &v
-		case *float64:
-			v := *val
-			r2[i] = &v
-		case *string:
-			v := *val
-			r2[i] = &v
-		case *[]byte:
-			b := make([]byte, len(*val))
-			copy(b, *val)
-			r2[i] = &b
-		case *time.Time:
-			v := *val
-			r2[i] = &v
-		default:
-			panic(fmt.Sprintf("field [%d] has unacceptable record value type %T", i, val))
-		}
-	}
-
-	return r2
 }
 
 // KindScanType returns the default scan type for kind. The returned

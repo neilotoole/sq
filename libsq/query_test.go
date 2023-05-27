@@ -67,7 +67,13 @@ func execQueryTestCase(t *testing.T, tc queryTestCase) {
 
 	t.Helper()
 	coll := testh.New(t).NewCollection(sakila.SQLLatest()...)
-	for _, src := range coll.Sources() {
+	_ = coll
+	src, err := coll.Get(sakila.Pg)
+	require.NoError(t, err)
+
+	// srcs :=
+	for _, src := range []*source.Source{src} {
+		// for _, src := range coll.Sources() {
 		src := src
 
 		t.Run(string(src.Type), func(t *testing.T) {

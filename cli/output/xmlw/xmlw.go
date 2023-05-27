@@ -183,29 +183,29 @@ func (w *recordWriter) writeRecord(rec record.Record) error {
 			}
 			w.fieldPrintFns[i](w.outBuf, tmpBuf.String())
 			tmpBuf.Reset()
-		case *string:
-			err = xml.EscapeText(tmpBuf, []byte(*val))
+		case string:
+			err = xml.EscapeText(tmpBuf, []byte(val))
 			if err != nil {
 				return errz.Err(err)
 			}
 			w.fieldPrintFns[i](w.outBuf, tmpBuf.String())
 			tmpBuf.Reset()
-		case *[]byte:
-			w.fieldPrintFns[i](w.outBuf, base64.StdEncoding.EncodeToString(*val))
-		case *bool:
-			w.fieldPrintFns[i](w.outBuf, strconv.FormatBool(*val))
-		case *int64:
-			w.fieldPrintFns[i](w.outBuf, strconv.FormatInt(*val, 10))
-		case *float64:
-			w.fieldPrintFns[i](w.outBuf, stringz.FormatFloat(*val))
-		case *time.Time:
+		case []byte:
+			w.fieldPrintFns[i](w.outBuf, base64.StdEncoding.EncodeToString(val))
+		case bool:
+			w.fieldPrintFns[i](w.outBuf, strconv.FormatBool(val))
+		case int64:
+			w.fieldPrintFns[i](w.outBuf, strconv.FormatInt(val, 10))
+		case float64:
+			w.fieldPrintFns[i](w.outBuf, stringz.FormatFloat(val))
+		case time.Time:
 			switch w.recMeta[i].Kind() { //nolint:exhaustive
 			default:
-				w.fieldPrintFns[i](w.outBuf, w.pr.FormatDatetime(*val))
+				w.fieldPrintFns[i](w.outBuf, w.pr.FormatDatetime(val))
 			case kind.Time:
-				w.fieldPrintFns[i](w.outBuf, w.pr.FormatTime(*val))
+				w.fieldPrintFns[i](w.outBuf, w.pr.FormatTime(val))
 			case kind.Date:
-				w.fieldPrintFns[i](w.outBuf, w.pr.FormatDate(*val))
+				w.fieldPrintFns[i](w.outBuf, w.pr.FormatDate(val))
 			}
 		}
 

@@ -42,8 +42,8 @@ func (e monoEncoder) doEncodeTime(b []byte, v any, fn func(time.Time) string, as
 	switch v := v.(type) {
 	case nil:
 		return append(b, "null"...), nil
-	case *time.Time:
-		s := fn(*v)
+	case time.Time:
+		s := fn(v)
 		if asNumber {
 			if i, err := strconv.ParseInt(s, 10, 64); err == nil {
 				b = strconv.AppendInt(b, i, 10)
@@ -54,9 +54,9 @@ func (e monoEncoder) doEncodeTime(b []byte, v any, fn func(time.Time) string, as
 		b = append(b, []byte(s)...)
 		b = append(b, '"')
 		return b, nil
-	case *string:
+	case string:
 		// If we've got a string, assume it's in the correct format
-		return encodeString(b, *v, false)
+		return encodeString(b, v, false)
 	default:
 		return b, errz.Errorf("unsupported time type %T: %v", v, v)
 	}
@@ -70,32 +70,32 @@ func (e monoEncoder) encodeAny(b []byte, v any) ([]byte, error) {
 	case nil:
 		return append(b, "null"...), nil
 
-	case *int64:
-		return strconv.AppendInt(b, *v, 10), nil
+	case int64:
+		return strconv.AppendInt(b, v, 10), nil
 
-	case *float64:
-		return append(b, stringz.FormatFloat(*v)...), nil
+	case float64:
+		return append(b, stringz.FormatFloat(v)...), nil
 
-	case *bool:
-		return strconv.AppendBool(b, *v), nil
+	case bool:
+		return strconv.AppendBool(b, v), nil
 
-	case *[]byte:
+	case []byte:
 		var err error
-		b, err = encodeBytes(b, *v)
+		b, err = encodeBytes(b, v)
 		if err != nil {
 			return b, errz.Err(err)
 		}
 		return b, nil
 
-	case *string:
+	case string:
 		var err error
-		b, err = encodeString(b, *v, false)
+		b, err = encodeString(b, v, false)
 		if err != nil {
 			return b, errz.Err(err)
 		}
 		return b, nil
 
-	case *time.Time:
+	case time.Time:
 		// We really shouldn't be hitting this path? Instead should
 		// hit encodeTime.
 		return e.doEncodeTime(b, v, e.formatDatetime, e.formatDatetimeAsNumber)
@@ -132,9 +132,9 @@ func (e *colorEncoder) doEncodeTime(b []byte, v any, fn func(time.Time) string, 
 	switch v := v.(type) {
 	case nil:
 		return e.clrs.AppendNull(b), nil
-	case *time.Time:
+	case time.Time:
 		b = append(b, e.clrs.Time.Prefix...)
-		s := fn(*v)
+		s := fn(v)
 
 		if asNumber {
 			if i, err := strconv.ParseInt(s, 10, 64); err == nil {
@@ -150,11 +150,11 @@ func (e *colorEncoder) doEncodeTime(b []byte, v any, fn func(time.Time) string, 
 		b = append(b, e.clrs.Time.Suffix...)
 		return b, nil
 
-	case *string:
+	case string:
 		// If we've got a string, assume it's in the correct format
 		b = append(b, e.clrs.Time.Prefix...)
 		var err error
-		b, err = encodeString(b, *v, false)
+		b, err = encodeString(b, v, false)
 		if err != nil {
 			return b[0:start], err
 		}
@@ -173,41 +173,41 @@ func (e *colorEncoder) encodeAny(b []byte, v any) ([]byte, error) {
 	case nil:
 		return e.clrs.AppendNull(b), nil
 
-	case *int64:
+	case int64:
 		b = append(b, e.clrs.Number.Prefix...)
-		b = strconv.AppendInt(b, *v, 10)
+		b = strconv.AppendInt(b, v, 10)
 		return append(b, e.clrs.Number.Suffix...), nil
 
-	case *float64:
+	case float64:
 		b = append(b, e.clrs.Number.Prefix...)
-		b = append(b, stringz.FormatFloat(*v)...)
+		b = append(b, stringz.FormatFloat(v)...)
 		return append(b, e.clrs.Number.Suffix...), nil
 
-	case *bool:
+	case bool:
 		b = append(b, e.clrs.Bool.Prefix...)
-		b = strconv.AppendBool(b, *v)
+		b = strconv.AppendBool(b, v)
 		return append(b, e.clrs.Bool.Suffix...), nil
 
-	case *[]byte:
+	case []byte:
 		var err error
 		b = append(b, e.clrs.Bytes.Prefix...)
-		b, err = encodeBytes(b, *v)
+		b, err = encodeBytes(b, v)
 		if err != nil {
 			return b, errz.Err(err)
 		}
 		b = append(b, e.clrs.Bytes.Suffix...)
 		return b, nil
 
-	case *string:
+	case string:
 		b = append(b, e.clrs.String.Prefix...)
 		var err error
-		b, err = encodeString(b, *v, false)
+		b, err = encodeString(b, v, false)
 		if err != nil {
 			return b, errz.Err(err)
 		}
 		return append(b, e.clrs.String.Suffix...), nil
 
-	case *time.Time:
+	case time.Time:
 		// We really shouldn't be hitting this path? Instead should
 		// hit encodeTime.
 		return e.doEncodeTime(b, v, e.formatDatetime, e.formatDatetimeAsNumber)

@@ -131,8 +131,8 @@ func (w *recordWriter) WriteRecords(recs []record.Record) error {
 				continue
 			}
 
-			if tm, ok := val.(*time.Time); ok {
-				if tm == nil {
+			if tm, ok := val.(time.Time); ok {
+				if tm.IsZero() {
 					buf.WriteString(w.null)
 					continue
 				}
@@ -190,12 +190,16 @@ func (w *recordWriter) renderTime(fieldMeta *record.FieldMeta, val any) (string,
 		timeFormatter func(time.Time) string
 		asNumber      bool
 		isNumber      bool
-		tm            *time.Time
+		tm            time.Time
 		ok            bool
 	)
 
-	if tm, ok = val.(*time.Time); !ok {
+	if tm, ok = val.(time.Time); !ok {
 		return "", errz.Errorf("unexpected value type: expected %T, but got %T", tm, val)
+	}
+
+	if tm.IsZero() {
+		return w.null, nil
 	}
 
 	switch fieldMeta.Kind() { //nolint:exhaustive
@@ -214,7 +218,7 @@ func (w *recordWriter) renderTime(fieldMeta *record.FieldMeta, val any) (string,
 			fieldMeta.Kind(), val)
 	}
 
-	v := timeFormatter(*tm)
+	v := timeFormatter(tm)
 	if _, err := strconv.ParseInt(v, 10, 64); err == nil {
 		isNumber = true
 	}

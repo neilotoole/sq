@@ -147,9 +147,15 @@ func TestRecordWriters(t *testing.T) {
 				0).UTC(), time.Unix(0, 0).UTC(), time.Unix(0, 0).UTC(), []byte("hello")
 
 			recs := []record.Record{
-				{&v0, &v1, &v2, &v3, &v4, &v5, &v6, &v7, &v8},
+				{v0, v1, v2, v3, v4, v5, v6, v7, v8},
 				{nil, nil, nil, nil, nil, nil, nil, nil, nil},
-				{&v0, &v1, &v2, &v3, &v4, &v5, &v6, &v7, &v8},
+				{v0, v1, v2, v3, v4, v5, v6, v7, v8},
+			}
+
+			for _, rec := range recs {
+				i, err := record.Valid(rec)
+				require.NoError(t, err)
+				require.Equal(t, -1, i)
 			}
 
 			buf := &bytes.Buffer{}

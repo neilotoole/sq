@@ -214,7 +214,7 @@ func QuerySQL(ctx context.Context, dbase driver.Database, recw RecordWriter, que
 		// Note: ultimately we should be able to ditch this
 		//  check when we have more confidence in the codebase.
 		var i int
-		i, err = record.Valid(recMeta, rec)
+		i, err = record.Valid(rec)
 		if err != nil {
 			cancelFn()
 			return errz.Wrapf(err, "column [%d] (%s): unacceptable munged type %T", i, recMeta[i].Name(), rec[i])

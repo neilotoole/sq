@@ -6,8 +6,6 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/timez"
 
-	"github.com/samber/lo"
-
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/stretchr/testify/require"
 )
@@ -18,22 +16,22 @@ func TestEqual(t *testing.T) {
 
 	stdRec1 := record.Record{
 		nil,
-		lo.ToPtr(int64(1)),
-		lo.ToPtr(1.1),
-		lo.ToPtr(false),
-		lo.ToPtr("a"),
-		lo.ToPtr([]byte("a")),
-		lo.ToPtr(mar1UTC),
+		int64(1),
+		1.1,
+		false,
+		"a",
+		[]byte("a"),
+		mar1UTC,
 	}
 
 	stdRec2 := record.Record{
 		nil,
-		lo.ToPtr(int64(2)),
-		lo.ToPtr(2.2),
-		lo.ToPtr(true),
-		lo.ToPtr("b"),
-		lo.ToPtr([]byte("b")),
-		lo.ToPtr(mar31UTC),
+		int64(2),
+		2.2,
+		true,
+		"b",
+		[]byte("b"),
+		mar31UTC,
 	}
 
 	testCases := []struct {
@@ -53,9 +51,9 @@ func TestEqual(t *testing.T) {
 	for i, tc := range testCases {
 		tc := tc
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			_, err := record.Valid(nil, tc.a)
+			_, err := record.Valid(tc.a)
 			require.NoError(t, err)
-			_, err = record.Valid(nil, tc.b)
+			_, err = record.Valid(tc.b)
 			require.NoError(t, err)
 
 			got := record.Equal(tc.a, tc.b)
