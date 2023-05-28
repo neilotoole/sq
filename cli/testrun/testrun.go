@@ -26,13 +26,13 @@ import (
 
 // TestRun is a helper for testing sq commands.
 type TestRun struct {
-	T      *testing.T
-	ctx    context.Context
-	mu     sync.Mutex
-	Run    *run.Run
-	Out    *bytes.Buffer
-	ErrOut *bytes.Buffer
-	used   bool
+	T       testing.TB
+	Context context.Context
+	mu      sync.Mutex
+	Run     *run.Run
+	Out     *bytes.Buffer
+	ErrOut  *bytes.Buffer
+	used    bool
 
 	// When true, out and errOut are not logged.
 	hushOutput bool
@@ -41,8 +41,12 @@ type TestRun struct {
 // New returns a new run instance for testing sq commands.
 // If from is non-nil, its config is used. This allows sequential
 // commands to use the same config.
-func New(ctx context.Context, t *testing.T, from *TestRun) *TestRun {
-	tr := &TestRun{T: t, ctx: ctx}
+func New(ctx context.Context, t testing.TB, from *TestRun) *TestRun {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	tr := &TestRun{T: t, Context: ctx}
 
 	var cfgStore config.Store
 	if from != nil {
@@ -141,7 +145,7 @@ func (tr *TestRun) doExec(args []string) error {
 
 	require.False(tr.T, tr.used, "TestRun instance must only be used once")
 
-	ctx, cancelFn := context.WithCancel(context.Background())
+	ctx, cancelFn := context.WithCancel(tr.Context)
 	tr.T.Cleanup(cancelFn)
 
 	execErr := cli.ExecuteWith(ctx, tr.Run, args)
