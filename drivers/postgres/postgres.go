@@ -62,9 +62,24 @@ func (p *Provider) DriverFor(typ source.DriverType) (driver.Driver, error) {
 	return &driveri{log: p.Log}, nil
 }
 
+var _ driver.SQLDriver = (*driveri)(nil)
+
 // driveri is the postgres implementation of driver.Driver.
 type driveri struct {
 	log *slog.Logger
+}
+
+// ConnParams implements driver.SQLDriver.
+func (d *driveri) ConnParams() map[string][]string {
+	// https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-PARAMKEYWORDS
+	return map[string][]string{
+		"channel_binding":           {"prefer", "require", "disable"},
+		"connect_timeout":           {"2"},
+		"application_name":          nil,
+		"fallback_application_name": nil,
+		"gssencmode":                {"disable", "prefer", "require"},
+		"sslmode":                   {"disable", "allow", "prefer", "require", "verify-ca", "verify-full"},
+	}
 }
 
 // ErrWrapFunc implements driver.SQLDriver.

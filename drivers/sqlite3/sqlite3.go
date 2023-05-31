@@ -69,11 +69,17 @@ func (p *Provider) DriverFor(typ source.DriverType) (driver.Driver, error) {
 	return &driveri{log: p.Log}, nil
 }
 
-var _ driver.Driver = (*driveri)(nil)
+var _ driver.SQLDriver = (*driveri)(nil)
 
-// driveri is the SQLite3 implementation of driver.Driver.
+// driveri is the SQLite3 implementation of driver.SQLDriver.
 type driveri struct {
 	log *slog.Logger
+}
+
+// ConnParams implements driver.SQLDriver.
+func (d *driveri) ConnParams() map[string][]string {
+	// TODO: Implement ConnParams for sqlite3
+	return map[string][]string{}
 }
 
 // ErrWrapFunc implements driver.SQLDriver.

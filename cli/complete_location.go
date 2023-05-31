@@ -1,9 +1,15 @@
 package cli
 
 import (
+	"context"
 	"net/url"
 	"strconv"
 	"strings"
+
+	"github.com/neilotoole/sq/cli/run"
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/driver"
+	"golang.org/x/exp/slices"
 
 	"github.com/neilotoole/sq/drivers/mysql"
 	"github.com/neilotoole/sq/drivers/postgres"
@@ -26,9 +32,16 @@ import (
 
 // completeAddLocation provides completion for the "sq add LOCATION" arg.
 func completeAddLocation(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-	log := logFrom(cmd)
+	ctx := cmd.Context()
+	log := lg.FromContext(ctx)
+	ru := run.FromContext(ctx)
+	if err := FinishRunInit(ctx, ru); err != nil {
+		log.Error("Init run", lga.Err, err)
+		return nil, cobra.ShellCompDirectiveError
+	}
+
 	var a []string
-	d := cobra.ShellCompDirectiveDefault
+	d := cobra.ShellCompDirectiveNoSpace | cobra.ShellCompDirectiveKeepOrder
 
 	if toComplete == "" {
 		return locSchemes, cobra.ShellCompDirectiveDefault
@@ -39,26 +52,190 @@ func completeAddLocation(cmd *cobra.Command, args []string, toComplete string) (
 	}
 
 	ploc := parseLoc(toComplete)
-	_ = ploc
-	stage := ploc.stageDone
-	log.Debug("ploc stage", lga.Val, stage)
+	stageDone := ploc.stageDone
+	log.Debug("ploc stage", lga.Val, stageDone)
 
-	switch stage {
+	switch stageDone {
 	case plocScheme:
 		if ploc.user == "" {
-			return []string{toComplete + "username"}, d
+			a = []string{
+				toComplete,
+				toComplete + "username",
+				toComplete + "username:password",
+			}
+
+			return a, d
 		}
 
 		a = []string{
+			toComplete + "@",
 			toComplete + ":",
-			toComplete + ":password",
+			toComplete + ":@",
+			toComplete + ":password@",
+		}
+
+		return a, d
+	case plocUser:
+		if ploc.pass == "" {
+			a = []string{
+				toComplete,
+				toComplete + "@",
+				toComplete + "password@",
+			}
+
+			return a, d
+		}
+
+		a = []string{
+			toComplete + "@",
+		}
+
+		return a, d
+	case plocPass:
+		if ploc.hostname == "" {
+			a = []string{
+				toComplete + "localhost/",
+				toComplete + "localhost:5432/",
+			}
+
+			return a, d
+		}
+
+		base, _, _ := strings.Cut(toComplete, "@")
+		base += "@"
+
+		if ploc.port <= 0 {
+			a = []string{
+				toComplete + "/",
+				toComplete + ":5432/",
+				base + "localhost/",
+				base + "localhost:5432/",
+			}
+
+			a = lo.Uniq(stringz.FilterPrefix(toComplete, a...))
+			return a, d
+		}
+
+		a = []string{
+			base + "localhost/",
+			base + "localhost:5432/",
+			toComplete + "/",
+		}
+
+		a = stringz.FilterPrefix(toComplete, a...)
+		return a, d
+	case plocHostname:
+		if strings.HasSuffix(toComplete, ":") {
+			a = []string{toComplete + "5432/"}
+			return a, d
+		}
+
+		a = []string{toComplete + "/"}
+		return a, d
+
+	case plocHost:
+		if ploc.name == "" {
+			a = []string{toComplete + "db"}
+			return a, d
+		}
+
+		a = []string{toComplete + "?"}
+		return a, d
+
+	default:
+		// We're at plocName, continue below
+	}
+
+	log.Debug("at ploc name")
+
+	a, d = completeConnParams(ctx, ploc, toComplete)
+	log.Debug("conn params", "params", toComplete)
+
+	return a, d
+}
+
+func completeConnParams(ctx context.Context, ploc *parsedLoc, toComplete string) ([]string, cobra.ShellCompDirective) {
+	d := cobra.ShellCompDirectiveNoSpace | cobra.ShellCompDirectiveKeepOrder
+	var a []string
+	drvrParams := getDriverConnParams(ctx, ploc.typ)
+	drvrParamKeys := lo.Keys(drvrParams)
+	slices.Sort(drvrParamKeys)
+	query := ploc.du.RawQuery
+
+	if query == "" {
+		a = stringz.PrefixSlice(drvrParamKeys, toComplete)
+		a = stringz.SuffixSlice(a, "=")
+		return a, d
+	}
+
+	actualKeys, err := stringz.QueryParamKeys(query)
+	if err != nil || len(actualKeys) == 0 {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	elements := strings.Split(ploc.du.RawQuery, "&")
+
+	// could be "sslmo", "sslmode", "sslmode=", "sslmode=dis"
+	lastElement := elements[len(elements)-1]
+	stump := strings.TrimSuffix(toComplete, lastElement)
+
+	before, _, ok := strings.Cut(lastElement, "=")
+
+	if !ok {
+		possibleKeys := stringz.ElementsHavingPrefix(drvrParamKeys, before)
+		for i := range possibleKeys {
+			s := stump + possibleKeys[i] + "="
+			a = append(a, s)
 		}
 
 		return a, d
 	}
 
+	possibleVals := drvrParams[before]
+	if len(possibleVals) == 0 {
+		return nil, d
+	}
+
+	for i := range possibleVals {
+		s := stump + before + "=" + possibleVals[i]
+		a = append(a, s)
+	}
+
+	a = stringz.FilterPrefix(toComplete, a...)
+	if len(a) == 0 {
+		// If it's an unknown value, append "&" to move
+		// on to a further query param.
+		a = []string{toComplete + "&"}
+		return a, d
+	}
+
+	if len(a) == 1 && a[0] == toComplete {
+		// If it's a completed known value ("sslmode=disable"),
+		// then append "?" to move on to a further query param.
+		a[0] += "&"
+	}
+
 	return a, d
-	// return addLocBasics, cobra.ShellCompDirectiveNoFileComp
+}
+
+func getDriverConnParams(ctx context.Context, typ source.DriverType) map[string][]string {
+	ru := run.FromContext(ctx)
+
+	drvr, err := ru.DriverRegistry.DriverFor(typ)
+	if err != nil {
+		// Shouldn't happen
+		lg.FromContext(ctx).Error("Unknown driver type", lga.Driver, typ)
+		return map[string][]string{}
+	}
+
+	sqlDrvr, ok := drvr.(driver.SQLDriver)
+	if !ok {
+		// Shouldn't happen
+		lg.FromContext(ctx).Error("Not a driver.SQLDriver", lga.Driver, typ)
+		return map[string][]string{}
+	}
+
+	return sqlDrvr.ConnParams()
 }
 
 func parseLoc(loc string) *parsedLoc {
@@ -69,6 +246,8 @@ func parseLoc(loc string) *parsedLoc {
 		return p
 	}
 
+	p.stageDone = plocScheme
+
 	var s string
 	var ok bool
 	p.scheme, s, ok = strings.Cut(loc, "://")
@@ -77,7 +256,6 @@ func parseLoc(loc string) *parsedLoc {
 	if s == "" || !ok {
 		return p
 	}
-	p.stageDone = plocScheme
 
 	var creds string
 	creds, s, ok = strings.Cut(s, "@")
@@ -209,6 +387,35 @@ type parsedLoc struct {
 
 	// du holds the parsed db url.
 	du *dburl.URL
+}
+
+func (p *parsedLoc) text() string {
+	if p == nil {
+		return ""
+	}
+
+	if p.du != nil {
+		return p.du.String()
+	}
+
+	sb := strings.Builder{}
+	if p.typ == "" {
+		return sb.String()
+	}
+
+	sb.WriteString(p.typ.String())
+	sb.WriteString("://")
+
+	if p.hostname == "" {
+		return sb.String()
+	}
+
+	sb.WriteString(p.hostname)
+	if p.port >= 0 {
+		sb.WriteString(strconv.Itoa(p.port))
+	}
+
+	return sb.String()
 }
 
 type plocStage string

@@ -96,6 +96,7 @@ func newRun(ctx context.Context, t testing.TB, cfgStore config.Store) (ru *run.R
 		OptionsRegistry: optsReg,
 	}
 
+	require.NoError(t, cli.FinishRunInit(ctx, ru))
 	return ru, out, errOut
 }
 

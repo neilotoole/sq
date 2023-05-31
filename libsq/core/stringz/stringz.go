@@ -9,12 +9,15 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
+	"net/url"
 	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 	"unicode"
+
+	"github.com/samber/lo"
 
 	"github.com/google/uuid"
 
@@ -298,9 +301,9 @@ func SurroundSlice(a []string, w string) []string {
 }
 
 // PrefixSlice returns a new slice with each element
-// of a prefixed with w, unless a is nil, in which
+// of a prefixed with prefix, unless a is nil, in which
 // case nil is returned.
-func PrefixSlice(a []string, w string) []string {
+func PrefixSlice(a []string, prefix string) []string {
 	if a == nil {
 		return nil
 	}
@@ -310,8 +313,8 @@ func PrefixSlice(a []string, w string) []string {
 	ret := make([]string, len(a))
 	sb := strings.Builder{}
 	for i := 0; i < len(a); i++ {
-		sb.Grow(len(a[i]) + len(w))
-		sb.WriteString(w)
+		sb.Grow(len(a[i]) + len(prefix))
+		sb.WriteString(prefix)
 		sb.WriteString(a[i])
 		ret[i] = sb.String()
 		sb.Reset()
@@ -601,4 +604,76 @@ func HasAnyPrefix(s string, prefixes ...string) bool {
 		}
 	}
 	return false
+}
+
+// FilterPrefix returns a new slice containing each element
+// of a that has prefix.
+func FilterPrefix(prefix string, a ...string) []string {
+	return lo.Filter(a, func(item string, index int) bool {
+		return strings.HasPrefix(item, prefix)
+	})
+}
+
+// QueryParamKeys returns the keys of a URL query. This function
+// exists because url.ParseQuery returns a url.Values, which is a
+// map type, and the keys don't preserve order.
+func QueryParamKeys(query string) (keys []string, err error) {
+	// Code is adapted from url.ParseQuery.
+	for query != "" {
+		var key string
+		key, query, _ = strings.Cut(query, "&")
+		if strings.Contains(key, ";") {
+			err = errz.Errorf("invalid semicolon separator in query")
+			continue
+		}
+		if key == "" {
+			continue
+		}
+		key, _, _ = strings.Cut(key, "=")
+		key, err1 := url.QueryUnescape(key)
+		if err1 != nil {
+			if err == nil {
+				err = errz.Err(err1)
+			}
+			continue
+		}
+
+		keys = append(keys, key)
+	}
+	return keys, err
+}
+
+// RenameQueryParamKey renames all instances of oldKey in query
+// to newKey, where query is a URL query string.
+func RenameQueryParamKey(query, oldKey, newKey string) string {
+	if query == "" {
+		return ""
+	}
+
+	parts := strings.Split(query, "&")
+	for i, part := range parts {
+		if part == oldKey {
+			parts[i] = newKey
+			continue
+		}
+
+		if strings.HasPrefix(part, oldKey+"=") {
+			parts[i] = strings.Replace(part, oldKey, newKey, 1)
+		}
+	}
+
+	return strings.Join(parts, "&")
+}
+
+// ElementsHavingPrefix returns the elements of a that have prefix.
+func ElementsHavingPrefix(a []string, prefix string) []string {
+	return lo.Filter(a, func(item string, index int) bool {
+		return strings.HasPrefix(item, prefix)
+	})
+}
+
+// URLStripQuery strips the query params from u.
+func URLStripQuery(u url.URL) string {
+	u.RawQuery = ""
+	return u.String()
 }

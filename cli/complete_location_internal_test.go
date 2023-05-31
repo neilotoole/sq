@@ -15,7 +15,7 @@ func TestParseLoc_stage(t *testing.T) {
 		{"", plocInit},
 		{"postgres", plocInit},
 		{"postgres:/", plocInit},
-		{"postgres://", plocInit}, // FIXME: should be plocScheme?
+		{"postgres://", plocScheme},
 		{"postgres://alice", plocScheme},
 		{"postgres://alice:", plocUser},
 		{"postgres://alice:pass", plocUser},

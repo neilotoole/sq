@@ -57,6 +57,12 @@ type driveri struct {
 	log *slog.Logger
 }
 
+// ConnParams implements driver.SQLDriver.
+func (d *driveri) ConnParams() map[string][]string {
+	// TODO: implement ConnParams for MySQl
+	return map[string][]string{}
+}
+
 // ErrWrapFunc implements driver.SQLDriver.
 func (d *driveri) ErrWrapFunc() func(error) error {
 	return errw

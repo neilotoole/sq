@@ -216,6 +216,13 @@ type SQLDriver interface {
 	// Dialect returns the SQL dialect.
 	Dialect() dialect.Dialect
 
+	// ConnParams returns the db parameters available for use in a connection
+	// string. The key is the parameter name (e.g. "sslmode"), and the value
+	// can be either the set of allowed values, sample values, or nil.
+	// These values are used for shell completion and the like. The returned
+	// map does not have to be exhaustive, and can be nil.
+	ConnParams() map[string][]string
+
 	// ErrWrapFunc returns a func that wraps the driver's errors.
 	ErrWrapFunc() func(error) error
 
