@@ -94,6 +94,7 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 		Description: "PostgreSQL",
 		Doc:         "https://github.com/jackc/pgx",
 		IsSQL:       true,
+		DefaultPort: 5432,
 	}
 }
 

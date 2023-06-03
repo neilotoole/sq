@@ -79,6 +79,7 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 		Description: "Microsoft SQL Server / Azure SQL Edge",
 		Doc:         "https://github.com/microsoft/go-mssqldb",
 		IsSQL:       true,
+		DefaultPort: 1433,
 	}
 }
 

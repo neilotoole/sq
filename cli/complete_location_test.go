@@ -6,17 +6,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/neilotoole/sq/drivers/mysql"
-	"github.com/neilotoole/sq/drivers/postgres"
-	"github.com/neilotoole/sq/drivers/sqlite3"
-	"github.com/neilotoole/sq/drivers/sqlserver"
-	"github.com/neilotoole/sq/libsq/driver"
-	"github.com/neilotoole/sq/libsq/source"
+	"github.com/stretchr/testify/assert"
 
-	"github.com/neilotoole/sq/libsq/core/lg"
-	"github.com/neilotoole/sq/testh"
+	"github.com/neilotoole/sq/cli/cobraz"
 
 	"github.com/neilotoole/slogt"
+	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"github.com/neilotoole/sq/testh/tutil"
 
@@ -32,18 +27,20 @@ var locSchemes = []string{
 	"sqlserver://",
 }
 
+// th := testh.New(t)
+// drvrQueryParams := map[source.DriverType]map[string][]string{}
+// for _, typ := range []source.DriverType{
+// postgres.Type,
+// mysql.Type,
+// sqlite3.Type,
+// sqlserver.Type,
+// } {
+// drvr, _ := th.Registry().DriverFor(typ)
+// drvrQueryParams[typ] = drvr.(driver.SQLDriver).ConnParams()
+// }
+
 func TestCompleteAddLocation(t *testing.T) {
-	th := testh.New(t)
-	drvrQueryParams := map[source.DriverType]map[string][]string{}
-	for _, typ := range []source.DriverType{
-		postgres.Type,
-		mysql.Type,
-		sqlite3.Type,
-		sqlserver.Type,
-	} {
-		drvr, _ := th.Registry().DriverFor(typ)
-		drvrQueryParams[typ] = drvr.(driver.SQLDriver).ConnParams()
-	}
+	const stdDirective = cobra.ShellCompDirectiveNoSpace | cobra.ShellCompDirectiveKeepOrder
 
 	testCases := []struct {
 		// args will have "add" prepended
@@ -52,16 +49,29 @@ func TestCompleteAddLocation(t *testing.T) {
 		wantResult cobra.ShellCompDirective
 	}{
 		{
-			args: []string{""},
-			want: locSchemes,
+			args:       []string{""},
+			want:       locSchemes,
+			wantResult: stdDirective,
 		},
 		{
-			args: []string{"p"},
-			want: []string{"postgres://"},
+			args:       []string{"p"},
+			want:       []string{"postgres://"},
+			wantResult: stdDirective,
 		},
 		{
-			args: []string{"postgres:/"},
-			want: []string{"postgres://"},
+			args:       []string{"s"},
+			want:       []string{"sqlserver://"},
+			wantResult: stdDirective,
+		},
+		{
+			args:       []string{"postgres:/"},
+			want:       []string{"postgres://"},
+			wantResult: stdDirective,
+		},
+		{
+			args:       []string{"sqlserver:/"},
+			want:       []string{"sqlserver://"},
+			wantResult: stdDirective,
 		},
 		{
 			args: []string{"postgres://"},
@@ -70,6 +80,16 @@ func TestCompleteAddLocation(t *testing.T) {
 				"postgres://username",
 				"postgres://username:password",
 			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"sqlserver://"},
+			want: []string{
+				"sqlserver://",
+				"sqlserver://username",
+				"sqlserver://username:password",
+			},
+			wantResult: stdDirective,
 		},
 		{
 			args: []string{"postgres://alice"},
@@ -79,6 +99,7 @@ func TestCompleteAddLocation(t *testing.T) {
 				"postgres://alice:@",
 				"postgres://alice:password@",
 			},
+			wantResult: stdDirective,
 		},
 		{
 			args: []string{"postgres://alice:"},
@@ -87,6 +108,7 @@ func TestCompleteAddLocation(t *testing.T) {
 				"postgres://alice:@",
 				"postgres://alice:password@",
 			},
+			wantResult: stdDirective,
 		},
 		{
 			args: []string{"postgres://alice@"},
@@ -94,6 +116,7 @@ func TestCompleteAddLocation(t *testing.T) {
 				"postgres://alice@localhost/",
 				"postgres://alice@localhost:5432/",
 			},
+			wantResult: stdDirective,
 		},
 		{
 			args: []string{"postgres://alice@server"},
@@ -101,6 +124,15 @@ func TestCompleteAddLocation(t *testing.T) {
 				"postgres://alice@server/",
 				"postgres://alice@server:5432/",
 			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"sqlserver://alice@server"},
+			want: []string{
+				"sqlserver://alice@server/",
+				"sqlserver://alice@server:1433/",
+			},
+			wantResult: stdDirective,
 		},
 		{
 			args: []string{"postgres://alice@localho"},
@@ -110,6 +142,7 @@ func TestCompleteAddLocation(t *testing.T) {
 				"postgres://alice@localhost/",
 				"postgres://alice@localhost:5432/",
 			},
+			wantResult: stdDirective,
 		},
 		{
 			args: []string{"postgres://alice@localhost"},
@@ -117,30 +150,35 @@ func TestCompleteAddLocation(t *testing.T) {
 				"postgres://alice@localhost/",
 				"postgres://alice@localhost:5432/",
 			},
+			wantResult: stdDirective,
 		},
 		{
 			args: []string{"postgres://alice@localhost:"},
 			want: []string{
 				"postgres://alice@localhost:5432/",
 			},
+			wantResult: stdDirective,
 		},
 		{
 			args: []string{"postgres://alice@localhost:80"},
 			want: []string{
 				"postgres://alice@localhost:80/",
 			},
+			wantResult: stdDirective,
 		},
 		{
 			args: []string{"postgres://alice@localhost/"},
 			want: []string{
 				"postgres://alice@localhost/db",
 			},
+			wantResult: stdDirective,
 		},
 		{
 			args: []string{"postgres://alice@localhost/sales"},
 			want: []string{
 				"postgres://alice@localhost/sales?",
 			},
+			wantResult: stdDirective,
 		},
 		{
 			args: []string{"postgres://alice@localhost/sales?"},
@@ -152,24 +190,28 @@ func TestCompleteAddLocation(t *testing.T) {
 				"postgres://alice@localhost/sales?gssencmode=",
 				"postgres://alice@localhost/sales?sslmode=",
 			},
+			wantResult: stdDirective,
 		},
 		{
 			args: []string{"postgres://alice@localhost/sales?ss"},
 			want: []string{
 				"postgres://alice@localhost/sales?sslmode=",
 			},
+			wantResult: stdDirective,
 		},
 		{
 			args: []string{"postgres://alice@localhost/sales?a=1&b=2&ss"},
 			want: []string{
 				"postgres://alice@localhost/sales?a=1&b=2&sslmode=",
 			},
+			wantResult: stdDirective,
 		},
 		{
 			args: []string{"postgres://alice@localhost/sales?a=1&b=2&sslmode"},
 			want: []string{
 				"postgres://alice@localhost/sales?a=1&b=2&sslmode=",
 			},
+			wantResult: stdDirective,
 		},
 		{
 			args: []string{"postgres://alice@localhost/sales?sslmode="},
@@ -181,6 +223,7 @@ func TestCompleteAddLocation(t *testing.T) {
 				"postgres://alice@localhost/sales?sslmode=verify-ca",
 				"postgres://alice@localhost/sales?sslmode=verify-full",
 			},
+			wantResult: stdDirective,
 		},
 		{
 			args: []string{"postgres://alice@localhost/sales?sslmode=v"},
@@ -188,6 +231,7 @@ func TestCompleteAddLocation(t *testing.T) {
 				"postgres://alice@localhost/sales?sslmode=verify-ca",
 				"postgres://alice@localhost/sales?sslmode=verify-full",
 			},
+			wantResult: stdDirective,
 		},
 		{
 			args: []string{"postgres://alice@localhost/sales?sslmode=verify-"},
@@ -195,30 +239,54 @@ func TestCompleteAddLocation(t *testing.T) {
 				"postgres://alice@localhost/sales?sslmode=verify-ca",
 				"postgres://alice@localhost/sales?sslmode=verify-full",
 			},
+			wantResult: stdDirective,
 		},
 		{
 			args: []string{"postgres://alice@localhost/sales?sslmode=verify-ful"},
 			want: []string{
 				"postgres://alice@localhost/sales?sslmode=verify-full",
 			},
+			wantResult: stdDirective,
 		},
 		{
 			args: []string{"postgres://alice@localhost/sales?sslmode=verify-full"},
 			want: []string{
 				"postgres://alice@localhost/sales?sslmode=verify-full&",
 			},
+			wantResult: stdDirective,
 		},
 		{
 			args: []string{"postgres://alice@localhost/sales?sslmode=verify-full-something"},
 			want: []string{
 				"postgres://alice@localhost/sales?sslmode=verify-full-something&",
 			},
+			wantResult: stdDirective,
 		},
 		{
 			args: []string{"postgres://alice@localhost/sales?sslmode=disable"},
 			want: []string{
 				"postgres://alice@localhost/sales?sslmode=disable&",
 			},
+			wantResult: stdDirective,
+		},
+		{
+			// Note the extra "?", which apparently is valid
+			args:       []string{"postgres://alice@localhost/sales?sslmode=disable?"},
+			want:       []string{"postgres://alice@localhost/sales?sslmode=disable?&"},
+			wantResult: stdDirective,
+		},
+		{
+			// Being that sslmode is already specified, it should not appear a
+			// second time.
+			args: []string{"postgres://alice@localhost/sales?sslmode=disable&"},
+			want: []string{
+				"postgres://alice@localhost/sales?sslmode=disable&application_name=",
+				"postgres://alice@localhost/sales?sslmode=disable&channel_binding=",
+				"postgres://alice@localhost/sales?sslmode=disable&connect_timeout=",
+				"postgres://alice@localhost/sales?sslmode=disable&fallback_application_name=",
+				"postgres://alice@localhost/sales?sslmode=disable&gssencmode=",
+			},
+			wantResult: stdDirective,
 		},
 	}
 
@@ -227,8 +295,8 @@ func TestCompleteAddLocation(t *testing.T) {
 		t.Run(tutil.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
 			args := append([]string{"add"}, tc.args...)
 			got := testComplete(t, nil, args...)
-			// require.Equal(t, tc.wantResult, got.result)
-			require.Equal(t, tc.want, got.values)
+			assert.Equal(t, tc.wantResult, got.result, got.directives)
+			assert.Equal(t, tc.want, got.values)
 		})
 	}
 }
@@ -269,30 +337,7 @@ func parseCompletion(tr *testrun.TestRun) completion {
 	require.NoError(tr.T, err)
 	c.result = cobra.ShellCompDirective(result)
 
-	directiveLine := strings.TrimPrefix(strings.TrimSpace(c.stderr), "Completion ended with directive: ")
-	directives := strings.Split(directiveLine, ", ")
-
-	for _, d := range directives {
-		switch d {
-		case "ShellCompDirectiveError":
-			c.directives = append(c.directives, cobra.ShellCompDirectiveError)
-		case "ShellCompDirectiveNoSpace":
-			c.directives = append(c.directives, cobra.ShellCompDirectiveNoSpace)
-		case "ShellCompDirectiveNoFileComp":
-			c.directives = append(c.directives, cobra.ShellCompDirectiveNoFileComp)
-		case "ShellCompDirectiveFilterFileExt":
-			c.directives = append(c.directives, cobra.ShellCompDirectiveFilterFileExt)
-		case "ShellCompDirectiveFilterDirs":
-			c.directives = append(c.directives, cobra.ShellCompDirectiveFilterDirs)
-		case "ShellCompDirectiveKeepOrder":
-			c.directives = append(c.directives, cobra.ShellCompDirectiveKeepOrder)
-		case "ShellCompDirectiveDefault":
-			c.directives = append(c.directives, cobra.ShellCompDirectiveDefault)
-		default:
-			tr.T.Fatalf("Unknown cobra.ShellCompDirective: %s", directiveLine)
-		}
-	}
-
+	c.directives = cobraz.ParseDirectivesLine(c.stderr)
 	return c
 }
 

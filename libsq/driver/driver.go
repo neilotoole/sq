@@ -349,25 +349,29 @@ type Database interface {
 // Metadata holds driver metadata.
 type Metadata struct {
 	// Type is the driver type, e.g. "mysql" or "csv", etc.
-	Type source.DriverType `json:"type"`
+	Type source.DriverType `json:"type" yaml:"type"`
 
 	// Description is typically the long name of the driver, e.g.
 	// "MySQL" or "Microsoft Excel XLSX".
-	Description string `json:"description"`
+	Description string `json:"description" yaml:"description"`
 
 	// Doc is optional documentation, typically a URL.
-	Doc string `json:"doc,omitempty"`
+	Doc string `json:"doc,omitempty" yaml:"doc,omitempty"`
 
 	// UserDefined is true if this driver is the product of a
 	// user driver definition, and false if built-in.
-	UserDefined bool `json:"user_defined"`
+	UserDefined bool `json:"user_defined" yaml:"user_defined"`
 
 	// IsSQL is true if this driver is a SQL driver.
-	IsSQL bool `json:"is_sql"`
+	IsSQL bool `json:"is_sql" yaml:"is_sql"`
 
 	// Monotable is true if this is a non-SQL document type that
 	// effectively has a single table, such as CSV.
-	Monotable bool `json:"monotable"`
+	Monotable bool `json:"monotable" yaml:"monotable"`
+
+	// DefaultPort is the default port that a driver connects on. A
+	// value <= 0 indicates not applicable.
+	DefaultPort int `json:"default_port" yaml:"default_port"`
 }
 
 var _ DatabaseOpener = (*Databases)(nil)

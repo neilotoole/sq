@@ -1,10 +1,13 @@
 package cli
 
 import (
-	"context"
 	"net/url"
 	"strconv"
 	"strings"
+
+	"github.com/neilotoole/sq/libsq/core/errz"
+
+	"golang.org/x/exp/slog"
 
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -24,38 +27,47 @@ import (
 
 	"github.com/neilotoole/sq/libsq/source"
 
-	"github.com/neilotoole/sq/libsq/core/errz"
-
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 )
 
 // completeAddLocation provides completion for the "sq add LOCATION" arg.
-func completeAddLocation(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-	ctx := cmd.Context()
-	log := lg.FromContext(ctx)
-	ru := run.FromContext(ctx)
+func completeAddLocation(cmd *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	var (
+		ctx = cmd.Context()
+		log = lg.FromContext(ctx)
+		ru  = run.FromContext(ctx)
+		lch = &locCompleteHelper{
+			ru:  ru,
+			log: log,
+		}
+	)
+
 	if err := FinishRunInit(ctx, ru); err != nil {
 		log.Error("Init run", lga.Err, err)
 		return nil, cobra.ShellCompDirectiveError
 	}
 
 	var a []string
-	d := cobra.ShellCompDirectiveNoSpace | cobra.ShellCompDirectiveKeepOrder
+	const d = cobra.ShellCompDirectiveNoSpace | cobra.ShellCompDirectiveKeepOrder
 
 	if toComplete == "" {
-		return locSchemes, cobra.ShellCompDirectiveDefault
+		return locSchemes, d
 	}
 
 	if !stringz.HasAnyPrefix(toComplete, locSchemes...) {
-		return filterPrefix(toComplete, locSchemes...), d
+		return stringz.FilterPrefix(toComplete, locSchemes...), d
 	}
 
-	ploc := parseLoc(toComplete)
+	ploc, err := lch.parseLoc(toComplete)
+	if err != nil {
+		log.Error("parse location", lga.Err, err)
+		return nil, cobra.ShellCompDirectiveError
+	}
 	stageDone := ploc.stageDone
 	log.Debug("ploc stage", lga.Val, stageDone)
 
-	switch stageDone {
+	switch stageDone { //nolint:exhaustive
 	case plocScheme:
 		if ploc.user == "" {
 			a = []string{
@@ -104,29 +116,46 @@ func completeAddLocation(cmd *cobra.Command, args []string, toComplete string) (
 		base, _, _ := strings.Cut(toComplete, "@")
 		base += "@"
 
+		defaultPort := lch.driverPort()
+
 		if ploc.port <= 0 {
-			a = []string{
-				toComplete + "/",
-				toComplete + ":5432/",
-				base + "localhost/",
-				base + "localhost:5432/",
+			if defaultPort == "" {
+				a = []string{
+					toComplete + "/",
+					base + "localhost/",
+				}
+			} else {
+				a = []string{
+					toComplete + "/",
+					toComplete + ":" + defaultPort + "/",
+					base + "localhost/",
+					base + "localhost:" + defaultPort + "/",
+				}
 			}
 
 			a = lo.Uniq(stringz.FilterPrefix(toComplete, a...))
 			return a, d
 		}
 
-		a = []string{
-			base + "localhost/",
-			base + "localhost:5432/",
-			toComplete + "/",
+		if defaultPort == "" {
+			a = []string{
+				base + "localhost/",
+				toComplete + "/",
+			}
+		} else {
+			a = []string{
+				base + "localhost/",
+				base + "localhost:" + defaultPort + "/",
+				toComplete + "/",
+			}
 		}
 
 		a = stringz.FilterPrefix(toComplete, a...)
 		return a, d
 	case plocHostname:
+		defaultPort := lch.driverPort()
 		if strings.HasSuffix(toComplete, ":") {
-			a = []string{toComplete + "5432/"}
+			a = []string{toComplete + defaultPort + "/"}
 			return a, d
 		}
 
@@ -143,24 +172,21 @@ func completeAddLocation(cmd *cobra.Command, args []string, toComplete string) (
 		return a, d
 
 	default:
-		// We're at plocName, continue below
+		// We're at plocName (db name is done), so it's on to conn params
+		return completeConnParams(lch, toComplete)
 	}
-
-	log.Debug("at ploc name")
-
-	a, d = completeConnParams(ctx, ploc, toComplete)
-	log.Debug("conn params", "params", toComplete)
-
-	return a, d
 }
 
-func completeConnParams(ctx context.Context, ploc *parsedLoc, toComplete string) ([]string, cobra.ShellCompDirective) {
-	d := cobra.ShellCompDirectiveNoSpace | cobra.ShellCompDirectiveKeepOrder
-	var a []string
-	drvrParams := getDriverConnParams(ctx, ploc.typ)
-	drvrParamKeys := lo.Keys(drvrParams)
+func completeConnParams(lch *locCompleteHelper, toComplete string) ([]string, cobra.ShellCompDirective) {
+	var (
+		d             = cobra.ShellCompDirectiveNoSpace | cobra.ShellCompDirectiveKeepOrder
+		a             []string
+		drvrParams    = lch.drvr.ConnParams()
+		drvrParamKeys = lo.Keys(drvrParams)
+		query         = lch.ploc.du.RawQuery
+	)
+
 	slices.Sort(drvrParamKeys)
-	query := ploc.du.RawQuery
 
 	if query == "" {
 		a = stringz.PrefixSlice(drvrParamKeys, toComplete)
@@ -173,7 +199,12 @@ func completeConnParams(ctx context.Context, ploc *parsedLoc, toComplete string)
 		return nil, cobra.ShellCompDirectiveError
 	}
 
-	elements := strings.Split(ploc.du.RawQuery, "&")
+	actualValues, err := url.ParseQuery(query)
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	elements := strings.Split(lch.ploc.du.RawQuery, "&")
 
 	// could be "sslmo", "sslmode", "sslmode=", "sslmode=dis"
 	lastElement := elements[len(elements)-1]
@@ -182,22 +213,42 @@ func completeConnParams(ctx context.Context, ploc *parsedLoc, toComplete string)
 	before, _, ok := strings.Cut(lastElement, "=")
 
 	if !ok {
-		possibleKeys := stringz.ElementsHavingPrefix(drvrParamKeys, before)
-		for i := range possibleKeys {
-			s := stump + possibleKeys[i] + "="
+		candidateKeys := stringz.ElementsHavingPrefix(drvrParamKeys, before)
+
+		candidateKeys = lo.Reject(candidateKeys, func(candidateKey string, index int) bool {
+			// We don't want the same candidate to show up twice, so we exclude
+			// it, but only if it already has a value in the query string.
+			if slices.Contains(actualKeys, candidateKey) {
+				vals, ok := actualValues[candidateKey]
+				if !ok || len(vals) == 0 {
+					return false
+				}
+
+				for _, val := range vals {
+					if val != "" {
+						return true
+					}
+				}
+			}
+
+			return false
+		})
+
+		for i := range candidateKeys {
+			s := stump + candidateKeys[i] + "="
 			a = append(a, s)
 		}
 
 		return a, d
 	}
 
-	possibleVals := drvrParams[before]
-	if len(possibleVals) == 0 {
+	candidateVals := drvrParams[before]
+	if len(candidateVals) == 0 {
 		return nil, d
 	}
 
-	for i := range possibleVals {
-		s := stump + before + "=" + possibleVals[i]
+	for i := range candidateVals {
+		s := stump + before + "=" + candidateVals[i]
 		a = append(a, s)
 	}
 
@@ -218,32 +269,35 @@ func completeConnParams(ctx context.Context, ploc *parsedLoc, toComplete string)
 	return a, d
 }
 
-func getDriverConnParams(ctx context.Context, typ source.DriverType) map[string][]string {
-	ru := run.FromContext(ctx)
-
-	drvr, err := ru.DriverRegistry.DriverFor(typ)
-	if err != nil {
-		// Shouldn't happen
-		lg.FromContext(ctx).Error("Unknown driver type", lga.Driver, typ)
-		return map[string][]string{}
-	}
-
-	sqlDrvr, ok := drvr.(driver.SQLDriver)
-	if !ok {
-		// Shouldn't happen
-		lg.FromContext(ctx).Error("Not a driver.SQLDriver", lga.Driver, typ)
-		return map[string][]string{}
-	}
-
-	return sqlDrvr.ConnParams()
+// locCompleteHelper is a helper for completing the "sq add location" arg.
+type locCompleteHelper struct {
+	ru   *run.Run
+	log  *slog.Logger
+	ploc *parsedLoc
+	drvr driver.SQLDriver
 }
 
-func parseLoc(loc string) *parsedLoc {
-	p := &parsedLoc{}
-	p.loc = loc
+// driverPort returns the default port for the driver
+// type from h.ploc.typ, or empty string if not applicable.
+func (h *locCompleteHelper) driverPort() string {
+	if h.drvr == nil {
+		panic("invoke loadDriver first")
+	}
+
+	p := h.drvr.DriverMetadata().DefaultPort
+	if p <= 0 {
+		return ""
+	}
+
+	return strconv.Itoa(p)
+}
+
+func (h *locCompleteHelper) parseLoc(loc string) (*parsedLoc, error) {
+	h.ploc = &parsedLoc{loc: loc}
+	p := h.ploc
 
 	if !stringz.HasAnyPrefix(loc, locSchemes...) {
-		return p
+		return p, nil
 	}
 
 	p.stageDone = plocScheme
@@ -253,8 +307,13 @@ func parseLoc(loc string) *parsedLoc {
 	p.scheme, s, ok = strings.Cut(loc, "://")
 	p.typ = source.DriverType(p.scheme)
 
+	var err error
+	if h.drvr, err = h.ru.DriverRegistry.SQLDriverFor(p.typ); err != nil {
+		return nil, err
+	}
+
 	if s == "" || !ok {
-		return p
+		return p, nil
 	}
 
 	var creds string
@@ -272,7 +331,7 @@ func parseLoc(loc string) *parsedLoc {
 		}
 	}
 	if !ok {
-		return p
+		return p, nil
 	}
 
 	p.stageDone = plocPass
@@ -286,7 +345,7 @@ func parseLoc(loc string) *parsedLoc {
 	//
 	du, err := dburl.Parse(p.loc)
 	if err != nil {
-		return p
+		return p, errz.Err(err)
 	}
 	p.du = du
 
@@ -304,14 +363,14 @@ func parseLoc(loc string) *parsedLoc {
 
 	if du.Port() != "" {
 		p.stageDone = plocHostname
-		p.port, _ = strconv.Atoi(du.Port())
+		p.port, err = strconv.Atoi(du.Port())
 		if err != nil {
 			p.port = -1
-			return p
+			return p, nil //nolint:nilerr
 		}
 	}
 
-	switch p.typ {
+	switch p.typ { //nolint:exhaustive
 	default:
 	case sqlserver.Type:
 		var u *url.URL
@@ -333,18 +392,18 @@ func parseLoc(loc string) *parsedLoc {
 	}
 
 	if p.name == "" {
-		return p
+		return p, nil
 	}
 
 	if strings.HasSuffix(s, "?") {
-		p.stageDone = plocName
+		p.stageDone = plocPath
 	}
 
 	if du.URL.RawQuery != "" {
-		p.stageDone = plocName
+		p.stageDone = plocPath
 	}
 
-	return p
+	return p, nil
 }
 
 // parsedLoc is a parsed representation of a source location.
@@ -379,7 +438,7 @@ type parsedLoc struct {
 	name string
 
 	// ext is the file extension, if applicable.
-	ext string
+	ext string //nolint:unused
 
 	// dsn is the connection "data source name" that can be used in a
 	// call to sql/Open. Empty for non-SQL locations.
@@ -389,7 +448,8 @@ type parsedLoc struct {
 	du *dburl.URL
 }
 
-func (p *parsedLoc) text() string {
+// FIXME: do we still parsedLoc.text?
+func (p *parsedLoc) text() string { //nolint:unused
 	if p == nil {
 		return ""
 	}
@@ -422,50 +482,16 @@ type plocStage string
 
 const (
 	plocInit     plocStage = ""
-	plocScheme             = "scheme"
-	plocUser               = "user"
-	plocPass               = "pass"
-	plocHostname           = "hostname"
-	plocHost               = "host" // host is hostname+port, or just hostname
-	plocName               = "name"
+	plocScheme   plocStage = "scheme"
+	plocUser     plocStage = "user"
+	plocPass     plocStage = "pass"
+	plocHostname plocStage = "hostname"
+	plocHost     plocStage = "host" // host is hostname+port, or just hostname
+	plocPath     plocStage = "path"
 )
-
-func filterPrefix(prefix string, a ...string) []string {
-	return lo.Filter(a, func(item string, index int) bool {
-		return strings.HasPrefix(item, prefix)
-	})
-}
-
-type dsnParser struct {
-	input string
-	url   *url.URL
-}
-
-func (p *dsnParser) parse(input string) error {
-	p.input = input
-	u, err := url.ParseRequestURI(input)
-	if err != nil {
-		return errz.Err(err)
-	}
-	p.url = u
-	return nil
-}
 
 var locSchemes = []string{
 	"mysql://",
 	"postgres://",
 	"sqlserver://",
 }
-
-var addLocBasics = []string{
-	`mysql://user:pass@localhost/db`,
-	`postgres://user:pass@localhost/db`,
-	`sqlserver://user:pass@localhost\?database=db`,
-}
-
-/*
-sq add postgres://sakila:p_ssW0rd@192.168.50.132/sakila
-sq add sqlserver://sakila:p_ssW0rd@192.168.50.130\?database=sakila
-sq add sqlserver://sakila:p_ssW0rd@192.168.50.130\?database=sakila&\keepAlive=30
-
-*/

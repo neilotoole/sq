@@ -80,6 +80,7 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 		Description: "MySQL",
 		Doc:         "https://github.com/go-sql-driver/mysql",
 		IsSQL:       true,
+		DefaultPort: 3306,
 	}
 }
 

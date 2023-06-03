@@ -10,9 +10,10 @@
 // usage pattern by eliminating all pkg-level constructs
 // (which makes testing easier).
 //
-// All interaction with cobra should happen inside this package.
+// All interaction with cobra should happen inside this package, or
+// via the utility cli/cobraz package.
 // That is to say, the spf13/cobra package should not be imported
-// anywhere outside this package.
+// anywhere outside this package and cli/cobraz.
 //
 // The entry point to this pkg is the Execute function.
 package cli
