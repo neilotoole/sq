@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neilotoole/sq/cli/run"
+
 	"github.com/neilotoole/sq/drivers"
 
 	"github.com/neilotoole/sq/cli"
@@ -97,6 +99,7 @@ type Helper struct {
 	registry  *driver.Registry
 	files     *source.Files
 	databases *driver.Databases
+	run       *run.Run
 
 	initOnce sync.Once
 
@@ -191,6 +194,16 @@ func (h *Helper) init() {
 		h.files.AddDriverDetectors(xlsx.DetectXLSX)
 
 		h.addUserDrivers()
+
+		h.run = &run.Run{
+			Stdin:           os.Stdin,
+			Out:             os.Stdout,
+			ErrOut:          os.Stdin,
+			Config:          config.New(),
+			ConfigStore:     config.DiscardStore{},
+			OptionsRegistry: &options.Registry{},
+			DriverRegistry:  h.registry,
+		}
 	})
 }
 
@@ -604,6 +617,12 @@ func (h *Helper) TruncateTable(src *source.Source, tbl string) (affected int64) 
 func (h *Helper) Registry() *driver.Registry {
 	h.init()
 	return h.registry
+}
+
+// Run returns the helper's run instance.
+func (h *Helper) Run() *run.Run {
+	h.init()
+	return h.run
 }
 
 // addUserDrivers adds some user drivers to the registry.

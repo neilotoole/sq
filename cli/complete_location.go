@@ -104,10 +104,19 @@ func completeAddLocation(cmd *cobra.Command, _ []string, toComplete string) ([]s
 
 		return a, d
 	case plocPass:
+		defaultPort := lch.driverPort()
+		afterHost := lch.afterHost()
+
 		if ploc.hostname == "" {
-			a = []string{
-				toComplete + "localhost/",
-				toComplete + "localhost:5432/",
+			if defaultPort == "" {
+				a = []string{
+					toComplete + "localhost" + afterHost,
+				}
+			} else {
+				a = []string{
+					toComplete + "localhost" + afterHost,
+					toComplete + "localhost:" + defaultPort + afterHost,
+				}
 			}
 
 			return a, d
@@ -116,20 +125,18 @@ func completeAddLocation(cmd *cobra.Command, _ []string, toComplete string) ([]s
 		base, _, _ := strings.Cut(toComplete, "@")
 		base += "@"
 
-		defaultPort := lch.driverPort()
-
 		if ploc.port <= 0 {
 			if defaultPort == "" {
 				a = []string{
-					toComplete + "/",
-					base + "localhost/",
+					toComplete + afterHost,
+					base + "localhost" + afterHost,
 				}
 			} else {
 				a = []string{
-					toComplete + "/",
-					toComplete + ":" + defaultPort + "/",
-					base + "localhost/",
-					base + "localhost:" + defaultPort + "/",
+					toComplete + afterHost,
+					toComplete + ":" + defaultPort + afterHost,
+					base + "localhost" + afterHost,
+					base + "localhost:" + defaultPort + afterHost,
 				}
 			}
 
@@ -139,14 +146,14 @@ func completeAddLocation(cmd *cobra.Command, _ []string, toComplete string) ([]s
 
 		if defaultPort == "" {
 			a = []string{
-				base + "localhost/",
-				toComplete + "/",
+				base + "localhost" + afterHost,
+				toComplete + afterHost,
 			}
 		} else {
 			a = []string{
-				base + "localhost/",
-				base + "localhost:" + defaultPort + "/",
-				toComplete + "/",
+				base + "localhost" + afterHost,
+				base + "localhost:" + defaultPort + afterHost,
+				toComplete + afterHost,
 			}
 		}
 
@@ -154,15 +161,30 @@ func completeAddLocation(cmd *cobra.Command, _ []string, toComplete string) ([]s
 		return a, d
 	case plocHostname:
 		defaultPort := lch.driverPort()
+		afterHost := lch.afterHost()
 		if strings.HasSuffix(toComplete, ":") {
-			a = []string{toComplete + defaultPort + "/"}
+			a = []string{toComplete + defaultPort + afterHost}
 			return a, d
 		}
 
-		a = []string{toComplete + "/"}
+		a = []string{toComplete + afterHost}
 		return a, d
 
 	case plocHost:
+		// Special handling for SQLServer. The string should be of the form:
+		//  sqlserver://alice@server?database=db
+		// If instead it's of the form:
+		//  sqlserver://alice@server/
+		// Then that's an error.
+		// // FIXME: allow this because sqlserver://alice@server/instance is valid.
+		if ploc.typ == sqlserver.Type {
+			if strings.HasPrefix(ploc.du.Path, "/") {
+
+				log.Error("sqlserver URL path has illegal /", lga.URL, ploc.du.URL.String())
+				return nil, cobra.ShellCompDirectiveError
+			}
+		}
+
 		if ploc.name == "" {
 			a = []string{toComplete + "db"}
 			return a, d
@@ -179,14 +201,12 @@ func completeAddLocation(cmd *cobra.Command, _ []string, toComplete string) ([]s
 
 func completeConnParams(lch *locCompleteHelper, toComplete string) ([]string, cobra.ShellCompDirective) {
 	var (
-		d             = cobra.ShellCompDirectiveNoSpace | cobra.ShellCompDirectiveKeepOrder
-		a             []string
-		drvrParams    = lch.drvr.ConnParams()
-		drvrParamKeys = lo.Keys(drvrParams)
-		query         = lch.ploc.du.RawQuery
+		d     = cobra.ShellCompDirectiveNoSpace | cobra.ShellCompDirectiveKeepOrder
+		a     []string
+		query = lch.ploc.du.RawQuery
 	)
 
-	slices.Sort(drvrParamKeys)
+	drvrParamKeys, drvrParams := lch.connParams()
 
 	if query == "" {
 		a = stringz.PrefixSlice(drvrParamKeys, toComplete)
@@ -243,9 +263,9 @@ func completeConnParams(lch *locCompleteHelper, toComplete string) ([]string, co
 	}
 
 	candidateVals := drvrParams[before]
-	if len(candidateVals) == 0 {
-		return nil, d
-	}
+	//if len(candidateVals) == 0 {
+	//	return nil, d
+	//}
 
 	for i := range candidateVals {
 		s := stump + before + "=" + candidateVals[i]
@@ -277,6 +297,32 @@ type locCompleteHelper struct {
 	drvr driver.SQLDriver
 }
 
+// connParams returns the driver's connection params. The returned keys
+// are sorted appropriately for the driver, and are query encoded.
+func (h *locCompleteHelper) connParams() (keys []string, params map[string][]string) {
+	ogParams := h.drvr.ConnParams()
+	ogKeys := lo.Keys(ogParams)
+	slices.Sort(ogKeys)
+
+	if h.ploc.typ == sqlserver.Type {
+		// For SQLServer, the "database" key should come first, because
+		// it's required.
+		ogKeys = lo.Without(ogKeys, "database")
+		ogKeys = append([]string{"database"}, ogKeys...)
+	}
+
+	keys = make([]string, len(ogKeys))
+	params = make(map[string][]string, len(ogParams))
+
+	for i := range ogKeys {
+		k := url.QueryEscape(ogKeys[i])
+		keys[i] = k
+		params[k] = ogParams[ogKeys[i]]
+	}
+
+	return keys, params
+}
+
 // driverPort returns the default port for the driver
 // type from h.ploc.typ, or empty string if not applicable.
 func (h *locCompleteHelper) driverPort() string {
@@ -290,6 +336,14 @@ func (h *locCompleteHelper) driverPort() string {
 	}
 
 	return strconv.Itoa(p)
+}
+
+func (h *locCompleteHelper) afterHost() string {
+	if h.ploc.typ == sqlserver.Type {
+		return "?database="
+	}
+
+	return "/"
 }
 
 func (h *locCompleteHelper) parseLoc(loc string) (*parsedLoc, error) {
@@ -389,10 +443,6 @@ func (h *locCompleteHelper) parseLoc(loc string) (*parsedLoc, error) {
 
 	if strings.HasSuffix(s, "/") || strings.HasSuffix(s, `\?`) || du.URL.Path != "" {
 		p.stageDone = plocHost
-	}
-
-	if p.name == "" {
-		return p, nil
 	}
 
 	if strings.HasSuffix(s, "?") {
