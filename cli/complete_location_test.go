@@ -2,9 +2,13 @@ package cli_test
 
 import (
 	"context"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/samber/lo"
 
 	"github.com/neilotoole/sq/testh"
 
@@ -34,6 +38,9 @@ var locSchemes = []string{
 const stdDirective = cobra.ShellCompDirectiveNoSpace | cobra.ShellCompDirectiveKeepOrder
 
 func TestCompleteAddLocation_Postgres(t *testing.T) {
+	wd := tutil.Chdir(t, filepath.Join("testdata", "add_location"))
+	t.Logf("Working dir: %s", wd)
+
 	testCases := []struct {
 		// args will have "add" prepended
 		args       []string
@@ -42,12 +49,12 @@ func TestCompleteAddLocation_Postgres(t *testing.T) {
 	}{
 		{
 			args:       []string{""},
-			want:       locSchemes,
+			want:       lo.Union(locSchemes, []string{"my/", "my.db", "post/", "post.db"}),
 			wantResult: stdDirective,
 		},
 		{
 			args:       []string{"p"},
-			want:       []string{"postgres://"},
+			want:       []string{"postgres://", "post/", "post.db"},
 			wantResult: stdDirective,
 		},
 		{
@@ -267,16 +274,14 @@ func TestCompleteAddLocation_Postgres(t *testing.T) {
 }
 
 func TestCompleteAddLocation_SQLServer(t *testing.T) {
+	wd := tutil.Chdir(t, filepath.Join("testdata", "add_location"))
+	t.Logf("Working dir: %s", wd)
+
 	testCases := []struct {
 		args       []string
 		want       []string
 		wantResult cobra.ShellCompDirective
 	}{
-		{
-			args:       []string{""},
-			want:       locSchemes,
-			wantResult: stdDirective,
-		},
 		{
 			args:       []string{"sqlse"},
 			want:       []string{"sqlserver://"},
@@ -399,21 +404,30 @@ func TestCompleteAddLocation_SQLServer(t *testing.T) {
 }
 
 func TestCompleteAddLocation_MySQL(t *testing.T) {
+	wd := tutil.Chdir(t, filepath.Join("testdata", "add_location"))
+	t.Logf("Working dir: %s", wd)
+
 	testCases := []struct {
-		// args will have "add" prepended
 		args       []string
 		want       []string
 		wantResult cobra.ShellCompDirective
 	}{
 		{
-			args:       []string{""},
-			want:       locSchemes,
+			args:       []string{"m"},
+			want:       []string{"mysql://", "my/", "my.db"},
 			wantResult: stdDirective,
 		},
 		{
-			args:       []string{"m"},
-			want:       []string{"mysql://"},
+			args:       []string{"my"},
+			want:       []string{"mysql://", "my/", "my.db"},
 			wantResult: stdDirective,
+		},
+		{
+			// When the input is definitively not a db url, the completion
+			// switches to the default shell (file) completion.
+			args:       []string{"my/"},
+			want:       []string{},
+			wantResult: cobra.ShellCompDirectiveDefault,
 		},
 		{
 			args:       []string{"mysql"},
@@ -719,6 +733,49 @@ func TestParseLoc_stage(t *testing.T) {
 			gotStage, err := cli.DoTestParseLocStage(t, ru, tc.loc)
 			require.NoError(t, err)
 			require.Equal(t, tc.want, gotStage)
+		})
+	}
+}
+
+func TestDoCompleteAddLocationFile(t *testing.T) {
+	absDir := tutil.Chdir(t, filepath.Join("testdata", "add_location"))
+	t.Logf("Working dir: %s", absDir)
+
+	testCases := []struct {
+		in      string
+		want    []string
+		wantErr bool
+	}{
+		{"", []string{"my/", "my.db", "post/", "post.db"}, false},
+		{"m", []string{"my/", "my.db"}, false},
+		{"my", []string{"my/", "my.db"}, false},
+		{"my/", []string{"my/my1.db", "my/my_nest/"}, false},
+		{"my/my", []string{"my/my1.db", "my/my_nest/"}, false},
+		{"my/my1", []string{"my/my1.db"}, false},
+		{"my/my1.db", []string{"my/my1.db"}, false},
+		{"my/my_nes", []string{"my/my_nest/"}, false},
+		{"my/my_nest", []string{"my/my_nest/"}, false},
+		{"my/my_nest/", []string{"my/my_nest/my2.db"}, false},
+		{
+			absDir + "/",
+			stringz.PrefixSlice([]string{"my/", "my.db", "post/", "post.db"}, absDir+"/"),
+			false,
+		},
+	}
+
+	for i, tc := range testCases {
+		tc := tc
+		t.Run(tutil.Name(i, tc.in), func(t *testing.T) {
+			t.Logf("input: %s", tc.in)
+			t.Logf("want:  %s", tc.want)
+			got, gotErr := cli.DoCompleteAddLocationFile(tc.in)
+			if tc.wantErr {
+				require.Error(t, gotErr)
+				return
+			}
+
+			require.NoError(t, gotErr)
+			require.Equal(t, tc.want, got)
 		})
 	}
 }

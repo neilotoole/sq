@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -317,4 +318,35 @@ func (t *tWriter) Write(p []byte) (n int, err error) {
 	t.t.Helper()
 	t.t.Log("\n" + string(p))
 	return len(p), nil
+}
+
+// Chdir changes the working directory to dir, or if dir is empty,
+// to a temp dir. On test end, the original working dir is restored,
+// and the temp dir deleted (if applicable). The absolute path
+// of the changed working dir is returned.
+func Chdir(t *testing.T, dir string) (absDir string) {
+	origDir, err := os.Getwd()
+	require.NoError(t, err)
+
+	if filepath.IsAbs(dir) {
+		absDir = dir
+	} else {
+		absDir, err = filepath.Abs(dir)
+		require.NoError(t, err)
+	}
+
+	if dir == "" {
+		tmpDir := t.TempDir()
+		t.Cleanup(func() {
+			_ = os.Remove(tmpDir)
+		})
+		dir = tmpDir
+	}
+
+	require.NoError(t, os.Chdir(dir))
+	t.Cleanup(func() {
+		_ = os.Chdir(origDir)
+	})
+
+	return absDir
 }

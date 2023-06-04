@@ -22,6 +22,8 @@ const (
 	PlocPath     = plocPath
 )
 
+var DoCompleteAddLocationFile = doCompleteAddLocationFile
+
 // ToTestParseLocStage is a helper to test the
 // non-exported locCompletionHelper.parseLoc method.
 func DoTestParseLocStage(t testing.TB, ru *run.Run, loc string) (PlocStage, error) { //nolint:revive

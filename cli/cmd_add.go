@@ -29,7 +29,7 @@ func newSrcAddCmd() *cobra.Command {
 		Use:  "add [--handle @HANDLE] LOCATION",
 		RunE: execSrcAdd,
 		Args: cobra.ExactArgs(1),
-		// ValidArgsFunction: completeAddLocationFile,
+		// ValidArgsFunction: doCompleteAddLocationFile,
 		ValidArgsFunction: completeAddLocation,
 		Example: `
 When adding a data source, LOCATION is the only required arg.

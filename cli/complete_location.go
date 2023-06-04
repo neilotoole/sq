@@ -2,8 +2,12 @@ package cli
 
 import (
 	"net/url"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/neilotoole/sq/libsq/core/ioz"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 
@@ -32,15 +36,15 @@ import (
 )
 
 // completeAddLocation provides completion for the "sq add LOCATION" arg.
-func completeAddLocation(cmd *cobra.Command, args []string, toComplete string) ( //nolint:funlen
+func completeAddLocation(cmd *cobra.Command, args []string, toComplete string) (
 	[]string, cobra.ShellCompDirective,
 ) {
 	if len(args) > 0 {
 		return nil, cobra.ShellCompDirectiveError
 	}
 
-	if strings.HasPrefix(toComplete, "/") {
-		// This has to be an absolute (file) path.
+	if strings.HasPrefix(toComplete, "/") || strings.HasPrefix(toComplete, ".") {
+		// This has to be a file path.
 		// Go straight to default (file) completion.
 		return nil, cobra.ShellCompDirectiveDefault
 	}
@@ -51,7 +55,7 @@ func completeAddLocation(cmd *cobra.Command, args []string, toComplete string) (
 	if toComplete == "" {
 		// No input yet. Offer both the driver URL schemes and file listing.
 		a = append(a, locSchemes...)
-		files, _ := completeAddLocationFile(cmd, nil, toComplete)
+		files, _ := doCompleteAddLocationFile(toComplete)
 		if len(files) > 0 {
 			a = append(a, files...)
 		}
@@ -73,7 +77,7 @@ func completeAddLocation(cmd *cobra.Command, args []string, toComplete string) (
 
 		// Partial match, e.g. "post". So, this could match both
 		// a URL such as "postgres://", or a file such as "post.db".
-		files, _ := completeAddLocationFile(cmd, nil, toComplete)
+		files, _ := doCompleteAddLocationFile(toComplete)
 		if len(files) > 0 {
 			a = append(a, files...)
 		}
@@ -86,7 +90,8 @@ func completeAddLocation(cmd *cobra.Command, args []string, toComplete string) (
 	return completeAddLocationURL(cmd, nil, toComplete)
 }
 
-func completeAddLocationURL(cmd *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+func completeAddLocationURL(cmd *cobra.Command, _ []string, toComplete string, //nolint:funlen
+) ([]string, cobra.ShellCompDirective) {
 	const d = cobra.ShellCompDirectiveNoSpace | cobra.ShellCompDirectiveKeepOrder
 
 	var (
@@ -589,4 +594,82 @@ var locSchemes = []string{
 	"mysql://",
 	"postgres://",
 	"sqlserver://",
+}
+
+// doCompleteAddLocationFile completes filenames. This function tries to
+// mimic what a shell would do.
+func doCompleteAddLocationFile(toComplete string) ([]string, error) {
+	start := toComplete
+	var files []string
+	var err error
+	if start == "" {
+		start, err = os.Getwd()
+		if err != nil {
+			return nil, errz.Err(err)
+		}
+		files, err = ioz.ReadDir(start, false, true, false)
+		if err != nil {
+			return nil, err
+		}
+
+		return files, nil
+	}
+
+	fi, err := os.Stat(start)
+	if err != nil {
+		// Can't stat start.
+		// Let's try the containing dir
+		start = filepath.Dir(toComplete)
+		files, err = ioz.ReadDir(start, false, true, false)
+		if err != nil {
+			return nil, err
+		}
+		base := filepath.Base(toComplete)
+		if base != "" {
+			files = stringz.FilterPrefix(base, files...)
+			var hasSlashSuffix bool
+			for i := range files {
+				hasSlashSuffix = strings.HasSuffix(files[i], "/")
+				files[i] = filepath.Join(start, files[i])
+				if hasSlashSuffix {
+					files[i] += "/"
+				}
+			}
+		}
+		return files, nil
+	}
+
+	// There's either a directory or file matching start.
+	mode := fi.Mode()
+	if mode.IsRegular() {
+		// It's a regular file that's a direct match.
+		return []string{start}, nil
+	}
+
+	if strings.HasSuffix(start, "/") {
+		files, err = ioz.ReadDir(start, true, true, false)
+		if err != nil {
+			return nil, err
+		}
+		return files, nil
+	}
+
+	// We could have a situation like this:
+	//  + [working dir]
+	//    - my.db
+	//    - my/my2.db
+
+	dir := filepath.Dir(start)
+	dirFi, err := os.Stat(dir)
+	if err == nil && dirFi.IsDir() {
+		files, err = ioz.ReadDir(dir, true, true, false)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		files = []string{start}
+	}
+
+	files = stringz.FilterPrefix(toComplete, files...)
+	return files, nil
 }
