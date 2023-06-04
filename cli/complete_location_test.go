@@ -31,17 +31,6 @@ var locSchemes = []string{
 	"sqlserver://",
 }
 
-// th := testh.New(t)
-// drvrQueryParams := map[source.DriverType]map[string][]string{}
-// for _, typ := range []source.DriverType{
-// postgres.Type,
-// mysql.Type,
-// sqlite3.Type,
-// sqlserver.Type,
-// } {
-// drvr, _ := th.Registry().DriverFor(typ)
-// drvrQueryParams[typ] = drvr.(driver.SQLDriver).ConnParams()
-// }
 const stdDirective = cobra.ShellCompDirectiveNoSpace | cobra.ShellCompDirectiveKeepOrder
 
 func TestCompleteAddLocation_postgres(t *testing.T) {
@@ -288,13 +277,6 @@ func TestCompleteAddLocation_postgres(t *testing.T) {
 }
 
 func TestCompleteAddLocation_sqlserver(t *testing.T) {
-	//th := testh.New(t)
-	//drvr, err := th.Registry().DriverFor(sqlserver.Type)
-	//require.NoError(t, err)
-	//sqlDrvr, ok := drvr.(driver.SQLDriver)
-	//require.True(t, ok)
-	//
-
 	testCases := []struct {
 		args       []string
 		want       []string
@@ -306,7 +288,7 @@ func TestCompleteAddLocation_sqlserver(t *testing.T) {
 			wantResult: stdDirective,
 		},
 		{
-			args:       []string{"s"},
+			args:       []string{"sqlse"},
 			want:       []string{"sqlserver://"},
 			wantResult: stdDirective,
 		},
@@ -334,12 +316,14 @@ func TestCompleteAddLocation_sqlserver(t *testing.T) {
 			wantResult: stdDirective,
 		},
 		{
-			// This is an error, because it should be @server?dbname=
-			// FIXME: Actually, this should be allowed.
-			// sqlserver://username:password@host/instance?param1=value&param2=value
 			args:       []string{"sqlserver://alice@server/"},
-			want:       []string{},
-			wantResult: cobra.ShellCompDirectiveError,
+			want:       []string{"sqlserver://alice@server/instance?database="},
+			wantResult: stdDirective,
+		},
+		{
+			args:       []string{"sqlserver://alice@server/instance"},
+			want:       []string{"sqlserver://alice@server/instance?database="},
+			wantResult: stdDirective,
 		},
 		{
 			args: []string{"sqlserver://alice@server?"},

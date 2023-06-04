@@ -32,7 +32,9 @@ import (
 )
 
 // completeAddLocation provides completion for the "sq add LOCATION" arg.
-func completeAddLocation(cmd *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+func completeAddLocation(cmd *cobra.Command, _ []string, toComplete string) ( //nolint:funlen
+	[]string, cobra.ShellCompDirective,
+) {
 	var (
 		ctx = cmd.Context()
 		log = lg.FromContext(ctx)
@@ -171,18 +173,18 @@ func completeAddLocation(cmd *cobra.Command, _ []string, toComplete string) ([]s
 		return a, d
 
 	case plocHost:
-		// Special handling for SQLServer. The string should be of the form:
+		// Special handling for SQLServer. The input is typically of the form:
 		//  sqlserver://alice@server?database=db
-		// If instead it's of the form:
-		//  sqlserver://alice@server/
-		// Then that's an error.
-		// // FIXME: allow this because sqlserver://alice@server/instance is valid.
+		// But it can also be of the form:
+		//  sqlserver://alice@server/instance?database=db
 		if ploc.typ == sqlserver.Type {
-			if strings.HasPrefix(ploc.du.Path, "/") {
-
-				log.Error("sqlserver URL path has illegal /", lga.URL, ploc.du.URL.String())
-				return nil, cobra.ShellCompDirectiveError
+			if ploc.du.Path == "/" {
+				a = []string{toComplete + "instance?database="}
+				return a, d
 			}
+
+			a = []string{toComplete + "?database="}
+			return a, d
 		}
 
 		if ploc.name == "" {
@@ -263,10 +265,6 @@ func completeConnParams(lch *locCompleteHelper, toComplete string) ([]string, co
 	}
 
 	candidateVals := drvrParams[before]
-	//if len(candidateVals) == 0 {
-	//	return nil, d
-	//}
-
 	for i := range candidateVals {
 		s := stump + before + "=" + candidateVals[i]
 		a = append(a, s)
