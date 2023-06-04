@@ -33,7 +33,7 @@ var locSchemes = []string{
 
 const stdDirective = cobra.ShellCompDirectiveNoSpace | cobra.ShellCompDirectiveKeepOrder
 
-func TestCompleteAddLocation_postgres(t *testing.T) {
+func TestCompleteAddLocation_Postgres(t *testing.T) {
 	testCases := []struct {
 		// args will have "add" prepended
 		args       []string
@@ -51,18 +51,8 @@ func TestCompleteAddLocation_postgres(t *testing.T) {
 			wantResult: stdDirective,
 		},
 		{
-			args:       []string{"s"},
-			want:       []string{"sqlserver://"},
-			wantResult: stdDirective,
-		},
-		{
 			args:       []string{"postgres:/"},
 			want:       []string{"postgres://"},
-			wantResult: stdDirective,
-		},
-		{
-			args:       []string{"sqlserver:/"},
-			want:       []string{"sqlserver://"},
 			wantResult: stdDirective,
 		},
 		{
@@ -276,7 +266,7 @@ func TestCompleteAddLocation_postgres(t *testing.T) {
 	}
 }
 
-func TestCompleteAddLocation_sqlserver(t *testing.T) {
+func TestCompleteAddLocation_SQLServer(t *testing.T) {
 	testCases := []struct {
 		args       []string
 		want       []string
@@ -392,6 +382,229 @@ func TestCompleteAddLocation_sqlserver(t *testing.T) {
 				"sqlserver://alice@server?database=sakila&tlsmin=1.1",
 				"sqlserver://alice@server?database=sakila&tlsmin=1.2",
 				"sqlserver://alice@server?database=sakila&tlsmin=1.3",
+			},
+			wantResult: stdDirective,
+		},
+	}
+
+	for i, tc := range testCases {
+		tc := tc
+		t.Run(tutil.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
+			args := append([]string{"add"}, tc.args...)
+			got := testComplete(t, nil, args...)
+			assert.Equal(t, tc.wantResult, got.result, got.directives)
+			assert.Equal(t, tc.want, got.values)
+		})
+	}
+}
+
+func TestCompleteAddLocation_MySQL(t *testing.T) {
+	testCases := []struct {
+		// args will have "add" prepended
+		args       []string
+		want       []string
+		wantResult cobra.ShellCompDirective
+	}{
+		{
+			args:       []string{""},
+			want:       locSchemes,
+			wantResult: stdDirective,
+		},
+		{
+			args:       []string{"m"},
+			want:       []string{"mysql://"},
+			wantResult: stdDirective,
+		},
+		{
+			args:       []string{"mysql"},
+			want:       []string{"mysql://"},
+			wantResult: stdDirective,
+		},
+		{
+			args:       []string{"mysql:/"},
+			want:       []string{"mysql://"},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"mysql://"},
+			want: []string{
+				"mysql://",
+				"mysql://username",
+				"mysql://username:password",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"mysql://alice"},
+			want: []string{
+				"mysql://alice@",
+				"mysql://alice:",
+				"mysql://alice:@",
+				"mysql://alice:password@",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"mysql://alice:"},
+			want: []string{
+				"mysql://alice:",
+				"mysql://alice:@",
+				"mysql://alice:password@",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"mysql://alice@"},
+			want: []string{
+				"mysql://alice@localhost/",
+				"mysql://alice@localhost:3306/",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"mysql://alice@server"},
+			want: []string{
+				"mysql://alice@server/",
+				"mysql://alice@server:3306/",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"mysql://alice@localho"},
+			want: []string{
+				"mysql://alice@localho/",
+				"mysql://alice@localho:3306/",
+				"mysql://alice@localhost/",
+				"mysql://alice@localhost:3306/",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"mysql://alice@localhost"},
+			want: []string{
+				"mysql://alice@localhost/",
+				"mysql://alice@localhost:3306/",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"mysql://alice@localhost:"},
+			want: []string{
+				"mysql://alice@localhost:3306/",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"mysql://alice@localhost:80"},
+			want: []string{
+				"mysql://alice@localhost:80/",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"mysql://alice@localhost/"},
+			want: []string{
+				"mysql://alice@localhost/db",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"mysql://alice@localhost/sakila"},
+			want: []string{
+				"mysql://alice@localhost/sakila?",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"mysql://alice@localhost/sakila?"},
+			want: []string{
+				"mysql://alice@localhost/sakila?allowAllFiles=",
+				"mysql://alice@localhost/sakila?allowCleartextPasswords=",
+				"mysql://alice@localhost/sakila?allowFallbackToPlaintext=",
+				"mysql://alice@localhost/sakila?allowNativePasswords=",
+				"mysql://alice@localhost/sakila?allowOldPasswords=",
+				"mysql://alice@localhost/sakila?charset=",
+				"mysql://alice@localhost/sakila?checkConnLiveness=",
+				"mysql://alice@localhost/sakila?clientFoundRows=",
+				"mysql://alice@localhost/sakila?collation=",
+				"mysql://alice@localhost/sakila?columnsWithAlias=",
+				"mysql://alice@localhost/sakila?connectionAttributes=",
+				"mysql://alice@localhost/sakila?interpolateParams=",
+				"mysql://alice@localhost/sakila?loc=",
+				"mysql://alice@localhost/sakila?maxAllowedPackage=",
+				"mysql://alice@localhost/sakila?multiStatements=",
+				"mysql://alice@localhost/sakila?parseTime=",
+				"mysql://alice@localhost/sakila?readTimeout=",
+				"mysql://alice@localhost/sakila?rejectReadOnly=",
+				"mysql://alice@localhost/sakila?timeout=",
+				"mysql://alice@localhost/sakila?tls=",
+				"mysql://alice@localhost/sakila?writeTimeout=",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"mysql://alice@localhost/sakila?tl"},
+			want: []string{
+				"mysql://alice@localhost/sakila?tls=",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"mysql://alice@localhost/sakila?a=1&b=2&tl"},
+			want: []string{
+				"mysql://alice@localhost/sakila?a=1&b=2&tls=",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"mysql://alice@localhost/sakila?a=1&b=2&tls"},
+			want: []string{
+				"mysql://alice@localhost/sakila?a=1&b=2&tls=",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"mysql://alice@localhost/sakila?tls="},
+			want: []string{
+				"mysql://alice@localhost/sakila?tls=false",
+				"mysql://alice@localhost/sakila?tls=true",
+				"mysql://alice@localhost/sakila?tls=skip-verify",
+				"mysql://alice@localhost/sakila?tls=preferred",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"mysql://alice@localhost/sakila?tls=s"},
+			want: []string{
+				"mysql://alice@localhost/sakila?tls=skip-verify",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"mysql://alice@localhost/sakila?tls=skip-verify"},
+			want: []string{
+				"mysql://alice@localhost/sakila?tls=skip-verify&",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"mysql://alice@localhost/sakila?tls=skip-verify&lo"},
+			want: []string{
+				"mysql://alice@localhost/sakila?tls=skip-verify&loc=",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"mysql://alice@localhost/sakila?tls=skip-verify&loc="},
+			want: []string{
+				"mysql://alice@localhost/sakila?tls=skip-verify&loc=UTC",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"mysql://alice@localhost/sakila?tls=skip-verify&loc=UTC"},
+			want: []string{
+				"mysql://alice@localhost/sakila?tls=skip-verify&loc=UTC&",
 			},
 			wantResult: stdDirective,
 		},

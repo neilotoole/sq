@@ -58,9 +58,31 @@ type driveri struct {
 }
 
 // ConnParams implements driver.SQLDriver.
+// See: https://github.com/go-sql-driver/mysql#dsn-data-source-name.
 func (d *driveri) ConnParams() map[string][]string {
-	// TODO: implement ConnParams for MySQl
-	return map[string][]string{}
+	return map[string][]string{
+		"allowAllFiles":            {"false", "true"},
+		"allowCleartextPasswords":  {"false", "true"},
+		"allowFallbackToPlaintext": {"false", "true"},
+		"allowNativePasswords":     {"false", "true"},
+		"allowOldPasswords":        {"false", "true"},
+		"charset":                  nil,
+		"checkConnLiveness":        {"true", "false"},
+		"clientFoundRows":          {"false", "true"},
+		"collation":                collations,
+		"columnsWithAlias":         {"false", "true"},
+		"connectionAttributes":     nil,
+		"interpolateParams":        {"false", "true"},
+		"loc":                      {"UTC"},
+		"maxAllowedPackage":        {"0", "67108864"},
+		"multiStatements":          {"false", "true"},
+		"parseTime":                {"false", "true"},
+		"readTimeout":              {"0"},
+		"rejectReadOnly":           {"false", "true"},
+		"timeout":                  nil,
+		"tls":                      {"false", "true", "skip-verify", "preferred"},
+		"writeTimeout":             {"0"},
+	}
 }
 
 // ErrWrapFunc implements driver.SQLDriver.
