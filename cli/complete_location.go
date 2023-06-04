@@ -32,10 +32,65 @@ import (
 )
 
 // completeAddLocation provides completion for the "sq add LOCATION" arg.
-func completeAddLocation(cmd *cobra.Command, _ []string, toComplete string) ( //nolint:funlen
+func completeAddLocation(cmd *cobra.Command, args []string, toComplete string) ( //nolint:funlen
 	[]string, cobra.ShellCompDirective,
 ) {
+	if len(args) > 0 {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	if strings.HasPrefix(toComplete, "/") {
+		// This has to be an absolute (file) path.
+		// Go straight to default (file) completion.
+		return nil, cobra.ShellCompDirectiveDefault
+	}
+
+	const d = cobra.ShellCompDirectiveNoSpace | cobra.ShellCompDirectiveKeepOrder
+	var a []string
+
+	if toComplete == "" {
+		// No input yet. Offer both the driver URL schemes and file listing.
+		a = append(a, locSchemes...)
+		files, _ := completeAddLocationFile(cmd, nil, toComplete)
+		if len(files) > 0 {
+			a = append(a, files...)
+		}
+
+		return a, d
+	}
+
+	// We've got some input in toComplete...
+	if !stringz.HasAnyPrefix(toComplete, locSchemes...) {
+		// But toComplete isn't a full match for any of the driver
+		// URL schemes. However, it could still be a partial match.
+
+		a = stringz.FilterPrefix(toComplete, locSchemes...)
+		if len(a) == 0 {
+			// We're not matching any URL prefix, fall back to default
+			// shell completion, i.e. list files.
+			return nil, cobra.ShellCompDirectiveDefault
+		}
+
+		// Partial match, e.g. "post". So, this could match both
+		// a URL such as "postgres://", or a file such as "post.db".
+		files, _ := completeAddLocationFile(cmd, nil, toComplete)
+		if len(files) > 0 {
+			a = append(a, files...)
+		}
+
+		return a, d
+	}
+
+	// toComplete starts with one of the driver schemes. There's no
+	// possibility this could be a file completion.
+	return completeAddLocationURL(cmd, nil, toComplete)
+}
+
+func completeAddLocationURL(cmd *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	const d = cobra.ShellCompDirectiveNoSpace | cobra.ShellCompDirectiveKeepOrder
+
 	var (
+		a   []string
 		ctx = cmd.Context()
 		log = lg.FromContext(ctx)
 		ru  = run.FromContext(ctx)
@@ -48,38 +103,6 @@ func completeAddLocation(cmd *cobra.Command, _ []string, toComplete string) ( //
 	if err := FinishRunInit(ctx, ru); err != nil {
 		log.Error("Init run", lga.Err, err)
 		return nil, cobra.ShellCompDirectiveError
-	}
-
-	var a []string
-	const d = cobra.ShellCompDirectiveNoSpace | cobra.ShellCompDirectiveKeepOrder
-
-	if toComplete == "" {
-		a = append(a, locSchemes...)
-		files, _ := completeFile(cmd, nil, toComplete)
-		if len(files) > 0 {
-			a = append(a, files...)
-		}
-
-		return a, d
-	}
-
-	// We've got some input in toComplete
-	if !stringz.HasAnyPrefix(toComplete, locSchemes...) {
-		a = stringz.FilterPrefix(toComplete, locSchemes...)
-		if len(a) == 0 {
-			// We're not matching any URL prefix, fall back to default
-			// shell completion, i.e. list files.
-			return nil, cobra.ShellCompDirectiveDefault
-		}
-
-		// Partial match, e.g. "post". So, this could match both
-		// a URL such as "postgres://", or a file such as "post.db".
-		files, _ := completeFile(cmd, nil, toComplete)
-		if len(files) > 0 {
-			a = append(a, files...)
-		}
-
-		return a, d
 	}
 
 	// If we get this far, then toComplete is at least a partial URL
