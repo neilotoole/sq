@@ -26,10 +26,9 @@ import (
 
 func newSrcAddCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:  "add [--handle @HANDLE] LOCATION",
-		RunE: execSrcAdd,
-		Args: cobra.ExactArgs(1),
-		// ValidArgsFunction: doCompleteAddLocationFile,
+		Use:               "add [--handle @HANDLE] LOCATION",
+		RunE:              execSrcAdd,
+		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completeAddLocation,
 		Example: `
 When adding a data source, LOCATION is the only required arg.
@@ -46,15 +45,24 @@ a handle.
 This handle format "@sakila/pg" includes a group, "sakila". Using a group
 is entirely optional: it is a way to organize sources. For example:
 
-  $ sq add --handle @dev/pg 'postgres://user:pass@dev.db.example.com/sakila'
+  $ sq add --handle @dev/pg 'postgres://user:pass@dev.db.acme.com/sakila'
   $ sq add --handle @prod/pg 'postgres://user:pass@prod.db.acme.com/sakila'
 
 The format of LOCATION is driver-specific, but is generally a DB connection
 string, a file path, or a URL.
 
-  DRIVER://USER:PASS@HOST:PORT/DBNAME
+  DRIVER://USER:PASS@HOST:PORT/DBNAME?PARAM=VAL
   /path/to/local/file.ext
   https://sq.io/data/test1.xlsx
+
+If LOCATION contains special shell characters, it's necessary to enclose
+it in single quotes, or to escape the special character. For example,
+note the "\?" in the unquoted location below.
+
+  $ sq add postgres://user:pass@localhost/sakila\?sslmode=disable
+
+A significant advantage of not quoting LOCATION is that sq provides extensive
+shell completion when inputting the location string.
 
 If flag --handle is omitted, sq will generate a handle based
 on LOCATION and the source driver type.
@@ -82,7 +90,7 @@ There are various driver-specific options available. For example:
   $ sq add actor.csv --ingest.header=false --driver.csv.delim=colon
 
 If flag --driver is omitted, sq will attempt to determine the
-type from LOCATION via file suffix, content type, etc.. If the result
+type from LOCATION via file suffix, content type, etc. If the result
 is ambiguous, explicitly specify the driver type.
 
   $ sq add --driver=tsv ./mystery.data
