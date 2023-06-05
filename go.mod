@@ -21,7 +21,7 @@ require (
 	github.com/segmentio/encoding v0.1.14
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.8.3
+	github.com/stretchr/testify v1.8.4
 	github.com/tealeg/xlsx/v2 v2.0.1 // TODO: This package is no longer supported; switch to a different impl
 	github.com/xo/dburl v0.14.2
 	go.uber.org/atomic v1.11.0
