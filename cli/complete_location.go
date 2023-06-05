@@ -287,8 +287,7 @@ func locCompDoGenericDriver(cmd *cobra.Command, _ []string, toComplete string, /
 // locCompDoSQLite3 completes a location starting with "sqlite3://".
 // We have special handling for SQLite, because it's not a generic
 // driver URL, but rather sqlite3://FILE/PATH?param=X.
-func locCompDoSQLite3(cmd *cobra.Command, _ []string, toComplete string, //nolint:funlen
-) ([]string, cobra.ShellCompDirective) {
+func locCompDoSQLite3(cmd *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	var (
 		ctx  = cmd.Context()
 		log  = lg.FromContext(ctx)
@@ -671,6 +670,5 @@ func locCompListFiles(ctx context.Context, toComplete string) []string {
 		files = []string{start}
 	}
 
-	files = stringz.FilterPrefix(toComplete, files...)
-	return files
+	return stringz.FilterPrefix(toComplete, files...)
 }
