@@ -12,8 +12,6 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 
-	"golang.org/x/exp/slog"
-
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/driver"
@@ -36,9 +34,30 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// locCompStdDirective is the standard cobra shell completion directive
+// returned by completeAddLocation.
 const locCompStdDirective = cobra.ShellCompDirectiveNoSpace | cobra.ShellCompDirectiveKeepOrder
 
 // completeAddLocation provides completion for the "sq add LOCATION" arg.
+// This is a messy task, as LOCATION can be a database driver URL,
+// and it can also be a filepath. To complicate matters further, sqlite
+// has a format sqlite://FILE/PATH?param=val, which is a driver URL, with
+// embedded file completion.
+//
+// The general strategy is:
+//   - Does toComplete have a driver prefix ("postgres://", "sqlite3://" etc)?
+//     If so, delegate to the appropriate function.
+//   - Is toComplete definitively NOT a driver URL? That is to say, is toComplete
+//     a file path? If so, then we need regular shell file completion.
+//     Return cobra.ShellCompDirectiveDefault, and let the shell handle it.
+//   - There's a messy overlap where toComplete could be either a driver URL
+//     or a filepath. For example, "post" could be leading to "postgres://", or
+//     to a file named "post.db". For this situation, it is necessary to
+//     mimic in code the behavior of the shell's file completion.
+//
+// The code, as currently structured, is ungainly, and downright ugly in
+// spots, and probably won't scale well if more drivers are supported. That
+// is to say, this mechanism would benefit from a through refactor.
 func completeAddLocation(cmd *cobra.Command, args []string, toComplete string) (
 	[]string, cobra.ShellCompDirective,
 ) {
@@ -53,11 +72,10 @@ func completeAddLocation(cmd *cobra.Command, args []string, toComplete string) (
 	}
 
 	var a []string
-
 	if toComplete == "" {
 		// No input yet. Offer both the driver URL schemes and file listing.
 		a = append(a, locSchemes...)
-		files := doCompleteAddLocationFile(cmd.Context(), toComplete)
+		files := locCompListFiles(cmd.Context(), toComplete)
 		if len(files) > 0 {
 			a = append(a, files...)
 		}
@@ -79,7 +97,7 @@ func completeAddLocation(cmd *cobra.Command, args []string, toComplete string) (
 
 		// Partial match, e.g. "post". So, this could match both
 		// a URL such as "postgres://", or a file such as "post.db".
-		files := doCompleteAddLocationFile(cmd.Context(), toComplete)
+		files := locCompListFiles(cmd.Context(), toComplete)
 		if len(files) > 0 {
 			a = append(a, files...)
 		}
@@ -87,44 +105,54 @@ func completeAddLocation(cmd *cobra.Command, args []string, toComplete string) (
 		return a, locCompStdDirective
 	}
 
-	// toComplete starts with one of the driver schemes. There's no
-	// possibility this could be a file completion.
-	return doCompleteAddLocationURL(cmd, nil, toComplete)
+	// If we got this far, we know that toComplete starts with one of the
+	// driver schemes, e.g. "postgres://". There's no possibility that
+	// this could be a file completion.
+
+	if strings.HasPrefix(toComplete, string(sqlite3.Type)) {
+		// Special handling for sqlite.
+		return locCompDoSQLite3(cmd, args, toComplete)
+	}
+
+	return locCompDoGenericDriver(cmd, args, toComplete)
 }
 
-func doCompleteAddLocationURL(cmd *cobra.Command, _ []string, toComplete string, //nolint:funlen
+// locCompDoGenericDriver provides completion for generic SQL drivers.
+// Specifically, it's tested with postgres, sqlserver, and mysql. Note that
+// sqlserver is slightly different from the others, in that the db name goes
+// in a query param, not in the URL path. It might be cleaner to split sqlserver
+// off into its own function.
+func locCompDoGenericDriver(cmd *cobra.Command, _ []string, toComplete string, //nolint:funlen
 ) ([]string, cobra.ShellCompDirective) {
 	// If we get this far, then toComplete is at least a partial URL
 	// starting with "postgres://", "mysql://", etc.
 
 	var (
-		a   []string
-		ctx = cmd.Context()
-		log = lg.FromContext(ctx)
-		ru  = run.FromContext(ctx)
-		lch = &locCompleteHelper{
-			ru:  ru,
-			log: log,
-		}
+		ctx  = cmd.Context()
+		log  = lg.FromContext(ctx)
+		ru   = run.FromContext(ctx)
+		drvr driver.SQLDriver
+		ploc *parsedLoc
+		a    []string // a holds the completion strings to be returned
+		err  error
 	)
 
-	if err := FinishRunInit(ctx, ru); err != nil {
+	if err = FinishRunInit(ctx, ru); err != nil {
 		log.Error("Init run", lga.Err, err)
 		return nil, cobra.ShellCompDirectiveError
 	}
 
-	// Special handling for sqlite.
-	if strings.HasPrefix(toComplete, string(sqlite3.Type)) {
-		return doCompleteAddLocationSQLite3(ctx, ru, toComplete)
-	}
-
-	ploc, err := lch.parseLoc(toComplete)
-	if err != nil {
-		log.Error("parse location", lga.Err, err)
+	if ploc, err = locCompParseLoc(toComplete); err != nil {
+		log.Error("Parse location", lga.Err, err)
 		return nil, cobra.ShellCompDirectiveError
 	}
-	stageDone := ploc.stageDone
-	switch stageDone { //nolint:exhaustive
+
+	if drvr, err = ru.DriverRegistry.SQLDriverFor(ploc.typ); err != nil {
+		log.Error("Load driver", lga.Err, err)
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	switch ploc.stageDone { //nolint:exhaustive
 	case plocScheme:
 		if ploc.user == "" {
 			a = []string{
@@ -161,8 +189,8 @@ func doCompleteAddLocationURL(cmd *cobra.Command, _ []string, toComplete string,
 
 		return a, locCompStdDirective
 	case plocPass:
-		defaultPort := lch.driverPort()
-		afterHost := lch.afterHost()
+		defaultPort := locCompDriverPort(drvr)
+		afterHost := locCompAfterHost(ploc.typ)
 
 		if ploc.hostname == "" {
 			if defaultPort == "" {
@@ -217,8 +245,8 @@ func doCompleteAddLocationURL(cmd *cobra.Command, _ []string, toComplete string,
 		a = stringz.FilterPrefix(toComplete, a...)
 		return a, locCompStdDirective
 	case plocHostname:
-		defaultPort := lch.driverPort()
-		afterHost := lch.afterHost()
+		defaultPort := locCompDriverPort(drvr)
+		afterHost := locCompAfterHost(ploc.typ)
 		if strings.HasSuffix(toComplete, ":") {
 			a = []string{toComplete + defaultPort + afterHost}
 			return a, locCompStdDirective
@@ -251,35 +279,46 @@ func doCompleteAddLocationURL(cmd *cobra.Command, _ []string, toComplete string,
 		return a, locCompStdDirective
 
 	default:
-		// We're at plocName (db name is done), so it's on to conn params
-		return doCompleteConnParams(lch.ploc.du, lch.drvr, toComplete)
+		// We're at plocName (db name is done), so it's on to conn params.
+		return locCompDoConnParams(ploc.du, drvr, toComplete)
 	}
 }
 
-// doCompleteAddLocationSQLite3 completes a location starting with "sqlite3://".
-// We have special handling for SQLite, because it's not a normal URL,
-// but rather sqlite3://FILE/PATH?param=X.
-func doCompleteAddLocationSQLite3(ctx context.Context, ru *run.Run, toComplete string) (
-	[]string, cobra.ShellCompDirective,
-) {
-	log := lg.FromContext(ctx)
-	start := strings.TrimPrefix(toComplete, "sqlite3://")
+// locCompDoSQLite3 completes a location starting with "sqlite3://".
+// We have special handling for SQLite, because it's not a generic
+// driver URL, but rather sqlite3://FILE/PATH?param=X.
+func locCompDoSQLite3(cmd *cobra.Command, _ []string, toComplete string, //nolint:funlen
+) ([]string, cobra.ShellCompDirective) {
+	var (
+		ctx  = cmd.Context()
+		log  = lg.FromContext(ctx)
+		ru   = run.FromContext(ctx)
+		drvr driver.SQLDriver
+		err  error
+	)
 
-	drvr, err := ru.DriverRegistry.SQLDriverFor(sqlite3.Type)
-	if err != nil {
+	if err = FinishRunInit(ctx, ru); err != nil {
+		log.Error("Init run", lga.Err, err)
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	if drvr, err = ru.DriverRegistry.SQLDriverFor(sqlite3.Type); err != nil {
 		// Shouldn't happen
-		log.Error("Cannot get driver", lga.Err, err)
+		log.Error("Cannot load driver", lga.Err, err)
 		return nil, cobra.ShellCompDirectiveError
 	}
 
 	du, err := dburl.Parse(toComplete)
 	if err == nil {
+		// Check if we're done with the filepath part, and on to conn params?
 		if du.URL.RawQuery != "" || strings.HasSuffix(toComplete, "?") {
-			return doCompleteConnParams(du, drvr, toComplete)
+			return locCompDoConnParams(du, drvr, toComplete)
 		}
 	}
 
-	paths := doCompleteAddLocationFile(ctx, start)
+	// Build a list of files.
+	start := strings.TrimPrefix(toComplete, "sqlite3://")
+	paths := locCompListFiles(ctx, start)
 	for i := range paths {
 		if ioz.IsPathToRegularFile(paths[i]) && paths[i] == start {
 			paths[i] += "?"
@@ -291,15 +330,17 @@ func doCompleteAddLocationSQLite3(ctx context.Context, ru *run.Run, toComplete s
 	return paths, locCompStdDirective
 }
 
-func doCompleteConnParams(du *dburl.URL, drvr driver.SQLDriver, toComplete string) (
+// locCompDoConnParams completes the query params. For example, given
+// a toComplete value "sqlite3://my.db?", the result would include values
+// such as "sqlite3://my.db?cache=".
+func locCompDoConnParams(du *dburl.URL, drvr driver.SQLDriver, toComplete string) (
 	[]string, cobra.ShellCompDirective,
 ) {
 	var (
-		a     []string
-		query = du.RawQuery
+		a                         []string
+		query                     = du.RawQuery
+		drvrParamKeys, drvrParams = locCompGetConnParams(drvr)
 	)
-
-	drvrParamKeys, drvrParams := getConnParams(drvr)
 
 	if query == "" {
 		a = stringz.PrefixSlice(drvrParamKeys, toComplete)
@@ -327,7 +368,6 @@ func doCompleteConnParams(du *dburl.URL, drvr driver.SQLDriver, toComplete strin
 
 	if !ok {
 		candidateKeys := stringz.ElementsHavingPrefix(drvrParamKeys, before)
-
 		candidateKeys = lo.Reject(candidateKeys, func(candidateKey string, index int) bool {
 			// We don't want the same candidate to show up twice, so we exclude
 			// it, but only if it already has a value in the query string.
@@ -378,17 +418,9 @@ func doCompleteConnParams(du *dburl.URL, drvr driver.SQLDriver, toComplete strin
 	return a, locCompStdDirective
 }
 
-// locCompleteHelper is a helper for completing the "sq add location" arg.
-type locCompleteHelper struct {
-	ru   *run.Run
-	log  *slog.Logger
-	ploc *parsedLoc
-	drvr driver.SQLDriver
-}
-
-// connParams returns the driver's connection params. The returned keys
-// are sorted appropriately for the driver, and are query encoded.
-func getConnParams(drvr driver.SQLDriver) (keys []string, params map[string][]string) {
+// locCompGetConnParams returns the driver's connection params. The returned
+// keys are sorted appropriately for the driver, and are query encoded.
+func locCompGetConnParams(drvr driver.SQLDriver) (keys []string, params map[string][]string) {
 	ogParams := drvr.ConnParams()
 	ogKeys := lo.Keys(ogParams)
 	slices.Sort(ogKeys)
@@ -402,7 +434,6 @@ func getConnParams(drvr driver.SQLDriver) (keys []string, params map[string][]st
 
 	keys = make([]string, len(ogKeys))
 	params = make(map[string][]string, len(ogParams))
-
 	for i := range ogKeys {
 		k := url.QueryEscape(ogKeys[i])
 		keys[i] = k
@@ -412,14 +443,10 @@ func getConnParams(drvr driver.SQLDriver) (keys []string, params map[string][]st
 	return keys, params
 }
 
-// driverPort returns the default port for the driver
-// type from h.ploc.typ, or empty string if not applicable.
-func (h *locCompleteHelper) driverPort() string {
-	if h.drvr == nil {
-		panic("invoke loadDriver first")
-	}
-
-	p := h.drvr.DriverMetadata().DefaultPort
+// locCompDriverPort returns the default port for the driver, as a string,
+// or empty string if not applicable.
+func locCompDriverPort(drvr driver.SQLDriver) string {
+	p := drvr.DriverMetadata().DefaultPort
 	if p <= 0 {
 		return ""
 	}
@@ -427,39 +454,40 @@ func (h *locCompleteHelper) driverPort() string {
 	return strconv.Itoa(p)
 }
 
-func (h *locCompleteHelper) afterHost() string {
-	if h.ploc.typ == sqlserver.Type {
+// locCompAfterHost returns the next text to show after the host
+// part of the URL is complete.
+func locCompAfterHost(typ source.DriverType) string {
+	if typ == sqlserver.Type {
 		return "?database="
 	}
 
 	return "/"
 }
 
-func (h *locCompleteHelper) parseLoc(loc string) (*parsedLoc, error) {
-	h.ploc = &parsedLoc{loc: loc}
-	p := h.ploc
-
+// locCompParseLoc parses a location string. The string can
+// be in various stages of construction, e.g. "postgres://user" or
+// "postgres://user@locahost/db". The stage is noted in parsedLoc.stageDone.
+func locCompParseLoc(loc string) (*parsedLoc, error) {
+	p := &parsedLoc{loc: loc}
 	if !stringz.HasAnyPrefix(loc, locSchemes...) {
 		return p, nil
 	}
 
-	p.stageDone = plocScheme
+	var (
+		s     string
+		ok    bool
+		err   error
+		creds string
+	)
 
-	var s string
-	var ok bool
+	p.stageDone = plocScheme
 	p.scheme, s, ok = strings.Cut(loc, "://")
 	p.typ = source.DriverType(p.scheme)
-
-	var err error
-	if h.drvr, err = h.ru.DriverRegistry.SQLDriverFor(p.typ); err != nil {
-		return nil, err
-	}
 
 	if s == "" || !ok {
 		return p, nil
 	}
 
-	var creds string
 	creds, s, ok = strings.Cut(s, "@")
 	if creds != "" {
 		// creds can be:
@@ -485,15 +513,11 @@ func (h *locCompleteHelper) parseLoc(loc string) (*parsedLoc, error) {
 	// Next we're looking for user:pass, e.g.
 	//  postgres://alice:huzzah@localhost
 
-	//
-	du, err := dburl.Parse(p.loc)
-	if err != nil {
+	if p.du, err = dburl.Parse(p.loc); err != nil {
 		return p, errz.Err(err)
 	}
-	p.du = du
-
+	du := p.du
 	p.scheme = du.OriginalScheme
-	p.dsn = du.DSN
 	if du.User != nil {
 		p.user = du.User.Username()
 		p.pass, _ = du.User.Password()
@@ -524,8 +548,6 @@ func (h *locCompleteHelper) parseLoc(loc string) (*parsedLoc, error) {
 			}
 		}
 
-	case sqlite3.Type:
-		// FIXME: implement
 	case postgres.Type, mysql.Type:
 		p.name = strings.TrimPrefix(du.Path, "/")
 	}
@@ -545,11 +567,15 @@ func (h *locCompleteHelper) parseLoc(loc string) (*parsedLoc, error) {
 	return p, nil
 }
 
-// parsedLoc is a parsed representation of a source location.
+// parsedLoc is a parsed representation of a driver location URL.
+// It can represent partial or fully constructed locations. The stage
+// of construction is noted in parsedLoc.stageDone.
 type parsedLoc struct {
 	// loc is the original unparsed location value.
 	loc string
 
+	// stageDone indicates what stage of construction the location
+	// string is in.
 	stageDone plocStage
 
 	// typ is the associated source driver type, which may
@@ -568,55 +594,18 @@ type parsedLoc struct {
 	// hostname is the hostname, if applicable.
 	hostname string
 
-	// port is the port number or 0 if not applicable.
+	// port is the port number, or 0 if not applicable.
 	port int
 
-	// name is the "source name", e.g. "sakila". Typically this
-	// is the database name, but for a file location such
-	// as "/path/to/things.xlsx" it would be "things".
+	// name is the database name.
 	name string
 
-	// ext is the file extension, if applicable.
-	ext string //nolint:unused
-
-	// dsn is the connection "data source name" that can be used in a
-	// call to sql/Open. Empty for non-SQL locations.
-	dsn string
-
-	// du holds the parsed db url.
+	// du holds the parsed db url. This may be nil.
 	du *dburl.URL
 }
 
-// FIXME: do we still parsedLoc.text?
-func (p *parsedLoc) text() string { //nolint:unused
-	if p == nil {
-		return ""
-	}
-
-	if p.du != nil {
-		return p.du.String()
-	}
-
-	sb := strings.Builder{}
-	if p.typ == "" {
-		return sb.String()
-	}
-
-	sb.WriteString(p.typ.String())
-	sb.WriteString("://")
-
-	if p.hostname == "" {
-		return sb.String()
-	}
-
-	sb.WriteString(p.hostname)
-	if p.port >= 0 {
-		sb.WriteString(strconv.Itoa(p.port))
-	}
-
-	return sb.String()
-}
-
+// plocStage is an enum indicating what stage of construction
+// a location string is in.
 type plocStage string
 
 const (
@@ -636,12 +625,15 @@ var locSchemes = []string{
 	"sqlserver://",
 }
 
-// doCompleteAddLocationFile completes filenames. This function tries to
+// locCompListFiles completes filenames. This function tries to
 // mimic what a shell would do. Any errors are logged and swallowed.
-func doCompleteAddLocationFile(ctx context.Context, toComplete string) []string {
-	start := toComplete
-	var files []string
-	var err error
+func locCompListFiles(ctx context.Context, toComplete string) []string {
+	var (
+		start = toComplete
+		files []string
+		err   error
+	)
+
 	if start == "" {
 		start, err = os.Getwd()
 		if err != nil {
@@ -669,8 +661,8 @@ func doCompleteAddLocationFile(ctx context.Context, toComplete string) []string 
 	//    - my/my2.db
 
 	dir := filepath.Dir(start)
-	dirFi, err := os.Stat(dir)
-	if err == nil && dirFi.IsDir() {
+	fi, err := os.Stat(dir)
+	if err == nil && fi.IsDir() {
 		files, err = ioz.ReadDir(dir, true, true, false)
 		if err != nil {
 			lg.FromContext(ctx).Warn("Read dir", lga.Path, start, lga.Err, err)

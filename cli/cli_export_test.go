@@ -6,8 +6,6 @@ import (
 	"testing"
 
 	"github.com/neilotoole/sq/cli/run"
-
-	"github.com/neilotoole/slogt"
 )
 
 type PlocStage = plocStage
@@ -22,17 +20,12 @@ const (
 	PlocPath     = plocPath
 )
 
-var DoCompleteAddLocationFile = doCompleteAddLocationFile
+var DoCompleteAddLocationFile = locCompListFiles
 
 // ToTestParseLocStage is a helper to test the
-// non-exported locCompletionHelper.parseLoc method.
+// non-exported locCompletionHelper.locCompParseLoc method.
 func DoTestParseLocStage(t testing.TB, ru *run.Run, loc string) (PlocStage, error) { //nolint:revive
-	lch := &locCompleteHelper{
-		ru:  ru,
-		log: slogt.New(t),
-	}
-
-	ploc, err := lch.parseLoc(loc)
+	ploc, err := locCompParseLoc(loc)
 	if err != nil {
 		return PlocInit, err
 	}
