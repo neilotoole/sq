@@ -39,10 +39,10 @@ require (
 	github.com/muesli/roff v0.1.0
 	github.com/ncruces/go-strftime v0.1.9
 	github.com/neilotoole/shelleditor v0.3.2
-	github.com/neilotoole/slogt v1.0.0
+	github.com/neilotoole/slogt v1.0.1
 	github.com/otiai10/copy v1.11.0
 	github.com/samber/lo v1.38.1
-	golang.org/x/exp v0.0.0-20230420155640-133eef4313cb
+	golang.org/x/exp v0.0.0-20230522175609-2e198f4a06a1
 )
 
 require (
