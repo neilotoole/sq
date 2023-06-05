@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/neilotoole/sq/libsq/core/stringz"
+
 	"github.com/samber/lo"
 
 	"github.com/neilotoole/sq/testh"
@@ -32,6 +33,7 @@ import (
 var locSchemes = []string{
 	"mysql://",
 	"postgres://",
+	"sqlite3://",
 	"sqlserver://",
 }
 
@@ -48,8 +50,10 @@ func TestCompleteAddLocation_Postgres(t *testing.T) {
 		wantResult cobra.ShellCompDirective
 	}{
 		{
-			args:       []string{""},
-			want:       lo.Union(locSchemes, []string{"my/", "my.db", "post/", "post.db"}),
+			args: []string{""},
+			want: lo.Union(locSchemes, []string{
+				"data/", "my/", "my.db", "post/", "post.db", "sqlite/", "sqlite.db",
+			}),
 			wantResult: stdDirective,
 		},
 		{
@@ -635,7 +639,166 @@ func TestCompleteAddLocation_MySQL(t *testing.T) {
 	}
 }
 
-func testComplete(t testing.TB, from *testrun.TestRun, args ...string) completion {
+func TestCompleteAddLocation_SQLite3(t *testing.T) {
+	wd := tutil.Chdir(t, filepath.Join("testdata", "add_location"))
+	t.Logf("Working dir: %s", wd)
+
+	testCases := []struct {
+		args       []string
+		want       []string
+		wantResult cobra.ShellCompDirective
+	}{
+		{
+			args:       []string{"s"},
+			want:       []string{"sqlite3://", "sqlserver://", "sqlite/", "sqlite.db"},
+			wantResult: stdDirective,
+		},
+		{
+			args:       []string{"sqlite"},
+			want:       []string{"sqlite3://", "sqlite/", "sqlite.db"},
+			wantResult: stdDirective,
+		},
+		{
+			args:       []string{"sqlite/"},
+			want:       []string{},
+			wantResult: cobra.ShellCompDirectiveDefault,
+		},
+		{
+			args:       []string{"my/my_"},
+			want:       []string{},
+			wantResult: cobra.ShellCompDirectiveDefault,
+		},
+		{
+			args:       []string{"sqlite3:"},
+			want:       []string{"sqlite3://"},
+			wantResult: stdDirective,
+		},
+		{
+			args:       []string{"sqlite3:/"},
+			want:       []string{"sqlite3://"},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"sqlite3://"},
+			want: []string{
+				"sqlite3://data/",
+				"sqlite3://my/",
+				"sqlite3://my.db",
+				"sqlite3://post/",
+				"sqlite3://post.db",
+				"sqlite3://sqlite/",
+				"sqlite3://sqlite.db",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"sqlite3://my"},
+			want: []string{
+				"sqlite3://my/",
+				"sqlite3://my.db",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args:       []string{"sqlite3://my.d"},
+			want:       []string{"sqlite3://my.db"},
+			wantResult: stdDirective,
+		},
+		{
+			args:       []string{"sqlite3://my.db"},
+			want:       []string{"sqlite3://my.db?"},
+			wantResult: stdDirective,
+		},
+		{
+			args:       []string{"sqlite3://data/nest1/data.db"},
+			want:       []string{"sqlite3://data/nest1/data.db?", "sqlite3://data/nest1/data.db2"},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"sqlite3://my.db?"},
+			want: []string{
+				"sqlite3://my.db?_auth=",
+				"sqlite3://my.db?_auth_crypt=",
+				"sqlite3://my.db?_auth_pass=",
+				"sqlite3://my.db?_auth_salt=",
+				"sqlite3://my.db?_auth_user=",
+				"sqlite3://my.db?_auto_vacuum=",
+				"sqlite3://my.db?_busy_timeout=",
+				"sqlite3://my.db?_cache_size=",
+				"sqlite3://my.db?_case_sensitive_like=",
+				"sqlite3://my.db?_defer_foreign_keys=",
+				"sqlite3://my.db?_foreign_keys=",
+				"sqlite3://my.db?_ignore_check_constraints=",
+				"sqlite3://my.db?_journal_mode=",
+				"sqlite3://my.db?_loc=",
+				"sqlite3://my.db?_locking_mode=",
+				"sqlite3://my.db?_mutex=",
+				"sqlite3://my.db?_query_only=",
+				"sqlite3://my.db?_recursive_triggers=",
+				"sqlite3://my.db?_secure_delete=",
+				"sqlite3://my.db?_synchronous=",
+				"sqlite3://my.db?_txlock=",
+				"sqlite3://my.db?cache=",
+				"sqlite3://my.db?mode=",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args:       []string{"sqlite3://my.db?_locking_"},
+			want:       []string{"sqlite3://my.db?_locking_mode="},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"sqlite3://my.db?_locking_mode="},
+			want: []string{
+				"sqlite3://my.db?_locking_mode=NORMAL",
+				"sqlite3://my.db?_locking_mode=EXCLUSIVE",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args:       []string{"sqlite3://my.db?_locking_mode=NORM"},
+			want:       []string{"sqlite3://my.db?_locking_mode=NORMAL"},
+			wantResult: stdDirective,
+		},
+		{
+			args:       []string{"sqlite3://my.db?_locking_mode=NORMAL"},
+			want:       []string{"sqlite3://my.db?_locking_mode=NORMAL&"},
+			wantResult: stdDirective,
+		},
+		{
+			args:       []string{"sqlite3://my.db?_locking_mode=NORMAL"},
+			want:       []string{"sqlite3://my.db?_locking_mode=NORMAL&"},
+			wantResult: stdDirective,
+		},
+		{
+			args:       []string{"sqlite3://my.db?_locking_mode=NORMAL&ca"},
+			want:       []string{"sqlite3://my.db?_locking_mode=NORMAL&cache="},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"sqlite3://my.db?_locking_mode=NORMAL&cache="},
+			want: []string{
+				"sqlite3://my.db?_locking_mode=NORMAL&cache=true",
+				"sqlite3://my.db?_locking_mode=NORMAL&cache=false",
+				"sqlite3://my.db?_locking_mode=NORMAL&cache=FAST",
+			},
+			wantResult: stdDirective,
+		},
+	}
+
+	for i, tc := range testCases {
+		tc := tc
+		t.Run(tutil.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
+			args := append([]string{"add"}, tc.args...)
+			got := testComplete(t, nil, args...)
+			assert.Equal(t, tc.wantResult, got.result, got.directives)
+			assert.Equal(t, tc.want, got.values)
+		})
+	}
+}
+
+func testComplete(t testing.TB, from *testrun.TestRun, args ...string) completion { //nolint:unparam
 	ctx := lg.NewContext(context.Background(), slogt.New(t))
 
 	tr := testrun.New(ctx, t, from)
@@ -742,39 +905,36 @@ func TestDoCompleteAddLocationFile(t *testing.T) {
 	t.Logf("Working dir: %s", absDir)
 
 	testCases := []struct {
-		in      string
-		want    []string
-		wantErr bool
+		in   string
+		want []string
 	}{
-		{"", []string{"my/", "my.db", "post/", "post.db"}, false},
-		{"m", []string{"my/", "my.db"}, false},
-		{"my", []string{"my/", "my.db"}, false},
-		{"my/", []string{"my/my1.db", "my/my_nest/"}, false},
-		{"my/my", []string{"my/my1.db", "my/my_nest/"}, false},
-		{"my/my1", []string{"my/my1.db"}, false},
-		{"my/my1.db", []string{"my/my1.db"}, false},
-		{"my/my_nes", []string{"my/my_nest/"}, false},
-		{"my/my_nest", []string{"my/my_nest/"}, false},
-		{"my/my_nest/", []string{"my/my_nest/my2.db"}, false},
+		{"", []string{"data/", "my/", "my.db", "post/", "post.db", "sqlite/", "sqlite.db"}},
+		{"m", []string{"my/", "my.db"}},
+		{"my", []string{"my/", "my.db"}},
+		{"my/", []string{"my/my1.db", "my/my_nest/"}},
+		{"my/my", []string{"my/my1.db", "my/my_nest/"}},
+		{"my/my1", []string{"my/my1.db"}},
+		{"my/my1.db", []string{"my/my1.db"}},
+		{"my/my_nes", []string{"my/my_nest/"}},
+		{"my/my_nest", []string{"my/my_nest/"}},
+		{"my/my_nest/", []string{"my/my_nest/my2.db"}},
+		{"data/nest1/", []string{"data/nest1/data.db", "data/nest1/data.db2"}},
+		{"data/nest1/data.db", []string{"data/nest1/data.db", "data/nest1/data.db2"}},
 		{
 			absDir + "/",
-			stringz.PrefixSlice([]string{"my/", "my.db", "post/", "post.db"}, absDir+"/"),
-			false,
+			stringz.PrefixSlice([]string{
+				"data/", "my/", "my.db", "post/", "post.db", "sqlite/", "sqlite.db",
+			}, absDir+"/"),
 		},
 	}
 
 	for i, tc := range testCases {
 		tc := tc
 		t.Run(tutil.Name(i, tc.in), func(t *testing.T) {
+			ctx := lg.NewContext(context.Background(), slogt.New(t))
 			t.Logf("input: %s", tc.in)
 			t.Logf("want:  %s", tc.want)
-			got, gotErr := cli.DoCompleteAddLocationFile(tc.in)
-			if tc.wantErr {
-				require.Error(t, gotErr)
-				return
-			}
-
-			require.NoError(t, gotErr)
+			got := cli.DoCompleteAddLocationFile(ctx, tc.in)
 			require.Equal(t, tc.want, got)
 		})
 	}

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -35,6 +36,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const locCompStdDirective = cobra.ShellCompDirectiveNoSpace | cobra.ShellCompDirectiveKeepOrder
+
 // completeAddLocation provides completion for the "sq add LOCATION" arg.
 func completeAddLocation(cmd *cobra.Command, args []string, toComplete string) (
 	[]string, cobra.ShellCompDirective,
@@ -49,18 +52,17 @@ func completeAddLocation(cmd *cobra.Command, args []string, toComplete string) (
 		return nil, cobra.ShellCompDirectiveDefault
 	}
 
-	const d = cobra.ShellCompDirectiveNoSpace | cobra.ShellCompDirectiveKeepOrder
 	var a []string
 
 	if toComplete == "" {
 		// No input yet. Offer both the driver URL schemes and file listing.
 		a = append(a, locSchemes...)
-		files, _ := doCompleteAddLocationFile(toComplete)
+		files := doCompleteAddLocationFile(cmd.Context(), toComplete)
 		if len(files) > 0 {
 			a = append(a, files...)
 		}
 
-		return a, d
+		return a, locCompStdDirective
 	}
 
 	// We've got some input in toComplete...
@@ -77,22 +79,23 @@ func completeAddLocation(cmd *cobra.Command, args []string, toComplete string) (
 
 		// Partial match, e.g. "post". So, this could match both
 		// a URL such as "postgres://", or a file such as "post.db".
-		files, _ := doCompleteAddLocationFile(toComplete)
+		files := doCompleteAddLocationFile(cmd.Context(), toComplete)
 		if len(files) > 0 {
 			a = append(a, files...)
 		}
 
-		return a, d
+		return a, locCompStdDirective
 	}
 
 	// toComplete starts with one of the driver schemes. There's no
 	// possibility this could be a file completion.
-	return completeAddLocationURL(cmd, nil, toComplete)
+	return doCompleteAddLocationURL(cmd, nil, toComplete)
 }
 
-func completeAddLocationURL(cmd *cobra.Command, _ []string, toComplete string, //nolint:funlen
+func doCompleteAddLocationURL(cmd *cobra.Command, _ []string, toComplete string, //nolint:funlen
 ) ([]string, cobra.ShellCompDirective) {
-	const d = cobra.ShellCompDirectiveNoSpace | cobra.ShellCompDirectiveKeepOrder
+	// If we get this far, then toComplete is at least a partial URL
+	// starting with "postgres://", "mysql://", etc.
 
 	var (
 		a   []string
@@ -110,8 +113,10 @@ func completeAddLocationURL(cmd *cobra.Command, _ []string, toComplete string, /
 		return nil, cobra.ShellCompDirectiveError
 	}
 
-	// If we get this far, then toComplete is at least a partial URL
-	// starting with "postgres://", "mysql://", etc.
+	// Special handling for sqlite.
+	if strings.HasPrefix(toComplete, string(sqlite3.Type)) {
+		return doCompleteAddLocationSQLite3(ctx, ru, toComplete)
+	}
 
 	ploc, err := lch.parseLoc(toComplete)
 	if err != nil {
@@ -119,8 +124,6 @@ func completeAddLocationURL(cmd *cobra.Command, _ []string, toComplete string, /
 		return nil, cobra.ShellCompDirectiveError
 	}
 	stageDone := ploc.stageDone
-	log.Debug("ploc stage", lga.Val, stageDone)
-
 	switch stageDone { //nolint:exhaustive
 	case plocScheme:
 		if ploc.user == "" {
@@ -130,7 +133,7 @@ func completeAddLocationURL(cmd *cobra.Command, _ []string, toComplete string, /
 				toComplete + "username:password",
 			}
 
-			return a, d
+			return a, locCompStdDirective
 		}
 
 		a = []string{
@@ -140,7 +143,7 @@ func completeAddLocationURL(cmd *cobra.Command, _ []string, toComplete string, /
 			toComplete + ":password@",
 		}
 
-		return a, d
+		return a, locCompStdDirective
 	case plocUser:
 		if ploc.pass == "" {
 			a = []string{
@@ -149,14 +152,14 @@ func completeAddLocationURL(cmd *cobra.Command, _ []string, toComplete string, /
 				toComplete + "password@",
 			}
 
-			return a, d
+			return a, locCompStdDirective
 		}
 
 		a = []string{
 			toComplete + "@",
 		}
 
-		return a, d
+		return a, locCompStdDirective
 	case plocPass:
 		defaultPort := lch.driverPort()
 		afterHost := lch.afterHost()
@@ -173,7 +176,7 @@ func completeAddLocationURL(cmd *cobra.Command, _ []string, toComplete string, /
 				}
 			}
 
-			return a, d
+			return a, locCompStdDirective
 		}
 
 		base, _, _ := strings.Cut(toComplete, "@")
@@ -195,7 +198,7 @@ func completeAddLocationURL(cmd *cobra.Command, _ []string, toComplete string, /
 			}
 
 			a = lo.Uniq(stringz.FilterPrefix(toComplete, a...))
-			return a, d
+			return a, locCompStdDirective
 		}
 
 		if defaultPort == "" {
@@ -212,17 +215,17 @@ func completeAddLocationURL(cmd *cobra.Command, _ []string, toComplete string, /
 		}
 
 		a = stringz.FilterPrefix(toComplete, a...)
-		return a, d
+		return a, locCompStdDirective
 	case plocHostname:
 		defaultPort := lch.driverPort()
 		afterHost := lch.afterHost()
 		if strings.HasSuffix(toComplete, ":") {
 			a = []string{toComplete + defaultPort + afterHost}
-			return a, d
+			return a, locCompStdDirective
 		}
 
 		a = []string{toComplete + afterHost}
-		return a, d
+		return a, locCompStdDirective
 
 	case plocHost:
 		// Special handling for SQLServer. The input is typically of the form:
@@ -232,40 +235,76 @@ func completeAddLocationURL(cmd *cobra.Command, _ []string, toComplete string, /
 		if ploc.typ == sqlserver.Type {
 			if ploc.du.Path == "/" {
 				a = []string{toComplete + "instance?database="}
-				return a, d
+				return a, locCompStdDirective
 			}
 
 			a = []string{toComplete + "?database="}
-			return a, d
+			return a, locCompStdDirective
 		}
 
 		if ploc.name == "" {
 			a = []string{toComplete + "db"}
-			return a, d
+			return a, locCompStdDirective
 		}
 
 		a = []string{toComplete + "?"}
-		return a, d
+		return a, locCompStdDirective
 
 	default:
 		// We're at plocName (db name is done), so it's on to conn params
-		return completeConnParams(lch, toComplete)
+		return doCompleteConnParams(lch.ploc.du, lch.drvr, toComplete)
 	}
 }
 
-func completeConnParams(lch *locCompleteHelper, toComplete string) ([]string, cobra.ShellCompDirective) {
+// doCompleteAddLocationSQLite3 completes a location starting with "sqlite3://".
+// We have special handling for SQLite, because it's not a normal URL,
+// but rather sqlite3://FILE/PATH?param=X.
+func doCompleteAddLocationSQLite3(ctx context.Context, ru *run.Run, toComplete string) (
+	[]string, cobra.ShellCompDirective,
+) {
+	log := lg.FromContext(ctx)
+	start := strings.TrimPrefix(toComplete, "sqlite3://")
+
+	drvr, err := ru.DriverRegistry.SQLDriverFor(sqlite3.Type)
+	if err != nil {
+		// Shouldn't happen
+		log.Error("Cannot get driver", lga.Err, err)
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	du, err := dburl.Parse(toComplete)
+	if err == nil {
+		if du.URL.RawQuery != "" || strings.HasSuffix(toComplete, "?") {
+			return doCompleteConnParams(du, drvr, toComplete)
+		}
+	}
+
+	paths := doCompleteAddLocationFile(ctx, start)
+	for i := range paths {
+		if ioz.IsPathToRegularFile(paths[i]) && paths[i] == start {
+			paths[i] += "?"
+		}
+
+		paths[i] = "sqlite3://" + paths[i]
+	}
+
+	return paths, locCompStdDirective
+}
+
+func doCompleteConnParams(du *dburl.URL, drvr driver.SQLDriver, toComplete string) (
+	[]string, cobra.ShellCompDirective,
+) {
 	var (
-		d     = cobra.ShellCompDirectiveNoSpace | cobra.ShellCompDirectiveKeepOrder
 		a     []string
-		query = lch.ploc.du.RawQuery
+		query = du.RawQuery
 	)
 
-	drvrParamKeys, drvrParams := lch.connParams()
+	drvrParamKeys, drvrParams := getConnParams(drvr)
 
 	if query == "" {
 		a = stringz.PrefixSlice(drvrParamKeys, toComplete)
 		a = stringz.SuffixSlice(a, "=")
-		return a, d
+		return a, locCompStdDirective
 	}
 
 	actualKeys, err := stringz.QueryParamKeys(query)
@@ -278,7 +317,7 @@ func completeConnParams(lch *locCompleteHelper, toComplete string) ([]string, co
 		return nil, cobra.ShellCompDirectiveError
 	}
 
-	elements := strings.Split(lch.ploc.du.RawQuery, "&")
+	elements := strings.Split(query, "&")
 
 	// could be "sslmo", "sslmode", "sslmode=", "sslmode=dis"
 	lastElement := elements[len(elements)-1]
@@ -313,7 +352,7 @@ func completeConnParams(lch *locCompleteHelper, toComplete string) ([]string, co
 			a = append(a, s)
 		}
 
-		return a, d
+		return a, locCompStdDirective
 	}
 
 	candidateVals := drvrParams[before]
@@ -327,7 +366,7 @@ func completeConnParams(lch *locCompleteHelper, toComplete string) ([]string, co
 		// If it's an unknown value, append "&" to move
 		// on to a further query param.
 		a = []string{toComplete + "&"}
-		return a, d
+		return a, locCompStdDirective
 	}
 
 	if len(a) == 1 && a[0] == toComplete {
@@ -336,7 +375,7 @@ func completeConnParams(lch *locCompleteHelper, toComplete string) ([]string, co
 		a[0] += "&"
 	}
 
-	return a, d
+	return a, locCompStdDirective
 }
 
 // locCompleteHelper is a helper for completing the "sq add location" arg.
@@ -349,12 +388,12 @@ type locCompleteHelper struct {
 
 // connParams returns the driver's connection params. The returned keys
 // are sorted appropriately for the driver, and are query encoded.
-func (h *locCompleteHelper) connParams() (keys []string, params map[string][]string) {
-	ogParams := h.drvr.ConnParams()
+func getConnParams(drvr driver.SQLDriver) (keys []string, params map[string][]string) {
+	ogParams := drvr.ConnParams()
 	ogKeys := lo.Keys(ogParams)
 	slices.Sort(ogKeys)
 
-	if h.ploc.typ == sqlserver.Type {
+	if drvr.DriverMetadata().Type == sqlserver.Type {
 		// For SQLServer, the "database" key should come first, because
 		// it's required.
 		ogKeys = lo.Without(ogKeys, "database")
@@ -593,65 +632,35 @@ const (
 var locSchemes = []string{
 	"mysql://",
 	"postgres://",
+	"sqlite3://",
 	"sqlserver://",
 }
 
 // doCompleteAddLocationFile completes filenames. This function tries to
-// mimic what a shell would do.
-func doCompleteAddLocationFile(toComplete string) ([]string, error) {
+// mimic what a shell would do. Any errors are logged and swallowed.
+func doCompleteAddLocationFile(ctx context.Context, toComplete string) []string {
 	start := toComplete
 	var files []string
 	var err error
 	if start == "" {
 		start, err = os.Getwd()
 		if err != nil {
-			return nil, errz.Err(err)
+			return nil
 		}
 		files, err = ioz.ReadDir(start, false, true, false)
 		if err != nil {
-			return nil, err
+			lg.FromContext(ctx).Warn("Read dir", lga.Path, start, lga.Err, err)
 		}
 
-		return files, nil
-	}
-
-	fi, err := os.Stat(start)
-	if err != nil {
-		// Can't stat start.
-		// Let's try the containing dir
-		start = filepath.Dir(toComplete)
-		files, err = ioz.ReadDir(start, false, true, false)
-		if err != nil {
-			return nil, err
-		}
-		base := filepath.Base(toComplete)
-		if base != "" {
-			files = stringz.FilterPrefix(base, files...)
-			var hasSlashSuffix bool
-			for i := range files {
-				hasSlashSuffix = strings.HasSuffix(files[i], "/")
-				files[i] = filepath.Join(start, files[i])
-				if hasSlashSuffix {
-					files[i] += "/"
-				}
-			}
-		}
-		return files, nil
-	}
-
-	// There's either a directory or file matching start.
-	mode := fi.Mode()
-	if mode.IsRegular() {
-		// It's a regular file that's a direct match.
-		return []string{start}, nil
+		return files
 	}
 
 	if strings.HasSuffix(start, "/") {
 		files, err = ioz.ReadDir(start, true, true, false)
 		if err != nil {
-			return nil, err
+			lg.FromContext(ctx).Warn("Read dir", lga.Path, start, lga.Err, err)
 		}
-		return files, nil
+		return files
 	}
 
 	// We could have a situation like this:
@@ -664,12 +673,12 @@ func doCompleteAddLocationFile(toComplete string) ([]string, error) {
 	if err == nil && dirFi.IsDir() {
 		files, err = ioz.ReadDir(dir, true, true, false)
 		if err != nil {
-			return nil, err
+			lg.FromContext(ctx).Warn("Read dir", lga.Path, start, lga.Err, err)
 		}
 	} else {
 		files = []string{start}
 	}
 
 	files = stringz.FilterPrefix(toComplete, files...)
-	return files, nil
+	return files
 }

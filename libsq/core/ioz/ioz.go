@@ -157,3 +157,20 @@ func ReadDir(dir string, includeDirPath, markDirs, includeDot bool) (paths []str
 
 	return paths, nil
 }
+
+// IsPathToRegularFile return true if path is a regular file or
+// a symlink that resolves to a regular file. False is returned on
+// any error.
+func IsPathToRegularFile(path string) bool {
+	dest, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		return false
+	}
+
+	fi, err := os.Stat(dest)
+	if err != nil {
+		return false
+	}
+
+	return fi.Mode().IsRegular()
+}
