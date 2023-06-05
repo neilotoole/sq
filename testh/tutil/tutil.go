@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"unicode"
@@ -349,4 +350,11 @@ func Chdir(t *testing.T, dir string) (absDir string) {
 	})
 
 	return absDir
+}
+
+// SkipWindows skips t if running on Windows.
+func SkipWindows(t *testing.T, format string, args ...any) {
+	if runtime.GOOS == "windows" {
+		t.Skipf(format, args...)
+	}
 }

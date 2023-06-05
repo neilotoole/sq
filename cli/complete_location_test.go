@@ -40,6 +40,8 @@ var locSchemes = []string{
 const stdDirective = cobra.ShellCompDirectiveNoSpace | cobra.ShellCompDirectiveKeepOrder
 
 func TestCompleteAddLocation_Postgres(t *testing.T) {
+	tutil.SkipWindows(t, "Shell completion not fully implemented for windows")
+
 	wd := tutil.Chdir(t, filepath.Join("testdata", "add_location"))
 	t.Logf("Working dir: %s", wd)
 
@@ -278,6 +280,8 @@ func TestCompleteAddLocation_Postgres(t *testing.T) {
 }
 
 func TestCompleteAddLocation_SQLServer(t *testing.T) {
+	tutil.SkipWindows(t, "Shell completion not fully implemented for windows")
+
 	wd := tutil.Chdir(t, filepath.Join("testdata", "add_location"))
 	t.Logf("Working dir: %s", wd)
 
@@ -408,6 +412,8 @@ func TestCompleteAddLocation_SQLServer(t *testing.T) {
 }
 
 func TestCompleteAddLocation_MySQL(t *testing.T) {
+	tutil.SkipWindows(t, "Shell completion not fully implemented for windows")
+
 	wd := tutil.Chdir(t, filepath.Join("testdata", "add_location"))
 	t.Logf("Working dir: %s", wd)
 
@@ -640,6 +646,8 @@ func TestCompleteAddLocation_MySQL(t *testing.T) {
 }
 
 func TestCompleteAddLocation_SQLite3(t *testing.T) {
+	tutil.SkipWindows(t, "Shell completion not fully implemented for windows")
+
 	wd := tutil.Chdir(t, filepath.Join("testdata", "add_location"))
 	t.Logf("Working dir: %s", wd)
 
@@ -901,6 +909,8 @@ func TestParseLoc_stage(t *testing.T) {
 }
 
 func TestDoCompleteAddLocationFile(t *testing.T) {
+	tutil.SkipWindows(t, "Shell completion not fully implemented for windows")
+
 	absDir := tutil.Chdir(t, filepath.Join("testdata", "add_location"))
 	t.Logf("Working dir: %s", absDir)
 
