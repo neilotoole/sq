@@ -60,12 +60,6 @@ type Selector interface {
 type ResultColumn interface {
 	Node
 
-	// IsColumn returns true if the expression represents
-	// a column, e.g. ".first_name" or "actor.first_name".
-	// This method returns false for functions, e.g. "COUNT(*)".
-	// REVISIT: We can probably get rid of this?
-	IsColumn() bool
-
 	// String returns a log/debug-friendly representation.
 	String() string
 

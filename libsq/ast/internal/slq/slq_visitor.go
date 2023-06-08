@@ -76,6 +76,9 @@ type SLQVisitor interface {
 	// Visit a parse tree produced by SLQParser#rowRange.
 	VisitRowRange(ctx *RowRangeContext) interface{}
 
+	// Visit a parse tree produced by SLQParser#exprElement.
+	VisitExprElement(ctx *ExprElementContext) interface{}
+
 	// Visit a parse tree produced by SLQParser#expr.
 	VisitExpr(ctx *ExprContext) interface{}
 

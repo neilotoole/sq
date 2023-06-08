@@ -76,6 +76,9 @@ type SLQListener interface {
 	// EnterRowRange is called when entering the rowRange production.
 	EnterRowRange(c *RowRangeContext)
 
+	// EnterExprElement is called when entering the exprElement production.
+	EnterExprElement(c *ExprElementContext)
+
 	// EnterExpr is called when entering the expr production.
 	EnterExpr(c *ExprContext)
 
@@ -153,6 +156,9 @@ type SLQListener interface {
 
 	// ExitRowRange is called when exiting the rowRange production.
 	ExitRowRange(c *RowRangeContext)
+
+	// ExitExprElement is called when exiting the exprElement production.
+	ExitExprElement(c *ExprElementContext)
 
 	// ExitExpr is called when exiting the expr production.
 	ExitExpr(c *ExprContext)

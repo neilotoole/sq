@@ -158,6 +158,12 @@ func (s *BaseSLQListener) EnterRowRange(ctx *RowRangeContext) {}
 // ExitRowRange is called when production rowRange is exited.
 func (s *BaseSLQListener) ExitRowRange(ctx *RowRangeContext) {}
 
+// EnterExprElement is called when production exprElement is entered.
+func (s *BaseSLQListener) EnterExprElement(ctx *ExprElementContext) {}
+
+// ExitExprElement is called when production exprElement is exited.
+func (s *BaseSLQListener) ExitExprElement(ctx *ExprElementContext) {}
+
 // EnterExpr is called when production expr is entered.
 func (s *BaseSLQListener) EnterExpr(ctx *ExprContext) {}
 

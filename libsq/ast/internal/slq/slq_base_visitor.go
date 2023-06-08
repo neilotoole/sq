@@ -99,6 +99,10 @@ func (v *BaseSLQVisitor) VisitRowRange(ctx *RowRangeContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
+func (v *BaseSLQVisitor) VisitExprElement(ctx *ExprElementContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
 func (v *BaseSLQVisitor) VisitExpr(ctx *ExprContext) interface{} {
 	return v.VisitChildren(ctx)
 }

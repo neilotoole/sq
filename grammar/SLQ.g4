@@ -9,7 +9,7 @@ query: segment ('|' segment)*;
 segment: (element) (',' element)*;
 
 element
-    : handleTable
+  : handleTable
 	| handle
 	| selectorElement
 	| join
@@ -19,7 +19,7 @@ element
 	| uniqueFunc
 	| countFunc
 	| funcElement
-	| expr;
+	| exprElement;
 
 // cmpr is a comparison operator.
 cmpr: LT_EQ | LT | GT_EQ | GT | EQ | NEQ;
@@ -199,10 +199,11 @@ rowRange:
 //	| 'where'
 //	| 'WHERE';
 
-
+exprElement: expr (alias)?;
 
 expr:
-	selector
+	'(' expr ')'
+	| selector
 	| literal
 	| arg
 	| unaryOperator expr

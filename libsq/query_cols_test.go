@@ -53,12 +53,25 @@ func TestQuery_cols(t *testing.T) {
 			override: map[source.DriverType]string{mysql.Type: "SELECT `first_name` AS `given_name`, `last_name` AS `family_name` FROM `actor`"},
 			wantRecs: sakila.TblActorCount,
 		},
-
 		{
 			name:     "handle-table/cols",
 			in:       `@sakila.actor | .first_name, .last_name`,
 			wantSQL:  `SELECT "first_name", "last_name" FROM "actor"`,
 			override: map[source.DriverType]string{mysql.Type: "SELECT `first_name`, `last_name` FROM `actor`"},
+			wantRecs: sakila.TblActorCount,
+		},
+		{
+			name:     "cols-select-literal-value",
+			in:       `@sakila.actor | .first_name, ."xxx", .last_name`,
+			wantSQL:  `SELECT "first_name", 'xxx', "last_name" FROM "actor"`,
+			override: map[source.DriverType]string{mysql.Type: "SELECT `first_name`, 'xxx', `last_name` FROM `actor`"},
+			wantRecs: sakila.TblActorCount,
+		},
+		{
+			name:     "select/literal",
+			in:       `@sakila.actor | .first_name, 5`,
+			wantSQL:  `SELECT "first_name", 5 FROM "actor"`,
+			override: map[source.DriverType]string{mysql.Type: "SELECT `first_name`, 5 FROM `actor`"},
 			wantRecs: sakila.TblActorCount,
 		},
 	}
