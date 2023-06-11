@@ -103,6 +103,8 @@ func newRun(ctx context.Context, t testing.TB, cfgStore config.Store) (ru *run.R
 // Add adds srcs to tr.Run.Config.Collection. If the collection
 // does not already have an active source, the first element
 // of srcs is used as the active source.
+//
+// REVISIT: Why not use *source.Source instead of the value?
 func (tr *TestRun) Add(srcs ...source.Source) *TestRun {
 	tr.mu.Lock()
 	defer tr.mu.Unlock()
@@ -123,6 +125,9 @@ func (tr *TestRun) Add(srcs ...source.Source) *TestRun {
 		_, err := coll.SetActive(srcs[0].Handle, false)
 		require.NoError(tr.T, err)
 	}
+
+	err := tr.Run.ConfigStore.Save(tr.Context, tr.Run.Config)
+	require.NoError(tr.T, err)
 
 	return tr
 }

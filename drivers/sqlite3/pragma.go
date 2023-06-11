@@ -52,7 +52,7 @@ func readPragma(ctx context.Context, db sqlz.DB, pragma string) (any, error) {
 			// Some of the pragmas can't be selected from. Ignore these.
 			// SQLite returns a generic (1) SQLITE_ERROR in this case,
 			// so we match using the error string.
-			return nil, nil
+			return nil, nil //nolint:nilnil
 		}
 
 		return nil, errw(err)
@@ -61,7 +61,7 @@ func readPragma(ctx context.Context, db sqlz.DB, pragma string) (any, error) {
 	defer lg.WarnIfCloseError(lg.FromContext(ctx), lgm.CloseDBRows, rows)
 
 	if !rows.Next() {
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	}
 
 	cols, err := rows.Columns()
@@ -72,7 +72,7 @@ func readPragma(ctx context.Context, db sqlz.DB, pragma string) (any, error) {
 	switch len(cols) {
 	case 0:
 		// Shouldn't happen
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	case 1:
 		var val any
 		if err = rows.Scan(&val); err != nil {

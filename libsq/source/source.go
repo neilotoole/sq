@@ -97,7 +97,7 @@ func (s *Source) LogValue() slog.Value {
 
 // String returns a log/debug-friendly representation.
 func (s *Source) String() string {
-	return fmt.Sprintf("%s|%s| %s", s.Handle, s.Type, s.RedactedLocation())
+	return fmt.Sprintf("%s|%s|%s", s.Handle, s.Type, s.RedactedLocation())
 }
 
 // Group returns the source's group. If s is in the root group,

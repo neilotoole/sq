@@ -7,6 +7,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neilotoole/sq/drivers/sqlserver"
+
+	"github.com/neilotoole/sq/drivers/postgres"
+	"github.com/neilotoole/sq/libsq/source"
+
 	"github.com/neilotoole/sq/libsq/core/stringz"
 
 	"github.com/samber/lo"
@@ -71,9 +76,7 @@ func TestCompleteAddLocation_Postgres(t *testing.T) {
 		{
 			args: []string{"postgres://"},
 			want: []string{
-				"postgres://",
 				"postgres://username",
-				"postgres://username:password",
 			},
 			wantResult: stdDirective,
 		},
@@ -82,8 +85,6 @@ func TestCompleteAddLocation_Postgres(t *testing.T) {
 			want: []string{
 				"postgres://alice@",
 				"postgres://alice:",
-				"postgres://alice:@",
-				"postgres://alice:password@",
 			},
 			wantResult: stdDirective,
 		},
@@ -304,9 +305,7 @@ func TestCompleteAddLocation_SQLServer(t *testing.T) {
 		{
 			args: []string{"sqlserver://"},
 			want: []string{
-				"sqlserver://",
 				"sqlserver://username",
-				"sqlserver://username:password",
 			},
 			wantResult: stdDirective,
 		},
@@ -452,9 +451,7 @@ func TestCompleteAddLocation_MySQL(t *testing.T) {
 		{
 			args: []string{"mysql://"},
 			want: []string{
-				"mysql://",
 				"mysql://username",
-				"mysql://username:password",
 			},
 			wantResult: stdDirective,
 		},
@@ -463,8 +460,6 @@ func TestCompleteAddLocation_MySQL(t *testing.T) {
 			want: []string{
 				"mysql://alice@",
 				"mysql://alice:",
-				"mysql://alice:@",
-				"mysql://alice:password@",
 			},
 			wantResult: stdDirective,
 		},
@@ -806,7 +801,7 @@ func TestCompleteAddLocation_SQLite3(t *testing.T) {
 	}
 }
 
-func testComplete(t testing.TB, from *testrun.TestRun, args ...string) completion { //nolint:unparam
+func testComplete(t testing.TB, from *testrun.TestRun, args ...string) completion {
 	ctx := lg.NewContext(context.Background(), slogt.New(t))
 
 	tr := testrun.New(ctx, t, from)
@@ -855,6 +850,318 @@ type completion struct {
 	directives []cobra.ShellCompDirective
 }
 
+func TestCompleteAddLocation_History_Postgres(t *testing.T) {
+	wd := tutil.Chdir(t, filepath.Join("testdata", "add_location"))
+	t.Logf("Working dir: %s", wd)
+
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	tr.Add(
+		source.Source{
+			Handle:   "@src1",
+			Type:     postgres.Type,
+			Location: "postgres://alice:abc123@dev.acme.com:7777/sakila?application_name=app1&channel_binding=prefer",
+		},
+		source.Source{
+			Handle:   "@src2",
+			Type:     postgres.Type,
+			Location: "postgres://bob:abc123@prod.acme.com:8888/sales?application_name=app2&channel_binding=require",
+		},
+	)
+
+	testCases := []struct {
+		args       []string
+		want       []string
+		wantResult cobra.ShellCompDirective
+	}{
+		{
+			args: []string{"postgres://"},
+			want: []string{
+				"postgres://alice",
+				"postgres://bob",
+				"postgres://username",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"postgres://a"},
+			want: []string{
+				"postgres://a@",
+				"postgres://a:",
+				"postgres://alice@",
+				"postgres://alice:",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"postgres://alice"},
+			want: []string{
+				"postgres://alice@",
+				"postgres://alice:",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"postgres://alice@"},
+			want: []string{
+				"postgres://alice@localhost/",
+				"postgres://alice@localhost:5432/",
+				"postgres://alice@dev.acme.com:7777/",
+				"postgres://alice@prod.acme.com:8888/",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"postgres://alice@dev"},
+			want: []string{
+				"postgres://alice@dev/",
+				"postgres://alice@dev:5432/",
+				"postgres://alice@dev.acme.com:7777/",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"postgres://alice@dev.acme.com"},
+			want: []string{
+				"postgres://alice@dev.acme.com/",
+				"postgres://alice@dev.acme.com:5432/",
+				"postgres://alice@dev.acme.com:7777/",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"postgres://alice@dev.acme.com/"},
+			want: []string{
+				"postgres://alice@dev.acme.com/db",
+				"postgres://alice@dev.acme.com/sakila",
+				"postgres://alice@dev.acme.com/sales",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"postgres://alice@dev.acme.com/sa"},
+			want: []string{
+				"postgres://alice@dev.acme.com/sa?",
+				"postgres://alice@dev.acme.com/sakila",
+				"postgres://alice@dev.acme.com/sales",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"postgres://alice@dev.acme.com/sakila?"},
+			want: []string{
+				"postgres://alice@dev.acme.com/sakila?application_name=app1&channel_binding=prefer",
+				"postgres://alice@dev.acme.com/sakila?application_name=",
+				"postgres://alice@dev.acme.com/sakila?channel_binding=",
+				"postgres://alice@dev.acme.com/sakila?connect_timeout=",
+				"postgres://alice@dev.acme.com/sakila?fallback_application_name=",
+				"postgres://alice@dev.acme.com/sakila?gssencmode=",
+				"postgres://alice@dev.acme.com/sakila?sslmode=",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"postgres://alice@dev.acme.com/sakila?app"},
+			want: []string{
+				"postgres://alice@dev.acme.com/sakila?application_name=app1&channel_binding=prefer",
+				"postgres://alice@dev.acme.com/sakila?application_name=",
+			},
+			wantResult: stdDirective,
+		},
+	}
+
+	for i, tc := range testCases {
+		tc := tc
+		t.Run(tutil.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
+			args := append([]string{"add"}, tc.args...)
+			got := testComplete(t, tr, args...)
+			assert.Equal(t, tc.wantResult, got.result, got.directives)
+			assert.Equal(t, tc.want, got.values)
+		})
+	}
+}
+
+func TestCompleteAddLocation_History_SQLServer(t *testing.T) {
+	wd := tutil.Chdir(t, filepath.Join("testdata", "add_location"))
+	t.Logf("Working dir: %s", wd)
+
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	tr.Add(
+		source.Source{
+			Handle:   "@src1",
+			Type:     sqlserver.Type,
+			Location: "sqlserver://alice:abc123@dev.acme.com:7777?database=sakila&app+name=app1&encrypt=disable",
+		},
+		source.Source{
+			Handle:   "@src2",
+			Type:     sqlserver.Type,
+			Location: "sqlserver://bob:abc123@prod.acme.com:8888?database=sales&app+name=app2&encrypt=true",
+		},
+	)
+
+	testCases := []struct {
+		args       []string
+		want       []string
+		wantResult cobra.ShellCompDirective
+	}{
+		{
+			args: []string{"sqlserver://"},
+			want: []string{
+				"sqlserver://alice",
+				"sqlserver://bob",
+				"sqlserver://username",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"sqlserver://a"},
+			want: []string{
+				"sqlserver://a@",
+				"sqlserver://a:",
+				"sqlserver://alice@",
+				"sqlserver://alice:",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"sqlserver://alice"},
+			want: []string{
+				"sqlserver://alice@",
+				"sqlserver://alice:",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"sqlserver://alice@"},
+			want: []string{
+				"sqlserver://alice@localhost?database=",
+				"sqlserver://alice@localhost:1433?database=",
+				"sqlserver://alice@dev.acme.com:7777?database=",
+				"sqlserver://alice@prod.acme.com:8888?database=",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"sqlserver://alice@dev"},
+			want: []string{
+				"sqlserver://alice@dev?database=",
+				"sqlserver://alice@dev:1433?database=",
+				"sqlserver://alice@dev.acme.com:7777?database=",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"sqlserver://alice@dev.acme.com"},
+			want: []string{
+				"sqlserver://alice@dev.acme.com?database=",
+				"sqlserver://alice@dev.acme.com:1433?database=",
+				"sqlserver://alice@dev.acme.com:7777?database=",
+			},
+			wantResult: stdDirective,
+		},
+		// FIXME: Deal with /instance/
+		{
+			args: []string{"sqlserver://alice@dev.acme.com?"},
+			want: []string{
+				"sqlserver://alice@dev.acme.com?database=sakila&app+name=app1&encrypt=disable",
+				"sqlserver://alice@dev.acme.com?database=sales&app+name=app2&encrypt=true",
+				"sqlserver://alice@dev.acme.com?database=",
+				"sqlserver://alice@dev.acme.com?ApplicationIntent=",
+				"sqlserver://alice@dev.acme.com?ServerSPN=",
+				"sqlserver://alice@dev.acme.com?TrustServerCertificate=",
+				"sqlserver://alice@dev.acme.com?Workstation+ID=",
+				"sqlserver://alice@dev.acme.com?app+name=",
+				"sqlserver://alice@dev.acme.com?certificate=",
+				"sqlserver://alice@dev.acme.com?connection+timeout=",
+				"sqlserver://alice@dev.acme.com?dial+timeout=",
+				"sqlserver://alice@dev.acme.com?encrypt=",
+				"sqlserver://alice@dev.acme.com?failoverpartner=",
+				"sqlserver://alice@dev.acme.com?failoverport=",
+				"sqlserver://alice@dev.acme.com?hostNameInCertificate=",
+				"sqlserver://alice@dev.acme.com?keepAlive=",
+				"sqlserver://alice@dev.acme.com?log=",
+				"sqlserver://alice@dev.acme.com?packet+size=",
+				"sqlserver://alice@dev.acme.com?protocol=",
+				"sqlserver://alice@dev.acme.com?tlsmin=",
+				"sqlserver://alice@dev.acme.com?user+id=",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"sqlserver://alice@dev.acme.com?data"},
+			want: []string{
+				"sqlserver://alice@dev.acme.com?database=sakila&app+name=app1&encrypt=disable",
+				"sqlserver://alice@dev.acme.com?database=sales&app+name=app2&encrypt=true",
+				"sqlserver://alice@dev.acme.com?database=",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"sqlserver://alice@dev.acme.com?database"},
+			want: []string{
+				"sqlserver://alice@dev.acme.com?database=sakila&app+name=app1&encrypt=disable",
+				"sqlserver://alice@dev.acme.com?database=sales&app+name=app2&encrypt=true",
+				"sqlserver://alice@dev.acme.com?database=",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"sqlserver://alice@dev.acme.com?database="},
+			want: []string{
+				"sqlserver://alice@dev.acme.com?database=sakila&app+name=app1&encrypt=disable",
+				"sqlserver://alice@dev.acme.com?database=sales&app+name=app2&encrypt=true",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"sqlserver://alice@dev.acme.com?database=sa"},
+			want: []string{
+				"sqlserver://alice@dev.acme.com?database=sakila&app+name=app1&encrypt=disable",
+				"sqlserver://alice@dev.acme.com?database=sales&app+name=app2&encrypt=true",
+				"sqlserver://alice@dev.acme.com?database=sa&",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"sqlserver://alice@dev.acme.com?database=saki"},
+			want: []string{
+				"sqlserver://alice@dev.acme.com?database=sakila&app+name=app1&encrypt=disable",
+				"sqlserver://alice@dev.acme.com?database=saki&",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"sqlserver://alice@dev.acme.com?database=sakila"},
+			want: []string{
+				"sqlserver://alice@dev.acme.com?database=sakila&app+name=app1&encrypt=disable",
+				"sqlserver://alice@dev.acme.com?database=sakila&",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"sqlserver://alice@dev.acme.com?database=sakila&app"},
+			want: []string{
+				"sqlserver://alice@dev.acme.com?database=sakila&app+name=app1&encrypt=disable",
+				"sqlserver://alice@dev.acme.com?database=sakila&app+name=",
+			},
+			wantResult: stdDirective,
+		},
+	}
+
+	for i, tc := range testCases {
+		tc := tc
+		t.Run(tutil.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
+			args := append([]string{"add"}, tc.args...)
+			got := testComplete(t, tr, args...)
+			assert.Equal(t, tc.wantResult, got.result, got.directives)
+			assert.Equal(t, tc.want, got.values)
+		})
+	}
+}
+
 func TestParseLoc_stage(t *testing.T) {
 	testCases := []struct {
 		loc  string
@@ -886,14 +1193,6 @@ func TestParseLoc_stage(t *testing.T) {
 		{"postgres://alice:pass@localhost:5432/sakila?sslmode=verify-ca", cli.PlocPath},
 		{"sqlserver://alice:pass@localhost?", cli.PlocPath},
 	}
-
-	/*
-		sq add postgres://sakila:p_ssW0rd@192.168.50.132/sakila
-		sq add postgres://sakila:p_ssW0rd@192.168.50.132/sakila?sslmode=verify-ca
-		sq add sqlserver://sakila:p_ssW0rd@192.168.50.130\?database=sakila
-		sq add sqlserver://sakila:p_ssW0rd@192.168.50.130\?database=sakila&\keepAlive=30
-
-	*/
 
 	for i, tc := range testCases {
 		tc := tc
