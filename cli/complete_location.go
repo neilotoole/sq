@@ -361,15 +361,16 @@ func locCompDoSQLite3(cmd *cobra.Command, _ []string, toComplete string) ([]stri
 		return nil, cobra.ShellCompDirectiveError
 	}
 
+	hist := &locHistory{
+		coll: ru.Config.Collection,
+		typ:  sqlite3.Type,
+		log:  log,
+	}
+
 	du, err := dburl.Parse(toComplete)
 	if err == nil {
 		// Check if we're done with the filepath part, and on to conn params?
 		if du.URL.RawQuery != "" || strings.HasSuffix(toComplete, "?") {
-			hist := &locHistory{
-				coll: ru.Config.Collection,
-				typ:  sqlite3.Type,
-				log:  log,
-			}
 			return locCompDoConnParams(du, hist, drvr, toComplete)
 		}
 	}
@@ -385,7 +386,13 @@ func locCompDoSQLite3(cmd *cobra.Command, _ []string, toComplete string) ([]stri
 		paths[i] = "sqlite3://" + paths[i]
 	}
 
-	return paths, locCompStdDirective
+	a := hist.locations()
+	a = append(a, paths...)
+	a = lo.Uniq(a)
+	a = stringz.FilterPrefix(toComplete, a...)
+	a = lo.Without(a, toComplete)
+
+	return a, locCompStdDirective
 }
 
 // locCompDoConnParams completes the query params. For example, given
@@ -860,33 +867,24 @@ func (h *locHistory) databases() []string {
 	return dbNames
 }
 
-func (h *locHistory) queries() []string {
-	var queries []string
-
+func (h *locHistory) locations() []string {
+	var locs []string
 	_ = h.coll.Visit(func(src *source.Source) error {
 		if src.Type != h.typ {
 			return nil
 		}
 
-		du, err := dburl.Parse(src.Location)
-		if err != nil {
-			// Shouldn't happen
-			h.log.Warn("Parse source location", lga.Err, err)
-			return nil
-		}
-
-		if du.URL.RawQuery != "" {
-			queries = append(queries, du.URL.RawQuery)
-		}
-
+		locs = append(locs, src.Location)
 		return nil
 	})
 
-	queries = lo.Uniq(queries)
-	slices.Sort(queries)
-	return queries
+	locs = lo.Uniq(locs)
+	slices.Sort(locs)
+	return locs
 }
 
+// pathsWithQueries returns the location elements after
+// the host, i.e. the path and query.
 func (h *locHistory) pathsWithQueries() []string {
 	var values []string
 
