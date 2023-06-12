@@ -71,8 +71,8 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/sethvargo/go-retry v0.2.4
 	golang.org/x/mod v0.10.0
-	golang.org/x/sys v0.8.0 // indirect
-	golang.org/x/term v0.8.0
+	golang.org/x/sys v0.9.0 // indirect
+	golang.org/x/term v0.9.0
 	golang.org/x/text v0.9.0 // indirect
 	gopkg.in/djherbis/atime.v1 v1.0.0 // indirect
 	gopkg.in/djherbis/stream.v1 v1.3.1 // indirect
