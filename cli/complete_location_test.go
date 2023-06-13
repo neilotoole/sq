@@ -910,7 +910,9 @@ func TestCompleteAddLocation_History_Postgres(t *testing.T) {
 				"postgres://alice@localhost/",
 				"postgres://alice@localhost:5432/",
 				"postgres://alice@dev.acme.com:7777/",
+				"postgres://alice@dev.acme.com:7777/sakila?application_name=app1&channel_binding=prefer",
 				"postgres://alice@prod.acme.com:8888/",
+				"postgres://alice@prod.acme.com:8888/sales?application_name=app2&channel_binding=require",
 			},
 			wantResult: stdDirective,
 		},
@@ -920,6 +922,7 @@ func TestCompleteAddLocation_History_Postgres(t *testing.T) {
 				"postgres://alice@dev/",
 				"postgres://alice@dev:5432/",
 				"postgres://alice@dev.acme.com:7777/",
+				"postgres://alice@dev.acme.com:7777/sakila?application_name=app1&channel_binding=prefer",
 			},
 			wantResult: stdDirective,
 		},
@@ -929,6 +932,7 @@ func TestCompleteAddLocation_History_Postgres(t *testing.T) {
 				"postgres://alice@dev.acme.com/",
 				"postgres://alice@dev.acme.com:5432/",
 				"postgres://alice@dev.acme.com:7777/",
+				"postgres://alice@dev.acme.com:7777/sakila?application_name=app1&channel_binding=prefer",
 			},
 			wantResult: stdDirective,
 		},
@@ -1002,6 +1006,11 @@ func TestCompleteAddLocation_History_SQLServer(t *testing.T) {
 			Type:     sqlserver.Type,
 			Location: "sqlserver://bob:abc123@prod.acme.com:8888?database=sales&app+name=app2&encrypt=true",
 		},
+		source.Source{
+			Handle:   "@src3",
+			Type:     sqlserver.Type,
+			Location: "sqlserver://bob:abc123@prod.acme.com:8888/my_instance?database=sakila",
+		},
 	)
 
 	testCases := []struct {
@@ -1042,7 +1051,10 @@ func TestCompleteAddLocation_History_SQLServer(t *testing.T) {
 				"sqlserver://alice@localhost?database=",
 				"sqlserver://alice@localhost:1433?database=",
 				"sqlserver://alice@dev.acme.com:7777?database=",
+				"sqlserver://alice@dev.acme.com:7777?database=sakila&app+name=app1&encrypt=disable",
+				"sqlserver://alice@prod.acme.com:8888/my_instance?database=sakila",
 				"sqlserver://alice@prod.acme.com:8888?database=",
+				"sqlserver://alice@prod.acme.com:8888?database=sales&app+name=app2&encrypt=true",
 			},
 			wantResult: stdDirective,
 		},
@@ -1052,6 +1064,18 @@ func TestCompleteAddLocation_History_SQLServer(t *testing.T) {
 				"sqlserver://alice@dev?database=",
 				"sqlserver://alice@dev:1433?database=",
 				"sqlserver://alice@dev.acme.com:7777?database=",
+				"sqlserver://alice@dev.acme.com:7777?database=sakila&app+name=app1&encrypt=disable",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"sqlserver://alice@prod"},
+			want: []string{
+				"sqlserver://alice@prod?database=",
+				"sqlserver://alice@prod:1433?database=",
+				"sqlserver://alice@prod.acme.com:8888/my_instance?database=sakila",
+				"sqlserver://alice@prod.acme.com:8888?database=",
+				"sqlserver://alice@prod.acme.com:8888?database=sales&app+name=app2&encrypt=true",
 			},
 			wantResult: stdDirective,
 		},
@@ -1061,10 +1085,10 @@ func TestCompleteAddLocation_History_SQLServer(t *testing.T) {
 				"sqlserver://alice@dev.acme.com?database=",
 				"sqlserver://alice@dev.acme.com:1433?database=",
 				"sqlserver://alice@dev.acme.com:7777?database=",
+				"sqlserver://alice@dev.acme.com:7777?database=sakila&app+name=app1&encrypt=disable",
 			},
 			wantResult: stdDirective,
 		},
-		// FIXME: Deal with /instance/
 		{
 			args: []string{"sqlserver://alice@dev.acme.com?"},
 			want: []string{

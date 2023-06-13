@@ -63,7 +63,7 @@ func TestRenameQueryParamKey(t *testing.T) {
 	}
 }
 
-func TestURLStripQuery(t *testing.T) {
+func TestStripQuery(t *testing.T) {
 	testCases := []struct {
 		in   string
 		want string
@@ -82,6 +82,70 @@ func TestURLStripQuery(t *testing.T) {
 			u, err := url.Parse(tc.in)
 			require.NoError(t, err)
 			got := urlz.StripQuery(*u)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestStripUser(t *testing.T) {
+	testCases := []struct {
+		in   string
+		want string
+	}{
+		{"https://sq.io", "https://sq.io"},
+		{"https://alice:123@sq.io/path", "https://sq.io/path"},
+		{"https://alice@sq.io/path", "https://sq.io/path"},
+		{"https://alice:@sq.io/path", "https://sq.io/path"},
+	}
+
+	for i, tc := range testCases {
+		tc := tc
+		t.Run(tutil.Name(i, tc), func(t *testing.T) {
+			u, err := url.Parse(tc.in)
+			require.NoError(t, err)
+			got := urlz.StripUser(*u)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestStripScheme(t *testing.T) {
+	testCases := []struct {
+		in   string
+		want string
+	}{
+		{"https://sq.io", "sq.io"},
+		{"https://alice:123@sq.io/path", "alice:123@sq.io/path"},
+	}
+
+	for i, tc := range testCases {
+		tc := tc
+		t.Run(tutil.Name(i, tc), func(t *testing.T) {
+			u, err := url.Parse(tc.in)
+			require.NoError(t, err)
+			got := urlz.StripScheme(*u)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestStripSchemeAndUser(t *testing.T) {
+	testCases := []struct {
+		in   string
+		want string
+	}{
+		{"https://sq.io", "sq.io"},
+		{"https://alice:123@sq.io/path", "sq.io/path"},
+		{"https://alice@sq.io/path", "sq.io/path"},
+		{"https://alice:@sq.io/path", "sq.io/path"},
+	}
+
+	for i, tc := range testCases {
+		tc := tc
+		t.Run(tutil.Name(i, tc), func(t *testing.T) {
+			u, err := url.Parse(tc.in)
+			require.NoError(t, err)
+			got := urlz.StripSchemeAndUser(*u)
 			require.Equal(t, tc.want, got)
 		})
 	}

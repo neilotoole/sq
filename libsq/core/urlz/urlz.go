@@ -76,3 +76,30 @@ func StripPath(u url.URL, stripQuery bool) string {
 	}
 	return u.String()
 }
+
+// StripUser strips the URL's user info.
+func StripUser(u url.URL) string {
+	u2 := u
+	u2.User = nil
+	s := u2.String()
+	return s
+}
+
+// StripScheme removes the URL's scheme.
+func StripScheme(u url.URL) string {
+	u2 := u
+	u2.Scheme = ""
+	s := u2.String()
+	s = strings.TrimPrefix(s, "//")
+	return s
+}
+
+// StripSchemeAndUser removes the URL's scheme and user info.
+func StripSchemeAndUser(u url.URL) string {
+	u2 := u
+	u2.User = nil
+	u2.Scheme = ""
+	s := u2.String()
+	s = strings.TrimPrefix(s, "//")
+	return s
+}

@@ -126,7 +126,7 @@ func completeAddLocation(cmd *cobra.Command, args []string, toComplete string) (
 // sqlserver is slightly different from the others, in that the db name goes
 // in a query param, not in the URL path. It might be cleaner to split sqlserver
 // off into its own function.
-func locCompDoGenericDriver(cmd *cobra.Command, _ []string, toComplete string, //nolint:funlen
+func locCompDoGenericDriver(cmd *cobra.Command, _ []string, toComplete string, //nolint:funlen,gocognit
 ) ([]string, cobra.ShellCompDirective) {
 	// If we get this far, then toComplete is at least a partial URL
 	// starting with "postgres://", "mysql://", etc.
@@ -170,7 +170,7 @@ func locCompDoGenericDriver(cmd *cobra.Command, _ []string, toComplete string, /
 			a = stringz.PrefixSlice(unames, toComplete)
 			a = append(a, toComplete+"username")
 			a = lo.Uniq(a)
-
+			a = lo.Without(a, toComplete)
 			return a, locCompStdDirective
 		}
 
@@ -188,7 +188,7 @@ func locCompDoGenericDriver(cmd *cobra.Command, _ []string, toComplete string, /
 
 		a = lo.Uniq(a)
 		a = stringz.FilterPrefix(toComplete, a...)
-
+		a = lo.Without(a, toComplete)
 		return a, locCompStdDirective
 	case plocUser:
 		if ploc.pass == "" {
@@ -208,6 +208,7 @@ func locCompDoGenericDriver(cmd *cobra.Command, _ []string, toComplete string, /
 		return a, locCompStdDirective
 	case plocPass:
 		hosts := hist.hosts()
+		hostsWithPath := hist.hostsWithPathAndQuery()
 		defaultPort := locCompDriverPort(drvr)
 		afterHost := locCompAfterHost(ploc.typ)
 
@@ -223,14 +224,21 @@ func locCompDoGenericDriver(cmd *cobra.Command, _ []string, toComplete string, /
 				}
 			}
 
-			for _, host := range hosts {
-				v := toComplete + host + afterHost
-				a = append(a, v)
+			var b []string
+			for _, h := range hostsWithPath {
+				v := toComplete + h
+				b = append(b, v)
+			}
+			for _, h := range hosts {
+				v := toComplete + h + afterHost
+				b = append(b, v)
 			}
 
+			slices.Sort(b)
+			a = append(a, b...)
 			a = lo.Uniq(a)
 			a = stringz.FilterPrefix(toComplete, a...)
-
+			a = lo.Without(a, toComplete)
 			return a, locCompStdDirective
 		}
 
@@ -252,13 +260,21 @@ func locCompDoGenericDriver(cmd *cobra.Command, _ []string, toComplete string, /
 				}
 			}
 
-			for _, host := range hosts {
-				v := base + host + afterHost
-				a = append(a, v)
+			var b []string
+			for _, h := range hostsWithPath {
+				v := base + h
+				b = append(b, v)
+			}
+			for _, h := range hosts {
+				v := base + h + afterHost
+				b = append(b, v)
 			}
 
+			slices.Sort(b)
+			a = append(a, b...)
 			a = lo.Uniq(a)
 			a = stringz.FilterPrefix(toComplete, a...)
+			a = lo.Without(a, toComplete)
 			return a, locCompStdDirective
 		}
 
@@ -275,12 +291,20 @@ func locCompDoGenericDriver(cmd *cobra.Command, _ []string, toComplete string, /
 			}
 		}
 
-		for _, host := range hosts {
-			v := base + host + afterHost
-			a = append(a, v)
+		var b []string
+		for _, h := range hostsWithPath {
+			v := base + h
+			b = append(b, v)
 		}
+		for _, h := range hosts {
+			v := base + h + afterHost
+			b = append(b, v)
+		}
+		slices.Sort(b)
+		a = append(a, b...)
 		a = lo.Uniq(a)
 		a = stringz.FilterPrefix(toComplete, a...)
+		a = lo.Without(a, toComplete)
 		return a, locCompStdDirective
 	case plocHostname:
 		defaultPort := locCompDriverPort(drvr)
@@ -881,6 +905,35 @@ func (h *locHistory) locations() []string {
 	locs = lo.Uniq(locs)
 	slices.Sort(locs)
 	return locs
+}
+
+// hostsWithPathAndQuery returns locations, minus the
+// scheme and user info.
+func (h *locHistory) hostsWithPathAndQuery() []string {
+	var values []string
+
+	_ = h.coll.Visit(func(src *source.Source) error {
+		if src.Type != h.typ {
+			return nil
+		}
+
+		du, err := dburl.Parse(src.Location)
+		if err != nil {
+			// Shouldn't happen
+			h.log.Warn("Parse source location", lga.Err, err)
+			return nil
+		}
+
+		v := urlz.StripSchemeAndUser(du.URL)
+		if v != "" {
+			values = append(values, v)
+		}
+		return nil
+	})
+
+	values = lo.Uniq(values)
+	slices.Sort(values)
+	return values
 }
 
 // pathsWithQueries returns the location elements after
