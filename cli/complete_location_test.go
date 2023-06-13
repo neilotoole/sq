@@ -853,6 +853,7 @@ type completion struct {
 }
 
 func TestCompleteAddLocation_History_Postgres(t *testing.T) {
+	tutil.SkipWindows(t, "Shell completion not fully implemented for windows")
 	wd := tutil.Chdir(t, filepath.Join("testdata", "add_location"))
 	t.Logf("Working dir: %s", wd)
 
@@ -989,6 +990,7 @@ func TestCompleteAddLocation_History_Postgres(t *testing.T) {
 }
 
 func TestCompleteAddLocation_History_SQLServer(t *testing.T) {
+	tutil.SkipWindows(t, "Shell completion not fully implemented for windows")
 	wd := tutil.Chdir(t, filepath.Join("testdata", "add_location"))
 	t.Logf("Working dir: %s", wd)
 
@@ -1189,6 +1191,7 @@ func TestCompleteAddLocation_History_SQLServer(t *testing.T) {
 }
 
 func TestCompleteAddLocation_History_SQLite3(t *testing.T) {
+	tutil.SkipWindows(t, "Shell completion not fully implemented for windows")
 	wd := tutil.Chdir(t, filepath.Join("testdata", "add_location"))
 	t.Logf("Working dir: %s", wd)
 	src3Loc := "sqlite3://" + wd + "/my.db?cache=FAST"
