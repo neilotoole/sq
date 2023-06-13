@@ -58,6 +58,8 @@ const locCompStdDirective = cobra.ShellCompDirectiveNoSpace | cobra.ShellCompDir
 //     or a filepath. For example, "post" could be leading to "postgres://", or
 //     to a file named "post.db". For this situation, it is necessary to
 //     mimic in code the behavior of the shell's file completion.
+//   - There's another layer of complexity: previous locations (i.e. "history")
+//     are also suggested.
 //
 // The code, as currently structured, is ungainly, and downright ugly in
 // spots, and probably won't scale well if more drivers are supported. That
