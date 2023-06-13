@@ -1188,7 +1188,7 @@ func TestCompleteAddLocation_History_SQLServer(t *testing.T) {
 	}
 }
 
-func TestCompleteAddLocation_History_SQLLite3(t *testing.T) {
+func TestCompleteAddLocation_History_SQLite3(t *testing.T) {
 	wd := tutil.Chdir(t, filepath.Join("testdata", "add_location"))
 	t.Logf("Working dir: %s", wd)
 	src3Loc := "sqlite3://" + wd + "/my.db?cache=FAST"
@@ -1200,13 +1200,13 @@ func TestCompleteAddLocation_History_SQLLite3(t *testing.T) {
 			Handle: "@src2",
 			Type:   sqlite3.Type,
 			// Note that this file doesn't actually exist
-			Location: "sqlite3:///__dir1/sqtest/sq/src2.db?mode=rwc&cache=FAST",
+			Location: "sqlite3:///aa_dir1/sqtest/sq/src2.db?mode=rwc&cache=FAST",
 		},
 		source.Source{
 			Handle: "@src1",
 			Type:   sqlite3.Type,
 			// Note that this file doesn't actually exist
-			Location: "sqlite3:///__dir1/sqtest/sq/src1.db",
+			Location: "sqlite3:///aa_dir1/sqtest/sq/src1.db",
 		},
 		source.Source{
 			Handle: "@src3",
@@ -1225,8 +1225,8 @@ func TestCompleteAddLocation_History_SQLLite3(t *testing.T) {
 			args: []string{"sqlite3://"},
 			want: []string{
 				src3Loc,
-				"sqlite3:///__dir1/sqtest/sq/src1.db",
-				"sqlite3:///__dir1/sqtest/sq/src2.db?mode=rwc&cache=FAST",
+				"sqlite3:///aa_dir1/sqtest/sq/src1.db",
+				"sqlite3:///aa_dir1/sqtest/sq/src2.db?mode=rwc&cache=FAST",
 				"sqlite3://data/",
 				"sqlite3://my/",
 				"sqlite3://my.db",
@@ -1246,28 +1246,28 @@ func TestCompleteAddLocation_History_SQLLite3(t *testing.T) {
 			wantResult: stdDirective,
 		},
 		{
-			args: []string{"sqlite3:///__dir1/sqtest/"},
+			args: []string{"sqlite3:///aa_dir1/sqtest/"},
 			want: []string{
-				"sqlite3:///__dir1/sqtest/sq/src1.db",
-				"sqlite3:///__dir1/sqtest/sq/src2.db?mode=rwc&cache=FAST",
+				"sqlite3:///aa_dir1/sqtest/sq/src1.db",
+				"sqlite3:///aa_dir1/sqtest/sq/src2.db?mode=rwc&cache=FAST",
 			},
 			wantResult: stdDirective,
 		},
 		{
-			args:       []string{"sqlite3:///__dir1/sqtest/sq/not_a_dir"},
+			args:       []string{"sqlite3:///aa_dir1/sqtest/sq/not_a_dir"},
 			want:       []string{},
 			wantResult: stdDirective,
 		},
 		{
-			args: []string{"sqlite3:///__dir1/sqtest/sq/src"},
+			args: []string{"sqlite3:///aa_dir1/sqtest/sq/src"},
 			want: []string{
-				"sqlite3:///__dir1/sqtest/sq/src1.db",
-				"sqlite3:///__dir1/sqtest/sq/src2.db?mode=rwc&cache=FAST",
+				"sqlite3:///aa_dir1/sqtest/sq/src1.db",
+				"sqlite3:///aa_dir1/sqtest/sq/src2.db?mode=rwc&cache=FAST",
 			},
 			wantResult: stdDirective,
 		},
 		{
-			args:       []string{"sqlite3:///__dir1/sqtest/sq/src1.db"},
+			args:       []string{"sqlite3:///aa_dir1/sqtest/sq/src1.db"},
 			want:       []string{}, // Empty because file doesn't actually exist
 			wantResult: stdDirective,
 		},

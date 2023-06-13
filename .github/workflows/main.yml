@@ -49,7 +49,7 @@ jobs:
       - name: Run tests
         run: |
           set -euo pipefail
-          go test -json -v ./... 2>&1 | tee /gotest.log | gotestfmt
+          go test -json -v ./... 2>&1 | tee gotest.log | gotestfmt
 
       # Upload the original go test log as an artifact for later review.
       - name: Upload test log
@@ -57,7 +57,7 @@ jobs:
         if: always()
         with:
           name: test-log
-          path: /gotest.log
+          path: gotest.log
           if-no-files-found: warn
 
   test-windows:
