@@ -6,6 +6,8 @@ import (
 	"context"
 	"io"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
 
@@ -82,4 +84,93 @@ func MarshalYAML(v any) ([]byte, error) {
 // UnmarshallYAML is our standard mechanism for decoding YAML.
 func UnmarshallYAML(data []byte, v any) error {
 	return errz.Err(yaml.Unmarshal(data, v))
+}
+
+// ReadDir lists the contents of dir, returning the relative paths
+// of the files. If markDirs is true, directories are listed with
+// a "/" suffix (including symlinked dirs). If includeDirPath is true,
+// the listing is of the form "dir/name". If includeDot is true,
+// files beginning with period (dot files) are included. The function
+// attempts to continue in the present of errors: the returned paths
+// may contain values even in the presence of a returned error (which
+// may be a multierr).
+func ReadDir(dir string, includeDirPath, markDirs, includeDot bool) (paths []string, err error) {
+	fi, err := os.Stat(dir)
+	if err != nil {
+		return nil, errz.Err(err)
+	}
+
+	if !fi.Mode().IsDir() {
+		return nil, errz.Errorf("not a dir: %s", dir)
+	}
+
+	var entries []os.DirEntry
+	if entries, err = os.ReadDir(dir); err != nil {
+		return nil, errz.Err(err)
+	}
+
+	var name string
+	for _, entry := range entries {
+		name = entry.Name()
+		if strings.HasPrefix(name, ".") && !includeDot {
+			// Skip invisible files
+			continue
+		}
+
+		mode := entry.Type()
+		if !mode.IsRegular() && markDirs {
+			if entry.IsDir() {
+				name += "/"
+			} else if mode&os.ModeSymlink != 0 {
+				// Follow the symlink to detect if it's a dir
+				linked, err2 := filepath.EvalSymlinks(filepath.Join(dir, name))
+				if err2 != nil {
+					err = errz.Append(err, errz.Err(err2))
+					continue
+				}
+
+				fi, err2 = os.Stat(linked)
+				if err2 != nil {
+					err = errz.Append(err, errz.Err(err2))
+					continue
+				}
+
+				if fi.IsDir() {
+					name += "/"
+				}
+			}
+		}
+
+		paths = append(paths, name)
+	}
+
+	if includeDirPath {
+		for i := range paths {
+			// filepath.Join strips the "/" suffix, so we need to preserve it.
+			hasSlashSuffix := strings.HasSuffix(paths[i], "/")
+			paths[i] = filepath.Join(dir, paths[i])
+			if hasSlashSuffix {
+				paths[i] += "/"
+			}
+		}
+	}
+
+	return paths, nil
+}
+
+// IsPathToRegularFile return true if path is a regular file or
+// a symlink that resolves to a regular file. False is returned on
+// any error.
+func IsPathToRegularFile(path string) bool {
+	dest, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		return false
+	}
+
+	fi, err := os.Stat(dest)
+	if err != nil {
+		return false
+	}
+
+	return fi.Mode().IsRegular()
 }

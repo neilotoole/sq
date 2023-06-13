@@ -16,6 +16,8 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/samber/lo"
+
 	"github.com/google/uuid"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -298,9 +300,9 @@ func SurroundSlice(a []string, w string) []string {
 }
 
 // PrefixSlice returns a new slice with each element
-// of a prefixed with w, unless a is nil, in which
+// of a prefixed with prefix, unless a is nil, in which
 // case nil is returned.
-func PrefixSlice(a []string, w string) []string {
+func PrefixSlice(a []string, prefix string) []string {
 	if a == nil {
 		return nil
 	}
@@ -310,8 +312,8 @@ func PrefixSlice(a []string, w string) []string {
 	ret := make([]string, len(a))
 	sb := strings.Builder{}
 	for i := 0; i < len(a); i++ {
-		sb.Grow(len(a[i]) + len(w))
-		sb.WriteString(w)
+		sb.Grow(len(a[i]) + len(prefix))
+		sb.WriteString(prefix)
 		sb.WriteString(a[i])
 		ret[i] = sb.String()
 		sb.Reset()
@@ -590,5 +592,30 @@ func VisitLines(s string, fn func(i int, line string) string) string {
 func IndentLines(s, indent string) string {
 	return VisitLines(s, func(_ int, line string) string {
 		return indent + line
+	})
+}
+
+// HasAnyPrefix returns true if s has any of the prefixes.
+func HasAnyPrefix(s string, prefixes ...string) bool {
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(s, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+// FilterPrefix returns a new slice containing each element
+// of a that has prefix.
+func FilterPrefix(prefix string, a ...string) []string {
+	return lo.Filter(a, func(item string, index int) bool {
+		return strings.HasPrefix(item, prefix)
+	})
+}
+
+// ElementsHavingPrefix returns the elements of a that have prefix.
+func ElementsHavingPrefix(a []string, prefix string) []string {
+	return lo.Filter(a, func(item string, index int) bool {
+		return strings.HasPrefix(item, prefix)
 	})
 }

@@ -26,13 +26,13 @@ import (
 
 // TestRun is a helper for testing sq commands.
 type TestRun struct {
-	T      *testing.T
-	ctx    context.Context
-	mu     sync.Mutex
-	Run    *run.Run
-	Out    *bytes.Buffer
-	ErrOut *bytes.Buffer
-	used   bool
+	T       testing.TB
+	Context context.Context
+	mu      sync.Mutex
+	Run     *run.Run
+	Out     *bytes.Buffer
+	ErrOut  *bytes.Buffer
+	used    bool
 
 	// When true, out and errOut are not logged.
 	hushOutput bool
@@ -41,8 +41,12 @@ type TestRun struct {
 // New returns a new run instance for testing sq commands.
 // If from is non-nil, its config is used. This allows sequential
 // commands to use the same config.
-func New(ctx context.Context, t *testing.T, from *TestRun) *TestRun {
-	tr := &TestRun{T: t, ctx: ctx}
+func New(ctx context.Context, t testing.TB, from *TestRun) *TestRun {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	tr := &TestRun{T: t, Context: ctx}
 
 	var cfgStore config.Store
 	if from != nil {
@@ -92,12 +96,15 @@ func newRun(ctx context.Context, t testing.TB, cfgStore config.Store) (ru *run.R
 		OptionsRegistry: optsReg,
 	}
 
+	require.NoError(t, cli.FinishRunInit(ctx, ru))
 	return ru, out, errOut
 }
 
 // Add adds srcs to tr.Run.Config.Collection. If the collection
 // does not already have an active source, the first element
 // of srcs is used as the active source.
+//
+// REVISIT: Why not use *source.Source instead of the value?
 func (tr *TestRun) Add(srcs ...source.Source) *TestRun {
 	tr.mu.Lock()
 	defer tr.mu.Unlock()
@@ -118,6 +125,9 @@ func (tr *TestRun) Add(srcs ...source.Source) *TestRun {
 		_, err := coll.SetActive(srcs[0].Handle, false)
 		require.NoError(tr.T, err)
 	}
+
+	err := tr.Run.ConfigStore.Save(tr.Context, tr.Run.Config)
+	require.NoError(tr.T, err)
 
 	return tr
 }
@@ -141,7 +151,7 @@ func (tr *TestRun) doExec(args []string) error {
 
 	require.False(tr.T, tr.used, "TestRun instance must only be used once")
 
-	ctx, cancelFn := context.WithCancel(context.Background())
+	ctx, cancelFn := context.WithCancel(tr.Context)
 	tr.T.Cleanup(cancelFn)
 
 	execErr := cli.ExecuteWith(ctx, tr.Run, args)

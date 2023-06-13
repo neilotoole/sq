@@ -37,6 +37,7 @@ const (
 	To        = "to"
 	Type      = "type"
 	Line      = "line"
+	URL       = "url"
 	Val       = "value"
 	Via       = "via"
 	Version   = "version"

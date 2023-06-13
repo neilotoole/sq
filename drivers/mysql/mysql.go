@@ -57,6 +57,34 @@ type driveri struct {
 	log *slog.Logger
 }
 
+// ConnParams implements driver.SQLDriver.
+// See: https://github.com/go-sql-driver/mysql#dsn-data-source-name.
+func (d *driveri) ConnParams() map[string][]string {
+	return map[string][]string{
+		"allowAllFiles":            {"false", "true"},
+		"allowCleartextPasswords":  {"false", "true"},
+		"allowFallbackToPlaintext": {"false", "true"},
+		"allowNativePasswords":     {"false", "true"},
+		"allowOldPasswords":        {"false", "true"},
+		"charset":                  nil,
+		"checkConnLiveness":        {"true", "false"},
+		"clientFoundRows":          {"false", "true"},
+		"collation":                collations,
+		"columnsWithAlias":         {"false", "true"},
+		"connectionAttributes":     nil,
+		"interpolateParams":        {"false", "true"},
+		"loc":                      {"UTC"},
+		"maxAllowedPackage":        {"0", "67108864"},
+		"multiStatements":          {"false", "true"},
+		"parseTime":                {"false", "true"},
+		"readTimeout":              {"0"},
+		"rejectReadOnly":           {"false", "true"},
+		"timeout":                  nil,
+		"tls":                      {"false", "true", "skip-verify", "preferred"},
+		"writeTimeout":             {"0"},
+	}
+}
+
 // ErrWrapFunc implements driver.SQLDriver.
 func (d *driveri) ErrWrapFunc() func(error) error {
 	return errw
@@ -74,6 +102,7 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 		Description: "MySQL",
 		Doc:         "https://github.com/go-sql-driver/mysql",
 		IsSQL:       true,
+		DefaultPort: 3306,
 	}
 }
 

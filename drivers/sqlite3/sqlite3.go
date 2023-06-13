@@ -54,10 +54,6 @@ var _ driver.Provider = (*Provider)(nil)
 // Provider is the SQLite3 implementation of driver.Provider.
 type Provider struct {
 	Log *slog.Logger
-
-	// NOTE: Unlike other driver.SQLDriver impls, sqlite doesn't
-	// seem to benefit from applying a driver.SQLConfig to
-	// its sql.DB.
 }
 
 // DriverFor implements driver.Provider.
@@ -69,11 +65,41 @@ func (p *Provider) DriverFor(typ source.DriverType) (driver.Driver, error) {
 	return &driveri{log: p.Log}, nil
 }
 
-var _ driver.Driver = (*driveri)(nil)
+var _ driver.SQLDriver = (*driveri)(nil)
 
-// driveri is the SQLite3 implementation of driver.Driver.
+// driveri is the SQLite3 implementation of driver.SQLDriver.
 type driveri struct {
 	log *slog.Logger
+}
+
+// ConnParams implements driver.SQLDriver.
+// See: https://github.com/mattn/go-sqlite3#connection-string.
+func (d *driveri) ConnParams() map[string][]string {
+	return map[string][]string{
+		"_auth":                     nil,
+		"_auth_crypt":               {"SHA1", "SSHA1", "SHA256", "SSHA256", "SHA384", "SSHA384", "SHA512", "SSHA512"},
+		"_auth_pass":                nil,
+		"_auth_salt":                nil,
+		"_auth_user":                nil,
+		"_auto_vacuum":              {"none", "full", "incremental"},
+		"_busy_timeout":             nil,
+		"_cache_size":               {"-2000"},
+		"_case_sensitive_like":      {"true", "false"},
+		"_defer_foreign_keys":       {"true", "false"},
+		"_foreign_keys":             {"true", "false"},
+		"_ignore_check_constraints": {"true", "false"},
+		"_journal_mode":             {"DELETE", "TRUNCATE", "PERSIST", "MEMORY", "WAL", "OFF"},
+		"_loc":                      nil,
+		"_locking_mode":             {"NORMAL", "EXCLUSIVE"},
+		"_mutex":                    {"no", "full"},
+		"_query_only":               {"true", "false"},
+		"_recursive_triggers":       {"true", "false"},
+		"_secure_delete":            {"true", "false", "FAST"},
+		"_synchronous":              {"OFF", "NORMAL", "FULL", "EXTRA"},
+		"_txlock":                   {"immediate", "deferred", "exclusive"},
+		"cache":                     {"true", "false", "FAST"},
+		"mode":                      {"ro", "rw", "rwc", "memory"},
+	}
 }
 
 // ErrWrapFunc implements driver.SQLDriver.

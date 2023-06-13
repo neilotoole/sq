@@ -226,7 +226,7 @@ func addOptionFlag(flags *pflag.FlagSet, opt options.Opt) (key string) {
 		}
 
 		flags.BoolP(key, string(opt.Short()), opt.Default(), opt.Usage())
-		return
+		return key
 	case options.Duration:
 		if opt.Short() == 0 {
 			flags.Duration(key, opt.Default(), opt.Usage())

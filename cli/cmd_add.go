@@ -26,9 +26,10 @@ import (
 
 func newSrcAddCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:  "add [--handle @HANDLE] LOCATION",
-		RunE: execSrcAdd,
-		Args: cobra.ExactArgs(1),
+		Use:               "add [--handle @HANDLE] LOCATION",
+		RunE:              execSrcAdd,
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: completeAddLocation,
 		Example: `
 When adding a data source, LOCATION is the only required arg.
 
@@ -39,20 +40,29 @@ Note that sq generated the handle "@actor". But you can explicitly specify
 a handle.
 
   # Add a postgres source with handle "@sakila/pg"
-  $ sq add --handle @sakila/pg 'postgres://user:pass@localhost/sakila'
+  $ sq add --handle @sakila/pg postgres://user:pass@localhost/sakila
 
 This handle format "@sakila/pg" includes a group, "sakila". Using a group
 is entirely optional: it is a way to organize sources. For example:
 
-  $ sq add --handle @dev/pg 'postgres://user:pass@dev.db.example.com/sakila'
-  $ sq add --handle @prod/pg 'postgres://user:pass@prod.db.acme.com/sakila'
+  $ sq add --handle @dev/pg postgres://user:pass@dev.db.acme.com/sakila
+  $ sq add --handle @prod/pg postgres://user:pass@prod.db.acme.com/sakila
 
 The format of LOCATION is driver-specific, but is generally a DB connection
 string, a file path, or a URL.
 
-  DRIVER://USER:PASS@HOST:PORT/DBNAME
+  DRIVER://USER:PASS@HOST:PORT/DBNAME?PARAM=VAL
   /path/to/local/file.ext
   https://sq.io/data/test1.xlsx
+
+If LOCATION contains special shell characters, it's necessary to enclose
+it in single quotes, or to escape the special character. For example,
+note the "\?" in the unquoted location below.
+
+  $ sq add postgres://user:pass@localhost/sakila\?sslmode=disable
+
+A significant advantage of not quoting LOCATION is that sq provides extensive
+shell completion when inputting the location value.
 
 If flag --handle is omitted, sq will generate a handle based
 on LOCATION and the source driver type.
@@ -61,7 +71,7 @@ It's a security hazard to expose the data source password via
 the LOCATION string. If flag --password (-p) is set, sq prompt the
 user for the password:
 
-  $ sq add 'postgres://user@localhost/sakila' -p
+  $ sq add postgres://user@localhost/sakila -p
   Password: ****
 
 However, if there's input on stdin, sq will read the password from
@@ -69,18 +79,18 @@ there instead of prompting the user:
 
   # Add a source, but read password from an environment variable
   $ export PASSWD='open:;"_Ses@me'
-  $ sq add 'postgres://user@localhost/sakila' -p <<< $PASSWD
+  $ sq add postgres://user@localhost/sakila -p <<< $PASSWD
 
   # Same as above, but instead read password from file
   $ echo 'open:;"_Ses@me' > password.txt
-  $ sq add 'postgres://user@localhost/sakila' -p < password.txt
+  $ sq add postgres://user@localhost/sakila -p < password.txt
 
 There are various driver-specific options available. For example:
 
   $ sq add actor.csv --ingest.header=false --driver.csv.delim=colon
 
 If flag --driver is omitted, sq will attempt to determine the
-type from LOCATION via file suffix, content type, etc.. If the result
+type from LOCATION via file suffix, content type, etc. If the result
 is ambiguous, explicitly specify the driver type.
 
   $ sq add --driver=tsv ./mystery.data
@@ -106,19 +116,25 @@ use flag --active to make the new source active.
 More examples:
 
   # Add a source, but prompt user for password
-  $ sq add 'postgres://user@localhost/sakila' -p
+  $ sq add postgres://user@localhost/sakila -p
   Password: ****
 
   # Explicitly set flags
-  $ sq add --handle @sakila_pg --driver postgres 'postgres://user:pass@localhost/sakila'
+  $ sq add --handle @sakila_pg --driver postgres postgres://user:pass@localhost/sakila
 
   # Same as above, but with short flags
-  $ sq add -n @sakila_pg -d postgres 'postgres://user:pass@localhost/sakila'
+  $ sq add -n @sakila_pg -d postgres postgres://user:pass@localhost/sakila
+
+  # Specify some params (note escaped chars)
+  $ sq add postgres://user:pass@localhost/sakila\?sslmode=disable\&application_name=sq
+
+# Specify some params, but use quoted string (no shell completion)
+  $ sq add 'postgres://user:pass@localhost/sakila?sslmode=disable&application_name=sq''
 
   # Add a SQL Server source; will have generated handle @sakila
   $ sq add 'sqlserver://user:pass@localhost?database=sakila'
 
-  # Add a sqlite db, and immediately make it the active source
+  # Add a SQLite DB, and immediately make it the active source
   $ sq add ./testdata/sqlite1.db --active
 
   # Add an Excel spreadsheet, with options
@@ -134,7 +150,7 @@ More examples:
   $ sq add ./actor.csv --handle @csv/actor
 
   # Add a currently unreachable source
-  $ sq add 'postgres://user:pass@db.offline.com/sakila' --skip-verify`,
+  $ sq add postgres://user:pass@db.offline.com/sakila --skip-verify`,
 		Short: "Add data source",
 		Long:  `Add data source specified by LOCATION, optionally identified by @HANDLE.`,
 	}

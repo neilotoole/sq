@@ -61,6 +61,32 @@ type driveri struct {
 	log *slog.Logger
 }
 
+// ConnParams implements driver.SQLDriver.
+func (d *driveri) ConnParams() map[string][]string {
+	// https://github.com/microsoft/go-mssqldb#connection-parameters-and-dsn.
+	return map[string][]string{
+		"ApplicationIntent":      {"ReadOnly"},
+		"ServerSPN":              nil,
+		"TrustServerCertificate": {"false", "true"},
+		"Workstation ID":         nil,
+		"app name":               {"sq"},
+		"certificate":            nil,
+		"connection timeout":     {"0"},
+		"database":               nil,
+		"dial timeout":           {"0"},
+		"encrypt":                {"disable", "false", "true"},
+		"failoverpartner":        nil,
+		"failoverport":           {"1433"},
+		"hostNameInCertificate":  nil,
+		"keepAlive":              {"0", "30"},
+		"log":                    {"0", "1", "2", "4", "8", "16", "32", "64", "128", "255"},
+		"packet size":            {"512", "4096", "16383", "32767"},
+		"protocol":               nil,
+		"tlsmin":                 {"1.0", "1.1", "1.2", "1.3"},
+		"user id":                nil,
+	}
+}
+
 // ErrWrapFunc implements driver.SQLDriver.
 func (d *driveri) ErrWrapFunc() func(error) error {
 	return errw
@@ -73,6 +99,7 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 		Description: "Microsoft SQL Server / Azure SQL Edge",
 		Doc:         "https://github.com/microsoft/go-mssqldb",
 		IsSQL:       true,
+		DefaultPort: 1433,
 	}
 }
 

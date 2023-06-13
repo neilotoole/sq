@@ -66,6 +66,21 @@ func (r *Registry) DriverFor(typ source.DriverType) (Driver, error) {
 	return p.DriverFor(typ)
 }
 
+// SQLDriverFor for is a convenience method for getting a SQLDriver.
+func (r *Registry) SQLDriverFor(typ source.DriverType) (SQLDriver, error) {
+	drvr, err := r.DriverFor(typ)
+	if err != nil {
+		return nil, err
+	}
+
+	sqlDrvr, ok := drvr.(SQLDriver)
+	if !ok {
+		return nil, errz.Errorf("driver %T is not of type %T", drvr, sqlDrvr)
+	}
+
+	return sqlDrvr, nil
+}
+
 // DriversMetadata returns metadata for each registered driver type.
 func (r *Registry) DriversMetadata() []Metadata {
 	var md []Metadata

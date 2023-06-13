@@ -10,9 +10,10 @@
 // usage pattern by eliminating all pkg-level constructs
 // (which makes testing easier).
 //
-// All interaction with cobra should happen inside this package.
+// All interaction with cobra should happen inside this package, or
+// via the utility cli/cobraz package.
 // That is to say, the spf13/cobra package should not be imported
-// anywhere outside this package.
+// anywhere outside this package and cli/cobraz.
 //
 // The entry point to this pkg is the Execute function.
 package cli
@@ -103,7 +104,7 @@ func ExecuteWith(ctx context.Context, ru *run.Run, args []string) error {
 	// now handles this situation?
 
 	// We need to perform handling for autocomplete
-	if len(args) > 0 && args[0] == "__complete" {
+	if len(args) > 0 && args[0] == cobra.ShellCompRequestCmd {
 		if hasMatchingChildCommand(rootCmd, args[1]) {
 			// If there is a matching child command, we let rootCmd
 			// handle it, as per normal.
@@ -112,7 +113,7 @@ func ExecuteWith(ctx context.Context, ru *run.Run, args []string) error {
 			// There's no command matching the first argument to __complete.
 			// Therefore, we assume that we want to perform completion
 			// for the "slq" command (which is the pseudo-root command).
-			effectiveArgs := append([]string{"__complete", "slq"}, args[1:]...)
+			effectiveArgs := append([]string{cobra.ShellCompRequestCmd, "slq"}, args[1:]...)
 			rootCmd.SetArgs(effectiveArgs)
 		}
 	} else {
