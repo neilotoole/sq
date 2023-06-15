@@ -286,6 +286,8 @@ func NewRecordFromScanRow(meta record.Meta, row []any, skip []int) (rec record.R
 			rec[i] = int64(*col)
 		case *uint32:
 			rec[i] = int64(*col)
+		case *uint64:
+			rec[i] = int64(*col)
 		case *float32:
 			rec[i] = float64(*col)
 		}
