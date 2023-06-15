@@ -14,7 +14,7 @@ require (
 	github.com/mattn/go-colorable v0.1.13
 	github.com/mattn/go-isatty v0.0.19
 	github.com/mattn/go-runewidth v0.0.14
-	github.com/mattn/go-sqlite3 v1.14.16
+	github.com/mattn/go-sqlite3 v1.14.17
 	github.com/microsoft/go-mssqldb v0.21.0
 	github.com/ryboe/q v1.0.19
 	// Be very careful changing pkg segmentio/encoding. A specific version is by our json encoder.
