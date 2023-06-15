@@ -1,7 +1,8 @@
 [//]: # ([![Go Coverage]&#40;https://github.com/neilotoole/sq/wiki/coverage.svg&#41;]&#40;https://raw.githack.com/wiki/neilotoole/sq/coverage.html&#41;)
 [![Go Reference](https://pkg.go.dev/badge/github.com/neilotoole/sq.svg)](https://pkg.go.dev/github.com/neilotoole/sq)
+[![Go Report Card](https://goreportcard.com/badge/neilotoole/sq)](https://goreportcard.com/report/neilotoole/sq)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/neilotoole/sq/blob/master/LICENSE)
 ![Main pipeline](https://github.com/neilotoole/sq/actions/workflows/main.yml/badge.svg)
-![Go Report Card](https://goreportcard.com/report/github.com/neilotoole/sq)
 
 
 # sq data wrangler
