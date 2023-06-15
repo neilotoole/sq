@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Breaking changes are annotated with ☢️.
 
+## [v0.37.1] - 2023-06-15
+
+### Fixed
+
+- [#252]: Handle `*uint64` returned from DB.
+
 ## [v0.37.0] - 2023-06-13
 
 ### Added
@@ -518,6 +524,7 @@ make working with lots of sources much easier.
 [#199]: https://github.com/neilotoole/sq/issues/199
 [#229]: https://github.com/neilotoole/sq/issues/229
 [#244]: https://github.com/neilotoole/sq/issues/244
+[#252]: https://github.com/neilotoole/sq/issues/252
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
@@ -555,3 +562,4 @@ make working with lots of sources much easier.
 [v0.36.1]: https://github.com/neilotoole/sq/compare/v0.36.0...v0.36.1
 [v0.36.2]: https://github.com/neilotoole/sq/compare/v0.36.1...v0.36.2
 [v0.37.0]: https://github.com/neilotoole/sq/compare/v0.36.2...v0.37.0
+[v0.37.1]: https://github.com/neilotoole/sq/compare/v0.37.0...v0.37.1
