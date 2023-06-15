@@ -15,7 +15,7 @@ require (
 	github.com/mattn/go-isatty v0.0.19
 	github.com/mattn/go-runewidth v0.0.14
 	github.com/mattn/go-sqlite3 v1.14.17
-	github.com/microsoft/go-mssqldb v0.21.0
+	github.com/microsoft/go-mssqldb v1.1.0
 	github.com/ryboe/q v1.0.19
 	// Be very careful changing pkg segmentio/encoding. A specific version is by our json encoder.
 	github.com/segmentio/encoding v0.1.14
@@ -55,7 +55,7 @@ require (
 	github.com/muesli/mango-pflag v0.1.0 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/rogpeppe/go-internal v1.10.0 // indirect
-	golang.org/x/crypto v0.8.0 // indirect
+	golang.org/x/crypto v0.9.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 
 )
