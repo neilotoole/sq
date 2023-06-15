@@ -12,14 +12,14 @@ var _ MungeFunc = MungeEmptyStringAsNil
 func MungeEmptyStringAsNil(v any) (any, error) {
 	switch v := v.(type) {
 	case nil:
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	case *string:
 		if len(*v) == 0 {
-			return nil, nil
+			return nil, nil //nolint:nilnil
 		}
 	case string:
 		if len(v) == 0 {
-			return nil, nil
+			return nil, nil //nolint:nilnil
 		}
 	}
 

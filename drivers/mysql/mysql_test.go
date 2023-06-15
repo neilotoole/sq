@@ -74,3 +74,19 @@ func TestDriver_CreateTable_NotNullDefault(t *testing.T) {
 		})
 	}
 }
+
+// TestBug252_ShowCollation_uint64 tests the
+// bug https://github.com/neilotoole/sq/issues/252.
+func TestBug252_ShowCollation_uint64(t *testing.T) {
+	testCases := sakila.MyAll()
+	for _, handle := range testCases {
+		handle := handle
+		t.Run(handle, func(t *testing.T) {
+			th, src, _, _ := testh.NewWith(t, handle)
+
+			sink, err := th.QuerySQL(src, "SHOW COLLATION")
+			require.NoError(t, err)
+			require.NotNil(t, sink)
+		})
+	}
+}

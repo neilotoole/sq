@@ -152,7 +152,7 @@ func (d *Detector) doSampleString(s string) {
 
 			d.mungeFns[Time] = func(val any) (any, error) {
 				if val == nil {
-					return nil, nil
+					return nil, nil //nolint:nilnil
 				}
 
 				s, ok = val.(string)
@@ -161,7 +161,7 @@ func (d *Detector) doSampleString(s string) {
 				}
 
 				if s == "" {
-					return nil, nil
+					return nil, nil //nolint:nilnil
 				}
 
 				var t time.Time
@@ -186,7 +186,7 @@ func (d *Detector) doSampleString(s string) {
 
 			d.mungeFns[Date] = func(val any) (any, error) {
 				if val == nil {
-					return nil, nil
+					return nil, nil //nolint:nilnil
 				}
 
 				s, ok = val.(string)
@@ -195,7 +195,7 @@ func (d *Detector) doSampleString(s string) {
 				}
 
 				if s == "" {
-					return nil, nil
+					return nil, nil //nolint:nilnil
 				}
 
 				var t time.Time
@@ -222,7 +222,7 @@ func (d *Detector) doSampleString(s string) {
 			// it returns a time.Time instead of a string
 			d.mungeFns[Datetime] = func(val any) (any, error) {
 				if val == nil {
-					return nil, nil
+					return nil, nil //nolint:nilnil
 				}
 
 				s, ok := val.(string)
@@ -231,7 +231,7 @@ func (d *Detector) doSampleString(s string) {
 				}
 
 				if s == "" {
-					return nil, nil
+					return nil, nil //nolint:nilnil
 				}
 
 				t, err := time.Parse(format, s)

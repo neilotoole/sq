@@ -8,6 +8,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/urlz"
+
+	"golang.org/x/exp/slog"
+
 	"github.com/neilotoole/sq/libsq/core/ioz"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -54,6 +58,8 @@ const locCompStdDirective = cobra.ShellCompDirectiveNoSpace | cobra.ShellCompDir
 //     or a filepath. For example, "post" could be leading to "postgres://", or
 //     to a file named "post.db". For this situation, it is necessary to
 //     mimic in code the behavior of the shell's file completion.
+//   - There's another layer of complexity: previous locations (i.e. "history")
+//     are also suggested.
 //
 // The code, as currently structured, is ungainly, and downright ugly in
 // spots, and probably won't scale well if more drivers are supported. That
@@ -122,7 +128,7 @@ func completeAddLocation(cmd *cobra.Command, args []string, toComplete string) (
 // sqlserver is slightly different from the others, in that the db name goes
 // in a query param, not in the URL path. It might be cleaner to split sqlserver
 // off into its own function.
-func locCompDoGenericDriver(cmd *cobra.Command, _ []string, toComplete string, //nolint:funlen
+func locCompDoGenericDriver(cmd *cobra.Command, _ []string, toComplete string, //nolint:funlen,gocognit
 ) ([]string, cobra.ShellCompDirective) {
 	// If we get this far, then toComplete is at least a partial URL
 	// starting with "postgres://", "mysql://", etc.
@@ -152,25 +158,39 @@ func locCompDoGenericDriver(cmd *cobra.Command, _ []string, toComplete string, /
 		return nil, cobra.ShellCompDirectiveError
 	}
 
+	hist := &locHistory{
+		coll: ru.Config.Collection,
+		typ:  ploc.typ,
+		log:  log,
+	}
+
 	switch ploc.stageDone { //nolint:exhaustive
 	case plocScheme:
-		if ploc.user == "" {
-			a = []string{
-				toComplete,
-				toComplete + "username",
-				toComplete + "username:password",
-			}
+		unames := hist.usernames()
 
+		if ploc.user == "" {
+			a = stringz.PrefixSlice(unames, toComplete)
+			a = append(a, toComplete+"username")
+			a = lo.Uniq(a)
+			a = lo.Without(a, toComplete)
 			return a, locCompStdDirective
 		}
 
+		// Else, we have at least a partial username
 		a = []string{
 			toComplete + "@",
 			toComplete + ":",
-			toComplete + ":@",
-			toComplete + ":password@",
 		}
 
+		for _, uname := range unames {
+			v := string(ploc.typ) + "://" + uname
+			a = append(a, v+"@")
+			a = append(a, v+":")
+		}
+
+		a = lo.Uniq(a)
+		a = stringz.FilterPrefix(toComplete, a...)
+		a = lo.Without(a, toComplete)
 		return a, locCompStdDirective
 	case plocUser:
 		if ploc.pass == "" {
@@ -189,6 +209,8 @@ func locCompDoGenericDriver(cmd *cobra.Command, _ []string, toComplete string, /
 
 		return a, locCompStdDirective
 	case plocPass:
+		hosts := hist.hosts()
+		hostsWithPath := hist.hostsWithPathAndQuery()
 		defaultPort := locCompDriverPort(drvr)
 		afterHost := locCompAfterHost(ploc.typ)
 
@@ -204,6 +226,21 @@ func locCompDoGenericDriver(cmd *cobra.Command, _ []string, toComplete string, /
 				}
 			}
 
+			var b []string
+			for _, h := range hostsWithPath {
+				v := toComplete + h
+				b = append(b, v)
+			}
+			for _, h := range hosts {
+				v := toComplete + h + afterHost
+				b = append(b, v)
+			}
+
+			slices.Sort(b)
+			a = append(a, b...)
+			a = lo.Uniq(a)
+			a = stringz.FilterPrefix(toComplete, a...)
+			a = lo.Without(a, toComplete)
 			return a, locCompStdDirective
 		}
 
@@ -225,7 +262,21 @@ func locCompDoGenericDriver(cmd *cobra.Command, _ []string, toComplete string, /
 				}
 			}
 
-			a = lo.Uniq(stringz.FilterPrefix(toComplete, a...))
+			var b []string
+			for _, h := range hostsWithPath {
+				v := base + h
+				b = append(b, v)
+			}
+			for _, h := range hosts {
+				v := base + h + afterHost
+				b = append(b, v)
+			}
+
+			slices.Sort(b)
+			a = append(a, b...)
+			a = lo.Uniq(a)
+			a = stringz.FilterPrefix(toComplete, a...)
+			a = lo.Without(a, toComplete)
 			return a, locCompStdDirective
 		}
 
@@ -242,7 +293,20 @@ func locCompDoGenericDriver(cmd *cobra.Command, _ []string, toComplete string, /
 			}
 		}
 
+		var b []string
+		for _, h := range hostsWithPath {
+			v := base + h
+			b = append(b, v)
+		}
+		for _, h := range hosts {
+			v := base + h + afterHost
+			b = append(b, v)
+		}
+		slices.Sort(b)
+		a = append(a, b...)
+		a = lo.Uniq(a)
 		a = stringz.FilterPrefix(toComplete, a...)
+		a = lo.Without(a, toComplete)
 		return a, locCompStdDirective
 	case plocHostname:
 		defaultPort := locCompDriverPort(drvr)
@@ -256,6 +320,7 @@ func locCompDoGenericDriver(cmd *cobra.Command, _ []string, toComplete string, /
 		return a, locCompStdDirective
 
 	case plocHost:
+		dbNames := hist.databases()
 		// Special handling for SQLServer. The input is typically of the form:
 		//  sqlserver://alice@server?database=db
 		// But it can also be of the form:
@@ -272,15 +337,30 @@ func locCompDoGenericDriver(cmd *cobra.Command, _ []string, toComplete string, /
 
 		if ploc.name == "" {
 			a = []string{toComplete + "db"}
+			for _, dbName := range dbNames {
+				v := toComplete + dbName
+				a = append(a, v)
+			}
+			a = lo.Uniq(a)
+			a = lo.Without(a, toComplete)
 			return a, locCompStdDirective
 		}
 
+		// We already have a partial dbname
 		a = []string{toComplete + "?"}
+
+		base := urlz.StripPath(ploc.du.URL, true)
+		for _, dbName := range dbNames {
+			a = append(a, base+"/"+dbName)
+		}
+
+		a = lo.Uniq(a)
+		a = lo.Without(a, toComplete)
 		return a, locCompStdDirective
 
 	default:
 		// We're at plocName (db name is done), so it's on to conn params.
-		return locCompDoConnParams(ploc.du, drvr, toComplete)
+		return locCompDoConnParams(ploc.du, hist, drvr, toComplete)
 	}
 }
 
@@ -307,11 +387,17 @@ func locCompDoSQLite3(cmd *cobra.Command, _ []string, toComplete string) ([]stri
 		return nil, cobra.ShellCompDirectiveError
 	}
 
+	hist := &locHistory{
+		coll: ru.Config.Collection,
+		typ:  sqlite3.Type,
+		log:  log,
+	}
+
 	du, err := dburl.Parse(toComplete)
 	if err == nil {
 		// Check if we're done with the filepath part, and on to conn params?
 		if du.URL.RawQuery != "" || strings.HasSuffix(toComplete, "?") {
-			return locCompDoConnParams(du, drvr, toComplete)
+			return locCompDoConnParams(du, hist, drvr, toComplete)
 		}
 	}
 
@@ -326,13 +412,19 @@ func locCompDoSQLite3(cmd *cobra.Command, _ []string, toComplete string) ([]stri
 		paths[i] = "sqlite3://" + paths[i]
 	}
 
-	return paths, locCompStdDirective
+	a := hist.locations()
+	a = append(a, paths...)
+	a = lo.Uniq(a)
+	a = stringz.FilterPrefix(toComplete, a...)
+	a = lo.Without(a, toComplete)
+
+	return a, locCompStdDirective
 }
 
 // locCompDoConnParams completes the query params. For example, given
 // a toComplete value "sqlite3://my.db?", the result would include values
 // such as "sqlite3://my.db?cache=".
-func locCompDoConnParams(du *dburl.URL, drvr driver.SQLDriver, toComplete string) (
+func locCompDoConnParams(du *dburl.URL, hist *locHistory, drvr driver.SQLDriver, toComplete string) (
 	[]string, cobra.ShellCompDirective,
 ) {
 	var (
@@ -341,13 +433,28 @@ func locCompDoConnParams(du *dburl.URL, drvr driver.SQLDriver, toComplete string
 		drvrParamKeys, drvrParams = locCompGetConnParams(drvr)
 	)
 
+	pathsWithQueries := hist.pathsWithQueries()
+
+	base := urlz.StripPath(du.URL, true)
 	if query == "" {
-		a = stringz.PrefixSlice(drvrParamKeys, toComplete)
-		a = stringz.SuffixSlice(a, "=")
+		a = stringz.PrefixSlice(pathsWithQueries, base)
+		v := stringz.PrefixSlice(drvrParamKeys, toComplete)
+		v = stringz.SuffixSlice(v, "=")
+		a = append(a, v...)
+		a = lo.Uniq(a)
+		a = stringz.FilterPrefix(toComplete, a...)
+		a = lo.Without(a, toComplete)
 		return a, locCompStdDirective
 	}
 
-	actualKeys, err := stringz.QueryParamKeys(query)
+	for _, pwq := range pathsWithQueries {
+		if strings.HasPrefix(pwq, du.Path) {
+			a = append(a, base+pwq)
+		}
+	}
+	a = stringz.FilterPrefix(toComplete, a...)
+
+	actualKeys, err := urlz.QueryParamKeys(query)
 	if err != nil || len(actualKeys) == 0 {
 		return nil, cobra.ShellCompDirectiveError
 	}
@@ -362,9 +469,7 @@ func locCompDoConnParams(du *dburl.URL, drvr driver.SQLDriver, toComplete string
 	// could be "sslmo", "sslmode", "sslmode=", "sslmode=dis"
 	lastElement := elements[len(elements)-1]
 	stump := strings.TrimSuffix(toComplete, lastElement)
-
 	before, _, ok := strings.Cut(lastElement, "=")
-
 	if !ok {
 		candidateKeys := stringz.ElementsHavingPrefix(drvrParamKeys, before)
 		candidateKeys = lo.Reject(candidateKeys, func(candidateKey string, index int) bool {
@@ -391,6 +496,8 @@ func locCompDoConnParams(du *dburl.URL, drvr driver.SQLDriver, toComplete string
 			a = append(a, s)
 		}
 
+		a = lo.Uniq(a)
+		a = lo.Without(a, toComplete)
 		return a, locCompStdDirective
 	}
 
@@ -400,6 +507,16 @@ func locCompDoConnParams(du *dburl.URL, drvr driver.SQLDriver, toComplete string
 		a = append(a, s)
 	}
 
+	if len(candidateVals) == 0 {
+		lastChar := toComplete[len(toComplete)-1]
+		switch lastChar {
+		case '&', '?', '=':
+		default:
+			a = append(a, toComplete+"&")
+		}
+	}
+
+	a = lo.Uniq(a)
 	a = stringz.FilterPrefix(toComplete, a...)
 	if len(a) == 0 {
 		// If it's an unknown value, append "&" to move
@@ -617,6 +734,7 @@ const (
 	plocPath     plocStage = "path"
 )
 
+// locSchemes is the set of built-in (SQL) driver schemes.
 var locSchemes = []string{
 	"mysql://",
 	"postgres://",
@@ -671,4 +789,182 @@ func locCompListFiles(ctx context.Context, toComplete string) []string {
 	}
 
 	return stringz.FilterPrefix(toComplete, files...)
+}
+
+// locHistory provides methods for getting previously used
+// elements of a location.
+type locHistory struct {
+	coll *source.Collection
+	typ  source.DriverType
+	log  *slog.Logger
+}
+
+func (h *locHistory) usernames() []string {
+	var unames []string
+
+	_ = h.coll.Visit(func(src *source.Source) error {
+		if src.Type != h.typ {
+			return nil
+		}
+
+		du, err := dburl.Parse(src.Location)
+		if err != nil {
+			// Shouldn't happen
+			h.log.Warn("Parse source location", lga.Err, err)
+			return nil
+		}
+
+		if du.User != nil {
+			uname := du.User.Username()
+			if uname != "" {
+				unames = append(unames, uname)
+			}
+		}
+
+		return nil
+	})
+
+	unames = lo.Uniq(unames)
+	slices.Sort(unames)
+	return unames
+}
+
+func (h *locHistory) hosts() []string {
+	var hosts []string
+
+	_ = h.coll.Visit(func(src *source.Source) error {
+		if src.Type != h.typ {
+			return nil
+		}
+
+		du, err := dburl.Parse(src.Location)
+		if err != nil {
+			// Shouldn't happen
+			h.log.Warn("Parse source location", lga.Err, err)
+			return nil
+		}
+
+		hosts = append(hosts, du.Host)
+
+		return nil
+	})
+
+	hosts = lo.Uniq(hosts)
+	slices.Sort(hosts)
+	return hosts
+}
+
+func (h *locHistory) databases() []string {
+	var dbNames []string
+
+	_ = h.coll.Visit(func(src *source.Source) error {
+		if src.Type != h.typ {
+			return nil
+		}
+
+		du, err := dburl.Parse(src.Location)
+		if err != nil {
+			// Shouldn't happen
+			h.log.Warn("Parse source location", lga.Err, err)
+			return nil
+		}
+
+		if h.typ == sqlserver.Type && du.RawQuery != "" {
+			var vals url.Values
+			if vals, err = url.ParseQuery(du.RawQuery); err == nil {
+				db := vals.Get("database")
+				if db != "" {
+					dbNames = append(dbNames, db)
+				}
+			}
+			return nil
+		}
+
+		if du.Path != "" {
+			v := strings.TrimPrefix(du.Path, "/")
+			dbNames = append(dbNames, v)
+		}
+
+		return nil
+	})
+
+	dbNames = lo.Uniq(dbNames)
+	slices.Sort(dbNames)
+	return dbNames
+}
+
+func (h *locHistory) locations() []string {
+	var locs []string
+	_ = h.coll.Visit(func(src *source.Source) error {
+		if src.Type != h.typ {
+			return nil
+		}
+
+		locs = append(locs, src.Location)
+		return nil
+	})
+
+	locs = lo.Uniq(locs)
+	slices.Sort(locs)
+	return locs
+}
+
+// hostsWithPathAndQuery returns locations, minus the
+// scheme and user info.
+func (h *locHistory) hostsWithPathAndQuery() []string {
+	var values []string
+
+	_ = h.coll.Visit(func(src *source.Source) error {
+		if src.Type != h.typ {
+			return nil
+		}
+
+		du, err := dburl.Parse(src.Location)
+		if err != nil {
+			// Shouldn't happen
+			h.log.Warn("Parse source location", lga.Err, err)
+			return nil
+		}
+
+		v := urlz.StripSchemeAndUser(du.URL)
+		if v != "" {
+			values = append(values, v)
+		}
+		return nil
+	})
+
+	values = lo.Uniq(values)
+	slices.Sort(values)
+	return values
+}
+
+// pathsWithQueries returns the location elements after
+// the host, i.e. the path and query.
+func (h *locHistory) pathsWithQueries() []string {
+	var values []string
+
+	_ = h.coll.Visit(func(src *source.Source) error {
+		if src.Type != h.typ {
+			return nil
+		}
+
+		du, err := dburl.Parse(src.Location)
+		if err != nil {
+			// Shouldn't happen
+			h.log.Warn("Parse source location", lga.Err, err)
+			return nil
+		}
+
+		v := du.Path
+		if du.RawQuery != "" {
+			v += `?` + du.RawQuery
+		}
+
+		values = append(values, v)
+		return nil
+	})
+
+	values = lo.Uniq(values)
+	slices.Sort(values)
+	return values
 }
