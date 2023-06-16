@@ -36,6 +36,10 @@ func doSelectCols(rc *Context, cols []ast.ResultColumn) (string, error) {
 			if vals[i], err = rc.Renderer.Function(rc, col); err != nil {
 				return "", err
 			}
+		case *ast.ExprElementNode:
+			if vals[i], err = rc.Renderer.Expr(rc, col.ExprNode()); err != nil {
+				return "", err
+			}
 		default:
 			// FIXME: We should be exhaustively checking the cases.
 			// Here, it's probably an ExprNode?

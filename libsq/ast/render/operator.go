@@ -2,7 +2,6 @@ package render
 
 import (
 	"github.com/neilotoole/sq/libsq/ast"
-	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
 func doOperator(rc *Context, op *ast.OperatorNode) (string, error) {
@@ -10,9 +9,11 @@ func doOperator(rc *Context, op *ast.OperatorNode) (string, error) {
 		return "", nil
 	}
 
-	val, ok := rc.Dialect.Ops[op.Text()]
+	text := op.Text()
+	// Check if the dialect overrides the operator.
+	val, ok := rc.Dialect.Ops[text]
 	if !ok {
-		return "", errz.Errorf("invalid operator: %s", op.Text())
+		val = text
 	}
 
 	rhs := ast.NodeNextSibling(op)
@@ -22,10 +23,9 @@ func doOperator(rc *Context, op *ast.OperatorNode) (string, error) {
 			val = "IS"
 		case "!=":
 			val = "IS NOT"
-		default:
-			return "", errz.Errorf("invalid operator for null")
 		}
 	}
 
+	// By default, just return the operator unchanged.
 	return val, nil
 }

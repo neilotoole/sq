@@ -313,7 +313,7 @@ func (v *parseTreeVisitor) VisitElement(ctx *slq.ElementContext) any {
 
 // VisitAlias implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitAlias(ctx *slq.AliasContext) any {
-	if ctx.ID() == nil && ctx.GetText() == "" {
+	if ctx == nil || ctx.ID() == nil && ctx.GetText() == "" {
 		return nil
 	}
 
@@ -324,6 +324,8 @@ func (v *parseTreeVisitor) VisitAlias(ctx *slq.AliasContext) any {
 
 	switch node := v.cur.(type) {
 	case *SelectorNode:
+		node.alias = alias
+	case *ExprElementNode:
 		node.alias = alias
 	case *FuncNode:
 		if alias != "" {
@@ -381,6 +383,7 @@ func (v *parseTreeVisitor) VisitTerminal(ctx antlr.TerminalNode) any {
 	if isOperator(val) {
 		op := &OperatorNode{}
 		op.ctx = ctx
+		op.text = ctx.GetText()
 
 		err := op.SetParent(v.cur)
 		if err != nil {

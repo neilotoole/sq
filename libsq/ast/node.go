@@ -303,6 +303,12 @@ func nodesWithType(nodes []Node, typ reflect.Type) []Node {
 // ExprNode models a SLQ expression such as ".uid > 4".
 type ExprNode struct {
 	baseNode
+	parens bool
+}
+
+// HasParens returns true if the expression is enclosed in parentheses.
+func (n *ExprNode) HasParens() bool {
+	return n.parens
 }
 
 // AddChild implements Node.

@@ -14,18 +14,18 @@ import (
 func TestQuery_count(t *testing.T) {
 	testCases := []queryTestCase{
 		{
-			name:     "alias",
-			in:       `@sakila | .actor | count:quantity`,
-			wantSQL:  `SELECT count(*) AS "quantity" FROM "actor"`,
-			override: map[source.DriverType]string{mysql.Type: "SELECT count(*) AS `quantity` FROM `actor`"},
-			wantRecs: 1,
+			name:         "alias",
+			in:           `@sakila | .actor | count:quantity`,
+			wantSQL:      `SELECT count(*) AS "quantity" FROM "actor"`,
+			override:     map[source.DriverType]string{mysql.Type: "SELECT count(*) AS `quantity` FROM `actor`"},
+			wantRecCount: 1,
 		},
 		{
-			name:     "count-same-alias",
-			in:       `@sakila | .actor | count:count`,
-			wantSQL:  `SELECT count(*) AS "count" FROM "actor"`,
-			override: map[source.DriverType]string{mysql.Type: "SELECT count(*) AS `count` FROM `actor`"},
-			wantRecs: 1,
+			name:         "count-same-alias",
+			in:           `@sakila | .actor | count:count`,
+			wantSQL:      `SELECT count(*) AS "count" FROM "actor"`,
+			override:     map[source.DriverType]string{mysql.Type: "SELECT count(*) AS `count` FROM `actor`"},
+			wantRecCount: 1,
 		},
 		{
 			name:     "whitespace-col",
@@ -35,11 +35,11 @@ func TestQuery_count(t *testing.T) {
 			skipExec: true,
 		},
 		{
-			name:     "select-handle-table",
-			in:       `@sakila.actor | count`,
-			wantSQL:  `SELECT count(*) AS "count" FROM "actor"`,
-			override: map[source.DriverType]string{mysql.Type: "SELECT count(*) AS `count` FROM `actor`"},
-			wantRecs: 1,
+			name:         "select-handle-table",
+			in:           `@sakila.actor | count`,
+			wantSQL:      `SELECT count(*) AS "count" FROM "actor"`,
+			override:     map[source.DriverType]string{mysql.Type: "SELECT count(*) AS `count` FROM `actor`"},
+			wantRecCount: 1,
 		},
 		{
 			name:     "select-handle-table-ws-selector",
@@ -52,24 +52,24 @@ func TestQuery_count(t *testing.T) {
 			name: "no-parens-no-args-with-alias-unique",
 			// Test that the count:ALIAS form can handle the alias
 			// being a reserved word (unique).
-			in:       `@sakila | .actor | count:unique`,
-			wantSQL:  `SELECT count(*) AS "unique" FROM "actor"`,
-			override: map[source.DriverType]string{mysql.Type: "SELECT count(*) AS `unique` FROM `actor`"},
-			wantRecs: 1,
+			in:           `@sakila | .actor | count:unique`,
+			wantSQL:      `SELECT count(*) AS "unique" FROM "actor"`,
+			override:     map[source.DriverType]string{mysql.Type: "SELECT count(*) AS `unique` FROM `actor`"},
+			wantRecCount: 1,
 		},
 		{
-			name:     "no-parens-no-args-with-alias-arbitrary",
-			in:       `@sakila | .actor | count:something_123`,
-			wantSQL:  `SELECT count(*) AS "something_123" FROM "actor"`,
-			override: map[source.DriverType]string{mysql.Type: "SELECT count(*) AS `something_123` FROM `actor`"},
-			wantRecs: 1,
+			name:         "no-parens-no-args-with-alias-arbitrary",
+			in:           `@sakila | .actor | count:something_123`,
+			wantSQL:      `SELECT count(*) AS "something_123" FROM "actor"`,
+			override:     map[source.DriverType]string{mysql.Type: "SELECT count(*) AS `something_123` FROM `actor`"},
+			wantRecCount: 1,
 		},
 		{
-			name:     "parens-no-args",
-			in:       `@sakila | .actor | count()`,
-			wantSQL:  `SELECT count(*) AS "count" FROM "actor"`,
-			override: map[source.DriverType]string{mysql.Type: "SELECT count(*) AS `count` FROM `actor`"},
-			wantRecs: 1,
+			name:         "parens-no-args",
+			in:           `@sakila | .actor | count()`,
+			wantSQL:      `SELECT count(*) AS "count" FROM "actor"`,
+			override:     map[source.DriverType]string{mysql.Type: "SELECT count(*) AS `count` FROM `actor`"},
+			wantRecCount: 1,
 		},
 		{
 			name:    "error-star",
@@ -77,11 +77,11 @@ func TestQuery_count(t *testing.T) {
 			wantErr: true, // Star version is not supported
 		},
 		{
-			name:     "single-selector",
-			in:       `@sakila | .actor | count(.first_name)`,
-			wantSQL:  `SELECT count("first_name") FROM "actor"`,
-			override: map[source.DriverType]string{mysql.Type: "SELECT count(`first_name`) FROM `actor`"},
-			wantRecs: 1,
+			name:         "single-selector",
+			in:           `@sakila | .actor | count(.first_name)`,
+			wantSQL:      `SELECT count("first_name") FROM "actor"`,
+			override:     map[source.DriverType]string{mysql.Type: "SELECT count(`first_name`) FROM `actor`"},
+			wantRecCount: 1,
 		},
 		{
 			name:    "error-multiple-selector",
@@ -89,20 +89,20 @@ func TestQuery_count(t *testing.T) {
 			wantErr: true, // Only a single selector is permitted
 		},
 		{
-			name:     "count/no-parens-no-args",
-			in:       `@sakila | .actor | count`,
-			wantSQL:  `SELECT count(*) AS "count" FROM "actor"`,
-			override: map[source.DriverType]string{mysql.Type: "SELECT count(*) AS `count` FROM `actor`"},
-			wantRecs: 1,
+			name:         "count/no-parens-no-args",
+			in:           `@sakila | .actor | count`,
+			wantSQL:      `SELECT count(*) AS "count" FROM "actor"`,
+			override:     map[source.DriverType]string{mysql.Type: "SELECT count(*) AS `count` FROM `actor`"},
+			wantRecCount: 1,
 		},
 		{
 			name: "count/no-parens-no-args-with-alias-count",
 			// Test that the count:ALIAS form can handle the alias
 			// being a reserved word (count).
-			in:       `@sakila | .actor | count:count`,
-			wantSQL:  `SELECT count(*) AS "count" FROM "actor"`,
-			override: map[source.DriverType]string{mysql.Type: "SELECT count(*) AS `count` FROM `actor`"},
-			wantRecs: 1,
+			in:           `@sakila | .actor | count:count`,
+			wantSQL:      `SELECT count(*) AS "count" FROM "actor"`,
+			override:     map[source.DriverType]string{mysql.Type: "SELECT count(*) AS `count` FROM `actor`"},
+			wantRecCount: 1,
 		},
 	}
 
