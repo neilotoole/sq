@@ -55,6 +55,10 @@ func (v *BaseSLQVisitor) VisitCountFunc(ctx *CountFuncContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
+func (v *BaseSLQVisitor) VisitWhere(ctx *WhereContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
 func (v *BaseSLQVisitor) VisitGroupByTerm(ctx *GroupByTermContext) interface{} {
 	return v.VisitChildren(ctx)
 }

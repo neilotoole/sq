@@ -43,6 +43,9 @@ type SLQListener interface {
 	// EnterCountFunc is called when entering the countFunc production.
 	EnterCountFunc(c *CountFuncContext)
 
+	// EnterWhere is called when entering the where production.
+	EnterWhere(c *WhereContext)
+
 	// EnterGroupByTerm is called when entering the groupByTerm production.
 	EnterGroupByTerm(c *GroupByTermContext)
 
@@ -123,6 +126,9 @@ type SLQListener interface {
 
 	// ExitCountFunc is called when exiting the countFunc production.
 	ExitCountFunc(c *CountFuncContext)
+
+	// ExitWhere is called when exiting the where production.
+	ExitWhere(c *WhereContext)
 
 	// ExitGroupByTerm is called when exiting the groupByTerm production.
 	ExitGroupByTerm(c *GroupByTermContext)

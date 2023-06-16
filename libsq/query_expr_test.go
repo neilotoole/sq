@@ -13,7 +13,7 @@ import (
 )
 
 //nolint:exhaustive,lll
-func TestQuery_expr(t *testing.T) {
+func TestQuery_expr_logic(t *testing.T) {
 	testCases := []queryTestCase{
 		{
 			name:         "literal/string",
@@ -67,7 +67,7 @@ func TestQuery_expr(t *testing.T) {
 }
 
 //nolint:exhaustive,lll
-func TestQuery_expr_simple(t *testing.T) {
+func TestQuery_expr_math(t *testing.T) {
 	testCases := []queryTestCase{
 		{
 			name:         "col_and_literal",

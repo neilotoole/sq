@@ -18,6 +18,7 @@ element
 	| rowRange
 	| uniqueFunc
 	| countFunc
+	| where
 	| funcElement
 	| exprElement;
 
@@ -77,6 +78,31 @@ funcs because of the several forms it can take.
  TODO: how to handle COUNT DISTINCT?
  */
 countFunc: 'count' (LPAR (selector)? RPAR)? (alias)?;
+
+
+/*
+where
+-----
+The "where" mechanism implements SQL's WHERE clause.
+
+  .actor | where(.actor_id > 10 && .first_name == "TOM")
+
+From a SQL perspective, "where" is the natural name to use. However,
+and inconveniently, jq uses "select" for this purpose.
+
+ https://jqlang.github.io/jq/manual/v1.6/#select(boolean_expression)
+
+One of sq's design principles is to adhere to jq syntax whenver possible.
+Alas, for SQL users, "select" means "SELECT these columns", not "select
+the matching rows".
+
+It's unclear what the best approach is here, so for now, we will allow
+both "where" and "select", and plan to deprecate one of these after user
+feedback.
+*/
+
+WHERE: 'where' | 'select';
+where: WHERE LPAR (expr)? RPAR;
 
 
 /*
