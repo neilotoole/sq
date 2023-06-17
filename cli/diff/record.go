@@ -51,7 +51,7 @@ func findRecordDiff(ctx context.Context, ru *run.Run, lines int,
 		With("a", td1.src.Handle+"."+td1.tblName).
 		With("b", td2.src.Handle+"."+td2.tblName)
 
-	qc := run.NewQueryContext(ru)
+	qc := run.NewQueryContext(ru, nil)
 
 	query1 := td1.src.Handle + "." + stringz.DoubleQuote(td1.tblName)
 	query2 := td2.src.Handle + "." + stringz.DoubleQuote(td2.tblName)

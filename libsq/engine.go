@@ -182,7 +182,15 @@ func (ng *engine) prepareNoTabler(ctx context.Context, qm *queryModel) error {
 func (ng *engine) buildTableFromClause(ctx context.Context, tblSel *ast.TblSelectorNode) (fromClause string,
 	fromConn driver.Database, err error,
 ) {
-	src, err := ng.qc.Collection.Get(tblSel.Handle())
+	handle := tblSel.Handle()
+	if handle == "" {
+		handle = ng.qc.Collection.ActiveHandle()
+		if handle == "" {
+			return "", nil, errz.New("query does not specify source, and no active source")
+		}
+	}
+
+	src, err := ng.qc.Collection.Get(handle)
 	if err != nil {
 		return "", nil, err
 	}

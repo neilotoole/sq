@@ -12,6 +12,10 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/neilotoole/slogt"
+
+	"github.com/neilotoole/sq/libsq/core/lg"
+
 	"github.com/neilotoole/sq/cli/run"
 
 	"github.com/neilotoole/sq/cli/config/yamlstore"
@@ -64,6 +68,10 @@ func New(ctx context.Context, t testing.TB, from *TestRun) *TestRun {
 //
 // If cfgStore is nil, a new one is created in a temp dir.
 func newRun(ctx context.Context, t testing.TB, cfgStore config.Store) (ru *run.Run, out, errOut *bytes.Buffer) {
+	if !lg.InContext(ctx) {
+		ctx = lg.NewContext(ctx, slogt.New(t))
+	}
+
 	out = &bytes.Buffer{}
 	errOut = &bytes.Buffer{}
 

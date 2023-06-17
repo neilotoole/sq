@@ -2,7 +2,6 @@ package ast
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -72,8 +71,8 @@ func (el *antlrErrorListener) String() string {
 // SyntaxError implements antlr.ErrorListener.
 //
 //nolint:revive
-func (el *antlrErrorListener) SyntaxError(recognizer antlr.Recognizer, offendingSymbol any, line, column int,
-	msg string, e antlr.RecognitionException,
+func (el *antlrErrorListener) SyntaxError(recognizer antlr.Recognizer, offendingSymbol any,
+	line, column int, msg string, e antlr.RecognitionException,
 ) {
 	text := fmt.Sprintf("%s: syntax error: [%d:%d] %s", el.name, line, column, msg)
 	el.errs = append(el.errs, text)
@@ -82,8 +81,8 @@ func (el *antlrErrorListener) SyntaxError(recognizer antlr.Recognizer, offending
 // ReportAmbiguity implements antlr.ErrorListener.
 //
 //nolint:revive
-func (el *antlrErrorListener) ReportAmbiguity(recognizer antlr.Parser, dfa *antlr.DFA, startIndex, stopIndex int,
-	exact bool, ambigAlts *antlr.BitSet, configs antlr.ATNConfigSet,
+func (el *antlrErrorListener) ReportAmbiguity(recognizer antlr.Parser, dfa *antlr.DFA,
+	startIndex, stopIndex int, exact bool, ambigAlts *antlr.BitSet, configs antlr.ATNConfigSet,
 ) {
 	tok := recognizer.GetCurrentToken()
 	text := fmt.Sprintf("%s: syntax ambiguity: [%d:%d]", el.name, startIndex, stopIndex)
@@ -94,8 +93,8 @@ func (el *antlrErrorListener) ReportAmbiguity(recognizer antlr.Parser, dfa *antl
 // ReportAttemptingFullContext implements antlr.ErrorListener.
 //
 //nolint:revive
-func (el *antlrErrorListener) ReportAttemptingFullContext(recognizer antlr.Parser, dfa *antlr.DFA, startIndex,
-	stopIndex int, conflictingAlts *antlr.BitSet, configs antlr.ATNConfigSet,
+func (el *antlrErrorListener) ReportAttemptingFullContext(recognizer antlr.Parser, dfa *antlr.DFA,
+	startIndex, stopIndex int, conflictingAlts *antlr.BitSet, configs antlr.ATNConfigSet,
 ) {
 	text := fmt.Sprintf("%s: attempting full context: [%d:%d]", el.name, startIndex, stopIndex)
 	el.warnings = append(el.warnings, text)
@@ -104,8 +103,8 @@ func (el *antlrErrorListener) ReportAttemptingFullContext(recognizer antlr.Parse
 // ReportContextSensitivity implements antlr.ErrorListener.
 //
 //nolint:revive
-func (el *antlrErrorListener) ReportContextSensitivity(recognizer antlr.Parser, dfa *antlr.DFA, startIndex, stopIndex,
-	prediction int, configs antlr.ATNConfigSet,
+func (el *antlrErrorListener) ReportContextSensitivity(recognizer antlr.Parser,
+	dfa *antlr.DFA, startIndex, stopIndex, prediction int, configs antlr.ATNConfigSet,
 ) {
 	text := fmt.Sprintf("%s: context sensitivity: [%d:%d]", el.name, startIndex, stopIndex)
 	el.warnings = append(el.warnings, text)
@@ -117,6 +116,7 @@ type parseError struct {
 	// TODO: parse error should include more detail, such as the offending token, position, etc.
 }
 
+// Error implements error.
 func (p *parseError) Error() string {
 	return p.msg
 }
@@ -245,98 +245,9 @@ func (v *parseTreeVisitor) VisitQuery(ctx *slq.QueryContext) any {
 	return nil
 }
 
-// VisitSegment implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitSegment(ctx *slq.SegmentContext) any {
-	seg := newSegmentNode(v.ast, ctx)
-	v.ast.AddSegment(seg)
-	v.cur = seg
-
-	return v.VisitChildren(ctx)
-}
-
-// VisitSelectorElement implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitSelectorElement(ctx *slq.SelectorElementContext) any {
-	node, err := newSelectorNode(v.cur, ctx.Selector())
-	if err != nil {
-		return err
-	}
-
-	if aliasCtx := ctx.Alias(); aliasCtx != nil {
-		node.alias = ctx.Alias().ID().GetText()
-	}
-
-	if err := v.cur.AddChild(node); err != nil {
-		return err
-	}
-
-	// No need to descend to the children, because we've already dealt
-	// with them in this function.
-	return nil
-}
-
-// VisitSelector implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitSelector(ctx *slq.SelectorContext) any {
-	node, err := newSelectorNode(v.cur, ctx)
-	if err != nil {
-		return err
-	}
-
-	return v.cur.AddChild(node)
-}
-
 // VisitElement implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitElement(ctx *slq.ElementContext) any {
 	return v.VisitChildren(ctx)
-}
-
-// VisitAlias implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitAlias(ctx *slq.AliasContext) any {
-	if ctx == nil || ctx.ID() == nil && ctx.GetText() == "" {
-		return nil
-	}
-
-	var alias string
-	if ctx.ID() != nil {
-		alias = ctx.ID().GetText()
-	}
-
-	switch node := v.cur.(type) {
-	case *SelectorNode:
-		node.alias = alias
-	case *ExprElementNode:
-		node.alias = alias
-	case *FuncNode:
-		if alias != "" {
-			node.alias = alias
-			return nil
-		}
-
-		// HACK: The grammar has a dodgy hack to deal with no-arg funcs
-		// with an alias that is a reserved word.
-		//
-		// For example, let's start with this snippet. Note that "count" is
-		// a function, equivalent to count().
-		//
-		//   .actor | count
-		//
-		// Then add an alias that is a reserved word, such as a function name.
-		// In this example, we will use an alias of "count" as well.
-		//
-		//   .actor | count:count
-		//
-		// Well, the grammar doesn't know how to handle this. Most likely the
-		// grammar could be refactored to deal with this more gracefully. The
-		// hack is to look at the full text of the context (e.g. ":count"),
-		// instead of just ID, and look for the alias after the colon.
-
-		text := ctx.GetText()
-		node.alias = strings.TrimPrefix(text, ":")
-
-	default:
-		return errorf("alias not allowed for type %T: %v", node, ctx.GetText())
-	}
-
-	return nil
 }
 
 // VisitCmpr implements slq.SLQVisitor.
@@ -377,65 +288,6 @@ func (v *parseTreeVisitor) VisitTerminal(ctx antlr.TerminalNode) any {
 
 	// Unknown terminal, but that's not a problem.
 	return nil
-}
-
-// VisitRowRange implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitRowRange(ctx *slq.RowRangeContext) any {
-	// []      select all rows (no range)
-	// [1]     select row[1]
-	// [10:15] select rows 10 thru 15
-	// [0:15]  select rows 0 thru 15
-	// [:15]   same as above (0 thru 15)
-	// [10:]   select all rows from 10 onwards
-
-	if ctx.COLON() == nil && len(ctx.AllNN()) == 0 {
-		// [] select all rows, aka no range
-		return nil
-	}
-
-	if ctx.COLON() == nil {
-		// [1] -- select row[1]
-		if len(ctx.AllNN()) != 1 {
-			return errorf("row range: expected one integer but got %d", len(ctx.AllNN()))
-		}
-
-		i, _ := strconv.Atoi(ctx.AllNN()[0].GetText())
-		rr := newRowRangeNode(ctx, i, 1)
-		return v.cur.AddChild(rr)
-	}
-
-	// there's a colon... can only be one or two ints
-	if len(ctx.AllNN()) > 2 {
-		return errorf("row range: expected one or two integers but got %d", len(ctx.AllNN()))
-	}
-
-	if len(ctx.AllNN()) == 2 {
-		// [10:15] -- select rows 10 thru 15
-		offset, _ := strconv.Atoi(ctx.AllNN()[0].GetText())
-		finish, _ := strconv.Atoi(ctx.AllNN()[1].GetText())
-		limit := finish - offset
-		rr := newRowRangeNode(ctx, offset, limit)
-		return v.cur.AddChild(rr)
-	}
-
-	// it's one of these two cases:
-	//   [:15]   (0 thru 15)
-	//   [10:]   select all rows from 10 onwards
-	// so we need to determine if the INT is before or after the colon
-	var offset int
-	limit := -1
-
-	if ctx.COLON().GetSymbol().GetTokenIndex() < ctx.AllNN()[0].GetSymbol().GetTokenIndex() {
-		// [:15]   (0 thru 15)
-		offset = 0
-		limit, _ = strconv.Atoi(ctx.AllNN()[0].GetText())
-	} else {
-		// [10:]   select all rows from 10 onwards
-		offset, _ = strconv.Atoi(ctx.AllNN()[0].GetText())
-	}
-
-	rr := newRowRangeNode(ctx, offset, limit)
-	return v.cur.AddChild(rr)
 }
 
 // VisitErrorNode implements slq.SLQVisitor.

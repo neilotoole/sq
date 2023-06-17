@@ -42,7 +42,7 @@ import (
 func buildTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config,
 	td1, td2 *tableData,
 ) (*tableDataDiff, error) {
-	qc := run.NewQueryContext(ru)
+	qc := run.NewQueryContext(ru, nil)
 	query1 := td1.src.Handle + "." + td1.tblName
 	query2 := td2.src.Handle + "." + td2.tblName
 	log := lg.FromContext(ctx).With("a", query1).With("b", query2)

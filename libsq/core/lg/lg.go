@@ -38,6 +38,12 @@ func FromContext(ctx context.Context) *slog.Logger {
 	return Discard()
 }
 
+// InContext returns true if there's a logger on the context.
+func InContext(ctx context.Context) bool {
+	v := ctx.Value(contextKey{})
+	return v != nil
+}
+
 // Discard returns a new *slog.Logger that discards output.
 func Discard() *slog.Logger {
 	h := discardHandler{}

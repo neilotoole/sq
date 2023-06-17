@@ -9,7 +9,14 @@ import (
 	"github.com/neilotoole/sq/libsq/ast/internal/slq"
 )
 
-var _ Node = (*SegmentNode)(nil)
+// VisitSegment implements slq.SLQVisitor.
+func (v *parseTreeVisitor) VisitSegment(ctx *slq.SegmentContext) any {
+	seg := newSegmentNode(v.ast, ctx)
+	v.ast.AddSegment(seg)
+	v.cur = seg
+
+	return v.VisitChildren(ctx)
+}
 
 func newSegmentNode(ast *AST, ctx *slq.SegmentContext) *SegmentNode {
 	seg := &SegmentNode{}
@@ -19,8 +26,11 @@ func newSegmentNode(ast *AST, ctx *slq.SegmentContext) *SegmentNode {
 	return seg
 }
 
+var _ Node = (*SegmentNode)(nil)
+
 // SegmentNode models a segment of a query (the elements separated by pipes).
-// For example, ".user | .uid, .username" is two segments (".user" and ".uid, .username").
+// For example, ".user | .uid, .username" is two segments: ".user",
+// and ".uid, .username".
 type SegmentNode struct {
 	bn baseNode
 }

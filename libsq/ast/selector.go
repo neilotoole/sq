@@ -9,6 +9,36 @@ import (
 	"github.com/neilotoole/sq/libsq/ast/internal/slq"
 )
 
+// VisitSelectorElement implements slq.SLQVisitor.
+func (v *parseTreeVisitor) VisitSelectorElement(ctx *slq.SelectorElementContext) any {
+	node, err := newSelectorNode(v.cur, ctx.Selector())
+	if err != nil {
+		return err
+	}
+
+	if aliasCtx := ctx.Alias(); aliasCtx != nil {
+		node.alias = ctx.Alias().ID().GetText()
+	}
+
+	if err := v.cur.AddChild(node); err != nil {
+		return err
+	}
+
+	// No need to descend to the children, because we've already dealt
+	// with them in this function.
+	return nil
+}
+
+// VisitSelector implements slq.SLQVisitor.
+func (v *parseTreeVisitor) VisitSelector(ctx *slq.SelectorContext) any {
+	node, err := newSelectorNode(v.cur, ctx)
+	if err != nil {
+		return err
+	}
+
+	return v.cur.AddChild(node)
+}
+
 const (
 	msgNodeNoAddChild    = "%T cannot add children: failed to add %T"
 	msgNodeNoAddChildren = "%T cannot add children: failed to add %d children"

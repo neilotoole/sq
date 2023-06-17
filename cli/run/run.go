@@ -98,14 +98,13 @@ func (ru *Run) Close() error {
 	return errz.Wrap(ru.Cleanup.Run(), "Close Run")
 }
 
-// NewQueryContext returns a *libsq.QueryContext constructed
-// from ru. It is the caller's responsibility to set the
-// QueryContext.Args field if needed.
-func NewQueryContext(ru *Run) *libsq.QueryContext {
+// NewQueryContext returns a *libsq.QueryContext constructed from ru.
+func NewQueryContext(ru *Run, args map[string]string) *libsq.QueryContext {
 	return &libsq.QueryContext{
 		Collection:      ru.Config.Collection,
 		DBOpener:        ru.Databases,
 		JoinDBOpener:    ru.Databases,
 		ScratchDBOpener: ru.Databases,
+		Args:            args,
 	}
 }
