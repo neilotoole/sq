@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neilotoole/sq/testh/tutil"
+
 	"github.com/neilotoole/sq/cli/testrun"
 
 	"github.com/stretchr/testify/assert"
@@ -168,9 +170,25 @@ func TestOutputRaw(t *testing.T) {
 }
 
 func TestExprNoSource(t *testing.T) {
-	tr := testrun.New(context.Background(), t, nil).Hush()
-	err := tr.Exec("1+2", "--csv")
-	require.NoError(t, err)
-	results := tr.MustReadCSV()
-	require.Equal(t, [][]string{{"1 + 2"}, {"3"}}, results)
+	testCases := []struct {
+		in   string
+		want []string
+	}{
+		{"1+2", []string{"3"}},
+		{"1+2*3", []string{"7"}},
+		{"( 1+2 ) *3", []string{"9"}},
+		{"( 1+2 ) *3, 9*11+1", []string{"9", "100"}},
+	}
+
+	for i, tc := range testCases {
+		tc := tc
+		t.Run(tutil.Name(i, tc.in), func(t *testing.T) {
+			tr := testrun.New(context.Background(), t, nil).Hush()
+			err := tr.Exec("--csv", "--no-header", tc.in)
+			require.NoError(t, err)
+			results := tr.MustReadCSV()
+			require.Len(t, results, 1)
+			require.Equal(t, tc.want, results[0])
+		})
+	}
 }
