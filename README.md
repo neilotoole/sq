@@ -5,7 +5,6 @@
 ![Main pipeline](https://github.com/neilotoole/sq/actions/workflows/main.yml/badge.svg)
 
 
-
 # sq data wrangler
 
 `sq` is a command line tool that provides jq-style access to
