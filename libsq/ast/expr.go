@@ -130,7 +130,7 @@ func (v *parseTreeVisitor) VisitExpr(ctx *slq.ExprContext) any {
 
 	if e := v.using(node, func() any {
 		return v.VisitChildren(ctx)
-	}); err != nil {
+	}); e != nil {
 		return e
 	}
 

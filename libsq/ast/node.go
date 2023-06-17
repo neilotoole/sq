@@ -381,7 +381,7 @@ func isOperator(text string) bool {
 var (
 	typeAST                = reflect.TypeOf((*AST)(nil))
 	typeColSelectorNode    = reflect.TypeOf((*ColSelectorNode)(nil))
-	typeExprNode           = reflect.TypeOf((*ExprNode)(nil))
+	_                      = reflect.TypeOf((*ExprNode)(nil))
 	typeFuncNode           = reflect.TypeOf((*FuncNode)(nil))
 	typeGroupByNode        = reflect.TypeOf((*GroupByNode)(nil))
 	typeHandleNode         = reflect.TypeOf((*HandleNode)(nil))

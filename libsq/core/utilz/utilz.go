@@ -4,8 +4,6 @@ package utilz
 // All returns a new slice containing elems.
 func All[T any](elems ...T) []T {
 	a := make([]T, len(elems))
-	for i := range elems {
-		a[i] = elems[i]
-	}
+	copy(a, elems)
 	return a
 }

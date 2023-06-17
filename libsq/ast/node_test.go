@@ -72,6 +72,7 @@ func TestNodeUnwrap(t *testing.T) {
 
 	require.NoError(t, exprA.AddChild(exprB))
 	gotExpr, ok = NodeUnwrap[*ExprNode](exprA)
+	require.True(t, ok)
 	require.True(t, exprB == gotExpr)
 
 	litA := &LiteralNode{}

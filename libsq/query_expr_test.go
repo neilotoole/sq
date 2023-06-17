@@ -66,7 +66,7 @@ func TestQuery_expr_logic(t *testing.T) {
 	}
 }
 
-//nolint:exhaustive,lll
+//nolint:exhaustive
 func TestQuery_expr_math(t *testing.T) {
 	testCases := []queryTestCase{
 		{
