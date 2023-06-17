@@ -69,7 +69,7 @@ func completeBool(_ *cobra.Command, _ []string, _ string) ([]string, cobra.Shell
 }
 
 // completeHandle is a completionFunc that suggests handles.
-// The max arg is the maximum number of completions. Collection to 0
+// The max arg is the maximum number of completions. Set to 0
 // for no limit.
 func completeHandle(max int) completionFunc {
 	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -95,7 +95,7 @@ func completeHandle(max int) completionFunc {
 }
 
 // completeGroup is a completionFunc that suggests groups.
-// The max arg is the maximum number of completions. Collection to 0
+// The max arg is the maximum number of completions. Set to 0
 // for no limit.
 func completeGroup(max int) completionFunc {
 	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {

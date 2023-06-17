@@ -79,19 +79,25 @@ func execSLQ(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		// Collection the stdin pipe data source as the active source,
+		// Set the stdin pipe data source as the active source,
 		// as it's commonly the only data source the user is acting upon.
 		if _, err = coll.SetActive(src.Handle, false); err != nil {
 			return err
 		}
-	} else {
-		// No source on stdin, so we're using the collection.
-		src = coll.Active()
-		if src == nil {
-			// TODO: Should sq be modified to support executing queries
-			// 	even when there's no active data source. Probably.
-			return errz.New(msgNoActiveSrc)
-		}
+	} else if coll.Active() == nil {
+		lg.FromContext(ctx).Debug("No active source; continuing regardless...")
+		// Previously, an error was returned if there was no active source.
+		// However, we want to support the use case of being able to
+		// execute a trivial query when there is no active source. Basically,
+		// we want to be able to use sq as a calculator, even without
+		// an active source. Example:
+		//
+		//  $ sq '1+2'
+		//
+		// In this scenario, the query '1+2' would typically be executed
+		// against the active source. However, libsq will fall back to
+		// using the scratch source (i.e. embedded SQLite) if there's no
+		// active source, so we allow progress to continue.
 	}
 
 	mArgs, err := extractFlagArgsValues(cmd)

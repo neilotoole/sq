@@ -166,3 +166,11 @@ func TestOutputRaw(t *testing.T) {
 		})
 	}
 }
+
+func TestExprNoSource(t *testing.T) {
+	tr := testrun.New(context.Background(), t, nil).Hush()
+	err := tr.Exec("1+2", "--csv")
+	require.NoError(t, err)
+	results := tr.MustReadCSV()
+	require.Equal(t, [][]string{{"1 + 2"}, {"3"}}, results)
+}

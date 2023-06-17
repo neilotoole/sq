@@ -62,8 +62,7 @@ func execScratch(cmd *cobra.Command, args []string) error {
 		return ru.Writers.Source.Source(cfg.Collection, src)
 	}
 
-	// Collection the scratch src
-
+	// Set the scratch src
 	switch args[0] {
 	case "internal", "internal:file", "internal:mem":
 		// TODO: currently only supports file sqlite3 db, fairly trivial to do mem as well

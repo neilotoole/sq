@@ -207,7 +207,7 @@ func (tr *TestRun) MustReadCSV() [][]string {
 }
 
 // Hush suppresses the printing of output collected in out
-// and errOut to t.Log. Collection to true for tests
+// and errOut to t.Log. Set to true for tests
 // that output excessive content, binary files, etc.
 func (tr *TestRun) Hush() *TestRun {
 	tr.hushOutput = true

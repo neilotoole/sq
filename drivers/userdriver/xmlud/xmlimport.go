@@ -393,7 +393,7 @@ func (im *importer) saveRow(ctx context.Context, row *rowState) error {
 
 	im.setSequenceColsVals(row, nextSeqVal)
 
-	// Collection any foreign cols
+	// Set any foreign cols
 	err := im.setForeignColsVals(row)
 	if err != nil {
 		return err
