@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Breaking changes are annotated with ☢️.
 
+## Upcoming
+
+### Changed
+
+- ☢️ [#254]: The formerly-implicit "WHERE" mechanism now requires an explicit `where()` function.
+  This, alas, is a fairly big breaking change. But it's necessary to remove an ambiguity roadblock.
+  See discussion in the [issue](https://github.com/neilotoole/sq/issues/254).
+
+  ```shell
+  # Previously
+  $ sq '.actor | .actor_id <= 2'
+  
+  # Now
+  $ sq '.actor | where(.actor_id <= 2)'
+  ```
+
+### Fixed
+
+- Literals can now be selected ([docs](https://sq.io/docs/query/#select-literals)).
+  
+  ```shell
+  $ sq '.actor | .first_name, "X":middle_name, .last_name | .[0:2]'
+  first_name  middle_name  last_name
+  PENELOPE    X            GUINESS
+  NICK        X            WAHLBERG
+  ```
+- Lots of expressions that previously failed badly, now work.
+  
+  ```shell
+  $ sq '.actor | .first_name, (1+2):addition | .[0:2]'
+  first_name  addition
+  PENELOPE    3
+  NICK        3
+  ```
+
+
 ## [v0.37.1] - 2023-06-15
 
 ### Fixed
@@ -525,6 +561,7 @@ make working with lots of sources much easier.
 [#229]: https://github.com/neilotoole/sq/issues/229
 [#244]: https://github.com/neilotoole/sq/issues/244
 [#252]: https://github.com/neilotoole/sq/issues/252
+[#254]: https://github.com/neilotoole/sq/issues/254
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
