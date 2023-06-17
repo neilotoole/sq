@@ -130,7 +130,7 @@ func TestCmdSLQ_OutputFlag(t *testing.T) {
 }
 
 func TestCmdSLQ_Join(t *testing.T) {
-	const queryTpl = `%s.customer, %s.address | join(.address_id) | select(.customer_id == %d) | .[0] | .customer_id, .email, .city_id` //nolint:lll
+	const queryTpl = `%s.customer, %s.address | join(.address_id) | where(.customer_id == %d) | .[0] | .customer_id, .email, .city_id` //nolint:lll
 	handles := sakila.SQLAll()
 
 	// Attempt to join every SQL test source against every SQL test source.

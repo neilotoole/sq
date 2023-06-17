@@ -13,32 +13,32 @@ import (
 )
 
 //nolint:exhaustive,lll
-func TestQuery_expr_logic(t *testing.T) {
+func TestQuery_expr_where(t *testing.T) {
 	testCases := []queryTestCase{
 		{
 			name:         "literal/string",
-			in:           `@sakila | .actor | select(.first_name == "TOM")`,
+			in:           `@sakila | .actor | where(.first_name == "TOM")`,
 			wantSQL:      `SELECT * FROM "actor" WHERE "first_name" = 'TOM'`,
 			override:     map[source.DriverType]string{mysql.Type: "SELECT * FROM `actor` WHERE `first_name` = 'TOM'"},
 			wantRecCount: 2,
 		},
 		{
 			name:         "literal/two-strings",
-			in:           `@sakila | .actor | select(.first_name == "TOM" && .last_name == "MIRANDA")`,
+			in:           `@sakila | .actor | where(.first_name == "TOM" && .last_name == "MIRANDA")`,
 			wantSQL:      `SELECT * FROM "actor" WHERE "first_name" = 'TOM' AND "last_name" = 'MIRANDA'`,
 			override:     map[source.DriverType]string{mysql.Type: "SELECT * FROM `actor` WHERE `first_name` = 'TOM' AND `last_name` = 'MIRANDA'"},
 			wantRecCount: 1,
 		},
 		{
 			name:         "literal/integer",
-			in:           `@sakila | .actor | select(.actor_id == 1)`,
+			in:           `@sakila | .actor | where(.actor_id == 1)`,
 			wantSQL:      `SELECT * FROM "actor" WHERE "actor_id" = 1`,
 			override:     map[source.DriverType]string{mysql.Type: "SELECT * FROM `actor` WHERE `actor_id` = 1"},
 			wantRecCount: 1,
 		},
 		{
 			name:         "is_null",
-			in:           `@sakila | .address | select(.postal_code == null)`,
+			in:           `@sakila | .address | where(.postal_code == null)`,
 			wantSQL:      `SELECT * FROM "address" WHERE "postal_code" IS NULL`,
 			override:     map[source.DriverType]string{mysql.Type: "SELECT * FROM `address` WHERE `postal_code` IS NULL"},
 			wantRecCount: 4,
@@ -48,7 +48,7 @@ func TestQuery_expr_logic(t *testing.T) {
 		},
 		{
 			name:         "is_not_null",
-			in:           `@sakila | .address | select(.postal_code != null)`,
+			in:           `@sakila | .address | where(.postal_code != null)`,
 			wantSQL:      `SELECT * FROM "address" WHERE "postal_code" IS NOT NULL`,
 			override:     map[source.DriverType]string{mysql.Type: "SELECT * FROM `address` WHERE `postal_code` IS NOT NULL"},
 			wantRecCount: 599,
@@ -67,7 +67,7 @@ func TestQuery_expr_logic(t *testing.T) {
 }
 
 //nolint:exhaustive
-func TestQuery_expr_math(t *testing.T) {
+func TestQuery_expr_literal(t *testing.T) {
 	testCases := []queryTestCase{
 		{
 			name:         "col_and_literal",
