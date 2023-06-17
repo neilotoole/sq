@@ -3,6 +3,8 @@ package libsq
 import (
 	"fmt"
 
+	"github.com/neilotoole/sq/libsq/core/loz"
+
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"golang.org/x/exp/slog"
@@ -36,7 +38,7 @@ func buildQueryModel(log *slog.Logger, a *ast.AST) (*queryModel, error) {
 	var ok bool
 	tablerSeg, err := insp.FindFinalTablerSegment()
 	if err != nil {
-		log.Debug("no table segment")
+		log.Debug("No Tabler segment.")
 	}
 
 	if tablerSeg != nil {
@@ -65,15 +67,10 @@ func buildQueryModel(log *slog.Logger, a *ast.AST) (*queryModel, error) {
 	}
 
 	if seg != nil {
-		elems := seg.Children()
-		colExprs := make([]ast.ResultColumn, len(elems))
-		for i, elem := range elems {
-			colExpr, ok := elem.(ast.ResultColumn)
-			if !ok {
-				return nil, errz.Errorf("expected element in segment [%d] to be col expr, but was %T", i, elem)
-			}
-
-			colExprs[i] = colExpr
+		var colExprs []ast.ResultColumn
+		if colExprs, ok = loz.ToSliceType[ast.Node, ast.ResultColumn](seg.Children()...); !ok {
+			return nil, errz.Errorf("segment children contained elements that were not of type %T: %s",
+				ast.ResultColumn(nil), seg.Text())
 		}
 
 		qm.Cols = colExprs

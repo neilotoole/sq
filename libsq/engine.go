@@ -133,22 +133,36 @@ func (ng *engine) executeTasks(ctx context.Context) error {
 // this function's responsibility to figure out what source to use, and
 // to set the relevant engine fields.
 func (ng *engine) prepareNoTabler(ctx context.Context, qm *queryModel) error {
-	ng.log.Debug("no tabler in query")
-	insp := ast.NewInspector(qm.AST)
-	handle := insp.FindFirstHandle()
-	var src *source.Source
-	var err error
-	if handle != "" {
-		if src, err = ng.qc.Collection.Get(handle); err != nil {
-			return err
-		}
-	} else {
+	ng.log.Debug("No Tabler in query; will look for source to use...")
+
+	var (
+		src    *source.Source
+		err    error
+		handle = ast.NewInspector(qm.AST).FindFirstHandle()
+	)
+
+	if handle == "" {
 		if src = ng.qc.Collection.Active(); src == nil {
-			// TODO: Maybe we should support using @scratch here
-			return errz.New("no active source")
+			ng.log.Debug("No active source, will use scratchdb.")
+			ng.targetDB, err = ng.qc.ScratchDBOpener.OpenScratch(ctx, "scratch")
+			if err != nil {
+				return err
+			}
+
+			ng.rc = &render.Context{
+				Renderer: ng.targetDB.SQLDriver().Renderer(),
+				Args:     ng.qc.Args,
+				Dialect:  ng.targetDB.SQLDriver().Dialect(),
+			}
+			return nil
 		}
+
+		ng.log.Debug("Using active source.", lga.Src, src)
+	} else if src, err = ng.qc.Collection.Get(handle); err != nil {
+		return err
 	}
 
+	// At this point, src is non-nil.
 	if ng.targetDB, err = ng.qc.DBOpener.Open(ctx, src); err != nil {
 		return err
 	}

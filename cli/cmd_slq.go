@@ -166,10 +166,11 @@ func execSLQInsert(ctx context.Context, ru *run.Run, mArgs map[string]string,
 	)
 
 	qc := &libsq.QueryContext{
-		Collection:   coll,
-		DBOpener:     ru.Databases,
-		JoinDBOpener: ru.Databases,
-		Args:         mArgs,
+		Collection:      coll,
+		DBOpener:        ru.Databases,
+		JoinDBOpener:    ru.Databases,
+		ScratchDBOpener: ru.Databases,
+		Args:            mArgs,
 	}
 
 	execErr := libsq.ExecuteSLQ(ctx, qc, slq, inserter)

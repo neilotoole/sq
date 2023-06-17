@@ -34,6 +34,9 @@ type QueryContext struct {
 	// JoinDBOpener is used to open the joindb (if needed).
 	JoinDBOpener driver.JoinDatabaseOpener
 
+	// ScratchDBOpener is used to open the scratchdb (if needed).
+	ScratchDBOpener driver.ScratchDatabaseOpener
+
 	// Args defines variables that are substituted into the query.
 	// May be nil or empty.
 	Args map[string]string

@@ -92,7 +92,7 @@ func (in *Inspector) FindColExprSegment() (*SegmentNode, error) {
 	segs := in.ast.Segments()
 
 	// work backwards from the end
-	for i := len(segs) - 1; i > 0; i-- {
+	for i := len(segs) - 1; i >= 0; i-- {
 		elems := segs[i].Children()
 		numColExprs := 0
 

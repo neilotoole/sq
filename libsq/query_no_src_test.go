@@ -3,6 +3,8 @@ package libsq_test
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/neilotoole/sq/libsq"
 	"github.com/neilotoole/sq/testh/tutil"
 	"github.com/stretchr/testify/require"
@@ -10,7 +12,7 @@ import (
 	"github.com/neilotoole/sq/testh"
 )
 
-func TestQueryNoSource(t *testing.T) {
+func TestQuery_no_source(t *testing.T) {
 	testCases := []struct {
 		in      string
 		want    string
@@ -22,15 +24,16 @@ func TestQueryNoSource(t *testing.T) {
 	for i, tc := range testCases {
 		tc := tc
 		t.Run(tutil.Name(i, tc.in), func(t *testing.T) {
-			coll := testh.New(t).NewCollection()
-
+			t.Logf("\nquery: %s\n want: %s", tc.in, tc.want)
 			th := testh.New(t)
+			coll := th.NewCollection()
 			dbases := th.Databases()
 
 			qc := &libsq.QueryContext{
-				Collection:   coll,
-				DBOpener:     dbases,
-				JoinDBOpener: dbases,
+				Collection:      coll,
+				DBOpener:        dbases,
+				JoinDBOpener:    dbases,
+				ScratchDBOpener: dbases,
 			}
 
 			gotSQL, gotErr := libsq.SLQ2SQL(th.Context, qc, "1+2")
@@ -40,8 +43,8 @@ func TestQueryNoSource(t *testing.T) {
 			}
 
 			require.NoError(t, gotErr)
-			require.Equal(t, tc.want, gotSQL)
 			t.Log(gotSQL)
+			assert.Equal(t, tc.want, gotSQL)
 		})
 	}
 }

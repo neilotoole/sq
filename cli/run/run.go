@@ -103,8 +103,9 @@ func (ru *Run) Close() error {
 // QueryContext.Args field if needed.
 func NewQueryContext(ru *Run) *libsq.QueryContext {
 	return &libsq.QueryContext{
-		Collection:   ru.Config.Collection,
-		DBOpener:     ru.Databases,
-		JoinDBOpener: ru.Databases,
+		Collection:      ru.Config.Collection,
+		DBOpener:        ru.Databases,
+		JoinDBOpener:    ru.Databases,
+		ScratchDBOpener: ru.Databases,
 	}
 }
