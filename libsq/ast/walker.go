@@ -216,50 +216,6 @@ func narrowColSel(w *Walker, node Node) error {
 	return nil
 }
 
-// findWhereClause locates any expressions that represent the WHERE clause
-// of the SQL SELECT stmt, and inserts a WhereNode
-// into the AST for that expression.
-//
-// In practice, a WHERE clause is an *ExprNode that
-// is the only child of a segment. For example:
-//
-//	@sakila | .actor | .actor_id > 4 | .first_name, .last_name
-//
-// In this case, ".actor_id > 4" is the WHERE clause.
-func findWhereClause(_ *Walker, node Node) error {
-	// node is guaranteed to be *ExprNode
-	expr, ok := node.(*ExprNode)
-	if !ok {
-		return errorf("expected %T but got %T", expr, node)
-	}
-
-	seg, ok := expr.Parent().(*SegmentNode)
-	if !ok {
-		// The expr is not the direct child of a segment, so we're not interested in it.
-		return nil
-	}
-
-	if len(seg.Children()) != 1 {
-		return errorf("%T with expression - representing a WHERE clause - must only have one child", seg)
-	}
-
-	// The expr is the direct and only child of a segment.
-	// We insert a WhereNode between the segment and the expr.
-	where := &WhereNode{}
-	where.ctx = expr.ctx
-	err := where.AddChild(expr)
-	if err != nil {
-		return err
-	}
-	err = expr.SetParent(where)
-	if err != nil {
-		return err
-	}
-
-	seg.bn.children[0] = where
-	return nil
-}
-
 // determineJoinTables attempts to determine the tables that a JOIN refers to.
 func determineJoinTables(_ *Walker, node Node) error {
 	// node is guaranteed to be FnJoin

@@ -36,33 +36,6 @@ func TestQueryParamKeys(t *testing.T) {
 	}
 }
 
-func TestRenameQueryParamKey(t *testing.T) {
-	testCases := []struct {
-		q      string
-		oldKey string
-		newKey string
-		want   string
-	}{
-		{"", "a", "b", ""},
-		{"a=1", "a", "b", "b=1"},
-		{"a", "a", "b", "b"},
-		{"aa", "a", "b", "aa"},
-		{"a=", "a", "b", "b="},
-		{"a=1&a=2", "a", "b", "b=1&b=2"},
-		{"a=1&c=2", "a", "b", "b=1&c=2"},
-		{"a=1&c=2&a=3&a=4", "a", "b", "b=1&c=2&b=3&b=4"},
-		{"a=a&c=2&a=b&a=c", "a", "b", "b=a&c=2&b=b&b=c"},
-	}
-
-	for i, tc := range testCases {
-		tc := tc
-		t.Run(tutil.Name(i, tc.q, tc.oldKey, tc.newKey), func(t *testing.T) {
-			got := urlz.RenameQueryParamKey(tc.q, tc.oldKey, tc.newKey)
-			require.Equal(t, tc.want, got)
-		})
-	}
-}
-
 func TestStripQuery(t *testing.T) {
 	testCases := []struct {
 		in   string
@@ -146,6 +119,57 @@ func TestStripSchemeAndUser(t *testing.T) {
 			u, err := url.Parse(tc.in)
 			require.NoError(t, err)
 			got := urlz.StripSchemeAndUser(*u)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestRenameQueryParamKey(t *testing.T) {
+	testCases := []struct {
+		q      string
+		oldKey string
+		newKey string
+		want   string
+	}{
+		{"", "a", "b", ""},
+		{"a=1", "a", "b", "b=1"},
+		{"a", "a", "b", "b"},
+		{"aa", "a", "b", "aa"},
+		{"a=", "a", "b", "b="},
+		{"a=1&a=2", "a", "b", "b=1&b=2"},
+		{"a=1&c=2", "a", "b", "b=1&c=2"},
+		{"a=1&c=2&a=3&a=4", "a", "b", "b=1&c=2&b=3&b=4"},
+		{"a=a&c=2&a=b&a=c", "a", "b", "b=a&c=2&b=b&b=c"},
+	}
+
+	for i, tc := range testCases {
+		tc := tc
+		t.Run(tutil.Name(i, tc.q, tc.oldKey, tc.newKey), func(t *testing.T) {
+			got := urlz.RenameQueryParamKey(tc.q, tc.oldKey, tc.newKey)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestURLStripQuery(t *testing.T) {
+	testCases := []struct {
+		in   string
+		want string
+	}{
+		{"https://sq.io", "https://sq.io"},
+		{"https://sq.io/path", "https://sq.io/path"},
+		{"https://sq.io/path#frag", "https://sq.io/path#frag"},
+		{"https://sq.io?a=b", "https://sq.io"},
+		{"https://sq.io/path?a=b", "https://sq.io/path"},
+		{"https://sq.io/path?a=b&c=d#frag", "https://sq.io/path#frag"},
+	}
+
+	for i, tc := range testCases {
+		tc := tc
+		t.Run(tutil.Name(i, tc), func(t *testing.T) {
+			u, err := url.Parse(tc.in)
+			require.NoError(t, err)
+			got := urlz.StripQuery(*u)
 			require.Equal(t, tc.want, got)
 		})
 	}

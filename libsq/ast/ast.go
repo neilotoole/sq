@@ -64,7 +64,6 @@ func buildAST(log *slog.Logger, query slq.IQueryContext) (*AST, error) {
 		{typeSelectorNode, narrowColSel},
 		{typeJoinNode, determineJoinTables},
 		{typeRowRangeNode, visitCheckRowRange},
-		{typeExprNode, findWhereClause},
 	}
 
 	for _, visitor := range visitors {
@@ -99,14 +98,17 @@ type AST struct {
 	text string
 }
 
+// Parent implements ast.Node.
 func (a *AST) Parent() Node {
 	return nil
 }
 
+// SetParent implements ast.Node.
 func (a *AST) SetParent(parent Node) error {
 	return errorf("root node (%T) cannot have parent: tried to add parent %T", a, parent)
 }
 
+// Children implements ast.Node.
 func (a *AST) Children() []Node {
 	nodes := make([]Node, len(a.segs))
 
@@ -117,10 +119,12 @@ func (a *AST) Children() []Node {
 	return nodes
 }
 
+// Segments returns the AST's segments (its direct children).
 func (a *AST) Segments() []*SegmentNode {
 	return a.segs
 }
 
+// AddChild implements ast.Node.
 func (a *AST) AddChild(node Node) error {
 	seg, ok := node.(*SegmentNode)
 	if !ok {
@@ -131,6 +135,7 @@ func (a *AST) AddChild(node Node) error {
 	return nil
 }
 
+// SetChildren implements ast.Node.
 func (a *AST) SetChildren(children []Node) error {
 	segs := make([]*SegmentNode, len(children))
 
@@ -147,10 +152,12 @@ func (a *AST) SetChildren(children []Node) error {
 	return nil
 }
 
+// Context implements ast.Node.
 func (a *AST) Context() antlr.ParseTree {
 	return a.ctx
 }
 
+// SetContext implements ast.Node.
 func (a *AST) SetContext(ctx antlr.ParseTree) error {
 	qCtx, ok := ctx.(*slq.QueryContext)
 	if !ok {
@@ -161,10 +168,12 @@ func (a *AST) SetContext(ctx antlr.ParseTree) error {
 	return nil
 }
 
+// String implements ast.Node.
 func (a *AST) String() string {
 	return nodeString(a)
 }
 
+// Text implements ast.Node.
 func (a *AST) Text() string {
 	return a.ctx.GetText()
 }

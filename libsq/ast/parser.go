@@ -180,6 +180,8 @@ func (v *parseTreeVisitor) Visit(ctx antlr.ParseTree) any {
 		return v.VisitCmpr(ctx)
 	case *slq.RowRangeContext:
 		return v.VisitRowRange(ctx)
+	case *slq.ExprElementContext:
+		return v.VisitExprElement(ctx)
 	case *slq.ExprContext:
 		return v.VisitExpr(ctx)
 	case *slq.GroupByContext:
@@ -200,6 +202,8 @@ func (v *parseTreeVisitor) Visit(ctx antlr.ParseTree) any {
 		return v.VisitUniqueFunc(ctx)
 	case *slq.CountFuncContext:
 		return v.VisitCountFunc(ctx)
+	case *slq.WhereContext:
+		return v.VisitWhere(ctx)
 	case *slq.ArgContext:
 		return v.VisitArg(ctx)
 	}
@@ -311,7 +315,7 @@ func (v *parseTreeVisitor) VisitElement(ctx *slq.ElementContext) any {
 
 // VisitAlias implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitAlias(ctx *slq.AliasContext) any {
-	if ctx.ID() == nil && ctx.GetText() == "" {
+	if ctx == nil || ctx.ID() == nil && ctx.GetText() == "" {
 		return nil
 	}
 
@@ -322,6 +326,8 @@ func (v *parseTreeVisitor) VisitAlias(ctx *slq.AliasContext) any {
 
 	switch node := v.cur.(type) {
 	case *SelectorNode:
+		node.alias = alias
+	case *ExprElementNode:
 		node.alias = alias
 	case *FuncNode:
 		if alias != "" {
@@ -348,7 +354,6 @@ func (v *parseTreeVisitor) VisitAlias(ctx *slq.AliasContext) any {
 		// instead of just ID, and look for the alias after the colon.
 
 		text := ctx.GetText()
-		// text = strings.TrimPrefix(text, node.fnName)
 		node.alias = strings.TrimPrefix(text, ":")
 
 	default:
@@ -356,40 +361,6 @@ func (v *parseTreeVisitor) VisitAlias(ctx *slq.AliasContext) any {
 	}
 
 	return nil
-}
-
-// VisitExpr implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitExpr(ctx *slq.ExprContext) any {
-	// check if the expr is a selector, e.g. ".uid"
-	if selCtx := ctx.Selector(); selCtx != nil {
-		selNode, err := newSelectorNode(v.cur, selCtx)
-		if err != nil {
-			return err
-		}
-		return v.cur.AddChild(selNode)
-	}
-
-	if ctx.Literal() != nil {
-		return v.VisitLiteral(ctx.Literal().(*slq.LiteralContext))
-	}
-
-	ex := &ExprNode{}
-	ex.ctx = ctx
-	err := ex.SetParent(v.cur)
-	if err != nil {
-		return err
-	}
-
-	prev := v.cur
-	v.cur = ex
-
-	err2 := v.VisitChildren(ctx)
-	v.cur = prev
-	if err2 != nil {
-		return err2.(error)
-	}
-
-	return v.cur.AddChild(ex)
 }
 
 // VisitCmpr implements slq.SLQVisitor.
@@ -407,110 +378,6 @@ func (v *parseTreeVisitor) VisitUnaryOperator(_ *slq.UnaryOperatorContext) any {
 	return nil
 }
 
-// VisitJoin implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitJoin(ctx *slq.JoinContext) any {
-	// parent node must be a segment
-	seg, ok := v.cur.(*SegmentNode)
-	if !ok {
-		return errorf("parent of JOIN() must be SegmentNode, but got: %T", v.cur)
-	}
-
-	join := &JoinNode{seg: seg, ctx: ctx}
-	err := seg.AddChild(join)
-	if err != nil {
-		return err
-	}
-
-	expr := ctx.JoinConstraint()
-	if expr == nil {
-		return nil
-	}
-
-	// the join contains a constraint, let's hit it
-	v.cur = join
-	err2 := v.VisitJoinConstraint(expr.(*slq.JoinConstraintContext))
-	if err2 != nil {
-		return err2
-	}
-	// set cur back to previous
-	v.cur = seg
-	return nil
-}
-
-// VisitJoinConstraint implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitJoinConstraint(ctx *slq.JoinConstraintContext) any {
-	joinNode, ok := v.cur.(*JoinNode)
-	if !ok {
-		return errorf("JOIN constraint must have JOIN parent, but got %T", v.cur)
-	}
-
-	// the constraint could be empty
-	children := ctx.GetChildren()
-	if len(children) == 0 {
-		return nil
-	}
-
-	// the constraint could be a single SEL (in which case, there's no comparison operator)
-	if ctx.Cmpr() == nil {
-		// there should be exactly one SEL
-		sels := ctx.AllSelector()
-		if len(sels) != 1 {
-			return errorf("JOIN constraint without a comparison operator must have exactly one selector")
-		}
-
-		joinExprNode := &JoinConstraint{join: joinNode, ctx: ctx}
-
-		colSelNode, err := newSelectorNode(joinExprNode, sels[0])
-		if err != nil {
-			return err
-		}
-
-		if err := joinExprNode.AddChild(colSelNode); err != nil {
-			return err
-		}
-
-		return joinNode.AddChild(joinExprNode)
-	}
-
-	// We've got a comparison operator
-	sels := ctx.AllSelector()
-	if len(sels) != 2 {
-		// REVISIT: probably unnecessary, should be caught by the parser
-		return errorf("JOIN constraint must have 2 operands (left & right), but got %d", len(sels))
-	}
-
-	join, ok := v.cur.(*JoinNode)
-	if !ok {
-		return errorf("JoinConstraint must have JoinNode parent, but got %T", v.cur)
-	}
-	joinCondition := &JoinConstraint{join: join, ctx: ctx}
-
-	leftSel, err := newSelectorNode(joinCondition, sels[0])
-	if err != nil {
-		return err
-	}
-
-	if err = joinCondition.AddChild(leftSel); err != nil {
-		return err
-	}
-
-	cmpr := newCmpr(joinCondition, ctx.Cmpr())
-	if err = joinCondition.AddChild(cmpr); err != nil {
-		return err
-	}
-
-	rightSel, err := newSelectorNode(joinCondition, sels[1])
-	if err != nil {
-		return err
-	}
-
-	if err = joinCondition.AddChild(rightSel); err != nil {
-		return err
-	}
-
-	return join.AddChild(joinCondition)
-}
-
 // VisitTerminal implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitTerminal(ctx antlr.TerminalNode) any {
 	val := ctx.GetText()
@@ -518,6 +385,7 @@ func (v *parseTreeVisitor) VisitTerminal(ctx antlr.TerminalNode) any {
 	if isOperator(val) {
 		op := &OperatorNode{}
 		op.ctx = ctx
+		op.text = ctx.GetText()
 
 		err := op.SetParent(v.cur)
 		if err != nil {

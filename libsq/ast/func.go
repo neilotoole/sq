@@ -56,11 +56,6 @@ func (fn *FuncNode) SetChildren(children []Node) error {
 	return nil
 }
 
-// IsColumn implements ResultColumn.
-func (fn *FuncNode) IsColumn() bool {
-	return false
-}
-
 // AddChild implements Node.
 func (fn *FuncNode) AddChild(child Node) error {
 	// TODO: add check for valid FuncNode child types

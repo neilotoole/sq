@@ -43,6 +43,9 @@ type SLQVisitor interface {
 	// Visit a parse tree produced by SLQParser#countFunc.
 	VisitCountFunc(ctx *CountFuncContext) interface{}
 
+	// Visit a parse tree produced by SLQParser#where.
+	VisitWhere(ctx *WhereContext) interface{}
+
 	// Visit a parse tree produced by SLQParser#groupByTerm.
 	VisitGroupByTerm(ctx *GroupByTermContext) interface{}
 
@@ -75,6 +78,9 @@ type SLQVisitor interface {
 
 	// Visit a parse tree produced by SLQParser#rowRange.
 	VisitRowRange(ctx *RowRangeContext) interface{}
+
+	// Visit a parse tree produced by SLQParser#exprElement.
+	VisitExprElement(ctx *ExprElementContext) interface{}
 
 	// Visit a parse tree produced by SLQParser#expr.
 	VisitExpr(ctx *ExprContext) interface{}

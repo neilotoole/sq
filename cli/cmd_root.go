@@ -14,7 +14,7 @@ func newRootCmd() *cobra.Command {
 		Short: "sq",
 		Long: `sq is a swiss-army knife for wrangling data.
 
-  $ sq '@sakila_pg | .actor | .first_name, .last_name | .[0:10]' --json
+  $ sq '@sakila_pg | .actor | where(.actor_id > 2) | .first_name, .last_name | .[0:10]'
 
 Use sq to query Postgres, SQLite, SQLServer, MySQL, CSV, Excel, etc,
 and output in text, JSON, CSV, Excel and so on, or write output to a

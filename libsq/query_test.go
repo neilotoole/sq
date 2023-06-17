@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/neilotoole/sq/libsq"
 
 	"golang.org/x/exp/slices"
@@ -55,10 +57,17 @@ type queryTestCase struct {
 	// data in the Sakila datasets.
 	skipExec bool
 
-	// wantRecs is the number of expected records from actually executing
+	// wantRecCount is the number of expected records from actually executing
 	// the query. This is N/A if skipExec is true.
-	wantRecs int
+	wantRecCount int
+
+	// sinkTest, if non-nil, is executed against the sink returned
+	// from the query execution.
+	sinkFns []SinkTestFunc
 }
+
+// SinkTestFunc is a function that tests a sink.
+type SinkTestFunc func(t testing.TB, sink *testh.RecordSink)
 
 func execQueryTestCase(t *testing.T, tc queryTestCase) {
 	if tc.skip {
@@ -66,14 +75,11 @@ func execQueryTestCase(t *testing.T, tc queryTestCase) {
 	}
 
 	t.Helper()
-	coll := testh.New(t).NewCollection(sakila.SQLLatest()...)
-	_ = coll
-	src, err := coll.Get(sakila.Pg)
-	require.NoError(t, err)
 
-	// srcs :=
-	for _, src := range []*source.Source{src} {
-		// for _, src := range coll.Sources() {
+	coll := testh.New(t).NewCollection(sakila.SQLLatest()...) // FIXME: Revert to using all sakila.SQLLatest
+	// coll := testh.New(t).NewCollection(sakila.Pg)
+
+	for _, src := range coll.Sources() {
 		src := src
 
 		t.Run(string(src.Type), func(t *testing.T) {
@@ -121,7 +127,29 @@ func execQueryTestCase(t *testing.T, tc queryTestCase) {
 
 			sink, err := th.QuerySLQ(in, tc.args)
 			require.NoError(t, err)
-			require.Equal(t, tc.wantRecs, len(sink.Recs))
+			require.Equal(t, tc.wantRecCount, len(sink.Recs))
+
+			for i := range tc.sinkFns {
+				tc.sinkFns[i](t, sink)
+			}
 		})
+	}
+}
+
+// assertSinkColValue returns a SinkTestFunc that asserts that
+// the column colIndex of each record matches val.
+func assertSinkColValue(colIndex int, val any) SinkTestFunc {
+	return func(t testing.TB, sink *testh.RecordSink) {
+		for rowi, rec := range sink.Recs {
+			assert.Equal(t, val, rec[colIndex], "record[%d:%d] (%s)", rowi, colIndex, sink.RecMeta[colIndex].Name())
+		}
+	}
+}
+
+// assertSinkColValue returns a SinkTestFunc that asserts that
+// the name of column colIndex matches name.
+func assertSinkColName(colIndex int, name string) SinkTestFunc {
+	return func(t testing.TB, sink *testh.RecordSink) {
+		assert.Equal(t, name, sink.RecMeta[colIndex].Name(), "column %d", colIndex)
 	}
 }

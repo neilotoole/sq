@@ -92,6 +92,12 @@ func (s *BaseSLQListener) EnterCountFunc(ctx *CountFuncContext) {}
 // ExitCountFunc is called when production countFunc is exited.
 func (s *BaseSLQListener) ExitCountFunc(ctx *CountFuncContext) {}
 
+// EnterWhere is called when production where is entered.
+func (s *BaseSLQListener) EnterWhere(ctx *WhereContext) {}
+
+// ExitWhere is called when production where is exited.
+func (s *BaseSLQListener) ExitWhere(ctx *WhereContext) {}
+
 // EnterGroupByTerm is called when production groupByTerm is entered.
 func (s *BaseSLQListener) EnterGroupByTerm(ctx *GroupByTermContext) {}
 
@@ -157,6 +163,12 @@ func (s *BaseSLQListener) EnterRowRange(ctx *RowRangeContext) {}
 
 // ExitRowRange is called when production rowRange is exited.
 func (s *BaseSLQListener) ExitRowRange(ctx *RowRangeContext) {}
+
+// EnterExprElement is called when production exprElement is entered.
+func (s *BaseSLQListener) EnterExprElement(ctx *ExprElementContext) {}
+
+// ExitExprElement is called when production exprElement is exited.
+func (s *BaseSLQListener) ExitExprElement(ctx *ExprElementContext) {}
 
 // EnterExpr is called when production expr is entered.
 func (s *BaseSLQListener) EnterExpr(ctx *ExprContext) {}

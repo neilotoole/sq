@@ -8,7 +8,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
-// Expr implements FragmentBuilder.
 func doExpr(rc *Context, expr *ast.ExprNode) (string, error) {
 	if expr == nil {
 		return "", nil
@@ -16,6 +15,9 @@ func doExpr(rc *Context, expr *ast.ExprNode) (string, error) {
 	r := rc.Renderer
 
 	var sb strings.Builder
+	if expr.HasParens() {
+		sb.WriteRune('(')
+	}
 	for i, child := range expr.Children() {
 		if i > 0 {
 			sb.WriteRune(sp)
@@ -59,8 +61,13 @@ func doExpr(rc *Context, expr *ast.ExprNode) (string, error) {
 			}
 			sb.WriteString(val)
 		default:
+			// Shouldn't happen? Need to investigate.
 			sb.WriteString(child.Text())
 		}
+	}
+
+	if expr.HasParens() {
+		sb.WriteRune(')')
 	}
 
 	return sb.String(), nil

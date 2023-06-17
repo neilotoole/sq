@@ -60,12 +60,6 @@ type Selector interface {
 type ResultColumn interface {
 	Node
 
-	// IsColumn returns true if the expression represents
-	// a column, e.g. ".first_name" or "actor.first_name".
-	// This method returns false for functions, e.g. "COUNT(*)".
-	// REVISIT: We can probably get rid of this?
-	IsColumn() bool
-
 	// String returns a log/debug-friendly representation.
 	String() string
 
@@ -306,9 +300,43 @@ func nodesWithType(nodes []Node, typ reflect.Type) []Node {
 	return s
 }
 
+// NodeUnwrap "unwraps" node returning the lowest single contained node.
+// False is returned if node (or any of its descendants), has more than one
+// child. If node has no children, it is returned directly. This function
+// is useful for "unwrapping" a node that is contained in an outer node. For
+// example, an ExprNode may often contain just a single LiteralNode.
+func NodeUnwrap[T Node](node Node) (T, bool) {
+	var result T
+	var ok bool
+	if node == nil {
+		return result, false
+	}
+
+	var children []Node
+	for {
+		children = node.Children()
+		switch len(children) {
+		case 0:
+			result, ok = node.(T)
+			return result, ok
+		case 1:
+			node = children[0]
+			continue
+		default:
+			return result, false
+		}
+	}
+}
+
 // ExprNode models a SLQ expression such as ".uid > 4".
 type ExprNode struct {
 	baseNode
+	parens bool
+}
+
+// HasParens returns true if the expression is enclosed in parentheses.
+func (n *ExprNode) HasParens() bool {
+	return n.parens
 }
 
 // AddChild implements Node.
@@ -339,40 +367,6 @@ func (n *OperatorNode) String() string {
 	return nodeString(n)
 }
 
-// WhereNode represents a SQL WHERE clause, i.e. a filter on the SELECT.
-type WhereNode struct {
-	baseNode
-}
-
-// String returns a log/debug-friendly representation.
-func (n *WhereNode) String() string {
-	return nodeString(n)
-}
-
-// Expr returns the expression that constitutes the SetWhere clause, or nil if no expression.
-func (n *WhereNode) Expr() *ExprNode {
-	if len(n.children) == 0 {
-		return nil
-	}
-
-	return n.children[0].(*ExprNode)
-}
-
-// AddChild implements Node.
-func (n *WhereNode) AddChild(node Node) error {
-	expr, ok := node.(*ExprNode)
-	if !ok {
-		return errorf("WHERE child must be %T, but got: %T", expr, node)
-	}
-
-	if len(n.children) > 0 {
-		return errorf("WHERE has max 1 child: failed to add: %T", node)
-	}
-
-	n.addChild(expr)
-	return nil
-}
-
 // isOperator returns true if the supplied string is a recognized operator, e.g. "!=" or ">".
 func isOperator(text string) bool {
 	switch text {
@@ -387,7 +381,7 @@ func isOperator(text string) bool {
 var (
 	typeAST                = reflect.TypeOf((*AST)(nil))
 	typeColSelectorNode    = reflect.TypeOf((*ColSelectorNode)(nil))
-	typeExprNode           = reflect.TypeOf((*ExprNode)(nil))
+	_                      = reflect.TypeOf((*ExprNode)(nil))
 	typeFuncNode           = reflect.TypeOf((*FuncNode)(nil))
 	typeGroupByNode        = reflect.TypeOf((*GroupByNode)(nil))
 	typeHandleNode         = reflect.TypeOf((*HandleNode)(nil))
