@@ -122,8 +122,11 @@ func doRender(_ *Context, f *Fragments) (string, error) {
 
 	sb.WriteRune(sp)
 	sb.WriteString(f.Columns)
-	sb.WriteRune(sp)
-	sb.WriteString(f.From)
+
+	if f.From != "" {
+		sb.WriteRune(sp)
+		sb.WriteString(f.From)
+	}
 
 	if f.Where != "" {
 		sb.WriteRune(sp)

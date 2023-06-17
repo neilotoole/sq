@@ -43,7 +43,7 @@ type Opt interface {
 	// recommended at 100 chars.
 	Help() string
 
-	// String returns a log/debug friendly representation.
+	// String returns a log/debug-friendly representation.
 	String() string
 
 	// IsSet returns true if this Opt is set in o.

@@ -22,6 +22,11 @@ func (ng *engine) prepare(ctx context.Context, qm *queryModel) error {
 
 	// After this switch, ng.rc will be set.
 	switch node := qm.Table.(type) {
+	case nil:
+		if err = ng.prepareNoTabler(ctx, qm); err != nil {
+			return err
+		}
+
 	case *ast.TblSelectorNode:
 		if frags.From, ng.targetDB, err = ng.buildTableFromClause(ctx, node); err != nil {
 			return err
@@ -36,6 +41,7 @@ func (ng *engine) prepare(ctx context.Context, qm *queryModel) error {
 	}
 
 	rndr := ng.targetDB.SQLDriver().Renderer()
+	// rndr := ng.rc.Renderer
 
 	if frags.Columns, err = rndr.SelectCols(ng.rc, qm.Cols); err != nil {
 		return err

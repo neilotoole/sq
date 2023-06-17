@@ -274,15 +274,6 @@ func newCmpr(parent Node, ctx slq.ICmprContext) *Cmpr {
 	return cmpr
 }
 
-// HandleNode models a source handle such as "@sakila_sl3".
-type HandleNode struct {
-	baseNode
-}
-
-func (d *HandleNode) String() string {
-	return nodeString(d)
-}
-
 // extractSelVal extracts the value of the selector. The function takes
 // a selector node type as input, e.g. ast.SelectorNode.
 // Example inputs:

@@ -245,30 +245,6 @@ func (v *parseTreeVisitor) VisitQuery(ctx *slq.QueryContext) any {
 	return nil
 }
 
-// VisitHandle implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitHandle(ctx *slq.HandleContext) any {
-	ds := &HandleNode{}
-	ds.parent = v.cur
-	ds.ctx = ctx.HANDLE()
-	return v.cur.AddChild(ds)
-}
-
-// VisitHandleTable implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitHandleTable(ctx *slq.HandleTableContext) any {
-	selNode := &TblSelectorNode{}
-	selNode.parent = v.cur
-	selNode.ctx = ctx
-
-	selNode.handle = ctx.HANDLE().GetText()
-
-	var err error
-	if selNode.tblName, err = extractSelVal(ctx.NAME()); err != nil {
-		return err
-	}
-
-	return v.cur.AddChild(selNode)
-}
-
 // VisitSegment implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitSegment(ctx *slq.SegmentContext) any {
 	seg := newSegmentNode(v.ast, ctx)
