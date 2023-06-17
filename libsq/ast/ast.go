@@ -64,7 +64,7 @@ func buildAST(log *slog.Logger, query slq.IQueryContext) (*AST, error) {
 		{typeSelectorNode, narrowColSel},
 		{typeJoinNode, determineJoinTables},
 		{typeRowRangeNode, visitCheckRowRange},
-		{typeExprNode, findWhereClause},
+		//{typeExprNode, findWhereClause},
 	}
 
 	for _, visitor := range visitors {

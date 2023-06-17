@@ -34,7 +34,6 @@ funcName
 	| 'avg'
 	| 'max'
 	| 'min'
-	| 'where'
 	| PROPRIETARY_FUNC_NAME
   ;
 
@@ -215,15 +214,6 @@ rowRange:
 		| NN // [10]
 	)? ']';
 
-//fnName:
-//	'sum'
-//	| 'SUM'
-//	| 'avg'
-//	| 'AVG'
-//	| 'count'
-//	| 'COUNT'
-//	| 'where'
-//	| 'WHERE';
 
 exprElement: expr (alias)?;
 

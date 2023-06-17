@@ -76,8 +76,8 @@ func execQueryTestCase(t *testing.T, tc queryTestCase) {
 
 	t.Helper()
 
-	// coll := testh.New(t).NewCollection(sakila.SQLLatest()...) // FIXME: Revert to using all sakila.SQLLatest
-	coll := testh.New(t).NewCollection(sakila.Pg)
+	coll := testh.New(t).NewCollection(sakila.SQLLatest()...) // FIXME: Revert to using all sakila.SQLLatest
+	// coll := testh.New(t).NewCollection(sakila.Pg)
 
 	for _, src := range coll.Sources() {
 		src := src

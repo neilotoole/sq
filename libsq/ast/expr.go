@@ -117,11 +117,6 @@ func (v *parseTreeVisitor) VisitExpr(ctx *slq.ExprContext) any {
 		return v.cur.AddChild(selNode)
 	}
 
-	//if ctx.Literal() != nil {
-	//	// REVISIT: Why are we skipping ahead wit literal here?
-	//	return v.VisitLiteral(ctx.Literal().(*slq.LiteralContext))
-	//}
-
 	node := &ExprNode{}
 	node.ctx = ctx
 	node.text = ctx.GetText()
@@ -138,15 +133,6 @@ func (v *parseTreeVisitor) VisitExpr(ctx *slq.ExprContext) any {
 	}); err != nil {
 		return e
 	}
-
-	//prev := v.cur
-	//v.cur = ex
-	//
-	//err2 := v.VisitChildren(ctx)
-	//v.cur = prev
-	//if err2 != nil {
-	//	return err2.(error)
-	//}
 
 	return v.cur.AddChild(node)
 }

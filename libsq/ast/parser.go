@@ -202,6 +202,8 @@ func (v *parseTreeVisitor) Visit(ctx antlr.ParseTree) any {
 		return v.VisitUniqueFunc(ctx)
 	case *slq.CountFuncContext:
 		return v.VisitCountFunc(ctx)
+	case *slq.WhereContext:
+		return v.VisitWhere(ctx)
 	case *slq.ArgContext:
 		return v.VisitArg(ctx)
 	}

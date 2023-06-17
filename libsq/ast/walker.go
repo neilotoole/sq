@@ -226,6 +226,8 @@ func narrowColSel(w *Walker, node Node) error {
 //	@sakila | .actor | .actor_id > 4 | .first_name, .last_name
 //
 // In this case, ".actor_id > 4" is the WHERE clause.
+//
+// Deprecated: We now have an explicit WhereNode type.
 func findWhereClause(_ *Walker, node Node) error {
 	// node is guaranteed to be *ExprNode
 	expr, ok := node.(*ExprNode)

@@ -62,7 +62,7 @@ func TestQuery_cols(t *testing.T) {
 		},
 		{
 			name:         "cols-select-literal-value",
-			in:           `@sakila.actor | .first_name, ."xxx", .last_name`,
+			in:           `@sakila.actor | .first_name, "xxx", .last_name`,
 			wantSQL:      `SELECT "first_name", 'xxx', "last_name" FROM "actor"`,
 			override:     map[source.DriverType]string{mysql.Type: "SELECT `first_name`, 'xxx', `last_name` FROM `actor`"},
 			wantRecCount: sakila.TblActorCount,

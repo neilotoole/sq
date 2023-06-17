@@ -17,7 +17,7 @@ func doOperator(rc *Context, op *ast.OperatorNode) (string, error) {
 	}
 
 	rhs := ast.NodeNextSibling(op)
-	if lit, ok := rhs.(*ast.LiteralNode); ok && lit.Text() == "null" {
+	if lit, ok := ast.NodeUnwrap[*ast.LiteralNode](rhs); ok && lit.Text() == "null" {
 		switch op.Text() {
 		case "==":
 			val = "IS"

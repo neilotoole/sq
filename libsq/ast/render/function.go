@@ -66,6 +66,12 @@ func doFunction(rc *Context, fn *ast.FuncNode) (string, error) {
 			} else {
 				sb.WriteString(val)
 			}
+		case *ast.ExprNode:
+			s, err := rc.Renderer.Expr(rc, node)
+			if err != nil {
+				return "", err
+			}
+			sb.WriteString(s)
 		default:
 			return "", errz.Errorf("unknown AST child node %T: %s", node, node)
 		}

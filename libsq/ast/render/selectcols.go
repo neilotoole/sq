@@ -42,7 +42,7 @@ func doSelectCols(rc *Context, cols []ast.ResultColumn) (string, error) {
 			}
 		default:
 			// FIXME: We should be exhaustively checking the cases.
-			// Here, it's probably an ExprNode?
+			// Actually, this should probably be an error?
 			vals[i] = col.Text() // for now, we just return the raw text
 		}
 
