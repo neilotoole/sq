@@ -168,7 +168,7 @@ selector: NAME (NAME)?;
 // - ."actor".first_name
 selectorElement: (selector) (alias)?;
 
-alias: ALIAS_RESERVED | ':' (ARG | ID);
+alias: ALIAS_RESERVED | ':' (ARG | ID | STRING);
 // The grammar has problems dealing with "reserved" lexer tokens.
 // Basically, there's a problem with using "column:KEYWORD".
 // ALIAS_RESERVED is a hack to deal with those cases.

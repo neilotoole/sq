@@ -25,7 +25,7 @@ to SLQ (`sq`'s query language).
   # Now
   $ sq '.actor | where(.actor_id <= 2)'
   ```
-- Column-only queries are now permissible. This has the neat side effect
+- [#256]: Column-only queries are now permissible. This has the neat side effect
   that `sq` can now be used as a calculator.
 
   ```shell
@@ -580,6 +580,7 @@ make working with lots of sources much easier.
 [#244]: https://github.com/neilotoole/sq/issues/244
 [#252]: https://github.com/neilotoole/sq/issues/252
 [#254]: https://github.com/neilotoole/sq/issues/254
+[#256]: https://github.com/neilotoole/sq/issues/256
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
