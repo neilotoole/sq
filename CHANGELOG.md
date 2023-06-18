@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Breaking changes are annotated with ☢️.
 
-## Upcoming
+## [v0.38.0] - 2023-06-18
 
 This release has significant improvements (and breaking changes)
 to SLQ (`sq`'s query language).
@@ -637,3 +637,4 @@ make working with lots of sources much easier.
 [v0.36.2]: https://github.com/neilotoole/sq/compare/v0.36.1...v0.36.2
 [v0.37.0]: https://github.com/neilotoole/sq/compare/v0.36.2...v0.37.0
 [v0.37.1]: https://github.com/neilotoole/sq/compare/v0.37.0...v0.37.1
+[v0.38.0]: https://github.com/neilotoole/sq/compare/v0.37.1...v0.38.0
