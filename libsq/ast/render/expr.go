@@ -18,11 +18,8 @@ func doExpr(rc *Context, expr *ast.ExprNode) (string, error) {
 	if expr.HasParens() {
 		sb.WriteRune('(')
 	}
-	for i, child := range expr.Children() {
-		if i > 0 {
-			sb.WriteRune(sp)
-		}
 
+	for _, child := range expr.Children() {
 		switch child := child.(type) {
 		case *ast.TblColSelectorNode, *ast.ColSelectorNode:
 			val, err := renderSelectorNode(rc.Dialect, child)

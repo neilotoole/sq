@@ -40,8 +40,7 @@ func (ng *engine) prepare(ctx context.Context, qm *queryModel) error {
 		return errz.Errorf("unknown ast.Tabler %T: %s", node, node)
 	}
 
-	rndr := ng.targetDB.SQLDriver().Renderer()
-	// rndr := ng.rc.Renderer
+	rndr := ng.rc.Renderer
 
 	if frags.Columns, err = rndr.SelectCols(ng.rc, qm.Cols); err != nil {
 		return err

@@ -27,5 +27,17 @@ func doOperator(rc *Context, op *ast.OperatorNode) (string, error) {
 	}
 
 	// By default, just return the operator unchanged.
+	if operatorHasSpace(val) {
+		val = " " + val + " "
+	}
+
 	return val, nil
+}
+
+func operatorHasSpace(op string) bool {
+	switch op {
+	case "-", "+", "*", "/":
+		return false
+	}
+	return true
 }

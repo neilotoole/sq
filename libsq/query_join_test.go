@@ -7,8 +7,6 @@ import (
 
 	"github.com/neilotoole/sq/drivers/mysql"
 
-	"github.com/neilotoole/sq/libsq/source"
-
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -19,21 +17,21 @@ func TestQuery_join(t *testing.T) {
 			name:         "join/single-selector",
 			in:           `@sakila | .actor, .film_actor | join(.actor_id)`,
 			wantSQL:      `SELECT * FROM "actor" INNER JOIN "film_actor" ON "actor"."actor_id" = "film_actor"."actor_id"`,
-			override:     map[source.DriverType]string{mysql.Type: "SELECT * FROM `actor` INNER JOIN `film_actor` ON `actor`.`actor_id` = `film_actor`.`actor_id`"},
+			override:     driverMap{mysql.Type: "SELECT * FROM `actor` INNER JOIN `film_actor` ON `actor`.`actor_id` = `film_actor`.`actor_id`"},
 			wantRecCount: sakila.TblFilmActorCount,
 		},
 		{
 			name:         "join/fq-table-cols-equal",
 			in:           `@sakila | .actor, .film_actor | join(.film_actor.actor_id == .actor.actor_id)`,
 			wantSQL:      `SELECT * FROM "actor" INNER JOIN "film_actor" ON "film_actor"."actor_id" = "actor"."actor_id"`,
-			override:     map[source.DriverType]string{mysql.Type: "SELECT * FROM `actor` INNER JOIN `film_actor` ON `film_actor`.`actor_id` = `actor`.`actor_id`"},
+			override:     driverMap{mysql.Type: "SELECT * FROM `actor` INNER JOIN `film_actor` ON `film_actor`.`actor_id` = `actor`.`actor_id`"},
 			wantRecCount: sakila.TblFilmActorCount,
 		},
 		{
 			name:     "join/fq-table-cols-equal-whitespace",
 			in:       `@sakila | .actor, ."film actor" | join(."film actor".actor_id == .actor.actor_id)`,
 			wantSQL:  `SELECT * FROM "actor" INNER JOIN "film actor" ON "film actor"."actor_id" = "actor"."actor_id"`,
-			override: map[source.DriverType]string{mysql.Type: "SELECT * FROM `actor` INNER JOIN `film actor` ON `film actor`.`actor_id` = `actor`.`actor_id`"},
+			override: driverMap{mysql.Type: "SELECT * FROM `actor` INNER JOIN `film actor` ON `film actor`.`actor_id` = `actor`.`actor_id`"},
 			skipExec: true,
 		},
 	}

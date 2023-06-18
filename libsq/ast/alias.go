@@ -3,6 +3,8 @@ package ast
 import (
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/stringz"
+
 	"github.com/neilotoole/sq/libsq/ast/internal/slq"
 )
 
@@ -15,6 +17,8 @@ func (v *parseTreeVisitor) VisitAlias(ctx *slq.AliasContext) any {
 	var alias string
 	if ctx.ID() != nil {
 		alias = ctx.ID().GetText()
+	} else if ctx.STRING() != nil {
+		alias = stringz.StripDoubleQuote(ctx.STRING().GetText())
 	}
 
 	switch node := v.cur.(type) {

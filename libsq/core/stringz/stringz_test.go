@@ -325,6 +325,29 @@ func TestDoubleQuote(t *testing.T) {
 	}
 }
 
+func TestStripDoubleQuote(t *testing.T) {
+	testCases := []struct {
+		in   string
+		want string
+	}{
+		{in: ``, want: ``},
+		{in: `"`, want: `"`},
+		{in: `""`, want: ``},
+		{in: `"a`, want: `"a`},
+		{in: `"a"`, want: `a`},
+		{in: `"abc"`, want: `abc`},
+		{in: `"hello "" world"`, want: `hello "" world`},
+	}
+
+	for i, tc := range testCases {
+		tc := tc
+		t.Run(tutil.Name(i, tc.in), func(t *testing.T) {
+			got := stringz.StripDoubleQuote(tc.in)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
 func TestBacktickQuote(t *testing.T) {
 	testCases := []struct {
 		in   string

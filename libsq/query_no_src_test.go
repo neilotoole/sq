@@ -18,7 +18,11 @@ func TestQuery_no_source(t *testing.T) {
 		want    string
 		wantErr bool
 	}{
-		{"1+2", "SELECT 1 + 2", false},
+		{"1+2", `SELECT 1+2 AS "1+2"`, false},
+		{"(1+ 2) * 3", `SELECT (1+2)*3 AS "(1+2)*3"`, false},
+		{"(1+ 2) * 3", `SELECT (1+2)*3 AS "(1+2)*3"`, false},
+		{`1:"the number"`, `SELECT 1 AS "the number"`, false},
+		{`1:thenumber`, `SELECT 1 AS "thenumber"`, false},
 	}
 
 	for i, tc := range testCases {
@@ -36,7 +40,7 @@ func TestQuery_no_source(t *testing.T) {
 				ScratchDBOpener: dbases,
 			}
 
-			gotSQL, gotErr := libsq.SLQ2SQL(th.Context, qc, "1+2")
+			gotSQL, gotErr := libsq.SLQ2SQL(th.Context, qc, tc.in)
 			if tc.wantErr {
 				require.Error(t, gotErr)
 				return

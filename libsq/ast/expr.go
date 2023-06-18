@@ -1,6 +1,12 @@
 package ast
 
-import "github.com/neilotoole/sq/libsq/ast/internal/slq"
+import (
+	"strings"
+
+	"github.com/neilotoole/sq/libsq/core/stringz"
+
+	"github.com/neilotoole/sq/libsq/ast/internal/slq"
+)
 
 var (
 	_ Node         = (*ExprElementNode)(nil)
@@ -103,6 +109,13 @@ func (v *parseTreeVisitor) VisitExprElement(ctx *slq.ExprElementContext) interfa
 			return e
 		}
 	}
+
+	if node.alias == "" {
+		node.alias = ctx.GetText()
+		node.alias = stringz.StripDoubleQuote(node.alias)
+		node.alias = strings.TrimPrefix(node.alias, "_")
+	}
+
 	return v.cur.AddChild(node)
 }
 

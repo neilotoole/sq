@@ -1,6 +1,8 @@
 package ast
 
 import (
+	"strings"
+
 	"github.com/neilotoole/sq/libsq/ast/internal/slq"
 )
 
@@ -132,9 +134,7 @@ func (v *parseTreeVisitor) VisitFunc(ctx *slq.FuncContext) any {
 
 	if node.alias == "" {
 		node.alias = ctx.GetText()
-		if node.alias[0] == '_' {
-			node.alias = node.alias[1:]
-		}
+		node.alias = strings.TrimPrefix(node.alias, "_")
 	}
 
 	return v.cur.AddChild(node)

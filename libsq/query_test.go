@@ -19,6 +19,10 @@ import (
 	"github.com/neilotoole/sq/testh/sakila"
 )
 
+// driverMap is a map of source.DriverType to a string.
+// It is used to specify a string for a specific driver.
+type driverMap map[source.DriverType]string
+
 // queryTestCase is used to test libsq's rendering of SLQ into SQL.
 // It is probably the most important test struct in the codebase.
 type queryTestCase struct {
@@ -46,7 +50,7 @@ type queryTestCase struct {
 	// override allows an alternative "wantSQL" for a specific driver type.
 	// For example, MySQL uses backtick as the quote char, so it needs
 	// a separate wantSQL string.
-	override map[source.DriverType]string
+	override driverMap
 
 	// onlyFor indicates that this test should only run on sources of
 	// the specified types. When empty, the test is executed on all types.

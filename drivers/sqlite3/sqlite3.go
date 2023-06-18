@@ -876,6 +876,10 @@ func NewScratchSource(ctx context.Context, name string) (src *source.Source, cln
 		return nil, cleanFn, err
 	}
 
+	// REVISIT: This mechanism is janky: should we be keeping the file open?
+	// Probably not.
+	lg.WarnIfCloseError(log, "Close scratch file", f)
+
 	log.Debug("Created sqlite3 scratchdb data file", lga.Path, f.Name())
 
 	src = &source.Source{
@@ -887,7 +891,10 @@ func NewScratchSource(ctx context.Context, name string) (src *source.Source, cln
 	fn := func() error {
 		log.Debug("Deleting sqlite3 scratchdb data file", lga.Src, src, lga.Path, f.Name())
 		if cleanFn != nil {
-			return cleanFn()
+			cleanErr := cleanFn()
+			if cleanErr != nil {
+				log.Warn("Error cleaning scratch source", lga.Err, cleanErr)
+			}
 		}
 		return nil
 	}

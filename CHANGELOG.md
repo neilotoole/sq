@@ -25,7 +25,7 @@ to SLQ (`sq`'s query language).
   # Now
   $ sq '.actor | where(.actor_id <= 2)'
   ```
-- Column-only queries are now permissible. This has the neat side effect
+- [#256]: Column-only queries are now possible. This has the neat side effect
   that `sq` can now be used as a calculator.
 
   ```shell
@@ -33,11 +33,13 @@ to SLQ (`sq`'s query language).
   1+2
   3
   ```
-  You probably want to use `--no-header` (`-H`):
+  You may want to use `--no-header` (`-H`) when using `sq` as a calculator.
 
   ```shell
   $ sq -H 1+2
   3
+  $ sq -H '(1+2)*3'
+  9
   ```
 
 
@@ -59,7 +61,22 @@ to SLQ (`sq`'s query language).
   PENELOPE    3
   NICK        3
   ```
+- [#258]: Column aliases can now be arbitrary strings, instead of only a
+  valid identifier.
 
+  ```shell
+  # Previously only valid identifier allowed
+  $ sq '.actor | .first_name:given_name | .[0:2]'
+  given_name
+  PENELOPE
+  NICK
+  
+  # Now, any arbitrary string can be used
+  $ sq '.actor | .first_name:"Given Name" | .[0:2]'
+  Given Name
+  PENELOPE
+  NICK
+  ```
 
 ## [v0.37.1] - 2023-06-15
 
@@ -580,6 +597,8 @@ make working with lots of sources much easier.
 [#244]: https://github.com/neilotoole/sq/issues/244
 [#252]: https://github.com/neilotoole/sq/issues/252
 [#254]: https://github.com/neilotoole/sq/issues/254
+[#256]: https://github.com/neilotoole/sq/issues/256
+[#258]: https://github.com/neilotoole/sq/issues/258
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
