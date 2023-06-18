@@ -95,7 +95,7 @@ func (v *parseTreeVisitor) VisitJoinConstraint(ctx *slq.JoinConstraintContext) a
 		return err
 	}
 
-	cmpr := newCmpr(joinCondition, ctx.Cmpr())
+	cmpr := newCmprNode(joinCondition, ctx.Cmpr())
 	if err = joinCondition.AddChild(cmpr); err != nil {
 		return err
 	}

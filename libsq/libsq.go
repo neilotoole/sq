@@ -31,8 +31,11 @@ type QueryContext struct {
 	// DBOpener is used to open databases.
 	DBOpener driver.DatabaseOpener
 
-	// JoinDBOpener is used to open the joindb (if needed).
+	// JoinDBOpener is used to open the joindb.
 	JoinDBOpener driver.JoinDatabaseOpener
+
+	// ScratchDBOpener is used to open the scratchdb.
+	ScratchDBOpener driver.ScratchDatabaseOpener
 
 	// Args defines variables that are substituted into the query.
 	// May be nil or empty.

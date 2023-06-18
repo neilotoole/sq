@@ -5,6 +5,11 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/neilotoole/sq/drivers/mysql"
+	"github.com/neilotoole/sq/drivers/postgres"
+	"github.com/neilotoole/sq/drivers/sqlite3"
+	"github.com/neilotoole/sq/drivers/sqlserver"
+
 	"github.com/neilotoole/sq/cli/testrun"
 
 	"github.com/neilotoole/sq/libsq/core/options"
@@ -12,10 +17,6 @@ import (
 	"github.com/neilotoole/sq/testh/tutil"
 
 	"github.com/neilotoole/sq/drivers/csv"
-	"github.com/neilotoole/sq/drivers/mysql"
-	"github.com/neilotoole/sq/drivers/postgres"
-	"github.com/neilotoole/sq/drivers/sqlite3"
-	"github.com/neilotoole/sq/drivers/sqlserver"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
 
@@ -26,8 +27,6 @@ import (
 )
 
 func TestCmdAdd(t *testing.T) {
-	t.Parallel()
-
 	type query struct {
 		// q is the SLQ query to execute
 		q        string
@@ -192,12 +191,10 @@ func TestCmdAdd(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testCases {
+	for i, tc := range testCases {
 		tc := tc
 
-		t.Run(tutil.Name(tc.wantHandle, tc.loc, tc.driver), func(t *testing.T) {
-			t.Parallel()
-
+		t.Run(tutil.Name(i, tc.wantHandle, tc.loc, tc.driver), func(t *testing.T) {
 			args := []string{"add", tc.loc}
 			if tc.handle != "" {
 				args = append(args, "--handle="+tc.handle)
@@ -228,9 +225,10 @@ func TestCmdAdd(t *testing.T) {
 
 			tr = testrun.New(th.Context, t, tr)
 			err = tr.Exec(tc.query.q, "--json")
+			require.NoError(t, err)
 			var results []map[string]any
 			tr.Bind(&results)
-			require.NoError(t, err)
+
 			require.Equal(t, tc.query.wantRows, len(results))
 			if tc.query.wantRows > 0 {
 				require.Equal(t, tc.query.wantCols, len(results[0]))

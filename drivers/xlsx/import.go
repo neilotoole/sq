@@ -231,7 +231,7 @@ func buildTblDefForSheet(log *slog.Logger, sheet *xlsx.Sheet, hasHeader bool) (*
 	} else {
 		// sheet is non-empty
 
-		// Collection up the column names
+		// Set up the column names
 		if hasHeader {
 			firstDataRow = 1
 			headerCells := sheet.Rows[0].Cells
@@ -244,7 +244,7 @@ func buildTblDefForSheet(log *slog.Logger, sheet *xlsx.Sheet, hasHeader bool) (*
 			}
 		}
 
-		// Collection up the column types
+		// Set up the column types
 		if firstDataRow >= len(sheet.Rows) {
 			// the sheet contains only one row (the header row). Let's
 			// explicitly set the column type nonetheless

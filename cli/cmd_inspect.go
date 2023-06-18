@@ -99,7 +99,7 @@ func execInspect(cmd *cobra.Command, args []string) error {
 				return err
 			}
 
-			// Collection the stdin pipe data source as the active source,
+			// Set the stdin pipe data source as the active source,
 			// as it's commonly the only data source the user is acting upon.
 			src, err = coll.SetActive(src.Handle, false)
 			if err != nil {

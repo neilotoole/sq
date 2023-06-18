@@ -106,6 +106,35 @@ func (v *parseTreeVisitor) VisitExprElement(ctx *slq.ExprElementContext) interfa
 	return v.cur.AddChild(node)
 }
 
+// ExprNode models a SLQ expression such as ".uid > 4".
+type ExprNode struct {
+	baseNode
+	parens bool
+}
+
+// HasParens returns true if the expression is enclosed in parentheses.
+func (n *ExprNode) HasParens() bool {
+	return n.parens
+}
+
+// AddChild implements Node.
+func (n *ExprNode) AddChild(child Node) error {
+	n.addChild(child)
+	return child.SetParent(n)
+}
+
+// SetChildren implements Node.
+func (n *ExprNode) SetChildren(children []Node) error {
+	n.setChildren(children)
+	return nil
+}
+
+// String returns a log/debug-friendly representation.
+func (n *ExprNode) String() string {
+	text := nodeString(n)
+	return text
+}
+
 // VisitExpr implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitExpr(ctx *slq.ExprContext) any {
 	// check if the expr is a selector, e.g. ".uid"

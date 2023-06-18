@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
 	"github.com/neilotoole/sq/cli/output/format"
 
 	"github.com/neilotoole/sq/cli/run"
-
-	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/drivers/csv"
@@ -79,19 +79,25 @@ func execSLQ(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		// Collection the stdin pipe data source as the active source,
+		// Set the stdin pipe data source as the active source,
 		// as it's commonly the only data source the user is acting upon.
 		if _, err = coll.SetActive(src.Handle, false); err != nil {
 			return err
 		}
-	} else {
-		// No source on stdin, so we're using the collection.
-		src = coll.Active()
-		if src == nil {
-			// TODO: Should sq be modified to support executing queries
-			// 	even when there's no active data source. Probably.
-			return errz.New(msgNoActiveSrc)
-		}
+	} else if coll.Active() == nil {
+		lg.FromContext(ctx).Debug("No active source; continuing regardless...")
+		// Previously, an error was returned if there was no active source.
+		// However, we want to support the use case of being able to
+		// execute a trivial query when there is no active source. Basically,
+		// we want to be able to use sq as a calculator, even without
+		// an active source. Example:
+		//
+		//  $ sq '1+2'
+		//
+		// In this scenario, the query '1+2' would typically be executed
+		// against the active source. However, libsq will fall back to
+		// using the scratch source (i.e. embedded SQLite) if there's no
+		// active source, so we allow progress to continue.
 	}
 
 	mArgs, err := extractFlagArgsValues(cmd)
@@ -138,9 +144,9 @@ func execSLQ(cmd *cobra.Command, args []string) error {
 func execSLQInsert(ctx context.Context, ru *run.Run, mArgs map[string]string,
 	destSrc *source.Source, destTbl string,
 ) error {
-	args, coll, dbases := ru.Args, ru.Config.Collection, ru.Databases
+	qc := run.NewQueryContext(ru, mArgs)
 
-	slq, err := preprocessUserSLQ(ctx, ru, args)
+	slq, err := preprocessUserSLQ(ctx, ru, ru.Args)
 	if err != nil {
 		return err
 	}
@@ -148,7 +154,7 @@ func execSLQInsert(ctx context.Context, ru *run.Run, mArgs map[string]string,
 	ctx, cancelFn := context.WithCancel(ctx)
 	defer cancelFn()
 
-	destDB, err := dbases.Open(ctx, destSrc)
+	destDB, err := ru.Databases.Open(ctx, destSrc)
 	if err != nil {
 		return err
 	}
@@ -164,13 +170,6 @@ func execSLQInsert(ctx context.Context, ru *run.Run, mArgs map[string]string,
 		driver.OptTuningRecChanSize.Get(destSrc.Options),
 		libsq.DBWriterCreateTableIfNotExistsHook(destTbl),
 	)
-
-	qc := &libsq.QueryContext{
-		Collection:   coll,
-		DBOpener:     ru.Databases,
-		JoinDBOpener: ru.Databases,
-		Args:         mArgs,
-	}
 
 	execErr := libsq.ExecuteSLQ(ctx, qc, slq, inserter)
 	affected, waitErr := inserter.Wait() // Wait for the writer to finish processing
@@ -188,16 +187,11 @@ func execSLQInsert(ctx context.Context, ru *run.Run, mArgs map[string]string,
 
 // execSLQPrint executes the SLQ query, and prints output to writer.
 func execSLQPrint(ctx context.Context, ru *run.Run, mArgs map[string]string) error {
+	qc := run.NewQueryContext(ru, mArgs)
+
 	slq, err := preprocessUserSLQ(ctx, ru, ru.Args)
 	if err != nil {
 		return err
-	}
-
-	qc := &libsq.QueryContext{
-		Collection:   ru.Config.Collection,
-		DBOpener:     ru.Databases,
-		JoinDBOpener: ru.Databases,
-		Args:         mArgs,
 	}
 
 	recw := output.NewRecordWriterAdapter(ctx, ru.Writers.Record)
@@ -215,7 +209,7 @@ func execSLQPrint(ctx context.Context, ru *run.Run, mArgs map[string]string) err
 // function is something of a hangover from the early days of
 // sq and may need to be rethought.
 //
-// 1. If there's piped input but no query args, the first table
+// If there's piped input but no query args, the first table
 // from the pipe source becomes the query. Invoked like this:
 //
 //	$ cat something.csv | sq
@@ -227,13 +221,6 @@ func execSLQPrint(ctx context.Context, ru *run.Run, mArgs map[string]string) err
 // For non-monotable sources, the first table is used:
 //
 //	$ cat something.xlsx | sq @stdin.sheet1
-//
-// 2. If the query doesn't contain a source selector segment
-// starting with @HANDLE, the active src handle is prepended
-// to the query. This allows a query where the first selector
-// segment is the table name.
-//
-//	$ sq '.person'  -->  $ sq '@active.person'
 func preprocessUserSLQ(ctx context.Context, ru *run.Run, args []string) (string, error) {
 	log, reg, dbases, coll := lg.FromContext(ctx), ru.DriverRegistry, ru.Databases, ru.Config.Collection
 	activeSrc := coll.Active()
@@ -242,7 +229,7 @@ func preprocessUserSLQ(ctx context.Context, ru *run.Run, args []string) (string,
 		// Special handling for the case where no args are supplied
 		// but sq is receiving pipe input. Let's say the user does this:
 		//
-		//  $ cat something.csv | sq  # query becomes ".stdin.data"
+		//  $ cat something.csv | sq  # query becomes "@stdin.data"
 		if activeSrc == nil {
 			// Piped input would result in an active @stdin src. We don't
 			// have that; we don't have any active src.
@@ -286,11 +273,13 @@ func preprocessUserSLQ(ctx context.Context, ru *run.Run, args []string) (string,
 				return "", errz.New(msgSrcEmptyTableName)
 			}
 
-			log.Debug("Using first table name from document source metadata as table selector: ", tblName)
+			log.Debug("Using first table name from document source metadata as table selector",
+				lga.Src, activeSrc, lga.Table, tblName)
 		}
 
 		selector := source.StdinHandle + "." + tblName
-		log.Debug("Added selector to argument-less piped query: ", selector)
+		log.Debug("Added selector to argument-less piped query",
+			lga.Handle, source.StdinHandle, "selector", selector)
 
 		return selector, nil
 	}
@@ -327,18 +316,7 @@ func preprocessUserSLQ(ctx context.Context, ru *run.Run, args []string) (string,
 		return query, nil
 	}
 
-	// The query doesn't start with a handle selector; let's prepend
-	// a handle selector segment.
-	if activeSrc == nil {
-		return "", errz.New("no data source provided, and no active data source")
-	}
-
 	query := strings.Join(args, " ")
-	query = fmt.Sprintf("%s | %s", activeSrc.Handle, query)
-
-	log.Debug("The query didn't start with @handle, so the active src was prepended",
-		lga.Query, query)
-
 	return query, nil
 }
 

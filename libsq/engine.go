@@ -2,7 +2,8 @@ package libsq
 
 import (
 	"context"
-	"fmt"
+
+	"github.com/neilotoole/sq/libsq/source"
 
 	"github.com/neilotoole/sq/libsq/core/record"
 
@@ -27,6 +28,9 @@ import (
 // engine executes a queryModel and writes to a RecordWriter.
 type engine struct {
 	log *slog.Logger
+
+	// query is the SLQ query
+	query string
 
 	// qc is the context in which the query is executed.
 	qc *QueryContext
@@ -64,8 +68,9 @@ func newEngine(ctx context.Context, qc *QueryContext, query string) (*engine, er
 	}
 
 	ng := &engine{
-		log: log,
-		qc:  qc,
+		log:   log,
+		qc:    qc,
+		query: query,
 	}
 
 	if err = ng.prepare(ctx, qModel); err != nil {
@@ -123,13 +128,69 @@ func (ng *engine) executeTasks(ctx context.Context) error {
 	return g.Wait()
 }
 
+// prepareNoTabler is invoked when the queryModel doesn't have a tabler.
+// That is to say, the query doesn't have a "FROM table" clause. It is
+// this function's responsibility to figure out what source to use, and
+// to set the relevant engine fields.
+func (ng *engine) prepareNoTabler(ctx context.Context, qm *queryModel) error {
+	ng.log.Debug("No Tabler in query; will look for source to use...")
+
+	var (
+		src    *source.Source
+		err    error
+		handle = ast.NewInspector(qm.AST).FindFirstHandle()
+	)
+
+	if handle == "" {
+		if src = ng.qc.Collection.Active(); src == nil {
+			ng.log.Debug("No active source, will use scratchdb.")
+			ng.targetDB, err = ng.qc.ScratchDBOpener.OpenScratch(ctx, "scratch")
+			if err != nil {
+				return err
+			}
+
+			ng.rc = &render.Context{
+				Renderer: ng.targetDB.SQLDriver().Renderer(),
+				Args:     ng.qc.Args,
+				Dialect:  ng.targetDB.SQLDriver().Dialect(),
+			}
+			return nil
+		}
+
+		ng.log.Debug("Using active source.", lga.Src, src)
+	} else if src, err = ng.qc.Collection.Get(handle); err != nil {
+		return err
+	}
+
+	// At this point, src is non-nil.
+	if ng.targetDB, err = ng.qc.DBOpener.Open(ctx, src); err != nil {
+		return err
+	}
+
+	ng.rc = &render.Context{
+		Renderer: ng.targetDB.SQLDriver().Renderer(),
+		Args:     ng.qc.Args,
+		Dialect:  ng.targetDB.SQLDriver().Dialect(),
+	}
+
+	return nil
+}
+
 // buildTableFromClause builds the "FROM table" fragment.
 //
 // When this function returns, ng.rc will be set.
 func (ng *engine) buildTableFromClause(ctx context.Context, tblSel *ast.TblSelectorNode) (fromClause string,
 	fromConn driver.Database, err error,
 ) {
-	src, err := ng.qc.Collection.Get(tblSel.Handle())
+	handle := tblSel.Handle()
+	if handle == "" {
+		handle = ng.qc.Collection.ActiveHandle()
+		if handle == "" {
+			return "", nil, errz.New("query does not specify source, and no active source")
+		}
+	}
+
+	src, err := ng.qc.Collection.Get(handle)
 	if err != nil {
 		return "", nil, err
 	}
@@ -336,113 +397,4 @@ func execCopyTable(ctx context.Context, fromDB driver.Database, fromTblName stri
 	}
 	log.Debug("Copied %d rows to %s.%s", affected, destDB.Source().Handle, destTblName)
 	return nil
-}
-
-// queryModel is a model of an SLQ query built from the AST.
-type queryModel struct {
-	AST      *ast.AST
-	Table    ast.Tabler
-	Cols     []ast.ResultColumn
-	Range    *ast.RowRangeNode
-	Where    *ast.WhereNode
-	OrderBy  *ast.OrderByNode
-	GroupBy  *ast.GroupByNode
-	Distinct *ast.UniqueNode
-}
-
-func (qm *queryModel) String() string {
-	return fmt.Sprintf("%v | %v  |  %v", qm.Table, qm.Cols, qm.Range)
-}
-
-// buildQueryModel creates a queryModel instance from the AST.
-func buildQueryModel(log *slog.Logger, a *ast.AST) (*queryModel, error) {
-	if len(a.Segments()) == 0 {
-		return nil, errz.Errorf("query model error: query does not have enough segments")
-	}
-
-	insp := ast.NewInspector(a)
-	tablerSeg, err := insp.FindFinalTablerSegment()
-	if err != nil {
-		return nil, err
-	}
-
-	if len(tablerSeg.Children()) != 1 {
-		return nil, errz.Errorf(
-			"the final selectable segment must have exactly one selectable element, but found %d elements",
-			len(tablerSeg.Children()))
-	}
-
-	tabler, ok := tablerSeg.Children()[0].(ast.Tabler)
-	if !ok {
-		return nil, errz.Errorf(
-			"the final selectable segment must have exactly one selectable element, but found element %T(%s)",
-			tablerSeg.Children()[0], tablerSeg.Children()[0].Text())
-	}
-
-	qm := &queryModel{AST: a, Table: tabler}
-
-	// Look for range
-	for seg := tablerSeg.Next(); seg != nil; seg = seg.Next() {
-		// Check if the first element of the segment is a row range, if not, just skip
-		if rr, ok := seg.Children()[0].(*ast.RowRangeNode); ok {
-			if len(seg.Children()) != 1 {
-				return nil, errz.Errorf(
-					"segment [%d] with row range must have exactly one element, but found %d: %s",
-					seg.SegIndex(), len(seg.Children()), seg.Text())
-			}
-
-			if qm.Range != nil {
-				return nil, errz.Errorf("only one row range permitted, but found {%s} and {%s}",
-					qm.Range.Text(), rr.Text())
-			}
-
-			log.Debug("Found row range", lga.Val, rr.Text())
-			qm.Range = rr
-		}
-	}
-
-	seg, err := insp.FindColExprSegment()
-	if err != nil {
-		return nil, err
-	}
-
-	if seg != nil {
-		elems := seg.Children()
-		colExprs := make([]ast.ResultColumn, len(elems))
-		for i, elem := range elems {
-			colExpr, ok := elem.(ast.ResultColumn)
-			if !ok {
-				return nil, errz.Errorf("expected element in segment [%d] to be col expr, but was %T", i, elem)
-			}
-
-			colExprs[i] = colExpr
-		}
-
-		qm.Cols = colExprs
-	}
-
-	whereClauses, err := insp.FindWhereClauses()
-	if err != nil {
-		return nil, err
-	}
-
-	if len(whereClauses) > 1 {
-		return nil, errz.Errorf("only one WHERE clause is supported, but found %d", len(whereClauses))
-	} else if len(whereClauses) == 1 {
-		qm.Where = whereClauses[0]
-	}
-
-	if qm.OrderBy, err = insp.FindOrderByNode(); err != nil {
-		return nil, err
-	}
-
-	if qm.GroupBy, err = insp.FindGroupByNode(); err != nil {
-		return nil, err
-	}
-
-	if qm.Distinct, err = insp.FindUniqueNode(); err != nil {
-		return nil, err
-	}
-
-	return qm, nil
 }

@@ -540,10 +540,11 @@ func (h *Helper) QuerySLQ(query string, args map[string]string) (*RecordSink, er
 	}
 
 	qc := &libsq.QueryContext{
-		Collection:   h.coll,
-		DBOpener:     h.databases,
-		JoinDBOpener: h.databases,
-		Args:         args,
+		Collection:      h.coll,
+		DBOpener:        h.databases,
+		JoinDBOpener:    h.databases,
+		ScratchDBOpener: h.databases,
+		Args:            args,
 	}
 
 	sink := &RecordSink{}

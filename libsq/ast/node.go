@@ -328,56 +328,7 @@ func NodeUnwrap[T Node](node Node) (T, bool) {
 	}
 }
 
-// ExprNode models a SLQ expression such as ".uid > 4".
-type ExprNode struct {
-	baseNode
-	parens bool
-}
-
-// HasParens returns true if the expression is enclosed in parentheses.
-func (n *ExprNode) HasParens() bool {
-	return n.parens
-}
-
-// AddChild implements Node.
-func (n *ExprNode) AddChild(child Node) error {
-	n.addChild(child)
-	return child.SetParent(n)
-}
-
-// SetChildren implements Node.
-func (n *ExprNode) SetChildren(children []Node) error {
-	n.setChildren(children)
-	return nil
-}
-
-// String returns a log/debug-friendly representation.
-func (n *ExprNode) String() string {
-	text := nodeString(n)
-	return text
-}
-
-// OperatorNode is a leaf node in an expression representing an operator such as ">" or "==".
-type OperatorNode struct {
-	baseNode
-}
-
-// String returns a log/debug-friendly representation.
-func (n *OperatorNode) String() string {
-	return nodeString(n)
-}
-
-// isOperator returns true if the supplied string is a recognized operator, e.g. "!=" or ">".
-func isOperator(text string) bool {
-	switch text {
-	case "-", "+", "~", "!", "||", "*", "/", "%", "<<", ">>", "&", "<", "<=", ">", ">=", "==", "!=", "&&":
-		return true
-	default:
-		return false
-	}
-}
-
-// Cached results from reflect.TypeOf for node types.
+// Results from reflect.TypeOf for node types.
 var (
 	typeAST                = reflect.TypeOf((*AST)(nil))
 	typeColSelectorNode    = reflect.TypeOf((*ColSelectorNode)(nil))

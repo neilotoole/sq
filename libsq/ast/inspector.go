@@ -92,7 +92,7 @@ func (in *Inspector) FindColExprSegment() (*SegmentNode, error) {
 	segs := in.ast.Segments()
 
 	// work backwards from the end
-	for i := len(segs) - 1; i > 0; i-- {
+	for i := len(segs) - 1; i >= 0; i-- {
 		elems := segs[i].Children()
 		numColExprs := 0
 
@@ -183,8 +183,28 @@ func (in *Inspector) FindTablerSegments() []*SegmentNode {
 	return selSegs
 }
 
+// FindFirstHandle returns the first handle mentioned in the query,
+// or returns empty string.
+func (in *Inspector) FindFirstHandle() (handle string) {
+	nodes := in.FindNodes(typeHandleNode)
+	if len(nodes) > 0 {
+		handle = nodes[0].(*HandleNode).Handle()
+		return handle
+	}
+
+	nodes = in.FindNodes(typeTblSelectorNode)
+	for _, node := range nodes {
+		handle = node.(*TblSelectorNode).Handle()
+		if handle != "" {
+			return handle
+		}
+	}
+
+	return ""
+}
+
 // FindFinalTablerSegment returns the final segment that
-// has at lest one child that implements Tabler.
+// has at least one child that implements Tabler.
 func (in *Inspector) FindFinalTablerSegment() (*SegmentNode, error) {
 	selectableSegs := in.FindTablerSegments()
 	if len(selectableSegs) == 0 {
@@ -201,4 +221,19 @@ func (in *Inspector) FindUniqueNode() (*UniqueNode, error) {
 		return nil, nil //nolint:nilnil
 	}
 	return nodes[0].(*UniqueNode), nil
+}
+
+// FindRowRangeNode returns the single RowRangeNode, or nil.
+// An error can be returned if the AST is in an illegal state.
+func (in *Inspector) FindRowRangeNode() (*RowRangeNode, error) {
+	nodes := in.FindNodes(typeRowRangeNode)
+	switch len(nodes) {
+	case 0:
+		return nil, nil //nolint:nilnil
+	case 1:
+		return nodes[0].(*RowRangeNode), nil
+	default:
+		// Shouldn't be possible
+		return nil, errorf("illegal query: only one %T allowed, but found %d", (*RowRangeNode)(nil), len(nodes))
+	}
 }

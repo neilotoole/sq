@@ -12,6 +12,10 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/neilotoole/slogt"
+
+	"github.com/neilotoole/sq/libsq/core/lg"
+
 	"github.com/neilotoole/sq/cli/run"
 
 	"github.com/neilotoole/sq/cli/config/yamlstore"
@@ -64,6 +68,10 @@ func New(ctx context.Context, t testing.TB, from *TestRun) *TestRun {
 //
 // If cfgStore is nil, a new one is created in a temp dir.
 func newRun(ctx context.Context, t testing.TB, cfgStore config.Store) (ru *run.Run, out, errOut *bytes.Buffer) {
+	if !lg.InContext(ctx) {
+		ctx = lg.NewContext(ctx, slogt.New(t))
+	}
+
 	out = &bytes.Buffer{}
 	errOut = &bytes.Buffer{}
 
@@ -207,7 +215,7 @@ func (tr *TestRun) MustReadCSV() [][]string {
 }
 
 // Hush suppresses the printing of output collected in out
-// and errOut to t.Log. Collection to true for tests
+// and errOut to t.Log. Set to true for tests
 // that output excessive content, binary files, etc.
 func (tr *TestRun) Hush() *TestRun {
 	tr.hushOutput = true

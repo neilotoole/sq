@@ -70,7 +70,7 @@ func TestQuery_expr_where(t *testing.T) {
 func TestQuery_expr_literal(t *testing.T) {
 	testCases := []queryTestCase{
 		{
-			name:         "col_and_literal",
+			name:         "table/col_and_literal",
 			in:           `@sakila | .actor | .first_name, 1`,
 			wantSQL:      `SELECT "first_name", 1 FROM "actor"`,
 			override:     map[source.DriverType]string{mysql.Type: "SELECT `first_name`, 1 FROM `actor`"},
@@ -78,7 +78,7 @@ func TestQuery_expr_literal(t *testing.T) {
 			sinkFns:      []SinkTestFunc{assertSinkColValue(1, int64(1))},
 		},
 		{
-			name:         "literal",
+			name:         "table/literal",
 			in:           `@sakila | .actor | 1`,
 			wantSQL:      `SELECT 1 FROM "actor"`,
 			override:     map[source.DriverType]string{mysql.Type: "SELECT 1 FROM `actor`"},
@@ -86,7 +86,14 @@ func TestQuery_expr_literal(t *testing.T) {
 			sinkFns:      []SinkTestFunc{assertSinkColValue(0, int64(1))},
 		},
 		{
-			name:         "literal_parens",
+			name:         "no-table/literal",
+			in:           `@sakila | 1`,
+			wantSQL:      `SELECT 1`,
+			wantRecCount: 1,
+			sinkFns:      []SinkTestFunc{assertSinkColValue(0, int64(1))},
+		},
+		{
+			name:         "table/literal_parens",
 			in:           `@sakila | .actor | (1)`,
 			wantSQL:      `SELECT (1) FROM "actor"`,
 			override:     map[source.DriverType]string{mysql.Type: "SELECT (1) FROM `actor`"},
@@ -94,7 +101,7 @@ func TestQuery_expr_literal(t *testing.T) {
 			sinkFns:      []SinkTestFunc{assertSinkColValue(0, int64(1))},
 		},
 		{
-			name:         "addition",
+			name:         "table/addition",
 			in:           `@sakila | .actor | 1+2`,
 			wantSQL:      `SELECT 1 + 2 FROM "actor"`,
 			override:     map[source.DriverType]string{mysql.Type: "SELECT 1 + 2 FROM `actor`"},
@@ -102,7 +109,7 @@ func TestQuery_expr_literal(t *testing.T) {
 			sinkFns:      []SinkTestFunc{assertSinkColValue(0, int64(3))},
 		},
 		{
-			name:         "addition_whitespace",
+			name:         "table/addition_whitespace",
 			in:           `@sakila | .actor | 1+ 2 +  3`,
 			wantSQL:      `SELECT 1 + 2 + 3 FROM "actor"`,
 			override:     map[source.DriverType]string{mysql.Type: "SELECT 1 + 2 + 3 FROM `actor`"},
@@ -110,7 +117,7 @@ func TestQuery_expr_literal(t *testing.T) {
 			sinkFns:      []SinkTestFunc{assertSinkColValue(0, int64(6))},
 		},
 		{
-			name:         "math_parens",
+			name:         "table/math_parens",
 			in:           `@sakila | .actor | (1+ 2) *  3`,
 			wantSQL:      `SELECT (1 + 2) * 3 FROM "actor"`,
 			override:     map[source.DriverType]string{mysql.Type: "SELECT (1 + 2) * 3 FROM `actor`"},
@@ -118,7 +125,7 @@ func TestQuery_expr_literal(t *testing.T) {
 			sinkFns:      []SinkTestFunc{assertSinkColValue(0, int64(9))},
 		},
 		{
-			name:         "literal_alias",
+			name:         "table/literal_alias",
 			in:           `@sakila | .actor | 1:total`,
 			wantSQL:      `SELECT 1 AS "total" FROM "actor"`,
 			override:     map[source.DriverType]string{mysql.Type: "SELECT 1 AS `total` FROM `actor`"},
@@ -129,7 +136,7 @@ func TestQuery_expr_literal(t *testing.T) {
 			},
 		},
 		{
-			name:     "addition_alias",
+			name:     "table/addition_alias",
 			in:       `@sakila | .actor | (1+2):total`,
 			wantSQL:  `SELECT (1 + 2) AS "total" FROM "actor"`,
 			override: map[source.DriverType]string{mysql.Type: "SELECT (1 + 2) AS `total` FROM `actor`"},

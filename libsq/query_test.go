@@ -76,7 +76,7 @@ func execQueryTestCase(t *testing.T, tc queryTestCase) {
 
 	t.Helper()
 
-	coll := testh.New(t).NewCollection(sakila.SQLLatest()...) // FIXME: Revert to using all sakila.SQLLatest
+	coll := testh.New(t).NewCollection(sakila.SQLLatest()...)
 	// coll := testh.New(t).NewCollection(sakila.Pg)
 
 	for _, src := range coll.Sources() {
@@ -105,10 +105,11 @@ func execQueryTestCase(t *testing.T, tc queryTestCase) {
 			dbases := th.Databases()
 
 			qc := &libsq.QueryContext{
-				Collection:   coll,
-				DBOpener:     dbases,
-				JoinDBOpener: dbases,
-				Args:         tc.args,
+				Collection:      coll,
+				DBOpener:        dbases,
+				JoinDBOpener:    dbases,
+				ScratchDBOpener: dbases,
+				Args:            tc.args,
 			}
 
 			gotSQL, gotErr := libsq.SLQ2SQL(th.Context, qc, in)

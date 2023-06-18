@@ -9,6 +9,9 @@ Breaking changes are annotated with ☢️.
 
 ## Upcoming
 
+This release has significant improvements (and breaking changes)
+to SLQ (`sq`'s query language).
+
 ### Changed
 
 - ☢️ [#254]: The formerly-implicit "WHERE" mechanism now requires an explicit `where()` function.
@@ -22,6 +25,21 @@ Breaking changes are annotated with ☢️.
   # Now
   $ sq '.actor | where(.actor_id <= 2)'
   ```
+- Column-only queries are now permissible. This has the neat side effect
+  that `sq` can now be used as a calculator.
+
+  ```shell
+  $ sq 1+2
+  1+2
+  3
+  ```
+  You probably want to use `--no-header` (`-H`):
+
+  ```shell
+  $ sq -H 1+2
+  3
+  ```
+
 
 ### Fixed
 
