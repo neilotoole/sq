@@ -45,7 +45,7 @@ to SLQ (`sq`'s query language).
 
 ### Fixed
 
-- Literals can now be selected ([docs](https://sq.io/docs/query/#select-literals)).
+- Literals can now be selected ([docs](https://sq.io/docs/query/#select-literal)).
   
   ```shell
   $ sq '.actor | .first_name, "X":middle_name, .last_name | .[0:2]'
