@@ -28,7 +28,7 @@ func (v *parseTreeVisitor) VisitAlias(ctx *slq.AliasContext) any {
 			return nil
 		}
 
-		// HACK: The grammar has a dodgy hack to deal with no-arg funcs
+		// NOTE: The grammar has a dodgy hack to deal with no-arg funcs
 		// with an alias that is a reserved word.
 		//
 		// For example, let's start with this snippet. Note that "count" is

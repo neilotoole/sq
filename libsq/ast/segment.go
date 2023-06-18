@@ -131,6 +131,7 @@ func (s *SegmentNode) SegIndex() int {
 	return -1
 }
 
+// String returns a log/debug-friendly representation.
 func (s *SegmentNode) String() string {
 	if len(s.Children()) == 1 {
 		return fmt.Sprintf("segment[%d]: [1 element]", s.SegIndex())
@@ -139,6 +140,7 @@ func (s *SegmentNode) String() string {
 	return fmt.Sprintf("segment[%d]: [%d elements]", s.SegIndex(), len(s.Children()))
 }
 
+// Text implements ast.Node.
 func (s *SegmentNode) Text() string {
 	return s.bn.Context().GetText()
 }

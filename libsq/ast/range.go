@@ -102,3 +102,19 @@ func (v *parseTreeVisitor) VisitRowRange(ctx *slq.RowRangeContext) any {
 	rr := newRowRangeNode(ctx, offset, limit)
 	return v.cur.AddChild(rr)
 }
+
+// verifyRowRange validates the RowRangeNode element.
+func verifyRowRange(w *Walker, node Node) error {
+	rr, ok := node.(*RowRangeNode)
+	if !ok {
+		return errorf("expected %s but got %T", typeRowRangeNode, node)
+	}
+
+	if w.state != nil {
+		return errorf("only one row range element permitted")
+	}
+
+	w.state = rr
+	// TODO: check that the row range is after a selectable
+	return nil
+}

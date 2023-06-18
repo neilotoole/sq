@@ -14,8 +14,10 @@ func narrowTblSel(_ *Walker, node Node) error {
 		return nil
 	}
 
-	var tblSel *TblSelectorNode
-	var err error
+	var (
+		tblSel *TblSelectorNode
+		err    error
+	)
 
 	if seg.SegIndex() == 0 {
 		// If this is the first segment, then the selector MUST refer
@@ -38,7 +40,6 @@ func narrowTblSel(_ *Walker, node Node) error {
 
 	if prevType == typeHandleNode {
 		var handleNode *HandleNode
-
 		if handleNode, ok = seg.Prev().Children()[0].(*HandleNode); !ok {
 			return errorf("syntax error: expected %T, but got %T", handleNode, seg.Prev().Children()[0])
 		}
@@ -77,14 +78,14 @@ func narrowTblColSel(w *Walker, node Node) error {
 		return nodeReplace(sel, tblColSelNode)
 	case *SegmentNode:
 		// if the parent is a segment, this is a "top-level" selector.
-		// Only top-level selectors after the final selectable seg are
+		// Only top-level selectors after the final tabler seg are
 		// convert to TblColSelectorNode.
-		selectableSeg, err := NewInspector(w.root.(*AST)).FindFinalTablerSegment()
+		tablerSeg, err := NewInspector(w.root.(*AST)).FindFinalTablerSegment()
 		if err != nil {
 			return err
 		}
 
-		if parent.SegIndex() <= selectableSeg.SegIndex() {
+		if parent.SegIndex() <= tablerSeg.SegIndex() {
 			// Skipping this selector because it's not after the final selectable segment
 			return nil
 		}
@@ -126,14 +127,14 @@ func narrowColSel(w *Walker, node Node) error {
 		return nodeReplace(sel, colSel)
 	case *SegmentNode:
 		// if the parent is a segment, this is a "top-level" selector.
-		// Only top-level selectors after the final selectable seg are
+		// Only top-level selectors after the final tabler seg are
 		// convert to colSels.
-		selectableSeg, err := NewInspector(w.root.(*AST)).FindFinalTablerSegment()
+		tablerSeg, err := NewInspector(w.root.(*AST)).FindFinalTablerSegment()
 		if err != nil {
 			return err
 		}
 
-		if parent.SegIndex() <= selectableSeg.SegIndex() {
+		if parent.SegIndex() <= tablerSeg.SegIndex() {
 			// Skipping this selector because it's not after the final selectable segment
 			return nil
 		}
@@ -183,22 +184,5 @@ func determineJoinTables(_ *Walker, node Node) error {
 		return errorf("JOIN() expected table selector in previous segment, but was %T(%s)", prevSeg.Children()[1],
 			prevSeg.Children()[1].Text())
 	}
-	return nil
-}
-
-// visitCheckRowRange validates the RowRangeNode element.
-func visitCheckRowRange(w *Walker, node Node) error {
-	// node is guaranteed to be FnJoin
-	rr, ok := node.(*RowRangeNode)
-	if !ok {
-		return errorf("expected %s but got %T", typeRowRangeNode, node)
-	}
-
-	if w.state != nil {
-		return errorf("only one row range element permitted")
-	}
-
-	w.state = rr
-	// TODO: check that the row range is after a selectable
 	return nil
 }

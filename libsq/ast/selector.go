@@ -285,21 +285,23 @@ func (n *ColSelectorNode) String() string {
 	return str
 }
 
-var _ Node = (*Cmpr)(nil)
+var _ Node = (*CmprNode)(nil)
 
-// Cmpr models a comparison, such as ".age == 42".
-type Cmpr struct {
+// CmprNode models a comparison, such as ".age == 42".
+type CmprNode struct {
 	baseNode
 }
 
-func (c *Cmpr) String() string {
+// String returns a log/debug-friendly representation.
+func (c *CmprNode) String() string {
 	return nodeString(c)
 }
 
-func newCmpr(parent Node, ctx slq.ICmprContext) *Cmpr {
+func newCmprNode(parent Node, ctx slq.ICmprContext) *CmprNode {
 	leaf, _ := ctx.GetChild(0).(*antlr.TerminalNodeImpl) // FIXME: return an error
-	cmpr := &Cmpr{}
+	cmpr := &CmprNode{}
 	cmpr.ctx = leaf
+	cmpr.text = leaf.GetText()
 	cmpr.parent = parent
 	return cmpr
 }

@@ -6,7 +6,12 @@ import (
 	"github.com/neilotoole/sq/libsq/ast/internal/slq"
 )
 
-var groupByAllowedChildren = []reflect.Type{typeSelectorNode, typeColSelectorNode, typeTblColSelectorNode, typeFuncNode}
+var groupByAllowedChildren = []reflect.Type{
+	typeSelectorNode,
+	typeColSelectorNode,
+	typeTblColSelectorNode,
+	typeFuncNode,
+}
 
 // GroupByNode models GROUP BY. The children of GroupBy node can be
 // of type selector or FuncNode.

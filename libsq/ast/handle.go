@@ -2,7 +2,7 @@ package ast
 
 import "github.com/neilotoole/sq/libsq/ast/internal/slq"
 
-// HandleNode models a source handle such as "@sakila_sl3".
+// HandleNode models a source handle such as "@sakila".
 type HandleNode struct {
 	baseNode
 }
@@ -31,6 +31,7 @@ func (v *parseTreeVisitor) VisitHandleTable(ctx *slq.HandleTableContext) any {
 	node := &TblSelectorNode{}
 	node.parent = v.cur
 	node.ctx = ctx
+	node.text = ctx.GetText()
 
 	node.handle = ctx.HANDLE().GetText()
 

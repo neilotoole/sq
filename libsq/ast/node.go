@@ -328,7 +328,7 @@ func NodeUnwrap[T Node](node Node) (T, bool) {
 	}
 }
 
-// Cached results from reflect.TypeOf for node types.
+// Results from reflect.TypeOf for node types.
 var (
 	typeAST                = reflect.TypeOf((*AST)(nil))
 	typeColSelectorNode    = reflect.TypeOf((*ColSelectorNode)(nil))
