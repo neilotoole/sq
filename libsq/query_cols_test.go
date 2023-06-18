@@ -38,7 +38,6 @@ func TestQuery_cols(t *testing.T) {
 			wantRecCount: sakila.TblActorCount,
 			skipExec:     true,
 		},
-
 		{
 			name:     "table-whitespace",
 			in:       `@sakila | ."film actor"`,
@@ -51,6 +50,13 @@ func TestQuery_cols(t *testing.T) {
 			in:           `@sakila | .actor | .first_name:given_name, .last_name:family_name`,
 			wantSQL:      `SELECT "first_name" AS "given_name", "last_name" AS "family_name" FROM "actor"`,
 			override:     map[source.DriverType]string{mysql.Type: "SELECT `first_name` AS `given_name`, `last_name` AS `family_name` FROM `actor`"},
+			wantRecCount: sakila.TblActorCount,
+		},
+		{
+			name:         "cols-aliases-whitespace",
+			in:           `@sakila | .actor | .first_name:"Given Name", .last_name:family_name`,
+			wantSQL:      `SELECT "first_name" AS "Given Name", "last_name" AS "family_name" FROM "actor"`,
+			override:     map[source.DriverType]string{mysql.Type: "SELECT `first_name` AS `Given Name`, `last_name` AS `family_name` FROM `actor`"},
 			wantRecCount: sakila.TblActorCount,
 		},
 		{

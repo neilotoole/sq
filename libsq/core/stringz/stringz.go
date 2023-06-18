@@ -438,6 +438,19 @@ func DoubleQuote(s string) string {
 	return sb.String()
 }
 
+// StripDoubleQuote strips double quotes from s,
+// or returns s unchanged if it is not correctly double-quoted.
+func StripDoubleQuote(s string) string {
+	if len(s) < 2 {
+		return s
+	}
+
+	if s[0] == '"' && s[len(s)-1] == '"' {
+		return s[1 : len(s)-1]
+	}
+	return s
+}
+
 // BacktickQuote backtick-quotes (and escapes) s.
 //
 //	hello `world`  --> `hello ``world```

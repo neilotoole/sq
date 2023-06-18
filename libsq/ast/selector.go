@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/stringz"
+
 	"github.com/antlr/antlr4/runtime/Go/antlr/v4"
 
 	"github.com/neilotoole/sq/libsq/ast/internal/slq"
@@ -17,7 +19,12 @@ func (v *parseTreeVisitor) VisitSelectorElement(ctx *slq.SelectorElementContext)
 	}
 
 	if aliasCtx := ctx.Alias(); aliasCtx != nil {
-		node.alias = ctx.Alias().ID().GetText()
+		if aliasCtx.ID() != nil {
+			node.alias = aliasCtx.ID().GetText()
+		}
+		if aliasCtx.STRING() != nil {
+			node.alias = stringz.StripDoubleQuote(aliasCtx.STRING().GetText())
+		}
 	}
 
 	if err := v.cur.AddChild(node); err != nil {
