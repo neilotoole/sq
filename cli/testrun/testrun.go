@@ -50,6 +50,10 @@ func New(ctx context.Context, t testing.TB, from *TestRun) *TestRun {
 		ctx = context.Background()
 	}
 
+	if !lg.InContext(ctx) {
+		ctx = lg.NewContext(ctx, slogt.New(t))
+	}
+
 	tr := &TestRun{T: t, Context: ctx}
 
 	var cfgStore config.Store
@@ -68,10 +72,6 @@ func New(ctx context.Context, t testing.TB, from *TestRun) *TestRun {
 //
 // If cfgStore is nil, a new one is created in a temp dir.
 func newRun(ctx context.Context, t testing.TB, cfgStore config.Store) (ru *run.Run, out, errOut *bytes.Buffer) {
-	if !lg.InContext(ctx) {
-		ctx = lg.NewContext(ctx, slogt.New(t))
-	}
-
 	out = &bytes.Buffer{}
 	errOut = &bytes.Buffer{}
 

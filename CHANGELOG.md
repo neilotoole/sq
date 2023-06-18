@@ -598,6 +598,7 @@ make working with lots of sources much easier.
 [#252]: https://github.com/neilotoole/sq/issues/252
 [#254]: https://github.com/neilotoole/sq/issues/254
 [#256]: https://github.com/neilotoole/sq/issues/256
+[#258]: https://github.com/neilotoole/sq/issues/258
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
