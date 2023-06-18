@@ -20,6 +20,9 @@ func TestQuery_no_source(t *testing.T) {
 	}{
 		{"1+2", "SELECT 1+2", false},
 		{"(1+ 2) * 3", "SELECT (1+2)*3", false},
+		{"(1+ 2) * 3", "SELECT (1+2)*3", false},
+		{`1:"the number"`, `SELECT 1 AS "the number"`, false},
+		{`1:thenumber`, `SELECT 1 AS "thenumber"`, false},
 	}
 
 	for i, tc := range testCases {

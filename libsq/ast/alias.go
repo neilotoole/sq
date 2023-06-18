@@ -18,7 +18,7 @@ func (v *parseTreeVisitor) VisitAlias(ctx *slq.AliasContext) any {
 	if ctx.ID() != nil {
 		alias = ctx.ID().GetText()
 	} else if ctx.STRING() != nil {
-		alias = stringz.DoubleQuote(ctx.STRING().GetText())
+		alias = stringz.StripDoubleQuote(ctx.STRING().GetText())
 	}
 
 	switch node := v.cur.(type) {
