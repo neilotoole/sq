@@ -24,6 +24,7 @@ _testmain.go
 *.prof
 
 .DS_Store
+/.run
 /.idea
 /grammar/build
 */~test$*
