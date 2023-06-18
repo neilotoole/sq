@@ -535,7 +535,10 @@ func TempDirFile(filename string) (dir string, f *os.File, cleanFn func() error,
 	}
 
 	cleanFn = func() error {
-		return errz.Append(f.Close(), os.RemoveAll(dir))
+		closeErr := f.Close()
+		removeErr := os.RemoveAll(dir)
+
+		return errz.Append(closeErr, removeErr)
 	}
 
 	return dir, f, cleanFn, nil
