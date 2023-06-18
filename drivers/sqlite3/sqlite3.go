@@ -866,35 +866,29 @@ func (d *database) Close() error {
 
 // NewScratchSource returns a new scratch src. Effectively this
 // function creates a new sqlite db file in the temp dir, and
-// src points at this file. The returned clnup func closes that
-// db file and deletes it.
+// src points at this file. The returned clnup func will delete
+// the file.
 func NewScratchSource(ctx context.Context, name string) (src *source.Source, clnup func() error, err error) {
 	log := lg.FromContext(ctx)
 	name = stringz.SanitizeAlphaNumeric(name, '_')
-	_, f, cleanFn, err := source.TempDirFile(name + ".sqlite")
+	dir, file, err := source.TempDirFile(name + ".sqlite")
 	if err != nil {
-		return nil, cleanFn, err
+		return nil, nil, err
 	}
 
-	// REVISIT: This mechanism is janky: should we be keeping the file open?
-	// Probably not.
-	lg.WarnIfCloseError(log, "Close scratch file", f)
-
-	log.Debug("Created sqlite3 scratchdb data file", lga.Path, f.Name())
+	log.Debug("Created sqlite3 scratchdb data file", lga.Path, file)
 
 	src = &source.Source{
 		Type:     Type,
 		Handle:   source.ScratchHandle,
-		Location: Prefix + f.Name(),
+		Location: Prefix + file,
 	}
 
 	fn := func() error {
-		log.Debug("Deleting sqlite3 scratchdb data file", lga.Src, src, lga.Path, f.Name())
-		if cleanFn != nil {
-			cleanErr := cleanFn()
-			if cleanErr != nil {
-				log.Warn("Error cleaning scratch source", lga.Err, cleanErr)
-			}
+		log.Debug("Deleting sqlite3 scratchdb file", lga.Src, src, lga.Path, file)
+		rmErr := errz.Err(os.RemoveAll(dir))
+		if rmErr != nil {
+			log.Warn("Delete sqlite3 scratchdb file", lga.Err, rmErr)
 		}
 		return nil
 	}

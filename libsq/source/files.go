@@ -515,31 +515,30 @@ func httpURL(s string) (u *url.URL, ok bool) {
 }
 
 // TempDirFile creates a new temporary file in a new temp dir,
-// opens the file for reading and writing, and returns the resulting *os.File,
-// as well as the parent dir.
-// It is the caller's responsibility to close the file and remove the temp
-// dir, which the returned cleanFn encapsulates.
-func TempDirFile(filename string) (dir string, f *os.File, cleanFn func() error, err error) {
+// opens the file for reading and writing, and then closes it.
+// It's probably unnecessary to go through the ceremony of
+// opening and closing the file, but maybe it's better to fail early.
+// It is the caller's responsibility to remove the file and/or dir
+// if desired.
+func TempDirFile(filename string) (dir, file string, err error) {
 	dir, err = os.MkdirTemp("", "sq_")
 	if err != nil {
-		return "", nil, nil, errz.Err(err)
+		return "", "", errz.Err(err)
 	}
 
-	name := filepath.Join(dir, filename)
-	f, err = os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o600)
-	if err != nil {
+	file = filepath.Join(dir, filename)
+	var f *os.File
+	if f, err = os.OpenFile(file, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o600); err != nil {
 		// Silently delete the temp dir
 		_ = os.RemoveAll(dir)
-
-		return "", nil, nil, errz.Err(err)
+		return "", "", errz.Err(err)
 	}
 
-	cleanFn = func() error {
-		closeErr := f.Close()
-		removeErr := os.RemoveAll(dir)
-
-		return errz.Append(closeErr, removeErr)
+	if err = f.Close(); err != nil {
+		// Silently delete the temp dir
+		_ = os.RemoveAll(dir)
+		return "", "", errz.Wrap(err, "close temp file")
 	}
 
-	return dir, f, cleanFn, nil
+	return dir, file, nil
 }
