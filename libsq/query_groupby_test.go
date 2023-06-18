@@ -19,14 +19,14 @@ func TestQuery_groupby(t *testing.T) {
 			name:         "group_by/single-term",
 			in:           `@sakila | .payment | .customer_id, sum(.amount) | group_by(.customer_id)`,
 			wantSQL:      `SELECT "customer_id", sum("amount") AS "sum(.amount)" FROM "payment" GROUP BY "customer_id"`,
-			override:     map[source.DriverType]string{mysql.Type: "SELECT `customer_id`, sum(`amount`) AS `sum(.amount)` FROM `payment` GROUP BY `customer_id`"},
+			override:     driverMap{mysql.Type: "SELECT `customer_id`, sum(`amount`) AS `sum(.amount)` FROM `payment` GROUP BY `customer_id`"},
 			wantRecCount: 599,
 		},
 		{
 			name:         "group_by/multiple_terms",
 			in:           `@sakila | .payment | .customer_id, .staff_id, sum(.amount) | group_by(.customer_id, .staff_id)`,
 			wantSQL:      `SELECT "customer_id", "staff_id", sum("amount") AS "sum(.amount)" FROM "payment" GROUP BY "customer_id", "staff_id"`,
-			override:     map[source.DriverType]string{mysql.Type: "SELECT `customer_id`, `staff_id`, sum(`amount`) AS `sum(.amount)` FROM `payment` GROUP BY `customer_id`, `staff_id`"},
+			override:     driverMap{mysql.Type: "SELECT `customer_id`, `staff_id`, sum(`amount`) AS `sum(.amount)` FROM `payment` GROUP BY `customer_id`, `staff_id`"},
 			wantRecCount: 1198,
 		},
 		{
