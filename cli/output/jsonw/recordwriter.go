@@ -135,7 +135,7 @@ func (w *stdWriter) writeRecord(rec record.Record) error {
 	w.b = w.b[:0]
 
 	if w.outBuf.Len() > w.pr.FlushThreshold {
-		return w.Flush()
+		return w.doFlush()
 	}
 
 	return nil
@@ -145,11 +145,14 @@ func (w *stdWriter) writeRecord(rec record.Record) error {
 func (w *stdWriter) Flush() error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
+	return w.doFlush()
+}
+
+func (w *stdWriter) doFlush() error {
 	if w.err != nil {
 		return w.err
 	}
-	_, err := w.outBuf.WriteTo(w.out)
-	if err != nil {
+	if _, err := w.outBuf.WriteTo(w.out); err != nil {
 		return errz.Err(err)
 	}
 	return nil
