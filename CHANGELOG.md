@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Breaking changes are annotated with ☢️.
 
+## [v0.38.1] - 2023-06-19
+
+### Fixed
+
+- [#261]: The JSON writer (`--json`) could get deadlocked when a record contained
+  a large amount of data, triggering an internal `Flush()` (which is mutex-guarded)
+  from within the mutex-guarded `WriteRecords()` method.
+
 ## [v0.38.0] - 2023-06-18
 
 This release has significant improvements (and breaking changes)
@@ -41,7 +49,6 @@ to SLQ (`sq`'s query language).
   $ sq -H '(1+2)*3'
   9
   ```
-
 
 ### Fixed
 
@@ -599,6 +606,7 @@ make working with lots of sources much easier.
 [#254]: https://github.com/neilotoole/sq/issues/254
 [#256]: https://github.com/neilotoole/sq/issues/256
 [#258]: https://github.com/neilotoole/sq/issues/258
+[#261]: https://github.com/neilotoole/sq/issues/261
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
@@ -638,3 +646,4 @@ make working with lots of sources much easier.
 [v0.37.0]: https://github.com/neilotoole/sq/compare/v0.36.2...v0.37.0
 [v0.37.1]: https://github.com/neilotoole/sq/compare/v0.37.0...v0.37.1
 [v0.38.0]: https://github.com/neilotoole/sq/compare/v0.37.1...v0.38.0
+[v0.38.1]: https://github.com/neilotoole/sq/compare/v0.38.0...v0.38.1
