@@ -40,7 +40,7 @@ require (
 	github.com/ncruces/go-strftime v0.1.9
 	github.com/neilotoole/shelleditor v0.3.2
 	github.com/neilotoole/slogt v1.0.0
-	github.com/otiai10/copy v1.11.0
+	github.com/otiai10/copy v1.12.0
 	github.com/samber/lo v1.38.1
 	golang.org/x/exp v0.0.0-20230420155640-133eef4313cb
 )
