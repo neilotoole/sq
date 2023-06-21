@@ -10,6 +10,8 @@ import (
 	"io"
 	"time"
 
+	"github.com/neilotoole/sq/cli/hostinfo"
+
 	"github.com/neilotoole/sq/libsq/core/record"
 
 	"github.com/neilotoole/sq/libsq/core/options"
@@ -107,7 +109,7 @@ type VersionWriter interface {
 	// Version prints version info. Arg latestVersion is the latest
 	// version available from the homebrew repository. The value
 	// may be empty.
-	Version(info buildinfo.BuildInfo, latestVersion string) error
+	Version(bi buildinfo.BuildInfo, latestVersion string, si hostinfo.Info) error
 }
 
 // ConfigWriter prints config.

@@ -256,6 +256,7 @@ func newWriters(cmd *cobra.Command, o options.Options, out, errOut io.Writer,
 		w.Config = yamlw.NewConfigWriter(out2, pr)
 		w.Metadata = yamlw.NewMetadataWriter(out2, pr)
 		w.Source = yamlw.NewSourceWriter(out2, pr)
+		w.Version = yamlw.NewVersionWriter(out2, pr)
 	}
 
 	recwFn := getRecordWriterFunc(fm)

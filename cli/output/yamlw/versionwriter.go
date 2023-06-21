@@ -1,9 +1,11 @@
-package jsonw
+package yamlw
 
 import (
 	"io"
 
 	"github.com/neilotoole/sq/cli/hostinfo"
+
+	"github.com/goccy/go-yaml/printer"
 
 	"github.com/neilotoole/sq/cli/buildinfo"
 	"github.com/neilotoole/sq/cli/output"
@@ -13,6 +15,7 @@ var _ output.VersionWriter = (*versionWriter)(nil)
 
 // versionWriter implements output.VersionWriter for JSON.
 type versionWriter struct {
+	p   printer.Printer
 	out io.Writer
 	pr  *output.Printing
 }
@@ -20,7 +23,7 @@ type versionWriter struct {
 // NewVersionWriter returns a new output.VersionWriter instance
 // that outputs version info in JSON.
 func NewVersionWriter(out io.Writer, pr *output.Printing) output.VersionWriter {
-	return &versionWriter{out: out, pr: pr}
+	return &versionWriter{p: newPrinter(pr), out: out, pr: pr}
 }
 
 // Version implements output.VersionWriter.
@@ -37,5 +40,5 @@ func (w *versionWriter) Version(bi buildinfo.BuildInfo, latestVersion string, hi
 		Host:          hi,
 	}
 
-	return writeJSON(w.out, w.pr, cbi)
+	return writeYAML(w.out, w.p, cbi)
 }

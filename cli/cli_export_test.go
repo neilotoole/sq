@@ -8,19 +8,13 @@ import (
 	"github.com/neilotoole/sq/cli/run"
 )
 
-type PlocStage = plocStage
-
-const (
-	PlocInit     = plocInit
-	PlocScheme   = plocScheme
-	PlocUser     = plocUser
-	PlocPass     = plocPass
-	PlocHostname = plocHostname
-	PlocHost     = plocHost
-	PlocPath     = plocPath
+var (
+	DoCompleteAddLocationFile = locCompListFiles
+	PreprocessFlagArgVars     = preprocessFlagArgVars
+	LastHandlePart            = lastHandlePart
+	GetVersionFromBrewFormula = getVersionFromBrewFormula
+	FetchBrewVersion          = fetchBrewVersion
 )
-
-var DoCompleteAddLocationFile = locCompListFiles
 
 // ToTestParseLocStage is a helper to test the
 // non-exported locCompletionHelper.locCompParseLoc method.
@@ -32,3 +26,15 @@ func DoTestParseLocStage(t testing.TB, ru *run.Run, loc string) (PlocStage, erro
 
 	return ploc.stageDone, nil
 }
+
+type PlocStage = plocStage
+
+const (
+	PlocInit     = plocInit
+	PlocScheme   = plocScheme
+	PlocUser     = plocUser
+	PlocPass     = plocPass
+	PlocHostname = plocHostname
+	PlocHost     = plocHost
+	PlocPath     = plocPath
+)
