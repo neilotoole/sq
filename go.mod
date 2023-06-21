@@ -26,7 +26,7 @@ require (
 	github.com/xo/dburl v0.14.2
 	go.uber.org/atomic v1.11.0
 	go.uber.org/multierr v1.11.0
-	golang.org/x/net v0.10.0
+	golang.org/x/net v0.11.0
 	golang.org/x/sync v0.2.0
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
@@ -56,7 +56,7 @@ require (
 	github.com/muesli/mango-pflag v0.1.0 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/rogpeppe/go-internal v1.10.0 // indirect
-	golang.org/x/crypto v0.9.0 // indirect
+	golang.org/x/crypto v0.10.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 
 )
@@ -74,7 +74,7 @@ require (
 	golang.org/x/mod v0.10.0
 	golang.org/x/sys v0.9.0 // indirect
 	golang.org/x/term v0.9.0
-	golang.org/x/text v0.9.0 // indirect
+	golang.org/x/text v0.10.0 // indirect
 	gopkg.in/djherbis/atime.v1 v1.0.0 // indirect
 	gopkg.in/djherbis/stream.v1 v1.3.1 // indirect
 )
