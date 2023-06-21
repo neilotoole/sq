@@ -24,10 +24,9 @@ Include below the output of `sq version --yaml`:
 
 ```yaml
 # REPLACE THIS WITH YOUR OUTPUT
-buildinfo:
-  version: v0.39.0
-  commit: eedc11ec46d1f0e78628158cc6fd58850601d701
-  timestamp: 2023-06-21T11:41:34Z
+version: v0.39.0
+commit: eedc11ec46d1f0e78628158cc6fd58850601d701
+timestamp: 2023-06-21T11:41:34Z
 latest_version: v0.39.0
 host:
   platform: darwin

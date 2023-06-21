@@ -29,13 +29,17 @@ func NewVersionWriter(out io.Writer, pr *output.Printing) output.VersionWriter {
 // Version implements output.VersionWriter.
 func (w *versionWriter) Version(bi buildinfo.BuildInfo, latestVersion string, hi hostinfo.Info) error {
 	type cliBuildInfo struct {
-		buildinfo.BuildInfo
-		LatestVersion string        `json:"latest_version"`
-		Host          hostinfo.Info `json:"host"`
+		Version       string        `json:"version" yaml:"version"`
+		Commit        string        `json:"commit,omitempty" yaml:"commit,omitempty"`
+		Timestamp     string        `json:"timestamp,omitempty" yaml:"timestamp,omitempty"`
+		LatestVersion string        `json:"latest_version" yaml:"latest_version"`
+		Host          hostinfo.Info `json:"host" yaml:"host"`
 	}
 
 	cbi := cliBuildInfo{
-		BuildInfo:     bi,
+		Version:       bi.Version,
+		Commit:        bi.Commit,
+		Timestamp:     bi.Timestamp,
 		LatestVersion: latestVersion,
 		Host:          hi,
 	}
