@@ -108,8 +108,8 @@ github.com/neilotoole/shelleditor v0.3.2 h1:6qkZK5i2vq4DW6tEidfCVNxejtYtX53tYWK/
 github.com/neilotoole/shelleditor v0.3.2/go.mod h1:x65ZIBL2U9aCsTuRv4iD5ArhH+n5goHtA5rZiPfdfLE=
 github.com/neilotoole/slogt v1.0.0 h1:gf8//fSbbUuwj7UGakTSNv8V07BIVBbPJcTxueaEmSg=
 github.com/neilotoole/slogt v1.0.0/go.mod h1:N2nPVMllazwsFNK3YVzKR07Ydpiu1lBTWZQ5Mxcwthg=
-github.com/otiai10/copy v1.11.0 h1:OKBD80J/mLBrwnzXqGtFCzprFSGioo30JcmR4APsNwc=
-github.com/otiai10/copy v1.11.0/go.mod h1:rSaLseMUsZFFbsFGc7wCJnnkTAvdc5L6VWxPE4308Ww=
+github.com/otiai10/copy v1.12.0 h1:cLMgSQnXBs1eehF0Wy/FAGsgDTDmAqFR7rQylBb1nDY=
+github.com/otiai10/copy v1.12.0/go.mod h1:rSaLseMUsZFFbsFGc7wCJnnkTAvdc5L6VWxPE4308Ww=
 github.com/otiai10/mint v1.5.1 h1:XaPLeE+9vGbuyEHem1JNk3bYc7KKqyI/na0/mLd/Kks=
 github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8/go.mod h1:HKlIX3XHQyzLZPlr7++PzdhaXEj94dEiJgZDTsxEqUI=
 github.com/pkg/diff v0.0.0-20210226163009-20ebb0f2a09e/go.mod h1:pJLUxLENpZxwdsKMEsNbx1VGcRFpLqf3715MtcvvzbA=
