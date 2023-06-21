@@ -32,6 +32,7 @@ require (
 )
 
 require (
+	github.com/ecnepsnai/osquery v1.0.0
 	github.com/goccy/go-yaml v1.11.0
 	github.com/jackc/pgx/v5 v5.3.1
 	github.com/mitchellh/go-wordwrap v1.0.1

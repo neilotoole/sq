@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/neilotoole/sq/cli/hostinfo"
+
 	"github.com/neilotoole/sq/cli/buildinfo"
 	"github.com/neilotoole/sq/cli/output"
 	"golang.org/x/mod/semver"
@@ -23,38 +25,58 @@ func NewVersionWriter(out io.Writer, pr *output.Printing) output.VersionWriter {
 	return &versionWriter{out: out, pr: pr}
 }
 
-func (w *versionWriter) Version(bi buildinfo.BuildInfo, latestVersion string) error {
-	fmt.Fprintf(w.out, "sq %s", bi.Version)
+// Version implements output.VersionWriter.
+func (w *versionWriter) Version(bi buildinfo.BuildInfo, latestVersion string, hi hostinfo.Info) error {
+	var newerAvailable bool
 
-	if w.pr.Verbose {
-		if len(bi.Commit) > 0 {
+	if latestVersion != "" {
+		newerAvailable = semver.Compare(latestVersion, bi.Version) > 0
+	}
+
+	if !w.pr.Verbose {
+		fmt.Fprintf(w.out, "sq %s", bi.Version)
+
+		if newerAvailable {
 			fmt.Fprint(w.out, "    ")
-			w.pr.Faint.Fprint(w.out, "#"+bi.Commit)
+			w.pr.Faint.Fprintln(w.out, "Update available: "+latestVersion)
 		}
+		return nil
+	}
 
-		if len(bi.Timestamp) > 0 {
-			fmt.Fprint(w.out, "    ")
-			w.pr.Faint.Fprint(w.out, bi.Timestamp)
+	fmt.Fprintf(w.out, "sq %s\n", bi.Version)
+
+	w.pr.Faint.Fprintf(w.out, "Version:         %s\n", bi.Version)
+
+	if bi.Commit != "" {
+		w.pr.Faint.Fprintf(w.out, "Commit:          #%s\n", bi.Commit)
+	}
+
+	if bi.Timestamp != "" {
+		w.pr.Faint.Fprintf(w.out, "Timestamp:       %s\n", bi.Timestamp)
+	}
+
+	// latestVersion = ""
+	w.pr.Faint.Fprint(w.out, "Latest version:  ")
+	if latestVersion == "" {
+		w.pr.Error.Fprintf(w.out, "unknown\n")
+	} else {
+		if newerAvailable {
+			w.pr.Hilite.Fprintln(w.out, latestVersion)
+		} else {
+			w.pr.Faint.Fprintln(w.out, latestVersion)
 		}
 	}
 
-	showUpdate := semver.Compare(latestVersion, bi.Version) > 0
-	if showUpdate {
-		fmt.Fprint(w.out, "    ")
-		w.pr.Faint.Fprint(w.out, "Update available: "+latestVersion)
-	}
+	w.pr.Faint.Fprintf(w.out, "Host:            %s %s | %s %s | %s %s\n",
+		hi.Platform, hi.Arch, hi.Kernel, hi.KernelVersion, hi.Variant, hi.VariantVersion)
 
-	fmt.Fprintln(w.out)
+	// Follow GNU standards (mostly)
+	// https://www.gnu.org/prep/standards/html_node/_002d_002dversion.html#g_t_002d_002dversion
+	const notice = `MIT License:     https://opensource.org/license/mit
+Website:         https://sq.io
+Source code:     https://github.com/neilotoole/sq
+Notice:          Copyright (c) 2023 Neil O'Toole`
+	w.pr.Faint.Fprintln(w.out, notice)
 
-	if w.pr.Verbose {
-		// Follow GNU standards (mostly)
-		// https://www.gnu.org/prep/standards/html_node/_002d_002dversion.html#g_t_002d_002dversion
-		const notice = `
-Copyright (c) 2023 Neil O'Toole
-MIT License:  https://opensource.org/license/mit
-Website:      https://sq.io
-Source code:  https://github.com/neilotoole/sq`
-		w.pr.Faint.Fprintln(w.out, notice)
-	}
 	return nil
 }

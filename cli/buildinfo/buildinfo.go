@@ -63,8 +63,8 @@ func (bi BuildInfo) LogValue() slog.Value {
 	return gv
 }
 
-// Info returns BuildInfo.
-func Info() BuildInfo {
+// Get returns BuildInfo.
+func Get() BuildInfo {
 	return BuildInfo{
 		Version:   Version,
 		Commit:    Commit,

@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Breaking changes are annotated with ☢️.
 
+## Upcoming
+
+### Added
+
+- [#263]: `sq version` now supports `--yaml` output.
+- [#263]: `sq version` now outputs host OS details with `--verbose`, `--json`
+  and `--yaml` flags. The motivation behind this is bug submission: we want
+  to know which OS/arch the user is on. E.g. for `sq version -j`:
+```json
+{
+  "version": "v0.38.1",
+  "commit": "eedc11ec46d1f0e78628158cc6fd58850601d701",
+  "timestamp": "2023-06-21T11:41:34Z",
+  "latest_version": "v0.39.0",
+  "host": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "kernel": "Darwin",
+    "kernel_version": "22.5.0",
+    "variant": "macOS",
+    "variant_version": "13.4"
+  }
+}
+```
+
 ## [v0.38.1] - 2023-06-19
 
 ### Fixed
@@ -607,6 +632,7 @@ make working with lots of sources much easier.
 [#256]: https://github.com/neilotoole/sq/issues/256
 [#258]: https://github.com/neilotoole/sq/issues/258
 [#261]: https://github.com/neilotoole/sq/issues/261
+[#263]: https://github.com/neilotoole/sq/issues/263
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
