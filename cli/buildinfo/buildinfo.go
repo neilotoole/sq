@@ -36,9 +36,9 @@ var (
 
 // BuildInfo encapsulates Version, Commit and Timestamp.
 type BuildInfo struct {
-	Version   string `json:"version"`
-	Commit    string `json:"commit,omitempty"`
-	Timestamp string `json:"timestamp,omitempty"`
+	Version   string `json:"version" yaml:"version"`
+	Commit    string `json:"commit,omitempty" yaml:"commit,omitempty"`
+	Timestamp string `json:"timestamp,omitempty" yaml:"timestamp,omitempty"`
 }
 
 // String returns a string representation of BuildInfo.
