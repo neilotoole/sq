@@ -38,8 +38,6 @@ host:
   variant_version: "13.4"
 ```
 
-**Database version**
-
 **Logs**
 
 Attach [log file](https://sq.io/docs/config/#logging).
