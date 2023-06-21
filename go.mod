@@ -71,7 +71,7 @@ require (
 	github.com/moby/term v0.0.0-20221205130635-1aeaba878587 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/sethvargo/go-retry v0.2.4
-	golang.org/x/mod v0.10.0
+	golang.org/x/mod v0.11.0
 	golang.org/x/sys v0.9.0 // indirect
 	golang.org/x/term v0.9.0
 	golang.org/x/text v0.10.0 // indirect
