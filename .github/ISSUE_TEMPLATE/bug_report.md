@@ -20,17 +20,22 @@ A clear and concise description of what you expected to happen.
 
 **`sq` version**
 
-Include below the output of `sq version -j`:
+Include below the output of `sq version --yaml`:
 
-```shell
+```yaml
 # REPLACE THIS WITH YOUR OUTPUT
-$ sq version -j
-{
-  "version": "v0.38.0",
-  "commit": "955e56e",
-  "timestamp": "2023-06-18T13:18:44Z",
-  "latest_version": "v0.38.0"
-}
+buildinfo:
+  version: v0.39.0
+  commit: eedc11ec46d1f0e78628158cc6fd58850601d701
+  timestamp: 2023-06-21T11:41:34Z
+latest_version: v0.39.0
+host:
+  platform: darwin
+  arch: arm64
+  kernel: Darwin
+  kernel_version: 22.5.0
+  variant: macOS
+  variant_version: "13.4"
 ```
 
 **Database version**
