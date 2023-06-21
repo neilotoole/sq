@@ -135,25 +135,28 @@ func (w *mdWriter) doSourceMetaNoSchema(md *source.Metadata) error {
 func (w *mdWriter) printSourceTablesVerbose(tblMeta []*source.TableMetadata) error {
 	w.tbl.reset()
 
-	headers := []string{"TABLE", "ROWS", "TYPE", "SIZE", "NUM COLS", "COL NAMES", "COL TYPES"}
+	headers := []string{
+		"TABLE",
+		"ROWS",
+		"TYPE",
+		"SIZE",
+		"NUM COLS",
+		"COL NAME",
+		"COL TYPE",
+	}
 	w.tbl.tblImpl.SetHeader(headers)
-	w.tbl.tblImpl.SetColTrans(0, w.tbl.pr.Handle.SprintFunc())
+	w.tbl.tblImpl.SetColTrans(0, w.tbl.pr.String.SprintFunc())
 	w.tbl.tblImpl.SetColTrans(1, w.tbl.pr.Number.SprintFunc())
+	w.tbl.tblImpl.SetColTrans(2, w.tbl.pr.Faint.SprintFunc())
 	w.tbl.tblImpl.SetColTrans(3, w.tbl.pr.Number.SprintFunc())
 	w.tbl.tblImpl.SetColTrans(4, w.tbl.pr.Number.SprintFunc())
+	w.tbl.tblImpl.SetColTrans(5, w.tbl.pr.String.SprintFunc())
+	w.tbl.tblImpl.SetColTrans(6, w.tbl.pr.Faint.SprintFunc())
 
 	var rows [][]string
 	var row []string
 
 	for _, tbl := range tblMeta {
-		colNames := make([]string, len(tbl.Columns))
-		colTypes := make([]string, len(tbl.Columns))
-
-		for i, col := range tbl.Columns {
-			colNames[i] = col.Name
-			colTypes[i] = col.ColumnType
-		}
-
 		size := "-"
 		if tbl.Size != nil {
 			size = stringz.ByteSized(*tbl.Size, 1, "")
@@ -163,13 +166,27 @@ func (w *mdWriter) printSourceTablesVerbose(tblMeta []*source.TableMetadata) err
 			tbl.Name,
 			fmt.Sprintf("%d", tbl.RowCount),
 			tbl.TableType,
-			size,
+			w.tbl.pr.Faint.Sprint(size),
 			fmt.Sprintf("%d", len(tbl.Columns)),
-			strings.Join(colNames, ", "),
-			strings.Join(colTypes, ", "),
+			tbl.Columns[0].Name,
+			tbl.Columns[0].BaseType,
 		}
-
 		rows = append(rows, row)
+
+		for i := 1; i < len(tbl.Columns); i++ {
+
+			// row = []string{"", "", "", "", "", tbl.Columns[i].Name, tbl.Columns[i].BaseType}
+			row = []string{
+				"",
+				"",
+				"",
+				"",
+				"",
+				tbl.Columns[i].Name,
+				tbl.Columns[i].BaseType,
+			}
+			rows = append(rows, row)
+		}
 	}
 
 	w.tbl.appendRowsAndRenderAll(rows)
