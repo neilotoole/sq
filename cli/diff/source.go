@@ -206,7 +206,7 @@ func fetchSourceMeta(ctx context.Context, ru *run.Run, handle string) (*source.S
 	if err != nil {
 		return nil, nil, err
 	}
-	md, err := dbase.SourceMetadata(ctx)
+	md, err := dbase.SourceMetadata(ctx, false)
 	if err != nil {
 		return nil, nil, err
 	}

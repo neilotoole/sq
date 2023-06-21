@@ -259,7 +259,7 @@ func preprocessUserSLQ(ctx context.Context, ru *run.Run, args []string) (string,
 			}
 			defer lg.WarnIfCloseError(log, lgm.CloseDB, dbase)
 
-			srcMeta, err := dbase.SourceMetadata(ctx)
+			srcMeta, err := dbase.SourceMetadata(ctx, false)
 			if err != nil {
 				return "", err
 			}

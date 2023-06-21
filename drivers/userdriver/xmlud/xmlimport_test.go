@@ -43,7 +43,7 @@ func TestImport_Ppl(t *testing.T) {
 	err = xmlud.Import(th.Context, udDef, bytes.NewReader(data), scratchDB)
 	require.NoError(t, err)
 
-	srcMeta, err := scratchDB.SourceMetadata(th.Context)
+	srcMeta, err := scratchDB.SourceMetadata(th.Context, false)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(srcMeta.Tables))
 	require.Equal(t, "person", srcMeta.Tables[0].Name)
@@ -88,7 +88,7 @@ func TestImport_RSS(t *testing.T) {
 	err = xmlud.Import(th.Context, udDef, bytes.NewReader(data), scratchDB)
 	require.NoError(t, err)
 
-	srcMeta, err := scratchDB.SourceMetadata(th.Context)
+	srcMeta, err := scratchDB.SourceMetadata(th.Context, false)
 	require.NoError(t, err)
 	require.Equal(t, 3, len(srcMeta.Tables))
 	require.Equal(t, "category", srcMeta.Tables[0].Name)

@@ -68,6 +68,10 @@ const (
 	OutputShort = "o"
 	OutputUsage = "Write output to <file> instead of stdout"
 
+	InspectOverview      = "overview"
+	InspectOverviewShort = "O"
+	InspectOverviewUsage = "Show metadata only (no schema)"
+
 	PasswordPrompt      = "password"
 	PasswordPromptShort = "p"
 	PasswordPromptUsage = "Read password from stdin or prompt"

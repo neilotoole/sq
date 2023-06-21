@@ -331,10 +331,12 @@ type Database interface {
 	Source() *source.Source
 
 	// SourceMetadata returns metadata about the data source.
+	// If noSchema is true, schema details are not populated
+	// on the returned source.Metadata.
 	//
 	// TODO: SourceMetadata doesn't really belong on driver.Database. It
 	// should be moved to driver.Driver.
-	SourceMetadata(ctx context.Context) (*source.Metadata, error)
+	SourceMetadata(ctx context.Context, noSchema bool) (*source.Metadata, error)
 
 	// TableMetadata returns metadata for the specified table in the data source.
 	//

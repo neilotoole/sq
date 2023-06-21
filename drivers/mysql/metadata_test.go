@@ -76,7 +76,7 @@ func TestDatabase_SourceMetadata_MySQL(t *testing.T) {
 			t.Parallel()
 
 			th, _, dbase, _ := testh.NewWith(t, handle)
-			md, err := dbase.SourceMetadata(th.Context)
+			md, err := dbase.SourceMetadata(th.Context, false)
 			require.NoError(t, err)
 			require.Equal(t, "sakila", md.Name)
 			require.Equal(t, handle, md.Handle)

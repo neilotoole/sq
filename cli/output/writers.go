@@ -53,7 +53,7 @@ type MetadataWriter interface {
 	TableMetadata(tblMeta *source.TableMetadata) error
 
 	// SourceMetadata writes the source metadata.
-	SourceMetadata(srcMeta *source.Metadata) error
+	SourceMetadata(srcMeta *source.Metadata, showSchema bool) error
 
 	// DBProperties writes the DB properties.
 	DBProperties(props map[string]any) error

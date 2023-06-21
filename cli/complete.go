@@ -563,7 +563,7 @@ func getTableNamesForHandle(ctx context.Context, ru *run.Run, handle string) ([]
 		return nil, err
 	}
 
-	md, err := db.SourceMetadata(ctx)
+	md, err := db.SourceMetadata(ctx, false)
 	if err != nil {
 		return nil, err
 	}

@@ -34,11 +34,22 @@ func (w *mdWriter) TableMetadata(md *source.TableMetadata) error {
 }
 
 // SourceMetadata implements output.MetadataWriter.
-func (w *mdWriter) SourceMetadata(md *source.Metadata) error {
+func (w *mdWriter) SourceMetadata(md *source.Metadata, showSchema bool) error {
 	md2 := *md // Shallow copy is fine
 	md2.Location = source.RedactLocation(md2.Location)
 
-	return writeYAML(w.out, w.yp, &md2)
+	if showSchema {
+		return writeYAML(w.out, w.yp, &md2)
+	}
+
+	// Don't render "tables" and "table_count"
+	type mdNoSchema struct {
+		source.Metadata `yaml:",omitempty,inline"`
+		Tables          *[]*source.TableMetadata `yaml:"tables,omitempty"`
+		TableCount      *int64                   `yaml:"table_count,omitempty"`
+	}
+
+	return writeYAML(w.out, w.yp, &mdNoSchema{Metadata: md2})
 }
 
 // DBProperties implements output.MetadataWriter.

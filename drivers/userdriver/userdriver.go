@@ -174,8 +174,8 @@ func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.T
 }
 
 // SourceMetadata implements driver.Database.
-func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error) {
-	meta, err := d.impl.SourceMetadata(ctx)
+func (d *database) SourceMetadata(ctx context.Context, noSchema bool) (*source.Metadata, error) {
+	meta, err := d.impl.SourceMetadata(ctx, noSchema)
 	if err != nil {
 		return nil, err
 	}

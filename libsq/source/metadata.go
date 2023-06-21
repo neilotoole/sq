@@ -51,7 +51,7 @@ type Metadata struct {
 	TableCount int64 `json:"table_count" yaml:"table_count"`
 
 	// Tables is the metadata for each table/view in the source.
-	Tables []*TableMetadata `json:"tables"`
+	Tables []*TableMetadata `json:"tables" yaml:"tables"`
 
 	// DBProperties are name-value pairs from the DB.
 	// Typically the value is a scalar such as integer or string, but
@@ -122,12 +122,6 @@ func (md *Metadata) TableNames() []string {
 func (md *Metadata) String() string {
 	bytes, _ := json.Marshal(md)
 	return string(bytes)
-}
-
-// DBVar models a key-value pair for driver config.
-type DBVar struct {
-	Name  string `json:"name"`
-	Value string `json:"value"`
 }
 
 // TableMetadata models table (or view) metadata.

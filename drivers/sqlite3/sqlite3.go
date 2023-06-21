@@ -804,7 +804,7 @@ func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.T
 }
 
 // SourceMetadata implements driver.Database.
-func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error) {
+func (d *database) SourceMetadata(ctx context.Context, noSchema bool) (*source.Metadata, error) {
 	// https://stackoverflow.com/questions/9646353/how-to-find-sqlite-database-file-version
 
 	md := &source.Metadata{Handle: d.src.Handle, Driver: Type, DBDriver: dbDrvr}
@@ -833,17 +833,21 @@ func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error)
 	md.FQName = fi.Name() + "/" + md.Schema
 	md.Location = d.src.Location
 
+	md.DBProperties, err = getDBProperties(ctx, d.db)
+	if err != nil {
+		return nil, err
+	}
+
+	if noSchema {
+		return md, nil
+	}
+
 	md.Tables, err = getAllTblMeta(ctx, d.db)
 	if err != nil {
 		return nil, err
 	}
 
 	md.TableCount = int64(len(md.Tables))
-
-	md.DBProperties, err = getDBProperties(ctx, d.db)
-	if err != nil {
-		return nil, err
-	}
 
 	return md, nil
 }
