@@ -34,7 +34,7 @@ require (
 require (
 	github.com/ecnepsnai/osquery v1.0.0
 	github.com/goccy/go-yaml v1.11.0
-	github.com/jackc/pgx/v5 v5.3.1
+	github.com/jackc/pgx/v5 v5.4.1
 	github.com/mitchellh/go-wordwrap v1.0.1
 	github.com/muesli/mango-cobra v1.2.0
 	github.com/muesli/roff v0.1.0
