@@ -27,7 +27,7 @@ require (
 	go.uber.org/atomic v1.11.0
 	go.uber.org/multierr v1.11.0
 	golang.org/x/net v0.11.0
-	golang.org/x/sync v0.2.0
+	golang.org/x/sync v0.3.0
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
