@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Breaking changes are annotated with ☢️.
 
-## Upcoming
+## [v0.39.0] - 2023-06-22
 
 ### Added
 
@@ -31,6 +31,8 @@ Breaking changes are annotated with ☢️.
   }
 }
 ```
+- [#263]: The output of `sq inspect` and `sq inspect -v` has been refactored
+  significantly, and should now be easier to work with ([docs](https://sq.io/docs/inspect)).
 
 ## [v0.38.1] - 2023-06-19
 
@@ -673,3 +675,4 @@ make working with lots of sources much easier.
 [v0.37.1]: https://github.com/neilotoole/sq/compare/v0.37.0...v0.37.1
 [v0.38.0]: https://github.com/neilotoole/sq/compare/v0.37.1...v0.38.0
 [v0.38.1]: https://github.com/neilotoole/sq/compare/v0.38.0...v0.38.1
+[v0.39.0]: https://github.com/neilotoole/sq/compare/v0.38.1...v0.39.0
