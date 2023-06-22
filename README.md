@@ -144,25 +144,25 @@ But we're flying a bit blind here: how did we know about the `actor` table?
 
 ### Inspect
 
-[`sq inspect`](https://sq.io/docs/cmd/inspect) is your friend (output abbreviated):
+[`sq inspect`](https://sq.io/docs/inspect) is your friend (output abbreviated):
 
 ```shell
 $ sq inspect
-HANDLE   DRIVER   NAME       FQ NAME         SIZE   TABLES  LOCATION
-@sakila  sqlite3  sakila.db  sakila.db/main  5.6MB  21      sqlite3:///Users/demo/sakila.db
+SOURCE          DRIVER   NAME       FQ NAME         SIZE   TABLES  VIEWS  LOCATION
+@sakila/sqlite  sqlite3  sakila.db  sakila.db/main  5.6MB  16      5      sqlite3:///Users/neilotoole/work/sq/sq/drivers/sqlite3/testdata/sakila.db
 
-TABLE                   ROWS   COL NAMES
-actor                   200    actor_id, first_name, last_name, last_update
-address                 603    address_id, address, address2, district, city_id, postal_code, phone, last_update
-category                16     category_id, name, last_update
+NAME                    TYPE   ROWS   COLS
+actor                   table  200    actor_id, first_name, last_name, last_update
+address                 table  603    address_id, address, address2, district, city_id, postal_code, phone, last_update
+category                table  16     category_id, name, last_update
 ```
 
-Use [`sq inspect -v`](https://sq.io/docs/output#verbose) to see more detail.
+Use [`sq inspect -v`](https://sq.io/docs/cmd/inspect) to see more detail.
 Or use [`-j`](https://sq.io/docs/output#json) to get JSON output:
 
 ![sq inspect -j](https://sq.io/images/sq_inspect_sakila_sqlite_json.png)
 
-Combine `sq inspect` with [jq](https://stedolan.github.io/jq/) for some useful capabilities.
+Combine `sq inspect` with [jq](https://jqlang.github.io/jq/) for some useful capabilities.
 Here's how to [list](https://sq.io/docs/cookbook/#list-table-names)
 all the table names in the active source:
 
