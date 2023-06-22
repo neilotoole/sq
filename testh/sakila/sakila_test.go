@@ -3,6 +3,8 @@ package sakila_test
 import (
 	"testing"
 
+	"github.com/neilotoole/sq/testh/tutil"
+
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/testh"
@@ -33,6 +35,8 @@ func TestSakila_SQL(t *testing.T) { //nolint:tparallel
 
 // TestSakila_XLSX is a sanity check for Sakila XLSX test sources.
 func TestSakila_XLSX(t *testing.T) {
+	tutil.SkipWindows(t, "XLSX fails on windows pipeline (too slow)")
+
 	handles := []string{sakila.XLSXSubset}
 	// TODO: Add sakila.XLSX to handles when performance is reasonable
 	//  enough not to break CI.
