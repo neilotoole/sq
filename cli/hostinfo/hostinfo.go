@@ -1,4 +1,4 @@
-// Package sysinfo provides high-level details about the runtime OS.
+// Package hostinfo provides high-level details about the runtime OS.
 package hostinfo
 
 import (
@@ -7,7 +7,7 @@ import (
 
 	"golang.org/x/exp/slog"
 
-	"github.com/ecnepsnai/osquery"
+	"github.com/neilotoole/osquery"
 )
 
 // Info encapsulates OS info.

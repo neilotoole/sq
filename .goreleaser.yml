@@ -54,7 +54,7 @@ release:
 brews:
   -
     homepage: "https://github.com/neilotoole/sq"
-    description: "sq: swiss-army knife for data"
+    description: "sq data wrangler"
     license: MIT
     tap:
       owner: neilotoole
@@ -78,7 +78,7 @@ scoop:
     owner: neilotoole
     name: sq
   homepage: "https://sq.io"
-  description: "sq: swiss-army knife for data"
+  description: "sq data wrangler"
   license: MIT
   commit_author:
     name: neilotoole
@@ -95,7 +95,7 @@ nfpms:
     vendor: "neilotoole"
     maintainer: "neilotoole <neilotoole@apache.org>"
     homepage: "https://sq.io"
-    description: "sq: swiss-army knife for data"
+    description: "sq data wrangler"
     license: "MIT"
     contents:
       - src: ./completions/sq.bash
@@ -137,7 +137,7 @@ aurs:
 
     # Template of your app's description.
     # Default is empty.
-    description: "sq: swiss-army knife for data"
+    description: "sq data wrangler"
 
     # The maintainers of the package.
     # Defaults to empty.
@@ -231,7 +231,7 @@ aurs:
       mkdir -p "${pkgdir}/usr/share/bash-completion/completions/"
       mkdir -p "${pkgdir}/usr/share/zsh/site-functions/"
       mkdir -p "${pkgdir}/usr/share/fish/vendor_completions.d/"
-      
+
       install -Dm644 "./completions/sq.bash" "${pkgdir}/usr/share/bash-completion/completions/sq"
       install -Dm644 "./completions/sq.zsh" "${pkgdir}/usr/share/zsh/site-functions/_sq"
       install -Dm644 "./completions/sq.fish" "${pkgdir}/usr/share/fish/vendor_completions.d/sq.fish"

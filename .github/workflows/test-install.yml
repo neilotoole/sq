@@ -60,16 +60,16 @@ jobs:
         run: |-
           set pipefail
           set +e
-          
+
           # Some images don't have curl installed
           if ! command -v curl &> /dev/null ; then
             if command -v apt &> /dev/null; then
               apt update && apt install -y curl
             fi
           fi
-          
+
           set -e
-          
+
           /bin/sh -c "$(curl -fsSL https://sq.io/install.sh)"
           if [ $(sq version | awk '{print $2}') != "${{github.ref_name}}" ]; then
             echo "Expected sq ${{github.ref_name}} but got: $(sq version)"
@@ -113,10 +113,10 @@ jobs:
       - name: Test install (pacman)
         run: |-
           set -e pipefail
-          
+
           # Run as non-root user
-          # sudo -u moi 
-          
+          # sudo -u moi
+
           # Should be installed via pacman
           sudo -u moi /bin/sh -c "$(curl -fsSL https://sq.io/install.sh)"
           if [ $(sq version | awk '{print $2}') != "${{github.ref_name}}" ]; then
@@ -156,7 +156,7 @@ jobs:
       - name: Test install (yay)
         run: |-
           set -e pipefail
-          
+
           # Should be installed via yay
           sudo -u moi /bin/sh -c "$(curl -fsSL https://sq.io/install.sh)"
           if [ $(sq version | awk '{print $2}') != "${{github.ref_name}}" ]; then
@@ -193,10 +193,12 @@ jobs:
 
           scoop bucket add sq https://github.com/neilotoole/sq
           scoop install sq
-          
+
           $gotVersion = sq version
+          echo "-------- sq version --------"
           echo $gotVersion
-          
+          echo "----------------------------"
+
           if ($gotVersion -ne "sq ${{github.ref_name}}") {
             echo "Wanted: sq ${{github.ref_name}}"
             echo "Actual: $gotVersion"
