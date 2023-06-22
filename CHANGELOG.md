@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Breaking changes are annotated with ☢️.
 
+## [v0.39.1] - 2023-06-22
+
+### Fixed
+
+- Bug with `sq version` output on Windows.
+
 ## [v0.39.0] - 2023-06-22
 
 ### Added
