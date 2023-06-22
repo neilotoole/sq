@@ -122,7 +122,7 @@ Fundamentally, `sq` is for querying data. The jq-style syntax is covered in
 detail in the [query guide](https://sq.io/docs/query).
 
 ```shell
-$ sq '.actor | .actor_id < 100 | .[0:3]'
+$ sq '.actor | where(.actor_id < 100) | .[0:3]'
 actor_id  first_name  last_name     last_update
 1         PENELOPE    GUINESS       2020-02-15T06:59:28Z
 2         NICK        WAHLBERG      2020-02-15T06:59:28Z
