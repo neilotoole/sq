@@ -29,6 +29,7 @@ func renderSourceMeta2YAML(sm *source.Metadata) (string, error) {
 		User       string            `json:"user,omitempty" yaml:"user,omitempty"`
 		Size       int64             `json:"size" yaml:"size"`
 		TableCount int64             `json:"table_count" yaml:"table_count"`
+		ViewCount  int64             `json:"view_count" yaml:"view_count"`
 	}
 
 	smr := &sourceMeta{
@@ -44,6 +45,7 @@ func renderSourceMeta2YAML(sm *source.Metadata) (string, error) {
 		User:       sm.User,
 		Size:       sm.Size,
 		TableCount: sm.TableCount,
+		ViewCount:  sm.ViewCount,
 	}
 
 	b, err := ioz.MarshalYAML(smr)

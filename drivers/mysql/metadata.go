@@ -299,7 +299,13 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSc
 		return nil, err
 	}
 
-	md.TableCount = int64(len(md.Tables))
+	for _, tbl := range md.Tables {
+		if tbl.TableType == sqlz.TableTypeTable {
+			md.TableCount++
+		} else if tbl.TableType == sqlz.TableTypeView {
+			md.ViewCount++
+		}
+	}
 
 	return md, nil
 }

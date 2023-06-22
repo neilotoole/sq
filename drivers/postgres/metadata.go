@@ -278,9 +278,13 @@ current_setting('server_version'), version(), "current_user"()`
 		}
 	}
 
-	// md.Tables = []*source.TableMetadata{} // FIXME: Delete this
-
-	md.TableCount = int64(len(md.Tables))
+	for _, tbl := range md.Tables {
+		if tbl.TableType == sqlz.TableTypeTable {
+			md.TableCount++
+		} else if tbl.TableType == sqlz.TableTypeView {
+			md.ViewCount++
+		}
+	}
 	return md, nil
 }
 

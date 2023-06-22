@@ -42,11 +42,12 @@ func (w *mdWriter) SourceMetadata(md *source.Metadata, showSchema bool) error {
 		return writeYAML(w.out, w.yp, &md2)
 	}
 
-	// Don't render "tables" and "table_count"
+	// Don't render "tables", "table_count", and "view_count"
 	type mdNoSchema struct {
 		source.Metadata `yaml:",omitempty,inline"`
 		Tables          *[]*source.TableMetadata `yaml:"tables,omitempty"`
 		TableCount      *int64                   `yaml:"table_count,omitempty"`
+		ViewCount       *int64                   `yaml:"view_count,omitempty"`
 	}
 
 	return writeYAML(w.out, w.yp, &mdNoSchema{Metadata: md2})

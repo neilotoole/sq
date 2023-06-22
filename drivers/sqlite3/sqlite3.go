@@ -847,7 +847,13 @@ func (d *database) SourceMetadata(ctx context.Context, noSchema bool) (*source.M
 		return nil, err
 	}
 
-	md.TableCount = int64(len(md.Tables))
+	for _, tbl := range md.Tables {
+		if tbl.TableType == sqlz.TableTypeTable {
+			md.TableCount++
+		} else if tbl.TableType == sqlz.TableTypeView {
+			md.ViewCount++
+		}
+	}
 
 	return md, nil
 }

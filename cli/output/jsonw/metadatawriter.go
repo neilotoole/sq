@@ -39,11 +39,12 @@ func (w *mdWriter) SourceMetadata(md *source.Metadata, showSchema bool) error {
 		return writeJSON(w.out, w.pr, &md2)
 	}
 
-	// Don't render "tables" and "table_count"
+	// Don't render "tables", "table_count", and "view_count"
 	type mdNoSchema struct {
 		source.Metadata
 		Tables     *[]*source.TableMetadata `json:"tables,omitempty"`
 		TableCount *int64                   `json:"table_count,omitempty"`
+		ViewCount  *int64                   `json:"view_count,omitempty"`
 	}
 
 	return writeJSON(w.out, w.pr, &mdNoSchema{Metadata: md2})
