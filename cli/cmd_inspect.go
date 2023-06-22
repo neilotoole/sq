@@ -23,15 +23,16 @@ listing table details such as column names and row counts, etc.
 
 NOTE: If a schema is large, it may take some time for the command to complete.
 
+If @HANDLE is not provided, the active data source is assumed.
+
 When flag --overview is true, only the source's' metadata is shown,
 not the schema. The flag is disregarded when inspecting a table.
 
-Flag --dbprops shows the database properties for a source's *underlying*
-database. The flag is disregarded when inspecting a table.
+When flag --dbprops is true, only the database properties for the source's
+*underlying* database are shown. The flag is disregarded when inspecting a table.
 
-Use the --verbose flag to see more detail in some output formats.
-
-If @HANDLE is not provided, the active data source is assumed.`,
+Use --verbose with the --text format to see more detail. The --json and --yaml
+formats both show extensive detail.`,
 		Example: `  # Inspect active data source.
   $ sq inspect
 
@@ -47,8 +48,11 @@ If @HANDLE is not provided, the active data source is assumed.`,
   # Show output in YAML.
   $ sq inspect --yaml @pg1
 
-  # Show DB properties for @pg1.
+  # Show only the DB properties for @pg1.
   $ sq inspect --dbprops @pg1
+
+  # Show only the source metadata (and not schema details).
+  $ sq inspect --overview @pg1
 
   # Inspect table "actor" in @pg1 data source.
   $ sq inspect @pg1.actor
