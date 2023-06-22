@@ -38,6 +38,7 @@ require (
 	github.com/muesli/mango-cobra v1.2.0
 	github.com/muesli/roff v0.1.0
 	github.com/ncruces/go-strftime v0.1.9
+	github.com/neilotoole/osquery v0.1.0
 	github.com/neilotoole/shelleditor v0.3.2
 	github.com/neilotoole/slogt v1.0.0
 	github.com/otiai10/copy v1.12.0
@@ -53,7 +54,6 @@ require (
 	github.com/jackc/puddle/v2 v2.2.0 // indirect
 	github.com/muesli/mango v0.1.0 // indirect
 	github.com/muesli/mango-pflag v0.1.0 // indirect
-	github.com/neilotoole/osquery v0.1.0 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/rogpeppe/go-internal v1.10.0 // indirect
 	golang.org/x/crypto v0.10.0 // indirect
