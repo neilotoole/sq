@@ -1,15 +1,15 @@
 {
-    "version": "0.39.0",
+    "version": "0.39.1",
     "architecture": {
         "64bit": {
-            "url": "https://github.com/neilotoole/sq/releases/download/v0.39.0/sq-0.39.0-windows-amd64.zip",
+            "url": "https://github.com/neilotoole/sq/releases/download/v0.39.1/sq-0.39.1-windows-amd64.zip",
             "bin": [
                 "sq.exe"
             ],
-            "hash": "06587d494f26b753e2b38dd0707df32b8261f60cf2d3f496dcab66123822fb06"
+            "hash": "00a96f7e5ced07624ee9723e08e06f9903fafd39cc0b23eca7d2721e590b3089"
         }
     },
     "homepage": "https://sq.io",
     "license": "MIT",
-    "description": "sq: swiss-army knife for data"
+    "description": "sq data wrangler"
 }
