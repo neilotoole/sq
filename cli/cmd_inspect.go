@@ -23,12 +23,16 @@ listing table details such as column names and row counts, etc.
 
 NOTE: If a schema is large, it may take some time for the command to complete.
 
-The --dbprops flag shows the database properties for a source's *underlying*
-database. The flag is disregarded when inspecting a table.
+If @HANDLE is not provided, the active data source is assumed.
 
-Use the --verbose flag to see more detail in some output formats.
+When flag --overview is true, only the source's' metadata is shown,
+not the schema. The flag is disregarded when inspecting a table.
 
-If @HANDLE is not provided, the active data source is assumed.`,
+When flag --dbprops is true, only the database properties for the source's
+*underlying* database are shown. The flag is disregarded when inspecting a table.
+
+Use --verbose with the --text format to see more detail. The --json and --yaml
+formats both show extensive detail.`,
 		Example: `  # Inspect active data source.
   $ sq inspect
 
@@ -44,8 +48,11 @@ If @HANDLE is not provided, the active data source is assumed.`,
   # Show output in YAML.
   $ sq inspect --yaml @pg1
 
-  # Show DB properties for @pg1.
+  # Show only the DB properties for @pg1.
   $ sq inspect --dbprops @pg1
+
+  # Show only the source metadata (and not schema details).
+  $ sq inspect --overview @pg1
 
   # Inspect table "actor" in @pg1 data source.
   $ sq inspect @pg1.actor
@@ -62,7 +69,10 @@ If @HANDLE is not provided, the active data source is assumed.`,
 	cmd.Flags().BoolP(flag.Compact, flag.CompactShort, false, flag.CompactUsage)
 	cmd.Flags().BoolP(flag.YAML, flag.YAMLShort, false, flag.YAMLUsage)
 
+	cmd.Flags().BoolP(flag.InspectOverview, flag.InspectOverviewShort, false, flag.InspectOverviewUsage)
 	cmd.Flags().BoolP(flag.InspectDBProps, flag.InspectDBPropsShort, false, flag.InspectDBPropsUsage)
+
+	cmd.MarkFlagsMutuallyExclusive(flag.InspectOverview, flag.InspectDBProps)
 
 	return cmd
 }
@@ -165,7 +175,9 @@ func execInspect(cmd *cobra.Command, args []string) error {
 		return ru.Writers.Metadata.DBProperties(props)
 	}
 
-	srcMeta, err := dbase.SourceMetadata(ctx)
+	overviewOnly := cmdFlagIsSetTrue(cmd, flag.InspectOverview)
+
+	srcMeta, err := dbase.SourceMetadata(ctx, overviewOnly)
 	if err != nil {
 		return errz.Wrapf(err, "failed to read %s source metadata", src.Handle)
 	}
@@ -176,5 +188,5 @@ func execInspect(cmd *cobra.Command, args []string) error {
 		srcMeta.DBProperties = nil
 	}
 
-	return ru.Writers.Metadata.SourceMetadata(srcMeta)
+	return ru.Writers.Metadata.SourceMetadata(srcMeta, !overviewOnly)
 }

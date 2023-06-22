@@ -459,7 +459,7 @@ func TestDatabase_SourceMetadata(t *testing.T) {
 
 			th, _, dbase, _ := testh.NewWith(t, handle)
 
-			md, err := dbase.SourceMetadata(th.Context)
+			md, err := dbase.SourceMetadata(th.Context, false)
 			require.NoError(t, err)
 			require.Equal(t, sakila.TblActor, md.Tables[0].Name)
 			require.Equal(t, int64(sakila.TblActorCount), md.Tables[0].RowCount)
@@ -483,7 +483,7 @@ func TestDatabase_SourceMetadata_concurrent(t *testing.T) { //nolint:tparallel
 			g, gCtx := errgroup.WithContext(th.Context)
 			for i := 0; i < concurrency; i++ {
 				g.Go(func() error {
-					md, err := dbase.SourceMetadata(gCtx)
+					md, err := dbase.SourceMetadata(gCtx, false)
 					require.NoError(t, err)
 					require.NotNil(t, md)
 					gotTbl := md.Table(sakila.TblActor)
@@ -604,7 +604,7 @@ func TestSQLDriver_CurrentSchema(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, tc.want, got)
 
-			md, err := dbase.SourceMetadata(th.Context)
+			md, err := dbase.SourceMetadata(th.Context, false)
 			require.NoError(t, err)
 			require.NotNil(t, md)
 			require.Equal(t, md.Schema, got)

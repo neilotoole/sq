@@ -115,7 +115,7 @@ func setScanType(ct *record.ColumnTypeData, knd kind.Kind) {
 	}
 }
 
-func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB) (*source.Metadata, error) {
+func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSchema bool) (*source.Metadata, error) {
 	log := lg.FromContext(ctx)
 	ctx = options.NewContext(ctx, src.Options)
 
@@ -142,6 +142,10 @@ GROUP BY database_id) AS total_size_bytes`
 
 	if md.DBProperties, err = getDBProperties(ctx, db); err != nil {
 		return nil, err
+	}
+
+	if noSchema {
+		return md, nil
 	}
 
 	tblNames, tblTypes, err := getAllTables(ctx, db)
@@ -196,7 +200,13 @@ GROUP BY database_id) AS total_size_bytes`
 		}
 	}
 
-	md.TableCount = int64(len(md.Tables))
+	for _, tbl := range md.Tables {
+		if tbl.TableType == sqlz.TableTypeTable {
+			md.TableCount++
+		} else if tbl.TableType == sqlz.TableTypeView {
+			md.ViewCount++
+		}
+	}
 	return md, nil
 }
 

@@ -327,7 +327,7 @@ func BenchmarkDatabase_SourceMetadata(b *testing.B) {
 
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		srcMeta, err := dbase.SourceMetadata(th.Context)
+		srcMeta, err := dbase.SourceMetadata(th.Context, false)
 		require.NoError(b, err)
 		require.True(b, len(srcMeta.Tables) > len(tblNames))
 	}

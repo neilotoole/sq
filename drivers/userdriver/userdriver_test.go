@@ -44,7 +44,7 @@ func TestDriver(t *testing.T) {
 			require.NoError(t, err)
 			t.Cleanup(func() { assert.NoError(t, dbase.Close()) })
 
-			srcMeta, err := dbase.SourceMetadata(th.Context)
+			srcMeta, err := dbase.SourceMetadata(th.Context, false)
 			require.NoError(t, err)
 			require.True(t, stringz.InSlice(srcMeta.TableNames(), tc.tbl))
 

@@ -255,7 +255,7 @@ ORDER BY cols.ordinal_position ASC`
 // reasonable results by spinning off a goroutine (via errgroup) for
 // each SELECT COUNT(*) query. That said, the testing/benchmarking was
 // far from exhaustive, and this entire thing has a bit of a code smell.
-func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB) (*source.Metadata, error) {
+func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSchema bool) (*source.Metadata, error) {
 	ctx = options.NewContext(ctx, src.Options)
 
 	md := &source.Metadata{
@@ -282,6 +282,10 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB) (*so
 		})
 	})
 
+	if noSchema {
+		return md, nil
+	}
+
 	g.Go(func() error {
 		return doRetry(gCtx, func() error {
 			var err error
@@ -295,7 +299,13 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB) (*so
 		return nil, err
 	}
 
-	md.TableCount = int64(len(md.Tables))
+	for _, tbl := range md.Tables {
+		if tbl.TableType == sqlz.TableTypeTable {
+			md.TableCount++
+		} else if tbl.TableType == sqlz.TableTypeView {
+			md.ViewCount++
+		}
+	}
 
 	return md, nil
 }

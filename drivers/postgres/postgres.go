@@ -585,8 +585,8 @@ func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.T
 }
 
 // SourceMetadata implements driver.Database.
-func (d *database) SourceMetadata(ctx context.Context) (*source.Metadata, error) {
-	return getSourceMetadata(ctx, d.src, d.DB())
+func (d *database) SourceMetadata(ctx context.Context, noSchema bool) (*source.Metadata, error) {
+	return getSourceMetadata(ctx, d.src, d.DB(), noSchema)
 }
 
 // Close implements driver.Database.

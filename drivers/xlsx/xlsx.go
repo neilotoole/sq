@@ -199,7 +199,7 @@ func (d *database) Source() *source.Source {
 // rows are filtered out during import, and empty columns
 // are discarded. Thus SourceMetadata needs an overhaul to
 // bring its reporting into line with import.
-func (d *database) SourceMetadata(_ context.Context) (*source.Metadata, error) {
+func (d *database) SourceMetadata(_ context.Context, noSchema bool) (*source.Metadata, error) {
 	meta := &source.Metadata{Handle: d.src.Handle}
 
 	var err error
@@ -227,8 +227,11 @@ func (d *database) SourceMetadata(_ context.Context) (*source.Metadata, error) {
 		return nil, errz.Wrapf(err, "unable to open XLSX file: %s", d.src.Location)
 	}
 
-	hasHeader := drivers.OptIngestHeader.Get(d.src.Options)
+	if noSchema {
+		return meta, nil
+	}
 
+	hasHeader := drivers.OptIngestHeader.Get(d.src.Options)
 	for _, sheet := range xlFile.Sheets {
 		tbl := &source.TableMetadata{Name: sheet.Name, RowCount: int64(len(sheet.Rows))}
 
@@ -252,6 +255,8 @@ func (d *database) SourceMetadata(_ context.Context) (*source.Metadata, error) {
 
 		meta.Tables = append(meta.Tables, tbl)
 	}
+
+	meta.TableCount = int64(len(meta.Tables))
 
 	return meta, nil
 }

@@ -126,6 +126,12 @@ const (
 	TblPayment        = "payment"
 	TblPaymentCount   = 16049
 
+	// TblFilmText is present in each sakila dataset, except Postgres for
+	// some reason.
+	TblFilmText   = "film_text"
+	ViewActorInfo = "actor_info"
+	ViewFilmList  = "film_list"
+
 	MillerEmail  = "MARIA.MILLER@sakilacustomer.org"
 	MillerCustID = 7
 	MillerAddrID = 11

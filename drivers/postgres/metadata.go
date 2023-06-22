@@ -182,7 +182,7 @@ func toNullableScanType(log *slog.Logger, colName, dbTypeName string, knd kind.K
 	return nullableScanType
 }
 
-func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB) (*source.Metadata, error) {
+func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSchema bool) (*source.Metadata, error) {
 	log := lg.FromContext(ctx)
 	ctx = options.NewContext(ctx, src.Options)
 
@@ -213,6 +213,10 @@ current_setting('server_version'), version(), "current_user"()`
 	md.DBProperties, err = getPgSettings(ctx, db)
 	if err != nil {
 		return nil, err
+	}
+
+	if noSchema {
+		return md, nil
 	}
 
 	tblNames, err := getAllTableNames(ctx, db)
@@ -274,7 +278,13 @@ current_setting('server_version'), version(), "current_user"()`
 		}
 	}
 
-	md.TableCount = int64(len(tblNames))
+	for _, tbl := range md.Tables {
+		if tbl.TableType == sqlz.TableTypeTable {
+			md.TableCount++
+		} else if tbl.TableType == sqlz.TableTypeView {
+			md.ViewCount++
+		}
+	}
 	return md, nil
 }
 

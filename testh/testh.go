@@ -699,7 +699,7 @@ func (h *Helper) DiffDB(src *source.Source) {
 	beforeDB := h.openNew(src)
 	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, beforeDB)
 
-	beforeMeta, err := beforeDB.SourceMetadata(h.Context)
+	beforeMeta, err := beforeDB.SourceMetadata(h.Context, false)
 	require.NoError(h.T, err)
 
 	h.Cleanup.Add(func() {
@@ -709,7 +709,7 @@ func (h *Helper) DiffDB(src *source.Source) {
 		afterDB := h.openNew(src)
 		defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, afterDB)
 
-		afterMeta, err := afterDB.SourceMetadata(h.Context)
+		afterMeta, err := afterDB.SourceMetadata(h.Context, false)
 		require.NoError(h.T, err)
 		require.Equal(h.T, beforeMeta.TableNames(), afterMeta.TableNames(),
 			"diffdb: should have the same set of tables before and after")

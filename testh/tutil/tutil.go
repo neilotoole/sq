@@ -358,3 +358,10 @@ func SkipWindows(t *testing.T, format string, args ...any) {
 		t.Skipf(format, args...)
 	}
 }
+
+// SkipWindowsIf skips t if running on Windows and b is true.
+func SkipWindowsIf(t *testing.T, b bool, format string, args ...any) {
+	if runtime.GOOS == "windows" && b {
+		t.Skipf(format, args...)
+	}
+}

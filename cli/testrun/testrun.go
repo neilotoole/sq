@@ -59,6 +59,7 @@ func New(ctx context.Context, t testing.TB, from *TestRun) *TestRun {
 	var cfgStore config.Store
 	if from != nil {
 		cfgStore = from.Run.ConfigStore
+		tr.hushOutput = from.hushOutput
 	}
 
 	tr.Run, tr.Out, tr.ErrOut = newRun(ctx, t, cfgStore)
