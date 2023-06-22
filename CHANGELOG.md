@@ -682,3 +682,4 @@ make working with lots of sources much easier.
 [v0.38.0]: https://github.com/neilotoole/sq/compare/v0.37.1...v0.38.0
 [v0.38.1]: https://github.com/neilotoole/sq/compare/v0.38.0...v0.38.1
 [v0.39.0]: https://github.com/neilotoole/sq/compare/v0.38.1...v0.39.0
+[v0.39.1]: https://github.com/neilotoole/sq/compare/v0.39.0...v0.39.1
