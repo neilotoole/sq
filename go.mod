@@ -32,7 +32,6 @@ require (
 )
 
 require (
-	github.com/ecnepsnai/osquery v1.0.0
 	github.com/goccy/go-yaml v1.11.0
 	github.com/jackc/pgx/v5 v5.4.1
 	github.com/mitchellh/go-wordwrap v1.0.1
@@ -54,6 +53,7 @@ require (
 	github.com/jackc/puddle/v2 v2.2.0 // indirect
 	github.com/muesli/mango v0.1.0 // indirect
 	github.com/muesli/mango-pflag v0.1.0 // indirect
+	github.com/neilotoole/osquery v0.1.0 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/rogpeppe/go-internal v1.10.0 // indirect
 	golang.org/x/crypto v0.10.0 // indirect

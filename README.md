@@ -21,7 +21,7 @@ including [JSON](https://sq.io/docs/output#json),
 [HTML](https://sq.io/docs/output#html), [Markdown](https://sq.io/docs/output#markdown) 
 and [XML](https://sq.io/docs/output#xml), and can [insert](https://sq.io/docs/output#insert) query 
 results directly to a SQL database.
-`sq` can also [inspect](https://sq.io/docs/cmd/inspect) sources to view metadata about the source structure (tables,
+`sq` can also [inspect](https://sq.io/docs/inspect) sources to view metadata about the source structure (tables,
 columns, size) and has commands for common database operations to
 [copy](https://sq.io/docs/cmd/tbl-copy), [truncate](https://sq.io/docs/cmd/tbl-truncate),
 and [drop](https://sq.io/docs/cmd/tbl-drop) tables.
@@ -192,9 +192,12 @@ category.csv  customer.csv  film_actor.csv     film_text.csv	  payment.csv	 sale
 Note that you can also inspect an individual table:
 
 ```shell
-$ sq inspect @sakila.actor
-TABLE  ROWS  TYPE   SIZE  NUM COLS  COL NAMES
-actor  200   table  -     4         actor_id, first_name, last_name, last_update
+$ sq inspect @sakila.actor -v
+NAME   TYPE   ROWS  COLS  NAME         TYPE       PK
+actor  table  200   4     actor_id     int4       pk
+                          first_name   varchar
+                          last_name    varchar
+                          last_update  timestamp
 ```
 
 ### Diff
