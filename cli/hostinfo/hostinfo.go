@@ -7,7 +7,7 @@ import (
 
 	"golang.org/x/exp/slog"
 
-	"github.com/neilotoole/osquery"
+	"github.com/ecnepsnai/osquery"
 )
 
 // Info encapsulates OS info.
