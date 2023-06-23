@@ -27,8 +27,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/neilotoole/sq/cli/hostinfo"
-
 	"github.com/neilotoole/sq/cli/run"
 
 	"github.com/neilotoole/sq/cli/flag"
@@ -82,7 +80,6 @@ func ExecuteWith(ctx context.Context, ru *run.Run, args []string) error {
 	log := lg.FromContext(ctx)
 	log.Debug("EXECUTE", "args", strings.Join(args, " "))
 	log.Debug("Build info", "build", buildinfo.Get())
-	log.Debug("Host info", "host", hostinfo.Get())
 	log.Debug("Config",
 		"config.version", ru.Config.Version,
 		lga.Path, ru.ConfigStore.Location(),

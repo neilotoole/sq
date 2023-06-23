@@ -14,7 +14,7 @@ import (
 	"github.com/neilotoole/sq/cli/buildinfo"
 	"github.com/neilotoole/sq/cli/testrun"
 
-	"github.com/neilotoole/osquery"
+	"github.com/ecnepsnai/osquery"
 
 	"golang.org/x/mod/semver"
 
