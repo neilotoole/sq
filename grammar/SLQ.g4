@@ -23,7 +23,7 @@ element
 	| exprElement;
 
 // cmpr is a comparison operator.
-cmpr: LT_EQ | LT | GT_EQ | GT | EQ | NEQ;
+//cmpr: LT_EQ | LT | GT_EQ | GT | EQ | NEQ;
 
 
 
@@ -41,12 +41,48 @@ funcName
 // an underscore to the func name, e.g. _date(xyz).
 PROPRIETARY_FUNC_NAME: '_' ID;
 
+/*
+join
+----
 
-join: ('join') '(' joinConstraint ')';
+join implements SQL's JOIN mechanism.
 
-joinConstraint
-  : selector cmpr selector // .user.uid == .address.userid
-	| selector ; // .uid
+    @sakila_pg | .actor | join(.film_actor, .actor_id)
+    @sakila_pg | .actor | join(@sakila_my.film_actor, .actor_id)
+    @sakila_pg | .actor | join(.film_actor, .actor.actor_id == .film_actor.actor_id)
+    @sakila_pg | .actor:a | join(.film_actor:fa, .a.actor_id == .fa.actor_id)
+    @sakila_pg.actor:a | join(@sakila_my.film_actor:fa, .a.actor_id == .fa.actor_id)
+
+See:
+- https://www.sqlite.org/syntax/join-clause.html
+- https://www.sqlite.org/syntax/join-operator.html
+*/
+join: JOIN_TYPE '(' joinTable (',' expr)? ')';
+joinTable: (HANDLE)? NAME (alias)?;
+// joinType is the set of join types and their aliases.
+// Note that we don't support NATURAL JOIN, because its use seems to
+// be discouraged. This may change in future based on user feedback.
+JOIN_TYPE
+ : 'join'
+ | 'inner_join'
+ | 'ijoin'
+ | 'left_join'
+ | 'ljoin'
+ | 'left_outer_join'
+ | 'lojoin'
+ | 'right_join'
+ | 'rjoin'
+ | 'right_outer_join'
+ | 'rojoin'
+ | 'full_outer_join'
+ | 'fojoin'
+ | 'cross_join'
+ | 'cjoin'
+ ;
+
+//joinConstraint
+//  : selector cmpr selector // .user.uid == .address.userid
+//	| selector ; // .uid
 
 /*
 uniqueFunc
