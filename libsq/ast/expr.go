@@ -27,6 +27,10 @@ type ExprElementNode struct {
 	exprNode *ExprNode
 }
 
+// resultColumn implements ast.ResultColumn.
+func (ex *ExprElementNode) resultColumn() {
+}
+
 // String returns a log/debug-friendly representation.
 func (ex *ExprElementNode) String() string {
 	str := nodeString(ex)

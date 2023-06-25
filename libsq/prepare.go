@@ -26,13 +26,12 @@ func (ng *engine) prepare(ctx context.Context, qm *queryModel) error {
 		if err = ng.prepareNoTabler(ctx, qm); err != nil {
 			return err
 		}
-
 	case *ast.TblSelectorNode:
-		if frags.From, ng.targetDB, err = ng.buildTableFromClause(ctx, node); err != nil {
+		if frags.From, ng.targetDB, err = ng.prepareFromTable(ctx, node); err != nil {
 			return err
 		}
 	case *ast.JoinNode:
-		if frags.From, ng.targetDB, err = ng.buildJoinFromClause(ctx, node); err != nil {
+		if frags.From, ng.targetDB, err = ng.prepareFromJoin(ctx, node); err != nil {
 			return err
 		}
 	default:

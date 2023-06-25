@@ -81,7 +81,6 @@ func execQueryTestCase(t *testing.T, tc queryTestCase) {
 	t.Helper()
 
 	coll := testh.New(t).NewCollection(sakila.SQLLatest()...)
-	// coll := testh.New(t).NewCollection(sakila.Pg)
 
 	for _, src := range coll.Sources() {
 		src := src
@@ -153,7 +152,7 @@ func assertSinkColValue(colIndex int, val any) SinkTestFunc {
 
 // assertSinkColValue returns a SinkTestFunc that asserts that
 // the name of column colIndex matches name.
-func assertSinkColName(colIndex int, name string) SinkTestFunc {
+func assertSinkColName(colIndex int, name string) SinkTestFunc { //nolint:unparam
 	return func(t testing.TB, sink *testh.RecordSink) {
 		assert.Equal(t, name, sink.RecMeta[colIndex].Name(), "column %d", colIndex)
 	}

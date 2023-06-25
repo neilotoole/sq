@@ -70,6 +70,8 @@ type ResultColumn interface {
 
 	// Text returns the raw text of the node, e.g. ".actor" or "1*2".
 	Text() string
+
+	resultColumn()
 }
 
 // baseNode is a base implementation of Node.
