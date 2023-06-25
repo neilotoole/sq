@@ -19,6 +19,12 @@ type FuncNode struct {
 	proprietary bool
 }
 
+// resultColumn implements ast.ResultColumn.
+//
+// REVISIT: should ast.FuncNode implement ast.ResultColumn?
+func (fn *FuncNode) resultColumn() {
+}
+
 // FuncName returns the function name.
 func (fn *FuncNode) FuncName() string {
 	return fn.fnName

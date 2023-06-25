@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Breaking changes are annotated with ☢️.
 
+## Upcoming
+
+### Added
+
+- [#277]: A table selector can now have an alias. This in and of itself is not
+  particularly useful, but it's a building block for [multiple joins](https://github.com/neilotoole/sq/issues/12).
+
+  ```shell
+  $ sq `@sakila | .actor:a | .a.first_name`
+  ```
+
 ## [v0.39.1] - 2023-06-22
 
 ### Fixed
@@ -641,6 +652,7 @@ make working with lots of sources much easier.
 [#258]: https://github.com/neilotoole/sq/issues/258
 [#261]: https://github.com/neilotoole/sq/issues/261
 [#263]: https://github.com/neilotoole/sq/issues/263
+[#277]: https://github.com/neilotoole/sq/issues/277
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3

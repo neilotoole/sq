@@ -146,34 +146,39 @@ func newTblSelector(selNode *SelectorNode) (*TblSelectorNode, error) { //nolint:
 }
 
 // TblName returns the table name. This is the raw value without punctuation.
-func (s *TblSelectorNode) TblName() string {
-	return s.tblName
+func (n *TblSelectorNode) TblName() string {
+	return n.tblName
+}
+
+// Alias returns the node's alias, or empty string.
+func (n *TblSelectorNode) Alias() string {
+	return n.alias
 }
 
 // Handle returns the handle, which may be empty.
-func (s *TblSelectorNode) Handle() string {
-	return s.handle
+func (n *TblSelectorNode) Handle() string {
+	return n.handle
 }
 
 // Tabler implements the Tabler marker interface.
-func (s *TblSelectorNode) tabler() {
+func (n *TblSelectorNode) tabler() {
 	// no-op
 }
 
 // SelValue returns the table name.
 // TODO: Can we get rid of this method SelValue?
-func (s *TblSelectorNode) SelValue() (string, error) {
-	return s.TblName(), nil
+func (n *TblSelectorNode) SelValue() (string, error) {
+	return n.TblName(), nil
 }
 
 // String returns a log/debug-friendly representation.
-func (s *TblSelectorNode) String() string {
-	text := nodeString(s)
-	selVal, err := s.SelValue()
+func (n *TblSelectorNode) String() string {
+	text := nodeString(n)
+	selVal, err := n.SelValue()
 	if err != nil {
 		selVal = "error: " + err.Error()
 	}
-	text += fmt.Sprintf(" | table: {%s} | datasource: {%s}", selVal, s.Handle())
+	text += fmt.Sprintf(" | table: {%s} | datasource: {%s}", selVal, n.Handle())
 	return text
 }
 
@@ -188,6 +193,10 @@ type TblColSelectorNode struct {
 	*SelectorNode
 	tblName string
 	colName string
+}
+
+// resultColumn implements ast.ResultColumn.
+func (n *TblColSelectorNode) resultColumn() {
 }
 
 // IsColumn implements ResultColumn.
@@ -251,6 +260,10 @@ type ColSelectorNode struct {
 	*SelectorNode
 
 	colName string
+}
+
+// resultColumn implements ast.ResultColumn.
+func (n *ColSelectorNode) resultColumn() {
 }
 
 // newColSelectorNode returns a ColSelectorNode constructed from ctx.

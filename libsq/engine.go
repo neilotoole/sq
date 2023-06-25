@@ -176,10 +176,10 @@ func (ng *engine) prepareNoTabler(ctx context.Context, qm *queryModel) error {
 	return nil
 }
 
-// buildTableFromClause builds the "FROM table" fragment.
+// prepareFromTable builds the "FROM table" fragment.
 //
 // When this function returns, ng.rc will be set.
-func (ng *engine) buildTableFromClause(ctx context.Context, tblSel *ast.TblSelectorNode) (fromClause string,
+func (ng *engine) prepareFromTable(ctx context.Context, tblSel *ast.TblSelectorNode) (fromClause string,
 	fromConn driver.Database, err error,
 ) {
 	handle := tblSel.Handle()
@@ -215,10 +215,10 @@ func (ng *engine) buildTableFromClause(ctx context.Context, tblSel *ast.TblSelec
 	return fromClause, fromConn, nil
 }
 
-// buildJoinFromClause builds the "JOIN" clause.
+// prepareFromJoin builds the "JOIN" clause.
 //
 // When this function returns, ng.rc will be set.
-func (ng *engine) buildJoinFromClause(ctx context.Context, fnJoin *ast.JoinNode) (fromClause string,
+func (ng *engine) prepareFromJoin(ctx context.Context, fnJoin *ast.JoinNode) (fromClause string,
 	fromConn driver.Database, err error,
 ) {
 	if fnJoin.LeftTbl() == nil || fnJoin.LeftTbl().TblName() == "" {
@@ -230,16 +230,16 @@ func (ng *engine) buildJoinFromClause(ctx context.Context, fnJoin *ast.JoinNode)
 	}
 
 	if fnJoin.LeftTbl().Handle() != fnJoin.RightTbl().Handle() {
-		return ng.crossSourceJoin(ctx, fnJoin)
+		return ng.joinCrossSource(ctx, fnJoin)
 	}
 
-	return ng.singleSourceJoin(ctx, fnJoin)
+	return ng.joinSingleSource(ctx, fnJoin)
 }
 
-// singleSourceJoin sets up a join against a single source.
+// joinSingleSource sets up a join against a single source.
 //
 // On return, ng.rc will be set.
-func (ng *engine) singleSourceJoin(ctx context.Context, fnJoin *ast.JoinNode) (fromClause string,
+func (ng *engine) joinSingleSource(ctx context.Context, fnJoin *ast.JoinNode) (fromClause string,
 	fromDB driver.Database, err error,
 ) {
 	src, err := ng.qc.Collection.Get(fnJoin.LeftTbl().Handle())
@@ -267,11 +267,11 @@ func (ng *engine) singleSourceJoin(ctx context.Context, fnJoin *ast.JoinNode) (f
 	return fromClause, fromDB, nil
 }
 
-// crossSourceJoin returns a FROM clause that forms part of
+// joinCrossSource returns a FROM clause that forms part of
 // the SQL SELECT statement against fromDB.
 //
 // On return, ng.rc will be set.
-func (ng *engine) crossSourceJoin(ctx context.Context, fnJoin *ast.JoinNode) (fromClause string, fromDB driver.Database,
+func (ng *engine) joinCrossSource(ctx context.Context, fnJoin *ast.JoinNode) (fromClause string, fromDB driver.Database,
 	err error,
 ) {
 	leftTblName, rightTblName := fnJoin.LeftTbl().TblName(), fnJoin.RightTbl().TblName()
