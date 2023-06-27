@@ -24,6 +24,8 @@ func (v *parseTreeVisitor) VisitAlias(ctx *slq.AliasContext) any {
 	switch node := v.cur.(type) {
 	case *SelectorNode:
 		node.alias = alias
+	case *TblSelectorNode:
+		node.alias = alias
 	case *ExprElementNode:
 		node.alias = alias
 	case *FuncNode:

@@ -66,7 +66,7 @@ func narrowTblColSel(w *Walker, node Node) error {
 
 	parent := sel.Parent()
 	switch parent := parent.(type) {
-	case *JoinConstraint, *FuncNode, *OrderByTermNode, *GroupByNode, *ExprNode:
+	case *FuncNode, *OrderByTermNode, *GroupByNode, *ExprNode:
 		if sel.name1 == "" {
 			return nil
 		}
@@ -119,7 +119,7 @@ func narrowColSel(w *Walker, node Node) error {
 	parent := sel.Parent()
 
 	switch parent := parent.(type) {
-	case *JoinConstraint, *FuncNode, *OrderByTermNode, *GroupByNode, *ExprNode:
+	case *FuncNode, *OrderByTermNode, *GroupByNode, *ExprNode:
 		colSel, err := newColSelectorNode(sel)
 		if err != nil {
 			return err
@@ -155,14 +155,14 @@ func narrowColSel(w *Walker, node Node) error {
 // determineJoinTables attempts to determine the tables that a JOIN refers to.
 func determineJoinTables(_ *Walker, node Node) error {
 	// node is guaranteed to be FnJoin
-	fnJoin, ok := node.(*JoinNode)
+	joinNode, ok := node.(*JoinNode)
 	if !ok {
 		return errorf("expected *FnJoin but got %T", node)
 	}
 
-	seg, ok := fnJoin.Parent().(*SegmentNode)
+	seg, ok := joinNode.Parent().(*SegmentNode)
 	if !ok {
-		return errorf("JOIN() must have a *SegmentNode parent, but got %T", fnJoin.Parent())
+		return errorf("JOIN() must have a *SegmentNode parent, but got %T", joinNode.Parent())
 	}
 
 	prevSeg := seg.Prev()
@@ -170,19 +170,14 @@ func determineJoinTables(_ *Walker, node Node) error {
 		return errorf("JOIN() must not be in the first segment")
 	}
 
-	if len(prevSeg.Children()) != 2 || len(nodesWithType(prevSeg.Children(), typeTblSelectorNode)) != 2 {
-		return errorf("JOIN() must have two table selectors in the preceding segment")
+	if len(prevSeg.Children()) != 1 || len(nodesWithType(prevSeg.Children(), typeTblSelectorNode)) != 1 {
+		return errorf("JOIN() must have a table selector in the preceding segment")
 	}
 
-	fnJoin.leftTbl, ok = prevSeg.Children()[0].(*TblSelectorNode)
+	joinNode.leftTbl, ok = prevSeg.Children()[0].(*TblSelectorNode)
 	if !ok {
 		return errorf("JOIN() expected table selector in previous segment, but was %T(%s)", prevSeg.Children()[0],
 			prevSeg.Children()[0].Text())
-	}
-	fnJoin.rightTbl, ok = prevSeg.Children()[1].(*TblSelectorNode)
-	if !ok {
-		return errorf("JOIN() expected table selector in previous segment, but was %T(%s)", prevSeg.Children()[1],
-			prevSeg.Children()[1].Text())
 	}
 	return nil
 }

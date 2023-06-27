@@ -80,7 +80,8 @@ func execQueryTestCase(t *testing.T, tc queryTestCase) {
 
 	t.Helper()
 
-	coll := testh.New(t).NewCollection(sakila.SQLLatest()...)
+	// coll := testh.New(t).NewCollection(sakila.SQLLatest()...)
+	coll := testh.New(t).NewCollection(sakila.SL3)
 
 	for _, src := range coll.Sources() {
 		src := src

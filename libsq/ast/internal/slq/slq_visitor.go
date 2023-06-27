@@ -19,9 +19,6 @@ type SLQVisitor interface {
 	// Visit a parse tree produced by SLQParser#element.
 	VisitElement(ctx *ElementContext) interface{}
 
-	// Visit a parse tree produced by SLQParser#cmpr.
-	VisitCmpr(ctx *CmprContext) interface{}
-
 	// Visit a parse tree produced by SLQParser#funcElement.
 	VisitFuncElement(ctx *FuncElementContext) interface{}
 
@@ -34,8 +31,8 @@ type SLQVisitor interface {
 	// Visit a parse tree produced by SLQParser#join.
 	VisitJoin(ctx *JoinContext) interface{}
 
-	// Visit a parse tree produced by SLQParser#joinConstraint.
-	VisitJoinConstraint(ctx *JoinConstraintContext) interface{}
+	// Visit a parse tree produced by SLQParser#joinTable.
+	VisitJoinTable(ctx *JoinTableContext) interface{}
 
 	// Visit a parse tree produced by SLQParser#uniqueFunc.
 	VisitUniqueFunc(ctx *UniqueFuncContext) interface{}

@@ -44,12 +44,6 @@ func (s *BaseSLQListener) EnterElement(ctx *ElementContext) {}
 // ExitElement is called when production element is exited.
 func (s *BaseSLQListener) ExitElement(ctx *ElementContext) {}
 
-// EnterCmpr is called when production cmpr is entered.
-func (s *BaseSLQListener) EnterCmpr(ctx *CmprContext) {}
-
-// ExitCmpr is called when production cmpr is exited.
-func (s *BaseSLQListener) ExitCmpr(ctx *CmprContext) {}
-
 // EnterFuncElement is called when production funcElement is entered.
 func (s *BaseSLQListener) EnterFuncElement(ctx *FuncElementContext) {}
 
@@ -74,11 +68,11 @@ func (s *BaseSLQListener) EnterJoin(ctx *JoinContext) {}
 // ExitJoin is called when production join is exited.
 func (s *BaseSLQListener) ExitJoin(ctx *JoinContext) {}
 
-// EnterJoinConstraint is called when production joinConstraint is entered.
-func (s *BaseSLQListener) EnterJoinConstraint(ctx *JoinConstraintContext) {}
+// EnterJoinTable is called when production joinTable is entered.
+func (s *BaseSLQListener) EnterJoinTable(ctx *JoinTableContext) {}
 
-// ExitJoinConstraint is called when production joinConstraint is exited.
-func (s *BaseSLQListener) ExitJoinConstraint(ctx *JoinConstraintContext) {}
+// ExitJoinTable is called when production joinTable is exited.
+func (s *BaseSLQListener) ExitJoinTable(ctx *JoinTableContext) {}
 
 // EnterUniqueFunc is called when production uniqueFunc is entered.
 func (s *BaseSLQListener) EnterUniqueFunc(ctx *UniqueFuncContext) {}

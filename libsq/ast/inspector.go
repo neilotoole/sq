@@ -3,6 +3,8 @@ package ast
 import (
 	"reflect"
 
+	"github.com/neilotoole/sq/libsq/core/errz"
+
 	"github.com/samber/lo"
 )
 
@@ -212,6 +214,21 @@ func (in *Inspector) FindFinalTablerSegment() (*SegmentNode, error) {
 	}
 	selectableSeg := selectableSegs[len(selectableSegs)-1]
 	return selectableSeg, nil
+}
+
+// FindJoins returns all ast.JoinNode instances.
+func (in *Inspector) FindJoins() ([]*JoinNode, error) {
+	nodes := in.FindNodes(typeJoinNode)
+	joinNodes := make([]*JoinNode, len(nodes))
+	var ok bool
+	for i := range nodes {
+		joinNodes[i], ok = nodes[i].(*JoinNode)
+		if !ok {
+			return nil, errz.Errorf("expected %T but got %T", (*JoinNode)(nil), nodes[i])
+		}
+	}
+
+	return joinNodes, nil
 }
 
 // FindUniqueNode returns any UniqueNode, or nil.

@@ -174,10 +174,8 @@ func (v *parseTreeVisitor) Visit(ctx antlr.ParseTree) any {
 		return v.VisitJoin(ctx)
 	case *slq.AliasContext:
 		return v.VisitAlias(ctx)
-	case *slq.JoinConstraintContext:
-		return v.VisitJoinConstraint(ctx)
-	case *slq.CmprContext:
-		return v.VisitCmpr(ctx)
+	case *slq.JoinTableContext:
+		return v.VisitJoinTable(ctx)
 	case *slq.RowRangeContext:
 		return v.VisitRowRange(ctx)
 	case *slq.ExprElementContext:
@@ -247,11 +245,6 @@ func (v *parseTreeVisitor) VisitQuery(ctx *slq.QueryContext) any {
 
 // VisitElement implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitElement(ctx *slq.ElementContext) any {
-	return v.VisitChildren(ctx)
-}
-
-// VisitCmpr implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitCmpr(ctx *slq.CmprContext) any {
 	return v.VisitChildren(ctx)
 }
 

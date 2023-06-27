@@ -1,86 +1,130 @@
 package render
 
 import (
-	"fmt"
-
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
-func doJoin(rc *Context, fnJoin *ast.JoinNode) (string, error) {
-	enquote := rc.Dialect.Enquote
+func renderJoinType(jt ast.JoinType) (string, error) {
+	switch jt {
+	case ast.Join, ast.JoinInner:
+		return "INNER JOIN", nil
+	case ast.JoinLeft:
+		return "LEFT JOIN", nil
+	case ast.JoinLeftOuter:
+		return "LEFT OUTER JOIN", nil
+	case ast.JoinRight:
+		return "RIGHT JOIN", nil
+	case ast.JoinRightOuter:
+		return "RIGHT OUTER JOIN", nil
+	case ast.JoinFullOuter:
+		return "FULL OUTER JOIN", nil
+	case ast.JoinCross:
+		return "CROSS JOIN", nil
+	default:
+		return "", errz.Errorf("unknown join type: %s", jt)
+	}
+}
 
-	joinType := "INNER JOIN"
-	onClause := ""
+func doJoin(rc *Context, joinNode *ast.JoinNode) (string, error) {
+	// enquote := rc.Dialect.Enquote
 
-	if len(fnJoin.Children()) == 0 {
-		joinType = "NATURAL JOIN"
-	} else {
-		joinExpr, ok := fnJoin.Children()[0].(*ast.JoinConstraint)
-		if !ok {
-			return "", errz.Errorf("expected *FnJoinExpr but got %T", fnJoin.Children()[0])
-		}
-
-		leftOperand := ""
-		operator := ""
-		rightOperand := ""
-
-		if len(joinExpr.Children()) == 1 {
-			// It's a single col selector
-			colSel, ok := joinExpr.Children()[0].(*ast.ColSelectorNode)
-			if !ok {
-				return "", errz.Errorf("expected *ColSelectorNode but got %T", joinExpr.Children()[0])
-			}
-
-			colVal, err := colSel.SelValue()
-			if err != nil {
-				return "", err
-			}
-
-			leftTblVal := fnJoin.LeftTbl().TblName()
-			leftOperand = fmt.Sprintf(
-				"%s.%s",
-				enquote(leftTblVal),
-				enquote(colVal),
-			)
-
-			operator = "=="
-
-			rightTblVal := fnJoin.RightTbl().TblName()
-			rightOperand = fmt.Sprintf(
-				"%s.%s",
-				enquote(rightTblVal),
-				enquote(colVal),
-			)
-		} else {
-			var err error
-			leftOperand, err = renderSelectorNode(rc.Dialect, joinExpr.Children()[0])
-			if err != nil {
-				return "", err
-			}
-
-			operator = joinExpr.Children()[1].Text()
-
-			rightOperand, err = renderSelectorNode(rc.Dialect, joinExpr.Children()[2])
-			if err != nil {
-				return "", err
-			}
-		}
-
-		if operator == "==" {
-			operator = "="
-		}
-
-		onClause = fmt.Sprintf("ON %s %s %s", leftOperand, operator, rightOperand)
+	sql, err := renderJoinType(joinNode.JoinType())
+	if err != nil {
+		return "", err
 	}
 
-	sql := fmt.Sprintf(
-		"FROM %s %s %s",
-		enquote(fnJoin.LeftTbl().TblName()),
-		joinType,
-		enquote(fnJoin.RightTbl().TblName()),
-	)
-	sql = sqlAppend(sql, onClause)
+	rightTbl, err := renderSelectorNode(rc.Dialect, joinNode.RightTbl())
+	if err != nil {
+		return "", err
+	}
 
+	sql = sqlAppend(sql, rightTbl)
+
+	constraintExpr := joinNode.Constraint()
+
+	if constraintExpr == nil {
+		return sql, nil
+	}
+
+	constraint, err := rc.Renderer.Expr(rc, constraintExpr)
+	if err != nil {
+		return "", err
+	}
+
+	sql = sqlAppend(sql, "ON "+constraint)
 	return sql, nil
+	//
+	//
+	//
+	//if len(joinNode.Children()) == 0 {
+	//	renderedJoinType = "NATURAL JOIN"
+	//} else {
+	//	joinExpr, ok := joinNode.Children()[0].(*ast.JoinConstraint)
+	//	if !ok {
+	//		return "", errz.Errorf("expected *FnJoinExpr but got %T", joinNode.Children()[0])
+	//	}
+	//
+	//	leftOperand := ""
+	//	operator := ""
+	//	rightOperand := ""
+	//
+	//	if len(joinExpr.Children()) == 1 {
+	//		// It's a single col selector
+	//		colSel, ok := joinExpr.Children()[0].(*ast.ColSelectorNode)
+	//		if !ok {
+	//			return "", errz.Errorf("expected *ColSelectorNode but got %T", joinExpr.Children()[0])
+	//		}
+	//
+	//		colVal, err := colSel.SelValue()
+	//		if err != nil {
+	//			return "", err
+	//		}
+	//
+	//		leftTblVal := joinNode.LeftTbl().TblName()
+	//		leftOperand = fmt.Sprintf(
+	//			"%s.%s",
+	//			enquote(leftTblVal),
+	//			enquote(colVal),
+	//		)
+	//
+	//		operator = "=="
+	//
+	//		rightTblVal := joinNode.RightTbl().TblName()
+	//		rightOperand = fmt.Sprintf(
+	//			"%s.%s",
+	//			enquote(rightTblVal),
+	//			enquote(colVal),
+	//		)
+	//	} else {
+	//		var err error
+	//		leftOperand, err = renderSelectorNode(rc.Dialect, joinExpr.Children()[0])
+	//		if err != nil {
+	//			return "", err
+	//		}
+	//
+	//		operator = joinExpr.Children()[1].Text()
+	//
+	//		rightOperand, err = renderSelectorNode(rc.Dialect, joinExpr.Children()[2])
+	//		if err != nil {
+	//			return "", err
+	//		}
+	//	}
+	//
+	//	if operator == "==" {
+	//		operator = "="
+	//	}
+	//
+	//	onClause = fmt.Sprintf("ON %s %s %s", leftOperand, operator, rightOperand)
+	//}
+	//
+	//sql := fmt.Sprintf(
+	//	"FROM %s %s %s",
+	//	enquote(joinNode.LeftTbl().TblName()),
+	//	renderedJoinType,
+	//	enquote(joinNode.RightTbl().TblName()),
+	//)
+	//sql = sqlAppend(sql, onClause)
+	//
+	//return sql, nil
 }

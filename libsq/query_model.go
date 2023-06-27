@@ -14,6 +14,7 @@ import (
 type queryModel struct {
 	AST      *ast.AST
 	Table    ast.Tabler
+	Joins    []*ast.JoinNode
 	Cols     []ast.ResultColumn
 	Range    *ast.RowRangeNode
 	Where    *ast.WhereNode
@@ -56,6 +57,10 @@ func buildQueryModel(log *slog.Logger, a *ast.AST) (*queryModel, error) {
 	}
 
 	qm := &queryModel{AST: a, Table: tabler}
+
+	if qm.Joins, err = insp.FindJoins(); err != nil {
+		return nil, err
+	}
 
 	if qm.Range, err = insp.FindRowRangeNode(); err != nil {
 		return nil, err

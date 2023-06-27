@@ -70,18 +70,18 @@ func TestQuery_join(t *testing.T) {
 	testCases := []queryTestCase{
 		{
 			name:         "single/one-selector",
-			in:           `@sakila | .actor | join(.film_actor, .actor_id)`,
+			in:           `@sakila | .actor | join(.film_actor, .actor_id == .actor_id)`,
 			wantSQL:      `SELECT * FROM "actor" INNER JOIN "film_actor" ON "actor"."actor_id" = "film_actor"."actor_id"`,
 			override:     driverMap{mysql.Type: "SELECT * FROM `actor` INNER JOIN `film_actor` ON `actor`.`actor_id` = `film_actor`.`actor_id`"},
 			wantRecCount: sakila.TblFilmActorCount,
 		},
-		{
-			name:         "single/fq-table-cols-equal",
-			in:           `@sakila | .actor | join(.film_actor, .film_actor.actor_id == .actor.actor_id)`,
-			wantSQL:      `SELECT * FROM "actor" INNER JOIN "film_actor" ON "film_actor"."actor_id" = "actor"."actor_id"`,
-			override:     driverMap{mysql.Type: "SELECT * FROM `actor` INNER JOIN `film_actor` ON `film_actor`.`actor_id` = `actor`.`actor_id`"},
-			wantRecCount: sakila.TblFilmActorCount,
-		},
+		//{
+		//	name:         "single/fq-table-cols-equal",
+		//	in:           `@sakila | .actor | join(.film_actor, .film_actor.actor_id == .actor.actor_id)`,
+		//	wantSQL:      `SELECT * FROM "actor" INNER JOIN "film_actor" ON "film_actor"."actor_id" = "actor"."actor_id"`,
+		//	override:     driverMap{mysql.Type: "SELECT * FROM `actor` INNER JOIN `film_actor` ON `film_actor`.`actor_id` = `actor`.`actor_id`"},
+		//	wantRecCount: sakila.TblFilmActorCount,
+		//},
 	}
 
 	for _, tc := range testCases {

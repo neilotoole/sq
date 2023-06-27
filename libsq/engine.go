@@ -218,22 +218,33 @@ func (ng *engine) prepareFromTable(ctx context.Context, tblSel *ast.TblSelectorN
 // prepareFromJoin builds the "JOIN" clause.
 //
 // When this function returns, ng.rc will be set.
-func (ng *engine) prepareFromJoin(ctx context.Context, fnJoin *ast.JoinNode) (fromClause string,
+func (ng *engine) prepareFromJoin(ctx context.Context, joinNode *ast.JoinNode) (fromClause string,
 	fromConn driver.Database, err error,
 ) {
-	if fnJoin.LeftTbl() == nil || fnJoin.LeftTbl().TblName() == "" {
+	if joinNode.LeftTbl() == nil || joinNode.LeftTbl().TblName() == "" {
 		return "", nil, errz.Errorf("JOIN is missing left table reference")
 	}
 
-	if fnJoin.RightTbl() == nil || fnJoin.RightTbl().TblName() == "" {
+	if joinNode.RightTbl() == nil || joinNode.RightTbl().TblName() == "" {
 		return "", nil, errz.Errorf("JOIN is missing right table reference")
 	}
 
-	if fnJoin.LeftTbl().Handle() != fnJoin.RightTbl().Handle() {
-		return ng.joinCrossSource(ctx, fnJoin)
+	leftHandle := joinNode.LeftTbl().Handle()
+	rightHandle := joinNode.RightTbl().Handle()
+
+	switch {
+	case leftHandle == rightHandle:
+		return ng.joinSingleSource(ctx, joinNode)
+	case leftHandle == "" || rightHandle == "":
+		return ng.joinSingleSource(ctx, joinNode)
+	case leftHandle != rightHandle:
+		return ng.joinCrossSource(ctx, joinNode)
+	default:
+		// Shouldn't be possible
+		return "", nil, errz.Errorf("join: invalid handles: left {%s} | right {%s}", leftHandle, rightHandle)
 	}
 
-	return ng.joinSingleSource(ctx, fnJoin)
+	return ng.joinSingleSource(ctx, joinNode)
 }
 
 // joinSingleSource sets up a join against a single source.

@@ -317,14 +317,14 @@ func (c *CmprNode) String() string {
 	return nodeString(c)
 }
 
-func newCmprNode(parent Node, ctx slq.ICmprContext) *CmprNode {
-	leaf, _ := ctx.GetChild(0).(*antlr.TerminalNodeImpl) // FIXME: return an error
-	cmpr := &CmprNode{}
-	cmpr.ctx = leaf
-	cmpr.text = leaf.GetText()
-	cmpr.parent = parent
-	return cmpr
-}
+//func newCmprNode(parent Node, ctx slq.ICmprContext) *CmprNode {
+//	leaf, _ := ctx.GetChild(0).(*antlr.TerminalNodeImpl) // FIXME: return an error
+//	cmpr := &CmprNode{}
+//	cmpr.ctx = leaf
+//	cmpr.text = leaf.GetText()
+//	cmpr.parent = parent
+//	return cmpr
+//}
 
 // extractSelVal extracts the value of the selector. The function takes
 // a selector node type as input, e.g. ast.SelectorNode.
