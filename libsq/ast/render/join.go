@@ -29,16 +29,21 @@ func renderJoinType(jt ast.JoinType) (string, error) {
 func doJoin(rc *Context, leftTbl *ast.TblSelectorNode, joins []*ast.JoinNode) (string, error) {
 	enquote := rc.Dialect.Enquote
 
+	allTbls := make([]*ast.TblSelectorNode, len(joins)+1)
+	allTbls[0] = leftTbl
+	for i := range joins {
+		allTbls[i+1] = joins[i].RightTbl()
+	}
+
 	sql := "FROM "
 	sql = sqlAppend(sql, enquote(leftTbl.TblName()))
 	if leftTbl.Alias() != "" {
 		sql = sqlAppend(sql, enquote(leftTbl.Alias()))
 	}
 
-	var err error
-	var s string
-
-	for _, join := range joins {
+	for i, join := range joins {
+		var s string
+		var err error
 		if s, err = renderJoinType(join.JoinType()); err != nil {
 			return "", err
 		}
@@ -51,6 +56,23 @@ func doJoin(rc *Context, leftTbl *ast.TblSelectorNode, joins []*ast.JoinNode) (s
 
 		if expr := join.Constraint(); expr != nil {
 			s = sqlAppend(s, "ON")
+
+			// Special handling for: .left_tbl | join(.right_tbl, .col)
+			// This is rendered as:
+			//  FROM left_tbl JOIN right_tbl ON left_tbl.col = right_tbl.col
+			children := expr.Children()
+			if len(children) == 1 {
+				if colSel, ok := children[0].(*ast.ColSelectorNode); ok {
+					// TODO: should be able to handle ast.TblColSelector also?
+					colName := colSel.ColName()
+					text := enquote(allTbls[i].TblAliasOrName()) + "." + enquote(colName)
+					text += " = "
+					text += enquote(allTbls[i+1].TblAliasOrName()) + "." + enquote(colName)
+					s = sqlAppend(s, text)
+					sql = sqlAppend(sql, s)
+					continue
+				}
+			}
 
 			var text string
 			if text, err = rc.Renderer.Expr(rc, expr); err != nil {

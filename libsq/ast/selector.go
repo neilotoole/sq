@@ -150,6 +150,16 @@ func (n *TblSelectorNode) TblName() string {
 	return n.tblName
 }
 
+// TblAliasOrName returns the table alias if set; if not, it
+// returns the table name.
+func (n *TblSelectorNode) TblAliasOrName() string {
+	if n.alias != "" {
+		return n.alias
+	}
+
+	return n.tblName
+}
+
 // Alias returns the node's alias, or empty string.
 func (n *TblSelectorNode) Alias() string {
 	return n.alias
@@ -158,6 +168,11 @@ func (n *TblSelectorNode) Alias() string {
 // Handle returns the handle, which may be empty.
 func (n *TblSelectorNode) Handle() string {
 	return n.handle
+}
+
+// SetHandle sets the handle.
+func (n *TblSelectorNode) SetHandle(h string) {
+	n.handle = h
 }
 
 // Tabler implements the Tabler marker interface.

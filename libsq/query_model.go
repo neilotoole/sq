@@ -28,7 +28,7 @@ func (qm *queryModel) String() string {
 }
 
 // buildQueryModel creates a queryModel instance from the AST.
-func buildQueryModel(log *slog.Logger, a *ast.AST) (*queryModel, error) {
+func buildQueryModel(log *slog.Logger, qc *QueryContext, a *ast.AST) (*queryModel, error) {
 	if len(a.Segments()) == 0 {
 		return nil, errz.Errorf("query model error: query does not have enough segments")
 	}
@@ -63,8 +63,17 @@ func buildQueryModel(log *slog.Logger, a *ast.AST) (*queryModel, error) {
 
 	qm.Table = insp.FindFirstTableSelector()
 
-	if qm.Joins, err = insp.FindJoins(); err != nil {
-		return nil, err
+	if qm.Table != nil {
+		if qm.Table.Handle() == "" {
+			// It's possible that there's no active source: this
+			// is effectively a no-op in that case.
+			qm.Table.SetHandle(qc.Collection.ActiveHandle())
+		}
+
+		// Can't have joins without a left table
+		if qm.Joins, err = insp.FindJoins(); err != nil {
+			return nil, err
+		}
 	}
 
 	if qm.Range, err = insp.FindRowRangeNode(); err != nil {

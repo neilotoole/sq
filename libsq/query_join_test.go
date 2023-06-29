@@ -105,20 +105,20 @@ func TestQuery_join(t *testing.T) {
 			override:     driverMap{mysql.Type: "SELECT `a`.`first_name`, `a`.`last_name`, `f`.`title` FROM `actor` `a` INNER JOIN `film_actor` `fa` ON `a`.`actor_id` = `fa`.`actor_id` INNER JOIN `film` `f` ON `fa`.`film_id` = `f`.`film_id`"},
 			wantRecCount: sakila.TblFilmActorCount,
 		},
-		//{
-		//	name:         "join/n1/single-selector-no-alias",
-		//	in:           `@sakila | .store | join(.address, .address_id)`,
-		//	wantSQL:      `SELECT * FROM "store" INNER JOIN "address" ON "store"."address_id" = "address"."address_id"`,
-		//	override:     driverMap{mysql.Type: "SELECT * FROM `store` INNER JOIN `address` ON `store`.`address_id` = `address`.`address_id`"},
-		//	wantRecCount: 2,
-		//},
-		//{
-		//	name:         "join/n1/single-selector-with-alias",
-		//	in:           `@sakila | .store:s | join(.address:a, .address_id)`,
-		//	wantSQL:      `SELECT * FROM "store" "s" INNER JOIN "address" "a" ON "s"."address_id" = "a"."address_id"`,
-		//	override:     driverMap{mysql.Type: "SELECT * FROM `store` `s` INNER JOIN `address` `a` ON `s`.`address_id` = `a`.`address_id`"},
-		//	wantRecCount: 2,
-		//},
+		{
+			name:         "join/n1/single-selector-no-alias",
+			in:           `@sakila | .store | join(.address, .address_id)`,
+			wantSQL:      `SELECT * FROM "store" INNER JOIN "address" ON "store"."address_id" = "address"."address_id"`,
+			override:     driverMap{mysql.Type: "SELECT * FROM `store` INNER JOIN `address` ON `store`.`address_id` = `address`.`address_id`"},
+			wantRecCount: 2,
+		},
+		{
+			name:         "join/n1/single-selector-with-alias",
+			in:           `@sakila | .store:s | join(.address:a, .address_id)`,
+			wantSQL:      `SELECT * FROM "store" "s" INNER JOIN "address" "a" ON "s"."address_id" = "a"."address_id"`,
+			override:     driverMap{mysql.Type: "SELECT * FROM `store` `s` INNER JOIN `address` `a` ON `s`.`address_id` = `a`.`address_id`"},
+			wantRecCount: 2,
+		},
 	}
 
 	for _, tc := range testCases {

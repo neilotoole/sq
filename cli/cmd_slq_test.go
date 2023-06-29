@@ -131,7 +131,7 @@ func TestCmdSLQ_OutputFlag(t *testing.T) {
 	require.Equal(t, sakila.TblActorCount, len(recs))
 }
 
-func TestCmdSLQ_Join(t *testing.T) {
+func TestCmdSLQ_Join_cross_source(t *testing.T) {
 	const queryTpl = `%s.customer | join(%s.address, .address_id) | where(.customer_id == %d) | .[0] | .customer_id, .email, .city_id` //nolint:lll
 	handles := sakila.SQLAll()
 
