@@ -155,6 +155,8 @@ func (n *ExprNode) String() string {
 // VisitExpr implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitExpr(ctx *slq.ExprContext) any {
 	// check if the expr is a selector, e.g. ".uid"
+
+	//  FIXME: Do we really want to skip out on the expression here?
 	if selCtx := ctx.Selector(); selCtx != nil {
 		selNode, err := newSelectorNode(v.cur, selCtx)
 		if err != nil {

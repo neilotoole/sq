@@ -69,12 +69,44 @@ func TestQuery_table_alias(t *testing.T) {
 func TestQuery_join(t *testing.T) {
 	testCases := []queryTestCase{
 		{
-			name:         "single/one-selector",
-			in:           `@sakila | .actor | join(.film_actor, .actor_id == .actor_id)`,
-			wantSQL:      `SELECT * FROM "actor" INNER JOIN "film_actor" ON "actor"."actor_id" = "film_actor"."actor_id"`,
-			override:     driverMap{mysql.Type: "SELECT * FROM `actor` INNER JOIN `film_actor` ON `actor`.`actor_id` = `film_actor`.`actor_id`"},
+			name: "join/n1/no-constraint",
+			// We use .store and .address here, because using .actor and any
+			// other table would result in a very large result.
+			in:           `@sakila | .store | join(.address)`,
+			wantSQL:      `SELECT * FROM "store" INNER JOIN "address"`,
+			override:     driverMap{mysql.Type: "SELECT * FROM `store` INNER JOIN `address`"},
+			wantRecCount: 1206,
+		},
+		{
+			name:         "join/n1/equals-no-alias",
+			in:           `@sakila | .store | join(.address, .store.address_id == .address.address_id)`,
+			wantSQL:      `SELECT * FROM "store" INNER JOIN "address" ON "store"."address_id" = "address"."address_id"`,
+			override:     driverMap{mysql.Type: "SELECT * FROM `store` INNER JOIN `address` ON `store`.`address_id` = `address`.`address_id`"},
+			wantRecCount: 2,
+		},
+		{
+			name:         "join/n1/equals-with-alias",
+			in:           `@sakila | .store:s | join(.address:a, .s.address_id == .a.address_id)`,
+			wantSQL:      `SELECT * FROM "store" "s" INNER JOIN "address" "a" ON "s"."address_id" = "a"."address_id"`,
+			override:     driverMap{mysql.Type: "SELECT * FROM `store` `s` INNER JOIN `address` `a` ON `s`.`address_id` = `a`.`address_id`"},
+			wantRecCount: 2,
+		},
+		{
+			name:         "join/n2/equals-with-alias/unqualified-cols",
+			in:           `@sakila | .actor:a | join(.film_actor:fa, .a.actor_id == .fa.actor_id) | join(.film:f, .fa.film_id == .f.film_id) | .first_name, .last_name, .title`,
+			wantSQL:      `SELECT "first_name", "last_name", "title" FROM "actor" "a" INNER JOIN "film_actor" "fa" ON "a"."actor_id" = "fa"."actor_id" INNER JOIN "film" "f" ON "fa"."film_id" = "f"."film_id"`,
+			override:     driverMap{mysql.Type: "SELECT `first_name`, `last_name`, `title` FROM `actor` `a` INNER JOIN `film_actor` `fa` ON `a`.`actor_id` = `fa`.`actor_id` INNER JOIN `film` `f` ON `fa`.`film_id` = `f`.`film_id`"},
 			wantRecCount: sakila.TblFilmActorCount,
 		},
+
+		// SELECT `first_name`, `last_name`, `title` FROM `actor` `a` INNER JOIN `film_actor` `fa` ON `a`.`actor_id` = `fa`.`actor_id` INNER JOIN `film` `f` ON `fa`.`film_id` = `f`.`film_id`
+		//{
+		//	name:         "single/one-selector",
+		//	in:           `@sakila | .actor | join(.film_actor, .actor_id)`,
+		//	wantSQL:      `SELECT * FROM "actor" INNER JOIN "film_actor" ON "actor"."actor_id" = "film_actor"."actor_id"`,
+		//	override:     driverMap{mysql.Type: "SELECT * FROM `actor` INNER JOIN `film_actor` ON `actor`.`actor_id` = `film_actor`.`actor_id`"},
+		//	wantRecCount: sakila.TblFilmActorCount,
+		//},
 		//{
 		//	name:         "single/fq-table-cols-equal",
 		//	in:           `@sakila | .actor | join(.film_actor, .film_actor.actor_id == .actor.actor_id)`,

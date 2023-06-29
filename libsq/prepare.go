@@ -4,9 +4,6 @@ import (
 	"context"
 
 	"github.com/neilotoole/sq/libsq/ast/render"
-
-	"github.com/neilotoole/sq/libsq/ast"
-	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
 // prepare prepares the engine to execute queryModel.
@@ -21,23 +18,34 @@ func (ng *engine) prepare(ctx context.Context, qm *queryModel) error {
 	)
 
 	// After this switch, ng.rc will be set.
-	switch node := qm.Table.(type) {
-	case nil:
+	switch {
+	case qm.Table == nil:
 		if err = ng.prepareNoTabler(ctx, qm); err != nil {
 			return err
 		}
-	case *ast.TblSelectorNode:
-		if frags.From, ng.targetDB, err = ng.prepareFromTable(ctx, node); err != nil {
-			return err
-		}
-	case *ast.JoinNode:
-		if frags.From, ng.targetDB, err = ng.prepareFromJoin(ctx, node); err != nil {
+	case len(qm.Joins) > 0:
+		jc := &joinClause{leftTbl: qm.Table, joins: qm.Joins}
+		if frags.From, ng.targetDB, err = ng.prepareFromJoin(ctx, jc); err != nil {
 			return err
 		}
 	default:
-		// Should never happen
-		return errz.Errorf("unknown ast.Tabler %T: %s", node, node)
+		if frags.From, ng.targetDB, err = ng.prepareFromTable(ctx, qm.Table); err != nil {
+			return err
+		}
 	}
+
+	//
+	//switch node := qm.Table.(type) {
+	//case nil:
+	//
+	//case *ast.TblSelectorNode:
+	//
+	//case *ast.JoinNode:
+	//
+	//default:
+	//	// Should never happen
+	//	return errz.Errorf("unknown ast.Tabler %T: %s", node, node)
+	//}
 
 	rndr := ng.rc.Renderer
 

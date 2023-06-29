@@ -205,6 +205,41 @@ func (in *Inspector) FindFirstHandle() (handle string) {
 	return ""
 }
 
+// FindFirstTableSelector returns the first top-level (child of a segment)
+// table selector node.
+func (in *Inspector) FindFirstTableSelector() *TblSelectorNode {
+	segs := in.ast.Segments()
+	if len(segs) == 0 {
+		return nil
+	}
+
+	var tblSelNode *TblSelectorNode
+	var ok bool
+
+	for _, seg := range segs {
+		for _, child := range seg.Children() {
+			if tblSelNode, ok = child.(*TblSelectorNode); ok {
+				return tblSelNode
+			}
+			//if !ok {
+			//	continue
+			//}
+			//
+			//if len(children) > 0 {
+			//	return nil, errorf("table selector {%s} must be in a segment by itself: %s",
+			//		tblSelNode.Text(), seg.Text())
+			//}
+			//
+			//if i > 1 {
+			//	return nil, errorf("table selector {%s} must be at the start of the query",
+			//		tblSelNode.Text())
+			//}
+		}
+	}
+
+	return nil
+}
+
 // FindFinalTablerSegment returns the final segment that
 // has at least one child that implements Tabler.
 func (in *Inspector) FindFinalTablerSegment() (*SegmentNode, error) {

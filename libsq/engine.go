@@ -215,45 +215,89 @@ func (ng *engine) prepareFromTable(ctx context.Context, tblSel *ast.TblSelectorN
 	return fromClause, fromConn, nil
 }
 
+type joinClause struct {
+	leftTbl *ast.TblSelectorNode
+	joins   []*ast.JoinNode
+}
+
+// tables returns a new slice containing all referenced tables.
+func (jc *joinClause) tables() []*ast.TblSelectorNode {
+	tbls := make([]*ast.TblSelectorNode, len(jc.joins)+1)
+	tbls[0] = jc.leftTbl
+	for i := range jc.joins {
+		tbls[i+1] = jc.joins[i].RightTbl()
+	}
+
+	return tbls
+}
+
+func (jc *joinClause) handles() []string {
+	handles := make([]string, len(jc.joins)+1)
+	handles[0] = jc.leftTbl.Handle()
+	for i := 0; i < len(jc.joins); i++ {
+		handles[i+1] = jc.joins[i].RightTbl().Handle()
+	}
+	return handles
+}
+
+//func (jc *joinClause) sources(coll *source.Collection) ([]*source.Source, error) {
+//	activeHandle := coll.Active()
+//	handles := jc.handles()
+//	handles = lo.Uniq(handles)
+//}
+
+// isSingleSource returns true if the joins refer to the same handle.
+func (jc *joinClause) isSingleSource() bool {
+	leftHandle := jc.leftTbl.Handle()
+
+	for _, join := range jc.joins {
+		joinHandle := join.RightTbl().Handle()
+		if joinHandle == "" {
+			continue
+		}
+
+		if joinHandle != leftHandle {
+			return false
+		}
+	}
+
+	return true
+	//
+	//
+	//tbls := jc.tables()
+	//handles := map[string]struct{}{}
+	//for _, tbl := range tbls {
+	//	if tbl.Handle() == "" {
+	//		handles[activeHandle] = struct{}{}
+	//		continue
+	//	}
+	//
+	//	handles[tbl.Handle()] = struct{}{}
+	//}
+	//
+	//return len(handles) <= 1
+}
+
 // prepareFromJoin builds the "JOIN" clause.
 //
 // When this function returns, ng.rc will be set.
-func (ng *engine) prepareFromJoin(ctx context.Context, joinNode *ast.JoinNode) (fromClause string,
+func (ng *engine) prepareFromJoin(ctx context.Context, jc *joinClause) (fromClause string,
 	fromConn driver.Database, err error,
 ) {
-	if joinNode.LeftTbl() == nil || joinNode.LeftTbl().TblName() == "" {
-		return "", nil, errz.Errorf("JOIN is missing left table reference")
+	if jc.isSingleSource() {
+		return ng.joinSingleSource(ctx, jc)
 	}
 
-	if joinNode.RightTbl() == nil || joinNode.RightTbl().TblName() == "" {
-		return "", nil, errz.Errorf("JOIN is missing right table reference")
-	}
-
-	leftHandle := joinNode.LeftTbl().Handle()
-	rightHandle := joinNode.RightTbl().Handle()
-
-	switch {
-	case leftHandle == rightHandle:
-		return ng.joinSingleSource(ctx, joinNode)
-	case leftHandle == "" || rightHandle == "":
-		return ng.joinSingleSource(ctx, joinNode)
-	case leftHandle != rightHandle:
-		return ng.joinCrossSource(ctx, joinNode)
-	default:
-		// Shouldn't be possible
-		return "", nil, errz.Errorf("join: invalid handles: left {%s} | right {%s}", leftHandle, rightHandle)
-	}
-
-	return ng.joinSingleSource(ctx, joinNode)
+	return ng.joinCrossSource(ctx, jc)
 }
 
 // joinSingleSource sets up a join against a single source.
 //
 // On return, ng.rc will be set.
-func (ng *engine) joinSingleSource(ctx context.Context, fnJoin *ast.JoinNode) (fromClause string,
+func (ng *engine) joinSingleSource(ctx context.Context, jc *joinClause) (fromClause string,
 	fromDB driver.Database, err error,
 ) {
-	src, err := ng.qc.Collection.Get(fnJoin.LeftTbl().Handle())
+	src, err := ng.qc.Collection.Get(jc.leftTbl.Handle())
 	if err != nil {
 		return "", nil, err
 	}
@@ -270,7 +314,7 @@ func (ng *engine) joinSingleSource(ctx context.Context, fnJoin *ast.JoinNode) (f
 		Dialect:  fromDB.SQLDriver().Dialect(),
 	}
 
-	fromClause, err = rndr.Join(ng.rc, fnJoin)
+	fromClause, err = rndr.Join(ng.rc, jc.leftTbl, jc.joins)
 	if err != nil {
 		return "", nil, err
 	}
@@ -282,69 +326,71 @@ func (ng *engine) joinSingleSource(ctx context.Context, fnJoin *ast.JoinNode) (f
 // the SQL SELECT statement against fromDB.
 //
 // On return, ng.rc will be set.
-func (ng *engine) joinCrossSource(ctx context.Context, fnJoin *ast.JoinNode) (fromClause string, fromDB driver.Database,
+func (ng *engine) joinCrossSource(ctx context.Context, jc *joinClause) (fromClause string, fromDB driver.Database,
 	err error,
 ) {
-	leftTblName, rightTblName := fnJoin.LeftTbl().TblName(), fnJoin.RightTbl().TblName()
-	if leftTblName == rightTblName {
-		return "", nil, errz.Errorf("JOIN tables must have distinct names (or use aliases): duplicate tbl name {%s}",
-			fnJoin.LeftTbl().TblName())
-	}
-
-	leftSrc, err := ng.qc.Collection.Get(fnJoin.LeftTbl().Handle())
-	if err != nil {
-		return "", nil, err
-	}
-
-	rightSrc, err := ng.qc.Collection.Get(fnJoin.RightTbl().Handle())
-	if err != nil {
-		return "", nil, err
-	}
-
-	// Open the join db
-	joinDB, err := ng.qc.JoinDBOpener.OpenJoin(ctx, leftSrc, rightSrc)
-	if err != nil {
-		return "", nil, err
-	}
-
-	rndr := joinDB.SQLDriver().Renderer()
-	ng.rc = &render.Context{
-		Renderer: rndr,
-		Args:     ng.qc.Args,
-		Dialect:  joinDB.SQLDriver().Dialect(),
-	}
-
-	leftDB, err := ng.qc.DBOpener.Open(ctx, leftSrc)
-	if err != nil {
-		return "", nil, err
-	}
-	leftCopyTask := &joinCopyTask{
-		fromDB:      leftDB,
-		fromTblName: leftTblName,
-		toDB:        joinDB,
-		toTblName:   leftTblName,
-	}
-
-	rightDB, err := ng.qc.DBOpener.Open(ctx, rightSrc)
-	if err != nil {
-		return "", nil, err
-	}
-	rightCopyTask := &joinCopyTask{
-		fromDB:      rightDB,
-		fromTblName: rightTblName,
-		toDB:        joinDB,
-		toTblName:   rightTblName,
-	}
-
-	ng.tasks = append(ng.tasks, leftCopyTask)
-	ng.tasks = append(ng.tasks, rightCopyTask)
-
-	fromClause, err = rndr.Join(ng.rc, fnJoin)
-	if err != nil {
-		return "", nil, err
-	}
-
-	return fromClause, joinDB, nil
+	return "", nil, errz.New("not implemented")
+	//
+	//leftTblName, rightTblName := fnJoin.LeftTbl().TblName(), fnJoin.RightTbl().TblName()
+	//if leftTblName == rightTblName {
+	//	return "", nil, errz.Errorf("JOIN tables must have distinct names (or use aliases): duplicate tbl name {%s}",
+	//		fnJoin.LeftTbl().TblName())
+	//}
+	//
+	//leftSrc, err := ng.qc.Collection.Get(fnJoin.LeftTbl().Handle())
+	//if err != nil {
+	//	return "", nil, err
+	//}
+	//
+	//rightSrc, err := ng.qc.Collection.Get(fnJoin.RightTbl().Handle())
+	//if err != nil {
+	//	return "", nil, err
+	//}
+	//
+	//// Open the join db
+	//joinDB, err := ng.qc.JoinDBOpener.OpenJoin(ctx, leftSrc, rightSrc)
+	//if err != nil {
+	//	return "", nil, err
+	//}
+	//
+	//rndr := joinDB.SQLDriver().Renderer()
+	//ng.rc = &render.Context{
+	//	Renderer: rndr,
+	//	Args:     ng.qc.Args,
+	//	Dialect:  joinDB.SQLDriver().Dialect(),
+	//}
+	//
+	//leftDB, err := ng.qc.DBOpener.Open(ctx, leftSrc)
+	//if err != nil {
+	//	return "", nil, err
+	//}
+	//leftCopyTask := &joinCopyTask{
+	//	fromDB:      leftDB,
+	//	fromTblName: leftTblName,
+	//	toDB:        joinDB,
+	//	toTblName:   leftTblName,
+	//}
+	//
+	//rightDB, err := ng.qc.DBOpener.Open(ctx, rightSrc)
+	//if err != nil {
+	//	return "", nil, err
+	//}
+	//rightCopyTask := &joinCopyTask{
+	//	fromDB:      rightDB,
+	//	fromTblName: rightTblName,
+	//	toDB:        joinDB,
+	//	toTblName:   rightTblName,
+	//}
+	//
+	//ng.tasks = append(ng.tasks, leftCopyTask)
+	//ng.tasks = append(ng.tasks, rightCopyTask)
+	//
+	//fromClause, err = rndr.Join(ng.rc, jc.leftTbl, jc.joins)
+	//if err != nil {
+	//	return "", nil, err
+	//}
+	//
+	//return fromClause, joinDB, nil
 }
 
 // tasker is the interface for executing a DB task.

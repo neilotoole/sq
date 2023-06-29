@@ -26,34 +26,71 @@ func renderJoinType(jt ast.JoinType) (string, error) {
 	}
 }
 
-func doJoin(rc *Context, joinNode *ast.JoinNode) (string, error) {
-	// enquote := rc.Dialect.Enquote
+func doJoin(rc *Context, leftTbl *ast.TblSelectorNode, joins []*ast.JoinNode) (string, error) {
+	enquote := rc.Dialect.Enquote
 
-	sql, err := renderJoinType(joinNode.JoinType())
-	if err != nil {
-		return "", err
+	sql := "FROM "
+	sql = sqlAppend(sql, enquote(leftTbl.TblName()))
+	if leftTbl.Alias() != "" {
+		sql = sqlAppend(sql, enquote(leftTbl.Alias()))
 	}
 
-	rightTbl, err := renderSelectorNode(rc.Dialect, joinNode.RightTbl())
-	if err != nil {
-		return "", err
+	var err error
+	var s string
+
+	for _, join := range joins {
+		if s, err = renderJoinType(join.JoinType()); err != nil {
+			return "", err
+		}
+
+		tbl := join.RightTbl()
+		// TODO: switch to renderSelectorNode
+		s = sqlAppend(s, enquote(tbl.TblName()))
+		if tbl.Alias() != "" {
+			s = sqlAppend(s, enquote(tbl.Alias()))
+		}
+
+		if expr := join.Constraint(); expr != nil {
+			s = sqlAppend(s, "ON")
+
+			var text string
+			if text, err = rc.Renderer.Expr(rc, expr); err != nil {
+				return "", err
+			}
+
+			s = sqlAppend(s, text)
+		}
+
+		sql = sqlAppend(sql, s)
 	}
 
-	sql = sqlAppend(sql, rightTbl)
-
-	constraintExpr := joinNode.Constraint()
-
-	if constraintExpr == nil {
-		return sql, nil
-	}
-
-	constraint, err := rc.Renderer.Expr(rc, constraintExpr)
-	if err != nil {
-		return "", err
-	}
-
-	sql = sqlAppend(sql, "ON "+constraint)
 	return sql, nil
+	//
+	//sql, err := renderJoinType(joinNode.JoinType())
+	//if err != nil {
+	//	return "", err
+	//}
+	//
+	//rightTbl, err := renderSelectorNode(rc.Dialect, joinNode.RightTbl())
+	//if err != nil {
+	//	return "", err
+	//}
+	//
+	//sql = sqlAppend(sql, rightTbl)
+	//
+	//constraintExpr := joinNode.Constraint()
+	//
+	//if constraintExpr == nil {
+	//	return sql, nil
+	//}
+	//
+	//constraint, err := rc.Renderer.Expr(rc, constraintExpr)
+	//if err != nil {
+	//	return "", err
+	//}
+	//
+	//sql = sqlAppend(sql, "ON "+constraint)
+	//return sql, nil
 	//
 	//
 	//

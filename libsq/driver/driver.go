@@ -173,7 +173,7 @@ type DatabaseOpener interface {
 type JoinDatabaseOpener interface {
 	// OpenJoin opens an appropriate Database for use as
 	// a work DB for joining across sources.
-	OpenJoin(ctx context.Context, src1, src2 *source.Source, srcN ...*source.Source) (Database, error)
+	OpenJoin(ctx context.Context, srcs ...*source.Source) (Database, error)
 }
 
 // ScratchDatabaseOpener opens a scratch database. A scratch database is
@@ -376,7 +376,10 @@ type Metadata struct {
 	DefaultPort int `json:"default_port" yaml:"default_port"`
 }
 
-var _ DatabaseOpener = (*Databases)(nil)
+var (
+	_ DatabaseOpener     = (*Databases)(nil)
+	_ JoinDatabaseOpener = (*Databases)(nil)
+)
 
 // Databases provides a mechanism for getting Database instances.
 // Note that at this time instances returned by Open are cached
@@ -487,14 +490,10 @@ func (d *Databases) OpenScratch(ctx context.Context, name string) (Database, err
 // to OpenScratch.
 //
 // OpenJoin implements JoinDatabaseOpener.
-func (d *Databases) OpenJoin(ctx context.Context, src1, src2 *source.Source, srcN ...*source.Source) (Database, error) {
-	if len(srcN) > 0 {
-		return nil, errz.Errorf("Currently only two-source join is supported")
-	}
-
-	names := []string{src1.Handle, src2.Handle}
-	for _, src := range srcN {
-		names = append(names, src.Handle)
+func (d *Databases) OpenJoin(ctx context.Context, srcs ...*source.Source) (Database, error) {
+	var names []string
+	for _, src := range srcs {
+		names = append(names, src.Handle[1:])
 	}
 
 	d.log.Debug("OpenJoin: [%s]", strings.Join(names, ","))

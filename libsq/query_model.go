@@ -13,7 +13,7 @@ import (
 // queryModel is a model of an SLQ query built from the AST.
 type queryModel struct {
 	AST      *ast.AST
-	Table    ast.Tabler
+	Table    *ast.TblSelectorNode
 	Joins    []*ast.JoinNode
 	Cols     []ast.ResultColumn
 	Range    *ast.RowRangeNode
@@ -35,28 +35,33 @@ func buildQueryModel(log *slog.Logger, a *ast.AST) (*queryModel, error) {
 
 	insp := ast.NewInspector(a)
 
-	var tabler ast.Tabler
+	//var tabler ast.Tabler
+	//var ok bool
+	//tablerSeg, err := insp.FindFinalTablerSegment()
+	//if err != nil {
+	//	log.Debug("No Tabler segment.")
+	//}
+	//
+	//if tablerSeg != nil {
+	//	if len(tablerSeg.Children()) != 1 {
+	//		return nil, errz.Errorf(
+	//			"the final selectable segment must have exactly one selectable element, but found %d elements",
+	//			len(tablerSeg.Children()))
+	//	}
+	//
+	//	if tabler, ok = tablerSeg.Children()[0].(ast.Tabler); !ok {
+	//		return nil, errz.Errorf(
+	//			"the final selectable segment must have exactly one selectable element, but found element %T(%s)",
+	//			tablerSeg.Children()[0], tablerSeg.Children()[0].Text())
+	//	}
+	//}
+
+	var err error
 	var ok bool
-	tablerSeg, err := insp.FindFinalTablerSegment()
-	if err != nil {
-		log.Debug("No Tabler segment.")
-	}
 
-	if tablerSeg != nil {
-		if len(tablerSeg.Children()) != 1 {
-			return nil, errz.Errorf(
-				"the final selectable segment must have exactly one selectable element, but found %d elements",
-				len(tablerSeg.Children()))
-		}
+	qm := &queryModel{AST: a}
 
-		if tabler, ok = tablerSeg.Children()[0].(ast.Tabler); !ok {
-			return nil, errz.Errorf(
-				"the final selectable segment must have exactly one selectable element, but found element %T(%s)",
-				tablerSeg.Children()[0], tablerSeg.Children()[0].Text())
-		}
-	}
-
-	qm := &queryModel{AST: a, Table: tabler}
+	qm.Table = insp.FindFirstTableSelector()
 
 	if qm.Joins, err = insp.FindJoins(); err != nil {
 		return nil, err

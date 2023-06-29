@@ -43,99 +43,22 @@ func (v *parseTreeVisitor) VisitJoin(ctx *slq.JoinContext) any {
 		return e
 	}
 
-	if ctx.Expr() == nil {
+	if ctx.Expr() != nil {
 		// Expression can be nil for cross join, etc.
-		return nil
-	}
+		var exprCtx *slq.ExprContext
+		if exprCtx, ok = ctx.Expr().(*slq.ExprContext); !ok {
+			return errz.Errorf("invalid join: expression: expected %T but got %T", exprCtx, ctx.Expr())
+		}
 
-	var exprCtx *slq.ExprContext
-	if exprCtx, ok = ctx.Expr().(*slq.ExprContext); !ok {
-		return errz.Errorf("invalid join: expression: expected %T but got %T", exprCtx, ctx.Expr())
-	}
-
-	if e := v.using(node, func() any {
-		return v.VisitExpr(exprCtx)
-	}); e != nil {
-		return e
+		if e := v.using(node, func() any {
+			return v.VisitExpr(exprCtx)
+		}); e != nil {
+			return e
+		}
 	}
 
 	return seg.AddChild(node)
 }
-
-//
-//// VisitJoinConstraint implements slq.SLQVisitor.
-//func (v *parseTreeVisitor) VisitJoinConstraint(ctx *slq.JoinConstraintContext) any {
-//	joinNode, ok := v.cur.(*JoinNode)
-//	if !ok {
-//		return errorf("JOIN constraint must have JOIN parent, but got %T", v.cur)
-//	}
-//
-//	// the constraint could be empty
-//	children := ctx.GetChildren()
-//	if len(children) == 0 {
-//		return nil
-//	}
-//
-//	// the constraint could be a single SEL (in which case, there's no comparison operator)
-//	if ctx.Cmpr() == nil {
-//		// there should be exactly one SEL
-//		sels := ctx.AllSelector()
-//		if len(sels) != 1 {
-//			return errorf("JOIN constraint without a comparison operator must have exactly one selector")
-//		}
-//
-//		joinExprNode := &JoinConstraint{join: joinNode, ctx: ctx}
-//
-//		colSelNode, err := newSelectorNode(joinExprNode, sels[0])
-//		if err != nil {
-//			return err
-//		}
-//
-//		if err := joinExprNode.AddChild(colSelNode); err != nil {
-//			return err
-//		}
-//
-//		return joinNode.AddChild(joinExprNode)
-//	}
-//
-//	// We've got a comparison operator
-//	sels := ctx.AllSelector()
-//	if len(sels) != 2 {
-//		// REVISIT: probably unnecessary, should be caught by the parser
-//		return errorf("JOIN constraint must have 2 operands (left & right), but got %d", len(sels))
-//	}
-//
-//	join, ok := v.cur.(*JoinNode)
-//	if !ok {
-//		return errorf("JoinConstraint must have JoinNode parent, but got %T", v.cur)
-//	}
-//	joinCondition := &JoinConstraint{join: join, ctx: ctx}
-//
-//	leftSel, err := newSelectorNode(joinCondition, sels[0])
-//	if err != nil {
-//		return err
-//	}
-//
-//	if err = joinCondition.AddChild(leftSel); err != nil {
-//		return err
-//	}
-//
-//	cmpr := newCmprNode(joinCondition, ctx.Cmpr())
-//	if err = joinCondition.AddChild(cmpr); err != nil {
-//		return err
-//	}
-//
-//	rightSel, err := newSelectorNode(joinCondition, sels[1])
-//	if err != nil {
-//		return err
-//	}
-//
-//	if err = joinCondition.AddChild(rightSel); err != nil {
-//		return err
-//	}
-//
-//	return join.AddChild(joinCondition)
-//}
 
 // VisitJoinTable implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitJoinTable(ctx *slq.JoinTableContext) any {
@@ -168,9 +91,7 @@ func (v *parseTreeVisitor) VisitJoinTable(ctx *slq.JoinTableContext) any {
 				ctx:    ctx.NAME(),
 				text:   ctx.NAME().GetText(),
 			},
-			alias: "",
 			name0: tblName,
-			// name1: tblName,
 		},
 		handle:  handle,
 		tblName: tblName,
@@ -265,15 +186,16 @@ func (v *parseTreeVisitor) VisitJoinTable(ctx *slq.JoinTableContext) any {
 
 var _ Node = (*JoinNode)(nil)
 
-// JoinNode models a SQL JOIN node. It has a child of type JoinConstraint.
+// JoinNode models a SQL JOIN node.
 type JoinNode struct {
 	seg            *SegmentNode
 	ctx            antlr.ParseTree
 	text           string
 	typ            JoinType
 	constraintExpr *ExprNode
-	leftTbl        *TblSelectorNode
-	rightTbl       *TblSelectorNode
+
+	// FIXME: rename rightTbl to targetTbl
+	rightTbl *TblSelectorNode
 }
 
 // Constraint returns the join constraint, which
@@ -287,20 +209,15 @@ func (n *JoinNode) JoinType() JoinType {
 	return n.typ
 }
 
-// LeftTbl is the selector for the left table of the join.
-func (n *JoinNode) LeftTbl() *TblSelectorNode {
-	return n.leftTbl
-}
-
 // RightTbl is the selector for the right table of the join.
 func (n *JoinNode) RightTbl() *TblSelectorNode {
 	return n.rightTbl
 }
 
-// Tabler implements the ast.Tabler marker interface.
-func (n *JoinNode) tabler() {
-	// no-op
-}
+//// Tabler implements the ast.Tabler marker interface.
+//func (n *JoinNode) tabler() {
+//	// no-op
+//}
 
 // Parent implements ast.Node.
 func (n *JoinNode) Parent() Node {
@@ -379,17 +296,12 @@ func (n *JoinNode) Segment() *SegmentNode {
 func (n *JoinNode) String() string {
 	text := nodeString(n)
 
-	leftTblName := ""
 	rightTblName := ""
-
-	if n.leftTbl != nil {
-		leftTblName, _ = n.leftTbl.SelValue()
-	}
 	if n.rightTbl != nil {
 		rightTblName, _ = n.rightTbl.SelValue()
 	}
 
-	text += fmt.Sprintf(" |  left_table: {%s}  |  right_table: {%s}", leftTblName, rightTblName)
+	text += fmt.Sprintf("|target:%s", rightTblName)
 	return text
 }
 
