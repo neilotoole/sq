@@ -1,7 +1,10 @@
 // Package ast holds types and functionality for the SLQ AST.
 //
-// Note: the SLQ language implementation is fairly rudimentary
-// and has some incomplete functionality.
+// The entrypoint is ast.Parse, which accepts a SLQ query, and
+// returns an *ast.AST. The ast is a tree of ast.Node instances.
+//
+// Note that much of the testing of package ast is performed in
+// package libsq.
 package ast
 
 import (
@@ -152,13 +155,13 @@ func (a *AST) SetChildren(children []Node) error {
 	return nil
 }
 
-// Context implements ast.Node.
-func (a *AST) Context() antlr.ParseTree {
+// context implements ast.Node.
+func (a *AST) context() antlr.ParseTree {
 	return a.ctx
 }
 
-// SetContext implements ast.Node.
-func (a *AST) SetContext(ctx antlr.ParseTree) error {
+// setContext implements ast.Node.
+func (a *AST) setContext(ctx antlr.ParseTree) error {
 	qCtx, ok := ctx.(*slq.QueryContext)
 	if !ok {
 		return errorf("expected *parser.QueryContext, but got %T", ctx)

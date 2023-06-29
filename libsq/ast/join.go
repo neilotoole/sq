@@ -272,13 +272,13 @@ func (n *JoinNode) SetChildren(children []Node) error {
 	}
 }
 
-// Context implements ast.Node.
-func (n *JoinNode) Context() antlr.ParseTree {
+// context implements ast.Node.
+func (n *JoinNode) context() antlr.ParseTree {
 	return n.ctx
 }
 
-// SetContext implements ast.Node.
-func (n *JoinNode) SetContext(ctx antlr.ParseTree) error {
+// setContext implements ast.Node.
+func (n *JoinNode) setContext(ctx antlr.ParseTree) error {
 	n.ctx = ctx
 	return nil
 }
@@ -374,7 +374,7 @@ func (n *JoinNode) String() string {
 //	return n.ctx
 //}
 //
-//func (n *JoinConstraint) SetContext(ctx antlr.ParseTree) error {
+//func (n *JoinConstraint) setContext(ctx antlr.ParseTree) error {
 //	n.ctx = ctx // TODO: check for correct type
 //	return nil
 //}

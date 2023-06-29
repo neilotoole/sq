@@ -44,7 +44,6 @@ func doJoin(rc *Context, leftTbl *ast.TblSelectorNode, joins []*ast.JoinNode) (s
 		}
 
 		tbl := join.RightTbl()
-		// TODO: switch to renderSelectorNode
 		s = sqlAppend(s, enquote(tbl.TblName()))
 		if tbl.Alias() != "" {
 			s = sqlAppend(s, enquote(tbl.Alias()))

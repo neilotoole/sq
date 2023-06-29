@@ -57,7 +57,7 @@ func (ex *ExprElementNode) ExprNode() *ExprNode {
 
 // SetChildren implements Node.
 func (ex *ExprElementNode) SetChildren(children []Node) error {
-	ex.setChildren(children)
+	ex.doSetChildren(children)
 	return nil
 }
 
@@ -142,7 +142,7 @@ func (n *ExprNode) AddChild(child Node) error {
 
 // SetChildren implements Node.
 func (n *ExprNode) SetChildren(children []Node) error {
-	n.setChildren(children)
+	n.doSetChildren(children)
 	return nil
 }
 
@@ -154,15 +154,19 @@ func (n *ExprNode) String() string {
 
 // VisitExpr implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitExpr(ctx *slq.ExprContext) any {
-	// check if the expr is a selector, e.g. ".uid"
-
-	//  FIXME: Do we really want to skip out on the expression here?
-	if selCtx := ctx.Selector(); selCtx != nil {
-		selNode, err := newSelectorNode(v.cur, selCtx)
-		if err != nil {
-			return err
+	// Historically, if an expression only contains a selector, then
+	// we want to elide the expression and directly add the selector.
+	// However, this may have been a bad choice? For ast.JoinNode, we
+	// want to always have its child be an ast.ExprNode.
+	// This mechanism should be revisited.
+	if _, ok := v.cur.(*JoinNode); !ok {
+		if selCtx := ctx.Selector(); selCtx != nil {
+			selNode, err := newSelectorNode(v.cur, selCtx)
+			if err != nil {
+				return err
+			}
+			return v.cur.AddChild(selNode)
 		}
-		return v.cur.AddChild(selNode)
 	}
 
 	node := &ExprNode{}

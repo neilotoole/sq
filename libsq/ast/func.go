@@ -60,7 +60,7 @@ func (fn *FuncNode) Alias() string {
 
 // SetChildren implements Node.
 func (fn *FuncNode) SetChildren(children []Node) error {
-	fn.setChildren(children)
+	fn.doSetChildren(children)
 	return nil
 }
 

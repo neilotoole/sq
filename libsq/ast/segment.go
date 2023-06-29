@@ -62,22 +62,22 @@ func (s *SegmentNode) AddChild(child Node) error {
 
 // SetChildren implements ast.Node.
 func (s *SegmentNode) SetChildren(children []Node) error {
-	s.bn.setChildren(children)
+	s.bn.doSetChildren(children)
 	return nil
 }
 
-// Context implements ast.Node.
-func (s *SegmentNode) Context() antlr.ParseTree {
-	return s.bn.Context()
+// context implements ast.Node.
+func (s *SegmentNode) context() antlr.ParseTree {
+	return s.bn.context()
 }
 
-// SetContext implements ast.Node.
-func (s *SegmentNode) SetContext(ctx antlr.ParseTree) error {
+// setContext implements ast.Node.
+func (s *SegmentNode) setContext(ctx antlr.ParseTree) error {
 	segCtx, ok := ctx.(*slq.SegmentContext)
 	if !ok {
 		return errorf("expected *parser.SegmentContext, but got %T", ctx)
 	}
-	return s.bn.SetContext(segCtx)
+	return s.bn.setContext(segCtx)
 }
 
 // ChildType returns the expected Type of the segment's elements, based
@@ -142,7 +142,7 @@ func (s *SegmentNode) String() string {
 
 // Text implements ast.Node.
 func (s *SegmentNode) Text() string {
-	return s.bn.Context().GetText()
+	return s.bn.context().GetText()
 }
 
 // Prev returns the previous segment, or nil if this is
