@@ -98,21 +98,26 @@ func TestQuery_join(t *testing.T) {
 			override:     driverMap{mysql.Type: "SELECT `first_name`, `last_name`, `title` FROM `actor` `a` INNER JOIN `film_actor` `fa` ON `a`.`actor_id` = `fa`.`actor_id` INNER JOIN `film` `f` ON `fa`.`film_id` = `f`.`film_id`"},
 			wantRecCount: sakila.TblFilmActorCount,
 		},
-
-		// SELECT `first_name`, `last_name`, `title` FROM `actor` `a` INNER JOIN `film_actor` `fa` ON `a`.`actor_id` = `fa`.`actor_id` INNER JOIN `film` `f` ON `fa`.`film_id` = `f`.`film_id`
+		{
+			name:         "join/n2/equals-with-alias/qualified-cols",
+			in:           `@sakila | .actor:a | join(.film_actor:fa, .a.actor_id == .fa.actor_id) | join(.film:f, .fa.film_id == .f.film_id) | .a.first_name, .a.last_name, .f.title`,
+			wantSQL:      `SELECT "a"."first_name", "a"."last_name", "f"."title" FROM "actor" "a" INNER JOIN "film_actor" "fa" ON "a"."actor_id" = "fa"."actor_id" INNER JOIN "film" "f" ON "fa"."film_id" = "f"."film_id"`,
+			override:     driverMap{mysql.Type: "SELECT `a`.`first_name`, `a`.`last_name`, `f`.`title` FROM `actor` `a` INNER JOIN `film_actor` `fa` ON `a`.`actor_id` = `fa`.`actor_id` INNER JOIN `film` `f` ON `fa`.`film_id` = `f`.`film_id`"},
+			wantRecCount: sakila.TblFilmActorCount,
+		},
 		//{
-		//	name:         "single/one-selector",
-		//	in:           `@sakila | .actor | join(.film_actor, .actor_id)`,
-		//	wantSQL:      `SELECT * FROM "actor" INNER JOIN "film_actor" ON "actor"."actor_id" = "film_actor"."actor_id"`,
-		//	override:     driverMap{mysql.Type: "SELECT * FROM `actor` INNER JOIN `film_actor` ON `actor`.`actor_id` = `film_actor`.`actor_id`"},
-		//	wantRecCount: sakila.TblFilmActorCount,
+		//	name:         "join/n1/single-selector-no-alias",
+		//	in:           `@sakila | .store | join(.address, .address_id)`,
+		//	wantSQL:      `SELECT * FROM "store" INNER JOIN "address" ON "store"."address_id" = "address"."address_id"`,
+		//	override:     driverMap{mysql.Type: "SELECT * FROM `store` INNER JOIN `address` ON `store`.`address_id` = `address`.`address_id`"},
+		//	wantRecCount: 2,
 		//},
 		//{
-		//	name:         "single/fq-table-cols-equal",
-		//	in:           `@sakila | .actor | join(.film_actor, .film_actor.actor_id == .actor.actor_id)`,
-		//	wantSQL:      `SELECT * FROM "actor" INNER JOIN "film_actor" ON "film_actor"."actor_id" = "actor"."actor_id"`,
-		//	override:     driverMap{mysql.Type: "SELECT * FROM `actor` INNER JOIN `film_actor` ON `film_actor`.`actor_id` = `actor`.`actor_id`"},
-		//	wantRecCount: sakila.TblFilmActorCount,
+		//	name:         "join/n1/single-selector-with-alias",
+		//	in:           `@sakila | .store:s | join(.address:a, .address_id)`,
+		//	wantSQL:      `SELECT * FROM "store" "s" INNER JOIN "address" "a" ON "s"."address_id" = "a"."address_id"`,
+		//	override:     driverMap{mysql.Type: "SELECT * FROM `store` `s` INNER JOIN `address` `a` ON `s`.`address_id` = `a`.`address_id`"},
+		//	wantRecCount: 2,
 		//},
 	}
 

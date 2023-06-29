@@ -19,19 +19,20 @@ func doRange(_ *Context, rr *ast.RowRangeNode) (string, error) {
 	limit := ""
 	offset := ""
 	if rr.Limit > -1 {
-		limit = fmt.Sprintf(" LIMIT %d", rr.Limit)
+		limit = fmt.Sprintf("LIMIT %d", rr.Limit)
 	}
 	if rr.Offset > -1 {
-		offset = fmt.Sprintf(" OFFSET %d", rr.Offset)
+		offset = fmt.Sprintf("OFFSET %d", rr.Offset)
 
 		if rr.Limit == -1 {
 			// MySQL requires a LIMIT if OFFSET is used. Therefore
 			// we make the LIMIT a very large number
-			limit = fmt.Sprintf(" LIMIT %d", math.MaxInt64)
+			limit = fmt.Sprintf("LIMIT %d", math.MaxInt64)
 		}
 	}
 
-	sql := limit + offset
+	sql := limit
+	sql = sqlAppend(limit, offset)
 
 	return sql, nil
 }

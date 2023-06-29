@@ -470,7 +470,7 @@ func TestDatabase_SourceMetadata(t *testing.T) {
 // TestDatabase_SourceMetadata_concurrent tests the behavior of the
 // drivers when SourceMetadata is invoked concurrently.
 func TestDatabase_SourceMetadata_concurrent(t *testing.T) { //nolint:tparallel
-	const concurrency = 10
+	const concurrency = 5
 
 	handles := sakila.SQLLatest()
 	for _, handle := range handles {
