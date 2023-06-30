@@ -221,19 +221,6 @@ func (in *Inspector) FindFirstTableSelector() *TblSelectorNode {
 			if tblSelNode, ok = child.(*TblSelectorNode); ok {
 				return tblSelNode
 			}
-			//if !ok {
-			//	continue
-			//}
-			//
-			//if len(children) > 0 {
-			//	return nil, errorf("table selector {%s} must be in a segment by itself: %s",
-			//		tblSelNode.Text(), seg.Text())
-			//}
-			//
-			//if i > 1 {
-			//	return nil, errorf("table selector {%s} must be at the start of the query",
-			//		tblSelNode.Text())
-			//}
 		}
 	}
 

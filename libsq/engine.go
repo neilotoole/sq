@@ -62,7 +62,7 @@ func newEngine(ctx context.Context, qc *QueryContext, query string) (*engine, er
 		return nil, err
 	}
 
-	qModel, err := buildQueryModel(log, qc, a)
+	qModel, err := buildQueryModel(qc, a)
 	if err != nil {
 		return nil, err
 	}

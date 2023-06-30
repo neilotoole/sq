@@ -7,7 +7,6 @@ import (
 
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"golang.org/x/exp/slog"
 )
 
 // queryModel is a model of an SLQ query built from the AST.
@@ -28,52 +27,35 @@ func (qm *queryModel) String() string {
 }
 
 // buildQueryModel creates a queryModel instance from the AST.
-func buildQueryModel(log *slog.Logger, qc *QueryContext, a *ast.AST) (*queryModel, error) {
+func buildQueryModel(qc *QueryContext, a *ast.AST) (*queryModel, error) {
 	if len(a.Segments()) == 0 {
-		return nil, errz.Errorf("query model error: query does not have enough segments")
+		return nil, errz.Errorf("invalid query: no segments")
 	}
 
-	insp := ast.NewInspector(a)
-
-	//var tabler ast.Tabler
-	//var ok bool
-	//tablerSeg, err := insp.FindFinalTablerSegment()
-	//if err != nil {
-	//	log.Debug("No Tabler segment.")
-	//}
-	//
-	//if tablerSeg != nil {
-	//	if len(tablerSeg.Children()) != 1 {
-	//		return nil, errz.Errorf(
-	//			"the final selectable segment must have exactly one selectable element, but found %d elements",
-	//			len(tablerSeg.Children()))
-	//	}
-	//
-	//	if tabler, ok = tablerSeg.Children()[0].(ast.Tabler); !ok {
-	//		return nil, errz.Errorf(
-	//			"the final selectable segment must have exactly one selectable element, but found element %T(%s)",
-	//			tablerSeg.Children()[0], tablerSeg.Children()[0].Text())
-	//	}
-	//}
-
-	var err error
-	var ok bool
-
-	qm := &queryModel{AST: a}
+	var (
+		ok   bool
+		err  error
+		insp = ast.NewInspector(a)
+		qm   = &queryModel{AST: a}
+	)
 
 	qm.Table = insp.FindFirstTableSelector()
-
 	if qm.Table != nil {
+		// If the table selector doesn't specify a handle, set the
+		// table's handle to the active handle.
 		if qm.Table.Handle() == "" {
 			// It's possible that there's no active source: this
 			// is effectively a no-op in that case.
 			qm.Table.SetHandle(qc.Collection.ActiveHandle())
 		}
+	}
 
-		// Can't have joins without a left table
-		if qm.Joins, err = insp.FindJoins(); err != nil {
-			return nil, err
-		}
+	if qm.Joins, err = insp.FindJoins(); err != nil {
+		return nil, err
+	}
+
+	if len(qm.Joins) > 0 && qm.Table == nil {
+		return nil, errz.Errorf("invalid query: join doesn't have a preceding table selector")
 	}
 
 	if qm.Range, err = insp.FindRowRangeNode(); err != nil {

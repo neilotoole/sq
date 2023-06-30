@@ -65,7 +65,6 @@ func buildAST(log *slog.Logger, query slq.IQueryContext) (*AST, error) {
 		{typeSelectorNode, narrowTblSel},
 		{typeSelectorNode, narrowTblColSel},
 		{typeSelectorNode, narrowColSel},
-		//{typeJoinNode, determineJoinTables},
 		{typeRowRangeNode, verifyRowRange},
 	}
 

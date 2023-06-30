@@ -59,13 +59,13 @@ See:
 */
 join: JOIN_TYPE '(' joinTable (',' expr)? ')';
 joinTable: (HANDLE)? NAME (alias)?;
-// joinType is the set of join types and their aliases.
-// Note that we don't support NATURAL JOIN, because its use seems to
-// be discouraged. This may change in future based on user feedback.
+// JOIN_TYPE is the set of join types, and their aliases.
+// Note that not every database may support every join type, but
+// this is not the concern of the grammar.
 JOIN_TYPE
  : 'join'
  | 'inner_join'
- | 'ijoin'
+ | 'injoin'
  | 'left_join'
  | 'ljoin'
  | 'left_outer_join'
@@ -77,12 +77,11 @@ JOIN_TYPE
  | 'full_outer_join'
  | 'fojoin'
  | 'cross_join'
- | 'cjoin'
+ | 'xjoin'
+ | 'natural_join'
+ | 'natjoin'
  ;
 
-//joinConstraint
-//  : selector cmpr selector // .user.uid == .address.userid
-//	| selector ; // .uid
 
 /*
 uniqueFunc
