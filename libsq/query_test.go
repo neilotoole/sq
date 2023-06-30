@@ -46,7 +46,8 @@ type queryTestCase struct {
 	// wantErr indicates that an error is expected
 	wantErr bool
 
-	// wantSQL is the wanted SQL
+	// wantSQL is the desired SQL. If empty, the returned SQL is
+	// not tested (but is still executed).
 	wantSQL string
 
 	// override allows an alternative "wantSQL" for a specific driver type.
@@ -144,6 +145,7 @@ func doExecQueryTestCase(t *testing.T, tc queryTestCase) {
 	t.Helper()
 
 	coll := testh.New(t).NewCollection(sakila.SQLLatest()...)
+	// coll := testh.New(t).NewCollection(sakila.Pg)
 
 	for _, src := range coll.Sources() {
 		src := src
@@ -185,9 +187,12 @@ func doExecQueryTestCase(t *testing.T, tc queryTestCase) {
 				return
 			}
 
+			t.Logf("SQL:\n\n%s\n\n", gotSQL)
 			require.NoError(t, gotErr)
-			require.Equal(t, want, gotSQL)
-			t.Log(gotSQL)
+
+			if want != "" {
+				require.Equal(t, want, gotSQL)
+			}
 
 			if tc.skipExec {
 				return

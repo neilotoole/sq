@@ -150,6 +150,15 @@ func (n *TblSelectorNode) TblName() string {
 	return n.tblName
 }
 
+// SyncTblNameAlias sets the table name to the alias value,
+// if the alias is non-empty, and then sets the alias to empty.
+func (n *TblSelectorNode) SyncTblNameAlias() {
+	if n.alias != "" {
+		n.tblName = n.alias
+		n.alias = ""
+	}
+}
+
 // TblAliasOrName returns the table alias if set; if not, it
 // returns the table name.
 func (n *TblSelectorNode) TblAliasOrName() string {

@@ -2,6 +2,9 @@ package libsq
 
 import (
 	"context"
+	"fmt"
+
+	"github.com/samber/lo"
 
 	"github.com/neilotoole/sq/libsq/source"
 
@@ -231,12 +234,17 @@ func (jc *joinClause) tables() []*ast.TblSelectorNode {
 	return tbls
 }
 
+// handles returns the set of (non-empty) handles from the tables,
+// without any duplicates.
 func (jc *joinClause) handles() []string {
 	handles := make([]string, len(jc.joins)+1)
 	handles[0] = jc.leftTbl.Handle()
 	for i := 0; i < len(jc.joins); i++ {
 		handles[i+1] = jc.joins[i].RightTbl().Handle()
 	}
+
+	handles = lo.Uniq(handles)
+	handles = lo.Without(handles, "")
 	return handles
 }
 
@@ -326,10 +334,10 @@ func (ng *engine) joinSingleSource(ctx context.Context, jc *joinClause) (fromCla
 // the SQL SELECT statement against fromDB.
 //
 // On return, ng.rc will be set.
-func (ng *engine) joinCrossSource(ctx context.Context, jc *joinClause) (fromClause string, fromDB driver.Database,
-	err error,
+func (ng *engine) joinCrossSource(ctx context.Context, jc *joinClause) (fromClause string,
+	fromDB driver.Database, err error,
 ) {
-	return "", nil, errz.New("not implemented")
+	//return "", nil, errz.New("not implemented")
 	//
 	//leftTblName, rightTblName := fnJoin.LeftTbl().TblName(), fnJoin.RightTbl().TblName()
 	//if leftTblName == rightTblName {
@@ -346,51 +354,67 @@ func (ng *engine) joinCrossSource(ctx context.Context, jc *joinClause) (fromClau
 	//if err != nil {
 	//	return "", nil, err
 	//}
-	//
-	//// Open the join db
-	//joinDB, err := ng.qc.JoinDBOpener.OpenJoin(ctx, leftSrc, rightSrc)
-	//if err != nil {
-	//	return "", nil, err
-	//}
-	//
-	//rndr := joinDB.SQLDriver().Renderer()
-	//ng.rc = &render.Context{
-	//	Renderer: rndr,
-	//	Args:     ng.qc.Args,
-	//	Dialect:  joinDB.SQLDriver().Dialect(),
-	//}
-	//
-	//leftDB, err := ng.qc.DBOpener.Open(ctx, leftSrc)
-	//if err != nil {
-	//	return "", nil, err
-	//}
-	//leftCopyTask := &joinCopyTask{
-	//	fromDB:      leftDB,
-	//	fromTblName: leftTblName,
-	//	toDB:        joinDB,
-	//	toTblName:   leftTblName,
-	//}
-	//
-	//rightDB, err := ng.qc.DBOpener.Open(ctx, rightSrc)
-	//if err != nil {
-	//	return "", nil, err
-	//}
-	//rightCopyTask := &joinCopyTask{
-	//	fromDB:      rightDB,
-	//	fromTblName: rightTblName,
-	//	toDB:        joinDB,
-	//	toTblName:   rightTblName,
-	//}
-	//
-	//ng.tasks = append(ng.tasks, leftCopyTask)
-	//ng.tasks = append(ng.tasks, rightCopyTask)
-	//
-	//fromClause, err = rndr.Join(ng.rc, jc.leftTbl, jc.joins)
-	//if err != nil {
-	//	return "", nil, err
-	//}
-	//
-	//return fromClause, joinDB, nil
+
+	handles := jc.handles()
+	srcs := make([]*source.Source, 0, len(handles))
+	for _, handle := range handles {
+		var src *source.Source
+		if src, err = ng.qc.Collection.Get(handle); err != nil {
+			return "", nil, err
+		}
+		srcs = append(srcs, src)
+	}
+
+	// Open the join db
+	joinDB, err := ng.qc.JoinDBOpener.OpenJoin(ctx, srcs...)
+	if err != nil {
+		return "", nil, err
+	}
+
+	rndr := joinDB.SQLDriver().Renderer()
+	ng.rc = &render.Context{
+		Renderer: rndr,
+		Args:     ng.qc.Args,
+		Dialect:  joinDB.SQLDriver().Dialect(),
+	}
+
+	leftHandle := jc.leftTbl.Handle()
+	// TODO: verify not empty
+
+	tbls := jc.tables()
+	for _, tbl := range tbls {
+		tbl := tbl
+		handle := tbl.Handle()
+		if handle == "" {
+			handle = leftHandle
+		}
+		var src *source.Source
+		if src, err = ng.qc.Collection.Get(handle); err != nil {
+			return "", nil, err
+		}
+		var db driver.Database
+		if db, err = ng.qc.DBOpener.Open(ctx, src); err != nil {
+			return "", nil, err
+		}
+
+		task := &joinCopyTask{
+			fromDB:      db,
+			fromTblName: tbl.TblName(),
+			toDB:        joinDB,
+			toTblName:   tbl.TblAliasOrName(),
+		}
+
+		tbl.SyncTblNameAlias()
+
+		ng.tasks = append(ng.tasks, task)
+	}
+
+	fromClause, err = rndr.Join(ng.rc, jc.leftTbl, jc.joins)
+	if err != nil {
+		return "", nil, err
+	}
+
+	return fromClause, joinDB, nil
 }
 
 // tasker is the interface for executing a DB task.
@@ -452,6 +476,8 @@ func execCopyTable(ctx context.Context, fromDB driver.Database, fromTblName stri
 	if err != nil {
 		return errz.Wrapf(err, "insert %s.%s failed", destDB.Source().Handle, destTblName)
 	}
-	log.Debug("Copied %d rows to %s.%s", affected, destDB.Source().Handle, destTblName)
+	log.Debug("Copied rows to dest", lga.Count, affected,
+		lga.From, fmt.Sprintf("%s.%s", fromDB.Source().Handle, fromTblName),
+		lga.To, fmt.Sprintf("%s.%s", destDB.Source().Handle, destTblName))
 	return nil
 }

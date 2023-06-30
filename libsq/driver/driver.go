@@ -496,7 +496,7 @@ func (d *Databases) OpenJoin(ctx context.Context, srcs ...*source.Source) (Datab
 		names = append(names, src.Handle[1:])
 	}
 
-	d.log.Debug("OpenJoin: [%s]", strings.Join(names, ","))
+	d.log.Debug("OpenJoin", "sources", strings.Join(names, ","))
 	return d.OpenScratch(ctx, "joindb__"+strings.Join(names, "_"))
 }
 

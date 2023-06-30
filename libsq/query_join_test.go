@@ -1,6 +1,7 @@
 package libsq_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/neilotoole/sq/libsq/core/jointype"
@@ -30,6 +31,113 @@ var innerJoins = []string{
 }
 
 var predicateJoinNames = lo.Without(jointype.AllValues(), noPredicateJoinNames...)
+
+func TestQuery_join_cross_source_1(t *testing.T) {
+}
+
+//nolint:exhaustive,lll
+func TestQuery_join_cross_source(t *testing.T) {
+	testCases := []queryTestCase{
+		{
+			name: "join/n1/equals-no-alias",
+			in: fmt.Sprintf(
+				`@sakila | .store | join(%s.address, .store.address_id == .address.address_id)`,
+				sakila.SL3,
+			),
+			wantSQL:       `SELECT * FROM "store" INNER JOIN "address" ON "store"."address_id" = "address"."address_id"`,
+			wantRecCount:  2,
+			repeatReplace: innerJoins,
+		},
+		{
+			name: "join/n1/table-handle-equals-no-alias",
+			in: fmt.Sprintf(
+				`@sakila.store | join(%s.address, .store.address_id == .address.address_id)`,
+				sakila.SL3,
+			),
+			wantSQL:       `SELECT * FROM "store" INNER JOIN "address" ON "store"."address_id" = "address"."address_id"`,
+			wantRecCount:  2,
+			repeatReplace: innerJoins,
+		},
+		{
+			name: "join/n1/equals-with-alias",
+			in: fmt.Sprintf(
+				`@sakila | .store:s | join(%s.address:a, .s.address_id == .a.address_id)`,
+				sakila.Pg,
+			),
+			// wantSQL:      `SELECT * FROM "s" INNER JOIN "a" ON "s"."address_id" = "a"."address_id"`,
+			wantRecCount:  2,
+			repeatReplace: innerJoins,
+		},
+		{
+			name: "join/n2/two-sources",
+			in: fmt.Sprintf(
+				`@sakila | .actor | join(%s.film_actor, .actor_id) | join(.film, .film_id) | .first_name, .last_name, .title`,
+				sakila.Pg,
+			),
+			// wantSQL:      `SELECT * FROM "s" INNER JOIN "a" ON "s"."address_id" = "a"."address_id"`,
+			wantRecCount:  sakila.TblFilmActorCount,
+			repeatReplace: innerJoins,
+		},
+		{
+			name: "join/n2/three-sources",
+			in: fmt.Sprintf(
+				`@sakila | .actor | join(%s.film_actor, .actor_id) | join(%s.film, .film_id) | .first_name, .last_name, .title`,
+				sakila.Pg,
+				sakila.My,
+			),
+			// wantSQL:      `SELECT * FROM "s" INNER JOIN "a" ON "s"."address_id" = "a"."address_id"`,
+			wantRecCount: sakila.TblFilmActorCount,
+			// repeatReplace: innerJoins,
+		},
+		//{
+		//	name:          "join/n2/equals-with-alias/unqualified-cols",
+		//	in:            `@sakila | .actor:a | join(.film_actor:fa, .a.actor_id == .fa.actor_id) | join(.film:f, .fa.film_id == .f.film_id) | .first_name, .last_name, .title`,
+		//	wantSQL:       `SELECT "first_name", "last_name", "title" FROM "actor" AS "a" INNER JOIN "film_actor" AS "fa" ON "a"."actor_id" = "fa"."actor_id" INNER JOIN "film" AS "f" ON "fa"."film_id" = "f"."film_id"`,
+		//	override:      driverMap{mysql.Type: "SELECT `first_name`, `last_name`, `title` FROM `actor` AS `a` INNER JOIN `film_actor` AS `fa` ON `a`.`actor_id` = `fa`.`actor_id` INNER JOIN `film` AS `f` ON `fa`.`film_id` = `f`.`film_id`"},
+		//	wantRecCount:  sakila.TblFilmActorCount,
+		//	repeatReplace: innerJoins,
+		//},
+		//{
+		//	name:          "join/n2/equals-with-alias/qualified-cols",
+		//	in:            `@sakila | .actor:a | join(.film_actor:fa, .a.actor_id == .fa.actor_id) | join(.film:f, .fa.film_id == .f.film_id) | .a.first_name, .a.last_name, .f.title`,
+		//	wantSQL:       `SELECT "a"."first_name", "a"."last_name", "f"."title" FROM "actor" AS "a" INNER JOIN "film_actor" AS "fa" ON "a"."actor_id" = "fa"."actor_id" INNER JOIN "film" AS "f" ON "fa"."film_id" = "f"."film_id"`,
+		//	override:      driverMap{mysql.Type: "SELECT `a`.`first_name`, `a`.`last_name`, `f`.`title` FROM `actor` AS `a` INNER JOIN `film_actor` AS `fa` ON `a`.`actor_id` = `fa`.`actor_id` INNER JOIN `film` AS `f` ON `fa`.`film_id` = `f`.`film_id`"},
+		//	wantRecCount:  sakila.TblFilmActorCount,
+		//	repeatReplace: innerJoins,
+		//},
+		//{
+		//	name:          "join/n1/single-selector-no-alias",
+		//	in:            `@sakila | .store | join(.address, .address_id)`,
+		//	wantSQL:       `SELECT * FROM "store" INNER JOIN "address" ON "store"."address_id" = "address"."address_id"`,
+		//	override:      driverMap{mysql.Type: "SELECT * FROM `store` INNER JOIN `address` ON `store`.`address_id` = `address`.`address_id`"},
+		//	wantRecCount:  2,
+		//	repeatReplace: innerJoins,
+		//},
+		//{
+		//	name:          "join/n1/single-selector-with-alias",
+		//	in:            `@sakila | .store:s | join(.address:a, .address_id)`,
+		//	wantSQL:       `SELECT * FROM "store" AS "s" INNER JOIN "address" AS "a" ON "s"."address_id" = "a"."address_id"`,
+		//	override:      driverMap{mysql.Type: "SELECT * FROM `store` AS `s` INNER JOIN `address` AS `a` ON `s`.`address_id` = `a`.`address_id`"},
+		//	wantRecCount:  2,
+		//	repeatReplace: innerJoins,
+		//},
+		//{
+		//	name:          "cross-join/n1/no-constraint",
+		//	in:            `@sakila | .store | cross_join(.address)`,
+		//	wantSQL:       `SELECT * FROM "store" CROSS JOIN "address"`,
+		//	override:      driverMap{mysql.Type: "SELECT * FROM `store` CROSS JOIN `address`"},
+		//	wantRecCount:  1206,
+		//	repeatReplace: []string{string(jointype.Cross), jointype.CrossAlias},
+		//},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			execQueryTestCase(t, tc)
+		})
+	}
+}
 
 //nolint:exhaustive,lll
 func TestQuery_join_single_source(t *testing.T) {
@@ -88,6 +196,14 @@ func TestQuery_join_single_source(t *testing.T) {
 		{
 			name:          "join/n1/single-selector-no-alias",
 			in:            `@sakila | .store | join(.address, .address_id)`,
+			wantSQL:       `SELECT * FROM "store" INNER JOIN "address" ON "store"."address_id" = "address"."address_id"`,
+			override:      driverMap{mysql.Type: "SELECT * FROM `store` INNER JOIN `address` ON `store`.`address_id` = `address`.`address_id`"},
+			wantRecCount:  2,
+			repeatReplace: innerJoins,
+		},
+		{
+			name:          "join/n1/table-handle-single-selector-no-alias",
+			in:            `@sakila.store | join(.address, .address_id)`,
 			wantSQL:       `SELECT * FROM "store" INNER JOIN "address" ON "store"."address_id" = "address"."address_id"`,
 			override:      driverMap{mysql.Type: "SELECT * FROM `store` INNER JOIN `address` ON `store`.`address_id` = `address`.`address_id`"},
 			wantRecCount:  2,
