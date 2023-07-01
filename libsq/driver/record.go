@@ -618,8 +618,8 @@ The returned result set will have these column names:
   |-              from "actor"               -| |-    from "film_actor"     -|
 
 Note the duplicate "actor_id" and "last_update" column names. When output in a
-format like JSON that doesn't permit duplicate keys, only one of each duplicate
-column could appear.
+format (such as JSON) that doesn't permit duplicate keys, only one of each
+duplicate column could appear.
 
 The fields available in the template are:
 
@@ -633,31 +633,17 @@ then 1 for the next instance, and so on.
 
 The default template renames the columns to:
 
-  actor_id, first_name, last_name, last_update, actor_id_1, film_id, last_update_2
+  actor_id, first_name, last_name, last_update, actor_id_1, film_id, last_update_1
 
 For more, see: INSERT_URL`, // FIXME: insert docs url
 )
 
-// colMungeData is the struct passed to the template from OptRecordColRename.
-type colMungeData struct {
-	// Name is the original column name.
-	Name string
-
-	// Index is the column index.
-	Index int
-
-	// Recurrence is the count of times this column name has already
-	// appeared in the list of column names. If the column name is unique,
-	// this value is zero.
-	Recurrence int
-}
-
 // MungeColNames transforms column names, per the template defined
 // in the option driver.OptRecordColRename found on the context.
 // This mechanism is used to deduplicate column names, as can happen in
-// in "SELECT * FROM ... JOIN" situations. For example, if the result had
-// columns [actor_id, first_name, actor_id], the columns be transformed
-// to [actor_id, first_name, actor_id_1].
+// in "SELECT * FROM ... JOIN" situations. For example, if the result set
+// has columns [actor_id, first_name, actor_id], the columns might be
+// transformed to [actor_id, first_name, actor_id_1].
 //
 // MungeColNames should be invoked by each impl of SQLDriver.RecordMeta
 // before returning the record.Meta.
@@ -705,4 +691,19 @@ func MungeColNames(ctx context.Context, ogColNames []string) (colNames []string,
 	}
 
 	return colNames, nil
+}
+
+// colMungeData is the struct passed to the template from OptRecordColRename,
+// used in MungeColNames.
+type colMungeData struct {
+	// Name is the original column name.
+	Name string
+
+	// Index is the column index.
+	Index int
+
+	// Recurrence is the count of times this column name has already
+	// appeared in the list of column names. If the column name is unique,
+	// this value is zero.
+	Recurrence int
 }
