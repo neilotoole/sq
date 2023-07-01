@@ -136,7 +136,10 @@ func (d *driveri) Renderer() *render.Renderer {
 func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (record.Meta,
 	driver.NewRecordFunc, error,
 ) {
-	recMeta := recordMetaFromColumnTypes(d.log, colTypes)
+	recMeta, err := recordMetaFromColumnTypes(ctx, colTypes)
+	if err != nil {
+		return nil, nil, err
+	}
 	mungeFn := getNewRecordFunc(recMeta)
 	return recMeta, mungeFn, nil
 }

@@ -1,7 +1,10 @@
 package mysql_test
 
 import (
+	"context"
 	"testing"
+
+	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"github.com/neilotoole/slogt"
 
@@ -15,6 +18,8 @@ import (
 
 func TestKindFromDBTypeName(t *testing.T) {
 	t.Parallel()
+
+	ctx := lg.NewContext(context.Background(), slogt.New(t))
 
 	testCases := map[string]kind.Kind{
 		"":                 kind.Unknown,
@@ -58,9 +63,8 @@ func TestKindFromDBTypeName(t *testing.T) {
 		"BOOLEAN":          kind.Bool,
 	}
 
-	log := slogt.New(t)
 	for dbTypeName, wantKind := range testCases {
-		gotKind := mysql.KindFromDBTypeName(log, "col", dbTypeName)
+		gotKind := mysql.KindFromDBTypeName(ctx, "col", dbTypeName)
 		require.Equal(t, wantKind, gotKind, "{%s} should produce %s but got %s", dbTypeName, wantKind, gotKind)
 	}
 }

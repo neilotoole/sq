@@ -278,7 +278,7 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable 
 func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (record.Meta,
 	driver.NewRecordFunc, error,
 ) {
-	recMeta, err := recordMetaFromColumnTypes(d.log, colTypes)
+	recMeta, err := recordMetaFromColumnTypes(ctx, colTypes)
 	if err != nil {
 		return nil, nil, errw(err)
 	}

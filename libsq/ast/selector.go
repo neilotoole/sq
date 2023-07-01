@@ -329,27 +329,15 @@ func (n *ColSelectorNode) String() string {
 	return str
 }
 
-var _ Node = (*CmprNode)(nil)
-
-// CmprNode models a comparison, such as ".age == 42".
-type CmprNode struct {
-	baseNode
-}
-
-// String returns a log/debug-friendly representation.
-func (c *CmprNode) String() string {
-	return nodeString(c)
-}
-
 // extractSelVal extracts the value of the selector. The function takes
 // a selector node type as input, e.g. ast.SelectorNode.
 // Example inputs:
 //
-//   - .actor --> actor
-//   - .first_name --> first_name
-//   - ."first name" --> first name
+//	.actor 					-->		actor
+//	.first_name 		--> 	first_name
+//	."first name" 	--> 	first name
 //
-// The function will remove the leading period, and quotes around the name.
+// The function will remove the leading period, and any quotes around the name.
 func extractSelVal(ctx antlr.ParseTree) (string, error) {
 	if ctx == nil {
 		return "", errorf("invalid selector: is nil")

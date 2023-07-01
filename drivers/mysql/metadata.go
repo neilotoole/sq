@@ -26,8 +26,6 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/lg"
 
-	"golang.org/x/exp/slog"
-
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
@@ -38,7 +36,7 @@ import (
 
 // kindFromDBTypeName determines the Kind from the database
 // type name. For example, "VARCHAR(64)" -> kind.Text.
-func kindFromDBTypeName(log *slog.Logger, colName, dbTypeName string) kind.Kind {
+func kindFromDBTypeName(ctx context.Context, colName, dbTypeName string) kind.Kind {
 	var knd kind.Kind
 	dbTypeName = strings.ToUpper(dbTypeName)
 
@@ -51,7 +49,7 @@ func kindFromDBTypeName(log *slog.Logger, colName, dbTypeName string) kind.Kind 
 
 	switch dbTypeName {
 	default:
-		log.Warn(
+		lg.FromContext(ctx).Warn(
 			"Unknown MySQL column type: using alt type",
 			lga.DBType, dbTypeName,
 			lga.Col, colName,
@@ -91,16 +89,28 @@ func kindFromDBTypeName(log *slog.Logger, colName, dbTypeName string) kind.Kind 
 	return knd
 }
 
-func recordMetaFromColumnTypes(log *slog.Logger, colTypes []*sql.ColumnType) record.Meta {
-	recMeta := make(record.Meta, len(colTypes))
-
+func recordMetaFromColumnTypes(ctx context.Context, colTypes []*sql.ColumnType) (record.Meta, error) {
+	sColTypeData := make([]*record.ColumnTypeData, len(colTypes))
+	ogColNames := make([]string, len(colTypes))
 	for i, colType := range colTypes {
-		knd := kindFromDBTypeName(log, colType.Name(), colType.DatabaseTypeName())
+		knd := kindFromDBTypeName(ctx, colType.Name(), colType.DatabaseTypeName())
 		colTypeData := record.NewColumnTypeData(colType, knd)
-		recMeta[i] = record.NewFieldMeta(colTypeData)
+		sColTypeData[i] = colTypeData
+		ogColNames[i] = colTypeData.Name
 	}
 
-	return recMeta
+	mungedColNames, err := driver.MungeColNames(ctx, ogColNames)
+	if err != nil {
+		return nil, err
+	}
+
+	recMeta := make(record.Meta, len(colTypes))
+	for i := range sColTypeData {
+		sColTypeData[i].Name = mungedColNames[i]
+		recMeta[i] = record.NewFieldMeta(sColTypeData[i])
+	}
+
+	return recMeta, nil
 }
 
 // getNewRecordFunc returns a NewRecordFunc that, after interacting
@@ -226,7 +236,7 @@ ORDER BY cols.ordinal_position ASC`
 		}
 
 		col.DefaultValue = defVal.String
-		col.Kind = kindFromDBTypeName(log, col.Name, col.BaseType)
+		col.Kind = kindFromDBTypeName(ctx, col.Name, col.BaseType)
 
 		cols = append(cols, col)
 	}
@@ -468,7 +478,7 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 			return nil, err
 		}
 
-		col.Kind = kindFromDBTypeName(log, col.Name, col.BaseType)
+		col.Kind = kindFromDBTypeName(ctx, col.Name, col.BaseType)
 		if strings.Contains(colKey.String, "PRI") {
 			col.PrimaryKey = true
 		}
