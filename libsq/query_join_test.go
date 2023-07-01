@@ -32,7 +32,27 @@ var innerJoins = []string{
 
 var predicateJoinNames = lo.Without(jointype.AllValues(), noPredicateJoinNames...)
 
-func TestQuery_join_cross_source_1(t *testing.T) {
+var wantColsJoin_actor__film_actor__film = []string{
+	"actor_id",
+	"first_name",
+	"last_name",
+	"last_update",
+	"actor_id_1",
+	"film_id",
+	"last_update_1",
+	"film_id_1",
+	"title",
+	"description",
+	"release_year",
+	"language_id",
+	"original_language_id",
+	"rental_duration",
+	"rental_rate",
+	"length",
+	"replacement_cost",
+	"rating",
+	"special_features",
+	"last_update_2",
 }
 
 //nolint:exhaustive,lll
@@ -98,11 +118,11 @@ func TestQuery_join_cross_source(t *testing.T) {
 				sakila.Pg,
 				sakila.My,
 			),
-			wantSQL:      `SELECT * FROM "actor" INNER JOIN "film_actor" ON "actor"."actor_id" = "film_actor"."actor_id" INNER JOIN "film" ON "film_actor"."film_id" = "film"."film_id"`,
-			wantRecCount: sakila.TblFilmActorCount,
-			// repeatReplace: innerJoins,
+			wantSQL:       `SELECT * FROM "actor" INNER JOIN "film_actor" ON "actor"."actor_id" = "film_actor"."actor_id" INNER JOIN "film" ON "film_actor"."film_id" = "film"."film_id"`,
+			wantRecCount:  sakila.TblFilmActorCount,
+			repeatReplace: innerJoins,
 			sinkFns: []SinkTestFunc{
-				assertSinkColNames("first_name", "last_name", "title"),
+				assertSinkColNames(wantColsJoin_actor__film_actor__film...),
 			},
 		},
 		{

@@ -289,12 +289,25 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (record.Meta,
 	driver.NewRecordFunc, error,
 ) {
-	recMeta := make([]*record.FieldMeta, len(colTypes))
+	sColTypeData := make([]*record.ColumnTypeData, len(colTypes))
+	ogColNames := make([]string, len(colTypes))
 	for i, colType := range colTypes {
 		kind := kindFromDBTypeName(d.log, colType.Name(), colType.DatabaseTypeName())
 		colTypeData := record.NewColumnTypeData(colType, kind)
 		setScanType(colTypeData, kind)
-		recMeta[i] = record.NewFieldMeta(colTypeData)
+		sColTypeData[i] = colTypeData
+		ogColNames[i] = colTypeData.Name
+	}
+
+	mungedColNames, err := driver.MungeColNames(ctx, ogColNames)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	recMeta := make(record.Meta, len(colTypes))
+	for i := range sColTypeData {
+		sColTypeData[i].Name = mungedColNames[i]
+		recMeta[i] = record.NewFieldMeta(sColTypeData[i])
 	}
 
 	mungeFn := func(vals []any) (record.Record, error) {

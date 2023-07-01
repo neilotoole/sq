@@ -632,17 +632,15 @@ func TestMungeColNames(t *testing.T) {
 		in   []string
 		want []string
 	}{
-		//{[]string{"a", "b", "c"}, []string{"a", "b", "c"}},
-		//{[]string{"a", "b", "a", "d"}, []string{"a", "b", "a_1", "d"}},
-		{[]string{"a", "b", "a", "d", "a"}, []string{"a", "b", "a_1", "d", "a_2"}},
+		{[]string{"a", "b", "c"}, []string{"a", "b", "c"}},
+		{[]string{"a", "b", "a", "d"}, []string{"a", "b", "a_1", "d"}},
+		{[]string{"a", "b", "a", "b", "d", "a"}, []string{"a", "b", "a_1", "b_1", "d", "a_2"}},
 	}
 
 	for i, tc := range testCases {
 		tc := tc
 		t.Run(tutil.Name(i, tc.in), func(t *testing.T) {
-			ctx := context.Background()
-			o := options.Options{}
-			ctx = options.NewContext(ctx, o)
+			ctx := options.NewContext(context.Background(), options.Options{})
 			got, err := driver.MungeColNames(ctx, tc.in)
 			require.NoError(t, err)
 			require.Equal(t, tc.want, got)
