@@ -248,12 +248,6 @@ func (jc *joinClause) handles() []string {
 	return handles
 }
 
-//func (jc *joinClause) sources(coll *source.Collection) ([]*source.Source, error) {
-//	activeHandle := coll.Active()
-//	handles := jc.handles()
-//	handles = lo.Uniq(handles)
-//}
-
 // isSingleSource returns true if the joins refer to the same handle.
 func (jc *joinClause) isSingleSource() bool {
 	leftHandle := jc.leftTbl.Handle()
@@ -270,20 +264,6 @@ func (jc *joinClause) isSingleSource() bool {
 	}
 
 	return true
-	//
-	//
-	//tbls := jc.tables()
-	//handles := map[string]struct{}{}
-	//for _, tbl := range tbls {
-	//	if tbl.Handle() == "" {
-	//		handles[activeHandle] = struct{}{}
-	//		continue
-	//	}
-	//
-	//	handles[tbl.Handle()] = struct{}{}
-	//}
-	//
-	//return len(handles) <= 1
 }
 
 // prepareFromJoin builds the "JOIN" clause.
@@ -337,23 +317,7 @@ func (ng *engine) joinSingleSource(ctx context.Context, jc *joinClause) (fromCla
 func (ng *engine) joinCrossSource(ctx context.Context, jc *joinClause) (fromClause string,
 	fromDB driver.Database, err error,
 ) {
-	//return "", nil, errz.New("not implemented")
-	//
-	//leftTblName, rightTblName := fnJoin.LeftTbl().TblName(), fnJoin.RightTbl().TblName()
-	//if leftTblName == rightTblName {
-	//	return "", nil, errz.Errorf("JOIN tables must have distinct names (or use aliases): duplicate tbl name {%s}",
-	//		fnJoin.LeftTbl().TblName())
-	//}
-	//
-	//leftSrc, err := ng.qc.Collection.Get(fnJoin.LeftTbl().Handle())
-	//if err != nil {
-	//	return "", nil, err
-	//}
-	//
-	//rightSrc, err := ng.qc.Collection.Get(fnJoin.RightTbl().Handle())
-	//if err != nil {
-	//	return "", nil, err
-	//}
+	// FIXME: finish tidying up
 
 	handles := jc.handles()
 	srcs := make([]*source.Source, 0, len(handles))

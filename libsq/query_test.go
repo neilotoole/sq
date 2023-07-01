@@ -226,3 +226,11 @@ func assertSinkColName(colIndex int, name string) SinkTestFunc { //nolint:unpara
 		assert.Equal(t, name, sink.RecMeta[colIndex].Name(), "column %d", colIndex)
 	}
 }
+
+// assertSinkColNames returns a SinkTestFunc that matches col names.
+func assertSinkColNames(names ...string) SinkTestFunc {
+	return func(t testing.TB, sink *testh.RecordSink) {
+		gotNames := sink.RecMeta.Names()
+		assert.Equal(t, names, gotNames)
+	}
+}

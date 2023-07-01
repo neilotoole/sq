@@ -250,7 +250,7 @@ func TestRecordMetadata(t *testing.T) {
 			colTypes, err := rows.ColumnTypes()
 			require.NoError(t, err)
 
-			recMeta, _, err := th.SQLDriverFor(src).RecordMeta(colTypes)
+			recMeta, _, err := th.SQLDriverFor(src).RecordMeta(th.Context, colTypes)
 			require.NoError(t, err)
 			require.Equal(t, len(tc.colNames), len(recMeta))
 

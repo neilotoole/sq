@@ -13,8 +13,11 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 	"unicode"
+
+	"github.com/Masterminds/sprig/v3"
 
 	"github.com/samber/lo"
 
@@ -631,4 +634,14 @@ func ElementsHavingPrefix(a []string, prefix string) []string {
 	return lo.Filter(a, func(item string, index int) bool {
 		return strings.HasPrefix(item, prefix)
 	})
+}
+
+// NewTemplate returns a new text template, with the sprig
+// functions already loaded.
+func NewTemplate(name, tpl string) (*template.Template, error) {
+	t, err := template.New(name).Funcs(sprig.FuncMap()).Parse(tpl)
+	if err != nil {
+		return nil, errz.Err(err)
+	}
+	return t, nil
 }

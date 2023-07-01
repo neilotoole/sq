@@ -1,6 +1,7 @@
 package stringz_test
 
 import (
+	"bytes"
 	"strconv"
 	"strings"
 	"testing"
@@ -500,4 +501,18 @@ __`
 
 	got := stringz.IndentLines(input, "__")
 	require.Equal(t, got, want)
+}
+
+func TestNewTemplate(t *testing.T) {
+	// "upper" is a sprig func.
+	// See: https://github.com/Masterminds/sprig
+	const tplVal = `{{.Name | upper}}`
+	tpl, err := stringz.NewTemplate(t.Name(), tplVal)
+	require.NoError(t, err)
+
+	buf := &bytes.Buffer{}
+	err = tpl.Execute(buf, map[string]string{"Name": "wubble"})
+	require.NoError(t, err)
+	got := buf.String()
+	require.Equal(t, "WUBBLE", got)
 }

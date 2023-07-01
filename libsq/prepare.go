@@ -34,21 +34,7 @@ func (ng *engine) prepare(ctx context.Context, qm *queryModel) error {
 		}
 	}
 
-	//
-	//switch node := qm.Table.(type) {
-	//case nil:
-	//
-	//case *ast.TblSelectorNode:
-	//
-	//case *ast.JoinNode:
-	//
-	//default:
-	//	// Should never happen
-	//	return errz.Errorf("unknown ast.Tabler %T: %s", node, node)
-	//}
-
 	rndr := ng.rc.Renderer
-
 	if frags.Columns, err = rndr.SelectCols(ng.rc, qm.Cols); err != nil {
 		return err
 	}

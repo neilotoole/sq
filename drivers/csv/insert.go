@@ -128,7 +128,7 @@ func getRecMeta(ctx context.Context, scratchDB driver.Database, tblDef *sqlmodel
 		return nil, err
 	}
 
-	destMeta, _, err := scratchDB.SQLDriver().RecordMeta(colTypes)
+	destMeta, _, err := scratchDB.SQLDriver().RecordMeta(ctx, colTypes)
 	if err != nil {
 		return nil, err
 	}

@@ -2,7 +2,12 @@ package libsq_test
 
 import (
 	"reflect"
+	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/samber/lo"
 
 	"github.com/neilotoole/sq/testh/tutil"
 
@@ -109,5 +114,29 @@ func TestQuerySQL_Count(t *testing.T) { //nolint:tparallel
 			require.True(t, ok)
 			require.Equal(t, int64(sakila.TblActorCount), count)
 		})
+	}
+}
+
+// TestJoinDuplicateColNamesAreRenamed tests handling of multiple occurrences
+// of the same result column name. The expected behavior is that the duplicate
+// column is renamed.
+func TestJoinDuplicateColNamesAreRenamed(t *testing.T) {
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
+
+	const query = "SELECT * FROM actor INNER JOIN film_actor ON actor.actor_id = film_actor.actor_id LIMIT 1"
+
+	sink, err := th.QuerySQL(src, query)
+	require.NoError(t, err)
+	colNames := sink.RecMeta.Names()
+	// Without intervention, the returned column names would contain duplicates.
+	//  [actor_id, first_name, last_name, last_update, actor_id, film_id, last_update]
+
+	t.Logf("Cols: [%s]", strings.Join(colNames, ", "))
+
+	colCounts := lo.CountValues(colNames)
+	for col, count := range colCounts {
+		assert.True(t, count == 1, "col name {%s} is not unique (occurs %d times)",
+			col, count)
 	}
 }

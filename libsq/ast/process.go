@@ -151,34 +151,3 @@ func narrowColSel(w *Walker, node Node) error {
 
 	return nil
 }
-
-//
-//// determineJoinTables attempts to determine the tables that a JOIN refers to.
-//func determineJoinTables(_ *Walker, node Node) error {
-//	// node is guaranteed to be FnJoin
-//	joinNode, ok := node.(*JoinNode)
-//	if !ok {
-//		return errorf("expected *FnJoin but got %T", node)
-//	}
-//
-//	seg, ok := joinNode.Parent().(*SegmentNode)
-//	if !ok {
-//		return errorf("JOIN() must have a *SegmentNode parent, but got %T", joinNode.Parent())
-//	}
-//
-//	prevSeg := seg.Prev()
-//	if prevSeg == nil {
-//		return errorf("JOIN() must not be in the first segment")
-//	}
-//
-//	if len(prevSeg.Children()) != 1 || len(nodesWithType(prevSeg.Children(), typeTblSelectorNode)) != 1 {
-//		return errorf("JOIN() must have a table selector in the preceding segment")
-//	}
-//
-//	joinNode.leftTbl, ok = prevSeg.Children()[0].(*TblSelectorNode)
-//	if !ok {
-//		return errorf("JOIN() expected table selector in previous segment, but was %T(%s)", prevSeg.Children()[0],
-//			prevSeg.Children()[0].Text())
-//	}
-//	return nil
-//}

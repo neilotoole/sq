@@ -47,6 +47,7 @@ var OptDelim = options.NewString(
 	"",
 	0,
 	delimCommaKey,
+	nil,
 	"Delimiter for ingest CSV data",
 	`Delimiter to use for CSV files. Default is "comma".
 Possible values are: comma, space, pipe, tab, colon, semi, period.`,

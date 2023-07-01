@@ -275,7 +275,9 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable 
 }
 
 // RecordMeta implements driver.SQLDriver.
-func (d *driveri) RecordMeta(colTypes []*sql.ColumnType) (record.Meta, driver.NewRecordFunc, error) {
+func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (record.Meta,
+	driver.NewRecordFunc, error,
+) {
 	recMeta, err := recordMetaFromColumnTypes(d.log, colTypes)
 	if err != nil {
 		return nil, nil, errw(err)
@@ -763,7 +765,7 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 		return nil, err
 	}
 
-	destCols, _, err := d.RecordMeta(colTypes)
+	destCols, _, err := d.RecordMeta(ctx, colTypes)
 	if err != nil {
 		return nil, err
 	}

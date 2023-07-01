@@ -251,7 +251,11 @@ type SQLDriver interface {
 	//
 	// RecordMeta also returns a NewRecordFunc which can be
 	// applied to the scan row from sql.Rows.
-	RecordMeta(colTypes []*sql.ColumnType) (record.Meta, NewRecordFunc, error)
+	//
+	// Implementations of RecordMeta are expected to invoke driver.MungeColNames
+	// on the column names. This mechanism handles the case of duplicate column
+	// names in a record.
+	RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (record.Meta, NewRecordFunc, error)
 
 	// PrepareInsertStmt prepares a statement for inserting
 	// values to destColNames in destTbl. numRows specifies

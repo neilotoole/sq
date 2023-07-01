@@ -286,7 +286,9 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 }
 
 // RecordMeta implements driver.SQLDriver.
-func (d *driveri) RecordMeta(colTypes []*sql.ColumnType) (record.Meta, driver.NewRecordFunc, error) {
+func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (record.Meta,
+	driver.NewRecordFunc, error,
+) {
 	recMeta := make([]*record.FieldMeta, len(colTypes))
 	for i, colType := range colTypes {
 		kind := kindFromDBTypeName(d.log, colType.Name(), colType.DatabaseTypeName())
@@ -478,7 +480,7 @@ func (d *driveri) getTableColsMeta(ctx context.Context, db sqlz.DB,
 		return nil, errw(rows.Err())
 	}
 
-	destCols, _, err := d.RecordMeta(colTypes)
+	destCols, _, err := d.RecordMeta(ctx, colTypes)
 	if err != nil {
 		lg.WarnIfFuncError(d.log, lgm.CloseDBRows, rows.Close)
 		return nil, errw(err)
