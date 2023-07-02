@@ -87,8 +87,9 @@ func TestFileStore_Load(t *testing.T) {
 		match := match
 		t.Run(tutil.Name(match), func(t *testing.T) {
 			fs.Path = match
-			_, err = fs.Load(context.Background())
+			cfg, err := fs.Load(context.Background())
 			require.NoError(t, err, match)
+			require.NotNil(t, cfg)
 		})
 	}
 
@@ -96,8 +97,10 @@ func TestFileStore_Load(t *testing.T) {
 		match := match
 		t.Run(tutil.Name(match), func(t *testing.T) {
 			fs.Path = match
-			_, err := fs.Load(context.Background())
+			cfg, err := fs.Load(context.Background())
+			t.Log(err)
 			require.Error(t, err, match)
+			require.Nil(t, cfg)
 		})
 	}
 }

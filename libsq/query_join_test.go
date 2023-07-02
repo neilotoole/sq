@@ -32,7 +32,7 @@ var innerJoins = []string{
 
 var predicateJoinNames = lo.Without(jointype.AllValues(), noPredicateJoinNames...)
 
-var wantColsJoin_actor__film_actor__film = []string{
+var colsJoinActorFilmActorFilm = []string{
 	"actor_id",
 	"first_name",
 	"last_name",
@@ -84,7 +84,6 @@ func TestQuery_join_cross_source(t *testing.T) {
 				`@sakila | .store:s | join(%s.address:a, .s.address_id == .a.address_id)`,
 				sakila.Pg,
 			),
-			// wantSQL:      `SELECT * FROM "s" INNER JOIN "a" ON "s"."address_id" = "a"."address_id"`,
 			wantRecCount:  2,
 			repeatReplace: innerJoins,
 		},
@@ -122,7 +121,7 @@ func TestQuery_join_cross_source(t *testing.T) {
 			wantRecCount:  sakila.TblFilmActorCount,
 			repeatReplace: innerJoins,
 			sinkFns: []SinkTestFunc{
-				assertSinkColNames(wantColsJoin_actor__film_actor__film...),
+				assertSinkColNames(colsJoinActorFilmActorFilm...),
 			},
 		},
 		{

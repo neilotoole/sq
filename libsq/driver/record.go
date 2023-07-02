@@ -604,7 +604,9 @@ var OptRecordColRename = options.NewString(
 	"",
 	0,
 	"{{.Name}}{{with .Recurrence}}_{{.}}{{end}}",
-	nil,
+	func(s string) error {
+		return stringz.ValidTemplate("record.column.rename", s)
+	},
 	"Template to rename result columns",
 	`This Go text template is executed on the column names returned
 from the DB. Its primary purpose is to rename duplicate column names. For

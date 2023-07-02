@@ -1,7 +1,6 @@
 package stringz_test
 
 import (
-	"bytes"
 	"strconv"
 	"strings"
 	"testing"
@@ -503,16 +502,37 @@ __`
 	require.Equal(t, got, want)
 }
 
-func TestNewTemplate(t *testing.T) {
-	// "upper" is a sprig func.
-	// See: https://github.com/Masterminds/sprig
-	const tplVal = `{{.Name | upper}}`
-	tpl, err := stringz.NewTemplate(t.Name(), tplVal)
-	require.NoError(t, err)
+func TestTemplate(t *testing.T) {
+	data := map[string]string{"Name": "wubble"}
 
-	buf := &bytes.Buffer{}
-	err = tpl.Execute(buf, map[string]string{"Name": "wubble"})
-	require.NoError(t, err)
-	got := buf.String()
-	require.Equal(t, "WUBBLE", got)
+	testCases := []struct {
+		tpl     string
+		data    any
+		want    string
+		wantErr bool
+	}{
+		// "upper" is a sprig func. Verify that it loads.
+		{"{{.Name | upper}}", data, "WUBBLE", false},
+		{"{{not_a_func .Name}}_", data, "", true},
+	}
+
+	for i, tc := range testCases {
+		tc := tc
+		t.Run(tutil.Name(i, tc.tpl), func(t *testing.T) {
+			got, gotErr := stringz.ExecuteTemplate(t.Name(), tc.tpl, tc.data)
+			t.Logf("\nTPL:   %s\nGOT:   %s\nERR:   %v", tc.tpl, got, gotErr)
+			if tc.wantErr {
+				require.Error(t, gotErr)
+				// Also test ValidTemplate while we're at it.
+				gotErr = stringz.ValidTemplate(t.Name(), tc.tpl)
+				require.Error(t, gotErr)
+				return
+			}
+			require.NoError(t, gotErr)
+			gotErr = stringz.ValidTemplate(t.Name(), tc.tpl)
+			require.NoError(t, gotErr)
+
+			require.Equal(t, tc.want, got)
+		})
+	}
 }
