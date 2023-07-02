@@ -536,3 +536,24 @@ func TestTemplate(t *testing.T) {
 		})
 	}
 }
+
+func TestShellEscape(t *testing.T) {
+	testCases := []struct {
+		in   string
+		want string
+	}{
+		{"", "''"},
+		{" ", `' '`},
+		{"huzzah", "huzzah"},
+		{"huz zah", `'huz zah'`},
+		{`huz ' zah`, `'huz '"'"' zah'`},
+	}
+
+	for i, tc := range testCases {
+		tc := tc
+		t.Run(tutil.Name(i, tc), func(t *testing.T) {
+			got := stringz.ShellEscape(tc.in)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}

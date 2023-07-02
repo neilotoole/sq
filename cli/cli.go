@@ -27,6 +27,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/neilotoole/sq/libsq/core/options"
+
 	"github.com/neilotoole/sq/cli/run"
 
 	"github.com/neilotoole/sq/cli/flag"
@@ -70,6 +72,7 @@ func Execute(ctx context.Context, stdin *os.File, stdout, stderr io.Writer, args
 	defer ru.Close() // ok to call ru.Close on nil ru
 
 	ctx = lg.NewContext(ctx, log)
+
 	return ExecuteWith(ctx, ru, args)
 }
 
@@ -77,6 +80,7 @@ func Execute(ctx context.Context, stdin *os.File, stdout, stderr io.Writer, args
 // resulting in a command being executed. The caller must
 // invoke ru.Close.
 func ExecuteWith(ctx context.Context, ru *run.Run, args []string) error {
+	ctx = options.NewContext(ctx, ru.Config.Options)
 	log := lg.FromContext(ctx)
 	log.Debug("EXECUTE", "args", strings.Join(args, " "))
 	log.Debug("Build info", "build", buildinfo.Get())

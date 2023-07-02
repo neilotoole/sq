@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/stringz"
+
 	"github.com/neilotoole/sq/cli/run"
 
 	"github.com/samber/lo"
@@ -202,5 +204,7 @@ See docs for more: https://sq.io/docs/config
 `
 
 	w := cmd.OutOrStdout()
-	fmt.Fprintf(w, tpl, key, opt.DefaultAny(), opt.Help())
+
+	defVal := fmt.Sprintf("%v", opt.DefaultAny())
+	fmt.Fprintf(w, tpl, key, stringz.ShellEscape(defVal), opt.Help())
 }

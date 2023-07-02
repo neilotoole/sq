@@ -17,6 +17,8 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/alessio/shellescape"
+
 	"github.com/Masterminds/sprig/v3"
 
 	"github.com/samber/lo"
@@ -667,4 +669,10 @@ func ExecuteTemplate(name, tpl string, data any) (string, error) {
 	}
 
 	return buf.String(), nil
+}
+
+// ShellEscape escapes s, making it safe to pass to a shell.
+// Note that empty string will be returned as two single quotes.
+func ShellEscape(s string) string {
+	return shellescape.Quote(s)
 }
