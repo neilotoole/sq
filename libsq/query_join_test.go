@@ -17,27 +17,45 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-//nolint:exhaustive,lll
-func TestQuery_join(t *testing.T) {
+func TestQuery_join_args(t *testing.T) {
 	testCases := []queryTestCase{
 		{
-			name:          "n1/error/no-predicate",
-			in:            `@sakila | .store | join(.address)`,
+			name:          "error/missing-predicate",
+			in:            `@sakila | .actor | join(.film_actor)`,
 			wantErr:       true,
 			repeatReplace: predicateJoinNames,
 		},
 		{
-			name:          "n1/error/with-predicate",
-			in:            `@sakila | .store | cross_join(.address, .address_id)`,
+			name:          "error/unwanted-predicate",
+			in:            `@sakila | .actor | join(.film_actor)`,
 			wantErr:       true,
 			repeatReplace: noPredicateJoinNames,
 		},
 		{
-			name:          "n1/error/no-table",
+			name:          "error/too-many-args",
+			in:            `@sakila | .actor | join(.film_actor, .actor_id, .first_name)`,
+			wantErr:       true,
+			repeatReplace: jointype.AllValues(),
+		},
+		{
+			name:          "error/no-args",
 			in:            `@sakila | .store | join()`,
 			wantErr:       true,
 			repeatReplace: jointype.AllValues(),
 		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			execQueryTestCase(t, tc)
+		})
+	}
+}
+
+//nolint:exhaustive,lll
+func TestQuery_join_inner(t *testing.T) {
+	testCases := []queryTestCase{
 		{
 			name:         "n1/equals-no-alias",
 			in:           `@sakila | .store | join(.address, .store.address_id == .address.address_id)`,
@@ -113,7 +131,7 @@ func TestQuery_join(t *testing.T) {
 func TestQuery_join_multi_source(t *testing.T) {
 	testCases := []queryTestCase{
 		{
-			name: "join/n1/equals-no-alias",
+			name: "n1/equals-no-alias",
 			in: fmt.Sprintf(
 				`@sakila | .store | join(%s.address, .store.address_id == .address.address_id)`,
 				sakila.SL3,
@@ -126,7 +144,7 @@ func TestQuery_join_multi_source(t *testing.T) {
 			},
 		},
 		{
-			name: "join/n1/table-handle-equals-no-alias",
+			name: "n1/table-handle-equals-no-alias",
 			in: fmt.Sprintf(
 				`@sakila.store | join(%s.address, .store.address_id == .address.address_id)`,
 				sakila.SL3,
@@ -139,7 +157,7 @@ func TestQuery_join_multi_source(t *testing.T) {
 			},
 		},
 		{
-			name: "join/n1/equals-with-alias",
+			name: "n1/equals-with-alias",
 			in: fmt.Sprintf(
 				`@sakila | .store:s | join(%s.address:a, .s.address_id == .a.address_id)`,
 				sakila.Pg,
@@ -151,7 +169,7 @@ func TestQuery_join_multi_source(t *testing.T) {
 			},
 		},
 		{
-			name: "join/n2/two-sources",
+			name: "n2/two-sources",
 			in: fmt.Sprintf(
 				`@sakila | .actor | join(%s.film_actor, .actor_id) | join(.film, .film_id) | .first_name, .last_name, .title`,
 				sakila.Pg,
@@ -163,7 +181,7 @@ func TestQuery_join_multi_source(t *testing.T) {
 			},
 		},
 		{
-			name: "join/n2/three-sources-no-alias-no-col-alias",
+			name: "n2/three-sources-no-alias-no-col-alias",
 			in: fmt.Sprintf(
 				`@sakila | .actor | join(%s.film_actor, .actor_id) | join(%s.film, .film_id) | .first_name, .last_name, .title`,
 				sakila.Pg,
@@ -177,7 +195,7 @@ func TestQuery_join_multi_source(t *testing.T) {
 			},
 		},
 		{
-			name: "join/n2/three-sources-no-alias-all-cols",
+			name: "n2/three-sources-no-alias-all-cols",
 			in: fmt.Sprintf(
 				`@sakila | .actor | join(%s.film_actor, .actor_id) | join(%s.film, .film_id)`,
 				sakila.Pg,
@@ -191,7 +209,7 @@ func TestQuery_join_multi_source(t *testing.T) {
 			},
 		},
 		{
-			name: "join/n2/equals-with-alias/unqualified-cols",
+			name: "n2/equals-with-alias/unqualified-cols",
 			in: fmt.Sprintf(
 				`@sakila | .actor:a | join(%s.film_actor:fa, .a.actor_id == .fa.actor_id) | join(%s.film:f, .fa.film_id == .f.film_id) | .first_name, .last_name, .title`,
 				sakila.Pg,
@@ -213,7 +231,7 @@ func TestQuery_join_multi_source(t *testing.T) {
 }
 
 //nolint:exhaustive
-func TestQuery_join_xjoin(t *testing.T) {
+func TestQuery_join_cross(t *testing.T) {
 	testCases := []queryTestCase{
 		{
 			name:          "n1/store-address",
@@ -239,25 +257,6 @@ func TestQuery_join_xjoin(t *testing.T) {
 			sinkFns: []SinkTestFunc{
 				assertSinkColNames(colsJoinActorFilmActor...),
 			},
-		},
-
-		{
-			name:          "error/no-args",
-			in:            `@sakila | .store | cross_join()`,
-			wantErr:       true,
-			repeatReplace: []string{string(jointype.Cross), jointype.CrossAlias},
-		},
-		{
-			name:          "error/illegal-predicate",
-			in:            `@sakila | .store | cross_join(.address, .address_id)`,
-			wantErr:       true,
-			repeatReplace: []string{string(jointype.Cross), jointype.CrossAlias},
-		},
-		{
-			name:          "error/illegal-two-predicates",
-			in:            `@sakila | .store | cross_join(.address, .address_id, .actor_id)`,
-			wantErr:       true,
-			repeatReplace: []string{string(jointype.Cross), jointype.CrossAlias},
 		},
 	}
 
