@@ -121,7 +121,7 @@ func (v *parseTreeVisitor) VisitJoinTable(ctx *slq.JoinTableContext) any {
 		return e
 	}
 
-	joinNode.rightTbl = tblSelNode
+	joinNode.targetTbl = tblSelNode
 	return nil
 }
 
@@ -136,8 +136,7 @@ type JoinNode struct {
 	jtVal         string
 	predicateExpr *ExprNode
 
-	// FIXME: rename rightTbl to targetTbl
-	rightTbl *TblSelectorNode
+	targetTbl *TblSelectorNode
 }
 
 // Predicate returns the join predicate, which
@@ -151,9 +150,9 @@ func (n *JoinNode) JoinType() jointype.Type {
 	return n.jt
 }
 
-// RightTbl is the selector for the right table of the join.
-func (n *JoinNode) RightTbl() *TblSelectorNode {
-	return n.rightTbl
+// Table is the selector for join's target table.
+func (n *JoinNode) Table() *TblSelectorNode {
+	return n.targetTbl
 }
 
 // Parent implements ast.Node.
@@ -234,8 +233,8 @@ func (n *JoinNode) String() string {
 	text := nodeString(n)
 
 	rightTblName := ""
-	if n.rightTbl != nil {
-		rightTblName, _ = n.rightTbl.SelValue()
+	if n.targetTbl != nil {
+		rightTblName, _ = n.targetTbl.SelValue()
 	}
 
 	text += fmt.Sprintf("|target:%s", rightTblName)

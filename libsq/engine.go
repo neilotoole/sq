@@ -228,7 +228,7 @@ func (jc *joinClause) tables() []*ast.TblSelectorNode {
 	tbls := make([]*ast.TblSelectorNode, len(jc.joins)+1)
 	tbls[0] = jc.leftTbl
 	for i := range jc.joins {
-		tbls[i+1] = jc.joins[i].RightTbl()
+		tbls[i+1] = jc.joins[i].Table()
 	}
 
 	return tbls
@@ -240,7 +240,7 @@ func (jc *joinClause) handles() []string {
 	handles := make([]string, len(jc.joins)+1)
 	handles[0] = jc.leftTbl.Handle()
 	for i := 0; i < len(jc.joins); i++ {
-		handles[i+1] = jc.joins[i].RightTbl().Handle()
+		handles[i+1] = jc.joins[i].Table().Handle()
 	}
 
 	handles = lo.Uniq(handles)
@@ -253,7 +253,7 @@ func (jc *joinClause) isSingleSource() bool {
 	leftHandle := jc.leftTbl.Handle()
 
 	for _, join := range jc.joins {
-		joinHandle := join.RightTbl().Handle()
+		joinHandle := join.Table().Handle()
 		if joinHandle == "" {
 			continue
 		}

@@ -34,7 +34,7 @@ func doJoin(rc *Context, leftTbl *ast.TblSelectorNode, joins []*ast.JoinNode) (s
 	allTbls := make([]*ast.TblSelectorNode, len(joins)+1)
 	allTbls[0] = leftTbl
 	for i := range joins {
-		allTbls[i+1] = joins[i].RightTbl()
+		allTbls[i+1] = joins[i].Table()
 	}
 
 	sql := "FROM "
@@ -55,7 +55,7 @@ func doJoin(rc *Context, leftTbl *ast.TblSelectorNode, joins []*ast.JoinNode) (s
 			return "", err
 		}
 
-		tbl := join.RightTbl()
+		tbl := join.Table()
 		s = sqlAppend(s, enquote(tbl.TblName()))
 		if tbl.Alias() != "" {
 			s = sqlAppend(s, "AS "+enquote(tbl.Alias()))
