@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/jointype"
+	"github.com/samber/lo"
+
 	"github.com/go-sql-driver/mysql"
 	"github.com/neilotoole/sq/libsq/ast/render"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -116,6 +119,7 @@ func (d *driveri) Dialect() dialect.Dialect {
 		IntBool:        true,
 		MaxBatchValues: 250,
 		Ops:            dialect.DefaultOps(),
+		Joins:          lo.Without(jointype.All(), jointype.FullOuter),
 	}
 }
 
@@ -295,7 +299,7 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 
 	colsClause := "*"
 	if len(colNames) > 0 {
-		colNamesQuoted := stringz.SurroundSlice(colNames, quote)
+		colNamesQuoted := stringz.SurroundSlice(colNames, quote) // FIXME: use enquote
 		colsClause = strings.Join(colNamesQuoted, driver.Comma)
 	}
 

@@ -4,6 +4,7 @@ import (
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/jointype"
+	"github.com/samber/lo"
 )
 
 func renderJoinType(jt jointype.Type) (string, error) {
@@ -47,7 +48,12 @@ func doJoin(rc *Context, leftTbl *ast.TblSelectorNode, joins []*ast.JoinNode) (s
 	for i, join := range joins {
 		var s string
 		var err error
-		if s, err = renderJoinType(join.JoinType()); err != nil {
+		jt := join.JoinType()
+		if !lo.Contains(rc.Dialect.Joins, jt) {
+			return "", errz.Errorf("driver {%s} does not support join type {%s}",
+				rc.Dialect.Type, jt)
+		}
+		if s, err = renderJoinType(jt); err != nil {
 			return "", err
 		}
 
@@ -57,7 +63,7 @@ func doJoin(rc *Context, leftTbl *ast.TblSelectorNode, joins []*ast.JoinNode) (s
 			s = sqlAppend(s, "AS "+enquote(tbl.Alias()))
 		}
 
-		if expr := join.Constraint(); expr != nil {
+		if expr := join.Predicate(); expr != nil {
 			switch join.JoinType() { //nolint:exhaustive
 			case jointype.Cross, jointype.Natural:
 				return "", errz.Errorf("invalid join: %s does not accept a predicate: %s",

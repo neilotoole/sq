@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/jointype"
+
 	"github.com/neilotoole/sq/libsq/core/record"
 
 	"github.com/neilotoole/sq/libsq/driver/dialect"
@@ -112,6 +114,7 @@ func (d *driveri) Dialect() dialect.Dialect {
 		Enquote:        stringz.DoubleQuote,
 		MaxBatchValues: 1000,
 		Ops:            dialect.DefaultOps(),
+		Joins:          jointype.All(),
 	}
 }
 

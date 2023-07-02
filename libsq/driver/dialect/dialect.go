@@ -1,7 +1,10 @@
 // Package dialect contains functionality for SQL dialects.
 package dialect
 
-import "github.com/neilotoole/sq/libsq/source"
+import (
+	"github.com/neilotoole/sq/libsq/core/jointype"
+	"github.com/neilotoole/sq/libsq/source"
+)
 
 // Dialect holds driver-specific SQL dialect values and functions.
 type Dialect struct {
@@ -18,6 +21,8 @@ type Dialect struct {
 	//
 	// Arguably, this field should be deprecated. There's probably
 	// no reason not to always use Enquote.
+	//
+	// Deprecated: Use Enquote instead.
 	IdentQuote rune `json:"quote"`
 
 	// Enquote is a function that quotes and escapes an
@@ -30,9 +35,16 @@ type Dialect struct {
 	// MaxBatchValues is the maximum number of values in a batch insert.
 	MaxBatchValues int
 
-	// Ops is a map of SLQ operator (e.g. "==" or "!=") to
+	// Ops is a map of overridden SLQ operator (e.g. "==" or "!=") to
 	// its default SQL rendering.
+	//
+	// Deprecated: Ops doesn't need to exist.
 	Ops map[string]string
+
+	// Joins is the set of JOIN types (e.g. "RIGHT JOIN") that
+	// the dialect supports. Not all drivers support each join type. For
+	// example, MySQL doesn't support jointype.FullOuter.
+	Joins []jointype.Type
 }
 
 // String returns a log/debug-friendly representation.

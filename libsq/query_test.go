@@ -32,7 +32,7 @@ type queryTestCase struct {
 	name string
 
 	// skip indicates the test should be skipped. Useful for test cases
-	// that we wantSQL to implement in the future.
+	// that we want to implement in the future.
 	skip bool
 
 	// in is the SLQ input. The "@sakila" handle is replaced

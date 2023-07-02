@@ -4,6 +4,11 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/neilotoole/sq/drivers/postgres"
+	"github.com/neilotoole/sq/drivers/sqlite3"
+	"github.com/neilotoole/sq/drivers/sqlserver"
+	"github.com/neilotoole/sq/libsq/source"
+
 	"github.com/neilotoole/sq/libsq/core/jointype"
 
 	"github.com/samber/lo"
@@ -230,11 +235,77 @@ func TestQuery_join_multi_source(t *testing.T) {
 	}
 }
 
-//nolint:exhaustive
-func TestQuery_join_cross(t *testing.T) {
+// TestQuery_join_others tests the join types other than INNER JOIN.
+//
+//nolint:exhaustive,lll
+func TestQuery_join_others(t *testing.T) {
 	testCases := []queryTestCase{
 		{
-			name:          "n1/store-address",
+			name:          "left_join",
+			in:            `@sakila | .actor | left_join(.film_actor, .actor_id)`,
+			wantSQL:       `SELECT * FROM "actor" LEFT JOIN "film_actor" ON "actor"."actor_id" = "film_actor"."actor_id"`,
+			override:      driverMap{mysql.Type: "SELECT * FROM `actor` LEFT JOIN `film_actor` ON `actor`.`actor_id` = `film_actor`.`actor_id`"},
+			wantRecCount:  sakila.TblFilmActorCount,
+			repeatReplace: []string{string(jointype.Left), jointype.LeftAlias},
+			sinkFns: []SinkTestFunc{
+				assertSinkColNames(colsJoinActorFilmActor...),
+			},
+		},
+		{
+			name:          "left_outer_join",
+			in:            `@sakila | .actor | left_outer_join(.film_actor, .actor_id)`,
+			wantSQL:       `SELECT * FROM "actor" LEFT OUTER JOIN "film_actor" ON "actor"."actor_id" = "film_actor"."actor_id"`,
+			override:      driverMap{mysql.Type: "SELECT * FROM `actor` LEFT OUTER JOIN `film_actor` ON `actor`.`actor_id` = `film_actor`.`actor_id`"},
+			wantRecCount:  sakila.TblFilmActorCount,
+			repeatReplace: []string{string(jointype.LeftOuter), jointype.LeftOuterAlias},
+			sinkFns: []SinkTestFunc{
+				assertSinkColNames(colsJoinActorFilmActor...),
+			},
+		},
+		{
+			name:          "right_join",
+			in:            `@sakila | .actor | right_join(.film_actor, .actor_id)`,
+			wantSQL:       `SELECT * FROM "actor" RIGHT JOIN "film_actor" ON "actor"."actor_id" = "film_actor"."actor_id"`,
+			override:      driverMap{mysql.Type: "SELECT * FROM `actor` RIGHT JOIN `film_actor` ON `actor`.`actor_id` = `film_actor`.`actor_id`"},
+			wantRecCount:  sakila.TblFilmActorCount,
+			repeatReplace: []string{string(jointype.Right), jointype.RightAlias},
+			sinkFns: []SinkTestFunc{
+				assertSinkColNames(colsJoinActorFilmActor...),
+			},
+		},
+		{
+			name:          "right_outer_join",
+			in:            `@sakila | .actor | right_outer_join(.film_actor, .actor_id)`,
+			wantSQL:       `SELECT * FROM "actor" RIGHT OUTER JOIN "film_actor" ON "actor"."actor_id" = "film_actor"."actor_id"`,
+			override:      driverMap{mysql.Type: "SELECT * FROM `actor` RIGHT OUTER JOIN `film_actor` ON `actor`.`actor_id` = `film_actor`.`actor_id`"},
+			wantRecCount:  sakila.TblFilmActorCount,
+			repeatReplace: []string{string(jointype.RightOuter), jointype.RightOuterAlias},
+			sinkFns: []SinkTestFunc{
+				assertSinkColNames(colsJoinActorFilmActor...),
+			},
+		},
+		{
+			name:    "full_outer_join",
+			in:      `@sakila | .actor | full_outer_join(.film_actor, .actor_id)`,
+			wantSQL: `SELECT * FROM "actor" FULL OUTER JOIN "film_actor" ON "actor"."actor_id" = "film_actor"."actor_id"`,
+			// Note that MySQL doesn't support full outer join.
+			onlyFor:       []source.DriverType{sqlite3.Type, postgres.Type, sqlserver.Type},
+			wantRecCount:  sakila.TblFilmActorCount,
+			repeatReplace: []string{string(jointype.FullOuter), jointype.FullOuterAlias},
+			sinkFns: []SinkTestFunc{
+				assertSinkColNames(colsJoinActorFilmActor...),
+			},
+		},
+		{
+			name: "full_outer_join/error-mysql",
+			in:   `@sakila | .actor | full_outer_join(.film_actor, .actor_id)`,
+			// Note that MySQL doesn't support full outer join.
+			onlyFor:       []source.DriverType{mysql.Type},
+			wantErr:       true,
+			repeatReplace: []string{string(jointype.FullOuter), jointype.FullOuterAlias},
+		},
+		{
+			name:          "cross/store-address",
 			in:            `@sakila | .store | cross_join(.address)`,
 			wantSQL:       `SELECT * FROM "store" CROSS JOIN "address"`,
 			override:      driverMap{mysql.Type: "SELECT * FROM `store` CROSS JOIN `address`"},
@@ -242,7 +313,7 @@ func TestQuery_join_cross(t *testing.T) {
 			repeatReplace: []string{string(jointype.Cross), jointype.CrossAlias},
 		},
 		{
-			name:          "n1/store-staff",
+			name:          "cross/store-staff",
 			in:            `@sakila | .store | cross_join(.staff)`,
 			wantSQL:       `SELECT * FROM "store" CROSS JOIN "staff"`,
 			override:      driverMap{mysql.Type: "SELECT * FROM `store` CROSS JOIN `staff`"},
@@ -250,10 +321,21 @@ func TestQuery_join_cross(t *testing.T) {
 			repeatReplace: []string{string(jointype.Cross), jointype.CrossAlias},
 		},
 		{
-			name:          "n1/actor-film_actor/no-constraint",
+			name:          "cross/actor-film_actor/no-constraint",
 			in:            `@sakila | .actor | cross_join(.film_actor) | .[0:10]`,
 			wantRecCount:  10,
 			repeatReplace: []string{string(jointype.Cross), jointype.CrossAlias},
+			sinkFns: []SinkTestFunc{
+				assertSinkColNames(colsJoinActorFilmActor...),
+			},
+		},
+		{
+			name:          "natural",
+			in:            `@sakila | .actor | natural_join(.film_actor)`,
+			wantSQL:       `SELECT * FROM "actor" NATURAL JOIN "film_actor"`,
+			override:      driverMap{mysql.Type: "SELECT * FROM `actor` NATURAL JOIN `film_actor`"},
+			wantRecCount:  sakila.TblFilmActorCount,
+			repeatReplace: []string{string(jointype.Natural), jointype.NaturalAlias},
 			sinkFns: []SinkTestFunc{
 				assertSinkColNames(colsJoinActorFilmActor...),
 			},

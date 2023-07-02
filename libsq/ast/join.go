@@ -131,21 +131,21 @@ var _ Node = (*JoinNode)(nil)
 
 // JoinNode models a SQL JOIN node.
 type JoinNode struct {
-	seg            *SegmentNode
-	ctx            antlr.ParseTree
-	text           string
-	jt             jointype.Type
-	jtVal          string
-	constraintExpr *ExprNode
+	seg           *SegmentNode
+	ctx           antlr.ParseTree
+	text          string
+	jt            jointype.Type
+	jtVal         string
+	predicateExpr *ExprNode
 
 	// FIXME: rename rightTbl to targetTbl
 	rightTbl *TblSelectorNode
 }
 
-// Constraint returns the join constraint, which
+// Predicate returns the join predicate, which
 // may be nil.
-func (n *JoinNode) Constraint() *ExprNode {
-	return n.constraintExpr
+func (n *JoinNode) Predicate() *ExprNode {
+	return n.predicateExpr
 }
 
 // JoinType returns the join type.
@@ -175,11 +175,11 @@ func (n *JoinNode) SetParent(parent Node) error {
 
 // Children implements ast.Node.
 func (n *JoinNode) Children() []Node {
-	if n.constraintExpr == nil {
+	if n.predicateExpr == nil {
 		return []Node{}
 	}
 
-	return []Node{n.constraintExpr}
+	return []Node{n.predicateExpr}
 }
 
 // AddChild implements ast.Node.
@@ -189,11 +189,11 @@ func (n *JoinNode) AddChild(node Node) error {
 		return errorf("join child must be %T, but got: %T", expr, node)
 	}
 
-	if n.constraintExpr != nil {
+	if n.predicateExpr != nil {
 		return errorf("JOIN() has max 1 child: failed to add: %T", node)
 	}
 
-	n.constraintExpr = expr
+	n.predicateExpr = expr
 	return nil
 }
 
@@ -201,10 +201,10 @@ func (n *JoinNode) AddChild(node Node) error {
 func (n *JoinNode) SetChildren(children []Node) error {
 	switch len(children) {
 	case 0:
-		n.constraintExpr = nil
+		n.predicateExpr = nil
 		return nil
 	case 1:
-		n.constraintExpr = nil
+		n.predicateExpr = nil
 		return n.AddChild(children[0])
 	default:
 		return errorf("join: max of one child allowed; failed to add %d children", len(children))
