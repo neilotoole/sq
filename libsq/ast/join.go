@@ -47,16 +47,14 @@ func (v *parseTreeVisitor) VisitJoin(ctx *slq.JoinContext) any {
 	}
 
 	if ctx.Expr() == nil {
-		switch node.jt { //nolint:exhaustive
-		default:
+		if node.jt.HasPredicate() {
 			return errorf("invalid join: %s: predicate required: %s",
 				node.jtVal, node.text)
-		case jointype.Cross, jointype.Natural:
 		}
 	}
 
 	if ctx.Expr() != nil {
-		// Expression can be nil for cross join, etc.
+		// Expression can be nil for cross join.
 		var exprCtx *slq.ExprContext
 		if exprCtx, ok = ctx.Expr().(*slq.ExprContext); !ok {
 			return errorf("invalid join: %s: expression type: expected %T but got %T: %s",

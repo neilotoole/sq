@@ -23,8 +23,6 @@ func renderJoinType(jt jointype.Type) (string, error) {
 		return "FULL OUTER JOIN", nil
 	case jointype.Cross:
 		return "CROSS JOIN", nil
-	case jointype.Natural:
-		return "NATURAL JOIN", nil
 	default:
 		return "", errz.Errorf("unknown join type: %s", jt)
 	}
@@ -64,11 +62,9 @@ func doJoin(rc *Context, leftTbl *ast.TblSelectorNode, joins []*ast.JoinNode) (s
 		}
 
 		if expr := join.Predicate(); expr != nil {
-			switch join.JoinType() { //nolint:exhaustive
-			case jointype.Cross, jointype.Natural:
-				return "", errz.Errorf("invalid join: %s does not accept a predicate: %s",
+			if !join.JoinType().HasPredicate() {
+				return "", errz.Errorf("invalid join: {%s} does not accept a predicate: %s",
 					join.JoinType(), join.Text())
-			default:
 			}
 
 			s = sqlAppend(s, "ON")

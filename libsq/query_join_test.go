@@ -329,17 +329,6 @@ func TestQuery_join_others(t *testing.T) {
 				assertSinkColNames(colsJoinActorFilmActor...),
 			},
 		},
-		{
-			name:          "natural",
-			in:            `@sakila | .actor | natural_join(.film_actor)`,
-			wantSQL:       `SELECT * FROM "actor" NATURAL JOIN "film_actor"`,
-			override:      driverMap{mysql.Type: "SELECT * FROM `actor` NATURAL JOIN `film_actor`"},
-			wantRecCount:  sakila.TblFilmActorCount,
-			repeatReplace: []string{string(jointype.Natural), jointype.NaturalAlias},
-			sinkFns: []SinkTestFunc{
-				assertSinkColNames(colsJoinActorFilmActor...),
-			},
-		},
 	}
 
 	for _, tc := range testCases {
@@ -410,8 +399,6 @@ var (
 	noPredicateJoinNames = []string{
 		string(jointype.Cross),
 		jointype.CrossAlias,
-		string(jointype.Natural),
-		jointype.NaturalAlias,
 	}
 	innerJoins = []string{
 		jointype.JoinAlias,

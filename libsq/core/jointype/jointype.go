@@ -29,8 +29,6 @@ func (jt *Type) UnmarshalText(text []byte) error {
 		*jt = FullOuter
 	case string(Cross), CrossAlias:
 		*jt = Cross
-	case string(Natural), NaturalAlias:
-		*jt = Natural
 	default:
 		return errz.Errorf("invalid join type {%s}", string(text))
 	}
@@ -39,14 +37,9 @@ func (jt *Type) UnmarshalText(text []byte) error {
 }
 
 // HasPredicate returns true if the join type accepts a
-// join predicate.
+// join predicate. Only jointype.Cross returns false.
 func (jt Type) HasPredicate() bool {
-	switch jt { //nolint:exhaustive
-	case Natural, Cross:
-		return true
-	default:
-		return false
-	}
+	return jt != Cross
 }
 
 const (
@@ -65,8 +58,6 @@ const (
 	FullOuterAlias  string = "fojoin"
 	Cross           Type   = "cross_join"
 	CrossAlias      string = "xjoin"
-	Natural         Type   = "natural_join"
-	NaturalAlias    string = "natjoin"
 )
 
 // All returns the set of join.Type values.
@@ -79,7 +70,6 @@ func All() []Type {
 		RightOuter,
 		FullOuter,
 		Cross,
-		Natural,
 	}
 }
 
@@ -102,7 +92,5 @@ func AllValues() []string {
 		FullOuterAlias,
 		string(Cross),
 		CrossAlias,
-		string(Natural),
-		NaturalAlias,
 	}
 }

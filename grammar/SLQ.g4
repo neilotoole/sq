@@ -62,6 +62,9 @@ joinTable: (HANDLE)? NAME (alias)?;
 // JOIN_TYPE is the set of join types, and their aliases.
 // Note that not every database may support every join type, but
 // this is not the concern of the grammar.
+//
+// Note that NATURAL JOIN is not supported, as its implementation
+// is spotty in various DBs, and it's often considered an anti-pattern.
 JOIN_TYPE
  : 'join'
  | 'inner_join'
@@ -78,8 +81,6 @@ JOIN_TYPE
  | 'fojoin'
  | 'cross_join'
  | 'xjoin'
- | 'natural_join'
- | 'natjoin'
  ;
 
 
