@@ -105,7 +105,6 @@ func (d *driveri) Dialect() dialect.Dialect {
 	return dialect.Dialect{
 		Type:           Type,
 		Placeholders:   placeholders,
-		IdentQuote:     '"',
 		Enquote:        stringz.DoubleQuote,
 		MaxBatchValues: 1000,
 		Ops:            dialect.DefaultOps(),
@@ -411,8 +410,9 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 	// 	(SELECT username FROM person LIMIT 1) AS username,
 	// 	(SELECT email FROM person LIMIT 1) AS email
 	// LIMIT 1;
-	quote := string(d.Dialect().IdentQuote)
-	tblNameQuoted := stringz.Surround(tblName, quote)
+
+	enquote := d.Dialect().Enquote
+	tblNameQuoted := enquote(tblName)
 
 	var query string
 
@@ -429,7 +429,7 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 	var sb strings.Builder
 	sb.WriteString("SELECT\n")
 	for i, colName := range colNames {
-		colNameQuoted := stringz.Surround(colName, quote)
+		colNameQuoted := enquote(colName)
 		sb.WriteString(fmt.Sprintf("  (SELECT %s FROM %s LIMIT 1) AS %s", colNameQuoted, tblNameQuoted, colNameQuoted))
 		if i < len(colNames)-1 {
 			sb.WriteRune(',')

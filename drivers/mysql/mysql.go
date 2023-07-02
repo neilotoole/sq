@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/loz"
+
 	"github.com/neilotoole/sq/libsq/core/jointype"
 	"github.com/samber/lo"
 
@@ -114,7 +116,6 @@ func (d *driveri) Dialect() dialect.Dialect {
 	return dialect.Dialect{
 		Type:           Type,
 		Placeholders:   placeholders,
-		IdentQuote:     '`',
 		Enquote:        stringz.BacktickQuote,
 		IntBool:        true,
 		MaxBatchValues: 250,
@@ -293,13 +294,12 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 ) ([]*sql.ColumnType, error) {
 	const queryTpl = "SELECT %s FROM %s LIMIT 0"
 
-	dialect := d.Dialect()
-	quote := string(dialect.IdentQuote)
-	tblNameQuoted := dialect.Enquote(tblName)
+	enquote := d.Dialect().Enquote
+	tblNameQuoted := enquote(tblName)
 
 	colsClause := "*"
 	if len(colNames) > 0 {
-		colNamesQuoted := stringz.SurroundSlice(colNames, quote) // FIXME: use enquote
+		colNamesQuoted := loz.Apply(colNames, enquote)
 		colsClause = strings.Join(colNamesQuoted, driver.Comma)
 	}
 

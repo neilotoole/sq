@@ -15,18 +15,9 @@ type Dialect struct {
 	// For example "(?, ?, ?)" or "($1, $2, $3), ($4, $5, $6)".
 	Placeholders func(numCols, numRows int) string
 
-	// IdentQuote is the identifier quote rune. Most often this is
-	// double-quote, e.g. SELECT * FROM "my_table", but can be other
-	// values such as backtick, e.g. SELECT * FROM `my_table`.
-	//
-	// Arguably, this field should be deprecated. There's probably
-	// no reason not to always use Enquote.
-	//
-	// Deprecated: Use Enquote instead.
-	IdentQuote rune `json:"quote"`
-
 	// Enquote is a function that quotes and escapes an
-	// identifier (such as a table or column name).
+	// identifier (such as a table or column name). Typically the func
+	// uses the double-quote rune (although MySQL uses backtick).
 	Enquote func(string) string
 
 	// IntBool is true if BOOLEAN is handled as an INT by the DB driver.

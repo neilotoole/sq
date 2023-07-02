@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/loz"
+
 	"github.com/neilotoole/sq/libsq/core/jointype"
 
 	"github.com/neilotoole/sq/libsq/core/record"
@@ -110,7 +112,6 @@ func (d *driveri) Dialect() dialect.Dialect {
 	return dialect.Dialect{
 		Type:           Type,
 		Placeholders:   placeholders,
-		IdentQuote:     '"',
 		Enquote:        stringz.DoubleQuote,
 		MaxBatchValues: 1000,
 		Ops:            dialect.DefaultOps(),
@@ -252,13 +253,12 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 	// ORDER BY (SELECT 0) OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY;
 	const queryTpl = "SELECT %s FROM %s ORDER BY (SELECT 0) OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY"
 
-	dialect := d.Dialect()
-	quote := string(dialect.IdentQuote)
-	tblNameQuoted := stringz.Surround(tblName, quote)
+	enquote := d.Dialect().Enquote
+	tblNameQuoted := enquote(tblName)
 
 	colsClause := "*"
 	if len(colNames) > 0 {
-		colNamesQuoted := stringz.SurroundSlice(colNames, quote)
+		colNamesQuoted := loz.Apply(colNames, enquote)
 		colsClause = strings.Join(colNamesQuoted, driver.Comma)
 	}
 
@@ -474,10 +474,9 @@ func (d *driveri) getTableColsMeta(ctx context.Context, db sqlz.DB,
 	// ORDER BY (SELECT 0) OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY;
 	const queryTpl = "SELECT %s FROM %s ORDER BY (SELECT 0) OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY"
 
-	dialect := d.Dialect()
-	quote := string(dialect.IdentQuote)
-	tblNameQuoted := stringz.Surround(tblName, quote)
-	colNamesQuoted := stringz.SurroundSlice(colNames, quote)
+	enquote := d.Dialect().Enquote
+	tblNameQuoted := enquote(tblName)
+	colNamesQuoted := loz.Apply(colNames, enquote)
 	colsJoined := strings.Join(colNamesQuoted, driver.Comma)
 
 	query := fmt.Sprintf(queryTpl, colsJoined, tblNameQuoted)
