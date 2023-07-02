@@ -9,6 +9,10 @@ Breaking changes are annotated with ☢️.
 
 ## Upcoming
 
+### Fixed
+
+- Bug where config options weren't being propagated to the engine.
+
 ### Added
 
 - [#277]: A table selector can now have an alias. This in and of itself is not
@@ -17,6 +21,18 @@ Breaking changes are annotated with ☢️.
   ```shell
   $ sq `@sakila | .actor:a | .a.first_name`
   ```
+
+- New option `record.column.rename` that exposes a template used to rename
+  result set column names before display. The primary use case is to de-duplicate
+  columns names on a `SELECT * FROM tbl1 JOIN tbl2`, where `tbl1` and `tbl2`
+  have clashing column names ([docs](https://sq.io/docs/config/#recordcolumnrename)).
+
+### Changed
+
+-  ☢️ [#12]: The table [join](https://sq.io/docs/query/#joins) mechanism has been
+   completely overhauled. Now there's support for multiple joins, as well as
+   other join types such as `LEFT OUTER JOIN`, `CROSS JOIN`, etc. The syntax 
+   for expressing a join has changed. DETAIL
 
 ## [v0.39.1] - 2023-06-22
 
@@ -622,6 +638,7 @@ make working with lots of sources much easier.
 - [#89]: Bug with SQL generated for joins.
 
 [#8]: https://github.com/neilotoole/sq/issues/8
+[#12]: https://github.com/neilotoole/sq/issues/12
 [#15]: https://github.com/neilotoole/sq/issues/15
 [#89]: https://github.com/neilotoole/sq/pull/89
 [#91]: https://github.com/neilotoole/sq/pull/91
