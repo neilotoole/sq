@@ -27,9 +27,7 @@ type Dialect struct {
 	MaxBatchValues int
 
 	// Ops is a map of overridden SLQ operator (e.g. "==" or "!=") to
-	// its default SQL rendering.
-	//
-	// Deprecated: Ops doesn't need to exist.
+	// its SQL rendering.
 	Ops map[string]string
 
 	// Joins is the set of JOIN types (e.g. "RIGHT JOIN") that
