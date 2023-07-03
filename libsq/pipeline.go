@@ -89,8 +89,7 @@ func (p *pipeline) execute(ctx context.Context, recw RecordWriter) error {
 		lga.SQL, p.targetSQL,
 	)
 
-	err := p.executeTasks(ctx)
-	if err != nil {
+	if err := p.executeTasks(ctx); err != nil {
 		return err
 	}
 

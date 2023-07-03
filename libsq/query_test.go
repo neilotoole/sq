@@ -77,11 +77,10 @@ type queryTestCase struct {
 	// slice element with each subsequent element. For example, given:
 	//
 	//  in: ".actor | join(.address, .address_id):
-	//  repeatReplace: []string{"join", "inner_join", "injoin"}
+	//  repeatReplace: []string{"join", "inner_join"}
 	//
-	// The test will run once using "join" (the original query) and then two
-	// more times with ".actor | inner_join(.address, .address_id)" and
-	// ".actor | injoin(.address, .address_id)".
+	// The test will run once using "join" (the original query) and then another
+	// time with ".actor | inner_join(.address, .address_id)".
 	//
 	// Thus the field must be empty, or have at least two elements.
 	repeatReplace []string
@@ -145,8 +144,6 @@ func doExecQueryTestCase(t *testing.T, tc queryTestCase) {
 	t.Helper()
 
 	coll := testh.New(t).NewCollection(sakila.SQLLatest()...)
-	// coll := testh.New(t).NewCollection(sakila.Pg)
-
 	for _, src := range coll.Sources() {
 		src := src
 
