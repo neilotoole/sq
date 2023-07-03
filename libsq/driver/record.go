@@ -600,8 +600,8 @@ func mungeSetZeroValue(i int, rec []any, destMeta record.Meta) {
 	rec[i] = z
 }
 
-// OptRecordColRename transforms a column name returned from the DB.
-var OptRecordColRename = options.NewString(
+// OptResultColRename transforms a column name returned from the DB.
+var OptResultColRename = options.NewString(
 	"result.column.rename",
 	"",
 	0,
@@ -628,7 +628,7 @@ duplicate column could appear.
 The fields available in the template are:
 
   .Name         column name
-  .Index        index of the column in the result set
+  .Index        zero-based index of the column in the result set
   .Recurrence   nth recurrence of the colum name in the result set
 
 For a unique column name, e.g. "first_name" above, ".Recurrence" will be 0.
@@ -641,7 +641,7 @@ The default template renames the columns to:
 )
 
 // MungeColNames transforms column names, per the template defined
-// in the option driver.OptRecordColRename found on the context.
+// in the option driver.OptResultColRename found on the context.
 // This mechanism is used to deduplicate column names, as can happen in
 // in "SELECT * FROM ... JOIN" situations. For example, if the result set
 // has columns [actor_id, first_name, actor_id], the columns might be
@@ -655,12 +655,12 @@ func MungeColNames(ctx context.Context, ogColNames []string) (colNames []string,
 	}
 
 	o := options.FromContext(ctx)
-	tplText := OptRecordColRename.Get(o)
+	tplText := OptResultColRename.Get(o)
 	if tplText == "" {
 		return ogColNames, nil
 	}
 
-	tpl, err := stringz.NewTemplate(OptRecordColRename.Key(), tplText)
+	tpl, err := stringz.NewTemplate(OptResultColRename.Key(), tplText)
 	if err != nil {
 		return nil, errz.Wrap(err, "config: ")
 	}
@@ -695,7 +695,7 @@ func MungeColNames(ctx context.Context, ogColNames []string) (colNames []string,
 	return colNames, nil
 }
 
-// colMungeData is the struct passed to the template from OptRecordColRename,
+// colMungeData is the struct passed to the template from OptResultColRename,
 // used in MungeColNames.
 type colMungeData struct {
 	// Name is the original column name.

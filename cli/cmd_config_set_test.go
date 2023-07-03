@@ -16,7 +16,7 @@ import (
 )
 
 // TestCmdConfigSet verifies that setting config options actually takes effect.
-// In this test, we use driver.OptRecordColRename, setting that template such
+// In this test, we use driver.OptResultColRename, setting that template such
 // that the column name is transformed to uppercase.
 func TestCmdConfigSet(t *testing.T) {
 	th := testh.New(t)
@@ -32,7 +32,7 @@ func TestCmdConfigSet(t *testing.T) {
 
 	tr = testrun.New(th.Context, t, tr)
 	const tpl = `{{.Name | upper}}`
-	err = tr.Exec("config", "set", driver.OptRecordColRename.Key(), stringz.ShellEscape(tpl))
+	err = tr.Exec("config", "set", driver.OptResultColRename.Key(), stringz.ShellEscape(tpl))
 	require.NoError(t, err)
 
 	tr = testrun.New(th.Context, t, tr)
