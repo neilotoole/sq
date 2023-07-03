@@ -24,7 +24,7 @@ mechanism.
 - New option `result.column.rename` that exposes a template used to rename
   result set column names before display. The primary use case is to de-duplicate
   columns names on a `SELECT * FROM tbl1 JOIN tbl2`, where `tbl1` and `tbl2`
-  have clashing column names ([docs](https://sq.io/docs/config/#recordcolumnrename)).
+  have clashing column names ([docs](https://sq.io/docs/config/#resultcolumnrename)).
 
 ### Changed
 
