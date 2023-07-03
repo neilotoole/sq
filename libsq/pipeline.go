@@ -18,8 +18,6 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
-	"golang.org/x/exp/slog"
-
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/sqlmodel"
@@ -31,8 +29,6 @@ import (
 // pipeline is used to execute a SLQ query,
 // and write the resulting records to a RecordWriter.
 type pipeline struct {
-	log *slog.Logger
-
 	// query is the SLQ query
 	query string
 
@@ -74,7 +70,6 @@ func newPipeline(ctx context.Context, qc *QueryContext, query string) (*pipeline
 	}
 
 	p := &pipeline{
-		log:   log,
 		qc:    qc,
 		query: query,
 	}
@@ -88,7 +83,7 @@ func newPipeline(ctx context.Context, qc *QueryContext, query string) (*pipeline
 
 // execute executes the pipeline, writing results to recw.
 func (p *pipeline) execute(ctx context.Context, recw RecordWriter) error {
-	p.log.Debug(
+	lg.FromContext(ctx).Debug(
 		"Execute SQL query",
 		lga.Src, p.targetDB.Source(),
 		lga.SQL, p.targetSQL,
@@ -138,7 +133,8 @@ func (p *pipeline) executeTasks(ctx context.Context) error {
 // this function's responsibility to figure out what source to use, and
 // to set the relevant pipeline fields.
 func (p *pipeline) prepareNoTable(ctx context.Context, qm *queryModel) error {
-	p.log.Debug("No table in query; will look for source to use...")
+	log := lg.FromContext(ctx)
+	log.Debug("No table in query; will look for source to use...")
 
 	var (
 		src    *source.Source
@@ -148,7 +144,7 @@ func (p *pipeline) prepareNoTable(ctx context.Context, qm *queryModel) error {
 
 	if handle == "" {
 		if src = p.qc.Collection.Active(); src == nil {
-			p.log.Debug("No active source, will use scratchdb.")
+			log.Debug("No active source, will use scratchdb.")
 			p.targetDB, err = p.qc.ScratchDBOpener.OpenScratch(ctx, "scratch")
 			if err != nil {
 				return err
@@ -162,7 +158,7 @@ func (p *pipeline) prepareNoTable(ctx context.Context, qm *queryModel) error {
 			return nil
 		}
 
-		p.log.Debug("Using active source.", lga.Src, src)
+		log.Debug("Using active source.", lga.Src, src)
 	} else if src, err = p.qc.Collection.Get(handle); err != nil {
 		return err
 	}
