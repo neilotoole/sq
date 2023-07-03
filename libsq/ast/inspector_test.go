@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestInspector_findTablerSegments(t *testing.T) {
+func TestInspector_findTableSegments(t *testing.T) {
 	const q1 = `@mydb1 | .user | .uid, .username`
 
 	ast, err := buildInitialAST(t, q1)
@@ -19,9 +19,9 @@ func TestInspector_findTablerSegments(t *testing.T) {
 	segs := ast.Segments()
 	require.Equal(t, 3, len(segs))
 
-	selSegs := insp.FindTablerSegments()
-	require.Equal(t, 1, len(selSegs), "should be 1 tabler segment: the tbl sel segment")
-	finalSelSeg, err := insp.FindFinalTablerSegment()
+	selSegs := insp.FindTableSegments()
+	require.Equal(t, 1, len(selSegs), "should be 1 table segment: the tbl sel segment")
+	finalSelSeg, err := insp.FindFinalTableSegment()
 	require.Nil(t, err)
 	require.Equal(t, selSegs[0], finalSelSeg)
 }

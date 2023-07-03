@@ -128,7 +128,7 @@ func (p *pipeline) executeTasks(ctx context.Context) error {
 	return g.Wait()
 }
 
-// prepareNoTable is invoked when the queryModel doesn't have a tabler.
+// prepareNoTable is invoked when the queryModel doesn't have a table.
 // That is to say, the query doesn't have a "FROM table" clause. It is
 // this function's responsibility to figure out what source to use, and
 // to set the relevant pipeline fields.

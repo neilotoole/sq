@@ -38,14 +38,6 @@ type Node interface {
 	String() string
 }
 
-// Tabler is a Node marker interface to indicate that the node can be
-// selected from. That is, the node represents a SQL table, view, or
-// join table, and can be used like "SELECT * FROM [tabler]".
-type Tabler interface {
-	Node
-	tabler()
-}
-
 // Selector is a Node marker interface for selector node types. A selector node
 // models a selector such as ".first_name" or ".actor.last_name".
 type Selector interface {

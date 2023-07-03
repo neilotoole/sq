@@ -121,10 +121,7 @@ func (s *SelectorNode) SelValue() (string, error) {
 	return extractSelVal(s.ctx)
 }
 
-var (
-	_ Node   = (*TblSelectorNode)(nil)
-	_ Tabler = (*TblSelectorNode)(nil)
-)
+var _ Node = (*TblSelectorNode)(nil)
 
 // TblSelectorNode is a selector for a table, such as ".my_table"
 // or "@my_src.my_table".
@@ -182,11 +179,6 @@ func (n *TblSelectorNode) Handle() string {
 // SetHandle sets the handle.
 func (n *TblSelectorNode) SetHandle(h string) {
 	n.handle = h
-}
-
-// Tabler implements the Tabler marker interface.
-func (n *TblSelectorNode) tabler() {
-	// no-op
 }
 
 // SelValue returns the table name.

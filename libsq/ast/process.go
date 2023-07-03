@@ -78,14 +78,14 @@ func narrowTblColSel(w *Walker, node Node) error {
 		return nodeReplace(sel, tblColSelNode)
 	case *SegmentNode:
 		// if the parent is a segment, this is a "top-level" selector.
-		// Only top-level selectors after the final tabler seg are
-		// convert to TblColSelectorNode.
-		tablerSeg, err := NewInspector(w.root.(*AST)).FindFinalTablerSegment()
+		// Only top-level selectors after the final table seg are
+		// converted to TblColSelectorNode.
+		tblSeg, err := NewInspector(w.root.(*AST)).FindFinalTableSegment()
 		if err != nil {
 			return err
 		}
 
-		if parent.SegIndex() <= tablerSeg.SegIndex() {
+		if parent.SegIndex() <= tblSeg.SegIndex() {
 			// Skipping this selector because it's not after the final selectable segment
 			return nil
 		}
@@ -127,14 +127,14 @@ func narrowColSel(w *Walker, node Node) error {
 		return nodeReplace(sel, colSel)
 	case *SegmentNode:
 		// if the parent is a segment, this is a "top-level" selector.
-		// Only top-level selectors after the final tabler seg are
+		// Only top-level selectors after the final table seg are
 		// convert to colSels.
-		tablerSeg, err := NewInspector(w.root.(*AST)).FindFinalTablerSegment()
+		tblSeg, err := NewInspector(w.root.(*AST)).FindFinalTableSegment()
 		if err != nil {
 			return err
 		}
 
-		if parent.SegIndex() <= tablerSeg.SegIndex() {
+		if parent.SegIndex() <= tblSeg.SegIndex() {
 			// Skipping this selector because it's not after the final selectable segment
 			return nil
 		}

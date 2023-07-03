@@ -167,15 +167,15 @@ func (in *Inspector) FindGroupByNode() (*GroupByNode, error) {
 	return nil, nil //nolint:nilnil
 }
 
-// FindTablerSegments returns the segments that have at least one child
-// that implements Tabler.
-func (in *Inspector) FindTablerSegments() []*SegmentNode {
+// FindTableSegments returns the segments that have at least one child
+// that is a ast.TblSelectorNode.
+func (in *Inspector) FindTableSegments() []*SegmentNode {
 	segs := in.ast.Segments()
 	selSegs := make([]*SegmentNode, 0, 2)
 
 	for _, seg := range segs {
 		for _, child := range seg.Children() {
-			if _, ok := child.(Tabler); ok {
+			if _, ok := child.(*TblSelectorNode); ok {
 				selSegs = append(selSegs, seg)
 				break
 			}
@@ -227,10 +227,10 @@ func (in *Inspector) FindFirstTableSelector() *TblSelectorNode {
 	return nil
 }
 
-// FindFinalTablerSegment returns the final segment that
-// has at least one child that implements Tabler.
-func (in *Inspector) FindFinalTablerSegment() (*SegmentNode, error) {
-	selectableSegs := in.FindTablerSegments()
+// FindFinalTableSegment returns the final segment that
+// has at least one child that is an ast.TblSelectorNode.
+func (in *Inspector) FindFinalTableSegment() (*SegmentNode, error) {
+	selectableSegs := in.FindTableSegments()
 	if len(selectableSegs) == 0 {
 		return nil, errorf("no selectable segments")
 	}
