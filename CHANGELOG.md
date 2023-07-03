@@ -9,7 +9,7 @@ Breaking changes are annotated with ☢️.
 
 ## [v0.40.0] - 2023-07-03
 
-This release features a complete overhaul of the [`join`](https://sq.io/docs/query#joins)
+This release features a complete overhaul of the [`join`](https://sq.io/docs/query/#joins)
 mechanism.
 
 ### Added
