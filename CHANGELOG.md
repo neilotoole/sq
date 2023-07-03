@@ -39,10 +39,11 @@ mechanism.
    # Now, an arbitrary number of joins
    $ sq '.actor | join(.film_actor, .actor_id) | join(.film, .film_id)'
    ```
+- ☢️ The alias for `--jsonl` (JSON Lines) has been changed to `-J`.
 
 ### Fixed
 
-- Bug where config options weren't being propagated to the engine.
+- Fixed bug where config options weren't being propagated correctly.
 
 ## [v0.39.1] - 2023-06-22
 
