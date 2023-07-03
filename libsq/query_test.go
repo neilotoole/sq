@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neilotoole/sq/testh/tutil"
+
 	"github.com/stretchr/testify/assert"
 
 	"github.com/neilotoole/sq/libsq"
@@ -30,7 +32,7 @@ type queryTestCase struct {
 	name string
 
 	// skip indicates the test should be skipped. Useful for test cases
-	// that we wantSQL to implement in the future.
+	// that we want to implement in the future.
 	skip bool
 
 	// in is the SLQ input. The "@sakila" handle is replaced
@@ -44,7 +46,8 @@ type queryTestCase struct {
 	// wantErr indicates that an error is expected
 	wantErr bool
 
-	// wantSQL is the wanted SQL
+	// wantSQL is the desired SQL. If empty, the returned SQL is
+	// not tested (but is still executed).
 	wantSQL string
 
 	// override allows an alternative "wantSQL" for a specific driver type.
@@ -68,11 +71,26 @@ type queryTestCase struct {
 	// sinkTest, if non-nil, is executed against the sink returned
 	// from the query execution.
 	sinkFns []SinkTestFunc
+
+	// repeatReplace, when non-empty, instructs the test runner to repeat
+	// the test, replacing in the input string all occurrences of the first
+	// slice element with each subsequent element. For example, given:
+	//
+	//  in: ".actor | join(.address, .address_id):
+	//  repeatReplace: []string{"join", "inner_join"}
+	//
+	// The test will run once using "join" (the original query) and then another
+	// time with ".actor | inner_join(.address, .address_id)".
+	//
+	// Thus the field must be empty, or have at least two elements.
+	repeatReplace []string
 }
 
 // SinkTestFunc is a function that tests a sink.
 type SinkTestFunc func(t testing.TB, sink *testh.RecordSink)
 
+// execQueryTestCase is called by test functions to execute
+// a queryTestCase.
 func execQueryTestCase(t *testing.T, tc queryTestCase) {
 	if tc.skip {
 		t.Skip()
@@ -80,8 +98,52 @@ func execQueryTestCase(t *testing.T, tc queryTestCase) {
 
 	t.Helper()
 
-	coll := testh.New(t).NewCollection(sakila.SQLLatest()...)
+	switch len(tc.repeatReplace) {
+	case 0:
+		doExecQueryTestCase(t, tc)
+		return
+	case 1:
+		t.Fatalf("queryTestCase.repeatReplace must be empty or have at least two elements")
+		return
+	default:
+	}
 
+	subTests := make([]queryTestCase, len(tc.repeatReplace))
+	for i := range tc.repeatReplace {
+		subTests[i] = tc
+		subTests[i].name += "/" + tutil.Name(tc.repeatReplace[i])
+		if i == 0 {
+			// No need for replacement on first item, it's the original.
+			continue
+		}
+
+		subTests[i].in = strings.ReplaceAll(
+			subTests[i].in,
+			tc.repeatReplace[0],
+			tc.repeatReplace[i],
+		)
+	}
+
+	for _, st := range subTests {
+		st := st
+		t.Run(st.name, func(t *testing.T) {
+			doExecQueryTestCase(t, st)
+		})
+	}
+}
+
+// doExecQueryTestCase is called by execQueryTestCase to
+// execute a queryTestCase. This function should not be called
+// directly by test functions. The query is executed for each
+// of the sources in sakila.SQLLatest. To do so, the first
+// occurrence of the string "@sakila." is replaced with the
+// actual handle of each source. E.g:
+//
+//	"@sakila | .actor"  -->  "@sakila_pg12 | .actor"
+func doExecQueryTestCase(t *testing.T, tc queryTestCase) {
+	t.Helper()
+
+	coll := testh.New(t).NewCollection(sakila.SQLLatest()...)
 	for _, src := range coll.Sources() {
 		src := src
 
@@ -95,7 +157,7 @@ func execQueryTestCase(t *testing.T, tc queryTestCase) {
 			}
 
 			in := strings.Replace(tc.in, "@sakila", src.Handle, 1)
-			t.Log(in)
+			t.Logf("QUERY:\n\n%s\n\n", in)
 			want := tc.wantSQL
 			if overrideWant, ok := tc.override[src.Type]; ok {
 				want = overrideWant
@@ -117,13 +179,17 @@ func execQueryTestCase(t *testing.T, tc queryTestCase) {
 
 			gotSQL, gotErr := libsq.SLQ2SQL(th.Context, qc, in)
 			if tc.wantErr {
-				require.Error(t, gotErr)
+				assert.Error(t, gotErr)
+				t.Logf("ERROR: %v", gotErr)
 				return
 			}
 
+			t.Logf("SQL:\n\n%s\n\n", gotSQL)
 			require.NoError(t, gotErr)
-			require.Equal(t, want, gotSQL)
-			t.Log(gotSQL)
+
+			if want != "" {
+				require.Equal(t, want, gotSQL)
+			}
 
 			if tc.skipExec {
 				return
@@ -155,5 +221,13 @@ func assertSinkColValue(colIndex int, val any) SinkTestFunc {
 func assertSinkColName(colIndex int, name string) SinkTestFunc { //nolint:unparam
 	return func(t testing.TB, sink *testh.RecordSink) {
 		assert.Equal(t, name, sink.RecMeta[colIndex].Name(), "column %d", colIndex)
+	}
+}
+
+// assertSinkColNames returns a SinkTestFunc that matches col names.
+func assertSinkColNames(names ...string) SinkTestFunc {
+	return func(t testing.TB, sink *testh.RecordSink) {
+		gotNames := sink.RecMeta.Names()
+		assert.Equal(t, names, gotNames)
 	}
 }

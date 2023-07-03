@@ -23,10 +23,6 @@ func (v *BaseSLQVisitor) VisitElement(ctx *ElementContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseSLQVisitor) VisitCmpr(ctx *CmprContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
 func (v *BaseSLQVisitor) VisitFuncElement(ctx *FuncElementContext) interface{} {
 	return v.VisitChildren(ctx)
 }
@@ -43,7 +39,7 @@ func (v *BaseSLQVisitor) VisitJoin(ctx *JoinContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseSLQVisitor) VisitJoinConstraint(ctx *JoinConstraintContext) interface{} {
+func (v *BaseSLQVisitor) VisitJoinTable(ctx *JoinTableContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 

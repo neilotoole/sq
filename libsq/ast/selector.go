@@ -121,10 +121,7 @@ func (s *SelectorNode) SelValue() (string, error) {
 	return extractSelVal(s.ctx)
 }
 
-var (
-	_ Node   = (*TblSelectorNode)(nil)
-	_ Tabler = (*TblSelectorNode)(nil)
-)
+var _ Node = (*TblSelectorNode)(nil)
 
 // TblSelectorNode is a selector for a table, such as ".my_table"
 // or "@my_src.my_table".
@@ -150,6 +147,25 @@ func (n *TblSelectorNode) TblName() string {
 	return n.tblName
 }
 
+// SyncTblNameAlias sets the table name to the alias value,
+// if the alias is non-empty, and then sets the alias to empty.
+func (n *TblSelectorNode) SyncTblNameAlias() {
+	if n.alias != "" {
+		n.tblName = n.alias
+		n.alias = ""
+	}
+}
+
+// TblAliasOrName returns the table alias if set; if not, it
+// returns the table name.
+func (n *TblSelectorNode) TblAliasOrName() string {
+	if n.alias != "" {
+		return n.alias
+	}
+
+	return n.tblName
+}
+
 // Alias returns the node's alias, or empty string.
 func (n *TblSelectorNode) Alias() string {
 	return n.alias
@@ -160,9 +176,9 @@ func (n *TblSelectorNode) Handle() string {
 	return n.handle
 }
 
-// Tabler implements the Tabler marker interface.
-func (n *TblSelectorNode) tabler() {
-	// no-op
+// SetHandle sets the handle.
+func (n *TblSelectorNode) SetHandle(h string) {
+	n.handle = h
 }
 
 // SelValue returns the table name.
@@ -305,36 +321,15 @@ func (n *ColSelectorNode) String() string {
 	return str
 }
 
-var _ Node = (*CmprNode)(nil)
-
-// CmprNode models a comparison, such as ".age == 42".
-type CmprNode struct {
-	baseNode
-}
-
-// String returns a log/debug-friendly representation.
-func (c *CmprNode) String() string {
-	return nodeString(c)
-}
-
-func newCmprNode(parent Node, ctx slq.ICmprContext) *CmprNode {
-	leaf, _ := ctx.GetChild(0).(*antlr.TerminalNodeImpl) // FIXME: return an error
-	cmpr := &CmprNode{}
-	cmpr.ctx = leaf
-	cmpr.text = leaf.GetText()
-	cmpr.parent = parent
-	return cmpr
-}
-
 // extractSelVal extracts the value of the selector. The function takes
 // a selector node type as input, e.g. ast.SelectorNode.
 // Example inputs:
 //
-//   - .actor --> actor
-//   - .first_name --> first_name
-//   - ."first name" --> first name
+//	.actor 					-->		actor
+//	.first_name 		--> 	first_name
+//	."first name" 	--> 	first name
 //
-// The function will remove the leading period, and quotes around the name.
+// The function will remove the leading period, and any quotes around the name.
 func extractSelVal(ctx antlr.ParseTree) (string, error) {
 	if ctx == nil {
 		return "", errorf("invalid selector: is nil")

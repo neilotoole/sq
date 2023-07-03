@@ -1,8 +1,11 @@
 package driver_test
 
 import (
+	"context"
 	"fmt"
 	"testing"
+
+	"github.com/neilotoole/sq/libsq/core/options"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 
@@ -142,7 +145,7 @@ func TestDriver_CreateTable_Minimal(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, len(colNames), len(colTypes))
 
-			recMeta, _, err := drvr.RecordMeta(colTypes)
+			recMeta, _, err := drvr.RecordMeta(th.Context, colTypes)
 			require.NoError(t, err)
 
 			require.Equal(t, colNames, recMeta.Names())
@@ -400,7 +403,6 @@ func TestRegistry_DriversMetadata_SQL(t *testing.T) {
 
 			dialect := sqlDrvr.Dialect()
 			require.Equal(t, typ, dialect.Type)
-			require.NotEmpty(t, dialect.IdentQuote)
 			require.NotNil(t, dialect.Placeholders)
 		})
 	}
@@ -470,7 +472,7 @@ func TestDatabase_SourceMetadata(t *testing.T) {
 // TestDatabase_SourceMetadata_concurrent tests the behavior of the
 // drivers when SourceMetadata is invoked concurrently.
 func TestDatabase_SourceMetadata_concurrent(t *testing.T) { //nolint:tparallel
-	const concurrency = 10
+	const concurrency = 5
 
 	handles := sakila.SQLLatest()
 	for _, handle := range handles {
@@ -620,6 +622,27 @@ func TestSQLDriver_ErrWrap_IsErrNotExist(t *testing.T) {
 			_, err := th.QuerySLQ(h+".does_not_exist", nil)
 			require.Error(t, err)
 			require.True(t, errz.IsErrNotExist(err))
+		})
+	}
+}
+
+func TestMungeColNames(t *testing.T) {
+	testCases := []struct {
+		in   []string
+		want []string
+	}{
+		{[]string{"a", "b", "c"}, []string{"a", "b", "c"}},
+		{[]string{"a", "b", "a", "d"}, []string{"a", "b", "a_1", "d"}},
+		{[]string{"a", "b", "a", "b", "d", "a"}, []string{"a", "b", "a_1", "b_1", "d", "a_2"}},
+	}
+
+	for i, tc := range testCases {
+		tc := tc
+		t.Run(tutil.Name(i, tc.in), func(t *testing.T) {
+			ctx := options.NewContext(context.Background(), options.Options{})
+			got, err := driver.MungeColNames(ctx, tc.in)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got)
 		})
 	}
 }

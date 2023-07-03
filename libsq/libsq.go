@@ -95,24 +95,23 @@ type RecordWriter interface {
 // ExecuteSLQ executes the slq query, writing the results to recw.
 // The caller is responsible for closing qc.
 func ExecuteSLQ(ctx context.Context, qc *QueryContext, query string, recw RecordWriter) error {
-	ng, err := newEngine(ctx, qc, query)
+	p, err := newPipeline(ctx, qc, query)
 	if err != nil {
 		return err
 	}
 
-	return ng.execute(ctx, recw)
+	return p.execute(ctx, recw)
 }
 
 // SLQ2SQL simulates execution of a SLQ query, but instead of executing
 // the resulting SQL query, that ultimate SQL is returned. Effectively it is
 // equivalent to libsq.ExecuteSLQ, but without the execution.
 func SLQ2SQL(ctx context.Context, qc *QueryContext, query string) (targetSQL string, err error) {
-	var ng *engine
-	ng, err = newEngine(ctx, qc, query)
+	p, err := newPipeline(ctx, qc, query)
 	if err != nil {
 		return "", err
 	}
-	return ng.targetSQL, nil
+	return p.targetSQL, nil
 }
 
 // QuerySQL executes the SQL query against dbase, writing
@@ -173,7 +172,7 @@ func QuerySQL(ctx context.Context, dbase driver.Database, recw RecordWriter, que
 	}
 
 	drvr := dbase.SQLDriver()
-	recMeta, recFromScanRowFn, err := drvr.RecordMeta(colTypes)
+	recMeta, recFromScanRowFn, err := drvr.RecordMeta(ctx, colTypes)
 	if err != nil {
 		return errw(err)
 	}

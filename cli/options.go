@@ -141,6 +141,7 @@ func RegisterDefaultOpts(reg *options.Registry) {
 		OptDateFormatAsNumber,
 		OptTimeFormat,
 		OptTimeFormatAsNumber,
+		driver.OptResultColRename,
 		OptVerbose,
 		OptPrintHeader,
 		OptMonochrome,

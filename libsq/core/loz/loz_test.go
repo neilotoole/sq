@@ -3,6 +3,8 @@ package loz_test
 import (
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/core/stringz"
+
 	"github.com/neilotoole/sq/libsq/core/loz"
 	"github.com/stretchr/testify/require"
 )
@@ -25,4 +27,11 @@ func TestToSliceType(t *testing.T) {
 	require.True(t, ok)
 	require.Len(t, got, 2)
 	require.Equal(t, []string{"hello", "world"}, got)
+}
+
+func TestApply(t *testing.T) {
+	input := []string{"hello", "world"}
+	want := []string{"'hello'", "'world'"}
+	got := loz.Apply(input, stringz.SingleQuote)
+	require.Equal(t, want, got)
 }

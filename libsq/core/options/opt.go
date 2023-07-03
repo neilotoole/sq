@@ -159,11 +159,15 @@ func (op BaseOpt) Process(o Options) (Options, error) {
 var _ Opt = String{}
 
 // NewString returns an options.String instance. If flag is empty, the
-// value of key is used.
-func NewString(key, flag string, short rune, defaultVal, usage, help string, tags ...string) String {
+// value of key is used. If valid Fn is non-nil, it is called from
+// the process function.
+func NewString(key, flag string, short rune, defaultVal string,
+	validFn func(string) error, usage, help string, tags ...string,
+) String {
 	return String{
 		BaseOpt:    NewBaseOpt(key, flag, short, usage, help, tags...),
 		defaultVal: defaultVal,
+		validFn:    validFn,
 	}
 }
 
@@ -171,6 +175,7 @@ func NewString(key, flag string, short rune, defaultVal, usage, help string, tag
 type String struct {
 	BaseOpt
 	defaultVal string
+	validFn    func(string) error
 }
 
 // GetAny implements options.Opt.
@@ -207,6 +212,31 @@ func (op String) Get(o Options) string {
 	}
 
 	return s
+}
+
+// Process implements options.Opt. If the String was constructed
+// with validator function, it is invoked on the value of the Opt,
+// if it is set. Otherwise the method is no-op.
+func (op String) Process(o Options) (Options, error) {
+	if op.validFn == nil {
+		return o, nil
+	}
+
+	v, ok := o[op.key]
+	if !ok || v == nil {
+		return o, nil
+	}
+
+	var s string
+	if s, ok = v.(string); !ok {
+		return nil, errz.Errorf("expected string value for {%s} but got %T: %v", op.key, v, v)
+	}
+
+	if err := op.validFn(s); err != nil {
+		return nil, err
+	}
+
+	return o, nil
 }
 
 var _ Opt = Int{}

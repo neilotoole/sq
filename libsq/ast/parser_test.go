@@ -3,6 +3,8 @@ package ast
 import (
 	"testing"
 
+	"github.com/neilotoole/sq/testh/tutil"
+
 	"github.com/neilotoole/slogt"
 
 	"github.com/antlr/antlr4/runtime/Go/antlr/v4"
@@ -10,31 +12,6 @@ import (
 
 	"github.com/neilotoole/sq/libsq/ast/internal/slq"
 )
-
-const (
-	fixtRowRange1  = `@mydb1 | .user | .uid, .username | .[]`
-	fixtRowRange2  = `@mydb1 | .user | .uid, .username | .[2]`
-	fixtRowRange3  = `@mydb1 | .user | .uid, .username | .[1:3]`
-	fixtRowRange4  = `@mydb1 | .user | .uid, .username | .[0:3]`
-	fixtRowRange5  = `@mydb1 | .user | .uid, .username | .[:3]`
-	fixtRowRange6  = `@mydb1 | .user | .uid, .username | .[2:]`
-	fixtJoinQuery1 = `@mydb1 | .user, .address | join(.user.uid == .address.uid) | .uid, .username, .country`
-	fixtSelect1    = `@mydb1 | .user | .uid, .username`
-)
-
-var slqInputs = map[string]string{
-	"rr1":                 `@mydb1 | .user | .uid, .username | .[]`,
-	"rr2":                 `@mydb1 | .user | .uid, .username | .[2]`,
-	"rr3":                 `@mydb1 | .user | .uid, .username | .[1:3]`,
-	"rr4":                 `@mydb1 | .user | .uid, .username | .[0:3]`,
-	"rr5":                 `@mydb1 | .user | .uid, .username | .[:3]`,
-	"rr6":                 `@mydb1 | .user | .uid, .username | .[2:]`,
-	"join with row range": `@my1 |.user, .address | join(.uid) |  .[0:4] | .user.uid, .username, .country`,
-	"join1":               `@mydb1 | .user, .address | join(.user.uid == .address.uid) | .uid, .username, .country`,
-	"select1":             `@mydb1 | .user | .uid, .username`,
-	"tbl datasource":      `@mydb1.user | .uid, .username`,
-	"count1":              `@mydb1.user | count`,
-}
 
 // getSLQParser returns a parser for the given SQL input.
 func getSLQParser(input string) *slq.SLQParser {
@@ -71,10 +48,10 @@ func mustParse(t *testing.T, input string) *AST {
 }
 
 func TestSimpleQuery(t *testing.T) {
+	const q1 = `@mydb1 | .user | .uid, .username`
 	log := slogt.New(t)
-	const input = fixtSelect1
 
-	ptree, err := parseSLQ(log, input)
+	ptree, err := parseSLQ(log, q1)
 	require.Nil(t, err)
 	require.NotNil(t, ptree)
 
@@ -83,15 +60,33 @@ func TestSimpleQuery(t *testing.T) {
 	require.NotNil(t, ast)
 }
 
+// TestParseBuild performs some basic testing of the parser.
+// These tests are largely duplicates of other tests, and
+// probably should be consolidated.
 func TestParseBuild(t *testing.T) {
-	for test, input := range slqInputs {
-		test, input := test, input
+	testCases := []struct {
+		name string
+		in   string
+	}{
+		{"rr1", `@mydb1 | .user | .uid, .username | .[]`},
+		{"rr2", `@mydb1 | .user | .uid, .username | .[2]`},
+		{"rr3", `@mydb1 | .user | .uid, .username | .[1:3]`},
+		{"rr4", `@mydb1 | .user | .uid, .username | .[0:3]`},
+		{"rr5", `@mydb1 | .user | .uid, .username | .[:3]`},
+		{"rr6", `@mydb1 | .user | .uid, .username | .[2:]`},
+		{"join with row range", `@my1 |.user | join(.address, .uid) |  .[0:4] | .user.uid, .username, .country`},
+		{"join1", `@mydb1 | .user | join(.address, .user.uid == .address.uid) | .uid, .username, .country`},
+		{"select1", `@mydb1 | .user | .uid, .username`},
+		{"tbl datasource", `@mydb1.user | .uid, .username`},
+		{"count1", `@mydb1.user | count`},
+	}
 
-		t.Run(test, func(t *testing.T) {
-			t.Logf(input)
+	for i, tc := range testCases {
+		t.Run(tutil.Name(i, tc.name), func(t *testing.T) {
+			t.Logf(tc.in)
 			log := slogt.New(t)
 
-			ptree, err := parseSLQ(log, input)
+			ptree, err := parseSLQ(log, tc.in)
 			require.Nil(t, err)
 			require.NotNil(t, ptree)
 

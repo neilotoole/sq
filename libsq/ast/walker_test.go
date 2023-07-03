@@ -8,12 +8,11 @@ import (
 )
 
 func TestWalker(t *testing.T) {
-	log := slogt.New(t)
+	const q1 = `@mydb1 | .user  | join(.address, .user.uid == .address.uid) | .uid, .username, .country`
 
-	// `@mydb1 | .user, .address | join(.uid == .uid) | .uid, .username, .country`
-	p := getSLQParser(fixtJoinQuery1)
+	p := getSLQParser(q1)
 	query := p.Query()
-	ast, err := buildAST(log, query)
+	ast, err := buildAST(slogt.New(t), query)
 
 	assert.Nil(t, err)
 	assert.NotNil(t, ast)
@@ -48,6 +47,6 @@ func TestWalker(t *testing.T) {
 	walker.AddVisitor(typeColSelectorNode, visitorB)
 	err = walker.Walk()
 	assert.Nil(t, err)
-	assert.Equal(t, 2, countA)
+	assert.Equal(t, 1, countA)
 	assert.Equal(t, 3, countB)
 }

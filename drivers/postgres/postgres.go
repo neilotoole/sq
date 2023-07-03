@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/jointype"
+
 	"github.com/neilotoole/sq/libsq/core/record"
 
 	"github.com/neilotoole/sq/libsq/core/options"
@@ -103,10 +105,10 @@ func (d *driveri) Dialect() dialect.Dialect {
 	return dialect.Dialect{
 		Type:           Type,
 		Placeholders:   placeholders,
-		IdentQuote:     '"',
 		Enquote:        stringz.DoubleQuote,
 		MaxBatchValues: 1000,
 		Ops:            dialect.DefaultOps(),
+		Joins:          jointype.All(),
 	}
 }
 
@@ -408,8 +410,9 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 	// 	(SELECT username FROM person LIMIT 1) AS username,
 	// 	(SELECT email FROM person LIMIT 1) AS email
 	// LIMIT 1;
-	quote := string(d.Dialect().IdentQuote)
-	tblNameQuoted := stringz.Surround(tblName, quote)
+
+	enquote := d.Dialect().Enquote
+	tblNameQuoted := enquote(tblName)
 
 	var query string
 
@@ -426,7 +429,7 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 	var sb strings.Builder
 	sb.WriteString("SELECT\n")
 	for i, colName := range colNames {
-		colNameQuoted := stringz.Surround(colName, quote)
+		colNameQuoted := enquote(colName)
 		sb.WriteString(fmt.Sprintf("  (SELECT %s FROM %s LIMIT 1) AS %s", colNameQuoted, tblNameQuoted, colNameQuoted))
 		if i < len(colNames)-1 {
 			sb.WriteRune(',')
@@ -469,7 +472,7 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 		return nil, err
 	}
 
-	destCols, _, err := d.RecordMeta(colTypes)
+	destCols, _, err := d.RecordMeta(ctx, colTypes)
 	if err != nil {
 		return nil, err
 	}
@@ -518,19 +521,34 @@ func getTableColumnNames(ctx context.Context, db sqlz.DB, tblName string) ([]str
 }
 
 // RecordMeta implements driver.SQLDriver.
-func (d *driveri) RecordMeta(colTypes []*sql.ColumnType) (record.Meta, driver.NewRecordFunc, error) {
+func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (record.Meta,
+	driver.NewRecordFunc, error,
+) {
 	// The jackc/pgx driver doesn't report nullability (sql.ColumnType)
 	// Apparently this is due to what postgres sends over the wire.
 	// See https://github.com/jackc/pgx/issues/276#issuecomment-526831493
 	// So, we'll set the scan type for each column to the nullable
 	// version below.
 
-	recMeta := make(record.Meta, len(colTypes))
+	sColTypeData := make([]*record.ColumnTypeData, len(colTypes))
+	ogColNames := make([]string, len(colTypes))
 	for i, colType := range colTypes {
 		knd := kindFromDBTypeName(d.log, colType.Name(), colType.DatabaseTypeName())
 		colTypeData := record.NewColumnTypeData(colType, knd)
 		setScanType(d.log, colTypeData, knd)
-		recMeta[i] = record.NewFieldMeta(colTypeData)
+		sColTypeData[i] = colTypeData
+		ogColNames[i] = colTypeData.Name
+	}
+
+	mungedColNames, err := driver.MungeColNames(ctx, ogColNames)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	recMeta := make(record.Meta, len(colTypes))
+	for i := range sColTypeData {
+		sColTypeData[i].Name = mungedColNames[i]
+		recMeta[i] = record.NewFieldMeta(sColTypeData[i])
 	}
 
 	mungeFn := func(vals []any) (record.Record, error) {

@@ -47,7 +47,7 @@ func (n *OrderByNode) SetChildren(children []Node) error {
 		}
 	}
 
-	n.setChildren(children)
+	n.doSetChildren(children)
 	return nil
 }
 
@@ -100,7 +100,7 @@ func (n *OrderByTermNode) SetChildren(children []Node) error {
 			n, len(children))
 	}
 
-	n.setChildren(children)
+	n.doSetChildren(children)
 	return nil
 }
 

@@ -19,9 +19,6 @@ type SLQListener interface {
 	// EnterElement is called when entering the element production.
 	EnterElement(c *ElementContext)
 
-	// EnterCmpr is called when entering the cmpr production.
-	EnterCmpr(c *CmprContext)
-
 	// EnterFuncElement is called when entering the funcElement production.
 	EnterFuncElement(c *FuncElementContext)
 
@@ -34,8 +31,8 @@ type SLQListener interface {
 	// EnterJoin is called when entering the join production.
 	EnterJoin(c *JoinContext)
 
-	// EnterJoinConstraint is called when entering the joinConstraint production.
-	EnterJoinConstraint(c *JoinConstraintContext)
+	// EnterJoinTable is called when entering the joinTable production.
+	EnterJoinTable(c *JoinTableContext)
 
 	// EnterUniqueFunc is called when entering the uniqueFunc production.
 	EnterUniqueFunc(c *UniqueFuncContext)
@@ -103,9 +100,6 @@ type SLQListener interface {
 	// ExitElement is called when exiting the element production.
 	ExitElement(c *ElementContext)
 
-	// ExitCmpr is called when exiting the cmpr production.
-	ExitCmpr(c *CmprContext)
-
 	// ExitFuncElement is called when exiting the funcElement production.
 	ExitFuncElement(c *FuncElementContext)
 
@@ -118,8 +112,8 @@ type SLQListener interface {
 	// ExitJoin is called when exiting the join production.
 	ExitJoin(c *JoinContext)
 
-	// ExitJoinConstraint is called when exiting the joinConstraint production.
-	ExitJoinConstraint(c *JoinConstraintContext)
+	// ExitJoinTable is called when exiting the joinTable production.
+	ExitJoinTable(c *JoinTableContext)
 
 	// ExitUniqueFunc is called when exiting the uniqueFunc production.
 	ExitUniqueFunc(c *UniqueFuncContext)

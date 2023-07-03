@@ -8,6 +8,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/loz"
+
+	"github.com/neilotoole/sq/libsq/core/jointype"
+
 	"github.com/neilotoole/sq/libsq/core/record"
 
 	"github.com/neilotoole/sq/libsq/driver/dialect"
@@ -108,10 +112,10 @@ func (d *driveri) Dialect() dialect.Dialect {
 	return dialect.Dialect{
 		Type:           Type,
 		Placeholders:   placeholders,
-		IdentQuote:     '"',
 		Enquote:        stringz.DoubleQuote,
 		MaxBatchValues: 1000,
 		Ops:            dialect.DefaultOps(),
+		Joins:          jointype.All(),
 	}
 }
 
@@ -249,13 +253,12 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 	// ORDER BY (SELECT 0) OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY;
 	const queryTpl = "SELECT %s FROM %s ORDER BY (SELECT 0) OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY"
 
-	dialect := d.Dialect()
-	quote := string(dialect.IdentQuote)
-	tblNameQuoted := stringz.Surround(tblName, quote)
+	enquote := d.Dialect().Enquote
+	tblNameQuoted := enquote(tblName)
 
 	colsClause := "*"
 	if len(colNames) > 0 {
-		colNamesQuoted := stringz.SurroundSlice(colNames, quote)
+		colNamesQuoted := loz.Apply(colNames, enquote)
 		colsClause = strings.Join(colNamesQuoted, driver.Comma)
 	}
 
@@ -286,13 +289,28 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 }
 
 // RecordMeta implements driver.SQLDriver.
-func (d *driveri) RecordMeta(colTypes []*sql.ColumnType) (record.Meta, driver.NewRecordFunc, error) {
-	recMeta := make([]*record.FieldMeta, len(colTypes))
+func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (record.Meta,
+	driver.NewRecordFunc, error,
+) {
+	sColTypeData := make([]*record.ColumnTypeData, len(colTypes))
+	ogColNames := make([]string, len(colTypes))
 	for i, colType := range colTypes {
 		kind := kindFromDBTypeName(d.log, colType.Name(), colType.DatabaseTypeName())
 		colTypeData := record.NewColumnTypeData(colType, kind)
 		setScanType(colTypeData, kind)
-		recMeta[i] = record.NewFieldMeta(colTypeData)
+		sColTypeData[i] = colTypeData
+		ogColNames[i] = colTypeData.Name
+	}
+
+	mungedColNames, err := driver.MungeColNames(ctx, ogColNames)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	recMeta := make(record.Meta, len(colTypes))
+	for i := range sColTypeData {
+		sColTypeData[i].Name = mungedColNames[i]
+		recMeta[i] = record.NewFieldMeta(sColTypeData[i])
 	}
 
 	mungeFn := func(vals []any) (record.Record, error) {
@@ -456,10 +474,9 @@ func (d *driveri) getTableColsMeta(ctx context.Context, db sqlz.DB,
 	// ORDER BY (SELECT 0) OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY;
 	const queryTpl = "SELECT %s FROM %s ORDER BY (SELECT 0) OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY"
 
-	dialect := d.Dialect()
-	quote := string(dialect.IdentQuote)
-	tblNameQuoted := stringz.Surround(tblName, quote)
-	colNamesQuoted := stringz.SurroundSlice(colNames, quote)
+	enquote := d.Dialect().Enquote
+	tblNameQuoted := enquote(tblName)
+	colNamesQuoted := loz.Apply(colNames, enquote)
 	colsJoined := strings.Join(colNamesQuoted, driver.Comma)
 
 	query := fmt.Sprintf(queryTpl, colsJoined, tblNameQuoted)
@@ -478,7 +495,7 @@ func (d *driveri) getTableColsMeta(ctx context.Context, db sqlz.DB,
 		return nil, errw(rows.Err())
 	}
 
-	destCols, _, err := d.RecordMeta(colTypes)
+	destCols, _, err := d.RecordMeta(ctx, colTypes)
 	if err != nil {
 		lg.WarnIfFuncError(d.log, lgm.CloseDBRows, rows.Close)
 		return nil, errw(err)

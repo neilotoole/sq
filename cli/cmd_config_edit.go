@@ -92,13 +92,17 @@ func execConfigEditOptions(cmd *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	opts := options.Options{}
-	if err = ioz.UnmarshallYAML(after, &opts); err != nil {
+	o := options.Options{}
+	if err = ioz.UnmarshallYAML(after, &o); err != nil {
+		return err
+	}
+
+	if o, err = ru.OptionsRegistry.Process(o); err != nil {
 		return err
 	}
 
 	// TODO: if --verbose, show diff
-	cfg.Options = opts
+	cfg.Options = o
 	if err = ru.ConfigStore.Save(ctx, cfg); err != nil {
 		return err
 	}

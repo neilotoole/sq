@@ -37,6 +37,7 @@ var (
 		"",
 		0,
 		getDefaultLogFilePath(),
+		nil,
 		"Log file path",
 		`Path to log file. Empty value disables logging.`,
 	)

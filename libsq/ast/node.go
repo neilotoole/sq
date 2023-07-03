@@ -10,6 +10,12 @@ import (
 
 // Node is an AST node.
 type Node interface {
+	// context returns the parse tree context.
+	context() antlr.ParseTree
+
+	// setContext sets the parse tree context, returning an error if illegal.
+	setContext(ctx antlr.ParseTree) error
+
 	// Parent returns the node's parent, which may be nil..
 	Parent() Node
 
@@ -25,26 +31,11 @@ type Node interface {
 	// AddChild adds a child node, returning an error if illegal.
 	AddChild(child Node) error
 
-	// Context returns the parse tree context.
-	Context() antlr.ParseTree
-
-	// SetContext sets the parse tree context, returning an error if illegal.
-	SetContext(ctx antlr.ParseTree) error
+	// Text returns the node's raw text value.
+	Text() string
 
 	// String returns a debug-friendly string representation.
 	String() string
-
-	// Text returns the node's text value. This is convenience
-	// method for Node.Context().GetText().
-	Text() string
-}
-
-// Tabler is a Node marker interface to indicate that the node can be
-// selected from. That is, the node represents a SQL table, view, or
-// join table, and can be used like "SELECT * FROM [tabler]".
-type Tabler interface {
-	Node
-	tabler()
 }
 
 // Selector is a Node marker interface for selector node types. A selector node
@@ -113,7 +104,7 @@ func (bn *baseNode) SetChildren(children []Node) error {
 	return errorf(msgNodeNoAddChildren, bn, len(children))
 }
 
-func (bn *baseNode) setChildren(children []Node) {
+func (bn *baseNode) doSetChildren(children []Node) {
 	bn.children = children
 }
 
@@ -125,11 +116,13 @@ func (bn *baseNode) Text() string {
 	return bn.ctx.GetText()
 }
 
-func (bn *baseNode) Context() antlr.ParseTree {
+// context implements ast.Node.
+func (bn *baseNode) context() antlr.ParseTree {
 	return bn.ctx
 }
 
-func (bn *baseNode) SetContext(ctx antlr.ParseTree) error {
+// setContext implements ast.Node.
+func (bn *baseNode) setContext(ctx antlr.ParseTree) error {
 	bn.ctx = ctx
 	return nil
 }
@@ -142,7 +135,7 @@ func nodeString(n Node) string {
 // nodeReplace replaces old with new. That is, nu becomes a child
 // of old's parent.
 func nodeReplace(old, nu Node) error {
-	err := nu.SetContext(old.Context())
+	err := nu.setContext(old.context())
 	if err != nil {
 		return err
 	}
@@ -346,7 +339,6 @@ var (
 	typeSegmentNode        = reflect.TypeOf((*SegmentNode)(nil))
 	_                      = reflect.TypeOf((*Selector)(nil)).Elem()
 	typeSelectorNode       = reflect.TypeOf((*SelectorNode)(nil))
-	_                      = reflect.TypeOf((*Tabler)(nil)).Elem()
 	typeTblColSelectorNode = reflect.TypeOf((*TblColSelectorNode)(nil))
 	typeTblSelectorNode    = reflect.TypeOf((*TblSelectorNode)(nil))
 	typeUniqueNode         = reflect.TypeOf((*UniqueNode)(nil))

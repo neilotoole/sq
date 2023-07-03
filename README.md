@@ -13,7 +13,8 @@ structured data sources: SQL databases, or document formats like CSV or Excel.
 ![sq](.images/splash.png)
 
 `sq` executes jq-like [queries](https://sq.io/docs/query), or database-native [SQL](https://sq.io/docs/cmd/sql/).
-It can perform cross-source [joins](https://sq.io/docs/query/#cross-source-joins).
+It can [join](https://sq.io/docs/query/#cross-source-joins) across sources: join a CSV file to a Postgres table, or
+MySQL with Excel.
 
 `sq` outputs to a multitude of [formats](https://sq.io/docs/output#formats)
 including [JSON](https://sq.io/docs/output#json),
@@ -21,8 +22,10 @@ including [JSON](https://sq.io/docs/output#json),
 [HTML](https://sq.io/docs/output#html), [Markdown](https://sq.io/docs/output#markdown) 
 and [XML](https://sq.io/docs/output#xml), and can [insert](https://sq.io/docs/output#insert) query 
 results directly to a SQL database.
+
 `sq` can also [inspect](https://sq.io/docs/inspect) sources to view metadata about the source structure (tables,
-columns, size) and has commands for common database operations to
+columns, size). You can use [`sq diff`](https://sq.io/docs/diff) to compare tables, or
+entire databases. `sq` has commands for common database operations to
 [copy](https://sq.io/docs/cmd/tbl-copy), [truncate](https://sq.io/docs/cmd/tbl-truncate),
 and [drop](https://sq.io/docs/cmd/tbl-drop) tables.
 
@@ -121,46 +124,25 @@ $ sq ping
 Fundamentally, `sq` is for querying data. The jq-style syntax is covered in
 detail in the [query guide](https://sq.io/docs/query).
 
-```shell
-$ sq '.actor | where(.actor_id < 100) | .[0:3]'
-actor_id  first_name  last_name     last_update
-1         PENELOPE    GUINESS       2020-02-15T06:59:28Z
-2         NICK        WAHLBERG      2020-02-15T06:59:28Z
-3         ED          CHASE         2020-02-15T06:59:28Z
-```
+![sq query where slq](./.images/sq_query_where_slq.png)
 
 The above query selected some rows from the `actor` table. You could also
 use [native SQL](https://sq.io/docs/cmd/sql), e.g.:
 
-```shell
-$ sq sql 'SELECT * FROM actor WHERE actor_id < 100 LIMIT 3'
-actor_id  first_name  last_name  last_update
-1         PENELOPE    GUINESS    2020-02-15T06:59:28Z
-2         NICK        WAHLBERG   2020-02-15T06:59:28Z
-3         ED          CHASE      2020-02-15T06:59:28Z
-```
+![sq query where sql](./.images/sq_query_where_sql.png)
 
 But we're flying a bit blind here: how did we know about the `actor` table?
 
 ### Inspect
 
-[`sq inspect`](https://sq.io/docs/inspect) is your friend (output abbreviated):
+[`sq inspect`](https://sq.io/docs/inspect) is your friend.
 
-```shell
-$ sq inspect
-SOURCE          DRIVER   NAME       FQ NAME         SIZE   TABLES  VIEWS  LOCATION
-@sakila/sqlite  sqlite3  sakila.db  sakila.db/main  5.6MB  16      5      sqlite3:///Users/neilotoole/work/sq/sq/drivers/sqlite3/testdata/sakila.db
-
-NAME                    TYPE   ROWS   COLS
-actor                   table  200    actor_id, first_name, last_name, last_update
-address                 table  603    address_id, address, address2, district, city_id, postal_code, phone, last_update
-category                table  16     category_id, name, last_update
-```
+![sq inspect](./.images/sq_inspect_source_text.png)
 
 Use [`sq inspect -v`](https://sq.io/docs/cmd/inspect) to see more detail.
 Or use [`-j`](https://sq.io/docs/output#json) to get JSON output:
 
-![sq inspect -j](https://sq.io/images/sq_inspect_sakila_sqlite_json.png)
+![sq inspect -j](./.images/sq_inspect_sakila_sqlite_json.png)
 
 Combine `sq inspect` with [jq](https://jqlang.github.io/jq/) for some useful capabilities.
 Here's how to [list](https://sq.io/docs/cookbook/#list-table-names)
@@ -191,14 +173,9 @@ category.csv  customer.csv  film_actor.csv     film_text.csv	  payment.csv	 sale
 
 Note that you can also inspect an individual table:
 
-```shell
-$ sq inspect @sakila.actor -v
-NAME   TYPE   ROWS  COLS  NAME         TYPE       PK
-actor  table  200   4     actor_id     int4       pk
-                          first_name   varchar
-                          last_name    varchar
-                          last_update  timestamp
-```
+![sq inspect actor verbose](./.images/sq_inspect_actor_verbose.png)
+
+Read more about [`sq inspect`](https://sq.io/docs/inspect).
 
 ### Diff
 
@@ -209,8 +186,10 @@ Use [`sq diff`](https://sq.io/docs/diff) to compare source metadata, or row data
 ### Insert query results
 
 `sq` query results can be [output](https://sq.io/docs/output) in various formats 
-(JSON, XML, CSV, etc), and can also be "outputted" as an
-[*insert*](https://sq.io/docs/output#insert) into database sources.
+([`text`](https://sq.io/docs/output#text),
+[`json`](https://sq.io/docs/output#json),
+[`csv`](https://sq.io/docs/output#csv), etc.). Those results can also be "outputted"
+as an [*insert*](https://sq.io/docs/output#insert) into a database table.
 
 That is, you can use `sq` to insert results from a Postgres query into a MySQL table,
 or copy an Excel worksheet into a SQLite table, or a push a CSV file into
@@ -219,61 +198,28 @@ a SQL Server table etc.
 > **Note:** If you want to copy a table inside the same (database) source,
 > use [`sq tbl copy`](https://sq.io/docs/cmd/tbl-copy) instead, which uses the database's native table copy functionality.
 
-For this example, we'll insert an Excel worksheet into our `@sakila`
-SQLite database. First, we
-download the XLSX file, and `sq add` it as a source.
+Here we query a CSV file, and insert the results into a Postgres table.
+
+![sq query insert inspect](./.images/sq_query_insert_inspect.png)
+
+
+### Cross-source joins
+
+`sq` can perform the usual [joins](https://sq.io/docs/query#joins). Here's how you would
+join tables `actor`, `film_actor`, and `film`:
 
 ```shell
-$ wget https://sq.io/testdata/xl_demo.xlsx
-
-$ sq add ./xl_demo.xlsx --ingest.header=true
-@xl_demo  xlsx  xl_demo.xlsx
-
-$ sq @xl_demo.person
-uid  username    email                  address_id
-1    neilotoole  neilotoole@apache.org  1
-2    ksoze       kaiser@soze.org        2
-3    kubla       kubla@khan.mn          NULL
-[...]
+$ sq '.actor | join(.film_actor, .actor_id) | join(.film, .film_id) | .first_name, .last_name, .title'
 ```
 
-Now, execute the same query, but this time `sq` inserts the results into a new 
-table (`person`)
-in the SQLite `@sakila` source:
+But `sq` can also join across data sources. That is, you can join an Excel worksheet with a
+Postgres table, or join a CSV file with MySQL, and so on.
 
-```shell
-$ sq @xl_demo.person --insert @sakila.person
-Inserted 7 rows into @sakila.person
+This example joins a Postgres database, an Excel worksheet, and a CSV file.
 
-$ sq inspect @sakila.person
-TABLE   ROWS  COL NAMES
-person  7     uid, username, email, address_id
+![sq join multi source](./.images/sq_join_multi_source.png)
 
-$ sq @sakila.person
-uid  username    email                  address_id
-1    neilotoole  neilotoole@apache.org  1
-2    ksoze       kaiser@soze.org        2
-3    kubla       kubla@khan.mn          NULL
-[...]
-```
-
-### Cross-source join
-
-`sq` has rudimentary support for cross-source [joins](https://sq.io/docs/query#join). That is, you can join an Excel worksheet with a
-CSV file, or Postgres table, etc.
-
-See the [tutorial](https://sq.io/docs/tutorial/#join) for further details, but
-given an Excel source `@xl_demo` and a CSV source `@csv_demo`, you can do:
-
-```shell
-$ sq '@csv_demo.data, @xl_demo.address | join(.D == .address_id) | .C, .city'
-C                      city
-neilotoole@apache.org  Washington
-kaiser@soze.org        Ulan Bator
-nikola@tesla.rs        Washington
-augustus@caesar.org    Ulan Bator
-plato@athens.gr        Washington
-```
+Read more about cross-source joins in the [query guide](https://sq.io/docs/query/joins).
 
 ### Table commands
 

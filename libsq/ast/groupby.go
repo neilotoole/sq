@@ -35,7 +35,7 @@ func (n *GroupByNode) SetChildren(children []Node) error {
 		return err
 	}
 
-	n.setChildren(children)
+	n.doSetChildren(children)
 	return nil
 }
 

@@ -6,6 +6,11 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/loz"
+
+	"github.com/neilotoole/sq/libsq/core/jointype"
+	"github.com/samber/lo"
+
 	"github.com/go-sql-driver/mysql"
 	"github.com/neilotoole/sq/libsq/ast/render"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -111,11 +116,11 @@ func (d *driveri) Dialect() dialect.Dialect {
 	return dialect.Dialect{
 		Type:           Type,
 		Placeholders:   placeholders,
-		IdentQuote:     '`',
 		Enquote:        stringz.BacktickQuote,
 		IntBool:        true,
 		MaxBatchValues: 250,
 		Ops:            dialect.DefaultOps(),
+		Joins:          lo.Without(jointype.All(), jointype.FullOuter),
 	}
 }
 
@@ -133,8 +138,13 @@ func (d *driveri) Renderer() *render.Renderer {
 }
 
 // RecordMeta implements driver.SQLDriver.
-func (d *driveri) RecordMeta(colTypes []*sql.ColumnType) (record.Meta, driver.NewRecordFunc, error) {
-	recMeta := recordMetaFromColumnTypes(d.log, colTypes)
+func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (record.Meta,
+	driver.NewRecordFunc, error,
+) {
+	recMeta, err := recordMetaFromColumnTypes(ctx, colTypes)
+	if err != nil {
+		return nil, nil, err
+	}
 	mungeFn := getNewRecordFunc(recMeta)
 	return recMeta, mungeFn, nil
 }
@@ -284,13 +294,12 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 ) ([]*sql.ColumnType, error) {
 	const queryTpl = "SELECT %s FROM %s LIMIT 0"
 
-	dialect := d.Dialect()
-	quote := string(dialect.IdentQuote)
-	tblNameQuoted := dialect.Enquote(tblName)
+	enquote := d.Dialect().Enquote
+	tblNameQuoted := enquote(tblName)
 
 	colsClause := "*"
 	if len(colNames) > 0 {
-		colNamesQuoted := stringz.SurroundSlice(colNames, quote)
+		colNamesQuoted := loz.Apply(colNames, enquote)
 		colsClause = strings.Join(colNamesQuoted, driver.Comma)
 	}
 
@@ -328,7 +337,7 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 		return nil, err
 	}
 
-	destCols, _, err := d.RecordMeta(colTypes)
+	destCols, _, err := d.RecordMeta(ctx, colTypes)
 	if err != nil {
 		return nil, err
 	}

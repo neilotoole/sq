@@ -63,6 +63,7 @@ func New(ctx context.Context, t testing.TB, from *TestRun) *TestRun {
 	}
 
 	tr.Run, tr.Out, tr.ErrOut = newRun(ctx, t, cfgStore)
+	tr.Context = options.NewContext(ctx, tr.Run.Config.Options)
 	return tr
 }
 

@@ -1,6 +1,7 @@
 package driver
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"fmt"
@@ -8,6 +9,10 @@ import (
 	"reflect"
 	"strings"
 	"time"
+
+	"github.com/neilotoole/sq/libsq/core/loz"
+
+	"github.com/neilotoole/sq/libsq/core/options"
 
 	"github.com/neilotoole/sq/libsq/core/record"
 
@@ -332,8 +337,8 @@ func PrepareInsertStmt(ctx context.Context, drvr SQLDriver, db sqlz.Preparer, de
 	}
 
 	dialect := drvr.Dialect()
-	quote := string(dialect.IdentQuote)
-	tblNameQuoted, colNamesQuoted := stringz.Surround(destTbl, quote), stringz.SurroundSlice(destCols, quote)
+	tblNameQuoted := dialect.Enquote(destTbl)
+	colNamesQuoted := loz.Apply(destCols, dialect.Enquote)
 	colsJoined := strings.Join(colNamesQuoted, Comma)
 	placeholders := dialect.Placeholders(len(colNamesQuoted), numRows)
 
@@ -593,4 +598,114 @@ func mungeSetZeroValue(i int, rec []any, destMeta record.Meta) {
 	//  and kind.Time (e.g. "00:00" for time)?
 	z := reflect.Zero(destMeta[i].ScanType()).Interface()
 	rec[i] = z
+}
+
+// OptResultColRename transforms a column name returned from the DB.
+var OptResultColRename = options.NewString(
+	"result.column.rename",
+	"",
+	0,
+	"{{.Name}}{{with .Recurrence}}_{{.}}{{end}}",
+	func(s string) error {
+		return stringz.ValidTemplate("result.column.rename", s)
+	},
+	"Template to rename result columns",
+	`This Go text template is executed on the column names returned
+from the DB. Its primary purpose is to rename duplicate column names. For
+example, given a query that results in this SQL:
+
+  SELECT * FROM actor JOIN film_actor ON actor.actor_id = film_actor.actor_id
+
+The returned result set will have these column names:
+
+  actor_id, first_name, last_name, last_update, actor_id, film_id, last_update
+  |-              from "actor"               -| |-    from "film_actor"     -|
+
+Note the duplicate "actor_id" and "last_update" column names. When output in a
+format (such as JSON) that doesn't permit duplicate keys, only one of each
+duplicate column could appear.
+
+The fields available in the template are:
+
+  .Name         column name
+  .Index        zero-based index of the column in the result set
+  .Recurrence   nth recurrence of the colum name in the result set
+
+For a unique column name, e.g. "first_name" above, ".Recurrence" will be 0.
+For duplicate column names, ".Recurrence" will be 0 for the first instance,
+then 1 for the next instance, and so on.
+
+The default template renames the columns to:
+
+  actor_id, first_name, last_name, last_update, actor_id_1, film_id, last_update_1`,
+)
+
+// MungeColNames transforms column names, per the template defined
+// in the option driver.OptResultColRename found on the context.
+// This mechanism is used to deduplicate column names, as can happen in
+// in "SELECT * FROM ... JOIN" situations. For example, if the result set
+// has columns [actor_id, first_name, actor_id], the columns might be
+// transformed to [actor_id, first_name, actor_id_1].
+//
+// MungeColNames should be invoked by each impl of SQLDriver.RecordMeta
+// before returning the record.Meta.
+func MungeColNames(ctx context.Context, ogColNames []string) (colNames []string, err error) {
+	if len(ogColNames) == 0 {
+		return ogColNames, nil
+	}
+
+	o := options.FromContext(ctx)
+	tplText := OptResultColRename.Get(o)
+	if tplText == "" {
+		return ogColNames, nil
+	}
+
+	tpl, err := stringz.NewTemplate(OptResultColRename.Key(), tplText)
+	if err != nil {
+		return nil, errz.Wrap(err, "config: ")
+	}
+
+	cols := make([]colMungeData, len(ogColNames))
+	for i := range ogColNames {
+		data := colMungeData{
+			Name:  ogColNames[i],
+			Index: i,
+		}
+
+		for j := 0; j < i; j++ {
+			if ogColNames[j] == data.Name {
+				data.Recurrence++
+			}
+		}
+
+		cols[i] = data
+	}
+
+	colNames = make([]string, len(cols))
+	buf := &bytes.Buffer{}
+	for i := range cols {
+		if err = tpl.Execute(buf, cols[i]); err != nil {
+			return nil, err
+		}
+
+		colNames[i] = buf.String()
+		buf.Reset()
+	}
+
+	return colNames, nil
+}
+
+// colMungeData is the struct passed to the template from OptResultColRename,
+// used in MungeColNames.
+type colMungeData struct {
+	// Name is the original column name.
+	Name string
+
+	// Index is the column index.
+	Index int
+
+	// Recurrence is the count of times this column name has already
+	// appeared in the list of column names. If the column name is unique,
+	// this value is zero.
+	Recurrence int
 }

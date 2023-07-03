@@ -66,7 +66,7 @@ func narrowTblColSel(w *Walker, node Node) error {
 
 	parent := sel.Parent()
 	switch parent := parent.(type) {
-	case *JoinConstraint, *FuncNode, *OrderByTermNode, *GroupByNode, *ExprNode:
+	case *FuncNode, *OrderByTermNode, *GroupByNode, *ExprNode:
 		if sel.name1 == "" {
 			return nil
 		}
@@ -78,14 +78,14 @@ func narrowTblColSel(w *Walker, node Node) error {
 		return nodeReplace(sel, tblColSelNode)
 	case *SegmentNode:
 		// if the parent is a segment, this is a "top-level" selector.
-		// Only top-level selectors after the final tabler seg are
-		// convert to TblColSelectorNode.
-		tablerSeg, err := NewInspector(w.root.(*AST)).FindFinalTablerSegment()
+		// Only top-level selectors after the final table seg are
+		// converted to TblColSelectorNode.
+		tblSeg, err := NewInspector(w.root.(*AST)).FindFinalTableSegment()
 		if err != nil {
 			return err
 		}
 
-		if parent.SegIndex() <= tablerSeg.SegIndex() {
+		if parent.SegIndex() <= tblSeg.SegIndex() {
 			// Skipping this selector because it's not after the final selectable segment
 			return nil
 		}
@@ -119,7 +119,7 @@ func narrowColSel(w *Walker, node Node) error {
 	parent := sel.Parent()
 
 	switch parent := parent.(type) {
-	case *JoinConstraint, *FuncNode, *OrderByTermNode, *GroupByNode, *ExprNode:
+	case *FuncNode, *OrderByTermNode, *GroupByNode, *ExprNode:
 		colSel, err := newColSelectorNode(sel)
 		if err != nil {
 			return err
@@ -127,14 +127,14 @@ func narrowColSel(w *Walker, node Node) error {
 		return nodeReplace(sel, colSel)
 	case *SegmentNode:
 		// if the parent is a segment, this is a "top-level" selector.
-		// Only top-level selectors after the final tabler seg are
+		// Only top-level selectors after the final table seg are
 		// convert to colSels.
-		tablerSeg, err := NewInspector(w.root.(*AST)).FindFinalTablerSegment()
+		tblSeg, err := NewInspector(w.root.(*AST)).FindFinalTableSegment()
 		if err != nil {
 			return err
 		}
 
-		if parent.SegIndex() <= tablerSeg.SegIndex() {
+		if parent.SegIndex() <= tblSeg.SegIndex() {
 			// Skipping this selector because it's not after the final selectable segment
 			return nil
 		}
@@ -149,40 +149,5 @@ func narrowColSel(w *Walker, node Node) error {
 		// Skipping this selector, as parent is not of a relevant type
 	}
 
-	return nil
-}
-
-// determineJoinTables attempts to determine the tables that a JOIN refers to.
-func determineJoinTables(_ *Walker, node Node) error {
-	// node is guaranteed to be FnJoin
-	fnJoin, ok := node.(*JoinNode)
-	if !ok {
-		return errorf("expected *FnJoin but got %T", node)
-	}
-
-	seg, ok := fnJoin.Parent().(*SegmentNode)
-	if !ok {
-		return errorf("JOIN() must have a *SegmentNode parent, but got %T", fnJoin.Parent())
-	}
-
-	prevSeg := seg.Prev()
-	if prevSeg == nil {
-		return errorf("JOIN() must not be in the first segment")
-	}
-
-	if len(prevSeg.Children()) != 2 || len(nodesWithType(prevSeg.Children(), typeTblSelectorNode)) != 2 {
-		return errorf("JOIN() must have two table selectors in the preceding segment")
-	}
-
-	fnJoin.leftTbl, ok = prevSeg.Children()[0].(*TblSelectorNode)
-	if !ok {
-		return errorf("JOIN() expected table selector in previous segment, but was %T(%s)", prevSeg.Children()[0],
-			prevSeg.Children()[0].Text())
-	}
-	fnJoin.rightTbl, ok = prevSeg.Children()[1].(*TblSelectorNode)
-	if !ok {
-		return errorf("JOIN() expected table selector in previous segment, but was %T(%s)", prevSeg.Children()[1],
-			prevSeg.Children()[1].Text())
-	}
 	return nil
 }

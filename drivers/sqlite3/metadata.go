@@ -8,6 +8,8 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/driver"
+
 	"github.com/neilotoole/sq/libsq/core/record"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -16,16 +18,15 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/lg"
 
-	"golang.org/x/exp/slog"
-
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/source"
 )
 
 // recordMetaFromColumnTypes returns recordMetaFromColumnTypes for rows.
-func recordMetaFromColumnTypes(log *slog.Logger, colTypes []*sql.ColumnType) (record.Meta, error) {
-	recMeta := make([]*record.FieldMeta, len(colTypes))
+func recordMetaFromColumnTypes(ctx context.Context, colTypes []*sql.ColumnType) (record.Meta, error) {
+	sColTypeData := make([]*record.ColumnTypeData, len(colTypes))
+	ogColNames := make([]string, len(colTypes))
 	for i, colType := range colTypes {
 		// sqlite is very forgiving at times, e.g. execute
 		// a query with a non-existent column name.
@@ -33,13 +34,26 @@ func recordMetaFromColumnTypes(log *slog.Logger, colTypes []*sql.ColumnType) (re
 		// happens for functions such as COUNT(*).
 		dbTypeName := colType.DatabaseTypeName()
 
-		kind := kindFromDBTypeName(log, colType.Name(), dbTypeName, colType.ScanType())
+		kind := kindFromDBTypeName(ctx, colType.Name(), dbTypeName, colType.ScanType())
 		colTypeData := record.NewColumnTypeData(colType, kind)
 
 		// It's necessary to explicitly set the scan type because
 		// the backing driver doesn't set it for whatever reason.
-		setScanType(log, colTypeData) // FIXME: legacy?
-		recMeta[i] = record.NewFieldMeta(colTypeData)
+		setScanType(ctx, colTypeData) // REVISIT: Legacy? Do we still need this?
+
+		sColTypeData[i] = colTypeData
+		ogColNames[i] = colTypeData.Name
+	}
+
+	mungedColNames, err := driver.MungeColNames(ctx, ogColNames)
+	if err != nil {
+		return nil, err
+	}
+
+	recMeta := make(record.Meta, len(colTypes))
+	for i := range sColTypeData {
+		sColTypeData[i].Name = mungedColNames[i]
+		recMeta[i] = record.NewFieldMeta(sColTypeData[i])
 	}
 
 	return recMeta, nil
@@ -52,7 +66,7 @@ func recordMetaFromColumnTypes(log *slog.Logger, colTypes []*sql.ColumnType) (re
 //
 // If the scan type is NOT a sql.NullTYPE, the corresponding sql.NullTYPE will
 // be set.
-func setScanType(log *slog.Logger, colType *record.ColumnTypeData) {
+func setScanType(ctx context.Context, colType *record.ColumnTypeData) {
 	scanType, knd := colType.ScanType, colType.Kind
 
 	if scanType != nil {
@@ -79,7 +93,7 @@ func setScanType(log *slog.Logger, colType *record.ColumnTypeData) {
 	switch knd {
 	default:
 		// Shouldn't happen?
-		log.Warn("Unknown kind for col",
+		lg.FromContext(ctx).Warn("Unknown kind for col",
 			lga.Col, colType.Name,
 			lga.DBType, colType.DatabaseTypeName,
 		)
@@ -119,7 +133,8 @@ func setScanType(log *slog.Logger, colType *record.ColumnTypeData) {
 // The scanType arg may be nil (it may not be available to the caller): when
 // non-nil it may be used to determine ambiguous cases. For example,
 // dbTypeName is empty string for "COUNT(*)"
-func kindFromDBTypeName(log *slog.Logger, colName, dbTypeName string, scanType reflect.Type) kind.Kind {
+func kindFromDBTypeName(ctx context.Context, colName, dbTypeName string, scanType reflect.Type) kind.Kind {
+	log := lg.FromContext(ctx)
 	if dbTypeName == "" {
 		// dbTypeName can be empty for functions such as COUNT() etc.
 		// But we can infer the type from scanType (if non-nil).
@@ -301,7 +316,7 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*source.
 		col.ColumnType = col.BaseType
 		col.Nullable = notnull == 0
 		col.DefaultValue = defaultValue.String
-		col.Kind = kindFromDBTypeName(log, col.Name, col.BaseType, nil)
+		col.Kind = kindFromDBTypeName(ctx, col.Name, col.BaseType, nil)
 
 		tblMeta.Columns = append(tblMeta.Columns, col)
 	}
@@ -398,7 +413,7 @@ ORDER BY m.name, p.cid
 		col.ColumnType = col.BaseType
 		col.Nullable = notnull == 0
 		col.DefaultValue = colDefault.String
-		col.Kind = kindFromDBTypeName(log, col.Name, col.BaseType, nil)
+		col.Kind = kindFromDBTypeName(ctx, col.Name, col.BaseType, nil)
 
 		curTblMeta.Columns = append(curTblMeta.Columns, col)
 	}

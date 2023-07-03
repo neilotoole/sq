@@ -50,7 +50,7 @@ const (
 	JSONAShort = "A"
 	JSONAUsage = "Output LF-delimited JSON arrays"
 	JSONL      = "jsonl"
-	JSONLShort = "l"
+	JSONLShort = "J"
 	JSONLUsage = "Output LF-delimited JSON objects"
 
 	Markdown      = "markdown"

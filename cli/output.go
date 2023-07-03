@@ -109,6 +109,7 @@ Generally, it is not necessary to fiddle this knob.`,
 		"",
 		0,
 		"RFC3339",
+		nil,
 		"Timestamp format: constant such as RFC3339 or a strftime format",
 		`Timestamp format. This can be one of several predefined constants such
 as "RFC3339" or "Unix", or a strftime format such as "%Y-%m-%d %H:%M:%S".
@@ -141,6 +142,7 @@ is not an integer.
 		"",
 		0,
 		"DateOnly",
+		nil,
 		"Date format: constant such as DateOnly or a strftime format",
 		`Date format. This can be one of several predefined constants such
 as "DateOnly" or "Unix", or a strftime format such as "%Y-%m-%d".
@@ -174,6 +176,7 @@ Note that this option is no-op if the rendered value is not an integer.
 		"",
 		0,
 		"TimeOnly",
+		nil,
 		"Time format: constant such as TimeOnly or a strftime format",
 		`Time format. This can be one of several predefined constants such
 as "TimeOnly" or "Unix", or a strftime format such as "%Y-%m-%d".

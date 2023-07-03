@@ -3,7 +3,10 @@ package ast
 import (
 	"fmt"
 
+	"github.com/neilotoole/sq/libsq/core/jointype"
+
 	"github.com/neilotoole/sq/libsq/ast/internal/slq"
+	"github.com/neilotoole/sq/libsq/core/errz"
 
 	"github.com/antlr/antlr4/runtime/Go/antlr/v4"
 )
@@ -16,293 +19,242 @@ func (v *parseTreeVisitor) VisitJoin(ctx *slq.JoinContext) any {
 		return errorf("parent of JOIN() must be SegmentNode, but got: %T", v.cur)
 	}
 
-	join := &JoinNode{seg: seg, ctx: ctx}
-	err := seg.AddChild(join)
-	if err != nil {
+	var err error
+	node := &JoinNode{
+		seg:  seg,
+		ctx:  ctx,
+		text: ctx.GetText(),
+	}
+
+	if node.jt, node.jtVal, err = getJoinType(ctx); err != nil {
 		return err
 	}
 
-	expr := ctx.JoinConstraint()
-	if expr == nil {
-		return nil
+	if ctx.JoinTable() == nil {
+		return errz.Errorf("invalid join: %s: table is nil: %s", node.jtVal, node.text)
 	}
 
-	// the join contains a constraint, let's hit it
-	v.cur = join
-	err2 := v.VisitJoinConstraint(expr.(*slq.JoinConstraintContext))
-	if err2 != nil {
-		return err2
+	var jtCtx *slq.JoinTableContext
+	if jtCtx, ok = ctx.JoinTable().(*slq.JoinTableContext); !ok {
+		return errz.Errorf("invalid join: %s: invalid table type: expected %T but got %T: %s",
+			node.jtVal, jtCtx, ctx.JoinTable(), node.text)
 	}
-	// set cur back to previous
-	v.cur = seg
-	return nil
+
+	if e := v.using(node, func() any {
+		return v.VisitJoinTable(jtCtx)
+	}); e != nil {
+		return e
+	}
+
+	if ctx.Expr() == nil {
+		if node.jt.HasPredicate() {
+			return errorf("invalid join: %s: predicate required: %s",
+				node.jtVal, node.text)
+		}
+	}
+
+	if ctx.Expr() != nil {
+		// Expression can be nil for cross join.
+		var exprCtx *slq.ExprContext
+		if exprCtx, ok = ctx.Expr().(*slq.ExprContext); !ok {
+			return errorf("invalid join: %s: expression type: expected %T but got %T: %s",
+				node.jtVal, exprCtx, ctx.Expr(), node.text)
+		}
+
+		if e := v.using(node, func() any {
+			return v.VisitExpr(exprCtx)
+		}); e != nil {
+			return e
+		}
+	}
+
+	return seg.AddChild(node)
 }
 
-// VisitJoinConstraint implements slq.SLQVisitor.
-func (v *parseTreeVisitor) VisitJoinConstraint(ctx *slq.JoinConstraintContext) any {
+// VisitJoinTable implements slq.SLQVisitor.
+func (v *parseTreeVisitor) VisitJoinTable(ctx *slq.JoinTableContext) any {
 	joinNode, ok := v.cur.(*JoinNode)
 	if !ok {
 		return errorf("JOIN constraint must have JOIN parent, but got %T", v.cur)
 	}
 
-	// the constraint could be empty
-	children := ctx.GetChildren()
-	if len(children) == 0 {
-		return nil
+	var handle string
+	var tblName string
+
+	if ctx.HANDLE() != nil {
+		// It's ok to have a nil/empty handle
+		handle = ctx.HANDLE().GetText()
 	}
 
-	// the constraint could be a single SEL (in which case, there's no comparison operator)
-	if ctx.Cmpr() == nil {
-		// there should be exactly one SEL
-		sels := ctx.AllSelector()
-		if len(sels) != 1 {
-			return errorf("JOIN constraint without a comparison operator must have exactly one selector")
-		}
-
-		joinExprNode := &JoinConstraint{join: joinNode, ctx: ctx}
-
-		colSelNode, err := newSelectorNode(joinExprNode, sels[0])
-		if err != nil {
-			return err
-		}
-
-		if err := joinExprNode.AddChild(colSelNode); err != nil {
-			return err
-		}
-
-		return joinNode.AddChild(joinExprNode)
+	if ctx.NAME() == nil {
+		return errorf("invalid %T: table name is nil", ctx)
 	}
 
-	// We've got a comparison operator
-	sels := ctx.AllSelector()
-	if len(sels) != 2 {
-		// REVISIT: probably unnecessary, should be caught by the parser
-		return errorf("JOIN constraint must have 2 operands (left & right), but got %d", len(sels))
-	}
-
-	join, ok := v.cur.(*JoinNode)
-	if !ok {
-		return errorf("JoinConstraint must have JoinNode parent, but got %T", v.cur)
-	}
-	joinCondition := &JoinConstraint{join: join, ctx: ctx}
-
-	leftSel, err := newSelectorNode(joinCondition, sels[0])
+	tblName, err := extractSelVal(ctx.NAME())
 	if err != nil {
 		return err
 	}
 
-	if err = joinCondition.AddChild(leftSel); err != nil {
-		return err
+	tblSelNode := &TblSelectorNode{
+		SelectorNode: SelectorNode{
+			baseNode: baseNode{
+				parent: joinNode,
+				ctx:    ctx.NAME(),
+				text:   ctx.NAME().GetText(),
+			},
+			name0: tblName,
+		},
+		handle:  handle,
+		tblName: tblName,
 	}
 
-	cmpr := newCmprNode(joinCondition, ctx.Cmpr())
-	if err = joinCondition.AddChild(cmpr); err != nil {
-		return err
+	var aliasCtx *slq.AliasContext
+	if ctx.Alias() != nil {
+		if aliasCtx, ok = ctx.Alias().(*slq.AliasContext); !ok {
+			return errorf("invalid %T: expected %T but got %T", ctx, aliasCtx, ctx.Alias())
+		}
 	}
 
-	rightSel, err := newSelectorNode(joinCondition, sels[1])
-	if err != nil {
-		return err
+	if e := v.using(tblSelNode, func() any {
+		return v.VisitAlias(aliasCtx)
+	}); e != nil {
+		return e
 	}
 
-	if err = joinCondition.AddChild(rightSel); err != nil {
-		return err
-	}
-
-	return join.AddChild(joinCondition)
+	joinNode.targetTbl = tblSelNode
+	return nil
 }
 
 var _ Node = (*JoinNode)(nil)
 
-// JoinNode models a SQL JOIN node. It has a child of type JoinConstraint.
+// JoinNode models a SQL JOIN node.
 type JoinNode struct {
-	seg        *SegmentNode
-	ctx        antlr.ParseTree
-	constraint *JoinConstraint
-	leftTbl    *TblSelectorNode
-	rightTbl   *TblSelectorNode
+	seg           *SegmentNode
+	ctx           antlr.ParseTree
+	text          string
+	jt            jointype.Type
+	jtVal         string
+	predicateExpr *ExprNode
+
+	targetTbl *TblSelectorNode
 }
 
-// LeftTbl is the selector for the left table of the join.
-func (jn *JoinNode) LeftTbl() *TblSelectorNode {
-	return jn.leftTbl
+// Predicate returns the join predicate, which
+// may be nil.
+func (n *JoinNode) Predicate() *ExprNode {
+	return n.predicateExpr
 }
 
-// RightTbl is the selector for the right table of the join.
-func (jn *JoinNode) RightTbl() *TblSelectorNode {
-	return jn.rightTbl
+// JoinType returns the join type.
+func (n *JoinNode) JoinType() jointype.Type {
+	return n.jt
 }
 
-// Tabler implements the Tabler marker interface.
-func (jn *JoinNode) tabler() {
-	// no-op
+// Table is the selector for join's target table.
+func (n *JoinNode) Table() *TblSelectorNode {
+	return n.targetTbl
 }
 
-func (jn *JoinNode) Parent() Node {
-	return jn.seg
+// Parent implements ast.Node.
+func (n *JoinNode) Parent() Node {
+	return n.seg
 }
 
-func (jn *JoinNode) SetParent(parent Node) error {
+// SetParent implements ast.Node.
+func (n *JoinNode) SetParent(parent Node) error {
 	seg, ok := parent.(*SegmentNode)
 	if !ok {
-		return errorf("%T requires parent of type %s", jn, typeSegmentNode)
+		return errorf("%T requires parent of type %s", n, typeSegmentNode)
 	}
-	jn.seg = seg
+	n.seg = seg
 	return nil
 }
 
-func (jn *JoinNode) Children() []Node {
-	if jn.constraint == nil {
+// Children implements ast.Node.
+func (n *JoinNode) Children() []Node {
+	if n.predicateExpr == nil {
 		return []Node{}
 	}
 
-	return []Node{jn.constraint}
+	return []Node{n.predicateExpr}
 }
 
-func (jn *JoinNode) AddChild(node Node) error {
-	jc, ok := node.(*JoinConstraint)
+// AddChild implements ast.Node.
+func (n *JoinNode) AddChild(node Node) error {
+	expr, ok := node.(*ExprNode)
 	if !ok {
-		return errorf("JOIN() child must be *JoinConstraint, but got: %T", node)
+		return errorf("join child must be %T, but got: %T", expr, node)
 	}
 
-	if jn.constraint != nil {
+	if n.predicateExpr != nil {
 		return errorf("JOIN() has max 1 child: failed to add: %T", node)
 	}
 
-	jn.constraint = jc
+	n.predicateExpr = expr
 	return nil
 }
 
-func (jn *JoinNode) SetChildren(children []Node) error {
-	if len(children) == 0 {
-		jn.constraint = nil
+// SetChildren implements ast.Node.
+func (n *JoinNode) SetChildren(children []Node) error {
+	switch len(children) {
+	case 0:
+		n.predicateExpr = nil
 		return nil
-	}
-
-	if len(children) > 1 {
-		return errorf("JOIN() can have only one child: failed to add %d children", len(children))
-	}
-
-	expr, ok := children[0].(*JoinConstraint)
-	if !ok {
-		return errorf("JOIN() child must be *FnJoinExpr, but got: %T", children[0])
-	}
-
-	jn.constraint = expr
-	return nil
-}
-
-func (jn *JoinNode) Context() antlr.ParseTree {
-	return jn.ctx
-}
-
-func (jn *JoinNode) SetContext(ctx antlr.ParseTree) error {
-	jn.ctx = ctx
-	return nil
-}
-
-func (jn *JoinNode) Text() string {
-	return jn.ctx.GetText()
-}
-
-func (jn *JoinNode) Segment() *SegmentNode {
-	return jn.seg
-}
-
-func (jn *JoinNode) String() string {
-	text := nodeString(jn)
-
-	leftTblName := ""
-	rightTblName := ""
-
-	if jn.leftTbl != nil {
-		leftTblName, _ = jn.leftTbl.SelValue()
-	}
-	if jn.rightTbl != nil {
-		rightTblName, _ = jn.rightTbl.SelValue()
-	}
-
-	text += fmt.Sprintf(" |  left_table: {%s}  |  right_table: {%s}", leftTblName, rightTblName)
-	return text
-}
-
-var _ Node = (*JoinConstraint)(nil)
-
-// JoinConstraint models a join's constraint.
-// For example the elements inside the parentheses
-// in "join(.uid == .user_id)".
-type JoinConstraint struct {
-	// join is the parent node
-	join     *JoinNode
-	ctx      antlr.ParseTree
-	children []Node
-}
-
-func (n *JoinConstraint) Parent() Node {
-	return n.join
-}
-
-func (n *JoinConstraint) SetParent(parent Node) error {
-	join, ok := parent.(*JoinNode)
-	if !ok {
-		return errorf("%T requires parent of type %s", n, typeJoinNode)
-	}
-	n.join = join
-	return nil
-}
-
-func (n *JoinConstraint) Children() []Node {
-	return n.children
-}
-
-func (n *JoinConstraint) AddChild(child Node) error {
-	nodeCtx := child.Context()
-
-	switch nodeCtx.(type) {
-	case *antlr.TerminalNodeImpl:
-	case *slq.SelectorContext:
+	case 1:
+		n.predicateExpr = nil
+		return n.AddChild(children[0])
 	default:
-		return errorf("cannot add child node %T to %T", nodeCtx, n.ctx)
+		return errorf("join: max of one child allowed; failed to add %d children", len(children))
 	}
-
-	n.children = append(n.children, child)
-	return nil
 }
 
-func (n *JoinConstraint) SetChildren(children []Node) error {
-	for _, child := range children {
-		nodeCtx := child.Context()
-
-		switch nodeCtx.(type) {
-		case *antlr.TerminalNodeImpl:
-		case *slq.SelectorContext:
-		default:
-			return errorf("cannot add child node %T to %T", nodeCtx, n.ctx)
-		}
-	}
-
-	if len(children) == 0 {
-		n.children = children
-		return nil
-	}
-
-	n.children = children
-	return nil
-}
-
-func (n *JoinConstraint) Context() antlr.ParseTree {
+// context implements ast.Node.
+func (n *JoinNode) context() antlr.ParseTree {
 	return n.ctx
 }
 
-func (n *JoinConstraint) SetContext(ctx antlr.ParseTree) error {
-	n.ctx = ctx // TODO: check for correct type
+// setContext implements ast.Node.
+func (n *JoinNode) setContext(ctx antlr.ParseTree) error {
+	n.ctx = ctx
 	return nil
 }
 
-func (n *JoinConstraint) Text() string {
+// Text implements ast.Node.
+func (n *JoinNode) Text() string {
 	return n.ctx.GetText()
 }
 
-func (n *JoinConstraint) String() string {
-	return nodeString(n)
+func (n *JoinNode) Segment() *SegmentNode {
+	return n.seg
+}
+
+// String implements ast.Node.
+func (n *JoinNode) String() string {
+	text := nodeString(n)
+
+	rightTblName := ""
+	if n.targetTbl != nil {
+		rightTblName, _ = n.targetTbl.SelValue()
+	}
+
+	text += fmt.Sprintf("|target:%s", rightTblName)
+	return text
+}
+
+// getJoinType returns the canonical join type, as well as the
+// input value (which could be the canonical type, or the type's alias).
+func getJoinType(ctx *slq.JoinContext) (typ jointype.Type, val string, err error) {
+	if ctx == nil {
+		return "", val, errorf("%T is nil", ctx)
+	}
+
+	terminal := ctx.JOIN_TYPE()
+	if terminal == nil {
+		// Shouldn't happen
+		return "", val, errz.Errorf("JOIN_TYPE (%T) is nil", terminal)
+	}
+
+	val = terminal.GetText()
+	err = typ.UnmarshalText([]byte(val))
+	return typ, val, err
 }

@@ -1,0 +1,4 @@
+options:
+  # The "upper" func is from the sprig template library. This
+  # test verifies that sprig is present.
+  result.column.rename: "{{.Name | upper}}"

@@ -18,7 +18,7 @@ func doFromTable(rc *Context, tblSel *ast.TblSelectorNode) (string, error) {
 	clause := "FROM " + rc.Dialect.Enquote(tblName)
 	alias := tblSel.Alias()
 	if alias != "" {
-		clause += " " + rc.Dialect.Enquote(alias)
+		clause += " AS " + rc.Dialect.Enquote(alias)
 	}
 
 	return clause, nil

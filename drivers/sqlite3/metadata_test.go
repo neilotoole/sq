@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/core/lg"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 
 	"github.com/neilotoole/slogt"
@@ -93,6 +95,8 @@ func TestCurrentTime(t *testing.T) {
 func TestKindFromDBTypeName(t *testing.T) {
 	t.Parallel()
 
+	ctx := lg.NewContext(context.Background(), slogt.New(t))
+
 	testCases := map[string]kind.Kind{
 		"":                       kind.Bytes,
 		"NUMERIC":                kind.Decimal,
@@ -125,9 +129,8 @@ func TestKindFromDBTypeName(t *testing.T) {
 		"TIME":                   kind.Time,
 	}
 
-	log := slogt.New(t)
 	for dbTypeName, wantKind := range testCases {
-		gotKind := sqlite3.KindFromDBTypeName(log, "col", dbTypeName, nil)
+		gotKind := sqlite3.KindFromDBTypeName(ctx, "col", dbTypeName, nil)
 		require.Equal(t, wantKind, gotKind, "%s should produce %s but got %s", dbTypeName)
 	}
 }
@@ -250,7 +253,7 @@ func TestRecordMetadata(t *testing.T) {
 			colTypes, err := rows.ColumnTypes()
 			require.NoError(t, err)
 
-			recMeta, _, err := th.SQLDriverFor(src).RecordMeta(colTypes)
+			recMeta, _, err := th.SQLDriverFor(src).RecordMeta(th.Context, colTypes)
 			require.NoError(t, err)
 			require.Equal(t, len(tc.colNames), len(recMeta))
 

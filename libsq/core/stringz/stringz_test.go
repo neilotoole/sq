@@ -501,3 +501,59 @@ __`
 	got := stringz.IndentLines(input, "__")
 	require.Equal(t, got, want)
 }
+
+func TestTemplate(t *testing.T) {
+	data := map[string]string{"Name": "wubble"}
+
+	testCases := []struct {
+		tpl     string
+		data    any
+		want    string
+		wantErr bool
+	}{
+		// "upper" is a sprig func. Verify that it loads.
+		{"{{.Name | upper}}", data, "WUBBLE", false},
+		{"{{not_a_func .Name}}_", data, "", true},
+	}
+
+	for i, tc := range testCases {
+		tc := tc
+		t.Run(tutil.Name(i, tc.tpl), func(t *testing.T) {
+			got, gotErr := stringz.ExecuteTemplate(t.Name(), tc.tpl, tc.data)
+			t.Logf("\nTPL:   %s\nGOT:   %s\nERR:   %v", tc.tpl, got, gotErr)
+			if tc.wantErr {
+				require.Error(t, gotErr)
+				// Also test ValidTemplate while we're at it.
+				gotErr = stringz.ValidTemplate(t.Name(), tc.tpl)
+				require.Error(t, gotErr)
+				return
+			}
+			require.NoError(t, gotErr)
+			gotErr = stringz.ValidTemplate(t.Name(), tc.tpl)
+			require.NoError(t, gotErr)
+
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestShellEscape(t *testing.T) {
+	testCases := []struct {
+		in   string
+		want string
+	}{
+		{"", "''"},
+		{" ", `' '`},
+		{"huzzah", "huzzah"},
+		{"huz zah", `'huz zah'`},
+		{`huz ' zah`, `'huz '"'"' zah'`},
+	}
+
+	for i, tc := range testCases {
+		tc := tc
+		t.Run(tutil.Name(i, tc), func(t *testing.T) {
+			got := stringz.ShellEscape(tc.in)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}

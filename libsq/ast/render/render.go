@@ -47,7 +47,7 @@ type Renderer struct {
 	GroupBy func(rc *Context, gb *ast.GroupByNode) (string, error)
 
 	// Join renders a join fragment.
-	Join func(rc *Context, fnJoin *ast.JoinNode) (string, error)
+	Join func(rc *Context, leftTbl *ast.TblSelectorNode, joins []*ast.JoinNode) (string, error)
 
 	// Function renders a function fragment.
 	Function func(rc *Context, fn *ast.FuncNode) (string, error)
@@ -159,7 +159,6 @@ const (
 // renderSelectorNode renders a selector such as ".actor.first_name"
 // or ".last_name".
 func renderSelectorNode(d dialect.Dialect, node ast.Node) (string, error) {
-	// FIXME: switch to using enquote
 	switch node := node.(type) {
 	case *ast.ColSelectorNode:
 		return d.Enquote(node.ColName()), nil
