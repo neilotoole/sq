@@ -7,11 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Breaking changes are annotated with ☢️.
 
-## Upcoming
+## [v0.40.0] - 2023-07-03
 
-### Fixed
-
-- Bug where config options weren't being propagated to the engine.
+This release features a complete overhaul of the [`join`](https://sq.io/docs/query#joins)
+mechanism.
 
 ### Added
 
@@ -31,8 +30,19 @@ Breaking changes are annotated with ☢️.
 
 -  ☢️ [#12]: The table [join](https://sq.io/docs/query/#joins) mechanism has been
    completely overhauled. Now there's support for multiple joins, as well as
-   other join types such as `LEFT OUTER JOIN`, `CROSS JOIN`, etc. The syntax 
-   for expressing a join has changed. DETAIL
+   other join types such as `LEFT OUTER JOIN`, `CROSS JOIN`, etc. See [docs](https://sq.io/docs/query/#joins).
+
+   ```shell
+   # Previously, only a single join was possible
+   $ sq '.actor, .film_actor | join(.actor_id)'
+   
+   # Now, an arbitrary number of joins
+   $ sq '.actor | join(.film_actor, .actor_id) | join(.film, .film_id)'
+   ```
+
+### Fixed
+
+- Bug where config options weren't being propagated to the engine.
 
 ## [v0.39.1] - 2023-06-22
 
@@ -712,3 +722,4 @@ make working with lots of sources much easier.
 [v0.38.1]: https://github.com/neilotoole/sq/compare/v0.38.0...v0.38.1
 [v0.39.0]: https://github.com/neilotoole/sq/compare/v0.38.1...v0.39.0
 [v0.39.1]: https://github.com/neilotoole/sq/compare/v0.39.0...v0.39.1
+[v0.40.0]: https://github.com/neilotoole/sq/compare/v0.39.1...v0.40.0
