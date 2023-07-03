@@ -6,7 +6,7 @@ require (
 	github.com/antlr/antlr4/runtime/Go/antlr/v4 v4.0.0-20230305170008-8188dc5388df
 	github.com/c2h5oh/datasize v0.0.0-20220606134207-859f65c6625b
 	github.com/djherbis/fscache v0.10.1
-	github.com/ecnepsnai/osquery v1.0.1-0.20230622180613-afeeacc166a9
+	github.com/ecnepsnai/osquery v1.0.1
 	github.com/emirpasic/gods v1.18.1
 	github.com/fatih/color v1.15.0
 	github.com/go-sql-driver/mysql v1.7.1
@@ -45,15 +45,15 @@ require (
 )
 
 require (
+	github.com/Masterminds/sprig/v3 v3.2.3
+	github.com/alessio/shellescape v1.4.1
+)
+
+require (
 	github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
-	github.com/Masterminds/semver v1.5.0 // indirect
 	github.com/Masterminds/semver/v3 v3.2.1 // indirect
-	github.com/Masterminds/sprig v2.22.0+incompatible // indirect
-	github.com/Masterminds/sprig/v3 v3.2.3 // indirect
-	github.com/alessio/shellescape v1.4.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/frankban/quicktest v1.14.4 // indirect
 	github.com/golang-sql/civil v0.0.0-20220223132316-b832511892a9 // indirect
 	github.com/golang-sql/sqlexp v0.1.0 // indirect
 	github.com/huandu/xstrings v1.4.0 // indirect
