@@ -15,7 +15,7 @@ func (jt Type) String() string {
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (jt *Type) UnmarshalText(text []byte) error {
 	switch string(text) {
-	case string(Inner), InnerAlias, JoinAlias:
+	case string(Inner), JoinAlias:
 		*jt = Inner
 	case string(Left), LeftAlias:
 		*jt = Left
@@ -44,7 +44,6 @@ func (jt Type) HasPredicate() bool {
 
 const (
 	Inner           Type   = "inner_join"
-	InnerAlias      string = "injoin"
 	JoinAlias       string = "join"
 	Left            Type   = "left_join"
 	LeftAlias       string = "ljoin"
@@ -79,7 +78,6 @@ func AllValues() []string {
 	return []string{
 		JoinAlias,
 		string(Inner),
-		InnerAlias,
 		string(Left),
 		LeftAlias,
 		string(LeftOuter),

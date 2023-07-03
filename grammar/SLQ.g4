@@ -68,7 +68,6 @@ joinTable: (HANDLE)? NAME (alias)?;
 JOIN_TYPE
  : 'join'
  | 'inner_join'
- | 'injoin'
  | 'left_join'
  | 'ljoin'
  | 'left_outer_join'

@@ -403,7 +403,6 @@ var (
 	innerJoins = []string{
 		jointype.JoinAlias,
 		string(jointype.Inner),
-		jointype.InnerAlias,
 	}
 	predicateJoinNames     = lo.Without(jointype.AllValues(), noPredicateJoinNames...)
 	colsJoinActorFilmActor = []string{
