@@ -1,3 +1,3 @@
 options:
   # Should fail because not_a_func is not a valid function.
-  record.column.rename: "{{not_a_func .data}}"
+  result.column.rename: "{{not_a_func .data}}"

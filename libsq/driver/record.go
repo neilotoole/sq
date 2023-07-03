@@ -602,12 +602,12 @@ func mungeSetZeroValue(i int, rec []any, destMeta record.Meta) {
 
 // OptRecordColRename transforms a column name returned from the DB.
 var OptRecordColRename = options.NewString(
-	"record.column.rename",
+	"result.column.rename",
 	"",
 	0,
 	"{{.Name}}{{with .Recurrence}}_{{.}}{{end}}",
 	func(s string) error {
-		return stringz.ValidTemplate("record.column.rename", s)
+		return stringz.ValidTemplate("result.column.rename", s)
 	},
 	"Template to rename result columns",
 	`This Go text template is executed on the column names returned
