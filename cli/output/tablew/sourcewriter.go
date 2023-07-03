@@ -45,7 +45,7 @@ func (w *sourceWriter) Collection(coll *source.Collection) error {
 			}
 
 			if coll.Active() != nil && coll.Active().Handle == src.Handle {
-				row[0] = pr.Active.Sprintf(row[0])
+				row[0] = pr.Active.Sprintf(row[0]) + pr.Faint.Sprint("*")
 			}
 
 			rows = append(rows, row)
