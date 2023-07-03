@@ -219,7 +219,7 @@ This example joins a Postgres database, an Excel worksheet, and a CSV file.
 
 ![sq join multi source](./.images/sq_join_multi_source.png)
 
-Read more about cross-source joins in the [query guide](https://sq.io/docs/query/joins).
+Read more about cross-source joins in the [query guide](https://sq.io/docs/query#joins).
 
 ### Table commands
 
