@@ -28,8 +28,9 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// engine executes a queryModel and writes to a RecordWriter.
-type engine struct {
+// pipeline is used to execute a SLQ query,
+// and write the resulting records to a RecordWriter.
+type pipeline struct {
 	log *slog.Logger
 
 	// query is the SLQ query
@@ -39,8 +40,8 @@ type engine struct {
 	qc *QueryContext
 
 	// rc is the Context for rendering SQL.
-	// This field is set during engine.prepare. It can't be set before
-	// then because the target DB to use is calculated during engine.prepare,
+	// This field is set during pipeline.prepare. It can't be set before
+	// then because the target DB to use is calculated during pipeline.prepare,
 	// based on the input query and other context.
 	rc *render.Context
 
@@ -57,7 +58,9 @@ type engine struct {
 	targetDB driver.Database
 }
 
-func newEngine(ctx context.Context, qc *QueryContext, query string) (*engine, error) {
+// newPipeline parses query, returning a pipeline prepared for
+// execution via pipeline.execute.
+func newPipeline(ctx context.Context, qc *QueryContext, query string) (*pipeline, error) {
 	log := lg.FromContext(ctx)
 
 	a, err := ast.Parse(log, query)
@@ -70,52 +73,51 @@ func newEngine(ctx context.Context, qc *QueryContext, query string) (*engine, er
 		return nil, err
 	}
 
-	ng := &engine{
+	p := &pipeline{
 		log:   log,
 		qc:    qc,
 		query: query,
 	}
 
-	if err = ng.prepare(ctx, qModel); err != nil {
+	if err = p.prepare(ctx, qModel); err != nil {
 		return nil, err
 	}
 
-	return ng, nil
+	return p, nil
 }
 
-// execute executes the plan that was built by engine.prepare.
-func (ng *engine) execute(ctx context.Context, recw RecordWriter) error {
-	ng.log.Debug(
+// execute executes the pipeline, writing results to recw.
+func (p *pipeline) execute(ctx context.Context, recw RecordWriter) error {
+	p.log.Debug(
 		"Execute SQL query",
-		lga.Src, ng.targetDB.Source(),
-		// lga.Target, ng.targetDB.Source().Handle,
-		lga.SQL, ng.targetSQL,
+		lga.Src, p.targetDB.Source(),
+		lga.SQL, p.targetSQL,
 	)
 
-	err := ng.executeTasks(ctx)
+	err := p.executeTasks(ctx)
 	if err != nil {
 		return err
 	}
 
-	return QuerySQL(ctx, ng.targetDB, recw, ng.targetSQL)
+	return QuerySQL(ctx, p.targetDB, recw, p.targetSQL)
 }
 
-// executeTasks executes any tasks in engine.tasks.
+// executeTasks executes any tasks in pipeline.tasks.
 // These tasks may exist if preparatory work must be performed
-// before engine.targetSQL can be executed.
-func (ng *engine) executeTasks(ctx context.Context) error {
-	switch len(ng.tasks) {
+// before pipeline.targetSQL can be executed.
+func (p *pipeline) executeTasks(ctx context.Context) error {
+	switch len(p.tasks) {
 	case 0:
 		return nil
 	case 1:
-		return ng.tasks[0].executeTask(ctx)
+		return p.tasks[0].executeTask(ctx)
 	default:
 	}
 
 	g, gCtx := errgroup.WithContext(ctx)
 	g.SetLimit(driver.OptTuningErrgroupLimit.Get(options.FromContext(ctx)))
 
-	for _, task := range ng.tasks {
+	for _, task := range p.tasks {
 		task := task
 
 		g.Go(func() error {
@@ -131,12 +133,12 @@ func (ng *engine) executeTasks(ctx context.Context) error {
 	return g.Wait()
 }
 
-// prepareNoTabler is invoked when the queryModel doesn't have a tabler.
+// prepareNoTable is invoked when the queryModel doesn't have a tabler.
 // That is to say, the query doesn't have a "FROM table" clause. It is
 // this function's responsibility to figure out what source to use, and
-// to set the relevant engine fields.
-func (ng *engine) prepareNoTabler(ctx context.Context, qm *queryModel) error {
-	ng.log.Debug("No Tabler in query; will look for source to use...")
+// to set the relevant pipeline fields.
+func (p *pipeline) prepareNoTable(ctx context.Context, qm *queryModel) error {
+	p.log.Debug("No table in query; will look for source to use...")
 
 	var (
 		src    *source.Source
@@ -145,35 +147,35 @@ func (ng *engine) prepareNoTabler(ctx context.Context, qm *queryModel) error {
 	)
 
 	if handle == "" {
-		if src = ng.qc.Collection.Active(); src == nil {
-			ng.log.Debug("No active source, will use scratchdb.")
-			ng.targetDB, err = ng.qc.ScratchDBOpener.OpenScratch(ctx, "scratch")
+		if src = p.qc.Collection.Active(); src == nil {
+			p.log.Debug("No active source, will use scratchdb.")
+			p.targetDB, err = p.qc.ScratchDBOpener.OpenScratch(ctx, "scratch")
 			if err != nil {
 				return err
 			}
 
-			ng.rc = &render.Context{
-				Renderer: ng.targetDB.SQLDriver().Renderer(),
-				Args:     ng.qc.Args,
-				Dialect:  ng.targetDB.SQLDriver().Dialect(),
+			p.rc = &render.Context{
+				Renderer: p.targetDB.SQLDriver().Renderer(),
+				Args:     p.qc.Args,
+				Dialect:  p.targetDB.SQLDriver().Dialect(),
 			}
 			return nil
 		}
 
-		ng.log.Debug("Using active source.", lga.Src, src)
-	} else if src, err = ng.qc.Collection.Get(handle); err != nil {
+		p.log.Debug("Using active source.", lga.Src, src)
+	} else if src, err = p.qc.Collection.Get(handle); err != nil {
 		return err
 	}
 
 	// At this point, src is non-nil.
-	if ng.targetDB, err = ng.qc.DBOpener.Open(ctx, src); err != nil {
+	if p.targetDB, err = p.qc.DBOpener.Open(ctx, src); err != nil {
 		return err
 	}
 
-	ng.rc = &render.Context{
-		Renderer: ng.targetDB.SQLDriver().Renderer(),
-		Args:     ng.qc.Args,
-		Dialect:  ng.targetDB.SQLDriver().Dialect(),
+	p.rc = &render.Context{
+		Renderer: p.targetDB.SQLDriver().Renderer(),
+		Args:     p.qc.Args,
+		Dialect:  p.targetDB.SQLDriver().Dialect(),
 	}
 
 	return nil
@@ -181,36 +183,36 @@ func (ng *engine) prepareNoTabler(ctx context.Context, qm *queryModel) error {
 
 // prepareFromTable builds the "FROM table" fragment.
 //
-// When this function returns, ng.rc will be set.
-func (ng *engine) prepareFromTable(ctx context.Context, tblSel *ast.TblSelectorNode) (fromClause string,
+// When this function returns, pipeline.rc will be set.
+func (p *pipeline) prepareFromTable(ctx context.Context, tblSel *ast.TblSelectorNode) (fromClause string,
 	fromConn driver.Database, err error,
 ) {
 	handle := tblSel.Handle()
 	if handle == "" {
-		handle = ng.qc.Collection.ActiveHandle()
+		handle = p.qc.Collection.ActiveHandle()
 		if handle == "" {
 			return "", nil, errz.New("query does not specify source, and no active source")
 		}
 	}
 
-	src, err := ng.qc.Collection.Get(handle)
+	src, err := p.qc.Collection.Get(handle)
 	if err != nil {
 		return "", nil, err
 	}
 
-	fromConn, err = ng.qc.DBOpener.Open(ctx, src)
+	fromConn, err = p.qc.DBOpener.Open(ctx, src)
 	if err != nil {
 		return "", nil, err
 	}
 
 	rndr := fromConn.SQLDriver().Renderer()
-	ng.rc = &render.Context{
+	p.rc = &render.Context{
 		Renderer: rndr,
-		Args:     ng.qc.Args,
+		Args:     p.qc.Args,
 		Dialect:  fromConn.SQLDriver().Dialect(),
 	}
 
-	fromClause, err = rndr.FromTable(ng.rc, tblSel)
+	fromClause, err = rndr.FromTable(p.rc, tblSel)
 	if err != nil {
 		return "", nil, err
 	}
@@ -218,6 +220,7 @@ func (ng *engine) prepareFromTable(ctx context.Context, tblSel *ast.TblSelectorN
 	return fromClause, fromConn, nil
 }
 
+// joinClause models the SQL "JOIN" construct.
 type joinClause struct {
 	leftTbl *ast.TblSelectorNode
 	joins   []*ast.JoinNode
@@ -268,41 +271,41 @@ func (jc *joinClause) isSingleSource() bool {
 
 // prepareFromJoin builds the "JOIN" clause.
 //
-// When this function returns, ng.rc will be set.
-func (ng *engine) prepareFromJoin(ctx context.Context, jc *joinClause) (fromClause string,
+// When this function returns, pipeline.rc will be set.
+func (p *pipeline) prepareFromJoin(ctx context.Context, jc *joinClause) (fromClause string,
 	fromConn driver.Database, err error,
 ) {
 	if jc.isSingleSource() {
-		return ng.joinSingleSource(ctx, jc)
+		return p.joinSingleSource(ctx, jc)
 	}
 
-	return ng.joinCrossSource(ctx, jc)
+	return p.joinCrossSource(ctx, jc)
 }
 
 // joinSingleSource sets up a join against a single source.
 //
-// On return, ng.rc will be set.
-func (ng *engine) joinSingleSource(ctx context.Context, jc *joinClause) (fromClause string,
+// On return, pipeline.rc will be set.
+func (p *pipeline) joinSingleSource(ctx context.Context, jc *joinClause) (fromClause string,
 	fromDB driver.Database, err error,
 ) {
-	src, err := ng.qc.Collection.Get(jc.leftTbl.Handle())
+	src, err := p.qc.Collection.Get(jc.leftTbl.Handle())
 	if err != nil {
 		return "", nil, err
 	}
 
-	fromDB, err = ng.qc.DBOpener.Open(ctx, src)
+	fromDB, err = p.qc.DBOpener.Open(ctx, src)
 	if err != nil {
 		return "", nil, err
 	}
 
 	rndr := fromDB.SQLDriver().Renderer()
-	ng.rc = &render.Context{
+	p.rc = &render.Context{
 		Renderer: rndr,
-		Args:     ng.qc.Args,
+		Args:     p.qc.Args,
 		Dialect:  fromDB.SQLDriver().Dialect(),
 	}
 
-	fromClause, err = rndr.Join(ng.rc, jc.leftTbl, jc.joins)
+	fromClause, err = rndr.Join(p.rc, jc.leftTbl, jc.joins)
 	if err != nil {
 		return "", nil, err
 	}
@@ -313,8 +316,8 @@ func (ng *engine) joinSingleSource(ctx context.Context, jc *joinClause) (fromCla
 // joinCrossSource returns a FROM clause that forms part of
 // the SQL SELECT statement against fromDB.
 //
-// On return, ng.rc will be set.
-func (ng *engine) joinCrossSource(ctx context.Context, jc *joinClause) (fromClause string,
+// On return, pipeline.rc will be set.
+func (p *pipeline) joinCrossSource(ctx context.Context, jc *joinClause) (fromClause string,
 	fromDB driver.Database, err error,
 ) {
 	// FIXME: finish tidying up
@@ -323,22 +326,22 @@ func (ng *engine) joinCrossSource(ctx context.Context, jc *joinClause) (fromClau
 	srcs := make([]*source.Source, 0, len(handles))
 	for _, handle := range handles {
 		var src *source.Source
-		if src, err = ng.qc.Collection.Get(handle); err != nil {
+		if src, err = p.qc.Collection.Get(handle); err != nil {
 			return "", nil, err
 		}
 		srcs = append(srcs, src)
 	}
 
 	// Open the join db
-	joinDB, err := ng.qc.JoinDBOpener.OpenJoin(ctx, srcs...)
+	joinDB, err := p.qc.JoinDBOpener.OpenJoin(ctx, srcs...)
 	if err != nil {
 		return "", nil, err
 	}
 
 	rndr := joinDB.SQLDriver().Renderer()
-	ng.rc = &render.Context{
+	p.rc = &render.Context{
 		Renderer: rndr,
-		Args:     ng.qc.Args,
+		Args:     p.qc.Args,
 		Dialect:  joinDB.SQLDriver().Dialect(),
 	}
 
@@ -353,11 +356,11 @@ func (ng *engine) joinCrossSource(ctx context.Context, jc *joinClause) (fromClau
 			handle = leftHandle
 		}
 		var src *source.Source
-		if src, err = ng.qc.Collection.Get(handle); err != nil {
+		if src, err = p.qc.Collection.Get(handle); err != nil {
 			return "", nil, err
 		}
 		var db driver.Database
-		if db, err = ng.qc.DBOpener.Open(ctx, src); err != nil {
+		if db, err = p.qc.DBOpener.Open(ctx, src); err != nil {
 			return "", nil, err
 		}
 
@@ -370,10 +373,10 @@ func (ng *engine) joinCrossSource(ctx context.Context, jc *joinClause) (fromClau
 
 		tbl.SyncTblNameAlias()
 
-		ng.tasks = append(ng.tasks, task)
+		p.tasks = append(p.tasks, task)
 	}
 
-	fromClause, err = rndr.Join(ng.rc, jc.leftTbl, jc.joins)
+	fromClause, err = rndr.Join(p.rc, jc.leftTbl, jc.joins)
 	if err != nil {
 		return "", nil, err
 	}
