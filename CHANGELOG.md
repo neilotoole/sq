@@ -26,11 +26,15 @@ mechanism.
   columns names on a `SELECT * FROM tbl1 JOIN tbl2`, where `tbl1` and `tbl2`
   have clashing column names ([docs](https://sq.io/docs/config/#resultcolumnrename)).
 
+- [#157]: Previously only `join` (`INNER JOIN`) was available: now the rest of
+  the join types such as `left_outer_join`, `cross_join`, etc. are
+  implemented ([docs](https://sq.io/docs/query/#join-types)).
+
+  
 ### Changed
 
 -  ☢️ [#12]: The table [join](https://sq.io/docs/query/#joins) mechanism has been
-   completely overhauled. Now there's support for multiple joins, as well as
-   other join types such as `LEFT OUTER JOIN`, `CROSS JOIN`, etc. See [docs](https://sq.io/docs/query/#joins).
+   completely overhauled. Now there's support for multiple joins. See [docs](https://sq.io/docs/query/#joins).
 
    ```shell
    # Previously, only a single join was possible
@@ -661,6 +665,7 @@ make working with lots of sources much easier.
 [#151]: https://github.com/neilotoole/sq/issues/151
 [#153]: https://github.com/neilotoole/sq/issues/153
 [#155]: https://github.com/neilotoole/sq/issues/155
+[#157]: https://github.com/neilotoole/sq/issues/157
 [#158]: https://github.com/neilotoole/sq/issues/158
 [#160]: https://github.com/neilotoole/sq/issues/160
 [#162]: https://github.com/neilotoole/sq/issues/162
