@@ -97,6 +97,7 @@ The func takes zero args.
 uniqueFunc: 'unique';
 
 /*
+
 countFunc
 ---------
 
@@ -109,7 +110,6 @@ funcs because of the several forms it can take.
     .actor | count(*)
     .actor | count(.first_name):quanity     # alias
 
- TODO: how to handle COUNT DISTINCT?
  */
 countFunc: 'count' (LPAR (selector)? RPAR)? (alias)?;
 
