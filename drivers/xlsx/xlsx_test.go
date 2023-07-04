@@ -1,7 +1,11 @@
 package xlsx_test
 
 import (
+	"context"
+	"path/filepath"
 	"testing"
+
+	"github.com/neilotoole/sq/cli/testrun"
 
 	"github.com/neilotoole/sq/libsq/driver"
 
@@ -83,4 +87,38 @@ func TestHandleSomeEmptySheets(t *testing.T) {
 	sink, err := th.QuerySQL(src, "SELECT * FROM Sheet1")
 	require.NoError(t, err)
 	require.Equal(t, 2, len(sink.Recs))
+}
+
+func TestIngestDuplicateColumns(t *testing.T) {
+	ctx := context.Background()
+	tr := testrun.New(ctx, t, nil)
+
+	err := tr.Exec("add",
+		"--handle", "@actor_dup",
+		"--ingest.header=true",
+		filepath.Join("testdata", "actor_duplicate_cols.xlsx"),
+	)
+	require.NoError(t, err)
+
+	tr = testrun.New(ctx, t, tr).Hush()
+	require.NoError(t, tr.Exec("--csv", ".actor"))
+	wantHeaders := []string{"actor_id", "first_name", "last_name", "last_update", "actor_id_1"}
+	data := tr.MustReadCSV()
+	require.Equal(t, wantHeaders, data[0])
+
+	// Verify that changing the template works
+	const tpl2 = "x_{{.Name}}{{with .Recurrence}}_{{.}}{{end}}"
+
+	tr = testrun.New(ctx, t, tr)
+	require.NoError(t, tr.Exec(
+		"config",
+		"set",
+		driver.OptIngestColRename.Key(),
+		tpl2,
+	))
+	tr = testrun.New(ctx, t, tr)
+	require.NoError(t, tr.Exec("--csv", ".actor"))
+	wantHeaders = []string{"x_actor_id", "x_first_name", "x_last_name", "x_last_update", "x_actor_id_1"}
+	data = tr.MustReadCSV()
+	require.Equal(t, wantHeaders, data[0])
 }

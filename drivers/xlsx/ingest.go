@@ -188,7 +188,7 @@ func buildTblDefsForSheets(ctx context.Context, sheets []*xlsx.Sheet, hasHeader 
 			default:
 			}
 
-			tblDef, err := buildTblDefForSheet(lg.FromContext(gCtx), sheets[i], hasHeader)
+			tblDef, err := buildTblDefForSheet(gCtx, sheets[i], hasHeader)
 			if err != nil {
 				return err
 			}
@@ -207,7 +207,8 @@ func buildTblDefsForSheets(ctx context.Context, sheets []*xlsx.Sheet, hasHeader 
 // buildTblDefForSheet creates a table for the given sheet, and returns
 // a model of the table, or an error. If the sheet is empty, (nil,nil)
 // is returned.
-func buildTblDefForSheet(log *slog.Logger, sheet *xlsx.Sheet, hasHeader bool) (*sqlmodel.TableDef, error) {
+func buildTblDefForSheet(ctx context.Context, sheet *xlsx.Sheet, hasHeader bool) (*sqlmodel.TableDef, error) {
+	log := lg.FromContext(ctx)
 	maxCols := getRowsMaxCellCount(sheet)
 	if maxCols == 0 {
 		log.Warn("sheet is empty: skipping", "sheet", sheet.Name)
@@ -261,6 +262,11 @@ func buildTblDefForSheet(log *slog.Logger, sheet *xlsx.Sheet, hasHeader bool) (*
 	}
 
 	colNames, colKinds = syncColNamesKinds(colNames, colKinds)
+
+	var err error
+	if colNames, err = driver.MungeIngestColNames(ctx, colNames); err != nil {
+		return nil, err
+	}
 
 	tblDef := &sqlmodel.TableDef{Name: sheet.Name}
 	cols := make([]*sqlmodel.ColDef, len(colNames))

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Breaking changes are annotated with ☢️.
 
+## Upcoming
+
+### 
+
 ## [v0.40.0] - 2023-07-03
 
 This release features a complete overhaul of the [`join`](https://sq.io/docs/query/#joins)
