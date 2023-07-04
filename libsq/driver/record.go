@@ -8,6 +8,7 @@ import (
 	"math"
 	"reflect"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/neilotoole/sq/libsq/core/loz"
@@ -640,16 +641,18 @@ The default template renames the columns to:
   actor_id, first_name, last_name, last_update, actor_id_1, film_id, last_update_1`,
 )
 
-// MungeColNames transforms column names, per the template defined
+// MungeResultColNames transforms column names, per the template defined
 // in the option driver.OptResultColRename found on the context.
 // This mechanism is used to deduplicate column names, as can happen in
 // in "SELECT * FROM ... JOIN" situations. For example, if the result set
 // has columns [actor_id, first_name, actor_id], the columns might be
 // transformed to [actor_id, first_name, actor_id_1].
 //
-// MungeColNames should be invoked by each impl of SQLDriver.RecordMeta
+// MungeResultColNames should be invoked by each impl of SQLDriver.RecordMeta
 // before returning the record.Meta.
-func MungeColNames(ctx context.Context, ogColNames []string) (colNames []string, err error) {
+//
+// See also: MungeIngestColNames.
+func MungeResultColNames(ctx context.Context, ogColNames []string) (colNames []string, err error) {
 	if len(ogColNames) == 0 {
 		return ogColNames, nil
 	}
@@ -665,6 +668,10 @@ func MungeColNames(ctx context.Context, ogColNames []string) (colNames []string,
 		return nil, errz.Wrap(err, "config: ")
 	}
 
+	return doMungeColNames(tpl, ogColNames)
+}
+
+func doMungeColNames(tpl *template.Template, ogColNames []string) (colNames []string, err error) {
 	cols := make([]colMungeData, len(ogColNames))
 	for i := range ogColNames {
 		data := colMungeData{
@@ -696,7 +703,7 @@ func MungeColNames(ctx context.Context, ogColNames []string) (colNames []string,
 }
 
 // colMungeData is the struct passed to the template from OptResultColRename,
-// used in MungeColNames.
+// used in MungeResultColNames.
 type colMungeData struct {
 	// Name is the original column name.
 	Name string

@@ -640,7 +640,7 @@ func TestMungeColNames(t *testing.T) {
 		tc := tc
 		t.Run(tutil.Name(i, tc.in), func(t *testing.T) {
 			ctx := options.NewContext(context.Background(), options.Options{})
-			got, err := driver.MungeColNames(ctx, tc.in)
+			got, err := driver.MungeResultColNames(ctx, tc.in)
 			require.NoError(t, err)
 			require.Equal(t, tc.want, got)
 		})

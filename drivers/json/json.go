@@ -9,8 +9,6 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/neilotoole/sq/drivers"
-
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
@@ -117,7 +115,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database
 		fromSrc:    src,
 		openFn:     d.files.OpenFunc(src),
 		destDB:     dbase.impl,
-		sampleSize: drivers.OptIngestSampleSize.Get(src.Options),
+		sampleSize: driver.OptIngestSampleSize.Get(src.Options),
 		flatten:    true,
 	}
 
