@@ -9,7 +9,26 @@ Breaking changes are annotated with ☢️.
 
 ## Upcoming
 
-### 
+### Added
+
+- [#99]: The [CSV](https://sq.io/docs/drivers/csv) and [XLSX](https://sq.io/docs/drivers/xlsx)
+  drivers can now handle duplicate header column names. For example, given a CSV file:
+  
+  ```csv
+  actor_id,first_name,actor_id
+  1,PENELOPE,1
+  2,NICK,2
+  ```
+  
+  The columns will be renamed to:
+  
+  ```csv
+  actor_id,first_name,actor_id_1
+  ```
+  
+  The renaming behavior is controlled by a new option `ingest.column.rename`
+  ([docs](https://sq.io/docs/config/#ingestcolumnrename)).
+
 
 ## [v0.40.0] - 2023-07-03
 
@@ -663,6 +682,7 @@ make working with lots of sources much easier.
 [#91]: https://github.com/neilotoole/sq/pull/91
 [#95]: https://github.com/neilotoole/sq/issues/93
 [#98]: https://github.com/neilotoole/sq/issues/98
+[#99]: https://github.com/neilotoole/sq/issues/99
 [#123]: https://github.com/neilotoole/sq/issues/123
 [#142]: https://github.com/neilotoole/sq/issues/142
 [#144]: https://github.com/neilotoole/sq/issues/144
