@@ -99,7 +99,10 @@ func TestIngestDuplicateColumns(t *testing.T) {
 	ctx := context.Background()
 	tr := testrun.New(ctx, t, nil)
 
-	err := tr.Exec("add", filepath.Join("testdata", "actor_duplicate_cols.csv"), "--handle", "@actor_dup")
+	err := tr.Exec(
+		"add", filepath.Join("testdata", "actor_duplicate_cols.csv"),
+		"--handle", "@actor_dup",
+	)
 	require.NoError(t, err)
 
 	tr = testrun.New(ctx, t, tr).Hush()
@@ -107,6 +110,11 @@ func TestIngestDuplicateColumns(t *testing.T) {
 	wantHeaders := []string{"actor_id", "first_name", "last_name", "last_update", "actor_id_1"}
 	data := tr.MustReadCSV()
 	require.Equal(t, wantHeaders, data[0])
+
+	// Make sure the data is correct
+	require.Len(t, data, sakila.TblActorCount+1) // +1 for header row
+	wantFirstDataRecord := []string{"1", "PENELOPE", "GUINESS", "2020-02-15T06:59:28Z", "1"}
+	require.Equal(t, wantFirstDataRecord, data[1])
 
 	// Verify that changing the template works
 	const tpl2 = "x_{{.Name}}{{with .Recurrence}}_{{.}}{{end}}"

@@ -41,7 +41,7 @@ mechanism.
   particularly useful, but it's a building block for [multiple joins](https://github.com/neilotoole/sq/issues/12).
 
   ```shell
-  $ sq `@sakila | .actor:a | .a.first_name`
+  $ sq '@sakila | .actor:a | .a.first_name'
   ```
 
 - New option `result.column.rename` that exposes a template used to rename

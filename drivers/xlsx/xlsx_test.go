@@ -106,6 +106,11 @@ func TestIngestDuplicateColumns(t *testing.T) {
 	data := tr.MustReadCSV()
 	require.Equal(t, wantHeaders, data[0])
 
+	// Make sure the data is correct
+	require.Len(t, data, sakila.TblActorCount+1) // +1 for header row
+	wantFirstDataRecord := []string{"1", "PENELOPE", "GUINESS", "2020-02-15T06:59:28Z", "1"}
+	require.Equal(t, wantFirstDataRecord, data[1])
+
 	// Verify that changing the template works
 	const tpl2 = "x_{{.Name}}{{with .Recurrence}}_{{.}}{{end}}"
 
