@@ -8,7 +8,6 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/timez"
 
-	"github.com/neilotoole/sq/drivers"
 	"github.com/neilotoole/sq/drivers/csv"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/options"
@@ -162,8 +161,9 @@ func RegisterDefaultOpts(reg *options.Registry) {
 		driver.OptTuningErrgroupLimit,
 		driver.OptTuningRecChanSize,
 		OptTuningFlushThreshold,
-		drivers.OptIngestHeader,
-		drivers.OptIngestSampleSize,
+		driver.OptIngestHeader,
+		driver.OptIngestColRename,
+		driver.OptIngestSampleSize,
 		csv.OptDelim,
 		csv.OptEmptyAsNull,
 	)

@@ -14,8 +14,6 @@ import (
 
 	"github.com/neilotoole/sq/cli/run"
 
-	"github.com/neilotoole/sq/drivers"
-
 	"github.com/neilotoole/sq/cli"
 	"github.com/neilotoole/sq/cli/buildinfo"
 	"github.com/neilotoole/sq/cli/config/yamlstore"
@@ -185,9 +183,9 @@ func (h *Helper) init() {
 		h.registry.AddProvider(json.TypeJSONA, jsonp)
 		h.registry.AddProvider(json.TypeJSONL, jsonp)
 		h.files.AddDriverDetectors(
-			json.DetectJSON(drivers.OptIngestSampleSize.Get(nil)),
-			json.DetectJSONA(drivers.OptIngestSampleSize.Get(nil)),
-			json.DetectJSONL(drivers.OptIngestSampleSize.Get(nil)),
+			json.DetectJSON(driver.OptIngestSampleSize.Get(nil)),
+			json.DetectJSONA(driver.OptIngestSampleSize.Get(nil)),
+			json.DetectJSONL(driver.OptIngestSampleSize.Get(nil)),
 		)
 
 		h.registry.AddProvider(xlsx.Type, &xlsx.Provider{Log: log, Scratcher: h.databases, Files: h.files})

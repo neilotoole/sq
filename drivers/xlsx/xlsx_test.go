@@ -3,7 +3,8 @@ package xlsx_test
 import (
 	"testing"
 
-	"github.com/neilotoole/sq/drivers"
+	"github.com/neilotoole/sq/libsq/driver"
+
 	"github.com/neilotoole/sq/libsq/core/options"
 
 	"github.com/neilotoole/sq/testh/tutil"
@@ -53,12 +54,12 @@ func Test_XLSX_BadDateRecognition(t *testing.T) {
 		Handle:   "@xlsx_bad_date",
 		Type:     xlsx.Type,
 		Location: proj.Abs("drivers/xlsx/testdata/problem_with_recognizing_date_colA.xlsx"),
-		Options:  options.Options{drivers.OptIngestHeader.Key(): true},
+		Options:  options.Options{driver.OptIngestHeader.Key(): true},
 	}
 
-	require.True(t, src.Options.IsSet(drivers.OptIngestHeader))
+	require.True(t, src.Options.IsSet(driver.OptIngestHeader))
 
-	hasHeader := drivers.OptIngestHeader.Get(src.Options)
+	hasHeader := driver.OptIngestHeader.Get(src.Options)
 	require.True(t, hasHeader)
 
 	sink, err := th.QuerySQL(src, "SELECT * FROM Summary")

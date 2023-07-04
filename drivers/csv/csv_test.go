@@ -1,7 +1,13 @@
 package csv_test
 
 import (
+	"context"
+	"path/filepath"
 	"testing"
+
+	"github.com/neilotoole/sq/libsq/driver"
+
+	"github.com/neilotoole/sq/cli/testrun"
 
 	"github.com/neilotoole/sq/libsq/core/timez"
 
@@ -87,4 +93,34 @@ func TestEmptyAsNull(t *testing.T) {
 	for i := range want {
 		require.EqualValues(t, want[i], rec0[i], "field [%d]", i)
 	}
+}
+
+func TestIngestDuplicateColumns(t *testing.T) {
+	ctx := context.Background()
+	tr := testrun.New(ctx, t, nil)
+
+	err := tr.Exec("add", filepath.Join("testdata", "actor_duplicate_cols.csv"), "--handle", "@actor_dup")
+	require.NoError(t, err)
+
+	tr = testrun.New(ctx, t, tr).Hush()
+	require.NoError(t, tr.Exec("--csv", ".data"))
+	wantHeaders := []string{"actor_id", "first_name", "last_name", "last_update", "actor_id_1"}
+	data := tr.MustReadCSV()
+	require.Equal(t, wantHeaders, data[0])
+
+	// Verify that changing the template works
+	const tpl2 = "x_{{.Name}}{{with .Recurrence}}_{{.}}{{end}}"
+
+	tr = testrun.New(ctx, t, tr)
+	require.NoError(t, tr.Exec(
+		"config",
+		"set",
+		driver.OptIngestColRename.Key(),
+		tpl2,
+	))
+	tr = testrun.New(ctx, t, tr)
+	require.NoError(t, tr.Exec("--csv", ".data"))
+	wantHeaders = []string{"x_actor_id", "x_first_name", "x_last_name", "x_last_update", "x_actor_id_1"}
+	data = tr.MustReadCSV()
+	require.Equal(t, wantHeaders, data[0])
 }

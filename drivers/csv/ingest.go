@@ -9,8 +9,6 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/record"
 
-	"github.com/neilotoole/sq/drivers"
-
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 
@@ -74,7 +72,7 @@ func ingestCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFu
 	}
 
 	cr := newCSVReader(r, delim)
-	recs, err := readRecords(cr, drivers.OptIngestSampleSize.Get(src.Options))
+	recs, err := readRecords(cr, driver.OptIngestSampleSize.Get(src.Options))
 	if err != nil {
 		return err
 	}
@@ -97,6 +95,10 @@ func ingestCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFu
 		for i := range recs[0] {
 			header[i] = stringz.GenerateAlphaColName(i, false)
 		}
+	}
+
+	if header, err = driver.MungeIngestColNames(ctx, header); err != nil {
+		return err
 	}
 
 	kinds, mungers, err := detectColKinds(recs)

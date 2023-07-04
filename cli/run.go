@@ -8,8 +8,6 @@ import (
 
 	"github.com/neilotoole/sq/cli/run"
 
-	"github.com/neilotoole/sq/drivers"
-
 	"github.com/neilotoole/sq/cli/config/yamlstore"
 	v0_34_0 "github.com/neilotoole/sq/cli/config/yamlstore/upgrades/v0.34.0"
 	"github.com/neilotoole/sq/libsq/core/lg/slogbuf"
@@ -175,7 +173,7 @@ func FinishRunInit(ctx context.Context, ru *run.Run) error {
 	dr.AddProvider(json.TypeJSON, jsonp)
 	dr.AddProvider(json.TypeJSONA, jsonp)
 	dr.AddProvider(json.TypeJSONL, jsonp)
-	sampleSize := drivers.OptIngestSampleSize.Get(cfg.Options)
+	sampleSize := driver.OptIngestSampleSize.Get(cfg.Options)
 	ru.Files.AddDriverDetectors(
 		json.DetectJSON(sampleSize),
 		json.DetectJSONA(sampleSize),

@@ -7,8 +7,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/neilotoole/sq/drivers"
-
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -32,7 +30,7 @@ func newImportJob(fromSrc *source.Source, openFn source.FileOpenFunc, destDB dri
 	flatten bool,
 ) importJob {
 	if sampleSize <= 0 {
-		sampleSize = drivers.OptIngestSampleSize.Get(fromSrc.Options)
+		sampleSize = driver.OptIngestSampleSize.Get(fromSrc.Options)
 	}
 
 	return importJob{

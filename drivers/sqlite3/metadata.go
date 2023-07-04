@@ -45,7 +45,7 @@ func recordMetaFromColumnTypes(ctx context.Context, colTypes []*sql.ColumnType) 
 		ogColNames[i] = colTypeData.Name
 	}
 
-	mungedColNames, err := driver.MungeColNames(ctx, ogColNames)
+	mungedColNames, err := driver.MungeResultColNames(ctx, ogColNames)
 	if err != nil {
 		return nil, err
 	}

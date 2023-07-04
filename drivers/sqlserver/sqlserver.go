@@ -302,7 +302,7 @@ func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (r
 		ogColNames[i] = colTypeData.Name
 	}
 
-	mungedColNames, err := driver.MungeColNames(ctx, ogColNames)
+	mungedColNames, err := driver.MungeResultColNames(ctx, ogColNames)
 	if err != nil {
 		return nil, nil, err
 	}

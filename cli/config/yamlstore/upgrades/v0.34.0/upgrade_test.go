@@ -8,10 +8,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/driver"
+
 	"github.com/neilotoole/sq/cli"
 	"github.com/neilotoole/sq/cli/config/yamlstore"
 	v0_34_0 "github.com/neilotoole/sq/cli/config/yamlstore/upgrades/v0.34.0"
-	"github.com/neilotoole/sq/drivers"
 	"github.com/neilotoole/sq/drivers/csv"
 	"github.com/neilotoole/sq/drivers/xlsx"
 	"github.com/neilotoole/sq/libsq/core/options"
@@ -80,12 +81,12 @@ func TestUpgrade(t *testing.T) {
 	src1 := cfg.Collection.Sources()[1]
 	require.Equal(t, handleCSV, src1.Handle)
 	require.Equal(t, csv.TypeCSV, src1.Type)
-	require.Equal(t, true, src1.Options[drivers.OptIngestHeader.Key()])
+	require.Equal(t, true, src1.Options[driver.OptIngestHeader.Key()])
 
 	src2 := cfg.Collection.Sources()[2]
 	require.Equal(t, handleXLSX, src2.Handle)
 	require.Equal(t, xlsx.Type, src2.Type)
-	require.Equal(t, false, src2.Options[drivers.OptIngestHeader.Key()])
+	require.Equal(t, false, src2.Options[driver.OptIngestHeader.Key()])
 
 	wantCfgRaw, err := os.ReadFile(filepath.Join("testdata", "want.sq.yml"))
 	require.NoError(t, err)
