@@ -3,7 +3,6 @@ package xlsx
 
 import (
 	"context"
-	"database/sql"
 	"io"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -63,21 +62,21 @@ func (d *Driver) DriverMetadata() driver.Metadata {
 func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
-	r, err := d.files.Open(src)
-	if err != nil {
-		return nil, err
-	}
-	defer lg.WarnIfCloseError(d.log, lgm.CloseFileReader, r)
-
-	b, err := io.ReadAll(r)
-	if err != nil {
-		return nil, errz.Err(err)
-	}
-
-	xlFile, err := xlsx.OpenBinary(b)
-	if err != nil {
-		return nil, err
-	}
+	//r, err := d.files.Open(src)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//defer lg.WarnIfCloseError(d.log, lgm.CloseFileReader, r)
+	//
+	//b, err := io.ReadAll(r)
+	//if err != nil {
+	//	return nil, errz.Err(err)
+	//}
+	//
+	//xlFile, err := xlsx.OpenBinary(b)
+	//if err != nil {
+	//	return nil, err
+	//}
 
 	scratchDB, err := d.scratcher.OpenScratch(ctx, src.Handle)
 	if err != nil {
@@ -87,14 +86,20 @@ func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Database,
 	clnup := cleanup.New()
 	clnup.AddE(scratchDB.Close)
 
-	// REVISIT: Can we defer ingest?
-	err = ingest(ctx, src, scratchDB, xlFile, nil)
-	if err != nil {
+	//// REVISIT: Can we defer ingest?
+	//err = ingest(ctx, src, scratchDB, xlFile, nil)
+	//if err != nil {
+	//	lg.WarnIfError(d.log, lgm.CloseDB, clnup.Run())
+	//	return nil, err
+	//}
+
+	dbase := &database{log: d.log, src: src, scratchDB: scratchDB, files: d.files, clnup: clnup}
+	if err = dbase.doIngest(ctx); err != nil {
 		lg.WarnIfError(d.log, lgm.CloseDB, clnup.Run())
 		return nil, err
 	}
 
-	return &database{log: d.log, src: src, impl: scratchDB, files: d.files, clnup: clnup}, nil
+	return dbase, nil
 }
 
 // Truncate implements driver.Driver.
@@ -137,74 +142,4 @@ func (d *Driver) Ping(_ context.Context, src *source.Source) (err error) {
 	}
 
 	return nil
-}
-
-// database implements driver.Database.
-type database struct {
-	log   *slog.Logger
-	src   *source.Source
-	files *source.Files
-	impl  driver.Database
-	clnup *cleanup.Cleanup
-}
-
-// DB implements driver.Database.
-func (d *database) DB() *sql.DB {
-	return d.impl.DB()
-}
-
-// SQLDriver implements driver.Database.
-func (d *database) SQLDriver() driver.SQLDriver {
-	return d.impl.SQLDriver()
-}
-
-// Source implements driver.Database.
-func (d *database) Source() *source.Source {
-	return d.src
-}
-
-// SourceMetadata implements driver.Database.
-func (d *database) SourceMetadata(ctx context.Context, noSchema bool) (*source.Metadata, error) {
-	md, err := d.impl.SourceMetadata(ctx, noSchema)
-	if err != nil {
-		return nil, err
-	}
-
-	md.Handle = d.src.Handle
-	md.Driver = Type
-	md.Location = d.src.Location
-	if md.Name, err = source.LocationFileName(d.src); err != nil {
-		return nil, err
-	}
-	md.FQName = md.Name
-
-	if md.Size, err = d.files.Size(d.src); err != nil {
-		return nil, err
-	}
-
-	return md, nil
-}
-
-// TableMetadata implements driver.Database.
-func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
-	srcMeta, err := d.SourceMetadata(ctx, false)
-	if err != nil {
-		return nil, err
-	}
-
-	tblMeta := srcMeta.Table(tblName)
-	if tblMeta == nil {
-		return nil, errz.Errorf("table {%s} not found", tblName)
-	}
-
-	return tblMeta, nil
-}
-
-// Close implements driver.Database.
-func (d *database) Close() error {
-	d.log.Debug(lgm.CloseDB, lga.Handle, d.src.Handle)
-
-	// No need to explicitly invoke c.impl.Close because
-	// that's already added to c.clnup
-	return d.clnup.Run()
 }
