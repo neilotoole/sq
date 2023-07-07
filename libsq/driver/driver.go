@@ -166,6 +166,7 @@ type DatabaseOpener interface {
 	// For example, with file-based sources such as CSV, invoking Open
 	// will ultimately read and import all CSV rows from the file.
 	// Thus, set a timeout on ctx as appropriate for the source.
+	// FIXME: change this text after switch to deferred open via .DB()
 	Open(ctx context.Context, src *source.Source) (Database, error)
 }
 
@@ -323,9 +324,11 @@ type SQLDriver interface {
 // Database models a database handle. It is conceptually equivalent to
 // stdlib sql.DB, and in fact encapsulates a sql.DB instance. The
 // realized sql.DB instance can be accessed via the DB method.
+//
+// REVISIT: maybe rename driver.Database to driver.Datasource or such?
 type Database interface {
 	// DB returns the sql.DB object for this Database.
-	DB() *sql.DB
+	DB() (*sql.DB, error)
 
 	// SQLDriver returns the underlying database driver. The type of the SQLDriver
 	// may be different from the driver type reported by the Source.

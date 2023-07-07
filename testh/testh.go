@@ -139,6 +139,8 @@ func New(t testing.TB, opts ...Option) *Helper {
 // a Source for handle, an open Database and the SQLDriver.
 // The function will fail if handle is not the handle for a
 // source whose driver implements driver.SQLDriver.
+//
+// FIXME: expand NewWith to return the *sql.DB?
 func NewWith(t testing.TB, handle string) (*Helper, *source.Source, driver.Database, driver.SQLDriver) {
 	th := New(t)
 	src := th.Source(handle)
@@ -337,7 +339,10 @@ func (h *Helper) Open(src *source.Source) driver.Database {
 	dbase, err := h.Databases().Open(ctx, src)
 	require.NoError(h.T, err)
 
-	require.NoError(h.T, dbase.DB().PingContext(ctx))
+	db, err := dbase.DB()
+	require.NoError(h.T, err)
+
+	require.NoError(h.T, db.PingContext(ctx))
 	return dbase
 }
 
@@ -386,7 +391,10 @@ func (h *Helper) RowCount(src *source.Source, tbl string) int64 {
 
 	query := "SELECT COUNT(*) FROM " + dbase.SQLDriver().Dialect().Enquote(tbl)
 	var count int64
-	require.NoError(h.T, dbase.DB().QueryRowContext(h.Context, query).Scan(&count))
+	db, err := dbase.DB()
+	require.NoError(h.T, err)
+
+	require.NoError(h.T, db.QueryRowContext(h.Context, query).Scan(&count))
 	return count
 }
 
@@ -399,7 +407,10 @@ func (h *Helper) CreateTable(dropAfter bool, src *source.Source, tblDef *sqlmode
 	dbase := h.openNew(src)
 	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, dbase)
 
-	require.NoError(h.T, dbase.SQLDriver().CreateTable(h.Context, dbase.DB(), tblDef))
+	db, err := dbase.DB()
+	require.NoError(h.T, err)
+
+	require.NoError(h.T, dbase.SQLDriver().CreateTable(h.Context, db, tblDef))
 	h.T.Logf("Created table %s.%s", src.Handle, tblDef.Name)
 
 	if dropAfter {
@@ -425,8 +436,10 @@ func (h *Helper) Insert(src *source.Source, tbl string, cols []string, records .
 	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, dbase)
 
 	drvr := dbase.SQLDriver()
+	db, err := dbase.DB()
+	require.NoError(h.T, err)
 
-	conn, err := dbase.DB().Conn(h.Context)
+	conn, err := db.Conn(h.Context)
 	require.NoError(h.T, err)
 	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, conn)
 
@@ -479,7 +492,10 @@ func (h *Helper) CopyTable(dropAfter bool, src *source.Source, fromTable, toTabl
 	dbase := h.openNew(src)
 	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, dbase)
 
-	copied, err := dbase.SQLDriver().CopyTable(h.Context, dbase.DB(), fromTable, toTable, copyData)
+	db, err := dbase.DB()
+	require.NoError(h.T, err)
+
+	copied, err := dbase.SQLDriver().CopyTable(h.Context, db, fromTable, toTable, copyData)
 	require.NoError(h.T, err)
 	if dropAfter {
 		h.Cleanup.Add(func() { h.DropTable(src, toTable) })
@@ -500,7 +516,10 @@ func (h *Helper) DropTable(src *source.Source, tbl string) {
 	dbase := h.openNew(src)
 	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, dbase)
 
-	require.NoError(h.T, dbase.SQLDriver().DropTable(h.Context, dbase.DB(), tbl, true))
+	db, err := dbase.DB()
+	require.NoError(h.T, err)
+
+	require.NoError(h.T, dbase.SQLDriver().DropTable(h.Context, db, tbl, true))
 	h.Log.Debug("Dropped table", lga.Target, source.Target(src, tbl))
 }
 
@@ -566,7 +585,10 @@ func (h *Helper) QuerySLQ(query string, args map[string]string) (*RecordSink, er
 func (h *Helper) ExecSQL(src *source.Source, query string, args ...any) (affected int64) {
 	dbase := h.Open(src)
 
-	res, err := dbase.DB().ExecContext(h.Context, query, args...)
+	db, err := dbase.DB()
+	require.NoError(h.T, err)
+
+	res, err := db.ExecContext(h.Context, query, args...)
 
 	require.NoError(h.T, err)
 

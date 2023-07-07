@@ -62,22 +62,6 @@ func (d *Driver) DriverMetadata() driver.Metadata {
 func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
-	//r, err := d.files.Open(src)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//defer lg.WarnIfCloseError(d.log, lgm.CloseFileReader, r)
-	//
-	//b, err := io.ReadAll(r)
-	//if err != nil {
-	//	return nil, errz.Err(err)
-	//}
-	//
-	//xlFile, err := xlsx.OpenBinary(b)
-	//if err != nil {
-	//	return nil, err
-	//}
-
 	scratchDB, err := d.scratcher.OpenScratch(ctx, src.Handle)
 	if err != nil {
 		return nil, err
@@ -86,13 +70,7 @@ func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Database,
 	clnup := cleanup.New()
 	clnup.AddE(scratchDB.Close)
 
-	//// REVISIT: Can we defer ingest?
-	//err = ingest(ctx, src, scratchDB, xlFile, nil)
-	//if err != nil {
-	//	lg.WarnIfError(d.log, lgm.CloseDB, clnup.Run())
-	//	return nil, err
-	//}
-
+	// REVISIT: Can we defer ingest?
 	dbase := &database{log: d.log, src: src, scratchDB: scratchDB, files: d.files, clnup: clnup}
 	if err = dbase.doIngest(ctx); err != nil {
 		lg.WarnIfError(d.log, lgm.CloseDB, clnup.Run())

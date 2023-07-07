@@ -171,7 +171,7 @@ type database struct {
 }
 
 // DB implements driver.Database.
-func (d *database) DB() *sql.DB {
+func (d *database) DB() (*sql.DB, error) {
 	return d.impl.DB()
 }
 

@@ -243,9 +243,11 @@ func TestRecordMetadata(t *testing.T) {
 			th := testh.New(t)
 			src := th.Source(sakila.SL3)
 			dbase := th.Open(src)
+			db, err := dbase.DB()
+			require.NoError(t, err)
 
 			query := fmt.Sprintf("SELECT %s FROM %s", strings.Join(tc.colNames, ", "), tc.tbl)
-			rows, err := dbase.DB().QueryContext(th.Context, query) //nolint:rowserrcheck
+			rows, err := db.QueryContext(th.Context, query) //nolint:rowserrcheck
 			require.NoError(t, err)
 			t.Cleanup(func() { assert.NoError(t, rows.Close()) })
 
@@ -324,7 +326,7 @@ func BenchmarkDatabase_SourceMetadata(b *testing.B) {
 	const numTables = 1000
 
 	th, src, dbase, drvr := testh.NewWith(b, testsrc.MiscDB)
-	db := dbase.DB()
+	db, _ := dbase.DB()
 
 	tblNames := createTypeTestTbls(th, src, numTables, true)
 
@@ -345,7 +347,7 @@ func TestGetTblRowCounts(t *testing.T) {
 	const numTables = 10
 
 	th, src, dbase, _ := testh.NewWith(t, testsrc.MiscDB)
-	db := dbase.DB()
+	db, _ := dbase.DB()
 
 	tblNames := createTypeTestTbls(th, src, numTables, true)
 
@@ -358,7 +360,7 @@ func BenchmarkGetTblRowCounts(b *testing.B) {
 	const numTables = 1300
 
 	th, src, dbase, drvr := testh.NewWith(b, testsrc.MiscDB)
-	db := dbase.DB()
+	db, _ := dbase.DB()
 
 	tblNames := createTypeTestTbls(th, src, numTables, true)
 

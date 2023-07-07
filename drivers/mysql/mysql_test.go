@@ -39,6 +39,8 @@ func TestDriver_CreateTable_NotNullDefault(t *testing.T) {
 			t.Parallel()
 
 			th, src, dbase, drvr := testh.NewWith(t, handle)
+			db, err := dbase.DB()
+			require.NoError(t, err)
 
 			tblName := stringz.UniqTableName(t.Name())
 			colNames, colKinds := fixt.ColNamePerKind(drvr.Dialect().IntBool, false, false)
@@ -49,7 +51,7 @@ func TestDriver_CreateTable_NotNullDefault(t *testing.T) {
 				colDef.HasDefault = true
 			}
 
-			err := drvr.CreateTable(th.Context, dbase.DB(), tblDef)
+			err = drvr.CreateTable(th.Context, db, tblDef)
 			require.NoError(t, err)
 			t.Cleanup(func() { th.DropTable(src, tblName) })
 

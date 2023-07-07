@@ -144,11 +144,17 @@ func importJSON(ctx context.Context, job importJob) error {
 	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
 
 	drvr := job.destDB.SQLDriver()
-	db, err := job.destDB.DB().Conn(ctx)
+
+	db, err := job.destDB.DB()
+	if err != nil {
+		return err
+	}
+
+	conn, err := db.Conn(ctx)
 	if err != nil {
 		return errz.Err(err)
 	}
-	defer lg.WarnIfCloseError(log, lgm.CloseDB, db)
+	defer lg.WarnIfCloseError(log, lgm.CloseDB, conn)
 
 	proc := newProcessor(job.flatten)
 	scan := newObjectInArrayScanner(r)
@@ -184,7 +190,7 @@ func importJSON(ctx context.Context, job importJob) error {
 					return err
 				}
 
-				err = execSchemaDelta(ctx, drvr, db, curSchema, newSchema)
+				err = execSchemaDelta(ctx, drvr, conn, curSchema, newSchema)
 				if err != nil {
 					return err
 				}
@@ -201,7 +207,7 @@ func importJSON(ctx context.Context, job importJob) error {
 					return err
 				}
 
-				err = execInsertions(ctx, drvr, db, insertions)
+				err = execInsertions(ctx, drvr, conn, insertions)
 				if err != nil {
 					return err
 				}
@@ -238,7 +244,7 @@ func importJSON(ctx context.Context, job importJob) error {
 			return err
 		}
 
-		err = execInsertions(ctx, drvr, db, insertions)
+		err = execInsertions(ctx, drvr, conn, insertions)
 		if err != nil {
 			return err
 		}

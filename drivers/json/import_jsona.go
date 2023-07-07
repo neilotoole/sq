@@ -124,7 +124,12 @@ func importJSONA(ctx context.Context, job importJob) error {
 
 	// And now we need to create the dest table in destDB
 	tblDef := sqlmodel.NewTableDef(source.MonotableName, colNames, colKinds)
-	err = job.destDB.SQLDriver().CreateTable(ctx, job.destDB.DB(), tblDef)
+	db, err := job.destDB.DB()
+	if err != nil {
+		return err
+	}
+
+	err = job.destDB.SQLDriver().CreateTable(ctx, db, tblDef)
 	if err != nil {
 		return errz.Wrapf(err, "import %s: failed to create dest scratch table", TypeJSONA)
 	}

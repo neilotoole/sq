@@ -112,8 +112,10 @@ func TestDatabase_TableMetadata(t *testing.T) {
 
 func TestGetTableRowCounts(t *testing.T) {
 	th, _, dbase, _ := testh.NewWith(t, sakila.My)
+	db, err := dbase.DB()
+	require.NoError(t, err)
 
-	counts, err := mysql.GetTableRowCountsBatch(th.Context, dbase.DB(), []string{sakila.TblActor, sakila.TblFilm})
+	counts, err := mysql.GetTableRowCountsBatch(th.Context, db, []string{sakila.TblActor, sakila.TblFilm})
 	require.NoError(t, err)
 	require.Len(t, counts, 2)
 	require.Equal(t, int64(sakila.TblActorCount), counts[sakila.TblActor])

@@ -126,7 +126,12 @@ func execTblCopy(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	copied, err := sqlDrvr.CopyTable(cmd.Context(), dbase.DB(), tblHandles[0].tbl, tblHandles[1].tbl, copyData)
+	db, err := dbase.DB()
+	if err != nil {
+		return err
+	}
+
+	copied, err := sqlDrvr.CopyTable(cmd.Context(), db, tblHandles[0].tbl, tblHandles[1].tbl, copyData)
 	if err != nil {
 		return errz.Wrapf(err, "failed tbl copy %s.%s --> %s.%s",
 			tblHandles[0].handle, tblHandles[0].tbl,
@@ -249,7 +254,12 @@ func execTblDrop(cmd *cobra.Command, args []string) (err error) {
 		if err != nil {
 			return err
 		}
-		err = sqlDrvr.DropTable(cmd.Context(), dbase.DB(), tblH.tbl, false)
+
+		db, err := dbase.DB()
+		if err != nil {
+			return err
+		}
+		err = sqlDrvr.DropTable(cmd.Context(), db, tblH.tbl, false)
 		if err != nil {
 			return err
 		}

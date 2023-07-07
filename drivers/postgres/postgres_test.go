@@ -54,7 +54,7 @@ func TestDriverBehavior(t *testing.T) {
 		t.Run(handle, func(t *testing.T) {
 			th := testh.New(t)
 			src := th.Source(handle)
-			db := th.Open(src).DB()
+			db, _ := th.Open(src).DB()
 
 			query := `SELECT
        (SELECT actor_id FROM actor limit 1) AS actor_id,
@@ -102,7 +102,7 @@ func Test_VerifyDriverDoesNotReportNullability(t *testing.T) {
 
 			th := testh.New(t)
 			src := th.Source(handle)
-			db := th.Open(src).DB()
+			db, _ := th.Open(src).DB()
 
 			_, actualTblName := createTypeTestTable(th, src, true)
 			t.Cleanup(func() { th.DropTable(src, actualTblName) })
@@ -145,8 +145,11 @@ func TestGetTableColumnNames(t *testing.T) {
 		t.Run(handle, func(t *testing.T) {
 			th := testh.New(t)
 			src := th.Source(handle)
+			dbase := th.Open(src)
+			db, err := dbase.DB()
+			require.NoError(t, err)
 
-			colNames, err := postgres.GetTableColumnNames(th.Context, th.Open(src).DB(), sakila.TblActor)
+			colNames, err := postgres.GetTableColumnNames(th.Context, db, sakila.TblActor)
 			require.NoError(t, err)
 			require.Equal(t, sakila.TblActorCols(), colNames)
 		})
@@ -164,6 +167,8 @@ func TestDriver_CreateTable_NotNullDefault(t *testing.T) {
 			t.Parallel()
 
 			th, src, dbase, drvr := testh.NewWith(t, handle)
+			db, err := dbase.DB()
+			require.NoError(t, err)
 
 			tblName := stringz.UniqTableName(t.Name())
 			colNames, colKinds := fixt.ColNamePerKind(drvr.Dialect().IntBool, false, false)
@@ -174,7 +179,7 @@ func TestDriver_CreateTable_NotNullDefault(t *testing.T) {
 				colDef.HasDefault = true
 			}
 
-			err := drvr.CreateTable(th.Context, dbase.DB(), tblDef)
+			err = drvr.CreateTable(th.Context, db, tblDef)
 			require.NoError(t, err)
 			t.Cleanup(func() { th.DropTable(src, tblName) })
 
@@ -215,7 +220,7 @@ func TestAlternateSchema(t *testing.T) {
 	t.Logf("Using src: {%s}", src)
 
 	dbase := th.Open(src)
-	db := dbase.DB()
+	db, _ := dbase.DB()
 	require.NoError(t, db.Ping())
 
 	schemaName := stringz.UniqSuffix("test_schema")

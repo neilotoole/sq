@@ -24,9 +24,6 @@ type database struct {
 	files     *source.Files
 	scratchDB driver.Database
 	clnup     *cleanup.Cleanup
-	ingested  bool
-	// ingestOnce *sync.Once
-	// ingestErr  error
 }
 
 func (d *database) doIngest(ctx context.Context) error {
@@ -46,25 +43,17 @@ func (d *database) doIngest(ctx context.Context) error {
 		return err
 	}
 
-	//scratchDB, err := d.scratcher.OpenScratch(ctx, src.Handle)
-	//if err != nil {
-	//	return nil, err
-	//}
-
-	// clnup := cleanup.New()
-	// clnup.AddE(scratchDB.Close)
-
-	// REVISIT: Can we defer ingest?
 	err = ingest(ctx, d.src, d.scratchDB, xlFile, nil)
-	//if err != nil {
-	//	lg.WarnIfError(d.log, lgm.CloseDB, clnup.Run())
-	//	return err
-	//}
+	if err != nil {
+		// REVISIT: Should we call cleanup here?
+		lg.WarnIfError(d.log, lgm.CloseDB, d.clnup.Run())
+		return err
+	}
 	return err
 }
 
 // DB implements driver.Database.
-func (d *database) DB() *sql.DB {
+func (d *database) DB() (*sql.DB, error) {
 	return d.scratchDB.DB()
 }
 

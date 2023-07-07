@@ -67,7 +67,7 @@ func TestExhibitDriverColumnTypesBehavior(t *testing.T) {
 
 	th := testh.New(t)
 	src := th.Source(sakila.SL3)
-	db := th.Open(src).DB()
+	db, _ := th.Open(src).DB()
 	t.Log("using source: " + src.Location)
 
 	tblName := stringz.UniqTableName("scan_test")
@@ -167,6 +167,8 @@ func TestDriver_CreateTable_NotNullDefault(t *testing.T) {
 	t.Parallel()
 
 	th, src, dbase, drvr := testh.NewWith(t, sakila.SL3)
+	db, err := dbase.DB()
+	require.NoError(t, err)
 
 	tblName := stringz.UniqTableName(t.Name())
 	colNames, colKinds := fixt.ColNamePerKind(drvr.Dialect().IntBool, false, false)
@@ -177,7 +179,7 @@ func TestDriver_CreateTable_NotNullDefault(t *testing.T) {
 		colDef.HasDefault = true
 	}
 
-	err := drvr.CreateTable(th.Context, dbase.DB(), tblDef)
+	err = drvr.CreateTable(th.Context, db, tblDef)
 	require.NoError(t, err)
 	t.Cleanup(func() { th.DropTable(src, tblName) })
 

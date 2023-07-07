@@ -2,6 +2,7 @@ package xlsx
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
 	"time"
@@ -63,7 +64,13 @@ func ingest(ctx context.Context, src *source.Source, scratchDB driver.Database,
 			// tblDef can be nil if its sheet is empty (has no data).
 			continue
 		}
-		if err = scratchDB.SQLDriver().CreateTable(ctx, scratchDB.DB(), sheetTbl.def); err != nil {
+
+		var db *sql.DB
+		if db, err = scratchDB.DB(); err != nil {
+			return err
+		}
+
+		if err = scratchDB.SQLDriver().CreateTable(ctx, db, sheetTbl.def); err != nil {
 			return err
 		}
 	}
@@ -110,7 +117,12 @@ func importSheetToTable(ctx context.Context, scratchDB driver.Database, sheetTbl
 		tblDef    = sheetTbl.def
 	)
 
-	conn, err := scratchDB.DB().Conn(ctx)
+	db, err := scratchDB.DB()
+	if err != nil {
+		return err
+	}
+
+	conn, err := db.Conn(ctx)
 	if err != nil {
 		return errz.Err(err)
 	}
@@ -544,29 +556,6 @@ func calcKindsForRows(firstDataRow int, rows []*xlsx.Row) ([]kind.Kind, error) {
 	return kinds, nil
 }
 
-// getColNames returns column names for the sheet. If hasHeader is true and there's
-// at least one row, the column names are the values of the first row. Otherwise
-// an alphabetical sequence (A, B... Z, AA, AB) is generated.
-func getColNames(sheet *xlsx.Sheet, hasHeader bool) []string {
-	numCells := getRowsMaxCellCount(sheet)
-	colNames := make([]string, numCells)
-
-	if len(sheet.Rows) > 0 && hasHeader {
-		row := sheet.Rows[0]
-		for i := 0; i < len(row.Cells); i++ {
-			colNames[i] = row.Cells[i].String()
-		}
-	}
-
-	for i := range colNames {
-		if colNames[i] == "" {
-			colNames[i] = stringz.GenerateAlphaColName(i, false)
-		}
-	}
-
-	return colNames
-}
-
 // getCellColumnTypes returns the xlsx cell types for the sheet, determined from
 // the values of the first data row (after any header row).
 func getCellColumnTypes(sheet *xlsx.Sheet, hasHeader bool) []xlsx.CellType {
@@ -605,27 +594,7 @@ func getCellColumnTypes(sheet *xlsx.Sheet, hasHeader bool) []xlsx.CellType {
 	return ret
 }
 
-func cellTypeToString(typ xlsx.CellType) string {
-	switch typ {
-	case xlsx.CellTypeString:
-		return "string"
-	case xlsx.CellTypeStringFormula:
-		return "formula"
-	case xlsx.CellTypeNumeric:
-		return "numeric"
-	case xlsx.CellTypeBool:
-		return "bool"
-	case xlsx.CellTypeInline:
-		return "inline"
-	case xlsx.CellTypeError:
-		return "error"
-	case xlsx.CellTypeDate:
-		return "date"
-	}
-	return "general"
-}
-
-// getRowsMaxCellCount returns the largest count of cells in
+// getRowsMaxCellCount returns the largest count of cells
 // in the rows of sheet.
 func getRowsMaxCellCount(sheet *xlsx.Sheet) int {
 	max := 0

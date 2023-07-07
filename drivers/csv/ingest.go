@@ -109,7 +109,12 @@ func ingestCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFu
 	// And now we need to create the dest table in scratchDB
 	tblDef := createTblDef(source.MonotableName, header, kinds)
 
-	err = scratchDB.SQLDriver().CreateTable(ctx, scratchDB.DB(), tblDef)
+	db, err := scratchDB.DB()
+	if err != nil {
+		return err
+	}
+
+	err = scratchDB.SQLDriver().CreateTable(ctx, db, tblDef)
 	if err != nil {
 		return errz.Wrap(err, "csv: failed to create dest scratch table")
 	}
