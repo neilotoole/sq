@@ -29,15 +29,31 @@ import (
 )
 
 // ingest loads the data in xlFile into scratchDB.
-func ingest(ctx context.Context, src *source.Source, xlFile *xlsx.File, scratchDB driver.Database) error {
+// If includeSheetNames is non-empty, only the named sheets are ingested.
+func ingest(ctx context.Context, src *source.Source, scratchDB driver.Database,
+	xlFile *xlsx.File, includeSheetNames []string,
+) error {
 	log := lg.FromContext(ctx)
 	start := time.Now()
 	log.Debug("Beginning import from XLSX",
 		lga.Src, src,
 		lga.Target, scratchDB.Source())
 
+	var sheets []*xlsx.Sheet
+	if len(includeSheetNames) > 0 {
+		for _, sheetName := range includeSheetNames {
+			sheet := xlFile.Sheet[sheetName]
+			if sheet == nil {
+				return errz.Errorf("sheet {%s} not found", sheetName)
+			}
+			sheets = append(sheets, sheet)
+		}
+	} else {
+		sheets = xlFile.Sheets
+	}
+
 	srcIngestHeader := getSrcIngestHeader(src.Options)
-	sheetTbls, err := buildSheetTables(ctx, srcIngestHeader, xlFile.Sheets)
+	sheetTbls, err := buildSheetTables(ctx, srcIngestHeader, sheets)
 	if err != nil {
 		return err
 	}

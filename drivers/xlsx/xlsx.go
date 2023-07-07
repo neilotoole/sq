@@ -88,7 +88,7 @@ func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Database,
 	clnup.AddE(scratchDB.Close)
 
 	// REVISIT: Can we defer ingest?
-	err = ingest(ctx, src, xlFile, scratchDB)
+	err = ingest(ctx, src, scratchDB, xlFile, nil)
 	if err != nil {
 		lg.WarnIfError(d.log, lgm.CloseDB, clnup.Run())
 		return nil, err
