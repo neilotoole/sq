@@ -425,3 +425,32 @@ func detectKindDatetime(s string) (ok bool, format string) {
 
 	return false, ""
 }
+
+// Hash generates a hash from the kinds returned by
+// the detectors. The detectors should already have
+// sampled data.
+func Hash(detectors []*Detector) (h string, err error) {
+	if len(detectors) == 0 {
+		return "", errz.New("no kind detectors")
+	}
+
+	kinds := make([]Kind, len(detectors))
+	for i := range detectors {
+		kinds[i], _, err = detectors[i].Detect()
+		if err != nil {
+			return "", err
+		}
+	}
+
+	// TODO: use an actual hash function
+	hash := strings.Builder{}
+	for i := range kinds {
+		if i > 0 {
+			hash.WriteRune('|')
+		}
+		hash.WriteString(kinds[i].String())
+	}
+
+	h = hash.String()
+	return h, nil
+}

@@ -236,7 +236,7 @@ const (
 	PathSL3Whitespace    = "drivers/sqlite3/testdata/sakila-whitespace.db"
 	PathXLSX             = "drivers/xlsx/testdata/sakila.xlsx"
 	PathXLSXSubset       = "drivers/xlsx/testdata/sakila_subset.xlsx"
-	PathXLSXActorHeader  = "drivers/xlsx/testdata/sakila_actor_header.xlsx"
+	PathXLSXActorHeader  = "drivers/xlsx/testdata/actor_header.xlsx"
 	PathCSVActor         = "drivers/csv/testdata/sakila-csv/actor.csv"
 	PathCSVActorNoHeader = "drivers/csv/testdata/sakila-csv-noheader/actor.csv"
 	PathTSVActor         = "drivers/csv/testdata/sakila-tsv/actor.tsv"

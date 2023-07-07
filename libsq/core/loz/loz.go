@@ -34,3 +34,35 @@ func ToSliceType[S, T any](in ...S) (out []T, ok bool) {
 
 	return out, true
 }
+
+// HarmonizeSliceLengths returns slices for a and b such that the
+// returned slices have the same lengths and contents as a and b,
+// with any additional elements filled with defaultVal. If a and b
+// are already the same length, they are returned as-is. At most
+// one new slice is allocated.
+func HarmonizeSliceLengths[T any](a, b []T, defaultVal T) ([]T, []T) {
+	switch {
+	case len(a) == len(b):
+		return a, b
+	case len(a) < len(b):
+		a1 := make([]T, len(b))
+		for i := range a1 {
+			if i < len(a) {
+				a1[i] = a[i]
+			} else {
+				a1[i] = defaultVal
+			}
+		}
+		return a1, b
+	default:
+		b1 := make([]T, len(a))
+		for i := range b1 {
+			if i < len(b) {
+				b1[i] = b[i]
+			} else {
+				b1[i] = defaultVal
+			}
+		}
+		return a, b1
+	}
+}

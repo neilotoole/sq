@@ -186,7 +186,7 @@ func TestExprNoSource(t *testing.T) {
 			tr := testrun.New(context.Background(), t, nil).Hush()
 			err := tr.Exec("--csv", "--no-header", tc.in)
 			require.NoError(t, err)
-			results := tr.MustReadCSV()
+			results := tr.BindCSV()
 			require.Len(t, results, 1)
 			require.Equal(t, tc.want, results[0])
 		})

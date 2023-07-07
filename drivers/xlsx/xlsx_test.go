@@ -90,8 +90,10 @@ func TestHandleSomeEmptySheets(t *testing.T) {
 }
 
 func TestIngestDuplicateColumns(t *testing.T) {
+	actorDataRow0 := []string{"1", "PENELOPE", "GUINESS", "2020-02-15T06:59:28Z", "1"}
+
 	ctx := context.Background()
-	tr := testrun.New(ctx, t, nil)
+	tr := testrun.New(ctx, t, nil).Hush()
 
 	err := tr.Exec("add",
 		"--handle", "@actor_dup",
@@ -100,16 +102,15 @@ func TestIngestDuplicateColumns(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	tr = testrun.New(ctx, t, tr).Hush()
+	tr = testrun.New(ctx, t, tr)
 	require.NoError(t, tr.Exec("--csv", ".actor"))
 	wantHeaders := []string{"actor_id", "first_name", "last_name", "last_update", "actor_id_1"}
-	data := tr.MustReadCSV()
+	data := tr.BindCSV()
 	require.Equal(t, wantHeaders, data[0])
 
 	// Make sure the data is correct
 	require.Len(t, data, sakila.TblActorCount+1) // +1 for header row
-	wantFirstDataRecord := []string{"1", "PENELOPE", "GUINESS", "2020-02-15T06:59:28Z", "1"}
-	require.Equal(t, wantFirstDataRecord, data[1])
+	require.Equal(t, actorDataRow0, data[1])
 
 	// Verify that changing the template works
 	const tpl2 = "x_{{.Name}}{{with .Recurrence}}_{{.}}{{end}}"
@@ -124,6 +125,66 @@ func TestIngestDuplicateColumns(t *testing.T) {
 	tr = testrun.New(ctx, t, tr)
 	require.NoError(t, tr.Exec("--csv", ".actor"))
 	wantHeaders = []string{"x_actor_id", "x_first_name", "x_last_name", "x_last_update", "x_actor_id_1"}
-	data = tr.MustReadCSV()
+	data = tr.BindCSV()
 	require.Equal(t, wantHeaders, data[0])
+}
+
+func TestDetectHeaderRow(t *testing.T) {
+	actorRows := [][]string{
+		{"1", "PENELOPE", "GUINESS", "2020-02-15T06:59:28Z"},
+		{"2", "NICK", "WAHLBERG", "2020-02-15T06:59:28Z"},
+		{"3", "ED", "CHASE", "2020-02-15T06:59:28Z"},
+	}
+	abcd := []string{"A", "B", "C", "D"}
+
+	testCases := []struct {
+		filename        string
+		wantRecordCount int
+		matchRecords    [][]string
+	}{
+		{
+			filename:        "actor_header.xlsx",
+			wantRecordCount: sakila.TblActorCount + 1,
+			matchRecords:    [][]string{sakila.TblActorCols(), actorRows[0], actorRows[1], actorRows[2]},
+		},
+		{
+			filename:        "actor_no_header.xlsx",
+			wantRecordCount: sakila.TblActorCount + 1,
+			matchRecords:    [][]string{abcd, actorRows[0], actorRows[1], actorRows[2]},
+		},
+		{
+			filename:        "actor_double_header.xlsx",
+			wantRecordCount: sakila.TblActorCount + 3,
+			matchRecords:    [][]string{abcd, sakila.TblActorCols(), sakila.TblActorCols(), actorRows[0]},
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.filename, func(t *testing.T) {
+			ctx := context.Background()
+			fp := filepath.Join("testdata", tc.filename)
+
+			tr := testrun.New(ctx, t, nil).Hush()
+			err := tr.Exec("add", fp)
+			require.NoError(t, err)
+
+			tr = testrun.New(ctx, t, tr)
+			require.NoError(t, tr.Exec("--csv", "--header", ".actor"))
+
+			data := tr.BindCSV()
+
+			for _, rec := range data {
+				t.Log(rec)
+			}
+
+			require.Equal(t, tc.wantRecordCount, len(data))
+
+			require.True(t, len(data) >= len(tc.matchRecords))
+			for i, wantRec := range tc.matchRecords {
+				gotRec := data[i]
+				require.Equal(t, wantRec, gotRec, "record %d", i)
+			}
+		})
+	}
 }

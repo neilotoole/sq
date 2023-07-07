@@ -35,3 +35,29 @@ func TestApply(t *testing.T) {
 	got := loz.Apply(input, stringz.SingleQuote)
 	require.Equal(t, want, got)
 }
+
+func TestHarmonizeSliceLengths(t *testing.T) {
+	gotA, gotB := loz.HarmonizeSliceLengths(
+		[]int{1, 2, 3},
+		[]int{1, 2, 3, 4},
+		7,
+	)
+	require.Equal(t, []int{1, 2, 3, 7}, gotA)
+	require.Equal(t, []int{1, 2, 3, 4}, gotB)
+
+	gotA, gotB = loz.HarmonizeSliceLengths(
+		[]int{1, 2, 3, 4},
+		[]int{1, 2, 3},
+		7,
+	)
+	require.Equal(t, []int{1, 2, 3, 4}, gotA)
+	require.Equal(t, []int{1, 2, 3, 7}, gotB)
+
+	gotA, gotB = loz.HarmonizeSliceLengths(nil, nil, 7)
+	require.Nil(t, gotA)
+	require.Nil(t, gotB)
+
+	gotA, gotB = loz.HarmonizeSliceLengths([]int{}, []int{}, 7)
+	require.True(t, gotA != nil && len(gotA) == 0)
+	require.True(t, gotB != nil && len(gotB) == 0)
+}

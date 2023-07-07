@@ -197,17 +197,26 @@ func (tr *TestRun) Bind(v any) *TestRun {
 	return tr
 }
 
-// BindMap is a convenience method for binding tr.Out to a map.
+// BindMap is a convenience method for binding tr.Out to a map
+// (assuming tr.Out is JSON).
 func (tr *TestRun) BindMap() map[string]any {
 	m := map[string]any{}
 	tr.Bind(&m)
 	return m
 }
 
-// MustReadCSV reads CSV from tr.Out and returns all records,
+// BindSliceMap is a convenience method for binding tr.Out
+// to a slice of map (assuming tr.Out is JSON).
+func (tr *TestRun) BindSliceMap() []map[string]any {
+	var a []map[string]any
+	tr.Bind(&a)
+	return a
+}
+
+// BindCSV reads CSV from tr.Out and returns all records,
 // failing the testing on any problem. Obviously the Exec call
 // should have specified "--csv".
-func (tr *TestRun) MustReadCSV() [][]string {
+func (tr *TestRun) BindCSV() [][]string {
 	tr.mu.Lock()
 	defer tr.mu.Unlock()
 
