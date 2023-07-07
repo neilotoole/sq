@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/options"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
@@ -34,14 +36,7 @@ func ingest(ctx context.Context, src *source.Source, xlFile *xlsx.File, scratchD
 		lga.Src, src,
 		lga.Target, scratchDB.Source())
 
-	// srcIngestHeader is nil if driver.OptIngestHeader is not set,
-	// and has the value of the opt if set.
-	var srcIngestHeader *bool
-	if driver.OptIngestHeader.IsSet(src.Options) {
-		b := driver.OptIngestHeader.Get(src.Options)
-		srcIngestHeader = &b
-	}
-
+	srcIngestHeader := getSrcIngestHeader(src.Options)
 	sheetTbls, err := buildSheetTables(ctx, srcIngestHeader, xlFile.Sheets)
 	if err != nil {
 		return err
@@ -208,6 +203,17 @@ func buildSheetTables(ctx context.Context, srcIngestHeader *bool, sheets []*xlsx
 	}
 
 	return sheetTbls, nil
+}
+
+// getSrcIngestHeader returns nil if driver.OptIngestHeader is not set,
+// and has the value of the opt if set.
+func getSrcIngestHeader(o options.Options) *bool {
+	if driver.OptIngestHeader.IsSet(o) {
+		b := driver.OptIngestHeader.Get(o)
+		return &b
+	}
+
+	return nil
 }
 
 // buildSheetTable constructs a table definition for the given sheet, and returns

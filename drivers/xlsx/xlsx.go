@@ -87,6 +87,7 @@ func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Database,
 	clnup := cleanup.New()
 	clnup.AddE(scratchDB.Close)
 
+	// REVISIT: Can we defer ingest?
 	err = ingest(ctx, src, xlFile, scratchDB)
 	if err != nil {
 		lg.WarnIfError(d.log, lgm.CloseDB, clnup.Run())
@@ -98,9 +99,11 @@ func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Database,
 
 // Truncate implements driver.Driver.
 func (d *Driver) Truncate(_ context.Context, src *source.Source, _ string, _ bool) (affected int64, err error) {
-	// TODO: WE could actually implement Truncate for xlsx.
-	//  It would just mean deleting the rows from a sheet, and then
-	//  saving the sheet.
+	// TODO: Ww could actually implement Truncate for xlsx.
+	// It would just mean deleting the rows from a sheet, and then
+	// saving the sheet. But that's probably not a game we want to
+	// get into, as sq doesn't currently make writes to any non-SQL
+	// source types.
 	return 0, errz.Errorf("driver type {%s} (%s) doesn't support dropping tables", Type, src.Handle)
 }
 
@@ -161,117 +164,40 @@ func (d *database) Source() *source.Source {
 }
 
 // SourceMetadata implements driver.Database.
-//
-// TODO: the implementation of SourceMetadata is out
-// of sync with the way we import data. For example, empty
-// rows are filtered out during import, and empty columns
-// are discarded. Thus SourceMetadata needs an overhaul to
-// bring its reporting into line with import.
-func (d *database) SourceMetadata(_ context.Context, noSchema bool) (*source.Metadata, error) {
-	meta := &source.Metadata{Handle: d.src.Handle}
-
-	var err error
-	meta.Size, err = d.files.Size(d.src)
+func (d *database) SourceMetadata(ctx context.Context, noSchema bool) (*source.Metadata, error) {
+	md, err := d.impl.SourceMetadata(ctx, noSchema)
 	if err != nil {
 		return nil, err
 	}
 
-	meta.Name, err = source.LocationFileName(d.src)
-	if err != nil {
+	md.Handle = d.src.Handle
+	md.Driver = Type
+	md.Location = d.src.Location
+	if md.Name, err = source.LocationFileName(d.src); err != nil {
+		return nil, err
+	}
+	md.FQName = md.Name
+
+	if md.Size, err = d.files.Size(d.src); err != nil {
 		return nil, err
 	}
 
-	meta.FQName = meta.Name
-	meta.Location = d.src.Location
-	meta.Driver = Type
-
-	b, err := d.files.ReadAll(d.src)
-	if err != nil {
-		return nil, errz.Err(err)
-	}
-
-	xlFile, err := xlsx.OpenBinary(b)
-	if err != nil {
-		return nil, errz.Wrapf(err, "unable to open XLSX file: %s", d.src.Location)
-	}
-
-	if noSchema {
-		return meta, nil
-	}
-
-	hasHeader := driver.OptIngestHeader.Get(d.src.Options)
-	for _, sheet := range xlFile.Sheets {
-		tbl := &source.TableMetadata{Name: sheet.Name, RowCount: int64(len(sheet.Rows))}
-
-		if hasHeader && tbl.RowCount > 0 {
-			tbl.RowCount--
-		}
-
-		colNames := getColNames(sheet, hasHeader)
-
-		// TODO: Should move over to using kind.Detector
-		colTypes := getCellColumnTypes(sheet, hasHeader)
-
-		for i, colType := range colTypes {
-			col := &source.ColMetadata{}
-			col.BaseType = cellTypeToString(colType)
-			col.ColumnType = col.BaseType
-			col.Position = int64(i)
-			col.Name = colNames[i]
-			tbl.Columns = append(tbl.Columns, col)
-		}
-
-		meta.Tables = append(meta.Tables, tbl)
-	}
-
-	meta.TableCount = int64(len(meta.Tables))
-
-	return meta, nil
+	return md, nil
 }
 
 // TableMetadata implements driver.Database.
-func (d *database) TableMetadata(_ context.Context, tblName string) (*source.TableMetadata, error) {
-	b, err := d.files.ReadAll(d.src)
+func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
+	srcMeta, err := d.SourceMetadata(ctx, false)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, err
 	}
 
-	xlFile, err := xlsx.OpenBinary(b)
-	if err != nil {
-		return nil, errz.Wrapf(err, "unable to open XLSX file: %s", d.src.Location)
+	tblMeta := srcMeta.Table(tblName)
+	if tblMeta == nil {
+		return nil, errz.Errorf("table {%s} not found", tblName)
 	}
 
-	hasHeader := driver.OptIngestHeader.Get(d.src.Options)
-
-	for _, sheet := range xlFile.Sheets {
-		if sheet.Name != tblName {
-			continue
-		}
-
-		tbl := &source.TableMetadata{Name: sheet.Name, RowCount: int64(len(sheet.Rows))}
-
-		if hasHeader && tbl.RowCount > 0 {
-			tbl.RowCount--
-		}
-
-		colNames := getColNames(sheet, hasHeader)
-
-		// TODO: Should move over to using kind.Detector
-		colTypes := getCellColumnTypes(sheet, hasHeader)
-
-		for i, colType := range colTypes {
-			col := &source.ColMetadata{}
-			col.BaseType = cellTypeToString(colType)
-			col.ColumnType = col.BaseType
-			col.Position = int64(i)
-			col.Name = colNames[i]
-			tbl.Columns = append(tbl.Columns, col)
-		}
-
-		return tbl, nil
-	}
-
-	return nil, errz.Errorf("table {%s} not found", tblName)
+	return tblMeta, nil
 }
 
 // Close implements driver.Database.
