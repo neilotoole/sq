@@ -42,7 +42,7 @@ var (
 		"Print header row",
 		`Controls whether a header row is printed. This applies only
 to certain formats, such as "text" or "csv".`,
-		"format",
+		options.TagOutput,
 	)
 
 	OptFormat = format.NewOpt(
@@ -67,7 +67,7 @@ command, sq falls back to "text". Available formats:
 		false,
 		"Print verbose output",
 		`Print verbose output.`,
-		"format",
+		options.TagOutput,
 	)
 
 	OptMonochrome = options.NewBool(
@@ -77,7 +77,7 @@ command, sq falls back to "text". Available formats:
 		false,
 		"Don't print color output",
 		`Don't print color output.`,
-		"format",
+		options.TagOutput,
 	)
 
 	OptCompact = options.NewBool(
@@ -87,7 +87,7 @@ command, sq falls back to "text". Available formats:
 		false,
 		"Compact instead of pretty-printed output",
 		`Compact instead of pretty-printed output.`,
-		"format",
+		options.TagOutput,
 	)
 
 	OptTuningFlushThreshold = options.NewInt(
@@ -98,6 +98,7 @@ command, sq falls back to "text". Available formats:
 		"Output writer buffer flush threshold in bytes",
 		`Size in bytes after which output writers should flush any internal buffer.
 Generally, it is not necessary to fiddle this knob.`,
+		options.TagTuning,
 	)
 
 	timeLayoutsList = "Predefined values:\n" + stringz.IndentLines(
@@ -115,6 +116,7 @@ Generally, it is not necessary to fiddle this knob.`,
 as "RFC3339" or "Unix", or a strftime format such as "%Y-%m-%d %H:%M:%S".
 
 `+timeLayoutsList,
+		options.TagOutput,
 	)
 
 	OptDatetimeFormatAsNumber = options.NewBool(
@@ -135,6 +137,7 @@ is not an integer.
   format.datetime.number=true
   [{"first_name":"PENELOPE","last_update":1591843854}]
 `,
+		options.TagOutput,
 	)
 
 	OptDateFormat = options.NewString(
@@ -150,6 +153,7 @@ Note that date values are sometimes programmatically indistinguishable
 from datetime values. In that situation, use format.datetime instead.
 
 `+timeLayoutsList,
+		options.TagOutput,
 	)
 
 	OptDateFormatAsNumber = options.NewBool(
@@ -169,6 +173,7 @@ Note that this option is no-op if the rendered value is not an integer.
   format.date.number=true
   [{"first_name":"PENELOPE","birth_year":1979}]
 `,
+		options.TagOutput,
 	)
 
 	OptTimeFormat = options.NewString(
@@ -184,6 +189,7 @@ Note that time values are sometimes programmatically indistinguishable
 from datetime values. In that situation, use format.datetime instead.
 
 `+timeLayoutsList,
+		options.TagOutput,
 	)
 
 	OptTimeFormatAsNumber = options.NewBool(
@@ -203,6 +209,7 @@ Note that this option is no-op if the rendered value is not an integer.
   format.time.number=true
   [{"first_name":"PENELOPE","favorite_minute":59}]
 `,
+		options.TagOutput,
 	)
 )
 

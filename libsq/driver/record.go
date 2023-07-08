@@ -640,6 +640,7 @@ then 1 for the next instance, and so on.
 The default template renames the columns to:
 
   actor_id, first_name, last_name, last_update, actor_id_1, film_id, last_update_1`,
+	options.TagOutput,
 )
 
 // MungeResultColNames transforms column names, per the template defined

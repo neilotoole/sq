@@ -52,8 +52,8 @@ var (
 		"Max open connections to DB",
 		`Maximum number of open connections to the database.
 A value of zero indicates no limit.`,
-		"source",
-		"sql",
+		options.TagSource,
+		options.TagSQL,
 	)
 
 	// OptConnMaxIdle controls sql.DB.SetMaxIdleConns.
@@ -67,7 +67,8 @@ A value of zero indicates no limit.`,
 If conn.max-open is greater than 0 but less than the new conn.max-idle,
 then the new conn.max-idle will be reduced to match the conn.max-open limit.
 If n <= 0, no idle connections are retained.`,
-		"source",
+		options.TagSource,
+		options.TagSQL,
 	)
 
 	// OptConnMaxIdleTime controls sql.DB.SetConnMaxIdleTime.
@@ -80,7 +81,8 @@ If n <= 0, no idle connections are retained.`,
 		`Sets the maximum amount of time a connection may be idle.
 Expired connections may be closed lazily before reuse. If n <= 0,
 connections are not closed due to a connection's idle time.`,
-		"source",
+		options.TagSource,
+		options.TagSQL,
 	)
 
 	// OptConnMaxLifetime controls sql.DB.SetConnMaxLifetime.
@@ -93,7 +95,8 @@ connections are not closed due to a connection's idle time.`,
 		`Set the maximum amount of time a connection may be reused.
 Expired connections may be closed lazily before reuse.
 If n <= 0, connections are not closed due to a connection's age.`,
-		"source",
+		options.TagSource,
+		options.TagSQL,
 	)
 
 	// OptConnOpenTimeout controls connection open timeout.
@@ -104,7 +107,8 @@ If n <= 0, connections are not closed due to a connection's age.`,
 		time.Second*5,
 		"Connection open timeout",
 		"Max time to wait before a connection open timeout occurs.",
-		"source",
+		options.TagSource,
+		options.TagSQL,
 	)
 
 	// OptMaxRetryInterval is the maximum interval to wait
@@ -118,7 +122,7 @@ If n <= 0, connections are not closed due to a connection's age.`,
 		`The maximum interval to wait between retries.
 If an operation is retryable (for example, if the DB has too many clients),
 repeated retry operations back off, typically using a Fibonacci backoff.`,
-		"source",
+		options.TagSource,
 	)
 
 	// OptTuningErrgroupLimit controls the maximum number of goroutines that can be spawned
@@ -137,7 +141,7 @@ themselves start an errgroup.
 This knob is primarily for internal use. Ultimately it should go away
 in favor of dynamic errgroup limit setting based on availability
 of additional DB conns, etc.`,
-		"tuning",
+		options.TagTuning,
 	)
 
 	// OptTuningRecChanSize is the size of the buffer chan for record
@@ -149,7 +153,7 @@ of additional DB conns, etc.`,
 		1024,
 		"Size of record buffer",
 		`Controls the size of the buffer channel for record insertion/writing.`,
-		"tuning",
+		options.TagTuning,
 	)
 )
 
@@ -435,6 +439,10 @@ func (d *Databases) Open(ctx context.Context, src *source.Source) (Database, err
 		return nil, err
 	}
 
+	baseOptions := options.FromContext(ctx)
+	o := options.Merge(baseOptions, src.Options)
+
+	ctx = options.NewContext(ctx, o)
 	dbase, err = drvr.Open(ctx, src)
 	if err != nil {
 		return nil, err

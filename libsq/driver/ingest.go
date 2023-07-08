@@ -20,7 +20,7 @@ var OptIngestHeader = options.NewBool(
 If not set, the ingester *may* try to detect if the input has a header.
 Generally it is best to leave this option unset and allow the ingester
 to detect the header.`,
-	"source",
+	options.TagSource,
 )
 
 // OptIngestSampleSize specifies the number of samples that a detector
@@ -32,7 +32,7 @@ var OptIngestSampleSize = options.NewInt(
 	1024,
 	"Ingest data sample size for type detection",
 	`Specify the number of samples that a detector should take to determine type.`,
-	"source",
+	options.TagSource,
 )
 
 // OptIngestColRename transforms a column name in ingested data.
@@ -65,6 +65,7 @@ The fields available in the template are:
 For a unique column name, e.g. "first_name" above, ".Recurrence" will be 0.
 For duplicate column names, ".Recurrence" will be 0 for the first instance,
 then 1 for the next instance, and so on.`,
+	options.TagSource,
 )
 
 // MungeIngestColNames transforms ingest data column names, per the template

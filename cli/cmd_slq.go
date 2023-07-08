@@ -105,7 +105,7 @@ func execSLQ(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if err = applyCollectionOptions(cmd, ru.Config.Collection); err != nil {
+	if err = applyCollectionOptions(cmd, coll); err != nil {
 		return err
 	}
 

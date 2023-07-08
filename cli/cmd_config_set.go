@@ -71,6 +71,10 @@ func execConfigSet(cmd *cobra.Command, args []string) error {
 
 	var src *source.Source
 	if cmdFlagChanged(cmd, flag.ConfigSrc) {
+		if !opt.HasTag(options.TagSource) {
+			return errz.Errorf("config option {%s} does not apply to source config", opt.Key())
+		}
+
 		handle, err := cmd.Flags().GetString(flag.ConfigSrc)
 		if err != nil {
 			return errz.Err(err)
