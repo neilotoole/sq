@@ -520,7 +520,7 @@ type database struct {
 var _ driver.Database = (*database)(nil)
 
 // DB implements driver.Database.
-func (d *database) DB() (*sql.DB, error) {
+func (d *database) DB(context.Context) (*sql.DB, error) {
 	return d.db, nil
 }
 

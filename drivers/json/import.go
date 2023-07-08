@@ -58,7 +58,7 @@ var (
 
 // getRecMeta returns record.Meta to use with RecordWriter.Open.
 func getRecMeta(ctx context.Context, scratchDB driver.Database, tblDef *sqlmodel.TableDef) (record.Meta, error) {
-	db, err := scratchDB.DB()
+	db, err := scratchDB.DB(ctx)
 	if err != nil {
 		return nil, err
 	}

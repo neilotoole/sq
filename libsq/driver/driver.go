@@ -330,7 +330,7 @@ type Database interface {
 	// For example, with file-based sources such as XLSX, invoking Open
 	// will ultimately read and import all CSV rows from the file.
 	// Thus, set a timeout on ctx as appropriate for the source.
-	DB() (*sql.DB, error)
+	DB(ctx context.Context) (*sql.DB, error)
 
 	// SQLDriver returns the underlying database driver. The type of the SQLDriver
 	// may be different from the driver type reported by the Source.

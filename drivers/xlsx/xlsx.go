@@ -76,7 +76,6 @@ func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Database,
 		scratchDB: scratchDB,
 		files:     d.files,
 		clnup:     clnup,
-		ingestCtx: ctx,
 	}
 
 	return dbase, nil

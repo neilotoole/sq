@@ -33,6 +33,8 @@ import (
 // TestCmdInspect_json_yaml tests "sq inspect" for
 // the JSON and YAML formats.
 func TestCmdInspect_json_yaml(t *testing.T) {
+	tutil.SkipShort(t, true)
+
 	testCases := []struct {
 		handle   string
 		wantTbls []string
@@ -61,8 +63,6 @@ func TestCmdInspect_json_yaml(t *testing.T) {
 				tc := tc
 
 				t.Run(tc.handle, func(t *testing.T) {
-					t.Parallel()
-
 					tutil.SkipWindowsIf(t, tc.handle == sakila.XLSX, "XLSX too slow on windows workflow")
 
 					th := testh.New(t)

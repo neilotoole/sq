@@ -271,7 +271,7 @@ func TestDriver_Open(t *testing.T) {
 			drvr := th.DriverFor(src)
 			dbase, err := drvr.Open(th.Context, src)
 			require.NoError(t, err)
-			db, err := dbase.DB()
+			db, err := dbase.DB(th.Context)
 			require.NoError(t, err)
 			require.NoError(t, db.PingContext(th.Context))
 			require.NoError(t, dbase.Close())

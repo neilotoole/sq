@@ -169,7 +169,7 @@ func execInspect(cmd *cobra.Command, args []string) error {
 
 	if cmdFlagIsSetTrue(cmd, flag.InspectDBProps) {
 		var db *sql.DB
-		if db, err = dbase.DB(); err != nil {
+		if db, err = dbase.DB(ctx); err != nil {
 			return err
 		}
 		var props map[string]any

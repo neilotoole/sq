@@ -27,24 +27,17 @@ type database struct {
 	scratchDB driver.Database
 	clnup     *cleanup.Cleanup
 
-	mu sync.Mutex
-
-	// ingestCtx holds the context that was passed to xlsx.Driver's Open method.
-	// Usually we don't want to store a context. However, because this type
-	// implements deferred data ingestion, we need access to the context
-	// to perform the ingest. This is only a problem with database.DB, because
-	// that method doesn't have any args. This is a code smell. Most likely
-	// that method should be refactored to pass a context.
-	ingestCtx  context.Context
+	mu         sync.Mutex
 	ingestOnce sync.Once
 	ingestErr  error
 
 	// ingestSheetNames is the list of sheet names to ingest. When empty,
-	// all sheets should be ingested. The key use of this is with TableMetadata,
-	// so that only the relevant table is ingested.
+	// all sheets should be ingested. The key use of ingestSheetNames
+	// is with TableMetadata, so that only the relevant table is ingested.
 	ingestSheetNames []string
 }
 
+// checkIngest performs data ingestion if not already done.
 func (d *database) checkIngest(ctx context.Context) error {
 	d.ingestOnce.Do(func() {
 		d.ingestErr = d.doIngest(ctx, d.ingestSheetNames)
@@ -53,6 +46,7 @@ func (d *database) checkIngest(ctx context.Context) error {
 	return d.ingestErr
 }
 
+// doIngest performs data ingest. It must only be invoked from checkIngest.
 func (d *database) doIngest(ctx context.Context, includeSheetNames []string) error {
 	r, err := d.files.Open(d.src)
 	if err != nil {
@@ -79,15 +73,15 @@ func (d *database) doIngest(ctx context.Context, includeSheetNames []string) err
 }
 
 // DB implements driver.Database.
-func (d *database) DB() (*sql.DB, error) {
+func (d *database) DB(ctx context.Context) (*sql.DB, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	if err := d.checkIngest(d.ingestCtx); err != nil {
+	if err := d.checkIngest(ctx); err != nil {
 		return nil, err
 	}
 
-	return d.scratchDB.DB()
+	return d.scratchDB.DB(ctx)
 }
 
 // SQLDriver implements driver.Database.

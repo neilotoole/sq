@@ -449,7 +449,7 @@ type database struct {
 }
 
 // DB implements driver.Database.
-func (d *database) DB() (*sql.DB, error) {
+func (d *database) DB(context.Context) (*sql.DB, error) {
 	return d.db, nil
 }
 

@@ -123,7 +123,7 @@ func QuerySQL(ctx context.Context, dbase driver.Database, recw RecordWriter, que
 	log := lg.FromContext(ctx)
 	errw := dbase.SQLDriver().ErrWrapFunc()
 
-	db, err := dbase.DB()
+	db, err := dbase.DB(ctx)
 	if err != nil {
 		return err
 	}

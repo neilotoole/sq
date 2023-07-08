@@ -789,7 +789,7 @@ type database struct {
 }
 
 // DB implements driver.Database.
-func (d *database) DB() (*sql.DB, error) {
+func (d *database) DB(context.Context) (*sql.DB, error) {
 	return d.db, nil
 }
 
@@ -805,7 +805,7 @@ func (d *database) Source() *source.Source {
 
 // TableMetadata implements driver.Database.
 func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
-	db, err := d.DB()
+	db, err := d.DB(ctx)
 	if err != nil {
 		return nil, err
 	}

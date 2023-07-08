@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"database/sql"
 	"fmt"
 
 	"github.com/neilotoole/sq/cli/run"
@@ -64,7 +65,8 @@ func newTblCopyCmd() *cobra.Command {
 }
 
 func execTblCopy(cmd *cobra.Command, args []string) error {
-	ru := run.FromContext(cmd.Context())
+	ctx := cmd.Context()
+	ru := run.FromContext(ctx)
 	if len(args) == 0 || len(args) > 2 {
 		return errz.New("one or two table args required")
 	}
@@ -121,17 +123,17 @@ func execTblCopy(cmd *cobra.Command, args []string) error {
 	}
 
 	var dbase driver.Database
-	dbase, err = ru.Databases.Open(cmd.Context(), tblHandles[0].src)
+	dbase, err = ru.Databases.Open(ctx, tblHandles[0].src)
 	if err != nil {
 		return err
 	}
 
-	db, err := dbase.DB()
+	db, err := dbase.DB(ctx)
 	if err != nil {
 		return err
 	}
 
-	copied, err := sqlDrvr.CopyTable(cmd.Context(), db, tblHandles[0].tbl, tblHandles[1].tbl, copyData)
+	copied, err := sqlDrvr.CopyTable(ctx, db, tblHandles[0].tbl, tblHandles[1].tbl, copyData)
 	if err != nil {
 		return errz.Wrapf(err, "failed tbl copy %s.%s --> %s.%s",
 			tblHandles[0].handle, tblHandles[0].tbl,
@@ -232,7 +234,8 @@ only applies to SQL sources.`,
 }
 
 func execTblDrop(cmd *cobra.Command, args []string) (err error) {
-	ru := run.FromContext(cmd.Context())
+	ctx := cmd.Context()
+	ru := run.FromContext(ctx)
 	var tblHandles []tblHandle
 	tblHandles, err = parseTableHandleArgs(ru.DriverRegistry, ru.Config.Collection, args)
 	if err != nil {
@@ -250,17 +253,16 @@ func execTblDrop(cmd *cobra.Command, args []string) (err error) {
 		}
 
 		var dbase driver.Database
-		dbase, err = ru.Databases.Open(cmd.Context(), tblH.src)
-		if err != nil {
+		if dbase, err = ru.Databases.Open(ctx, tblH.src); err != nil {
 			return err
 		}
 
-		db, err := dbase.DB()
-		if err != nil {
+		var db *sql.DB
+		if db, err = dbase.DB(ctx); err != nil {
 			return err
 		}
-		err = sqlDrvr.DropTable(cmd.Context(), db, tblH.tbl, false)
-		if err != nil {
+
+		if err = sqlDrvr.DropTable(cmd.Context(), db, tblH.tbl, false); err != nil {
 			return err
 		}
 

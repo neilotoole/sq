@@ -432,7 +432,7 @@ func (im *importer) dbInsert(ctx context.Context, row *rowState) error {
 
 	execInsertFn, ok := im.execInsertFns[cacheKey]
 	if !ok {
-		db, err := im.destDB.DB()
+		db, err := im.destDB.DB(ctx)
 		if err != nil {
 			return err
 		}
@@ -509,7 +509,7 @@ func (im *importer) dbUpdate(ctx context.Context, row *rowState) error {
 	cacheKey := "##update_func__" + tblName + "__" + strings.Join(colNames, ",") + whereClause
 	execUpdateFn, ok := im.execUpdateFns[cacheKey]
 	if !ok {
-		db, err := im.destDB.DB()
+		db, err := im.destDB.DB(ctx)
 		if err != nil {
 			return err
 		}
@@ -579,7 +579,7 @@ func (im *importer) createTables(ctx context.Context) error {
 
 		im.tblDefs[tblDef.Name] = tblDef
 
-		db, err := im.destDB.DB()
+		db, err := im.destDB.DB(ctx)
 		if err != nil {
 			return err
 		}

@@ -147,7 +147,7 @@ func NewWith(t testing.TB, handle string) (*Helper, *source.Source, driver.SQLDr
 	src := th.Source(handle)
 	drvr := th.SQLDriverFor(src)
 	dbase := th.Open(src)
-	db, err := dbase.DB()
+	db, err := dbase.DB(th.Context)
 	require.NoError(t, err)
 
 	return th, src, drvr, dbase, db
@@ -342,7 +342,7 @@ func (h *Helper) Open(src *source.Source) driver.Database {
 	dbase, err := h.Databases().Open(ctx, src)
 	require.NoError(h.T, err)
 
-	db, err := dbase.DB()
+	db, err := dbase.DB(ctx)
 	require.NoError(h.T, err)
 
 	require.NoError(h.T, db.PingContext(ctx))
@@ -354,7 +354,7 @@ func (h *Helper) Open(src *source.Source) driver.Database {
 // of its parent driver.Database.
 func (h *Helper) OpenDB(src *source.Source) *sql.DB {
 	dbase := h.Open(src)
-	db, err := dbase.DB()
+	db, err := dbase.DB(h.Context)
 	require.NoError(h.T, err)
 	return db
 }
@@ -404,7 +404,7 @@ func (h *Helper) RowCount(src *source.Source, tbl string) int64 {
 
 	query := "SELECT COUNT(*) FROM " + dbase.SQLDriver().Dialect().Enquote(tbl)
 	var count int64
-	db, err := dbase.DB()
+	db, err := dbase.DB(h.Context)
 	require.NoError(h.T, err)
 
 	require.NoError(h.T, db.QueryRowContext(h.Context, query).Scan(&count))
@@ -420,7 +420,7 @@ func (h *Helper) CreateTable(dropAfter bool, src *source.Source, tblDef *sqlmode
 	dbase := h.openNew(src)
 	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, dbase)
 
-	db, err := dbase.DB()
+	db, err := dbase.DB(h.Context)
 	require.NoError(h.T, err)
 
 	require.NoError(h.T, dbase.SQLDriver().CreateTable(h.Context, db, tblDef))
@@ -449,7 +449,7 @@ func (h *Helper) Insert(src *source.Source, tbl string, cols []string, records .
 	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, dbase)
 
 	drvr := dbase.SQLDriver()
-	db, err := dbase.DB()
+	db, err := dbase.DB(h.Context)
 	require.NoError(h.T, err)
 
 	conn, err := db.Conn(h.Context)
@@ -505,7 +505,7 @@ func (h *Helper) CopyTable(dropAfter bool, src *source.Source, fromTable, toTabl
 	dbase := h.openNew(src)
 	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, dbase)
 
-	db, err := dbase.DB()
+	db, err := dbase.DB(h.Context)
 	require.NoError(h.T, err)
 
 	copied, err := dbase.SQLDriver().CopyTable(h.Context, db, fromTable, toTable, copyData)
@@ -529,7 +529,7 @@ func (h *Helper) DropTable(src *source.Source, tbl string) {
 	dbase := h.openNew(src)
 	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, dbase)
 
-	db, err := dbase.DB()
+	db, err := dbase.DB(h.Context)
 	require.NoError(h.T, err)
 
 	require.NoError(h.T, dbase.SQLDriver().DropTable(h.Context, db, tbl, true))

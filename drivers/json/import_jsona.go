@@ -124,7 +124,7 @@ func importJSONA(ctx context.Context, job importJob) error {
 
 	// And now we need to create the dest table in destDB
 	tblDef := sqlmodel.NewTableDef(source.MonotableName, colNames, colKinds)
-	db, err := job.destDB.DB()
+	db, err := job.destDB.DB(ctx)
 	if err != nil {
 		return err
 	}

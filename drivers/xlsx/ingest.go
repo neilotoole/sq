@@ -68,7 +68,7 @@ func ingestXLSX(ctx context.Context, src *source.Source, scratchDB driver.Databa
 		}
 
 		var db *sql.DB
-		if db, err = scratchDB.DB(); err != nil {
+		if db, err = scratchDB.DB(ctx); err != nil {
 			return err
 		}
 
@@ -119,7 +119,7 @@ func importSheetToTable(ctx context.Context, scratchDB driver.Database, sheetTbl
 		tblDef    = sheetTbl.def
 	)
 
-	db, err := scratchDB.DB()
+	db, err := scratchDB.DB(ctx)
 	if err != nil {
 		return err
 	}

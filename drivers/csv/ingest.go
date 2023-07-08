@@ -109,7 +109,7 @@ func ingestCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFu
 	// And now we need to create the dest table in scratchDB
 	tblDef := createTblDef(source.MonotableName, header, kinds)
 
-	db, err := scratchDB.DB()
+	db, err := scratchDB.DB(ctx)
 	if err != nil {
 		return err
 	}

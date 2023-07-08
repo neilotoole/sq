@@ -123,8 +123,8 @@ type database struct {
 }
 
 // DB implements driver.Database.
-func (d *database) DB() (*sql.DB, error) {
-	return d.impl.DB()
+func (d *database) DB(ctx context.Context) (*sql.DB, error) {
+	return d.impl.DB(ctx)
 }
 
 // SQLDriver implements driver.Database.

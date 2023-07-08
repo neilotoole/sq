@@ -48,7 +48,7 @@ type DBWriterPreWriteHook func(ctx context.Context, recMeta record.Meta, destDB 
 // creates destTblName if it does not exist.
 func DBWriterCreateTableIfNotExistsHook(destTblName string) DBWriterPreWriteHook {
 	return func(ctx context.Context, recMeta record.Meta, destDB driver.Database, tx sqlz.DB) error {
-		db, err := destDB.DB()
+		db, err := destDB.DB(ctx)
 		if err != nil {
 			return err
 		}
@@ -102,7 +102,7 @@ func (w *DBWriter) Open(ctx context.Context, cancelFn context.CancelFunc, recMet
 ) {
 	w.cancelFn = cancelFn
 
-	db, err := w.destDB.DB()
+	db, err := w.destDB.DB(ctx)
 	if err != nil {
 		return nil, nil, err
 	}

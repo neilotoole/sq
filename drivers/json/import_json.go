@@ -145,7 +145,7 @@ func importJSON(ctx context.Context, job importJob) error {
 
 	drvr := job.destDB.SQLDriver()
 
-	db, err := job.destDB.DB()
+	db, err := job.destDB.DB(ctx)
 	if err != nil {
 		return err
 	}
