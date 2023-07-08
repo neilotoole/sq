@@ -289,8 +289,9 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 }
 
 // RecordMeta implements driver.SQLDriver.
-func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType, mungeColNames bool,
-) (record.Meta, driver.NewRecordFunc, error) {
+func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (
+	record.Meta, driver.NewRecordFunc, error,
+) {
 	sColTypeData := make([]*record.ColumnTypeData, len(colTypes))
 	ogColNames := make([]string, len(colTypes))
 	for i, colType := range colTypes {
@@ -301,18 +302,14 @@ func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType, mu
 		ogColNames[i] = colTypeData.Name
 	}
 
-	mungedColNames := ogColNames
-	if mungeColNames {
-		var err error
-		if mungedColNames, err = driver.MungeResultColNames(ctx, ogColNames); err != nil {
-			return nil, nil, err
-		}
+	mungedColNames, err := driver.MungeResultColNames(ctx, ogColNames)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	recMeta := make(record.Meta, len(colTypes))
 	for i := range sColTypeData {
-		sColTypeData[i].Name = mungedColNames[i]
-		recMeta[i] = record.NewFieldMeta(sColTypeData[i])
+		recMeta[i] = record.NewFieldMeta(sColTypeData[i], mungedColNames[i])
 	}
 
 	mungeFn := func(vals []any) (record.Record, error) {
@@ -428,7 +425,7 @@ func (d *driveri) DropTable(ctx context.Context, db sqlz.DB, tbl string, ifExist
 func (d *driveri) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string,
 	numRows int,
 ) (*driver.StmtExecer, error) {
-	destColsMeta, err := d.getTableColsMeta(ctx, db, destTbl, destColNames, false)
+	destColsMeta, err := d.getTableColsMeta(ctx, db, destTbl, destColNames)
 	if err != nil {
 		return nil, err
 	}
@@ -447,7 +444,7 @@ func (d *driveri) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl str
 func (d *driveri) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string,
 	where string,
 ) (*driver.StmtExecer, error) {
-	destColsMeta, err := d.getTableColsMeta(ctx, db, destTbl, destColNames, false)
+	destColsMeta, err := d.getTableColsMeta(ctx, db, destTbl, destColNames)
 	if err != nil {
 		return nil, err
 	}
@@ -467,9 +464,9 @@ func (d *driveri) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl str
 	return execer, nil
 }
 
-func (d *driveri) getTableColsMeta(ctx context.Context, db sqlz.DB,
-	tblName string, colNames []string, mungeColNames bool,
-) (record.Meta, error) {
+func (d *driveri) getTableColsMeta(ctx context.Context, db sqlz.DB, tblName string, colNames []string) (
+	record.Meta, error,
+) {
 	// SQLServer has this unusual incantation for its LIMIT equivalent:
 	//
 	// SELECT username, email, address_id FROM person
@@ -497,7 +494,7 @@ func (d *driveri) getTableColsMeta(ctx context.Context, db sqlz.DB,
 		return nil, errw(rows.Err())
 	}
 
-	destCols, _, err := d.RecordMeta(ctx, colTypes, mungeColNames)
+	destCols, _, err := d.RecordMeta(ctx, colTypes)
 	if err != nil {
 		lg.WarnIfFuncError(d.log, lgm.CloseDBRows, rows.Close)
 		return nil, errw(err)

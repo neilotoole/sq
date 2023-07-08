@@ -85,7 +85,7 @@ func (w *RecordWriter) WriteRecords(recs []record.Record) error {
 	defer w.mu.Unlock()
 
 	if w.needsHeader {
-		headerRow := w.recMeta.Names()
+		headerRow := w.recMeta.MungedNames()
 		for i := range headerRow {
 			headerRow[i] = w.pr.Header.Sprint(headerRow[i])
 		}

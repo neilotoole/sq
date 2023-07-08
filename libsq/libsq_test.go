@@ -128,7 +128,7 @@ func TestJoinDuplicateColNamesAreRenamed(t *testing.T) {
 
 	sink, err := th.QuerySQL(src, query)
 	require.NoError(t, err)
-	colNames := sink.RecMeta.Names()
+	colNames := sink.RecMeta.MungedNames()
 	// Without intervention, the returned column names would contain duplicates.
 	//  [actor_id, first_name, last_name, last_update, actor_id, film_id, last_update]
 

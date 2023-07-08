@@ -99,6 +99,7 @@ func TestImportJSONL_Flat(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, tc.wantRows, len(sink.Recs))
 			require.Equal(t, tc.wantCols, sink.RecMeta.Names())
+			require.Equal(t, tc.wantCols, sink.RecMeta.MungedNames())
 			require.Equal(t, tc.wantKinds, sink.RecMeta.Kinds())
 		})
 	}

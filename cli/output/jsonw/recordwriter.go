@@ -190,7 +190,7 @@ func newStdTemplate(recMeta record.Meta, pr *output.Printing) (*stdTemplate, err
 
 	var err error
 	for i := range recMeta {
-		fieldNames[i], err = encodeString(nil, recMeta[i].Name(), false)
+		fieldNames[i], err = encodeString(nil, recMeta[i].MungedName(), false)
 		if err != nil {
 			return nil, errz.Err(err)
 		}
@@ -401,7 +401,7 @@ func newJSONObjectsTemplate(recMeta record.Meta, pr *output.Printing) ([][]byte,
 	fieldNames := make([][]byte, len(recMeta))
 	var err error
 	for i := range recMeta {
-		fieldNames[i], err = encodeString(nil, recMeta[i].Name(), false)
+		fieldNames[i], err = encodeString(nil, recMeta[i].MungedName(), false)
 		if err != nil {
 			return nil, errz.Err(err)
 		}

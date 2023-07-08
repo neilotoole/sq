@@ -135,7 +135,7 @@ func getIngestRecMeta(ctx context.Context, scratchDB driver.Database, tblDef *sq
 		return nil, err
 	}
 
-	destMeta, _, err := drvr.RecordMeta(ctx, colTypes, false)
+	destMeta, _, err := drvr.RecordMeta(ctx, colTypes)
 	if err != nil {
 		return nil, err
 	}

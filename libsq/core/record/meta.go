@@ -37,27 +37,43 @@ import (
 // Likely there's a better design available than this one,
 // but it suffices.
 type FieldMeta struct {
-	data *ColumnTypeData
+	data       *ColumnTypeData
+	mungedName string
 }
 
 // NewFieldMeta returns a new instance backed by the data arg.
-func NewFieldMeta(data *ColumnTypeData) *FieldMeta {
-	return &FieldMeta{data: data}
+// If mungedName is empty, ColumnTypeData.Name is used.
+func NewFieldMeta(data *ColumnTypeData, mungedName string) *FieldMeta {
+	if mungedName == "" {
+		mungedName = data.Name
+	}
+	return &FieldMeta{data: data, mungedName: mungedName}
 }
 
+// String returns a log-debug friendly representation.
 func (fm *FieldMeta) String() string {
 	nullMsg := "?"
 	if fm.data.HasNullable {
 		nullMsg = strconv.FormatBool(fm.data.Nullable)
 	}
 
-	return fmt.Sprintf("{name:%s, kind:%s, dbtype:%s, scan:%s, nullable:%s}",
-		fm.data.Name, fm.data.Kind.String(), fm.data.DatabaseTypeName, fm.ScanType().String(), nullMsg)
+	return fmt.Sprintf("{name:%s, munged_name: %s kind:%s, dbtype:%s, scan:%s, nullable:%s}",
+		fm.data.Name, fm.mungedName, fm.data.Kind.String(), fm.data.DatabaseTypeName, fm.ScanType().String(), nullMsg)
 }
 
 // Name is documented by sql.ColumnType.Name.
 func (fm *FieldMeta) Name() string {
 	return fm.data.Name
+}
+
+// MungedName returns the (possibly-munged) column name.
+// This value is what should be used for outputting the col name.
+// This exists largely to handle the case of duplicate col names
+// in a result set, e.g. when doing a JOIN on tables with
+// identically-named columns. But typically this value is the same
+// as that returned by FieldMeta.Name.
+func (fm *FieldMeta) MungedName() string {
+	return fm.mungedName
 }
 
 // Length is documented by sql.ColumnType.Length.
@@ -94,11 +110,23 @@ func (fm *FieldMeta) Kind() kind.Kind {
 // for a record.
 type Meta []*FieldMeta
 
-// Names returns the column names.
+// Names returns the column names. These are the col names from
+// the database. See also: MungedNames.
 func (rm Meta) Names() []string {
 	names := make([]string, len(rm))
 	for i, col := range rm {
 		names[i] = col.Name()
+	}
+
+	return names
+}
+
+// MungedNames returns the munged column names, which may be
+// the same as those returned from Meta.Names.
+func (rm Meta) MungedNames() []string {
+	names := make([]string, len(rm))
+	for i, col := range rm {
+		names[i] = col.MungedName()
 	}
 
 	return names

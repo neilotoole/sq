@@ -279,10 +279,10 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable 
 }
 
 // RecordMeta implements driver.SQLDriver.
-func (d *driveri) RecordMeta(ctx context.Context,
-	colTypes []*sql.ColumnType, mungeColNames bool,
-) (record.Meta, driver.NewRecordFunc, error) {
-	recMeta, err := recordMetaFromColumnTypes(ctx, colTypes, mungeColNames)
+func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (
+	record.Meta, driver.NewRecordFunc, error,
+) {
+	recMeta, err := recordMetaFromColumnTypes(ctx, colTypes)
 	if err != nil {
 		return nil, nil, errw(err)
 	}
@@ -650,7 +650,7 @@ func (d *driveri) TableExists(ctx context.Context, db sqlz.DB, tbl string) (bool
 func (d *driveri) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string,
 	numRows int,
 ) (*driver.StmtExecer, error) {
-	destColsMeta, err := d.getTableRecordMeta(ctx, db, destTbl, destColNames, false)
+	destColsMeta, err := d.getTableRecordMeta(ctx, db, destTbl, destColNames)
 	if err != nil {
 		return nil, err
 	}
@@ -669,7 +669,7 @@ func (d *driveri) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl str
 func (d *driveri) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl string,
 	destColNames []string, where string,
 ) (*driver.StmtExecer, error) {
-	destColsMeta, err := d.getTableRecordMeta(ctx, db, destTbl, destColNames, false)
+	destColsMeta, err := d.getTableRecordMeta(ctx, db, destTbl, destColNames)
 	if err != nil {
 		return nil, err
 	}
@@ -760,15 +760,15 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 	return colTypes, nil
 }
 
-func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB,
-	tblName string, colNames []string, mungeColNames bool,
-) (record.Meta, error) {
+func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName string, colNames []string) (
+	record.Meta, error,
+) {
 	colTypes, err := d.TableColumnTypes(ctx, db, tblName, colNames)
 	if err != nil {
 		return nil, err
 	}
 
-	destCols, _, err := d.RecordMeta(ctx, colTypes, mungeColNames)
+	destCols, _, err := d.RecordMeta(ctx, colTypes)
 	if err != nil {
 		return nil, err
 	}

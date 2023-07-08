@@ -649,8 +649,8 @@ The default template renames the columns to:
 // has columns [actor_id, first_name, actor_id], the columns might be
 // transformed to [actor_id, first_name, actor_id_1].
 //
-// MungeResultColNames should be invoked by each impl of SQLDriver.RecordMeta
-// before returning the record.Meta.
+// driver.MungeResultColNames should be invoked by each impl
+// of SQLDriver.RecordMeta before returning the record.Meta.
 //
 // See also: MungeIngestColNames.
 func MungeResultColNames(ctx context.Context, ogColNames []string) (colNames []string, err error) {
