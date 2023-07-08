@@ -35,7 +35,7 @@ var OptIngestSampleSize = options.NewInt(
 	"source",
 )
 
-// OptIngestColRename transforms a column name returned from the DB.
+// OptIngestColRename transforms a column name in ingested data.
 var OptIngestColRename = options.NewString(
 	"ingest.column.rename",
 	"",
@@ -44,10 +44,10 @@ var OptIngestColRename = options.NewString(
 	func(s string) error {
 		return stringz.ValidTemplate("ingest.column.rename", s)
 	},
-	"Template to rename result columns",
+	"Template to rename ingest columns",
 	`This Go text template is executed on ingested column names.
-Its primary purpose is to rename duplicate header column names. For
-example, given a CSV file with header row:
+Its primary purpose is to rename duplicate header column names in the
+ingested data. For example, given a CSV file with header row:
 
   actor_id, first_name, actor_id
 
@@ -59,7 +59,7 @@ The fields available in the template are:
 
   .Name         column header name
   .Index        zero-based index of the column in the header row
-  .AlphaIndex   alphabetical index of the column, i.e. A, B ... Z, AA, AB...
+  .Alpha        alphabetical index of the column, e.g. [A, B ... Z, AA, AB]
   .Recurrence   nth recurrence of the colum name in the header row
 
 For a unique column name, e.g. "first_name" above, ".Recurrence" will be 0.
