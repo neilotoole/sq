@@ -296,7 +296,9 @@ func createTypeTestTable(th *testh.Helper, src *source.Source, withData bool) (n
 		insertTpl        = "INSERT INTO %s (%s) VALUES %s"
 	)
 
-	t, db := th.T, th.Open(src).DB()
+	t := th.T
+	db := th.OpenDB(src)
+
 	tblDDL, err := os.ReadFile(typeTestTableDDLPath)
 	require.NoError(t, err)
 
@@ -401,20 +403,21 @@ func TestDatabaseTypeJSON(t *testing.T) {
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
-			th, src, dbase, _ := testh.NewWith(t, handle)
+			th, src, _, _, db := testh.NewWith(t, handle)
 
 			// replace the canonical table name
 			actualTblName := stringz.UniqTableName(canonicalTblName)
 			createStmt := strings.Replace(createStmtTpl, canonicalTblName, actualTblName, 1)
 			// Create the table
-			_, err := dbase.DB().ExecContext(th.Context, createStmt)
+
+			_, err := db.ExecContext(th.Context, createStmt)
 			require.NoError(t, err)
 			t.Cleanup(func() { th.DropTable(src, actualTblName) })
 
 			// Insert data
 			insertStmt := fmt.Sprintf("INSERT INTO %s (col_id, col_json, col_json_n) VALUES (?,?,?)", actualTblName)
 			for _, insertRowVals := range testVals {
-				_, err = dbase.DB().Exec(insertStmt, insertRowVals...)
+				_, err = db.Exec(insertStmt, insertRowVals...)
 				require.NoError(t, err)
 			}
 

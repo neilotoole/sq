@@ -123,7 +123,12 @@ func QuerySQL(ctx context.Context, dbase driver.Database, recw RecordWriter, que
 	log := lg.FromContext(ctx)
 	errw := dbase.SQLDriver().ErrWrapFunc()
 
-	rows, err := dbase.DB().QueryContext(ctx, query, args...)
+	db, err := dbase.DB(ctx)
+	if err != nil {
+		return err
+	}
+
+	rows, err := db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return errz.Wrapf(errw(err), `SQL query against %s failed: %s`, dbase.Source().Handle, query)
 	}

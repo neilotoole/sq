@@ -432,8 +432,13 @@ func (im *importer) dbInsert(ctx context.Context, row *rowState) error {
 
 	execInsertFn, ok := im.execInsertFns[cacheKey]
 	if !ok {
+		db, err := im.destDB.DB(ctx)
+		if err != nil {
+			return err
+		}
+
 		// Nothing cached, prepare the insert statement and insert munge func
-		stmtExecer, err := im.destDB.SQLDriver().PrepareInsertStmt(ctx, im.destDB.DB(), tblName, colNames, 1)
+		stmtExecer, err := im.destDB.SQLDriver().PrepareInsertStmt(ctx, db, tblName, colNames, 1)
 		if err != nil {
 			return err
 		}
@@ -504,8 +509,13 @@ func (im *importer) dbUpdate(ctx context.Context, row *rowState) error {
 	cacheKey := "##update_func__" + tblName + "__" + strings.Join(colNames, ",") + whereClause
 	execUpdateFn, ok := im.execUpdateFns[cacheKey]
 	if !ok {
+		db, err := im.destDB.DB(ctx)
+		if err != nil {
+			return err
+		}
+
 		// Nothing cached, prepare the update statement and munge func
-		stmtExecer, err := drvr.PrepareUpdateStmt(ctx, im.destDB.DB(), tblName, colNames, whereClause)
+		stmtExecer, err := drvr.PrepareUpdateStmt(ctx, db, tblName, colNames, whereClause)
 		if err != nil {
 			return err
 		}
@@ -569,7 +579,12 @@ func (im *importer) createTables(ctx context.Context) error {
 
 		im.tblDefs[tblDef.Name] = tblDef
 
-		err = im.destDB.SQLDriver().CreateTable(ctx, im.destDB.DB(), tblDef)
+		db, err := im.destDB.DB(ctx)
+		if err != nil {
+			return err
+		}
+
+		err = im.destDB.SQLDriver().CreateTable(ctx, db, tblDef)
 		if err != nil {
 			return err
 		}

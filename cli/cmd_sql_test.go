@@ -107,7 +107,7 @@ func TestCmdSQL_SelectFromUserDriver(t *testing.T) {
 
 				err := tr.Exec("sql", "--csv", "--header=false", "SELECT * FROM "+wantTbl.tblName)
 				require.NoError(t, err)
-				recs := tr.MustReadCSV()
+				recs := tr.BindCSV()
 				require.Equal(t, wantTbl.wantRows, len(recs),
 					"expected %d rows in tbl {%s} but got %d", wantTbl.wantRows,
 					wantTbl, len(recs))
@@ -185,7 +185,7 @@ func TestCmdSQL_StdinQuery(t *testing.T) {
 			}
 
 			require.NoError(t, err)
-			results := tr.MustReadCSV()
+			results := tr.BindCSV()
 			require.Equal(t, tc.wantCount, len(results))
 		})
 	}

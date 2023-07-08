@@ -249,7 +249,9 @@ var fixtBytesNil []byte
 // It is the caller's responsibility to drop the created table.
 func createTypeTestTable(th *testh.Helper, src *source.Source, withData bool) (rowCount int64, actualTblName string) {
 	const canonicalTblName = "type_test"
-	t, db := th.T, th.Open(src).DB()
+	t := th.T
+
+	db := th.OpenDB(src)
 	tblDDL, err := os.ReadFile(typeTestTableDDLPath)
 	require.NoError(t, err)
 
@@ -336,7 +338,7 @@ func Test_MSSQLDB_DriverIssue196(t *testing.T) {
 	// Create the demonstration table
 	th := testh.New(t)
 	src := th.Source(sakila.MS)
-	db := th.Open(src).DB()
+	db := th.OpenDB(src)
 	_, err := db.ExecContext(th.Context, createStmt)
 	require.NoError(t, err)
 

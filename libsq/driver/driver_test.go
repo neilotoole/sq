@@ -42,8 +42,7 @@ func TestDriver_DropTable(t *testing.T) {
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
-			th, src, dbase, drvr := testh.NewWith(t, handle)
-			db := dbase.DB()
+			th, src, drvr, _, db := testh.NewWith(t, handle)
 
 			tblName := stringz.UniqTableName(sakila.TblActor)
 
@@ -71,8 +70,7 @@ func TestDriver_TableExists(t *testing.T) {
 		handle := handle
 
 		t.Run(handle, func(t *testing.T) {
-			th, _, dbase, drvr := testh.NewWith(t, handle)
-			db := dbase.DB()
+			th, _, drvr, _, db := testh.NewWith(t, handle)
 
 			tblName := sakila.TblActor
 			exists, err := drvr.TableExists(th.Context, db, tblName)
@@ -95,8 +93,7 @@ func TestDriver_CopyTable(t *testing.T) {
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
-			th, src, dbase, drvr := testh.NewWith(t, handle)
-			db := dbase.DB()
+			th, src, drvr, _, db := testh.NewWith(t, handle)
 			require.Equal(t, int64(sakila.TblActorCount), th.RowCount(src, sakila.TblActor),
 				"fromTable should have ActorCount rows beforehand")
 
@@ -131,17 +128,17 @@ func TestDriver_CreateTable_Minimal(t *testing.T) {
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
-			th, src, dbase, drvr := testh.NewWith(t, handle)
+			th, src, drvr, _, db := testh.NewWith(t, handle)
 
 			tblName := stringz.UniqTableName(t.Name())
 			colNames, colKinds := fixt.ColNamePerKind(drvr.Dialect().IntBool, false, false)
 			tblDef := sqlmodel.NewTableDef(tblName, colNames, colKinds)
 
-			err := drvr.CreateTable(th.Context, dbase.DB(), tblDef)
+			err := drvr.CreateTable(th.Context, db, tblDef)
 			require.NoError(t, err)
 			t.Cleanup(func() { th.DropTable(src, tblName) })
 
-			colTypes, err := drvr.TableColumnTypes(th.Context, dbase.DB(), tblName, colNames)
+			colTypes, err := drvr.TableColumnTypes(th.Context, db, tblName, colNames)
 			require.NoError(t, err)
 			require.Equal(t, len(colNames), len(colTypes))
 
@@ -163,10 +160,7 @@ func TestDriver_TableColumnTypes(t *testing.T) { //nolint:tparallel
 			tutil.SkipShort(t, handle == sakila.XLSX)
 			t.Parallel()
 
-			th := testh.New(t)
-			src := th.Source(handle)
-			dbase := th.Open(src)
-			drvr, db := dbase.SQLDriver(), dbase.DB()
+			th, src, drvr, _, db := testh.NewWith(t, handle)
 
 			// Run the test both with and without data in the target table.
 			// Some driver implementations of rows.ColumnTypes behave
@@ -206,7 +200,7 @@ func TestSQLDriver_PrepareUpdateStmt(t *testing.T) { //nolint:tparallel
 			tutil.SkipShort(t, handle == sakila.XLSX)
 			t.Parallel()
 
-			th, src, dbase, drvr := testh.NewWith(t, handle)
+			th, src, drvr, _, db := testh.NewWith(t, handle)
 
 			tblName := th.CopyTable(true, src, sakila.TblActor, "", true)
 
@@ -220,7 +214,7 @@ func TestSQLDriver_PrepareUpdateStmt(t *testing.T) { //nolint:tparallel
 				args     = append(wantVals, actorID)
 			)
 
-			stmtExecer, err := drvr.PrepareUpdateStmt(th.Context, dbase.DB(), tblName, destCols, whereClause)
+			stmtExecer, err := drvr.PrepareUpdateStmt(th.Context, db, tblName, destCols, whereClause)
 			require.NoError(t, err)
 			require.Equal(t, destCols, stmtExecer.DestMeta().Names())
 			require.NoError(t, stmtExecer.Munge(wantVals))
@@ -275,10 +269,11 @@ func TestDriver_Open(t *testing.T) {
 			th := testh.New(t)
 			src := th.Source(handle)
 			drvr := th.DriverFor(src)
-
 			dbase, err := drvr.Open(th.Context, src)
 			require.NoError(t, err)
-			require.NoError(t, dbase.DB().PingContext(th.Context))
+			db, err := dbase.DB(th.Context)
+			require.NoError(t, err)
+			require.NoError(t, db.PingContext(th.Context))
 			require.NoError(t, dbase.Close())
 		})
 	}
@@ -292,8 +287,8 @@ func TestNewBatchInsert(t *testing.T) {
 		handle := handle
 
 		t.Run(handle, func(t *testing.T) {
-			th, src, _, drvr := testh.NewWith(t, handle)
-			conn, err := th.Open(src).DB().Conn(th.Context)
+			th, src, drvr, _, db := testh.NewWith(t, handle)
+			conn, err := db.Conn(th.Context)
 			require.NoError(t, err)
 			defer func() { assert.NoError(t, conn.Close()) }()
 
@@ -440,7 +435,7 @@ func TestDatabase_TableMetadata(t *testing.T) { //nolint:tparallel
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
-			th, _, dbase, _ := testh.NewWith(t, handle)
+			th, _, _, dbase, _ := testh.NewWith(t, handle)
 
 			tblMeta, err := dbase.TableMetadata(th.Context, sakila.TblActor)
 			require.NoError(t, err)
@@ -459,7 +454,7 @@ func TestDatabase_SourceMetadata(t *testing.T) {
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
-			th, _, dbase, _ := testh.NewWith(t, handle)
+			th, _, _, dbase, _ := testh.NewWith(t, handle)
 
 			md, err := dbase.SourceMetadata(th.Context, false)
 			require.NoError(t, err)
@@ -481,7 +476,7 @@ func TestDatabase_SourceMetadata_concurrent(t *testing.T) { //nolint:tparallel
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
-			th, _, dbase, _ := testh.NewWith(t, handle)
+			th, _, _, dbase, _ := testh.NewWith(t, handle)
 			g, gCtx := errgroup.WithContext(th.Context)
 			for i := 0; i < concurrency; i++ {
 				g.Go(func() error {
@@ -507,7 +502,7 @@ func TestSQLDriver_AlterTableAddColumn(t *testing.T) {
 		handle := handle
 
 		t.Run(handle, func(t *testing.T) {
-			th, src, dbase, drvr := testh.NewWith(t, handle)
+			th, src, drvr, _, db := testh.NewWith(t, handle)
 
 			// Make a copy of the table to play with
 			tbl := th.CopyTable(true, src, sakila.TblActor, "", true)
@@ -516,7 +511,7 @@ func TestSQLDriver_AlterTableAddColumn(t *testing.T) {
 			wantCols := append(sakila.TblActorCols(), wantCol)
 			wantKinds := append(sakila.TblActorColKinds(), wantKind)
 
-			err := drvr.AlterTableAddColumn(th.Context, dbase.DB(), tbl, wantCol, wantKind)
+			err := drvr.AlterTableAddColumn(th.Context, db, tbl, wantCol, wantKind)
 			require.NoError(t, err)
 
 			sink, err := th.QuerySQL(src, "SELECT * FROM "+tbl)
@@ -538,14 +533,14 @@ func TestSQLDriver_AlterTableRename(t *testing.T) {
 		handle := handle
 
 		t.Run(handle, func(t *testing.T) {
-			th, src, dbase, drvr := testh.NewWith(t, handle)
+			th, src, drvr, dbase, db := testh.NewWith(t, handle)
 
 			// Make a copy of the table to play with
 			tbl := th.CopyTable(true, src, sakila.TblActor, "", true)
 			defer th.DropTable(src, tbl)
 
 			newName := stringz.UniqSuffix("actor_copy_")
-			err := drvr.AlterTableRename(th.Context, dbase.DB(), tbl, newName)
+			err := drvr.AlterTableRename(th.Context, db, tbl, newName)
 			require.NoError(t, err)
 			defer th.DropTable(src, newName)
 
@@ -566,13 +561,13 @@ func TestSQLDriver_AlterTableRenameColumn(t *testing.T) {
 		handle := handle
 
 		t.Run(handle, func(t *testing.T) {
-			th, src, dbase, drvr := testh.NewWith(t, handle)
+			th, src, drvr, dbase, db := testh.NewWith(t, handle)
 
 			// Make a copy of the table to play with
 			tbl := th.CopyTable(true, src, sakila.TblActor, "", true)
 
 			newName := "given_name"
-			err := drvr.AlterTableRenameColumn(th.Context, dbase.DB(), tbl, "first_name", newName)
+			err := drvr.AlterTableRenameColumn(th.Context, db, tbl, "first_name", newName)
 			require.NoError(t, err)
 
 			md, err := dbase.TableMetadata(th.Context, tbl)
@@ -600,9 +595,9 @@ func TestSQLDriver_CurrentSchema(t *testing.T) {
 		tc := tc
 
 		t.Run(tc.handle, func(t *testing.T) {
-			th, _, dbase, drvr := testh.NewWith(t, tc.handle)
+			th, _, drvr, dbase, db := testh.NewWith(t, tc.handle)
 
-			got, err := drvr.CurrentSchema(th.Context, dbase.DB())
+			got, err := drvr.CurrentSchema(th.Context, db)
 			require.NoError(t, err)
 			require.Equal(t, tc.want, got)
 
@@ -618,7 +613,7 @@ func TestSQLDriver_ErrWrap_IsErrNotExist(t *testing.T) {
 	for _, h := range sakila.SQLLatest() {
 		h := h
 		t.Run(h, func(t *testing.T) {
-			th, _, _, _ := testh.NewWith(t, h)
+			th, _, _, _, _ := testh.NewWith(t, h)
 			_, err := th.QuerySLQ(h+".does_not_exist", nil)
 			require.Error(t, err)
 			require.True(t, errz.IsErrNotExist(err))

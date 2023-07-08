@@ -34,7 +34,7 @@ func TestSmoke(t *testing.T) {
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
-			th, src, _, _ := testh.NewWith(t, handle)
+			th, src, _, _, _ := testh.NewWith(t, handle)
 			sink, err := th.QuerySQL(src, "SELECT * FROM actor")
 			require.NoError(t, err)
 			require.Equal(t, len(sakila.TblActorCols()), len(sink.RecMeta))
@@ -54,7 +54,7 @@ func TestDriverBehavior(t *testing.T) {
 		t.Run(handle, func(t *testing.T) {
 			th := testh.New(t)
 			src := th.Source(handle)
-			db := th.Open(src).DB()
+			db := th.OpenDB(src)
 
 			query := `SELECT
        (SELECT actor_id FROM actor limit 1) AS actor_id,
@@ -102,7 +102,7 @@ func Test_VerifyDriverDoesNotReportNullability(t *testing.T) {
 
 			th := testh.New(t)
 			src := th.Source(handle)
-			db := th.Open(src).DB()
+			db := th.OpenDB(src)
 
 			_, actualTblName := createTypeTestTable(th, src, true)
 			t.Cleanup(func() { th.DropTable(src, actualTblName) })
@@ -143,10 +143,8 @@ func TestGetTableColumnNames(t *testing.T) {
 	for _, handle := range testCases {
 		handle := handle
 		t.Run(handle, func(t *testing.T) {
-			th := testh.New(t)
-			src := th.Source(handle)
-
-			colNames, err := postgres.GetTableColumnNames(th.Context, th.Open(src).DB(), sakila.TblActor)
+			th, _, _, _, db := testh.NewWith(t, handle)
+			colNames, err := postgres.GetTableColumnNames(th.Context, db, sakila.TblActor)
 			require.NoError(t, err)
 			require.Equal(t, sakila.TblActorCols(), colNames)
 		})
@@ -163,7 +161,7 @@ func TestDriver_CreateTable_NotNullDefault(t *testing.T) {
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
-			th, src, dbase, drvr := testh.NewWith(t, handle)
+			th, src, drvr, _, db := testh.NewWith(t, handle)
 
 			tblName := stringz.UniqTableName(t.Name())
 			colNames, colKinds := fixt.ColNamePerKind(drvr.Dialect().IntBool, false, false)
@@ -174,7 +172,7 @@ func TestDriver_CreateTable_NotNullDefault(t *testing.T) {
 				colDef.HasDefault = true
 			}
 
-			err := drvr.CreateTable(th.Context, dbase.DB(), tblDef)
+			err := drvr.CreateTable(th.Context, db, tblDef)
 			require.NoError(t, err)
 			t.Cleanup(func() { th.DropTable(src, tblName) })
 
@@ -214,8 +212,7 @@ func TestAlternateSchema(t *testing.T) {
 	src := getAdminSakilaSource(th.Source(sakila.Pg))
 	t.Logf("Using src: {%s}", src)
 
-	dbase := th.Open(src)
-	db := dbase.DB()
+	db := th.OpenDB(src)
 	require.NoError(t, db.Ping())
 
 	schemaName := stringz.UniqSuffix("test_schema")
@@ -303,7 +300,7 @@ func BenchmarkDatabase_SourceMetadata(b *testing.B) {
 }
 
 func TestIsErrRelationDoesNotExist(t *testing.T) {
-	th, src, _, _ := testh.NewWith(t, sakila.Pg)
+	th, src, _, _, _ := testh.NewWith(t, sakila.Pg)
 	_, err := th.QuerySQL(src, "SELECT * FROM tbl_does_not_exist")
 	require.Error(t, err)
 	require.True(t, postgres.IsErrRelationNotExist(err))

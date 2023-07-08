@@ -65,9 +65,7 @@ func TestQueryEmptyTable(t *testing.T) {
 func TestExhibitDriverColumnTypesBehavior(t *testing.T) {
 	t.Parallel()
 
-	th := testh.New(t)
-	src := th.Source(sakila.SL3)
-	db := th.Open(src).DB()
+	th, src, _, _, db := testh.NewWith(t, sakila.SL3)
 	t.Log("using source: " + src.Location)
 
 	tblName := stringz.UniqTableName("scan_test")
@@ -166,7 +164,7 @@ func TestExhibitDriverColumnTypesBehavior(t *testing.T) {
 func TestDriver_CreateTable_NotNullDefault(t *testing.T) {
 	t.Parallel()
 
-	th, src, dbase, drvr := testh.NewWith(t, sakila.SL3)
+	th, src, drvr, _, db := testh.NewWith(t, sakila.SL3)
 
 	tblName := stringz.UniqTableName(t.Name())
 	colNames, colKinds := fixt.ColNamePerKind(drvr.Dialect().IntBool, false, false)
@@ -177,7 +175,7 @@ func TestDriver_CreateTable_NotNullDefault(t *testing.T) {
 		colDef.HasDefault = true
 	}
 
-	err := drvr.CreateTable(th.Context, dbase.DB(), tblDef)
+	err := drvr.CreateTable(th.Context, db, tblDef)
 	require.NoError(t, err)
 	t.Cleanup(func() { th.DropTable(src, tblName) })
 

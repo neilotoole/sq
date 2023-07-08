@@ -2,9 +2,14 @@ package xlsx
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
 	"time"
+
+	"golang.org/x/exp/slices"
+
+	"github.com/neilotoole/sq/libsq/core/options"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
@@ -26,49 +31,67 @@ import (
 	"github.com/neilotoole/sq/libsq/driver"
 )
 
-// xlsxToScratch loads the data in xlFile into scratchDB.
-func xlsxToScratch(ctx context.Context, src *source.Source, xlFile *xlsx.File, scratchDB driver.Database) error {
+// ingestXLSX loads the data in xlFile into scratchDB.
+// If includeSheetNames is non-empty, only the named sheets are ingested.
+func ingestXLSX(ctx context.Context, src *source.Source, scratchDB driver.Database,
+	xlFile *xlsx.File, includeSheetNames []string,
+) error {
 	log := lg.FromContext(ctx)
 	start := time.Now()
 	log.Debug("Beginning import from XLSX",
 		lga.Src, src,
 		lga.Target, scratchDB.Source())
 
-	hasHeader := driver.OptIngestHeader.Get(src.Options)
+	var sheets []*xlsx.Sheet
+	if len(includeSheetNames) > 0 {
+		for _, sheetName := range includeSheetNames {
+			sheet := xlFile.Sheet[sheetName]
+			if sheet == nil {
+				return errz.Errorf("sheet {%s} not found", sheetName)
+			}
+			sheets = append(sheets, sheet)
+		}
+	} else {
+		sheets = xlFile.Sheets
+	}
 
-	// TODO: Like the csv driver, the xlsx driver should detect
-	// the presence of a header.
-	tblDefs, err := buildTblDefsForSheets(ctx, xlFile.Sheets, hasHeader)
+	srcIngestHeader := getSrcIngestHeader(src.Options)
+	sheetTbls, err := buildSheetTables(ctx, srcIngestHeader, sheets)
 	if err != nil {
 		return err
 	}
 
-	for _, tblDef := range tblDefs {
-		if tblDef == nil {
+	for _, sheetTbl := range sheetTbls {
+		if sheetTbl == nil {
 			// tblDef can be nil if its sheet is empty (has no data).
 			continue
 		}
-		err = scratchDB.SQLDriver().CreateTable(ctx, scratchDB.DB(), tblDef)
-		if err != nil {
+
+		var db *sql.DB
+		if db, err = scratchDB.DB(ctx); err != nil {
+			return err
+		}
+
+		if err = scratchDB.SQLDriver().CreateTable(ctx, db, sheetTbl.def); err != nil {
 			return err
 		}
 	}
 
 	log.Debug("Tables created (but not yet populated)",
-		lga.Count, len(tblDefs),
+		lga.Count, len(sheetTbls),
 		lga.Target, scratchDB.Source(),
 		lga.Elapsed, time.Since(start))
 
 	var imported, skipped int
 
-	for i := range xlFile.Sheets {
-		if tblDefs[i] == nil {
+	for i := range sheetTbls {
+		if sheetTbls[i] == nil {
 			// tblDef can be nil if its sheet is empty (has no data).
 			skipped++
 			continue
 		}
-		err = importSheetToTable(ctx, xlFile.Sheets[i], hasHeader, scratchDB, tblDefs[i])
-		if err != nil {
+
+		if err = importSheetToTable(ctx, scratchDB, sheetTbls[i]); err != nil {
 			return err
 		}
 		imported++
@@ -85,15 +108,23 @@ func xlsxToScratch(ctx context.Context, src *source.Source, xlFile *xlsx.File, s
 	return nil
 }
 
-// importSheetToTable imports sheet's data to its scratch table.
-// The scratch table must already exist.
-func importSheetToTable(ctx context.Context, sheet *xlsx.Sheet, hasHeader bool,
-	scratchDB driver.Database, tblDef *sqlmodel.TableDef,
-) error {
-	log := lg.FromContext(ctx)
-	startTime := time.Now()
+// importSheetToTable imports the sheet data into the appropriate table
+// in scratchDB. The scratch table must already exist.
+func importSheetToTable(ctx context.Context, scratchDB driver.Database, sheetTbl *sheetTable) error {
+	var (
+		log       = lg.FromContext(ctx)
+		startTime = time.Now()
+		sheet     = sheetTbl.sheet
+		hasHeader = sheetTbl.hasHeaderRow
+		tblDef    = sheetTbl.def
+	)
 
-	conn, err := scratchDB.DB().Conn(ctx)
+	db, err := scratchDB.DB(ctx)
+	if err != nil {
+		return err
+	}
+
+	conn, err := db.Conn(ctx)
 	if err != nil {
 		return errz.Err(err)
 	}
@@ -173,10 +204,10 @@ func isEmptyRow(row *xlsx.Row) bool {
 	return true
 }
 
-// buildTblDefsForSheets returns a TableDef for each sheet. If the
-// sheet is empty (has no data), the TableDef for that sheet will be nil.
-func buildTblDefsForSheets(ctx context.Context, sheets []*xlsx.Sheet, hasHeader bool) ([]*sqlmodel.TableDef, error) {
-	tblDefs := make([]*sqlmodel.TableDef, len(sheets))
+// buildSheetTables executes buildSheetTable for each sheet. If sheet is
+// empty (has no data), the sheetTable element for that sheet will be nil.
+func buildSheetTables(ctx context.Context, srcIngestHeader *bool, sheets []*xlsx.Sheet) ([]*sheetTable, error) {
+	sheetTbls := make([]*sheetTable, len(sheets))
 
 	g, gCtx := errgroup.WithContext(ctx)
 	for i := range sheets {
@@ -188,11 +219,11 @@ func buildTblDefsForSheets(ctx context.Context, sheets []*xlsx.Sheet, hasHeader 
 			default:
 			}
 
-			tblDef, err := buildTblDefForSheet(gCtx, sheets[i], hasHeader)
+			sheetTbl, err := buildSheetTable(gCtx, srcIngestHeader, sheets[i])
 			if err != nil {
 				return err
 			}
-			tblDefs[i] = tblDef
+			sheetTbls[i] = sheetTbl
 			return nil
 		})
 	}
@@ -201,17 +232,38 @@ func buildTblDefsForSheets(ctx context.Context, sheets []*xlsx.Sheet, hasHeader 
 		return nil, err
 	}
 
-	return tblDefs, nil
+	return sheetTbls, nil
 }
 
-// buildTblDefForSheet creates a table for the given sheet, and returns
+// getSrcIngestHeader returns nil if driver.OptIngestHeader is not set,
+// and has the value of the opt if set.
+func getSrcIngestHeader(o options.Options) *bool {
+	if driver.OptIngestHeader.IsSet(o) {
+		b := driver.OptIngestHeader.Get(o)
+		return &b
+	}
+
+	return nil
+}
+
+// buildSheetTable constructs a table definition for the given sheet, and returns
 // a model of the table, or an error. If the sheet is empty, (nil,nil)
-// is returned.
-func buildTblDefForSheet(ctx context.Context, sheet *xlsx.Sheet, hasHeader bool) (*sqlmodel.TableDef, error) {
-	log := lg.FromContext(ctx)
+// is returned. If srcIngestHeader is nil, the function attempts
+// to detect if the sheet has a header row.
+func buildSheetTable(ctx context.Context, srcIngestHeader *bool, sheet *xlsx.Sheet) (*sheetTable, error) {
+	var hasHeader bool
+	if srcIngestHeader != nil {
+		hasHeader = *srcIngestHeader
+	} else {
+		var err error
+		if hasHeader, err = detectHeaderRow(sheet); err != nil {
+			return nil, err
+		}
+	}
+
 	maxCols := getRowsMaxCellCount(sheet)
 	if maxCols == 0 {
-		log.Warn("sheet is empty: skipping", "sheet", sheet.Name)
+		lg.FromContext(ctx).Warn("sheet is empty: skipping", "sheet", sheet.Name)
 		return nil, nil //nolint:nilnil
 	}
 
@@ -274,11 +326,15 @@ func buildTblDefForSheet(ctx context.Context, sheet *xlsx.Sheet, hasHeader bool)
 		cols[i] = &sqlmodel.ColDef{Table: tblDef, Name: colName, Kind: colKinds[i]}
 	}
 	tblDef.Cols = cols
-	log.Debug("Built table def",
+	lg.FromContext(ctx).Debug("Built table def",
 		"sheet", sheet.Name,
 		"cols", strings.Join(colNames, ", "))
 
-	return tblDef, nil
+	return &sheetTable{
+		sheet:        sheet,
+		def:          tblDef,
+		hasHeaderRow: hasHeader,
+	}, nil
 }
 
 // syncColNamesKinds ensures that column names and kinds are in
@@ -502,29 +558,6 @@ func calcKindsForRows(firstDataRow int, rows []*xlsx.Row) ([]kind.Kind, error) {
 	return kinds, nil
 }
 
-// getColNames returns column names for the sheet. If hasHeader is true and there's
-// at least one row, the column names are the values of the first row. Otherwise
-// an alphabetical sequence (A, B... Z, AA, AB) is generated.
-func getColNames(sheet *xlsx.Sheet, hasHeader bool) []string {
-	numCells := getRowsMaxCellCount(sheet)
-	colNames := make([]string, numCells)
-
-	if len(sheet.Rows) > 0 && hasHeader {
-		row := sheet.Rows[0]
-		for i := 0; i < len(row.Cells); i++ {
-			colNames[i] = row.Cells[i].String()
-		}
-	}
-
-	for i := range colNames {
-		if colNames[i] == "" {
-			colNames[i] = stringz.GenerateAlphaColName(i, false)
-		}
-	}
-
-	return colNames
-}
-
 // getCellColumnTypes returns the xlsx cell types for the sheet, determined from
 // the values of the first data row (after any header row).
 func getCellColumnTypes(sheet *xlsx.Sheet, hasHeader bool) []xlsx.CellType {
@@ -563,27 +596,7 @@ func getCellColumnTypes(sheet *xlsx.Sheet, hasHeader bool) []xlsx.CellType {
 	return ret
 }
 
-func cellTypeToString(typ xlsx.CellType) string {
-	switch typ {
-	case xlsx.CellTypeString:
-		return "string"
-	case xlsx.CellTypeStringFormula:
-		return "formula"
-	case xlsx.CellTypeNumeric:
-		return "numeric"
-	case xlsx.CellTypeBool:
-		return "bool"
-	case xlsx.CellTypeInline:
-		return "inline"
-	case xlsx.CellTypeError:
-		return "error"
-	case xlsx.CellTypeDate:
-		return "date"
-	}
-	return "general"
-}
-
-// getRowsMaxCellCount returns the largest count of cells in
+// getRowsMaxCellCount returns the largest count of cells
 // in the rows of sheet.
 func getRowsMaxCellCount(sheet *xlsx.Sheet) int {
 	max := 0
@@ -595,4 +608,34 @@ func getRowsMaxCellCount(sheet *xlsx.Sheet) int {
 	}
 
 	return max
+}
+
+// sheetTable maps a sheet to a database table.
+type sheetTable struct {
+	sheet        *xlsx.Sheet
+	def          *sqlmodel.TableDef
+	hasHeaderRow bool
+}
+
+func detectHeaderRow(sheet *xlsx.Sheet) (hasHeader bool, err error) {
+	if len(sheet.Rows) < 2 {
+		// If zero records, obviously no header row.
+		// If one record... well, is there any way of determining if
+		// it's a header row or not? Probably best to treat it as a data row.
+		return false, nil
+	}
+
+	types1 := getCellColumnTypes(sheet, true)
+	types2 := getCellColumnTypes(sheet, false)
+
+	if len(types1) != len(types2) {
+		// Can this happen?
+		return false, errz.Errorf("sheet {%s} has ragged edges", sheet.Name)
+	}
+
+	if slices.Equal(types1, types2) {
+		return false, nil
+	}
+
+	return true, nil
 }

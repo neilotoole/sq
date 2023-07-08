@@ -102,7 +102,7 @@ func TestCmdSLQ_CSV(t *testing.T) {
 	err := tr.Exec("slq", "--header=false", "--csv", fmt.Sprintf("%s.data", src.Handle))
 	require.NoError(t, err)
 
-	recs := tr.MustReadCSV()
+	recs := tr.BindCSV()
 	require.Equal(t, sakila.TblActorCount, len(recs))
 }
 
@@ -133,7 +133,7 @@ func TestCmdSLQ_OutputFlag(t *testing.T) {
 
 func TestCmdSLQ_Join_cross_source(t *testing.T) {
 	const queryTpl = `%s.customer | join(%s.address, .address_id) | where(.customer_id == %d) | .[0] | .customer_id, .email, .city_id` //nolint:lll
-	handles := sakila.SQLAll()
+	handles := sakila.SQLLatest()
 
 	// Attempt to join every SQL test source against every SQL test source.
 	for _, h1 := range handles {
@@ -159,7 +159,7 @@ func TestCmdSLQ_Join_cross_source(t *testing.T) {
 					err := tr.Exec("slq", "--header=false", "--csv", query)
 					require.NoError(t, err)
 
-					recs := tr.MustReadCSV()
+					recs := tr.BindCSV()
 					require.Equal(t, 1, len(recs), "should only be one matching record")
 					require.Equal(t, 3, len(recs[0]), "should have three fields")
 					require.Equal(t, strconv.Itoa(sakila.MillerCustID), recs[0][0])
@@ -183,7 +183,7 @@ func TestCmdSLQ_ActiveSrcHandle(t *testing.T) {
 	require.Equal(t, src.Handle, tr.Run.Config.Collection.Active().Handle)
 	err := tr.Exec("slq", "--header=false", "--csv", "@sakila_sl3.actor")
 	require.NoError(t, err)
-	recs := tr.MustReadCSV()
+	recs := tr.BindCSV()
 	require.Equal(t, sakila.TblActorCount, len(recs))
 
 	// 2. Verify that it works using source.ActiveHandle as the src handle
@@ -191,7 +191,7 @@ func TestCmdSLQ_ActiveSrcHandle(t *testing.T) {
 	require.Equal(t, src.Handle, tr.Run.Config.Collection.Active().Handle)
 	err = tr.Exec("slq", "--header=false", "--csv", source.ActiveHandle+".actor")
 	require.NoError(t, err)
-	recs = tr.MustReadCSV()
+	recs = tr.BindCSV()
 	require.Equal(t, sakila.TblActorCount, len(recs))
 }
 

@@ -161,11 +161,7 @@ type Provider interface {
 
 // DatabaseOpener opens a Database.
 type DatabaseOpener interface {
-	// Open returns a Database instance for src. This operation can
-	// take a long time if opening the DB requires an import of data.
-	// For example, with file-based sources such as CSV, invoking Open
-	// will ultimately read and import all CSV rows from the file.
-	// Thus, set a timeout on ctx as appropriate for the source.
+	// Open returns a Database instance for src.
 	Open(ctx context.Context, src *source.Source) (Database, error)
 }
 
@@ -206,6 +202,8 @@ type Driver interface {
 	// identity counter for tbl should be reset, if supported
 	// by the driver. Some DB impls may reset the identity
 	// counter regardless of the val of reset.
+	//
+	// TODO: Maybe move Truncate to SQLDriver?
 	Truncate(ctx context.Context, src *source.Source, tbl string, reset bool) (affected int64, err error)
 }
 
@@ -323,9 +321,16 @@ type SQLDriver interface {
 // Database models a database handle. It is conceptually equivalent to
 // stdlib sql.DB, and in fact encapsulates a sql.DB instance. The
 // realized sql.DB instance can be accessed via the DB method.
+//
+// REVISIT: maybe rename driver.Database to driver.Datasource or such?
 type Database interface {
 	// DB returns the sql.DB object for this Database.
-	DB() *sql.DB
+	// This operation can take a long time if opening the DB requires
+	// an ingest of data.
+	// For example, with file-based sources such as XLSX, invoking Open
+	// will ultimately read and import all CSV rows from the file.
+	// Thus, set a timeout on ctx as appropriate for the source.
+	DB(ctx context.Context) (*sql.DB, error)
 
 	// SQLDriver returns the underlying database driver. The type of the SQLDriver
 	// may be different from the driver type reported by the Source.
@@ -338,14 +343,14 @@ type Database interface {
 	// If noSchema is true, schema details are not populated
 	// on the returned source.Metadata.
 	//
-	// TODO: SourceMetadata doesn't really belong on driver.Database. It
-	// should be moved to driver.Driver.
+	// TODO: SourceMetadata doesn't really belong on driver.Database? It
+	// should be moved to driver.Driver?
 	SourceMetadata(ctx context.Context, noSchema bool) (*source.Metadata, error)
 
 	// TableMetadata returns metadata for the specified table in the data source.
 	//
-	// TODO: TableMetadata doesn't really belong on driver.Database. It
-	// should be moved to driver.Driver.
+	// TODO: TableMetadata doesn't really belong on driver.Database? It
+	// should be moved to driver.Driver?
 	TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error)
 
 	// Close is invoked to close and release any underlying resources.

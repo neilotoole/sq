@@ -2,7 +2,6 @@ package csv
 
 import (
 	"context"
-	"strings"
 
 	"github.com/neilotoole/sq/libsq/driver"
 
@@ -58,37 +57,6 @@ func detectHeaderRow(recs [][]string) (hasHeader bool, err error) {
 	return false, nil
 }
 
-// Hash generates a hash from the kinds returned by
-// the detectors. The detectors should already have
-// sampled data.
-//
-// TODO: move Hash to pkg libsq/core/kind?
-func Hash(detectors []*kind.Detector) (h string, err error) {
-	if len(detectors) == 0 {
-		return "", errz.New("no kind detectors")
-	}
-
-	kinds := make([]kind.Kind, len(detectors))
-	for i := range detectors {
-		kinds[i], _, err = detectors[i].Detect()
-		if err != nil {
-			return "", err
-		}
-	}
-
-	// TODO: use an actual hash function
-	hash := strings.Builder{}
-	for i := range kinds {
-		if i > 0 {
-			hash.WriteRune('|')
-		}
-		hash.WriteString(kinds[i].String())
-	}
-
-	h = hash.String()
-	return h, nil
-}
-
 func calcKindHash(recs [][]string) (string, error) {
 	if len(recs) == 0 || len(recs[0]) == 0 {
 		return "", errz.New("no records")
@@ -107,5 +75,5 @@ func calcKindHash(recs [][]string) (string, error) {
 		}
 	}
 
-	return Hash(detectors)
+	return kind.Hash(detectors)
 }

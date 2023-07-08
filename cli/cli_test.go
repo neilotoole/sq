@@ -81,7 +81,7 @@ func TestSmoke(t *testing.T) {
 }
 
 func TestCreateTblTestBytes(t *testing.T) {
-	th, src, _, _ := testh.NewWith(t, sakila.Pg)
+	th, src, _, _, _ := testh.NewWith(t, sakila.Pg)
 	th.DiffDB(src)
 
 	tblDef := sqlmodel.NewTableDef(
@@ -103,7 +103,7 @@ func TestCreateTblTestBytes(t *testing.T) {
 func TestOutputRaw(t *testing.T) {
 	t.Parallel()
 
-	for _, handle := range sakila.SQLAll() {
+	for _, handle := range sakila.SQLLatest() {
 		handle := handle
 
 		t.Run(handle, func(t *testing.T) {
@@ -121,7 +121,7 @@ func TestOutputRaw(t *testing.T) {
 				[]kind.Kind{kind.Text, kind.Bytes},
 			)
 
-			th, src, _, _ := testh.NewWith(t, handle)
+			th, src, _, _, _ := testh.NewWith(t, handle)
 
 			// Create the table and insert data
 			insertRow := []any{fixt.GopherFilename, wantBytes}
@@ -186,7 +186,7 @@ func TestExprNoSource(t *testing.T) {
 			tr := testrun.New(context.Background(), t, nil).Hush()
 			err := tr.Exec("--csv", "--no-header", tc.in)
 			require.NoError(t, err)
-			results := tr.MustReadCSV()
+			results := tr.BindCSV()
 			require.Len(t, results, 1)
 			require.Equal(t, tc.want, results[0])
 		})

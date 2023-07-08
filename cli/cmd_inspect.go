@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"database/sql"
+
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/spf13/cobra"
@@ -166,9 +168,13 @@ func execInspect(cmd *cobra.Command, args []string) error {
 	}
 
 	if cmdFlagIsSetTrue(cmd, flag.InspectDBProps) {
-		sqlDrvr := dbase.SQLDriver()
+		var db *sql.DB
+		if db, err = dbase.DB(ctx); err != nil {
+			return err
+		}
 		var props map[string]any
-		if props, err = sqlDrvr.DBProperties(ctx, dbase.DB()); err != nil {
+		sqlDrvr := dbase.SQLDriver()
+		if props, err = sqlDrvr.DBProperties(ctx, db); err != nil {
 			return err
 		}
 
