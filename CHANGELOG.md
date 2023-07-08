@@ -29,6 +29,8 @@ Breaking changes are annotated with ☢️.
   The renaming behavior is controlled by a new option `ingest.column.rename`
   ([docs](https://sq.io/docs/config/#ingestcolumnrename)).
 
+- [#191]: The [XLSX](https://sq.io/docs/drivers/xlsx) driver now detects header rows, like
+  the CSV driver already does.
 
 ## [v0.40.0] - 2023-07-03
 
