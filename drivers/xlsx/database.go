@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"io"
+	"sync"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/tealeg/xlsx/v2"
@@ -17,16 +18,42 @@ import (
 	"golang.org/x/exp/slog"
 )
 
-// database implements driver.Database.
+// database implements driver.Database. It implements a deferred ingest
+// of the Excel data.
 type database struct {
 	log       *slog.Logger
 	src       *source.Source
 	files     *source.Files
 	scratchDB driver.Database
 	clnup     *cleanup.Cleanup
+
+	mu sync.Mutex
+
+	// ingestCtx holds the context that was passed to xlsx.Driver's Open method.
+	// Usually we don't want to store a context. However, because this type
+	// implements deferred data ingestion, we need access to the context
+	// to perform the ingest. This is only a problem with database.DB, because
+	// that method doesn't have any args. This is a code smell. Most likely
+	// that method should be refactored to pass a context.
+	ingestCtx  context.Context
+	ingestOnce sync.Once
+	ingestErr  error
+
+	// ingestSheetNames is the list of sheet names to ingest. When empty,
+	// all sheets should be ingested. The key use of this is with TableMetadata,
+	// so that only the relevant table is ingested.
+	ingestSheetNames []string
 }
 
-func (d *database) doIngest(ctx context.Context) error {
+func (d *database) checkIngest(ctx context.Context) error {
+	d.ingestOnce.Do(func() {
+		d.ingestErr = d.doIngest(ctx, d.ingestSheetNames)
+	})
+
+	return d.ingestErr
+}
+
+func (d *database) doIngest(ctx context.Context, includeSheetNames []string) error {
 	r, err := d.files.Open(d.src)
 	if err != nil {
 		return err
@@ -43,9 +70,8 @@ func (d *database) doIngest(ctx context.Context) error {
 		return err
 	}
 
-	err = ingest(ctx, d.src, d.scratchDB, xlFile, nil)
+	err = ingestXLSX(ctx, d.src, d.scratchDB, xlFile, includeSheetNames)
 	if err != nil {
-		// REVISIT: Should we call cleanup here?
 		lg.WarnIfError(d.log, lgm.CloseDB, d.clnup.Run())
 		return err
 	}
@@ -54,6 +80,13 @@ func (d *database) doIngest(ctx context.Context) error {
 
 // DB implements driver.Database.
 func (d *database) DB() (*sql.DB, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	if err := d.checkIngest(d.ingestCtx); err != nil {
+		return nil, err
+	}
+
 	return d.scratchDB.DB()
 }
 
@@ -69,6 +102,13 @@ func (d *database) Source() *source.Source {
 
 // SourceMetadata implements driver.Database.
 func (d *database) SourceMetadata(ctx context.Context, noSchema bool) (*source.Metadata, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	if err := d.checkIngest(ctx); err != nil {
+		return nil, err
+	}
+
 	md, err := d.scratchDB.SourceMetadata(ctx, noSchema)
 	if err != nil {
 		return nil, err
@@ -91,6 +131,14 @@ func (d *database) SourceMetadata(ctx context.Context, noSchema bool) (*source.M
 
 // TableMetadata implements driver.Database.
 func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	d.ingestSheetNames = []string{tblName}
+	if err := d.checkIngest(ctx); err != nil {
+		return nil, err
+	}
+
 	return d.scratchDB.TableMetadata(ctx, tblName)
 }
 
@@ -98,7 +146,7 @@ func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.T
 func (d *database) Close() error {
 	d.log.Debug(lgm.CloseDB, lga.Handle, d.src.Handle)
 
-	// No need to explicitly invoke c.impl.Close because
+	// No need to explicitly invoke c.scratchDB.Close because
 	// that's already added to c.clnup
 	return d.clnup.Run()
 }

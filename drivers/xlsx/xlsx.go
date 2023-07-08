@@ -70,11 +70,13 @@ func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Database,
 	clnup := cleanup.New()
 	clnup.AddE(scratchDB.Close)
 
-	// REVISIT: Can we defer ingest?
-	dbase := &database{log: d.log, src: src, scratchDB: scratchDB, files: d.files, clnup: clnup}
-	if err = dbase.doIngest(ctx); err != nil {
-		lg.WarnIfError(d.log, lgm.CloseDB, clnup.Run())
-		return nil, err
+	dbase := &database{
+		log:       d.log,
+		src:       src,
+		scratchDB: scratchDB,
+		files:     d.files,
+		clnup:     clnup,
+		ingestCtx: ctx,
 	}
 
 	return dbase, nil
@@ -82,10 +84,10 @@ func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Database,
 
 // Truncate implements driver.Driver.
 func (d *Driver) Truncate(_ context.Context, src *source.Source, _ string, _ bool) (affected int64, err error) {
-	// TODO: Ww could actually implement Truncate for xlsx.
+	// NOTE: We could actually implement Truncate for xlsx.
 	// It would just mean deleting the rows from a sheet, and then
 	// saving the sheet. But that's probably not a game we want to
-	// get into, as sq doesn't currently make writes to any non-SQL
+	// get into, as sq doesn't currently make edits to any non-SQL
 	// source types.
 	return 0, errz.Errorf("driver type {%s} (%s) doesn't support dropping tables", Type, src.Handle)
 }

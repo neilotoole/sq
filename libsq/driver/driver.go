@@ -202,6 +202,8 @@ type Driver interface {
 	// identity counter for tbl should be reset, if supported
 	// by the driver. Some DB impls may reset the identity
 	// counter regardless of the val of reset.
+	//
+	// TODO: Maybe move Truncate to SQLDriver?
 	Truncate(ctx context.Context, src *source.Source, tbl string, reset bool) (affected int64, err error)
 }
 

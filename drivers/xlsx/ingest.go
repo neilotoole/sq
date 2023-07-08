@@ -31,9 +31,9 @@ import (
 	"github.com/neilotoole/sq/libsq/driver"
 )
 
-// ingest loads the data in xlFile into scratchDB.
+// ingestXLSX loads the data in xlFile into scratchDB.
 // If includeSheetNames is non-empty, only the named sheets are ingested.
-func ingest(ctx context.Context, src *source.Source, scratchDB driver.Database,
+func ingestXLSX(ctx context.Context, src *source.Source, scratchDB driver.Database,
 	xlFile *xlsx.File, includeSheetNames []string,
 ) error {
 	log := lg.FromContext(ctx)
