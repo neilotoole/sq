@@ -23,13 +23,16 @@ const (
 	Pg11             = "@sakila_pg11"
 	Pg12             = "@sakila_pg12"
 	Pg               = Pg12
-	My56             = "@sakila_my56" // TODO: rename to @sakila_my5_6
-	My57             = "@sakila_my57" // TODO: rename to @sakila_my5_7
+	My56             = "@sakila_my56"
+	My57             = "@sakila_my57"
 	My8              = "@sakila_my8"
 	My               = My8
 	MS17             = "@sakila_ms17"
 	MS19             = "@sakila_ms19"
 	MS               = MS19
+	// AZ1 is the handle for Azure SQL Edge v1.x.
+	AZ1 = "@sakila_az1"
+	AZ  = AZ1
 )
 
 // AllHandles returns all the typical sakila handles. It does not
@@ -46,6 +49,7 @@ func AllHandles() []string {
 		My8,
 		// MS17,
 		MS19,
+		AZ1,
 		XLSX,
 	}
 }
@@ -63,6 +67,7 @@ func SQLAll() []string {
 		My8,
 		// MS17,
 		MS19,
+		AZ1,
 	}
 }
 
@@ -79,6 +84,7 @@ func SQLAllExternal() []string {
 		My8,
 		// MS17,
 		MS19,
+		AZ1,
 	}
 }
 
@@ -106,10 +112,12 @@ func MyAll() []string {
 }
 
 // MSAll returns the handles for all SQL Server versions.
+// This includes both SQLServer and Azure SQL Edge.
 func MSAll() []string {
 	return []string{
 		// MS17,
 		MS19,
+		AZ1,
 	}
 }
 

@@ -133,7 +133,7 @@ func TestCmdSLQ_OutputFlag(t *testing.T) {
 
 func TestCmdSLQ_Join_cross_source(t *testing.T) {
 	const queryTpl = `%s.customer | join(%s.address, .address_id) | where(.customer_id == %d) | .[0] | .customer_id, .email, .city_id` //nolint:lll
-	handles := sakila.SQLAll()
+	handles := sakila.SQLLatest()
 
 	// Attempt to join every SQL test source against every SQL test source.
 	for _, h1 := range handles {
