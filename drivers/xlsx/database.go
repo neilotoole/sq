@@ -91,17 +91,7 @@ func (d *database) SourceMetadata(ctx context.Context, noSchema bool) (*source.M
 
 // TableMetadata implements driver.Database.
 func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
-	srcMeta, err := d.SourceMetadata(ctx, false)
-	if err != nil {
-		return nil, err
-	}
-
-	tblMeta := srcMeta.Table(tblName)
-	if tblMeta == nil {
-		return nil, errz.Errorf("table {%s} not found", tblName)
-	}
-
-	return tblMeta, nil
+	return d.scratchDB.TableMetadata(ctx, tblName)
 }
 
 // Close implements driver.Database.
