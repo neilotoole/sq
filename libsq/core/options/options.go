@@ -217,8 +217,15 @@ func (o Options) LogValue() slog.Value {
 }
 
 // Merge overlays each of overlays onto base, returning a new Options.
+// It is acceptable for base to be nil.
 func Merge(base Options, overlays ...Options) Options {
-	o := base.Clone()
+	var o Options
+	if base == nil {
+		o = Options{}
+	} else {
+		o = base.Clone()
+	}
+
 	for _, overlay := range overlays {
 		for k, v := range overlay {
 			o[k] = v

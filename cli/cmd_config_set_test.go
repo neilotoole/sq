@@ -98,7 +98,7 @@ func TestSourceOptOverridesBaseOpt(t *testing.T) {
 			ctx := context.Background()
 			tr := testrun.New(ctx, t, nil).Hush()
 
-			fp := proj.Abs(sakila.PathCSVActor)
+			fp := proj.Abs(tc.fp)
 			require.NoError(t, tr.Exec("add", fp, "--handle="+handle))
 
 			tr = testrun.New(ctx, t, tr)
@@ -165,8 +165,8 @@ func TestColRenameOptsInteraction(t *testing.T) {
 		fp      string
 		tblName string
 	}{
-		{sakila.PathXLSXActorHeader, "actor"},
-		{sakila.PathCSVActor, "data"},
+		{sakila.PathXLSXActorHeader, ".actor"},
+		{sakila.PathCSVActor, ".data"},
 	}
 
 	for _, tc := range testCases {
@@ -192,7 +192,7 @@ func TestColRenameOptsInteraction(t *testing.T) {
 			))
 
 			tr = testrun.New(ctx, t, tr)
-			require.NoError(t, tr.Exec("--csv", "."+tc.tblName))
+			require.NoError(t, tr.Exec("--csv", tc.tblName))
 			wantHeaders := []string{"x_actor_id_y", "x_first_name_y", "x_last_name_y", "x_last_update_y"}
 			data := tr.BindCSV()
 			require.Equal(t, wantHeaders, data[0])
