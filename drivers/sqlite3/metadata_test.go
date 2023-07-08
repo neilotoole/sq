@@ -325,7 +325,7 @@ func TestAggregateFuncsQuery(t *testing.T) {
 func BenchmarkDatabase_SourceMetadata(b *testing.B) {
 	const numTables = 1000
 
-	th, src, dbase, drvr := testh.NewWith(b, testsrc.MiscDB)
+	th, src, drvr, dbase, _ := testh.NewWith(b, testsrc.MiscDB)
 	db, _ := dbase.DB()
 
 	tblNames := createTypeTestTbls(th, src, numTables, true)
@@ -346,7 +346,7 @@ func BenchmarkDatabase_SourceMetadata(b *testing.B) {
 func TestGetTblRowCounts(t *testing.T) {
 	const numTables = 10
 
-	th, src, dbase, _ := testh.NewWith(t, testsrc.MiscDB)
+	th, src, _, dbase, _ := testh.NewWith(t, testsrc.MiscDB)
 	db, _ := dbase.DB()
 
 	tblNames := createTypeTestTbls(th, src, numTables, true)
@@ -359,7 +359,7 @@ func TestGetTblRowCounts(t *testing.T) {
 func BenchmarkGetTblRowCounts(b *testing.B) {
 	const numTables = 1300
 
-	th, src, dbase, drvr := testh.NewWith(b, testsrc.MiscDB)
+	th, src, drvr, dbase, _ := testh.NewWith(b, testsrc.MiscDB)
 	db, _ := dbase.DB()
 
 	tblNames := createTypeTestTbls(th, src, numTables, true)

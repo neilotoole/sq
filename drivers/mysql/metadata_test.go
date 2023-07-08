@@ -79,7 +79,7 @@ func TestDatabase_SourceMetadata_MySQL(t *testing.T) {
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
-			th, _, dbase, _ := testh.NewWith(t, handle)
+			th, _, _, dbase, _ := testh.NewWith(t, handle)
 			md, err := dbase.SourceMetadata(th.Context, false)
 			require.NoError(t, err)
 			require.Equal(t, "sakila", md.Name)
@@ -102,7 +102,7 @@ func TestDatabase_TableMetadata(t *testing.T) {
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
-			th, _, dbase, _ := testh.NewWith(t, handle)
+			th, _, _, dbase, _ := testh.NewWith(t, handle)
 			md, err := dbase.TableMetadata(th.Context, sakila.TblActor)
 			require.NoError(t, err)
 			require.Equal(t, sakila.TblActor, md.Name)
@@ -111,9 +111,7 @@ func TestDatabase_TableMetadata(t *testing.T) {
 }
 
 func TestGetTableRowCounts(t *testing.T) {
-	th, _, dbase, _ := testh.NewWith(t, sakila.My)
-	db, err := dbase.DB()
-	require.NoError(t, err)
+	th, _, _, _, db := testh.NewWith(t, sakila.My)
 
 	counts, err := mysql.GetTableRowCountsBatch(th.Context, db, []string{sakila.TblActor, sakila.TblFilm})
 	require.NoError(t, err)

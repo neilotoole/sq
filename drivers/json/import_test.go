@@ -85,7 +85,7 @@ func TestImportJSONL_Flat(t *testing.T) {
 				}
 			}
 
-			th, src, dbase, _ := testh.NewWith(t, testsrc.EmptyDB)
+			th, src, _, dbase, _ := testh.NewWith(t, testsrc.EmptyDB)
 			job := json.NewImportJob(src, openFn, dbase, 0, true)
 
 			err := json.ImportJSONL(th.Context, job)
@@ -109,7 +109,7 @@ func TestImportJSON_Flat(t *testing.T) {
 		return os.Open("testdata/actor.json")
 	}
 
-	th, src, dbase, _ := testh.NewWith(t, testsrc.EmptyDB)
+	th, src, _, dbase, _ := testh.NewWith(t, testsrc.EmptyDB)
 	job := json.NewImportJob(src, openFn, dbase, 0, true)
 
 	err := json.ImportJSON(th.Context, job)

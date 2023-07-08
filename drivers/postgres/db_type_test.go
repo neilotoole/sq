@@ -400,9 +400,7 @@ const (
 func createTypeTestTable(th *testh.Helper, src *source.Source, withData bool) (rowCount int64, actualTblName string) {
 	const canonicalTblName = "type_test"
 	t := th.T
-	dbase := th.Open(src)
-	db, err := dbase.DB()
-	require.NoError(t, err)
+	db := th.OpenDB(src)
 	tblDDL, err := os.ReadFile(typeTestTableDDLPath)
 	require.NoError(t, err)
 

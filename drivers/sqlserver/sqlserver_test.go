@@ -24,7 +24,7 @@ func TestSmoke(t *testing.T) {
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
-			th, src, _, _ := testh.NewWith(t, handle)
+			th, src, _, _, _ := testh.NewWith(t, handle)
 			sink, err := th.QuerySQL(src, "SELECT * FROM actor")
 			require.NoError(t, err)
 			require.Equal(t, len(sakila.TblActorCols()), len(sink.RecMeta))
@@ -75,7 +75,7 @@ func TestDriver_CreateTable_NotNullDefault(t *testing.T) {
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
-			th, src, dbase, drvr := testh.NewWith(t, handle)
+			th, src, drvr, dbase, _ := testh.NewWith(t, handle)
 			db, err := dbase.DB()
 			require.NoError(t, err)
 

@@ -4,6 +4,7 @@ package testh
 
 import (
 	"context"
+	"database/sql"
 	"io"
 	"os"
 	"path/filepath"
@@ -136,18 +137,20 @@ func New(t testing.TB, opts ...Option) *Helper {
 }
 
 // NewWith is a convenience wrapper for New that also returns
-// a Source for handle, an open Database and the SQLDriver.
+// a Source for handle, the driver.SQLDriver, driver.Database,
+// and the *sql.DB.
+//
 // The function will fail if handle is not the handle for a
 // source whose driver implements driver.SQLDriver.
-//
-// FIXME: expand NewWith to return the *sql.DB?
-func NewWith(t testing.TB, handle string) (*Helper, *source.Source, driver.Database, driver.SQLDriver) {
+func NewWith(t testing.TB, handle string) (*Helper, *source.Source, driver.SQLDriver, driver.Database, *sql.DB) {
 	th := New(t)
 	src := th.Source(handle)
-	dbase := th.Open(src)
 	drvr := th.SQLDriverFor(src)
+	dbase := th.Open(src)
+	db, err := dbase.DB()
+	require.NoError(t, err)
 
-	return th, src, dbase, drvr
+	return th, src, drvr, dbase, db
 }
 
 func (h *Helper) init() {
@@ -344,6 +347,16 @@ func (h *Helper) Open(src *source.Source) driver.Database {
 
 	require.NoError(h.T, db.PingContext(ctx))
 	return dbase
+}
+
+// OpenDB is a convenience method for getting the sql.DB for src.
+// The returned sql.DB is closed during h.Close, via the closing
+// of its parent driver.Database.
+func (h *Helper) OpenDB(src *source.Source) *sql.DB {
+	dbase := h.Open(src)
+	db, err := dbase.DB()
+	require.NoError(h.T, err)
+	return db
 }
 
 // openNew opens a new Database. It is the caller's responsibility

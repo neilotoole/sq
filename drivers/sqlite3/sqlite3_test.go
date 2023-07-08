@@ -166,7 +166,7 @@ func TestExhibitDriverColumnTypesBehavior(t *testing.T) {
 func TestDriver_CreateTable_NotNullDefault(t *testing.T) {
 	t.Parallel()
 
-	th, src, dbase, drvr := testh.NewWith(t, sakila.SL3)
+	th, src, drvr, dbase, _ := testh.NewWith(t, sakila.SL3)
 	db, err := dbase.DB()
 	require.NoError(t, err)
 

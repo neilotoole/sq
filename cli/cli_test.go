@@ -81,7 +81,7 @@ func TestSmoke(t *testing.T) {
 }
 
 func TestCreateTblTestBytes(t *testing.T) {
-	th, src, _, _ := testh.NewWith(t, sakila.Pg)
+	th, src, _, _, _ := testh.NewWith(t, sakila.Pg)
 	th.DiffDB(src)
 
 	tblDef := sqlmodel.NewTableDef(
@@ -121,7 +121,7 @@ func TestOutputRaw(t *testing.T) {
 				[]kind.Kind{kind.Text, kind.Bytes},
 			)
 
-			th, src, _, _ := testh.NewWith(t, handle)
+			th, src, _, _, _ := testh.NewWith(t, handle)
 
 			// Create the table and insert data
 			insertRow := []any{fixt.GopherFilename, wantBytes}

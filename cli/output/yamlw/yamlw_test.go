@@ -23,7 +23,7 @@ func TestRecordWriter(t *testing.T) {
   first_name: NICK
 `
 
-	th, src, _, _ := testh.NewWith(t, sakila.SL3)
+	th, src, _, _, _ := testh.NewWith(t, sakila.SL3)
 	query := src.Handle + ".actor | .last_update, .actor_id, .last_name, .first_name | .[0:2]"
 
 	sink, err := th.QuerySLQ(query, nil)

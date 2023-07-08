@@ -161,12 +161,7 @@ type Provider interface {
 
 // DatabaseOpener opens a Database.
 type DatabaseOpener interface {
-	// Open returns a Database instance for src. This operation can
-	// take a long time if opening the DB requires an import of data.
-	// For example, with file-based sources such as CSV, invoking Open
-	// will ultimately read and import all CSV rows from the file.
-	// Thus, set a timeout on ctx as appropriate for the source.
-	// FIXME: change this text after switch to deferred open via .DB()
+	// Open returns a Database instance for src.
 	Open(ctx context.Context, src *source.Source) (Database, error)
 }
 
@@ -328,6 +323,11 @@ type SQLDriver interface {
 // REVISIT: maybe rename driver.Database to driver.Datasource or such?
 type Database interface {
 	// DB returns the sql.DB object for this Database.
+	// This operation can take a long time if opening the DB requires
+	// an ingest of data.
+	// For example, with file-based sources such as XLSX, invoking Open
+	// will ultimately read and import all CSV rows from the file.
+	// Thus, set a timeout on ctx as appropriate for the source.
 	DB() (*sql.DB, error)
 
 	// SQLDriver returns the underlying database driver. The type of the SQLDriver

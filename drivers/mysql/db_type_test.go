@@ -297,8 +297,7 @@ func createTypeTestTable(th *testh.Helper, src *source.Source, withData bool) (n
 	)
 
 	t := th.T
-	db, err := th.Open(src).DB()
-	require.NoError(t, err)
+	db := th.OpenDB(src)
 
 	tblDDL, err := os.ReadFile(typeTestTableDDLPath)
 	require.NoError(t, err)
@@ -404,17 +403,14 @@ func TestDatabaseTypeJSON(t *testing.T) {
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
-			th, src, dbase, _ := testh.NewWith(t, handle)
-
-			db, err := dbase.DB()
-			require.NoError(t, err)
+			th, src, _, _, db := testh.NewWith(t, handle)
 
 			// replace the canonical table name
 			actualTblName := stringz.UniqTableName(canonicalTblName)
 			createStmt := strings.Replace(createStmtTpl, canonicalTblName, actualTblName, 1)
 			// Create the table
 
-			_, err = db.ExecContext(th.Context, createStmt)
+			_, err := db.ExecContext(th.Context, createStmt)
 			require.NoError(t, err)
 			t.Cleanup(func() { th.DropTable(src, actualTblName) })
 
