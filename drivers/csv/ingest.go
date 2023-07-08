@@ -119,7 +119,7 @@ func ingestCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFu
 		return errz.Wrap(err, "csv: failed to create dest scratch table")
 	}
 
-	recMeta, err := getRecMeta(ctx, scratchDB, tblDef)
+	recMeta, err := getIngestRecMeta(ctx, scratchDB, tblDef)
 	if err != nil {
 		return err
 	}

@@ -24,7 +24,8 @@ import (
 )
 
 // recordMetaFromColumnTypes returns recordMetaFromColumnTypes for rows.
-func recordMetaFromColumnTypes(ctx context.Context, colTypes []*sql.ColumnType) (record.Meta, error) {
+func recordMetaFromColumnTypes(ctx context.Context, colTypes []*sql.ColumnType, mungeColNames bool,
+) (record.Meta, error) {
 	sColTypeData := make([]*record.ColumnTypeData, len(colTypes))
 	ogColNames := make([]string, len(colTypes))
 	for i, colType := range colTypes {
@@ -45,9 +46,12 @@ func recordMetaFromColumnTypes(ctx context.Context, colTypes []*sql.ColumnType) 
 		ogColNames[i] = colTypeData.Name
 	}
 
-	mungedColNames, err := driver.MungeResultColNames(ctx, ogColNames)
-	if err != nil {
-		return nil, err
+	mungedColNames := ogColNames
+	if mungeColNames {
+		var err error
+		if mungedColNames, err = driver.MungeResultColNames(ctx, ogColNames); err != nil {
+			return nil, err
+		}
 	}
 
 	recMeta := make(record.Meta, len(colTypes))

@@ -59,6 +59,7 @@ The fields available in the template are:
 
   .Name         column header name
   .Index        zero-based index of the column in the header row
+  .AlphaIndex   alphabetical index of the column, i.e. A, B ... Z, AA, AB...
   .Recurrence   nth recurrence of the colum name in the header row
 
 For a unique column name, e.g. "first_name" above, ".Recurrence" will be 0.

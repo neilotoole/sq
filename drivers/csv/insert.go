@@ -121,19 +121,21 @@ func createTblDef(tblName string, colNames []string, kinds []kind.Kind) *sqlmode
 	return tbl
 }
 
-// getRecMeta returns record.Meta to use with RecordWriter.Open.
-func getRecMeta(ctx context.Context, scratchDB driver.Database, tblDef *sqlmodel.TableDef) (record.Meta, error) {
+// getIngestRecMeta returns record.Meta to use with RecordWriter.Open.
+func getIngestRecMeta(ctx context.Context, scratchDB driver.Database, tblDef *sqlmodel.TableDef) (record.Meta, error) {
 	db, err := scratchDB.DB(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	colTypes, err := scratchDB.SQLDriver().TableColumnTypes(ctx, db, tblDef.Name, tblDef.ColNames())
+	drvr := scratchDB.SQLDriver()
+
+	colTypes, err := drvr.TableColumnTypes(ctx, db, tblDef.Name, tblDef.ColNames())
 	if err != nil {
 		return nil, err
 	}
 
-	destMeta, _, err := scratchDB.SQLDriver().RecordMeta(ctx, colTypes)
+	destMeta, _, err := drvr.RecordMeta(ctx, colTypes, false)
 	if err != nil {
 		return nil, err
 	}

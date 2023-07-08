@@ -177,7 +177,7 @@ func QuerySQL(ctx context.Context, dbase driver.Database, recw RecordWriter, que
 	}
 
 	drvr := dbase.SQLDriver()
-	recMeta, recFromScanRowFn, err := drvr.RecordMeta(ctx, colTypes)
+	recMeta, recFromScanRowFn, err := drvr.RecordMeta(ctx, colTypes, true)
 	if err != nil {
 		return errw(err)
 	}

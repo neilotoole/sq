@@ -31,7 +31,7 @@ func TestCmdConfigSet(t *testing.T) {
 	require.NotContains(t, got, "ACTOR_ID")
 
 	tr = testrun.New(th.Context, t, tr)
-	const tpl = `{{.Name | upper}}`
+	const tpl = `{{.Name | upper}}_{{.AlphaIndex}}`
 	err = tr.Exec("config", "set", driver.OptResultColRename.Key(), stringz.ShellEscape(tpl))
 	require.NoError(t, err)
 
@@ -39,6 +39,6 @@ func TestCmdConfigSet(t *testing.T) {
 	err = tr.Exec(".actor | .[0]")
 	require.NoError(t, err)
 	got = tr.Out.String()
-	require.Contains(t, got, "ACTOR_ID")
+	require.Contains(t, got, "ACTOR_ID_A")
 	require.NotContains(t, got, "actor_id")
 }

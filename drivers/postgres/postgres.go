@@ -301,7 +301,7 @@ func (d *driveri) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl str
 	// Note that the pgx driver doesn't support res.LastInsertId.
 	// https://github.com/jackc/pgx/issues/411
 
-	destColsMeta, err := d.getTableRecordMeta(ctx, db, destTbl, destColNames)
+	destColsMeta, err := d.getTableRecordMeta(ctx, db, destTbl, destColNames, false)
 	if err != nil {
 		return nil, err
 	}
@@ -320,7 +320,7 @@ func (d *driveri) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl str
 func (d *driveri) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string,
 	where string,
 ) (*driver.StmtExecer, error) {
-	destColsMeta, err := d.getTableRecordMeta(ctx, db, destTbl, destColNames)
+	destColsMeta, err := d.getTableRecordMeta(ctx, db, destTbl, destColNames, false)
 	if err != nil {
 		return nil, err
 	}
@@ -464,15 +464,15 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 	return colTypes, nil
 }
 
-func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName string,
-	colNames []string,
+func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB,
+	tblName string, colNames []string, mungeColNames bool,
 ) (record.Meta, error) {
 	colTypes, err := d.TableColumnTypes(ctx, db, tblName, colNames)
 	if err != nil {
 		return nil, err
 	}
 
-	destCols, _, err := d.RecordMeta(ctx, colTypes)
+	destCols, _, err := d.RecordMeta(ctx, colTypes, mungeColNames)
 	if err != nil {
 		return nil, err
 	}
@@ -521,9 +521,8 @@ func getTableColumnNames(ctx context.Context, db sqlz.DB, tblName string) ([]str
 }
 
 // RecordMeta implements driver.SQLDriver.
-func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (record.Meta,
-	driver.NewRecordFunc, error,
-) {
+func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType, mungeColNames bool,
+) (record.Meta, driver.NewRecordFunc, error) {
 	// The jackc/pgx driver doesn't report nullability (sql.ColumnType)
 	// Apparently this is due to what postgres sends over the wire.
 	// See https://github.com/jackc/pgx/issues/276#issuecomment-526831493
@@ -540,9 +539,12 @@ func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (r
 		ogColNames[i] = colTypeData.Name
 	}
 
-	mungedColNames, err := driver.MungeResultColNames(ctx, ogColNames)
-	if err != nil {
-		return nil, nil, err
+	mungedColNames := ogColNames
+	if mungeColNames {
+		var err error
+		if mungedColNames, err = driver.MungeResultColNames(ctx, ogColNames); err != nil {
+			return nil, nil, err
+		}
 	}
 
 	recMeta := make(record.Meta, len(colTypes))

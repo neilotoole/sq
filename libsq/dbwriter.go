@@ -223,8 +223,9 @@ func (w *DBWriter) addErrs(errs ...error) {
 // need to close those manually.
 func (w *DBWriter) rollback(ctx context.Context, tx *sql.Tx, causeErrs ...error) {
 	// Guaranteed to be at least one causeErr
-	lg.FromContext(ctx).Error("failed to insert to %s.%s: tx rollback due to: %s",
-		w.destDB.Source().Handle, w.destTbl, causeErrs[0])
+	lg.FromContext(ctx).Error("failed to insert data: tx will rollback",
+		lga.Target, w.destDB.Source().Handle+"."+w.destTbl,
+		lga.Err, causeErrs[0])
 
 	rollbackErr := errz.Err(tx.Rollback())
 	lg.WarnIfError(lg.FromContext(ctx), lgm.TxRollback, rollbackErr)
