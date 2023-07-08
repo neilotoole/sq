@@ -596,10 +596,7 @@ func (h *Helper) QuerySLQ(query string, args map[string]string) (*RecordSink, er
 // rows affected, failing on any error. Note that ExecSQL uses the
 // same Database instance as returned by h.Open.
 func (h *Helper) ExecSQL(src *source.Source, query string, args ...any) (affected int64) {
-	dbase := h.Open(src)
-
-	db, err := dbase.DB()
-	require.NoError(h.T, err)
+	db := h.OpenDB(src)
 
 	res, err := db.ExecContext(h.Context, query, args...)
 

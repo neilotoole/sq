@@ -250,9 +250,8 @@ var fixtBytesNil []byte
 func createTypeTestTable(th *testh.Helper, src *source.Source, withData bool) (rowCount int64, actualTblName string) {
 	const canonicalTblName = "type_test"
 	t := th.T
-	dbase := th.Open(src)
-	db, err := dbase.DB()
-	require.NoError(t, err)
+
+	db := th.OpenDB(src)
 	tblDDL, err := os.ReadFile(typeTestTableDDLPath)
 	require.NoError(t, err)
 
@@ -339,7 +338,7 @@ func Test_MSSQLDB_DriverIssue196(t *testing.T) {
 	// Create the demonstration table
 	th := testh.New(t)
 	src := th.Source(sakila.MS)
-	db, _ := th.Open(src).DB()
+	db := th.OpenDB(src)
 	_, err := db.ExecContext(th.Context, createStmt)
 	require.NoError(t, err)
 

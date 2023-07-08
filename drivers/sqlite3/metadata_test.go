@@ -240,11 +240,7 @@ func TestRecordMetadata(t *testing.T) {
 		t.Run(tc.tbl, func(t *testing.T) {
 			t.Parallel()
 
-			th := testh.New(t)
-			src := th.Source(sakila.SL3)
-			dbase := th.Open(src)
-			db, err := dbase.DB()
-			require.NoError(t, err)
+			th, _, drvr, dbase, db := testh.NewWith(t, sakila.SL3)
 
 			query := fmt.Sprintf("SELECT %s FROM %s", strings.Join(tc.colNames, ", "), tc.tbl)
 			rows, err := db.QueryContext(th.Context, query) //nolint:rowserrcheck
@@ -255,7 +251,7 @@ func TestRecordMetadata(t *testing.T) {
 			colTypes, err := rows.ColumnTypes()
 			require.NoError(t, err)
 
-			recMeta, _, err := th.SQLDriverFor(src).RecordMeta(th.Context, colTypes)
+			recMeta, _, err := drvr.RecordMeta(th.Context, colTypes)
 			require.NoError(t, err)
 			require.Equal(t, len(tc.colNames), len(recMeta))
 
@@ -325,9 +321,7 @@ func TestAggregateFuncsQuery(t *testing.T) {
 func BenchmarkDatabase_SourceMetadata(b *testing.B) {
 	const numTables = 1000
 
-	th, src, drvr, dbase, _ := testh.NewWith(b, testsrc.MiscDB)
-	db, _ := dbase.DB()
-
+	th, src, drvr, dbase, db := testh.NewWith(b, testsrc.MiscDB)
 	tblNames := createTypeTestTbls(th, src, numTables, true)
 
 	b.ResetTimer()
@@ -346,8 +340,7 @@ func BenchmarkDatabase_SourceMetadata(b *testing.B) {
 func TestGetTblRowCounts(t *testing.T) {
 	const numTables = 10
 
-	th, src, _, dbase, _ := testh.NewWith(t, testsrc.MiscDB)
-	db, _ := dbase.DB()
+	th, src, _, _, db := testh.NewWith(t, testsrc.MiscDB)
 
 	tblNames := createTypeTestTbls(th, src, numTables, true)
 
@@ -359,8 +352,7 @@ func TestGetTblRowCounts(t *testing.T) {
 func BenchmarkGetTblRowCounts(b *testing.B) {
 	const numTables = 1300
 
-	th, src, drvr, dbase, _ := testh.NewWith(b, testsrc.MiscDB)
-	db, _ := dbase.DB()
+	th, src, drvr, _, db := testh.NewWith(b, testsrc.MiscDB)
 
 	tblNames := createTypeTestTbls(th, src, numTables, true)
 

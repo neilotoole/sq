@@ -127,7 +127,7 @@ func createTypeTestTbls(th *testh.Helper, src *source.Source, nTimes int, withDa
 	const canonicalTblName = "type_test"
 	const insertTpl = "INSERT INTO %s (%s) VALUES %s"
 	t := th.T
-	db, _ := th.Open(src).DB()
+	db := th.OpenDB(src)
 
 	tblDDL, err := os.ReadFile(typeTestTableDDLPath)
 	require.NoError(t, err)
