@@ -133,6 +133,7 @@ func applyCollectionOptions(cmd *cobra.Command, coll *source.Collection) error {
 func RegisterDefaultOpts(reg *options.Registry) {
 	reg.Add(
 		OptFormat,
+		OptErrorFormat,
 		OptDatetimeFormat,
 		OptDatetimeFormatAsNumber,
 		OptDateFormat,

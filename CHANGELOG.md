@@ -12,7 +12,7 @@ Breaking changes are annotated with ☢️.
 ### Added
 
 - [#99]: The [CSV](https://sq.io/docs/drivers/csv) and [XLSX](https://sq.io/docs/drivers/xlsx)
-  drivers can now handle duplicate header column names. For example, given a CSV file:
+  drivers can now handle duplicate header column names in the ingest data. For example, given a CSV file:
   
   ```csv
   actor_id,first_name,actor_id
@@ -27,14 +27,26 @@ Breaking changes are annotated with ☢️.
   ```
   
   The renaming behavior is controlled by a new option `ingest.column.rename`
-  ([docs](https://sq.io/docs/config/#ingestcolumnrename)).
+  ([docs](https://sq.io/docs/config/#ingestcolumnrename)). This new option is
+  effectively the ingest counterpart of the existing output option
+  [`result.column.rename`](https://sq.io/docs/config/#resultcolumnrename)
 
 - [#191]: The [XLSX](https://sq.io/docs/drivers/xlsx) driver now detects header rows, like
   the CSV driver already does.
 
+- If an error occurs when the output format is `text`,
+  a stack trace is printed when the command is executed with `--verbose` (`-v`).
+
+- There's a new option `error.format` that controls error output format independent
+  of the main [`format`](https://sq.io/docs/config/#format) option
+  ([docs](https://sq.io/docs/config/#errorformat)).
+
+
 ### Fixed
 
 - Bug where source-specific config wasn't being propagated.
+
+- Logs now correctly include error stack traces. `IN PROGRESS`
 
 
 ## [v0.40.0] - 2023-07-03

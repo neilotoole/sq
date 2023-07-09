@@ -107,6 +107,8 @@ func NewBaseOpt(key, flag string, short rune, usage, help string, tags ...string
 		flag = key
 	}
 
+	slices.Sort(tags)
+
 	return BaseOpt{
 		key:   key,
 		flag:  flag,

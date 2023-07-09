@@ -72,3 +72,39 @@ func TestIsErrRelationNotExist(t *testing.T) {
 	err = fmt.Errorf("wrap me: %w", err)
 	require.True(t, errz.IsErrNotExist(err))
 }
+
+func TestStack(t *testing.T) {
+	err := errz.New("inside")
+
+	stacks := errz.Stack(err)
+	for _, st := range stacks {
+		t.Logf("%+v", st)
+	}
+}
+
+func TestStack2(t *testing.T) {
+	err := getPrez()
+	stacks := errz.Stack(err)
+	for _, st := range stacks {
+		t.Logf("%+v", st)
+	}
+}
+
+func getBiz() error {
+	err := getRepo()
+	return errz.Wrap(err, "biz")
+}
+
+func getPrez() error {
+	err := getBiz()
+	return errz.Wrap(err, "prez")
+}
+
+func getDB() error {
+	errDB := errors.New("some db error")
+	return errDB
+}
+
+func getRepo() error {
+	return getDB()
+}

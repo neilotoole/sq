@@ -1,9 +1,14 @@
 package cli
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"strings"
+
+	"github.com/neilotoole/sq/libsq/core/errz"
+
+	"github.com/neilotoole/sq/cli/output/excelw"
 
 	"github.com/neilotoole/sq/libsq/core/stringz"
 
@@ -27,7 +32,6 @@ import (
 	"github.com/neilotoole/sq/cli/output/markdownw"
 	"github.com/neilotoole/sq/cli/output/raww"
 	"github.com/neilotoole/sq/cli/output/tablew"
-	"github.com/neilotoole/sq/cli/output/xlsxw"
 	"github.com/neilotoole/sq/cli/output/xmlw"
 	"github.com/neilotoole/sq/cli/output/yamlw"
 	"github.com/spf13/cobra"
@@ -50,6 +54,7 @@ to certain formats, such as "text" or "csv".`,
 		"format",
 		'f',
 		format.Text,
+		nil,
 		"Output format",
 		`Specify the output format. Some formats are only implemented for a subset of
 sq's commands. If the specified format is not available for a particular
@@ -58,6 +63,22 @@ command, sq falls back to "text". Available formats:
   text, csv, tsv, xlsx,
   json, jsona, jsonl,
   markdown, html, xlsx, xml, yaml, raw`,
+	)
+
+	OptErrorFormat = format.NewOpt(
+		"error.format",
+		"",
+		0,
+		format.Text,
+		func(f format.Format) error {
+			if f == format.Text || f == format.JSON {
+				return nil
+			}
+
+			return errz.Errorf("option {error.format} allows only %q or %q", format.Text, format.JSON)
+		},
+		"Error output format",
+		fmt.Sprintf(`The format to output errors in. Allowed formats are %q or %q.`, format.Text, format.JSON),
 	)
 
 	OptVerbose = options.NewBool(
@@ -237,17 +258,21 @@ func newWriters(cmd *cobra.Command, o options.Options, out, errOut io.Writer,
 		Config:   tablew.NewConfigWriter(out2, pr),
 	}
 
+	if OptErrorFormat.Get(o) == format.JSON {
+		// This logic works because the only supported values are text and json.
+		w.Error = jsonw.NewErrorWriter(log, errOut2, pr)
+	}
+
 	// Invoke getFormat to see if the format was specified
 	// via config or flag.
 	fm := getFormat(cmd, o)
 
 	//nolint:exhaustive
 	switch fm {
-	default:
+	case format.JSON:
 		// No format specified, use JSON
 		w.Metadata = jsonw.NewMetadataWriter(out2, pr)
 		w.Source = jsonw.NewSourceWriter(out2, pr)
-		w.Error = jsonw.NewErrorWriter(log, errOut2, pr)
 		w.Version = jsonw.NewVersionWriter(out2, pr)
 		w.Ping = jsonw.NewPingWriter(out2, pr)
 		w.Config = jsonw.NewConfigWriter(out2, pr)
@@ -267,6 +292,7 @@ func newWriters(cmd *cobra.Command, o options.Options, out, errOut io.Writer,
 		w.Metadata = yamlw.NewMetadataWriter(out2, pr)
 		w.Source = yamlw.NewSourceWriter(out2, pr)
 		w.Version = yamlw.NewVersionWriter(out2, pr)
+	default:
 	}
 
 	recwFn := getRecordWriterFunc(fm)
@@ -303,7 +329,8 @@ func getRecordWriterFunc(f format.Format) output.NewRecordWriterFunc {
 	case format.XML:
 		return xmlw.NewRecordWriter
 	case format.XLSX:
-		return xlsxw.NewRecordWriter
+		// return xlsxw.NewRecordWriter
+		return excelw.NewRecordWriter
 	case format.YAML:
 		return yamlw.NewRecordWriter
 	case format.Raw:

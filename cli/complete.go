@@ -248,7 +248,11 @@ func completeOptValue(cmd *cobra.Command, args []string, toComplete string) ([]s
 	case LogLevelOpt:
 		a = []string{"debug", "DEBUG", "info", "INFO", "warn", "WARN", "error", "ERROR"}
 	case format.Opt:
-		a = stringz.Strings(format.All())
+		if opt.Key() == OptErrorFormat.Key() {
+			a = []string{string(format.Text), string(format.JSON)}
+		} else {
+			a = stringz.Strings(format.All())
+		}
 	case options.Bool:
 		a = []string{"true", "false"}
 	default:

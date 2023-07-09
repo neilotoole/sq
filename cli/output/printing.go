@@ -191,54 +191,6 @@ func NewPrinting() *Printing {
 }
 
 // Clone returns a clone of pr.
-func (pr *Printing) CloneOld() *Printing {
-	cp := func(c *color.Color) *color.Color {
-		x := *c
-		return &x
-	}
-
-	return &Printing{
-		monochrome:             pr.monochrome,
-		FlushThreshold:         pr.FlushThreshold,
-		ShowHeader:             pr.ShowHeader,
-		Verbose:                pr.Verbose,
-		Compact:                pr.Compact,
-		Indent:                 pr.Indent,
-		Redact:                 pr.Redact,
-		FormatDatetime:         pr.FormatDatetime,
-		FormatDatetimeAsNumber: pr.FormatDatetimeAsNumber,
-		FormatTime:             pr.FormatTime,
-		FormatTimeAsNumber:     pr.FormatTimeAsNumber,
-		FormatDate:             pr.FormatDate,
-		FormatDateAsNumber:     pr.FormatDateAsNumber,
-		Active:                 cp(pr.Active),
-		Bold:                   cp(pr.Bold),
-		Bool:                   cp(pr.Bool),
-		Bytes:                  cp(pr.Bytes),
-		Datetime:               cp(pr.Datetime),
-		DiffPlus:               cp(pr.DiffPlus),
-		DiffMinus:              cp(pr.DiffMinus),
-		DiffHeader:             cp(pr.DiffHeader),
-		DiffSection:            cp(pr.DiffSection),
-		DiffNormal:             cp(pr.DiffNormal),
-		Duration:               cp(pr.Duration),
-		Error:                  cp(pr.Error),
-		Faint:                  cp(pr.Faint),
-		Handle:                 cp(pr.Handle),
-		Header:                 cp(pr.Header),
-		Hilite:                 cp(pr.Hilite),
-		Key:                    cp(pr.Key),
-		Location:               cp(pr.Location),
-		Null:                   cp(pr.Null),
-		Normal:                 cp(pr.Normal),
-		Number:                 cp(pr.Number),
-		Punc:                   cp(pr.Punc),
-		String:                 cp(pr.String),
-		Success:                cp(pr.Success),
-	}
-}
-
-// Clone returns a clone of pr.
 func (pr *Printing) Clone() *Printing {
 	pr2 := &Printing{
 		monochrome:             pr.monochrome,
