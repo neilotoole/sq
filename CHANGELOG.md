@@ -32,6 +32,11 @@ Breaking changes are annotated with ☢️.
 - [#191]: The [XLSX](https://sq.io/docs/drivers/xlsx) driver now detects header rows, like
   the CSV driver already does.
 
+### Fixed
+
+- Bug where source-specific config wasn't being propagated.
+
+
 ## [v0.40.0] - 2023-07-03
 
 This release features a complete overhaul of the [`join`](https://sq.io/docs/query/#joins)
