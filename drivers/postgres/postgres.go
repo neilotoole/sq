@@ -464,9 +464,9 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 	return colTypes, nil
 }
 
-func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName string,
-	colNames []string,
-) (record.Meta, error) {
+func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName string, colNames []string) (
+	record.Meta, error,
+) {
 	colTypes, err := d.TableColumnTypes(ctx, db, tblName, colNames)
 	if err != nil {
 		return nil, err
@@ -521,8 +521,8 @@ func getTableColumnNames(ctx context.Context, db sqlz.DB, tblName string) ([]str
 }
 
 // RecordMeta implements driver.SQLDriver.
-func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (record.Meta,
-	driver.NewRecordFunc, error,
+func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (
+	record.Meta, driver.NewRecordFunc, error,
 ) {
 	// The jackc/pgx driver doesn't report nullability (sql.ColumnType)
 	// Apparently this is due to what postgres sends over the wire.
@@ -547,8 +547,7 @@ func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (r
 
 	recMeta := make(record.Meta, len(colTypes))
 	for i := range sColTypeData {
-		sColTypeData[i].Name = mungedColNames[i]
-		recMeta[i] = record.NewFieldMeta(sColTypeData[i])
+		recMeta[i] = record.NewFieldMeta(sColTypeData[i], mungedColNames[i])
 	}
 
 	mungeFn := func(vals []any) (record.Record, error) {

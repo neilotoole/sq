@@ -61,7 +61,7 @@ func (w *recordWriter) Open(recMeta record.Meta) error {
 	w.buf.WriteString("  </colgroup>\n  <thead>\n    <tr>\n")
 	for _, field := range recMeta {
 		w.buf.WriteString("      <th scope=\"col\">")
-		w.buf.WriteString(field.Name())
+		w.buf.WriteString(field.MungedName())
 		w.buf.WriteString("</th>\n")
 	}
 	w.buf.WriteString("    </tr>\n  </thead>\n  <tbody>\n")

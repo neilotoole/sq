@@ -9,7 +9,7 @@ var _ options.Opt = Opt{}
 
 // NewOpt returns a new format.Opt instance.
 func NewOpt(key, flag string, short rune, defaultVal Format, usage, help string) Opt {
-	opt := options.NewBaseOpt(key, flag, short, usage, help)
+	opt := options.NewBaseOpt(key, flag, short, usage, help, options.TagOutput)
 	return Opt{BaseOpt: opt, defaultVal: defaultVal}
 }
 

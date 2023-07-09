@@ -44,7 +44,7 @@ func (w *RecordWriter) Open(recMeta record.Meta) error {
 	// Write the header
 	for i, field := range recMeta {
 		w.buf.WriteString("| ")
-		w.buf.WriteString(field.Name() + " ")
+		w.buf.WriteString(field.MungedName() + " ")
 
 		if i == len(recMeta)-1 {
 			w.buf.WriteString("|\n")

@@ -289,8 +289,8 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 }
 
 // RecordMeta implements driver.SQLDriver.
-func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (record.Meta,
-	driver.NewRecordFunc, error,
+func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (
+	record.Meta, driver.NewRecordFunc, error,
 ) {
 	sColTypeData := make([]*record.ColumnTypeData, len(colTypes))
 	ogColNames := make([]string, len(colTypes))
@@ -309,8 +309,7 @@ func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (r
 
 	recMeta := make(record.Meta, len(colTypes))
 	for i := range sColTypeData {
-		sColTypeData[i].Name = mungedColNames[i]
-		recMeta[i] = record.NewFieldMeta(sColTypeData[i])
+		recMeta[i] = record.NewFieldMeta(sColTypeData[i], mungedColNames[i])
 	}
 
 	mungeFn := func(vals []any) (record.Record, error) {
@@ -465,9 +464,9 @@ func (d *driveri) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl str
 	return execer, nil
 }
 
-func (d *driveri) getTableColsMeta(ctx context.Context, db sqlz.DB,
-	tblName string, colNames []string,
-) (record.Meta, error) {
+func (d *driveri) getTableColsMeta(ctx context.Context, db sqlz.DB, tblName string, colNames []string) (
+	record.Meta, error,
+) {
 	// SQLServer has this unusual incantation for its LIMIT equivalent:
 	//
 	// SELECT username, email, address_id FROM person

@@ -93,7 +93,6 @@ func TestCmdInspect_json_yaml(t *testing.T) {
 							tblName := tblName
 							t.Run(tblName, func(t *testing.T) {
 								tutil.SkipShort(t, true)
-								t.Logf("Test: sq inspect .tbl")
 								tr2 := testrun.New(th.Context, t, tr)
 								err := tr2.Exec("inspect", "."+tblName, fmt.Sprintf("--%s", tf.format))
 								require.NoError(t, err)

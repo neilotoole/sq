@@ -106,8 +106,7 @@ func recordMetaFromColumnTypes(ctx context.Context, colTypes []*sql.ColumnType) 
 
 	recMeta := make(record.Meta, len(colTypes))
 	for i := range sColTypeData {
-		sColTypeData[i].Name = mungedColNames[i]
-		recMeta[i] = record.NewFieldMeta(sColTypeData[i])
+		recMeta[i] = record.NewFieldMeta(sColTypeData[i], mungedColNames[i])
 	}
 
 	return recMeta, nil

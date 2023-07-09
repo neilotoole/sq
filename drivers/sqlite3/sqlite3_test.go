@@ -305,5 +305,7 @@ func TestSQLQuery_Whitespace(t *testing.T) {
 	sink, err = th.QuerySQL(src, `SELECT * FROM "actor"`)
 	require.NoError(t, err)
 	require.Equal(t, "first name", sink.RecMeta[1].Name())
+	require.Equal(t, "first name", sink.RecMeta[1].MungedName())
 	require.Equal(t, "last name", sink.RecMeta[2].Name())
+	require.Equal(t, "last name", sink.RecMeta[2].MungedName())
 }

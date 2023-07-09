@@ -6,6 +6,8 @@ import (
 	"io"
 	"sync"
 
+	"github.com/neilotoole/sq/libsq/core/options"
+
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/tealeg/xlsx/v2"
 
@@ -48,6 +50,11 @@ func (d *database) checkIngest(ctx context.Context) error {
 
 // doIngest performs data ingest. It must only be invoked from checkIngest.
 func (d *database) doIngest(ctx context.Context, includeSheetNames []string) error {
+	// Because of the deferred ingest mechanism, we need to ensure that
+	// the context being passed down the stack (in particular to ingestXLSX)
+	// has the source's options on it.
+	ctx = options.NewContext(ctx, options.Merge(options.FromContext(ctx), d.src.Options))
+
 	r, err := d.files.Open(d.src)
 	if err != nil {
 		return err

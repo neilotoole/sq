@@ -43,7 +43,7 @@ func (w *recordWriter) Close() error {
 	}
 
 	w.tbl.tblImpl.SetAutoWrapText(false)
-	header := w.recMeta.Names()
+	header := w.recMeta.MungedNames()
 	w.tbl.tblImpl.SetHeader(header)
 
 	w.tbl.renderAll()

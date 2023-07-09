@@ -72,7 +72,7 @@ func NewRecordMeta(colNames []string, colKinds []kind.Kind) record.Meta {
 			Kind:             knd,
 		}
 
-		recMeta[i] = record.NewFieldMeta(ct)
+		recMeta[i] = record.NewFieldMeta(ct, ct.Name)
 	}
 
 	return recMeta

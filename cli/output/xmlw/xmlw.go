@@ -77,7 +77,7 @@ func (w *recordWriter) Open(recMeta record.Meta) error {
 	w.tplRecStart = "\n" + indent + w.elemColor.Sprintf("<%s>", recElemName)
 	w.tplRecEnd = newline + indent + w.elemColor.Sprintf("</%s>", recElemName)
 
-	for i, name := range recMeta.Names() {
+	for i, name := range recMeta.MungedNames() {
 		elementName := stringz.SanitizeAlphaNumeric(name, '_')
 		w.tplFieldStart[i] = newline + indent + indent + w.elemColor.Sprintf("<%s>", elementName)
 		w.tplFieldEnd[i] = w.elemColor.Sprintf("</%s>", elementName)

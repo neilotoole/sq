@@ -5,8 +5,26 @@ import (
 	"strconv"
 	"time"
 
+	"golang.org/x/exp/slices"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
+)
+
+const (
+	// TagSource indicates that an Opt with this tag applies to source config
+	// (as opposed to applying only to base config). An opt with this tag
+	// typically applies to both base and source config.
+	TagSource = "source"
+
+	// TagTuning indicates that the Opt is related to tuning behavior.
+	TagTuning = "tuning"
+
+	// TagSQL indicates that the Opt is related to SQL interaction.
+	TagSQL = "sql"
+
+	// TagOutput indicates the Opt is related to output/formatting.
+	TagOutput = "output"
 )
 
 // Opt is an option type. Concrete impls exist for various types,
@@ -62,6 +80,9 @@ type Opt interface {
 	// Tags returns any tags on this Opt instance. For example, an Opt might
 	// have tags [source, csv].
 	Tags() []string
+
+	// HasTag returns true if the result of Opt.Tags contains tag.
+	HasTag(tag string) bool
 
 	// Process processes o. The returned Options may be a new instance,
 	// with mutated values. This is typ
@@ -149,6 +170,11 @@ func (op BaseOpt) String() string {
 // Tags implements options.Opt.
 func (op BaseOpt) Tags() []string {
 	return op.tags
+}
+
+// HasTag implements options.Opt.
+func (op BaseOpt) HasTag(tag string) bool {
+	return slices.Contains(op.tags, tag)
 }
 
 // Process implements options.Opt.

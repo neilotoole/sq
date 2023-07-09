@@ -1,5 +1,8 @@
 // Package outputx contains extensions to pkg output, and helpers
 // for implementing output writers.
+//
+// REVISIT: This package is a bit of an odd duck. Can the functionality
+// be moved elsewhere?
 package outputx
 
 import (

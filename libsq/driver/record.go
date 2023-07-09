@@ -630,6 +630,7 @@ The fields available in the template are:
 
   .Name         column name
   .Index        zero-based index of the column in the result set
+  .Alpha        alphabetical index of the column, i.e. e.g. [A, B ... Z, AA, AB]
   .Recurrence   nth recurrence of the colum name in the result set
 
 For a unique column name, e.g. "first_name" above, ".Recurrence" will be 0.
@@ -639,6 +640,7 @@ then 1 for the next instance, and so on.
 The default template renames the columns to:
 
   actor_id, first_name, last_name, last_update, actor_id_1, film_id, last_update_1`,
+	options.TagOutput,
 )
 
 // MungeResultColNames transforms column names, per the template defined
@@ -648,8 +650,8 @@ The default template renames the columns to:
 // has columns [actor_id, first_name, actor_id], the columns might be
 // transformed to [actor_id, first_name, actor_id_1].
 //
-// MungeResultColNames should be invoked by each impl of SQLDriver.RecordMeta
-// before returning the record.Meta.
+// driver.MungeResultColNames should be invoked by each impl
+// of SQLDriver.RecordMeta before returning the record.Meta.
 //
 // See also: MungeIngestColNames.
 func MungeResultColNames(ctx context.Context, ogColNames []string) (colNames []string, err error) {
@@ -672,11 +674,13 @@ func MungeResultColNames(ctx context.Context, ogColNames []string) (colNames []s
 }
 
 func doMungeColNames(tpl *template.Template, ogColNames []string) (colNames []string, err error) {
-	cols := make([]colMungeData, len(ogColNames))
+	cols := make([]columnRenameTemplateData, len(ogColNames))
+
 	for i := range ogColNames {
-		data := colMungeData{
+		data := columnRenameTemplateData{
 			Name:  ogColNames[i],
 			Index: i,
+			Alpha: stringz.GenerateAlphaColName(i, false),
 		}
 
 		for j := 0; j < i; j++ {
@@ -702,14 +706,17 @@ func doMungeColNames(tpl *template.Template, ogColNames []string) (colNames []st
 	return colNames, nil
 }
 
-// colMungeData is the struct passed to the template from OptResultColRename,
-// used in MungeResultColNames.
-type colMungeData struct {
+// columnRenameTemplateData is the struct passed to the template from OptResultColRename
+// and OptIngestColRename. It is used in MungeResultColNames.
+type columnRenameTemplateData struct {
 	// Name is the original column name.
 	Name string
 
 	// Index is the column index.
 	Index int
+
+	// Alpha is the Excel-style alphabetical index, i.e. A, B, ..., Z, AA, AB.
+	Alpha string
 
 	// Recurrence is the count of times this column name has already
 	// appeared in the list of column names. If the column name is unique,

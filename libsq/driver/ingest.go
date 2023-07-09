@@ -20,7 +20,7 @@ var OptIngestHeader = options.NewBool(
 If not set, the ingester *may* try to detect if the input has a header.
 Generally it is best to leave this option unset and allow the ingester
 to detect the header.`,
-	"source",
+	options.TagSource,
 )
 
 // OptIngestSampleSize specifies the number of samples that a detector
@@ -32,10 +32,10 @@ var OptIngestSampleSize = options.NewInt(
 	1024,
 	"Ingest data sample size for type detection",
 	`Specify the number of samples that a detector should take to determine type.`,
-	"source",
+	options.TagSource,
 )
 
-// OptIngestColRename transforms a column name returned from the DB.
+// OptIngestColRename transforms a column name in ingested data.
 var OptIngestColRename = options.NewString(
 	"ingest.column.rename",
 	"",
@@ -44,10 +44,10 @@ var OptIngestColRename = options.NewString(
 	func(s string) error {
 		return stringz.ValidTemplate("ingest.column.rename", s)
 	},
-	"Template to rename result columns",
+	"Template to rename ingest columns",
 	`This Go text template is executed on ingested column names.
-Its primary purpose is to rename duplicate header column names. For
-example, given a CSV file with header row:
+Its primary purpose is to rename duplicate header column names in the
+ingested data. For example, given a CSV file with header row:
 
   actor_id, first_name, actor_id
 
@@ -59,11 +59,13 @@ The fields available in the template are:
 
   .Name         column header name
   .Index        zero-based index of the column in the header row
+  .Alpha        alphabetical index of the column, e.g. [A, B ... Z, AA, AB]
   .Recurrence   nth recurrence of the colum name in the header row
 
 For a unique column name, e.g. "first_name" above, ".Recurrence" will be 0.
 For duplicate column names, ".Recurrence" will be 0 for the first instance,
 then 1 for the next instance, and so on.`,
+	options.TagSource,
 )
 
 // MungeIngestColNames transforms ingest data column names, per the template

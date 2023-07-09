@@ -46,7 +46,7 @@ func (w *recordWriter) Open(recMeta record.Meta) error {
 	if w.header {
 		headerRow := w.sheet.AddRow()
 
-		for _, colName := range w.recMeta.Names() {
+		for _, colName := range w.recMeta.MungedNames() {
 			cell := headerRow.AddCell()
 			cell.SetString(colName)
 		}

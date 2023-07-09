@@ -16,7 +16,6 @@ import (
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"golang.org/x/exp/slices"
 )
 
 // getOptionsFromFlags builds options.Options from flags. In effect, a flag
@@ -181,13 +180,7 @@ func filterOptionsForSrc(typ source.DriverType, opts ...options.Opt) []options.O
 			return true
 		}
 
-		tags := opt.Tags()
-		if len(tags) == 0 {
-			return true
-		}
-
-		// Every source opt has tag "source".
-		if !slices.Contains(tags, "source") {
+		if !opt.HasTag(options.TagSource) {
 			return true
 		}
 

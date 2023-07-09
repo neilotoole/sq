@@ -22,6 +22,7 @@ var OptDiffNumLines = options.NewInt(
 	3,
 	"Generate diffs with <n> lines of context",
 	`Generate diffs with <n> lines of context, where n >= 0.`,
+	options.TagOutput,
 )
 
 var OptDiffDataFormat = format.NewOpt(

@@ -35,7 +35,7 @@ var OptEmptyAsNull = options.NewBool(
 	"Treat ingest empty CSV fields as NULL",
 	`When true, empty CSV fields are treated as NULL. When false,
 the zero value for that type is used, e.g. empty string or 0.`,
-	"source",
+	options.TagSource,
 	"csv",
 )
 
@@ -49,7 +49,7 @@ var OptDelim = options.NewString(
 	"Delimiter for ingest CSV data",
 	`Delimiter to use for CSV files. Default is "comma".
 Possible values are: comma, space, pipe, tab, colon, semi, period.`,
-	"source",
+	options.TagSource,
 	"csv",
 )
 
@@ -119,7 +119,7 @@ func ingestCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFu
 		return errz.Wrap(err, "csv: failed to create dest scratch table")
 	}
 
-	recMeta, err := getRecMeta(ctx, scratchDB, tblDef)
+	recMeta, err := getIngestRecMeta(ctx, scratchDB, tblDef)
 	if err != nil {
 		return err
 	}

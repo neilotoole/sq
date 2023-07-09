@@ -23,8 +23,9 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 )
 
-// recordMetaFromColumnTypes returns recordMetaFromColumnTypes for rows.
-func recordMetaFromColumnTypes(ctx context.Context, colTypes []*sql.ColumnType) (record.Meta, error) {
+// recordMetaFromColumnTypes returns record.Meta for colTypes.
+func recordMetaFromColumnTypes(ctx context.Context, colTypes []*sql.ColumnType,
+) (record.Meta, error) {
 	sColTypeData := make([]*record.ColumnTypeData, len(colTypes))
 	ogColNames := make([]string, len(colTypes))
 	for i, colType := range colTypes {
@@ -52,8 +53,7 @@ func recordMetaFromColumnTypes(ctx context.Context, colTypes []*sql.ColumnType) 
 
 	recMeta := make(record.Meta, len(colTypes))
 	for i := range sColTypeData {
-		sColTypeData[i].Name = mungedColNames[i]
-		recMeta[i] = record.NewFieldMeta(sColTypeData[i])
+		recMeta[i] = record.NewFieldMeta(sColTypeData[i], mungedColNames[i])
 	}
 
 	return recMeta, nil

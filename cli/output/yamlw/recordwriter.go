@@ -47,7 +47,7 @@ type recordWriter struct {
 // Open implements output.RecordWriter.
 func (w *recordWriter) Open(recMeta record.Meta) error {
 	w.recMeta = recMeta
-	w.fieldNames = w.recMeta.Names()
+	w.fieldNames = w.recMeta.MungedNames()
 	w.buf = &bytes.Buffer{}
 	w.enc = goccy.NewEncoder(io.Discard)
 	w.clrs = make([]*color.Color, len(w.recMeta))
@@ -61,14 +61,14 @@ func (w *recordWriter) Open(recMeta record.Meta) error {
 
 	// Generate the field keys and colors
 	for i := range w.recMeta {
-		node, err = w.enc.EncodeToNode(w.recMeta[i].Name())
+		node, err = w.enc.EncodeToNode(w.recMeta[i].MungedName())
 		if err != nil {
 			// Shouldn't happen
-			return errz.Wrapf(err, "yaml: failed to encode field name: %s", w.recMeta[i].Name())
+			return errz.Wrapf(err, "yaml: failed to encode field name: %s", w.recMeta[i].MungedName())
 		}
 		if node == nil {
 			// Also shouldn't happen
-			return errz.Errorf("yaml: failed to encode field name: %s: encoded to nil", w.recMeta[i].Name())
+			return errz.Errorf("yaml: failed to encode field name: %s: encoded to nil", w.recMeta[i].MungedName())
 		}
 
 		w.keys[i] = w.pr.Key.Sprint(node.String())
@@ -148,7 +148,8 @@ func (w *recordWriter) WriteRecords(recs []record.Record) error {
 
 			node, err = w.enc.EncodeToNode(val)
 			if err != nil {
-				return errz.Wrapf(err, "yaml: failed to encode result: [%d].%s", i, w.recMeta[j].Name())
+				return errz.Wrapf(err, "yaml: failed to encode result: [%d].%s",
+					i, w.recMeta[j].MungedName())
 			}
 
 			if node == nil {
