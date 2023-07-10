@@ -72,8 +72,8 @@ func (w *recordWriter) initStyles() error {
 	}
 
 	w.timeStyle, err = w.xfile.NewStyle(&excelize.Style{
-		NumFmt:       21, // 	21: "hh:mm:ss",
-		CustomNumFmt: nil,
+		// NumFmt:       21, // 	21: "hh:mm:ss",
+		CustomNumFmt: lo.ToPtr("hh:mm:ss"),
 	})
 
 	return errw(err)
@@ -110,10 +110,14 @@ func (w *recordWriter) Open(recMeta record.Meta) error {
 
 	for i, field := range recMeta {
 		wantWidth := -1
-		switch field.Kind() {
+		switch field.Kind() { //nolint:exhaustive
 		case kind.Datetime:
 			// TODO: These widths could be configurable?
 			wantWidth = 20
+		case kind.Date:
+			wantWidth = 12
+		case kind.Time:
+			wantWidth = 16
 		case kind.Text:
 			wantWidth = 32
 		default:
@@ -124,7 +128,6 @@ func (w *recordWriter) Open(recMeta record.Meta) error {
 				return err
 			}
 		}
-
 	}
 
 	return nil
@@ -155,10 +158,10 @@ func (w *recordWriter) Close() error {
 }
 
 // WriteRecords implements output.RecordWriter.
-func (w *recordWriter) WriteRecords(recs []record.Record) error {
+func (w *recordWriter) WriteRecords(recs []record.Record) error { //nolint:gocognit
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	//
+
 	for i, rec := range recs {
 		rowi := i + w.nextRow
 

@@ -84,10 +84,13 @@ func TestStack(t *testing.T) {
 
 func TestStack2(t *testing.T) {
 	err := getPrez()
-	stacks := errz.Stack(err)
-	for _, st := range stacks {
-		t.Logf("%+v", st)
-	}
+	//stacks := errz.Stack(err)
+	//for _, st := range stacks {
+	//	t.Logf("%+v", st)
+	//}
+
+	log := slogt.New(t)
+	log.Error("huzzah", lga.Err, err)
 }
 
 func getBiz() error {

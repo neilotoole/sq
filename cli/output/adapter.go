@@ -5,6 +5,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/lg"
+
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/driver"
 
@@ -61,6 +63,8 @@ func (w *RecordWriterAdapter) Open(ctx context.Context, cancelFn context.CancelF
 	recMeta record.Meta,
 ) (chan<- record.Record, <-chan error, error) {
 	w.cancelFn = cancelFn
+
+	lg.FromContext(ctx).Debug("Open RecordWriterAdapter", "fields", recMeta)
 
 	err := w.rw.Open(recMeta)
 	if err != nil {
