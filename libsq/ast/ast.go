@@ -34,7 +34,7 @@ func Parse(log *slog.Logger, input string) (*AST, error) { //nolint:staticcheck
 		return nil, err
 	}
 
-	if err := verify(ast); err != nil {
+	if err = verify(ast); err != nil {
 		return nil, err
 	}
 

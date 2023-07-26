@@ -13,6 +13,8 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/otiai10/copy"
 	"github.com/stretchr/testify/require"
@@ -364,4 +366,26 @@ func SkipWindowsIf(t *testing.T, b bool, format string, args ...any) {
 	if runtime.GOOS == "windows" && b {
 		t.Skipf(format, args...)
 	}
+}
+
+// WriteTemp writes b to a temporary file. The pattern arg
+// is used to generate the file name, per os.CreateTemp.
+// If cleanup is true, the file is deleted on test cleanup.
+func WriteTemp(t *testing.T, pattern string, b []byte, cleanup bool) (fpath string) {
+	f, err := os.CreateTemp("", pattern)
+	require.NoError(t, err)
+
+	written, err := f.Write(b)
+	require.NoError(t, err)
+	fpath = f.Name()
+	require.NoError(t, f.Close())
+
+	t.Logf("Wrote %d bytes to: %s", written, fpath)
+
+	if cleanup {
+		t.Cleanup(func() {
+			assert.NoError(t, os.Remove(fpath))
+		})
+	}
+	return fpath
 }

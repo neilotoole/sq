@@ -19,6 +19,10 @@ const (
 
 	// EmptyDB is the handle of an empty SQLite DB.
 	EmptyDB = "@emptydb"
+
+	// BlobDB is the handle of a SQLite DB containing blobs. For example,
+	// it contains the gopher gif in the "blobs" table.
+	BlobDB = "@blobdb"
 )
 
 const (

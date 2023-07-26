@@ -119,4 +119,7 @@ collection:
     - handle: '@emptydb'
       driver: sqlite3
       location: 'sqlite3://${SQ_ROOT}/drivers/sqlite3/testdata/empty.db'
+    - handle: '@blobdb'
+      driver: sqlite3
+      location: 'sqlite3://${SQ_ROOT}/drivers/sqlite3/testdata/blob.db'
 

@@ -195,7 +195,7 @@ func Stack(err error) []StackTrace {
 			break
 		}
 
-		switch err := err.(type) {
+		switch err := err.(type) { //nolint:errorlint
 		case *withStack:
 			stacks = append(stacks, err.StackTrace())
 		case *fundamental:

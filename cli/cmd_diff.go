@@ -31,8 +31,10 @@ var OptDiffDataFormat = format.NewOpt(
 	'f',
 	format.Text,
 	func(f format.Format) error {
-		switch f {
-		case format.Text, format.CSV, format.TSV, format.JSON, format.JSONA, format.JSONL, format.Markdown, format.HTML, format.XML, format.YAML:
+		switch f { //nolint:exhaustive
+		case format.Text, format.CSV, format.TSV,
+			format.JSON, format.JSONA, format.JSONL,
+			format.Markdown, format.HTML, format.XML, format.YAML:
 			return nil
 		default:
 			return errz.Errorf("diff does not support output format {%s}", f)

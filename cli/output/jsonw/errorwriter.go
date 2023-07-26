@@ -32,9 +32,11 @@ func (w *errorWriter) Error(err error) {
 		errMsg = "nil error"
 	} else {
 		errMsg = err.Error()
-		for _, st := range errz.Stack(err) {
-			s := fmt.Sprintf("%+v", st)
-			stack = append(stack, s)
+		if w.pr.Verbose {
+			for _, st := range errz.Stack(err) {
+				s := fmt.Sprintf("%+v", st)
+				stack = append(stack, s)
+			}
 		}
 	}
 

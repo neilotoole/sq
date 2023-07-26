@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/errz"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 
@@ -29,12 +31,12 @@ func parseSLQ(log *slog.Logger, input string) (*slq.QueryContext, error) {
 	qCtx := p.Query()
 	err := lexErrs.error()
 	if err != nil {
-		return nil, err
+		return nil, errz.Err(err)
 	}
 
 	err = parseErrs.error()
 	if err != nil {
-		return nil, err
+		return nil, errz.Err(err)
 	}
 
 	return qCtx.(*slq.QueryContext), nil

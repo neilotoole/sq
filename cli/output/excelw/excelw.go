@@ -4,6 +4,7 @@
 package excelw
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io"
 	"strconv"
@@ -48,6 +49,17 @@ func NewRecordWriter(out io.Writer, pr *output.Printing) output.RecordWriter {
 // - https://xuri.me/excelize/en/cell.html#SetCellStyle
 // - https://exceljet.net/articles/custom-number-formats
 func (w *recordWriter) initStyles() error {
+	const (
+		// The excelize default is: "m/d/yy hh:mm"
+		datetimeFormat = "yyyy-mm-dd hh:mm"
+
+		// The excelize default is: "mm-dd-yy"
+		dateFormat = "yyyy-mm-dd"
+
+		// The excelize default is: "hh:mm:ss"
+		timeFormat = "hh:mm:ss"
+	)
+
 	var err error
 
 	w.headerStyle, err = w.xfile.NewStyle(&excelize.Style{Font: &excelize.Font{Bold: true}})
@@ -56,27 +68,27 @@ func (w *recordWriter) initStyles() error {
 	}
 
 	w.datetimeStyle, err = w.xfile.NewStyle(&excelize.Style{
-		// NumFmt:       22, // 22: "m/d/yy hh:mm",
-		CustomNumFmt: lo.ToPtr("yyyy-mm-dd hh:mm"),
+		CustomNumFmt: lo.ToPtr(datetimeFormat),
 	})
 	if err != nil {
-		return errw(err)
+		return errz.Wrap(err, "excel: failed to set excel datetime style")
 	}
 
 	w.dateStyle, err = w.xfile.NewStyle(&excelize.Style{
-		// NumFmt:       14, // 	14: "mm-dd-yy",
-		CustomNumFmt: lo.ToPtr("yyyy-mm-dd"),
+		CustomNumFmt: lo.ToPtr(dateFormat),
 	})
 	if err != nil {
-		return errw(err)
+		return errz.Wrap(err, "excel: failed to set excel date style")
 	}
 
 	w.timeStyle, err = w.xfile.NewStyle(&excelize.Style{
-		// NumFmt:       21, // 	21: "hh:mm:ss",
-		CustomNumFmt: lo.ToPtr("hh:mm:ss"),
+		CustomNumFmt: lo.ToPtr(timeFormat),
 	})
+	if err != nil {
+		return errz.Wrap(err, "excel: failed to set excel time style")
+	}
 
-	return errw(err)
+	return nil
 }
 
 // Open implements output.RecordWriter.
@@ -162,8 +174,8 @@ func (w *recordWriter) WriteRecords(recs []record.Record) error { //nolint:gocog
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	for i, rec := range recs {
-		rowi := i + w.nextRow
+	for _, rec := range recs {
+		rowi := w.nextRow
 
 		for j, val := range rec {
 			cellIndex := cellName(j, rowi)
@@ -172,9 +184,13 @@ func (w *recordWriter) WriteRecords(recs []record.Record) error { //nolint:gocog
 			case nil:
 				// Do nothing for nil
 			case []byte:
-				if err := w.xfile.SetCellValue(SheetName, cellIndex, val); err != nil {
-					return errw(err)
+				if len(val) != 0 {
+					b64 := base64.StdEncoding.EncodeToString(val)
+					if err := w.xfile.SetCellValue(SheetName, cellIndex, b64); err != nil {
+						return errw(err)
+					}
 				}
+
 			case string:
 				if err := w.xfile.SetCellStr(SheetName, cellIndex, val); err != nil {
 					return errw(err)
