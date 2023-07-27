@@ -39,14 +39,15 @@ require (
 	go.uber.org/multierr v1.11.0
 	golang.org/x/exp v0.0.0-20230420155640-133eef4313cb
 	golang.org/x/mod v0.11.0
-	golang.org/x/net v0.11.0
+	golang.org/x/net v0.12.0
 	golang.org/x/sync v0.3.0
-	golang.org/x/term v0.9.0
+	golang.org/x/term v0.10.0
 )
 
 require (
 	github.com/Masterminds/sprig/v3 v3.2.3
 	github.com/alessio/shellescape v1.4.1
+	github.com/xuri/excelize/v2 v2.7.1
 )
 
 require (
@@ -78,11 +79,10 @@ require (
 	github.com/shopspring/decimal v1.3.1 // indirect
 	github.com/spf13/cast v1.5.1 // indirect
 	github.com/xuri/efp v0.0.0-20220603152613-6918739fd470 // indirect
-	github.com/xuri/excelize/v2 v2.7.1 // indirect
 	github.com/xuri/nfp v0.0.0-20220409054826-5e722a1d9e22 // indirect
-	golang.org/x/crypto v0.10.0 // indirect
-	golang.org/x/sys v0.9.0 // indirect
-	golang.org/x/text v0.10.0 // indirect
+	golang.org/x/crypto v0.11.0 // indirect
+	golang.org/x/sys v0.10.0 // indirect
+	golang.org/x/text v0.11.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	gopkg.in/djherbis/atime.v1 v1.0.0 // indirect
 	gopkg.in/djherbis/stream.v1 v1.3.1 // indirect
