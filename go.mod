@@ -46,7 +46,7 @@ require (
 
 require (
 	github.com/Masterminds/sprig/v3 v3.2.3
-	github.com/alessio/shellescape v1.4.1
+	github.com/alessio/shellescape v1.4.2
 	github.com/xuri/excelize/v2 v2.7.1
 )
 
