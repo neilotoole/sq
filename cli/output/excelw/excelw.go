@@ -62,29 +62,27 @@ func (w *recordWriter) initStyles() error {
 
 	var err error
 
-	w.headerStyle, err = w.xfile.NewStyle(&excelize.Style{Font: &excelize.Font{Bold: true}})
-	if err != nil {
+	if w.headerStyle, err = w.xfile.NewStyle(&excelize.Style{
+		Font: &excelize.Font{Bold: true},
+	}); err != nil {
 		return errw(err)
 	}
 
-	w.datetimeStyle, err = w.xfile.NewStyle(&excelize.Style{
+	if w.datetimeStyle, err = w.xfile.NewStyle(&excelize.Style{
 		CustomNumFmt: lo.ToPtr(datetimeFormat),
-	})
-	if err != nil {
+	}); err != nil {
 		return errz.Wrap(err, "excel: failed to set excel datetime style")
 	}
 
-	w.dateStyle, err = w.xfile.NewStyle(&excelize.Style{
+	if w.dateStyle, err = w.xfile.NewStyle(&excelize.Style{
 		CustomNumFmt: lo.ToPtr(dateFormat),
-	})
-	if err != nil {
+	}); err != nil {
 		return errz.Wrap(err, "excel: failed to set excel date style")
 	}
 
-	w.timeStyle, err = w.xfile.NewStyle(&excelize.Style{
+	if w.timeStyle, err = w.xfile.NewStyle(&excelize.Style{
 		CustomNumFmt: lo.ToPtr(timeFormat),
-	})
-	if err != nil {
+	}); err != nil {
 		return errz.Wrap(err, "excel: failed to set excel time style")
 	}
 
