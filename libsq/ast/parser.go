@@ -28,6 +28,7 @@ func parseSLQ(log *slog.Logger, input string) (*slq.QueryContext, error) {
 	parseErrs := &antlrErrorListener{name: "parser", log: log}
 	p.AddErrorListener(parseErrs)
 
+	qCtx := p.Query()
 	if err := lexErrs.error(); err != nil {
 		return nil, errz.Err(err)
 	}
@@ -36,7 +37,6 @@ func parseSLQ(log *slog.Logger, input string) (*slq.QueryContext, error) {
 		return nil, errz.Err(err)
 	}
 
-	qCtx := p.Query()
 	return qCtx.(*slq.QueryContext), nil
 }
 
