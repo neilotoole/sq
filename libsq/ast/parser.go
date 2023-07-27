@@ -28,17 +28,15 @@ func parseSLQ(log *slog.Logger, input string) (*slq.QueryContext, error) {
 	parseErrs := &antlrErrorListener{name: "parser", log: log}
 	p.AddErrorListener(parseErrs)
 
+	if err := lexErrs.error(); err != nil {
+		return nil, errz.Err(err)
+	}
+
+	if err := parseErrs.error(); err != nil {
+		return nil, errz.Err(err)
+	}
+
 	qCtx := p.Query()
-	err := lexErrs.error()
-	if err != nil {
-		return nil, errz.Err(err)
-	}
-
-	err = parseErrs.error()
-	if err != nil {
-		return nil, errz.Err(err)
-	}
-
 	return qCtx.(*slq.QueryContext), nil
 }
 
