@@ -195,7 +195,7 @@ func TestErrorWriter(t *testing.T) {
 			name:   "no_pretty",
 			pretty: false,
 			color:  false,
-			want:   "{\"error\": \"err1\"}\n",
+			want:   "{\"error\":\"err1\"}\n",
 		},
 		{
 			name:   "pretty",
@@ -208,7 +208,7 @@ func TestErrorWriter(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 
-		t.Run(t.Name(), func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			buf := &bytes.Buffer{}
 			pr := output.NewPrinting()
 			pr.Compact = !tc.pretty

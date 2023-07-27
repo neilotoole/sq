@@ -7,16 +7,18 @@ import (
 
 var _ options.Opt = Opt{}
 
-// NewOpt returns a new format.Opt instance.
-func NewOpt(key, flag string, short rune, defaultVal Format, usage, help string) Opt {
+// NewOpt returns a new format.Opt instance. If validFn is non-nil, it
+// is executed against possible values.
+func NewOpt(key, flag string, short rune, defaultVal Format, validFn func(Format) error, usage, help string) Opt {
 	opt := options.NewBaseOpt(key, flag, short, usage, help, options.TagOutput)
-	return Opt{BaseOpt: opt, defaultVal: defaultVal}
+	return Opt{BaseOpt: opt, defaultVal: defaultVal, validFn: validFn}
 }
 
 // Opt is an options.Opt for format.Format.
 type Opt struct {
 	options.BaseOpt
 	defaultVal Format
+	validFn    func(Format) error
 }
 
 // Process implements options.Processor. It converts matching
@@ -55,6 +57,12 @@ func (op Opt) Process(o options.Options) (options.Options, error) {
 	var f Format
 	if err := f.UnmarshalText([]byte(s)); err != nil {
 		return nil, errz.Wrapf(err, "option {%s} is not a valid {%T}", key, f)
+	}
+
+	if op.validFn != nil {
+		if err := op.validFn(f); err != nil {
+			return nil, err
+		}
 	}
 
 	o = o.Clone()

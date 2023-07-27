@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/errz"
 
 	"golang.org/x/exp/slog"
 
@@ -25,21 +25,31 @@ func NewErrorWriter(log *slog.Logger, out io.Writer, pr *output.Printing) output
 
 // Error implements output.ErrorWriter.
 func (w *errorWriter) Error(err error) {
-	const tplNoPretty = "{%s: %s}"
-	tplPretty := "{\n" + w.pr.Indent + "%s" + ": %s\n}"
+	var errMsg string
+	var stack []string
 
-	b, err2 := encodeString(nil, err.Error(), false)
-	lg.WarnIfError(w.log, "encode JSON string", err2)
-
-	key := w.pr.Key.Sprint(`"error"`)
-	val := w.pr.Error.Sprint(string(b)) // trim the newline
-
-	var s string
-	if !w.pr.Compact {
-		s = fmt.Sprintf(tplPretty, key, val)
+	if err == nil {
+		errMsg = "nil error"
 	} else {
-		s = fmt.Sprintf(tplNoPretty, key, val)
+		errMsg = err.Error()
+		if w.pr.Verbose {
+			for _, st := range errz.Stack(err) {
+				s := fmt.Sprintf("%+v", st)
+				stack = append(stack, s)
+			}
+		}
 	}
 
-	fmt.Fprintln(w.out, s)
+	t := struct {
+		Error string   `json:"error"`
+		Stack []string `json:"stack,omitempty"`
+	}{
+		Error: errMsg,
+		Stack: stack,
+	}
+
+	pr := w.pr.Clone()
+	pr.String = pr.Error
+
+	_ = writeJSON(w.out, pr, t)
 }

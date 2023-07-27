@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"strconv"
 
+	"golang.org/x/exp/slog"
+
 	"github.com/neilotoole/sq/libsq/core/kind"
 )
 
@@ -57,8 +59,15 @@ func (fm *FieldMeta) String() string {
 		nullMsg = strconv.FormatBool(fm.data.Nullable)
 	}
 
-	return fmt.Sprintf("{name:%s, munged_name: %s kind:%s, dbtype:%s, scan:%s, nullable:%s}",
-		fm.data.Name, fm.mungedName, fm.data.Kind.String(), fm.data.DatabaseTypeName, fm.ScanType().String(), nullMsg)
+	return fmt.Sprintf(
+		"%s|%s|%s|%s|%s|%s",
+		fm.data.Name,
+		fm.mungedName,
+		fm.data.Kind.String(),
+		fm.data.DatabaseTypeName,
+		fm.ScanType().String(),
+		nullMsg,
+	)
 }
 
 // Name is documented by sql.ColumnType.Name.
@@ -169,6 +178,20 @@ func (rm Meta) ScanTypes() []reflect.Type {
 	}
 
 	return scanTypes
+}
+
+// LogValue implements slog.LogValuer.
+func (rm Meta) LogValue() slog.Value {
+	if len(rm) == 0 {
+		return slog.Value{}
+	}
+
+	a := make([]string, len(rm))
+	for i := range rm {
+		a[i] = rm[i].String()
+	}
+
+	return slog.AnyValue(a)
 }
 
 // ColumnTypeData contains the same data as sql.ColumnType

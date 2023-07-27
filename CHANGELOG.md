@@ -12,7 +12,8 @@ Breaking changes are annotated with ☢️.
 ### Added
 
 - [#99]: The [CSV](https://sq.io/docs/drivers/csv) and [XLSX](https://sq.io/docs/drivers/xlsx)
-  drivers can now handle duplicate header column names. For example, given a CSV file:
+  drivers can now handle duplicate header column names in the ingest data.
+  For example, given a CSV file:
   
   ```csv
   actor_id,first_name,actor_id
@@ -27,14 +28,58 @@ Breaking changes are annotated with ☢️.
   ```
   
   The renaming behavior is controlled by a new option `ingest.column.rename`
-  ([docs](https://sq.io/docs/config/#ingestcolumnrename)).
+  ([docs](https://sq.io/docs/config/#ingestcolumnrename)). This new option is
+  effectively the ingest counterpart of the existing output option
+  [`result.column.rename`](https://sq.io/docs/config/#resultcolumnrename).
 
 - [#191]: The [XLSX](https://sq.io/docs/drivers/xlsx) driver now detects header rows, like
-  the CSV driver already does.
+  the CSV driver already does. Thus, you now typically don't need to specify
+  the `--ingest.header` flag for Excel files. However, the option remains available
+  in case `sq` can't figure it out for a particular file. 
+
+- If an error occurs when the output format is `text`,
+  a stack trace is printed to `stderr` when the command is executed with `--verbose` (`-v`).
+
+- There's a new option `error.format` that controls error output format independent
+  of the main [`format`](https://sq.io/docs/config/#format) option
+  ([docs](https://sq.io/docs/config/#errorformat)). The `error.format` value
+  must be one of `text` or `json`.
+
+## Changed
+
+- ☢️ The XLSX writer now formats dates differently. Previously
+  the format was `11/9/89`, and now it is `1989-11-09`. The same applies
+  to datetimes, e.g. `11/9/1989  00:00:00` becomes `1989-11-09 00:00`.
+  
+  This change is made to reduce ambiguity and confusion.
+  Apparently Microsoft Excel itself will pick up
+  the date format from OS system settings. However, `sq` uses
+  a [library](https://github.com/qax-os/excelize)
+  to interact with Excel files, and that library chooses a particular format
+  by default (`11/9/89`). There are several paths we could take here:
+  
+  1. Interrogate the OS, and use the OS locale date format.
+  2. Stick with the library default `11/9/89`.
+  3. Pick a default other than `11/9/89`.
+  
+  We have chosen the third option. The first option (locale-dependent)
+  is excluded because, as a general rule, we want `sq` to produce the same 
+  output regardless of locale/system settings. We exclude the second option
+  because month/day confuses most of the world. Thus, we're left with picking a
+  default, and `1989-11-09` is the format used in
+  [RFC3339](https://datatracker.ietf.org/doc/html/rfc3339) and friends.
+  
+  Whether this is the correct (standard?) approach is still unclear, and
+  feedback is welcome. Ultimately this may become a config option.
+
+- The XLSX writer now outputs header rows in **bold text**.
+
+- ☢️ The XLSX writer now outputs blob (`bytes`) cell data as a base64-encoded string,
+  instead of raw bytes.
 
 ### Fixed
 
-- Bug where source-specific config wasn't being propagated.
+- Fixed bug where source-specific config wasn't being propagated.
 
 
 ## [v0.40.0] - 2023-07-03

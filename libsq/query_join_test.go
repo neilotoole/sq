@@ -145,7 +145,7 @@ func TestQuery_join_multi_source(t *testing.T) {
 			wantRecCount:  2,
 			repeatReplace: innerJoins,
 			sinkFns: []SinkTestFunc{
-				assertSinkColNames(colsJoinStoreAddress...),
+				assertSinkColMungedNames(colsJoinStoreAddress...),
 			},
 		},
 		{
@@ -158,7 +158,7 @@ func TestQuery_join_multi_source(t *testing.T) {
 			wantRecCount:  2,
 			repeatReplace: innerJoins,
 			sinkFns: []SinkTestFunc{
-				assertSinkColNames(colsJoinStoreAddress...),
+				assertSinkColMungedNames(colsJoinStoreAddress...),
 			},
 		},
 		{
@@ -170,7 +170,7 @@ func TestQuery_join_multi_source(t *testing.T) {
 			wantRecCount:  2,
 			repeatReplace: innerJoins,
 			sinkFns: []SinkTestFunc{
-				assertSinkColNames(colsJoinStoreAddress...),
+				assertSinkColMungedNames(colsJoinStoreAddress...),
 			},
 		},
 		{
@@ -182,7 +182,7 @@ func TestQuery_join_multi_source(t *testing.T) {
 			wantRecCount:  sakila.TblFilmActorCount,
 			repeatReplace: innerJoins,
 			sinkFns: []SinkTestFunc{
-				assertSinkColNames("first_name", "last_name", "title"),
+				assertSinkColMungedNames("first_name", "last_name", "title"),
 			},
 		},
 		{
@@ -196,7 +196,7 @@ func TestQuery_join_multi_source(t *testing.T) {
 			wantRecCount:  sakila.TblFilmActorCount,
 			repeatReplace: innerJoins,
 			sinkFns: []SinkTestFunc{
-				assertSinkColNames("first_name", "last_name", "title"),
+				assertSinkColMungedNames("first_name", "last_name", "title"),
 			},
 		},
 		{
@@ -210,7 +210,7 @@ func TestQuery_join_multi_source(t *testing.T) {
 			wantRecCount:  sakila.TblFilmActorCount,
 			repeatReplace: innerJoins,
 			sinkFns: []SinkTestFunc{
-				assertSinkColNames(colsJoinActorFilmActorFilm...),
+				assertSinkColMungedNames(colsJoinActorFilmActorFilm...),
 			},
 		},
 		{
@@ -222,7 +222,7 @@ func TestQuery_join_multi_source(t *testing.T) {
 			),
 			wantRecCount: sakila.TblFilmActorCount,
 			sinkFns: []SinkTestFunc{
-				assertSinkColNames("first_name", "last_name", "title"),
+				assertSinkColMungedNames("first_name", "last_name", "title"),
 			},
 		},
 	}
@@ -248,7 +248,7 @@ func TestQuery_join_others(t *testing.T) {
 			wantRecCount:  sakila.TblFilmActorCount,
 			repeatReplace: []string{string(jointype.Left), jointype.LeftAlias},
 			sinkFns: []SinkTestFunc{
-				assertSinkColNames(colsJoinActorFilmActor...),
+				assertSinkColMungedNames(colsJoinActorFilmActor...),
 			},
 		},
 		{
@@ -259,7 +259,7 @@ func TestQuery_join_others(t *testing.T) {
 			wantRecCount:  sakila.TblFilmActorCount,
 			repeatReplace: []string{string(jointype.LeftOuter), jointype.LeftOuterAlias},
 			sinkFns: []SinkTestFunc{
-				assertSinkColNames(colsJoinActorFilmActor...),
+				assertSinkColMungedNames(colsJoinActorFilmActor...),
 			},
 		},
 		{
@@ -270,7 +270,7 @@ func TestQuery_join_others(t *testing.T) {
 			wantRecCount:  sakila.TblFilmActorCount,
 			repeatReplace: []string{string(jointype.Right), jointype.RightAlias},
 			sinkFns: []SinkTestFunc{
-				assertSinkColNames(colsJoinActorFilmActor...),
+				assertSinkColMungedNames(colsJoinActorFilmActor...),
 			},
 		},
 		{
@@ -281,7 +281,7 @@ func TestQuery_join_others(t *testing.T) {
 			wantRecCount:  sakila.TblFilmActorCount,
 			repeatReplace: []string{string(jointype.RightOuter), jointype.RightOuterAlias},
 			sinkFns: []SinkTestFunc{
-				assertSinkColNames(colsJoinActorFilmActor...),
+				assertSinkColMungedNames(colsJoinActorFilmActor...),
 			},
 		},
 		{
@@ -293,7 +293,7 @@ func TestQuery_join_others(t *testing.T) {
 			wantRecCount:  sakila.TblFilmActorCount,
 			repeatReplace: []string{string(jointype.FullOuter), jointype.FullOuterAlias},
 			sinkFns: []SinkTestFunc{
-				assertSinkColNames(colsJoinActorFilmActor...),
+				assertSinkColMungedNames(colsJoinActorFilmActor...),
 			},
 		},
 		{
@@ -326,7 +326,7 @@ func TestQuery_join_others(t *testing.T) {
 			wantRecCount:  10,
 			repeatReplace: []string{string(jointype.Cross), jointype.CrossAlias},
 			sinkFns: []SinkTestFunc{
-				assertSinkColNames(colsJoinActorFilmActor...),
+				assertSinkColMungedNames(colsJoinActorFilmActor...),
 			},
 		},
 	}

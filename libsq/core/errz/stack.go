@@ -1,6 +1,7 @@
 package errz
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"path"
@@ -176,4 +177,34 @@ func funcname(name string) string {
 	name = name[i+1:]
 	i = strings.Index(name, ".")
 	return name[i+1:]
+}
+
+// Stack returns any stack trace(s) attached to err. If err
+// has been wrapped more than once, there may be multiple stack traces.
+// Generally speaking, the final stack trace is the most interesting.
+// The returned StackTrace can be printed using fmt "%+v".
+func Stack(err error) []StackTrace {
+	if err == nil {
+		return nil
+	}
+
+	var stacks []StackTrace
+
+	for {
+		if err == nil {
+			break
+		}
+
+		switch err := err.(type) { //nolint:errorlint
+		case *withStack:
+			stacks = append(stacks, err.StackTrace())
+		case *fundamental:
+			stacks = append(stacks, err.StackTrace())
+		default:
+		}
+
+		err = errors.Unwrap(err)
+	}
+
+	return stacks
 }

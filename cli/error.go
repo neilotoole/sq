@@ -53,8 +53,7 @@ func printError(ctx context.Context, ru *run.Run, err error) {
 			cmdName = cmd.Name()
 		}
 
-		lg.Error(log, "nil command", err, lga.Cmd, cmdName)
-
+		log.Error("EXECUTION FAILED", lga.Err, err, lga.Cmd, cmdName)
 		wrtrs := ru.Writers
 		if wrtrs != nil && wrtrs.Error != nil {
 			// If we have an errorWriter, we print to it

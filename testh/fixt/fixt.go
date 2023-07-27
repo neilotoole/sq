@@ -92,4 +92,8 @@ const (
 	GopherFilename = "gopher.gif"
 	GopherPath     = "testh/fixt/testdata/gopher.gif"
 	GopherSize     = 1788 // filesize in bytes
+
+	// BlobDBPath is the path to blob.db, which contains the gopher image
+	// in the "blobs" table.
+	BlobDBPath = "drivers/sqlite3/testdata/blob.db"
 )
