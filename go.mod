@@ -13,7 +13,7 @@ require (
 	github.com/goccy/go-yaml v1.11.0
 	github.com/google/uuid v1.3.0
 	github.com/h2non/filetype v1.1.3
-	github.com/jackc/pgx/v5 v5.4.1
+	github.com/jackc/pgx/v5 v5.4.2
 	github.com/mattn/go-colorable v0.1.13
 	github.com/mattn/go-isatty v0.0.19
 	github.com/mattn/go-runewidth v0.0.14
