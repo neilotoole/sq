@@ -16,7 +16,7 @@ require (
 	github.com/jackc/pgx/v5 v5.4.2
 	github.com/mattn/go-colorable v0.1.13
 	github.com/mattn/go-isatty v0.0.19
-	github.com/mattn/go-runewidth v0.0.14
+	github.com/mattn/go-runewidth v0.0.15
 	github.com/mattn/go-sqlite3 v1.14.17
 	github.com/microsoft/go-mssqldb v1.4.0
 	github.com/mitchellh/go-wordwrap v1.0.1
