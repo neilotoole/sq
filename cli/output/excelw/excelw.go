@@ -11,8 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/samber/lo"
-
 	"github.com/neilotoole/sq/libsq/core/kind"
 
 	"github.com/xuri/excelize/v2"
@@ -48,18 +46,10 @@ func NewRecordWriter(out io.Writer, pr *output.Printing) output.RecordWriter {
 //
 // - https://xuri.me/excelize/en/cell.html#SetCellStyle
 // - https://exceljet.net/articles/custom-number-formats
+// - https://support.microsoft.com/en-gb/office/format-numbers-as-dates-or-times-418bd3fe-0577-47c8-8caa-b4d30c528309#bm2
+//
+//nolint:lll
 func (w *recordWriter) initStyles() error {
-	const (
-		// The excelize default is: "m/d/yy hh:mm"
-		datetimeFormat = "yyyy-mm-dd hh:mm"
-
-		// The excelize default is: "mm-dd-yy"
-		dateFormat = "yyyy-mm-dd"
-
-		// The excelize default is: "hh:mm:ss"
-		timeFormat = "hh:mm:ss"
-	)
-
 	var err error
 
 	if w.headerStyle, err = w.xfile.NewStyle(&excelize.Style{
@@ -68,22 +58,28 @@ func (w *recordWriter) initStyles() error {
 		return errw(err)
 	}
 
-	if w.datetimeStyle, err = w.xfile.NewStyle(&excelize.Style{
-		CustomNumFmt: lo.ToPtr(datetimeFormat),
-	}); err != nil {
-		return errz.Wrap(err, "excel: failed to set excel datetime style")
+	if w.pr.ExcelDatetimeFormat != "" {
+		if w.datetimeStyle, err = w.xfile.NewStyle(&excelize.Style{
+			CustomNumFmt: &w.pr.ExcelDatetimeFormat,
+		}); err != nil {
+			return errz.Wrap(err, "excel: failed to set excel datetime style")
+		}
 	}
 
-	if w.dateStyle, err = w.xfile.NewStyle(&excelize.Style{
-		CustomNumFmt: lo.ToPtr(dateFormat),
-	}); err != nil {
-		return errz.Wrap(err, "excel: failed to set excel date style")
+	if w.pr.ExcelDateFormat != "" {
+		if w.dateStyle, err = w.xfile.NewStyle(&excelize.Style{
+			CustomNumFmt: &w.pr.ExcelDateFormat,
+		}); err != nil {
+			return errz.Wrap(err, "excel: failed to set excel date style")
+		}
 	}
 
-	if w.timeStyle, err = w.xfile.NewStyle(&excelize.Style{
-		CustomNumFmt: lo.ToPtr(timeFormat),
-	}); err != nil {
-		return errz.Wrap(err, "excel: failed to set excel time style")
+	if w.pr.ExcelTimeFormat != "" {
+		if w.timeStyle, err = w.xfile.NewStyle(&excelize.Style{
+			CustomNumFmt: &w.pr.ExcelTimeFormat,
+		}); err != nil {
+			return errz.Wrap(err, "excel: failed to set excel time style")
+		}
 	}
 
 	return nil
@@ -190,6 +186,25 @@ func (w *recordWriter) WriteRecords(recs []record.Record) error { //nolint:gocog
 				}
 
 			case string:
+				// It seems that kind.Time values are supplied as string (at least
+				// by some backend database drivers). However, Excel won't honor the
+				// time format style unless the cell value is set as a float.
+				if w.recMeta[j].Kind() == kind.Time {
+					if timeFloat, err := timeOnlyStringToExcelFloat(val); err == nil {
+						if err = w.xfile.SetCellStyle(SheetName, cellIndex, cellIndex, w.timeStyle); err != nil {
+							return errw(err)
+						}
+
+						if err = w.xfile.SetCellValue(SheetName, cellIndex, timeFloat); err != nil {
+							return errw(err)
+						}
+
+						break
+					}
+
+					// If there's an error, just continue below, using a plain ol' string.
+				}
+
 				if err := w.xfile.SetCellStr(SheetName, cellIndex, val); err != nil {
 					return errw(err)
 				}
@@ -235,6 +250,19 @@ func (w *recordWriter) WriteRecords(recs []record.Record) error { //nolint:gocog
 						return errw(err)
 					}
 
+					// Excel prefers that time-only values be represented as float, so
+					// we try that first.
+					if timeFloat, err := timeOnlyToExcelFloat(val); err == nil {
+						if err = w.xfile.SetCellValue(SheetName, cellIndex, timeFloat); err != nil {
+							return errw(err)
+						}
+
+						// Success, we can break out of the switch.
+						break
+					}
+
+					// No success with the float approach. Just default to setting
+					// the time.Time value, and let Excel figure it out.
 					if err := w.xfile.SetCellValue(SheetName, cellIndex, val); err != nil {
 						return errw(err)
 					}

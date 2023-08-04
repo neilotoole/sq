@@ -9,6 +9,10 @@ import (
 	"os"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
+	"github.com/neilotoole/sq/cli/testrun"
+
 	"github.com/neilotoole/sq/testh/fixt"
 
 	"github.com/neilotoole/sq/libsq/source"
@@ -138,4 +142,44 @@ func requireEqualXLSX(t *testing.T, data1, data2 []byte) {
 			require.Equal(t, row1, row2, "sheet {%s}: row[%d} not equal", sheetName, i)
 		}
 	}
+}
+
+func readCellValue(t *testing.T, fpath, sheet, cell string) string {
+	xl, err := excelize.OpenFile(fpath)
+	require.NoError(t, err)
+
+	val, err := xl.GetCellValue(sheet, cell)
+	require.NoError(t, err)
+
+	return val
+}
+
+func TestOptDatetimeFormats(t *testing.T) {
+	const query = `SELECT
+'1989-11-09T16:07:01Z'::timestamp AS date_time,
+'1989-11-09T16:07:01Z'::date AS date_only,
+('1989-11-09T16:07:01Z'::timestamp)::time AS time_only`
+
+	th := testh.New(t)
+	src := th.Source(sakila.Pg)
+
+	tr := testrun.New(th.Context, t, nil).Hush().Add(*src)
+	require.NoError(t, tr.Exec("config", "set", excelw.OptDatetimeFormat.Key(), "yy/mm/dd - hh:mm:ss"))
+	tr = testrun.New(th.Context, t, tr)
+	require.NoError(t, tr.Exec("config", "set", excelw.OptDateFormat.Key(), "yy/mmm/dd"))
+	tr = testrun.New(th.Context, t, tr)
+	require.NoError(t, tr.Exec("config", "set", excelw.OptTimeFormat.Key(), "h:mm am/pm"))
+
+	tr = testrun.New(th.Context, t, tr)
+	require.NoError(t, tr.Exec("sql", "--xlsx", query))
+
+	fpath := tutil.WriteTemp(t, "*.xlsx", tr.Out.Bytes(), true)
+
+	gotDatetime := readCellValue(t, fpath, source.MonotableName, "A2")
+	gotDate := readCellValue(t, fpath, source.MonotableName, "B2")
+	gotTime := readCellValue(t, fpath, source.MonotableName, "C2")
+
+	assert.Equal(t, "89/11/09 - 16:07:01", gotDatetime)
+	assert.Equal(t, "89/Nov/09", gotDate)
+	assert.Equal(t, "4:07 pm", gotTime)
 }

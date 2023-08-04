@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/cli/output/excelw"
+
 	"github.com/neilotoole/sq/cli/run"
 
 	"github.com/neilotoole/sq/libsq/core/timez"
@@ -140,6 +142,9 @@ func RegisterDefaultOpts(reg *options.Registry) {
 		OptDateFormatAsNumber,
 		OptTimeFormat,
 		OptTimeFormatAsNumber,
+		excelw.OptDatetimeFormat,
+		excelw.OptDateFormat,
+		excelw.OptTimeFormat,
 		driver.OptResultColRename,
 		OptVerbose,
 		OptPrintHeader,

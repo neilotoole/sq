@@ -358,6 +358,10 @@ func getPrinting(cmd *cobra.Command, opts options.Options, out, errOut io.Writer
 	pr.FormatDate = timez.FormatFunc(OptDateFormat.Get(opts))
 	pr.FormatDateAsNumber = OptDateFormatAsNumber.Get(opts)
 
+	pr.ExcelDatetimeFormat = excelw.OptDatetimeFormat.Get(opts)
+	pr.ExcelDateFormat = excelw.OptDateFormat.Get(opts)
+	pr.ExcelTimeFormat = excelw.OptTimeFormat.Get(opts)
+
 	pr.Verbose = OptVerbose.Get(opts)
 	pr.FlushThreshold = OptTuningFlushThreshold.Get(opts)
 	pr.Compact = OptCompact.Get(opts)

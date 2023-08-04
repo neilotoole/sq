@@ -70,6 +70,18 @@ type Printing struct {
 	// See cli.OptDateFormatAsNumber.
 	FormatDateAsNumber bool
 
+	// ExcelDatetimeFormat is the format string for datetime values.
+	// See excelw.OptDatetimeFormat.
+	ExcelDatetimeFormat string
+
+	// ExcelDateFormat is the format string for date values.
+	// See excelw.OptDateFormat.
+	ExcelDateFormat string
+
+	// ExcelTimeFormat is the format string for time values.
+	// See excelw.OptTimeFormat.
+	ExcelTimeFormat string
+
 	// Active is the color for an active handle (or group, etc).
 	Active *color.Color
 
@@ -242,6 +254,7 @@ func (pr *Printing) LogValue() slog.Value {
 		return slog.Value{}
 	}
 
+	// REVISIT: Should we output all Printing values here?
 	return slog.GroupValue(
 		slog.Bool("verbose", pr.Verbose),
 		slog.Bool("header", pr.ShowHeader),
