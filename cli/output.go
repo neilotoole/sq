@@ -55,7 +55,7 @@ to certain formats, such as "text" or "csv".`,
 		'f',
 		format.Text,
 		nil,
-		"Output format",
+		"Specify output format",
 		`Specify the output format. Some formats are only implemented for a subset of
 sq's commands. If the specified format is not available for a particular
 command, sq falls back to "text". Available formats:
@@ -357,6 +357,10 @@ func getPrinting(cmd *cobra.Command, opts options.Options, out, errOut io.Writer
 	pr.FormatTimeAsNumber = OptTimeFormatAsNumber.Get(opts)
 	pr.FormatDate = timez.FormatFunc(OptDateFormat.Get(opts))
 	pr.FormatDateAsNumber = OptDateFormatAsNumber.Get(opts)
+
+	pr.ExcelDatetimeFormat = excelw.OptDatetimeFormat.Get(opts)
+	pr.ExcelDateFormat = excelw.OptDateFormat.Get(opts)
+	pr.ExcelTimeFormat = excelw.OptTimeFormat.Get(opts)
 
 	pr.Verbose = OptVerbose.Get(opts)
 	pr.FlushThreshold = OptTuningFlushThreshold.Get(opts)

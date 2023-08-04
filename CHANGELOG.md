@@ -35,25 +35,32 @@ Breaking changes are annotated with ☢️.
 - [#191]: The [XLSX](https://sq.io/docs/drivers/xlsx) driver now detects header rows, like
   the CSV driver already does. Thus, you now typically don't need to specify
   the `--ingest.header` flag for Excel files. However, the option remains available
-  in case `sq` can't figure it out for a particular file. 
-
-- If an error occurs when the output format is `text`,
-  a stack trace is printed to `stderr` when the command is executed with `--verbose` (`-v`).
+  in case `sq` can't figure it out for a particular file.
 
 - There's a new option `error.format` that controls error output format independent
   of the main [`format`](https://sq.io/docs/config/#format) option
   ([docs](https://sq.io/docs/config/#errorformat)). The `error.format` value
   must be one of `text` or `json`.
 
+- The Excel writer has three new config options for controlling date/time output.
+  Note that these format strings are distinct from [`format.datetime`](https://sq.io/docs/config/#formatdatetime)
+  and friends, because Excel has its own format string mechanism.
+  - [`format.excel.datetime`](https://sq.io/docs/config/#formatexceldatetime): Controls datetime format, e.g. `2023-08-03 16:07:01`.
+  - [`format.excel.date`](https://sq.io/docs/config/#formatexceldatetime): Controls date-only format, e.g. `2023-08-03`.
+  - [`format.excel.time`](https://sq.io/docs/config/#formatexceldatetime): Controls time-only format, e.g. `4:07 pm`.
+
+- If an error occurs when the output format is `text`, a stack trace is printed
+  to `stderr` when the command is executed with `--verbose` (`-v`).
+
 ## Changed
 
-- ☢️ The XLSX writer now formats dates differently. Previously
+- ☢️ The default Excel date format has changed. Previously
   the format was `11/9/89`, and now it is `1989-11-09`. The same applies
   to datetimes, e.g. `11/9/1989  00:00:00` becomes `1989-11-09 00:00`.
   
   This change is made to reduce ambiguity and confusion.
   Apparently Microsoft Excel itself will pick up
-  the date format from OS system settings. However, `sq` uses
+  the date format from OS system settings? However, `sq` uses
   a [library](https://github.com/qax-os/excelize)
   to interact with Excel files, and that library chooses a particular format
   by default (`11/9/89`). There are several paths we could take here:
@@ -70,7 +77,9 @@ Breaking changes are annotated with ☢️.
   [RFC3339](https://datatracker.ietf.org/doc/html/rfc3339) and friends.
   
   Whether this is the correct (standard?) approach is still unclear, and
-  feedback is welcome. Ultimately this may become a config option.
+  feedback is welcome. However, the user can make use of the new config options
+  ([`format.excel.datetime`](https://sq.io/docs/config/#formatexceldatetime) etc.)
+  to customize the format as they see fit.
 
 - The XLSX writer now outputs header rows in **bold text**.
 

@@ -59,7 +59,7 @@ func completeStrings(max int, a ...string) completionFunc { //nolint:unparam
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		return a, cobra.ShellCompDirectiveNoFileComp
+		return a, cobra.ShellCompDirectiveNoFileComp & cobra.ShellCompDirectiveKeepOrder
 	}
 }
 
