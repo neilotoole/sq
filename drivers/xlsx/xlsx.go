@@ -3,7 +3,8 @@ package xlsx
 
 import (
 	"context"
-	"io"
+
+	"github.com/xuri/excelize/v2"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
@@ -12,8 +13,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"golang.org/x/exp/slog"
-
-	"github.com/tealeg/xlsx/v2"
 
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -102,23 +101,22 @@ func (d *Driver) ValidateSource(src *source.Source) (*source.Source, error) {
 }
 
 // Ping implements driver.Driver.
-func (d *Driver) Ping(_ context.Context, src *source.Source) (err error) {
+func (d *Driver) Ping(ctx context.Context, src *source.Source) (err error) {
+	log := lg.FromContext(ctx)
+
 	r, err := d.files.Open(src)
 	if err != nil {
 		return err
 	}
 
-	defer lg.WarnIfCloseError(d.log, lgm.CloseFileReader, r)
+	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
 
-	b, err := io.ReadAll(r)
+	f, err := excelize.OpenReader(r)
 	if err != nil {
 		return errz.Err(err)
 	}
 
-	_, err = xlsx.OpenBinaryWithRowLimit(b, 1)
-	if err != nil {
-		return errz.Err(err)
-	}
+	lg.WarnIfCloseError(log, lgm.CloseFileReader, f)
 
 	return nil
 }

@@ -3,16 +3,14 @@ package xlsx
 import (
 	"context"
 	"database/sql"
-	"io"
 	"sync"
+
+	"github.com/xuri/excelize/v2"
 
 	"github.com/neilotoole/sq/libsq/core/options"
 
-	"github.com/neilotoole/sq/libsq/core/lg"
-	"github.com/tealeg/xlsx/v2"
-
 	"github.com/neilotoole/sq/libsq/core/cleanup"
-	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/driver"
@@ -23,7 +21,9 @@ import (
 // database implements driver.Database. It implements a deferred ingest
 // of the Excel data.
 type database struct {
-	log       *slog.Logger
+	// REVISIT: do we need database.log, or can we use lg.FromContext?
+	log *slog.Logger
+
 	src       *source.Source
 	files     *source.Files
 	scratchDB driver.Database
@@ -50,6 +50,8 @@ func (d *database) checkIngest(ctx context.Context) error {
 
 // doIngest performs data ingest. It must only be invoked from checkIngest.
 func (d *database) doIngest(ctx context.Context, includeSheetNames []string) error {
+	log := lg.FromContext(ctx)
+
 	// Because of the deferred ingest mechanism, we need to ensure that
 	// the context being passed down the stack (in particular to ingestXLSX)
 	// has the source's options on it.
@@ -61,15 +63,12 @@ func (d *database) doIngest(ctx context.Context, includeSheetNames []string) err
 	}
 	defer lg.WarnIfCloseError(d.log, lgm.CloseFileReader, r)
 
-	b, err := io.ReadAll(r)
-	if err != nil {
-		return errz.Err(err)
-	}
-
-	xlFile, err := xlsx.OpenBinary(b)
+	xlFile, err := excelize.OpenReader(r)
 	if err != nil {
 		return err
 	}
+
+	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, xlFile)
 
 	err = ingestXLSX(ctx, d.src, d.scratchDB, xlFile, includeSheetNames)
 	if err != nil {

@@ -4,11 +4,12 @@ import (
 	"context"
 	"io"
 
+	"github.com/xuri/excelize/v2"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/source"
-	"github.com/tealeg/xlsx/v2"
 )
 
 var _ source.DriverDetectFunc = DetectXLSX
@@ -26,18 +27,12 @@ func DetectXLSX(ctx context.Context, openFn source.FileOpenFunc) (detected sourc
 	}
 	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
 
-	data, err := io.ReadAll(r)
-	if err != nil {
-		return source.TypeNone, 0, errz.Err(err)
-	}
-
-	// We don't need to read all rows, one will do.
-	const rowLimit = 1
-	_, err = xlsx.OpenBinaryWithRowLimit(data, rowLimit)
-
+	f, err := excelize.OpenReader(r)
 	if err != nil {
 		return source.TypeNone, 0, nil
 	}
+
+	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, f)
 
 	return Type, 1.0, nil
 }
