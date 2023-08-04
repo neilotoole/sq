@@ -73,6 +73,9 @@ func TestRecordWriter(t *testing.T) {
 
 			buf := &bytes.Buffer{}
 			pr := output.NewPrinting()
+			pr.ExcelDatetimeFormat = excelw.OptDatetimeFormat.Default()
+			pr.ExcelDateFormat = excelw.OptDateFormat.Default()
+			pr.ExcelTimeFormat = excelw.OptTimeFormat.Default()
 			w := excelw.NewRecordWriter(buf, pr)
 			require.NoError(t, w.Open(recMeta))
 
@@ -130,6 +133,7 @@ func requireEqualXLSX(t *testing.T, data1, data2 []byte) {
 	for _, sheetName := range sheetNames1 {
 		rows1, err := xl1.GetRows(sheetName)
 		require.NoError(t, err)
+
 		rows2, err := xl2.GetRows(sheetName)
 		require.NoError(t, err)
 
