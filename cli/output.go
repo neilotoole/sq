@@ -55,7 +55,7 @@ to certain formats, such as "text" or "csv".`,
 		'f',
 		format.Text,
 		nil,
-		"Output format",
+		"Specify output format",
 		`Specify the output format. Some formats are only implemented for a subset of
 sq's commands. If the specified format is not available for a particular
 command, sq falls back to "text". Available formats:
