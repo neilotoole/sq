@@ -91,7 +91,7 @@ func validateDatetimeFormatString(s string) error {
 }
 
 // timeOnlyToExcelFloat returns a float value for the time-only part
-// of t. This is needed because Excel really prefers if time values
+// of t. This is needed because Excel really prefers that time values
 // are represented as a float.
 //
 // See: https://xuri.me/excelize/en/cell.html#SetCellStyle
