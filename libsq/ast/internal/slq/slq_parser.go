@@ -1,4 +1,4 @@
-// Code generated from SLQ.g4 by ANTLR 4.12.0. DO NOT EDIT.
+// Code generated from SLQ.g4 by ANTLR 4.13.0. DO NOT EDIT.
 
 package slq // SLQ
 import (
@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/antlr/antlr4/runtime/Go/antlr/v4"
+	"github.com/antlr4-go/antlr/v4"
 )
 
 // Suppress unused import errors
@@ -18,27 +18,27 @@ type SLQParser struct {
 	*antlr.BaseParser
 }
 
-var slqParserStaticData struct {
+var SLQParserStaticData struct {
 	once                   sync.Once
 	serializedATN          []int32
-	literalNames           []string
-	symbolicNames          []string
-	ruleNames              []string
-	predictionContextCache *antlr.PredictionContextCache
+	LiteralNames           []string
+	SymbolicNames          []string
+	RuleNames              []string
+	PredictionContextCache *antlr.PredictionContextCache
 	atn                    *antlr.ATN
 	decisionToDFA          []*antlr.DFA
 }
 
 func slqParserInit() {
-	staticData := &slqParserStaticData
-	staticData.literalNames = []string{
+	staticData := &SLQParserStaticData
+	staticData.LiteralNames = []string{
 		"", "';'", "'*'", "'sum'", "'avg'", "'max'", "'min'", "'unique'", "'count'",
 		"'.['", "'||'", "'/'", "'%'", "'<<'", "'>>'", "'&'", "'&&'", "'~'",
 		"'!'", "", "", "", "'group_by'", "'+'", "'-'", "", "", "", "'null'",
 		"", "", "'('", "')'", "'['", "']'", "','", "'|'", "':'", "", "", "'<='",
 		"'<'", "'>='", "'>'", "'!='", "'=='",
 	}
-	staticData.symbolicNames = []string{
+	staticData.SymbolicNames = []string{
 		"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
 		"", "", "PROPRIETARY_FUNC_NAME", "JOIN_TYPE", "WHERE", "GROUP_BY", "ORDER_ASC",
 		"ORDER_DESC", "ORDER_BY", "ALIAS_RESERVED", "ARG", "NULL", "ID", "WS",
@@ -46,14 +46,14 @@ func slqParserInit() {
 		"LT_EQ", "LT", "GT_EQ", "GT", "NEQ", "EQ", "NAME", "HANDLE", "STRING",
 		"LINECOMMENT",
 	}
-	staticData.ruleNames = []string{
+	staticData.RuleNames = []string{
 		"stmtList", "query", "segment", "element", "funcElement", "func", "funcName",
 		"join", "joinTable", "uniqueFunc", "countFunc", "where", "groupByTerm",
 		"groupBy", "orderByTerm", "orderBy", "selector", "selectorElement",
 		"alias", "arg", "handleTable", "handle", "rowRange", "exprElement",
 		"expr", "literal", "unaryOperator",
 	}
-	staticData.predictionContextCache = antlr.NewPredictionContextCache()
+	staticData.PredictionContextCache = antlr.NewPredictionContextCache()
 	staticData.serializedATN = []int32{
 		4, 1, 49, 283, 2, 0, 7, 0, 2, 1, 7, 1, 2, 2, 7, 2, 2, 3, 7, 3, 2, 4, 7,
 		4, 2, 5, 7, 5, 2, 6, 7, 6, 2, 7, 7, 7, 2, 8, 7, 8, 2, 9, 7, 9, 2, 10, 7,
@@ -200,7 +200,7 @@ func slqParserInit() {
 // NewSLQParser(). You can call this function if you wish to initialize the static state ahead
 // of time.
 func SLQParserInit() {
-	staticData := &slqParserStaticData
+	staticData := &SLQParserStaticData
 	staticData.once.Do(slqParserInit)
 }
 
@@ -209,11 +209,11 @@ func NewSLQParser(input antlr.TokenStream) *SLQParser {
 	SLQParserInit()
 	this := new(SLQParser)
 	this.BaseParser = antlr.NewBaseParser(input)
-	staticData := &slqParserStaticData
-	this.Interpreter = antlr.NewParserATNSimulator(this, staticData.atn, staticData.decisionToDFA, staticData.predictionContextCache)
-	this.RuleNames = staticData.ruleNames
-	this.LiteralNames = staticData.literalNames
-	this.SymbolicNames = staticData.symbolicNames
+	staticData := &SLQParserStaticData
+	this.Interpreter = antlr.NewParserATNSimulator(this, staticData.atn, staticData.decisionToDFA, staticData.PredictionContextCache)
+	this.RuleNames = staticData.RuleNames
+	this.LiteralNames = staticData.LiteralNames
+	this.SymbolicNames = staticData.SymbolicNames
 	this.GrammarFileName = "SLQ.g4"
 
 	return this
@@ -320,15 +320,20 @@ type IStmtListContext interface {
 }
 
 type StmtListContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyStmtListContext() *StmtListContext {
 	var p = new(StmtListContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = SLQParserRULE_stmtList
 	return p
+}
+
+func InitEmptyStmtListContext(p *StmtListContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = SLQParserRULE_stmtList
 }
 
 func (*StmtListContext) IsStmtListContext() {}
@@ -336,7 +341,7 @@ func (*StmtListContext) IsStmtListContext() {}
 func NewStmtListContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *StmtListContext {
 	var p = new(StmtListContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = SLQParserRULE_stmtList
@@ -418,44 +423,35 @@ func (s *StmtListContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 }
 
 func (p *SLQParser) StmtList() (localctx IStmtListContext) {
-	this := p
-	_ = this
-
 	localctx = NewStmtListContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 0, SLQParserRULE_stmtList)
 	var _la int
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
 
 	var _alt int
 
 	p.EnterOuterAlt(localctx, 1)
 	p.SetState(57)
 	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
 	_la = p.GetTokenStream().LA(1)
 
 	for _la == SLQParserT__0 {
 		{
 			p.SetState(54)
 			p.Match(SLQParserT__0)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 
 		p.SetState(59)
 		p.GetErrorHandler().Sync(p)
+		if p.HasError() {
+			goto errorExit
+		}
 		_la = p.GetTokenStream().LA(1)
 	}
 	{
@@ -464,22 +460,37 @@ func (p *SLQParser) StmtList() (localctx IStmtListContext) {
 	}
 	p.SetState(69)
 	p.GetErrorHandler().Sync(p)
-	_alt = p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 2, p.GetParserRuleContext())
-
+	if p.HasError() {
+		goto errorExit
+	}
+	_alt = p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 2, p.GetParserRuleContext())
+	if p.HasError() {
+		goto errorExit
+	}
 	for _alt != 2 && _alt != antlr.ATNInvalidAltNumber {
 		if _alt == 1 {
 			p.SetState(62)
 			p.GetErrorHandler().Sync(p)
+			if p.HasError() {
+				goto errorExit
+			}
 			_la = p.GetTokenStream().LA(1)
 
 			for ok := true; ok; ok = _la == SLQParserT__0 {
 				{
 					p.SetState(61)
 					p.Match(SLQParserT__0)
+					if p.HasError() {
+						// Recognition error - abort rule
+						goto errorExit
+					}
 				}
 
 				p.SetState(64)
 				p.GetErrorHandler().Sync(p)
+				if p.HasError() {
+					goto errorExit
+				}
 				_la = p.GetTokenStream().LA(1)
 			}
 			{
@@ -490,24 +501,50 @@ func (p *SLQParser) StmtList() (localctx IStmtListContext) {
 		}
 		p.SetState(71)
 		p.GetErrorHandler().Sync(p)
-		_alt = p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 2, p.GetParserRuleContext())
+		if p.HasError() {
+			goto errorExit
+		}
+		_alt = p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 2, p.GetParserRuleContext())
+		if p.HasError() {
+			goto errorExit
+		}
 	}
 	p.SetState(75)
 	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
 	_la = p.GetTokenStream().LA(1)
 
 	for _la == SLQParserT__0 {
 		{
 			p.SetState(72)
 			p.Match(SLQParserT__0)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 
 		p.SetState(77)
 		p.GetErrorHandler().Sync(p)
+		if p.HasError() {
+			goto errorExit
+		}
 		_la = p.GetTokenStream().LA(1)
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IQueryContext is an interface to support dynamic dispatch.
@@ -528,15 +565,20 @@ type IQueryContext interface {
 }
 
 type QueryContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyQueryContext() *QueryContext {
 	var p = new(QueryContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = SLQParserRULE_query
 	return p
+}
+
+func InitEmptyQueryContext(p *QueryContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = SLQParserRULE_query
 }
 
 func (*QueryContext) IsQueryContext() {}
@@ -544,7 +586,7 @@ func (*QueryContext) IsQueryContext() {}
 func NewQueryContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *QueryContext {
 	var p = new(QueryContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = SLQParserRULE_query
@@ -634,28 +676,9 @@ func (s *QueryContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 }
 
 func (p *SLQParser) Query() (localctx IQueryContext) {
-	this := p
-	_ = this
-
 	localctx = NewQueryContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 2, SLQParserRULE_query)
 	var _la int
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
 
 	p.EnterOuterAlt(localctx, 1)
 	{
@@ -664,12 +687,19 @@ func (p *SLQParser) Query() (localctx IQueryContext) {
 	}
 	p.SetState(83)
 	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
 	_la = p.GetTokenStream().LA(1)
 
 	for _la == SLQParserPIPE {
 		{
 			p.SetState(79)
 			p.Match(SLQParserPIPE)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 		{
 			p.SetState(80)
@@ -678,10 +708,23 @@ func (p *SLQParser) Query() (localctx IQueryContext) {
 
 		p.SetState(85)
 		p.GetErrorHandler().Sync(p)
+		if p.HasError() {
+			goto errorExit
+		}
 		_la = p.GetTokenStream().LA(1)
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // ISegmentContext is an interface to support dynamic dispatch.
@@ -702,15 +745,20 @@ type ISegmentContext interface {
 }
 
 type SegmentContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptySegmentContext() *SegmentContext {
 	var p = new(SegmentContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = SLQParserRULE_segment
 	return p
+}
+
+func InitEmptySegmentContext(p *SegmentContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = SLQParserRULE_segment
 }
 
 func (*SegmentContext) IsSegmentContext() {}
@@ -718,7 +766,7 @@ func (*SegmentContext) IsSegmentContext() {}
 func NewSegmentContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *SegmentContext {
 	var p = new(SegmentContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = SLQParserRULE_segment
@@ -808,28 +856,9 @@ func (s *SegmentContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 }
 
 func (p *SLQParser) Segment() (localctx ISegmentContext) {
-	this := p
-	_ = this
-
 	localctx = NewSegmentContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 4, SLQParserRULE_segment)
 	var _la int
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
 
 	p.EnterOuterAlt(localctx, 1)
 	{
@@ -839,12 +868,19 @@ func (p *SLQParser) Segment() (localctx ISegmentContext) {
 
 	p.SetState(91)
 	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
 	_la = p.GetTokenStream().LA(1)
 
 	for _la == SLQParserCOMMA {
 		{
 			p.SetState(87)
 			p.Match(SLQParserCOMMA)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 		{
 			p.SetState(88)
@@ -853,10 +889,23 @@ func (p *SLQParser) Segment() (localctx ISegmentContext) {
 
 		p.SetState(93)
 		p.GetErrorHandler().Sync(p)
+		if p.HasError() {
+			goto errorExit
+		}
 		_la = p.GetTokenStream().LA(1)
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IElementContext is an interface to support dynamic dispatch.
@@ -885,15 +934,20 @@ type IElementContext interface {
 }
 
 type ElementContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyElementContext() *ElementContext {
 	var p = new(ElementContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = SLQParserRULE_element
 	return p
+}
+
+func InitEmptyElementContext(p *ElementContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = SLQParserRULE_element
 }
 
 func (*ElementContext) IsElementContext() {}
@@ -901,7 +955,7 @@ func (*ElementContext) IsElementContext() {}
 func NewElementContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *ElementContext {
 	var p = new(ElementContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = SLQParserRULE_element
@@ -1134,31 +1188,15 @@ func (s *ElementContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 }
 
 func (p *SLQParser) Element() (localctx IElementContext) {
-	this := p
-	_ = this
-
 	localctx = NewElementContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 6, SLQParserRULE_element)
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
-
 	p.SetState(106)
 	p.GetErrorHandler().Sync(p)
-	switch p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 6, p.GetParserRuleContext()) {
+	if p.HasError() {
+		goto errorExit
+	}
+
+	switch p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 6, p.GetParserRuleContext()) {
 	case 1:
 		p.EnterOuterAlt(localctx, 1)
 		{
@@ -1243,9 +1281,21 @@ func (p *SLQParser) Element() (localctx IElementContext) {
 			p.ExprElement()
 		}
 
+	case antlr.ATNInvalidAltNumber:
+		goto errorExit
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IFuncElementContext is an interface to support dynamic dispatch.
@@ -1264,15 +1314,20 @@ type IFuncElementContext interface {
 }
 
 type FuncElementContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyFuncElementContext() *FuncElementContext {
 	var p = new(FuncElementContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = SLQParserRULE_funcElement
 	return p
+}
+
+func InitEmptyFuncElementContext(p *FuncElementContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = SLQParserRULE_funcElement
 }
 
 func (*FuncElementContext) IsFuncElementContext() {}
@@ -1280,7 +1335,7 @@ func (*FuncElementContext) IsFuncElementContext() {}
 func NewFuncElementContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *FuncElementContext {
 	var p = new(FuncElementContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = SLQParserRULE_funcElement
@@ -1353,28 +1408,9 @@ func (s *FuncElementContext) Accept(visitor antlr.ParseTreeVisitor) interface{} 
 }
 
 func (p *SLQParser) FuncElement() (localctx IFuncElementContext) {
-	this := p
-	_ = this
-
 	localctx = NewFuncElementContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 8, SLQParserRULE_funcElement)
 	var _la int
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
 
 	p.EnterOuterAlt(localctx, 1)
 	{
@@ -1383,6 +1419,9 @@ func (p *SLQParser) FuncElement() (localctx IFuncElementContext) {
 	}
 	p.SetState(110)
 	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
 	_la = p.GetTokenStream().LA(1)
 
 	if _la == SLQParserALIAS_RESERVED || _la == SLQParserCOLON {
@@ -1393,7 +1432,17 @@ func (p *SLQParser) FuncElement() (localctx IFuncElementContext) {
 
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IFuncContext is an interface to support dynamic dispatch.
@@ -1417,15 +1466,20 @@ type IFuncContext interface {
 }
 
 type FuncContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyFuncContext() *FuncContext {
 	var p = new(FuncContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = SLQParserRULE_func
 	return p
+}
+
+func InitEmptyFuncContext(p *FuncContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = SLQParserRULE_func
 }
 
 func (*FuncContext) IsFuncContext() {}
@@ -1433,7 +1487,7 @@ func (*FuncContext) IsFuncContext() {}
 func NewFuncContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *FuncContext {
 	var p = new(FuncContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = SLQParserRULE_func
@@ -1547,28 +1601,9 @@ func (s *FuncContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 }
 
 func (p *SLQParser) Func_() (localctx IFuncContext) {
-	this := p
-	_ = this
-
 	localctx = NewFuncContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 10, SLQParserRULE_func)
 	var _la int
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
 
 	p.EnterOuterAlt(localctx, 1)
 	{
@@ -1578,10 +1613,16 @@ func (p *SLQParser) Func_() (localctx IFuncContext) {
 	{
 		p.SetState(113)
 		p.Match(SLQParserLPAR)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	p.SetState(123)
 	p.GetErrorHandler().Sync(p)
-
+	if p.HasError() {
+		goto errorExit
+	}
 	switch p.GetTokenStream().LA(1) {
 	case SLQParserT__2, SLQParserT__3, SLQParserT__4, SLQParserT__5, SLQParserT__16, SLQParserT__17, SLQParserPROPRIETARY_FUNC_NAME, SLQParserORDER_ASC, SLQParserORDER_DESC, SLQParserARG, SLQParserNULL, SLQParserLPAR, SLQParserNN, SLQParserNUMBER, SLQParserNAME, SLQParserSTRING:
 		{
@@ -1590,12 +1631,19 @@ func (p *SLQParser) Func_() (localctx IFuncContext) {
 		}
 		p.SetState(119)
 		p.GetErrorHandler().Sync(p)
+		if p.HasError() {
+			goto errorExit
+		}
 		_la = p.GetTokenStream().LA(1)
 
 		for _la == SLQParserCOMMA {
 			{
 				p.SetState(115)
 				p.Match(SLQParserCOMMA)
+				if p.HasError() {
+					// Recognition error - abort rule
+					goto errorExit
+				}
 			}
 			{
 				p.SetState(116)
@@ -1604,6 +1652,9 @@ func (p *SLQParser) Func_() (localctx IFuncContext) {
 
 			p.SetState(121)
 			p.GetErrorHandler().Sync(p)
+			if p.HasError() {
+				goto errorExit
+			}
 			_la = p.GetTokenStream().LA(1)
 		}
 
@@ -1611,6 +1662,10 @@ func (p *SLQParser) Func_() (localctx IFuncContext) {
 		{
 			p.SetState(122)
 			p.Match(SLQParserT__1)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 
 	case SLQParserRPAR:
@@ -1620,9 +1675,23 @@ func (p *SLQParser) Func_() (localctx IFuncContext) {
 	{
 		p.SetState(125)
 		p.Match(SLQParserRPAR)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IFuncNameContext is an interface to support dynamic dispatch.
@@ -1640,15 +1709,20 @@ type IFuncNameContext interface {
 }
 
 type FuncNameContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyFuncNameContext() *FuncNameContext {
 	var p = new(FuncNameContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = SLQParserRULE_funcName
 	return p
+}
+
+func InitEmptyFuncNameContext(p *FuncNameContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = SLQParserRULE_funcName
 }
 
 func (*FuncNameContext) IsFuncNameContext() {}
@@ -1656,7 +1730,7 @@ func (*FuncNameContext) IsFuncNameContext() {}
 func NewFuncNameContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *FuncNameContext {
 	var p = new(FuncNameContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = SLQParserRULE_funcName
@@ -1701,28 +1775,9 @@ func (s *FuncNameContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 }
 
 func (p *SLQParser) FuncName() (localctx IFuncNameContext) {
-	this := p
-	_ = this
-
 	localctx = NewFuncNameContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 12, SLQParserRULE_funcName)
 	var _la int
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
 
 	p.EnterOuterAlt(localctx, 1)
 	{
@@ -1737,7 +1792,17 @@ func (p *SLQParser) FuncName() (localctx IFuncNameContext) {
 		}
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IJoinContext is an interface to support dynamic dispatch.
@@ -1760,15 +1825,20 @@ type IJoinContext interface {
 }
 
 type JoinContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyJoinContext() *JoinContext {
 	var p = new(JoinContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = SLQParserRULE_join
 	return p
+}
+
+func InitEmptyJoinContext(p *JoinContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = SLQParserRULE_join
 }
 
 func (*JoinContext) IsJoinContext() {}
@@ -1776,7 +1846,7 @@ func (*JoinContext) IsJoinContext() {}
 func NewJoinContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *JoinContext {
 	var p = new(JoinContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = SLQParserRULE_join
@@ -1865,37 +1935,26 @@ func (s *JoinContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 }
 
 func (p *SLQParser) Join() (localctx IJoinContext) {
-	this := p
-	_ = this
-
 	localctx = NewJoinContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 14, SLQParserRULE_join)
 	var _la int
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
 
 	p.EnterOuterAlt(localctx, 1)
 	{
 		p.SetState(129)
 		p.Match(SLQParserJOIN_TYPE)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	{
 		p.SetState(130)
 		p.Match(SLQParserLPAR)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	{
 		p.SetState(131)
@@ -1903,12 +1962,19 @@ func (p *SLQParser) Join() (localctx IJoinContext) {
 	}
 	p.SetState(134)
 	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
 	_la = p.GetTokenStream().LA(1)
 
 	if _la == SLQParserCOMMA {
 		{
 			p.SetState(132)
 			p.Match(SLQParserCOMMA)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 		{
 			p.SetState(133)
@@ -1919,9 +1985,23 @@ func (p *SLQParser) Join() (localctx IJoinContext) {
 	{
 		p.SetState(136)
 		p.Match(SLQParserRPAR)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IJoinTableContext is an interface to support dynamic dispatch.
@@ -1941,15 +2021,20 @@ type IJoinTableContext interface {
 }
 
 type JoinTableContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyJoinTableContext() *JoinTableContext {
 	var p = new(JoinTableContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = SLQParserRULE_joinTable
 	return p
+}
+
+func InitEmptyJoinTableContext(p *JoinTableContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = SLQParserRULE_joinTable
 }
 
 func (*JoinTableContext) IsJoinTableContext() {}
@@ -1957,7 +2042,7 @@ func (*JoinTableContext) IsJoinTableContext() {}
 func NewJoinTableContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *JoinTableContext {
 	var p = new(JoinTableContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = SLQParserRULE_joinTable
@@ -2022,47 +2107,42 @@ func (s *JoinTableContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 }
 
 func (p *SLQParser) JoinTable() (localctx IJoinTableContext) {
-	this := p
-	_ = this
-
 	localctx = NewJoinTableContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 16, SLQParserRULE_joinTable)
 	var _la int
 
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
-
 	p.EnterOuterAlt(localctx, 1)
 	p.SetState(139)
 	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
 	_la = p.GetTokenStream().LA(1)
 
 	if _la == SLQParserHANDLE {
 		{
 			p.SetState(138)
 			p.Match(SLQParserHANDLE)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 
 	}
 	{
 		p.SetState(141)
 		p.Match(SLQParserNAME)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	p.SetState(143)
 	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
 	_la = p.GetTokenStream().LA(1)
 
 	if _la == SLQParserALIAS_RESERVED || _la == SLQParserCOLON {
@@ -2073,7 +2153,17 @@ func (p *SLQParser) JoinTable() (localctx IJoinTableContext) {
 
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IUniqueFuncContext is an interface to support dynamic dispatch.
@@ -2087,15 +2177,20 @@ type IUniqueFuncContext interface {
 }
 
 type UniqueFuncContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyUniqueFuncContext() *UniqueFuncContext {
 	var p = new(UniqueFuncContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = SLQParserRULE_uniqueFunc
 	return p
+}
+
+func InitEmptyUniqueFuncContext(p *UniqueFuncContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = SLQParserRULE_uniqueFunc
 }
 
 func (*UniqueFuncContext) IsUniqueFuncContext() {}
@@ -2103,7 +2198,7 @@ func (*UniqueFuncContext) IsUniqueFuncContext() {}
 func NewUniqueFuncContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *UniqueFuncContext {
 	var p = new(UniqueFuncContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = SLQParserRULE_uniqueFunc
@@ -2143,35 +2238,29 @@ func (s *UniqueFuncContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 }
 
 func (p *SLQParser) UniqueFunc() (localctx IUniqueFuncContext) {
-	this := p
-	_ = this
-
 	localctx = NewUniqueFuncContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 18, SLQParserRULE_uniqueFunc)
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
-
 	p.EnterOuterAlt(localctx, 1)
 	{
 		p.SetState(145)
 		p.Match(SLQParserT__6)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // ICountFuncContext is an interface to support dynamic dispatch.
@@ -2192,15 +2281,20 @@ type ICountFuncContext interface {
 }
 
 type CountFuncContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyCountFuncContext() *CountFuncContext {
 	var p = new(CountFuncContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = SLQParserRULE_countFunc
 	return p
+}
+
+func InitEmptyCountFuncContext(p *CountFuncContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = SLQParserRULE_countFunc
 }
 
 func (*CountFuncContext) IsCountFuncContext() {}
@@ -2208,7 +2302,7 @@ func (*CountFuncContext) IsCountFuncContext() {}
 func NewCountFuncContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *CountFuncContext {
 	var p = new(CountFuncContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = SLQParserRULE_countFunc
@@ -2289,45 +2383,40 @@ func (s *CountFuncContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 }
 
 func (p *SLQParser) CountFunc() (localctx ICountFuncContext) {
-	this := p
-	_ = this
-
 	localctx = NewCountFuncContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 20, SLQParserRULE_countFunc)
 	var _la int
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
 
 	p.EnterOuterAlt(localctx, 1)
 	{
 		p.SetState(147)
 		p.Match(SLQParserT__7)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	p.SetState(153)
 	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
 	_la = p.GetTokenStream().LA(1)
 
 	if _la == SLQParserLPAR {
 		{
 			p.SetState(148)
 			p.Match(SLQParserLPAR)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 		p.SetState(150)
 		p.GetErrorHandler().Sync(p)
+		if p.HasError() {
+			goto errorExit
+		}
 		_la = p.GetTokenStream().LA(1)
 
 		if _la == SLQParserNAME {
@@ -2340,11 +2429,18 @@ func (p *SLQParser) CountFunc() (localctx ICountFuncContext) {
 		{
 			p.SetState(152)
 			p.Match(SLQParserRPAR)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 
 	}
 	p.SetState(156)
 	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
 	_la = p.GetTokenStream().LA(1)
 
 	if _la == SLQParserALIAS_RESERVED || _la == SLQParserCOLON {
@@ -2355,7 +2451,17 @@ func (p *SLQParser) CountFunc() (localctx ICountFuncContext) {
 
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IWhereContext is an interface to support dynamic dispatch.
@@ -2376,15 +2482,20 @@ type IWhereContext interface {
 }
 
 type WhereContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyWhereContext() *WhereContext {
 	var p = new(WhereContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = SLQParserRULE_where
 	return p
+}
+
+func InitEmptyWhereContext(p *WhereContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = SLQParserRULE_where
 }
 
 func (*WhereContext) IsWhereContext() {}
@@ -2392,7 +2503,7 @@ func (*WhereContext) IsWhereContext() {}
 func NewWhereContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *WhereContext {
 	var p = new(WhereContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = SLQParserRULE_where
@@ -2461,40 +2572,32 @@ func (s *WhereContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 }
 
 func (p *SLQParser) Where() (localctx IWhereContext) {
-	this := p
-	_ = this
-
 	localctx = NewWhereContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 22, SLQParserRULE_where)
 	var _la int
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
 
 	p.EnterOuterAlt(localctx, 1)
 	{
 		p.SetState(158)
 		p.Match(SLQParserWHERE)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	{
 		p.SetState(159)
 		p.Match(SLQParserLPAR)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	p.SetState(161)
 	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
 	_la = p.GetTokenStream().LA(1)
 
 	if (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&352670930829432) != 0 {
@@ -2507,9 +2610,23 @@ func (p *SLQParser) Where() (localctx IWhereContext) {
 	{
 		p.SetState(163)
 		p.Match(SLQParserRPAR)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IGroupByTermContext is an interface to support dynamic dispatch.
@@ -2528,15 +2645,20 @@ type IGroupByTermContext interface {
 }
 
 type GroupByTermContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyGroupByTermContext() *GroupByTermContext {
 	var p = new(GroupByTermContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = SLQParserRULE_groupByTerm
 	return p
+}
+
+func InitEmptyGroupByTermContext(p *GroupByTermContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = SLQParserRULE_groupByTerm
 }
 
 func (*GroupByTermContext) IsGroupByTermContext() {}
@@ -2544,7 +2666,7 @@ func (*GroupByTermContext) IsGroupByTermContext() {}
 func NewGroupByTermContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *GroupByTermContext {
 	var p = new(GroupByTermContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = SLQParserRULE_groupByTerm
@@ -2617,30 +2739,13 @@ func (s *GroupByTermContext) Accept(visitor antlr.ParseTreeVisitor) interface{} 
 }
 
 func (p *SLQParser) GroupByTerm() (localctx IGroupByTermContext) {
-	this := p
-	_ = this
-
 	localctx = NewGroupByTermContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 24, SLQParserRULE_groupByTerm)
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
-
 	p.SetState(167)
 	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
 
 	switch p.GetTokenStream().LA(1) {
 	case SLQParserNAME:
@@ -2658,10 +2763,21 @@ func (p *SLQParser) GroupByTerm() (localctx IGroupByTermContext) {
 		}
 
 	default:
-		panic(antlr.NewNoViableAltException(p, nil, nil, nil, nil, nil))
+		p.SetError(antlr.NewNoViableAltException(p, nil, nil, nil, nil, nil))
+		goto errorExit
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IGroupByContext is an interface to support dynamic dispatch.
@@ -2685,15 +2801,20 @@ type IGroupByContext interface {
 }
 
 type GroupByContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyGroupByContext() *GroupByContext {
 	var p = new(GroupByContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = SLQParserRULE_groupBy
 	return p
+}
+
+func InitEmptyGroupByContext(p *GroupByContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = SLQParserRULE_groupBy
 }
 
 func (*GroupByContext) IsGroupByContext() {}
@@ -2701,7 +2822,7 @@ func (*GroupByContext) IsGroupByContext() {}
 func NewGroupByContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *GroupByContext {
 	var p = new(GroupByContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = SLQParserRULE_groupBy
@@ -2803,37 +2924,26 @@ func (s *GroupByContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 }
 
 func (p *SLQParser) GroupBy() (localctx IGroupByContext) {
-	this := p
-	_ = this
-
 	localctx = NewGroupByContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 26, SLQParserRULE_groupBy)
 	var _la int
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
 
 	p.EnterOuterAlt(localctx, 1)
 	{
 		p.SetState(169)
 		p.Match(SLQParserGROUP_BY)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	{
 		p.SetState(170)
 		p.Match(SLQParserLPAR)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	{
 		p.SetState(171)
@@ -2841,12 +2951,19 @@ func (p *SLQParser) GroupBy() (localctx IGroupByContext) {
 	}
 	p.SetState(176)
 	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
 	_la = p.GetTokenStream().LA(1)
 
 	for _la == SLQParserCOMMA {
 		{
 			p.SetState(172)
 			p.Match(SLQParserCOMMA)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 		{
 			p.SetState(173)
@@ -2855,14 +2972,31 @@ func (p *SLQParser) GroupBy() (localctx IGroupByContext) {
 
 		p.SetState(178)
 		p.GetErrorHandler().Sync(p)
+		if p.HasError() {
+			goto errorExit
+		}
 		_la = p.GetTokenStream().LA(1)
 	}
 	{
 		p.SetState(179)
 		p.Match(SLQParserRPAR)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IOrderByTermContext is an interface to support dynamic dispatch.
@@ -2882,15 +3016,20 @@ type IOrderByTermContext interface {
 }
 
 type OrderByTermContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyOrderByTermContext() *OrderByTermContext {
 	var p = new(OrderByTermContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = SLQParserRULE_orderByTerm
 	return p
+}
+
+func InitEmptyOrderByTermContext(p *OrderByTermContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = SLQParserRULE_orderByTerm
 }
 
 func (*OrderByTermContext) IsOrderByTermContext() {}
@@ -2898,7 +3037,7 @@ func (*OrderByTermContext) IsOrderByTermContext() {}
 func NewOrderByTermContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *OrderByTermContext {
 	var p = new(OrderByTermContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = SLQParserRULE_orderByTerm
@@ -2963,28 +3102,9 @@ func (s *OrderByTermContext) Accept(visitor antlr.ParseTreeVisitor) interface{} 
 }
 
 func (p *SLQParser) OrderByTerm() (localctx IOrderByTermContext) {
-	this := p
-	_ = this
-
 	localctx = NewOrderByTermContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 28, SLQParserRULE_orderByTerm)
 	var _la int
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
 
 	p.EnterOuterAlt(localctx, 1)
 	{
@@ -2993,6 +3113,9 @@ func (p *SLQParser) OrderByTerm() (localctx IOrderByTermContext) {
 	}
 	p.SetState(183)
 	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
 	_la = p.GetTokenStream().LA(1)
 
 	if _la == SLQParserORDER_ASC || _la == SLQParserORDER_DESC {
@@ -3010,7 +3133,17 @@ func (p *SLQParser) OrderByTerm() (localctx IOrderByTermContext) {
 
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IOrderByContext is an interface to support dynamic dispatch.
@@ -3034,15 +3167,20 @@ type IOrderByContext interface {
 }
 
 type OrderByContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyOrderByContext() *OrderByContext {
 	var p = new(OrderByContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = SLQParserRULE_orderBy
 	return p
+}
+
+func InitEmptyOrderByContext(p *OrderByContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = SLQParserRULE_orderBy
 }
 
 func (*OrderByContext) IsOrderByContext() {}
@@ -3050,7 +3188,7 @@ func (*OrderByContext) IsOrderByContext() {}
 func NewOrderByContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *OrderByContext {
 	var p = new(OrderByContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = SLQParserRULE_orderBy
@@ -3152,37 +3290,26 @@ func (s *OrderByContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 }
 
 func (p *SLQParser) OrderBy() (localctx IOrderByContext) {
-	this := p
-	_ = this
-
 	localctx = NewOrderByContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 30, SLQParserRULE_orderBy)
 	var _la int
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
 
 	p.EnterOuterAlt(localctx, 1)
 	{
 		p.SetState(185)
 		p.Match(SLQParserORDER_BY)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	{
 		p.SetState(186)
 		p.Match(SLQParserLPAR)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	{
 		p.SetState(187)
@@ -3190,12 +3317,19 @@ func (p *SLQParser) OrderBy() (localctx IOrderByContext) {
 	}
 	p.SetState(192)
 	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
 	_la = p.GetTokenStream().LA(1)
 
 	for _la == SLQParserCOMMA {
 		{
 			p.SetState(188)
 			p.Match(SLQParserCOMMA)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 		{
 			p.SetState(189)
@@ -3204,14 +3338,31 @@ func (p *SLQParser) OrderBy() (localctx IOrderByContext) {
 
 		p.SetState(194)
 		p.GetErrorHandler().Sync(p)
+		if p.HasError() {
+			goto errorExit
+		}
 		_la = p.GetTokenStream().LA(1)
 	}
 	{
 		p.SetState(195)
 		p.Match(SLQParserRPAR)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // ISelectorContext is an interface to support dynamic dispatch.
@@ -3230,15 +3381,20 @@ type ISelectorContext interface {
 }
 
 type SelectorContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptySelectorContext() *SelectorContext {
 	var p = new(SelectorContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = SLQParserRULE_selector
 	return p
+}
+
+func InitEmptySelectorContext(p *SelectorContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = SLQParserRULE_selector
 }
 
 func (*SelectorContext) IsSelectorContext() {}
@@ -3246,7 +3402,7 @@ func (*SelectorContext) IsSelectorContext() {}
 func NewSelectorContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *SelectorContext {
 	var p = new(SelectorContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = SLQParserRULE_selector
@@ -3295,45 +3451,45 @@ func (s *SelectorContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 }
 
 func (p *SLQParser) Selector() (localctx ISelectorContext) {
-	this := p
-	_ = this
-
 	localctx = NewSelectorContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 32, SLQParserRULE_selector)
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
-
 	p.EnterOuterAlt(localctx, 1)
 	{
 		p.SetState(197)
 		p.Match(SLQParserNAME)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	p.SetState(199)
 	p.GetErrorHandler().Sync(p)
 
-	if p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 21, p.GetParserRuleContext()) == 1 {
+	if p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 21, p.GetParserRuleContext()) == 1 {
 		{
 			p.SetState(198)
 			p.Match(SLQParserNAME)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 
+	} else if p.HasError() { // JIM
+		goto errorExit
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // ISelectorElementContext is an interface to support dynamic dispatch.
@@ -3352,15 +3508,20 @@ type ISelectorElementContext interface {
 }
 
 type SelectorElementContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptySelectorElementContext() *SelectorElementContext {
 	var p = new(SelectorElementContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = SLQParserRULE_selectorElement
 	return p
+}
+
+func InitEmptySelectorElementContext(p *SelectorElementContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = SLQParserRULE_selectorElement
 }
 
 func (*SelectorElementContext) IsSelectorElementContext() {}
@@ -3368,7 +3529,7 @@ func (*SelectorElementContext) IsSelectorElementContext() {}
 func NewSelectorElementContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *SelectorElementContext {
 	var p = new(SelectorElementContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = SLQParserRULE_selectorElement
@@ -3441,28 +3602,9 @@ func (s *SelectorElementContext) Accept(visitor antlr.ParseTreeVisitor) interfac
 }
 
 func (p *SLQParser) SelectorElement() (localctx ISelectorElementContext) {
-	this := p
-	_ = this
-
 	localctx = NewSelectorElementContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 34, SLQParserRULE_selectorElement)
 	var _la int
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
 
 	p.EnterOuterAlt(localctx, 1)
 	{
@@ -3472,6 +3614,9 @@ func (p *SLQParser) SelectorElement() (localctx ISelectorElementContext) {
 
 	p.SetState(203)
 	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
 	_la = p.GetTokenStream().LA(1)
 
 	if _la == SLQParserALIAS_RESERVED || _la == SLQParserCOLON {
@@ -3482,7 +3627,17 @@ func (p *SLQParser) SelectorElement() (localctx ISelectorElementContext) {
 
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IAliasContext is an interface to support dynamic dispatch.
@@ -3504,15 +3659,20 @@ type IAliasContext interface {
 }
 
 type AliasContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyAliasContext() *AliasContext {
 	var p = new(AliasContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = SLQParserRULE_alias
 	return p
+}
+
+func InitEmptyAliasContext(p *AliasContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = SLQParserRULE_alias
 }
 
 func (*AliasContext) IsAliasContext() {}
@@ -3520,7 +3680,7 @@ func (*AliasContext) IsAliasContext() {}
 func NewAliasContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *AliasContext {
 	var p = new(AliasContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = SLQParserRULE_alias
@@ -3581,31 +3741,15 @@ func (s *AliasContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 }
 
 func (p *SLQParser) Alias() (localctx IAliasContext) {
-	this := p
-	_ = this
-
 	localctx = NewAliasContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 36, SLQParserRULE_alias)
 	var _la int
 
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
-
 	p.SetState(208)
 	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
 
 	switch p.GetTokenStream().LA(1) {
 	case SLQParserALIAS_RESERVED:
@@ -3613,6 +3757,10 @@ func (p *SLQParser) Alias() (localctx IAliasContext) {
 		{
 			p.SetState(205)
 			p.Match(SLQParserALIAS_RESERVED)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 
 	case SLQParserCOLON:
@@ -3620,6 +3768,10 @@ func (p *SLQParser) Alias() (localctx IAliasContext) {
 		{
 			p.SetState(206)
 			p.Match(SLQParserCOLON)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 		{
 			p.SetState(207)
@@ -3634,10 +3786,21 @@ func (p *SLQParser) Alias() (localctx IAliasContext) {
 		}
 
 	default:
-		panic(antlr.NewNoViableAltException(p, nil, nil, nil, nil, nil))
+		p.SetError(antlr.NewNoViableAltException(p, nil, nil, nil, nil, nil))
+		goto errorExit
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IArgContext is an interface to support dynamic dispatch.
@@ -3655,15 +3818,20 @@ type IArgContext interface {
 }
 
 type ArgContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyArgContext() *ArgContext {
 	var p = new(ArgContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = SLQParserRULE_arg
 	return p
+}
+
+func InitEmptyArgContext(p *ArgContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = SLQParserRULE_arg
 }
 
 func (*ArgContext) IsArgContext() {}
@@ -3671,7 +3839,7 @@ func (*ArgContext) IsArgContext() {}
 func NewArgContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *ArgContext {
 	var p = new(ArgContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = SLQParserRULE_arg
@@ -3716,35 +3884,29 @@ func (s *ArgContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 }
 
 func (p *SLQParser) Arg() (localctx IArgContext) {
-	this := p
-	_ = this
-
 	localctx = NewArgContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 38, SLQParserRULE_arg)
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
-
 	p.EnterOuterAlt(localctx, 1)
 	{
 		p.SetState(210)
 		p.Match(SLQParserARG)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IHandleTableContext is an interface to support dynamic dispatch.
@@ -3763,15 +3925,20 @@ type IHandleTableContext interface {
 }
 
 type HandleTableContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyHandleTableContext() *HandleTableContext {
 	var p = new(HandleTableContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = SLQParserRULE_handleTable
 	return p
+}
+
+func InitEmptyHandleTableContext(p *HandleTableContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = SLQParserRULE_handleTable
 }
 
 func (*HandleTableContext) IsHandleTableContext() {}
@@ -3779,7 +3946,7 @@ func (*HandleTableContext) IsHandleTableContext() {}
 func NewHandleTableContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *HandleTableContext {
 	var p = new(HandleTableContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = SLQParserRULE_handleTable
@@ -3828,39 +3995,37 @@ func (s *HandleTableContext) Accept(visitor antlr.ParseTreeVisitor) interface{} 
 }
 
 func (p *SLQParser) HandleTable() (localctx IHandleTableContext) {
-	this := p
-	_ = this
-
 	localctx = NewHandleTableContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 40, SLQParserRULE_handleTable)
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
-
 	p.EnterOuterAlt(localctx, 1)
 	{
 		p.SetState(212)
 		p.Match(SLQParserHANDLE)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	{
 		p.SetState(213)
 		p.Match(SLQParserNAME)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IHandleContext is an interface to support dynamic dispatch.
@@ -3878,15 +4043,20 @@ type IHandleContext interface {
 }
 
 type HandleContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyHandleContext() *HandleContext {
 	var p = new(HandleContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = SLQParserRULE_handle
 	return p
+}
+
+func InitEmptyHandleContext(p *HandleContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = SLQParserRULE_handle
 }
 
 func (*HandleContext) IsHandleContext() {}
@@ -3894,7 +4064,7 @@ func (*HandleContext) IsHandleContext() {}
 func NewHandleContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *HandleContext {
 	var p = new(HandleContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = SLQParserRULE_handle
@@ -3939,35 +4109,29 @@ func (s *HandleContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 }
 
 func (p *SLQParser) Handle() (localctx IHandleContext) {
-	this := p
-	_ = this
-
 	localctx = NewHandleContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 42, SLQParserRULE_handle)
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
-
 	p.EnterOuterAlt(localctx, 1)
 	{
 		p.SetState(215)
 		p.Match(SLQParserHANDLE)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IRowRangeContext is an interface to support dynamic dispatch.
@@ -3988,15 +4152,20 @@ type IRowRangeContext interface {
 }
 
 type RowRangeContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyRowRangeContext() *RowRangeContext {
 	var p = new(RowRangeContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = SLQParserRULE_rowRange
 	return p
+}
+
+func InitEmptyRowRangeContext(p *RowRangeContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = SLQParserRULE_rowRange
 }
 
 func (*RowRangeContext) IsRowRangeContext() {}
@@ -4004,7 +4173,7 @@ func (*RowRangeContext) IsRowRangeContext() {}
 func NewRowRangeContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *RowRangeContext {
 	var p = new(RowRangeContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = SLQParserRULE_rowRange
@@ -4061,83 +4230,121 @@ func (s *RowRangeContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 }
 
 func (p *SLQParser) RowRange() (localctx IRowRangeContext) {
-	this := p
-	_ = this
-
 	localctx = NewRowRangeContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 44, SLQParserRULE_rowRange)
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
-
 	p.EnterOuterAlt(localctx, 1)
 	{
 		p.SetState(217)
 		p.Match(SLQParserT__8)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	p.SetState(226)
 	p.GetErrorHandler().Sync(p)
 
-	if p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 24, p.GetParserRuleContext()) == 1 {
+	if p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 24, p.GetParserRuleContext()) == 1 {
 		{
 			p.SetState(218)
 			p.Match(SLQParserNN)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 		{
 			p.SetState(219)
 			p.Match(SLQParserCOLON)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 		{
 			p.SetState(220)
 			p.Match(SLQParserNN)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 
-	} else if p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 24, p.GetParserRuleContext()) == 2 {
+	} else if p.HasError() { // JIM
+		goto errorExit
+	} else if p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 24, p.GetParserRuleContext()) == 2 {
 		{
 			p.SetState(221)
 			p.Match(SLQParserNN)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 		{
 			p.SetState(222)
 			p.Match(SLQParserCOLON)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 
-	} else if p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 24, p.GetParserRuleContext()) == 3 {
+	} else if p.HasError() { // JIM
+		goto errorExit
+	} else if p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 24, p.GetParserRuleContext()) == 3 {
 		{
 			p.SetState(223)
 			p.Match(SLQParserCOLON)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 		{
 			p.SetState(224)
 			p.Match(SLQParserNN)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 
-	} else if p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 24, p.GetParserRuleContext()) == 4 {
+	} else if p.HasError() { // JIM
+		goto errorExit
+	} else if p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 24, p.GetParserRuleContext()) == 4 {
 		{
 			p.SetState(225)
 			p.Match(SLQParserNN)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 
+	} else if p.HasError() { // JIM
+		goto errorExit
 	}
 	{
 		p.SetState(228)
 		p.Match(SLQParserRBRA)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IExprElementContext is an interface to support dynamic dispatch.
@@ -4156,15 +4363,20 @@ type IExprElementContext interface {
 }
 
 type ExprElementContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyExprElementContext() *ExprElementContext {
 	var p = new(ExprElementContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = SLQParserRULE_exprElement
 	return p
+}
+
+func InitEmptyExprElementContext(p *ExprElementContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = SLQParserRULE_exprElement
 }
 
 func (*ExprElementContext) IsExprElementContext() {}
@@ -4172,7 +4384,7 @@ func (*ExprElementContext) IsExprElementContext() {}
 func NewExprElementContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *ExprElementContext {
 	var p = new(ExprElementContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = SLQParserRULE_exprElement
@@ -4245,28 +4457,9 @@ func (s *ExprElementContext) Accept(visitor antlr.ParseTreeVisitor) interface{} 
 }
 
 func (p *SLQParser) ExprElement() (localctx IExprElementContext) {
-	this := p
-	_ = this
-
 	localctx = NewExprElementContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 46, SLQParserRULE_exprElement)
 	var _la int
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
 
 	p.EnterOuterAlt(localctx, 1)
 	{
@@ -4275,6 +4468,9 @@ func (p *SLQParser) ExprElement() (localctx IExprElementContext) {
 	}
 	p.SetState(232)
 	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
 	_la = p.GetTokenStream().LA(1)
 
 	if _la == SLQParserALIAS_RESERVED || _la == SLQParserCOLON {
@@ -4285,7 +4481,17 @@ func (p *SLQParser) ExprElement() (localctx IExprElementContext) {
 
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IExprContext is an interface to support dynamic dispatch.
@@ -4319,15 +4525,20 @@ type IExprContext interface {
 }
 
 type ExprContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyExprContext() *ExprContext {
 	var p = new(ExprContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = SLQParserRULE_expr
 	return p
+}
+
+func InitEmptyExprContext(p *ExprContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = SLQParserRULE_expr
 }
 
 func (*ExprContext) IsExprContext() {}
@@ -4335,7 +4546,7 @@ func (*ExprContext) IsExprContext() {}
 func NewExprContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *ExprContext {
 	var p = new(ExprContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = SLQParserRULE_expr
@@ -4541,10 +4752,8 @@ func (p *SLQParser) Expr() (localctx IExprContext) {
 }
 
 func (p *SLQParser) expr(_p int) (localctx IExprContext) {
-	this := p
-	_ = this
-
 	var _parentctx antlr.ParserRuleContext = p.GetParserRuleContext()
+
 	_parentState := p.GetState()
 	localctx = NewExprContext(p, p.GetParserRuleContext(), _parentState)
 	var _prevctx IExprContext = localctx
@@ -4553,33 +4762,24 @@ func (p *SLQParser) expr(_p int) (localctx IExprContext) {
 	p.EnterRecursionRule(localctx, 48, SLQParserRULE_expr, _p)
 	var _la int
 
-	defer func() {
-		p.UnrollRecursionContexts(_parentctx)
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
-
 	var _alt int
 
 	p.EnterOuterAlt(localctx, 1)
 	p.SetState(246)
 	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
 
 	switch p.GetTokenStream().LA(1) {
 	case SLQParserLPAR:
 		{
 			p.SetState(235)
 			p.Match(SLQParserLPAR)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 		{
 			p.SetState(236)
@@ -4588,6 +4788,10 @@ func (p *SLQParser) expr(_p int) (localctx IExprContext) {
 		{
 			p.SetState(237)
 			p.Match(SLQParserRPAR)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 
 	case SLQParserNAME:
@@ -4625,13 +4829,19 @@ func (p *SLQParser) expr(_p int) (localctx IExprContext) {
 		}
 
 	default:
-		panic(antlr.NewNoViableAltException(p, nil, nil, nil, nil, nil))
+		p.SetError(antlr.NewNoViableAltException(p, nil, nil, nil, nil, nil))
+		goto errorExit
 	}
 	p.GetParserRuleContext().SetStop(p.GetTokenStream().LT(-1))
 	p.SetState(275)
 	p.GetErrorHandler().Sync(p)
-	_alt = p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 29, p.GetParserRuleContext())
-
+	if p.HasError() {
+		goto errorExit
+	}
+	_alt = p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 29, p.GetParserRuleContext())
+	if p.HasError() {
+		goto errorExit
+	}
 	for _alt != 2 && _alt != antlr.ATNInvalidAltNumber {
 		if _alt == 1 {
 			if p.GetParseListeners() != nil {
@@ -4640,18 +4850,27 @@ func (p *SLQParser) expr(_p int) (localctx IExprContext) {
 			_prevctx = localctx
 			p.SetState(273)
 			p.GetErrorHandler().Sync(p)
-			switch p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 28, p.GetParserRuleContext()) {
+			if p.HasError() {
+				goto errorExit
+			}
+
+			switch p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 28, p.GetParserRuleContext()) {
 			case 1:
 				localctx = NewExprContext(p, _parentctx, _parentState)
 				p.PushNewRecursionContext(localctx, _startState, SLQParserRULE_expr)
 				p.SetState(248)
 
 				if !(p.Precpred(p.GetParserRuleContext(), 8)) {
-					panic(antlr.NewFailedPredicateException(p, "p.Precpred(p.GetParserRuleContext(), 8)", ""))
+					p.SetError(antlr.NewFailedPredicateException(p, "p.Precpred(p.GetParserRuleContext(), 8)", ""))
+					goto errorExit
 				}
 				{
 					p.SetState(249)
 					p.Match(SLQParserT__9)
+					if p.HasError() {
+						// Recognition error - abort rule
+						goto errorExit
+					}
 				}
 				{
 					p.SetState(250)
@@ -4664,7 +4883,8 @@ func (p *SLQParser) expr(_p int) (localctx IExprContext) {
 				p.SetState(251)
 
 				if !(p.Precpred(p.GetParserRuleContext(), 7)) {
-					panic(antlr.NewFailedPredicateException(p, "p.Precpred(p.GetParserRuleContext(), 7)", ""))
+					p.SetError(antlr.NewFailedPredicateException(p, "p.Precpred(p.GetParserRuleContext(), 7)", ""))
+					goto errorExit
 				}
 				{
 					p.SetState(252)
@@ -4688,7 +4908,8 @@ func (p *SLQParser) expr(_p int) (localctx IExprContext) {
 				p.SetState(254)
 
 				if !(p.Precpred(p.GetParserRuleContext(), 6)) {
-					panic(antlr.NewFailedPredicateException(p, "p.Precpred(p.GetParserRuleContext(), 6)", ""))
+					p.SetError(antlr.NewFailedPredicateException(p, "p.Precpred(p.GetParserRuleContext(), 6)", ""))
+					goto errorExit
 				}
 				{
 					p.SetState(255)
@@ -4712,7 +4933,8 @@ func (p *SLQParser) expr(_p int) (localctx IExprContext) {
 				p.SetState(257)
 
 				if !(p.Precpred(p.GetParserRuleContext(), 5)) {
-					panic(antlr.NewFailedPredicateException(p, "p.Precpred(p.GetParserRuleContext(), 5)", ""))
+					p.SetError(antlr.NewFailedPredicateException(p, "p.Precpred(p.GetParserRuleContext(), 5)", ""))
+					goto errorExit
 				}
 				{
 					p.SetState(258)
@@ -4736,7 +4958,8 @@ func (p *SLQParser) expr(_p int) (localctx IExprContext) {
 				p.SetState(260)
 
 				if !(p.Precpred(p.GetParserRuleContext(), 4)) {
-					panic(antlr.NewFailedPredicateException(p, "p.Precpred(p.GetParserRuleContext(), 4)", ""))
+					p.SetError(antlr.NewFailedPredicateException(p, "p.Precpred(p.GetParserRuleContext(), 4)", ""))
+					goto errorExit
 				}
 				{
 					p.SetState(261)
@@ -4760,28 +4983,41 @@ func (p *SLQParser) expr(_p int) (localctx IExprContext) {
 				p.SetState(263)
 
 				if !(p.Precpred(p.GetParserRuleContext(), 3)) {
-					panic(antlr.NewFailedPredicateException(p, "p.Precpred(p.GetParserRuleContext(), 3)", ""))
+					p.SetError(antlr.NewFailedPredicateException(p, "p.Precpred(p.GetParserRuleContext(), 3)", ""))
+					goto errorExit
 				}
 				p.SetState(267)
 				p.GetErrorHandler().Sync(p)
+				if p.HasError() {
+					goto errorExit
+				}
 
 				switch p.GetTokenStream().LA(1) {
 				case SLQParserEQ:
 					{
 						p.SetState(264)
 						p.Match(SLQParserEQ)
+						if p.HasError() {
+							// Recognition error - abort rule
+							goto errorExit
+						}
 					}
 
 				case SLQParserNEQ:
 					{
 						p.SetState(265)
 						p.Match(SLQParserNEQ)
+						if p.HasError() {
+							// Recognition error - abort rule
+							goto errorExit
+						}
 					}
 
 				case SLQParserT__2, SLQParserT__3, SLQParserT__4, SLQParserT__5, SLQParserT__16, SLQParserT__17, SLQParserPROPRIETARY_FUNC_NAME, SLQParserORDER_ASC, SLQParserORDER_DESC, SLQParserARG, SLQParserNULL, SLQParserLPAR, SLQParserNN, SLQParserNUMBER, SLQParserNAME, SLQParserSTRING:
 
 				default:
-					panic(antlr.NewNoViableAltException(p, nil, nil, nil, nil, nil))
+					p.SetError(antlr.NewNoViableAltException(p, nil, nil, nil, nil, nil))
+					goto errorExit
 				}
 				{
 					p.SetState(269)
@@ -4794,26 +5030,49 @@ func (p *SLQParser) expr(_p int) (localctx IExprContext) {
 				p.SetState(270)
 
 				if !(p.Precpred(p.GetParserRuleContext(), 2)) {
-					panic(antlr.NewFailedPredicateException(p, "p.Precpred(p.GetParserRuleContext(), 2)", ""))
+					p.SetError(antlr.NewFailedPredicateException(p, "p.Precpred(p.GetParserRuleContext(), 2)", ""))
+					goto errorExit
 				}
 				{
 					p.SetState(271)
 					p.Match(SLQParserT__15)
+					if p.HasError() {
+						// Recognition error - abort rule
+						goto errorExit
+					}
 				}
 				{
 					p.SetState(272)
 					p.expr(3)
 				}
 
+			case antlr.ATNInvalidAltNumber:
+				goto errorExit
 			}
 
 		}
 		p.SetState(277)
 		p.GetErrorHandler().Sync(p)
-		_alt = p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 29, p.GetParserRuleContext())
+		if p.HasError() {
+			goto errorExit
+		}
+		_alt = p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 29, p.GetParserRuleContext())
+		if p.HasError() {
+			goto errorExit
+		}
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.UnrollRecursionContexts(_parentctx)
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // ILiteralContext is an interface to support dynamic dispatch.
@@ -4834,15 +5093,20 @@ type ILiteralContext interface {
 }
 
 type LiteralContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyLiteralContext() *LiteralContext {
 	var p = new(LiteralContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = SLQParserRULE_literal
 	return p
+}
+
+func InitEmptyLiteralContext(p *LiteralContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = SLQParserRULE_literal
 }
 
 func (*LiteralContext) IsLiteralContext() {}
@@ -4850,7 +5114,7 @@ func (*LiteralContext) IsLiteralContext() {}
 func NewLiteralContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *LiteralContext {
 	var p = new(LiteralContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = SLQParserRULE_literal
@@ -4907,28 +5171,9 @@ func (s *LiteralContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 }
 
 func (p *SLQParser) Literal() (localctx ILiteralContext) {
-	this := p
-	_ = this
-
 	localctx = NewLiteralContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 50, SLQParserRULE_literal)
 	var _la int
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
 
 	p.EnterOuterAlt(localctx, 1)
 	{
@@ -4943,7 +5188,17 @@ func (p *SLQParser) Literal() (localctx ILiteralContext) {
 		}
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IUnaryOperatorContext is an interface to support dynamic dispatch.
@@ -4962,15 +5217,20 @@ type IUnaryOperatorContext interface {
 }
 
 type UnaryOperatorContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyUnaryOperatorContext() *UnaryOperatorContext {
 	var p = new(UnaryOperatorContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = SLQParserRULE_unaryOperator
 	return p
+}
+
+func InitEmptyUnaryOperatorContext(p *UnaryOperatorContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = SLQParserRULE_unaryOperator
 }
 
 func (*UnaryOperatorContext) IsUnaryOperatorContext() {}
@@ -4978,7 +5238,7 @@ func (*UnaryOperatorContext) IsUnaryOperatorContext() {}
 func NewUnaryOperatorContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *UnaryOperatorContext {
 	var p = new(UnaryOperatorContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = SLQParserRULE_unaryOperator
@@ -5027,28 +5287,9 @@ func (s *UnaryOperatorContext) Accept(visitor antlr.ParseTreeVisitor) interface{
 }
 
 func (p *SLQParser) UnaryOperator() (localctx IUnaryOperatorContext) {
-	this := p
-	_ = this
-
 	localctx = NewUnaryOperatorContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 52, SLQParserRULE_unaryOperator)
 	var _la int
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
 
 	p.EnterOuterAlt(localctx, 1)
 	{
@@ -5063,7 +5304,17 @@ func (p *SLQParser) UnaryOperator() (localctx IUnaryOperatorContext) {
 		}
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 func (p *SLQParser) Sempred(localctx antlr.RuleContext, ruleIndex, predIndex int) bool {
@@ -5081,9 +5332,6 @@ func (p *SLQParser) Sempred(localctx antlr.RuleContext, ruleIndex, predIndex int
 }
 
 func (p *SLQParser) Expr_Sempred(localctx antlr.RuleContext, predIndex int) bool {
-	this := p
-	_ = this
-
 	switch predIndex {
 	case 0:
 		return p.Precpred(p.GetParserRuleContext(), 8)
