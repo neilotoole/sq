@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -16,8 +17,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
-
-	"golang.org/x/exp/slog"
 
 	"github.com/tealeg/xlsx/v2"
 	"golang.org/x/sync/errgroup"
@@ -390,9 +389,15 @@ func syncColNamesKinds(colNames []string, colKinds []kind.Kind) (names []string,
 func rowToRecord(log *slog.Logger, destColKinds []kind.Kind, row *xlsx.Row, sheetName string, rowIndex int) []any {
 	vals := make([]any, len(destColKinds))
 	for j, cell := range row.Cells {
+
+		log = log.With("sheet", sheetName, "cell", fmt.Sprintf("%d:%d", rowIndex, j))
+
 		if j >= len(vals) {
-			log.Warn("Sheet %s[%d:%d]: skipping additional cells because there's more cells than expected (%d)",
-				sheetName, rowIndex, j, len(destColKinds))
+			log.Warn(
+				"Skipping additional cells because there's more cells than expected",
+				lga.Count,
+				len(destColKinds),
+			)
 			continue
 		}
 
@@ -404,7 +409,7 @@ func rowToRecord(log *slog.Logger, destColKinds []kind.Kind, row *xlsx.Row, shee
 			if cell.IsTime() {
 				t, err := cell.GetTime(false)
 				if err != nil {
-					log.Warn("Sheet %s[%d:%d]: failed to get Excel time: %v", sheetName, rowIndex, j, err)
+					log.Warn("Failed to get Excel time", lga.Err, err)
 					vals[j] = nil
 					continue
 				}
@@ -432,8 +437,6 @@ func rowToRecord(log *slog.Logger, destColKinds []kind.Kind, row *xlsx.Row, shee
 			// it's not an int, it's not a float, it's not empty string;
 			// just give up and make it a string.
 			log.Warn("Failed to determine type of numeric cell",
-				"sheet", sheetName,
-				"cell", fmt.Sprintf("%d:%d", rowIndex, j),
 				lga.Val, cell.Value,
 			)
 

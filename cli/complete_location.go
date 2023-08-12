@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"log/slog"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -9,8 +10,6 @@ import (
 	"strings"
 
 	"github.com/neilotoole/sq/libsq/core/urlz"
-
-	"golang.org/x/exp/slog"
 
 	"github.com/neilotoole/sq/libsq/core/ioz"
 

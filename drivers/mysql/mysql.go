@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/neilotoole/sq/libsq/core/loz"
@@ -28,7 +29,6 @@ import (
 	"github.com/neilotoole/sq/libsq/driver/dialect"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/xo/dburl"
-	"golang.org/x/exp/slog"
 )
 
 const (

@@ -2,10 +2,9 @@
 package hostinfo
 
 import (
+	"log/slog"
 	"runtime"
 	"strings"
-
-	"golang.org/x/exp/slog"
 
 	"github.com/ecnepsnai/osquery"
 )

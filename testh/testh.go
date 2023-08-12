@@ -6,6 +6,7 @@ import (
 	"context"
 	"database/sql"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -28,7 +29,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"github.com/neilotoole/slogt"
-	"golang.org/x/exp/slog"
 
 	"github.com/neilotoole/sq/libsq/ast"
 
@@ -64,10 +64,12 @@ const defaultDBOpenTimeout = time.Second * 5
 
 func init() { //nolint:gochecknoinits
 	slogt.Default = slogt.Factory(func(w io.Writer) slog.Handler {
-		return slog.HandlerOptions{
+		h := &slog.HandlerOptions{
 			Level:     slog.LevelDebug,
 			AddSource: true,
-		}.NewTextHandler(w)
+		}
+
+		return slog.NewTextHandler(w, h)
 	})
 }
 

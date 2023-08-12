@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"io"
+	"log/slog"
 	"sync"
 
 	"github.com/neilotoole/sq/libsq/core/options"
@@ -17,7 +18,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
-	"golang.org/x/exp/slog"
 )
 
 // database implements driver.Database. It implements a deferred ingest

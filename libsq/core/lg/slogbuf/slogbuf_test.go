@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"log/slog"
 	"testing"
 
 	"github.com/neilotoole/sq/libsq/core/lg/slogbuf"
-	"golang.org/x/exp/slog"
 )
 
 var (
@@ -114,7 +114,7 @@ func TestSlogBaseline(t *testing.T) {
 // the time attribute. We do this to make it easier to compare test
 // output.
 func newTimelessJSONHandler(w io.Writer) *slog.JSONHandler {
-	return slog.HandlerOptions{
+	h := &slog.HandlerOptions{
 		AddSource: false,
 		Level:     slog.LevelDebug,
 		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
@@ -124,7 +124,9 @@ func newTimelessJSONHandler(w io.Writer) *slog.JSONHandler {
 
 			return a
 		},
-	}.NewJSONHandler(w)
+	}
+
+	return slog.NewJSONHandler(w, h)
 }
 
 func requireEqual(t *testing.T, want, got string) {

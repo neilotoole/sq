@@ -8,11 +8,10 @@
 package ast
 
 import (
+	"log/slog"
 	"reflect"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
-
-	"golang.org/x/exp/slog"
 
 	"github.com/antlr/antlr4/runtime/Go/antlr/v4"
 

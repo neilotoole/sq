@@ -11,11 +11,10 @@ package slogbuf
 
 import (
 	"context"
+	"log/slog"
 	"sync"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
-
-	"golang.org/x/exp/slog"
 )
 
 // New returns a logger, and a buffer that can be used for replay.

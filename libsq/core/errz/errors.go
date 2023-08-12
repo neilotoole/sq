@@ -95,8 +95,7 @@ package errz
 import (
 	"fmt"
 	"io"
-
-	"golang.org/x/exp/slog"
+	"log/slog"
 )
 
 // New returns an error with the supplied message.
