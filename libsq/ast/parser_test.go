@@ -7,7 +7,7 @@ import (
 
 	"github.com/neilotoole/slogt"
 
-	"github.com/antlr/antlr4/runtime/Go/antlr/v4"
+	"github.com/antlr4-go/antlr/v4"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/ast/internal/slq"
