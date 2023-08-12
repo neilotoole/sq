@@ -3,6 +3,7 @@ package source
 import (
 	"context"
 	"io"
+	"log/slog"
 	"mime"
 	"net/url"
 	"os"
@@ -11,7 +12,6 @@ import (
 	"time"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
-	"golang.org/x/exp/slog"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 

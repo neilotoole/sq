@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"time"
 
@@ -18,8 +19,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/options"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
-
-	"golang.org/x/exp/slices"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
 

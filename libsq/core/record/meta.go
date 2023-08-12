@@ -3,10 +3,9 @@ package record
 import (
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"reflect"
 	"strconv"
-
-	"golang.org/x/exp/slog"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
 )

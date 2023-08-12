@@ -8,6 +8,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -28,8 +29,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
-
-	"golang.org/x/exp/slog"
 
 	_ "github.com/mattn/go-sqlite3" // Import for side effect of loading the driver
 	"github.com/neilotoole/sq/libsq/ast/render"

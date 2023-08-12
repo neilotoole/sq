@@ -15,13 +15,12 @@ package options
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"slices"
 	"sync"
 	"time"
 
-	"golang.org/x/exp/slog"
-
 	"github.com/samber/lo"
-	"golang.org/x/exp/slices"
 )
 
 type contextKey struct{}

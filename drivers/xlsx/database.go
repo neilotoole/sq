@@ -3,6 +3,7 @@ package xlsx
 import (
 	"context"
 	"database/sql"
+	"log/slog"
 	"sync"
 
 	"github.com/xuri/excelize/v2"
@@ -15,7 +16,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
-	"golang.org/x/exp/slog"
 )
 
 // database implements driver.Database. It implements a deferred ingest

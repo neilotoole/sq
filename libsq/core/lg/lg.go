@@ -8,12 +8,11 @@ package lg
 import (
 	"context"
 	"io"
+	"log/slog"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
-
-	"golang.org/x/exp/slog"
 )
 
 type contextKey struct{}

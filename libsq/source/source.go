@@ -3,14 +3,13 @@ package source
 
 import (
 	"fmt"
+	"log/slog"
 	"net/url"
 	"strings"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
-
-	"golang.org/x/exp/slog"
 
 	"github.com/xo/dburl"
 

@@ -1,8 +1,10 @@
 package tablew
 
 import (
+	"cmp"
 	"fmt"
 	"io"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -11,7 +13,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/kind"
 
 	"github.com/samber/lo"
-	"golang.org/x/exp/slices"
 
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq/core/stringz"
@@ -275,12 +276,12 @@ func (w *mdWriter) doSourceMetaFull(md *source.Metadata) error {
 	w.tbl.reset()
 
 	// Sort by type (view/table) and name
-	slices.SortFunc(md.Tables, func(a, b *source.TableMetadata) bool {
+	slices.SortFunc(md.Tables, func(a, b *source.TableMetadata) int {
 		if a.TableType == b.TableType {
-			return a.Name < b.Name
+			return cmp.Compare(a.Name, b.Name)
 		}
 
-		return a.TableType < b.TableType
+		return cmp.Compare(a.TableType, b.TableType)
 	})
 
 	if w.tbl.pr.Verbose {

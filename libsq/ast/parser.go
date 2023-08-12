@@ -2,6 +2,7 @@ package ast
 
 import (
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -9,9 +10,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 
-	"golang.org/x/exp/slog"
-
-	"github.com/antlr/antlr4/runtime/Go/antlr/v4"
+	"github.com/antlr4-go/antlr/v4"
 	"github.com/neilotoole/sq/libsq/ast/internal/slq"
 )
 
@@ -40,12 +39,56 @@ func parseSLQ(log *slog.Logger, input string) (*slq.QueryContext, error) {
 	return qCtx.(*slq.QueryContext), nil
 }
 
+var _ antlr.ErrorListener = (*antlrErrorListener)(nil)
+
 type antlrErrorListener struct {
 	log      *slog.Logger
 	name     string
 	errs     []string
 	warnings []string
 	err      error
+}
+
+// SyntaxError implements antlr.ErrorListener.
+//
+//nolint:revive
+func (el *antlrErrorListener) SyntaxError(recognizer antlr.Recognizer, offendingSymbol interface{},
+	line, column int, msg string, e antlr.RecognitionException,
+) {
+	text := fmt.Sprintf("%s: syntax error: [%d:%d] %s", el.name, line, column, msg)
+	el.errs = append(el.errs, text)
+}
+
+// ReportAmbiguity implements antlr.ErrorListener.
+//
+//nolint:revive
+func (el *antlrErrorListener) ReportAmbiguity(recognizer antlr.Parser, dfa *antlr.DFA,
+	startIndex, stopIndex int, exact bool, ambigAlts *antlr.BitSet, configs *antlr.ATNConfigSet,
+) {
+	tok := recognizer.GetCurrentToken()
+	text := fmt.Sprintf("%s: syntax ambiguity: [%d:%d]", el.name, startIndex, stopIndex)
+	text = text + "  >>" + tok.GetText() + "<<"
+	el.warnings = append(el.warnings, text)
+}
+
+// ReportAttemptingFullContext implements antlr.ErrorListener.
+//
+//nolint:revive
+func (el *antlrErrorListener) ReportAttemptingFullContext(recognizer antlr.Parser, dfa *antlr.DFA,
+	startIndex, stopIndex int, conflictingAlts *antlr.BitSet, configs *antlr.ATNConfigSet,
+) {
+	text := fmt.Sprintf("%s: attempting full context: [%d:%d]", el.name, startIndex, stopIndex)
+	el.warnings = append(el.warnings, text)
+}
+
+// ReportContextSensitivity implements antlr.ErrorListener.
+//
+//nolint:revive
+func (el *antlrErrorListener) ReportContextSensitivity(recognizer antlr.Parser, dfa *antlr.DFA,
+	startIndex, stopIndex, prediction int, configs *antlr.ATNConfigSet,
+) {
+	text := fmt.Sprintf("%s: context sensitivity: [%d:%d]", el.name, startIndex, stopIndex)
+	el.warnings = append(el.warnings, text)
 }
 
 func (el *antlrErrorListener) error() error {
@@ -68,52 +111,11 @@ func (el *antlrErrorListener) String() string {
 	return strings.Join(strs, "\n")
 }
 
-// SyntaxError implements antlr.ErrorListener.
-//
-//nolint:revive
-func (el *antlrErrorListener) SyntaxError(recognizer antlr.Recognizer, offendingSymbol any,
-	line, column int, msg string, e antlr.RecognitionException,
-) {
-	text := fmt.Sprintf("%s: syntax error: [%d:%d] %s", el.name, line, column, msg)
-	el.errs = append(el.errs, text)
-}
-
-// ReportAmbiguity implements antlr.ErrorListener.
-//
-//nolint:revive
-func (el *antlrErrorListener) ReportAmbiguity(recognizer antlr.Parser, dfa *antlr.DFA,
-	startIndex, stopIndex int, exact bool, ambigAlts *antlr.BitSet, configs antlr.ATNConfigSet,
-) {
-	tok := recognizer.GetCurrentToken()
-	text := fmt.Sprintf("%s: syntax ambiguity: [%d:%d]", el.name, startIndex, stopIndex)
-	text = text + "  >>" + tok.GetText() + "<<"
-	el.warnings = append(el.warnings, text)
-}
-
-// ReportAttemptingFullContext implements antlr.ErrorListener.
-//
-//nolint:revive
-func (el *antlrErrorListener) ReportAttemptingFullContext(recognizer antlr.Parser, dfa *antlr.DFA,
-	startIndex, stopIndex int, conflictingAlts *antlr.BitSet, configs antlr.ATNConfigSet,
-) {
-	text := fmt.Sprintf("%s: attempting full context: [%d:%d]", el.name, startIndex, stopIndex)
-	el.warnings = append(el.warnings, text)
-}
-
-// ReportContextSensitivity implements antlr.ErrorListener.
-//
-//nolint:revive
-func (el *antlrErrorListener) ReportContextSensitivity(recognizer antlr.Parser,
-	dfa *antlr.DFA, startIndex, stopIndex, prediction int, configs antlr.ATNConfigSet,
-) {
-	text := fmt.Sprintf("%s: context sensitivity: [%d:%d]", el.name, startIndex, stopIndex)
-	el.warnings = append(el.warnings, text)
-}
-
 // parseError represents an error in lexing/parsing input.
 type parseError struct {
 	msg string
-	// TODO: parse error should include more detail, such as the offending token, position, etc.
+	// TODO: parse error should include more detail, such as
+	// the offending token, position, etc.
 }
 
 // Error implements error.
@@ -285,6 +287,6 @@ func (v *parseTreeVisitor) VisitTerminal(ctx antlr.TerminalNode) any {
 
 // VisitErrorNode implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitErrorNode(ctx antlr.ErrorNode) any {
-	v.log.Debug("error node: %v", ctx.GetText())
+	v.log.Debug("Error node", lga.Val, ctx.GetText())
 	return nil
 }

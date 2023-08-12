@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 	"sync"
@@ -20,8 +21,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
-
-	"golang.org/x/exp/slog"
 
 	"github.com/tealeg/xlsx/v2"
 	"golang.org/x/sync/errgroup"
@@ -515,13 +514,17 @@ func rowToRecord2(log *slog.Logger, destColKinds []kind.Kind, sheetName string, 
 	vals := make([]any, len(destColKinds))
 	for i, str := range cells {
 		if i >= len(vals) {
-			log.Warn("Sheet %s[%d:%d]: skipping additional cells because there's more cells than expected (%d)",
-				sheetName, rowi, i, len(destColKinds))
+			log.Warn(
+				"Skipping additional cells because there's more cells than expected",
+				"sheet", sheetName,
+				lga.Col, fmt.Sprintf("%d:%d", rowi, i),
+				lga.Count, len(destColKinds),
+			)
 			continue
 		}
 
 		typ := cellTypes[i]
-		switch typ { //nolint:exhaustive
+		switch typ {
 		case excelize.CellTypeBool:
 			if b, err := stringz.ParseBool(str); err == nil {
 				vals[i] = b
@@ -658,6 +661,8 @@ type sheetTable struct {
 }
 
 func detectHeaderRow(ctx context.Context, sheet *xSheet) (hasHeader bool, err error) {
+	sampleSize := driver.OptIngestSampleSize.Get(options.FromContext(ctx))
+
 	//rows, err := sheet.file.Rows(sheet.name)
 	//if err != nil {
 	//	return false, errz.Err(err)
@@ -670,11 +675,11 @@ func detectHeaderRow(ctx context.Context, sheet *xSheet) (hasHeader bool, err er
 		return false, nil
 	}
 
-	types1, err := getCellColumnTypes2(ctx, sheet, 0, 1000)
+	types1, err := getCellColumnTypes2(ctx, sheet, 0, sampleSize)
 	if err != nil {
 		return false, err
 	}
-	types2, err := getCellColumnTypes2(ctx, sheet, 1, 1000)
+	types2, err := getCellColumnTypes2(ctx, sheet, 1, sampleSize)
 	if err != nil {
 		return false, err
 	}
@@ -747,7 +752,6 @@ func getCellColumnTypes2(ctx context.Context, sheet *xSheet, rangeStart, rangeEn
 			// It already has a type, and it's different from this cell's type
 			types[coli] = excelize.CellTypeInlineString
 		}
-
 	}
 
 	return types, nil

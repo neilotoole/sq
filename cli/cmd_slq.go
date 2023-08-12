@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -13,7 +14,6 @@ import (
 
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/drivers/csv"
-	"golang.org/x/exp/slices"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 

@@ -8,7 +8,7 @@ import (
 	"github.com/neilotoole/sq/libsq/ast/internal/slq"
 	"github.com/neilotoole/sq/libsq/core/errz"
 
-	"github.com/antlr/antlr4/runtime/Go/antlr/v4"
+	"github.com/antlr4-go/antlr/v4"
 )
 
 // VisitJoin implements slq.SLQVisitor.

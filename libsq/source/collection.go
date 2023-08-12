@@ -1,12 +1,13 @@
 package source
 
 import (
+	"cmp"
 	"encoding/json"
+	"slices"
 	"strings"
 	"sync"
 
 	"github.com/samber/lo"
-	"golang.org/x/exp/slices"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
@@ -1051,32 +1052,32 @@ func VerifyIntegrity(coll *Collection) (repaired bool, err error) {
 
 // Sort sorts a slice of sources by handle.
 func Sort(srcs []*Source) {
-	slices.SortFunc(srcs, func(a, b *Source) bool {
+	slices.SortFunc(srcs, func(a, b *Source) int {
 		switch {
 		case a == nil && b == nil:
-			return false
+			return 0
 		case a == nil:
-			return true
+			return -1
 		case b == nil:
-			return false
+			return 1
 		default:
-			return a.Handle < b.Handle
+			return cmp.Compare(a.Handle, b.Handle)
 		}
 	})
 }
 
 // SortGroups sorts a slice of groups by name.
 func SortGroups(groups []*Group) {
-	slices.SortFunc(groups, func(a, b *Group) bool {
+	slices.SortFunc(groups, func(a, b *Group) int {
 		switch {
 		case a == nil && b == nil:
-			return false
+			return 0
 		case a == nil:
-			return true
+			return -1
 		case b == nil:
-			return false
+			return 1
 		default:
-			return a.Name < b.Name
+			return cmp.Compare(a.Name, b.Name)
 		}
 	})
 }

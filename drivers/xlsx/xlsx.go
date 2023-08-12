@@ -3,6 +3,7 @@ package xlsx
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/xuri/excelize/v2"
 
@@ -11,8 +12,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
-
-	"golang.org/x/exp/slog"
 
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -92,7 +91,7 @@ func (d *Driver) Truncate(_ context.Context, src *source.Source, _ string, _ boo
 
 // ValidateSource implements driver.Driver.
 func (d *Driver) ValidateSource(src *source.Source) (*source.Source, error) {
-	d.log.Debug("Validating source: {%s}", src.RedactedLocation())
+	d.log.Debug("Validating source", lga.Src, src)
 	if src.Type != Type {
 		return nil, errz.Errorf("expected driver type {%s} but got {%s}", Type, src.Type)
 	}

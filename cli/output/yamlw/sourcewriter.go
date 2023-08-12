@@ -2,10 +2,9 @@ package yamlw
 
 import (
 	"io"
+	"slices"
 
 	"github.com/goccy/go-yaml/printer"
-
-	"golang.org/x/exp/slices"
 
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq/source"

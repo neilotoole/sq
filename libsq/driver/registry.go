@@ -1,9 +1,10 @@
 package driver
 
 import (
+	"log/slog"
 	"sync"
 
-	"golang.org/x/exp/slog"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/source"
@@ -88,7 +89,7 @@ func (r *Registry) DriversMetadata() []Metadata {
 		drv, err := r.DriverFor(typ)
 		if err != nil {
 			// Should never happen
-			r.log.Error("error getting {%s} driver: %v", typ, err)
+			r.log.Error("Error getting driver", lga.Type, typ, lga.Err, err)
 			continue
 		}
 		md = append(md, drv.DriverMetadata())
@@ -100,11 +101,12 @@ func (r *Registry) DriversMetadata() []Metadata {
 // Drivers returns the registered drivers.
 func (r *Registry) Drivers() []Driver {
 	var drvrs []Driver
+
 	for _, typ := range r.types {
 		drvr, err := r.DriverFor(typ)
 		if err != nil {
 			// Should never happen
-			r.log.Error("Error getting {%s} driver: %v", typ, err)
+			r.log.Error("Error getting driver", lga.Type, typ, lga.Err, err)
 			continue
 		}
 		drvrs = append(drvrs, drvr)

@@ -3,10 +3,9 @@ package jsonw
 import (
 	"fmt"
 	"io"
+	"log/slog"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
-
-	"golang.org/x/exp/slog"
 
 	"github.com/neilotoole/sq/cli/output"
 )

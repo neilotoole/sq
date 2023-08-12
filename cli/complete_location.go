@@ -2,15 +2,15 @@ package cli
 
 import (
 	"context"
+	"log/slog"
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/neilotoole/sq/libsq/core/urlz"
-
-	"golang.org/x/exp/slog"
 
 	"github.com/neilotoole/sq/libsq/core/ioz"
 
@@ -19,7 +19,6 @@ import (
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/driver"
-	"golang.org/x/exp/slices"
 
 	"github.com/neilotoole/sq/drivers/mysql"
 	"github.com/neilotoole/sq/drivers/postgres"

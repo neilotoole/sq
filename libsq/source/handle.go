@@ -3,11 +3,10 @@ package source
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
-
-	"golang.org/x/exp/slices"
 
 	"github.com/neilotoole/sq/libsq/core/stringz"
 

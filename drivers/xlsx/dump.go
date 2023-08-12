@@ -2,19 +2,19 @@ package xlsx
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/tealeg/xlsx/v2"
-	"golang.org/x/exp/slog"
 )
 
 func rowToRecord(log *slog.Logger, destColKinds []kind.Kind, row *xlsx.Row, sheetName string, rowIndex int) []any {
 	vals := make([]any, len(destColKinds))
 	for j, cell := range row.Cells {
 		if j >= len(vals) {
-			log.Warn("Sheet %s[%d:%d]: skipping additional cells because there's more cells than expected (%d)",
-				sheetName, rowIndex, j, len(destColKinds))
+			// log.Warn("Sheet %s[%d:%d]: skipping additional cells because there's more cells than expected (%d)",
+			//	sheetName, rowIndex, j, len(destColKinds))
 			continue
 		}
 
@@ -26,7 +26,7 @@ func rowToRecord(log *slog.Logger, destColKinds []kind.Kind, row *xlsx.Row, shee
 			if cell.IsTime() {
 				t, err := cell.GetTime(false)
 				if err != nil {
-					log.Warn("Sheet %s[%d:%d]: failed to get Excel time: %v", sheetName, rowIndex, j, err)
+					// log.Warn("Sheet %s[%d:%d]: failed to get Excel time: %v", sheetName, rowIndex, j, err)
 					vals[j] = nil
 					continue
 				}
