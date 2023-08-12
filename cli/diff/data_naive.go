@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/neilotoole/sq/libsq/core/options"
@@ -14,7 +15,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"github.com/samber/lo"
-	"golang.org/x/exp/slices"
 
 	"github.com/neilotoole/sq/cli/diff/internal/go-udiff"
 	"github.com/neilotoole/sq/cli/diff/internal/go-udiff/myers"

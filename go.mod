@@ -28,7 +28,7 @@ require (
 	github.com/otiai10/copy v1.12.0
 	github.com/ryboe/q v1.0.19
 	github.com/samber/lo v1.38.1
-	github.com/segmentio/encoding v0.1.14 // Be very careful changing pkg segmentio/encoding. A specific version is by our json encoder.
+	github.com/segmentio/encoding v0.1.14 // Be very careful changing pkg segmentio/encoding. A specific version is used by our json encoder.
 	github.com/sethvargo/go-retry v0.2.4
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/pflag v1.0.5
@@ -47,7 +47,6 @@ require (
 	github.com/Masterminds/sprig/v3 v3.2.3
 	github.com/alessio/shellescape v1.4.2
 	github.com/xuri/excelize/v2 v2.7.1
-	golang.org/x/exp v0.0.0-20230420155640-133eef4313cb
 )
 
 require (
@@ -81,6 +80,7 @@ require (
 	github.com/xuri/efp v0.0.0-20220603152613-6918739fd470 // indirect
 	github.com/xuri/nfp v0.0.0-20220409054826-5e722a1d9e22 // indirect
 	golang.org/x/crypto v0.11.0 // indirect
+	golang.org/x/exp v0.0.0-20230420155640-133eef4313cb // indirect
 	golang.org/x/sys v0.10.0 // indirect
 	golang.org/x/text v0.11.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect

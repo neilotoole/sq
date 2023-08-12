@@ -16,11 +16,11 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"slices"
 	"sync"
 	"time"
 
 	"github.com/samber/lo"
-	"golang.org/x/exp/slices"
 )
 
 type contextKey struct{}

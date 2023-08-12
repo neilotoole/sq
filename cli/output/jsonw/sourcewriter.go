@@ -2,8 +2,7 @@ package jsonw
 
 import (
 	"io"
-
-	"golang.org/x/exp/slices"
+	"slices"
 
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq/source"

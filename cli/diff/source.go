@@ -3,10 +3,9 @@ package diff
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	"github.com/samber/lo"
-
-	"golang.org/x/exp/slices"
 
 	"github.com/neilotoole/sq/cli/diff/internal/go-udiff"
 	"github.com/neilotoole/sq/cli/diff/internal/go-udiff/myers"
@@ -189,12 +188,6 @@ func buildDBPropsDiff(cfg *Config, sd1, sd2 *sourceData) (*dbPropsDiff, error) {
 		header: fmt.Sprintf("sq diff --dbprops %s %s", sd1.handle, sd2.handle),
 		diff:   unified,
 	}, nil
-}
-
-func sortTables(tbls []*source.TableMetadata) { //nolint:unused
-	slices.SortFunc(tbls, func(a, b *source.TableMetadata) bool {
-		return a.FQName < b.FQName
-	})
 }
 
 func fetchSourceMeta(ctx context.Context, ru *run.Run, handle string) (*source.Source, *source.Metadata, error) {
