@@ -35,6 +35,7 @@ import (
 func TestCmdInspect_json_yaml(t *testing.T) {
 	tutil.SkipShort(t, true)
 
+	possibleTbls := append(sakila.AllTbls(), source.MonotableName)
 	testCases := []struct {
 		handle   string
 		wantTbls []string
@@ -79,9 +80,10 @@ func TestCmdInspect_json_yaml(t *testing.T) {
 					require.Equal(t, source.RedactLocation(src.Location), srcMeta.Location)
 
 					gotTableNames := srcMeta.TableNames()
+					gotTableNames = lo.Intersect(gotTableNames, possibleTbls)
 
 					for _, wantTblName := range tc.wantTbls {
-						if src.Type == postgres.Type && wantTblName == "film_text" {
+						if src.Type == postgres.Type && wantTblName == sakila.TblFilmText {
 							// Postgres sakila DB doesn't have film_text for some reason
 							continue
 						}
