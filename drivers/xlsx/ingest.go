@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -35,17 +36,79 @@ import (
 )
 
 type xSheet struct {
+	file     *excelize.File
+	name     string
+	rows     [][]string
+	types    [][]excelize.Cell
+	maxCols  int
+	rowsOnce sync.Once
+	rowsErr  error
+}
+
+type sheetIter struct {
 	file *excelize.File
 	name string
-	rows [][]string
-	maxCols int
-	rowsOnce sync.Once
-	rowsErr error
+	rows *excelize.Rows
+	rowi int
+}
+
+func newSheetIter(file *excelize.File, sheetName string) (*sheetIter, error) {
+	rows, err := file.Rows(sheetName)
+	if err != nil {
+		return nil, errw(err)
+	}
+
+	return &sheetIter{
+		file: file,
+		name: sheetName,
+		rows: rows,
+	}, nil
+}
+
+func (si *sheetIter) Close() error {
+	return errw(si.rows.Close())
+}
+
+func (si *sheetIter) Next() bool {
+	return si.rows.Next()
+}
+
+func (si *sheetIter) Row() ([]string, []excelize.CellType, error) {
+	cols, err := si.rows.Columns()
+	if err != nil {
+		return nil, nil, errw(err)
+	}
+
+	types := make([]excelize.CellType, len(cols))
+
+	var name string
+	for i := range cols {
+		name = cellName(i, si.rowi)
+		types[i], err = si.file.GetCellType(si.name, name)
+		if err != nil {
+			return nil, nil, errw(err)
+		}
+	}
+
+	si.rowi++
+	return cols, types, nil
+}
+
+func errw(err error) error {
+	return errz.Wrap(err, "excel")
+}
+
+// cellName accepts zero-index cell coordinates, and returns the call name.
+// For example, {0,0} returns "A1".
+func cellName(col, row int) string {
+	s, _ := excelize.ColumnNumberToName(col + 1)
+	s += strconv.Itoa(row + 1)
+	return s
 }
 
 func (xs *xSheet) loadRows() ([][]string, error) {
 	xs.rowsOnce.Do(func() {
-		xs.rows, xs.rowsErr =  xs.file.GetRows(xs.name)
+		xs.rows, xs.rowsErr = xs.file.GetRows(xs.name)
 		xs.rowsErr = errz.Wrapf(xs.rowsErr, "load row data for sheet {%s}", xs.name)
 
 		for i := range xs.rows {
@@ -83,13 +146,13 @@ func ingestXLSX(ctx context.Context, src *source.Source, scratchDB driver.Databa
 			if !hasSheet(xlFile, sheetName) {
 				return errz.Errorf("sheet {%s} not found", sheetName)
 			}
-			sheets = append(sheets, &xSheet{file:xlFile, name:sheetName})
+			sheets = append(sheets, &xSheet{file: xlFile, name: sheetName})
 		}
 	} else {
 		sheetNames := xlFile.GetSheetList()
 		sheets = make([]*xSheet, len(sheetNames))
 		for i := range sheetNames {
-			sheets[i] = &xSheet{file:xlFile,name: sheetNames[i]}
+			sheets[i] = &xSheet{file: xlFile, name: sheetNames[i]}
 		}
 	}
 
@@ -178,16 +241,35 @@ func importSheetToTable(ctx context.Context, scratchDB driver.Database, sheetTbl
 		return err
 	}
 
-	for i, row := range sheet.Rows {
+	si, err := newSheetIter(sheetTbl.sheet.file, sheetTbl.sheet.name)
+	if err != nil {
+		return errw(err)
+	}
+
+	defer lg.WarnIfCloseError(log, "Close Excel sheet iterator", si)
+
+	// for i, row := range sheet.rows {
+
+	var cells []string
+	var cellTypes []excelize.CellType
+
+	i := -1
+	for si.Next() {
+		i++
 		if hasHeader && i == 0 {
 			continue
 		}
 
-		if isEmptyRow(row) {
+		cells, cellTypes, err = si.Row()
+		if err != nil {
+			return err
+		}
+
+		if isEmptyRow2(cells) {
 			continue
 		}
 
-		rec := rowToRecord(log, destColKinds, row, sheet.Name, i)
+		rec := rowToRecord2(log, destColKinds, sheet.name, i, cells, cellTypes)
 		err = bi.Munge(rec)
 		if err != nil {
 			close(bi.RecordCh)
@@ -219,22 +301,20 @@ func importSheetToTable(ctx context.Context, scratchDB driver.Database, sheetTbl
 
 	log.Debug("Inserted rows from sheet into table",
 		lga.Count, bi.Written(),
-		"sheet", sheet.Name,
+		"sheet", sheet.name,
 		lga.Target, source.Target(scratchDB.Source(), tblDef.Name),
 		lga.Elapsed, time.Since(startTime))
 
 	return nil
 }
 
-// isEmptyRow returns true if row is nil or has zero cells, or if
-// every cell value is empty string.
-func isEmptyRow(row *xlsx.Row) bool {
-	if row == nil || len(row.Cells) == 0 {
+func isEmptyRow2(row []string) bool {
+	if len(row) == 0 {
 		return true
 	}
 
-	for i := range row.Cells {
-		if row.Cells[i].Value != "" {
+	for i := range row {
+		if row[i] != "" {
 			return false
 		}
 	}
@@ -289,18 +369,18 @@ func getSrcIngestHeader(o options.Options) *bool {
 // is returned. If srcIngestHeader is nil, the function attempts
 // to detect if the sheet has a header row.
 func buildSheetTable(ctx context.Context, srcIngestHeader *bool, sheet *xSheet) (*sheetTable, error) {
+	if _, err := sheet.loadRows(); err != nil {
+		return nil, err
+	}
+
 	var hasHeader bool
 	if srcIngestHeader != nil {
 		hasHeader = *srcIngestHeader
 	} else {
 		var err error
-		if hasHeader, err = detectHeaderRow(sheet); err != nil {
+		if hasHeader, err = detectHeaderRow(ctx, sheet); err != nil {
 			return nil, err
 		}
-	}
-
-	if _, err := sheet.loadRows(); err != nil {
-		return nil, err
 	}
 
 	maxCols := sheet.maxCols
@@ -362,14 +442,14 @@ func buildSheetTable(ctx context.Context, srcIngestHeader *bool, sheet *xSheet) 
 		return nil, err
 	}
 
-	tblDef := &sqlmodel.TableDef{Name: sheet.Name}
+	tblDef := &sqlmodel.TableDef{Name: sheet.name}
 	cols := make([]*sqlmodel.ColDef, len(colNames))
 	for i, colName := range colNames {
 		cols[i] = &sqlmodel.ColDef{Table: tblDef, Name: colName, Kind: colKinds[i]}
 	}
 	tblDef.Cols = cols
 	lg.FromContext(ctx).Debug("Built table def",
-		"sheet", sheet.Name,
+		"sheet", sheet.name,
 		"cols", strings.Join(colNames, ", "))
 
 	return &sheetTable{
@@ -429,45 +509,52 @@ func syncColNamesKinds(colNames []string, colKinds []kind.Kind) (names []string,
 	return colNames, colKinds
 }
 
-func rowToRecord(log *slog.Logger, destColKinds []kind.Kind, row *xlsx.Row, sheetName string, rowIndex int) []any {
+func rowToRecord2(log *slog.Logger, destColKinds []kind.Kind, sheetName string, rowi int,
+	cells []string, cellTypes []excelize.CellType,
+) []any {
 	vals := make([]any, len(destColKinds))
-	for j, cell := range row.Cells {
-		if j >= len(vals) {
+	for i, str := range cells {
+		if i >= len(vals) {
 			log.Warn("Sheet %s[%d:%d]: skipping additional cells because there's more cells than expected (%d)",
-				sheetName, rowIndex, j, len(destColKinds))
+				sheetName, rowi, i, len(destColKinds))
 			continue
 		}
 
-		typ := cell.Type()
+		typ := cellTypes[i]
 		switch typ { //nolint:exhaustive
-		case xlsx.CellTypeBool:
-			vals[j] = cell.Bool()
-		case xlsx.CellTypeNumeric:
-			if cell.IsTime() {
-				t, err := cell.GetTime(false)
-				if err != nil {
-					log.Warn("Sheet %s[%d:%d]: failed to get Excel time: %v", sheetName, rowIndex, j, err)
-					vals[j] = nil
-					continue
-				}
-
-				vals[j] = t
+		case excelize.CellTypeBool:
+			if b, err := stringz.ParseBool(str); err == nil {
+				vals[i] = b
 				continue
 			}
 
-			intVal, err := cell.Int64()
+		case excelize.CellTypeNumber:
+			if cells[i] == "" {
+				vals[i] = nil
+				continue
+			}
+
+			intVal, err := strconv.ParseInt(str, 10, 64)
 			if err == nil {
-				vals[j] = intVal
+				vals[i] = intVal
 				continue
 			}
-			floatVal, err := cell.Float()
-			if err == nil {
-				vals[j] = floatVal
-				continue
-			}
+			//if cell.IsTime() {
+			//	t, err := cell.GetTime(false)
+			//	if err != nil {
+			//		log.Warn("Sheet %s[%d:%d]: failed to get Excel time: %v", sheetName, rowIndex, j, err)
+			//		vals[j] = nil
+			//		continue
+			//	}
+			//
+			//	vals[j] = t
+			//	continue
+			//}
 
-			if cell.Value == "" {
-				vals[j] = nil
+			// floatVal, err := cell.Float()
+			floatVal, err := strconv.ParseFloat(str, 64)
+			if err == nil {
+				vals[i] = floatVal
 				continue
 			}
 
@@ -475,96 +562,44 @@ func rowToRecord(log *slog.Logger, destColKinds []kind.Kind, row *xlsx.Row, shee
 			// just give up and make it a string.
 			log.Warn("Failed to determine type of numeric cell",
 				"sheet", sheetName,
-				"cell", fmt.Sprintf("%d:%d", rowIndex, j),
-				lga.Val, cell.Value,
+				"cell", fmt.Sprintf("%d:%d", rowi, i),
+				lga.Val, str,
 			)
 
-			vals[j] = cell.Value
+			vals[i] = str
 			// FIXME: prob should return an error here?
-		case xlsx.CellTypeString:
-			if cell.Value == "" {
-				if destColKinds[j] != kind.Text {
-					vals[j] = nil
+		case excelize.CellTypeInlineString, excelize.CellTypeSharedString, excelize.CellTypeFormula, excelize.CellTypeError:
+			if str == "" {
+				if destColKinds[i] != kind.Text {
+					vals[i] = nil
 					continue
 				}
 			}
 
-			vals[j] = cell.String()
-		case xlsx.CellTypeDate:
-			// TODO: parse into a time value here
-			vals[j] = cell.Value
+			vals[i] = str
+		case excelize.CellTypeDate:
+			// TODO: parse into a time value here?
+			vals[i] = str
+
+		case excelize.CellTypeUnset:
+			vals[i] = nil
 		default:
-			if cell.Value == "" {
-				vals[j] = nil
+			if cells[i] == "" {
+				vals[i] = nil
 			} else {
-				vals[j] = cell.Value
+				vals[i] = str
 			}
 		}
 	}
 	return vals
 }
 
-// readCellValue reads the value of a cell, returning a value of
-// type that most matches the sq kind.
-func readCellValue(cell *xlsx.Cell) any {
-	if cell == nil || cell.Value == "" {
-		return nil
-	}
-
-	var val any
-
-	switch cell.Type() { //nolint:exhaustive
-	case xlsx.CellTypeBool:
-		val = cell.Bool()
-		return val
-	case xlsx.CellTypeNumeric:
-		if cell.IsTime() {
-			t, err := cell.GetTime(false)
-			if err == nil {
-				return t
-			}
-
-			t, err = cell.GetTime(true)
-			if err == nil {
-				return t
-			}
-
-			// Otherwise we have an error, just return the value
-			val, _ = cell.FormattedValue()
-			return val
-		}
-
-		intVal, err := cell.Int64()
-		if err == nil {
-			val = intVal
-			return val
-		}
-
-		floatVal, err := cell.Float()
-		if err == nil {
-			val = floatVal
-			return val
-		}
-
-		val, _ = cell.FormattedValue()
-		return val
-
-	case xlsx.CellTypeString:
-		val = cell.String()
-	case xlsx.CellTypeDate:
-		// TODO: parse into a time.Time value here?
-		val, _ = cell.FormattedValue()
-	default:
-		val, _ = cell.FormattedValue()
-	}
-
-	return val
-}
-
 // calcKindsForRows calculates the lowest-common-denominator kind
 // for the cells of rows. The returned slice will have length
 // equal to the longest row.
-func calcKindsForRows(firstDataRow int, rows []*xlsx.Row) ([]kind.Kind, error) {
+func calcKindsForRows(firstDataRow int, sheet *xSheet) ([]kind.Kind, error) {
+	rows := sheet.rows
+
 	if firstDataRow > len(rows) {
 		return nil, errz.Errorf("rows are empty")
 	}
@@ -572,16 +607,17 @@ func calcKindsForRows(firstDataRow int, rows []*xlsx.Row) ([]kind.Kind, error) {
 	var detectors []*kind.Detector
 
 	for i := firstDataRow; i < len(rows); i++ {
-		if isEmptyRow(rows[i]) {
+		if isEmptyRow2(rows[i]) {
 			continue
 		}
 
-		for j := len(detectors); j < len(rows[i].Cells); j++ {
+		for j := len(detectors); j < len(rows[i]); j++ {
 			detectors = append(detectors, kind.NewDetector())
 		}
 
-		for j := range rows[i].Cells {
-			val := readCellValue(rows[i].Cells[j])
+		for j := range rows[i] {
+			val := rows[i][j]
+			// val := readCellValue(rows[i].Cells[j])
 			detectors[j].Sample(val)
 		}
 	}
@@ -598,44 +634,6 @@ func calcKindsForRows(firstDataRow int, rows []*xlsx.Row) ([]kind.Kind, error) {
 	}
 
 	return kinds, nil
-}
-
-// getCellColumnTypes returns the xlsx cell types for the sheet, determined from
-// the values of the first data row (after any header row).
-func getCellColumnTypes(sheet *xlsx.Sheet, hasHeader bool) []xlsx.CellType {
-	types := make([]*xlsx.CellType, getRowsMaxCellCount(sheet))
-	firstDataRow := 0
-	if hasHeader {
-		firstDataRow = 1
-	}
-
-	for x := firstDataRow; x < len(sheet.Rows); x++ {
-		for i, cell := range sheet.Rows[x].Cells {
-			if types[i] == nil {
-				typ := cell.Type()
-				types[i] = &typ
-				continue
-			}
-
-			// else, it already has a type
-			if *types[i] == cell.Type() {
-				// type matches, just continue
-				continue
-			}
-
-			// it already has a type, and it's different from this cell's type
-			typ := xlsx.CellTypeString
-			types[i] = &typ
-		}
-	}
-
-	// convert back to value types
-	ret := make([]xlsx.CellType, len(types))
-	for i, typ := range types {
-		ret[i] = *typ
-	}
-
-	return ret
 }
 
 // getRowsMaxCellCount returns the largest count of cells
@@ -659,30 +657,31 @@ type sheetTable struct {
 	hasHeaderRow bool
 }
 
-func detectHeaderRow(sheet *xSheet) (hasHeader bool, err error) {
-	rows, err := sheet.file.Rows(sheet.name)
-	if err != nil {
-		return false, errz.Err(err)
-	}
+func detectHeaderRow(ctx context.Context, sheet *xSheet) (hasHeader bool, err error) {
+	//rows, err := sheet.file.Rows(sheet.name)
+	//if err != nil {
+	//	return false, errz.Err(err)
+	//}
 
-	sheet.file.GetRows()
-
-	rows.
-
-
-	if len(sheet.Rows) < 2 {
+	if len(sheet.rows) < 2 {
 		// If zero records, obviously no header row.
 		// If one record... well, is there any way of determining if
 		// it's a header row or not? Probably best to treat it as a data row.
 		return false, nil
 	}
 
-	types1 := getCellColumnTypes(sheet, true)
-	types2 := getCellColumnTypes(sheet, false)
+	types1, err := getCellColumnTypes2(ctx, sheet, 0, 1000)
+	if err != nil {
+		return false, err
+	}
+	types2, err := getCellColumnTypes2(ctx, sheet, 1, 1000)
+	if err != nil {
+		return false, err
+	}
 
 	if len(types1) != len(types2) {
 		// Can this happen?
-		return false, errz.Errorf("sheet {%s} has ragged edges", sheet.Name)
+		return false, errz.Errorf("sheet {%s} has ragged edges", sheet.name)
 	}
 
 	if slices.Equal(types1, types2) {
@@ -690,4 +689,66 @@ func detectHeaderRow(sheet *xSheet) (hasHeader bool, err error) {
 	}
 
 	return true, nil
+}
+
+// getCellColumnTypes returns the xlsx cell types for the sheet.
+func getCellColumnTypes2(ctx context.Context, sheet *xSheet, rangeStart, rangeEnd int) ([]excelize.CellType, error) {
+	rows, err := sheet.file.Rows(sheet.name)
+	if err != nil {
+		return nil, errw(err)
+	}
+
+	defer lg.WarnIfCloseError(lg.FromContext(ctx), "Close rows iterator", rows)
+
+	var cols []string
+	var cell string
+	var typ excelize.CellType
+	var types []excelize.CellType
+
+	for rowi := 0; rowi < rangeEnd; rowi++ {
+		if !rows.Next() {
+			break
+		}
+
+		if rowi < rangeStart {
+			continue
+		}
+
+		if cols, err = rows.Columns(); err != nil {
+			return nil, errw(err)
+		}
+
+		if len(cols) > len(types) {
+			types2 := make([]excelize.CellType, len(cols))
+			if types != nil {
+				copy(types2, types)
+			}
+			types = types2
+		}
+
+		for coli := range cols {
+			cell = cellName(coli, rowi)
+
+			if typ, err = sheet.file.GetCellType(sheet.name, cell); err != nil {
+				return nil, errw(err)
+			}
+
+			if types[coli] == 0 {
+				types[coli] = typ
+				continue
+			}
+
+			// Else, it already has a type
+			if types[coli] == typ {
+				// type matches, just continue
+				continue
+			}
+
+			// It already has a type, and it's different from this cell's type
+			types[coli] = excelize.CellTypeInlineString
+		}
+
+	}
+
+	return types, nil
 }
