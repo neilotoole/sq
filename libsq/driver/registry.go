@@ -102,7 +102,6 @@ func (r *Registry) DriversMetadata() []Metadata {
 func (r *Registry) Drivers() []Driver {
 	var drvrs []Driver
 
-	slog.InfoContext()
 	for _, typ := range r.types {
 		drvr, err := r.DriverFor(typ)
 		if err != nil {
