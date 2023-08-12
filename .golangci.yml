@@ -210,7 +210,7 @@ linters:
     - govet # reports suspicious constructs, such as Printf calls whose arguments do not align with the format string
     - ineffassign # detects when assignments to existing variables are not used
     - staticcheck # is a go vet on steroids, applying a ton of static analysis checks
-    #    - typecheck # like the front-end of a Go compiler, parses and type-checks Go code
+    - typecheck # like the front-end of a Go compiler, parses and type-checks Go code
     - unused # checks for unused constants, variables, functions and types
 
 

@@ -37,7 +37,7 @@ type table struct {
 	tblImpl *internal.Table
 }
 
-func (t *table) renderResultCell(knd kind.Kind, val any) string { //nolint:funlen,cyclop,gocognit,gocyclo
+func (t *table) renderResultCell(knd kind.Kind, val any) string { //nolint:funlen,cyclop,gocyclo
 	switch val := val.(type) {
 	case nil:
 		return t.sprintNull()

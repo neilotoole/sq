@@ -389,7 +389,6 @@ func syncColNamesKinds(colNames []string, colKinds []kind.Kind) (names []string,
 func rowToRecord(log *slog.Logger, destColKinds []kind.Kind, row *xlsx.Row, sheetName string, rowIndex int) []any {
 	vals := make([]any, len(destColKinds))
 	for j, cell := range row.Cells {
-
 		log = log.With("sheet", sheetName, "cell", fmt.Sprintf("%d:%d", rowIndex, j))
 
 		if j >= len(vals) {
