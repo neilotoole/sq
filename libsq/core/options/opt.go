@@ -2,10 +2,9 @@ package options
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"time"
-
-	"golang.org/x/exp/slices"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/stringz"

@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,7 +20,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/spf13/cobra"
-	"golang.org/x/exp/slog"
 )
 
 var (
@@ -101,11 +101,13 @@ func stderrLogger() (*slog.Logger, slog.Handler) {
 }
 
 func newJSONHandler(w io.Writer, lvl slog.Leveler) slog.Handler {
-	return slog.HandlerOptions{
+	h := &slog.HandlerOptions{
 		AddSource:   true,
 		Level:       lvl,
 		ReplaceAttr: slogReplaceAttrs,
-	}.NewJSONHandler(w)
+	}
+
+	return slog.NewJSONHandler(w, h)
 }
 
 func slogReplaceAttrs(groups []string, a slog.Attr) slog.Attr {

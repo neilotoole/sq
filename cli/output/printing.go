@@ -1,6 +1,7 @@
 package output
 
 import (
+	"log/slog"
 	"time"
 
 	"github.com/samber/lo"
@@ -8,7 +9,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/timez"
 
 	"github.com/fatih/color"
-	"golang.org/x/exp/slog"
 )
 
 // Printing describes color and pretty-printing options.

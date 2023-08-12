@@ -12,11 +12,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"path/filepath"
 
 	"go.uber.org/multierr"
-
-	"golang.org/x/exp/slog"
 )
 
 // Err annotates err with a stack trace at the point WithStack was called.

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/neilotoole/sq/cli/run"
@@ -8,8 +9,6 @@ import (
 	"github.com/neilotoole/sq/cli/flag"
 
 	"github.com/neilotoole/sq/libsq/core/stringz"
-
-	"golang.org/x/exp/slices"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/source"

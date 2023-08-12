@@ -2,14 +2,13 @@ package ast
 
 import (
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/stringz"
-
-	"golang.org/x/exp/slog"
 
 	"github.com/antlr/antlr4/runtime/Go/antlr/v4"
 	"github.com/neilotoole/sq/libsq/ast/internal/slq"
@@ -285,6 +284,6 @@ func (v *parseTreeVisitor) VisitTerminal(ctx antlr.TerminalNode) any {
 
 // VisitErrorNode implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitErrorNode(ctx antlr.ErrorNode) any {
-	v.log.Debug("error node: %v", ctx.GetText())
+	v.log.Debug("Error node", lga.Val, ctx.GetText())
 	return nil
 }

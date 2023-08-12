@@ -6,14 +6,13 @@ package buildinfo
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 
 	"github.com/neilotoole/sq/libsq/core/timez"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
-
-	"golang.org/x/exp/slog"
 
 	"golang.org/x/mod/semver"
 )

@@ -1,6 +1,7 @@
 package libsq_test
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -9,8 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/neilotoole/sq/libsq"
-
-	"golang.org/x/exp/slices"
 
 	"github.com/neilotoole/sq/libsq/source"
 

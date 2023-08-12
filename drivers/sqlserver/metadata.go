@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 
@@ -18,8 +19,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
-
-	"golang.org/x/exp/slog"
 
 	"github.com/c2h5oh/datasize"
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -36,7 +35,8 @@ func kindFromDBTypeName(log *slog.Logger, colName, dbTypeName string) kind.Kind 
 
 	switch dbTypeName {
 	default:
-		log.Warn("Unknown SQLServer database type '%s' for column '%s': using %s", dbTypeName, colName, kind.Unknown)
+		log.Warn("Unknown SQLServer database type for column: using default kind",
+			"db_type", dbTypeName, lga.Col, colName, lga.Kind, kind.Unknown)
 		knd = kind.Unknown
 	case "INT", "BIGINT", "SMALLINT", "TINYINT":
 		knd = kind.Int

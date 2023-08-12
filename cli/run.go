@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 
@@ -31,7 +32,6 @@ import (
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/spf13/cobra"
-	"golang.org/x/exp/slog"
 )
 
 // getRun is a convenience function for getting Run
