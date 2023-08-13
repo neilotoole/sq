@@ -170,7 +170,9 @@ func (d *Detector) doSampleString(s string) {
 					return nil, errz.Err(err)
 				}
 
-				return t.Format(format), nil
+				// FIXME: Should time always return the canonical format?
+				// return t.Format(format), nil
+				return t.Format(time.TimeOnly), nil
 			}
 		}
 	}
@@ -204,7 +206,8 @@ func (d *Detector) doSampleString(s string) {
 					return nil, errz.Err(err)
 				}
 
-				return t.Format(format), nil
+				// Always return the date in the canonical format.
+				return t.Format(time.DateOnly), nil
 			}
 		}
 	}
@@ -384,6 +387,7 @@ func detectKindDate(s string) (ok bool, format string) {
 		"02 Jan 2006",
 		"2006/01/02",
 		"2006-01-02",
+		"01-02-06",
 		"01-02-2006",
 		"02-Jan-2006",
 		"Jan _2, 2006",

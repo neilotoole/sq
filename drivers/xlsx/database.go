@@ -63,7 +63,7 @@ func (d *database) doIngest(ctx context.Context, includeSheetNames []string) err
 	}
 	defer lg.WarnIfCloseError(d.log, lgm.CloseFileReader, r)
 
-	xlFile, err := excelize.OpenReader(r)
+	xlFile, err := excelize.OpenReader(r, excelize.Options{RawCellValue: false})
 	if err != nil {
 		return err
 	}

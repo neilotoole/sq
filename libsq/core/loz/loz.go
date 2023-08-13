@@ -66,3 +66,37 @@ func HarmonizeSliceLengths[T any](a, b []T, defaultVal T) ([]T, []T) {
 		return a, b1
 	}
 }
+
+// HarmonizeMatrixWidth ensures that rows of matrix have the same
+// length, that length being the length of the longest row of a.
+func HarmonizeMatrixWidth[T any](a [][]T, defaultVal T) {
+	if len(a) == 0 {
+		return
+	}
+
+	var ragged bool
+	maxLen := len(a[0])
+	for i := 0; i < len(a); i++ {
+		if len(a[i]) != maxLen {
+			ragged = true
+			maxLen = max(len(a[i]), maxLen)
+		}
+	}
+
+	if !ragged {
+		return
+	}
+
+	for i := range a {
+		if len(a[i]) == maxLen {
+			continue
+		}
+
+		row := make([]T, maxLen)
+		copy(row, a[i])
+		for j := len(a[i]); j < len(row); j++ {
+			row[j] = defaultVal
+		}
+		a[i] = row
+	}
+}

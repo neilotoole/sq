@@ -3,6 +3,8 @@ package loz_test
 import (
 	"testing"
 
+	"github.com/neilotoole/sq/testh/tutil"
+
 	"github.com/neilotoole/sq/libsq/core/stringz"
 
 	"github.com/neilotoole/sq/libsq/core/loz"
@@ -60,4 +62,24 @@ func TestHarmonizeSliceLengths(t *testing.T) {
 	gotA, gotB = loz.HarmonizeSliceLengths([]int{}, []int{}, 7)
 	require.True(t, gotA != nil && len(gotA) == 0)
 	require.True(t, gotB != nil && len(gotB) == 0)
+}
+
+func TestHarmonizeMatrixWidth(t *testing.T) {
+	const defaultVal int = 7
+	testCases := []struct {
+		in   [][]int
+		want [][]int
+	}{
+		//{nil, nil},
+		//{[][]int{}, [][]int{}},
+		//{[][]int{{1, 2, 3}}, [][]int{{1, 2, 3}}},
+		{[][]int{{1, 2, 3}, {1, 2}}, [][]int{{1, 2, 3}, {1, 2, 7}}},
+	}
+
+	for i, tc := range testCases {
+		t.Run(tutil.Name(i), func(t *testing.T) {
+			loz.HarmonizeMatrixWidth(tc.in, defaultVal)
+			require.EqualValues(t, tc.want, tc.in)
+		})
+	}
 }

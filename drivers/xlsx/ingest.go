@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/loz"
+
 	"github.com/xuri/excelize/v2"
 
 	"golang.org/x/exp/slices"
@@ -32,15 +34,7 @@ import (
 	"github.com/neilotoole/sq/libsq/driver"
 )
 
-type xSheet struct {
-	file        *excelize.File
-	name        string
-	sampleRows  [][]string
-	sampleTypes [][]excelize.CellType
-	maxCols     int
-	rowsOnce    sync.Once
-	rowsErr     error
-}
+const cellTypeString = excelize.CellTypeSharedString
 
 func errw(err error) error {
 	return errz.Wrap(err, "excel")
@@ -54,6 +48,43 @@ func cellName(col, row int) string {
 	return s
 }
 
+func isEmptyRow(row []string) bool {
+	if len(row) == 0 {
+		return true
+	}
+
+	for i := range row {
+		if row[i] != "" {
+			return false
+		}
+	}
+
+	return true
+}
+
+func hasSheet(xlFile *excelize.File, sheetName string) bool {
+	return slices.Contains(xlFile.GetSheetList(), sheetName)
+}
+
+// sheetTable maps a sheet to a database table.
+type sheetTable struct {
+	sheet             *xSheet
+	def               *sqlmodel.TableDef
+	colIngestMungeFns []kind.MungeFunc
+	hasHeaderRow      bool
+}
+
+type xSheet struct {
+	file        *excelize.File
+	name        string
+	sampleRows  [][]string
+	sampleTypes [][]excelize.CellType
+	allRows     [][]string
+	maxCols     int
+	rowsOnce    sync.Once
+	rowsErr     error
+}
+
 func (xs *xSheet) loadSampleRows(ctx context.Context, sampleSize int) error {
 	si, err := newSheetIter(xs.file, xs.name)
 	if err != nil {
@@ -62,13 +93,21 @@ func (xs *xSheet) loadSampleRows(ctx context.Context, sampleSize int) error {
 
 	defer lg.WarnIfCloseError(lg.FromContext(ctx), msgCloseSheetIter, si)
 
-	for si.Next() && si.Count() <= sampleSize {
+	for si.Next() {
+		if si.Count() >= sampleSize {
+			break
+		}
 		var cells []string
 		var types []excelize.CellType
+		var vals []string
+		var styles []int
 
-		if cells, types, err = si.Row(); err != nil {
+		if cells, vals, types, styles, err = si.Row(); err != nil {
 			return err
 		}
+
+		_ = vals
+		_ = styles
 
 		xs.sampleRows = append(xs.sampleRows, cells)
 		xs.sampleTypes = append(xs.sampleTypes, types)
@@ -77,11 +116,13 @@ func (xs *xSheet) loadSampleRows(ctx context.Context, sampleSize int) error {
 		}
 	}
 
-	return nil
-}
+	if xs.allRows, err = xs.file.GetRows(xs.name, excelize.Options{RawCellValue: false}); err != nil {
+		return errw(err)
+	}
+	loz.HarmonizeMatrixWidth(xs.sampleRows, "")
+	loz.HarmonizeMatrixWidth(xs.sampleTypes, cellTypeString)
 
-func hasSheet(xlFile *excelize.File, sheetName string) bool {
-	return slices.Contains(xlFile.GetSheetList(), sheetName)
+	return nil
 }
 
 // ingestXLSX loads the data in xlFile into scratchDB.
@@ -147,7 +188,7 @@ func ingestXLSX(ctx context.Context, src *source.Source, scratchDB driver.Databa
 			continue
 		}
 
-		if err = importSheetToTable(ctx, scratchDB, sheetTbls[i]); err != nil {
+		if err = ingestSheetToTable(ctx, scratchDB, sheetTbls[i]); err != nil {
 			return err
 		}
 		imported++
@@ -164,15 +205,16 @@ func ingestXLSX(ctx context.Context, src *source.Source, scratchDB driver.Databa
 	return nil
 }
 
-// importSheetToTable imports the sheet data into the appropriate table
+// ingestSheetToTable imports the sheet data into the appropriate table
 // in scratchDB. The scratch table must already exist.
-func importSheetToTable(ctx context.Context, scratchDB driver.Database, sheetTbl *sheetTable) error {
+func ingestSheetToTable(ctx context.Context, scratchDB driver.Database, sheetTbl *sheetTable) error {
 	var (
-		log       = lg.FromContext(ctx)
-		startTime = time.Now()
-		sheet     = sheetTbl.sheet
-		hasHeader = sheetTbl.hasHeaderRow
-		tblDef    = sheetTbl.def
+		log          = lg.FromContext(ctx)
+		startTime    = time.Now()
+		sheet        = sheetTbl.sheet
+		hasHeader    = sheetTbl.hasHeaderRow
+		tblDef       = sheetTbl.def
+		destColKinds = tblDef.ColKinds()
 	)
 
 	db, err := scratchDB.DB(ctx)
@@ -188,8 +230,6 @@ func importSheetToTable(ctx context.Context, scratchDB driver.Database, sheetTbl
 
 	drvr := scratchDB.SQLDriver()
 
-	destColKinds := tblDef.ColKinds()
-
 	batchSize := driver.MaxBatchRows(drvr, len(destColKinds))
 	bi, err := driver.NewBatchInsert(ctx, drvr, conn, tblDef.Name, tblDef.ColNames(), batchSize)
 	if err != nil {
@@ -203,10 +243,12 @@ func importSheetToTable(ctx context.Context, scratchDB driver.Database, sheetTbl
 
 	defer lg.WarnIfCloseError(log, msgCloseSheetIter, si)
 
-	// for i, row := range sheet.rows {
-
-	var cells []string
-	var cellTypes []excelize.CellType
+	var (
+		cells     []string
+		vals      []string
+		cellTypes []excelize.CellType
+		styles    []int
+	)
 
 	i := -1
 	for si.Next() {
@@ -215,17 +257,20 @@ func importSheetToTable(ctx context.Context, scratchDB driver.Database, sheetTbl
 			continue
 		}
 
-		cells, cellTypes, err = si.Row()
+		cells, vals, cellTypes, styles, err = si.Row()
 		if err != nil {
 			close(bi.RecordCh)
 			return err
 		}
 
+		_ = styles
+		_ = vals
+
 		if isEmptyRow(cells) {
 			continue
 		}
 
-		rec := rowToRecord(ctx, destColKinds, sheet.name, i, cells, cellTypes)
+		rec := rowToRecord(ctx, destColKinds, sheetTbl.colIngestMungeFns, sheet.name, i, cells, cellTypes)
 		if err = bi.Munge(rec); err != nil {
 			close(bi.RecordCh)
 			return err
@@ -254,6 +299,10 @@ func importSheetToTable(ctx context.Context, scratchDB driver.Database, sheetTbl
 		return err
 	}
 
+	if err = si.Error(); err != nil {
+		return errz.Wrap(err, "excel: sheet iterator")
+	}
+
 	log.Debug("Inserted rows from sheet into table",
 		lga.Count, bi.Written(),
 		laSheet, sheet.name,
@@ -261,20 +310,6 @@ func importSheetToTable(ctx context.Context, scratchDB driver.Database, sheetTbl
 		lga.Elapsed, time.Since(startTime))
 
 	return nil
-}
-
-func isEmptyRow(row []string) bool {
-	if len(row) == 0 {
-		return true
-	}
-
-	for i := range row {
-		if row[i] != "" {
-			return false
-		}
-	}
-
-	return true
 }
 
 // buildSheetTables executes buildSheetTable for each sheet. If sheet is
@@ -324,6 +359,8 @@ func getSrcIngestHeader(o options.Options) *bool {
 // is returned. If srcIngestHeader is nil, the function attempts
 // to detect if the sheet has a header row.
 func buildSheetTable(ctx context.Context, srcIngestHeader *bool, sheet *xSheet) (*sheetTable, error) {
+	log := lg.FromContext(ctx)
+
 	sampleSize := driver.OptIngestSampleSize.Get(options.FromContext(ctx))
 	if err := sheet.loadSampleRows(ctx, sampleSize); err != nil {
 		return nil, err
@@ -337,16 +374,19 @@ func buildSheetTable(ctx context.Context, srcIngestHeader *bool, sheet *xSheet) 
 		if hasHeader, err = detectHeaderRow(ctx, sheet); err != nil {
 			return nil, err
 		}
+
+		log.Debug("Detect header row for sheet", laSheet, sheet.name, lga.Val, hasHeader)
 	}
 
 	maxCols := sheet.maxCols
 	if maxCols == 0 {
-		lg.FromContext(ctx).Warn("sheet is empty: skipping", laSheet, sheet.name)
+		log.Warn("sheet is empty: skipping", laSheet, sheet.name)
 		return nil, nil //nolint:nilnil
 	}
 
 	colNames := make([]string, maxCols)
 	colKinds := make([]kind.Kind, maxCols)
+	colIngestMungeFns := make([]kind.MungeFunc, maxCols)
 
 	firstDataRow := 0
 	if len(sheet.sampleRows) == 0 {
@@ -384,7 +424,7 @@ func buildSheetTable(ctx context.Context, srcIngestHeader *bool, sheet *xSheet) 
 		} else {
 			// we have at least one data row, let's get the column types
 			var err error
-			colKinds, err = calcKindsForRows(firstDataRow, sheet)
+			colKinds, colIngestMungeFns, err = detectSheetColumnKinds(ctx, sheet, firstDataRow)
 			if err != nil {
 				return nil, err
 			}
@@ -409,9 +449,10 @@ func buildSheetTable(ctx context.Context, srcIngestHeader *bool, sheet *xSheet) 
 		"cols", strings.Join(colNames, ", "))
 
 	return &sheetTable{
-		sheet:        sheet,
-		def:          tblDef,
-		hasHeaderRow: hasHeader,
+		sheet:             sheet,
+		def:               tblDef,
+		hasHeaderRow:      hasHeader,
+		colIngestMungeFns: colIngestMungeFns,
 	}, nil
 }
 
@@ -465,8 +506,8 @@ func syncColNamesKinds(colNames []string, colKinds []kind.Kind) (names []string,
 	return colNames, colKinds
 }
 
-func rowToRecord(ctx context.Context, destColKinds []kind.Kind, sheetName string,
-	rowi int, cells []string, cellTypes []excelize.CellType,
+func rowToRecord(ctx context.Context, destColKinds []kind.Kind, ingestMungeFns []kind.MungeFunc,
+	sheetName string, rowi int, cells []string, cellTypes []excelize.CellType,
 ) []any {
 	log := lg.FromContext(ctx)
 
@@ -549,8 +590,24 @@ func rowToRecord(ctx context.Context, destColKinds []kind.Kind, sheetName string
 			if str == "" {
 				vals[coli] = nil
 			} else {
-				vals[coli] = str
+				if fn := ingestMungeFns[coli]; fn != nil {
+
+					v, err := fn(str)
+					if err != nil {
+						// This shouldn't happen, but if it does, fall back
+						// to the string value.
+						vals[coli] = str
+						log.Warn("Cell munge func failed",
+							laSheet, sheetName,
+							"cell", fmt.Sprintf("%d:%d", rowi, coli),
+							lga.Val, vals[coli],
+						)
+					} else {
+						vals[coli] = v
+					}
+				}
 			}
+
 		default:
 			if str == "" {
 				vals[coli] = nil
@@ -560,136 +617,4 @@ func rowToRecord(ctx context.Context, destColKinds []kind.Kind, sheetName string
 		}
 	}
 	return vals
-}
-
-// calcKindsForRows calculates the lowest-common-denominator kind
-// for the cells of rows. The returned slice will have length
-// equal to the longest row.
-func calcKindsForRows(firstDataRow int, sheet *xSheet) ([]kind.Kind, error) {
-	rows := sheet.sampleRows
-
-	if firstDataRow > len(rows) {
-		return nil, errz.Errorf("rows are empty")
-	}
-
-	var detectors []*kind.Detector
-
-	for i := firstDataRow; i < len(rows); i++ {
-		if isEmptyRow(rows[i]) {
-			continue
-		}
-
-		for j := len(detectors); j < len(rows[i]); j++ {
-			detectors = append(detectors, kind.NewDetector())
-		}
-
-		for j := range rows[i] {
-			val := rows[i][j]
-			detectors[j].Sample(val)
-		}
-	}
-
-	kinds := make([]kind.Kind, len(detectors))
-
-	for j := range detectors {
-		knd, _, err := detectors[j].Detect()
-		if err != nil {
-			return nil, err
-		}
-
-		kinds[j] = knd
-	}
-
-	return kinds, nil
-}
-
-// sheetTable maps a sheet to a database table.
-type sheetTable struct {
-	sheet        *xSheet
-	def          *sqlmodel.TableDef
-	hasHeaderRow bool
-}
-
-func detectHeaderRow(ctx context.Context, sheet *xSheet) (hasHeader bool, err error) {
-	sampleSize := driver.OptIngestSampleSize.Get(options.FromContext(ctx))
-
-	if len(sheet.sampleRows) < 2 {
-		// If zero records, obviously no header row.
-		// If one record... well, is there any way of determining if
-		// it's a header row or not? Probably best to treat it as a data row.
-		return false, nil
-	}
-
-	types1, err := determineSampleColumnTypes(ctx, sheet, 0, sampleSize)
-	if err != nil {
-		return false, err
-	}
-	types2, err := determineSampleColumnTypes(ctx, sheet, 1, sampleSize)
-	if err != nil {
-		return false, err
-	}
-
-	if len(types1) != len(types2) {
-		// Can this happen?
-		return false, errz.Errorf("sheet {%s} has ragged edges", sheet.name)
-	}
-
-	if slices.Equal(types1, types2) {
-		return false, nil
-	}
-
-	return true, nil
-}
-
-// determineSampleColumnTypes returns the xlsx cell types for the sheet.
-// It is assumed that sheet.sampleRows is already loaded.
-func determineSampleColumnTypes(ctx context.Context, sheet *xSheet, rangeStart, rangeEnd int) ([]excelize.CellType, error) {
-	rows, err := sheet.file.Rows(sheet.name)
-	if err != nil {
-		return nil, errw(err)
-	}
-
-	defer lg.WarnIfCloseError(lg.FromContext(ctx), msgCloseSheetIter, rows)
-
-	var (
-		cols  []string
-		typ   excelize.CellType
-		types []excelize.CellType
-	)
-
-	for rowi := rangeStart; rowi < rangeEnd && rowi < len(sheet.sampleRows); rowi++ {
-		if rowi < rangeStart {
-			continue
-		}
-
-		cols = sheet.sampleRows[rowi]
-		if len(cols) > len(types) {
-			types2 := make([]excelize.CellType, len(cols))
-			if types != nil {
-				copy(types2, types)
-			}
-			types = types2
-		}
-
-		for coli := range cols {
-			typ = sheet.sampleTypes[rowi][coli]
-
-			if types[coli] == 0 {
-				types[coli] = typ
-				continue
-			}
-
-			// Else, it already has a type
-			if types[coli] == typ {
-				// type matches, just continue
-				continue
-			}
-
-			// It already has a type, and it's different from this cell's type,
-			// so we default to string.
-			types[coli] = excelize.CellTypeInlineString
-		}
-	}
-
-	return types, nil
 }
