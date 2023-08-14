@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/samber/lo"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 
 	"github.com/stretchr/testify/assert"
@@ -335,13 +337,20 @@ func TestDatetime(t *testing.T) {
 		sheet       string
 		wantHeaders []string
 		wantKinds   []kind.Kind
-		wantVals    []time.Time
+		wantVals    []any
 	}{
 		{
 			sheet:       "date",
 			wantHeaders: []string{"Long", "Short", "d-mmm-yy", "mm-dd-yy", "mmmm d, yyyy"},
 			wantKinds:   loz.Make(5, kind.Date),
-			wantVals:    loz.Make(5, time.Date(1989, time.November, 9, 0, 0, 0, 0, time.UTC)),
+			wantVals: lo.ToAnySlice(loz.Make(5,
+				time.Date(1989, time.November, 9, 0, 0, 0, 0, time.UTC))),
+		},
+		{
+			sheet:       "time",
+			wantHeaders: []string{"time1", "time2", "time3", "time4", "time5", "time6"},
+			wantKinds:   loz.Make(6, kind.Time),
+			wantVals:    []any{"15:17:00", "15:17:00", "15:17:00", "15:17:00", "15:17:00", "15:17:59"},
 		},
 	}
 
