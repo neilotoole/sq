@@ -100,3 +100,13 @@ func AlignMatrixWidth[T any](a [][]T, defaultVal T) {
 		a[i] = row
 	}
 }
+
+// Make works like the runtime make func, but it also fills
+// the slice with val.
+func Make[T any](count int, val T) []T {
+	a := make([]T, count)
+	for i := range a {
+		a[i] = val
+	}
+	return a
+}

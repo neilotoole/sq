@@ -23,6 +23,8 @@ const (
 	// BlobDB is the handle of a SQLite DB containing blobs. For example,
 	// it contains the gopher gif in the "blobs" table.
 	BlobDB = "@blobdb"
+
+	ExcelDatetime = "@excel/datetime"
 )
 
 const (

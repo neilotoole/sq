@@ -539,8 +539,7 @@ func rowToRecord(ctx context.Context, destColKinds []kind.Kind, ingestMungeFns [
 
 			vals[coli] = str
 			// FIXME: prob should return an error here?
-		case excelize.CellTypeInlineString, excelize.CellTypeSharedString,
-			excelize.CellTypeFormula, excelize.CellTypeError:
+		case excelize.CellTypeFormula, excelize.CellTypeError:
 			if str == "" {
 				if destColKinds[coli] != kind.Text {
 					vals[coli] = nil
@@ -557,7 +556,7 @@ func rowToRecord(ctx context.Context, destColKinds []kind.Kind, ingestMungeFns [
 			// from the sheet.
 			vals[coli] = str
 
-		case excelize.CellTypeUnset:
+		case excelize.CellTypeUnset, excelize.CellTypeSharedString, excelize.CellTypeInlineString:
 			if str == "" {
 				vals[coli] = nil
 				continue

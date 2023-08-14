@@ -4,6 +4,13 @@ import (
 	"context"
 	"path/filepath"
 	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/neilotoole/sq/testh/testsrc"
+
+	"github.com/neilotoole/sq/libsq/core/loz"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
 
@@ -158,23 +165,6 @@ func TestSakila_query(t *testing.T) {
 	}
 }
 
-func Test_Smoke_Full(t *testing.T) {
-	tutil.SkipShort(t, true)
-
-	// This test fails (in GH workflow) on Windows without testh.OptLongOpen.
-	// That's probably worth looking into further. It shouldn't be that slow,
-	// even on Windows. However, we are going to rewrite the xlsx driver eventually,
-	// so it can wait until then.
-	// See: https://github.com/neilotoole/sq/issues/200
-	th := testh.New(t, testh.OptLongOpen())
-	src := th.Source(sakila.XLSX)
-
-	sink, err := th.QuerySQL(src, "SELECT * FROM actor")
-	require.NoError(t, err)
-	require.Equal(t, len(sakila.TblActorCols()), len(sink.RecMeta))
-	require.Equal(t, sakila.TblActorCount, len(sink.Recs))
-}
-
 func Test_XLSX_BadDateRecognition(t *testing.T) {
 	t.Parallel()
 
@@ -310,6 +300,45 @@ func TestDetectHeaderRow(t *testing.T) {
 			for i, wantRec := range tc.matchRecords {
 				gotRec := data[i]
 				require.Equal(t, wantRec, gotRec, "record %d", i)
+			}
+		})
+	}
+}
+
+func TestDatetime(t *testing.T) {
+	t.Parallel()
+
+	const handle = testsrc.ExcelDatetime
+
+	testCases := []struct {
+		sheet       string
+		wantHeaders []string
+		wantKinds   []kind.Kind
+		wantVals    []time.Time
+	}{
+		{
+			sheet:       "date",
+			wantHeaders: []string{"Long", "Short", "d-mmm-yy", "mm-dd-yy", "mmmm d, yyyy"},
+			wantKinds:   loz.Make(5, kind.Date),
+			wantVals:    loz.Make(5, time.Date(1989, time.November, 9, 0, 0, 0, 0, time.UTC)),
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.sheet, func(t *testing.T) {
+			th := testh.New(t, testh.OptLongOpen())
+
+			sink, err := th.QuerySLQ(handle+"."+tc.sheet, nil)
+			require.NoError(t, err)
+
+			assert.Equal(t, tc.wantHeaders, sink.RecMeta.MungedNames())
+			assert.Equal(t, tc.wantKinds, sink.RecMeta.Kinds())
+			require.Len(t, sink.Recs, 1)
+
+			for i := range tc.wantVals {
+				require.Equal(t, tc.wantVals[i], sink.Recs[0][i],
+					"[%d] %s", i, sink.RecMeta.MungedNames()[i])
 			}
 		})
 	}

@@ -104,6 +104,9 @@ collection:
     - handle: '@xl_header'
       driver: xlsx
       location: '${SQ_ROOT}/drivers/xlsx/testdata/test_header.xlsx'
+    - handle: '@excel/datetime'
+      driver: xlsx
+      location: '${SQ_ROOT}/drivers/xlsx/testdata/datetime.xlsx'
     - handle: '@xl_noheader'
       driver: xlsx
       location: '${SQ_ROOT}/drivers/xlsx/testdata/test_noheader.xlsx'
