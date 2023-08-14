@@ -56,19 +56,40 @@ func TestLogError_LogValue(t *testing.T) {
 	log.Debug("via errz.Wrap", lga.Err, wrapErr)
 }
 
-func TestIsErrRelationNotExist(t *testing.T) {
+func TestIsErrNotExist(t *testing.T) {
 	var err error
 	require.False(t, errz.IsErrNotExist(err))
 	require.False(t, errz.IsErrNotExist(errz.New("huzzah")))
 
-	var rne1 *errz.NotExistError
-	require.True(t, errz.IsErrNotExist(rne1))
+	var nee1 *errz.NotExistError
+	require.True(t, errz.IsErrNotExist(nee1))
 
-	var rne2 *errz.NotExistError
-	require.True(t, errors.As(rne1, &rne2))
+	var nee2 *errz.NotExistError
+	require.True(t, errors.As(nee1, &nee2))
 
 	err = errz.NotExist(errz.New("huzzah"))
 	require.True(t, errz.IsErrNotExist(err))
 	err = fmt.Errorf("wrap me: %w", err)
 	require.True(t, errz.IsErrNotExist(err))
+}
+
+func TestIsErrNoData(t *testing.T) {
+	var err error
+	require.False(t, errz.IsErrNoData(err))
+	require.False(t, errz.IsErrNoData(errz.New("huzzah")))
+
+	var nde1 *errz.NoDataError
+	require.True(t, errz.IsErrNoData(nde1))
+
+	var nde2 *errz.NoDataError
+	require.True(t, errors.As(nde1, &nde2))
+
+	err = errz.NoData(errz.New("huzzah"))
+	require.True(t, errz.IsErrNoData(err))
+	err = fmt.Errorf("wrap me: %w", err)
+	require.True(t, errz.IsErrNoData(err))
+
+	err = errz.NoDataf("%s doesn't exist", "me")
+	require.True(t, errz.IsErrNoData(err))
+	require.Equal(t, "me doesn't exist", err.Error())
 }

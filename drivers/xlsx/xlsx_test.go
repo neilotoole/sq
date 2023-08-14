@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/errz"
+
 	"github.com/stretchr/testify/assert"
 
 	"github.com/neilotoole/sq/testh/testsrc"
@@ -200,22 +202,29 @@ func Test_XLSX_BadDateRecognition(t *testing.T) {
 	require.Equal(t, 21, len(sink.Recs))
 }
 
-// TestHandleSomeEmptySheets verifies that sq can import XLSX
+// TestHandleSomeSheetsEmpty verifies that sq can import XLSX
 // when there are some empty sheets.
-func TestHandleSomeEmptySheets(t *testing.T) {
+func TestHandleSomeSheetsEmpty(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-
-	src := &source.Source{
+	src := th.Add(&source.Source{
 		Handle:   "@xlsx_empty_sheets",
 		Type:     xlsx.Type,
-		Location: proj.Abs("drivers/xlsx/testdata/test_with_some_empty_sheets.xlsx"),
-	}
+		Location: "testdata/some_sheets_empty.xlsx",
+	})
 
-	sink, err := th.QuerySQL(src, "SELECT * FROM Sheet1")
+	srcMeta, err := th.SourceMetadata(src)
 	require.NoError(t, err)
-	require.Equal(t, 2, len(sink.Recs))
+	tblNames := srcMeta.TableNames()
+	require.Len(t, tblNames, 1)
+	require.Equal(t, []string{"Sheet1"}, tblNames)
+
+	for _, tblName := range []string{"Sheet2Empty, Sheet3Empty"} {
+		_, err = th.TableMetadata(src, tblName)
+		require.Error(t, err)
+		require.True(t, errz.IsErrNotExist(err))
+	}
 }
 
 func TestIngestDuplicateColumns(t *testing.T) {

@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/samber/lo"
+
 	"github.com/neilotoole/sq/libsq/core/loz"
 
 	"github.com/xuri/excelize/v2"
@@ -51,8 +53,8 @@ type xSheet struct {
 	file       *excelize.File
 	name       string
 	sampleRows [][]string
-	// maxCols is the width (in cells) of the widest row
-	maxCols int
+	// sampleRowsMaxWidth is the width of the widest row in sampleRows.
+	sampleRowsMaxWidth int
 }
 
 func (xs *xSheet) loadSampleRows(ctx context.Context, sampleSize int) error {
@@ -74,8 +76,8 @@ func (xs *xSheet) loadSampleRows(ctx context.Context, sampleSize int) error {
 		}
 
 		xs.sampleRows = append(xs.sampleRows, cells)
-		if len(cells) > xs.maxCols {
-			xs.maxCols = len(cells)
+		if len(cells) > xs.sampleRowsMaxWidth {
+			xs.sampleRowsMaxWidth = len(cells)
 		}
 
 		count++
@@ -283,6 +285,13 @@ func buildSheetTables(ctx context.Context, srcIngestHeader *bool, sheets []*xShe
 
 			sheetTbl, err := buildSheetTable(gCtx, srcIngestHeader, sheets[i])
 			if err != nil {
+				if errz.IsErrNoData(err) {
+					// If the sheet has no data, we log it and skip it.
+					lg.FromContext(ctx).Warn("Excel sheet has no data",
+						laSheet, sheets[i].name,
+						lga.Err, err)
+					return nil
+				}
 				return err
 			}
 			sheetTbls[i] = sheetTbl
@@ -293,6 +302,9 @@ func buildSheetTables(ctx context.Context, srcIngestHeader *bool, sheets []*xShe
 	if err := g.Wait(); err != nil {
 		return nil, err
 	}
+
+	// Remove any nil sheets (which can happen if the sheet is empty).
+	sheetTbls = lo.Compact(sheetTbls)
 
 	return sheetTbls, nil
 }
@@ -312,12 +324,21 @@ func getSrcIngestHeader(o options.Options) *bool {
 // a model of the table, or an error. If the sheet is empty, (nil,nil)
 // is returned. If srcIngestHeader is nil, the function attempts
 // to detect if the sheet has a header row.
+// If the sheet has no data, errz.NoDataError is returned.
 func buildSheetTable(ctx context.Context, srcIngestHeader *bool, sheet *xSheet) (*sheetTable, error) {
 	log := lg.FromContext(ctx)
 
 	sampleSize := driver.OptIngestSampleSize.Get(options.FromContext(ctx))
 	if err := sheet.loadSampleRows(ctx, sampleSize); err != nil {
 		return nil, err
+	}
+
+	if len(sheet.sampleRows) == 0 {
+		return nil, errz.NoDataf("excel: sheet {%s} has no row data", sheet.name)
+	}
+
+	if sheet.sampleRowsMaxWidth == 0 {
+		return nil, errz.NoDataf("excel: sheet {%s} has no column data", sheet.name)
 	}
 
 	var hasHeader bool
@@ -332,7 +353,7 @@ func buildSheetTable(ctx context.Context, srcIngestHeader *bool, sheet *xSheet) 
 		log.Debug("Detect header row for sheet", laSheet, sheet.name, lga.Val, hasHeader)
 	}
 
-	maxCols := sheet.maxCols
+	maxCols := sheet.sampleRowsMaxWidth
 	if maxCols == 0 {
 		log.Warn("sheet is empty: skipping", laSheet, sheet.name)
 		return nil, nil //nolint:nilnil
@@ -343,42 +364,32 @@ func buildSheetTable(ctx context.Context, srcIngestHeader *bool, sheet *xSheet) 
 	colIngestMungeFns := make([]kind.MungeFunc, maxCols)
 
 	firstDataRow := 0
-	if len(sheet.sampleRows) == 0 {
-		// TODO: is this even reachable? That is, if sheet.Rows is empty,
-		//  then sheet.cols (checked for above) will also be empty?
 
-		// sheet has no rows
+	// sheet is non-empty
+
+	// Set up the column names
+	if hasHeader {
+		firstDataRow = 1
+		copy(colNames, sheet.sampleRows[0])
+	} else {
 		for i := 0; i < maxCols; i++ {
-			colKinds[i] = kind.Text
 			colNames[i] = stringz.GenerateAlphaColName(i, false)
 		}
-	} else {
-		// sheet is non-empty
+	}
 
-		// Set up the column names
-		if hasHeader {
-			firstDataRow = 1
-			copy(colNames, sheet.sampleRows[0])
-		} else {
-			for i := 0; i < maxCols; i++ {
-				colNames[i] = stringz.GenerateAlphaColName(i, false)
-			}
+	// Set up the column types
+	if firstDataRow >= len(sheet.sampleRows) {
+		// the sheet contains only one row (the header row). Let's
+		// explicitly set the column type nonetheless
+		for i := 0; i < maxCols; i++ {
+			colKinds[i] = kind.Text
 		}
-
-		// Set up the column types
-		if firstDataRow >= len(sheet.sampleRows) {
-			// the sheet contains only one row (the header row). Let's
-			// explicitly set the column type nonetheless
-			for i := 0; i < maxCols; i++ {
-				colKinds[i] = kind.Text
-			}
-		} else {
-			// we have at least one data row, let's get the column types
-			var err error
-			colKinds, colIngestMungeFns, err = detectSheetColumnKinds(sheet, firstDataRow)
-			if err != nil {
-				return nil, err
-			}
+	} else {
+		// we have at least one data row, let's get the column types
+		var err error
+		colKinds, colIngestMungeFns, err = detectSheetColumnKinds(sheet, firstDataRow)
+		if err != nil {
+			return nil, err
 		}
 	}
 
