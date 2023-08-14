@@ -76,16 +76,16 @@ func (ri *rowIter) Row() (cols, vals []string, types []excelize.CellType, styles
 	}
 
 	types = make([]excelize.CellType, len(cols))
-	styles = make([]int, len(cols))
-	vals = make([]string, len(cols))
+	// styles = make([]int, len(cols))
+	// vals = make([]string, len(cols))
 
 	var cell string
 	for i := range cols {
 		cell = cellName(i, ri.rowi)
 
-		if vals[i], err = ri.file.GetCellValue(ri.name, cell, excelize.Options{RawCellValue: false}); err != nil {
-			return nil, nil, nil, nil, errw(err)
-		}
+		//if vals[i], err = ri.file.GetCellValue(ri.name, cell, excelize.Options{RawCellValue: false}); err != nil {
+		//	return nil, nil, nil, nil, errw(err)
+		//}
 
 		// See comment on rowIter type: this is an ugly way to get
 		// the cell type.
@@ -94,9 +94,9 @@ func (ri *rowIter) Row() (cols, vals []string, types []excelize.CellType, styles
 			return nil, nil, nil, nil, errw(err)
 		}
 
-		if styles[i], err = ri.file.GetCellStyle(ri.name, cell); err != nil {
-			return nil, nil, nil, nil, errw(err)
-		}
+		//if styles[i], err = ri.file.GetCellStyle(ri.name, cell); err != nil {
+		//	return nil, nil, nil, nil, errw(err)
+		//}
 	}
 
 	return cols, vals, types, styles, nil
