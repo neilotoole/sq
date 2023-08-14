@@ -35,12 +35,12 @@ func ToSliceType[S, T any](in ...S) (out []T, ok bool) {
 	return out, true
 }
 
-// HarmonizeSliceLengths returns slices for a and b such that the
+// AlignSliceLengths returns slices for a and b such that the
 // returned slices have the same lengths and contents as a and b,
 // with any additional elements filled with defaultVal. If a and b
 // are already the same length, they are returned as-is. At most
 // one new slice is allocated.
-func HarmonizeSliceLengths[T any](a, b []T, defaultVal T) ([]T, []T) {
+func AlignSliceLengths[T any](a, b []T, defaultVal T) ([]T, []T) {
 	switch {
 	case len(a) == len(b):
 		return a, b
@@ -67,9 +67,9 @@ func HarmonizeSliceLengths[T any](a, b []T, defaultVal T) ([]T, []T) {
 	}
 }
 
-// HarmonizeMatrixWidth ensures that rows of matrix have the same
+// AlignMatrixWidth ensures that rows of matrix have the same
 // length, that length being the length of the longest row of a.
-func HarmonizeMatrixWidth[T any](a [][]T, defaultVal T) {
+func AlignMatrixWidth[T any](a [][]T, defaultVal T) {
 	if len(a) == 0 {
 		return
 	}

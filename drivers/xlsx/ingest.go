@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/neilotoole/sq/libsq/core/loz"
@@ -74,35 +73,32 @@ type sheetTable struct {
 	hasHeaderRow      bool
 }
 
+// xSheet encapsulates access to a workshseet.
 type xSheet struct {
-	file        *excelize.File
-	name        string
-	sampleRows  [][]string
-	sampleTypes [][]excelize.CellType
-	allRows     [][]string
-	maxCols     int
-	rowsOnce    sync.Once
-	rowsErr     error
+	file       *excelize.File
+	name       string
+	sampleRows [][]string
+	// maxCols is the width (in cells) of the widest row
+	maxCols int
 }
 
 func (xs *xSheet) loadSampleRows(ctx context.Context, sampleSize int) error {
-	si, err := newSheetIter(xs.file, xs.name)
+	iter, err := newRowIter(xs.file, xs.name)
 	if err != nil {
 		return err
 	}
 
-	defer lg.WarnIfCloseError(lg.FromContext(ctx), msgCloseSheetIter, si)
+	defer lg.WarnIfCloseError(lg.FromContext(ctx), msgCloseRowIter, iter)
 
-	for si.Next() {
-		if si.Count() >= sampleSize {
+	for iter.Next() {
+		if iter.Count() >= sampleSize {
 			break
 		}
 		var cells []string
-		var types []excelize.CellType
 		var vals []string
 		var styles []int
 
-		if cells, vals, types, styles, err = si.Row(); err != nil {
+		if cells, vals, _, styles, err = iter.Row(); err != nil {
 			return err
 		}
 
@@ -110,17 +106,12 @@ func (xs *xSheet) loadSampleRows(ctx context.Context, sampleSize int) error {
 		_ = styles
 
 		xs.sampleRows = append(xs.sampleRows, cells)
-		xs.sampleTypes = append(xs.sampleTypes, types)
 		if len(cells) > xs.maxCols {
 			xs.maxCols = len(cells)
 		}
 	}
 
-	if xs.allRows, err = xs.file.GetRows(xs.name, excelize.Options{RawCellValue: false}); err != nil {
-		return errw(err)
-	}
-	loz.HarmonizeMatrixWidth(xs.sampleRows, "")
-	loz.HarmonizeMatrixWidth(xs.sampleTypes, cellTypeString)
+	loz.AlignMatrixWidth(xs.sampleRows, "")
 
 	return nil
 }
@@ -180,7 +171,6 @@ func ingestXLSX(ctx context.Context, src *source.Source, scratchDB driver.Databa
 		lga.Elapsed, time.Since(start))
 
 	var imported, skipped int
-
 	for i := range sheetTbls {
 		if sheetTbls[i] == nil {
 			// tblDef can be nil if its sheet is empty (has no data).
@@ -236,41 +226,37 @@ func ingestSheetToTable(ctx context.Context, scratchDB driver.Database, sheetTbl
 		return err
 	}
 
-	si, err := newSheetIter(sheetTbl.sheet.file, sheetTbl.sheet.name)
+	iter, err := newRowIter(sheetTbl.sheet.file, sheetTbl.sheet.name)
 	if err != nil {
 		return errw(err)
 	}
 
-	defer lg.WarnIfCloseError(log, msgCloseSheetIter, si)
+	defer lg.WarnIfCloseError(log, msgCloseRowIter, iter)
 
 	var (
 		cells     []string
-		vals      []string
 		cellTypes []excelize.CellType
-		styles    []int
 	)
 
 	i := -1
-	for si.Next() {
+	for iter.Next() {
 		i++
 		if hasHeader && i == 0 {
 			continue
 		}
 
-		cells, vals, cellTypes, styles, err = si.Row()
+		cells, _, cellTypes, _, err = iter.Row()
 		if err != nil {
 			close(bi.RecordCh)
 			return err
 		}
 
-		_ = styles
-		_ = vals
-
 		if isEmptyRow(cells) {
 			continue
 		}
 
-		rec := rowToRecord(ctx, destColKinds, sheetTbl.colIngestMungeFns, sheet.name, i, cells, cellTypes)
+		rec := rowToRecord(ctx, destColKinds, sheetTbl.colIngestMungeFns,
+			sheet.name, i, cells, cellTypes)
 		if err = bi.Munge(rec); err != nil {
 			close(bi.RecordCh)
 			return err
@@ -299,7 +285,7 @@ func ingestSheetToTable(ctx context.Context, scratchDB driver.Database, sheetTbl
 		return err
 	}
 
-	if err = si.Error(); err != nil {
+	if err = iter.Error(); err != nil {
 		return errz.Wrap(err, "excel: sheet iterator")
 	}
 
@@ -424,7 +410,7 @@ func buildSheetTable(ctx context.Context, srcIngestHeader *bool, sheet *xSheet) 
 		} else {
 			// we have at least one data row, let's get the column types
 			var err error
-			colKinds, colIngestMungeFns, err = detectSheetColumnKinds(ctx, sheet, firstDataRow)
+			colKinds, colIngestMungeFns, err = detectSheetColumnKinds(sheet, firstDataRow)
 			if err != nil {
 				return nil, err
 			}

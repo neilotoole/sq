@@ -48,11 +48,11 @@ func detectHeaderRow(ctx context.Context, sheet *xSheet) (hasHeader bool, err er
 		return false, nil
 	}
 
-	kinds1, _, err := detectSheetColumnKinds(ctx, sheet, 0)
+	kinds1, _, err := detectSheetColumnKinds(sheet, 0)
 	if err != nil {
 		return false, err
 	}
-	kinds2, _, err := detectSheetColumnKinds(ctx, sheet, 1)
+	kinds2, _, err := detectSheetColumnKinds(sheet, 1)
 	if err != nil {
 		return false, err
 	}
@@ -72,68 +72,15 @@ func detectHeaderRow(ctx context.Context, sheet *xSheet) (hasHeader bool, err er
 	return !slices.Equal(kinds1, kinds2), nil
 }
 
-// determineSampleColumnTypes returns the xlsx cell types for the sheet.
-// It is assumed that sheet.sampleRows is already loaded.
-func determineSampleColumnTypes(ctx context.Context, sheet *xSheet, rangeStart, rangeEnd int) ([]excelize.CellType, error) {
-	rows, err := sheet.file.Rows(sheet.name)
-	if err != nil {
-		return nil, errw(err)
-	}
-
-	defer lg.WarnIfCloseError(lg.FromContext(ctx), msgCloseSheetIter, rows)
-
-	var (
-		cols  []string
-		typ   excelize.CellType
-		types []excelize.CellType
-	)
-
-	for rowi := rangeStart; rowi < rangeEnd && rowi < len(sheet.sampleRows); rowi++ {
-		if rowi < rangeStart {
-			continue
-		}
-
-		cols = sheet.sampleRows[rowi]
-		if len(cols) > len(types) {
-			types2 := make([]excelize.CellType, len(cols))
-			if types != nil {
-				copy(types2, types)
-			}
-			types = types2
-		}
-
-		for coli := range cols {
-			typ = sheet.sampleTypes[rowi][coli]
-
-			if types[coli] == 0 {
-				types[coli] = typ
-				continue
-			}
-
-			// Else, it already has a type
-			if types[coli] == typ {
-				// type matches, just continue
-				continue
-			}
-
-			// It already has a type, and it's different from this cell's type,
-			// so we default to string.
-			types[coli] = excelize.CellTypeSharedString
-		}
-	}
-
-	return types, nil
-}
-
 // detectSheetColumnKinds calculates the lowest-common-denominator kind
-// for the cells of rows. The returned slice will have length
-// equal to the longest row.
-func detectSheetColumnKinds(ctx context.Context, sheet *xSheet, rangeStart int) ([]kind.Kind, []kind.MungeFunc, error) {
+// for the columns of sheet. It also returns munge funcs for ingesting
+// each column's data (the munge func may be nil for any column).
+func detectSheetColumnKinds(sheet *xSheet, rangeStart int) ([]kind.Kind, []kind.MungeFunc, error) {
 	rows := sheet.sampleRows
 
 	if rangeStart > len(rows) {
 		// Shouldn't happen
-		return nil, nil, errz.Errorf("sheet {%s} is empty", sheet.name)
+		return nil, nil, errz.Errorf("excel: sheet {%s} is empty", sheet.name)
 	}
 
 	var detectors []*kind.Detector
@@ -148,7 +95,6 @@ func detectSheetColumnKinds(ctx context.Context, sheet *xSheet, rangeStart int) 
 		}
 
 		for j := range rows[i] {
-
 			val := rows[i][j]
 			detectors[j].Sample(val)
 		}

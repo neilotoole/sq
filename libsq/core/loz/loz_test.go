@@ -39,7 +39,7 @@ func TestApply(t *testing.T) {
 }
 
 func TestHarmonizeSliceLengths(t *testing.T) {
-	gotA, gotB := loz.HarmonizeSliceLengths(
+	gotA, gotB := loz.AlignSliceLengths(
 		[]int{1, 2, 3},
 		[]int{1, 2, 3, 4},
 		7,
@@ -47,7 +47,7 @@ func TestHarmonizeSliceLengths(t *testing.T) {
 	require.Equal(t, []int{1, 2, 3, 7}, gotA)
 	require.Equal(t, []int{1, 2, 3, 4}, gotB)
 
-	gotA, gotB = loz.HarmonizeSliceLengths(
+	gotA, gotB = loz.AlignSliceLengths(
 		[]int{1, 2, 3, 4},
 		[]int{1, 2, 3},
 		7,
@@ -55,11 +55,11 @@ func TestHarmonizeSliceLengths(t *testing.T) {
 	require.Equal(t, []int{1, 2, 3, 4}, gotA)
 	require.Equal(t, []int{1, 2, 3, 7}, gotB)
 
-	gotA, gotB = loz.HarmonizeSliceLengths(nil, nil, 7)
+	gotA, gotB = loz.AlignSliceLengths(nil, nil, 7)
 	require.Nil(t, gotA)
 	require.Nil(t, gotB)
 
-	gotA, gotB = loz.HarmonizeSliceLengths([]int{}, []int{}, 7)
+	gotA, gotB = loz.AlignSliceLengths([]int{}, []int{}, 7)
 	require.True(t, gotA != nil && len(gotA) == 0)
 	require.True(t, gotB != nil && len(gotB) == 0)
 }
@@ -78,7 +78,7 @@ func TestHarmonizeMatrixWidth(t *testing.T) {
 
 	for i, tc := range testCases {
 		t.Run(tutil.Name(i), func(t *testing.T) {
-			loz.HarmonizeMatrixWidth(tc.in, defaultVal)
+			loz.AlignMatrixWidth(tc.in, defaultVal)
 			require.EqualValues(t, tc.want, tc.in)
 		})
 	}
