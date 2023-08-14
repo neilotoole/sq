@@ -83,3 +83,12 @@ func TestAlignMatrixWidth(t *testing.T) {
 		})
 	}
 }
+
+func TestIsSliceZeroed(t *testing.T) {
+	require.True(t, loz.IsSliceZeroed([]any{}))
+	require.True(t, loz.IsSliceZeroed[any](nil))
+	require.True(t, loz.IsSliceZeroed([]int{0, 0}))
+	require.False(t, loz.IsSliceZeroed([]int{0, 1}))
+	require.True(t, loz.IsSliceZeroed([]string{"", ""}))
+	require.False(t, loz.IsSliceZeroed([]string{"", "a"}))
+}

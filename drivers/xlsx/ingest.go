@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -33,31 +32,7 @@ import (
 	"github.com/neilotoole/sq/libsq/driver"
 )
 
-func errw(err error) error {
-	return errz.Wrap(err, "excel")
-}
-
-// cellName accepts zero-index cell coordinates, and returns the call name.
-// For example, {0,0} returns "A1".
-func cellName(col, row int) string {
-	s, _ := excelize.ColumnNumberToName(col + 1)
-	s += strconv.Itoa(row + 1)
-	return s
-}
-
-func isEmptyRow(row []string) bool {
-	if len(row) == 0 {
-		return true
-	}
-
-	for i := range row {
-		if row[i] != "" {
-			return false
-		}
-	}
-
-	return true
-}
+const msgCloseRowIter = "Close Excel row iterator"
 
 func hasSheet(xlFile *excelize.File, sheetName string) bool {
 	return slices.Contains(xlFile.GetSheetList(), sheetName)
@@ -71,7 +46,7 @@ type sheetTable struct {
 	hasHeaderRow      bool
 }
 
-// xSheet encapsulates access to a workshseet.
+// xSheet encapsulates access to a worksheet.
 type xSheet struct {
 	file       *excelize.File
 	name       string
@@ -221,17 +196,16 @@ func ingestSheetToTable(ctx context.Context, scratchDB driver.Database, sheetTbl
 		return err
 	}
 
-	iter, err := newRowIter(sheetTbl.sheet.file, sheetTbl.sheet.name)
+	iter, err := sheetTbl.sheet.file.Rows(sheetTbl.sheet.name)
+	// iter, err := newRowIter(sheetTbl.sheet.file, sheetTbl.sheet.name)
 	if err != nil {
 		return errw(err)
 	}
 
 	defer lg.WarnIfCloseError(log, msgCloseRowIter, iter)
 
-	var (
-		cells     []string
-		cellTypes []excelize.CellType
-	)
+	var cells []string
+	// cellTypes []excelize.CellType
 
 	i := -1
 	for iter.Next() {
@@ -240,18 +214,17 @@ func ingestSheetToTable(ctx context.Context, scratchDB driver.Database, sheetTbl
 			continue
 		}
 
-		cells, _, cellTypes, _, err = iter.Row()
-		if err != nil {
+		if cells, err = iter.Columns(); err != nil {
 			close(bi.RecordCh)
 			return err
 		}
 
-		if isEmptyRow(cells) {
+		if loz.IsSliceZeroed(cells) {
+			// Skip empty row
 			continue
 		}
 
-		rec := rowToRecord(ctx, destColKinds, sheetTbl.colIngestMungeFns,
-			sheet.name, i, cells, cellTypes)
+		rec := rowToRecord(ctx, destColKinds, sheetTbl.colIngestMungeFns, sheet.name, i, cells)
 		if err = bi.Munge(rec); err != nil {
 			close(bi.RecordCh)
 			return err
@@ -487,7 +460,7 @@ func syncColNamesKinds(colNames []string, colKinds []kind.Kind) (names []string,
 // rowToRecord accepts a row (in arg cells), and converts it into an appropriate
 // format for insertion to the DB.
 func rowToRecord(ctx context.Context, destColKinds []kind.Kind, ingestMungeFns []kind.MungeFunc,
-	sheetName string, rowi int, cells []string, cellTypes []excelize.CellType,
+	sheetName string, rowi int, cells []string,
 ) []any {
 	log := lg.FromContext(ctx)
 
@@ -504,106 +477,30 @@ func rowToRecord(ctx context.Context, destColKinds []kind.Kind, ingestMungeFns [
 			continue
 		}
 
-		typ := cellTypes[coli]
-		switch typ {
-		case excelize.CellTypeBool:
-			if str == "" {
-				vals[coli] = nil
-				continue
-			}
-
-			b, err := stringz.ParseBool(str)
-			if err == nil {
-				vals[coli] = b
-				continue
-			}
-
-			log.Warn("Failed to parse allegedly bool cell; using string value",
-				laSheet, sheetName,
-				"cell", fmt.Sprintf("%d:%d", rowi, coli),
-				lga.Val, str,
-			)
-
-			vals[coli] = str
-
-		case excelize.CellTypeNumber:
-			if cells[coli] == "" {
-				vals[coli] = nil
-				continue
-			}
-
-			intVal, err := strconv.ParseInt(str, 10, 64)
-			if err == nil {
-				vals[coli] = intVal
-				continue
-			}
-			floatVal, err := strconv.ParseFloat(str, 64)
-			if err == nil {
-				vals[coli] = floatVal
-				continue
-			}
-
-			// it's not an int, it's not a float, it's not empty string;
-			// just give up and make it a string.
-			log.Warn("Failed to determine type of numeric cell; using string val",
-				laSheet, sheetName,
-				"cell", fmt.Sprintf("%d:%d", rowi, coli),
-				lga.Val, str,
-			)
-
-			vals[coli] = str
-		case excelize.CellTypeFormula, excelize.CellTypeError:
-			if str == "" {
-				if destColKinds[coli] != kind.Text {
-					vals[coli] = nil
-					continue
-				}
-			}
-			vals[coli] = str
-		case excelize.CellTypeDate:
-			// It seems that the excelize library doesn't really return
-			// the cell type as expected (or maybe we don't grok how it's
-			// supposed to work). The cell type seems to usually be
-			// excelize.CellTypeUnset, even when we're expecting a date
-			// from the sheet.
-			if str == "" {
-				vals[coli] = nil
-				continue
-			}
-			vals[coli] = str
-		case excelize.CellTypeUnset, excelize.CellTypeSharedString, excelize.CellTypeInlineString:
-			if str == "" {
-				vals[coli] = nil
-				continue
-			}
-
-			if fn := ingestMungeFns[coli]; fn != nil {
-				v, err := fn(str)
-				if err != nil {
-					// This shouldn't happen, but if it does, fall back
-					// to the string value.
-					vals[coli] = str
-					log.Warn("Cell munge func failed",
-						laSheet, sheetName,
-						"cell", fmt.Sprintf("%d:%d", rowi, coli),
-						lga.Val, vals[coli],
-					)
-				} else {
-					vals[coli] = v
-				}
-				continue
-			}
-
-			// No munge func, just set the string.
-			vals[coli] = str
-
-		default:
-			if str == "" {
-				vals[coli] = nil
-			} else {
-				vals[coli] = str
-			}
+		if str == "" {
+			vals[coli] = nil
+			continue
 		}
+
+		if fn := ingestMungeFns[coli]; fn != nil {
+			v, err := fn(str)
+			if err != nil {
+				// This shouldn't happen, but if it does, fall back
+				// to the string value.
+				vals[coli] = str
+				log.Warn("Cell munge func failed",
+					laSheet, sheetName,
+					"cell", fmt.Sprintf("%d:%d", rowi, coli),
+					lga.Val, vals[coli],
+				)
+			} else {
+				vals[coli] = v
+			}
+			continue
+		}
+
+		// No munge func, just set the string.
+		vals[coli] = str
 	}
 	return vals
 }

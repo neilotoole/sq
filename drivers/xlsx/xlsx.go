@@ -122,3 +122,7 @@ func (d *Driver) Ping(ctx context.Context, src *source.Source) (err error) {
 
 	return nil
 }
+
+func errw(err error) error {
+	return errz.Wrap(err, "excel")
+}

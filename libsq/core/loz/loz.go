@@ -110,3 +110,19 @@ func Make[T any](count int, val T) []T {
 	}
 	return a
 }
+
+// IsSliceZeroed returns true if a is empty or if each element
+// of a is the zero value.
+func IsSliceZeroed[T comparable](a []T) bool {
+	if len(a) == 0 {
+		return true
+	}
+
+	var zero T
+	for i := range a {
+		if a[i] != zero {
+			return false
+		}
+	}
+	return true
+}

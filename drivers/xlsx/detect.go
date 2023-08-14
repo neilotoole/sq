@@ -5,6 +5,8 @@ import (
 	"io"
 	"slices"
 
+	"github.com/neilotoole/sq/libsq/core/loz"
+
 	"github.com/neilotoole/sq/libsq/core/kind"
 
 	"github.com/xuri/excelize/v2"
@@ -86,7 +88,7 @@ func detectSheetColumnKinds(sheet *xSheet, rangeStart int) ([]kind.Kind, []kind.
 	var detectors []*kind.Detector
 
 	for i := rangeStart; i < len(rows); i++ {
-		if isEmptyRow(rows[i]) {
+		if loz.IsSliceZeroed(rows[i]) {
 			continue
 		}
 
