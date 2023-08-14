@@ -78,6 +78,7 @@ const (
 	fixtDate6              = "02-Jan-2006"
 	fixtDate7              = "Jan 2, 2006"
 	fixtDate8              = "Jan 20, 2006"
+	fixtDateExcelLong      = "Wednesday, March 1, 2023"
 	fixtDatetime1          = "1970-01-01T00:00:00Z" // RFC3339Nano
 	fixtDatetime2          = "1989-11-09T00:00:00Z"
 	fixtDatetimeAnsic      = "Mon Jan 2 15:04:05 2006"
@@ -132,6 +133,7 @@ func TestDetector(t *testing.T) {
 		{in: []any{fixtDate6}, want: kind.Date, wantMunge: true},
 		{in: []any{fixtDate7}, want: kind.Date, wantMunge: true},
 		{in: []any{fixtDate8}, want: kind.Date, wantMunge: true},
+		{in: []any{fixtDateExcelLong}, want: kind.Date, wantMunge: true},
 		{in: []any{fixtDatetime1, nil, ""}, want: kind.Datetime, wantMunge: true},
 		{in: []any{fixtDatetime2}, want: kind.Datetime, wantMunge: true},
 		{in: []any{fixtDatetimeAnsic}, want: kind.Datetime, wantMunge: true},

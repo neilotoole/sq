@@ -1,8 +1,6 @@
 package xlsx
 
 import (
-	"context"
-
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/xuri/excelize/v2"
 )
@@ -87,7 +85,7 @@ func (si *sheetIter) Row() (cols, vals []string, types []excelize.CellType, styl
 
 	}
 
-	convertRowDates(context.Background(), si.file, si.name, si.rowi, vals)
+	// convertRowDates(context.Background(), si.file, si.name, si.rowi, vals)
 	// convertDates(context.Background(), si.file, si.name, [][]string{vals})
 
 	return cols, vals, types, styles, nil

@@ -361,6 +361,10 @@ func detectKindTime(s string) (ok bool, format string) {
 
 	formats := []string{
 		time.TimeOnly,
+		"15:04:05 PM",
+		"15:04:05PM",
+		"15:04:05 pm",
+		"15:04:05pm",
 		"15:04",
 		time.Kitchen,
 		"3:04 PM",
@@ -391,6 +395,7 @@ func detectKindDate(s string) (ok bool, format string) {
 		"01-02-2006",
 		"02-Jan-2006",
 		"Jan _2, 2006",
+		timez.ExcelLongDate,
 	}
 	var err error
 
@@ -425,6 +430,8 @@ func detectKindDatetime(s string) (ok bool, format string) {
 		time.StampMilli,
 		time.StampMicro,
 		time.StampNano,
+		"2006-01-02 15:04:05",
+		"2006-01-02 15:04",
 	}
 	var err error
 

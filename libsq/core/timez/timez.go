@@ -21,6 +21,9 @@ const (
 
 	// RFC3339Z is an RFC3339 format, in zulu time.
 	RFC3339Z = "2006-01-02T15:04:05Z"
+
+	// ExcelLongDate = "Monday, 02-Jan-06 15:04:05 MST"
+	ExcelLongDate = "Monday, January 2, 2006"
 )
 
 // TimestampUTC returns the ISO8601 representation of t in UTC.

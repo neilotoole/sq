@@ -2,9 +2,10 @@ package xlsx
 
 import (
 	"context"
-	"github.com/neilotoole/sq/libsq/core/kind"
 	"io"
 	"slices"
+
+	"github.com/neilotoole/sq/libsq/core/kind"
 
 	"github.com/xuri/excelize/v2"
 

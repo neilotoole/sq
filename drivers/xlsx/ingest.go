@@ -589,24 +589,27 @@ func rowToRecord(ctx context.Context, destColKinds []kind.Kind, ingestMungeFns [
 		case excelize.CellTypeUnset:
 			if str == "" {
 				vals[coli] = nil
-			} else {
-				if fn := ingestMungeFns[coli]; fn != nil {
-
-					v, err := fn(str)
-					if err != nil {
-						// This shouldn't happen, but if it does, fall back
-						// to the string value.
-						vals[coli] = str
-						log.Warn("Cell munge func failed",
-							laSheet, sheetName,
-							"cell", fmt.Sprintf("%d:%d", rowi, coli),
-							lga.Val, vals[coli],
-						)
-					} else {
-						vals[coli] = v
-					}
-				}
+				continue
 			}
+
+			if fn := ingestMungeFns[coli]; fn != nil {
+				v, err := fn(str)
+				if err != nil {
+					// This shouldn't happen, but if it does, fall back
+					// to the string value.
+					vals[coli] = str
+					log.Warn("Cell munge func failed",
+						laSheet, sheetName,
+						"cell", fmt.Sprintf("%d:%d", rowi, coli),
+						lga.Val, vals[coli],
+					)
+				} else {
+					vals[coli] = v
+				}
+				continue
+			}
+
+			vals[coli] = str
 
 		default:
 			if str == "" {
