@@ -10,6 +10,16 @@ const msgCloseRowIter = "Close Excel row iterator"
 // rowIter wraps excelize.Rows. Originally the iter had more functionality,
 // but has since been slimmed down. It's possible that we may get rid
 // of it entirely and use excelize.Rows directly.
+//
+// The main reason rowIter exists is because excelize.Rows returns only
+// the (string) cell values, but we're also interested in the "type" of
+// each cell. Our "Row" method looks up the cell style during iteration.
+// However, it doesn't get the style during the iteration process: it does
+// an out-of-band lookup using excelize.File.GetCellStyle. It seems likely
+// that this is inefficient and somewhat defeats the purpose of the
+// streaming iterator. Ideally excelize will be patched to add a new
+// iterator excelize.RowsInfo, where a []excelize.CellStyle will be returned
+// by that iterator's Row method.
 type rowIter struct {
 	file *excelize.File
 	name string
@@ -77,6 +87,8 @@ func (ri *rowIter) Row() (cols, vals []string, types []excelize.CellType, styles
 			return nil, nil, nil, nil, errw(err)
 		}
 
+		// See comment on rowIter type: this is an ugly way to get
+		// the cell type.
 		types[i], err = ri.file.GetCellType(ri.name, cell)
 		if err != nil {
 			return nil, nil, nil, nil, errw(err)
@@ -85,7 +97,6 @@ func (ri *rowIter) Row() (cols, vals []string, types []excelize.CellType, styles
 		if styles[i], err = ri.file.GetCellStyle(ri.name, cell); err != nil {
 			return nil, nil, nil, nil, errw(err)
 		}
-
 	}
 
 	return cols, vals, types, styles, nil

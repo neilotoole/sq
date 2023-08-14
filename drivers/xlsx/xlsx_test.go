@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/core/kind"
+
 	"github.com/neilotoole/sq/cli/testrun"
 
 	"github.com/neilotoole/sq/libsq/driver"
@@ -30,6 +32,130 @@ func Test_Smoke_Subset(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, len(sakila.TblActorCols()), len(sink.RecMeta))
 	require.Equal(t, sakila.TblActorCount, len(sink.Recs))
+}
+
+var sakilaSheets = []string{
+	"actor",
+	"address",
+	"category",
+	"city",
+	"country",
+	"customer",
+	"film",
+	"film_actor",
+	"film_category",
+	"film_text",
+	"inventory",
+	"language",
+	"payment",
+	"rental",
+	"staff",
+	"store",
+}
+
+func TestSakila_inspect_source(t *testing.T) {
+	t.Parallel()
+	tutil.SkipWindows(t, "Skipping because of slow workflow perf on windows")
+	tutil.SkipShort(t, true)
+
+	th := testh.New(t, testh.OptLongOpen())
+	src := th.Source(sakila.XLSX)
+
+	tr := testrun.New(th.Context, t, nil).Hush().Add(*src)
+
+	err := tr.Exec("inspect", "--json", src.Handle)
+	require.NoError(t, err)
+}
+
+func TestSakila_inspect_sheets(t *testing.T) {
+	t.Parallel()
+	tutil.SkipWindows(t, "Skipping because of slow workflow perf on windows")
+	tutil.SkipShort(t, true)
+
+	for _, sheet := range sakilaSheets {
+		sheet := sheet
+
+		t.Run(sheet, func(t *testing.T) {
+			t.Parallel()
+			th := testh.New(t, testh.OptLongOpen())
+			src := th.Source(sakila.XLSX)
+
+			tr := testrun.New(th.Context, t, nil).Hush().Add(*src)
+
+			err := tr.Exec("inspect", "--json", src.Handle+"."+sheet)
+			require.NoError(t, err)
+		})
+	}
+}
+
+func TestSakila_query_cmd(t *testing.T) {
+	t.Parallel()
+	tutil.SkipWindows(t, "Skipping because of slow workflow perf on windows")
+	tutil.SkipShort(t, true)
+
+	for _, sheet := range sakilaSheets {
+		sheet := sheet
+
+		t.Run(sheet, func(t *testing.T) {
+			t.Parallel()
+			th := testh.New(t, testh.OptLongOpen())
+			src := th.Source(sakila.XLSX)
+
+			tr := testrun.New(th.Context, t, nil).Hush().Add(*src)
+
+			err := tr.Exec("--jsonl", "."+sheet)
+			require.NoError(t, err)
+			t.Log("\n", tr.Out.String())
+		})
+	}
+}
+
+func TestSakila_query(t *testing.T) {
+	t.Parallel()
+	tutil.SkipWindows(t, "Skipping because of slow workflow perf on windows")
+	tutil.SkipShort(t, true)
+
+	testCases := []struct {
+		sheet     string
+		wantCols  []string
+		wantCount int
+		wantKinds []kind.Kind
+	}{
+		{
+			sheet:     sakila.TblActor,
+			wantCols:  sakila.TblActorCols(),
+			wantCount: sakila.TblActorCount,
+			wantKinds: sakila.TblActorColKinds(),
+		},
+		{
+			sheet:     sakila.TblFilmActor,
+			wantCols:  sakila.TblFilmActorCols(),
+			wantCount: sakila.TblFilmActorCount,
+			wantKinds: sakila.TblFilmActorColKinds(),
+		},
+		{
+			sheet:     sakila.TblPayment,
+			wantCols:  sakila.TblPaymentCols(),
+			wantCount: sakila.TblPaymentCount,
+			wantKinds: sakila.TblPaymentColKinds(),
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+
+		t.Run(tc.sheet, func(t *testing.T) {
+			t.Parallel()
+			th := testh.New(t, testh.OptLongOpen())
+			src := th.Source(sakila.XLSX)
+
+			sink, err := th.QuerySQL(src, "SELECT * FROM "+tc.sheet)
+			require.NoError(t, err)
+			require.Equal(t, tc.wantCols, sink.RecMeta.MungedNames())
+			require.Equal(t, tc.wantCount, len(sink.Recs))
+			require.Equal(t, tc.wantKinds, sink.RecMeta.Kinds())
+		})
+	}
 }
 
 func Test_Smoke_Full(t *testing.T) {

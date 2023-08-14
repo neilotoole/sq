@@ -33,8 +33,6 @@ import (
 	"github.com/neilotoole/sq/libsq/driver"
 )
 
-const cellTypeString = excelize.CellTypeSharedString
-
 func errw(err error) error {
 	return errz.Wrap(err, "excel")
 }
@@ -83,32 +81,29 @@ type xSheet struct {
 }
 
 func (xs *xSheet) loadSampleRows(ctx context.Context, sampleSize int) error {
-	iter, err := newRowIter(xs.file, xs.name)
+	iter, err := xs.file.Rows(xs.name)
 	if err != nil {
 		return err
 	}
 
 	defer lg.WarnIfCloseError(lg.FromContext(ctx), msgCloseRowIter, iter)
 
+	var count int
 	for iter.Next() {
-		if iter.Count() >= sampleSize {
+		if count >= sampleSize {
 			break
 		}
 		var cells []string
-		var vals []string
-		var styles []int
-
-		if cells, vals, _, styles, err = iter.Row(); err != nil {
+		if cells, err = iter.Columns(); err != nil {
 			return err
 		}
-
-		_ = vals
-		_ = styles
 
 		xs.sampleRows = append(xs.sampleRows, cells)
 		if len(cells) > xs.maxCols {
 			xs.maxCols = len(cells)
 		}
+
+		count++
 	}
 
 	loz.AlignMatrixWidth(xs.sampleRows, "")
@@ -390,10 +385,7 @@ func buildSheetTable(ctx context.Context, srcIngestHeader *bool, sheet *xSheet) 
 		// Set up the column names
 		if hasHeader {
 			firstDataRow = 1
-			headerCells := sheet.sampleRows[0]
-			for i := 0; i < len(headerCells); i++ {
-				colNames[i] = headerCells[i]
-			}
+			copy(colNames, sheet.sampleRows[0])
 		} else {
 			for i := 0; i < maxCols; i++ {
 				colNames[i] = stringz.GenerateAlphaColName(i, false)
@@ -492,6 +484,8 @@ func syncColNamesKinds(colNames []string, colKinds []kind.Kind) (names []string,
 	return colNames, colKinds
 }
 
+// rowToRecord accepts a row (in arg cells), and converts it into an appropriate
+// format for insertion to the DB.
 func rowToRecord(ctx context.Context, destColKinds []kind.Kind, ingestMungeFns []kind.MungeFunc,
 	sheetName string, rowi int, cells []string, cellTypes []excelize.CellType,
 ) []any {
@@ -529,19 +523,6 @@ func rowToRecord(ctx context.Context, destColKinds []kind.Kind, ingestMungeFns [
 				vals[coli] = intVal
 				continue
 			}
-			//if cell.IsTime() {
-			//	t, err := cell.GetTime(false)
-			//	if err != nil {
-			//		log.Warn("Sheet %s[%d:%d]: failed to get Excel time: %v", sheetName, rowIndex, j, err)
-			//		vals[j] = nil
-			//		continue
-			//	}
-			//
-			//	vals[j] = t
-			//	continue
-			//}
-
-			// floatVal, err := cell.Float()
 			floatVal, err := strconv.ParseFloat(str, 64)
 			if err == nil {
 				vals[coli] = floatVal
@@ -569,7 +550,11 @@ func rowToRecord(ctx context.Context, destColKinds []kind.Kind, ingestMungeFns [
 
 			vals[coli] = str
 		case excelize.CellTypeDate:
-			// TODO: parse into a time value here?
+			// It seems that the excelize library doesn't really return
+			// the cell type as expected (or maybe we don't grok how it's
+			// supposed to work). The cell type seems to usually be
+			// excelize.CellTypeUnset, even when we're expecting a date
+			// from the sheet.
 			vals[coli] = str
 
 		case excelize.CellTypeUnset:
@@ -595,6 +580,7 @@ func rowToRecord(ctx context.Context, destColKinds []kind.Kind, ingestMungeFns [
 				continue
 			}
 
+			// No munge func, just set the string.
 			vals[coli] = str
 
 		default:

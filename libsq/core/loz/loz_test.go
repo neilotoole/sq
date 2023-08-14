@@ -38,7 +38,7 @@ func TestApply(t *testing.T) {
 	require.Equal(t, want, got)
 }
 
-func TestHarmonizeSliceLengths(t *testing.T) {
+func TestAlignSliceLengths(t *testing.T) {
 	gotA, gotB := loz.AlignSliceLengths(
 		[]int{1, 2, 3},
 		[]int{1, 2, 3, 4},
@@ -64,15 +64,15 @@ func TestHarmonizeSliceLengths(t *testing.T) {
 	require.True(t, gotB != nil && len(gotB) == 0)
 }
 
-func TestHarmonizeMatrixWidth(t *testing.T) {
+func TestAlignMatrixWidth(t *testing.T) {
 	const defaultVal int = 7
 	testCases := []struct {
 		in   [][]int
 		want [][]int
 	}{
-		//{nil, nil},
-		//{[][]int{}, [][]int{}},
-		//{[][]int{{1, 2, 3}}, [][]int{{1, 2, 3}}},
+		{nil, nil},
+		{[][]int{}, [][]int{}},
+		{[][]int{{1, 2, 3}}, [][]int{{1, 2, 3}}},
 		{[][]int{{1, 2, 3}, {1, 2}}, [][]int{{1, 2, 3}, {1, 2, 7}}},
 	}
 
