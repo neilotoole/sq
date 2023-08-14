@@ -507,10 +507,24 @@ func rowToRecord(ctx context.Context, destColKinds []kind.Kind, ingestMungeFns [
 		typ := cellTypes[coli]
 		switch typ {
 		case excelize.CellTypeBool:
-			if b, err := stringz.ParseBool(str); err == nil {
+			if str == "" {
+				vals[coli] = nil
+				continue
+			}
+
+			b, err := stringz.ParseBool(str)
+			if err == nil {
 				vals[coli] = b
 				continue
 			}
+
+			log.Warn("Failed to parse allegedly bool cell; using string value",
+				laSheet, sheetName,
+				"cell", fmt.Sprintf("%d:%d", rowi, coli),
+				lga.Val, str,
+			)
+
+			vals[coli] = str
 
 		case excelize.CellTypeNumber:
 			if cells[coli] == "" {
@@ -531,14 +545,13 @@ func rowToRecord(ctx context.Context, destColKinds []kind.Kind, ingestMungeFns [
 
 			// it's not an int, it's not a float, it's not empty string;
 			// just give up and make it a string.
-			log.Warn("Failed to determine type of numeric cell",
+			log.Warn("Failed to determine type of numeric cell; using string val",
 				laSheet, sheetName,
 				"cell", fmt.Sprintf("%d:%d", rowi, coli),
 				lga.Val, str,
 			)
 
 			vals[coli] = str
-			// FIXME: prob should return an error here?
 		case excelize.CellTypeFormula, excelize.CellTypeError:
 			if str == "" {
 				if destColKinds[coli] != kind.Text {
@@ -546,7 +559,6 @@ func rowToRecord(ctx context.Context, destColKinds []kind.Kind, ingestMungeFns [
 					continue
 				}
 			}
-
 			vals[coli] = str
 		case excelize.CellTypeDate:
 			// It seems that the excelize library doesn't really return
@@ -554,8 +566,11 @@ func rowToRecord(ctx context.Context, destColKinds []kind.Kind, ingestMungeFns [
 			// supposed to work). The cell type seems to usually be
 			// excelize.CellTypeUnset, even when we're expecting a date
 			// from the sheet.
+			if str == "" {
+				vals[coli] = nil
+				continue
+			}
 			vals[coli] = str
-
 		case excelize.CellTypeUnset, excelize.CellTypeSharedString, excelize.CellTypeInlineString:
 			if str == "" {
 				vals[coli] = nil

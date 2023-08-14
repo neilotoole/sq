@@ -50,7 +50,7 @@ var sakilaSheets = []string{
 	"store",
 }
 
-func TestSakila_inspect_source(t *testing.T) {
+func TestSakilaInspectSource(t *testing.T) {
 	t.Parallel()
 	tutil.SkipWindows(t, "Skipping because of slow workflow perf on windows")
 	tutil.SkipShort(t, true)
@@ -64,7 +64,7 @@ func TestSakila_inspect_source(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestSakila_inspect_sheets(t *testing.T) {
+func TestSakilaInspectSheets(t *testing.T) {
 	t.Parallel()
 	tutil.SkipWindows(t, "Skipping because of slow workflow perf on windows")
 	tutil.SkipShort(t, true)
@@ -339,6 +339,8 @@ func TestDatetime(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.sheet, func(t *testing.T) {
+			t.Parallel()
+
 			th := testh.New(t, testh.OptLongOpen())
 
 			sink, err := th.QuerySLQ(handle+"."+tc.sheet, nil)
