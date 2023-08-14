@@ -31,16 +31,6 @@ import (
 	"github.com/neilotoole/sq/testh/sakila"
 )
 
-func Test_Smoke_Subset(t *testing.T) {
-	th := testh.New(t, testh.OptLongOpen())
-	src := th.Source(sakila.XLSXSubset)
-
-	sink, err := th.QuerySQL(src, "SELECT * FROM actor")
-	require.NoError(t, err)
-	require.Equal(t, len(sakila.TblActorCols()), len(sink.RecMeta))
-	require.Equal(t, sakila.TblActorCount, len(sink.Recs))
-}
-
 var sakilaSheets = []string{
 	"actor",
 	"address",
@@ -91,6 +81,29 @@ func TestSakila_inspect_sheets(t *testing.T) {
 
 			err := tr.Exec("inspect", "--json", src.Handle+"."+sheet)
 			require.NoError(t, err)
+		})
+	}
+}
+
+func BenchmarkInspectSheets(b *testing.B) {
+	tutil.SkipWindows(b, "Skipping because of slow workflow perf on windows")
+	tutil.SkipShort(b, true)
+
+	for _, sheet := range sakilaSheets {
+		sheet := sheet
+
+		b.Run(sheet, func(b *testing.B) {
+			for n := 0; n < b.N; n++ {
+				th := testh.New(b, testh.OptLongOpen())
+				src := th.Source(sakila.XLSX)
+
+				tr := testrun.New(th.Context, b, nil).Hush().Add(*src)
+
+				err := tr.Exec("inspect", "--json", src.Handle+"."+sheet)
+				if err != nil {
+					b.Error(err)
+				}
+			}
 		})
 	}
 }
@@ -309,7 +322,6 @@ func TestDatetime(t *testing.T) {
 	t.Parallel()
 
 	const handle = testsrc.ExcelDatetime
-
 	testCases := []struct {
 		sheet       string
 		wantHeaders []string

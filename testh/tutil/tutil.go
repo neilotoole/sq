@@ -98,7 +98,7 @@ func SliceFieldValues(fieldName string, slice any) []any {
 		panic(fmt.Sprintf("arg slice expected to be a slice, but was {%T}", slice))
 	}
 
-	iSlice := InterfaceSlice(slice)
+	iSlice := AnySlice(slice)
 	retVals := make([]any, len(iSlice))
 
 	for i := range iSlice {
@@ -134,7 +134,7 @@ func SliceFieldKeyValues(keyFieldName, valFieldName string, slice any) map[any]a
 		panic(fmt.Sprintf("arg slice expected to be a slice, but was {%T}", slice))
 	}
 
-	iSlice := InterfaceSlice(slice)
+	iSlice := AnySlice(slice)
 	m := make(map[any]any, len(iSlice))
 
 	for i := range iSlice {
@@ -147,14 +147,14 @@ func SliceFieldKeyValues(keyFieldName, valFieldName string, slice any) map[any]a
 	return m
 }
 
-// InterfaceSlice converts a typed slice (such as []string) to []interface{}.
-// If slice is already of type []interface{}, it is returned unmodified.
-// Otherwise a new []interface{} is constructed. If slice is nil, nil is
+// AnySlice converts a typed slice (such as []string) to []any.
+// If slice is already of type []any, it is returned unmodified.
+// Otherwise a new []any is constructed. If slice is nil, nil is
 // returned. The function panics if slice is not a slice.
 //
 // Note that this function uses reflection, and may panic. It is only
 // to be used by test code.
-func InterfaceSlice(slice any) []any {
+func AnySlice(slice any) []any {
 	if slice == nil {
 		return nil
 	}
@@ -181,27 +181,6 @@ func InterfaceSlice(slice any) []any {
 	}
 
 	return ret
-}
-
-// StringSlice accepts a slice of arbitrary type (e.g. []int64 or []interface{})
-// and returns a slice of string.
-func StringSlice(slice any) []string {
-	if slice == nil {
-		return nil
-	}
-
-	// If it's already []string, return directly
-	if sSlice, ok := slice.([]string); ok {
-		return sSlice
-	}
-
-	iSlice := InterfaceSlice(slice)
-	sSlice := make([]string, len(iSlice))
-	for i := range iSlice {
-		sSlice[i] = fmt.Sprintf("%v", iSlice[i])
-	}
-
-	return sSlice
 }
 
 // Name is a convenience function for building a test name to
@@ -241,7 +220,7 @@ func Name(args ...any) string {
 }
 
 // SkipShort invokes t.Skip if testing.Short and arg skip are both true.
-func SkipShort(t *testing.T, skip bool) {
+func SkipShort(t testing.TB, skip bool) {
 	if skip && testing.Short() {
 		t.Skip("Skipping long-running test because -short is true.")
 	}
@@ -260,7 +239,7 @@ var (
 
 // DirCopy copies the contents of sourceDir to a temp dir.
 // If keep is false, temp dir will be cleaned up on test exit.
-func DirCopy(t *testing.T, sourceDir string, keep bool) (tmpDir string) {
+func DirCopy(t testing.TB, sourceDir string, keep bool) (tmpDir string) {
 	var err error
 	if keep {
 		tmpDir, err = os.MkdirTemp("", sanitizeTestName(t.Name())+"_*")
@@ -327,7 +306,7 @@ func (t *tWriter) Write(p []byte) (n int, err error) {
 // to a temp dir. On test end, the original working dir is restored,
 // and the temp dir deleted (if applicable). The absolute path
 // of the changed working dir is returned.
-func Chdir(t *testing.T, dir string) (absDir string) {
+func Chdir(t testing.TB, dir string) (absDir string) {
 	origDir, err := os.Getwd()
 	require.NoError(t, err)
 
@@ -355,14 +334,14 @@ func Chdir(t *testing.T, dir string) (absDir string) {
 }
 
 // SkipWindows skips t if running on Windows.
-func SkipWindows(t *testing.T, format string, args ...any) {
+func SkipWindows(t testing.TB, format string, args ...any) {
 	if runtime.GOOS == "windows" {
 		t.Skipf(format, args...)
 	}
 }
 
 // SkipWindowsIf skips t if running on Windows and b is true.
-func SkipWindowsIf(t *testing.T, b bool, format string, args ...any) {
+func SkipWindowsIf(t testing.TB, b bool, format string, args ...any) {
 	if runtime.GOOS == "windows" && b {
 		t.Skipf(format, args...)
 	}
@@ -371,7 +350,7 @@ func SkipWindowsIf(t *testing.T, b bool, format string, args ...any) {
 // WriteTemp writes b to a temporary file. The pattern arg
 // is used to generate the file name, per os.CreateTemp.
 // If cleanup is true, the file is deleted on test cleanup.
-func WriteTemp(t *testing.T, pattern string, b []byte, cleanup bool) (fpath string) {
+func WriteTemp(t testing.TB, pattern string, b []byte, cleanup bool) (fpath string) {
 	f, err := os.CreateTemp("", pattern)
 	require.NoError(t, err)
 
