@@ -3,6 +3,7 @@ package kind
 import (
 	stdj "encoding/json"
 	"math/big"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -242,6 +243,8 @@ func (d *Detector) doSampleString(s string) {
 					return nil, errz.Err(err)
 				}
 
+				t.Location()
+
 				return t, nil
 			}
 		}
@@ -411,32 +414,35 @@ func detectKindDate(s string) (ok bool, format string) {
 	return false, ""
 }
 
+var datetimeFormats = []string{
+	timez.RFC3339NanoZ,
+	time.RFC3339Nano,
+	time.ANSIC,
+	time.UnixDate,
+	time.RubyDate,
+	time.RFC822,
+	time.RFC822Z,
+	time.RFC850,
+	time.RFC1123Z,
+	time.RFC1123,
+	time.StampNano,
+	time.StampMicro,
+	time.StampMilli,
+	time.Stamp,
+	timez.DateHourMinuteSecond,
+	timez.DateHourMinute,
+	timez.ExcelLongDate,
+	timez.ExcelDatetimeMDY,
+}
+
 func detectKindDatetime(s string) (ok bool, format string) {
 	if s == "" {
 		return false, ""
 	}
 
-	formats := []string{
-		time.RFC3339,
-		timez.RFC3339Z,
-		timez.ISO8601,
-		time.RFC3339Nano,
-		time.ANSIC,
-		time.UnixDate,
-		time.RubyDate,
-		time.RFC822,
-		time.RFC822Z,
-		time.RFC850,
-		time.RFC1123,
-		time.RFC1123Z,
-		time.Stamp,
-		time.StampMilli,
-		time.StampMicro,
-		time.StampNano,
-		"2006-01-02 15:04:05",
-		"2006-01-02 15:04",
-	}
 	var err error
+
+	formats := slices.Clone(datetimeFormats)
 
 	for _, f := range formats {
 		if _, err = time.Parse(f, s); err == nil {

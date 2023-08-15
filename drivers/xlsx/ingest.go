@@ -57,6 +57,9 @@ type xSheet struct {
 	sampleRowsMaxWidth int
 }
 
+// loadSampleRows loads up to sampleSize rows, storing them to xSheet.sampleRows.
+// Note that the row count may be less than sampleSize, if there aren't
+// that many rows, or some rows are empty.
 func (xs *xSheet) loadSampleRows(ctx context.Context, sampleSize int) error {
 	iter, err := xs.file.Rows(xs.name)
 	if err != nil {
@@ -75,9 +78,11 @@ func (xs *xSheet) loadSampleRows(ctx context.Context, sampleSize int) error {
 			return err
 		}
 
-		xs.sampleRows = append(xs.sampleRows, cells)
-		if len(cells) > xs.sampleRowsMaxWidth {
-			xs.sampleRowsMaxWidth = len(cells)
+		if !loz.IsSliceZeroed(cells) {
+			xs.sampleRows = append(xs.sampleRows, cells)
+			if len(cells) > xs.sampleRowsMaxWidth {
+				xs.sampleRowsMaxWidth = len(cells)
+			}
 		}
 
 		count++
@@ -199,7 +204,6 @@ func ingestSheetToTable(ctx context.Context, scratchDB driver.Database, sheetTbl
 	}
 
 	iter, err := sheetTbl.sheet.file.Rows(sheetTbl.sheet.name)
-	// iter, err := newRowIter(sheetTbl.sheet.file, sheetTbl.sheet.name)
 	if err != nil {
 		return errw(err)
 	}
@@ -207,7 +211,6 @@ func ingestSheetToTable(ctx context.Context, scratchDB driver.Database, sheetTbl
 	defer lg.WarnIfCloseError(log, msgCloseRowIter, iter)
 
 	var cells []string
-	// cellTypes []excelize.CellType
 
 	i := -1
 	for iter.Next() {

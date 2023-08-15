@@ -3,16 +3,19 @@ package xlsx_test
 import (
 	"context"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
+
+	"golang.org/x/exp/maps"
+
+	"github.com/neilotoole/sq/libsq/core/timez"
 
 	"github.com/samber/lo"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/neilotoole/sq/testh/testsrc"
 
 	"github.com/neilotoole/sq/libsq/core/loz"
 
@@ -329,10 +332,67 @@ func TestDetectHeaderRow(t *testing.T) {
 	}
 }
 
+var datetimeFormats = map[string]string{
+	"RFC3339":              time.RFC3339,
+	"RFC3339Z":             timez.RFC3339Z,
+	"ISO8601":              timez.ISO8601,
+	"ISO8601Z":             timez.ISO8601Z,
+	"RFC3339Nano":          time.RFC3339Nano,
+	"RFC3339NanoZ":         timez.RFC3339NanoZ,
+	"ANSIC":                time.ANSIC,
+	"UnixDate":             time.UnixDate,
+	"RubyDate":             time.RubyDate,
+	"RFC8222":              time.RFC822,
+	"RFC8222Z":             time.RFC822Z,
+	"RFC850":               time.RFC850,
+	"RFC1123":              time.RFC1123,
+	"RFC1123Z":             time.RFC1123Z,
+	"Stamp":                time.Stamp,
+	"StampMilli":           time.StampMilli,
+	"StampMicro":           time.StampMicro,
+	"StampNano":            time.StampNano,
+	"DateHourMinuteSecond": timez.DateHourMinuteSecond,
+	"DateHourMinute":       timez.DateHourMinute,
+}
+
+func TestDates(t *testing.T) {
+	denver, err := time.LoadLocation("America/Denver")
+	require.NoError(t, err)
+	tm := time.Date(1989, 11, 9, 15, 17, 59, 123456700, denver)
+
+	keys := maps.Keys(datetimeFormats)
+	slices.Sort(keys)
+
+	for _, k := range keys {
+		format := datetimeFormats[k]
+		s := tm.Format(format)
+		t.Logf("%25s    %s", k, s)
+	}
+
+	t.Logf("%#v", keys)
+}
+
 func TestDatetime(t *testing.T) {
 	t.Parallel()
 
-	const handle = testsrc.ExcelDatetime
+	denver, err := time.LoadLocation("America/Denver")
+	require.NoError(t, err)
+
+	src := &source.Source{
+		Handle:   "@excel/datetime",
+		Type:     xlsx.Type,
+		Location: "testdata/datetime_all.xlsx",
+	}
+
+	wantDtNanoUTC := time.Date(1989, 11, 9, 15, 17, 59, 123456700, time.UTC)
+	wantDtMilliUTC := wantDtNanoUTC.Truncate(time.Millisecond)
+	wantDtSecUTC := wantDtNanoUTC.Truncate(time.Second)
+	wantDtMinUTC := wantDtNanoUTC.Truncate(time.Minute)
+	wantDtNanoMST := time.Date(1989, 11, 9, 15, 17, 59, 123456700, denver)
+	wantDtMilliMST := wantDtNanoMST.Truncate(time.Millisecond)
+	wantDtSecMST := wantDtNanoMST.Truncate(time.Second)
+	wantDtMinMST := wantDtNanoMST.Truncate(time.Minute)
+
 	testCases := []struct {
 		sheet       string
 		wantHeaders []string
@@ -352,6 +412,54 @@ func TestDatetime(t *testing.T) {
 			wantKinds:   loz.Make(6, kind.Time),
 			wantVals:    []any{"15:17:00", "15:17:00", "15:17:00", "15:17:00", "15:17:00", "15:17:59"},
 		},
+		{
+			sheet: "datetime",
+			wantHeaders: []string{
+				"ANSIC",
+				"DateHourMinute",
+				"DateHourMinuteSecond",
+				"ISO8601",
+				"ISO8601Z",
+				"RFC1123",
+				"RFC1123Z",
+				"RFC3339",
+				"RFC3339Nano",
+				"RFC3339NanoZ",
+				"RFC3339Z",
+				"RFC8222",
+				"RFC8222Z",
+				"RFC850",
+				"RubyDate",
+				"Stamp",
+				"StampMicro",
+				"StampMilli",
+				"StampNano",
+				"UnixDate",
+			},
+			wantKinds: loz.Make(20, kind.Datetime),
+			wantVals: lo.ToAnySlice([]time.Time{
+				wantDtSecUTC,   // ANSIC
+				wantDtMinUTC,   // DateHourMinute
+				wantDtMinUTC,   // DateHourMinuteSecond
+				wantDtMilliMST, // ISO8601
+				wantDtMilliUTC, // ISO8601Z
+				wantDtSecMST,   // RFC1123
+				wantDtSecMST,   // RFC1123Z
+				wantDtSecMST,   // RFC3339
+				wantDtNanoMST,  // RFC3339Nano
+				wantDtNanoUTC,  // RFC3339NanoZ
+				wantDtSecUTC,   // RFC3339Z
+				wantDtMinMST,   // RFC8222
+				wantDtMinUTC,   // RFC8222Z
+				wantDtSecMST,   // RFC850
+				wantDtSecMST,   // RubyDate
+				wantDtMinUTC,   // Stamp
+				wantDtMinUTC,   // StampMicro
+				wantDtMinUTC,   // StampMilli
+				wantDtMinUTC,   // StampNano
+				wantDtSecMST,   // UnixDate
+			}),
+		},
 	}
 
 	for _, tc := range testCases {
@@ -360,17 +468,30 @@ func TestDatetime(t *testing.T) {
 			t.Parallel()
 
 			th := testh.New(t, testh.OptLongOpen())
+			src = th.Add(src)
 
-			sink, err := th.QuerySLQ(handle+"."+tc.sheet, nil)
+			sink, err := th.QuerySLQ(src.Handle+"."+tc.sheet, nil)
 			require.NoError(t, err)
 
 			assert.Equal(t, tc.wantHeaders, sink.RecMeta.MungedNames())
-			assert.Equal(t, tc.wantKinds, sink.RecMeta.Kinds())
 			require.Len(t, sink.Recs, 1)
+			t.Log(sink.Recs[0])
 
-			for i := range tc.wantVals {
-				require.Equal(t, tc.wantVals[i], sink.Recs[0][i],
-					"[%d] %s", i, sink.RecMeta.MungedNames()[i])
+			for i, col := range sink.RecMeta.MungedNames() {
+				i, col := i, col
+				t.Run(col, func(t *testing.T) {
+					assert.Equal(t, tc.wantKinds[i].String(), sink.RecMeta.Kinds()[i].String())
+					if gotTime, ok := sink.Recs[0][i].(time.Time); ok {
+						// REVISIT: If it's a time value, we want to compare UTC times.
+						// This may actually be a bug.
+						wantTime, ok := tc.wantVals[i].(time.Time)
+						require.True(t, ok)
+						require.Equal(t, wantTime.Unix(), gotTime.Unix())
+						require.Equal(t, wantTime.UTC(), gotTime.UTC())
+					} else {
+						assert.EqualValues(t, tc.wantVals[i], sink.Recs[0][i])
+					}
+				})
 			}
 		})
 	}
