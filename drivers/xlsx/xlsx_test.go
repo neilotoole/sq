@@ -381,7 +381,7 @@ func TestDatetime(t *testing.T) {
 	src := &source.Source{
 		Handle:   "@excel/datetime",
 		Type:     xlsx.Type,
-		Location: "testdata/datetime_all.xlsx",
+		Location: "testdata/datetime.xlsx",
 	}
 
 	wantDtNanoUTC := time.Date(1989, 11, 9, 15, 17, 59, 123456700, time.UTC)

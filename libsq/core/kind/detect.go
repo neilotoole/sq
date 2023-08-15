@@ -243,8 +243,6 @@ func (d *Detector) doSampleString(s string) {
 					return nil, errz.Err(err)
 				}
 
-				t.Location()
-
 				return t, nil
 			}
 		}
@@ -432,7 +430,8 @@ var datetimeFormats = []string{
 	timez.DateHourMinuteSecond,
 	timez.DateHourMinute,
 	timez.ExcelLongDate,
-	timez.ExcelDatetimeMDY,
+	timez.ExcelDatetimeMDYSeconds,
+	timez.ExcelDatetimeMDYNoSeconds,
 }
 
 func detectKindDatetime(s string) (ok bool, format string) {
@@ -441,7 +440,6 @@ func detectKindDatetime(s string) (ok bool, format string) {
 	}
 
 	var err error
-
 	formats := slices.Clone(datetimeFormats)
 
 	for _, f := range formats {

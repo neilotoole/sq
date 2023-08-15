@@ -250,8 +250,9 @@ func (h *Helper) Add(src *source.Source) *source.Source {
 	return src
 }
 
-// Source returns a test Source with the given handle. The source
-// is loaded from the sq config file at TestSourcesConfigPath. Variables
+// Source returns a test Source with the given handle. The standard test
+// source collection is loaded from the sq config file at TestSourcesConfigPath,
+// (but additional sources can be added via Helper.Add). Variables
 // such as ${SQ_ROOT} in the config file are expanded. The same
 // instance of *source.Source will be returned for multiple invocations
 // of this method on the same Helper instance.
