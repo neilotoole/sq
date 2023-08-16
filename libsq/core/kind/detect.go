@@ -396,10 +396,15 @@ func detectKindDate(s string) (ok bool, format string) {
 		"01-02-2006",
 		"02-Jan-2006",
 		"2-Jan-2006",
+		"2-Jan-06",
 		"Jan _2, 2006",
+		"Jan 2, 2006",
 		timez.ExcelLongDate,
+		"Mon, January 2, 2006",
+		"Mon, Jan 2, 2006",
 		"January 2, 2006",
 		"_2/Jan/06",
+		"2/Jan/06",
 	}
 	var err error
 
