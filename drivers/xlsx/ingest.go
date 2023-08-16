@@ -36,8 +36,8 @@ import (
 
 const msgCloseRowIter = "Close Excel row iterator"
 
-func hasSheet(xlFile *excelize.File, sheetName string) bool {
-	return slices.Contains(xlFile.GetSheetList(), sheetName)
+func hasSheet(xfile *excelize.File, sheetName string) bool {
+	return slices.Contains(xfile.GetSheetList(), sheetName)
 }
 
 // sheetTable maps a sheet to a database table.
@@ -93,10 +93,10 @@ func (xs *xSheet) loadSampleRows(ctx context.Context, sampleSize int) error {
 	return nil
 }
 
-// ingestXLSX loads the data in xlFile into scratchDB.
+// ingestXLSX loads the data in xfile into scratchDB.
 // If includeSheetNames is non-empty, only the named sheets are ingested.
 func ingestXLSX(ctx context.Context, src *source.Source, scratchDB driver.Database,
-	xlFile *excelize.File, includeSheetNames []string,
+	xfile *excelize.File, includeSheetNames []string,
 ) error {
 	log := lg.FromContext(ctx)
 	start := time.Now()
@@ -107,16 +107,16 @@ func ingestXLSX(ctx context.Context, src *source.Source, scratchDB driver.Databa
 	var sheets []*xSheet
 	if len(includeSheetNames) > 0 {
 		for _, sheetName := range includeSheetNames {
-			if !hasSheet(xlFile, sheetName) {
+			if !hasSheet(xfile, sheetName) {
 				return errz.Errorf("sheet {%s} not found", sheetName)
 			}
-			sheets = append(sheets, &xSheet{file: xlFile, name: sheetName})
+			sheets = append(sheets, &xSheet{file: xfile, name: sheetName})
 		}
 	} else {
-		sheetNames := xlFile.GetSheetList()
+		sheetNames := xfile.GetSheetList()
 		sheets = make([]*xSheet, len(sheetNames))
 		for i := range sheetNames {
-			sheets[i] = &xSheet{file: xlFile, name: sheetNames[i]}
+			sheets[i] = &xSheet{file: xfile, name: sheetNames[i]}
 		}
 	}
 

@@ -63,14 +63,14 @@ func (d *database) doIngest(ctx context.Context, includeSheetNames []string) err
 	}
 	defer lg.WarnIfCloseError(d.log, lgm.CloseFileReader, r)
 
-	xlFile, err := excelize.OpenReader(r, excelize.Options{RawCellValue: false})
+	xfile, err := excelize.OpenReader(r, excelize.Options{RawCellValue: false})
 	if err != nil {
 		return err
 	}
 
-	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, xlFile)
+	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, xfile)
 
-	err = ingestXLSX(ctx, d.src, d.scratchDB, xlFile, includeSheetNames)
+	err = ingestXLSX(ctx, d.src, d.scratchDB, xfile, includeSheetNames)
 	if err != nil {
 		lg.WarnIfError(d.log, lgm.CloseDB, d.clnup.Run())
 		return err

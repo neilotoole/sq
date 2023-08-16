@@ -23,7 +23,7 @@ const (
 	// Type is the sq source driver type for XLSX.
 	Type = source.DriverType("xlsx")
 
-	// laSheet is a constant for the laSheet log attribute.
+	// laSheet is a constant for the "sheet" log attribute.
 	laSheet = "sheet"
 )
 
