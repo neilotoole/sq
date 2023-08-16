@@ -9,6 +9,14 @@ Breaking changes are annotated with ☢️.
 
 ## Upcoming
 
+This release is heavily focused on improvements to Microsoft Excel support.
+The underlying Excel library has been changed from [`tealeg/xlsx`](https://github.com/tealeg/xlsx)
+to [`qax-os/excelize`](https://github.com/qax-os/excelize), largely because
+`tealeg/xlsx` is no longer actively maintained. Thus, both the XLSX output
+writer and the XLSX driver have been rewritten. There should be some performance
+improvements, but it's also possible that the rewrite introduced bugs. If you
+discover anything strange, please [open an issue](https://github.com/neilotoole/sq/issues/new/choose).
+
 ### Added
 
 - [#99]: The [CSV](https://sq.io/docs/drivers/csv) and [XLSX](https://sq.io/docs/drivers/xlsx)
@@ -85,6 +93,8 @@ Breaking changes are annotated with ☢️.
 
 - ☢️ The XLSX writer now outputs blob (`bytes`) cell data as a base64-encoded string,
   instead of raw bytes.
+
+- The XLSX driver now is able to recognize more date and time formats.
 
 ### Fixed
 

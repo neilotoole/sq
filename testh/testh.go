@@ -222,8 +222,37 @@ func (h *Helper) Close() {
 	h.cancelFn()
 }
 
-// Source returns a test Source with the given handle. The source
-// is loaded from the sq config file at TestSourcesConfigPath. Variables
+// Add adds src to the helper's collection.
+func (h *Helper) Add(src *source.Source) *source.Source {
+	// This is a bit of a hack to ensure that internals are loaded: we
+	// load a known source. The loading mechanism should be refactored
+	// to not require this.
+	_ = h.Source(sakila.Pg)
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	require.False(h.T, h.coll.IsExistingSource(src.Handle),
+		"source {%s} already exists", src.Handle)
+
+	require.NoError(h.T, h.coll.Add(src))
+
+	h.srcCache[src.Handle] = src
+
+	// envDiffDB is the name of the envar that controls whether the testing
+	// diffdb mechanism is executed automatically by Helper.Source.
+	const envDiffDB = "SQ_TEST_DIFFDB"
+
+	if proj.BoolEnvar(envDiffDB) {
+		h.DiffDB(src)
+	}
+
+	return src
+}
+
+// Source returns a test Source with the given handle. The standard test
+// source collection is loaded from the sq config file at TestSourcesConfigPath,
+// (but additional sources can be added via Helper.Add). Variables
 // such as ${SQ_ROOT} in the config file are expanded. The same
 // instance of *source.Source will be returned for multiple invocations
 // of this method on the same Helper instance.
@@ -707,6 +736,26 @@ func (h *Helper) Databases() *driver.Databases {
 func (h *Helper) Files() *source.Files {
 	h.init()
 	return h.files
+}
+
+// SourceMetadata returns metadata for src.
+func (h *Helper) SourceMetadata(src *source.Source) (*source.Metadata, error) {
+	dbases, err := h.Databases().Open(h.Context, src)
+	if err != nil {
+		return nil, err
+	}
+
+	return dbases.SourceMetadata(h.Context, false)
+}
+
+// TableMetadata returns metadata for src's table.
+func (h *Helper) TableMetadata(src *source.Source, tbl string) (*source.TableMetadata, error) {
+	dbases, err := h.Databases().Open(h.Context, src)
+	if err != nil {
+		return nil, err
+	}
+
+	return dbases.TableMetadata(h.Context, tbl)
 }
 
 // DiffDB fails the test if src's metadata is substantially different

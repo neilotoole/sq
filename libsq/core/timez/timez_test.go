@@ -87,3 +87,8 @@ func TestFormatFunc(t *testing.T) {
 		t.Logf("%16s: %s", layout, got)
 	}
 }
+
+func TestExcelLongDate(t *testing.T) {
+	s := mar1UTC.Format(timez.ExcelLongDate)
+	require.Equal(t, "Wednesday, March 1, 2023", s)
+}

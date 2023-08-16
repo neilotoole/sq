@@ -82,14 +82,14 @@ func TestFieldExtractionFunctions(t *testing.T) {
 
 func TestInterfaceSlice(t *testing.T) {
 	stringSlice := []string{"hello", "world"}
-	iSlice := InterfaceSlice(stringSlice)
+	iSlice := AnySlice(stringSlice)
 	require.Equal(t, len(stringSlice), len(iSlice))
 	require.Equal(t, stringSlice[0], iSlice[0])
 
-	iSlice = InterfaceSlice(nil)
+	iSlice = AnySlice(nil)
 	require.Nil(t, iSlice)
 
 	require.Panics(t, func() {
-		_ = InterfaceSlice(42)
+		_ = AnySlice(42)
 	}, "should panic for non-slice arg")
 }

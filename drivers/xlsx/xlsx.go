@@ -3,16 +3,15 @@ package xlsx
 
 import (
 	"context"
-	"io"
 	"log/slog"
+
+	"github.com/xuri/excelize/v2"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
-
-	"github.com/tealeg/xlsx/v2"
 
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -23,6 +22,9 @@ import (
 const (
 	// Type is the sq source driver type for XLSX.
 	Type = source.DriverType("xlsx")
+
+	// laSheet is a constant for the "sheet" log attribute.
+	laSheet = "sheet"
 )
 
 // Provider implements driver.Provider.
@@ -101,23 +103,26 @@ func (d *Driver) ValidateSource(src *source.Source) (*source.Source, error) {
 }
 
 // Ping implements driver.Driver.
-func (d *Driver) Ping(_ context.Context, src *source.Source) (err error) {
+func (d *Driver) Ping(ctx context.Context, src *source.Source) (err error) {
+	log := lg.FromContext(ctx)
+
 	r, err := d.files.Open(src)
 	if err != nil {
 		return err
 	}
 
-	defer lg.WarnIfCloseError(d.log, lgm.CloseFileReader, r)
+	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
 
-	b, err := io.ReadAll(r)
+	f, err := excelize.OpenReader(r)
 	if err != nil {
 		return errz.Err(err)
 	}
 
-	_, err = xlsx.OpenBinaryWithRowLimit(b, 1)
-	if err != nil {
-		return errz.Err(err)
-	}
+	lg.WarnIfCloseError(log, lgm.CloseFileReader, f)
 
 	return nil
+}
+
+func errw(err error) error {
+	return errz.Wrap(err, "excel")
 }

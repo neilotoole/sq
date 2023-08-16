@@ -21,6 +21,26 @@ const (
 
 	// RFC3339Z is an RFC3339 format, in zulu time.
 	RFC3339Z = "2006-01-02T15:04:05Z"
+
+	// RFC3339NanoZ is time.RFC3339Nano in zulu time.
+	RFC3339NanoZ = "2006-01-02T15:04:05.999999999Z"
+
+	// ExcelLongDate is the "long date" used by Excel.
+	ExcelLongDate = "Monday, January 2, 2006"
+
+	// ExcelDatetimeMDYNoSeconds is a datetime format used by Excel.
+	// The date part is MM/D/YY.
+	ExcelDatetimeMDYNoSeconds = "01/2/06 15:04"
+
+	// ExcelDatetimeMDYSeconds is similar to ExcelDatetimeMDYNoSeconds,
+	// but includes a seconds component in the time.
+	ExcelDatetimeMDYSeconds = "01/2/06 15:04:05"
+
+	// DateHourMinuteSecond has date followed by time, including seconds.
+	DateHourMinuteSecond = "2006-01-02 15:04:05"
+
+	// DateHourMinute has date followed by time, not including seconds.
+	DateHourMinute = "2006-01-02 15:04"
 )
 
 // TimestampUTC returns the ISO8601 representation of t in UTC.

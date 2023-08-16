@@ -16,6 +16,7 @@ const (
 	Elapsed   = "elapsed"
 	Env       = "env"
 	Err       = "error"
+	Expected  = "expected"
 	From      = "from"
 	Flag      = "flag"
 	Handle    = "handle"

@@ -3,6 +3,9 @@ module github.com/neilotoole/sq
 go 1.21
 
 require (
+	github.com/Masterminds/sprig/v3 v3.2.3
+	github.com/alessio/shellescape v1.4.2
+	github.com/antlr4-go/antlr/v4 v4.13.0
 	github.com/c2h5oh/datasize v0.0.0-20220606134207-859f65c6625b
 	github.com/djherbis/fscache v0.10.1
 	github.com/ecnepsnai/osquery v1.0.1
@@ -32,10 +35,16 @@ require (
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.4
-	github.com/tealeg/xlsx/v2 v2.0.1 // TODO: This package is no longer supported; switch to a different impl
 	github.com/xo/dburl v0.14.2
+
+	// At the time of writing (2023-08-13), there was an issue with the latest
+	// release of excelize, so we're using master. On the next release we
+	// hopefully can change back to a tagged release.
+	// See: https://github.com/qax-os/excelize/issues/660
+	github.com/xuri/excelize/v2 v2.7.2-0.20230808161106-ae17fa87d506
 	go.uber.org/atomic v1.11.0
 	go.uber.org/multierr v1.11.0
+	golang.org/x/exp v0.0.0-20230515195305-f3d0a9c9a5cc
 	golang.org/x/mod v0.12.0
 	golang.org/x/net v0.14.0
 	golang.org/x/sync v0.3.0
@@ -43,17 +52,12 @@ require (
 )
 
 require (
-	github.com/Masterminds/sprig/v3 v3.2.3
-	github.com/alessio/shellescape v1.4.2
-	github.com/antlr4-go/antlr/v4 v4.13.0
-	github.com/xuri/excelize/v2 v2.7.1
-)
-
-require (
 	github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
 	github.com/Masterminds/semver/v3 v3.2.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/divan/gobenchui v0.0.0-20160226094309-a6b1cf870779 // indirect
+	github.com/elazarl/go-bindata-assetfs v1.0.1 // indirect
 	github.com/golang-sql/civil v0.0.0-20220223132316-b832511892a9 // indirect
 	github.com/golang-sql/sqlexp v0.1.0 // indirect
 	github.com/huandu/xstrings v1.4.0 // indirect
@@ -77,12 +81,12 @@ require (
 	github.com/rogpeppe/go-internal v1.10.0 // indirect
 	github.com/shopspring/decimal v1.3.1 // indirect
 	github.com/spf13/cast v1.5.1 // indirect
-	github.com/xuri/efp v0.0.0-20220603152613-6918739fd470 // indirect
-	github.com/xuri/nfp v0.0.0-20220409054826-5e722a1d9e22 // indirect
+	github.com/xuri/efp v0.0.0-20230802181842-ad255f2331ca // indirect
+	github.com/xuri/nfp v0.0.0-20230802015359-2d5eeba905e9 // indirect
 	golang.org/x/crypto v0.12.0 // indirect
-	golang.org/x/exp v0.0.0-20230515195305-f3d0a9c9a5cc // indirect
 	golang.org/x/sys v0.11.0 // indirect
 	golang.org/x/text v0.12.0 // indirect
+	golang.org/x/tools v0.6.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	gopkg.in/djherbis/atime.v1 v1.0.0 // indirect
 	gopkg.in/djherbis/stream.v1 v1.3.1 // indirect

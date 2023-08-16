@@ -3,6 +3,7 @@ package kind
 import (
 	stdj "encoding/json"
 	"math/big"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -170,7 +171,9 @@ func (d *Detector) doSampleString(s string) {
 					return nil, errz.Err(err)
 				}
 
-				return t.Format(format), nil
+				// FIXME: Should time always return the canonical format?
+				// return t.Format(format), nil
+				return t.Format(time.TimeOnly), nil
 			}
 		}
 	}
@@ -204,7 +207,8 @@ func (d *Detector) doSampleString(s string) {
 					return nil, errz.Err(err)
 				}
 
-				return t.Format(format), nil
+				// Always return the date in the canonical format.
+				return t.Format(time.DateOnly), nil
 			}
 		}
 	}
@@ -356,10 +360,19 @@ func detectKindTime(s string) (ok bool, format string) {
 		return false, ""
 	}
 
-	const timeNoSecsFormat = "15:04"
-	formats := []string{time.TimeOnly, timeNoSecsFormat, time.Kitchen}
+	formats := []string{
+		time.TimeOnly,
+		"15:04:05 PM",
+		"15:04:05PM",
+		"15:04:05 pm",
+		"15:04:05pm",
+		"15:04",
+		time.Kitchen,
+		"3:04 PM",
+		"3:04pm",
+		"3:04 pm",
+	}
 	var err error
-
 	for _, f := range formats {
 		if _, err = time.Parse(f, s); err == nil {
 			return true, f
@@ -374,13 +387,20 @@ func detectKindDate(s string) (ok bool, format string) {
 		return false, ""
 	}
 
-	const (
-		format1 = "02 Jan 2006"
-		format2 = "2006/01/02"
-		format3 = "2006-01-02"
-	)
-
-	formats := []string{time.DateOnly, format1, format2, format3}
+	formats := []string{
+		time.DateOnly,
+		"02 Jan 2006",
+		"2006/01/02",
+		"2006-01-02",
+		"01-02-06",
+		"01-02-2006",
+		"02-Jan-2006",
+		"2-Jan-2006",
+		"Jan _2, 2006",
+		timez.ExcelLongDate,
+		"January 2, 2006",
+		"_2/Jan/06",
+	}
 	var err error
 
 	for _, f := range formats {
@@ -392,30 +412,35 @@ func detectKindDate(s string) (ok bool, format string) {
 	return false, ""
 }
 
+var datetimeFormats = []string{
+	timez.RFC3339NanoZ,
+	time.RFC3339Nano,
+	time.ANSIC,
+	time.UnixDate,
+	time.RubyDate,
+	time.RFC822,
+	time.RFC822Z,
+	time.RFC850,
+	time.RFC1123Z,
+	time.RFC1123,
+	time.StampNano,
+	time.StampMicro,
+	time.StampMilli,
+	time.Stamp,
+	timez.DateHourMinuteSecond,
+	timez.DateHourMinute,
+	timez.ExcelLongDate,
+	timez.ExcelDatetimeMDYSeconds,
+	timez.ExcelDatetimeMDYNoSeconds,
+}
+
 func detectKindDatetime(s string) (ok bool, format string) {
 	if s == "" {
 		return false, ""
 	}
 
-	formats := []string{
-		time.RFC3339,
-		timez.RFC3339Z,
-		timez.ISO8601,
-		time.RFC3339Nano,
-		time.ANSIC,
-		time.UnixDate,
-		time.RubyDate,
-		time.RFC822,
-		time.RFC822Z,
-		time.RFC850,
-		time.RFC1123,
-		time.RFC1123Z,
-		time.Stamp,
-		time.StampMilli,
-		time.StampMicro,
-		time.StampNano,
-	}
 	var err error
+	formats := slices.Clone(datetimeFormats)
 
 	for _, f := range formats {
 		if _, err = time.Parse(f, s); err == nil {

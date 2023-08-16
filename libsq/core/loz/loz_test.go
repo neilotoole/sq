@@ -3,6 +3,8 @@ package loz_test
 import (
 	"testing"
 
+	"github.com/neilotoole/sq/testh/tutil"
+
 	"github.com/neilotoole/sq/libsq/core/stringz"
 
 	"github.com/neilotoole/sq/libsq/core/loz"
@@ -36,8 +38,8 @@ func TestApply(t *testing.T) {
 	require.Equal(t, want, got)
 }
 
-func TestHarmonizeSliceLengths(t *testing.T) {
-	gotA, gotB := loz.HarmonizeSliceLengths(
+func TestAlignSliceLengths(t *testing.T) {
+	gotA, gotB := loz.AlignSliceLengths(
 		[]int{1, 2, 3},
 		[]int{1, 2, 3, 4},
 		7,
@@ -45,7 +47,7 @@ func TestHarmonizeSliceLengths(t *testing.T) {
 	require.Equal(t, []int{1, 2, 3, 7}, gotA)
 	require.Equal(t, []int{1, 2, 3, 4}, gotB)
 
-	gotA, gotB = loz.HarmonizeSliceLengths(
+	gotA, gotB = loz.AlignSliceLengths(
 		[]int{1, 2, 3, 4},
 		[]int{1, 2, 3},
 		7,
@@ -53,11 +55,40 @@ func TestHarmonizeSliceLengths(t *testing.T) {
 	require.Equal(t, []int{1, 2, 3, 4}, gotA)
 	require.Equal(t, []int{1, 2, 3, 7}, gotB)
 
-	gotA, gotB = loz.HarmonizeSliceLengths(nil, nil, 7)
+	gotA, gotB = loz.AlignSliceLengths(nil, nil, 7)
 	require.Nil(t, gotA)
 	require.Nil(t, gotB)
 
-	gotA, gotB = loz.HarmonizeSliceLengths([]int{}, []int{}, 7)
+	gotA, gotB = loz.AlignSliceLengths([]int{}, []int{}, 7)
 	require.True(t, gotA != nil && len(gotA) == 0)
 	require.True(t, gotB != nil && len(gotB) == 0)
+}
+
+func TestAlignMatrixWidth(t *testing.T) {
+	const defaultVal int = 7
+	testCases := []struct {
+		in   [][]int
+		want [][]int
+	}{
+		{nil, nil},
+		{[][]int{}, [][]int{}},
+		{[][]int{{1, 2, 3}}, [][]int{{1, 2, 3}}},
+		{[][]int{{1, 2, 3}, {1, 2}}, [][]int{{1, 2, 3}, {1, 2, 7}}},
+	}
+
+	for i, tc := range testCases {
+		t.Run(tutil.Name(i), func(t *testing.T) {
+			loz.AlignMatrixWidth(tc.in, defaultVal)
+			require.EqualValues(t, tc.want, tc.in)
+		})
+	}
+}
+
+func TestIsSliceZeroed(t *testing.T) {
+	require.True(t, loz.IsSliceZeroed([]any{}))
+	require.True(t, loz.IsSliceZeroed[any](nil))
+	require.True(t, loz.IsSliceZeroed([]int{0, 0}))
+	require.False(t, loz.IsSliceZeroed([]int{0, 1}))
+	require.True(t, loz.IsSliceZeroed([]string{"", ""}))
+	require.False(t, loz.IsSliceZeroed([]string{"", "a"}))
 }

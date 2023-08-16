@@ -67,10 +67,18 @@ const (
 	fixtTime2              = "08:30:05"
 	fixtTime3              = "15:30"
 	fixtTime4              = "7:15PM"
+	fixtTime5              = "7:15 PM"
+	fixtTime6              = "7:15pm"
+	fixtTime7              = "7:15 pm"
 	fixtDate1              = "1970-01-01"
 	fixtDate2              = "1989-11-09"
 	fixtDate3              = "02 Jan 2006"
 	fixtDate4              = "2006/01/02"
+	fixtDate5              = "01-02-2006"
+	fixtDate6              = "02-Jan-2006"
+	fixtDate7              = "Jan 2, 2006"
+	fixtDate8              = "Jan 20, 2006"
+	fixtDateExcelLong      = "Wednesday, March 1, 2023"
 	fixtDatetime1          = "1970-01-01T00:00:00Z" // RFC3339Nano
 	fixtDatetime2          = "1989-11-09T00:00:00Z"
 	fixtDatetimeAnsic      = "Mon Jan 2 15:04:05 2006"
@@ -114,10 +122,18 @@ func TestDetector(t *testing.T) {
 		{in: []any{fixtTime2}, want: kind.Time, wantMunge: true},
 		{in: []any{fixtTime3}, want: kind.Time, wantMunge: true},
 		{in: []any{fixtTime4}, want: kind.Time, wantMunge: true},
+		{in: []any{fixtTime5}, want: kind.Time, wantMunge: true},
+		{in: []any{fixtTime6}, want: kind.Time, wantMunge: true},
+		{in: []any{fixtTime7}, want: kind.Time, wantMunge: true},
 		{in: []any{fixtDate1, nil, ""}, want: kind.Date, wantMunge: true},
 		{in: []any{fixtDate2}, want: kind.Date, wantMunge: true},
 		{in: []any{fixtDate3}, want: kind.Date, wantMunge: true},
 		{in: []any{fixtDate4}, want: kind.Date, wantMunge: true},
+		{in: []any{fixtDate5}, want: kind.Date, wantMunge: true},
+		{in: []any{fixtDate6}, want: kind.Date, wantMunge: true},
+		{in: []any{fixtDate7}, want: kind.Date, wantMunge: true},
+		{in: []any{fixtDate8}, want: kind.Date, wantMunge: true},
+		{in: []any{fixtDateExcelLong}, want: kind.Date, wantMunge: true},
 		{in: []any{fixtDatetime1, nil, ""}, want: kind.Datetime, wantMunge: true},
 		{in: []any{fixtDatetime2}, want: kind.Datetime, wantMunge: true},
 		{in: []any{fixtDatetimeAnsic}, want: kind.Datetime, wantMunge: true},

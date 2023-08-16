@@ -29,7 +29,7 @@ var OptIngestSampleSize = options.NewInt(
 	"ingest.sample-size",
 	"",
 	0,
-	1024,
+	256,
 	"Ingest data sample size for type detection",
 	`Specify the number of samples that a detector should take to determine type.`,
 	options.TagSource,
