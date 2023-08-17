@@ -50,6 +50,65 @@ func TestSmoke(t *testing.T) {
 	}
 }
 
+func TestSakila_query(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		file      string
+		wantCols  []string
+		wantCount int
+		wantKinds []kind.Kind
+	}{
+		{
+			file:      sakila.TblActor,
+			wantCols:  sakila.TblActorCols(),
+			wantCount: sakila.TblActorCount,
+			wantKinds: sakila.TblActorColKinds(),
+		},
+		{
+			file:      sakila.TblFilmActor,
+			wantCols:  sakila.TblFilmActorCols(),
+			wantCount: sakila.TblFilmActorCount,
+			wantKinds: sakila.TblFilmActorColKinds(),
+		},
+		{
+			file:      sakila.TblPayment,
+			wantCols:  sakila.TblPaymentCols(),
+			wantCount: sakila.TblPaymentCount,
+			wantKinds: sakila.TblPaymentColKinds(),
+		},
+	}
+
+	for _, driver := range []source.DriverType{csv.TypeCSV, csv.TypeTSV} {
+		driver := driver
+
+		t.Run(driver.String(), func(t *testing.T) {
+			t.Parallel()
+
+			for _, tc := range testCases {
+				tc := tc
+
+				t.Run(tc.file, func(t *testing.T) {
+					t.Parallel()
+
+					th := testh.New(t, testh.OptLongOpen())
+					src := th.Add(&source.Source{
+						Handle:   "@" + tc.file,
+						Type:     driver,
+						Location: filepath.Join("testdata", "sakila-"+driver.String(), tc.file+"."+driver.String()),
+					})
+
+					sink, err := th.QuerySLQ(src.Handle+".data", nil)
+					require.NoError(t, err)
+					gotCols, gotKinds := sink.RecMeta.MungedNames(), sink.RecMeta.Kinds()
+					require.Equal(t, tc.wantCols, gotCols)
+					require.Equal(t, tc.wantKinds, gotKinds)
+					require.Equal(t, tc.wantCount, len(sink.Recs))
+				})
+			}
+		})
+	}
+}
+
 func TestQuerySQL_Count(t *testing.T) {
 	t.Parallel()
 
@@ -204,7 +263,7 @@ func TestDatetime(t *testing.T) {
 			wantVals: lo.ToAnySlice([]time.Time{
 				wantDtSecUTC,   // ANSIC
 				wantDtMinUTC,   // DateHourMinute
-				wantDtMinUTC,   // DateHourMinuteSecond
+				wantDtSecUTC,   // DateHourMinuteSecond
 				wantDtMilliMST, // ISO8601
 				wantDtMilliUTC, // ISO8601Z
 				wantDtSecMST,   // RFC1123
@@ -214,7 +273,7 @@ func TestDatetime(t *testing.T) {
 				wantDtNanoUTC,  // RFC3339NanoZ
 				wantDtSecUTC,   // RFC3339Z
 				wantDtMinMST,   // RFC8222
-				wantDtMinUTC,   // RFC8222Z
+				wantDtMinMST,   // RFC8222Z
 				wantDtSecMST,   // RFC850
 				wantDtSecMST,   // RubyDate
 				wantDtMinUTC,   // Stamp
@@ -255,8 +314,8 @@ func TestDatetime(t *testing.T) {
 						// This may actually be a bug.
 						wantTime, ok := tc.wantVals[i].(time.Time)
 						require.True(t, ok)
-						require.Equal(t, wantTime.Unix(), gotTime.Unix())
-						require.Equal(t, wantTime.UTC(), gotTime.UTC())
+						assert.Equal(t, wantTime.Unix(), gotTime.Unix())
+						assert.Equal(t, wantTime.UTC(), gotTime.UTC())
 					} else {
 						assert.EqualValues(t, tc.wantVals[i], sink.Recs[0][i])
 					}

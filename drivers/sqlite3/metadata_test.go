@@ -135,6 +135,7 @@ func TestKindFromDBTypeName(t *testing.T) {
 	}
 }
 
+//nolint:lll
 func TestRecordMetadata(t *testing.T) {
 	t.Parallel()
 
@@ -156,22 +157,10 @@ func TestRecordMetadata(t *testing.T) {
 				sqlz.RTypeNullTime,
 			},
 			colsMeta: []*source.ColMetadata{
-				{
-					Name: "actor_id", Position: 0, PrimaryKey: true, BaseType: "INTEGER", ColumnType: "INTEGER",
-					Kind: kind.Int, Nullable: false,
-				},
-				{
-					Name: "first_name", Position: 1, BaseType: "VARCHAR(45)", ColumnType: "VARCHAR(45)", Kind: kind.Text,
-					Nullable: false,
-				},
-				{
-					Name: "last_name", Position: 2, BaseType: "VARCHAR(45)", ColumnType: "VARCHAR(45)", Kind: kind.Text,
-					Nullable: false,
-				},
-				{
-					Name: "last_update", Position: 3, BaseType: "TIMESTAMP", ColumnType: "TIMESTAMP", Kind: kind.Datetime,
-					Nullable: false, DefaultValue: "CURRENT_TIMESTAMP",
-				},
+				{Name: "actor_id", Position: 0, PrimaryKey: true, BaseType: "INTEGER", ColumnType: "INTEGER", Kind: kind.Int, Nullable: false},
+				{Name: "first_name", Position: 1, BaseType: "VARCHAR(45)", ColumnType: "VARCHAR(45)", Kind: kind.Text, Nullable: false},
+				{Name: "last_name", Position: 2, BaseType: "VARCHAR(45)", ColumnType: "VARCHAR(45)", Kind: kind.Text, Nullable: false},
+				{Name: "last_update", Position: 3, BaseType: "TIMESTAMP", ColumnType: "TIMESTAMP", Kind: kind.Datetime, Nullable: false, DefaultValue: "CURRENT_TIMESTAMP"},
 			},
 		},
 		{
@@ -181,18 +170,9 @@ func TestRecordMetadata(t *testing.T) {
 			colKinds:  []kind.Kind{kind.Int, kind.Int, kind.Datetime},
 			scanTypes: []reflect.Type{sqlz.RTypeNullInt64, sqlz.RTypeNullInt64, sqlz.RTypeNullTime},
 			colsMeta: []*source.ColMetadata{
-				{
-					Name: "actor_id", Position: 0, PrimaryKey: true, BaseType: "INT", ColumnType: "INT", Kind: kind.Int,
-					Nullable: false,
-				},
-				{
-					Name: "film_id", Position: 1, PrimaryKey: true, BaseType: "INT", ColumnType: "INT", Kind: kind.Int,
-					Nullable: false,
-				},
-				{
-					Name: "last_update", Position: 2, BaseType: "TIMESTAMP", ColumnType: "TIMESTAMP", Kind: kind.Datetime,
-					Nullable: false,
-				},
+				{Name: "actor_id", Position: 0, PrimaryKey: true, BaseType: "INT", ColumnType: "INT", Kind: kind.Int, Nullable: false},
+				{Name: "film_id", Position: 1, PrimaryKey: true, BaseType: "INT", ColumnType: "INT", Kind: kind.Int, Nullable: false},
+				{Name: "last_update", Position: 2, BaseType: "TIMESTAMP", ColumnType: "TIMESTAMP", Kind: kind.Datetime, Nullable: false},
 			},
 		},
 		{
@@ -205,31 +185,13 @@ func TestRecordMetadata(t *testing.T) {
 				sqlz.RTypeNullInt64, sqlz.RTypeNullString, sqlz.RTypeNullTime, sqlz.RTypeNullTime,
 			},
 			colsMeta: []*source.ColMetadata{
-				{
-					Name: "payment_id", Position: 0, PrimaryKey: true, BaseType: "INT", ColumnType: "INT", Kind: kind.Int,
-					Nullable: false,
-				},
+				{Name: "payment_id", Position: 0, PrimaryKey: true, BaseType: "INT", ColumnType: "INT", Kind: kind.Int, Nullable: false},
 				{Name: "customer_id", Position: 1, BaseType: "INT", ColumnType: "INT", Kind: kind.Int, Nullable: false},
-				{
-					Name: "staff_id", Position: 2, BaseType: "SMALLINT", ColumnType: "SMALLINT", Kind: kind.Int,
-					Nullable: false,
-				},
-				{
-					Name: "rental_id", Position: 3, BaseType: "INT", ColumnType: "INT", Kind: kind.Int, Nullable: true,
-					DefaultValue: "NULL",
-				},
-				{
-					Name: "amount", Position: 4, BaseType: "DECIMAL(5,2)", ColumnType: "DECIMAL(5,2)", Kind: kind.Decimal,
-					Nullable: false,
-				},
-				{
-					Name: "payment_date", Position: 5, BaseType: "TIMESTAMP", ColumnType: "TIMESTAMP", Kind: kind.Datetime,
-					Nullable: false,
-				},
-				{
-					Name: "last_update", Position: 6, BaseType: "TIMESTAMP", ColumnType: "TIMESTAMP", Kind: kind.Datetime,
-					Nullable: false,
-				},
+				{Name: "staff_id", Position: 2, BaseType: "SMALLINT", ColumnType: "SMALLINT", Kind: kind.Int, Nullable: false},
+				{Name: "rental_id", Position: 3, BaseType: "INT", ColumnType: "INT", Kind: kind.Int, Nullable: true, DefaultValue: "NULL"},
+				{Name: "amount", Position: 4, BaseType: "DECIMAL(5,2)", ColumnType: "DECIMAL(5,2)", Kind: kind.Decimal, Nullable: false},
+				{Name: "payment_date", Position: 5, BaseType: "TIMESTAMP", ColumnType: "TIMESTAMP", Kind: kind.Datetime, Nullable: false},
+				{Name: "last_update", Position: 6, BaseType: "TIMESTAMP", ColumnType: "TIMESTAMP", Kind: kind.Datetime, Nullable: false},
 			},
 		},
 	}
