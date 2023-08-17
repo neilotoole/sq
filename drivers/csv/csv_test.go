@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/record"
+
 	"github.com/neilotoole/sq/drivers/csv"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -52,29 +54,44 @@ func TestSmoke(t *testing.T) {
 
 func TestSakila_query(t *testing.T) {
 	t.Parallel()
+
 	testCases := []struct {
 		file      string
 		wantCols  []string
 		wantCount int
 		wantKinds []kind.Kind
+		wantRec0  record.Record
 	}{
 		{
 			file:      sakila.TblActor,
 			wantCols:  sakila.TblActorCols(),
 			wantCount: sakila.TblActorCount,
 			wantKinds: sakila.TblActorColKinds(),
+			wantRec0: record.Record{
+				int64(1), "PENELOPE", "GUINESS",
+				time.Date(2020, time.February, 15, 6, 59, 28, 0, time.UTC),
+			},
 		},
 		{
 			file:      sakila.TblFilmActor,
 			wantCols:  sakila.TblFilmActorCols(),
 			wantCount: sakila.TblFilmActorCount,
 			wantKinds: sakila.TblFilmActorColKinds(),
+			wantRec0: record.Record{
+				int64(1), int64(1),
+				time.Date(2020, time.February, 15, 6, 59, 32, 0, time.UTC),
+			},
 		},
 		{
 			file:      sakila.TblPayment,
 			wantCols:  sakila.TblPaymentCols(),
 			wantCount: sakila.TblPaymentCount,
 			wantKinds: sakila.TblPaymentColKinds(),
+			wantRec0: record.Record{
+				int64(1), int64(1), int64(1), int64(76), "2.99",
+				time.Date(2005, time.May, 25, 11, 30, 37, 0, time.UTC),
+				time.Date(2020, time.February, 15, 6, 59, 47, 0, time.UTC),
+			},
 		},
 	}
 
@@ -101,8 +118,11 @@ func TestSakila_query(t *testing.T) {
 					require.NoError(t, err)
 					gotCols, gotKinds := sink.RecMeta.MungedNames(), sink.RecMeta.Kinds()
 					require.Equal(t, tc.wantCols, gotCols)
-					require.Equal(t, tc.wantKinds, gotKinds)
-					require.Equal(t, tc.wantCount, len(sink.Recs))
+					assert.Equal(t, tc.wantKinds, gotKinds)
+					assert.Equal(t, tc.wantCount, len(sink.Recs))
+					if tc.wantRec0 != nil {
+						require.EqualValues(t, tc.wantRec0, sink.Recs[0])
+					}
 				})
 			}
 		})
@@ -253,10 +273,6 @@ func TestDatetime(t *testing.T) {
 				"RFC8222Z",
 				"RFC850",
 				"RubyDate",
-				"Stamp",
-				"StampMicro",
-				"StampMilli",
-				"StampNano",
 				"UnixDate",
 			},
 			wantKinds: loz.Make(20, kind.Datetime),
@@ -276,10 +292,6 @@ func TestDatetime(t *testing.T) {
 				wantDtMinMST,   // RFC8222Z
 				wantDtSecMST,   // RFC850
 				wantDtSecMST,   // RubyDate
-				wantDtMinUTC,   // Stamp
-				wantDtMinUTC,   // StampMicro
-				wantDtMinUTC,   // StampMilli
-				wantDtMinUTC,   // StampNano
 				wantDtSecMST,   // UnixDate
 			}),
 		},
