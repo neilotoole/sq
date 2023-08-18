@@ -12,8 +12,8 @@ Breaking changes are annotated with ☢️.
 This release is heavily focused on improvements to Microsoft Excel support.
 The underlying Excel library has been changed from [`tealeg/xlsx`](https://github.com/tealeg/xlsx)
 to [`qax-os/excelize`](https://github.com/qax-os/excelize), largely because
-`tealeg/xlsx` is no longer actively maintained. Thus, both the XLSX output
-writer and the XLSX driver have been rewritten. There should be some performance
+`tealeg/xlsx` is no longer actively maintained. Thus, both the [XLSX output writer](https://sq.io/docs/output/#xlsx)
+and the [XLSX driver](https://sq.io/docs/drivers/xlsx) have been rewritten. There should be some performance
 improvements, but it's also possible that the rewrite introduced bugs. If you
 discover anything strange, please [open an issue](https://github.com/neilotoole/sq/issues/new/choose).
 
