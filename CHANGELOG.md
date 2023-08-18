@@ -40,15 +40,10 @@ discover anything strange, please [open an issue](https://github.com/neilotoole/
   effectively the ingest counterpart of the existing output option
   [`result.column.rename`](https://sq.io/docs/config/#resultcolumnrename).
 
-- [#191]: The [XLSX](https://sq.io/docs/drivers/xlsx) driver now detects header rows, like
+- [#191]: The [XLSX](https://sq.io/docs/drivers/xlsx) driver now [detects](https://sq.io/docs/drivers/xlsx/#header-row) header rows, like
   the CSV driver already does. Thus, you now typically don't need to specify
   the `--ingest.header` flag for Excel files. However, the option remains available
   in case `sq` can't figure it out for a particular file.
-
-- There's a new option `error.format` that controls error output format independent
-  of the main [`format`](https://sq.io/docs/config/#format) option
-  ([docs](https://sq.io/docs/config/#errorformat)). The `error.format` value
-  must be one of `text` or `json`.
 
 - The Excel writer has three new config options for controlling date/time output.
   Note that these format strings are distinct from [`format.datetime`](https://sq.io/docs/config/#formatdatetime)
@@ -57,8 +52,16 @@ discover anything strange, please [open an issue](https://github.com/neilotoole/
   - [`format.excel.date`](https://sq.io/docs/config/#formatexceldatetime): Controls date-only format, e.g. `2023-08-03`.
   - [`format.excel.time`](https://sq.io/docs/config/#formatexceldatetime): Controls time-only format, e.g. `4:07 pm`.
 
+- The ingest [kind detectors](https://sq.io/docs/detect/#kinds) (e.g. for `CSV` or `XLSX`)
+  now detect more [date & time formats](/docs/detect#datetime-formats) as `kind.Datetime`, `kind.Date`, and `kind.Time`.
+
 - If an error occurs when the output format is `text`, a stack trace is printed
   to `stderr` when the command is executed with `--verbose` (`-v`).
+
+- There's a new option `error.format` that controls error output format independent
+  of the main [`format`](https://sq.io/docs/config/#format) option
+  ([docs](https://sq.io/docs/config/#errorformat)). The `error.format` value
+  must be one of `text` or `json`.
 
 ## Changed
 
@@ -93,8 +96,6 @@ discover anything strange, please [open an issue](https://github.com/neilotoole/
 
 - ☢️ The XLSX writer now outputs blob (`bytes`) cell data as a base64-encoded string,
   instead of raw bytes.
-
-- The XLSX driver now is able to recognize more date and time formats.
 
 ### Fixed
 

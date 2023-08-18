@@ -391,7 +391,6 @@ func detectKindDate(s string) (ok bool, format string) {
 		time.DateOnly,
 		"02 Jan 2006",
 		"2006/01/02",
-		"2006-01-02",
 		"01-02-06",
 		"01-02-2006",
 		"02-Jan-2006",
