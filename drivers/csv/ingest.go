@@ -247,8 +247,11 @@ func getDelimFromOptions(opts options.Options) (r rune, ok bool, err error) {
 		return 0, false, nil
 	}
 
-	val := OptDelim.Get(opts)
+	if !OptDelim.IsSet(opts) {
+		return 0, false, nil
+	}
 
+	val := OptDelim.Get(opts)
 	if len(val) == 1 {
 		r, _ = utf8.DecodeRuneInString(val)
 		return r, true, nil

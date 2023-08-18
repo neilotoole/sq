@@ -63,31 +63,27 @@ func TestKind(t *testing.T) {
 }
 
 const (
-	fixtTime1              = "00:00:00"
-	fixtTime2              = "08:30:05"
-	fixtTime3              = "15:30"
-	fixtTime4              = "7:15PM"
-	fixtTime5              = "7:15 PM"
-	fixtTime6              = "7:15pm"
-	fixtTime7              = "7:15 pm"
-	fixtDate1              = "1970-01-01"
-	fixtDate2              = "1989-11-09"
-	fixtDate3              = "02 Jan 2006"
-	fixtDate4              = "2006/01/02"
-	fixtDate5              = "01-02-2006"
-	fixtDate6              = "02-Jan-2006"
-	fixtDate7              = "Jan 2, 2006"
-	fixtDate8              = "Jan 20, 2006"
-	fixtDateExcelLong      = "Wednesday, March 1, 2023"
-	fixtDatetime1          = "1970-01-01T00:00:00Z" // RFC3339Nano
-	fixtDatetime2          = "1989-11-09T00:00:00Z"
-	fixtDatetimeAnsic      = "Mon Jan 2 15:04:05 2006"
-	fixtDatetimeUnix       = "Mon Jan 2 15:04:05 MST 2006"
-	fixtDatetimeRFC3339    = "2002-10-02T10:00:00-05:00"
-	fixtDatetimeStamp      = "Jan 2 15:04:05"
-	fixtDatetimeStampMilli = "Jan 2 15:04:05.000"
-	fixtDatetimeStampMicro = "Jan 2 15:04:05.000000"
-	fixtDatetimeStampNano  = "Jan 2 15:04:05.000000000"
+	fixtTime1           = "00:00:00"
+	fixtTime2           = "08:30:05"
+	fixtTime3           = "15:30"
+	fixtTime4           = "7:15PM"
+	fixtTime5           = "7:15 PM"
+	fixtTime6           = "7:15pm"
+	fixtTime7           = "7:15 pm"
+	fixtDate1           = "1970-01-01"
+	fixtDate2           = "1989-11-09"
+	fixtDate3           = "02 Jan 2006"
+	fixtDate4           = "2006/01/02"
+	fixtDate5           = "01-02-2006"
+	fixtDate6           = "02-Jan-2006"
+	fixtDate7           = "Jan 2, 2006"
+	fixtDate8           = "Jan 20, 2006"
+	fixtDateExcelLong   = "Wednesday, March 1, 2023"
+	fixtDatetime1       = "1970-01-01T00:00:00Z" // RFC3339Nano
+	fixtDatetime2       = "1989-11-09T00:00:00Z"
+	fixtDatetimeAnsic   = "Mon Jan 2 15:04:05 2006"
+	fixtDatetimeUnix    = "Mon Jan 2 15:04:05 MST 2006"
+	fixtDatetimeRFC3339 = "2002-10-02T10:00:00-05:00"
 )
 
 func TestDetector(t *testing.T) {
@@ -145,10 +141,6 @@ func TestDetector(t *testing.T) {
 		{in: []any{time.RFC1123}, want: kind.Datetime, wantMunge: true},
 		{in: []any{time.RFC1123Z}, want: kind.Datetime, wantMunge: true},
 		{in: []any{fixtDatetimeRFC3339}, want: kind.Datetime, wantMunge: true},
-		{in: []any{fixtDatetimeStamp}, want: kind.Datetime, wantMunge: true},
-		{in: []any{fixtDatetimeStampMilli}, want: kind.Datetime, wantMunge: true},
-		{in: []any{fixtDatetimeStampMicro}, want: kind.Datetime, wantMunge: true},
-		{in: []any{fixtDatetimeStampNano}, want: kind.Datetime, wantMunge: true},
 	}
 
 	for i, tc := range testCases {

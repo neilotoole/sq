@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/record"
+
 	"golang.org/x/exp/maps"
 
 	"github.com/neilotoole/sq/libsq/core/timez"
@@ -147,24 +149,38 @@ func TestSakila_query(t *testing.T) {
 		wantCols  []string
 		wantCount int
 		wantKinds []kind.Kind
+		wantRec0  record.Record
 	}{
 		{
 			sheet:     sakila.TblActor,
 			wantCols:  sakila.TblActorCols(),
 			wantCount: sakila.TblActorCount,
 			wantKinds: sakila.TblActorColKinds(),
+			wantRec0: record.Record{
+				int64(1), "PENELOPE", "GUINESS",
+				time.Date(2020, time.February, 15, 6, 59, 28, 0, time.UTC),
+			},
 		},
 		{
 			sheet:     sakila.TblFilmActor,
 			wantCols:  sakila.TblFilmActorCols(),
 			wantCount: sakila.TblFilmActorCount,
 			wantKinds: sakila.TblFilmActorColKinds(),
+			wantRec0: record.Record{
+				int64(1), int64(1),
+				time.Date(2020, time.February, 15, 6, 59, 32, 0, time.UTC),
+			},
 		},
 		{
 			sheet:     sakila.TblPayment,
 			wantCols:  sakila.TblPaymentCols(),
 			wantCount: sakila.TblPaymentCount,
 			wantKinds: sakila.TblPaymentColKinds(),
+			wantRec0: record.Record{
+				int64(1), int64(1), int64(1), int64(76), "2.99",
+				time.Date(2005, time.May, 25, 11, 30, 37, 0, time.UTC),
+				time.Date(2020, time.February, 15, 6, 59, 47, 0, time.UTC),
+			},
 		},
 	}
 
