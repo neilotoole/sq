@@ -24,9 +24,11 @@ builds:
 
 archives:
   -
-    name_template: "{{.ProjectName}}-{{ .Version }}-{{.Os}}-{{.Arch}}"
-    replacements:
-      darwin: macos
+#    name_template: "{{.ProjectName}}-{{ .Version }}-{{.Os}}-{{.Arch}}"
+    name_template: >-
+      {{.ProjectName}}-{{ .Version }}-{{- if eq .Os "darwin" }}macos{{- else }}{{ .Arch }}{{ end }}-{{.Arch}}
+#    replacements:
+#      darwin: macos
     format_overrides:
       - goos: windows
         format: zip
@@ -56,7 +58,7 @@ brews:
     homepage: "https://github.com/neilotoole/sq"
     description: "sq data wrangler"
     license: MIT
-    tap:
+    repository:
       owner: neilotoole
       name: homebrew-sq
 
@@ -73,16 +75,16 @@ brews:
     test: |
       system "#{bin}/sq --version"
 
-scoop:
-  bucket:
-    owner: neilotoole
-    name: sq
-  homepage: "https://sq.io"
-  description: "sq data wrangler"
-  license: MIT
-  commit_author:
-    name: neilotoole
-    email: neilotoole@apache.org
+scoops:
+  - repository:
+      owner: neilotoole
+      name: sq
+    homepage: "https://sq.io"
+    description: "sq data wrangler"
+    license: MIT
+    commit_author:
+      name: neilotoole
+      email: neilotoole@apache.org
 
 nfpms:
   -
