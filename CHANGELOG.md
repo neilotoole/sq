@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Breaking changes are annotated with ☢️.
 
-## Upcoming
+## [v0.42.0] - 2023-08-20
 
 This release is heavily focused on improvements to Microsoft Excel support.
 The underlying Excel library has been changed from [`tealeg/xlsx`](https://github.com/tealeg/xlsx)
@@ -35,33 +35,30 @@ discover anything strange, please [open an issue](https://github.com/neilotoole/
   actor_id,first_name,actor_id_1
   ```
   
-  The renaming behavior is controlled by a new option `ingest.column.rename`
-  ([docs](https://sq.io/docs/config/#ingestcolumnrename)). This new option is
-  effectively the ingest counterpart of the existing output option
-  [`result.column.rename`](https://sq.io/docs/config/#resultcolumnrename).
+  The renaming behavior is controlled by a new option [`ingest.column.rename`](https://sq.io/docs/config#ingestcolumnrename)
+  This new option is effectively the ingest counterpart of the existing output option
+  [`result.column.rename`](https://sq.io/docs/config#resultcolumnrename).
 
-- [#191]: The [XLSX](https://sq.io/docs/drivers/xlsx) driver now [detects](https://sq.io/docs/drivers/xlsx/#header-row) header rows, like
+- [#191]: The [XLSX](https://sq.io/docs/drivers/xlsx) driver now [detects](https://sq.io/docs/drivers/xlsx#header-row) header rows, like
   the CSV driver already does. Thus, you now typically don't need to specify
   the `--ingest.header` flag for Excel files. However, the option remains available
   in case `sq` can't figure it out for a particular file.
 
 - The Excel writer has three new config options for controlling date/time output.
-  Note that these format strings are distinct from [`format.datetime`](https://sq.io/docs/config/#formatdatetime)
+  Note that these format strings are distinct from [`format.datetime`](https://sq.io/docs/config#formatdatetime)
   and friends, because Excel has its own format string mechanism.
-  - [`format.excel.datetime`](https://sq.io/docs/config/#formatexceldatetime): Controls datetime format, e.g. `2023-08-03 16:07:01`.
-  - [`format.excel.date`](https://sq.io/docs/config/#formatexceldatetime): Controls date-only format, e.g. `2023-08-03`.
-  - [`format.excel.time`](https://sq.io/docs/config/#formatexceldatetime): Controls time-only format, e.g. `4:07 pm`.
+  - [`format.excel.datetime`](https://sq.io/docs/config#formatexceldatetime): Controls datetime format, e.g. `2023-08-03 16:07:01`.
+  - [`format.excel.date`](https://sq.io/docs/config#formatexceldatetime): Controls date-only format, e.g. `2023-08-03`.
+  - [`format.excel.time`](https://sq.io/docs/config#formatexceldatetime): Controls time-only format, e.g. `4:07 pm`.
 
-- The ingest [kind detectors](https://sq.io/docs/detect/#kinds) (e.g. for `CSV` or `XLSX`)
-  now detect more [date & time formats](/docs/detect#datetime-formats) as `kind.Datetime`, `kind.Date`, and `kind.Time`.
+- The ingest [kind detectors](https://sq.io/docs/detect#kinds) (e.g. for `CSV` or `XLSX`)
+  now detect more [date & time formats](https://sq.io/docs/detect#datetime-formats) as `kind.Datetime`, `kind.Date`, and `kind.Time`.
 
 - If an error occurs when the output format is `text`, a stack trace is printed
   to `stderr` when the command is executed with `--verbose` (`-v`).
 
-- There's a new option `error.format` that controls error output format independent
-  of the main [`format`](https://sq.io/docs/config/#format) option
-  ([docs](https://sq.io/docs/config/#errorformat)). The `error.format` value
-  must be one of `text` or `json`.
+- There's a new option [`error.format`](https://sq.io/docs/config#errorformat) that controls error output format independent
+  of the main [`format`](https://sq.io/docs/config#format) option . The `error.format` value must be one of `text` or `json`.
 
 ## Changed
 
@@ -70,17 +67,15 @@ discover anything strange, please [open an issue](https://github.com/neilotoole/
   to datetimes, e.g. `11/9/1989  00:00:00` becomes `1989-11-09 00:00`.
   
   This change is made to reduce ambiguity and confusion.
-  Apparently Microsoft Excel itself will pick up
-  the date format from OS system settings? However, `sq` uses
-  a [library](https://github.com/qax-os/excelize)
-  to interact with Excel files, and that library chooses a particular format
+  `sq` uses a [library](https://github.com/qax-os/excelize)
+  to interact with Excel files, and it seems that the library chooses a particular format
   by default (`11/9/89`). There are several paths we could take here:
   
   1. Interrogate the OS, and use the OS locale date format.
   2. Stick with the library default `11/9/89`.
   3. Pick a default other than `11/9/89`.
   
-  We have chosen the third option. The first option (locale-dependent)
+  We pick the third option. The first option (locale-dependent)
   is excluded because, as a general rule, we want `sq` to produce the same 
   output regardless of locale/system settings. We exclude the second option
   because month/day confuses most of the world. Thus, we're left with picking a
@@ -89,7 +84,7 @@ discover anything strange, please [open an issue](https://github.com/neilotoole/
   
   Whether this is the correct (standard?) approach is still unclear, and
   feedback is welcome. However, the user can make use of the new config options
-  ([`format.excel.datetime`](https://sq.io/docs/config/#formatexceldatetime) etc.)
+  ([`format.excel.datetime`](https://sq.io/docs/config#formatexceldatetime) etc.)
   to customize the format as they see fit.
 
 - The XLSX writer now outputs header rows in **bold text**.
@@ -104,7 +99,7 @@ discover anything strange, please [open an issue](https://github.com/neilotoole/
 
 ## [v0.40.0] - 2023-07-03
 
-This release features a complete overhaul of the [`join`](https://sq.io/docs/query/#joins)
+This release features a complete overhaul of the [`join`](https://sq.io/docs/query#joins)
 mechanism.
 
 ### Added
@@ -119,17 +114,17 @@ mechanism.
 - New option `result.column.rename` that exposes a template used to rename
   result set column names before display. The primary use case is to de-duplicate
   columns names on a `SELECT * FROM tbl1 JOIN tbl2`, where `tbl1` and `tbl2`
-  have clashing column names ([docs](https://sq.io/docs/config/#resultcolumnrename)).
+  have clashing column names ([docs](https://sq.io/docs/config#resultcolumnrename)).
 
 - [#157]: Previously only `join` (`INNER JOIN`) was available: now the rest of
   the join types such as `left_outer_join`, `cross_join`, etc. are
-  implemented ([docs](https://sq.io/docs/query/#join-types)).
+  implemented ([docs](https://sq.io/docs/query#join-types)).
 
   
 ### Changed
 
--  ☢️ [#12]: The table [join](https://sq.io/docs/query/#joins) mechanism has been
-   completely overhauled. Now there's support for multiple joins. See [docs](https://sq.io/docs/query/#joins).
+-  ☢️ [#12]: The table [join](https://sq.io/docs/query#joins) mechanism has been
+   completely overhauled. Now there's support for multiple joins. See [docs](https://sq.io/docs/query#joins).
 
    ```shell
    # Previously, only a single join was possible
@@ -142,7 +137,7 @@ mechanism.
 
 ### Fixed
 
-- Fixed bug where config options weren't being propagated correctly.
+- Config options weren't being propagated correctly to all parts of the code.
 
 ## [v0.39.1] - 2023-06-22
 
@@ -222,7 +217,7 @@ to SLQ (`sq`'s query language).
 
 ### Fixed
 
-- Literals can now be selected ([docs](https://sq.io/docs/query/#select-literal)).
+- Literals can now be selected ([docs](https://sq.io/docs/query#select-literal)).
   
   ```shell
   $ sq '.actor | .first_name, "X":middle_name, .last_name | .[0:2]'
@@ -265,13 +260,13 @@ to SLQ (`sq`'s query language).
 
 ### Added
 
-- [#244]: Shell completion for `sq add LOCATION`. See [docs](https://sq.io/docs/source/#location-completion).
+- [#244]: Shell completion for `sq add LOCATION`. See [docs](https://sq.io/docs/source#location-completion).
 
 ## [v0.36.2] - 2023-05-27
 
 ### Changed
 
-- ☢️ [Proprietary database functions](https://sq.io/docs/query/#proprietary-functions) are now 
+- ☢️ [Proprietary database functions](https://sq.io/docs/query#proprietary-functions) are now 
   invoked by prefixing the function name with an underscore. For example:
   ```shell
   # mysql "date_format" func
@@ -297,7 +292,7 @@ The major feature is the long-gestating [`sq diff`](https://sq.io/docs/diff).
 - `sq inspect --dbprops` is a new mode that returns only the DB properties.
   Relatedly, the properties mechanism is now implemented for all four supported
   DB types (previously, it was only implemented for Postgres and MySQL).
-- [CSV](https://sq.io/docs/output/#csv-tsv) format now colorizes output.
+- [CSV](https://sq.io/docs/output#csv-tsv) format now colorizes output.
 
 ## Changed
 
@@ -497,7 +492,7 @@ make working with lots of sources much easier.
 ### Added
 
 - [#173]: Predefined variables via `--arg` 
-  flag ([docs](https://sq.io/docs/query/#predefined-variables)):
+  flag ([docs](https://sq.io/docs/query#predefined-variables)):
   ```shell
   $ sq --arg first TOM '.actor | .first_name == $first'
   ```
@@ -551,7 +546,7 @@ make working with lots of sources much easier.
 
 ### Added
 
-- [#162]: `group_by` now accepts [function arguments](https://sq.io/docs/query/#group_by). 
+- [#162]: `group_by` now accepts [function arguments](https://sq.io/docs/query#group_by). 
 
 ### Changed
 
@@ -562,13 +557,13 @@ make working with lots of sources much easier.
 
 ### Added
 
-- [#160]: Use `groupby()` to group results. See [query guide](https://sq.io/docs/query/#group_by).
+- [#160]: Use `groupby()` to group results. See [query guide](https://sq.io/docs/query#group_by).
 
 ## [v0.27.0] - 2023-03-25
 
 ### Added
 
-- [#158]: Use `orderby()` to order results. See [query guide](https://sq.io/docs/query/#order_by).
+- [#158]: Use `orderby()` to order results. See [query guide](https://sq.io/docs/query#order_by).
 
 ## [v0.26.0] - 2023-03-22
 
@@ -825,3 +820,4 @@ make working with lots of sources much easier.
 [v0.39.0]: https://github.com/neilotoole/sq/compare/v0.38.1...v0.39.0
 [v0.39.1]: https://github.com/neilotoole/sq/compare/v0.39.0...v0.39.1
 [v0.40.0]: https://github.com/neilotoole/sq/compare/v0.39.1...v0.40.0
+[v0.41.0]: https://github.com/neilotoole/sq/compare/v0.40.0...v0.41.0
