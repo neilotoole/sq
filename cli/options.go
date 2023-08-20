@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/neilotoole/sq/cli/output/excelw"
+	"github.com/neilotoole/sq/cli/output/xlsxw"
 
 	"github.com/neilotoole/sq/cli/run"
 
@@ -142,9 +142,9 @@ func RegisterDefaultOpts(reg *options.Registry) {
 		OptDateFormatAsNumber,
 		OptTimeFormat,
 		OptTimeFormatAsNumber,
-		excelw.OptDatetimeFormat,
-		excelw.OptDateFormat,
-		excelw.OptTimeFormat,
+		xlsxw.OptDatetimeFormat,
+		xlsxw.OptDateFormat,
+		xlsxw.OptTimeFormat,
 		driver.OptResultColRename,
 		OptVerbose,
 		OptPrintHeader,
@@ -271,7 +271,7 @@ func addTimeFormatOptsFlags(cmd *cobra.Command) {
 	key = addOptionFlag(cmd.Flags(), OptTimeFormatAsNumber)
 	panicOn(cmd.RegisterFlagCompletionFunc(key, completeBool))
 
-	key = addOptionFlag(cmd.Flags(), excelw.OptDatetimeFormat)
+	key = addOptionFlag(cmd.Flags(), xlsxw.OptDatetimeFormat)
 	panicOn(cmd.RegisterFlagCompletionFunc(key, completeStrings(
 		-1,
 		"yyyy-mm-dd hh:mm",
@@ -279,7 +279,7 @@ func addTimeFormatOptsFlags(cmd *cobra.Command) {
 		"dd-mmm-yy h:mm:ss AM/PM",
 	)))
 
-	key = addOptionFlag(cmd.Flags(), excelw.OptDateFormat)
+	key = addOptionFlag(cmd.Flags(), xlsxw.OptDateFormat)
 	panicOn(cmd.RegisterFlagCompletionFunc(key, completeStrings(
 		-1,
 		"yyyy-mm-dd",
@@ -287,7 +287,7 @@ func addTimeFormatOptsFlags(cmd *cobra.Command) {
 		"dd-mmm-yy",
 	)))
 
-	key = addOptionFlag(cmd.Flags(), excelw.OptTimeFormat)
+	key = addOptionFlag(cmd.Flags(), xlsxw.OptTimeFormat)
 	panicOn(cmd.RegisterFlagCompletionFunc(key, completeStrings(
 		-1,
 		"hh:mm:ss",

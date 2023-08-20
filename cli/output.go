@@ -6,9 +6,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/cli/output/xlsxw"
 
-	"github.com/neilotoole/sq/cli/output/excelw"
+	"github.com/neilotoole/sq/libsq/core/errz"
 
 	"github.com/neilotoole/sq/libsq/core/stringz"
 
@@ -329,8 +329,7 @@ func getRecordWriterFunc(f format.Format) output.NewRecordWriterFunc {
 	case format.XML:
 		return xmlw.NewRecordWriter
 	case format.XLSX:
-		// return xlsxw.NewRecordWriter
-		return excelw.NewRecordWriter
+		return xlsxw.NewRecordWriter
 	case format.YAML:
 		return yamlw.NewRecordWriter
 	case format.Raw:
@@ -358,9 +357,9 @@ func getPrinting(cmd *cobra.Command, opts options.Options, out, errOut io.Writer
 	pr.FormatDate = timez.FormatFunc(OptDateFormat.Get(opts))
 	pr.FormatDateAsNumber = OptDateFormatAsNumber.Get(opts)
 
-	pr.ExcelDatetimeFormat = excelw.OptDatetimeFormat.Get(opts)
-	pr.ExcelDateFormat = excelw.OptDateFormat.Get(opts)
-	pr.ExcelTimeFormat = excelw.OptTimeFormat.Get(opts)
+	pr.ExcelDatetimeFormat = xlsxw.OptDatetimeFormat.Get(opts)
+	pr.ExcelDateFormat = xlsxw.OptDateFormat.Get(opts)
+	pr.ExcelTimeFormat = xlsxw.OptTimeFormat.Get(opts)
 
 	pr.Verbose = OptVerbose.Get(opts)
 	pr.FlushThreshold = OptTuningFlushThreshold.Get(opts)
