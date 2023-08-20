@@ -139,6 +139,66 @@ func TestSakila_query_cmd(t *testing.T) {
 	}
 }
 
+func TestSakilaOpenFileFormats(t *testing.T) {
+	t.Parallel()
+	tutil.SkipWindows(t, "Skipping because of slow workflow perf on windows")
+	tutil.SkipShort(t, true)
+
+	testCases := []struct {
+		filename string
+		wantErr  bool
+	}{
+		{"sakila.xlsx", false},
+		{"sakila.xlam", false},
+
+		{"sakila.xlsm", false},
+		{"sakila.xltm", false},
+		{"sakila.xltx", false},
+		{"sakila.strict_openxml.xlsx", false},
+
+		// .xls and .xlsb aren't supported. Perhaps one day we'll incorporate
+		// support via a library such as https://github.com/extrame/xls.
+		{"sakila.xls", true},
+		{"sakila.xlsb", true},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.filename, func(t *testing.T) {
+			t.Parallel()
+
+			th := testh.New(t, testh.OptLongOpen())
+			src := th.Add(&source.Source{
+				Handle:   "@excel",
+				Type:     xlsx.Type,
+				Location: filepath.Join("testdata", "file_formats", tc.filename),
+			})
+
+			dbase, err := th.Databases().Open(th.Context, src)
+			require.NoError(t, err)
+			db, err := dbase.DB(th.Context)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.NoError(t, db.PingContext(th.Context))
+
+			sink, err := th.QuerySQL(src, "SELECT * FROM actor")
+
+			require.NoError(t, err)
+			require.Equal(t, sakila.TblActorCols(), sink.RecMeta.MungedNames())
+			require.Equal(t, sakila.TblActorCount, len(sink.Recs))
+			require.Equal(t, sakila.TblActorColKinds(), sink.RecMeta.Kinds())
+			wantRec0 := record.Record{
+				int64(1), "PENELOPE", "GUINESS",
+				time.Date(2020, time.February, 15, 6, 59, 28, 0, time.UTC),
+			}
+			require.Equal(t, wantRec0, sink.Recs[0])
+		})
+	}
+}
+
 func TestSakila_query(t *testing.T) {
 	t.Parallel()
 	tutil.SkipWindows(t, "Skipping because of slow workflow perf on windows")
@@ -197,6 +257,7 @@ func TestSakila_query(t *testing.T) {
 			require.Equal(t, tc.wantCols, sink.RecMeta.MungedNames())
 			require.Equal(t, tc.wantCount, len(sink.Recs))
 			require.Equal(t, tc.wantKinds, sink.RecMeta.Kinds())
+			require.Equal(t, tc.wantRec0, sink.Recs[0])
 		})
 	}
 }
