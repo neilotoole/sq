@@ -38,8 +38,10 @@ func (w *versionWriter) Version(bi buildinfo.BuildInfo, latestVersion string, hi
 
 		if newerAvailable {
 			fmt.Fprint(w.out, "    ")
-			w.pr.Faint.Fprintln(w.out, "Update available: "+latestVersion)
+			w.pr.Faint.Fprint(w.out, "Update available: "+latestVersion)
 		}
+
+		fmt.Fprintln(w.out)
 		return nil
 	}
 

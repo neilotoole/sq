@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Breaking changes are annotated with ☢️.
 
+## [v0.41.1] - 2023-08-20
+
+### Fixed
+
+- `sq version` was missing a newline in its output.
+
 ## [v0.41.0] - 2023-08-20
 
 This release is heavily focused on improvements to Microsoft Excel support.
@@ -821,3 +827,4 @@ make working with lots of sources much easier.
 [v0.39.1]: https://github.com/neilotoole/sq/compare/v0.39.0...v0.39.1
 [v0.40.0]: https://github.com/neilotoole/sq/compare/v0.39.1...v0.40.0
 [v0.41.0]: https://github.com/neilotoole/sq/compare/v0.40.0...v0.41.0
+[v0.41.1]: https://github.com/neilotoole/sq/compare/v0.41.0...v0.41.1
