@@ -1,4 +1,4 @@
-package excelw
+package xlsxw
 
 import (
 	"math"

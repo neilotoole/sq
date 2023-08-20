@@ -139,7 +139,7 @@ func TestSakila_query_cmd(t *testing.T) {
 	}
 }
 
-func TestSakilaOpenFileFormats(t *testing.T) {
+func TestOpenFileFormats(t *testing.T) {
 	t.Parallel()
 	tutil.SkipWindows(t, "Skipping because of slow workflow perf on windows")
 	tutil.SkipShort(t, true)
@@ -150,7 +150,6 @@ func TestSakilaOpenFileFormats(t *testing.T) {
 	}{
 		{"sakila.xlsx", false},
 		{"sakila.xlam", false},
-
 		{"sakila.xlsm", false},
 		{"sakila.xltm", false},
 		{"sakila.xltx", false},

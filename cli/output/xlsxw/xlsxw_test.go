@@ -1,4 +1,4 @@
-package excelw_test
+package xlsxw_test
 
 import (
 	"bytes"
@@ -8,6 +8,8 @@ import (
 	"image/gif"
 	"os"
 	"testing"
+
+	"github.com/neilotoole/sq/cli/output/xlsxw"
 
 	"github.com/stretchr/testify/assert"
 
@@ -25,8 +27,6 @@ import (
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/testsrc"
-
-	"github.com/neilotoole/sq/cli/output/excelw"
 
 	"github.com/stretchr/testify/require"
 )
@@ -73,10 +73,10 @@ func TestRecordWriter(t *testing.T) {
 
 			buf := &bytes.Buffer{}
 			pr := output.NewPrinting()
-			pr.ExcelDatetimeFormat = excelw.OptDatetimeFormat.Default()
-			pr.ExcelDateFormat = excelw.OptDateFormat.Default()
-			pr.ExcelTimeFormat = excelw.OptTimeFormat.Default()
-			w := excelw.NewRecordWriter(buf, pr)
+			pr.ExcelDatetimeFormat = xlsxw.OptDatetimeFormat.Default()
+			pr.ExcelDateFormat = xlsxw.OptDateFormat.Default()
+			pr.ExcelTimeFormat = xlsxw.OptTimeFormat.Default()
+			w := xlsxw.NewRecordWriter(buf, pr)
 			require.NoError(t, w.Open(recMeta))
 
 			require.NoError(t, w.WriteRecords(recs))
@@ -96,7 +96,7 @@ func TestBytesEncodedAsBase64(t *testing.T) {
 
 	buf := &bytes.Buffer{}
 	pr := output.NewPrinting()
-	w := excelw.NewRecordWriter(buf, pr)
+	w := xlsxw.NewRecordWriter(buf, pr)
 	require.NoError(t, w.Open(recMeta))
 
 	require.NoError(t, w.WriteRecords(recs))
@@ -168,11 +168,11 @@ func TestOptDatetimeFormats(t *testing.T) {
 	src := th.Source(sakila.Pg)
 
 	tr := testrun.New(th.Context, t, nil).Hush().Add(*src)
-	require.NoError(t, tr.Exec("config", "set", excelw.OptDatetimeFormat.Key(), "yy/mm/dd - hh:mm:ss"))
+	require.NoError(t, tr.Exec("config", "set", xlsxw.OptDatetimeFormat.Key(), "yy/mm/dd - hh:mm:ss"))
 	tr = testrun.New(th.Context, t, tr)
-	require.NoError(t, tr.Exec("config", "set", excelw.OptDateFormat.Key(), "yy/mmm/dd"))
+	require.NoError(t, tr.Exec("config", "set", xlsxw.OptDateFormat.Key(), "yy/mmm/dd"))
 	tr = testrun.New(th.Context, t, tr)
-	require.NoError(t, tr.Exec("config", "set", excelw.OptTimeFormat.Key(), "h:mm am/pm"))
+	require.NoError(t, tr.Exec("config", "set", xlsxw.OptTimeFormat.Key(), "h:mm am/pm"))
 
 	tr = testrun.New(th.Context, t, tr)
 	require.NoError(t, tr.Exec("sql", "--xlsx", query))

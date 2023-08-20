@@ -1,7 +1,7 @@
-// Package excelw implements output writers for Microsoft Excel.
+// Package xlsxw implements output writers for Microsoft Excel.
 // It uses the https://github.com/qax-os/excelize library.
 // See docs: https://xuri.me/excelize
-package excelw
+package xlsxw
 
 import (
 	"encoding/base64"

@@ -1,4 +1,4 @@
-package excelw
+package xlsxw
 
 // The code below is lifted from the excelize package.
 
