@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Breaking changes are annotated with ☢️.
 
-## [v0.42.0] - 2023-08-20
+## [v0.41.0] - 2023-08-20
 
 This release is heavily focused on improvements to Microsoft Excel support.
 The underlying Excel library has been changed from [`tealeg/xlsx`](https://github.com/tealeg/xlsx)
