@@ -13,6 +13,8 @@ env:
   GORELEASER_VERSION: 1.20.0
   GOLANGCI_LINT_VERSION: v1.54.1
   BUILD_TAGS: 'sqlite_vtable sqlite_stat4 sqlite_fts5 sqlite_icu sqlite_introspect sqlite_json sqlite_math_functions'
+
+  # Note that windows doesn't have sqlite_icu, as that fails to build. Needs investigation.
   BUILD_TAGS_WIN: 'sqlite_vtable sqlite_stat4 sqlite_fts5 sqlite_introspect sqlite_json sqlite_math_functions'
 
 jobs:
@@ -66,12 +68,12 @@ jobs:
     runs-on: windows-2022
     steps:
     # Copied from https://github.com/mattn/go-sqlite3/blob/master/.github/workflows/go.yaml#L73
-    - uses: msys2/setup-msys2@v2
-      with:
-        update: true
-        install: mingw-w64-x86_64-toolchain mingw-w64-x86_64-sqlite3
-        msystem: MINGW64
-        path-type: inherit
+#    - uses: msys2/setup-msys2@v2
+#      with:
+#        update: true
+#        install: mingw-w64-x86_64-toolchain mingw-w64-x86_64-sqlite3
+#        msystem: MINGW64
+#        path-type: inherit
 
     - name: Checkout
       uses: actions/checkout@v3
@@ -85,12 +87,12 @@ jobs:
 
     - name: Build
       run: go build -tags '${{ env.BUILD_TAGS_WIN }}' -v ./...
-      shell: msys2 {0}
+#      shell: msys2 {0}
 
     - name: Run tests
       run: |
         go test -tags '${{ env.BUILD_TAGS_WIN }}' -v ./...
-      shell: msys2 {0}
+#      shell: msys2 {0}
 
   go-lint:
     runs-on: ubuntu-22.04
