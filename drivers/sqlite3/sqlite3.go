@@ -851,7 +851,7 @@ func (d *database) SourceMetadata(ctx context.Context, noSchema bool) (*source.M
 		return md, nil
 	}
 
-	md.Tables, err = getAllTblMeta(ctx, d.db)
+	md.Tables, err = getAllTableMetadata(ctx, d.db, md.Schema)
 	if err != nil {
 		return nil, err
 	}

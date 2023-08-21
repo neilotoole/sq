@@ -368,3 +368,14 @@ func WriteTemp(t testing.TB, pattern string, b []byte, cleanup bool) (fpath stri
 	}
 	return fpath
 }
+
+// MustAbsFilepath invokes filepath.Join on elems, and then filepath.Abs
+// on the result. It panics on error.
+func MustAbsFilepath(elems ...string) string {
+	fp := filepath.Join(elems...)
+	s, err := filepath.Abs(fp)
+	if err != nil {
+		panic(err)
+	}
+	return s
+}

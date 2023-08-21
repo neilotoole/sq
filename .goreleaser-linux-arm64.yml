@@ -10,7 +10,7 @@ builds:
     binary: sq
     flags:
       - -a
-      - -tags=netgo
+#      - -tags=netgo
     env:
       - CGO_ENABLED=1
       - CGO_LDFLAGS=-static
@@ -26,6 +26,14 @@ builds:
       - -X github.com/neilotoole/sq/cli/buildinfo.Version=v{{ .Version }}
       - -X github.com/neilotoole/sq/cli/buildinfo.Commit={{ .ShortCommit }}
       - -X github.com/neilotoole/sq/cli/buildinfo.Timestamp={{ .Date }}
-
+    tags:
+      - netgo
+      - sqlite_vtable
+      - sqlite_stat4
+      - sqlite_fts5
+      - sqlite_icu
+      - sqlite_introspect
+      - sqlite_json
+      - sqlite_math_functions
 archives:
   - format: binary

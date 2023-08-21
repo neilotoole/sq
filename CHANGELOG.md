@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Breaking changes are annotated with ☢️.
 
+## [v0.42.0] - 2023-08-21
+
+### Added
+
+- 🐥 [#279]: The SQLite [driver](https://sq.io/docs/drivers/sqlite) now has initial support
+  for several SQLite [extensions](https://sq.io/docs/drivers/sqlite#extensions)
+  baked in, including [Virtual Table](https://www.sqlite.org/vtab.html) and [FTS5](https://www.sqlite.org/fts5.html).
+  Note that this is an early access release of extensions support. Please [open an issue](https://github.com/neilotoole/sq/issues/new/choose) if
+  you discover something bad.
+
 ## [v0.41.1] - 2023-08-20
 
 ### Fixed
@@ -783,6 +793,7 @@ make working with lots of sources much easier.
 [#261]: https://github.com/neilotoole/sq/issues/261
 [#263]: https://github.com/neilotoole/sq/issues/263
 [#277]: https://github.com/neilotoole/sq/issues/277
+[#279]: https://github.com/neilotoole/sq/issues/279
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
@@ -828,3 +839,4 @@ make working with lots of sources much easier.
 [v0.40.0]: https://github.com/neilotoole/sq/compare/v0.39.1...v0.40.0
 [v0.41.0]: https://github.com/neilotoole/sq/compare/v0.40.0...v0.41.0
 [v0.41.1]: https://github.com/neilotoole/sq/compare/v0.41.0...v0.41.1
+[v0.42.0]: https://github.com/neilotoole/sq/compare/v0.41.1...v0.42.0

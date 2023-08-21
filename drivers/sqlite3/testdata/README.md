@@ -26,3 +26,13 @@ testing of `sq`'s ability to support such names. The mutated DB is achieved by
 applying [`sakila-whitespace-alter.sql`](./sakila-whitespace-alter.sql) to
 `sakila.db`. The changes can be reversed with
 [`sakila-whitespace-restore.sql](./sakila-whitespace-restore.sql).
+
+## sakila_fts5.db
+
+[`sakila_fts5.db`](./sakila_fts5.db) is based off [`sakila.db`](./sakila.db), but
+contains an FTS5 virtual table `actor_fts`. This table was created via the statement:
+
+```sql
+CREATE VIRTUAL TABLE actor_fts
+USING fts5(actor_id, first_name, last_name, last_update, content='actor', content_rowid='actor_id');
+```

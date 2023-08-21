@@ -4,9 +4,12 @@ import "C"
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
+
+	"github.com/neilotoole/sq/libsq/core/stringz"
 
 	"github.com/neilotoole/sq/libsq/driver"
 
@@ -273,19 +276,24 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*source.
 	const tpl = `SELECT
 (SELECT COUNT(*) FROM %q),
 (SELECT type FROM sqlite_master WHERE name = %q LIMIT 1),
+(SELECT 1 FROM sqlite_master WHERE name = %q AND substr("sql",0,21) == 'CREATE VIRTUAL TABLE') AS is_virtual,
 (SELECT name FROM pragma_database_list ORDER BY seq LIMIT 1)`
+
 	var schema string
-	query := fmt.Sprintf(tpl, tblMeta.Name, tblMeta.Name)
-	err := db.QueryRowContext(ctx, query).Scan(&tblMeta.RowCount, &tblMeta.DBTableType, &schema)
+	var isVirtualTbl sql.NullBool
+	query := fmt.Sprintf(tpl, tblMeta.Name, tblMeta.Name, tblMeta.Name)
+	err := db.QueryRowContext(ctx, query).Scan(&tblMeta.RowCount, &tblMeta.DBTableType, &isVirtualTbl, &schema)
 	if err != nil {
 		return nil, errw(err)
 	}
 
-	switch tblMeta.DBTableType {
-	case "table":
-		tblMeta.TableType = sqlz.TableTypeTable
-	case "view":
+	switch {
+	case isVirtualTbl.Valid && isVirtualTbl.Bool:
+		tblMeta.TableType = sqlz.TableTypeVirtual
+	case tblMeta.DBTableType == sqlz.TableTypeView:
 		tblMeta.TableType = sqlz.TableTypeView
+	case tblMeta.DBTableType == sqlz.TableTypeTable:
+		tblMeta.TableType = sqlz.TableTypeTable
 	default:
 	}
 
@@ -312,6 +320,16 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*source.
 			return nil, errw(err)
 		}
 
+		if col.BaseType == "" {
+			// The TABLE_INFO pragma doesn't return column types for virtual tables.
+			//
+			// REVISIT: This logic should be pulled out into a separate query for
+			// all "untyped" columns, instead of invoking it for every untyped column.
+			if col.BaseType, err = getTypeOfColumn(ctx, db, tblMeta.Name, col.Name); err != nil {
+				return nil, err
+			}
+		}
+
 		col.PrimaryKey = pkValue.Int64 > 0 // pkVal can be 0,1,2 etc
 		col.ColumnType = col.BaseType
 		col.Nullable = notnull == 0
@@ -329,9 +347,11 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*source.
 	return tblMeta, nil
 }
 
-// getAllTblMeta gets metadata for each of the
-// non-system tables in db.
-func getAllTblMeta(ctx context.Context, db sqlz.DB) ([]*source.TableMetadata, error) {
+// getAllTableMetadata gets metadata for each of the
+// non-system tables in db's schema. Arg schemaName is used to
+// set TableMetadata.FQName; it is not used to select which schema
+// to introspect.
+func getAllTableMetadata(ctx context.Context, db sqlz.DB, schemaName string) ([]*source.TableMetadata, error) {
 	log := lg.FromContext(ctx)
 	// This query returns a row for each column of each table,
 	// order by table name then col id (ordinal).
@@ -350,7 +370,8 @@ func getAllTblMeta(ctx context.Context, db sqlz.DB) ([]*source.TableMetadata, er
 	// Note: dflt_value of col "address2" is the string "NULL", rather
 	// that NULL value itself.
 	const query = `
-SELECT m.name as table_name, m.type, p.cid, p.name, p.type, p.'notnull' as 'notnull', p.dflt_value, p.pk
+SELECT m.name as table_name, m.type, p.cid, p.name, p.type, p.'notnull' as 'notnull', p.dflt_value, p.pk,
+(substr(m.sql, 0, 21) == 'CREATE VIRTUAL TABLE') AS is_virtual
 FROM sqlite_master AS m JOIN pragma_table_info(m.name) AS p
 ORDER BY m.name, p.cid
 `
@@ -359,6 +380,7 @@ ORDER BY m.name, p.cid
 	var tblNames []string
 	var curTblName string
 	var curTblType string
+	var curTblIsVirtual bool
 	var curTblMeta *source.TableMetadata
 
 	rows, err := db.QueryContext(ctx, query)
@@ -379,7 +401,17 @@ ORDER BY m.name, p.cid
 		colDefault := &sql.NullString{}
 		pkValue := &sql.NullInt64{}
 
-		err = rows.Scan(&curTblName, &curTblType, &col.Position, &col.Name, &col.BaseType, &notnull, colDefault, pkValue)
+		err = rows.Scan(
+			&curTblName,
+			&curTblType,
+			&col.Position,
+			&col.Name,
+			&col.BaseType,
+			&notnull,
+			colDefault,
+			pkValue,
+			&curTblIsVirtual,
+		)
 		if err != nil {
 			return nil, errw(err)
 		}
@@ -389,19 +421,32 @@ ORDER BY m.name, p.cid
 			continue
 		}
 
+		if col.BaseType == "" {
+			// The TABLE_INFO pragma doesn't return column types for virtual tables.
+			//
+			// REVISIT: This logic should be pulled out into a separate query for
+			// all "untyped" columns, instead of invoking it for every untyped column.
+			if col.BaseType, err = getTypeOfColumn(ctx, db, curTblName, col.Name); err != nil {
+				return nil, err
+			}
+		}
+
 		if curTblMeta == nil || curTblMeta.Name != curTblName {
 			// On our first time encountering a new table name, we create a new TableMetadata
 			curTblMeta = &source.TableMetadata{
 				Name:        curTblName,
+				FQName:      schemaName + "." + curTblName,
 				Size:        nil, // No easy way of getting the storage size of a table
 				DBTableType: curTblType,
 			}
 
-			switch curTblMeta.DBTableType {
-			case "table":
-				curTblMeta.TableType = sqlz.TableTypeTable
-			case "view":
+			switch {
+			case curTblIsVirtual:
+				curTblMeta.TableType = sqlz.TableTypeVirtual
+			case curTblMeta.DBTableType == sqlz.TableTypeView:
 				curTblMeta.TableType = sqlz.TableTypeView
+			case curTblMeta.DBTableType == sqlz.TableTypeTable:
+				curTblMeta.TableType = sqlz.TableTypeTable
 			default:
 			}
 
@@ -513,4 +558,23 @@ func getTblRowCounts(ctx context.Context, db sqlz.DB, tblNames []string) ([]int6
 	}
 
 	return tblCounts, nil
+}
+
+// getTypeOfColumn executes "SELECT typeof(colName)", returning the first result.
+// Empty string is returned if there are no rows in that table, as SQLite determines
+// type on a per-cell basis, not per-column.
+func getTypeOfColumn(ctx context.Context, db sqlz.DB, tblName, colName string) (string, error) {
+	colTypeQuery := fmt.Sprintf(`SELECT typeof(%s) FROM %s LIMIT 1`,
+		stringz.DoubleQuote(colName), stringz.DoubleQuote(tblName))
+
+	var colType string
+	if err := db.QueryRowContext(ctx, colTypeQuery).Scan(&colType); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", nil
+		}
+
+		return "", errw(err)
+	}
+
+	return colType, nil
 }
