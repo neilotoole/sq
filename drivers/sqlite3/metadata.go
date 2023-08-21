@@ -292,8 +292,9 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*source.
 		tblMeta.TableType = sqlz.TableTypeVirtual
 	case tblMeta.DBTableType == sqlz.TableTypeView:
 		tblMeta.TableType = sqlz.TableTypeView
-	default:
+	case tblMeta.DBTableType == sqlz.TableTypeTable:
 		tblMeta.TableType = sqlz.TableTypeTable
+	default:
 	}
 
 	tblMeta.FQName = schema + "." + tblName
