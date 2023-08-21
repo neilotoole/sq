@@ -64,6 +64,14 @@ jobs:
   test-windows:
     runs-on: windows-2022
     steps:
+    # Copied from https://github.com/mattn/go-sqlite3/blob/master/.github/workflows/go.yaml#L73
+    - uses: msys2/setup-msys2@v2
+      with:
+        update: true
+        install: mingw-w64-x86_64-toolchain mingw-w64-x86_64-sqlite3
+        msystem: MINGW64
+        path-type: inherit
+
     - name: Checkout
       uses: actions/checkout@v3
       with:
@@ -76,10 +84,12 @@ jobs:
 
     - name: Build
       run: go build -tags '${{ env.BUILD_TAGS }}' -v ./...
+      shell: msys2 {0}
 
     - name: Run tests
       run: |
         go test -tags '${{ env.BUILD_TAGS }}' -v ./...
+      shell: msys2 {0}
 
   go-lint:
     runs-on: ubuntu-22.04
