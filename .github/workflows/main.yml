@@ -12,6 +12,7 @@ env:
   GO_VERSION: 1.21.0
   GORELEASER_VERSION: 1.20.0
   GOLANGCI_LINT_VERSION: v1.54.1
+  BUILD_TAGS: 'sqlite_vtable sqlite_stat4 sqlite_fts5 sqlite_icu sqlite_introspect sqlite_json sqlite_math_functions'
 
 jobs:
 
@@ -42,14 +43,14 @@ jobs:
 
 
       - name: Build
-        run: go build -v ./...
+        run: go build -tags ${{ env.BUILD_TAGS }} -v ./...
 
       # Run tests with nice formatting. Save the original log in /tmp/gotest.log
       # https://github.com/GoTestTools/gotestfmt#github-actions
       - name: Run tests
         run: |
           set -euo pipefail
-          go test -json -v ./... 2>&1 | tee gotest.log | gotestfmt
+          go test -tags ${{ env.BUILD_TAGS }} -json -v ./... 2>&1 | tee gotest.log | gotestfmt
 
       # Upload the original go test log as an artifact for later review.
       - name: Upload test log
@@ -75,7 +76,7 @@ jobs:
 
     - name: Run tests
       run: |
-        go test -v ./...
+        go test -tags ${{ env.BUILD_TAGS }} -v ./...
 
   go-lint:
     runs-on: ubuntu-22.04

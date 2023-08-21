@@ -273,20 +273,24 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*source.
 	const tpl = `SELECT
 (SELECT COUNT(*) FROM %q),
 (SELECT type FROM sqlite_master WHERE name = %q LIMIT 1),
+(SELECT 1 FROM sqlite_master WHERE name = %q AND substr("sql",0,21) == 'CREATE VIRTUAL TABLE') AS is_virtual,
 (SELECT name FROM pragma_database_list ORDER BY seq LIMIT 1)`
+
 	var schema string
-	query := fmt.Sprintf(tpl, tblMeta.Name, tblMeta.Name)
-	err := db.QueryRowContext(ctx, query).Scan(&tblMeta.RowCount, &tblMeta.DBTableType, &schema)
+	var isVirtualTbl sql.NullBool
+	query := fmt.Sprintf(tpl, tblMeta.Name, tblMeta.Name, tblMeta.Name)
+	err := db.QueryRowContext(ctx, query).Scan(&tblMeta.RowCount, &tblMeta.DBTableType, &isVirtualTbl, &schema)
 	if err != nil {
 		return nil, errw(err)
 	}
 
-	switch tblMeta.DBTableType {
-	case "table":
-		tblMeta.TableType = sqlz.TableTypeTable
-	case "view":
+	switch {
+	case isVirtualTbl.Valid && isVirtualTbl.Bool:
+		tblMeta.TableType = sqlz.TableTypeVirtual
+	case tblMeta.DBTableType == sqlz.TableTypeView:
 		tblMeta.TableType = sqlz.TableTypeView
 	default:
+		tblMeta.TableType = sqlz.TableTypeTable
 	}
 
 	tblMeta.FQName = schema + "." + tblName
@@ -330,8 +334,9 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*source.
 }
 
 // getAllTblMeta gets metadata for each of the
-// non-system tables in db.
-func getAllTblMeta(ctx context.Context, db sqlz.DB) ([]*source.TableMetadata, error) {
+// non-system tables in db. The schemaName is used to
+// set source.TableMetadata.FQName.
+func getAllTblMeta(ctx context.Context, db sqlz.DB, schemaName string) ([]*source.TableMetadata, error) {
 	log := lg.FromContext(ctx)
 	// This query returns a row for each column of each table,
 	// order by table name then col id (ordinal).
@@ -350,7 +355,8 @@ func getAllTblMeta(ctx context.Context, db sqlz.DB) ([]*source.TableMetadata, er
 	// Note: dflt_value of col "address2" is the string "NULL", rather
 	// that NULL value itself.
 	const query = `
-SELECT m.name as table_name, m.type, p.cid, p.name, p.type, p.'notnull' as 'notnull', p.dflt_value, p.pk
+SELECT m.name as table_name, m.type, p.cid, p.name, p.type, p.'notnull' as 'notnull', p.dflt_value, p.pk,
+(substr(m.sql, 0, 21) == 'CREATE VIRTUAL TABLE') AS is_virtual
 FROM sqlite_master AS m JOIN pragma_table_info(m.name) AS p
 ORDER BY m.name, p.cid
 `
@@ -359,6 +365,7 @@ ORDER BY m.name, p.cid
 	var tblNames []string
 	var curTblName string
 	var curTblType string
+	var curTblIsVirtual bool
 	var curTblMeta *source.TableMetadata
 
 	rows, err := db.QueryContext(ctx, query)
@@ -379,7 +386,17 @@ ORDER BY m.name, p.cid
 		colDefault := &sql.NullString{}
 		pkValue := &sql.NullInt64{}
 
-		err = rows.Scan(&curTblName, &curTblType, &col.Position, &col.Name, &col.BaseType, &notnull, colDefault, pkValue)
+		err = rows.Scan(
+			&curTblName,
+			&curTblType,
+			&col.Position,
+			&col.Name,
+			&col.BaseType,
+			&notnull,
+			colDefault,
+			pkValue,
+			&curTblIsVirtual,
+		)
 		if err != nil {
 			return nil, errw(err)
 		}
@@ -393,15 +410,18 @@ ORDER BY m.name, p.cid
 			// On our first time encountering a new table name, we create a new TableMetadata
 			curTblMeta = &source.TableMetadata{
 				Name:        curTblName,
+				FQName:      schemaName + "." + curTblName,
 				Size:        nil, // No easy way of getting the storage size of a table
 				DBTableType: curTblType,
 			}
 
-			switch curTblMeta.DBTableType {
-			case "table":
-				curTblMeta.TableType = sqlz.TableTypeTable
-			case "view":
+			switch {
+			case curTblIsVirtual:
+				curTblMeta.TableType = sqlz.TableTypeVirtual
+			case curTblMeta.DBTableType == sqlz.TableTypeView:
 				curTblMeta.TableType = sqlz.TableTypeView
+			case curTblMeta.DBTableType == sqlz.TableTypeTable:
+				curTblMeta.TableType = sqlz.TableTypeTable
 			default:
 			}
 

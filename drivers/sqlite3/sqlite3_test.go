@@ -309,3 +309,34 @@ func TestSQLQuery_Whitespace(t *testing.T) {
 	require.Equal(t, "last name", sink.RecMeta[2].Name())
 	require.Equal(t, "last name", sink.RecMeta[2].MungedName())
 }
+
+func TestExtension_fts5(t *testing.T) {
+	const tblActorFts = "actor_fts"
+
+	th := testh.New(t)
+	src := th.Add(&source.Source{
+		Handle:   "@fts",
+		Type:     sqlite3.Type,
+		Location: "sqlite3://" + tutil.MustAbsFilepath("testdata/sakila-fts5.db"),
+	})
+
+	srcMeta, err := th.SourceMetadata(src)
+	require.NoError(t, err)
+	require.Equal(t, src.Handle, srcMeta.Handle)
+	tblMeta1 := srcMeta.Table(tblActorFts)
+	require.NotNil(t, tblMeta1)
+	require.Equal(t, tblActorFts, tblMeta1.Name)
+	require.Equal(t, sqlz.TableTypeVirtual, tblMeta1.TableType)
+	tblMeta2, err := th.TableMetadata(src, tblActorFts)
+	require.NoError(t, err)
+	require.Equal(t, tblActorFts, tblMeta2.Name)
+	require.Equal(t, sqlz.TableTypeVirtual, tblMeta2.TableType)
+	require.EqualValues(t, *tblMeta1, *tblMeta2)
+
+	// Verify that the (non-virtual) "actor" table has its type set correctly.
+	actorMeta1 := srcMeta.Table(sakila.TblActor)
+	actorMeta2, err := th.TableMetadata(src, sakila.TblActor)
+	require.NoError(t, err)
+	require.Equal(t, actorMeta1.TableType, sqlz.TableTypeTable)
+	require.Equal(t, *actorMeta1, *actorMeta2)
+}

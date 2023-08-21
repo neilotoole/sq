@@ -59,8 +59,9 @@ func ExecAffected(ctx context.Context, db Execer, query string, args ...any) (af
 	return affected, nil
 }
 
-// Canonical driver-independent names for "table" and "view".
+// Canonical driver-independent names for table types.
 const (
-	TableTypeTable = "table"
-	TableTypeView  = "view"
+	TableTypeTable   = "table"
+	TableTypeView    = "view"
+	TableTypeVirtual = "virtual"
 )

@@ -368,3 +368,12 @@ func WriteTemp(t testing.TB, pattern string, b []byte, cleanup bool) (fpath stri
 	}
 	return fpath
 }
+
+// MustAbsFilepath invokes filepath.Abs, and panics on error.
+func MustAbsFilepath(p string) string {
+	s, err := filepath.Abs(p)
+	if err != nil {
+		panic(err)
+	}
+	return s
+}
