@@ -13,12 +13,10 @@ env:
   GORELEASER_VERSION: 1.20.0
   GOLANGCI_LINT_VERSION: v1.54.1
   BUILD_TAGS: 'sqlite_vtable sqlite_stat4 sqlite_fts5 sqlite_icu sqlite_introspect sqlite_json sqlite_math_functions'
-
   # Note that windows doesn't have sqlite_icu, as that fails to build. Needs investigation.
   BUILD_TAGS_WIN: 'sqlite_vtable sqlite_stat4 sqlite_fts5 sqlite_introspect sqlite_json sqlite_math_functions'
 
 jobs:
-
   test-linux-darwin:
     strategy:
       matrix:
@@ -112,32 +110,32 @@ jobs:
         with:
           version: ${{ env.GOLANGCI_LINT_VERSION }}
 
-  coverage:
-    runs-on: ubuntu-22.04
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v3
-      with:
-        fetch-depth: 0
-
-    - name: Set up Go
-      uses: actions/setup-go@v3
-      with:
-        go-version: ${{ env.GO_VERSION }}
-
-    - name: Test
-      run: go test -v ./...
-
-    # https://github.com/ncruces/go-coverage-report
-    - name: Update coverage report
-      uses: ncruces/go-coverage-report@v0
-      with:
-        report: 'true'
-        chart: 'true'
-        amend: 'false'
-      if: |
-        github.event_name == 'push'
-      continue-on-error: true
+#  coverage:
+#    runs-on: ubuntu-22.04
+#    steps:
+#    - name: Checkout
+#      uses: actions/checkout@v3
+#      with:
+#        fetch-depth: 0
+#
+#    - name: Set up Go
+#      uses: actions/setup-go@v3
+#      with:
+#        go-version: ${{ env.GO_VERSION }}
+#
+#    - name: Test
+#      run: go test -v ./...
+#
+#    # https://github.com/ncruces/go-coverage-report
+#    - name: Update coverage report
+#      uses: ncruces/go-coverage-report@v0
+#      with:
+#        report: 'true'
+#        chart: 'true'
+#        amend: 'false'
+#      if: |
+#        github.event_name == 'push'
+#      continue-on-error: true
 
 
   binaries-darwin:

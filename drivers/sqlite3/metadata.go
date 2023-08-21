@@ -4,9 +4,12 @@ import "C"
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
+
+	"github.com/neilotoole/sq/libsq/core/stringz"
 
 	"github.com/neilotoole/sq/libsq/driver"
 
@@ -316,6 +319,16 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*source.
 			return nil, errw(err)
 		}
 
+		if col.BaseType == "" {
+			// The TABLE_INFO pragma doesn't return column types for virtual tables.
+			//
+			// REVISIT: This logic should be pulled out into a separate query for
+			// all "untyped" columns, instead of invoking it for every untyped column.
+			if col.BaseType, err = getTypeOfColumn(ctx, db, tblMeta.Name, col.Name); err != nil {
+				return nil, err
+			}
+		}
+
 		col.PrimaryKey = pkValue.Int64 > 0 // pkVal can be 0,1,2 etc
 		col.ColumnType = col.BaseType
 		col.Nullable = notnull == 0
@@ -333,10 +346,11 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*source.
 	return tblMeta, nil
 }
 
-// getAllTblMeta gets metadata for each of the
-// non-system tables in db. The schemaName is used to
-// set source.TableMetadata.FQName.
-func getAllTblMeta(ctx context.Context, db sqlz.DB, schemaName string) ([]*source.TableMetadata, error) {
+// getAllTableMetadata gets metadata for each of the
+// non-system tables in db's schema. Arg schemaName is used to
+// set TableMetadata.FQName; it is not used to select which schema
+// to introspect.
+func getAllTableMetadata(ctx context.Context, db sqlz.DB, schemaName string) ([]*source.TableMetadata, error) {
 	log := lg.FromContext(ctx)
 	// This query returns a row for each column of each table,
 	// order by table name then col id (ordinal).
@@ -404,6 +418,16 @@ ORDER BY m.name, p.cid
 		if strings.HasPrefix(curTblName, "sqlite_") {
 			// Skip system table "sqlite_sequence" etc.
 			continue
+		}
+
+		if col.BaseType == "" {
+			// The TABLE_INFO pragma doesn't return column types for virtual tables.
+			//
+			// REVISIT: This logic should be pulled out into a separate query for
+			// all "untyped" columns, instead of invoking it for every untyped column.
+			if col.BaseType, err = getTypeOfColumn(ctx, db, curTblName, col.Name); err != nil {
+				return nil, err
+			}
 		}
 
 		if curTblMeta == nil || curTblMeta.Name != curTblName {
@@ -533,4 +557,23 @@ func getTblRowCounts(ctx context.Context, db sqlz.DB, tblNames []string) ([]int6
 	}
 
 	return tblCounts, nil
+}
+
+// getTypeOfColumn executes "SELECT typeof(colName)", returning the first result.
+// Empty string is returned if there are no rows in that table, as SQLite determines
+// type on a per-cell basis, not per-column.
+func getTypeOfColumn(ctx context.Context, db sqlz.DB, tblName, colName string) (string, error) {
+	colTypeQuery := fmt.Sprintf(`SELECT typeof(%s) FROM %s LIMIT 1`,
+		stringz.DoubleQuote(colName), stringz.DoubleQuote(tblName))
+
+	var colType string
+	if err := db.QueryRowContext(ctx, colTypeQuery).Scan(&colType); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", nil
+		}
+
+		return "", errw(err)
+	}
+
+	return colType, nil
 }
