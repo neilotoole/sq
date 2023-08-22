@@ -23,7 +23,6 @@ builds:
       - sqlite_vtable
       - sqlite_stat4
       - sqlite_fts5
-#      - sqlite_icu
       - sqlite_introspect
       - sqlite_json
       - sqlite_math_functions

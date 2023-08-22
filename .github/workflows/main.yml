@@ -12,10 +12,7 @@ env:
   GO_VERSION: 1.21.0
   GORELEASER_VERSION: 1.20.0
   GOLANGCI_LINT_VERSION: v1.54.1
-#  BUILD_TAGS: 'sqlite_vtable sqlite_stat4 sqlite_fts5 sqlite_icu sqlite_introspect sqlite_json sqlite_math_functions'
   BUILD_TAGS: 'sqlite_vtable sqlite_stat4 sqlite_fts5 sqlite_introspect sqlite_json sqlite_math_functions'
-  # Note that windows doesn't have sqlite_icu, as that fails to build. Needs investigation.
-  BUILD_TAGS_WIN: 'sqlite_vtable sqlite_stat4 sqlite_fts5 sqlite_introspect sqlite_json sqlite_math_functions'
 
 jobs:
   test-linux-darwin:
@@ -85,12 +82,12 @@ jobs:
         go-version: ${{ env.GO_VERSION }}
 
     - name: Build
-      run: go build -tags '${{ env.BUILD_TAGS_WIN }}' -v ./...
+      run: go build -tags '${{ env.BUILD_TAGS }}' -v ./...
 #      shell: msys2 {0}
 
     - name: Run tests
       run: |
-        go test -tags '${{ env.BUILD_TAGS_WIN }}' -v ./...
+        go test -tags '${{ env.BUILD_TAGS }}' -v ./...
 #      shell: msys2 {0}
 
   go-lint:
