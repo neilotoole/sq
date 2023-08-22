@@ -10,7 +10,6 @@ builds:
     binary: sq
     flags:
       - -a
-#      - -tags=netgo
     env:
       - CGO_ENABLED=1
       - CGO_LDFLAGS=-static

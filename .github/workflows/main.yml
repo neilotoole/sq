@@ -16,7 +16,6 @@ env:
   BUILD_TAGS: 'sqlite_vtable sqlite_stat4 sqlite_fts5 sqlite_introspect sqlite_json sqlite_math_functions'
   # Note that windows doesn't have sqlite_icu, as that fails to build. Needs investigation.
   BUILD_TAGS_WIN: 'sqlite_vtable sqlite_stat4 sqlite_fts5 sqlite_introspect sqlite_json sqlite_math_functions'
-  BUILD_TAGS_WIN: 'sqlite_vtable sqlite_stat4 sqlite_fts5 sqlite_introspect sqlite_json sqlite_math_functions'
 
 jobs:
   test-linux-darwin:
