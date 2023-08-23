@@ -185,7 +185,7 @@ The default behavior is to diff table schema and row counts. Table row data is n
 
 ![sq diff](.images/sq_diff_src_default.png)
 
-Use `--data` to compare row data.
+Use [`--data`](https://sq.io/docs/diff#--data) to compare row data.
 
 ![sq diff data](.images/sq_diff_table_data.png)
 
