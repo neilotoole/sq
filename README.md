@@ -13,7 +13,7 @@ structured data sources: SQL databases, or document formats like CSV or Excel.
 ![sq](.images/splash.png)
 
 `sq` executes jq-like [queries](https://sq.io/docs/query), or database-native [SQL](https://sq.io/docs/cmd/sql/).
-It can [join](https://sq.io/docs/query/#cross-source-joins) across sources: join a CSV file to a Postgres table, or
+It can [join](https://sq.io/docs/query#cross-source-joins) across sources: join a CSV file to a Postgres table, or
 MySQL with Excel.
 
 `sq` outputs to a multitude of [formats](https://sq.io/docs/output#formats)
@@ -145,7 +145,7 @@ Or use [`-j`](https://sq.io/docs/output#json) to get JSON output:
 ![sq inspect -j](./.images/sq_inspect_sakila_sqlite_json.png)
 
 Combine `sq inspect` with [jq](https://jqlang.github.io/jq/) for some useful capabilities.
-Here's how to [list](https://sq.io/docs/cookbook/#list-table-names)
+Here's how to [list](https://sq.io/docs/cookbook#list-table-names)
 all the table names in the active source:
 
 ```shell
@@ -160,7 +160,7 @@ customer
 ```
 
 And here's how you
-could [export](https://sq.io/docs/cookbook/#export-all-table-data-to-csv) each table
+could [export](https://sq.io/docs/cookbook#export-all-table-data-to-csv) each table
 to a CSV file:
 
 ```shell
@@ -179,9 +179,18 @@ Read more about [`sq inspect`](https://sq.io/docs/inspect).
 
 ### Diff
 
-Use [`sq diff`](https://sq.io/docs/diff) to compare source metadata, or row data.
+Use [`sq diff`](https://sq.io/docs/diff) to compare metadata, or row data, for sources, or individual tables.
 
-![sq diff](.images/sq_diff_table_data.png)
+The default behavior is to diff table schema and row counts. Table row data is not compared in this mode.
+
+![sq diff](.images/sq_diff_src_default.png)
+
+Use `--data` to compare row data.
+
+![sq diff data](.images/sq_diff_table_data.png)
+
+There are many more options available. See the [diff docs](https://sq.io/docs/diff).
+
 
 ### Insert query results
 
