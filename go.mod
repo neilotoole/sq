@@ -35,7 +35,7 @@ require (
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.4
-	github.com/xo/dburl v0.14.2
+	github.com/xo/dburl v0.16.0
 
 	// At the time of writing (2023-08-13), there was an issue with the latest
 	// release of excelize, so we're using master. On the next release we
