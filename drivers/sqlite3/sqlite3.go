@@ -606,6 +606,12 @@ func (d *driveri) CurrentSchema(ctx context.Context, db sqlz.DB) (string, error)
 	return name, nil
 }
 
+// SetSourceSchema implements driver.SQLDriver.
+func (d *driveri) SetSourceSchema(src *source.Source, schema string) error {
+	// TODO implement me
+	panic("implement me")
+}
+
 // AlterTableRename implements driver.SQLDriver.
 func (d *driveri) AlterTableRename(ctx context.Context, db sqlz.DB, tbl, newName string) error {
 	q := fmt.Sprintf(`ALTER TABLE %q RENAME TO %q`, tbl, newName)

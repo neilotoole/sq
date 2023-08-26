@@ -5,6 +5,9 @@ const (
 	ActiveSrc      = "src"
 	ActiveSrcUsage = "Override the active source for this query"
 
+	ActiveSchema      = "src.schema"
+	ActiveSchemaUsage = "Override the active schema for this query"
+
 	ConfigSrc      = "src"
 	ConfigSrcUsage = "Config for source"
 

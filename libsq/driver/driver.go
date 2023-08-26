@@ -233,6 +233,12 @@ type SQLDriver interface {
 	// CurrentSchema returns the current schema name.
 	CurrentSchema(ctx context.Context, db sqlz.DB) (string, error)
 
+	// SetSourceSchema modifies the Location field of src to use the
+	// specified schema. Typically the default schema
+	// is something like "public", or "main", but it can typically be set
+	// to a different schema.
+	SetSourceSchema(src *source.Source, schema string) error
+
 	// TableColumnTypes returns the column type info from
 	// the SQL driver. If len(colNames) is 0, info is returned
 	// for all columns in the table.

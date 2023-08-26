@@ -74,7 +74,7 @@ func execSQL(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	err := determineSources(cmd.Context(), ru)
+	err := determineSources(cmd.Context(), ru, true)
 	if err != nil {
 		return err
 	}

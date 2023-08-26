@@ -348,6 +348,12 @@ func (d *driveri) CurrentSchema(ctx context.Context, db sqlz.DB) (string, error)
 	return name, nil
 }
 
+// SetSourceSchema implements driver.SQLDriver.
+func (d *driveri) SetSourceSchema(src *source.Source, schema string) error {
+	// TODO implement me
+	panic("implement me")
+}
+
 // CreateTable implements driver.SQLDriver.
 func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *sqlmodel.TableDef) error {
 	stmt := buildCreateTableStmt(tblDef)

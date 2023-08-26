@@ -1,12 +1,15 @@
 package cli_test
 
 import (
+	"context"
 	"encoding/csv"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/neilotoole/sq/testh/proj"
 
 	"github.com/neilotoole/sq/cli"
 
@@ -273,4 +276,40 @@ func TestPreprocessFlagArgVars(t *testing.T) {
 			require.EqualValues(t, tc.want, got)
 		})
 	}
+}
+
+func TestFlagActiveSource_slq(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	tr := testrun.New(ctx, t, nil)
+
+	// @sqlite will be the active source
+	require.NoError(t, tr.Exec("add", proj.Abs(sakila.PathSL3), "--handle", "@sqlite"))
+
+	tr = testrun.New(ctx, t, tr)
+	require.NoError(t, tr.Exec("add", proj.Abs(sakila.PathCSVActor), "--handle", "@csv"))
+
+	tr = testrun.New(ctx, t, tr)
+	require.NoError(t, tr.Exec(
+		"--csv",
+		"--no-header",
+		".actor",
+	))
+	require.Len(t, tr.BindCSV(), sakila.TblActorCount)
+
+	// Now, use flag.ActiveSrc to switch the source.
+	tr = testrun.New(ctx, t, tr)
+	require.NoError(t, tr.Exec(
+		"--csv",
+		"--no-header",
+		"--src", "@csv",
+		".data",
+	))
+	require.Len(t, tr.BindCSV(), sakila.TblActorCount)
+
+	// Double check that we didn't change the persisted active source
+	tr = testrun.New(ctx, t, tr)
+	require.NoError(t, tr.Exec("src", "--json"))
+	require.Equal(t, "@sqlite", tr.BindMap()["handle"])
 }

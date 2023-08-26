@@ -65,6 +65,82 @@ func execSLQ(cmd *cobra.Command, args []string) error {
 	ru := run.FromContext(ctx)
 	coll := ru.Config.Collection
 
+	err := determineSources(cmd.Context(), ru, false)
+	if err != nil {
+		return err
+	}
+
+	activeSrc := coll.Active()
+	if activeSrc == nil {
+		lg.FromContext(ctx).Debug("No active source; continuing regardless...")
+		// Previously, an error was returned if there was no active source.
+		// However, we want to support the use case of being able to
+		// execute a trivial query when there is no active source. Basically,
+		// we want to be able to use sq as a calculator, even without
+		// an active source. Example:
+		//
+		//  $ sq '1+2'
+		//
+		// In this scenario, the query '1+2' would typically be executed
+		// against the active source. However, libsq will fall back to
+		// using the scratch source (i.e. embedded SQLite) if there's no
+		// active source, so we allow progress to continue.
+	}
+
+	mArgs, err := extractFlagArgsValues(cmd)
+	if err != nil {
+		return err
+	}
+
+	if err = applyCollectionOptions(cmd, coll); err != nil {
+		return err
+	}
+
+	if !cmdFlagChanged(cmd, flag.Insert) {
+		// The user didn't specify the --insert=@src.tbl flag,
+		// so we just want to print the records.
+		return execSLQPrint(ctx, ru, mArgs)
+	}
+
+	// Instead of printing the records, they will be
+	// written to another database
+	insertTo, _ := cmd.Flags().GetString(flag.Insert)
+	if insertTo == "" {
+		return errz.Errorf("invalid --%s value: empty", flag.Insert)
+	}
+
+	destHandle, destTbl, err := source.ParseTableHandle(insertTo)
+	if err != nil {
+		return errz.Wrapf(err, "invalid --%s value", flag.Insert)
+	}
+
+	if destTbl == "" {
+		return errz.Errorf("invalid value for --%s: must be @HANDLE.TABLE", flag.Insert)
+	}
+
+	destSrc, err := coll.Get(destHandle)
+	if err != nil {
+		return err
+	}
+
+	return execSLQInsert(ctx, ru, mArgs, destSrc, destTbl)
+}
+
+// execSLQ is sq's core command.
+func execSLQOld(cmd *cobra.Command, args []string) error {
+	if len(args) == 0 {
+		msg := "no query"
+		if cmdFlagChanged(cmd, flag.Arg) {
+			msg += fmt.Sprintf(": maybe check flag --%s usage", flag.Arg)
+		}
+
+		return errz.New(msg)
+	}
+
+	ctx := cmd.Context()
+	ru := run.FromContext(ctx)
+	coll := ru.Config.Collection
+
 	// check if there's input on stdin
 	src, err := checkStdinSource(ctx, ru)
 	if err != nil {
@@ -350,6 +426,10 @@ func addQueryCmdFlags(cmd *cobra.Command) {
 
 	cmd.Flags().String(flag.ActiveSrc, "", flag.ActiveSrcUsage)
 	panicOn(cmd.RegisterFlagCompletionFunc(flag.ActiveSrc, completeHandle(0)))
+	cmd.Flags().String(flag.ActiveSchema, "", flag.ActiveSchemaUsage)
+
+	// FIXME: add completion for flag.ActiveSchema
+	// panicOn(cmd.RegisterFlagCompletionFunc(flag.ActiveSchema, completeHandle(0)))
 
 	// The driver flag can be used if data is piped to sq over stdin
 	cmd.Flags().String(flag.IngestDriver, "", flag.IngestDriverUsage)
