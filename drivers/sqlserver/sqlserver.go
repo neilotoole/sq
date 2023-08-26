@@ -354,6 +354,33 @@ func (d *driveri) SetSourceSchema(src *source.Source, schema string) error {
 	panic("implement me")
 }
 
+// ListSchemas implements driver.SQLDriver.
+func (d *driveri) ListSchemas(ctx context.Context, db sqlz.DB) ([]string, error) {
+	log := lg.FromContext(ctx)
+
+	const q = `SELECT name FROM sys.schemas ORDER BY name`
+	var schemas []string
+	rows, err := db.QueryContext(ctx, q)
+	if err != nil {
+		return nil, errz.Err(err)
+	}
+	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
+
+	for rows.Next() {
+		var schema string
+		if err = rows.Scan(&schema); err != nil {
+			return nil, errz.Err(err)
+		}
+		schemas = append(schemas, schema)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, errz.Err(err)
+	}
+
+	return schemas, nil
+}
+
 // CreateTable implements driver.SQLDriver.
 func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *sqlmodel.TableDef) error {
 	stmt := buildCreateTableStmt(tblDef)

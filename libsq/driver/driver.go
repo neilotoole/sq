@@ -233,6 +233,10 @@ type SQLDriver interface {
 	// CurrentSchema returns the current schema name.
 	CurrentSchema(ctx context.Context, db sqlz.DB) (string, error)
 
+	// ListSchemas lists the available schemas on db. The returned slice
+	// is sorted by name.
+	ListSchemas(ctx context.Context, db sqlz.DB) ([]string, error)
+
 	// SetSourceSchema modifies the Location field of src to use the
 	// specified schema. Typically the default schema
 	// is something like "public", or "main", but it can typically be set

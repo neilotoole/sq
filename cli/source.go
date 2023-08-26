@@ -72,7 +72,6 @@ func determineSources(ctx context.Context, ru *run.Run, requireActive bool) erro
 //
 // This source also checks flag.ActiveSchema, and changes the schema
 // of the source if the flag is set.
-// func activeSrcAndSchemaFromFlagsOrConfig(cmd *cobra.Command, coll *source.Collection) (*source.Source, error) {
 func activeSrcAndSchemaFromFlagsOrConfig(ru *run.Run) (*source.Source, error) {
 	ctx, cmd, coll := ru.Cmd.Context(), ru.Cmd, ru.Config.Collection
 	var activeSrc *source.Source

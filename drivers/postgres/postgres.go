@@ -289,6 +289,34 @@ func (d *driveri) SetSourceSchema(src *source.Source, schema string) error {
 	return nil
 }
 
+// ListSchemas implements driver.SQLDriver.
+func (d *driveri) ListSchemas(ctx context.Context, db sqlz.DB) ([]string, error) {
+	log := lg.FromContext(ctx)
+
+	const q = `SELECT schema_name FROM information_schema.schemata ORDER BY schema_name`
+	var schemas []string
+	rows, err := db.QueryContext(ctx, q)
+	if err != nil {
+		return nil, errz.Err(err)
+	}
+
+	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
+
+	for rows.Next() {
+		var schema string
+		if err = rows.Scan(&schema); err != nil {
+			return nil, errz.Err(err)
+		}
+		schemas = append(schemas, schema)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, errz.Err(err)
+	}
+
+	return schemas, nil
+}
+
 // AlterTableRename implements driver.SQLDriver.
 func (d *driveri) AlterTableRename(ctx context.Context, db sqlz.DB, tbl, newName string) error {
 	q := fmt.Sprintf(`ALTER TABLE %q RENAME TO %q`, tbl, newName)

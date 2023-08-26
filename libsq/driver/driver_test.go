@@ -597,14 +597,18 @@ func TestSQLDriver_CurrentSchema(t *testing.T) {
 		t.Run(tc.handle, func(t *testing.T) {
 			th, _, drvr, dbase, db := testh.NewWith(t, tc.handle)
 
-			got, err := drvr.CurrentSchema(th.Context, db)
+			gotSchema, err := drvr.CurrentSchema(th.Context, db)
 			require.NoError(t, err)
-			require.Equal(t, tc.want, got)
+			require.Equal(t, tc.want, gotSchema)
 
 			md, err := dbase.SourceMetadata(th.Context, false)
 			require.NoError(t, err)
 			require.NotNil(t, md)
-			require.Equal(t, md.Schema, got)
+			require.Equal(t, md.Schema, gotSchema)
+
+			gotSchemas, err := drvr.ListSchemas(th.Context, db)
+			require.NoError(t, err)
+			require.Contains(t, gotSchemas, gotSchema)
 		})
 	}
 }
