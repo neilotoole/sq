@@ -2,7 +2,9 @@ package driver
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"fmt"
 	"log/slog"
 	"strings"
 	"sync"
@@ -425,7 +427,8 @@ func NewDatabases(log *slog.Logger, drvrs Provider, scratchSrcFn ScratchSrcFunc)
 
 // Open returns an opened Database for src. The returned Database
 // may be cached and returned on future invocations for the
-// same handle. Thus, the caller should typically not close
+// same source (where each source fields is identical).
+// Thus, the caller should typically not close
 // the Database: it will be closed via d.Close.
 //
 // NOTE: This entire logic re caching/not-closing is a bit sketchy,
@@ -438,7 +441,9 @@ func (d *Databases) Open(ctx context.Context, src *source.Source) (Database, err
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	dbase, ok := d.dbases[src.Handle]
+	key := src.Handle + "_" + hashSource(src)
+
+	dbase, ok := d.dbases[key]
 	if ok {
 		return dbase, nil
 	}
@@ -459,7 +464,7 @@ func (d *Databases) Open(ctx context.Context, src *source.Source) (Database, err
 
 	d.clnup.AddC(dbase)
 
-	d.dbases[src.Handle] = dbase
+	d.dbases[key] = dbase
 	return dbase, nil
 }
 
@@ -559,4 +564,27 @@ func OpeningPing(ctx context.Context, src *source.Source, db *sql.DB) error {
 	}
 
 	return nil
+}
+
+// hashSource computes a hash for src. If src is nil, empty string is returned.
+func hashSource(src *source.Source) string {
+	if src == nil {
+		return ""
+	}
+
+	h := sha256.New()
+	h.Write([]byte(src.Handle))
+	h.Write([]byte(src.Location))
+	h.Write([]byte(src.Type))
+
+	if len(src.Options) > 0 {
+		keys := src.Options.Keys()
+		for _, k := range keys {
+			v := src.Options[k]
+			h.Write([]byte(fmt.Sprintf("%s:%v", k, v)))
+		}
+	}
+
+	b := h.Sum(nil)
+	return string(b)
 }

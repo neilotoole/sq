@@ -182,8 +182,19 @@ func (d *driveri) CurrentSchema(ctx context.Context, db sqlz.DB) (string, error)
 
 // SetSourceSchema implements driver.SQLDriver.
 func (d *driveri) SetSourceSchema(src *source.Source, schema string) error {
-	// TODO implement me
-	panic("implement me")
+	schema = strings.TrimSpace(schema)
+	if schema == "" {
+		return errz.Errorf("invalid schema (empty)")
+	}
+
+	u, err := dburl.Parse(src.Location)
+	if err != nil {
+		return errz.Err(err)
+	}
+
+	u.Path = "/" + schema
+	src.Location = u.String()
+	return nil
 }
 
 // ListSchemas implements driver.SQLDriver.
