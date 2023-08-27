@@ -326,8 +326,9 @@ func setSourceSummaryMeta(ctx context.Context, db sqlz.DB, md *source.Metadata) 
         FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE()) AS size`
 
 	var version, versionComment, versionOS, versionArch, schema string
+	var size sql.NullInt64
 	err := db.QueryRowContext(ctx, summaryQuery).Scan(&version, &versionComment, &versionOS, &versionArch, &schema,
-		&md.User, &md.Size)
+		&md.User, &size)
 	if err != nil {
 		return errw(err)
 	}
@@ -335,6 +336,9 @@ func setSourceSummaryMeta(ctx context.Context, db sqlz.DB, md *source.Metadata) 
 	md.Name = schema
 	md.Schema = schema
 	md.FQName = schema
+	if size.Valid {
+		md.Size = size.Int64
+	}
 	md.DBVersion = version
 	md.DBProduct = fmt.Sprintf("%s %s / %s (%s)", versionComment, version, versionOS, versionArch)
 	return nil

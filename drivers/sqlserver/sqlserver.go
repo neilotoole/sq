@@ -350,8 +350,9 @@ func (d *driveri) CurrentSchema(ctx context.Context, db sqlz.DB) (string, error)
 
 // SetSourceSchema implements driver.SQLDriver.
 func (d *driveri) SetSourceSchema(src *source.Source, schema string) error {
-	// TODO implement me
-	panic("implement me")
+	d.log.Warn("SetSourceSchema not implemented for driver; will ignore schema",
+		lga.Driver, Type, lga.Src, src, lga.Schema, schema)
+	return nil
 }
 
 // ListSchemas implements driver.SQLDriver.

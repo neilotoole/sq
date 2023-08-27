@@ -620,10 +620,10 @@ func TestSQLDriver_SetSourceSchema(t *testing.T) {
 		handle        string
 		defaultSchema string
 	}{
-		//{sakila.SL3, "main"},
+		//{sakila.SL3, "main"}, // TODO: implement for SQLite
 		{sakila.Pg, "public"},
 		{sakila.My, "sakila"},
-		//{sakila.MS, "dbo"},
+		//{sakila.MS, "dbo"}, // TODO: implement for SQLServer
 	}
 
 	for _, tc := range testCases {
@@ -638,8 +638,12 @@ func TestSQLDriver_SetSourceSchema(t *testing.T) {
 
 			_ = th.ExecSQL(src1, "CREATE SCHEMA "+newSchema)
 
+			t.Cleanup(func() {
+				th.ExecSQL(src1, "DROP SCHEMA IF EXISTS "+newSchema)
+			})
+
 			src2 := src1.Clone()
-			drvr.SetSourceSchema(src2, newSchema)
+			require.NoError(t, drvr.SetSourceSchema(src2, newSchema))
 
 			dbase2 := th.Open(src2)
 			db2, err := dbase2.DB(th.Context)
