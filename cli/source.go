@@ -74,6 +74,7 @@ func determineSources(ctx context.Context, ru *run.Run, requireActive bool) erro
 // of the source if the flag is set.
 func activeSrcAndSchemaFromFlagsOrConfig(ru *run.Run) (*source.Source, error) {
 	ctx, cmd, coll := ru.Cmd.Context(), ru.Cmd, ru.Config.Collection
+	log := lg.FromContext(ctx)
 	var activeSrc *source.Source
 
 	if cmdFlagChanged(cmd, flag.ActiveSrc) {
@@ -96,9 +97,24 @@ func activeSrcAndSchemaFromFlagsOrConfig(ru *run.Run) (*source.Source, error) {
 
 	if cmdFlagChanged(cmd, flag.ActiveSchema) {
 		schema, _ := cmd.Flags().GetString(flag.ActiveSchema)
-		lg.FromContext(ctx).Debug("Setting active schema",
+
+		if activeSrc == nil {
+			return nil, errz.Errorf("active schema {%s} specified via --%s, but active source is nil",
+				schema, flag.ActiveSchema)
+		}
+
+		log.Debug("Setting active schema",
 			lga.Schema, schema,
 			lga.Src, activeSrc)
+
+		drvr, err := ru.DriverRegistry.SQLDriverFor(activeSrc.Type)
+		if err != nil {
+			return nil, err
+		}
+
+		if err = drvr.SetSourceSchema(activeSrc, schema); err != nil {
+			return nil, err
+		}
 	}
 
 	return activeSrc, nil

@@ -243,6 +243,8 @@ type SQLDriver interface {
 	// specified schema. Typically the default schema
 	// is something like "public", or "main", but it can typically be set
 	// to a different schema.
+	//
+	// REVISIT: should SetSourceSchema check if schema exists and is accessible?
 	SetSourceSchema(src *source.Source, schema string) error
 
 	// TableColumnTypes returns the column type info from

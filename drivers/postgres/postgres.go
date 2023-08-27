@@ -402,7 +402,11 @@ func newStmtExecFunc(stmt *sql.Stmt) driver.StmtExecFunc {
 
 // CopyTable implements driver.SQLDriver.
 func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable string, copyData bool) (int64, error) {
-	stmt := fmt.Sprintf("CREATE TABLE %q AS TABLE %q", toTable, fromTable)
+	stmt := fmt.Sprintf(
+		"CREATE TABLE %s AS TABLE %s",
+		stringz.DoubleQuote(toTable),
+		stringz.DoubleQuote(fromTable),
+	)
 
 	if !copyData {
 		stmt += " WITH NO DATA"

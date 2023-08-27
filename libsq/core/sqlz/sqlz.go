@@ -4,6 +4,9 @@ package sqlz
 import (
 	"context"
 	"database/sql"
+	"strings"
+
+	"github.com/neilotoole/sq/libsq/core/stringz"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
@@ -65,3 +68,28 @@ const (
 	TableTypeView    = "view"
 	TableTypeVirtual = "virtual"
 )
+
+// TableFQ is a fully-qualified table name of the form CATALOG.SCHEMA.NAME.
+type TableFQ struct {
+	Catalog string
+	Schema  string
+	Table   string
+}
+
+// String returns a representation of t using double-quoted escaped
+// values for the components. Note that a DB may use a different
+// escaping mechanism, so do not use this representation for rendering
+// SQL.
+func (t TableFQ) String() string {
+	sb := strings.Builder{}
+	if t.Catalog != "" {
+		sb.WriteString(stringz.DoubleQuote(t.Catalog))
+		sb.WriteRune('.')
+	}
+	if t.Schema != "" {
+		sb.WriteString(stringz.DoubleQuote(t.Schema))
+		sb.WriteRune('.')
+	}
+	sb.WriteString(stringz.DoubleQuote(t.Table))
+	return sb.String()
+}
