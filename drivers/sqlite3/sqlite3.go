@@ -16,6 +16,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/tablefq"
+
 	"github.com/neilotoole/sq/libsq/core/loz"
 
 	"github.com/neilotoole/sq/libsq/core/jointype"
@@ -241,7 +243,7 @@ func (d *driveri) Renderer() *render.Renderer {
 }
 
 // CopyTable implements driver.SQLDriver.
-func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable string, copyData bool) (int64, error) {
+func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable tablefq.T, copyData bool) (int64, error) {
 	// Per https://stackoverflow.com/questions/12730390/copy-table-structure-to-new-table-in-sqlite3
 	// It is possible to copy the table structure with a simple statement:
 	//  CREATE TABLE copied AS SELECT * FROM mytable WHERE 0
@@ -250,14 +252,14 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable 
 
 	var originTblCreateStmt string
 	err := db.QueryRowContext(ctx, fmt.Sprintf("SELECT sql FROM sqlite_master WHERE type='table' AND name='%s'",
-		fromTable)).Scan(&originTblCreateStmt)
+		fromTable.Table)).Scan(&originTblCreateStmt)
 	if err != nil {
 		return 0, errw(err)
 	}
 
 	// A simple replace of the table name should work to mutate the
 	// above CREATE stmt to use toTable instead of fromTable.
-	destTblCreateStmt := strings.Replace(originTblCreateStmt, fromTable, toTable, 1)
+	destTblCreateStmt := strings.Replace(originTblCreateStmt, fromTable.Table, toTable.Table, 1)
 
 	_, err = db.ExecContext(ctx, destTblCreateStmt)
 	if err != nil {
@@ -268,7 +270,7 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable 
 		return 0, nil
 	}
 
-	stmt := fmt.Sprintf("INSERT INTO %q SELECT * FROM %q", toTable, fromTable)
+	stmt := fmt.Sprintf("INSERT INTO %s SELECT * FROM %s", toTable, fromTable)
 	affected, err := sqlz.ExecAffected(ctx, db, stmt)
 	if err != nil {
 		return 0, errw(err)
@@ -564,13 +566,13 @@ func newRecordFromScanRow(meta record.Meta, row []any) (rec record.Record) {
 }
 
 // DropTable implements driver.SQLDriver.
-func (d *driveri) DropTable(ctx context.Context, db sqlz.DB, tbl string, ifExists bool) error {
+func (d *driveri) DropTable(ctx context.Context, db sqlz.DB, tbl tablefq.T, ifExists bool) error {
 	var stmt string
 
 	if ifExists {
-		stmt = fmt.Sprintf("DROP TABLE IF EXISTS %q", tbl)
+		stmt = fmt.Sprintf("DROP TABLE IF EXISTS %s", tbl)
 	} else {
-		stmt = fmt.Sprintf("DROP TABLE %q", tbl)
+		stmt = fmt.Sprintf("DROP TABLE %s", tbl)
 	}
 
 	_, err := db.ExecContext(ctx, stmt)

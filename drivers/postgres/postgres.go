@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/tablefq"
+
 	"github.com/xo/dburl"
 
 	"github.com/neilotoole/sq/libsq/core/jointype"
@@ -401,11 +403,11 @@ func newStmtExecFunc(stmt *sql.Stmt) driver.StmtExecFunc {
 }
 
 // CopyTable implements driver.SQLDriver.
-func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable string, copyData bool) (int64, error) {
+func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable tablefq.T, copyData bool) (int64, error) {
 	stmt := fmt.Sprintf(
 		"CREATE TABLE %s AS TABLE %s",
-		stringz.DoubleQuote(toTable),
-		stringz.DoubleQuote(fromTable),
+		tblfmt(toTable),
+		tblfmt(fromTable),
 	)
 
 	if !copyData {
@@ -435,13 +437,13 @@ WHERE table_name = $1`
 }
 
 // DropTable implements driver.SQLDriver.
-func (d *driveri) DropTable(ctx context.Context, db sqlz.DB, tbl string, ifExists bool) error {
+func (d *driveri) DropTable(ctx context.Context, db sqlz.DB, tbl tablefq.T, ifExists bool) error {
 	var stmt string
 
 	if ifExists {
-		stmt = fmt.Sprintf("DROP TABLE IF EXISTS %q RESTRICT", tbl)
+		stmt = fmt.Sprintf("DROP TABLE IF EXISTS %s RESTRICT", tblfmt(tbl))
 	} else {
-		stmt = fmt.Sprintf("DROP TABLE %q RESTRICT", tbl)
+		stmt = fmt.Sprintf("DROP TABLE %s RESTRICT", tblfmt(tbl))
 	}
 
 	_, err := db.ExecContext(ctx, stmt)
@@ -683,4 +685,11 @@ func (d *database) Close() error {
 func doRetry(ctx context.Context, fn func() error) error {
 	maxRetryInterval := driver.OptMaxRetryInterval.Get(options.FromContext(ctx))
 	return retry.Do(ctx, maxRetryInterval, fn, isErrTooManyConnections)
+}
+
+// tblfmt formats a table name for use in a query. The arg can be a string,
+// or a tablefq.T.
+func tblfmt[T string | tablefq.T](tbl T) string {
+	tfq := tablefq.From(tbl)
+	return tfq.Render(stringz.DoubleQuote)
 }

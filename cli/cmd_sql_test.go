@@ -47,20 +47,20 @@ func TestCmdSQL_Insert(t *testing.T) {
 
 					// To avoid dirtying the destination table, we make a copy
 					// of it (without data).
-					tblName := th.CopyTable(true, destSrc, sakila.TblActor, "", false)
+					destTbl := th.CopyTable(true, destSrc, sakila.TblActor, "", false)
 
 					tr := testrun.New(th.Context, t, nil).Add(*originSrc)
 					if destSrc.Handle != originSrc.Handle {
 						tr.Add(*destSrc)
 					}
 
-					insertTo := fmt.Sprintf("%s.%s", destSrc.Handle, tblName)
+					insertTo := fmt.Sprintf("%s.%s", destSrc.Handle, destTbl)
 					query := fmt.Sprintf("SELECT %s FROM %s", strings.Join(sakila.TblActorCols(), ", "), originTbl)
 
 					err := tr.Exec("sql", "--insert="+insertTo, query)
 					require.NoError(t, err)
 
-					sink, err := th.QuerySQL(destSrc, "select * from "+tblName)
+					sink, err := th.QuerySQL(destSrc, "select * from "+destTbl)
 					require.NoError(t, err)
 					require.Equal(t, sakila.TblActorCount, len(sink.Recs))
 				})

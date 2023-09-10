@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/tablefq"
+
 	"github.com/neilotoole/sq/libsq/core/loz"
 
 	"github.com/neilotoole/sq/libsq/core/jointype"
@@ -423,13 +425,13 @@ func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, c
 }
 
 // CopyTable implements driver.SQLDriver.
-func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable string, copyData bool) (int64, error) {
+func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable tablefq.T, copyData bool) (int64, error) {
 	var stmt string
 
 	if copyData {
-		stmt = fmt.Sprintf("SELECT * INTO %q FROM %q", toTable, fromTable)
+		stmt = fmt.Sprintf("SELECT * INTO %s FROM %s", tblfmt(toTable), tblfmt(fromTable))
 	} else {
-		stmt = fmt.Sprintf("SELECT TOP(0) * INTO %q FROM %q", toTable, fromTable)
+		stmt = fmt.Sprintf("SELECT TOP(0) * INTO %s FROM %s", tblfmt(toTable), tblfmt(fromTable))
 	}
 
 	affected, err := sqlz.ExecAffected(ctx, db, stmt)
@@ -441,13 +443,17 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable 
 }
 
 // DropTable implements driver.SQLDriver.
-func (d *driveri) DropTable(ctx context.Context, db sqlz.DB, tbl string, ifExists bool) error {
+func (d *driveri) DropTable(ctx context.Context, db sqlz.DB, tbl tablefq.T, ifExists bool) error {
 	var stmt string
 
+	// We don't want the catalog for this part.
+	tbl.Catalog = ""
+	tblID := tblfmt(tbl)
+
 	if ifExists {
-		stmt = fmt.Sprintf("IF OBJECT_ID('dbo.%s', 'U') IS NOT NULL DROP TABLE dbo.%q", tbl, tbl)
+		stmt = fmt.Sprintf("IF OBJECT_ID('%s', 'U') IS NOT NULL DROP TABLE %s", tblID, tblID)
 	} else {
-		stmt = fmt.Sprintf("DROP TABLE dbo.%q", tbl)
+		stmt = fmt.Sprintf("DROP TABLE %s", tblID)
 	}
 
 	_, err := db.ExecContext(ctx, stmt)
@@ -641,7 +647,14 @@ func setIdentityInsert(ctx context.Context, db sqlz.DB, tbl string, on bool) err
 		mode = "OFF"
 	}
 
-	query := fmt.Sprintf("SET IDENTITY_INSERT %q %s", tbl, mode)
+	query := fmt.Sprintf("SET IDENTITY_INSERT %s %s", tblfmt(tbl), mode)
 	_, err := db.ExecContext(ctx, query)
-	return errz.Wrapf(errw(err), "failed to SET IDENTITY INSERT %s %s", tbl, mode)
+	return errz.Wrapf(errw(err), "failed to SET IDENTITY INSERT %s %s", tblfmt(tbl), mode)
+}
+
+// tblfmt formats a table name for use in a query. The arg can be a string,
+// or a tablefq.T.
+func tblfmt[T string | tablefq.T](tbl T) string {
+	tfq := tablefq.From(tbl)
+	return tfq.Render(stringz.DoubleQuote)
 }

@@ -10,6 +10,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/tablefq"
+
 	"github.com/neilotoole/sq/libsq/core/record"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
@@ -308,11 +310,11 @@ type SQLDriver interface {
 	// If copyData is true, fromTable's data is also copied.
 	// Constraints (keys, defaults etc.) may not be copied. The
 	// number of copied rows is returned in copied.
-	CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable string, copyData bool) (copied int64, err error)
+	CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable tablefq.T, copyData bool) (copied int64, err error)
 
 	// DropTable drops tbl from db. If ifExists is true, an "IF EXISTS"
 	// or equivalent clause is added, if supported.
-	DropTable(ctx context.Context, db sqlz.DB, tbl string, ifExists bool) error
+	DropTable(ctx context.Context, db sqlz.DB, tbl tablefq.T, ifExists bool) error
 
 	// AlterTableRename renames a table.
 	AlterTableRename(ctx context.Context, db sqlz.DB, tbl, newName string) error

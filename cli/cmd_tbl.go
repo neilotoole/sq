@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/neilotoole/sq/libsq/core/tablefq"
+
 	"github.com/neilotoole/sq/cli/run"
 
 	"github.com/neilotoole/sq/cli/flag"
@@ -133,7 +135,10 @@ func execTblCopy(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	copied, err := sqlDrvr.CopyTable(ctx, db, tblHandles[0].tbl, tblHandles[1].tbl, copyData)
+	fromTbl := tablefq.New(tblHandles[0].tbl)
+	toTbl := tablefq.New(tblHandles[0].tbl)
+
+	copied, err := sqlDrvr.CopyTable(ctx, db, fromTbl, toTbl, copyData)
 	if err != nil {
 		return errz.Wrapf(err, "failed tbl copy %s.%s --> %s.%s",
 			tblHandles[0].handle, tblHandles[0].tbl,
@@ -262,7 +267,8 @@ func execTblDrop(cmd *cobra.Command, args []string) (err error) {
 			return err
 		}
 
-		if err = sqlDrvr.DropTable(cmd.Context(), db, tblH.tbl, false); err != nil {
+		targetTbl := tablefq.New(tblH.tbl)
+		if err = sqlDrvr.DropTable(cmd.Context(), db, targetTbl, false); err != nil {
 			return err
 		}
 

@@ -14,6 +14,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/tablefq"
+
 	"github.com/neilotoole/sq/cli/run"
 
 	"github.com/neilotoole/sq/cli"
@@ -528,7 +530,12 @@ func (h *Helper) Insert(src *source.Source, tbl string, cols []string, records .
 // If dropAfter is true, the table is dropped when t.Cleanup is run.
 // If copyData is true, fromTable's data is also copied.
 // Constraints (keys, defaults etc.) may not be copied.
-func (h *Helper) CopyTable(dropAfter bool, src *source.Source, fromTable, toTable string, copyData bool) string {
+func (h *Helper) CopyTable(
+	dropAfter bool,
+	src *source.Source,
+	fromTable, toTable string,
+	copyData bool,
+) string {
 	if toTable == "" {
 		toTable = stringz.UniqTableName(fromTable)
 	}
@@ -539,15 +546,21 @@ func (h *Helper) CopyTable(dropAfter bool, src *source.Source, fromTable, toTabl
 	db, err := dbase.DB(h.Context)
 	require.NoError(h.T, err)
 
-	copied, err := dbase.SQLDriver().CopyTable(h.Context, db, fromTable, toTable, copyData)
+	copied, err := dbase.SQLDriver().CopyTable(
+		h.Context,
+		db,
+		tablefq.New(fromTable),
+		tablefq.New(toTable),
+		copyData,
+	)
 	require.NoError(h.T, err)
 	if dropAfter {
 		h.Cleanup.Add(func() { h.DropTable(src, toTable) })
 	}
 
 	h.Log.Debug("Copied table",
-		lga.From, source.Target(src, fromTable),
-		lga.To, source.Target(src, toTable),
+		lga.From, fromTable,
+		lga.To, toTable,
 		"copy_data", copyData,
 		lga.Count, copied,
 		"drop_after", dropAfter,
@@ -563,7 +576,7 @@ func (h *Helper) DropTable(src *source.Source, tbl string) {
 	db, err := dbase.DB(h.Context)
 	require.NoError(h.T, err)
 
-	require.NoError(h.T, dbase.SQLDriver().DropTable(h.Context, db, tbl, true))
+	require.NoError(h.T, dbase.SQLDriver().DropTable(h.Context, db, tablefq.New(tbl), true))
 	h.Log.Debug("Dropped table", lga.Target, source.Target(src, tbl))
 }
 
