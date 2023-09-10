@@ -5,7 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-Breaking changes are annotated with ☢️.
+Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
+
+## [v0.42.1] - 2023-09-10
+
+### Fixed
+
+- [#308]: Fix to allow build on [32-bit systems](https://github.com/void-linux/void-packages/pull/45023). 
+  Thanks [@icp](https://github.com/icp1994).
+
+## [v0.41.1] - 2023-08-20
+
+### Fixed
+
+- `sq version` was missing a newline in its output.
+
 
 ## [v0.42.0] - 2023-08-22
 
@@ -794,6 +808,7 @@ make working with lots of sources much easier.
 [#263]: https://github.com/neilotoole/sq/issues/263
 [#277]: https://github.com/neilotoole/sq/issues/277
 [#279]: https://github.com/neilotoole/sq/issues/279
+[#308]: https://github.com/neilotoole/sq/pull/308
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
@@ -840,3 +855,4 @@ make working with lots of sources much easier.
 [v0.41.0]: https://github.com/neilotoole/sq/compare/v0.40.0...v0.41.0
 [v0.41.1]: https://github.com/neilotoole/sq/compare/v0.41.0...v0.41.1
 [v0.42.0]: https://github.com/neilotoole/sq/compare/v0.41.1...v0.42.0
+[v0.42.1]: https://github.com/neilotoole/sq/compare/v0.42.0...v0.42.1

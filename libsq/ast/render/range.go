@@ -27,7 +27,7 @@ func doRange(_ *Context, rr *ast.RowRangeNode) (string, error) {
 		if rr.Limit == -1 {
 			// MySQL requires a LIMIT if OFFSET is used. Therefore
 			// we make the LIMIT a very large number
-			limit = fmt.Sprintf("LIMIT %d", math.MaxInt64)
+			limit = fmt.Sprintf("LIMIT %d", uint64(math.MaxInt64))
 		}
 	}
 
