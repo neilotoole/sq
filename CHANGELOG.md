@@ -11,7 +11,7 @@ Breaking changes are annotated with ☢️.
 
 ### Fixed
 
-- 🐥 [#308]: Fix to allow build on [32-bit systems](https://github.com/void-linux/void-packages/pull/45023). 
+- [#308]: Fix to allow build on [32-bit systems](https://github.com/void-linux/void-packages/pull/45023). 
   Thanks [@icp](https://github.com/icp1994).
 
 ## [v0.41.1] - 2023-08-20
