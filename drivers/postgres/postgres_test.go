@@ -12,8 +12,6 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/lg"
 
-	"github.com/neilotoole/sq/libsq/source"
-
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -191,16 +189,6 @@ func TestDriver_CreateTable_NotNullDefault(t *testing.T) {
 	}
 }
 
-// getAdminSource returns a new src that users the "postgres" user
-// instead of "sakila" user. This is useful if we need to create
-// databases, etc. A better solution is probably to change the
-// sakila DBs to grant all privileges to "sakila".
-func getAdminSakilaSource(src *source.Source) *source.Source {
-	s := *src
-	s.Location = strings.Replace(s.Location, "postgres://sakila:", "postgres://postgres:", 1)
-	return &s
-}
-
 // TestAlternateSchema verifies that we can access a schema
 // other than the default ("public").
 func TestAlternateSchema(t *testing.T) {
@@ -209,7 +197,7 @@ func TestAlternateSchema(t *testing.T) {
 	th := testh.New(t)
 	ctx := th.Context
 
-	src := getAdminSakilaSource(th.Source(sakila.Pg))
+	src := th.Source(sakila.Pg)
 	t.Logf("Using src: {%s}", src)
 
 	db := th.OpenDB(src)

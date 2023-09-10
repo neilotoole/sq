@@ -36,7 +36,7 @@ _testmain.go
 /sq
 /demo
 /scratch
-
+.envrc
 **/*.bench
 
 # Some apps create temp files when editing, e.g. Excel with drivers/xlsx/testdata/~$test_header.xlsx
