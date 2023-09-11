@@ -14,12 +14,6 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 - [#308]: Fix to allow build on [32-bit systems](https://github.com/void-linux/void-packages/pull/45023). 
   Thanks [@icp](https://github.com/icp1994).
 
-## [v0.41.1] - 2023-08-20
-
-### Fixed
-
-- `sq version` was missing a newline in its output.
-
 
 ## [v0.42.0] - 2023-08-22
 
