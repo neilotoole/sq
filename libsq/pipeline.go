@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/neilotoole/sq/libsq/core/tablefq"
+
 	"github.com/samber/lo"
 
 	"github.com/neilotoole/sq/libsq/source"
@@ -360,10 +362,10 @@ func (p *pipeline) joinCrossSource(ctx context.Context, jc *joinClause) (fromCla
 		}
 
 		task := &joinCopyTask{
-			fromDB:      db,
-			fromTblName: tbl.TblName(),
-			toDB:        joinDB,
-			toTblName:   tbl.TblAliasOrName(),
+			fromDB:  db,
+			fromTbl: tbl.Table(),
+			toDB:    joinDB,
+			toTbl:   tbl.TblAliasOrName(),
 		}
 
 		tbl.SyncTblNameAlias()
@@ -388,21 +390,21 @@ type tasker interface {
 // joinCopyTask is a specification of a table data copy task to be performed
 // for a cross-source join. That is, the data in fromDB.fromTblName will
 // be copied to a table in toDB. If colNames is
-// empty, all cols in fromTblName are to be copied.
+// empty, all cols in fromTbl are to be copied.
 type joinCopyTask struct {
-	fromDB      driver.Database
-	fromTblName string
-	toDB        driver.Database
-	toTblName   string
+	fromDB  driver.Database
+	fromTbl tablefq.T
+	toDB    driver.Database
+	toTbl   tablefq.T
 }
 
 func (jt *joinCopyTask) executeTask(ctx context.Context) error {
-	return execCopyTable(ctx, jt.fromDB, jt.fromTblName, jt.toDB, jt.toTblName)
+	return execCopyTable(ctx, jt.fromDB, jt.fromTbl, jt.toDB, jt.toTbl)
 }
 
-// execCopyTable performs the work of copying fromDB.fromTblName to destDB.destTblName.
-func execCopyTable(ctx context.Context, fromDB driver.Database, fromTblName string,
-	destDB driver.Database, destTblName string,
+// execCopyTable performs the work of copying fromDB.fromTbl to destDB.destTbl.
+func execCopyTable(ctx context.Context, fromDB driver.Database, fromTbl tablefq.T,
+	destDB driver.Database, destTbl tablefq.T,
 ) error {
 	log := lg.FromContext(ctx)
 
@@ -411,11 +413,11 @@ func execCopyTable(ctx context.Context, fromDB driver.Database, fromTblName stri
 	) error {
 		destColNames := originRecMeta.Names()
 		destColKinds := originRecMeta.Kinds()
-		destTblDef := sqlmodel.NewTableDef(destTblName, destColNames, destColKinds)
+		destTblDef := sqlmodel.NewTableDef(destTbl.Table, destColNames, destColKinds)
 
 		err := destDB.SQLDriver().CreateTable(ctx, tx, destTblDef)
 		if err != nil {
-			return errz.Wrapf(err, "failed to create dest table %s.%s", destDB.Source().Handle, destTblName)
+			return errz.Wrapf(err, "failed to create dest table %s.%s", destDB.Source().Handle, destTbl)
 		}
 
 		return nil
@@ -423,23 +425,23 @@ func execCopyTable(ctx context.Context, fromDB driver.Database, fromTblName stri
 
 	inserter := NewDBWriter(
 		destDB,
-		destTblName,
+		destTbl.Table,
 		driver.OptTuningRecChanSize.Get(destDB.Source().Options),
 		createTblHook,
 	)
 
-	query := "SELECT * FROM " + fromDB.SQLDriver().Dialect().Enquote(fromTblName)
+	query := "SELECT * FROM " + fromTbl.Render(fromDB.SQLDriver().Dialect().Enquote)
 	err := QuerySQL(ctx, fromDB, inserter, query)
 	if err != nil {
-		return errz.Wrapf(err, "insert %s.%s failed", destDB.Source().Handle, destTblName)
+		return errz.Wrapf(err, "insert %s.%s failed", destDB.Source().Handle, destTbl)
 	}
 
 	affected, err := inserter.Wait() // Wait for the writer to finish processing
 	if err != nil {
-		return errz.Wrapf(err, "insert %s.%s failed", destDB.Source().Handle, destTblName)
+		return errz.Wrapf(err, "insert %s.%s failed", destDB.Source().Handle, destTbl)
 	}
 	log.Debug("Copied rows to dest", lga.Count, affected,
-		lga.From, fmt.Sprintf("%s.%s", fromDB.Source().Handle, fromTblName),
-		lga.To, fmt.Sprintf("%s.%s", destDB.Source().Handle, destTblName))
+		lga.From, fmt.Sprintf("%s.%s", fromDB.Source().Handle, fromTbl),
+		lga.To, fmt.Sprintf("%s.%s", destDB.Source().Handle, destTbl))
 	return nil
 }

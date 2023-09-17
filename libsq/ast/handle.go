@@ -1,6 +1,9 @@
 package ast
 
-import "github.com/neilotoole/sq/libsq/ast/internal/slq"
+import (
+	"github.com/neilotoole/sq/libsq/ast/internal/slq"
+	"github.com/neilotoole/sq/libsq/core/tablefq"
+)
 
 // HandleNode models a source handle such as "@sakila".
 type HandleNode struct {
@@ -36,9 +39,11 @@ func (v *parseTreeVisitor) VisitHandleTable(ctx *slq.HandleTableContext) any {
 	node.handle = ctx.HANDLE().GetText()
 
 	var err error
-	if node.tblName, err = extractSelVal(ctx.NAME()); err != nil {
+	selTbl, err := extractSelVal(ctx.NAME())
+	if err != nil {
 		return err
 	}
+	node.tbl = tablefq.From(selTbl)
 
 	return v.cur.AddChild(node)
 }

@@ -165,7 +165,7 @@ func renderSelectorNode(d dialect.Dialect, node ast.Node) (string, error) {
 	case *ast.TblColSelectorNode:
 		return d.Enquote(node.TblName()) + "." + d.Enquote(node.ColName()), nil
 	case *ast.TblSelectorNode:
-		return d.Enquote(node.TblName()), nil
+		return node.Table().Render(d.Enquote), nil
 	default:
 		return "", errz.Errorf(
 			"expected selector node type, but got %T: %s",

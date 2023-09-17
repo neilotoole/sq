@@ -10,12 +10,12 @@ import (
 //	.actor    -->  FROM "actor"
 //	.actor:a  -->  FROM "actor" "a"
 func doFromTable(rc *Context, tblSel *ast.TblSelectorNode) (string, error) {
-	tblName := tblSel.TblName()
-	if tblName == "" {
+	tbl := tblSel.Table()
+	if tbl.Table == "" {
 		return "", errz.Errorf("selector has empty table name: {%s}", tblSel.Text())
 	}
 
-	clause := "FROM " + rc.Dialect.Enquote(tblName)
+	clause := "FROM " + tbl.Render(rc.Dialect.Enquote)
 	alias := tblSel.Alias()
 	if alias != "" {
 		clause += " AS " + rc.Dialect.Enquote(alias)

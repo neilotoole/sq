@@ -3,6 +3,8 @@ package ast
 import (
 	"fmt"
 
+	"github.com/neilotoole/sq/libsq/core/tablefq"
+
 	"github.com/neilotoole/sq/libsq/core/jointype"
 
 	"github.com/neilotoole/sq/libsq/ast/internal/slq"
@@ -104,8 +106,8 @@ func (v *parseTreeVisitor) VisitJoinTable(ctx *slq.JoinTableContext) any {
 			},
 			name0: tblName,
 		},
-		handle:  handle,
-		tblName: tblName,
+		handle: handle,
+		tbl:    tablefq.From(tblName),
 	}
 
 	var aliasCtx *slq.AliasContext
