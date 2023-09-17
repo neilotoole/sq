@@ -228,6 +228,15 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblCatalog,
 
 	var rowCount, reserved, data, indexSize, unused sql.NullString
 	row := db.QueryRowContext(ctx, fmt.Sprintf(tplTblUsage, tblName))
+
+	// REVISIT: This error can occur:
+	//
+	//  sql: Scan error on column index 0, name "name": converting NULL to string is unsupported
+	//
+	// We should probably use sql.NullString? This situation can arise if the table
+	// is deleted while this process is taking place. Maybe wrap the entire thing
+	// in a transaction? Or figure out how to fail more gracefully?
+
 	err := row.Scan(&tblMeta.Name, &rowCount, &reserved, &data, &indexSize, &unused)
 	if err != nil {
 		return nil, errw(err)

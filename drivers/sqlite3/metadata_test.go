@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/core/tablefq"
+
 	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -295,7 +297,7 @@ func BenchmarkDatabase_SourceMetadata(b *testing.B) {
 	b.StopTimer()
 
 	for _, tblName := range tblNames {
-		require.NoError(b, drvr.DropTable(th.Context, db, tblName, true))
+		require.NoError(b, drvr.DropTable(th.Context, db, tablefq.From(tblName), true))
 	}
 }
 
@@ -339,7 +341,7 @@ func BenchmarkGetTblRowCounts(b *testing.B) {
 	}
 
 	for _, tblName := range tblNames {
-		require.NoError(b, drvr.DropTable(th.Context, db, tblName, true))
+		require.NoError(b, drvr.DropTable(th.Context, db, tablefq.From(tblName), true))
 	}
 }
 

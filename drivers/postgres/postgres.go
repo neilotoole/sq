@@ -403,7 +403,9 @@ func newStmtExecFunc(stmt *sql.Stmt) driver.StmtExecFunc {
 }
 
 // CopyTable implements driver.SQLDriver.
-func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable tablefq.T, copyData bool) (int64, error) {
+func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB,
+	fromTable, toTable tablefq.T, copyData bool,
+) (int64, error) {
 	stmt := fmt.Sprintf(
 		"CREATE TABLE %s AS TABLE %s",
 		tblfmt(toTable),

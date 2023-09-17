@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/core/tablefq"
+
 	"github.com/neilotoole/sq/libsq/core/options"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -48,18 +50,19 @@ func TestDriver_DropTable(t *testing.T) {
 
 			// Copy a table that we can play with
 			tblName = th.CopyTable(false, src, sakila.TblActor, tblName, false)
-			require.NoError(t, drvr.DropTable(th.Context, db, tblName, true))
+			require.NoError(t, drvr.DropTable(th.Context, db, tablefq.From(tblName), true))
 
 			// Copy the table again so we can drop it again
 			tblName = th.CopyTable(false, src, sakila.TblActor, tblName, false)
 
 			// test with ifExists = false
-			require.NoError(t, drvr.DropTable(th.Context, db, tblName, false))
+			require.NoError(t, drvr.DropTable(th.Context, db, tablefq.From(tblName), false))
 
 			// Check that we get the expected behavior when the table doesn't exist
-			require.NoError(t, drvr.DropTable(th.Context, db, stringz.UniqSuffix("not_a_table"), true),
+			notTable := tablefq.New(stringz.UniqSuffix("not_a_table"))
+			require.NoError(t, drvr.DropTable(th.Context, db, notTable, true),
 				"should be no error when ifExists is true")
-			require.Error(t, drvr.DropTable(th.Context, db, stringz.UniqSuffix("not_a_table"), false),
+			require.Error(t, drvr.DropTable(th.Context, db, notTable, false),
 				"error expected when ifExists is false")
 		})
 	}
@@ -99,7 +102,7 @@ func TestDriver_CopyTable(t *testing.T) {
 
 			toTable := stringz.UniqTableName(sakila.TblActor)
 			// First, test with copyData = true
-			copied, err := drvr.CopyTable(th.Context, db, sakila.TblActor, toTable, true)
+			copied, err := drvr.CopyTable(th.Context, db, tablefq.From(sakila.TblActor), tablefq.From(toTable), true)
 			require.NoError(t, err)
 			require.Equal(t, int64(sakila.TblActorCount), copied)
 			require.Equal(t, int64(sakila.TblActorCount), th.RowCount(src, toTable))
@@ -107,7 +110,7 @@ func TestDriver_CopyTable(t *testing.T) {
 
 			toTable = stringz.UniqTableName(sakila.TblActor)
 			// Then, with copyData = false
-			copied, err = drvr.CopyTable(th.Context, db, sakila.TblActor, toTable, false)
+			copied, err = drvr.CopyTable(th.Context, db, tablefq.From(sakila.TblActor), tablefq.From(toTable), false)
 			require.NoError(t, err)
 			require.Equal(t, int64(0), copied)
 			require.Equal(t, int64(0), th.RowCount(src, toTable))

@@ -136,7 +136,7 @@ func execTblCopy(cmd *cobra.Command, args []string) error {
 	}
 
 	fromTbl := tablefq.New(tblHandles[0].tbl)
-	toTbl := tablefq.New(tblHandles[0].tbl)
+	toTbl := tablefq.New(tblHandles[1].tbl)
 
 	copied, err := sqlDrvr.CopyTable(ctx, db, fromTbl, toTbl, copyData)
 	if err != nil {

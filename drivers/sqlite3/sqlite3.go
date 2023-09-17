@@ -243,7 +243,9 @@ func (d *driveri) Renderer() *render.Renderer {
 }
 
 // CopyTable implements driver.SQLDriver.
-func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable tablefq.T, copyData bool) (int64, error) {
+func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB,
+	fromTable, toTable tablefq.T, copyData bool,
+) (int64, error) {
 	// Per https://stackoverflow.com/questions/12730390/copy-table-structure-to-new-table-in-sqlite3
 	// It is possible to copy the table structure with a simple statement:
 	//  CREATE TABLE copied AS SELECT * FROM mytable WHERE 0
