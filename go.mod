@@ -41,7 +41,7 @@ require (
 	// release of excelize, so we're using master. On the next release we
 	// hopefully can change back to a tagged release.
 	// See: https://github.com/qax-os/excelize/issues/660
-	github.com/xuri/excelize/v2 v2.7.2-0.20230808161106-ae17fa87d506
+	github.com/xuri/excelize/v2 v2.8.0
 	go.uber.org/atomic v1.11.0
 	go.uber.org/multierr v1.11.0
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9
@@ -80,7 +80,7 @@ require (
 	github.com/shopspring/decimal v1.3.1 // indirect
 	github.com/spf13/cast v1.5.1 // indirect
 	github.com/xuri/efp v0.0.0-20230802181842-ad255f2331ca // indirect
-	github.com/xuri/nfp v0.0.0-20230802015359-2d5eeba905e9 // indirect
+	github.com/xuri/nfp v0.0.0-20230819163627-dc951e3ffe1a // indirect
 	golang.org/x/crypto v0.13.0 // indirect
 	golang.org/x/sys v0.12.0 // indirect
 	golang.org/x/text v0.13.0 // indirect
