@@ -12,7 +12,7 @@ require (
 	github.com/emirpasic/gods v1.18.1
 	github.com/fatih/color v1.15.0
 	github.com/go-sql-driver/mysql v1.7.1
-	github.com/goccy/go-yaml v1.11.0
+	github.com/goccy/go-yaml v1.11.2
 	github.com/google/uuid v1.3.1
 	github.com/h2non/filetype v1.1.3
 	github.com/jackc/pgx/v5 v5.4.3
@@ -20,7 +20,7 @@ require (
 	github.com/mattn/go-isatty v0.0.19
 	github.com/mattn/go-runewidth v0.0.15
 	github.com/mattn/go-sqlite3 v1.14.17
-	github.com/microsoft/go-mssqldb v1.5.0
+	github.com/microsoft/go-mssqldb v1.6.0
 	github.com/mitchellh/go-wordwrap v1.0.1
 	github.com/muesli/mango-cobra v1.2.0
 	github.com/muesli/roff v0.1.0
@@ -30,7 +30,7 @@ require (
 	github.com/otiai10/copy v1.12.0
 	github.com/ryboe/q v1.0.19
 	github.com/samber/lo v1.38.1
-	github.com/segmentio/encoding v0.1.14 // Be very careful changing pkg segmentio/encoding. A specific version is used by our json encoder.
+	github.com/segmentio/encoding v0.1.14 // WARNING: Be very careful changing pkg segmentio/encoding. A specific version is used by our json encoder.
 	github.com/sethvargo/go-retry v0.2.4
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/pflag v1.0.5
@@ -46,9 +46,9 @@ require (
 	go.uber.org/multierr v1.11.0
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9
 	golang.org/x/mod v0.12.0
-	golang.org/x/net v0.14.0
+	golang.org/x/net v0.15.0
 	golang.org/x/sync v0.3.0
-	golang.org/x/term v0.11.0
+	golang.org/x/term v0.12.0
 )
 
 require (
@@ -59,7 +59,7 @@ require (
 	github.com/golang-sql/civil v0.0.0-20220223132316-b832511892a9 // indirect
 	github.com/golang-sql/sqlexp v0.1.0 // indirect
 	github.com/huandu/xstrings v1.4.0 // indirect
-	github.com/imdario/mergo v0.3.16 // indirect
+	github.com/imdario/mergo v0.3.11 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect
@@ -81,9 +81,9 @@ require (
 	github.com/spf13/cast v1.5.1 // indirect
 	github.com/xuri/efp v0.0.0-20230802181842-ad255f2331ca // indirect
 	github.com/xuri/nfp v0.0.0-20230802015359-2d5eeba905e9 // indirect
-	golang.org/x/crypto v0.12.0 // indirect
+	golang.org/x/crypto v0.13.0 // indirect
 	golang.org/x/sys v0.12.0 // indirect
-	golang.org/x/text v0.12.0 // indirect
+	golang.org/x/text v0.13.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	gopkg.in/djherbis/atime.v1 v1.0.0 // indirect
 	gopkg.in/djherbis/stream.v1 v1.3.1 // indirect
