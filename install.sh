@@ -15,7 +15,7 @@ get_distribution() {
 	echo "$lsb_dist"
 }
 
-# Usage:
+# Use command exists to test if a command is present on the system. E.g.
 #
 #   if command_exists lsb_release; then
 command_exists() {
