@@ -15,14 +15,24 @@ get_distribution() {
 	echo "$lsb_dist"
 }
 
-# Usage:
+# Use command exists to test if a command is present on the system. E.g.
 #
-# if command_exists lsb_release; then
+#   if command_exists lsb_release; then
 command_exists() {
 	command -v "$@" > /dev/null 2>&1
 }
 
 get_distribution
+
+# Void Linux / xbps
+if command_exists xbps-install; then
+  set -e
+  printf "Using xbps-install to install sq...\n\n"
+
+  (xbps-install -Syu || true) && xbps-install -yu xbps
+  xbps-install -yu sq
+  exit
+fi
 
 # apt / deb
 if [ -r /etc/debian_version ] && command_exists apt; then
