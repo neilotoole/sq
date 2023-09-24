@@ -189,8 +189,8 @@ jobs:
     steps:
       - name: Test install
         run: |-
-          set -e pipefail
-          xbps-install -yu curl
+          set -e
+          (xbps-install -Syu || true) && xbps-install -yu xbps curl
           /bin/sh -c "$(curl -fsSL https://sq.io/install.sh)"
           if [ $(sq version | awk '{print $1}') != "sq" ]; then
             # NOTE: The Void package release is a manual process.
