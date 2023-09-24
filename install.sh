@@ -17,7 +17,7 @@ get_distribution() {
 
 # Usage:
 #
-# if command_exists lsb_release; then
+#   if command_exists lsb_release; then
 command_exists() {
 	command -v "$@" > /dev/null 2>&1
 }
@@ -30,9 +30,7 @@ if command_exists xbps-install; then
   printf "Using xbps-install to install sq...\n\n"
 
   (xbps-install -Syu || true) && xbps-install -yu xbps
-  echo "Executing xbps-install sq"
   xbps-install -yu sq
-  echo "Finished executing xbps-install sq"
   exit
 fi
 
@@ -96,7 +94,7 @@ if command_exists apk; then
   # file from GitHub, and execute "apk add" with the local apk file.
 
   # e.g. "v1.0.0"
-#  semver=$(wget -qO- "https://api.github.com/repos/neilotoole/sq/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+  semver=$(wget -qO- "https://api.github.com/repos/neilotoole/sq/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
 
   # e.g. "1.0.0"
   ver=$(echo "$semver" | sed -e "s/^v//")
@@ -122,7 +120,7 @@ if command_exists apk; then
   download_url=$(printf "https://github.com/neilotoole/sq/releases/download/%s/%s" "$semver" "$file_name")
 
   echo "Downloading apk from: $download_url"
-#  wget  "$download_url" -O "$file_path"
+  wget  "$download_url" -O "$file_path"
 
   apk add --allow-untrusted "$file_path"
   rm "$file_path"
