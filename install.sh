@@ -24,6 +24,16 @@ command_exists() {
 
 get_distribution
 
+# Void Linux / xbps
+if command_exists xbps-install; then
+  set -e
+  printf "Using xbps-install to install sq...\n\n"
+
+  (xbps-install -Syu || true) && xbps-install -yu xbps
+  xbps-install -yu sq
+  exit
+fi
+
 # apt / deb
 if [ -r /etc/debian_version ] && command_exists apt; then
   set -e
