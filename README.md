@@ -307,7 +307,8 @@ See [CHANGELOG.md](./CHANGELOG.md).
 ## Acknowledgements
 
 - Thanks to [Diego Souza](https://github.com/diegosouza) for creating
-  the [Arch Linux package](https://aur.archlinux.org/packages/sq-bin).
+  the [Arch Linux package](https://aur.archlinux.org/packages/sq-bin), and [`@icp`](https://github.com/icp1994)
+  for creating the [Void Linux package](https://github.com/void-linux/void-packages/blob/master/srcpkgs/sq/template).
 - Much inspiration is owed to [jq](https://stedolan.github.io/jq/).
 - See [`go.mod`](https://github.com/neilotoole/sq/blob/master/go.mod) for a list of third-party
   packages.
@@ -321,8 +322,9 @@ See [CHANGELOG.md](./CHANGELOG.md).
 
 ## Similar, related, or noteworthy projects
 
-- [usql](https://github.com/xo/usql)
-- [textql](https://github.com/dinedal/textql)
-- [golang-migrate](https://github.com/golang-migrate/migrate)
-- [octosql](https://github.com/cube2222/octosql)
-- [rq](https://github.com/dflemstr/rq)
+- [`usql`](https://github.com/xo/usql)
+- [`textql`](https://github.com/dinedal/textql)
+- [`golang-migrate`](https://github.com/golang-migrate/migrate)
+- [`octosql`](https://github.com/cube2222/octosql)
+- [`rq`](https://github.com/dflemstr/rq)
+- [`miller`](https://github.com/johnkerl/miller)
