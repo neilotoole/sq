@@ -96,7 +96,7 @@ if command_exists apk; then
   # file from GitHub, and execute "apk add" with the local apk file.
 
   # e.g. "v1.0.0"
-  semver=$(wget -qO- "https://api.github.com/repos/neilotoole/sq/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+#  semver=$(wget -qO- "https://api.github.com/repos/neilotoole/sq/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
 
   # e.g. "1.0.0"
   ver=$(echo "$semver" | sed -e "s/^v//")
@@ -122,7 +122,7 @@ if command_exists apk; then
   download_url=$(printf "https://github.com/neilotoole/sq/releases/download/%s/%s" "$semver" "$file_name")
 
   echo "Downloading apk from: $download_url"
-  wget  "$download_url" -O "$file_path"
+#  wget  "$download_url" -O "$file_path"
 
   apk add --allow-untrusted "$file_path"
   rm "$file_path"
