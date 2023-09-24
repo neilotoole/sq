@@ -30,7 +30,9 @@ if command_exists xbps-install; then
   printf "Using xbps-install to install sq...\n\n"
 
   (xbps-install -Syu || true) && xbps-install -yu xbps
+  echo "Executing xbps-install sq"
   xbps-install -yu sq
+  echo "Finished executing xbps-install sq"
   exit
 fi
 
