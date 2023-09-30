@@ -84,7 +84,7 @@ discover anything strange, please [open an issue](https://github.com/neilotoole/
 - There's a new option [`error.format`](https://sq.io/docs/config#errorformat) that controls error output format independent
   of the main [`format`](https://sq.io/docs/config#format) option . The `error.format` value must be one of `text` or `json`.
 
-## Changed
+### Changed
 
 - ☢️ The default Excel date format has changed. Previously
   the format was `11/9/89`, and now it is `1989-11-09`. The same applies
