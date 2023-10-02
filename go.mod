@@ -27,7 +27,7 @@ require (
 	github.com/ncruces/go-strftime v0.1.9
 	github.com/neilotoole/shelleditor v0.4.1
 	github.com/neilotoole/slogt v1.1.0
-	github.com/otiai10/copy v1.12.0
+	github.com/otiai10/copy v1.14.0
 	github.com/ryboe/q v1.0.19
 	github.com/samber/lo v1.38.1
 	github.com/segmentio/encoding v0.1.14 // WARNING: Be very careful changing pkg segmentio/encoding. A specific version is used by our json encoder.
