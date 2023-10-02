@@ -28,7 +28,7 @@ require (
 	github.com/neilotoole/shelleditor v0.4.1
 	github.com/neilotoole/slogt v1.1.0
 	github.com/otiai10/copy v1.12.0
-	github.com/ryboe/q v1.0.19
+	github.com/ryboe/q v1.0.20
 	github.com/samber/lo v1.38.1
 	github.com/segmentio/encoding v0.1.14 // WARNING: Be very careful changing pkg segmentio/encoding. A specific version is used by our json encoder.
 	github.com/sethvargo/go-retry v0.2.4
@@ -76,7 +76,7 @@ require (
 	github.com/richardlehane/mscfb v1.0.4 // indirect
 	github.com/richardlehane/msoleps v1.0.3 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
-	github.com/rogpeppe/go-internal v1.10.0 // indirect
+	github.com/rogpeppe/go-internal v1.11.0 // indirect
 	github.com/shopspring/decimal v1.3.1 // indirect
 	github.com/spf13/cast v1.5.1 // indirect
 	github.com/xuri/efp v0.0.0-20230802181842-ad255f2331ca // indirect
