@@ -11,7 +11,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Added
 
-- The `unique()` function now has an alias `uniq`.
+- The SLQ `unique` function now has an alias `uniq`.
+- New SLQ function `schema()` returns the schema of the DB connection.
+  
 
 ### Changed
 

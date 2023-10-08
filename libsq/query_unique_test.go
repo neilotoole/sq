@@ -21,8 +21,8 @@ func TestQuery_unique(t *testing.T) {
 			wantRecCount: 128,
 		},
 		{
-			name:         "unique/no-col",
-			in:           `@sakila | .actor | unique`,
+			name:         "unique/no-col-with-parens",
+			in:           `@sakila | .actor | unique()`,
 			wantSQL:      `SELECT DISTINCT * FROM "actor"`,
 			override:     driverMap{mysql.Type: "SELECT DISTINCT * FROM `actor`"},
 			wantRecCount: sakila.TblActorCount,
@@ -30,6 +30,20 @@ func TestQuery_unique(t *testing.T) {
 		{
 			name:         "unique/no-col",
 			in:           `@sakila | .actor | unique`,
+			wantSQL:      `SELECT DISTINCT * FROM "actor"`,
+			override:     driverMap{mysql.Type: "SELECT DISTINCT * FROM `actor`"},
+			wantRecCount: sakila.TblActorCount,
+		},
+		{
+			name:         "uniq/no-col",
+			in:           `@sakila | .actor | uniq`,
+			wantSQL:      `SELECT DISTINCT * FROM "actor"`,
+			override:     driverMap{mysql.Type: "SELECT DISTINCT * FROM `actor`"},
+			wantRecCount: sakila.TblActorCount,
+		},
+		{
+			name:         "uniq/no-col-with-parens",
+			in:           `@sakila | .actor | uniq()`,
 			wantSQL:      `SELECT DISTINCT * FROM "actor"`,
 			override:     driverMap{mysql.Type: "SELECT DISTINCT * FROM `actor`"},
 			wantRecCount: sakila.TblActorCount,

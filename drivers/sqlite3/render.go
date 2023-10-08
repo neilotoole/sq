@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/ast"
+	"github.com/neilotoole/sq/libsq/ast/render"
+
 	"github.com/neilotoole/sq/libsq/core/kind"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -135,4 +138,14 @@ func buildUpdateStmt(tbl string, cols []string, where string) (string, error) {
 	}
 
 	return buf.String(), nil
+}
+
+func doRenderFuncSchema(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	if fn.FuncName() != ast.FuncNameSchema {
+		// Shouldn't happen
+		return "", errz.Errorf("expected %s function, got %q", ast.FuncNameSchema, fn.FuncName())
+	}
+
+	const frag = `(SELECT name FROM pragma_database_list ORDER BY seq limit 1)`
+	return frag, nil
 }

@@ -339,7 +339,7 @@ func TestCmdSLQ_ActiveSchema(t *testing.T) {
 	got := tr.BindCSV()
 	require.Equal(t, want, got)
 
-	// Test just --src.schema
+	// Test just --src.schema (schema part only)
 	require.NoError(t, tr.Reset().Exec("src", sakila.MS))
 
 	require.NoError(t, tr.Reset().Exec("--csv",
@@ -349,6 +349,7 @@ func TestCmdSLQ_ActiveSchema(t *testing.T) {
 	got = tr.BindCSV()
 	require.Equal(t, want, got)
 
+	// Test --src.schema (catalog and schema parts)
 	require.NoError(t, tr.Reset().Exec("--csv", "-H",
 		"--src.schema", "model.INFORMATION_SCHEMA",
 		`.SCHEMATA | .CATALOG_NAME | unique`,

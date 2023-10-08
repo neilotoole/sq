@@ -34,6 +34,7 @@ funcName
 	| 'avg'
 	| 'max'
 	| 'min'
+	| 'schema'
 	| PROPRIETARY_FUNC_NAME
   ;
 

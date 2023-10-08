@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/ast"
+
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 
 	"github.com/neilotoole/sq/libsq/core/jointype"
@@ -138,7 +140,9 @@ func placeholders(numCols, numRows int) string {
 
 // Renderer implements driver.SQLDriver.
 func (d *driveri) Renderer() *render.Renderer {
-	return render.NewDefaultRenderer()
+	r := render.NewDefaultRenderer()
+	r.FunctionNames[ast.FuncNameSchema] = "current_schema"
+	return r
 }
 
 // Open implements driver.DatabaseOpener.

@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/ast"
+
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 
 	"github.com/neilotoole/sq/libsq/core/loz"
@@ -150,6 +152,8 @@ func (d *driveri) Renderer() *render.Renderer {
 	// Custom functions for SQLServer-specific stuff.
 	r.Range = renderRange
 	r.PreRender = preRender
+
+	r.FunctionNames[ast.FuncNameSchema] = "SCHEMA_NAME"
 
 	return r
 }
