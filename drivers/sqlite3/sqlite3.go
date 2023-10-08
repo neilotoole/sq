@@ -610,10 +610,15 @@ func (d *driveri) CurrentSchema(ctx context.Context, db sqlz.DB) (string, error)
 	return name, nil
 }
 
-// SetSourceSchema implements driver.SQLDriver.
-func (d *driveri) SetSourceSchema(src *source.Source, schema string) error {
-	d.log.Warn("SetSourceSchema not implemented for driver; will ignore schema",
-		lga.Driver, Type, lga.Src, src, lga.Schema, schema)
+// SetSourceSchemaCatalog implements driver.SQLDriver.
+func (d *driveri) SetSourceSchemaCatalog(src *source.Source, catalog, schema *string) error {
+	if catalog != nil {
+		return errz.Errorf("driver %s does not support catalogs", Type)
+	}
+
+	if schema != nil {
+		src.Schema = *schema
+	}
 	return nil
 }
 

@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
+## Upcoming
+
+### Added
+
+- The `unique()` function now has an alias `uniq`.
+
+### Changed
+
+- `sq src --text` now outputs only the handle of the active source. Previously it
+  also printed the driver type and short location. Instead use `sq src --text --verbose` to
+  see those details.
+
 ## [v0.42.1] - 2023-09-10
 
 ### Fixed

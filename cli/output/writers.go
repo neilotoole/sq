@@ -71,8 +71,14 @@ type SourceWriter interface {
 	// Source outputs details of the source.
 	Source(coll *source.Collection, src *source.Source) error
 
+	// Added is called when src is added to the collection.
+	Added(coll *source.Collection, src *source.Source) error
+
 	// Removed is called when sources are removed from the collection.
 	Removed(srcs ...*source.Source) error
+
+	// Moved is called when a source is moved from old to nu.
+	Moved(coll *source.Collection, old, nu *source.Source) error
 
 	// Group prints the group.
 	Group(group *source.Group) error

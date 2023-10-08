@@ -81,6 +81,16 @@ func (w *sourceWriter) Source(_ *source.Collection, src *source.Source) error {
 	return writeYAML(w.out, w.p, src)
 }
 
+// Added implements output.SourceWriter.
+func (w *sourceWriter) Added(coll *source.Collection, src *source.Source) error {
+	return w.Source(coll, src)
+}
+
+// Moved implements output.SourceWriter.
+func (w *sourceWriter) Moved(coll *source.Collection, _, nu *source.Source) error {
+	return w.Source(coll, nu)
+}
+
 // Removed implements output.SourceWriter.
 func (w *sourceWriter) Removed(srcs ...*source.Source) error {
 	if !w.pr.Verbose || len(srcs) == 0 {

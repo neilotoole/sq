@@ -313,3 +313,51 @@ func TestFlagActiveSource_slq(t *testing.T) {
 	require.NoError(t, tr.Exec("src", "--json"))
 	require.Equal(t, "@sqlite", tr.BindMap()["handle"])
 }
+
+func TestCmdSLQ_ActiveSchema(t *testing.T) {
+	t.Parallel()
+
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil).
+		Add(*th.Source(sakila.SL3), *th.Source(sakila.MS))
+
+	// Confirm that sakila.SL3 is the active source
+	require.NoError(t, tr.Exec("src"))
+	require.Equal(t, sakila.SL3, strings.TrimSpace(tr.Out.String()))
+
+	// Test combination of --src and --src.schema
+	tr = tr.New()
+	require.NoError(t, tr.Exec("--csv",
+		"--src", sakila.MS,
+		"--src.schema", "INFORMATION_SCHEMA",
+		`.TABLES | where(.TABLE_NAME == "actor")`,
+	))
+
+	want := [][]string{
+		{"TABLE_CATALOG", "TABLE_SCHEMA", "TABLE_NAME", "TABLE_TYPE"},
+		{"sakila", "dbo", "actor", "BASE TABLE"},
+	}
+	got := tr.BindCSV()
+	require.Equal(t, want, got)
+
+	// Test just --src.schema
+	tr = tr.New()
+	require.NoError(t, tr.Exec("src", sakila.MS))
+
+	tr = tr.New()
+	require.NoError(t, tr.Exec("--csv",
+		"--src.schema", "INFORMATION_SCHEMA",
+		`.TABLES | where(.TABLE_NAME == "actor")`,
+	))
+	got = tr.BindCSV()
+	require.Equal(t, want, got)
+
+	tr = tr.New()
+	require.NoError(t, tr.Exec("--csv", "-H",
+		"--src.schema", "model.INFORMATION_SCHEMA",
+		`.SCHEMATA | .CATALOG_NAME | unique`,
+	))
+
+	got = tr.BindCSV()
+	require.Equal(t, "model", got[0][0])
+}

@@ -76,6 +76,23 @@ type Source struct {
 	// or a file path.
 	Location string `yaml:"location" json:"location"`
 
+	// Catalog, when non-empty, specifies a catalog (database) name
+	// override to use when constructing table references.
+	//
+	// For example, if the SLQ table selector is "actor", the query
+	// might be rendered as 'SELECT * FROM actor'. But if Catalog is
+	// set to "sakila" and Schema to "dbo", then that same query would
+	// be rendered as 'SELECT * FROM sakila.dbo.actor'.
+	//
+	// See also: Source.Schema.
+	Catalog string `yaml:"catalog" json:"catalog"`
+
+	// Schema, when non-empty, specifies a schema name
+	// override to use when constructing table references.
+	//
+	// See also: Source.Catalog.
+	Schema string `yaml:"schema" json:"schema"`
+
 	// Options are additional params, typically empty.
 	Options options.Options `yaml:"options,omitempty" json:"options,omitempty"`
 }
@@ -137,6 +154,8 @@ func (s *Source) Clone() *Source {
 		Handle:   s.Handle,
 		Type:     s.Type,
 		Location: s.Location,
+		Catalog:  s.Catalog,
+		Schema:   s.Schema,
 		Options:  s.Options.Clone(),
 	}
 }

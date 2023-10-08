@@ -94,7 +94,7 @@ uniqueFunc implements SQL's DISTINCT mechanism.
 
 The func takes zero args.
 */
-uniqueFunc: 'unique';
+uniqueFunc: 'unique' | 'uniq';
 
 /*
 

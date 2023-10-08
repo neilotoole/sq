@@ -4,6 +4,7 @@ package lga
 
 const (
 	Alt       = "alt"
+	Catalog   = "catalog"
 	Cmd       = "cmd"
 	Col       = "column"
 	Count     = "count"

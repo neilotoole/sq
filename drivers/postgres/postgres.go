@@ -11,8 +11,6 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 
-	"github.com/xo/dburl"
-
 	"github.com/neilotoole/sq/libsq/core/jointype"
 
 	"github.com/neilotoole/sq/libsq/core/record"
@@ -271,23 +269,15 @@ func (d *driveri) CurrentSchema(ctx context.Context, db sqlz.DB) (string, error)
 	return name, nil
 }
 
-// SetSourceSchema implements driver.SQLDriver.
-func (d *driveri) SetSourceSchema(src *source.Source, schema string) error {
-	schema = strings.TrimSpace(schema)
-	if schema == "" {
-		return errz.Errorf("invalid schema (empty)")
+// SetSourceSchemaCatalog implements driver.SQLDriver.
+func (d *driveri) SetSourceSchemaCatalog(src *source.Source, catalog, schema *string) error {
+	if catalog != nil {
+		src.Catalog = *catalog
 	}
 
-	u, err := dburl.Parse(src.Location)
-	if err != nil {
-		return errz.Err(err)
+	if schema != nil {
+		src.Schema = *schema
 	}
-
-	vals := u.Query()
-	vals.Set("search_path", schema)
-
-	u.RawQuery = vals.Encode()
-	src.Location = u.String()
 	return nil
 }
 

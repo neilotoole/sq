@@ -2,6 +2,8 @@
 // Ideally these functions would be merged into that package.
 package loz
 
+import "github.com/samber/lo"
+
 // All returns a new slice containing elems.
 func All[T any](elems ...T) []T {
 	a := make([]T, len(elems))
@@ -125,4 +127,25 @@ func IsSliceZeroed[T comparable](a []T) bool {
 		}
 	}
 	return true
+}
+
+// NilIfZero returns nil if t is T's zero value; otherwise it
+// returns a pointer to t.
+func NilIfZero[T comparable](t T) *T {
+	if lo.IsEmpty(t) {
+		return nil
+	}
+
+	return &t
+}
+
+// ZeroIfNil returns the zero value of T if t is nil, otherwise
+// it returns the dereferenced value of t.
+func ZeroIfNil[T comparable](t *T) T {
+	if t == nil {
+		var v T
+		return v
+	}
+
+	return *t
 }

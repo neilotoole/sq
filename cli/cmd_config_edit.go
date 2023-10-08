@@ -197,6 +197,9 @@ func execConfigEditSource(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// TODO: Should validate the source here. For example, the MySQL driver
+	// doesn't support the Catalog field.
+
 	*src = *src2
 
 	// TODO: if --verbose, show diff between config before and after.

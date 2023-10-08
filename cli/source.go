@@ -2,6 +2,11 @@ package cli
 
 import (
 	"context"
+	"strings"
+
+	"github.com/neilotoole/sq/libsq/core/loz"
+
+	"github.com/neilotoole/sq/libsq/ast"
 
 	"github.com/neilotoole/sq/cli/run"
 
@@ -73,8 +78,7 @@ func determineSources(ctx context.Context, ru *run.Run, requireActive bool) erro
 // This source also checks flag.ActiveSchema, and changes the schema
 // of the source if the flag is set.
 func activeSrcAndSchemaFromFlagsOrConfig(ru *run.Run) (*source.Source, error) {
-	ctx, cmd, coll := ru.Cmd.Context(), ru.Cmd, ru.Config.Collection
-	log := lg.FromContext(ctx)
+	cmd, coll := ru.Cmd, ru.Config.Collection
 	var activeSrc *source.Source
 
 	if cmdFlagChanged(cmd, flag.ActiveSrc) {
@@ -96,23 +100,30 @@ func activeSrcAndSchemaFromFlagsOrConfig(ru *run.Run) (*source.Source, error) {
 	}
 
 	if cmdFlagChanged(cmd, flag.ActiveSchema) {
-		schema, _ := cmd.Flags().GetString(flag.ActiveSchema)
-
 		if activeSrc == nil {
-			return nil, errz.Errorf("active schema {%s} specified via --%s, but active source is nil",
-				schema, flag.ActiveSchema)
+			return nil, errz.Errorf("active catalog/schema specified via --%s, but active source is nil",
+				flag.ActiveSchema)
 		}
 
-		log.Debug("Setting active schema",
-			lga.Schema, schema,
-			lga.Src, activeSrc)
+		val, _ := cmd.Flags().GetString(flag.ActiveSchema)
+		if val = strings.TrimSpace(val); val == "" {
+			return nil, errz.Errorf("active catalog/schema specified via --%s, but schema is empty",
+				flag.ActiveSchema)
+		}
+
+		catalog, schema, err := ast.ParseCatalogSchema(val)
+		if err != nil {
+			return nil, errz.Wrapf(err, "invalid active schema specified via --%s",
+				flag.ActiveSchema)
+		}
 
 		drvr, err := ru.DriverRegistry.SQLDriverFor(activeSrc.Type)
 		if err != nil {
 			return nil, err
 		}
 
-		if err = drvr.SetSourceSchema(activeSrc, schema); err != nil {
+		if err = drvr.SetSourceSchemaCatalog(activeSrc,
+			loz.NilIfZero(catalog), loz.NilIfZero(schema)); err != nil {
 			return nil, err
 		}
 	}

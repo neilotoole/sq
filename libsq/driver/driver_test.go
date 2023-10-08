@@ -617,6 +617,7 @@ func TestSQLDriver_CurrentSchema(t *testing.T) {
 }
 
 func TestSQLDriver_SetSourceSchema(t *testing.T) {
+	// FIXME: implement this test
 	newSchema := "test_schema_" + stringz.Uniq8()
 
 	testCases := []struct {
@@ -646,7 +647,7 @@ func TestSQLDriver_SetSourceSchema(t *testing.T) {
 			})
 
 			src2 := src1.Clone()
-			require.NoError(t, drvr.SetSourceSchema(src2, newSchema))
+			require.NoError(t, drvr.SetSourceSchemaCatalog(src2, nil, &newSchema))
 
 			dbase2 := th.Open(src2)
 			db2, err := dbase2.DB(th.Context)

@@ -110,6 +110,15 @@ func newRun(ctx context.Context, t testing.TB, cfgStore config.Store) (ru *run.R
 	return ru, out, errOut
 }
 
+// New returns a new TestRun using tr's config. It is equivalent
+// to testrun.New(tr.Context, tr.T, tr).
+//
+// REVISIT: Maybe we should just have a method TestRun.Reset that
+// resets the TestRun instance?
+func (tr *TestRun) New() *TestRun {
+	return New(tr.Context, tr.T, tr)
+}
+
 // Add adds srcs to tr.Run.Config.Collection. If the collection
 // does not already have an active source, the first element
 // of srcs is used as the active source.

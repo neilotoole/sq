@@ -298,7 +298,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return ru.Writers.Source.Source(ru.Config.Collection, src)
+	return ru.Writers.Source.Added(ru.Config.Collection, src)
 }
 
 // readPassword reads a password from stdin pipe, or if nothing on stdin,

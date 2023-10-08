@@ -182,20 +182,16 @@ func (d *driveri) CurrentSchema(ctx context.Context, db sqlz.DB) (string, error)
 	return name, nil
 }
 
-// SetSourceSchema implements driver.SQLDriver.
-func (d *driveri) SetSourceSchema(src *source.Source, schema string) error {
-	schema = strings.TrimSpace(schema)
-	if schema == "" {
-		return errz.Errorf("invalid schema (empty)")
+// SetSourceSchemaCatalog implements driver.SQLDriver.
+func (d *driveri) SetSourceSchemaCatalog(src *source.Source, catalog, schema *string) error {
+	if catalog != nil {
+		return errz.Errorf("driver %s does not support catalogs", Type)
 	}
 
-	u, err := dburl.Parse(src.Location)
-	if err != nil {
-		return errz.Err(err)
+	if schema != nil {
+		src.Schema = *schema
 	}
 
-	u.Path = "/" + schema
-	src.Location = u.String()
 	return nil
 }
 
