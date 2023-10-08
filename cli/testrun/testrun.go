@@ -34,9 +34,13 @@ type TestRun struct {
 	Context context.Context
 	mu      sync.Mutex
 	Run     *run.Run
-	Out     *bytes.Buffer
-	ErrOut  *bytes.Buffer
-	used    bool
+
+	// Out contains the output written to stdout after TestRun.Exec is invoked.
+	Out *bytes.Buffer
+
+	// ErrOut contains the output written to stderr after TestRun.Exec is invoked.
+	ErrOut *bytes.Buffer
+	used   bool
 
 	// When true, out and errOut are not logged.
 	hushOutput bool
@@ -45,6 +49,8 @@ type TestRun struct {
 // New returns a new run instance for testing sq commands.
 // If from is non-nil, its config is used. This allows sequential
 // commands to use the same config.
+//
+// You can also use TestRun.Reset to reuse a TestRun instance.
 func New(ctx context.Context, t testing.TB, from *TestRun) *TestRun {
 	if ctx == nil {
 		ctx = context.Background()
@@ -110,13 +116,15 @@ func newRun(ctx context.Context, t testing.TB, cfgStore config.Store) (ru *run.R
 	return ru, out, errOut
 }
 
-// New returns a new TestRun using tr's config. It is equivalent
-// to testrun.New(tr.Context, tr.T, tr).
+// Reset resets tr to a clean slate. Note that a new TestRun instance
+// is created behind the scenes, so any references to the previous
+// TestRun's fields are now invalid.
 //
-// REVISIT: Maybe we should just have a method TestRun.Reset that
-// resets the TestRun instance?
-func (tr *TestRun) New() *TestRun {
-	return New(tr.Context, tr.T, tr)
+// See also: testrun.New.
+func (tr *TestRun) Reset() *TestRun {
+	tr2 := New(tr.Context, tr.T, tr)
+	*tr = *tr2
+	return tr
 }
 
 // Add adds srcs to tr.Run.Config.Collection. If the collection
@@ -153,7 +161,8 @@ func (tr *TestRun) Add(srcs ...source.Source) *TestRun {
 
 // Exec executes the sq command specified by args. If the first
 // element of args is not "sq", that value is prepended to the
-// args for execution. This method may only be invoked once.
+// args for execution. This method may only be invoked once on
+// this TestRun instance, unless TestRun.Reset is called.
 // The backing Run will also be closed. If an error
 // occurs on the client side during execution, that error is returned.
 // Either tr.Out or tr.ErrOut will be filled, according to what the
@@ -232,6 +241,12 @@ func (tr *TestRun) BindCSV() [][]string {
 	recs, err := csv.NewReader(tr.Out).ReadAll()
 	require.NoError(tr.T, err)
 	return recs
+}
+
+// OutString returns the contents of tr.Out as a string,
+// with the final trailing newline removed.
+func (tr *TestRun) OutString() string {
+	return strings.TrimSuffix(tr.Out.String(), "\n")
 }
 
 // Hush suppresses the printing of output collected in out
