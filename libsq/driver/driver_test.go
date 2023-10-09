@@ -291,11 +291,12 @@ func TestNewBatchInsert(t *testing.T) {
 
 		t.Run(handle, func(t *testing.T) {
 			th, src, drvr, _, db := testh.NewWith(t, handle)
+			tblName := th.CopyTable(true, src, tablefq.From(sakila.TblActor), tablefq.T{}, false)
 			conn, err := db.Conn(th.Context)
 			require.NoError(t, err)
-			defer func() { assert.NoError(t, conn.Close()) }()
-
-			tblName := th.CopyTable(true, src, tablefq.From(sakila.TblActor), tablefq.T{}, false)
+			t.Cleanup(func() {
+				_ = conn.Close()
+			})
 
 			// Get records from TblActor that we'll write to the new tbl
 			recMeta, recs := testh.RecordsFromTbl(t, handle, sakila.TblActor)
@@ -322,6 +323,8 @@ func TestNewBatchInsert(t *testing.T) {
 
 			err = <-bi.ErrCh
 			require.Nil(t, err)
+
+			require.NoError(t, conn.Close())
 
 			sink, err := th.QuerySQL(src, "SELECT * FROM "+tblName)
 			require.NoError(t, err)
@@ -633,28 +636,34 @@ func TestDriverCreateDropSchema(t *testing.T) {
 			th, src, drvr, _, db := testh.NewWith(t, tc.handle)
 			ctx := th.Context
 
-			gotSchema1, err := drvr.CurrentSchema(ctx, db)
+			conn, err := db.Conn(th.Context)
+			require.NoError(t, err)
+			t.Cleanup(func() {
+				assert.NoError(t, conn.Close())
+			})
+
+			gotSchema1, err := drvr.CurrentSchema(ctx, conn)
 			require.NoError(t, err)
 			require.Equal(t, tc.defaultSchema, gotSchema1)
 
 			newSchema := "test_schema_" + stringz.Uniq8()
 
-			err = drvr.CreateSchema(ctx, db, newSchema)
+			err = drvr.CreateSchema(ctx, conn, newSchema)
 			require.NoError(t, err)
 
 			t.Cleanup(func() {
-				err = drvr.DropSchema(ctx, db, newSchema)
+				err = drvr.DropSchema(ctx, conn, newSchema)
 				assert.NoError(t, err)
 			})
 
-			schemaNames, err := drvr.ListSchemas(ctx, db)
+			schemaNames, err := drvr.ListSchemas(ctx, conn)
 			require.NoError(t, err)
 			require.Contains(t, schemaNames, tc.defaultSchema)
 			require.Contains(t, schemaNames, newSchema)
 
 			destTblFQ := tablefq.T{Schema: newSchema, Table: stringz.UniqTableName("actor2")}
 			srcTblFQ := tablefq.From(sakila.TblActor)
-			copied, err := drvr.CopyTable(ctx, db, srcTblFQ, destTblFQ, true)
+			copied, err := drvr.CopyTable(ctx, conn, srcTblFQ, destTblFQ, true)
 			require.NoError(t, err)
 			require.Equal(t, int64(sakila.TblActorCount), copied)
 
@@ -666,7 +675,7 @@ func TestDriverCreateDropSchema(t *testing.T) {
 			// Do a second copy for good measure. We want to verify that CopyTable works
 			// even on the non-default schema (this could probably be its own test).
 			destTblFQ2 := tablefq.T{Schema: newSchema, Table: stringz.UniqSuffix("actor3_")}
-			copied, err = drvr.CopyTable(ctx, db, destTblFQ, destTblFQ2, true)
+			copied, err = drvr.CopyTable(ctx, conn, destTblFQ, destTblFQ2, true)
 			require.NoError(t, err)
 			require.Equal(t, int64(sakila.TblActorCount), copied)
 

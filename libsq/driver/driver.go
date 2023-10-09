@@ -543,19 +543,6 @@ func (d *Databases) Close() error {
 	return d.clnup.Run()
 }
 
-// requireSingleConn returns nil if db is a type that guarantees a
-// single database connection. That is, requireSingleConn returns an
-// error if db does not have type *sql.Conn or *sql.Tx.
-func requireSingleConn(db sqlz.DB) error {
-	switch db.(type) {
-	case *sql.Conn, *sql.Tx:
-	default:
-		return errz.Errorf("db must be guaranteed single-connection (sql.Conn or sql.Tx) but was %T", db)
-	}
-
-	return nil
-}
-
 // OpeningPing is a standardized mechanism to ping db using
 // driver.OptConnOpenTimeout. This should be invoked by each SQL
 // driver impl in its Open method. If the ping fails, db is closed.

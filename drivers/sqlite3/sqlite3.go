@@ -157,16 +157,25 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 		return nil, errz.Wrapf(errw(err), "failed to open sqlite3 source with DSN: %s", dsn)
 	}
 
-	// NOTE: We limit open conns to 1, because otherwise it's not clear what
-	// happens with attached databases. Note that ATTACH DATABASE only applies
-	// to a single connection, so if we have multiple connections, the database
-	// may no longer be attached. See https://www.sqlite.org/lang_attach.html
-	db.SetMaxOpenConns(1)
-	db.SetMaxIdleConns(1)
-	db.SetConnMaxIdleTime(driver.OptConnMaxIdleTime.Get(src.Options))
-	db.SetConnMaxLifetime(driver.OptConnMaxLifetime.Get(src.Options))
-
+	driver.ConfigureDB(ctx, db, src.Options)
 	return db, nil
+
+	// FIXME: Delete this stuff when we've figured out the connection issue.
+
+	//// NOTE: We limit open conns to 1, because otherwise it's not clear what
+	//// happens with attached databases. Note that ATTACH DATABASE only applies
+	//// to a single connection, so if we have multiple connections, the database
+	//// may no longer be attached. See https://www.sqlite.org/lang_attach.html
+	////
+	//// REVISIT: However, limiting to a single connection has ugly implications.
+	//// Especially because most usage doesn't involve ATTACH DATABASE. We need
+	//// to rethink how this is done.
+	//db.SetMaxOpenConns(1)
+	//db.SetMaxIdleConns(1)
+	//db.SetConnMaxIdleTime(driver.OptConnMaxIdleTime.Get(src.Options))
+	//db.SetConnMaxLifetime(driver.OptConnMaxLifetime.Get(src.Options))
+
+	// return db, nil
 }
 
 // Truncate implements driver.Driver.
@@ -276,15 +285,6 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB,
 	if err != nil {
 		return 0, errw(err)
 	}
-
-	//schemaNames, err := d.ListSchemas(ctx, db)
-	//if err != nil {
-	//	return 0, err
-	//}
-	//
-	//if !slices.Contains(schemaNames, toTbl.Schema) {
-	//	return 0, errz.Errorf("schema %q does not exist", toTbl.Schema)
-	//}
 
 	// Next, we extract the table identifier from the CREATE TABLE statement.
 	// For example, "main"."actor". Note that the schema part may be empty.
@@ -627,8 +627,18 @@ func (d *driveri) DropTable(ctx context.Context, db sqlz.DB, tbl tablefq.T, ifEx
 	return errw(err)
 }
 
-// CreateSchema implements driver.SQLDriver.
+// CreateSchema implements driver.SQLDriver. This is implemented for SQLite
+// by attaching a new database to db, using ATTACH DATABASE. This attached
+// database is only available on the connection on which the ATTACH DATABASE
+// command was issued. Thus, db must be a *sql.Conn or *sql.Tx, as
+// per sqlz.RequireSingleConn. The same constraint applies to DropSchema.
+//
+// See: https://www.sqlite.org/lang_attach.html
 func (d *driveri) CreateSchema(ctx context.Context, db sqlz.DB, schemaName string) error {
+	if err := sqlz.RequireSingleConn(db); err != nil {
+		return errz.Wrapf(err, "create schema {%s}: ATTACH DATABASE requires single connection", schemaName)
+	}
+
 	// NOTE: Empty string for DATABASE creates a temporary database.
 	// We may want to change this to create a more permanent database, perhaps
 	// in the same directory as the existing db?
@@ -640,8 +650,15 @@ func (d *driveri) CreateSchema(ctx context.Context, db sqlz.DB, schemaName strin
 	return nil
 }
 
-// DropSchema implements driver.SQLDriver.
+// DropSchema implements driver.SQLDriver. As per CreateSchema, db must
+// be a *sql.Conn or *sql.Tx.
+//
+// See https://www.sqlite.org/lang_detach.html
 func (d *driveri) DropSchema(ctx context.Context, db sqlz.DB, schemaName string) error {
+	if err := sqlz.RequireSingleConn(db); err != nil {
+		return errz.Wrapf(err, "drop schema {%s}: DETACH DATABASE requires single connection", schemaName)
+	}
+
 	stmt := `DETACH DATABASE ` + stringz.DoubleQuote(schemaName)
 	if _, err := db.ExecContext(ctx, stmt); err != nil {
 		return errz.Wrapf(err, "drop schema {%s}", schemaName)
