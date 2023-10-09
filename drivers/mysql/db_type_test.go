@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/core/tablefq"
+
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli/output"
@@ -346,7 +348,7 @@ func TestDatabaseTypes(t *testing.T) { //nolint:tparallel
 			t.Logf("using source %s: %s", src.Handle, src.Location)
 
 			actualTblName := createTypeTestTable(th, src, true)
-			t.Cleanup(func() { th.DropTable(src, actualTblName) })
+			t.Cleanup(func() { th.DropTable(src, tablefq.From(actualTblName)) })
 
 			sink := &testh.RecordSink{}
 			recw := output.NewRecordWriterAdapter(th.Context, sink)
@@ -412,7 +414,7 @@ func TestDatabaseTypeJSON(t *testing.T) {
 
 			_, err := db.ExecContext(th.Context, createStmt)
 			require.NoError(t, err)
-			t.Cleanup(func() { th.DropTable(src, actualTblName) })
+			t.Cleanup(func() { th.DropTable(src, tablefq.From(actualTblName)) })
 
 			// Insert data
 			insertStmt := fmt.Sprintf("INSERT INTO %s (col_id, col_json, col_json_n) VALUES (?,?,?)", actualTblName)

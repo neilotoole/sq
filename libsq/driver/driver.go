@@ -302,6 +302,13 @@ type SQLDriver interface {
 	// must honor the table name and column names and kinds from tblDef.
 	CreateTable(ctx context.Context, db sqlz.DB, tblDef *sqlmodel.TableDef) error
 
+	// CreateSchema creates a new schema in db. Note that db's current
+	// connection schema is not changed.
+	CreateSchema(ctx context.Context, db sqlz.DB, schemaName string) error
+
+	// DropSchema drops the named schema in db.
+	DropSchema(ctx context.Context, db sqlz.DB, schemaName string) error
+
 	// TableExists returns true if there's an existing table tbl in db.
 	TableExists(ctx context.Context, db sqlz.DB, tbl string) (bool, error)
 

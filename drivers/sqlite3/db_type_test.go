@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/core/tablefq"
+
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli/output"
@@ -169,7 +171,7 @@ func TestDatabaseTypes(t *testing.T) {
 	src := th.Source(sakila.SL3)
 	actualTblName := createTypeTestTbls(th, src, 1, true)[0]
 	th.Cleanup.Add(func() {
-		th.DropTable(src, actualTblName)
+		th.DropTable(src, tablefq.From(actualTblName))
 	})
 
 	sink := &testh.RecordSink{}

@@ -4,6 +4,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/core/tablefq"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -88,7 +90,7 @@ func TestDriver_CreateTable_NotNullDefault(t *testing.T) {
 
 			err := drvr.CreateTable(th.Context, db, tblDef)
 			require.NoError(t, err)
-			t.Cleanup(func() { th.DropTable(src, tblName) })
+			t.Cleanup(func() { th.DropTable(src, tablefq.From(tblName)) })
 
 			th.InsertDefaultRow(src, tblName)
 

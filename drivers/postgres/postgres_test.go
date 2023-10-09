@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/core/tablefq"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -103,7 +105,7 @@ func Test_VerifyDriverDoesNotReportNullability(t *testing.T) {
 			db := th.OpenDB(src)
 
 			_, actualTblName := createTypeTestTable(th, src, true)
-			t.Cleanup(func() { th.DropTable(src, actualTblName) })
+			t.Cleanup(func() { th.DropTable(src, tablefq.From(actualTblName)) })
 
 			rows, err := db.Query("SELECT * FROM " + actualTblName)
 			require.NoError(t, err)
@@ -172,7 +174,7 @@ func TestDriver_CreateTable_NotNullDefault(t *testing.T) {
 
 			err := drvr.CreateTable(th.Context, db, tblDef)
 			require.NoError(t, err)
-			t.Cleanup(func() { th.DropTable(src, tblName) })
+			t.Cleanup(func() { th.DropTable(src, tablefq.From(tblName)) })
 
 			th.InsertDefaultRow(src, tblName)
 

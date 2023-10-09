@@ -3,6 +3,8 @@ package mysql_test
 import (
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/core/tablefq"
+
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/sqlmodel"
@@ -51,7 +53,7 @@ func TestDriver_CreateTable_NotNullDefault(t *testing.T) {
 
 			err := drvr.CreateTable(th.Context, db, tblDef)
 			require.NoError(t, err)
-			t.Cleanup(func() { th.DropTable(src, tblName) })
+			t.Cleanup(func() { th.DropTable(src, tablefq.From(tblName)) })
 
 			// MySQL doesn't support default values for TEXT or BLOB
 			// See: https://bugs.mysql.com/bug.php?id=21532

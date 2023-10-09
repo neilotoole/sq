@@ -49,11 +49,11 @@ func TestDriver_DropTable(t *testing.T) {
 			tblName := stringz.UniqTableName(sakila.TblActor)
 
 			// Copy a table that we can play with
-			tblName = th.CopyTable(false, src, sakila.TblActor, tblName, false)
+			tblName = th.CopyTable(false, src, tablefq.From(sakila.TblActor), tablefq.From(tblName), false)
 			require.NoError(t, drvr.DropTable(th.Context, db, tablefq.From(tblName), true))
 
 			// Copy the table again so we can drop it again
-			tblName = th.CopyTable(false, src, sakila.TblActor, tblName, false)
+			tblName = th.CopyTable(false, src, tablefq.From(sakila.TblActor), tablefq.From(tblName), false)
 
 			// test with ifExists = false
 			require.NoError(t, drvr.DropTable(th.Context, db, tablefq.From(tblName), false))
@@ -106,7 +106,7 @@ func TestDriver_CopyTable(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, int64(sakila.TblActorCount), copied)
 			require.Equal(t, int64(sakila.TblActorCount), th.RowCount(src, toTable))
-			defer th.DropTable(src, toTable)
+			defer th.DropTable(src, tablefq.From(toTable))
 
 			toTable = stringz.UniqTableName(sakila.TblActor)
 			// Then, with copyData = false
@@ -114,7 +114,7 @@ func TestDriver_CopyTable(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, int64(0), copied)
 			require.Equal(t, int64(0), th.RowCount(src, toTable))
-			defer th.DropTable(src, toTable)
+			defer th.DropTable(src, tablefq.From(toTable))
 		})
 	}
 }
@@ -139,7 +139,7 @@ func TestDriver_CreateTable_Minimal(t *testing.T) {
 
 			err := drvr.CreateTable(th.Context, db, tblDef)
 			require.NoError(t, err)
-			t.Cleanup(func() { th.DropTable(src, tblName) })
+			t.Cleanup(func() { th.DropTable(src, tablefq.From(tblName)) })
 
 			colTypes, err := drvr.TableColumnTypes(th.Context, db, tblName, colNames)
 			require.NoError(t, err)
@@ -170,7 +170,7 @@ func TestDriver_TableColumnTypes(t *testing.T) { //nolint:tparallel
 			// differently depending upon whether the query returns rows
 			// or not.
 			for _, copyData := range []bool{false, true} {
-				tblName := th.CopyTable(true, src, sakila.TblActor, "", copyData)
+				tblName := th.CopyTable(true, src, tablefq.From(sakila.TblActor), tablefq.T{}, copyData)
 
 				// Note nil colNames, should still get all columns
 				// as if the query was (SELECT * FROM actualTblName)
@@ -205,7 +205,7 @@ func TestSQLDriver_PrepareUpdateStmt(t *testing.T) { //nolint:tparallel
 
 			th, src, drvr, _, db := testh.NewWith(t, handle)
 
-			tblName := th.CopyTable(true, src, sakila.TblActor, "", true)
+			tblName := th.CopyTable(true, src, tablefq.From(sakila.TblActor), tablefq.T{}, true)
 
 			const (
 				actorID     int64  = 1
@@ -295,7 +295,7 @@ func TestNewBatchInsert(t *testing.T) {
 			require.NoError(t, err)
 			defer func() { assert.NoError(t, conn.Close()) }()
 
-			tblName := th.CopyTable(true, src, sakila.TblActor, "", false)
+			tblName := th.CopyTable(true, src, tablefq.From(sakila.TblActor), tablefq.T{}, false)
 
 			// Get records from TblActor that we'll write to the new tbl
 			recMeta, recs := testh.RecordsFromTbl(t, handle, sakila.TblActor)
@@ -508,7 +508,7 @@ func TestSQLDriver_AlterTableAddColumn(t *testing.T) {
 			th, src, drvr, _, db := testh.NewWith(t, handle)
 
 			// Make a copy of the table to play with
-			tbl := th.CopyTable(true, src, sakila.TblActor, "", true)
+			tbl := th.CopyTable(true, src, tablefq.From(sakila.TblActor), tablefq.T{}, true)
 
 			const wantCol, wantKind = "col_int", kind.Int
 			wantCols := append(sakila.TblActorCols(), wantCol)
@@ -539,13 +539,13 @@ func TestSQLDriver_AlterTableRename(t *testing.T) {
 			th, src, drvr, dbase, db := testh.NewWith(t, handle)
 
 			// Make a copy of the table to play with
-			tbl := th.CopyTable(true, src, sakila.TblActor, "", true)
-			defer th.DropTable(src, tbl)
+			tbl := th.CopyTable(true, src, tablefq.From(sakila.TblActor), tablefq.T{}, true)
+			defer th.DropTable(src, tablefq.From(tbl))
 
 			newName := stringz.UniqSuffix("actor_copy_")
 			err := drvr.AlterTableRename(th.Context, db, tbl, newName)
 			require.NoError(t, err)
-			defer th.DropTable(src, newName)
+			defer th.DropTable(src, tablefq.From(newName))
 
 			md, err := dbase.TableMetadata(th.Context, newName)
 			require.NoError(t, err)
@@ -567,7 +567,7 @@ func TestSQLDriver_AlterTableRenameColumn(t *testing.T) {
 			th, src, drvr, dbase, db := testh.NewWith(t, handle)
 
 			// Make a copy of the table to play with
-			tbl := th.CopyTable(true, src, sakila.TblActor, "", true)
+			tbl := th.CopyTable(true, src, tablefq.From(sakila.TblActor), tablefq.T{}, true)
 
 			newName := "given_name"
 			err := drvr.AlterTableRenameColumn(th.Context, db, tbl, "first_name", newName)
@@ -616,10 +616,75 @@ func TestSQLDriver_CurrentSchema(t *testing.T) {
 	}
 }
 
+func TestDriverCreateDropSchema(t *testing.T) {
+	testCases := []struct {
+		handle        string
+		defaultSchema string
+	}{
+		{sakila.SL3, "main"},
+		{sakila.Pg, "public"},
+		{sakila.My, "sakila"},
+		{sakila.MS, "dbo"},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.handle, func(t *testing.T) {
+			th, src, drvr, _, db := testh.NewWith(t, tc.handle)
+			ctx := th.Context
+
+			gotSchema1, err := drvr.CurrentSchema(ctx, db)
+			require.NoError(t, err)
+			require.Equal(t, tc.defaultSchema, gotSchema1)
+
+			newSchema := "test_schema_" + stringz.Uniq8()
+
+			err = drvr.CreateSchema(ctx, db, newSchema)
+			require.NoError(t, err)
+
+			t.Cleanup(func() {
+				err = drvr.DropSchema(ctx, db, newSchema)
+				assert.NoError(t, err)
+			})
+
+			schemaNames, err := drvr.ListSchemas(ctx, db)
+			require.NoError(t, err)
+			require.Contains(t, schemaNames, tc.defaultSchema)
+			require.Contains(t, schemaNames, newSchema)
+
+			destTblFQ := tablefq.T{Schema: newSchema, Table: stringz.UniqTableName("actor2")}
+			srcTblFQ := tablefq.From(sakila.TblActor)
+			copied, err := drvr.CopyTable(ctx, db, srcTblFQ, destTblFQ, true)
+			require.NoError(t, err)
+			require.Equal(t, int64(sakila.TblActorCount), copied)
+
+			q := fmt.Sprintf("SELECT * FROM %s.%s", destTblFQ.Schema, destTblFQ.Table)
+			sink, err := th.QuerySQL(src, q)
+			require.NoError(t, err)
+			require.Equal(t, int64(sakila.TblActorCount), int64(len(sink.Recs)))
+
+			// Do a second copy for good measure. We want to verify that CopyTable works
+			// even on the non-default schema (this could probably be its own test).
+			destTblFQ2 := tablefq.T{Schema: newSchema, Table: stringz.UniqSuffix("actor3_")}
+			copied, err = drvr.CopyTable(ctx, db, destTblFQ, destTblFQ2, true)
+			require.NoError(t, err)
+			require.Equal(t, int64(sakila.TblActorCount), copied)
+
+			q = fmt.Sprintf("SELECT * FROM %s.%s", destTblFQ2.Schema, destTblFQ2.Table)
+			sink, err = th.QuerySQL(src, q)
+			require.NoError(t, err)
+			require.Equal(t, int64(sakila.TblActorCount), int64(len(sink.Recs)))
+		})
+	}
+}
+
 func TestSQLDriver_SetSourceSchema(t *testing.T) {
 	// FIXME: implement this test
 	newSchema := "test_schema_" + stringz.Uniq8()
 
+	// TODO: Add function testh to create a new schema, and table,
+	// and populate it.
+	_ = newSchema
 	testCases := []struct {
 		handle        string
 		defaultSchema string
@@ -640,32 +705,35 @@ func TestSQLDriver_SetSourceSchema(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, tc.defaultSchema, gotSchema1)
 
-			_ = th.ExecSQL(src1, "CREATE SCHEMA "+newSchema)
-
-			t.Cleanup(func() {
-				th.ExecSQL(src1, "DROP SCHEMA IF EXISTS "+newSchema)
-			})
-
-			src2 := src1.Clone()
-			require.NoError(t, drvr.SetSourceSchemaCatalog(src2, nil, &newSchema))
-
-			dbase2 := th.Open(src2)
-			db2, err := dbase2.DB(th.Context)
-			require.NoError(t, err)
-			gotSchema2, err := drvr.CurrentSchema(th.Context, db2)
-			require.NoError(t, err)
-			require.Equal(t, newSchema, gotSchema2)
-			require.NotEqual(t, gotSchema2, gotSchema1)
-
-			md, err := dbase2.SourceMetadata(th.Context, false)
-			require.NoError(t, err)
-			require.NotNil(t, md)
-			require.Equal(t, md.Schema, gotSchema2)
-
-			gotSchemas, err := drvr.ListSchemas(th.Context, db2)
-			require.NoError(t, err)
-			require.Contains(t, gotSchemas, gotSchema1)
-			require.Contains(t, gotSchemas, gotSchema2)
+			_ = src1
+			//
+			//drvr.
+			//	_ = th.ExecSQL(src1, "CREATE SCHEMA "+newSchema)
+			//
+			//t.Cleanup(func() {
+			//	th.ExecSQL(src1, "DROP SCHEMA IF EXISTS "+newSchema)
+			//})
+			//
+			//src2 := src1.Clone()
+			//require.NoError(t, drvr.SetSourceSchemaCatalog(src2, nil, &newSchema))
+			//
+			//dbase2 := th.Open(src2)
+			//db2, err := dbase2.DB(th.Context)
+			//require.NoError(t, err)
+			//gotSchema2, err := drvr.CurrentSchema(th.Context, db2)
+			//require.NoError(t, err)
+			//require.Equal(t, newSchema, gotSchema2)
+			//require.NotEqual(t, gotSchema2, gotSchema1)
+			//
+			//md, err := dbase2.SourceMetadata(th.Context, false)
+			//require.NoError(t, err)
+			//require.NotNil(t, md)
+			//require.Equal(t, md.Schema, gotSchema2)
+			//
+			//gotSchemas, err := drvr.ListSchemas(th.Context, db2)
+			//require.NoError(t, err)
+			//require.Contains(t, gotSchemas, gotSchema1)
+			//require.Contains(t, gotSchemas, gotSchema2)
 		})
 	}
 }

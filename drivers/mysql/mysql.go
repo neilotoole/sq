@@ -156,6 +156,20 @@ func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (
 	return recMeta, mungeFn, nil
 }
 
+// CreateSchema implements driver.SQLDriver.
+func (d *driveri) CreateSchema(ctx context.Context, db sqlz.DB, schemaName string) error {
+	stmt := `CREATE SCHEMA ` + stringz.BacktickQuote(schemaName)
+	_, err := db.ExecContext(ctx, stmt)
+	return errz.Wrapf(err, "failed to create schema {%s}", schemaName)
+}
+
+// DropSchema implements driver.SQLDriver.
+func (d *driveri) DropSchema(ctx context.Context, db sqlz.DB, schemaName string) error {
+	stmt := `DROP SCHEMA ` + stringz.BacktickQuote(schemaName)
+	_, err := db.ExecContext(ctx, stmt)
+	return errz.Wrapf(err, "failed to drop schema {%s}", schemaName)
+}
+
 // CreateTable implements driver.SQLDriver.
 func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *sqlmodel.TableDef) error {
 	createStmt := buildCreateTableStmt(tblDef)

@@ -333,11 +333,10 @@ func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (
 // TableExists implements driver.SQLDriver.
 func (d *driveri) TableExists(ctx context.Context, db sqlz.DB, tbl string) (bool, error) {
 	const query = `SELECT COUNT(*) FROM information_schema.tables
-WHERE table_schema = 'dbo' AND table_name = @p1`
+WHERE table_schema = schema_name() AND table_name = @p1`
 
 	var count int64
-	err := db.QueryRowContext(ctx, query, tbl).Scan(&count)
-	if err != nil {
+	if err := db.QueryRowContext(ctx, query, tbl).Scan(&count); err != nil {
 		return false, errw(err)
 	}
 
@@ -391,6 +390,34 @@ func (d *driveri) ListSchemas(ctx context.Context, db sqlz.DB) ([]string, error)
 	}
 
 	return schemas, nil
+}
+
+// CreateSchema implements driver.SQLDriver.
+func (d *driveri) CreateSchema(ctx context.Context, db sqlz.DB, schemaName string) error {
+	stmt := `CREATE SCHEMA ` + stringz.DoubleQuote(schemaName)
+	if _, err := db.ExecContext(ctx, stmt); err != nil {
+		errz.Wrapf(err, "failed to create schema {%s}", schemaName)
+	}
+
+	lg.FromContext(ctx).Debug("Created schema", lga.Schema, schemaName)
+	return nil
+}
+
+// DropSchema implements driver.SQLDriver.
+func (d *driveri) DropSchema(ctx context.Context, db sqlz.DB, schemaName string) error {
+	dropObjectsStmt := genDropSchemaObjectsStmt(schemaName)
+
+	if _, err := db.ExecContext(ctx, dropObjectsStmt); err != nil {
+		return errz.Wrapf(err, "failed to drop objects in schema {%s}", schemaName)
+	}
+
+	dropSchemaStmt := `DROP SCHEMA [` + schemaName + `]`
+	if _, err := db.ExecContext(ctx, dropSchemaStmt); err != nil {
+		return errz.Wrapf(err, "failed to drop schema {%s}", schemaName)
+	}
+
+	lg.FromContext(ctx).Debug("Dropped schema", lga.Schema, schemaName)
+	return nil
 }
 
 // CreateTable implements driver.SQLDriver.
@@ -668,4 +695,66 @@ func setIdentityInsert(ctx context.Context, db sqlz.DB, tbl string, on bool) err
 func tblfmt[T string | tablefq.T](tbl T) string {
 	tfq := tablefq.From(tbl)
 	return tfq.Render(stringz.DoubleQuote)
+}
+
+// genDropSchemaObjectsStmt generates a SQL statement that drops all
+// objects in the named schema. It is used by driveri.DropSchema.
+// This statement is necessary because SQLServer
+// doesn't support "DROP SCHEMA [NAME] CASCADE".
+// Note that script may not be comprehensive; there could be other
+// objects that we haven't considered. But it works on all that
+// that's been tested so far.
+//
+// See: https://stackoverflow.com/a/8150428
+func genDropSchemaObjectsStmt(schemaName string) string {
+	const tpl = `
+declare @SchemaName nvarchar(100) = '%s'
+declare @SchemaID int = schema_id(@SchemaName)
+
+declare @n char(1)
+set @n = char(10)
+declare @stmt nvarchar(max)
+
+-- procedures
+select @stmt = isnull( @stmt + @n, '' ) +
+               'drop procedure [' + @SchemaName + '].[' + name + ']'
+from sys.procedures where schema_id = @SchemaID
+
+
+-- check constraints
+select @stmt = isnull( @stmt + @n, '' ) +
+               'alter table [' + @SchemaName + '].[' + object_name( parent_object_id ) + ']    drop constraint [' + name + ']'
+from sys.check_constraints where schema_id = @SchemaID
+
+-- functions
+select @stmt = isnull( @stmt + @n, '' ) +
+               'drop function [' + @SchemaName + '].[' + name + ']'
+from sys.objects
+where schema_id = @SchemaID and type in ( 'FN', 'IF', 'TF' )
+--
+-- views
+select @stmt = isnull( @stmt + @n, '' ) +
+               'drop view [' + @SchemaName + '].[' + name + ']'
+from sys.views  where schema_id = @SchemaID
+--
+-- foreign keys
+select @stmt = isnull( @stmt + @n, '' ) +
+               'alter table [' + @SchemaName + '].[' + object_name( parent_object_id ) + '] drop constraint [' + name + ']'
+from sys.foreign_keys where schema_id = @SchemaID
+
+-- tables
+select @stmt = isnull( @stmt + @n, '' ) +
+               'drop table [' + @SchemaName + '].[' + name + ']'
+from sys.tables where schema_id = @SchemaID
+
+-- user defined types
+select @stmt = isnull( @stmt + @n, '' ) +
+               'drop type [' + @SchemaName + '].[' + name + ']'
+from sys.types
+where schema_id = @SchemaID and is_user_defined = 1
+
+exec sp_executesql @stmt
+`
+
+	return fmt.Sprintf(tpl, schemaName)
 }

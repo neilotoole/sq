@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/core/tablefq"
+
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/neilotoole/sq/testh/tutil"
 	"github.com/stretchr/testify/require"
@@ -37,7 +39,7 @@ func TestQueryEmptyTable(t *testing.T) {
 	src := th.Source(sakila.SL3)
 
 	// Get an empty table by copying an existing one
-	tblName := th.CopyTable(true, src, sakila.TblFilm, "", false)
+	tblName := th.CopyTable(true, src, tablefq.From(sakila.TblFilm), tablefq.T{}, false)
 	require.Equal(t, int64(0), th.RowCount(src, tblName))
 
 	sink, err := th.QuerySQL(src, "SELECT * FROM "+tblName)
@@ -75,7 +77,7 @@ func TestExhibitDriverColumnTypesBehavior(t *testing.T) {
 
 	// Create the table
 	th.ExecSQL(src, createStmt)
-	t.Cleanup(func() { th.DropTable(src, tblName) })
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(tblName)) })
 
 	// 1. Demonstrate that ColumnType.ScanType now correctly returns
 	//    a valid value when rows.ColumnTypes is invoked prior to the first
@@ -177,7 +179,7 @@ func TestDriver_CreateTable_NotNullDefault(t *testing.T) {
 
 	err := drvr.CreateTable(th.Context, db, tblDef)
 	require.NoError(t, err)
-	t.Cleanup(func() { th.DropTable(src, tblName) })
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(tblName)) })
 
 	th.InsertDefaultRow(src, tblName)
 

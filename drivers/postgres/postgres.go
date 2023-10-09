@@ -255,6 +255,20 @@ func idSanitize(s string) string {
 	return pgx.Identifier([]string{s}).Sanitize()
 }
 
+// CreateSchema implements driver.SQLDriver.
+func (d *driveri) CreateSchema(ctx context.Context, db sqlz.DB, schemaName string) error {
+	stmt := `CREATE SCHEMA ` + idSanitize(schemaName)
+	_, err := db.ExecContext(ctx, stmt)
+	return errz.Wrapf(err, "failed to create schema {%s}", schemaName)
+}
+
+// DropSchema implements driver.SQLDriver.
+func (d *driveri) DropSchema(ctx context.Context, db sqlz.DB, schemaName string) error {
+	stmt := `DROP SCHEMA ` + idSanitize(schemaName) + ` CASCADE`
+	_, err := db.ExecContext(ctx, stmt)
+	return errz.Wrapf(err, "failed to drop schema {%s}", schemaName)
+}
+
 // CreateTable implements driver.SQLDriver.
 func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *sqlmodel.TableDef) error {
 	stmt := buildCreateTableStmt(tblDef)

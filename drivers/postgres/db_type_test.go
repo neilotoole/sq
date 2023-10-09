@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/core/tablefq"
+
 	"github.com/neilotoole/sq/testh/fixt"
 
 	"github.com/stretchr/testify/require"
@@ -449,8 +451,7 @@ func TestDatabaseTypes(t *testing.T) {
 			th := testh.New(t)
 			src := th.Source(handle)
 			insertCount, actualTblName := createTypeTestTable(th, src, true)
-			t.Cleanup(func() { th.DropTable(src, actualTblName) })
-
+			t.Cleanup(func() { th.DropTable(src, tablefq.From(actualTblName)) })
 			sink := &testh.RecordSink{}
 			recw := output.NewRecordWriterAdapter(th.Context, sink)
 			err := libsq.QuerySQL(th.Context, th.Open(src), recw,

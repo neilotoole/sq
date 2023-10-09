@@ -16,6 +16,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/neilotoole/sq/drivers/sqlite3/internal/sqlparser"
+
 	"github.com/neilotoole/sq/libsq/ast"
 
 	"github.com/neilotoole/sq/libsq/core/tablefq"
@@ -155,7 +157,15 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 		return nil, errz.Wrapf(errw(err), "failed to open sqlite3 source with DSN: %s", dsn)
 	}
 
-	driver.ConfigureDB(ctx, db, src.Options)
+	// NOTE: We limit open conns to 1, because otherwise it's not clear what
+	// happens with attached databases. Note that ATTACH DATABASE only applies
+	// to a single connection, so if we have multiple connections, the database
+	// may no longer be attached. See https://www.sqlite.org/lang_attach.html
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
+	db.SetConnMaxIdleTime(driver.OptConnMaxIdleTime.Get(src.Options))
+	db.SetConnMaxLifetime(driver.OptConnMaxLifetime.Get(src.Options))
+
 	return db, nil
 }
 
@@ -248,7 +258,7 @@ func (d *driveri) Renderer() *render.Renderer {
 
 // CopyTable implements driver.SQLDriver.
 func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB,
-	fromTable, toTable tablefq.T, copyData bool,
+	fromTbl, toTbl tablefq.T, copyData bool,
 ) (int64, error) {
 	// Per https://stackoverflow.com/questions/12730390/copy-table-structure-to-new-table-in-sqlite3
 	// It is possible to copy the table structure with a simple statement:
@@ -256,16 +266,48 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB,
 	// However, this does not keep the type information as desired. Thus
 	// we need to do something more complicated.
 
-	var originTblCreateStmt string
-	err := db.QueryRowContext(ctx, fmt.Sprintf("SELECT sql FROM sqlite_master WHERE type='table' AND name='%s'",
-		fromTable.Table)).Scan(&originTblCreateStmt)
+	// First we get the original CREATE TABLE statement.
+	masterTbl := tablefq.T{Schema: fromTbl.Schema, Table: "sqlite_master"}
+	q := fmt.Sprintf("SELECT sql FROM %s WHERE type='table' AND name=%s",
+		masterTbl.Render(stringz.DoubleQuote),
+		stringz.SingleQuote(fromTbl.Table))
+	var ogTblCreateStmt string
+	err := db.QueryRowContext(ctx, q).Scan(&ogTblCreateStmt)
 	if err != nil {
 		return 0, errw(err)
 	}
 
-	// A simple replace of the table name should work to mutate the
-	// above CREATE stmt to use toTable instead of fromTable.
-	destTblCreateStmt := strings.Replace(originTblCreateStmt, fromTable.Table, toTable.Table, 1)
+	//schemaNames, err := d.ListSchemas(ctx, db)
+	//if err != nil {
+	//	return 0, err
+	//}
+	//
+	//if !slices.Contains(schemaNames, toTbl.Schema) {
+	//	return 0, errz.Errorf("schema %q does not exist", toTbl.Schema)
+	//}
+
+	// Next, we extract the table identifier from the CREATE TABLE statement.
+	// For example, "main"."actor". Note that the schema part may be empty.
+	ogSchema, ogTbl, err := sqlparser.ExtractTableIdentFromCreateTableStmt(ogTblCreateStmt,
+		false)
+	if err != nil {
+		return 0, errw(err)
+	}
+
+	// Now we know what text to replace in ogTblCreateStmt.
+	replaceTarget := ogTbl
+	if ogSchema != "" {
+		replaceTarget = ogSchema + "." + ogTbl
+	}
+
+	// Replace the old table identifier with the new one, and, voila,
+	// we have our new CREATE TABLE statement.
+	destTblCreateStmt := strings.Replace(
+		ogTblCreateStmt,
+		replaceTarget,
+		toTbl.Render(stringz.DoubleQuote),
+		1,
+	)
 
 	_, err = db.ExecContext(ctx, destTblCreateStmt)
 	if err != nil {
@@ -276,7 +318,7 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB,
 		return 0, nil
 	}
 
-	stmt := fmt.Sprintf("INSERT INTO %s SELECT * FROM %s", toTable, fromTable)
+	stmt := fmt.Sprintf("INSERT INTO %s SELECT * FROM %s", toTbl, fromTbl)
 	affected, err := sqlz.ExecAffected(ctx, db, stmt)
 	if err != nil {
 		return 0, errw(err)
@@ -583,6 +625,29 @@ func (d *driveri) DropTable(ctx context.Context, db sqlz.DB, tbl tablefq.T, ifEx
 
 	_, err := db.ExecContext(ctx, stmt)
 	return errw(err)
+}
+
+// CreateSchema implements driver.SQLDriver.
+func (d *driveri) CreateSchema(ctx context.Context, db sqlz.DB, schemaName string) error {
+	// NOTE: Empty string for DATABASE creates a temporary database.
+	// We may want to change this to create a more permanent database, perhaps
+	// in the same directory as the existing db?
+	stmt := `ATTACH DATABASE "" AS ` + stringz.DoubleQuote(schemaName)
+	if _, err := db.ExecContext(ctx, stmt); err != nil {
+		return errz.Wrapf(err, "create schema {%s}", schemaName)
+	}
+
+	return nil
+}
+
+// DropSchema implements driver.SQLDriver.
+func (d *driveri) DropSchema(ctx context.Context, db sqlz.DB, schemaName string) error {
+	stmt := `DETACH DATABASE ` + stringz.DoubleQuote(schemaName)
+	if _, err := db.ExecContext(ctx, stmt); err != nil {
+		return errz.Wrapf(err, "drop schema {%s}", schemaName)
+	}
+
+	return nil
 }
 
 // CreateTable implements driver.SQLDriver.
