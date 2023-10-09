@@ -14,6 +14,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/sqlz"
+
 	"github.com/samber/lo"
 
 	"github.com/neilotoole/sq/libsq/core/tablefq"
@@ -560,11 +562,12 @@ func (h *Helper) Insert(src *source.Source, tbl string, cols []string, records .
 //}
 
 // CopyTable copies fromTable into a new table toTable. If
-// toTable is empty, a table name is generated based on
+// toTable is empty, a unique table name is generated based on
 // fromTable. The table name used is returned.
 // If dropAfter is true, the table is dropped when t.Cleanup is run.
 // If copyData is true, fromTable's data is also copied.
 // Constraints (keys, defaults etc.) may not be copied.
+// TODO: CopyTable should return tablefq.T instead of string.
 func (h *Helper) CopyTable(
 	dropAfter bool,
 	src *source.Source,
@@ -618,14 +621,16 @@ func (h *Helper) DropTable(src *source.Source, tbl tablefq.T) {
 
 // QuerySQL uses libsq.QuerySQL to execute SQL query
 // against src, returning a sink to which all records have
-// been written. Note that QuerySQL uses the
-// same Database instance as returned by h.Open.
-func (h *Helper) QuerySQL(src *source.Source, query string, args ...any) (*RecordSink, error) {
+// been written. Typically the db arg is nil, and QuerySQL uses the
+// same driver.Database instance as returned by Helper.Open. If db
+// is non-nil, it is passed to libsq.QuerySQL (e.g. the query needs to
+// execute against a sql.Tx), and the caller is responsible for closing db.
+func (h *Helper) QuerySQL(src *source.Source, db sqlz.DB, query string, args ...any) (*RecordSink, error) {
 	dbase := h.Open(src)
 
 	sink := &RecordSink{}
 	recw := output.NewRecordWriterAdapter(h.Context, sink)
-	err := libsq.QuerySQL(h.Context, dbase, recw, query, args...)
+	err := libsq.QuerySQL(h.Context, dbase, db, recw, query, args...)
 	if err != nil {
 		return nil, err
 	}

@@ -95,7 +95,7 @@ func (p *pipeline) execute(ctx context.Context, recw RecordWriter) error {
 		return err
 	}
 
-	return QuerySQL(ctx, p.targetDB, recw, p.targetSQL)
+	return QuerySQL(ctx, p.targetDB, nil, recw, p.targetSQL)
 }
 
 // executeTasks executes any tasks in pipeline.tasks.
@@ -431,7 +431,7 @@ func execCopyTable(ctx context.Context, fromDB driver.Database, fromTbl tablefq.
 	)
 
 	query := "SELECT * FROM " + fromTbl.Render(fromDB.SQLDriver().Dialect().Enquote)
-	err := QuerySQL(ctx, fromDB, inserter, query)
+	err := QuerySQL(ctx, fromDB, nil, inserter, query)
 	if err != nil {
 		return errz.Wrapf(err, "insert %s.%s failed", destDB.Source().Handle, destTbl)
 	}

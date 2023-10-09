@@ -26,7 +26,7 @@ func TestSakila_SQL(t *testing.T) { //nolint:tparallel
 
 			th := testh.New(t)
 			src := th.Source(handle)
-			sink, err := th.QuerySQL(src, "SELECT * FROM actor")
+			sink, err := th.QuerySQL(src, nil, "SELECT * FROM actor")
 			require.NoError(t, err)
 			require.Equal(t, sakila.TblActorCount, len(sink.Recs))
 		})
@@ -48,7 +48,7 @@ func TestSakila_XLSX(t *testing.T) {
 			th := testh.New(t)
 			src := th.Source(handle)
 
-			sink, err := th.QuerySQL(src, "SELECT * FROM actor")
+			sink, err := th.QuerySQL(src, nil, "SELECT * FROM actor")
 			require.NoError(t, err)
 			require.Equal(t, sakila.TblActorCount, len(sink.Recs))
 		})
@@ -68,7 +68,7 @@ func TestSakila_CSV(t *testing.T) {
 			th := testh.New(t)
 			src := th.Source(handle)
 			// Note table "data" instead of "actor", because CSV is monotable
-			sink, err := th.QuerySQL(src, "SELECT * FROM data")
+			sink, err := th.QuerySQL(src, nil, "SELECT * FROM data")
 			require.NoError(t, err)
 			require.Equal(t, sakila.TblActorCount, len(sink.Recs))
 		})
@@ -79,7 +79,7 @@ func TestSQLiteCloseError(t *testing.T) {
 	th := testh.New(t)
 	src := th.Source(sakila.CSVActor)
 	// Note table "data" instead of "actor", because CSV is monotable
-	sink, err := th.QuerySQL(src, "SELECT * FROM data")
+	sink, err := th.QuerySQL(src, nil, "SELECT * FROM data")
 	require.NoError(t, err)
 	require.Equal(t, sakila.TblActorCount, len(sink.Recs))
 }

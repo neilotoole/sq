@@ -183,7 +183,7 @@ func TestOpenFileFormats(t *testing.T) {
 			require.NoError(t, err)
 			require.NoError(t, db.PingContext(th.Context))
 
-			sink, err := th.QuerySQL(src, "SELECT * FROM actor")
+			sink, err := th.QuerySQL(src, nil, "SELECT * FROM actor")
 
 			require.NoError(t, err)
 			require.Equal(t, sakila.TblActorCols(), sink.RecMeta.MungedNames())
@@ -251,7 +251,7 @@ func TestSakila_query(t *testing.T) {
 			th := testh.New(t, testh.OptLongOpen())
 			src := th.Source(sakila.XLSX)
 
-			sink, err := th.QuerySQL(src, "SELECT * FROM "+tc.sheet)
+			sink, err := th.QuerySQL(src, nil, "SELECT * FROM "+tc.sheet)
 			require.NoError(t, err)
 			require.Equal(t, tc.wantCols, sink.RecMeta.MungedNames())
 			require.Equal(t, tc.wantCount, len(sink.Recs))
@@ -278,7 +278,7 @@ func Test_XLSX_BadDateRecognition(t *testing.T) {
 	hasHeader := driver.OptIngestHeader.Get(src.Options)
 	require.True(t, hasHeader)
 
-	sink, err := th.QuerySQL(src, "SELECT * FROM Summary")
+	sink, err := th.QuerySQL(src, nil, "SELECT * FROM Summary")
 	require.NoError(t, err)
 	require.Equal(t, 21, len(sink.Recs))
 }

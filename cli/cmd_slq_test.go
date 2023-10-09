@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/core/tablefq"
+
 	"github.com/neilotoole/sq/testh/proj"
 
 	"github.com/neilotoole/sq/cli"
@@ -47,7 +49,7 @@ func TestCmdSLQ_Insert_Create(t *testing.T) {
 	err := tr.Exec("slq", "--insert="+insertTo, query)
 	require.NoError(t, err)
 
-	sink, err := th.QuerySQL(destSrc, "select * from "+destTbl)
+	sink, err := th.QuerySQL(destSrc, nil, "select * from "+destTbl)
 	require.NoError(t, err)
 	require.Equal(t, sakila.TblActorCount, len(sink.Recs))
 }
@@ -73,7 +75,13 @@ func TestCmdSLQ_Insert(t *testing.T) {
 
 					// To avoid dirtying the destination table, we make a copy
 					// of it (without data).
-					tblName := th.CopyTable(true, destSrc, sakila.TblActor, "", false)
+					tblName := th.CopyTable(
+						true,
+						destSrc,
+						tablefq.From(sakila.TblActor),
+						tablefq.T{},
+						false,
+					)
 
 					tr := testrun.New(th.Context, t, nil).Add(*originSrc)
 					if destSrc.Handle != originSrc.Handle {
@@ -87,7 +95,7 @@ func TestCmdSLQ_Insert(t *testing.T) {
 					err := tr.Exec("slq", "--insert="+insertTo, query)
 					require.NoError(t, err)
 
-					sink, err := th.QuerySQL(destSrc, "select * from "+tblName)
+					sink, err := th.QuerySQL(destSrc, nil, "select * from "+tblName)
 					require.NoError(t, err)
 					require.Equal(t, sakila.TblActorCount, len(sink.Recs))
 				})
@@ -314,7 +322,7 @@ func TestFlagActiveSource_slq(t *testing.T) {
 	require.Equal(t, "@sqlite", tr.BindMap()["handle"])
 }
 
-func TestCmdSLQ_ActiveSchema(t *testing.T) {
+func TestCmdSLQ_ActiveSchema_MS(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
@@ -357,4 +365,13 @@ func TestCmdSLQ_ActiveSchema(t *testing.T) {
 
 	got = tr.BindCSV()
 	require.Equal(t, "model", got[0][0])
+
+	// Note that for SQL Server, the SLQ "schema()"
+	// func does not honor --src.schema. This is a limitation in
+	// SQL Server itself; it's not possible to change the default
+	// schema for a connection.
+	require.NoError(t, tr.Reset().Exec("-H",
+		"--src.schema", "INFORMATION_SCHEMA",
+		"schema()"))
+	require.Equal(t, "dbo", tr.OutString())
 }

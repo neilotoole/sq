@@ -226,7 +226,7 @@ func TestSQLDriver_PrepareUpdateStmt(t *testing.T) { //nolint:tparallel
 			require.NoError(t, err)
 			assert.Equal(t, int64(1), affected)
 
-			sink, err := th.QuerySQL(src, "SELECT * FROM "+tblName+" WHERE actor_id = 1")
+			sink, err := th.QuerySQL(src, nil, "SELECT * FROM "+tblName+" WHERE actor_id = 1")
 
 			require.NoError(t, err)
 			require.Equal(t, 1, len(sink.Recs))
@@ -326,7 +326,7 @@ func TestNewBatchInsert(t *testing.T) {
 
 			require.NoError(t, conn.Close())
 
-			sink, err := th.QuerySQL(src, "SELECT * FROM "+tblName)
+			sink, err := th.QuerySQL(src, nil, "SELECT * FROM "+tblName)
 			require.NoError(t, err)
 			require.Equal(t, sakila.TblActorCount, len(sink.Recs))
 			th.TruncateTable(src, tblName) // cleanup
@@ -520,7 +520,7 @@ func TestSQLDriver_AlterTableAddColumn(t *testing.T) {
 			err := drvr.AlterTableAddColumn(th.Context, db, tbl, wantCol, wantKind)
 			require.NoError(t, err)
 
-			sink, err := th.QuerySQL(src, "SELECT * FROM "+tbl)
+			sink, err := th.QuerySQL(src, nil, "SELECT * FROM "+tbl)
 			require.NoError(t, err)
 
 			gotCols := sink.RecMeta.Names()
@@ -553,7 +553,7 @@ func TestSQLDriver_AlterTableRename(t *testing.T) {
 			md, err := dbase.TableMetadata(th.Context, newName)
 			require.NoError(t, err)
 			require.Equal(t, newName, md.Name)
-			sink, err := th.QuerySQL(src, "SELECT * FROM "+newName)
+			sink, err := th.QuerySQL(src, nil, "SELECT * FROM "+newName)
 			require.NoError(t, err)
 			require.Equal(t, sakila.TblActorCount, len(sink.Recs))
 		})
@@ -579,7 +579,7 @@ func TestSQLDriver_AlterTableRenameColumn(t *testing.T) {
 			md, err := dbase.TableMetadata(th.Context, tbl)
 			require.NoError(t, err)
 			require.NotNil(t, md.Column(newName))
-			sink, err := th.QuerySQL(src, fmt.Sprintf("SELECT %s FROM %s", newName, tbl))
+			sink, err := th.QuerySQL(src, nil, fmt.Sprintf("SELECT %s FROM %s", newName, tbl))
 			require.NoError(t, err)
 			require.Equal(t, sakila.TblActorCount, len(sink.Recs))
 		})
@@ -668,7 +668,7 @@ func TestDriverCreateDropSchema(t *testing.T) {
 			require.Equal(t, int64(sakila.TblActorCount), copied)
 
 			q := fmt.Sprintf("SELECT * FROM %s.%s", destTblFQ.Schema, destTblFQ.Table)
-			sink, err := th.QuerySQL(src, q)
+			sink, err := th.QuerySQL(src, conn, q)
 			require.NoError(t, err)
 			require.Equal(t, int64(sakila.TblActorCount), int64(len(sink.Recs)))
 
@@ -680,7 +680,7 @@ func TestDriverCreateDropSchema(t *testing.T) {
 			require.Equal(t, int64(sakila.TblActorCount), copied)
 
 			q = fmt.Sprintf("SELECT * FROM %s.%s", destTblFQ2.Schema, destTblFQ2.Table)
-			sink, err = th.QuerySQL(src, q)
+			sink, err = th.QuerySQL(src, conn, q)
 			require.NoError(t, err)
 			require.Equal(t, int64(sakila.TblActorCount), int64(len(sink.Recs)))
 		})

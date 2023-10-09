@@ -27,7 +27,7 @@ func TestSmoke(t *testing.T) {
 	th := testh.New(t)
 	src := th.Source(sakila.SL3)
 
-	sink, err := th.QuerySQL(src, "SELECT * FROM "+sakila.TblFilm)
+	sink, err := th.QuerySQL(src, nil, "SELECT * FROM "+sakila.TblFilm)
 	require.NoError(t, err)
 	require.Equal(t, sakila.TblFilmCount, len(sink.Recs))
 }
@@ -42,7 +42,7 @@ func TestQueryEmptyTable(t *testing.T) {
 	tblName := th.CopyTable(true, src, tablefq.From(sakila.TblFilm), tablefq.T{}, false)
 	require.Equal(t, int64(0), th.RowCount(src, tblName))
 
-	sink, err := th.QuerySQL(src, "SELECT * FROM "+tblName)
+	sink, err := th.QuerySQL(src, nil, "SELECT * FROM "+tblName)
 	require.NoError(t, err)
 	require.Equal(t, 0, len(sink.Recs))
 }
@@ -183,7 +183,7 @@ func TestDriver_CreateTable_NotNullDefault(t *testing.T) {
 
 	th.InsertDefaultRow(src, tblName)
 
-	sink, err := th.QuerySQL(src, "SELECT * FROM "+tblName)
+	sink, err := th.QuerySQL(src, nil, "SELECT * FROM "+tblName)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(sink.Recs))
 	require.Equal(t, len(colNames), len(sink.RecMeta))
@@ -300,11 +300,11 @@ func TestSQLQuery_Whitespace(t *testing.T) {
 	th := testh.New(t)
 	src := th.Source(sakila.SL3Whitespace)
 
-	sink, err := th.QuerySQL(src, `SELECT * FROM "film actor"`)
+	sink, err := th.QuerySQL(src, nil, `SELECT * FROM "film actor"`)
 	require.NoError(t, err)
 	require.Equal(t, sakila.TblFilmActorCount, len(sink.Recs))
 
-	sink, err = th.QuerySQL(src, `SELECT * FROM "actor"`)
+	sink, err = th.QuerySQL(src, nil, `SELECT * FROM "actor"`)
 	require.NoError(t, err)
 	require.Equal(t, "first name", sink.RecMeta[1].Name())
 	require.Equal(t, "first name", sink.RecMeta[1].MungedName())

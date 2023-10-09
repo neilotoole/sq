@@ -95,7 +95,7 @@ func TestImportJSONL_Flat(t *testing.T) {
 			}
 
 			require.NoError(t, err)
-			sink, err := th.QuerySQL(src, "SELECT * FROM data")
+			sink, err := th.QuerySQL(src, nil, "SELECT * FROM data")
 			require.NoError(t, err)
 			require.Equal(t, tc.wantRows, len(sink.Recs))
 			require.Equal(t, tc.wantCols, sink.RecMeta.Names())
@@ -116,7 +116,7 @@ func TestImportJSON_Flat(t *testing.T) {
 	err := json.ImportJSON(th.Context, job)
 	require.NoError(t, err)
 
-	sink, err := th.QuerySQL(src, "SELECT * FROM data")
+	sink, err := th.QuerySQL(src, nil, "SELECT * FROM data")
 	require.NoError(t, err)
 	require.Equal(t, sakila.TblActorCount, len(sink.Recs))
 }

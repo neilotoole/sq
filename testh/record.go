@@ -41,7 +41,7 @@ func RecordsFromTbl(tb testing.TB, handle, tbl string) (recMeta record.Meta, rec
 		th.Log = lg.Discard()
 		src := th.Source(handle)
 		var err error
-		sink, err = th.QuerySQL(src, "SELECT * FROM "+tbl)
+		sink, err = th.QuerySQL(src, nil, "SELECT * FROM "+tbl)
 		require.NoError(tb, err)
 		recSinkCache[key] = sink
 	}

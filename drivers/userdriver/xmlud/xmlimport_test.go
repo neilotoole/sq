@@ -49,7 +49,7 @@ func TestImport_Ppl(t *testing.T) {
 	require.Equal(t, "person", srcMeta.Tables[0].Name)
 	require.Equal(t, "skill", srcMeta.Tables[1].Name)
 
-	sink, err := th.QuerySQL(scratchDB.Source(), "SELECT * FROM person")
+	sink, err := th.QuerySQL(scratchDB.Source(), nil, "SELECT * FROM person")
 	require.NoError(t, err)
 	require.Equal(t, 3, len(sink.Recs))
 	require.Equal(t, "Nikola", stringz.Val(sink.Recs[0][1]))
@@ -58,7 +58,7 @@ func TestImport_Ppl(t *testing.T) {
 		require.Equal(t, int64(i+1), stringz.Val(rec[0]))
 	}
 
-	sink, err = th.QuerySQL(scratchDB.Source(), "SELECT * FROM skill")
+	sink, err = th.QuerySQL(scratchDB.Source(), nil, "SELECT * FROM skill")
 	require.NoError(t, err)
 	require.Equal(t, 6, len(sink.Recs))
 	require.Equal(t, "Electrifying", stringz.Val(sink.Recs[0][2]))
@@ -95,7 +95,7 @@ func TestImport_RSS(t *testing.T) {
 	require.Equal(t, "channel", srcMeta.Tables[1].Name)
 	require.Equal(t, "item", srcMeta.Tables[2].Name)
 
-	sink, err := th.QuerySQL(scratchDB.Source(), "SELECT * FROM channel")
+	sink, err := th.QuerySQL(scratchDB.Source(), nil, "SELECT * FROM channel")
 	require.NoError(t, err)
 	require.Equal(t, 1, len(sink.Recs))
 	require.Equal(t, "NYT > World", stringz.Val(sink.Recs[0][1]))
@@ -104,7 +104,7 @@ func TestImport_RSS(t *testing.T) {
 		require.Equal(t, int64(i+1), stringz.Val(rec[0]))
 	}
 
-	sink, err = th.QuerySQL(scratchDB.Source(), "SELECT * FROM category")
+	sink, err = th.QuerySQL(scratchDB.Source(), nil, "SELECT * FROM category")
 	require.NoError(t, err)
 	require.Equal(t, 251, len(sink.Recs))
 	require.EqualValues(t, "Extradition", stringz.Val(sink.Recs[0][2]))
@@ -113,7 +113,7 @@ func TestImport_RSS(t *testing.T) {
 		require.Equal(t, int64(i+1), stringz.Val(rec[0]))
 	}
 
-	sink, err = th.QuerySQL(scratchDB.Source(), "SELECT * FROM item")
+	sink, err = th.QuerySQL(scratchDB.Source(), nil, "SELECT * FROM item")
 	require.NoError(t, err)
 	require.Equal(t, 45, len(sink.Recs))
 	require.EqualValues(t, "Trilobites: Fishing for Clues to Solve Namibia’s Fairy Circle Mystery",

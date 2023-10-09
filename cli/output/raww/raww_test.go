@@ -55,7 +55,7 @@ func TestRecordWriter_TblBytes(t *testing.T) {
 	th := testh.New(t)
 	th.Log = lg.Discard()
 	src := th.Source(testsrc.MiscDB)
-	sink, err := th.QuerySQL(src, "SELECT col_bytes FROM tbl_bytes WHERE col_name='gopher.gif'")
+	sink, err := th.QuerySQL(src, nil, "SELECT col_bytes FROM tbl_bytes WHERE col_name='gopher.gif'")
 	require.NoError(t, err)
 	require.Equal(t, 1, len(sink.Recs))
 

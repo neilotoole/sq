@@ -35,7 +35,7 @@ func TestSimple(t *testing.T) {
 
 	th := testh.New(t)
 	src := th.Source(sakila.SL3)
-	sink, err := th.QuerySQL(src, query)
+	sink, err := th.QuerySQL(src, nil, query)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(sink.Recs))
 	require.Equal(t, wantKinds, sink.RecMeta.Kinds())
@@ -66,7 +66,7 @@ func TestScalarFuncsQuery(t *testing.T) {
 
 	th := testh.New(t)
 	src := th.Source(sakila.SL3)
-	sink, err := th.QuerySQL(src, query)
+	sink, err := th.QuerySQL(src, nil, query)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(sink.Recs))
 	require.Equal(t, wantKinds, sink.RecMeta.Kinds())
@@ -88,7 +88,7 @@ func TestCurrentTime(t *testing.T) {
 
 	th := testh.New(t)
 	src := th.Source(sakila.SL3)
-	sink, err := th.QuerySQL(src, query)
+	sink, err := th.QuerySQL(src, nil, query)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(sink.Recs))
 	require.Equal(t, wantKinds, sink.RecMeta.Kinds())
@@ -253,7 +253,7 @@ func TestPayments(t *testing.T) {
 	th := testh.New(t)
 	src := th.Source(sakila.SL3)
 
-	sink, err := th.QuerySQL(src, "SELECT * FROM payment")
+	sink, err := th.QuerySQL(src, nil, "SELECT * FROM payment")
 	require.NoError(t, err)
 	require.Equal(t, sakila.TblPaymentCount, len(sink.Recs))
 }
@@ -277,7 +277,7 @@ func TestAggregateFuncsQuery(t *testing.T) {
 
 	th := testh.New(t)
 	src := th.Source(sakila.SL3)
-	sink, err := th.QuerySQL(src, query)
+	sink, err := th.QuerySQL(src, nil, query)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(sink.Recs))
 }

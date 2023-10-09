@@ -74,7 +74,7 @@ func TestQuerySQL_Smoke(t *testing.T) {
 				tblName = source.MonotableName
 			}
 
-			sink, err := th.QuerySQL(src, "SELECT * FROM "+tblName)
+			sink, err := th.QuerySQL(src, nil, "SELECT * FROM "+tblName)
 			require.NoError(t, err)
 			require.Equal(t, sakila.TblActorCount, len(sink.Recs))
 			require.Equal(t, len(tc.fieldTypes), len(sink.Recs[0]))
@@ -104,11 +104,11 @@ func TestQuerySQL_Count(t *testing.T) { //nolint:tparallel
 			th := testh.New(t)
 			src := th.Source(handle)
 
-			sink, err := th.QuerySQL(src, "SELECT * FROM "+sakila.TblActor)
+			sink, err := th.QuerySQL(src, nil, "SELECT * FROM "+sakila.TblActor)
 			require.NoError(t, err)
 			require.Equal(t, sakila.TblActorCount, len(sink.Recs))
 
-			sink, err = th.QuerySQL(src, "SELECT COUNT(*) FROM "+sakila.TblActor)
+			sink, err = th.QuerySQL(src, nil, "SELECT COUNT(*) FROM "+sakila.TblActor)
 			require.NoError(t, err)
 			count, ok := sink.Recs[0][0].(int64)
 			require.True(t, ok)
@@ -126,7 +126,7 @@ func TestJoinDuplicateColNamesAreRenamed(t *testing.T) {
 
 	const query = "SELECT * FROM actor INNER JOIN film_actor ON actor.actor_id = film_actor.actor_id LIMIT 1"
 
-	sink, err := th.QuerySQL(src, query)
+	sink, err := th.QuerySQL(src, nil, query)
 	require.NoError(t, err)
 	colNames := sink.RecMeta.MungedNames()
 	// Without intervention, the returned column names would contain duplicates.

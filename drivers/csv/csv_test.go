@@ -44,7 +44,7 @@ func TestSmoke(t *testing.T) {
 			th := testh.New(t)
 			src := th.Source(sakila.CSVActor)
 
-			sink, err := th.QuerySQL(src, "SELECT * FROM data")
+			sink, err := th.QuerySQL(src, nil, "SELECT * FROM data")
 			require.NoError(t, err)
 			require.Equal(t, len(sakila.TblActorCols()), len(sink.RecMeta))
 			require.Equal(t, sakila.TblActorCount, len(sink.Recs))
@@ -142,11 +142,11 @@ func TestQuerySQL_Count(t *testing.T) {
 			th := testh.New(t)
 			src := th.Source(handle)
 
-			sink, err := th.QuerySQL(src, "SELECT * FROM data")
+			sink, err := th.QuerySQL(src, nil, "SELECT * FROM data")
 			require.NoError(t, err)
 			require.Equal(t, sakila.TblActorCount, len(sink.Recs))
 
-			sink, err = th.QuerySQL(src, "SELECT COUNT(*) FROM data")
+			sink, err = th.QuerySQL(src, nil, "SELECT COUNT(*) FROM data")
 			require.NoError(t, err)
 			require.EqualValues(t, int64(sakila.TblActorCount), sink.Result())
 		})

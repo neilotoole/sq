@@ -133,7 +133,7 @@ func TestOutputRaw(t *testing.T) {
 			// 1. Query and check that libsq is returning bytes correctly.
 			query := fmt.Sprintf("SELECT col_bytes FROM %s WHERE col_name = '%s'",
 				tblDef.Name, fixt.GopherFilename)
-			sink, err := th.QuerySQL(src, query)
+			sink, err := th.QuerySQL(src, nil, query)
 			require.NoError(t, err)
 
 			require.Equal(t, 1, len(sink.Recs))

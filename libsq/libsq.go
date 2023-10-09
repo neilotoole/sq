@@ -12,6 +12,8 @@ package libsq
 import (
 	"context"
 
+	"github.com/neilotoole/sq/libsq/core/sqlz"
+
 	"github.com/neilotoole/sq/libsq/core/record"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
@@ -114,18 +116,21 @@ func SLQ2SQL(ctx context.Context, qc *QueryContext, query string) (targetSQL str
 	return p.targetSQL, nil
 }
 
-// QuerySQL executes the SQL query against dbase, writing
-// the results to recw. Note that QuerySQL may return
-// before recw has finished writing, thus the caller may wish
-// to wait for recw to complete.
-// The caller is responsible for closing dbase.
-func QuerySQL(ctx context.Context, dbase driver.Database, recw RecordWriter, query string, args ...any) error {
+// QuerySQL executes the SQL query, writing the results to recw. If db is
+// non-nil, the query is executed against it. Otherwise, the connection is
+// obtained from dbase.
+// Note that QuerySQL may return before recw has finished writing, thus the
+// caller may wish to wait for recw to complete.
+// The caller is responsible for closing dbase (and db, if non-nil).
+func QuerySQL(ctx context.Context, dbase driver.Database, db sqlz.DB, recw RecordWriter, query string, args ...any) error {
 	log := lg.FromContext(ctx)
 	errw := dbase.SQLDriver().ErrWrapFunc()
 
-	db, err := dbase.DB(ctx)
-	if err != nil {
-		return err
+	if db == nil {
+		var err error
+		if db, err = dbase.DB(ctx); err != nil {
+			return err
+		}
 	}
 
 	rows, err := db.QueryContext(ctx, query, args...)

@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/core/tablefq"
+
 	"github.com/neilotoole/sq/cli/testrun"
 
 	"github.com/neilotoole/sq/cli/flag"
@@ -47,7 +49,7 @@ func TestCmdSQL_Insert(t *testing.T) {
 
 					// To avoid dirtying the destination table, we make a copy
 					// of it (without data).
-					destTbl := th.CopyTable(true, destSrc, sakila.TblActor, "", false)
+					destTbl := th.CopyTable(true, destSrc, tablefq.From(sakila.TblActor), tablefq.T{}, false)
 
 					tr := testrun.New(th.Context, t, nil).Add(*originSrc)
 					if destSrc.Handle != originSrc.Handle {
@@ -60,7 +62,7 @@ func TestCmdSQL_Insert(t *testing.T) {
 					err := tr.Exec("sql", "--insert="+insertTo, query)
 					require.NoError(t, err)
 
-					sink, err := th.QuerySQL(destSrc, "select * from "+destTbl)
+					sink, err := th.QuerySQL(destSrc, nil, "select * from "+destTbl)
 					require.NoError(t, err)
 					require.Equal(t, sakila.TblActorCount, len(sink.Recs))
 				})
