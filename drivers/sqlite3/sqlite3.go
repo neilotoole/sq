@@ -235,7 +235,15 @@ func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 	}
 	defer lg.WarnIfCloseError(d.log, lgm.CloseDB, db)
 
-	return errz.Wrapf(db.PingContext(ctx), "ping %s", src.Handle)
+	if err = db.PingContext(ctx); err != nil {
+		err = errz.Wrapf(err, "ping %s: %s", src.Handle, src.Location)
+		lg.FromContext(ctx).Warn("ping failed",
+			lga.Src, src,
+			lga.Err, err,
+		)
+	}
+
+	return nil
 }
 
 // Dialect implements driver.SQLDriver.

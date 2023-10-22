@@ -85,13 +85,13 @@ type Source struct {
 	// be rendered as 'SELECT * FROM sakila.dbo.actor'.
 	//
 	// See also: Source.Schema.
-	Catalog string `yaml:"catalog" json:"catalog"`
+	Catalog string `yaml:"catalog,omitempty" json:"catalog,omitempty"`
 
 	// Schema, when non-empty, specifies a schema name
 	// override to use when constructing table references.
 	//
 	// See also: Source.Catalog.
-	Schema string `yaml:"schema" json:"schema"`
+	Schema string `yaml:"schema,omitempty" json:"schema,omitempty"`
 
 	// Options are additional params, typically empty.
 	Options options.Options `yaml:"options,omitempty" json:"options,omitempty"`
