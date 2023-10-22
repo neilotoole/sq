@@ -135,10 +135,29 @@ func execConfigEditSource(cmd *cobra.Command, args []string) error {
 
 	tmpSrc := src.Clone()
 	tmpSrc.Options = nil
+
+	// The Catalog and Schema fields have yaml tag 'omitempty',
+	// so they wouldn't be rendered in the editor yaml if empty.
+	// However, we to render the fields commented-out if empty.
+	// Hence this little hack.
+	if tmpSrc.Catalog == "" {
+		// Forces yaml rendering
+		tmpSrc.Catalog = " "
+	}
+
+	if tmpSrc.Schema == "" {
+		// Forces yaml rendering
+		tmpSrc.Schema = " "
+	}
+
 	header, err := ioz.MarshalYAML(tmpSrc)
 	if err != nil {
 		return err
 	}
+
+	// And now we replace the rendered values with commented-out values.
+	header = bytes.Replace(header, []byte("catalog:  \n"), []byte("#catalog: \n"), 1)
+	header = bytes.Replace(header, []byte("schema:  \n"), []byte("#schema: \n"), 1)
 
 	sb := strings.Builder{}
 	sb.Write(header)

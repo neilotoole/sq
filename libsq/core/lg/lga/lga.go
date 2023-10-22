@@ -3,7 +3,9 @@
 package lga
 
 const (
+	After     = "after"
 	Alt       = "alt"
+	Before    = "before"
 	Catalog   = "catalog"
 	Cmd       = "cmd"
 	Col       = "column"

@@ -84,6 +84,12 @@ type Source struct {
 	// set to "sakila" and Schema to "dbo", then that same query would
 	// be rendered as 'SELECT * FROM sakila.dbo.actor'.
 	//
+	// Note that although Source.Catalog is not exposed to the end user,
+	// this field is used by the SQL renderer to construct table references,
+	// especially for SQL Server. Because SQL Server doesn't permit setting the
+	// default schema on a per-connection basis, we construct a fully-qualified
+	// table reference using the catalog and schema, e.g. "sakila.dbo.actor".
+	//
 	// See also: Source.Schema.
 	Catalog string `yaml:"catalog,omitempty" json:"catalog,omitempty"`
 
