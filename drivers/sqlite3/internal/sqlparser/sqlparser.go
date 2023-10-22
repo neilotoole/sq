@@ -26,7 +26,7 @@ func ExtractTableIdentFromCreateTableStmt(stmt string, unescape bool) (schema, t
 	}
 
 	if n, ok := stmtCtx.Schema_name().(*sqlite.Schema_nameContext); ok {
-		if n.Any_name() != nil && n.Any_name().IsEmpty() == false && n.Any_name().IDENTIFIER() != nil {
+		if n.Any_name() != nil && !n.Any_name().IsEmpty() && n.Any_name().IDENTIFIER() != nil {
 			schema = n.Any_name().IDENTIFIER().GetText()
 			if unescape {
 				schema = trimIdentQuotes(schema)
@@ -35,7 +35,7 @@ func ExtractTableIdentFromCreateTableStmt(stmt string, unescape bool) (schema, t
 	}
 
 	if x, ok := stmtCtx.Table_name().(*sqlite.Table_nameContext); ok {
-		if x.Any_name() != nil && x.Any_name().IsEmpty() == false && x.Any_name().IDENTIFIER() != nil {
+		if x.Any_name() != nil && !x.Any_name().IsEmpty() && x.Any_name().IDENTIFIER() != nil {
 			table = x.Any_name().IDENTIFIER().GetText()
 			if unescape {
 				table = trimIdentQuotes(table)

@@ -41,6 +41,8 @@ import (
 // returned by completeAddLocation.
 const locCompStdDirective = cobra.ShellCompDirectiveNoSpace | cobra.ShellCompDirectiveKeepOrder
 
+const localhost = "localhost"
+
 // completeAddLocation provides completion for the "sq add LOCATION" arg.
 // This is a messy task, as LOCATION can be a database driver URL,
 // and it can also be a filepath. To complicate matters further, sqlite
@@ -216,12 +218,12 @@ func locCompDoGenericDriver(cmd *cobra.Command, _ []string, toComplete string, /
 		if ploc.hostname == "" {
 			if defaultPort == "" {
 				a = []string{
-					toComplete + "localhost" + afterHost,
+					toComplete + localhost + afterHost,
 				}
 			} else {
 				a = []string{
-					toComplete + "localhost" + afterHost,
-					toComplete + "localhost:" + defaultPort + afterHost,
+					toComplete + localhost + afterHost,
+					toComplete + localhost + ":" + defaultPort + afterHost,
 				}
 			}
 
@@ -250,14 +252,14 @@ func locCompDoGenericDriver(cmd *cobra.Command, _ []string, toComplete string, /
 			if defaultPort == "" {
 				a = []string{
 					toComplete + afterHost,
-					base + "localhost" + afterHost,
+					base + localhost + afterHost,
 				}
 			} else {
 				a = []string{
 					toComplete + afterHost,
 					toComplete + ":" + defaultPort + afterHost,
-					base + "localhost" + afterHost,
-					base + "localhost:" + defaultPort + afterHost,
+					base + localhost + afterHost,
+					base + localhost + ":" + defaultPort + afterHost,
 				}
 			}
 
@@ -281,13 +283,13 @@ func locCompDoGenericDriver(cmd *cobra.Command, _ []string, toComplete string, /
 
 		if defaultPort == "" {
 			a = []string{
-				base + "localhost" + afterHost,
+				base + localhost + afterHost,
 				toComplete + afterHost,
 			}
 		} else {
 			a = []string{
-				base + "localhost" + afterHost,
-				base + "localhost:" + defaultPort + afterHost,
+				base + localhost + afterHost,
+				base + localhost + ":" + defaultPort + afterHost,
 				toComplete + afterHost,
 			}
 		}

@@ -122,7 +122,9 @@ func SLQ2SQL(ctx context.Context, qc *QueryContext, query string) (targetSQL str
 // Note that QuerySQL may return before recw has finished writing, thus the
 // caller may wish to wait for recw to complete.
 // The caller is responsible for closing dbase (and db, if non-nil).
-func QuerySQL(ctx context.Context, dbase driver.Database, db sqlz.DB, recw RecordWriter, query string, args ...any) error {
+func QuerySQL(ctx context.Context, dbase driver.Database, db sqlz.DB,
+	recw RecordWriter, query string, args ...any,
+) error {
 	log := lg.FromContext(ctx)
 	errw := dbase.SQLDriver().ErrWrapFunc()
 

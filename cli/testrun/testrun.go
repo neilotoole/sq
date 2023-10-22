@@ -32,7 +32,7 @@ import (
 type TestRun struct {
 	T       testing.TB
 	Context context.Context
-	mu      sync.Mutex
+	mu      *sync.Mutex
 	Run     *run.Run
 
 	// Out contains the output written to stdout after TestRun.Exec is invoked.
@@ -60,7 +60,7 @@ func New(ctx context.Context, t testing.TB, from *TestRun) *TestRun {
 		ctx = lg.NewContext(ctx, slogt.New(t))
 	}
 
-	tr := &TestRun{T: t, Context: ctx}
+	tr := &TestRun{T: t, Context: ctx, mu: &sync.Mutex{}}
 
 	var cfgStore config.Store
 	if from != nil {

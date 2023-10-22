@@ -528,45 +528,13 @@ func (h *Helper) Insert(src *source.Source, tbl string, cols []string, records .
 	return bi.Written()
 }
 
-//
-//func (h *Helper) CopyTable
-//
-//
-//func (h *Helper) CopySinkToTable(sink *RecordSink, src *source.Source, tbl string) {
-//	t := h.T
-//	ctx := h.Context
-//	dbase := h.openNew(src)
-//	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, dbase)
-//
-//	db, err := dbase.DB(ctx)
-//	require.NoError(h.T, err)
-//
-//
-//	colNames := sink.RecMeta.Names()
-//
-//	drvr := dbase.SQLDriver()
-//	stmtExecer, err := drvr.PrepareInsertStmt(h.Context, db, tbl, colNames, 1)
-//	require.NoError(t, err)
-//
-//	defer func() {
-//		assert.NoError(t, stmtExecer.Close())
-//	}()
-//
-//	for i := range sink.Recs {
-//		_, err = stmtExecer.Exec(ctx, sink.Recs[i]...)
-//		require.NoError(t, err)
-//	}
-//
-//
-//	require.NoError(h.T, dbase.SQLDriver().CopySinkToTable(h.Context, sink, db, tablefq.New(tbl)))
-//}
-
 // CopyTable copies fromTable into a new table toTable. If
 // toTable is empty, a unique table name is generated based on
 // fromTable. The table name used is returned.
 // If dropAfter is true, the table is dropped when t.Cleanup is run.
 // If copyData is true, fromTable's data is also copied.
 // Constraints (keys, defaults etc.) may not be copied.
+//
 // TODO: CopyTable should return tablefq.T instead of string.
 func (h *Helper) CopyTable(
 	dropAfter bool,

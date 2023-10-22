@@ -45,13 +45,8 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 )
 
-const (
-	// Type is the postgres source driver type.
-	Type = source.DriverType("postgres")
-
-	// dbDrvr is the backing postgres SQL driver impl name.
-	dbDrvr = "pgx"
-)
+// Type is the postgres source driver type.
+const Type = source.DriverType("postgres")
 
 // Provider is the postgres implementation of driver.Provider.
 type Provider struct {
@@ -170,22 +165,23 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 
 	var opts []stdlib.OptionOpenDB
 	if src.Schema != "" {
-		var newSearchPath string
 		opts = append(opts, stdlib.OptionAfterConnect(func(ctx context.Context, conn *pgx.Conn) error {
-			var existingSearchPath string
-			if err = conn.QueryRow(ctx, "SHOW search_path").Scan(&existingSearchPath); err != nil {
+			var oldSearchPath string
+			if err = conn.QueryRow(ctx, "SHOW search_path").Scan(&oldSearchPath); err != nil {
 				return errw(err)
 			}
-			newSearchPath = stringz.DoubleQuote(src.Schema)
-			if existingSearchPath != "" {
-				newSearchPath += ", " + existingSearchPath
-			}
-			_, err = conn.Exec(ctx, "SET search_path TO "+newSearchPath)
-			return errw(err)
-		}))
 
-		opts = append(opts, stdlib.OptionResetSession(func(ctx context.Context, conn *pgx.Conn) error {
-			// TODO: Do we need to reset search_path here?
+			newSearchPath := stringz.DoubleQuote(src.Schema)
+			if oldSearchPath != "" {
+				newSearchPath += ", " + oldSearchPath
+			}
+
+			lg.FromContext(ctx).Debug("Setting default schema (search_path) on Postgres DB connection",
+				lga.Src, src,
+				lga.Schema, src.Schema,
+				lga.Old, oldSearchPath,
+				lga.New, newSearchPath)
+
 			_, err = conn.Exec(ctx, "SET search_path TO "+newSearchPath)
 			return errw(err)
 		}))

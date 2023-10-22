@@ -39,9 +39,6 @@ import (
 const (
 	// Type is the MySQL source driver type.
 	Type = source.DriverType("mysql")
-
-	// dbDrvr is the backing MySQL SQL driver impl name.
-	dbDrvr = "mysql"
 )
 
 var _ driver.Provider = (*Provider)(nil)
@@ -434,11 +431,25 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 		return nil, err
 	}
 
-	db, err := sql.Open(dbDrvr, dsn)
+	cfg, err := mysql.ParseDSN(dsn)
 	if err != nil {
 		return nil, errw(err)
 	}
 
+	if src.Schema != "" {
+		lg.FromContext(ctx).Debug("Setting default schema for MysQL connection",
+			lga.Src, src,
+			lga.Schema, src.Schema,
+		)
+		cfg.DBName = src.Schema
+	}
+
+	connector, err := mysql.NewConnector(cfg)
+	if err != nil {
+		return nil, errw(err)
+	}
+
+	db := sql.OpenDB(connector)
 	driver.ConfigureDB(ctx, db, src.Options)
 	return db, nil
 }

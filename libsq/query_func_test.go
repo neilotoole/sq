@@ -1,9 +1,10 @@
 package libsq_test
 
 import (
+	"testing"
+
 	"github.com/neilotoole/sq/libsq"
 	"github.com/neilotoole/sq/testh"
-	"testing"
 
 	"github.com/neilotoole/sq/drivers/sqlite3"
 

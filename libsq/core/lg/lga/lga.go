@@ -25,6 +25,8 @@ const (
 	Key       = "key"
 	Kind      = "kind"
 	Loc       = "loc"
+	New       = "new"
+	Old       = "old"
 	Opts      = "opts"
 	Path      = "path"
 	Pid       = "pid"

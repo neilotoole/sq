@@ -396,7 +396,7 @@ func (d *driveri) ListSchemas(ctx context.Context, db sqlz.DB) ([]string, error)
 func (d *driveri) CreateSchema(ctx context.Context, db sqlz.DB, schemaName string) error {
 	stmt := `CREATE SCHEMA ` + stringz.DoubleQuote(schemaName)
 	if _, err := db.ExecContext(ctx, stmt); err != nil {
-		errz.Wrapf(err, "failed to create schema {%s}", schemaName)
+		return errz.Wrapf(err, "failed to create schema {%s}", schemaName)
 	}
 
 	lg.FromContext(ctx).Debug("Created schema", lga.Schema, schemaName)
@@ -706,6 +706,8 @@ func tblfmt[T string | tablefq.T](tbl T) string {
 // that's been tested so far.
 //
 // See: https://stackoverflow.com/a/8150428
+//
+//nolint:lll
 func genDropSchemaObjectsStmt(schemaName string) string {
 	const tpl = `
 declare @SchemaName nvarchar(100) = '%s'

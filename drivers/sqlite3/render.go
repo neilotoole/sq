@@ -140,7 +140,7 @@ func buildUpdateStmt(tbl string, cols []string, where string) (string, error) {
 	return buf.String(), nil
 }
 
-func doRenderFuncSchema(rc *render.Context, fn *ast.FuncNode) (string, error) {
+func doRenderFuncSchema(_ *render.Context, fn *ast.FuncNode) (string, error) {
 	if fn.FuncName() != ast.FuncNameSchema {
 		// Shouldn't happen
 		return "", errz.Errorf("expected %s function, got %q", ast.FuncNameSchema, fn.FuncName())
