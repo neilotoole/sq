@@ -17,6 +17,7 @@ install:
 .PHONY: lint
 lint:
 	@golangci-lint run --out-format tab --sort-results
+	@shellcheck ./install.sh
 
 .PHONY: gen
 gen:

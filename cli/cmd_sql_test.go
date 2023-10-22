@@ -214,6 +214,8 @@ func TestFlagActiveSource_sql(t *testing.T) {
 	))
 	require.Len(t, tr.BindCSV(), sakila.TblActorCount)
 
+	t.Logf("\n\n\n DEBUG \n\n\n")
+
 	// Now, use flag.ActiveSrc to switch the source.
 	tr = testrun.New(ctx, t, tr)
 	require.NoError(t, tr.Exec(

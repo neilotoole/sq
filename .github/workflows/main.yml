@@ -117,6 +117,9 @@ jobs:
           bash <(curl https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
           ./actionlint -color
 
+      - name: shellcheck
+        run: |
+          shellcheck ./install.sh
 
       - name: Set up Go
         uses: actions/setup-go@v4
