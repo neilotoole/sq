@@ -205,6 +205,8 @@ func TestFlagActiveSource_sql(t *testing.T) {
 	tr = testrun.New(ctx, t, tr)
 	require.NoError(t, tr.Exec("add", proj.Abs(sakila.PathCSVActor), "--handle", "@csv"))
 
+	t.Logf("\n\n\n QUERY 1 \n\n\n")
+
 	tr = testrun.New(ctx, t, tr)
 	require.NoError(t, tr.Exec(
 		"sql",
@@ -214,7 +216,7 @@ func TestFlagActiveSource_sql(t *testing.T) {
 	))
 	require.Len(t, tr.BindCSV(), sakila.TblActorCount)
 
-	t.Logf("\n\n\n DEBUG \n\n\n")
+	t.Logf("\n\n\n QUERY 2 \n\n\n")
 
 	// Now, use flag.ActiveSrc to switch the source.
 	tr = testrun.New(ctx, t, tr)
