@@ -61,6 +61,11 @@ func TestQuery_func(t *testing.T) {
 				// float64, some int, some decimal (string). The SLQ impl of avg()
 				// needs to be modified to returned a consistent type.
 				// assertSinkColValue(0, float64(100.5)),
+				//
+				// See also:
+				// - https://github.com/golang/go/issues/30870
+				// - https://github.com/golang-sql/decomposer
+
 			},
 		},
 	}
