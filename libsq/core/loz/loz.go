@@ -4,11 +4,13 @@ package loz
 
 import "github.com/samber/lo"
 
-// All returns a new slice containing elems.
+// All returns a new slice containing elems. If elems is
+// nil, an empty slice is returned.
 func All[T any](elems ...T) []T {
-	a := make([]T, len(elems))
-	copy(a, elems)
-	return a
+	if elems == nil {
+		return []T{}
+	}
+	return elems
 }
 
 // Apply returns a new slice whose elements are the result of applying fn to

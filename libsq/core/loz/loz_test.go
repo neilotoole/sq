@@ -17,6 +17,12 @@ func TestAll(t *testing.T) {
 
 	gotStrings := loz.All("hello", "world")
 	require.Equal(t, []string{"hello", "world"}, gotStrings)
+
+	wantInts := []int{1, 2, 3}
+	gotInts := loz.All(wantInts...)
+	require.Equal(t, wantInts, gotInts)
+	require.False(t, &gotInts == &wantInts,
+		"wantInts and gotInts should not be the same slice")
 }
 
 func TestToSliceType(t *testing.T) {

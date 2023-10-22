@@ -168,21 +168,32 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 		return nil, errw(err)
 	}
 
-	connStr := stdlib.RegisterConnConfig(dbCfg.ConnConfig)
+	var opts []stdlib.OptionOpenDB
+	if src.Schema != "" {
+		var newSearchPath string
+		opts = append(opts, stdlib.OptionAfterConnect(func(ctx context.Context, conn *pgx.Conn) error {
+			var existingSearchPath string
+			if err = conn.QueryRow(ctx, "SHOW search_path").Scan(&existingSearchPath); err != nil {
+				return errw(err)
+			}
+			newSearchPath = stringz.DoubleQuote(src.Schema)
+			if existingSearchPath != "" {
+				newSearchPath += ", " + existingSearchPath
+			}
+			_, err = conn.Exec(ctx, "SET search_path TO "+newSearchPath)
+			return errw(err)
+		}))
 
-	var db *sql.DB
-	if err := doRetry(ctx, func() error {
-		var err2 error
-		db, err2 = sql.Open(dbDrvr, connStr)
-		if err2 != nil {
-			lg.FromContext(ctx).Error("postgres open, may retry", lga.Err, err2)
-		}
-		return err2
-	}); err != nil {
-		return nil, errz.Wrap(err, "failed to open postgres db")
+		opts = append(opts, stdlib.OptionResetSession(func(ctx context.Context, conn *pgx.Conn) error {
+			// TODO: Do we need to reset search_path here?
+			_, err = conn.Exec(ctx, "SET search_path TO "+newSearchPath)
+			return errw(err)
+		}))
 	}
 
+	db := stdlib.OpenDB(*dbCfg.ConnConfig, opts...)
 	driver.ConfigureDB(ctx, db, src.Options)
+
 	return db, nil
 }
 

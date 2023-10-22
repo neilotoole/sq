@@ -1,6 +1,8 @@
 package libsq_test
 
 import (
+	"github.com/neilotoole/sq/libsq"
+	"github.com/neilotoole/sq/testh"
 	"testing"
 
 	"github.com/neilotoole/sq/drivers/sqlite3"
@@ -14,6 +16,8 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 )
+
+const infoSchema = "information_schema"
 
 // TestQuery_func tests miscellaneous functions that aren't
 // tested elsewhere.
@@ -71,7 +75,7 @@ func TestQuery_func(t *testing.T) {
 func TestQuery_func_schema(t *testing.T) {
 	testCases := []queryTestCase{
 		{
-			name:         "sqlserver",
+			name:         "sqlserver-default",
 			in:           `@sakila | schema()`,
 			wantSQL:      `SELECT SCHEMA_NAME() AS "schema()"`,
 			onlyFor:      []source.DriverType{sqlserver.Type},
@@ -82,7 +86,23 @@ func TestQuery_func_schema(t *testing.T) {
 			},
 		},
 		{
-			name:         "postgres",
+			name: "sqlserver-alt-no-change",
+			// SQL Server doesn't support changing the schema on a per-connection
+			// basis. So we expect the default schema to be returned.
+			in: `@sakila | schema()`,
+			beforeRun: func(tc queryTestCase, th *testh.Helper, qc *libsq.QueryContext) {
+				qc.Collection.Active().Schema = infoSchema
+			},
+			wantSQL:      `SELECT SCHEMA_NAME() AS "schema()"`,
+			onlyFor:      []source.DriverType{sqlserver.Type},
+			wantRecCount: 1,
+			sinkFns: []SinkTestFunc{
+				assertSinkColName(0, "schema()"),
+				assertSinkColValue(0, "dbo"),
+			},
+		},
+		{
+			name:         "postgres-default",
 			in:           `@sakila | schema()`,
 			wantSQL:      `SELECT current_schema() AS "schema()"`,
 			onlyFor:      []source.DriverType{postgres.Type},
@@ -93,7 +113,21 @@ func TestQuery_func_schema(t *testing.T) {
 			},
 		},
 		{
-			name:         "mysql",
+			name: "postgres-alt",
+			in:   `@sakila | schema()`,
+			beforeRun: func(tc queryTestCase, th *testh.Helper, qc *libsq.QueryContext) {
+				qc.Collection.Active().Schema = infoSchema
+			},
+			wantSQL:      `SELECT current_schema() AS "schema()"`,
+			onlyFor:      []source.DriverType{postgres.Type},
+			wantRecCount: 1,
+			sinkFns: []SinkTestFunc{
+				assertSinkColName(0, "schema()"),
+				assertSinkColValue(0, infoSchema),
+			},
+		},
+		{
+			name:         "mysql-default",
 			in:           `@sakila | schema()`,
 			wantSQL:      "SELECT DATABASE() AS `schema()`",
 			onlyFor:      []source.DriverType{mysql.Type},
@@ -104,7 +138,21 @@ func TestQuery_func_schema(t *testing.T) {
 			},
 		},
 		{
-			name:         "sqlite",
+			name: "mysql-alt",
+			in:   `@sakila | schema()`,
+			beforeRun: func(tc queryTestCase, th *testh.Helper, qc *libsq.QueryContext) {
+				qc.Collection.Active().Schema = infoSchema
+			},
+			wantSQL:      "SELECT DATABASE() AS `schema()`",
+			onlyFor:      []source.DriverType{mysql.Type},
+			wantRecCount: 1,
+			sinkFns: []SinkTestFunc{
+				assertSinkColName(0, "schema()"),
+				assertSinkColValue(0, infoSchema),
+			},
+		},
+		{
+			name:         "sqlite-default",
 			in:           `@sakila | schema()`,
 			wantSQL:      `SELECT (SELECT name FROM pragma_database_list ORDER BY seq limit 1) AS "schema()"`,
 			onlyFor:      []source.DriverType{sqlite3.Type},
