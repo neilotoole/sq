@@ -100,6 +100,8 @@ func (fs *Store) doLoad(ctx context.Context) (*config.Config, error) {
 		return nil, errz.Wrapf(err, "config: failed to load file: %s", fs.Path)
 	}
 
+	lg.FromContext(ctx).Debug("Loaded file:\n\n" + string(bytes))
+
 	loadHookFn := fs.HookLoad
 	if loadHookFn != nil {
 		bytes, err = loadHookFn(bytes)
