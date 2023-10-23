@@ -292,12 +292,10 @@ func TestMungeLocation(t *testing.T) {
 	for i, tc := range testCases {
 		tc := tc
 		t.Run(tutil.Name(i, tc.in), func(t *testing.T) {
-			if tc.onlyForOS != "" {
-				if runtime.GOOS != tc.onlyForOS {
-					t.Skipf("Skipping because this test is only for OS {%s}, but have {%s}",
-						tc.onlyForOS, runtime.GOOS)
-					return
-				}
+			if tc.onlyForOS != "" && tc.onlyForOS != runtime.GOOS {
+				t.Skipf("Skipping because this test is only for OS {%s}, but have {%s}",
+					tc.onlyForOS, runtime.GOOS)
+				return
 			}
 
 			got, err := sqlite3.MungeLocation(tc.in)
