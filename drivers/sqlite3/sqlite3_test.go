@@ -3,6 +3,7 @@ package sqlite3_test
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/neilotoole/sq/libsq/core/tablefq"
@@ -241,9 +242,10 @@ func TestMungeLocation(t *testing.T) {
 	t.Log("cwdWant:", cwdWant)
 	t.Log("root:", root)
 	testCases := []struct {
-		in      string
-		want    string
-		wantErr bool
+		in        string
+		want      string
+		onlyForOS string
+		wantErr   bool
 	}{
 		{
 			in:      "",
@@ -277,16 +279,27 @@ func TestMungeLocation(t *testing.T) {
 			in:   "/path/to/sakila.db",
 			want: "sqlite3://" + root + "path/to/sakila.db",
 		},
-		//{
-		//	in: `C:/Users/neil/work/sq/drivers/sqlite3/testdata/sakila.db`,
-		//	//want: `sqlite3://C:/Users/neil/work/sq/drivers/sqlite3/testdata/sakila.db`,
-		//	want: `sqlite3://C:/Users/neil/work/sq/drivers/sqlite3/testdata/sakila.db`,
-		//},
+		{
+			in:   `C:/Users/neil/work/sq/drivers/sqlite3/testdata/sakila.db`,
+			want: `sqlite3://C:/Users/neil/work/sq/drivers/sqlite3/testdata/sakila.db`,
+			// The current impl of MungeLocation relies upon OS-specific functions
+			// in pkg filepath. Thus, we skip this test on non-Windows OSes.
+			// MungeLocation could probably be rewritten to be OS-independent?
+			onlyForOS: "windows",
+		},
 	}
 
 	for i, tc := range testCases {
 		tc := tc
 		t.Run(tutil.Name(i, tc.in), func(t *testing.T) {
+			if tc.onlyForOS != "" {
+				if runtime.GOOS != tc.onlyForOS {
+					t.Skipf("Skipping because this test is only for OS {%s}, but have {%s}",
+						tc.onlyForOS, runtime.GOOS)
+					return
+				}
+			}
+
 			got, err := sqlite3.MungeLocation(tc.in)
 			if tc.wantErr {
 				require.Error(t, err)

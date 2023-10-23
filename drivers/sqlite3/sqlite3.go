@@ -1075,14 +1075,23 @@ func PathFromLocation(src *source.Source) (string, error) {
 // and builds a sqlite3 location URL. Each of these forms are allowed:
 //
 //	sqlite3:///path/to/sakila.db	--> sqlite3:///path/to/sakila.db
-//	sqlite3:sakila.db 				--> sqlite3:///current/working/dir/sakila.db
-//	sqlite3:/sakila.db 				--> sqlite3:///sakila.db
-//	sqlite3:./sakila.db 			--> sqlite3:///current/working/dir/sakila.db
-//	sqlite3:sakila.db 				--> sqlite3:///current/working/dir/sakila.db
-//	sakila.db						--> sqlite3:///current/working/dir/sakila.db
-//	/path/to/sakila.db				--> sqlite3:///path/to/sakila.db
+//	sqlite3:sakila.db 						--> sqlite3:///current/working/dir/sakila.db
+//	sqlite3:/sakila.db 						--> sqlite3:///sakila.db
+//	sqlite3:./sakila.db 					--> sqlite3:///current/working/dir/sakila.db
+//	sqlite3:sakila.db 						--> sqlite3:///current/working/dir/sakila.db
+//	sakila.db											--> sqlite3:///current/working/dir/sakila.db
+//	/path/to/sakila.db						--> sqlite3:///path/to/sakila.db
 //
 // The final form is particularly nice for shell completion etc.
+//
+// Note that this function is OS-dependent, due to the use of pkg filepath.
+// Thus, on Windows, this is seen:
+//
+//	C:/Users/sq/sakila.db 				--> sqlite3://C:/Users/sq/sakila.db
+//
+// But that input location gets mangled on non-Windows OSes. This probably
+// isn't a problem in practice, but longer-term it may make sense to rewrite
+// MungeLocation to be OS-independent.
 func MungeLocation(loc string) (string, error) {
 	loc2 := strings.TrimSpace(loc)
 	if loc2 == "" {
