@@ -200,7 +200,7 @@ func TestPathFromLocation(t *testing.T) {
 	}{
 		{loc: "sqlite3:///test.db", want: "/test.db"},
 		{loc: "postgres:///test.db", wantErr: true},
-		{loc: `sqlite3://C:\dir\sakila.db`, want: `C:\dir\sakila.db`},
+		{loc: `sqlite3://C:/dir/sakila.db`, want: `C:/dir/sakila.db`},
 	}
 
 	for _, tc := range testCases {
@@ -277,6 +277,11 @@ func TestMungeLocation(t *testing.T) {
 			in:   "/path/to/sakila.db",
 			want: "sqlite3://" + root + "path/to/sakila.db",
 		},
+		//{
+		//	in: `C:/Users/neil/work/sq/drivers/sqlite3/testdata/sakila.db`,
+		//	//want: `sqlite3://C:/Users/neil/work/sq/drivers/sqlite3/testdata/sakila.db`,
+		//	want: `sqlite3://C:/Users/neil/work/sq/drivers/sqlite3/testdata/sakila.db`,
+		//},
 	}
 
 	for i, tc := range testCases {

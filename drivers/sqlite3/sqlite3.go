@@ -9,7 +9,6 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -1093,14 +1092,7 @@ func MungeLocation(loc string) (string, error) {
 	loc2 = strings.TrimPrefix(loc2, "sqlite3://")
 	loc2 = strings.TrimPrefix(loc2, "sqlite3:")
 
-	// Now we should be left with just a path, which could be
-	// relative or absolute.
-	u, err := url.Parse(loc2)
-	if err != nil {
-		return "", errz.Wrapf(errw(err), "invalid location: %s", loc)
-	}
-
-	fp, err := filepath.Abs(u.Path)
+	fp, err := filepath.Abs(loc2)
 	if err != nil {
 		return "", errz.Wrapf(errw(err), "invalid location: %s", loc)
 	}

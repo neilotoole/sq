@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/neilotoole/sq/libsq/core/lg"
-	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"io"
 	"os"
 	"strings"
+
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"github.com/neilotoole/sq/cli/run"
 
