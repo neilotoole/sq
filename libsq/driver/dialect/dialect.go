@@ -34,6 +34,12 @@ type Dialect struct {
 	// the dialect supports. Not all drivers support each join type. For
 	// example, MySQL doesn't support jointype.FullOuter.
 	Joins []jointype.Type
+
+	// Catalog indicates that the database supports the catalog concept,
+	// in addition to schema. For example, PostgreSQL supports catalog
+	// and schema (sakila.public.actor), whereas MySQL only supports schema
+	// (sakila.actor).
+	Catalog bool
 }
 
 // String returns a log/debug-friendly representation.

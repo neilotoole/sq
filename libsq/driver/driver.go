@@ -241,13 +241,6 @@ type SQLDriver interface {
 	// is sorted by name.
 	ListSchemas(ctx context.Context, db sqlz.DB) ([]string, error)
 
-	// SetSourceSchemaCatalog sets the Catalog and Schema fields of src if the
-	// args are non-nil. An error is returned if the driver doesn't support one
-	// or both of those overrides. For example, MySQL doesn't support the Catalog
-	// mechanism. Note that the source's Location field is not mutated, thus an
-	// opening a connection to that source will still connect to the original location.
-	SetSourceSchemaCatalog(src *source.Source, catalog, schema *string) error
-
 	// TableColumnTypes returns the column type info from
 	// the SQL driver. If len(colNames) is 0, info is returned
 	// for all columns in the table.

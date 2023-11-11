@@ -4,8 +4,6 @@ import (
 	"context"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/loz"
-
 	"github.com/neilotoole/sq/libsq/ast"
 
 	"github.com/neilotoole/sq/cli/run"
@@ -122,9 +120,15 @@ func activeSrcAndSchemaFromFlagsOrConfig(ru *run.Run) (*source.Source, error) {
 			return nil, err
 		}
 
-		if err = drvr.SetSourceSchemaCatalog(activeSrc,
-			loz.NilIfZero(catalog), loz.NilIfZero(schema)); err != nil {
-			return nil, err
+		if catalog != "" {
+			if !drvr.Dialect().Catalog {
+				return nil, errz.Errorf("driver {%s} does not support catalog", activeSrc.Type)
+			}
+			activeSrc.Catalog = catalog
+		}
+
+		if schema != "" {
+			activeSrc.Schema = schema
 		}
 	}
 

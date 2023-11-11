@@ -123,6 +123,7 @@ func (d *driveri) Dialect() dialect.Dialect {
 		MaxBatchValues: 250,
 		Ops:            dialect.DefaultOps(),
 		Joins:          lo.Without(jointype.All(), jointype.FullOuter),
+		Catalog:        false,
 	}
 }
 
@@ -195,19 +196,6 @@ func (d *driveri) CurrentSchema(ctx context.Context, db sqlz.DB) (string, error)
 	}
 
 	return name, nil
-}
-
-// SetSourceSchemaCatalog implements driver.SQLDriver.
-func (d *driveri) SetSourceSchemaCatalog(src *source.Source, catalog, schema *string) error {
-	if catalog != nil {
-		return errz.Errorf("driver %s does not support catalogs", Type)
-	}
-
-	if schema != nil {
-		src.Schema = *schema
-	}
-
-	return nil
 }
 
 // ListSchemas implements driver.SQLDriver.

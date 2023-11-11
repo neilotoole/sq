@@ -687,66 +687,6 @@ func TestDriverCreateDropSchema(t *testing.T) {
 	}
 }
 
-func TestSQLDriver_SetSourceSchema(t *testing.T) {
-	// FIXME: implement this test
-	newSchema := "test_schema_" + stringz.Uniq8()
-
-	// TODO: Add function testh to create a new schema, and table,
-	// and populate it.
-	_ = newSchema
-	testCases := []struct {
-		handle        string
-		defaultSchema string
-	}{
-		//{sakila.SL3, "main"}, // TODO: implement for SQLite
-		{sakila.Pg, "public"},
-		{sakila.My, "sakila"},
-		//{sakila.MS, "dbo"}, // TODO: implement for SQLServer
-	}
-
-	for _, tc := range testCases {
-		tc := tc
-
-		t.Run(tc.handle, func(t *testing.T) {
-			th, src1, drvr, _, db1 := testh.NewWith(t, tc.handle)
-
-			gotSchema1, err := drvr.CurrentSchema(th.Context, db1)
-			require.NoError(t, err)
-			require.Equal(t, tc.defaultSchema, gotSchema1)
-
-			_ = src1
-			//
-			//drvr.
-			//	_ = th.ExecSQL(src1, "CREATE SCHEMA "+newSchema)
-			//
-			//t.Cleanup(func() {
-			//	th.ExecSQL(src1, "DROP SCHEMA IF EXISTS "+newSchema)
-			//})
-			//
-			//src2 := src1.Clone()
-			//require.NoError(t, drvr.SetSourceSchemaCatalog(src2, nil, &newSchema))
-			//
-			//dbase2 := th.Open(src2)
-			//db2, err := dbase2.DB(th.Context)
-			//require.NoError(t, err)
-			//gotSchema2, err := drvr.CurrentSchema(th.Context, db2)
-			//require.NoError(t, err)
-			//require.Equal(t, newSchema, gotSchema2)
-			//require.NotEqual(t, gotSchema2, gotSchema1)
-			//
-			//md, err := dbase2.SourceMetadata(th.Context, false)
-			//require.NoError(t, err)
-			//require.NotNil(t, md)
-			//require.Equal(t, md.Schema, gotSchema2)
-			//
-			//gotSchemas, err := drvr.ListSchemas(th.Context, db2)
-			//require.NoError(t, err)
-			//require.Contains(t, gotSchemas, gotSchema1)
-			//require.Contains(t, gotSchemas, gotSchema2)
-		})
-	}
-}
-
 func TestSQLDriver_ErrWrap_IsErrNotExist(t *testing.T) {
 	for _, h := range sakila.SQLLatest() {
 		h := h

@@ -147,34 +147,17 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database
 }
 
 func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
-	dsn, err := PathFromLocation(src)
+	fp, err := PathFromLocation(src)
 	if err != nil {
 		return nil, err
 	}
-	db, err := sql.Open(dbDrvr, dsn)
+	db, err := sql.Open(dbDrvr, fp)
 	if err != nil {
-		return nil, errz.Wrapf(errw(err), "failed to open sqlite3 source with DSN: %s", dsn)
+		return nil, errz.Wrapf(errw(err), "failed to open sqlite3 source with DSN: %s", fp)
 	}
 
 	driver.ConfigureDB(ctx, db, src.Options)
 	return db, nil
-
-	// FIXME: Delete this stuff when we've figured out the connection issue.
-
-	//// NOTE: We limit open conns to 1, because otherwise it's not clear what
-	//// happens with attached databases. Note that ATTACH DATABASE only applies
-	//// to a single connection, so if we have multiple connections, the database
-	//// may no longer be attached. See https://www.sqlite.org/lang_attach.html
-	////
-	//// REVISIT: However, limiting to a single connection has ugly implications.
-	//// Especially because most usage doesn't involve ATTACH DATABASE. We need
-	//// to rethink how this is done.
-	//db.SetMaxOpenConns(1)
-	//db.SetMaxIdleConns(1)
-	//db.SetConnMaxIdleTime(driver.OptConnMaxIdleTime.Get(src.Options))
-	//db.SetConnMaxLifetime(driver.OptConnMaxLifetime.Get(src.Options))
-
-	// return db, nil
 }
 
 // Truncate implements driver.Driver.
@@ -254,6 +237,7 @@ func (d *driveri) Dialect() dialect.Dialect {
 		MaxBatchValues: 500,
 		Ops:            dialect.DefaultOps(),
 		Joins:          jointype.All(),
+		Catalog:        false,
 	}
 }
 
@@ -701,18 +685,6 @@ func (d *driveri) CurrentSchema(ctx context.Context, db sqlz.DB) (string, error)
 	}
 
 	return name, nil
-}
-
-// SetSourceSchemaCatalog implements driver.SQLDriver.
-func (d *driveri) SetSourceSchemaCatalog(src *source.Source, catalog, schema *string) error {
-	if catalog != nil {
-		return errz.Errorf("driver %s does not support catalogs", Type)
-	}
-
-	if schema != nil {
-		src.Schema = *schema
-	}
-	return nil
 }
 
 // ListSchemas implements driver.SQLDriver.
