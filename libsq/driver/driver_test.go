@@ -586,6 +586,28 @@ func TestSQLDriver_AlterTableRenameColumn(t *testing.T) {
 	}
 }
 
+func TestSQLDriver_CurrentCatalog(t *testing.T) {
+	for _, handle := range sakila.SQLAll() {
+		handle := handle
+
+		t.Run(handle, func(t *testing.T) {
+			th, _, drvr, _, db := testh.NewWith(t, handle)
+			if !drvr.Dialect().Catalog {
+				t.Skipf("driver {%s} does not support catalogs", drvr.DriverMetadata().Type)
+				return
+			}
+
+			currentCatalog, err := drvr.CurrentCatalog(th.Context, db)
+			require.NoError(t, err)
+			require.NotEmpty(t, currentCatalog)
+
+			gotCatalogs, err := drvr.ListCatalogs(th.Context, db)
+			require.NoError(t, err)
+			require.Equal(t, currentCatalog, gotCatalogs[0])
+		})
+	}
+}
+
 func TestSQLDriver_CurrentSchema(t *testing.T) {
 	testCases := []struct {
 		handle string

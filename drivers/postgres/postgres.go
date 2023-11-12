@@ -334,7 +334,7 @@ func (d *driveri) ListSchemas(ctx context.Context, db sqlz.DB) ([]string, error)
 	var schemas []string
 	rows, err := db.QueryContext(ctx, q)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
@@ -342,16 +342,59 @@ func (d *driveri) ListSchemas(ctx context.Context, db sqlz.DB) ([]string, error)
 	for rows.Next() {
 		var schema string
 		if err = rows.Scan(&schema); err != nil {
-			return nil, errz.Err(err)
+			return nil, errw(err)
 		}
 		schemas = append(schemas, schema)
 	}
 
 	if err = rows.Err(); err != nil {
-		return nil, errz.Err(err)
+		return nil, errw(err)
 	}
 
 	return schemas, nil
+}
+
+// CurrentCatalog implements driver.SQLDriver.
+func (d *driveri) CurrentCatalog(ctx context.Context, db sqlz.DB) (string, error) {
+	var name string
+	if err := db.QueryRowContext(ctx, `SELECT CURRENT_DATABASE()`).Scan(&name); err != nil {
+		return "", errw(err)
+	}
+
+	return name, nil
+}
+
+// ListCatalogs implements driver.SQLDriver.
+func (d *driveri) ListCatalogs(ctx context.Context, db sqlz.DB) ([]string, error) {
+	catalogs := make([]string, 1, 3)
+	if err := db.QueryRowContext(ctx, `SELECT CURRENT_DATABASE()`).Scan(&catalogs[0]); err != nil {
+		return nil, errw(err)
+	}
+
+	const q = `SELECT datname FROM pg_catalog.pg_database
+WHERE datistemplate = FALSE AND datallowconn = TRUE AND datname != CURRENT_DATABASE()
+ORDER BY datname`
+
+	rows, err := db.QueryContext(ctx, q)
+	if err != nil {
+		return nil, errw(err)
+	}
+
+	defer lg.WarnIfCloseError(lg.FromContext(ctx), lgm.CloseDBRows, rows)
+
+	for rows.Next() {
+		var catalog string
+		if err = rows.Scan(&catalog); err != nil {
+			return nil, errw(err)
+		}
+		catalogs = append(catalogs, catalog)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, errw(err)
+	}
+
+	return catalogs, nil
 }
 
 // AlterTableRename implements driver.SQLDriver.

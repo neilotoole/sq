@@ -381,6 +381,49 @@ func (d *driveri) ListSchemas(ctx context.Context, db sqlz.DB) ([]string, error)
 	return schemas, nil
 }
 
+// CurrentCatalog implements driver.SQLDriver.
+func (d *driveri) CurrentCatalog(ctx context.Context, db sqlz.DB) (string, error) {
+	var name string
+	if err := db.QueryRowContext(ctx, `SELECT DB_NAME()`).Scan(&name); err != nil {
+		return "", errw(err)
+	}
+
+	return name, nil
+}
+
+// ListCatalogs implements driver.SQLDriver.
+func (d *driveri) ListCatalogs(ctx context.Context, db sqlz.DB) ([]string, error) {
+	catalogs := make([]string, 1, 3)
+	if err := db.QueryRowContext(ctx, `SELECT DB_NAME()`).Scan(&catalogs[0]); err != nil {
+		return nil, errw(err)
+	}
+
+	const q = `SELECT name FROM sys.databases
+WHERE name != DB_NAME()
+ORDER BY name`
+
+	rows, err := db.QueryContext(ctx, q)
+	if err != nil {
+		return nil, errw(err)
+	}
+
+	defer lg.WarnIfCloseError(lg.FromContext(ctx), lgm.CloseDBRows, rows)
+
+	for rows.Next() {
+		var catalog string
+		if err = rows.Scan(&catalog); err != nil {
+			return nil, errw(err)
+		}
+		catalogs = append(catalogs, catalog)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, errw(err)
+	}
+
+	return catalogs, nil
+}
+
 // CreateSchema implements driver.SQLDriver.
 func (d *driveri) CreateSchema(ctx context.Context, db sqlz.DB, schemaName string) error {
 	stmt := `CREATE SCHEMA ` + stringz.DoubleQuote(schemaName)

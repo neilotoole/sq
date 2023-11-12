@@ -237,9 +237,18 @@ type SQLDriver interface {
 	// CurrentSchema returns the current schema name.
 	CurrentSchema(ctx context.Context, db sqlz.DB) (string, error)
 
-	// ListSchemas lists the available schemas on db. The returned slice
-	// is sorted by name.
+	// ListSchemas lists the available schemas on db.
 	ListSchemas(ctx context.Context, db sqlz.DB) ([]string, error)
+
+	// CurrentCatalog returns the current catalog name. An error is
+	// returned if the driver doesn't support catalogs.
+	CurrentCatalog(ctx context.Context, db sqlz.DB) (string, error)
+
+	// ListCatalogs lists the available catalogs on db. The first
+	// returned element is the current catalog, and the remaining
+	// catalogs are sorted alphabetically. An error is returned
+	// if the driver doesn't support catalogs.
+	ListCatalogs(ctx context.Context, db sqlz.DB) ([]string, error)
 
 	// TableColumnTypes returns the column type info from
 	// the SQL driver. If len(colNames) is 0, info is returned

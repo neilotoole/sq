@@ -290,7 +290,7 @@ func completeTblCopy(cmd *cobra.Command, args []string, toComplete string) ([]st
 }
 
 // completeActiveSchema is a completionFunc for flag.ActiveSchema.
-func completeActiveSchema(cmd *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
+func completeActiveSchema(cmd *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	// Example invocation:
 	//
 	//  # Only schema
@@ -308,12 +308,15 @@ func completeActiveSchema(cmd *cobra.Command, _ []string, _ string) ([]string, c
 		return nil, cobra.ShellCompDirectiveError
 	}
 
+	// TODO: Need to check for flag --src, which would
+	// override the active source.
+
 	src := ru.Config.Collection.Active()
 	if src == nil {
 		return nil, cobra.ShellCompDirectiveError
 	}
 
-	if ok, _ := handleIsSQLDriver(ru, src.Handle); !ok {
+	if ok, _ := isSQLDriver(ru, src.Handle); !ok {
 		// Not a SQL driver
 		return nil, cobra.ShellCompDirectiveError
 	}
@@ -343,13 +346,31 @@ func completeActiveSchema(cmd *cobra.Command, _ []string, _ string) ([]string, c
 
 	defer lg.WarnIfCloseError(log, lgm.CloseDB, db)
 
-	schemas, err := drvr.ListSchemas(ctx, db)
+	a, err := drvr.ListSchemas(ctx, db)
 	if err != nil {
 		lg.Unexpected(log, err)
 		return nil, cobra.ShellCompDirectiveError
 	}
 
-	return schemas, cobra.ShellCompDirectiveNoFileComp
+	if drvr.Dialect().Catalog {
+		var catalogs []string
+		if catalogs, err = drvr.ListCatalogs(ctx, db); err != nil {
+			// We continue even if an error occurs.
+			log.Warn("List catalogs", lga.Err, err)
+		}
+
+		for i := range catalogs {
+			a = append(a, catalogs[i]+".")
+		}
+	}
+
+	a = lo.Filter(a, func(item string, index int) bool {
+		return strings.HasPrefix(item, toComplete)
+	})
+
+	return a, cobra.ShellCompDirectiveNoFileComp |
+		cobra.ShellCompDirectiveKeepOrder |
+		cobra.ShellCompDirectiveNoSpace
 }
 
 // handleTableCompleter encapsulates completion of a handle
@@ -427,7 +448,7 @@ func (c *handleTableCompleter) completeTableOnly(ctx context.Context, ru *run.Ru
 	}
 
 	if c.onlySQL {
-		isSQL, err := handleIsSQLDriver(ru, activeSrc.Handle)
+		isSQL, err := isSQLDriver(ru, activeSrc.Handle)
 		if err != nil {
 			lg.Unexpected(lg.FromContext(ctx), err)
 			return nil, cobra.ShellCompDirectiveError
@@ -478,7 +499,7 @@ func (c *handleTableCompleter) completeHandle(ctx context.Context, ru *run.Run, 
 
 		if c.onlySQL {
 			var isSQL bool
-			isSQL, err = handleIsSQLDriver(ru, handle)
+			isSQL, err = isSQLDriver(ru, handle)
 			if err != nil {
 				lg.Unexpected(lg.FromContext(ctx), err)
 				return nil, cobra.ShellCompDirectiveError
@@ -512,7 +533,7 @@ func (c *handleTableCompleter) completeHandle(ctx context.Context, ru *run.Run, 
 	for _, handle := range handles {
 		if strings.HasPrefix(handle, toComplete) {
 			if c.onlySQL {
-				isSQL, err := handleIsSQLDriver(ru, handle)
+				isSQL, err := isSQLDriver(ru, handle)
 				if err != nil {
 					lg.Unexpected(lg.FromContext(ctx), err)
 					return nil, cobra.ShellCompDirectiveError
@@ -566,7 +587,7 @@ func (c *handleTableCompleter) completeEither(ctx context.Context, ru *run.Run,
 	activeSrc := ru.Config.Collection.Active()
 	if activeSrc != nil {
 		var activeSrcTables []string
-		isSQL, err := handleIsSQLDriver(ru, activeSrc.Handle)
+		isSQL, err := isSQLDriver(ru, activeSrc.Handle)
 		if err != nil {
 			lg.Unexpected(lg.FromContext(ctx), err)
 			return nil, cobra.ShellCompDirectiveError
@@ -590,7 +611,7 @@ func (c *handleTableCompleter) completeEither(ctx context.Context, ru *run.Run,
 
 	for _, src := range ru.Config.Collection.Sources() {
 		if c.onlySQL {
-			isSQL, err := handleIsSQLDriver(ru, src.Handle)
+			isSQL, err := isSQLDriver(ru, src.Handle)
 			if err != nil {
 				lg.Unexpected(lg.FromContext(ctx), err)
 				return nil, cobra.ShellCompDirectiveError
@@ -606,7 +627,7 @@ func (c *handleTableCompleter) completeEither(ctx context.Context, ru *run.Run,
 	return suggestions, cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace
 }
 
-func handleIsSQLDriver(ru *run.Run, handle string) (bool, error) {
+func isSQLDriver(ru *run.Run, handle string) (bool, error) {
 	src, err := ru.Config.Collection.Get(handle)
 	if err != nil {
 		return false, err

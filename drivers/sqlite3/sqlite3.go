@@ -714,6 +714,18 @@ func (d *driveri) ListSchemas(ctx context.Context, db sqlz.DB) ([]string, error)
 	return schemas, nil
 }
 
+// CurrentCatalog implements driver.SQLDriver. SQLite does not support catalogs,
+// so this method returns an error.
+func (d *driveri) CurrentCatalog(_ context.Context, _ sqlz.DB) (string, error) {
+	return "", errz.New("sqlite3: catalog mechanism not supported")
+}
+
+// ListCatalogs implements driver.SQLDriver. SQLite does not support catalogs,
+// so this method returns an error.
+func (d *driveri) ListCatalogs(_ context.Context, _ sqlz.DB) ([]string, error) {
+	return nil, errz.New("sqlite3: catalog mechanism not supported")
+}
+
 // AlterTableRename implements driver.SQLDriver.
 func (d *driveri) AlterTableRename(ctx context.Context, db sqlz.DB, tbl, newName string) error {
 	q := fmt.Sprintf(`ALTER TABLE %q RENAME TO %q`, tbl, newName)
