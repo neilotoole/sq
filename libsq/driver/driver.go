@@ -336,7 +336,7 @@ type SQLDriver interface {
 // stdlib sql.DB, and in fact encapsulates a sql.DB instance. The
 // realized sql.DB instance can be accessed via the DB method.
 //
-// REVISIT: maybe rename driver.Database to driver.Datasource or such?
+// REVISIT: maybe rename driver.Database to driver.Pool or such?
 type Database interface {
 	// DB returns the sql.DB object for this Database.
 	// This operation can take a long time if opening the DB requires
@@ -372,6 +372,8 @@ type Database interface {
 }
 
 // Metadata holds driver metadata.
+//
+// TODO: Can driver.Metadata and dialect.Dialect be merged?
 type Metadata struct {
 	// Type is the driver type, e.g. "mysql" or "csv", etc.
 	Type source.DriverType `json:"type" yaml:"type"`

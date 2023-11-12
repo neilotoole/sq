@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+
 	"github.com/neilotoole/sq/cli/run"
 
 	"github.com/neilotoole/sq/libsq/core/timez"
@@ -285,6 +287,69 @@ func completeTblCopy(cmd *cobra.Command, args []string, toComplete string) ([]st
 	default:
 		return nil, cobra.ShellCompDirectiveError
 	}
+}
+
+// completeActiveSchema is a completionFunc for flag.ActiveSchema.
+func completeActiveSchema(cmd *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
+	// Example invocation:
+	//
+	//  # Only schema
+	//  $ sq --src.schema information_schema '.tables'
+	//
+	//  $ Using catalog.schema
+	//  $ sq --src.schema postgres.information_schema '.tables'
+	//
+	// Note that some drivers don't support "catalog" (e.g. SQLite).
+
+	log := logFrom(cmd)
+	ru := getRun(cmd)
+	if err := preRun(cmd, ru); err != nil {
+		lg.Unexpected(log, err)
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	src := ru.Config.Collection.Active()
+	if src == nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	if ok, _ := handleIsSQLDriver(ru, src.Handle); !ok {
+		// Not a SQL driver
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	drvr, err := ru.DriverRegistry.SQLDriverFor(src.Type)
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	// We don't want the user to wait around forever for
+	// shell completion, so we set a timeout. Typically
+	// this is something like 500ms.
+	ctx, cancelFn := context.WithTimeout(cmd.Context(), OptShellCompletionTimeout.Get(ru.Config.Options))
+	defer cancelFn()
+
+	dbase, err := ru.Databases.Open(ctx, src)
+	if err != nil {
+		lg.Unexpected(log, err)
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	db, err := dbase.DB(ctx)
+	if err != nil {
+		lg.Unexpected(log, err)
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	defer lg.WarnIfCloseError(log, lgm.CloseDB, db)
+
+	schemas, err := drvr.ListSchemas(ctx, db)
+	if err != nil {
+		lg.Unexpected(log, err)
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	return schemas, cobra.ShellCompDirectiveNoFileComp
 }
 
 // handleTableCompleter encapsulates completion of a handle
