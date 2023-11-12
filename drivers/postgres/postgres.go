@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/xo/dburl"
+
 	"github.com/neilotoole/sq/libsq/ast"
 
 	"github.com/neilotoole/sq/libsq/core/tablefq"
@@ -158,10 +160,37 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database
 }
 
 func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
+	log := lg.FromContext(ctx)
 	ctx = options.NewContext(ctx, src.Options)
 	dbCfg, err := pgxpool.ParseConfig(src.Location)
 	if err != nil {
 		return nil, errw(err)
+	}
+
+	if src.Catalog != "" && src.Catalog != dbCfg.ConnConfig.Database {
+		// The catalog differs from the database in the connection string.
+		// OOTB, Postgres doesn't support cross-database references. So,
+		// we'll need to change the connection string to use the catalog
+		// as the database. Note that we don't modify src.Location, but it's
+		// not entirely clear if that's the correct approach. Are there any
+		// downsides to modifying it (as long as the modified Location is not
+		// persisted back to config)?
+		var u *dburl.URL
+		if u, err = dburl.Parse(src.Location); err != nil {
+			return nil, errw(err)
+		}
+
+		u.Path = src.Catalog
+		connStr := u.String()
+		dbCfg, err = pgxpool.ParseConfig(connStr)
+		if err != nil {
+			return nil, errw(err)
+		}
+		log.Debug("Using catalog as database in connection string",
+			lga.Src, src,
+			lga.Catalog, src.Catalog,
+			lga.Conn, source.RedactLocation(connStr),
+		)
 	}
 
 	var opts []stdlib.OptionOpenDB
@@ -177,8 +206,10 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 				newSearchPath += ", " + oldSearchPath
 			}
 
-			lg.FromContext(ctx).Debug("Setting default schema (search_path) on Postgres DB connection",
+			log.Debug("Setting default schema (search_path) on Postgres DB connection",
 				lga.Src, src,
+				lga.Conn, source.RedactLocation(dbCfg.ConnString()),
+				lga.Catalog, src.Catalog,
 				lga.Schema, src.Schema,
 				lga.Old, oldSearchPath,
 				lga.New, newSearchPath)

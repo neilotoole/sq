@@ -109,12 +109,21 @@ func (s *Source) LogValue() slog.Value {
 		return slog.Value{}
 	}
 
-	return slog.GroupValue(
-		slog.String(lga.Handle, s.Handle),
-		slog.String(lga.Driver, string(s.Type)),
-		slog.String(lga.Loc, s.RedactedLocation()),
-		slog.Any(lga.Opts, s.Options),
-	)
+	attrs := make([]slog.Attr, 3, 6)
+	attrs[0] = slog.String(lga.Handle, s.Handle)
+	attrs[1] = slog.String(lga.Driver, string(s.Type))
+	attrs[2] = slog.String(lga.Loc, s.RedactedLocation())
+	if s.Catalog != "" {
+		attrs = append(attrs, slog.String(lga.Catalog, s.Catalog))
+	}
+	if s.Schema != "" {
+		attrs = append(attrs, slog.String(lga.Schema, s.Schema))
+	}
+	if s.Options != nil {
+		attrs = append(attrs, slog.Any(lga.Opts, s.Options))
+	}
+
+	return slog.GroupValue(attrs...)
 }
 
 // String returns a log/debug-friendly representation.

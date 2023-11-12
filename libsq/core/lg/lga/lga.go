@@ -11,6 +11,7 @@ const (
 	Col       = "column"
 	Count     = "count"
 	Commit    = "commit"
+	Conn      = "conn"
 	Cleanup   = "cleanup"
 	DB        = "db"
 	DBType    = "db_type"
