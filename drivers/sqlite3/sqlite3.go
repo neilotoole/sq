@@ -253,6 +253,7 @@ func placeholders(numCols, numRows int) string {
 func (d *driveri) Renderer() *render.Renderer {
 	r := render.NewDefaultRenderer()
 	r.FunctionOverrides[ast.FuncNameSchema] = doRenderFuncSchema
+	r.FunctionOverrides[ast.FuncNameCatalog] = doRenderFuncCatalog
 	return r
 }
 

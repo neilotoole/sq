@@ -140,6 +140,7 @@ func placeholders(numCols, numRows int) string {
 func (d *driveri) Renderer() *render.Renderer {
 	r := render.NewDefaultRenderer()
 	r.FunctionNames[ast.FuncNameSchema] = "current_schema"
+	r.FunctionNames[ast.FuncNameCatalog] = "current_database"
 	return r
 }
 

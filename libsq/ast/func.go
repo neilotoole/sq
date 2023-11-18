@@ -13,6 +13,7 @@ const (
 	FuncNameMax         = "max"
 	FuncNameMin         = "min"
 	FuncNameSchema      = "schema"
+	FuncNameCatalog     = "catalog"
 	FuncNameSum         = "sum"
 )
 

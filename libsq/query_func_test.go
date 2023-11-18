@@ -177,3 +177,90 @@ func TestQuery_func_schema(t *testing.T) {
 		})
 	}
 }
+
+func TestQuery_func_catalog(t *testing.T) {
+	testCases := []queryTestCase{
+		{
+			name:         "sqlserver-default",
+			in:           `@sakila | catalog()`,
+			wantSQL:      `SELECT DB_NAME() AS "catalog()"`,
+			onlyFor:      []source.DriverType{sqlserver.Type},
+			wantRecCount: 1,
+			sinkFns: []SinkTestFunc{
+				assertSinkColName(0, "catalog()"),
+				assertSinkColValue(0, "sakila"),
+			},
+		},
+		{
+			name: "sqlserver-alt",
+			in:   `@sakila | catalog()`,
+			beforeRun: func(tc queryTestCase, th *testh.Helper, qc *libsq.QueryContext) {
+				qc.Collection.Active().Catalog = "model"
+			},
+			wantSQL:      `SELECT DB_NAME() AS "catalog()"`,
+			onlyFor:      []source.DriverType{sqlserver.Type},
+			wantRecCount: 1,
+			sinkFns: []SinkTestFunc{
+				assertSinkColName(0, "catalog()"),
+				assertSinkColValue(0, "model"),
+			},
+		},
+		{
+			name:         "postgres-default",
+			in:           `@sakila | catalog()`,
+			wantSQL:      `SELECT current_database() AS "catalog()"`,
+			onlyFor:      []source.DriverType{postgres.Type},
+			wantRecCount: 1,
+			sinkFns: []SinkTestFunc{
+				assertSinkColName(0, "catalog()"),
+				assertSinkColValue(0, "sakila"),
+			},
+		},
+		{
+			name: "postgres-alt",
+			in:   `@sakila | catalog()`,
+			beforeRun: func(tc queryTestCase, th *testh.Helper, qc *libsq.QueryContext) {
+				qc.Collection.Active().Catalog = "postgres"
+			},
+			wantSQL:      `SELECT current_database() AS "catalog()"`,
+			onlyFor:      []source.DriverType{postgres.Type},
+			wantRecCount: 1,
+			sinkFns: []SinkTestFunc{
+				assertSinkColName(0, "catalog()"),
+				assertSinkColValue(0, "postgres"),
+			},
+		},
+		{
+			name:         "mysql",
+			in:           `@sakila | catalog()`,
+			wantSQL:      "SELECT (SELECT CATALOG_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = DATABASE() LIMIT 1) AS `catalog()`", //nolint:lll
+			onlyFor:      []source.DriverType{mysql.Type},
+			wantRecCount: 1,
+			sinkFns: []SinkTestFunc{
+				assertSinkColName(0, "catalog()"),
+				assertSinkColValue(0, "def"),
+			},
+		},
+		{
+			name: "sqlite",
+			in:   `@sakila | catalog()`,
+			// SQLite doesn't support catalogs, so we (somewhat arbitrarily)
+			// return the string "default". This behavior may change
+			// upon feedback.
+			wantSQL:      `SELECT (SELECT 'default') AS "catalog()"`,
+			onlyFor:      []source.DriverType{sqlite3.Type},
+			wantRecCount: 1,
+			sinkFns: []SinkTestFunc{
+				assertSinkColName(0, "catalog()"),
+				assertSinkColValue(0, "default"),
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			execQueryTestCase(t, tc)
+		})
+	}
+}

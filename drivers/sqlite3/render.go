@@ -149,3 +149,18 @@ func doRenderFuncSchema(_ *render.Context, fn *ast.FuncNode) (string, error) {
 	const frag = `(SELECT name FROM pragma_database_list ORDER BY seq limit 1)`
 	return frag, nil
 }
+
+// doRenderFuncCatalog renders the catalog function. SQLite doesn't
+// support catalogs, so we just return the string "default". We could
+// return empty string, but that may be even more confusing, and would
+// make SQLite the odd man out, as the other SQL drivers (even MySQL)
+// have a value for catalog.
+func doRenderFuncCatalog(_ *render.Context, fn *ast.FuncNode) (string, error) {
+	if fn.FuncName() != ast.FuncNameCatalog {
+		// Shouldn't happen
+		return "", errz.Errorf("expected %s function, got %q", ast.FuncNameCatalog, fn.FuncName())
+	}
+
+	const frag = `(SELECT 'default')`
+	return frag, nil
+}

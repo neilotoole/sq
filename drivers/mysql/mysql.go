@@ -139,6 +139,7 @@ func placeholders(numCols, numRows int) string {
 func (d *driveri) Renderer() *render.Renderer {
 	r := render.NewDefaultRenderer()
 	r.FunctionNames[ast.FuncNameSchema] = "DATABASE"
+	r.FunctionOverrides[ast.FuncNameCatalog] = doRenderFuncCatalog
 	return r
 }
 
@@ -597,4 +598,14 @@ func doRetry(ctx context.Context, fn func() error) error {
 func tblfmt[T string | tablefq.T](tbl T) string {
 	tfq := tablefq.From(tbl)
 	return tfq.Render(stringz.BacktickQuote)
+}
+
+func doRenderFuncCatalog(_ *render.Context, fn *ast.FuncNode) (string, error) {
+	if fn.FuncName() != ast.FuncNameCatalog {
+		// Shouldn't happen
+		return "", errz.Errorf("expected %s function, got %q", ast.FuncNameCatalog, fn.FuncName())
+	}
+
+	const frag = `(SELECT CATALOG_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = DATABASE() LIMIT 1)`
+	return frag, nil
 }

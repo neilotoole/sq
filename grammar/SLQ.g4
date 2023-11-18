@@ -22,9 +22,6 @@ element
 	| funcElement
 	| exprElement;
 
-// cmpr is a comparison operator.
-//cmpr: LT_EQ | LT | GT_EQ | GT | EQ | NEQ;
-
 
 
 funcElement: func (alias)?;
@@ -35,6 +32,7 @@ funcName
 	| 'max'
 	| 'min'
 	| 'schema'
+	| 'catalog'
 	| PROPRIETARY_FUNC_NAME
   ;
 

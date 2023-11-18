@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/xo/dburl"
 	"log/slog"
 	"strconv"
 	"strings"
@@ -155,6 +156,7 @@ func (d *driveri) Renderer() *render.Renderer {
 	r.PreRender = preRender
 
 	r.FunctionNames[ast.FuncNameSchema] = "SCHEMA_NAME"
+	r.FunctionNames[ast.FuncNameCatalog] = "DB_NAME"
 
 	return r
 }
@@ -176,7 +178,25 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database
 }
 
 func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
-	db, err := sql.Open(dbDrvr, src.Location)
+	log := lg.FromContext(ctx)
+	loc := src.Location
+	if src.Catalog != "" {
+		u, err := dburl.Parse(loc)
+		if err != nil {
+			return nil, errw(err)
+		}
+		vals := u.Query()
+		vals.Set("database", src.Catalog)
+		u.RawQuery = vals.Encode()
+		loc = u.String()
+		log.Debug("Using catalog as database in connection string",
+			lga.Src, src,
+			lga.Catalog, src.Catalog,
+			lga.Conn, source.RedactLocation(loc),
+		)
+	}
+
+	db, err := sql.Open(dbDrvr, loc)
 	if err != nil {
 		return nil, errw(err)
 	}

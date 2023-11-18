@@ -16,7 +16,6 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   [`sq`](https://sq.io/docs/cmd/sq), [`sql`](https://sq.io/docs/cmd/sql)
   and [`inspect`](https://sq.io/docs/cmd/sq) commands.
 - New SLQ functions `catalog()` and `schema()` return the catalog and schema of the DB connection.
-  - NOTE: `catalog()` is WIP.
 - The SLQ `unique` function now has an alias `uniq`.
 
   
