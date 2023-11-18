@@ -375,9 +375,7 @@ func completeActiveSchema(cmd *cobra.Command, _ []string, toComplete string) ([]
 	// We don't want the user to wait around forever for
 	// shell completion, so we set a timeout. Typically
 	// this is something like 500ms.
-	timeout := OptShellCompletionTimeout.Get(ru.Config.Options)
-	timeout = time.Minute * 10 // FIXME: restore
-	ctx, cancelFn := context.WithTimeout(cmd.Context(), timeout)
+	ctx, cancelFn := context.WithTimeout(cmd.Context(), OptShellCompletionTimeout.Get(ru.Config.Options))
 	defer cancelFn()
 
 	dbase, err := ru.Databases.Open(ctx, src)
