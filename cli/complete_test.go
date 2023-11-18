@@ -73,7 +73,12 @@ type completion struct {
 	directives []cobra.ShellCompDirective
 }
 
-func TestCompleteFlagActiveSchema(t *testing.T) {
+// TestCompleteFlagActiveSchema_query_cmds tests flag.ActiveSchema
+// behavior for the query commands (slq, sql).
+//
+// See also: TestCompleteFlagActiveSchema_inspect.
+func TestCompleteFlagActiveSchema_query_cmds(t *testing.T) {
+	t.Parallel()
 	const wantDirective = cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveKeepOrder
 
 	testCases := []struct {
@@ -127,6 +132,13 @@ func TestCompleteFlagActiveSchema(t *testing.T) {
 			wantDirective:     wantDirective,
 		},
 		{
+			handles:           []string{sakila.Pg, sakila.My},
+			withFlagActiveSrc: sakila.My,
+			arg:               "",
+			wantContains:      []string{"mysql", "sys", "information_schema", "sakila"},
+			wantDirective:     wantDirective,
+		},
+		{
 			handles:           []string{sakila.My, sakila.Pg},
 			withFlagActiveSrc: sakila.MS,
 			arg:               "publ",
@@ -135,18 +147,135 @@ func TestCompleteFlagActiveSchema(t *testing.T) {
 		},
 	}
 
+	for _, cmdName := range []string{"slq", "sql"} {
+		cmdName := cmdName
+		t.Run(cmdName, func(t *testing.T) {
+			t.Parallel()
+
+			for i, tc := range testCases {
+				tc := tc
+				t.Run(tutil.Name(i, tc.handles, tc.withFlagActiveSrc, tc.arg), func(t *testing.T) {
+					t.Parallel()
+
+					th := testh.New(t)
+					tr := testrun.New(th.Context, t, nil)
+					for _, handle := range tc.handles {
+						tr.Add(*th.Source(handle))
+					}
+
+					args := []string{cmdName}
+					if tc.withFlagActiveSrc != "" {
+						args = append(args, "--"+flag.ActiveSrc, tc.withFlagActiveSrc)
+					}
+					args = append(args, "--"+flag.ActiveSchema, tc.arg)
+
+					got := testComplete(t, tr, args...)
+					assert.Equal(t, tc.wantDirective, got.result,
+						"wanted: %v\ngot   : %v",
+						cobraz.MarshalDirective(tc.wantDirective),
+						cobraz.MarshalDirective(got.result))
+
+					if tc.wantDirective == cobra.ShellCompDirectiveError {
+						require.Empty(t, got.values)
+					} else {
+						for j := range tc.wantContains {
+							assert.Contains(t, got.values, tc.wantContains[j])
+						}
+					}
+				})
+			}
+		})
+	}
+}
+
+// TestCompleteFlagActiveSchema_inspect tests flag.ActiveSchema
+// behavior for the inspect command.
+//
+// See also: TestCompleteFlagActiveSchema_query_cmds.
+func TestCompleteFlagActiveSchema_inspect(t *testing.T) {
+	t.Parallel()
+	const wantDirective = cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveKeepOrder
+
+	testCases := []struct {
+		handles          []string
+		arg              string
+		withArgActiveSrc string
+		wantContains     []string
+		wantDirective    cobra.ShellCompDirective
+	}{
+		{
+			handles:       []string{sakila.Pg},
+			arg:           "saki",
+			wantContains:  []string{"sakila."},
+			wantDirective: wantDirective | cobra.ShellCompDirectiveNoSpace,
+		},
+		{
+			handles:       []string{sakila.Pg},
+			arg:           "",
+			wantContains:  []string{"public", "sakila."},
+			wantDirective: wantDirective | cobra.ShellCompDirectiveNoSpace,
+		},
+		{
+			handles:       []string{sakila.Pg},
+			arg:           "sakila",
+			wantContains:  []string{"sakila."},
+			wantDirective: wantDirective | cobra.ShellCompDirectiveNoSpace,
+		},
+		{
+			handles:       []string{sakila.Pg},
+			arg:           "sakila.pub",
+			wantContains:  []string{"sakila.public"},
+			wantDirective: wantDirective,
+		},
+		{
+			handles:       []string{sakila.Pg},
+			arg:           "pub",
+			wantContains:  []string{"public"},
+			wantDirective: wantDirective,
+		},
+		{
+			handles:       []string{sakila.Pg},
+			arg:           "public",
+			wantContains:  []string{"public"},
+			wantDirective: wantDirective,
+		},
+		{
+			handles:          []string{sakila.My, sakila.Pg},
+			withArgActiveSrc: sakila.Pg,
+			arg:              "publ",
+			wantContains:     []string{"public"},
+			wantDirective:    wantDirective,
+		},
+		{
+			handles:          []string{sakila.Pg, sakila.My},
+			withArgActiveSrc: sakila.My,
+			arg:              "",
+			wantContains:     []string{"mysql", "sys", "information_schema", "sakila"},
+			wantDirective:    wantDirective,
+		},
+		{
+			handles:          []string{sakila.My, sakila.Pg},
+			withArgActiveSrc: sakila.MS,
+			arg:              "publ",
+			// Should error because sakila.MS isn't a loaded source (via "handles").
+			wantDirective: cobra.ShellCompDirectiveError,
+		},
+	}
+
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, tc.handles, tc.withFlagActiveSrc, tc.arg), func(t *testing.T) {
+		t.Run(tutil.Name(i, tc.handles, tc.withArgActiveSrc, tc.arg), func(t *testing.T) {
+			t.Parallel()
+
 			th := testh.New(t)
 			tr := testrun.New(th.Context, t, nil)
 			for _, handle := range tc.handles {
 				tr.Add(*th.Source(handle))
 			}
 
-			args := []string{"slq"}
-			if tc.withFlagActiveSrc != "" {
-				args = append(args, "--"+flag.ActiveSrc, tc.withFlagActiveSrc)
+			args := []string{"inspect"}
+			if tc.withArgActiveSrc != "" {
+				args = append(args, tc.withArgActiveSrc)
 			}
 			args = append(args, "--"+flag.ActiveSchema, tc.arg)
 

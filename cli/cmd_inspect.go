@@ -71,7 +71,7 @@ formats both show extensive detail.`,
 
 	cmd.Flags().String(flag.ActiveSchema, "", flag.ActiveSchemaUsage)
 	panicOn(cmd.RegisterFlagCompletionFunc(flag.ActiveSchema,
-		(&activeSchemaCompleter{getActiveSourceViaArgs}).complete))
+		activeSchemaCompleter{getActiveSourceViaArgs}.complete))
 
 	addTextFlags(cmd)
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)

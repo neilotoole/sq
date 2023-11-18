@@ -335,7 +335,7 @@ type activeSchemaCompleter struct {
 	activeSourceFunc func(cmd *cobra.Command, args []string) (*source.Source, error)
 }
 
-func (c *activeSchemaCompleter) complete(cmd *cobra.Command, args []string, toComplete string,
+func (c activeSchemaCompleter) complete(cmd *cobra.Command, args []string, toComplete string,
 ) ([]string, cobra.ShellCompDirective) {
 	const baseDirective = cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveKeepOrder
 
