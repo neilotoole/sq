@@ -65,7 +65,7 @@ func execSLQ(cmd *cobra.Command, args []string) error {
 	ru := run.FromContext(ctx)
 	coll := ru.Config.Collection
 
-	err := determineSources(cmd.Context(), ru, false)
+	err := determineSources(ctx, ru, false)
 	if err != nil {
 		return err
 	}

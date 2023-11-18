@@ -62,9 +62,16 @@ formats both show extensive detail.`,
   # Inspect "actor" in active data source.
   $ sq inspect .actor
 
+  # Inspect a non-default schema in source @my1.
+  $ sq inspect @my1 --src.schema information_schema
+
   # Inspect piped data.
   $ cat data.xlsx | sq inspect`,
 	}
+
+	cmd.Flags().String(flag.ActiveSchema, "", flag.ActiveSchemaUsage)
+	panicOn(cmd.RegisterFlagCompletionFunc(flag.ActiveSchema,
+		(&activeSchemaCompleter{getActiveSourceViaArgs}).complete))
 
 	addTextFlags(cmd)
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
@@ -83,11 +90,12 @@ func execInspect(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	ru := run.FromContext(ctx)
 
-	coll := ru.Config.Collection
-
-	var src *source.Source
-	var table string
-	var err error
+	var (
+		coll  = ru.Config.Collection
+		src   *source.Source
+		table string
+		err   error
+	)
 
 	if len(args) == 0 {
 		// No args supplied.
@@ -146,6 +154,12 @@ func execInspect(cmd *cobra.Command, args []string) error {
 				return err
 			}
 		}
+	}
+
+	// Handle flag.ActiveSchema (--src.schema=SCHEMA). This func will mutate
+	// src's Catalog and Schema fields if appropriate.
+	if err = processFlagActiveSchema(cmd, src); err != nil {
+		return err
 	}
 
 	if err = applySourceOptions(cmd, src); err != nil {

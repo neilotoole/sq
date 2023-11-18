@@ -289,10 +289,10 @@ func completeTblCopy(cmd *cobra.Command, args []string, toComplete string) ([]st
 	}
 }
 
-// activeSchemaCompleter encapsulates completion flag.ActiveSchema.
+// activeSchemaCompleter encapsulates completion for flag.ActiveSchema.
 // The completionFunc is activeSchemaCompleter.complete.
 //
-// Example invocation:
+// Example usage:
 //
 //	# Only schema
 //	$ sq --src.schema information_schema '.tables'
@@ -302,28 +302,40 @@ func completeTblCopy(cmd *cobra.Command, args []string, toComplete string) ([]st
 //
 // Note that some drivers don't support the catalog mechanism (e.g. SQLite).
 //
-// The return slice contains the names of the schemas in the source, followed
+// The returned slice contains the names of the schemas in the source, followed
 // by the names of the catalogs (suffixed with a period, e.g. "sakila.", so
 // that the user can complete the catalog.schema input, e.g. "sakila.public").
+// For example:
 //
-// Note activeSchemaCompleter.activeSourceFunc. This func is used to determine
-// the source to act against. This func is configurable, because some commands
+//	information_schema		<-- this a schema in the active source
+//	pg_catalog
+//	public
+//	sakila.								<-- note the trailing period, this is a catalog
+//	customers.
+//	postgres.
+//
+// If toComplete already contains a period (e.g. "sakila."), then the
+// returned slice contains only the matching catalog-qualified schemas,
+// e.g. "sakila.public", "sakila.information_schema", etc.
+//
+// Note the field activeSchemaCompleter.activeSourceFunc. This func is used to
+// determine the source to act against. This is configurable because some commands
 // may honor a flag (flag.ActiveSrc), but a different flag (or even cmd args)
-// could also be used. Func getActiveSourceViaFlag is one func impl. When
+// could also be used. Func getActiveSourceViaFlag is one such func impl. When
 // that is used, if the command has flag.ActiveSrc set, it is honored. Otherwise,
 // the config's active source is used. For example:
 //
 //	$ sq --src @sakila/pg12 --src.schema postgres.information_schema '.tables'
 //
-// If the targeted source is not SQL (e.g. CSV), an error is returned.
+// Note also: if the targeted source is not SQL (e.g. CSV), an error is returned.
 type activeSchemaCompleter struct {
 	// activeSourceFunc is a function that returns the active source.
 	// Typically the active source comes from the config, but it can also
 	// be supplied via other means, e.g. flag.ActiveSrc or a command arg.
-	activeSourceFunc func(cmd *cobra.Command) (*source.Source, error)
+	activeSourceFunc func(cmd *cobra.Command, args []string) (*source.Source, error)
 }
 
-func (c *activeSchemaCompleter) complete(cmd *cobra.Command, _ []string, toComplete string,
+func (c *activeSchemaCompleter) complete(cmd *cobra.Command, args []string, toComplete string,
 ) ([]string, cobra.ShellCompDirective) {
 	const baseDirective = cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveKeepOrder
 
@@ -333,7 +345,7 @@ func (c *activeSchemaCompleter) complete(cmd *cobra.Command, _ []string, toCompl
 		return nil, cobra.ShellCompDirectiveError
 	}
 
-	src, err := c.activeSourceFunc(cmd)
+	src, err := c.activeSourceFunc(cmd, args)
 	if err != nil {
 		lg.Unexpected(log, err)
 		return nil, cobra.ShellCompDirectiveError
@@ -449,7 +461,7 @@ func (c *activeSchemaCompleter) complete(cmd *cobra.Command, _ []string, toCompl
 // getActiveSourceViaFlag returns the active source, either from the
 // config or from flag.ActiveSrc. This function is intended for use
 // with activeSchemaCompleter.activeSourceFunc.
-func getActiveSourceViaFlag(cmd *cobra.Command) (*source.Source, error) {
+func getActiveSourceViaFlag(cmd *cobra.Command, _ []string) (*source.Source, error) {
 	if !cmdFlagChanged(cmd, flag.ActiveSrc) {
 		// User has not supplied --src, so we'll use the
 		// config's active source.
@@ -467,6 +479,19 @@ func getActiveSourceViaFlag(cmd *cobra.Command) (*source.Source, error) {
 	}
 
 	return src, nil
+}
+
+// getActiveSourceViaArgs returns the active source, either from the
+// config or from the handle in the first cmd arg. This function is intended
+// for use with activeSchemaCompleter.activeSourceFunc.
+func getActiveSourceViaArgs(cmd *cobra.Command, args []string) (*source.Source, error) {
+	if len(args) == 0 {
+		// No args supplied, so we'll use the config's active source.
+		return getRun(cmd).Config.Collection.Active(), nil
+	}
+
+	handle := args[0]
+	return getRun(cmd).Config.Collection.Get(handle)
 }
 
 // handleTableCompleter encapsulates completion of a handle
