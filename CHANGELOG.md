@@ -11,12 +11,13 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Added
 
-- Flag `--src.schema` permits switching the source's schema (and catalog)
+- [#270]: Flag `--src.schema` permits switching the source's schema (and catalog)
   for the duration of the command. It is supported for the
   [`sq`](https://sq.io/docs/cmd/sq), [`sql`](https://sq.io/docs/cmd/sql)
   and [`inspect`](https://sq.io/docs/cmd/sq) commands.
-- New SLQ functions `catalog()` and `schema()` return the catalog and schema of the DB connection.
-- The SLQ `unique` function now has an alias `uniq`.
+- New SLQ functions [`catalog()`](https://sq.io/docs/query#catalog) and
+  [`schema()`](https://sq.io/docs/query#schema) return the catalog and schema of the DB connection.
+- The SLQ [`unique`](https://sq.io/docs/query#unique) function now has a synonym `uniq`.
 
   
 
@@ -825,9 +826,11 @@ make working with lots of sources much easier.
 [#258]: https://github.com/neilotoole/sq/issues/258
 [#261]: https://github.com/neilotoole/sq/issues/261
 [#263]: https://github.com/neilotoole/sq/issues/263
+[#270]: https://github.com/neilotoole/sq/issues/270
 [#277]: https://github.com/neilotoole/sq/issues/277
 [#279]: https://github.com/neilotoole/sq/issues/279
 [#308]: https://github.com/neilotoole/sq/pull/308
+
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3

@@ -5,10 +5,11 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/xo/dburl"
 	"log/slog"
 	"strconv"
 	"strings"
+
+	"github.com/xo/dburl"
 
 	"github.com/neilotoole/sq/libsq/ast"
 
