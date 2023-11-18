@@ -74,52 +74,68 @@ type completion struct {
 }
 
 func TestCompleteFlagActiveSchema(t *testing.T) {
-	const wantDirective = cobra.ShellCompDirectiveNoFileComp |
-		cobra.ShellCompDirectiveKeepOrder |
-		cobra.ShellCompDirectiveNoSpace
+	const wantDirective = cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveKeepOrder
 
 	testCases := []struct {
 		handle        string
 		arg           string
-		want          []string
+		wantContains  []string
 		wantDirective cobra.ShellCompDirective
 	}{
 		{
 			handle:        sakila.Pg,
 			arg:           "saki",
-			want:          []string{"sakila."},
+			wantContains:  []string{"sakila."},
+			wantDirective: wantDirective | cobra.ShellCompDirectiveNoSpace,
+		},
+		{
+			handle:        sakila.Pg,
+			arg:           "",
+			wantContains:  []string{"public", "sakila."},
+			wantDirective: wantDirective | cobra.ShellCompDirectiveNoSpace,
+		},
+		{
+			handle:        sakila.Pg,
+			arg:           "sakila",
+			wantContains:  []string{"sakila."},
+			wantDirective: wantDirective | cobra.ShellCompDirectiveNoSpace,
+		},
+		{
+			handle:        sakila.Pg,
+			arg:           "sakila.pub",
+			wantContains:  []string{"sakila.public"},
 			wantDirective: wantDirective,
 		},
-		//{
-		//	handle:        sakila.Pg,
-		//	arg:           "",
-		//	want:          []string{"sakila."},
-		//	wantDirective: wantDirective,
-		//},
-		//{
-		//	handle:        sakila.Pg,
-		//	arg:           "sakila",
-		//	want:          []string{"sakila."},
-		//	wantDirective: wantDirective,
-		//},
-		//{
-		//	handle:        sakila.Pg,
-		//	arg:           "sakila.",
-		//	want:          []string{"sakila."},
-		//	wantDirective: wantDirective,
-		//},
+		{
+			handle:        sakila.Pg,
+			arg:           "pub",
+			wantContains:  []string{"public"},
+			wantDirective: wantDirective,
+		},
+		{
+			handle:        sakila.Pg,
+			arg:           "public",
+			wantContains:  []string{"public"},
+			wantDirective: wantDirective,
+		},
 	}
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, tc.handle), func(t *testing.T) {
+		t.Run(tutil.Name(i, tc.handle, tc.arg), func(t *testing.T) {
 			th := testh.New(t)
 			src := th.Source(sakila.Pg)
 			tr := testrun.New(th.Context, t, nil).Add(*src)
 
 			got := testComplete(t, tr, "slq", "--"+flag.ActiveSchema, tc.arg)
-			assert.Equal(t, tc.want, got.values)
-			assert.Equal(t, tc.wantDirective, got.result, "\n"+got.stdout+"\n")
+			for i := range tc.wantContains {
+				assert.Contains(t, got.values, tc.wantContains[i])
+			}
+
+			assert.Equal(t, tc.wantDirective, got.result,
+				"wanted: %v\ngot   : %v",
+				cobraz.MarshalDirective(tc.wantDirective),
+				cobraz.MarshalDirective(got.result))
 		})
 	}
 }

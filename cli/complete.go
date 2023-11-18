@@ -295,51 +295,75 @@ func completeTblCopy(cmd *cobra.Command, args []string, toComplete string) ([]st
 //	# Only schema
 //	$ sq --src.schema information_schema '.tables'
 //
-//	$ Using catalog.schema
+//	# Using catalog.schema
 //	$ sq --src.schema postgres.information_schema '.tables'
 //
-// Note that some drivers don't support "catalog" (e.g. SQLite).
+// Note that some drivers don't support the catalog mechanism (e.g. SQLite).
+//
+// The return slice contains the names of the schemas in the source, followed
+// by the names of the catalogs (suffixed with a period, e.g. "sakila.", so
+// that the user can complete the catalog.schema input, e.g. "sakila.public").
+//
+// If the command has flag.ActiveSrc set, it is honored. Otherwise, the
+// config's active source is used. For example:
+//
+//	$ sq --src @sakila/pg12 --src.schema postgres.information_schema '.tables'
+//
+// If the targeted source is not SQL (e.g. CSV), an error is returned.
 func completeActiveSchema(cmd *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	const baseDirective = cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveKeepOrder
 
-	name := cmd.Name()
-	_ = name
-
-	log := logFrom(cmd)
-	ru := getRun(cmd)
+	log, ru := logFrom(cmd), getRun(cmd)
 	if err := preRun(cmd, ru); err != nil {
 		lg.Unexpected(log, err)
 		return nil, cobra.ShellCompDirectiveError
 	}
 
+	var src *source.Source
+	if cmdFlagChanged(cmd, flag.ActiveSrc) {
+		// User has supplied --src, so we need to use that
+		// source to get the suggestions.
+		handle, err := cmd.Flags().GetString(flag.ActiveSrc)
+		if err != nil {
+			lg.Unexpected(log, err)
+			return nil, cobra.ShellCompDirectiveError
+		}
+
+		if src, err = ru.Config.Collection.Get(handle); err != nil {
+			lg.Unexpected(log, err)
+			return nil, cobra.ShellCompDirectiveError
+		}
+	} else {
+		src = ru.Config.Collection.Active()
+	}
+
+	if src == nil {
+		log.Debug("No active source, thus no completion for flag", lga.Flag, flag.ActiveSrc)
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	// If toComplete contains a period, then we extract the part before
+	// the period into inputCatalog.
 	var inputCatalog string
 	if toComplete != "" {
 		if strings.ContainsRune(toComplete, '.') {
-			// User has supplied a catalog.schema (or at least a "catalog."
+			// User has supplied a catalog.schema (or at least a "catalog.")
 			parts := strings.Split(toComplete, ".")
 			if len(parts) > 2 {
 				return nil, cobra.ShellCompDirectiveError
 			}
 			inputCatalog = parts[0]
 			if inputCatalog == "" {
-				// User supplied ".schema", which is invalid.
+				// User supplied input of the form ".schema" (leading period),
+				// which is invalid.
 				return nil, cobra.ShellCompDirectiveError
 			}
+			src.Catalog = inputCatalog
 		}
 	}
 
-	// TODO: Need to check for flag --src, which would
-	// override the active source.
-
-	src := ru.Config.Collection.Active()
-	if src == nil {
-		return nil, cobra.ShellCompDirectiveError
-	}
-
-	src.Catalog = inputCatalog
-
 	if ok, _ := isSQLDriver(ru, src.Handle); !ok {
-		// Not a SQL driver
+		// Not a SQL driver, completion is N/A.
 		return nil, cobra.ShellCompDirectiveError
 	}
 
@@ -411,9 +435,9 @@ func completeActiveSchema(cmd *cobra.Command, _ []string, toComplete string) ([]
 	})
 
 	for i := range a {
-		// If any of the completions has a trailing period, then
-		// we need cobra.ShellCompDirectiveNoSpace, because the
-		// user has more typing to do to complete the catalog.schema.
+		// If any of the completions has a trailing period (i.e. they've
+		// only typed the catalog name), then we need cobra.ShellCompDirectiveNoSpace,
+		// because the user has more typing to do to complete the catalog.schema.
 		if strings.HasSuffix(a[i], ".") {
 			return a, baseDirective | cobra.ShellCompDirectiveNoSpace
 		}
