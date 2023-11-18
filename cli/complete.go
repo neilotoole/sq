@@ -290,22 +290,42 @@ func completeTblCopy(cmd *cobra.Command, args []string, toComplete string) ([]st
 }
 
 // completeActiveSchema is a completionFunc for flag.ActiveSchema.
+// Example invocation:
+//
+//	# Only schema
+//	$ sq --src.schema information_schema '.tables'
+//
+//	$ Using catalog.schema
+//	$ sq --src.schema postgres.information_schema '.tables'
+//
+// Note that some drivers don't support "catalog" (e.g. SQLite).
 func completeActiveSchema(cmd *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-	// Example invocation:
-	//
-	//  # Only schema
-	//  $ sq --src.schema information_schema '.tables'
-	//
-	//  $ Using catalog.schema
-	//  $ sq --src.schema postgres.information_schema '.tables'
-	//
-	// Note that some drivers don't support "catalog" (e.g. SQLite).
+	const baseDirective = cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveKeepOrder
+
+	name := cmd.Name()
+	_ = name
 
 	log := logFrom(cmd)
 	ru := getRun(cmd)
 	if err := preRun(cmd, ru); err != nil {
 		lg.Unexpected(log, err)
 		return nil, cobra.ShellCompDirectiveError
+	}
+
+	var inputCatalog string
+	if toComplete != "" {
+		if strings.ContainsRune(toComplete, '.') {
+			// User has supplied a catalog.schema (or at least a "catalog."
+			parts := strings.Split(toComplete, ".")
+			if len(parts) > 2 {
+				return nil, cobra.ShellCompDirectiveError
+			}
+			inputCatalog = parts[0]
+			if inputCatalog == "" {
+				// User supplied ".schema", which is invalid.
+				return nil, cobra.ShellCompDirectiveError
+			}
+		}
 	}
 
 	// TODO: Need to check for flag --src, which would
@@ -315,6 +335,8 @@ func completeActiveSchema(cmd *cobra.Command, _ []string, toComplete string) ([]
 	if src == nil {
 		return nil, cobra.ShellCompDirectiveError
 	}
+
+	src.Catalog = inputCatalog
 
 	if ok, _ := isSQLDriver(ru, src.Handle); !ok {
 		// Not a SQL driver
@@ -329,7 +351,9 @@ func completeActiveSchema(cmd *cobra.Command, _ []string, toComplete string) ([]
 	// We don't want the user to wait around forever for
 	// shell completion, so we set a timeout. Typically
 	// this is something like 500ms.
-	ctx, cancelFn := context.WithTimeout(cmd.Context(), OptShellCompletionTimeout.Get(ru.Config.Options))
+	timeout := OptShellCompletionTimeout.Get(ru.Config.Options)
+	timeout = time.Minute * 10 // FIXME: restore
+	ctx, cancelFn := context.WithTimeout(cmd.Context(), timeout)
 	defer cancelFn()
 
 	dbase, err := ru.Databases.Open(ctx, src)
@@ -352,6 +376,24 @@ func completeActiveSchema(cmd *cobra.Command, _ []string, toComplete string) ([]
 		return nil, cobra.ShellCompDirectiveError
 	}
 
+	if len(a) == 0 {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	if inputCatalog != "" {
+		// We have a catalog, so we need to prepend it to each
+		// schema name.
+		for i := range a {
+			a[i] = inputCatalog + "." + a[i]
+		}
+
+		a = lo.Filter(a, func(item string, index int) bool {
+			return strings.HasPrefix(item, toComplete)
+		})
+
+		return a, baseDirective
+	}
+
 	if drvr.Dialect().Catalog {
 		var catalogs []string
 		if catalogs, err = drvr.ListCatalogs(ctx, db); err != nil {
@@ -368,9 +410,16 @@ func completeActiveSchema(cmd *cobra.Command, _ []string, toComplete string) ([]
 		return strings.HasPrefix(item, toComplete)
 	})
 
-	return a, cobra.ShellCompDirectiveNoFileComp |
-		cobra.ShellCompDirectiveKeepOrder |
-		cobra.ShellCompDirectiveNoSpace
+	for i := range a {
+		// If any of the completions has a trailing period, then
+		// we need cobra.ShellCompDirectiveNoSpace, because the
+		// user has more typing to do to complete the catalog.schema.
+		if strings.HasSuffix(a[i], ".") {
+			return a, baseDirective | cobra.ShellCompDirectiveNoSpace
+		}
+	}
+
+	return a, baseDirective
 }
 
 // handleTableCompleter encapsulates completion of a handle
@@ -647,12 +696,14 @@ func getTableNamesForHandle(ctx context.Context, ru *run.Run, handle string) ([]
 		return nil, err
 	}
 
-	db, err := ru.Databases.Open(ctx, src)
+	dbase, err := ru.Databases.Open(ctx, src)
 	if err != nil {
 		return nil, err
 	}
 
-	md, err := db.SourceMetadata(ctx, false)
+	// TODO: We shouldn't have to load the full metadata just to get
+	// the table names. driver.SQLDriver should have a method ListTables.
+	md, err := dbase.SourceMetadata(ctx, false)
 	if err != nil {
 		return nil, err
 	}

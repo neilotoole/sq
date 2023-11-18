@@ -86,10 +86,28 @@ func TestCompleteFlagActiveSchema(t *testing.T) {
 	}{
 		{
 			handle:        sakila.Pg,
-			arg:           "sakila",
+			arg:           "saki",
 			want:          []string{"sakila."},
 			wantDirective: wantDirective,
 		},
+		//{
+		//	handle:        sakila.Pg,
+		//	arg:           "",
+		//	want:          []string{"sakila."},
+		//	wantDirective: wantDirective,
+		//},
+		//{
+		//	handle:        sakila.Pg,
+		//	arg:           "sakila",
+		//	want:          []string{"sakila."},
+		//	wantDirective: wantDirective,
+		//},
+		//{
+		//	handle:        sakila.Pg,
+		//	arg:           "sakila.",
+		//	want:          []string{"sakila."},
+		//	wantDirective: wantDirective,
+		//},
 	}
 
 	for i, tc := range testCases {
