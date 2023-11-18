@@ -114,7 +114,7 @@ func execQueryTestCase(t *testing.T, tc queryTestCase) {
 	subTests := make([]queryTestCase, len(tc.repeatReplace))
 	for i := range tc.repeatReplace {
 		subTests[i] = tc
-		subTests[i].name += "/" + tutil.Name(tc.repeatReplace[i])
+		subTests[i].name = tutil.Name(tc.repeatReplace[i])
 		if i == 0 {
 			// No need for replacement on first item, it's the original.
 			continue

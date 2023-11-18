@@ -11,8 +11,14 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Added
 
+- Flag `--src.schema` permits switching the source's schema (and catalog)
+  for the duration of the command. It is supported for the
+  [`sq`](https://sq.io/docs/cmd/sq), [`sql`](https://sq.io/docs/cmd/sql)
+  and [`inspect`](https://sq.io/docs/cmd/sq) commands.
+- New SLQ functions `catalog()` and `schema()` return the catalog and schema of the DB connection.
+  - NOTE: `catalog()` is WIP.
 - The SLQ `unique` function now has an alias `uniq`.
-- New SLQ function `schema()` returns the schema of the DB connection.
+
   
 
 ### Changed

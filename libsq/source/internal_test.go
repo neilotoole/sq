@@ -181,7 +181,7 @@ func TestParseLoc(t *testing.T) {
 
 	for _, tc := range testCases {
 		tc := tc
-		t.Run(tc.loc, func(t *testing.T) {
+		t.Run(tutil.Name(1, RedactLocation(tc.loc)), func(t *testing.T) {
 			if tc.windows && runtime.GOOS != "windows" {
 				return
 			}
