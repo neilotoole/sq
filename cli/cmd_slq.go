@@ -339,7 +339,8 @@ func addQueryCmdFlags(cmd *cobra.Command) {
 	panicOn(cmd.RegisterFlagCompletionFunc(flag.ActiveSrc, completeHandle(0)))
 
 	cmd.Flags().String(flag.ActiveSchema, "", flag.ActiveSchemaUsage)
-	panicOn(cmd.RegisterFlagCompletionFunc(flag.ActiveSchema, completeActiveSchema))
+	panicOn(cmd.RegisterFlagCompletionFunc(flag.ActiveSchema,
+		(&activeSchemaCompleter{getActiveSourceViaFlag}).complete))
 
 	// The driver flag can be used if data is piped to sq over stdin
 	cmd.Flags().String(flag.IngestDriver, "", flag.IngestDriverUsage)

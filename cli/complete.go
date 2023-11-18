@@ -289,7 +289,9 @@ func completeTblCopy(cmd *cobra.Command, args []string, toComplete string) ([]st
 	}
 }
 
-// completeActiveSchema is a completionFunc for flag.ActiveSchema.
+// activeSchemaCompleter encapsulates completion flag.ActiveSchema.
+// The completionFunc is activeSchemaCompleter.complete.
+//
 // Example invocation:
 //
 //	# Only schema
@@ -304,13 +306,25 @@ func completeTblCopy(cmd *cobra.Command, args []string, toComplete string) ([]st
 // by the names of the catalogs (suffixed with a period, e.g. "sakila.", so
 // that the user can complete the catalog.schema input, e.g. "sakila.public").
 //
-// If the command has flag.ActiveSrc set, it is honored. Otherwise, the
-// config's active source is used. For example:
+// Note activeSchemaCompleter.activeSourceFunc. This func is used to determine
+// the source to act against. This func is configurable, because some commands
+// may honor a flag (flag.ActiveSrc), but a different flag (or even cmd args)
+// could also be used. Func getActiveSourceViaFlag is one func impl. When
+// that is used, if the command has flag.ActiveSrc set, it is honored. Otherwise,
+// the config's active source is used. For example:
 //
 //	$ sq --src @sakila/pg12 --src.schema postgres.information_schema '.tables'
 //
 // If the targeted source is not SQL (e.g. CSV), an error is returned.
-func completeActiveSchema(cmd *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+type activeSchemaCompleter struct {
+	// activeSourceFunc is a function that returns the active source.
+	// Typically the active source comes from the config, but it can also
+	// be supplied via other means, e.g. flag.ActiveSrc or a command arg.
+	activeSourceFunc func(cmd *cobra.Command) (*source.Source, error)
+}
+
+func (c *activeSchemaCompleter) complete(cmd *cobra.Command, _ []string, toComplete string,
+) ([]string, cobra.ShellCompDirective) {
 	const baseDirective = cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveKeepOrder
 
 	log, ru := logFrom(cmd), getRun(cmd)
@@ -319,22 +333,10 @@ func completeActiveSchema(cmd *cobra.Command, _ []string, toComplete string) ([]
 		return nil, cobra.ShellCompDirectiveError
 	}
 
-	var src *source.Source
-	if cmdFlagChanged(cmd, flag.ActiveSrc) {
-		// User has supplied --src, so we need to use that
-		// source to get the suggestions.
-		handle, err := cmd.Flags().GetString(flag.ActiveSrc)
-		if err != nil {
-			lg.Unexpected(log, err)
-			return nil, cobra.ShellCompDirectiveError
-		}
-
-		if src, err = ru.Config.Collection.Get(handle); err != nil {
-			lg.Unexpected(log, err)
-			return nil, cobra.ShellCompDirectiveError
-		}
-	} else {
-		src = ru.Config.Collection.Active()
+	src, err := c.activeSourceFunc(cmd)
+	if err != nil {
+		lg.Unexpected(log, err)
+		return nil, cobra.ShellCompDirectiveError
 	}
 
 	if src == nil {
@@ -442,6 +444,29 @@ func completeActiveSchema(cmd *cobra.Command, _ []string, toComplete string) ([]
 	}
 
 	return a, baseDirective
+}
+
+// getActiveSourceViaFlag returns the active source, either from the
+// config or from flag.ActiveSrc. This function is intended for use
+// with activeSchemaCompleter.activeSourceFunc.
+func getActiveSourceViaFlag(cmd *cobra.Command) (*source.Source, error) {
+	if !cmdFlagChanged(cmd, flag.ActiveSrc) {
+		// User has not supplied --src, so we'll use the
+		// config's active source.
+		return getRun(cmd).Config.Collection.Active(), nil
+	}
+
+	handle, err := cmd.Flags().GetString(flag.ActiveSrc)
+	if err != nil {
+		return nil, err
+	}
+
+	var src *source.Source
+	if src, err = getRun(cmd).Config.Collection.Get(handle); err != nil {
+		return nil, err
+	}
+
+	return src, nil
 }
 
 // handleTableCompleter encapsulates completion of a handle

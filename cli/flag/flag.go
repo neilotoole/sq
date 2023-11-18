@@ -44,7 +44,7 @@ const (
 	Help = "help"
 
 	Insert      = "insert"
-	InsertUsage = "Insert query results into @HANDLE.TABLE; if not existing, TABLE will be created."
+	InsertUsage = "Insert query results into @HANDLE.TABLE; if not existing, TABLE will be created"
 
 	JSON       = "json"
 	JSONShort  = "j"

@@ -27,7 +27,7 @@ to copy, truncate and drop tables. Use "sq diff" to compare source metadata
 and row data.
 
 See docs and more: https://sq.io`,
-		Example: `# Add Postgres source identified by handle @sakila_pg
+		Example: `  # Add Postgres source identified by handle @sakila_pg
   $ sq add --handle=@sakila_pg 'postgres://user:pass@localhost:5432/sakila'
 
   # List available data sources.
