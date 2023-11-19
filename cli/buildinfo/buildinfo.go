@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/neilotoole/sq/libsq/core/timez"
 
@@ -35,9 +36,9 @@ var (
 
 // BuildInfo encapsulates Version, Commit and Timestamp.
 type BuildInfo struct {
-	Version   string `json:"version" yaml:"version"`
-	Commit    string `json:"commit,omitempty" yaml:"commit,omitempty"`
-	Timestamp string `json:"timestamp,omitempty" yaml:"timestamp,omitempty"`
+	Version   string    `json:"version" yaml:"version"`
+	Commit    string    `json:"commit,omitempty" yaml:"commit,omitempty"`
+	Timestamp time.Time `json:"timestamp,omitempty" yaml:"timestamp,omitempty"`
 }
 
 // String returns a string representation of BuildInfo.
@@ -46,8 +47,8 @@ func (bi BuildInfo) String() string {
 	if bi.Commit != "" {
 		s += " " + bi.Commit
 	}
-	if bi.Timestamp != "" {
-		s += " " + bi.Timestamp
+	if !bi.Timestamp.IsZero() {
+		s += " " + bi.Timestamp.Format(timez.RFC3339Z)
 	}
 	return s
 }
@@ -57,17 +58,26 @@ func (bi BuildInfo) LogValue() slog.Value {
 	gv := slog.GroupValue(
 		slog.String(lga.Version, bi.Version),
 		slog.String(lga.Commit, bi.Commit),
-		slog.String(lga.Timestamp, bi.Timestamp))
+		slog.Time(lga.Timestamp, bi.Timestamp))
 
 	return gv
 }
 
-// Get returns BuildInfo.
+// Get returns BuildInfo. If buildinfo.Timestamp cannot be parsed,
+// the returned BuildInfo.Timestamp will be the zero value.
 func Get() BuildInfo {
+	var t time.Time
+	if Timestamp != "" {
+		got, err := timez.ParseTimestampUTC(Timestamp)
+		if err == nil {
+			t = got
+		}
+	}
+
 	return BuildInfo{
 		Version:   Version,
 		Commit:    Commit,
-		Timestamp: Timestamp,
+		Timestamp: t,
 	}
 }
 
