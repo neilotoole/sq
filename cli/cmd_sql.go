@@ -54,9 +54,9 @@ flag is set, sq attempts to determine the appropriate mode.`,
 	addQueryCmdFlags(cmd)
 
 	// User explicitly wants to execute the SQL using sql.DB.Query
-	cmd.Flags().Bool(flag.SQLQuery, false, flag.SQLQueryUsage)
+	//cmd.Flags().Bool(flag.SQLQuery, false, flag.SQLQueryUsage)
 	// User explicitly wants to execute the SQL using sql.DB.Exec
-	cmd.Flags().Bool(flag.SQLExec, false, flag.SQLExecUsage)
+	//cmd.Flags().Bool(flag.SQLExec, false, flag.SQLExecUsage)
 
 	return cmd
 }
