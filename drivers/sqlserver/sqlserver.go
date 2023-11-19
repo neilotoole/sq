@@ -175,7 +175,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Pool, er
 		return nil, err
 	}
 
-	return &database{log: d.log, db: db, src: src, drvr: d}, nil
+	return &pool{log: d.log, db: db, src: src, drvr: d}, nil
 }
 
 func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
@@ -638,33 +638,33 @@ func (d *driveri) getTableColsMeta(ctx context.Context, db sqlz.DB, tblName stri
 	return destCols, nil
 }
 
-// database implements driver.Pool.
-type database struct {
+// pool implements driver.Pool.
+type pool struct {
 	log  *slog.Logger
 	drvr *driveri
 	db   *sql.DB
 	src  *source.Source
 }
 
-var _ driver.Pool = (*database)(nil)
+var _ driver.Pool = (*pool)(nil)
 
 // DB implements driver.Pool.
-func (d *database) DB(context.Context) (*sql.DB, error) {
+func (d *pool) DB(context.Context) (*sql.DB, error) {
 	return d.db, nil
 }
 
 // SQLDriver implements driver.Pool.
-func (d *database) SQLDriver() driver.SQLDriver {
+func (d *pool) SQLDriver() driver.SQLDriver {
 	return d.drvr
 }
 
 // Source implements driver.Pool.
-func (d *database) Source() *source.Source {
+func (d *pool) Source() *source.Source {
 	return d.src
 }
 
 // TableMetadata implements driver.Pool.
-func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
+func (d *pool) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
 	const query = `SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_TYPE
 FROM INFORMATION_SCHEMA.TABLES
 WHERE TABLE_NAME = @p1`
@@ -681,12 +681,12 @@ WHERE TABLE_NAME = @p1`
 }
 
 // SourceMetadata implements driver.Pool.
-func (d *database) SourceMetadata(ctx context.Context, noSchema bool) (*source.Metadata, error) {
+func (d *pool) SourceMetadata(ctx context.Context, noSchema bool) (*source.Metadata, error) {
 	return getSourceMetadata(ctx, d.src, d.db, noSchema)
 }
 
 // Close implements driver.Pool.
-func (d *database) Close() error {
+func (d *pool) Close() error {
 	d.log.Debug(lgm.CloseDB, lga.Handle, d.src.Handle)
 
 	return errw(d.db.Close())

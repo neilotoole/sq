@@ -157,7 +157,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Pool, er
 		return nil, err
 	}
 
-	return &database{log: d.log, db: db, src: src, drvr: d}, nil
+	return &pool{log: d.log, db: db, src: src, drvr: d}, nil
 }
 
 func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
@@ -169,10 +169,10 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 	}
 
 	if src.Catalog != "" && src.Catalog != dbCfg.ConnConfig.Database {
-		// The catalog differs from the database in the connection string.
-		// OOTB, Postgres doesn't support cross-database references. So,
+		// The catalog differs from the pool in the connection string.
+		// OOTB, Postgres doesn't support cross-pool references. So,
 		// we'll need to change the connection string to use the catalog
-		// as the database. Note that we don't modify src.Location, but it's
+		// as the pool. Note that we don't modify src.Location, but it's
 		// not entirely clear if that's the correct approach. Are there any
 		// downsides to modifying it (as long as the modified Location is not
 		// persisted back to config)?
@@ -187,7 +187,7 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 		if err != nil {
 			return nil, errw(err)
 		}
-		log.Debug("Using catalog as database in connection string",
+		log.Debug("Using catalog as pool in connection string",
 			lga.Src, src,
 			lga.Catalog, src.Catalog,
 			lga.Conn, source.RedactLocation(connStr),
@@ -709,8 +709,8 @@ func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (
 	return recMeta, mungeFn, nil
 }
 
-// database is the postgres implementation of driver.Pool.
-type database struct {
+// pool is the postgres implementation of driver.Pool.
+type pool struct {
 	log  *slog.Logger
 	drvr *driveri
 	db   *sql.DB
@@ -718,23 +718,23 @@ type database struct {
 }
 
 // DB implements driver.Pool.
-func (d *database) DB(context.Context) (*sql.DB, error) {
-	return d.db, nil
+func (p *pool) DB(context.Context) (*sql.DB, error) {
+	return p.db, nil
 }
 
 // SQLDriver implements driver.Pool.
-func (d *database) SQLDriver() driver.SQLDriver {
-	return d.drvr
+func (p *pool) SQLDriver() driver.SQLDriver {
+	return p.drvr
 }
 
 // Source implements driver.Pool.
-func (d *database) Source() *source.Source {
-	return d.src
+func (p *pool) Source() *source.Source {
+	return p.src
 }
 
 // TableMetadata implements driver.Pool.
-func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
-	db, err := d.DB(ctx)
+func (p *pool) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
+	db, err := p.DB(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -743,19 +743,19 @@ func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.T
 }
 
 // SourceMetadata implements driver.Pool.
-func (d *database) SourceMetadata(ctx context.Context, noSchema bool) (*source.Metadata, error) {
-	db, err := d.DB(ctx)
+func (p *pool) SourceMetadata(ctx context.Context, noSchema bool) (*source.Metadata, error) {
+	db, err := p.DB(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return getSourceMetadata(ctx, d.src, db, noSchema)
+	return getSourceMetadata(ctx, p.src, db, noSchema)
 }
 
 // Close implements driver.Pool.
-func (d *database) Close() error {
-	d.log.Debug(lgm.CloseDB, lga.Handle, d.src.Handle)
+func (p *pool) Close() error {
+	p.log.Debug(lgm.CloseDB, lga.Handle, p.src.Handle)
 
-	err := d.db.Close()
+	err := p.db.Close()
 	if err != nil {
 		return errw(err)
 	}

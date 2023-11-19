@@ -368,9 +368,9 @@ func (h *Helper) NewCollection(handles ...string) *source.Collection {
 	return coll
 }
 
-// Open opens a Pool for src via h's internal Pools
+// Open opens a driver.Pool for src via h's internal Pools
 // instance: thus subsequent calls to Open may return the
-// same Pool instance. The opened Pool will be closed
+// same Pool instance. The opened driver.Pool will be closed
 // during h.Close.
 func (h *Helper) Open(src *source.Source) driver.Pool {
 	ctx, cancelFn := context.WithTimeout(h.Context, h.dbOpenTimeout)
@@ -396,7 +396,7 @@ func (h *Helper) OpenDB(src *source.Source) *sql.DB {
 	return db
 }
 
-// openNew opens a new Pool. It is the caller's responsibility
+// openNew opens a new driver.Pool. It is the caller's responsibility
 // to close the returned Pool. Unlike method Open, this method
 // will always invoke the driver's Open method.
 //

@@ -182,7 +182,7 @@ func (p *pipeline) prepareNoTable(ctx context.Context, qm *queryModel) error {
 //
 // When this function returns, pipeline.rc will be set.
 func (p *pipeline) prepareFromTable(ctx context.Context, tblSel *ast.TblSelectorNode) (fromClause string,
-	fromConn driver.Pool, err error,
+	fromPool driver.Pool, err error,
 ) {
 	handle := tblSel.Handle()
 	if handle == "" {
@@ -197,16 +197,16 @@ func (p *pipeline) prepareFromTable(ctx context.Context, tblSel *ast.TblSelector
 		return "", nil, err
 	}
 
-	fromConn, err = p.qc.PoolOpener.Open(ctx, src)
+	fromPool, err = p.qc.PoolOpener.Open(ctx, src)
 	if err != nil {
 		return "", nil, err
 	}
 
-	rndr := fromConn.SQLDriver().Renderer()
+	rndr := fromPool.SQLDriver().Renderer()
 	p.rc = &render.Context{
 		Renderer: rndr,
 		Args:     p.qc.Args,
-		Dialect:  fromConn.SQLDriver().Dialect(),
+		Dialect:  fromPool.SQLDriver().Dialect(),
 	}
 
 	fromClause, err = rndr.FromTable(p.rc, tblSel)
@@ -214,7 +214,7 @@ func (p *pipeline) prepareFromTable(ctx context.Context, tblSel *ast.TblSelector
 		return "", nil, err
 	}
 
-	return fromClause, fromConn, nil
+	return fromClause, fromPool, nil
 }
 
 // joinClause models the SQL "JOIN" construct.
@@ -283,23 +283,23 @@ func (p *pipeline) prepareFromJoin(ctx context.Context, jc *joinClause) (fromCla
 //
 // On return, pipeline.rc will be set.
 func (p *pipeline) joinSingleSource(ctx context.Context, jc *joinClause) (fromClause string,
-	fromDB driver.Pool, err error,
+	fromPool driver.Pool, err error,
 ) {
 	src, err := p.qc.Collection.Get(jc.leftTbl.Handle())
 	if err != nil {
 		return "", nil, err
 	}
 
-	fromDB, err = p.qc.PoolOpener.Open(ctx, src)
+	fromPool, err = p.qc.PoolOpener.Open(ctx, src)
 	if err != nil {
 		return "", nil, err
 	}
 
-	rndr := fromDB.SQLDriver().Renderer()
+	rndr := fromPool.SQLDriver().Renderer()
 	p.rc = &render.Context{
 		Renderer: rndr,
 		Args:     p.qc.Args,
-		Dialect:  fromDB.SQLDriver().Dialect(),
+		Dialect:  fromPool.SQLDriver().Dialect(),
 	}
 
 	fromClause, err = rndr.Join(p.rc, jc.leftTbl, jc.joins)
@@ -307,7 +307,7 @@ func (p *pipeline) joinSingleSource(ctx context.Context, jc *joinClause) (fromCl
 		return "", nil, err
 	}
 
-	return fromClause, fromDB, nil
+	return fromClause, fromPool, nil
 }
 
 // joinCrossSource returns a FROM clause that forms part of
@@ -317,8 +317,6 @@ func (p *pipeline) joinSingleSource(ctx context.Context, jc *joinClause) (fromCl
 func (p *pipeline) joinCrossSource(ctx context.Context, jc *joinClause) (fromClause string,
 	fromDB driver.Pool, err error,
 ) {
-	// FIXME: finish tidying up
-
 	handles := jc.handles()
 	srcs := make([]*source.Source, 0, len(handles))
 	for _, handle := range handles {
@@ -330,16 +328,16 @@ func (p *pipeline) joinCrossSource(ctx context.Context, jc *joinClause) (fromCla
 	}
 
 	// Open the join db
-	joinDB, err := p.qc.JoinPoolOpener.OpenJoin(ctx, srcs...)
+	joinPool, err := p.qc.JoinPoolOpener.OpenJoin(ctx, srcs...)
 	if err != nil {
 		return "", nil, err
 	}
 
-	rndr := joinDB.SQLDriver().Renderer()
+	rndr := joinPool.SQLDriver().Renderer()
 	p.rc = &render.Context{
 		Renderer: rndr,
 		Args:     p.qc.Args,
-		Dialect:  joinDB.SQLDriver().Dialect(),
+		Dialect:  joinPool.SQLDriver().Dialect(),
 	}
 
 	leftHandle := jc.leftTbl.Handle()
@@ -364,7 +362,7 @@ func (p *pipeline) joinCrossSource(ctx context.Context, jc *joinClause) (fromCla
 		task := &joinCopyTask{
 			fromPool: db,
 			fromTbl:  tbl.Table(),
-			toPool:   joinDB,
+			toPool:   joinPool,
 			toTbl:    tbl.TblAliasOrName(),
 		}
 
@@ -378,7 +376,7 @@ func (p *pipeline) joinCrossSource(ctx context.Context, jc *joinClause) (fromCla
 		return "", nil, err
 	}
 
-	return fromClause, joinDB, nil
+	return fromClause, joinPool, nil
 }
 
 // tasker is the interface for executing a DB task.

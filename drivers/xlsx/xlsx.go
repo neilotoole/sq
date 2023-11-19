@@ -71,7 +71,7 @@ func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Pool, err
 	clnup := cleanup.New()
 	clnup.AddE(scratchDB.Close)
 
-	pool := &pool{
+	p := &pool{
 		log:         d.log,
 		src:         src,
 		scratchPool: scratchDB,
@@ -79,7 +79,7 @@ func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Pool, err
 		clnup:       clnup,
 	}
 
-	return pool, nil
+	return p, nil
 }
 
 // Truncate implements driver.Driver.

@@ -423,7 +423,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Pool, er
 		return nil, err
 	}
 
-	return &database{log: d.log, db: db, src: src, drvr: d}, nil
+	return &pool{log: d.log, db: db, src: src, drvr: d}, nil
 }
 
 func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
@@ -519,8 +519,8 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 	return beforeCount, errw(tx.Commit())
 }
 
-// database implements driver.Pool.
-type database struct {
+// pool implements driver.Pool.
+type pool struct {
 	log  *slog.Logger
 	db   *sql.DB
 	src  *source.Source
@@ -528,34 +528,34 @@ type database struct {
 }
 
 // DB implements driver.Pool.
-func (d *database) DB(context.Context) (*sql.DB, error) {
-	return d.db, nil
+func (p *pool) DB(context.Context) (*sql.DB, error) {
+	return p.db, nil
 }
 
 // SQLDriver implements driver.Pool.
-func (d *database) SQLDriver() driver.SQLDriver {
-	return d.drvr
+func (p *pool) SQLDriver() driver.SQLDriver {
+	return p.drvr
 }
 
 // Source implements driver.Pool.
-func (d *database) Source() *source.Source {
-	return d.src
+func (p *pool) Source() *source.Source {
+	return p.src
 }
 
 // TableMetadata implements driver.Pool.
-func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
-	return getTableMetadata(ctx, d.db, tblName)
+func (p *pool) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
+	return getTableMetadata(ctx, p.db, tblName)
 }
 
 // SourceMetadata implements driver.Pool.
-func (d *database) SourceMetadata(ctx context.Context, noSchema bool) (*source.Metadata, error) {
-	return getSourceMetadata(ctx, d.src, d.db, noSchema)
+func (p *pool) SourceMetadata(ctx context.Context, noSchema bool) (*source.Metadata, error) {
+	return getSourceMetadata(ctx, p.src, p.db, noSchema)
 }
 
 // Close implements driver.Pool.
-func (d *database) Close() error {
-	d.log.Debug(lgm.CloseDB, lga.Handle, d.src.Handle)
-	return errw(d.db.Close())
+func (p *pool) Close() error {
+	p.log.Debug(lgm.CloseDB, lga.Handle, p.src.Handle)
+	return errw(p.db.Close())
 }
 
 // dsnFromLocation builds the mysql driver DSN from src.Location.

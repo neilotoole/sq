@@ -39,7 +39,7 @@ func hasSheet(xfile *excelize.File, sheetName string) bool {
 	return slices.Contains(xfile.GetSheetList(), sheetName)
 }
 
-// sheetTable maps a sheet to a pool table.
+// sheetTable maps a sheet to a database table.
 type sheetTable struct {
 	sheet             *xSheet
 	def               *sqlmodel.TableDef

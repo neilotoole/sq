@@ -508,15 +508,15 @@ func (d *Pools) OpenScratch(ctx context.Context, name string) (Pool, error) {
 		return nil, errz.Errorf("driver for scratch source %s is not a SQLDriver but is %T", scratchSrc.Handle, drvr)
 	}
 
-	var backingDB Pool
-	backingDB, err = sqlDrvr.Open(ctx, scratchSrc)
+	var backingPool Pool
+	backingPool, err = sqlDrvr.Open(ctx, scratchSrc)
 	if err != nil {
 		lg.WarnIfFuncError(d.log, msgCloseScratch, cleanFn)
 		return nil, err
 	}
 
 	d.clnup.AddE(cleanFn)
-	return backingDB, nil
+	return backingPool, nil
 }
 
 // OpenJoin opens an appropriate database for use as
