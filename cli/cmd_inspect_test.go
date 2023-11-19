@@ -124,6 +124,13 @@ func TestCmdInspect_json_yaml(t *testing.T) {
 						require.Nil(t, srcMeta.Tables)
 						require.Zero(t, srcMeta.TableCount)
 						require.Zero(t, srcMeta.ViewCount)
+						require.NotEmpty(t, srcMeta.Name)
+						require.NotEmpty(t, srcMeta.Schema)
+						require.NotEmpty(t, srcMeta.FQName)
+						require.NotEmpty(t, srcMeta.DBDriver)
+						require.NotEmpty(t, srcMeta.DBProduct)
+						require.NotEmpty(t, srcMeta.DBVersion)
+						require.NotZero(t, srcMeta.Size)
 					})
 
 					t.Run("inspect_dbprops", func(t *testing.T) {

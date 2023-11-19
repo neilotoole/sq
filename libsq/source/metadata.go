@@ -28,6 +28,9 @@ type Metadata struct {
 	// This may be empty for some sources.
 	Schema string `json:"schema,omitempty" yaml:"schema,omitempty"`
 
+	// Catalog is the catalog name, for example "sakila".
+	Catalog string `json:"catalog,omitempty" yaml:"catalog,omitempty"`
+
 	// Driver is the source driver type.
 	Driver DriverType `json:"driver" yaml:"driver"`
 

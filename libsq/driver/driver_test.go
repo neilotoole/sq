@@ -608,15 +608,16 @@ func TestSQLDriver_CurrentCatalog(t *testing.T) {
 	}
 }
 
-func TestSQLDriver_CurrentSchema(t *testing.T) {
+func TestSQLDriver_CurrentSchemaCatalog(t *testing.T) {
 	testCases := []struct {
-		handle string
-		want   string
+		handle      string
+		wantSchema  string
+		wantCatalog string
 	}{
-		{sakila.SL3, "main"},
-		{sakila.Pg, "public"},
-		{sakila.My, "sakila"},
-		{sakila.MS, "dbo"},
+		{sakila.SL3, "main", "default"},
+		{sakila.Pg, "public", "sakila"},
+		{sakila.My, "sakila", "def"},
+		{sakila.MS, "dbo", "sakila"},
 	}
 
 	for _, tc := range testCases {
@@ -627,16 +628,26 @@ func TestSQLDriver_CurrentSchema(t *testing.T) {
 
 			gotSchema, err := drvr.CurrentSchema(th.Context, db)
 			require.NoError(t, err)
-			require.Equal(t, tc.want, gotSchema)
+			require.Equal(t, tc.wantSchema, gotSchema)
 
 			md, err := pool.SourceMetadata(th.Context, false)
 			require.NoError(t, err)
 			require.NotNil(t, md)
-			require.Equal(t, md.Schema, gotSchema)
+			require.Equal(t, md.Schema, tc.wantSchema)
+			require.Equal(t, md.Catalog, tc.wantCatalog)
 
 			gotSchemas, err := drvr.ListSchemas(th.Context, db)
 			require.NoError(t, err)
 			require.Contains(t, gotSchemas, gotSchema)
+
+			if drvr.Dialect().Catalog {
+				gotCatalog, err := drvr.CurrentCatalog(th.Context, db)
+				require.NoError(t, err)
+				require.Equal(t, tc.wantCatalog, gotCatalog)
+				gotCatalogs, err := drvr.ListCatalogs(th.Context, db)
+				require.NoError(t, err)
+				require.Contains(t, gotCatalogs, gotCatalog)
+			}
 		})
 	}
 }

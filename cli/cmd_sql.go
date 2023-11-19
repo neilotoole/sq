@@ -31,12 +31,7 @@ func newSQLCmd() *cobra.Command {
 		Short: "Execute DB-native SQL query or statement",
 		Long: `Execute a SQL query or statement against the active source using the
 source's SQL dialect. Use flag --src=@HANDLE to specify an alternative
-source.
-
-If flag --query is set, sq will run the input as a query
-(SELECT) and return the query rows. If flag --exec is set,
-sq will execute the input and return the result. If neither
-flag is set, sq attempts to determine the appropriate mode.`,
+source.`,
 		RunE: execSQL,
 		Example: `  # Select from active source
   $ sq sql 'SELECT * FROM actor'
@@ -45,26 +40,19 @@ flag is set, sq attempts to determine the appropriate mode.`,
   $ sq sql --src=@sakila_pg12 'SELECT * FROM actor'
 
   # Drop table @sakila_pg12.actor
-  $ sq sql --exec --src=@sakila_pg12 'DROP TABLE actor'
+  $ sq sql --src=@sakila_pg12 'DROP TABLE actor'
 
   # Select from active source and write results to @sakila_ms17.actor
   $ sq sql 'SELECT * FROM actor' --insert=@sakila_ms17.actor`,
 	}
 
 	addQueryCmdFlags(cmd)
-
-	// TODO: These flags aren't actually implemented yet.
-	// This entire --exec mechanism needs to be revisited.
-	// User explicitly wants to execute the SQL using sql.DB.Query
-	// cmd.Flags().Bool(flag.SQLQuery, false, flag.SQLQueryUsage)
-	// User explicitly wants to execute the SQL using sql.DB.Exec
-	// cmd.Flags().Bool(flag.SQLExec, false, flag.SQLExecUsage)
-
 	return cmd
 }
 
 func execSQL(cmd *cobra.Command, args []string) error {
-	ru := run.FromContext(cmd.Context())
+	ctx := cmd.Context()
+	ru := run.FromContext(ctx)
 	switch len(args) {
 	default:
 		return errz.New("a single query string is required")
@@ -76,7 +64,7 @@ func execSQL(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	err := determineSources(cmd.Context(), ru, true)
+	err := determineSources(ctx, ru, true)
 	if err != nil {
 		return err
 	}
@@ -93,7 +81,7 @@ func execSQL(cmd *cobra.Command, args []string) error {
 	if !cmdFlagChanged(cmd, flag.Insert) {
 		// The user didn't specify the --insert=@src.tbl flag,
 		// so we just want to print the records.
-		return execSQLPrint(cmd.Context(), ru, activeSrc)
+		return execSQLPrint(ctx, ru, activeSrc)
 	}
 
 	// Instead of printing the records, they will be
@@ -113,7 +101,7 @@ func execSQL(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return execSQLInsert(cmd.Context(), ru, activeSrc, destSrc, destTbl)
+	return execSQLInsert(ctx, ru, activeSrc, destSrc, destTbl)
 }
 
 // execSQLPrint executes the SQL and prints resulting records
@@ -144,7 +132,7 @@ func execSQLInsert(ctx context.Context, ru *run.Run,
 	ctx, cancelFn := context.WithCancel(ctx)
 	defer cancelFn()
 
-	fromDB, err := pools.Open(ctx, fromSrc)
+	fromPool, err := pools.Open(ctx, fromSrc)
 	if err != nil {
 		return err
 	}
@@ -154,18 +142,17 @@ func execSQLInsert(ctx context.Context, ru *run.Run,
 		return err
 	}
 
-	// Note: We don't need to worry about closing fromDB and
+	// Note: We don't need to worry about closing fromPool and
 	// destPool because they are closed by pools.Close, which
 	// is invoked by ru.Close, and ru is closed further up the
 	// stack.
-
 	inserter := libsq.NewDBWriter(
 		destPool,
 		destTbl,
 		driver.OptTuningRecChanSize.Get(destSrc.Options),
 		libsq.DBWriterCreateTableIfNotExistsHook(destTbl),
 	)
-	err = libsq.QuerySQL(ctx, fromDB, nil, inserter, args[0])
+	err = libsq.QuerySQL(ctx, fromPool, nil, inserter, args[0])
 	if err != nil {
 		return errz.Wrapf(err, "insert to {%s} failed", source.Target(destSrc, destTbl))
 	}
@@ -178,7 +165,7 @@ func execSQLInsert(ctx context.Context, ru *run.Run,
 	lg.FromContext(ctx).Debug(lgm.RowsAffected, lga.Count, affected)
 
 	// TODO: Should really use a Printer here
-	fmt.Fprintf(ru.Out, stringz.Plu("Inserted %d row(s) into %s\n",
+	_, _ = fmt.Fprintf(ru.Out, stringz.Plu("Inserted %d row(s) into %s\n",
 		int(affected)), affected, source.Target(destSrc, destTbl))
 	return nil
 }

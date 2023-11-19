@@ -960,7 +960,9 @@ func (p *pool) SourceMetadata(ctx context.Context, noSchema bool) (*source.Metad
 
 	md.Size = fi.Size()
 	md.Name = fi.Name()
-	md.FQName = fi.Name() + "/" + md.Schema
+	md.FQName = fi.Name() + "." + md.Schema
+	// SQLite doesn't support catalog, but we conventionally set it to "default"
+	md.Catalog = "default"
 	md.Location = p.src.Location
 
 	md.DBProperties, err = getDBProperties(ctx, p.db)

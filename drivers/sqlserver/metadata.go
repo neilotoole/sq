@@ -138,6 +138,7 @@ GROUP BY database_id) AS total_size_bytes`
 
 	md.Name = catalog
 	md.FQName = catalog + "." + schema
+	md.Catalog = catalog
 	md.Schema = schema
 
 	if md.DBProperties, err = getDBProperties(ctx, db); err != nil {
