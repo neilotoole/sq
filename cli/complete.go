@@ -392,13 +392,13 @@ func (c activeSchemaCompleter) complete(cmd *cobra.Command, args []string, toCom
 	ctx, cancelFn := context.WithTimeout(cmd.Context(), OptShellCompletionTimeout.Get(ru.Config.Options))
 	defer cancelFn()
 
-	dbase, err := ru.Pools.Open(ctx, src)
+	pool, err := ru.Pools.Open(ctx, src)
 	if err != nil {
 		lg.Unexpected(log, err)
 		return nil, cobra.ShellCompDirectiveError
 	}
 
-	db, err := dbase.DB(ctx)
+	db, err := pool.DB(ctx)
 	if err != nil {
 		lg.Unexpected(log, err)
 		return nil, cobra.ShellCompDirectiveError
@@ -768,14 +768,14 @@ func getTableNamesForHandle(ctx context.Context, ru *run.Run, handle string) ([]
 		return nil, err
 	}
 
-	dbase, err := ru.Pools.Open(ctx, src)
+	pool, err := ru.Pools.Open(ctx, src)
 	if err != nil {
 		return nil, err
 	}
 
 	// TODO: We shouldn't have to load the full metadata just to get
 	// the table names. driver.SQLDriver should have a method ListTables.
-	md, err := dbase.SourceMetadata(ctx, false)
+	md, err := pool.SourceMetadata(ctx, false)
 	if err != nil {
 		return nil, err
 	}

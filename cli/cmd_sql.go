@@ -118,13 +118,13 @@ func execSQL(cmd *cobra.Command, args []string) error {
 // to the configured writer.
 func execSQLPrint(ctx context.Context, ru *run.Run, fromSrc *source.Source) error {
 	args := ru.Args
-	dbase, err := ru.Pools.Open(ctx, fromSrc)
+	pool, err := ru.Pools.Open(ctx, fromSrc)
 	if err != nil {
 		return err
 	}
 
 	recw := output.NewRecordWriterAdapter(ctx, ru.Writers.Record)
-	err = libsq.QuerySQL(ctx, dbase, nil, recw, args[0])
+	err = libsq.QuerySQL(ctx, pool, nil, recw, args[0])
 	if err != nil {
 		return err
 	}

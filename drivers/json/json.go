@@ -96,24 +96,24 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Pool, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
-	dbase := &database{log: d.log, src: src, clnup: cleanup.New(), files: d.files}
+	pool := &database{log: d.log, src: src, clnup: cleanup.New(), files: d.files}
 
 	r, err := d.files.Open(src)
 	if err != nil {
 		return nil, err
 	}
 
-	dbase.impl, err = d.scratcher.OpenScratch(ctx, src.Handle)
+	pool.impl, err = d.scratcher.OpenScratch(ctx, src.Handle)
 	if err != nil {
 		lg.WarnIfCloseError(d.log, lgm.CloseFileReader, r)
-		lg.WarnIfFuncError(d.log, lgm.CloseDB, dbase.clnup.Run)
+		lg.WarnIfFuncError(d.log, lgm.CloseDB, pool.clnup.Run)
 		return nil, err
 	}
 
 	job := importJob{
 		fromSrc:    src,
 		openFn:     d.files.OpenFunc(src),
-		destPool:   dbase.impl,
+		destPool:   pool.impl,
 		sampleSize: driver.OptIngestSampleSize.Get(src.Options),
 		flatten:    true,
 	}
@@ -121,7 +121,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Pool, er
 	err = d.importFn(ctx, job)
 	if err != nil {
 		lg.WarnIfCloseError(d.log, lgm.CloseFileReader, r)
-		lg.WarnIfFuncError(d.log, lgm.CloseDB, dbase.clnup.Run)
+		lg.WarnIfFuncError(d.log, lgm.CloseDB, pool.clnup.Run)
 		return nil, err
 	}
 
@@ -130,7 +130,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Pool, er
 		return nil, err
 	}
 
-	return dbase, nil
+	return pool, nil
 }
 
 // Truncate implements driver.Driver.

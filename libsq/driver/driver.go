@@ -456,9 +456,9 @@ func (d *Pools) Open(ctx context.Context, src *source.Source) (Pool, error) {
 
 	key := src.Handle + "_" + hashSource(src)
 
-	dbase, ok := d.pools[key]
+	pool, ok := d.pools[key]
 	if ok {
-		return dbase, nil
+		return pool, nil
 	}
 
 	drvr, err := d.drvrs.DriverFor(src.Type)
@@ -470,15 +470,15 @@ func (d *Pools) Open(ctx context.Context, src *source.Source) (Pool, error) {
 	o := options.Merge(baseOptions, src.Options)
 
 	ctx = options.NewContext(ctx, o)
-	dbase, err = drvr.Open(ctx, src)
+	pool, err = drvr.Open(ctx, src)
 	if err != nil {
 		return nil, err
 	}
 
-	d.clnup.AddC(dbase)
+	d.clnup.AddC(pool)
 
-	d.pools[key] = dbase
-	return dbase, nil
+	d.pools[key] = pool
+	return pool, nil
 }
 
 // OpenScratch returns a scratch database instance. It is not

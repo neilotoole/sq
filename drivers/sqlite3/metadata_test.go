@@ -204,7 +204,7 @@ func TestRecordMetadata(t *testing.T) {
 		t.Run(tc.tbl, func(t *testing.T) {
 			t.Parallel()
 
-			th, _, drvr, dbase, db := testh.NewWith(t, sakila.SL3)
+			th, _, drvr, pool, db := testh.NewWith(t, sakila.SL3)
 
 			query := fmt.Sprintf("SELECT %s FROM %s", strings.Join(tc.colNames, ", "), tc.tbl)
 			rows, err := db.QueryContext(th.Context, query) //nolint:rowserrcheck
@@ -235,7 +235,7 @@ func TestRecordMetadata(t *testing.T) {
 			}
 
 			// Now check our table metadata
-			gotTblMeta, err := dbase.TableMetadata(th.Context, tc.tbl)
+			gotTblMeta, err := pool.TableMetadata(th.Context, tc.tbl)
 			require.NoError(t, err)
 			require.Equal(t, tc.tbl, gotTblMeta.Name)
 			require.Equal(t, tc.rowCount, gotTblMeta.RowCount)
@@ -285,12 +285,12 @@ func TestAggregateFuncsQuery(t *testing.T) {
 func BenchmarkDatabase_SourceMetadata(b *testing.B) {
 	const numTables = 1000
 
-	th, src, drvr, dbase, db := testh.NewWith(b, testsrc.MiscDB)
+	th, src, drvr, pool, db := testh.NewWith(b, testsrc.MiscDB)
 	tblNames := createTypeTestTbls(th, src, numTables, true)
 
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		srcMeta, err := dbase.SourceMetadata(th.Context, false)
+		srcMeta, err := pool.SourceMetadata(th.Context, false)
 		require.NoError(b, err)
 		require.True(b, len(srcMeta.Tables) > len(tblNames))
 	}

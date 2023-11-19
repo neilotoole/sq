@@ -222,12 +222,12 @@ func TestAlternateSchema(t *testing.T) {
 	src2 := src.Clone()
 	src2.Handle += "2"
 	src2.Location += "?search_path=" + schemaName
-	dbase2 := th.Open(src2)
-	md2, err := dbase2.SourceMetadata(ctx, false)
+	pool2 := th.Open(src2)
+	md2, err := pool2.SourceMetadata(ctx, false)
 	require.NoError(t, err)
 	require.Equal(t, schemaName, md2.Schema)
 
-	tblMeta2, err := dbase2.TableMetadata(ctx, tblName)
+	tblMeta2, err := pool2.TableMetadata(ctx, tblName)
 	require.NoError(t, err)
 	require.Equal(t, int64(wantRowCount), tblMeta2.RowCount)
 }
@@ -279,10 +279,10 @@ func BenchmarkDatabase_SourceMetadata(b *testing.B) {
 		b.Run(handle, func(b *testing.B) {
 			th := testh.New(b)
 			th.Log = lg.Discard()
-			dbase := th.Open(th.Source(handle))
+			pool := th.Open(th.Source(handle))
 			b.ResetTimer()
 
-			md, err := dbase.SourceMetadata(th.Context, false)
+			md, err := pool.SourceMetadata(th.Context, false)
 			require.NoError(b, err)
 			require.Equal(b, "sakila", md.Name)
 		})

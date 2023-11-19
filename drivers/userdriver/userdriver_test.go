@@ -40,15 +40,15 @@ func TestDriver(t *testing.T) {
 			err := drvr.Ping(th.Context, src)
 			require.NoError(t, err)
 
-			dbase, err := drvr.Open(th.Context, src)
+			pool, err := drvr.Open(th.Context, src)
 			require.NoError(t, err)
-			t.Cleanup(func() { assert.NoError(t, dbase.Close()) })
+			t.Cleanup(func() { assert.NoError(t, pool.Close()) })
 
-			srcMeta, err := dbase.SourceMetadata(th.Context, false)
+			srcMeta, err := pool.SourceMetadata(th.Context, false)
 			require.NoError(t, err)
 			require.True(t, stringz.InSlice(srcMeta.TableNames(), tc.tbl))
 
-			tblMeta, err := dbase.TableMetadata(th.Context, tc.tbl)
+			tblMeta, err := pool.TableMetadata(th.Context, tc.tbl)
 			require.NoError(t, err)
 			require.Equal(t, tc.tbl, tblMeta.Name)
 

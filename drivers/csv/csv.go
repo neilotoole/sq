@@ -69,23 +69,23 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Pool, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
-	dbase := &database{
+	pool := &database{
 		log:   d.log,
 		src:   src,
 		files: d.files,
 	}
 
 	var err error
-	dbase.impl, err = d.scratcher.OpenScratch(ctx, src.Handle)
+	pool.impl, err = d.scratcher.OpenScratch(ctx, src.Handle)
 	if err != nil {
 		return nil, err
 	}
 
-	if err = ingestCSV(ctx, src, d.files.OpenFunc(src), dbase.impl); err != nil {
+	if err = ingestCSV(ctx, src, d.files.OpenFunc(src), pool.impl); err != nil {
 		return nil, err
 	}
 
-	return dbase, nil
+	return pool, nil
 }
 
 // Truncate implements driver.Driver.
