@@ -16,7 +16,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Fixed
 
-- MySQL driver didn't populate all expected values for `sq inspect --overview`.
+- MySQL driver didn't populate all expected values for [`sq inspect --overview`](https://sq.io/docs/inspect#source-overview).
 
 ### Changed
 
