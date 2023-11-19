@@ -15,6 +15,7 @@ const (
 	FuncNameSchema      = "schema"
 	FuncNameCatalog     = "catalog"
 	FuncNameSum         = "sum"
+	FuncNameRowNum      = "rownum"
 )
 
 var (

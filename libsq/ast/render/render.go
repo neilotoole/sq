@@ -222,3 +222,15 @@ func unquoteLiteral(s string) (val string, ok bool, err error) {
 
 	return s, false, nil
 }
+
+type LiteralFunc string
+
+func (f LiteralFunc) Render(_ *Context, _ *ast.FuncNode) (string, error) {
+	return string(f), nil
+}
+
+func LiteralFuncOverride(s string) func(*Context, *ast.FuncNode) (string, error) {
+	return func(_ *Context, _ *ast.FuncNode) (string, error) {
+		return s, nil
+	}
+}
