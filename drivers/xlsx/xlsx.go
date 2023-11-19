@@ -31,7 +31,7 @@ const (
 type Provider struct {
 	Log       *slog.Logger
 	Files     *source.Files
-	Scratcher driver.ScratchDatabaseOpener
+	Scratcher driver.ScratchPoolOpener
 }
 
 // DriverFor implements driver.Provider.
@@ -46,7 +46,7 @@ func (p *Provider) DriverFor(typ source.DriverType) (driver.Driver, error) {
 // Driver implements driver.Driver.
 type Driver struct {
 	log       *slog.Logger
-	scratcher driver.ScratchDatabaseOpener
+	scratcher driver.ScratchPoolOpener
 	files     *source.Files
 }
 
@@ -59,8 +59,8 @@ func (d *Driver) DriverMetadata() driver.Metadata {
 	}
 }
 
-// Open implements driver.DatabaseOpener.
-func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
+// Open implements driver.PoolOpener.
+func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Pool, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
 	scratchDB, err := d.scratcher.OpenScratch(ctx, src.Handle)
@@ -71,12 +71,12 @@ func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Database,
 	clnup := cleanup.New()
 	clnup.AddE(scratchDB.Close)
 
-	dbase := &database{
-		log:       d.log,
-		src:       src,
-		scratchDB: scratchDB,
-		files:     d.files,
-		clnup:     clnup,
+	dbase := &pool{
+		log:         d.log,
+		src:         src,
+		scratchPool: scratchDB,
+		files:       d.files,
+		clnup:       clnup,
 	}
 
 	return dbase, nil

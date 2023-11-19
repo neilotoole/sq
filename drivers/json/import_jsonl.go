@@ -94,8 +94,8 @@ func importJSONL(ctx context.Context, job importJob) error { //nolint:gocognit
 	}
 	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
 
-	drvr := job.destDB.SQLDriver()
-	db, err := job.destDB.DB(ctx)
+	drvr := job.destPool.SQLDriver()
+	db, err := job.destPool.DB(ctx)
 	if err != nil {
 		return err
 	}

@@ -166,14 +166,14 @@ func execInspect(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	dbase, err := ru.Databases.Open(ctx, src)
+	pool, err := ru.Pools.Open(ctx, src)
 	if err != nil {
 		return errz.Wrapf(err, "failed to inspect %s", src.Handle)
 	}
 
 	if table != "" {
 		var tblMeta *source.TableMetadata
-		tblMeta, err = dbase.TableMetadata(ctx, table)
+		tblMeta, err = pool.TableMetadata(ctx, table)
 		if err != nil {
 			return err
 		}
@@ -183,11 +183,11 @@ func execInspect(cmd *cobra.Command, args []string) error {
 
 	if cmdFlagIsSetTrue(cmd, flag.InspectDBProps) {
 		var db *sql.DB
-		if db, err = dbase.DB(ctx); err != nil {
+		if db, err = pool.DB(ctx); err != nil {
 			return err
 		}
 		var props map[string]any
-		sqlDrvr := dbase.SQLDriver()
+		sqlDrvr := pool.SQLDriver()
 		if props, err = sqlDrvr.DBProperties(ctx, db); err != nil {
 			return err
 		}
@@ -197,7 +197,7 @@ func execInspect(cmd *cobra.Command, args []string) error {
 
 	overviewOnly := cmdFlagIsSetTrue(cmd, flag.InspectOverview)
 
-	srcMeta, err := dbase.SourceMetadata(ctx, overviewOnly)
+	srcMeta, err := pool.SourceMetadata(ctx, overviewOnly)
 	if err != nil {
 		return errz.Wrapf(err, "failed to read %s source metadata", src.Handle)
 	}

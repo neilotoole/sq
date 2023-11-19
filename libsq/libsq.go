@@ -30,14 +30,14 @@ type QueryContext struct {
 	// Collection is the set of sources.
 	Collection *source.Collection
 
-	// DBOpener is used to open databases.
-	DBOpener driver.DatabaseOpener
+	// PoolOpener is used to open databases.
+	PoolOpener driver.PoolOpener
 
-	// JoinDBOpener is used to open the joindb.
-	JoinDBOpener driver.JoinDatabaseOpener
+	// JoinPoolOpener is used to open the joindb.
+	JoinPoolOpener driver.JoinPoolOpener
 
-	// ScratchDBOpener is used to open the scratchdb.
-	ScratchDBOpener driver.ScratchDatabaseOpener
+	// ScratchPoolOpener is used to open the scratchdb.
+	ScratchPoolOpener driver.ScratchPoolOpener
 
 	// Args defines variables that are substituted into the query.
 	// May be nil or empty.
@@ -122,7 +122,7 @@ func SLQ2SQL(ctx context.Context, qc *QueryContext, query string) (targetSQL str
 // Note that QuerySQL may return before recw has finished writing, thus the
 // caller may wish to wait for recw to complete.
 // The caller is responsible for closing dbase (and db, if non-nil).
-func QuerySQL(ctx context.Context, dbase driver.Database, db sqlz.DB,
+func QuerySQL(ctx context.Context, dbase driver.Pool, db sqlz.DB,
 	recw RecordWriter, query string, args ...any,
 ) error {
 	log := lg.FromContext(ctx)

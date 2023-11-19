@@ -143,9 +143,9 @@ func importJSON(ctx context.Context, job importJob) error {
 	}
 	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
 
-	drvr := job.destDB.SQLDriver()
+	drvr := job.destPool.SQLDriver()
 
-	db, err := job.destDB.DB(ctx)
+	db, err := job.destPool.DB(ctx)
 	if err != nil {
 		return err
 	}

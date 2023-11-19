@@ -24,15 +24,15 @@ import (
 )
 
 // ImportFunc is a function that can import
-// data (as defined in def) to destDB.
+// data (as defined in def) to destPool.
 type ImportFunc func(ctx context.Context, def *DriverDef,
-	data io.Reader, destDB driver.Database) error
+	data io.Reader, destPool driver.Pool) error
 
 // Provider implements driver.Provider for a DriverDef.
 type Provider struct {
 	Log       *slog.Logger
 	DriverDef *DriverDef
-	Scratcher driver.ScratchDatabaseOpener
+	Scratcher driver.ScratchPoolOpener
 	Files     *source.Files
 	ImportFn  ImportFunc
 }
@@ -67,7 +67,7 @@ type drvr struct {
 	typ       source.DriverType
 	def       *DriverDef
 	files     *source.Files
-	scratcher driver.ScratchDatabaseOpener
+	scratcher driver.ScratchPoolOpener
 	importFn  ImportFunc
 }
 
@@ -81,8 +81,8 @@ func (d *drvr) DriverMetadata() driver.Metadata {
 	}
 }
 
-// Open implements driver.DatabaseOpener.
-func (d *drvr) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
+// Open implements driver.PoolOpener.
+func (d *drvr) Open(ctx context.Context, src *source.Source) (driver.Pool, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
 	clnup := cleanup.New()
@@ -141,38 +141,38 @@ func (d *drvr) Ping(_ context.Context, src *source.Source) error {
 	return r.Close()
 }
 
-// database implements driver.Database.
+// database implements driver.Pool.
 type database struct {
 	log  *slog.Logger
 	src  *source.Source
-	impl driver.Database
+	impl driver.Pool
 
 	// clnup will ultimately invoke impl.Close to dispose of
 	// the scratch DB.
 	clnup *cleanup.Cleanup
 }
 
-// DB implements driver.Database.
+// DB implements driver.Pool.
 func (d *database) DB(ctx context.Context) (*sql.DB, error) {
 	return d.impl.DB(ctx)
 }
 
-// SQLDriver implements driver.Database.
+// SQLDriver implements driver.Pool.
 func (d *database) SQLDriver() driver.SQLDriver {
 	return d.impl.SQLDriver()
 }
 
-// Source implements driver.Database.
+// Source implements driver.Pool.
 func (d *database) Source() *source.Source {
 	return d.src
 }
 
-// TableMetadata implements driver.Database.
+// TableMetadata implements driver.Pool.
 func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
 	return d.impl.TableMetadata(ctx, tblName)
 }
 
-// SourceMetadata implements driver.Database.
+// SourceMetadata implements driver.Pool.
 func (d *database) SourceMetadata(ctx context.Context, noSchema bool) (*source.Metadata, error) {
 	meta, err := d.impl.SourceMetadata(ctx, noSchema)
 	if err != nil {
@@ -190,7 +190,7 @@ func (d *database) SourceMetadata(ctx context.Context, noSchema bool) (*source.M
 	return meta, nil
 }
 
-// Close implements driver.Database.
+// Close implements driver.Pool.
 func (d *database) Close() error {
 	d.log.Debug(lgm.CloseDB, lga.Handle, d.src.Handle)
 

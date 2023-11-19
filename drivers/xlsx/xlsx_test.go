@@ -161,7 +161,7 @@ func TestOpenFileFormats(t *testing.T) {
 				Location: filepath.Join("testdata", "file_formats", tc.filename),
 			})
 
-			dbase, err := th.Databases().Open(th.Context, src)
+			dbase, err := th.Pools().Open(th.Context, src)
 			require.NoError(t, err)
 			db, err := dbase.DB(th.Context)
 			if tc.wantErr {

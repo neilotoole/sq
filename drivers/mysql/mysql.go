@@ -410,8 +410,8 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 	return destCols, nil
 }
 
-// Open implements driver.DatabaseOpener.
-func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
+// Open implements driver.PoolOpener.
+func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Pool, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
 	db, err := d.doOpen(ctx, src)
@@ -519,7 +519,7 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 	return beforeCount, errw(tx.Commit())
 }
 
-// database implements driver.Database.
+// database implements driver.Pool.
 type database struct {
 	log  *slog.Logger
 	db   *sql.DB
@@ -527,32 +527,32 @@ type database struct {
 	drvr *driveri
 }
 
-// DB implements driver.Database.
+// DB implements driver.Pool.
 func (d *database) DB(context.Context) (*sql.DB, error) {
 	return d.db, nil
 }
 
-// SQLDriver implements driver.Database.
+// SQLDriver implements driver.Pool.
 func (d *database) SQLDriver() driver.SQLDriver {
 	return d.drvr
 }
 
-// Source implements driver.Database.
+// Source implements driver.Pool.
 func (d *database) Source() *source.Source {
 	return d.src
 }
 
-// TableMetadata implements driver.Database.
+// TableMetadata implements driver.Pool.
 func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
 	return getTableMetadata(ctx, d.db, tblName)
 }
 
-// SourceMetadata implements driver.Database.
+// SourceMetadata implements driver.Pool.
 func (d *database) SourceMetadata(ctx context.Context, noSchema bool) (*source.Metadata, error) {
 	return getSourceMetadata(ctx, d.src, d.db, noSchema)
 }
 
-// Close implements driver.Database.
+// Close implements driver.Pool.
 func (d *database) Close() error {
 	d.log.Debug(lgm.CloseDB, lga.Handle, d.src.Handle)
 	return errw(d.db.Close())

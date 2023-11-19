@@ -157,19 +157,19 @@ func FinishRunInit(ctx context.Context, ru *run.Run) error {
 	ru.DriverRegistry = driver.NewRegistry(log)
 	dr := ru.DriverRegistry
 
-	ru.Databases = driver.NewDatabases(log, dr, scratchSrcFunc)
-	ru.Cleanup.AddC(ru.Databases)
+	ru.Pools = driver.NewPools(log, dr, scratchSrcFunc)
+	ru.Cleanup.AddC(ru.Pools)
 
 	dr.AddProvider(sqlite3.Type, &sqlite3.Provider{Log: log})
 	dr.AddProvider(postgres.Type, &postgres.Provider{Log: log})
 	dr.AddProvider(sqlserver.Type, &sqlserver.Provider{Log: log})
 	dr.AddProvider(mysql.Type, &mysql.Provider{Log: log})
-	csvp := &csv.Provider{Log: log, Scratcher: ru.Databases, Files: ru.Files}
+	csvp := &csv.Provider{Log: log, Scratcher: ru.Pools, Files: ru.Files}
 	dr.AddProvider(csv.TypeCSV, csvp)
 	dr.AddProvider(csv.TypeTSV, csvp)
 	ru.Files.AddDriverDetectors(csv.DetectCSV, csv.DetectTSV)
 
-	jsonp := &json.Provider{Log: log, Scratcher: ru.Databases, Files: ru.Files}
+	jsonp := &json.Provider{Log: log, Scratcher: ru.Pools, Files: ru.Files}
 	dr.AddProvider(json.TypeJSON, jsonp)
 	dr.AddProvider(json.TypeJSONA, jsonp)
 	dr.AddProvider(json.TypeJSONL, jsonp)
@@ -180,7 +180,7 @@ func FinishRunInit(ctx context.Context, ru *run.Run) error {
 		json.DetectJSONL(sampleSize),
 	)
 
-	dr.AddProvider(xlsx.Type, &xlsx.Provider{Log: log, Scratcher: ru.Databases, Files: ru.Files})
+	dr.AddProvider(xlsx.Type, &xlsx.Provider{Log: log, Scratcher: ru.Pools, Files: ru.Files})
 	ru.Files.AddDriverDetectors(xlsx.DetectXLSX)
 	// One day we may have more supported user driver genres.
 	userDriverImporters := map[string]userdriver.ImportFunc{
@@ -210,7 +210,7 @@ func FinishRunInit(ctx context.Context, ru *run.Run) error {
 			Log:       log,
 			DriverDef: userDriverDef,
 			ImportFn:  importFn,
-			Scratcher: ru.Databases,
+			Scratcher: ru.Pools,
 			Files:     ru.Files,
 		}
 

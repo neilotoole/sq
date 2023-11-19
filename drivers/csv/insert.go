@@ -122,13 +122,13 @@ func createTblDef(tblName string, colNames []string, kinds []kind.Kind) *sqlmode
 }
 
 // getIngestRecMeta returns record.Meta to use with RecordWriter.Open.
-func getIngestRecMeta(ctx context.Context, scratchDB driver.Database, tblDef *sqlmodel.TableDef) (record.Meta, error) {
-	db, err := scratchDB.DB(ctx)
+func getIngestRecMeta(ctx context.Context, scratchPool driver.Pool, tblDef *sqlmodel.TableDef) (record.Meta, error) {
+	db, err := scratchPool.DB(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	drvr := scratchDB.SQLDriver()
+	drvr := scratchPool.SQLDriver()
 
 	colTypes, err := drvr.TableColumnTypes(ctx, db, tblDef.Name, tblDef.ColNames())
 	if err != nil {

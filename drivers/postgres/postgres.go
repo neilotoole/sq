@@ -144,8 +144,8 @@ func (d *driveri) Renderer() *render.Renderer {
 	return r
 }
 
-// Open implements driver.DatabaseOpener.
-func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
+// Open implements driver.PoolOpener.
+func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Pool, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
 	db, err := d.doOpen(ctx, src)
@@ -709,7 +709,7 @@ func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (
 	return recMeta, mungeFn, nil
 }
 
-// database is the postgres implementation of driver.Database.
+// database is the postgres implementation of driver.Pool.
 type database struct {
 	log  *slog.Logger
 	drvr *driveri
@@ -717,22 +717,22 @@ type database struct {
 	src  *source.Source
 }
 
-// DB implements driver.Database.
+// DB implements driver.Pool.
 func (d *database) DB(context.Context) (*sql.DB, error) {
 	return d.db, nil
 }
 
-// SQLDriver implements driver.Database.
+// SQLDriver implements driver.Pool.
 func (d *database) SQLDriver() driver.SQLDriver {
 	return d.drvr
 }
 
-// Source implements driver.Database.
+// Source implements driver.Pool.
 func (d *database) Source() *source.Source {
 	return d.src
 }
 
-// TableMetadata implements driver.Database.
+// TableMetadata implements driver.Pool.
 func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
 	db, err := d.DB(ctx)
 	if err != nil {
@@ -742,7 +742,7 @@ func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.T
 	return getTableMetadata(ctx, db, tblName)
 }
 
-// SourceMetadata implements driver.Database.
+// SourceMetadata implements driver.Pool.
 func (d *database) SourceMetadata(ctx context.Context, noSchema bool) (*source.Metadata, error) {
 	db, err := d.DB(ctx)
 	if err != nil {
@@ -751,7 +751,7 @@ func (d *database) SourceMetadata(ctx context.Context, noSchema bool) (*source.M
 	return getSourceMetadata(ctx, d.src, db, noSchema)
 }
 
-// Close implements driver.Database.
+// Close implements driver.Pool.
 func (d *database) Close() error {
 	d.log.Debug(lgm.CloseDB, lga.Handle, d.src.Handle)
 

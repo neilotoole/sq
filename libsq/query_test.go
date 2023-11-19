@@ -168,14 +168,14 @@ func doExecQueryTestCase(t *testing.T, tc queryTestCase) {
 			require.NoError(t, err)
 
 			th := testh.New(t)
-			dbases := th.Databases()
+			dbases := th.Pools()
 
 			qc := &libsq.QueryContext{
-				Collection:      coll,
-				DBOpener:        dbases,
-				JoinDBOpener:    dbases,
-				ScratchDBOpener: dbases,
-				Args:            tc.args,
+				Collection:        coll,
+				PoolOpener:        dbases,
+				JoinPoolOpener:    dbases,
+				ScratchPoolOpener: dbases,
+				Args:              tc.args,
 			}
 
 			if tc.beforeRun != nil {

@@ -118,7 +118,7 @@ func execSQL(cmd *cobra.Command, args []string) error {
 // to the configured writer.
 func execSQLPrint(ctx context.Context, ru *run.Run, fromSrc *source.Source) error {
 	args := ru.Args
-	dbase, err := ru.Databases.Open(ctx, fromSrc)
+	dbase, err := ru.Pools.Open(ctx, fromSrc)
 	if err != nil {
 		return err
 	}
@@ -138,7 +138,7 @@ func execSQLInsert(ctx context.Context, ru *run.Run,
 	fromSrc, destSrc *source.Source, destTbl string,
 ) error {
 	args := ru.Args
-	dbases := ru.Databases
+	dbases := ru.Pools
 	ctx, cancelFn := context.WithCancel(ctx)
 	defer cancelFn()
 
@@ -147,18 +147,18 @@ func execSQLInsert(ctx context.Context, ru *run.Run,
 		return err
 	}
 
-	destDB, err := dbases.Open(ctx, destSrc)
+	destPool, err := dbases.Open(ctx, destSrc)
 	if err != nil {
 		return err
 	}
 
 	// Note: We don't need to worry about closing fromDB and
-	// destDB because they are closed by dbases.Close, which
+	// destPool because they are closed by dbases.Close, which
 	// is invoked by ru.Close, and ru is closed further up the
 	// stack.
 
 	inserter := libsq.NewDBWriter(
-		destDB,
+		destPool,
 		destTbl,
 		driver.OptTuningRecChanSize.Get(destSrc.Options),
 		libsq.DBWriterCreateTableIfNotExistsHook(destTbl),

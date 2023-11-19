@@ -36,7 +36,7 @@ const (
 // Provider implements driver.Provider.
 type Provider struct {
 	Log       *slog.Logger
-	Scratcher driver.ScratchDatabaseOpener
+	Scratcher driver.ScratchPoolOpener
 	Files     *source.Files
 }
 
@@ -69,7 +69,7 @@ type driveri struct {
 	log       *slog.Logger
 	typ       source.DriverType
 	importFn  importFunc
-	scratcher driver.ScratchDatabaseOpener
+	scratcher driver.ScratchPoolOpener
 	files     *source.Files
 }
 
@@ -92,8 +92,8 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 	return md
 }
 
-// Open implements driver.DatabaseOpener.
-func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
+// Open implements driver.PoolOpener.
+func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Pool, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
 	dbase := &database{log: d.log, src: src, clnup: cleanup.New(), files: d.files}
@@ -113,7 +113,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database
 	job := importJob{
 		fromSrc:    src,
 		openFn:     d.files.OpenFunc(src),
-		destDB:     dbase.impl,
+		destPool:   dbase.impl,
 		sampleSize: driver.OptIngestSampleSize.Get(src.Options),
 		flatten:    true,
 	}
@@ -160,31 +160,31 @@ func (d *driveri) Ping(_ context.Context, src *source.Source) error {
 	return nil
 }
 
-// database implements driver.Database.
+// database implements driver.Pool.
 type database struct {
 	log   *slog.Logger
 	src   *source.Source
-	impl  driver.Database
+	impl  driver.Pool
 	clnup *cleanup.Cleanup
 	files *source.Files
 }
 
-// DB implements driver.Database.
+// DB implements driver.Pool.
 func (d *database) DB(ctx context.Context) (*sql.DB, error) {
 	return d.impl.DB(ctx)
 }
 
-// SQLDriver implements driver.Database.
+// SQLDriver implements driver.Pool.
 func (d *database) SQLDriver() driver.SQLDriver {
 	return d.impl.SQLDriver()
 }
 
-// Source implements driver.Database.
+// Source implements driver.Pool.
 func (d *database) Source() *source.Source {
 	return d.src
 }
 
-// TableMetadata implements driver.Database.
+// TableMetadata implements driver.Pool.
 func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
 	if tblName != source.MonotableName {
 		return nil, errz.Errorf("table name should be %s for CSV/TSV etc., but got: %s",
@@ -200,7 +200,7 @@ func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.T
 	return srcMeta.Tables[0], nil
 }
 
-// SourceMetadata implements driver.Database.
+// SourceMetadata implements driver.Pool.
 func (d *database) SourceMetadata(ctx context.Context, noSchema bool) (*source.Metadata, error) {
 	md, err := d.impl.SourceMetadata(ctx, noSchema)
 	if err != nil {
@@ -225,7 +225,7 @@ func (d *database) SourceMetadata(ctx context.Context, noSchema bool) (*source.M
 	return md, nil
 }
 
-// Close implements driver.Database.
+// Close implements driver.Pool.
 func (d *database) Close() error {
 	d.log.Debug(lgm.CloseDB, lga.Handle, d.src.Handle)
 

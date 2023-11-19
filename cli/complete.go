@@ -149,7 +149,7 @@ func completeSLQ(cmd *cobra.Command, args []string, toComplete string) ([]string
 // completeDriverType is a completionFunc that suggests drivers.
 func completeDriverType(cmd *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
 	ru := getRun(cmd)
-	if ru.Databases == nil {
+	if ru.Pools == nil {
 		if err := preRun(cmd, ru); err != nil {
 			lg.Unexpected(logFrom(cmd), err)
 			return nil, cobra.ShellCompDirectiveError
@@ -392,7 +392,7 @@ func (c activeSchemaCompleter) complete(cmd *cobra.Command, args []string, toCom
 	ctx, cancelFn := context.WithTimeout(cmd.Context(), OptShellCompletionTimeout.Get(ru.Config.Options))
 	defer cancelFn()
 
-	dbase, err := ru.Databases.Open(ctx, src)
+	dbase, err := ru.Pools.Open(ctx, src)
 	if err != nil {
 		lg.Unexpected(log, err)
 		return nil, cobra.ShellCompDirectiveError
@@ -768,7 +768,7 @@ func getTableNamesForHandle(ctx context.Context, ru *run.Run, handle string) ([]
 		return nil, err
 	}
 
-	dbase, err := ru.Databases.Open(ctx, src)
+	dbase, err := ru.Pools.Open(ctx, src)
 	if err != nil {
 		return nil, err
 	}

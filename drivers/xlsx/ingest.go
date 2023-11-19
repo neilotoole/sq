@@ -39,7 +39,7 @@ func hasSheet(xfile *excelize.File, sheetName string) bool {
 	return slices.Contains(xfile.GetSheetList(), sheetName)
 }
 
-// sheetTable maps a sheet to a database table.
+// sheetTable maps a sheet to a pool table.
 type sheetTable struct {
 	sheet             *xSheet
 	def               *sqlmodel.TableDef
@@ -94,7 +94,7 @@ func (xs *xSheet) loadSampleRows(ctx context.Context, sampleSize int) error {
 
 // ingestXLSX loads the data in xfile into scratchDB.
 // If includeSheetNames is non-empty, only the named sheets are ingested.
-func ingestXLSX(ctx context.Context, src *source.Source, scratchDB driver.Database,
+func ingestXLSX(ctx context.Context, src *source.Source, scratchDB driver.Pool,
 	xfile *excelize.File, includeSheetNames []string,
 ) error {
 	log := lg.FromContext(ctx)
@@ -173,7 +173,7 @@ func ingestXLSX(ctx context.Context, src *source.Source, scratchDB driver.Databa
 
 // ingestSheetToTable imports the sheet data into the appropriate table
 // in scratchDB. The scratch table must already exist.
-func ingestSheetToTable(ctx context.Context, scratchDB driver.Database, sheetTbl *sheetTable) error {
+func ingestSheetToTable(ctx context.Context, scratchDB driver.Pool, sheetTbl *sheetTable) error {
 	var (
 		log          = lg.FromContext(ctx)
 		startTime    = time.Now()
