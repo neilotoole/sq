@@ -7,37 +7,25 @@ import (
 	"testing"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/record"
-
 	"golang.org/x/exp/maps"
 
-	"github.com/neilotoole/sq/libsq/core/timez"
-
-	"github.com/samber/lo"
-
-	"github.com/neilotoole/sq/libsq/core/errz"
-
-	"github.com/stretchr/testify/assert"
-
-	"github.com/neilotoole/sq/libsq/core/loz"
-
-	"github.com/neilotoole/sq/libsq/core/kind"
-
 	"github.com/neilotoole/sq/cli/testrun"
-
-	"github.com/neilotoole/sq/libsq/driver"
-
-	"github.com/neilotoole/sq/libsq/core/options"
-
-	"github.com/neilotoole/sq/testh/tutil"
-
-	"github.com/stretchr/testify/require"
-
 	"github.com/neilotoole/sq/drivers/xlsx"
+	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/loz"
+	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/record"
+	"github.com/neilotoole/sq/libsq/core/timez"
+	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
+	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/samber/lo"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var sakilaSheets = []string{

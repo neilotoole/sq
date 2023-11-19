@@ -42,6 +42,7 @@ jobs:
         # want scanned.
         run: |
           rm -rf ./grammar/grun/java
+          rm ./CHANGELOG.md
 
       # Execute Codacy Analysis CLI and generate a SARIF output with the security issues identified during the analysis
       - name: Run Codacy Analysis CLI

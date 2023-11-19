@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -12,8 +13,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/loz"
 
 	"github.com/xuri/excelize/v2"
-
-	"golang.org/x/exp/slices"
 
 	"github.com/neilotoole/sq/libsq/core/options"
 

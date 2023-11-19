@@ -192,7 +192,7 @@ jobs:
           set -e
           (xbps-install -Syu || true) && xbps-install -yu xbps curl
           /bin/sh -c "$(curl -fsSL https://sq.io/install.sh)"
-          if [ $(sq version | awk '{print $1}') != "sq" ]; then
+          if [ "$(sq version | awk '{print $1}')" != "sq" ]; then
             # NOTE: The Void package release is a manual process.
             # Thus, the released version will not match this particular
             # workflow release. We'll just do a simple test here.
