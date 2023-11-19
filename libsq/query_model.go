@@ -40,18 +40,17 @@ func buildQueryModel(qc *QueryContext, a *ast.AST) (*queryModel, error) {
 	)
 
 	qm.Table = insp.FindFirstTableSelector()
-	if qm.Table != nil {
-		// If the table selector doesn't specify a handle, set the
-		// table's handle to the active handle.
-		if qm.Table.Handle() == "" {
-			// It's possible that there's no active source: this
-			// is effectively a no-op in that case.
-			qm.Table.SetHandle(qc.Collection.ActiveHandle())
-		}
+	if err = specifyTableFully(qc, qm.Table); err != nil {
+		return nil, err
 	}
 
 	if qm.Joins, err = insp.FindJoins(); err != nil {
 		return nil, err
+	}
+	for _, join := range qm.Joins {
+		if err = specifyTableFully(qc, join.Table()); err != nil {
+			return nil, err
+		}
 	}
 
 	if len(qm.Joins) > 0 && qm.Table == nil {
@@ -101,4 +100,38 @@ func buildQueryModel(qc *QueryContext, a *ast.AST) (*queryModel, error) {
 	}
 
 	return qm, nil
+}
+
+// specifyTableFully sets the handle, catalog and schema for tbl, if
+// possible. If tbl is nil, this is a no-op.
+func specifyTableFully(qc *QueryContext, tbl *ast.TblSelectorNode) error {
+	if tbl == nil {
+		return nil
+	}
+
+	if tbl.Handle() == "" {
+		// It's possible that there's no active source: this
+		// is effectively a no-op in that case.
+		tbl.SetHandle(qc.Collection.ActiveHandle())
+	}
+
+	if tbl.Handle() != "" {
+		// Check if the source has catalog and schema overrides set,
+		// and if so, update tbl with those values.
+		src, err := qc.Collection.Get(tbl.Handle())
+		if err != nil {
+			return err
+		}
+
+		tfq := tbl.Table()
+		if src.Catalog != "" {
+			tfq.Catalog = src.Catalog
+		}
+		if src.Schema != "" {
+			tfq.Schema = src.Schema
+		}
+		tbl.SetTable(tfq)
+	}
+
+	return nil
 }

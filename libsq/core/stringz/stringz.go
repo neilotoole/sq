@@ -418,12 +418,46 @@ func LineCount(r io.Reader, skipEmpty bool) int {
 }
 
 // TrimLen returns s but with a maximum length of maxLen.
+// This func is only tested with ASCII chars; results are not
+// guaranteed for multibyte runes.
 func TrimLen(s string, maxLen int) string {
 	if len(s) <= maxLen {
 		return s
 	}
 
 	return s[:maxLen]
+}
+
+// TrimLenMiddle returns s but with a maximum length of maxLen,
+// with the middle of s replaced with "...". If maxLen is a small
+// number, the ellipsis may be shorter, e.g. a single char.
+// This func is only tested with ASCII chars; results are not
+// guaranteed for multibyte runes.
+func TrimLenMiddle(s string, maxLen int) string {
+	length := len(s)
+	if maxLen <= 0 {
+		return ""
+	}
+	if length <= maxLen {
+		return s
+	}
+
+	switch maxLen {
+	case 1:
+		return s[0:1]
+	case 2:
+		return string(s[0]) + string(s[length-1])
+	case 3:
+		return string(s[0]) + "." + string(s[length-1])
+	case 4:
+		return string(s[0]) + ".." + string(s[length-1])
+	case 5:
+		return string(s[0]) + "..." + string(s[length-1])
+	default:
+	}
+
+	trimLen := ((maxLen + 1) / 2) - 2
+	return s[:trimLen] + "..." + s[len(s)-trimLen:]
 }
 
 // DoubleQuote double-quotes (and escapes) s.

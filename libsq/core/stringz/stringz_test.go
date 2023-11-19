@@ -557,3 +557,35 @@ func TestShellEscape(t *testing.T) {
 		})
 	}
 }
+
+// TestTrimLenMiddle tests TrimLenMiddle. It verifies that
+// the function trims the middle of a string, leaving the
+// start and end intact.
+func TestTrimLenMiddle(t *testing.T) {
+	testCases := []struct {
+		input  string
+		maxLen int
+		want   string
+	}{
+		{input: "", maxLen: 0, want: ""},
+		{input: "", maxLen: 1, want: ""},
+		{input: "abc", maxLen: 2, want: "ac"},
+		{input: "abcdefghijk", maxLen: 2, want: "ak"},
+		{input: "abcdefghijk", maxLen: 3, want: "a.k"},
+		{input: "abcdefghijk", maxLen: 4, want: "a..k"},
+		{input: "abcdefghijk", maxLen: 5, want: "a...k"},
+		{input: "abcdefghijk", maxLen: 6, want: "a...k"},
+		{input: "abcdefghijk", maxLen: 7, want: "ab...jk"},
+		{input: "abcdefghijk", maxLen: 8, want: "ab...jk"},
+		{input: "abcdefghijk", maxLen: 9, want: "abc...ijk"},
+	}
+
+	for i, tc := range testCases {
+		tc := tc
+		t.Run(tutil.Name(i, tc.input, tc.maxLen), func(t *testing.T) {
+			got := stringz.TrimLenMiddle(tc.input, tc.maxLen)
+			require.True(t, len(got) <= tc.maxLen)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}

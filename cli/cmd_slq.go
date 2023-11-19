@@ -65,26 +65,13 @@ func execSLQ(cmd *cobra.Command, args []string) error {
 	ru := run.FromContext(ctx)
 	coll := ru.Config.Collection
 
-	// check if there's input on stdin
-	src, err := checkStdinSource(ctx, ru)
+	err := determineSources(ctx, ru, false)
 	if err != nil {
 		return err
 	}
 
-	if src != nil {
-		// We have a valid source on stdin.
-
-		// Add the source to the set.
-		if err = coll.Add(src); err != nil {
-			return err
-		}
-
-		// Set the stdin pipe data source as the active source,
-		// as it's commonly the only data source the user is acting upon.
-		if _, err = coll.SetActive(src.Handle, false); err != nil {
-			return err
-		}
-	} else if coll.Active() == nil {
+	activeSrc := coll.Active()
+	if activeSrc == nil {
 		lg.FromContext(ctx).Debug("No active source; continuing regardless...")
 		// Previously, an error was returned if there was no active source.
 		// However, we want to support the use case of being able to
@@ -350,6 +337,10 @@ func addQueryCmdFlags(cmd *cobra.Command) {
 
 	cmd.Flags().String(flag.ActiveSrc, "", flag.ActiveSrcUsage)
 	panicOn(cmd.RegisterFlagCompletionFunc(flag.ActiveSrc, completeHandle(0)))
+
+	cmd.Flags().String(flag.ActiveSchema, "", flag.ActiveSchemaUsage)
+	panicOn(cmd.RegisterFlagCompletionFunc(flag.ActiveSchema,
+		activeSchemaCompleter{getActiveSourceViaFlag}.complete))
 
 	// The driver flag can be used if data is piped to sq over stdin
 	cmd.Flags().String(flag.IngestDriver, "", flag.IngestDriverUsage)

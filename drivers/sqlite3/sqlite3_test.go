@@ -3,9 +3,10 @@ package sqlite3_test
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
-	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/tablefq"
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/neilotoole/sq/testh/tutil"
@@ -27,7 +28,7 @@ func TestSmoke(t *testing.T) {
 	th := testh.New(t)
 	src := th.Source(sakila.SL3)
 
-	sink, err := th.QuerySQL(src, "SELECT * FROM "+sakila.TblFilm)
+	sink, err := th.QuerySQL(src, nil, "SELECT * FROM "+sakila.TblFilm)
 	require.NoError(t, err)
 	require.Equal(t, sakila.TblFilmCount, len(sink.Recs))
 }
@@ -39,10 +40,10 @@ func TestQueryEmptyTable(t *testing.T) {
 	src := th.Source(sakila.SL3)
 
 	// Get an empty table by copying an existing one
-	tblName := th.CopyTable(true, src, sakila.TblFilm, "", false)
+	tblName := th.CopyTable(true, src, tablefq.From(sakila.TblFilm), tablefq.T{}, false)
 	require.Equal(t, int64(0), th.RowCount(src, tblName))
 
-	sink, err := th.QuerySQL(src, "SELECT * FROM "+tblName)
+	sink, err := th.QuerySQL(src, nil, "SELECT * FROM "+tblName)
 	require.NoError(t, err)
 	require.Equal(t, 0, len(sink.Recs))
 }
@@ -77,7 +78,7 @@ func TestExhibitDriverColumnTypesBehavior(t *testing.T) {
 
 	// Create the table
 	th.ExecSQL(src, createStmt)
-	t.Cleanup(func() { th.DropTable(src, tblName) })
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(tblName)) })
 
 	// 1. Demonstrate that ColumnType.ScanType now correctly returns
 	//    a valid value when rows.ColumnTypes is invoked prior to the first
@@ -179,11 +180,11 @@ func TestDriver_CreateTable_NotNullDefault(t *testing.T) {
 
 	err := drvr.CreateTable(th.Context, db, tblDef)
 	require.NoError(t, err)
-	t.Cleanup(func() { th.DropTable(src, tblName) })
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(tblName)) })
 
 	th.InsertDefaultRow(src, tblName)
 
-	sink, err := th.QuerySQL(src, "SELECT * FROM "+tblName)
+	sink, err := th.QuerySQL(src, nil, "SELECT * FROM "+tblName)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(sink.Recs))
 	require.Equal(t, len(colNames), len(sink.RecMeta))
@@ -200,7 +201,7 @@ func TestPathFromLocation(t *testing.T) {
 	}{
 		{loc: "sqlite3:///test.db", want: "/test.db"},
 		{loc: "postgres:///test.db", wantErr: true},
-		{loc: `sqlite3://C:\dir\sakila.db`, want: `C:\dir\sakila.db`},
+		{loc: `sqlite3://C:/dir/sakila.db`, want: `C:/dir/sakila.db`},
 	}
 
 	for _, tc := range testCases {
@@ -241,9 +242,10 @@ func TestMungeLocation(t *testing.T) {
 	t.Log("cwdWant:", cwdWant)
 	t.Log("root:", root)
 	testCases := []struct {
-		in      string
-		want    string
-		wantErr bool
+		in        string
+		want      string
+		onlyForOS string
+		wantErr   bool
 	}{
 		{
 			in:      "",
@@ -277,11 +279,25 @@ func TestMungeLocation(t *testing.T) {
 			in:   "/path/to/sakila.db",
 			want: "sqlite3://" + root + "path/to/sakila.db",
 		},
+		{
+			in:   `C:/Users/neil/work/sq/drivers/sqlite3/testdata/sakila.db`,
+			want: `sqlite3://C:/Users/neil/work/sq/drivers/sqlite3/testdata/sakila.db`,
+			// The current impl of MungeLocation relies upon OS-specific functions
+			// in pkg filepath. Thus, we skip this test on non-Windows OSes.
+			// MungeLocation could probably be rewritten to be OS-independent?
+			onlyForOS: "windows",
+		},
 	}
 
 	for i, tc := range testCases {
 		tc := tc
 		t.Run(tutil.Name(i, tc.in), func(t *testing.T) {
+			if tc.onlyForOS != "" && tc.onlyForOS != runtime.GOOS {
+				t.Skipf("Skipping because this test is only for OS {%s}, but have {%s}",
+					tc.onlyForOS, runtime.GOOS)
+				return
+			}
+
 			got, err := sqlite3.MungeLocation(tc.in)
 			if tc.wantErr {
 				require.Error(t, err)
@@ -300,63 +316,14 @@ func TestSQLQuery_Whitespace(t *testing.T) {
 	th := testh.New(t)
 	src := th.Source(sakila.SL3Whitespace)
 
-	sink, err := th.QuerySQL(src, `SELECT * FROM "film actor"`)
+	sink, err := th.QuerySQL(src, nil, `SELECT * FROM "film actor"`)
 	require.NoError(t, err)
 	require.Equal(t, sakila.TblFilmActorCount, len(sink.Recs))
 
-	sink, err = th.QuerySQL(src, `SELECT * FROM "actor"`)
+	sink, err = th.QuerySQL(src, nil, `SELECT * FROM "actor"`)
 	require.NoError(t, err)
 	require.Equal(t, "first name", sink.RecMeta[1].Name())
 	require.Equal(t, "first name", sink.RecMeta[1].MungedName())
 	require.Equal(t, "last name", sink.RecMeta[2].Name())
 	require.Equal(t, "last name", sink.RecMeta[2].MungedName())
-}
-
-func TestExtension_fts5(t *testing.T) {
-	const tblActorFts = "actor_fts"
-
-	th := testh.New(t)
-	src := th.Add(&source.Source{
-		Handle:   "@fts",
-		Type:     sqlite3.Type,
-		Location: "sqlite3://" + tutil.MustAbsFilepath("testdata", "sakila_fts5.db"),
-	})
-
-	srcMeta, err := th.SourceMetadata(src)
-	require.NoError(t, err)
-	require.Equal(t, src.Handle, srcMeta.Handle)
-	tblMeta1 := srcMeta.Table(tblActorFts)
-	require.NotNil(t, tblMeta1)
-	require.Equal(t, tblActorFts, tblMeta1.Name)
-	require.Equal(t, sqlz.TableTypeVirtual, tblMeta1.TableType)
-
-	require.Equal(t, "actor_id", tblMeta1.Columns[0].Name)
-	require.Equal(t, "integer", tblMeta1.Columns[0].ColumnType)
-	require.Equal(t, "integer", tblMeta1.Columns[0].BaseType)
-	require.Equal(t, kind.Int, tblMeta1.Columns[0].Kind)
-	require.Equal(t, "first_name", tblMeta1.Columns[1].Name)
-	require.Equal(t, "text", tblMeta1.Columns[1].ColumnType)
-	require.Equal(t, "text", tblMeta1.Columns[1].BaseType)
-	require.Equal(t, kind.Text, tblMeta1.Columns[1].Kind)
-	require.Equal(t, "last_name", tblMeta1.Columns[2].Name)
-	require.Equal(t, "text", tblMeta1.Columns[2].ColumnType)
-	require.Equal(t, "text", tblMeta1.Columns[2].BaseType)
-	require.Equal(t, kind.Text, tblMeta1.Columns[2].Kind)
-	require.Equal(t, "last_update", tblMeta1.Columns[3].Name)
-	require.Equal(t, "text", tblMeta1.Columns[3].ColumnType)
-	require.Equal(t, "text", tblMeta1.Columns[3].BaseType)
-	require.Equal(t, kind.Text, tblMeta1.Columns[3].Kind)
-
-	tblMeta2, err := th.TableMetadata(src, tblActorFts)
-	require.NoError(t, err)
-	require.Equal(t, tblActorFts, tblMeta2.Name)
-	require.Equal(t, sqlz.TableTypeVirtual, tblMeta2.TableType)
-	require.EqualValues(t, *tblMeta1, *tblMeta2)
-
-	// Verify that the (non-virtual) "actor" table has its type set correctly.
-	actorMeta1 := srcMeta.Table(sakila.TblActor)
-	actorMeta2, err := th.TableMetadata(src, sakila.TblActor)
-	require.NoError(t, err)
-	require.Equal(t, actorMeta1.TableType, sqlz.TableTypeTable)
-	require.Equal(t, *actorMeta1, *actorMeta2)
 }

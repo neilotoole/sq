@@ -52,7 +52,7 @@ func TestDriver(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, tc.tbl, tblMeta.Name)
 
-			sink, err := th.QuerySQL(src, "SELECT * FROM "+tc.tbl)
+			sink, err := th.QuerySQL(src, nil, "SELECT * FROM "+tc.tbl)
 			require.NoError(t, err)
 			require.Equal(t, tc.wantRecs, len(sink.Recs))
 		})

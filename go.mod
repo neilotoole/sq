@@ -77,6 +77,7 @@ require (
 	github.com/richardlehane/msoleps v1.0.3 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/rogpeppe/go-internal v1.10.0 // indirect
+	github.com/rqlite/sql v0.0.0-20221103124402-8f9ff0ceb8f0 // indirect
 	github.com/shopspring/decimal v1.3.1 // indirect
 	github.com/spf13/cast v1.5.1 // indirect
 	github.com/xuri/efp v0.0.0-20230802181842-ad255f2331ca // indirect

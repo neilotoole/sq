@@ -10,6 +10,7 @@ package ast
 import (
 	"log/slog"
 	"reflect"
+	"strings"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
 
@@ -190,4 +191,55 @@ func (a *AST) AddSegment(seg *SegmentNode) {
 // error type (annotated appropriately) would be returned.
 func errorf(format string, v ...any) error {
 	return errz.Errorf(format, v...)
+}
+
+// ParseCatalogSchema parses a string of the form 'catalog.schema'
+// and returns the catalog and schema. An error is returned if the schema
+// is empty (but catalog may be empty). Whitespace and quotes are handled
+// correctly.
+//
+// Examples:
+//
+//	`catalog.schema` 						-> "catalog", "schema", nil
+//	`schema`     								-> "", "schema", nil
+//	`"my catalog"."my schema"` 	-> "my catalog", "my schema", nil
+//
+// An error is returned if s is empty.
+func ParseCatalogSchema(s string) (catalog, schema string, err error) {
+	const errTpl = `invalid catalog.schema: %s`
+
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return "", "", errz.New("catalog.schema is empty")
+	}
+
+	// We'll hijack the existing parser code. A value "catalog.schema" is
+	// not valid, but ".catalog.schema" works as a selector.
+
+	sel := "." + s
+	a, err := Parse(lg.Discard(), sel)
+	if err != nil {
+		return "", "", errz.Errorf(errTpl, s)
+	}
+
+	if len(a.Segments()) != 1 {
+		return "", "", errz.Errorf(errTpl, s)
+	}
+
+	tblSel := NewInspector(a).FindFirstTableSelector()
+	if tblSel == nil {
+		return "", "", errz.Errorf(errTpl, s)
+	}
+
+	if tblSel.name1 == "" {
+		schema = tblSel.name0
+	} else {
+		catalog = tblSel.SelectorNode.name0
+		schema = tblSel.SelectorNode.name1
+	}
+	if schema == "" {
+		return "", "", errz.Errorf(errTpl, s)
+	}
+
+	return catalog, schema, nil
 }

@@ -1,12 +1,17 @@
 package cli_test
 
 import (
+	"context"
 	"encoding/csv"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/neilotoole/sq/libsq/core/tablefq"
+
+	"github.com/neilotoole/sq/testh/proj"
 
 	"github.com/neilotoole/sq/cli"
 
@@ -44,7 +49,7 @@ func TestCmdSLQ_Insert_Create(t *testing.T) {
 	err := tr.Exec("slq", "--insert="+insertTo, query)
 	require.NoError(t, err)
 
-	sink, err := th.QuerySQL(destSrc, "select * from "+destTbl)
+	sink, err := th.QuerySQL(destSrc, nil, "select * from "+destTbl)
 	require.NoError(t, err)
 	require.Equal(t, sakila.TblActorCount, len(sink.Recs))
 }
@@ -70,7 +75,13 @@ func TestCmdSLQ_Insert(t *testing.T) {
 
 					// To avoid dirtying the destination table, we make a copy
 					// of it (without data).
-					tblName := th.CopyTable(true, destSrc, sakila.TblActor, "", false)
+					tblName := th.CopyTable(
+						true,
+						destSrc,
+						tablefq.From(sakila.TblActor),
+						tablefq.T{},
+						false,
+					)
 
 					tr := testrun.New(th.Context, t, nil).Add(*originSrc)
 					if destSrc.Handle != originSrc.Handle {
@@ -84,7 +95,7 @@ func TestCmdSLQ_Insert(t *testing.T) {
 					err := tr.Exec("slq", "--insert="+insertTo, query)
 					require.NoError(t, err)
 
-					sink, err := th.QuerySQL(destSrc, "select * from "+tblName)
+					sink, err := th.QuerySQL(destSrc, nil, "select * from "+tblName)
 					require.NoError(t, err)
 					require.Equal(t, sakila.TblActorCount, len(sink.Recs))
 				})
@@ -195,7 +206,7 @@ func TestCmdSLQ_ActiveSrcHandle(t *testing.T) {
 	require.Equal(t, sakila.TblActorCount, len(recs))
 }
 
-func TestPreprocessFlagArgVars(t *testing.T) {
+func TestCmdSLQ_PreprocessFlagArgVars(t *testing.T) {
 	testCases := []struct {
 		name    string
 		in      []string
@@ -271,6 +282,163 @@ func TestPreprocessFlagArgVars(t *testing.T) {
 
 			require.NoError(t, gotErr)
 			require.EqualValues(t, tc.want, got)
+		})
+	}
+}
+
+func TestCmdSLQ_FlagActiveSource(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	tr := testrun.New(ctx, t, nil)
+
+	// @sqlite will be the active source
+	require.NoError(t, tr.Exec("add", proj.Abs(sakila.PathSL3), "--handle", "@sqlite"))
+
+	tr = testrun.New(ctx, t, tr)
+	require.NoError(t, tr.Exec("add", proj.Abs(sakila.PathCSVActor), "--handle", "@csv"))
+
+	tr = testrun.New(ctx, t, tr)
+	require.NoError(t, tr.Exec(
+		"--csv",
+		"--no-header",
+		".actor",
+	))
+	require.Len(t, tr.BindCSV(), sakila.TblActorCount)
+
+	// Now, use flag.ActiveSrc to switch the source.
+	tr = testrun.New(ctx, t, tr)
+	require.NoError(t, tr.Exec(
+		"--csv",
+		"--no-header",
+		"--src", "@csv",
+		".data",
+	))
+	require.Len(t, tr.BindCSV(), sakila.TblActorCount)
+
+	// Double check that we didn't change the persisted active source
+	tr = testrun.New(ctx, t, tr)
+	require.NoError(t, tr.Exec("src", "--json"))
+	require.Equal(t, "@sqlite", tr.BindMap()["handle"])
+}
+
+func TestCmdSLQ_FlagActiveSchema(t *testing.T) {
+	testCases := []struct {
+		handle string
+
+		// skipReason is the reason to skip the test case.
+		skipReason string
+
+		// defaultCatalog is the default catalog for the source.
+		defaultCatalog string
+
+		// defaultSchema is the default schema for the source,
+		// e.g. "public" for Pg, or "dbo" for SQL Server.
+		defaultSchema string
+
+		// altCatalog is the name of a second catalog that
+		// we know to exist in the source. For example, "model"
+		// for SQL Server, or "postgres" for Postgres.
+		altCatalog string
+
+		// expectSchemaFuncValue is the value we expect
+		// the SLQ "schema()" func to return. Generally one would
+		// expect this to be the same as the value supplied
+		// to --src.schema, but for SQL Server, the SLQ "schema()"
+		// func does not honor --src.schema. This is a limitation in
+		// SQL Server itself; it's not possible to change the default
+		// schema for a connection.
+		expectSchemaFuncValue string
+	}{
+		{
+			handle:                sakila.Pg,
+			defaultCatalog:        "sakila",
+			defaultSchema:         "public",
+			altCatalog:            "postgres",
+			expectSchemaFuncValue: "information_schema",
+		},
+		{
+			handle:                sakila.MS,
+			defaultCatalog:        "sakila",
+			defaultSchema:         "dbo",
+			altCatalog:            "model",
+			expectSchemaFuncValue: "dbo",
+		},
+		{
+			handle:                sakila.My,
+			defaultCatalog:        "def",
+			defaultSchema:         "sakila",
+			altCatalog:            "model",
+			expectSchemaFuncValue: "information_schema",
+		},
+		{
+			handle: sakila.SL3,
+			skipReason: `SQLite 'schema' support requires implementing 'ATTACH DATABASE'.
+See: https://github.com/neilotoole/sq/issues/324`,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.handle, func(t *testing.T) {
+			if tc.skipReason != "" {
+				t.Skip(tc.skipReason)
+				return
+			}
+			th := testh.New(t)
+			src := th.Source(tc.handle)
+
+			tr := testrun.New(th.Context, t, nil).
+				Add(*th.Source(sakila.CSVActor), *src)
+
+			// Confirm that sakila.CSVActor is the active source.
+			require.NoError(t, tr.Exec("src"))
+			require.Equal(t, sakila.CSVActor, tr.OutString())
+
+			// Test combination of --src and --src.schema
+			const qInfoSchemaActor = `.tables | .table_catalog, .table_schema, .table_name, .table_type | where(.table_name == "actor")` //nolint:lll
+			require.NoError(t, tr.Reset().Exec("--csv", "-H",
+				"--src", tc.handle,
+				"--src.schema", "information_schema",
+				qInfoSchemaActor,
+			))
+
+			want := [][]string{{tc.defaultCatalog, tc.defaultSchema, "actor", "BASE TABLE"}}
+			got := tr.BindCSV()
+			require.Equal(t, want, got)
+
+			require.NoError(t, tr.Reset().Exec("src", tc.handle))
+
+			require.NoError(t, tr.Reset().Exec("-H", "schema()"))
+			require.Equal(t, tc.defaultSchema, tr.OutString())
+
+			// Test just --src.schema (schema part only)
+			require.NoError(t, tr.Reset().Exec("--csv", "-H",
+				"--src.schema", "information_schema",
+				qInfoSchemaActor,
+			))
+			got = tr.BindCSV()
+			require.Equal(t, want, got)
+
+			if th.SQLDriverFor(src).Dialect().Catalog {
+				// Test --src.schema (catalog and schema parts)
+				require.NoError(t, tr.Reset().Exec("--csv", "-H",
+					"--src.schema", tc.altCatalog+".information_schema",
+					`.schemata | .catalog_name | unique`,
+				))
+
+				got = tr.BindCSV()
+				require.Equal(t, tc.altCatalog, got[0][0])
+			}
+
+			// Note that for SQL Server, the SLQ "schema()"
+			// func does not honor --src.schema. This is a limitation in
+			// SQL Server itself; it's not possible to change the default
+			// schema for a connection.
+			require.NoError(t, tr.Reset().Exec("-H",
+				"--src.schema", "information_schema",
+				"schema()"))
+			require.Equal(t, tc.expectSchemaFuncValue, tr.OutString())
 		})
 	}
 }

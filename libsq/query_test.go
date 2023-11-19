@@ -49,6 +49,10 @@ type queryTestCase struct {
 	// not tested (but is still executed).
 	wantSQL string
 
+	// beforeRun is called just before the query is executed. It's an
+	// opportunity to modify the query context before execution.
+	beforeRun func(tc queryTestCase, th *testh.Helper, qc *libsq.QueryContext)
+
 	// override allows an alternative "wantSQL" for a specific driver type.
 	// For example, MySQL uses backtick as the quote char, so it needs
 	// a separate wantSQL string.
@@ -110,7 +114,7 @@ func execQueryTestCase(t *testing.T, tc queryTestCase) {
 	subTests := make([]queryTestCase, len(tc.repeatReplace))
 	for i := range tc.repeatReplace {
 		subTests[i] = tc
-		subTests[i].name += "/" + tutil.Name(tc.repeatReplace[i])
+		subTests[i].name = tutil.Name(tc.repeatReplace[i])
 		if i == 0 {
 			// No need for replacement on first item, it's the original.
 			continue
@@ -146,14 +150,12 @@ func doExecQueryTestCase(t *testing.T, tc queryTestCase) {
 	for _, src := range coll.Sources() {
 		src := src
 
+		if len(tc.onlyFor) > 0 && !slices.Contains(tc.onlyFor, src.Type) {
+			continue
+		}
+
 		t.Run(string(src.Type), func(t *testing.T) {
 			t.Helper()
-
-			if len(tc.onlyFor) > 0 {
-				if !slices.Contains(tc.onlyFor, src.Type) {
-					t.Skip()
-				}
-			}
 
 			in := strings.Replace(tc.in, "@sakila", src.Handle, 1)
 			t.Logf("QUERY:\n\n%s\n\n", in)
@@ -174,6 +176,10 @@ func doExecQueryTestCase(t *testing.T, tc queryTestCase) {
 				JoinDBOpener:    dbases,
 				ScratchDBOpener: dbases,
 				Args:            tc.args,
+			}
+
+			if tc.beforeRun != nil {
+				tc.beforeRun(tc, th, qc)
 			}
 
 			gotSQL, gotErr := libsq.SLQ2SQL(th.Context, qc, in)

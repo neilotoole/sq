@@ -6,6 +6,17 @@ import (
 	"github.com/neilotoole/sq/libsq/ast/internal/slq"
 )
 
+const (
+	FuncNameAvg         = "avg"
+	FuncNameCount       = "count"
+	FuncNameCountUnique = "count_unique"
+	FuncNameMax         = "max"
+	FuncNameMin         = "min"
+	FuncNameSchema      = "schema"
+	FuncNameCatalog     = "catalog"
+	FuncNameSum         = "sum"
+)
+
 var (
 	_ Node         = (*FuncNode)(nil)
 	_ ResultColumn = (*FuncNode)(nil)

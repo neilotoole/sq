@@ -9,6 +9,12 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/xo/dburl"
+
+	"github.com/neilotoole/sq/libsq/ast"
+
+	"github.com/neilotoole/sq/libsq/core/tablefq"
+
 	"github.com/neilotoole/sq/libsq/core/jointype"
 
 	"github.com/neilotoole/sq/libsq/core/record"
@@ -41,13 +47,8 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 )
 
-const (
-	// Type is the postgres source driver type.
-	Type = source.DriverType("postgres")
-
-	// dbDrvr is the backing postgres SQL driver impl name.
-	dbDrvr = "pgx"
-)
+// Type is the postgres source driver type.
+const Type = source.DriverType("postgres")
 
 // Provider is the postgres implementation of driver.Provider.
 type Provider struct {
@@ -108,6 +109,7 @@ func (d *driveri) Dialect() dialect.Dialect {
 		MaxBatchValues: 1000,
 		Ops:            dialect.DefaultOps(),
 		Joins:          jointype.All(),
+		Catalog:        true,
 	}
 }
 
@@ -136,7 +138,10 @@ func placeholders(numCols, numRows int) string {
 
 // Renderer implements driver.SQLDriver.
 func (d *driveri) Renderer() *render.Renderer {
-	return render.NewDefaultRenderer()
+	r := render.NewDefaultRenderer()
+	r.FunctionNames[ast.FuncNameSchema] = "current_schema"
+	r.FunctionNames[ast.FuncNameCatalog] = "current_database"
+	return r
 }
 
 // Open implements driver.DatabaseOpener.
@@ -156,27 +161,68 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database
 }
 
 func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
+	log := lg.FromContext(ctx)
 	ctx = options.NewContext(ctx, src.Options)
 	dbCfg, err := pgxpool.ParseConfig(src.Location)
 	if err != nil {
 		return nil, errw(err)
 	}
 
-	connStr := stdlib.RegisterConnConfig(dbCfg.ConnConfig)
-
-	var db *sql.DB
-	if err := doRetry(ctx, func() error {
-		var err2 error
-		db, err2 = sql.Open(dbDrvr, connStr)
-		if err2 != nil {
-			lg.FromContext(ctx).Error("postgres open, may retry", lga.Err, err2)
+	if src.Catalog != "" && src.Catalog != dbCfg.ConnConfig.Database {
+		// The catalog differs from the database in the connection string.
+		// OOTB, Postgres doesn't support cross-database references. So,
+		// we'll need to change the connection string to use the catalog
+		// as the database. Note that we don't modify src.Location, but it's
+		// not entirely clear if that's the correct approach. Are there any
+		// downsides to modifying it (as long as the modified Location is not
+		// persisted back to config)?
+		var u *dburl.URL
+		if u, err = dburl.Parse(src.Location); err != nil {
+			return nil, errw(err)
 		}
-		return err2
-	}); err != nil {
-		return nil, errz.Wrap(err, "failed to open postgres db")
+
+		u.Path = src.Catalog
+		connStr := u.String()
+		dbCfg, err = pgxpool.ParseConfig(connStr)
+		if err != nil {
+			return nil, errw(err)
+		}
+		log.Debug("Using catalog as database in connection string",
+			lga.Src, src,
+			lga.Catalog, src.Catalog,
+			lga.Conn, source.RedactLocation(connStr),
+		)
 	}
 
+	var opts []stdlib.OptionOpenDB
+	if src.Schema != "" {
+		opts = append(opts, stdlib.OptionAfterConnect(func(ctx context.Context, conn *pgx.Conn) error {
+			var oldSearchPath string
+			if err = conn.QueryRow(ctx, "SHOW search_path").Scan(&oldSearchPath); err != nil {
+				return errw(err)
+			}
+
+			newSearchPath := stringz.DoubleQuote(src.Schema)
+			if oldSearchPath != "" {
+				newSearchPath += ", " + oldSearchPath
+			}
+
+			log.Debug("Setting default schema (search_path) on Postgres DB connection",
+				lga.Src, src,
+				lga.Conn, source.RedactLocation(dbCfg.ConnString()),
+				lga.Catalog, src.Catalog,
+				lga.Schema, src.Schema,
+				lga.Old, oldSearchPath,
+				lga.New, newSearchPath)
+
+			_, err = conn.Exec(ctx, "SET search_path TO "+newSearchPath)
+			return errw(err)
+		}))
+	}
+
+	db := stdlib.OpenDB(*dbCfg.ConnConfig, opts...)
 	driver.ConfigureDB(ctx, db, src.Options)
+
 	return db, nil
 }
 
@@ -249,6 +295,20 @@ func idSanitize(s string) string {
 	return pgx.Identifier([]string{s}).Sanitize()
 }
 
+// CreateSchema implements driver.SQLDriver.
+func (d *driveri) CreateSchema(ctx context.Context, db sqlz.DB, schemaName string) error {
+	stmt := `CREATE SCHEMA ` + idSanitize(schemaName)
+	_, err := db.ExecContext(ctx, stmt)
+	return errz.Wrapf(err, "failed to create schema {%s}", schemaName)
+}
+
+// DropSchema implements driver.SQLDriver.
+func (d *driveri) DropSchema(ctx context.Context, db sqlz.DB, schemaName string) error {
+	stmt := `DROP SCHEMA ` + idSanitize(schemaName) + ` CASCADE`
+	_, err := db.ExecContext(ctx, stmt)
+	return errz.Wrapf(err, "failed to drop schema {%s}", schemaName)
+}
+
 // CreateTable implements driver.SQLDriver.
 func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *sqlmodel.TableDef) error {
 	stmt := buildCreateTableStmt(tblDef)
@@ -265,6 +325,77 @@ func (d *driveri) CurrentSchema(ctx context.Context, db sqlz.DB) (string, error)
 	}
 
 	return name, nil
+}
+
+// ListSchemas implements driver.SQLDriver.
+func (d *driveri) ListSchemas(ctx context.Context, db sqlz.DB) ([]string, error) {
+	log := lg.FromContext(ctx)
+
+	const q = `SELECT schema_name FROM information_schema.schemata ORDER BY schema_name`
+	var schemas []string
+	rows, err := db.QueryContext(ctx, q)
+	if err != nil {
+		return nil, errw(err)
+	}
+
+	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
+
+	for rows.Next() {
+		var schema string
+		if err = rows.Scan(&schema); err != nil {
+			return nil, errw(err)
+		}
+		schemas = append(schemas, schema)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, errw(err)
+	}
+
+	return schemas, nil
+}
+
+// CurrentCatalog implements driver.SQLDriver.
+func (d *driveri) CurrentCatalog(ctx context.Context, db sqlz.DB) (string, error) {
+	var name string
+	if err := db.QueryRowContext(ctx, `SELECT CURRENT_DATABASE()`).Scan(&name); err != nil {
+		return "", errw(err)
+	}
+
+	return name, nil
+}
+
+// ListCatalogs implements driver.SQLDriver.
+func (d *driveri) ListCatalogs(ctx context.Context, db sqlz.DB) ([]string, error) {
+	catalogs := make([]string, 1, 3)
+	if err := db.QueryRowContext(ctx, `SELECT CURRENT_DATABASE()`).Scan(&catalogs[0]); err != nil {
+		return nil, errw(err)
+	}
+
+	const q = `SELECT datname FROM pg_catalog.pg_database
+WHERE datistemplate = FALSE AND datallowconn = TRUE AND datname != CURRENT_DATABASE()
+ORDER BY datname`
+
+	rows, err := db.QueryContext(ctx, q)
+	if err != nil {
+		return nil, errw(err)
+	}
+
+	defer lg.WarnIfCloseError(lg.FromContext(ctx), lgm.CloseDBRows, rows)
+
+	for rows.Next() {
+		var catalog string
+		if err = rows.Scan(&catalog); err != nil {
+			return nil, errw(err)
+		}
+		catalogs = append(catalogs, catalog)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, errw(err)
+	}
+
+	return catalogs, nil
 }
 
 // AlterTableRename implements driver.SQLDriver.
@@ -351,8 +482,14 @@ func newStmtExecFunc(stmt *sql.Stmt) driver.StmtExecFunc {
 }
 
 // CopyTable implements driver.SQLDriver.
-func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable string, copyData bool) (int64, error) {
-	stmt := fmt.Sprintf("CREATE TABLE %q AS TABLE %q", toTable, fromTable)
+func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB,
+	fromTable, toTable tablefq.T, copyData bool,
+) (int64, error) {
+	stmt := fmt.Sprintf(
+		"CREATE TABLE %s AS TABLE %s",
+		tblfmt(toTable),
+		tblfmt(fromTable),
+	)
 
 	if !copyData {
 		stmt += " WITH NO DATA"
@@ -381,13 +518,13 @@ WHERE table_name = $1`
 }
 
 // DropTable implements driver.SQLDriver.
-func (d *driveri) DropTable(ctx context.Context, db sqlz.DB, tbl string, ifExists bool) error {
+func (d *driveri) DropTable(ctx context.Context, db sqlz.DB, tbl tablefq.T, ifExists bool) error {
 	var stmt string
 
 	if ifExists {
-		stmt = fmt.Sprintf("DROP TABLE IF EXISTS %q RESTRICT", tbl)
+		stmt = fmt.Sprintf("DROP TABLE IF EXISTS %s RESTRICT", tblfmt(tbl))
 	} else {
-		stmt = fmt.Sprintf("DROP TABLE %q RESTRICT", tbl)
+		stmt = fmt.Sprintf("DROP TABLE %s RESTRICT", tblfmt(tbl))
 	}
 
 	_, err := db.ExecContext(ctx, stmt)
@@ -629,4 +766,11 @@ func (d *database) Close() error {
 func doRetry(ctx context.Context, fn func() error) error {
 	maxRetryInterval := driver.OptMaxRetryInterval.Get(options.FromContext(ctx))
 	return retry.Do(ctx, maxRetryInterval, fn, isErrTooManyConnections)
+}
+
+// tblfmt formats a table name for use in a query. The arg can be a string,
+// or a tablefq.T.
+func tblfmt[T string | tablefq.T](tbl T) string {
+	tfq := tablefq.From(tbl)
+	return tfq.Render(stringz.DoubleQuote)
 }

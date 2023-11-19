@@ -104,7 +104,14 @@ func execMoveRenameGroup(cmd *cobra.Command, oldGroup, newGroup string) error {
 //	@sakiladb
 func execMoveHandleToGroup(cmd *cobra.Command, oldHandle, newGroup string) error {
 	ru := run.FromContext(cmd.Context())
-	src, err := ru.Config.Collection.MoveHandleToGroup(oldHandle, newGroup)
+	oldSrc, err := ru.Config.Collection.Get(oldHandle)
+	if err != nil {
+		return err
+	}
+
+	// Make a clone, because the original may get modified.
+	oldSrc = oldSrc.Clone()
+	newSrc, err := ru.Config.Collection.MoveHandleToGroup(oldHandle, newGroup)
 	if err != nil {
 		return err
 	}
@@ -117,7 +124,7 @@ func execMoveHandleToGroup(cmd *cobra.Command, oldHandle, newGroup string) error
 		return err
 	}
 
-	return ru.Writers.Source.Source(ru.Config.Collection, src)
+	return ru.Writers.Source.Moved(ru.Config.Collection, oldSrc, newSrc)
 }
 
 // execMoveRenameHandle renames a handle.
@@ -126,7 +133,15 @@ func execMoveHandleToGroup(cmd *cobra.Command, oldHandle, newGroup string) error
 //	$ sq mv @sakiladb @sakila/db
 func execMoveRenameHandle(cmd *cobra.Command, oldHandle, newHandle string) error {
 	ru := run.FromContext(cmd.Context())
-	src, err := ru.Config.Collection.RenameSource(oldHandle, newHandle)
+	oldSrc, err := ru.Config.Collection.Get(oldHandle)
+	if err != nil {
+		return err
+	}
+
+	// Make a clone, because the original may get modified.
+	oldSrc = oldSrc.Clone()
+
+	newSrc, err := ru.Config.Collection.RenameSource(oldHandle, newHandle)
 	if err != nil {
 		return err
 	}
@@ -139,7 +154,7 @@ func execMoveRenameHandle(cmd *cobra.Command, oldHandle, newHandle string) error
 		return err
 	}
 
-	return ru.Writers.Source.Source(ru.Config.Collection, src)
+	return ru.Writers.Source.Moved(ru.Config.Collection, oldSrc, newSrc)
 }
 
 // completeMove is a completionFunc for the "mv" command.

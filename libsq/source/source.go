@@ -76,6 +76,29 @@ type Source struct {
 	// or a file path.
 	Location string `yaml:"location" json:"location"`
 
+	// Catalog, when non-empty, specifies a catalog (database) name
+	// override to use when constructing table references.
+	//
+	// For example, if the SLQ table selector is "actor", the query
+	// might be rendered as 'SELECT * FROM actor'. But if Catalog is
+	// set to "sakila" and Schema to "dbo", then that same query would
+	// be rendered as 'SELECT * FROM sakila.dbo.actor'.
+	//
+	// Note that although Source.Catalog is not exposed to the end user,
+	// this field is used by the SQL renderer to construct table references,
+	// especially for SQL Server. Because SQL Server doesn't permit setting the
+	// default schema on a per-connection basis, we construct a fully-qualified
+	// table reference using the catalog and schema, e.g. "sakila.dbo.actor".
+	//
+	// See also: Source.Schema.
+	Catalog string `yaml:"catalog,omitempty" json:"catalog,omitempty"`
+
+	// Schema, when non-empty, specifies a schema name
+	// override to use when constructing table references.
+	//
+	// See also: Source.Catalog.
+	Schema string `yaml:"schema,omitempty" json:"schema,omitempty"`
+
 	// Options are additional params, typically empty.
 	Options options.Options `yaml:"options,omitempty" json:"options,omitempty"`
 }
@@ -86,12 +109,21 @@ func (s *Source) LogValue() slog.Value {
 		return slog.Value{}
 	}
 
-	return slog.GroupValue(
-		slog.String(lga.Handle, s.Handle),
-		slog.String(lga.Driver, string(s.Type)),
-		slog.String(lga.Loc, s.RedactedLocation()),
-		slog.Any(lga.Opts, s.Options),
-	)
+	attrs := make([]slog.Attr, 3, 6)
+	attrs[0] = slog.String(lga.Handle, s.Handle)
+	attrs[1] = slog.String(lga.Driver, string(s.Type))
+	attrs[2] = slog.String(lga.Loc, s.RedactedLocation())
+	if s.Catalog != "" {
+		attrs = append(attrs, slog.String(lga.Catalog, s.Catalog))
+	}
+	if s.Schema != "" {
+		attrs = append(attrs, slog.String(lga.Schema, s.Schema))
+	}
+	if s.Options != nil {
+		attrs = append(attrs, slog.Any(lga.Opts, s.Options))
+	}
+
+	return slog.GroupValue(attrs...)
 }
 
 // String returns a log/debug-friendly representation.
@@ -137,6 +169,8 @@ func (s *Source) Clone() *Source {
 		Handle:   s.Handle,
 		Type:     s.Type,
 		Location: s.Location,
+		Catalog:  s.Catalog,
+		Schema:   s.Schema,
 		Options:  s.Options.Clone(),
 	}
 }

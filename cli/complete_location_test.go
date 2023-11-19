@@ -3,38 +3,24 @@ package cli_test
 import (
 	"context"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
 
-	"github.com/neilotoole/sq/drivers/sqlite3"
-
-	"github.com/neilotoole/sq/drivers/sqlserver"
-
-	"github.com/neilotoole/sq/drivers/postgres"
-	"github.com/neilotoole/sq/libsq/source"
-
-	"github.com/neilotoole/sq/libsq/core/stringz"
-
-	"github.com/samber/lo"
-
-	"github.com/neilotoole/sq/testh"
-
-	"github.com/neilotoole/sq/cli"
-
-	"github.com/stretchr/testify/assert"
-
-	"github.com/neilotoole/sq/cli/cobraz"
-
 	"github.com/neilotoole/slogt"
-	"github.com/neilotoole/sq/libsq/core/lg"
-
-	"github.com/neilotoole/sq/testh/tutil"
-
-	"github.com/stretchr/testify/require"
-
+	"github.com/neilotoole/sq/cli"
 	"github.com/neilotoole/sq/cli/testrun"
+	"github.com/neilotoole/sq/drivers/postgres"
+	"github.com/neilotoole/sq/drivers/sqlite3"
+	"github.com/neilotoole/sq/drivers/sqlserver"
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/testh"
+	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/samber/lo"
 	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var locSchemes = []string{
@@ -801,55 +787,6 @@ func TestCompleteAddLocation_SQLite3(t *testing.T) {
 			assert.Equal(t, tc.want, got.values)
 		})
 	}
-}
-
-func testComplete(t testing.TB, from *testrun.TestRun, args ...string) completion {
-	ctx := lg.NewContext(context.Background(), slogt.New(t))
-
-	tr := testrun.New(ctx, t, from)
-	args = append([]string{"__complete"}, args...)
-
-	err := tr.Exec(args...)
-	require.NoError(t, err)
-
-	c := parseCompletion(tr)
-	return c
-}
-
-// parseCompletion parses the output of cobra "__complete".
-// Example output:
-//
-//	@active
-//	@sakila
-//	:4
-//	Completion ended with directive: ShellCompDirectiveNoFileComp
-//
-// The tr.T test will fail on any error.
-func parseCompletion(tr *testrun.TestRun) completion {
-	c := completion{
-		stdout: tr.Out.String(),
-		stderr: tr.ErrOut.String(),
-	}
-
-	lines := strings.Split(strings.TrimSpace(c.stdout), "\n")
-	require.True(tr.T, len(lines) >= 1)
-	c.values = lines[:len(lines)-1]
-
-	result, err := strconv.Atoi(lines[len(lines)-1][1:])
-	require.NoError(tr.T, err)
-	c.result = cobra.ShellCompDirective(result)
-
-	c.directives = cobraz.ParseDirectivesLine(c.stderr)
-	return c
-}
-
-// completion models the result returned from the cobra "__complete" command.
-type completion struct {
-	stdout     string
-	stderr     string
-	values     []string
-	result     cobra.ShellCompDirective
-	directives []cobra.ShellCompDirective
 }
 
 func TestCompleteAddLocation_History_Postgres(t *testing.T) {

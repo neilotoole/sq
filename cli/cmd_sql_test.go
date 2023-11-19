@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/core/tablefq"
+
 	"github.com/neilotoole/sq/cli/testrun"
 
 	"github.com/neilotoole/sq/cli/flag"
@@ -47,20 +49,20 @@ func TestCmdSQL_Insert(t *testing.T) {
 
 					// To avoid dirtying the destination table, we make a copy
 					// of it (without data).
-					tblName := th.CopyTable(true, destSrc, sakila.TblActor, "", false)
+					destTbl := th.CopyTable(true, destSrc, tablefq.From(sakila.TblActor), tablefq.T{}, false)
 
 					tr := testrun.New(th.Context, t, nil).Add(*originSrc)
 					if destSrc.Handle != originSrc.Handle {
 						tr.Add(*destSrc)
 					}
 
-					insertTo := fmt.Sprintf("%s.%s", destSrc.Handle, tblName)
+					insertTo := fmt.Sprintf("%s.%s", destSrc.Handle, destTbl)
 					query := fmt.Sprintf("SELECT %s FROM %s", strings.Join(sakila.TblActorCols(), ", "), originTbl)
 
 					err := tr.Exec("sql", "--insert="+insertTo, query)
 					require.NoError(t, err)
 
-					sink, err := th.QuerySQL(destSrc, "select * from "+tblName)
+					sink, err := th.QuerySQL(destSrc, nil, "select * from "+destTbl)
 					require.NoError(t, err)
 					require.Equal(t, sakila.TblActorCount, len(sink.Recs))
 				})
@@ -189,4 +191,46 @@ func TestCmdSQL_StdinQuery(t *testing.T) {
 			require.Equal(t, tc.wantCount, len(results))
 		})
 	}
+}
+
+func TestFlagActiveSource_sql(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	tr := testrun.New(ctx, t, nil)
+
+	// @sqlite will be the active source
+	require.NoError(t, tr.Exec("add", proj.Abs(sakila.PathSL3), "--handle", "@sqlite"))
+
+	tr = testrun.New(ctx, t, tr)
+	require.NoError(t, tr.Exec("add", proj.Abs(sakila.PathCSVActor), "--handle", "@csv"))
+
+	t.Logf("\n\n\n QUERY 1 \n\n\n") // FIXME: delete
+
+	tr = testrun.New(ctx, t, tr)
+	require.NoError(t, tr.Exec(
+		"sql",
+		"--csv",
+		"--no-header",
+		`select * from actor`,
+	))
+	require.Len(t, tr.BindCSV(), sakila.TblActorCount)
+
+	t.Logf("\n\n\n QUERY 2 \n\n\n") // FIXME: delete
+
+	// Now, use flag.ActiveSrc to switch the source.
+	tr = testrun.New(ctx, t, tr)
+	require.NoError(t, tr.Exec(
+		"sql",
+		"--csv",
+		"--no-header",
+		"--src", "@csv",
+		"select * from data",
+	))
+	require.Len(t, tr.BindCSV(), sakila.TblActorCount)
+
+	// Double check that we didn't change the persisted active source
+	tr = testrun.New(ctx, t, tr)
+	require.NoError(t, tr.Exec("src", "--json"))
+	require.Equal(t, "@sqlite", tr.BindMap()["handle"])
 }

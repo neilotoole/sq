@@ -3,11 +3,15 @@
 package lga
 
 const (
+	After     = "after"
 	Alt       = "alt"
+	Before    = "before"
+	Catalog   = "catalog"
 	Cmd       = "cmd"
 	Col       = "column"
 	Count     = "count"
 	Commit    = "commit"
+	Conn      = "conn"
 	Cleanup   = "cleanup"
 	DB        = "db"
 	DBType    = "db_type"
@@ -24,6 +28,8 @@ const (
 	Key       = "key"
 	Kind      = "kind"
 	Loc       = "loc"
+	New       = "new"
+	Old       = "old"
 	Opts      = "opts"
 	Path      = "path"
 	Pid       = "pid"

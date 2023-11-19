@@ -223,8 +223,7 @@ func TestCmdAdd(t *testing.T) {
 				return
 			}
 
-			tr = testrun.New(th.Context, t, tr)
-			err = tr.Exec(tc.query.q, "--json")
+			err = tr.Reset().Exec(tc.query.q, "--json")
 			require.NoError(t, err)
 			var results []map[string]any
 			tr.Bind(&results)

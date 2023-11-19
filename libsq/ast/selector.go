@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/tablefq"
+
 	"github.com/neilotoole/sq/libsq/core/stringz"
 
 	"github.com/antlr4-go/antlr/v4"
@@ -128,42 +130,49 @@ var _ Node = (*TblSelectorNode)(nil)
 type TblSelectorNode struct {
 	SelectorNode
 
-	handle  string
-	tblName string
+	handle string
+	tbl    tablefq.T
 }
 
 // newTblSelector creates a new TblSelectorNode from ctx.
 func newTblSelector(selNode *SelectorNode) (*TblSelectorNode, error) { //nolint:unparam
 	n := &TblSelectorNode{
 		SelectorNode: *selNode,
-		tblName:      selNode.name0,
+		tbl:          tablefq.From(selNode.name0),
 	}
 
 	return n, nil
 }
 
-// TblName returns the table name. This is the raw value without punctuation.
-func (n *TblSelectorNode) TblName() string {
-	return n.tblName
+// SetTable sets the table value.
+func (n *TblSelectorNode) SetTable(tbl tablefq.T) {
+	n.tbl = tbl
+}
+
+// Table returns the table name. This is the raw value without punctuation.
+func (n *TblSelectorNode) Table() tablefq.T {
+	return n.tbl
 }
 
 // SyncTblNameAlias sets the table name to the alias value,
 // if the alias is non-empty, and then sets the alias to empty.
 func (n *TblSelectorNode) SyncTblNameAlias() {
 	if n.alias != "" {
-		n.tblName = n.alias
+		n.tbl = tablefq.From(n.alias)
 		n.alias = ""
 	}
 }
 
 // TblAliasOrName returns the table alias if set; if not, it
 // returns the table name.
-func (n *TblSelectorNode) TblAliasOrName() string {
+func (n *TblSelectorNode) TblAliasOrName() tablefq.T {
 	if n.alias != "" {
-		return n.alias
+		t := n.tbl
+		t.Table = n.alias
+		return t
 	}
 
-	return n.tblName
+	return n.tbl
 }
 
 // Alias returns the node's alias, or empty string.
@@ -184,7 +193,7 @@ func (n *TblSelectorNode) SetHandle(h string) {
 // SelValue returns the table name.
 // TODO: Can we get rid of this method SelValue?
 func (n *TblSelectorNode) SelValue() (string, error) {
-	return n.TblName(), nil
+	return n.tbl.Table, nil
 }
 
 // String returns a log/debug-friendly representation.

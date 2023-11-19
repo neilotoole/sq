@@ -12,6 +12,7 @@ env:
   GO_VERSION: 1.21.0
   GORELEASER_VERSION: 1.20.0
   GOLANGCI_LINT_VERSION: v1.54.1
+  TPARSE_VERSION: v0.11.1
   BUILD_TAGS: 'sqlite_vtable sqlite_stat4 sqlite_fts5 sqlite_introspect sqlite_json sqlite_math_functions'
 
 jobs:
@@ -24,41 +25,36 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: ${{ env.GO_VERSION }}
-
-      # Install gotestfmt on the VM running the action.
-      - name: Set up gotestfmt
-        uses: gotesttools/gotestfmt-action@v2
-        with:
-          # Optional: pass GITHUB_TOKEN to avoid rate limiting.
-          token: ${{ secrets.GITHUB_TOKEN }}
+          go-version-file: go.mod
 
 
       - name: Build
         run: go build -tags '${{ env.BUILD_TAGS }}' -v ./...
 
-      # Run tests with nice formatting. Save the original log in /tmp/gotest.log
-      # https://github.com/GoTestTools/gotestfmt#github-actions
-      - name: Run tests
+      - name: 'Go tests'
+        shell: bash
         run: |
-          set -euo pipefail
-          go test -tags '${{ env.BUILD_TAGS }}' -json -v ./... 2>&1 | tee gotest.log | gotestfmt
+          set -e
 
-      # Upload the original go test log as an artifact for later review.
-      - name: Upload test log
-        uses: actions/upload-artifact@v3
+          # We tee the go test output to a file, so that "tparse" can
+          # render pretty output below.
+          go test -tags '${{ env.BUILD_TAGS }}' -timeout 20m -v -json -cover ./... | tee gotest.out.json
+
+      - name: 'Test output'
         if: always()
-        with:
-          name: test-log
-          path: gotest.log
-          if-no-files-found: warn
+        shell: bash
+        run: |
+          set -e
+          go install github.com/mfridman/tparse@${{ env.TPARSE_VERSION }}
+          tparse -all -sort=elapsed -file gotest.out.json
+
 
   test-windows:
     runs-on: windows-2022
@@ -72,68 +68,68 @@ jobs:
 #        path-type: inherit
 
     - name: Checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         fetch-depth: 0
 
     - name: Set up Go
-      uses: actions/setup-go@v3
+      uses: actions/setup-go@v4
       with:
-        go-version: ${{ env.GO_VERSION }}
+        go-version-file: go.mod
 
     - name: Build
       run: go build -tags '${{ env.BUILD_TAGS }}' -v ./...
 #      shell: msys2 {0}
 
-    - name: Run tests
-      run: |
-        go test -tags '${{ env.BUILD_TAGS }}' -v ./...
-#      shell: msys2 {0}
+#    - name: Run tests
+#      run: |
+#        go test -tags '${{ env.BUILD_TAGS }}' -v ./...
+##      shell: msys2 {0}
 
-  go-lint:
+    - name: 'Go tests'
+      shell: bash
+      run: |
+        # set -e
+
+        # We send the Go test output to a file, so that "tparse" can
+        # render pretty output below.
+        go test -tags '${{ env.BUILD_TAGS }}' -timeout 20m -v -json -cover ./... > gotest.out.json
+
+    - name: 'Test output'
+      if: always()
+      shell: bash
+      run: |
+        set -e
+        go install github.com/mfridman/tparse@${{ env.TPARSE_VERSION }}
+        tparse -all -sort=elapsed -file gotest.out.json
+
+  lint:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      - name: Lint GH workflow files
+        run: |
+          # From https://github.com/rhysd/actionlint
+          bash <(curl https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+          ./actionlint -color
+
+      - name: shellcheck
+        run: |
+          shellcheck ./install.sh
+
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v4
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version-file: go.mod
 
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v3
         with:
           version: ${{ env.GOLANGCI_LINT_VERSION }}
-
-#  coverage:
-#    runs-on: ubuntu-22.04
-#    steps:
-#    - name: Checkout
-#      uses: actions/checkout@v3
-#      with:
-#        fetch-depth: 0
-#
-#    - name: Set up Go
-#      uses: actions/setup-go@v3
-#      with:
-#        go-version: ${{ env.GO_VERSION }}
-#
-#    - name: Test
-#      run: go test -v ./...
-#
-#    # https://github.com/ncruces/go-coverage-report
-#    - name: Update coverage report
-#      uses: ncruces/go-coverage-report@v0
-#      with:
-#        report: 'true'
-#        chart: 'true'
-#        amend: 'false'
-#      if: |
-#        github.event_name == 'push'
-#      continue-on-error: true
 
 
   binaries-darwin:
@@ -142,14 +138,14 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v4
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version-file: go.mod
 
       - name: GoReleaser (build darwin binaries)
         uses: goreleaser/goreleaser-action@v3
@@ -173,14 +169,14 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v4
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version-file: go.mod
 
       - name: GoReleaser (build linux-amd64 binaries)
         uses: goreleaser/goreleaser-action@v3
@@ -204,14 +200,14 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v4
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version-file: go.mod
 
       - name: Install toolchain dependencies
         run: |
@@ -241,14 +237,14 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v4
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version-file: go.mod
 
       - name: GoReleaser (build windows binaries)
         uses: goreleaser/goreleaser-action@v3
@@ -271,7 +267,7 @@ jobs:
     runs-on: ubuntu-22.04
     if: startsWith(github.ref, 'refs/tags/v')
     needs:
-      - go-lint
+      - lint
       - test-linux-darwin
       - test-windows
       - binaries-darwin
@@ -280,14 +276,14 @@ jobs:
       - binaries-windows
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v4
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version-file: go.mod
 
       - name: Download darwin artifacts
         uses: actions/download-artifact@v3

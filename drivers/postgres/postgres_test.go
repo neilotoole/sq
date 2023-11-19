@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/core/tablefq"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -33,7 +35,7 @@ func TestSmoke(t *testing.T) {
 			t.Parallel()
 
 			th, src, _, _, _ := testh.NewWith(t, handle)
-			sink, err := th.QuerySQL(src, "SELECT * FROM actor")
+			sink, err := th.QuerySQL(src, nil, "SELECT * FROM actor")
 			require.NoError(t, err)
 			require.Equal(t, len(sakila.TblActorCols()), len(sink.RecMeta))
 			require.Equal(t, sakila.TblActorCount, len(sink.Recs))
@@ -103,7 +105,7 @@ func Test_VerifyDriverDoesNotReportNullability(t *testing.T) {
 			db := th.OpenDB(src)
 
 			_, actualTblName := createTypeTestTable(th, src, true)
-			t.Cleanup(func() { th.DropTable(src, actualTblName) })
+			t.Cleanup(func() { th.DropTable(src, tablefq.From(actualTblName)) })
 
 			rows, err := db.Query("SELECT * FROM " + actualTblName)
 			require.NoError(t, err)
@@ -172,11 +174,11 @@ func TestDriver_CreateTable_NotNullDefault(t *testing.T) {
 
 			err := drvr.CreateTable(th.Context, db, tblDef)
 			require.NoError(t, err)
-			t.Cleanup(func() { th.DropTable(src, tblName) })
+			t.Cleanup(func() { th.DropTable(src, tablefq.From(tblName)) })
 
 			th.InsertDefaultRow(src, tblName)
 
-			sink, err := th.QuerySQL(src, "SELECT * FROM "+tblName)
+			sink, err := th.QuerySQL(src, nil, "SELECT * FROM "+tblName)
 			require.NoError(t, err)
 			require.Equal(t, 1, len(sink.Recs))
 			require.Equal(t, len(colNames), len(sink.RecMeta))
@@ -289,7 +291,7 @@ func BenchmarkDatabase_SourceMetadata(b *testing.B) {
 
 func TestIsErrRelationDoesNotExist(t *testing.T) {
 	th, src, _, _, _ := testh.NewWith(t, sakila.Pg)
-	_, err := th.QuerySQL(src, "SELECT * FROM tbl_does_not_exist")
+	_, err := th.QuerySQL(src, nil, "SELECT * FROM tbl_does_not_exist")
 	require.Error(t, err)
 	require.True(t, postgres.IsErrRelationNotExist(err))
 }

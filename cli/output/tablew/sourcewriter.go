@@ -87,8 +87,37 @@ func (w *sourceWriter) Collection(coll *source.Collection) error {
 	return nil
 }
 
+// Added implements output.SourceWriter.
+func (w *sourceWriter) Added(coll *source.Collection, src *source.Source) error {
+	return w.doSource(coll, src)
+}
+
+// Moved implements output.SourceWriter.
+func (w *sourceWriter) Moved(coll *source.Collection, _, nu *source.Source) error {
+	return w.doSource(coll, nu)
+}
+
 // Source implements output.SourceWriter.
 func (w *sourceWriter) Source(coll *source.Collection, src *source.Source) error {
+	if src == nil {
+		return nil
+	}
+
+	if w.tbl.pr.Verbose {
+		return w.doSource(coll, src)
+	}
+
+	if coll != nil && coll.Active() == src {
+		// src is the active source
+		w.tbl.pr.Active.Fprintln(w.tbl.out, src.Handle)
+	} else {
+		w.tbl.pr.Handle.Fprintln(w.tbl.out, src.Handle)
+	}
+
+	return nil
+}
+
+func (w *sourceWriter) doSource(coll *source.Collection, src *source.Source) error {
 	if src == nil {
 		return nil
 	}

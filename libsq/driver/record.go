@@ -396,7 +396,7 @@ func NewBatchInsert(ctx context.Context, drvr SQLDriver, db sqlz.DB,
 ) (*BatchInsert, error) {
 	log := lg.FromContext(ctx)
 
-	err := requireSingleConn(db)
+	err := sqlz.RequireSingleConn(db)
 	if err != nil {
 		return nil, err
 	}

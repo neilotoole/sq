@@ -14,6 +14,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/sqlz"
+
+	"github.com/samber/lo"
+
+	"github.com/neilotoole/sq/libsq/core/tablefq"
+
 	"github.com/neilotoole/sq/cli/run"
 
 	"github.com/neilotoole/sq/cli"
@@ -458,7 +464,7 @@ func (h *Helper) CreateTable(dropAfter bool, src *source.Source, tblDef *sqlmode
 	h.T.Logf("Created table %s.%s", src.Handle, tblDef.Name)
 
 	if dropAfter {
-		h.Cleanup.Add(func() { h.DropTable(src, tblDef.Name) })
+		h.Cleanup.Add(func() { h.DropTable(src, tablefq.From(tblDef.Name)) })
 	}
 
 	if len(data) == 0 {
@@ -523,14 +529,22 @@ func (h *Helper) Insert(src *source.Source, tbl string, cols []string, records .
 }
 
 // CopyTable copies fromTable into a new table toTable. If
-// toTable is empty, a table name is generated based on
+// toTable is empty, a unique table name is generated based on
 // fromTable. The table name used is returned.
 // If dropAfter is true, the table is dropped when t.Cleanup is run.
 // If copyData is true, fromTable's data is also copied.
 // Constraints (keys, defaults etc.) may not be copied.
-func (h *Helper) CopyTable(dropAfter bool, src *source.Source, fromTable, toTable string, copyData bool) string {
-	if toTable == "" {
-		toTable = stringz.UniqTableName(fromTable)
+//
+// TODO: CopyTable should return tablefq.T instead of string.
+func (h *Helper) CopyTable(
+	dropAfter bool,
+	src *source.Source,
+	fromTable, toTable tablefq.T,
+	copyData bool,
+) string {
+	if lo.IsEmpty(toTable) {
+		toTable = fromTable
+		toTable.Table = stringz.UniqTableName(fromTable.Table)
 	}
 
 	dbase := h.openNew(src)
@@ -539,24 +553,30 @@ func (h *Helper) CopyTable(dropAfter bool, src *source.Source, fromTable, toTabl
 	db, err := dbase.DB(h.Context)
 	require.NoError(h.T, err)
 
-	copied, err := dbase.SQLDriver().CopyTable(h.Context, db, fromTable, toTable, copyData)
+	copied, err := dbase.SQLDriver().CopyTable(
+		h.Context,
+		db,
+		fromTable,
+		toTable,
+		copyData,
+	)
 	require.NoError(h.T, err)
 	if dropAfter {
 		h.Cleanup.Add(func() { h.DropTable(src, toTable) })
 	}
 
 	h.Log.Debug("Copied table",
-		lga.From, source.Target(src, fromTable),
-		lga.To, source.Target(src, toTable),
+		lga.From, fromTable,
+		lga.To, toTable,
 		"copy_data", copyData,
 		lga.Count, copied,
 		"drop_after", dropAfter,
 	)
-	return toTable
+	return toTable.Table
 }
 
 // DropTable drops tbl from src.
-func (h *Helper) DropTable(src *source.Source, tbl string) {
+func (h *Helper) DropTable(src *source.Source, tbl tablefq.T) {
 	dbase := h.openNew(src)
 	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, dbase)
 
@@ -564,19 +584,21 @@ func (h *Helper) DropTable(src *source.Source, tbl string) {
 	require.NoError(h.T, err)
 
 	require.NoError(h.T, dbase.SQLDriver().DropTable(h.Context, db, tbl, true))
-	h.Log.Debug("Dropped table", lga.Target, source.Target(src, tbl))
+	h.Log.Debug("Dropped table", lga.Target, source.Target(src, tbl.Table))
 }
 
 // QuerySQL uses libsq.QuerySQL to execute SQL query
 // against src, returning a sink to which all records have
-// been written. Note that QuerySQL uses the
-// same Database instance as returned by h.Open.
-func (h *Helper) QuerySQL(src *source.Source, query string, args ...any) (*RecordSink, error) {
+// been written. Typically the db arg is nil, and QuerySQL uses the
+// same driver.Database instance as returned by Helper.Open. If db
+// is non-nil, it is passed to libsq.QuerySQL (e.g. the query needs to
+// execute against a sql.Tx), and the caller is responsible for closing db.
+func (h *Helper) QuerySQL(src *source.Source, db sqlz.DB, query string, args ...any) (*RecordSink, error) {
 	dbase := h.Open(src)
 
 	sink := &RecordSink{}
 	recw := output.NewRecordWriterAdapter(h.Context, sink)
-	err := libsq.QuerySQL(h.Context, dbase, recw, query, args...)
+	err := libsq.QuerySQL(h.Context, dbase, db, recw, query, args...)
 	if err != nil {
 		return nil, err
 	}

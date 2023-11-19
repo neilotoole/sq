@@ -8,6 +8,9 @@ import (
 	"os"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
 	"github.com/neilotoole/sq/cli/run"
 
 	"github.com/neilotoole/sq/drivers/csv"
@@ -178,7 +181,8 @@ More examples:
 }
 
 func execSrcAdd(cmd *cobra.Command, args []string) error {
-	ru := run.FromContext(cmd.Context())
+	ctx := cmd.Context()
+	ru := run.FromContext(ctx)
 	cfg := ru.Config
 
 	loc := source.AbsLocation(strings.TrimSpace(args[0]))
@@ -189,7 +193,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		val, _ := cmd.Flags().GetString(flag.AddDriver)
 		typ = source.DriverType(strings.TrimSpace(val))
 	} else {
-		typ, err = ru.Files.DriverType(cmd.Context(), loc)
+		typ, err = ru.Files.DriverType(ctx, loc)
 		if err != nil {
 			return err
 		}
@@ -225,18 +229,21 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 	}
 
 	if typ == sqlite3.Type {
+		locBefore := loc
 		// Special handling for SQLite, because it's a file-based DB.
 		loc, err = sqlite3.MungeLocation(loc)
 		if err != nil {
 			return err
 		}
+
+		lg.FromContext(ctx).Debug("Munged sqlite loc", lga.Before, locBefore, lga.After, loc)
 	}
 
 	// If the -p flag is set, sq looks for password input on stdin,
 	// or sq prompts the user.
 	if cmdFlagIsSetTrue(cmd, flag.PasswordPrompt) {
 		var passwd []byte
-		if passwd, err = readPassword(cmd.Context(), ru.Stdin, ru.Out, ru.Writers.Printing); err != nil {
+		if passwd, err = readPassword(ctx, ru.Stdin, ru.Out, ru.Writers.Printing); err != nil {
 			return err
 		}
 
@@ -251,7 +258,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 	}
 
 	src, err := newSource(
-		cmd.Context(),
+		ctx,
 		ru.DriverRegistry,
 		typ,
 		handle,
@@ -285,12 +292,12 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 	if !cmdFlagIsSetTrue(cmd, flag.SkipVerify) {
 		// Typically we want to ping the source before adding it.
 		// But, sometimes not, for example if a source is temporarily offline.
-		if err = drvr.Ping(cmd.Context(), src); err != nil {
+		if err = drvr.Ping(ctx, src); err != nil {
 			return err
 		}
 	}
 
-	if err = ru.ConfigStore.Save(cmd.Context(), ru.Config); err != nil {
+	if err = ru.ConfigStore.Save(ctx, ru.Config); err != nil {
 		return err
 	}
 
@@ -298,7 +305,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return ru.Writers.Source.Source(ru.Config.Collection, src)
+	return ru.Writers.Source.Added(ru.Config.Collection, src)
 }
 
 // readPassword reads a password from stdin pipe, or if nothing on stdin,

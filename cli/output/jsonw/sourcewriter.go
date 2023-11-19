@@ -67,6 +67,11 @@ func (w *sourceWriter) Collection(coll *source.Collection) error {
 	return writeJSON(w.out, w.pr, coll.Data())
 }
 
+// Added implements output.SourceWriter.
+func (w *sourceWriter) Added(coll *source.Collection, src *source.Source) error {
+	return w.Source(coll, src)
+}
+
 // Source implements output.SourceWriter.
 func (w *sourceWriter) Source(_ *source.Collection, src *source.Source) error {
 	if src == nil {
@@ -76,6 +81,11 @@ func (w *sourceWriter) Source(_ *source.Collection, src *source.Source) error {
 	src = src.Clone()
 	src.Location = src.RedactedLocation()
 	return writeJSON(w.out, w.pr, src)
+}
+
+// Moved implements output.SourceWriter.
+func (w *sourceWriter) Moved(coll *source.Collection, _, nu *source.Source) error {
+	return w.Source(coll, nu)
 }
 
 // Removed implements output.SourceWriter.

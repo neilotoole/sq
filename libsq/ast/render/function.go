@@ -12,6 +12,17 @@ import (
 func doFunction(rc *Context, fn *ast.FuncNode) (string, error) {
 	sb := strings.Builder{}
 	fnName := strings.ToLower(fn.FuncName())
+
+	if f, ok := rc.Renderer.FunctionOverrides[fnName]; ok {
+		// The SQL function name has a custom renderer.
+		return f(rc, fn)
+	}
+
+	if f, ok := rc.Renderer.FunctionNames[fnName]; ok {
+		// The SLQ function name is mapped to a different SQL function
+		// for this dialect.
+		fnName = f
+	}
 	children := fn.Children()
 
 	if len(children) == 0 {

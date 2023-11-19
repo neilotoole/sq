@@ -2,11 +2,15 @@ package driver
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"fmt"
 	"log/slog"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/neilotoole/sq/libsq/core/tablefq"
 
 	"github.com/neilotoole/sq/libsq/core/record"
 
@@ -233,6 +237,19 @@ type SQLDriver interface {
 	// CurrentSchema returns the current schema name.
 	CurrentSchema(ctx context.Context, db sqlz.DB) (string, error)
 
+	// ListSchemas lists the available schemas on db.
+	ListSchemas(ctx context.Context, db sqlz.DB) ([]string, error)
+
+	// CurrentCatalog returns the current catalog name. An error is
+	// returned if the driver doesn't support catalogs.
+	CurrentCatalog(ctx context.Context, db sqlz.DB) (string, error)
+
+	// ListCatalogs lists the available catalogs on db. The first
+	// returned element is the current catalog, and the remaining
+	// catalogs are sorted alphabetically. An error is returned
+	// if the driver doesn't support catalogs.
+	ListCatalogs(ctx context.Context, db sqlz.DB) ([]string, error)
+
 	// TableColumnTypes returns the column type info from
 	// the SQL driver. If len(colNames) is 0, info is returned
 	// for all columns in the table.
@@ -287,6 +304,13 @@ type SQLDriver interface {
 	// must honor the table name and column names and kinds from tblDef.
 	CreateTable(ctx context.Context, db sqlz.DB, tblDef *sqlmodel.TableDef) error
 
+	// CreateSchema creates a new schema in db. Note that db's current
+	// connection schema is not changed.
+	CreateSchema(ctx context.Context, db sqlz.DB, schemaName string) error
+
+	// DropSchema drops the named schema in db.
+	DropSchema(ctx context.Context, db sqlz.DB, schemaName string) error
+
 	// TableExists returns true if there's an existing table tbl in db.
 	TableExists(ctx context.Context, db sqlz.DB, tbl string) (bool, error)
 
@@ -294,11 +318,11 @@ type SQLDriver interface {
 	// If copyData is true, fromTable's data is also copied.
 	// Constraints (keys, defaults etc.) may not be copied. The
 	// number of copied rows is returned in copied.
-	CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable string, copyData bool) (copied int64, err error)
+	CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable tablefq.T, copyData bool) (copied int64, err error)
 
 	// DropTable drops tbl from db. If ifExists is true, an "IF EXISTS"
 	// or equivalent clause is added, if supported.
-	DropTable(ctx context.Context, db sqlz.DB, tbl string, ifExists bool) error
+	DropTable(ctx context.Context, db sqlz.DB, tbl tablefq.T, ifExists bool) error
 
 	// AlterTableRename renames a table.
 	AlterTableRename(ctx context.Context, db sqlz.DB, tbl, newName string) error
@@ -321,7 +345,7 @@ type SQLDriver interface {
 // stdlib sql.DB, and in fact encapsulates a sql.DB instance. The
 // realized sql.DB instance can be accessed via the DB method.
 //
-// REVISIT: maybe rename driver.Database to driver.Datasource or such?
+// REVISIT: maybe rename driver.Database to driver.Pool or such?
 type Database interface {
 	// DB returns the sql.DB object for this Database.
 	// This operation can take a long time if opening the DB requires
@@ -357,6 +381,8 @@ type Database interface {
 }
 
 // Metadata holds driver metadata.
+//
+// TODO: Can driver.Metadata and dialect.Dialect be merged?
 type Metadata struct {
 	// Type is the driver type, e.g. "mysql" or "csv", etc.
 	Type source.DriverType `json:"type" yaml:"type"`
@@ -415,7 +441,8 @@ func NewDatabases(log *slog.Logger, drvrs Provider, scratchSrcFn ScratchSrcFunc)
 
 // Open returns an opened Database for src. The returned Database
 // may be cached and returned on future invocations for the
-// same handle. Thus, the caller should typically not close
+// same source (where each source fields is identical).
+// Thus, the caller should typically not close
 // the Database: it will be closed via d.Close.
 //
 // NOTE: This entire logic re caching/not-closing is a bit sketchy,
@@ -428,7 +455,9 @@ func (d *Databases) Open(ctx context.Context, src *source.Source) (Database, err
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	dbase, ok := d.dbases[src.Handle]
+	key := src.Handle + "_" + hashSource(src)
+
+	dbase, ok := d.dbases[key]
 	if ok {
 		return dbase, nil
 	}
@@ -449,7 +478,7 @@ func (d *Databases) Open(ctx context.Context, src *source.Source) (Database, err
 
 	d.clnup.AddC(dbase)
 
-	d.dbases[src.Handle] = dbase
+	d.dbases[key] = dbase
 	return dbase, nil
 }
 
@@ -518,19 +547,6 @@ func (d *Databases) Close() error {
 	return d.clnup.Run()
 }
 
-// requireSingleConn returns nil if db is a type that guarantees a
-// single database connection. That is, requireSingleConn returns an
-// error if db does not have type *sql.Conn or *sql.Tx.
-func requireSingleConn(db sqlz.DB) error {
-	switch db.(type) {
-	case *sql.Conn, *sql.Tx:
-	default:
-		return errz.Errorf("db must be guaranteed single-connection (sql.Conn or sql.Tx) but was %T", db)
-	}
-
-	return nil
-}
-
 // OpeningPing is a standardized mechanism to ping db using
 // driver.OptConnOpenTimeout. This should be invoked by each SQL
 // driver impl in its Open method. If the ping fails, db is closed.
@@ -549,4 +565,27 @@ func OpeningPing(ctx context.Context, src *source.Source, db *sql.DB) error {
 	}
 
 	return nil
+}
+
+// hashSource computes a hash for src. If src is nil, empty string is returned.
+func hashSource(src *source.Source) string {
+	if src == nil {
+		return ""
+	}
+
+	h := sha256.New()
+	h.Write([]byte(src.Handle))
+	h.Write([]byte(src.Location))
+	h.Write([]byte(src.Type))
+
+	if len(src.Options) > 0 {
+		keys := src.Options.Keys()
+		for _, k := range keys {
+			v := src.Options[k]
+			h.Write([]byte(fmt.Sprintf("%s:%v", k, v)))
+		}
+	}
+
+	b := h.Sum(nil)
+	return string(b)
 }

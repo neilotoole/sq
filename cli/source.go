@@ -2,6 +2,11 @@ package cli
 
 import (
 	"context"
+	"strings"
+
+	"github.com/spf13/cobra"
+
+	"github.com/neilotoole/sq/libsq/ast"
 
 	"github.com/neilotoole/sq/cli/run"
 
@@ -12,18 +17,15 @@ import (
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
-
-	"github.com/spf13/cobra"
 )
 
 // determineSources figures out what the active source is
 // from any combination of stdin, flags or cfg. It will
-// mutate ru.Config.Collection as necessary. If no error
-// is returned, it is guaranteed that there's an active
-// source on the collection.
-func determineSources(ctx context.Context, ru *run.Run) error {
+// mutate ru.Config.Collection as necessary. If requireActive
+// is true, an error is returned if there's no active source.
+func determineSources(ctx context.Context, ru *run.Run, requireActive bool) error {
 	cmd, coll := ru.Cmd, ru.Config.Collection
-	activeSrc, err := activeSrcFromFlagsOrConfig(cmd, coll)
+	activeSrc, err := activeSrcAndSchemaFromFlagsOrConfig(ru)
 	if err != nil {
 		return err
 	}
@@ -59,20 +61,24 @@ func determineSources(ctx context.Context, ru *run.Run) error {
 		}
 	}
 
-	if activeSrc == nil {
+	if activeSrc == nil && requireActive {
 		return errz.New(msgNoActiveSrc)
 	}
 
 	return nil
 }
 
-// activeSrcFromFlagsOrConfig gets the active source, either
+// activeSrcAndSchemaFromFlagsOrConfig gets the active source, either
 // from flagActiveSrc or from srcs.Active. An error is returned
 // if the flag src is not found: if the flag src is found,
 // it is set as the active src on coll. If the flag was not
 // set and there is no active src in coll, (nil, nil) is
 // returned.
-func activeSrcFromFlagsOrConfig(cmd *cobra.Command, coll *source.Collection) (*source.Source, error) {
+//
+// This source also checks flag.ActiveSchema, and changes the schema
+// of the source if the flag is set.
+func activeSrcAndSchemaFromFlagsOrConfig(ru *run.Run) (*source.Source, error) {
+	cmd, coll := ru.Cmd, ru.Config.Collection
 	var activeSrc *source.Source
 
 	if cmdFlagChanged(cmd, flag.ActiveSrc) {
@@ -92,7 +98,58 @@ func activeSrcFromFlagsOrConfig(cmd *cobra.Command, coll *source.Collection) (*s
 	} else {
 		activeSrc = coll.Active()
 	}
+
+	if err := processFlagActiveSchema(cmd, activeSrc); err != nil {
+		return nil, err
+	}
+
 	return activeSrc, nil
+}
+
+// processFlagActiveSchema processes the --src.schema flag, setting
+// appropriate Source.Catalog and Source.Schema values on activeSrc.
+// If flag.ActiveSchema is not set, this is no-op. If activeSrc is nil,
+// an error is returned.
+func processFlagActiveSchema(cmd *cobra.Command, activeSrc *source.Source) error {
+	ru := run.FromContext(cmd.Context())
+	if !cmdFlagChanged(cmd, flag.ActiveSchema) {
+		// Nothing to do here
+		return nil
+	}
+	if activeSrc == nil {
+		return errz.Errorf("active catalog/schema specified via --%s, but active source is nil",
+			flag.ActiveSchema)
+	}
+
+	val, _ := cmd.Flags().GetString(flag.ActiveSchema)
+	if val = strings.TrimSpace(val); val == "" {
+		return errz.Errorf("active catalog/schema specified via --%s, but schema is empty",
+			flag.ActiveSchema)
+	}
+
+	catalog, schema, err := ast.ParseCatalogSchema(val)
+	if err != nil {
+		return errz.Wrapf(err, "invalid active schema specified via --%s",
+			flag.ActiveSchema)
+	}
+
+	drvr, err := ru.DriverRegistry.SQLDriverFor(activeSrc.Type)
+	if err != nil {
+		return err
+	}
+
+	if catalog != "" {
+		if !drvr.Dialect().Catalog {
+			return errz.Errorf("driver {%s} does not support catalog", activeSrc.Type)
+		}
+		activeSrc.Catalog = catalog
+	}
+
+	if schema != "" {
+		activeSrc.Schema = schema
+	}
+
+	return nil
 }
 
 // checkStdinSource checks if there's stdin data (on pipe/redirect).

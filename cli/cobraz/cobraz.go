@@ -69,6 +69,7 @@ func ExtractDirectives(result cobra.ShellCompDirective) []cobra.ShellCompDirecti
 		cobra.ShellCompDirectiveNoFileComp,
 		cobra.ShellCompDirectiveFilterFileExt,
 		cobra.ShellCompDirectiveFilterDirs,
+		cobra.ShellCompDirectiveKeepOrder,
 		cobra.ShellCompDirectiveDefault,
 	}
 

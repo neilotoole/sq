@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+
 	"github.com/neilotoole/sq/cli/run"
 
 	"github.com/neilotoole/sq/libsq/core/timez"
@@ -287,6 +289,211 @@ func completeTblCopy(cmd *cobra.Command, args []string, toComplete string) ([]st
 	}
 }
 
+// activeSchemaCompleter encapsulates completion for flag.ActiveSchema.
+// The completionFunc is activeSchemaCompleter.complete.
+//
+// Example usage:
+//
+//	# Only schema
+//	$ sq --src.schema information_schema '.tables'
+//
+//	# Using catalog.schema
+//	$ sq --src.schema postgres.information_schema '.tables'
+//
+// Note that some drivers don't support the catalog mechanism (e.g. SQLite).
+//
+// The returned slice contains the names of the schemas in the source, followed
+// by the names of the catalogs (suffixed with a period, e.g. "sakila.", so
+// that the user can complete the catalog.schema input, e.g. "sakila.public").
+// For example:
+//
+//	information_schema		<-- this a schema in the active source
+//	pg_catalog
+//	public
+//	sakila.								<-- note the trailing period, this is a catalog
+//	customers.
+//	postgres.
+//
+// If toComplete already contains a period (e.g. "sakila."), then the
+// returned slice contains only the matching catalog-qualified schemas,
+// e.g. "sakila.public", "sakila.information_schema", etc.
+//
+// Note the field activeSchemaCompleter.activeSourceFunc. This func is used to
+// determine the source to act against. This is configurable because some commands
+// may honor a flag (flag.ActiveSrc), but a different flag (or even cmd args)
+// could also be used. Func getActiveSourceViaFlag is one such func impl. When
+// that is used, if the command has flag.ActiveSrc set, it is honored. Otherwise,
+// the config's active source is used. For example:
+//
+//	$ sq --src @sakila/pg12 --src.schema postgres.information_schema '.tables'
+//
+// Note also: if the targeted source is not SQL (e.g. CSV), an error is returned.
+type activeSchemaCompleter struct {
+	// activeSourceFunc is a function that returns the active source.
+	// Typically the active source comes from the config, but it can also
+	// be supplied via other means, e.g. flag.ActiveSrc or a command arg.
+	activeSourceFunc func(cmd *cobra.Command, args []string) (*source.Source, error)
+}
+
+func (c activeSchemaCompleter) complete(cmd *cobra.Command, args []string, toComplete string,
+) ([]string, cobra.ShellCompDirective) {
+	const baseDirective = cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveKeepOrder
+
+	log, ru := logFrom(cmd), getRun(cmd)
+	if err := preRun(cmd, ru); err != nil {
+		lg.Unexpected(log, err)
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	src, err := c.activeSourceFunc(cmd, args)
+	if err != nil {
+		lg.Unexpected(log, err)
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	if src == nil {
+		log.Debug("No active source, thus no completion for flag", lga.Flag, flag.ActiveSrc)
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	// If toComplete contains a period, then we extract the part before
+	// the period into inputCatalog.
+	var inputCatalog string
+	if toComplete != "" {
+		if strings.ContainsRune(toComplete, '.') {
+			// User has supplied a catalog.schema (or at least a "catalog.")
+			parts := strings.Split(toComplete, ".")
+			if len(parts) > 2 {
+				return nil, cobra.ShellCompDirectiveError
+			}
+			inputCatalog = parts[0]
+			if inputCatalog == "" {
+				// User supplied input of the form ".schema" (leading period),
+				// which is invalid.
+				return nil, cobra.ShellCompDirectiveError
+			}
+			src.Catalog = inputCatalog
+		}
+	}
+
+	if ok, _ := isSQLDriver(ru, src.Handle); !ok {
+		// Not a SQL driver, completion is N/A.
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	drvr, err := ru.DriverRegistry.SQLDriverFor(src.Type)
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	// We don't want the user to wait around forever for
+	// shell completion, so we set a timeout. Typically
+	// this is something like 500ms.
+	ctx, cancelFn := context.WithTimeout(cmd.Context(), OptShellCompletionTimeout.Get(ru.Config.Options))
+	defer cancelFn()
+
+	dbase, err := ru.Databases.Open(ctx, src)
+	if err != nil {
+		lg.Unexpected(log, err)
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	db, err := dbase.DB(ctx)
+	if err != nil {
+		lg.Unexpected(log, err)
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	defer lg.WarnIfCloseError(log, lgm.CloseDB, db)
+
+	a, err := drvr.ListSchemas(ctx, db)
+	if err != nil {
+		lg.Unexpected(log, err)
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	if len(a) == 0 {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	if inputCatalog != "" {
+		// We have a catalog, so we need to prepend it to each
+		// schema name.
+		for i := range a {
+			a[i] = inputCatalog + "." + a[i]
+		}
+
+		a = lo.Filter(a, func(item string, index int) bool {
+			return strings.HasPrefix(item, toComplete)
+		})
+
+		return a, baseDirective
+	}
+
+	if drvr.Dialect().Catalog {
+		var catalogs []string
+		if catalogs, err = drvr.ListCatalogs(ctx, db); err != nil {
+			// We continue even if an error occurs.
+			log.Warn("List catalogs", lga.Err, err)
+		}
+
+		for i := range catalogs {
+			a = append(a, catalogs[i]+".")
+		}
+	}
+
+	a = lo.Filter(a, func(item string, index int) bool {
+		return strings.HasPrefix(item, toComplete)
+	})
+
+	for i := range a {
+		// If any of the completions has a trailing period (i.e. they've
+		// only typed the catalog name), then we need cobra.ShellCompDirectiveNoSpace,
+		// because the user has more typing to do to complete the catalog.schema.
+		if strings.HasSuffix(a[i], ".") {
+			return a, baseDirective | cobra.ShellCompDirectiveNoSpace
+		}
+	}
+
+	return a, baseDirective
+}
+
+// getActiveSourceViaFlag returns the active source, either from the
+// config or from flag.ActiveSrc. This function is intended for use
+// with activeSchemaCompleter.activeSourceFunc.
+func getActiveSourceViaFlag(cmd *cobra.Command, _ []string) (*source.Source, error) {
+	if !cmdFlagChanged(cmd, flag.ActiveSrc) {
+		// User has not supplied --src, so we'll use the
+		// config's active source.
+		return getRun(cmd).Config.Collection.Active(), nil
+	}
+
+	handle, err := cmd.Flags().GetString(flag.ActiveSrc)
+	if err != nil {
+		return nil, err
+	}
+
+	var src *source.Source
+	if src, err = getRun(cmd).Config.Collection.Get(handle); err != nil {
+		return nil, err
+	}
+
+	return src, nil
+}
+
+// getActiveSourceViaArgs returns the active source, either from the
+// config or from the handle in the first cmd arg. This function is intended
+// for use with activeSchemaCompleter.activeSourceFunc.
+func getActiveSourceViaArgs(cmd *cobra.Command, args []string) (*source.Source, error) {
+	if len(args) == 0 {
+		// No args supplied, so we'll use the config's active source.
+		return getRun(cmd).Config.Collection.Active(), nil
+	}
+
+	handle := args[0]
+	return getRun(cmd).Config.Collection.Get(handle)
+}
+
 // handleTableCompleter encapsulates completion of a handle
 // ("@sakila_sl3"), table (".actor"), or @HANDLE.TABLE
 // ("@sakila_sl3.actor"). Its complete method is a completionFunc.
@@ -362,7 +569,7 @@ func (c *handleTableCompleter) completeTableOnly(ctx context.Context, ru *run.Ru
 	}
 
 	if c.onlySQL {
-		isSQL, err := handleIsSQLDriver(ru, activeSrc.Handle)
+		isSQL, err := isSQLDriver(ru, activeSrc.Handle)
 		if err != nil {
 			lg.Unexpected(lg.FromContext(ctx), err)
 			return nil, cobra.ShellCompDirectiveError
@@ -413,7 +620,7 @@ func (c *handleTableCompleter) completeHandle(ctx context.Context, ru *run.Run, 
 
 		if c.onlySQL {
 			var isSQL bool
-			isSQL, err = handleIsSQLDriver(ru, handle)
+			isSQL, err = isSQLDriver(ru, handle)
 			if err != nil {
 				lg.Unexpected(lg.FromContext(ctx), err)
 				return nil, cobra.ShellCompDirectiveError
@@ -447,7 +654,7 @@ func (c *handleTableCompleter) completeHandle(ctx context.Context, ru *run.Run, 
 	for _, handle := range handles {
 		if strings.HasPrefix(handle, toComplete) {
 			if c.onlySQL {
-				isSQL, err := handleIsSQLDriver(ru, handle)
+				isSQL, err := isSQLDriver(ru, handle)
 				if err != nil {
 					lg.Unexpected(lg.FromContext(ctx), err)
 					return nil, cobra.ShellCompDirectiveError
@@ -501,7 +708,7 @@ func (c *handleTableCompleter) completeEither(ctx context.Context, ru *run.Run,
 	activeSrc := ru.Config.Collection.Active()
 	if activeSrc != nil {
 		var activeSrcTables []string
-		isSQL, err := handleIsSQLDriver(ru, activeSrc.Handle)
+		isSQL, err := isSQLDriver(ru, activeSrc.Handle)
 		if err != nil {
 			lg.Unexpected(lg.FromContext(ctx), err)
 			return nil, cobra.ShellCompDirectiveError
@@ -525,7 +732,7 @@ func (c *handleTableCompleter) completeEither(ctx context.Context, ru *run.Run,
 
 	for _, src := range ru.Config.Collection.Sources() {
 		if c.onlySQL {
-			isSQL, err := handleIsSQLDriver(ru, src.Handle)
+			isSQL, err := isSQLDriver(ru, src.Handle)
 			if err != nil {
 				lg.Unexpected(lg.FromContext(ctx), err)
 				return nil, cobra.ShellCompDirectiveError
@@ -541,7 +748,7 @@ func (c *handleTableCompleter) completeEither(ctx context.Context, ru *run.Run,
 	return suggestions, cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace
 }
 
-func handleIsSQLDriver(ru *run.Run, handle string) (bool, error) {
+func isSQLDriver(ru *run.Run, handle string) (bool, error) {
 	src, err := ru.Config.Collection.Get(handle)
 	if err != nil {
 		return false, err
@@ -561,12 +768,14 @@ func getTableNamesForHandle(ctx context.Context, ru *run.Run, handle string) ([]
 		return nil, err
 	}
 
-	db, err := ru.Databases.Open(ctx, src)
+	dbase, err := ru.Databases.Open(ctx, src)
 	if err != nil {
 		return nil, err
 	}
 
-	md, err := db.SourceMetadata(ctx, false)
+	// TODO: We shouldn't have to load the full metadata just to get
+	// the table names. driver.SQLDriver should have a method ListTables.
+	md, err := dbase.SourceMetadata(ctx, false)
 	if err != nil {
 		return nil, err
 	}

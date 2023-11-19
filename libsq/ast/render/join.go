@@ -38,7 +38,7 @@ func doJoin(rc *Context, leftTbl *ast.TblSelectorNode, joins []*ast.JoinNode) (s
 	}
 
 	sql := "FROM "
-	sql = sqlAppend(sql, enquote(leftTbl.TblName()))
+	sql = sqlAppend(sql, leftTbl.Table().Render(enquote))
 	if leftTbl.Alias() != "" {
 		sql = sqlAppend(sql, "AS "+enquote(leftTbl.Alias()))
 	}
@@ -56,7 +56,7 @@ func doJoin(rc *Context, leftTbl *ast.TblSelectorNode, joins []*ast.JoinNode) (s
 		}
 
 		tbl := join.Table()
-		s = sqlAppend(s, enquote(tbl.TblName()))
+		s = sqlAppend(s, tbl.Table().Render(enquote))
 		if tbl.Alias() != "" {
 			s = sqlAppend(s, "AS "+enquote(tbl.Alias()))
 		}
@@ -77,9 +77,9 @@ func doJoin(rc *Context, leftTbl *ast.TblSelectorNode, joins []*ast.JoinNode) (s
 				if colSel, ok := children[0].(*ast.ColSelectorNode); ok {
 					// TODO: should be able to handle ast.TblColSelector also?
 					colName := colSel.ColName()
-					text := enquote(allTbls[i].TblAliasOrName()) + "." + enquote(colName)
+					text := allTbls[i].TblAliasOrName().Render(enquote) + "." + enquote(colName)
 					text += " = "
-					text += enquote(allTbls[i+1].TblAliasOrName()) + "." + enquote(colName)
+					text += allTbls[i+1].TblAliasOrName().Render(enquote) + "." + enquote(colName)
 					s = sqlAppend(s, text)
 					sql = sqlAppend(sql, s)
 					continue

@@ -74,7 +74,7 @@ func execSQL(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	err := determineSources(cmd.Context(), ru)
+	err := determineSources(cmd.Context(), ru, true)
 	if err != nil {
 		return err
 	}
@@ -124,7 +124,7 @@ func execSQLPrint(ctx context.Context, ru *run.Run, fromSrc *source.Source) erro
 	}
 
 	recw := output.NewRecordWriterAdapter(ctx, ru.Writers.Record)
-	err = libsq.QuerySQL(ctx, dbase, recw, args[0])
+	err = libsq.QuerySQL(ctx, dbase, nil, recw, args[0])
 	if err != nil {
 		return err
 	}
@@ -163,7 +163,7 @@ func execSQLInsert(ctx context.Context, ru *run.Run,
 		driver.OptTuningRecChanSize.Get(destSrc.Options),
 		libsq.DBWriterCreateTableIfNotExistsHook(destTbl),
 	)
-	err = libsq.QuerySQL(ctx, fromDB, inserter, args[0])
+	err = libsq.QuerySQL(ctx, fromDB, nil, inserter, args[0])
 	if err != nil {
 		return errz.Wrapf(err, "insert to {%s} failed", source.Target(destSrc, destTbl))
 	}

@@ -55,7 +55,7 @@ func TestFiles_Type(t *testing.T) {
 
 	for _, tc := range testCases {
 		tc := tc
-		t.Run(tc.loc, func(t *testing.T) {
+		t.Run(tutil.Name(source.RedactLocation(tc.loc)), func(t *testing.T) {
 			ctx := lg.NewContext(context.Background(), slogt.New(t))
 
 			fs, err := source.NewFiles(ctx)

@@ -5,7 +5,12 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
+
+	"github.com/neilotoole/sq/libsq/ast"
+
+	"github.com/neilotoole/sq/libsq/core/tablefq"
 
 	"github.com/neilotoole/sq/libsq/core/loz"
 
@@ -34,9 +39,6 @@ import (
 const (
 	// Type is the MySQL source driver type.
 	Type = source.DriverType("mysql")
-
-	// dbDrvr is the backing MySQL SQL driver impl name.
-	dbDrvr = "mysql"
 )
 
 var _ driver.Provider = (*Provider)(nil)
@@ -121,6 +123,7 @@ func (d *driveri) Dialect() dialect.Dialect {
 		MaxBatchValues: 250,
 		Ops:            dialect.DefaultOps(),
 		Joins:          lo.Without(jointype.All(), jointype.FullOuter),
+		Catalog:        false,
 	}
 }
 
@@ -134,7 +137,10 @@ func placeholders(numCols, numRows int) string {
 
 // Renderer implements driver.SQLDriver.
 func (d *driveri) Renderer() *render.Renderer {
-	return render.NewDefaultRenderer()
+	r := render.NewDefaultRenderer()
+	r.FunctionNames[ast.FuncNameSchema] = "DATABASE"
+	r.FunctionOverrides[ast.FuncNameCatalog] = doRenderFuncCatalog
+	return r
 }
 
 // RecordMeta implements driver.SQLDriver.
@@ -147,6 +153,20 @@ func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (
 	}
 	mungeFn := getNewRecordFunc(recMeta)
 	return recMeta, mungeFn, nil
+}
+
+// CreateSchema implements driver.SQLDriver.
+func (d *driveri) CreateSchema(ctx context.Context, db sqlz.DB, schemaName string) error {
+	stmt := `CREATE SCHEMA ` + stringz.BacktickQuote(schemaName)
+	_, err := db.ExecContext(ctx, stmt)
+	return errz.Wrapf(err, "failed to create schema {%s}", schemaName)
+}
+
+// DropSchema implements driver.SQLDriver.
+func (d *driveri) DropSchema(ctx context.Context, db sqlz.DB, schemaName string) error {
+	stmt := `DROP SCHEMA ` + stringz.BacktickQuote(schemaName)
+	_, err := db.ExecContext(ctx, stmt)
+	return errz.Wrapf(err, "failed to drop schema {%s}", schemaName)
 }
 
 // CreateTable implements driver.SQLDriver.
@@ -177,6 +197,48 @@ func (d *driveri) CurrentSchema(ctx context.Context, db sqlz.DB) (string, error)
 	}
 
 	return name, nil
+}
+
+// ListSchemas implements driver.SQLDriver.
+func (d *driveri) ListSchemas(ctx context.Context, db sqlz.DB) ([]string, error) {
+	log := lg.FromContext(ctx)
+
+	const q = `SHOW DATABASES`
+	var schemas []string
+	rows, err := db.QueryContext(ctx, q)
+	if err != nil {
+		return nil, errz.Err(err)
+	}
+
+	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
+
+	for rows.Next() {
+		var schema string
+		if err = rows.Scan(&schema); err != nil {
+			return nil, errz.Err(err)
+		}
+		schemas = append(schemas, schema)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, errz.Err(err)
+	}
+
+	slices.Sort(schemas)
+
+	return schemas, nil
+}
+
+// CurrentCatalog implements driver.SQLDriver. MySQL does not support catalogs,
+// so this method returns an error.
+func (d *driveri) CurrentCatalog(_ context.Context, _ sqlz.DB) (string, error) {
+	return "", errz.New("mysql: catalog mechanism not supported")
+}
+
+// ListCatalogs implements driver.SQLDriver. MySQL does not support catalogs,
+// so this method returns an error.
+func (d *driveri) ListCatalogs(_ context.Context, _ sqlz.DB) ([]string, error) {
+	return nil, errz.New("mysql: catalog mechanism not supported")
 }
 
 // AlterTableRename implements driver.SQLDriver.
@@ -246,8 +308,11 @@ func newStmtExecFunc(stmt *sql.Stmt) driver.StmtExecFunc {
 }
 
 // CopyTable implements driver.SQLDriver.
-func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable string, copyData bool) (int64, error) {
-	stmt := fmt.Sprintf("CREATE TABLE IF NOT EXISTS `%s` SELECT * FROM `%s`", toTable, fromTable)
+func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB,
+	fromTable, toTable tablefq.T, copyData bool,
+) (int64, error) {
+	stmt := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s SELECT * FROM %s",
+		tblfmt(toTable), tblfmt(fromTable))
 
 	if !copyData {
 		stmt += " WHERE 0"
@@ -275,13 +340,13 @@ func (d *driveri) TableExists(ctx context.Context, db sqlz.DB, tbl string) (bool
 }
 
 // DropTable implements driver.SQLDriver.
-func (d *driveri) DropTable(ctx context.Context, db sqlz.DB, tbl string, ifExists bool) error {
+func (d *driveri) DropTable(ctx context.Context, db sqlz.DB, tbl tablefq.T, ifExists bool) error {
 	var stmt string
 
 	if ifExists {
-		stmt = fmt.Sprintf("DROP TABLE IF EXISTS `%s` RESTRICT", tbl)
+		stmt = fmt.Sprintf("DROP TABLE IF EXISTS %s RESTRICT", tblfmt(tbl))
 	} else {
-		stmt = fmt.Sprintf("DROP TABLE `%s` RESTRICT", tbl)
+		stmt = fmt.Sprintf("DROP TABLE %s RESTRICT", tblfmt(tbl))
 	}
 
 	_, err := db.ExecContext(ctx, stmt)
@@ -367,11 +432,25 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 		return nil, err
 	}
 
-	db, err := sql.Open(dbDrvr, dsn)
+	cfg, err := mysql.ParseDSN(dsn)
 	if err != nil {
 		return nil, errw(err)
 	}
 
+	if src.Schema != "" {
+		lg.FromContext(ctx).Debug("Setting default schema for MysQL connection",
+			lga.Src, src,
+			lga.Schema, src.Schema,
+		)
+		cfg.DBName = src.Schema
+	}
+
+	connector, err := mysql.NewConnector(cfg)
+	if err != nil {
+		return nil, errw(err)
+	}
+
+	db := sql.OpenDB(connector)
 	driver.ConfigureDB(ctx, db, src.Options)
 	return db, nil
 }
@@ -512,4 +591,21 @@ func dsnFromLocation(src *source.Source, parseTime bool) (string, error) {
 func doRetry(ctx context.Context, fn func() error) error {
 	maxRetryInterval := driver.OptMaxRetryInterval.Get(options.FromContext(ctx))
 	return retry.Do(ctx, maxRetryInterval, fn, isErrTooManyConnections)
+}
+
+// tblfmt formats a table name for use in a query. The arg can be a string,
+// or a tablefq.T.
+func tblfmt[T string | tablefq.T](tbl T) string {
+	tfq := tablefq.From(tbl)
+	return tfq.Render(stringz.BacktickQuote)
+}
+
+func doRenderFuncCatalog(_ *render.Context, fn *ast.FuncNode) (string, error) {
+	if fn.FuncName() != ast.FuncNameCatalog {
+		// Shouldn't happen
+		return "", errz.Errorf("expected %s function, got %q", ast.FuncNameCatalog, fn.FuncName())
+	}
+
+	const frag = `(SELECT CATALOG_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = DATABASE() LIMIT 1)`
+	return frag, nil
 }

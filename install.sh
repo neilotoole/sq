@@ -6,8 +6,9 @@
 
 get_distribution() {
 	lsb_dist=""
-	# Every system that we officially support has /etc/os-release
+	# Every Linux system that we officially support has /etc/os-release
 	if [ -r /etc/os-release ]; then
+	  # shellcheck disable=SC1091
 		lsb_dist="$(. /etc/os-release && echo "$ID")"
 	fi
 	# Returning an empty string here should be alright since the
@@ -102,12 +103,12 @@ if command_exists apk; then
   # Should be "x86_64" for amd64, and "aarch64" for arm64
   arch=$(uname -m)
 
-  if [ "$arch" == "x86_64" ]; then
+  if [ "$arch" = "x86_64" ]; then
     arch="amd64"
-  elif [ "$arch" == "aarch64" ]; then
+  elif [ "$arch" = "aarch64" ]; then
     arch="arm64"
   else
-    printf "sq install package not available for architecture %q\n" $arch
+    printf "sq install package not available for architecture: %s\n" "$arch"
     exit 1
   fi
 
@@ -133,7 +134,7 @@ fi
 
 # Arch Linux
 if command_exists pacman; then
-    if [[ $EUID -eq 0 ]]; then
+    if [ "$(id -u)" -eq 0 ]; then
         echo "AUR packages shouldn't be installed as root"
         exit 1
     fi

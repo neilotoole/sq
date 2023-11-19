@@ -52,6 +52,16 @@ type Renderer struct {
 	// Function renders a function fragment.
 	Function func(rc *Context, fn *ast.FuncNode) (string, error)
 
+	// FunctionNames is a map of SLQ function name to SQL function name.
+	// It can be used by the Renderer.Function impl. Note that FunctionOverrides
+	// has precedence over FunctionNames.
+	FunctionNames map[string]string
+
+	// FunctionOverrides is a map of SLQ function name to a custom
+	// function to render that function. It can be used by the Renderer.Function
+	// imp. FunctionOverrides has precedence over FunctionNames.
+	FunctionOverrides map[string]func(rc *Context, fn *ast.FuncNode) (string, error)
+
 	// Literal renders a literal fragment.
 	Literal func(rc *Context, lit *ast.LiteralNode) (string, error)
 
@@ -81,19 +91,21 @@ type Renderer struct {
 // as needed.
 func NewDefaultRenderer() *Renderer {
 	return &Renderer{
-		FromTable:  doFromTable,
-		SelectCols: doSelectCols,
-		Range:      doRange,
-		OrderBy:    doOrderBy,
-		GroupBy:    doGroupBy,
-		Join:       doJoin,
-		Function:   doFunction,
-		Literal:    doLiteral,
-		Where:      doWhere,
-		Expr:       doExpr,
-		Operator:   doOperator,
-		Distinct:   doDistinct,
-		Render:     doRender,
+		FromTable:         doFromTable,
+		SelectCols:        doSelectCols,
+		Range:             doRange,
+		OrderBy:           doOrderBy,
+		GroupBy:           doGroupBy,
+		Join:              doJoin,
+		Function:          doFunction,
+		FunctionOverrides: map[string]func(rc *Context, fn *ast.FuncNode) (string, error){},
+		FunctionNames:     map[string]string{},
+		Literal:           doLiteral,
+		Where:             doWhere,
+		Expr:              doExpr,
+		Operator:          doOperator,
+		Distinct:          doDistinct,
+		Render:            doRender,
 	}
 }
 
@@ -165,7 +177,7 @@ func renderSelectorNode(d dialect.Dialect, node ast.Node) (string, error) {
 	case *ast.TblColSelectorNode:
 		return d.Enquote(node.TblName()) + "." + d.Enquote(node.ColName()), nil
 	case *ast.TblSelectorNode:
-		return d.Enquote(node.TblName()), nil
+		return node.Table().Render(d.Enquote), nil
 	default:
 		return "", errz.Errorf(
 			"expected selector node type, but got %T: %s",

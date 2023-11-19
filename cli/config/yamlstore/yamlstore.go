@@ -109,8 +109,7 @@ func (fs *Store) doLoad(ctx context.Context) (*config.Config, error) {
 	}
 
 	cfg := config.New()
-	err = ioz.UnmarshallYAML(bytes, cfg)
-	if err != nil {
+	if err = ioz.UnmarshallYAML(bytes, cfg); err != nil {
 		return nil, errz.Wrapf(err, "config: %s: failed to unmarshal config YAML", fs.Path)
 	}
 
@@ -122,8 +121,7 @@ func (fs *Store) doLoad(ctx context.Context) (*config.Config, error) {
 		cfg.Options = options.Options{}
 	}
 
-	cfg.Options, err = fs.OptionsRegistry.Process(cfg.Options)
-	if err != nil {
+	if cfg.Options, err = fs.OptionsRegistry.Process(cfg.Options); err != nil {
 		return nil, errz.Wrapf(err, "config: %s", fs.Path)
 	}
 
@@ -140,8 +138,7 @@ func (fs *Store) doLoad(ctx context.Context) (*config.Config, error) {
 		return nil, errz.Wrapf(err, "config: %s", fs.Path)
 	}
 
-	err = fs.loadExt(cfg)
-	if err != nil {
+	if err = fs.loadExt(cfg); err != nil {
 		return nil, err
 	}
 

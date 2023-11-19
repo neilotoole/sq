@@ -9,12 +9,17 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/neilotoole/sq/drivers/sqlite3/internal/sqlparser"
+
+	"github.com/neilotoole/sq/libsq/ast"
+
+	"github.com/neilotoole/sq/libsq/core/tablefq"
 
 	"github.com/neilotoole/sq/libsq/core/loz"
 
@@ -142,13 +147,13 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database
 }
 
 func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
-	dsn, err := PathFromLocation(src)
+	fp, err := PathFromLocation(src)
 	if err != nil {
 		return nil, err
 	}
-	db, err := sql.Open(dbDrvr, dsn)
+	db, err := sql.Open(dbDrvr, fp)
 	if err != nil {
-		return nil, errz.Wrapf(errw(err), "failed to open sqlite3 source with DSN: %s", dsn)
+		return nil, errz.Wrapf(errw(err), "failed to open sqlite3 source with DSN: %s", fp)
 	}
 
 	driver.ConfigureDB(ctx, db, src.Options)
@@ -212,7 +217,15 @@ func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 	}
 	defer lg.WarnIfCloseError(d.log, lgm.CloseDB, db)
 
-	return errz.Wrapf(db.PingContext(ctx), "ping %s", src.Handle)
+	if err = db.PingContext(ctx); err != nil {
+		err = errz.Wrapf(err, "ping %s: %s", src.Handle, src.Location)
+		lg.FromContext(ctx).Warn("ping failed",
+			lga.Src, src,
+			lga.Err, err,
+		)
+	}
+
+	return nil
 }
 
 // Dialect implements driver.SQLDriver.
@@ -224,6 +237,7 @@ func (d *driveri) Dialect() dialect.Dialect {
 		MaxBatchValues: 500,
 		Ops:            dialect.DefaultOps(),
 		Joins:          jointype.All(),
+		Catalog:        false,
 	}
 }
 
@@ -237,27 +251,55 @@ func placeholders(numCols, numRows int) string {
 
 // Renderer implements driver.SQLDriver.
 func (d *driveri) Renderer() *render.Renderer {
-	return render.NewDefaultRenderer()
+	r := render.NewDefaultRenderer()
+	r.FunctionOverrides[ast.FuncNameSchema] = doRenderFuncSchema
+	r.FunctionOverrides[ast.FuncNameCatalog] = doRenderFuncCatalog
+	return r
 }
 
 // CopyTable implements driver.SQLDriver.
-func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable string, copyData bool) (int64, error) {
+func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB,
+	fromTbl, toTbl tablefq.T, copyData bool,
+) (int64, error) {
 	// Per https://stackoverflow.com/questions/12730390/copy-table-structure-to-new-table-in-sqlite3
 	// It is possible to copy the table structure with a simple statement:
 	//  CREATE TABLE copied AS SELECT * FROM mytable WHERE 0
 	// However, this does not keep the type information as desired. Thus
 	// we need to do something more complicated.
 
-	var originTblCreateStmt string
-	err := db.QueryRowContext(ctx, fmt.Sprintf("SELECT sql FROM sqlite_master WHERE type='table' AND name='%s'",
-		fromTable)).Scan(&originTblCreateStmt)
+	// First we get the original CREATE TABLE statement.
+	masterTbl := tablefq.T{Schema: fromTbl.Schema, Table: "sqlite_master"}
+	q := fmt.Sprintf("SELECT sql FROM %s WHERE type='table' AND name=%s",
+		masterTbl.Render(stringz.DoubleQuote),
+		stringz.SingleQuote(fromTbl.Table))
+	var ogTblCreateStmt string
+	err := db.QueryRowContext(ctx, q).Scan(&ogTblCreateStmt)
 	if err != nil {
 		return 0, errw(err)
 	}
 
-	// A simple replace of the table name should work to mutate the
-	// above CREATE stmt to use toTable instead of fromTable.
-	destTblCreateStmt := strings.Replace(originTblCreateStmt, fromTable, toTable, 1)
+	// Next, we extract the table identifier from the CREATE TABLE statement.
+	// For example, "main"."actor". Note that the schema part may be empty.
+	ogSchema, ogTbl, err := sqlparser.ExtractTableIdentFromCreateTableStmt(ogTblCreateStmt,
+		false)
+	if err != nil {
+		return 0, errw(err)
+	}
+
+	// Now we know what text to replace in ogTblCreateStmt.
+	replaceTarget := ogTbl
+	if ogSchema != "" {
+		replaceTarget = ogSchema + "." + ogTbl
+	}
+
+	// Replace the old table identifier with the new one, and, voila,
+	// we have our new CREATE TABLE statement.
+	destTblCreateStmt := strings.Replace(
+		ogTblCreateStmt,
+		replaceTarget,
+		toTbl.Render(stringz.DoubleQuote),
+		1,
+	)
 
 	_, err = db.ExecContext(ctx, destTblCreateStmt)
 	if err != nil {
@@ -268,7 +310,7 @@ func (d *driveri) CopyTable(ctx context.Context, db sqlz.DB, fromTable, toTable 
 		return 0, nil
 	}
 
-	stmt := fmt.Sprintf("INSERT INTO %q SELECT * FROM %q", toTable, fromTable)
+	stmt := fmt.Sprintf("INSERT INTO %s SELECT * FROM %s", toTbl, fromTbl)
 	affected, err := sqlz.ExecAffected(ctx, db, stmt)
 	if err != nil {
 		return 0, errw(err)
@@ -564,17 +606,57 @@ func newRecordFromScanRow(meta record.Meta, row []any) (rec record.Record) {
 }
 
 // DropTable implements driver.SQLDriver.
-func (d *driveri) DropTable(ctx context.Context, db sqlz.DB, tbl string, ifExists bool) error {
+func (d *driveri) DropTable(ctx context.Context, db sqlz.DB, tbl tablefq.T, ifExists bool) error {
 	var stmt string
 
 	if ifExists {
-		stmt = fmt.Sprintf("DROP TABLE IF EXISTS %q", tbl)
+		stmt = fmt.Sprintf("DROP TABLE IF EXISTS %s", tbl)
 	} else {
-		stmt = fmt.Sprintf("DROP TABLE %q", tbl)
+		stmt = fmt.Sprintf("DROP TABLE %s", tbl)
 	}
 
 	_, err := db.ExecContext(ctx, stmt)
 	return errw(err)
+}
+
+// CreateSchema implements driver.SQLDriver. This is implemented for SQLite
+// by attaching a new database to db, using ATTACH DATABASE. This attached
+// database is only available on the connection on which the ATTACH DATABASE
+// command was issued. Thus, db must be a *sql.Conn or *sql.Tx, as
+// per sqlz.RequireSingleConn. The same constraint applies to DropSchema.
+//
+// See: https://www.sqlite.org/lang_attach.html
+func (d *driveri) CreateSchema(ctx context.Context, db sqlz.DB, schemaName string) error {
+	if err := sqlz.RequireSingleConn(db); err != nil {
+		return errz.Wrapf(err, "create schema {%s}: ATTACH DATABASE requires single connection", schemaName)
+	}
+
+	// NOTE: Empty string for DATABASE creates a temporary database.
+	// We may want to change this to create a more permanent database, perhaps
+	// in the same directory as the existing db?
+	stmt := `ATTACH DATABASE "" AS ` + stringz.DoubleQuote(schemaName)
+	if _, err := db.ExecContext(ctx, stmt); err != nil {
+		return errz.Wrapf(err, "create schema {%s}", schemaName)
+	}
+
+	return nil
+}
+
+// DropSchema implements driver.SQLDriver. As per CreateSchema, db must
+// be a *sql.Conn or *sql.Tx.
+//
+// See https://www.sqlite.org/lang_detach.html
+func (d *driveri) DropSchema(ctx context.Context, db sqlz.DB, schemaName string) error {
+	if err := sqlz.RequireSingleConn(db); err != nil {
+		return errz.Wrapf(err, "drop schema {%s}: DETACH DATABASE requires single connection", schemaName)
+	}
+
+	stmt := `DETACH DATABASE ` + stringz.DoubleQuote(schemaName)
+	if _, err := db.ExecContext(ctx, stmt); err != nil {
+		return errz.Wrapf(err, "drop schema {%s}", schemaName)
+	}
+
+	return nil
 }
 
 // CreateTable implements driver.SQLDriver.
@@ -604,6 +686,45 @@ func (d *driveri) CurrentSchema(ctx context.Context, db sqlz.DB) (string, error)
 	}
 
 	return name, nil
+}
+
+// ListSchemas implements driver.SQLDriver.
+func (d *driveri) ListSchemas(ctx context.Context, db sqlz.DB) ([]string, error) {
+	log := lg.FromContext(ctx)
+
+	const q = `SELECT name FROM pragma_database_list ORDER BY name`
+	var schemas []string
+	rows, err := db.QueryContext(ctx, q)
+	if err != nil {
+		return nil, errz.Err(err)
+	}
+	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
+
+	for rows.Next() {
+		var schema string
+		if err = rows.Scan(&schema); err != nil {
+			return nil, errz.Err(err)
+		}
+		schemas = append(schemas, schema)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, errz.Err(err)
+	}
+
+	return schemas, nil
+}
+
+// CurrentCatalog implements driver.SQLDriver. SQLite does not support catalogs,
+// so this method returns an error.
+func (d *driveri) CurrentCatalog(_ context.Context, _ sqlz.DB) (string, error) {
+	return "", errz.New("sqlite3: catalog mechanism not supported")
+}
+
+// ListCatalogs implements driver.SQLDriver. SQLite does not support catalogs,
+// so this method returns an error.
+func (d *driveri) ListCatalogs(_ context.Context, _ sqlz.DB) ([]string, error) {
+	return nil, errz.New("sqlite3: catalog mechanism not supported")
 }
 
 // AlterTableRename implements driver.SQLDriver.
@@ -939,14 +1060,23 @@ func PathFromLocation(src *source.Source) (string, error) {
 // and builds a sqlite3 location URL. Each of these forms are allowed:
 //
 //	sqlite3:///path/to/sakila.db	--> sqlite3:///path/to/sakila.db
-//	sqlite3:sakila.db 				--> sqlite3:///current/working/dir/sakila.db
-//	sqlite3:/sakila.db 				--> sqlite3:///sakila.db
-//	sqlite3:./sakila.db 			--> sqlite3:///current/working/dir/sakila.db
-//	sqlite3:sakila.db 				--> sqlite3:///current/working/dir/sakila.db
-//	sakila.db						--> sqlite3:///current/working/dir/sakila.db
-//	/path/to/sakila.db				--> sqlite3:///path/to/sakila.db
+//	sqlite3:sakila.db 						--> sqlite3:///current/working/dir/sakila.db
+//	sqlite3:/sakila.db 						--> sqlite3:///sakila.db
+//	sqlite3:./sakila.db 					--> sqlite3:///current/working/dir/sakila.db
+//	sqlite3:sakila.db 						--> sqlite3:///current/working/dir/sakila.db
+//	sakila.db											--> sqlite3:///current/working/dir/sakila.db
+//	/path/to/sakila.db						--> sqlite3:///path/to/sakila.db
 //
 // The final form is particularly nice for shell completion etc.
+//
+// Note that this function is OS-dependent, due to the use of pkg filepath.
+// Thus, on Windows, this is seen:
+//
+//	C:/Users/sq/sakila.db 				--> sqlite3://C:/Users/sq/sakila.db
+//
+// But that input location gets mangled on non-Windows OSes. This probably
+// isn't a problem in practice, but longer-term it may make sense to rewrite
+// MungeLocation to be OS-independent.
 func MungeLocation(loc string) (string, error) {
 	loc2 := strings.TrimSpace(loc)
 	if loc2 == "" {
@@ -956,14 +1086,7 @@ func MungeLocation(loc string) (string, error) {
 	loc2 = strings.TrimPrefix(loc2, "sqlite3://")
 	loc2 = strings.TrimPrefix(loc2, "sqlite3:")
 
-	// Now we should be left with just a path, which could be
-	// relative or absolute.
-	u, err := url.Parse(loc2)
-	if err != nil {
-		return "", errz.Wrapf(errw(err), "invalid location: %s", loc)
-	}
-
-	fp, err := filepath.Abs(u.Path)
+	fp, err := filepath.Abs(loc2)
 	if err != nil {
 		return "", errz.Wrapf(errw(err), "invalid location: %s", loc)
 	}

@@ -3,7 +3,10 @@ package flag
 
 const (
 	ActiveSrc      = "src"
-	ActiveSrcUsage = "Override the active source for this query"
+	ActiveSrcUsage = "Override active source for this query"
+
+	ActiveSchema      = "src.schema"
+	ActiveSchemaUsage = "Override active schema or catalog.schema for this query"
 
 	ConfigSrc      = "src"
 	ConfigSrcUsage = "Config for source"
@@ -14,10 +17,10 @@ const (
 
 	AddDriver      = "driver"
 	AddDriverShort = "d"
-	AddDriverUsage = "Explicitly specify the driver to use"
+	AddDriverUsage = "Explicitly specify driver to use"
 
 	IngestDriver      = "ingest.driver"
-	IngestDriverUsage = "Explicitly specify the driver to use for ingesting data"
+	IngestDriverUsage = "Explicitly specify driver to use for ingesting data"
 
 	HTML      = "html"
 	HTMLUsage = "Output HTML table"
@@ -41,7 +44,7 @@ const (
 	Help = "help"
 
 	Insert      = "insert"
-	InsertUsage = "Insert query results into @HANDLE.TABLE. If not existing, TABLE will be created."
+	InsertUsage = "Insert query results into @HANDLE.TABLE; if not existing, TABLE will be created"
 
 	JSON       = "json"
 	JSONShort  = "j"

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/core/tablefq"
+
 	"github.com/neilotoole/sq/libsq/core/options"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -47,19 +49,20 @@ func TestDriver_DropTable(t *testing.T) {
 			tblName := stringz.UniqTableName(sakila.TblActor)
 
 			// Copy a table that we can play with
-			tblName = th.CopyTable(false, src, sakila.TblActor, tblName, false)
-			require.NoError(t, drvr.DropTable(th.Context, db, tblName, true))
+			tblName = th.CopyTable(false, src, tablefq.From(sakila.TblActor), tablefq.From(tblName), false)
+			require.NoError(t, drvr.DropTable(th.Context, db, tablefq.From(tblName), true))
 
 			// Copy the table again so we can drop it again
-			tblName = th.CopyTable(false, src, sakila.TblActor, tblName, false)
+			tblName = th.CopyTable(false, src, tablefq.From(sakila.TblActor), tablefq.From(tblName), false)
 
 			// test with ifExists = false
-			require.NoError(t, drvr.DropTable(th.Context, db, tblName, false))
+			require.NoError(t, drvr.DropTable(th.Context, db, tablefq.From(tblName), false))
 
 			// Check that we get the expected behavior when the table doesn't exist
-			require.NoError(t, drvr.DropTable(th.Context, db, stringz.UniqSuffix("not_a_table"), true),
+			notTable := tablefq.New(stringz.UniqSuffix("not_a_table"))
+			require.NoError(t, drvr.DropTable(th.Context, db, notTable, true),
 				"should be no error when ifExists is true")
-			require.Error(t, drvr.DropTable(th.Context, db, stringz.UniqSuffix("not_a_table"), false),
+			require.Error(t, drvr.DropTable(th.Context, db, notTable, false),
 				"error expected when ifExists is false")
 		})
 	}
@@ -99,19 +102,19 @@ func TestDriver_CopyTable(t *testing.T) {
 
 			toTable := stringz.UniqTableName(sakila.TblActor)
 			// First, test with copyData = true
-			copied, err := drvr.CopyTable(th.Context, db, sakila.TblActor, toTable, true)
+			copied, err := drvr.CopyTable(th.Context, db, tablefq.From(sakila.TblActor), tablefq.From(toTable), true)
 			require.NoError(t, err)
 			require.Equal(t, int64(sakila.TblActorCount), copied)
 			require.Equal(t, int64(sakila.TblActorCount), th.RowCount(src, toTable))
-			defer th.DropTable(src, toTable)
+			defer th.DropTable(src, tablefq.From(toTable))
 
 			toTable = stringz.UniqTableName(sakila.TblActor)
 			// Then, with copyData = false
-			copied, err = drvr.CopyTable(th.Context, db, sakila.TblActor, toTable, false)
+			copied, err = drvr.CopyTable(th.Context, db, tablefq.From(sakila.TblActor), tablefq.From(toTable), false)
 			require.NoError(t, err)
 			require.Equal(t, int64(0), copied)
 			require.Equal(t, int64(0), th.RowCount(src, toTable))
-			defer th.DropTable(src, toTable)
+			defer th.DropTable(src, tablefq.From(toTable))
 		})
 	}
 }
@@ -136,7 +139,7 @@ func TestDriver_CreateTable_Minimal(t *testing.T) {
 
 			err := drvr.CreateTable(th.Context, db, tblDef)
 			require.NoError(t, err)
-			t.Cleanup(func() { th.DropTable(src, tblName) })
+			t.Cleanup(func() { th.DropTable(src, tablefq.From(tblName)) })
 
 			colTypes, err := drvr.TableColumnTypes(th.Context, db, tblName, colNames)
 			require.NoError(t, err)
@@ -167,7 +170,7 @@ func TestDriver_TableColumnTypes(t *testing.T) { //nolint:tparallel
 			// differently depending upon whether the query returns rows
 			// or not.
 			for _, copyData := range []bool{false, true} {
-				tblName := th.CopyTable(true, src, sakila.TblActor, "", copyData)
+				tblName := th.CopyTable(true, src, tablefq.From(sakila.TblActor), tablefq.T{}, copyData)
 
 				// Note nil colNames, should still get all columns
 				// as if the query was (SELECT * FROM actualTblName)
@@ -202,7 +205,7 @@ func TestSQLDriver_PrepareUpdateStmt(t *testing.T) { //nolint:tparallel
 
 			th, src, drvr, _, db := testh.NewWith(t, handle)
 
-			tblName := th.CopyTable(true, src, sakila.TblActor, "", true)
+			tblName := th.CopyTable(true, src, tablefq.From(sakila.TblActor), tablefq.T{}, true)
 
 			const (
 				actorID     int64  = 1
@@ -223,7 +226,7 @@ func TestSQLDriver_PrepareUpdateStmt(t *testing.T) { //nolint:tparallel
 			require.NoError(t, err)
 			assert.Equal(t, int64(1), affected)
 
-			sink, err := th.QuerySQL(src, "SELECT * FROM "+tblName+" WHERE actor_id = 1")
+			sink, err := th.QuerySQL(src, nil, "SELECT * FROM "+tblName+" WHERE actor_id = 1")
 
 			require.NoError(t, err)
 			require.Equal(t, 1, len(sink.Recs))
@@ -288,11 +291,12 @@ func TestNewBatchInsert(t *testing.T) {
 
 		t.Run(handle, func(t *testing.T) {
 			th, src, drvr, _, db := testh.NewWith(t, handle)
+			tblName := th.CopyTable(true, src, tablefq.From(sakila.TblActor), tablefq.T{}, false)
 			conn, err := db.Conn(th.Context)
 			require.NoError(t, err)
-			defer func() { assert.NoError(t, conn.Close()) }()
-
-			tblName := th.CopyTable(true, src, sakila.TblActor, "", false)
+			t.Cleanup(func() {
+				_ = conn.Close()
+			})
 
 			// Get records from TblActor that we'll write to the new tbl
 			recMeta, recs := testh.RecordsFromTbl(t, handle, sakila.TblActor)
@@ -320,7 +324,9 @@ func TestNewBatchInsert(t *testing.T) {
 			err = <-bi.ErrCh
 			require.Nil(t, err)
 
-			sink, err := th.QuerySQL(src, "SELECT * FROM "+tblName)
+			require.NoError(t, conn.Close())
+
+			sink, err := th.QuerySQL(src, nil, "SELECT * FROM "+tblName)
 			require.NoError(t, err)
 			require.Equal(t, sakila.TblActorCount, len(sink.Recs))
 			th.TruncateTable(src, tblName) // cleanup
@@ -505,7 +511,7 @@ func TestSQLDriver_AlterTableAddColumn(t *testing.T) {
 			th, src, drvr, _, db := testh.NewWith(t, handle)
 
 			// Make a copy of the table to play with
-			tbl := th.CopyTable(true, src, sakila.TblActor, "", true)
+			tbl := th.CopyTable(true, src, tablefq.From(sakila.TblActor), tablefq.T{}, true)
 
 			const wantCol, wantKind = "col_int", kind.Int
 			wantCols := append(sakila.TblActorCols(), wantCol)
@@ -514,7 +520,7 @@ func TestSQLDriver_AlterTableAddColumn(t *testing.T) {
 			err := drvr.AlterTableAddColumn(th.Context, db, tbl, wantCol, wantKind)
 			require.NoError(t, err)
 
-			sink, err := th.QuerySQL(src, "SELECT * FROM "+tbl)
+			sink, err := th.QuerySQL(src, nil, "SELECT * FROM "+tbl)
 			require.NoError(t, err)
 
 			gotCols := sink.RecMeta.Names()
@@ -536,18 +542,18 @@ func TestSQLDriver_AlterTableRename(t *testing.T) {
 			th, src, drvr, dbase, db := testh.NewWith(t, handle)
 
 			// Make a copy of the table to play with
-			tbl := th.CopyTable(true, src, sakila.TblActor, "", true)
-			defer th.DropTable(src, tbl)
+			tbl := th.CopyTable(true, src, tablefq.From(sakila.TblActor), tablefq.T{}, true)
+			defer th.DropTable(src, tablefq.From(tbl))
 
 			newName := stringz.UniqSuffix("actor_copy_")
 			err := drvr.AlterTableRename(th.Context, db, tbl, newName)
 			require.NoError(t, err)
-			defer th.DropTable(src, newName)
+			defer th.DropTable(src, tablefq.From(newName))
 
 			md, err := dbase.TableMetadata(th.Context, newName)
 			require.NoError(t, err)
 			require.Equal(t, newName, md.Name)
-			sink, err := th.QuerySQL(src, "SELECT * FROM "+newName)
+			sink, err := th.QuerySQL(src, nil, "SELECT * FROM "+newName)
 			require.NoError(t, err)
 			require.Equal(t, sakila.TblActorCount, len(sink.Recs))
 		})
@@ -564,7 +570,7 @@ func TestSQLDriver_AlterTableRenameColumn(t *testing.T) {
 			th, src, drvr, dbase, db := testh.NewWith(t, handle)
 
 			// Make a copy of the table to play with
-			tbl := th.CopyTable(true, src, sakila.TblActor, "", true)
+			tbl := th.CopyTable(true, src, tablefq.From(sakila.TblActor), tablefq.T{}, true)
 
 			newName := "given_name"
 			err := drvr.AlterTableRenameColumn(th.Context, db, tbl, "first_name", newName)
@@ -573,9 +579,31 @@ func TestSQLDriver_AlterTableRenameColumn(t *testing.T) {
 			md, err := dbase.TableMetadata(th.Context, tbl)
 			require.NoError(t, err)
 			require.NotNil(t, md.Column(newName))
-			sink, err := th.QuerySQL(src, fmt.Sprintf("SELECT %s FROM %s", newName, tbl))
+			sink, err := th.QuerySQL(src, nil, fmt.Sprintf("SELECT %s FROM %s", newName, tbl))
 			require.NoError(t, err)
 			require.Equal(t, sakila.TblActorCount, len(sink.Recs))
+		})
+	}
+}
+
+func TestSQLDriver_CurrentCatalog(t *testing.T) {
+	for _, handle := range sakila.SQLAll() {
+		handle := handle
+
+		t.Run(handle, func(t *testing.T) {
+			th, _, drvr, _, db := testh.NewWith(t, handle)
+			if !drvr.Dialect().Catalog {
+				t.Skipf("driver {%s} does not support catalogs", drvr.DriverMetadata().Type)
+				return
+			}
+
+			currentCatalog, err := drvr.CurrentCatalog(th.Context, db)
+			require.NoError(t, err)
+			require.NotEmpty(t, currentCatalog)
+
+			gotCatalogs, err := drvr.ListCatalogs(th.Context, db)
+			require.NoError(t, err)
+			require.Equal(t, currentCatalog, gotCatalogs[0])
 		})
 	}
 }
@@ -597,14 +625,86 @@ func TestSQLDriver_CurrentSchema(t *testing.T) {
 		t.Run(tc.handle, func(t *testing.T) {
 			th, _, drvr, dbase, db := testh.NewWith(t, tc.handle)
 
-			got, err := drvr.CurrentSchema(th.Context, db)
+			gotSchema, err := drvr.CurrentSchema(th.Context, db)
 			require.NoError(t, err)
-			require.Equal(t, tc.want, got)
+			require.Equal(t, tc.want, gotSchema)
 
 			md, err := dbase.SourceMetadata(th.Context, false)
 			require.NoError(t, err)
 			require.NotNil(t, md)
-			require.Equal(t, md.Schema, got)
+			require.Equal(t, md.Schema, gotSchema)
+
+			gotSchemas, err := drvr.ListSchemas(th.Context, db)
+			require.NoError(t, err)
+			require.Contains(t, gotSchemas, gotSchema)
+		})
+	}
+}
+
+func TestDriverCreateDropSchema(t *testing.T) {
+	testCases := []struct {
+		handle        string
+		defaultSchema string
+	}{
+		{sakila.SL3, "main"},
+		{sakila.Pg, "public"},
+		{sakila.My, "sakila"},
+		{sakila.MS, "dbo"},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.handle, func(t *testing.T) {
+			th, src, drvr, _, db := testh.NewWith(t, tc.handle)
+			ctx := th.Context
+
+			conn, err := db.Conn(th.Context)
+			require.NoError(t, err)
+			t.Cleanup(func() {
+				assert.NoError(t, conn.Close())
+			})
+
+			gotSchema1, err := drvr.CurrentSchema(ctx, conn)
+			require.NoError(t, err)
+			require.Equal(t, tc.defaultSchema, gotSchema1)
+
+			newSchema := "test_schema_" + stringz.Uniq8()
+
+			err = drvr.CreateSchema(ctx, conn, newSchema)
+			require.NoError(t, err)
+
+			t.Cleanup(func() {
+				err = drvr.DropSchema(ctx, conn, newSchema)
+				assert.NoError(t, err)
+			})
+
+			schemaNames, err := drvr.ListSchemas(ctx, conn)
+			require.NoError(t, err)
+			require.Contains(t, schemaNames, tc.defaultSchema)
+			require.Contains(t, schemaNames, newSchema)
+
+			destTblFQ := tablefq.T{Schema: newSchema, Table: stringz.UniqTableName("actor2")}
+			srcTblFQ := tablefq.From(sakila.TblActor)
+			copied, err := drvr.CopyTable(ctx, conn, srcTblFQ, destTblFQ, true)
+			require.NoError(t, err)
+			require.Equal(t, int64(sakila.TblActorCount), copied)
+
+			q := fmt.Sprintf("SELECT * FROM %s.%s", destTblFQ.Schema, destTblFQ.Table)
+			sink, err := th.QuerySQL(src, conn, q)
+			require.NoError(t, err)
+			require.Equal(t, int64(sakila.TblActorCount), int64(len(sink.Recs)))
+
+			// Do a second copy for good measure. We want to verify that CopyTable works
+			// even on the non-default schema (this could probably be its own test).
+			destTblFQ2 := tablefq.T{Schema: newSchema, Table: stringz.UniqSuffix("actor3_")}
+			copied, err = drvr.CopyTable(ctx, conn, destTblFQ, destTblFQ2, true)
+			require.NoError(t, err)
+			require.Equal(t, int64(sakila.TblActorCount), copied)
+
+			q = fmt.Sprintf("SELECT * FROM %s.%s", destTblFQ2.Schema, destTblFQ2.Table)
+			sink, err = th.QuerySQL(src, conn, q)
+			require.NoError(t, err)
+			require.Equal(t, int64(sakila.TblActorCount), int64(len(sink.Recs)))
 		})
 	}
 }

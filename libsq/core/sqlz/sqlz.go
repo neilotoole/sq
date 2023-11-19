@@ -65,3 +65,16 @@ const (
 	TableTypeView    = "view"
 	TableTypeVirtual = "virtual"
 )
+
+// RequireSingleConn returns nil if db is a type that guarantees a
+// single database connection. That is, RequireSingleConn returns an
+// error if db does not have type *sql.Conn or *sql.Tx.
+func RequireSingleConn(db DB) error {
+	switch db.(type) {
+	case *sql.Conn, *sql.Tx:
+	default:
+		return errz.Errorf("sql.Conn or sql.Tx required, but was %T", db)
+	}
+
+	return nil
+}
