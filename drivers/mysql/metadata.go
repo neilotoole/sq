@@ -291,20 +291,17 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSc
 		})
 	})
 
-	if noSchema {
-		return md, nil
+	if !noSchema {
+		g.Go(func() error {
+			return doRetry(gCtx, func() error {
+				var err error
+				md.Tables, err = getAllTblMetas(gCtx, db)
+				return err
+			})
+		})
 	}
 
-	g.Go(func() error {
-		return doRetry(gCtx, func() error {
-			var err error
-			md.Tables, err = getAllTblMetas(gCtx, db)
-			return err
-		})
-	})
-
-	err := g.Wait()
-	if err != nil {
+	if err := g.Wait(); err != nil {
 		return nil, err
 	}
 
@@ -322,20 +319,29 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSc
 func setSourceSummaryMeta(ctx context.Context, db sqlz.DB, md *source.Metadata) error {
 	const summaryQuery = `SELECT @@GLOBAL.version, @@GLOBAL.version_comment, @@GLOBAL.version_compile_os,
        @@GLOBAL.version_compile_machine, DATABASE(), CURRENT_USER(),
+       (SELECT CATALOG_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = DATABASE() LIMIT 1),
        (SELECT SUM( data_length + index_length )
         FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE()) AS size`
 
 	var version, versionComment, versionOS, versionArch, schema string
 	var size sql.NullInt64
-	err := db.QueryRowContext(ctx, summaryQuery).Scan(&version, &versionComment, &versionOS, &versionArch, &schema,
-		&md.User, &size)
+	err := db.QueryRowContext(ctx, summaryQuery).Scan(
+		&version,
+		&versionComment,
+		&versionOS,
+		&versionArch,
+		&schema,
+		&md.User,
+		&md.Catalog,
+		&size,
+	)
 	if err != nil {
 		return errw(err)
 	}
 
 	md.Name = schema
 	md.Schema = schema
-	md.FQName = schema
+	md.FQName = md.Catalog + "." + schema
 	if size.Valid {
 		md.Size = size.Int64
 	}

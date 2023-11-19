@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
+## [v0.43.1] - 2023-11-19
+
+### Added
+
+- Related to [#270], the output of `sq inspect` now includes the
+  source's catalog (in JSON and YAML output formats).
+
+### Fixed
+
+- MySQL driver didn't populate all expected values for `sq inspect --overview`.
+
+### Changed
+
+- ☢️ Removed unused `--exec` and `--query` flags from `sq sql` command.
+
 ## [v0.43.0] - 2023-11-18
 
 ### Added
@@ -871,3 +886,4 @@ make working with lots of sources much easier.
 [v0.42.0]: https://github.com/neilotoole/sq/compare/v0.41.1...v0.42.0
 [v0.42.1]: https://github.com/neilotoole/sq/compare/v0.42.0...v0.42.1
 [v0.43.0]: https://github.com/neilotoole/sq/compare/v0.42.1...v0.43.0
+[v0.43.1]: https://github.com/neilotoole/sq/compare/v0.43.0...v0.43.1

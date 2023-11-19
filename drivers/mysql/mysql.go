@@ -229,16 +229,28 @@ func (d *driveri) ListSchemas(ctx context.Context, db sqlz.DB) ([]string, error)
 	return schemas, nil
 }
 
-// CurrentCatalog implements driver.SQLDriver. MySQL does not support catalogs,
-// so this method returns an error.
-func (d *driveri) CurrentCatalog(_ context.Context, _ sqlz.DB) (string, error) {
-	return "", errz.New("mysql: catalog mechanism not supported")
+// CurrentCatalog implements driver.SQLDriver. Although MySQL doesn't really
+// support catalogs, we return the value found in INFORMATION_SCHEMA.SCHEMATA,
+// i.e. "def".
+func (d *driveri) CurrentCatalog(ctx context.Context, db sqlz.DB) (string, error) {
+	var catalog string
+
+	if err := db.QueryRowContext(ctx, selectCatalog).Scan(&catalog); err != nil {
+		return "", errw(err)
+	}
+	return catalog, nil
 }
 
-// ListCatalogs implements driver.SQLDriver. MySQL does not support catalogs,
-// so this method returns an error.
-func (d *driveri) ListCatalogs(_ context.Context, _ sqlz.DB) ([]string, error) {
-	return nil, errz.New("mysql: catalog mechanism not supported")
+// ListCatalogs implements driver.SQLDriver. MySQL does not really support catalogs,
+// but this method simply delegates to CurrentCatalog, which returns the value
+// found in INFORMATION_SCHEMA.SCHEMATA, i.e. "def".
+func (d *driveri) ListCatalogs(ctx context.Context, db sqlz.DB) ([]string, error) {
+	catalog, err := d.CurrentCatalog(ctx, db)
+	if err != nil {
+		return nil, err
+	}
+
+	return []string{catalog}, nil
 }
 
 // AlterTableRename implements driver.SQLDriver.
@@ -600,12 +612,14 @@ func tblfmt[T string | tablefq.T](tbl T) string {
 	return tfq.Render(stringz.BacktickQuote)
 }
 
+const selectCatalog = `SELECT CATALOG_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = DATABASE() LIMIT 1`
+
 func doRenderFuncCatalog(_ *render.Context, fn *ast.FuncNode) (string, error) {
 	if fn.FuncName() != ast.FuncNameCatalog {
 		// Shouldn't happen
 		return "", errz.Errorf("expected %s function, got %q", ast.FuncNameCatalog, fn.FuncName())
 	}
 
-	const frag = `(SELECT CATALOG_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = DATABASE() LIMIT 1)`
+	const frag = `(` + selectCatalog + `)`
 	return frag, nil
 }

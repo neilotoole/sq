@@ -206,6 +206,7 @@ current_setting('server_version'), version(), "current_user"()`
 		return nil, errz.New("NULL value for current_schema(): check privileges and search_path")
 	}
 
+	md.Catalog = md.Name
 	md.Schema = schema.String
 	md.FQName = md.Name + "." + schema.String
 
