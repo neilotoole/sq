@@ -169,10 +169,10 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 	}
 
 	if src.Catalog != "" && src.Catalog != dbCfg.ConnConfig.Database {
-		// The catalog differs from the pool in the connection string.
-		// OOTB, Postgres doesn't support cross-pool references. So,
+		// The catalog differs from the database in the connection string.
+		// OOTB, Postgres doesn't support cross-database references. So,
 		// we'll need to change the connection string to use the catalog
-		// as the pool. Note that we don't modify src.Location, but it's
+		// as the database. Note that we don't modify src.Location, but it's
 		// not entirely clear if that's the correct approach. Are there any
 		// downsides to modifying it (as long as the modified Location is not
 		// persisted back to config)?
@@ -187,7 +187,7 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 		if err != nil {
 			return nil, errw(err)
 		}
-		log.Debug("Using catalog as pool in connection string",
+		log.Debug("Using catalog as database in connection string",
 			lga.Src, src,
 			lga.Catalog, src.Catalog,
 			lga.Conn, source.RedactLocation(connStr),

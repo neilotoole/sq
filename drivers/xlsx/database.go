@@ -146,7 +146,7 @@ func (p *pool) TableMetadata(ctx context.Context, tblName string) (*source.Table
 func (p *pool) Close() error {
 	p.log.Debug(lgm.CloseDB, lga.Handle, p.src.Handle)
 
-	// No need to explicitly invoke c.scratchDB.Close because
+	// No need to explicitly invoke c.scratchPool.Close because
 	// that's already added to c.clnup
 	return p.clnup.Run()
 }

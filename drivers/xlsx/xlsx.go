@@ -63,18 +63,18 @@ func (d *Driver) DriverMetadata() driver.Metadata {
 func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Pool, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
-	scratchDB, err := d.scratcher.OpenScratch(ctx, src.Handle)
+	scratchPool, err := d.scratcher.OpenScratch(ctx, src.Handle)
 	if err != nil {
 		return nil, err
 	}
 
 	clnup := cleanup.New()
-	clnup.AddE(scratchDB.Close)
+	clnup.AddE(scratchPool.Close)
 
 	p := &pool{
 		log:         d.log,
 		src:         src,
-		scratchPool: scratchDB,
+		scratchPool: scratchPool,
 		files:       d.files,
 		clnup:       clnup,
 	}

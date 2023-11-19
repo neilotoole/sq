@@ -92,16 +92,16 @@ func (xs *xSheet) loadSampleRows(ctx context.Context, sampleSize int) error {
 	return nil
 }
 
-// ingestXLSX loads the data in xfile into scratchDB.
+// ingestXLSX loads the data in xfile into scratchPool.
 // If includeSheetNames is non-empty, only the named sheets are ingested.
-func ingestXLSX(ctx context.Context, src *source.Source, scratchDB driver.Pool,
+func ingestXLSX(ctx context.Context, src *source.Source, scratchPool driver.Pool,
 	xfile *excelize.File, includeSheetNames []string,
 ) error {
 	log := lg.FromContext(ctx)
 	start := time.Now()
 	log.Debug("Beginning import from XLSX",
 		lga.Src, src,
-		lga.Target, scratchDB.Source())
+		lga.Target, scratchPool.Source())
 
 	var sheets []*xSheet
 	if len(includeSheetNames) > 0 {
@@ -132,18 +132,18 @@ func ingestXLSX(ctx context.Context, src *source.Source, scratchDB driver.Pool,
 		}
 
 		var db *sql.DB
-		if db, err = scratchDB.DB(ctx); err != nil {
+		if db, err = scratchPool.DB(ctx); err != nil {
 			return err
 		}
 
-		if err = scratchDB.SQLDriver().CreateTable(ctx, db, sheetTbl.def); err != nil {
+		if err = scratchPool.SQLDriver().CreateTable(ctx, db, sheetTbl.def); err != nil {
 			return err
 		}
 	}
 
 	log.Debug("Tables created (but not yet populated)",
 		lga.Count, len(sheetTbls),
-		lga.Target, scratchDB.Source(),
+		lga.Target, scratchPool.Source(),
 		lga.Elapsed, time.Since(start))
 
 	var imported, skipped int
@@ -154,7 +154,7 @@ func ingestXLSX(ctx context.Context, src *source.Source, scratchDB driver.Pool,
 			continue
 		}
 
-		if err = ingestSheetToTable(ctx, scratchDB, sheetTbls[i]); err != nil {
+		if err = ingestSheetToTable(ctx, scratchPool, sheetTbls[i]); err != nil {
 			return err
 		}
 		imported++
@@ -164,7 +164,7 @@ func ingestXLSX(ctx context.Context, src *source.Source, scratchDB driver.Pool,
 		lga.Count, imported,
 		"skipped", skipped,
 		lga.From, src,
-		lga.To, scratchDB.Source(),
+		lga.To, scratchPool.Source(),
 		lga.Elapsed, time.Since(start),
 	)
 
@@ -172,8 +172,8 @@ func ingestXLSX(ctx context.Context, src *source.Source, scratchDB driver.Pool,
 }
 
 // ingestSheetToTable imports the sheet data into the appropriate table
-// in scratchDB. The scratch table must already exist.
-func ingestSheetToTable(ctx context.Context, scratchDB driver.Pool, sheetTbl *sheetTable) error {
+// in scratchPool. The scratch table must already exist.
+func ingestSheetToTable(ctx context.Context, scratchPool driver.Pool, sheetTbl *sheetTable) error {
 	var (
 		log          = lg.FromContext(ctx)
 		startTime    = time.Now()
@@ -183,7 +183,7 @@ func ingestSheetToTable(ctx context.Context, scratchDB driver.Pool, sheetTbl *sh
 		destColKinds = tblDef.ColKinds()
 	)
 
-	db, err := scratchDB.DB(ctx)
+	db, err := scratchPool.DB(ctx)
 	if err != nil {
 		return err
 	}
@@ -194,7 +194,7 @@ func ingestSheetToTable(ctx context.Context, scratchDB driver.Pool, sheetTbl *sh
 	}
 	defer lg.WarnIfCloseError(log, lgm.CloseDB, conn)
 
-	drvr := scratchDB.SQLDriver()
+	drvr := scratchPool.SQLDriver()
 
 	batchSize := driver.MaxBatchRows(drvr, len(destColKinds))
 	bi, err := driver.NewBatchInsert(ctx, drvr, conn, tblDef.Name, tblDef.ColNames(), batchSize)
@@ -264,7 +264,7 @@ func ingestSheetToTable(ctx context.Context, scratchDB driver.Pool, sheetTbl *sh
 	log.Debug("Inserted rows from sheet into table",
 		lga.Count, bi.Written(),
 		laSheet, sheet.name,
-		lga.Target, source.Target(scratchDB.Source(), tblDef.Name),
+		lga.Target, source.Target(scratchPool.Source(), tblDef.Name),
 		lga.Elapsed, time.Since(startTime))
 
 	return nil
