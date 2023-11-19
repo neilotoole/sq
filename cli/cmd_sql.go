@@ -138,22 +138,22 @@ func execSQLInsert(ctx context.Context, ru *run.Run,
 	fromSrc, destSrc *source.Source, destTbl string,
 ) error {
 	args := ru.Args
-	dbases := ru.Pools
+	pools := ru.Pools
 	ctx, cancelFn := context.WithCancel(ctx)
 	defer cancelFn()
 
-	fromDB, err := dbases.Open(ctx, fromSrc)
+	fromDB, err := pools.Open(ctx, fromSrc)
 	if err != nil {
 		return err
 	}
 
-	destPool, err := dbases.Open(ctx, destSrc)
+	destPool, err := pools.Open(ctx, destSrc)
 	if err != nil {
 		return err
 	}
 
 	// Note: We don't need to worry about closing fromDB and
-	// destPool because they are closed by dbases.Close, which
+	// destPool because they are closed by pools.Close, which
 	// is invoked by ru.Close, and ru is closed further up the
 	// stack.
 

@@ -762,22 +762,22 @@ func (h *Helper) Files() *source.Files {
 
 // SourceMetadata returns metadata for src.
 func (h *Helper) SourceMetadata(src *source.Source) (*source.Metadata, error) {
-	dbases, err := h.Pools().Open(h.Context, src)
+	pools, err := h.Pools().Open(h.Context, src)
 	if err != nil {
 		return nil, err
 	}
 
-	return dbases.SourceMetadata(h.Context, false)
+	return pools.SourceMetadata(h.Context, false)
 }
 
 // TableMetadata returns metadata for src's table.
 func (h *Helper) TableMetadata(src *source.Source, tbl string) (*source.TableMetadata, error) {
-	dbases, err := h.Pools().Open(h.Context, src)
+	pools, err := h.Pools().Open(h.Context, src)
 	if err != nil {
 		return nil, err
 	}
 
-	return dbases.TableMetadata(h.Context, tbl)
+	return pools.TableMetadata(h.Context, tbl)
 }
 
 // DiffDB fails the test if src's metadata is substantially different
