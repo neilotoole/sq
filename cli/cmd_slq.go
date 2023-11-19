@@ -141,7 +141,7 @@ func execSLQInsert(ctx context.Context, ru *run.Run, mArgs map[string]string,
 	ctx, cancelFn := context.WithCancel(ctx)
 	defer cancelFn()
 
-	destDB, err := ru.Databases.Open(ctx, destSrc)
+	destPool, err := ru.Pools.Open(ctx, destSrc)
 	if err != nil {
 		return err
 	}
@@ -152,7 +152,7 @@ func execSLQInsert(ctx context.Context, ru *run.Run, mArgs map[string]string,
 	// stack.
 
 	inserter := libsq.NewDBWriter(
-		destDB,
+		destPool,
 		destTbl,
 		driver.OptTuningRecChanSize.Get(destSrc.Options),
 		libsq.DBWriterCreateTableIfNotExistsHook(destTbl),
@@ -209,7 +209,7 @@ func execSLQPrint(ctx context.Context, ru *run.Run, mArgs map[string]string) err
 //
 //	$ cat something.xlsx | sq @stdin.sheet1
 func preprocessUserSLQ(ctx context.Context, ru *run.Run, args []string) (string, error) {
-	log, reg, dbases, coll := lg.FromContext(ctx), ru.DriverRegistry, ru.Databases, ru.Config.Collection
+	log, reg, pools, coll := lg.FromContext(ctx), ru.DriverRegistry, ru.Pools, ru.Config.Collection
 	activeSrc := coll.Active()
 
 	if len(args) == 0 {
@@ -240,13 +240,13 @@ func preprocessUserSLQ(ctx context.Context, ru *run.Run, args []string) (string,
 			// This isn't a monotable src, so we can't
 			// just select @stdin.data. Instead we'll select
 			// the first table name, as found in the source meta.
-			dbase, err := dbases.Open(ctx, activeSrc)
+			pool, err := pools.Open(ctx, activeSrc)
 			if err != nil {
 				return "", err
 			}
-			defer lg.WarnIfCloseError(log, lgm.CloseDB, dbase)
+			defer lg.WarnIfCloseError(log, lgm.CloseDB, pool)
 
-			srcMeta, err := dbase.SourceMetadata(ctx, false)
+			srcMeta, err := pool.SourceMetadata(ctx, false)
 			if err != nil {
 				return "", err
 			}

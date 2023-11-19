@@ -162,8 +162,8 @@ func (d *driveri) Renderer() *render.Renderer {
 	return r
 }
 
-// Open implements driver.DatabaseOpener.
-func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
+// Open implements driver.PoolOpener.
+func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Pool, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
 	db, err := d.doOpen(ctx, src)
@@ -175,7 +175,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database
 		return nil, err
 	}
 
-	return &database{log: d.log, db: db, src: src, drvr: d}, nil
+	return &pool{log: d.log, db: db, src: src, drvr: d}, nil
 }
 
 func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
@@ -638,33 +638,33 @@ func (d *driveri) getTableColsMeta(ctx context.Context, db sqlz.DB, tblName stri
 	return destCols, nil
 }
 
-// database implements driver.Database.
-type database struct {
+// pool implements driver.Pool.
+type pool struct {
 	log  *slog.Logger
 	drvr *driveri
 	db   *sql.DB
 	src  *source.Source
 }
 
-var _ driver.Database = (*database)(nil)
+var _ driver.Pool = (*pool)(nil)
 
-// DB implements driver.Database.
-func (d *database) DB(context.Context) (*sql.DB, error) {
+// DB implements driver.Pool.
+func (d *pool) DB(context.Context) (*sql.DB, error) {
 	return d.db, nil
 }
 
-// SQLDriver implements driver.Database.
-func (d *database) SQLDriver() driver.SQLDriver {
+// SQLDriver implements driver.Pool.
+func (d *pool) SQLDriver() driver.SQLDriver {
 	return d.drvr
 }
 
-// Source implements driver.Database.
-func (d *database) Source() *source.Source {
+// Source implements driver.Pool.
+func (d *pool) Source() *source.Source {
 	return d.src
 }
 
-// TableMetadata implements driver.Database.
-func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
+// TableMetadata implements driver.Pool.
+func (d *pool) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
 	const query = `SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_TYPE
 FROM INFORMATION_SCHEMA.TABLES
 WHERE TABLE_NAME = @p1`
@@ -680,13 +680,13 @@ WHERE TABLE_NAME = @p1`
 	return getTableMetadata(ctx, d.db, catalog, schema, tblName, tblType)
 }
 
-// SourceMetadata implements driver.Database.
-func (d *database) SourceMetadata(ctx context.Context, noSchema bool) (*source.Metadata, error) {
+// SourceMetadata implements driver.Pool.
+func (d *pool) SourceMetadata(ctx context.Context, noSchema bool) (*source.Metadata, error) {
 	return getSourceMetadata(ctx, d.src, d.db, noSchema)
 }
 
-// Close implements driver.Database.
-func (d *database) Close() error {
+// Close implements driver.Pool.
+func (d *pool) Close() error {
 	d.log.Debug(lgm.CloseDB, lga.Handle, d.src.Handle)
 
 	return errw(d.db.Close())

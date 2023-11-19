@@ -103,10 +103,10 @@ type Helper struct {
 	T   testing.TB
 	Log *slog.Logger
 
-	registry  *driver.Registry
-	files     *source.Files
-	databases *driver.Databases
-	run       *run.Run
+	registry *driver.Registry
+	files    *source.Files
+	pools    *driver.Pools
+	run      *run.Run
 
 	initOnce sync.Once
 
@@ -145,20 +145,20 @@ func New(t testing.TB, opts ...Option) *Helper {
 }
 
 // NewWith is a convenience wrapper for New that also returns
-// a Source for handle, the driver.SQLDriver, driver.Database,
+// a Source for handle, the driver.SQLDriver, driver.Pool,
 // and the *sql.DB.
 //
 // The function will fail if handle is not the handle for a
 // source whose driver implements driver.SQLDriver.
-func NewWith(t testing.TB, handle string) (*Helper, *source.Source, driver.SQLDriver, driver.Database, *sql.DB) {
+func NewWith(t testing.TB, handle string) (*Helper, *source.Source, driver.SQLDriver, driver.Pool, *sql.DB) {
 	th := New(t)
 	src := th.Source(handle)
 	drvr := th.SQLDriverFor(src)
-	dbase := th.Open(src)
-	db, err := dbase.DB(th.Context)
+	pool := th.Open(src)
+	db, err := pool.DB(th.Context)
 	require.NoError(t, err)
 
-	return th, src, drvr, dbase, db
+	return th, src, drvr, pool, db
 }
 
 func (h *Helper) init() {
@@ -178,20 +178,20 @@ func (h *Helper) init() {
 
 		h.files.AddDriverDetectors(source.DetectMagicNumber)
 
-		h.databases = driver.NewDatabases(log, h.registry, sqlite3.NewScratchSource)
-		h.Cleanup.AddC(h.databases)
+		h.pools = driver.NewPools(log, h.registry, sqlite3.NewScratchSource)
+		h.Cleanup.AddC(h.pools)
 
 		h.registry.AddProvider(sqlite3.Type, &sqlite3.Provider{Log: log})
 		h.registry.AddProvider(postgres.Type, &postgres.Provider{Log: log})
 		h.registry.AddProvider(sqlserver.Type, &sqlserver.Provider{Log: log})
 		h.registry.AddProvider(mysql.Type, &mysql.Provider{Log: log})
 
-		csvp := &csv.Provider{Log: log, Scratcher: h.databases, Files: h.files}
+		csvp := &csv.Provider{Log: log, Scratcher: h.pools, Files: h.files}
 		h.registry.AddProvider(csv.TypeCSV, csvp)
 		h.registry.AddProvider(csv.TypeTSV, csvp)
 		h.files.AddDriverDetectors(csv.DetectCSV, csv.DetectTSV)
 
-		jsonp := &json.Provider{Log: log, Scratcher: h.databases, Files: h.files}
+		jsonp := &json.Provider{Log: log, Scratcher: h.pools, Files: h.files}
 		h.registry.AddProvider(json.TypeJSON, jsonp)
 		h.registry.AddProvider(json.TypeJSONA, jsonp)
 		h.registry.AddProvider(json.TypeJSONL, jsonp)
@@ -201,7 +201,7 @@ func (h *Helper) init() {
 			json.DetectJSONL(driver.OptIngestSampleSize.Get(nil)),
 		)
 
-		h.registry.AddProvider(xlsx.Type, &xlsx.Provider{Log: log, Scratcher: h.databases, Files: h.files})
+		h.registry.AddProvider(xlsx.Type, &xlsx.Provider{Log: log, Scratcher: h.pools, Files: h.files})
 		h.files.AddDriverDetectors(xlsx.DetectXLSX)
 
 		h.addUserDrivers()
@@ -368,49 +368,49 @@ func (h *Helper) NewCollection(handles ...string) *source.Collection {
 	return coll
 }
 
-// Open opens a Database for src via h's internal Databases
+// Open opens a driver.Pool for src via h's internal Pools
 // instance: thus subsequent calls to Open may return the
-// same Database instance. The opened Database will be closed
+// same Pool instance. The opened driver.Pool will be closed
 // during h.Close.
-func (h *Helper) Open(src *source.Source) driver.Database {
+func (h *Helper) Open(src *source.Source) driver.Pool {
 	ctx, cancelFn := context.WithTimeout(h.Context, h.dbOpenTimeout)
 	defer cancelFn()
 
-	dbase, err := h.Databases().Open(ctx, src)
+	pool, err := h.Pools().Open(ctx, src)
 	require.NoError(h.T, err)
 
-	db, err := dbase.DB(ctx)
+	db, err := pool.DB(ctx)
 	require.NoError(h.T, err)
 
 	require.NoError(h.T, db.PingContext(ctx))
-	return dbase
+	return pool
 }
 
 // OpenDB is a convenience method for getting the sql.DB for src.
 // The returned sql.DB is closed during h.Close, via the closing
-// of its parent driver.Database.
+// of its parent driver.Pool.
 func (h *Helper) OpenDB(src *source.Source) *sql.DB {
-	dbase := h.Open(src)
-	db, err := dbase.DB(h.Context)
+	pool := h.Open(src)
+	db, err := pool.DB(h.Context)
 	require.NoError(h.T, err)
 	return db
 }
 
-// openNew opens a new Database. It is the caller's responsibility
-// to close the returned Database. Unlike method Open, this method
+// openNew opens a new driver.Pool. It is the caller's responsibility
+// to close the returned Pool. Unlike method Open, this method
 // will always invoke the driver's Open method.
 //
 // Some of Helper's methods (e.g. DropTable) need to use openNew rather
-// than Open, as the Database returned by Open can be closed by test code,
+// than Open, as the Pool returned by Open can be closed by test code,
 // potentially causing problems during Cleanup.
-func (h *Helper) openNew(src *source.Source) driver.Database {
+func (h *Helper) openNew(src *source.Source) driver.Pool {
 	h.Log.Debug("openNew", lga.Src, src)
 	reg := h.Registry()
 	drvr, err := reg.DriverFor(src.Type)
 	require.NoError(h.T, err)
-	dbase, err := drvr.Open(h.Context, src)
+	pool, err := drvr.Open(h.Context, src)
 	require.NoError(h.T, err)
-	return dbase
+	return pool
 }
 
 // SQLDriverFor is a convenience method to get src's driver.SQLDriver.
@@ -436,12 +436,12 @@ func (h *Helper) DriverFor(src *source.Source) driver.Driver {
 // RowCount returns the result of "SELECT COUNT(*) FROM tbl",
 // failing h's test on any error.
 func (h *Helper) RowCount(src *source.Source, tbl string) int64 {
-	dbase := h.openNew(src)
-	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, dbase)
+	pool := h.openNew(src)
+	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, pool)
 
-	query := "SELECT COUNT(*) FROM " + dbase.SQLDriver().Dialect().Enquote(tbl)
+	query := "SELECT COUNT(*) FROM " + pool.SQLDriver().Dialect().Enquote(tbl)
 	var count int64
-	db, err := dbase.DB(h.Context)
+	db, err := pool.DB(h.Context)
 	require.NoError(h.T, err)
 
 	require.NoError(h.T, db.QueryRowContext(h.Context, query).Scan(&count))
@@ -454,13 +454,13 @@ func (h *Helper) RowCount(src *source.Source, tbl string) int64 {
 func (h *Helper) CreateTable(dropAfter bool, src *source.Source, tblDef *sqlmodel.TableDef,
 	data ...[]any,
 ) (affected int64) {
-	dbase := h.openNew(src)
-	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, dbase)
+	pool := h.openNew(src)
+	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, pool)
 
-	db, err := dbase.DB(h.Context)
+	db, err := pool.DB(h.Context)
 	require.NoError(h.T, err)
 
-	require.NoError(h.T, dbase.SQLDriver().CreateTable(h.Context, db, tblDef))
+	require.NoError(h.T, pool.SQLDriver().CreateTable(h.Context, db, tblDef))
 	h.T.Logf("Created table %s.%s", src.Handle, tblDef.Name)
 
 	if dropAfter {
@@ -482,11 +482,11 @@ func (h *Helper) Insert(src *source.Source, tbl string, cols []string, records .
 		return 0
 	}
 
-	dbase := h.openNew(src)
-	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, dbase)
+	pool := h.openNew(src)
+	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, pool)
 
-	drvr := dbase.SQLDriver()
-	db, err := dbase.DB(h.Context)
+	drvr := pool.SQLDriver()
+	db, err := pool.DB(h.Context)
 	require.NoError(h.T, err)
 
 	conn, err := db.Conn(h.Context)
@@ -547,13 +547,13 @@ func (h *Helper) CopyTable(
 		toTable.Table = stringz.UniqTableName(fromTable.Table)
 	}
 
-	dbase := h.openNew(src)
-	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, dbase)
+	pool := h.openNew(src)
+	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, pool)
 
-	db, err := dbase.DB(h.Context)
+	db, err := pool.DB(h.Context)
 	require.NoError(h.T, err)
 
-	copied, err := dbase.SQLDriver().CopyTable(
+	copied, err := pool.SQLDriver().CopyTable(
 		h.Context,
 		db,
 		fromTable,
@@ -577,28 +577,28 @@ func (h *Helper) CopyTable(
 
 // DropTable drops tbl from src.
 func (h *Helper) DropTable(src *source.Source, tbl tablefq.T) {
-	dbase := h.openNew(src)
-	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, dbase)
+	pool := h.openNew(src)
+	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, pool)
 
-	db, err := dbase.DB(h.Context)
+	db, err := pool.DB(h.Context)
 	require.NoError(h.T, err)
 
-	require.NoError(h.T, dbase.SQLDriver().DropTable(h.Context, db, tbl, true))
+	require.NoError(h.T, pool.SQLDriver().DropTable(h.Context, db, tbl, true))
 	h.Log.Debug("Dropped table", lga.Target, source.Target(src, tbl.Table))
 }
 
 // QuerySQL uses libsq.QuerySQL to execute SQL query
 // against src, returning a sink to which all records have
 // been written. Typically the db arg is nil, and QuerySQL uses the
-// same driver.Database instance as returned by Helper.Open. If db
+// same driver.Pool instance as returned by Helper.Open. If db
 // is non-nil, it is passed to libsq.QuerySQL (e.g. the query needs to
 // execute against a sql.Tx), and the caller is responsible for closing db.
 func (h *Helper) QuerySQL(src *source.Source, db sqlz.DB, query string, args ...any) (*RecordSink, error) {
-	dbase := h.Open(src)
+	pool := h.Open(src)
 
 	sink := &RecordSink{}
 	recw := output.NewRecordWriterAdapter(h.Context, sink)
-	err := libsq.QuerySQL(h.Context, dbase, db, recw, query, args...)
+	err := libsq.QuerySQL(h.Context, pool, db, recw, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -623,11 +623,11 @@ func (h *Helper) QuerySLQ(query string, args map[string]string) (*RecordSink, er
 	}
 
 	qc := &libsq.QueryContext{
-		Collection:      h.coll,
-		DBOpener:        h.databases,
-		JoinDBOpener:    h.databases,
-		ScratchDBOpener: h.databases,
-		Args:            args,
+		Collection:        h.coll,
+		PoolOpener:        h.pools,
+		JoinPoolOpener:    h.pools,
+		ScratchPoolOpener: h.pools,
+		Args:              args,
 	}
 
 	sink := &RecordSink{}
@@ -647,7 +647,7 @@ func (h *Helper) QuerySLQ(query string, args map[string]string) (*RecordSink, er
 
 // ExecSQL is a convenience wrapper for sql.DB.Exec that returns the
 // rows affected, failing on any error. Note that ExecSQL uses the
-// same Database instance as returned by h.Open.
+// same Pool instance as returned by h.Open.
 func (h *Helper) ExecSQL(src *source.Source, query string, args ...any) (affected int64) {
 	db := h.OpenDB(src)
 
@@ -688,8 +688,8 @@ func (h *Helper) InsertDefaultRow(src *source.Source, tbl string) {
 
 // TruncateTable truncates tbl in src.
 func (h *Helper) TruncateTable(src *source.Source, tbl string) (affected int64) {
-	dbase := h.openNew(src)
-	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, dbase)
+	pool := h.openNew(src)
+	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, pool)
 
 	affected, err := h.DriverFor(src).Truncate(h.Context, src, tbl, true)
 	require.NoError(h.T, err)
@@ -734,7 +734,7 @@ func (h *Helper) addUserDrivers() {
 			Log:       h.Log,
 			DriverDef: userDriverDef,
 			ImportFn:  importFn,
-			Scratcher: h.databases,
+			Scratcher: h.pools,
 			Files:     h.files,
 		}
 
@@ -748,10 +748,10 @@ func (h *Helper) IsMonotable(src *source.Source) bool {
 	return h.DriverFor(src).DriverMetadata().Monotable
 }
 
-// Databases returns the helper's Databases instance.
-func (h *Helper) Databases() *driver.Databases {
+// Pools returns the helper's driver.Pools instance.
+func (h *Helper) Pools() *driver.Pools {
 	h.init()
-	return h.databases
+	return h.pools
 }
 
 // Files returns the helper's Files instance.
@@ -762,22 +762,22 @@ func (h *Helper) Files() *source.Files {
 
 // SourceMetadata returns metadata for src.
 func (h *Helper) SourceMetadata(src *source.Source) (*source.Metadata, error) {
-	dbases, err := h.Databases().Open(h.Context, src)
+	pools, err := h.Pools().Open(h.Context, src)
 	if err != nil {
 		return nil, err
 	}
 
-	return dbases.SourceMetadata(h.Context, false)
+	return pools.SourceMetadata(h.Context, false)
 }
 
 // TableMetadata returns metadata for src's table.
 func (h *Helper) TableMetadata(src *source.Source, tbl string) (*source.TableMetadata, error) {
-	dbases, err := h.Databases().Open(h.Context, src)
+	pools, err := h.Pools().Open(h.Context, src)
 	if err != nil {
 		return nil, err
 	}
 
-	return dbases.TableMetadata(h.Context, tbl)
+	return pools.TableMetadata(h.Context, tbl)
 }
 
 // DiffDB fails the test if src's metadata is substantially different

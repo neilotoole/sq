@@ -118,13 +118,13 @@ func execSQL(cmd *cobra.Command, args []string) error {
 // to the configured writer.
 func execSQLPrint(ctx context.Context, ru *run.Run, fromSrc *source.Source) error {
 	args := ru.Args
-	dbase, err := ru.Databases.Open(ctx, fromSrc)
+	pool, err := ru.Pools.Open(ctx, fromSrc)
 	if err != nil {
 		return err
 	}
 
 	recw := output.NewRecordWriterAdapter(ctx, ru.Writers.Record)
-	err = libsq.QuerySQL(ctx, dbase, nil, recw, args[0])
+	err = libsq.QuerySQL(ctx, pool, nil, recw, args[0])
 	if err != nil {
 		return err
 	}
@@ -138,27 +138,27 @@ func execSQLInsert(ctx context.Context, ru *run.Run,
 	fromSrc, destSrc *source.Source, destTbl string,
 ) error {
 	args := ru.Args
-	dbases := ru.Databases
+	pools := ru.Pools
 	ctx, cancelFn := context.WithCancel(ctx)
 	defer cancelFn()
 
-	fromDB, err := dbases.Open(ctx, fromSrc)
+	fromDB, err := pools.Open(ctx, fromSrc)
 	if err != nil {
 		return err
 	}
 
-	destDB, err := dbases.Open(ctx, destSrc)
+	destPool, err := pools.Open(ctx, destSrc)
 	if err != nil {
 		return err
 	}
 
 	// Note: We don't need to worry about closing fromDB and
-	// destDB because they are closed by dbases.Close, which
+	// destPool because they are closed by pools.Close, which
 	// is invoked by ru.Close, and ru is closed further up the
 	// stack.
 
 	inserter := libsq.NewDBWriter(
-		destDB,
+		destPool,
 		destTbl,
 		driver.OptTuningRecChanSize.Get(destSrc.Options),
 		libsq.DBWriterCreateTableIfNotExistsHook(destTbl),

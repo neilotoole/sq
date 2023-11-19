@@ -79,8 +79,8 @@ func TestDatabase_SourceMetadata_MySQL(t *testing.T) {
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
-			th, _, _, dbase, _ := testh.NewWith(t, handle)
-			md, err := dbase.SourceMetadata(th.Context, false)
+			th, _, _, pool, _ := testh.NewWith(t, handle)
+			md, err := pool.SourceMetadata(th.Context, false)
 			require.NoError(t, err)
 			require.Equal(t, "sakila", md.Name)
 			require.Equal(t, handle, md.Handle)
@@ -102,8 +102,8 @@ func TestDatabase_TableMetadata(t *testing.T) {
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
-			th, _, _, dbase, _ := testh.NewWith(t, handle)
-			md, err := dbase.TableMetadata(th.Context, sakila.TblActor)
+			th, _, _, pool, _ := testh.NewWith(t, handle)
+			md, err := pool.TableMetadata(th.Context, sakila.TblActor)
 			require.NoError(t, err)
 			require.Equal(t, sakila.TblActor, md.Name)
 		})

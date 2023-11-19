@@ -24,15 +24,15 @@ import (
 )
 
 // ImportFunc is a function that can import
-// data (as defined in def) to destDB.
+// data (as defined in def) to destPool.
 type ImportFunc func(ctx context.Context, def *DriverDef,
-	data io.Reader, destDB driver.Database) error
+	data io.Reader, destPool driver.Pool) error
 
 // Provider implements driver.Provider for a DriverDef.
 type Provider struct {
 	Log       *slog.Logger
 	DriverDef *DriverDef
-	Scratcher driver.ScratchDatabaseOpener
+	Scratcher driver.ScratchPoolOpener
 	Files     *source.Files
 	ImportFn  ImportFunc
 }
@@ -43,7 +43,7 @@ func (p *Provider) DriverFor(typ source.DriverType) (driver.Driver, error) {
 		return nil, errz.Errorf("unsupported driver type {%s}", typ)
 	}
 
-	return &drvr{
+	return &driveri{
 		log:       p.Log,
 		typ:       typ,
 		def:       p.DriverDef,
@@ -62,17 +62,17 @@ func (p *Provider) Detectors() []source.DriverDetectFunc {
 }
 
 // Driver implements driver.Driver.
-type drvr struct {
+type driveri struct {
 	log       *slog.Logger
 	typ       source.DriverType
 	def       *DriverDef
 	files     *source.Files
-	scratcher driver.ScratchDatabaseOpener
+	scratcher driver.ScratchPoolOpener
 	importFn  ImportFunc
 }
 
 // DriverMetadata implements driver.Driver.
-func (d *drvr) DriverMetadata() driver.Metadata {
+func (d *driveri) DriverMetadata() driver.Metadata {
 	return driver.Metadata{
 		Type:        source.DriverType(d.def.Name),
 		Description: d.def.Title,
@@ -81,8 +81,8 @@ func (d *drvr) DriverMetadata() driver.Metadata {
 	}
 }
 
-// Open implements driver.DatabaseOpener.
-func (d *drvr) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
+// Open implements driver.PoolOpener.
+func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Pool, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
 	clnup := cleanup.New()
@@ -106,16 +106,16 @@ func (d *drvr) Open(ctx context.Context, src *source.Source) (driver.Database, e
 		return nil, errz.Wrap(err, d.def.Name)
 	}
 
-	return &database{log: d.log, src: src, impl: scratchDB, clnup: clnup}, nil
+	return &pool{log: d.log, src: src, impl: scratchDB, clnup: clnup}, nil
 }
 
 // Truncate implements driver.Driver.
-func (d *drvr) Truncate(_ context.Context, _ *source.Source, _ string, _ bool) (int64, error) {
+func (d *driveri) Truncate(_ context.Context, _ *source.Source, _ string, _ bool) (int64, error) {
 	return 0, errz.Errorf("truncate not supported for %s", d.DriverMetadata().Type)
 }
 
 // ValidateSource implements driver.Driver.
-func (d *drvr) ValidateSource(src *source.Source) (*source.Source, error) {
+func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 	d.log.Debug("Validating source", lga.Src, src)
 	if string(src.Type) != d.def.Name {
 		return nil, errz.Errorf("expected driver type {%s} but got {%s}", d.def.Name, src.Type)
@@ -124,7 +124,7 @@ func (d *drvr) ValidateSource(src *source.Source) (*source.Source, error) {
 }
 
 // Ping implements driver.Driver.
-func (d *drvr) Ping(_ context.Context, src *source.Source) error {
+func (d *driveri) Ping(_ context.Context, src *source.Source) error {
 	d.log.Debug("Ping source",
 		lga.Driver, d.typ,
 		lga.Src, src,
@@ -141,39 +141,39 @@ func (d *drvr) Ping(_ context.Context, src *source.Source) error {
 	return r.Close()
 }
 
-// database implements driver.Database.
-type database struct {
+// pool implements driver.Pool.
+type pool struct {
 	log  *slog.Logger
 	src  *source.Source
-	impl driver.Database
+	impl driver.Pool
 
 	// clnup will ultimately invoke impl.Close to dispose of
 	// the scratch DB.
 	clnup *cleanup.Cleanup
 }
 
-// DB implements driver.Database.
-func (d *database) DB(ctx context.Context) (*sql.DB, error) {
+// DB implements driver.Pool.
+func (d *pool) DB(ctx context.Context) (*sql.DB, error) {
 	return d.impl.DB(ctx)
 }
 
-// SQLDriver implements driver.Database.
-func (d *database) SQLDriver() driver.SQLDriver {
+// SQLDriver implements driver.Pool.
+func (d *pool) SQLDriver() driver.SQLDriver {
 	return d.impl.SQLDriver()
 }
 
-// Source implements driver.Database.
-func (d *database) Source() *source.Source {
+// Source implements driver.Pool.
+func (d *pool) Source() *source.Source {
 	return d.src
 }
 
-// TableMetadata implements driver.Database.
-func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
+// TableMetadata implements driver.Pool.
+func (d *pool) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
 	return d.impl.TableMetadata(ctx, tblName)
 }
 
-// SourceMetadata implements driver.Database.
-func (d *database) SourceMetadata(ctx context.Context, noSchema bool) (*source.Metadata, error) {
+// SourceMetadata implements driver.Pool.
+func (d *pool) SourceMetadata(ctx context.Context, noSchema bool) (*source.Metadata, error) {
 	meta, err := d.impl.SourceMetadata(ctx, noSchema)
 	if err != nil {
 		return nil, err
@@ -190,8 +190,8 @@ func (d *database) SourceMetadata(ctx context.Context, noSchema bool) (*source.M
 	return meta, nil
 }
 
-// Close implements driver.Database.
-func (d *database) Close() error {
+// Close implements driver.Pool.
+func (d *pool) Close() error {
 	d.log.Debug(lgm.CloseDB, lga.Handle, d.src.Handle)
 
 	// We don't need to explicitly invoke c.impl.Close

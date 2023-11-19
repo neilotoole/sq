@@ -122,19 +122,19 @@ func importJSONA(ctx context.Context, job importJob) error {
 		colNames[i] = stringz.GenerateAlphaColName(i, true)
 	}
 
-	// And now we need to create the dest table in destDB
+	// And now we need to create the dest table in destPool
 	tblDef := sqlmodel.NewTableDef(source.MonotableName, colNames, colKinds)
-	db, err := job.destDB.DB(ctx)
+	db, err := job.destPool.DB(ctx)
 	if err != nil {
 		return err
 	}
 
-	err = job.destDB.SQLDriver().CreateTable(ctx, db, tblDef)
+	err = job.destPool.SQLDriver().CreateTable(ctx, db, tblDef)
 	if err != nil {
 		return errz.Wrapf(err, "import %s: failed to create dest scratch table", TypeJSONA)
 	}
 
-	recMeta, err := getRecMeta(ctx, job.destDB, tblDef)
+	recMeta, err := getRecMeta(ctx, job.destPool, tblDef)
 	if err != nil {
 		return err
 	}
@@ -146,9 +146,9 @@ func importJSONA(ctx context.Context, job importJob) error {
 	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
 
 	insertWriter := libsq.NewDBWriter(
-		job.destDB,
+		job.destPool,
 		tblDef.Name,
-		driver.OptTuningRecChanSize.Get(job.destDB.Source().Options),
+		driver.OptTuningRecChanSize.Get(job.destPool.Source().Options),
 	)
 
 	var cancelFn context.CancelFunc
@@ -174,7 +174,7 @@ func importJSONA(ctx context.Context, job importJob) error {
 
 	log.Debug("Inserted rows",
 		lga.Count, inserted,
-		lga.Target, source.Target(job.destDB.Source(), tblDef.Name),
+		lga.Target, source.Target(job.destPool.Source(), tblDef.Name),
 	)
 	return nil
 }

@@ -7,9 +7,9 @@ import (
 )
 
 // prepare prepares the pipeline to execute queryModel.
-// When this method returns, targetDB and targetSQL will be set,
+// When this method returns, targetPool and targetSQL will be set,
 // as will any tasks (which may be empty). The tasks must be executed
-// against targetDB before targetSQL is executed (the pipeline.execute
+// against targetPool before targetSQL is executed (the pipeline.execute
 // method does this work).
 func (p *pipeline) prepare(ctx context.Context, qm *queryModel) error {
 	var (
@@ -25,11 +25,11 @@ func (p *pipeline) prepare(ctx context.Context, qm *queryModel) error {
 		}
 	case len(qm.Joins) > 0:
 		jc := &joinClause{leftTbl: qm.Table, joins: qm.Joins}
-		if frags.From, p.targetDB, err = p.prepareFromJoin(ctx, jc); err != nil {
+		if frags.From, p.targetPool, err = p.prepareFromJoin(ctx, jc); err != nil {
 			return err
 		}
 	default:
-		if frags.From, p.targetDB, err = p.prepareFromTable(ctx, qm.Table); err != nil {
+		if frags.From, p.targetPool, err = p.prepareFromTable(ctx, qm.Table); err != nil {
 			return err
 		}
 	}

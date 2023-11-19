@@ -26,7 +26,7 @@ var (
 
 // newImportJob is a constructor for the unexported importJob type.
 // If sampleSize <= 0, a default value is used.
-func newImportJob(fromSrc *source.Source, openFn source.FileOpenFunc, destDB driver.Database, sampleSize int,
+func newImportJob(fromSrc *source.Source, openFn source.FileOpenFunc, destPool driver.Pool, sampleSize int,
 	flatten bool,
 ) importJob {
 	if sampleSize <= 0 {
@@ -36,7 +36,7 @@ func newImportJob(fromSrc *source.Source, openFn source.FileOpenFunc, destDB dri
 	return importJob{
 		fromSrc:    fromSrc,
 		openFn:     openFn,
-		destDB:     destDB,
+		destPool:   destPool,
 		sampleSize: sampleSize,
 		flatten:    flatten,
 	}

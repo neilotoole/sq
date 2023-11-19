@@ -30,11 +30,11 @@ import (
 
 // importJob describes a single import job, where the JSON
 // at fromSrc is read via openFn and the resulting records
-// are written to destDB.
+// are written to destPool.
 type importJob struct {
-	fromSrc *source.Source
-	openFn  source.FileOpenFunc
-	destDB  driver.Database
+	fromSrc  *source.Source
+	openFn   source.FileOpenFunc
+	destPool driver.Pool
 
 	// sampleSize is the maximum number of values to
 	// sample to determine the kind of an element.
@@ -57,18 +57,18 @@ var (
 )
 
 // getRecMeta returns record.Meta to use with RecordWriter.Open.
-func getRecMeta(ctx context.Context, scratchDB driver.Database, tblDef *sqlmodel.TableDef) (record.Meta, error) {
-	db, err := scratchDB.DB(ctx)
+func getRecMeta(ctx context.Context, scratchPool driver.Pool, tblDef *sqlmodel.TableDef) (record.Meta, error) {
+	db, err := scratchPool.DB(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	colTypes, err := scratchDB.SQLDriver().TableColumnTypes(ctx, db, tblDef.Name, tblDef.ColNames())
+	colTypes, err := scratchPool.SQLDriver().TableColumnTypes(ctx, db, tblDef.Name, tblDef.ColNames())
 	if err != nil {
 		return nil, err
 	}
 
-	destMeta, _, err := scratchDB.SQLDriver().RecordMeta(ctx, colTypes)
+	destMeta, _, err := scratchPool.SQLDriver().RecordMeta(ctx, colTypes)
 	if err != nil {
 		return nil, err
 	}

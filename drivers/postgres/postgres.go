@@ -144,8 +144,8 @@ func (d *driveri) Renderer() *render.Renderer {
 	return r
 }
 
-// Open implements driver.DatabaseOpener.
-func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
+// Open implements driver.PoolOpener.
+func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Pool, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
 	db, err := d.doOpen(ctx, src)
@@ -157,7 +157,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database
 		return nil, err
 	}
 
-	return &database{log: d.log, db: db, src: src, drvr: d}, nil
+	return &pool{log: d.log, db: db, src: src, drvr: d}, nil
 }
 
 func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
@@ -709,32 +709,32 @@ func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (
 	return recMeta, mungeFn, nil
 }
 
-// database is the postgres implementation of driver.Database.
-type database struct {
+// pool is the postgres implementation of driver.Pool.
+type pool struct {
 	log  *slog.Logger
 	drvr *driveri
 	db   *sql.DB
 	src  *source.Source
 }
 
-// DB implements driver.Database.
-func (d *database) DB(context.Context) (*sql.DB, error) {
-	return d.db, nil
+// DB implements driver.Pool.
+func (p *pool) DB(context.Context) (*sql.DB, error) {
+	return p.db, nil
 }
 
-// SQLDriver implements driver.Database.
-func (d *database) SQLDriver() driver.SQLDriver {
-	return d.drvr
+// SQLDriver implements driver.Pool.
+func (p *pool) SQLDriver() driver.SQLDriver {
+	return p.drvr
 }
 
-// Source implements driver.Database.
-func (d *database) Source() *source.Source {
-	return d.src
+// Source implements driver.Pool.
+func (p *pool) Source() *source.Source {
+	return p.src
 }
 
-// TableMetadata implements driver.Database.
-func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
-	db, err := d.DB(ctx)
+// TableMetadata implements driver.Pool.
+func (p *pool) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
+	db, err := p.DB(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -742,20 +742,20 @@ func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.T
 	return getTableMetadata(ctx, db, tblName)
 }
 
-// SourceMetadata implements driver.Database.
-func (d *database) SourceMetadata(ctx context.Context, noSchema bool) (*source.Metadata, error) {
-	db, err := d.DB(ctx)
+// SourceMetadata implements driver.Pool.
+func (p *pool) SourceMetadata(ctx context.Context, noSchema bool) (*source.Metadata, error) {
+	db, err := p.DB(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return getSourceMetadata(ctx, d.src, db, noSchema)
+	return getSourceMetadata(ctx, p.src, db, noSchema)
 }
 
-// Close implements driver.Database.
-func (d *database) Close() error {
-	d.log.Debug(lgm.CloseDB, lga.Handle, d.src.Handle)
+// Close implements driver.Pool.
+func (p *pool) Close() error {
+	p.log.Debug(lgm.CloseDB, lga.Handle, p.src.Handle)
 
-	err := d.db.Close()
+	err := p.db.Close()
 	if err != nil {
 		return errw(err)
 	}

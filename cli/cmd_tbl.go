@@ -124,13 +124,13 @@ func execTblCopy(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	var dbase driver.Database
-	dbase, err = ru.Databases.Open(ctx, tblHandles[0].src)
+	var pool driver.Pool
+	pool, err = ru.Pools.Open(ctx, tblHandles[0].src)
 	if err != nil {
 		return err
 	}
 
-	db, err := dbase.DB(ctx)
+	db, err := pool.DB(ctx)
 	if err != nil {
 		return err
 	}
@@ -257,13 +257,13 @@ func execTblDrop(cmd *cobra.Command, args []string) (err error) {
 			return errz.Errorf("driver type {%s} (%s) doesn't support dropping tables", tblH.src.Type, tblH.src.Handle)
 		}
 
-		var dbase driver.Database
-		if dbase, err = ru.Databases.Open(ctx, tblH.src); err != nil {
+		var pool driver.Pool
+		if pool, err = ru.Pools.Open(ctx, tblH.src); err != nil {
 			return err
 		}
 
 		var db *sql.DB
-		if db, err = dbase.DB(ctx); err != nil {
+		if db, err = pool.DB(ctx); err != nil {
 			return err
 		}
 

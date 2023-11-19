@@ -28,7 +28,7 @@ const (
 // Provider implements driver.Provider.
 type Provider struct {
 	Log       *slog.Logger
-	Scratcher driver.ScratchDatabaseOpener
+	Scratcher driver.ScratchPoolOpener
 	Files     *source.Files
 }
 
@@ -48,7 +48,7 @@ func (d *Provider) DriverFor(typ source.DriverType) (driver.Driver, error) {
 type driveri struct {
 	log       *slog.Logger
 	typ       source.DriverType
-	scratcher driver.ScratchDatabaseOpener
+	scratcher driver.ScratchPoolOpener
 	files     *source.Files
 }
 
@@ -65,27 +65,27 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 	return md
 }
 
-// Open implements driver.DatabaseOpener.
-func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Database, error) {
+// Open implements driver.PoolOpener.
+func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Pool, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
-	dbase := &database{
+	pool := &pool{
 		log:   d.log,
 		src:   src,
 		files: d.files,
 	}
 
 	var err error
-	dbase.impl, err = d.scratcher.OpenScratch(ctx, src.Handle)
+	pool.impl, err = d.scratcher.OpenScratch(ctx, src.Handle)
 	if err != nil {
 		return nil, err
 	}
 
-	if err = ingestCSV(ctx, src, d.files.OpenFunc(src), dbase.impl); err != nil {
+	if err = ingestCSV(ctx, src, d.files.OpenFunc(src), pool.impl); err != nil {
 		return nil, err
 	}
 
-	return dbase, nil
+	return pool, nil
 }
 
 // Truncate implements driver.Driver.
@@ -113,37 +113,37 @@ func (d *driveri) Ping(_ context.Context, src *source.Source) error {
 	return nil
 }
 
-// database implements driver.Database.
-type database struct {
+// pool implements driver.Pool.
+type pool struct {
 	log   *slog.Logger
 	src   *source.Source
-	impl  driver.Database
+	impl  driver.Pool
 	files *source.Files
 }
 
-// DB implements driver.Database.
-func (d *database) DB(ctx context.Context) (*sql.DB, error) {
-	return d.impl.DB(ctx)
+// DB implements driver.Pool.
+func (p *pool) DB(ctx context.Context) (*sql.DB, error) {
+	return p.impl.DB(ctx)
 }
 
-// SQLDriver implements driver.Database.
-func (d *database) SQLDriver() driver.SQLDriver {
-	return d.impl.SQLDriver()
+// SQLDriver implements driver.Pool.
+func (p *pool) SQLDriver() driver.SQLDriver {
+	return p.impl.SQLDriver()
 }
 
-// Source implements driver.Database.
-func (d *database) Source() *source.Source {
-	return d.src
+// Source implements driver.Pool.
+func (p *pool) Source() *source.Source {
+	return p.src
 }
 
-// TableMetadata implements driver.Database.
-func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
+// TableMetadata implements driver.Pool.
+func (p *pool) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
 	if tblName != source.MonotableName {
 		return nil, errz.Errorf("table name should be %s for CSV/TSV etc., but got: %s",
 			source.MonotableName, tblName)
 	}
 
-	srcMeta, err := d.SourceMetadata(ctx, false)
+	srcMeta, err := p.SourceMetadata(ctx, false)
 	if err != nil {
 		return nil, err
 	}
@@ -152,23 +152,23 @@ func (d *database) TableMetadata(ctx context.Context, tblName string) (*source.T
 	return srcMeta.Tables[0], nil
 }
 
-// SourceMetadata implements driver.Database.
-func (d *database) SourceMetadata(ctx context.Context, noSchema bool) (*source.Metadata, error) {
-	md, err := d.impl.SourceMetadata(ctx, noSchema)
+// SourceMetadata implements driver.Pool.
+func (p *pool) SourceMetadata(ctx context.Context, noSchema bool) (*source.Metadata, error) {
+	md, err := p.impl.SourceMetadata(ctx, noSchema)
 	if err != nil {
 		return nil, err
 	}
 
-	md.Handle = d.src.Handle
-	md.Location = d.src.Location
-	md.Driver = d.src.Type
+	md.Handle = p.src.Handle
+	md.Location = p.src.Location
+	md.Driver = p.src.Type
 
-	md.Name, err = source.LocationFileName(d.src)
+	md.Name, err = source.LocationFileName(p.src)
 	if err != nil {
 		return nil, err
 	}
 
-	md.Size, err = d.files.Size(d.src)
+	md.Size, err = p.files.Size(p.src)
 	if err != nil {
 		return nil, err
 	}
@@ -177,9 +177,9 @@ func (d *database) SourceMetadata(ctx context.Context, noSchema bool) (*source.M
 	return md, nil
 }
 
-// Close implements driver.Database.
-func (d *database) Close() error {
-	d.log.Debug(lgm.CloseDB, lga.Handle, d.src.Handle)
+// Close implements driver.Pool.
+func (p *pool) Close() error {
+	p.log.Debug(lgm.CloseDB, lga.Handle, p.src.Handle)
 
-	return errz.Err(d.impl.Close())
+	return errz.Err(p.impl.Close())
 }

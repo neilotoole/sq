@@ -166,31 +166,31 @@ type Provider interface {
 	DriverFor(typ source.DriverType) (Driver, error)
 }
 
-// DatabaseOpener opens a Database.
-type DatabaseOpener interface {
-	// Open returns a Database instance for src.
-	Open(ctx context.Context, src *source.Source) (Database, error)
+// PoolOpener opens a Pool.
+type PoolOpener interface {
+	// Open returns a Pool instance for src.
+	Open(ctx context.Context, src *source.Source) (Pool, error)
 }
 
-// JoinDatabaseOpener can open a join database.
-type JoinDatabaseOpener interface {
-	// OpenJoin opens an appropriate Database for use as
+// JoinPoolOpener can open a join database.
+type JoinPoolOpener interface {
+	// OpenJoin opens an appropriate Pool for use as
 	// a work DB for joining across sources.
-	OpenJoin(ctx context.Context, srcs ...*source.Source) (Database, error)
+	OpenJoin(ctx context.Context, srcs ...*source.Source) (Pool, error)
 }
 
-// ScratchDatabaseOpener opens a scratch database. A scratch database is
+// ScratchPoolOpener opens a scratch database pool. A scratch database is
 // typically a short-lived database used as a target for loading
 // non-SQL data (such as CSV).
-type ScratchDatabaseOpener interface {
-	// OpenScratch returns a database for scratch use.
-	OpenScratch(ctx context.Context, name string) (Database, error)
+type ScratchPoolOpener interface {
+	// OpenScratch returns a pool for scratch use.
+	OpenScratch(ctx context.Context, name string) (Pool, error)
 }
 
 // Driver is the core interface that must be implemented for each type
 // of data source.
 type Driver interface {
-	DatabaseOpener
+	PoolOpener
 
 	// DriverMetadata returns driver metadata.
 	DriverMetadata() Metadata
@@ -341,13 +341,12 @@ type SQLDriver interface {
 	DBProperties(ctx context.Context, db sqlz.DB) (map[string]any, error)
 }
 
-// Database models a database handle. It is conceptually equivalent to
+// Pool models a database handle representing a pool of underlying
+// connections. It is conceptually equivalent to
 // stdlib sql.DB, and in fact encapsulates a sql.DB instance. The
 // realized sql.DB instance can be accessed via the DB method.
-//
-// REVISIT: maybe rename driver.Database to driver.Pool or such?
-type Database interface {
-	// DB returns the sql.DB object for this Database.
+type Pool interface {
+	// DB returns the sql.DB object for this Pool.
 	// This operation can take a long time if opening the DB requires
 	// an ingest of data.
 	// For example, with file-based sources such as XLSX, invoking Open
@@ -366,13 +365,13 @@ type Database interface {
 	// If noSchema is true, schema details are not populated
 	// on the returned source.Metadata.
 	//
-	// TODO: SourceMetadata doesn't really belong on driver.Database? It
+	// TODO: SourceMetadata doesn't really belong on driver.Pool? It
 	// should be moved to driver.Driver?
 	SourceMetadata(ctx context.Context, noSchema bool) (*source.Metadata, error)
 
 	// TableMetadata returns metadata for the specified table in the data source.
 	//
-	// TODO: TableMetadata doesn't really belong on driver.Database? It
+	// TODO: TableMetadata doesn't really belong on driver.Pool? It
 	// should be moved to driver.Driver?
 	TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error)
 
@@ -411,45 +410,45 @@ type Metadata struct {
 }
 
 var (
-	_ DatabaseOpener     = (*Databases)(nil)
-	_ JoinDatabaseOpener = (*Databases)(nil)
+	_ PoolOpener     = (*Pools)(nil)
+	_ JoinPoolOpener = (*Pools)(nil)
 )
 
-// Databases provides a mechanism for getting Database instances.
+// Pools provides a mechanism for getting Pool instances.
 // Note that at this time instances returned by Open are cached
 // and then closed by Close. This may be a bad approach.
-type Databases struct {
+type Pools struct {
 	log          *slog.Logger
 	drvrs        Provider
 	mu           sync.Mutex
 	scratchSrcFn ScratchSrcFunc
-	dbases       map[string]Database
+	pools        map[string]Pool
 	clnup        *cleanup.Cleanup
 }
 
-// NewDatabases returns a Databases instances.
-func NewDatabases(log *slog.Logger, drvrs Provider, scratchSrcFn ScratchSrcFunc) *Databases {
-	return &Databases{
+// NewPools returns a Pools instances.
+func NewPools(log *slog.Logger, drvrs Provider, scratchSrcFn ScratchSrcFunc) *Pools {
+	return &Pools{
 		log:          log,
 		drvrs:        drvrs,
 		mu:           sync.Mutex{},
 		scratchSrcFn: scratchSrcFn,
-		dbases:       map[string]Database{},
+		pools:        map[string]Pool{},
 		clnup:        cleanup.New(),
 	}
 }
 
-// Open returns an opened Database for src. The returned Database
+// Open returns an opened Pool for src. The returned Pool
 // may be cached and returned on future invocations for the
 // same source (where each source fields is identical).
 // Thus, the caller should typically not close
-// the Database: it will be closed via d.Close.
+// the Pool: it will be closed via d.Close.
 //
 // NOTE: This entire logic re caching/not-closing is a bit sketchy,
 // and needs to be revisited.
 //
-// Open implements DatabaseOpener.
-func (d *Databases) Open(ctx context.Context, src *source.Source) (Database, error) {
+// Open implements PoolOpener.
+func (d *Pools) Open(ctx context.Context, src *source.Source) (Pool, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
 	d.mu.Lock()
@@ -457,9 +456,9 @@ func (d *Databases) Open(ctx context.Context, src *source.Source) (Database, err
 
 	key := src.Handle + "_" + hashSource(src)
 
-	dbase, ok := d.dbases[key]
+	pool, ok := d.pools[key]
 	if ok {
-		return dbase, nil
+		return pool, nil
 	}
 
 	drvr, err := d.drvrs.DriverFor(src.Type)
@@ -471,23 +470,23 @@ func (d *Databases) Open(ctx context.Context, src *source.Source) (Database, err
 	o := options.Merge(baseOptions, src.Options)
 
 	ctx = options.NewContext(ctx, o)
-	dbase, err = drvr.Open(ctx, src)
+	pool, err = drvr.Open(ctx, src)
 	if err != nil {
 		return nil, err
 	}
 
-	d.clnup.AddC(dbase)
+	d.clnup.AddC(pool)
 
-	d.dbases[key] = dbase
-	return dbase, nil
+	d.pools[key] = pool
+	return pool, nil
 }
 
 // OpenScratch returns a scratch database instance. It is not
-// necessary for the caller to close the returned Database as
+// necessary for the caller to close the returned Pool as
 // its Close method will be invoked by d.Close.
 //
-// OpenScratch implements ScratchDatabaseOpener.
-func (d *Databases) OpenScratch(ctx context.Context, name string) (Database, error) {
+// OpenScratch implements ScratchPoolOpener.
+func (d *Pools) OpenScratch(ctx context.Context, name string) (Pool, error) {
 	const msgCloseScratch = "close scratch db"
 
 	scratchSrc, cleanFn, err := d.scratchSrcFn(ctx, name)
@@ -509,15 +508,15 @@ func (d *Databases) OpenScratch(ctx context.Context, name string) (Database, err
 		return nil, errz.Errorf("driver for scratch source %s is not a SQLDriver but is %T", scratchSrc.Handle, drvr)
 	}
 
-	var backingDB Database
-	backingDB, err = sqlDrvr.Open(ctx, scratchSrc)
+	var backingPool Pool
+	backingPool, err = sqlDrvr.Open(ctx, scratchSrc)
 	if err != nil {
 		lg.WarnIfFuncError(d.log, msgCloseScratch, cleanFn)
 		return nil, err
 	}
 
 	d.clnup.AddE(cleanFn)
-	return backingDB, nil
+	return backingPool, nil
 }
 
 // OpenJoin opens an appropriate database for use as
@@ -530,8 +529,8 @@ func (d *Databases) OpenScratch(ctx context.Context, name string) (Database, err
 // the join etc.). Currently the implementation simply delegates
 // to OpenScratch.
 //
-// OpenJoin implements JoinDatabaseOpener.
-func (d *Databases) OpenJoin(ctx context.Context, srcs ...*source.Source) (Database, error) {
+// OpenJoin implements JoinPoolOpener.
+func (d *Pools) OpenJoin(ctx context.Context, srcs ...*source.Source) (Pool, error) {
 	var names []string
 	for _, src := range srcs {
 		names = append(names, src.Handle[1:])
@@ -542,7 +541,7 @@ func (d *Databases) OpenJoin(ctx context.Context, srcs ...*source.Source) (Datab
 }
 
 // Close closes d, invoking Close on any instances opened via d.Open.
-func (d *Databases) Close() error {
+func (d *Pools) Close() error {
 	d.log.Debug("Closing databases(s)...", lga.Count, d.clnup.Len())
 	return d.clnup.Run()
 }

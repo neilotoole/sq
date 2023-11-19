@@ -54,7 +54,7 @@ Possible values are: comma, space, pipe, tab, colon, semi, period.`,
 )
 
 // ingestCSV loads the src CSV data into scratchDB.
-func ingestCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFunc, scratchDB driver.Database) error {
+func ingestCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFunc, scratchPool driver.Pool) error {
 	log := lg.FromContext(ctx)
 
 	var err error
@@ -109,17 +109,17 @@ func ingestCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFu
 	// And now we need to create the dest table in scratchDB
 	tblDef := createTblDef(source.MonotableName, header, kinds)
 
-	db, err := scratchDB.DB(ctx)
+	db, err := scratchPool.DB(ctx)
 	if err != nil {
 		return err
 	}
 
-	err = scratchDB.SQLDriver().CreateTable(ctx, db, tblDef)
+	err = scratchPool.SQLDriver().CreateTable(ctx, db, tblDef)
 	if err != nil {
 		return errz.Wrap(err, "csv: failed to create dest scratch table")
 	}
 
-	recMeta, err := getIngestRecMeta(ctx, scratchDB, tblDef)
+	recMeta, err := getIngestRecMeta(ctx, scratchPool, tblDef)
 	if err != nil {
 		return err
 	}
@@ -129,9 +129,9 @@ func ingestCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFu
 	}
 
 	insertWriter := libsq.NewDBWriter(
-		scratchDB,
+		scratchPool,
 		tblDef.Name,
-		driver.OptTuningRecChanSize.Get(scratchDB.Source().Options),
+		driver.OptTuningRecChanSize.Get(scratchPool.Source().Options),
 	)
 	err = execInsert(ctx, insertWriter, recMeta, mungers, recs, cr)
 	if err != nil {
@@ -145,7 +145,7 @@ func ingestCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFu
 
 	log.Debug("Inserted rows",
 		lga.Count, inserted,
-		lga.Target, source.Target(scratchDB.Source(), tblDef.Name),
+		lga.Target, source.Target(scratchPool.Source(), tblDef.Name),
 	)
 	return nil
 }

@@ -44,16 +44,16 @@ type pipeline struct {
 	rc *render.Context
 
 	// tasks contains tasks that must be completed before targetSQL
-	// is executed against targetDB. Typically tasks is used to
+	// is executed against targetPool. Typically tasks is used to
 	// set up the joindb before it is queried.
 	tasks []tasker
 
-	// targetSQL is the ultimate SQL query to be executed against targetDB.
+	// targetSQL is the ultimate SQL query to be executed against targetPool.
 	targetSQL string
 
-	// targetDB is the destination for the ultimate SQL query to
+	// targetPool is the destination for the ultimate SQL query to
 	// be executed against.
-	targetDB driver.Database
+	targetPool driver.Pool
 }
 
 // newPipeline parses query, returning a pipeline prepared for
@@ -87,7 +87,7 @@ func newPipeline(ctx context.Context, qc *QueryContext, query string) (*pipeline
 func (p *pipeline) execute(ctx context.Context, recw RecordWriter) error {
 	lg.FromContext(ctx).Debug(
 		"Execute SQL query",
-		lga.Src, p.targetDB.Source(),
+		lga.Src, p.targetPool.Source(),
 		lga.SQL, p.targetSQL,
 	)
 
@@ -95,7 +95,7 @@ func (p *pipeline) execute(ctx context.Context, recw RecordWriter) error {
 		return err
 	}
 
-	return QuerySQL(ctx, p.targetDB, nil, recw, p.targetSQL)
+	return QuerySQL(ctx, p.targetPool, nil, recw, p.targetSQL)
 }
 
 // executeTasks executes any tasks in pipeline.tasks.
@@ -146,15 +146,15 @@ func (p *pipeline) prepareNoTable(ctx context.Context, qm *queryModel) error {
 	if handle == "" {
 		if src = p.qc.Collection.Active(); src == nil {
 			log.Debug("No active source, will use scratchdb.")
-			p.targetDB, err = p.qc.ScratchDBOpener.OpenScratch(ctx, "scratch")
+			p.targetPool, err = p.qc.ScratchPoolOpener.OpenScratch(ctx, "scratch")
 			if err != nil {
 				return err
 			}
 
 			p.rc = &render.Context{
-				Renderer: p.targetDB.SQLDriver().Renderer(),
+				Renderer: p.targetPool.SQLDriver().Renderer(),
 				Args:     p.qc.Args,
-				Dialect:  p.targetDB.SQLDriver().Dialect(),
+				Dialect:  p.targetPool.SQLDriver().Dialect(),
 			}
 			return nil
 		}
@@ -165,14 +165,14 @@ func (p *pipeline) prepareNoTable(ctx context.Context, qm *queryModel) error {
 	}
 
 	// At this point, src is non-nil.
-	if p.targetDB, err = p.qc.DBOpener.Open(ctx, src); err != nil {
+	if p.targetPool, err = p.qc.PoolOpener.Open(ctx, src); err != nil {
 		return err
 	}
 
 	p.rc = &render.Context{
-		Renderer: p.targetDB.SQLDriver().Renderer(),
+		Renderer: p.targetPool.SQLDriver().Renderer(),
 		Args:     p.qc.Args,
-		Dialect:  p.targetDB.SQLDriver().Dialect(),
+		Dialect:  p.targetPool.SQLDriver().Dialect(),
 	}
 
 	return nil
@@ -182,7 +182,7 @@ func (p *pipeline) prepareNoTable(ctx context.Context, qm *queryModel) error {
 //
 // When this function returns, pipeline.rc will be set.
 func (p *pipeline) prepareFromTable(ctx context.Context, tblSel *ast.TblSelectorNode) (fromClause string,
-	fromConn driver.Database, err error,
+	fromPool driver.Pool, err error,
 ) {
 	handle := tblSel.Handle()
 	if handle == "" {
@@ -197,16 +197,16 @@ func (p *pipeline) prepareFromTable(ctx context.Context, tblSel *ast.TblSelector
 		return "", nil, err
 	}
 
-	fromConn, err = p.qc.DBOpener.Open(ctx, src)
+	fromPool, err = p.qc.PoolOpener.Open(ctx, src)
 	if err != nil {
 		return "", nil, err
 	}
 
-	rndr := fromConn.SQLDriver().Renderer()
+	rndr := fromPool.SQLDriver().Renderer()
 	p.rc = &render.Context{
 		Renderer: rndr,
 		Args:     p.qc.Args,
-		Dialect:  fromConn.SQLDriver().Dialect(),
+		Dialect:  fromPool.SQLDriver().Dialect(),
 	}
 
 	fromClause, err = rndr.FromTable(p.rc, tblSel)
@@ -214,7 +214,7 @@ func (p *pipeline) prepareFromTable(ctx context.Context, tblSel *ast.TblSelector
 		return "", nil, err
 	}
 
-	return fromClause, fromConn, nil
+	return fromClause, fromPool, nil
 }
 
 // joinClause models the SQL "JOIN" construct.
@@ -270,7 +270,7 @@ func (jc *joinClause) isSingleSource() bool {
 //
 // When this function returns, pipeline.rc will be set.
 func (p *pipeline) prepareFromJoin(ctx context.Context, jc *joinClause) (fromClause string,
-	fromConn driver.Database, err error,
+	fromConn driver.Pool, err error,
 ) {
 	if jc.isSingleSource() {
 		return p.joinSingleSource(ctx, jc)
@@ -283,23 +283,23 @@ func (p *pipeline) prepareFromJoin(ctx context.Context, jc *joinClause) (fromCla
 //
 // On return, pipeline.rc will be set.
 func (p *pipeline) joinSingleSource(ctx context.Context, jc *joinClause) (fromClause string,
-	fromDB driver.Database, err error,
+	fromPool driver.Pool, err error,
 ) {
 	src, err := p.qc.Collection.Get(jc.leftTbl.Handle())
 	if err != nil {
 		return "", nil, err
 	}
 
-	fromDB, err = p.qc.DBOpener.Open(ctx, src)
+	fromPool, err = p.qc.PoolOpener.Open(ctx, src)
 	if err != nil {
 		return "", nil, err
 	}
 
-	rndr := fromDB.SQLDriver().Renderer()
+	rndr := fromPool.SQLDriver().Renderer()
 	p.rc = &render.Context{
 		Renderer: rndr,
 		Args:     p.qc.Args,
-		Dialect:  fromDB.SQLDriver().Dialect(),
+		Dialect:  fromPool.SQLDriver().Dialect(),
 	}
 
 	fromClause, err = rndr.Join(p.rc, jc.leftTbl, jc.joins)
@@ -307,7 +307,7 @@ func (p *pipeline) joinSingleSource(ctx context.Context, jc *joinClause) (fromCl
 		return "", nil, err
 	}
 
-	return fromClause, fromDB, nil
+	return fromClause, fromPool, nil
 }
 
 // joinCrossSource returns a FROM clause that forms part of
@@ -315,10 +315,8 @@ func (p *pipeline) joinSingleSource(ctx context.Context, jc *joinClause) (fromCl
 //
 // On return, pipeline.rc will be set.
 func (p *pipeline) joinCrossSource(ctx context.Context, jc *joinClause) (fromClause string,
-	fromDB driver.Database, err error,
+	fromDB driver.Pool, err error,
 ) {
-	// FIXME: finish tidying up
-
 	handles := jc.handles()
 	srcs := make([]*source.Source, 0, len(handles))
 	for _, handle := range handles {
@@ -330,16 +328,16 @@ func (p *pipeline) joinCrossSource(ctx context.Context, jc *joinClause) (fromCla
 	}
 
 	// Open the join db
-	joinDB, err := p.qc.JoinDBOpener.OpenJoin(ctx, srcs...)
+	joinPool, err := p.qc.JoinPoolOpener.OpenJoin(ctx, srcs...)
 	if err != nil {
 		return "", nil, err
 	}
 
-	rndr := joinDB.SQLDriver().Renderer()
+	rndr := joinPool.SQLDriver().Renderer()
 	p.rc = &render.Context{
 		Renderer: rndr,
 		Args:     p.qc.Args,
-		Dialect:  joinDB.SQLDriver().Dialect(),
+		Dialect:  joinPool.SQLDriver().Dialect(),
 	}
 
 	leftHandle := jc.leftTbl.Handle()
@@ -356,16 +354,16 @@ func (p *pipeline) joinCrossSource(ctx context.Context, jc *joinClause) (fromCla
 		if src, err = p.qc.Collection.Get(handle); err != nil {
 			return "", nil, err
 		}
-		var db driver.Database
-		if db, err = p.qc.DBOpener.Open(ctx, src); err != nil {
+		var db driver.Pool
+		if db, err = p.qc.PoolOpener.Open(ctx, src); err != nil {
 			return "", nil, err
 		}
 
 		task := &joinCopyTask{
-			fromDB:  db,
-			fromTbl: tbl.Table(),
-			toDB:    joinDB,
-			toTbl:   tbl.TblAliasOrName(),
+			fromPool: db,
+			fromTbl:  tbl.Table(),
+			toPool:   joinPool,
+			toTbl:    tbl.TblAliasOrName(),
 		}
 
 		tbl.SyncTblNameAlias()
@@ -378,7 +376,7 @@ func (p *pipeline) joinCrossSource(ctx context.Context, jc *joinClause) (fromCla
 		return "", nil, err
 	}
 
-	return fromClause, joinDB, nil
+	return fromClause, joinPool, nil
 }
 
 // tasker is the interface for executing a DB task.
@@ -389,59 +387,59 @@ type tasker interface {
 
 // joinCopyTask is a specification of a table data copy task to be performed
 // for a cross-source join. That is, the data in fromDB.fromTblName will
-// be copied to a table in toDB. If colNames is
+// be copied to a table in toPool. If colNames is
 // empty, all cols in fromTbl are to be copied.
 type joinCopyTask struct {
-	fromDB  driver.Database
-	fromTbl tablefq.T
-	toDB    driver.Database
-	toTbl   tablefq.T
+	fromPool driver.Pool
+	fromTbl  tablefq.T
+	toPool   driver.Pool
+	toTbl    tablefq.T
 }
 
 func (jt *joinCopyTask) executeTask(ctx context.Context) error {
-	return execCopyTable(ctx, jt.fromDB, jt.fromTbl, jt.toDB, jt.toTbl)
+	return execCopyTable(ctx, jt.fromPool, jt.fromTbl, jt.toPool, jt.toTbl)
 }
 
-// execCopyTable performs the work of copying fromDB.fromTbl to destDB.destTbl.
-func execCopyTable(ctx context.Context, fromDB driver.Database, fromTbl tablefq.T,
-	destDB driver.Database, destTbl tablefq.T,
+// execCopyTable performs the work of copying fromDB.fromTbl to destPool.destTbl.
+func execCopyTable(ctx context.Context, fromDB driver.Pool, fromTbl tablefq.T,
+	destPool driver.Pool, destTbl tablefq.T,
 ) error {
 	log := lg.FromContext(ctx)
 
-	createTblHook := func(ctx context.Context, originRecMeta record.Meta, destDB driver.Database,
+	createTblHook := func(ctx context.Context, originRecMeta record.Meta, destPool driver.Pool,
 		tx sqlz.DB,
 	) error {
 		destColNames := originRecMeta.Names()
 		destColKinds := originRecMeta.Kinds()
 		destTblDef := sqlmodel.NewTableDef(destTbl.Table, destColNames, destColKinds)
 
-		err := destDB.SQLDriver().CreateTable(ctx, tx, destTblDef)
+		err := destPool.SQLDriver().CreateTable(ctx, tx, destTblDef)
 		if err != nil {
-			return errz.Wrapf(err, "failed to create dest table %s.%s", destDB.Source().Handle, destTbl)
+			return errz.Wrapf(err, "failed to create dest table %s.%s", destPool.Source().Handle, destTbl)
 		}
 
 		return nil
 	}
 
 	inserter := NewDBWriter(
-		destDB,
+		destPool,
 		destTbl.Table,
-		driver.OptTuningRecChanSize.Get(destDB.Source().Options),
+		driver.OptTuningRecChanSize.Get(destPool.Source().Options),
 		createTblHook,
 	)
 
 	query := "SELECT * FROM " + fromTbl.Render(fromDB.SQLDriver().Dialect().Enquote)
 	err := QuerySQL(ctx, fromDB, nil, inserter, query)
 	if err != nil {
-		return errz.Wrapf(err, "insert %s.%s failed", destDB.Source().Handle, destTbl)
+		return errz.Wrapf(err, "insert %s.%s failed", destPool.Source().Handle, destTbl)
 	}
 
 	affected, err := inserter.Wait() // Wait for the writer to finish processing
 	if err != nil {
-		return errz.Wrapf(err, "insert %s.%s failed", destDB.Source().Handle, destTbl)
+		return errz.Wrapf(err, "insert %s.%s failed", destPool.Source().Handle, destTbl)
 	}
 	log.Debug("Copied rows to dest", lga.Count, affected,
 		lga.From, fmt.Sprintf("%s.%s", fromDB.Source().Handle, fromTbl),
-		lga.To, fmt.Sprintf("%s.%s", destDB.Source().Handle, destTbl))
+		lga.To, fmt.Sprintf("%s.%s", destPool.Source().Handle, destTbl))
 	return nil
 }
