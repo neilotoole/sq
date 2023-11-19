@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
-## Upcoming
+## [v0.43.0] - 2023-11-18
 
 ### Added
 
@@ -18,8 +18,6 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 - New SLQ functions [`catalog()`](https://sq.io/docs/query#catalog) and
   [`schema()`](https://sq.io/docs/query#schema) return the catalog and schema of the DB connection.
 - The SLQ [`unique`](https://sq.io/docs/query#unique) function now has a synonym `uniq`.
-
-  
 
 ### Changed
 
@@ -872,3 +870,4 @@ make working with lots of sources much easier.
 [v0.41.1]: https://github.com/neilotoole/sq/compare/v0.41.0...v0.41.1
 [v0.42.0]: https://github.com/neilotoole/sq/compare/v0.41.1...v0.42.0
 [v0.42.1]: https://github.com/neilotoole/sq/compare/v0.42.0...v0.42.1
+[v0.43.0]: https://github.com/neilotoole/sq/compare/v0.42.1...v0.43.0
