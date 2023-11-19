@@ -11,7 +11,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Added
 
-- Related to [#270], the output of `sq inspect` now includes the
+- Related to [#270], the output of [`sq inspect`](https://sq.io/docs/inspect) now includes the
   source's catalog (in JSON and YAML output formats).
 
 ### Fixed
