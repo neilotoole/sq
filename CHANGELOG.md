@@ -20,7 +20,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Changed
 
-- ☢️ Removed unused `--exec` and `--query` flags from `sq sql` command.
+- ☢️ Removed unused `--exec` and `--query` flags from [`sq sql`](https://sq.io/docs/cmd/sql) command.
 
 ## [v0.43.0] - 2023-11-18
 
