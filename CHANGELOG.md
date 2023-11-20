@@ -9,10 +9,24 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ## Upcoming
 
+### Added
+
+- New [SLQ](https://sq.io/docs/concepts#slq) function [`rownum()`](https://sq.io/docs/query#rownum) that returns the one-indexed
+  row number of the current record.
+  
+  ```shell
+  $ sq '.actor | rownum(), .actor_id, .first_name | order_by(.first_name)'
+  rownum()  actor_id  first_name
+  1         71        ADAM
+  2         132       ADAM
+  3         165       AL
+  ```
+
 ### Fixed
 
 - [`sq version`](https://sq.io/docs/cmd/version) now honors option
   [`format.datetime`](https://sq.io/docs/config#formatdatetime) when outputting build timestamp.
+
 
 ## [v0.43.1] - 2023-11-19
 

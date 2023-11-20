@@ -33,17 +33,17 @@ func slqParserInit() {
 	staticData := &SLQParserStaticData
 	staticData.LiteralNames = []string{
 		"", "';'", "'*'", "'sum'", "'avg'", "'max'", "'min'", "'schema'", "'catalog'",
-		"'unique'", "'uniq'", "'count'", "'.['", "'||'", "'/'", "'%'", "'<<'",
-		"'>>'", "'&'", "'&&'", "'~'", "'!'", "", "", "", "'group_by'", "'+'",
-		"'-'", "", "", "", "'null'", "", "", "'('", "')'", "'['", "']'", "','",
-		"'|'", "':'", "", "", "'<='", "'<'", "'>='", "'>'", "'!='", "'=='",
+		"'rownum'", "'unique'", "'uniq'", "'count'", "'+'", "'-'", "'.['", "'||'",
+		"'/'", "'%'", "'<<'", "'>>'", "'&'", "'&&'", "'~'", "'!'", "", "", "",
+		"'group_by'", "", "", "", "'null'", "", "", "'('", "')'", "'['", "']'",
+		"','", "'|'", "':'", "", "", "'<='", "'<'", "'>='", "'>'", "'!='", "'=='",
 	}
 	staticData.SymbolicNames = []string{
 		"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
-		"", "", "", "", "", "PROPRIETARY_FUNC_NAME", "JOIN_TYPE", "WHERE", "GROUP_BY",
-		"ORDER_ASC", "ORDER_DESC", "ORDER_BY", "ALIAS_RESERVED", "ARG", "NULL",
-		"ID", "WS", "LPAR", "RPAR", "LBRA", "RBRA", "COMMA", "PIPE", "COLON",
-		"NN", "NUMBER", "LT_EQ", "LT", "GT_EQ", "GT", "NEQ", "EQ", "NAME", "HANDLE",
+		"", "", "", "", "", "", "", "", "PROPRIETARY_FUNC_NAME", "JOIN_TYPE",
+		"WHERE", "GROUP_BY", "ORDER_BY", "ALIAS_RESERVED", "ARG", "NULL", "ID",
+		"WS", "LPAR", "RPAR", "LBRA", "RBRA", "COMMA", "PIPE", "COLON", "NN",
+		"NUMBER", "LT_EQ", "LT", "GT_EQ", "GT", "NEQ", "EQ", "NAME", "HANDLE",
 		"STRING", "LINECOMMENT",
 	}
 	staticData.RuleNames = []string{
@@ -55,7 +55,7 @@ func slqParserInit() {
 	}
 	staticData.PredictionContextCache = antlr.NewPredictionContextCache()
 	staticData.serializedATN = []int32{
-		4, 1, 52, 283, 2, 0, 7, 0, 2, 1, 7, 1, 2, 2, 7, 2, 2, 3, 7, 3, 2, 4, 7,
+		4, 1, 53, 283, 2, 0, 7, 0, 2, 1, 7, 1, 2, 2, 7, 2, 2, 3, 7, 3, 2, 4, 7,
 		4, 2, 5, 7, 5, 2, 6, 7, 6, 2, 7, 7, 7, 2, 8, 7, 8, 2, 9, 7, 9, 2, 10, 7,
 		10, 2, 11, 7, 11, 2, 12, 7, 12, 2, 13, 7, 13, 2, 14, 7, 14, 2, 15, 7, 15,
 		2, 16, 7, 16, 2, 17, 7, 17, 2, 18, 7, 18, 2, 19, 7, 19, 2, 20, 7, 20, 2,
@@ -85,9 +85,9 @@ func slqParserInit() {
 		24, 3, 24, 268, 8, 24, 1, 24, 1, 24, 1, 24, 1, 24, 5, 24, 274, 8, 24, 10,
 		24, 12, 24, 277, 9, 24, 1, 25, 1, 25, 1, 26, 1, 26, 1, 26, 0, 1, 48, 27,
 		0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36,
-		38, 40, 42, 44, 46, 48, 50, 52, 0, 9, 2, 0, 3, 8, 22, 22, 1, 0, 9, 10,
-		1, 0, 26, 27, 3, 0, 30, 30, 32, 32, 51, 51, 2, 0, 2, 2, 14, 15, 1, 0, 16,
-		18, 1, 0, 43, 46, 3, 0, 31, 31, 41, 42, 51, 51, 2, 0, 20, 21, 26, 27, 309,
+		38, 40, 42, 44, 46, 48, 50, 52, 0, 9, 2, 0, 3, 9, 25, 25, 1, 0, 10, 11,
+		1, 0, 13, 14, 3, 0, 31, 31, 33, 33, 52, 52, 2, 0, 2, 2, 17, 18, 1, 0, 19,
+		21, 1, 0, 44, 47, 3, 0, 32, 32, 42, 43, 52, 52, 2, 0, 13, 14, 23, 24, 309,
 		0, 57, 1, 0, 0, 0, 2, 78, 1, 0, 0, 0, 4, 86, 1, 0, 0, 0, 6, 106, 1, 0,
 		0, 0, 8, 108, 1, 0, 0, 0, 10, 112, 1, 0, 0, 0, 12, 127, 1, 0, 0, 0, 14,
 		129, 1, 0, 0, 0, 16, 139, 1, 0, 0, 0, 18, 145, 1, 0, 0, 0, 20, 147, 1,
@@ -103,10 +103,10 @@ func slqParserInit() {
 		62, 1, 0, 0, 0, 68, 71, 1, 0, 0, 0, 69, 67, 1, 0, 0, 0, 69, 70, 1, 0, 0,
 		0, 70, 75, 1, 0, 0, 0, 71, 69, 1, 0, 0, 0, 72, 74, 5, 1, 0, 0, 73, 72,
 		1, 0, 0, 0, 74, 77, 1, 0, 0, 0, 75, 73, 1, 0, 0, 0, 75, 76, 1, 0, 0, 0,
-		76, 1, 1, 0, 0, 0, 77, 75, 1, 0, 0, 0, 78, 83, 3, 4, 2, 0, 79, 80, 5, 39,
+		76, 1, 1, 0, 0, 0, 77, 75, 1, 0, 0, 0, 78, 83, 3, 4, 2, 0, 79, 80, 5, 40,
 		0, 0, 80, 82, 3, 4, 2, 0, 81, 79, 1, 0, 0, 0, 82, 85, 1, 0, 0, 0, 83, 81,
 		1, 0, 0, 0, 83, 84, 1, 0, 0, 0, 84, 3, 1, 0, 0, 0, 85, 83, 1, 0, 0, 0,
-		86, 91, 3, 6, 3, 0, 87, 88, 5, 38, 0, 0, 88, 90, 3, 6, 3, 0, 89, 87, 1,
+		86, 91, 3, 6, 3, 0, 87, 88, 5, 39, 0, 0, 88, 90, 3, 6, 3, 0, 89, 87, 1,
 		0, 0, 0, 90, 93, 1, 0, 0, 0, 91, 89, 1, 0, 0, 0, 91, 92, 1, 0, 0, 0, 92,
 		5, 1, 0, 0, 0, 93, 91, 1, 0, 0, 0, 94, 107, 3, 40, 20, 0, 95, 107, 3, 42,
 		21, 0, 96, 107, 3, 34, 17, 0, 97, 107, 3, 14, 7, 0, 98, 107, 3, 26, 13,
@@ -118,65 +118,65 @@ func slqParserInit() {
 		103, 1, 0, 0, 0, 106, 104, 1, 0, 0, 0, 106, 105, 1, 0, 0, 0, 107, 7, 1,
 		0, 0, 0, 108, 110, 3, 10, 5, 0, 109, 111, 3, 36, 18, 0, 110, 109, 1, 0,
 		0, 0, 110, 111, 1, 0, 0, 0, 111, 9, 1, 0, 0, 0, 112, 113, 3, 12, 6, 0,
-		113, 123, 5, 34, 0, 0, 114, 119, 3, 48, 24, 0, 115, 116, 5, 38, 0, 0, 116,
+		113, 123, 5, 35, 0, 0, 114, 119, 3, 48, 24, 0, 115, 116, 5, 39, 0, 0, 116,
 		118, 3, 48, 24, 0, 117, 115, 1, 0, 0, 0, 118, 121, 1, 0, 0, 0, 119, 117,
 		1, 0, 0, 0, 119, 120, 1, 0, 0, 0, 120, 124, 1, 0, 0, 0, 121, 119, 1, 0,
 		0, 0, 122, 124, 5, 2, 0, 0, 123, 114, 1, 0, 0, 0, 123, 122, 1, 0, 0, 0,
-		123, 124, 1, 0, 0, 0, 124, 125, 1, 0, 0, 0, 125, 126, 5, 35, 0, 0, 126,
+		123, 124, 1, 0, 0, 0, 124, 125, 1, 0, 0, 0, 125, 126, 5, 36, 0, 0, 126,
 		11, 1, 0, 0, 0, 127, 128, 7, 0, 0, 0, 128, 13, 1, 0, 0, 0, 129, 130, 5,
-		23, 0, 0, 130, 131, 5, 34, 0, 0, 131, 134, 3, 16, 8, 0, 132, 133, 5, 38,
+		26, 0, 0, 130, 131, 5, 35, 0, 0, 131, 134, 3, 16, 8, 0, 132, 133, 5, 39,
 		0, 0, 133, 135, 3, 48, 24, 0, 134, 132, 1, 0, 0, 0, 134, 135, 1, 0, 0,
-		0, 135, 136, 1, 0, 0, 0, 136, 137, 5, 35, 0, 0, 137, 15, 1, 0, 0, 0, 138,
-		140, 5, 50, 0, 0, 139, 138, 1, 0, 0, 0, 139, 140, 1, 0, 0, 0, 140, 141,
-		1, 0, 0, 0, 141, 143, 5, 49, 0, 0, 142, 144, 3, 36, 18, 0, 143, 142, 1,
+		0, 135, 136, 1, 0, 0, 0, 136, 137, 5, 36, 0, 0, 137, 15, 1, 0, 0, 0, 138,
+		140, 5, 51, 0, 0, 139, 138, 1, 0, 0, 0, 139, 140, 1, 0, 0, 0, 140, 141,
+		1, 0, 0, 0, 141, 143, 5, 50, 0, 0, 142, 144, 3, 36, 18, 0, 143, 142, 1,
 		0, 0, 0, 143, 144, 1, 0, 0, 0, 144, 17, 1, 0, 0, 0, 145, 146, 7, 1, 0,
-		0, 146, 19, 1, 0, 0, 0, 147, 153, 5, 11, 0, 0, 148, 150, 5, 34, 0, 0, 149,
+		0, 146, 19, 1, 0, 0, 0, 147, 153, 5, 12, 0, 0, 148, 150, 5, 35, 0, 0, 149,
 		151, 3, 32, 16, 0, 150, 149, 1, 0, 0, 0, 150, 151, 1, 0, 0, 0, 151, 152,
-		1, 0, 0, 0, 152, 154, 5, 35, 0, 0, 153, 148, 1, 0, 0, 0, 153, 154, 1, 0,
+		1, 0, 0, 0, 152, 154, 5, 36, 0, 0, 153, 148, 1, 0, 0, 0, 153, 154, 1, 0,
 		0, 0, 154, 156, 1, 0, 0, 0, 155, 157, 3, 36, 18, 0, 156, 155, 1, 0, 0,
-		0, 156, 157, 1, 0, 0, 0, 157, 21, 1, 0, 0, 0, 158, 159, 5, 24, 0, 0, 159,
-		161, 5, 34, 0, 0, 160, 162, 3, 48, 24, 0, 161, 160, 1, 0, 0, 0, 161, 162,
-		1, 0, 0, 0, 162, 163, 1, 0, 0, 0, 163, 164, 5, 35, 0, 0, 164, 23, 1, 0,
+		0, 156, 157, 1, 0, 0, 0, 157, 21, 1, 0, 0, 0, 158, 159, 5, 27, 0, 0, 159,
+		161, 5, 35, 0, 0, 160, 162, 3, 48, 24, 0, 161, 160, 1, 0, 0, 0, 161, 162,
+		1, 0, 0, 0, 162, 163, 1, 0, 0, 0, 163, 164, 5, 36, 0, 0, 164, 23, 1, 0,
 		0, 0, 165, 168, 3, 32, 16, 0, 166, 168, 3, 10, 5, 0, 167, 165, 1, 0, 0,
-		0, 167, 166, 1, 0, 0, 0, 168, 25, 1, 0, 0, 0, 169, 170, 5, 25, 0, 0, 170,
-		171, 5, 34, 0, 0, 171, 176, 3, 24, 12, 0, 172, 173, 5, 38, 0, 0, 173, 175,
+		0, 167, 166, 1, 0, 0, 0, 168, 25, 1, 0, 0, 0, 169, 170, 5, 28, 0, 0, 170,
+		171, 5, 35, 0, 0, 171, 176, 3, 24, 12, 0, 172, 173, 5, 39, 0, 0, 173, 175,
 		3, 24, 12, 0, 174, 172, 1, 0, 0, 0, 175, 178, 1, 0, 0, 0, 176, 174, 1,
 		0, 0, 0, 176, 177, 1, 0, 0, 0, 177, 179, 1, 0, 0, 0, 178, 176, 1, 0, 0,
-		0, 179, 180, 5, 35, 0, 0, 180, 27, 1, 0, 0, 0, 181, 183, 3, 32, 16, 0,
+		0, 179, 180, 5, 36, 0, 0, 180, 27, 1, 0, 0, 0, 181, 183, 3, 32, 16, 0,
 		182, 184, 7, 2, 0, 0, 183, 182, 1, 0, 0, 0, 183, 184, 1, 0, 0, 0, 184,
-		29, 1, 0, 0, 0, 185, 186, 5, 28, 0, 0, 186, 187, 5, 34, 0, 0, 187, 192,
-		3, 28, 14, 0, 188, 189, 5, 38, 0, 0, 189, 191, 3, 28, 14, 0, 190, 188,
+		29, 1, 0, 0, 0, 185, 186, 5, 29, 0, 0, 186, 187, 5, 35, 0, 0, 187, 192,
+		3, 28, 14, 0, 188, 189, 5, 39, 0, 0, 189, 191, 3, 28, 14, 0, 190, 188,
 		1, 0, 0, 0, 191, 194, 1, 0, 0, 0, 192, 190, 1, 0, 0, 0, 192, 193, 1, 0,
-		0, 0, 193, 195, 1, 0, 0, 0, 194, 192, 1, 0, 0, 0, 195, 196, 5, 35, 0, 0,
-		196, 31, 1, 0, 0, 0, 197, 199, 5, 49, 0, 0, 198, 200, 5, 49, 0, 0, 199,
+		0, 0, 193, 195, 1, 0, 0, 0, 194, 192, 1, 0, 0, 0, 195, 196, 5, 36, 0, 0,
+		196, 31, 1, 0, 0, 0, 197, 199, 5, 50, 0, 0, 198, 200, 5, 50, 0, 0, 199,
 		198, 1, 0, 0, 0, 199, 200, 1, 0, 0, 0, 200, 33, 1, 0, 0, 0, 201, 203, 3,
 		32, 16, 0, 202, 204, 3, 36, 18, 0, 203, 202, 1, 0, 0, 0, 203, 204, 1, 0,
-		0, 0, 204, 35, 1, 0, 0, 0, 205, 209, 5, 29, 0, 0, 206, 207, 5, 40, 0, 0,
+		0, 0, 204, 35, 1, 0, 0, 0, 205, 209, 5, 30, 0, 0, 206, 207, 5, 41, 0, 0,
 		207, 209, 7, 3, 0, 0, 208, 205, 1, 0, 0, 0, 208, 206, 1, 0, 0, 0, 209,
-		37, 1, 0, 0, 0, 210, 211, 5, 30, 0, 0, 211, 39, 1, 0, 0, 0, 212, 213, 5,
-		50, 0, 0, 213, 214, 5, 49, 0, 0, 214, 41, 1, 0, 0, 0, 215, 216, 5, 50,
-		0, 0, 216, 43, 1, 0, 0, 0, 217, 226, 5, 12, 0, 0, 218, 219, 5, 41, 0, 0,
-		219, 220, 5, 40, 0, 0, 220, 227, 5, 41, 0, 0, 221, 222, 5, 41, 0, 0, 222,
-		227, 5, 40, 0, 0, 223, 224, 5, 40, 0, 0, 224, 227, 5, 41, 0, 0, 225, 227,
-		5, 41, 0, 0, 226, 218, 1, 0, 0, 0, 226, 221, 1, 0, 0, 0, 226, 223, 1, 0,
+		37, 1, 0, 0, 0, 210, 211, 5, 31, 0, 0, 211, 39, 1, 0, 0, 0, 212, 213, 5,
+		51, 0, 0, 213, 214, 5, 50, 0, 0, 214, 41, 1, 0, 0, 0, 215, 216, 5, 51,
+		0, 0, 216, 43, 1, 0, 0, 0, 217, 226, 5, 15, 0, 0, 218, 219, 5, 42, 0, 0,
+		219, 220, 5, 41, 0, 0, 220, 227, 5, 42, 0, 0, 221, 222, 5, 42, 0, 0, 222,
+		227, 5, 41, 0, 0, 223, 224, 5, 41, 0, 0, 224, 227, 5, 42, 0, 0, 225, 227,
+		5, 42, 0, 0, 226, 218, 1, 0, 0, 0, 226, 221, 1, 0, 0, 0, 226, 223, 1, 0,
 		0, 0, 226, 225, 1, 0, 0, 0, 226, 227, 1, 0, 0, 0, 227, 228, 1, 0, 0, 0,
-		228, 229, 5, 37, 0, 0, 229, 45, 1, 0, 0, 0, 230, 232, 3, 48, 24, 0, 231,
+		228, 229, 5, 38, 0, 0, 229, 45, 1, 0, 0, 0, 230, 232, 3, 48, 24, 0, 231,
 		233, 3, 36, 18, 0, 232, 231, 1, 0, 0, 0, 232, 233, 1, 0, 0, 0, 233, 47,
-		1, 0, 0, 0, 234, 235, 6, 24, -1, 0, 235, 236, 5, 34, 0, 0, 236, 237, 3,
-		48, 24, 0, 237, 238, 5, 35, 0, 0, 238, 247, 1, 0, 0, 0, 239, 247, 3, 32,
+		1, 0, 0, 0, 234, 235, 6, 24, -1, 0, 235, 236, 5, 35, 0, 0, 236, 237, 3,
+		48, 24, 0, 237, 238, 5, 36, 0, 0, 238, 247, 1, 0, 0, 0, 239, 247, 3, 32,
 		16, 0, 240, 247, 3, 50, 25, 0, 241, 247, 3, 38, 19, 0, 242, 243, 3, 52,
 		26, 0, 243, 244, 3, 48, 24, 9, 244, 247, 1, 0, 0, 0, 245, 247, 3, 10, 5,
 		0, 246, 234, 1, 0, 0, 0, 246, 239, 1, 0, 0, 0, 246, 240, 1, 0, 0, 0, 246,
 		241, 1, 0, 0, 0, 246, 242, 1, 0, 0, 0, 246, 245, 1, 0, 0, 0, 247, 275,
-		1, 0, 0, 0, 248, 249, 10, 8, 0, 0, 249, 250, 5, 13, 0, 0, 250, 274, 3,
+		1, 0, 0, 0, 248, 249, 10, 8, 0, 0, 249, 250, 5, 16, 0, 0, 250, 274, 3,
 		48, 24, 9, 251, 252, 10, 7, 0, 0, 252, 253, 7, 4, 0, 0, 253, 274, 3, 48,
 		24, 8, 254, 255, 10, 6, 0, 0, 255, 256, 7, 2, 0, 0, 256, 274, 3, 48, 24,
 		7, 257, 258, 10, 5, 0, 0, 258, 259, 7, 5, 0, 0, 259, 274, 3, 48, 24, 6,
 		260, 261, 10, 4, 0, 0, 261, 262, 7, 6, 0, 0, 262, 274, 3, 48, 24, 5, 263,
-		267, 10, 3, 0, 0, 264, 268, 5, 48, 0, 0, 265, 268, 5, 47, 0, 0, 266, 268,
+		267, 10, 3, 0, 0, 264, 268, 5, 49, 0, 0, 265, 268, 5, 48, 0, 0, 266, 268,
 		1, 0, 0, 0, 267, 264, 1, 0, 0, 0, 267, 265, 1, 0, 0, 0, 267, 266, 1, 0,
 		0, 0, 268, 269, 1, 0, 0, 0, 269, 274, 3, 48, 24, 4, 270, 271, 10, 2, 0,
-		0, 271, 272, 5, 19, 0, 0, 272, 274, 3, 48, 24, 3, 273, 248, 1, 0, 0, 0,
+		0, 271, 272, 5, 22, 0, 0, 272, 274, 3, 48, 24, 3, 273, 248, 1, 0, 0, 0,
 		273, 251, 1, 0, 0, 0, 273, 254, 1, 0, 0, 0, 273, 257, 1, 0, 0, 0, 273,
 		260, 1, 0, 0, 0, 273, 263, 1, 0, 0, 0, 273, 270, 1, 0, 0, 0, 274, 277,
 		1, 0, 0, 0, 275, 273, 1, 0, 0, 0, 275, 276, 1, 0, 0, 0, 276, 49, 1, 0,
@@ -243,37 +243,38 @@ const (
 	SLQParserT__18                 = 19
 	SLQParserT__19                 = 20
 	SLQParserT__20                 = 21
-	SLQParserPROPRIETARY_FUNC_NAME = 22
-	SLQParserJOIN_TYPE             = 23
-	SLQParserWHERE                 = 24
-	SLQParserGROUP_BY              = 25
-	SLQParserORDER_ASC             = 26
-	SLQParserORDER_DESC            = 27
-	SLQParserORDER_BY              = 28
-	SLQParserALIAS_RESERVED        = 29
-	SLQParserARG                   = 30
-	SLQParserNULL                  = 31
-	SLQParserID                    = 32
-	SLQParserWS                    = 33
-	SLQParserLPAR                  = 34
-	SLQParserRPAR                  = 35
-	SLQParserLBRA                  = 36
-	SLQParserRBRA                  = 37
-	SLQParserCOMMA                 = 38
-	SLQParserPIPE                  = 39
-	SLQParserCOLON                 = 40
-	SLQParserNN                    = 41
-	SLQParserNUMBER                = 42
-	SLQParserLT_EQ                 = 43
-	SLQParserLT                    = 44
-	SLQParserGT_EQ                 = 45
-	SLQParserGT                    = 46
-	SLQParserNEQ                   = 47
-	SLQParserEQ                    = 48
-	SLQParserNAME                  = 49
-	SLQParserHANDLE                = 50
-	SLQParserSTRING                = 51
-	SLQParserLINECOMMENT           = 52
+	SLQParserT__21                 = 22
+	SLQParserT__22                 = 23
+	SLQParserT__23                 = 24
+	SLQParserPROPRIETARY_FUNC_NAME = 25
+	SLQParserJOIN_TYPE             = 26
+	SLQParserWHERE                 = 27
+	SLQParserGROUP_BY              = 28
+	SLQParserORDER_BY              = 29
+	SLQParserALIAS_RESERVED        = 30
+	SLQParserARG                   = 31
+	SLQParserNULL                  = 32
+	SLQParserID                    = 33
+	SLQParserWS                    = 34
+	SLQParserLPAR                  = 35
+	SLQParserRPAR                  = 36
+	SLQParserLBRA                  = 37
+	SLQParserRBRA                  = 38
+	SLQParserCOMMA                 = 39
+	SLQParserPIPE                  = 40
+	SLQParserCOLON                 = 41
+	SLQParserNN                    = 42
+	SLQParserNUMBER                = 43
+	SLQParserLT_EQ                 = 44
+	SLQParserLT                    = 45
+	SLQParserGT_EQ                 = 46
+	SLQParserGT                    = 47
+	SLQParserNEQ                   = 48
+	SLQParserEQ                    = 49
+	SLQParserNAME                  = 50
+	SLQParserHANDLE                = 51
+	SLQParserSTRING                = 52
+	SLQParserLINECOMMENT           = 53
 )
 
 // SLQParser rules.
@@ -1627,7 +1628,7 @@ func (p *SLQParser) Func_() (localctx IFuncContext) {
 		goto errorExit
 	}
 	switch p.GetTokenStream().LA(1) {
-	case SLQParserT__2, SLQParserT__3, SLQParserT__4, SLQParserT__5, SLQParserT__6, SLQParserT__7, SLQParserT__19, SLQParserT__20, SLQParserPROPRIETARY_FUNC_NAME, SLQParserORDER_ASC, SLQParserORDER_DESC, SLQParserARG, SLQParserNULL, SLQParserLPAR, SLQParserNN, SLQParserNUMBER, SLQParserNAME, SLQParserSTRING:
+	case SLQParserT__2, SLQParserT__3, SLQParserT__4, SLQParserT__5, SLQParserT__6, SLQParserT__7, SLQParserT__8, SLQParserT__12, SLQParserT__13, SLQParserT__22, SLQParserT__23, SLQParserPROPRIETARY_FUNC_NAME, SLQParserARG, SLQParserNULL, SLQParserLPAR, SLQParserNN, SLQParserNUMBER, SLQParserNAME, SLQParserSTRING:
 		{
 			p.SetState(114)
 			p.expr(0)
@@ -1787,7 +1788,7 @@ func (p *SLQParser) FuncName() (localctx IFuncNameContext) {
 		p.SetState(127)
 		_la = p.GetTokenStream().LA(1)
 
-		if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&4194808) != 0) {
+		if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&33555448) != 0) {
 			p.GetErrorHandler().RecoverInline(p)
 		} else {
 			p.GetErrorHandler().ReportMatch(p)
@@ -2250,7 +2251,7 @@ func (p *SLQParser) UniqueFunc() (localctx IUniqueFuncContext) {
 		p.SetState(145)
 		_la = p.GetTokenStream().LA(1)
 
-		if !(_la == SLQParserT__8 || _la == SLQParserT__9) {
+		if !(_la == SLQParserT__9 || _la == SLQParserT__10) {
 			p.GetErrorHandler().RecoverInline(p)
 		} else {
 			p.GetErrorHandler().ReportMatch(p)
@@ -2398,7 +2399,7 @@ func (p *SLQParser) CountFunc() (localctx ICountFuncContext) {
 	p.EnterOuterAlt(localctx, 1)
 	{
 		p.SetState(147)
-		p.Match(SLQParserT__10)
+		p.Match(SLQParserT__11)
 		if p.HasError() {
 			// Recognition error - abort rule
 			goto errorExit
@@ -2608,7 +2609,7 @@ func (p *SLQParser) Where() (localctx IWhereContext) {
 	}
 	_la = p.GetTokenStream().LA(1)
 
-	if (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&2821367446635000) != 0 {
+	if (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&5642734534681592) != 0 {
 		{
 			p.SetState(160)
 			p.expr(0)
@@ -2763,7 +2764,7 @@ func (p *SLQParser) GroupByTerm() (localctx IGroupByTermContext) {
 			p.Selector()
 		}
 
-	case SLQParserT__2, SLQParserT__3, SLQParserT__4, SLQParserT__5, SLQParserT__6, SLQParserT__7, SLQParserPROPRIETARY_FUNC_NAME:
+	case SLQParserT__2, SLQParserT__3, SLQParserT__4, SLQParserT__5, SLQParserT__6, SLQParserT__7, SLQParserT__8, SLQParserPROPRIETARY_FUNC_NAME:
 		p.EnterOuterAlt(localctx, 2)
 		{
 			p.SetState(166)
@@ -3016,8 +3017,6 @@ type IOrderByTermContext interface {
 
 	// Getter signatures
 	Selector() ISelectorContext
-	ORDER_ASC() antlr.TerminalNode
-	ORDER_DESC() antlr.TerminalNode
 
 	// IsOrderByTermContext differentiates from other interfaces.
 	IsOrderByTermContext()
@@ -3071,14 +3070,6 @@ func (s *OrderByTermContext) Selector() ISelectorContext {
 	return t.(ISelectorContext)
 }
 
-func (s *OrderByTermContext) ORDER_ASC() antlr.TerminalNode {
-	return s.GetToken(SLQParserORDER_ASC, 0)
-}
-
-func (s *OrderByTermContext) ORDER_DESC() antlr.TerminalNode {
-	return s.GetToken(SLQParserORDER_DESC, 0)
-}
-
 func (s *OrderByTermContext) GetRuleContext() antlr.RuleContext {
 	return s
 }
@@ -3126,12 +3117,12 @@ func (p *SLQParser) OrderByTerm() (localctx IOrderByTermContext) {
 	}
 	_la = p.GetTokenStream().LA(1)
 
-	if _la == SLQParserORDER_ASC || _la == SLQParserORDER_DESC {
+	if _la == SLQParserT__12 || _la == SLQParserT__13 {
 		{
 			p.SetState(182)
 			_la = p.GetTokenStream().LA(1)
 
-			if !(_la == SLQParserORDER_ASC || _la == SLQParserORDER_DESC) {
+			if !(_la == SLQParserT__12 || _la == SLQParserT__13) {
 				p.GetErrorHandler().RecoverInline(p)
 			} else {
 				p.GetErrorHandler().ReportMatch(p)
@@ -3785,7 +3776,7 @@ func (p *SLQParser) Alias() (localctx IAliasContext) {
 			p.SetState(207)
 			_la = p.GetTokenStream().LA(1)
 
-			if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&2251805182394368) != 0) {
+			if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&4503610364788736) != 0) {
 				p.GetErrorHandler().RecoverInline(p)
 			} else {
 				p.GetErrorHandler().ReportMatch(p)
@@ -4243,7 +4234,7 @@ func (p *SLQParser) RowRange() (localctx IRowRangeContext) {
 	p.EnterOuterAlt(localctx, 1)
 	{
 		p.SetState(217)
-		p.Match(SLQParserT__11)
+		p.Match(SLQParserT__14)
 		if p.HasError() {
 			// Recognition error - abort rule
 			goto errorExit
@@ -4519,8 +4510,6 @@ type IExprContext interface {
 	Arg() IArgContext
 	UnaryOperator() IUnaryOperatorContext
 	Func_() IFuncContext
-	ORDER_ASC() antlr.TerminalNode
-	ORDER_DESC() antlr.TerminalNode
 	LT() antlr.TerminalNode
 	LT_EQ() antlr.TerminalNode
 	GT() antlr.TerminalNode
@@ -4693,14 +4682,6 @@ func (s *ExprContext) Func_() IFuncContext {
 	return t.(IFuncContext)
 }
 
-func (s *ExprContext) ORDER_ASC() antlr.TerminalNode {
-	return s.GetToken(SLQParserORDER_ASC, 0)
-}
-
-func (s *ExprContext) ORDER_DESC() antlr.TerminalNode {
-	return s.GetToken(SLQParserORDER_DESC, 0)
-}
-
 func (s *ExprContext) LT() antlr.TerminalNode {
 	return s.GetToken(SLQParserLT, 0)
 }
@@ -4820,7 +4801,7 @@ func (p *SLQParser) expr(_p int) (localctx IExprContext) {
 			p.Arg()
 		}
 
-	case SLQParserT__19, SLQParserT__20, SLQParserORDER_ASC, SLQParserORDER_DESC:
+	case SLQParserT__12, SLQParserT__13, SLQParserT__22, SLQParserT__23:
 		{
 			p.SetState(242)
 			p.UnaryOperator()
@@ -4830,7 +4811,7 @@ func (p *SLQParser) expr(_p int) (localctx IExprContext) {
 			p.expr(9)
 		}
 
-	case SLQParserT__2, SLQParserT__3, SLQParserT__4, SLQParserT__5, SLQParserT__6, SLQParserT__7, SLQParserPROPRIETARY_FUNC_NAME:
+	case SLQParserT__2, SLQParserT__3, SLQParserT__4, SLQParserT__5, SLQParserT__6, SLQParserT__7, SLQParserT__8, SLQParserPROPRIETARY_FUNC_NAME:
 		{
 			p.SetState(245)
 			p.Func_()
@@ -4874,7 +4855,7 @@ func (p *SLQParser) expr(_p int) (localctx IExprContext) {
 				}
 				{
 					p.SetState(249)
-					p.Match(SLQParserT__12)
+					p.Match(SLQParserT__15)
 					if p.HasError() {
 						// Recognition error - abort rule
 						goto errorExit
@@ -4898,7 +4879,7 @@ func (p *SLQParser) expr(_p int) (localctx IExprContext) {
 					p.SetState(252)
 					_la = p.GetTokenStream().LA(1)
 
-					if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&49156) != 0) {
+					if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&393220) != 0) {
 						p.GetErrorHandler().RecoverInline(p)
 					} else {
 						p.GetErrorHandler().ReportMatch(p)
@@ -4923,7 +4904,7 @@ func (p *SLQParser) expr(_p int) (localctx IExprContext) {
 					p.SetState(255)
 					_la = p.GetTokenStream().LA(1)
 
-					if !(_la == SLQParserORDER_ASC || _la == SLQParserORDER_DESC) {
+					if !(_la == SLQParserT__12 || _la == SLQParserT__13) {
 						p.GetErrorHandler().RecoverInline(p)
 					} else {
 						p.GetErrorHandler().ReportMatch(p)
@@ -4948,7 +4929,7 @@ func (p *SLQParser) expr(_p int) (localctx IExprContext) {
 					p.SetState(258)
 					_la = p.GetTokenStream().LA(1)
 
-					if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&458752) != 0) {
+					if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&3670016) != 0) {
 						p.GetErrorHandler().RecoverInline(p)
 					} else {
 						p.GetErrorHandler().ReportMatch(p)
@@ -4973,7 +4954,7 @@ func (p *SLQParser) expr(_p int) (localctx IExprContext) {
 					p.SetState(261)
 					_la = p.GetTokenStream().LA(1)
 
-					if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&131941395333120) != 0) {
+					if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&263882790666240) != 0) {
 						p.GetErrorHandler().RecoverInline(p)
 					} else {
 						p.GetErrorHandler().ReportMatch(p)
@@ -5021,7 +5002,7 @@ func (p *SLQParser) expr(_p int) (localctx IExprContext) {
 						}
 					}
 
-				case SLQParserT__2, SLQParserT__3, SLQParserT__4, SLQParserT__5, SLQParserT__6, SLQParserT__7, SLQParserT__19, SLQParserT__20, SLQParserPROPRIETARY_FUNC_NAME, SLQParserORDER_ASC, SLQParserORDER_DESC, SLQParserARG, SLQParserNULL, SLQParserLPAR, SLQParserNN, SLQParserNUMBER, SLQParserNAME, SLQParserSTRING:
+				case SLQParserT__2, SLQParserT__3, SLQParserT__4, SLQParserT__5, SLQParserT__6, SLQParserT__7, SLQParserT__8, SLQParserT__12, SLQParserT__13, SLQParserT__22, SLQParserT__23, SLQParserPROPRIETARY_FUNC_NAME, SLQParserARG, SLQParserNULL, SLQParserLPAR, SLQParserNN, SLQParserNUMBER, SLQParserNAME, SLQParserSTRING:
 
 				default:
 					p.SetError(antlr.NewNoViableAltException(p, nil, nil, nil, nil, nil))
@@ -5043,7 +5024,7 @@ func (p *SLQParser) expr(_p int) (localctx IExprContext) {
 				}
 				{
 					p.SetState(271)
-					p.Match(SLQParserT__18)
+					p.Match(SLQParserT__21)
 					if p.HasError() {
 						// Recognition error - abort rule
 						goto errorExit
@@ -5188,7 +5169,7 @@ func (p *SLQParser) Literal() (localctx ILiteralContext) {
 		p.SetState(278)
 		_la = p.GetTokenStream().LA(1)
 
-		if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&2258399030935552) != 0) {
+		if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&4516798061871104) != 0) {
 			p.GetErrorHandler().RecoverInline(p)
 		} else {
 			p.GetErrorHandler().ReportMatch(p)
@@ -5215,11 +5196,6 @@ type IUnaryOperatorContext interface {
 
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
-
-	// Getter signatures
-	ORDER_DESC() antlr.TerminalNode
-	ORDER_ASC() antlr.TerminalNode
-
 	// IsUnaryOperatorContext differentiates from other interfaces.
 	IsUnaryOperatorContext()
 }
@@ -5255,15 +5231,6 @@ func NewUnaryOperatorContext(parser antlr.Parser, parent antlr.ParserRuleContext
 }
 
 func (s *UnaryOperatorContext) GetParser() antlr.Parser { return s.parser }
-
-func (s *UnaryOperatorContext) ORDER_DESC() antlr.TerminalNode {
-	return s.GetToken(SLQParserORDER_DESC, 0)
-}
-
-func (s *UnaryOperatorContext) ORDER_ASC() antlr.TerminalNode {
-	return s.GetToken(SLQParserORDER_ASC, 0)
-}
-
 func (s *UnaryOperatorContext) GetRuleContext() antlr.RuleContext {
 	return s
 }
@@ -5304,7 +5271,7 @@ func (p *SLQParser) UnaryOperator() (localctx IUnaryOperatorContext) {
 		p.SetState(280)
 		_la = p.GetTokenStream().LA(1)
 
-		if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&204472320) != 0) {
+		if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&25190400) != 0) {
 			p.GetErrorHandler().RecoverInline(p)
 		} else {
 			p.GetErrorHandler().ReportMatch(p)

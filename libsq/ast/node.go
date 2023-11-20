@@ -2,6 +2,7 @@ package ast
 
 import (
 	"fmt"
+	"io"
 	"reflect"
 	"strings"
 
@@ -175,6 +176,20 @@ func nodesAreOnlyOfType(nodes []Node, types ...reflect.Type) error {
 	return nil
 }
 
+// NodeRoot returns the root node of the tree containing node.
+// This returned node should be an *ast.AST.
+func NodeRoot(node Node) Node {
+	if node == nil {
+		return nil
+	}
+
+	if node.Parent() == nil {
+		return node
+	}
+
+	return NodeRoot(node.Parent())
+}
+
 // NodeNextSibling returns the node's next sibling, or nil.
 func NodeNextSibling(node Node) Node {
 	if node == nil {
@@ -321,6 +336,33 @@ func NodeUnwrap[T Node](node Node) (T, bool) {
 			return result, false
 		}
 	}
+}
+
+// FindNodes returns the nodes of type T in ast.
+func FindNodes[T Node](ast *AST) []T {
+	var nodes []T
+	w := NewWalker(ast)
+	w.AddVisitor(reflect.TypeOf((*T)(nil)).Elem(), func(w *Walker, node Node) error {
+		nodes = append(nodes, node.(T))
+		return nil
+	})
+
+	_ = w.Walk()
+	return nodes
+}
+
+// FindFirstNode returns the first node of type T in ast, or
+// nil if no such node exists.
+func FindFirstNode[T Node](ast *AST) T {
+	var node T
+	w := NewWalker(ast)
+	w.AddVisitor(reflect.TypeOf((*T)(nil)).Elem(), func(w *Walker, n Node) error {
+		node, _ = n.(T)
+		return io.EOF // Return any error to halt the walk.
+	})
+
+	_ = w.Walk()
+	return node
 }
 
 // Results from reflect.TypeOf for node types.

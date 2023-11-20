@@ -91,3 +91,20 @@ func doFunction(rc *Context, fn *ast.FuncNode) (string, error) {
 	sql := sb.String()
 	return sql, nil
 }
+
+// doFuncRowNum renders the rownum() function.
+func doFuncRowNum(rc *Context, fn *ast.FuncNode) (string, error) {
+	a, _ := ast.NodeRoot(fn).(*ast.AST)
+	obNode := ast.FindFirstNode[*ast.OrderByNode](a)
+	if obNode != nil {
+		obClause, err := rc.Renderer.OrderBy(rc, obNode)
+		if err != nil {
+			return "", err
+		}
+		return "(row_number() OVER (" + obClause + "))", nil
+	}
+
+	// It's not entirely clear that this "ORDER BY 1" mechanism
+	// is the correct approach, but it seems to work for SQLite and Postgres.
+	return "(row_number() OVER (ORDER BY 1))", nil
+}

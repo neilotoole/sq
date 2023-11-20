@@ -33,6 +33,7 @@ funcName
 	| 'min'
 	| 'schema'
 	| 'catalog'
+	| 'rownum'
 	| PROPRIETARY_FUNC_NAME
   ;
 
@@ -178,10 +179,8 @@ results are inherently sorted. Although perhaps it should be implemented
 as a no-op.
 */
 
-ORDER_ASC: '+';
-ORDER_DESC: '-';
 ORDER_BY: 'order_by' | 'sort_by';
-orderByTerm: selector (ORDER_ASC | ORDER_DESC)?;
+orderByTerm: selector ('+' | '-')?;
 orderBy: ORDER_BY '(' orderByTerm (',' orderByTerm)* ')';
 
 // selector specfies a table name, a column name, or table.column.

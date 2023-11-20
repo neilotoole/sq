@@ -145,10 +145,11 @@ func (d *driveri) Renderer() *render.Renderer {
 
 	// Custom functions for SQLServer-specific stuff.
 	r.Range = renderRange
-	r.PreRender = preRender
+	r.PreRender = append(r.PreRender, preRender)
 
 	r.FunctionNames[ast.FuncNameSchema] = "SCHEMA_NAME"
 	r.FunctionNames[ast.FuncNameCatalog] = "DB_NAME"
+	r.FunctionOverrides[ast.FuncNameRowNum] = renderFuncRowNum
 
 	return r
 }

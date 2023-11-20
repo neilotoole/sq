@@ -184,3 +184,23 @@ func replacePlaceholders(input string) string {
 
 	return sb.String()
 }
+
+// renderFuncRowNum renders the rownum() function.
+func renderFuncRowNum(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	a, _ := ast.NodeRoot(fn).(*ast.AST)
+	obNode := ast.FindFirstNode[*ast.OrderByNode](a)
+	if obNode != nil {
+		obClause, err := rc.Renderer.OrderBy(rc, obNode)
+		if err != nil {
+			return "", err
+		}
+		return "(row_number() OVER (" + obClause + "))", nil
+	}
+
+	// The following is a hack to get around the fact that SQL Server
+	// requires an ORDER BY clause window functions.
+	// See:
+	// - https://stackoverflow.com/a/33013690/6004734
+	// - https://stackoverflow.com/a/50645278/6004734
+	return "(row_number() OVER (ORDER BY (SELECT NULL)))", nil
+}

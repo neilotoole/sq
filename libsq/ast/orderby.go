@@ -1,6 +1,10 @@
 package ast
 
-import "github.com/neilotoole/sq/libsq/ast/internal/slq"
+import (
+	"strings"
+
+	"github.com/neilotoole/sq/libsq/ast/internal/slq"
+)
 
 // OrderByNode implements the SQL "ORDER BY" clause.
 type OrderByNode struct {
@@ -142,19 +146,20 @@ func (v *parseTreeVisitor) VisitOrderByTerm(ctx *slq.OrderByTermContext) interfa
 	node.parent = v.cur
 	node.ctx = ctx
 	node.text = ctx.GetText()
+	if strings.HasSuffix(node.text, "+") {
+		node.text = strings.TrimSuffix(node.text, "+")
+		node.direction = OrderByDirectionAsc
+	} else if strings.HasSuffix(node.text, "-") {
+		node.text = strings.TrimSuffix(node.text, "-")
+		node.direction = OrderByDirectionDesc
+	}
 
 	selNode, err := newSelectorNode(node, ctx.Selector())
 	if err != nil {
 		return nil
 	}
 
-	if ctx.ORDER_ASC() != nil {
-		node.direction = OrderByDirectionAsc
-	} else if ctx.ORDER_DESC() != nil {
-		node.direction = OrderByDirectionDesc
-	}
-
-	if err := node.AddChild(selNode); err != nil {
+	if err = node.AddChild(selNode); err != nil {
 		return err
 	}
 

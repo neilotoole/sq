@@ -243,8 +243,16 @@ func placeholders(numCols, numRows int) string {
 // Renderer implements driver.SQLDriver.
 func (d *driveri) Renderer() *render.Renderer {
 	r := render.NewDefaultRenderer()
-	r.FunctionOverrides[ast.FuncNameSchema] = doRenderFuncSchema
-	r.FunctionOverrides[ast.FuncNameCatalog] = doRenderFuncCatalog
+	const schemaFrag = `(SELECT name FROM pragma_database_list ORDER BY seq limit 1)`
+	r.FunctionOverrides[ast.FuncNameSchema] = render.FuncOverrideString(schemaFrag)
+
+	// SQLite doesn't support catalogs, so we just return the string "default".
+	// We could return empty string, but that may be even more confusing, and would
+	// make SQLite the odd man out, as the other SQL drivers (even MySQL)
+	// have a value for catalog.
+	const catalogFrag = `(SELECT 'default')`
+	r.FunctionOverrides[ast.FuncNameCatalog] = render.FuncOverrideString(catalogFrag)
+
 	return r
 }
 

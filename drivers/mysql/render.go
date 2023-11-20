@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/ast"
+	"github.com/neilotoole/sq/libsq/ast/render"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlmodel"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 func dbTypeNameFromKind(knd kind.Kind) string {
@@ -212,4 +215,37 @@ func buildUpdateStmt(tbl string, cols []string, where string) (string, error) {
 	}
 
 	return buf.String(), nil
+}
+
+// renderFuncRowNum renders the rownum() function.
+//
+// MySQL didn't introduce ROW_NUMBER() until 8.0, and we're still
+// trying to support 5.6 and 5.7. So, we're using a hack, as
+// described here: https://www.mysqltutorial.org/mysql-row_number/
+//
+//	SET @row_number = 0;
+//	SELECT
+//	(@row_number:=@row_number + 1) AS num,
+//		actor_id,
+//		first_name,
+//		last_name
+//	FROM actor
+//	ORDER BY first_name
+//
+// The function puts the SET statement into the PreExecStmts fragment,
+// which then gets executed before the main body of the query.
+//
+// For MySQL 8+, we could use the ROW_NUMBER() function, but right now
+// the code isn't really set up to execute different impls for different
+// driver versions. Although, this is probably something we need to face up to.
+func renderFuncRowNum(rc *render.Context, _ *ast.FuncNode) (string, error) { //nolint:unparam
+	// We use a unique variable name to avoid collisions if there are
+	// multiple uses of rownum() in the same query.
+	variable := "@row_number_" + stringz.Uniq8()
+
+	rc.Fragments.PreExecStmts = append(rc.Fragments.PreExecStmts, "SET "+variable+" = 0;")
+	rc.Fragments.PostExecStmts = append(rc.Fragments.PostExecStmts, "SET "+variable+" = NULL;")
+
+	// e.g. (@row_number_abcd1234:=@row_number_abcd1234 + 1)
+	return "(" + variable + ":=" + variable + " + 1)", nil
 }
