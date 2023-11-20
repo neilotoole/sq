@@ -24,16 +24,25 @@ func NewVersionWriter(out io.Writer, pr *output.Printing) output.VersionWriter {
 
 // Version implements output.VersionWriter.
 func (w *versionWriter) Version(bi buildinfo.BuildInfo, latestVersion string, hi hostinfo.Info) error {
+	// We use a custom struct so that we can
+	// control the timestamp format.
 	type cliBuildInfo struct {
-		buildinfo.BuildInfo
+		Version       string        `json:"version" yaml:"version"`
+		Commit        string        `json:"commit,omitempty" yaml:"commit,omitempty"`
+		Timestamp     string        `json:"timestamp,omitempty" yaml:"timestamp,omitempty"`
 		LatestVersion string        `json:"latest_version"`
 		Host          hostinfo.Info `json:"host"`
 	}
 
 	cbi := cliBuildInfo{
-		BuildInfo:     bi,
+		Version:       bi.Version,
+		Commit:        bi.Commit,
 		LatestVersion: latestVersion,
 		Host:          hi,
+	}
+
+	if !bi.Timestamp.IsZero() {
+		cbi.Timestamp = w.pr.FormatDatetime(bi.Timestamp)
 	}
 
 	return writeJSON(w.out, w.pr, cbi)

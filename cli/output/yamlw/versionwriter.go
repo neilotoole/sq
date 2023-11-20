@@ -38,7 +38,7 @@ func (w *versionWriter) Version(bi buildinfo.BuildInfo, latestVersion string, hi
 	cbi := cliBuildInfo{
 		Version:       bi.Version,
 		Commit:        bi.Commit,
-		Timestamp:     bi.Timestamp,
+		Timestamp:     w.pr.FormatDatetime(bi.Timestamp),
 		LatestVersion: latestVersion,
 		Host:          hi,
 	}

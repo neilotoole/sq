@@ -53,8 +53,8 @@ func (w *versionWriter) Version(bi buildinfo.BuildInfo, latestVersion string, hi
 		w.pr.Faint.Fprintf(w.out, "Commit:          #%s\n", bi.Commit)
 	}
 
-	if bi.Timestamp != "" {
-		w.pr.Faint.Fprintf(w.out, "Timestamp:       %s\n", bi.Timestamp)
+	if !bi.Timestamp.IsZero() {
+		w.pr.Faint.Fprintf(w.out, "Timestamp:       %s\n", w.pr.FormatDatetime(bi.Timestamp))
 	}
 
 	// latestVersion = ""
