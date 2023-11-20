@@ -2,6 +2,10 @@ package cli
 
 import (
 	"database/sql"
+	"slices"
+
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 
 	"github.com/spf13/cobra"
 
@@ -80,15 +84,17 @@ formats both show extensive detail.`,
 
 	cmd.Flags().BoolP(flag.InspectOverview, flag.InspectOverviewShort, false, flag.InspectOverviewUsage)
 	cmd.Flags().BoolP(flag.InspectDBProps, flag.InspectDBPropsShort, false, flag.InspectDBPropsUsage)
+	cmd.Flags().Bool(flag.InspectCatalogs, false, flag.InspectCatalogsUsage)
+	cmd.Flags().Bool(flag.InspectSchemas, false, flag.InspectSchemasUsage)
 
-	cmd.MarkFlagsMutuallyExclusive(flag.InspectOverview, flag.InspectDBProps)
+	cmd.MarkFlagsMutuallyExclusive(flag.InspectOverview, flag.InspectDBProps, flag.InspectCatalogs, flag.InspectSchemas)
 
 	return cmd
 }
 
 func execInspect(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
-	ru := run.FromContext(ctx)
+	ru, log := run.FromContext(ctx), lg.FromContext(ctx)
 
 	var (
 		coll  = ru.Config.Collection
@@ -181,14 +187,33 @@ func execInspect(cmd *cobra.Command, args []string) error {
 		return ru.Writers.Metadata.TableMetadata(tblMeta)
 	}
 
+	if cmdFlagIsSetTrue(cmd, flag.InspectCatalogs) {
+		var db *sql.DB
+		if db, err = pool.DB(ctx); err != nil {
+			return err
+		}
+		var catalogs []string
+		if catalogs, err = pool.SQLDriver().ListCatalogs(ctx, db); err != nil {
+			return err
+		}
+
+		var currentCatalog string
+		if len(catalogs) > 0 {
+			currentCatalog = catalogs[0]
+		}
+
+		slices.Sort(catalogs)
+		return ru.Writers.Metadata.Catalogs(currentCatalog, catalogs)
+	}
+
 	if cmdFlagIsSetTrue(cmd, flag.InspectDBProps) {
 		var db *sql.DB
 		if db, err = pool.DB(ctx); err != nil {
 			return err
 		}
+		defer lg.WarnIfCloseError(log, lgm.CloseDB, db)
 		var props map[string]any
-		sqlDrvr := pool.SQLDriver()
-		if props, err = sqlDrvr.DBProperties(ctx, db); err != nil {
+		if props, err = pool.SQLDriver().DBProperties(ctx, db); err != nil {
 			return err
 		}
 

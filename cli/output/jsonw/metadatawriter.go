@@ -57,3 +57,20 @@ func (w *mdWriter) DBProperties(props map[string]any) error {
 	}
 	return writeJSON(w.out, w.pr, props)
 }
+
+// Catalogs implements output.MetadataWriter.
+func (w *mdWriter) Catalogs(currentCatalog string, catalogs []string) error {
+	if len(catalogs) == 0 {
+		return nil
+	}
+	type cat struct {
+		Name   string `json:"name"`
+		Active bool   `json:"active"`
+	}
+
+	cats := make([]cat, len(catalogs))
+	for i, c := range catalogs {
+		cats[i] = cat{Name: c, Active: c == currentCatalog}
+	}
+	return writeJSON(w.out, w.pr, cats)
+}

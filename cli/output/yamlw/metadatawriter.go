@@ -61,3 +61,21 @@ func (w *mdWriter) DBProperties(props map[string]any) error {
 
 	return writeYAML(w.out, w.yp, props)
 }
+
+// Catalogs implements output.MetadataWriter.
+func (w *mdWriter) Catalogs(currentCatalog string, catalogs []string) error {
+	if len(catalogs) == 0 {
+		return nil
+	}
+
+	type cat struct {
+		Name   string `yaml:"name"`
+		Active bool   `yaml:"active"`
+	}
+
+	cats := make([]cat, len(catalogs))
+	for i, c := range catalogs {
+		cats[i] = cat{Name: c, Active: c == currentCatalog}
+	}
+	return writeYAML(w.out, w.yp, cats)
+}

@@ -57,6 +57,9 @@ type MetadataWriter interface {
 
 	// DriverMetadata writes the metadata for the drivers.
 	DriverMetadata(drvrs []driver.Metadata) error
+
+	// Catalogs writes the list of catalogs.
+	Catalogs(currentCatalog string, catalogs []string) error
 }
 
 // SourceWriter can output data source details.

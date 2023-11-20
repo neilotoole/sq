@@ -357,3 +357,47 @@ func (w *mdWriter) DBProperties(props map[string]any) error {
 	w.tbl.appendRowsAndRenderAll(rows)
 	return nil
 }
+
+// Catalogs implements output.MetadataWriter.
+func (w *mdWriter) Catalogs(currentCatalog string, catalogs []string) error {
+	if len(catalogs) == 0 {
+		return nil
+	}
+	pr := w.tbl.pr
+
+	if pr.Verbose {
+		headers := []string{"CATALOG", "ACTIVE"}
+		w.tbl.tblImpl.SetHeader(headers)
+		w.tbl.tblImpl.SetColTrans(0, pr.String.SprintFunc())
+		w.tbl.tblImpl.SetColTrans(1, pr.Bool.SprintFunc())
+
+		var rows [][]string
+		for _, catalog := range catalogs {
+			var active string
+			if catalog == currentCatalog {
+				catalog = pr.Active.Sprintf(catalog)
+				active = pr.Bool.Sprint("active")
+			}
+			rows = append(rows, []string{catalog, active})
+		}
+		w.tbl.appendRowsAndRenderAll(rows)
+
+		return nil
+	}
+
+	if pr.ShowHeader {
+		headers := []string{"CATALOG"}
+		w.tbl.tblImpl.SetHeader(headers)
+	}
+	w.tbl.tblImpl.SetColTrans(0, pr.String.SprintFunc())
+
+	var rows [][]string
+	for _, catalog := range catalogs {
+		if catalog == currentCatalog {
+			catalog = pr.Active.Sprintf(catalog)
+		}
+		rows = append(rows, []string{catalog})
+	}
+	w.tbl.appendRowsAndRenderAll(rows)
+	return nil
+}
