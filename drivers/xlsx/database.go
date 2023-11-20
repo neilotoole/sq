@@ -35,7 +35,7 @@ type pool struct {
 
 	// ingestSheetNames is the list of sheet names to ingest. When empty,
 	// all sheets should be ingested. The key use of ingestSheetNames
-	// is with TableMetadata, so that only the relevant table is ingested.
+	// is with pool.TableMetadata, so that only the relevant table is ingested.
 	ingestSheetNames []string
 }
 
