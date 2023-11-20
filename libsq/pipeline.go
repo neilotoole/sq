@@ -93,7 +93,7 @@ func (p *pipeline) execute(ctx context.Context, recw RecordWriter) error {
 	// what happens if a task does something that is session/connection-dependent?
 	// When the query executes later (below), it could be on a different
 	// connection. Maybe the tasks need a means of declaring that they
-	// hae to be run on the same connection as the main query?
+	// must be executed on the same connection as the main query?
 	if err := p.executeTasks(ctx); err != nil {
 		return errw(err)
 	}
