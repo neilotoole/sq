@@ -26,16 +26,16 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 - [`sq version`](https://sq.io/docs/cmd/version) now honors option
   [`format.datetime`](https://sq.io/docs/config#formatdatetime) when outputting build timestamp.
+- Fixed a fairly nasty bug that prevented correct rendering of SLQ functions nested inside
+  an expression.
 
 ### Changed
 
-- The  `--exec` and `--query` flags for [`sq sql`](https://sq.io/docs/cmd/sql) were removed in the preceding release.
-  That was probably a bit hasty, especially because it's possible they might be reintroduced
+- The  `--exec` and `--query` flags for [`sq sql`](https://sq.io/docs/cmd/sql) were removed in
+  the preceding release ([v0.43.1]).
+  That was probably a bit hasty, especially because it's possible those flags _could_ be reintroduced
   when the _query vs exec_ situation is figured out. So, those two flags are now restored, in
   that their use won't cause an error, but they've been hidden from command help, and remain no-op.
-
-- Fixed a fairly nasty bug that prevented correct rendering of SLQ functions nested inside
-  an expression.
 
 ## [v0.43.1] - 2023-11-19
 
