@@ -716,6 +716,25 @@ func (d *driveri) ListSchemas(ctx context.Context, db sqlz.DB) ([]string, error)
 	return schemas, nil
 }
 
+// ListSchemaMetadata implements driver.SQLDriver.
+// The returned metadata.Schema instances will have a Catalog
+// value of "default", and an empty Owner value.
+func (d *driveri) ListSchemaMetadata(ctx context.Context, db sqlz.DB) ([]*metadata.Schema, error) {
+	names, err := d.ListSchemas(ctx, db)
+	if err != nil {
+		return nil, err
+	}
+
+	schemas := make([]*metadata.Schema, len(names))
+	for i, name := range names {
+		schemas[i] = &metadata.Schema{
+			Name:    name,
+			Catalog: "default",
+		}
+	}
+	return schemas, nil
+}
+
 // CurrentCatalog implements driver.SQLDriver. SQLite does not support catalogs,
 // so this method returns an error.
 func (d *driveri) CurrentCatalog(_ context.Context, _ sqlz.DB) (string, error) {

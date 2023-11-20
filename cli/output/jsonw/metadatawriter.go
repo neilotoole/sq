@@ -75,3 +75,24 @@ func (w *mdWriter) Catalogs(currentCatalog string, catalogs []string) error {
 	}
 	return writeJSON(w.out, w.pr, cats)
 }
+
+// Schemas implements output.MetadataWriter.
+func (w *mdWriter) Schemas(currentSchema string, schemas []*metadata.Schema) error {
+	if len(schemas) == 0 {
+		return nil
+	}
+
+	// We wrap each schema in a struct that has an "active" field,
+	// because we need to show the current schema in the output.
+	type wrapper struct {
+		metadata.Schema `json:",omitempty,inline"`
+		Active          bool `json:"active,omitempty"`
+	}
+
+	a := make([]*wrapper, len(schemas))
+	for i, s := range schemas {
+		a[i] = &wrapper{Schema: *s, Active: s.Name == currentSchema}
+	}
+
+	return writeJSON(w.out, w.pr, a)
+}

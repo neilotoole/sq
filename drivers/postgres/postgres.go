@@ -344,6 +344,44 @@ func (d *driveri) ListSchemas(ctx context.Context, db sqlz.DB) ([]string, error)
 	return schemas, nil
 }
 
+// ListSchemaMetadata implements driver.SQLDriver.
+func (d *driveri) ListSchemaMetadata(ctx context.Context, db sqlz.DB) ([]*metadata.Schema, error) {
+	log := lg.FromContext(ctx)
+
+	const q = `SELECT schema_name, catalog_name, schema_owner FROM information_schema.schemata
+WHERE catalog_name = current_database()
+ORDER BY schema_name`
+	var schemas []*metadata.Schema
+	rows, err := db.QueryContext(ctx, q)
+	if err != nil {
+		return nil, errw(err)
+	}
+
+	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
+
+	var name string
+	var catalog, owner sql.NullString
+
+	for rows.Next() {
+		if err = rows.Scan(&name, &catalog, &owner); err != nil {
+			return nil, errw(err)
+		}
+		s := &metadata.Schema{
+			Name:    name,
+			Catalog: catalog.String,
+			Owner:   owner.String,
+		}
+
+		schemas = append(schemas, s)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, errw(err)
+	}
+
+	return schemas, nil
+}
+
 // CurrentCatalog implements driver.SQLDriver.
 func (d *driveri) CurrentCatalog(ctx context.Context, db sqlz.DB) (string, error) {
 	var name string

@@ -366,39 +366,93 @@ func (w *mdWriter) Catalogs(currentCatalog string, catalogs []string) error {
 	}
 	pr := w.tbl.pr
 
-	if pr.Verbose {
-		headers := []string{"CATALOG", "ACTIVE"}
-		w.tbl.tblImpl.SetHeader(headers)
+	if !pr.Verbose {
+		if pr.ShowHeader {
+			headers := []string{"CATALOG"}
+			w.tbl.tblImpl.SetHeader(headers)
+		}
 		w.tbl.tblImpl.SetColTrans(0, pr.String.SprintFunc())
-		w.tbl.tblImpl.SetColTrans(1, pr.Bool.SprintFunc())
 
 		var rows [][]string
 		for _, catalog := range catalogs {
-			var active string
 			if catalog == currentCatalog {
 				catalog = pr.Active.Sprintf(catalog)
-				active = pr.Bool.Sprint("active")
 			}
-			rows = append(rows, []string{catalog, active})
+			rows = append(rows, []string{catalog})
 		}
 		w.tbl.appendRowsAndRenderAll(rows)
-
 		return nil
 	}
 
+	// Verbose mode
 	if pr.ShowHeader {
-		headers := []string{"CATALOG"}
+		headers := []string{"CATALOG", "ACTIVE"}
 		w.tbl.tblImpl.SetHeader(headers)
 	}
+
 	w.tbl.tblImpl.SetColTrans(0, pr.String.SprintFunc())
+	w.tbl.tblImpl.SetColTrans(1, pr.Bool.SprintFunc())
 
 	var rows [][]string
 	for _, catalog := range catalogs {
+		var active string
 		if catalog == currentCatalog {
 			catalog = pr.Active.Sprintf(catalog)
+			active = pr.Bool.Sprint("active")
 		}
-		rows = append(rows, []string{catalog})
+		rows = append(rows, []string{catalog, active})
 	}
 	w.tbl.appendRowsAndRenderAll(rows)
+
+	return nil
+}
+
+// Schemas implements output.MetadataWriter.
+func (w *mdWriter) Schemas(currentSchema string, schemas []*metadata.Schema) error {
+	if len(schemas) == 0 {
+		return nil
+	}
+	pr := w.tbl.pr
+	if !pr.Verbose {
+		if pr.ShowHeader {
+			headers := []string{"SCHEMA"}
+			w.tbl.tblImpl.SetHeader(headers)
+		}
+		w.tbl.tblImpl.SetColTrans(0, pr.String.SprintFunc())
+		var rows [][]string
+		for _, schema := range schemas {
+			s := schema.Name
+			if schema.Name == currentSchema {
+				s = pr.Active.Sprintf(s)
+			}
+			rows = append(rows, []string{s})
+		}
+		w.tbl.appendRowsAndRenderAll(rows)
+		return nil
+	}
+
+	// Verbose mode
+	if pr.ShowHeader {
+		headers := []string{"SCHEMA", "CATALOG", "OWNER", "ACTIVE"}
+		w.tbl.tblImpl.SetHeader(headers)
+	}
+
+	w.tbl.tblImpl.SetColTrans(0, pr.String.SprintFunc())
+	w.tbl.tblImpl.SetColTrans(1, pr.String.SprintFunc())
+	w.tbl.tblImpl.SetColTrans(2, pr.String.SprintFunc())
+	w.tbl.tblImpl.SetColTrans(3, pr.Bool.SprintFunc())
+
+	var rows [][]string
+	for _, schema := range schemas {
+		row := []string{schema.Name, schema.Catalog, schema.Owner, ""}
+
+		if schema.Name == currentSchema {
+			row[0] = pr.Active.Sprintf(row[0])
+			row[3] = "active"
+		}
+		rows = append(rows, row)
+	}
+	w.tbl.appendRowsAndRenderAll(rows)
+
 	return nil
 }

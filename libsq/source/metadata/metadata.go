@@ -3,6 +3,7 @@ package metadata
 
 import (
 	"encoding/json"
+	"log/slog"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
@@ -63,7 +64,7 @@ type Source struct {
 	// DBProperties are name-value pairs from the DB.
 	// Typically the value is a scalar such as integer or string, but
 	// it can be a nested value such as map or array.
-	DBProperties map[string]any `json:"db_properties,omitempty"`
+	DBProperties map[string]any `json:"db_properties,omitempty" yaml:"db_properties,omitempty"`
 }
 
 // Table returns the named table, or nil.
@@ -222,15 +223,15 @@ func (t *Table) PKCols() []*Column {
 
 // Column models metadata for a particular column of a data source.
 type Column struct {
-	Name         string    `json:"name"`
-	Position     int64     `json:"position"`
-	PrimaryKey   bool      `json:"primary_key"`
-	BaseType     string    `json:"base_type"`
-	ColumnType   string    `json:"column_type"`
-	Kind         kind.Kind `json:"kind"`
-	Nullable     bool      `json:"nullable"`
-	DefaultValue string    `json:"default_value,omitempty"`
-	Comment      string    `json:"comment,omitempty"`
+	Name         string    `json:"name" yaml:"name"`
+	Position     int64     `json:"position" yaml:"position"`
+	PrimaryKey   bool      `json:"primary_key" yaml:"primary_key"`
+	BaseType     string    `json:"base_type" yaml:"base_type"`
+	ColumnType   string    `json:"column_type" yaml:"column_type"`
+	Kind         kind.Kind `json:"kind" yaml:"kind"`
+	Nullable     bool      `json:"nullable" yaml:"nullable"`
+	DefaultValue string    `json:"default_value,omitempty" yaml:"default_value,omitempty"`
+	Comment      string    `json:"comment,omitempty" yaml:"comment,omitempty"`
 	// TODO: Add foreign key field
 }
 
@@ -257,4 +258,42 @@ func (c *Column) Clone() *Column {
 func (c *Column) String() string {
 	bytes, _ := json.Marshal(c)
 	return string(bytes)
+}
+
+// Schema models metadata for a schema.
+type Schema struct {
+	// Name is the schema name, such as "public".
+	Name string `json:"schema" yaml:"schema"`
+
+	// Catalog is the catalog name, such as "sakila".
+	Catalog string `json:"catalog" yaml:"catalog"`
+
+	// Owner is the schema owner, such as "alice".
+	Owner string `json:"owner,omitempty" yaml:"owner,omitempty"`
+}
+
+// Clone returns a deep copy of s. If s is nil, nil is returned.
+func (s *Schema) Clone() *Schema {
+	if s == nil {
+		return nil
+	}
+
+	s2 := *s
+	return &s2
+}
+
+// LogValue implements slog.LogValuer.
+func (s *Schema) LogValue() slog.Value {
+	if s == nil {
+		return slog.Value{}
+	}
+
+	attrs := make([]slog.Attr, 2, 3)
+	attrs[0] = slog.String("name", s.Name)
+	attrs[1] = slog.String("catalog", s.Catalog)
+	if s.Owner != "" {
+		attrs = append(attrs, slog.String("owner", s.Owner))
+	}
+
+	return slog.GroupValue(attrs...)
 }

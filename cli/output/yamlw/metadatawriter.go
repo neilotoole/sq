@@ -11,6 +11,8 @@ import (
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
+var _ output.MetadataWriter = (*mdWriter)(nil)
+
 // mdWriter implements output.MetadataWriter for YAML.
 type mdWriter struct {
 	out io.Writer
@@ -79,4 +81,25 @@ func (w *mdWriter) Catalogs(currentCatalog string, catalogs []string) error {
 		cats[i] = cat{Name: c, Active: c == currentCatalog}
 	}
 	return writeYAML(w.out, w.yp, cats)
+}
+
+// Schemas implements output.MetadataWriter.
+func (w *mdWriter) Schemas(currentSchema string, schemas []*metadata.Schema) error {
+	if len(schemas) == 0 {
+		return nil
+	}
+
+	// We wrap each schema in a struct that has an "active" field,
+	// because we need to show the current schema in the output.
+	type wrapper struct {
+		metadata.Schema `yaml:",omitempty,inline"`
+		Active          bool `yaml:"active,omitempty"`
+	}
+
+	a := make([]*wrapper, len(schemas))
+	for i, s := range schemas {
+		a[i] = &wrapper{Schema: *s, Active: s.Name == currentSchema}
+	}
+
+	return writeYAML(w.out, w.yp, a)
 }

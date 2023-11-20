@@ -156,6 +156,24 @@ func execInspect(cmd *cobra.Command, args []string) error {
 		return ru.Writers.Metadata.Catalogs(currentCatalog, catalogs)
 	}
 
+	if cmdFlagIsSetTrue(cmd, flag.InspectSchemas) {
+		var db *sql.DB
+		if db, err = pool.DB(ctx); err != nil {
+			return err
+		}
+		var schemas []*metadata.Schema
+		if schemas, err = pool.SQLDriver().ListSchemaMetadata(ctx, db); err != nil {
+			return err
+		}
+
+		var currentSchema string
+		if currentSchema, err = pool.SQLDriver().CurrentSchema(ctx, db); err != nil {
+			return err
+		}
+
+		return ru.Writers.Metadata.Schemas(currentSchema, schemas)
+	}
+
 	if cmdFlagIsSetTrue(cmd, flag.InspectDBProps) {
 		var db *sql.DB
 		if db, err = pool.DB(ctx); err != nil {
