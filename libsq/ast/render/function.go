@@ -93,6 +93,7 @@ func doFunction(rc *Context, fn *ast.FuncNode) (string, error) {
 }
 
 // FuncRowNum renders the rownum() function.
+// FIXME: make this private, and add to the default renderer.
 func FuncRowNum(rc *Context, fn *ast.FuncNode) (string, error) {
 	a, _ := ast.NodeRoot(fn).(*ast.AST)
 	obNode := ast.FindFirstNode[*ast.OrderByNode](a)
@@ -104,7 +105,7 @@ func FuncRowNum(rc *Context, fn *ast.FuncNode) (string, error) {
 		return "(row_number() OVER (" + obClause + "))", nil
 	}
 
-	// Possibly this should be "(row_number() OVER (ORDER BY 1))", but
-	// it's not clear what the correct approach is.
-	return "(row_number() OVER ())", nil
+	// It's not entirely clear that this "ORDER BY 1" mechanism
+	// is the correct approach, but it seems to work for SQLite and Postgres.
+	return "(row_number() OVER (ORDER BY 1))", nil
 }

@@ -149,6 +149,7 @@ func (d *driveri) Renderer() *render.Renderer {
 
 	r.FunctionNames[ast.FuncNameSchema] = "SCHEMA_NAME"
 	r.FunctionNames[ast.FuncNameCatalog] = "DB_NAME"
+	r.FunctionOverrides[ast.FuncNameRowNum] = renderFuncRowNum
 
 	return r
 }

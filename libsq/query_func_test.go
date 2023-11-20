@@ -261,15 +261,18 @@ func TestQuery_func_catalog(t *testing.T) {
 	}
 }
 
-//nolint:lll
+//nolint:lll,exhaustive
 func TestQuery_func_rownum(t *testing.T) {
 	testCases := []queryTestCase{
 		{
 			name:    "plain",
 			in:      `@sakila | .actor | rownum()`,
-			wantSQL: `SELECT (row_number() OVER ()) AS "rownum()" FROM "actor"`,
-			onlyFor: []source.DriverType{postgres.Type, sqlite3.Type},
-			// override:     driverMap{mysql.Type: "SELECT max(`actor_id`) AS `max(.actor_id)` FROM `actor`"},
+			wantSQL: `SELECT (row_number() OVER (ORDER BY 1)) AS "rownum()" FROM "actor"`,
+			onlyFor: []source.DriverType{postgres.Type, sqlite3.Type, sqlserver.Type},
+			override: driverMap{
+				sqlserver.Type: `SELECT (row_number() OVER (ORDER BY (SELECT NULL))) AS "rownum()" FROM "actor"`,
+				mysql.Type:     `SELECT (row_number() OVER (ORDER BY (SELECT NULL))) AS "rownum()" FROM "actor"`,
+			},
 			wantRecCount: 200,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "rownum()"),
@@ -280,9 +283,12 @@ func TestQuery_func_rownum(t *testing.T) {
 		{
 			name:    "plus_1",
 			in:      `@sakila | .actor | rownum() + 1`,
-			wantSQL: `SELECT (row_number() OVER ())+1 AS "rownum()+1" FROM "actor"`,
-			onlyFor: []source.DriverType{postgres.Type, sqlite3.Type},
-			// override:     driverMap{mysql.Type: "SELECT max(`actor_id`) AS `max(.actor_id)` FROM `actor`"},
+			wantSQL: `SELECT (row_number() OVER (ORDER BY 1))+1 AS "rownum()+1" FROM "actor"`,
+			onlyFor: []source.DriverType{postgres.Type, sqlite3.Type, sqlserver.Type},
+			override: driverMap{
+				sqlserver.Type: `SELECT (row_number() OVER (ORDER BY (SELECT NULL)))+1 AS "rownum()+1" FROM "actor"`,
+				mysql.Type:     "SELECT max(`actor_id`) AS `max(.actor_id)` FROM `actor`",
+			},
 			wantRecCount: 200,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "rownum()+1"),
@@ -293,9 +299,12 @@ func TestQuery_func_rownum(t *testing.T) {
 		{
 			name:    "minus_1_alias",
 			in:      `@sakila | .actor | (rownum()-1):zero_index`,
-			wantSQL: `SELECT ((row_number() OVER ())-1) AS "zero_index" FROM "actor"`,
-			onlyFor: []source.DriverType{postgres.Type, sqlite3.Type},
-			// override:     driverMap{mysql.Type: "SELECT max(`actor_id`) AS `max(.actor_id)` FROM `actor`"},
+			wantSQL: `SELECT ((row_number() OVER (ORDER BY 1))-1) AS "zero_index" FROM "actor"`,
+			onlyFor: []source.DriverType{postgres.Type, sqlite3.Type, sqlserver.Type},
+			override: driverMap{
+				sqlserver.Type: `SELECT ((row_number() OVER (ORDER BY (SELECT NULL)))-1) AS "zero_index" FROM "actor"`,
+				mysql.Type:     "SELECT max(`actor_id`) AS `max(.actor_id)` FROM `actor`",
+			},
 			wantRecCount: 200,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "zero_index"),
@@ -307,7 +316,7 @@ func TestQuery_func_rownum(t *testing.T) {
 			name:    "column_orderby",
 			in:      `@sakila | .actor | rownum(), .actor_id | order_by(.actor_id)`,
 			wantSQL: `SELECT (row_number() OVER (ORDER BY "actor_id")) AS "rownum()", "actor_id" FROM "actor" ORDER BY "actor_id"`,
-			onlyFor: []source.DriverType{postgres.Type, sqlite3.Type},
+			onlyFor: []source.DriverType{postgres.Type, sqlite3.Type, sqlserver.Type},
 			// override:     driverMap{mysql.Type: "SELECT max(`actor_id`) AS `max(.actor_id)` FROM `actor`"},
 			wantRecCount: 200,
 			sinkFns: []SinkTestFunc{
