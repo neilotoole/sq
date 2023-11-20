@@ -21,6 +21,26 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   2         132       ADAM
   3         165       AL
   ```
+
+- [`sq inspect`](https://sq.io/docs/inspect) has two new flags:
+  - [`--schemata`](https://sq.io/docs/inspect#schemata): list the source's schemas
+    ```shell
+    $ sq inspect @sakila/pg12 --schemata -y
+    - schema: information_schema
+      catalog: sakila
+      owner: sakila
+    - schema: public
+      catalog: sakila
+      owner: sakila
+      active: true
+    ```
+  - [`--catalogs`](https://sq.io/docs/inspect#catalogs): list the source's catalogs
+    ```shell
+    $ sq inspect @sakila/pg12 --catalogs
+    CATALOG
+    postgres
+    sakila
+    ```
   
 ### Fixed
 
