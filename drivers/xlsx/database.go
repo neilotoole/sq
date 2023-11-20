@@ -15,6 +15,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
 // pool implements driver.Pool. It implements a deferred ingest
@@ -34,7 +35,7 @@ type pool struct {
 
 	// ingestSheetNames is the list of sheet names to ingest. When empty,
 	// all sheets should be ingested. The key use of ingestSheetNames
-	// is with TableMetadata, so that only the relevant table is ingested.
+	// is with pool.TableMetadata, so that only the relevant table is ingested.
 	ingestSheetNames []string
 }
 
@@ -100,7 +101,7 @@ func (p *pool) Source() *source.Source {
 }
 
 // SourceMetadata implements driver.Pool.
-func (p *pool) SourceMetadata(ctx context.Context, noSchema bool) (*source.Metadata, error) {
+func (p *pool) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -129,7 +130,7 @@ func (p *pool) SourceMetadata(ctx context.Context, noSchema bool) (*source.Metad
 }
 
 // TableMetadata implements driver.Pool.
-func (p *pool) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
+func (p *pool) TableMetadata(ctx context.Context, tblName string) (*metadata.Table, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 

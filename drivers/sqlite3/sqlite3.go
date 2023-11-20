@@ -35,11 +35,13 @@ import (
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/driver/dialect"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
 const (
 	// Type is the sqlite3 source driver type.
-	Type source.DriverType = "sqlite3"
+	Type drivertype.Type = "sqlite3"
 
 	// dbDrvr is the backing sqlite3 SQL driver impl name.
 	dbDrvr = "sqlite3"
@@ -56,7 +58,7 @@ type Provider struct {
 }
 
 // DriverFor implements driver.Provider.
-func (p *Provider) DriverFor(typ source.DriverType) (driver.Driver, error) {
+func (p *Provider) DriverFor(typ drivertype.Type) (driver.Driver, error) {
 	if typ != Type {
 		return nil, errz.Errorf("unsupported driver type {%s}", typ)
 	}
@@ -714,6 +716,25 @@ func (d *driveri) ListSchemas(ctx context.Context, db sqlz.DB) ([]string, error)
 	return schemas, nil
 }
 
+// ListSchemaMetadata implements driver.SQLDriver.
+// The returned metadata.Schema instances will have a Catalog
+// value of "default", and an empty Owner value.
+func (d *driveri) ListSchemaMetadata(ctx context.Context, db sqlz.DB) ([]*metadata.Schema, error) {
+	names, err := d.ListSchemas(ctx, db)
+	if err != nil {
+		return nil, err
+	}
+
+	schemas := make([]*metadata.Schema, len(names))
+	for i, name := range names {
+		schemas[i] = &metadata.Schema{
+			Name:    name,
+			Catalog: "default",
+		}
+	}
+	return schemas, nil
+}
+
 // CurrentCatalog implements driver.SQLDriver. SQLite does not support catalogs,
 // so this method returns an error.
 func (d *driveri) CurrentCatalog(_ context.Context, _ sqlz.DB) (string, error) {
@@ -923,7 +944,7 @@ func (p *pool) Source() *source.Source {
 }
 
 // TableMetadata implements driver.Pool.
-func (p *pool) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
+func (p *pool) TableMetadata(ctx context.Context, tblName string) (*metadata.Table, error) {
 	db, err := p.DB(ctx)
 	if err != nil {
 		return nil, err
@@ -933,10 +954,10 @@ func (p *pool) TableMetadata(ctx context.Context, tblName string) (*source.Table
 }
 
 // SourceMetadata implements driver.Pool.
-func (p *pool) SourceMetadata(ctx context.Context, noSchema bool) (*source.Metadata, error) {
+func (p *pool) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error) {
 	// https://stackoverflow.com/questions/9646353/how-to-find-sqlite-database-file-version
 
-	md := &source.Metadata{Handle: p.src.Handle, Driver: Type, DBDriver: dbDrvr}
+	md := &metadata.Source{Handle: p.src.Handle, Driver: Type, DBDriver: dbDrvr}
 
 	dsn, err := PathFromLocation(p.src)
 	if err != nil {

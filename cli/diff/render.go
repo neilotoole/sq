@@ -3,33 +3,35 @@ package diff
 import (
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
-// renderSourceMeta2YAML returns a YAML rendering of source.Metadata.
+// renderSourceMeta2YAML returns a YAML rendering of metadata.Source.
 // The returned YAML is subtly different from that
 // returned by yamlw.NewSourceWriter. For example, it
 // adds a "table_count" field.
-func renderSourceMeta2YAML(sm *source.Metadata) (string, error) {
+func renderSourceMeta2YAML(sm *metadata.Source) (string, error) {
 	if sm == nil {
 		return "", nil
 	}
 
-	// sourceMeta holds values of source.Metadata in the structure
+	// sourceMeta holds values of metadata.Source in the structure
 	// that diff wants.
 	type sourceMeta struct {
-		Handle     string            `json:"handle" yaml:"handle"`
-		Location   string            `json:"location" yaml:"location"`
-		Name       string            `json:"name" yaml:"name"`
-		FQName     string            `json:"name_fq" yaml:"name_fq"`
-		Schema     string            `json:"schema,omitempty" yaml:"schema,omitempty"`
-		Driver     source.DriverType `json:"driver" yaml:"driver"`
-		DBDriver   source.DriverType `json:"db_driver" yaml:"db_driver"`
-		DBProduct  string            `json:"db_product" yaml:"db_product"`
-		DBVersion  string            `json:"db_version" yaml:"db_version"`
-		User       string            `json:"user,omitempty" yaml:"user,omitempty"`
-		Size       int64             `json:"size" yaml:"size"`
-		TableCount int64             `json:"table_count" yaml:"table_count"`
-		ViewCount  int64             `json:"view_count" yaml:"view_count"`
+		Handle     string          `json:"handle" yaml:"handle"`
+		Location   string          `json:"location" yaml:"location"`
+		Name       string          `json:"name" yaml:"name"`
+		FQName     string          `json:"name_fq" yaml:"name_fq"`
+		Schema     string          `json:"schema,omitempty" yaml:"schema,omitempty"`
+		Driver     drivertype.Type `json:"driver" yaml:"driver"`
+		DBDriver   drivertype.Type `json:"db_driver" yaml:"db_driver"`
+		DBProduct  string          `json:"db_product" yaml:"db_product"`
+		DBVersion  string          `json:"db_version" yaml:"db_version"`
+		User       string          `json:"user,omitempty" yaml:"user,omitempty"`
+		Size       int64           `json:"size" yaml:"size"`
+		TableCount int64           `json:"table_count" yaml:"table_count"`
+		ViewCount  int64           `json:"view_count" yaml:"view_count"`
 	}
 
 	smr := &sourceMeta{
@@ -56,16 +58,16 @@ func renderSourceMeta2YAML(sm *source.Metadata) (string, error) {
 	return string(b), nil
 }
 
-// renderTableMeta2YAML returns a YAML rendering of source.TableMetadata.
+// renderTableMeta2YAML returns a YAML rendering of metadata.Table.
 // The returned YAML is subtly different from that
 // returned by yamlw.NewSourceWriter. For example, it
 // adds a "column_count" field.
-func renderTableMeta2YAML(showRowCounts bool, tm *source.TableMetadata) (string, error) {
+func renderTableMeta2YAML(showRowCounts bool, tm *metadata.Table) (string, error) {
 	if tm == nil {
 		return "", nil
 	}
 
-	// tableMeta hosts values of source.TableMetadata in the
+	// tableMeta hosts values of metadata.Table in the
 	// structure that diff wants.
 	type tableMeta struct {
 		Name        string `json:"name" yaml:"name"`
@@ -74,11 +76,11 @@ func renderTableMeta2YAML(showRowCounts bool, tm *source.TableMetadata) (string,
 		DBTableType string `json:"table_type_db,omitempty" yaml:"table_type_db,omitempty"`
 		// RowCount is a pointer, because its display is controlled
 		// by a variable.
-		RowCount    *int64                `json:"row_count,omitempty" yaml:"row_count,omitempty"`
-		Size        *int64                `json:"size,omitempty" yaml:"size,omitempty"`
-		Comment     string                `json:"comment,omitempty" yaml:"comment,omitempty"`
-		ColumnCount int64                 `json:"column_count" yaml:"column_count"`
-		Columns     []*source.ColMetadata `json:"columns" yaml:"columns"`
+		RowCount    *int64             `json:"row_count,omitempty" yaml:"row_count,omitempty"`
+		Size        *int64             `json:"size,omitempty" yaml:"size,omitempty"`
+		Comment     string             `json:"comment,omitempty" yaml:"comment,omitempty"`
+		ColumnCount int64              `json:"column_count" yaml:"column_count"`
+		Columns     []*metadata.Column `json:"columns" yaml:"columns"`
 	}
 
 	tmr := &tableMeta{

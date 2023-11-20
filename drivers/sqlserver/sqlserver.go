@@ -28,11 +28,13 @@ import (
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/driver/dialect"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
 const (
 	// Type is the SQL Server source driver type.
-	Type = source.DriverType("sqlserver")
+	Type = drivertype.Type("sqlserver")
 
 	// dbDrvr is the backing SQL Server driver impl name.
 	dbDrvr = "sqlserver"
@@ -46,7 +48,7 @@ type Provider struct {
 }
 
 // DriverFor implements driver.Provider.
-func (p *Provider) DriverFor(typ source.DriverType) (driver.Driver, error) {
+func (p *Provider) DriverFor(typ drivertype.Type) (driver.Driver, error) {
 	if typ != Type {
 		return nil, errz.Errorf("unsupported driver type {%s}}", typ)
 	}
@@ -394,6 +396,44 @@ func (d *driveri) ListSchemas(ctx context.Context, db sqlz.DB) ([]string, error)
 	return schemas, nil
 }
 
+// ListSchemaMetadata implements driver.SQLDriver.
+func (d *driveri) ListSchemaMetadata(ctx context.Context, db sqlz.DB) ([]*metadata.Schema, error) {
+	log := lg.FromContext(ctx)
+
+	const q = `SELECT schema_name, catalog_name, schema_owner FROM information_schema.schemata
+WHERE catalog_name = DB_NAME()
+ORDER BY schema_name`
+	var schemas []*metadata.Schema
+	rows, err := db.QueryContext(ctx, q)
+	if err != nil {
+		return nil, errw(err)
+	}
+
+	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
+
+	var name string
+	var catalog, owner sql.NullString
+
+	for rows.Next() {
+		if err = rows.Scan(&name, &catalog, &owner); err != nil {
+			return nil, errw(err)
+		}
+		s := &metadata.Schema{
+			Name:    name,
+			Catalog: catalog.String,
+			Owner:   owner.String,
+		}
+
+		schemas = append(schemas, s)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, errw(err)
+	}
+
+	return schemas, nil
+}
+
 // CurrentCatalog implements driver.SQLDriver.
 func (d *driveri) CurrentCatalog(ctx context.Context, db sqlz.DB) (string, error) {
 	var name string
@@ -656,7 +696,7 @@ func (d *pool) Source() *source.Source {
 }
 
 // TableMetadata implements driver.Pool.
-func (d *pool) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
+func (d *pool) TableMetadata(ctx context.Context, tblName string) (*metadata.Table, error) {
 	const query = `SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_TYPE
 FROM INFORMATION_SCHEMA.TABLES
 WHERE TABLE_NAME = @p1`
@@ -673,7 +713,7 @@ WHERE TABLE_NAME = @p1`
 }
 
 // SourceMetadata implements driver.Pool.
-func (d *pool) SourceMetadata(ctx context.Context, noSchema bool) (*source.Metadata, error) {
+func (d *pool) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error) {
 	return getSourceMetadata(ctx, d.src, d.db, noSchema)
 }
 

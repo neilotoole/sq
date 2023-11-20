@@ -32,7 +32,7 @@ func newDriverListCmd() *cobra.Command {
 		RunE:  execDriverList,
 	}
 
-	addTextFlags(cmd)
+	addTextFormatFlags(cmd)
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 	cmd.Flags().BoolP(flag.YAML, flag.YAMLShort, false, flag.YAMLUsage)
 	cmd.Flags().BoolP(flag.Compact, flag.CompactShort, false, flag.CompactUsage)

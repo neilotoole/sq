@@ -18,7 +18,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
-	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/testsrc"
@@ -144,7 +144,7 @@ func TestRecordMetadata(t *testing.T) {
 		colNames  []string
 		colKinds  []kind.Kind
 		scanTypes []reflect.Type
-		colsMeta  []*source.ColMetadata
+		colsMeta  []*metadata.Column
 	}{
 		{
 			tbl:      sakila.TblActor,
@@ -155,7 +155,7 @@ func TestRecordMetadata(t *testing.T) {
 				sqlz.RTypeNullInt64, sqlz.RTypeNullString, sqlz.RTypeNullString,
 				sqlz.RTypeNullTime,
 			},
-			colsMeta: []*source.ColMetadata{
+			colsMeta: []*metadata.Column{
 				{Name: "actor_id", Position: 0, PrimaryKey: true, BaseType: "INTEGER", ColumnType: "INTEGER", Kind: kind.Int, Nullable: false},
 				{Name: "first_name", Position: 1, BaseType: "VARCHAR(45)", ColumnType: "VARCHAR(45)", Kind: kind.Text, Nullable: false},
 				{Name: "last_name", Position: 2, BaseType: "VARCHAR(45)", ColumnType: "VARCHAR(45)", Kind: kind.Text, Nullable: false},
@@ -168,7 +168,7 @@ func TestRecordMetadata(t *testing.T) {
 			colNames:  sakila.TblFilmActorCols(),
 			colKinds:  []kind.Kind{kind.Int, kind.Int, kind.Datetime},
 			scanTypes: []reflect.Type{sqlz.RTypeNullInt64, sqlz.RTypeNullInt64, sqlz.RTypeNullTime},
-			colsMeta: []*source.ColMetadata{
+			colsMeta: []*metadata.Column{
 				{Name: "actor_id", Position: 0, PrimaryKey: true, BaseType: "INT", ColumnType: "INT", Kind: kind.Int, Nullable: false},
 				{Name: "film_id", Position: 1, PrimaryKey: true, BaseType: "INT", ColumnType: "INT", Kind: kind.Int, Nullable: false},
 				{Name: "last_update", Position: 2, BaseType: "TIMESTAMP", ColumnType: "TIMESTAMP", Kind: kind.Datetime, Nullable: false},
@@ -183,7 +183,7 @@ func TestRecordMetadata(t *testing.T) {
 				sqlz.RTypeNullInt64, sqlz.RTypeNullInt64, sqlz.RTypeNullInt64,
 				sqlz.RTypeNullInt64, sqlz.RTypeNullString, sqlz.RTypeNullTime, sqlz.RTypeNullTime,
 			},
-			colsMeta: []*source.ColMetadata{
+			colsMeta: []*metadata.Column{
 				{Name: "payment_id", Position: 0, PrimaryKey: true, BaseType: "INT", ColumnType: "INT", Kind: kind.Int, Nullable: false},
 				{Name: "customer_id", Position: 1, BaseType: "INT", ColumnType: "INT", Kind: kind.Int, Nullable: false},
 				{Name: "staff_id", Position: 2, BaseType: "SMALLINT", ColumnType: "SMALLINT", Kind: kind.Int, Nullable: false},

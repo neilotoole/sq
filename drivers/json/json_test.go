@@ -14,23 +14,24 @@ import (
 	"github.com/neilotoole/sq/drivers/json"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh/tutil"
 )
 
 func TestDriverDetectorFuncs(t *testing.T) {
 	const sampleSize = 1000
 
-	detectFns := map[source.DriverType]source.DriverDetectFunc{ //nolint:exhaustive
+	detectFns := map[drivertype.Type]source.DriverDetectFunc{ //nolint:exhaustive
 		json.TypeJSON:  json.DetectJSON(sampleSize),
 		json.TypeJSONA: json.DetectJSONA(sampleSize),
 		json.TypeJSONL: json.DetectJSONL(sampleSize),
 	}
 
 	testCases := []struct {
-		fn    source.DriverType
+		fn    drivertype.Type
 		fname string
-		// Note that the zero value is source.TypeNone
-		want source.DriverType
+		// Note that the zero value is drivertype.None.
+		want drivertype.Type
 		// If wantScore is zero, it's not inspected. If non-zero,
 		// gotScore is tested against wantScore
 		wantScore float32
@@ -105,7 +106,7 @@ func TestDriverDetectorFuncs(t *testing.T) {
 
 			require.NoError(t, gotErr)
 			require.Equal(t, tc.want, gotType)
-			if tc.want == source.TypeNone {
+			if tc.want == drivertype.None {
 				require.Equal(t, float32(0), gotScore)
 				return
 			}

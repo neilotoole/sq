@@ -12,7 +12,7 @@ import (
 	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/drivers/sqlserver"
 	"github.com/neilotoole/sq/libsq/core/jointype"
-	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/tutil"
 )
@@ -284,7 +284,7 @@ func TestQuery_join_others(t *testing.T) {
 			in:      `@sakila | .actor | full_outer_join(.film_actor, .actor_id)`,
 			wantSQL: `SELECT * FROM "actor" FULL OUTER JOIN "film_actor" ON "actor"."actor_id" = "film_actor"."actor_id"`,
 			// Note that MySQL doesn't support full outer join.
-			onlyFor:       []source.DriverType{sqlite3.Type, postgres.Type, sqlserver.Type},
+			onlyFor:       []drivertype.Type{sqlite3.Type, postgres.Type, sqlserver.Type},
 			wantRecCount:  sakila.TblFilmActorCount,
 			repeatReplace: []string{string(jointype.FullOuter), jointype.FullOuterAlias},
 			sinkFns: []SinkTestFunc{
@@ -295,7 +295,7 @@ func TestQuery_join_others(t *testing.T) {
 			name: "full_outer_join/error-mysql",
 			in:   `@sakila | .actor | full_outer_join(.film_actor, .actor_id)`,
 			// Note that MySQL doesn't support full outer join.
-			onlyFor:       []source.DriverType{mysql.Type},
+			onlyFor:       []drivertype.Type{mysql.Type},
 			wantErr:       true,
 			repeatReplace: []string{string(jointype.FullOuter), jointype.FullOuterAlias},
 		},

@@ -16,6 +16,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/timez"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
 // getOptionsFromFlags builds options.Options from flags. In effect, a flag
@@ -60,7 +61,7 @@ func getOptionsFromFlags(flags *pflag.FlagSet, reg *options.Registry) (options.O
 //
 // See also: getOptionsFromFlags, getOptionsFromCmd, applySourceOptions, applyCollectionOptions.
 func getSrcOptionsFromFlags(flags *pflag.FlagSet, reg *options.Registry,
-	typ source.DriverType,
+	typ drivertype.Type,
 ) (options.Options, error) {
 	srcOpts := filterOptionsForSrc(typ, reg.Opts()...)
 	srcReg := &options.Registry{}
@@ -174,7 +175,7 @@ func RegisterDefaultOpts(reg *options.Registry) {
 
 // filterOptionsForSrc returns a new slice containing only those
 // opts that are applicable to src.
-func filterOptionsForSrc(typ source.DriverType, opts ...options.Opt) []options.Opt {
+func filterOptionsForSrc(typ drivertype.Type, opts ...options.Opt) []options.Opt {
 	if len(opts) == 0 {
 		return opts
 	}

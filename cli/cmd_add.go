@@ -21,6 +21,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
 func newSrcAddCmd() *cobra.Command {
@@ -154,7 +155,7 @@ More examples:
 		Long:  `Add data source specified by LOCATION, optionally identified by @HANDLE.`,
 	}
 
-	addTextFlags(cmd)
+	addTextFormatFlags(cmd)
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 	cmd.Flags().BoolP(flag.Compact, flag.CompactShort, false, flag.CompactUsage)
 	cmd.Flags().BoolP(flag.YAML, flag.YAMLShort, false, flag.YAMLUsage)
@@ -183,17 +184,17 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 
 	loc := source.AbsLocation(strings.TrimSpace(args[0]))
 	var err error
-	var typ source.DriverType
+	var typ drivertype.Type
 
 	if cmdFlagChanged(cmd, flag.AddDriver) {
 		val, _ := cmd.Flags().GetString(flag.AddDriver)
-		typ = source.DriverType(strings.TrimSpace(val))
+		typ = drivertype.Type(strings.TrimSpace(val))
 	} else {
 		typ, err = ru.Files.DriverType(ctx, loc)
 		if err != nil {
 			return err
 		}
-		if typ == source.TypeNone {
+		if typ == drivertype.None {
 			return errz.Errorf("unable to determine driver type: use --driver flag")
 		}
 	}

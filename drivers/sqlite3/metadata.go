@@ -17,7 +17,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
-	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
 // recordMetaFromColumnTypes returns record.Meta for colTypes.
@@ -260,9 +260,9 @@ func DBTypeForKind(knd kind.Kind) string {
 }
 
 // getTableMetadata returns metadata for tblName in db.
-func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*source.TableMetadata, error) {
+func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadata.Table, error) {
 	log := lg.FromContext(ctx)
-	tblMeta := &source.TableMetadata{Name: tblName}
+	tblMeta := &metadata.Table{Name: tblName}
 	// Note that there's no easy way of getting the physical size of
 	// a table, so tblMeta.Size remains nil.
 
@@ -305,7 +305,7 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*source.
 	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
 
 	for rows.Next() {
-		col := &source.ColMetadata{}
+		col := &metadata.Column{}
 		var notnull int64
 		defaultValue := &sql.NullString{}
 		pkValue := &sql.NullInt64{}
@@ -343,9 +343,9 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*source.
 
 // getAllTableMetadata gets metadata for each of the
 // non-system tables in db's schema. Arg schemaName is used to
-// set TableMetadata.FQName; it is not used to select which schema
+// set Table.FQName; it is not used to select which schema
 // to introspect.
-func getAllTableMetadata(ctx context.Context, db sqlz.DB, schemaName string) ([]*source.TableMetadata, error) {
+func getAllTableMetadata(ctx context.Context, db sqlz.DB, schemaName string) ([]*metadata.Table, error) {
 	log := lg.FromContext(ctx)
 	// This query returns a row for each column of each table,
 	// order by table name then col id (ordinal).
@@ -370,12 +370,12 @@ FROM sqlite_master AS m JOIN pragma_table_info(m.name) AS p
 ORDER BY m.name, p.cid
 `
 
-	var tblMetas []*source.TableMetadata
+	var tblMetas []*metadata.Table
 	var tblNames []string
 	var curTblName string
 	var curTblType string
 	var curTblIsVirtual bool
-	var curTblMeta *source.TableMetadata
+	var curTblMeta *metadata.Table
 
 	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
@@ -390,7 +390,7 @@ ORDER BY m.name, p.cid
 		default:
 		}
 
-		col := &source.ColMetadata{}
+		col := &metadata.Column{}
 		var notnull int64
 		colDefault := &sql.NullString{}
 		pkValue := &sql.NullInt64{}
@@ -426,8 +426,8 @@ ORDER BY m.name, p.cid
 		}
 
 		if curTblMeta == nil || curTblMeta.Name != curTblName {
-			// On our first time encountering a new table name, we create a new TableMetadata
-			curTblMeta = &source.TableMetadata{
+			// On our first time encountering a new table name, we create a new Table
+			curTblMeta = &metadata.Table{
 				Name:        curTblName,
 				FQName:      schemaName + "." + curTblName,
 				Size:        nil, // No easy way of getting the storage size of a table

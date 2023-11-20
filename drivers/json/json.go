@@ -17,17 +17,19 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
 const (
 	// TypeJSON is the plain-old JSON driver type.
-	TypeJSON = source.DriverType("json")
+	TypeJSON = drivertype.Type("json")
 
 	// TypeJSONA is the JSON Array driver type.
-	TypeJSONA = source.DriverType("jsona")
+	TypeJSONA = drivertype.Type("jsona")
 
 	// TypeJSONL is the JSON Lines driver type.
-	TypeJSONL = source.DriverType("jsonl")
+	TypeJSONL = drivertype.Type("jsonl")
 )
 
 // Provider implements driver.Provider.
@@ -38,7 +40,7 @@ type Provider struct {
 }
 
 // DriverFor implements driver.Provider.
-func (d *Provider) DriverFor(typ source.DriverType) (driver.Driver, error) {
+func (d *Provider) DriverFor(typ drivertype.Type) (driver.Driver, error) {
 	var importFn importFunc
 
 	switch typ { //nolint:exhaustive
@@ -64,7 +66,7 @@ func (d *Provider) DriverFor(typ source.DriverType) (driver.Driver, error) {
 // Driver implements driver.Driver.
 type driveri struct {
 	log       *slog.Logger
-	typ       source.DriverType
+	typ       drivertype.Type
 	importFn  importFunc
 	scratcher driver.ScratchPoolOpener
 	files     *source.Files
@@ -182,7 +184,7 @@ func (p *pool) Source() *source.Source {
 }
 
 // TableMetadata implements driver.Pool.
-func (p *pool) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
+func (p *pool) TableMetadata(ctx context.Context, tblName string) (*metadata.Table, error) {
 	if tblName != source.MonotableName {
 		return nil, errz.Errorf("table name should be %s for CSV/TSV etc., but got: %s",
 			source.MonotableName, tblName)
@@ -198,7 +200,7 @@ func (p *pool) TableMetadata(ctx context.Context, tblName string) (*source.Table
 }
 
 // SourceMetadata implements driver.Pool.
-func (p *pool) SourceMetadata(ctx context.Context, noSchema bool) (*source.Metadata, error) {
+func (p *pool) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error) {
 	md, err := p.impl.SourceMetadata(ctx, noSchema)
 	if err != nil {
 		return nil, err

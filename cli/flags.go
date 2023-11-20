@@ -24,6 +24,22 @@ func cmdFlagChanged(cmd *cobra.Command, name string) bool {
 	return f.Changed
 }
 
+// cmdFlagAnyChanges returns true (with the name of the flag)
+// if cmd is non-nil and cmd has at least one of the named flags,
+// and that flag been changed.
+func cmdFlagAnyChanged(cmd *cobra.Command, names ...string) (name string, changed bool) {
+	if cmd == nil {
+		return "", false
+	}
+
+	for _, name = range names {
+		if cmdFlagChanged(cmd, name) {
+			return name, true
+		}
+	}
+	return "", false
+}
+
 // cmdFlagIsSetTrue returns true if flag name has been changed
 // and the flag value is true.
 // Contrast with cmdFlagIsSetTrue.

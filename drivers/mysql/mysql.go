@@ -31,11 +31,13 @@ import (
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/driver/dialect"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
 const (
 	// Type is the MySQL source driver type.
-	Type = source.DriverType("mysql")
+	Type = drivertype.Type("mysql")
 )
 
 var _ driver.Provider = (*Provider)(nil)
@@ -46,7 +48,7 @@ type Provider struct {
 }
 
 // DriverFor implements driver.Provider.
-func (p *Provider) DriverFor(typ source.DriverType) (driver.Driver, error) {
+func (p *Provider) DriverFor(typ drivertype.Type) (driver.Driver, error) {
 	if typ != Type {
 		return nil, errz.Errorf("unsupported driver type {%s}", typ)
 	}
@@ -223,6 +225,43 @@ func (d *driveri) ListSchemas(ctx context.Context, db sqlz.DB) ([]string, error)
 	}
 
 	slices.Sort(schemas)
+
+	return schemas, nil
+}
+
+// ListSchemaMetadata implements driver.SQLDriver.
+func (d *driveri) ListSchemaMetadata(ctx context.Context, db sqlz.DB) ([]*metadata.Schema, error) {
+	log := lg.FromContext(ctx)
+
+	const q = `SELECT SCHEMA_NAME, CATALOG_NAME, '' FROM INFORMATION_SCHEMA.SCHEMATA
+ORDER BY SCHEMA_NAME`
+	var schemas []*metadata.Schema
+	rows, err := db.QueryContext(ctx, q)
+	if err != nil {
+		return nil, errw(err)
+	}
+
+	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
+
+	var name string
+	var catalog, owner sql.NullString
+
+	for rows.Next() {
+		if err = rows.Scan(&name, &catalog, &owner); err != nil {
+			return nil, errw(err)
+		}
+		s := &metadata.Schema{
+			Name:    name,
+			Catalog: catalog.String,
+			Owner:   owner.String,
+		}
+
+		schemas = append(schemas, s)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, errw(err)
+	}
 
 	return schemas, nil
 }
@@ -553,12 +592,12 @@ func (p *pool) Source() *source.Source {
 }
 
 // TableMetadata implements driver.Pool.
-func (p *pool) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
+func (p *pool) TableMetadata(ctx context.Context, tblName string) (*metadata.Table, error) {
 	return getTableMetadata(ctx, p.db, tblName)
 }
 
 // SourceMetadata implements driver.Pool.
-func (p *pool) SourceMetadata(ctx context.Context, noSchema bool) (*source.Metadata, error) {
+func (p *pool) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error) {
 	return getSourceMetadata(ctx, p.src, p.db, noSchema)
 }
 

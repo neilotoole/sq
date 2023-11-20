@@ -22,7 +22,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/driver"
-	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/fixt"
 	"github.com/neilotoole/sq/testh/sakila"
@@ -329,7 +329,7 @@ func TestNewBatchInsert(t *testing.T) {
 }
 
 // coreDrivers is a slice of the core driver types.
-var coreDrivers = []source.DriverType{
+var coreDrivers = []drivertype.Type{
 	postgres.Type,
 	sqlserver.Type,
 	sqlite3.Type,
@@ -340,7 +340,7 @@ var coreDrivers = []source.DriverType{
 }
 
 // sqlDrivers is a slice of the SQL driver types.
-var sqlDrivers = []source.DriverType{
+var sqlDrivers = []drivertype.Type{
 	postgres.Type,
 	sqlserver.Type,
 	sqlite3.Type,
@@ -348,7 +348,7 @@ var sqlDrivers = []source.DriverType{
 }
 
 // docDrivers is a slice of the doc driver types.
-var docDrivers = []source.DriverType{
+var docDrivers = []drivertype.Type{
 	csv.TypeCSV,
 	csv.TypeTSV,
 	xlsx.Type,
@@ -361,7 +361,7 @@ func TestRegistry_DriversMetadata_All(t *testing.T) {
 	metas := reg.DriversMetadata()
 	require.Equal(t, len(metas), len(reg.Drivers()))
 
-	m := map[source.DriverType]driver.Metadata{}
+	m := map[drivertype.Type]driver.Metadata{}
 	for i := range metas {
 		m[metas[i].Type] = metas[i]
 	}

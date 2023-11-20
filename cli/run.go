@@ -31,6 +31,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
 // getRun is a convenience function for getting Run
@@ -213,7 +214,7 @@ func FinishRunInit(ctx context.Context, ru *run.Run) error {
 			Files:     ru.Files,
 		}
 
-		ru.DriverRegistry.AddProvider(source.DriverType(userDriverDef.Name), udp)
+		ru.DriverRegistry.AddProvider(drivertype.Type(userDriverDef.Name), udp)
 		ru.Files.AddDriverDetectors(udp.Detectors()...)
 	}
 

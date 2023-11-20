@@ -24,6 +24,8 @@ import (
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/driver/dialect"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
 // ConfigureDB configures DB using o. It is no-op if o is nil.
@@ -156,7 +158,7 @@ of additional DB conns, etc.`,
 // Provider is a factory that returns Driver instances.
 type Provider interface {
 	// DriverFor returns a driver instance for the given type.
-	DriverFor(typ source.DriverType) (Driver, error)
+	DriverFor(typ drivertype.Type) (Driver, error)
 }
 
 // PoolOpener opens a Pool.
@@ -230,14 +232,17 @@ type SQLDriver interface {
 	// CurrentSchema returns the current schema name.
 	CurrentSchema(ctx context.Context, db sqlz.DB) (string, error)
 
-	// ListSchemas lists the available schemas on db.
+	// ListSchemas lists the names of the schemas on db.
 	ListSchemas(ctx context.Context, db sqlz.DB) ([]string, error)
+
+	// ListSchemaMetadata returns the metadata for the schemas on db.
+	ListSchemaMetadata(ctx context.Context, db sqlz.DB) ([]*metadata.Schema, error)
 
 	// CurrentCatalog returns the current catalog name. An error is
 	// returned if the driver doesn't support catalogs.
 	CurrentCatalog(ctx context.Context, db sqlz.DB) (string, error)
 
-	// ListCatalogs lists the available catalogs on db. The first
+	// ListCatalogs lists the available catalog names on db. The first
 	// returned element is the current catalog, and the remaining
 	// catalogs are sorted alphabetically. An error is returned
 	// if the driver doesn't support catalogs.
@@ -356,17 +361,17 @@ type Pool interface {
 
 	// SourceMetadata returns metadata about the data source.
 	// If noSchema is true, schema details are not populated
-	// on the returned source.Metadata.
+	// on the returned metadata.Source.
 	//
 	// TODO: SourceMetadata doesn't really belong on driver.Pool? It
 	// should be moved to driver.Driver?
-	SourceMetadata(ctx context.Context, noSchema bool) (*source.Metadata, error)
+	SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error)
 
 	// TableMetadata returns metadata for the specified table in the data source.
 	//
 	// TODO: TableMetadata doesn't really belong on driver.Pool? It
 	// should be moved to driver.Driver?
-	TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error)
+	TableMetadata(ctx context.Context, tblName string) (*metadata.Table, error)
 
 	// Close is invoked to close and release any underlying resources.
 	Close() error
@@ -377,7 +382,7 @@ type Pool interface {
 // TODO: Can driver.Metadata and dialect.Dialect be merged?
 type Metadata struct {
 	// Type is the driver type, e.g. "mysql" or "csv", etc.
-	Type source.DriverType `json:"type" yaml:"type"`
+	Type drivertype.Type `json:"type" yaml:"type"`
 
 	// Description is typically the long name of the driver, e.g.
 	// "MySQL" or "Microsoft Excel XLSX".

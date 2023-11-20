@@ -32,10 +32,12 @@ import (
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/driver/dialect"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
 // Type is the postgres source driver type.
-const Type = source.DriverType("postgres")
+const Type = drivertype.Type("postgres")
 
 // Provider is the postgres implementation of driver.Provider.
 type Provider struct {
@@ -43,7 +45,7 @@ type Provider struct {
 }
 
 // DriverFor implements driver.Provider.
-func (p *Provider) DriverFor(typ source.DriverType) (driver.Driver, error) {
+func (p *Provider) DriverFor(typ drivertype.Type) (driver.Driver, error) {
 	if typ != Type {
 		return nil, errz.Errorf("unsupported driver type {%s}", typ)
 	}
@@ -314,11 +316,14 @@ func (d *driveri) CurrentSchema(ctx context.Context, db sqlz.DB) (string, error)
 	return name, nil
 }
 
-// ListSchemas implements driver.SQLDriver.
+// ListSchemas implements driver.SQLDriver. Some system schemas are
+// excluded, e.g. pg_toast and pg_temp schemas.
 func (d *driveri) ListSchemas(ctx context.Context, db sqlz.DB) ([]string, error) {
 	log := lg.FromContext(ctx)
 
-	const q = `SELECT schema_name FROM information_schema.schemata ORDER BY schema_name`
+	const q = `SELECT schema_name FROM information_schema.schemata
+ WHERE schema_name NOT LIKE 'pg_toast%' AND schema_name NOT LIKE 'pg_temp%'
+ ORDER BY schema_name`
 	var schemas []string
 	rows, err := db.QueryContext(ctx, q)
 	if err != nil {
@@ -333,6 +338,46 @@ func (d *driveri) ListSchemas(ctx context.Context, db sqlz.DB) ([]string, error)
 			return nil, errw(err)
 		}
 		schemas = append(schemas, schema)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, errw(err)
+	}
+
+	return schemas, nil
+}
+
+// ListSchemaMetadata implements driver.SQLDriver. Some system schemas are
+// excluded, e.g. pg_toast and pg_temp schemas.
+func (d *driveri) ListSchemaMetadata(ctx context.Context, db sqlz.DB) ([]*metadata.Schema, error) {
+	log := lg.FromContext(ctx)
+
+	const q = `SELECT schema_name, catalog_name, schema_owner FROM information_schema.schemata
+WHERE catalog_name = current_database()
+AND schema_name NOT LIKE 'pg_toast%' AND schema_name NOT LIKE 'pg_temp%'
+ORDER BY schema_name`
+	var schemas []*metadata.Schema
+	rows, err := db.QueryContext(ctx, q)
+	if err != nil {
+		return nil, errw(err)
+	}
+
+	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
+
+	var name string
+	var catalog, owner sql.NullString
+
+	for rows.Next() {
+		if err = rows.Scan(&name, &catalog, &owner); err != nil {
+			return nil, errw(err)
+		}
+		s := &metadata.Schema{
+			Name:    name,
+			Catalog: catalog.String,
+			Owner:   owner.String,
+		}
+
+		schemas = append(schemas, s)
 	}
 
 	if err = rows.Err(); err != nil {
@@ -720,7 +765,7 @@ func (p *pool) Source() *source.Source {
 }
 
 // TableMetadata implements driver.Pool.
-func (p *pool) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
+func (p *pool) TableMetadata(ctx context.Context, tblName string) (*metadata.Table, error) {
 	db, err := p.DB(ctx)
 	if err != nil {
 		return nil, err
@@ -730,7 +775,7 @@ func (p *pool) TableMetadata(ctx context.Context, tblName string) (*source.Table
 }
 
 // SourceMetadata implements driver.Pool.
-func (p *pool) SourceMetadata(ctx context.Context, noSchema bool) (*source.Metadata, error) {
+func (p *pool) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error) {
 	db, err := p.DB(ctx)
 	if err != nil {
 		return nil, err

@@ -68,7 +68,7 @@ Before upgrading, check the changelog: https://sq.io/changelog`,
   v0.38.0`,
 	}
 
-	addTextFlags(cmd)
+	addTextFormatFlags(cmd)
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 	cmd.Flags().BoolP(flag.Compact, flag.CompactShort, false, flag.CompactUsage)
 	cmd.Flags().BoolP(flag.YAML, flag.YAMLShort, false, flag.YAMLUsage)

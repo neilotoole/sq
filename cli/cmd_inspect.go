@@ -1,14 +1,19 @@
 package cli
 
 import (
+	"context"
 	"database/sql"
+	"slices"
 
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
 func newInspectCmd() *cobra.Command {
@@ -25,15 +30,22 @@ listing table details such as column names and row counts, etc.
 
 NOTE: If a schema is large, it may take some time for the command to complete.
 
-If @HANDLE is not provided, the active data source is assumed.
+If @HANDLE is not provided, the active data source is assumed. If @HANDLE.TABLE
+is provided, table inspection is performed (as opposed to source inspection).
 
-When flag --overview is true, only the source's' metadata is shown,
-not the schema. The flag is disregarded when inspecting a table.
+There are several modes of operation, controlled by flags. Each of the following
+modes apply only to source inspection, not table inspection. When no mode flag
+is supplied, the default is to show the source metadata and schema.
 
-When flag --dbprops is true, only the database properties for the source's
-*underlying* database are shown. The flag is disregarded when inspecting a table.
+  --overview:  Displays the source's metadata, but not the schema.
 
-Use --verbose with the --text format to see more detail. The --json and --yaml
+  --dbprops:   Displays database properties for the sources' *underlying* database.
+
+  --catalogs:  List the catalogs (databases) available via the source.
+
+  --schemata:  List the schemas available in the source's active catalog.
+
+Use --verbose with --text format to see more detail. The --json and --yaml
 formats both show extensive detail.`,
 		Example: `  # Inspect active data source.
   $ sq inspect
@@ -56,6 +68,12 @@ formats both show extensive detail.`,
   # Show only the source metadata (and not schema details).
   $ sq inspect --overview @pg1
 
+  # List the schemas in @pg1.
+  $ sq inspect --schemata @pg1
+
+  # List the catalogs in @pg1.
+  $ sq inspect --catalogs @pg1
+
   # Inspect table "actor" in @pg1 data source.
   $ sq inspect @pg1.actor
 
@@ -69,91 +87,32 @@ formats both show extensive detail.`,
   $ cat data.xlsx | sq inspect`,
 	}
 
-	cmd.Flags().String(flag.ActiveSchema, "", flag.ActiveSchemaUsage)
-	panicOn(cmd.RegisterFlagCompletionFunc(flag.ActiveSchema,
-		activeSchemaCompleter{getActiveSourceViaArgs}.complete))
-
-	addTextFlags(cmd)
+	addTextFormatFlags(cmd)
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 	cmd.Flags().BoolP(flag.Compact, flag.CompactShort, false, flag.CompactUsage)
 	cmd.Flags().BoolP(flag.YAML, flag.YAMLShort, false, flag.YAMLUsage)
 
 	cmd.Flags().BoolP(flag.InspectOverview, flag.InspectOverviewShort, false, flag.InspectOverviewUsage)
 	cmd.Flags().BoolP(flag.InspectDBProps, flag.InspectDBPropsShort, false, flag.InspectDBPropsUsage)
+	cmd.Flags().Bool(flag.InspectCatalogs, false, flag.InspectCatalogsUsage)
+	cmd.Flags().Bool(flag.InspectSchemata, false, flag.InspectSchemataUsage)
 
-	cmd.MarkFlagsMutuallyExclusive(flag.InspectOverview, flag.InspectDBProps)
+	cmd.MarkFlagsMutuallyExclusive(flag.InspectOverview, flag.InspectDBProps, flag.InspectCatalogs, flag.InspectSchemata)
+
+	cmd.Flags().String(flag.ActiveSchema, "", flag.ActiveSchemaUsage)
+	panicOn(cmd.RegisterFlagCompletionFunc(flag.ActiveSchema,
+		activeSchemaCompleter{getActiveSourceViaArgs}.complete))
 
 	return cmd
 }
 
 func execInspect(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
-	ru := run.FromContext(ctx)
+	ru, log := run.FromContext(ctx), lg.FromContext(ctx)
 
-	var (
-		coll  = ru.Config.Collection
-		src   *source.Source
-		table string
-		err   error
-	)
-
-	if len(args) == 0 {
-		// No args supplied.
-
-		// There are two paths from here:
-		// - There's input on stdin, which we'll inspect, or
-		// - We're inspecting the active src
-
-		// check if there's input on stdin
-		src, err = checkStdinSource(ctx, ru)
-		if err != nil {
-			return err
-		}
-
-		if src != nil {
-			// We have a valid source on stdin.
-
-			// Add the source to the set.
-			err = coll.Add(src)
-			if err != nil {
-				return err
-			}
-
-			// Set the stdin pipe data source as the active source,
-			// as it's commonly the only data source the user is acting upon.
-			src, err = coll.SetActive(src.Handle, false)
-			if err != nil {
-				return err
-			}
-		} else {
-			// No source on stdin. Let's see if there's an active source.
-			src = coll.Active()
-			if src == nil {
-				return errz.Errorf("no data source specified and no active data source")
-			}
-		}
-	} else {
-		// We received an argument, which can be one of these forms:
-		//   @sakila			  -- inspect the named source
-		//   @sakila.actor	-- inspect a table of the named source
-		//   .actor		      -- inspect a table from the active source
-		var handle string
-		handle, table, err = source.ParseTableHandle(args[0])
-		if err != nil {
-			return errz.Wrap(err, "invalid input")
-		}
-
-		if handle == "" {
-			src = coll.Active()
-			if src == nil {
-				return errz.Errorf("no data source specified and no active data source")
-			}
-		} else {
-			src, err = coll.Get(handle)
-			if err != nil {
-				return err
-			}
-		}
+	src, table, err := determineInspectTarget(ctx, ru, args)
+	if err != nil {
+		return err
 	}
 
 	// Handle flag.ActiveSchema (--src.schema=SCHEMA). This func will mutate
@@ -172,7 +131,17 @@ func execInspect(cmd *cobra.Command, args []string) error {
 	}
 
 	if table != "" {
-		var tblMeta *source.TableMetadata
+		if flagName, changed := cmdFlagAnyChanged(
+			cmd,
+			flag.InspectCatalogs,
+			flag.InspectSchemata,
+			flag.InspectDBProps,
+			flag.InspectOverview,
+		); changed {
+			return errz.Errorf("flag --%s is not valid when inspecting a table", flagName)
+		}
+
+		var tblMeta *metadata.Table
 		tblMeta, err = pool.TableMetadata(ctx, table)
 		if err != nil {
 			return err
@@ -181,14 +150,51 @@ func execInspect(cmd *cobra.Command, args []string) error {
 		return ru.Writers.Metadata.TableMetadata(tblMeta)
 	}
 
+	if cmdFlagIsSetTrue(cmd, flag.InspectCatalogs) {
+		var db *sql.DB
+		if db, err = pool.DB(ctx); err != nil {
+			return err
+		}
+		var catalogs []string
+		if catalogs, err = pool.SQLDriver().ListCatalogs(ctx, db); err != nil {
+			return err
+		}
+
+		var currentCatalog string
+		if len(catalogs) > 0 {
+			currentCatalog = catalogs[0]
+		}
+
+		slices.Sort(catalogs)
+		return ru.Writers.Metadata.Catalogs(currentCatalog, catalogs)
+	}
+
+	if cmdFlagIsSetTrue(cmd, flag.InspectSchemata) {
+		var db *sql.DB
+		if db, err = pool.DB(ctx); err != nil {
+			return err
+		}
+		var schemas []*metadata.Schema
+		if schemas, err = pool.SQLDriver().ListSchemaMetadata(ctx, db); err != nil {
+			return err
+		}
+
+		var currentSchema string
+		if currentSchema, err = pool.SQLDriver().CurrentSchema(ctx, db); err != nil {
+			return err
+		}
+
+		return ru.Writers.Metadata.Schemata(currentSchema, schemas)
+	}
+
 	if cmdFlagIsSetTrue(cmd, flag.InspectDBProps) {
 		var db *sql.DB
 		if db, err = pool.DB(ctx); err != nil {
 			return err
 		}
+		defer lg.WarnIfCloseError(log, lgm.CloseDB, db)
 		var props map[string]any
-		sqlDrvr := pool.SQLDriver()
-		if props, err = sqlDrvr.DBProperties(ctx, db); err != nil {
+		if props, err = pool.SQLDriver().DBProperties(ctx, db); err != nil {
 			return err
 		}
 
@@ -209,4 +215,74 @@ func execInspect(cmd *cobra.Command, args []string) error {
 	}
 
 	return ru.Writers.Metadata.SourceMetadata(srcMeta, !overviewOnly)
+}
+
+// determineInspectTarget determines the source (and, optionally, table)
+// to inspect.
+func determineInspectTarget(ctx context.Context, ru *run.Run, args []string) (
+	src *source.Source, table string, err error,
+) {
+	coll := ru.Config.Collection
+	if len(args) == 0 {
+		// No args supplied.
+
+		// There are two paths from here:
+		// - There's input on stdin, which we'll inspect, or
+		// - We're inspecting the active src
+
+		// check if there's input on stdin
+		src, err = checkStdinSource(ctx, ru)
+		if err != nil {
+			return nil, "", err
+		}
+
+		if src != nil {
+			// We have a valid source on stdin.
+
+			// Add the source to the set.
+			err = coll.Add(src)
+			if err != nil {
+				return nil, "", err
+			}
+
+			// Set the stdin pipe data source as the active source,
+			// as it's commonly the only data source the user is acting upon.
+			src, err = coll.SetActive(src.Handle, false)
+			if err != nil {
+				return nil, "", err
+			}
+		} else {
+			// No source on stdin. Let's see if there's an active source.
+			src = coll.Active()
+			if src == nil {
+				return nil, "", errz.Errorf("no data source specified and no active data source")
+			}
+		}
+
+		return src, "", nil
+	}
+
+	// Else, we received an argument, which can be one of these forms:
+	//   @sakila			  -- inspect the named source
+	//   @sakila.actor	-- inspect a table of the named source
+	//   .actor		      -- inspect a table from the active source
+	var handle string
+	handle, table, err = source.ParseTableHandle(args[0])
+	if err != nil {
+		return nil, "", errz.Wrap(err, "invalid input")
+	}
+
+	if handle == "" {
+		src = coll.Active()
+		if src == nil {
+			return nil, "", errz.Errorf("no data source specified and no active data source")
+		}
+	} else {
+		src, err = coll.Get(handle)
+		if err != nil {
+			return nil, "", err
+		}
+	}
+
+	return src, table, nil
 }

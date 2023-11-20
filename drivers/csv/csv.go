@@ -12,14 +12,16 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
 const (
 	// TypeCSV is the CSV driver type.
-	TypeCSV = source.DriverType("csv")
+	TypeCSV = drivertype.Type("csv")
 
 	// TypeTSV is the TSV driver type.
-	TypeTSV = source.DriverType("tsv")
+	TypeTSV = drivertype.Type("tsv")
 )
 
 // Provider implements driver.Provider.
@@ -30,7 +32,7 @@ type Provider struct {
 }
 
 // DriverFor implements driver.Provider.
-func (d *Provider) DriverFor(typ source.DriverType) (driver.Driver, error) {
+func (d *Provider) DriverFor(typ drivertype.Type) (driver.Driver, error) {
 	switch typ { //nolint:exhaustive
 	case TypeCSV:
 		return &driveri{log: d.Log, typ: TypeCSV, scratcher: d.Scratcher, files: d.Files}, nil
@@ -44,7 +46,7 @@ func (d *Provider) DriverFor(typ source.DriverType) (driver.Driver, error) {
 // Driver implements driver.Driver.
 type driveri struct {
 	log       *slog.Logger
-	typ       source.DriverType
+	typ       drivertype.Type
 	scratcher driver.ScratchPoolOpener
 	files     *source.Files
 }
@@ -134,7 +136,7 @@ func (p *pool) Source() *source.Source {
 }
 
 // TableMetadata implements driver.Pool.
-func (p *pool) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
+func (p *pool) TableMetadata(ctx context.Context, tblName string) (*metadata.Table, error) {
 	if tblName != source.MonotableName {
 		return nil, errz.Errorf("table name should be %s for CSV/TSV etc., but got: %s",
 			source.MonotableName, tblName)
@@ -150,7 +152,7 @@ func (p *pool) TableMetadata(ctx context.Context, tblName string) (*source.Table
 }
 
 // SourceMetadata implements driver.Pool.
-func (p *pool) SourceMetadata(ctx context.Context, noSchema bool) (*source.Metadata, error) {
+func (p *pool) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error) {
 	md, err := p.impl.SourceMetadata(ctx, noSchema)
 	if err != nil {
 		return nil, err

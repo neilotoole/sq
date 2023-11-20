@@ -16,6 +16,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
 // RecordWriter is an interface for writing records to a destination.
@@ -47,16 +48,22 @@ type RecordWriter interface {
 // MetadataWriter can output metadata.
 type MetadataWriter interface {
 	// TableMetadata writes the table metadata.
-	TableMetadata(tblMeta *source.TableMetadata) error
+	TableMetadata(tblMeta *metadata.Table) error
 
 	// SourceMetadata writes the source metadata.
-	SourceMetadata(srcMeta *source.Metadata, showSchema bool) error
+	SourceMetadata(srcMeta *metadata.Source, showSchema bool) error
 
 	// DBProperties writes the DB properties.
 	DBProperties(props map[string]any) error
 
 	// DriverMetadata writes the metadata for the drivers.
 	DriverMetadata(drvrs []driver.Metadata) error
+
+	// Catalogs writes the list of catalogs.
+	Catalogs(currentCatalog string, catalogs []string) error
+
+	// Schemata writes the list of schemas.
+	Schemata(currentSchema string, schemas []*metadata.Schema) error
 }
 
 // SourceWriter can output data source details.

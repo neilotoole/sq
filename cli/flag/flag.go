@@ -151,6 +151,12 @@ const (
 	InspectDBPropsShort = "p"
 	InspectDBPropsUsage = "Show DB properties only"
 
+	InspectCatalogs      = "catalogs"
+	InspectCatalogsUsage = "List catalogs only"
+
+	InspectSchemata      = "schemata"
+	InspectSchemataUsage = "List schemas (in current catalog) only"
+
 	LogEnabled      = "log"
 	LogEnabledUsage = "Enable logging"
 

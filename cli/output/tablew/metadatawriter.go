@@ -16,6 +16,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
 var _ output.MetadataWriter = (*mdWriter)(nil)
@@ -49,7 +50,7 @@ func (w *mdWriter) DriverMetadata(drvrs []driver.Metadata) error {
 }
 
 // TableMetadata implements output.MetadataWriter.
-func (w *mdWriter) TableMetadata(tblMeta *source.TableMetadata) error {
+func (w *mdWriter) TableMetadata(tblMeta *metadata.Table) error {
 	if w.tbl.pr.Verbose {
 		return w.doTableMetaVerbose(tblMeta)
 	}
@@ -57,7 +58,7 @@ func (w *mdWriter) TableMetadata(tblMeta *source.TableMetadata) error {
 	return w.doTableMeta(tblMeta)
 }
 
-func (w *mdWriter) doTableMeta(md *source.TableMetadata) error {
+func (w *mdWriter) doTableMeta(md *metadata.Table) error {
 	var headers []string
 	var rows [][]string
 
@@ -89,12 +90,12 @@ func (w *mdWriter) doTableMeta(md *source.TableMetadata) error {
 	return nil
 }
 
-func (w *mdWriter) doTableMetaVerbose(tblMeta *source.TableMetadata) error {
-	return w.printTablesVerbose([]*source.TableMetadata{tblMeta})
+func (w *mdWriter) doTableMetaVerbose(tblMeta *metadata.Table) error {
+	return w.printTablesVerbose([]*metadata.Table{tblMeta})
 }
 
 // SourceMetadata implements output.MetadataWriter.
-func (w *mdWriter) SourceMetadata(md *source.Metadata, showSchema bool) error {
+func (w *mdWriter) SourceMetadata(md *metadata.Source, showSchema bool) error {
 	if !showSchema {
 		return w.doSourceMetaNoSchema(md)
 	}
@@ -102,7 +103,7 @@ func (w *mdWriter) SourceMetadata(md *source.Metadata, showSchema bool) error {
 	return w.doSourceMetaFull(md)
 }
 
-func (w *mdWriter) doSourceMetaNoSchema(md *source.Metadata) error {
+func (w *mdWriter) doSourceMetaNoSchema(md *metadata.Source) error {
 	headers := []string{
 		"SOURCE",
 		"DRIVER",
@@ -132,7 +133,7 @@ func (w *mdWriter) doSourceMetaNoSchema(md *source.Metadata) error {
 	return nil
 }
 
-func (w *mdWriter) printTablesVerbose(tbls []*source.TableMetadata) error {
+func (w *mdWriter) printTablesVerbose(tbls []*metadata.Table) error {
 	w.tbl.reset()
 
 	headers := []string{
@@ -156,7 +157,7 @@ func (w *mdWriter) printTablesVerbose(tbls []*source.TableMetadata) error {
 	var rows [][]string
 	var row []string
 
-	getPK := func(col *source.ColMetadata) string {
+	getPK := func(col *metadata.Column) string {
 		if !col.PrimaryKey {
 			return ""
 		}
@@ -195,7 +196,7 @@ func (w *mdWriter) printTablesVerbose(tbls []*source.TableMetadata) error {
 	return nil
 }
 
-func (w *mdWriter) printTables(tables []*source.TableMetadata) error {
+func (w *mdWriter) printTables(tables []*metadata.Table) error {
 	w.tbl.reset()
 
 	headers := []string{"NAME", "TYPE", "ROWS", "COLS"}
@@ -229,7 +230,7 @@ func (w *mdWriter) printTables(tables []*source.TableMetadata) error {
 	return nil
 }
 
-func (w *mdWriter) doSourceMetaFull(md *source.Metadata) error {
+func (w *mdWriter) doSourceMetaFull(md *metadata.Source) error {
 	var headers []string
 	var row []string
 
@@ -274,7 +275,7 @@ func (w *mdWriter) doSourceMetaFull(md *source.Metadata) error {
 	w.tbl.reset()
 
 	// Sort by type (view/table) and name
-	slices.SortFunc(md.Tables, func(a, b *source.TableMetadata) int {
+	slices.SortFunc(md.Tables, func(a, b *metadata.Table) int {
 		if a.TableType == b.TableType {
 			return cmp.Compare(a.Name, b.Name)
 		}
@@ -355,5 +356,103 @@ func (w *mdWriter) DBProperties(props map[string]any) error {
 	}
 
 	w.tbl.appendRowsAndRenderAll(rows)
+	return nil
+}
+
+// Catalogs implements output.MetadataWriter.
+func (w *mdWriter) Catalogs(currentCatalog string, catalogs []string) error {
+	if len(catalogs) == 0 {
+		return nil
+	}
+	pr := w.tbl.pr
+
+	if !pr.Verbose {
+		if pr.ShowHeader {
+			headers := []string{"CATALOG"}
+			w.tbl.tblImpl.SetHeader(headers)
+		}
+		w.tbl.tblImpl.SetColTrans(0, pr.String.SprintFunc())
+
+		var rows [][]string
+		for _, catalog := range catalogs {
+			if catalog == currentCatalog {
+				catalog = pr.Active.Sprintf(catalog)
+			}
+			rows = append(rows, []string{catalog})
+		}
+		w.tbl.appendRowsAndRenderAll(rows)
+		return nil
+	}
+
+	// Verbose mode
+	if pr.ShowHeader {
+		headers := []string{"CATALOG", "ACTIVE"}
+		w.tbl.tblImpl.SetHeader(headers)
+	}
+
+	w.tbl.tblImpl.SetColTrans(0, pr.String.SprintFunc())
+	w.tbl.tblImpl.SetColTrans(1, pr.Bool.SprintFunc())
+
+	var rows [][]string
+	for _, catalog := range catalogs {
+		var active string
+		if catalog == currentCatalog {
+			catalog = pr.Active.Sprintf(catalog)
+			active = pr.Bool.Sprint("active")
+		}
+		rows = append(rows, []string{catalog, active})
+	}
+	w.tbl.appendRowsAndRenderAll(rows)
+
+	return nil
+}
+
+// Schemata implements output.MetadataWriter.
+func (w *mdWriter) Schemata(currentSchema string, schemas []*metadata.Schema) error {
+	if len(schemas) == 0 {
+		return nil
+	}
+	pr := w.tbl.pr
+	if !pr.Verbose {
+		if pr.ShowHeader {
+			headers := []string{"SCHEMA"}
+			w.tbl.tblImpl.SetHeader(headers)
+		}
+		w.tbl.tblImpl.SetColTrans(0, pr.String.SprintFunc())
+		var rows [][]string
+		for _, schema := range schemas {
+			s := schema.Name
+			if schema.Name == currentSchema {
+				s = pr.Active.Sprintf(s)
+			}
+			rows = append(rows, []string{s})
+		}
+		w.tbl.appendRowsAndRenderAll(rows)
+		return nil
+	}
+
+	// Verbose mode
+	if pr.ShowHeader {
+		headers := []string{"SCHEMA", "CATALOG", "OWNER", "ACTIVE"}
+		w.tbl.tblImpl.SetHeader(headers)
+	}
+
+	w.tbl.tblImpl.SetColTrans(0, pr.String.SprintFunc())
+	w.tbl.tblImpl.SetColTrans(1, pr.String.SprintFunc())
+	w.tbl.tblImpl.SetColTrans(2, pr.String.SprintFunc())
+	w.tbl.tblImpl.SetColTrans(3, pr.Bool.SprintFunc())
+
+	var rows [][]string
+	for _, schema := range schemas {
+		row := []string{schema.Name, schema.Catalog, schema.Owner, ""}
+
+		if schema.Name == currentSchema {
+			row[0] = pr.Active.Sprintf(row[0])
+			row[3] = "active"
+		}
+		rows = append(rows, row)
+	}
+	w.tbl.appendRowsAndRenderAll(rows)
+
 	return nil
 }

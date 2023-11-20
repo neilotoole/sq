@@ -5,20 +5,21 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/source/drivertype"
+
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq"
-	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/tutil"
 )
 
-// driverMap is a map of source.DriverType to a string.
+// driverMap is a map of drivertype.Type to a string.
 // It is used to specify a string for a specific driver.
-type driverMap map[source.DriverType]string
+type driverMap map[drivertype.Type]string
 
 // queryTestCase is used to test libsq's rendering of SLQ into SQL.
 // It is probably the most important test struct in the codebase.
@@ -56,7 +57,7 @@ type queryTestCase struct {
 
 	// onlyFor indicates that this test should only run on sources of
 	// the specified types. When empty, the test is executed on all types.
-	onlyFor []source.DriverType
+	onlyFor []drivertype.Type
 
 	// skipExec indicates that the resulting query should not be executed.
 	// Some SLQ inputs we wantSQL to test don't actually have corresponding

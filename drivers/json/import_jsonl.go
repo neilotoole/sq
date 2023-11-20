@@ -12,19 +12,20 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
 // DetectJSONL returns a source.DriverDetectFunc that can
 // detect JSONL.
 func DetectJSONL(sampleSize int) source.DriverDetectFunc {
-	return func(ctx context.Context, openFn source.FileOpenFunc) (detected source.DriverType,
+	return func(ctx context.Context, openFn source.FileOpenFunc) (detected drivertype.Type,
 		score float32, err error,
 	) {
 		log := lg.FromContext(ctx)
 		var r io.ReadCloser
 		r, err = openFn()
 		if err != nil {
-			return source.TypeNone, 0, errz.Err(err)
+			return drivertype.None, 0, errz.Err(err)
 		}
 		defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
 
@@ -35,12 +36,12 @@ func DetectJSONL(sampleSize int) source.DriverDetectFunc {
 		for sc.Scan() {
 			select {
 			case <-ctx.Done():
-				return source.TypeNone, 0, ctx.Err()
+				return drivertype.None, 0, ctx.Err()
 			default:
 			}
 
 			if err = sc.Err(); err != nil {
-				return source.TypeNone, 0, errz.Err(err)
+				return drivertype.None, 0, errz.Err(err)
 			}
 
 			line = sc.Bytes()
@@ -52,14 +53,14 @@ func DetectJSONL(sampleSize int) source.DriverDetectFunc {
 
 			// Each line of JSONL must be braced
 			if line[0] != '{' || line[len(line)-1] != '}' {
-				return source.TypeNone, 0, nil
+				return drivertype.None, 0, nil
 			}
 
 			// If the line is JSONL, it should marshall into map[string]any
 			var vals map[string]any
 			err = stdj.Unmarshal(line, &vals)
 			if err != nil {
-				return source.TypeNone, 0, nil
+				return drivertype.None, 0, nil
 			}
 
 			validLines++
@@ -69,14 +70,14 @@ func DetectJSONL(sampleSize int) source.DriverDetectFunc {
 		}
 
 		if err = sc.Err(); err != nil {
-			return source.TypeNone, 0, errz.Err(err)
+			return drivertype.None, 0, errz.Err(err)
 		}
 
 		if validLines > 0 {
 			return TypeJSONL, 1.0, nil
 		}
 
-		return source.TypeNone, 0, nil
+		return drivertype.None, 0, nil
 	}
 }
 

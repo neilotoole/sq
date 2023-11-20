@@ -18,6 +18,8 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
 // ImportFunc is a function that can import
@@ -35,8 +37,8 @@ type Provider struct {
 }
 
 // DriverFor implements driver.Provider.
-func (p *Provider) DriverFor(typ source.DriverType) (driver.Driver, error) {
-	if typ != source.DriverType(p.DriverDef.Name) {
+func (p *Provider) DriverFor(typ drivertype.Type) (driver.Driver, error) {
+	if typ != drivertype.Type(p.DriverDef.Name) {
 		return nil, errz.Errorf("unsupported driver type {%s}", typ)
 	}
 
@@ -61,7 +63,7 @@ func (p *Provider) Detectors() []source.DriverDetectFunc {
 // Driver implements driver.Driver.
 type driveri struct {
 	log       *slog.Logger
-	typ       source.DriverType
+	typ       drivertype.Type
 	def       *DriverDef
 	files     *source.Files
 	scratcher driver.ScratchPoolOpener
@@ -71,7 +73,7 @@ type driveri struct {
 // DriverMetadata implements driver.Driver.
 func (d *driveri) DriverMetadata() driver.Metadata {
 	return driver.Metadata{
-		Type:        source.DriverType(d.def.Name),
+		Type:        drivertype.Type(d.def.Name),
 		Description: d.def.Title,
 		Doc:         d.def.Doc,
 		UserDefined: true,
@@ -165,12 +167,12 @@ func (d *pool) Source() *source.Source {
 }
 
 // TableMetadata implements driver.Pool.
-func (d *pool) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
+func (d *pool) TableMetadata(ctx context.Context, tblName string) (*metadata.Table, error) {
 	return d.impl.TableMetadata(ctx, tblName)
 }
 
 // SourceMetadata implements driver.Pool.
-func (d *pool) SourceMetadata(ctx context.Context, noSchema bool) (*source.Metadata, error) {
+func (d *pool) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error) {
 	meta, err := d.impl.SourceMetadata(ctx, noSchema)
 	if err != nil {
 		return nil, err

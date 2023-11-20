@@ -13,18 +13,19 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
 // DetectJSON returns a source.DriverDetectFunc that can detect JSON.
 func DetectJSON(sampleSize int) source.DriverDetectFunc {
-	return func(ctx context.Context, openFn source.FileOpenFunc) (detected source.DriverType, score float32,
+	return func(ctx context.Context, openFn source.FileOpenFunc) (detected drivertype.Type, score float32,
 		err error,
 	) {
 		log := lg.FromContext(ctx)
 		var r1, r2 io.ReadCloser
 		r1, err = openFn()
 		if err != nil {
-			return source.TypeNone, 0, errz.Err(err)
+			return drivertype.None, 0, errz.Err(err)
 		}
 		defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r1)
 
@@ -32,17 +33,17 @@ func DetectJSON(sampleSize int) source.DriverDetectFunc {
 		var tok stdj.Token
 		tok, err = dec.Token()
 		if err != nil {
-			return source.TypeNone, 0, nil
+			return drivertype.None, 0, nil
 		}
 
 		delim, ok := tok.(stdj.Delim)
 		if !ok {
-			return source.TypeNone, 0, nil
+			return drivertype.None, 0, nil
 		}
 
 		switch delim {
 		default:
-			return source.TypeNone, 0, nil
+			return drivertype.None, 0, nil
 		case leftBrace:
 			// The input is a single JSON object
 			r2, err = openFn()
@@ -51,7 +52,7 @@ func DetectJSON(sampleSize int) source.DriverDetectFunc {
 			buf := &buffer{}
 
 			if err != nil {
-				return source.TypeNone, 0, errz.Err(err)
+				return drivertype.None, 0, errz.Err(err)
 			}
 			defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r2)
 
@@ -59,13 +60,13 @@ func DetectJSON(sampleSize int) source.DriverDetectFunc {
 			var m map[string]any
 			err = dec.Decode(&m)
 			if err != nil {
-				return source.TypeNone, 0, nil
+				return drivertype.None, 0, nil
 			}
 
 			if dec.More() {
 				// The input is supposed to be just a single object, so
 				// it shouldn't have more tokens
-				return source.TypeNone, 0, nil
+				return drivertype.None, 0, nil
 			}
 
 			// If the input is all on a single line, then it could be
@@ -74,10 +75,10 @@ func DetectJSON(sampleSize int) source.DriverDetectFunc {
 			switch lineCount {
 			case -1:
 				// should never happen
-				return source.TypeNone, 0, errz.New("unknown problem reading JSON input")
+				return drivertype.None, 0, errz.New("unknown problem reading JSON input")
 			case 0:
 				// should never happen
-				return source.TypeNone, 0, errz.New("JSON input is empty")
+				return drivertype.None, 0, errz.New("JSON input is empty")
 			case 1:
 				// If the input is a JSON object on a single line, it could
 				// be TypeJSON or TypeJSONL. In deference to TypeJSONL, we
@@ -93,7 +94,7 @@ func DetectJSON(sampleSize int) source.DriverDetectFunc {
 
 		r2, err = openFn()
 		if err != nil {
-			return source.TypeNone, 0, errz.Err(err)
+			return drivertype.None, 0, errz.Err(err)
 		}
 		defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r2)
 
@@ -104,13 +105,13 @@ func DetectJSON(sampleSize int) source.DriverDetectFunc {
 		for {
 			select {
 			case <-ctx.Done():
-				return source.TypeNone, 0, ctx.Err()
+				return drivertype.None, 0, ctx.Err()
 			default:
 			}
 
 			obj, _, err = sc.next()
 			if err != nil {
-				return source.TypeNone, 0, ctx.Err()
+				return drivertype.None, 0, ctx.Err()
 			}
 
 			if obj == nil { // end of input
@@ -127,7 +128,7 @@ func DetectJSON(sampleSize int) source.DriverDetectFunc {
 			return TypeJSON, 1.0, nil
 		}
 
-		return source.TypeNone, 0, nil
+		return drivertype.None, 0, nil
 	}
 }
 
