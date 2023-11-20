@@ -62,8 +62,8 @@ type MetadataWriter interface {
 	// Catalogs writes the list of catalogs.
 	Catalogs(currentCatalog string, catalogs []string) error
 
-	// Schemas writes the list of schemas.
-	Schemas(currentSchema string, schemas []*metadata.Schema) error
+	// Schemata writes the list of schemas.
+	Schemata(currentSchema string, schemas []*metadata.Schema) error
 }
 
 // SourceWriter can output data source details.

@@ -327,3 +327,157 @@ func TestCmdInspect_stdin(t *testing.T) {
 		})
 	}
 }
+
+func TestCmdInspect_mode_schemata(t *testing.T) {
+	active := lo.ToPtr(true)
+
+	type schema struct {
+		Name    string `json:"schema" yaml:"schema"`
+		Catalog string `json:"catalog" yaml:"catalog"`
+		Owner   string `json:"owner,omitempty" yaml:"owner,omitempty"`
+		Active  *bool  `json:"active" yaml:"active"`
+	}
+
+	testCases := []struct {
+		handle       string
+		wantSchemata []schema
+	}{
+		{
+			handle: sakila.SL3,
+			wantSchemata: []schema{
+				{Name: "main", Catalog: "default", Active: active},
+			},
+		},
+		{
+			handle: sakila.Pg,
+			wantSchemata: []schema{
+				{Name: "information_schema", Catalog: "sakila", Owner: "sakila"},
+				{Name: "pg_catalog", Catalog: "sakila", Owner: "sakila"},
+				{Name: "public", Catalog: "sakila", Owner: "sakila", Active: active},
+			},
+		},
+		{
+			handle: sakila.MS,
+			wantSchemata: []schema{
+				{Name: "INFORMATION_SCHEMA", Catalog: "sakila", Owner: "INFORMATION_SCHEMA"},
+				{Name: "dbo", Catalog: "sakila", Owner: "dbo", Active: active},
+				{Name: "sys", Catalog: "sakila", Owner: "sys"},
+			},
+		},
+		{
+			handle: sakila.My,
+			wantSchemata: []schema{
+				{Name: "information_schema", Catalog: "def", Owner: ""},
+				{Name: "mysql", Catalog: "def", Owner: ""},
+				{Name: "sakila", Catalog: "def", Owner: "", Active: active},
+				{Name: "sys", Catalog: "def", Owner: ""},
+			},
+		},
+	}
+
+	for _, fm := range []format.Format{format.JSON, format.YAML, format.Text} {
+		fm := fm
+		t.Run(fm.String(), func(t *testing.T) {
+			for _, tc := range testCases {
+				tc := tc
+
+				t.Run(tc.handle, func(t *testing.T) {
+					th := testh.New(t)
+					src := th.Source(tc.handle)
+
+					tr := testrun.New(th.Context, t, nil).Hush().Add(*src)
+					err := tr.Exec("inspect", "--"+flag.InspectSchemata, "--"+fm.String())
+					require.NoError(t, err)
+					var gotSchemata []schema
+
+					switch fm { //nolint:exhaustive
+					case format.JSON:
+						tr.Bind(&gotSchemata)
+					case format.YAML:
+						tr.BindYAML(&gotSchemata)
+					case format.Text:
+						t.Logf("\n%s", tr.OutString())
+						// Return early because we can't be bothered to parse text output
+						return
+					}
+
+					for i, s := range tc.wantSchemata {
+						require.Contains(t, gotSchemata, s, "wantSchemata[%d]", i)
+					}
+				})
+			}
+		})
+	}
+}
+
+func TestCmdInspect_mode_catalogs(t *testing.T) {
+	active := lo.ToPtr(true)
+	type catalog struct {
+		Catalog string `json:"catalog" yaml:"catalog"`
+		Active  *bool  `json:"active,omitempty" yaml:"active,omitempty"`
+	}
+
+	testCases := []struct {
+		handle       string
+		wantCatalogs []catalog
+	}{
+		// Note that SQLite doesn't support catalogs
+		{
+			handle: sakila.Pg,
+			wantCatalogs: []catalog{
+				{Catalog: "postgres"},
+				{Catalog: "sakila", Active: active},
+			},
+		},
+		{
+			handle: sakila.MS,
+			wantCatalogs: []catalog{
+				{Catalog: "master"},
+				{Catalog: "model"},
+				{Catalog: "msdb"},
+				{Catalog: "sakila", Active: active},
+				{Catalog: "tempdb"},
+			},
+		},
+		{
+			handle: sakila.My,
+			wantCatalogs: []catalog{
+				{Catalog: "def", Active: active},
+			},
+		},
+	}
+
+	for _, fm := range []format.Format{format.JSON, format.YAML, format.Text} {
+		fm := fm
+		t.Run(fm.String(), func(t *testing.T) {
+			for _, tc := range testCases {
+				tc := tc
+
+				t.Run(tc.handle, func(t *testing.T) {
+					th := testh.New(t)
+					src := th.Source(tc.handle)
+
+					tr := testrun.New(th.Context, t, nil).Hush().Add(*src)
+					err := tr.Exec("inspect", "--"+flag.InspectCatalogs, "--"+fm.String())
+					require.NoError(t, err)
+					var gotCatalogs []catalog
+
+					switch fm { //nolint:exhaustive
+					case format.JSON:
+						tr.Bind(&gotCatalogs)
+					case format.YAML:
+						tr.BindYAML(&gotCatalogs)
+					case format.Text:
+						t.Logf("\n%s", tr.OutString())
+						// Return early because we can't be bothered to parse text output
+						return
+					}
+
+					for i, c := range tc.wantCatalogs {
+						require.Contains(t, gotCatalogs, c, "wantCatalogs[%d]", i)
+					}
+				})
+			}
+		})
+	}
+}

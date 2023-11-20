@@ -407,8 +407,8 @@ func (w *mdWriter) Catalogs(currentCatalog string, catalogs []string) error {
 	return nil
 }
 
-// Schemas implements output.MetadataWriter.
-func (w *mdWriter) Schemas(currentSchema string, schemas []*metadata.Schema) error {
+// Schemata implements output.MetadataWriter.
+func (w *mdWriter) Schemata(currentSchema string, schemas []*metadata.Schema) error {
 	if len(schemas) == 0 {
 		return nil
 	}

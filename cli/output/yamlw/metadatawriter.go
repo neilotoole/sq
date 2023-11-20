@@ -3,6 +3,8 @@ package yamlw
 import (
 	"io"
 
+	"github.com/samber/lo"
+
 	yamlp "github.com/goccy/go-yaml/printer"
 
 	"github.com/neilotoole/sq/cli/output"
@@ -72,19 +74,22 @@ func (w *mdWriter) Catalogs(currentCatalog string, catalogs []string) error {
 	}
 
 	type cat struct {
-		Name   string `yaml:"name"`
-		Active bool   `yaml:"active"`
+		Name   string `yaml:"catalog"`
+		Active *bool  `yaml:"active,omitempty"`
 	}
 
 	cats := make([]cat, len(catalogs))
 	for i, c := range catalogs {
-		cats[i] = cat{Name: c, Active: c == currentCatalog}
+		cats[i] = cat{Name: c}
+		if c == currentCatalog {
+			cats[i].Active = lo.ToPtr(true)
+		}
 	}
 	return writeYAML(w.out, w.yp, cats)
 }
 
-// Schemas implements output.MetadataWriter.
-func (w *mdWriter) Schemas(currentSchema string, schemas []*metadata.Schema) error {
+// Schemata implements output.MetadataWriter.
+func (w *mdWriter) Schemata(currentSchema string, schemas []*metadata.Schema) error {
 	if len(schemas) == 0 {
 		return nil
 	}
@@ -93,12 +98,15 @@ func (w *mdWriter) Schemas(currentSchema string, schemas []*metadata.Schema) err
 	// because we need to show the current schema in the output.
 	type wrapper struct {
 		metadata.Schema `yaml:",omitempty,inline"`
-		Active          bool `yaml:"active,omitempty"`
+		Active          *bool `yaml:"active,omitempty"`
 	}
 
 	a := make([]*wrapper, len(schemas))
 	for i, s := range schemas {
-		a[i] = &wrapper{Schema: *s, Active: s.Name == currentSchema}
+		a[i] = &wrapper{Schema: *s}
+		if s.Name == currentSchema {
+			a[i].Active = lo.ToPtr(true)
+		}
 	}
 
 	return writeYAML(w.out, w.yp, a)

@@ -12,6 +12,8 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/core/ioz"
+
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/slogt"
@@ -207,7 +209,17 @@ func (tr *TestRun) Bind(v any) *TestRun {
 	tr.mu.Lock()
 	defer tr.mu.Unlock()
 
-	err := json.Unmarshal(tr.Out.Bytes(), &v)
+	err := json.Unmarshal(tr.Out.Bytes(), v)
+	require.NoError(tr.T, err)
+	return tr
+}
+
+// BindYAML marshals tr.Out to v (as YAML), failing the test on any error.
+func (tr *TestRun) BindYAML(v any) *TestRun {
+	tr.mu.Lock()
+	defer tr.mu.Unlock()
+
+	err := ioz.UnmarshallYAML(tr.Out.Bytes(), v)
 	require.NoError(tr.T, err)
 	return tr
 }

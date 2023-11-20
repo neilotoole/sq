@@ -154,8 +154,8 @@ const (
 	InspectCatalogs      = "catalogs"
 	InspectCatalogsUsage = "List catalogs only"
 
-	InspectSchemas      = "schemas"
-	InspectSchemasUsage = "List schemas (in current catalog) only"
+	InspectSchemata      = "schemata"
+	InspectSchemataUsage = "List schemas (in current catalog) only"
 
 	LogEnabled      = "log"
 	LogEnabledUsage = "Enable logging"

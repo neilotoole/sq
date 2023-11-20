@@ -43,7 +43,7 @@ is supplied, the default is to show the source metadata and schema.
 
   --catalogs:  List the catalogs (databases) available via the source.
 
-  --schemas:   List the schemas available in the source's active catalog.
+  --schemata:  List the schemas available in the source's active catalog.
 
 Use --verbose with --text format to see more detail. The --json and --yaml
 formats both show extensive detail.`,
@@ -68,11 +68,11 @@ formats both show extensive detail.`,
   # Show only the source metadata (and not schema details).
   $ sq inspect --overview @pg1
 
-	# List the schemas in @pg1.
-	$ sq inspect --schemas @pg1
+  # List the schemas in @pg1.
+  $ sq inspect --schemata @pg1
 
-	# List the catalogs in @pg1.
-	$ sq inspect --catalogs @pg1
+  # List the catalogs in @pg1.
+  $ sq inspect --catalogs @pg1
 
   # Inspect table "actor" in @pg1 data source.
   $ sq inspect @pg1.actor
@@ -95,9 +95,9 @@ formats both show extensive detail.`,
 	cmd.Flags().BoolP(flag.InspectOverview, flag.InspectOverviewShort, false, flag.InspectOverviewUsage)
 	cmd.Flags().BoolP(flag.InspectDBProps, flag.InspectDBPropsShort, false, flag.InspectDBPropsUsage)
 	cmd.Flags().Bool(flag.InspectCatalogs, false, flag.InspectCatalogsUsage)
-	cmd.Flags().Bool(flag.InspectSchemas, false, flag.InspectSchemasUsage)
+	cmd.Flags().Bool(flag.InspectSchemata, false, flag.InspectSchemataUsage)
 
-	cmd.MarkFlagsMutuallyExclusive(flag.InspectOverview, flag.InspectDBProps, flag.InspectCatalogs, flag.InspectSchemas)
+	cmd.MarkFlagsMutuallyExclusive(flag.InspectOverview, flag.InspectDBProps, flag.InspectCatalogs, flag.InspectSchemata)
 
 	cmd.Flags().String(flag.ActiveSchema, "", flag.ActiveSchemaUsage)
 	panicOn(cmd.RegisterFlagCompletionFunc(flag.ActiveSchema,
@@ -134,7 +134,7 @@ func execInspect(cmd *cobra.Command, args []string) error {
 		if flagName, changed := cmdFlagAnyChanged(
 			cmd,
 			flag.InspectCatalogs,
-			flag.InspectSchemas,
+			flag.InspectSchemata,
 			flag.InspectDBProps,
 			flag.InspectOverview,
 		); changed {
@@ -169,7 +169,7 @@ func execInspect(cmd *cobra.Command, args []string) error {
 		return ru.Writers.Metadata.Catalogs(currentCatalog, catalogs)
 	}
 
-	if cmdFlagIsSetTrue(cmd, flag.InspectSchemas) {
+	if cmdFlagIsSetTrue(cmd, flag.InspectSchemata) {
 		var db *sql.DB
 		if db, err = pool.DB(ctx); err != nil {
 			return err
@@ -184,7 +184,7 @@ func execInspect(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		return ru.Writers.Metadata.Schemas(currentSchema, schemas)
+		return ru.Writers.Metadata.Schemata(currentSchema, schemas)
 	}
 
 	if cmdFlagIsSetTrue(cmd, flag.InspectDBProps) {

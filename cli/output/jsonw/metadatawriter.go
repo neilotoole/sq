@@ -3,6 +3,8 @@ package jsonw
 import (
 	"io"
 
+	"github.com/samber/lo"
+
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
@@ -65,19 +67,22 @@ func (w *mdWriter) Catalogs(currentCatalog string, catalogs []string) error {
 		return nil
 	}
 	type cat struct {
-		Name   string `json:"name"`
-		Active bool   `json:"active"`
+		Name   string `json:"catalog"`
+		Active *bool  `json:"active,omitempty"`
 	}
 
 	cats := make([]cat, len(catalogs))
 	for i, c := range catalogs {
-		cats[i] = cat{Name: c, Active: c == currentCatalog}
+		cats[i] = cat{Name: c}
+		if c == currentCatalog {
+			cats[i].Active = lo.ToPtr(true)
+		}
 	}
 	return writeJSON(w.out, w.pr, cats)
 }
 
-// Schemas implements output.MetadataWriter.
-func (w *mdWriter) Schemas(currentSchema string, schemas []*metadata.Schema) error {
+// Schemata implements output.MetadataWriter.
+func (w *mdWriter) Schemata(currentSchema string, schemas []*metadata.Schema) error {
 	if len(schemas) == 0 {
 		return nil
 	}
@@ -86,12 +91,15 @@ func (w *mdWriter) Schemas(currentSchema string, schemas []*metadata.Schema) err
 	// because we need to show the current schema in the output.
 	type wrapper struct {
 		metadata.Schema `json:",omitempty,inline"`
-		Active          bool `json:"active,omitempty"`
+		Active          *bool `json:"active,omitempty"`
 	}
 
 	a := make([]*wrapper, len(schemas))
 	for i, s := range schemas {
-		a[i] = &wrapper{Schema: *s, Active: s.Name == currentSchema}
+		a[i] = &wrapper{Schema: *s}
+		if s.Name == currentSchema {
+			a[i].Active = lo.ToPtr(true)
+		}
 	}
 
 	return writeJSON(w.out, w.pr, a)
