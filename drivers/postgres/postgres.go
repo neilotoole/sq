@@ -316,11 +316,14 @@ func (d *driveri) CurrentSchema(ctx context.Context, db sqlz.DB) (string, error)
 	return name, nil
 }
 
-// ListSchemas implements driver.SQLDriver.
+// ListSchemas implements driver.SQLDriver. Some system schemas are
+// excluded, e.g. pg_toast and pg_temp schemas.
 func (d *driveri) ListSchemas(ctx context.Context, db sqlz.DB) ([]string, error) {
 	log := lg.FromContext(ctx)
 
-	const q = `SELECT schema_name FROM information_schema.schemata ORDER BY schema_name`
+	const q = `SELECT schema_name FROM information_schema.schemata
+ WHERE schema_name NOT LIKE 'pg_toast%' AND schema_name NOT LIKE 'pg_temp%'
+ ORDER BY schema_name`
 	var schemas []string
 	rows, err := db.QueryContext(ctx, q)
 	if err != nil {
@@ -344,12 +347,14 @@ func (d *driveri) ListSchemas(ctx context.Context, db sqlz.DB) ([]string, error)
 	return schemas, nil
 }
 
-// ListSchemaMetadata implements driver.SQLDriver.
+// ListSchemaMetadata implements driver.SQLDriver. Some system schemas are
+// excluded, e.g. pg_toast and pg_temp schemas.
 func (d *driveri) ListSchemaMetadata(ctx context.Context, db sqlz.DB) ([]*metadata.Schema, error) {
 	log := lg.FromContext(ctx)
 
 	const q = `SELECT schema_name, catalog_name, schema_owner FROM information_schema.schemata
 WHERE catalog_name = current_database()
+AND schema_name NOT LIKE 'pg_toast%' AND schema_name NOT LIKE 'pg_temp%'
 ORDER BY schema_name`
 	var schemas []*metadata.Schema
 	rows, err := db.QueryContext(ctx, q)
