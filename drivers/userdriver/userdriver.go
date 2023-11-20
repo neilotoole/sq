@@ -18,6 +18,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
 // ImportFunc is a function that can import
@@ -165,12 +166,12 @@ func (d *pool) Source() *source.Source {
 }
 
 // TableMetadata implements driver.Pool.
-func (d *pool) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
+func (d *pool) TableMetadata(ctx context.Context, tblName string) (*metadata.Table, error) {
 	return d.impl.TableMetadata(ctx, tblName)
 }
 
 // SourceMetadata implements driver.Pool.
-func (d *pool) SourceMetadata(ctx context.Context, noSchema bool) (*source.Metadata, error) {
+func (d *pool) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error) {
 	meta, err := d.impl.SourceMetadata(ctx, noSchema)
 	if err != nil {
 		return nil, err

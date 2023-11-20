@@ -15,6 +15,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
 // Config contains parameters to control diff behavior.
@@ -50,7 +51,7 @@ type Elements struct {
 type sourceData struct {
 	handle  string
 	src     *source.Source
-	srcMeta *source.Metadata
+	srcMeta *metadata.Source
 }
 
 func (sd *sourceData) clone() *sourceData { //nolint:unused // REVISIT: no longer needed?
@@ -68,9 +69,9 @@ func (sd *sourceData) clone() *sourceData { //nolint:unused // REVISIT: no longe
 // tableData encapsulates data about a table.
 type tableData struct {
 	tblName string
-	tblMeta *source.TableMetadata
+	tblMeta *metadata.Table
 	src     *source.Source
-	srcMeta *source.Metadata
+	srcMeta *metadata.Source
 }
 
 func (td *tableData) clone() *tableData { //nolint:unused // REVISIT: no longer needed?

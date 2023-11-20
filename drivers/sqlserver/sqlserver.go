@@ -28,6 +28,7 @@ import (
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/driver/dialect"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
 const (
@@ -656,7 +657,7 @@ func (d *pool) Source() *source.Source {
 }
 
 // TableMetadata implements driver.Pool.
-func (d *pool) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
+func (d *pool) TableMetadata(ctx context.Context, tblName string) (*metadata.Table, error) {
 	const query = `SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_TYPE
 FROM INFORMATION_SCHEMA.TABLES
 WHERE TABLE_NAME = @p1`
@@ -673,7 +674,7 @@ WHERE TABLE_NAME = @p1`
 }
 
 // SourceMetadata implements driver.Pool.
-func (d *pool) SourceMetadata(ctx context.Context, noSchema bool) (*source.Metadata, error) {
+func (d *pool) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error) {
 	return getSourceMetadata(ctx, d.src, d.db, noSchema)
 }
 

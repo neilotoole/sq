@@ -11,6 +11,7 @@ import (
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
 // ExecTableDiff diffs handle1.table1 and handle2.table2.
@@ -108,10 +109,10 @@ func buildTableStructureDiff(cfg *Config, showRowCounts bool, td1, td2 *tableDat
 	return tblDiff, nil
 }
 
-// fetchTableMeta returns the source.TableMetadata for table. If the table
+// fetchTableMeta returns the metadata.Table for table. If the table
 // does not exist, {nil,nil} is returned.
 func fetchTableMeta(ctx context.Context, ru *run.Run, src *source.Source, table string) (
-	*source.TableMetadata, error,
+	*metadata.Table, error,
 ) {
 	pool, err := ru.Pools.Open(ctx, src)
 	if err != nil {

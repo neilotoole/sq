@@ -5,15 +5,15 @@ import (
 	"database/sql"
 	"slices"
 
-	"github.com/neilotoole/sq/libsq/core/lg"
-	"github.com/neilotoole/sq/libsq/core/lg/lgm"
-
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
 func newInspectCmd() *cobra.Command {
@@ -128,7 +128,7 @@ func execInspect(cmd *cobra.Command, args []string) error {
 			return errz.Errorf("flag --%s is not valid when inspecting a table", flagName)
 		}
 
-		var tblMeta *source.TableMetadata
+		var tblMeta *metadata.Table
 		tblMeta, err = pool.TableMetadata(ctx, table)
 		if err != nil {
 			return err

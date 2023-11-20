@@ -50,6 +50,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/testsrc"
@@ -753,7 +754,7 @@ func (h *Helper) Files() *source.Files {
 }
 
 // SourceMetadata returns metadata for src.
-func (h *Helper) SourceMetadata(src *source.Source) (*source.Metadata, error) {
+func (h *Helper) SourceMetadata(src *source.Source) (*metadata.Source, error) {
 	pools, err := h.Pools().Open(h.Context, src)
 	if err != nil {
 		return nil, err
@@ -763,7 +764,7 @@ func (h *Helper) SourceMetadata(src *source.Source) (*source.Metadata, error) {
 }
 
 // TableMetadata returns metadata for src's table.
-func (h *Helper) TableMetadata(src *source.Source, tbl string) (*source.TableMetadata, error) {
+func (h *Helper) TableMetadata(src *source.Source, tbl string) (*metadata.Table, error) {
 	pools, err := h.Pools().Open(h.Context, src)
 	if err != nil {
 		return nil, err

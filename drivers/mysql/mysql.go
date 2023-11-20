@@ -31,6 +31,7 @@ import (
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/driver/dialect"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
 const (
@@ -553,12 +554,12 @@ func (p *pool) Source() *source.Source {
 }
 
 // TableMetadata implements driver.Pool.
-func (p *pool) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
+func (p *pool) TableMetadata(ctx context.Context, tblName string) (*metadata.Table, error) {
 	return getTableMetadata(ctx, p.db, tblName)
 }
 
 // SourceMetadata implements driver.Pool.
-func (p *pool) SourceMetadata(ctx context.Context, noSchema bool) (*source.Metadata, error) {
+func (p *pool) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error) {
 	return getSourceMetadata(ctx, p.src, p.db, noSchema)
 }
 

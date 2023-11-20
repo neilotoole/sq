@@ -25,6 +25,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
 // kindFromDBTypeName determines the Kind from the database
@@ -158,8 +159,8 @@ func getNewRecordFunc(rowMeta record.Meta) driver.NewRecordFunc {
 }
 
 // getTableMetadata gets the metadata for a single table. It is the
-// implementation of driver.Pool.TableMetadata.
-func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*source.TableMetadata, error) {
+// implementation of driver.Pool.Table.
+func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadata.Table, error) {
 	query := `SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, TABLE_COMMENT, (DATA_LENGTH + INDEX_LENGTH) AS table_size,
 (SELECT COUNT(*) FROM ` + "`" + tblName + "`" + `) AS row_count
 FROM information_schema.TABLES
@@ -167,7 +168,7 @@ WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`
 
 	var schema string
 	var tblSize sql.NullInt64
-	tblMeta := &source.TableMetadata{}
+	tblMeta := &metadata.Table{}
 
 	err := db.QueryRowContext(ctx, query, tblName).
 		Scan(&schema, &tblMeta.Name, &tblMeta.DBTableType, &tblMeta.Comment, &tblSize, &tblMeta.RowCount)
@@ -191,7 +192,7 @@ WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`
 }
 
 // getColumnMetadata returns column metadata for tblName.
-func getColumnMetadata(ctx context.Context, db sqlz.DB, tblName string) ([]*source.ColMetadata, error) {
+func getColumnMetadata(ctx context.Context, db sqlz.DB, tblName string) ([]*metadata.Column, error) {
 	log := lg.FromContext(ctx)
 
 	const query = `SELECT column_name, data_type, column_type, ordinal_position, column_default,
@@ -206,10 +207,10 @@ ORDER BY cols.ordinal_position ASC`
 	}
 	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
 
-	var cols []*source.ColMetadata
+	var cols []*metadata.Column
 
 	for rows.Next() {
-		col := &source.ColMetadata{}
+		col := &metadata.Column{}
 		var isNullable, colKey, extra string
 
 		defVal := &sql.NullString{}
@@ -257,10 +258,10 @@ ORDER BY cols.ordinal_position ASC`
 // reasonable results by spinning off a goroutine (via errgroup) for
 // each SELECT COUNT(*) query. That said, the testing/benchmarking was
 // far from exhaustive, and this entire thing has a bit of a code smell.
-func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSchema bool) (*source.Metadata, error) {
+func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSchema bool) (*metadata.Source, error) {
 	ctx = options.NewContext(ctx, src.Options)
 
-	md := &source.Metadata{
+	md := &metadata.Source{
 		Driver:   Type,
 		DBDriver: Type,
 		Handle:   src.Handle,
@@ -309,7 +310,7 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSc
 	return md, nil
 }
 
-func setSourceSummaryMeta(ctx context.Context, db sqlz.DB, md *source.Metadata) error {
+func setSourceSummaryMeta(ctx context.Context, db sqlz.DB, md *metadata.Source) error {
 	const summaryQuery = `SELECT @@GLOBAL.version, @@GLOBAL.version_comment, @@GLOBAL.version_compile_os,
        @@GLOBAL.version_compile_machine, DATABASE(), CURRENT_USER(),
        (SELECT CATALOG_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = DATABASE() LIMIT 1),
@@ -385,8 +386,8 @@ func getDBProperties(ctx context.Context, db sqlz.DB) (map[string]any, error) {
 	return m, nil
 }
 
-// getAllTblMetas returns TableMetadata for each table/view in db.
-func getAllTblMetas(ctx context.Context, db sqlz.DB) ([]*source.TableMetadata, error) {
+// getAllTblMetas returns Table for each table/view in db.
+func getAllTblMetas(ctx context.Context, db sqlz.DB) ([]*metadata.Table, error) {
 	log := lg.FromContext(ctx)
 
 	const query = `SELECT t.TABLE_SCHEMA, t.TABLE_NAME, t.TABLE_TYPE, t.TABLE_COMMENT,
@@ -413,11 +414,11 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 	// |sakila      |actor_info|VIEW      |VIEW         |NULL      |actor_id   |1               |          |smallint |smallint(5) unsigned|NO         |0                |              |                           |
 
 	var (
-		tblMetas                              []*source.TableMetadata
+		tblMetas                              []*metadata.Table
 		schema                                string
 		curTblName, curTblType, curTblComment sql.NullString
 		curTblSize                            sql.NullInt64
-		curTblMeta                            *source.TableMetadata
+		curTblMeta                            *metadata.Table
 	)
 
 	rows, err := db.QueryContext(ctx, query)
@@ -449,8 +450,8 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 		}
 
 		if curTblMeta == nil || curTblMeta.Name != curTblName.String {
-			// On our first time encountering a new table name, we create a new TableMetadata
-			curTblMeta = &source.TableMetadata{
+			// On our first time encountering a new table name, we create a new Table
+			curTblMeta = &metadata.Table{
 				Name:        curTblName.String,
 				FQName:      schema + "." + curTblName.String,
 				DBTableType: curTblType.String,
@@ -466,7 +467,7 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 			tblMetas = append(tblMetas, curTblMeta)
 		}
 
-		col := &source.ColMetadata{
+		col := &metadata.Column{
 			Name:         colName.String,
 			Position:     colPosition.Int64,
 			BaseType:     colBaseType.String,
@@ -497,7 +498,7 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 	// count for the table (which can happen if the table is dropped
 	// during the metadata collection process). So we filter out any
 	// nil elements.
-	tblMetas = lo.Reject(tblMetas, func(item *source.TableMetadata, index int) bool {
+	tblMetas = lo.Reject(tblMetas, func(item *metadata.Table, index int) bool {
 		return item == nil
 	})
 

@@ -35,6 +35,7 @@ import (
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/driver/dialect"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
 const (
@@ -923,7 +924,7 @@ func (p *pool) Source() *source.Source {
 }
 
 // TableMetadata implements driver.Pool.
-func (p *pool) TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error) {
+func (p *pool) TableMetadata(ctx context.Context, tblName string) (*metadata.Table, error) {
 	db, err := p.DB(ctx)
 	if err != nil {
 		return nil, err
@@ -933,10 +934,10 @@ func (p *pool) TableMetadata(ctx context.Context, tblName string) (*source.Table
 }
 
 // SourceMetadata implements driver.Pool.
-func (p *pool) SourceMetadata(ctx context.Context, noSchema bool) (*source.Metadata, error) {
+func (p *pool) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error) {
 	// https://stackoverflow.com/questions/9646353/how-to-find-sqlite-database-file-version
 
-	md := &source.Metadata{Handle: p.src.Handle, Driver: Type, DBDriver: dbDrvr}
+	md := &metadata.Source{Handle: p.src.Handle, Driver: Type, DBDriver: dbDrvr}
 
 	dsn, err := PathFromLocation(p.src)
 	if err != nil {

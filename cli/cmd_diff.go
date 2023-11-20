@@ -125,7 +125,7 @@ The default (3) can be changed via:
 		}).complete,
 		RunE: execDiff,
 		Example: `
-  Metadata diff
+  Source diff
   -------------
 
   # Diff sources (compare default elements).

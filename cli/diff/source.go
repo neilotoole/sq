@@ -13,6 +13,7 @@ import (
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
 // ExecSourceDiff diffs handle1 and handle2.
@@ -190,7 +191,7 @@ func buildDBPropsDiff(cfg *Config, sd1, sd2 *sourceData) (*dbPropsDiff, error) {
 	}, nil
 }
 
-func fetchSourceMeta(ctx context.Context, ru *run.Run, handle string) (*source.Source, *source.Metadata, error) {
+func fetchSourceMeta(ctx context.Context, ru *run.Run, handle string) (*source.Source, *metadata.Source, error) {
 	src, err := ru.Config.Collection.Get(handle)
 	if err != nil {
 		return nil, nil, err

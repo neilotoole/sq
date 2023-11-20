@@ -24,6 +24,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/driver/dialect"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
 // ConfigureDB configures DB using o. It is no-op if o is nil.
@@ -356,17 +357,17 @@ type Pool interface {
 
 	// SourceMetadata returns metadata about the data source.
 	// If noSchema is true, schema details are not populated
-	// on the returned source.Metadata.
+	// on the returned metadata.Source.
 	//
 	// TODO: SourceMetadata doesn't really belong on driver.Pool? It
 	// should be moved to driver.Driver?
-	SourceMetadata(ctx context.Context, noSchema bool) (*source.Metadata, error)
+	SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error)
 
 	// TableMetadata returns metadata for the specified table in the data source.
 	//
 	// TODO: TableMetadata doesn't really belong on driver.Pool? It
 	// should be moved to driver.Driver?
-	TableMetadata(ctx context.Context, tblName string) (*source.TableMetadata, error)
+	TableMetadata(ctx context.Context, tblName string) (*metadata.Table, error)
 
 	// Close is invoked to close and release any underlying resources.
 	Close() error

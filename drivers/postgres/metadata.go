@@ -22,6 +22,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
 // kindFromDBTypeName determines the kind.Kind from the database
@@ -175,11 +176,11 @@ func toNullableScanType(log *slog.Logger, colName, dbTypeName string, knd kind.K
 	return nullableScanType
 }
 
-func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSchema bool) (*source.Metadata, error) {
+func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSchema bool) (*metadata.Source, error) {
 	log := lg.FromContext(ctx)
 	ctx = options.NewContext(ctx, src.Options)
 
-	md := &source.Metadata{
+	md := &metadata.Source{
 		Handle:   src.Handle,
 		Location: src.Location,
 		Driver:   src.Type,
@@ -220,7 +221,7 @@ current_setting('server_version'), version(), "current_user"()`
 
 	g, gCtx := errgroup.WithContext(ctx)
 	g.SetLimit(driver.OptTuningErrgroupLimit.Get(src.Options))
-	tblMetas := make([]*source.TableMetadata, len(tblNames))
+	tblMetas := make([]*metadata.Table, len(tblNames))
 	for i := range tblNames {
 		i := i
 		g.Go(func() error {
@@ -230,7 +231,7 @@ current_setting('server_version'), version(), "current_user"()`
 			default:
 			}
 
-			var tblMeta *source.TableMetadata
+			var tblMeta *metadata.Table
 			var mdErr error
 
 			mdErr = doRetry(gCtx, func() error {
@@ -265,7 +266,7 @@ current_setting('server_version'), version(), "current_user"()`
 	// If a table wasn't found (possibly dropped while querying), then
 	// its entry could be nil. We copy the non-nil elements to the
 	// final slice.
-	md.Tables = make([]*source.TableMetadata, 0, len(tblMetas))
+	md.Tables = make([]*metadata.Table, 0, len(tblMetas))
 	for i := range tblMetas {
 		if tblMetas[i] != nil {
 			md.Tables = append(md.Tables, tblMetas[i])
@@ -368,7 +369,7 @@ ORDER BY table_name`
 	return tblNames, nil
 }
 
-func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*source.TableMetadata, error) {
+func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadata.Table, error) {
 	log := lg.FromContext(ctx)
 
 	const tblsQueryTpl = `SELECT table_catalog, table_schema, table_name, table_type, is_insertable_into,
@@ -430,8 +431,8 @@ type pgTable struct {
 	comment      sql.NullString
 }
 
-func tblMetaFromPgTable(pgt *pgTable) *source.TableMetadata {
-	md := &source.TableMetadata{
+func tblMetaFromPgTable(pgt *pgTable) *metadata.Table {
+	md := &metadata.Table{
 		Name:        pgt.tableName,
 		FQName:      fmt.Sprintf("%s.%s.%s", pgt.tableCatalog, pgt.tableSchema, pgt.tableName),
 		DBTableType: pgt.tableType,
@@ -568,8 +569,8 @@ func scanPgColumn(rows *sql.Rows, c *pgColumn) error {
 	return errw(err)
 }
 
-func colMetaFromPgColumn(log *slog.Logger, pgCol *pgColumn) *source.ColMetadata {
-	colMeta := &source.ColMetadata{
+func colMetaFromPgColumn(log *slog.Logger, pgCol *pgColumn) *metadata.Column {
+	colMeta := &metadata.Column{
 		Name:         pgCol.columnName,
 		Position:     pgCol.ordinalPosition,
 		PrimaryKey:   false, // Note that PrimaryKey is set separately from pgConstraint.
@@ -671,7 +672,7 @@ type pgConstraint struct {
 
 // setTblMetaConstraints updates tblMeta with constraints found
 // in pgConstraints.
-func setTblMetaConstraints(log *slog.Logger, tblMeta *source.TableMetadata, pgConstraints []*pgConstraint) {
+func setTblMetaConstraints(log *slog.Logger, tblMeta *metadata.Table, pgConstraints []*pgConstraint) {
 	for _, pgc := range pgConstraints {
 		fqTblName := pgc.tableCatalog + "." + pgc.tableSchema + "." + pgc.tableName
 		if fqTblName != tblMeta.FQName {

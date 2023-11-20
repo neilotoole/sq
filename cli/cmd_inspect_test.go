@@ -18,6 +18,7 @@ import (
 	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
@@ -67,7 +68,7 @@ func TestCmdInspect_json_yaml(t *testing.T) {
 					err := tr.Exec("inspect", fmt.Sprintf("--%s", tf.format))
 					require.NoError(t, err)
 
-					srcMeta := &source.Metadata{}
+					srcMeta := &metadata.Source{}
 					require.NoError(t, tf.unmarshalFn(tr.Out.Bytes(), srcMeta))
 					require.Equal(t, src.Type, srcMeta.Driver)
 					require.Equal(t, src.Handle, srcMeta.Handle)
@@ -92,7 +93,7 @@ func TestCmdInspect_json_yaml(t *testing.T) {
 								tr2 := testrun.New(th.Context, t, tr)
 								err := tr2.Exec("inspect", "."+tblName, fmt.Sprintf("--%s", tf.format))
 								require.NoError(t, err)
-								tblMeta := &source.TableMetadata{}
+								tblMeta := &metadata.Table{}
 								require.NoError(t, tf.unmarshalFn(tr2.Out.Bytes(), tblMeta))
 								require.Equal(t, tblName, tblMeta.Name)
 								require.True(t, len(tblMeta.Columns) > 0)
@@ -111,7 +112,7 @@ func TestCmdInspect_json_yaml(t *testing.T) {
 						)
 						require.NoError(t, err)
 
-						srcMeta := &source.Metadata{}
+						srcMeta := &metadata.Source{}
 						require.NoError(t, tf.unmarshalFn(tr2.Out.Bytes(), srcMeta))
 						require.Equal(t, src.Type, srcMeta.Driver)
 						require.Equal(t, src.Handle, srcMeta.Handle)
@@ -255,7 +256,7 @@ func TestCmdInspect_smoke(t *testing.T) {
 	err = tr.Exec("inspect", "--json")
 	require.NoError(t, err, "should pass because there is an active src")
 
-	md := &source.Metadata{}
+	md := &metadata.Source{}
 	require.NoError(t, json.Unmarshal(tr.Out.Bytes(), md))
 	require.Equal(t, sqlite3.Type, md.Driver)
 	require.Equal(t, sakila.SL3, md.Handle)
@@ -270,7 +271,7 @@ func TestCmdInspect_smoke(t *testing.T) {
 	err = tr.Exec("inspect", "--json", src.Handle)
 	require.NoError(t, err)
 
-	md = &source.Metadata{}
+	md = &metadata.Source{}
 	require.NoError(t, json.Unmarshal(tr.Out.Bytes(), md))
 	require.Equal(t, csv.TypeCSV, md.Driver)
 	require.Equal(t, sakila.CSVActor, md.Handle)
@@ -316,7 +317,7 @@ func TestCmdInspect_stdin(t *testing.T) {
 
 			require.NoError(t, err, "should read from stdin")
 
-			md := &source.Metadata{}
+			md := &metadata.Source{}
 			require.NoError(t, json.Unmarshal(tr.Out.Bytes(), md))
 			require.Equal(t, tc.wantType, md.Driver)
 			require.Equal(t, source.StdinHandle, md.Handle)

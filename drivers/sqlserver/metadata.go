@@ -20,6 +20,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
 // kindFromDBTypeName determines the kind.Kind from the database
@@ -110,7 +111,7 @@ func setScanType(ct *record.ColumnTypeData, knd kind.Kind) {
 	}
 }
 
-func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSchema bool) (*source.Metadata, error) {
+func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSchema bool) (*metadata.Source, error) {
 	log := lg.FromContext(ctx)
 	ctx = options.NewContext(ctx, src.Options)
 
@@ -120,7 +121,7 @@ FROM sys.master_files WITH(NOWAIT)
 WHERE database_id = DB_ID()
 GROUP BY database_id) AS total_size_bytes`
 
-	md := &source.Metadata{Driver: Type, DBDriver: Type}
+	md := &metadata.Source{Driver: Type, DBDriver: Type}
 	md.Handle = src.Handle
 	md.Location = src.Location
 
@@ -151,7 +152,7 @@ GROUP BY database_id) AS total_size_bytes`
 
 	g, gCtx := errgroup.WithContext(ctx)
 	g.SetLimit(driver.OptTuningErrgroupLimit.Get(src.Options))
-	tblMetas := make([]*source.TableMetadata, len(tblNames))
+	tblMetas := make([]*metadata.Table, len(tblNames))
 	for i := range tblNames {
 		i := i
 		g.Go(func() error {
@@ -189,7 +190,7 @@ GROUP BY database_id) AS total_size_bytes`
 	// If a table wasn't found (possibly dropped while querying), then
 	// its entry could be nil. We copy the non-nil elements to the
 	// final slice.
-	md.Tables = make([]*source.TableMetadata, 0, len(tblMetas))
+	md.Tables = make([]*metadata.Table, 0, len(tblMetas))
 	for i := range tblMetas {
 		if tblMetas[i] != nil {
 			md.Tables = append(md.Tables, tblMetas[i])
@@ -208,10 +209,10 @@ GROUP BY database_id) AS total_size_bytes`
 
 func getTableMetadata(ctx context.Context, db sqlz.DB, tblCatalog,
 	tblSchema, tblName, tblType string,
-) (*source.TableMetadata, error) {
+) (*metadata.Table, error) {
 	const tplTblUsage = `sp_spaceused '%s'`
 
-	tblMeta := &source.TableMetadata{Name: tblName, DBTableType: tblType}
+	tblMeta := &metadata.Table{Name: tblName, DBTableType: tblType}
 	tblMeta.FQName = tblCatalog + "." + tblSchema + "." + tblName
 
 	switch tblMeta.DBTableType {
@@ -274,9 +275,9 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblCatalog,
 		return nil, errw(err)
 	}
 
-	cols := make([]*source.ColMetadata, len(dbCols))
+	cols := make([]*metadata.Column, len(dbCols))
 	for i := range dbCols {
-		cols[i] = &source.ColMetadata{
+		cols[i] = &metadata.Column{
 			Name:         dbCols[i].ColumnName,
 			Position:     dbCols[i].OrdinalPosition,
 			BaseType:     dbCols[i].DataType,

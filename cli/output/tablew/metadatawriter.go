@@ -16,6 +16,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
 var _ output.MetadataWriter = (*mdWriter)(nil)
@@ -49,7 +50,7 @@ func (w *mdWriter) DriverMetadata(drvrs []driver.Metadata) error {
 }
 
 // TableMetadata implements output.MetadataWriter.
-func (w *mdWriter) TableMetadata(tblMeta *source.TableMetadata) error {
+func (w *mdWriter) TableMetadata(tblMeta *metadata.Table) error {
 	if w.tbl.pr.Verbose {
 		return w.doTableMetaVerbose(tblMeta)
 	}
@@ -57,7 +58,7 @@ func (w *mdWriter) TableMetadata(tblMeta *source.TableMetadata) error {
 	return w.doTableMeta(tblMeta)
 }
 
-func (w *mdWriter) doTableMeta(md *source.TableMetadata) error {
+func (w *mdWriter) doTableMeta(md *metadata.Table) error {
 	var headers []string
 	var rows [][]string
 
@@ -89,12 +90,12 @@ func (w *mdWriter) doTableMeta(md *source.TableMetadata) error {
 	return nil
 }
 
-func (w *mdWriter) doTableMetaVerbose(tblMeta *source.TableMetadata) error {
-	return w.printTablesVerbose([]*source.TableMetadata{tblMeta})
+func (w *mdWriter) doTableMetaVerbose(tblMeta *metadata.Table) error {
+	return w.printTablesVerbose([]*metadata.Table{tblMeta})
 }
 
 // SourceMetadata implements output.MetadataWriter.
-func (w *mdWriter) SourceMetadata(md *source.Metadata, showSchema bool) error {
+func (w *mdWriter) SourceMetadata(md *metadata.Source, showSchema bool) error {
 	if !showSchema {
 		return w.doSourceMetaNoSchema(md)
 	}
@@ -102,7 +103,7 @@ func (w *mdWriter) SourceMetadata(md *source.Metadata, showSchema bool) error {
 	return w.doSourceMetaFull(md)
 }
 
-func (w *mdWriter) doSourceMetaNoSchema(md *source.Metadata) error {
+func (w *mdWriter) doSourceMetaNoSchema(md *metadata.Source) error {
 	headers := []string{
 		"SOURCE",
 		"DRIVER",
@@ -132,7 +133,7 @@ func (w *mdWriter) doSourceMetaNoSchema(md *source.Metadata) error {
 	return nil
 }
 
-func (w *mdWriter) printTablesVerbose(tbls []*source.TableMetadata) error {
+func (w *mdWriter) printTablesVerbose(tbls []*metadata.Table) error {
 	w.tbl.reset()
 
 	headers := []string{
@@ -156,7 +157,7 @@ func (w *mdWriter) printTablesVerbose(tbls []*source.TableMetadata) error {
 	var rows [][]string
 	var row []string
 
-	getPK := func(col *source.ColMetadata) string {
+	getPK := func(col *metadata.Column) string {
 		if !col.PrimaryKey {
 			return ""
 		}
@@ -195,7 +196,7 @@ func (w *mdWriter) printTablesVerbose(tbls []*source.TableMetadata) error {
 	return nil
 }
 
-func (w *mdWriter) printTables(tables []*source.TableMetadata) error {
+func (w *mdWriter) printTables(tables []*metadata.Table) error {
 	w.tbl.reset()
 
 	headers := []string{"NAME", "TYPE", "ROWS", "COLS"}
@@ -229,7 +230,7 @@ func (w *mdWriter) printTables(tables []*source.TableMetadata) error {
 	return nil
 }
 
-func (w *mdWriter) doSourceMetaFull(md *source.Metadata) error {
+func (w *mdWriter) doSourceMetaFull(md *metadata.Source) error {
 	var headers []string
 	var row []string
 
@@ -274,7 +275,7 @@ func (w *mdWriter) doSourceMetaFull(md *source.Metadata) error {
 	w.tbl.reset()
 
 	// Sort by type (view/table) and name
-	slices.SortFunc(md.Tables, func(a, b *source.TableMetadata) int {
+	slices.SortFunc(md.Tables, func(a, b *metadata.Table) int {
 		if a.TableType == b.TableType {
 			return cmp.Compare(a.Name, b.Name)
 		}

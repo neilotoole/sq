@@ -8,6 +8,7 @@ import (
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
 // mdWriter implements output.MetadataWriter for YAML.
@@ -29,12 +30,12 @@ func (w *mdWriter) DriverMetadata(md []driver.Metadata) error {
 }
 
 // TableMetadata implements output.MetadataWriter.
-func (w *mdWriter) TableMetadata(md *source.TableMetadata) error {
+func (w *mdWriter) TableMetadata(md *metadata.Table) error {
 	return writeYAML(w.out, w.yp, md)
 }
 
 // SourceMetadata implements output.MetadataWriter.
-func (w *mdWriter) SourceMetadata(md *source.Metadata, showSchema bool) error {
+func (w *mdWriter) SourceMetadata(md *metadata.Source, showSchema bool) error {
 	md2 := *md // Shallow copy is fine
 	md2.Location = source.RedactLocation(md2.Location)
 
@@ -44,13 +45,13 @@ func (w *mdWriter) SourceMetadata(md *source.Metadata, showSchema bool) error {
 
 	// Don't render "tables", "table_count", and "view_count"
 	type mdNoSchema struct {
-		source.Metadata `yaml:",omitempty,inline"`
-		Tables          *[]*source.TableMetadata `yaml:"tables,omitempty"`
-		TableCount      *int64                   `yaml:"table_count,omitempty"`
-		ViewCount       *int64                   `yaml:"view_count,omitempty"`
+		metadata.Source `yaml:",omitempty,inline"`
+		Tables          *[]*metadata.Table `yaml:"tables,omitempty"`
+		TableCount      *int64             `yaml:"table_count,omitempty"`
+		ViewCount       *int64             `yaml:"view_count,omitempty"`
 	}
 
-	return writeYAML(w.out, w.yp, &mdNoSchema{Metadata: md2})
+	return writeYAML(w.out, w.yp, &mdNoSchema{Source: md2})
 }
 
 // DBProperties implements output.MetadataWriter.
