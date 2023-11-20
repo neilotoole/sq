@@ -92,7 +92,7 @@ formats both show extensive detail.`,
 	return cmd
 }
 
-func execInspect(cmd *cobra.Command, args []string) error {
+func execInspect(cmd *cobra.Command, args []string) error { //nolint:funlen
 	ctx := cmd.Context()
 	ru, log := run.FromContext(ctx), lg.FromContext(ctx)
 
@@ -178,6 +178,16 @@ func execInspect(cmd *cobra.Command, args []string) error {
 	}
 
 	if table != "" {
+		if flagName, changed := cmdFlagAnyChanged(
+			cmd,
+			flag.InspectCatalogs,
+			flag.InspectSchemas,
+			flag.InspectDBProps,
+			flag.InspectOverview,
+		); changed {
+			return errz.Errorf("flag --%s is not valid when inspecting a table", flagName)
+		}
+
 		var tblMeta *source.TableMetadata
 		tblMeta, err = pool.TableMetadata(ctx, table)
 		if err != nil {
