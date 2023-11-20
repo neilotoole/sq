@@ -937,3 +937,4 @@ make working with lots of sources much easier.
 [v0.42.1]: https://github.com/neilotoole/sq/compare/v0.42.0...v0.42.1
 [v0.43.0]: https://github.com/neilotoole/sq/compare/v0.42.1...v0.43.0
 [v0.43.1]: https://github.com/neilotoole/sq/compare/v0.43.0...v0.43.1
+[v0.44.0]: https://github.com/neilotoole/sq/compare/v0.43.1...v0.44.0
