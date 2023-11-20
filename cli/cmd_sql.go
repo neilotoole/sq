@@ -51,8 +51,7 @@ source.`,
 	// Anyway, because the flags were already present in previous
 	// releases, I'm reverting the (very recent) deletion of these
 	// flags and instead making them hidden, so that their use
-	// by doesn't result in an error. The flags still
-	// don't actually do anything.
+	// doesn't result in an error. The flags still don't actually do anything.
 
 	// User explicitly wants to execute the SQL using sql.DB.Query
 	cmd.Flags().Bool(flag.SQLQuery, false, flag.SQLQueryUsage)
