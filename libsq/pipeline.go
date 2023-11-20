@@ -2,7 +2,10 @@ package libsq
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
+
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 
 	"github.com/samber/lo"
 	"golang.org/x/sync/errgroup"
@@ -78,17 +81,60 @@ func newPipeline(ctx context.Context, qc *QueryContext, query string) (*pipeline
 
 // execute executes the pipeline, writing results to recw.
 func (p *pipeline) execute(ctx context.Context, recw RecordWriter) error {
-	lg.FromContext(ctx).Debug(
+	log := lg.FromContext(ctx)
+	log.Debug(
 		"Execute SQL query",
 		lga.Src, p.targetPool.Source(),
 		lga.SQL, p.targetSQL,
 	)
 
+	errw := p.targetPool.SQLDriver().ErrWrapFunc()
+
+	// TODO: The tasks might like to be executed in parallel. However,
+	// what happens if a task does something that is session/connection-dependent?
+	// When the query executes later (below), it could be on a different
+	// connection. Maybe the tasks need a means of declaring that they
+	// hae to be run on the same connection as the main query?
 	if err := p.executeTasks(ctx); err != nil {
+		return errw(err)
+	}
+
+	var conn sqlz.DB
+	if len(p.qc.PreExecStmts) > 0 || len(p.qc.PostExecStmts) > 0 {
+		// If there's pre/post exec work to do, we need to
+		// obtain a connection from the pool. We are responsible
+		// for closing these resources.
+		db, err := p.targetPool.DB(ctx)
+		if err != nil {
+			return errw(err)
+		}
+		defer lg.WarnIfCloseError(log, lgm.CloseDB, db)
+
+		if conn, err = db.Conn(ctx); err != nil {
+			return errw(err)
+		}
+		defer lg.WarnIfCloseError(log, lgm.CloseConn, conn.(*sql.Conn))
+
+		for _, stmt := range p.qc.PreExecStmts {
+			if _, err = conn.ExecContext(ctx, stmt); err != nil {
+				return errw(err)
+			}
+		}
+	}
+
+	if err := QuerySQL(ctx, p.targetPool, conn, recw, p.targetSQL); err != nil {
 		return err
 	}
 
-	return QuerySQL(ctx, p.targetPool, nil, recw, p.targetSQL)
+	if conn != nil && len(p.qc.PostExecStmts) > 0 {
+		for _, stmt := range p.qc.PostExecStmts {
+			if _, err := conn.ExecContext(ctx, stmt); err != nil {
+				return errw(err)
+			}
+		}
+	}
+
+	return nil
 }
 
 // executeTasks executes any tasks in pipeline.tasks.

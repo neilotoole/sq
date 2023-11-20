@@ -12,10 +12,9 @@ import (
 // against targetPool before targetSQL is executed (the pipeline.execute
 // method does this work).
 func (p *pipeline) prepare(ctx context.Context, qm *queryModel) error {
-	var (
-		err   error
-		frags = &render.Fragments{}
-	)
+	var err error
+
+	frags := &render.Fragments{}
 
 	// After this switch, p.rc will be set.
 	switch {
@@ -34,6 +33,7 @@ func (p *pipeline) prepare(ctx context.Context, qm *queryModel) error {
 		}
 	}
 
+	p.rc.Fragments = frags
 	rndr := p.rc.Renderer
 	if frags.Columns, err = rndr.SelectCols(p.rc, qm.Cols); err != nil {
 		return err
@@ -69,12 +69,18 @@ func (p *pipeline) prepare(ctx context.Context, qm *queryModel) error {
 		}
 	}
 
-	if rndr.PreRender != nil {
-		if err = rndr.PreRender(p.rc, frags); err != nil {
+	for _, fn := range rndr.PreRender {
+		if err = fn(p.rc, frags); err != nil {
 			return err
 		}
 	}
 
-	p.targetSQL, err = rndr.Render(p.rc, frags)
-	return err
+	if p.targetSQL, err = rndr.Render(p.rc, frags); err != nil {
+		return err
+	}
+
+	p.qc.PreExecStmts = append(p.qc.PreExecStmts, frags.PreExecStmts...)
+	p.qc.PostExecStmts = append(p.qc.PostExecStmts, frags.PostExecStmts...)
+
+	return nil
 }

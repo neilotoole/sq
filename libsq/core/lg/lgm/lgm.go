@@ -5,6 +5,7 @@ package lgm
 
 const (
 	CloseDB         = "Close DB"
+	CloseConn       = "Close SQL connection"
 	CloseDBRows     = "Close DB rows"
 	CloseDBStmt     = "Close DB stmt"
 	CloseFileReader = "Close file reader"

@@ -20,6 +20,11 @@ type Context struct {
 	// The args map contains predefined variables that are
 	// substituted into the query. It may be empty or nil.
 	Args map[string]string
+
+	// Fragments is the set of fragments that are rendered into
+	// a SQL query. It may not be initialized until late in
+	// the day.
+	Fragments *Fragments
 }
 
 // Renderer is a set of functions for rendering ast elements into SQL.
@@ -76,9 +81,9 @@ type Renderer struct {
 	// empty string if n is nil.
 	Distinct func(rc *Context, n *ast.UniqueNode) (string, error)
 
-	// PreRender is a hook that is called before Render. It is a final
+	// PreRender is a set of hooks that are called before Render. It is a final
 	// opportunity to customize f before rendering. It is nil by default.
-	PreRender func(rc *Context, f *Fragments) error
+	PreRender []func(rc *Context, f *Fragments) error
 
 	// Render renders f into a SQL query.
 	Render func(rc *Context, f *Fragments) (string, error)
@@ -110,6 +115,18 @@ func NewDefaultRenderer() *Renderer {
 // Fragments holds the fragments of a SQL query.
 // It is passed to Renderer.PreRender and Renderer.Render.
 type Fragments struct {
+	// PreExecStmts are statements that are executed before the query.
+	// These can be used for edge-case behavior, such as setting up
+	// variables in the session.
+	//
+	// See also: Fragments.PostExecStmts.
+	PreExecStmts []string
+
+	// PostExecStmts are statements that are executed after the query.
+	//
+	// See also: Fragments.PreExecStmts.
+	PostExecStmts []string
+
 	Distinct string
 	Columns  string
 	From     string
@@ -119,7 +136,7 @@ type Fragments struct {
 	Range    string
 }
 
-// Render implements QueryBuilder.
+// doRender renders the supplied fragments into a SQL query.
 func doRender(_ *Context, f *Fragments) (string, error) {
 	sb := strings.Builder{}
 
@@ -185,13 +202,13 @@ func renderSelectorNode(d dialect.Dialect, node ast.Node) (string, error) {
 	}
 }
 
-// sqlAppend is a convenience function for building the SQL string.
+// AppendSQL is a convenience function for building the SQL string.
 // The main purpose is to ensure that there's always a consistent amount
 // of whitespace. Thus, if existing has a space suffix and add has a
 // space prefix, the returned string will only have one space. If add
 // is the empty string or just whitespace, this function simply
 // returns existing.
-func sqlAppend(existing, add string) string {
+func AppendSQL(existing, add string) string {
 	add = strings.TrimSpace(add)
 	if add == "" {
 		return existing

@@ -31,6 +31,6 @@ func doRange(_ *Context, rr *ast.RowRangeNode) (string, error) {
 		}
 	}
 
-	sql := sqlAppend(limit, offset)
+	sql := AppendSQL(limit, offset)
 	return sql, nil
 }

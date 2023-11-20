@@ -93,7 +93,6 @@ func doFunction(rc *Context, fn *ast.FuncNode) (string, error) {
 }
 
 // FuncRowNum renders the rownum() function.
-// FIXME: make this private, and add to the default renderer.
 func FuncRowNum(rc *Context, fn *ast.FuncNode) (string, error) {
 	a, _ := ast.NodeRoot(fn).(*ast.AST)
 	obNode := ast.FindFirstNode[*ast.OrderByNode](a)

@@ -38,6 +38,18 @@ type QueryContext struct {
 	// Args defines variables that are substituted into the query.
 	// May be nil or empty.
 	Args map[string]string
+
+	// PreExecStmts are statements that are executed before the query.
+	// These can be used for edge-case behavior, such as setting up
+	// variables in the session.
+	//
+	// See also: QueryContext.PostExecStmts.
+	PreExecStmts []string
+
+	// PostExecStmts are statements that are executed after the query.
+	//
+	// See also: QueryContext.PreExecStmts.
+	PostExecStmts []string
 }
 
 // RecordWriter is the interface for writing records to a

@@ -39,9 +39,9 @@ func doJoin(rc *Context, leftTbl *ast.TblSelectorNode, joins []*ast.JoinNode) (s
 	}
 
 	sql := "FROM "
-	sql = sqlAppend(sql, leftTbl.Table().Render(enquote))
+	sql = AppendSQL(sql, leftTbl.Table().Render(enquote))
 	if leftTbl.Alias() != "" {
-		sql = sqlAppend(sql, "AS "+enquote(leftTbl.Alias()))
+		sql = AppendSQL(sql, "AS "+enquote(leftTbl.Alias()))
 	}
 
 	for i, join := range joins {
@@ -57,9 +57,9 @@ func doJoin(rc *Context, leftTbl *ast.TblSelectorNode, joins []*ast.JoinNode) (s
 		}
 
 		tbl := join.Table()
-		s = sqlAppend(s, tbl.Table().Render(enquote))
+		s = AppendSQL(s, tbl.Table().Render(enquote))
 		if tbl.Alias() != "" {
-			s = sqlAppend(s, "AS "+enquote(tbl.Alias()))
+			s = AppendSQL(s, "AS "+enquote(tbl.Alias()))
 		}
 
 		if expr := join.Predicate(); expr != nil {
@@ -68,7 +68,7 @@ func doJoin(rc *Context, leftTbl *ast.TblSelectorNode, joins []*ast.JoinNode) (s
 					join.JoinType(), join.Text())
 			}
 
-			s = sqlAppend(s, "ON")
+			s = AppendSQL(s, "ON")
 
 			// Special handling for: .left_tbl | join(.right_tbl, .col)
 			// This is rendered as:
@@ -81,8 +81,8 @@ func doJoin(rc *Context, leftTbl *ast.TblSelectorNode, joins []*ast.JoinNode) (s
 					text := allTbls[i].TblAliasOrName().Render(enquote) + "." + enquote(colName)
 					text += " = "
 					text += allTbls[i+1].TblAliasOrName().Render(enquote) + "." + enquote(colName)
-					s = sqlAppend(s, text)
-					sql = sqlAppend(sql, s)
+					s = AppendSQL(s, text)
+					sql = AppendSQL(sql, s)
 					continue
 				}
 			}
@@ -92,10 +92,10 @@ func doJoin(rc *Context, leftTbl *ast.TblSelectorNode, joins []*ast.JoinNode) (s
 				return "", err
 			}
 
-			s = sqlAppend(s, text)
+			s = AppendSQL(s, text)
 		}
 
-		sql = sqlAppend(sql, s)
+		sql = AppendSQL(sql, s)
 	}
 
 	return sql, nil
