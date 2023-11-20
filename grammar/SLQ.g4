@@ -179,10 +179,7 @@ results are inherently sorted. Although perhaps it should be implemented
 as a no-op.
 */
 
-//ORDER_ASC: '+';
-//ORDER_DESC: '-';
 ORDER_BY: 'order_by' | 'sort_by';
-//orderByTerm: selector (ORDER_ASC | ORDER_DESC)?;
 orderByTerm: selector ('+' | '-')?;
 orderBy: ORDER_BY '(' orderByTerm (',' orderByTerm)* ')';
 
