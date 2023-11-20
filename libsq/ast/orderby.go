@@ -1,8 +1,9 @@
 package ast
 
 import (
-	"github.com/neilotoole/sq/libsq/ast/internal/slq"
 	"strings"
+
+	"github.com/neilotoole/sq/libsq/ast/internal/slq"
 )
 
 // OrderByNode implements the SQL "ORDER BY" clause.

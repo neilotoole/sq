@@ -78,6 +78,57 @@ func TestQuery_func(t *testing.T) {
 	}
 }
 
+func TestQuery_func_rownum(t *testing.T) {
+	testCases := []queryTestCase{
+		{
+			name:    "plain",
+			in:      `@sakila | .actor | rownum()`,
+			wantSQL: `SELECT (row_number() over ()) AS "rownum()" FROM "actor"`,
+			onlyFor: []source.DriverType{postgres.Type},
+			// override:     driverMap{mysql.Type: "SELECT max(`actor_id`) AS `max(.actor_id)` FROM `actor`"},
+			wantRecCount: 200,
+			sinkFns: []SinkTestFunc{
+				assertSinkColName(0, "rownum()"),
+				assertSinkCellValue(0, 0, int64(1)),
+				assertSinkCellValue(199, 0, int64(200)),
+			},
+		},
+		{
+			name:    "plus_1",
+			in:      `@sakila | .actor | rownum() + 1`,
+			wantSQL: `SELECT (row_number() over ())+1 AS "rownum()+1" FROM "actor"`,
+			onlyFor: []source.DriverType{postgres.Type},
+			// override:     driverMap{mysql.Type: "SELECT max(`actor_id`) AS `max(.actor_id)` FROM `actor`"},
+			wantRecCount: 200,
+			sinkFns: []SinkTestFunc{
+				assertSinkColName(0, "rownum()+1"),
+				assertSinkCellValue(0, 0, int64(2)),
+				assertSinkCellValue(199, 0, int64(201)),
+			},
+		},
+		{
+			name:    "minus_1_alias",
+			in:      `@sakila | .actor | (rownum()-1):zero_index`,
+			wantSQL: `SELECT ((row_number() over ())-1) AS "zero_index" FROM "actor"`,
+			onlyFor: []source.DriverType{postgres.Type},
+			// override:     driverMap{mysql.Type: "SELECT max(`actor_id`) AS `max(.actor_id)` FROM `actor`"},
+			wantRecCount: 200,
+			sinkFns: []SinkTestFunc{
+				assertSinkColName(0, "zero_index"),
+				assertSinkCellValue(0, 0, int64(0)),
+				assertSinkCellValue(199, 0, int64(199)),
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			execQueryTestCase(t, tc)
+		})
+	}
+}
+
 func TestQuery_func_schema(t *testing.T) {
 	testCases := []queryTestCase{
 		{

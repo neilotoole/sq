@@ -98,7 +98,6 @@ func execQueryTestCase(t *testing.T, tc queryTestCase) {
 	if tc.skip {
 		t.Skip()
 	}
-
 	t.Helper()
 
 	switch len(tc.repeatReplace) {
@@ -208,6 +207,14 @@ func doExecQueryTestCase(t *testing.T, tc queryTestCase) {
 				tc.sinkFns[i](t, sink)
 			}
 		})
+	}
+}
+
+// assertSinkCellValue returns a SinkTestFunc that asserts that
+// the cell at rowi, coli matches val.
+func assertSinkCellValue(rowi, coli int, val any) SinkTestFunc { //nolint:unparam
+	return func(t testing.TB, sink *testh.RecordSink) {
+		assert.Equal(t, val, sink.Recs[rowi][coli], "record[%d:%d] (%s)", rowi, coli, sink.RecMeta[coli].Name())
 	}
 }
 

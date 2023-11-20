@@ -57,7 +57,14 @@ func doExpr(rc *Context, expr *ast.ExprNode) (string, error) {
 				return "", err
 			}
 			sb.WriteString(val)
+		case *ast.FuncNode:
+			val, err := r.Function(rc, child)
+			if err != nil {
+				return "", err
+			}
+			sb.WriteString(val)
 		default:
+			// FIXME: Should log a warning here
 			// Shouldn't happen? Need to investigate.
 			sb.WriteString(child.Text())
 		}
