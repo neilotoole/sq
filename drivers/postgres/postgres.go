@@ -128,8 +128,6 @@ func (d *driveri) Renderer() *render.Renderer {
 	r := render.NewDefaultRenderer()
 	r.FunctionNames[ast.FuncNameSchema] = "current_schema"
 	r.FunctionNames[ast.FuncNameCatalog] = "current_database"
-	// r.FunctionOverrides[ast.FuncNameRowNum] = render.FuncOverrideString("(row_number() OVER ())")
-	r.FunctionOverrides[ast.FuncNameRowNum] = render.FuncRowNum
 	return r
 }
 

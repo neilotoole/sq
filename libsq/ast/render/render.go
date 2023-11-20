@@ -94,21 +94,23 @@ type Renderer struct {
 // as needed.
 func NewDefaultRenderer() *Renderer {
 	return &Renderer{
-		FromTable:         doFromTable,
-		SelectCols:        doSelectCols,
-		Range:             doRange,
-		OrderBy:           doOrderBy,
-		GroupBy:           doGroupBy,
-		Join:              doJoin,
-		Function:          doFunction,
-		FunctionOverrides: map[string]func(rc *Context, fn *ast.FuncNode) (string, error){},
-		FunctionNames:     map[string]string{},
-		Literal:           doLiteral,
-		Where:             doWhere,
-		Expr:              doExpr,
-		Operator:          doOperator,
-		Distinct:          doDistinct,
-		Render:            doRender,
+		FromTable:  doFromTable,
+		SelectCols: doSelectCols,
+		Range:      doRange,
+		OrderBy:    doOrderBy,
+		GroupBy:    doGroupBy,
+		Join:       doJoin,
+		Function:   doFunction,
+		FunctionOverrides: map[string]func(rc *Context, fn *ast.FuncNode) (string, error){
+			ast.FuncNameRowNum: doFuncRowNum,
+		},
+		FunctionNames: map[string]string{},
+		Literal:       doLiteral,
+		Where:         doWhere,
+		Expr:          doExpr,
+		Operator:      doOperator,
+		Distinct:      doDistinct,
+		Render:        doRender,
 	}
 }
 

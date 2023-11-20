@@ -253,9 +253,6 @@ func (d *driveri) Renderer() *render.Renderer {
 	const catalogFrag = `(SELECT 'default')`
 	r.FunctionOverrides[ast.FuncNameCatalog] = render.FuncOverrideString(catalogFrag)
 
-	// FIXME: Usages of render.FuncRowNum should be the default?
-	r.FunctionOverrides[ast.FuncNameRowNum] = render.FuncRowNum
-
 	return r
 }
 

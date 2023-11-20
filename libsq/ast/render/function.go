@@ -92,8 +92,8 @@ func doFunction(rc *Context, fn *ast.FuncNode) (string, error) {
 	return sql, nil
 }
 
-// FuncRowNum renders the rownum() function.
-func FuncRowNum(rc *Context, fn *ast.FuncNode) (string, error) {
+// doFuncRowNum renders the rownum() function.
+func doFuncRowNum(rc *Context, fn *ast.FuncNode) (string, error) {
 	a, _ := ast.NodeRoot(fn).(*ast.AST)
 	obNode := ast.FindFirstNode[*ast.OrderByNode](a)
 	if obNode != nil {
