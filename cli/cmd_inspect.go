@@ -30,21 +30,22 @@ listing table details such as column names and row counts, etc.
 
 NOTE: If a schema is large, it may take some time for the command to complete.
 
-If @HANDLE is not provided, the active data source is assumed.
+If @HANDLE is not provided, the active data source is assumed. If @HANDLE.TABLE
+is provided, table inspection is performed (as opposed to source inspection).
 
-When flag --overview is true, only the source's' metadata is shown,
-not the schema. The flag is disregarded when inspecting a table.
+There are several modes of operation, controlled by flags. Each of the following
+modes apply only to source inspection, not table inspection. When no mode flag
+is supplied, the default is to show the source metadata and schema.
 
-When flag --dbprops is true, only the database properties for the source's
-*underlying* database are shown. The flag is disregarded when inspecting a table.
+  --overview:  Displays the source's metadata, but not the schema.
 
-When flag --catalogs is true, only the catalogs for the source's *underlying*
-database are shown. The flag is disregarded when inspecting a table.
+  --dbprops:   Displays database properties for the sources' *underlying* database.
 
-When flag --schemas is true, only the schemas for the source's *underlying*
-database are shown. The flag is disregarded when inspecting a table.
+  --catalogs:  List the catalogs (databases) available via the source.
 
-Use --verbose with the --text format to see more detail. The --json and --yaml
+  --schemas:   List the schemas available in the source's active catalog.
+
+Use --verbose with --text format to see more detail. The --json and --yaml
 formats both show extensive detail.`,
 		Example: `  # Inspect active data source.
   $ sq inspect
@@ -86,11 +87,7 @@ formats both show extensive detail.`,
   $ cat data.xlsx | sq inspect`,
 	}
 
-	cmd.Flags().String(flag.ActiveSchema, "", flag.ActiveSchemaUsage)
-	panicOn(cmd.RegisterFlagCompletionFunc(flag.ActiveSchema,
-		activeSchemaCompleter{getActiveSourceViaArgs}.complete))
-
-	addTextFlags(cmd)
+	addTextFormatFlags(cmd)
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 	cmd.Flags().BoolP(flag.Compact, flag.CompactShort, false, flag.CompactUsage)
 	cmd.Flags().BoolP(flag.YAML, flag.YAMLShort, false, flag.YAMLUsage)
@@ -101,6 +98,10 @@ formats both show extensive detail.`,
 	cmd.Flags().Bool(flag.InspectSchemas, false, flag.InspectSchemasUsage)
 
 	cmd.MarkFlagsMutuallyExclusive(flag.InspectOverview, flag.InspectDBProps, flag.InspectCatalogs, flag.InspectSchemas)
+
+	cmd.Flags().String(flag.ActiveSchema, "", flag.ActiveSchemaUsage)
+	panicOn(cmd.RegisterFlagCompletionFunc(flag.ActiveSchema,
+		activeSchemaCompleter{getActiveSourceViaArgs}.complete))
 
 	return cmd
 }
