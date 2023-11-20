@@ -10,16 +10,13 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/record"
-
 	"github.com/fatih/color"
 
-	"github.com/neilotoole/sq/libsq/core/kind"
-	"github.com/neilotoole/sq/libsq/core/stringz"
-
 	"github.com/neilotoole/sq/cli/output"
-
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/record"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 // recordWriter implements output.RecordWriter.

@@ -8,9 +8,8 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/neilotoole/sq/libsq/core/stringz"
-
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 var (

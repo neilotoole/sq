@@ -1,11 +1,12 @@
 package cli
 
 import (
+	"github.com/spf13/cobra"
+
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/options"
-	"github.com/spf13/cobra"
 )
 
 func newConfigListCmd() *cobra.Command {

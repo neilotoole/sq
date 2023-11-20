@@ -6,15 +6,13 @@ import (
 	"os"
 	"testing"
 
-	"github.com/neilotoole/sq/testh/testsrc"
+	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli/output"
-
 	"github.com/neilotoole/sq/cli/output/xmlw"
-
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
-	"github.com/stretchr/testify/require"
+	"github.com/neilotoole/sq/testh/testsrc"
 )
 
 func TestRecordWriter_Actor(t *testing.T) {

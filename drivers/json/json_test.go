@@ -7,16 +7,14 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/slogt"
 
-	"github.com/neilotoole/sq/testh/tutil"
-
-	"github.com/stretchr/testify/require"
-
 	"github.com/neilotoole/sq/drivers/json"
+	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/testh/tutil"
 )
 
 func TestDriverDetectorFuncs(t *testing.T) {

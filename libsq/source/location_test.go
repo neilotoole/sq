@@ -4,10 +4,10 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/neilotoole/sq/testh/tutil"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/testh/tutil"
 )
 
 func TestIsSQL(t *testing.T) {

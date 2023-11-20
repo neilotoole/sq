@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/yamlw"
-
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
-	"github.com/stretchr/testify/require"
 )
 
 func TestRecordWriter(t *testing.T) {

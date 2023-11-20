@@ -3,9 +3,8 @@ package jsonw
 import (
 	"io"
 
-	"github.com/neilotoole/sq/cli/hostinfo"
-
 	"github.com/neilotoole/sq/cli/buildinfo"
+	"github.com/neilotoole/sq/cli/hostinfo"
 	"github.com/neilotoole/sq/cli/output"
 )
 

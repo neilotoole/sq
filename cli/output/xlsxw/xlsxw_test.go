@@ -9,26 +9,19 @@ import (
 	"os"
 	"testing"
 
-	"github.com/neilotoole/sq/cli/output/xlsxw"
-
 	"github.com/stretchr/testify/assert"
-
-	"github.com/neilotoole/sq/cli/testrun"
-
-	"github.com/neilotoole/sq/testh/fixt"
-
-	"github.com/neilotoole/sq/libsq/source"
-
-	"github.com/neilotoole/sq/testh/tutil"
-
-	"github.com/xuri/excelize/v2"
+	"github.com/stretchr/testify/require"
+	excelize "github.com/xuri/excelize/v2"
 
 	"github.com/neilotoole/sq/cli/output"
+	"github.com/neilotoole/sq/cli/output/xlsxw"
+	"github.com/neilotoole/sq/cli/testrun"
+	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/testh"
+	"github.com/neilotoole/sq/testh/fixt"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/testsrc"
-
-	"github.com/stretchr/testify/require"
+	"github.com/neilotoole/sq/testh/tutil"
 )
 
 func TestRecordWriter(t *testing.T) {

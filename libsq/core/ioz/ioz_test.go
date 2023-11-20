@@ -3,8 +3,9 @@ package ioz_test
 import (
 	"testing"
 
-	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/stretchr/testify/require"
+
+	"github.com/neilotoole/sq/libsq/core/ioz"
 )
 
 func TestMarshalYAML(t *testing.T) {

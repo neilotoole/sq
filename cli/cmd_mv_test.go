@@ -3,9 +3,10 @@ package cli_test
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/neilotoole/sq/cli"
 	"github.com/neilotoole/sq/testh/tutil"
-	"github.com/stretchr/testify/require"
 )
 
 func TestLastHandlePart(t *testing.T) {

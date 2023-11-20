@@ -3,15 +3,12 @@ package csv
 import (
 	"context"
 
-	"github.com/neilotoole/sq/libsq/driver"
-
-	"github.com/neilotoole/sq/libsq/core/lg"
-	"github.com/neilotoole/sq/libsq/core/lg/lga"
-
-	"github.com/neilotoole/sq/libsq/core/options"
-
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/driver"
 )
 
 // hasHeaderRow returns true if a header row is explicitly

@@ -3,9 +3,10 @@ package cli
 import (
 	"io"
 
-	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+
+	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
 // cmdFlagChanged returns true if cmd is non-nil and

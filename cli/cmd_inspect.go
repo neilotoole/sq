@@ -3,10 +3,10 @@ package cli
 import (
 	"database/sql"
 
-	"github.com/neilotoole/sq/cli/flag"
-	"github.com/neilotoole/sq/cli/run"
 	"github.com/spf13/cobra"
 
+	"github.com/neilotoole/sq/cli/flag"
+	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/source"
 )

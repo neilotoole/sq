@@ -11,20 +11,15 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/loz"
-
-	"github.com/neilotoole/sq/libsq/core/options"
-
-	"github.com/neilotoole/sq/libsq/core/record"
-
-	"github.com/neilotoole/sq/libsq/core/lg/lgm"
-
-	"github.com/neilotoole/sq/libsq/core/lg"
-
 	"go.uber.org/atomic"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+	"github.com/neilotoole/sq/libsq/core/loz"
+	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 )

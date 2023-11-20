@@ -3,9 +3,10 @@ package ast_test
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/testh/tutil"
-	"github.com/stretchr/testify/require"
 )
 
 func TestParseCatalogSchema(t *testing.T) {

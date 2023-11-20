@@ -3,9 +3,10 @@ package cobraz
 import (
 	"testing"
 
-	"github.com/neilotoole/sq/testh/tutil"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
+
+	"github.com/neilotoole/sq/testh/tutil"
 )
 
 func TestExtractDirectives(t *testing.T) {

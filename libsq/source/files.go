@@ -11,12 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/lg/lga"
-
-	"github.com/neilotoole/sq/libsq/core/lg/lgm"
-
-	"github.com/neilotoole/sq/libsq/core/lg"
-
 	"github.com/djherbis/fscache"
 	"github.com/h2non/filetype"
 	"github.com/h2non/filetype/matchers"
@@ -24,6 +18,9 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/source/fetcher"
 )
 

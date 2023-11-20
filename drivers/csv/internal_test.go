@@ -9,13 +9,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/neilotoole/sq/libsq/core/stringz"
-
-	"github.com/neilotoole/sq/testh/tutil"
-
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/testh/tutil"
 )
 
 func Test_isCSV(t *testing.T) {

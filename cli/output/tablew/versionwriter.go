@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/neilotoole/sq/cli/hostinfo"
+	"golang.org/x/mod/semver"
 
 	"github.com/neilotoole/sq/cli/buildinfo"
+	"github.com/neilotoole/sq/cli/hostinfo"
 	"github.com/neilotoole/sq/cli/output"
-	"golang.org/x/mod/semver"
 )
 
 var _ output.VersionWriter = (*versionWriter)(nil)

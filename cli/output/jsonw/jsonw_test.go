@@ -9,15 +9,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/record"
+	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/slogt"
-
-	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/jsonw"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/fixt"
 )

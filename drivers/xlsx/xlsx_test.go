@@ -7,6 +7,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/samber/lo"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/maps"
 
 	"github.com/neilotoole/sq/cli/testrun"
@@ -23,9 +26,6 @@ import (
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/tutil"
-	"github.com/samber/lo"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 var sakilaSheets = []string{

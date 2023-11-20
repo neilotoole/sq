@@ -11,14 +11,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/kind"
-
-	"github.com/xuri/excelize/v2"
-
-	"github.com/neilotoole/sq/libsq/core/record"
+	excelize "github.com/xuri/excelize/v2"
 
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/record"
 )
 
 type recordWriter struct {

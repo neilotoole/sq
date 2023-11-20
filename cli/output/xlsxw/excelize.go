@@ -2,7 +2,9 @@ package xlsxw
 
 // The code below is lifted from the excelize package.
 
-import "time"
+import (
+	"time"
+)
 
 const (
 	nanosInADay    = float64((24 * time.Hour) / time.Nanosecond)

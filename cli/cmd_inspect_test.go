@@ -8,26 +8,20 @@ import (
 	"testing"
 
 	"github.com/samber/lo"
-
-	"github.com/neilotoole/sq/cli/flag"
-
-	"github.com/neilotoole/sq/cli/output/format"
-	"github.com/neilotoole/sq/libsq/core/ioz"
-
-	"github.com/neilotoole/sq/drivers/postgres"
-
-	"github.com/neilotoole/sq/cli/testrun"
-
-	"github.com/neilotoole/sq/testh/tutil"
-
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/sq/cli/flag"
+	"github.com/neilotoole/sq/cli/output/format"
+	"github.com/neilotoole/sq/cli/testrun"
 	"github.com/neilotoole/sq/drivers/csv"
+	"github.com/neilotoole/sq/drivers/postgres"
 	"github.com/neilotoole/sq/drivers/sqlite3"
+	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
+	"github.com/neilotoole/sq/testh/tutil"
 )
 
 // TestCmdInspect_json_yaml tests "sq inspect" for

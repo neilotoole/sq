@@ -10,14 +10,11 @@ import (
 	"database/sql"
 	"log/slog"
 
-	"github.com/neilotoole/sq/libsq/core/lg/lga"
-
-	"github.com/neilotoole/sq/libsq/core/lg/lgm"
-
-	"github.com/neilotoole/sq/libsq/core/lg"
-
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 )

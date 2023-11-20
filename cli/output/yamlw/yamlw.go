@@ -8,10 +8,10 @@ import (
 	"github.com/fatih/color"
 	goccy "github.com/goccy/go-yaml"
 	"github.com/goccy/go-yaml/lexer"
-	"github.com/neilotoole/sq/libsq/core/errz"
-
 	"github.com/goccy/go-yaml/printer"
+
 	"github.com/neilotoole/sq/cli/output"
+	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
 // MarshalToString renders v to a string.

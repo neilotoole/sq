@@ -5,10 +5,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/testh/tutil"
-
-	"github.com/stretchr/testify/require"
 )
 
 func TestDetectKindDatetime(t *testing.T) {

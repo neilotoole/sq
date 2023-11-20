@@ -3,8 +3,9 @@ package ast
 import (
 	"testing"
 
-	"github.com/neilotoole/sq/testh/tutil"
 	"github.com/stretchr/testify/require"
+
+	"github.com/neilotoole/sq/testh/tutil"
 )
 
 // TestRowRange tests the row range mechanism.

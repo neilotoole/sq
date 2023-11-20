@@ -10,11 +10,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/timez"
+	"golang.org/x/mod/semver"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
-
-	"golang.org/x/mod/semver"
+	"github.com/neilotoole/sq/libsq/core/timez"
 )
 
 // DefaultVersion is the default value for Version if not

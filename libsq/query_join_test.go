@@ -4,22 +4,17 @@ import (
 	"fmt"
 	"testing"
 
+	_ "github.com/mattn/go-sqlite3"
+	"github.com/samber/lo"
+
+	"github.com/neilotoole/sq/drivers/mysql"
 	"github.com/neilotoole/sq/drivers/postgres"
 	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/drivers/sqlserver"
-	"github.com/neilotoole/sq/libsq/source"
-
 	"github.com/neilotoole/sq/libsq/core/jointype"
-
-	"github.com/samber/lo"
-
-	"github.com/neilotoole/sq/testh/tutil"
-
+	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/testh/sakila"
-
-	"github.com/neilotoole/sq/drivers/mysql"
-
-	_ "github.com/mattn/go-sqlite3"
+	"github.com/neilotoole/sq/testh/tutil"
 )
 
 func TestQuery_join_args(t *testing.T) {

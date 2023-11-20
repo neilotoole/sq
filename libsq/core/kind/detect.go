@@ -8,10 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/timez"
-
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/core/timez"
 )
 
 // Detector is used to detect the kind of a stream of values.

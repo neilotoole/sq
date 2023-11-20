@@ -6,35 +6,28 @@ import (
 	"os"
 	"strings"
 
-	"github.com/neilotoole/sq/cli/output/xlsxw"
-
-	"github.com/neilotoole/sq/libsq/core/errz"
-
-	"github.com/neilotoole/sq/libsq/core/stringz"
-
-	"github.com/mitchellh/go-wordwrap"
-
-	"github.com/neilotoole/sq/libsq/core/timez"
-
-	"github.com/neilotoole/sq/libsq/core/lg/lga"
-
-	"github.com/neilotoole/sq/libsq/core/options"
-
-	"github.com/neilotoole/sq/cli/output/format"
-
 	"github.com/fatih/color"
-	"github.com/mattn/go-colorable"
+	colorable "github.com/mattn/go-colorable"
+	wordwrap "github.com/mitchellh/go-wordwrap"
+	"github.com/spf13/cobra"
+
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/csvw"
+	"github.com/neilotoole/sq/cli/output/format"
 	"github.com/neilotoole/sq/cli/output/htmlw"
 	"github.com/neilotoole/sq/cli/output/jsonw"
 	"github.com/neilotoole/sq/cli/output/markdownw"
 	"github.com/neilotoole/sq/cli/output/raww"
 	"github.com/neilotoole/sq/cli/output/tablew"
+	"github.com/neilotoole/sq/cli/output/xlsxw"
 	"github.com/neilotoole/sq/cli/output/xmlw"
 	"github.com/neilotoole/sq/cli/output/yamlw"
-	"github.com/spf13/cobra"
+	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/core/timez"
 )
 
 var (

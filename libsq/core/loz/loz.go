@@ -2,7 +2,9 @@
 // Ideally these functions would be merged into that package.
 package loz
 
-import "github.com/samber/lo"
+import (
+	"github.com/samber/lo"
+)
 
 // All returns a new slice containing elems. If elems is
 // nil, an empty slice is returned.

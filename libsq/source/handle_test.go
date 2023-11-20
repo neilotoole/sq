@@ -4,20 +4,17 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/neilotoole/sq/drivers/sqlserver"
-	"github.com/neilotoole/sq/drivers/xlsx"
-
-	"github.com/neilotoole/sq/drivers/csv"
-
-	"github.com/neilotoole/sq/testh/tutil"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/sq/drivers/csv"
 	"github.com/neilotoole/sq/drivers/mysql"
 	"github.com/neilotoole/sq/drivers/postgres"
 	"github.com/neilotoole/sq/drivers/sqlite3"
+	"github.com/neilotoole/sq/drivers/sqlserver"
+	"github.com/neilotoole/sq/drivers/xlsx"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/testh/tutil"
 )
 
 func TestIsValidGroup(t *testing.T) {

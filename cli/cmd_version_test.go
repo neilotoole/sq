@@ -7,18 +7,14 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/neilotoole/sq/libsq/core/ioz"
-
-	"github.com/neilotoole/sq/cli"
-
-	"github.com/neilotoole/sq/cli/buildinfo"
-	"github.com/neilotoole/sq/cli/testrun"
-
 	"github.com/ecnepsnai/osquery"
-
+	"github.com/stretchr/testify/require"
 	"golang.org/x/mod/semver"
 
-	"github.com/stretchr/testify/require"
+	"github.com/neilotoole/sq/cli"
+	"github.com/neilotoole/sq/cli/buildinfo"
+	"github.com/neilotoole/sq/cli/testrun"
+	"github.com/neilotoole/sq/libsq/core/ioz"
 )
 
 func TestGetVersionFromBrewFormula(t *testing.T) {

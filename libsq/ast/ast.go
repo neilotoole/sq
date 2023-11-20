@@ -12,12 +12,11 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/lg"
-
-	"github.com/antlr4-go/antlr/v4"
+	antlr "github.com/antlr4-go/antlr/v4"
 
 	"github.com/neilotoole/sq/libsq/ast/internal/slq"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/lg"
 )
 
 // Parse parses the SLQ input string and builds the AST.

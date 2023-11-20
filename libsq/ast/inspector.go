@@ -3,9 +3,9 @@ package ast
 import (
 	"reflect"
 
-	"github.com/neilotoole/sq/libsq/core/errz"
-
 	"github.com/samber/lo"
+
+	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
 // Inspector provides functionality for AST interrogation.

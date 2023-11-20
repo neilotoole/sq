@@ -6,8 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/neilotoole/sq/testh/tutil"
-
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli/output"
@@ -16,6 +14,7 @@ import (
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/testsrc"
+	"github.com/neilotoole/sq/testh/tutil"
 )
 
 var _ libsq.RecordWriter = (*output.RecordWriterAdapter)(nil)

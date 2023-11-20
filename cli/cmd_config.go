@@ -1,10 +1,11 @@
 package cli
 
 import (
+	"github.com/spf13/cobra"
+
 	"github.com/neilotoole/sq/cli/config/yamlstore"
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/run"
-	"github.com/spf13/cobra"
 )
 
 func newConfigCmd() *cobra.Command {

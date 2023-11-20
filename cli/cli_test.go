@@ -10,23 +10,20 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/neilotoole/sq/libsq/core/tablefq"
-
-	"github.com/neilotoole/sq/testh/tutil"
-
-	"github.com/neilotoole/sq/cli/testrun"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli"
+	"github.com/neilotoole/sq/cli/testrun"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlmodel"
 	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/fixt"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
+	"github.com/neilotoole/sq/testh/tutil"
 )
 
 func TestSmoke(t *testing.T) {

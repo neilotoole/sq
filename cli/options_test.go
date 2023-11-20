@@ -3,10 +3,12 @@ package cli_test
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/neilotoole/slogt"
+
 	"github.com/neilotoole/sq/cli"
 	"github.com/neilotoole/sq/libsq/core/options"
-	"github.com/stretchr/testify/require"
 )
 
 func TestRegisterDefaultOpts(t *testing.T) {

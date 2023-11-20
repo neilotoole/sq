@@ -4,28 +4,21 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/neilotoole/sq/libsq/core/tablefq"
-
 	"github.com/samber/lo"
-
-	"github.com/neilotoole/sq/libsq/source"
-
-	"github.com/neilotoole/sq/libsq/core/record"
-
-	"github.com/neilotoole/sq/libsq/core/options"
-
-	"github.com/neilotoole/sq/libsq/ast/render"
-
-	"github.com/neilotoole/sq/libsq/core/lg"
-
-	"github.com/neilotoole/sq/libsq/core/lg/lga"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/neilotoole/sq/libsq/ast"
+	"github.com/neilotoole/sq/libsq/ast/render"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/sqlmodel"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
+	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/driver"
-	"golang.org/x/sync/errgroup"
+	"github.com/neilotoole/sq/libsq/source"
 )
 
 // pipeline is used to execute a SLQ query,

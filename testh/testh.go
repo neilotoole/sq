@@ -14,32 +14,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/sqlz"
-
 	"github.com/samber/lo"
-
-	"github.com/neilotoole/sq/libsq/core/tablefq"
-
-	"github.com/neilotoole/sq/cli/run"
-
-	"github.com/neilotoole/sq/cli"
-	"github.com/neilotoole/sq/cli/buildinfo"
-	"github.com/neilotoole/sq/cli/config/yamlstore"
-	"github.com/neilotoole/sq/libsq/core/ioz"
-	"github.com/neilotoole/sq/libsq/core/options"
-
-	"github.com/neilotoole/sq/libsq/core/lg/lga"
-
-	"github.com/neilotoole/sq/libsq/core/lg/lgm"
-
-	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/slogt"
 
-	"github.com/neilotoole/sq/libsq/ast"
-
+	"github.com/neilotoole/sq/cli"
+	"github.com/neilotoole/sq/cli/buildinfo"
 	"github.com/neilotoole/sq/cli/config"
+	"github.com/neilotoole/sq/cli/config/yamlstore"
 	"github.com/neilotoole/sq/cli/output"
+	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/drivers/csv"
 	"github.com/neilotoole/sq/drivers/json"
 	"github.com/neilotoole/sq/drivers/mysql"
@@ -50,17 +36,23 @@ import (
 	"github.com/neilotoole/sq/drivers/userdriver/xmlud"
 	"github.com/neilotoole/sq/drivers/xlsx"
 	"github.com/neilotoole/sq/libsq"
+	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/ioz"
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/sqlmodel"
+	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/testsrc"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // defaultDBOpenTimeout is the timeout for tests to open (and ping) their DBs.

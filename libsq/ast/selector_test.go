@@ -3,11 +3,11 @@ package ast
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/neilotoole/slogt"
 
 	"github.com/neilotoole/sq/testh/tutil"
-
-	"github.com/stretchr/testify/require"
 )
 
 func TestColumnAlias(t *testing.T) {

@@ -6,9 +6,10 @@ import (
 	"io"
 	"testing"
 
-	"github.com/mattn/go-sqlite3"
-	"github.com/neilotoole/sq/libsq/core/sqlz"
+	sqlite3 "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/require"
+
+	"github.com/neilotoole/sq/libsq/core/sqlz"
 )
 
 var _ driver.Connector = (*tConnector)(nil)

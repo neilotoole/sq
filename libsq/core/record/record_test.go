@@ -4,10 +4,10 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/neilotoole/sq/libsq/core/timez"
+	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/record"
-	"github.com/stretchr/testify/require"
+	"github.com/neilotoole/sq/libsq/core/timez"
 )
 
 func TestEqual(t *testing.T) {

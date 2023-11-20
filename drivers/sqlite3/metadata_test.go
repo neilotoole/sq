@@ -7,20 +7,17 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/neilotoole/sq/libsq/core/tablefq"
-
-	"github.com/neilotoole/sq/libsq/core/lg"
-
-	"github.com/neilotoole/sq/libsq/core/errz"
-
-	"github.com/neilotoole/slogt"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/slogt"
+
 	"github.com/neilotoole/sq/drivers/sqlite3"
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
+	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
