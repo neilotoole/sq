@@ -38,6 +38,12 @@ not the schema. The flag is disregarded when inspecting a table.
 When flag --dbprops is true, only the database properties for the source's
 *underlying* database are shown. The flag is disregarded when inspecting a table.
 
+When flag --catalogs is true, only the catalogs for the source's *underlying*
+database are shown. The flag is disregarded when inspecting a table.
+
+When flag --schemas is true, only the schemas for the source's *underlying*
+database are shown. The flag is disregarded when inspecting a table.
+
 Use --verbose with the --text format to see more detail. The --json and --yaml
 formats both show extensive detail.`,
 		Example: `  # Inspect active data source.
@@ -60,6 +66,12 @@ formats both show extensive detail.`,
 
   # Show only the source metadata (and not schema details).
   $ sq inspect --overview @pg1
+
+	# List the schemas in @pg1.
+	$ sq inspect --schemas @pg1
+
+	# List the catalogs in @pg1.
+	$ sq inspect --catalogs @pg1
 
   # Inspect table "actor" in @pg1 data source.
   $ sq inspect @pg1.actor
