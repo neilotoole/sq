@@ -208,7 +208,7 @@ func doExecQueryTestCase(t *testing.T, tc queryTestCase) {
 
 // assertSinkCellValue returns a SinkTestFunc that asserts that
 // the cell at rowi, coli matches val.
-func assertSinkCellValue(rowi, coli int, val any) SinkTestFunc { //nolint:unparam
+func assertSinkCellValue(rowi, coli int, val any) SinkTestFunc {
 	return func(t testing.TB, sink *testh.RecordSink) {
 		assert.Equal(t, val, sink.Recs[rowi][coli], "record[%d:%d] (%s)", rowi, coli, sink.RecMeta[coli].Name())
 	}
@@ -226,7 +226,7 @@ func assertSinkColValue(coli int, val any) SinkTestFunc {
 
 // assertSinkColValue returns a SinkTestFunc that asserts that
 // the name of column with index coli matches name.
-func assertSinkColName(coli int, name string) SinkTestFunc { //nolint:unparam
+func assertSinkColName(coli int, name string) SinkTestFunc {
 	return func(t testing.TB, sink *testh.RecordSink) {
 		assert.Equal(t, name, sink.RecMeta[coli].Name(), "column %d", coli)
 	}

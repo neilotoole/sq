@@ -268,10 +268,11 @@ func TestQuery_func_rownum(t *testing.T) {
 			name:    "plain",
 			in:      `@sakila | .actor | rownum()`,
 			wantSQL: `SELECT (row_number() OVER (ORDER BY 1)) AS "rownum()" FROM "actor"`,
-			onlyFor: []source.DriverType{postgres.Type, sqlite3.Type, sqlserver.Type},
 			override: driverMap{
 				sqlserver.Type: `SELECT (row_number() OVER (ORDER BY (SELECT NULL))) AS "rownum()" FROM "actor"`,
-				mysql.Type:     `SELECT (row_number() OVER (ORDER BY (SELECT NULL))) AS "rownum()" FROM "actor"`,
+				// We don't test the MySQL override because it uses a randomly generated variable value. E.g.
+				//  SELECT (@row_number_dw5ch2ss:=@row_number_dw5ch2ss + 1) AS `rownum()` FROM `actor`
+				mysql.Type: ``,
 			},
 			wantRecCount: 200,
 			sinkFns: []SinkTestFunc{
@@ -284,10 +285,9 @@ func TestQuery_func_rownum(t *testing.T) {
 			name:    "plus_1",
 			in:      `@sakila | .actor | rownum() + 1`,
 			wantSQL: `SELECT (row_number() OVER (ORDER BY 1))+1 AS "rownum()+1" FROM "actor"`,
-			onlyFor: []source.DriverType{postgres.Type, sqlite3.Type, sqlserver.Type},
 			override: driverMap{
 				sqlserver.Type: `SELECT (row_number() OVER (ORDER BY (SELECT NULL)))+1 AS "rownum()+1" FROM "actor"`,
-				mysql.Type:     "SELECT max(`actor_id`) AS `max(.actor_id)` FROM `actor`",
+				mysql.Type:     "",
 			},
 			wantRecCount: 200,
 			sinkFns: []SinkTestFunc{
@@ -300,10 +300,9 @@ func TestQuery_func_rownum(t *testing.T) {
 			name:    "minus_1_alias",
 			in:      `@sakila | .actor | (rownum()-1):zero_index`,
 			wantSQL: `SELECT ((row_number() OVER (ORDER BY 1))-1) AS "zero_index" FROM "actor"`,
-			onlyFor: []source.DriverType{postgres.Type, sqlite3.Type, sqlserver.Type},
 			override: driverMap{
 				sqlserver.Type: `SELECT ((row_number() OVER (ORDER BY (SELECT NULL)))-1) AS "zero_index" FROM "actor"`,
-				mysql.Type:     "SELECT max(`actor_id`) AS `max(.actor_id)` FROM `actor`",
+				mysql.Type:     "",
 			},
 			wantRecCount: 200,
 			sinkFns: []SinkTestFunc{
@@ -313,16 +312,30 @@ func TestQuery_func_rownum(t *testing.T) {
 			},
 		},
 		{
-			name:    "column_orderby",
-			in:      `@sakila | .actor | rownum(), .actor_id | order_by(.actor_id)`,
-			wantSQL: `SELECT (row_number() OVER (ORDER BY "actor_id")) AS "rownum()", "actor_id" FROM "actor" ORDER BY "actor_id"`,
-			onlyFor: []source.DriverType{postgres.Type, sqlite3.Type, sqlserver.Type},
-			// override:     driverMap{mysql.Type: "SELECT max(`actor_id`) AS `max(.actor_id)` FROM `actor`"},
+			name:         "column_orderby",
+			in:           `@sakila | .actor | rownum(), .actor_id | order_by(.actor_id)`,
+			wantSQL:      `SELECT (row_number() OVER (ORDER BY "actor_id")) AS "rownum()", "actor_id" FROM "actor" ORDER BY "actor_id"`,
+			override:     driverMap{mysql.Type: ""},
 			wantRecCount: 200,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "rownum()"),
 				assertSinkCellValue(0, 0, int64(1)),
 				assertSinkCellValue(199, 0, int64(200)),
+			},
+		},
+		{
+			name:         "double_invocation",
+			in:           `@sakila | .actor | rownum():index1, .actor_id, rownum():index2 | order_by(.actor_id)`,
+			wantSQL:      `SELECT (row_number() OVER (ORDER BY "actor_id")) AS "index1", "actor_id", (row_number() OVER (ORDER BY "actor_id")) AS "index2" FROM "actor" ORDER BY "actor_id"`,
+			override:     driverMap{mysql.Type: ""},
+			wantRecCount: 200,
+			sinkFns: []SinkTestFunc{
+				assertSinkColName(0, "index1"),
+				assertSinkColName(2, "index2"),
+				assertSinkCellValue(0, 0, int64(1)),
+				assertSinkCellValue(0, 2, int64(1)),
+				assertSinkCellValue(199, 0, int64(200)),
+				assertSinkCellValue(199, 2, int64(200)),
 			},
 		},
 	}

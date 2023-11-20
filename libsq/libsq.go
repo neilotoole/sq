@@ -41,7 +41,8 @@ type QueryContext struct {
 
 	// PreExecStmts are statements that are executed before the query.
 	// These can be used for edge-case behavior, such as setting up
-	// variables in the session.
+	// variables in the session. These stmts are typically loaded
+	// from render.Fragments.PreExecStmts.
 	//
 	// See also: QueryContext.PostExecStmts.
 	PreExecStmts []string
