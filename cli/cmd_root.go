@@ -1,11 +1,10 @@
 package cli
 
 import (
-	"github.com/neilotoole/sq/cli/flag"
 	"github.com/spf13/cobra"
 
-	// Import the providers package to initialize provider implementations.
-	_ "github.com/neilotoole/sq/drivers"
+	"github.com/neilotoole/sq/cli/flag"
+	_ "github.com/neilotoole/sq/drivers" // Load drivers
 )
 
 func newRootCmd() *cobra.Command {

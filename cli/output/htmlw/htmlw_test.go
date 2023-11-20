@@ -5,10 +5,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/neilotoole/sq/cli/output"
-
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/htmlw"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"

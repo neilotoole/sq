@@ -4,9 +4,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/neilotoole/sq/libsq/core/timez"
 	"github.com/neilotoole/sq/testh/tutil"
-	"github.com/stretchr/testify/require"
 )
 
 var (

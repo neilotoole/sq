@@ -8,7 +8,6 @@ import (
 	segmentj "github.com/segmentio/encoding/json"
 
 	jcolorenc "github.com/neilotoole/sq/cli/output/jsonw/internal/jcolorenc"
-
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
 )

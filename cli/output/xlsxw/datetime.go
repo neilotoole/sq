@@ -4,9 +4,10 @@ import (
 	"math"
 	"time"
 
+	excelize "github.com/xuri/excelize/v2"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/options"
-	"github.com/xuri/excelize/v2"
 )
 
 var (

@@ -3,11 +3,10 @@ package cli
 import (
 	"strings"
 
-	"github.com/neilotoole/sq/cli/run"
+	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/flag"
-
-	"github.com/spf13/cobra"
+	"github.com/neilotoole/sq/cli/run"
 )
 
 func newGroupCommand() *cobra.Command {

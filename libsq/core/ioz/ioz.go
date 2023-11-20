@@ -9,11 +9,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/lg"
-
-	"github.com/goccy/go-yaml"
+	yaml "github.com/goccy/go-yaml"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/lg"
 )
 
 // Close is a convenience function to close c, logging a warning

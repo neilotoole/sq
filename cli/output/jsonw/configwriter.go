@@ -3,10 +3,9 @@ package jsonw
 import (
 	"io"
 
+	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/outputx"
 	"github.com/neilotoole/sq/libsq/core/options"
-
-	"github.com/neilotoole/sq/cli/output"
 )
 
 var _ output.ConfigWriter = (*configWriter)(nil)

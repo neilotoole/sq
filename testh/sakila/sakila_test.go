@@ -3,12 +3,11 @@ package sakila_test
 import (
 	"testing"
 
-	"github.com/neilotoole/sq/testh/tutil"
-
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
+	"github.com/neilotoole/sq/testh/tutil"
 )
 
 // TestSakila_SQL is a sanity check for Sakila SQL test sources.

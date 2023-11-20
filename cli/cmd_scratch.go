@@ -1,11 +1,11 @@
 package cli
 
 import (
+	"github.com/spf13/cobra"
+
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/libsq/source"
-
-	"github.com/spf13/cobra"
 )
 
 // TODO: dump all this "internal" stuff: make the options as follows: @HANDLE, file, memory

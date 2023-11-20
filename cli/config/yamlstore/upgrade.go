@@ -5,14 +5,14 @@ import (
 	"os"
 	"strings"
 
+	"golang.org/x/mod/semver"
+
+	"github.com/neilotoole/sq/cli/buildinfo"
 	"github.com/neilotoole/sq/cli/config"
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
-
-	"github.com/neilotoole/sq/cli/buildinfo"
-	"github.com/neilotoole/sq/libsq/core/errz"
-	"golang.org/x/mod/semver"
 )
 
 // MinConfigVersion is the minimum semver value of Config.Version.

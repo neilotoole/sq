@@ -3,9 +3,9 @@ package hostinfo_test
 import (
 	"testing"
 
-	"github.com/neilotoole/sq/cli/hostinfo"
-
 	"github.com/neilotoole/slogt"
+
+	"github.com/neilotoole/sq/cli/hostinfo"
 )
 
 func TestGet(t *testing.T) {

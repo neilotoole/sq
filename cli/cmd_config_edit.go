@@ -6,21 +6,17 @@ import (
 	"os"
 	"strings"
 
-	"github.com/neilotoole/sq/cli/run"
-
-	"github.com/neilotoole/sq/libsq/source"
-
-	"github.com/neilotoole/sq/libsq/core/options"
-
-	"github.com/neilotoole/sq/libsq/core/lg/lga"
-
-	"github.com/neilotoole/sq/libsq/core/lg"
-
-	"github.com/neilotoole/shelleditor"
-	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/spf13/cobra"
 
+	"github.com/neilotoole/shelleditor"
+
+	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/ioz"
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/source"
 )
 
 var editorEnvs = []string{"SQ_EDITOR", "EDITOR"}

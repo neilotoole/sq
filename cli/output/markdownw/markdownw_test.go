@@ -4,10 +4,9 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/neilotoole/sq/cli/output"
-
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/markdownw"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"

@@ -6,21 +6,19 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/neilotoole/slogt"
-	"github.com/neilotoole/sq/cli/cobraz"
-	"github.com/neilotoole/sq/cli/flag"
-	"github.com/neilotoole/sq/libsq/core/lg"
-	"github.com/neilotoole/sq/testh/sakila"
+	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/sq/testh"
+	"github.com/neilotoole/slogt"
 
-	"github.com/stretchr/testify/assert"
-
-	"github.com/neilotoole/sq/testh/tutil"
-
+	"github.com/neilotoole/sq/cli/cobraz"
+	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/testrun"
-	"github.com/spf13/cobra"
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/testh"
+	"github.com/neilotoole/sq/testh/sakila"
+	"github.com/neilotoole/sq/testh/tutil"
 )
 
 // testComplete is a helper for testing cobra completion.

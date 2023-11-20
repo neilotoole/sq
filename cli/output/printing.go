@@ -4,11 +4,10 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/fatih/color"
 	"github.com/samber/lo"
 
 	"github.com/neilotoole/sq/libsq/core/timez"
-
-	"github.com/fatih/color"
 )
 
 // Printing describes color and pretty-printing options.

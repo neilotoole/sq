@@ -4,14 +4,13 @@ import (
 	"context"
 	"testing"
 
-	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/slogt"
 
-	"github.com/stretchr/testify/require"
-
 	"github.com/neilotoole/sq/drivers/mysql"
 	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
 )

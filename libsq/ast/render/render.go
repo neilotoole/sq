@@ -4,11 +4,9 @@ package render
 import (
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/driver/dialect"
-
-	"github.com/neilotoole/sq/libsq/core/errz"
-
 	"github.com/neilotoole/sq/libsq/ast"
+	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/driver/dialect"
 )
 
 // Context contains context for rendering a query.

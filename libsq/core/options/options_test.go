@@ -6,19 +6,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/neilotoole/slogt"
-	"github.com/neilotoole/sq/libsq/core/lg/lga"
-	"github.com/neilotoole/sq/testh/tutil"
 
 	"github.com/neilotoole/sq/cli"
 	"github.com/neilotoole/sq/cli/output/format"
-
-	"github.com/neilotoole/sq/libsq/driver"
-
-	"github.com/neilotoole/sq/libsq/core/options"
-
 	"github.com/neilotoole/sq/libsq/core/ioz"
-	"github.com/stretchr/testify/require"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/driver"
+	"github.com/neilotoole/sq/testh/tutil"
 )
 
 type config struct {

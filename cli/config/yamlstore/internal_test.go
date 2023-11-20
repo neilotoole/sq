@@ -4,10 +4,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/neilotoole/sq/cli/flag"
-
-	"github.com/neilotoole/sq/testh/tutil"
 	"github.com/stretchr/testify/require"
+
+	"github.com/neilotoole/sq/cli/flag"
+	"github.com/neilotoole/sq/testh/tutil"
 )
 
 func Test_getConfigDirFromFlag(t *testing.T) {

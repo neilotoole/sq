@@ -13,11 +13,11 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/otiai10/copy"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/stringz"
-	"github.com/otiai10/copy"
-	"github.com/stretchr/testify/require"
 )
 
 // SkipIff skips t if b is true. If msgAndArgs is non-empty, its first

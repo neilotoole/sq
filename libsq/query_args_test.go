@@ -3,9 +3,9 @@ package libsq_test
 import (
 	"testing"
 
-	"github.com/neilotoole/sq/drivers/mysql"
-
 	_ "github.com/mattn/go-sqlite3"
+
+	"github.com/neilotoole/sq/drivers/mysql"
 )
 
 //nolint:exhaustive

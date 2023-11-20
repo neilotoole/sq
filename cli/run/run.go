@@ -7,18 +7,16 @@ import (
 	"io"
 	"os"
 
-	"github.com/neilotoole/sq/libsq"
-
-	"github.com/neilotoole/sq/cli/output"
-
-	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/config"
+	"github.com/neilotoole/sq/cli/output"
+	"github.com/neilotoole/sq/libsq"
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
-	"github.com/spf13/cobra"
 )
 
 type runKey struct{}

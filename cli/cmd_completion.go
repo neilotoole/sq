@@ -1,9 +1,9 @@
 package cli
 
 import (
-	"github.com/neilotoole/sq/cli/run"
 	"github.com/spf13/cobra"
 
+	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
 

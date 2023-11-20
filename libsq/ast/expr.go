@@ -3,9 +3,8 @@ package ast
 import (
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/stringz"
-
 	"github.com/neilotoole/sq/libsq/ast/internal/slq"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 var (

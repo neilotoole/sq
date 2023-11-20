@@ -3,12 +3,11 @@ package internal_test
 
 import (
 	"bytes"
+	stdjson "encoding/json"
 	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
-
-	stdjson "encoding/json"
 
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/jsonw/internal"

@@ -3,14 +3,13 @@ package ast
 import (
 	"testing"
 
-	"github.com/neilotoole/sq/testh/tutil"
+	antlr "github.com/antlr4-go/antlr/v4"
+	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/slogt"
 
-	"github.com/antlr4-go/antlr/v4"
-	"github.com/stretchr/testify/require"
-
 	"github.com/neilotoole/sq/libsq/ast/internal/slq"
+	"github.com/neilotoole/sq/testh/tutil"
 )
 
 // getSLQParser returns a parser for the given SQL input.

@@ -4,7 +4,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/mattn/go-isatty"
+	isatty "github.com/mattn/go-isatty"
 	"golang.org/x/term"
 )
 

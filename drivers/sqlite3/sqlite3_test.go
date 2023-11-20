@@ -6,20 +6,19 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/neilotoole/sq/libsq/core/tablefq"
-
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/neilotoole/sq/testh/tutil"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/libsq/core/sqlmodel"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/fixt"
 	"github.com/neilotoole/sq/testh/sakila"
+	"github.com/neilotoole/sq/testh/tutil"
 )
 
 func TestSmoke(t *testing.T) {

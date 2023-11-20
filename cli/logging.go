@@ -8,18 +8,16 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/stringz"
-
-	"github.com/neilotoole/sq/libsq/core/options"
-
-	"github.com/neilotoole/sq/cli/flag"
-	"github.com/neilotoole/sq/libsq/core/lg/userlogdir"
+	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/config"
+	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
-	"github.com/spf13/cobra"
+	"github.com/neilotoole/sq/libsq/core/lg/userlogdir"
+	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 var (

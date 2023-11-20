@@ -5,13 +5,12 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/errz"
+	antlr "github.com/antlr4-go/antlr/v4"
 
+	"github.com/neilotoole/sq/libsq/ast/internal/slq"
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/stringz"
-
-	"github.com/antlr4-go/antlr/v4"
-	"github.com/neilotoole/sq/libsq/ast/internal/slq"
 )
 
 // parseSLQ processes SLQ input text according to the rules of the SQL grammar,

@@ -3,11 +3,11 @@ package cli
 import (
 	"fmt"
 
-	"github.com/neilotoole/sq/cli/run"
-
 	mcobra "github.com/muesli/mango-cobra"
 	"github.com/muesli/roff"
 	"github.com/spf13/cobra"
+
+	"github.com/neilotoole/sq/cli/run"
 )
 
 func newManCmd() *cobra.Command {

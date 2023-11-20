@@ -6,11 +6,12 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/neilotoole/slogt"
-	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/stretchr/testify/require"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 )
 
 func TestIs(t *testing.T) {

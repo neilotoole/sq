@@ -4,9 +4,8 @@ import (
 	"io"
 	"sync"
 
-	"github.com/neilotoole/sq/libsq/core/record"
-
 	"github.com/neilotoole/sq/cli/output"
+	"github.com/neilotoole/sq/libsq/core/record"
 )
 
 type recordWriter struct {

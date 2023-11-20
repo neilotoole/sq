@@ -3,14 +3,12 @@ package ast
 import (
 	"fmt"
 
-	"github.com/neilotoole/sq/libsq/core/tablefq"
-
-	"github.com/neilotoole/sq/libsq/core/jointype"
+	antlr "github.com/antlr4-go/antlr/v4"
 
 	"github.com/neilotoole/sq/libsq/ast/internal/slq"
 	"github.com/neilotoole/sq/libsq/core/errz"
-
-	"github.com/antlr4-go/antlr/v4"
+	"github.com/neilotoole/sq/libsq/core/jointype"
+	"github.com/neilotoole/sq/libsq/core/tablefq"
 )
 
 // VisitJoin implements slq.SLQVisitor.

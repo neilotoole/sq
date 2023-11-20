@@ -3,10 +3,9 @@ package cli_test
 import (
 	"testing"
 
-	"github.com/neilotoole/sq/cli/testrun"
-
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/sq/cli/testrun"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
 )

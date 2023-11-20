@@ -5,20 +5,16 @@ import (
 	"image/gif"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/neilotoole/sq/cli/output"
-
+	"github.com/neilotoole/sq/cli/output/raww"
 	"github.com/neilotoole/sq/libsq/core/lg"
-
+	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/fixt"
 	"github.com/neilotoole/sq/testh/proj"
-
-	"github.com/neilotoole/sq/testh/testsrc"
-
-	"github.com/neilotoole/sq/cli/output/raww"
-
-	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
-	"github.com/stretchr/testify/require"
+	"github.com/neilotoole/sq/testh/testsrc"
 )
 
 func TestRecordWriter_TblActor(t *testing.T) {

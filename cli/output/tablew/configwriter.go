@@ -5,12 +5,10 @@ import (
 	"io"
 
 	"github.com/fatih/color"
-
 	"github.com/samber/lo"
 
-	"github.com/neilotoole/sq/libsq/core/options"
-
 	"github.com/neilotoole/sq/cli/output"
+	"github.com/neilotoole/sq/libsq/core/options"
 )
 
 var _ output.ConfigWriter = (*configWriter)(nil)

@@ -4,21 +4,15 @@ import (
 	"context"
 	"testing"
 
-	"github.com/neilotoole/sq/libsq/core/options"
-
-	"github.com/neilotoole/sq/cli/flag"
-
-	"github.com/neilotoole/sq/testh/proj"
-
-	"github.com/neilotoole/sq/libsq/core/stringz"
-
-	"github.com/neilotoole/sq/libsq/driver"
-
-	"github.com/neilotoole/sq/cli/testrun"
-
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/sq/cli/flag"
+	"github.com/neilotoole/sq/cli/testrun"
+	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/testh"
+	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
 )
 

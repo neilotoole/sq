@@ -3,11 +3,10 @@ package yamlw
 import (
 	"io"
 
-	"github.com/neilotoole/sq/cli/hostinfo"
-
 	"github.com/goccy/go-yaml/printer"
 
 	"github.com/neilotoole/sq/cli/buildinfo"
+	"github.com/neilotoole/sq/cli/hostinfo"
 	"github.com/neilotoole/sq/cli/output"
 )
 

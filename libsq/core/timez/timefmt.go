@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ncruces/go-strftime"
+	strftime "github.com/ncruces/go-strftime"
 )
 
 const (
