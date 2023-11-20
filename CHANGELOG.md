@@ -22,6 +22,12 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   3         165       AL
   ```
 
+### Fixed
+
+- [`sq version`](https://sq.io/docs/cmd/version) now honors option
+  [`format.datetime`](https://sq.io/docs/config#formatdatetime) when outputting build timestamp.
+
+
 ## [v0.43.1] - 2023-11-19
 
 ### Added
