@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"database/sql"
 	"slices"
 
@@ -92,74 +93,13 @@ formats both show extensive detail.`,
 	return cmd
 }
 
-func execInspect(cmd *cobra.Command, args []string) error { //nolint:funlen
+func execInspect(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	ru, log := run.FromContext(ctx), lg.FromContext(ctx)
 
-	var (
-		coll  = ru.Config.Collection
-		src   *source.Source
-		table string
-		err   error
-	)
-
-	if len(args) == 0 {
-		// No args supplied.
-
-		// There are two paths from here:
-		// - There's input on stdin, which we'll inspect, or
-		// - We're inspecting the active src
-
-		// check if there's input on stdin
-		src, err = checkStdinSource(ctx, ru)
-		if err != nil {
-			return err
-		}
-
-		if src != nil {
-			// We have a valid source on stdin.
-
-			// Add the source to the set.
-			err = coll.Add(src)
-			if err != nil {
-				return err
-			}
-
-			// Set the stdin pipe data source as the active source,
-			// as it's commonly the only data source the user is acting upon.
-			src, err = coll.SetActive(src.Handle, false)
-			if err != nil {
-				return err
-			}
-		} else {
-			// No source on stdin. Let's see if there's an active source.
-			src = coll.Active()
-			if src == nil {
-				return errz.Errorf("no data source specified and no active data source")
-			}
-		}
-	} else {
-		// We received an argument, which can be one of these forms:
-		//   @sakila			  -- inspect the named source
-		//   @sakila.actor	-- inspect a table of the named source
-		//   .actor		      -- inspect a table from the active source
-		var handle string
-		handle, table, err = source.ParseTableHandle(args[0])
-		if err != nil {
-			return errz.Wrap(err, "invalid input")
-		}
-
-		if handle == "" {
-			src = coll.Active()
-			if src == nil {
-				return errz.Errorf("no data source specified and no active data source")
-			}
-		} else {
-			src, err = coll.Get(handle)
-			if err != nil {
-				return err
-			}
-		}
+	src, table, err := determineInspectTarget(ctx, ru, args)
+	if err != nil {
+		return err
 	}
 
 	// Handle flag.ActiveSchema (--src.schema=SCHEMA). This func will mutate
@@ -244,4 +184,74 @@ func execInspect(cmd *cobra.Command, args []string) error { //nolint:funlen
 	}
 
 	return ru.Writers.Metadata.SourceMetadata(srcMeta, !overviewOnly)
+}
+
+// determineInspectTarget determines the source (and, optionally, table)
+// to inspect.
+func determineInspectTarget(ctx context.Context, ru *run.Run, args []string) (
+	src *source.Source, table string, err error,
+) {
+	coll := ru.Config.Collection
+	if len(args) == 0 {
+		// No args supplied.
+
+		// There are two paths from here:
+		// - There's input on stdin, which we'll inspect, or
+		// - We're inspecting the active src
+
+		// check if there's input on stdin
+		src, err = checkStdinSource(ctx, ru)
+		if err != nil {
+			return nil, "", err
+		}
+
+		if src != nil {
+			// We have a valid source on stdin.
+
+			// Add the source to the set.
+			err = coll.Add(src)
+			if err != nil {
+				return nil, "", err
+			}
+
+			// Set the stdin pipe data source as the active source,
+			// as it's commonly the only data source the user is acting upon.
+			src, err = coll.SetActive(src.Handle, false)
+			if err != nil {
+				return nil, "", err
+			}
+		} else {
+			// No source on stdin. Let's see if there's an active source.
+			src = coll.Active()
+			if src == nil {
+				return nil, "", errz.Errorf("no data source specified and no active data source")
+			}
+		}
+
+		return src, "", nil
+	}
+
+	// Else, we received an argument, which can be one of these forms:
+	//   @sakila			  -- inspect the named source
+	//   @sakila.actor	-- inspect a table of the named source
+	//   .actor		      -- inspect a table from the active source
+	var handle string
+	handle, table, err = source.ParseTableHandle(args[0])
+	if err != nil {
+		return nil, "", errz.Wrap(err, "invalid input")
+	}
+
+	if handle == "" {
+		src = coll.Active()
+		if src == nil {
+			return nil, "", errz.Errorf("no data source specified and no active data source")
+		}
+	} else {
+		src, err = coll.Get(handle)
+		if err != nil {
+			return nil, "", err
+		}
+	}
+
+	return src, table, nil
 }
