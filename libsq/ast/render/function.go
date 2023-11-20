@@ -91,3 +91,20 @@ func doFunction(rc *Context, fn *ast.FuncNode) (string, error) {
 	sql := sb.String()
 	return sql, nil
 }
+
+// FuncRowNum renders the rownum() function.
+func FuncRowNum(rc *Context, fn *ast.FuncNode) (string, error) {
+	a, _ := ast.NodeRoot(fn).(*ast.AST)
+	obNode := ast.FindFirstNode[*ast.OrderByNode](a)
+	if obNode != nil {
+		obClause, err := rc.Renderer.OrderBy(rc, obNode)
+		if err != nil {
+			return "", err
+		}
+		return "(row_number() OVER (" + obClause + "))", nil
+	}
+
+	// Possibly this should be "(row_number() OVER (ORDER BY 1))", but
+	// it's not clear what the correct approach is.
+	return "(row_number() OVER ())", nil
+}

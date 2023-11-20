@@ -35,9 +35,7 @@ func TestNodesWithType(t *testing.T) {
 
 func TestNodePrevNextSibling(t *testing.T) {
 	const in = `@sakila | .actor | .actor_id == 2`
-
 	log := slogt.New(t)
-
 	a, err := Parse(log, in)
 	require.NoError(t, err)
 
@@ -81,4 +79,14 @@ func TestNodeUnwrap(t *testing.T) {
 	gotLit, ok = NodeUnwrap[*LiteralNode](exprA)
 	require.False(t, ok, "should fail because exprB has multiple children")
 	require.Nil(t, gotLit)
+}
+
+func TestFindNodes(t *testing.T) {
+	const in = `@sakila | .actor | .actor_id == 2 | .actor_id, .first_name, .last_name`
+	a, err := Parse(slogt.New(t), in)
+	require.NoError(t, err)
+
+	handles := FindNodes[*HandleNode](a)
+	require.Len(t, handles, 1)
+	require.Equal(t, "@sakila", handles[0].Handle())
 }

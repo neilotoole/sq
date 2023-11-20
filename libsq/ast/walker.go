@@ -51,8 +51,7 @@ func (w *Walker) visit(node Node) error {
 	}
 
 	for _, visitFn := range visitFns {
-		err := visitFn(w, node)
-		if err != nil {
+		if err := visitFn(w, node); err != nil {
 			return err
 		}
 	}

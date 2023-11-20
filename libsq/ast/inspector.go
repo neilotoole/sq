@@ -9,6 +9,9 @@ import (
 )
 
 // Inspector provides functionality for AST interrogation.
+//
+// TODO: Inspector can probably be rewritten to be a set
+// of functions, especially now with generics available.
 type Inspector struct {
 	ast *AST
 }
