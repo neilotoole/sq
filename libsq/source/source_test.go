@@ -3,16 +3,16 @@ package source_test
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/neilotoole/slogt"
+
 	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/options"
-	"github.com/neilotoole/sq/testh/proj"
-
-	"github.com/neilotoole/sq/testh/tutil"
-	"github.com/stretchr/testify/require"
-
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/testh/proj"
+	"github.com/neilotoole/sq/testh/tutil"
 )
 
 const (

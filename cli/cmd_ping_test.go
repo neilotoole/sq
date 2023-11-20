@@ -6,10 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/neilotoole/sq/cli/testrun"
-
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/sq/cli/testrun"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"

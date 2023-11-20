@@ -7,18 +7,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/record"
-
-	"github.com/neilotoole/sq/libsq/core/kind"
-
 	"github.com/fatih/color"
-
+	goccy "github.com/goccy/go-yaml"
 	"github.com/goccy/go-yaml/ast"
 
-	"github.com/neilotoole/sq/libsq/core/errz"
-
-	goccy "github.com/goccy/go-yaml"
 	"github.com/neilotoole/sq/cli/output"
+	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/record"
 )
 
 var _ output.NewRecordWriterFunc = NewRecordWriter

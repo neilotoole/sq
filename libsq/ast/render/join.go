@@ -1,10 +1,11 @@
 package render
 
 import (
+	"github.com/samber/lo"
+
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/jointype"
-	"github.com/samber/lo"
 )
 
 func renderJoinType(jt jointype.Type) (string, error) {

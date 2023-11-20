@@ -8,21 +8,18 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/neilotoole/sq/libsq/core/tablefq"
-
-	"github.com/neilotoole/sq/cli/testrun"
-
-	"github.com/neilotoole/sq/cli/flag"
-	"github.com/neilotoole/sq/testh/tutil"
-
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/sq/cli/flag"
+	"github.com/neilotoole/sq/cli/testrun"
 	"github.com/neilotoole/sq/drivers/userdriver"
+	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/testsrc"
+	"github.com/neilotoole/sq/testh/tutil"
 )
 
 // TestCmdSQL_Insert tests "sq sql QUERY --insert=dest.tbl".

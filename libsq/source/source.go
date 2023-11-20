@@ -7,12 +7,10 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/errz"
-
-	"github.com/neilotoole/sq/libsq/core/lg/lga"
-
 	"github.com/xo/dburl"
 
+	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/options"
 )
 

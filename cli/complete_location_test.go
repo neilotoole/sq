@@ -6,7 +6,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/samber/lo"
+	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/neilotoole/slogt"
+
 	"github.com/neilotoole/sq/cli"
 	"github.com/neilotoole/sq/cli/testrun"
 	"github.com/neilotoole/sq/drivers/postgres"
@@ -17,10 +23,6 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/tutil"
-	"github.com/samber/lo"
-	"github.com/spf13/cobra"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 var locSchemes = []string{

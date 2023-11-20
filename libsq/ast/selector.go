@@ -4,13 +4,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/tablefq"
-
-	"github.com/neilotoole/sq/libsq/core/stringz"
-
-	"github.com/antlr4-go/antlr/v4"
+	antlr "github.com/antlr4-go/antlr/v4"
 
 	"github.com/neilotoole/sq/libsq/ast/internal/slq"
+	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/core/tablefq"
 )
 
 // VisitSelectorElement implements slq.SLQVisitor.

@@ -10,9 +10,8 @@ import (
 	"io"
 	"log/slog"
 
-	"github.com/neilotoole/sq/libsq/core/lg/lgm"
-
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 )
 
 type contextKey struct{}

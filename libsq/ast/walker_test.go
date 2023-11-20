@@ -3,8 +3,9 @@ package ast
 import (
 	"testing"
 
-	"github.com/neilotoole/slogt"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/neilotoole/slogt"
 )
 
 func TestWalker(t *testing.T) {

@@ -5,15 +5,13 @@ import (
 	"io"
 	"slices"
 
-	"github.com/neilotoole/sq/libsq/core/loz"
-
-	"github.com/neilotoole/sq/libsq/core/kind"
-
-	"github.com/xuri/excelize/v2"
+	excelize "github.com/xuri/excelize/v2"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+	"github.com/neilotoole/sq/libsq/core/loz"
 	"github.com/neilotoole/sq/libsq/source"
 )
 

@@ -1,18 +1,18 @@
 package cli
 
 import (
+	"github.com/samber/lo"
+	"github.com/spf13/cobra"
+
 	"github.com/neilotoole/sq/cli/diff"
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/output/format"
 	"github.com/neilotoole/sq/cli/output/tablew"
 	"github.com/neilotoole/sq/cli/run"
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/stringz"
-	"github.com/samber/lo"
-
-	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/source"
-	"github.com/spf13/cobra"
 )
 
 var OptDiffNumLines = options.NewInt(

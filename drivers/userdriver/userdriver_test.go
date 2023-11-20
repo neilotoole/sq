@@ -3,13 +3,12 @@ package userdriver_test
 import (
 	"testing"
 
-	"github.com/neilotoole/sq/libsq/core/ioz"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli/config"
 	"github.com/neilotoole/sq/drivers/userdriver"
+	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/testsrc"

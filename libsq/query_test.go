@@ -5,19 +5,15 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/neilotoole/sq/testh/tutil"
-
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/neilotoole/sq/libsq"
-
-	"github.com/neilotoole/sq/libsq/source"
-
 	"github.com/stretchr/testify/require"
 
-	_ "github.com/mattn/go-sqlite3"
+	"github.com/neilotoole/sq/libsq"
+	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
+	"github.com/neilotoole/sq/testh/tutil"
 )
 
 // driverMap is a map of source.DriverType to a string.

@@ -7,24 +7,19 @@ import (
 	"slices"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/options"
-	"github.com/neilotoole/sq/libsq/driver"
-
-	"github.com/neilotoole/sq/libsq/core/lg/lga"
-
-	"github.com/neilotoole/sq/libsq/core/lg"
-
 	"github.com/samber/lo"
-
-	"github.com/neilotoole/sq/cli/diff/internal/go-udiff"
-	"github.com/neilotoole/sq/cli/diff/internal/go-udiff/myers"
-
-	"github.com/neilotoole/sq/cli/output"
 	"golang.org/x/sync/errgroup"
 
+	udiff "github.com/neilotoole/sq/cli/diff/internal/go-udiff"
+	"github.com/neilotoole/sq/cli/diff/internal/go-udiff/myers"
+	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/driver"
 )
 
 // buildTableDataDiff compares the row data in td1 and td2, returning

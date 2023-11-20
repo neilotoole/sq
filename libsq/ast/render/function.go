@@ -3,10 +3,9 @@ package render
 import (
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/stringz"
-
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 func doFunction(rc *Context, fn *ast.FuncNode) (string, error) {

@@ -5,9 +5,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/sq/libsq/core/errz"
-
 	"github.com/neilotoole/sq/libsq/core/cleanup"
+	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
 func TestCleanup(t *testing.T) {

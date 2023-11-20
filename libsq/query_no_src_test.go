@@ -4,12 +4,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/neilotoole/sq/libsq"
-	"github.com/neilotoole/sq/testh/tutil"
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/sq/libsq"
 	"github.com/neilotoole/sq/testh"
+	"github.com/neilotoole/sq/testh/tutil"
 )
 
 func TestQuery_no_source(t *testing.T) {

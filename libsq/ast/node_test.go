@@ -3,9 +3,9 @@ package ast
 import (
 	"testing"
 
-	"github.com/neilotoole/slogt"
-
 	"github.com/stretchr/testify/require"
+
+	"github.com/neilotoole/slogt"
 )
 
 func TestChildIndex(t *testing.T) {

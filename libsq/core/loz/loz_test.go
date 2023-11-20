@@ -3,12 +3,11 @@ package loz_test
 import (
 	"testing"
 
-	"github.com/neilotoole/sq/testh/tutil"
-
-	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/loz"
-	"github.com/stretchr/testify/require"
+	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/testh/tutil"
 )
 
 func TestAll(t *testing.T) {

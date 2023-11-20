@@ -6,11 +6,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/neilotoole/sq/libsq/core/record"
-
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/jsonw/internal"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/record"
 )
 
 var _ output.NewRecordWriterFunc = NewStdRecordWriter

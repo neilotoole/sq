@@ -5,24 +5,19 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/neilotoole/sq/cli/run"
-
-	"github.com/neilotoole/sq/cli/flag"
-	"github.com/neilotoole/sq/libsq/core/lg"
-
-	"github.com/neilotoole/sq/libsq/core/lg/lgm"
-
-	"github.com/neilotoole/sq/libsq/core/lg/lga"
-
-	"github.com/neilotoole/sq/libsq"
-	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/driver"
-	"github.com/neilotoole/sq/libsq/source"
-
 	"github.com/spf13/cobra"
 
+	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/output"
+	"github.com/neilotoole/sq/cli/run"
+	"github.com/neilotoole/sq/libsq"
+	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/driver"
+	"github.com/neilotoole/sq/libsq/source"
 )
 
 func newSQLCmd() *cobra.Command {

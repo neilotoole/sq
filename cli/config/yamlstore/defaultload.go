@@ -6,12 +6,13 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/spf13/pflag"
+
 	"github.com/neilotoole/sq/cli/config"
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/source"
-	"github.com/spf13/pflag"
 )
 
 // Load loads sq config from the default location (~/.config/sq/sq.yml) or

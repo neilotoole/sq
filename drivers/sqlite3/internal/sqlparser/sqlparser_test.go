@@ -3,10 +3,10 @@ package sqlparser_test
 import (
 	"testing"
 
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/drivers/sqlite3/internal/sqlparser"
-	"github.com/stretchr/testify/require"
+	"github.com/neilotoole/sq/testh/tutil"
 )
 
 func TestExtractTableNameFromCreateTableStmt(t *testing.T) {

@@ -6,17 +6,16 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/neilotoole/sq/libsq/core/lg"
-	"github.com/neilotoole/sq/testh/tutil"
-
-	"github.com/neilotoole/slogt"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/slogt"
+
+	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/testsrc"
+	"github.com/neilotoole/sq/testh/tutil"
 )
 
 // Export for testing.

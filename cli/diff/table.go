@@ -6,7 +6,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/neilotoole/sq/cli/diff/internal/go-udiff"
+	udiff "github.com/neilotoole/sq/cli/diff/internal/go-udiff"
 	"github.com/neilotoole/sq/cli/diff/internal/go-udiff/myers"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/errz"

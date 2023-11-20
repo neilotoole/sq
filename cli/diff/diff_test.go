@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/neilotoole/sq/cli/output"
-
-	"github.com/neilotoole/sq/cli/diff/internal/go-udiff"
-	"github.com/neilotoole/sq/cli/diff/internal/go-udiff/myers"
 	"github.com/stretchr/testify/require"
+
+	udiff "github.com/neilotoole/sq/cli/diff/internal/go-udiff"
+	"github.com/neilotoole/sq/cli/diff/internal/go-udiff/myers"
+	"github.com/neilotoole/sq/cli/output"
 )
 
 //nolint:lll,unused

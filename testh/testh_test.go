@@ -5,20 +5,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/record"
-
-	"github.com/neilotoole/sq/testh/tutil"
+	_ "github.com/ryboe/q" // keep the q lib around
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 
-	_ "github.com/ryboe/q" // keep the q lib around
-
 	"github.com/neilotoole/sq/drivers/csv"
+	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
+	"github.com/neilotoole/sq/testh/tutil"
 )
 
 func TestVal(t *testing.T) {

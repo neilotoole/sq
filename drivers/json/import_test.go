@@ -9,8 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/neilotoole/sq/testh/tutil"
-
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/drivers/json"
@@ -18,6 +16,7 @@ import (
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/testsrc"
+	"github.com/neilotoole/sq/testh/tutil"
 )
 
 func TestImportJSONL_Flat(t *testing.T) {

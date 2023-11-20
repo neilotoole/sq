@@ -4,9 +4,10 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/neilotoole/sq/libsq/core/urlz"
 	"github.com/neilotoole/sq/testh/tutil"
-	"github.com/stretchr/testify/require"
 )
 
 func TestQueryParamKeys(t *testing.T) {

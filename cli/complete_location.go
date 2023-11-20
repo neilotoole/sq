@@ -10,31 +10,23 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/urlz"
-
-	"github.com/neilotoole/sq/libsq/core/ioz"
-
-	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/samber/lo"
+	"github.com/spf13/cobra"
+	"github.com/xo/dburl"
 
 	"github.com/neilotoole/sq/cli/run"
-	"github.com/neilotoole/sq/libsq/core/lg"
-	"github.com/neilotoole/sq/libsq/driver"
-
 	"github.com/neilotoole/sq/drivers/mysql"
 	"github.com/neilotoole/sq/drivers/postgres"
 	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/drivers/sqlserver"
-
-	"github.com/xo/dburl"
-
+	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/ioz"
+	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
-
 	"github.com/neilotoole/sq/libsq/core/stringz"
-
+	"github.com/neilotoole/sq/libsq/core/urlz"
+	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
-
-	"github.com/samber/lo"
-	"github.com/spf13/cobra"
 )
 
 // locCompStdDirective is the standard cobra shell completion directive

@@ -6,15 +6,15 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/neilotoole/sq/cli"
-	"github.com/neilotoole/sq/cli/config/yamlstore"
-	"github.com/neilotoole/sq/libsq/core/options"
-	"github.com/neilotoole/sq/testh/tutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/sq/cli"
 	"github.com/neilotoole/sq/cli/config"
+	"github.com/neilotoole/sq/cli/config/yamlstore"
+	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/testh/proj"
+	"github.com/neilotoole/sq/testh/tutil"
 )
 
 func TestFileStore_Nil_Save(t *testing.T) {

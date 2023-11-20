@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/antlr4-go/antlr/v4"
-	"github.com/neilotoole/sq/drivers/sqlite3/internal/sqlparser/sqlite"
+	antlr "github.com/antlr4-go/antlr/v4"
 
+	"github.com/neilotoole/sq/drivers/sqlite3/internal/sqlparser/sqlite"
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
 

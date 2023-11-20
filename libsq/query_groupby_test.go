@@ -3,13 +3,11 @@ package libsq_test
 import (
 	"testing"
 
-	"github.com/neilotoole/sq/drivers/sqlite3"
+	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/neilotoole/sq/drivers/mysql"
-
+	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/libsq/source"
-
-	_ "github.com/mattn/go-sqlite3"
 )
 
 //nolint:exhaustive,lll

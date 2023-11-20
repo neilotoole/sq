@@ -3,13 +3,11 @@ package yamlw
 import (
 	"io"
 
-	"github.com/neilotoole/sq/cli/output/outputx"
-
-	"github.com/neilotoole/sq/libsq/core/options"
-
 	"github.com/goccy/go-yaml/printer"
 
 	"github.com/neilotoole/sq/cli/output"
+	"github.com/neilotoole/sq/cli/output/outputx"
+	"github.com/neilotoole/sq/libsq/core/options"
 )
 
 var _ output.ConfigWriter = (*configWriter)(nil)

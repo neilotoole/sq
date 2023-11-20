@@ -5,11 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/neilotoole/sq/testh/tutil"
-
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/testh/tutil"
 )
 
 func TestKind(t *testing.T) {

@@ -10,13 +10,10 @@ import (
 	"io"
 	"time"
 
-	"github.com/neilotoole/sq/cli/hostinfo"
-
-	"github.com/neilotoole/sq/libsq/core/record"
-
-	"github.com/neilotoole/sq/libsq/core/options"
-
 	"github.com/neilotoole/sq/cli/buildinfo"
+	"github.com/neilotoole/sq/cli/hostinfo"
+	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 )

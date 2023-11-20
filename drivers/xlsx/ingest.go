@@ -9,28 +9,20 @@ import (
 	"time"
 
 	"github.com/samber/lo"
-
-	"github.com/neilotoole/sq/libsq/core/loz"
-
-	"github.com/xuri/excelize/v2"
-
-	"github.com/neilotoole/sq/libsq/core/options"
-
-	"github.com/neilotoole/sq/libsq/core/lg/lga"
-
-	"github.com/neilotoole/sq/libsq/core/lg/lgm"
-
-	"github.com/neilotoole/sq/libsq/core/lg"
-
+	excelize "github.com/xuri/excelize/v2"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
-	"github.com/neilotoole/sq/libsq/source"
-
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+	"github.com/neilotoole/sq/libsq/core/loz"
+	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/sqlmodel"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
+	"github.com/neilotoole/sq/libsq/source"
 )
 
 const msgCloseRowIter = "Close Excel row iterator"

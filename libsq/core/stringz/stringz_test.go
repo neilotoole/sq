@@ -6,13 +6,11 @@ import (
 	"testing"
 
 	"github.com/samber/lo"
-
-	"github.com/neilotoole/sq/testh/tutil"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/testh/tutil"
 )
 
 func TestGenerateAlphaColName(t *testing.T) {

@@ -8,28 +8,23 @@ import (
 	"testing"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/driver"
-
-	"github.com/neilotoole/sq/cli"
-	"github.com/neilotoole/sq/cli/config/yamlstore"
-	v0_34_0 "github.com/neilotoole/sq/cli/config/yamlstore/upgrades/v0.34.0"
-	"github.com/neilotoole/sq/drivers/csv"
-	"github.com/neilotoole/sq/drivers/xlsx"
-	"github.com/neilotoole/sq/libsq/core/options"
-	"github.com/neilotoole/sq/testh"
-
-	"github.com/neilotoole/sq/cli/output/format"
-
-	"github.com/neilotoole/slogt"
-	"github.com/neilotoole/sq/libsq/core/lg"
-
-	"github.com/neilotoole/sq/drivers/postgres"
-
-	"github.com/neilotoole/sq/testh/tutil"
-
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/slogt"
+
+	"github.com/neilotoole/sq/cli"
 	"github.com/neilotoole/sq/cli/config"
+	"github.com/neilotoole/sq/cli/config/yamlstore"
+	v0_34_0 "github.com/neilotoole/sq/cli/config/yamlstore/upgrades/v0.34.0"
+	"github.com/neilotoole/sq/cli/output/format"
+	"github.com/neilotoole/sq/drivers/csv"
+	"github.com/neilotoole/sq/drivers/postgres"
+	"github.com/neilotoole/sq/drivers/xlsx"
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/driver"
+	"github.com/neilotoole/sq/testh"
+	"github.com/neilotoole/sq/testh/tutil"
 )
 
 func TestUpgrade(t *testing.T) {

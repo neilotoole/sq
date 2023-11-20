@@ -5,9 +5,8 @@ import (
 	"io"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/errz"
-
 	"github.com/neilotoole/sq/cli/output"
+	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
 // errorWriter implements output.ErrorWriter.

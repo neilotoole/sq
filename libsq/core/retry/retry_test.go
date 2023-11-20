@@ -4,8 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/retry"
 	"github.com/stretchr/testify/require"
+
+	"github.com/neilotoole/sq/libsq/core/retry"
 )
 
 func TestJitter(t *testing.T) {

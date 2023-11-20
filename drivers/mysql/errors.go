@@ -3,9 +3,9 @@ package mysql
 import (
 	"errors"
 
-	"github.com/neilotoole/sq/libsq/core/errz"
-
 	"github.com/go-sql-driver/mysql"
+
+	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
 // errw wraps any error from the db. It should be called at

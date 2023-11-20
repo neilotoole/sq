@@ -7,8 +7,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/xo/dburl"
+
+	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
 var dbSchemes = []string{

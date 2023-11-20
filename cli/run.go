@@ -7,15 +7,13 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/neilotoole/sq/cli/run"
-
-	"github.com/neilotoole/sq/cli/config/yamlstore"
-	v0_34_0 "github.com/neilotoole/sq/cli/config/yamlstore/upgrades/v0.34.0"
-	"github.com/neilotoole/sq/libsq/core/lg/slogbuf"
-	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/config"
+	"github.com/neilotoole/sq/cli/config/yamlstore"
+	v0_34_0 "github.com/neilotoole/sq/cli/config/yamlstore/upgrades/v0.34.0"
 	"github.com/neilotoole/sq/cli/flag"
+	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/drivers/csv"
 	"github.com/neilotoole/sq/drivers/json"
 	"github.com/neilotoole/sq/drivers/mysql"
@@ -29,9 +27,10 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
+	"github.com/neilotoole/sq/libsq/core/lg/slogbuf"
+	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
-	"github.com/spf13/cobra"
 )
 
 // getRun is a convenience function for getting Run
