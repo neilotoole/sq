@@ -28,12 +28,13 @@ import (
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/driver/dialect"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
 const (
 	// Type is the SQL Server source driver type.
-	Type = source.DriverType("sqlserver")
+	Type = drivertype.Type("sqlserver")
 
 	// dbDrvr is the backing SQL Server driver impl name.
 	dbDrvr = "sqlserver"
@@ -47,7 +48,7 @@ type Provider struct {
 }
 
 // DriverFor implements driver.Provider.
-func (p *Provider) DriverFor(typ source.DriverType) (driver.Driver, error) {
+func (p *Provider) DriverFor(typ drivertype.Type) (driver.Driver, error) {
 	if typ != Type {
 		return nil, errz.Errorf("unsupported driver type {%s}}", typ)
 	}

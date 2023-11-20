@@ -14,11 +14,12 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
 const (
 	// Type is the sq source driver type for XLSX.
-	Type = source.DriverType("xlsx")
+	Type = drivertype.Type("xlsx")
 
 	// laSheet is a constant for the "sheet" log attribute.
 	laSheet = "sheet"
@@ -32,7 +33,7 @@ type Provider struct {
 }
 
 // DriverFor implements driver.Provider.
-func (p *Provider) DriverFor(typ source.DriverType) (driver.Driver, error) {
+func (p *Provider) DriverFor(typ drivertype.Type) (driver.Driver, error) {
 	if typ != Type {
 		return nil, errz.Errorf("unsupported driver type {%s}", typ)
 	}

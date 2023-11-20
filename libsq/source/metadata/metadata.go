@@ -4,9 +4,8 @@ package metadata
 import (
 	"encoding/json"
 
-	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
-	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
 // Source holds metadata for a source.
@@ -34,11 +33,11 @@ type Source struct {
 	Catalog string `json:"catalog,omitempty" yaml:"catalog,omitempty"`
 
 	// Driver is the source driver type.
-	Driver source.DriverType `json:"driver" yaml:"driver"`
+	Driver drivertype.Type `json:"driver" yaml:"driver"`
 
 	// DBDriver is the type of the underling DB driver.
 	// This is the same value as Driver for SQL database types.
-	DBDriver source.DriverType `json:"db_driver" yaml:"db_driver"`
+	DBDriver drivertype.Type `json:"db_driver" yaml:"db_driver"`
 
 	// DBProduct is the DB product string, such as "PostgreSQL 9.6.17 on x86_64-pc-linux-gnu".
 	DBProduct string `json:"db_product" yaml:"db_product"`
@@ -127,6 +126,7 @@ func (md *Source) TableNames() []string {
 	return names
 }
 
+// String returns a log/debug friendly representation.
 func (md *Source) String() string {
 	bytes, _ := json.Marshal(md)
 	return string(bytes)
@@ -163,6 +163,7 @@ type Table struct {
 	Columns []*Column `json:"columns" yaml:"columns"`
 }
 
+// String returns a log/debug friendly representation.
 func (t *Table) String() string {
 	bytes, _ := json.Marshal(t)
 	return string(bytes)
@@ -252,20 +253,8 @@ func (c *Column) Clone() *Column {
 	}
 }
 
+// String returns a log/debug friendly representation.
 func (c *Column) String() string {
 	bytes, _ := json.Marshal(c)
 	return string(bytes)
-}
-
-// TableFromSourceMetadata returns Table whose name matches
-// tblName.
-//
-// Deprecated: Each driver should implement this correctly for a single table.
-func TableFromSourceMetadata(srcMeta *Source, tblName string) (*Table, error) {
-	for _, tblMeta := range srcMeta.Tables {
-		if tblMeta.Name == tblName {
-			return tblMeta, nil
-		}
-	}
-	return nil, errz.Errorf("metadata for table %s not found", tblName)
 }

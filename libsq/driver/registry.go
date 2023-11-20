@@ -6,7 +6,7 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
-	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
 // NewRegistry returns a new Registry instance that provides
@@ -15,7 +15,7 @@ import (
 func NewRegistry(log *slog.Logger) *Registry {
 	return &Registry{
 		log:       log,
-		providers: map[source.DriverType]Provider{},
+		providers: map[drivertype.Type]Provider{},
 	}
 }
 
@@ -23,13 +23,13 @@ func NewRegistry(log *slog.Logger) *Registry {
 type Registry struct {
 	log       *slog.Logger
 	mu        sync.Mutex
-	providers map[source.DriverType]Provider
-	types     []source.DriverType
+	providers map[drivertype.Type]Provider
+	types     []drivertype.Type
 }
 
 // AddProvider registers the provider for the specified driver type.
 // This method has no effect if there's already a provider for typ.
-func (r *Registry) AddProvider(typ source.DriverType, p Provider) {
+func (r *Registry) AddProvider(typ drivertype.Type, p Provider) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -45,7 +45,7 @@ func (r *Registry) AddProvider(typ source.DriverType, p Provider) {
 
 // ProviderFor returns the provider for typ, or nil if no
 // registered provider.
-func (r *Registry) ProviderFor(typ source.DriverType) Provider {
+func (r *Registry) ProviderFor(typ drivertype.Type) Provider {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -54,7 +54,7 @@ func (r *Registry) ProviderFor(typ source.DriverType) Provider {
 }
 
 // DriverFor implements Provider.
-func (r *Registry) DriverFor(typ source.DriverType) (Driver, error) {
+func (r *Registry) DriverFor(typ drivertype.Type) (Driver, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -67,7 +67,7 @@ func (r *Registry) DriverFor(typ source.DriverType) (Driver, error) {
 }
 
 // SQLDriverFor for is a convenience method for getting a SQLDriver.
-func (r *Registry) SQLDriverFor(typ source.DriverType) (SQLDriver, error) {
+func (r *Registry) SQLDriverFor(typ drivertype.Type) (SQLDriver, error) {
 	drvr, err := r.DriverFor(typ)
 	if err != nil {
 		return nil, err

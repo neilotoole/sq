@@ -27,6 +27,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/urlz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
 // locCompStdDirective is the standard cobra shell completion directive
@@ -565,7 +566,7 @@ func locCompDriverPort(drvr driver.SQLDriver) string {
 
 // locCompAfterHost returns the next text to show after the host
 // part of the URL is complete.
-func locCompAfterHost(typ source.DriverType) string {
+func locCompAfterHost(typ drivertype.Type) string {
 	if typ == sqlserver.Type {
 		return "?database="
 	}
@@ -591,7 +592,7 @@ func locCompParseLoc(loc string) (*parsedLoc, error) {
 
 	p.stageDone = plocScheme
 	p.scheme, s, ok = strings.Cut(loc, "://")
-	p.typ = source.DriverType(p.scheme)
+	p.typ = drivertype.Type(p.scheme)
 
 	if s == "" || !ok {
 		return p, nil
@@ -689,7 +690,7 @@ type parsedLoc struct {
 
 	// typ is the associated source driver type, which may
 	// be empty until later determination.
-	typ source.DriverType
+	typ drivertype.Type
 
 	// scheme is the original location scheme
 	scheme string
@@ -788,7 +789,7 @@ func locCompListFiles(ctx context.Context, toComplete string) []string {
 // elements of a location.
 type locHistory struct {
 	coll *source.Collection
-	typ  source.DriverType
+	typ  drivertype.Type
 	log  *slog.Logger
 }
 

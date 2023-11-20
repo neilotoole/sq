@@ -3,13 +3,13 @@ package dialect
 
 import (
 	"github.com/neilotoole/sq/libsq/core/jointype"
-	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
 // Dialect holds driver-specific SQL dialect values and functions.
 type Dialect struct {
 	// Type is the dialect's driver type.
-	Type source.DriverType `json:"type"`
+	Type drivertype.Type `json:"type"`
 
 	// Placeholders returns a string a SQL placeholders string.
 	// For example "(?, ?, ?)" or "($1, $2, $3), ($4, $5, $6)".

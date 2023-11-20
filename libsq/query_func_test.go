@@ -10,7 +10,7 @@ import (
 	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/drivers/sqlserver"
 	"github.com/neilotoole/sq/libsq"
-	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
 )
 
@@ -80,7 +80,7 @@ func TestQuery_func_schema(t *testing.T) {
 			name:         "sqlserver-default",
 			in:           `@sakila | schema()`,
 			wantSQL:      `SELECT SCHEMA_NAME() AS "schema()"`,
-			onlyFor:      []source.DriverType{sqlserver.Type},
+			onlyFor:      []drivertype.Type{sqlserver.Type},
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "schema()"),
@@ -96,7 +96,7 @@ func TestQuery_func_schema(t *testing.T) {
 				qc.Collection.Active().Schema = infoSchema
 			},
 			wantSQL:      `SELECT SCHEMA_NAME() AS "schema()"`,
-			onlyFor:      []source.DriverType{sqlserver.Type},
+			onlyFor:      []drivertype.Type{sqlserver.Type},
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "schema()"),
@@ -107,7 +107,7 @@ func TestQuery_func_schema(t *testing.T) {
 			name:         "postgres-default",
 			in:           `@sakila | schema()`,
 			wantSQL:      `SELECT current_schema() AS "schema()"`,
-			onlyFor:      []source.DriverType{postgres.Type},
+			onlyFor:      []drivertype.Type{postgres.Type},
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "schema()"),
@@ -121,7 +121,7 @@ func TestQuery_func_schema(t *testing.T) {
 				qc.Collection.Active().Schema = infoSchema
 			},
 			wantSQL:      `SELECT current_schema() AS "schema()"`,
-			onlyFor:      []source.DriverType{postgres.Type},
+			onlyFor:      []drivertype.Type{postgres.Type},
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "schema()"),
@@ -132,7 +132,7 @@ func TestQuery_func_schema(t *testing.T) {
 			name:         "mysql-default",
 			in:           `@sakila | schema()`,
 			wantSQL:      "SELECT DATABASE() AS `schema()`",
-			onlyFor:      []source.DriverType{mysql.Type},
+			onlyFor:      []drivertype.Type{mysql.Type},
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "schema()"),
@@ -146,7 +146,7 @@ func TestQuery_func_schema(t *testing.T) {
 				qc.Collection.Active().Schema = infoSchema
 			},
 			wantSQL:      "SELECT DATABASE() AS `schema()`",
-			onlyFor:      []source.DriverType{mysql.Type},
+			onlyFor:      []drivertype.Type{mysql.Type},
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "schema()"),
@@ -157,7 +157,7 @@ func TestQuery_func_schema(t *testing.T) {
 			name:         "sqlite-default",
 			in:           `@sakila | schema()`,
 			wantSQL:      `SELECT (SELECT name FROM pragma_database_list ORDER BY seq limit 1) AS "schema()"`,
-			onlyFor:      []source.DriverType{sqlite3.Type},
+			onlyFor:      []drivertype.Type{sqlite3.Type},
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "schema()"),
@@ -180,7 +180,7 @@ func TestQuery_func_catalog(t *testing.T) {
 			name:         "sqlserver-default",
 			in:           `@sakila | catalog()`,
 			wantSQL:      `SELECT DB_NAME() AS "catalog()"`,
-			onlyFor:      []source.DriverType{sqlserver.Type},
+			onlyFor:      []drivertype.Type{sqlserver.Type},
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "catalog()"),
@@ -194,7 +194,7 @@ func TestQuery_func_catalog(t *testing.T) {
 				qc.Collection.Active().Catalog = "model"
 			},
 			wantSQL:      `SELECT DB_NAME() AS "catalog()"`,
-			onlyFor:      []source.DriverType{sqlserver.Type},
+			onlyFor:      []drivertype.Type{sqlserver.Type},
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "catalog()"),
@@ -205,7 +205,7 @@ func TestQuery_func_catalog(t *testing.T) {
 			name:         "postgres-default",
 			in:           `@sakila | catalog()`,
 			wantSQL:      `SELECT current_database() AS "catalog()"`,
-			onlyFor:      []source.DriverType{postgres.Type},
+			onlyFor:      []drivertype.Type{postgres.Type},
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "catalog()"),
@@ -219,7 +219,7 @@ func TestQuery_func_catalog(t *testing.T) {
 				qc.Collection.Active().Catalog = "postgres"
 			},
 			wantSQL:      `SELECT current_database() AS "catalog()"`,
-			onlyFor:      []source.DriverType{postgres.Type},
+			onlyFor:      []drivertype.Type{postgres.Type},
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "catalog()"),
@@ -230,7 +230,7 @@ func TestQuery_func_catalog(t *testing.T) {
 			name:         "mysql",
 			in:           `@sakila | catalog()`,
 			wantSQL:      "SELECT (SELECT CATALOG_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = DATABASE() LIMIT 1) AS `catalog()`", //nolint:lll
-			onlyFor:      []source.DriverType{mysql.Type},
+			onlyFor:      []drivertype.Type{mysql.Type},
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "catalog()"),
@@ -244,7 +244,7 @@ func TestQuery_func_catalog(t *testing.T) {
 			// return the string "default". This behavior may change
 			// upon feedback.
 			wantSQL:      `SELECT (SELECT 'default') AS "catalog()"`,
-			onlyFor:      []source.DriverType{sqlite3.Type},
+			onlyFor:      []drivertype.Type{sqlite3.Type},
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "catalog()"),

@@ -12,18 +12,8 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
-
-// DriverType is a driver type, e.g. "mysql", "postgres", "csv", etc.
-type DriverType string
-
-// String returns a log/debug-friendly representation.
-func (t DriverType) String() string {
-	return string(t)
-}
-
-// TypeNone is the zero value of DriverType.
-const TypeNone = DriverType("")
 
 const (
 	// StdinHandle is the reserved handle for stdin pipe input.
@@ -68,7 +58,7 @@ type Source struct {
 	Handle string `yaml:"handle" json:"handle"`
 
 	// Type is the driver type, e.g. postgres.Type.
-	Type DriverType `yaml:"driver" json:"driver"`
+	Type drivertype.Type `yaml:"driver" json:"driver"`
 
 	// Location is the source location, such as a DB connection URI,
 	// or a file path.
@@ -229,16 +219,16 @@ func (s *Source) ShortLocation() string {
 	return ShortLocation(s.Location)
 }
 
-// Redefine the DriverType values here rather than introducing
-// a circular dependency on the driver impl packages.
+// Redefine the drivertype.Type values here rather than introducing
+// a circular dependency on the drivers impl packages.
 const (
-	typeSL3  = DriverType("sqlite3")
-	typePg   = DriverType("postgres")
-	typeMS   = DriverType("sqlserver")
-	typeMy   = DriverType("mysql")
-	typeXLSX = DriverType("xlsx")
-	typeCSV  = DriverType("csv")
-	typeTSV  = DriverType("tsv")
+	typeSL3  = drivertype.Type("sqlite3")
+	typePg   = drivertype.Type("postgres")
+	typeMS   = drivertype.Type("sqlserver")
+	typeMy   = drivertype.Type("mysql")
+	typeXLSX = drivertype.Type("xlsx")
+	typeCSV  = drivertype.Type("csv")
+	typeTSV  = drivertype.Type("tsv")
 )
 
 // typeFromMediaType returns the driver type corresponding to mediatype.
@@ -250,7 +240,7 @@ const (
 // Note that we don't rely on this function for types such
 // as application/json, because JSON can map to multiple
 // driver types (json, jsona, jsonl).
-func typeFromMediaType(mediatype string) (typ DriverType, ok bool) {
+func typeFromMediaType(mediatype string) (typ drivertype.Type, ok bool) {
 	switch {
 	case strings.Contains(mediatype, `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`):
 		return typeXLSX, true
@@ -260,7 +250,7 @@ func typeFromMediaType(mediatype string) (typ DriverType, ok bool) {
 		return typeTSV, true
 	}
 
-	return TypeNone, false
+	return drivertype.None, false
 }
 
 // Target returns @handle.tbl. This is often used in log messages.
@@ -287,7 +277,7 @@ func validSource(s *Source) error {
 		return errz.Errorf("%s: location is empty", s.Handle)
 	}
 
-	if s.Type == TypeNone {
+	if s.Type == drivertype.None {
 		return errz.Errorf("%s: driver type is empty or unknown: %s", s.Handle, s.Type)
 	}
 

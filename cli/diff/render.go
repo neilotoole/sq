@@ -3,6 +3,7 @@ package diff
 import (
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
@@ -18,19 +19,19 @@ func renderSourceMeta2YAML(sm *metadata.Source) (string, error) {
 	// sourceMeta holds values of metadata.Source in the structure
 	// that diff wants.
 	type sourceMeta struct {
-		Handle     string            `json:"handle" yaml:"handle"`
-		Location   string            `json:"location" yaml:"location"`
-		Name       string            `json:"name" yaml:"name"`
-		FQName     string            `json:"name_fq" yaml:"name_fq"`
-		Schema     string            `json:"schema,omitempty" yaml:"schema,omitempty"`
-		Driver     source.DriverType `json:"driver" yaml:"driver"`
-		DBDriver   source.DriverType `json:"db_driver" yaml:"db_driver"`
-		DBProduct  string            `json:"db_product" yaml:"db_product"`
-		DBVersion  string            `json:"db_version" yaml:"db_version"`
-		User       string            `json:"user,omitempty" yaml:"user,omitempty"`
-		Size       int64             `json:"size" yaml:"size"`
-		TableCount int64             `json:"table_count" yaml:"table_count"`
-		ViewCount  int64             `json:"view_count" yaml:"view_count"`
+		Handle     string          `json:"handle" yaml:"handle"`
+		Location   string          `json:"location" yaml:"location"`
+		Name       string          `json:"name" yaml:"name"`
+		FQName     string          `json:"name_fq" yaml:"name_fq"`
+		Schema     string          `json:"schema,omitempty" yaml:"schema,omitempty"`
+		Driver     drivertype.Type `json:"driver" yaml:"driver"`
+		DBDriver   drivertype.Type `json:"db_driver" yaml:"db_driver"`
+		DBProduct  string          `json:"db_product" yaml:"db_product"`
+		DBVersion  string          `json:"db_version" yaml:"db_version"`
+		User       string          `json:"user,omitempty" yaml:"user,omitempty"`
+		Size       int64           `json:"size" yaml:"size"`
+		TableCount int64           `json:"table_count" yaml:"table_count"`
+		ViewCount  int64           `json:"view_count" yaml:"view_count"`
 	}
 
 	smr := &sourceMeta{

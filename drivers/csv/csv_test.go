@@ -19,6 +19,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/timez"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
 )
@@ -88,7 +89,7 @@ func TestSakila_query(t *testing.T) {
 		},
 	}
 
-	for _, driver := range []source.DriverType{csv.TypeCSV, csv.TypeTSV} {
+	for _, driver := range []drivertype.Type{csv.TypeCSV, csv.TypeTSV} {
 		driver := driver
 
 		t.Run(driver.String(), func(t *testing.T) {

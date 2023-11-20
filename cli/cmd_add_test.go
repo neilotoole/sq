@@ -15,6 +15,7 @@ import (
 	"github.com/neilotoole/sq/drivers/sqlserver"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
@@ -42,7 +43,7 @@ func TestCmdAdd(t *testing.T) {
 		driver      string // --driver flag
 		handle      string // --handle flag
 		wantHandle  string
-		wantType    source.DriverType
+		wantType    drivertype.Type
 		wantOptions options.Options
 		wantErr     bool
 		query       *query

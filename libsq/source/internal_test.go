@@ -12,6 +12,7 @@ import (
 	"github.com/neilotoole/slogt"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/testsrc"
@@ -20,7 +21,7 @@ import (
 
 // Export for testing.
 var (
-	FilesDetectTypeFn = func(fs *Files, ctx context.Context, loc string) (typ DriverType, ok bool, err error) {
+	FilesDetectTypeFn = func(fs *Files, ctx context.Context, loc string) (typ drivertype.Type, ok bool, err error) {
 		return fs.detectType(ctx, loc)
 	}
 	GroupsFilterOnlyDirectChildren = groupsFilterOnlyDirectChildren

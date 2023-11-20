@@ -14,6 +14,7 @@ import (
 	"github.com/neilotoole/sq/drivers/sqlserver"
 	"github.com/neilotoole/sq/drivers/xlsx"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh/tutil"
 )
 
@@ -90,7 +91,7 @@ func TestValidHandle(t *testing.T) {
 
 func TestSuggestHandle(t *testing.T) {
 	testCases := []struct {
-		typ   source.DriverType
+		typ   drivertype.Type
 		loc   string
 		want  string
 		taken []string
@@ -101,7 +102,7 @@ func TestSuggestHandle(t *testing.T) {
 			want: "@actor",
 		},
 		{
-			typ:  source.TypeNone,
+			typ:  drivertype.None,
 			loc:  "/path/to/actor.csv",
 			want: "@actor",
 		},
@@ -131,7 +132,7 @@ func TestSuggestHandle(t *testing.T) {
 			want: "@h_abc123_",
 		},
 		{
-			typ:  source.TypeNone,
+			typ:  drivertype.None,
 			loc:  "/path/to/sakila.xlsx",
 			want: "@sakila",
 		},
@@ -147,7 +148,7 @@ func TestSuggestHandle(t *testing.T) {
 			want: "@sakila",
 		},
 		{
-			typ:  source.TypeNone,
+			typ:  drivertype.None,
 			loc:  "sqlite3:///path/to/sakila.db",
 			want: "@sakila",
 		},
@@ -162,12 +163,12 @@ func TestSuggestHandle(t *testing.T) {
 			want: "@sakila",
 		},
 		{
-			typ:  source.TypeNone,
+			typ:  drivertype.None,
 			loc:  "sqlserver://sakila_p_ssW0rd@localhost?database=sakila",
 			want: "@sakila",
 		},
 		{
-			typ:   source.TypeNone,
+			typ:   drivertype.None,
 			loc:   "sqlserver://sakila_p_ssW0rd@localhost?database=sakila",
 			want:  "@sakila2",
 			taken: []string{"@sakila"},
@@ -178,7 +179,7 @@ func TestSuggestHandle(t *testing.T) {
 			want: "@sakila",
 		},
 		{
-			typ:  source.TypeNone,
+			typ:  drivertype.None,
 			loc:  "postgres://sakila_p_ssW0rd@localhost/sakila",
 			want: "@sakila",
 		},
@@ -193,7 +194,7 @@ func TestSuggestHandle(t *testing.T) {
 			want: "@sakila",
 		},
 		{
-			typ:  source.TypeNone,
+			typ:  drivertype.None,
 			loc:  "mysql://sakila_p_ssW0rd@localhost:3306/sakila",
 			want: "@sakila",
 		},

@@ -18,6 +18,7 @@ import (
 	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/proj"
@@ -283,7 +284,7 @@ func TestCmdInspect_stdin(t *testing.T) {
 	testCases := []struct {
 		fpath    string
 		wantErr  bool
-		wantType source.DriverType
+		wantType drivertype.Type
 		wantTbls []string
 	}{
 		{

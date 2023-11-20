@@ -22,6 +22,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
@@ -32,7 +33,7 @@ import (
 func TestFiles_Type(t *testing.T) {
 	testCases := []struct {
 		loc      string
-		wantType source.DriverType
+		wantType drivertype.Type
 		wantErr  bool
 	}{
 		{loc: proj.Expand("sqlite3://${SQ_ROOT}/drivers/sqlite3/testdata/sakila.db"), wantType: sqlite3.Type},
@@ -75,7 +76,7 @@ func TestFiles_Type(t *testing.T) {
 func TestFiles_DetectType(t *testing.T) {
 	testCases := []struct {
 		loc      string
-		wantType source.DriverType
+		wantType drivertype.Type
 		wantOK   bool
 		wantErr  bool
 	}{
@@ -90,7 +91,7 @@ func TestFiles_DetectType(t *testing.T) {
 		{loc: proj.Abs("drivers/csv/testdata/person.tsv"), wantType: csv.TypeTSV, wantOK: true},
 		{loc: proj.Abs("drivers/csv/testdata/person_noheader.tsv"), wantType: csv.TypeTSV, wantOK: true},
 		{loc: proj.Abs("drivers/csv/testdata/person_tsv"), wantType: csv.TypeTSV, wantOK: true},
-		{loc: proj.Abs("README.md"), wantType: source.TypeNone, wantOK: false},
+		{loc: proj.Abs("README.md"), wantType: drivertype.None, wantOK: false},
 	}
 
 	for _, tc := range testCases {
@@ -118,7 +119,7 @@ func TestFiles_DetectType(t *testing.T) {
 func TestDetectMagicNumber(t *testing.T) {
 	testCases := []struct {
 		loc       string
-		wantType  source.DriverType
+		wantType  drivertype.Type
 		wantScore float32
 		wantErr   bool
 	}{
@@ -183,7 +184,7 @@ func TestFiles_NewReader(t *testing.T) {
 func TestFiles_Stdin(t *testing.T) {
 	testCases := []struct {
 		fpath    string
-		wantType source.DriverType
+		wantType drivertype.Type
 		wantErr  bool
 	}{
 		{fpath: proj.Abs(sakila.PathCSVActor), wantType: csv.TypeCSV},
@@ -221,7 +222,7 @@ func TestFiles_Stdin_ErrorWrongOrder(t *testing.T) {
 
 	typ, err := fs.TypeStdin(th.Context)
 	require.Error(t, err, "should error because AddStdin not yet invoked")
-	require.Equal(t, source.TypeNone, typ)
+	require.Equal(t, drivertype.None, typ)
 
 	f, err := os.Open(proj.Abs(sakila.PathCSVActor))
 	require.NoError(t, err)

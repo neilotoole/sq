@@ -11,6 +11,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
 var (
@@ -19,27 +20,27 @@ var (
 )
 
 // DetectCSV implements source.DriverDetectFunc.
-func DetectCSV(ctx context.Context, openFn source.FileOpenFunc) (detected source.DriverType, score float32,
+func DetectCSV(ctx context.Context, openFn source.FileOpenFunc) (detected drivertype.Type, score float32,
 	err error,
 ) {
 	return detectType(ctx, TypeCSV, openFn)
 }
 
 // DetectTSV implements source.DriverDetectFunc.
-func DetectTSV(ctx context.Context, openFn source.FileOpenFunc) (detected source.DriverType,
+func DetectTSV(ctx context.Context, openFn source.FileOpenFunc) (detected drivertype.Type,
 	score float32, err error,
 ) {
 	return detectType(ctx, TypeTSV, openFn)
 }
 
-func detectType(ctx context.Context, typ source.DriverType,
+func detectType(ctx context.Context, typ drivertype.Type,
 	openFn source.FileOpenFunc,
-) (detected source.DriverType, score float32, err error) {
+) (detected drivertype.Type, score float32, err error) {
 	log := lg.FromContext(ctx)
 	var r io.ReadCloser
 	r, err = openFn()
 	if err != nil {
-		return source.TypeNone, 0, errz.Err(err)
+		return drivertype.None, 0, errz.Err(err)
 	}
 	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
 
@@ -57,7 +58,7 @@ func detectType(ctx context.Context, typ source.DriverType,
 		return typ, score, nil
 	}
 
-	return source.TypeNone, 0, nil
+	return drivertype.None, 0, nil
 }
 
 const (

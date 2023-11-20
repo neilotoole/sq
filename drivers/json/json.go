@@ -17,18 +17,19 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
 const (
 	// TypeJSON is the plain-old JSON driver type.
-	TypeJSON = source.DriverType("json")
+	TypeJSON = drivertype.Type("json")
 
 	// TypeJSONA is the JSON Array driver type.
-	TypeJSONA = source.DriverType("jsona")
+	TypeJSONA = drivertype.Type("jsona")
 
 	// TypeJSONL is the JSON Lines driver type.
-	TypeJSONL = source.DriverType("jsonl")
+	TypeJSONL = drivertype.Type("jsonl")
 )
 
 // Provider implements driver.Provider.
@@ -39,7 +40,7 @@ type Provider struct {
 }
 
 // DriverFor implements driver.Provider.
-func (d *Provider) DriverFor(typ source.DriverType) (driver.Driver, error) {
+func (d *Provider) DriverFor(typ drivertype.Type) (driver.Driver, error) {
 	var importFn importFunc
 
 	switch typ { //nolint:exhaustive
@@ -65,7 +66,7 @@ func (d *Provider) DriverFor(typ source.DriverType) (driver.Driver, error) {
 // Driver implements driver.Driver.
 type driveri struct {
 	log       *slog.Logger
-	typ       source.DriverType
+	typ       drivertype.Type
 	importFn  importFunc
 	scratcher driver.ScratchPoolOpener
 	files     *source.Files

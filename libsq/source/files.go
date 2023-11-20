@@ -21,6 +21,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/fetcher"
 )
 
@@ -111,18 +112,18 @@ func (fs *Files) AddStdin(f *os.File) error {
 // by AddStdin. An error is returned if AddStdin was not
 // first invoked. If the type cannot be detected, TypeNone and
 // nil are returned.
-func (fs *Files) TypeStdin(ctx context.Context) (DriverType, error) {
+func (fs *Files) TypeStdin(ctx context.Context) (drivertype.Type, error) {
 	if !fs.fcache.Exists(StdinHandle) {
-		return TypeNone, errz.New("must invoke AddStdin before invoking TypeStdin")
+		return drivertype.None, errz.New("must invoke AddStdin before invoking TypeStdin")
 	}
 
 	typ, ok, err := fs.detectType(ctx, StdinHandle)
 	if err != nil {
-		return TypeNone, err
+		return drivertype.None, err
 	}
 
 	if !ok {
-		return TypeNone, nil
+		return drivertype.None, nil
 	}
 
 	return typ, nil
@@ -323,13 +324,13 @@ func (fs *Files) CleanupE(fn func() error) {
 }
 
 // DriverType returns the driver type of loc.
-func (fs *Files) DriverType(ctx context.Context, loc string) (DriverType, error) {
+func (fs *Files) DriverType(ctx context.Context, loc string) (drivertype.Type, error) {
 	ploc, err := parseLoc(loc)
 	if err != nil {
-		return TypeNone, err
+		return drivertype.None, err
 	}
 
-	if ploc.typ != TypeNone {
+	if ploc.typ != drivertype.None {
 		return ploc.typ, nil
 	}
 
@@ -356,23 +357,23 @@ func (fs *Files) DriverType(ctx context.Context, loc string) (DriverType, error)
 	// Fall back to the byte detectors
 	typ, ok, err := fs.detectType(ctx, loc)
 	if err != nil {
-		return TypeNone, err
+		return drivertype.None, err
 	}
 
 	if !ok {
-		return TypeNone, errz.Errorf("unable to determine driver type: %s", loc)
+		return drivertype.None, errz.Errorf("unable to determine driver type: %s", loc)
 	}
 
 	return typ, nil
 }
 
-func (fs *Files) detectType(ctx context.Context, loc string) (typ DriverType, ok bool, err error) {
+func (fs *Files) detectType(ctx context.Context, loc string) (typ drivertype.Type, ok bool, err error) {
 	if len(fs.detectFns) == 0 {
-		return TypeNone, false, nil
+		return drivertype.None, false, nil
 	}
 
 	type result struct {
-		typ   DriverType
+		typ   drivertype.Type
 		score float32
 	}
 
@@ -386,7 +387,7 @@ func (fs *Files) detectType(ctx context.Context, loc string) (typ DriverType, ok
 
 	select {
 	case <-ctx.Done():
-		return TypeNone, false, ctx.Err()
+		return drivertype.None, false, ctx.Err()
 	default:
 	}
 
@@ -418,7 +419,7 @@ func (fs *Files) detectType(ctx context.Context, loc string) (typ DriverType, ok
 	err = g.Wait()
 	if err != nil {
 		fs.log.Error(err.Error())
-		return TypeNone, false, errz.Err(err)
+		return drivertype.None, false, errz.Err(err)
 	}
 	close(resultCh)
 
@@ -435,7 +436,7 @@ func (fs *Files) detectType(ctx context.Context, loc string) (typ DriverType, ok
 		return typ, true, nil
 	}
 
-	return TypeNone, false, nil
+	return drivertype.None, false, nil
 }
 
 // FileOpenFunc returns a func that opens a ReadCloser. The caller
@@ -450,7 +451,8 @@ type FileOpenFunc func() (io.ReadCloser, error)
 // An error is returned only if an IO problem occurred.
 // The implementation gets access to the byte stream by invoking openFn,
 // and is responsible for closing any reader it opens.
-type DriverDetectFunc func(ctx context.Context, openFn FileOpenFunc) (detected DriverType, score float32, err error)
+type DriverDetectFunc func(ctx context.Context, openFn FileOpenFunc) (
+	detected drivertype.Type, score float32, err error)
 
 var _ DriverDetectFunc = DetectMagicNumber
 
@@ -458,12 +460,12 @@ var _ DriverDetectFunc = DetectMagicNumber
 // pkg (h2non/filetype) to detect the "magic number" from
 // the start of files.
 func DetectMagicNumber(ctx context.Context, openFn FileOpenFunc,
-) (detected DriverType, score float32, err error) {
+) (detected drivertype.Type, score float32, err error) {
 	log := lg.FromContext(ctx)
 	var r io.ReadCloser
 	r, err = openFn()
 	if err != nil {
-		return TypeNone, 0, errz.Err(err)
+		return drivertype.None, 0, errz.Err(err)
 	}
 	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
 
@@ -471,19 +473,19 @@ func DetectMagicNumber(ctx context.Context, openFn FileOpenFunc,
 	head := make([]byte, 261)
 	_, err = r.Read(head)
 	if err != nil {
-		return TypeNone, 0, errz.Wrapf(err, "failed to read header")
+		return drivertype.None, 0, errz.Wrapf(err, "failed to read header")
 	}
 
 	ftype, err := filetype.Match(head)
 	if err != nil {
 		if err != nil {
-			return TypeNone, 0, errz.Err(err)
+			return drivertype.None, 0, errz.Err(err)
 		}
 	}
 
 	switch ftype {
 	default:
-		return TypeNone, 0, nil
+		return drivertype.None, 0, nil
 	case matchers.TypeXlsx:
 		// This doesn't seem to work, because .xlsx files are
 		// zipped, so the type returns as a zip. Perhaps there's

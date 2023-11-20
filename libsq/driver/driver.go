@@ -24,6 +24,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/driver/dialect"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
@@ -157,7 +158,7 @@ of additional DB conns, etc.`,
 // Provider is a factory that returns Driver instances.
 type Provider interface {
 	// DriverFor returns a driver instance for the given type.
-	DriverFor(typ source.DriverType) (Driver, error)
+	DriverFor(typ drivertype.Type) (Driver, error)
 }
 
 // PoolOpener opens a Pool.
@@ -378,7 +379,7 @@ type Pool interface {
 // TODO: Can driver.Metadata and dialect.Dialect be merged?
 type Metadata struct {
 	// Type is the driver type, e.g. "mysql" or "csv", etc.
-	Type source.DriverType `json:"type" yaml:"type"`
+	Type drivertype.Type `json:"type" yaml:"type"`
 
 	// Description is typically the long name of the driver, e.g.
 	// "MySQL" or "Microsoft Excel XLSX".

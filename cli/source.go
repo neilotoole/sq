@@ -15,6 +15,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
 // determineSources figures out what the active source is
@@ -171,10 +172,10 @@ func checkStdinSource(ctx context.Context, ru *run.Run) (*source.Source, error) 
 
 	// If we got this far, we have pipe input
 
-	typ := source.TypeNone
+	typ := drivertype.None
 	if cmd.Flags().Changed(flag.IngestDriver) {
 		val, _ := cmd.Flags().GetString(flag.IngestDriver)
-		typ = source.DriverType(val)
+		typ = drivertype.Type(val)
 		if ru.DriverRegistry.ProviderFor(typ) == nil {
 			return nil, errz.Errorf("unknown driver type: %s", typ)
 		}
@@ -185,12 +186,12 @@ func checkStdinSource(ctx context.Context, ru *run.Run) (*source.Source, error) 
 		return nil, err
 	}
 
-	if typ == source.TypeNone {
+	if typ == drivertype.None {
 		typ, err = ru.Files.TypeStdin(ctx)
 		if err != nil {
 			return nil, err
 		}
-		if typ == source.TypeNone {
+		if typ == drivertype.None {
 			return nil, errz.New("unable to detect type of stdin: use flag --driver")
 		}
 	}
@@ -207,7 +208,7 @@ func checkStdinSource(ctx context.Context, ru *run.Run) (*source.Source, error) 
 
 // newSource creates a new Source instance where the
 // driver type is known. Opts may be nil.
-func newSource(ctx context.Context, dp driver.Provider, typ source.DriverType, handle, loc string,
+func newSource(ctx context.Context, dp driver.Provider, typ drivertype.Type, handle, loc string,
 	opts options.Options,
 ) (*source.Source, error) {
 	log := lg.FromContext(ctx)

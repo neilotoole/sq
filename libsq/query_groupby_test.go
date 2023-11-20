@@ -7,7 +7,7 @@ import (
 
 	"github.com/neilotoole/sq/drivers/mysql"
 	"github.com/neilotoole/sq/drivers/sqlite3"
-	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
 //nolint:exhaustive,lll
@@ -31,7 +31,7 @@ func TestQuery_groupby(t *testing.T) {
 			name:         "group_by/with_func/sqlite",
 			in:           `@sakila | .payment | _date("month", .payment_date):month, count(.payment_id):count | group_by(_date("month", .payment_date))`,
 			wantSQL:      `SELECT date('month', "payment_date") AS "month", count("payment_id") AS "count" FROM "payment" GROUP BY date('month', "payment_date")`,
-			onlyFor:      []source.DriverType{sqlite3.Type},
+			onlyFor:      []drivertype.Type{sqlite3.Type},
 			wantRecCount: 1,
 		},
 	}

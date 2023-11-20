@@ -10,6 +10,7 @@ import (
 	"github.com/xo/dburl"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
 var dbSchemes = []string{
@@ -142,7 +143,7 @@ type parsedLoc struct {
 
 	// typ is the associated source driver type, which may
 	// be empty until later determination.
-	typ DriverType
+	typ drivertype.Type
 
 	// scheme is the original location scheme
 	scheme string

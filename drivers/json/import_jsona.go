@@ -18,19 +18,20 @@ import (
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
 // DetectJSONA returns a source.DriverDetectFunc for TypeJSONA.
 // Each line of input must be a valid JSON array.
 func DetectJSONA(sampleSize int) source.DriverDetectFunc {
-	return func(ctx context.Context, openFn source.FileOpenFunc) (detected source.DriverType,
+	return func(ctx context.Context, openFn source.FileOpenFunc) (detected drivertype.Type,
 		score float32, err error,
 	) {
 		log := lg.FromContext(ctx)
 		var r io.ReadCloser
 		r, err = openFn()
 		if err != nil {
-			return source.TypeNone, 0, errz.Err(err)
+			return drivertype.None, 0, errz.Err(err)
 		}
 		defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
 
@@ -41,12 +42,12 @@ func DetectJSONA(sampleSize int) source.DriverDetectFunc {
 		for sc.Scan() {
 			select {
 			case <-ctx.Done():
-				return source.TypeNone, 0, ctx.Err()
+				return drivertype.None, 0, ctx.Err()
 			default:
 			}
 
 			if err = sc.Err(); err != nil {
-				return source.TypeNone, 0, errz.Err(err)
+				return drivertype.None, 0, errz.Err(err)
 			}
 
 			line = sc.Bytes()
@@ -57,14 +58,14 @@ func DetectJSONA(sampleSize int) source.DriverDetectFunc {
 
 			// Each line of JSONA must open with left bracket
 			if line[0] != '[' {
-				return source.TypeNone, 0, nil
+				return drivertype.None, 0, nil
 			}
 
 			// If the line is JSONA, it should marshall into []any
 			var fields []any
 			err = stdj.Unmarshal(line, &fields)
 			if err != nil {
-				return source.TypeNone, 0, nil
+				return drivertype.None, 0, nil
 			}
 
 			// JSONA must consist only of values, not objects. Any object
@@ -72,7 +73,7 @@ func DetectJSONA(sampleSize int) source.DriverDetectFunc {
 			// we check for that.
 			for _, field := range fields {
 				if _, ok := field.(map[string]any); ok {
-					return source.TypeNone, 0, nil
+					return drivertype.None, 0, nil
 				}
 			}
 
@@ -83,14 +84,14 @@ func DetectJSONA(sampleSize int) source.DriverDetectFunc {
 		}
 
 		if err = sc.Err(); err != nil {
-			return source.TypeNone, 0, errz.Err(err)
+			return drivertype.None, 0, errz.Err(err)
 		}
 
 		if validLines > 0 {
 			return TypeJSONA, 1.0, nil
 		}
 
-		return source.TypeNone, 0, nil
+		return drivertype.None, 0, nil
 	}
 }
 

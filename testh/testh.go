@@ -50,6 +50,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
@@ -731,7 +732,7 @@ func (h *Helper) addUserDrivers() {
 			Files:     h.files,
 		}
 
-		h.registry.AddProvider(source.DriverType(userDriverDef.Name), udp)
+		h.registry.AddProvider(drivertype.Type(userDriverDef.Name), udp)
 		h.files.AddDriverDetectors(udp.Detectors()...)
 	}
 }
