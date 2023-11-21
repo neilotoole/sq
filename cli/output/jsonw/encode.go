@@ -6,6 +6,8 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/shopspring/decimal"
+
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/jsonw/internal"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -89,6 +91,14 @@ func (e monoEncoder) encodeAny(b []byte, v any) ([]byte, error) {
 	case string:
 		var err error
 		b, err = encodeString(b, v, false)
+		if err != nil {
+			return b, errz.Err(err)
+		}
+		return b, nil
+
+	case decimal.Decimal:
+		var err error
+		b, err = encodeString(b, v.String(), false)
 		if err != nil {
 			return b, errz.Err(err)
 		}
@@ -205,6 +215,15 @@ func (e *colorEncoder) encodeAny(b []byte, v any) ([]byte, error) {
 			return b, errz.Err(err)
 		}
 		return append(b, e.clrs.String.Suffix...), nil
+
+	case decimal.Decimal:
+		b = append(b, e.clrs.Number.Prefix...)
+		var err error
+		b, err = encodeString(b, v.String(), false)
+		if err != nil {
+			return b, errz.Err(err)
+		}
+		return append(b, e.clrs.Number.Suffix...), nil
 
 	case time.Time:
 		// We really shouldn't be hitting this path? Instead should

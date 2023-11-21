@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/shopspring/decimal"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
@@ -743,6 +745,24 @@ func TestMungeColNames(t *testing.T) {
 			got, err := driver.MungeResultColNames(ctx, tc.in)
 			require.NoError(t, err)
 			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestDriverDecimalHandling(t *testing.T) {
+	for _, handle := range sakila.AllHandles() {
+		handle := handle
+		t.Run(handle, func(t *testing.T) {
+			th, src, _, _, _ := testh.NewWith(t, handle)
+			// sink, err := th.QuerySQL(src, nil, "SELECT amount FROM payment")
+			sink, err := th.QuerySLQ(src.Handle+" | .payment | .amount", nil)
+			require.NoError(t, err)
+			require.Equal(t, sakila.TblPaymentCount, len(sink.Recs))
+			require.Equal(t, kind.Decimal, sink.RecMeta.Kinds()[0])
+			val := sink.Recs[0][0]
+			dec, ok := val.(decimal.Decimal)
+			require.True(t, ok, "expected val to be %T but got %T", dec, val)
+			require.Equal(t, decimal.New(299, -2), dec)
 		})
 	}
 }

@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"reflect"
 	"time"
+
+	"github.com/shopspring/decimal"
 )
 
 // Cached results from reflect.TypeOf for commonly used types.
@@ -14,6 +16,8 @@ var (
 	RTypeInt32       = reflect.TypeOf(int32(0))
 	RTypeInt64       = reflect.TypeOf(int64(0))
 	RTypeNullInt64   = reflect.TypeOf(sql.NullInt64{})
+	RTypeDecimal     = reflect.TypeOf(decimal.Decimal{})
+	RTypeNullDecimal = reflect.TypeOf(decimal.NullDecimal{})
 	RTypeFloat32     = reflect.TypeOf(float32(0))
 	RTypeFloat64     = reflect.TypeOf(float64(0))
 	RTypeNullFloat64 = reflect.TypeOf(sql.NullFloat64{})

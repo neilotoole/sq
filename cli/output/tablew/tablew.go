@@ -20,6 +20,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/shopspring/decimal"
+
 	"github.com/fatih/color"
 
 	"github.com/neilotoole/sq/cli/output"
@@ -38,6 +40,10 @@ type table struct {
 }
 
 func (t *table) renderResultCell(knd kind.Kind, val any) string { //nolint:funlen,cyclop,gocyclo
+	// REVISIT: this function can be vastly simplified, because
+	// val is guaranteed to be one of only a few types,
+	// as enumerated in record.Valid.
+
 	switch val := val.(type) {
 	case nil:
 		return t.sprintNull()
@@ -194,7 +200,11 @@ func (t *table) renderResultCell(knd kind.Kind, val any) string { //nolint:funle
 			return string(*val)
 		}
 		return t.sprintBytes(*val)
+	case decimal.Decimal:
+		return t.pr.Number.Sprint(val.String())
 	}
+
+	// FIXME: this should really return an error
 	return ""
 }
 

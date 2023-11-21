@@ -11,6 +11,8 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/shopspring/decimal"
+
 	"go.uber.org/atomic"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -117,6 +119,10 @@ func (x *StmtExecer) Close() error {
 // elements of rec listed in skipped.
 //
 // REVISIT: Do we need the skip mechanism at all?
+// REVISIT: This function implementation is an unholy mess. Much of it
+// dates from sq's earliest days, and it's been hacked on ever since.
+// Several of the code paths can probably never be reached.
+// It should be completely rewritten.
 //
 //nolint:funlen,gocognit,gocyclo,cyclop
 func NewRecordFromScanRow(meta record.Meta, row []any, skip []int) (rec record.Record, skipped []int) {
@@ -268,6 +274,15 @@ func NewRecordFromScanRow(meta record.Meta, row []any, skip []int) (rec record.R
 				rec[i] = nil
 			}
 
+		case *decimal.Decimal:
+			rec[i] = *col
+
+		case *decimal.NullDecimal:
+			if col.Valid {
+				rec[i] = col.Decimal
+			} else {
+				rec[i] = nil
+			}
 		case *time.Time:
 			rec[i] = *col
 
@@ -293,24 +308,43 @@ func NewRecordFromScanRow(meta record.Meta, row []any, skip []int) (rec record.R
 			rec[i] = float64(*col)
 		}
 
-		if rec[i] != nil && meta[i].Kind() == kind.Decimal {
-			// Drivers use varying types for numeric/money/decimal.
-			// We want to standardize on string.
-			switch col := rec[i].(type) {
-			case *string:
-				// Do nothing, it's already string
-
-			case *[]byte:
-				rec[i] = string(*col)
-
-			case *float64:
-				rec[i] = stringz.FormatFloat(*col)
-
-			default:
-				// Shouldn't happen
-				rec[i] = fmt.Sprintf("%v", col)
-			}
-		}
+		//if rec[i] != nil && meta[i].Kind() == kind.Decimal {
+		//	// Drivers use varying types for numeric/money/decimal.
+		//	// We want to standardize on string.
+		//	switch col := rec[i].(type) {
+		//	case decimal.Decimal:
+		//		// This is the format we want it in
+		//	case *string:
+		//		v, err := decimal.NewFromString(*col)
+		//		// We're ignoring the error here, but it should never happen.
+		//		if err == nil {
+		//			rec[i] = v
+		//		}
+		//
+		//	case *[]byte:
+		//		// First we go to string...
+		//		rec[i] = string(*col)
+		//		// ...then to decimal
+		//		v, err := decimal.NewFromString(string(*col))
+		//		// We're ignoring the error here, but it should never happen.
+		//		if err == nil {
+		//			rec[i] = v
+		//		}
+		//
+		//	case *float64:
+		//		rec[i] = decimal.NewFromFloat(*col)
+		//
+		//	default:
+		//		// Shouldn't happen
+		//		s := fmt.Sprintf("%v", col)
+		//		rec[i] = s
+		//		v, err := decimal.NewFromString(s)
+		//		// We're ignoring the error here, but it should never happen.
+		//		if err == nil {
+		//			rec[i] = v
+		//		}
+		//	}
+		//}
 	}
 
 	return rec, skipped

@@ -66,17 +66,17 @@ func kindFromDBTypeName(log *slog.Logger, colName, dbTypeName string) kind.Kind 
 }
 
 // setScanType does some manipulation of ct's scan type.
-// Most importantly, if ct is nullable column, setwe  colTypeData.ScanType to a
-// nullable type. This is because the driver doesn't
-// report nullable scan types.
+// Most importantly, if ct is nullable column, we set colTypeData.ScanType
+// to a nullable type. This is because the driver doesn't report nullable
+// scan types.
 func setScanType(ct *record.ColumnTypeData, knd kind.Kind) {
 	if knd == kind.Decimal {
-		// The driver wants us to use []byte instead of string for DECIMAL,
-		// but we want to use string.
+		// The driver wants us to use []byte for DECIMAL, so
+		// we override that here to use decimal.Decimal.
 		if ct.Nullable {
-			ct.ScanType = sqlz.RTypeNullString
+			ct.ScanType = sqlz.RTypeNullDecimal
 		} else {
-			ct.ScanType = sqlz.RTypeString
+			ct.ScanType = sqlz.RTypeDecimal
 		}
 		return
 	}

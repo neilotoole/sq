@@ -141,14 +141,11 @@ func New(t testing.TB, opts ...Option) *Helper {
 // NewWith is a convenience wrapper for New that also returns
 // a Source for handle, the driver.SQLDriver, driver.Pool,
 // and the *sql.DB.
-//
-// The function will fail if handle is not the handle for a
-// source whose driver implements driver.SQLDriver.
 func NewWith(t testing.TB, handle string) (*Helper, *source.Source, driver.SQLDriver, driver.Pool, *sql.DB) {
 	th := New(t)
 	src := th.Source(handle)
-	drvr := th.SQLDriverFor(src)
 	pool := th.Open(src)
+	drvr := pool.SQLDriver()
 	db, err := pool.DB(th.Context)
 	require.NoError(t, err)
 

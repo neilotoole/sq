@@ -96,9 +96,11 @@ func setScanType(ctx context.Context, colType *record.ColumnTypeData) {
 		)
 		scanType = sqlz.RTypeAny
 
-	case kind.Text, kind.Decimal:
+	case kind.Text:
 		scanType = sqlz.RTypeNullString
 
+	case kind.Decimal:
+		scanType = sqlz.RTypeNullDecimal
 	case kind.Int:
 		scanType = sqlz.RTypeNullInt64
 

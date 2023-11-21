@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/shopspring/decimal"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
@@ -27,19 +29,26 @@ import (
 // It is an error for a Record to contain elements of any other type.
 type Record []any
 
+// Value is the idealized generic type. One day, we'd like to be able
+// to do something like this the below.
+// FIXME: Delete this type.
+type Value interface {
+	~int64 | ~float64 | ~bool | ~string | ~[]byte | time.Time | decimal.Decimal
+}
+
 // Valid checks that each element of the record vals is
 // of an acceptable type. On the first unacceptable element,
 // the index of that element and an error are returned. On
 // success (-1, nil) is returned.
 //
-// These acceptable types, per the stdlib sql pkg, are:
+// These acceptable types are:
 //
-//	nil, int64, float64, bool, string, []byte, time.Time
+//	nil, int64, float64, decimal.Decimal, bool, string, []byte, time.Time
 func Valid(rec Record) (i int, err error) {
 	var val any
 	for i, val = range rec {
 		switch val := val.(type) {
-		case nil, int64, float64, bool, string, []byte, time.Time:
+		case nil, int64, float64, bool, string, []byte, time.Time, decimal.Decimal:
 			continue
 		default:
 			return i, errz.Errorf("field [%d] has unacceptable record value type %T", i, val)
@@ -75,9 +84,9 @@ func Equal(a, b Record) bool {
 			if !bytes.Equal(va, vb) {
 				return false
 			}
-		case int64, float64, bool, string, time.Time:
+		case int64, float64, bool, string, time.Time, decimal.Decimal:
 			switch vb := b[i].(type) {
-			case int64, float64, bool, string, time.Time:
+			case int64, float64, bool, string, time.Time, decimal.Decimal:
 				if vb != va {
 					return false
 				}
@@ -125,7 +134,7 @@ func Clone(rec Record) Record {
 		switch val := val.(type) {
 		case nil:
 			continue
-		case int64, bool, float64, string, time.Time:
+		case int64, bool, float64, string, time.Time, decimal.Decimal:
 			r2[i] = val
 		case []byte:
 			b := make([]byte, len(val))
