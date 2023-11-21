@@ -17,12 +17,11 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/shopspring/decimal"
-
 	sprig "github.com/Masterminds/sprig/v3"
 	"github.com/alessio/shellescape"
 	"github.com/google/uuid"
 	"github.com/samber/lo"
+	"github.com/shopspring/decimal"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 )

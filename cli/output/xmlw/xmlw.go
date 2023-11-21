@@ -10,9 +10,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/shopspring/decimal"
-
 	"github.com/fatih/color"
+	"github.com/shopspring/decimal"
 
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq/core/errz"

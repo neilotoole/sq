@@ -5,16 +5,15 @@ import (
 	"bytes"
 	"io"
 
-	"github.com/neilotoole/sq/libsq/core/stringz"
-	"github.com/shopspring/decimal"
-
 	"github.com/fatih/color"
 	goccy "github.com/goccy/go-yaml"
 	"github.com/goccy/go-yaml/lexer"
 	"github.com/goccy/go-yaml/printer"
+	"github.com/shopspring/decimal"
 
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 var decimalMarshaler = goccy.CustomMarshaler[decimal.Decimal](func(d decimal.Decimal) ([]byte, error) {

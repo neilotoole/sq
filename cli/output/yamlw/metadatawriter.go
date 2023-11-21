@@ -3,9 +3,8 @@ package yamlw
 import (
 	"io"
 
-	"github.com/samber/lo"
-
 	yamlp "github.com/goccy/go-yaml/printer"
+	"github.com/samber/lo"
 
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq/driver"

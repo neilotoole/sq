@@ -15,9 +15,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/shopspring/decimal"
-
 	_ "github.com/mattn/go-sqlite3" // Import for side effect of loading the driver
+	"github.com/shopspring/decimal"
 
 	"github.com/neilotoole/sq/drivers/sqlite3/internal/sqlparser"
 	"github.com/neilotoole/sq/libsq/ast"

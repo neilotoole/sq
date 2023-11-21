@@ -3,13 +3,12 @@ package record_test
 import (
 	"testing"
 
-	"github.com/neilotoole/sq/testh/tutil"
 	"github.com/shopspring/decimal"
-
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/timez"
+	"github.com/neilotoole/sq/testh/tutil"
 )
 
 func TestEqual(t *testing.T) {

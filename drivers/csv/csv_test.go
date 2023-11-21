@@ -6,9 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shopspring/decimal"
-
 	"github.com/samber/lo"
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 

@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
-
 	"go.uber.org/atomic"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
