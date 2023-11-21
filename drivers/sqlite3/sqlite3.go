@@ -596,26 +596,6 @@ func newRecordFromScanRow(meta record.Meta, row []any) (rec record.Record) {
 			rec[i] = int64(col)
 			record.SetKindIfUnknown(meta, i, kind.Int)
 		}
-
-		//if rec[i] != nil && meta[i].Kind() == kind.Decimal {
-		//	// Drivers use varying types for numeric/money/decimal.
-		//	// We want to standardize on string.
-		//	switch col := rec[i].(type) {
-		//	case *string:
-		//		// Do nothing, it's already string
-		//
-		//	case *[]byte:
-		//		rec[i] = string(*col)
-		//
-		//	case *float64:
-		//		rec[i] = stringz.FormatFloat(*col)
-		//
-		//	default:
-		//		// Shouldn't happen
-		//		v := fmt.Sprintf("%v", col)
-		//		rec[i] = v
-		//	}
-		//}
 	}
 
 	return rec
