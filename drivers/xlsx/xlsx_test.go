@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shopspring/decimal"
+
 	"github.com/samber/lo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -224,7 +226,7 @@ func TestSakila_query(t *testing.T) {
 			wantCount: sakila.TblPaymentCount,
 			wantKinds: sakila.TblPaymentColKinds(),
 			wantRec0: record.Record{
-				int64(1), int64(1), int64(1), int64(76), "2.99",
+				int64(1), int64(1), int64(1), int64(76), decimal.New(299, -2),
 				time.Date(2005, time.May, 25, 11, 30, 37, 0, time.UTC),
 				time.Date(2020, time.February, 15, 6, 59, 47, 0, time.UTC),
 			},

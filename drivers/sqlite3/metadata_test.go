@@ -181,7 +181,7 @@ func TestRecordMetadata(t *testing.T) {
 			colKinds: []kind.Kind{kind.Int, kind.Int, kind.Int, kind.Int, kind.Decimal, kind.Datetime, kind.Datetime},
 			scanTypes: []reflect.Type{
 				sqlz.RTypeNullInt64, sqlz.RTypeNullInt64, sqlz.RTypeNullInt64,
-				sqlz.RTypeNullInt64, sqlz.RTypeNullString, sqlz.RTypeNullTime, sqlz.RTypeNullTime,
+				sqlz.RTypeNullInt64, sqlz.RTypeNullDecimal, sqlz.RTypeNullTime, sqlz.RTypeNullTime,
 			},
 			colsMeta: []*metadata.Column{
 				{Name: "payment_id", Position: 0, PrimaryKey: true, BaseType: "INT", ColumnType: "INT", Kind: kind.Int, Nullable: false},

@@ -191,7 +191,7 @@ func TestDatabaseTypes(t *testing.T) {
 				continue
 			}
 
-			require.Equal(t, wantVal, stringz.Val(gotVal),
+			require.EqualValuesf(t, wantVal, stringz.Val(gotVal),
 				"%s[%d][%d] (%s) expected %T(%v) but got %T(%v)",
 				actualTblName, i, j, typeTestColNames[j], wantVal, wantVal, gotVal, gotVal)
 		}
