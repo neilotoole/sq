@@ -16,6 +16,7 @@ import (
 	"time"
 
 	_ "github.com/mattn/go-sqlite3" // Import for side effect of loading the driver
+	"github.com/shopspring/decimal"
 
 	"github.com/neilotoole/sq/drivers/sqlite3/internal/sqlparser"
 	"github.com/neilotoole/sq/libsq/ast"
@@ -385,6 +386,13 @@ func newRecordFromScanRow(meta record.Meta, row []any) (rec record.Record) {
 		case float64:
 			record.SetKindIfUnknown(meta, i, kind.Float)
 			rec[i] = col
+		case decimal.Decimal:
+			record.SetKindIfUnknown(meta, i, kind.Decimal)
+			rec[i] = col
+		case *decimal.Decimal:
+			record.SetKindIfUnknown(meta, i, kind.Decimal)
+			rec[i] = *col
+
 		case *bool:
 			record.SetKindIfUnknown(meta, i, kind.Bool)
 			rec[i] = *col
@@ -427,6 +435,12 @@ func newRecordFromScanRow(meta record.Meta, row []any) (rec record.Record) {
 				rec[i] = nil
 			}
 			record.SetKindIfUnknown(meta, i, kind.Int)
+		case *decimal.NullDecimal:
+			if col.Valid {
+				rec[i] = col.Decimal
+			} else {
+				rec[i] = nil
+			}
 		case *sql.NullString:
 			if col.Valid {
 				rec[i] = col.String
@@ -580,26 +594,6 @@ func newRecordFromScanRow(meta record.Meta, row []any) (rec record.Record) {
 		case float32:
 			rec[i] = int64(col)
 			record.SetKindIfUnknown(meta, i, kind.Int)
-		}
-
-		if rec[i] != nil && meta[i].Kind() == kind.Decimal {
-			// Drivers use varying types for numeric/money/decimal.
-			// We want to standardize on string.
-			switch col := rec[i].(type) {
-			case *string:
-				// Do nothing, it's already string
-
-			case *[]byte:
-				rec[i] = string(*col)
-
-			case *float64:
-				rec[i] = stringz.FormatFloat(*col)
-
-			default:
-				// Shouldn't happen
-				v := fmt.Sprintf("%v", col)
-				rec[i] = v
-			}
 		}
 	}
 

@@ -1,13 +1,14 @@
 package record_test
 
 import (
-	"strconv"
 	"testing"
 
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/timez"
+	"github.com/neilotoole/sq/testh/tutil"
 )
 
 func TestEqual(t *testing.T) {
@@ -22,6 +23,7 @@ func TestEqual(t *testing.T) {
 		"a",
 		[]byte("a"),
 		mar1UTC,
+		decimal.New(7777, -2),
 	}
 
 	stdRec2 := record.Record{
@@ -32,6 +34,7 @@ func TestEqual(t *testing.T) {
 		"b",
 		[]byte("b"),
 		mar31UTC,
+		decimal.New(8888, -2),
 	}
 
 	testCases := []struct {
@@ -50,7 +53,7 @@ func TestEqual(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(strconv.Itoa(i), func(t *testing.T) {
+		t.Run(tutil.Name(i, tc.a, tc.b), func(t *testing.T) {
 			_, err := record.Valid(tc.a)
 			require.NoError(t, err)
 			_, err = record.Valid(tc.b)

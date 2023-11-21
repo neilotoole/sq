@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/fatih/color"
+	"github.com/shopspring/decimal"
 
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -195,6 +196,8 @@ func (w *recordWriter) writeRecord(rec record.Record) error {
 			w.fieldPrintFns[i](w.outBuf, strconv.FormatInt(val, 10))
 		case float64:
 			w.fieldPrintFns[i](w.outBuf, stringz.FormatFloat(val))
+		case decimal.Decimal:
+			w.fieldPrintFns[i](w.outBuf, stringz.FormatDecimal(val))
 		case time.Time:
 			switch w.recMeta[i].Kind() { //nolint:exhaustive
 			default:

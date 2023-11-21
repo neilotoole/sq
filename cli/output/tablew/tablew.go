@@ -1,6 +1,6 @@
 // Package tablew implements text table output writers.
 //
-// The actual rendering of the text table is handled by a modified
+// The actual rendering of the text table is handled by a heavily modified
 // version ofolekukonko/tablewriter which can be found in the internal
 // sub-package. At the time, tablewriter didn't provide all the
 // functionality that sq required. However, that package has been
@@ -14,13 +14,13 @@
 package tablew
 
 import (
-	"database/sql"
 	"fmt"
 	"io"
 	"strconv"
 	"time"
 
 	"github.com/fatih/color"
+	"github.com/shopspring/decimal"
 
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/tablew/internal"
@@ -37,15 +37,13 @@ type table struct {
 	tblImpl *internal.Table
 }
 
-func (t *table) renderResultCell(knd kind.Kind, val any) string { //nolint:funlen,cyclop,gocyclo
+// renderResultCell renders a record value to a string.
+// Arg val is guaranteed to be one of the types
+// constrained by record.Valid.
+func (t *table) renderResultCell(knd kind.Kind, val any) string {
 	switch val := val.(type) {
 	case nil:
 		return t.sprintNull()
-	case *sql.NullString:
-		if !val.Valid {
-			return t.sprintNull()
-		}
-		return t.pr.String.Sprint(val.String)
 	case string:
 
 		// Although val is string, we allow for the case where
@@ -55,8 +53,15 @@ func (t *table) renderResultCell(knd kind.Kind, val any) string { //nolint:funle
 		switch knd { //nolint:exhaustive // ignore kind.Unknown and kind.Null
 		case kind.Datetime, kind.Date, kind.Time:
 			return t.pr.Datetime.Sprint(val)
-		case kind.Decimal, kind.Float, kind.Int:
+		case kind.Float, kind.Int:
 			return t.pr.Number.Sprint(val)
+		case kind.Decimal:
+			d, err := decimal.NewFromString(val)
+			if err != nil {
+				// Shouldn't happen
+				return t.pr.Number.Sprint(val)
+			}
+			return t.pr.Number.Sprint(stringz.FormatDecimal(d))
 		case kind.Bool:
 			return t.pr.Bool.Sprint(val)
 		case kind.Bytes:
@@ -67,91 +72,12 @@ func (t *table) renderResultCell(knd kind.Kind, val any) string { //nolint:funle
 			// Shouldn't happen
 			return val
 		}
-
 	case float64:
 		return t.sprintFloat64(val)
-	case *float64:
-		if val == nil {
-			return t.sprintNull()
-		}
-		return t.sprintFloat64(*val)
-	case *sql.NullFloat64:
-		if !val.Valid {
-			return t.sprintNull()
-		}
-		return t.sprintFloat64(val.Float64)
-	case float32:
-		return t.sprintFloat64(float64(val))
-	case *float32:
-		if val == nil {
-			return t.sprintNull()
-		}
-		return t.sprintFloat64(float64(*val))
-	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
-		s := fmt.Sprintf("%d", val)
-		return t.pr.Number.Sprint(s)
-	case *int:
-		if val == nil {
-			return t.sprintNull()
-		}
-		return t.sprintInt64(int64(*val))
-	case *int8:
-		if val == nil {
-			return t.sprintNull()
-		}
-		return t.sprintInt64(int64(*val))
-	case *int16:
-		if val == nil {
-			return t.sprintNull()
-		}
-		return t.sprintInt64(int64(*val))
-	case *int32:
-		if val == nil {
-			return t.sprintNull()
-		}
-		return t.sprintInt64(int64(*val))
-	case *int64:
-		if val == nil {
-			return t.sprintNull()
-		}
-		return t.sprintInt64(*val)
-	case *uint:
-		if val == nil {
-			return t.sprintNull()
-		}
-		return t.sprintInt64(int64(*val))
-	case *uint8:
-		if val == nil {
-			return t.sprintNull()
-		}
-		return t.sprintInt64(int64(*val))
-	case *uint16:
-		if val == nil {
-			return t.sprintNull()
-		}
-		return t.sprintInt64(int64(*val))
-	case *uint32:
-		if val == nil {
-			return t.sprintNull()
-		}
-		return t.sprintInt64(int64(*val))
-	case *uint64:
-		if val == nil {
-			return t.sprintNull()
-		}
-		return t.sprintInt64(int64(*val))
-	case *sql.NullInt64:
-		if !val.Valid {
-			return t.sprintNull()
-		}
-		return t.sprintInt64(val.Int64)
+	case int64:
+		return t.sprintInt64(val)
 	case bool:
-		return t.pr.Bool.Sprint(strconv.FormatBool(val))
-	case *bool:
-		if val == nil {
-			return t.sprintNull()
-		}
-		return t.pr.Bool.Sprint(strconv.FormatBool(*val))
+		return t.sprintBool(val)
 	case time.Time:
 		if val.IsZero() {
 			return t.sprintNull()
@@ -161,41 +87,21 @@ func (t *table) renderResultCell(knd kind.Kind, val any) string { //nolint:funle
 		switch knd { //nolint:exhaustive
 		default:
 			s = t.pr.FormatDatetime(val)
-
-			// s = val.Format(timez.DefaultTimestampFormat)
 		case kind.Time:
 			s = t.pr.FormatTime(val)
-			// s = val.Format(timez.DefaultTimeFormat)
 		case kind.Date:
 			s = t.pr.FormatDate(val)
-			// s = val.Format(timez.DefaultDateFormat)
 		}
 
 		return t.pr.Datetime.Sprint(s)
-
-	case *sql.NullBool:
-		if !val.Valid {
-			return t.sprintNull()
-		}
-		return t.pr.Bool.Sprint(strconv.FormatBool(val.Bool))
-
 	case []byte:
 		return t.sprintBytes(val)
-	case *[]byte:
-		if val == nil || *val == nil {
-			return t.sprintNull()
-		}
-		return t.sprintBytes(*val)
-	case *sql.RawBytes:
-		if val == nil || *val == nil {
-			return t.sprintNull()
-		}
-		if knd == kind.Text {
-			return string(*val)
-		}
-		return t.sprintBytes(*val)
+	case decimal.Decimal:
+		return t.pr.Number.Sprint(stringz.FormatDecimal(val))
 	}
-	return ""
+
+	// TODO: this should really return an error, or at least log it?
+	return t.pr.Error.Sprintf("%v", val)
 }
 
 func (t *table) sprintBytes(b []byte) string {
@@ -209,6 +115,10 @@ func (t *table) sprintNull() string {
 
 func (t *table) sprintInt64(num int64) string {
 	return t.pr.Number.Sprint(strconv.FormatInt(num, 10))
+}
+
+func (t *table) sprintBool(b bool) string {
+	return t.pr.Bool.Sprint(strconv.FormatBool(b))
 }
 
 func (t *table) sprintFloat64(num float64) string {
@@ -263,7 +173,7 @@ func getColorForVal(pr *output.Printing, v any) *color.Color {
 	switch v.(type) {
 	case nil:
 		return pr.Null
-	case int, int64, float32, float64, uint, uint64:
+	case int, int64, float32, float64, uint, uint64, decimal.Decimal:
 		return pr.Number
 	case bool:
 		return pr.Bool

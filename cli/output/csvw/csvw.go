@@ -9,10 +9,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/shopspring/decimal"
+
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/record"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 const (
@@ -106,6 +109,8 @@ func (w *RecordWriter) WriteRecords(recs []record.Record) error {
 				// nil is rendered as empty string, which this cell already is
 			case int64:
 				fields[i] = w.pr.Number.Sprint(strconv.FormatInt(val, 10))
+			case decimal.Decimal:
+				fields[i] = w.pr.Number.Sprint(stringz.FormatDecimal(val))
 			case string:
 				fields[i] = w.pr.String.Sprint(val)
 			case bool:

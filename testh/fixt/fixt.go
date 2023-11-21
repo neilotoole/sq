@@ -10,37 +10,40 @@ package fixt
 import (
 	"time"
 
+	"github.com/shopspring/decimal"
+
 	"github.com/neilotoole/sq/libsq/core/kind"
 )
 
 // These consts are test fixtures for various data types.
 const (
-	Text       string  = "seven"
-	TextZ      string  = ""
-	Int        int64   = 7
-	IntZ       int64   = 0
-	Float      float64 = 7.7
-	FloatZ     float64 = 0
-	Decimal    string  = "77.77"
-	DecimalZ   string  = "0"
-	Money      string  = "77.77"
-	MoneyZ     string  = "0.00"
-	Bool       bool    = true
-	BoolZ      bool    = false
-	BitString  string  = "1001"
-	BitStringZ string  = "0"
-	TimeOfDay  string  = "07:07:07"
-	TimeOfDayZ string  = "00:00:00"
-	JSON       string  = `{"val": 7}`
-	JSONZ      string  = "{}"
-	EnumAlfa   string  = "alfa"
-	EnumBravo  string  = "bravo"
-	UUID       string  = "77777777-7777-7777-7777-777777777777"
-	UUIDZ      string  = "00000000-0000-0000-0000-000000000000"
+	Text   string  = "seven"
+	TextZ  string  = ""
+	Int    int64   = 7
+	IntZ   int64   = 0
+	Float  float64 = 7.7
+	FloatZ float64 = 0
+
+	Bool       bool   = true
+	BoolZ      bool   = false
+	BitString  string = "1001"
+	BitStringZ string = "0"
+	TimeOfDay  string = "07:07:07"
+	TimeOfDayZ string = "00:00:00"
+	JSON       string = `{"val": 7}`
+	JSONZ      string = "{}"
+	EnumAlfa   string = "alfa"
+	EnumBravo  string = "bravo"
+	UUID       string = "77777777-7777-7777-7777-777777777777"
+	UUIDZ      string = "00000000-0000-0000-0000-000000000000"
 )
 
 // These vars are text fixtures for various data types.
 var (
+	Decimal   = decimal.New(7777, -2)
+	DecimalZ  = decimal.New(0, 0)
+	Money     = decimal.New(7777, -2)
+	MoneyZ    = decimal.New(0, 0)
 	Bytes     = []byte("seven")
 	BytesZ    = []byte("")
 	Datetime  = mustParseTime(time.RFC3339, "2017-07-07T07:07:07-00:00").UTC()

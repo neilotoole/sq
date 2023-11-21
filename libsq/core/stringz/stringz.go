@@ -21,6 +21,7 @@ import (
 	"github.com/alessio/shellescape"
 	"github.com/google/uuid"
 	"github.com/samber/lo"
+	"github.com/shopspring/decimal"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
@@ -112,6 +113,36 @@ func SliceIndex(haystack []string, needle string) int {
 // float formatting across the codebase.
 func FormatFloat(f float64) string {
 	return strconv.FormatFloat(f, 'f', -1, 64)
+}
+
+// FormatDecimal formats d with the appropriate number of decimal
+// places as defined by d's exponent.
+func FormatDecimal(d decimal.Decimal) string {
+	exp := d.Exponent()
+	var places int32
+	if exp < 0 {
+		places = -exp
+	}
+	return d.StringFixed(places)
+}
+
+// DecimalPlaces returns the count of decimal places in d. That is to
+// say, it returns the number of digits after the decimal point.
+func DecimalPlaces(d decimal.Decimal) int32 {
+	var places int32
+	exp := d.Exponent()
+	if exp < 0 {
+		places = -exp
+	}
+	return places
+}
+
+// DecimalFloatOK returns true if d can be stored as a float64
+// without losing precision.
+func DecimalFloatOK(d decimal.Decimal) bool {
+	sDec := d.String()
+	sF := FormatFloat(d.InexactFloat64())
+	return sDec == sF
 }
 
 // ByteSized returns a human-readable byte size, e.g. "2.1 MB", "3.0 TB", etc.

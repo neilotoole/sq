@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
+## Upcoming
+
+- [#335]: Previously, `sq` didn't handle decimal values correctly. It basically
+  shoved a decimal value into a `float` or `string` and hoped for the best.
+  [As is known](https://medium.com/@mayuribudake999/difference-between-decimal-and-float-eede050f6c9a),
+  floats are imprecise, and so we saw [unwanted behavior](https://github.com/neilotoole/sq/actions/runs/6932116521/job/18855333269#step:6:2345), e.g.
+  
+  ```shell
+  db_type_test.go:194: 
+        Error Trace:	D:/a/sq/sq/drivers/sqlite3/db_type_test.go:194
+        Error:      	Not equal: 
+                      expected: "77.77"
+                      actual  : "77.77000000000001"
+  ```
+  
+  Now, `sq` uses a dedicated [`Decimal`](https://github.com/shopspring/decimal) type end-to-end.
+  No precision is lost, and at the output end, the value is rendered with the correct precision.
+  
+  There is a [proposal](https://github.com/golang/go/issues/30870) to add decimal support to
+  the Go [`database/sql`](https://pkg.go.dev/database/sql) package. If that happens, `sq` will happily
+  switch to that mechanism.
+  - 👉 A side effect of decimal support is that some output formats may now render decimal values
+    differently (i.e. correctly). In particular, Excel output should now render decimals as a number
+    (as opposed to a string), and with the precision defined in the database. Previously,
+    a database `NUMERIC(10,5)` value might have been rendered as `100.00`,
+    but will now accurately render `100.00000`.
+
 ## [v0.44.0] - 2023-11-20
 
 ### Added
@@ -887,6 +914,7 @@ make working with lots of sources much easier.
 [#277]: https://github.com/neilotoole/sq/issues/277
 [#279]: https://github.com/neilotoole/sq/issues/279
 [#308]: https://github.com/neilotoole/sq/pull/308
+[#335]: https://github.com/neilotoole/sq/issues/335
 
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2

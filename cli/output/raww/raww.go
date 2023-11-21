@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/shopspring/decimal"
+
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/record"
@@ -65,6 +67,8 @@ func (w *recordWriter) WriteRecords(recs []record.Record) error {
 				fmt.Fprint(w.out, strconv.FormatInt(val, 10))
 			case float64:
 				fmt.Fprint(w.out, stringz.FormatFloat(val))
+			case decimal.Decimal:
+				fmt.Fprint(w.out, stringz.FormatDecimal(val))
 			case time.Time:
 				switch w.recMeta[i].Kind() { //nolint:exhaustive
 				default:

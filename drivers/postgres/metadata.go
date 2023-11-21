@@ -92,9 +92,7 @@ func kindFromDBTypeName(log *slog.Logger, colName, dbTypeName string) kind.Kind 
 // setScanType ensures that ctd's scan type field is set appropriately.
 func setScanType(log *slog.Logger, ctd *record.ColumnTypeData, knd kind.Kind) {
 	if knd == kind.Decimal {
-		// Force the use of string for decimal, as the driver will
-		// sometimes prefer float.
-		ctd.ScanType = sqlz.RTypeNullString
+		ctd.ScanType = sqlz.RTypeNullDecimal
 		return
 	}
 
@@ -152,6 +150,8 @@ func toNullableScanType(log *slog.Logger, colName, dbTypeName string, knd kind.K
 			nullableScanType = sqlz.RTypeNullString
 		case "UUID":
 			nullableScanType = sqlz.RTypeNullString
+		case "NUMERIC":
+			nullableScanType = sqlz.RTypeNullDecimal
 		}
 
 	case sqlz.RTypeInt64, sqlz.RTypeInt, sqlz.RTypeInt8, sqlz.RTypeInt16, sqlz.RTypeInt32, sqlz.RTypeNullInt64:
@@ -171,6 +171,9 @@ func toNullableScanType(log *slog.Logger, colName, dbTypeName string, knd kind.K
 
 	case sqlz.RTypeBytes:
 		nullableScanType = sqlz.RTypeBytes
+
+	case sqlz.RTypeDecimal:
+		nullableScanType = sqlz.RTypeNullDecimal
 	}
 
 	return nullableScanType

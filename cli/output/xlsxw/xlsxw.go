@@ -8,15 +8,19 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/samber/lo"
+	"github.com/shopspring/decimal"
 	excelize "github.com/xuri/excelize/v2"
 
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/record"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 type recordWriter struct {
@@ -31,13 +35,29 @@ type recordWriter struct {
 	dateStyle     int
 	datetimeStyle int
 	headerStyle   int
+
+	// mDecimalPlacesStyles maps decimal places to
+	// the excelize style ID that should be used for that
+	// precision. For example, if the decimal has a places
+	// value of 2, then the style ID for that precision will be
+	// mDecimalPlacesStyles[2].
+	//
+	// The values are populated on-demand by getDecimalStyle.
+	// The map should not be directly accessed; instead use
+	// getDecimalStyle.
+	mDecimalPlacesStyles map[int]int
 }
 
 var _ output.NewRecordWriterFunc = NewRecordWriter
 
 // NewRecordWriter returns an output.RecordWriter instance for XLSX.
 func NewRecordWriter(out io.Writer, pr *output.Printing) output.RecordWriter {
-	return &recordWriter{out: out, pr: pr, header: pr.ShowHeader}
+	return &recordWriter{
+		out:                  out,
+		pr:                   pr,
+		header:               pr.ShowHeader,
+		mDecimalPlacesStyles: map[int]int{},
+	}
 }
 
 // initStyles sets up the datetime styles. See:
@@ -83,6 +103,45 @@ func (w *recordWriter) initStyles() error {
 	return nil
 }
 
+// getDecimalStyle returns the Excel style ID that should be used
+// for the given decimal.Decimal value. For each distinct precision (number
+// of digits after the decimal point), a style is created and cached.
+func (w *recordWriter) getDecimalStyle(dec decimal.Decimal) (int, error) {
+	const (
+		// See: github.com/xuri/excelize/v2/numfmt.go
+		// There's a bunch of built-in number formats found
+		// in the builtinNumFmt map.
+		builtinNumFmtZeroPlaces = 1 // e.g. "77"
+		builtinNumFmtTwoPlaces  = 2 // e.g. "77.00"
+	)
+
+	places := int(stringz.DecimalPlaces(dec))
+	if styleID, ok := w.mDecimalPlacesStyles[places]; ok {
+		return styleID, nil
+	}
+
+	style := &excelize.Style{
+		DecimalPlaces: &places,
+	}
+
+	switch places {
+	case 0:
+		style.NumFmt = builtinNumFmtZeroPlaces
+	case 2:
+		style.NumFmt = builtinNumFmtTwoPlaces
+	default:
+		// We need to create a custom format string, such as 0.00000
+		style.CustomNumFmt = lo.ToPtr("0." + strings.Repeat("0", places))
+	}
+
+	styleID, err := w.xfile.NewStyle(style)
+	if err != nil {
+		return 0, errw(err)
+	}
+	w.mDecimalPlacesStyles[places] = styleID
+	return styleID, nil
+}
+
 // Open implements output.RecordWriter.
 func (w *recordWriter) Open(recMeta record.Meta) error {
 	w.mu.Lock()
@@ -124,6 +183,8 @@ func (w *recordWriter) Open(recMeta record.Meta) error {
 			wantWidth = 16
 		case kind.Text:
 			wantWidth = 32
+		case kind.Decimal:
+			wantWidth = 20
 		default:
 		}
 
@@ -218,6 +279,28 @@ func (w *recordWriter) WriteRecords(recs []record.Record) error { //nolint:gocog
 				if err := w.xfile.SetCellFloat(SheetName, cellIndex, val, -1, 64); err != nil {
 					return errw(err)
 				}
+			case decimal.Decimal:
+				styleID, err := w.getDecimalStyle(val)
+				if err != nil {
+					return err
+				}
+
+				if err = w.xfile.SetCellStyle(SheetName, cellIndex, cellIndex, styleID); err != nil {
+					return errw(err)
+				}
+
+				if stringz.DecimalFloatOK(val) {
+					if err = w.xfile.SetCellFloat(SheetName, cellIndex, val.InexactFloat64(), -1, 64); err != nil {
+						return errw(err)
+					}
+				} else {
+					// The decimal can't be stored as a float without losing precision.
+					// We need to use a string instead.
+					if err = w.xfile.SetCellStr(SheetName, cellIndex, val.String()); err != nil {
+						return errw(err)
+					}
+				}
+
 			case time.Time:
 				switch w.recMeta[j].Kind() { //nolint:exhaustive
 				default:

@@ -83,12 +83,23 @@ func kindFromDBTypeName(ctx context.Context, colName, dbTypeName string) kind.Ki
 	return knd
 }
 
+// setScanType ensures that ctd's scan type field is set appropriately.
+func setScanType(ctd *record.ColumnTypeData, knd kind.Kind) {
+	if knd == kind.Decimal {
+		// Special handling for kind.Decimal, because MySQL doesn't natively
+		// know how to handle it.
+		ctd.ScanType = sqlz.RTypeNullDecimal
+		return
+	}
+}
+
 func recordMetaFromColumnTypes(ctx context.Context, colTypes []*sql.ColumnType) (record.Meta, error) {
 	sColTypeData := make([]*record.ColumnTypeData, len(colTypes))
 	ogColNames := make([]string, len(colTypes))
 	for i, colType := range colTypes {
 		knd := kindFromDBTypeName(ctx, colType.Name(), colType.DatabaseTypeName())
 		colTypeData := record.NewColumnTypeData(colType, knd)
+		setScanType(colTypeData, knd)
 		sColTypeData[i] = colTypeData
 		ogColNames[i] = colTypeData.Name
 	}
