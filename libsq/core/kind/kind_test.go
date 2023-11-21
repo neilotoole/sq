@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shopspring/decimal"
+
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -106,6 +108,8 @@ func TestDetector(t *testing.T) {
 		{in: []any{1, float64(2.0), float32(7.7), int32(3)}, want: kind.Float},
 		{in: []any{nil, nil, nil}, want: kind.Null},
 		{in: []any{"1.0", "2.0", "3.0", "4", nil, int64(6)}, want: kind.Decimal},
+		{in: []any{decimal.New(100, -2)}, want: kind.Decimal},
+		{in: []any{decimal.New(100, -2), int64(3), float64(1.3)}, want: kind.Decimal},
 		{in: []any{true, false, nil, "true", "false", "yes", "no", ""}, want: kind.Bool},
 		{in: []any{"0", "1"}, want: kind.Int},
 		{in: []any{"0", "1.0"}, want: kind.Decimal},
