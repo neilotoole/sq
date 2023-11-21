@@ -61,8 +61,15 @@ func (t *table) renderResultCell(knd kind.Kind, val any) string { //nolint:funle
 		switch knd { //nolint:exhaustive // ignore kind.Unknown and kind.Null
 		case kind.Datetime, kind.Date, kind.Time:
 			return t.pr.Datetime.Sprint(val)
-		case kind.Decimal, kind.Float, kind.Int:
+		case kind.Float, kind.Int:
 			return t.pr.Number.Sprint(val)
+		case kind.Decimal:
+			d, err := decimal.NewFromString(val)
+			if err != nil {
+				// Shouldn't happen
+				return t.pr.Number.Sprint(val)
+			}
+			return t.pr.Number.Sprint(stringz.FormatDecimal(d))
 		case kind.Bool:
 			return t.pr.Bool.Sprint(val)
 		case kind.Bytes:
@@ -201,7 +208,7 @@ func (t *table) renderResultCell(knd kind.Kind, val any) string { //nolint:funle
 		}
 		return t.sprintBytes(*val)
 	case decimal.Decimal:
-		return t.pr.Number.Sprint(val.String())
+		return t.pr.Number.Sprint(stringz.FormatDecimal(val))
 	}
 
 	// FIXME: this should really return an error

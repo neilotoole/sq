@@ -98,7 +98,7 @@ func (e monoEncoder) encodeAny(b []byte, v any) ([]byte, error) {
 
 	case decimal.Decimal:
 		var err error
-		b, err = encodeString(b, v.String(), false)
+		b, err = encodeString(b, stringz.FormatDecimal(v), false)
 		if err != nil {
 			return b, errz.Err(err)
 		}
@@ -219,7 +219,7 @@ func (e *colorEncoder) encodeAny(b []byte, v any) ([]byte, error) {
 	case decimal.Decimal:
 		b = append(b, e.clrs.Number.Prefix...)
 		var err error
-		b, err = encodeString(b, v.String(), false)
+		b, err = encodeString(b, stringz.FormatDecimal(v), false)
 		if err != nil {
 			return b, errz.Err(err)
 		}

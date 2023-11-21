@@ -9,6 +9,8 @@ import (
 	"os"
 	"testing"
 
+	"github.com/shopspring/decimal"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	excelize "github.com/xuri/excelize/v2"
@@ -179,4 +181,23 @@ func TestOptDatetimeFormats(t *testing.T) {
 	assert.Equal(t, "89/11/09 - 16:07:01", gotDatetime)
 	assert.Equal(t, "89/Nov/09", gotDate)
 	assert.Equal(t, "4:07 pm", gotTime)
+}
+
+func TestDecimalFormat(t *testing.T) {
+	// dec := decimal.New(33322, -2)
+	dec := decimal.New(33322, -2)
+	t.Log(dec)
+	exp := dec.Exponent()
+	t.Log(exp)
+	numDigits := dec.NumDigits()
+	t.Log(numDigits)
+
+	cof := dec.Coefficient()
+	t.Log(cof)
+
+	cof2 := dec.CoefficientInt64()
+	t.Log(cof2)
+
+	intPart := dec.IntPart()
+	t.Log(intPart)
 }

@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/shopspring/decimal"
+
 	"github.com/samber/lo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -584,6 +586,35 @@ func TestTrimLenMiddle(t *testing.T) {
 			got := stringz.TrimLenMiddle(tc.input, tc.maxLen)
 			require.True(t, len(got) <= tc.maxLen)
 			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+// TestFormatDecimal tests FormatDecimal. It verifies that the function
+// formats a decimal value as expected, especially that the number of
+// decimal places matches the exponent of the decimal value.
+func TestFormatDecimal(t *testing.T) {
+	testCases := []struct {
+		in         decimal.Decimal
+		wantStr    string
+		wantPlaces int32
+	}{
+		{in: decimal.New(0, 0), wantStr: "0", wantPlaces: 0},
+		{in: decimal.New(0, -1), wantStr: "0.0", wantPlaces: 1},
+		{in: decimal.New(0, -2), wantStr: "0.00", wantPlaces: 2},
+		{in: decimal.New(0, 2), wantStr: "0", wantPlaces: 0},
+		{in: decimal.NewFromFloat(1.1), wantStr: "1.1", wantPlaces: 1},
+		{in: decimal.New(100, -2), wantStr: "1.00", wantPlaces: 2},
+		{in: decimal.New(10000, -4), wantStr: "1.0000", wantPlaces: 4},
+	}
+
+	for i, tc := range testCases {
+		tc := tc
+		t.Run(tutil.Name(i, tc.in, tc.wantStr), func(t *testing.T) {
+			gotStr := stringz.FormatDecimal(tc.in)
+			require.Equal(t, tc.wantStr, gotStr)
+			gotPlaces := stringz.DecimalPlaces(tc.in)
+			require.Equal(t, tc.wantPlaces, gotPlaces)
 		})
 	}
 }

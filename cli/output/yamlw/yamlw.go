@@ -5,6 +5,9 @@ import (
 	"bytes"
 	"io"
 
+	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/shopspring/decimal"
+
 	"github.com/fatih/color"
 	goccy "github.com/goccy/go-yaml"
 	"github.com/goccy/go-yaml/lexer"
@@ -13,6 +16,10 @@ import (
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
+
+var decimalMarshaler = goccy.CustomMarshaler[decimal.Decimal](func(d decimal.Decimal) ([]byte, error) {
+	return []byte(stringz.FormatDecimal(d)), nil
+})
 
 // MarshalToString renders v to a string.
 func MarshalToString(pr *output.Printing, v any) (string, error) {
@@ -27,7 +34,7 @@ func MarshalToString(pr *output.Printing, v any) (string, error) {
 // writeYAML prints a YAML representation of v to out, using specs
 // from pr.
 func writeYAML(out io.Writer, p printer.Printer, v any) error {
-	b, err := goccy.Marshal(v)
+	b, err := goccy.MarshalWithOptions(v, decimalMarshaler)
 	if err != nil {
 		return errz.Err(err)
 	}

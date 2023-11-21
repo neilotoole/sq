@@ -12,6 +12,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/shopspring/decimal"
+
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/record"
@@ -88,6 +90,8 @@ func (w *RecordWriter) writeRecord(rec record.Record) error {
 			s = strconv.FormatInt(val, 10)
 		case string:
 			s = escapeMarkdown(val)
+		case decimal.Decimal:
+			s = stringz.FormatDecimal(val)
 		case bool:
 			s = strconv.FormatBool(val)
 		case float64:

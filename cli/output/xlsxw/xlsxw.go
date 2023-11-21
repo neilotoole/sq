@@ -11,6 +11,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/shopspring/decimal"
+
 	excelize "github.com/xuri/excelize/v2"
 
 	"github.com/neilotoole/sq/cli/output"
@@ -31,13 +34,29 @@ type recordWriter struct {
 	dateStyle     int
 	datetimeStyle int
 	headerStyle   int
+
+	// mDecimalPrecisionStyles maps decimal precision to
+	// the excelize style ID that should be used for that
+	// precision. For example, if the decimal has a precision
+	// of 2, then the style ID for that precision will be
+	// mDecimalPrecisionStyles[2].
+	//
+	// The values are populated on-demand by getDecimalStyle.
+	// The map should not be directly accessed; instead use
+	// getDecimalStyle.
+	mDecimalPrecisionStyles map[int]int
 }
 
 var _ output.NewRecordWriterFunc = NewRecordWriter
 
 // NewRecordWriter returns an output.RecordWriter instance for XLSX.
 func NewRecordWriter(out io.Writer, pr *output.Printing) output.RecordWriter {
-	return &recordWriter{out: out, pr: pr, header: pr.ShowHeader}
+	return &recordWriter{
+		out:                     out,
+		pr:                      pr,
+		header:                  pr.ShowHeader,
+		mDecimalPrecisionStyles: map[int]int{},
+	}
 }
 
 // initStyles sets up the datetime styles. See:
@@ -83,6 +102,36 @@ func (w *recordWriter) initStyles() error {
 	return nil
 }
 
+func (w *recordWriter) getDecimalStyle(dec decimal.Decimal) int {
+	// We can probably set the column format if we know that the kind
+	// is decimal, because we can get the precision and scale
+	// from the meta. But we don't know that here.
+	text := dec.String()
+	_ = text
+
+	var places int
+	exp := dec.Exponent()
+	if exp < 0 {
+		// Should we always set places to 2?
+		places = int(exp * -1)
+	}
+
+	if styleID, ok := w.mDecimalPrecisionStyles[places]; ok {
+		return styleID
+	}
+
+	s := &excelize.Style{
+		NumFmt:        2,
+		DecimalPlaces: &places,
+	}
+	// s.DecimalPlaces = &places
+	styleID, err := w.xfile.NewStyle(s)
+	_ = err // We know that an error can't occur here
+	w.mDecimalPrecisionStyles[places] = styleID
+	return styleID
+	// dec.Exponent()
+}
+
 // Open implements output.RecordWriter.
 func (w *recordWriter) Open(recMeta record.Meta) error {
 	w.mu.Lock()
@@ -124,6 +173,8 @@ func (w *recordWriter) Open(recMeta record.Meta) error {
 			wantWidth = 16
 		case kind.Text:
 			wantWidth = 32
+		case kind.Decimal:
+			wantWidth = 20
 		default:
 		}
 
@@ -218,6 +269,50 @@ func (w *recordWriter) WriteRecords(recs []record.Record) error { //nolint:gocog
 				if err := w.xfile.SetCellFloat(SheetName, cellIndex, val, -1, 64); err != nil {
 					return errw(err)
 				}
+			case decimal.Decimal:
+				styleID := w.getDecimalStyle(val)
+				decStr := val.String()
+				t, _ := val.MarshalText()
+				t2 := string(t)
+				_ = t2
+				recMeta := w.recMeta[j]
+				_ = recMeta
+				precision, scale, ok := recMeta.DecimalSize()
+				_ = precision
+				_ = scale
+				_ = ok
+				//val.StringFixed()
+				//_ = x
+				if err := w.xfile.SetCellStyle(SheetName, cellIndex, cellIndex, styleID); err != nil {
+					return errw(err)
+				}
+
+				// f64, exact := val.Float64()
+				f64 := val.InexactFloat64()
+				f64str := stringz.FormatFloat(f64)
+				exact := decStr == f64str
+				if exact {
+					if err := w.xfile.SetCellFloat(SheetName, cellIndex, f64, -1, 64); err != nil {
+						return errw(err)
+					}
+				} else {
+					// The decimal doesn't fit exactly into a float.
+					// We need to use a string instead.
+
+					if err := w.xfile.SetCellStyle(SheetName, cellIndex, cellIndex, styleID); err != nil {
+						return errw(err)
+					}
+
+					if err := w.xfile.SetCellStr(SheetName, cellIndex, val.String()); err != nil {
+						return errw(err)
+					}
+
+					// The excelize library doesn't have a SetCellDecimal method, unfortunately.
+					//if err := w.xfile.SetCellFloat(SheetName, cellIndex, val.InexactFloat64(), -1, 64); err != nil {
+					//	return errw(err)
+					//}
+				}
+
 			case time.Time:
 				switch w.recMeta[j].Kind() { //nolint:exhaustive
 				default:
