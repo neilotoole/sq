@@ -39,11 +39,15 @@ type table struct {
 	tblImpl *internal.Table
 }
 
-func (t *table) renderResultCell(knd kind.Kind, val any) string { //nolint:funlen,cyclop,gocyclo
-	// REVISIT: this function can be vastly simplified, because
-	// val is guaranteed to be one of only a few types,
-	// as enumerated in record.Valid.
-
+// renderResultCell renders a record value to a string.
+//
+// FIXME: renderResultCell function can be vastly simplified, because
+// val is guaranteed to be one of only a few types,
+// as enumerated in record.Valid. All the junk in this
+// function comes from the very early days of sq, when
+// the writer impl had to handle any type that came
+// its way.
+func (t *table) renderResultCell(knd kind.Kind, val any) string { //nolint:funlen,cyclop,gocyclo,gocognit
 	switch val := val.(type) {
 	case nil:
 		return t.sprintNull()

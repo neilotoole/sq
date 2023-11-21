@@ -590,22 +590,24 @@ func TestTrimLenMiddle(t *testing.T) {
 	}
 }
 
-// TestFormatDecimal tests FormatDecimal. It verifies that the function
-// formats a decimal value as expected, especially that the number of
-// decimal places matches the exponent of the decimal value.
-func TestFormatDecimal(t *testing.T) {
+// TestDecimal tests FormatDecimal, DecimalPlaces, and DecimalFloatOK.
+// The FormatDecimal tests verifies that the function formats a decimal
+// value as expected, especially that the number of decimal places matches
+// the exponent of the decimal value.
+func TestDecimal(t *testing.T) {
 	testCases := []struct {
-		in         decimal.Decimal
-		wantStr    string
-		wantPlaces int32
+		in          decimal.Decimal
+		wantStr     string
+		wantPlaces  int32
+		wantFloatOK bool
 	}{
-		{in: decimal.New(0, 0), wantStr: "0", wantPlaces: 0},
-		{in: decimal.New(0, -1), wantStr: "0.0", wantPlaces: 1},
-		{in: decimal.New(0, -2), wantStr: "0.00", wantPlaces: 2},
-		{in: decimal.New(0, 2), wantStr: "0", wantPlaces: 0},
-		{in: decimal.NewFromFloat(1.1), wantStr: "1.1", wantPlaces: 1},
-		{in: decimal.New(100, -2), wantStr: "1.00", wantPlaces: 2},
-		{in: decimal.New(10000, -4), wantStr: "1.0000", wantPlaces: 4},
+		{in: decimal.New(0, 0), wantStr: "0", wantPlaces: 0, wantFloatOK: true},
+		{in: decimal.New(0, -1), wantStr: "0.0", wantPlaces: 1, wantFloatOK: true},
+		{in: decimal.New(0, -2), wantStr: "0.00", wantPlaces: 2, wantFloatOK: true},
+		{in: decimal.New(0, 2), wantStr: "0", wantPlaces: 0, wantFloatOK: true},
+		{in: decimal.NewFromFloat(1.1), wantStr: "1.1", wantPlaces: 1, wantFloatOK: true},
+		{in: decimal.New(100, -2), wantStr: "1.00", wantPlaces: 2, wantFloatOK: true},
+		{in: decimal.New(10000, -4), wantStr: "1.0000", wantPlaces: 4, wantFloatOK: true},
 	}
 
 	for i, tc := range testCases {
@@ -615,6 +617,8 @@ func TestFormatDecimal(t *testing.T) {
 			require.Equal(t, tc.wantStr, gotStr)
 			gotPlaces := stringz.DecimalPlaces(tc.in)
 			require.Equal(t, tc.wantPlaces, gotPlaces)
+			gotFloatOK := stringz.DecimalFloatOK(tc.in)
+			require.Equal(t, tc.wantFloatOK, gotFloatOK)
 		})
 	}
 }

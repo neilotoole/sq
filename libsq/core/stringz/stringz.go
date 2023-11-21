@@ -138,6 +138,14 @@ func DecimalPlaces(d decimal.Decimal) int32 {
 	return places
 }
 
+// DecimalFloatOK returns true if d can be stored as a float64
+// without losing precision.
+func DecimalFloatOK(d decimal.Decimal) bool {
+	sDec := d.String()
+	sF := FormatFloat(d.InexactFloat64())
+	return sDec == sF
+}
+
 // ByteSized returns a human-readable byte size, e.g. "2.1 MB", "3.0 TB", etc.
 // TODO: replace this usage with "github.com/c2h5oh/datasize",
 // or maybe https://github.com/docker/go-units/.
