@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
+## Upcoming
+
+### Added
+
+- [#338]: While `sq` has had [`group_by`](https://sq.io/docs/query#group_by) for some time,
+  somehow the [`having`](https://sq.io/docs/query#having) mechanism was never implemented. That's fixed.
+
+  ```shell
+  $ sq '.payment | .customer_id, sum(.amount):spend | 
+    group_by(.customer_id) | having(sum(.amount) > 200)'
+  customer_id  spend
+  526          221.55
+  148          216.54
+  ```
+
+
 ## [v0.45.0] - 2023-11-21
 
 ### Changed
@@ -343,7 +359,7 @@ to SLQ (`sq`'s query language).
   3
   ```
   You may want to use `--no-header` (`-H`) when using `sq` as a calculator.
-
+  
   ```shell
   $ sq -H 1+2
   3
@@ -917,6 +933,7 @@ make working with lots of sources much easier.
 [#279]: https://github.com/neilotoole/sq/issues/279
 [#308]: https://github.com/neilotoole/sq/pull/308
 [#335]: https://github.com/neilotoole/sq/issues/335
+[#338]: https://github.com/neilotoole/sq/issues/338
 
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
