@@ -34,6 +34,13 @@ func TestQuery_groupby(t *testing.T) {
 			onlyFor:      []drivertype.Type{sqlite3.Type},
 			wantRecCount: 1,
 		},
+		{
+			name:         "group_by/having",
+			in:           `@sakila | .payment | .customer_id, sum(.amount) | group_by(.customer_id) | having(sum(.amount) > 100)`,
+			wantSQL:      `SELECT "customer_id", sum("amount") AS "sum(.amount)" FROM "payment" GROUP BY "customer_id" HAVING sum("amount") > 100`,
+			override:     driverMap{mysql.Type: "SELECT `customer_id`, sum(`amount`) AS `sum(.amount)` FROM `payment` GROUP BY `customer_id` HAVING sum(`amount`) > 100"},
+			wantRecCount: 395,
+		},
 	}
 
 	for _, tc := range testCases {

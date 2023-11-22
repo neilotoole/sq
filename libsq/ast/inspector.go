@@ -170,6 +170,30 @@ func (in *Inspector) FindGroupByNode() (*GroupByNode, error) {
 	return nil, nil //nolint:nilnil
 }
 
+// FindHavingNode returns the HavingNode, or nil if not found.
+func (in *Inspector) FindHavingNode() (*HavingNode, error) {
+	segs := in.ast.Segments()
+
+	for i := range segs {
+		nodes := nodesWithType(segs[i].Children(), typeHavingNode)
+		switch len(nodes) {
+		case 0:
+			// No GroupByNode in this segment, continue searching.
+			continue
+		case 1:
+			// Found it
+			node, _ := nodes[0].(*HavingNode)
+			return node, nil
+		default:
+			// Shouldn't be possible
+			return nil, errorf("segment {%s} has %d HavingNode children, but max is 1",
+				segs[i], len(nodes))
+		}
+	}
+
+	return nil, nil //nolint:nilnil
+}
+
 // FindTableSegments returns the segments that have at least one child
 // that is a ast.TblSelectorNode.
 func (in *Inspector) FindTableSegments() []*SegmentNode {

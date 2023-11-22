@@ -49,6 +49,9 @@ type SLQListener interface {
 	// EnterGroupBy is called when entering the groupBy production.
 	EnterGroupBy(c *GroupByContext)
 
+	// EnterHaving is called when entering the having production.
+	EnterHaving(c *HavingContext)
+
 	// EnterOrderByTerm is called when entering the orderByTerm production.
 	EnterOrderByTerm(c *OrderByTermContext)
 
@@ -129,6 +132,9 @@ type SLQListener interface {
 
 	// ExitGroupBy is called when exiting the groupBy production.
 	ExitGroupBy(c *GroupByContext)
+
+	// ExitHaving is called when exiting the having production.
+	ExitHaving(c *HavingContext)
 
 	// ExitOrderByTerm is called when exiting the orderByTerm production.
 	ExitOrderByTerm(c *OrderByTermContext)

@@ -125,6 +125,10 @@ func (n *OrderByTermNode) String() string {
 
 // VisitOrderBy implements slq.SLQVisitor.
 func (v *parseTreeVisitor) VisitOrderBy(ctx *slq.OrderByContext) interface{} {
+	if existing := FindNodes[*OrderByNode](v.cur.ast()); len(existing) > 0 {
+		return errorf("only one order_by() clause allowed")
+	}
+
 	node := &OrderByNode{}
 	node.parent = v.cur
 	node.ctx = ctx

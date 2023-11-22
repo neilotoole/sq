@@ -18,6 +18,7 @@ type queryModel struct {
 	Where    *ast.WhereNode
 	OrderBy  *ast.OrderByNode
 	GroupBy  *ast.GroupByNode
+	Having   *ast.HavingNode
 	Distinct *ast.UniqueNode
 }
 
@@ -86,15 +87,21 @@ func buildQueryModel(qc *QueryContext, a *ast.AST) (*queryModel, error) {
 		qm.Where = whereClauses[0]
 	}
 
-	if qm.OrderBy, err = insp.FindOrderByNode(); err != nil {
-		return nil, err
-	}
-
 	if qm.GroupBy, err = insp.FindGroupByNode(); err != nil {
 		return nil, err
 	}
 
+	if qm.Having, err = insp.FindHavingNode(); err != nil {
+		return nil, err
+	}
+	if qm.Having != nil && qm.GroupBy == nil {
+		return nil, errz.Errorf("having() clause requires preceding group_by() clause")
+	}
+
 	if qm.Distinct, err = insp.FindUniqueNode(); err != nil {
+		return nil, err
+	}
+	if qm.OrderBy, err = insp.FindOrderByNode(); err != nil {
 		return nil, err
 	}
 

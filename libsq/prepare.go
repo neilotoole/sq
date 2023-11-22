@@ -69,6 +69,12 @@ func (p *pipeline) prepare(ctx context.Context, qm *queryModel) error {
 		}
 	}
 
+	if qm.Having != nil {
+		if frags.Having, err = rndr.Having(p.rc, qm.Having); err != nil {
+			return err
+		}
+	}
+
 	for _, fn := range rndr.PreRender {
 		if err = fn(p.rc, frags); err != nil {
 			return err

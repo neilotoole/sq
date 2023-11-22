@@ -104,6 +104,12 @@ func (s *BaseSLQListener) EnterGroupBy(ctx *GroupByContext) {}
 // ExitGroupBy is called when production groupBy is exited.
 func (s *BaseSLQListener) ExitGroupBy(ctx *GroupByContext) {}
 
+// EnterHaving is called when production having is entered.
+func (s *BaseSLQListener) EnterHaving(ctx *HavingContext) {}
+
+// ExitHaving is called when production having is exited.
+func (s *BaseSLQListener) ExitHaving(ctx *HavingContext) {}
+
 // EnterOrderByTerm is called when production orderByTerm is entered.
 func (s *BaseSLQListener) EnterOrderByTerm(ctx *OrderByTermContext) {}
 

@@ -49,6 +49,9 @@ type SLQVisitor interface {
 	// Visit a parse tree produced by SLQParser#groupBy.
 	VisitGroupBy(ctx *GroupByContext) interface{}
 
+	// Visit a parse tree produced by SLQParser#having.
+	VisitHaving(ctx *HavingContext) interface{}
+
 	// Visit a parse tree produced by SLQParser#orderByTerm.
 	VisitOrderByTerm(ctx *OrderByTermContext) interface{}
 

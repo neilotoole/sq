@@ -99,6 +99,11 @@ type AST struct {
 	text string
 }
 
+// ast implements ast.Node.
+func (a *AST) ast() *AST {
+	return a
+}
+
 // Parent implements ast.Node.
 func (a *AST) Parent() Node {
 	return nil

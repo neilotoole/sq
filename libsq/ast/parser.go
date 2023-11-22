@@ -187,6 +187,8 @@ func (v *parseTreeVisitor) Visit(ctx antlr.ParseTree) any {
 		return v.VisitGroupBy(ctx)
 	case *slq.GroupByTermContext:
 		return v.VisitGroupByTerm(ctx)
+	case *slq.HavingContext:
+		return v.VisitHaving(ctx)
 	case *slq.OrderByContext:
 		return v.VisitOrderBy(ctx)
 	case *slq.OrderByTermContext:

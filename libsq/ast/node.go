@@ -11,6 +11,9 @@ import (
 
 // Node is an AST node.
 type Node interface {
+	// ast returns the root AST node, or nil.
+	ast() *AST
+
 	// context returns the parse tree context.
 	context() antlr.ParseTree
 
@@ -74,18 +77,34 @@ type baseNode struct {
 	text     string
 }
 
-// Parent implements Node.Parent.
+// ast implements ast.Node.
+func (bn *baseNode) ast() *AST {
+	if bn == nil {
+		return nil
+	}
+	n := NodeRoot(bn.parent)
+	if n == nil {
+		return nil
+	}
+
+	if ast, ok := n.(*AST); ok {
+		return ast
+	}
+	return nil
+}
+
+// Parent implements ast.Node.
 func (bn *baseNode) Parent() Node {
 	return bn.parent
 }
 
-// SetParent implements Node.SetParent.
+// SetParent implements ast.Node.
 func (bn *baseNode) SetParent(parent Node) error {
 	bn.parent = parent
 	return nil
 }
 
-// Children implements Node.Children.
+// Children implements ast.Node.
 func (bn *baseNode) Children() []Node {
 	return bn.children
 }
@@ -98,17 +117,27 @@ func (bn *baseNode) AddChild(child Node) error {
 }
 
 func (bn *baseNode) addChild(child Node) {
+	// REVISIT: Why not call setParent() on child?
+	// TODO: add child could be a generic function, returning
+	// and error if the child is not of an appropriate type.
 	bn.children = append(bn.children, child)
 }
 
+// SetChildren implements ast.Node. It always returns an error.
+// Node implementations must provide their own type-specific
+// implementation if they accept children.
 func (bn *baseNode) SetChildren(children []Node) error {
 	return errorf(msgNodeNoAddChildren, bn, len(children))
 }
 
 func (bn *baseNode) doSetChildren(children []Node) {
+	// REVISIT: Why not call setParent() on each child?
+	// TODO: doSetChildren could be a generic function, returning
+	// and error if the children are not of an appropriate type.
 	bn.children = children
 }
 
+// Text implements ast.Node.
 func (bn *baseNode) Text() string {
 	if bn.ctx == nil {
 		return ""
@@ -341,6 +370,9 @@ func NodeUnwrap[T Node](node Node) (T, bool) {
 // FindNodes returns the nodes of type T in ast.
 func FindNodes[T Node](ast *AST) []T {
 	var nodes []T
+	if ast == nil {
+		return nodes
+	}
 	w := NewWalker(ast)
 	w.AddVisitor(reflect.TypeOf((*T)(nil)).Elem(), func(w *Walker, node Node) error {
 		nodes = append(nodes, node.(T))
@@ -365,13 +397,68 @@ func FindFirstNode[T Node](ast *AST) T {
 	return node
 }
 
+// NodePrevSegmentChild returns the first child of the
+// previous segment, where the child must be of type T, or
+// an error if the child is not of type T.
+func NodePrevSegmentChild[T Node](node Node) (T, error) {
+	var (
+		result T
+		parent Node
+		seg    *SegmentNode
+		ok     bool
+	)
+
+	if node == nil {
+		return result, errorf("node is nil")
+	}
+
+	seg, ok = node.(*SegmentNode)
+	if !ok {
+		for {
+			parent = node.Parent()
+			if parent == nil {
+				return result, errorf("unable to find segment in node {%T} ancestry", node)
+			}
+
+			seg, ok = parent.(*SegmentNode)
+			if ok {
+				break
+			}
+
+			if seg == nil {
+				// Can't happen?
+				return result, errorf("unable to find segment in node {%T} ancestry", node)
+			}
+		}
+	}
+
+	prevSeg := seg.Prev()
+	if prevSeg == nil {
+		return result, errorf("expected preceding segment")
+	}
+
+	prevSegChildren := prevSeg.Children()
+	if len(prevSegChildren) == 0 {
+		return result, errorf("expected preceding segment to have children")
+	}
+
+	result, ok = prevSegChildren[0].(T)
+	if ok {
+		return result, nil
+	}
+
+	return result, errorf("expected preceding segment to have child of type {%T} but got {%T}",
+		result, prevSegChildren[0])
+}
+
 // Results from reflect.TypeOf for node types.
 var (
 	typeAST                = reflect.TypeOf((*AST)(nil))
 	typeColSelectorNode    = reflect.TypeOf((*ColSelectorNode)(nil))
-	_                      = reflect.TypeOf((*ExprNode)(nil))
+	typeExprNode           = reflect.TypeOf((*ExprNode)(nil))
 	typeFuncNode           = reflect.TypeOf((*FuncNode)(nil))
 	typeGroupByNode        = reflect.TypeOf((*GroupByNode)(nil))
+	typeHavingNode         = reflect.TypeOf((*HavingNode)(nil))
 	typeHandleNode         = reflect.TypeOf((*HandleNode)(nil))
 	typeJoinNode           = reflect.TypeOf((*JoinNode)(nil))
 	typeNode               = reflect.TypeOf((*Node)(nil)).Elem()
