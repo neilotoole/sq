@@ -36,6 +36,14 @@ type SegmentNode struct {
 	bn baseNode
 }
 
+// ast implements ast.Node.
+func (s *SegmentNode) ast() *AST {
+	if s == nil {
+		return nil
+	}
+	return s.bn.ast()
+}
+
 // Parent implements ast.Node.
 func (s *SegmentNode) Parent() Node {
 	return s.bn.Parent()

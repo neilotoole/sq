@@ -49,6 +49,9 @@ type Renderer struct {
 	// GroupBy renders the GROUP BY fragment.
 	GroupBy func(rc *Context, gb *ast.GroupByNode) (string, error)
 
+	// Having renders the HAVING fragment.
+	Having func(rc *Context, having *ast.HavingNode) (string, error)
+
 	// Join renders a join fragment.
 	Join func(rc *Context, leftTbl *ast.TblSelectorNode, joins []*ast.JoinNode) (string, error)
 
@@ -99,6 +102,7 @@ func NewDefaultRenderer() *Renderer {
 		Range:      doRange,
 		OrderBy:    doOrderBy,
 		GroupBy:    doGroupBy,
+		Having:     doHaving,
 		Join:       doJoin,
 		Function:   doFunction,
 		FunctionOverrides: map[string]func(rc *Context, fn *ast.FuncNode) (string, error){
@@ -134,6 +138,7 @@ type Fragments struct {
 	From     string
 	Where    string
 	GroupBy  string
+	Having   string
 	OrderBy  string
 	Range    string
 }
@@ -162,14 +167,19 @@ func doRender(_ *Context, f *Fragments) (string, error) {
 		sb.WriteString(f.Where)
 	}
 
-	if f.OrderBy != "" {
-		sb.WriteRune(sp)
-		sb.WriteString(f.OrderBy)
-	}
-
 	if f.GroupBy != "" {
 		sb.WriteRune(sp)
 		sb.WriteString(f.GroupBy)
+	}
+
+	if f.Having != "" {
+		sb.WriteRune(sp)
+		sb.WriteString(f.Having)
+	}
+
+	if f.OrderBy != "" {
+		sb.WriteRune(sp)
+		sb.WriteString(f.OrderBy)
 	}
 
 	if f.Range != "" {

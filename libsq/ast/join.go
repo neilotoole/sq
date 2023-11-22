@@ -139,6 +139,14 @@ type JoinNode struct {
 	targetTbl *TblSelectorNode
 }
 
+// ast implements ast.Node.
+func (n *JoinNode) ast() *AST {
+	if n == nil || n.seg == nil {
+		return nil
+	}
+	return n.seg.ast()
+}
+
 // Predicate returns the join predicate, which
 // may be nil.
 func (n *JoinNode) Predicate() *ExprNode {

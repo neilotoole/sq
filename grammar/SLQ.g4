@@ -14,6 +14,7 @@ element
 	| selectorElement
 	| join
 	| groupBy
+	| having
 	| orderBy
 	| rowRange
 	| uniqueFunc
@@ -150,12 +151,26 @@ The 'group_by' construct implments the SQL "GROUP BY" clause.
 Syonyms:
 - 'group_by' for jq interoperability.
   https://stedolan.github.io/jq/manual/v1.6/#group_by(path_expression)
-- 'group': for legacy sq compabibility. Should this be deprecated and removed?
 */
 
 GROUP_BY: 'group_by';
 groupByTerm: selector | func;
 groupBy: GROUP_BY '(' groupByTerm (',' groupByTerm)* ')';
+
+
+/*
+having
+------
+
+The 'having' construct implements the SQL "HAVING" clause.
+It is a top-level segment clause, and must be preceded by a 'group_by' clause.
+
+    .payment | .customer_id, sum(.amount) |
+      group_by(.customer_id) | having(sum(.amount) > 100)
+*/
+
+HAVING: 'having';
+having: HAVING '(' expr ')';
 
 /*
 order_by

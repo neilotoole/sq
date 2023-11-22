@@ -43,3 +43,35 @@ func doGroupBy(rc *Context, gb *ast.GroupByNode) (string, error) {
 
 	return sb.String(), nil
 }
+
+func doHaving(rc *Context, hn *ast.HavingNode) (string, error) {
+	if hn == nil {
+		return "", nil
+	}
+
+	var (
+		err error
+		sb  strings.Builder
+	)
+
+	sb.WriteString("HAVING ")
+
+	children := hn.Children()
+	if len(children) != 1 {
+		return "", errz.Errorf("having() clause should have exactly one child, but has %d",
+			len(children))
+	}
+
+	exprNode, ok := children[0].(*ast.ExprNode)
+	if !ok {
+		return "", errz.Errorf("having() clause child should be of type {%T}, but is {%T}",
+			exprNode, children[0])
+	}
+
+	exprFrag, err := rc.Renderer.Expr(rc, exprNode)
+	if err != nil {
+		return "", err
+	}
+	sb.WriteString(exprFrag)
+	return sb.String(), nil
+}
