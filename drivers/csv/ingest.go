@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"errors"
 	"io"
+	"time"
 	"unicode/utf8"
 
 	"github.com/neilotoole/sq/libsq"
@@ -51,6 +52,7 @@ Possible values are: comma, space, pipe, tab, colon, semi, period.`,
 // ingestCSV loads the src CSV data into scratchDB.
 func ingestCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFunc, scratchPool driver.Pool) error {
 	log := lg.FromContext(ctx)
+	startUTC := time.Now().UTC()
 
 	var err error
 	var r io.ReadCloser
@@ -140,6 +142,7 @@ func ingestCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFu
 
 	log.Debug("Inserted rows",
 		lga.Count, inserted,
+		lga.Elapsed, time.Since(startUTC).Round(time.Millisecond),
 		lga.Target, source.Target(scratchPool.Source(), tblDef.Name),
 	)
 	return nil

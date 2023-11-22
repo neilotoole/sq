@@ -54,3 +54,4 @@ goreleaser-test.sh
 /cli/test.db
 /*.db
 /.CHANGELOG.delta.md
+/drivers/csv/testdata/payment-large.csv
