@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
-## Upcoming
+## [v0.46.0] - 2023-11-22
 
 ### Added
 
@@ -15,17 +15,15 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   somehow the [`having`](https://sq.io/docs/query#having) mechanism was never implemented. That's fixed.
 
   ```shell
-  $ sq '.payment | .customer_id, sum(.amount):spend | 
-    group_by(.customer_id) | having(sum(.amount) > 200)'
-  customer_id  spend
+  $ sq '.payment | .customer_id, sum(.amount) | group_by(.customer_id) | having(sum(.amount) > 200)'
+  customer_id  sum(.amount)
   526          221.55
   148          216.54
   ```
-- [`sq inspect`](https://sq.io/docs/cmd/inspect): added flag shorthand `-C` for `--catalogs` and `-S` for `--schemata`. 
 
-- [SLQ](https://sq.io/docs/concepts#slq) [`group_by`](https://sq.io/docs/query#group_by) function
+- [#340]: The [`group_by`](https://sq.io/docs/query#group_by) function
   now has a synonym `gb`, and [`order_by`](https://sq.io/docs/query#order_by) now has synonym `ob`.
-  These synonyms are experimental. The motivation is to reduce typing, especially the underscore (`_`)
+  These synonyms are experimental 🧪. The motivation is to reduce typing, especially the underscore (`_`)
   in both function names, but it's not clear that the loss of clarity is worth it. Maybe synonyms
   `group` and `order` might be better? Feedback welcome.
 
@@ -36,6 +34,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   # Now
   $ sq '.payment | .customer_id, sum(.amount) | gb(.customer_id) | ob(.customer_id)'
   ```
+- [#340]: [`sq inspect`](https://sq.io/docs/cmd/inspect): added flag shorthand `-C`
+  for `--catalogs` and `-S` for `--schemata`. These were the only `inspect`
+  flags without shorthand.
 
 ## [v0.45.0] - 2023-11-21
 
@@ -948,6 +949,7 @@ make working with lots of sources much easier.
 [#308]: https://github.com/neilotoole/sq/pull/308
 [#335]: https://github.com/neilotoole/sq/issues/335
 [#338]: https://github.com/neilotoole/sq/issues/338
+[#340]: https://github.com/neilotoole/sq/pull/340
 
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
@@ -1000,3 +1002,4 @@ make working with lots of sources much easier.
 [v0.43.1]: https://github.com/neilotoole/sq/compare/v0.43.0...v0.43.1
 [v0.44.0]: https://github.com/neilotoole/sq/compare/v0.43.1...v0.44.0
 [v0.45.0]: https://github.com/neilotoole/sq/compare/v0.44.0...v0.45.0
+[v0.46.0]: https://github.com/neilotoole/sq/compare/v0.45.0...v0.46.0
