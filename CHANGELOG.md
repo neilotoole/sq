@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
-## Upcoming
+## [v0.45.0] - 2023-11-21
 
 - [#335]: Previously, `sq` didn't handle decimal values correctly. It basically
   shoved a decimal value into a `float` or `string` and hoped for the best.
@@ -966,3 +966,4 @@ make working with lots of sources much easier.
 [v0.43.0]: https://github.com/neilotoole/sq/compare/v0.42.1...v0.43.0
 [v0.43.1]: https://github.com/neilotoole/sq/compare/v0.43.0...v0.43.1
 [v0.44.0]: https://github.com/neilotoole/sq/compare/v0.43.1...v0.44.0
+[v0.45.0]: https://github.com/neilotoole/sq/compare/v0.44.0...v0.45.0
