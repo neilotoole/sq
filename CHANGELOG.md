@@ -9,6 +9,8 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ## [v0.45.0] - 2023-11-21
 
+### Changed
+
 - [#335]: Previously, `sq` didn't handle decimal values correctly. It basically
   shoved a decimal value into a `float` or `string` and hoped for the best.
   [As is known](https://medium.com/@mayuribudake999/difference-between-decimal-and-float-eede050f6c9a),
