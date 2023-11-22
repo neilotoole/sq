@@ -142,7 +142,7 @@ where: WHERE LPAR (expr)? RPAR;
 
 /*
 group_by
--------
+--------
 
 The 'group_by' construct implments the SQL "GROUP BY" clause.
 
@@ -151,9 +151,10 @@ The 'group_by' construct implments the SQL "GROUP BY" clause.
 Syonyms:
 - 'group_by' for jq interoperability.
   https://stedolan.github.io/jq/manual/v1.6/#group_by(path_expression)
+- 'gb' for brevity.
 */
 
-GROUP_BY: 'group_by';
+GROUP_BY: 'group_by' | 'gb';
 groupByTerm: selector | func;
 groupBy: GROUP_BY '(' groupByTerm (',' groupByTerm)* ')';
 
@@ -188,13 +189,14 @@ Synonyms:
 
 - 'sort_by' for jq interoperability.
   https://stedolan.github.io/jq/manual/v1.6/#sort,sort_by(path_expression)
+- 'ob' for brevity.
 
 We do not implement a 'sort' synonym for the jq 'sort' function, because SQL
 results are inherently sorted. Although perhaps it should be implemented
 as a no-op.
 */
 
-ORDER_BY: 'order_by' | 'sort_by';
+ORDER_BY: 'order_by' | 'sort_by' | 'ob';
 orderByTerm: selector ('+' | '-')?;
 orderBy: ORDER_BY '(' orderByTerm (',' orderByTerm)* ')';
 

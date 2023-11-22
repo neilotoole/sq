@@ -21,7 +21,21 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   526          221.55
   148          216.54
   ```
+- [`sq inspect`](https://sq.io/docs/cmd/inspect): added flag shorthand `-C` for `--catalogs` and `-S` for `--schemata`. 
 
+- [SLQ](https://sq.io/docs/concepts#slq) [`group_by`](https://sq.io/docs/query#group_by) function
+  now has a synonym `gb`, and [`order_by`](https://sq.io/docs/query#order_by) now has synonym `ob`.
+  These synonyms are experimental. The motivation is to reduce typing, especially the underscore (`_`)
+  in both function names, but it's not clear that the loss of clarity is worth it. Maybe synonyms
+  `group` and `order` might be better? Feedback welcome.
+
+  ```shell
+  # Previously
+  $ sq '.payment | .customer_id, sum(.amount) | group_by(.customer_id) | order_by(.customer_id)'
+  
+  # Now
+  $ sq '.payment | .customer_id, sum(.amount) | gb(.customer_id) | ob(.customer_id)'
+  ```
 
 ## [v0.45.0] - 2023-11-21
 

@@ -20,6 +20,13 @@ func TestQuery_orderby(t *testing.T) {
 			wantRecCount: sakila.TblActorCount,
 		},
 		{
+			name:         "alias-ob",
+			in:           `@sakila | .actor | ob(.first_name)`,
+			wantSQL:      `SELECT * FROM "actor" ORDER BY "first_name"`,
+			override:     driverMap{mysql.Type: "SELECT * FROM `actor` ORDER BY `first_name`"},
+			wantRecCount: sakila.TblActorCount,
+		},
+		{
 			name:         "order_by/single-element-table-selector",
 			in:           `@sakila | .actor | order_by(.actor.first_name)`,
 			wantSQL:      `SELECT * FROM "actor" ORDER BY "actor"."first_name"`,
