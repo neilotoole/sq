@@ -94,8 +94,8 @@ formats both show extensive detail.`,
 
 	cmd.Flags().BoolP(flag.InspectOverview, flag.InspectOverviewShort, false, flag.InspectOverviewUsage)
 	cmd.Flags().BoolP(flag.InspectDBProps, flag.InspectDBPropsShort, false, flag.InspectDBPropsUsage)
-	cmd.Flags().Bool(flag.InspectCatalogs, false, flag.InspectCatalogsUsage)
-	cmd.Flags().Bool(flag.InspectSchemata, false, flag.InspectSchemataUsage)
+	cmd.Flags().BoolP(flag.InspectCatalogs, flag.InspectCatalogsShort, false, flag.InspectCatalogsUsage)
+	cmd.Flags().BoolP(flag.InspectSchemata, flag.InspectSchemataShort, false, flag.InspectSchemataUsage)
 
 	cmd.MarkFlagsMutuallyExclusive(flag.InspectOverview, flag.InspectDBProps, flag.InspectCatalogs, flag.InspectSchemata)
 
