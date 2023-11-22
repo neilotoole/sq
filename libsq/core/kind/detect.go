@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/shopspring/decimal"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/timez"
@@ -53,6 +55,9 @@ func (d *Detector) Sample(v any) {
 		return
 	case float32, float64:
 		d.retain(Float, Decimal)
+		return
+	case decimal.Decimal:
+		d.retain(Decimal)
 		return
 	case int, int8, int16, int32, int64:
 		d.retain(Int, Float, Decimal)
