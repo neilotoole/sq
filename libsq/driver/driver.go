@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/neilotoole/sq/libsq/ast/render"
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -178,8 +180,17 @@ type JoinPoolOpener interface {
 // typically a short-lived database used as a target for loading
 // non-SQL data (such as CSV).
 type ScratchPoolOpener interface {
-	// OpenScratch returns a pool for scratch use.
-	OpenScratch(ctx context.Context, name string) (Pool, error)
+	// OpenScratchFor returns a pool for scratch use.
+	OpenScratchFor(ctx context.Context, src *source.Source) (Pool, error)
+
+	// OpenCachedFor returns any already cached ingested pool for src.
+	// If no such cache, or if it's expired, false is returned.
+	OpenCachedFor(ctx context.Context, src *source.Source) (Pool, bool, error)
+
+	// OpenIngest opens a pool for src by executing ingestFn. If allowCache
+	// is false, ingest always occurs; if true, the cache is consulted first.
+	OpenIngest(ctx context.Context, src *source.Source,
+		ingestFn func(ctx context.Context, destPool Pool) error, allowCache bool) (Pool, error)
 }
 
 // Driver is the core interface that must be implemented for each type
@@ -408,29 +419,40 @@ type Metadata struct {
 }
 
 var (
-	_ PoolOpener     = (*Pools)(nil)
-	_ JoinPoolOpener = (*Pools)(nil)
+	_ PoolOpener        = (*Pools)(nil)
+	_ JoinPoolOpener    = (*Pools)(nil)
+	_ ScratchPoolOpener = (*Pools)(nil)
 )
+
+// ScratchSrcFunc is a function that returns a scratch source.
+// The caller is responsible for invoking cleanFn.
+type ScratchSrcFunc func(ctx context.Context, name string) (src *source.Source, cleanFn func() error, err error)
 
 // Pools provides a mechanism for getting Pool instances.
 // Note that at this time instances returned by Open are cached
 // and then closed by Close. This may be a bad approach.
+//
+// FIXME: Why not rename driver.Pools to driver.Sources?
 type Pools struct {
 	log          *slog.Logger
 	drvrs        Provider
 	mu           sync.Mutex
 	scratchSrcFn ScratchSrcFunc
+	files        *source.Files
 	pools        map[string]Pool
 	clnup        *cleanup.Cleanup
 }
 
 // NewPools returns a Pools instances.
-func NewPools(log *slog.Logger, drvrs Provider, scratchSrcFn ScratchSrcFunc) *Pools {
+func NewPools(log *slog.Logger, drvrs Provider,
+	files *source.Files, scratchSrcFn ScratchSrcFunc,
+) *Pools {
 	return &Pools{
 		log:          log,
 		drvrs:        drvrs,
 		mu:           sync.Mutex{},
 		scratchSrcFn: scratchSrcFn,
+		files:        files,
 		pools:        map[string]Pool{},
 		clnup:        cleanup.New(),
 	}
@@ -479,42 +501,210 @@ func (d *Pools) Open(ctx context.Context, src *source.Source) (Pool, error) {
 	return pool, nil
 }
 
-// OpenScratch returns a scratch database instance. It is not
+// OpenScratchFor returns a scratch database instance. It is not
 // necessary for the caller to close the returned Pool as
 // its Close method will be invoked by d.Close.
 //
-// OpenScratch implements ScratchPoolOpener.
-func (d *Pools) OpenScratch(ctx context.Context, name string) (Pool, error) {
-	const msgCloseScratch = "close scratch db"
+// OpenScratchFor implements ScratchPoolOpener.
+//
+// REVISIT: do we really need to pass a source here? Just a string should do.
+//
+// FIXME: the problem is with passing src?
+//
+// FIXME: Add cacheAllowed bool?
+func (d *Pools) OpenScratchFor(ctx context.Context, src *source.Source) (Pool, error) {
+	const msgCloseScratch = "Close scratch db"
 
-	scratchSrc, cleanFn, err := d.scratchSrcFn(ctx, name)
+	_, _, srcCacheFilepath, err := d.getCachePaths(src)
+	if err != nil {
+		return nil, err
+	}
+
+	scratchSrc, cleanFn, err := d.scratchSrcFn(ctx, srcCacheFilepath)
 	if err != nil {
 		// if err is non-nil, cleanup is guaranteed to be nil
 		return nil, err
 	}
 	d.log.Debug("Opening scratch src", lga.Src, scratchSrc)
 
-	drvr, err := d.drvrs.DriverFor(scratchSrc.Type)
+	backingDrvr, err := d.drvrs.DriverFor(scratchSrc.Type)
 	if err != nil {
 		lg.WarnIfFuncError(d.log, msgCloseScratch, cleanFn)
 		return nil, err
-	}
-
-	sqlDrvr, ok := drvr.(SQLDriver)
-	if !ok {
-		lg.WarnIfFuncError(d.log, msgCloseScratch, cleanFn)
-		return nil, errz.Errorf("driver for scratch source %s is not a SQLDriver but is %T", scratchSrc.Handle, drvr)
 	}
 
 	var backingPool Pool
-	backingPool, err = sqlDrvr.Open(ctx, scratchSrc)
+	backingPool, err = backingDrvr.Open(ctx, scratchSrc)
 	if err != nil {
 		lg.WarnIfFuncError(d.log, msgCloseScratch, cleanFn)
 		return nil, err
 	}
 
-	d.clnup.AddE(cleanFn)
+	allowCache := OptIngestCache.Get(options.FromContext(ctx))
+	if !allowCache {
+		// If the ingest cache is disabled, we add the cleanup func
+		// so the scratch DB is deleted when the session ends.
+		d.clnup.AddE(cleanFn)
+	}
+
 	return backingPool, nil
+}
+
+// OpenIngest implements driver.ScratchPoolOpener.
+func (d *Pools) OpenIngest(ctx context.Context, src *source.Source,
+	ingestFn func(ctx context.Context, destPool Pool) error, allowCache bool,
+) (Pool, error) {
+	log := lg.FromContext(ctx)
+
+	ingestFilePath, err := d.files.Filepath(src)
+	if err != nil {
+		return nil, err
+	}
+
+	var checksumsPath string
+	var cacheDir string
+	if cacheDir, _, checksumsPath, err = d.getCachePaths(src); err != nil {
+		return nil, err
+	}
+
+	log.Debug("Using cache dir", lga.Path, cacheDir)
+
+	if allowCache {
+		var (
+			impl        Pool
+			foundCached bool
+		)
+		if impl, foundCached, err = d.OpenCachedFor(ctx, src); err != nil {
+			return nil, err
+		}
+		if foundCached {
+			log.Debug("Ingest cache HIT: found cached copy of source",
+				lga.Src, src, "cached", impl.Source(),
+			)
+			return impl, nil
+		}
+
+		log.Debug("Ingest cache MISS: no cache for source", lga.Src, src)
+	}
+
+	impl, err := d.OpenScratchFor(ctx, src)
+	if err != nil {
+		return nil, err
+	}
+
+	start := time.Now()
+	err = ingestFn(ctx, impl)
+	elapsed := time.Since(start)
+
+	if err != nil {
+		log.Error("Ingest failed",
+			lga.Src, src, lga.Dest, impl.Source(),
+			lga.Elapsed, elapsed, lga.Err, err,
+		)
+		return nil, err
+	}
+
+	log.Debug("Ingest completed", lga.Src, src, lga.Dest, impl.Source(), lga.Elapsed, elapsed)
+
+	if allowCache {
+		// Write the checksums file.
+		var sum string
+		if sum, err = ioz.FileChecksum(ingestFilePath); err != nil {
+			log.Warn("Failed to compute checksum for source file; caching not in effect",
+				lga.Src, src, lga.Dest, impl.Source(), lga.Path, ingestFilePath, lga.Err, err)
+			return impl, nil
+		}
+
+		if err = ioz.WriteChecksumFile(checksumsPath, sum, ingestFilePath); err != nil {
+			log.Warn("Failed to write checksum; file caching not in effect",
+				lga.Src, src, lga.Dest, impl.Source(), lga.Path, ingestFilePath, lga.Err, err)
+		}
+	}
+
+	return impl, nil
+}
+
+// getCachePaths returns the paths to the cache files for src.
+// There is no guarantee that these files exist, or are accessible.
+// It's just the paths.
+func (d *Pools) getCachePaths(src *source.Source) (dir, cacheDB, checksums string, err error) { //nolint:unparam
+	if dir, err = source.CacheDirFor(src); err != nil {
+		return "", "", "", err
+	}
+
+	checksums = filepath.Join(dir, "checksums.txt")
+	cacheDB = filepath.Join(dir, "cached.db")
+	return dir, cacheDB, checksums, nil
+}
+
+// OpenCachedFor implements ScratchPoolOpener.
+func (d *Pools) OpenCachedFor(ctx context.Context, src *source.Source) (Pool, bool, error) {
+	_, cacheDBPath, checksumsPath, err := d.getCachePaths(src)
+	if err != nil {
+		return nil, false, err
+	}
+
+	if !ioz.FileAccessible(checksumsPath) {
+		return nil, false, nil
+	}
+
+	mChecksums, err := ioz.ReadChecksumsFile(checksumsPath)
+	if err != nil {
+		return nil, false, err
+	}
+
+	drvr, err := d.drvrs.DriverFor(src.Type)
+	if err != nil {
+		return nil, false, err
+	}
+
+	if drvr.DriverMetadata().IsSQL {
+		return nil, false, errz.Errorf("open file cache for source %s: driver {%s} is SQL, not document",
+			src.Handle, src.Type)
+	}
+
+	srcFilepath, err := d.files.Filepath(src)
+	if err != nil {
+		return nil, false, err
+	}
+
+	cachedChecksum, ok := mChecksums[srcFilepath]
+	if !ok {
+		return nil, false, nil
+	}
+
+	srcChecksum, err := ioz.FileChecksum(srcFilepath)
+	if err != nil {
+		return nil, false, err
+	}
+
+	if srcChecksum != cachedChecksum {
+		return nil, false, nil
+	}
+
+	// The checksums match, so we can use the cached DB,
+	// if it exists.
+	if !ioz.FileAccessible(cacheDBPath) {
+		return nil, false, nil
+	}
+
+	backingType, err := d.files.DriverType(ctx, cacheDBPath)
+	if err != nil {
+		return nil, false, err
+	}
+
+	backingSrc := &source.Source{
+		Handle:   src.Handle + "_cached",
+		Location: cacheDBPath,
+		Type:     backingType,
+	}
+
+	backingPool, err := d.Open(ctx, backingSrc)
+	if err != nil {
+		return nil, false, errz.Wrapf(err, "open cached DB for source %s", src.Handle)
+	}
+
+	return backingPool, true, nil
 }
 
 // OpenJoin opens an appropriate database for use as
@@ -535,7 +725,7 @@ func (d *Pools) OpenJoin(ctx context.Context, srcs ...*source.Source) (Pool, err
 	}
 
 	d.log.Debug("OpenJoin", "sources", strings.Join(names, ","))
-	return d.OpenScratch(ctx, "joindb__"+strings.Join(names, "_"))
+	return d.OpenScratchFor(ctx, srcs[0])
 }
 
 // Close closes d, invoking Close on any instances opened via d.Open.

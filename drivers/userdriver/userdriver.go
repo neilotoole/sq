@@ -93,7 +93,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Pool, er
 
 	defer lg.WarnIfCloseError(d.log, lgm.CloseFileReader, r)
 
-	scratchDB, err := d.scratcher.OpenScratch(ctx, src.Handle)
+	scratchDB, err := d.scratcher.OpenScratchFor(ctx, src)
 	if err != nil {
 		return nil, err
 	}

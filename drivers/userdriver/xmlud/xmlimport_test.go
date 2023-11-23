@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -31,7 +34,8 @@ func TestImport_Ppl(t *testing.T) {
 	require.Equal(t, driverPpl, udDef.Name)
 	require.Equal(t, xmlud.Genre, udDef.Genre)
 
-	scratchDB, err := th.Pools().OpenScratch(th.Context, "ppl")
+	src := &source.Source{Handle: "@ppl_" + stringz.Uniq8(), Type: drivertype.None}
+	scratchDB, err := th.Pools().OpenScratchFor(th.Context, src)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		assert.NoError(t, scratchDB.Close())
@@ -76,7 +80,8 @@ func TestImport_RSS(t *testing.T) {
 	require.Equal(t, driverRSS, udDef.Name)
 	require.Equal(t, xmlud.Genre, udDef.Genre)
 
-	scratchDB, err := th.Pools().OpenScratch(th.Context, "rss")
+	src := &source.Source{Handle: "@rss_" + stringz.Uniq8(), Type: drivertype.None}
+	scratchDB, err := th.Pools().OpenScratchFor(th.Context, src)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		assert.NoError(t, scratchDB.Close())

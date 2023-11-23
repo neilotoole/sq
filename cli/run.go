@@ -157,7 +157,7 @@ func FinishRunInit(ctx context.Context, ru *run.Run) error {
 	ru.DriverRegistry = driver.NewRegistry(log)
 	dr := ru.DriverRegistry
 
-	ru.Pools = driver.NewPools(log, dr, scratchSrcFunc)
+	ru.Pools = driver.NewPools(log, dr, ru.Files, scratchSrcFunc)
 	ru.Cleanup.AddC(ru.Pools)
 
 	dr.AddProvider(sqlite3.Type, &sqlite3.Provider{Log: log})

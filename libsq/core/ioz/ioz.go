@@ -173,3 +173,9 @@ func IsPathToRegularFile(path string) bool {
 
 	return fi.Mode().IsRegular()
 }
+
+// FileAccessible returns true if path is a file that can be read.
+func FileAccessible(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}

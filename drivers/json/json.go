@@ -102,7 +102,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Pool, er
 		return nil, err
 	}
 
-	p.impl, err = d.scratcher.OpenScratch(ctx, src.Handle)
+	p.impl, err = d.scratcher.OpenScratchFor(ctx, src)
 	if err != nil {
 		lg.WarnIfCloseError(d.log, lgm.CloseFileReader, r)
 		lg.WarnIfFuncError(d.log, lgm.CloseDB, p.clnup.Run)

@@ -18,9 +18,11 @@ import (
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/sqlmodel"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
 // pipeline is used to execute a SLQ query,
@@ -184,7 +186,9 @@ func (p *pipeline) prepareNoTable(ctx context.Context, qm *queryModel) error {
 	if handle == "" {
 		if src = p.qc.Collection.Active(); src == nil {
 			log.Debug("No active source, will use scratchdb.")
-			p.targetPool, err = p.qc.ScratchPoolOpener.OpenScratch(ctx, "scratch")
+			// REVISIT: ScratchPoolOpener needs a source, so we just make one up.
+			ephemeralSrc := &source.Source{Type: drivertype.None, Handle: "@scratch" + stringz.Uniq8()}
+			p.targetPool, err = p.qc.ScratchPoolOpener.OpenScratchFor(ctx, ephemeralSrc)
 			if err != nil {
 				return err
 			}

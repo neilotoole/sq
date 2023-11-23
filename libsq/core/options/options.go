@@ -13,7 +13,9 @@
 package options
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"log/slog"
 	"slices"
@@ -175,6 +177,24 @@ func (o Options) Clone() Options {
 	}
 
 	return o2
+}
+
+// Hash returns a SHA256 hash of o. If o is nil or empty,
+// an empty string is returned.
+func (o Options) Hash() string {
+	if len(o) == 0 {
+		return ""
+	}
+
+	buf := bytes.Buffer{}
+	for k, v := range o {
+		buf.WriteString(k)
+		if v != nil {
+			buf.WriteString(fmt.Sprintf("%v", v))
+		}
+	}
+	sum := sha256.Sum256(buf.Bytes())
+	return fmt.Sprintf("%x", sum)
 }
 
 // Keys returns the sorted set of keys in o.

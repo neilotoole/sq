@@ -61,7 +61,7 @@ func (d *Driver) DriverMetadata() driver.Metadata {
 func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Pool, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
-	scratchPool, err := d.scratcher.OpenScratch(ctx, src.Handle)
+	scratchPool, err := d.scratcher.OpenScratchFor(ctx, src)
 	if err != nil {
 		return nil, err
 	}

@@ -2,8 +2,7 @@ package csv_test
 
 import (
 	"context"
-	"golang.org/x/text/language"
-	"golang.org/x/text/message"
+	stdcsv "encoding/csv"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -15,8 +14,8 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	stdcsv "encoding/csv"
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
 
 	"github.com/neilotoole/sq/cli/testrun"
 	"github.com/neilotoole/sq/drivers/csv"
@@ -359,7 +358,7 @@ func TestGenerateLargeCSV(t *testing.T) {
 	f, err := os.OpenFile(
 		"testdata/payment-large.csv",
 		os.O_CREATE|os.O_WRONLY|os.O_TRUNC,
-		0600,
+		0o600,
 	)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = f.Close() })

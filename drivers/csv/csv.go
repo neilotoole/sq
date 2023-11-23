@@ -10,6 +10,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
@@ -66,25 +67,62 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 
 // Open implements driver.PoolOpener.
 func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Pool, error) {
-	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
+	log := lg.FromContext(ctx)
+	log.Debug(lgm.OpenSrc, lga.Src, src)
 
-	pool := &pool{
+	p := &pool{
 		log:   d.log,
 		src:   src,
 		files: d.files,
 	}
 
-	var err error
-	pool.impl, err = d.scratcher.OpenScratch(ctx, src.Handle)
+	allowCache := driver.OptIngestCache.Get(options.FromContext(ctx))
+	// impl, err := d.scratcher.OpenScratchFor(ctx, src, allowCache)
+
+	ingestFn := func(ctx context.Context, destPool driver.Pool) error {
+		return ingestCSV(ctx, src, d.files.OpenFunc(src), destPool)
+	}
+
+	backingPool, err := d.scratcher.OpenIngest(ctx, src, ingestFn, allowCache)
 	if err != nil {
 		return nil, err
 	}
 
-	if err = ingestCSV(ctx, src, d.files.OpenFunc(src), pool.impl); err != nil {
-		return nil, err
-	}
+	p.impl = backingPool
 
-	return pool, nil
+	//
+	//var err error
+	//if {
+	//	// Caching is enabled, let's see if we can find a cached copy.
+	//	var foundCached bool
+	//	p.impl, foundCached, err = d.scratcher.OpenCachedFor(ctx, src)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//	if foundCached {
+	//		log.Debug("Cache HIT: found cached copy of source",
+	//			lga.Src, src, "cached", p.impl.Source(),
+	//		)
+	//		return p, nil
+	//	}
+	//
+	//	log.Debug("Cache MISS: no cache for source", lga.Src, src)
+	//}
+	//
+	//if p.impl == nil {
+	//	p.impl, err = d.scratcher.OpenScratchFor(ctx, src)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//}
+	//
+	//if err = ingestCSV(ctx, src, d.files.OpenFunc(src), p.impl); err != nil {
+	//	return nil, err
+	//}
+
+	// FIXME: We really should be writing the checksum after ingestCSV happens
+
+	return p, nil
 }
 
 // Truncate implements driver.Driver.

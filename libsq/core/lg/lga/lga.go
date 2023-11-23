@@ -15,6 +15,7 @@ const (
 	Cleanup   = "cleanup"
 	DB        = "db"
 	DBType    = "db_type"
+	Dest      = "dest"
 	Driver    = "driver"
 	DefaultTo = "default_to"
 	Elapsed   = "elapsed"

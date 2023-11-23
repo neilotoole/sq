@@ -1020,29 +1020,26 @@ func (p *pool) Close() error {
 	return err
 }
 
-// NewScratchSource returns a new scratch src. Effectively this
-// function creates a new sqlite db file in the temp dir, and
-// src points at this file. The returned clnup func will delete
-// the file.
-func NewScratchSource(ctx context.Context, name string) (src *source.Source, clnup func() error, err error) {
-	log := lg.FromContext(ctx)
-	name = stringz.SanitizeAlphaNumeric(name, '_')
-	dir, file, err := source.TempDirFile(name + ".sqlite")
-	if err != nil {
-		return nil, nil, err
-	}
+var _ driver.ScratchSrcFunc = NewScratchSource
 
-	log.Debug("Created sqlite3 scratchdb data file", lga.Path, file)
+// NewScratchSource returns a new scratch src. The supplied fpath
+// must be the absolute path to the location to create the SQLite DB file,
+// typically in the user cache dir.
+// The returned clnup func will delete the file.
+func NewScratchSource(ctx context.Context, fpath string) (src *source.Source, clnup func() error, err error) {
+	log := lg.FromContext(ctx)
+
+	log.Debug("Created sqlite3 scratchdb data file", lga.Path, fpath)
 
 	src = &source.Source{
 		Type:     Type,
 		Handle:   source.ScratchHandle,
-		Location: Prefix + file,
+		Location: Prefix + fpath,
 	}
 
 	fn := func() error {
-		log.Debug("Deleting sqlite3 scratchdb file", lga.Src, src, lga.Path, file)
-		rmErr := errz.Err(os.RemoveAll(dir))
+		log.Debug("Deleting sqlite3 scratchdb file", lga.Src, src, lga.Path, fpath)
+		rmErr := errz.Err(os.Remove(fpath))
 		if rmErr != nil {
 			log.Warn("Delete sqlite3 scratchdb file", lga.Err, rmErr)
 		}
@@ -1052,9 +1049,11 @@ func NewScratchSource(ctx context.Context, name string) (src *source.Source, cln
 	return src, fn, nil
 }
 
-// PathFromLocation returns the absolute file path
-// from the source location, which should have the "sqlite3://" prefix.
+// PathFromLocation returns the absolute file path from the source location,
+// which should have the "sqlite3://" prefix.
 func PathFromLocation(src *source.Source) (string, error) {
+	// FIXME: Does this actually work with query params in the path?
+	// Probably not? Maybe refactor use dburl.Parse or such.
 	if src.Type != Type {
 		return "", errz.Errorf("driver {%s} does not support {%s}", Type, src.Type)
 	}

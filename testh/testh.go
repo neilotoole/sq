@@ -169,7 +169,7 @@ func (h *Helper) init() {
 
 		h.files.AddDriverDetectors(source.DetectMagicNumber)
 
-		h.pools = driver.NewPools(log, h.registry, sqlite3.NewScratchSource)
+		h.pools = driver.NewPools(log, h.registry, h.files, sqlite3.NewScratchSource)
 		h.Cleanup.AddC(h.pools)
 
 		h.registry.AddProvider(sqlite3.Type, &sqlite3.Provider{Log: log})

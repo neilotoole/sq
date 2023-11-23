@@ -23,6 +23,17 @@ to detect the header.`,
 	options.TagSource,
 )
 
+// OptIngestCache specifies whether ingested data is cached or not.
+var OptIngestCache = options.NewBool(
+	"ingest.bool",
+	"",
+	0,
+	true,
+	"Ingest data is cached",
+	`Specifies whether ingested data is cached or not.`,
+	options.TagSource,
+)
+
 // OptIngestSampleSize specifies the number of samples that a detector
 // should take to determine type.
 var OptIngestSampleSize = options.NewInt(

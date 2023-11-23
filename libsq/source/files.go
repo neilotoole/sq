@@ -21,6 +21,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/fetcher"
 )
@@ -161,6 +162,23 @@ func (fs *Files) addFile(f *os.File, key string) (fscache.ReadAtCloser, error) {
 	}
 
 	return r, nil
+}
+
+// Filepath returns the file path of src.Location.
+func (fs *Files) Filepath(src *Source) (string, error) {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	// cache miss
+	f, err := fs.openLocation(src.Location)
+	if err != nil {
+		return "", err
+	}
+
+	if err = f.Close(); err != nil {
+		return "", errz.Err(err)
+	}
+	return f.Name(), nil
 }
 
 // Open returns a new io.ReadCloser for src.Location.
@@ -513,31 +531,45 @@ func httpURL(s string) (u *url.URL, ok bool) {
 	return u, true
 }
 
-// TempDirFile creates a new temporary file in a new temp dir,
-// opens the file for reading and writing, and then closes it.
-// It's probably unnecessary to go through the ceremony of
-// opening and closing the file, but maybe it's better to fail early.
-// It is the caller's responsibility to remove the file and/or dir
-// if desired.
-func TempDirFile(filename string) (dir, file string, err error) {
-	dir, err = os.MkdirTemp("", "sq_")
-	if err != nil {
-		return "", "", errz.Err(err)
+// CacheDirFor gets the cache dir for handle, creating it if necessary.
+// If handle is empty or invalid, a random value is generated.
+func CacheDirFor(src *Source) (dir string, err error) {
+	handle := src.Handle
+	switch handle {
+	case "":
+		handle = "@cache_" + stringz.UniqN(32)
+	case StdinHandle:
+		// stdin is different input every time, so we need a unique
+		// cache dir.
+		handle += "_" + stringz.UniqN(32)
+	default:
+		if err = ValidHandle(handle); err != nil {
+			return "", errz.Wrapf(err, "open cache dir: invalid handle: %s", handle)
+		}
 	}
 
-	file = filepath.Join(dir, filename)
-	var f *os.File
-	if f, err = os.OpenFile(file, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o600); err != nil {
-		// Silently delete the temp dir
-		_ = os.RemoveAll(dir)
-		return "", "", errz.Err(err)
+	dir = CacheDirPath()
+	sanitized := Handle2SafePath(handle)
+	hash := src.Hash()
+	dir = filepath.Join(dir, "sources", sanitized, hash)
+	if err = os.MkdirAll(dir, 0o750); err != nil {
+		return "", errz.Wrapf(err, "open cache dir: %s", dir)
 	}
 
-	if err = f.Close(); err != nil {
-		// Silently delete the temp dir
-		_ = os.RemoveAll(dir)
-		return "", "", errz.Wrap(err, "close temp file")
-	}
+	return dir, nil
+}
 
-	return dir, file, nil
+// CacheDirPath returns the sq cache dir. This is generally
+// in USER_CACHE_DIR/sq/cache, but could also be in TEMP_DIR/sq/cache
+// or similar. It is not guaranteed that the returned dir exists
+// or is accessible.
+func CacheDirPath() (dir string) {
+	var err error
+	if dir, err = os.UserCacheDir(); err != nil {
+		// Some systems may not have a user cache dir, so we fall back
+		// to the system temp dir.
+		dir = os.TempDir()
+	}
+	dir = filepath.Join(dir, "sq", "cache")
+	return dir
 }
