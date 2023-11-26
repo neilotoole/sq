@@ -32,8 +32,12 @@ github.com/creack/pty v1.1.18/go.mod h1:MOBLtS5ELjhRRrroQr9kyvTxUAFNvYEK993ew/Vr
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
+github.com/djherbis/atime v1.1.0 h1:rgwVbP/5by8BvvjBNrbh64Qz33idKT3pSnMSJsxhi0g=
+github.com/djherbis/atime v1.1.0/go.mod h1:28OF6Y8s3NQWwacXc5eZTsEsiMzp7LF8MbXE+XJPdBE=
 github.com/djherbis/fscache v0.10.1 h1:hDv+RGyvD+UDKyRYuLoVNbuRTnf2SrA2K3VyR1br9lk=
 github.com/djherbis/fscache v0.10.1/go.mod h1:yyPYtkNnnPXsW+81lAcQS6yab3G2CRfnPLotBvtbf0c=
+github.com/djherbis/stream v1.4.0 h1:aVD46WZUiq5kJk55yxJAyw6Kuera6kmC3i2vEQyW/AE=
+github.com/djherbis/stream v1.4.0/go.mod h1:cqjC1ZRq3FFwkGmUtHwcldbnW8f0Q4YuVsGW1eAFtOk=
 github.com/ecnepsnai/osquery v1.0.1 h1:i96n/3uqcafKZtRYmXVNqekKbfrIm66q179mWZ/Y2Aw=
 github.com/ecnepsnai/osquery v1.0.1/go.mod h1:vxsezNRznmkLa8UjVh88tlJiRbgW7iwinkjyg/Xc2RU=
 github.com/emirpasic/gods v1.18.1 h1:FXtiHYKDGKCW2KzwZKx0iC0PQmdlorYgdFG9jPXJ1Bc=

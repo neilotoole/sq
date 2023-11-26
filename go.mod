@@ -52,6 +52,8 @@ require (
 	github.com/Masterminds/goutils v1.1.1 // indirect
 	github.com/Masterminds/semver/v3 v3.2.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/djherbis/atime v1.1.0 // indirect
+	github.com/djherbis/stream v1.4.0 // indirect
 	github.com/golang-sql/civil v0.0.0-20220223132316-b832511892a9 // indirect
 	github.com/golang-sql/sqlexp v0.1.0 // indirect
 	github.com/huandu/xstrings v1.4.0 // indirect
