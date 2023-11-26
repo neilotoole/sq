@@ -38,7 +38,7 @@ func TestFiles_Open(t *testing.T) {
 		Location: proj.Abs(testsrc.PathXLSXTestHeader),
 	}
 
-	f, err := fs.openLocation(src1.Location)
+	f, err := fs.openLocation(ctx, src1.Location)
 	require.NoError(t, err)
 	t.Cleanup(func() { assert.NoError(t, f.Close()) })
 	require.Equal(t, src1.Location, f.Name())
@@ -47,7 +47,7 @@ func TestFiles_Open(t *testing.T) {
 		Location: sakila.URLActorCSV,
 	}
 
-	f2, err := fs.openLocation(src2.Location)
+	f2, err := fs.openLocation(ctx, src2.Location)
 	require.NoError(t, err)
 	t.Cleanup(func() { assert.NoError(t, f2.Close()) })
 

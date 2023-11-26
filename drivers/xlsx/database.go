@@ -57,7 +57,7 @@ func (p *pool) doIngest(ctx context.Context, includeSheetNames []string) error {
 	// has the source's options on it.
 	ctx = options.NewContext(ctx, options.Merge(options.FromContext(ctx), p.src.Options))
 
-	r, err := p.files.Open(p.src)
+	r, err := p.files.Open(ctx, p.src)
 	if err != nil {
 		return err
 	}
@@ -122,7 +122,7 @@ func (p *pool) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Sou
 	}
 	md.FQName = md.Name
 
-	if md.Size, err = p.files.Size(p.src); err != nil {
+	if md.Size, err = p.files.Size(ctx, p.src); err != nil {
 		return nil, err
 	}
 

@@ -25,7 +25,7 @@ func DetectXLSX(ctx context.Context, openFn source.FileOpenFunc) (detected drive
 ) {
 	log := lg.FromContext(ctx)
 	var r io.ReadCloser
-	r, err = openFn()
+	r, err = openFn(ctx)
 	if err != nil {
 		return drivertype.None, 0, errz.Err(err)
 	}

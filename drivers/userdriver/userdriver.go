@@ -86,7 +86,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Pool, er
 
 	clnup := cleanup.New()
 
-	r, err := d.files.Open(src)
+	r, err := d.files.Open(ctx, src)
 	if err != nil {
 		return nil, err
 	}
@@ -123,13 +123,13 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 }
 
 // Ping implements driver.Driver.
-func (d *driveri) Ping(_ context.Context, src *source.Source) error {
+func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 	d.log.Debug("Ping source",
 		lga.Driver, d.typ,
 		lga.Src, src,
 	)
 
-	r, err := d.files.Open(src)
+	r, err := d.files.Open(ctx, src)
 	if err != nil {
 		return err
 	}

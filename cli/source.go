@@ -181,7 +181,7 @@ func checkStdinSource(ctx context.Context, ru *run.Run) (*source.Source, error) 
 		}
 	}
 
-	err = ru.Files.AddStdin(f)
+	err = ru.Files.AddStdin(ctx, f)
 	if err != nil {
 		return nil, err
 	}

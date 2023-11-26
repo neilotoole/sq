@@ -106,11 +106,11 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 }
 
 // Ping implements driver.Driver.
-func (d *driveri) Ping(_ context.Context, src *source.Source) error {
+func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 	// FIXME: Does Ping calling d.files.Open cause a full read?
 	// We probably just want to check that the file exists
 	// or is accessible.
-	r, err := d.files.Open(src)
+	r, err := d.files.Open(ctx, src)
 	if err != nil {
 		return err
 	}
@@ -174,7 +174,7 @@ func (p *pool) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Sou
 		return nil, err
 	}
 
-	md.Size, err = p.files.Size(p.src)
+	md.Size, err = p.files.Size(ctx, p.src)
 	if err != nil {
 		return nil, err
 	}

@@ -57,7 +57,7 @@ func ingestCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFu
 	var err error
 	var r io.ReadCloser
 
-	r, err = openFn()
+	r, err = openFn(ctx)
 	if err != nil {
 		return err
 	}

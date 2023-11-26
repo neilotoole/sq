@@ -74,8 +74,11 @@ func (fs *Files) AddDriverDetectors(detectFns ...DriverDetectFunc) {
 // Size returns the file size of src.Location. This exists
 // as a convenience function and something of a replacement
 // for using os.Stat to get the file size.
-func (fs *Files) Size(src *Source) (size int64, err error) {
-	r, err := fs.Open(src)
+//
+// FIXME: This is a terrible way to get the size. It currently
+// reads all the bytes. Awful.
+func (fs *Files) Size(ctx context.Context, src *Source) (size int64, err error) {
+	r, err := fs.Open(ctx, src)
 	if err != nil {
 		return 0, err
 	}
@@ -97,12 +100,12 @@ func (fs *Files) Size(src *Source) (size int64, err error) {
 //
 // REVISIT: it's possible we'll ditch AddStdin and TypeStdin
 // in some future version; this mechanism is a stopgap.
-func (fs *Files) AddStdin(f *os.File) error {
+func (fs *Files) AddStdin(ctx context.Context, f *os.File) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
 	// We don't need r, but we're responsible for closing it.
-	r, err := fs.addFile(f, StdinHandle) // f is closed by addFile
+	r, err := fs.addFile(ctx, f, StdinHandle) // f is closed by addFile
 	if err != nil {
 		return err
 	}
@@ -133,8 +136,9 @@ func (fs *Files) TypeStdin(ctx context.Context) (drivertype.Type, error) {
 
 // add file copies f to fs's cache, returning a reader which the
 // caller is responsible for closing. f is closed by this method.
-func (fs *Files) addFile(f *os.File, key string) (fscache.ReadAtCloser, error) {
-	fs.log.Debug("Adding file", lga.Key, key, lga.Path, f.Name())
+func (fs *Files) addFile(ctx context.Context, f *os.File, key string) (fscache.ReadAtCloser, error) {
+	log := lg.FromContext(ctx)
+	log.Debug("Adding file", lga.Key, key, lga.Path, f.Name())
 	r, w, err := fs.fcache.Get(key)
 	if err != nil {
 		return nil, errz.Err(err)
@@ -150,17 +154,16 @@ func (fs *Files) addFile(f *os.File, key string) (fscache.ReadAtCloser, error) {
 	// everything is held up until f is fully copied. Hopefully we can
 	// do something with fscache so that the readers returned from
 	// fscache can lazily read from f.
-	_, err = io.Copy(w, f)
-	if err != nil {
+	if err = fscache.FillWriterAsync(ctx, log, w, f, true); err != nil {
 		lg.WarnIfCloseError(fs.log, lgm.CloseFileReader, r)
 		return nil, errz.Err(err)
 	}
 
-	err = errz.Combine(w.Close(), f.Close())
-	if err != nil {
-		lg.WarnIfCloseError(fs.log, lgm.CloseFileReader, r)
-		return nil, err
-	}
+	//err = errz.Combine(w.Close(), f.Close())
+	//if err != nil {
+	//	lg.WarnIfCloseError(fs.log, lgm.CloseFileReader, r)
+	//	return nil, err
+	//}
 
 	return r, nil
 }
@@ -241,23 +244,23 @@ func (fs *Files) Filepath(_ context.Context, src *Source) (string, error) {
 // Open returns a new io.ReadCloser for src.Location.
 // If src.Handle is StdinHandle, AddStdin must first have
 // been invoked. The caller must close the reader.
-func (fs *Files) Open(src *Source) (io.ReadCloser, error) {
+func (fs *Files) Open(ctx context.Context, src *Source) (io.ReadCloser, error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	return fs.newReader(src.Location)
+	return fs.newReader(ctx, src.Location)
 }
 
 // OpenFunc returns a func that invokes fs.Open for src.Location.
-func (fs *Files) OpenFunc(src *Source) func() (io.ReadCloser, error) {
-	return func() (io.ReadCloser, error) {
-		return fs.Open(src)
+func (fs *Files) OpenFunc(src *Source) func(ctx context.Context) (io.ReadCloser, error) {
+	return func(ctx context.Context) (io.ReadCloser, error) {
+		return fs.Open(ctx, src)
 	}
 }
 
 // ReadAll is a convenience method to read the bytes of a source.
-func (fs *Files) ReadAll(src *Source) ([]byte, error) {
-	r, err := fs.newReader(src.Location)
+func (fs *Files) ReadAll(ctx context.Context, src *Source) ([]byte, error) {
+	r, err := fs.newReader(ctx, src.Location)
 	if err != nil {
 		return nil, err
 	}
@@ -275,7 +278,7 @@ func (fs *Files) ReadAll(src *Source) ([]byte, error) {
 	return data, nil
 }
 
-func (fs *Files) newReader(loc string) (io.ReadCloser, error) {
+func (fs *Files) newReader(ctx context.Context, loc string) (io.ReadCloser, error) {
 	if loc == StdinHandle {
 		r, w, err := fs.fcache.Get(StdinHandle)
 		if err != nil {
@@ -290,13 +293,13 @@ func (fs *Files) newReader(loc string) (io.ReadCloser, error) {
 
 	if !fs.fcache.Exists(loc) {
 		// cache miss
-		f, err := fs.openLocation(loc)
+		f, err := fs.openLocation(ctx, loc)
 		if err != nil {
 			return nil, err
 		}
 
 		// Note that addFile closes f
-		r, err := fs.addFile(f, loc)
+		r, err := fs.addFile(ctx, f, loc)
 		if err != nil {
 			return nil, err
 		}
@@ -313,7 +316,7 @@ func (fs *Files) newReader(loc string) (io.ReadCloser, error) {
 
 // openLocation returns a file for loc. It is the caller's
 // responsibility to close the returned file.
-func (fs *Files) openLocation(loc string) (*os.File, error) {
+func (fs *Files) openLocation(ctx context.Context, loc string) (*os.File, error) {
 	var fpath string
 	var ok bool
 	var err error
@@ -453,11 +456,11 @@ func (fs *Files) detectType(ctx context.Context, loc string) (typ drivertype.Typ
 	}
 
 	resultCh := make(chan result, len(fs.detectFns))
-	openFn := func() (io.ReadCloser, error) {
+	openFn := func(ctx context.Context) (io.ReadCloser, error) {
 		fs.mu.Lock()
 		defer fs.mu.Unlock()
 
-		return fs.newReader(loc)
+		return fs.newReader(ctx, loc)
 	}
 
 	select {
@@ -516,7 +519,7 @@ func (fs *Files) detectType(ctx context.Context, loc string) (typ drivertype.Typ
 
 // FileOpenFunc returns a func that opens a ReadCloser. The caller
 // is responsible for closing the returned ReadCloser.
-type FileOpenFunc func() (io.ReadCloser, error)
+type FileOpenFunc func(ctx context.Context) (io.ReadCloser, error)
 
 // DriverDetectFunc interrogates a byte stream to determine
 // the source driver type. A score is returned indicating
@@ -538,7 +541,7 @@ func DetectMagicNumber(ctx context.Context, openFn FileOpenFunc,
 ) (detected drivertype.Type, score float32, err error) {
 	log := lg.FromContext(ctx)
 	var r io.ReadCloser
-	r, err = openFn()
+	r, err = openFn(ctx)
 	if err != nil {
 		return drivertype.None, 0, errz.Err(err)
 	}

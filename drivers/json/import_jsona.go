@@ -29,7 +29,7 @@ func DetectJSONA(sampleSize int) source.DriverDetectFunc {
 	) {
 		log := lg.FromContext(ctx)
 		var r io.ReadCloser
-		r, err = openFn()
+		r, err = openFn(ctx)
 		if err != nil {
 			return drivertype.None, 0, errz.Err(err)
 		}
@@ -98,7 +98,7 @@ func DetectJSONA(sampleSize int) source.DriverDetectFunc {
 func importJSONA(ctx context.Context, job importJob) error {
 	log := lg.FromContext(ctx)
 
-	predictR, err := job.openFn()
+	predictR, err := job.openFn(ctx)
 	if err != nil {
 		return errz.Err(err)
 	}
@@ -136,7 +136,7 @@ func importJSONA(ctx context.Context, job importJob) error {
 		return err
 	}
 
-	r, err := job.openFn()
+	r, err := job.openFn(ctx)
 	if err != nil {
 		return errz.Err(err)
 	}

@@ -3,6 +3,7 @@ package csv_test
 import (
 	"context"
 	stdcsv "encoding/csv"
+	"fmt"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -341,7 +342,7 @@ func TestDatetime(t *testing.T) {
 // TestIngestLargeCSV generates a large CSV file.
 // At count = 5000000, the generated file is ~500MB.
 func TestGenerateLargeCSV(t *testing.T) {
-	t.Skip()
+	//t.Skip()
 	const count = 5000000 // Generates ~500MB file
 	start := time.Now()
 	header := []string{
@@ -383,7 +384,8 @@ func TestGenerateLargeCSV(t *testing.T) {
 		rec[3] = strconv.Itoa(rand.Intn(10))  // staff_id
 		rec[4] = strconv.Itoa(i + 3)          // rental_id, always unique
 		f64 := amount.InexactFloat64()
-		rec[5] = p.Sprintf("%.2f", f64) // amount
+		//rec[5] = p.Sprintf("%.2f", f64) // amount
+		rec[5] = fmt.Sprintf("%.2f", f64) // amount
 		amount = amount.Add(decimal.New(33, -2))
 		rec[6] = timez.TimestampUTC(paymentUTC) // payment_date
 		paymentUTC = paymentUTC.Add(time.Minute)

@@ -38,7 +38,7 @@ func detectType(ctx context.Context, typ drivertype.Type,
 ) (detected drivertype.Type, score float32, err error) {
 	log := lg.FromContext(ctx)
 	var r io.ReadCloser
-	r, err = openFn()
+	r, err = openFn(ctx)
 	if err != nil {
 		return drivertype.None, 0, errz.Err(err)
 	}

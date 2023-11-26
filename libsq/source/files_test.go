@@ -131,7 +131,7 @@ func TestDetectMagicNumber(t *testing.T) {
 		tc := tc
 
 		t.Run(filepath.Base(tc.loc), func(t *testing.T) {
-			rFn := func() (io.ReadCloser, error) { return os.Open(tc.loc) }
+			rFn := func(ctx context.Context) (io.ReadCloser, error) { return os.Open(tc.loc) }
 
 			ctx := lg.NewContext(context.Background(), slogt.New(t))
 
@@ -166,7 +166,7 @@ func TestFiles_NewReader(t *testing.T) {
 
 	for i := 0; i < 1000; i++ {
 		g.Go(func() error {
-			r, gErr := fs.Open(src)
+			r, gErr := fs.Open(ctx, src)
 			require.NoError(t, gErr)
 
 			b, gErr := io.ReadAll(r)
@@ -202,7 +202,7 @@ func TestFiles_Stdin(t *testing.T) {
 			f, err := os.Open(tc.fpath)
 			require.NoError(t, err)
 
-			err = fs.AddStdin(f) // f is closed by AddStdin
+			err = fs.AddStdin(th.Context, f) // f is closed by AddStdin
 			require.NoError(t, err)
 
 			typ, err := fs.TypeStdin(th.Context)
@@ -227,7 +227,7 @@ func TestFiles_Stdin_ErrorWrongOrder(t *testing.T) {
 	f, err := os.Open(proj.Abs(sakila.PathCSVActor))
 	require.NoError(t, err)
 
-	require.NoError(t, fs.AddStdin(f)) // AddStdin closes f
+	require.NoError(t, fs.AddStdin(th.Context, f)) // AddStdin closes f
 	typ, err = fs.TypeStdin(th.Context)
 	require.NoError(t, err)
 	require.Equal(t, csv.TypeCSV, typ)
@@ -245,7 +245,7 @@ func TestFiles_Size(t *testing.T) {
 	th := testh.New(t)
 	fs := th.Files()
 
-	gotSize, err := fs.Size(&source.Source{
+	gotSize, err := fs.Size(th.Context, &source.Source{
 		Handle:   stringz.UniqSuffix("@h"),
 		Location: f.Name(),
 	})
@@ -255,9 +255,9 @@ func TestFiles_Size(t *testing.T) {
 	f2, err := os.Open(proj.Abs(sakila.PathCSVActor))
 	require.NoError(t, err)
 	// Verify that this works with @stdin as well
-	require.NoError(t, fs.AddStdin(f2))
+	require.NoError(t, fs.AddStdin(th.Context, f2))
 
-	gotSize2, err := fs.Size(&source.Source{
+	gotSize2, err := fs.Size(th.Context, &source.Source{
 		Handle:   "@stdin",
 		Location: "@stdin",
 	})

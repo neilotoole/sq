@@ -145,7 +145,7 @@ func TestHelper_Files(t *testing.T) {
 
 	for i := 0; i < 1000; i++ {
 		g.Go(func() error {
-			r, fErr := fs.Open(src)
+			r, fErr := fs.Open(th.Context, src)
 			require.NoError(t, fErr)
 
 			defer func() { require.NoError(t, r.Close()) }()

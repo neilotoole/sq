@@ -104,7 +104,7 @@ func (d *Driver) ValidateSource(src *source.Source) (*source.Source, error) {
 func (d *Driver) Ping(ctx context.Context, src *source.Source) (err error) {
 	log := lg.FromContext(ctx)
 
-	r, err := d.files.Open(src)
+	r, err := d.files.Open(ctx, src)
 	if err != nil {
 		return err
 	}

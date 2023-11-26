@@ -23,7 +23,7 @@ func DetectJSON(sampleSize int) source.DriverDetectFunc {
 	) {
 		log := lg.FromContext(ctx)
 		var r1, r2 io.ReadCloser
-		r1, err = openFn()
+		r1, err = openFn(ctx)
 		if err != nil {
 			return drivertype.None, 0, errz.Err(err)
 		}
@@ -46,7 +46,7 @@ func DetectJSON(sampleSize int) source.DriverDetectFunc {
 			return drivertype.None, 0, nil
 		case leftBrace:
 			// The input is a single JSON object
-			r2, err = openFn()
+			r2, err = openFn(ctx)
 
 			// buf gets a copy of what is read from r2
 			buf := &buffer{}
@@ -92,7 +92,7 @@ func DetectJSON(sampleSize int) source.DriverDetectFunc {
 			// The input is one or more JSON objects inside an array
 		}
 
-		r2, err = openFn()
+		r2, err = openFn(ctx)
 		if err != nil {
 			return drivertype.None, 0, errz.Err(err)
 		}
@@ -135,7 +135,7 @@ func DetectJSON(sampleSize int) source.DriverDetectFunc {
 func importJSON(ctx context.Context, job importJob) error {
 	log := lg.FromContext(ctx)
 
-	r, err := job.openFn()
+	r, err := job.openFn(ctx)
 	if err != nil {
 		return err
 	}

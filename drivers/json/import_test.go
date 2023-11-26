@@ -2,6 +2,7 @@ package json_test
 
 import (
 	"bytes"
+	"context"
 	stdj "encoding/json"
 	"io"
 	"os"
@@ -74,12 +75,12 @@ func TestImportJSONL_Flat(t *testing.T) {
 		tc := tc
 
 		t.Run(tutil.Name(i, tc.fpath, tc.input), func(t *testing.T) {
-			openFn := func() (io.ReadCloser, error) {
+			openFn := func(ctx context.Context) (io.ReadCloser, error) {
 				return io.NopCloser(strings.NewReader(tc.input)), nil
 			}
 
 			if tc.fpath != "" {
-				openFn = func() (io.ReadCloser, error) {
+				openFn = func(ctx context.Context) (io.ReadCloser, error) {
 					return os.Open(filepath.Join("testdata", tc.fpath))
 				}
 			}
@@ -105,7 +106,7 @@ func TestImportJSONL_Flat(t *testing.T) {
 }
 
 func TestImportJSON_Flat(t *testing.T) {
-	openFn := func() (io.ReadCloser, error) {
+	openFn := func(context.Context) (io.ReadCloser, error) {
 		return os.Open("testdata/actor.json")
 	}
 
