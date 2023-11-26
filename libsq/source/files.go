@@ -2,6 +2,7 @@ package source
 
 import (
 	"context"
+	"github.com/neilotoole/fscache"
 	"io"
 	"log/slog"
 	"mime"
@@ -11,7 +12,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/djherbis/fscache"
 	"github.com/h2non/filetype"
 	"github.com/h2non/filetype/matchers"
 	"golang.org/x/sync/errgroup"

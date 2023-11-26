@@ -7,7 +7,6 @@ require (
 	github.com/alessio/shellescape v1.4.2
 	github.com/antlr4-go/antlr/v4 v4.13.0
 	github.com/c2h5oh/datasize v0.0.0-20220606134207-859f65c6625b
-	github.com/djherbis/fscache v0.10.1
 	github.com/ecnepsnai/osquery v1.0.1
 	github.com/emirpasic/gods v1.18.1
 	github.com/fatih/color v1.16.0
@@ -25,8 +24,10 @@ require (
 	github.com/muesli/mango-cobra v1.2.0
 	github.com/muesli/roff v0.1.0
 	github.com/ncruces/go-strftime v0.1.9
+	github.com/neilotoole/fscache v0.0.0-20231126193352-f79ad8b71381
 	github.com/neilotoole/shelleditor v0.4.1
 	github.com/neilotoole/slogt v1.1.0
+	github.com/nightlyone/lockfile v1.0.0
 	github.com/otiai10/copy v1.14.0
 	github.com/ryboe/q v1.0.20
 	github.com/samber/lo v1.38.1
@@ -45,6 +46,7 @@ require (
 	golang.org/x/net v0.18.0
 	golang.org/x/sync v0.5.0
 	golang.org/x/term v0.14.0
+	golang.org/x/text v0.14.0
 )
 
 require (
@@ -70,7 +72,6 @@ require (
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826 // indirect
 	github.com/muesli/mango v0.2.0 // indirect
 	github.com/muesli/mango-pflag v0.1.0 // indirect
-	github.com/nightlyone/lockfile v1.0.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/richardlehane/mscfb v1.0.4 // indirect
 	github.com/richardlehane/msoleps v1.0.3 // indirect
@@ -82,9 +83,6 @@ require (
 	github.com/xuri/nfp v0.0.0-20230919160717-d98342af3f05 // indirect
 	golang.org/x/crypto v0.15.0 // indirect
 	golang.org/x/sys v0.14.0 // indirect
-	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/xerrors v0.0.0-20231012003039-104605ab7028 // indirect
-	gopkg.in/djherbis/atime.v1 v1.0.0 // indirect
-	gopkg.in/djherbis/stream.v1 v1.3.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
