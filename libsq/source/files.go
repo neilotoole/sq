@@ -2,7 +2,6 @@ package source
 
 import (
 	"context"
-	"github.com/neilotoole/fscache"
 	"io"
 	"log/slog"
 	"mime"
@@ -15,6 +14,8 @@ import (
 	"github.com/h2non/filetype"
 	"github.com/h2non/filetype/matchers"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/neilotoole/fscache"
 
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"

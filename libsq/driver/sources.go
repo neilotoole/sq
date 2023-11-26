@@ -10,6 +10,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/nightlyone/lockfile"
+
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
@@ -19,7 +21,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/retry"
 	"github.com/neilotoole/sq/libsq/source"
-	"github.com/nightlyone/lockfile"
 )
 
 var (
