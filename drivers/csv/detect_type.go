@@ -70,9 +70,8 @@ const (
 	scoreYes float32 = 0.9
 )
 
-// isCSV returns a score indicating the
-// the confidence that cr is reading legitimate CSV, where
-// a score <= 0 is not CSV, a score >= 1 is definitely CSV.
+// isCSV returns a score indicating the confidence that cr is reading
+// legitimate CSV, where a score <= 0 is not CSV, a score >= 1 is definitely CSV.
 func isCSV(ctx context.Context, cr *csv.Reader) (score float32) {
 	const (
 		maxRecords int = 100

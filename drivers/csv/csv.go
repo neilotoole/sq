@@ -77,7 +77,6 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Pool, er
 	}
 
 	allowCache := driver.OptIngestCache.Get(options.FromContext(ctx))
-	// impl, err := d.scratcher.OpenScratchFor(ctx, src, allowCache)
 
 	ingestFn := func(ctx context.Context, destPool driver.Pool) error {
 		return ingestCSV(ctx, src, d.files.OpenFunc(src), destPool)
@@ -89,39 +88,6 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Pool, er
 	}
 
 	p.impl = backingPool
-
-	//
-	//var err error
-	//if {
-	//	// Caching is enabled, let's see if we can find a cached copy.
-	//	var foundCached bool
-	//	p.impl, foundCached, err = d.scratcher.OpenCachedFor(ctx, src)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	if foundCached {
-	//		log.Debug("Cache HIT: found cached copy of source",
-	//			lga.Src, src, "cached", p.impl.Source(),
-	//		)
-	//		return p, nil
-	//	}
-	//
-	//	log.Debug("Cache MISS: no cache for source", lga.Src, src)
-	//}
-	//
-	//if p.impl == nil {
-	//	p.impl, err = d.scratcher.OpenScratchFor(ctx, src)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//}
-	//
-	//if err = ingestCSV(ctx, src, d.files.OpenFunc(src), p.impl); err != nil {
-	//	return nil, err
-	//}
-
-	// FIXME: We really should be writing the checksum after ingestCSV happens
-
 	return p, nil
 }
 
@@ -141,6 +107,9 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 
 // Ping implements driver.Driver.
 func (d *driveri) Ping(_ context.Context, src *source.Source) error {
+	// FIXME: Does Ping calling d.files.Open cause a full read?
+	// We probably just want to check that the file exists
+	// or is accessible.
 	r, err := d.files.Open(src)
 	if err != nil {
 		return err

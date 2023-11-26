@@ -13,10 +13,13 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
+// Checksum is a checksum of a file.
+type Checksum string
+
 // FileChecksum returns a checksum of the file at path.
 // The checksum is based on the file's name, size, mode, and
 // modification time. File contents are not read.
-func FileChecksum(path string) (string, error) {
+func FileChecksum(path string) (Checksum, error) {
 	fi, err := os.Stat(path)
 	if err != nil {
 		return "", errz.Wrap(err, "calculate file checksum")
@@ -30,7 +33,7 @@ func FileChecksum(path string) (string, error) {
 	buf.WriteString(strconv.FormatBool(fi.IsDir()))
 
 	sum := sha256.Sum256(buf.Bytes())
-	return fmt.Sprintf("%x", sum), nil
+	return Checksum(fmt.Sprintf("%x", sum)), nil
 }
 
 // WriteChecksum appends a checksum line to w, including
@@ -41,7 +44,7 @@ func FileChecksum(path string) (string, error) {
 //
 // Use FileChecksum to calculate a checksum, and ReadChecksums
 // to read this format.
-func WriteChecksum(w io.Writer, sum, name string) error {
+func WriteChecksum(w io.Writer, sum Checksum, name string) error {
 	_, err := fmt.Fprintf(w, "%s  %s\n", sum, name)
 	return errz.Err(err)
 }
@@ -50,7 +53,7 @@ func WriteChecksum(w io.Writer, sum, name string) error {
 // the previous contents.
 //
 // See: WriteChecksum.
-func WriteChecksumFile(path, sum, name string) error {
+func WriteChecksumFile(path string, sum Checksum, name string) error {
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
 	if err != nil {
 		return errz.Wrap(err, "write checksum file")
@@ -62,7 +65,7 @@ func WriteChecksumFile(path, sum, name string) error {
 // ReadChecksumsFile reads a checksum file from path.
 //
 // See ReadChecksums for details.
-func ReadChecksumsFile(path string) (map[string]string, error) {
+func ReadChecksumsFile(path string) (map[string]Checksum, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, errz.Err(err)
@@ -77,8 +80,8 @@ func ReadChecksumsFile(path string) (map[string]string, error) {
 // of checksums keyed by name. Empty lines, and lines beginning
 // with "#" (comments) are ignored. This function is the
 // inverse of WriteChecksum.
-func ReadChecksums(r io.Reader) (map[string]string, error) {
-	sums := map[string]string{}
+func ReadChecksums(r io.Reader) (map[string]Checksum, error) {
+	sums := map[string]Checksum{}
 
 	sc := bufio.NewScanner(r)
 	for sc.Scan() {
@@ -87,12 +90,17 @@ func ReadChecksums(r io.Reader) (map[string]string, error) {
 			continue
 		}
 
+		if strings.Contains(line, "INTEGER") { // FIXME: delete
+			x := true
+			_ = x
+		}
+
 		parts := strings.SplitN(line, "  ", 2)
 		if len(parts) != 2 {
 			return nil, errz.Errorf("invalid checksum line: %q", line)
 		}
 
-		sums[parts[1]] = parts[0]
+		sums[parts[1]] = Checksum(parts[0])
 	}
 
 	return sums, errz.Wrap(sc.Err(), "read checksums")

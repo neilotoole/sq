@@ -165,20 +165,76 @@ func (fs *Files) addFile(f *os.File, key string) (fscache.ReadAtCloser, error) {
 }
 
 // Filepath returns the file path of src.Location.
-func (fs *Files) Filepath(src *Source) (string, error) {
+// An error is returned the source's driver type
+// is not a file type (i.e. it is a SQL driver).
+func (fs *Files) Filepath(_ context.Context, src *Source) (string, error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
+	loc := src.Location
 
-	// cache miss
-	f, err := fs.openLocation(src.Location)
-	if err != nil {
-		return "", err
+	if fp, ok := isFpath(loc); ok {
+		return fp, nil
 	}
 
-	if err = f.Close(); err != nil {
-		return "", errz.Err(err)
+	u, ok := httpURL(loc)
+	if !ok {
+		return "", errz.Errorf("not a valid file location: %s", loc)
 	}
-	return f.Name(), nil
+
+	_ = u
+	// It's a remote file. We really should download it here.
+	// FIXME: implement downloading.
+	return "", errz.Errorf("Filepath not implemented for remote files: %s", loc)
+	//
+	//if ; !ok {
+	//	// It's not a filepath, and it's not a http URL,
+	//	// so we need to download it.
+	//
+	//
+	//}
+	//
+	//return "",
+	//
+	//
+	//
+	//typ, err := fs.DriverType(ctx, src.Location)
+	//if err != nil {
+	//	return "", err
+	//}
+	//
+	//if !fs.fcache.Exists(loc) {
+	//	// cache miss
+	//	f, err := fs.openLocation(loc)
+	//	if err != nil {
+	//		return "", err
+	//	}
+	//
+	//	// Note that addFile closes f
+	//	_, err = fs.addFile(f, loc)
+	//	if err != nil {
+	//		return "", err
+	//	}
+	//	return f.Name(), nil
+	//}
+	//
+	//return loc, nil
+	//r, _, err := fs.fcache.Get(loc)
+	//if err != nil {
+	//	return "", err
+	//}
+	//
+	//return r, nil
+
+	//	// cache miss
+	//	f, err := fs.openLocation(src.Location)
+	//	if err != nil {
+	//		return "", err
+	//	}
+	//
+	//	if err = f.Close(); err != nil {
+	//		return "", errz.Err(err)
+	//	}
+	//	return f.Name(), nil
 }
 
 // Open returns a new io.ReadCloser for src.Location.

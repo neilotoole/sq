@@ -145,6 +145,13 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 	if err != nil {
 		return nil, err
 	}
+
+	if strings.Contains(fp, "checksum") {
+		x := true
+		_ = x
+
+	}
+
 	db, err := sql.Open(dbDrvr, fp)
 	if err != nil {
 		return nil, errz.Wrapf(errw(err), "failed to open sqlite3 source with DSN: %s", fp)

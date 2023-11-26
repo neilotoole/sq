@@ -186,12 +186,13 @@ func (o Options) Hash() string {
 		return ""
 	}
 
+	keys := o.Keys()
 	buf := bytes.Buffer{}
-	for k, v := range o {
+	for _, k := range keys {
 		buf.WriteString(k)
-		if v != nil {
-			buf.WriteString(fmt.Sprintf("%v", v))
-		}
+		v := o[k]
+		buf.WriteString(fmt.Sprintf("%v", v))
+
 	}
 	sum := sha256.Sum256(buf.Bytes())
 	return fmt.Sprintf("%x", sum)
