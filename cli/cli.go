@@ -229,6 +229,7 @@ func newCommandTree(ru *run.Run) (rootCmd *cobra.Command) {
 	addCmd(ru, rootCmd, newCompletionCmd())
 	addCmd(ru, rootCmd, newVersionCmd())
 	addCmd(ru, rootCmd, newManCmd())
+	addCmd(ru, rootCmd, newXTestCmd())
 
 	return rootCmd
 }
