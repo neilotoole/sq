@@ -24,8 +24,9 @@ import (
 )
 
 type progWriter struct {
-	ctx context.Context
-	w   io.Writer
+	ctx     context.Context
+	w       io.Writer
+	spinner *IOSpinner
 }
 
 type progCopier struct {
@@ -42,20 +43,36 @@ func NewProgWriter(ctx context.Context, msg string, w io.Writer) io.Writer {
 	if w, ok := w.(*progCopier); ok && ctx == w.ctx {
 		return w
 	}
-	return &progCopier{progWriter{ctx: ctx, w: w}}
+
+	pb := FromContext(ctx)
+	spinner := pb.NewIOSpinner(msg)
+
+	return &progCopier{progWriter{ctx: ctx, w: w, spinner: spinner}}
 }
 
 // Write implements [io.Writer], but with context awareness.
 func (w *progWriter) Write(p []byte) (n int, err error) {
 	select {
 	case <-w.ctx.Done():
+		w.spinner.Finish()
 		return 0, w.ctx.Err()
 	default:
-		return w.w.Write(p)
+		n, err = w.w.Write(p)
+		w.spinner.IncrBy(n)
+		if err != nil {
+			w.spinner.Finish()
+		}
+		return n, err
 	}
 }
 
 func (w *progWriter) Close() error {
+	if w == nil {
+		return nil
+	}
+
+	w.spinner.Finish()
+
 	// REVISIT: I'm not sure if we should always try
 	// to close the underlying writer first, even if
 	// the context is done? Or go straight to the
@@ -76,8 +93,9 @@ func (w *progWriter) Close() error {
 }
 
 type progReader struct {
-	ctx context.Context
-	r   io.Reader
+	ctx     context.Context
+	r       io.Reader
+	spinner *IOSpinner
 }
 
 // NewProgReader wraps an [io.Reader] to handle context cancellation.
@@ -87,15 +105,23 @@ func NewProgReader(ctx context.Context, msg string, r io.Reader) io.Reader {
 	if r, ok := r.(*progReader); ok && ctx == r.ctx {
 		return r
 	}
-	return &progReader{ctx: ctx, r: r}
+
+	spinner := FromContext(ctx).NewIOSpinner(msg)
+	return &progReader{ctx: ctx, r: r, spinner: spinner}
 }
 
 func (r *progReader) Read(p []byte) (n int, err error) {
 	select {
 	case <-r.ctx.Done():
+		r.spinner.Finish()
 		return 0, r.ctx.Err()
 	default:
-		return r.r.Read(p)
+		n, err = r.r.Read(p)
+		r.spinner.IncrBy(n)
+		if err != nil {
+			r.spinner.Finish()
+		}
+		return n, err
 	}
 }
 
@@ -105,14 +131,22 @@ func (r *progReader) Read(p []byte) (n int, err error) {
 func (w *progCopier) ReadFrom(r io.Reader) (n int64, err error) {
 	if _, ok := w.w.(io.ReaderFrom); ok {
 		// Let the original Writer decide the chunk size.
-		return io.Copy(w.progWriter.w, &progReader{ctx: w.ctx, r: r})
+		// FIXME: Do we really need to pass the spinner to progReader, if
+		// the writer already has it?
+		return io.Copy(w.progWriter.w, &progReader{ctx: w.ctx, r: r, spinner: w.spinner})
 	}
 	select {
 	case <-w.ctx.Done():
+		w.spinner.Finish()
 		return 0, w.ctx.Err()
 	default:
 		// The original Writer is not a ReaderFrom.
 		// Let the Reader decide the chunk size.
-		return io.Copy(&w.progWriter, r)
+		n, err = io.Copy(&w.progWriter, r)
+		w.spinner.IncrBy(int(n))
+		if err != nil {
+			w.spinner.Finish()
+		}
+		return n, err
 	}
 }

@@ -24,6 +24,8 @@ func isColorTerminal(w io.Writer) bool {
 		return false
 	}
 
+	// TODO: Add the improvements from jsoncolor:
+	// https://github.com/neilotoole/jsoncolor/pull/27
 	if !isTerminal(w) {
 		return false
 	}

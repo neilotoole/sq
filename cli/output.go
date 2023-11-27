@@ -2,9 +2,11 @@ package cli
 
 import (
 	"fmt"
+	"github.com/neilotoole/sq/libsq/core/progress"
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/fatih/color"
 	colorable "github.com/mattn/go-colorable"
@@ -404,6 +406,18 @@ func getPrinting(cmd *cobra.Command, opts options.Options, out, errOut io.Writer
 		// errOut2 can't be colorized, but since we're colorizing
 		// out, we'll apply the non-colorable filter to errOut.
 		errOut2 = colorable.NewNonColorable(errOut)
+	}
+
+	if isTerminal(errOut) {
+		// FIXME: need to check option for --progress
+		progColors := progress.DefaultColors()
+		progColors.EnableColor(isColorTerminal(errOut))
+
+		ctx := cmd.Context()
+		// TODO: need to check for option "progress.delay"
+		prog := progress.New(ctx, errOut, time.Second*2, progColors)
+		cmd.SetContext(progress.NewContext(ctx, prog))
+		logFrom(cmd).Debug("Initialized progress")
 	}
 
 	logFrom(cmd).Debug("Constructed output.Printing", lga.Val, pr)

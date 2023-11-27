@@ -118,14 +118,15 @@ func slogReplaceAttrs(groups []string, a slog.Attr) slog.Attr {
 // slogReplaceSource overrides the default slog.SourceKey attr
 // to print "pkg/file.go" instead.
 func slogReplaceSource(_ []string, a slog.Attr) slog.Attr {
-	// We want source to be "pkg/file.go".
+	// We want source to be "pkg/file.go:42".
 	if a.Key == slog.SourceKey {
-		source := a.Value.Any().(*slog.Source)
+		source, ok := a.Value.Any().(*slog.Source)
+		if ok && source != nil {
+			val := filepath.Join(filepath.Base(filepath.Dir(source.File)), filepath.Base(source.File))
+			val += ":" + strconv.Itoa(source.Line)
+			a.Value = slog.StringValue(val)
+		}
 		//source.File = filepath.Base(source.File)
-
-		val := filepath.Join(filepath.Base(filepath.Dir(source.File)), filepath.Base(source.File))
-		val += ":" + strconv.Itoa(source.Line)
-		a.Value = slog.StringValue(val)
 
 		//src, ok := a.Value.
 		//fp := a.Value.String()

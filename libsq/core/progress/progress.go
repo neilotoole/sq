@@ -22,7 +22,22 @@ func NewContext(ctx context.Context, prog *Progress) context.Context {
 
 // FromContext extracts the Progress added to ctx via NewContext.
 func FromContext(ctx context.Context) *Progress {
-	return ctx.Value(runKey{}).(*Progress)
+	if ctx == nil {
+		return nil
+	}
+
+	val := ctx.Value(runKey{})
+	if val == nil {
+		return nil
+	}
+
+	if p, ok := val.(*Progress); ok {
+		return p
+	}
+
+	return nil
+
+	//return ctx.Value(runKey{}).(*Progress)
 }
 
 func DefaultColors() *Colors {
@@ -37,6 +52,23 @@ type Colors struct {
 	Message *color.Color
 	Spinner *color.Color
 	Size    *color.Color
+}
+
+func (c *Colors) EnableColor(enable bool) {
+	if c == nil {
+		return
+	}
+
+	if enable {
+		c.Message.EnableColor()
+		c.Spinner.EnableColor()
+		c.Size.EnableColor()
+		return
+	}
+
+	c.Message.DisableColor()
+	c.Spinner.DisableColor()
+	c.Size.DisableColor()
 }
 
 type Progress struct {
