@@ -117,7 +117,7 @@ func (s *Source) LogValue() slog.Value {
 		return slog.Value{}
 	}
 
-	attrs := make([]slog.Attr, 3, 6)
+	attrs := make([]slog.Attr, 3, 5)
 	attrs[0] = slog.String(lga.Handle, s.Handle)
 	attrs[1] = slog.String(lga.Driver, string(s.Type))
 	attrs[2] = slog.String(lga.Loc, s.RedactedLocation())
@@ -127,9 +127,13 @@ func (s *Source) LogValue() slog.Value {
 	if s.Schema != "" {
 		attrs = append(attrs, slog.String(lga.Schema, s.Schema))
 	}
-	if s.Options != nil {
-		attrs = append(attrs, slog.Any(lga.Opts, s.Options))
-	}
+
+	// For really intense debugging, we can log the options.
+	// But it's too much for normal logging.
+	//
+	// if s.Options != nil {
+	// 	attrs = append(attrs, slog.Any(lga.Opts, s.Options))
+	// }
 
 	return slog.GroupValue(attrs...)
 }

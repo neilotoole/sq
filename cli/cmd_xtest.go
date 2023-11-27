@@ -62,8 +62,68 @@ func execXTestMbpIndeterminate(cmd *cobra.Command, _ []string) error {
 	return ru.Writers.Version.Version(buildinfo.Get(), buildinfo.Get().Version, hostinfo.Get())
 }
 
-func doBigReadOg(ctx context.Context, errOut io.Writer) error {
-	pb := progress.New(ctx, errOut, 1*time.Second)
+//
+//func doBigReadOg(ctx context.Context, errOut io.Writer) error {
+//	pb := progress.New(ctx, errOut, 1*time.Second, progress.DefaultColors())
+//
+//	//total := 50
+//	//p := mpb.New(
+//	//	mpb.WithOutput(ru.Out),
+//	//	mpb.WithWidth(64),
+//	//	mpb.WithRenderDelay(after2(1*time.Second)),
+//	//)
+//	p := pb.P
+//
+//	//bar := p.New(
+//	//	int64(0),
+//	//	mpb.BarStyle(),
+//	//	mpb.PrependDecorators(decor.Name("huzzah")),
+//	//	mpb.BarRemoveOnComplete(),
+//	//)
+//
+//	bar := p.AddBar(0,
+//		mpb.PrependDecorators(decor.Counters(decor.SizeB1024(0), "% .1f / % .1f")),
+//		//mpb.AppendDecorators(decor.Percentage()),
+//		mpb.BarRemoveOnComplete(),
+//	)
+//
+//	maxSleep := 100 * time.Millisecond
+//
+//	jr := &junkReader{limit: 1000000}
+//	b := make([]byte, 1024)
+//
+//LOOP:
+//	for {
+//		select {
+//		case <-ctx.Done():
+//
+//			break LOOP
+//		default:
+//		}
+//
+//		n, err := jr.Read(b)
+//		if err != nil {
+//			//bar.SetTotal(-1, true)
+//			if err == io.EOF {
+//				// triggering complete event now
+//				bar.SetTotal(-1, true)
+//				break
+//			}
+//			break
+//		}
+//		// increment methods won't trigger complete event because bar was constructed with total = 0
+//		bar.IncrBy(n)
+//		// following call is not required, it's called to show some progress instead of an empty bar
+//		bar.SetTotal(bar.Current()+2048, false)
+//		time.Sleep(time.Duration(rand.Intn(10)+1) * maxSleep / 10)
+//	}
+//
+//	p.Wait()
+//	return nil
+//}
+
+func doBigRead2(ctx context.Context, pr *output.Printing, errOut io.Writer) error {
+	pb := progress.New(ctx, errOut, 1*time.Second, progress.DefaultColors())
 
 	//total := 50
 	//p := mpb.New(
@@ -73,6 +133,9 @@ func doBigReadOg(ctx context.Context, errOut io.Writer) error {
 	//)
 	p := pb.P
 
+	//bar := pb.NewIOSpinner("ingest data")
+	spinner := pb.NewIOSpinner("Ingest data test...")
+	//bar := spinner.Bar
 	//bar := p.New(
 	//	int64(0),
 	//	mpb.BarStyle(),
@@ -80,40 +143,68 @@ func doBigReadOg(ctx context.Context, errOut io.Writer) error {
 	//	mpb.BarRemoveOnComplete(),
 	//)
 
-	bar := p.AddBar(0,
-		mpb.PrependDecorators(decor.Counters(decor.SizeB1024(0), "% .1f / % .1f")),
-		//mpb.AppendDecorators(decor.Percentage()),
-		mpb.BarRemoveOnComplete(),
-	)
+	//s := mpb.SpinnerStyle("∙∙∙", "●∙∙", "∙●∙", "∙∙●", "∙∙∙")
+	//spinnerStyle := s.Meta(func(s string) string {
+	//	return pr.Active.Sprint(s)
+	//	//return "\033[31m" + s + "\033[0m" // red
+	//})
+	//
+	//bar := p.New(0,
+	//	spinnerStyle,
+	//	//mpb.PrependDecorators(),
+	//	//mpb.PrependDecorators(decor.Counters(decor.SizeB1024(0), "% .1f / % .1f")),
+	//	//mpb.PrependDecorators(decor.Counters(decor.SizeB1024(0), "% .1f")),
+	//	mpb.PrependDecorators(
+	//		progress.ColorMeta(decor.Name("Ingesting data..."), pr.Faint),
+	//	),
+	//	//mpb.AppendDecorators(decor.Percentage()),
+	//	mpb.AppendDecorators(
+	//		progress.ColorMeta(decor.Current(decor.SizeB1024(0), "% .1f"), pr.Faint),
+	//	),
+	//	//mpb.AppendDecorators(
+	//	//	// replace ETA decorator with "done" message, OnComplete event
+	//	//	decor.OnComplete(
+	//	//		// ETA decorator with ewma age of 30
+	//	//		decor.EwmaETA(decor.ET_STYLE_GO, 30), "done",
+	//	//	),
+	//	//),
+	//	mpb.BarRemoveOnComplete(),
+	//)
 
 	maxSleep := 100 * time.Millisecond
 
-	jr := &junkReader{limit: 1000000}
+	jr := &junkReader{limit: 100000}
 	b := make([]byte, 1024)
+
+	//start := time.Now()
 
 LOOP:
 	for {
+		//bar.EwmaIncrement(time.Since(start))
 		select {
 		case <-ctx.Done():
-
+			//bar.SetTotal(-1, true)
+			spinner.Finish()
 			break LOOP
 		default:
 		}
 
 		n, err := jr.Read(b)
 		if err != nil {
+			spinner.Finish()
 			//bar.SetTotal(-1, true)
 			if err == io.EOF {
 				// triggering complete event now
-				bar.SetTotal(-1, true)
+				//bar.SetTotal(-1, true)
 				break
 			}
 			break
 		}
 		// increment methods won't trigger complete event because bar was constructed with total = 0
-		bar.IncrBy(n)
+		//bar.IncrBy(n)
+		spinner.IncrBy(n)
 		// following call is not required, it's called to show some progress instead of an empty bar
-		bar.SetTotal(bar.Current()+2048, false)
+		//bar.SetTotal(bar.Current()+2048, false)
 		time.Sleep(time.Duration(rand.Intn(10)+1) * maxSleep / 10)
 	}
 
@@ -121,8 +212,8 @@ LOOP:
 	return nil
 }
 
-func doBigRead2(ctx context.Context, pr *output.Printing, errOut io.Writer) error {
-	pb := progress.New(ctx, errOut, 1*time.Second)
+func doBigReadWorking(ctx context.Context, pr *output.Printing, errOut io.Writer) error {
+	pb := progress.New(ctx, errOut, 1*time.Second, progress.DefaultColors())
 
 	//total := 50
 	//p := mpb.New(
@@ -197,7 +288,7 @@ LOOP:
 		// increment methods won't trigger complete event because bar was constructed with total = 0
 		bar.IncrBy(n)
 		// following call is not required, it's called to show some progress instead of an empty bar
-		bar.SetTotal(bar.Current()+2048, false)
+		//bar.SetTotal(bar.Current()+2048, false)
 		time.Sleep(time.Duration(rand.Intn(10)+1) * maxSleep / 10)
 	}
 

@@ -2,6 +2,8 @@ package source
 
 import (
 	"context"
+	"github.com/dolmen-go/contextio"
+	"github.com/neilotoole/sq/libsq/core/progress"
 	"io"
 	"log/slog"
 	"mime"
@@ -149,12 +151,27 @@ func (fs *Files) addFile(ctx context.Context, f *os.File, key string) (fscache.R
 		return nil, errz.Errorf("failed to add to fscache (possibly previously added): %s", key)
 	}
 
+	copier := fscache.Filler{
+		Message:            "Cache fill",
+		Log:                log.With(lga.Action, "Cache fill"),
+		NewContextWriterFn: progress.NewProgWriter,
+		NewContextReaderFn: func(ctx context.Context, msg string, r io.Reader) io.Reader {
+			return contextio.NewReader(ctx, r)
+		},
+		CloseReader: true,
+	}
+
 	// TODO: Problematically, we copy the entire contents of f into fscache.
 	// If f is a large file (e.g. piped over stdin), this means that
 	// everything is held up until f is fully copied. Hopefully we can
 	// do something with fscache so that the readers returned from
 	// fscache can lazily read from f.
-	if err = fscache.FillWriterAsync(ctx, log, w, f, true); err != nil {
+	//if err = fscache.FillWriterAsync(ctx, log, w, f, true); err != nil {
+	//	lg.WarnIfCloseError(fs.log, lgm.CloseFileReader, r)
+	//	return nil, errz.Err(err)
+	//}
+
+	if err = copier.Copy(ctx, w, f); err != nil {
 		lg.WarnIfCloseError(fs.log, lgm.CloseFileReader, r)
 		return nil, errz.Err(err)
 	}

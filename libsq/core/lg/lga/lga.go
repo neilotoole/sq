@@ -3,6 +3,7 @@
 package lga
 
 const (
+	Action    = "action"
 	After     = "after"
 	Alt       = "alt"
 	Before    = "before"

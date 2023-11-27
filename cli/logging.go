@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -119,8 +120,16 @@ func slogReplaceAttrs(groups []string, a slog.Attr) slog.Attr {
 func slogReplaceSource(_ []string, a slog.Attr) slog.Attr {
 	// We want source to be "pkg/file.go".
 	if a.Key == slog.SourceKey {
-		fp := a.Value.String()
-		a.Value = slog.StringValue(filepath.Join(filepath.Base(filepath.Dir(fp)), filepath.Base(fp)))
+		source := a.Value.Any().(*slog.Source)
+		//source.File = filepath.Base(source.File)
+
+		val := filepath.Join(filepath.Base(filepath.Dir(source.File)), filepath.Base(source.File))
+		val += ":" + strconv.Itoa(source.Line)
+		a.Value = slog.StringValue(val)
+
+		//src, ok := a.Value.
+		//fp := a.Value.String()
+		//a.Value = slog.StringValue(filepath.Join(filepath.Base(filepath.Dir(fp)), filepath.Base(fp)))
 	}
 	return a
 }

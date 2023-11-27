@@ -14,12 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package progressio provides [io.Writer] and [io.Reader] that stop accepting/providing
-// data when an attached context is canceled, and know how to interact
-// with a progress bar.
-//
-// The code is lifted from github.com/dolmen-go/contextio.
-package progressio
+// This code is lifted from github.com/dolmen-go/contextio.
+
+package progress
 
 import (
 	"context"

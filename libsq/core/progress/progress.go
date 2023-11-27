@@ -26,17 +26,68 @@ func FromContext(ctx context.Context) *Progress {
 }
 
 type Progress struct {
-	P *mpb.Progress
+	P      *mpb.Progress
+	Colors *Colors
 }
 
-func New(ctx context.Context, out io.Writer, delay time.Duration) *Progress {
+func DefaultColors() *Colors {
+	return &Colors{
+		Message: color.New(color.Faint),
+		Spinner: color.New(color.FgGreen, color.Bold),
+		Size:    color.New(color.Faint),
+	}
+}
+
+type Colors struct {
+	Message *color.Color
+	Spinner *color.Color
+	Size    *color.Color
+}
+
+func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors) *Progress {
 	p := mpb.NewWithContext(ctx,
 		mpb.WithOutput(out),
 		mpb.WithWidth(64),
 		mpb.WithRenderDelay(renderDelay(delay)),
 	)
 
-	return &Progress{P: p}
+	if colors == nil {
+		colors = DefaultColors()
+	}
+
+	return &Progress{P: p, Colors: colors}
+}
+
+func (p *Progress) NewIOSpinner(msg string) *IOSpinner {
+	s := mpb.SpinnerStyle("∙∙∙", "●∙∙", "∙●∙", "∙∙●", "∙∙∙")
+	s = s.Meta(func(s string) string {
+		return p.Colors.Spinner.Sprint(s)
+	})
+	bar := p.P.New(0,
+		s,
+		mpb.BarWidth(36),
+		mpb.PrependDecorators(
+			ColorMeta(decor.Name(msg), p.Colors.Message),
+		),
+		mpb.AppendDecorators(
+			ColorMeta(decor.Current(decor.SizeB1024(0), "% .1f"), p.Colors.Message),
+		),
+		mpb.BarRemoveOnComplete(),
+	)
+
+	return &IOSpinner{bar: bar}
+}
+
+type IOSpinner struct {
+	bar *mpb.Bar
+}
+
+func (sp *IOSpinner) IncrBy(n int) {
+	sp.bar.IncrBy(n)
+}
+
+func (sp *IOSpinner) Finish() {
+	sp.bar.SetTotal(-1, true)
 }
 
 func renderDelay(d time.Duration) <-chan struct{} {
@@ -45,22 +96,6 @@ func renderDelay(d time.Duration) <-chan struct{} {
 		close(ch)
 	})
 	return ch
-}
-
-func NewProxyBar(p *mpb.Progress) {
-	bar := p.New(0,
-		mpb.BarStyle().Rbound("|"),
-		mpb.PrependDecorators(
-			decor.Counters(decor.SizeB1024(0), "% .2f / % .2f"),
-		),
-		mpb.AppendDecorators(
-			decor.EwmaETA(decor.ET_STYLE_GO, 30),
-			decor.Name(" ] "),
-			decor.EwmaSpeed(decor.SizeB1024(0), "% .2f", 30),
-		),
-	)
-
-	_ = bar
 }
 
 func ColorMeta(decorator decor.Decorator, c *color.Color) decor.Decorator {
