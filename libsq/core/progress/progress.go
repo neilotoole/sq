@@ -25,11 +25,6 @@ func FromContext(ctx context.Context) *Progress {
 	return ctx.Value(runKey{}).(*Progress)
 }
 
-type Progress struct {
-	P      *mpb.Progress
-	Colors *Colors
-}
-
 func DefaultColors() *Colors {
 	return &Colors{
 		Message: color.New(color.Faint),
@@ -44,6 +39,24 @@ type Colors struct {
 	Size    *color.Color
 }
 
+type Progress struct {
+	p      *mpb.Progress
+	colors *Colors
+}
+
+// Wait waits for all bars to complete and finally shutdowns container. After
+// this method has been called, there is no way to reuse `*Progress` instance.
+func (p *Progress) Wait() {
+	p.p.Wait()
+}
+
+//// Shutdown cancels any running bar immediately and then shutdowns `*Progress`
+//// instance. Normally this method shouldn't be called unless you know what you
+//// are doing. Proper way to shutdown is to call `(*Progress).Wait()` instead.
+//func (p *Progress) Shutdown() {
+//	p.p.Shutdown()
+//}
+
 func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors) *Progress {
 	p := mpb.NewWithContext(ctx,
 		mpb.WithOutput(out),
@@ -55,22 +68,26 @@ func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors
 		colors = DefaultColors()
 	}
 
-	return &Progress{P: p, Colors: colors}
+	return &Progress{p: p, colors: colors}
 }
 
 func (p *Progress) NewIOSpinner(msg string) *IOSpinner {
-	s := mpb.SpinnerStyle("∙∙∙", "●∙∙", "∙●∙", "∙∙●", "∙∙∙")
-	s = s.Meta(func(s string) string {
-		return p.Colors.Spinner.Sprint(s)
+	if p == nil {
+		return nil
+	}
+	style := mpb.SpinnerStyle("∙∙∙", "●∙∙", "∙●∙", "∙∙●", "∙∙∙")
+	style = style.Meta(func(s string) string {
+		return p.colors.Spinner.Sprint(s)
 	})
-	bar := p.P.New(0,
-		s,
+
+	bar := p.p.New(0,
+		style,
 		mpb.BarWidth(36),
 		mpb.PrependDecorators(
-			ColorMeta(decor.Name(msg), p.Colors.Message),
+			ColorMeta(decor.Name(msg), p.colors.Message),
 		),
 		mpb.AppendDecorators(
-			ColorMeta(decor.Current(decor.SizeB1024(0), "% .1f"), p.Colors.Message),
+			ColorMeta(decor.Current(decor.SizeB1024(0), "% .1f"), p.colors.Message),
 		),
 		mpb.BarRemoveOnComplete(),
 	)
@@ -83,10 +100,16 @@ type IOSpinner struct {
 }
 
 func (sp *IOSpinner) IncrBy(n int) {
+	if sp == nil {
+		return
+	}
 	sp.bar.IncrBy(n)
 }
 
 func (sp *IOSpinner) Finish() {
+	if sp == nil {
+		return
+	}
 	sp.bar.SetTotal(-1, true)
 }
 
