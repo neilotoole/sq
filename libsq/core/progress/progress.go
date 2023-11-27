@@ -3,9 +3,11 @@ package progress
 import (
 	"context"
 	"github.com/fatih/color"
+	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
 	"io"
+	"sync"
 	"time"
 )
 
@@ -72,13 +74,19 @@ func (c *Colors) EnableColor(enable bool) {
 }
 
 type Progress struct {
-	p      *mpb.Progress
-	colors *Colors
+	p       *mpb.Progress
+	mu      *sync.Mutex
+	colors  *Colors
+	cleanup *cleanup.Cleanup
 }
 
 // Wait waits for all bars to complete and finally shutdowns container. After
 // this method has been called, there is no way to reuse `*Progress` instance.
 func (p *Progress) Wait() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	_ = p.cleanup.Run()
 	p.p.Wait()
 }
 
@@ -100,13 +108,48 @@ func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors
 		colors = DefaultColors()
 	}
 
-	return &Progress{p: p, colors: colors}
+	return &Progress{p: p, colors: colors, mu: &sync.Mutex{}, cleanup: cleanup.New()}
 }
 
+var _ io.Writer = (*writeNotifier)(nil)
+
+type writeNotifier struct {
+	p *Progress
+	w io.Writer
+}
+
+func (w *writeNotifier) Write(p []byte) (n int, err error) {
+	w.p.Wait()
+	return w.w.Write(p)
+}
+
+// ShutdownOnWriteTo returns a writer that will shut down the
+// progress bar when w.WriteTo is called. Typically p writes
+// to stderr, and stdout is passed to this method. That is, when
+// the program starts writing to stdout, we want to shut down
+// and remove the progress bar.
+func (p *Progress) ShutdownOnWriteTo(w io.Writer) io.Writer {
+	if p == nil {
+		return w
+	}
+	return &writeNotifier{
+		p: p,
+		w: w,
+	}
+}
+
+// NewIOSpinner returns a new spinner bar. The caller is ultimately
+// responsible for calling Finish() on the returned IOSpinner. However,
+// the returned IOSpinner is added to the Progress's cleanup list, so
+// it will be called automatically when the Progress is shut down.
 func (p *Progress) NewIOSpinner(msg string) *IOSpinner {
 	if p == nil {
 		return nil
 	}
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	style := mpb.SpinnerStyle("∙∙∙", "●∙∙", "∙●∙", "∙∙●", "∙∙∙")
 	style = style.Meta(func(s string) string {
 		return p.colors.Spinner.Sprint(s)
@@ -124,7 +167,9 @@ func (p *Progress) NewIOSpinner(msg string) *IOSpinner {
 		mpb.BarRemoveOnComplete(),
 	)
 
-	return &IOSpinner{bar: bar}
+	spinner := &IOSpinner{bar: bar}
+	p.cleanup.Add(spinner.Finish)
+	return spinner
 }
 
 type IOSpinner struct {
@@ -143,6 +188,7 @@ func (sp *IOSpinner) Finish() {
 		return
 	}
 	sp.bar.SetTotal(-1, true)
+	sp.bar.Wait()
 }
 
 func renderDelay(d time.Duration) <-chan struct{} {

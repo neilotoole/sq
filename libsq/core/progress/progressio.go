@@ -49,7 +49,7 @@ func NewProgWriter(ctx context.Context, msg string, w io.Writer) io.Writer {
 	return spinner.bar.ProxyWriter(w)
 	// FIXME: This is not working, ^^, bar stays on screen
 	//return &progCopier{progWriter{ctx: ctx, w: spinner.bar.ProxyWriter(w), spinner: spinner}}
-	return &progCopier{progWriter{ctx: ctx, w: w, spinner: spinner}}
+	//return &progCopier{progWriter{ctx: ctx, w: w, spinner: spinner}}
 }
 
 // Write implements [io.Writer], but with context awareness.

@@ -416,6 +416,7 @@ func getPrinting(cmd *cobra.Command, opts options.Options, out, errOut io.Writer
 		ctx := cmd.Context()
 		// TODO: need to check for option "progress.delay"
 		prog := progress.New(ctx, errOut, time.Second*2, progColors)
+		out2 = prog.ShutdownOnWriteTo(out2)
 		cmd.SetContext(progress.NewContext(ctx, prog))
 		logFrom(cmd).Debug("Initialized progress")
 	}
