@@ -3,6 +3,7 @@ package progress
 import (
 	"context"
 	"io"
+	"sync"
 	"time"
 
 	humanize "github.com/dustin/go-humanize"
@@ -25,7 +26,9 @@ func NewContext(ctx context.Context, prog *Progress) context.Context {
 	return context.WithValue(ctx, runKey{}, prog)
 }
 
-// FromContext extracts the Progress added to ctx via NewContext.
+// FromContext returns the [Progress] added to ctx via NewContext,
+// or returns nil. Note that it is safe to invoke the methods
+// of a nil [Progress].
 func FromContext(ctx context.Context) *Progress {
 	if ctx == nil {
 		return nil
@@ -41,45 +44,6 @@ func FromContext(ctx context.Context) *Progress {
 	}
 
 	return nil
-
-	// return ctx.Value(runKey{}).(*Progress)
-}
-
-func DefaultColors() *Colors {
-	return &Colors{
-		Message: color.New(color.Faint),
-		Spinner: color.New(color.FgGreen, color.Bold),
-		Size:    color.New(color.Faint),
-		// Percent: color.New(color.FgHiBlue),
-		Percent: color.New(color.FgCyan, color.Faint),
-		// Percent: color.New(color.FgCyan),
-	}
-}
-
-type Colors struct {
-	Message *color.Color
-	Spinner *color.Color
-	Size    *color.Color
-	Percent *color.Color
-}
-
-func (c *Colors) EnableColor(enable bool) {
-	if c == nil {
-		return
-	}
-
-	if enable {
-		c.Message.EnableColor()
-		c.Spinner.EnableColor()
-		c.Size.EnableColor()
-		c.Percent.EnableColor()
-		return
-	}
-
-	c.Message.DisableColor()
-	c.Spinner.DisableColor()
-	c.Size.DisableColor()
-	c.Percent.EnableColor()
 }
 
 const (
@@ -90,36 +54,84 @@ const (
 // New returns a new Progress instance, which is a container for progress bars.
 // The returned Progress instance is safe for concurrent use. The caller is
 // responsible for calling [Progress.Wait] on the returned Progress.
+// The Progress is lazily initialized, and thus the delay clock doesn't
+// start ticking until the first call to one of the Progress.NewX methods.
 func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors) *Progress {
-	p := mpb.NewWithContext(ctx,
-		mpb.WithOutput(out),
-		mpb.WithWidth(boxWidth),
-		mpb.WithRenderDelay(renderDelay(delay)),
-	)
+	var cancelFn context.CancelFunc
+	ctx, cancelFn = context.WithCancel(ctx)
 
 	if colors == nil {
 		colors = DefaultColors()
 	}
 
-	return &Progress{p: p, colors: colors, cleanup: cleanup.New()}
+	prog := &Progress{
+		ctx:      ctx,
+		mu:       sync.Mutex{},
+		colors:   colors,
+		cleanup:  cleanup.New(),
+		cancelFn: cancelFn,
+	}
+
+	prog.pcInit = func() {
+		opts := []mpb.ContainerOption{
+			mpb.WithOutput(out),
+			mpb.WithWidth(boxWidth),
+		}
+		if delay > 0 {
+			opts = append(opts, mpb.WithRenderDelay(renderDelay(ctx, delay)))
+		}
+		prog.pc = mpb.NewWithContext(ctx, opts...)
+		prog.pcInit = nil
+	}
+	return prog
 }
 
 // Progress represents a container that renders one or more progress bars.
 // The caller is responsible for calling [Progress.Wait] to indicate
 // completion.
 type Progress struct {
-	p       *mpb.Progress
+	// mu guards ALL public methods.
+	mu sync.Mutex
+
+	ctx context.Context
+
+	// pc is the underlying progress container. It is lazily initialized
+	// by pcInit. Any method that accesses pc must be certain that
+	// pcInit has been called.
+	pc *mpb.Progress
+
+	// pcInit is the func that lazily initializes pc.
+	pcInit func()
+
 	colors  *Colors
 	cleanup *cleanup.Cleanup
+
+	cancelFn context.CancelFunc
 }
 
 // Wait waits for all bars to complete and finally shuts down the
 // container. After this method has been called, there is no way
 // to reuse the Progress instance.
 func (p *Progress) Wait() {
+	if p == nil {
+		return
+	}
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if p.pc == nil {
+		return
+	}
+
+	if p.cleanup.Len() == 0 {
+		return
+	}
+
+	p.cancelFn()
 	// Invoking cleanup will call Bar.Stop on all the bars.
 	_ = p.cleanup.Run()
-	p.p.Wait()
+	p.pc.Wait()
 }
 
 // NewUnitCounter returns a new indeterminate bar whose label
@@ -147,6 +159,9 @@ func (p *Progress) NewUnitCounter(msg, unit string) *Bar {
 		return nil
 	}
 
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	decorator := decor.Any(func(statistics decor.Statistics) string {
 		s := humanize.Comma(statistics.Current)
 		if unit != "" {
@@ -155,7 +170,7 @@ func (p *Progress) NewUnitCounter(msg, unit string) *Bar {
 		return s
 	})
 
-	decorator = ColorMeta(decorator, p.colors.Size)
+	decorator = colorize(decorator, p.colors.Size)
 	return p.newBar(msg, -1, decorator)
 }
 
@@ -170,38 +185,51 @@ func (p *Progress) NewByteCounterSpinner(msg string, size int64) *Bar {
 		return nil
 	}
 
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	var counter decor.Decorator
 	if size < 0 {
 		counter = decor.Current(decor.SizeB1024(0), "% .1f")
 	} else {
 		counter = decor.Counters(decor.SizeB1024(0), "% .1f / % .1f")
 	}
-	counter = ColorMeta(counter, p.colors.Size)
+	counter = colorize(counter, p.colors.Size)
+
 	percent := decor.NewPercentage(" %.1f", decor.WCSyncSpace)
-	percent = ColorMeta(percent, p.colors.Percent)
+	percent = colorize(percent, p.colors.Percent)
 
 	return p.newBar(msg, size, counter, percent)
 }
 
+// newBar returns a new Bar. This function must only be called from
+// inside the mutex.
 func (p *Progress) newBar(msg string, total int64, decorators ...decor.Decorator) *Bar {
 	if p == nil {
 		return nil
+	}
+
+	select {
+	case <-p.ctx.Done():
+		return nil
+	default:
+	}
+
+	if p.pc == nil {
+		p.pcInit()
 	}
 
 	if total < 0 {
 		total = 0
 	}
 
-	style := mpb.SpinnerStyle("∙∙∙", "●∙∙", "∙●∙", "∙∙●", "∙∙∙")
-	style = style.Meta(func(s string) string {
-		return p.colors.Spinner.Sprint(s)
-	})
+	style := spinnerStyle(p.colors.Spinner)
 
-	bar := p.p.New(total,
+	bar := p.pc.New(total,
 		style,
 		mpb.BarWidth(barWidth),
 		mpb.PrependDecorators(
-			ColorMeta(decor.Name(msg, decor.WCSyncWidthR), p.colors.Message),
+			colorize(decor.Name(msg, decor.WCSyncWidthR), p.colors.Message),
 		),
 		mpb.AppendDecorators(decorators...),
 		mpb.BarRemoveOnComplete(),
@@ -210,6 +238,16 @@ func (p *Progress) newBar(msg string, total int64, decorators ...decor.Decorator
 	b := &Bar{bar: bar}
 	p.cleanup.Add(b.Stop)
 	return b
+}
+
+func spinnerStyle(c *color.Color) mpb.SpinnerStyleComposer {
+	style := mpb.SpinnerStyle("∙∙∙", "●∙∙", "∙●∙", "∙∙●", "∙∙∙")
+	if c != nil {
+		style = style.Meta(func(s string) string {
+			return c.Sprint(s)
+		})
+	}
+	return style
 }
 
 // Bar represents a single progress bar. The caller should invoke
@@ -237,19 +275,67 @@ func (b *Bar) Stop() {
 	}
 
 	b.bar.SetTotal(-1, true)
+	b.bar.Abort(true)
 	b.bar.Wait()
 }
 
-func renderDelay(d time.Duration) <-chan struct{} {
+// renderDelay returns a channel that will be closed after d,
+// or if ctx is done.
+func renderDelay(ctx context.Context, d time.Duration) <-chan struct{} {
 	ch := make(chan struct{})
-	time.AfterFunc(d, func() {
-		close(ch)
-	})
+
+	go func() {
+		defer close(ch)
+		t := time.NewTimer(d)
+		defer t.Stop()
+		select {
+		case <-ctx.Done():
+		case <-t.C:
+		}
+	}()
 	return ch
 }
 
-func ColorMeta(decorator decor.Decorator, c *color.Color) decor.Decorator {
+func colorize(decorator decor.Decorator, c *color.Color) decor.Decorator {
 	return decor.Meta(decorator, func(s string) string {
 		return c.Sprint(s)
 	})
+}
+
+// DefaultColors returns the default colors used for the progress bars.
+func DefaultColors() *Colors {
+	return &Colors{
+		Message: color.New(color.Faint),
+		Spinner: color.New(color.FgGreen, color.Bold),
+		Size:    color.New(color.Faint),
+		Percent: color.New(color.FgCyan, color.Faint),
+	}
+}
+
+// Colors is the set of colors used for the progress bars.
+type Colors struct {
+	Message *color.Color
+	Spinner *color.Color
+	Size    *color.Color
+	Percent *color.Color
+}
+
+// EnableColor enables or disables color for the progress bars.
+func (c *Colors) EnableColor(enable bool) {
+	if c == nil {
+		return
+	}
+
+	if enable {
+		c.Message.EnableColor()
+		c.Spinner.EnableColor()
+		c.Size.EnableColor()
+		c.Percent.EnableColor()
+		return
+	}
+
+	c.Message.DisableColor()
+	c.Spinner.DisableColor()
+	c.Size.DisableColor()
+	c.Percent.EnableColor()
 }

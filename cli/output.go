@@ -7,8 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/ioz"
-
 	"github.com/fatih/color"
 	colorable "github.com/mattn/go-colorable"
 	wordwrap "github.com/mitchellh/go-wordwrap"
@@ -27,6 +25,7 @@ import (
 	"github.com/neilotoole/sq/cli/output/xmlw"
 	"github.com/neilotoole/sq/cli/output/yamlw"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/progress"
