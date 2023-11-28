@@ -212,6 +212,9 @@ func RedactLocation(loc string) string {
 	case loc == "",
 		strings.HasPrefix(loc, "/"),
 		strings.HasPrefix(loc, "sqlite3://"):
+
+		// REVISIT: If it's a sqlite URI, could it have auth details in there?
+		// e.g. "?_auth_pass=foo"
 		return loc
 	case strings.HasPrefix(loc, "http://"), strings.HasPrefix(loc, "https://"):
 		u, err := url.ParseRequestURI(loc)

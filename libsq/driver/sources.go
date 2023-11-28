@@ -207,7 +207,7 @@ func (d *Pools) openIngestCache(ctx context.Context, src *source.Source,
 	}
 	defer func() {
 		log.Debug("About to release cache lock...", "lock", lock)
-		if err := lock.Unlock(); err != nil {
+		if err = lock.Unlock(); err != nil {
 			log.Warn("Failed to release cache lock", "lock", lock, lga.Err, err)
 		} else {
 			log.Debug("Released cache lock", "lock", lock)
@@ -266,7 +266,7 @@ func (d *Pools) openIngestCache(ctx context.Context, src *source.Source,
 	if sum, err = ioz.FileChecksum(ingestFilePath); err != nil {
 		log.Warn("Failed to compute checksum for source file; caching not in effect",
 			lga.Src, src, lga.Dest, impl.Source(), lga.Path, ingestFilePath, lga.Err, err)
-		return impl, nil
+		return impl, nil //nolint:nilerr
 	}
 
 	if err = ioz.WriteChecksumFile(checksumsPath, sum, ingestFilePath); err != nil {
@@ -280,7 +280,7 @@ func (d *Pools) openIngestCache(ctx context.Context, src *source.Source,
 // getCachePaths returns the paths to the cache files for src.
 // There is no guarantee that these files exist, or are accessible.
 // It's just the paths.
-func (d *Pools) getCachePaths(src *source.Source) (srcCacheDir, cacheDB, checksums string, err error) { //nolint:unparam
+func (d *Pools) getCachePaths(src *source.Source) (srcCacheDir, cacheDB, checksums string, err error) {
 	if srcCacheDir, err = source.CacheDirFor(src); err != nil {
 		return "", "", "", err
 	}

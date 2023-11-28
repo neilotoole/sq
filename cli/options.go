@@ -41,7 +41,22 @@ func getOptionsFromFlags(flags *pflag.FlagSet, reg *options.Registry) (options.O
 			return nil
 		}
 
-		o[opt.Key()] = f.Value.String()
+		if bOpt, ok := opt.(options.Bool); ok {
+			// Special handling for bool, because
+			// the flag value could be inverted.
+			val, err := flags.GetBool(bOpt.Flag())
+			if err != nil {
+				return errz.Err(err)
+			}
+
+			if bOpt.FlagInverted() {
+				val = !val
+			}
+			o[bOpt.Key()] = val
+		} else {
+			o[opt.Key()] = f.Value.String()
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -148,6 +163,8 @@ func RegisterDefaultOpts(reg *options.Registry) {
 		OptVerbose,
 		OptPrintHeader,
 		OptMonochrome,
+		OptProgress,
+		OptProgressDelay,
 		OptCompact,
 		OptPingCmdTimeout,
 		OptShellCompletionTimeout,

@@ -397,18 +397,31 @@ func (op Int) Process(o Options) (Options, error) {
 var _ Opt = Bool{}
 
 // NewBool returns an options.Bool instance. If flag is empty, the value
-// of key is used.
-func NewBool(key, flag string, short rune, defaultVal bool, usage, help string, tags ...string) Bool {
+// of key is used. If invertFlag is true, the flag's boolean value
+// is inverted to set the option. For example, if the Opt is "progress",
+// and the flag is "--no-progress", then invertFlag should be true.
+func NewBool(key, flag string, invertFlag bool, short rune,
+	defaultVal bool, usage, help string, tags ...string,
+) Bool {
 	return Bool{
-		BaseOpt:    NewBaseOpt(key, flag, short, usage, help, tags...),
-		defaultVal: defaultVal,
+		BaseOpt:      NewBaseOpt(key, flag, short, usage, help, tags...),
+		defaultVal:   defaultVal,
+		flagInverted: invertFlag,
 	}
 }
 
 // Bool is an options.Opt for type bool.
 type Bool struct {
 	BaseOpt
-	defaultVal bool
+	defaultVal   bool
+	flagInverted bool
+}
+
+// FlagInverted returns true Opt value is the inverse of the flag value.
+// For example, if the Opt is "progress", and the flag is "--no-progress",
+// then FlagInverted will return true.
+func (op Bool) FlagInverted() bool {
+	return op.flagInverted
 }
 
 // GetAny implements options.Opt.

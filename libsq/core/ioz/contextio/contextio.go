@@ -16,7 +16,7 @@ limitations under the License.
 
 // This code is lifted from github.com/dolmen-go/contextio.
 
-package progress
+package contextio
 
 import (
 	"context"

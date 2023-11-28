@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"io"
 	"os"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -52,4 +54,29 @@ func TestChecksums(t *testing.T) {
 	t.Logf("gotSum2: %s  %s", gotSum2, f.Name())
 	require.NoError(t, ioz.WriteChecksum(buf, gotSum1, f.Name()))
 	require.NotEqual(t, gotSum1, gotSum2)
+}
+
+func TestDelayReader(t *testing.T) {
+	t.Parallel()
+	const (
+		limit = 100000
+		count = 15
+	)
+
+	wg := &sync.WaitGroup{}
+	wg.Add(count)
+	for i := 0; i < count; i++ {
+		go func(i int) {
+			defer wg.Done()
+			randRdr := ioz.LimitRandReader(limit)
+			r := ioz.DelayReader(randRdr, 150*time.Millisecond, true)
+			start := time.Now()
+			_, err := io.ReadAll(r)
+			elapsed := time.Since(start)
+			t.Logf("%2d: Elapsed: %s", i, elapsed)
+			require.NoError(t, err)
+		}(i)
+	}
+
+	wg.Wait()
 }

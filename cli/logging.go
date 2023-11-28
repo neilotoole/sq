@@ -25,6 +25,7 @@ var (
 	OptLogEnabled = options.NewBool(
 		"log",
 		"",
+		false,
 		0,
 		false,
 		"Enable logging",
@@ -126,11 +127,11 @@ func slogReplaceSource(_ []string, a slog.Attr) slog.Attr {
 			val += ":" + strconv.Itoa(source.Line)
 			a.Value = slog.StringValue(val)
 		}
-		//source.File = filepath.Base(source.File)
+		// source.File = filepath.Base(source.File)
 
-		//src, ok := a.Value.
-		//fp := a.Value.String()
-		//a.Value = slog.StringValue(filepath.Join(filepath.Base(filepath.Dir(fp)), filepath.Base(fp)))
+		// src, ok := a.Value.
+		// fp := a.Value.String()
+		// a.Value = slog.StringValue(filepath.Join(filepath.Base(filepath.Dir(fp)), filepath.Base(fp)))
 	}
 	return a
 }

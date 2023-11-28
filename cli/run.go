@@ -124,8 +124,6 @@ func FinishRunInit(ctx context.Context, ru *run.Run) error {
 		ru.Cleanup = cleanup.New()
 	}
 
-
-
 	cfg, log := ru.Config, lg.FromContext(ctx)
 
 	var scratchSrcFunc driver.ScratchSrcFunc

@@ -192,7 +192,6 @@ func (o Options) Hash() string {
 		buf.WriteString(k)
 		v := o[k]
 		buf.WriteString(fmt.Sprintf("%v", v))
-
 	}
 	sum := sha256.Sum256(buf.Bytes())
 	return fmt.Sprintf("%x", sum)

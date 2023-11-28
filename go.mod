@@ -37,6 +37,7 @@ require (
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.4
+	github.com/vbauerster/mpb/v8 v8.6.2
 	github.com/xo/dburl v0.18.2
 	github.com/xuri/excelize/v2 v2.8.0
 	go.uber.org/atomic v1.11.0
@@ -81,7 +82,6 @@ require (
 	github.com/rogpeppe/go-internal v1.11.0 // indirect
 	github.com/segmentio/asm v1.1.3 // indirect
 	github.com/spf13/cast v1.5.1 // indirect
-	github.com/vbauerster/mpb/v8 v8.6.2 // indirect
 	github.com/xuri/efp v0.0.0-20231025114914-d1ff6096ae53 // indirect
 	github.com/xuri/nfp v0.0.0-20230919160717-d98342af3f05 // indirect
 	golang.org/x/crypto v0.15.0 // indirect

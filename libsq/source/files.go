@@ -2,8 +2,6 @@ package source
 
 import (
 	"context"
-	"github.com/dolmen-go/contextio"
-	"github.com/neilotoole/sq/libsq/core/progress"
 	"io"
 	"log/slog"
 	"mime"
@@ -13,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/ioz"
+
 	"github.com/h2non/filetype"
 	"github.com/h2non/filetype/matchers"
 	"golang.org/x/sync/errgroup"
@@ -21,9 +21,11 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/fetcher"
@@ -150,37 +152,30 @@ func (fs *Files) addFile(ctx context.Context, f *os.File, key string) (fscache.R
 		lg.WarnIfCloseError(fs.log, lgm.CloseFileReader, r)
 		return nil, errz.Errorf("failed to add to fscache (possibly previously added): %s", key)
 	}
-
-	copier := fscache.Filler{
+	// TODO: Problematically, we copy the entire contents of f into fscache.
+	// This is probably necessary for piped data on stdin, but for files
+	// that already exist on the file system, it would be nice if the cacheFile
+	// could be mapped directly to the filesystem file. This might require
+	// hacking on the fscache impl.
+	copier := fscache.AsyncFiller{
 		Message:            "Cache fill",
 		Log:                log.With(lga.Action, "Cache fill"),
-		NewContextWriterFn: progress.NewProgWriter,
+		NewContextWriterFn: progress.NewWriter,
+		// We don't use progress.NewReader here, because that
+		// would result in double counting of bytes transferred.
 		NewContextReaderFn: func(ctx context.Context, msg string, r io.Reader) io.Reader {
 			return contextio.NewReader(ctx, r)
 		},
 		CloseReader: true,
 	}
 
-	// TODO: Problematically, we copy the entire contents of f into fscache.
-	// If f is a large file (e.g. piped over stdin), this means that
-	// everything is held up until f is fully copied. Hopefully we can
-	// do something with fscache so that the readers returned from
-	// fscache can lazily read from f.
-	//if err = fscache.FillWriterAsync(ctx, log, w, f, true); err != nil {
-	//	lg.WarnIfCloseError(fs.log, lgm.CloseFileReader, r)
-	//	return nil, errz.Err(err)
-	//}
-
-	if err = copier.Copy(ctx, w, f); err != nil {
+	// FIXME: Added a delay for testing. Remove this before release.
+	df := ioz.DelayReader(f, time.Millisecond, true)
+	// if err = copier.Copy(ctx, w, f); err != nil {
+	if err = copier.Copy(ctx, w, df); err != nil {
 		lg.WarnIfCloseError(fs.log, lgm.CloseFileReader, r)
 		return nil, errz.Err(err)
 	}
-
-	//err = errz.Combine(w.Close(), f.Close())
-	//if err != nil {
-	//	lg.WarnIfCloseError(fs.log, lgm.CloseFileReader, r)
-	//	return nil, err
-	//}
 
 	return r, nil
 }
@@ -205,57 +200,7 @@ func (fs *Files) Filepath(_ context.Context, src *Source) (string, error) {
 	_ = u
 	// It's a remote file. We really should download it here.
 	// FIXME: implement downloading.
-	return "", errz.Errorf("Filepath not implemented for remote files: %s", loc)
-	//
-	//if ; !ok {
-	//	// It's not a filepath, and it's not a http URL,
-	//	// so we need to download it.
-	//
-	//
-	//}
-	//
-	//return "",
-	//
-	//
-	//
-	//typ, err := fs.DriverType(ctx, src.Location)
-	//if err != nil {
-	//	return "", err
-	//}
-	//
-	//if !fs.fcache.Exists(loc) {
-	//	// cache miss
-	//	f, err := fs.openLocation(loc)
-	//	if err != nil {
-	//		return "", err
-	//	}
-	//
-	//	// Note that addFile closes f
-	//	_, err = fs.addFile(f, loc)
-	//	if err != nil {
-	//		return "", err
-	//	}
-	//	return f.Name(), nil
-	//}
-	//
-	//return loc, nil
-	//r, _, err := fs.fcache.Get(loc)
-	//if err != nil {
-	//	return "", err
-	//}
-	//
-	//return r, nil
-
-	//	// cache miss
-	//	f, err := fs.openLocation(src.Location)
-	//	if err != nil {
-	//		return "", err
-	//	}
-	//
-	//	if err = f.Close(); err != nil {
-	//		return "", errz.Err(err)
-	//	}
-	//	return f.Name(), nil
+	return "", errz.Errorf("Files.Filepath not implemented for remote files: %s", loc)
 }
 
 // Open returns a new io.ReadCloser for src.Location.
@@ -333,7 +278,7 @@ func (fs *Files) newReader(ctx context.Context, loc string) (io.ReadCloser, erro
 
 // openLocation returns a file for loc. It is the caller's
 // responsibility to close the returned file.
-func (fs *Files) openLocation(ctx context.Context, loc string) (*os.File, error) {
+func (fs *Files) openLocation(_ context.Context, loc string) (*os.File, error) {
 	var fpath string
 	var ok bool
 	var err error
@@ -349,6 +294,7 @@ func (fs *Files) openLocation(ctx context.Context, loc string) (*os.File, error)
 		}
 
 		// It's a remote file
+		// TODO: fetch should take ctx to allow for cancellation
 		fpath, err = fs.fetch(u.String())
 		if err != nil {
 			return nil, err

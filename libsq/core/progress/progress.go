@@ -2,13 +2,15 @@ package progress
 
 import (
 	"context"
-	"github.com/fatih/color"
-	"github.com/neilotoole/sq/libsq/core/cleanup"
-	"github.com/vbauerster/mpb/v8"
-	"github.com/vbauerster/mpb/v8/decor"
 	"io"
 	"sync"
 	"time"
+
+	"github.com/fatih/color"
+	mpb "github.com/vbauerster/mpb/v8"
+	"github.com/vbauerster/mpb/v8/decor"
+
+	"github.com/neilotoole/sq/libsq/core/cleanup"
 )
 
 type runKey struct{}
@@ -39,7 +41,7 @@ func FromContext(ctx context.Context) *Progress {
 
 	return nil
 
-	//return ctx.Value(runKey{}).(*Progress)
+	// return ctx.Value(runKey{}).(*Progress)
 }
 
 func DefaultColors() *Colors {
@@ -90,13 +92,6 @@ func (p *Progress) Wait() {
 	p.p.Wait()
 }
 
-//// Shutdown cancels any running bar immediately and then shutdowns `*Progress`
-//// instance. Normally this method shouldn't be called unless you know what you
-//// are doing. Proper way to shutdown is to call `(*Progress).Wait()` instead.
-//func (p *Progress) Shutdown() {
-//	p.p.Shutdown()
-//}
-
 func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors) *Progress {
 	p := mpb.NewWithContext(ctx,
 		mpb.WithOutput(out),
@@ -111,6 +106,23 @@ func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors
 	return &Progress{p: p, colors: colors, mu: &sync.Mutex{}, cleanup: cleanup.New()}
 }
 
+// ShutdownOnWriteTo returns a writer that will stop the
+// progress.Progress when w.Write is called. Typically p writes
+// to stderr, and stdout is passed to this method. That is, when
+// the program starts writing to stdout, we want to shut down
+// and remove the progress bar.
+func (p *Progress) ShutdownOnWriteTo(w io.Writer) io.Writer {
+	// REVISIT: Should we check if w implements other io interfaces,
+	// such as io.WriterAt etc? Or do we really only care about io.Writer?
+	if p == nil {
+		return w
+	}
+	return &writeNotifier{
+		p: p,
+		w: w,
+	}
+}
+
 var _ io.Writer = (*writeNotifier)(nil)
 
 type writeNotifier struct {
@@ -123,25 +135,12 @@ func (w *writeNotifier) Write(p []byte) (n int, err error) {
 	return w.w.Write(p)
 }
 
-// ShutdownOnWriteTo returns a writer that will shut down the
-// progress bar when w.WriteTo is called. Typically p writes
-// to stderr, and stdout is passed to this method. That is, when
-// the program starts writing to stdout, we want to shut down
-// and remove the progress bar.
-func (p *Progress) ShutdownOnWriteTo(w io.Writer) io.Writer {
-	if p == nil {
-		return w
-	}
-	return &writeNotifier{
-		p: p,
-		w: w,
-	}
-}
-
-// NewIOSpinner returns a new spinner bar. The caller is ultimately
-// responsible for calling Finish() on the returned IOSpinner. However,
-// the returned IOSpinner is added to the Progress's cleanup list, so
-// it will be called automatically when the Progress is shut down.
+// NewIOSpinner returns a new indeterminate spinner bar whose metric is
+// the count of bytes processed. The caller is ultimately
+// responsible for calling [IOSpinner.Stop] on the returned IOSpinner. However,
+// the returned IOSpinner is also added to the Progress's cleanup list, so
+// it will be called automatically when the Progress is shut down, but that
+// may be later than the actual conclusion of the spinner's work.
 func (p *Progress) NewIOSpinner(msg string) *IOSpinner {
 	if p == nil {
 		return nil
@@ -168,7 +167,7 @@ func (p *Progress) NewIOSpinner(msg string) *IOSpinner {
 	)
 
 	spinner := &IOSpinner{bar: bar}
-	p.cleanup.Add(spinner.Finish)
+	p.cleanup.Add(spinner.Stop)
 	return spinner
 }
 
@@ -183,10 +182,11 @@ func (sp *IOSpinner) IncrBy(n int) {
 	sp.bar.IncrBy(n)
 }
 
-func (sp *IOSpinner) Finish() {
+func (sp *IOSpinner) Stop() {
 	if sp == nil {
 		return
 	}
+
 	sp.bar.SetTotal(-1, true)
 	sp.bar.Wait()
 }

@@ -319,6 +319,8 @@ See [CHANGELOG.md](./CHANGELOG.md).
   from [jOOQ](https://github.com/jooq/jooq), which in turn owe their heritage to earlier work on
   Sakila.
 - Date rendering via [`ncruces/go-strftime`](https://github.com/ncruces/go-strftime).
+- The [`dolmen-go/contextio`](https://github.com/dolmen-go/contextio) package is
+  incorporated into the codebase (with modifications).
 
 ## Similar, related, or noteworthy projects
 

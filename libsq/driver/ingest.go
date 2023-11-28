@@ -13,6 +13,7 @@ import (
 var OptIngestHeader = options.NewBool(
 	"ingest.header",
 	"",
+	false,
 	0,
 	false,
 	"Ingest data has a header row",
@@ -25,8 +26,9 @@ to detect the header.`,
 
 // OptIngestCache specifies whether ingested data is cached or not.
 var OptIngestCache = options.NewBool(
-	"ingest.bool",
+	"ingest.cache",
 	"",
+	false,
 	0,
 	true,
 	"Ingest data is cached",

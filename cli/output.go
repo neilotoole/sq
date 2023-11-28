@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"github.com/neilotoole/sq/libsq/core/progress"
 	"io"
 	"os"
 	"strings"
@@ -28,6 +27,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/timez"
 )
@@ -36,6 +36,7 @@ var (
 	OptPrintHeader = options.NewBool(
 		"header",
 		"",
+		false,
 		0,
 		true,
 		"Print header row",
@@ -79,6 +80,7 @@ command, sq falls back to "text". Available formats:
 	OptVerbose = options.NewBool(
 		"verbose",
 		"",
+		false,
 		'v',
 		false,
 		"Print verbose output",
@@ -89,6 +91,7 @@ command, sq falls back to "text". Available formats:
 	OptMonochrome = options.NewBool(
 		"monochrome",
 		"",
+		false,
 		'M',
 		false,
 		"Don't print color output",
@@ -96,9 +99,31 @@ command, sq falls back to "text". Available formats:
 		options.TagOutput,
 	)
 
+	OptProgress = options.NewBool(
+		"progress",
+		"no-progress",
+		true,
+		0,
+		true,
+		"Specify whether a progress bar is shown for long-running operations",
+		`Specify whether a progress bar is shown for long-running operations.`,
+		options.TagOutput,
+	)
+
+	OptProgressDelay = options.NewDuration(
+		"progress.delay",
+		"",
+		0,
+		time.Second*2,
+		"Progress bar render delay",
+		`How long to wait after a long-running operation begins
+before showing a progress bar.`,
+	)
+
 	OptCompact = options.NewBool(
 		"compact",
 		"",
+		false,
 		'c',
 		false,
 		"Compact instead of pretty-printed output",
@@ -138,6 +163,7 @@ as "RFC3339" or "Unix", or a strftime format such as "%Y-%m-%d %H:%M:%S".
 	OptDatetimeFormatAsNumber = options.NewBool(
 		"format.datetime.number",
 		"",
+		false,
 		0,
 		true,
 		"Render numeric datetime value as number instead of string",
@@ -175,6 +201,7 @@ from datetime values. In that situation, use format.datetime instead.
 	OptDateFormatAsNumber = options.NewBool(
 		"format.date.number",
 		"",
+		false,
 		0,
 		true,
 		"Render numeric date value as number instead of string",
@@ -211,6 +238,7 @@ from datetime values. In that situation, use format.datetime instead.
 	OptTimeFormatAsNumber = options.NewBool(
 		"format.time.number",
 		"",
+		false,
 		0,
 		true,
 		"Render numeric time value as number instead of string",
@@ -408,14 +436,13 @@ func getPrinting(cmd *cobra.Command, opts options.Options, out, errOut io.Writer
 		errOut2 = colorable.NewNonColorable(errOut)
 	}
 
-	if isTerminal(errOut) {
-		// FIXME: need to check option for --progress
+	if OptProgress.Get(opts) && isTerminal(errOut) {
 		progColors := progress.DefaultColors()
 		progColors.EnableColor(isColorTerminal(errOut))
 
 		ctx := cmd.Context()
-		// TODO: need to check for option "progress.delay"
-		prog := progress.New(ctx, errOut, time.Second*2, progColors)
+		renderDelay := OptProgressDelay.Get(opts)
+		prog := progress.New(ctx, errOut, renderDelay, progColors)
 		out2 = prog.ShutdownOnWriteTo(out2)
 		cmd.SetContext(progress.NewContext(ctx, prog))
 		logFrom(cmd).Debug("Initialized progress")

@@ -78,6 +78,19 @@ func logValue(err error) slog.Value {
 	return slog.GroupValue(msgAttr, causeAttr, typeAttr)
 }
 
+// IsErrContext returns true if err is context.Canceled or context.DeadlineExceeded.
+func IsErrContext(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+
+	return false
+}
+
 // IsErrContextDeadlineExceeded returns true if err is context.DeadlineExceeded.
 func IsErrContextDeadlineExceeded(err error) bool {
 	return errors.Is(err, context.DeadlineExceeded)
