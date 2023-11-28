@@ -464,6 +464,7 @@ func execCopyTable(ctx context.Context, fromDB driver.Pool, fromTbl tablefq.T,
 	}
 
 	inserter := NewDBWriter(
+		"Copy records",
 		destPool,
 		destTbl.Table,
 		driver.OptTuningRecChanSize.Get(destPool.Source().Options),

@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/neilotoole/sq/libsq/core/progress"
 	"math"
 	"reflect"
 	"strings"
@@ -370,7 +371,7 @@ func (bi *BatchInsert) Written() int64 {
 
 // Munge should be invoked on every record before sending
 // on RecordCh.
-func (bi BatchInsert) Munge(rec []any) error {
+func (bi *BatchInsert) Munge(rec []any) error {
 	return bi.mungeFn(rec)
 }
 
@@ -381,15 +382,15 @@ func (bi BatchInsert) Munge(rec []any) error {
 // it must be a sql.Conn or sql.Tx.
 //
 //nolint:gocognit
-func NewBatchInsert(ctx context.Context, drvr SQLDriver, db sqlz.DB,
-	destTbl string, destColNames []string, batchSize int,
-) (*BatchInsert, error) {
+func NewBatchInsert(ctx context.Context, msg string, drvr SQLDriver, db sqlz.DB,
+	destTbl string, destColNames []string, batchSize int) (*BatchInsert, error) {
 	log := lg.FromContext(ctx)
 
-	err := sqlz.RequireSingleConn(db)
-	if err != nil {
+	if err := sqlz.RequireSingleConn(db); err != nil {
 		return nil, err
 	}
+
+	spinner := progress.FromContext(ctx).NewIOSpinner(msg)
 
 	recCh := make(chan []any, batchSize*8)
 	errCh := make(chan error, 1)
@@ -412,6 +413,8 @@ func NewBatchInsert(ctx context.Context, drvr SQLDriver, db sqlz.DB,
 		var affected int64
 
 		defer func() {
+			spinner.Stop()
+
 			if inserter != nil {
 				if err == nil {
 					// If no pre-existing error, any inserter.Close error
@@ -423,6 +426,7 @@ func NewBatchInsert(ctx context.Context, drvr SQLDriver, db sqlz.DB,
 					// is the primary concern.
 					lg.WarnIfError(log, lgm.CloseDBStmt, errz.Err(inserter.Close()))
 				}
+
 			}
 
 			if err != nil {
@@ -463,6 +467,7 @@ func NewBatchInsert(ctx context.Context, drvr SQLDriver, db sqlz.DB,
 				}
 
 				bi.written.Add(affected)
+				spinner.IncrBy(int(affected))
 
 				if rec == nil {
 					// recCh is closed (coincidentally exactly on the
@@ -505,6 +510,7 @@ func NewBatchInsert(ctx context.Context, drvr SQLDriver, db sqlz.DB,
 			}
 
 			bi.written.Add(affected)
+			spinner.IncrBy(int(affected))
 
 			// We're done
 			return

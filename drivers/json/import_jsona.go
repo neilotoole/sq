@@ -143,6 +143,7 @@ func importJSONA(ctx context.Context, job importJob) error {
 	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
 
 	insertWriter := libsq.NewDBWriter(
+		"Ingest records",
 		job.destPool,
 		tblDef.Name,
 		driver.OptTuningRecChanSize.Get(job.destPool.Source().Options),

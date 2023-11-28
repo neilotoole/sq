@@ -2,6 +2,8 @@ package progress
 
 import (
 	"context"
+	"fmt"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 	"io"
 	"sync"
 	"time"
@@ -126,13 +128,24 @@ func (p *Progress) ShutdownOnWriteTo(w io.Writer) io.Writer {
 var _ io.Writer = (*writeNotifier)(nil)
 
 type writeNotifier struct {
-	p *Progress
-	w io.Writer
+	p          *Progress
+	w          io.Writer
+	notifyOnce sync.Once
 }
 
+// Write implements [io.Writer].
 func (w *writeNotifier) Write(p []byte) (n int, err error) {
-	w.p.Wait()
+	w.notifyOnce.Do(w.p.Wait)
+
 	return w.w.Write(p)
+}
+
+func normalizeMsgLength(msg string, length int) string {
+	if len(msg) > length {
+		msg = stringz.TrimLenMiddle(msg, length)
+	}
+
+	return fmt.Sprintf("%-*s", length, msg)
 }
 
 // NewIOSpinner returns a new indeterminate spinner bar whose metric is
@@ -149,6 +162,13 @@ func (p *Progress) NewIOSpinner(msg string) *IOSpinner {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
+	const (
+		msgLength = 18
+		barWidth  = 28
+	)
+
+	msg = normalizeMsgLength(msg, msgLength)
+
 	style := mpb.SpinnerStyle("∙∙∙", "●∙∙", "∙●∙", "∙∙●", "∙∙∙")
 	style = style.Meta(func(s string) string {
 		return p.colors.Spinner.Sprint(s)
@@ -156,7 +176,7 @@ func (p *Progress) NewIOSpinner(msg string) *IOSpinner {
 
 	bar := p.p.New(0,
 		style,
-		mpb.BarWidth(36),
+		mpb.BarWidth(barWidth),
 		mpb.PrependDecorators(
 			ColorMeta(decor.Name(msg), p.colors.Message),
 		),

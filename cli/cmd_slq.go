@@ -146,6 +146,7 @@ func execSLQInsert(ctx context.Context, ru *run.Run, mArgs map[string]string,
 	// stack.
 
 	inserter := libsq.NewDBWriter(
+		"Insert records",
 		destPool,
 		destTbl,
 		driver.OptTuningRecChanSize.Get(destSrc.Options),

@@ -51,7 +51,7 @@ func execXTestMbp(cmd *cobra.Command, _ []string) error {
 func doBigRead2(ctx context.Context) error {
 	pb := progress.FromContext(ctx)
 
-	spinner := pb.NewIOSpinner("Ingest data test...")
+	spinner := pb.NewIOSpinner("Ingest data test")
 	defer spinner.Stop()
 	maxSleep := 100 * time.Millisecond
 

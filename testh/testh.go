@@ -485,7 +485,7 @@ func (h *Helper) Insert(src *source.Source, tbl string, cols []string, records .
 	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, conn)
 
 	batchSize := driver.MaxBatchRows(drvr, len(cols))
-	bi, err := driver.NewBatchInsert(h.Context, drvr, conn, tbl, cols, batchSize)
+	bi, err := driver.NewBatchInsert(h.Context, "Insert records", drvr, conn, tbl, cols, batchSize)
 	require.NoError(h.T, err)
 
 	for _, rec := range records {

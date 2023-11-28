@@ -189,7 +189,7 @@ func ingestSheetToTable(ctx context.Context, scratchPool driver.Pool, sheetTbl *
 	drvr := scratchPool.SQLDriver()
 
 	batchSize := driver.MaxBatchRows(drvr, len(destColKinds))
-	bi, err := driver.NewBatchInsert(ctx, drvr, conn, tblDef.Name, tblDef.ColNames(), batchSize)
+	bi, err := driver.NewBatchInsert(ctx, "Ingest records", drvr, conn, tblDef.Name, tblDef.ColNames(), batchSize)
 	if err != nil {
 		return err
 	}

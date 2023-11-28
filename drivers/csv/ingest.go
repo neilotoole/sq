@@ -127,6 +127,7 @@ func ingestCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFu
 	}
 
 	insertWriter := libsq.NewDBWriter(
+		"Ingest records",
 		scratchPool,
 		tblDef.Name,
 		driver.OptTuningRecChanSize.Get(scratchPool.Source().Options),

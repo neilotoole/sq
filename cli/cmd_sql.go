@@ -159,6 +159,7 @@ func execSQLInsert(ctx context.Context, ru *run.Run,
 	// is invoked by ru.Close, and ru is closed further up the
 	// stack.
 	inserter := libsq.NewDBWriter(
+		"Insert records",
 		destPool,
 		destTbl,
 		driver.OptTuningRecChanSize.Get(destSrc.Options),
