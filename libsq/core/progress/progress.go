@@ -2,9 +2,7 @@ package progress
 
 import (
 	"context"
-	"fmt"
 	"io"
-	"sync"
 	"time"
 
 	humanize "github.com/dustin/go-humanize"
@@ -14,7 +12,6 @@ import (
 	"github.com/vbauerster/mpb/v8/decor"
 
 	"github.com/neilotoole/sq/libsq/core/cleanup"
-	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 type runKey struct{}
@@ -79,9 +76,9 @@ func (c *Colors) EnableColor(enable bool) {
 	c.Size.DisableColor()
 }
 
+// Progress represents a container that renders one or more progress bars.
 type Progress struct {
 	p       *mpb.Progress
-	mu      *sync.Mutex // FIXME: we don't need mu?
 	colors  *Colors
 	cleanup *cleanup.Cleanup
 }
@@ -89,9 +86,7 @@ type Progress struct {
 // Wait waits for all bars to complete and finally shutdowns container. After
 // this method has been called, there is no way to reuse `*Progress` instance.
 func (p *Progress) Wait() {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
+	// Invoking cleanup will call Stop on all the bars.
 	_ = p.cleanup.Run()
 	p.p.Wait()
 }
@@ -107,50 +102,7 @@ func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors
 		colors = DefaultColors()
 	}
 
-	return &Progress{p: p, colors: colors, mu: &sync.Mutex{}, cleanup: cleanup.New()}
-}
-
-// ShutdownOnWriteTo returns a writer decorator that stop the
-// progress.Progress when w.Write is called. Typically p writes
-// to stderr, but stdout is passed to this method. That is, when
-// the program starts writing to stdout, we want to shut down
-// and remove the progress bar.
-//
-// REVISIT: ShutdownOnWriteTo is not a great name.
-func ShutdownOnWriteTo(p *Progress, w io.Writer) io.Writer {
-	// REVISIT: Should we check if w implements other io interfaces,
-	// such as io.WriterAt etc? Or do we really only care about io.Writer?
-	if p == nil {
-		return w
-	}
-	return &WriteNotifyOnce{
-		fn: p.Wait,
-		w:  w,
-	}
-}
-
-var _ io.Writer = (*WriteNotifyOnce)(nil)
-
-type WriteNotifyOnce struct {
-	fn         func()
-	w          io.Writer
-	notifyOnce sync.Once
-}
-
-// Write implements [io.Writer]. On first invocation, the referenced
-// progress.Progress is stopped via its [Progress.Wait] method.
-func (w *WriteNotifyOnce) Write(p []byte) (n int, err error) {
-	w.notifyOnce.Do(w.fn)
-
-	return w.w.Write(p)
-}
-
-func normalizeMsgLength(msg string, length int) string {
-	if len(msg) > length {
-		msg = stringz.TrimLenMiddle(msg, length)
-	}
-
-	return fmt.Sprintf("%-*s", length, msg)
+	return &Progress{p: p, colors: colors, cleanup: cleanup.New()}
 }
 
 // NewCountSpinner returns a new indeterminate spinner bar whose label
@@ -163,9 +115,6 @@ func (p *Progress) NewCountSpinner(msg, unit string) *Spinner {
 	if p == nil {
 		return nil
 	}
-
-	p.mu.Lock()
-	defer p.mu.Unlock()
 
 	decorator := decor.Any(func(statistics decor.Statistics) string {
 		s := humanize.Comma(statistics.Current)
@@ -190,14 +139,10 @@ func (p *Progress) NewByteCounterSpinner(msg string, size int64) *Spinner {
 		return nil
 	}
 
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
 	var decorator decor.Decorator
 	if size < 0 {
-		decorator = decor.CountersNoUnit("% .2f / ?")
+		decorator = decor.Current(decor.SizeB1024(0), "% .1f")
 	} else {
-		// decorator = decor.Current(decor.SizeB1024(0), "% .1f")
 		decorator = decor.Counters(decor.SizeB1024(0), "% .1f / % .1f")
 	}
 	decorator = ColorMeta(decorator, p.colors.Size)

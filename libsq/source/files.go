@@ -19,7 +19,6 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -178,10 +177,7 @@ func (fs *Files) addFile(ctx context.Context, f *os.File, key string) (fscache.R
 		CloseReader: true,
 	}
 
-	// FIXME: Added a delay for testing. Remove this before release.
-	df := ioz.DelayReader(f, time.Millisecond, true)
-	// if err = copier.Copy(ctx, w, f); err != nil {
-	if err = copier.Copy(ctx, size, w, df); err != nil {
+	if err = copier.Copy(ctx, size, w, f); err != nil {
 		lg.WarnIfCloseError(fs.log, lgm.CloseFileReader, r)
 		return nil, errz.Err(err)
 	}

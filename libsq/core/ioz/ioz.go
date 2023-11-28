@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	yaml "github.com/goccy/go-yaml"
@@ -241,4 +242,33 @@ func (d delayReadCloser) Close() error {
 // from crypto/rand.Reader.
 func LimitRandReader(limit int64) io.Reader {
 	return io.LimitReader(crand.Reader, limit)
+}
+
+// NotifyOnceWriter returns an io.Writer that invokes fn on the first
+// invocation of Write. If w or fn is nil, w is returned.
+func NotifyOnceWriter(w io.Writer, fn func()) io.Writer {
+	if w == nil || fn == nil {
+		return w
+	}
+
+	return &notifyOnceWriter{
+		fn: fn,
+		w:  w,
+	}
+}
+
+var _ io.Writer = (*notifyOnceWriter)(nil)
+
+type notifyOnceWriter struct {
+	fn         func()
+	w          io.Writer
+	notifyOnce sync.Once
+}
+
+// Write implements [io.Writer]. On the first invocation of this
+// method, fn is invoked.
+func (w *notifyOnceWriter) Write(p []byte) (n int, err error) {
+	w.notifyOnce.Do(w.fn)
+
+	return w.w.Write(p)
 }

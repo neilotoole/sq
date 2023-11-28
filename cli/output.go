@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/ioz"
+
 	"github.com/fatih/color"
 	colorable "github.com/mattn/go-colorable"
 	wordwrap "github.com/mitchellh/go-wordwrap"
@@ -422,7 +424,8 @@ func getPrinting(cmd *cobra.Command, opts options.Options, out, errOut io.Writer
 			ctx := cmd.Context()
 			renderDelay := OptProgressDelay.Get(opts)
 			prog := progress.New(ctx, errOut, renderDelay, progColors)
-			out2 = progress.ShutdownOnWriteTo(prog, out2)
+			// On first write to stdout, we remove the progress widget.
+			out2 = ioz.NotifyOnceWriter(out2, prog.Wait)
 			cmd.SetContext(progress.NewContext(ctx, prog))
 		}
 
@@ -459,7 +462,9 @@ func getPrinting(cmd *cobra.Command, opts options.Options, out, errOut io.Writer
 		ctx := cmd.Context()
 		renderDelay := OptProgressDelay.Get(opts)
 		prog := progress.New(ctx, errOut2, renderDelay, progColors)
-		out2 = progress.ShutdownOnWriteTo(prog, out2)
+
+		// On first write to stdout, we remove the progress widget.
+		out2 = ioz.NotifyOnceWriter(out2, prog.Wait)
 		cmd.SetContext(progress.NewContext(ctx, prog))
 	}
 
