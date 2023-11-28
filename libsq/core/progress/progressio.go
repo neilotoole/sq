@@ -52,7 +52,7 @@ func NewWriter(ctx context.Context, msg string, w io.Writer) io.Writer {
 		return contextio.NewWriter(ctx, w)
 	}
 
-	spinner := pb.NewIOSpinner(msg)
+	spinner := pb.NewByteCounterSpinner(msg)
 	return &progCopier{progWriter{
 		ctx:     ctx,
 		w:       spinner.bar.ProxyWriter(w),
@@ -65,7 +65,7 @@ var _ io.WriteCloser = (*progWriter)(nil)
 type progWriter struct {
 	ctx     context.Context
 	w       io.Writer
-	spinner *IOSpinner
+	spinner *Spinner
 }
 
 // Write implements [io.Writer], but with context awareness.
@@ -133,7 +133,7 @@ func NewReader(ctx context.Context, msg string, r io.Reader) io.Reader {
 		return contextio.NewReader(ctx, r)
 	}
 
-	spinner := pb.NewIOSpinner(msg)
+	spinner := pb.NewByteCounterSpinner(msg)
 	pr := &progReader{
 		ctx:     ctx,
 		r:       spinner.bar.ProxyReader(r),
@@ -147,7 +147,7 @@ var _ io.ReadCloser = (*progReader)(nil)
 type progReader struct {
 	ctx     context.Context
 	r       io.Reader
-	spinner *IOSpinner
+	spinner *Spinner
 }
 
 // Close implements [io.ReadCloser], but with context awareness.

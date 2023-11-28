@@ -443,7 +443,7 @@ func getPrinting(cmd *cobra.Command, opts options.Options, out, errOut io.Writer
 		ctx := cmd.Context()
 		renderDelay := OptProgressDelay.Get(opts)
 		prog := progress.New(ctx, errOut, renderDelay, progColors)
-		out2 = prog.ShutdownOnWriteTo(out2)
+		out2 = progress.ShutdownOnWriteTo(prog, out2)
 		cmd.SetContext(progress.NewContext(ctx, prog))
 		logFrom(cmd).Debug("Initialized progress")
 	}

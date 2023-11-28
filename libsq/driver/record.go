@@ -390,7 +390,7 @@ func NewBatchInsert(ctx context.Context, msg string, drvr SQLDriver, db sqlz.DB,
 		return nil, err
 	}
 
-	spinner := progress.FromContext(ctx).NewIOSpinner(msg)
+	spinner := progress.FromContext(ctx).NewCountSpinner(msg, "rec")
 
 	recCh := make(chan []any, batchSize*8)
 	errCh := make(chan error, 1)

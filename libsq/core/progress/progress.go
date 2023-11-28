@@ -3,6 +3,8 @@ package progress
 import (
 	"context"
 	"fmt"
+	"github.com/dustin/go-humanize"
+	"github.com/dustin/go-humanize/english"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"io"
 	"sync"
@@ -108,12 +110,14 @@ func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors
 	return &Progress{p: p, colors: colors, mu: &sync.Mutex{}, cleanup: cleanup.New()}
 }
 
-// ShutdownOnWriteTo returns a writer that will stop the
+// ShutdownOnWriteTo returns a writer decorator that stop the
 // progress.Progress when w.Write is called. Typically p writes
-// to stderr, and stdout is passed to this method. That is, when
+// to stderr, but stdout is passed to this method. That is, when
 // the program starts writing to stdout, we want to shut down
 // and remove the progress bar.
-func (p *Progress) ShutdownOnWriteTo(w io.Writer) io.Writer {
+//
+// REVISIT: ShutdownOnWriteTo is not a great name.
+func ShutdownOnWriteTo(p *Progress, w io.Writer) io.Writer {
 	// REVISIT: Should we check if w implements other io interfaces,
 	// such as io.WriterAt etc? Or do we really only care about io.Writer?
 	if p == nil {
@@ -133,7 +137,8 @@ type writeNotifier struct {
 	notifyOnce sync.Once
 }
 
-// Write implements [io.Writer].
+// Write implements [io.Writer]. On first invocation, the referenced
+// progress.Progress is stopped via its [Progress.Wait] method.
 func (w *writeNotifier) Write(p []byte) (n int, err error) {
 	w.notifyOnce.Do(w.p.Wait)
 
@@ -148,13 +153,13 @@ func normalizeMsgLength(msg string, length int) string {
 	return fmt.Sprintf("%-*s", length, msg)
 }
 
-// NewIOSpinner returns a new indeterminate spinner bar whose metric is
-// the count of bytes processed. The caller is ultimately
-// responsible for calling [IOSpinner.Stop] on the returned IOSpinner. However,
-// the returned IOSpinner is also added to the Progress's cleanup list, so
+// NewCountSpinner returns a new indeterminate spinner bar whose label
+// metric is the provided unit. The caller is ultimately
+// responsible for calling [Spinner.Stop] on the returned Spinner. However,
+// the returned Spinner is also added to the Progress's cleanup list, so
 // it will be called automatically when the Progress is shut down, but that
 // may be later than the actual conclusion of the spinner's work.
-func (p *Progress) NewIOSpinner(msg string) *IOSpinner {
+func (p *Progress) NewCountSpinner(msg, unit string) *Spinner {
 	if p == nil {
 		return nil
 	}
@@ -162,12 +167,44 @@ func (p *Progress) NewIOSpinner(msg string) *IOSpinner {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	const (
-		msgLength = 18
-		barWidth  = 28
-	)
+	counter := decor.Any(func(statistics decor.Statistics) string {
+		s := humanize.Comma(statistics.Current)
+		if unit != "" {
+			s += " " + english.PluralWord(int(statistics.Current), unit, "")
+		}
+		return s
+	})
 
-	msg = normalizeMsgLength(msg, msgLength)
+	decorators := []decor.Decorator{ColorMeta(counter, p.colors.Size)}
+	return p.newSpinner(msg, decorators...)
+}
+
+// NewByteCounterSpinner returns a new indeterminate spinner bar whose
+// metric is the count of bytes processed. The caller is ultimately
+// responsible for calling [Spinner.Stop] on the returned Spinner. However,
+// the returned Spinner is also added to the Progress's cleanup list, so
+// it will be called automatically when the Progress is shut down, but that
+// may be later than the actual conclusion of the spinner's work.
+func (p *Progress) NewByteCounterSpinner(msg string) *Spinner {
+	if p == nil {
+		return nil
+	}
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	decorators := []decor.Decorator{
+		ColorMeta(decor.Current(decor.SizeB1024(0), "% .1f"), p.colors.Size),
+	}
+	return p.newSpinner(msg, decorators...)
+}
+
+func (p *Progress) newSpinner(msg string, decorators ...decor.Decorator) *Spinner {
+	if p == nil {
+		return nil
+	}
+
+	const barWidth = 28
 
 	style := mpb.SpinnerStyle("∙∙∙", "●∙∙", "∙●∙", "∙∙●", "∙∙∙")
 	style = style.Meta(func(s string) string {
@@ -178,31 +215,29 @@ func (p *Progress) NewIOSpinner(msg string) *IOSpinner {
 		style,
 		mpb.BarWidth(barWidth),
 		mpb.PrependDecorators(
-			ColorMeta(decor.Name(msg), p.colors.Message),
+			ColorMeta(decor.Name(msg, decor.WCSyncWidthR), p.colors.Message),
 		),
-		mpb.AppendDecorators(
-			ColorMeta(decor.Current(decor.SizeB1024(0), "% .1f"), p.colors.Message),
-		),
+		mpb.AppendDecorators(decorators...),
 		mpb.BarRemoveOnComplete(),
 	)
 
-	spinner := &IOSpinner{bar: bar}
+	spinner := &Spinner{bar: bar}
 	p.cleanup.Add(spinner.Stop)
 	return spinner
 }
 
-type IOSpinner struct {
+type Spinner struct {
 	bar *mpb.Bar
 }
 
-func (sp *IOSpinner) IncrBy(n int) {
+func (sp *Spinner) IncrBy(n int) {
 	if sp == nil {
 		return
 	}
 	sp.bar.IncrBy(n)
 }
 
-func (sp *IOSpinner) Stop() {
+func (sp *Spinner) Stop() {
 	if sp == nil {
 		return
 	}
