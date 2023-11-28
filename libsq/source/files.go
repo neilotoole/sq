@@ -167,7 +167,7 @@ func (fs *Files) addFile(ctx context.Context, f *os.File, key string) (fscache.R
 	// could be mapped directly to the filesystem file. This might require
 	// hacking on the fscache impl.
 	copier := fscache.AsyncFiller{
-		Message:            "Reading file",
+		Message:            "Reading source data",
 		Log:                log.With(lga.Action, "Cache fill"),
 		NewContextWriterFn: progress.NewWriter,
 		// We don't use progress.NewReader here, because that

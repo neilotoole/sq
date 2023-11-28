@@ -123,24 +123,24 @@ func ShutdownOnWriteTo(p *Progress, w io.Writer) io.Writer {
 	if p == nil {
 		return w
 	}
-	return &writeNotifier{
-		p: p,
-		w: w,
+	return &WriteNotifyOnce{
+		fn: p.Wait,
+		w:  w,
 	}
 }
 
-var _ io.Writer = (*writeNotifier)(nil)
+var _ io.Writer = (*WriteNotifyOnce)(nil)
 
-type writeNotifier struct {
-	p          *Progress
+type WriteNotifyOnce struct {
+	fn         func()
 	w          io.Writer
 	notifyOnce sync.Once
 }
 
 // Write implements [io.Writer]. On first invocation, the referenced
 // progress.Progress is stopped via its [Progress.Wait] method.
-func (w *writeNotifier) Write(p []byte) (n int, err error) {
-	w.notifyOnce.Do(w.p.Wait)
+func (w *WriteNotifyOnce) Write(p []byte) (n int, err error) {
+	w.notifyOnce.Do(w.fn)
 
 	return w.w.Write(p)
 }

@@ -369,6 +369,11 @@ func getRecordWriterFunc(f format.Format) output.NewRecordWriterFunc {
 // may be decorated for dealing with color, etc.
 // The supplied opts must already have flags merged into it
 // via getOptionsFromCmd.
+//
+// Be cautious making changes to getPrinting. This function must
+// be absolutely bulletproof, as it's called by all commands, as well
+// as by the error handling mechanism. So, be sure to always check
+// for nil cmd, nil cmd.Context, etc.
 func getPrinting(cmd *cobra.Command, opts options.Options, out, errOut io.Writer,
 ) (pr *output.Printing, out2, errOut2 io.Writer) {
 	pr = output.NewPrinting()
@@ -410,6 +415,17 @@ func getPrinting(cmd *cobra.Command, opts options.Options, out, errOut io.Writer
 		pr.EnableColor(false)
 		out2 = out
 		errOut2 = errOut
+
+		if cmd != nil && cmd.Context() != nil && OptProgress.Get(opts) && isTerminal(errOut) {
+			progColors := progress.DefaultColors()
+			progColors.EnableColor(false)
+			ctx := cmd.Context()
+			renderDelay := OptProgressDelay.Get(opts)
+			prog := progress.New(ctx, errOut, renderDelay, progColors)
+			out2 = progress.ShutdownOnWriteTo(prog, out2)
+			cmd.SetContext(progress.NewContext(ctx, prog))
+		}
+
 		return pr, out2, errOut2
 	}
 
@@ -436,16 +452,15 @@ func getPrinting(cmd *cobra.Command, opts options.Options, out, errOut io.Writer
 		errOut2 = colorable.NewNonColorable(errOut)
 	}
 
-	if OptProgress.Get(opts) && isTerminal(errOut) {
+	if cmd != nil && cmd.Context() != nil && OptProgress.Get(opts) && isTerminal(errOut) {
 		progColors := progress.DefaultColors()
 		progColors.EnableColor(isColorTerminal(errOut))
 
 		ctx := cmd.Context()
 		renderDelay := OptProgressDelay.Get(opts)
-		prog := progress.New(ctx, errOut, renderDelay, progColors)
+		prog := progress.New(ctx, errOut2, renderDelay, progColors)
 		out2 = progress.ShutdownOnWriteTo(prog, out2)
 		cmd.SetContext(progress.NewContext(ctx, prog))
-		logFrom(cmd).Debug("Initialized progress")
 	}
 
 	logFrom(cmd).Debug("Constructed output.Printing", lga.Val, pr)

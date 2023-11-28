@@ -237,12 +237,16 @@ func addOptionFlag(flags *pflag.FlagSet, opt options.Opt) (key string) {
 		flags.IntP(key, string(opt.Short()), opt.Default(), opt.Usage())
 		return key
 	case options.Bool:
+		defVal := opt.Default()
+		if opt.FlagInverted() {
+			defVal = !defVal
+		}
 		if opt.Short() == 0 {
-			flags.Bool(key, opt.Default(), opt.Usage())
+			flags.Bool(key, defVal, opt.Usage())
 			return key
 		}
 
-		flags.BoolP(key, string(opt.Short()), opt.Default(), opt.Usage())
+		flags.BoolP(key, string(opt.Short()), defVal, opt.Usage())
 		return key
 	case options.Duration:
 		if opt.Short() == 0 {

@@ -67,6 +67,9 @@ const (
 	MonochromeShort = "M"
 	MonochromeUsage = "Don't colorize output"
 
+	NoProgress      = "no-progress"
+	NoProgressUsage = "Don't show progress bar"
+
 	Output      = "output"
 	OutputShort = "o"
 	OutputUsage = "Write output to <file> instead of stdout"
