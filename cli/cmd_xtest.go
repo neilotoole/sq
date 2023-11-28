@@ -6,14 +6,13 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/ioz"
-
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/buildinfo"
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/hostinfo"
 	"github.com/neilotoole/sq/cli/run"
+	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/progress"
 )
 
@@ -51,7 +50,7 @@ func execXTestMbp(cmd *cobra.Command, _ []string) error {
 func doBigRead2(ctx context.Context) error {
 	pb := progress.FromContext(ctx)
 
-	spinner := pb.NewByteCounterSpinner("Ingest data test")
+	spinner := pb.NewByteCounterSpinner("Ingest data test", -1)
 	defer spinner.Stop()
 	maxSleep := 100 * time.Millisecond
 

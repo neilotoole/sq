@@ -42,7 +42,9 @@ import (
 // writer does not. This is necessary because we need a means of stopping the
 // progress bar when writing is complete. If the underlying writer does
 // implement [io.Closer], it will be closed when the returned writer is closed.
-func NewWriter(ctx context.Context, msg string, w io.Writer) io.Writer {
+//
+// If size is unknown, set to -1.
+func NewWriter(ctx context.Context, msg string, size int64, w io.Writer) io.Writer {
 	if w, ok := w.(*progCopier); ok && ctx == w.ctx {
 		return w
 	}
@@ -52,7 +54,7 @@ func NewWriter(ctx context.Context, msg string, w io.Writer) io.Writer {
 		return contextio.NewWriter(ctx, w)
 	}
 
-	spinner := pb.NewByteCounterSpinner(msg)
+	spinner := pb.NewByteCounterSpinner(msg, size)
 	return &progCopier{progWriter{
 		ctx:     ctx,
 		w:       spinner.bar.ProxyWriter(w),
@@ -123,7 +125,7 @@ func (w *progWriter) Close() error {
 // reader does not. This is necessary because we need a means of stopping the
 // progress bar when writing is complete. If the underlying reader does
 // implement [io.Closer], it will be closed when the returned reader is closed.
-func NewReader(ctx context.Context, msg string, r io.Reader) io.Reader {
+func NewReader(ctx context.Context, msg string, size int64, r io.Reader) io.Reader {
 	if r, ok := r.(*progReader); ok && ctx == r.ctx {
 		return r
 	}
@@ -133,7 +135,7 @@ func NewReader(ctx context.Context, msg string, r io.Reader) io.Reader {
 		return contextio.NewReader(ctx, r)
 	}
 
-	spinner := pb.NewByteCounterSpinner(msg)
+	spinner := pb.NewByteCounterSpinner(msg, size)
 	pr := &progReader{
 		ctx:     ctx,
 		r:       spinner.bar.ProxyReader(r),

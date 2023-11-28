@@ -11,8 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/ioz"
-
 	"github.com/h2non/filetype"
 	"github.com/h2non/filetype/matchers"
 	"golang.org/x/sync/errgroup"
@@ -21,6 +19,7 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -143,27 +142,37 @@ func (fs *Files) TypeStdin(ctx context.Context) (drivertype.Type, error) {
 func (fs *Files) addFile(ctx context.Context, f *os.File, key string) (fscache.ReadAtCloser, error) {
 	log := lg.FromContext(ctx)
 	log.Debug("Adding file", lga.Key, key, lga.Path, f.Name())
+
 	r, w, err := fs.fcache.Get(key)
 	if err != nil {
 		return nil, errz.Err(err)
 	}
-
 	if w == nil {
 		lg.WarnIfCloseError(fs.log, lgm.CloseFileReader, r)
 		return nil, errz.Errorf("failed to add to fscache (possibly previously added): %s", key)
 	}
+
+	fi, err := f.Stat()
+	if err != nil {
+		return nil, errz.Err(err)
+	}
+	size := fi.Size()
+	if size == 0 {
+		size = -1
+	}
+
 	// TODO: Problematically, we copy the entire contents of f into fscache.
 	// This is probably necessary for piped data on stdin, but for files
 	// that already exist on the file system, it would be nice if the cacheFile
 	// could be mapped directly to the filesystem file. This might require
 	// hacking on the fscache impl.
 	copier := fscache.AsyncFiller{
-		Message:            "Cache fill",
+		Message:            "Reading file",
 		Log:                log.With(lga.Action, "Cache fill"),
 		NewContextWriterFn: progress.NewWriter,
 		// We don't use progress.NewReader here, because that
 		// would result in double counting of bytes transferred.
-		NewContextReaderFn: func(ctx context.Context, msg string, r io.Reader) io.Reader {
+		NewContextReaderFn: func(ctx context.Context, msg string, size int64, r io.Reader) io.Reader {
 			return contextio.NewReader(ctx, r)
 		},
 		CloseReader: true,
@@ -172,7 +181,7 @@ func (fs *Files) addFile(ctx context.Context, f *os.File, key string) (fscache.R
 	// FIXME: Added a delay for testing. Remove this before release.
 	df := ioz.DelayReader(f, time.Millisecond, true)
 	// if err = copier.Copy(ctx, w, f); err != nil {
-	if err = copier.Copy(ctx, w, df); err != nil {
+	if err = copier.Copy(ctx, size, w, df); err != nil {
 		lg.WarnIfCloseError(fs.log, lgm.CloseFileReader, r)
 		return nil, errz.Err(err)
 	}

@@ -16,6 +16,10 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 )
 
+// MsgIngestRecords is the typical message used with [libsq.NewDBWriter]
+// to indicate that records are being ingested.
+const MsgIngestRecords = "Ingesting records"
+
 // DBWriter implements RecordWriter, writing
 // records to a database table.
 type DBWriter struct {
@@ -75,7 +79,8 @@ func DBWriterCreateTableIfNotExistsHook(destTblName string) DBWriterPreWriteHook
 // in destPool. The recChSize param controls the size of recordCh
 // returned by the writer's Open method.
 func NewDBWriter(msg string, destPool driver.Pool, destTbl string, recChSize int,
-	preWriteHooks ...DBWriterPreWriteHook) *DBWriter {
+	preWriteHooks ...DBWriterPreWriteHook,
+) *DBWriter {
 	return &DBWriter{
 		msg:           msg,
 		destPool:      destPool,
@@ -118,7 +123,15 @@ func (w *DBWriter) Open(ctx context.Context, cancelFn context.CancelFunc, recMet
 	}
 
 	batchSize := driver.MaxBatchRows(w.destPool.SQLDriver(), len(recMeta.Names()))
-	w.bi, err = driver.NewBatchInsert(ctx, w.msg, w.destPool.SQLDriver(), tx, w.destTbl, recMeta.Names(), batchSize)
+	w.bi, err = driver.NewBatchInsert(
+		ctx,
+		w.msg,
+		w.destPool.SQLDriver(),
+		tx,
+		w.destTbl,
+		recMeta.Names(),
+		batchSize,
+	)
 	if err != nil {
 		w.rollback(ctx, tx, err)
 		return nil, nil, err

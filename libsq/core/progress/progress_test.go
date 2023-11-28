@@ -8,10 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/ioz"
-	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/neilotoole/sq/libsq/core/ioz"
+	"github.com/neilotoole/sq/libsq/core/progress"
 )
 
 func TestNewWriter(t *testing.T) {
@@ -25,7 +26,7 @@ func TestNewWriter(t *testing.T) {
 	src = ioz.DelayReader(src, 10*time.Millisecond, true)
 
 	dest := io.Discard
-	w := progress.NewWriter(ctx, "write test", dest)
+	w := progress.NewWriter(ctx, "write test", -1, dest)
 
 	written, err := io.Copy(w, src)
 	require.NoError(t, err)
@@ -44,7 +45,7 @@ func TestNewReader_Closer_type(t *testing.T) {
 
 	// bytes.Buffer doesn't implement io.Closer
 	buf := &bytes.Buffer{}
-	gotReader := progress.NewReader(ctx, "no closer", buf)
+	gotReader := progress.NewReader(ctx, "no closer", -1, buf)
 	require.NotNil(t, gotReader)
 	_, isCloser := gotReader.(io.ReadCloser)
 
@@ -52,7 +53,7 @@ func TestNewReader_Closer_type(t *testing.T) {
 		gotReader)
 
 	bufCloser := io.NopCloser(buf)
-	gotReader = progress.NewReader(ctx, "closer", bufCloser)
+	gotReader = progress.NewReader(ctx, "closer", -1, bufCloser)
 	require.NotNil(t, gotReader)
 	_, isCloser = gotReader.(io.ReadCloser)
 

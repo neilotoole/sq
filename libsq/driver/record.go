@@ -5,7 +5,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/neilotoole/sq/libsq/core/progress"
 	"math"
 	"reflect"
 	"strings"
@@ -21,6 +20,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/loz"
 	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
@@ -383,7 +383,8 @@ func (bi *BatchInsert) Munge(rec []any) error {
 //
 //nolint:gocognit
 func NewBatchInsert(ctx context.Context, msg string, drvr SQLDriver, db sqlz.DB,
-	destTbl string, destColNames []string, batchSize int) (*BatchInsert, error) {
+	destTbl string, destColNames []string, batchSize int,
+) (*BatchInsert, error) {
 	log := lg.FromContext(ctx)
 
 	if err := sqlz.RequireSingleConn(db); err != nil {
@@ -426,7 +427,6 @@ func NewBatchInsert(ctx context.Context, msg string, drvr SQLDriver, db sqlz.DB,
 					// is the primary concern.
 					lg.WarnIfError(log, lgm.CloseDBStmt, errz.Err(inserter.Close()))
 				}
-
 			}
 
 			if err != nil {

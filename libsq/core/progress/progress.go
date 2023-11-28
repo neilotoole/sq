@@ -3,18 +3,18 @@ package progress
 import (
 	"context"
 	"fmt"
-	"github.com/dustin/go-humanize"
-	"github.com/dustin/go-humanize/english"
-	"github.com/neilotoole/sq/libsq/core/stringz"
 	"io"
 	"sync"
 	"time"
 
+	humanize "github.com/dustin/go-humanize"
+	"github.com/dustin/go-humanize/english"
 	"github.com/fatih/color"
 	mpb "github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
 
 	"github.com/neilotoole/sq/libsq/core/cleanup"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 type runKey struct{}
@@ -81,7 +81,7 @@ func (c *Colors) EnableColor(enable bool) {
 
 type Progress struct {
 	p       *mpb.Progress
-	mu      *sync.Mutex
+	mu      *sync.Mutex // FIXME: we don't need mu?
 	colors  *Colors
 	cleanup *cleanup.Cleanup
 }
@@ -167,7 +167,7 @@ func (p *Progress) NewCountSpinner(msg, unit string) *Spinner {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	counter := decor.Any(func(statistics decor.Statistics) string {
+	decorator := decor.Any(func(statistics decor.Statistics) string {
 		s := humanize.Comma(statistics.Current)
 		if unit != "" {
 			s += " " + english.PluralWord(int(statistics.Current), unit, "")
@@ -175,17 +175,17 @@ func (p *Progress) NewCountSpinner(msg, unit string) *Spinner {
 		return s
 	})
 
-	decorators := []decor.Decorator{ColorMeta(counter, p.colors.Size)}
-	return p.newSpinner(msg, decorators...)
+	decorator = ColorMeta(decorator, p.colors.Size)
+	return p.newSpinner(msg, -1, decorator)
 }
 
-// NewByteCounterSpinner returns a new indeterminate spinner bar whose
-// metric is the count of bytes processed. The caller is ultimately
-// responsible for calling [Spinner.Stop] on the returned Spinner. However,
-// the returned Spinner is also added to the Progress's cleanup list, so
-// it will be called automatically when the Progress is shut down, but that
+// NewByteCounterSpinner returns a new spinner bar whose metric is the count
+// of bytes processed. If the size is unknown, set arg size to -1. The caller
+// is ultimately responsible for calling [Spinner.Stop] on the returned Spinner.
+// However, the returned Spinner is also added to the Progress's cleanup list,
+// so it will be called automatically when the Progress is shut down, but that
 // may be later than the actual conclusion of the spinner's work.
-func (p *Progress) NewByteCounterSpinner(msg string) *Spinner {
+func (p *Progress) NewByteCounterSpinner(msg string, size int64) *Spinner {
 	if p == nil {
 		return nil
 	}
@@ -193,25 +193,35 @@ func (p *Progress) NewByteCounterSpinner(msg string) *Spinner {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	decorators := []decor.Decorator{
-		ColorMeta(decor.Current(decor.SizeB1024(0), "% .1f"), p.colors.Size),
+	var decorator decor.Decorator
+	if size < 0 {
+		decorator = decor.CountersNoUnit("% .2f / ?")
+	} else {
+		// decorator = decor.Current(decor.SizeB1024(0), "% .1f")
+		decorator = decor.Counters(decor.SizeB1024(0), "% .1f / % .1f")
 	}
-	return p.newSpinner(msg, decorators...)
+	decorator = ColorMeta(decorator, p.colors.Size)
+
+	return p.newSpinner(msg, size, decorator)
 }
 
-func (p *Progress) newSpinner(msg string, decorators ...decor.Decorator) *Spinner {
+func (p *Progress) newSpinner(msg string, total int64, decorators ...decor.Decorator) *Spinner {
 	if p == nil {
 		return nil
 	}
 
 	const barWidth = 28
 
+	if total < 0 {
+		total = 0
+	}
+
 	style := mpb.SpinnerStyle("∙∙∙", "●∙∙", "∙●∙", "∙∙●", "∙∙∙")
 	style = style.Meta(func(s string) string {
 		return p.colors.Spinner.Sprint(s)
 	})
 
-	bar := p.p.New(0,
+	bar := p.p.New(total,
 		style,
 		mpb.BarWidth(barWidth),
 		mpb.PrependDecorators(
