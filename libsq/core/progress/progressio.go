@@ -67,7 +67,7 @@ var _ io.WriteCloser = (*progWriter)(nil)
 type progWriter struct {
 	ctx     context.Context
 	w       io.Writer
-	spinner *Spinner
+	spinner *Bar
 }
 
 // Write implements [io.Writer], but with context awareness.
@@ -149,7 +149,7 @@ var _ io.ReadCloser = (*progReader)(nil)
 type progReader struct {
 	ctx     context.Context
 	r       io.Reader
-	spinner *Spinner
+	spinner *Bar
 }
 
 // Close implements [io.ReadCloser], but with context awareness.

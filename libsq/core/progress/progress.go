@@ -50,6 +50,9 @@ func DefaultColors() *Colors {
 		Message: color.New(color.Faint),
 		Spinner: color.New(color.FgGreen, color.Bold),
 		Size:    color.New(color.Faint),
+		// Percent: color.New(color.FgHiBlue),
+		Percent: color.New(color.FgCyan, color.Faint),
+		// Percent: color.New(color.FgCyan),
 	}
 }
 
@@ -57,6 +60,7 @@ type Colors struct {
 	Message *color.Color
 	Spinner *color.Color
 	Size    *color.Color
+	Percent *color.Color
 }
 
 func (c *Colors) EnableColor(enable bool) {
@@ -68,33 +72,28 @@ func (c *Colors) EnableColor(enable bool) {
 		c.Message.EnableColor()
 		c.Spinner.EnableColor()
 		c.Size.EnableColor()
+		c.Percent.EnableColor()
 		return
 	}
 
 	c.Message.DisableColor()
 	c.Spinner.DisableColor()
 	c.Size.DisableColor()
+	c.Percent.EnableColor()
 }
 
-// Progress represents a container that renders one or more progress bars.
-type Progress struct {
-	p       *mpb.Progress
-	colors  *Colors
-	cleanup *cleanup.Cleanup
-}
+const (
+	barWidth = 28
+	boxWidth = 64
+)
 
-// Wait waits for all bars to complete and finally shutdowns container. After
-// this method has been called, there is no way to reuse `*Progress` instance.
-func (p *Progress) Wait() {
-	// Invoking cleanup will call Stop on all the bars.
-	_ = p.cleanup.Run()
-	p.p.Wait()
-}
-
+// New returns a new Progress instance, which is a container for progress bars.
+// The returned Progress instance is safe for concurrent use. The caller is
+// responsible for calling [Progress.Wait] on the returned Progress.
 func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors) *Progress {
 	p := mpb.NewWithContext(ctx,
 		mpb.WithOutput(out),
-		mpb.WithWidth(64),
+		mpb.WithWidth(boxWidth),
 		mpb.WithRenderDelay(renderDelay(delay)),
 	)
 
@@ -105,13 +104,45 @@ func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors
 	return &Progress{p: p, colors: colors, cleanup: cleanup.New()}
 }
 
-// NewCountSpinner returns a new indeterminate spinner bar whose label
-// metric is the provided unit. The caller is ultimately
-// responsible for calling [Spinner.Stop] on the returned Spinner. However,
-// the returned Spinner is also added to the Progress's cleanup list, so
+// Progress represents a container that renders one or more progress bars.
+// The caller is responsible for calling [Progress.Wait] to indicate
+// completion.
+type Progress struct {
+	p       *mpb.Progress
+	colors  *Colors
+	cleanup *cleanup.Cleanup
+}
+
+// Wait waits for all bars to complete and finally shuts down the
+// container. After this method has been called, there is no way
+// to reuse the Progress instance.
+func (p *Progress) Wait() {
+	// Invoking cleanup will call Bar.Stop on all the bars.
+	_ = p.cleanup.Run()
+	p.p.Wait()
+}
+
+// NewUnitCounter returns a new indeterminate bar whose label
+// metric is the plural of the provided unit. The caller is ultimately
+// responsible for calling [Bar.Stop] on the returned Bar. However,
+// the returned Bar is also added to the Progress's cleanup list, so
 // it will be called automatically when the Progress is shut down, but that
 // may be later than the actual conclusion of the spinner's work.
-func (p *Progress) NewCountSpinner(msg, unit string) *Spinner {
+//
+//	pbar := p.NewUnitCounter("Ingest records", "record")
+//	defer pbar.Stop()
+//
+//	for i := 0; i < 100; i++ {
+//	    pbar.IncrBy(1)
+//	    time.Sleep(100 * time.Millisecond)
+//	}
+//
+// This produces output similar to:
+//
+//	Ingesting records               ∙∙●              87 records
+//
+// Note that the unit arg is pluralized.
+func (p *Progress) NewUnitCounter(msg, unit string) *Bar {
 	if p == nil {
 		return nil
 	}
@@ -125,37 +156,37 @@ func (p *Progress) NewCountSpinner(msg, unit string) *Spinner {
 	})
 
 	decorator = ColorMeta(decorator, p.colors.Size)
-	return p.newSpinner(msg, -1, decorator)
+	return p.newBar(msg, -1, decorator)
 }
 
 // NewByteCounterSpinner returns a new spinner bar whose metric is the count
 // of bytes processed. If the size is unknown, set arg size to -1. The caller
-// is ultimately responsible for calling [Spinner.Stop] on the returned Spinner.
-// However, the returned Spinner is also added to the Progress's cleanup list,
+// is ultimately responsible for calling [Bar.Stop] on the returned Bar.
+// However, the returned Bar is also added to the Progress's cleanup list,
 // so it will be called automatically when the Progress is shut down, but that
 // may be later than the actual conclusion of the spinner's work.
-func (p *Progress) NewByteCounterSpinner(msg string, size int64) *Spinner {
+func (p *Progress) NewByteCounterSpinner(msg string, size int64) *Bar {
 	if p == nil {
 		return nil
 	}
 
-	var decorator decor.Decorator
+	var counter decor.Decorator
 	if size < 0 {
-		decorator = decor.Current(decor.SizeB1024(0), "% .1f")
+		counter = decor.Current(decor.SizeB1024(0), "% .1f")
 	} else {
-		decorator = decor.Counters(decor.SizeB1024(0), "% .1f / % .1f")
+		counter = decor.Counters(decor.SizeB1024(0), "% .1f / % .1f")
 	}
-	decorator = ColorMeta(decorator, p.colors.Size)
+	counter = ColorMeta(counter, p.colors.Size)
+	percent := decor.NewPercentage(" %.1f", decor.WCSyncSpace)
+	percent = ColorMeta(percent, p.colors.Percent)
 
-	return p.newSpinner(msg, size, decorator)
+	return p.newBar(msg, size, counter, percent)
 }
 
-func (p *Progress) newSpinner(msg string, total int64, decorators ...decor.Decorator) *Spinner {
+func (p *Progress) newBar(msg string, total int64, decorators ...decor.Decorator) *Bar {
 	if p == nil {
 		return nil
 	}
-
-	const barWidth = 28
 
 	if total < 0 {
 		total = 0
@@ -176,29 +207,37 @@ func (p *Progress) newSpinner(msg string, total int64, decorators ...decor.Decor
 		mpb.BarRemoveOnComplete(),
 	)
 
-	spinner := &Spinner{bar: bar}
-	p.cleanup.Add(spinner.Stop)
-	return spinner
+	b := &Bar{bar: bar}
+	p.cleanup.Add(b.Stop)
+	return b
 }
 
-type Spinner struct {
+// Bar represents a single progress bar. The caller should invoke
+// [Bar.IncrBy] as necessary to increment the bar's progress. When
+// the bar is complete, the caller should invoke [Bar.Stop]. All
+// methods are safe to call on a nil Bar.
+type Bar struct {
 	bar *mpb.Bar
 }
 
-func (sp *Spinner) IncrBy(n int) {
-	if sp == nil {
+// IncrBy increments progress by amount of n. It is safe to
+// call IncrBy on a nil Bar.
+func (b *Bar) IncrBy(n int) {
+	if b == nil {
 		return
 	}
-	sp.bar.IncrBy(n)
+	b.bar.IncrBy(n)
 }
 
-func (sp *Spinner) Stop() {
-	if sp == nil {
+// Stop stops and removes the bar. It is safe to call Stop on a nil Bar,
+// or to call Stop multiple times.
+func (b *Bar) Stop() {
+	if b == nil {
 		return
 	}
 
-	sp.bar.SetTotal(-1, true)
-	sp.bar.Wait()
+	b.bar.SetTotal(-1, true)
+	b.bar.Wait()
 }
 
 func renderDelay(d time.Duration) <-chan struct{} {

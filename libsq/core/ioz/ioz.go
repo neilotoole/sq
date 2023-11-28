@@ -272,3 +272,39 @@ func (w *notifyOnceWriter) Write(p []byte) (n int, err error) {
 
 	return w.w.Write(p)
 }
+
+// ToWriteCloser returns w as an io.WriteCloser. If w implements
+// io.WriteCloser, w is returned. Otherwise, w is wrapped in a
+// no-op decorator that implements io.WriteCloser.
+//
+// ToWriteCloser is the missing sibling of io.NopCloser, which
+// isn't implemented in stdlib. See: https://github.com/golang/go/issues/22823.
+func ToWriteCloser(w io.Writer) io.WriteCloser {
+	if wc, ok := w.(io.WriteCloser); ok {
+		return wc
+	}
+	return toNopWriteCloser(w)
+}
+
+func toNopWriteCloser(w io.Writer) io.WriteCloser {
+	if _, ok := w.(io.ReaderFrom); ok {
+		return nopWriteCloserReaderFrom{w}
+	}
+	return nopWriteCloser{w}
+}
+
+type nopWriteCloser struct {
+	io.Writer
+}
+
+func (nopWriteCloser) Close() error { return nil }
+
+type nopWriteCloserReaderFrom struct {
+	io.Writer
+}
+
+func (nopWriteCloserReaderFrom) Close() error { return nil }
+
+func (c nopWriteCloserReaderFrom) ReadFrom(r io.Reader) (int64, error) {
+	return c.Writer.(io.ReaderFrom).ReadFrom(r)
+}

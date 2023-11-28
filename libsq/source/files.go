@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/ioz"
+
 	"github.com/h2non/filetype"
 	"github.com/h2non/filetype/matchers"
 	"golang.org/x/sync/errgroup"
@@ -177,7 +179,8 @@ func (fs *Files) addFile(ctx context.Context, f *os.File, key string) (fscache.R
 		CloseReader: true,
 	}
 
-	if err = copier.Copy(ctx, size, w, f); err != nil {
+	df := ioz.DelayReader(f, time.Millisecond, true) // FIXME: Delete
+	if err = copier.Copy(ctx, size, w, df); err != nil {
 		lg.WarnIfCloseError(fs.log, lgm.CloseFileReader, r)
 		return nil, errz.Err(err)
 	}
@@ -283,7 +286,7 @@ func (fs *Files) newReader(ctx context.Context, loc string) (io.ReadCloser, erro
 
 // openLocation returns a file for loc. It is the caller's
 // responsibility to close the returned file.
-func (fs *Files) openLocation(_ context.Context, loc string) (*os.File, error) {
+func (fs *Files) openLocation(ctx context.Context, loc string) (*os.File, error) {
 	var fpath string
 	var ok bool
 	var err error
@@ -299,8 +302,7 @@ func (fs *Files) openLocation(_ context.Context, loc string) (*os.File, error) {
 		}
 
 		// It's a remote file
-		// TODO: fetch should take ctx to allow for cancellation
-		fpath, err = fs.fetch(u.String())
+		fpath, err = fs.fetch(ctx, u.String())
 		if err != nil {
 			return nil, err
 		}
@@ -323,7 +325,7 @@ func (fs *Files) openFile(fpath string) (*os.File, error) {
 
 // fetch ensures that loc exists locally as a file. This may
 // entail downloading the file via HTTPS etc.
-func (fs *Files) fetch(loc string) (fpath string, err error) {
+func (fs *Files) fetch(ctx context.Context, loc string) (fpath string, err error) {
 	// This impl is a vestigial abomination from an early
 	// experiment.
 
@@ -346,7 +348,7 @@ func (fs *Files) fetch(loc string) (fpath string, err error) {
 
 	fetchr := &fetcher.Fetcher{}
 	// TOOD: ultimately should be passing a real context here
-	err = fetchr.Fetch(context.Background(), u.String(), dlFile)
+	err = fetchr.Fetch(ctx, u.String(), dlFile)
 	if err != nil {
 		return "", errz.Err(err)
 	}

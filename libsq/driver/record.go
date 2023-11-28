@@ -391,7 +391,7 @@ func NewBatchInsert(ctx context.Context, msg string, drvr SQLDriver, db sqlz.DB,
 		return nil, err
 	}
 
-	spinner := progress.FromContext(ctx).NewCountSpinner(msg, "rec")
+	pbar := progress.FromContext(ctx).NewUnitCounter(msg, "rec")
 
 	recCh := make(chan []any, batchSize*8)
 	errCh := make(chan error, 1)
@@ -414,7 +414,7 @@ func NewBatchInsert(ctx context.Context, msg string, drvr SQLDriver, db sqlz.DB,
 		var affected int64
 
 		defer func() {
-			spinner.Stop()
+			pbar.Stop()
 
 			if inserter != nil {
 				if err == nil {
@@ -467,7 +467,7 @@ func NewBatchInsert(ctx context.Context, msg string, drvr SQLDriver, db sqlz.DB,
 				}
 
 				bi.written.Add(affected)
-				spinner.IncrBy(int(affected))
+				pbar.IncrBy(int(affected))
 
 				if rec == nil {
 					// recCh is closed (coincidentally exactly on the
@@ -510,7 +510,7 @@ func NewBatchInsert(ctx context.Context, msg string, drvr SQLDriver, db sqlz.DB,
 			}
 
 			bi.written.Add(affected)
-			spinner.IncrBy(int(affected))
+			pbar.IncrBy(int(affected))
 
 			// We're done
 			return
