@@ -54,7 +54,7 @@ func NewWriter(ctx context.Context, msg string, size int64, w io.Writer) io.Writ
 		return contextio.NewWriter(ctx, w)
 	}
 
-	spinner := pb.NewByteCounterSpinner(msg, size)
+	spinner := pb.NewByteCounter(msg, size)
 	return &progCopier{progWriter{
 		ctx:     ctx,
 		w:       spinner.bar.ProxyWriter(w),
@@ -135,7 +135,7 @@ func NewReader(ctx context.Context, msg string, size int64, r io.Reader) io.Read
 		return contextio.NewReader(ctx, r)
 	}
 
-	spinner := pb.NewByteCounterSpinner(msg, size)
+	spinner := pb.NewByteCounter(msg, size)
 	pr := &progReader{
 		ctx:     ctx,
 		r:       spinner.bar.ProxyReader(r),
