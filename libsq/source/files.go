@@ -143,29 +143,29 @@ func (fs *Files) addFile(ctx context.Context, f *os.File, key string) (fscache.R
 	log := lg.FromContext(ctx)
 	log.Debug("Adding file", lga.Key, key, lga.Path, f.Name())
 
-	r, w, err := fs.fcache.Get(key)
+	if key != StdinHandle {
+		if fs.fcache.Exists(key) {
+			return nil, errz.Errorf("file already exists in cache: %s", key)
+		}
+
+		if err := fs.fcache.MapFile(f.Name()); err != nil {
+			return nil, errz.Wrapf(err, "failed to map file into fscache: %s", f.Name())
+		}
+
+		r, _, err := fs.fcache.Get(key)
+		return r, errz.Err(err)
+	}
+
+	// Special handling for stdin
+	r, w, err := fs.fcache.Get(StdinHandle)
 	if err != nil {
 		return nil, errz.Err(err)
 	}
 	if w == nil {
 		lg.WarnIfCloseError(fs.log, lgm.CloseFileReader, r)
-		return nil, errz.Errorf("failed to add to fscache (possibly previously added): %s", key)
+		return nil, errz.Errorf("fscache: no writer for %s", StdinHandle)
 	}
 
-	fi, err := f.Stat()
-	if err != nil {
-		return nil, errz.Err(err)
-	}
-	size := fi.Size()
-	if size == 0 {
-		size = -1
-	}
-
-	// TODO: Problematically, we copy the entire contents of f into fscache.
-	// This is probably necessary for piped data on stdin, but for files
-	// that already exist on the file system, it would be nice if the cacheFile
-	// could be mapped directly to the filesystem file. This might require
-	// hacking on the fscache impl.
 	copier := fscache.AsyncFiller{
 		Message:            "Reading source data",
 		Log:                log.With(lga.Action, "Cache fill"),
@@ -179,7 +179,7 @@ func (fs *Files) addFile(ctx context.Context, f *os.File, key string) (fscache.R
 	}
 
 	df := ioz.DelayReader(f, time.Millisecond, true) // FIXME: Delete
-	if err = copier.Copy(ctx, size, w, df); err != nil {
+	if err = copier.Copy(ctx, -1, w, df); err != nil {
 		lg.WarnIfCloseError(fs.log, lgm.CloseFileReader, r)
 		return nil, errz.Err(err)
 	}
