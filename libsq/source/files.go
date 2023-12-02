@@ -98,31 +98,39 @@ func (fs *Files) Size(ctx context.Context, src *Source) (size int64, err error) 
 
 // AddStdin copies f to fs's cache: the stdin data in f
 // is later accessible via fs.Open(src) where src.Handle
-// is StdinHandle; f's type can be detected via TypeStdin.
+// is StdinHandle; f's type can be detected via DetectStdinType.
 // Note that f is closed by this method.
-//
-// REVISIT: it's possible we'll ditch AddStdin and TypeStdin
-// in some future version; this mechanism is a stopgap.
 func (fs *Files) AddStdin(ctx context.Context, f *os.File) error {
+	//return fs.AddStdinOld(ctx, f)
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	// We don't need r, but we're responsible for closing it.
-	r, err := fs.addFile(ctx, f, StdinHandle) // f is closed by addFile
-	if err != nil {
-		return err
-	}
+	err := fs.addStdinViaCopyAsync(ctx, f) // f is closed by addFile
+	return errz.Wrap(err, "failed to read stdin")
 
-	return r.Close()
 }
 
-// TypeStdin detects the type of stdin as previously added
+//
+//func (fs *Files) addStdinOld(ctx context.Context, f *os.File) error {
+//	fs.mu.Lock()
+//	defer fs.mu.Unlock()
+//
+//	// We don't need r, but we're responsible for closing it.
+//	r, err := fs.addFileOld(ctx, f, StdinHandle) // f is closed by addFile
+//	if err != nil {
+//		return err
+//	}
+//
+//	return r.Close()
+//}
+
+// DetectStdinType detects the type of stdin as previously added
 // by AddStdin. An error is returned if AddStdin was not
 // first invoked. If the type cannot be detected, TypeNone and
 // nil are returned.
-func (fs *Files) TypeStdin(ctx context.Context) (drivertype.Type, error) {
+func (fs *Files) DetectStdinType(ctx context.Context) (drivertype.Type, error) {
 	if !fs.fcache.Exists(StdinHandle) {
-		return drivertype.None, errz.New("must invoke AddStdin before invoking TypeStdin")
+		return drivertype.None, errz.New("must invoke Files.AddStdin before invoking DetectStdinType")
 	}
 
 	typ, ok, err := fs.detectType(ctx, StdinHandle)
@@ -137,39 +145,192 @@ func (fs *Files) TypeStdin(ctx context.Context) (drivertype.Type, error) {
 	return typ, nil
 }
 
+func (fs *Files) addStdinViaCopyAsync(ctx context.Context, f *os.File) error {
+	log := lg.FromContext(ctx)
+	// Special handling for stdin
+	r, w, wErrFn, err := fs.fcache.GetWithErr(StdinHandle)
+	if err != nil {
+		return errz.Err(err)
+	}
+
+	defer lg.WarnIfCloseError(fs.log, lgm.CloseFileReader, r)
+
+	if w == nil {
+		return errz.Errorf("fscache: no writer for %s", StdinHandle)
+	}
+
+	df := ioz.DelayReader(f, time.Microsecond*500, true) // FIXME: Delete
+	cr := contextio.NewReader(ctx, df)
+	pw := progress.NewWriter(ctx, "Reading stdin", -1, w)
+
+	start := time.Now()
+	ioz.CopyAsync(pw, cr, func(written int64, err error) {
+		log.Debug("Async stdin cache fill: callback received")
+		elapsed := time.Since(start)
+		if err == nil {
+			log.Debug("Async stdin cache fill: completed", "copied", written, "elapsed", elapsed)
+			lg.WarnIfCloseError(log, "Close stdin cache", w)
+			lg.WarnIfCloseError(log, "Close stdin reader file", f)
+			pw.Stop()
+			return
+		}
+
+		log.Error("Async stdin cache fill: failure", lga.Err, err, "copied", written, "elapsed", elapsed)
+		pw.Stop()
+		wErrFn(err)
+		// We deliberately don't close w here, because wErrFn handles that work.
+	})
+	log.Debug("Async stdin cache fill: dispatched")
+	//
+	//copier := fscache.AsyncFiller{
+	//	Message:            "Reading source data",
+	//	Log:                lg.FromContext(ctx).With(lga.Action, "Cache fill"),
+	//	NewContextWriterFn: progress.NewWriter,
+	//	// We don't use progress.NewReader here, because that
+	//	// would result in double counting of bytes transferred.
+	//	NewContextReaderFn: func(ctx context.Context, msg string, size int64, r io.Reader) io.Reader {
+	//		return contextio.NewReader(ctx, r)
+	//	},
+	//	CloseReader: true,
+	//}
+	//
+	//df := ioz.DelayReader(f, time.Millisecond, true) // FIXME: Delete
+	//if err = copier.Copy(ctx, -1, w, df); err != nil {
+	//	return errz.Err(err)
+	//}
+
+	return nil
+}
+
+//
+//func (fs *Files) addStdinOld(ctx context.Context, f *os.File) error {
+//	// Special handling for stdin
+//	r, w, err := fs.fcache.Get(StdinHandle)
+//	if err != nil {
+//		return errz.Err(err)
+//	}
+//
+//	defer lg.WarnIfCloseError(fs.log, lgm.CloseFileReader, r)
+//
+//	if w == nil {
+//		return errz.Errorf("fscache: no writer for %s", StdinHandle)
+//	}
+//
+//	copier := fscache.AsyncFiller{
+//		Message:            "Reading source data",
+//		Log:                lg.FromContext(ctx).With(lga.Action, "Cache fill"),
+//		NewContextWriterFn: progress.NewWriter,
+//		// We don't use progress.NewReader here, because that
+//		// would result in double counting of bytes transferred.
+//		NewContextReaderFn: func(ctx context.Context, msg string, size int64, r io.Reader) io.Reader {
+//			return contextio.NewReader(ctx, r)
+//		},
+//		CloseReader: true,
+//	}
+//
+//	df := ioz.DelayReader(f, time.Millisecond, true) // FIXME: Delete
+//	if err = copier.Copy(ctx, -1, w, df); err != nil {
+//		return errz.Err(err)
+//	}
+//
+//	return nil
+//}
+//
+//// add file copies f to fs's cache, returning a reader which the
+//// caller is responsible for closing. f is closed by this method.
+//func (fs *Files) addFileOld(ctx context.Context, f *os.File, key string) (fscache.ReadAtCloser, error) {
+//	log := lg.FromContext(ctx)
+//	log.Debug("Adding file", lga.Key, key, lga.Path, f.Name())
+//
+//	r, w, err := fs.fcache.Get(key)
+//	if err != nil {
+//		return nil, errz.Err(err)
+//	}
+//	if w == nil {
+//		lg.WarnIfCloseError(fs.log, lgm.CloseFileReader, r)
+//		return nil, errz.Errorf("failed to add to fscache (possibly previously added): %s", key)
+//	}
+//
+//	fi, err := f.Stat()
+//	if err != nil {
+//		return nil, errz.Err(err)
+//	}
+//	size := fi.Size()
+//	if size == 0 {
+//		size = -1
+//	}
+//
+//	// TODO: Problematically, we copy the entire contents of f into fscache.
+//	// This is probably necessary for piped data on stdin, but for files
+//	// that already exist on the file system, it would be nice if the cacheFile
+//	// could be mapped directly to the filesystem file. This might require
+//	// hacking on the fscache impl.
+//
+//	contextFn := func(ctx context.Context, msg string, total int64, w io.Writer) io.Writer {
+//		return progress.NewWriter(ctx, msg, total, w)
+//	}
+//
+//	copier := fscache.AsyncFiller{
+//		Message: "Reading source data",
+//		Log:     log.With(lga.Action, "Cache fill"),
+//		//NewContextWriterFn: progress.NewWriter,
+//		NewContextWriterFn: contextFn,
+//		// We don't use progress.NewReader here, because that
+//		// would result in double counting of bytes transferred.
+//		NewContextReaderFn: func(ctx context.Context, msg string, size int64, r io.Reader) io.Reader {
+//			return contextio.NewReader(ctx, r)
+//		},
+//		CloseReader: true,
+//	}
+//
+//	df := ioz.DelayReader(f, time.Millisecond, true) // FIXME: Delete
+//	if err = copier.Copy(ctx, size, w, df); err != nil {
+//		lg.WarnIfCloseError(fs.log, lgm.CloseFileReader, r)
+//		return nil, errz.Err(err)
+//	}
+//
+//	return r, nil
+//}
+
 // add file copies f to fs's cache, returning a reader which the
 // caller is responsible for closing. f is closed by this method.
-func (fs *Files) addFile(ctx context.Context, f *os.File, key string) (fscache.ReadAtCloser, error) {
+func (fs *Files) addFileViaAsyncFiller(ctx context.Context, f *os.File, key string) (fscache.ReadAtCloser, error) {
 	log := lg.FromContext(ctx)
 	log.Debug("Adding file", lga.Key, key, lga.Path, f.Name())
 
-	if key != StdinHandle {
-		if fs.fcache.Exists(key) {
-			return nil, errz.Errorf("file already exists in cache: %s", key)
-		}
-
-		if err := fs.fcache.MapFile(f.Name()); err != nil {
-			return nil, errz.Wrapf(err, "failed to map file into fscache: %s", f.Name())
-		}
-
-		r, _, err := fs.fcache.Get(key)
-		return r, errz.Err(err)
-	}
-
-	// Special handling for stdin
-	r, w, err := fs.fcache.Get(StdinHandle)
+	r, w, err := fs.fcache.Get(key)
 	if err != nil {
 		return nil, errz.Err(err)
 	}
 	if w == nil {
 		lg.WarnIfCloseError(fs.log, lgm.CloseFileReader, r)
-		return nil, errz.Errorf("fscache: no writer for %s", StdinHandle)
+		return nil, errz.Errorf("failed to add to fscache (possibly previously added): %s", key)
+	}
+
+	fi, err := f.Stat()
+	if err != nil {
+		return nil, errz.Err(err)
+	}
+	size := fi.Size()
+	if size == 0 {
+		size = -1
+	}
+
+	// TODO: Problematically, we copy the entire contents of f into fscache.
+	// This is probably necessary for piped data on stdin, but for files
+	// that already exist on the file system, it would be nice if the cacheFile
+	// could be mapped directly to the filesystem file. This might require
+	// hacking on the fscache impl.
+
+	contextFn := func(ctx context.Context, msg string, total int64, w io.Writer) io.Writer {
+		return progress.NewWriter(ctx, msg, total, w)
 	}
 
 	copier := fscache.AsyncFiller{
-		Message:            "Reading source data",
-		Log:                log.With(lga.Action, "Cache fill"),
-		NewContextWriterFn: progress.NewWriter,
+		Message: "Reading source data",
+		Log:     log.With(lga.Action, "Cache fill"),
+		//NewContextWriterFn: progress.NewWriter,
+		NewContextWriterFn: contextFn,
 		// We don't use progress.NewReader here, because that
 		// would result in double counting of bytes transferred.
 		NewContextReaderFn: func(ctx context.Context, msg string, size int64, r io.Reader) io.Reader {
@@ -179,12 +340,86 @@ func (fs *Files) addFile(ctx context.Context, f *os.File, key string) (fscache.R
 	}
 
 	df := ioz.DelayReader(f, time.Millisecond, true) // FIXME: Delete
-	if err = copier.Copy(ctx, -1, w, df); err != nil {
+	if err = copier.Copy(ctx, size, w, df); err != nil {
 		lg.WarnIfCloseError(fs.log, lgm.CloseFileReader, r)
 		return nil, errz.Err(err)
 	}
 
 	return r, nil
+}
+
+// add file copies f to fs's cache, returning a reader which the
+// caller is responsible for closing. f is closed by this method.
+func (fs *Files) addFileViaCopyAsync(ctx context.Context, f *os.File, key string) (fscache.ReadAtCloser, error) {
+	log := lg.FromContext(ctx)
+	log.Debug("Adding file", lga.Key, key, lga.Path, f.Name())
+
+	r, w, wErrFn, err := fs.fcache.GetWithErr(key)
+	if err != nil {
+		return nil, errz.Err(err)
+	}
+	if w == nil {
+		lg.WarnIfCloseError(fs.log, lgm.CloseFileReader, r)
+		return nil, errz.Errorf("failed to add to fscache (possibly previously added): %s", key)
+	}
+
+	fi, err := f.Stat()
+	if err != nil {
+		return nil, errz.Err(err)
+	}
+	size := fi.Size()
+	if size == 0 {
+		size = -1
+	}
+
+	df := ioz.DelayReader(f, time.Microsecond*500, true) // FIXME: Delete
+	cr := contextio.NewReader(ctx, df)
+	pw := progress.NewWriter(ctx, "Reading stdin", -1, w)
+
+	start := time.Now()
+	ioz.CopyAsync(pw, cr, func(written int64, err error) {
+		log.Debug("Async stdin cache fill: callback received")
+		elapsed := time.Since(start)
+		if err == nil {
+			log.Debug("Async stdin cache fill: completed", "copied", written, "elapsed", elapsed)
+			lg.WarnIfCloseError(log, "Close stdin cache", w)
+			lg.WarnIfCloseError(log, "Close stdin reader file", f)
+			pw.Stop()
+			return
+		}
+
+		log.Error("Async stdin cache fill: failure", lga.Err, err, "copied", written, "elapsed", elapsed)
+		pw.Stop()
+		wErrFn(err)
+		// We deliberately don't close w here, because wErrFn handles that work.
+	})
+	log.Debug("Async stdin cache fill: dispatched")
+	return r, nil
+}
+
+// add file copies f to fs's cache, returning a reader which the
+// caller is responsible for closing. f is closed by this method.
+// Do not add stdin via this function; instead use addStdinViaCopyAsync.
+func (fs *Files) addFileViaMapFile(ctx context.Context, f *os.File, key string) (fscache.ReadAtCloser, error) {
+	log := lg.FromContext(ctx)
+	log.Debug("Adding file", lga.Key, key, lga.Path, f.Name())
+
+	if key == StdinHandle {
+		// This is a programming error; the caller should have
+		// instead invoked addStdinViaCopyAsync. Probably should panic here.
+		return nil, errz.New("illegal to add stdin via Files.addFile")
+	}
+
+	if fs.fcache.Exists(key) {
+		return nil, errz.Errorf("file already exists in cache: %s", key)
+	}
+
+	if err := fs.fcache.MapFile(f.Name()); err != nil {
+		return nil, errz.Wrapf(err, "failed to map file into fscache: %s", f.Name())
+	}
+
+	r, _, err := fs.fcache.Get(key)
+	return r, errz.Err(err)
 }
 
 // Filepath returns the file path of src.Location.
@@ -217,6 +452,7 @@ func (fs *Files) Open(ctx context.Context, src *Source) (io.ReadCloser, error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
+	lg.FromContext(ctx).Debug("Files.Open", lga.Src, src)
 	return fs.newReader(ctx, src.Location)
 }
 
@@ -248,8 +484,11 @@ func (fs *Files) ReadAll(ctx context.Context, src *Source) ([]byte, error) {
 }
 
 func (fs *Files) newReader(ctx context.Context, loc string) (io.ReadCloser, error) {
+	log := lg.FromContext(ctx).With(lga.Loc, loc)
+	log.Debug("Files.newReader", lga.Loc, loc)
 	if loc == StdinHandle {
 		r, w, err := fs.fcache.Get(StdinHandle)
+		log.Debug("Returned from fs.fcache.Get", lga.Err, err)
 		if err != nil {
 			return nil, errz.Err(err)
 		}
@@ -268,7 +507,10 @@ func (fs *Files) newReader(ctx context.Context, loc string) (io.ReadCloser, erro
 		}
 
 		// Note that addFile closes f
-		r, err := fs.addFile(ctx, f, loc)
+		//r, err := fs.addFileViaMapFile(ctx, f, loc)
+		//r, err := fs.addFileViaAsyncFiller(ctx, f, loc)
+		r, err := fs.addFileViaCopyAsync(ctx, f, loc)
+		//r, err := fs.addFileOld(ctx, f, loc)
 		if err != nil {
 			return nil, err
 		}
@@ -415,6 +657,9 @@ func (fs *Files) DriverType(ctx context.Context, loc string) (drivertype.Type, e
 }
 
 func (fs *Files) detectType(ctx context.Context, loc string) (typ drivertype.Type, ok bool, err error) {
+	log := lg.FromContext(ctx).With(lga.Loc, loc)
+	start := time.Now()
+	log.Debug("Files.detectType")
 	if len(fs.detectFns) == 0 {
 		return drivertype.None, false, nil
 	}
@@ -439,12 +684,25 @@ func (fs *Files) detectType(ctx context.Context, loc string) (typ drivertype.Typ
 	}
 
 	g, gCtx := errgroup.WithContext(ctx)
-	gCtx = lg.NewContext(gCtx, fs.log)
+	//gCtx = lg.NewContext(gCtx, fs.log)
 
-	for _, detectFn := range fs.detectFns {
+	for i, detectFn := range fs.detectFns {
+		i := i
 		detectFn := detectFn
 
 		g.Go(func() error {
+			start := time.Now()
+			defer func() {
+				lg.FromContext(gCtx).Debug(
+					"detectType: detectFn complete",
+					lga.Type,
+					detectFn,
+					lga.Index, i,
+					lga.Elapsed,
+					time.Since(start),
+				)
+
+			}()
 			select {
 			case <-gCtx.Done():
 				return gCtx.Err()
@@ -480,9 +738,11 @@ func (fs *Files) detectType(ctx context.Context, loc string) (typ drivertype.Typ
 
 	const detectScoreThreshold = 0.5
 	if highestScore >= detectScoreThreshold {
+		log.Debug("Type detected", lga.Type, typ, lga.Elapsed, time.Since(start))
 		return typ, true, nil
 	}
 
+	log.Warn("No type detected", lga.Type, typ, lga.Elapsed, time.Since(start))
 	return drivertype.None, false, nil
 }
 

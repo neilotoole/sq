@@ -187,7 +187,7 @@ func checkStdinSource(ctx context.Context, ru *run.Run) (*source.Source, error) 
 	}
 
 	if typ == drivertype.None {
-		typ, err = ru.Files.TypeStdin(ctx)
+		typ, err = ru.Files.DetectStdinType(ctx)
 		if err != nil {
 			return nil, err
 		}

@@ -205,7 +205,7 @@ func TestFiles_Stdin(t *testing.T) {
 			err = fs.AddStdin(th.Context, f) // f is closed by AddStdin
 			require.NoError(t, err)
 
-			typ, err := fs.TypeStdin(th.Context)
+			typ, err := fs.DetectStdinType(th.Context)
 			if tc.wantErr {
 				require.Error(t, err)
 				return
@@ -220,7 +220,7 @@ func TestFiles_Stdin_ErrorWrongOrder(t *testing.T) {
 	th := testh.New(t)
 	fs := th.Files()
 
-	typ, err := fs.TypeStdin(th.Context)
+	typ, err := fs.DetectStdinType(th.Context)
 	require.Error(t, err, "should error because AddStdin not yet invoked")
 	require.Equal(t, drivertype.None, typ)
 
@@ -228,7 +228,7 @@ func TestFiles_Stdin_ErrorWrongOrder(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NoError(t, fs.AddStdin(th.Context, f)) // AddStdin closes f
-	typ, err = fs.TypeStdin(th.Context)
+	typ, err = fs.DetectStdinType(th.Context)
 	require.NoError(t, err)
 	require.Equal(t, csv.TypeCSV, typ)
 }

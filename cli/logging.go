@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"github.com/neilotoole/sq/libsq/core/lg/devlog"
 	"io"
 	"log/slog"
 	"os"
@@ -91,7 +92,8 @@ func defaultLogging(ctx context.Context, osArgs []string, cfg *config.Config,
 	}
 	closer = logFile.Close
 
-	h = newJSONHandler(logFile, lvl)
+	h = devlog.NewHandler(logFile, lvl)
+	//h = newJSONHandler(logFile, lvl)
 	return slog.New(h), h, closer, nil
 }
 

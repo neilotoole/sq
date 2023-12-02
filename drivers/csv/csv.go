@@ -79,7 +79,9 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Pool, er
 	allowCache := driver.OptIngestCache.Get(options.FromContext(ctx))
 
 	ingestFn := func(ctx context.Context, destPool driver.Pool) error {
-		return ingestCSV(ctx, src, d.files.OpenFunc(src), destPool)
+		openFn := d.files.OpenFunc(src)
+		log.Debug("Ingest func invoked", lga.Src, src)
+		return ingestCSV(ctx, src, openFn, destPool)
 	}
 
 	backingPool, err := d.scratcher.OpenIngest(ctx, src, ingestFn, allowCache)

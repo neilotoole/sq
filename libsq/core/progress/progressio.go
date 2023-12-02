@@ -27,7 +27,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
 )
 
-// NewWriter returns an [io.Writer] that wraps w, is context-aware, and
+// NewWriter returns a [progress.Writer] that wraps w, is context-aware, and
 // generates a progress bar as bytes are written to w. It is expected that ctx
 // contains a *progress.Progress, as returned by progress.FromContext. If not,
 // this function delegates to contextio.NewWriter: the returned writer will
@@ -35,23 +35,30 @@ import (
 //
 // Context state is checked BEFORE every Write.
 //
-// The returned [io.Writer] implements [io.ReaderFrom] to allow [io.Copy] to select
-// the best strategy while still checking the context state before every chunk transfer.
+// The returned [progress.Writer] implements [io.ReaderFrom] to allow [io.Copy]
+// to select the best strategy while still checking the context state before
+// every chunk transfer.
 //
-// The returned [io.Writer] also implements [io.Closer], even if the underlying
-// writer does not. This is necessary because we need a means of stopping the
-// progress bar when writing is complete. If the underlying writer does
-// implement [io.Closer], it will be closed when the returned writer is closed.
+// The returned [progress.Writer] also implements [io.Closer], even if the
+// underlying writer does not. This is necessary because we need a means of
+// stopping the progress bar when writing is complete. If the underlying writer
+// does implement [io.Closer], it will be closed when the returned writer is
+// closed.
 //
-// If size is unknown, set to -1.
-func NewWriter(ctx context.Context, msg string, size int64, w io.Writer) io.Writer {
+// The caller is expected to close the returned writer, which results in the
+// progress bar being removed. However, the progress bar can also be removed
+// independently of closing the writer by invoking [Writer.Stop].
+//
+// If size is unknown, set to -1; this will result in an indeterminate progress
+// spinner instead of a bar.
+func NewWriter(ctx context.Context, msg string, size int64, w io.Writer) Writer {
 	if w, ok := w.(*progCopier); ok && ctx == w.ctx {
 		return w
 	}
 
 	pb := FromContext(ctx)
 	if pb == nil {
-		return contextio.NewWriter(ctx, w)
+		return writerWrapper{contextio.NewWriter(ctx, w)}
 	}
 
 	spinner := pb.NewByteCounter(msg, size)
@@ -197,8 +204,51 @@ func (r *progReader) Read(p []byte) (n int, err error) {
 
 var _ io.ReaderFrom = (*progCopier)(nil)
 
+// Writer is an [io.WriteCloser] as returned by [NewWriter].
+type Writer interface {
+	io.WriteCloser
+
+	// Stop stops and removes the progress bar. Typically this is accomplished
+	// by invoking Writer.Close, but there are circumstances where it may
+	// be desirable to stop the progress bar without closing the underlying
+	// writer.
+	Stop()
+}
+
+var _ Writer = (*writerWrapper)(nil)
+
+// writerWrapper wraps an io.Writer to implement [progress.Writer].
+type writerWrapper struct {
+	io.Writer
+}
+
+// Close implements [io.WriteCloser]. If the underlying
+// writer implements [io.Closer], it will be closed.
+func (w writerWrapper) Close() error {
+	if c, ok := w.Writer.(io.Closer); ok {
+		return c.Close()
+	}
+	return nil
+}
+
+// Stop implements [Writer] and is no-op.
+func (w writerWrapper) Stop() {
+	return
+}
+
+var _ Writer = (*progCopier)(nil)
+
 type progCopier struct {
 	progWriter
+}
+
+// Stop implements [progress.Writer].
+func (w *progCopier) Stop() {
+	if w == nil || w.spinner == nil {
+		return
+	}
+
+	w.spinner.Stop()
 }
 
 // ReadFrom implements interface [io.ReaderFrom], but with context awareness.

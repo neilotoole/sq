@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/csv"
 	"errors"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"io"
+	"time"
 
 	"github.com/neilotoole/sq/cli/output/csvw"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -73,6 +75,11 @@ const (
 // isCSV returns a score indicating the confidence that cr is reading
 // legitimate CSV, where a score <= 0 is not CSV, a score >= 1 is definitely CSV.
 func isCSV(ctx context.Context, cr *csv.Reader) (score float32) {
+	start := time.Now()
+	lg.FromContext(ctx).Debug("isCSV invoked", lga.Timestamp, start)
+	defer func() {
+		lg.FromContext(ctx).Debug("isCSV complete", "elapsed", time.Since(start), "score", score)
+	}()
 	const (
 		maxRecords int = 100
 	)
