@@ -26,7 +26,7 @@ require (
 	github.com/muesli/mango-cobra v1.2.0
 	github.com/muesli/roff v0.1.0
 	github.com/ncruces/go-strftime v0.1.9
-	github.com/neilotoole/fscache v0.0.0-20231203152859-7f9a76169e92
+	github.com/neilotoole/fscache v0.0.0-20231203162946-c9808f16552e
 	github.com/neilotoole/shelleditor v0.4.1
 	github.com/neilotoole/slogt v1.1.0
 	github.com/nightlyone/lockfile v1.0.0
@@ -91,3 +91,5 @@ require (
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/djherbis/stream v1.4.0 => github.com/neilotoole/djherbis-stream v0.0.0-20231203160853-609f47afedda

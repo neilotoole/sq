@@ -96,14 +96,7 @@ func (w *writeCloser) Close() error {
 
 	select {
 	case <-w.ctx.Done():
-		ctxErr := w.ctx.Err()
-		switch {
-		case closeErr == nil,
-			errz.IsErrContext(closeErr):
-			return ctxErr
-		default:
-			return errors.Join(ctxErr, closeErr)
-		}
+		return w.ctx.Err()
 	default:
 		return closeErr
 	}
@@ -164,14 +157,8 @@ func (rc *readCloser) Close() error {
 
 	select {
 	case <-rc.ctx.Done():
-		ctxErr := rc.ctx.Err()
-		switch {
-		case closeErr == nil,
-			errz.IsErrContext(closeErr):
-			return ctxErr
-		default:
-			return errors.Join(ctxErr, closeErr)
-		}
+		return rc.ctx.Err()
+
 	default:
 		return closeErr
 	}

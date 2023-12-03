@@ -11,6 +11,7 @@ package libsq
 
 import (
 	"context"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -146,7 +147,16 @@ func QuerySQL(ctx context.Context, pool driver.Pool, db sqlz.DB,
 
 	rows, err := db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return errz.Wrapf(errw(err), `SQL query against %s failed: %s`, pool.Source().Handle, query)
+		err = errz.Wrapf(errw(err), `SQL query against %s failed: %s`, pool.Source().Handle, query)
+		select {
+		case <-ctx.Done():
+			// If the context was cancelled, it's probably more accurate
+			// to just return the context error.
+			log.Debug("Error received, but context was done", lga.Err, err)
+			return ctx.Err()
+		default:
+			return err
+		}
 	}
 	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
 

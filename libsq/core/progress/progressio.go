@@ -20,7 +20,6 @@ package progress
 
 import (
 	"context"
-	"errors"
 	"io"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -107,14 +106,8 @@ func (w *progWriter) Close() error {
 
 	select {
 	case <-w.ctx.Done():
-		ctxErr := w.ctx.Err()
-		switch {
-		case closeErr == nil,
-			errz.IsErrContext(closeErr):
-			return ctxErr
-		default:
-			return errors.Join(ctxErr, closeErr)
-		}
+		return w.ctx.Err()
+
 	default:
 		return closeErr
 	}
@@ -174,14 +167,7 @@ func (r *progReader) Close() error {
 
 	select {
 	case <-r.ctx.Done():
-		ctxErr := r.ctx.Err()
-		switch {
-		case closeErr == nil,
-			errz.IsErrContext(closeErr):
-			return ctxErr
-		default:
-			return errors.Join(ctxErr, closeErr)
-		}
+		return r.ctx.Err()
 	default:
 		return closeErr
 	}
