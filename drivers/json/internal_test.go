@@ -17,23 +17,23 @@ import (
 
 // export for testing.
 var (
-	ImportJSON      = importJSON
-	ImportJSONA     = importJSONA
-	ImportJSONL     = importJSONL
+	ImportJSON      = ingestJSON
+	ImportJSONA     = ingestJSONA
+	ImportJSONL     = ingestJSONL
 	ColumnOrderFlat = columnOrderFlat
 	NewImportJob    = newImportJob
 )
 
-// newImportJob is a constructor for the unexported importJob type.
+// newImportJob is a constructor for the unexported ingestJob type.
 // If sampleSize <= 0, a default value is used.
 func newImportJob(fromSrc *source.Source, openFn source.FileOpenFunc, destPool driver.Pool, sampleSize int,
 	flatten bool,
-) importJob {
+) ingestJob {
 	if sampleSize <= 0 {
 		sampleSize = driver.OptIngestSampleSize.Get(fromSrc.Options)
 	}
 
-	return importJob{
+	return ingestJob{
 		fromSrc:    fromSrc,
 		openFn:     openFn,
 		destPool:   destPool,

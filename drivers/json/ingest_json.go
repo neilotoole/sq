@@ -132,7 +132,7 @@ func DetectJSON(sampleSize int) source.DriverDetectFunc {
 	}
 }
 
-func importJSON(ctx context.Context, job importJob) error {
+func ingestJSON(ctx context.Context, job ingestJob) error {
 	log := lg.FromContext(ctx)
 
 	r, err := job.openFn(ctx)

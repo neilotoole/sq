@@ -84,12 +84,11 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Pool, er
 		return ingestCSV(ctx, src, openFn, destPool)
 	}
 
-	backingPool, err := d.scratcher.OpenIngest(ctx, src, ingestFn, allowCache)
-	if err != nil {
+	var err error
+	if p.impl, err = d.scratcher.OpenIngest(ctx, src, ingestFn, allowCache); err != nil {
 		return nil, err
 	}
 
-	p.impl = backingPool
 	return p, nil
 }
 

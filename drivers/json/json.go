@@ -8,6 +8,7 @@ package json
 import (
 	"context"
 	"database/sql"
+	"github.com/neilotoole/sq/libsq/core/options"
 	"log/slog"
 
 	"github.com/neilotoole/sq/libsq/core/cleanup"
@@ -41,33 +42,31 @@ type Provider struct {
 
 // DriverFor implements driver.Provider.
 func (d *Provider) DriverFor(typ drivertype.Type) (driver.Driver, error) {
-	var importFn importFunc
+	var ingestFn ingestFunc
 
 	switch typ { //nolint:exhaustive
 	case TypeJSON:
-		importFn = importJSON
+		ingestFn = ingestJSON
 	case TypeJSONA:
-		importFn = importJSONA
+		ingestFn = ingestJSONA
 	case TypeJSONL:
-		importFn = importJSONL
+		ingestFn = ingestJSONL
 	default:
 		return nil, errz.Errorf("unsupported driver type {%s}", typ)
 	}
 
 	return &driveri{
-		log:       d.Log,
 		typ:       typ,
 		scratcher: d.Scratcher,
 		files:     d.Files,
-		importFn:  importFn,
+		ingestFn:  ingestFn,
 	}, nil
 }
 
 // Driver implements driver.Driver.
 type driveri struct {
-	log       *slog.Logger
 	typ       drivertype.Type
-	importFn  importFunc
+	ingestFn  ingestFunc
 	scratcher driver.ScratchPoolOpener
 	files     *source.Files
 }
@@ -93,41 +92,72 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 
 // Open implements driver.PoolOpener.
 func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Pool, error) {
-	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
+	log := lg.FromContext(ctx)
+	log.Debug(lgm.OpenSrc, lga.Src, src)
 
-	p := &pool{log: d.log, src: src, clnup: cleanup.New(), files: d.files}
+	p := &pool{
+		log:   log,
+		src:   src,
+		clnup: cleanup.New(),
+		files: d.files,
+	}
 
-	r, err := d.files.Open(ctx, src)
-	if err != nil {
+	allowCache := driver.OptIngestCache.Get(options.FromContext(ctx))
+
+	//r, err := d.files.Open(ctx, src)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//
+	//p.impl, err = d.scratcher.OpenScratchFor(ctx, src)
+	//if err != nil {
+	//	lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
+	//	lg.WarnIfFuncError(log, lgm.CloseDB, p.clnup.Run)
+	//	return nil, err
+	//}
+
+	//job := ingestJob{
+	//	fromSrc:    src,
+	//	openFn:     d.files.OpenFunc(src),
+	//	destPool:   p.impl,
+	//	sampleSize: driver.OptIngestSampleSize.Get(src.Options),
+	//	flatten:    true,
+	//}
+
+	ingestFn := func(ctx context.Context, destPool driver.Pool) error {
+		job := ingestJob{
+			fromSrc:    src,
+			openFn:     d.files.OpenFunc(src),
+			destPool:   destPool,
+			sampleSize: driver.OptIngestSampleSize.Get(src.Options),
+			flatten:    true,
+		}
+
+		return d.ingestFn(ctx, job)
+
+		//openFn := d.files.OpenFunc(src)
+		//log.Debug("Ingest func invoked", lga.Src, src)
+		//return ingestCSV(ctx, src, openFn, destPool)
+	}
+
+	var err error
+	if p.impl, err = d.scratcher.OpenIngest(ctx, src, ingestFn, allowCache); err != nil {
 		return nil, err
 	}
 
-	p.impl, err = d.scratcher.OpenScratchFor(ctx, src)
-	if err != nil {
-		lg.WarnIfCloseError(d.log, lgm.CloseFileReader, r)
-		lg.WarnIfFuncError(d.log, lgm.CloseDB, p.clnup.Run)
-		return nil, err
-	}
-
-	job := importJob{
-		fromSrc:    src,
-		openFn:     d.files.OpenFunc(src),
-		destPool:   p.impl,
-		sampleSize: driver.OptIngestSampleSize.Get(src.Options),
-		flatten:    true,
-	}
-
-	err = d.importFn(ctx, job)
-	if err != nil {
-		lg.WarnIfCloseError(d.log, lgm.CloseFileReader, r)
-		lg.WarnIfFuncError(d.log, lgm.CloseDB, p.clnup.Run)
-		return nil, err
-	}
-
-	err = r.Close()
-	if err != nil {
-		return nil, err
-	}
+	return p, nil
+	//
+	//err = d.importFn(ctx, job)
+	//if err != nil {
+	//	lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
+	//	lg.WarnIfFuncError(log, lgm.CloseDB, p.clnup.Run)
+	//	return nil, err
+	//}
+	//
+	//err = r.Close()
+	//if err != nil {
+	//	return nil, err
+	//}
 
 	return p, nil
 }
@@ -148,13 +178,15 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 
 // Ping implements driver.Driver.
 func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
-	d.log.Debug("Ping source", lga.Src, src)
+	log := lg.FromContext(ctx).With(lga.Src, src)
+	log.Debug("Ping source")
 
+	// FIXME: this should call d.files.Ping
 	r, err := d.files.Open(ctx, src)
 	if err != nil {
 		return err
 	}
-	defer lg.WarnIfCloseError(d.log, lgm.CloseFileReader, r)
+	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
 
 	return nil
 }

@@ -135,6 +135,10 @@ func (fs *Files) Size(ctx context.Context, src *Source) (size int64, err error) 
 // is later accessible via fs.Open(src) where src.Handle
 // is StdinHandle; f's type can be detected via DetectStdinType.
 // Note that f is closed by this method.
+//
+// FIXME: AddStdin is probably not necessary, we can just do it
+// on the fly in newReader? Or do we provide this because "stdin"
+// can be something other than os.Stdin, e.g. via a flag?
 func (fs *Files) AddStdin(ctx context.Context, f *os.File) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -290,6 +294,49 @@ func (fs *Files) newReader(ctx context.Context, loc string) (io.ReadCloser, erro
 	log.Debug("Files.newReader", lga.Loc, loc)
 
 	locTyp := getLocType(loc)
+	switch locTyp {
+	case locTypeUnknown:
+		return nil, errz.Errorf("unknown source location type: %s", loc)
+	case locTypeSQL:
+		return nil, errz.Errorf("cannot read SQL source: %s", loc)
+	case locTypeStdin:
+		r, w, err := fs.fcache.Get(StdinHandle)
+		if err != nil {
+			return nil, errz.Err(err)
+		}
+		if w != nil {
+			return nil, errz.New("@stdin not cached: has AddStdin been invoked yet?")
+		}
+
+		return r, nil
+	}
+
+	// Well, it's either a local or remote file.
+	// Let's see if it's cached.
+	if fs.fcache.Exists(loc) {
+		r, _, err := fs.fcache.Get(loc)
+		if err != nil {
+			return nil, err
+		}
+
+		return r, nil
+	}
+
+	// It's not cached.
+	if locTyp == locTypeLocalFile {
+		f, err := os.Open(loc)
+		if err != nil {
+			return nil, errz.Err(err)
+		}
+		// fs.addFile closes f, so we don't have to do it.
+		r, err := fs.addFile(ctx, f, loc)
+		if err != nil {
+			return nil, err
+		}
+		return r, nil
+	}
+
+	// It's an uncached remote file.
 
 	if loc == StdinHandle {
 		r, w, err := fs.fcache.Get(StdinHandle)

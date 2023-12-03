@@ -83,7 +83,7 @@ func DetectJSONL(sampleSize int) source.DriverDetectFunc {
 
 // DetectJSONL implements source.DriverDetectFunc.
 
-func importJSONL(ctx context.Context, job importJob) error { //nolint:gocognit
+func ingestJSONL(ctx context.Context, job ingestJob) error { //nolint:gocognit
 	log := lg.FromContext(ctx)
 
 	r, err := job.openFn(ctx)

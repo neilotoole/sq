@@ -1,6 +1,6 @@
 package json
 
-// import.go contains functionality common to the
+// ingest.go contains functionality common to the
 // various JSON import mechanisms.
 
 import (
@@ -24,10 +24,10 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 )
 
-// importJob describes a single import job, where the JSON
+// ingestJob describes a single ingest job, where the JSON
 // at fromSrc is read via openFn and the resulting records
 // are written to destPool.
-type importJob struct {
+type ingestJob struct {
 	fromSrc  *source.Source
 	openFn   source.FileOpenFunc
 	destPool driver.Pool
@@ -40,16 +40,16 @@ type importJob struct {
 	// imported as fields of the single top-level table, with a
 	// scoped column name.
 	//
-	// TODO: flatten come from src.Options
+	// TODO: flatten should come from src.Options
 	flatten bool
 }
 
-type importFunc func(ctx context.Context, job importJob) error
+type ingestFunc func(ctx context.Context, job ingestJob) error
 
 var (
-	_ importFunc = importJSON
-	_ importFunc = importJSONA
-	_ importFunc = importJSONL
+	_ ingestFunc = ingestJSON
+	_ ingestFunc = ingestJSONA
+	_ ingestFunc = ingestJSONL
 )
 
 // getRecMeta returns record.Meta to use with RecordWriter.Open.

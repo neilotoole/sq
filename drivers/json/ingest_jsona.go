@@ -95,7 +95,7 @@ func DetectJSONA(sampleSize int) source.DriverDetectFunc {
 	}
 }
 
-func importJSONA(ctx context.Context, job importJob) error {
+func ingestJSONA(ctx context.Context, job ingestJob) error {
 	log := lg.FromContext(ctx)
 
 	predictR, err := job.openFn(ctx)
