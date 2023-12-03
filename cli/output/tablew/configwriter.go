@@ -2,6 +2,8 @@ package tablew
 
 import (
 	"fmt"
+	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 	"io"
 
 	"github.com/fatih/color"
@@ -34,6 +36,25 @@ func (w *configWriter) Location(path, origin string) error {
 	}
 
 	return nil
+}
+
+// CacheLocation implements output.ConfigWriter.
+func (w *configWriter) CacheLocation(loc string) error {
+	_, err := fmt.Fprintln(w.tbl.out, loc)
+	return errz.Err(err)
+}
+
+// CacheInfo implements output.ConfigWriter. It simply
+// delegates to CacheLocation.
+func (w *configWriter) CacheInfo(loc string, size int64) error {
+	s := loc + " "
+	if size == -1 {
+		s += w.tbl.pr.Error.Sprint("(size unavailable)")
+	} else {
+		s += w.tbl.pr.Faint.Sprintf("(%s)", stringz.ByteSized(size, 1, ""))
+	}
+	_, err := fmt.Fprintln(w.tbl.out, s)
+	return err
 }
 
 // Opt implements output.ConfigWriter.

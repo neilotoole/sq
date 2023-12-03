@@ -32,6 +32,7 @@ const (
 	Key       = "key"
 	Kind      = "kind"
 	Loc       = "loc"
+	Lock      = "lock"
 	New       = "new"
 	Old       = "old"
 	Opts      = "opts"

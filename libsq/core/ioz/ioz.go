@@ -370,3 +370,18 @@ func (w *WrittenWriter) Write(p []byte) (n int, err error) {
 	}
 	return n, err
 }
+
+// DirSize returns total size of all regular files in path.
+func DirSize(path string) (int64, error) {
+	var size int64
+	err := filepath.Walk(path, func(_ string, fi os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !fi.IsDir() && fi.Mode().IsRegular() {
+			size += fi.Size()
+		}
+		return err
+	})
+	return size, err
+}

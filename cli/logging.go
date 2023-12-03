@@ -49,6 +49,16 @@ var (
 		`Log level, one of: DEBUG, INFO, WARN, ERROR`,
 		"Log level, one of: DEBUG, INFO, WARN, ERROR.",
 	)
+
+	OptLogDevMode = options.NewBool(
+		"log.devmode",
+		"",
+		false,
+		0,
+		false,
+		"Log in devmode",
+		"Log in devmode.",
+	)
 )
 
 // defaultLogging returns a *slog.Logger, its slog.Handler, and
@@ -92,7 +102,14 @@ func defaultLogging(ctx context.Context, osArgs []string, cfg *config.Config,
 	}
 	closer = logFile.Close
 
-	h = devlog.NewHandler(logFile, lvl)
+	devMode := OptLogDevMode.Get(cfg.Options)
+
+	if devMode {
+		h = devlog.NewHandler(logFile, lvl)
+	} else {
+		h = newJSONHandler(logFile, lvl)
+	}
+	//h = devlog.NewHandler(logFile, lvl)
 	// h = newJSONHandler(logFile, lvl)
 	return slog.New(h), h, closer, nil
 }

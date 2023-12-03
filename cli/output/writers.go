@@ -139,6 +139,13 @@ type ConfigWriter interface {
 
 	// UnsetOption is called when an option is unset.
 	UnsetOption(opt options.Opt) error
+
+	// CacheLocation prints the cache location.
+	CacheLocation(loc string) error
+
+	// CacheInfo prints cache info. Set arg size to -1 to indicate
+	// that the size of the cache could not be calculated.
+	CacheInfo(loc string, size int64) error
 }
 
 // Writers is a container for the various output Writers.

@@ -297,7 +297,10 @@ func (ss *Sources) acquireLock(ctx context.Context, src *source.Source) (lockfil
 	}
 
 	err = retry.Do(ctx, time.Second*5,
-		lock.TryLock,
+		func() error {
+			lg.FromContext(ctx).Debug("Attempting to acquire cache lock", lga.Lock, lock)
+			return lock.TryLock()
+		},
 		func(err error) bool {
 			var temporaryError lockfile.TemporaryError
 			return errors.As(err, &temporaryError)
@@ -307,7 +310,7 @@ func (ss *Sources) acquireLock(ctx context.Context, src *source.Source) (lockfil
 		return "", errz.Wrap(err, "failed to get lock")
 	}
 
-	lg.FromContext(ctx).Debug("Acquired cache lock", "lock", lock)
+	lg.FromContext(ctx).Debug("Acquired cache lock", lga.Lock, lock)
 	return lock, nil
 }
 

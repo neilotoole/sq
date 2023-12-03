@@ -220,12 +220,27 @@ func (h *handler) Handle(_ context.Context, r slog.Record) error {
 		}
 	}
 
+	msgColor := ansiBrightGreen
+	switch r.Level {
+	case slog.LevelDebug:
+		msgColor = ansiBrightGreen
+	case slog.LevelWarn:
+		msgColor = ansiBrightYellow
+	case slog.LevelError:
+		msgColor = ansiBrightRed
+	case slog.LevelInfo:
+		msgColor = ansiBlue
+	}
 	// write message
 	if rep == nil {
+		buf.WriteStringIf(!h.noColor, msgColor)
 		buf.WriteString(r.Message)
+		buf.WriteStringIf(!h.noColor, ansiReset)
 		buf.WriteByte(' ')
 	} else if a := rep(nil /* groups */, slog.String(slog.MessageKey, r.Message)); a.Key != "" {
+		buf.WriteStringIf(!h.noColor, msgColor)
 		h.appendValue(buf, a.Value, false)
+		buf.WriteStringIf(!h.noColor, ansiReset)
 		buf.WriteByte(' ')
 	}
 

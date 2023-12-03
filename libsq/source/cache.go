@@ -47,8 +47,10 @@ func CacheDirPath() (dir string) {
 	if dir, err = os.UserCacheDir(); err != nil {
 		// Some systems may not have a user cache dir, so we fall back
 		// to the system temp dir.
-		dir = os.TempDir()
+		dir = filepath.Join(os.TempDir(), "sq", "cache")
+		return dir
 	}
-	dir = filepath.Join(dir, "sq", "cache")
+
+	dir = filepath.Join(dir, "sq")
 	return dir
 }
