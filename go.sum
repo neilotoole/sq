@@ -134,6 +134,8 @@ github.com/ncruces/go-strftime v0.1.9 h1:bY0MQC28UADQmHmaF5dgpLmImcShSi2kHU9XLdh
 github.com/ncruces/go-strftime v0.1.9/go.mod h1:Fwc5htZGVVkseilnfgOVb9mKy6w1naJmn9CehxcKcls=
 github.com/neilotoole/fscache v0.0.0-20231126193352-f79ad8b71381 h1:yq4OXuvSTMzvCm2m9FlpUnL8PbVQGW4qv+s8uRRtxK8=
 github.com/neilotoole/fscache v0.0.0-20231126193352-f79ad8b71381/go.mod h1:GdelWtWN0Gbf2uE+rEZ4GinWtfV6PobHgdrQ4IrB504=
+github.com/neilotoole/fscache v0.0.0-20231203152859-7f9a76169e92 h1:VyBPnrrbiTiN0IlN6ULtQ+tGVIQLCbEtJPpL7Cv/Jog=
+github.com/neilotoole/fscache v0.0.0-20231203152859-7f9a76169e92/go.mod h1:NnvBCFGuEGIP73eSn+XbDluSR0aj61e0P1cIaIEOE04=
 github.com/neilotoole/shelleditor v0.4.1 h1:74LEw2mVo3jtNw2BjII6RSss9DXgEqAbmCQDDiJvzO0=
 github.com/neilotoole/shelleditor v0.4.1/go.mod h1:QanOZN4syDMp/L0SKwZb47Mh49mvLWX3ja5YfbYDDjo=
 github.com/neilotoole/slogt v1.1.0 h1:c7qE92sq+V0yvCuaxph+RQ2jOKL61c4hqS1Bv9W7FZE=
@@ -185,6 +187,7 @@ github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+
 github.com/stretchr/objx v0.4.0/go.mod h1:YvHI0jy2hoMjB+UWwv71VJQ9isScKT/TqJzVSSt89Yw=
 github.com/stretchr/testify v1.2.2/go.mod h1:a8OnRcib4nhh0OaRAV+Yts87kKdq0PP7pXfy6kDkUVs=
 github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=
+github.com/stretchr/testify v1.4.0/go.mod h1:j7eGeouHqKxXV5pUuKE4zz7dFj8WfuZ+81PSLYec5m4=
 github.com/stretchr/testify v1.5.1/go.mod h1:5W2xD1RspED5o8YsWQXVCued0rvSQ+mT+I5cxcmMvtA=
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/stretchr/testify v1.7.1/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=

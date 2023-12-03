@@ -26,7 +26,7 @@ require (
 	github.com/muesli/mango-cobra v1.2.0
 	github.com/muesli/roff v0.1.0
 	github.com/ncruces/go-strftime v0.1.9
-	github.com/neilotoole/fscache v0.0.0-20231126193352-f79ad8b71381
+	github.com/neilotoole/fscache v0.0.0-20231203152859-7f9a76169e92
 	github.com/neilotoole/shelleditor v0.4.1
 	github.com/neilotoole/slogt v1.1.0
 	github.com/nightlyone/lockfile v1.0.0
