@@ -134,6 +134,12 @@ func New(t testing.TB, opts ...Option) *Helper {
 
 	h.Context = lg.NewContext(ctx, h.Log)
 
+	// Disable caching in tests, because there's all sorts of confounding
+	// situations with running tests in parallel with caching enabled,
+	// due to the fact that caching uses pid-based locking, and parallel tests
+	// share the same pid.
+	o := options.Options{driver.OptIngestCache.Key(): false}
+	h.Context = options.NewContext(h.Context, o)
 	t.Cleanup(h.Close)
 	return h
 }

@@ -2,7 +2,9 @@ package progress
 
 import (
 	"context"
+	"github.com/neilotoole/sq/libsq/core/lg"
 	"io"
+	"os"
 	"sync"
 	"time"
 
@@ -11,8 +13,6 @@ import (
 	"github.com/fatih/color"
 	mpb "github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
-
-	"github.com/neilotoole/sq/libsq/core/cleanup"
 )
 
 type runKey struct{}
@@ -60,7 +60,11 @@ const (
 // The Progress is lazily initialized, and thus the delay clock doesn't
 // start ticking until the first call to one of the Progress.NewX methods.
 func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors) *Progress {
+	lg.FromContext(ctx).Error("New progress", "delay", delay)
+
 	var cancelFn context.CancelFunc
+	ogCtx := ctx
+	_ = ogCtx
 	ctx, cancelFn = context.WithCancel(ctx)
 
 	if colors == nil {
@@ -68,23 +72,33 @@ func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors
 	}
 
 	p := &Progress{
-		ctx:      ctx,
-		mu:       sync.Mutex{},
-		colors:   colors,
-		cleanup:  cleanup.New(),
+		ctx:    ctx,
+		mu:     sync.Mutex{},
+		colors: colors,
+		//cleanup:  cleanup.New(),
 		cancelFn: cancelFn,
+		bars:     make([]*Bar, 0),
 	}
 
 	p.pcInit = func() {
 		opts := []mpb.ContainerOption{
+			mpb.WithDebugOutput(os.Stdout),
 			mpb.WithOutput(out),
 			mpb.WithWidth(boxWidth),
-			mpb.WithRefreshRate(refreshRate),
-			mpb.WithAutoRefresh(), // Needed for color in Windows, apparently
+			//mpb.WithRefreshRate(refreshRate),
+			//mpb.WithAutoRefresh(), // Needed for color in Windows, apparently
 		}
 		if delay > 0 {
-			opts = append(opts, mpb.WithRenderDelay(renderDelay(ctx, delay)))
+			delayCh := renderDelay(ctx, delay)
+			opts = append(opts, mpb.WithRenderDelay(delayCh))
+			p.delayCh = delayCh
+		} else {
+			delayCh := make(chan struct{})
+			close(delayCh)
+			p.delayCh = delayCh
 		}
+		lg.FromContext(ctx).Debug("Render delay", "delay", delay)
+
 		p.pc = mpb.NewWithContext(ctx, opts...)
 		p.pcInit = nil
 	}
@@ -108,8 +122,13 @@ type Progress struct {
 	// pcInit is the func that lazily initializes pc.
 	pcInit func()
 
-	colors  *Colors
-	cleanup *cleanup.Cleanup
+	// delayCh controls the rendering delay: rendering can
+	// start as soon as delayCh is closed.
+	delayCh <-chan struct{}
+
+	colors *Colors
+	//cleanup *cleanup.Cleanup
+	bars []*Bar
 
 	cancelFn context.CancelFunc
 }
@@ -129,13 +148,20 @@ func (p *Progress) Wait() {
 		return
 	}
 
-	if p.cleanup.Len() == 0 {
+	if len(p.bars) == 0 {
 		return
 	}
 
 	p.cancelFn()
-	// Invoking cleanup will call Bar.Stop on all the bars.
-	_ = p.cleanup.Run()
+
+	for _, bar := range p.bars {
+		bar.bar.Abort(true)
+	}
+
+	//for _, bar := range p.bars {
+	//	bar.bar.Wait()
+	//}
+
 	p.pc.Wait()
 }
 
@@ -221,6 +247,8 @@ func (p *Progress) newBar(msg string, total int64,
 		return nil
 	}
 
+	lg.FromContext(p.ctx).Debug("New bar", "msg", msg, "total", total)
+
 	select {
 	case <-p.ctx.Done():
 		return nil
@@ -245,9 +273,25 @@ func (p *Progress) newBar(msg string, total int64,
 		mpb.BarRemoveOnComplete(),
 	)
 
-	b := &Bar{bar: bar}
-	p.cleanup.Add(b.Stop)
+	b := &Bar{p: p, bar: bar}
+	p.bars = append(p.bars, b)
 	return b
+}
+
+func (p *Progress) barStopped(b *Bar) {
+	if p == nil {
+		return
+	}
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	for i, bar := range p.bars {
+		if bar == b {
+			p.bars = append(p.bars[:i], p.bars[i+1:]...)
+			return
+		}
+	}
 }
 
 func spinnerStyle(c *color.Color) mpb.SpinnerStyleComposer {
@@ -284,12 +328,14 @@ func barStyle(c *color.Color) mpb.BarStyleComposer {
 // the bar is complete, the caller should invoke [Bar.Stop]. All
 // methods are safe to call on a nil Bar.
 type Bar struct {
+	p   *Progress
 	bar *mpb.Bar
 }
 
 // IncrBy increments progress by amount of n. It is safe to
 // call IncrBy on a nil Bar.
 func (b *Bar) IncrBy(n int) {
+	//time.Sleep(time.Millisecond * 10)
 	if b == nil {
 		return
 	}
@@ -302,24 +348,25 @@ func (b *Bar) Stop() {
 	if b == nil {
 		return
 	}
-
 	b.bar.SetTotal(-1, true)
 	b.bar.Abort(true)
 	b.bar.Wait()
+	b.p.barStopped(b)
 }
 
 // renderDelay returns a channel that will be closed after d,
 // or if ctx is done.
 func renderDelay(ctx context.Context, d time.Duration) <-chan struct{} {
 	ch := make(chan struct{})
-
+	t := time.NewTimer(d)
 	go func() {
 		defer close(ch)
-		t := time.NewTimer(d)
 		defer t.Stop()
 		select {
 		case <-ctx.Done():
+			lg.FromContext(ctx).Debug("Render delay via ctx.Done")
 		case <-t.C:
+			lg.FromContext(ctx).Debug("Render delay via timer")
 		}
 	}()
 	return ch

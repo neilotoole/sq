@@ -12,7 +12,6 @@ import (
 	excelize "github.com/xuri/excelize/v2"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/neilotoole/sq/libsq"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -192,7 +191,7 @@ func ingestSheetToTable(ctx context.Context, scratchPool driver.Pool, sheetTbl *
 	batchSize := driver.MaxBatchRows(drvr, len(destColKinds))
 	bi, err := driver.NewBatchInsert(
 		ctx,
-		libsq.MsgIngestRecords,
+		"Ingest "+sheet.name,
 		drvr,
 		conn,
 		tblDef.Name,

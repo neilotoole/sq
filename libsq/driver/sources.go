@@ -188,6 +188,7 @@ func (d *Pools) openIngestNoCache(ctx context.Context, src *source.Source,
 			lga.Src, src, lga.Dest, impl.Source(),
 			lga.Elapsed, elapsed, lga.Err, err,
 		)
+		lg.WarnIfCloseError(log, lgm.CloseDB, impl)
 	}
 
 	d.log.Debug("Ingest completed",
@@ -256,6 +257,7 @@ func (d *Pools) openIngestCache(ctx context.Context, src *source.Source,
 			lga.Src, src, lga.Dest, impl.Source(),
 			lga.Elapsed, elapsed, lga.Err, err,
 		)
+		lg.WarnIfCloseError(log, lgm.CloseDB, impl)
 		return nil, err
 	}
 

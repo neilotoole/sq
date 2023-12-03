@@ -3,11 +3,11 @@ package xlsx
 
 import (
 	"context"
+	"github.com/neilotoole/sq/libsq/core/options"
 	"log/slog"
 
 	excelize "github.com/xuri/excelize/v2"
 
-	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -59,23 +59,41 @@ func (d *Driver) DriverMetadata() driver.Metadata {
 
 // Open implements driver.PoolOpener.
 func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Pool, error) {
-	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
-
-	//scratchPool, err := d.scratcher.OpenScratchFor(ctx, src)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//
-	//clnup := cleanup.New()
-	//clnup.AddE(scratchPool.Close)
+	log := lg.FromContext(ctx).With(lga.Src, src)
+	log.Debug(lgm.OpenSrc, lga.Src, src)
 
 	p := &pool{
-		log:       d.log,
-		scratcher: d.scratcher,
-		src:       src,
-		//scratchPool: scratchPool,
+		log:   log,
+		src:   src,
 		files: d.files,
-		clnup: cleanup.New(),
+	}
+
+	allowCache := driver.OptIngestCache.Get(options.FromContext(ctx))
+
+	ingestFn := func(ctx context.Context, destPool driver.Pool) error {
+		log.Debug("Ingest XLSX", lga.Src, p.src)
+		r, err := p.files.Open(ctx, p.src)
+		if err != nil {
+			return err
+		}
+		defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
+
+		xfile, err := excelize.OpenReader(r, excelize.Options{RawCellValue: false})
+		if err != nil {
+			return err
+		}
+
+		defer lg.WarnIfCloseError(log, lgm.CloseFileReader, xfile)
+
+		if err = ingestXLSX(ctx, p.src, destPool, xfile, nil); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	var err error
+	if p.backingPool, err = d.scratcher.OpenIngest(ctx, p.src, ingestFn, allowCache); err != nil {
+		return nil, err
 	}
 
 	return p, nil

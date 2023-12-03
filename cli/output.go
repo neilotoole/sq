@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"github.com/neilotoole/sq/libsq/core/lg"
 	"io"
 	"os"
 	"strings"
@@ -463,7 +464,11 @@ func getPrinting(cmd *cobra.Command, opts options.Options, out, errOut io.Writer
 		prog := progress.New(ctx, errOut2, renderDelay, progColors)
 
 		// On first write to stdout, we remove the progress widget.
-		out2 = ioz.NotifyOnceWriter(out2, prog.Wait)
+		//out2 = ioz.NotifyOnceWriter(out2, prog.Wait)
+		out2 = ioz.NotifyOnceWriter(out2, func() {
+			lg.FromContext(ctx).Debug("Notify once invoked")
+			prog.Wait()
+		})
 		cmd.SetContext(progress.NewContext(ctx, prog))
 	}
 
