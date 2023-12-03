@@ -51,9 +51,6 @@ See docs and more: https://sq.io`,
   # Output all rows from 'actor' table in JSON.
   $ sq -j .actor
 
-  # Alternative way to specify format.
-  $ sq --format json .actor
-
   # Output in text format (with header).
   $ sq -th .actor
 

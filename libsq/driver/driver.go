@@ -346,6 +346,8 @@ type SQLDriver interface {
 // connections. It is conceptually equivalent to
 // stdlib sql.DB, and in fact encapsulates a sql.DB instance. The
 // realized sql.DB instance can be accessed via the DB method.
+//
+// REVISIT: Rename Pool to Grip or some such?
 type Pool interface {
 	// DB returns the sql.DB object for this Pool.
 	// This operation can take a long time if opening the DB requires

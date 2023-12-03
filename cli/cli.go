@@ -77,7 +77,7 @@ func Execute(ctx context.Context, stdin *os.File, stdout, stderr io.Writer, args
 func ExecuteWith(ctx context.Context, ru *run.Run, args []string) error {
 	ctx = options.NewContext(ctx, ru.Config.Options)
 	log := lg.FromContext(ctx)
-	log.Debug("EXECUTE", "args", strings.Join(args, " "))
+	log.Info("EXECUTE", "args", strings.Join(args, " "))
 	log.Debug("Build info", "build", buildinfo.Get())
 	log.Debug("Config",
 		"config.version", ru.Config.Version,
@@ -225,11 +225,14 @@ func newCommandTree(ru *run.Run) (rootCmd *cobra.Command) {
 	addCmd(ru, configCmd, newConfigSetCmd())
 	addCmd(ru, configCmd, newConfigLocationCmd())
 	addCmd(ru, configCmd, newConfigEditCmd())
+
 	cacheCmd := addCmd(ru, rootCmd, newCacheCmd())
-	addCmd(ru, cacheCmd, newConfigCacheLocationCmd())
-	addCmd(ru, cacheCmd, newConfigCacheInfoCmd())
-	addCmd(ru, cacheCmd, newConfigCacheClearCmd())
-	addCmd(ru, cacheCmd, newConfigCacheTreeCmd())
+	addCmd(ru, cacheCmd, newCacheLocationCmd())
+	addCmd(ru, cacheCmd, newCacheInfoCmd())
+	addCmd(ru, cacheCmd, newCacheEnableCmd())
+	addCmd(ru, cacheCmd, newCacheDisableCmd())
+	addCmd(ru, cacheCmd, newCacheClearCmd())
+	addCmd(ru, cacheCmd, newCacheTreeCmd())
 
 	addCmd(ru, rootCmd, newCompletionCmd())
 	addCmd(ru, rootCmd, newVersionCmd())

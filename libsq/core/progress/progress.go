@@ -60,7 +60,7 @@ const (
 // The Progress is lazily initialized, and thus the delay clock doesn't
 // start ticking until the first call to one of the Progress.NewX methods.
 func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors) *Progress {
-	lg.FromContext(ctx).Error("New progress", "delay", delay)
+	lg.FromContext(ctx).Debug("New progress widget", "delay", delay)
 
 	var cancelFn context.CancelFunc
 	ogCtx := ctx
@@ -72,15 +72,15 @@ func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors
 	}
 
 	p := &Progress{
-		ctx:    ctx,
-		mu:     sync.Mutex{},
-		colors: colors,
-		// cleanup:  cleanup.New(),
+		ctx:      ctx,
+		mu:       &sync.Mutex{},
+		colors:   colors,
 		cancelFn: cancelFn,
 		bars:     make([]*Bar, 0),
 	}
 
 	p.pcInit = func() {
+		lg.FromContext(ctx).Debug("Initializing progress widget")
 		opts := []mpb.ContainerOption{
 			mpb.WithOutput(out),
 			mpb.WithWidth(boxWidth),
@@ -96,7 +96,6 @@ func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors
 			close(delayCh)
 			p.delayCh = delayCh
 		}
-		lg.FromContext(ctx).Debug("Render delay", "delay", delay)
 
 		p.pc = mpb.NewWithContext(ctx, opts...)
 		p.pcInit = nil
@@ -109,7 +108,7 @@ func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors
 // completion.
 type Progress struct {
 	// mu guards ALL public methods.
-	mu sync.Mutex
+	mu *sync.Mutex
 
 	ctx context.Context
 
@@ -277,24 +276,16 @@ func (p *Progress) newBar(msg string, total int64,
 	return b
 }
 
-func (p *Progress) barStopped(b *Bar) {
+// barStopped is called by a Bar when it is stopped.
+// This was supposed to do something, but it's a no-op for now.
+func (p *Progress) barStopped(_ *Bar) {
 	if p == nil {
 		return
-	}
-
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	for i, bar := range p.bars {
-		if bar == b {
-			p.bars = append(p.bars[:i], p.bars[i+1:]...)
-			return
-		}
 	}
 }
 
 func spinnerStyle(c *color.Color) mpb.SpinnerStyleComposer {
-	// TODO: should use ascii chars?
+	// REVISIT: maybe use ascii chars only, in case it's a weird terminal?
 	frames := []string{"∙∙∙", "●∙∙", "●∙∙", "∙●∙", "∙●∙", "∙∙●", "∙∙●", "∙∙∙"}
 	style := mpb.SpinnerStyle(frames...)
 	if c != nil {

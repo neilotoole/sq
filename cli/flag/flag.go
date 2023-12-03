@@ -82,6 +82,10 @@ const (
 	PasswordPromptShort = "p"
 	PasswordPromptUsage = "Read password from stdin or prompt"
 
+	CacheTreeSize      = "size"
+	CacheTreeSizeShort = "s"
+	CacheTreeSizeUsage = "Show sizes in cache tree"
+
 	Compact      = "compact"
 	CompactShort = "c"
 	CompactUsage = "Compact instead of pretty-printed output"

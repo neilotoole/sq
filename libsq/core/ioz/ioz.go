@@ -14,6 +14,9 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/a8m/tree"
+	"github.com/a8m/tree/ostree"
+
 	yaml "github.com/goccy/go-yaml"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -264,24 +267,31 @@ func NotifyOnceWriter(w io.Writer, fn func()) io.Writer {
 	}
 
 	return &notifyOnceWriter{
-		fn: fn,
-		w:  w,
+		fn:     fn,
+		w:      w,
+		doneCh: make(chan struct{}),
 	}
 }
 
 var _ io.Writer = (*notifyOnceWriter)(nil)
 
 type notifyOnceWriter struct {
-	fn         func()
 	w          io.Writer
+	fn         func()
+	doneCh     chan struct{}
 	notifyOnce sync.Once
 }
 
 // Write implements [io.Writer]. On the first invocation of this
-// method, fn is invoked.
+// method, the notify function is invoked, blocking until it returns.
+// Subsequent invocations of Write do trigger the notify function.
 func (w *notifyOnceWriter) Write(p []byte) (n int, err error) {
-	w.notifyOnce.Do(w.fn)
+	w.notifyOnce.Do(func() {
+		close(w.doneCh)
+		w.fn()
+	})
 
+	<-w.doneCh
 	return w.w.Write(p)
 }
 
@@ -386,6 +396,12 @@ func DirSize(path string) (int64, error) {
 	return size, err
 }
 
+// RequireDir ensures that dir exists and is a directory, creating
+// it if necessary.
+func RequireDir(dir string) error {
+	return errz.Err(os.MkdirAll(dir, 0o750))
+}
+
 // DirExists returns true if dir exists and is a directory.
 func DirExists(dir string) bool {
 	fi, err := os.Stat(dir)
@@ -393,4 +409,46 @@ func DirExists(dir string) bool {
 		return false
 	}
 	return fi.IsDir()
+}
+
+func PrintTree(w io.Writer, loc string, showSize bool) error {
+	opts := &tree.Options{
+		Fs:      new(ostree.FS),
+		OutFile: w,
+		All:     false,
+		// DirsOnly:   false,
+		// FullPath:   false,
+		// IgnoreCase: false,
+		// FollowLink: false,
+		// DeepLevel:  0,
+		// Pattern:    "",
+		// IPattern:   "",
+		// MatchDirs:  false,
+		// Prune:      false,
+		// ByteSize:   false,
+		UnitSize: showSize,
+		// FileMode:   false,
+		// ShowUid:    false,
+		// ShowGid:    false,
+		// LastMod:    false,
+		// Quotes:     false,
+		// Inodes:     false,
+		// Device:     false,
+		// NoSort:     false,
+		// VerSort:    false,
+		// ModSort:    false,
+		// DirSort:    false,
+		// NameSort:   false,
+		// SizeSort:   false,
+		// CTimeSort:  false,
+		// ReverSort:  false,
+		// NoIndent:   false,
+		Colorize: true,
+		// Color:    nil,
+	}
+
+	inf := tree.New(loc)
+	_, _ = inf.Visit(opts)
+	inf.Print(opts)
+	return nil
 }

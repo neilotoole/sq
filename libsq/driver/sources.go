@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -115,8 +114,12 @@ func (ss *Sources) doOpen(ctx context.Context, src *source.Source) (Pool, error)
 func (ss *Sources) OpenScratch(ctx context.Context, src *source.Source) (Pool, error) {
 	const msgCloseScratch = "Close scratch db"
 
-	_, srcCacheDBFilepath, _, err := ss.getCachePaths(src)
+	cacheDir, srcCacheDBFilepath, _, err := ss.getCachePaths(src)
 	if err != nil {
+		return nil, err
+	}
+
+	if err = ioz.RequireDir(cacheDir); err != nil {
 		return nil, err
 	}
 
@@ -212,6 +215,10 @@ func (ss *Sources) openIngestCache(ctx context.Context, src *source.Source,
 		return nil, err
 	}
 
+	if err = ioz.RequireDir(cacheDir); err != nil {
+		return nil, err
+	}
+
 	log.Debug("Using cache dir", lga.Path, cacheDir)
 
 	ingestFilePath, err := ss.files.Filepath(ctx, src)
@@ -223,7 +230,7 @@ func (ss *Sources) openIngestCache(ctx context.Context, src *source.Source,
 		impl        Pool
 		foundCached bool
 	)
-	if impl, foundCached, err = ss.OpenCachedFor(ctx, src); err != nil {
+	if impl, foundCached, err = ss.openCachedFor(ctx, src); err != nil {
 		return nil, err
 	}
 	if foundCached {
@@ -322,15 +329,14 @@ func (ss *Sources) getLockfileFor(src *source.Source) (lockfile.Lockfile, error)
 		return "", err
 	}
 
-	if err = os.MkdirAll(srcCacheDir, 0o750); err != nil {
-		return "", errz.Err(err)
+	if err = ioz.RequireDir(srcCacheDir); err != nil {
+		return "", err
 	}
 	lockPath := filepath.Join(srcCacheDir, "pid.lock")
 	return lockfile.New(lockPath)
 }
 
-// OpenCachedFor implements ScratchPoolOpener.
-func (ss *Sources) OpenCachedFor(ctx context.Context, src *source.Source) (Pool, bool, error) {
+func (ss *Sources) openCachedFor(ctx context.Context, src *source.Source) (Pool, bool, error) {
 	_, cacheDBPath, checksumsPath, err := ss.getCachePaths(src)
 	if err != nil {
 		return nil, false, err

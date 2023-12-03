@@ -107,8 +107,8 @@ command, sq falls back to "text". Available formats:
 		true,
 		0,
 		true,
-		"Specify whether a progress bar is shown for long-running operations",
-		`Specify whether a progress bar is shown for long-running operations.`,
+		"Progress bar shown for long-running operations",
+		`Progress bar shown for long-running operations.`,
 		options.TagOutput,
 	)
 
@@ -118,8 +118,7 @@ command, sq falls back to "text". Available formats:
 		0,
 		time.Second*2,
 		"Progress bar render delay",
-		`How long to wait after a long-running operation begins
-before showing a progress bar.`,
+		`Delay before showing a progress bar.`,
 	)
 
 	OptCompact = options.NewBool(
@@ -464,9 +463,8 @@ func getPrinting(cmd *cobra.Command, opts options.Options, out, errOut io.Writer
 		prog := progress.New(ctx, errOut2, renderDelay, progColors)
 
 		// On first write to stdout, we remove the progress widget.
-		// out2 = ioz.NotifyOnceWriter(out2, prog.Wait)
 		out2 = ioz.NotifyOnceWriter(out2, func() {
-			lg.FromContext(ctx).Debug("Notify once invoked")
+			lg.FromContext(ctx).Debug("Output stream is being written to; removing progress widget")
 			prog.Wait()
 		})
 		cmd.SetContext(progress.NewContext(ctx, prog))

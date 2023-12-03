@@ -56,10 +56,10 @@ func cmdFlagIsSetTrue(cmd *cobra.Command, name string) bool {
 	return b
 }
 
-// cmdFlagIsSetTrue returns the bool value of flag name. If the flag
+// cmdFlagBool returns the bool value of flag name. If the flag
 // has not been set, its default value is returned.
 // Contrast with cmdFlagIsSetTrue.
-func cmdFlagBool(cmd *cobra.Command, name string) bool { //nolint:unused
+func cmdFlagBool(cmd *cobra.Command, name string) bool {
 	b, err := cmd.Flags().GetBool(name)
 	if err != nil {
 		panic(err) // Should never happen
