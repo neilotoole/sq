@@ -1,11 +1,12 @@
 package cli
 
 import (
-	"github.com/a8m/tree"
-	"github.com/a8m/tree/ostree"
 	"io"
 	"os"
 	"path/filepath"
+
+	"github.com/a8m/tree"
+	"github.com/a8m/tree/ostree"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
@@ -20,7 +21,7 @@ import (
 	"github.com/neilotoole/sq/cli/run"
 )
 
-func newConfigCacheCmd() *cobra.Command {
+func newCacheCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "cache",
 		Args:  cobra.NoArgs,
@@ -78,7 +79,7 @@ func newConfigCacheLocationCmd() *cobra.Command {
 		Long:    "Print cache location.",
 		Args:    cobra.ExactArgs(0),
 		RunE:    execConfigCacheLocation,
-		Example: `  $ sq config cache location
+		Example: `  $ sq cache location
   /Users/neilotoole/Library/Caches/sq`,
 	}
 
@@ -97,11 +98,11 @@ func execConfigCacheLocation(cmd *cobra.Command, _ []string) error {
 func newConfigCacheInfoCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "info",
-		Short: "Print cache info",
-		Long:  "Print cache info.",
+		Short: "Show cache info",
+		Long:  "Show cache info, including location and size.",
 		Args:  cobra.ExactArgs(0),
 		RunE:  execConfigCacheInfo,
-		Example: `  $ sq config cache info
+		Example: `  $ sq cache info
   /Users/neilotoole/Library/Caches/sq (1.2MB)`,
 	}
 
@@ -132,7 +133,7 @@ func newConfigCacheClearCmd() *cobra.Command {
 		Long:    "Clear cache. May cause issues if another sq instance is running.",
 		Args:    cobra.ExactArgs(0),
 		RunE:    execConfigCacheClear,
-		Example: `  $ sq config cache clear`,
+		Example: `  $ sq cache clear`,
 	}
 
 	return cmd
@@ -173,7 +174,7 @@ func newConfigCacheTreeCmd() *cobra.Command {
 		Long:    "Print tree view of cache dir.",
 		Args:    cobra.ExactArgs(0),
 		RunE:    execConfigCacheTree,
-		Example: `  $ sq config cache tree`,
+		Example: `  $ sq cache tree`,
 	}
 
 	return cmd
@@ -193,35 +194,35 @@ func printFileTree(w io.Writer, loc string) error {
 		Fs:      new(ostree.FS),
 		OutFile: w,
 		All:     false,
-		//DirsOnly:   false,
-		//FullPath:   false,
-		//IgnoreCase: false,
-		//FollowLink: false,
-		//DeepLevel:  0,
-		//Pattern:    "",
-		//IPattern:   "",
-		//MatchDirs:  false,
-		//Prune:      false,
-		//ByteSize:   false,
-		//UnitSize:   true,
-		//FileMode:   false,
-		//ShowUid:    false,
-		//ShowGid:    false,
-		//LastMod:    false,
-		//Quotes:     false,
-		//Inodes:     false,
-		//Device:     false,
-		//NoSort:     false,
-		//VerSort:    false,
-		//ModSort:    false,
-		//DirSort:    false,
-		//NameSort:   false,
-		//SizeSort:   false,
-		//CTimeSort:  false,
-		//ReverSort:  false,
-		//NoIndent:   false,
+		// DirsOnly:   false,
+		// FullPath:   false,
+		// IgnoreCase: false,
+		// FollowLink: false,
+		// DeepLevel:  0,
+		// Pattern:    "",
+		// IPattern:   "",
+		// MatchDirs:  false,
+		// Prune:      false,
+		// ByteSize:   false,
+		// UnitSize:   true,
+		// FileMode:   false,
+		// ShowUid:    false,
+		// ShowGid:    false,
+		// LastMod:    false,
+		// Quotes:     false,
+		// Inodes:     false,
+		// Device:     false,
+		// NoSort:     false,
+		// VerSort:    false,
+		// ModSort:    false,
+		// DirSort:    false,
+		// NameSort:   false,
+		// SizeSort:   false,
+		// CTimeSort:  false,
+		// ReverSort:  false,
+		// NoIndent:   false,
 		Colorize: true,
-		//Color:    nil,
+		// Color:    nil,
 	}
 
 	inf := tree.New(loc)
