@@ -30,7 +30,7 @@ func TestNewWriter_Closer(t *testing.T) {
 	assert.False(t, isCloser, "expected reader NOT to be io.WriteCloser, but was %T",
 		gotWriter)
 
-	bufCloser := ioz.ToWriteCloser(buf)
+	bufCloser := ioz.WriteCloser(buf)
 	gotWriter = contextio.NewWriter(ctx, bufCloser)
 	require.NotNil(t, gotWriter)
 	_, isCloser = gotWriter.(io.WriteCloser)

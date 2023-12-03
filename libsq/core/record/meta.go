@@ -84,7 +84,7 @@ func (fm *FieldMeta) MungedName() string {
 	return fm.mungedName
 }
 
-// Length is documented by sql.ColumnType.Length.
+// Length is documented by sql.ColumnType.Written.
 func (fm *FieldMeta) Length() (length int64, ok bool) {
 	return fm.data.Length, fm.data.HasLength
 }

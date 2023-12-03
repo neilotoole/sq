@@ -13,6 +13,7 @@ import (
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
+// dbSchemes is a list of known SQL driver schemes.
 var dbSchemes = []string{
 	"mysql",
 	"sqlserver",
@@ -319,4 +320,36 @@ func isFpath(loc string) (fpath string, ok bool) {
 	}
 
 	return fpath, true
+}
+
+// locType is an enumeration of the various types of source location.
+type locType string
+
+const (
+	locTypeStdin      = "stdin"
+	locTypeLocalFile  = "local_file"
+	locTypeSQL        = "sql"
+	locTypeRemoteFile = "remote_file"
+	locTypeUnknown    = "unknown"
+)
+
+// getLocType returns the type of loc, or locTypeUnknown if it
+// can't be determined.
+func getLocType(loc string) locType {
+	switch {
+	case loc == StdinHandle:
+		// Convention: the "location" of stdin is always "@stdin"
+		return locTypeStdin
+	case IsSQLLocation(loc):
+		return locTypeSQL
+	case strings.HasPrefix(loc, "http://"),
+		strings.HasPrefix(loc, "https://"):
+		return locTypeRemoteFile
+	default:
+	}
+
+	if _, err := filepath.Abs(loc); err != nil {
+		return locTypeUnknown
+	}
+	return locTypeLocalFile
 }
