@@ -3,10 +3,11 @@ package xlsx
 import (
 	"context"
 	"errors"
-	"github.com/h2non/filetype"
-	"github.com/h2non/filetype/matchers"
 	"io"
 	"slices"
+
+	"github.com/h2non/filetype"
+	"github.com/h2non/filetype/matchers"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -50,7 +51,6 @@ func DetectXLSX(ctx context.Context, openFn source.FileOpenFunc) (detected drive
 	default:
 		return drivertype.None, 0, nil
 	}
-
 }
 
 func detectHeaderRow(ctx context.Context, sheet *xSheet) (hasHeader bool, err error) {

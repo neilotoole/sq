@@ -8,7 +8,6 @@ package json
 import (
 	"context"
 	"database/sql"
-	"github.com/neilotoole/sq/libsq/core/options"
 	"log/slog"
 
 	"github.com/neilotoole/sq/libsq/core/cleanup"
@@ -16,6 +15,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
@@ -104,26 +104,6 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Pool, er
 
 	allowCache := driver.OptIngestCache.Get(options.FromContext(ctx))
 
-	//r, err := d.files.Open(ctx, src)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//
-	//p.impl, err = d.scratcher.OpenScratchFor(ctx, src)
-	//if err != nil {
-	//	lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
-	//	lg.WarnIfFuncError(log, lgm.CloseDB, p.clnup.Run)
-	//	return nil, err
-	//}
-
-	//job := ingestJob{
-	//	fromSrc:    src,
-	//	openFn:     d.files.OpenFunc(src),
-	//	destPool:   p.impl,
-	//	sampleSize: driver.OptIngestSampleSize.Get(src.Options),
-	//	flatten:    true,
-	//}
-
 	ingestFn := func(ctx context.Context, destPool driver.Pool) error {
 		job := ingestJob{
 			fromSrc:    src,
@@ -134,30 +114,12 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Pool, er
 		}
 
 		return d.ingestFn(ctx, job)
-
-		//openFn := d.files.OpenFunc(src)
-		//log.Debug("Ingest func invoked", lga.Src, src)
-		//return ingestCSV(ctx, src, openFn, destPool)
 	}
 
 	var err error
 	if p.impl, err = d.scratcher.OpenIngest(ctx, src, ingestFn, allowCache); err != nil {
 		return nil, err
 	}
-
-	return p, nil
-	//
-	//err = d.importFn(ctx, job)
-	//if err != nil {
-	//	lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
-	//	lg.WarnIfFuncError(log, lgm.CloseDB, p.clnup.Run)
-	//	return nil, err
-	//}
-	//
-	//err = r.Close()
-	//if err != nil {
-	//	return nil, err
-	//}
 
 	return p, nil
 }

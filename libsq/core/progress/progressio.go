@@ -233,7 +233,6 @@ func (w writerWrapper) Close() error {
 
 // Stop implements [Writer] and is no-op.
 func (w writerWrapper) Stop() {
-	return
 }
 
 var _ Writer = (*progCopier)(nil)

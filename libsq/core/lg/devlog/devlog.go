@@ -1,9 +1,10 @@
 package devlog
 
 import (
-	"github.com/neilotoole/sq/libsq/core/lg/devlog/tint"
 	"io"
 	"log/slog"
+
+	"github.com/neilotoole/sq/libsq/core/lg/devlog/tint"
 )
 
 const shortTimeFormat = `15:04:05.000000`

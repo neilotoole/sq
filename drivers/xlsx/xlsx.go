@@ -3,7 +3,6 @@ package xlsx
 
 import (
 	"context"
-	"github.com/neilotoole/sq/libsq/core/options"
 	"log/slog"
 
 	excelize "github.com/xuri/excelize/v2"
@@ -12,6 +11,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"

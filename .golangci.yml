@@ -30,6 +30,9 @@ run:
     # This package is such a mess, and needs to be rewritten completely.
     - cli/output/tablew/internal
 
+    # The tint package is a fork of an upstream package.
+    - libsq/core/lg/devlog/tint
+
     # Non-committed scratch dir
     - scratch
 

@@ -372,7 +372,6 @@ func (fs *Files) newReader(ctx context.Context, loc string) (io.ReadCloser, erro
 		return nil, err
 	}
 	return r, nil
-
 }
 
 // openLocation returns a file for loc. It is the caller's
@@ -385,8 +384,7 @@ func (fs *Files) openLocation(ctx context.Context, loc string) (*os.File, error)
 	fpath, ok = isFpath(loc)
 	if ok {
 		// we have a legitimate fpath
-		f, err := os.Open(fpath)
-		return f, errz.Err(err)
+		return errz.Tuple(os.Open(fpath))
 	}
 	// It's not a local file path, maybe it's remote (http)
 	var u *url.URL
@@ -404,17 +402,6 @@ func (fs *Files) openLocation(ctx context.Context, loc string) (*os.File, error)
 
 	f, err := os.Open(fpath)
 	return f, errz.Err(err)
-}
-
-// openFile opens the file at fpath. It is the caller's
-// responsibility to close the returned file.
-func (fs *Files) openFile(fpath string) (*os.File, error) {
-	f, err := os.OpenFile(fpath, os.O_RDWR, 0o666)
-	if err != nil {
-		return nil, errz.Err(err)
-	}
-
-	return f, nil
 }
 
 // fetch ensures that loc exists locally as a file. This may

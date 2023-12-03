@@ -95,3 +95,8 @@ func IsErrContext(err error) bool {
 func IsErrContextDeadlineExceeded(err error) bool {
 	return errors.Is(err, context.DeadlineExceeded)
 }
+
+// Tuple returns t and err, wrapping err with errz.Err.
+func Tuple[T any](t T, err error) (T, error) {
+	return t, Err(err)
+}

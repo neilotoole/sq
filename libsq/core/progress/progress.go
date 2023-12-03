@@ -2,7 +2,6 @@ package progress
 
 import (
 	"context"
-	"github.com/neilotoole/sq/libsq/core/lg"
 	"io"
 	"os"
 	"sync"
@@ -13,6 +12,8 @@ import (
 	"github.com/fatih/color"
 	mpb "github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
+
+	"github.com/neilotoole/sq/libsq/core/lg"
 )
 
 type runKey struct{}
@@ -75,7 +76,7 @@ func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors
 		ctx:    ctx,
 		mu:     sync.Mutex{},
 		colors: colors,
-		//cleanup:  cleanup.New(),
+		// cleanup:  cleanup.New(),
 		cancelFn: cancelFn,
 		bars:     make([]*Bar, 0),
 	}
@@ -85,8 +86,8 @@ func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors
 			mpb.WithDebugOutput(os.Stdout),
 			mpb.WithOutput(out),
 			mpb.WithWidth(boxWidth),
-			//mpb.WithRefreshRate(refreshRate),
-			//mpb.WithAutoRefresh(), // Needed for color in Windows, apparently
+			// mpb.WithRefreshRate(refreshRate),
+			// mpb.WithAutoRefresh(), // Needed for color in Windows, apparently
 		}
 		if delay > 0 {
 			delayCh := renderDelay(ctx, delay)
@@ -127,7 +128,7 @@ type Progress struct {
 	delayCh <-chan struct{}
 
 	colors *Colors
-	//cleanup *cleanup.Cleanup
+	// cleanup *cleanup.Cleanup
 	bars []*Bar
 
 	cancelFn context.CancelFunc
@@ -157,10 +158,6 @@ func (p *Progress) Wait() {
 	for _, bar := range p.bars {
 		bar.bar.Abort(true)
 	}
-
-	//for _, bar := range p.bars {
-	//	bar.bar.Wait()
-	//}
 
 	p.pc.Wait()
 }
@@ -312,14 +309,11 @@ func barStyle(c *color.Color) mpb.BarStyleComposer {
 	}
 
 	frames := []string{"∙", "●", "●", "●", "∙"}
-	//frames := []string{"∙∙∙", "●∙∙", "●∙∙", "∙●∙", "∙●∙", "∙∙●", "∙∙●", "∙∙∙"}
 
 	return mpb.BarStyle().
 		Lbound("  ").Rbound("  ").
 		Filler("∙").FillerMeta(clr).
-		//Refiller("x").RefillerMeta(clr).
 		Padding(" ").
-		//Tip(`-`, `\`, `|`, `/`).TipMeta(clr).
 		Tip(frames...).TipMeta(clr)
 }
 
@@ -335,7 +329,6 @@ type Bar struct {
 // IncrBy increments progress by amount of n. It is safe to
 // call IncrBy on a nil Bar.
 func (b *Bar) IncrBy(n int) {
-	//time.Sleep(time.Millisecond * 10)
 	if b == nil {
 		return
 	}

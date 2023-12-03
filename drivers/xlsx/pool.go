@@ -3,12 +3,13 @@ package xlsx
 import (
 	"context"
 	"database/sql"
+	"log/slog"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/metadata"
-	"log/slog"
 )
 
 // pool implements driver.Pool. It implements a deferred ingest
@@ -24,7 +25,6 @@ type pool struct {
 
 // DB implements driver.Pool.
 func (p *pool) DB(ctx context.Context) (*sql.DB, error) {
-
 	return p.backingPool.DB(ctx)
 }
 

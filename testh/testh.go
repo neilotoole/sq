@@ -311,6 +311,7 @@ func (h *Helper) Source(handle string) *source.Source {
 	src, err := h.coll.Get(handle)
 	require.NoError(t, err,
 		"source %s was not found in %s", handle, testsrc.PathSrcsConfig)
+	src.Ephemeral = true
 
 	if src.Type == sqlite3.Type {
 		// This could be easily generalized for CSV/XLSX etc.

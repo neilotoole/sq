@@ -14,6 +14,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
@@ -91,10 +92,18 @@ type Source struct {
 
 	// Options are additional params, typically empty.
 	Options options.Options `yaml:"options,omitempty" json:"options,omitempty"`
+
+	// Ephemeral is a flag that indicates that the source is ephemeral. This
+	// value is not persisted to config. It is used by the Source.Hash method,
+	// resulting in a different hash value for each ephemeral source.
+	Ephemeral bool
 }
 
 // Hash returns an SHA256 hash of all fields of s. The Source.Options
-// field is ignored. If s is nil, the empty string is returned.
+// field is ignored. If s is nil, the empty string is returned. If
+// Source.Ephemeral is true, the hash value will be different for
+// each invocation. This is useful for preventing cache collisions
+// when using ephemeral sources.
 func (s *Source) Hash() string {
 	if s == nil {
 		return ""
@@ -107,6 +116,10 @@ func (s *Source) Hash() string {
 	buf.WriteString(s.Catalog)
 	buf.WriteString(s.Schema)
 	buf.WriteString(s.Options.Hash())
+	if s.Ephemeral {
+		buf.WriteString(stringz.Uniq32())
+	}
+
 	sum := sha256.Sum256(buf.Bytes())
 	return fmt.Sprintf("%x", sum)
 }

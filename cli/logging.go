@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"github.com/neilotoole/sq/libsq/core/lg/devlog"
 	"io"
 	"log/slog"
 	"os"
@@ -16,6 +15,7 @@ import (
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/devlog"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/userlogdir"
 	"github.com/neilotoole/sq/libsq/core/options"
@@ -93,7 +93,7 @@ func defaultLogging(ctx context.Context, osArgs []string, cfg *config.Config,
 	closer = logFile.Close
 
 	h = devlog.NewHandler(logFile, lvl)
-	//h = newJSONHandler(logFile, lvl)
+	// h = newJSONHandler(logFile, lvl)
 	return slog.New(h), h, closer, nil
 }
 

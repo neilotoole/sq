@@ -1,10 +1,11 @@
 package source
 
 import (
-	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/stringz"
 	"os"
 	"path/filepath"
+
+	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 // CacheDirFor gets the cache dir for handle, creating it if necessary.
@@ -15,7 +16,7 @@ func CacheDirFor(src *Source) (dir string, err error) {
 	case "":
 		// FIXME: This is surely an error?
 		return "", errz.Errorf("open cache dir: empty handle")
-		//handle = "@cache_" + stringz.UniqN(32)
+		// handle = "@cache_" + stringz.UniqN(32)
 	case StdinHandle:
 		// stdin is different input every time, so we need a unique
 		// cache dir. In practice, stdin probably isn't using this function.

@@ -49,45 +49,6 @@ func CopyAsync(w io.Writer, r io.Reader, callback func(written int64, err error)
 	}()
 }
 
-// CopyAsyncFull asynchronously copies from r to w, invoking callback when done.
-// If arg close is true and w is an io.WriterCloser, w is closed on successful
-// completion of the copy (but it is not closed if an error occurs during write).
-// If callback is nil, it is ignored.
-func CopyAsyncFull(w io.Writer, r io.Reader, close bool, callback func(written int64, err error)) {
-	go func() {
-		written, err := io.Copy(w, r)
-		if err != nil {
-			if callback != nil {
-				callback(written, err)
-			}
-			return
-		}
-		// err is nil
-		if !close {
-			if callback != nil {
-				callback(written, nil)
-			}
-			return
-		}
-
-		// err is nil, and close is true
-		wc, ok := w.(io.WriteCloser)
-		if !ok {
-			// It's not a write closer... this is basically a programming
-			// error to have set close to true when w is not an io.WriteCloser,
-			// but we'll handle it generously.
-			if callback != nil {
-				callback(written, nil)
-			}
-			return
-		}
-
-		// err is nil, close is true, and w is a WriteCloser
-		err = wc.Close()
-		callback(written, err)
-	}()
-}
-
 // PrintFile reads file from name and writes it to stdout.
 func PrintFile(name string) error {
 	return FPrintFile(os.Stdout, name)
@@ -389,10 +350,8 @@ type WrittenWriter struct {
 // writer, blocking until writing concludes, either via invocation of
 // Close, or via an error in Write.
 func (w *WrittenWriter) Written() int64 {
-	select {
-	case <-w.done:
-		return w.c.Load()
-	}
+	<-w.done
+	return w.c.Load()
 }
 
 // Close implements io.WriteCloser.

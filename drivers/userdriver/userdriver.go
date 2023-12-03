@@ -11,11 +11,11 @@ import (
 	"io"
 	"log/slog"
 
-	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
@@ -47,7 +47,7 @@ func (p *Provider) DriverFor(typ drivertype.Type) (driver.Driver, error) {
 		typ:       typ,
 		def:       p.DriverDef,
 		scratcher: p.Scratcher,
-		importFn:  p.ImportFn,
+		ingestFn:  p.ImportFn,
 		files:     p.Files,
 	}, nil
 }
@@ -67,7 +67,7 @@ type driveri struct {
 	def       *DriverDef
 	files     *source.Files
 	scratcher driver.ScratchPoolOpener
-	importFn  ImportFunc
+	ingestFn  ImportFunc
 }
 
 // DriverMetadata implements driver.Driver.
@@ -82,30 +82,30 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 
 // Open implements driver.PoolOpener.
 func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Pool, error) {
-	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
+	log := lg.FromContext(ctx).With(lga.Src, src)
+	log.Debug(lgm.OpenSrc)
 
-	clnup := cleanup.New()
+	p := &pool{
+		log: d.log,
+		src: src,
+	}
 
-	r, err := d.files.Open(ctx, src)
-	if err != nil {
+	allowCache := driver.OptIngestCache.Get(options.FromContext(ctx))
+
+	ingestFn := func(ctx context.Context, destPool driver.Pool) error {
+		r, err := d.files.Open(ctx, src)
+		if err != nil {
+			return err
+		}
+		defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
+		return d.ingestFn(ctx, d.def, r, destPool)
+	}
+
+	var err error
+	if p.impl, err = d.scratcher.OpenIngest(ctx, src, ingestFn, allowCache); err != nil {
 		return nil, err
 	}
-
-	defer lg.WarnIfCloseError(d.log, lgm.CloseFileReader, r)
-
-	scratchDB, err := d.scratcher.OpenScratchFor(ctx, src)
-	if err != nil {
-		return nil, err
-	}
-	clnup.AddE(scratchDB.Close)
-
-	err = d.importFn(ctx, d.def, r, scratchDB)
-	if err != nil {
-		lg.WarnIfFuncError(d.log, lgm.CloseDB, clnup.Run)
-		return nil, errz.Wrap(err, d.def.Name)
-	}
-
-	return &pool{log: d.log, src: src, impl: scratchDB, clnup: clnup}, nil
+	return p, nil
 }
 
 // Truncate implements driver.Driver.
@@ -145,10 +145,6 @@ type pool struct {
 	log  *slog.Logger
 	src  *source.Source
 	impl driver.Pool
-
-	// clnup will ultimately invoke impl.Close to dispose of
-	// the scratch DB.
-	clnup *cleanup.Cleanup
 }
 
 // DB implements driver.Pool.
@@ -193,7 +189,5 @@ func (d *pool) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Sou
 func (d *pool) Close() error {
 	d.log.Debug(lgm.CloseDB, lga.Handle, d.src.Handle)
 
-	// We don't need to explicitly invoke c.impl.Close
-	// because that's already been added to c.cleanup.
-	return d.clnup.Run()
+	return d.impl.Close()
 }
