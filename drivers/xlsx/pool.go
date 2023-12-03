@@ -26,6 +26,7 @@ type pool struct {
 
 	src         *source.Source
 	files       *source.Files
+	scratcher   driver.ScratchPoolOpener
 	scratchPool driver.Pool
 	clnup       *cleanup.Cleanup
 
@@ -36,6 +37,13 @@ type pool struct {
 	// ingestSheetNames is the list of sheet names to ingest. When empty,
 	// all sheets should be ingested. The key use of ingestSheetNames
 	// is with pool.TableMetadata, so that only the relevant table is ingested.
+	//
+	// FIXME: Verify how ingestSheetNames interacts with the deferred
+	// ingest and caching mechanisms. E.g. if we ingest a single sheet,
+	// and then later ingest the entire workbook, will the cache DB be
+	// accurate?
+	// ACTUALLY: We can get rid of this entirely, because with caching,
+	// there's no longer really a problem.
 	ingestSheetNames []string
 }
 
@@ -56,25 +64,33 @@ func (p *pool) doIngest(ctx context.Context, includeSheetNames []string) error {
 	// the context being passed down the stack (in particular to ingestXLSX)
 	// has the source's options on it.
 	ctx = options.NewContext(ctx, options.Merge(options.FromContext(ctx), p.src.Options))
+	allowCache := driver.OptIngestCache.Get(options.FromContext(ctx))
 
-	r, err := p.files.Open(ctx, p.src)
-	if err != nil {
-		return err
+	ingestFn := func(ctx context.Context, destPool driver.Pool) error {
+		log.Debug("Ingest XLSX", lga.Src, p.src)
+		//openFn := p.files.OpenFunc(p.src)
+		r, err := p.files.Open(ctx, p.src)
+		if err != nil {
+			return err
+		}
+		defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
+
+		xfile, err := excelize.OpenReader(r, excelize.Options{RawCellValue: false})
+		if err != nil {
+			return err
+		}
+
+		defer lg.WarnIfCloseError(log, lgm.CloseFileReader, xfile)
+
+		if err = ingestXLSX(ctx, p.src, destPool, xfile, includeSheetNames); err != nil {
+			lg.WarnIfError(log, lgm.CloseDB, p.clnup.Run())
+			return err
+		}
+		return nil
 	}
-	defer lg.WarnIfCloseError(p.log, lgm.CloseFileReader, r)
 
-	xfile, err := excelize.OpenReader(r, excelize.Options{RawCellValue: false})
-	if err != nil {
-		return err
-	}
-
-	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, xfile)
-
-	err = ingestXLSX(ctx, p.src, p.scratchPool, xfile, includeSheetNames)
-	if err != nil {
-		lg.WarnIfError(p.log, lgm.CloseDB, p.clnup.Run())
-		return err
-	}
+	var err error
+	p.scratchPool, err = p.scratcher.OpenIngest(ctx, p.src, ingestFn, allowCache)
 	return err
 }
 
@@ -92,6 +108,12 @@ func (p *pool) DB(ctx context.Context) (*sql.DB, error) {
 
 // SQLDriver implements driver.Pool.
 func (p *pool) SQLDriver() driver.SQLDriver {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if err := p.checkIngest(ctx); err != nil {
+		return nil, err
+	}
 	return p.scratchPool.SQLDriver()
 }
 
