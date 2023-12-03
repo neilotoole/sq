@@ -411,40 +411,16 @@ func DirExists(dir string) bool {
 	return fi.IsDir()
 }
 
-func PrintTree(w io.Writer, loc string, showSize bool) error {
+// PrintTree prints the file tree structure at loc to w.
+// This function uses the github.com/a8m/tree library, which is
+// a Go implementation of the venerable "tree" command.
+func PrintTree(w io.Writer, loc string, showSize, colorize bool) error {
 	opts := &tree.Options{
-		Fs:      new(ostree.FS),
-		OutFile: w,
-		All:     false,
-		// DirsOnly:   false,
-		// FullPath:   false,
-		// IgnoreCase: false,
-		// FollowLink: false,
-		// DeepLevel:  0,
-		// Pattern:    "",
-		// IPattern:   "",
-		// MatchDirs:  false,
-		// Prune:      false,
-		// ByteSize:   false,
+		Fs:       new(ostree.FS),
+		OutFile:  w,
+		All:      true,
 		UnitSize: showSize,
-		// FileMode:   false,
-		// ShowUid:    false,
-		// ShowGid:    false,
-		// LastMod:    false,
-		// Quotes:     false,
-		// Inodes:     false,
-		// Device:     false,
-		// NoSort:     false,
-		// VerSort:    false,
-		// ModSort:    false,
-		// DirSort:    false,
-		// NameSort:   false,
-		// SizeSort:   false,
-		// CTimeSort:  false,
-		// ReverSort:  false,
-		// NoIndent:   false,
-		Colorize: true,
-		// Color:    nil,
+		Colorize: colorize,
 	}
 
 	inf := tree.New(loc)

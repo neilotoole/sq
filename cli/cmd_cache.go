@@ -172,7 +172,7 @@ func execCacheTree(cmd *cobra.Command, _ []string) error {
 	}
 
 	showSize := cmdFlagBool(cmd, flag.CacheTreeSize)
-	return ioz.PrintTree(ru.Out, cacheDir, showSize)
+	return ioz.PrintTree(ru.Out, cacheDir, showSize, !ru.Writers.Printing.IsMonochrome())
 }
 
 func newCacheEnableCmd() *cobra.Command {
