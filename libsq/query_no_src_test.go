@@ -30,13 +30,13 @@ func TestQuery_no_source(t *testing.T) {
 			t.Logf("\nquery: %s\n want: %s", tc.in, tc.want)
 			th := testh.New(t)
 			coll := th.NewCollection()
-			pools := th.Pools()
+			sources := th.Sources()
 
 			qc := &libsq.QueryContext{
 				Collection:        coll,
-				PoolOpener:        pools,
-				JoinPoolOpener:    pools,
-				ScratchPoolOpener: pools,
+				PoolOpener:        sources,
+				JoinPoolOpener:    sources,
+				ScratchPoolOpener: sources,
 			}
 
 			gotSQL, gotErr := libsq.SLQ2SQL(th.Context, qc, tc.in)

@@ -31,7 +31,7 @@ type ImportFunc func(ctx context.Context, def *DriverDef,
 type Provider struct {
 	Log       *slog.Logger
 	DriverDef *DriverDef
-	Scratcher driver.ScratchPoolOpener
+	Ingester  driver.IngestOpener
 	Files     *source.Files
 	ImportFn  ImportFunc
 }
@@ -43,12 +43,12 @@ func (p *Provider) DriverFor(typ drivertype.Type) (driver.Driver, error) {
 	}
 
 	return &driveri{
-		log:       p.Log,
-		typ:       typ,
-		def:       p.DriverDef,
-		scratcher: p.Scratcher,
-		ingestFn:  p.ImportFn,
-		files:     p.Files,
+		log:      p.Log,
+		typ:      typ,
+		def:      p.DriverDef,
+		ingester: p.Ingester,
+		ingestFn: p.ImportFn,
+		files:    p.Files,
 	}, nil
 }
 
@@ -62,12 +62,12 @@ func (p *Provider) Detectors() []source.DriverDetectFunc {
 
 // Driver implements driver.Driver.
 type driveri struct {
-	log       *slog.Logger
-	typ       drivertype.Type
-	def       *DriverDef
-	files     *source.Files
-	scratcher driver.ScratchPoolOpener
-	ingestFn  ImportFunc
+	log      *slog.Logger
+	typ      drivertype.Type
+	def      *DriverDef
+	files    *source.Files
+	ingester driver.IngestOpener
+	ingestFn ImportFunc
 }
 
 // DriverMetadata implements driver.Driver.
@@ -102,7 +102,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Pool, er
 	}
 
 	var err error
-	if p.impl, err = d.scratcher.OpenIngest(ctx, src, ingestFn, allowCache); err != nil {
+	if p.impl, err = d.ingester.OpenIngest(ctx, src, allowCache, ingestFn); err != nil {
 		return nil, err
 	}
 	return p, nil

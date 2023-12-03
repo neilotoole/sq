@@ -27,9 +27,9 @@ const (
 
 // Provider implements driver.Provider.
 type Provider struct {
-	Log       *slog.Logger
-	Files     *source.Files
-	Scratcher driver.ScratchPoolOpener
+	Log      *slog.Logger
+	Files    *source.Files
+	Ingester driver.IngestOpener
 }
 
 // DriverFor implements driver.Provider.
@@ -38,14 +38,14 @@ func (p *Provider) DriverFor(typ drivertype.Type) (driver.Driver, error) {
 		return nil, errz.Errorf("unsupported driver type {%s}", typ)
 	}
 
-	return &Driver{log: p.Log, scratcher: p.Scratcher, files: p.Files}, nil
+	return &Driver{log: p.Log, ingester: p.Ingester, files: p.Files}, nil
 }
 
 // Driver implements driver.Driver.
 type Driver struct {
-	log       *slog.Logger
-	scratcher driver.ScratchPoolOpener
-	files     *source.Files
+	log      *slog.Logger
+	ingester driver.IngestOpener
+	files    *source.Files
 }
 
 // DriverMetadata implements driver.Driver.
@@ -92,7 +92,7 @@ func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Pool, err
 	}
 
 	var err error
-	if p.backingPool, err = d.scratcher.OpenIngest(ctx, p.src, ingestFn, allowCache); err != nil {
+	if p.backingPool, err = d.ingester.OpenIngest(ctx, p.src, allowCache, ingestFn); err != nil {
 		return nil, err
 	}
 

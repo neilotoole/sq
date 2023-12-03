@@ -169,20 +169,20 @@ type JoinPoolOpener interface {
 }
 
 // ScratchPoolOpener opens a scratch database pool. A scratch database is
-// typically a short-lived database used as a target for loading
-// non-SQL data (such as CSV).
+// a short-lived database used for ephemeral purposes.
 type ScratchPoolOpener interface {
-	// OpenScratchFor returns a pool for scratch use.
-	OpenScratchFor(ctx context.Context, src *source.Source) (Pool, error)
+	// OpenScratch returns a pool for scratch use.
+	OpenScratch(ctx context.Context, src *source.Source) (Pool, error)
+}
 
-	// OpenCachedFor returns any already cached ingested pool for src.
-	// If no such cache, or if it's expired, false is returned.
-	OpenCachedFor(ctx context.Context, src *source.Source) (Pool, bool, error)
-
-	// OpenIngest opens a pool for src by executing ingestFn. If allowCache
-	// is false, ingest always occurs; if true, the cache is consulted first.
-	OpenIngest(ctx context.Context, src *source.Source,
-		ingestFn func(ctx context.Context, destPool Pool) error, allowCache bool) (Pool, error)
+// IngestOpener opens a pool for ingest use.
+type IngestOpener interface {
+	// OpenIngest opens a pool for src by executing ingestFn, which is
+	// responsible for ingesting data into dest. If allowCache is false,
+	// ingest always occurs; if true, the cache is consulted first (and
+	// ingestFn may not be invoked).
+	OpenIngest(ctx context.Context, src *source.Source, allowCache bool,
+		ingestFn func(ctx context.Context, dest Pool) error) (Pool, error)
 }
 
 // Driver is the core interface that must be implemented for each type

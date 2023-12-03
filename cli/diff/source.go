@@ -196,7 +196,7 @@ func fetchSourceMeta(ctx context.Context, ru *run.Run, handle string) (*source.S
 	if err != nil {
 		return nil, nil, err
 	}
-	pool, err := ru.Pools.Open(ctx, src)
+	pool, err := ru.Sources.Open(ctx, src)
 	if err != nil {
 		return nil, nil, err
 	}

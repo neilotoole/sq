@@ -73,8 +73,8 @@ type Run struct {
 	// Files manages file access.
 	Files *source.Files
 
-	// Pools mediates access to db pools.
-	Pools *driver.Pools
+	// Sources mediates access to db pools.
+	Sources *driver.Sources
 
 	// Writers holds the various writer types that
 	// the CLI uses to print output.
@@ -100,9 +100,9 @@ func (ru *Run) Close() error {
 func NewQueryContext(ru *Run, args map[string]string) *libsq.QueryContext {
 	return &libsq.QueryContext{
 		Collection:        ru.Config.Collection,
-		PoolOpener:        ru.Pools,
-		JoinPoolOpener:    ru.Pools,
-		ScratchPoolOpener: ru.Pools,
+		PoolOpener:        ru.Sources,
+		JoinPoolOpener:    ru.Sources,
+		ScratchPoolOpener: ru.Sources,
 		Args:              args,
 	}
 }

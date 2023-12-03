@@ -23,6 +23,7 @@ func (b *buffer) Free() {
 		bufPool.Put(b)
 	}
 }
+
 func (b *buffer) Write(bytes []byte) (int, error) {
 	*b = append(*b, bytes...)
 	return len(bytes), nil

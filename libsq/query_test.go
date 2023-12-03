@@ -163,13 +163,13 @@ func doExecQueryTestCase(t *testing.T, tc queryTestCase) {
 			require.NoError(t, err)
 
 			th := testh.New(t)
-			pools := th.Pools()
+			sources := th.Sources()
 
 			qc := &libsq.QueryContext{
 				Collection:        coll,
-				PoolOpener:        pools,
-				JoinPoolOpener:    pools,
-				ScratchPoolOpener: pools,
+				PoolOpener:        sources,
+				JoinPoolOpener:    sources,
+				ScratchPoolOpener: sources,
 				Args:              tc.args,
 			}
 

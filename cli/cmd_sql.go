@@ -120,7 +120,7 @@ func execSQL(cmd *cobra.Command, args []string) error {
 // to the configured writer.
 func execSQLPrint(ctx context.Context, ru *run.Run, fromSrc *source.Source) error {
 	args := ru.Args
-	pool, err := ru.Pools.Open(ctx, fromSrc)
+	pool, err := ru.Sources.Open(ctx, fromSrc)
 	if err != nil {
 		return err
 	}
@@ -140,7 +140,7 @@ func execSQLInsert(ctx context.Context, ru *run.Run,
 	fromSrc, destSrc *source.Source, destTbl string,
 ) error {
 	args := ru.Args
-	pools := ru.Pools
+	pools := ru.Sources
 	ctx, cancelFn := context.WithCancel(ctx)
 	defer cancelFn()
 

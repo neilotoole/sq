@@ -99,7 +99,7 @@ type Helper struct {
 
 	registry *driver.Registry
 	files    *source.Files
-	pools    *driver.Pools
+	sources  *driver.Sources
 	run      *run.Run
 
 	initOnce sync.Once
@@ -175,20 +175,20 @@ func (h *Helper) init() {
 
 		h.files.AddDriverDetectors(source.DetectMagicNumber)
 
-		h.pools = driver.NewPools(log, h.registry, h.files, sqlite3.NewScratchSource)
-		h.Cleanup.AddC(h.pools)
+		h.sources = driver.NewSources(log, h.registry, h.files, sqlite3.NewScratchSource)
+		h.Cleanup.AddC(h.sources)
 
 		h.registry.AddProvider(sqlite3.Type, &sqlite3.Provider{Log: log})
 		h.registry.AddProvider(postgres.Type, &postgres.Provider{Log: log})
 		h.registry.AddProvider(sqlserver.Type, &sqlserver.Provider{Log: log})
 		h.registry.AddProvider(mysql.Type, &mysql.Provider{Log: log})
 
-		csvp := &csv.Provider{Log: log, Scratcher: h.pools, Files: h.files}
+		csvp := &csv.Provider{Log: log, Ingester: h.sources, Files: h.files}
 		h.registry.AddProvider(csv.TypeCSV, csvp)
 		h.registry.AddProvider(csv.TypeTSV, csvp)
 		h.files.AddDriverDetectors(csv.DetectCSV, csv.DetectTSV)
 
-		jsonp := &json.Provider{Log: log, Scratcher: h.pools, Files: h.files}
+		jsonp := &json.Provider{Log: log, Ingester: h.sources, Files: h.files}
 		h.registry.AddProvider(json.TypeJSON, jsonp)
 		h.registry.AddProvider(json.TypeJSONA, jsonp)
 		h.registry.AddProvider(json.TypeJSONL, jsonp)
@@ -198,7 +198,7 @@ func (h *Helper) init() {
 			json.DetectJSONL(driver.OptIngestSampleSize.Get(nil)),
 		)
 
-		h.registry.AddProvider(xlsx.Type, &xlsx.Provider{Log: log, Scratcher: h.pools, Files: h.files})
+		h.registry.AddProvider(xlsx.Type, &xlsx.Provider{Log: log, Ingester: h.sources, Files: h.files})
 		h.files.AddDriverDetectors(xlsx.DetectXLSX)
 
 		h.addUserDrivers()
@@ -366,7 +366,7 @@ func (h *Helper) NewCollection(handles ...string) *source.Collection {
 	return coll
 }
 
-// Open opens a driver.Pool for src via h's internal Pools
+// Open opens a driver.Pool for src via h's internal Sources
 // instance: thus subsequent calls to Open may return the
 // same Pool instance. The opened driver.Pool will be closed
 // during h.Close.
@@ -374,7 +374,7 @@ func (h *Helper) Open(src *source.Source) driver.Pool {
 	ctx, cancelFn := context.WithTimeout(h.Context, h.dbOpenTimeout)
 	defer cancelFn()
 
-	pool, err := h.Pools().Open(ctx, src)
+	pool, err := h.Sources().Open(ctx, src)
 	require.NoError(h.T, err)
 
 	db, err := pool.DB(ctx)
@@ -630,9 +630,9 @@ func (h *Helper) QuerySLQ(query string, args map[string]string) (*RecordSink, er
 
 	qc := &libsq.QueryContext{
 		Collection:        h.coll,
-		PoolOpener:        h.pools,
-		JoinPoolOpener:    h.pools,
-		ScratchPoolOpener: h.pools,
+		PoolOpener:        h.sources,
+		JoinPoolOpener:    h.sources,
+		ScratchPoolOpener: h.sources,
 		Args:              args,
 	}
 
@@ -740,7 +740,7 @@ func (h *Helper) addUserDrivers() {
 			Log:       h.Log,
 			DriverDef: userDriverDef,
 			ImportFn:  importFn,
-			Scratcher: h.pools,
+			Ingester:  h.sources,
 			Files:     h.files,
 		}
 
@@ -754,10 +754,10 @@ func (h *Helper) IsMonotable(src *source.Source) bool {
 	return h.DriverFor(src).DriverMetadata().Monotable
 }
 
-// Pools returns the helper's driver.Pools instance.
-func (h *Helper) Pools() *driver.Pools {
+// Sources returns the helper's driver.Sources instance.
+func (h *Helper) Sources() *driver.Sources {
 	h.init()
-	return h.pools
+	return h.sources
 }
 
 // Files returns the helper's Files instance.
@@ -768,7 +768,7 @@ func (h *Helper) Files() *source.Files {
 
 // SourceMetadata returns metadata for src.
 func (h *Helper) SourceMetadata(src *source.Source) (*metadata.Source, error) {
-	pools, err := h.Pools().Open(h.Context, src)
+	pools, err := h.Sources().Open(h.Context, src)
 	if err != nil {
 		return nil, err
 	}
@@ -778,7 +778,7 @@ func (h *Helper) SourceMetadata(src *source.Source) (*metadata.Source, error) {
 
 // TableMetadata returns metadata for src's table.
 func (h *Helper) TableMetadata(src *source.Source, tbl string) (*metadata.Table, error) {
-	pools, err := h.Pools().Open(h.Context, src)
+	pools, err := h.Sources().Open(h.Context, src)
 	if err != nil {
 		return nil, err
 	}

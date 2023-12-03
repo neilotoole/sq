@@ -337,7 +337,6 @@ func (h *handler) appendSource(buf *buffer, src *slog.Source) {
 	buf.WriteByte(':')
 	buf.WriteString(strconv.Itoa(src.Line))
 	buf.WriteStringIf(!h.noColor, ansiReset)
-
 }
 
 func (h *handler) appendAttr(buf *buffer, attr slog.Attr, groupsPrefix string, groups []string) {

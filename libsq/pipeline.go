@@ -187,8 +187,12 @@ func (p *pipeline) prepareNoTable(ctx context.Context, qm *queryModel) error {
 		if src = p.qc.Collection.Active(); src == nil {
 			log.Debug("No active source, will use scratchdb.")
 			// REVISIT: ScratchPoolOpener needs a source, so we just make one up.
-			ephemeralSrc := &source.Source{Type: drivertype.None, Handle: "@scratch" + stringz.Uniq8()}
-			p.targetPool, err = p.qc.ScratchPoolOpener.OpenScratchFor(ctx, ephemeralSrc)
+			ephemeralSrc := &source.Source{
+				Type:      drivertype.None,
+				Handle:    "@scratch" + stringz.Uniq8(),
+				Ephemeral: true,
+			}
+			p.targetPool, err = p.qc.ScratchPoolOpener.OpenScratch(ctx, ephemeralSrc)
 			if err != nil {
 				return err
 			}

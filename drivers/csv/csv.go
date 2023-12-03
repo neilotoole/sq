@@ -27,18 +27,18 @@ const (
 
 // Provider implements driver.Provider.
 type Provider struct {
-	Log       *slog.Logger
-	Scratcher driver.ScratchPoolOpener
-	Files     *source.Files
+	Log      *slog.Logger
+	Ingester driver.IngestOpener
+	Files    *source.Files
 }
 
 // DriverFor implements driver.Provider.
 func (d *Provider) DriverFor(typ drivertype.Type) (driver.Driver, error) {
 	switch typ { //nolint:exhaustive
 	case TypeCSV:
-		return &driveri{log: d.Log, typ: TypeCSV, scratcher: d.Scratcher, files: d.Files}, nil
+		return &driveri{log: d.Log, typ: TypeCSV, ingester: d.Ingester, files: d.Files}, nil
 	case TypeTSV:
-		return &driveri{log: d.Log, typ: TypeTSV, scratcher: d.Scratcher, files: d.Files}, nil
+		return &driveri{log: d.Log, typ: TypeTSV, ingester: d.Ingester, files: d.Files}, nil
 	}
 
 	return nil, errz.Errorf("unsupported driver type {%s}", typ)
@@ -46,10 +46,10 @@ func (d *Provider) DriverFor(typ drivertype.Type) (driver.Driver, error) {
 
 // Driver implements driver.Driver.
 type driveri struct {
-	log       *slog.Logger
-	typ       drivertype.Type
-	scratcher driver.ScratchPoolOpener
-	files     *source.Files
+	log      *slog.Logger
+	typ      drivertype.Type
+	ingester driver.IngestOpener
+	files    *source.Files
 }
 
 // DriverMetadata implements driver.Driver.
@@ -85,7 +85,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Pool, er
 	}
 
 	var err error
-	if p.impl, err = d.scratcher.OpenIngest(ctx, src, ingestFn, allowCache); err != nil {
+	if p.impl, err = d.ingester.OpenIngest(ctx, src, allowCache, ingestFn); err != nil {
 		return nil, err
 	}
 

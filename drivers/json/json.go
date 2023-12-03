@@ -35,9 +35,9 @@ const (
 
 // Provider implements driver.Provider.
 type Provider struct {
-	Log       *slog.Logger
-	Scratcher driver.ScratchPoolOpener
-	Files     *source.Files
+	Log      *slog.Logger
+	Ingester driver.IngestOpener
+	Files    *source.Files
 }
 
 // DriverFor implements driver.Provider.
@@ -56,19 +56,19 @@ func (d *Provider) DriverFor(typ drivertype.Type) (driver.Driver, error) {
 	}
 
 	return &driveri{
-		typ:       typ,
-		scratcher: d.Scratcher,
-		files:     d.Files,
-		ingestFn:  ingestFn,
+		typ:      typ,
+		ingester: d.Ingester,
+		files:    d.Files,
+		ingestFn: ingestFn,
 	}, nil
 }
 
 // Driver implements driver.Driver.
 type driveri struct {
-	typ       drivertype.Type
-	ingestFn  ingestFunc
-	scratcher driver.ScratchPoolOpener
-	files     *source.Files
+	typ      drivertype.Type
+	ingestFn ingestFunc
+	ingester driver.IngestOpener
+	files    *source.Files
 }
 
 // DriverMetadata implements driver.Driver.
@@ -117,7 +117,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Pool, er
 	}
 
 	var err error
-	if p.impl, err = d.scratcher.OpenIngest(ctx, src, ingestFn, allowCache); err != nil {
+	if p.impl, err = d.ingester.OpenIngest(ctx, src, allowCache, ingestFn); err != nil {
 		return nil, err
 	}
 

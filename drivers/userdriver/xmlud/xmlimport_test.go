@@ -34,7 +34,7 @@ func TestImport_Ppl(t *testing.T) {
 	require.Equal(t, xmlud.Genre, udDef.Genre)
 
 	src := &source.Source{Handle: "@ppl_" + stringz.Uniq8(), Type: drivertype.None}
-	scratchDB, err := th.Pools().OpenScratchFor(th.Context, src)
+	scratchDB, err := th.Sources().OpenScratch(th.Context, src)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		assert.NoError(t, scratchDB.Close())
@@ -80,7 +80,7 @@ func TestImport_RSS(t *testing.T) {
 	require.Equal(t, xmlud.Genre, udDef.Genre)
 
 	src := &source.Source{Handle: "@rss_" + stringz.Uniq8(), Type: drivertype.None}
-	scratchDB, err := th.Pools().OpenScratchFor(th.Context, src)
+	scratchDB, err := th.Sources().OpenScratch(th.Context, src)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		assert.NoError(t, scratchDB.Close())

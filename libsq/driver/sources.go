@@ -24,21 +24,19 @@ import (
 )
 
 var (
-	_ PoolOpener        = (*Pools)(nil)
-	_ JoinPoolOpener    = (*Pools)(nil)
-	_ ScratchPoolOpener = (*Pools)(nil)
+	_ PoolOpener        = (*Sources)(nil)
+	_ JoinPoolOpener    = (*Sources)(nil)
+	_ ScratchPoolOpener = (*Sources)(nil)
 )
 
 // ScratchSrcFunc is a function that returns a scratch source.
 // The caller is responsible for invoking cleanFn.
 type ScratchSrcFunc func(ctx context.Context, name string) (src *source.Source, cleanFn func() error, err error)
 
-// Pools provides a mechanism for getting Pool instances.
+// Sources provides a mechanism for getting Pool instances.
 // Note that at this time instances returned by Open are cached
 // and then closed by Close. This may be a bad approach.
-//
-// FIXME: Why not rename driver.Pools to driver.Sources?
-type Pools struct {
+type Sources struct {
 	log          *slog.Logger
 	drvrs        Provider
 	mu           sync.Mutex
@@ -48,11 +46,11 @@ type Pools struct {
 	clnup        *cleanup.Cleanup
 }
 
-// NewPools returns a Pools instances.
-func NewPools(log *slog.Logger, drvrs Provider,
+// NewSources returns a Sources instances.
+func NewSources(log *slog.Logger, drvrs Provider,
 	files *source.Files, scratchSrcFn ScratchSrcFunc,
-) *Pools {
-	return &Pools{
+) *Sources {
+	return &Sources{
 		log:          log,
 		drvrs:        drvrs,
 		mu:           sync.Mutex{},
@@ -73,23 +71,23 @@ func NewPools(log *slog.Logger, drvrs Provider,
 // and needs to be revisited.
 //
 // Open implements PoolOpener.
-func (d *Pools) Open(ctx context.Context, src *source.Source) (Pool, error) {
+func (ss *Sources) Open(ctx context.Context, src *source.Source) (Pool, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	return d.doOpen(ctx, src)
+	ss.mu.Lock()
+	defer ss.mu.Unlock()
+	return ss.doOpen(ctx, src)
 }
 
-func (d *Pools) doOpen(ctx context.Context, src *source.Source) (Pool, error) {
+func (ss *Sources) doOpen(ctx context.Context, src *source.Source) (Pool, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 	key := src.Handle + "_" + src.Hash()
 
-	pool, ok := d.pools[key]
+	pool, ok := ss.pools[key]
 	if ok {
 		return pool, nil
 	}
 
-	drvr, err := d.drvrs.DriverFor(src.Type)
+	drvr, err := ss.drvrs.DriverFor(src.Type)
 	if err != nil {
 		return nil, err
 	}
@@ -103,48 +101,42 @@ func (d *Pools) doOpen(ctx context.Context, src *source.Source) (Pool, error) {
 		return nil, err
 	}
 
-	d.clnup.AddC(pool)
+	ss.clnup.AddC(pool)
 
-	d.pools[key] = pool
+	ss.pools[key] = pool
 	return pool, nil
 }
 
-// OpenScratchFor returns a scratch database instance. It is not
+// OpenScratch returns a scratch database instance. It is not
 // necessary for the caller to close the returned Pool as
 // its Close method will be invoked by d.Close.
 //
-// OpenScratchFor implements ScratchPoolOpener.
-//
-// REVISIT: do we really need to pass a source here? Just a string should do.
-//
-// FIXME: the problem is with passing src?
-//
-// FIXME: Add cacheAllowed bool?
-func (d *Pools) OpenScratchFor(ctx context.Context, src *source.Source) (Pool, error) {
+// OpenScratch implements ScratchPoolOpener.
+func (ss *Sources) OpenScratch(ctx context.Context, src *source.Source) (Pool, error) {
 	const msgCloseScratch = "Close scratch db"
 
-	_, srcCacheDBFilepath, _, err := d.getCachePaths(src)
+	_, srcCacheDBFilepath, _, err := ss.getCachePaths(src)
 	if err != nil {
 		return nil, err
 	}
 
-	scratchSrc, cleanFn, err := d.scratchSrcFn(ctx, srcCacheDBFilepath)
+	scratchSrc, cleanFn, err := ss.scratchSrcFn(ctx, srcCacheDBFilepath)
 	if err != nil {
 		// if err is non-nil, cleanup is guaranteed to be nil
 		return nil, err
 	}
-	d.log.Debug("Opening scratch src", lga.Src, scratchSrc)
+	ss.log.Debug("Opening scratch src", lga.Src, scratchSrc)
 
-	backingDrvr, err := d.drvrs.DriverFor(scratchSrc.Type)
+	backingDrvr, err := ss.drvrs.DriverFor(scratchSrc.Type)
 	if err != nil {
-		lg.WarnIfFuncError(d.log, msgCloseScratch, cleanFn)
+		lg.WarnIfFuncError(ss.log, msgCloseScratch, cleanFn)
 		return nil, err
 	}
 
 	var backingPool Pool
 	backingPool, err = backingDrvr.Open(ctx, scratchSrc)
 	if err != nil {
-		lg.WarnIfFuncError(d.log, msgCloseScratch, cleanFn)
+		lg.WarnIfFuncError(ss.log, msgCloseScratch, cleanFn)
 		return nil, err
 	}
 
@@ -152,29 +144,29 @@ func (d *Pools) OpenScratchFor(ctx context.Context, src *source.Source) (Pool, e
 	if !allowCache {
 		// If the ingest cache is disabled, we add the cleanup func
 		// so the scratch DB is deleted when the session ends.
-		d.clnup.AddE(cleanFn)
+		ss.clnup.AddE(cleanFn)
 	}
 
 	return backingPool, nil
 }
 
 // OpenIngest implements driver.ScratchPoolOpener.
-func (d *Pools) OpenIngest(ctx context.Context, src *source.Source,
-	ingestFn func(ctx context.Context, destPool Pool) error, allowCache bool,
+func (ss *Sources) OpenIngest(ctx context.Context, src *source.Source, allowCache bool,
+	ingestFn func(ctx context.Context, dest Pool) error,
 ) (Pool, error) {
 	if !allowCache || src.Handle == source.StdinHandle {
 		// We don't currently cache stdin.
-		return d.openIngestNoCache(ctx, src, ingestFn)
+		return ss.openIngestNoCache(ctx, src, ingestFn)
 	}
 
-	return d.openIngestCache(ctx, src, ingestFn)
+	return ss.openIngestCache(ctx, src, ingestFn)
 }
 
-func (d *Pools) openIngestNoCache(ctx context.Context, src *source.Source,
+func (ss *Sources) openIngestNoCache(ctx context.Context, src *source.Source,
 	ingestFn func(ctx context.Context, destPool Pool) error,
 ) (Pool, error) {
 	log := lg.FromContext(ctx)
-	impl, err := d.OpenScratchFor(ctx, src)
+	impl, err := ss.OpenScratch(ctx, src)
 	if err != nil {
 		return nil, err
 	}
@@ -191,18 +183,18 @@ func (d *Pools) openIngestNoCache(ctx context.Context, src *source.Source,
 		lg.WarnIfCloseError(log, lgm.CloseDB, impl)
 	}
 
-	d.log.Debug("Ingest completed",
+	ss.log.Debug("Ingest completed",
 		lga.Src, src, lga.Dest, impl.Source(),
 		lga.Elapsed, elapsed)
 	return impl, nil
 }
 
-func (d *Pools) openIngestCache(ctx context.Context, src *source.Source,
+func (ss *Sources) openIngestCache(ctx context.Context, src *source.Source,
 	ingestFn func(ctx context.Context, destPool Pool) error,
 ) (Pool, error) {
 	log := lg.FromContext(ctx)
 
-	lock, err := d.acquireLock(ctx, src)
+	lock, err := ss.acquireLock(ctx, src)
 	if err != nil {
 		return nil, err
 	}
@@ -215,14 +207,14 @@ func (d *Pools) openIngestCache(ctx context.Context, src *source.Source,
 		}
 	}()
 
-	cacheDir, _, checksumsPath, err := d.getCachePaths(src)
+	cacheDir, _, checksumsPath, err := ss.getCachePaths(src)
 	if err != nil {
 		return nil, err
 	}
 
 	log.Debug("Using cache dir", lga.Path, cacheDir)
 
-	ingestFilePath, err := d.files.Filepath(ctx, src)
+	ingestFilePath, err := ss.files.Filepath(ctx, src)
 	if err != nil {
 		return nil, err
 	}
@@ -231,7 +223,7 @@ func (d *Pools) openIngestCache(ctx context.Context, src *source.Source,
 		impl        Pool
 		foundCached bool
 	)
-	if impl, foundCached, err = d.OpenCachedFor(ctx, src); err != nil {
+	if impl, foundCached, err = ss.OpenCachedFor(ctx, src); err != nil {
 		return nil, err
 	}
 	if foundCached {
@@ -243,7 +235,7 @@ func (d *Pools) openIngestCache(ctx context.Context, src *source.Source,
 
 	log.Debug("Ingest cache MISS: no cache for source", lga.Src, src)
 
-	impl, err = d.OpenScratchFor(ctx, src)
+	impl, err = ss.OpenScratch(ctx, src)
 	if err != nil {
 		return nil, err
 	}
@@ -282,7 +274,7 @@ func (d *Pools) openIngestCache(ctx context.Context, src *source.Source,
 // getCachePaths returns the paths to the cache files for src.
 // There is no guarantee that these files exist, or are accessible.
 // It's just the paths.
-func (d *Pools) getCachePaths(src *source.Source) (srcCacheDir, cacheDB, checksums string, err error) {
+func (ss *Sources) getCachePaths(src *source.Source) (srcCacheDir, cacheDB, checksums string, err error) {
 	if srcCacheDir, err = source.CacheDirFor(src); err != nil {
 		return "", "", "", err
 	}
@@ -298,8 +290,8 @@ func (d *Pools) getCachePaths(src *source.Source) (srcCacheDir, cacheDB, checksu
 //	defer lg.WarnIfFuncError(d.log, "failed to unlock cache lock", lock.Unlock)
 //
 // The lock acquisition process is retried with backoff.
-func (d *Pools) acquireLock(ctx context.Context, src *source.Source) (lockfile.Lockfile, error) {
-	lock, err := d.getLockfileFor(src)
+func (ss *Sources) acquireLock(ctx context.Context, src *source.Source) (lockfile.Lockfile, error) {
+	lock, err := ss.getLockfileFor(src)
 	if err != nil {
 		return "", err
 	}
@@ -321,8 +313,8 @@ func (d *Pools) acquireLock(ctx context.Context, src *source.Source) (lockfile.L
 
 // getLockfileFor returns a lockfile for src. It doesn't
 // actually acquire the lock.
-func (d *Pools) getLockfileFor(src *source.Source) (lockfile.Lockfile, error) {
-	srcCacheDir, _, _, err := d.getCachePaths(src)
+func (ss *Sources) getLockfileFor(src *source.Source) (lockfile.Lockfile, error) {
+	srcCacheDir, _, _, err := ss.getCachePaths(src)
 	if err != nil {
 		return "", err
 	}
@@ -335,8 +327,8 @@ func (d *Pools) getLockfileFor(src *source.Source) (lockfile.Lockfile, error) {
 }
 
 // OpenCachedFor implements ScratchPoolOpener.
-func (d *Pools) OpenCachedFor(ctx context.Context, src *source.Source) (Pool, bool, error) {
-	_, cacheDBPath, checksumsPath, err := d.getCachePaths(src)
+func (ss *Sources) OpenCachedFor(ctx context.Context, src *source.Source) (Pool, bool, error) {
+	_, cacheDBPath, checksumsPath, err := ss.getCachePaths(src)
 	if err != nil {
 		return nil, false, err
 	}
@@ -350,7 +342,7 @@ func (d *Pools) OpenCachedFor(ctx context.Context, src *source.Source) (Pool, bo
 		return nil, false, err
 	}
 
-	drvr, err := d.drvrs.DriverFor(src.Type)
+	drvr, err := ss.drvrs.DriverFor(src.Type)
 	if err != nil {
 		return nil, false, err
 	}
@@ -360,11 +352,11 @@ func (d *Pools) OpenCachedFor(ctx context.Context, src *source.Source) (Pool, bo
 			src.Handle, src.Type)
 	}
 
-	srcFilepath, err := d.files.Filepath(ctx, src)
+	srcFilepath, err := ss.files.Filepath(ctx, src)
 	if err != nil {
 		return nil, false, err
 	}
-	d.log.Debug("Got srcFilepath for src",
+	ss.log.Debug("Got srcFilepath for src",
 		lga.Src, src, lga.Path, srcFilepath)
 
 	cachedChecksum, ok := mChecksums[srcFilepath]
@@ -387,7 +379,7 @@ func (d *Pools) OpenCachedFor(ctx context.Context, src *source.Source) (Pool, bo
 		return nil, false, nil
 	}
 
-	backingType, err := d.files.DriverType(ctx, cacheDBPath)
+	backingType, err := ss.files.DriverType(ctx, cacheDBPath)
 	if err != nil {
 		return nil, false, err
 	}
@@ -398,7 +390,7 @@ func (d *Pools) OpenCachedFor(ctx context.Context, src *source.Source) (Pool, bo
 		Type:     backingType,
 	}
 
-	backingPool, err := d.doOpen(ctx, backingSrc)
+	backingPool, err := ss.doOpen(ctx, backingSrc)
 	if err != nil {
 		return nil, false, errz.Wrapf(err, "open cached DB for source %s", src.Handle)
 	}
@@ -417,18 +409,18 @@ func (d *Pools) OpenCachedFor(ctx context.Context, src *source.Source) (Pool, bo
 // to OpenScratch.
 //
 // OpenJoin implements JoinPoolOpener.
-func (d *Pools) OpenJoin(ctx context.Context, srcs ...*source.Source) (Pool, error) {
+func (ss *Sources) OpenJoin(ctx context.Context, srcs ...*source.Source) (Pool, error) {
 	var names []string
 	for _, src := range srcs {
 		names = append(names, src.Handle[1:])
 	}
 
-	d.log.Debug("OpenJoin", "sources", strings.Join(names, ","))
-	return d.OpenScratchFor(ctx, srcs[0])
+	ss.log.Debug("OpenJoin", "sources", strings.Join(names, ","))
+	return ss.OpenScratch(ctx, srcs[0])
 }
 
 // Close closes d, invoking Close on any instances opened via d.Open.
-func (d *Pools) Close() error {
-	d.log.Debug("Closing databases(s)...", lga.Count, d.clnup.Len())
-	return d.clnup.Run()
+func (ss *Sources) Close() error {
+	ss.log.Debug("Closing databases(s)...", lga.Count, ss.clnup.Len())
+	return ss.clnup.Run()
 }

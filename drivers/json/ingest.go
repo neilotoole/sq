@@ -53,18 +53,18 @@ var (
 )
 
 // getRecMeta returns record.Meta to use with RecordWriter.Open.
-func getRecMeta(ctx context.Context, scratchPool driver.Pool, tblDef *sqlmodel.TableDef) (record.Meta, error) {
-	db, err := scratchPool.DB(ctx)
+func getRecMeta(ctx context.Context, pool driver.Pool, tblDef *sqlmodel.TableDef) (record.Meta, error) {
+	db, err := pool.DB(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	colTypes, err := scratchPool.SQLDriver().TableColumnTypes(ctx, db, tblDef.Name, tblDef.ColNames())
+	colTypes, err := pool.SQLDriver().TableColumnTypes(ctx, db, tblDef.Name, tblDef.ColNames())
 	if err != nil {
 		return nil, err
 	}
 
-	destMeta, _, err := scratchPool.SQLDriver().RecordMeta(ctx, colTypes)
+	destMeta, _, err := pool.SQLDriver().RecordMeta(ctx, colTypes)
 	if err != nil {
 		return nil, err
 	}

@@ -122,7 +122,7 @@ func execTblCopy(cmd *cobra.Command, args []string) error {
 	}
 
 	var pool driver.Pool
-	pool, err = ru.Pools.Open(ctx, tblHandles[0].src)
+	pool, err = ru.Sources.Open(ctx, tblHandles[0].src)
 	if err != nil {
 		return err
 	}
@@ -255,7 +255,7 @@ func execTblDrop(cmd *cobra.Command, args []string) (err error) {
 		}
 
 		var pool driver.Pool
-		if pool, err = ru.Pools.Open(ctx, tblH.src); err != nil {
+		if pool, err = ru.Sources.Open(ctx, tblH.src); err != nil {
 			return err
 		}
 
