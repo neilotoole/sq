@@ -3,7 +3,6 @@ package progress
 import (
 	"context"
 	"io"
-	"os"
 	"sync"
 	"time"
 
@@ -83,11 +82,10 @@ func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors
 
 	p.pcInit = func() {
 		opts := []mpb.ContainerOption{
-			mpb.WithDebugOutput(os.Stdout),
 			mpb.WithOutput(out),
 			mpb.WithWidth(boxWidth),
-			// mpb.WithRefreshRate(refreshRate),
-			// mpb.WithAutoRefresh(), // Needed for color in Windows, apparently
+			mpb.WithRefreshRate(refreshRate),
+			mpb.WithAutoRefresh(), // Needed for color in Windows, apparently
 		}
 		if delay > 0 {
 			delayCh := renderDelay(ctx, delay)
@@ -157,6 +155,10 @@ func (p *Progress) Wait() {
 
 	for _, bar := range p.bars {
 		bar.bar.Abort(true)
+	}
+
+	for _, bar := range p.bars {
+		bar.bar.Wait()
 	}
 
 	p.pc.Wait()

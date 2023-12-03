@@ -155,7 +155,7 @@ func (ss *Sources) OpenIngest(ctx context.Context, src *source.Source, allowCach
 	ingestFn func(ctx context.Context, dest Pool) error,
 ) (Pool, error) {
 	if !allowCache || src.Handle == source.StdinHandle {
-		// We don't currently cache stdin.
+		// We don't currently cache stdin. Probably we never will?
 		return ss.openIngestNoCache(ctx, src, ingestFn)
 	}
 
