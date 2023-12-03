@@ -47,13 +47,14 @@ func (w *configWriter) CacheLocation(loc string) error {
 
 // CacheInfo implements output.ConfigWriter. It simply
 // delegates to CacheLocation.
-func (w *configWriter) CacheInfo(loc string, size int64) error {
+func (w *configWriter) CacheInfo(loc string, enabled bool, size int64) error {
 	type cacheInfo struct {
 		Location string `yaml:"location"`
+		Enabled  bool   `yaml:"enabled"`
 		Size     *int64 `yaml:"size,omitempty"`
 	}
 
-	ci := cacheInfo{Location: loc}
+	ci := cacheInfo{Location: loc, Enabled: enabled}
 	if size != -1 {
 		ci.Size = &size
 	}

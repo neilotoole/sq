@@ -109,7 +109,7 @@ func defaultLogging(ctx context.Context, osArgs []string, cfg *config.Config,
 	} else {
 		h = newJSONHandler(logFile, lvl)
 	}
-	//h = devlog.NewHandler(logFile, lvl)
+	// h = devlog.NewHandler(logFile, lvl)
 	// h = newJSONHandler(logFile, lvl)
 	return slog.New(h), h, closer, nil
 }

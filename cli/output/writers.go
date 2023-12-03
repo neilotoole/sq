@@ -145,7 +145,7 @@ type ConfigWriter interface {
 
 	// CacheInfo prints cache info. Set arg size to -1 to indicate
 	// that the size of the cache could not be calculated.
-	CacheInfo(loc string, size int64) error
+	CacheInfo(loc string, enabled bool, size int64) error
 }
 
 // Writers is a container for the various output Writers.

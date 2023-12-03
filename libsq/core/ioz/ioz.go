@@ -385,3 +385,12 @@ func DirSize(path string) (int64, error) {
 	})
 	return size, err
 }
+
+// DirExists returns true if dir exists and is a directory.
+func DirExists(dir string) bool {
+	fi, err := os.Stat(dir)
+	if err != nil {
+		return false
+	}
+	return fi.IsDir()
+}

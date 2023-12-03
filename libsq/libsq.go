@@ -11,6 +11,7 @@ package libsq
 
 import (
 	"context"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -134,7 +135,7 @@ func SLQ2SQL(ctx context.Context, qc *QueryContext, query string) (targetSQL str
 // The caller is responsible for closing pool (and db, if non-nil).
 func QuerySQL(ctx context.Context, pool driver.Pool, db sqlz.DB,
 	recw RecordWriter, query string, args ...any,
-) error {
+) error { //nolint:funlen
 	log := lg.FromContext(ctx)
 	errw := pool.SQLDriver().ErrWrapFunc()
 

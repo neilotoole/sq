@@ -1,9 +1,18 @@
 package cli
 
 import (
+	"github.com/a8m/tree"
+	"github.com/a8m/tree/ostree"
+	"io"
+	"os"
+	"path/filepath"
+
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
+	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/spf13/cobra"
 
@@ -112,5 +121,111 @@ func execConfigCacheInfo(cmd *cobra.Command, _ []string) error {
 		size = -1
 	}
 
-	return ru.Writers.Config.CacheInfo(dir, size)
+	enabled := driver.OptIngestCache.Get(ru.Config.Options)
+	return ru.Writers.Config.CacheInfo(dir, enabled, size)
+}
+
+func newConfigCacheClearCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "clear",
+		Short:   "Clear cache",
+		Long:    "Clear cache. May cause issues if another sq instance is running.",
+		Args:    cobra.ExactArgs(0),
+		RunE:    execConfigCacheClear,
+		Example: `  $ sq config cache clear`,
+	}
+
+	return cmd
+}
+
+func execConfigCacheClear(cmd *cobra.Command, _ []string) error {
+	log := lg.FromContext(cmd.Context())
+	cacheDir := source.CacheDirPath()
+	if !ioz.DirExists(cacheDir) {
+		return nil
+	}
+
+	// Instead of directly deleting the existing cache dir, we first
+	// move it to /tmp, and then try to delete it. This should probably
+	// help with the situation where another sq instance has an open pid
+	// lock in the cache dir.
+	tmpLoc := filepath.Join(os.TempDir(), "sq", "dead_cache_"+stringz.Uniq8())
+	if err := os.Rename(cacheDir, tmpLoc); err != nil {
+		return errz.Wrap(err, "clear cache: relocate")
+	}
+
+	deleteErr := os.RemoveAll(tmpLoc)
+	if deleteErr != nil {
+		log.Warn("Could not delete relocated cache dir", lga.Path, tmpLoc, lga.Err, deleteErr)
+	}
+
+	if err := os.MkdirAll(cacheDir, 0o750); err != nil {
+		return errz.Wrap(err, "clear cache")
+	}
+
+	return nil
+}
+
+func newConfigCacheTreeCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "tree",
+		Short:   "Print tree view of cache dir",
+		Long:    "Print tree view of cache dir.",
+		Args:    cobra.ExactArgs(0),
+		RunE:    execConfigCacheTree,
+		Example: `  $ sq config cache tree`,
+	}
+
+	return cmd
+}
+
+func execConfigCacheTree(cmd *cobra.Command, _ []string) error {
+	ru := run.FromContext(cmd.Context())
+	cacheDir := source.CacheDirPath()
+	if !ioz.DirExists(cacheDir) {
+		return nil
+	}
+	return printFileTree(ru.Out, cacheDir)
+}
+
+func printFileTree(w io.Writer, loc string) error {
+	opts := &tree.Options{
+		Fs:      new(ostree.FS),
+		OutFile: w,
+		All:     false,
+		//DirsOnly:   false,
+		//FullPath:   false,
+		//IgnoreCase: false,
+		//FollowLink: false,
+		//DeepLevel:  0,
+		//Pattern:    "",
+		//IPattern:   "",
+		//MatchDirs:  false,
+		//Prune:      false,
+		//ByteSize:   false,
+		//UnitSize:   true,
+		//FileMode:   false,
+		//ShowUid:    false,
+		//ShowGid:    false,
+		//LastMod:    false,
+		//Quotes:     false,
+		//Inodes:     false,
+		//Device:     false,
+		//NoSort:     false,
+		//VerSort:    false,
+		//ModSort:    false,
+		//DirSort:    false,
+		//NameSort:   false,
+		//SizeSort:   false,
+		//CTimeSort:  false,
+		//ReverSort:  false,
+		//NoIndent:   false,
+		Colorize: true,
+		//Color:    nil,
+	}
+
+	inf := tree.New(loc)
+	_, _ = inf.Visit(opts)
+	inf.Print(opts)
+	return nil
 }

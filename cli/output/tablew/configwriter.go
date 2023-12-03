@@ -2,9 +2,10 @@ package tablew
 
 import (
 	"fmt"
+	"io"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
-	"io"
 
 	"github.com/fatih/color"
 	"github.com/samber/lo"
@@ -46,10 +47,16 @@ func (w *configWriter) CacheLocation(loc string) error {
 
 // CacheInfo implements output.ConfigWriter. It simply
 // delegates to CacheLocation.
-func (w *configWriter) CacheInfo(loc string, size int64) error {
-	s := loc + " "
+func (w *configWriter) CacheInfo(loc string, enabled bool, size int64) error {
+	const sp = "  "
+	s := loc + sp
+	if enabled {
+		s += w.tbl.pr.Enabled.Sprint("enabled") + sp
+	} else {
+		s += w.tbl.pr.Disabled.Sprint("disabled") + sp
+	}
 	if size == -1 {
-		s += w.tbl.pr.Error.Sprint("(size unavailable)")
+		s += w.tbl.pr.Warning.Sprint("(size unavailable)")
 	} else {
 		s += w.tbl.pr.Faint.Sprintf("(%s)", stringz.ByteSized(size, 1, ""))
 	}
