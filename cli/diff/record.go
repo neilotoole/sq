@@ -243,6 +243,6 @@ func (d *recWriter) Open(_ context.Context, _ context.CancelFunc, recMeta record
 
 // Wait implements libsq.RecordWriter.
 func (d *recWriter) Wait() (written int64, err error) {
-	// We don't actually use Wait(), so just return zero values.
+	// We don't actually use Stop(), so just return zero values.
 	return 0, nil
 }

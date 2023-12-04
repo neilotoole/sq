@@ -233,7 +233,7 @@ func ingestSheetToTable(ctx context.Context, destPool driver.Pool, sheetTbl *she
 			close(bi.RecordCh)
 			return err
 		}
-
+		
 		select {
 		case <-ctx.Done():
 			close(bi.RecordCh)
@@ -252,7 +252,7 @@ func ingestSheetToTable(ctx context.Context, destPool driver.Pool, sheetTbl *she
 
 	close(bi.RecordCh) // Indicate that we're finished writing records
 
-	err = <-bi.ErrCh // Wait for bi to complete
+	err = <-bi.ErrCh // Stop for bi to complete
 	if err != nil {
 		return err
 	}

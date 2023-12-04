@@ -76,6 +76,6 @@ LOOP:
 		time.Sleep(time.Duration(rand.Intn(10)+1) * maxSleep / 10) //nolint:gosec
 	}
 
-	pb.Wait()
+	pb.Stop()
 	return nil
 }

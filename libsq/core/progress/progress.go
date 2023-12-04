@@ -1,9 +1,24 @@
+// Package progress contains progress bar widget functionality.
+// Use progress.New to create a new progress widget container.
+// That widget should be added to a context using progress.NewContext,
+// and retrieved via progress.FromContext. Invoke one of the Progress.NewX
+// methods to create a new progress.Bar. Invoke Bar.IncrBy to increment
+// the bar's progress, and invoke Bar.Stop to stop the bar. Be sure
+// to invoke Progress.Stop when the progress widget is no longer needed.
+//
+// You can use the progress.NewReader and progress.NewWriter functions
+// to wrap an io.Reader or io.Writer, respectively, with a progress bar.
+// Both functions expect the supplied ctx arg to contain a *progress.Progress.
+// Note also that both wrappers are context-aware; that is, they will stop
+// the reading/writing process when the context is canceled. Be sure to
+// call Close on the wrappers when done.
 package progress
 
 import (
 	"context"
 	"io"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	humanize "github.com/dustin/go-humanize"
@@ -15,15 +30,15 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 )
 
-type runKey struct{}
+type ctxKey struct{}
 
-// NewContext returns ctx with prog added as a value.
-func NewContext(ctx context.Context, prog *Progress) context.Context {
+// NewContext returns ctx with p added as a value.
+func NewContext(ctx context.Context, p *Progress) context.Context {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 
-	return context.WithValue(ctx, runKey{}, prog)
+	return context.WithValue(ctx, ctxKey{}, p)
 }
 
 // FromContext returns the [Progress] added to ctx via NewContext,
@@ -34,7 +49,7 @@ func FromContext(ctx context.Context) *Progress {
 		return nil
 	}
 
-	val := ctx.Value(runKey{})
+	val := ctx.Value(ctxKey{})
 	if val == nil {
 		return nil
 	}
@@ -52,10 +67,23 @@ const (
 	refreshRate = 150 * time.Millisecond
 )
 
+// NOTE: The implementation below is wildly more complicated than it should be.
+// This is due to a bug in the mpb package, wherein it doesn't fully
+// respect the render delay.
+//
+//  https://github.com/vbauerster/mpb/issues/136
+//
+// Until that bug is fixed, we have a messy workaround. The gist of it
+// is that both the Progress.pc and Bar.bar are lazily initialized.
+// The Progress.pc (progress container) is initialized on the first
+// call to one of the Progress.NewX methods. The Bar.bar is initialized
+// only after the render delay has expired. The details are ugly. Hopefully
+// this can all be simplified once the mpb bug is fixed.
+
 // New returns a new Progress instance, which is a container for progress bars.
 // The returned Progress instance is safe for concurrent use, and all of its
 // public methods can be safely invoked on a nil Progress. The caller is
-// responsible for calling [Progress.Wait] on the returned Progress.
+// responsible for calling [Progress.Stop] on the returned Progress.
 // Arg delay specifies a duration to wait before rendering the progress bar.
 // The Progress is lazily initialized, and thus the delay clock doesn't
 // start ticking until the first call to one of the Progress.NewX methods.
@@ -88,7 +116,7 @@ func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors
 			mpb.WithAutoRefresh(), // Needed for color in Windows, apparently
 		}
 		if delay > 0 {
-			delayCh := renderDelay(ctx, delay)
+			delayCh := renderDelay(ctx, p, delay)
 			opts = append(opts, mpb.WithRenderDelay(delayCh))
 			p.delayCh = delayCh
 		} else {
@@ -104,13 +132,14 @@ func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors
 }
 
 // Progress represents a container that renders one or more progress bars.
-// The caller is responsible for calling [Progress.Wait] to indicate
+// The caller is responsible for calling [Progress.Stop] to indicate
 // completion.
 type Progress struct {
 	// mu guards ALL public methods.
 	mu *sync.Mutex
 
-	ctx context.Context
+	ctx      context.Context
+	cancelFn context.CancelFunc
 
 	// pc is the underlying progress container. It is lazily initialized
 	// by pcInit. Any method that accesses pc must be certain that
@@ -124,23 +153,33 @@ type Progress struct {
 	// start as soon as delayCh is closed.
 	delayCh <-chan struct{}
 
-	colors *Colors
-	// cleanup *cleanup.Cleanup
-	bars []*Bar
+	// stopped is set to true when Stop is called.
+	// REVISIT: Do we really need stopped, or can we rely on ctx.Done()?
+	stopped bool
 
-	cancelFn context.CancelFunc
+	colors *Colors
+
+	// bars contains all bars that have been created on this Progress.
+	bars []*Bar
 }
 
-// Wait waits for all bars to complete and finally shuts down the
+// Stop waits for all bars to complete and finally shuts down the
 // container. After this method has been called, there is no way
 // to reuse the Progress instance.
-func (p *Progress) Wait() {
+func (p *Progress) Stop() {
 	if p == nil {
 		return
 	}
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
+
+	if p.stopped {
+		return
+	}
+
+	p.stopped = true
+	p.cancelFn()
 
 	if p.pc == nil {
 		return
@@ -150,17 +189,41 @@ func (p *Progress) Wait() {
 		return
 	}
 
-	p.cancelFn()
-
-	for _, bar := range p.bars {
-		bar.bar.Abort(true)
+	for _, b := range p.bars {
+		if b.bar != nil {
+			b.bar.Abort(true)
+		}
 	}
 
-	for _, bar := range p.bars {
-		bar.bar.Wait()
+	for _, b := range p.bars {
+		if b.bar != nil {
+			b.bar.Wait()
+		}
 	}
 
 	p.pc.Wait()
+}
+
+// initBars lazily initializes all bars in p.bars.
+func (p *Progress) initBars() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	select {
+	case <-p.ctx.Done():
+		return
+	default:
+	}
+
+	if p.stopped {
+		return
+	}
+
+	for _, b := range p.bars {
+		if !b.stopped {
+			b.initBarOnce.Do(b.initBar)
+		}
+	}
 }
 
 // NewUnitCounter returns a new indeterminate bar whose label
@@ -261,53 +324,35 @@ func (p *Progress) newBar(msg string, total int64,
 		total = 0
 	}
 
-	bar := p.pc.New(total,
-		style,
-		mpb.BarWidth(barWidth),
-		mpb.PrependDecorators(
-			colorize(decor.Name(msg, decor.WCSyncWidthR), p.colors.Message),
-		),
-		mpb.AppendDecorators(decorators...),
-		mpb.BarRemoveOnComplete(),
-	)
+	b := &Bar{
+		p:           p,
+		incrStash:   &atomic.Int64{},
+		initBarOnce: &sync.Once{},
+	}
+	b.initBar = func() {
+		if b.stopped || p.stopped {
+			return
+		}
+		b.bar = p.pc.New(total,
+			style,
+			mpb.BarWidth(barWidth),
+			mpb.PrependDecorators(
+				colorize(decor.Name(msg, decor.WCSyncWidthR), p.colors.Message),
+			),
+			mpb.AppendDecorators(decorators...),
+			mpb.BarRemoveOnComplete(),
+		)
+		b.bar.IncrBy(int(b.incrStash.Load()))
+		b.incrStash.Store(0)
+	}
 
-	b := &Bar{p: p, bar: bar}
 	p.bars = append(p.bars, b)
+	select {
+	case <-p.delayCh:
+		b.initBarOnce.Do(b.initBar)
+	default:
+	}
 	return b
-}
-
-// barStopped is called by a Bar when it is stopped.
-// This was supposed to do something, but it's a no-op for now.
-func (p *Progress) barStopped(_ *Bar) {
-	if p == nil {
-		return
-	}
-}
-
-func spinnerStyle(c *color.Color) mpb.SpinnerStyleComposer {
-	// REVISIT: maybe use ascii chars only, in case it's a weird terminal?
-	frames := []string{"∙∙∙", "●∙∙", "●∙∙", "∙●∙", "∙●∙", "∙∙●", "∙∙●", "∙∙∙"}
-	style := mpb.SpinnerStyle(frames...)
-	if c != nil {
-		style = style.Meta(func(s string) string {
-			return c.Sprint(s)
-		})
-	}
-	return style
-}
-
-func barStyle(c *color.Color) mpb.BarStyleComposer {
-	clr := func(s string) string {
-		return c.Sprint(s)
-	}
-
-	frames := []string{"∙", "●", "●", "●", "∙"}
-
-	return mpb.BarStyle().
-		Lbound("  ").Rbound("  ").
-		Filler("∙").FillerMeta(clr).
-		Padding(" ").
-		Tip(frames...).TipMeta(clr)
 }
 
 // Bar represents a single progress bar. The caller should invoke
@@ -315,8 +360,28 @@ func barStyle(c *color.Color) mpb.BarStyleComposer {
 // the bar is complete, the caller should invoke [Bar.Stop]. All
 // methods are safe to call on a nil Bar.
 type Bar struct {
-	p   *Progress
+
+	// bar is nil until barInitOnce.Do(initBar) is called
 	bar *mpb.Bar
+	// p is never nil
+	p *Progress
+
+	// There's a bug in the mpb package, wherein it doesn't fully
+	// respect the render delay.
+	//
+	// https://github.com/vbauerster/mpb/issues/136
+	//
+	// Until that bug is fixed, the Bar is lazily initialized
+	// after the render delay expires.
+
+	initBarOnce *sync.Once
+	initBar     func()
+
+	// incrStash holds the increment count until the
+	// bar is fully initialized.
+	incrStash *atomic.Int64
+
+	stopped bool
 }
 
 // IncrBy increments progress by amount of n. It is safe to
@@ -325,7 +390,26 @@ func (b *Bar) IncrBy(n int) {
 	if b == nil {
 		return
 	}
-	b.bar.IncrBy(n)
+
+	b.p.mu.Lock()
+	defer b.p.mu.Unlock()
+
+	if b.stopped || b.p.stopped {
+		return
+	}
+
+	select {
+	case <-b.p.ctx.Done():
+		return
+	case <-b.p.delayCh:
+		b.initBarOnce.Do(b.initBar)
+		if b.bar != nil {
+			b.bar.IncrBy(n)
+		}
+		return
+	default:
+		b.incrStash.Add(int64(n))
+	}
 }
 
 // Stop stops and removes the bar. It is safe to call Stop on a nil Bar,
@@ -334,15 +418,27 @@ func (b *Bar) Stop() {
 	if b == nil {
 		return
 	}
-	b.bar.SetTotal(-1, true)
-	b.bar.Abort(true)
+
+	b.p.mu.Lock()
+	defer b.p.mu.Unlock()
+
+	if b.bar == nil {
+		b.stopped = true
+		return
+	}
+
+	if !b.stopped {
+		b.bar.SetTotal(-1, true)
+		b.bar.Abort(true)
+	}
+	b.stopped = true
+
 	b.bar.Wait()
-	b.p.barStopped(b)
 }
 
 // renderDelay returns a channel that will be closed after d,
-// or if ctx is done.
-func renderDelay(ctx context.Context, d time.Duration) <-chan struct{} {
+// or if ctx is done. Arg callback is invoked after the delay.
+func renderDelay(ctx context.Context, p *Progress, d time.Duration) <-chan struct{} {
 	ch := make(chan struct{})
 	t := time.NewTimer(d)
 	go func() {
@@ -353,6 +449,7 @@ func renderDelay(ctx context.Context, d time.Duration) <-chan struct{} {
 			lg.FromContext(ctx).Debug("Render delay via ctx.Done")
 		case <-t.C:
 			lg.FromContext(ctx).Debug("Render delay via timer")
+			p.initBars()
 		}
 	}()
 	return ch
@@ -400,4 +497,30 @@ func (c *Colors) EnableColor(enable bool) {
 	c.Filler.DisableColor()
 	c.Size.DisableColor()
 	c.Percent.DisableColor()
+}
+
+func spinnerStyle(c *color.Color) mpb.SpinnerStyleComposer {
+	// REVISIT: maybe use ascii chars only, in case it's a weird terminal?
+	frames := []string{"∙∙∙", "●∙∙", "●∙∙", "∙●∙", "∙●∙", "∙∙●", "∙∙●", "∙∙∙"}
+	style := mpb.SpinnerStyle(frames...)
+	if c != nil {
+		style = style.Meta(func(s string) string {
+			return c.Sprint(s)
+		})
+	}
+	return style
+}
+
+func barStyle(c *color.Color) mpb.BarStyleComposer {
+	clr := func(s string) string {
+		return c.Sprint(s)
+	}
+
+	frames := []string{"∙", "●", "●", "●", "∙"}
+
+	return mpb.BarStyle().
+		Lbound("  ").Rbound("  ").
+		Filler("∙").FillerMeta(clr).
+		Padding(" ").
+		Tip(frames...).TipMeta(clr)
 }

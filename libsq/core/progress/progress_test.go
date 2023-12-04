@@ -33,7 +33,7 @@ func TestNewWriter(t *testing.T) {
 	written, err := io.Copy(w, src)
 	require.NoError(t, err)
 	require.Equal(t, int64(limit), written)
-	pb.Wait()
+	pb.Stop()
 }
 
 // TestNewWriter_Closer tests that the returned writer
@@ -45,7 +45,7 @@ func TestNewWriter_Closer(t *testing.T) {
 	ctx := context.Background()
 	pb := progress.New(ctx, os.Stdout, time.Millisecond, progress.DefaultColors())
 	ctx = progress.NewContext(ctx, pb)
-	defer pb.Wait()
+	defer pb.Stop()
 
 	// bytes.Buffer doesn't implement io.Closer
 	buf := &bytes.Buffer{}
@@ -72,7 +72,7 @@ func TestNewReader_Closer(t *testing.T) {
 	ctx := context.Background()
 	pb := progress.New(ctx, os.Stdout, time.Millisecond, progress.DefaultColors())
 	ctx = progress.NewContext(ctx, pb)
-	defer pb.Wait()
+	defer pb.Stop()
 
 	// bytes.Buffer doesn't implement io.Closer
 	buf := &bytes.Buffer{}

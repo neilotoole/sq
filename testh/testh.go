@@ -527,7 +527,7 @@ func (h *Helper) Insert(src *source.Source, tbl string, cols []string, records .
 
 	close(bi.RecordCh) // Indicate that we're finished writing records
 
-	err = <-bi.ErrCh // Wait for bi to complete
+	err = <-bi.ErrCh // Stop for bi to complete
 	require.NoError(h.T, err)
 
 	h.T.Logf("Inserted %d rows to %s.%s", bi.Written(), src.Handle, tbl)

@@ -142,7 +142,7 @@ func (w *DBWriter) Open(ctx context.Context, cancelFn context.CancelFunc, recMet
 		defer func() {
 			// When the inserter goroutine finishes:
 			// - we close errCh (indicates that the DBWriter is done)
-			// - and mark wg as done, which the Wait method depends upon.
+			// - and mark wg as done, which the Stop method depends upon.
 			close(w.errCh)
 			w.wg.Done()
 		}()
@@ -164,7 +164,7 @@ func (w *DBWriter) Open(ctx context.Context, cancelFn context.CancelFunc, recMet
 					// Tell batch inserter that we're done sending records
 					close(w.bi.RecordCh)
 
-					err = <-w.bi.ErrCh // Wait for batch inserter to complete
+					err = <-w.bi.ErrCh // Stop for batch inserter to complete
 					if err != nil {
 						lg.FromContext(ctx).Error(err.Error())
 						w.addErrs(err)

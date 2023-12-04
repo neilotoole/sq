@@ -130,7 +130,7 @@ func execSQLPrint(ctx context.Context, ru *run.Run, fromSrc *source.Source) erro
 	if err != nil {
 		return err
 	}
-	_, err = recw.Wait() // Wait for the writer to finish processing
+	_, err = recw.Wait() // Stop for the writer to finish processing
 	return err
 }
 
@@ -170,7 +170,7 @@ func execSQLInsert(ctx context.Context, ru *run.Run,
 		return errz.Wrapf(err, "insert to {%s} failed", source.Target(destSrc, destTbl))
 	}
 
-	affected, err := inserter.Wait() // Wait for the writer to finish processing
+	affected, err := inserter.Wait() // Stop for the writer to finish processing
 	if err != nil {
 		return errz.Wrapf(err, "insert %s.%s failed", destSrc.Handle, destTbl)
 	}

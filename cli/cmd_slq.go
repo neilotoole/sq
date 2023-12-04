@@ -154,7 +154,7 @@ func execSLQInsert(ctx context.Context, ru *run.Run, mArgs map[string]string,
 	)
 
 	execErr := libsq.ExecuteSLQ(ctx, qc, slq, inserter)
-	affected, waitErr := inserter.Wait() // Wait for the writer to finish processing
+	affected, waitErr := inserter.Wait() // Stop for the writer to finish processing
 	if execErr != nil {
 		return errz.Wrapf(execErr, "insert %s.%s failed", destSrc.Handle, destTbl)
 	}
@@ -416,7 +416,7 @@ func extractFlagArgsValues(cmd *cobra.Command) (map[string]string, error) {
 // preprocessFlagArgVars is a hack to support the predefined
 // variables "--arg" mechanism. We implement the mechanism in alignment
 // with how jq does it: "--arg name value".
-// See: https://stedolan.github.io/jq/manual/v1.6/
+// See: https://jqlang.github.io/jq/manual/v1.6/
 //
 // For example:
 //

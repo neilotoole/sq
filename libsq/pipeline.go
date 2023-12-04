@@ -481,7 +481,7 @@ func execCopyTable(ctx context.Context, fromDB driver.Pool, fromTbl tablefq.T,
 		return errz.Wrapf(err, "insert %s.%s failed", destPool.Source().Handle, destTbl)
 	}
 
-	affected, err := inserter.Wait() // Wait for the writer to finish processing
+	affected, err := inserter.Wait() // Stop for the writer to finish processing
 	if err != nil {
 		return errz.Wrapf(err, "insert %s.%s failed", destPool.Source().Handle, destTbl)
 	}
