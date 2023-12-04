@@ -29,7 +29,7 @@ require (
 	github.com/neilotoole/slogt v1.1.0
 	github.com/otiai10/copy v1.14.0
 	github.com/ryboe/q v1.0.20
-	github.com/samber/lo v1.38.1
+	github.com/samber/lo v1.39.0
 	github.com/segmentio/encoding v0.3.6
 	github.com/sethvargo/go-retry v0.2.4
 	github.com/shopspring/decimal v1.3.1
