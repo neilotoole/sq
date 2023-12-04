@@ -36,7 +36,7 @@ require (
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.4
-	github.com/xo/dburl v0.18.2
+	github.com/xo/dburl v0.19.1
 	github.com/xuri/excelize/v2 v2.8.0
 	go.uber.org/atomic v1.11.0
 	go.uber.org/multierr v1.11.0
