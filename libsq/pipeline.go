@@ -189,9 +189,8 @@ func (p *pipeline) prepareNoTable(ctx context.Context, qm *queryModel) error {
 			log.Debug("No active SQL source, will use scratchdb.")
 			// REVISIT: ScratchPoolOpener needs a source, so we just make one up.
 			ephemeralSrc := &source.Source{
-				Type:      drivertype.None,
-				Handle:    "@scratch_" + stringz.Uniq8(),
-				Ephemeral: true,
+				Type:   drivertype.None,
+				Handle: "@scratch_" + stringz.Uniq8(),
 			}
 
 			// FIXME: We really want to change the signature of OpenScratch to

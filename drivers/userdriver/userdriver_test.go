@@ -3,7 +3,6 @@ package userdriver_test
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli/config"
@@ -35,13 +34,7 @@ func TestDriver(t *testing.T) {
 			th := testh.New(t, testh.OptLongOpen())
 			src := th.Source(tc.handle)
 
-			drvr := th.DriverFor(src)
-			err := drvr.Ping(th.Context, src)
-			require.NoError(t, err)
-
-			pool, err := drvr.Open(th.Context, src)
-			require.NoError(t, err)
-			t.Cleanup(func() { assert.NoError(t, pool.Close()) })
+			pool := th.Open(src)
 
 			srcMeta, err := pool.SourceMetadata(th.Context, false)
 			require.NoError(t, err)

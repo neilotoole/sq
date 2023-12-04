@@ -14,6 +14,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/lg/devlog"
+
 	"github.com/samber/lo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -65,12 +67,7 @@ const defaultDBOpenTimeout = time.Second * 5
 
 func init() { //nolint:gochecknoinits
 	slogt.Default = slogt.Factory(func(w io.Writer) slog.Handler {
-		h := &slog.HandlerOptions{
-			Level:     slog.LevelDebug,
-			AddSource: true,
-		}
-
-		return slog.NewTextHandler(w, h)
+		return devlog.NewHandler(w, slog.LevelDebug)
 	})
 }
 
@@ -312,7 +309,6 @@ func (h *Helper) Source(handle string) *source.Source {
 	src, err := h.coll.Get(handle)
 	require.NoError(t, err,
 		"source %s was not found in %s", handle, testsrc.PathSrcsConfig)
-	src.Ephemeral = true
 
 	if src.Type == sqlite3.Type {
 		// This could be easily generalized for CSV/XLSX etc.

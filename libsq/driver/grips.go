@@ -98,9 +98,13 @@ func (ss *Sources) IsSQLSource(src *source.Source) bool {
 	return false
 }
 
+func (ss *Sources) getKey(src *source.Source) string {
+	return src.Handle + "_" + src.Hash()
+}
+
 func (ss *Sources) doOpen(ctx context.Context, src *source.Source) (Pool, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
-	key := src.Handle + "_" + src.Hash()
+	key := ss.getKey(src)
 
 	pool, ok := ss.pools[key]
 	if ok {
@@ -172,16 +176,26 @@ func (ss *Sources) OpenScratch(ctx context.Context, src *source.Source) (Pool, e
 	return backingPool, nil
 }
 
-// OpenIngest implements driver.ScratchPoolOpener.
+// OpenIngest opens a pool for src, using ingestFn to ingest
+// the source data if necessary.
 func (ss *Sources) OpenIngest(ctx context.Context, src *source.Source, allowCache bool,
 	ingestFn func(ctx context.Context, dest Pool) error,
 ) (Pool, error) {
+	var pool Pool
+	var err error
+
 	if !allowCache || src.Handle == source.StdinHandle {
 		// We don't currently cache stdin. Probably we never will?
-		return ss.openIngestNoCache(ctx, src, ingestFn)
+		pool, err = ss.openIngestNoCache(ctx, src, ingestFn)
+	} else {
+		pool, err = ss.openIngestCache(ctx, src, ingestFn)
 	}
 
-	return ss.openIngestCache(ctx, src, ingestFn)
+	if err != nil {
+		return nil, err
+	}
+
+	return pool, nil
 }
 
 func (ss *Sources) openIngestNoCache(ctx context.Context, src *source.Source,
@@ -206,7 +220,7 @@ func (ss *Sources) openIngestNoCache(ctx context.Context, src *source.Source,
 		return nil, err
 	}
 
-	ss.log.Debug("Ingest completed",
+	ss.log.Info("Ingest completed",
 		lga.Src, src, lga.Dest, impl.Source(),
 		lga.Elapsed, elapsed)
 	return impl, nil
@@ -280,7 +294,7 @@ func (ss *Sources) openIngestCache(ctx context.Context, src *source.Source,
 		return nil, err
 	}
 
-	log.Debug("Ingest completed", lga.Src, src, lga.Dest, impl.Source(), lga.Elapsed, elapsed)
+	log.Info("Ingest completed", lga.Src, src, lga.Dest, impl.Source(), lga.Elapsed, elapsed)
 
 	// Write the checksums file.
 	var sum ioz.Checksum
