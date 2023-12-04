@@ -1,6 +1,7 @@
 package tablew
 
 import (
+	"context"
 	"io"
 	"sync"
 
@@ -24,18 +25,18 @@ func NewRecordWriter(out io.Writer, pr *output.Printing) output.RecordWriter {
 }
 
 // Open implements output.RecordWriter.
-func (w *recordWriter) Open(recMeta record.Meta) error {
+func (w *recordWriter) Open(_ context.Context, recMeta record.Meta) error {
 	w.recMeta = recMeta
 	return nil
 }
 
 // Flush implements output.RecordWriter.
-func (w *recordWriter) Flush() error {
+func (w *recordWriter) Flush(context.Context) error {
 	return nil
 }
 
 // Close implements output.RecordWriter.
-func (w *recordWriter) Close() error {
+func (w *recordWriter) Close(ctx context.Context) error {
 	if w.rowCount == 0 {
 		// no data to write
 		return nil
@@ -45,18 +46,22 @@ func (w *recordWriter) Close() error {
 	header := w.recMeta.MungedNames()
 	w.tbl.tblImpl.SetHeader(header)
 
-	w.tbl.renderAll()
-	return nil
+	return w.tbl.renderAll(ctx)
 }
 
 // WriteRecords implements output.RecordWriter.
-func (w *recordWriter) WriteRecords(recs []record.Record) error {
+func (w *recordWriter) WriteRecords(ctx context.Context, recs []record.Record) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	kinds := w.recMeta.Kinds()
 
 	var tblRows [][]string
 	for _, rec := range recs {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
 		tblRow := make([]string, len(rec))
 
 		for i, val := range rec {
@@ -67,6 +72,5 @@ func (w *recordWriter) WriteRecords(recs []record.Record) error {
 		w.rowCount++
 	}
 
-	w.tbl.appendRows(tblRows)
-	return nil
+	return w.tbl.appendRows(ctx, tblRows)
 }

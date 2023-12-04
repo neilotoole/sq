@@ -63,7 +63,7 @@ func (w *RecordWriterAdapter) Open(ctx context.Context, cancelFn context.CancelF
 
 	lg.FromContext(ctx).Debug("Open RecordWriterAdapter", "fields", recMeta)
 
-	err := w.rw.Open(recMeta)
+	err := w.rw.Open(ctx, recMeta)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -94,12 +94,12 @@ func (w *RecordWriterAdapter) Open(ctx context.Context, cancelFn context.CancelF
 		for {
 			select {
 			case <-ctx.Done():
-				w.addErrs(ctx.Err(), w.rw.Close())
+				w.addErrs(ctx.Err(), w.rw.Close(ctx))
 				return
 
 			case <-flushCh:
 				// The flushTimer has expired, time to flush.
-				err = w.rw.Flush()
+				err = w.rw.Flush(ctx)
 				if err != nil {
 					w.addErrs(err)
 					return
@@ -110,7 +110,7 @@ func (w *RecordWriterAdapter) Open(ctx context.Context, cancelFn context.CancelF
 
 			case rec := <-w.recCh:
 				if rec == nil { // no more results on recCh, it has been closed
-					err = w.rw.Close()
+					err = w.rw.Close(ctx)
 					if err != nil {
 						w.addErrs()
 					}
@@ -121,7 +121,7 @@ func (w *RecordWriterAdapter) Open(ctx context.Context, cancelFn context.CancelF
 
 				// We could accumulate a bunch of recs into a slice here,
 				// but we'll worry about that if benchmarking shows it'll matter.
-				writeErr := w.rw.WriteRecords([]record.Record{rec})
+				writeErr := w.rw.WriteRecords(ctx, []record.Record{rec})
 				if writeErr != nil {
 					w.addErrs(writeErr)
 					return
@@ -131,7 +131,7 @@ func (w *RecordWriterAdapter) Open(ctx context.Context, cancelFn context.CancelF
 
 				// Check if we should flush
 				if w.FlushAfterN >= 0 && (recN-lastFlushN >= w.FlushAfterN) {
-					err = w.rw.Flush()
+					err = w.rw.Flush(ctx)
 					if err != nil {
 						w.addErrs(err)
 						return

@@ -158,7 +158,7 @@ func findRecordDiff(ctx context.Context, ru *run.Run, lines int,
 		row:      i,
 	}
 
-	if err = populateRecordDiff(lines, ru.Writers.Printing, recDiff); err != nil {
+	if err = populateRecordDiff(ctx, lines, ru.Writers.Printing, recDiff); err != nil {
 		return nil, err
 	}
 
@@ -166,7 +166,7 @@ func findRecordDiff(ctx context.Context, ru *run.Run, lines int,
 }
 
 //nolint:unused
-func populateRecordDiff(lines int, pr *output.Printing, recDiff *recordDiff) error {
+func populateRecordDiff(ctx context.Context, lines int, pr *output.Printing, recDiff *recordDiff) error {
 	pr = pr.Clone()
 	pr.EnableColor(false)
 
@@ -178,10 +178,10 @@ func populateRecordDiff(lines int, pr *output.Printing, recDiff *recordDiff) err
 		err          error
 	)
 
-	if body1, err = renderRecord2YAML(pr, recDiff.recMeta1, recDiff.rec1); err != nil {
+	if body1, err = renderRecord2YAML(ctx, pr, recDiff.recMeta1, recDiff.rec1); err != nil {
 		return err
 	}
-	if body2, err = renderRecord2YAML(pr, recDiff.recMeta1, recDiff.rec2); err != nil {
+	if body2, err = renderRecord2YAML(ctx, pr, recDiff.recMeta1, recDiff.rec2); err != nil {
 		return err
 	}
 
@@ -204,23 +204,25 @@ func populateRecordDiff(lines int, pr *output.Printing, recDiff *recordDiff) err
 }
 
 //nolint:unused
-func renderRecord2YAML(pr *output.Printing, recMeta record.Meta, rec record.Record) (string, error) {
+func renderRecord2YAML(ctx context.Context, pr *output.Printing,
+	recMeta record.Meta, rec record.Record,
+) (string, error) {
 	if rec == nil {
 		return "", nil
 	}
 
 	buf := &bytes.Buffer{}
 	yw := yamlw.NewRecordWriter(buf, pr)
-	if err := yw.Open(recMeta); err != nil {
+	if err := yw.Open(ctx, recMeta); err != nil {
 		return "", err
 	}
-	if err := yw.WriteRecords([]record.Record{rec}); err != nil {
+	if err := yw.WriteRecords(ctx, []record.Record{rec}); err != nil {
 		return "", err
 	}
-	if err := yw.Flush(); err != nil {
+	if err := yw.Flush(ctx); err != nil {
 		return "", err
 	}
-	if err := yw.Close(); err != nil {
+	if err := yw.Close(ctx); err != nil {
 		return "", err
 	}
 	return buf.String(), nil

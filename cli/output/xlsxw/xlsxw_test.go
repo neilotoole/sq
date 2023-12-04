@@ -2,6 +2,7 @@ package xlsxw_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"fmt"
 	"image"
@@ -59,6 +60,7 @@ func TestRecordWriter(t *testing.T) {
 		tc := tc
 
 		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
 			recMeta, recs := testh.RecordsFromTbl(t, tc.handle, tc.tbl)
 			if tc.numRecs >= 0 {
 				recs = recs[0:tc.numRecs]
@@ -70,10 +72,10 @@ func TestRecordWriter(t *testing.T) {
 			pr.ExcelDateFormat = xlsxw.OptDateFormat.Default()
 			pr.ExcelTimeFormat = xlsxw.OptTimeFormat.Default()
 			w := xlsxw.NewRecordWriter(buf, pr)
-			require.NoError(t, w.Open(recMeta))
+			require.NoError(t, w.Open(ctx, recMeta))
 
-			require.NoError(t, w.WriteRecords(recs))
-			require.NoError(t, w.Close())
+			require.NoError(t, w.WriteRecords(ctx, recs))
+			require.NoError(t, w.Close(ctx))
 
 			_ = tu.WriteTemp(t, fmt.Sprintf("*.%s.test.xlsx", tc.name), buf.Bytes(), false)
 
@@ -85,15 +87,16 @@ func TestRecordWriter(t *testing.T) {
 }
 
 func TestBytesEncodedAsBase64(t *testing.T) {
+	ctx := context.Background()
 	recMeta, recs := testh.RecordsFromTbl(t, testsrc.BlobDB, "blobs")
 
 	buf := &bytes.Buffer{}
 	pr := output.NewPrinting()
 	w := xlsxw.NewRecordWriter(buf, pr)
-	require.NoError(t, w.Open(recMeta))
+	require.NoError(t, w.Open(ctx, recMeta))
 
-	require.NoError(t, w.WriteRecords(recs))
-	require.NoError(t, w.Close())
+	require.NoError(t, w.WriteRecords(ctx, recs))
+	require.NoError(t, w.Close(ctx))
 
 	xl, err := excelize.OpenReader(buf)
 	require.NoError(t, err)

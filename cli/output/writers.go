@@ -7,6 +7,7 @@
 package output
 
 import (
+	"context"
 	"io"
 	"time"
 
@@ -31,18 +32,18 @@ import (
 type RecordWriter interface {
 	// Open instructs the writer to prepare to write records
 	// described by recMeta.
-	Open(recMeta record.Meta) error
+	Open(ctx context.Context, recMeta record.Meta) error
 
 	// WriteRecords writes rec to the destination.
-	WriteRecords(recs []record.Record) error
+	WriteRecords(ctx context.Context, recs []record.Record) error
 
 	// Flush advises the writer to flush any internal
 	// buffer. Note that the writer may implement an independent
 	// flushing strategy, or may not buffer at all.
-	Flush() error
+	Flush(ctx context.Context) error
 
 	// Close closes the writer after flushing any internal buffer.
-	Close() error
+	Close(ctx context.Context) error
 }
 
 // MetadataWriter can output metadata.

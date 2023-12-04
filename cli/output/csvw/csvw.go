@@ -2,6 +2,7 @@
 package csvw
 
 import (
+	"context"
 	"encoding/csv"
 	"fmt"
 	"io"
@@ -63,25 +64,25 @@ func (w *RecordWriter) SetComma(c rune) {
 }
 
 // Open implements output.RecordWriter.
-func (w *RecordWriter) Open(recMeta record.Meta) error {
+func (w *RecordWriter) Open(_ context.Context, recMeta record.Meta) error {
 	w.recMeta = recMeta
 	return nil
 }
 
 // Flush implements output.RecordWriter.
-func (w *RecordWriter) Flush() error {
+func (w *RecordWriter) Flush(context.Context) error {
 	w.cw.Flush()
 	return nil
 }
 
 // Close implements output.RecordWriter.
-func (w *RecordWriter) Close() error {
+func (w *RecordWriter) Close(context.Context) error {
 	w.cw.Flush()
 	return w.cw.Error()
 }
 
 // WriteRecords implements output.RecordWriter.
-func (w *RecordWriter) WriteRecords(recs []record.Record) error {
+func (w *RecordWriter) WriteRecords(ctx context.Context, recs []record.Record) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
@@ -98,6 +99,11 @@ func (w *RecordWriter) WriteRecords(recs []record.Record) error {
 	}
 
 	for _, rec := range recs {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
 		fields := make([]string, len(rec))
 
 		for i, val := range rec {
@@ -142,5 +148,5 @@ func (w *RecordWriter) WriteRecords(recs []record.Record) error {
 	}
 
 	w.cw.Flush()
-	return w.cw.Error()
+	return errz.Err(w.cw.Error())
 }

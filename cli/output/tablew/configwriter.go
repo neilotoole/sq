@@ -1,6 +1,7 @@
 package tablew
 
 import (
+	"context"
 	"fmt"
 	"io"
 
@@ -96,16 +97,15 @@ func (w *configWriter) Options(reg *options.Registry, o options.Options) error {
 		w.tbl.pr.ShowHeader = false
 	}
 
-	w.doPrintOptions(reg, o, true)
-	return nil
+	return w.doPrintOptions(reg, o, true)
 }
 
 // Options implements output.ConfigWriter.
 // If printUnset is true and we're in verbose mode, unset options
 // are also printed.
-func (w *configWriter) doPrintOptions(reg *options.Registry, o options.Options, printUnset bool) {
+func (w *configWriter) doPrintOptions(reg *options.Registry, o options.Options, printUnset bool) error {
 	if o == nil {
-		return
+		return nil
 	}
 
 	t, pr, verbose := w.tbl.tblImpl, w.tbl.pr, w.tbl.pr.Verbose
@@ -166,8 +166,7 @@ func (w *configWriter) doPrintOptions(reg *options.Registry, o options.Options, 
 	}
 
 	if !printUnset || !verbose {
-		w.tbl.appendRowsAndRenderAll(rows)
-		return
+		return w.tbl.appendRowsAndRenderAll(context.TODO(), rows)
 	}
 
 	// Also print the unset opts
@@ -186,7 +185,7 @@ func (w *configWriter) doPrintOptions(reg *options.Registry, o options.Options, 
 		rows = append(rows, row)
 	}
 
-	w.tbl.appendRowsAndRenderAll(rows)
+	return w.tbl.appendRowsAndRenderAll(context.TODO(), rows)
 }
 
 // SetOption implements output.ConfigWriter.
@@ -203,8 +202,7 @@ func (w *configWriter) SetOption(o options.Options, opt options.Opt) error {
 	// It's verbose
 	o = options.Effective(o, opt)
 	w.tbl.pr.ShowHeader = true
-	w.doPrintOptions(reg2, o, false)
-	return nil
+	return w.doPrintOptions(reg2, o, false)
 }
 
 // UnsetOption implements output.ConfigWriter.
@@ -218,8 +216,7 @@ func (w *configWriter) UnsetOption(opt options.Opt) error {
 	reg.Add(opt)
 	o := options.Options{}
 
-	w.doPrintOptions(reg, o, true)
-	return nil
+	return w.doPrintOptions(reg, o, true)
 }
 
 func getOptColor(pr *output.Printing, opt options.Opt) *color.Color {

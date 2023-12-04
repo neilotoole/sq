@@ -3,6 +3,7 @@ package jsonw_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"strings"
@@ -139,6 +140,7 @@ func TestRecordWriters(t *testing.T) {
 		tc := tc
 
 		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
 			colNames, kinds := fixt.ColNamePerKind(false, false, false)
 			recMeta := testh.NewRecordMeta(colNames, kinds)
 
@@ -164,9 +166,9 @@ func TestRecordWriters(t *testing.T) {
 
 			w := tc.factoryFn(buf, pr)
 
-			require.NoError(t, w.Open(recMeta))
-			require.NoError(t, w.WriteRecords(recs))
-			require.NoError(t, w.Close())
+			require.NoError(t, w.Open(ctx, recMeta))
+			require.NoError(t, w.WriteRecords(ctx, recs))
+			require.NoError(t, w.Close(ctx))
 			require.Equal(t, tc.want, buf.String())
 
 			if !tc.multiline {

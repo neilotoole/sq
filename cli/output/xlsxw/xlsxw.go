@@ -4,6 +4,7 @@
 package xlsxw
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -143,7 +144,7 @@ func (w *recordWriter) getDecimalStyle(dec decimal.Decimal) (int, error) {
 }
 
 // Open implements output.RecordWriter.
-func (w *recordWriter) Open(recMeta record.Meta) error {
+func (w *recordWriter) Open(_ context.Context, recMeta record.Meta) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
@@ -206,12 +207,12 @@ func (w *recordWriter) setColWidth(col, width int) error {
 }
 
 // Flush implements output.RecordWriter.
-func (w *recordWriter) Flush() error {
+func (w *recordWriter) Flush(context.Context) error {
 	return nil
 }
 
 // Close implements output.RecordWriter.
-func (w *recordWriter) Close() error {
+func (w *recordWriter) Close(context.Context) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
@@ -223,11 +224,16 @@ func (w *recordWriter) Close() error {
 }
 
 // WriteRecords implements output.RecordWriter.
-func (w *recordWriter) WriteRecords(recs []record.Record) error { //nolint:gocognit
+func (w *recordWriter) WriteRecords(ctx context.Context, recs []record.Record) error { //nolint:gocognit
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
 	for _, rec := range recs {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
 		rowi := w.nextRow
 
 		for j, val := range rec {

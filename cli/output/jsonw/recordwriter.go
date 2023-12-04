@@ -2,6 +2,7 @@ package jsonw
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"strings"
 	"sync"
@@ -60,7 +61,7 @@ type stdWriter struct {
 }
 
 // Open implements output.RecordWriter.
-func (w *stdWriter) Open(recMeta record.Meta) error {
+func (w *stdWriter) Open(_ context.Context, recMeta record.Meta) error {
 	if w.err != nil {
 		return w.err
 	}
@@ -92,7 +93,7 @@ func (w *stdWriter) Open(recMeta record.Meta) error {
 }
 
 // WriteRecords implements output.RecordWriter.
-func (w *stdWriter) WriteRecords(recs []record.Record) error {
+func (w *stdWriter) WriteRecords(_ context.Context, recs []record.Record) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if w.err != nil {
@@ -141,7 +142,7 @@ func (w *stdWriter) writeRecord(rec record.Record) error {
 }
 
 // Flush implements output.RecordWriter.
-func (w *stdWriter) Flush() error {
+func (w *stdWriter) Flush(context.Context) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	return w.doFlush()
@@ -158,7 +159,7 @@ func (w *stdWriter) doFlush() error {
 }
 
 // Close implements output.RecordWriter.
-func (w *stdWriter) Close() error {
+func (w *stdWriter) Close(ctx context.Context) error {
 	if w.err != nil {
 		return w.err
 	}
@@ -168,7 +169,7 @@ func (w *stdWriter) Close() error {
 	}
 
 	w.outBuf.Write(w.tpl.footer)
-	return w.Flush()
+	return w.Flush(ctx)
 }
 
 // stdTemplate holds the various parts of the output template
@@ -314,7 +315,7 @@ type lineRecordWriter struct {
 }
 
 // Open implements output.RecordWriter.
-func (w *lineRecordWriter) Open(recMeta record.Meta) error {
+func (w *lineRecordWriter) Open(_ context.Context, recMeta record.Meta) error {
 	if w.err != nil {
 		return w.err
 	}
@@ -331,7 +332,7 @@ func (w *lineRecordWriter) Open(recMeta record.Meta) error {
 }
 
 // WriteRecords implements output.RecordWriter.
-func (w *lineRecordWriter) WriteRecords(recs []record.Record) error {
+func (w *lineRecordWriter) WriteRecords(ctx context.Context, recs []record.Record) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if w.err != nil {
@@ -340,7 +341,12 @@ func (w *lineRecordWriter) WriteRecords(recs []record.Record) error {
 
 	var err error
 	for i := range recs {
-		err = w.writeRecord(recs[i])
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+		err = w.writeRecord(ctx, recs[i])
 		if err != nil {
 			w.err = err
 			return err
@@ -349,7 +355,7 @@ func (w *lineRecordWriter) WriteRecords(recs []record.Record) error {
 	return nil
 }
 
-func (w *lineRecordWriter) writeRecord(rec record.Record) error {
+func (w *lineRecordWriter) writeRecord(ctx context.Context, rec record.Record) error {
 	var err error
 	b := make([]byte, 0, 10)
 
@@ -365,14 +371,14 @@ func (w *lineRecordWriter) writeRecord(rec record.Record) error {
 	w.outBuf.Write(b)
 
 	if w.outBuf.Len() > w.pr.FlushThreshold {
-		return w.Flush()
+		return w.Flush(ctx)
 	}
 
 	return nil
 }
 
 // Flush implements output.RecordWriter.
-func (w *lineRecordWriter) Flush() error {
+func (w *lineRecordWriter) Flush(context.Context) error {
 	if w.err != nil {
 		return w.err
 	}
@@ -384,12 +390,12 @@ func (w *lineRecordWriter) Flush() error {
 }
 
 // Close implements output.RecordWriter.
-func (w *lineRecordWriter) Close() error {
+func (w *lineRecordWriter) Close(ctx context.Context) error {
 	if w.err != nil {
 		return w.err
 	}
 
-	return w.Flush()
+	return w.Flush(ctx)
 }
 
 func newJSONObjectsTemplate(recMeta record.Meta, pr *output.Printing) ([][]byte, error) {

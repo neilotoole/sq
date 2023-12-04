@@ -3,6 +3,7 @@ package xmlw_test
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"testing"
 
@@ -69,6 +70,8 @@ func TestRecordWriter_Actor(t *testing.T) {
 		tc := tc
 
 		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+
 			pr := output.NewPrinting()
 			pr.EnableColor(tc.color)
 			pr.Compact = !tc.pretty
@@ -79,9 +82,9 @@ func TestRecordWriter_Actor(t *testing.T) {
 			buf := &bytes.Buffer{}
 
 			w := xmlw.NewRecordWriter(buf, pr)
-			require.NoError(t, w.Open(recMeta))
-			require.NoError(t, w.WriteRecords(recs))
-			require.NoError(t, w.Close())
+			require.NoError(t, w.Open(ctx, recMeta))
+			require.NoError(t, w.WriteRecords(ctx, recs))
+			require.NoError(t, w.Close(ctx))
 
 			require.Equal(t, tc.want, buf.String())
 		})
@@ -89,6 +92,7 @@ func TestRecordWriter_Actor(t *testing.T) {
 }
 
 func TestRecordWriter_TblTypes(t *testing.T) {
+	ctx := context.Background()
 	pr := output.NewPrinting()
 	pr.EnableColor(false)
 
@@ -96,9 +100,9 @@ func TestRecordWriter_TblTypes(t *testing.T) {
 	buf := &bytes.Buffer{}
 
 	w := xmlw.NewRecordWriter(buf, pr)
-	require.NoError(t, w.Open(recMeta))
-	require.NoError(t, w.WriteRecords(recs))
-	require.NoError(t, w.Close())
+	require.NoError(t, w.Open(ctx, recMeta))
+	require.NoError(t, w.WriteRecords(ctx, recs))
+	require.NoError(t, w.Close(ctx))
 
 	want, err := os.ReadFile("testdata/tbl_types.xml")
 	require.NoError(t, err)

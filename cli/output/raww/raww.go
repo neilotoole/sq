@@ -1,6 +1,7 @@
 package raww
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"strconv"
@@ -39,13 +40,13 @@ func NewRecordWriter(out io.Writer, pr *output.Printing) output.RecordWriter {
 }
 
 // Open implements output.RecordWriter.
-func (w *recordWriter) Open(recMeta record.Meta) error {
+func (w *recordWriter) Open(_ context.Context, recMeta record.Meta) error {
 	w.recMeta = recMeta
 	return nil
 }
 
 // WriteRecords implements output.RecordWriter.
-func (w *recordWriter) WriteRecords(recs []record.Record) error {
+func (w *recordWriter) WriteRecords(ctx context.Context, recs []record.Record) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
@@ -54,6 +55,11 @@ func (w *recordWriter) WriteRecords(recs []record.Record) error {
 	}
 
 	for _, rec := range recs {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
 		for i, val := range rec {
 			switch val := val.(type) {
 			case nil:
@@ -89,11 +95,11 @@ func (w *recordWriter) WriteRecords(recs []record.Record) error {
 }
 
 // Flush implements output.RecordWriter.
-func (w *recordWriter) Flush() error {
+func (w *recordWriter) Flush(context.Context) error {
 	return nil
 }
 
 // Close implements output.RecordWriter.
-func (w *recordWriter) Close() error {
+func (w *recordWriter) Close(context.Context) error {
 	return nil
 }

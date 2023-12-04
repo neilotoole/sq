@@ -10,6 +10,7 @@ package internal
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"regexp"
@@ -164,17 +165,20 @@ func (t *Table) getColTrans(col int) textTransFunc {
 }
 
 // RenderAll table output
-func (t *Table) RenderAll() {
+func (t *Table) RenderAll(ctx context.Context) error {
 	if t.borders.Top {
 		t.printLine(true)
 	}
 	t.printHeading()
-	t.printRows()
+	if err := t.printRows(ctx); err != nil {
+		return err
+	}
 
 	if !t.rowLine && t.borders.Bottom {
 		t.printLine(true)
 	}
 	t.printFooter()
+	return nil
 }
 
 // SetHeader sets table header
@@ -461,10 +465,16 @@ func (t *Table) printFooter() {
 	fmt.Fprintln(t.out)
 }
 
-func (t *Table) printRows() {
+func (t *Table) printRows(ctx context.Context) error {
 	for i, lines := range t.lines {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
 		t.printRow(lines, i)
 	}
+	return nil
 }
 
 // Print Row Information
