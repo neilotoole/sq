@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/ast"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func TestParseCatalogSchema(t *testing.T) {
@@ -26,7 +26,7 @@ func TestParseCatalogSchema(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, tc.in), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
 			gotCatalog, gotSchema, gotErr := ast.ParseCatalogSchema(tc.in)
 			if tc.wantErr {
 				require.Error(t, gotErr)

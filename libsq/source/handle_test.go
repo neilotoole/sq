@@ -15,7 +15,7 @@ import (
 	"github.com/neilotoole/sq/drivers/xlsx"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func TestIsValidGroup(t *testing.T) {
@@ -38,7 +38,7 @@ func TestIsValidGroup(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, tc.in), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
 			gotValid := source.IsValidGroup(tc.in)
 			require.Equal(t, tc.valid, gotValid)
 		})
@@ -78,7 +78,7 @@ func TestValidHandle(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, tc.in), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
 			gotErr := source.ValidHandle(tc.in)
 			if tc.wantErr {
 				require.Error(t, gotErr)
@@ -202,7 +202,7 @@ func TestSuggestHandle(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, tc.typ, tc.loc), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.typ, tc.loc), func(t *testing.T) {
 			set := &source.Collection{}
 			for i := range tc.taken {
 				err := set.Add(&source.Source{

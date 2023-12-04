@@ -184,15 +184,19 @@ func (p *pipeline) prepareNoTable(ctx context.Context, qm *queryModel) error {
 	)
 
 	if handle == "" {
-		if src = p.qc.Collection.Active(); src == nil {
-			log.Debug("No active source, will use scratchdb.")
+		src = p.qc.Collection.Active()
+		if src == nil || !p.qc.Sources.IsSQLSource(src) {
+			log.Debug("No active SQL source, will use scratchdb.")
 			// REVISIT: ScratchPoolOpener needs a source, so we just make one up.
 			ephemeralSrc := &source.Source{
 				Type:      drivertype.None,
-				Handle:    "@scratch" + stringz.Uniq8(),
+				Handle:    "@scratch_" + stringz.Uniq8(),
 				Ephemeral: true,
 			}
-			p.targetPool, err = p.qc.ScratchPoolOpener.OpenScratch(ctx, ephemeralSrc)
+
+			// FIXME: We really want to change the signature of OpenScratch to
+			// just need a name, not a source.
+			p.targetPool, err = p.qc.Sources.OpenScratch(ctx, ephemeralSrc)
 			if err != nil {
 				return err
 			}
@@ -211,7 +215,7 @@ func (p *pipeline) prepareNoTable(ctx context.Context, qm *queryModel) error {
 	}
 
 	// At this point, src is non-nil.
-	if p.targetPool, err = p.qc.PoolOpener.Open(ctx, src); err != nil {
+	if p.targetPool, err = p.qc.Sources.Open(ctx, src); err != nil {
 		return err
 	}
 
@@ -243,7 +247,7 @@ func (p *pipeline) prepareFromTable(ctx context.Context, tblSel *ast.TblSelector
 		return "", nil, err
 	}
 
-	fromPool, err = p.qc.PoolOpener.Open(ctx, src)
+	fromPool, err = p.qc.Sources.Open(ctx, src)
 	if err != nil {
 		return "", nil, err
 	}
@@ -336,7 +340,7 @@ func (p *pipeline) joinSingleSource(ctx context.Context, jc *joinClause) (fromCl
 		return "", nil, err
 	}
 
-	fromPool, err = p.qc.PoolOpener.Open(ctx, src)
+	fromPool, err = p.qc.Sources.Open(ctx, src)
 	if err != nil {
 		return "", nil, err
 	}
@@ -374,7 +378,7 @@ func (p *pipeline) joinCrossSource(ctx context.Context, jc *joinClause) (fromCla
 	}
 
 	// Open the join db
-	joinPool, err := p.qc.JoinPoolOpener.OpenJoin(ctx, srcs...)
+	joinPool, err := p.qc.Sources.OpenJoin(ctx, srcs...)
 	if err != nil {
 		return "", nil, err
 	}
@@ -401,7 +405,7 @@ func (p *pipeline) joinCrossSource(ctx context.Context, jc *joinClause) (fromCla
 			return "", nil, err
 		}
 		var db driver.Pool
-		if db, err = p.qc.PoolOpener.Open(ctx, src); err != nil {
+		if db, err = p.qc.Sources.Open(ctx, src); err != nil {
 			return "", nil, err
 		}
 

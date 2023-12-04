@@ -18,7 +18,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 // testComplete is a helper for testing cobra completion.
@@ -152,7 +152,7 @@ func TestCompleteFlagActiveSchema_query_cmds(t *testing.T) {
 
 			for i, tc := range testCases {
 				tc := tc
-				t.Run(tutil.Name(i, tc.handles, tc.withFlagActiveSrc, tc.arg), func(t *testing.T) {
+				t.Run(tu.Name(i, tc.handles, tc.withFlagActiveSrc, tc.arg), func(t *testing.T) {
 					t.Parallel()
 
 					th := testh.New(t)
@@ -262,7 +262,7 @@ func TestCompleteFlagActiveSchema_inspect(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, tc.handles, tc.withArgActiveSrc, tc.arg), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.handles, tc.withArgActiveSrc, tc.arg), func(t *testing.T) {
 			t.Parallel()
 
 			th := testh.New(t)

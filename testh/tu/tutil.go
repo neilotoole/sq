@@ -1,5 +1,5 @@
-// Package tutil contains basic generic test utilities.
-package tutil
+// Package tu contains basic generic test utilities.
+package tu
 
 import (
 	"fmt"
@@ -26,9 +26,9 @@ import (
 //
 // Examples:
 //
-//	tutil.SkipIff(t, a == b)
-//	tutil.SkipIff(t, a == b, "skipping because a == b")
-//	tutil.SkipIff(t, a == b, "skipping because a is %v and b is %v", a, b)
+//	tu.SkipIff(t, a == b)
+//	tu.SkipIff(t, a == b, "skipping because a == b")
+//	tu.SkipIff(t, a == b, "skipping because a is %v and b is %v", a, b)
 func SkipIff(t testing.TB, b bool, format string, args ...any) {
 	if b {
 		if format == "" {
@@ -378,4 +378,14 @@ func MustAbsFilepath(elems ...string) string {
 		panic(err)
 	}
 	return s
+}
+
+// TempDir is the standard means for obtaining a temp dir for tests.
+func TempDir(t testing.TB) string {
+	return filepath.Join(t.TempDir(), "sq", "tmp")
+}
+
+// CacheDir is the standard means for obtaining a cache dir for tests.
+func CacheDir(t testing.TB) string {
+	return filepath.Join(t.TempDir(), "sq", "cache")
 }

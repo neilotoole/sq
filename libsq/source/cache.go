@@ -11,7 +11,7 @@ import (
 
 // CacheDirFor gets the cache dir for handle. It is not guaranteed
 // that the returned dir exists or is accessible.
-func CacheDirFor(src *Source) (dir string, err error) {
+func (fs *Files) CacheDirFor(src *Source) (dir string, err error) {
 	handle := src.Handle
 	if err = ValidHandle(handle); err != nil {
 		return "", errz.Wrapf(err, "cache dir: invalid handle: %s", handle)
@@ -24,7 +24,7 @@ func CacheDirFor(src *Source) (dir string, err error) {
 	}
 
 	dir = filepath.Join(
-		CacheDirPath(),
+		fs.cacheDir,
 		"sources",
 		filepath.Join(strings.Split(strings.TrimPrefix(handle, "@"), "/")...),
 		src.Hash(),
@@ -33,16 +33,16 @@ func CacheDirFor(src *Source) (dir string, err error) {
 	return dir, nil
 }
 
-// CacheDirPath returns the sq cache dir. This is generally
-// in USER_CACHE_DIR/sq/cache, but could also be in TEMP_DIR/sq/cache
+// DefaultCacheDir returns the sq cache dir. This is generally
+// in USER_CACHE_DIR/*/sq, but could also be in TEMP_DIR/*/sq/cache
 // or similar. It is not guaranteed that the returned dir exists
 // or is accessible.
-func CacheDirPath() (dir string) {
+func DefaultCacheDir() (dir string) {
 	var err error
 	if dir, err = os.UserCacheDir(); err != nil {
 		// Some systems may not have a user cache dir, so we fall back
 		// to the system temp dir.
-		dir = filepath.Join(TempDirPath(), "cache")
+		dir = filepath.Join(DefaultTempDir(), "cache")
 		return dir
 	}
 
@@ -50,9 +50,8 @@ func CacheDirPath() (dir string) {
 	return dir
 }
 
-// TempDirPath returns the sq temp dir. This is generally
-// in TEMP_DIR/sq. It is not guaranteed that the returned dir exists
-// or is accessible.
-func TempDirPath() (dir string) {
+// DefaultTempDir returns the default sq temp dir. It is not
+// guaranteed that the returned dir exists or is accessible.
+func DefaultTempDir() (dir string) {
 	return filepath.Join(os.TempDir(), "sq")
 }

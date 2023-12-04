@@ -360,7 +360,6 @@ func (p *Progress) newBar(msg string, total int64,
 // the bar is complete, the caller should invoke [Bar.Stop]. All
 // methods are safe to call on a nil Bar.
 type Bar struct {
-
 	// bar is nil until barInitOnce.Do(initBar) is called
 	bar *mpb.Bar
 	// p is never nil

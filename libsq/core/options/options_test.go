@@ -16,7 +16,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/driver"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 type config struct {
@@ -67,7 +67,7 @@ func TestInt(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, tc.key), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.key), func(t *testing.T) {
 			reg := &options.Registry{}
 
 			opt := options.NewInt(tc.key, "", 0, tc.defaultVal, "", "")
@@ -113,7 +113,7 @@ func TestBool(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, tc.key), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.key), func(t *testing.T) {
 			reg := &options.Registry{}
 
 			opt := options.NewBool(tc.key, "", false, 0, tc.defaultVal, "", "")

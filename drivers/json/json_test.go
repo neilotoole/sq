@@ -15,7 +15,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func TestDriverDetectorFuncs(t *testing.T) {
@@ -92,7 +92,7 @@ func TestDriverDetectorFuncs(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 
-		t.Run(tutil.Name(tc.fn, tc.fname), func(t *testing.T) {
+		t.Run(tu.Name(tc.fn, tc.fname), func(t *testing.T) {
 			openFn := func(ctx context.Context) (io.ReadCloser, error) { return os.Open(filepath.Join("testdata", tc.fname)) }
 			detectFn := detectFns[tc.fn]
 

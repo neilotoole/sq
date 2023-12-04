@@ -1,3 +1,5 @@
+// Package devlog contains a custom slog.Handler for
+// developer-friendly log output.
 package devlog
 
 import (
@@ -7,7 +9,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/devlog/tint"
 )
 
-const shortTimeFormat = `15:04:05.000000`
+const shortTimeFormat = "15:04:05.000000"
 
 // NewHandler returns a developer-friendly slog.Handler that
 // logs to w.

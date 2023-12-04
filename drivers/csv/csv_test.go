@@ -342,7 +342,7 @@ func TestDatetime(t *testing.T) {
 // TestIngestLargeCSV generates a large CSV file.
 // At count = 5000000, the generated file is ~500MB.
 func TestGenerateLargeCSV(t *testing.T) {
-	// t.Skip()
+	t.Skip()
 	const count = 5000000 // Generates ~500MB file
 	start := time.Now()
 	header := []string{

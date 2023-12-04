@@ -4,6 +4,10 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/spf13/cobra"
+
+	"github.com/neilotoole/sq/cli/flag"
+	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -11,10 +15,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
-	"github.com/spf13/cobra"
-
-	"github.com/neilotoole/sq/cli/flag"
-	"github.com/neilotoole/sq/cli/run"
 )
 
 func newCacheCmd() *cobra.Command {
@@ -64,7 +64,7 @@ func newCacheLocationCmd() *cobra.Command {
 }
 
 func execCacheLocation(cmd *cobra.Command, _ []string) error {
-	dir := source.CacheDirPath()
+	dir := source.DefaultCacheDir()
 	ru := run.FromContext(cmd.Context())
 	return ru.Writers.Config.CacheLocation(dir)
 }
@@ -87,7 +87,7 @@ func newCacheInfoCmd() *cobra.Command {
 }
 
 func execCacheInfo(cmd *cobra.Command, _ []string) error {
-	dir := source.CacheDirPath()
+	dir := source.DefaultCacheDir()
 	ru := run.FromContext(cmd.Context())
 	size, err := ioz.DirSize(dir)
 	if err != nil {
@@ -115,7 +115,7 @@ func newCacheClearCmd() *cobra.Command {
 
 func execCacheClear(cmd *cobra.Command, _ []string) error {
 	log := lg.FromContext(cmd.Context())
-	cacheDir := source.CacheDirPath()
+	cacheDir := source.DefaultCacheDir()
 	if !ioz.DirExists(cacheDir) {
 		return nil
 	}
@@ -125,7 +125,7 @@ func execCacheClear(cmd *cobra.Command, _ []string) error {
 	// help with the situation where another sq instance has an open pid
 	// lock in the cache dir.
 
-	tmpDir := source.TempDirPath()
+	tmpDir := source.DefaultTempDir()
 	if err := ioz.RequireDir(tmpDir); err != nil {
 		return errz.Wrap(err, "cache clear")
 	}
@@ -166,7 +166,7 @@ func newCacheTreeCmd() *cobra.Command {
 
 func execCacheTree(cmd *cobra.Command, _ []string) error {
 	ru := run.FromContext(cmd.Context())
-	cacheDir := source.CacheDirPath()
+	cacheDir := source.DefaultCacheDir()
 	if !ioz.DirExists(cacheDir) {
 		return nil
 	}

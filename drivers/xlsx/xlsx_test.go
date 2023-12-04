@@ -26,7 +26,7 @@ import (
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 var sakilaSheets = []string{
@@ -50,8 +50,8 @@ var sakilaSheets = []string{
 
 func TestSakilaInspectSource(t *testing.T) {
 	t.Parallel()
-	tutil.SkipWindows(t, "Skipping because of slow workflow perf on windows")
-	tutil.SkipShort(t, true)
+	tu.SkipWindows(t, "Skipping because of slow workflow perf on windows")
+	tu.SkipShort(t, true)
 
 	th := testh.New(t, testh.OptLongOpen())
 	src := th.Source(sakila.XLSX)
@@ -64,8 +64,8 @@ func TestSakilaInspectSource(t *testing.T) {
 
 func TestSakilaInspectSheets(t *testing.T) {
 	t.Parallel()
-	tutil.SkipWindows(t, "Skipping because of slow workflow perf on windows")
-	tutil.SkipShort(t, true)
+	tu.SkipWindows(t, "Skipping because of slow workflow perf on windows")
+	tu.SkipShort(t, true)
 
 	for _, sheet := range sakilaSheets {
 		sheet := sheet
@@ -84,8 +84,8 @@ func TestSakilaInspectSheets(t *testing.T) {
 }
 
 func BenchmarkInspectSheets(b *testing.B) {
-	tutil.SkipWindows(b, "Skipping because of slow workflow perf on windows")
-	tutil.SkipShort(b, true)
+	tu.SkipWindows(b, "Skipping because of slow workflow perf on windows")
+	tu.SkipShort(b, true)
 
 	for _, sheet := range sakilaSheets {
 		sheet := sheet
@@ -108,8 +108,8 @@ func BenchmarkInspectSheets(b *testing.B) {
 
 func TestSakila_query_cmd(t *testing.T) {
 	t.Parallel()
-	tutil.SkipWindows(t, "Skipping because of slow workflow perf on windows")
-	tutil.SkipShort(t, true)
+	tu.SkipWindows(t, "Skipping because of slow workflow perf on windows")
+	tu.SkipShort(t, true)
 
 	for _, sheet := range sakilaSheets {
 		sheet := sheet
@@ -130,8 +130,8 @@ func TestSakila_query_cmd(t *testing.T) {
 
 func TestOpenFileFormats(t *testing.T) {
 	t.Parallel()
-	tutil.SkipWindows(t, "Skipping because of slow workflow perf on windows")
-	tutil.SkipShort(t, true)
+	tu.SkipWindows(t, "Skipping because of slow workflow perf on windows")
+	tu.SkipShort(t, true)
 
 	testCases := []struct {
 		filename string
@@ -163,14 +163,15 @@ func TestOpenFileFormats(t *testing.T) {
 			})
 
 			pool, err := th.Sources().Open(th.Context, src)
-			require.NoError(t, err)
-			db, err := pool.DB(th.Context)
 			if tc.wantErr {
 				require.Error(t, err)
 				return
 			}
 			require.NoError(t, err)
-			require.NoError(t, db.PingContext(th.Context))
+			db, err := pool.DB(th.Context)
+			require.NoError(t, err)
+			err = db.PingContext(th.Context)
+			require.NoError(t, err)
 
 			sink, err := th.QuerySQL(src, nil, "SELECT * FROM actor")
 
@@ -189,8 +190,8 @@ func TestOpenFileFormats(t *testing.T) {
 
 func TestSakila_query(t *testing.T) {
 	t.Parallel()
-	tutil.SkipWindows(t, "Skipping because of slow workflow perf on windows")
-	tutil.SkipShort(t, true)
+	tu.SkipWindows(t, "Skipping because of slow workflow perf on windows")
+	tu.SkipShort(t, true)
 
 	testCases := []struct {
 		sheet     string

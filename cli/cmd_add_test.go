@@ -19,7 +19,7 @@ import (
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func TestCmdAdd(t *testing.T) {
@@ -190,7 +190,7 @@ func TestCmdAdd(t *testing.T) {
 	for i, tc := range testCases {
 		tc := tc
 
-		t.Run(tutil.Name(i, tc.wantHandle, tc.loc, tc.driver), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.wantHandle, tc.loc, tc.driver), func(t *testing.T) {
 			args := []string{"add", tc.loc}
 			if tc.handle != "" {
 				args = append(args, "--handle="+tc.handle)

@@ -1,4 +1,4 @@
-package tutil
+package tu
 
 import (
 	"testing"

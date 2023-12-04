@@ -17,7 +17,7 @@ import (
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/testsrc"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func TestImportJSONL_Flat(t *testing.T) {
@@ -74,7 +74,7 @@ func TestImportJSONL_Flat(t *testing.T) {
 	for i, tc := range testCases {
 		tc := tc
 
-		t.Run(tutil.Name(i, tc.fpath, tc.input), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.fpath, tc.input), func(t *testing.T) {
 			openFn := func(ctx context.Context) (io.ReadCloser, error) {
 				return io.NopCloser(strings.NewReader(tc.input)), nil
 			}
@@ -187,7 +187,7 @@ func TestScanObjectsInArray(t *testing.T) {
 	for i, tc := range testCases {
 		tc := tc
 
-		t.Run(tutil.Name(i, tc.in), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
 			r := bytes.NewReader([]byte(tc.in))
 			gotObjs, gotChunks, err := json.ScanObjectsInArray(r)
 			if tc.wantErr {
@@ -219,7 +219,7 @@ func TestScanObjectsInArray_Files(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 
-		t.Run(tutil.Name(tc.fname), func(t *testing.T) {
+		t.Run(tu.Name(tc.fname), func(t *testing.T) {
 			f, err := os.Open(tc.fname)
 			require.NoError(t, err)
 			defer f.Close()
@@ -260,7 +260,7 @@ func TestColumnOrderFlat(t *testing.T) {
 	for i, tc := range testCases {
 		tc := tc
 
-		t.Run(tutil.Name(i, tc.in), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
 			require.True(t, stdj.Valid([]byte(tc.in)))
 
 			gotCols, err := json.ColumnOrderFlat([]byte(tc.in))

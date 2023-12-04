@@ -22,7 +22,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/testh"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 var locSchemes = []string{
@@ -35,9 +35,9 @@ var locSchemes = []string{
 const stdDirective = cobra.ShellCompDirectiveNoSpace | cobra.ShellCompDirectiveKeepOrder
 
 func TestCompleteAddLocation_Postgres(t *testing.T) {
-	tutil.SkipWindows(t, "Shell completion not fully implemented for windows")
+	tu.SkipWindows(t, "Shell completion not fully implemented for windows")
 
-	wd := tutil.Chdir(t, filepath.Join("testdata", "add_location"))
+	wd := tu.Chdir(t, filepath.Join("testdata", "add_location"))
 	t.Logf("Working dir: %s", wd)
 
 	testCases := []struct {
@@ -261,7 +261,7 @@ func TestCompleteAddLocation_Postgres(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
+		t.Run(tu.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
 			args := append([]string{"add"}, tc.args...)
 			got := testComplete(t, nil, args...)
 			assert.Equal(t, tc.wantResult, got.result, got.directives)
@@ -271,9 +271,9 @@ func TestCompleteAddLocation_Postgres(t *testing.T) {
 }
 
 func TestCompleteAddLocation_SQLServer(t *testing.T) {
-	tutil.SkipWindows(t, "Shell completion not fully implemented for windows")
+	tu.SkipWindows(t, "Shell completion not fully implemented for windows")
 
-	wd := tutil.Chdir(t, filepath.Join("testdata", "add_location"))
+	wd := tu.Chdir(t, filepath.Join("testdata", "add_location"))
 	t.Logf("Working dir: %s", wd)
 
 	testCases := []struct {
@@ -391,7 +391,7 @@ func TestCompleteAddLocation_SQLServer(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
+		t.Run(tu.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
 			args := append([]string{"add"}, tc.args...)
 			got := testComplete(t, nil, args...)
 			assert.Equal(t, tc.wantResult, got.result, got.directives)
@@ -401,9 +401,9 @@ func TestCompleteAddLocation_SQLServer(t *testing.T) {
 }
 
 func TestCompleteAddLocation_MySQL(t *testing.T) {
-	tutil.SkipWindows(t, "Shell completion not fully implemented for windows")
+	tu.SkipWindows(t, "Shell completion not fully implemented for windows")
 
-	wd := tutil.Chdir(t, filepath.Join("testdata", "add_location"))
+	wd := tu.Chdir(t, filepath.Join("testdata", "add_location"))
 	t.Logf("Working dir: %s", wd)
 
 	testCases := []struct {
@@ -621,7 +621,7 @@ func TestCompleteAddLocation_MySQL(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
+		t.Run(tu.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
 			args := append([]string{"add"}, tc.args...)
 			got := testComplete(t, nil, args...)
 			assert.Equal(t, tc.wantResult, got.result, got.directives)
@@ -631,9 +631,9 @@ func TestCompleteAddLocation_MySQL(t *testing.T) {
 }
 
 func TestCompleteAddLocation_SQLite3(t *testing.T) {
-	tutil.SkipWindows(t, "Shell completion not fully implemented for windows")
+	tu.SkipWindows(t, "Shell completion not fully implemented for windows")
 
-	wd := tutil.Chdir(t, filepath.Join("testdata", "add_location"))
+	wd := tu.Chdir(t, filepath.Join("testdata", "add_location"))
 	t.Logf("Working dir: %s", wd)
 
 	testCases := []struct {
@@ -782,7 +782,7 @@ func TestCompleteAddLocation_SQLite3(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
+		t.Run(tu.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
 			args := append([]string{"add"}, tc.args...)
 			got := testComplete(t, nil, args...)
 			assert.Equal(t, tc.wantResult, got.result, got.directives)
@@ -792,8 +792,8 @@ func TestCompleteAddLocation_SQLite3(t *testing.T) {
 }
 
 func TestCompleteAddLocation_History_Postgres(t *testing.T) {
-	tutil.SkipWindows(t, "Shell completion not fully implemented for windows")
-	wd := tutil.Chdir(t, filepath.Join("testdata", "add_location"))
+	tu.SkipWindows(t, "Shell completion not fully implemented for windows")
+	wd := tu.Chdir(t, filepath.Join("testdata", "add_location"))
 	t.Logf("Working dir: %s", wd)
 
 	th := testh.New(t)
@@ -919,7 +919,7 @@ func TestCompleteAddLocation_History_Postgres(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
+		t.Run(tu.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
 			args := append([]string{"add"}, tc.args...)
 			got := testComplete(t, tr, args...)
 			assert.Equal(t, tc.wantResult, got.result, got.directives)
@@ -929,8 +929,8 @@ func TestCompleteAddLocation_History_Postgres(t *testing.T) {
 }
 
 func TestCompleteAddLocation_History_SQLServer(t *testing.T) {
-	tutil.SkipWindows(t, "Shell completion not fully implemented for windows")
-	wd := tutil.Chdir(t, filepath.Join("testdata", "add_location"))
+	tu.SkipWindows(t, "Shell completion not fully implemented for windows")
+	wd := tu.Chdir(t, filepath.Join("testdata", "add_location"))
 	t.Logf("Working dir: %s", wd)
 
 	th := testh.New(t)
@@ -1120,7 +1120,7 @@ func TestCompleteAddLocation_History_SQLServer(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
+		t.Run(tu.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
 			args := append([]string{"add"}, tc.args...)
 			got := testComplete(t, tr, args...)
 			assert.Equal(t, tc.wantResult, got.result, got.directives)
@@ -1130,8 +1130,8 @@ func TestCompleteAddLocation_History_SQLServer(t *testing.T) {
 }
 
 func TestCompleteAddLocation_History_SQLite3(t *testing.T) {
-	tutil.SkipWindows(t, "Shell completion not fully implemented for windows")
-	wd := tutil.Chdir(t, filepath.Join("testdata", "add_location"))
+	tu.SkipWindows(t, "Shell completion not fully implemented for windows")
+	wd := tu.Chdir(t, filepath.Join("testdata", "add_location"))
 	t.Logf("Working dir: %s", wd)
 	src3Loc := "sqlite3://" + wd + "/my.db?cache=FAST"
 
@@ -1250,7 +1250,7 @@ func TestCompleteAddLocation_History_SQLite3(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
+		t.Run(tu.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
 			args := append([]string{"add"}, tc.args...)
 			got := testComplete(t, tr, args...)
 			assert.Equal(t, tc.wantResult, got.result, got.directives)
@@ -1293,7 +1293,7 @@ func TestParseLoc_stage(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, tc.loc), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.loc), func(t *testing.T) {
 			th := testh.New(t)
 			ru := th.Run()
 
@@ -1305,9 +1305,9 @@ func TestParseLoc_stage(t *testing.T) {
 }
 
 func TestDoCompleteAddLocationFile(t *testing.T) {
-	tutil.SkipWindows(t, "Shell completion not fully implemented for windows")
+	tu.SkipWindows(t, "Shell completion not fully implemented for windows")
 
-	absDir := tutil.Chdir(t, filepath.Join("testdata", "add_location"))
+	absDir := tu.Chdir(t, filepath.Join("testdata", "add_location"))
 	t.Logf("Working dir: %s", absDir)
 
 	testCases := []struct {
@@ -1336,7 +1336,7 @@ func TestDoCompleteAddLocationFile(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, tc.in), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
 			ctx := lg.NewContext(context.Background(), slogt.New(t))
 			t.Logf("input: %s", tc.in)
 			t.Logf("want:  %s", tc.want)

@@ -26,7 +26,7 @@ import (
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/fixt"
 	"github.com/neilotoole/sq/testh/sakila"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func TestDriver_DropTable(t *testing.T) {
@@ -154,7 +154,7 @@ func TestDriver_TableColumnTypes(t *testing.T) { //nolint:tparallel
 		handle := handle
 
 		t.Run(handle, func(t *testing.T) {
-			tutil.SkipShort(t, handle == sakila.XLSX)
+			tu.SkipShort(t, handle == sakila.XLSX)
 			t.Parallel()
 
 			th, src, drvr, _, db := testh.NewWith(t, handle)
@@ -194,7 +194,7 @@ func TestSQLDriver_PrepareUpdateStmt(t *testing.T) { //nolint:tparallel
 		handle := handle
 
 		t.Run(handle, func(t *testing.T) {
-			tutil.SkipShort(t, handle == sakila.XLSX)
+			tu.SkipShort(t, handle == sakila.XLSX)
 			t.Parallel()
 
 			th, src, drvr, _, db := testh.NewWith(t, handle)
@@ -239,7 +239,7 @@ func TestDriver_Ping(t *testing.T) {
 		handle := handle
 
 		t.Run(handle, func(t *testing.T) {
-			tutil.SkipShort(t, handle == sakila.XLSX)
+			tu.SkipShort(t, handle == sakila.XLSX)
 
 			th := testh.New(t)
 			src := th.Source(handle)
@@ -260,7 +260,7 @@ func TestDriver_Open(t *testing.T) {
 		handle := handle
 
 		t.Run(handle, func(t *testing.T) {
-			tutil.SkipShort(t, handle == sakila.XLSX)
+			tu.SkipShort(t, handle == sakila.XLSX)
 			t.Parallel()
 
 			th := testh.New(t)
@@ -746,7 +746,7 @@ func TestMungeColNames(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, tc.in), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
 			ctx := options.NewContext(context.Background(), options.Options{})
 			got, err := driver.MungeResultColNames(ctx, tc.in)
 			require.NoError(t, err)

@@ -7,7 +7,7 @@ import (
 
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 // TestSakila_SQL is a sanity check for Sakila SQL test sources.
@@ -34,7 +34,7 @@ func TestSakila_SQL(t *testing.T) { //nolint:tparallel
 
 // TestSakila_XLSX is a sanity check for Sakila XLSX test sources.
 func TestSakila_XLSX(t *testing.T) {
-	tutil.SkipWindows(t, "XLSX fails on windows pipeline (too slow)")
+	tu.SkipWindows(t, "XLSX fails on windows pipeline (too slow)")
 
 	handles := []string{sakila.XLSXSubset}
 	// TODO: Add sakila.XLSX to handles when performance is reasonable

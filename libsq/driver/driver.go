@@ -161,20 +161,6 @@ type PoolOpener interface {
 	Open(ctx context.Context, src *source.Source) (Pool, error)
 }
 
-// JoinPoolOpener can open a join database.
-type JoinPoolOpener interface {
-	// OpenJoin opens an appropriate Pool for use as
-	// a work DB for joining across sources.
-	OpenJoin(ctx context.Context, srcs ...*source.Source) (Pool, error)
-}
-
-// ScratchPoolOpener opens a scratch database pool. A scratch database is
-// a short-lived database used for ephemeral purposes.
-type ScratchPoolOpener interface {
-	// OpenScratch returns a pool for scratch use.
-	OpenScratch(ctx context.Context, src *source.Source) (Pool, error)
-}
-
 // IngestOpener opens a pool for ingest use.
 type IngestOpener interface {
 	// OpenIngest opens a pool for src by executing ingestFn, which is

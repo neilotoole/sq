@@ -7,7 +7,7 @@ import (
 
 	"github.com/neilotoole/sq/drivers/mysql"
 	"github.com/neilotoole/sq/testh/sakila"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 //nolint:exhaustive
@@ -157,7 +157,7 @@ func TestQuery_expr_literal(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, tc.name), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.name), func(t *testing.T) {
 			execQueryTestCase(t, tc)
 		})
 	}

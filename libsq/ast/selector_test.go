@@ -7,7 +7,7 @@ import (
 
 	"github.com/neilotoole/slogt"
 
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func TestColumnAlias(t *testing.T) {
@@ -28,7 +28,7 @@ func TestColumnAlias(t *testing.T) {
 
 	for _, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(tc.in), func(t *testing.T) {
+		t.Run(tu.Name(tc.in), func(t *testing.T) {
 			t.Parallel()
 
 			log := slogt.New(t)

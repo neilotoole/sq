@@ -23,13 +23,13 @@ import (
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 // TestCmdInspect_json_yaml tests "sq inspect" for
 // the JSON and YAML formats.
 func TestCmdInspect_json_yaml(t *testing.T) {
-	tutil.SkipShort(t, true)
+	tu.SkipShort(t, true)
 
 	possibleTbls := append(sakila.AllTbls(), source.MonotableName)
 	testCases := []struct {
@@ -60,7 +60,7 @@ func TestCmdInspect_json_yaml(t *testing.T) {
 				tc := tc
 
 				t.Run(tc.handle, func(t *testing.T) {
-					tutil.SkipWindowsIf(t, tc.handle == sakila.XLSX, "XLSX too slow on windows workflow")
+					tu.SkipWindowsIf(t, tc.handle == sakila.XLSX, "XLSX too slow on windows workflow")
 
 					th := testh.New(t)
 					src := th.Source(tc.handle)
@@ -90,7 +90,7 @@ func TestCmdInspect_json_yaml(t *testing.T) {
 						for _, tblName := range gotTableNames {
 							tblName := tblName
 							t.Run(tblName, func(t *testing.T) {
-								tutil.SkipShort(t, true)
+								tu.SkipShort(t, true)
 								tr2 := testrun.New(th.Context, t, tr)
 								err := tr2.Exec("inspect", "."+tblName, fmt.Sprintf("--%s", tf.format))
 								require.NoError(t, err)
@@ -172,7 +172,7 @@ func TestCmdInspect_text(t *testing.T) { //nolint:tparallel
 		t.Run(tc.handle, func(t *testing.T) {
 			t.Parallel()
 
-			tutil.SkipWindowsIf(t, tc.handle == sakila.XLSX, "XLSX too slow on windows workflow")
+			tu.SkipWindowsIf(t, tc.handle == sakila.XLSX, "XLSX too slow on windows workflow")
 
 			th := testh.New(t)
 			src := th.Source(tc.handle)
@@ -198,7 +198,7 @@ func TestCmdInspect_text(t *testing.T) { //nolint:tparallel
 				for _, tblName := range tc.wantTbls {
 					tblName := tblName
 					t.Run(tblName, func(t *testing.T) {
-						tutil.SkipShort(t, true)
+						tu.SkipShort(t, true)
 						t.Logf("Test: sq inspect .tbl")
 						tr2 := testrun.New(th.Context, t, tr)
 						err := tr2.Exec("inspect", "."+tblName, fmt.Sprintf("--%s", format.Text))
@@ -302,7 +302,7 @@ func TestCmdInspect_stdin(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 
-		t.Run(tutil.Name(tc.fpath), func(t *testing.T) {
+		t.Run(tu.Name(tc.fpath), func(t *testing.T) {
 			ctx := context.Background()
 			f, err := os.Open(tc.fpath) // No need to close f
 			require.NoError(t, err)

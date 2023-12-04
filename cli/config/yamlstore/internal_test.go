@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli/flag"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func Test_getConfigDirFromFlag(t *testing.T) {
@@ -27,7 +27,7 @@ func Test_getConfigDirFromFlag(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, strings.Join(tc.in, " ")), func(t *testing.T) {
+		t.Run(tu.Name(i, strings.Join(tc.in, " ")), func(t *testing.T) {
 			got, gotOK, gotErr := getConfigDirFromFlag(tc.in)
 			if tc.wantErr {
 				require.Error(t, gotErr)

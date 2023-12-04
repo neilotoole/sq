@@ -13,7 +13,7 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/stringz"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func Test_isCSV(t *testing.T) {
@@ -86,7 +86,7 @@ func Test_detectColKinds(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, tc.name), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.name), func(t *testing.T) {
 			gotKinds, _, gotErr := detectColKinds(tc.recs)
 			if tc.wantErr {
 				require.Error(t, gotErr)

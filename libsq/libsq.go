@@ -12,10 +12,9 @@ package libsq
 import (
 	"context"
 
-	"github.com/neilotoole/sq/libsq/core/lg/lga"
-
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
@@ -28,14 +27,8 @@ type QueryContext struct {
 	// Collection is the set of sources.
 	Collection *source.Collection
 
-	// PoolOpener is used to open databases.
-	PoolOpener driver.PoolOpener
-
-	// JoinPoolOpener is used to open the joindb.
-	JoinPoolOpener driver.JoinPoolOpener
-
-	// ScratchPoolOpener is used to open the scratchdb.
-	ScratchPoolOpener driver.ScratchPoolOpener
+	// Sources bridges between source.Source and databases.
+	Sources *driver.Sources
 
 	// Args defines variables that are substituted into the query.
 	// May be nil or empty.

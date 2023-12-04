@@ -27,7 +27,7 @@ import (
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/testsrc"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func TestFiles_Type(t *testing.T) {
@@ -54,10 +54,10 @@ func TestFiles_Type(t *testing.T) {
 
 	for _, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(source.RedactLocation(tc.loc)), func(t *testing.T) {
+		t.Run(tu.Name(source.RedactLocation(tc.loc)), func(t *testing.T) {
 			ctx := lg.NewContext(context.Background(), slogt.New(t))
 
-			fs, err := source.NewFiles(ctx)
+			fs, err := source.NewFiles(ctx, tu.TempDir(t), tu.CacheDir(t))
 			require.NoError(t, err)
 			fs.AddDriverDetectors(testh.DriverDetectors()...)
 
@@ -99,7 +99,7 @@ func TestFiles_DetectType(t *testing.T) {
 
 		t.Run(filepath.Base(tc.loc), func(t *testing.T) {
 			ctx := lg.NewContext(context.Background(), slogt.New(t))
-			fs, err := source.NewFiles(ctx)
+			fs, err := source.NewFiles(ctx, tu.TempDir(t), tu.CacheDir(t))
 			require.NoError(t, err)
 			fs.AddDriverDetectors(testh.DriverDetectors()...)
 
@@ -159,7 +159,7 @@ func TestFiles_NewReader(t *testing.T) {
 		Location: proj.Abs(fpath),
 	}
 
-	fs, err := source.NewFiles(ctx)
+	fs, err := source.NewFiles(ctx, tu.TempDir(t), tu.CacheDir(t))
 	require.NoError(t, err)
 
 	g := &errgroup.Group{}
@@ -195,7 +195,7 @@ func TestFiles_Stdin(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 
-		t.Run(tutil.Name(tc.fpath), func(t *testing.T) {
+		t.Run(tu.Name(tc.fpath), func(t *testing.T) {
 			th := testh.New(t)
 			fs := th.Files()
 

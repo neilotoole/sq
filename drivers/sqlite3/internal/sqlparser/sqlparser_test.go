@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/drivers/sqlite3/internal/sqlparser"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func TestExtractTableNameFromCreateTableStmt(t *testing.T) {
@@ -55,7 +55,7 @@ func TestExtractTableNameFromCreateTableStmt(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, tc.in), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
 			schema, table, err := sqlparser.ExtractTableIdentFromCreateTableStmt(tc.in, tc.unescape)
 			if tc.wantErr {
 				require.Error(t, err)

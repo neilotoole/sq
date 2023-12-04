@@ -7,7 +7,7 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/loz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func TestAll(t *testing.T) {
@@ -82,7 +82,7 @@ func TestAlignMatrixWidth(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		t.Run(tutil.Name(i), func(t *testing.T) {
+		t.Run(tu.Name(i), func(t *testing.T) {
 			loz.AlignMatrixWidth(tc.in, defaultVal)
 			require.EqualValues(t, tc.want, tc.in)
 		})

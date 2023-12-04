@@ -140,7 +140,7 @@ func FinishRunInit(ctx context.Context, ru *run.Run) error {
 
 	var err error
 	if ru.Files == nil {
-		ru.Files, err = source.NewFiles(ctx)
+		ru.Files, err = source.NewFiles(ctx, source.DefaultTempDir(), source.DefaultCacheDir())
 		if err != nil {
 			lg.WarnIfFuncError(log, lga.Cleanup, ru.Cleanup.Run)
 			return err

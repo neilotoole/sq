@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/source/drivertype"
+
 	"github.com/nightlyone/lockfile"
 
 	"github.com/neilotoole/sq/libsq/core/cleanup"
@@ -22,11 +24,7 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 )
 
-var (
-	_ PoolOpener        = (*Sources)(nil)
-	_ JoinPoolOpener    = (*Sources)(nil)
-	_ ScratchPoolOpener = (*Sources)(nil)
-)
+var _ PoolOpener = (*Sources)(nil)
 
 // ScratchSrcFunc is a function that returns a scratch source.
 // The caller is responsible for invoking cleanFn.
@@ -77,6 +75,29 @@ func (ss *Sources) Open(ctx context.Context, src *source.Source) (Pool, error) {
 	return ss.doOpen(ctx, src)
 }
 
+// DriverFor returns the driver for typ.
+func (ss *Sources) DriverFor(typ drivertype.Type) (Driver, error) {
+	return ss.drvrs.DriverFor(typ)
+}
+
+// IsSQLSource returns true if src's driver is a SQLDriver.
+func (ss *Sources) IsSQLSource(src *source.Source) bool {
+	if src == nil {
+		return false
+	}
+
+	drvr, err := ss.drvrs.DriverFor(src.Type)
+	if err != nil {
+		return false
+	}
+
+	if _, ok := drvr.(SQLDriver); ok {
+		return true
+	}
+
+	return false
+}
+
 func (ss *Sources) doOpen(ctx context.Context, src *source.Source) (Pool, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 	key := src.Handle + "_" + src.Hash()
@@ -109,8 +130,6 @@ func (ss *Sources) doOpen(ctx context.Context, src *source.Source) (Pool, error)
 // OpenScratch returns a scratch database instance. It is not
 // necessary for the caller to close the returned Pool as
 // its Close method will be invoked by d.Close.
-//
-// OpenScratch implements ScratchPoolOpener.
 func (ss *Sources) OpenScratch(ctx context.Context, src *source.Source) (Pool, error) {
 	const msgCloseScratch = "Close scratch db"
 
@@ -184,6 +203,7 @@ func (ss *Sources) openIngestNoCache(ctx context.Context, src *source.Source,
 			lga.Elapsed, elapsed, lga.Err, err,
 		)
 		lg.WarnIfCloseError(log, lgm.CloseDB, impl)
+		return nil, err
 	}
 
 	ss.log.Debug("Ingest completed",
@@ -282,7 +302,7 @@ func (ss *Sources) openIngestCache(ctx context.Context, src *source.Source,
 // There is no guarantee that these files exist, or are accessible.
 // It's just the paths.
 func (ss *Sources) getCachePaths(src *source.Source) (srcCacheDir, cacheDB, checksums string, err error) {
-	if srcCacheDir, err = source.CacheDirFor(src); err != nil {
+	if srcCacheDir, err = ss.files.CacheDirFor(src); err != nil {
 		return "", "", "", err
 	}
 
@@ -361,6 +381,7 @@ func (ss *Sources) openCachedFor(ctx context.Context, src *source.Source) (Pool,
 			src.Handle, src.Type)
 	}
 
+	// FIXME: Not too sure invoking files.Filepath here is the right approach?
 	srcFilepath, err := ss.files.Filepath(ctx, src)
 	if err != nil {
 		return nil, false, err
@@ -416,8 +437,6 @@ func (ss *Sources) openCachedFor(ctx context.Context, src *source.Source) (Pool,
 // location for the join to occur (to minimize copying of data for
 // the join etc.). Currently the implementation simply delegates
 // to OpenScratch.
-//
-// OpenJoin implements JoinPoolOpener.
 func (ss *Sources) OpenJoin(ctx context.Context, srcs ...*source.Source) (Pool, error) {
 	var names []string
 	for _, src := range srcs {

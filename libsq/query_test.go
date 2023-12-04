@@ -13,7 +13,7 @@ import (
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 // driverMap is a map of drivertype.Type to a string.
@@ -109,7 +109,7 @@ func execQueryTestCase(t *testing.T, tc queryTestCase) {
 	subTests := make([]queryTestCase, len(tc.repeatReplace))
 	for i := range tc.repeatReplace {
 		subTests[i] = tc
-		subTests[i].name = tutil.Name(tc.repeatReplace[i])
+		subTests[i].name = tu.Name(tc.repeatReplace[i])
 		if i == 0 {
 			// No need for replacement on first item, it's the original.
 			continue
@@ -166,11 +166,9 @@ func doExecQueryTestCase(t *testing.T, tc queryTestCase) {
 			sources := th.Sources()
 
 			qc := &libsq.QueryContext{
-				Collection:        coll,
-				PoolOpener:        sources,
-				JoinPoolOpener:    sources,
-				ScratchPoolOpener: sources,
-				Args:              tc.args,
+				Collection: coll,
+				Sources:    sources,
+				Args:       tc.args,
 			}
 
 			if tc.beforeRun != nil {

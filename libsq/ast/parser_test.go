@@ -9,7 +9,7 @@ import (
 	"github.com/neilotoole/slogt"
 
 	"github.com/neilotoole/sq/libsq/ast/internal/slq"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 // getSLQParser returns a parser for the given SQL input.
@@ -81,7 +81,7 @@ func TestParseBuild(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		t.Run(tutil.Name(i, tc.name), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.name), func(t *testing.T) {
 			t.Logf(tc.in)
 			log := slogt.New(t)
 

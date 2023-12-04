@@ -23,7 +23,7 @@ import (
 	"github.com/neilotoole/sq/testh/fixt"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func TestSmoke(t *testing.T) {
@@ -181,7 +181,7 @@ func TestExprNoSource(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, tc.in), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
 			tr := testrun.New(context.Background(), t, nil).Hush()
 			err := tr.Exec("--csv", "--no-header", tc.in)
 			require.NoError(t, err)

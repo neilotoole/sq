@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/source"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 // Export for testing.
@@ -98,7 +98,7 @@ func TestDSNFromLocation(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 
-		t.Run(tutil.Name(tc.loc, tc.parseTime), func(t *testing.T) {
+		t.Run(tu.Name(tc.loc, tc.parseTime), func(t *testing.T) {
 			src := &source.Source{
 				Handle:   "@testhandle",
 				Type:     Type,

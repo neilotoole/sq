@@ -233,7 +233,7 @@ func ingestSheetToTable(ctx context.Context, destPool driver.Pool, sheetTbl *she
 			close(bi.RecordCh)
 			return err
 		}
-		
+
 		select {
 		case <-ctx.Done():
 			close(bi.RecordCh)

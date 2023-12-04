@@ -12,7 +12,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/testh/proj"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 const (
@@ -142,7 +142,7 @@ func TestRedactedLocation(t *testing.T) {
 
 	for _, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(tc.loc), func(t *testing.T) {
+		t.Run(tu.Name(tc.loc), func(t *testing.T) {
 			src := &source.Source{Location: tc.loc}
 			got := src.RedactedLocation()
 			t.Logf("%s  -->  %s", src.Location, got)

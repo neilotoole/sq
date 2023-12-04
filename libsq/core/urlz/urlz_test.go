@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/urlz"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func TestQueryParamKeys(t *testing.T) {
@@ -25,7 +25,7 @@ func TestQueryParamKeys(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, tc.q), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.q), func(t *testing.T) {
 			got, gotErr := urlz.QueryParamKeys(tc.q)
 			if tc.wantErr {
 				require.Error(t, gotErr)
@@ -52,7 +52,7 @@ func TestStripQuery(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, tc), func(t *testing.T) {
+		t.Run(tu.Name(i, tc), func(t *testing.T) {
 			u, err := url.Parse(tc.in)
 			require.NoError(t, err)
 			got := urlz.StripQuery(*u)
@@ -74,7 +74,7 @@ func TestStripUser(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, tc), func(t *testing.T) {
+		t.Run(tu.Name(i, tc), func(t *testing.T) {
 			u, err := url.Parse(tc.in)
 			require.NoError(t, err)
 			got := urlz.StripUser(*u)
@@ -94,7 +94,7 @@ func TestStripScheme(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, tc), func(t *testing.T) {
+		t.Run(tu.Name(i, tc), func(t *testing.T) {
 			u, err := url.Parse(tc.in)
 			require.NoError(t, err)
 			got := urlz.StripScheme(*u)
@@ -116,7 +116,7 @@ func TestStripSchemeAndUser(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, tc), func(t *testing.T) {
+		t.Run(tu.Name(i, tc), func(t *testing.T) {
 			u, err := url.Parse(tc.in)
 			require.NoError(t, err)
 			got := urlz.StripSchemeAndUser(*u)
@@ -145,7 +145,7 @@ func TestRenameQueryParamKey(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, tc.q, tc.oldKey, tc.newKey), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.q, tc.oldKey, tc.newKey), func(t *testing.T) {
 			got := urlz.RenameQueryParamKey(tc.q, tc.oldKey, tc.newKey)
 			require.Equal(t, tc.want, got)
 		})
@@ -167,7 +167,7 @@ func TestURLStripQuery(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, tc), func(t *testing.T) {
+		t.Run(tu.Name(i, tc), func(t *testing.T) {
 			u, err := url.Parse(tc.in)
 			require.NoError(t, err)
 			got := urlz.StripQuery(*u)

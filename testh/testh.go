@@ -55,6 +55,7 @@ import (
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/testsrc"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 // defaultDBOpenTimeout is the timeout for tests to open (and ping) their DBs.
@@ -164,7 +165,7 @@ func (h *Helper) init() {
 		h.registry = driver.NewRegistry(log)
 
 		var err error
-		h.files, err = source.NewFiles(h.Context)
+		h.files, err = source.NewFiles(h.Context, tu.TempDir(h.T), tu.CacheDir(h.T))
 		require.NoError(h.T, err)
 
 		h.Cleanup.Add(func() {
@@ -629,11 +630,9 @@ func (h *Helper) QuerySLQ(query string, args map[string]string) (*RecordSink, er
 	}
 
 	qc := &libsq.QueryContext{
-		Collection:        h.coll,
-		PoolOpener:        h.sources,
-		JoinPoolOpener:    h.sources,
-		ScratchPoolOpener: h.sources,
-		Args:              args,
+		Collection: h.coll,
+		Sources:    h.sources,
+		Args:       args,
 	}
 
 	sink := &RecordSink{}

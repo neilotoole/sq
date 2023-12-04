@@ -8,7 +8,7 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/timez"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func TestEqual(t *testing.T) {
@@ -53,7 +53,7 @@ func TestEqual(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, tc.a, tc.b), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.a, tc.b), func(t *testing.T) {
 			_, err := record.Valid(tc.a)
 			require.NoError(t, err)
 			_, err = record.Valid(tc.b)

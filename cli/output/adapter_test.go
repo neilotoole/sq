@@ -14,7 +14,7 @@ import (
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/testsrc"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 var _ libsq.RecordWriter = (*output.RecordWriterAdapter)(nil)
@@ -127,7 +127,7 @@ func TestRecordWriterAdapter_FlushAfterDuration(t *testing.T) {
 	testCases := []struct {
 		flushAfter  time.Duration
 		wantFlushed int
-		assertFn    tutil.AssertCompareFunc
+		assertFn    tu.AssertCompareFunc
 	}{
 		{flushAfter: -1, wantFlushed: 0, assertFn: require.Equal},
 		{flushAfter: 0, wantFlushed: 0, assertFn: require.Equal},

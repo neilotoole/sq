@@ -13,7 +13,7 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func TestExtension_fts5(t *testing.T) {
@@ -23,7 +23,7 @@ func TestExtension_fts5(t *testing.T) {
 	src := th.Add(&source.Source{
 		Handle:   "@fts",
 		Type:     sqlite3.Type,
-		Location: "sqlite3://" + tutil.MustAbsFilepath("testdata", "sakila_fts5.db"),
+		Location: "sqlite3://" + tu.MustAbsFilepath("testdata", "sakila_fts5.db"),
 	})
 
 	srcMeta, err := th.SourceMetadata(src)

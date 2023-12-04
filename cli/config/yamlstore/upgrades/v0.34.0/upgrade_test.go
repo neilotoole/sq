@@ -24,7 +24,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/testh"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func TestUpgrade(t *testing.T) {
@@ -42,7 +42,7 @@ func TestUpgrade(t *testing.T) {
 	testh.SetBuildVersion(t, nextVers)
 
 	// The sq.yml file in cfgDir is on v0.33.0
-	cfgDir := tutil.DirCopy(t, "testdata", true)
+	cfgDir := tu.DirCopy(t, "testdata", true)
 	t.Setenv(config.EnvarConfig, cfgDir)
 
 	cfgFilePath := filepath.Join(cfgDir, "sq.yml")

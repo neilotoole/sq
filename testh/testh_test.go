@@ -16,7 +16,7 @@ import (
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func TestVal(t *testing.T) {
@@ -173,7 +173,7 @@ func TestTName(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		got := tutil.Name(tc.a...)
+		got := tu.Name(tc.a...)
 		require.Equal(t, tc.want, got)
 	}
 }

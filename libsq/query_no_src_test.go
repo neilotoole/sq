@@ -8,7 +8,7 @@ import (
 
 	"github.com/neilotoole/sq/libsq"
 	"github.com/neilotoole/sq/testh"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func TestQuery_no_source(t *testing.T) {
@@ -26,17 +26,15 @@ func TestQuery_no_source(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, tc.in), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
 			t.Logf("\nquery: %s\n want: %s", tc.in, tc.want)
 			th := testh.New(t)
 			coll := th.NewCollection()
 			sources := th.Sources()
 
 			qc := &libsq.QueryContext{
-				Collection:        coll,
-				PoolOpener:        sources,
-				JoinPoolOpener:    sources,
-				ScratchPoolOpener: sources,
+				Collection: coll,
+				Sources:    sources,
 			}
 
 			gotSQL, gotErr := libsq.SLQ2SQL(th.Context, qc, tc.in)

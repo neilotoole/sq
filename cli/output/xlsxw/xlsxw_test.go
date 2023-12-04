@@ -21,7 +21,7 @@ import (
 	"github.com/neilotoole/sq/testh/fixt"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/testsrc"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func TestRecordWriter(t *testing.T) {
@@ -75,7 +75,7 @@ func TestRecordWriter(t *testing.T) {
 			require.NoError(t, w.WriteRecords(recs))
 			require.NoError(t, w.Close())
 
-			_ = tutil.WriteTemp(t, fmt.Sprintf("*.%s.test.xlsx", tc.name), buf.Bytes(), false)
+			_ = tu.WriteTemp(t, fmt.Sprintf("*.%s.test.xlsx", tc.name), buf.Bytes(), false)
 
 			want, err := os.ReadFile(tc.fixtPath)
 			require.NoError(t, err)
@@ -170,7 +170,7 @@ func TestOptDatetimeFormats(t *testing.T) {
 	tr = testrun.New(th.Context, t, tr)
 	require.NoError(t, tr.Exec("sql", "--xlsx", query))
 
-	fpath := tutil.WriteTemp(t, "*.xlsx", tr.Out.Bytes(), true)
+	fpath := tu.WriteTemp(t, "*.xlsx", tr.Out.Bytes(), true)
 
 	gotDatetime := readCellValue(t, fpath, source.MonotableName, "A2")
 	gotDate := readCellValue(t, fpath, source.MonotableName, "B2")

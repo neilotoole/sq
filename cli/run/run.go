@@ -99,10 +99,8 @@ func (ru *Run) Close() error {
 // NewQueryContext returns a *libsq.QueryContext constructed from ru.
 func NewQueryContext(ru *Run, args map[string]string) *libsq.QueryContext {
 	return &libsq.QueryContext{
-		Collection:        ru.Config.Collection,
-		PoolOpener:        ru.Sources,
-		JoinPoolOpener:    ru.Sources,
-		ScratchPoolOpener: ru.Sources,
-		Args:              args,
+		Collection: ru.Config.Collection,
+		Sources:    ru.Sources,
+		Args:       args,
 	}
 }

@@ -16,7 +16,7 @@ import (
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/testsrc"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 // Export for testing.
@@ -30,7 +30,7 @@ var (
 func TestFiles_Open(t *testing.T) {
 	ctx := lg.NewContext(context.Background(), slogt.New(t))
 
-	fs, err := NewFiles(ctx)
+	fs, err := NewFiles(ctx, tu.TempDir(t), tu.CacheDir(t))
 	require.NoError(t, err)
 	t.Cleanup(func() { assert.NoError(t, fs.Close()) })
 
@@ -181,7 +181,7 @@ func TestParseLoc(t *testing.T) {
 
 	for _, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(1, RedactLocation(tc.loc)), func(t *testing.T) {
+		t.Run(tu.Name(1, RedactLocation(tc.loc)), func(t *testing.T) {
 			if tc.windows && runtime.GOOS != "windows" {
 				return
 			}
@@ -220,7 +220,7 @@ func TestGroupsFilterOnlyDirectChildren(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, tc.want), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.want), func(t *testing.T) {
 			got := GroupsFilterOnlyDirectChildren(tc.parent, tc.groups)
 			require.EqualValues(t, tc.want, got)
 		})

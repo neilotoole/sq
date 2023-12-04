@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/stringz"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func TestGenerateAlphaColName(t *testing.T) {
@@ -297,7 +297,7 @@ func TestLineCount(t *testing.T) {
 	for i, tc := range testCases {
 		tc := tc
 
-		t.Run(tutil.Name(i, tc.in), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
 			count := stringz.LineCount(strings.NewReader(tc.in), false)
 			require.Equal(t, tc.withEmpty, count)
 			count = stringz.LineCount(strings.NewReader(tc.in), true)
@@ -340,7 +340,7 @@ func TestStripDoubleQuote(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, tc.in), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
 			got := stringz.StripDoubleQuote(tc.in)
 			require.Equal(t, tc.want, got)
 		})
@@ -401,7 +401,7 @@ func TestValidIdent(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(tc.in), func(t *testing.T) {
+		t.Run(tu.Name(tc.in), func(t *testing.T) {
 			gotErr := stringz.ValidIdent(tc.in)
 			if tc.wantErr {
 				require.Error(t, gotErr)
@@ -429,7 +429,7 @@ func TestStrings(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, tc.in), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
 			got := stringz.Strings(tc.in)
 			require.Len(t, got, len(tc.in))
 
@@ -457,7 +457,7 @@ func TestStringsD(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, tc.in), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
 			got := stringz.StringsD(tc.in)
 			require.Len(t, got, len(tc.in))
 
@@ -517,7 +517,7 @@ func TestTemplate(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, tc.tpl), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.tpl), func(t *testing.T) {
 			got, gotErr := stringz.ExecuteTemplate(t.Name(), tc.tpl, tc.data)
 			t.Logf("\nTPL:   %s\nGOT:   %s\nERR:   %v", tc.tpl, got, gotErr)
 			if tc.wantErr {
@@ -550,7 +550,7 @@ func TestShellEscape(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, tc), func(t *testing.T) {
+		t.Run(tu.Name(i, tc), func(t *testing.T) {
 			got := stringz.ShellEscape(tc.in)
 			require.Equal(t, tc.want, got)
 		})
@@ -581,7 +581,7 @@ func TestTrimLenMiddle(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, tc.input, tc.maxLen), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.input, tc.maxLen), func(t *testing.T) {
 			got := stringz.TrimLenMiddle(tc.input, tc.maxLen)
 			require.True(t, len(got) <= tc.maxLen)
 			require.Equal(t, tc.want, got)
@@ -611,7 +611,7 @@ func TestDecimal(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, tc.in, tc.wantStr), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.in, tc.wantStr), func(t *testing.T) {
 			gotStr := stringz.FormatDecimal(tc.in)
 			require.Equal(t, tc.wantStr, gotStr)
 			gotPlaces := stringz.DecimalPlaces(tc.in)
