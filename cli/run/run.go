@@ -73,8 +73,8 @@ type Run struct {
 	// Files manages file access.
 	Files *source.Files
 
-	// Sources mediates access to driver.Grip instances.
-	Sources *driver.Sources
+	// Grips mediates access to driver.Grip instances.
+	Grips *driver.Grips
 
 	// Writers holds the various writer types that
 	// the CLI uses to print output.
@@ -100,7 +100,7 @@ func (ru *Run) Close() error {
 func NewQueryContext(ru *Run, args map[string]string) *libsq.QueryContext {
 	return &libsq.QueryContext{
 		Collection: ru.Config.Collection,
-		Sources:    ru.Sources,
+		Sources:    ru.Grips,
 		Args:       args,
 	}
 }

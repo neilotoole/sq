@@ -125,7 +125,7 @@ func execInspect(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	grip, err := ru.Sources.Open(ctx, src)
+	grip, err := ru.Grips.Open(ctx, src)
 	if err != nil {
 		return errz.Wrapf(err, "failed to inspect %s", src.Handle)
 	}

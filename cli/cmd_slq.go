@@ -135,7 +135,7 @@ func execSLQInsert(ctx context.Context, ru *run.Run, mArgs map[string]string,
 	ctx, cancelFn := context.WithCancel(ctx)
 	defer cancelFn()
 
-	destGrip, err := ru.Sources.Open(ctx, destSrc)
+	destGrip, err := ru.Grips.Open(ctx, destSrc)
 	if err != nil {
 		return err
 	}
@@ -204,7 +204,7 @@ func execSLQPrint(ctx context.Context, ru *run.Run, mArgs map[string]string) err
 //
 //	$ cat something.xlsx | sq @stdin.sheet1
 func preprocessUserSLQ(ctx context.Context, ru *run.Run, args []string) (string, error) {
-	log, reg, grips, coll := lg.FromContext(ctx), ru.DriverRegistry, ru.Sources, ru.Config.Collection
+	log, reg, grips, coll := lg.FromContext(ctx), ru.DriverRegistry, ru.Grips, ru.Config.Collection
 	activeSrc := coll.Active()
 
 	if len(args) == 0 {

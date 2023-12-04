@@ -196,7 +196,7 @@ func fetchSourceMeta(ctx context.Context, ru *run.Run, handle string) (*source.S
 	if err != nil {
 		return nil, nil, err
 	}
-	grip, err := ru.Sources.Open(ctx, src)
+	grip, err := ru.Grips.Open(ctx, src)
 	if err != nil {
 		return nil, nil, err
 	}

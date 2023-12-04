@@ -97,7 +97,7 @@ type Helper struct {
 
 	registry *driver.Registry
 	files    *source.Files
-	sources  *driver.Sources
+	grips    *driver.Grips
 	run      *run.Run
 
 	initOnce sync.Once
@@ -173,20 +173,20 @@ func (h *Helper) init() {
 
 		h.files.AddDriverDetectors(source.DetectMagicNumber)
 
-		h.sources = driver.NewSources(log, h.registry, h.files, sqlite3.NewScratchSource)
-		h.Cleanup.AddC(h.sources)
+		h.grips = driver.NewGrips(log, h.registry, h.files, sqlite3.NewScratchSource)
+		h.Cleanup.AddC(h.grips)
 
 		h.registry.AddProvider(sqlite3.Type, &sqlite3.Provider{Log: log})
 		h.registry.AddProvider(postgres.Type, &postgres.Provider{Log: log})
 		h.registry.AddProvider(sqlserver.Type, &sqlserver.Provider{Log: log})
 		h.registry.AddProvider(mysql.Type, &mysql.Provider{Log: log})
 
-		csvp := &csv.Provider{Log: log, Ingester: h.sources, Files: h.files}
+		csvp := &csv.Provider{Log: log, Ingester: h.grips, Files: h.files}
 		h.registry.AddProvider(csv.TypeCSV, csvp)
 		h.registry.AddProvider(csv.TypeTSV, csvp)
 		h.files.AddDriverDetectors(csv.DetectCSV, csv.DetectTSV)
 
-		jsonp := &json.Provider{Log: log, Ingester: h.sources, Files: h.files}
+		jsonp := &json.Provider{Log: log, Ingester: h.grips, Files: h.files}
 		h.registry.AddProvider(json.TypeJSON, jsonp)
 		h.registry.AddProvider(json.TypeJSONA, jsonp)
 		h.registry.AddProvider(json.TypeJSONL, jsonp)
@@ -196,7 +196,7 @@ func (h *Helper) init() {
 			json.DetectJSONL(driver.OptIngestSampleSize.Get(nil)),
 		)
 
-		h.registry.AddProvider(xlsx.Type, &xlsx.Provider{Log: log, Ingester: h.sources, Files: h.files})
+		h.registry.AddProvider(xlsx.Type, &xlsx.Provider{Log: log, Ingester: h.grips, Files: h.files})
 		h.files.AddDriverDetectors(xlsx.DetectXLSX)
 
 		h.addUserDrivers()
@@ -627,7 +627,7 @@ func (h *Helper) QuerySLQ(query string, args map[string]string) (*RecordSink, er
 
 	qc := &libsq.QueryContext{
 		Collection: h.coll,
-		Sources:    h.sources,
+		Sources:    h.grips,
 		Args:       args,
 	}
 
@@ -735,7 +735,7 @@ func (h *Helper) addUserDrivers() {
 			Log:       h.Log,
 			DriverDef: userDriverDef,
 			ImportFn:  importFn,
-			Ingester:  h.sources,
+			Ingester:  h.grips,
 			Files:     h.files,
 		}
 
@@ -749,10 +749,10 @@ func (h *Helper) IsMonotable(src *source.Source) bool {
 	return h.DriverFor(src).DriverMetadata().Monotable
 }
 
-// Sources returns the helper's driver.Sources instance.
-func (h *Helper) Sources() *driver.Sources {
+// Sources returns the helper's driver.Grips instance.
+func (h *Helper) Sources() *driver.Grips {
 	h.init()
-	return h.sources
+	return h.grips
 }
 
 // Files returns the helper's Files instance.

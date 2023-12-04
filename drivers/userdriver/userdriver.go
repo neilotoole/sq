@@ -31,7 +31,7 @@ type ImportFunc func(ctx context.Context, def *DriverDef,
 type Provider struct {
 	Log       *slog.Logger
 	DriverDef *DriverDef
-	Ingester  driver.IngestOpener
+	Ingester  driver.GripOpenIngester
 	Files     *source.Files
 	ImportFn  ImportFunc
 }
@@ -66,7 +66,7 @@ type driveri struct {
 	typ      drivertype.Type
 	def      *DriverDef
 	files    *source.Files
-	ingester driver.IngestOpener
+	ingester driver.GripOpenIngester
 	ingestFn ImportFunc
 }
 

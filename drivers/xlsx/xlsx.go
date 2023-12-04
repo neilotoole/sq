@@ -29,7 +29,7 @@ const (
 type Provider struct {
 	Log      *slog.Logger
 	Files    *source.Files
-	Ingester driver.IngestOpener
+	Ingester driver.GripOpenIngester
 }
 
 // DriverFor implements driver.Provider.
@@ -44,7 +44,7 @@ func (p *Provider) DriverFor(typ drivertype.Type) (driver.Driver, error) {
 // Driver implements driver.Driver.
 type Driver struct {
 	log      *slog.Logger
-	ingester driver.IngestOpener
+	ingester driver.GripOpenIngester
 	files    *source.Files
 }
 

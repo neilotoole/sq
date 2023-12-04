@@ -114,7 +114,7 @@ func buildTableStructureDiff(cfg *Config, showRowCounts bool, td1, td2 *tableDat
 func fetchTableMeta(ctx context.Context, ru *run.Run, src *source.Source, table string) (
 	*metadata.Table, error,
 ) {
-	grip, err := ru.Sources.Open(ctx, src)
+	grip, err := ru.Grips.Open(ctx, src)
 	if err != nil {
 		return nil, err
 	}

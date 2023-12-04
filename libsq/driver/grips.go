@@ -24,16 +24,16 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 )
 
-var _ GripOpener = (*Sources)(nil)
+var _ GripOpener = (*Grips)(nil)
 
 // ScratchSrcFunc is a function that returns a scratch source.
 // The caller is responsible for invoking cleanFn.
 type ScratchSrcFunc func(ctx context.Context, name string) (src *source.Source, cleanFn func() error, err error)
 
-// Sources provides a mechanism for getting Grip instances.
+// Grips provides a mechanism for getting Grip instances.
 // Note that at this time instances returned by Open are cached
 // and then closed by Close. This may be a bad approach.
-type Sources struct {
+type Grips struct {
 	log          *slog.Logger
 	drvrs        Provider
 	mu           sync.Mutex
@@ -43,11 +43,11 @@ type Sources struct {
 	clnup        *cleanup.Cleanup
 }
 
-// NewSources returns a Sources instances.
-func NewSources(log *slog.Logger, drvrs Provider,
+// NewGrips returns a Grips instances.
+func NewGrips(log *slog.Logger, drvrs Provider,
 	files *source.Files, scratchSrcFn ScratchSrcFunc,
-) *Sources {
-	return &Sources{
+) *Grips {
+	return &Grips{
 		log:          log,
 		drvrs:        drvrs,
 		mu:           sync.Mutex{},
@@ -68,25 +68,25 @@ func NewSources(log *slog.Logger, drvrs Provider,
 // and needs to be revisited.
 //
 // Open implements GripOpener.
-func (ss *Sources) Open(ctx context.Context, src *source.Source) (Grip, error) {
+func (gs *Grips) Open(ctx context.Context, src *source.Source) (Grip, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
-	ss.mu.Lock()
-	defer ss.mu.Unlock()
-	return ss.doOpen(ctx, src)
+	gs.mu.Lock()
+	defer gs.mu.Unlock()
+	return gs.doOpen(ctx, src)
 }
 
 // DriverFor returns the driver for typ.
-func (ss *Sources) DriverFor(typ drivertype.Type) (Driver, error) {
-	return ss.drvrs.DriverFor(typ)
+func (gs *Grips) DriverFor(typ drivertype.Type) (Driver, error) {
+	return gs.drvrs.DriverFor(typ)
 }
 
 // IsSQLSource returns true if src's driver is a SQLDriver.
-func (ss *Sources) IsSQLSource(src *source.Source) bool {
+func (gs *Grips) IsSQLSource(src *source.Source) bool {
 	if src == nil {
 		return false
 	}
 
-	drvr, err := ss.drvrs.DriverFor(src.Type)
+	drvr, err := gs.drvrs.DriverFor(src.Type)
 	if err != nil {
 		return false
 	}
@@ -98,20 +98,20 @@ func (ss *Sources) IsSQLSource(src *source.Source) bool {
 	return false
 }
 
-func (ss *Sources) getKey(src *source.Source) string {
+func (gs *Grips) getKey(src *source.Source) string {
 	return src.Handle + "_" + src.Hash()
 }
 
-func (ss *Sources) doOpen(ctx context.Context, src *source.Source) (Grip, error) {
+func (gs *Grips) doOpen(ctx context.Context, src *source.Source) (Grip, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
-	key := ss.getKey(src)
+	key := gs.getKey(src)
 
-	grip, ok := ss.grips[key]
+	grip, ok := gs.grips[key]
 	if ok {
 		return grip, nil
 	}
 
-	drvr, err := ss.drvrs.DriverFor(src.Type)
+	drvr, err := gs.drvrs.DriverFor(src.Type)
 	if err != nil {
 		return nil, err
 	}
@@ -125,19 +125,19 @@ func (ss *Sources) doOpen(ctx context.Context, src *source.Source) (Grip, error)
 		return nil, err
 	}
 
-	ss.clnup.AddC(grip)
+	gs.clnup.AddC(grip)
 
-	ss.grips[key] = grip
+	gs.grips[key] = grip
 	return grip, nil
 }
 
 // OpenScratch returns a scratch database instance. It is not
 // necessary for the caller to close the returned Grip as
 // its Close method will be invoked by d.Close.
-func (ss *Sources) OpenScratch(ctx context.Context, src *source.Source) (Grip, error) {
+func (gs *Grips) OpenScratch(ctx context.Context, src *source.Source) (Grip, error) {
 	const msgCloseScratch = "Close scratch db"
 
-	cacheDir, srcCacheDBFilepath, _, err := ss.getCachePaths(src)
+	cacheDir, srcCacheDBFilepath, _, err := gs.getCachePaths(src)
 	if err != nil {
 		return nil, err
 	}
@@ -146,23 +146,23 @@ func (ss *Sources) OpenScratch(ctx context.Context, src *source.Source) (Grip, e
 		return nil, err
 	}
 
-	scratchSrc, cleanFn, err := ss.scratchSrcFn(ctx, srcCacheDBFilepath)
+	scratchSrc, cleanFn, err := gs.scratchSrcFn(ctx, srcCacheDBFilepath)
 	if err != nil {
 		// if err is non-nil, cleanup is guaranteed to be nil
 		return nil, err
 	}
-	ss.log.Debug("Opening scratch src", lga.Src, scratchSrc)
+	gs.log.Debug("Opening scratch src", lga.Src, scratchSrc)
 
-	backingDrvr, err := ss.drvrs.DriverFor(scratchSrc.Type)
+	backingDrvr, err := gs.drvrs.DriverFor(scratchSrc.Type)
 	if err != nil {
-		lg.WarnIfFuncError(ss.log, msgCloseScratch, cleanFn)
+		lg.WarnIfFuncError(gs.log, msgCloseScratch, cleanFn)
 		return nil, err
 	}
 
 	var backingGrip Grip
 	backingGrip, err = backingDrvr.Open(ctx, scratchSrc)
 	if err != nil {
-		lg.WarnIfFuncError(ss.log, msgCloseScratch, cleanFn)
+		lg.WarnIfFuncError(gs.log, msgCloseScratch, cleanFn)
 		return nil, err
 	}
 
@@ -170,14 +170,14 @@ func (ss *Sources) OpenScratch(ctx context.Context, src *source.Source) (Grip, e
 	if !allowCache {
 		// If the ingest cache is disabled, we add the cleanup func
 		// so the scratch DB is deleted when the session ends.
-		ss.clnup.AddE(cleanFn)
+		gs.clnup.AddE(cleanFn)
 	}
 
 	return backingGrip, nil
 }
 
-// OpenIngest implements driver.IngestOpener.
-func (ss *Sources) OpenIngest(ctx context.Context, src *source.Source, allowCache bool,
+// OpenIngest implements driver.GripOpenIngester.
+func (gs *Grips) OpenIngest(ctx context.Context, src *source.Source, allowCache bool,
 	ingestFn func(ctx context.Context, dest Grip) error,
 ) (Grip, error) {
 	var grip Grip
@@ -185,9 +185,9 @@ func (ss *Sources) OpenIngest(ctx context.Context, src *source.Source, allowCach
 
 	if !allowCache || src.Handle == source.StdinHandle {
 		// We don't currently cache stdin. Probably we never will?
-		grip, err = ss.openIngestNoCache(ctx, src, ingestFn)
+		grip, err = gs.openIngestNoCache(ctx, src, ingestFn)
 	} else {
-		grip, err = ss.openIngestCache(ctx, src, ingestFn)
+		grip, err = gs.openIngestCache(ctx, src, ingestFn)
 	}
 
 	if err != nil {
@@ -197,11 +197,11 @@ func (ss *Sources) OpenIngest(ctx context.Context, src *source.Source, allowCach
 	return grip, nil
 }
 
-func (ss *Sources) openIngestNoCache(ctx context.Context, src *source.Source,
+func (gs *Grips) openIngestNoCache(ctx context.Context, src *source.Source,
 	ingestFn func(ctx context.Context, destGrip Grip) error,
 ) (Grip, error) {
 	log := lg.FromContext(ctx)
-	impl, err := ss.OpenScratch(ctx, src)
+	impl, err := gs.OpenScratch(ctx, src)
 	if err != nil {
 		return nil, err
 	}
@@ -219,18 +219,18 @@ func (ss *Sources) openIngestNoCache(ctx context.Context, src *source.Source,
 		return nil, err
 	}
 
-	ss.log.Info("Ingest completed",
+	gs.log.Info("Ingest completed",
 		lga.Src, src, lga.Dest, impl.Source(),
 		lga.Elapsed, elapsed)
 	return impl, nil
 }
 
-func (ss *Sources) openIngestCache(ctx context.Context, src *source.Source,
+func (gs *Grips) openIngestCache(ctx context.Context, src *source.Source,
 	ingestFn func(ctx context.Context, destGrip Grip) error,
 ) (Grip, error) {
 	log := lg.FromContext(ctx)
 
-	lock, err := ss.acquireLock(ctx, src)
+	lock, err := gs.acquireLock(ctx, src)
 	if err != nil {
 		return nil, err
 	}
@@ -243,7 +243,7 @@ func (ss *Sources) openIngestCache(ctx context.Context, src *source.Source,
 		}
 	}()
 
-	cacheDir, _, checksumsPath, err := ss.getCachePaths(src)
+	cacheDir, _, checksumsPath, err := gs.getCachePaths(src)
 	if err != nil {
 		return nil, err
 	}
@@ -254,7 +254,7 @@ func (ss *Sources) openIngestCache(ctx context.Context, src *source.Source,
 
 	log.Debug("Using cache dir", lga.Path, cacheDir)
 
-	ingestFilePath, err := ss.files.Filepath(ctx, src)
+	ingestFilePath, err := gs.files.Filepath(ctx, src)
 	if err != nil {
 		return nil, err
 	}
@@ -263,7 +263,7 @@ func (ss *Sources) openIngestCache(ctx context.Context, src *source.Source,
 		impl        Grip
 		foundCached bool
 	)
-	if impl, foundCached, err = ss.openCachedFor(ctx, src); err != nil {
+	if impl, foundCached, err = gs.openCachedFor(ctx, src); err != nil {
 		return nil, err
 	}
 	if foundCached {
@@ -275,7 +275,7 @@ func (ss *Sources) openIngestCache(ctx context.Context, src *source.Source,
 
 	log.Debug("Ingest cache MISS: no cache for source", lga.Src, src)
 
-	impl, err = ss.OpenScratch(ctx, src)
+	impl, err = gs.OpenScratch(ctx, src)
 	if err != nil {
 		return nil, err
 	}
@@ -314,8 +314,8 @@ func (ss *Sources) openIngestCache(ctx context.Context, src *source.Source,
 // getCachePaths returns the paths to the cache files for src.
 // There is no guarantee that these files exist, or are accessible.
 // It's just the paths.
-func (ss *Sources) getCachePaths(src *source.Source) (srcCacheDir, cacheDB, checksums string, err error) {
-	if srcCacheDir, err = ss.files.CacheDirFor(src); err != nil {
+func (gs *Grips) getCachePaths(src *source.Source) (srcCacheDir, cacheDB, checksums string, err error) {
+	if srcCacheDir, err = gs.files.CacheDirFor(src); err != nil {
 		return "", "", "", err
 	}
 
@@ -330,8 +330,8 @@ func (ss *Sources) getCachePaths(src *source.Source) (srcCacheDir, cacheDB, chec
 //	defer lg.WarnIfFuncError(d.log, "failed to unlock cache lock", lock.Unlock)
 //
 // The lock acquisition process is retried with backoff.
-func (ss *Sources) acquireLock(ctx context.Context, src *source.Source) (lockfile.Lockfile, error) {
-	lock, err := ss.getLockfileFor(src)
+func (gs *Grips) acquireLock(ctx context.Context, src *source.Source) (lockfile.Lockfile, error) {
+	lock, err := gs.getLockfileFor(src)
 	if err != nil {
 		return "", err
 	}
@@ -356,8 +356,8 @@ func (ss *Sources) acquireLock(ctx context.Context, src *source.Source) (lockfil
 
 // getLockfileFor returns a lockfile for src. It doesn't
 // actually acquire the lock.
-func (ss *Sources) getLockfileFor(src *source.Source) (lockfile.Lockfile, error) {
-	srcCacheDir, _, _, err := ss.getCachePaths(src)
+func (gs *Grips) getLockfileFor(src *source.Source) (lockfile.Lockfile, error) {
+	srcCacheDir, _, _, err := gs.getCachePaths(src)
 	if err != nil {
 		return "", err
 	}
@@ -369,8 +369,8 @@ func (ss *Sources) getLockfileFor(src *source.Source) (lockfile.Lockfile, error)
 	return lockfile.New(lockPath)
 }
 
-func (ss *Sources) openCachedFor(ctx context.Context, src *source.Source) (Grip, bool, error) {
-	_, cacheDBPath, checksumsPath, err := ss.getCachePaths(src)
+func (gs *Grips) openCachedFor(ctx context.Context, src *source.Source) (Grip, bool, error) {
+	_, cacheDBPath, checksumsPath, err := gs.getCachePaths(src)
 	if err != nil {
 		return nil, false, err
 	}
@@ -384,7 +384,7 @@ func (ss *Sources) openCachedFor(ctx context.Context, src *source.Source) (Grip,
 		return nil, false, err
 	}
 
-	drvr, err := ss.drvrs.DriverFor(src.Type)
+	drvr, err := gs.drvrs.DriverFor(src.Type)
 	if err != nil {
 		return nil, false, err
 	}
@@ -395,11 +395,11 @@ func (ss *Sources) openCachedFor(ctx context.Context, src *source.Source) (Grip,
 	}
 
 	// FIXME: Not too sure invoking files.Filepath here is the right approach?
-	srcFilepath, err := ss.files.Filepath(ctx, src)
+	srcFilepath, err := gs.files.Filepath(ctx, src)
 	if err != nil {
 		return nil, false, err
 	}
-	ss.log.Debug("Got srcFilepath for src",
+	gs.log.Debug("Got srcFilepath for src",
 		lga.Src, src, lga.Path, srcFilepath)
 
 	cachedChecksum, ok := mChecksums[srcFilepath]
@@ -422,7 +422,7 @@ func (ss *Sources) openCachedFor(ctx context.Context, src *source.Source) (Grip,
 		return nil, false, nil
 	}
 
-	backingType, err := ss.files.DriverType(ctx, cacheDBPath)
+	backingType, err := gs.files.DriverType(ctx, cacheDBPath)
 	if err != nil {
 		return nil, false, err
 	}
@@ -433,7 +433,7 @@ func (ss *Sources) openCachedFor(ctx context.Context, src *source.Source) (Grip,
 		Type:     backingType,
 	}
 
-	backingGrip, err := ss.doOpen(ctx, backingSrc)
+	backingGrip, err := gs.doOpen(ctx, backingSrc)
 	if err != nil {
 		return nil, false, errz.Wrapf(err, "open cached DB for source %s", src.Handle)
 	}
@@ -450,18 +450,18 @@ func (ss *Sources) openCachedFor(ctx context.Context, src *source.Source) (Grip,
 // location for the join to occur (to minimize copying of data for
 // the join etc.). Currently the implementation simply delegates
 // to OpenScratch.
-func (ss *Sources) OpenJoin(ctx context.Context, srcs ...*source.Source) (Grip, error) {
+func (gs *Grips) OpenJoin(ctx context.Context, srcs ...*source.Source) (Grip, error) {
 	var names []string
 	for _, src := range srcs {
 		names = append(names, src.Handle[1:])
 	}
 
-	ss.log.Debug("OpenJoin", "sources", strings.Join(names, ","))
-	return ss.OpenScratch(ctx, srcs[0])
+	gs.log.Debug("OpenJoin", "sources", strings.Join(names, ","))
+	return gs.OpenScratch(ctx, srcs[0])
 }
 
 // Close closes d, invoking Close on any instances opened via d.Open.
-func (ss *Sources) Close() error {
-	ss.log.Debug("Closing databases(s)...", lga.Count, ss.clnup.Len())
-	return ss.clnup.Run()
+func (gs *Grips) Close() error {
+	gs.log.Debug("Closing databases(s)...", lga.Count, gs.clnup.Len())
+	return gs.clnup.Run()
 }
