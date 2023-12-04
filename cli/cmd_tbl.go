@@ -199,7 +199,12 @@ func execTblTruncate(cmd *cobra.Command, args []string) (err error) {
 
 	for _, tblH := range tblHandles {
 		var affected int64
-		affected, err = tblH.drvr.Truncate(cmd.Context(), tblH.src, tblH.tbl, true)
+		if !tblH.drvr.DriverMetadata().IsSQL {
+			return errz.Errorf("driver {%s} for source %s doesn't support truncate",
+				tblH.drvr.DriverMetadata().Type, tblH.src.Handle)
+		}
+
+		affected, err = tblH.drvr.(driver.SQLDriver).Truncate(cmd.Context(), tblH.src, tblH.tbl, true)
 		if err != nil {
 			return err
 		}

@@ -692,7 +692,10 @@ func (h *Helper) TruncateTable(src *source.Source, tbl string) (affected int64) 
 	grip := h.openNew(src)
 	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, grip)
 
-	affected, err := h.DriverFor(src).Truncate(h.Context, src, tbl, true)
+	drvr := h.SQLDriverFor(src)
+	require.NotNil(h.T, drvr, "not a SQL driver")
+
+	affected, err := drvr.Truncate(h.Context, src, tbl, true)
 	require.NoError(h.T, err)
 	return affected
 }

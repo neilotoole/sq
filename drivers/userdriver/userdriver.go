@@ -108,11 +108,6 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, er
 	return g, nil
 }
 
-// Truncate implements driver.Driver.
-func (d *driveri) Truncate(_ context.Context, _ *source.Source, _ string, _ bool) (int64, error) {
-	return 0, errz.Errorf("truncate not supported for %s", d.DriverMetadata().Type)
-}
-
 // ValidateSource implements driver.Driver.
 func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 	d.log.Debug("Validating source", lga.Src, src)
