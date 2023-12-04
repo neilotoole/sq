@@ -24,13 +24,13 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 )
 
-var _ PoolOpener = (*Sources)(nil)
+var _ GripOpener = (*Sources)(nil)
 
 // ScratchSrcFunc is a function that returns a scratch source.
 // The caller is responsible for invoking cleanFn.
 type ScratchSrcFunc func(ctx context.Context, name string) (src *source.Source, cleanFn func() error, err error)
 
-// Sources provides a mechanism for getting Pool instances.
+// Sources provides a mechanism for getting Grip instances.
 // Note that at this time instances returned by Open are cached
 // and then closed by Close. This may be a bad approach.
 type Sources struct {
@@ -39,7 +39,7 @@ type Sources struct {
 	mu           sync.Mutex
 	scratchSrcFn ScratchSrcFunc
 	files        *source.Files
-	pools        map[string]Pool
+	grips        map[string]Grip
 	clnup        *cleanup.Cleanup
 }
 
@@ -53,22 +53,22 @@ func NewSources(log *slog.Logger, drvrs Provider,
 		mu:           sync.Mutex{},
 		scratchSrcFn: scratchSrcFn,
 		files:        files,
-		pools:        map[string]Pool{},
+		grips:        map[string]Grip{},
 		clnup:        cleanup.New(),
 	}
 }
 
-// Open returns an opened Pool for src. The returned Pool
+// Open returns an opened Grip for src. The returned Grip
 // may be cached and returned on future invocations for the
 // same source (where each source fields is identical).
 // Thus, the caller should typically not close
-// the Pool: it will be closed via d.Close.
+// the Grip: it will be closed via d.Close.
 //
 // NOTE: This entire logic re caching/not-closing is a bit sketchy,
 // and needs to be revisited.
 //
-// Open implements PoolOpener.
-func (ss *Sources) Open(ctx context.Context, src *source.Source) (Pool, error) {
+// Open implements GripOpener.
+func (ss *Sources) Open(ctx context.Context, src *source.Source) (Grip, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
@@ -102,13 +102,13 @@ func (ss *Sources) getKey(src *source.Source) string {
 	return src.Handle + "_" + src.Hash()
 }
 
-func (ss *Sources) doOpen(ctx context.Context, src *source.Source) (Pool, error) {
+func (ss *Sources) doOpen(ctx context.Context, src *source.Source) (Grip, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 	key := ss.getKey(src)
 
-	pool, ok := ss.pools[key]
+	grip, ok := ss.grips[key]
 	if ok {
-		return pool, nil
+		return grip, nil
 	}
 
 	drvr, err := ss.drvrs.DriverFor(src.Type)
@@ -120,21 +120,21 @@ func (ss *Sources) doOpen(ctx context.Context, src *source.Source) (Pool, error)
 	o := options.Merge(baseOptions, src.Options)
 
 	ctx = options.NewContext(ctx, o)
-	pool, err = drvr.Open(ctx, src)
+	grip, err = drvr.Open(ctx, src)
 	if err != nil {
 		return nil, err
 	}
 
-	ss.clnup.AddC(pool)
+	ss.clnup.AddC(grip)
 
-	ss.pools[key] = pool
-	return pool, nil
+	ss.grips[key] = grip
+	return grip, nil
 }
 
 // OpenScratch returns a scratch database instance. It is not
-// necessary for the caller to close the returned Pool as
+// necessary for the caller to close the returned Grip as
 // its Close method will be invoked by d.Close.
-func (ss *Sources) OpenScratch(ctx context.Context, src *source.Source) (Pool, error) {
+func (ss *Sources) OpenScratch(ctx context.Context, src *source.Source) (Grip, error) {
 	const msgCloseScratch = "Close scratch db"
 
 	cacheDir, srcCacheDBFilepath, _, err := ss.getCachePaths(src)
@@ -159,8 +159,8 @@ func (ss *Sources) OpenScratch(ctx context.Context, src *source.Source) (Pool, e
 		return nil, err
 	}
 
-	var backingPool Pool
-	backingPool, err = backingDrvr.Open(ctx, scratchSrc)
+	var backingGrip Grip
+	backingGrip, err = backingDrvr.Open(ctx, scratchSrc)
 	if err != nil {
 		lg.WarnIfFuncError(ss.log, msgCloseScratch, cleanFn)
 		return nil, err
@@ -173,34 +173,33 @@ func (ss *Sources) OpenScratch(ctx context.Context, src *source.Source) (Pool, e
 		ss.clnup.AddE(cleanFn)
 	}
 
-	return backingPool, nil
+	return backingGrip, nil
 }
 
-// OpenIngest opens a pool for src, using ingestFn to ingest
-// the source data if necessary.
+// OpenIngest implements driver.IngestOpener.
 func (ss *Sources) OpenIngest(ctx context.Context, src *source.Source, allowCache bool,
-	ingestFn func(ctx context.Context, dest Pool) error,
-) (Pool, error) {
-	var pool Pool
+	ingestFn func(ctx context.Context, dest Grip) error,
+) (Grip, error) {
+	var grip Grip
 	var err error
 
 	if !allowCache || src.Handle == source.StdinHandle {
 		// We don't currently cache stdin. Probably we never will?
-		pool, err = ss.openIngestNoCache(ctx, src, ingestFn)
+		grip, err = ss.openIngestNoCache(ctx, src, ingestFn)
 	} else {
-		pool, err = ss.openIngestCache(ctx, src, ingestFn)
+		grip, err = ss.openIngestCache(ctx, src, ingestFn)
 	}
 
 	if err != nil {
 		return nil, err
 	}
 
-	return pool, nil
+	return grip, nil
 }
 
 func (ss *Sources) openIngestNoCache(ctx context.Context, src *source.Source,
-	ingestFn func(ctx context.Context, destPool Pool) error,
-) (Pool, error) {
+	ingestFn func(ctx context.Context, destGrip Grip) error,
+) (Grip, error) {
 	log := lg.FromContext(ctx)
 	impl, err := ss.OpenScratch(ctx, src)
 	if err != nil {
@@ -227,8 +226,8 @@ func (ss *Sources) openIngestNoCache(ctx context.Context, src *source.Source,
 }
 
 func (ss *Sources) openIngestCache(ctx context.Context, src *source.Source,
-	ingestFn func(ctx context.Context, destPool Pool) error,
-) (Pool, error) {
+	ingestFn func(ctx context.Context, destGrip Grip) error,
+) (Grip, error) {
 	log := lg.FromContext(ctx)
 
 	lock, err := ss.acquireLock(ctx, src)
@@ -261,7 +260,7 @@ func (ss *Sources) openIngestCache(ctx context.Context, src *source.Source,
 	}
 
 	var (
-		impl        Pool
+		impl        Grip
 		foundCached bool
 	)
 	if impl, foundCached, err = ss.openCachedFor(ctx, src); err != nil {
@@ -370,7 +369,7 @@ func (ss *Sources) getLockfileFor(src *source.Source) (lockfile.Lockfile, error)
 	return lockfile.New(lockPath)
 }
 
-func (ss *Sources) openCachedFor(ctx context.Context, src *source.Source) (Pool, bool, error) {
+func (ss *Sources) openCachedFor(ctx context.Context, src *source.Source) (Grip, bool, error) {
 	_, cacheDBPath, checksumsPath, err := ss.getCachePaths(src)
 	if err != nil {
 		return nil, false, err
@@ -434,12 +433,12 @@ func (ss *Sources) openCachedFor(ctx context.Context, src *source.Source) (Pool,
 		Type:     backingType,
 	}
 
-	backingPool, err := ss.doOpen(ctx, backingSrc)
+	backingGrip, err := ss.doOpen(ctx, backingSrc)
 	if err != nil {
 		return nil, false, errz.Wrapf(err, "open cached DB for source %s", src.Handle)
 	}
 
-	return backingPool, true, nil
+	return backingGrip, true, nil
 }
 
 // OpenJoin opens an appropriate database for use as
@@ -451,7 +450,7 @@ func (ss *Sources) openCachedFor(ctx context.Context, src *source.Source) (Pool,
 // location for the join to occur (to minimize copying of data for
 // the join etc.). Currently the implementation simply delegates
 // to OpenScratch.
-func (ss *Sources) OpenJoin(ctx context.Context, srcs ...*source.Source) (Pool, error) {
+func (ss *Sources) OpenJoin(ctx context.Context, srcs ...*source.Source) (Grip, error) {
 	var names []string
 	for _, src := range srcs {
 		names = append(names, src.Handle[1:])

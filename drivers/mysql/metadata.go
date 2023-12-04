@@ -170,7 +170,7 @@ func getNewRecordFunc(rowMeta record.Meta) driver.NewRecordFunc {
 }
 
 // getTableMetadata gets the metadata for a single table. It is the
-// implementation of driver.Pool.Table.
+// implementation of driver.Grip.Table.
 func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadata.Table, error) {
 	query := `SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, TABLE_COMMENT, (DATA_LENGTH + INDEX_LENGTH) AS table_size,
 (SELECT COUNT(*) FROM ` + "`" + tblName + "`" + `) AS row_count
@@ -248,7 +248,7 @@ ORDER BY cols.ordinal_position ASC`
 	return cols, errw(rows.Err())
 }
 
-// getSourceMetadata is the implementation of driver.Pool.SourceMetadata.
+// getSourceMetadata is the implementation of driver.Grip.SourceMetadata.
 //
 // Multiple queries are required to build the SourceMetadata, and this
 // impl makes use of errgroup to make concurrent queries. In the initial

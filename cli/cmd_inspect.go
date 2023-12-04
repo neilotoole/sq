@@ -125,7 +125,7 @@ func execInspect(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	pool, err := ru.Sources.Open(ctx, src)
+	grip, err := ru.Sources.Open(ctx, src)
 	if err != nil {
 		return errz.Wrapf(err, "failed to inspect %s", src.Handle)
 	}
@@ -142,7 +142,7 @@ func execInspect(cmd *cobra.Command, args []string) error {
 		}
 
 		var tblMeta *metadata.Table
-		tblMeta, err = pool.TableMetadata(ctx, table)
+		tblMeta, err = grip.TableMetadata(ctx, table)
 		if err != nil {
 			return err
 		}
@@ -152,11 +152,11 @@ func execInspect(cmd *cobra.Command, args []string) error {
 
 	if cmdFlagIsSetTrue(cmd, flag.InspectCatalogs) {
 		var db *sql.DB
-		if db, err = pool.DB(ctx); err != nil {
+		if db, err = grip.DB(ctx); err != nil {
 			return err
 		}
 		var catalogs []string
-		if catalogs, err = pool.SQLDriver().ListCatalogs(ctx, db); err != nil {
+		if catalogs, err = grip.SQLDriver().ListCatalogs(ctx, db); err != nil {
 			return err
 		}
 
@@ -171,16 +171,16 @@ func execInspect(cmd *cobra.Command, args []string) error {
 
 	if cmdFlagIsSetTrue(cmd, flag.InspectSchemata) {
 		var db *sql.DB
-		if db, err = pool.DB(ctx); err != nil {
+		if db, err = grip.DB(ctx); err != nil {
 			return err
 		}
 		var schemas []*metadata.Schema
-		if schemas, err = pool.SQLDriver().ListSchemaMetadata(ctx, db); err != nil {
+		if schemas, err = grip.SQLDriver().ListSchemaMetadata(ctx, db); err != nil {
 			return err
 		}
 
 		var currentSchema string
-		if currentSchema, err = pool.SQLDriver().CurrentSchema(ctx, db); err != nil {
+		if currentSchema, err = grip.SQLDriver().CurrentSchema(ctx, db); err != nil {
 			return err
 		}
 
@@ -189,12 +189,12 @@ func execInspect(cmd *cobra.Command, args []string) error {
 
 	if cmdFlagIsSetTrue(cmd, flag.InspectDBProps) {
 		var db *sql.DB
-		if db, err = pool.DB(ctx); err != nil {
+		if db, err = grip.DB(ctx); err != nil {
 			return err
 		}
 		defer lg.WarnIfCloseError(log, lgm.CloseDB, db)
 		var props map[string]any
-		if props, err = pool.SQLDriver().DBProperties(ctx, db); err != nil {
+		if props, err = grip.SQLDriver().DBProperties(ctx, db); err != nil {
 			return err
 		}
 
@@ -203,7 +203,7 @@ func execInspect(cmd *cobra.Command, args []string) error {
 
 	overviewOnly := cmdFlagIsSetTrue(cmd, flag.InspectOverview)
 
-	srcMeta, err := pool.SourceMetadata(ctx, overviewOnly)
+	srcMeta, err := grip.SourceMetadata(ctx, overviewOnly)
 	if err != nil {
 		return errz.Wrapf(err, "failed to read %s source metadata", src.Handle)
 	}

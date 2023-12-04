@@ -34,13 +34,13 @@ func TestDriver(t *testing.T) {
 			th := testh.New(t, testh.OptLongOpen())
 			src := th.Source(tc.handle)
 
-			pool := th.Open(src)
+			grip := th.Open(src)
 
-			srcMeta, err := pool.SourceMetadata(th.Context, false)
+			srcMeta, err := grip.SourceMetadata(th.Context, false)
 			require.NoError(t, err)
 			require.True(t, stringz.InSlice(srcMeta.TableNames(), tc.tbl))
 
-			tblMeta, err := pool.TableMetadata(th.Context, tc.tbl)
+			tblMeta, err := grip.TableMetadata(th.Context, tc.tbl)
 			require.NoError(t, err)
 			require.Equal(t, tc.tbl, tblMeta.Name)
 

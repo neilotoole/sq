@@ -266,12 +266,12 @@ func TestDriver_Open(t *testing.T) {
 			th := testh.New(t)
 			src := th.Source(handle)
 			drvr := th.DriverFor(src)
-			pool, err := drvr.Open(th.Context, src)
+			grip, err := drvr.Open(th.Context, src)
 			require.NoError(t, err)
-			db, err := pool.DB(th.Context)
+			db, err := grip.DB(th.Context)
 			require.NoError(t, err)
 			require.NoError(t, db.PingContext(th.Context))
-			require.NoError(t, pool.Close())
+			require.NoError(t, grip.Close())
 		})
 	}
 }
@@ -443,9 +443,9 @@ func TestDatabase_TableMetadata(t *testing.T) { //nolint:tparallel
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
-			th, _, _, pool, _ := testh.NewWith(t, handle)
+			th, _, _, grip, _ := testh.NewWith(t, handle)
 
-			tblMeta, err := pool.TableMetadata(th.Context, sakila.TblActor)
+			tblMeta, err := grip.TableMetadata(th.Context, sakila.TblActor)
 			require.NoError(t, err)
 			require.Equal(t, sakila.TblActor, tblMeta.Name)
 			require.Equal(t, int64(sakila.TblActorCount), tblMeta.RowCount)
@@ -462,9 +462,9 @@ func TestDatabase_SourceMetadata(t *testing.T) {
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
-			th, _, _, pool, _ := testh.NewWith(t, handle)
+			th, _, _, grip, _ := testh.NewWith(t, handle)
 
-			md, err := pool.SourceMetadata(th.Context, false)
+			md, err := grip.SourceMetadata(th.Context, false)
 			require.NoError(t, err)
 			require.Equal(t, sakila.TblActor, md.Tables[0].Name)
 			require.Equal(t, int64(sakila.TblActorCount), md.Tables[0].RowCount)
@@ -484,11 +484,11 @@ func TestDatabase_SourceMetadata_concurrent(t *testing.T) { //nolint:tparallel
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
-			th, _, _, pool, _ := testh.NewWith(t, handle)
+			th, _, _, grip, _ := testh.NewWith(t, handle)
 			g, gCtx := errgroup.WithContext(th.Context)
 			for i := 0; i < concurrency; i++ {
 				g.Go(func() error {
-					md, err := pool.SourceMetadata(gCtx, false)
+					md, err := grip.SourceMetadata(gCtx, false)
 					require.NoError(t, err)
 					require.NotNil(t, md)
 					gotTbl := md.Table(sakila.TblActor)
@@ -541,7 +541,7 @@ func TestSQLDriver_AlterTableRename(t *testing.T) {
 		handle := handle
 
 		t.Run(handle, func(t *testing.T) {
-			th, src, drvr, pool, db := testh.NewWith(t, handle)
+			th, src, drvr, grip, db := testh.NewWith(t, handle)
 
 			// Make a copy of the table to play with
 			tbl := th.CopyTable(true, src, tablefq.From(sakila.TblActor), tablefq.T{}, true)
@@ -552,7 +552,7 @@ func TestSQLDriver_AlterTableRename(t *testing.T) {
 			require.NoError(t, err)
 			defer th.DropTable(src, tablefq.From(newName))
 
-			md, err := pool.TableMetadata(th.Context, newName)
+			md, err := grip.TableMetadata(th.Context, newName)
 			require.NoError(t, err)
 			require.Equal(t, newName, md.Name)
 			sink, err := th.QuerySQL(src, nil, "SELECT * FROM "+newName)
@@ -569,7 +569,7 @@ func TestSQLDriver_AlterTableRenameColumn(t *testing.T) {
 		handle := handle
 
 		t.Run(handle, func(t *testing.T) {
-			th, src, drvr, pool, db := testh.NewWith(t, handle)
+			th, src, drvr, grip, db := testh.NewWith(t, handle)
 
 			// Make a copy of the table to play with
 			tbl := th.CopyTable(true, src, tablefq.From(sakila.TblActor), tablefq.T{}, true)
@@ -578,7 +578,7 @@ func TestSQLDriver_AlterTableRenameColumn(t *testing.T) {
 			err := drvr.AlterTableRenameColumn(th.Context, db, tbl, "first_name", newName)
 			require.NoError(t, err)
 
-			md, err := pool.TableMetadata(th.Context, tbl)
+			md, err := grip.TableMetadata(th.Context, tbl)
 			require.NoError(t, err)
 			require.NotNil(t, md.Column(newName))
 			sink, err := th.QuerySQL(src, nil, fmt.Sprintf("SELECT %s FROM %s", newName, tbl))
@@ -626,13 +626,13 @@ func TestSQLDriver_CurrentSchemaCatalog(t *testing.T) {
 		tc := tc
 
 		t.Run(tc.handle, func(t *testing.T) {
-			th, _, drvr, pool, db := testh.NewWith(t, tc.handle)
+			th, _, drvr, grip, db := testh.NewWith(t, tc.handle)
 
 			gotSchema, err := drvr.CurrentSchema(th.Context, db)
 			require.NoError(t, err)
 			require.Equal(t, tc.wantSchema, gotSchema)
 
-			md, err := pool.SourceMetadata(th.Context, false)
+			md, err := grip.SourceMetadata(th.Context, false)
 			require.NoError(t, err)
 			require.NotNil(t, md)
 			require.Equal(t, md.Schema, tc.wantSchema)

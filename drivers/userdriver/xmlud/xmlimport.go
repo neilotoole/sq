@@ -27,7 +27,7 @@ import (
 const Genre = "xml"
 
 // Import implements userdriver.ImportFunc.
-func Import(ctx context.Context, def *userdriver.DriverDef, data io.Reader, destPool driver.Pool) error {
+func Import(ctx context.Context, def *userdriver.DriverDef, data io.Reader, destGrip driver.Grip) error {
 	if def.Genre != Genre {
 		return errz.Errorf("xmlud.Import does not support genre {%s}", def.Genre)
 	}
@@ -45,7 +45,7 @@ func Import(ctx context.Context, def *userdriver.DriverDef, data io.Reader, dest
 		msgOnce:       map[string]struct{}{},
 	}
 
-	err := im.execImport(ctx, data, destPool)
+	err := im.execImport(ctx, data, destGrip)
 	err2 := im.clnup.Run()
 	if err != nil {
 		return errz.Wrap(err, "xml import")
@@ -59,7 +59,7 @@ type importer struct {
 	log      *slog.Logger
 	def      *userdriver.DriverDef
 	data     io.Reader
-	destPool driver.Pool
+	destGrip driver.Grip
 	selStack *selStack
 	rowStack *rowStack
 	tblDefs  map[string]*sqlmodel.TableDef
@@ -86,8 +86,8 @@ type importer struct {
 	msgOnce map[string]struct{}
 }
 
-func (im *importer) execImport(ctx context.Context, r io.Reader, destPool driver.Pool) error { //nolint:gocognit
-	im.data, im.destPool = r, destPool
+func (im *importer) execImport(ctx context.Context, r io.Reader, destGrip driver.Grip) error { //nolint:gocognit
+	im.data, im.destGrip = r, destGrip
 
 	err := im.createTables(ctx)
 	if err != nil {
@@ -429,13 +429,13 @@ func (im *importer) dbInsert(ctx context.Context, row *rowState) error {
 
 	execInsertFn, ok := im.execInsertFns[cacheKey]
 	if !ok {
-		db, err := im.destPool.DB(ctx)
+		db, err := im.destGrip.DB(ctx)
 		if err != nil {
 			return err
 		}
 
 		// Nothing cached, prepare the insert statement and insert munge func
-		stmtExecer, err := im.destPool.SQLDriver().PrepareInsertStmt(ctx, db, tblName, colNames, 1)
+		stmtExecer, err := im.destGrip.SQLDriver().PrepareInsertStmt(ctx, db, tblName, colNames, 1)
 		if err != nil {
 			return err
 		}
@@ -469,7 +469,7 @@ func (im *importer) dbInsert(ctx context.Context, row *rowState) error {
 // dbUpdate updates row's table with row's dirty values, using row's
 // primary key cols as the args to the WHERE clause.
 func (im *importer) dbUpdate(ctx context.Context, row *rowState) error {
-	drvr := im.destPool.SQLDriver()
+	drvr := im.destGrip.SQLDriver()
 	tblName := row.tbl.Name
 	pkColNames := row.tbl.PrimaryKey
 
@@ -506,7 +506,7 @@ func (im *importer) dbUpdate(ctx context.Context, row *rowState) error {
 	cacheKey := "##update_func__" + tblName + "__" + strings.Join(colNames, ",") + whereClause
 	execUpdateFn, ok := im.execUpdateFns[cacheKey]
 	if !ok {
-		db, err := im.destPool.DB(ctx)
+		db, err := im.destGrip.DB(ctx)
 		if err != nil {
 			return err
 		}
@@ -576,16 +576,16 @@ func (im *importer) createTables(ctx context.Context) error {
 
 		im.tblDefs[tblDef.Name] = tblDef
 
-		db, err := im.destPool.DB(ctx)
+		db, err := im.destGrip.DB(ctx)
 		if err != nil {
 			return err
 		}
 
-		err = im.destPool.SQLDriver().CreateTable(ctx, db, tblDef)
+		err = im.destGrip.SQLDriver().CreateTable(ctx, db, tblDef)
 		if err != nil {
 			return err
 		}
-		im.log.Debug("Created table", lga.Target, source.Target(im.destPool.Source(), tblDef.Name))
+		im.log.Debug("Created table", lga.Target, source.Target(im.destGrip.Source(), tblDef.Name))
 	}
 
 	return nil

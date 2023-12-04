@@ -156,8 +156,8 @@ func (d *driveri) Renderer() *render.Renderer {
 	return r
 }
 
-// Open implements driver.PoolOpener.
-func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Pool, error) {
+// Open implements driver.GripOpener.
+func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
 	db, err := d.doOpen(ctx, src)
@@ -169,7 +169,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Pool, er
 		return nil, err
 	}
 
-	return &pool{log: d.log, db: db, src: src, drvr: d}, nil
+	return &grip{log: d.log, db: db, src: src, drvr: d}, nil
 }
 
 func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
@@ -670,58 +670,58 @@ func (d *driveri) getTableColsMeta(ctx context.Context, db sqlz.DB, tblName stri
 	return destCols, nil
 }
 
-// pool implements driver.Pool.
-type pool struct {
+// grip implements driver.Grip.
+type grip struct {
 	log  *slog.Logger
 	drvr *driveri
 	db   *sql.DB
 	src  *source.Source
 }
 
-var _ driver.Pool = (*pool)(nil)
+var _ driver.Grip = (*grip)(nil)
 
-// DB implements driver.Pool.
-func (d *pool) DB(context.Context) (*sql.DB, error) {
-	return d.db, nil
+// DB implements driver.Grip.
+func (g *grip) DB(context.Context) (*sql.DB, error) {
+	return g.db, nil
 }
 
-// SQLDriver implements driver.Pool.
-func (d *pool) SQLDriver() driver.SQLDriver {
-	return d.drvr
+// SQLDriver implements driver.Grip.
+func (g *grip) SQLDriver() driver.SQLDriver {
+	return g.drvr
 }
 
-// Source implements driver.Pool.
-func (d *pool) Source() *source.Source {
-	return d.src
+// Source implements driver.Grip.
+func (g *grip) Source() *source.Source {
+	return g.src
 }
 
-// TableMetadata implements driver.Pool.
-func (d *pool) TableMetadata(ctx context.Context, tblName string) (*metadata.Table, error) {
+// TableMetadata implements driver.Grip.
+func (g *grip) TableMetadata(ctx context.Context, tblName string) (*metadata.Table, error) {
 	const query = `SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_TYPE
 FROM INFORMATION_SCHEMA.TABLES
 WHERE TABLE_NAME = @p1`
 
 	var catalog, schema, tblType string
-	err := d.db.QueryRowContext(ctx, query, tblName).Scan(&catalog, &schema, &tblType)
+	err := g.db.QueryRowContext(ctx, query, tblName).Scan(&catalog, &schema, &tblType)
 	if err != nil {
 		return nil, errw(err)
 	}
 
 	// TODO: getTableMetadata can cause deadlock in the DB. Needs further investigation.
 	// But a quick hack would be to use retry on a deadlock error.
-	return getTableMetadata(ctx, d.db, catalog, schema, tblName, tblType)
+	return getTableMetadata(ctx, g.db, catalog, schema, tblName, tblType)
 }
 
-// SourceMetadata implements driver.Pool.
-func (d *pool) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error) {
-	return getSourceMetadata(ctx, d.src, d.db, noSchema)
+// SourceMetadata implements driver.Grip.
+func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error) {
+	return getSourceMetadata(ctx, g.src, g.db, noSchema)
 }
 
-// Close implements driver.Pool.
-func (d *pool) Close() error {
-	d.log.Debug(lgm.CloseDB, lga.Handle, d.src.Handle)
+// Close implements driver.Grip.
+func (g *grip) Close() error {
+	g.log.Debug(lgm.CloseDB, lga.Handle, g.src.Handle)
 
-	return errw(d.db.Close())
+	return errw(g.db.Close())
 }
 
 // newStmtExecFunc returns a StmtExecFunc that has logic to deal with

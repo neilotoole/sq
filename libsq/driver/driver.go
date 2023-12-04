@@ -155,26 +155,26 @@ type Provider interface {
 	DriverFor(typ drivertype.Type) (Driver, error)
 }
 
-// PoolOpener opens a Pool.
-type PoolOpener interface {
-	// Open returns a Pool instance for src.
-	Open(ctx context.Context, src *source.Source) (Pool, error)
+// GripOpener opens a Grip.
+type GripOpener interface {
+	// Open returns a Grip instance for src.
+	Open(ctx context.Context, src *source.Source) (Grip, error)
 }
 
-// IngestOpener opens a pool for ingest use.
+// IngestOpener opens a Grip for ingest use.
 type IngestOpener interface {
-	// OpenIngest opens a pool for src by executing ingestFn, which is
+	// OpenIngest opens a Grip for src by executing ingestFn, which is
 	// responsible for ingesting data into dest. If allowCache is false,
 	// ingest always occurs; if true, the cache is consulted first (and
 	// ingestFn may not be invoked).
 	OpenIngest(ctx context.Context, src *source.Source, allowCache bool,
-		ingestFn func(ctx context.Context, dest Pool) error) (Pool, error)
+		ingestFn func(ctx context.Context, dest Grip) error) (Grip, error)
 }
 
 // Driver is the core interface that must be implemented for each type
 // of data source.
 type Driver interface {
-	PoolOpener
+	GripOpener
 
 	// DriverMetadata returns driver metadata.
 	DriverMetadata() Metadata
@@ -328,40 +328,35 @@ type SQLDriver interface {
 	DBProperties(ctx context.Context, db sqlz.DB) (map[string]any, error)
 }
 
-// Pool models a database handle representing a pool of underlying
-// connections. It is conceptually equivalent to
-// stdlib sql.DB, and in fact encapsulates a sql.DB instance. The
-// realized sql.DB instance can be accessed via the DB method.
+// Grip is the link between a source and its database connection.
+// Why is it named Grip? TLDR: all the other names were taken,
+// including Handle, Conn, DB, Source, etc.
 //
-// REVISIT: Rename Pool to Grip or some such?
-type Pool interface {
-	// DB returns the sql.DB object for this Pool.
-	// This operation can take a long time if opening the DB requires
-	// an ingest of data.
-	// For example, with file-based sources such as XLSX, invoking Open
-	// will ultimately read and import all CSV rows from the file.
-	// Thus, set a timeout on ctx as appropriate for the source.
+// Grip is conceptually equivalent to stdlib sql.DB, and in fact
+// encapsulates a sql.DB instance. The realized sql.DB instance can be
+// accessed via the DB method.
+type Grip interface {
+	// DB returns the sql.DB object for this Grip.
+	// This operation may take a long time if opening the DB requires
+	// an ingest of data (but note that when an ingest step occurs is
+	// driver-dependent).
 	DB(ctx context.Context) (*sql.DB, error)
 
 	// SQLDriver returns the underlying database driver. The type of the SQLDriver
 	// may be different from the driver type reported by the Source.
 	SQLDriver() SQLDriver
 
-	// Source returns the data source for which this connection was opened.
+	// FIXME: Add a method: SourceDriver() Driver.
+
+	// Source returns the source for which this Grip was opened.
 	Source() *source.Source
 
-	// SourceMetadata returns metadata about the data source.
+	// SourceMetadata returns metadata about the Grip.
 	// If noSchema is true, schema details are not populated
 	// on the returned metadata.Source.
-	//
-	// TODO: SourceMetadata doesn't really belong on driver.Pool? It
-	// should be moved to driver.Driver?
 	SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error)
 
-	// TableMetadata returns metadata for the specified table in the data source.
-	//
-	// TODO: TableMetadata doesn't really belong on driver.Pool? It
-	// should be moved to driver.Driver?
+	// TableMetadata returns metadata for the specified table in the Grip.
 	TableMetadata(ctx context.Context, tblName string) (*metadata.Table, error)
 
 	// Close is invoked to close and release any underlying resources.

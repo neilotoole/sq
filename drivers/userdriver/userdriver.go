@@ -23,9 +23,9 @@ import (
 )
 
 // ImportFunc is a function that can import
-// data (as defined in def) to destPool.
+// data (as defined in def) to destGrip.
 type ImportFunc func(ctx context.Context, def *DriverDef,
-	data io.Reader, destPool driver.Pool) error
+	data io.Reader, destGrip driver.Grip) error
 
 // Provider implements driver.Provider for a DriverDef.
 type Provider struct {
@@ -80,32 +80,32 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 	}
 }
 
-// Open implements driver.PoolOpener.
-func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Pool, error) {
+// Open implements driver.GripOpener.
+func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, error) {
 	log := lg.FromContext(ctx).With(lga.Src, src)
 	log.Debug(lgm.OpenSrc)
 
-	p := &pool{
+	g := &grip{
 		log: d.log,
 		src: src,
 	}
 
 	allowCache := driver.OptIngestCache.Get(options.FromContext(ctx))
 
-	ingestFn := func(ctx context.Context, destPool driver.Pool) error {
+	ingestFn := func(ctx context.Context, destGrip driver.Grip) error {
 		r, err := d.files.Open(ctx, src)
 		if err != nil {
 			return err
 		}
 		defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
-		return d.ingestFn(ctx, d.def, r, destPool)
+		return d.ingestFn(ctx, d.def, r, destGrip)
 	}
 
 	var err error
-	if p.impl, err = d.ingester.OpenIngest(ctx, src, allowCache, ingestFn); err != nil {
+	if g.impl, err = d.ingester.OpenIngest(ctx, src, allowCache, ingestFn); err != nil {
 		return nil, err
 	}
-	return p, nil
+	return g, nil
 }
 
 // Truncate implements driver.Driver.
@@ -140,43 +140,43 @@ func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 	return r.Close()
 }
 
-// pool implements driver.Pool.
-type pool struct {
+// grip implements driver.Grip.
+type grip struct {
 	log  *slog.Logger
 	src  *source.Source
-	impl driver.Pool
+	impl driver.Grip
 }
 
-// DB implements driver.Pool.
-func (d *pool) DB(ctx context.Context) (*sql.DB, error) {
-	return d.impl.DB(ctx)
+// DB implements driver.Grip.
+func (g *grip) DB(ctx context.Context) (*sql.DB, error) {
+	return g.impl.DB(ctx)
 }
 
-// SQLDriver implements driver.Pool.
-func (d *pool) SQLDriver() driver.SQLDriver {
-	return d.impl.SQLDriver()
+// SQLDriver implements driver.Grip.
+func (g *grip) SQLDriver() driver.SQLDriver {
+	return g.impl.SQLDriver()
 }
 
-// Source implements driver.Pool.
-func (d *pool) Source() *source.Source {
-	return d.src
+// Source implements driver.Grip.
+func (g *grip) Source() *source.Source {
+	return g.src
 }
 
-// TableMetadata implements driver.Pool.
-func (d *pool) TableMetadata(ctx context.Context, tblName string) (*metadata.Table, error) {
-	return d.impl.TableMetadata(ctx, tblName)
+// TableMetadata implements driver.Grip.
+func (g *grip) TableMetadata(ctx context.Context, tblName string) (*metadata.Table, error) {
+	return g.impl.TableMetadata(ctx, tblName)
 }
 
-// SourceMetadata implements driver.Pool.
-func (d *pool) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error) {
-	meta, err := d.impl.SourceMetadata(ctx, noSchema)
+// SourceMetadata implements driver.Grip.
+func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error) {
+	meta, err := g.impl.SourceMetadata(ctx, noSchema)
 	if err != nil {
 		return nil, err
 	}
 
-	meta.Handle = d.src.Handle
-	meta.Location = d.src.Location
-	meta.Name, err = source.LocationFileName(d.src)
+	meta.Handle = g.src.Handle
+	meta.Location = g.src.Location
+	meta.Name, err = source.LocationFileName(g.src)
 	if err != nil {
 		return nil, err
 	}
@@ -185,9 +185,9 @@ func (d *pool) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Sou
 	return meta, nil
 }
 
-// Close implements driver.Pool.
-func (d *pool) Close() error {
-	d.log.Debug(lgm.CloseDB, lga.Handle, d.src.Handle)
+// Close implements driver.Grip.
+func (g *grip) Close() error {
+	g.log.Debug(lgm.CloseDB, lga.Handle, g.src.Handle)
 
-	return d.impl.Close()
+	return g.impl.Close()
 }

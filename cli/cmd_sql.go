@@ -120,13 +120,13 @@ func execSQL(cmd *cobra.Command, args []string) error {
 // to the configured writer.
 func execSQLPrint(ctx context.Context, ru *run.Run, fromSrc *source.Source) error {
 	args := ru.Args
-	pool, err := ru.Sources.Open(ctx, fromSrc)
+	grip, err := ru.Sources.Open(ctx, fromSrc)
 	if err != nil {
 		return err
 	}
 
 	recw := output.NewRecordWriterAdapter(ctx, ru.Writers.Record)
-	err = libsq.QuerySQL(ctx, pool, nil, recw, args[0])
+	err = libsq.QuerySQL(ctx, grip, nil, recw, args[0])
 	if err != nil {
 		return err
 	}
@@ -140,32 +140,32 @@ func execSQLInsert(ctx context.Context, ru *run.Run,
 	fromSrc, destSrc *source.Source, destTbl string,
 ) error {
 	args := ru.Args
-	pools := ru.Sources
+	grips := ru.Sources
 	ctx, cancelFn := context.WithCancel(ctx)
 	defer cancelFn()
 
-	fromPool, err := pools.Open(ctx, fromSrc)
+	fromGrip, err := grips.Open(ctx, fromSrc)
 	if err != nil {
 		return err
 	}
 
-	destPool, err := pools.Open(ctx, destSrc)
+	destGrip, err := grips.Open(ctx, destSrc)
 	if err != nil {
 		return err
 	}
 
-	// Note: We don't need to worry about closing fromPool and
-	// destPool because they are closed by pools.Close, which
+	// Note: We don't need to worry about closing fromGrip and
+	// destGrip because they are closed by grips.Close, which
 	// is invoked by ru.Close, and ru is closed further up the
 	// stack.
 	inserter := libsq.NewDBWriter(
 		"Insert records",
-		destPool,
+		destGrip,
 		destTbl,
 		driver.OptTuningRecChanSize.Get(destSrc.Options),
 		libsq.DBWriterCreateTableIfNotExistsHook(destTbl),
 	)
-	err = libsq.QuerySQL(ctx, fromPool, nil, inserter, args[0])
+	err = libsq.QuerySQL(ctx, fromGrip, nil, inserter, args[0])
 	if err != nil {
 		return errz.Wrapf(err, "insert to {%s} failed", source.Target(destSrc, destTbl))
 	}

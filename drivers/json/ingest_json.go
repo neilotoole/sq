@@ -141,9 +141,9 @@ func ingestJSON(ctx context.Context, job ingestJob) error {
 	}
 	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
 
-	drvr := job.destPool.SQLDriver()
+	drvr := job.destGrip.SQLDriver()
 
-	db, err := job.destPool.DB(ctx)
+	db, err := job.destGrip.DB(ctx)
 	if err != nil {
 		return err
 	}

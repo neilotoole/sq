@@ -92,8 +92,8 @@ func ingestJSONL(ctx context.Context, job ingestJob) error { //nolint:gocognit
 	}
 	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
 
-	drvr := job.destPool.SQLDriver()
-	db, err := job.destPool.DB(ctx)
+	drvr := job.destGrip.SQLDriver()
+	db, err := job.destGrip.DB(ctx)
 	if err != nil {
 		return err
 	}

@@ -57,12 +57,12 @@ func (d *Driver) DriverMetadata() driver.Metadata {
 	}
 }
 
-// Open implements driver.PoolOpener.
-func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Pool, error) {
+// Open implements driver.GripOpener.
+func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Grip, error) {
 	log := lg.FromContext(ctx).With(lga.Src, src)
 	log.Debug(lgm.OpenSrc, lga.Src, src)
 
-	p := &pool{
+	p := &grip{
 		log:   log,
 		src:   src,
 		files: d.files,
@@ -70,7 +70,7 @@ func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Pool, err
 
 	allowCache := driver.OptIngestCache.Get(options.FromContext(ctx))
 
-	ingestFn := func(ctx context.Context, destPool driver.Pool) error {
+	ingestFn := func(ctx context.Context, destGrip driver.Grip) error {
 		log.Debug("Ingest XLSX", lga.Src, p.src)
 		r, err := p.files.Open(ctx, p.src)
 		if err != nil {
@@ -85,14 +85,14 @@ func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Pool, err
 
 		defer lg.WarnIfCloseError(log, lgm.CloseFileReader, xfile)
 
-		if err = ingestXLSX(ctx, p.src, destPool, xfile, nil); err != nil {
+		if err = ingestXLSX(ctx, p.src, destGrip, xfile, nil); err != nil {
 			return err
 		}
 		return nil
 	}
 
 	var err error
-	if p.backingPool, err = d.ingester.OpenIngest(ctx, p.src, allowCache, ingestFn); err != nil {
+	if p.dbGrip, err = d.ingester.OpenIngest(ctx, p.src, allowCache, ingestFn); err != nil {
 		return nil, err
 	}
 

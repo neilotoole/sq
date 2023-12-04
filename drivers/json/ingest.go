@@ -26,11 +26,11 @@ import (
 
 // ingestJob describes a single ingest job, where the JSON
 // at fromSrc is read via openFn and the resulting records
-// are written to destPool.
+// are written to destGrip.
 type ingestJob struct {
 	fromSrc  *source.Source
 	openFn   source.FileOpenFunc
-	destPool driver.Pool
+	destGrip driver.Grip
 
 	// sampleSize is the maximum number of values to
 	// sample to determine the kind of an element.
@@ -53,18 +53,18 @@ var (
 )
 
 // getRecMeta returns record.Meta to use with RecordWriter.Open.
-func getRecMeta(ctx context.Context, pool driver.Pool, tblDef *sqlmodel.TableDef) (record.Meta, error) {
-	db, err := pool.DB(ctx)
+func getRecMeta(ctx context.Context, grip driver.Grip, tblDef *sqlmodel.TableDef) (record.Meta, error) {
+	db, err := grip.DB(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	colTypes, err := pool.SQLDriver().TableColumnTypes(ctx, db, tblDef.Name, tblDef.ColNames())
+	colTypes, err := grip.SQLDriver().TableColumnTypes(ctx, db, tblDef.Name, tblDef.ColNames())
 	if err != nil {
 		return nil, err
 	}
 
-	destMeta, _, err := pool.SQLDriver().RecordMeta(ctx, colTypes)
+	destMeta, _, err := grip.SQLDriver().RecordMeta(ctx, colTypes)
 	if err != nil {
 		return nil, err
 	}

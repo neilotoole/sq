@@ -84,16 +84,17 @@ func (xs *xSheet) loadSampleRows(ctx context.Context, sampleSize int) error {
 	return nil
 }
 
-// ingestXLSX loads the data in xfile into destPool.
+// ingestXLSX loads the data in xfile into destGrip.
 // If includeSheetNames is non-empty, only the named sheets are ingested.
-func ingestXLSX(ctx context.Context, src *source.Source, destPool driver.Pool,
+func ingestXLSX(ctx context.Context, src *source.Source, destGrip driver.Grip,
 	xfile *excelize.File, includeSheetNames []string,
 ) error {
+	// FIXME: delete includeSheetNames
 	log := lg.FromContext(ctx)
 	start := time.Now()
 	log.Debug("Beginning import from XLSX",
 		lga.Src, src,
-		lga.Target, destPool.Source())
+		lga.Target, destGrip.Source())
 
 	var sheets []*xSheet
 	if len(includeSheetNames) > 0 {
@@ -124,18 +125,18 @@ func ingestXLSX(ctx context.Context, src *source.Source, destPool driver.Pool,
 		}
 
 		var db *sql.DB
-		if db, err = destPool.DB(ctx); err != nil {
+		if db, err = destGrip.DB(ctx); err != nil {
 			return err
 		}
 
-		if err = destPool.SQLDriver().CreateTable(ctx, db, sheetTbl.def); err != nil {
+		if err = destGrip.SQLDriver().CreateTable(ctx, db, sheetTbl.def); err != nil {
 			return err
 		}
 	}
 
 	log.Debug("Tables created (but not yet populated)",
 		lga.Count, len(sheetTbls),
-		lga.Target, destPool.Source(),
+		lga.Target, destGrip.Source(),
 		lga.Elapsed, time.Since(start))
 
 	var imported, skipped int
@@ -146,7 +147,7 @@ func ingestXLSX(ctx context.Context, src *source.Source, destPool driver.Pool,
 			continue
 		}
 
-		if err = ingestSheetToTable(ctx, destPool, sheetTbls[i]); err != nil {
+		if err = ingestSheetToTable(ctx, destGrip, sheetTbls[i]); err != nil {
 			return err
 		}
 		imported++
@@ -156,7 +157,7 @@ func ingestXLSX(ctx context.Context, src *source.Source, destPool driver.Pool,
 		lga.Count, imported,
 		"skipped", skipped,
 		lga.From, src,
-		lga.To, destPool.Source(),
+		lga.To, destGrip.Source(),
 		lga.Elapsed, time.Since(start),
 	)
 
@@ -164,8 +165,8 @@ func ingestXLSX(ctx context.Context, src *source.Source, destPool driver.Pool,
 }
 
 // ingestSheetToTable imports the sheet data into the appropriate table
-// in scratchPool. The scratch table must already exist.
-func ingestSheetToTable(ctx context.Context, destPool driver.Pool, sheetTbl *sheetTable) error {
+// in destGrip. The scratch table must already exist.
+func ingestSheetToTable(ctx context.Context, destGrip driver.Grip, sheetTbl *sheetTable) error {
 	var (
 		log          = lg.FromContext(ctx)
 		startTime    = time.Now()
@@ -175,7 +176,7 @@ func ingestSheetToTable(ctx context.Context, destPool driver.Pool, sheetTbl *she
 		destColKinds = tblDef.ColKinds()
 	)
 
-	db, err := destPool.DB(ctx)
+	db, err := destGrip.DB(ctx)
 	if err != nil {
 		return err
 	}
@@ -186,7 +187,7 @@ func ingestSheetToTable(ctx context.Context, destPool driver.Pool, sheetTbl *she
 	}
 	defer lg.WarnIfCloseError(log, lgm.CloseDB, conn)
 
-	drvr := destPool.SQLDriver()
+	drvr := destGrip.SQLDriver()
 
 	batchSize := driver.MaxBatchRows(drvr, len(destColKinds))
 	bi, err := driver.NewBatchInsert(
@@ -264,7 +265,7 @@ func ingestSheetToTable(ctx context.Context, destPool driver.Pool, sheetTbl *she
 	log.Debug("Inserted rows from sheet into table",
 		lga.Count, bi.Written(),
 		laSheet, sheet.name,
-		lga.Target, source.Target(destPool.Source(), tblDef.Name),
+		lga.Target, source.Target(destGrip.Source(), tblDef.Name),
 		lga.Elapsed, time.Since(startTime))
 
 	return nil

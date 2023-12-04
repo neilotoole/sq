@@ -65,12 +65,12 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 	return md
 }
 
-// Open implements driver.PoolOpener.
-func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Pool, error) {
+// Open implements driver.GripOpener.
+func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, error) {
 	log := lg.FromContext(ctx)
 	log.Debug(lgm.OpenSrc, lga.Src, src)
 
-	p := &pool{
+	g := &grip{
 		log:   d.log,
 		src:   src,
 		files: d.files,
@@ -78,18 +78,18 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Pool, er
 
 	allowCache := driver.OptIngestCache.Get(options.FromContext(ctx))
 
-	ingestFn := func(ctx context.Context, destPool driver.Pool) error {
+	ingestFn := func(ctx context.Context, destGrip driver.Grip) error {
 		openFn := d.files.OpenFunc(src)
 		log.Debug("Ingest func invoked", lga.Src, src)
-		return ingestCSV(ctx, src, openFn, destPool)
+		return ingestCSV(ctx, src, openFn, destGrip)
 	}
 
 	var err error
-	if p.impl, err = d.ingester.OpenIngest(ctx, src, allowCache, ingestFn); err != nil {
+	if g.impl, err = d.ingester.OpenIngest(ctx, src, allowCache, ingestFn); err != nil {
 		return nil, err
 	}
 
-	return p, nil
+	return g, nil
 }
 
 // Truncate implements driver.Driver.
@@ -120,31 +120,31 @@ func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 	return nil
 }
 
-// pool implements driver.Pool.
-type pool struct {
+// grip implements driver.Grip.
+type grip struct {
 	log   *slog.Logger
 	src   *source.Source
-	impl  driver.Pool
+	impl  driver.Grip
 	files *source.Files
 }
 
-// DB implements driver.Pool.
-func (p *pool) DB(ctx context.Context) (*sql.DB, error) {
+// DB implements driver.Grip.
+func (p *grip) DB(ctx context.Context) (*sql.DB, error) {
 	return p.impl.DB(ctx)
 }
 
-// SQLDriver implements driver.Pool.
-func (p *pool) SQLDriver() driver.SQLDriver {
+// SQLDriver implements driver.Grip.
+func (p *grip) SQLDriver() driver.SQLDriver {
 	return p.impl.SQLDriver()
 }
 
-// Source implements driver.Pool.
-func (p *pool) Source() *source.Source {
+// Source implements driver.Grip.
+func (p *grip) Source() *source.Source {
 	return p.src
 }
 
-// TableMetadata implements driver.Pool.
-func (p *pool) TableMetadata(ctx context.Context, tblName string) (*metadata.Table, error) {
+// TableMetadata implements driver.Grip.
+func (p *grip) TableMetadata(ctx context.Context, tblName string) (*metadata.Table, error) {
 	if tblName != source.MonotableName {
 		return nil, errz.Errorf("table name should be %s for CSV/TSV etc., but got: %s",
 			source.MonotableName, tblName)
@@ -159,8 +159,8 @@ func (p *pool) TableMetadata(ctx context.Context, tblName string) (*metadata.Tab
 	return srcMeta.Tables[0], nil
 }
 
-// SourceMetadata implements driver.Pool.
-func (p *pool) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error) {
+// SourceMetadata implements driver.Grip.
+func (p *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error) {
 	md, err := p.impl.SourceMetadata(ctx, noSchema)
 	if err != nil {
 		return nil, err
@@ -184,8 +184,8 @@ func (p *pool) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Sou
 	return md, nil
 }
 
-// Close implements driver.Pool.
-func (p *pool) Close() error {
+// Close implements driver.Grip.
+func (p *grip) Close() error {
 	p.log.Debug(lgm.CloseDB, lga.Handle, p.src.Handle)
 
 	return errz.Err(p.impl.Close())

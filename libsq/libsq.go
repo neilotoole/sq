@@ -122,26 +122,26 @@ func SLQ2SQL(ctx context.Context, qc *QueryContext, query string) (targetSQL str
 
 // QuerySQL executes the SQL query, writing the results to recw. If db is
 // non-nil, the query is executed against it. Otherwise, the connection is
-// obtained from pool.
+// obtained from grip.
 // Note that QuerySQL may return before recw has finished writing, thus the
 // caller may wish to wait for recw to complete.
-// The caller is responsible for closing pool (and db, if non-nil).
-func QuerySQL(ctx context.Context, pool driver.Pool, db sqlz.DB, //nolint:funlen
+// The caller is responsible for closing grip (and db, if non-nil).
+func QuerySQL(ctx context.Context, grip driver.Grip, db sqlz.DB, //nolint:funlen
 	recw RecordWriter, query string, args ...any,
 ) error {
 	log := lg.FromContext(ctx)
-	errw := pool.SQLDriver().ErrWrapFunc()
+	errw := grip.SQLDriver().ErrWrapFunc()
 
 	if db == nil {
 		var err error
-		if db, err = pool.DB(ctx); err != nil {
+		if db, err = grip.DB(ctx); err != nil {
 			return err
 		}
 	}
 
 	rows, err := db.QueryContext(ctx, query, args...)
 	if err != nil {
-		err = errz.Wrapf(errw(err), `SQL query against %s failed: %s`, pool.Source().Handle, query)
+		err = errz.Wrapf(errw(err), `SQL query against %s failed: %s`, grip.Source().Handle, query)
 		select {
 		case <-ctx.Done():
 			// If the context was cancelled, it's probably more accurate
@@ -196,7 +196,7 @@ func QuerySQL(ctx context.Context, pool driver.Pool, db sqlz.DB, //nolint:funlen
 		}
 	}
 
-	drvr := pool.SQLDriver()
+	drvr := grip.SQLDriver()
 	recMeta, recFromScanRowFn, err := drvr.RecordMeta(ctx, colTypes)
 	if err != nil {
 		return errw(err)
@@ -226,7 +226,7 @@ func QuerySQL(ctx context.Context, pool driver.Pool, db sqlz.DB, //nolint:funlen
 		err = rows.Scan(scanRow...)
 		if err != nil {
 			cancelFn()
-			return errz.Wrapf(errw(err), "query against %s", pool.Source().Handle)
+			return errz.Wrapf(errw(err), "query against %s", grip.Source().Handle)
 		}
 
 		// recFromScanRowFn returns a new Record with appropriate

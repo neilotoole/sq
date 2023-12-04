@@ -51,7 +51,7 @@ Possible values are: comma, space, pipe, tab, colon, semi, period.`,
 )
 
 // ingestCSV loads the src CSV data into scratchDB.
-func ingestCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFunc, destPool driver.Pool) error {
+func ingestCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFunc, destGrip driver.Grip) error {
 	log := lg.FromContext(ctx)
 	startUTC := time.Now().UTC()
 
@@ -107,17 +107,17 @@ func ingestCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFu
 	// And now we need to create the dest table in scratchDB
 	tblDef := createTblDef(source.MonotableName, header, kinds)
 
-	db, err := destPool.DB(ctx)
+	db, err := destGrip.DB(ctx)
 	if err != nil {
 		return err
 	}
 
-	err = destPool.SQLDriver().CreateTable(ctx, db, tblDef)
+	err = destGrip.SQLDriver().CreateTable(ctx, db, tblDef)
 	if err != nil {
 		return errz.Wrap(err, "csv: failed to create dest scratch table")
 	}
 
-	recMeta, err := getIngestRecMeta(ctx, destPool, tblDef)
+	recMeta, err := getIngestRecMeta(ctx, destGrip, tblDef)
 	if err != nil {
 		return err
 	}
@@ -128,9 +128,9 @@ func ingestCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFu
 
 	insertWriter := libsq.NewDBWriter(
 		libsq.MsgIngestRecords,
-		destPool,
+		destGrip,
 		tblDef.Name,
-		driver.OptTuningRecChanSize.Get(destPool.Source().Options),
+		driver.OptTuningRecChanSize.Get(destGrip.Source().Options),
 	)
 	err = execInsert(ctx, insertWriter, recMeta, mungers, recs, cr)
 	if err != nil {
@@ -145,7 +145,7 @@ func ingestCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFu
 	log.Debug("Inserted rows",
 		lga.Count, inserted,
 		lga.Elapsed, time.Since(startUTC).Round(time.Millisecond),
-		lga.Target, source.Target(destPool.Source(), tblDef.Name),
+		lga.Target, source.Target(destGrip.Source(), tblDef.Name),
 	)
 	return nil
 }

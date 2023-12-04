@@ -459,8 +459,8 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 	return destCols, nil
 }
 
-// Open implements driver.PoolOpener.
-func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Pool, error) {
+// Open implements driver.GripOpener.
+func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
 	db, err := d.doOpen(ctx, src)
@@ -472,7 +472,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Pool, er
 		return nil, err
 	}
 
-	return &pool{log: d.log, db: db, src: src, drvr: d}, nil
+	return &grip{log: d.log, db: db, src: src, drvr: d}, nil
 }
 
 func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
@@ -568,43 +568,43 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 	return beforeCount, errw(tx.Commit())
 }
 
-// pool implements driver.Pool.
-type pool struct {
+// grip implements driver.Grip.
+type grip struct {
 	log  *slog.Logger
 	db   *sql.DB
 	src  *source.Source
 	drvr *driveri
 }
 
-// DB implements driver.Pool.
-func (p *pool) DB(context.Context) (*sql.DB, error) {
-	return p.db, nil
+// DB implements driver.Grip.
+func (g *grip) DB(context.Context) (*sql.DB, error) {
+	return g.db, nil
 }
 
-// SQLDriver implements driver.Pool.
-func (p *pool) SQLDriver() driver.SQLDriver {
-	return p.drvr
+// SQLDriver implements driver.Grip.
+func (g *grip) SQLDriver() driver.SQLDriver {
+	return g.drvr
 }
 
-// Source implements driver.Pool.
-func (p *pool) Source() *source.Source {
-	return p.src
+// Source implements driver.Grip.
+func (g *grip) Source() *source.Source {
+	return g.src
 }
 
-// TableMetadata implements driver.Pool.
-func (p *pool) TableMetadata(ctx context.Context, tblName string) (*metadata.Table, error) {
-	return getTableMetadata(ctx, p.db, tblName)
+// TableMetadata implements driver.Grip.
+func (g *grip) TableMetadata(ctx context.Context, tblName string) (*metadata.Table, error) {
+	return getTableMetadata(ctx, g.db, tblName)
 }
 
-// SourceMetadata implements driver.Pool.
-func (p *pool) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error) {
-	return getSourceMetadata(ctx, p.src, p.db, noSchema)
+// SourceMetadata implements driver.Grip.
+func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error) {
+	return getSourceMetadata(ctx, g.src, g.db, noSchema)
 }
 
-// Close implements driver.Pool.
-func (p *pool) Close() error {
-	p.log.Debug(lgm.CloseDB, lga.Handle, p.src.Handle)
-	return errw(p.db.Close())
+// Close implements driver.Grip.
+func (g *grip) Close() error {
+	g.log.Debug(lgm.CloseDB, lga.Handle, g.src.Handle)
+	return errw(g.db.Close())
 }
 
 // dsnFromLocation builds the mysql driver DSN from src.Location.

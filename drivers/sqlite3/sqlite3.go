@@ -124,8 +124,8 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 	}
 }
 
-// Open implements driver.PoolOpener.
-func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Pool, error) {
+// Open implements driver.GripOpener.
+func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
 	db, err := d.doOpen(ctx, src)
@@ -137,7 +137,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Pool, er
 		return nil, err
 	}
 
-	return &pool{log: d.log, db: db, src: src, drvr: d}, nil
+	return &grip{log: d.log, db: db, src: src, drvr: d}, nil
 }
 
 func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
@@ -915,36 +915,37 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 	return destCols, nil
 }
 
-// pool implements driver.Pool.
-type pool struct {
+// grip implements driver.Grip.
+type grip struct {
 	log  *slog.Logger
 	db   *sql.DB
 	src  *source.Source
 	drvr *driveri
 
-	// DEBUG: closeMu and closed exist while debugging close behavior
+	// DEBUG: closeMu and closed exist while debugging close behavior.
+	// We should be able to get rid of them eventually.
 	closeMu sync.Mutex
 	closed  bool
 }
 
-// DB implements driver.Pool.
-func (p *pool) DB(context.Context) (*sql.DB, error) {
-	return p.db, nil
+// DB implements driver.Grip.
+func (g *grip) DB(context.Context) (*sql.DB, error) {
+	return g.db, nil
 }
 
-// SQLDriver implements driver.Pool.
-func (p *pool) SQLDriver() driver.SQLDriver {
-	return p.drvr
+// SQLDriver implements driver.Grip.
+func (g *grip) SQLDriver() driver.SQLDriver {
+	return g.drvr
 }
 
-// Source implements driver.Pool.
-func (p *pool) Source() *source.Source {
-	return p.src
+// Source implements driver.Grip.
+func (g *grip) Source() *source.Source {
+	return g.src
 }
 
-// TableMetadata implements driver.Pool.
-func (p *pool) TableMetadata(ctx context.Context, tblName string) (*metadata.Table, error) {
-	db, err := p.DB(ctx)
+// TableMetadata implements driver.Grip.
+func (g *grip) TableMetadata(ctx context.Context, tblName string) (*metadata.Table, error) {
+	db, err := g.DB(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -952,20 +953,20 @@ func (p *pool) TableMetadata(ctx context.Context, tblName string) (*metadata.Tab
 	return getTableMetadata(ctx, db, tblName)
 }
 
-// SourceMetadata implements driver.Pool.
-func (p *pool) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error) {
+// SourceMetadata implements driver.Grip.
+func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error) {
 	// https://stackoverflow.com/questions/9646353/how-to-find-sqlite-database-file-version
 
-	md := &metadata.Source{Handle: p.src.Handle, Driver: Type, DBDriver: dbDrvr}
+	md := &metadata.Source{Handle: g.src.Handle, Driver: Type, DBDriver: dbDrvr}
 
-	dsn, err := PathFromLocation(p.src)
+	dsn, err := PathFromLocation(g.src)
 	if err != nil {
 		return nil, err
 	}
 
 	const q = "SELECT sqlite_version(), (SELECT name FROM pragma_database_list ORDER BY seq limit 1);"
 
-	err = p.db.QueryRowContext(ctx, q).Scan(&md.DBVersion, &md.Schema)
+	err = g.db.QueryRowContext(ctx, q).Scan(&md.DBVersion, &md.Schema)
 	if err != nil {
 		return nil, errw(err)
 	}
@@ -982,9 +983,9 @@ func (p *pool) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Sou
 	md.FQName = fi.Name() + "." + md.Schema
 	// SQLite doesn't support catalog, but we conventionally set it to "default"
 	md.Catalog = "default"
-	md.Location = p.src.Location
+	md.Location = g.src.Location
 
-	md.DBProperties, err = getDBProperties(ctx, p.db)
+	md.DBProperties, err = getDBProperties(ctx, g.db)
 	if err != nil {
 		return nil, err
 	}
@@ -993,7 +994,7 @@ func (p *pool) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Sou
 		return md, nil
 	}
 
-	md.Tables, err = getAllTableMetadata(ctx, p.db, md.Schema)
+	md.Tables, err = getAllTableMetadata(ctx, g.db, md.Schema)
 	if err != nil {
 		return nil, err
 	}
@@ -1009,19 +1010,19 @@ func (p *pool) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Sou
 	return md, nil
 }
 
-// Close implements driver.Pool.
-func (p *pool) Close() error {
-	p.closeMu.Lock()
-	defer p.closeMu.Unlock()
+// Close implements driver.Grip.
+func (g *grip) Close() error {
+	g.closeMu.Lock()
+	defer g.closeMu.Unlock()
 
-	if p.closed {
-		p.log.Warn("SQLite DB already closed", lga.Src, p.src)
+	if g.closed {
+		g.log.Warn("SQLite DB already closed", lga.Src, g.src)
 		return nil
 	}
 
-	p.log.Debug(lgm.CloseDB, lga.Handle, p.src.Handle)
-	err := errw(p.db.Close())
-	p.closed = true
+	g.log.Debug(lgm.CloseDB, lga.Handle, g.src.Handle)
+	err := errw(g.db.Close())
+	g.closed = true
 	return err
 }
 

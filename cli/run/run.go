@@ -73,7 +73,7 @@ type Run struct {
 	// Files manages file access.
 	Files *source.Files
 
-	// Sources mediates access to db pools.
+	// Sources mediates access to driver.Grip instances.
 	Sources *driver.Sources
 
 	// Writers holds the various writer types that
