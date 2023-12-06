@@ -17,9 +17,12 @@ package progress
 import (
 	"context"
 	"io"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/neilotoole/sq/libsq/core/stringz"
 
 	humanize "github.com/dustin/go-humanize"
 	"github.com/dustin/go-humanize/english"
@@ -62,6 +65,7 @@ func FromContext(ctx context.Context) *Progress {
 }
 
 const (
+	msgLength   = 22
 	barWidth    = 28
 	boxWidth    = 64
 	refreshRate = 150 * time.Millisecond
@@ -263,6 +267,18 @@ func (p *Progress) NewUnitCounter(msg, unit string) *Bar {
 	return p.newBar(msg, -1, style, decorator)
 }
 
+// NewUnitTotalCounter returns a new determinate bar whose label
+// metric is the plural of the provided unit. The caller is ultimately
+// responsible for calling [Bar.Stop] on the returned Bar. However,
+// the returned Bar is also added to the Progress's cleanup list, so
+// it will be called automatically when the Progress is shut down, but that
+// may be later than the actual conclusion of the Bar's work.
+//
+// This produces output similar to:
+//
+//	Ingesting sheets   ∙∙∙∙∙●                     4 / 16 sheets
+//
+// Note that the unit arg is automatically pluralized.
 func (p *Progress) NewUnitTotalCounter(msg, unit string, total int64) *Bar {
 	if p == nil {
 		return nil
@@ -276,9 +292,6 @@ func (p *Progress) NewUnitTotalCounter(msg, unit string, total int64) *Bar {
 	defer p.mu.Unlock()
 
 	style := barStyle(p.colors.Filler)
-	// counter := decor.CountersNoUnit("%d / %d")
-	// counter = decor.Counters(decor.SizeB1024(0), "% .1f / % .1f")
-
 	decorator := decor.Any(func(statistics decor.Statistics) string {
 		s := humanize.Comma(statistics.Current) + " / " + humanize.Comma(statistics.Total)
 		if unit != "" {
@@ -287,9 +300,6 @@ func (p *Progress) NewUnitTotalCounter(msg, unit string, total int64) *Bar {
 		return s
 	})
 	decorator = colorize(decorator, p.colors.Size)
-
-	// style := spinnerStyle(p.colors.Filler)
-
 	return p.newBar(msg, total, style, decorator)
 }
 
@@ -347,6 +357,13 @@ func (p *Progress) newBar(msg string, total int64,
 
 	if total < 0 {
 		total = 0
+	}
+
+	switch {
+	case len(msg) < msgLength:
+		msg += strings.Repeat(" ", msgLength-len(msg))
+	case len(msg) > msgLength:
+		msg = stringz.TrimLenMiddle(msg, msgLength)
 	}
 
 	b := &Bar{

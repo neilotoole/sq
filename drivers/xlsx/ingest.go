@@ -107,7 +107,7 @@ func ingestXLSX(ctx context.Context, src *source.Source, destGrip driver.Grip, x
 	lg.FromContext(ctx).Error("count is woah", lga.Count, len(sheetTbls))
 	bar := progress.FromContext(ctx).NewUnitTotalCounter(
 		"Ingesting sheets",
-		"sheet",
+		"",
 		int64(len(sheetTbls)),
 	)
 	defer bar.Stop()
