@@ -4,9 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"slices"
 	"strings"
 	"time"
+
+	"github.com/neilotoole/sq/libsq/core/progress"
 
 	"github.com/samber/lo"
 	excelize "github.com/xuri/excelize/v2"
@@ -26,10 +27,6 @@ import (
 )
 
 const msgCloseRowIter = "Close Excel row iterator"
-
-func hasSheet(xfile *excelize.File, sheetName string) bool {
-	return slices.Contains(xfile.GetSheetList(), sheetName)
-}
 
 // sheetTable maps a sheet to a database table.
 type sheetTable struct {
@@ -86,10 +83,7 @@ func (xs *xSheet) loadSampleRows(ctx context.Context, sampleSize int) error {
 
 // ingestXLSX loads the data in xfile into destGrip.
 // If includeSheetNames is non-empty, only the named sheets are ingested.
-func ingestXLSX(ctx context.Context, src *source.Source, destGrip driver.Grip,
-	xfile *excelize.File, includeSheetNames []string,
-) error {
-	// FIXME: delete includeSheetNames
+func ingestXLSX(ctx context.Context, src *source.Source, destGrip driver.Grip, xfile *excelize.File) error {
 	log := lg.FromContext(ctx)
 	start := time.Now()
 	log.Debug("Beginning import from XLSX",
@@ -97,19 +91,11 @@ func ingestXLSX(ctx context.Context, src *source.Source, destGrip driver.Grip,
 		lga.Target, destGrip.Source())
 
 	var sheets []*xSheet
-	if len(includeSheetNames) > 0 {
-		for _, sheetName := range includeSheetNames {
-			if !hasSheet(xfile, sheetName) {
-				return errz.Errorf("sheet {%s} not found", sheetName)
-			}
-			sheets = append(sheets, &xSheet{file: xfile, name: sheetName})
-		}
-	} else {
-		sheetNames := xfile.GetSheetList()
-		sheets = make([]*xSheet, len(sheetNames))
-		for i := range sheetNames {
-			sheets[i] = &xSheet{file: xfile, name: sheetNames[i]}
-		}
+
+	sheetNames := xfile.GetSheetList()
+	sheets = make([]*xSheet, len(sheetNames))
+	for i := range sheetNames {
+		sheets[i] = &xSheet{file: xfile, name: sheetNames[i]}
 	}
 
 	srcIngestHeader := getSrcIngestHeader(src.Options)
@@ -117,6 +103,14 @@ func ingestXLSX(ctx context.Context, src *source.Source, destGrip driver.Grip,
 	if err != nil {
 		return err
 	}
+
+	lg.FromContext(ctx).Error("count is woah", lga.Count, len(sheetTbls))
+	bar := progress.FromContext(ctx).NewUnitTotalCounter(
+		"Ingesting sheets",
+		"sheet",
+		int64(len(sheetTbls)),
+	)
+	defer bar.Stop()
 
 	for _, sheetTbl := range sheetTbls {
 		if sheetTbl == nil {
@@ -139,22 +133,25 @@ func ingestXLSX(ctx context.Context, src *source.Source, destGrip driver.Grip,
 		lga.Target, destGrip.Source(),
 		lga.Elapsed, time.Since(start))
 
-	var imported, skipped int
+	var ingestCount, skipped int
 	for i := range sheetTbls {
 		if sheetTbls[i] == nil {
 			// tblDef can be nil if its sheet is empty (has no data).
 			skipped++
+			bar.IncrBy(1)
 			continue
 		}
 
+		time.Sleep(time.Millisecond * 100)
 		if err = ingestSheetToTable(ctx, destGrip, sheetTbls[i]); err != nil {
 			return err
 		}
-		imported++
+		ingestCount++
+		bar.IncrBy(1)
 	}
 
-	log.Debug("Sheets imported",
-		lga.Count, imported,
+	log.Debug("Sheets ingested",
+		lga.Count, ingestCount,
 		"skipped", skipped,
 		lga.From, src,
 		lga.To, destGrip.Source(),

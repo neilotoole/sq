@@ -263,6 +263,36 @@ func (p *Progress) NewUnitCounter(msg, unit string) *Bar {
 	return p.newBar(msg, -1, style, decorator)
 }
 
+func (p *Progress) NewUnitTotalCounter(msg, unit string, total int64) *Bar {
+	if p == nil {
+		return nil
+	}
+
+	if total <= 0 {
+		return p.NewUnitCounter(msg, unit)
+	}
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	style := barStyle(p.colors.Filler)
+	// counter := decor.CountersNoUnit("%d / %d")
+	// counter = decor.Counters(decor.SizeB1024(0), "% .1f / % .1f")
+
+	decorator := decor.Any(func(statistics decor.Statistics) string {
+		s := humanize.Comma(statistics.Current) + " / " + humanize.Comma(statistics.Total)
+		if unit != "" {
+			s += " " + english.PluralWord(int(statistics.Current), unit, "")
+		}
+		return s
+	})
+	decorator = colorize(decorator, p.colors.Size)
+
+	// style := spinnerStyle(p.colors.Filler)
+
+	return p.newBar(msg, total, style, decorator)
+}
+
 // NewByteCounter returns a new progress bar whose metric is the count
 // of bytes processed. If the size is unknown, set arg size to -1. The caller
 // is ultimately responsible for calling [Bar.Stop] on the returned Bar.
