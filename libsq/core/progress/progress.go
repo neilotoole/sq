@@ -151,6 +151,7 @@ type Progress struct {
 
 	// delayCh controls the rendering delay: rendering can
 	// start as soon as delayCh is closed.
+	// TODO: Should delayCh be on Bar instead of Progress?
 	delayCh <-chan struct{}
 
 	// stopped is set to true when Stop is called.
