@@ -90,19 +90,12 @@ require (
 )
 
 // See: https://github.com/vbauerster/mpb/issues/136
-require github.com/vbauerster/mpb/v8 v8.7.1-0.20231205062852-da3162c67234 // indirect
-//require github.com/vbauerster/mpb/v8 v8.7.0
-//
-//// See: https://github.com/vbauerster/mpb/issues/136
-//replace github.com/vbauerster/mpb/v8 v8.7.0 => ../sq-mpb
+require github.com/vbauerster/mpb/v8 v8.7.1-0.20231205062852-da3162c67234
 
 // See: https://github.com/djherbis/fscache/pull/21
 require github.com/neilotoole/fscache v0.0.0-20231203162946-c9808f16552e
 
-require (
-	github.com/djherbis/stream v1.4.0 // indirect
-
-)
+require github.com/djherbis/stream v1.4.0 // indirect
 
 // See: https://github.com/djherbis/stream/pull/11
 replace github.com/djherbis/stream v1.4.0 => github.com/neilotoole/djherbis-stream v0.0.0-20231203160853-609f47afedda
