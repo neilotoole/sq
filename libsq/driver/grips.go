@@ -9,8 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/source/drivertype"
-
 	"github.com/nightlyone/lockfile"
 
 	"github.com/neilotoole/sq/libsq/core/cleanup"
@@ -22,6 +20,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/retry"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
 var _ GripOpener = (*Grips)(nil)

@@ -40,39 +40,39 @@ func execXTestMbp(cmd *cobra.Command, _ []string) error {
 	pb := progress.New(ctx, ru.ErrOut, 1*time.Millisecond, progress.DefaultColors())
 	ctx = progress.NewContext(ctx, pb)
 
-	if err := doBigRead2(ctx); err != nil {
+	if err := doProgressByteCounterRead(ctx); err != nil {
 		return err
 	}
 
 	return ru.Writers.Version.Version(buildinfo.Get(), buildinfo.Get().Version, hostinfo.Get())
 }
 
-func doBigRead2(ctx context.Context) error {
+func doProgressByteCounterRead(ctx context.Context) error {
 	pb := progress.FromContext(ctx)
 
-	spinner := pb.NewByteCounter("Ingest data test", -1)
-	defer spinner.Stop()
+	bar := pb.NewByteCounter("Ingest data test", -1)
+	defer bar.Stop()
 	maxSleep := 100 * time.Millisecond
 
-	jr := ioz.LimitRandReader(100000)
+	lr := ioz.LimitRandReader(100000)
 	b := make([]byte, 1024)
 
 LOOP:
 	for {
 		select {
 		case <-ctx.Done():
-			spinner.Stop()
+			bar.Stop()
 			break LOOP
 		default:
 		}
 
-		n, err := jr.Read(b)
+		n, err := lr.Read(b)
 		if err != nil {
-			spinner.Stop()
+			bar.Stop()
 			break
 		}
 
-		spinner.IncrBy(n)
+		bar.IncrBy(n)
 		time.Sleep(time.Duration(rand.Intn(10)+1) * maxSleep / 10) //nolint:gosec
 	}
 

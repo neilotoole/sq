@@ -77,8 +77,8 @@ const (
 // is that both the Progress.pc and Bar.bar are lazily initialized.
 // The Progress.pc (progress container) is initialized on the first
 // call to one of the Progress.NewX methods. The Bar.bar is initialized
-// only after the render delay has expired. The details are ugly. Hopefully
-// this can all be simplified once the mpb bug is fixed.
+// only after the render delay has expired. The details are ugly.
+// Hopefully this can all be simplified once the mpb bug is fixed.
 
 // New returns a new Progress instance, which is a container for progress bars.
 // The returned Progress instance is safe for concurrent use, and all of its
@@ -91,8 +91,6 @@ func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors
 	lg.FromContext(ctx).Debug("New progress widget", "delay", delay)
 
 	var cancelFn context.CancelFunc
-	ogCtx := ctx
-	_ = ogCtx
 	ctx, cancelFn = context.WithCancel(ctx)
 
 	if colors == nil {
@@ -108,7 +106,6 @@ func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors
 	}
 
 	p.pcInit = func() {
-		lg.FromContext(ctx).Debug("Initializing progress widget")
 		opts := []mpb.ContainerOption{
 			mpb.WithOutput(out),
 			mpb.WithWidth(boxWidth),
@@ -116,8 +113,7 @@ func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors
 			mpb.WithAutoRefresh(), // Needed for color in Windows, apparently
 		}
 		if delay > 0 {
-			delayCh := renderDelay(ctx, p, delay)
-			opts = append(opts, mpb.WithRenderDelay(delayCh))
+			delayCh := renderDelay(p, delay)
 			p.delayCh = delayCh
 		} else {
 			delayCh := make(chan struct{})
@@ -154,7 +150,6 @@ type Progress struct {
 	delayCh <-chan struct{}
 
 	// stopped is set to true when Stop is called.
-	// REVISIT: Do we really need stopped, or can we rely on ctx.Done()?
 	stopped bool
 
 	colors *Colors
@@ -436,20 +431,16 @@ func (b *Bar) Stop() {
 }
 
 // renderDelay returns a channel that will be closed after d,
-// or if ctx is done. Arg callback is invoked after the delay.
-func renderDelay(ctx context.Context, p *Progress, d time.Duration) <-chan struct{} {
+// at which point p.InitBars will be called.
+func renderDelay(p *Progress, d time.Duration) <-chan struct{} {
 	ch := make(chan struct{})
 	t := time.NewTimer(d)
 	go func() {
 		defer close(ch)
 		defer t.Stop()
-		select {
-		case <-ctx.Done():
-			lg.FromContext(ctx).Debug("Render delay via ctx.Done")
-		case <-t.C:
-			lg.FromContext(ctx).Debug("Render delay via timer")
-			p.initBars()
-		}
+
+		<-t.C
+		p.initBars()
 	}()
 	return ch
 }
@@ -516,7 +507,6 @@ func barStyle(c *color.Color) mpb.BarStyleComposer {
 	}
 
 	frames := []string{"∙", "●", "●", "●", "∙"}
-
 	return mpb.BarStyle().
 		Lbound("  ").Rbound("  ").
 		Filler("∙").FillerMeta(clr).

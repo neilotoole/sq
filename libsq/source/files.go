@@ -159,7 +159,6 @@ func (fs *Files) addStdin(ctx context.Context, f *os.File) error {
 	lw := ioz.NewWrittenWriter(w)
 	fs.stdinLength = lw.Written
 
-	// df := ioz.DelayReader(f, time.Microsecond*500, true) // FIXME: Delete
 	cr := contextio.NewReader(ctx, f)
 	pw := progress.NewWriter(ctx, "Reading stdin", -1, lw)
 

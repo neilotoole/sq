@@ -1,22 +1,7 @@
-/*
-Copyright 2018 Olivier Mengué
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-   http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
-// This code is derived from github.com/dolmen-go/contextio.
-
 package progress
+
+// Acknowledgement: The reader & writer implementations were originally
+// adapted from github.com/dolmen-go/contextio.
 
 import (
 	"context"
@@ -30,7 +15,7 @@ import (
 // generates a progress bar as bytes are written to w. It is expected that ctx
 // contains a *progress.Progress, as returned by progress.FromContext. If not,
 // this function delegates to contextio.NewWriter: the returned writer will
-// still be context-ware. See the contextio package for more details.
+// still be context-aware. See the contextio package for more details.
 //
 // Context state is checked BEFORE every Write.
 //
@@ -57,14 +42,16 @@ func NewWriter(ctx context.Context, msg string, size int64, w io.Writer) Writer 
 
 	pb := FromContext(ctx)
 	if pb == nil {
-		return writerWrapper{contextio.NewWriter(ctx, w)}
+		// No progress bar in context, so we delegate to contextio.
+		return writerAdapter{contextio.NewWriter(ctx, w)}
 	}
 
-	spinner := pb.NewByteCounter(msg, size)
+	bar := pb.NewByteCounter(msg, size)
 	return &progCopier{progWriter{
 		ctx:     ctx,
-		w:       spinner.bar.ProxyWriter(w),
-		spinner: spinner,
+		delayCh: pb.delayCh,
+		w:       w,
+		b:       bar,
 	}}
 }
 
@@ -73,31 +60,33 @@ var _ io.WriteCloser = (*progWriter)(nil)
 type progWriter struct {
 	ctx     context.Context
 	w       io.Writer
-	spinner *Bar
+	delayCh <-chan struct{}
+	b       *Bar
 }
 
-// Write implements [io.Writer], but with context awareness.
+// Write implements [io.Writer], but with context and progress interaction.
 func (w *progWriter) Write(p []byte) (n int, err error) {
 	select {
 	case <-w.ctx.Done():
-		w.spinner.Stop()
+		w.b.Stop()
 		return 0, w.ctx.Err()
+	case <-w.delayCh:
+		w.b.initBarOnce.Do(w.b.initBar)
 	default:
-		n, err = w.w.Write(p)
-		if err != nil {
-			w.spinner.Stop()
-		}
-		return n, err
 	}
+
+	n, err = w.w.Write(p)
+	w.b.IncrBy(n)
+	if err != nil {
+		w.b.Stop()
+	}
+	return n, err
 }
 
-// Close implements [io.WriteCloser], but with context awareness.
+// Close implements [io.WriteCloser], but with context and
+// progress interaction.
 func (w *progWriter) Close() error {
-	if w == nil {
-		return nil
-	}
-
-	w.spinner.Stop()
+	w.b.Stop()
 
 	var closeErr error
 	if c, ok := w.w.(io.Closer); ok {
@@ -135,11 +124,12 @@ func NewReader(ctx context.Context, msg string, size int64, r io.Reader) io.Read
 		return contextio.NewReader(ctx, r)
 	}
 
-	spinner := pb.NewByteCounter(msg, size)
+	b := pb.NewByteCounter(msg, size)
 	pr := &progReader{
 		ctx:     ctx,
-		r:       spinner.bar.ProxyReader(r),
-		spinner: spinner,
+		delayCh: pb.delayCh,
+		r:       r,
+		b:       b,
 	}
 	return pr
 }
@@ -149,16 +139,13 @@ var _ io.ReadCloser = (*progReader)(nil)
 type progReader struct {
 	ctx     context.Context
 	r       io.Reader
-	spinner *Bar
+	delayCh <-chan struct{}
+	b       *Bar
 }
 
 // Close implements [io.ReadCloser], but with context awareness.
 func (r *progReader) Close() error {
-	if r == nil {
-		return nil
-	}
-
-	r.spinner.Stop()
+	r.b.Stop()
 
 	var closeErr error
 	if c, ok := r.r.(io.ReadCloser); ok {
@@ -173,19 +160,23 @@ func (r *progReader) Close() error {
 	}
 }
 
-// Read implements [io.Reader], but with context awareness.
+// Read implements [io.Reader], but with context and progress interaction.
 func (r *progReader) Read(p []byte) (n int, err error) {
 	select {
 	case <-r.ctx.Done():
-		r.spinner.Stop()
+		r.b.Stop()
 		return 0, r.ctx.Err()
+	case <-r.delayCh:
+		r.b.initBarOnce.Do(r.b.initBar)
 	default:
-		n, err = r.r.Read(p)
-		if err != nil {
-			r.spinner.Stop()
-		}
-		return n, err
 	}
+
+	n, err = r.r.Read(p)
+	r.b.IncrBy(n)
+	if err != nil {
+		r.b.Stop()
+	}
+	return n, err
 }
 
 var _ io.ReaderFrom = (*progCopier)(nil)
@@ -201,16 +192,19 @@ type Writer interface {
 	Stop()
 }
 
-var _ Writer = (*writerWrapper)(nil)
+var _ Writer = (*writerAdapter)(nil)
 
-// writerWrapper wraps an io.Writer to implement [progress.Writer].
-type writerWrapper struct {
+// writerAdapter wraps an io.Writer to implement [progress.Writer].
+// This is only used, by [NewWriter], when there is no progress bar
+// in the context, and thus [NewWriter] delegates to contextio.NewWriter,
+// but we still need to implement [progress.Writer].
+type writerAdapter struct {
 	io.Writer
 }
 
 // Close implements [io.WriteCloser]. If the underlying
 // writer implements [io.Closer], it will be closed.
-func (w writerWrapper) Close() error {
+func (w writerAdapter) Close() error {
 	if c, ok := w.Writer.(io.Closer); ok {
 		return c.Close()
 	}
@@ -218,7 +212,7 @@ func (w writerWrapper) Close() error {
 }
 
 // Stop implements [Writer] and is no-op.
-func (w writerWrapper) Stop() {
+func (w writerAdapter) Stop() {
 }
 
 var _ Writer = (*progCopier)(nil)
@@ -229,37 +223,33 @@ type progCopier struct {
 
 // Stop implements [progress.Writer].
 func (w *progCopier) Stop() {
-	if w == nil || w.spinner == nil {
-		return
-	}
-
-	w.spinner.Stop()
+	w.b.Stop()
 }
 
-// ReadFrom implements interface [io.ReaderFrom], but with context awareness.
-//
-// This should allow efficient copying allowing writer or reader to define the chunk size.
+// ReadFrom implements [io.ReaderFrom], but with context and
+// progress interaction.
 func (w *progCopier) ReadFrom(r io.Reader) (n int64, err error) {
 	if _, ok := w.w.(io.ReaderFrom); ok {
 		// Let the original Writer decide the chunk size.
 		rdr := &progReader{
 			ctx:     w.ctx,
-			r:       w.spinner.bar.ProxyReader(r),
-			spinner: w.spinner,
+			delayCh: w.delayCh,
+			r:       r,
+			b:       w.b,
 		}
 
 		return io.Copy(w.progWriter.w, rdr)
 	}
 	select {
 	case <-w.ctx.Done():
-		w.spinner.Stop()
+		w.b.Stop()
 		return 0, w.ctx.Err()
 	default:
 		// The original Writer is not a ReaderFrom.
 		// Let the Reader decide the chunk size.
 		n, err = io.Copy(&w.progWriter, r)
 		if err != nil {
-			w.spinner.Stop()
+			w.b.Stop()
 		}
 		return n, err
 	}
