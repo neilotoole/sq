@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -157,16 +158,22 @@ func processFlagActiveSchema(cmd *cobra.Command, activeSrc *source.Source) error
 // and returned. If the pipe has no data (size is zero),
 // then (nil,nil) is returned.
 func checkStdinSource(ctx context.Context, ru *run.Run) (*source.Source, error) {
+	log := lg.FromContext(ctx)
 	cmd := ru.Cmd
 
 	f := ru.Stdin
-	info, err := f.Stat()
+	fi, err := f.Stat()
 	if err != nil {
 		return nil, errz.Wrap(err, "failed to get stat on stdin")
 	}
 
-	if info.Size() <= 0 {
-		// Doesn't make sense to have zero-data pipe? just ignore.
+	switch {
+	case os.ModeNamedPipe&fi.Mode() > 0:
+		log.Info("Detected stdin pipe via os.ModeNamedPipe")
+	case fi.Size() > 0:
+		log.Info("Detected stdin redirect via size > 0", lga.Size, fi.Size())
+	default:
+		log.Info("No stdin data detected")
 		return nil, nil //nolint:nilnil
 	}
 

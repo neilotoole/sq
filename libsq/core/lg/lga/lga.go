@@ -34,6 +34,7 @@ const (
 	Path      = "path"
 	Pid       = "pid"
 	Query     = "query"
+	Size      = "size"
 	SLQ       = "slq"
 	SQL       = "sql"
 	Src       = "src"
