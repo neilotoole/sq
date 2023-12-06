@@ -55,5 +55,3 @@ goreleaser-test.sh
 /cli/test.db
 /*.db
 /.CHANGELOG.delta.md
-go.work
-go.work.sum
