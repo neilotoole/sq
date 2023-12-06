@@ -46,12 +46,12 @@ func NewWriter(ctx context.Context, msg string, size int64, w io.Writer) Writer 
 		return writerAdapter{contextio.NewWriter(ctx, w)}
 	}
 
-	bar := pb.NewByteCounter(msg, size)
+	b := pb.NewByteCounter(msg, size)
 	return &progCopier{progWriter{
 		ctx:     ctx,
-		delayCh: pb.delayCh,
+		delayCh: b.delayCh,
 		w:       w,
-		b:       bar,
+		b:       b,
 	}}
 }
 
@@ -127,7 +127,7 @@ func NewReader(ctx context.Context, msg string, size int64, r io.Reader) io.Read
 	b := pb.NewByteCounter(msg, size)
 	pr := &progReader{
 		ctx:     ctx,
-		delayCh: pb.delayCh,
+		delayCh: b.delayCh,
 		r:       r,
 		b:       b,
 	}

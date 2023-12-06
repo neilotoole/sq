@@ -107,6 +107,7 @@ func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors
 		colors:   colors,
 		cancelFn: cancelFn,
 		bars:     make([]*Bar, 0),
+		delay:    delay,
 	}
 
 	p.pcInit = func() {
@@ -116,18 +117,20 @@ func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors
 			mpb.WithRefreshRate(refreshRate),
 			mpb.WithAutoRefresh(), // Needed for color in Windows, apparently
 		}
-		if delay > 0 {
-			delayCh := renderDelay(p, delay)
-			p.delayCh = delayCh
-		} else {
-			delayCh := make(chan struct{})
-			close(delayCh)
-			p.delayCh = delayCh
-		}
+		//if delay > 0 {
+		//	delayCh := renderDelay(p, delay)
+		//	p.delayCh = delayCh
+		//} else {
+		//	delayCh := make(chan struct{})
+		//	close(delayCh)
+		//	p.delayCh = delayCh
+		//}
 
 		p.pc = mpb.NewWithContext(ctx, opts...)
 		p.pcInit = nil
 	}
+
+	p.pcInit()
 	return p
 }
 
@@ -152,7 +155,9 @@ type Progress struct {
 	// delayCh controls the rendering delay: rendering can
 	// start as soon as delayCh is closed.
 	// TODO: Should delayCh be on Bar instead of Progress?
-	delayCh <-chan struct{}
+	//delayCh <-chan struct{}
+
+	delay time.Duration
 
 	// stopped is set to true when Stop is called.
 	stopped bool
@@ -353,7 +358,7 @@ func (p *Progress) newBar(msg string, total int64,
 	}
 
 	if p.pc == nil {
-		p.pcInit()
+		p.pcInit() // FIXME: delete this
 	}
 
 	if total < 0 {
@@ -389,12 +394,14 @@ func (p *Progress) newBar(msg string, total int64,
 		b.incrStash.Store(0)
 	}
 
+	b.delayCh = renderDelayBar(b, p.delay)
+
 	p.bars = append(p.bars, b)
-	select {
-	case <-p.delayCh:
-		b.initBarOnce.Do(b.initBar)
-	default:
-	}
+	//select {
+	//case <-b.delayCh:
+	//	b.initBarOnce.Do(b.initBar)
+	//default:
+	//}
 	return b
 }
 
@@ -418,6 +425,8 @@ type Bar struct {
 
 	initBarOnce *sync.Once
 	initBar     func()
+
+	delayCh <-chan struct{}
 
 	// incrStash holds the increment count until the
 	// bar is fully initialized.
@@ -443,7 +452,7 @@ func (b *Bar) IncrBy(n int) {
 	select {
 	case <-b.p.ctx.Done():
 		return
-	case <-b.p.delayCh:
+	case <-b.delayCh:
 		b.initBarOnce.Do(b.initBar)
 		if b.bar != nil {
 			b.bar.IncrBy(n)
@@ -489,6 +498,21 @@ func renderDelay(p *Progress, d time.Duration) <-chan struct{} {
 
 		<-t.C
 		p.initBars()
+	}()
+	return ch
+}
+
+// renderDelay returns a channel that will be closed after d,
+// at which point b will be initialized.
+func renderDelayBar(b *Bar, d time.Duration) <-chan struct{} {
+	ch := make(chan struct{})
+	t := time.NewTimer(d)
+	go func() {
+		defer close(ch)
+		defer t.Stop()
+
+		<-t.C
+		b.initBarOnce.Do(b.initBar)
 	}()
 	return ch
 }
