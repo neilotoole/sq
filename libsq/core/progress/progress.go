@@ -117,14 +117,6 @@ func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors
 			mpb.WithRefreshRate(refreshRate),
 			mpb.WithAutoRefresh(), // Needed for color in Windows, apparently
 		}
-		//if delay > 0 {
-		//	delayCh := renderDelay(p, delay)
-		//	p.delayCh = delayCh
-		//} else {
-		//	delayCh := make(chan struct{})
-		//	close(delayCh)
-		//	p.delayCh = delayCh
-		//}
 
 		p.pc = mpb.NewWithContext(ctx, opts...)
 		p.pcInit = nil
@@ -152,11 +144,8 @@ type Progress struct {
 	// pcInit is the func that lazily initializes pc.
 	pcInit func()
 
-	// delayCh controls the rendering delay: rendering can
-	// start as soon as delayCh is closed.
-	// TODO: Should delayCh be on Bar instead of Progress?
-	//delayCh <-chan struct{}
-
+	// delay is the duration to wait before rendering a progress bar.
+	// This value is used for each bar created by this Progress.
 	delay time.Duration
 
 	// stopped is set to true when Stop is called.
@@ -207,28 +196,6 @@ func (p *Progress) Stop() {
 	}
 
 	p.pc.Wait()
-}
-
-// initBars lazily initializes all bars in p.bars.
-func (p *Progress) initBars() {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	select {
-	case <-p.ctx.Done():
-		return
-	default:
-	}
-
-	if p.stopped {
-		return
-	}
-
-	for _, b := range p.bars {
-		if !b.stopped {
-			b.initBarOnce.Do(b.initBar)
-		}
-	}
 }
 
 // NewUnitCounter returns a new indeterminate bar whose label
@@ -395,13 +362,8 @@ func (p *Progress) newBar(msg string, total int64,
 	}
 
 	b.delayCh = renderDelayBar(b, p.delay)
-
 	p.bars = append(p.bars, b)
-	//select {
-	//case <-b.delayCh:
-	//	b.initBarOnce.Do(b.initBar)
-	//default:
-	//}
+
 	return b
 }
 
@@ -485,21 +447,6 @@ func (b *Bar) Stop() {
 	b.stopped = true
 
 	b.bar.Wait()
-}
-
-// renderDelay returns a channel that will be closed after d,
-// at which point p.InitBars will be called.
-func renderDelay(p *Progress, d time.Duration) <-chan struct{} {
-	ch := make(chan struct{})
-	t := time.NewTimer(d)
-	go func() {
-		defer close(ch)
-		defer t.Stop()
-
-		<-t.C
-		p.initBars()
-	}()
-	return ch
 }
 
 // renderDelay returns a channel that will be closed after d,
