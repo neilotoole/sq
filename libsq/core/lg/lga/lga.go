@@ -58,5 +58,6 @@ const (
 	Via       = "via"
 	Version   = "version"
 	Timestamp = "timestamp"
+	Written   = "written"
 	Text      = "text"
 )
