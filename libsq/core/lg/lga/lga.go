@@ -18,6 +18,7 @@ const (
 	DB        = "db"
 	DBType    = "db_type"
 	Dest      = "dest"
+	Dir       = "dir"
 	Driver    = "driver"
 	DefaultTo = "default_to"
 	Elapsed   = "elapsed"

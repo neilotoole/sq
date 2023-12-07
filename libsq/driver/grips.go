@@ -3,6 +3,7 @@ package driver
 import (
 	"context"
 	"errors"
+	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
 	"log/slog"
 	"path/filepath"
 	"strings"
@@ -295,14 +296,14 @@ func (gs *Grips) openIngestCache(ctx context.Context, src *source.Source,
 	log.Info("Ingest completed", lga.Src, src, lga.Dest, impl.Source(), lga.Elapsed, elapsed)
 
 	// Write the checksums file.
-	var sum ioz.Checksum
-	if sum, err = ioz.FileChecksum(ingestFilePath); err != nil {
+	var sum checksum.Checksum
+	if sum, err = checksum.ForFile(ingestFilePath); err != nil {
 		log.Warn("Failed to compute checksum for source file; caching not in effect",
 			lga.Src, src, lga.Dest, impl.Source(), lga.Path, ingestFilePath, lga.Err, err)
 		return impl, nil //nolint:nilerr
 	}
 
-	if err = ioz.WriteChecksumFile(checksumsPath, sum, ingestFilePath); err != nil {
+	if err = checksum.WriteFile(checksumsPath, sum, ingestFilePath); err != nil {
 		log.Warn("Failed to write checksum; file caching not in effect",
 			lga.Src, src, lga.Dest, impl.Source(), lga.Path, ingestFilePath, lga.Err, err)
 	}
@@ -378,7 +379,7 @@ func (gs *Grips) openCachedFor(ctx context.Context, src *source.Source) (Grip, b
 		return nil, false, nil
 	}
 
-	mChecksums, err := ioz.ReadChecksumsFile(checksumsPath)
+	mChecksums, err := checksum.ReadFile(checksumsPath)
 	if err != nil {
 		return nil, false, err
 	}
@@ -406,7 +407,7 @@ func (gs *Grips) openCachedFor(ctx context.Context, src *source.Source) (Grip, b
 		return nil, false, nil
 	}
 
-	srcChecksum, err := ioz.FileChecksum(srcFilepath)
+	srcChecksum, err := checksum.ForFile(srcFilepath)
 	if err != nil {
 		return nil, false, err
 	}

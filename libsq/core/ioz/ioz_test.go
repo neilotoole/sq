@@ -2,6 +2,7 @@ package ioz_test
 
 import (
 	"bytes"
+	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
 	"io"
 	"os"
 	"sync"
@@ -33,12 +34,12 @@ func TestChecksums(t *testing.T) {
 
 	buf := &bytes.Buffer{}
 
-	gotSum1, err := ioz.FileChecksum(f.Name())
+	gotSum1, err := checksum.ForFile(f.Name())
 	require.NoError(t, err)
 	t.Logf("gotSum1: %s  %s", gotSum1, f.Name())
-	require.NoError(t, ioz.WriteChecksum(buf, gotSum1, f.Name()))
+	require.NoError(t, checksum.Write(buf, gotSum1, f.Name()))
 
-	gotSums, err := ioz.ReadChecksums(bytes.NewReader(buf.Bytes()))
+	gotSums, err := checksum.Read(bytes.NewReader(buf.Bytes()))
 	require.NoError(t, err)
 	require.Len(t, gotSums, 1)
 	require.Equal(t, gotSum1, gotSums[f.Name()])
@@ -49,10 +50,10 @@ func TestChecksums(t *testing.T) {
 	_, err = io.WriteString(f, "more huzzah")
 	require.NoError(t, err)
 	assert.NoError(t, f.Close())
-	gotSum2, err := ioz.FileChecksum(f.Name())
+	gotSum2, err := checksum.ForFile(f.Name())
 	require.NoError(t, err)
 	t.Logf("gotSum2: %s  %s", gotSum2, f.Name())
-	require.NoError(t, ioz.WriteChecksum(buf, gotSum1, f.Name()))
+	require.NoError(t, checksum.Write(buf, gotSum1, f.Name()))
 	require.NotEqual(t, gotSum1, gotSum2)
 }
 
