@@ -1,12 +1,14 @@
+//go:build !windows
+
 package cli
 
 import (
 	"io"
 	"os"
 
-	isatty "github.com/mattn/go-isatty"
 	"golang.org/x/term"
 )
+
 
 // isTerminal returns true if w is a terminal.
 func isTerminal(w io.Writer) bool {
@@ -19,18 +21,22 @@ func isTerminal(w io.Writer) bool {
 }
 
 // isColorTerminal returns true if w is a colorable terminal.
+// It respects [NO_COLOR], [FORCE_COLOR] and TERM=dumb environment variables.
+//
+// [NO_COLOR]: https://no-color.org/
+// [FORCE_COLOR]: https://force-color.org/
 func isColorTerminal(w io.Writer) bool {
-	if w == nil {
+	if os.Getenv("NO_COLOR") != "" {
 		return false
 	}
-
-	// TODO: Add the improvements from jsoncolor:
-	// https://github.com/neilotoole/jsoncolor/pull/27
-	if !isTerminal(w) {
-		return false
+	if os.Getenv("FORCE_COLOR") != "" {
+		return true
 	}
-
 	if os.Getenv("TERM") == "dumb" {
+		return false
+	}
+
+	if w == nil {
 		return false
 	}
 
@@ -39,7 +45,7 @@ func isColorTerminal(w io.Writer) bool {
 		return false
 	}
 
-	if isatty.IsCygwinTerminal(f.Fd()) {
+	if !term.IsTerminal(int(f.Fd())) {
 		return false
 	}
 
