@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -57,13 +58,18 @@ type Files struct {
 	detectFns []DriverDetectFunc
 }
 
-// NewFiles returns a new Files instance.
-func NewFiles(ctx context.Context, tmpDir, cacheDir string) (*Files, error) {
+// NewFiles returns a new Files instance. If c is nil, http.DefaultClient is
+// used. If cleanFscache is true, the fscache is cleaned on Files.Close.
+func NewFiles(ctx context.Context, c *http.Client, tmpDir, cacheDir string, cleanFscache bool) (*Files, error) {
 	if tmpDir == "" {
 		return nil, errz.Errorf("tmpDir is empty")
 	}
 	if cacheDir == "" {
 		return nil, errz.Errorf("cacheDir is empty")
+	}
+
+	if c == nil {
+		c = http.DefaultClient
 	}
 
 	fs := &Files{
@@ -78,12 +84,18 @@ func NewFiles(ctx context.Context, tmpDir, cacheDir string) (*Files, error) {
 	// on cleanup (unless something bad happens and sq doesn't
 	// get a chance to clean up). But, why take the chance; we'll just give
 	// fcache a unique dir each time.
-	fcacheTmpDir := filepath.Join(cacheDir, "fscache", strconv.Itoa(os.Getpid()), stringz.Uniq32())
-	if err := ioz.RequireDir(fcacheTmpDir); err != nil {
+	fscacheTmpDir := filepath.Join(cacheDir, "fscache", strconv.Itoa(os.Getpid())+"_"+stringz.Uniq32())
+	if err := ioz.RequireDir(fscacheTmpDir); err != nil {
 		return nil, errz.Err(err)
 	}
 
-	fcache, err := fscache.New(fcacheTmpDir, os.ModePerm, time.Hour)
+	if cleanFscache {
+		fs.clnup.AddE(func() error {
+			return errz.Wrap(os.RemoveAll(fscacheTmpDir), "remove fscache dir")
+		})
+	}
+
+	fcache, err := fscache.New(fscacheTmpDir, os.ModePerm, time.Hour)
 	if err != nil {
 		return nil, errz.Err(err)
 	}
@@ -95,6 +107,7 @@ func NewFiles(ctx context.Context, tmpDir, cacheDir string) (*Files, error) {
 
 // Filesize returns the file size of src.Location. If the source is being
 // loaded asynchronously, this function may block until loading completes.
+// An error is returned if src is not a document/file source.
 func (fs *Files) Filesize(ctx context.Context, src *Source) (size int64, err error) {
 	locTyp := getLocType(src.Location)
 	switch locTyp {

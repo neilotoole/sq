@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"github.com/neilotoole/sq/libsq/core/ioz"
 	"io"
 	"log/slog"
 	"os"
@@ -140,7 +141,10 @@ func FinishRunInit(ctx context.Context, ru *run.Run) error {
 
 	var err error
 	if ru.Files == nil {
-		ru.Files, err = source.NewFiles(ctx, source.DefaultTempDir(), source.DefaultCacheDir())
+		// TODO: The timeout/ssl vals should really come from options.
+		c := ioz.NewHTTPClient(0, true)
+
+		ru.Files, err = source.NewFiles(ctx, c, source.DefaultTempDir(), source.DefaultCacheDir(), true)
 		if err != nil {
 			lg.WarnIfFuncError(log, lga.Cleanup, ru.Cleanup.Run)
 			return err

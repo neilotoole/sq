@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -737,4 +738,33 @@ func ExecuteTemplate(name, tpl string, data any) (string, error) {
 // Note that empty string will be returned as two single quotes.
 func ShellEscape(s string) string {
 	return shellescape.Quote(s)
+}
+
+var filenameRegex = regexp.MustCompile(`[^a-zA-Z0-9-_ .(),+]`)
+
+// SanitizeFilename returns a sanitized version of filename.
+// The supplied value should be the base file name, not a path.
+func SanitizeFilename(name string) string {
+	const repl = "_"
+
+	if name == "" {
+		return ""
+	}
+	name = filenameRegex.ReplaceAllString(name, repl)
+	if name == "" {
+		return ""
+	}
+
+	name = filepath.Clean(name)
+	// Some extra paranoid handling below.
+	// Note that we know that filename is at least one char long.
+	trimmed := strings.TrimSpace(name)
+	switch {
+	case trimmed == ".":
+		return strings.Replace(name, ".", repl, 1)
+	case trimmed == "..":
+		return strings.Replace(name, "..", repl+repl, 1)
+	default:
+		return name
+	}
 }

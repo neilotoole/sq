@@ -5,8 +5,10 @@ import (
 	"bytes"
 	"context"
 	crand "crypto/rand"
+	"crypto/tls"
 	"io"
 	mrand "math/rand"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -350,6 +352,16 @@ func RequireDir(dir string) error {
 	return errz.Err(os.MkdirAll(dir, 0o750))
 }
 
+// ReadFileToString reads the file at name and returns its contents
+// as a string.
+func ReadFileToString(name string) (string, error) {
+	b, err := os.ReadFile(name)
+	if err != nil {
+		return "", errz.Err(err)
+	}
+	return string(b), nil
+}
+
 // DirExists returns true if dir exists and is a directory.
 func DirExists(dir string) bool {
 	fi, err := os.Stat(dir)
@@ -375,4 +387,34 @@ func PrintTree(w io.Writer, loc string, showSize, colorize bool) error {
 	_, _ = inf.Visit(opts)
 	inf.Print(opts)
 	return nil
+}
+
+// NewHTTPClient returns a new HTTP client with the specified timeout.
+// A timeout of zero means no timeout. If insecureSkipVerify is true, the
+// client will skip TLS verification.
+//
+// REVISIT: Would it be better to just not set a timeout, and instead
+// use context.WithTimeout for each request?
+func NewHTTPClient(timeout time.Duration, insecureSkipVerify bool) *http.Client {
+	client := *http.DefaultClient
+
+	var tr *http.Transport
+	if client.Transport == nil {
+		tr = (http.DefaultTransport.(*http.Transport)).Clone()
+	} else {
+		tr = (client.Transport.(*http.Transport)).Clone()
+	}
+
+	if tr.TLSClientConfig == nil {
+		tr.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS10}
+	} else {
+		tr.TLSClientConfig = tr.TLSClientConfig.Clone()
+	}
+
+	tr.TLSClientConfig.InsecureSkipVerify = insecureSkipVerify
+
+	client.Timeout = timeout
+	client.Transport = tr
+
+	return &client
 }

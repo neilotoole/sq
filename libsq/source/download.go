@@ -1,6 +1,7 @@
 package source
 
 import (
+	"bytes"
 	"context"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
@@ -8,11 +9,13 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 	"golang.org/x/exp/maps"
 	"io"
 	"log/slog"
 	"mime"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"os"
 	"path"
@@ -23,26 +26,75 @@ import (
 	"github.com/neilotoole/sq/libsq/source/fetcher"
 )
 
-func newDownloader(srcCacheDir, url string) *downloader {
-	downloadDir := filepath.Join(srcCacheDir, "download")
+func newDownloader(c *http.Client, cacheDir, url string) *downloader {
 	return &downloader{
-		srcCacheDir:  srcCacheDir,
-		downloadDir:  downloadDir,
-		checksumFile: filepath.Join(srcCacheDir, "download.checksum.txt"),
-		url:          url,
+		c:        c,
+		cacheDir: cacheDir,
+		url:      url,
 	}
 }
 
+// download is a helper for getting file contents from a URL,
+// and caching the file locally. The structure of cacheDir
+// is as follows:
+//
+//	cacheDir/
+//	  pid.lock
+//	  checksum.txt
+//	  header.txt
+//	  dl/
+//	    <filename>
+//
+// Let's take a closer look.
+//
+//   - pid.lock is a lock file used to ensure that only one
+//     process is downloading the file at a time.
+//
+//   - header.txt is a dump of the HTTP response header, included for
+//     debugging convenience.
+//
+//   - checksum.txt contains a checksum:key pair, where the checksum is
+//     calculated using checksum.ForHTTPHeader, and the key is the path
+//     to the downloaded file, e.g. "dl/data.csv".
+//
+//     67a47a0...a53e3e28154  dl/actor.csv
+//
+//   - The file is downloaded to dl/<filename> instead of into the root
+//     of cache dir, just to avoid the (remote) possibility of a name
+//     collision with the other files in cacheDir. The filename is based
+//     on the HTTP response, incorporating the Content-Disposition header
+//     if present, or the last path segment of the URL. The filename is
+//     sanitized.
+//
+// When downloader.Download is invoked, it appropriately clears the existing
+// stored files before proceeding. Likewise, if the download fails, the stored
+// files are wiped, to prevent a partial download from being used.
 type downloader struct {
-	mu           sync.Mutex
-	srcCacheDir  string
-	downloadDir  string
-	checksumFile string
-	url          string
+	// FIXME: Use a client that doesn't require SSL? (see fetcher)
+	c        *http.Client
+	mu       sync.Mutex
+	cacheDir string
+	url      string
 }
 
 func (d *downloader) log(log *slog.Logger) *slog.Logger {
-	return log.With(lga.URL, d.url, "download_dir", d.downloadDir)
+	return log.With(lga.URL, d.url, lga.Dir, d.cacheDir)
+}
+
+func (d *downloader) dlDir() string {
+	return filepath.Join(d.cacheDir, "dl")
+}
+
+func (d *downloader) checksumFile() string {
+	return filepath.Join(d.cacheDir, "checksum.txt")
+}
+
+func (d *downloader) headerFile() string {
+	return filepath.Join(d.cacheDir, "header.txt")
+}
+
+func (d *downloader) lockFile() string {
+	return filepath.Join(d.cacheDir, "pid.lock")
 }
 
 // Download downloads the file at the URL to the download dir, and also writes
@@ -58,8 +110,19 @@ func (d *downloader) Download(ctx context.Context, dest io.Writer) (written int6
 
 	log := d.log(lg.FromContext(ctx))
 
-	if err = ioz.RequireDir(d.downloadDir); err != nil {
+	dlDir := d.dlDir()
+	// Clear the download dir.
+	if err = os.RemoveAll(dlDir); err != nil {
+		return written, "", errz.Wrapf(err, "could not clear download dir for: %s", d.url)
+	}
+
+	if err = ioz.RequireDir(dlDir); err != nil {
 		return written, "", errz.Wrapf(err, "could not create download dir for: %s", d.url)
+	}
+
+	// Make sure the header file is cleared.
+	if err = os.RemoveAll(d.headerFile()); err != nil {
+		return written, "", errz.Wrapf(err, "could not clear header file for: %s", d.url)
 	}
 
 	var cancelFn context.CancelFunc
@@ -70,8 +133,7 @@ func (d *downloader) Download(ctx context.Context, dest io.Writer) (written int6
 		return written, "", errz.Wrapf(err, "download new request failed for: %s", d.url)
 	}
 
-	// FIXME: Use a client that doesn't require SSL (see fetcher)
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := d.c.Do(req)
 	if err != nil {
 		return written, "", errz.Wrapf(err, "download failed for: %s", d.url)
 	}
@@ -80,6 +142,10 @@ func (d *downloader) Download(ctx context.Context, dest io.Writer) (written int6
 			lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
 		}
 	}()
+
+	if err = d.writeHeaderFile(resp); err != nil {
+		return written, "", err
+	}
 
 	if resp.StatusCode != http.StatusOK {
 		return written, "", errz.Errorf("download failed with %s for %s", resp.Status, d.url)
@@ -90,7 +156,7 @@ func (d *downloader) Download(ctx context.Context, dest io.Writer) (written int6
 		filename = "download"
 	}
 
-	fp = filepath.Join(d.downloadDir, filename)
+	fp = filepath.Join(dlDir, filename)
 	f, err := os.OpenFile(fp, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
 	if err != nil {
 		return written, "", errz.Wrapf(err, "could not create download file for: %s", d.url)
@@ -112,16 +178,42 @@ func (d *downloader) Download(ctx context.Context, dest io.Writer) (written int6
 		return written, "", errz.Wrapf(err, "failed to close download file: %s", fp)
 	}
 
+	sum := checksum.ForHTTPResponse(resp)
+	if err = checksum.WriteFile(d.checksumFile(), sum, filepath.Join("dl", filename)); err != nil {
+		lg.WarnIfFuncError(log, lgm.RemoveFile, func() error { return errz.Err(os.Remove(fp)) })
+	}
+
 	log.Info("Wrote download file", lga.Written, written, lga.File, fp)
 	return written, fp, nil
 }
+
+func (d *downloader) writeHeaderFile(resp *http.Response) error {
+	b, err := httputil.DumpResponse(resp, false)
+	if err != nil {
+		return errz.Wrapf(err, "failed to dump HTTP response for: %s", d.url)
+	}
+
+	if len(b) == 0 {
+		return errz.Errorf("empty HTTP response for: %s", d.url)
+	}
+
+	// Add a custom field just for human consumption convenience.
+	b = bytes.TrimSuffix(b, []byte("\r\n"))
+	b = append(b, "X-Sq-Downloaded-From: "+d.url+"\r\n"...)
+
+	if err = os.WriteFile(d.headerFile(), b, os.ModePerm); err != nil {
+		return errz.Wrapf(err, "failed to store HTTP response header for: %s", d.url)
+	}
+	return nil
+}
+
 func (d *downloader) Cached(ctx context.Context) (ok bool, sum checksum.Checksum, fp string) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
 	log := d.log(lg.FromContext(ctx))
-
-	fi, err := os.Stat(d.downloadDir)
+	dlDir := d.dlDir()
+	fi, err := os.Stat(dlDir)
 	if err != nil {
 		log.Debug("not cached: can't stat download dir")
 		return false, "", ""
@@ -131,13 +223,13 @@ func (d *downloader) Cached(ctx context.Context) (ok bool, sum checksum.Checksum
 		return false, "", ""
 	}
 
-	fi, err = os.Stat(d.checksumFile)
+	fi, err = os.Stat(d.checksumFile())
 	if err != nil {
 		log.Debug("not cached: can't stat download checksum file")
 		return false, "", ""
 	}
 
-	checksums, err := checksum.ReadFile(d.checksumFile)
+	checksums, err := checksum.ReadFile(d.checksumFile())
 	if err != nil {
 		log.Debug("not cached: can't read download checksum file")
 		return false, "", ""
@@ -155,7 +247,7 @@ func (d *downloader) Cached(ctx context.Context) (ok bool, sum checksum.Checksum
 		return false, "", ""
 	}
 
-	downloadFile := filepath.Join(d.downloadDir, key)
+	downloadFile := filepath.Join(dlDir, key)
 
 	fi, err = os.Stat(downloadFile)
 	if err != nil {
@@ -257,20 +349,27 @@ func (fs *Files) fetch(ctx context.Context, loc string) (fpath string, err error
 
 // getDownloadFilename returns the filename to use for a download.
 // It first checks the Content-Disposition header, and if that's
-// not present, it uses the last path segment of the URL.
+// not present, it uses the last path segment of the URL. The
+// filename is sanitized.
 // It's possible that the returned value will be empty string; the
 // caller should handle that situation themselves.
 func getDownloadFilename(resp *http.Response) string {
 	var filename string
+	if resp == nil || resp.Header == nil {
+		return ""
+	}
 	dispHeader := resp.Header.Get("Content-Disposition")
 	if dispHeader != "" {
 		if _, params, err := mime.ParseMediaType(dispHeader); err == nil {
 			filename = params["filename"]
 		}
 	}
+
 	if filename == "" {
 		filename = path.Base(resp.Request.URL.Path)
+	} else {
+		filename = filepath.Base(filename)
 	}
 
-	return filename
+	return stringz.SanitizeFilename(filename)
 }

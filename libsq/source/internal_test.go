@@ -30,7 +30,7 @@ var (
 func TestFiles_Open(t *testing.T) {
 	ctx := lg.NewContext(context.Background(), slogt.New(t))
 
-	fs, err := NewFiles(ctx, tu.TempDir(t), tu.CacheDir(t))
+	fs, err := NewFiles(ctx, nil, tu.TempDir(t), tu.CacheDir(t), true)
 	require.NoError(t, err)
 	t.Cleanup(func() { assert.NoError(t, fs.Close()) })
 

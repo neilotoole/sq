@@ -95,7 +95,10 @@ require github.com/vbauerster/mpb/v8 v8.7.1-0.20231205062852-da3162c67234
 // See: https://github.com/djherbis/fscache/pull/21
 require github.com/neilotoole/fscache v0.0.0-20231203162946-c9808f16552e
 
-require github.com/djherbis/stream v1.4.0 // indirect
+require (
+	github.com/djherbis/stream v1.4.0 // indirect
+	github.com/mrz1836/go-sanitize v1.3.1 // indirect
+)
 
 // See: https://github.com/djherbis/stream/pull/11
 replace github.com/djherbis/stream v1.4.0 => github.com/neilotoole/djherbis-stream v0.0.0-20231203160853-609f47afedda

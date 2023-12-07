@@ -3,6 +3,7 @@ package tu
 
 import (
 	"fmt"
+	"github.com/neilotoole/sq/libsq/core/ioz"
 	"io"
 	"os"
 	"path/filepath"
@@ -388,4 +389,12 @@ func TempDir(t testing.TB) string {
 // CacheDir is the standard means for obtaining a cache dir for tests.
 func CacheDir(t testing.TB) string {
 	return filepath.Join(t.TempDir(), "sq", "cache")
+}
+
+// ReadFileToString invokes ioz.ReadFileToString, failing t if
+// an error occurs.
+func ReadFileToString(t testing.TB, name string) string {
+	s, err := ioz.ReadFileToString(name)
+	require.NoError(t, err)
+	return s
 }

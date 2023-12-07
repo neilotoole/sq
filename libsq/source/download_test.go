@@ -6,6 +6,7 @@ import (
 	"github.com/neilotoole/slogt"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/testh/proj"
+	"github.com/neilotoole/sq/testh/tu"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"net/http"
@@ -26,8 +27,9 @@ func TestGetRemoteChecksum(t *testing.T) {
 }
 
 const (
-	urlActorCSV  = "https://sq.io/testdata/actor.csv"
-	sizeActorCSV = int64(7641)
+	urlPaymentLargeCSV = "https://sqio-public.s3.amazonaws.com/testdata/payment-large.gen.csv"
+	urlActorCSV        = "https://sq.io/testdata/actor.csv"
+	sizeActorCSV       = int64(7641)
 )
 
 func TestFetchHTTPHeader_sqio(t *testing.T) {
@@ -38,18 +40,26 @@ func TestFetchHTTPHeader_sqio(t *testing.T) {
 	// TODO
 }
 
-func TestDownloader(t *testing.T) {
+func TestDownloader_Download(t *testing.T) {
 	const u = "https://sq.io/testdata/actor.csv"
 	ctx := lg.NewContext(context.Background(), slogt.New(t))
 
 	cacheDir, err := filepath.Abs(filepath.Join("testdata", "downloader", "cache-dir-1"))
 	require.NoError(t, err)
-	dl := newDownloader(cacheDir, urlActorCSV)
+	t.Logf("cacheDir: %s", cacheDir)
+	dl := newDownloader(http.DefaultClient, cacheDir, urlActorCSV)
 	buf := &bytes.Buffer{}
 	written, fp, err := dl.Download(ctx, buf)
 	require.NoError(t, err)
 	require.FileExists(t, fp)
 	require.Equal(t, sizeActorCSV, written)
+	require.Equal(t, sizeActorCSV, int64(buf.Len()))
+
+	s := tu.ReadFileToString(t, dl.headerFile())
+	t.Logf("header.txt\n\n" + s)
+
+	s = tu.ReadFileToString(t, dl.checksumFile())
+	t.Logf("checksum.txt\n\n" + s)
 
 	// TODO
 }

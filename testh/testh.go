@@ -161,7 +161,7 @@ func (h *Helper) init() {
 		h.registry = driver.NewRegistry(log)
 
 		var err error
-		h.files, err = source.NewFiles(h.Context, tu.TempDir(h.T), tu.CacheDir(h.T))
+		h.files, err = source.NewFiles(h.Context, nil, tu.TempDir(h.T), tu.CacheDir(h.T), true)
 		require.NoError(h.T, err)
 
 		h.Cleanup.Add(func() {

@@ -621,3 +621,30 @@ func TestDecimal(t *testing.T) {
 		})
 	}
 }
+
+func TestSanitizeFilename(t *testing.T) {
+	testCases := []struct {
+		in   string
+		want string
+	}{
+		{in: "", want: ""},
+		{in: " ", want: " "},
+		{in: "a", want: "a"},
+		{in: "a b", want: "a b"},
+		{in: "a b c", want: "a b c"},
+		{in: "a b c.txt", want: "a b c.txt"},
+		{in: "conin$", want: "conin_"},
+		{in: "a+b", want: "a+b"},
+		{in: "some (file).txt", want: "some (file).txt"},
+		{in: ".", want: "_"},
+		{in: "..", want: "__"},
+	}
+
+	for i, tc := range testCases {
+		tc := tc
+		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
+			got := stringz.SanitizeFilename(tc.in)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
