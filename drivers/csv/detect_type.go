@@ -76,9 +76,8 @@ const (
 // legitimate CSV, where a score <= 0 is not CSV, a score >= 1 is definitely CSV.
 func isCSV(ctx context.Context, cr *csv.Reader) (score float32) {
 	start := time.Now()
-	lg.FromContext(ctx).Debug("isCSV invoked", lga.Timestamp, start)
 	defer func() {
-		lg.FromContext(ctx).Debug("isCSV complete", "elapsed", time.Since(start), "score", score)
+		lg.FromContext(ctx).Debug("CSV detection complete", lga.Elapsed, time.Since(start), lga.Score, score)
 	}()
 	const (
 		maxRecords int = 100

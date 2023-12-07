@@ -17,30 +17,24 @@ import (
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
+// DriverDetectFunc interrogates a byte stream to determine
+// the source driver type. A score is returned indicating
+// the confidence that the driver type has been detected.
+// A score <= 0 is failure, a score >= 1 is success; intermediate
+// values indicate some level of confidence.
+// An error is returned only if an IO problem occurred.
+// The implementation gets access to the byte stream by invoking openFn,
+// and is responsible for closing any reader it opens.
+type DriverDetectFunc func(ctx context.Context, openFn FileOpenFunc) (
+	detected drivertype.Type, score float32, err error)
+
+var _ DriverDetectFunc = DetectMagicNumber
+
 // AddDriverDetectors adds driver type detectors.
 func (fs *Files) AddDriverDetectors(detectFns ...DriverDetectFunc) {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
 	fs.detectFns = append(fs.detectFns, detectFns...)
-}
-
-// DetectStdinType detects the type of stdin as previously added
-// by AddStdin. An error is returned if AddStdin was not
-// first invoked. If the type cannot be detected, TypeNone and
-// nil are returned.
-func (fs *Files) DetectStdinType(ctx context.Context) (drivertype.Type, error) {
-	if !fs.fcache.Exists(StdinHandle) {
-		return drivertype.None, errz.New("must invoke Files.AddStdin before invoking DetectStdinType")
-	}
-
-	typ, ok, err := fs.detectType(ctx, StdinHandle)
-	if err != nil {
-		return drivertype.None, err
-	}
-
-	if !ok {
-		return drivertype.None, nil
-	}
-
-	return typ, nil
 }
 
 // DriverType returns the driver type of loc.
@@ -67,6 +61,8 @@ func (fs *Files) DriverType(ctx context.Context, loc string) (drivertype.Type, e
 		}
 	}
 
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
 	// Fall back to the byte detectors
 	typ, ok, err := fs.detectType(ctx, loc)
 	if err != nil {
@@ -94,9 +90,6 @@ func (fs *Files) detectType(ctx context.Context, loc string) (typ drivertype.Typ
 
 	resultCh := make(chan result, len(fs.detectFns))
 	openFn := func(ctx context.Context) (io.ReadCloser, error) {
-		fs.mu.Lock()
-		defer fs.mu.Unlock()
-
 		return fs.newReader(ctx, loc)
 	}
 
@@ -160,19 +153,6 @@ func (fs *Files) detectType(ctx context.Context, loc string) (typ drivertype.Typ
 	return drivertype.None, false, nil
 }
 
-// DriverDetectFunc interrogates a byte stream to determine
-// the source driver type. A score is returned indicating
-// the confidence that the driver type has been detected.
-// A score <= 0 is failure, a score >= 1 is success; intermediate
-// values indicate some level of confidence.
-// An error is returned only if an IO problem occurred.
-// The implementation gets access to the byte stream by invoking openFn,
-// and is responsible for closing any reader it opens.
-type DriverDetectFunc func(ctx context.Context, openFn FileOpenFunc) (
-	detected drivertype.Type, score float32, err error)
-
-var _ DriverDetectFunc = DetectMagicNumber
-
 // DetectMagicNumber is a DriverDetectFunc that uses an external
 // pkg (h2non/filetype) to detect the "magic number" from
 // the start of files.
@@ -216,4 +196,28 @@ func DetectMagicNumber(ctx context.Context, openFn FileOpenFunc,
 	case matchers.TypeSqlite:
 		return typeSL3, 1.0, nil
 	}
+}
+
+// DetectStdinType detects the type of stdin as previously added
+// by AddStdin. An error is returned if AddStdin was not
+// first invoked. If the type cannot be detected, TypeNone and
+// nil are returned.
+func (fs *Files) DetectStdinType(ctx context.Context) (drivertype.Type, error) {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	if !fs.fscache.Exists(StdinHandle) {
+		return drivertype.None, errz.New("must invoke Files.AddStdin before invoking DetectStdinType")
+	}
+
+	typ, ok, err := fs.detectType(ctx, StdinHandle)
+	if err != nil {
+		return drivertype.None, err
+	}
+
+	if !ok {
+		return drivertype.None, nil
+	}
+
+	return typ, nil
 }

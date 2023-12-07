@@ -53,7 +53,7 @@ func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Sou
 	}
 	md.FQName = md.Name
 
-	if md.Size, err = g.files.Size(ctx, g.src); err != nil {
+	if md.Size, err = g.files.Filesize(ctx, g.src); err != nil {
 		return nil, err
 	}
 

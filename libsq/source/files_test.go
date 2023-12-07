@@ -245,7 +245,7 @@ func TestFiles_Size(t *testing.T) {
 	th := testh.New(t)
 	fs := th.Files()
 
-	gotSize, err := fs.Size(th.Context, &source.Source{
+	gotSize, err := fs.Filesize(th.Context, &source.Source{
 		Handle:   stringz.UniqSuffix("@h"),
 		Location: f.Name(),
 	})
@@ -257,7 +257,7 @@ func TestFiles_Size(t *testing.T) {
 	// Verify that this works with @stdin as well
 	require.NoError(t, fs.AddStdin(th.Context, f2))
 
-	gotSize2, err := fs.Size(th.Context, &source.Source{
+	gotSize2, err := fs.Filesize(th.Context, &source.Source{
 		Handle:   "@stdin",
 		Location: "@stdin",
 	})

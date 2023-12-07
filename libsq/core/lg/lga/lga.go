@@ -40,6 +40,7 @@ const (
 	Path      = "path"
 	Pid       = "pid"
 	Query     = "query"
+	Score     = "score"
 	Size      = "size"
 	SLQ       = "slq"
 	SQL       = "sql"

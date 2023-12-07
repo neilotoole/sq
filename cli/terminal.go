@@ -9,7 +9,6 @@ import (
 	"golang.org/x/term"
 )
 
-
 // isTerminal returns true if w is a terminal.
 func isTerminal(w io.Writer) bool {
 	switch v := w.(type) {

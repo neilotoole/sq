@@ -158,18 +158,19 @@ func processFlagActiveSchema(cmd *cobra.Command, activeSrc *source.Source) error
 // and returned. If the pipe has no data (size is zero),
 // then (nil,nil) is returned.
 func checkStdinSource(ctx context.Context, ru *run.Run) (*source.Source, error) {
-	log := lg.FromContext(ctx)
 	f := ru.Stdin
 	fi, err := f.Stat()
 	if err != nil {
 		return nil, errz.Wrap(err, "failed to get stat on stdin")
 	}
 
+	mode := fi.Mode()
+	log := lg.FromContext(ctx).With(lga.File, fi.Name(), lga.Size, fi.Size(), "mode", mode.String())
 	switch {
-	case os.ModeNamedPipe&fi.Mode() > 0:
+	case os.ModeNamedPipe&mode > 0:
 		log.Info("Detected stdin pipe via os.ModeNamedPipe")
 	case fi.Size() > 0:
-		log.Info("Detected stdin redirect via size > 0", lga.Size, fi.Size())
+		log.Info("Detected stdin redirect via size > 0")
 	default:
 		log.Info("No stdin data detected")
 		return nil, nil //nolint:nilnil

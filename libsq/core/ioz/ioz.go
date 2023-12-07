@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/a8m/tree"
@@ -328,56 +327,6 @@ func (nopWriteCloserReaderFrom) Close() error { return nil }
 
 func (c nopWriteCloserReaderFrom) ReadFrom(r io.Reader) (int64, error) {
 	return c.Writer.(io.ReaderFrom).ReadFrom(r)
-}
-
-// NewWrittenWriter returns a writer that counts the number of bytes
-// written to the underlying writer. The number of bytes written can
-// be obtained via [WrittenWriter.Written], which blocks until writing
-// has concluded.
-func NewWrittenWriter(w io.WriteCloser) *WrittenWriter {
-	return &WrittenWriter{
-		w:    w,
-		c:    &atomic.Int64{},
-		done: make(chan struct{}),
-	}
-}
-
-var _ io.Writer = (*WrittenWriter)(nil)
-
-// WrittenWriter is an io.WriteCloser that counts the number of bytes
-// written to the underlying writer. The number of bytes written can
-// be obtained via [WrittenWriter.Written], which blocks until writing
-// has concluded.
-type WrittenWriter struct {
-	c        *atomic.Int64
-	w        io.WriteCloser
-	doneOnce sync.Once
-	done     chan struct{}
-}
-
-// Written returns the number of bytes written to the underlying
-// writer, blocking until writing concludes, either via invocation of
-// Close, or via an error in Write.
-func (w *WrittenWriter) Written() int64 {
-	<-w.done
-	return w.c.Load()
-}
-
-// Close implements io.WriteCloser.
-func (w *WrittenWriter) Close() error {
-	closeErr := w.w.Close()
-	w.doneOnce.Do(func() { close(w.done) })
-	return closeErr
-}
-
-// Write implements io.WriterCloser.
-func (w *WrittenWriter) Write(p []byte) (n int, err error) {
-	n, err = w.w.Write(p)
-	w.c.Add(int64(n))
-	if err != nil {
-		w.doneOnce.Do(func() { close(w.done) })
-	}
-	return n, err
 }
 
 // DirSize returns total size of all regular files in path.

@@ -125,7 +125,9 @@ func execInspect(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	log.Error("before open")
 	grip, err := ru.Grips.Open(ctx, src)
+	log.Error("after open")
 	if err != nil {
 		return errz.Wrapf(err, "failed to inspect %s", src.Handle)
 	}
@@ -202,6 +204,8 @@ func execInspect(cmd *cobra.Command, args []string) error {
 	}
 
 	overviewOnly := cmdFlagIsSetTrue(cmd, flag.InspectOverview)
+
+	log.Debug("get source metadata")
 
 	srcMeta, err := grip.SourceMetadata(ctx, overviewOnly)
 	if err != nil {

@@ -204,7 +204,7 @@ func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Sou
 		return nil, err
 	}
 
-	md.Size, err = g.files.Size(ctx, g.src)
+	md.Size, err = g.files.Filesize(ctx, g.src)
 	if err != nil {
 		return nil, err
 	}

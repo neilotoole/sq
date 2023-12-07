@@ -3,8 +3,6 @@ package terminal
 import (
 	"io"
 	"os"
-
-	"golang.org/x/sys/windows"
 )
 
 // isTerminal returns true if w is a terminal.

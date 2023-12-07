@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"time"
 
@@ -20,6 +21,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/progress"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 // Files is the centralized API for interacting with files.
@@ -35,22 +37,24 @@ import (
 // if we're reading long-running pipe from stdin). This entire thing
 // needs to be revisited. Maybe Files even becomes a fs.FS.
 type Files struct {
-	cacheDir  string
-	tempDir   string
-	log       *slog.Logger
-	mu        sync.Mutex
-	clnup     *cleanup.Cleanup
-	fcache    *fscache.FSCache
-	detectFns []DriverDetectFunc
+	mu       sync.Mutex
+	log      *slog.Logger
+	cacheDir string
+	tempDir  string
+	clnup    *cleanup.Cleanup
 
-	// stdinLength is a func that returns number of bytes read from stdin.
-	// It is nil if stdin has not been read. The func may block until reading
-	// of stdin has completed.
-	//
-	// FIXME: This should probably be a map of location to length func,
-	// because downloaded files can use this mechanism too.
-	// See Files.Size.
-	stdinLength func() int64
+	// fscache is used to cache files, providing convenient access
+	// to multiple readers via Files.newReader.
+	fscache *fscache.FSCache
+
+	// fscacheEntryMetas contains metadata about fscache entries.
+	// Entries are added by Files.addStdin, and consumed by
+	// Files.Filesize.
+	fscacheEntryMetas map[string]*fscacheEntryMeta
+
+	// detectFns is the set of functions that can detect
+	// the type of a file.
+	detectFns []DriverDetectFunc
 }
 
 // NewFiles returns a new Files instance.
@@ -63,13 +67,18 @@ func NewFiles(ctx context.Context, tmpDir, cacheDir string) (*Files, error) {
 	}
 
 	fs := &Files{
-		cacheDir: cacheDir,
-		tempDir:  tmpDir,
-		clnup:    cleanup.New(),
-		log:      lg.FromContext(ctx),
+		cacheDir:          cacheDir,
+		fscacheEntryMetas: make(map[string]*fscacheEntryMeta),
+		tempDir:           tmpDir,
+		clnup:             cleanup.New(),
+		log:               lg.FromContext(ctx),
 	}
 
-	fcacheTmpDir := filepath.Join(cacheDir, "fscache")
+	// We want a unique dir for each execution. Note that fcache is deleted
+	// on cleanup (unless something bad happens and sq doesn't
+	// get a chance to clean up). But, why take the chance; we'll just give
+	// fcache a unique dir each time.
+	fcacheTmpDir := filepath.Join(cacheDir, "fscache", strconv.Itoa(os.Getpid()), stringz.Uniq32())
 	if err := ioz.RequireDir(fcacheTmpDir); err != nil {
 		return nil, errz.Err(err)
 	}
@@ -80,13 +89,13 @@ func NewFiles(ctx context.Context, tmpDir, cacheDir string) (*Files, error) {
 	}
 
 	fs.clnup.AddE(fcache.Clean)
-	fs.fcache = fcache
+	fs.fscache = fcache
 	return fs, nil
 }
 
-// Size returns the file size of src.Location. If the source is being
+// Filesize returns the file size of src.Location. If the source is being
 // loaded asynchronously, this function may block until loading completes.
-func (fs *Files) Size(ctx context.Context, src *Source) (size int64, err error) {
+func (fs *Files) Filesize(ctx context.Context, src *Source) (size int64, err error) {
 	locTyp := getLocType(src.Location)
 	switch locTyp {
 	case locTypeLocalFile:
@@ -96,100 +105,126 @@ func (fs *Files) Size(ctx context.Context, src *Source) (size int64, err error) 
 			return 0, errz.Err(err)
 		}
 		return fi.Size(), nil
+
 	case locTypeRemoteFile:
 		// FIXME: implement remote file size.
 		return 0, errz.Errorf("remote file size not implemented: %s", src.Location)
+
 	case locTypeSQL:
 		return 0, errz.Errorf("cannot get size of SQL source: %s", src.Handle)
+
 	case locTypeStdin:
-		// Special handling for stdin.
-		if fs.stdinLength == nil {
-			return 0, errz.Errorf("stdin not yet added")
+		fs.mu.Lock()
+		entryMeta, ok := fs.fscacheEntryMetas[StdinHandle]
+		fs.mu.Unlock()
+		if !ok {
+			return 0, errz.Errorf("stdin not present in cache")
 		}
 		select {
 		case <-ctx.Done():
 			return 0, ctx.Err()
-		default:
-			return fs.stdinLength(), nil
+		case <-entryMeta.done:
+			return entryMeta.written, entryMeta.err
 		}
+
 	default:
 		return 0, errz.Errorf("unknown source location type: %s", RedactLocation(src.Location))
 	}
+}
+
+// fscacheEntryMeta contains metadata about a fscache entry.
+// When the cache entry has been filled, the done channel
+// is closed and the written and err fields are set.
+// This mechanism allows Files.Filesize to block until
+// the asynchronous filling of the cache entry has completed.
+type fscacheEntryMeta struct {
+	key     string
+	done    chan struct{}
+	written int64
+	err     error
 }
 
 // AddStdin copies f to fs's cache: the stdin data in f
 // is later accessible via fs.Open(src) where src.Handle
 // is StdinHandle; f's type can be detected via DetectStdinType.
 // Note that f is closed by this method.
-//
-// FIXME: AddStdin is probably not necessary, we can just do it
-// on the fly in newReader? Or do we provide this because "stdin"
-// can be something other than os.Stdin, e.g. via a flag?
 func (fs *Files) AddStdin(ctx context.Context, f *os.File) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	err := fs.addStdin(ctx, f) // f is closed by addStdin
-	return errz.Wrap(err, "failed to read stdin")
+	err := fs.addStdin(ctx, StdinHandle, f) // f is closed by addStdin
+	return errz.Wrapf(err, "failed to add %s to fscache", StdinHandle)
 }
 
-// addStdin synchronously copies f (stdin) to fs's cache. f is closed
+// addStdin synchronously copies f to fs's cache. f is closed
 // when the async copy completes. This method should only be used
-// for stdin; for regular files, use Files.addFile.
-func (fs *Files) addStdin(ctx context.Context, f *os.File) error {
-	log := lg.FromContext(ctx).With(lga.File, f.Name())
+// for stdin; for regular files, use Files.addRegularFile.
+func (fs *Files) addStdin(ctx context.Context, handle string, f *os.File) error {
+	log := lg.FromContext(ctx).With(lga.Handle, handle, lga.File, f.Name())
 
-	if fs.stdinLength != nil {
-		return errz.Errorf("stdin already added")
+	if _, ok := fs.fscacheEntryMetas[handle]; ok {
+		return errz.Errorf("%s already added to fscache", handle)
 	}
 
-	// Special handling for stdin
-	r, w, wErrFn, err := fs.fcache.GetWithErr(StdinHandle)
+	cacheRdr, cacheWrtr, cacheWrtrErrFn, err := fs.fscache.GetWithErr(handle)
 	if err != nil {
 		return errz.Err(err)
 	}
 
-	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
+	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, cacheRdr)
 
-	if w == nil {
+	if cacheWrtr == nil {
 		// Shouldn't happen
-		return errz.Errorf("no cache writer for %s", StdinHandle)
-	}
-
-	lw := ioz.NewWrittenWriter(w)
-	fs.stdinLength = lw.Written
-
-	cr := contextio.NewReader(ctx, f)
-	pw := progress.NewWriter(ctx, "Reading stdin", -1, lw)
-
-	start := time.Now()
-	ioz.CopyAsync(pw, cr, func(written int64, err error) {
-		defer lg.WarnIfCloseError(log, lgm.CloseFileReader, f)
-		elapsed := time.Since(start)
-		if err == nil {
-			log.Debug("Async stdin cache fill: completed", lga.Copied, written, lga.Elapsed, elapsed)
-			lg.WarnIfCloseError(log, "Close stdin cache", w)
-			pw.Stop()
-			return
+		if cacheRdr != nil {
+			return errz.Errorf("no fscache writer for %s (but fscache reader exists when it shouldn't)", handle)
 		}
 
-		log.Error("Async stdin cache fill: failure",
-			lga.Err, err,
-			lga.Copied, written,
-			lga.Elapsed, elapsed,
-		)
-		pw.Stop()
-		wErrFn(err)
-		// We deliberately don't close "w" here, because wErrFn handles that work.
-	})
-	log.Debug("Async stdin cache fill: dispatched")
+		return errz.Errorf("no fscache writer for %s", handle)
+	}
+
+	// We create an entry meta for this handle. This entry will be
+	// filled asynchronously in the ioz.CopyAsync callback below.
+	// The entry can then be consumed by Files.Filesize.
+	entryMeta := &fscacheEntryMeta{
+		key:  handle,
+		done: make(chan struct{}),
+	}
+	fs.fscacheEntryMetas[handle] = entryMeta
+
+	start := time.Now()
+	pw := progress.NewWriter(ctx, "Reading "+handle, -1, cacheWrtr)
+	ioz.CopyAsync(pw, contextio.NewReader(ctx, f),
+		func(written int64, err error) {
+			defer lg.WarnIfCloseError(log, lgm.CloseFileReader, f)
+			entryMeta.written = written
+			entryMeta.err = err
+			close(entryMeta.done)
+
+			elapsed := time.Since(start)
+			if err == nil {
+				log.Info("Async fscache fill: completed", lga.Copied, written, lga.Elapsed, elapsed)
+				lg.WarnIfCloseError(log, "Close fscache writer", cacheWrtr)
+				pw.Stop()
+				return
+			}
+
+			log.Error("Async fscache fill: failure", lga.Copied, written, lga.Elapsed, elapsed, lga.Err, err)
+
+			pw.Stop()
+			cacheWrtrErrFn(err)
+			// We deliberately don't close cacheWrtr here,
+			// because cacheWrtrErrFn handles that work.
+		},
+	)
+
+	log.Debug("Async fscache fill: dispatched")
 	return nil
 }
 
-// addFile maps f to fs's cache, returning a reader which the
+// addRegularFile maps f to fs's cache, returning a reader which the
 // caller is responsible for closing. f is closed by this method.
 // Do not add stdin via this function; instead use addStdin.
-func (fs *Files) addFile(ctx context.Context, f *os.File, key string) (fscache.ReadAtCloser, error) {
+func (fs *Files) addRegularFile(ctx context.Context, f *os.File, key string) (fscache.ReadAtCloser, error) {
 	log := lg.FromContext(ctx)
 	log.Debug("Adding file", lga.Key, key, lga.Path, f.Name())
 
@@ -198,42 +233,44 @@ func (fs *Files) addFile(ctx context.Context, f *os.File, key string) (fscache.R
 	if key == StdinHandle {
 		// This is a programming error; the caller should have
 		// instead invoked addStdin. Probably should panic here.
-		return nil, errz.New("illegal to add stdin via Files.addFile")
+		return nil, errz.New("illegal to add stdin via Files.addRegularFile")
 	}
 
-	if fs.fcache.Exists(key) {
+	if fs.fscache.Exists(key) {
 		return nil, errz.Errorf("file already exists in cache: %s", key)
 	}
 
-	if err := fs.fcache.MapFile(f.Name()); err != nil {
+	if err := fs.fscache.MapFile(f.Name()); err != nil {
 		return nil, errz.Wrapf(err, "failed to map file into fscache: %s", f.Name())
 	}
 
-	r, _, err := fs.fcache.Get(key)
+	r, _, err := fs.fscache.Get(key)
 	return r, errz.Err(err)
 }
 
 // Filepath returns the file path of src.Location.
 // An error is returned the source's driver type
 // is not a file type (i.e. it is a SQL driver).
+// FIXME: Implement Files.Filepath fully.
 func (fs *Files) Filepath(_ context.Context, src *Source) (string, error) {
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
-	loc := src.Location
+	// fs.mu.Lock()
+	// defer fs.mu.Unlock()
 
-	if fp, ok := isFpath(loc); ok {
-		return fp, nil
+	switch getLocType(src.Location) {
+	case locTypeLocalFile:
+		return src.Location, nil
+	case locTypeRemoteFile:
+		// FIXME: implement remote file location.
+		// It's a remote file. We really should download it here.
+		// FIXME: implement downloading.
+		return "", errz.Errorf("not implemented for remote source: %s", src.Handle)
+	case locTypeSQL:
+		return "", errz.Errorf("cannot get filepath of SQL source: %s", src.Handle)
+	case locTypeStdin:
+		return "", errz.Errorf("cannot get filepath of stdin source: %s", src.Handle)
+	default:
+		return "", errz.Errorf("unknown source location type for %s: %s", src.Handle, RedactLocation(src.Location))
 	}
-
-	u, ok := httpURL(loc)
-	if !ok {
-		return "", errz.Errorf("not a valid file location: %s", loc)
-	}
-
-	_ = u
-	// It's a remote file. We really should download it here.
-	// FIXME: implement downloading.
-	return "", errz.Errorf("Files.Filepath not implemented for remote files: %s", loc)
 }
 
 // Open returns a new io.ReadCloser for src.Location.
@@ -248,7 +285,7 @@ func (fs *Files) Open(ctx context.Context, src *Source) (io.ReadCloser, error) {
 }
 
 // OpenFunc returns a func that invokes fs.Open for src.Location.
-func (fs *Files) OpenFunc(src *Source) func(ctx context.Context) (io.ReadCloser, error) {
+func (fs *Files) OpenFunc(src *Source) FileOpenFunc {
 	return func(ctx context.Context) (io.ReadCloser, error) {
 		return fs.Open(ctx, src)
 	}
@@ -256,7 +293,9 @@ func (fs *Files) OpenFunc(src *Source) func(ctx context.Context) (io.ReadCloser,
 
 // ReadAll is a convenience method to read the bytes of a source.
 func (fs *Files) ReadAll(ctx context.Context, src *Source) ([]byte, error) {
+	// fs.mu.Lock()
 	r, err := fs.newReader(ctx, src.Location)
+	// fs.mu.Unlock()
 	if err != nil {
 		return nil, err
 	}
@@ -276,7 +315,6 @@ func (fs *Files) ReadAll(ctx context.Context, src *Source) ([]byte, error) {
 
 func (fs *Files) newReader(ctx context.Context, loc string) (io.ReadCloser, error) {
 	log := lg.FromContext(ctx).With(lga.Loc, loc)
-	log.Debug("Files.newReader", lga.Loc, loc)
 
 	locTyp := getLocType(loc)
 	switch locTyp {
@@ -285,7 +323,7 @@ func (fs *Files) newReader(ctx context.Context, loc string) (io.ReadCloser, erro
 	case locTypeSQL:
 		return nil, errz.Errorf("cannot read SQL source: %s", loc)
 	case locTypeStdin:
-		r, w, err := fs.fcache.Get(StdinHandle)
+		r, w, err := fs.fscache.Get(StdinHandle)
 		if err != nil {
 			return nil, errz.Err(err)
 		}
@@ -298,8 +336,8 @@ func (fs *Files) newReader(ctx context.Context, loc string) (io.ReadCloser, erro
 
 	// Well, it's either a local or remote file.
 	// Let's see if it's cached.
-	if fs.fcache.Exists(loc) {
-		r, _, err := fs.fcache.Get(loc)
+	if fs.fscache.Exists(loc) {
+		r, _, err := fs.fscache.Get(loc)
 		if err != nil {
 			return nil, err
 		}
@@ -313,8 +351,8 @@ func (fs *Files) newReader(ctx context.Context, loc string) (io.ReadCloser, erro
 		if err != nil {
 			return nil, errz.Err(err)
 		}
-		// fs.addFile closes f, so we don't have to do it.
-		r, err := fs.addFile(ctx, f, loc)
+		// fs.addRegularFile closes f, so we don't have to do it.
+		r, err := fs.addRegularFile(ctx, f, loc)
 		if err != nil {
 			return nil, err
 		}
@@ -324,7 +362,7 @@ func (fs *Files) newReader(ctx context.Context, loc string) (io.ReadCloser, erro
 	// It's an uncached remote file.
 
 	if loc == StdinHandle {
-		r, w, err := fs.fcache.Get(StdinHandle)
+		r, w, err := fs.fscache.Get(StdinHandle)
 		log.Debug("Returned from fs.fcache.Get", lga.Err, err)
 		if err != nil {
 			return nil, errz.Err(err)
@@ -336,8 +374,8 @@ func (fs *Files) newReader(ctx context.Context, loc string) (io.ReadCloser, erro
 		return r, nil
 	}
 
-	if !fs.fcache.Exists(loc) {
-		r, _, err := fs.fcache.Get(loc)
+	if !fs.fscache.Exists(loc) {
+		r, _, err := fs.fscache.Get(loc)
 		if err != nil {
 			return nil, err
 		}
@@ -351,8 +389,8 @@ func (fs *Files) newReader(ctx context.Context, loc string) (io.ReadCloser, erro
 		return nil, err
 	}
 
-	// Note that addFile closes f
-	r, err := fs.addFile(ctx, f, loc)
+	// Note that addRegularFile closes f
+	r, err := fs.addRegularFile(ctx, f, loc)
 	if err != nil {
 		return nil, err
 	}
