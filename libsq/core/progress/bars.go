@@ -118,6 +118,14 @@ func (p *Progress) NewUnitTotalCounter(msg, unit string, total int64) *Bar {
 	return p.newBar(msg, total, style, decorator)
 }
 
+// NewTimeoutWaiter returns a new indeterminate bar whose label is the
+// amount of time remaining until expires. It produces output similar to:
+//
+//	Locking @sakila                    ●∙∙              timeout in 7s
+//
+// The caller is ultimately responsible for calling [Bar.Stop] on
+// the returned bar, although the bar will also be stopped when the
+// parent Progress stops.
 func (p *Progress) NewTimeoutWaiter(msg string, expires time.Time) *Bar {
 	if p == nil {
 		return nil
@@ -126,24 +134,23 @@ func (p *Progress) NewTimeoutWaiter(msg string, expires time.Time) *Bar {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	style := spinnerStyle(p.colors.Filler)
+	style := spinnerStyle(p.colors.Waiting)
 	decorator := decor.Any(func(statistics decor.Statistics) string {
 		remaining := time.Until(expires)
 		switch {
 		case remaining > 0:
 			return p.colors.Size.Sprintf("timeout in %s", remaining.Round(time.Second))
 		case remaining > -time.Second:
-			// We do the extra second to prevent a "flash" of
-			// the timeout message.
+			// We do the extra second to prevent a "flash" of the timeout message,
+			// and it also prevents "timeout in -1s" etc. This situation should be
+			// rare; the caller should have already called Stop() on the Progress
+			// when the timeout happened, but we'll play it safe.
 			return p.colors.Size.Sprint("timeout in 0s")
 		default:
 			return p.colors.Warning.Sprintf("timed out")
 		}
 	})
 
-	start := time.Now()
-	total := expires.Sub(start)
-	b := p.newBar(msg, int64(total), style, decorator)
-
-	return b
+	total := time.Until(expires)
+	return p.newBar(msg, int64(total), style, decorator)
 }

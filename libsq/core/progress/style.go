@@ -18,23 +18,25 @@ const (
 // DefaultColors returns the default colors used for the progress bars.
 func DefaultColors() *Colors {
 	return &Colors{
-		Message: color.New(color.Faint),
-		Filler:  color.New(color.FgGreen, color.Bold, color.Faint),
-		Size:    color.New(color.Faint),
-		Percent: color.New(color.FgCyan, color.Faint),
-		Warning: color.New(color.FgYellow),
 		Error:   color.New(color.FgRed, color.Bold),
+		Filler:  color.New(color.FgGreen, color.Bold, color.Faint),
+		Message: color.New(color.Faint),
+		Percent: color.New(color.FgCyan, color.Faint),
+		Size:    color.New(color.Faint),
+		Waiting: color.New(color.FgYellow, color.Faint),
+		Warning: color.New(color.FgYellow),
 	}
 }
 
 // Colors is the set of colors used for the progress bars.
 type Colors struct {
-	Message *color.Color
-	Filler  *color.Color
-	Size    *color.Color
-	Percent *color.Color
-	Warning *color.Color
 	Error   *color.Color
+	Filler  *color.Color
+	Message *color.Color
+	Percent *color.Color
+	Size    *color.Color
+	Waiting *color.Color
+	Warning *color.Color
 }
 
 // EnableColor enables or disables color for the progress bars.
@@ -44,22 +46,24 @@ func (c *Colors) EnableColor(enable bool) {
 	}
 
 	if enable {
-		c.Message.EnableColor()
-		c.Filler.EnableColor()
-		c.Size.EnableColor()
-		c.Percent.EnableColor()
-		c.Warning.EnableColor()
 		c.Error.EnableColor()
+		c.Filler.EnableColor()
+		c.Message.EnableColor()
+		c.Percent.EnableColor()
+		c.Size.EnableColor()
+		c.Waiting.EnableColor()
+		c.Warning.EnableColor()
 
 		return
 	}
 
-	c.Message.DisableColor()
-	c.Filler.DisableColor()
-	c.Size.DisableColor()
-	c.Percent.DisableColor()
-	c.Warning.DisableColor()
 	c.Error.DisableColor()
+	c.Filler.DisableColor()
+	c.Message.DisableColor()
+	c.Percent.DisableColor()
+	c.Size.DisableColor()
+	c.Waiting.DisableColor()
+	c.Warning.DisableColor()
 }
 
 func colorize(decorator decor.Decorator, c *color.Color) decor.Decorator {
