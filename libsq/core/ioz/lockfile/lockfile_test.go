@@ -6,10 +6,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/neilotoole/slogt"
+
 	"github.com/neilotoole/sq/libsq/core/ioz/lockfile"
 	"github.com/neilotoole/sq/libsq/core/lg"
-	"github.com/stretchr/testify/require"
 )
 
 // FIXME: Duh, this can't work, because we're in the same pid.

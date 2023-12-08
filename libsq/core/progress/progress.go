@@ -22,9 +22,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	humanize "github.com/dustin/go-humanize"
-	"github.com/dustin/go-humanize/english"
-	"github.com/fatih/color"
 	mpb "github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
 
@@ -62,26 +59,6 @@ func FromContext(ctx context.Context) *Progress {
 
 	return nil
 }
-
-const (
-	msgLength   = 22
-	barWidth    = 28
-	boxWidth    = 64
-	refreshRate = 150 * time.Millisecond
-)
-
-// NOTE: The implementation below is wildly more complicated than it should be.
-// This is due to a bug in the mpb package, wherein it doesn't fully
-// respect the render delay.
-//
-//  https://github.com/vbauerster/mpb/issues/136
-//
-// Until that bug is fixed, we have a messy workaround. The gist of it
-// is that both the Progress.pc and Bar.bar are lazily initialized.
-// The Progress.pc (progress container) is initialized on the first
-// call to one of the Progress.NewX methods. The Bar.bar is initialized
-// only after the render delay has expired. The details are ugly.
-// Hopefully this can all be simplified once the mpb bug is fixed.
 
 // New returns a new Progress instance, which is a container for progress bars.
 // The returned Progress instance is safe for concurrent use, and all of its
@@ -129,6 +106,25 @@ func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors
 // The caller is responsible for calling [Progress.Stop] to indicate
 // completion.
 type Progress struct {
+	// The implementation here may seem a bit convoluted. The gist of it is that
+	// both the Progress.pc and Bar.bar are lazily initialized. The Progress.pc
+	// (progress container) is initialized on the first call to one of the
+	// Progress.NewX methods. The Bar.bar is initialized only after the bar's own
+	// render delay has expired. The details are ugly.
+	//
+	// Why not just use the mpb package directly? There are three main reasons:
+	//
+	// 1. At the time of creating this package, the mpb package didn't correctly
+	//    honor the render delay. See: https://github.com/vbauerster/mpb/issues/136
+	//    That bug has since been fixed, but...
+	// 2. The delayed initialization of the Bar.bar is useful for our purposes.
+	//    In particular, we can set the render delay on a per-bar basis, which is
+	//    not possible with the mpb package (its render delay is per Progress, not
+	//    per Bar).
+	// 3. Having this wrapper around the mpb package allows us greater
+	//    flexibility, e.g. if we ever want to swap out the mpb package for
+	//    something else.
+
 	// mu guards ALL public methods.
 	mu *sync.Mutex
 
@@ -197,115 +193,6 @@ func (p *Progress) Stop() {
 	p.pc.Wait()
 }
 
-// NewUnitCounter returns a new indeterminate bar whose label
-// metric is the plural of the provided unit. The caller is ultimately
-// responsible for calling [Bar.Stop] on the returned Bar. However,
-// the returned Bar is also added to the Progress's cleanup list, so
-// it will be called automatically when the Progress is shut down, but that
-// may be later than the actual conclusion of the spinner's work.
-//
-//	bar := p.NewUnitCounter("Ingest records", "rec")
-//	defer bar.Stop()
-//
-//	for i := 0; i < 100; i++ {
-//	    bar.IncrBy(1)
-//	    time.Sleep(100 * time.Millisecond)
-//	}
-//
-// This produces output similar to:
-//
-//	Ingesting records               ∙∙●              87 recs
-//
-// Note that the unit arg is automatically pluralized.
-func (p *Progress) NewUnitCounter(msg, unit string) *Bar {
-	if p == nil {
-		return nil
-	}
-
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	decorator := decor.Any(func(statistics decor.Statistics) string {
-		s := humanize.Comma(statistics.Current)
-		if unit != "" {
-			s += " " + english.PluralWord(int(statistics.Current), unit, "")
-		}
-		return s
-	})
-	decorator = colorize(decorator, p.colors.Size)
-
-	style := spinnerStyle(p.colors.Filler)
-
-	return p.newBar(msg, -1, style, decorator)
-}
-
-// NewUnitTotalCounter returns a new determinate bar whose label
-// metric is the plural of the provided unit. The caller is ultimately
-// responsible for calling [Bar.Stop] on the returned Bar. However,
-// the returned Bar is also added to the Progress's cleanup list, so
-// it will be called automatically when the Progress is shut down, but that
-// may be later than the actual conclusion of the Bar's work.
-//
-// This produces output similar to:
-//
-//	Ingesting sheets   ∙∙∙∙∙●                     4 / 16 sheets
-//
-// Note that the unit arg is automatically pluralized.
-func (p *Progress) NewUnitTotalCounter(msg, unit string, total int64) *Bar {
-	if p == nil {
-		return nil
-	}
-
-	if total <= 0 {
-		return p.NewUnitCounter(msg, unit)
-	}
-
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	style := barStyle(p.colors.Filler)
-	decorator := decor.Any(func(statistics decor.Statistics) string {
-		s := humanize.Comma(statistics.Current) + " / " + humanize.Comma(statistics.Total)
-		if unit != "" {
-			s += " " + english.PluralWord(int(statistics.Current), unit, "")
-		}
-		return s
-	})
-	decorator = colorize(decorator, p.colors.Size)
-	return p.newBar(msg, total, style, decorator)
-}
-
-// NewByteCounter returns a new progress bar whose metric is the count
-// of bytes processed. If the size is unknown, set arg size to -1. The caller
-// is ultimately responsible for calling [Bar.Stop] on the returned Bar.
-// However, the returned Bar is also added to the Progress's cleanup list,
-// so it will be called automatically when the Progress is shut down, but that
-// may be later than the actual conclusion of the Bar's work.
-func (p *Progress) NewByteCounter(msg string, size int64) *Bar {
-	if p == nil {
-		return nil
-	}
-
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	var style mpb.BarFillerBuilder
-	var counter decor.Decorator
-	var percent decor.Decorator
-	if size < 0 {
-		style = spinnerStyle(p.colors.Filler)
-		counter = decor.Current(decor.SizeB1024(0), "% .1f")
-	} else {
-		style = barStyle(p.colors.Filler)
-		counter = decor.Counters(decor.SizeB1024(0), "% .1f / % .1f")
-		percent = decor.NewPercentage(" %.1f", decor.WCSyncSpace)
-		percent = colorize(percent, p.colors.Percent)
-	}
-	counter = colorize(counter, p.colors.Size)
-
-	return p.newBar(msg, size, style, counter, percent)
-}
-
 // newBar returns a new Bar. This function must only be called from
 // inside the mutex.
 func (p *Progress) newBar(msg string, total int64,
@@ -324,7 +211,7 @@ func (p *Progress) newBar(msg string, total int64,
 	}
 
 	if p.pc == nil {
-		p.pcInit() // FIXME: delete this
+		p.pcInit()
 	}
 
 	if total < 0 {
@@ -360,7 +247,7 @@ func (p *Progress) newBar(msg string, total int64,
 		b.incrStash.Store(0)
 	}
 
-	b.delayCh = renderDelayBar(b, p.delay)
+	b.delayCh = barRenderDelay(b, p.delay)
 	p.bars = append(p.bars, b)
 
 	return b
@@ -448,9 +335,9 @@ func (b *Bar) Stop() {
 	b.bar.Wait()
 }
 
-// renderDelay returns a channel that will be closed after d,
+// barRenderDelay returns a channel that will be closed after d,
 // at which point b will be initialized.
-func renderDelayBar(b *Bar, d time.Duration) <-chan struct{} {
+func barRenderDelay(b *Bar, d time.Duration) <-chan struct{} {
 	ch := make(chan struct{})
 	t := time.NewTimer(d)
 	go func() {
@@ -461,73 +348,4 @@ func renderDelayBar(b *Bar, d time.Duration) <-chan struct{} {
 		b.initBarOnce.Do(b.initBar)
 	}()
 	return ch
-}
-
-func colorize(decorator decor.Decorator, c *color.Color) decor.Decorator {
-	return decor.Meta(decorator, func(s string) string {
-		return c.Sprint(s)
-	})
-}
-
-// DefaultColors returns the default colors used for the progress bars.
-func DefaultColors() *Colors {
-	return &Colors{
-		Message: color.New(color.Faint),
-		Filler:  color.New(color.FgGreen, color.Bold, color.Faint),
-		Size:    color.New(color.Faint),
-		Percent: color.New(color.FgCyan, color.Faint),
-	}
-}
-
-// Colors is the set of colors used for the progress bars.
-type Colors struct {
-	Message *color.Color
-	Filler  *color.Color
-	Size    *color.Color
-	Percent *color.Color
-}
-
-// EnableColor enables or disables color for the progress bars.
-func (c *Colors) EnableColor(enable bool) {
-	if c == nil {
-		return
-	}
-
-	if enable {
-		c.Message.EnableColor()
-		c.Filler.EnableColor()
-		c.Size.EnableColor()
-		c.Percent.EnableColor()
-		return
-	}
-
-	c.Message.DisableColor()
-	c.Filler.DisableColor()
-	c.Size.DisableColor()
-	c.Percent.DisableColor()
-}
-
-func spinnerStyle(c *color.Color) mpb.SpinnerStyleComposer {
-	// REVISIT: maybe use ascii chars only, in case it's a weird terminal?
-	frames := []string{"∙∙∙", "●∙∙", "●∙∙", "∙●∙", "∙●∙", "∙∙●", "∙∙●", "∙∙∙"}
-	style := mpb.SpinnerStyle(frames...)
-	if c != nil {
-		style = style.Meta(func(s string) string {
-			return c.Sprint(s)
-		})
-	}
-	return style
-}
-
-func barStyle(c *color.Color) mpb.BarStyleComposer {
-	clr := func(s string) string {
-		return c.Sprint(s)
-	}
-
-	frames := []string{"∙", "●", "●", "●", "∙"}
-	return mpb.BarStyle().
-		Lbound("  ").Rbound("  ").
-		Filler("∙").FillerMeta(clr).
-		Padding(" ").
-		Tip(frames...).TipMeta(clr)
 }

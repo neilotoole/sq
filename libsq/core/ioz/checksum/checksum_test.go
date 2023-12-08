@@ -3,8 +3,9 @@ package checksum_test
 import (
 	"testing"
 
-	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
 )
 
 func TestHash(t *testing.T) {
