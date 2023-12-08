@@ -1,11 +1,12 @@
 package progress
 
 import (
+	"time"
+
 	humanize "github.com/dustin/go-humanize"
 	"github.com/dustin/go-humanize/english"
 	mpb "github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
-	"time"
 	// NewByteCounter returns a new progress bar whose metric is the count
 	// of bytes processed. If the size is unknown, set arg size to -1. The caller
 	// is ultimately responsible for calling [Bar.Stop] on the returned Bar.
@@ -127,7 +128,7 @@ func (p *Progress) NewTimeoutWaiter(msg string, expires time.Time) *Bar {
 
 	style := spinnerStyle(p.colors.Filler)
 	decorator := decor.Any(func(statistics decor.Statistics) string {
-		remaining := expires.Sub(time.Now())
+		remaining := time.Until(expires)
 		switch {
 		case remaining > 0:
 			return p.colors.Size.Sprintf("timeout in %s", remaining.Round(time.Second))
@@ -142,51 +143,7 @@ func (p *Progress) NewTimeoutWaiter(msg string, expires time.Time) *Bar {
 
 	start := time.Now()
 	total := expires.Sub(start)
-	var lastUpdate time.Duration
-	_ = lastUpdate
 	b := p.newBar(msg, int64(total), style, decorator)
-
-	//go func() {
-	//	t := time.NewTimer(total)
-	//	defer t.Stop()
-	//
-	//	select {
-	//	case <-t.C:
-	//		return
-	//	case <-b.p.ctx.Done():
-	//		return
-	//	case <-b.delayCh:
-	//	}
-	//
-	//	if b.stopped {
-	//		return
-	//	}
-	//
-	//	b.initBarOnce.Do(b.initBar)
-	//
-	//	for {
-	//		select {
-	//		case <-t.C:
-	//			return
-	//		case <-b.p.ctx.Done():
-	//			return
-	//		default:
-	//		}
-	//
-	//		if b.stopped {
-	//			return
-	//		}
-	//
-	//		now := time.Now()
-	//		delta := expires.Sub(now)
-	//		amount := delta - lastUpdate
-	//		lastUpdate += amount
-	//
-	//		//b.bar.EwmaIncrement(amount)
-	//		b.IncrBy(int(amount))
-	//		time.Sleep(refreshRate)
-	//	}
-	//}()
 
 	return b
 }

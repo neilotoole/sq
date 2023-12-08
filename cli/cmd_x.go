@@ -3,10 +3,11 @@ package cli
 import (
 	"bufio"
 	"fmt"
-	"github.com/neilotoole/sq/libsq/core/lg"
-	"github.com/neilotoole/sq/libsq/core/progress"
 	"os"
 	"time"
+
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/progress"
 
 	"github.com/spf13/cobra"
 
@@ -103,22 +104,22 @@ func execXDevTestCmd(cmd *cobra.Command, _ []string) error {
 	defer bar.Stop()
 
 	select {
-	//case <-pressEnter():
+	// case <-pressEnter():
 	//	bar.Stop()
 	//	pb.Stop()
 	//	fmt.Fprintln(ru.Out, "\nENTER received")
 	case <-ctx.Done():
-		//bar.Stop()
-		//pb.Stop()
+		// bar.Stop()
+		// pb.Stop()
 		fmt.Fprintln(ru.Out, "Context done")
 	case <-time.After(d + time.Second*5):
-		//bar.Stop()
+		// bar.Stop()
 		log.Warn("timed out, about to print something")
 		fmt.Fprintln(ru.Out, "Really timed out")
 		log.Warn("done printing")
 	}
 
-	//bar.EwmaIncrInt64(rand.Int63n(5)+1, time.Since(start))
+	// bar.EwmaIncrInt64(rand.Int63n(5)+1, time.Since(start))
 	fmt.Fprintln(ru.Out, "exiting")
 	return ctx.Err()
 }

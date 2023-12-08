@@ -466,7 +466,6 @@ func getPrinting(cmd *cobra.Command, opts options.Options, out, errOut io.Writer
 		out2 = ioz.NotifyOnceWriter(out2, func() {
 			lg.FromContext(ctx).Debug("Output stream is being written to; removing progress widget")
 			prog.Stop()
-			lg.FromContext(ctx).Debug("Output stream is being written to; stop has returned")
 		})
 		cmd.SetContext(progress.NewContext(ctx, prog))
 	}

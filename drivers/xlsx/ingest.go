@@ -134,6 +134,7 @@ func ingestXLSX(ctx context.Context, src *source.Source, destGrip driver.Grip, x
 
 	var ingestCount, skipped int
 	for i := range sheetTbls {
+		time.Sleep(progress.DebugDelay)
 		if sheetTbls[i] == nil {
 			// tblDef can be nil if its sheet is empty (has no data).
 			skipped++

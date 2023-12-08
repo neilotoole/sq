@@ -234,7 +234,7 @@ func (gs *Grips) openIngestCache(ctx context.Context, src *source.Source,
 	}
 
 	if err = lock.Lock(ctx, time.Second*5); err != nil {
-		return nil, errz.Wrap(err, "acquire cache lock")
+		return nil, errz.Wrap(err, src.Handle+": acquire cache lock")
 	}
 
 	defer func() {

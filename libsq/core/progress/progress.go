@@ -29,6 +29,13 @@ import (
 	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
+// DebugDelay is a duration that parts of the codebase sleep for to
+// facilitate testing the progress impl. It should be removed before
+// release.
+//
+// Deprecated: This is a temporary hack for testing.
+const DebugDelay = time.Millisecond * 20
+
 type ctxKey struct{}
 
 // NewContext returns ctx with p added as a value.
@@ -137,6 +144,7 @@ type Progress struct {
 	pc *mpb.Progress
 
 	// pcInit is the func that lazily initializes pc.
+	// FIXME: Do we even need the lazily initialized pc now?
 	pcInit func()
 
 	// delay is the duration to wait before rendering a progress bar.
@@ -153,50 +161,57 @@ type Progress struct {
 }
 
 // Stop waits for all bars to complete and finally shuts down the
-// container. After this method has been called, there is no way
-// to reuse the Progress instance.
+// progress container. After this method has been called, there is
+// no way to reuse the Progress instance.
 func (p *Progress) Stop() {
 	if p == nil {
 		return
 	}
 
 	p.mu.Lock()
-	defer p.mu.Unlock()
+	p.doStop()
+	p.mu.Unlock()
+}
 
-	lg.FromContext(p.ctx).Debug("Stopping progress widget: enter")
-
+// doStop is probably needlessly complex, but at the time it was written,
+// there was a bug in the mpb package (to do with delayed render and abort),
+// and so was created an extra-paranoid workaround.
+func (p *Progress) doStop() {
 	if p.stopped {
 		return
 	}
 
 	p.stopped = true
-	p.cancelFn()
 
 	if p.pc == nil {
+		p.cancelFn()
 		return
 	}
 
 	if len(p.bars) == 0 {
+		// p.pc.Wait() FIXME: Does this need to happen
+		p.cancelFn()
 		return
 	}
 
 	for _, b := range p.bars {
+		// We abort each of the bars here, before we call b.doStop() below.
+		// In theory, this gives the bar abortion process a head start before
+		// b.bar.Wait() is invoked by b.doStop(). This may be completely
+		// unnecessary, but it doesn't seem to hurt.
 		if b.bar != nil {
-			b.bar.SetTotal(-1, true)
 			b.bar.Abort(true)
 		}
 	}
 
 	for _, b := range p.bars {
 		b.doStop()
-		//if b.bar != nil {
-		//	b.bar.Wait()
-		//}
 	}
 
 	p.pc.Wait()
-	lg.FromContext(p.ctx).Debug("Stopping progress widget: exit")
-	//time.Sleep(refreshRate * 2)
+	// Important: we must call cancelFn after pc.Wait() or the bars
+	// may not be removed from the terminal.
+	p.cancelFn()
 }
 
 // newBar returns a new Bar. This function must only be called from
@@ -341,7 +356,6 @@ func (b *Bar) doStop() {
 	}
 
 	if !b.stopped {
-		b.bar.SetTotal(-1, true)
 		b.bar.Abort(true)
 	}
 	b.stopped = true

@@ -468,6 +468,7 @@ func NewBatchInsert(ctx context.Context, msg string, drvr SQLDriver, db sqlz.DB,
 
 				bi.written.Add(affected)
 				pbar.IncrBy(int(affected))
+				time.Sleep(progress.DebugDelay)
 
 				if rec == nil {
 					// recCh is closed (coincidentally exactly on the
@@ -511,6 +512,7 @@ func NewBatchInsert(ctx context.Context, msg string, drvr SQLDriver, db sqlz.DB,
 
 			bi.written.Add(affected)
 			pbar.IncrBy(int(affected))
+			time.Sleep(progress.DebugDelay)
 
 			// We're done
 			return
