@@ -98,13 +98,14 @@ func NewFiles(ctx context.Context, c *http.Client, tmpDir, cacheDir string, clea
 		})
 	}
 
-	fsc, err := fscache.New(fscacheTmpDir, os.ModePerm, time.Hour)
-	if err != nil {
+	var err error
+	if fs.fscache, err = fscache.New(fscacheTmpDir, os.ModePerm, time.Hour); err != nil {
 		return nil, errz.Err(err)
 	}
+	fs.clnup.AddE(fs.fscache.Clean)
 
-	fs.clnup.AddE(fsc.Clean)
-	fs.fscache = fsc
+	fs.clnup.Add(func() { fs.sweepCacheDir(ctx) })
+
 	return fs, nil
 }
 
@@ -491,13 +492,56 @@ func (fs *Files) openLocation(ctx context.Context, loc string) (*os.File, error)
 // Close closes any open resources.
 func (fs *Files) Close() error {
 	fs.log.Debug("Files.Close invoked: executing clean funcs", lga.Count, fs.clnup.Len())
-
 	return fs.clnup.Run()
 }
 
 // CleanupE adds fn to the cleanup sequence invoked by fs.Close.
 func (fs *Files) CleanupE(fn func() error) {
 	fs.clnup.AddE(fn)
+}
+
+func (fs *Files) sweepCacheDir(ctx context.Context) {
+	dir := fs.cacheDir
+	log := lg.FromContext(ctx).With(lga.Dir, dir)
+	log.Debug("Sweeping cache dir")
+	var count int
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+		if err != nil {
+			log.Warn("Problem sweeping cache dir", lga.Path, path, lga.Err, err)
+			return nil
+		}
+
+		if !info.IsDir() {
+			return nil
+		}
+
+		files, err := os.ReadDir(path)
+		if err != nil {
+			log.Warn("Problem reading dir", lga.Dir, path, lga.Err, err)
+			return nil
+		}
+
+		if len(files) != 0 {
+			return nil
+		}
+
+		err = os.Remove(path)
+		if err != nil {
+			log.Warn("Problem removing empty dir", lga.Dir, path, lga.Err, err)
+		}
+		count++
+
+		return nil
+	})
+	if err != nil {
+		log.Warn("Problem sweeping cache dir", lga.Dir, dir, lga.Err, err)
+	}
+	log.Info("Swept cache dir", lga.Dir, dir, lga.Count, count)
 }
 
 // FileOpenFunc returns a func that opens a ReadCloser. The caller

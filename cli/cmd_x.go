@@ -52,10 +52,22 @@ func newXLockSrcCmd() *cobra.Command {
 			fmt.Fprintf(ru.Out, "Cache lock acquired for %s\n", src.Handle)
 			fmt.Fprintln(ru.Out, "Press ENTER to release lock and exit.")
 
-			// Wait for ENTER on stdin
-			buf := bufio.NewReader(os.Stdin)
-			fmt.Print(" > ")
-			_, _ = buf.ReadBytes('\n')
+			done := make(chan struct{})
+			go func() {
+				// Wait for ENTER on stdin
+				buf := bufio.NewReader(os.Stdin)
+				fmt.Print(" > ")
+				_, _ = buf.ReadBytes('\n')
+				close(done)
+			}()
+
+			select {
+			case <-done:
+				fmt.Fprintln(ru.Out, "ENTER received, releasing lock")
+			case <-ctx.Done():
+				fmt.Fprintln(ru.Out, "\nContext done, releasing lock")
+			}
+
 			fmt.Fprintf(ru.Out, "Releasing cache lock for %s\n", src.Handle)
 			if err = lock.Unlock(); err != nil {
 				return err
