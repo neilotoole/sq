@@ -3,9 +3,11 @@ package lockfile
 
 import (
 	"context"
-	"github.com/neilotoole/sq/libsq/core/ioz"
+	"errors"
 	"path/filepath"
 	"time"
+
+	"github.com/neilotoole/sq/libsq/core/ioz"
 
 	"github.com/nightlyone/lockfile"
 
@@ -53,8 +55,6 @@ func (l Lockfile) Lock(ctx context.Context, timeout time.Duration) error {
 
 	err := retry.Do(ctx, timeout,
 		func() error {
-			log.Debug("Attempting to acquire pid lock", lga.Attempts, attempts)
-
 			err := lockfile.Lockfile(l).TryLock()
 			attempts++
 			if err == nil {
@@ -62,7 +62,7 @@ func (l Lockfile) Lock(ctx context.Context, timeout time.Duration) error {
 				return nil
 			}
 
-			log.Debug("Failed to acquire pid lock", lga.Attempts, lga.Err, err)
+			// log.Debug("Failed to acquire pid lock, may retry", lga.Attempts, attempts, lga.Err, err)
 			return err
 		},
 		errz.IsType[lockfile.TemporaryError],
@@ -70,13 +70,17 @@ func (l Lockfile) Lock(ctx context.Context, timeout time.Duration) error {
 
 	elapsed := time.Since(start)
 	if err != nil {
-		log.Warn("Failed to acquire pid lock",
+		log.Error("Failed to acquire pid lock",
 			lga.Attempts, attempts,
 			lga.Elapsed, elapsed,
 			lga.Err, err,
 		)
-		return errz.Wrapf(err, "failed to acquire pid lock: %d attempts in %s: %s",
-			attempts, time.Since(start), l)
+
+		if errors.Is(err, lockfile.ErrBusy) {
+			return errz.Errorf("locked by other process")
+		}
+
+		return errz.Wrapf(err, "acquire lock")
 	}
 
 	return nil

@@ -2,14 +2,11 @@ package driver
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/nightlyone/lockfile"
 
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -19,7 +16,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/options"
-	"github.com/neilotoole/sq/libsq/core/retry"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
@@ -99,7 +95,7 @@ func (gs *Grips) IsSQLSource(src *source.Source) bool {
 }
 
 func (gs *Grips) getKey(src *source.Source) string {
-	return src.Handle + "_" + src.Hash()
+	return src.Handle
 }
 
 func (gs *Grips) doOpen(ctx context.Context, src *source.Source) (Grip, error) {
@@ -229,26 +225,26 @@ func (gs *Grips) openIngestCache(ctx context.Context, src *source.Source,
 	ingestFn func(ctx context.Context, destGrip Grip) error,
 ) (Grip, error) {
 	log := lg.FromContext(ctx)
+	log = log.With(lga.Handle, src.Handle)
+	ctx = lg.NewContext(ctx, log)
 
-	lock, err := gs.acquireLock(ctx, src)
+	lock, err := gs.files.CacheLockFor(src)
 	if err != nil {
 		return nil, err
 	}
+
+	if err = lock.Lock(ctx, time.Second*5); err != nil {
+		return nil, errz.Wrap(err, "acquire cache lock")
+	}
+
 	defer func() {
-		log.Debug("About to release cache lock...", "lock", lock)
 		if err = lock.Unlock(); err != nil {
-			log.Warn("Failed to release cache lock", "lock", lock, lga.Err, err)
-		} else {
-			log.Debug("Released cache lock", "lock", lock)
+			log.Warn("Failed to release cache lock", lga.Lock, lock, lga.Err, err)
 		}
 	}()
 
 	cacheDir, _, checksumsPath, err := gs.getCachePaths(src)
 	if err != nil {
-		return nil, err
-	}
-
-	if err = ioz.RequireDir(cacheDir); err != nil {
 		return nil, err
 	}
 
@@ -259,10 +255,8 @@ func (gs *Grips) openIngestCache(ctx context.Context, src *source.Source,
 		return nil, err
 	}
 
-	var (
-		impl        Grip
-		foundCached bool
-	)
+	var impl Grip
+	var foundCached bool
 	if impl, foundCached, err = gs.openCachedFor(ctx, src); err != nil {
 		return nil, err
 	}
@@ -324,51 +318,6 @@ func (gs *Grips) getCachePaths(src *source.Source) (srcCacheDir, cacheDB, checks
 	return srcCacheDir, cacheDB, checksums, nil
 }
 
-// acquireLock acquires a lock for src. The caller
-// is responsible for unlocking the lock, e.g.:
-//
-//	defer lg.WarnIfFuncError(d.log, "failed to unlock cache lock", lock.Unlock)
-//
-// The lock acquisition process is retried with backoff.
-func (gs *Grips) acquireLock(ctx context.Context, src *source.Source) (lockfile.Lockfile, error) {
-	lock, err := gs.getLockfileFor(src)
-	if err != nil {
-		return "", err
-	}
-
-	err = retry.Do(ctx, time.Second*5,
-		func() error {
-			lg.FromContext(ctx).Debug("Attempting to acquire cache lock", lga.Lock, lock)
-			return lock.TryLock()
-		},
-		func(err error) bool {
-			var temporaryError lockfile.TemporaryError
-			return errors.As(err, &temporaryError)
-		},
-	)
-	if err != nil {
-		return "", errz.Wrap(err, "failed to get lock")
-	}
-
-	lg.FromContext(ctx).Debug("Acquired cache lock", lga.Lock, lock)
-	return lock, nil
-}
-
-// getLockfileFor returns a lockfile for src. It doesn't
-// actually acquire the lock.
-func (gs *Grips) getLockfileFor(src *source.Source) (lockfile.Lockfile, error) {
-	srcCacheDir, _, _, err := gs.getCachePaths(src)
-	if err != nil {
-		return "", err
-	}
-
-	if err = ioz.RequireDir(srcCacheDir); err != nil {
-		return "", err
-	}
-	lockPath := filepath.Join(srcCacheDir, "pid.lock")
-	return lockfile.New(lockPath)
-}
-
 func (gs *Grips) openCachedFor(ctx context.Context, src *source.Source) (Grip, bool, error) {
 	_, cacheDBPath, checksumsPath, err := gs.getCachePaths(src)
 	if err != nil {
@@ -399,8 +348,6 @@ func (gs *Grips) openCachedFor(ctx context.Context, src *source.Source) (Grip, b
 	if err != nil {
 		return nil, false, err
 	}
-	gs.log.Debug("Got srcFilepath for src",
-		lga.Src, src, lga.Path, srcFilepath)
 
 	cachedChecksum, ok := mChecksums[srcFilepath]
 	if !ok {
@@ -422,15 +369,10 @@ func (gs *Grips) openCachedFor(ctx context.Context, src *source.Source) (Grip, b
 		return nil, false, nil
 	}
 
-	backingType, err := gs.files.DriverType(ctx, cacheDBPath)
-	if err != nil {
-		return nil, false, err
-	}
-
 	backingSrc := &source.Source{
 		Handle:   src.Handle + "_cached",
 		Location: "sqlite3://" + cacheDBPath,
-		Type:     backingType,
+		Type:     drivertype.Type("sqlite3"),
 	}
 
 	backingGrip, err := gs.doOpen(ctx, backingSrc)

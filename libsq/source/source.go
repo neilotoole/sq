@@ -3,8 +3,8 @@ package source
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"fmt"
+	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
 	"log/slog"
 	"net/url"
 	"strings"
@@ -106,9 +106,8 @@ func (s *Source) Hash() string {
 	buf.WriteString(s.Location)
 	buf.WriteString(s.Catalog)
 	buf.WriteString(s.Schema)
-	buf.WriteString(s.Options.Hash())
 
-	sum := sha256.Sum256(buf.Bytes())
+	sum := checksum.Hash(buf.Bytes())
 	return fmt.Sprintf("%x", sum)
 }
 

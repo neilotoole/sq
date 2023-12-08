@@ -156,7 +156,6 @@ func FinishRunInit(ctx context.Context, ru *run.Run) error {
 	// because databases could depend upon the existence of
 	// files (such as a sqlite db file).
 	ru.Cleanup.AddE(ru.Files.Close)
-	ru.Files.AddDriverDetectors(source.DetectMagicNumber)
 
 	ru.DriverRegistry = driver.NewRegistry(log)
 	dr := ru.DriverRegistry

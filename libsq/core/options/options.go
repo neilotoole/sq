@@ -15,8 +15,8 @@ package options
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"fmt"
+	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
 	"log/slog"
 	"slices"
 	"sync"
@@ -193,7 +193,7 @@ func (o Options) Hash() string {
 		v := o[k]
 		buf.WriteString(fmt.Sprintf("%v", v))
 	}
-	sum := sha256.Sum256(buf.Bytes())
+	sum := checksum.Hash(buf.Bytes())
 	return fmt.Sprintf("%x", sum)
 }
 

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -63,6 +64,8 @@ type Files struct {
 // NewFiles returns a new Files instance. If c is nil, http.DefaultClient is
 // used. If cleanFscache is true, the fscache is cleaned on Files.Close.
 func NewFiles(ctx context.Context, c *http.Client, tmpDir, cacheDir string, cleanFscache bool) (*Files, error) {
+	log := lg.FromContext(ctx)
+	log.Debug("Creating new Files instance", "tmp_dir", tmpDir, "cache_dir", cacheDir)
 	if tmpDir == "" {
 		return nil, errz.Errorf("tmpDir is empty")
 	}
@@ -244,7 +247,11 @@ func (fs *Files) addStdin(ctx context.Context, handle string, f *os.File) error 
 // Do not add stdin via this function; instead use addStdin.
 func (fs *Files) addRegularFile(ctx context.Context, f *os.File, key string) (fscache.ReadAtCloser, error) {
 	log := lg.FromContext(ctx)
-	log.Debug("Adding file", lga.Key, key, lga.Path, f.Name())
+	log.Debug("Adding regular file", lga.Key, key, lga.Path, f.Name())
+
+	if strings.Contains(f.Name(), "cached.db") {
+		log.Error("oh no, shouldn't be happening")
+	}
 
 	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, f)
 

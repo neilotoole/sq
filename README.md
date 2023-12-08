@@ -324,6 +324,7 @@ See [CHANGELOG.md](./CHANGELOG.md).
 - The [`log.devmode`](https://sq.io/docs/config#logdevmode) log format is
   derived from [`lmittmann/tint`](https://github.com/lmittmann/tint).
 - [`djherbis/fscache`](https://github.com/djherbis/fscache) is used for caching.
+- A forked version of lockfile
 
 ## Similar, related, or noteworthy projects
 

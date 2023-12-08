@@ -38,6 +38,7 @@ func (fs *Files) AddDriverDetectors(detectFns ...DriverDetectFunc) {
 }
 
 // DriverType returns the driver type of loc.
+// This may result in loading files into the cache.
 func (fs *Files) DriverType(ctx context.Context, loc string) (drivertype.Type, error) {
 	log := lg.FromContext(ctx).With(lga.Loc, loc)
 	ploc, err := parseLoc(loc)
@@ -61,6 +62,8 @@ func (fs *Files) DriverType(ctx context.Context, loc string) (drivertype.Type, e
 		}
 	}
 
+	// FIXME: We really should try to be smarter here, esp with sqlite files.
+
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 	// Fall back to the byte detectors
@@ -83,15 +86,22 @@ func (fs *Files) detectType(ctx context.Context, loc string) (typ drivertype.Typ
 	log := lg.FromContext(ctx).With(lga.Loc, loc)
 	start := time.Now()
 
+	openFn := func(ctx context.Context) (io.ReadCloser, error) {
+		return fs.newReader(ctx, loc)
+	}
+
+	// We do the magic number first, because it's so fast.
+	detected, score, err := DetectMagicNumber(ctx, openFn)
+	if err == nil && score >= 1.0 {
+		return detected, true, nil
+	}
+
 	type result struct {
 		typ   drivertype.Type
 		score float32
 	}
 
 	resultCh := make(chan result, len(fs.detectFns))
-	openFn := func(ctx context.Context) (io.ReadCloser, error) {
-		return fs.newReader(ctx, loc)
-	}
 
 	select {
 	case <-ctx.Done():

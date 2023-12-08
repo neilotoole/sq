@@ -4,11 +4,12 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/neilotoole/sq/libsq/core/stringz"
 	"io/fs"
 	"net/url"
 	"os"
 	"testing"
+
+	"github.com/neilotoole/sq/libsq/core/stringz"
 
 	"github.com/stretchr/testify/require"
 

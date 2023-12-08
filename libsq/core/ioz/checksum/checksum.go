@@ -3,8 +3,8 @@ package checksum
 import (
 	"bufio"
 	"bytes"
-	"crypto/sha256"
 	"fmt"
+	"hash/crc32"
 	"io"
 	"net/http"
 	"os"
@@ -14,14 +14,20 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
+// Hash returns the hash of b as a hex string.
+func Hash(b []byte) string {
+	sum := crc32.ChecksumIEEE(b)
+	return fmt.Sprintf("%x", sum)
+}
+
 // Checksum is a checksum of a file.
 type Checksum string
 
 // Write appends a checksum line to w, including
 // a newline. The typical format is:
 //
-//	<checksum>  <name>
-//	da1f14c16c09bebbc452108d9ab193541f2e96515aefcb7745fee5197c343106  file.txt
+//	<sum>     <name>
+//	3610a686  file.txt
 //
 // However, the checksum be any string value. Use ForFile to calculate
 // a checksum, and Read to read this format.
@@ -103,7 +109,7 @@ func ForFile(path string) (Checksum, error) {
 	buf.WriteString(strconv.FormatUint(uint64(fi.Mode()), 10))
 	buf.WriteString(strconv.FormatBool(fi.IsDir()))
 
-	sum := sha256.Sum256(buf.Bytes())
+	sum := Hash(buf.Bytes())
 	return Checksum(fmt.Sprintf("%x", sum)), nil
 }
 
@@ -129,7 +135,7 @@ func ForHTTPHeader(u string, header http.Header) Checksum {
 		}
 	}
 
-	sum := sha256.Sum256(buf.Bytes())
+	sum := Hash(buf.Bytes())
 	return Checksum(fmt.Sprintf("%x", sum))
 }
 
@@ -159,6 +165,6 @@ func ForHTTPResponse(resp *http.Response) Checksum {
 		}
 	}
 
-	sum := sha256.Sum256(buf.Bytes())
+	sum := Hash(buf.Bytes())
 	return Checksum(fmt.Sprintf("%x", sum))
 }

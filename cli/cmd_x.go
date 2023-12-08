@@ -55,8 +55,8 @@ func newXLockSrcCmd() *cobra.Command {
 			done := make(chan struct{})
 			go func() {
 				// Wait for ENTER on stdin
-				buf := bufio.NewReader(os.Stdin)
-				fmt.Print(" > ")
+				buf := bufio.NewReader(ru.Stdin)
+				fmt.Fprint(ru.Out, " > ")
 				_, _ = buf.ReadBytes('\n')
 				close(done)
 			}()

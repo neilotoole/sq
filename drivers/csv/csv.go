@@ -89,7 +89,6 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, er
 		return nil, err
 	}
 
-	log.Error("open ingest done", lga.Err, err)
 	return g, nil
 }
 
@@ -157,11 +156,7 @@ func (p *grip) TableMetadata(ctx context.Context, tblName string) (*metadata.Tab
 
 // SourceMetadata implements driver.Grip.
 func (p *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error) {
-	log := lg.FromContext(ctx)
-
-	log.Debug("before impl.SourceMetadata")
 	md, err := p.impl.SourceMetadata(ctx, noSchema)
-	log.Debug("after impl.SourceMetadata", lga.Err, err)
 	if err != nil {
 		return nil, err
 	}

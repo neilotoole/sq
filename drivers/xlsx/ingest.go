@@ -141,7 +141,6 @@ func ingestXLSX(ctx context.Context, src *source.Source, destGrip driver.Grip, x
 			continue
 		}
 
-		time.Sleep(time.Millisecond * 500) // FIXME: delete
 		if err = ingestSheetToTable(ctx, destGrip, sheetTbls[i]); err != nil {
 			return err
 		}

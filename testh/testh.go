@@ -170,8 +170,6 @@ func (h *Helper) init() {
 			assert.NoError(h.T, err)
 		})
 
-		h.files.AddDriverDetectors(source.DetectMagicNumber)
-
 		h.grips = driver.NewGrips(log, h.registry, h.files, sqlite3.NewScratchSource)
 		h.Cleanup.AddC(h.grips)
 
