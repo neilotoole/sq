@@ -163,6 +163,8 @@ func (p *Progress) Stop() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
+	lg.FromContext(p.ctx).Debug("Stopping progress widget: enter")
+
 	if p.stopped {
 		return
 	}
@@ -180,17 +182,21 @@ func (p *Progress) Stop() {
 
 	for _, b := range p.bars {
 		if b.bar != nil {
+			b.bar.SetTotal(-1, true)
 			b.bar.Abort(true)
 		}
 	}
 
 	for _, b := range p.bars {
-		if b.bar != nil {
-			b.bar.Wait()
-		}
+		b.doStop()
+		//if b.bar != nil {
+		//	b.bar.Wait()
+		//}
 	}
 
 	p.pc.Wait()
+	lg.FromContext(p.ctx).Debug("Stopping progress widget: exit")
+	//time.Sleep(refreshRate * 2)
 }
 
 // newBar returns a new Bar. This function must only be called from
@@ -320,6 +326,14 @@ func (b *Bar) Stop() {
 
 	b.p.mu.Lock()
 	defer b.p.mu.Unlock()
+
+	b.doStop()
+}
+
+func (b *Bar) doStop() {
+	if b == nil {
+		return
+	}
 
 	if b.bar == nil {
 		b.stopped = true

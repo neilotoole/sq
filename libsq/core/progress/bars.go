@@ -5,6 +5,7 @@ import (
 	"github.com/dustin/go-humanize/english"
 	mpb "github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
+	"time"
 	// NewByteCounter returns a new progress bar whose metric is the count
 	// of bytes processed. If the size is unknown, set arg size to -1. The caller
 	// is ultimately responsible for calling [Bar.Stop] on the returned Bar.
@@ -114,4 +115,78 @@ func (p *Progress) NewUnitTotalCounter(msg, unit string, total int64) *Bar {
 	})
 	decorator = colorize(decorator, p.colors.Size)
 	return p.newBar(msg, total, style, decorator)
+}
+
+func (p *Progress) NewTimeoutWaiter(msg string, expires time.Time) *Bar {
+	if p == nil {
+		return nil
+	}
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	style := spinnerStyle(p.colors.Filler)
+	decorator := decor.Any(func(statistics decor.Statistics) string {
+		remaining := expires.Sub(time.Now())
+		switch {
+		case remaining > 0:
+			return p.colors.Size.Sprintf("timeout in %s", remaining.Round(time.Second))
+		case remaining > -time.Second:
+			// We do the extra second to prevent a "flash" of
+			// the timeout message.
+			return p.colors.Size.Sprint("timeout in 0s")
+		default:
+			return p.colors.Warning.Sprintf("timed out")
+		}
+	})
+
+	start := time.Now()
+	total := expires.Sub(start)
+	var lastUpdate time.Duration
+	_ = lastUpdate
+	b := p.newBar(msg, int64(total), style, decorator)
+
+	//go func() {
+	//	t := time.NewTimer(total)
+	//	defer t.Stop()
+	//
+	//	select {
+	//	case <-t.C:
+	//		return
+	//	case <-b.p.ctx.Done():
+	//		return
+	//	case <-b.delayCh:
+	//	}
+	//
+	//	if b.stopped {
+	//		return
+	//	}
+	//
+	//	b.initBarOnce.Do(b.initBar)
+	//
+	//	for {
+	//		select {
+	//		case <-t.C:
+	//			return
+	//		case <-b.p.ctx.Done():
+	//			return
+	//		default:
+	//		}
+	//
+	//		if b.stopped {
+	//			return
+	//		}
+	//
+	//		now := time.Now()
+	//		delta := expires.Sub(now)
+	//		amount := delta - lastUpdate
+	//		lastUpdate += amount
+	//
+	//		//b.bar.EwmaIncrement(amount)
+	//		b.IncrBy(int(amount))
+	//		time.Sleep(refreshRate)
+	//	}
+	//}()
+
+	return b
 }

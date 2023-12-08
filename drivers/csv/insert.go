@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/csv"
 	"errors"
-	"io"
-
 	"github.com/neilotoole/sq/libsq"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -14,6 +12,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/sqlmodel"
 	"github.com/neilotoole/sq/libsq/driver"
+	"io"
 )
 
 // execInsert inserts the CSV records in readAheadRecs (followed by records

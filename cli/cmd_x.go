@@ -3,6 +3,8 @@ package cli
 import (
 	"bufio"
 	"fmt"
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/progress"
 	"os"
 	"time"
 
@@ -60,20 +62,10 @@ func execXLockSrcCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Fprintf(ru.Out, "Cache lock acquired for %s\n", src.Handle)
-	fmt.Fprintln(ru.Out, "Press ENTER to release lock and exit.")
-
-	done := make(chan struct{})
-	go func() {
-		// Wait for ENTER on stdin
-		buf := bufio.NewReader(ru.Stdin)
-		fmt.Fprint(ru.Out, " > ")
-		_, _ = buf.ReadBytes('\n')
-		close(done)
-	}()
 
 	select {
-	case <-done:
-		fmt.Fprintln(ru.Out, "ENTER received, releasing lock")
+	case <-pressEnter():
+		fmt.Fprintln(ru.Out, "\nENTER received, releasing lock")
 	case <-ctx.Done():
 		fmt.Fprintln(ru.Out, "\nContext done, releasing lock")
 	}
@@ -101,7 +93,43 @@ func newXDevTestCmd() *cobra.Command {
 
 func execXDevTestCmd(cmd *cobra.Command, _ []string) error {
 	ctx := cmd.Context()
+	log := lg.FromContext(ctx)
 	ru := run.FromContext(ctx)
 	_ = ru
-	return nil
+
+	d := time.Second * 5
+	pb := progress.FromContext(ctx)
+	bar := pb.NewTimeoutWaiter("Locking @sakila", time.Now().Add(d))
+	defer bar.Stop()
+
+	select {
+	//case <-pressEnter():
+	//	bar.Stop()
+	//	pb.Stop()
+	//	fmt.Fprintln(ru.Out, "\nENTER received")
+	case <-ctx.Done():
+		//bar.Stop()
+		//pb.Stop()
+		fmt.Fprintln(ru.Out, "Context done")
+	case <-time.After(d + time.Second*5):
+		//bar.Stop()
+		log.Warn("timed out, about to print something")
+		fmt.Fprintln(ru.Out, "Really timed out")
+		log.Warn("done printing")
+	}
+
+	//bar.EwmaIncrInt64(rand.Int63n(5)+1, time.Since(start))
+	fmt.Fprintln(ru.Out, "exiting")
+	return ctx.Err()
+}
+
+func pressEnter() <-chan struct{} {
+	done := make(chan struct{})
+	go func() {
+		buf := bufio.NewReader(os.Stdin)
+		fmt.Fprintf(os.Stdout, "\nPress [ENTER] to continue\n\n  > ")
+		_, _ = buf.ReadBytes('\n')
+		close(done)
+	}()
+	return done
 }

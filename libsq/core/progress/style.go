@@ -22,6 +22,8 @@ func DefaultColors() *Colors {
 		Filler:  color.New(color.FgGreen, color.Bold, color.Faint),
 		Size:    color.New(color.Faint),
 		Percent: color.New(color.FgCyan, color.Faint),
+		Warning: color.New(color.FgYellow),
+		Error:   color.New(color.FgRed, color.Bold),
 	}
 }
 
@@ -31,6 +33,8 @@ type Colors struct {
 	Filler  *color.Color
 	Size    *color.Color
 	Percent *color.Color
+	Warning *color.Color
+	Error   *color.Color
 }
 
 // EnableColor enables or disables color for the progress bars.
@@ -44,6 +48,9 @@ func (c *Colors) EnableColor(enable bool) {
 		c.Filler.EnableColor()
 		c.Size.EnableColor()
 		c.Percent.EnableColor()
+		c.Warning.EnableColor()
+		c.Error.EnableColor()
+
 		return
 	}
 
@@ -51,6 +58,8 @@ func (c *Colors) EnableColor(enable bool) {
 	c.Filler.DisableColor()
 	c.Size.DisableColor()
 	c.Percent.DisableColor()
+	c.Warning.DisableColor()
+	c.Error.DisableColor()
 }
 
 func colorize(decorator decor.Decorator, c *color.Color) decor.Decorator {
