@@ -4,7 +4,6 @@ import (
 	"context"
 	"io"
 	"log/slog"
-	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -12,6 +11,10 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
+
+	"github.com/neilotoole/sq/libsq/core/options"
 
 	"github.com/neilotoole/fscache"
 
@@ -40,12 +43,12 @@ import (
 // if we're reading long-running pipe from stdin). This entire thing
 // needs to be revisited. Maybe Files even becomes a fs.FS.
 type Files struct {
-	mu         sync.Mutex
-	log        *slog.Logger
-	cacheDir   string
-	tempDir    string
-	clnup      *cleanup.Cleanup
-	httpClient *http.Client
+	mu          sync.Mutex
+	log         *slog.Logger
+	cacheDir    string
+	tempDir     string
+	clnup       *cleanup.Cleanup
+	optRegistry *options.Registry
 
 	// fscache is used to cache files, providing convenient access
 	// to multiple readers via Files.newReader.
@@ -61,9 +64,11 @@ type Files struct {
 	detectFns []DriverDetectFunc
 }
 
-// NewFiles returns a new Files instance. If c is nil, http.DefaultClient is
-// used. If cleanFscache is true, the fscache is cleaned on Files.Close.
-func NewFiles(ctx context.Context, c *http.Client, tmpDir, cacheDir string, cleanFscache bool) (*Files, error) {
+// NewFiles returns a new Files instance. If cleanFscache is true, the fscache
+// is cleaned on Files.Close.
+func NewFiles(ctx context.Context, optReg *options.Registry,
+	tmpDir, cacheDir string, cleanFscache bool,
+) (*Files, error) {
 	log := lg.FromContext(ctx)
 	log.Debug("Creating new Files instance", "tmp_dir", tmpDir, "cache_dir", cacheDir)
 	if tmpDir == "" {
@@ -73,12 +78,12 @@ func NewFiles(ctx context.Context, c *http.Client, tmpDir, cacheDir string, clea
 		return nil, errz.Errorf("cacheDir is empty")
 	}
 
-	if c == nil {
-		c = http.DefaultClient
+	if optReg == nil {
+		optReg = &options.Registry{}
 	}
 
 	fs := &Files{
-		httpClient:        c,
+		optRegistry:       optReg,
 		cacheDir:          cacheDir,
 		fscacheEntryMetas: make(map[string]*fscacheEntryMeta),
 		tempDir:           tmpDir,
@@ -90,7 +95,12 @@ func NewFiles(ctx context.Context, c *http.Client, tmpDir, cacheDir string, clea
 	// on cleanup (unless something bad happens and sq doesn't
 	// get a chance to clean up). But, why take the chance; we'll just give
 	// fcache a unique dir each time.
-	fscacheTmpDir := filepath.Join(cacheDir, "fscache", strconv.Itoa(os.Getpid())+"_"+stringz.Uniq32())
+	fscacheTmpDir := filepath.Join(
+		cacheDir,
+		"fscache",
+		strconv.Itoa(os.Getpid())+"_"+checksum.Rand(),
+	)
+
 	if err := ioz.RequireDir(fscacheTmpDir); err != nil {
 		return nil, errz.Err(err)
 	}
@@ -108,7 +118,7 @@ func NewFiles(ctx context.Context, c *http.Client, tmpDir, cacheDir string, clea
 	fs.clnup.AddE(fs.fscache.Clean)
 
 	// REVISIT: We could automatically sweep the cache dir on Close?
-	// fs.clnup.Add(func() { fs.sweepCacheDir(ctx) })
+	// fs.clnup.Add(func() { fs.CacheSweep(ctx) })
 
 	return fs, nil
 }
@@ -172,6 +182,11 @@ type fscacheEntryMeta struct {
 func (fs *Files) AddStdin(ctx context.Context, f *os.File) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
+
+	// FIXME: This might be the spot where we can add the cleanup
+	// for the stdin cache dir, because it should always be deleted
+	// when sq exits. But, first we probably need to refactor the
+	// interaction with driver.Grips.
 
 	err := fs.addStdin(ctx, StdinHandle, f) // f is closed by addStdin
 	return errz.Wrapf(err, "failed to add %s to fscache", StdinHandle)
@@ -508,7 +523,53 @@ func (fs *Files) CleanupE(fn func() error) {
 	fs.clnup.AddE(fn)
 }
 
-func (fs *Files) sweepCacheDir(ctx context.Context) {
+// CacheClear clears the cache dir. This wipes the entire contents
+// of the cache dir, so it should be used with caution. Note that
+// this operation is distinct from [Files.CacheSweep].
+func (fs *Files) CacheClear(ctx context.Context) error {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	log := lg.FromContext(ctx).With(lga.Dir, fs.cacheDir)
+	log.Debug("Clearing cache dir")
+	if !ioz.DirExists(fs.cacheDir) {
+		log.Debug("Cache dir does not exist")
+		return nil
+	}
+
+	// Instead of directly deleting the existing cache dir, we first
+	// move it to /tmp, and then try to delete it. This should probably
+	// help with the situation where another sq instance has an open pid
+	// lock in the cache dir.
+
+	tmpDir := DefaultTempDir()
+	if err := ioz.RequireDir(tmpDir); err != nil {
+		return errz.Wrap(err, "cache clear")
+	}
+	relocateDir := filepath.Join(tmpDir, "dead_cache_"+stringz.Uniq8())
+	if err := os.Rename(fs.cacheDir, relocateDir); err != nil {
+		return errz.Wrap(err, "cache clear: relocate")
+	}
+
+	if err := os.RemoveAll(relocateDir); err != nil {
+		log.Warn("Could not delete relocated cache dir", lga.Path, relocateDir, lga.Err, err)
+	}
+
+	// Recreate the cache dir.
+	if err := ioz.RequireDir(fs.cacheDir); err != nil {
+		return errz.Wrap(err, "cache clear")
+	}
+
+	return nil
+}
+
+// CacheSweep sweeps the cache dir, making a best-effort attempt
+// to remove any empty directories. Note that this operation is
+// distinct from [Files.CacheClear].
+func (fs *Files) CacheSweep(ctx context.Context) {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
 	dir := fs.cacheDir
 	log := lg.FromContext(ctx).With(lga.Dir, dir)
 	log.Debug("Sweeping cache dir")

@@ -1,18 +1,13 @@
 package cli
 
 import (
-	"os"
-	"path/filepath"
-
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/run"
-	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
-	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 )
@@ -114,36 +109,8 @@ func newCacheClearCmd() *cobra.Command {
 }
 
 func execCacheClear(cmd *cobra.Command, _ []string) error {
-	log := lg.FromContext(cmd.Context())
-	cacheDir := source.DefaultCacheDir()
-	if !ioz.DirExists(cacheDir) {
-		return nil
-	}
-
-	// Instead of directly deleting the existing cache dir, we first
-	// move it to /tmp, and then try to delete it. This should probably
-	// help with the situation where another sq instance has an open pid
-	// lock in the cache dir.
-
-	tmpDir := source.DefaultTempDir()
-	if err := ioz.RequireDir(tmpDir); err != nil {
-		return errz.Wrap(err, "cache clear")
-	}
-	relocateDir := filepath.Join(tmpDir, "dead_cache_"+stringz.Uniq8())
-	if err := os.Rename(cacheDir, relocateDir); err != nil {
-		return errz.Wrap(err, "cache clear: relocate")
-	}
-
-	if err := os.RemoveAll(relocateDir); err != nil {
-		log.Warn("Could not delete relocated cache dir", lga.Path, relocateDir, lga.Err, err)
-	}
-
-	// Recreate the cache dir.
-	if err := ioz.RequireDir(cacheDir); err != nil {
-		return errz.Wrap(err, "cache clear")
-	}
-
-	return nil
+	ru := run.FromContext(cmd.Context())
+	return ru.Files.CacheClear(cmd.Context())
 }
 
 func newCacheTreeCmd() *cobra.Command {

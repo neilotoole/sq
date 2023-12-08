@@ -25,7 +25,6 @@ import (
 	"github.com/neilotoole/sq/drivers/xlsx"
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/slogbuf"
@@ -141,10 +140,8 @@ func FinishRunInit(ctx context.Context, ru *run.Run) error {
 
 	var err error
 	if ru.Files == nil {
-		// TODO: The timeout/ssl vals should really come from options.
-		c := ioz.NewHTTPClient(0, true)
-
-		ru.Files, err = source.NewFiles(ctx, c, source.DefaultTempDir(), source.DefaultCacheDir(), true)
+		ru.Files, err = source.NewFiles(ctx, ru.OptionsRegistry,
+			source.DefaultTempDir(), source.DefaultCacheDir(), true)
 		if err != nil {
 			lg.WarnIfFuncError(log, lga.Cleanup, ru.Cleanup.Run)
 			return err

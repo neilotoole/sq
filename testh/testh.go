@@ -158,10 +158,14 @@ func NewWith(t testing.TB, handle string) (*Helper, *source.Source, driver.SQLDr
 func (h *Helper) init() {
 	h.initOnce.Do(func() {
 		log := h.Log
+
+		optRegistry := &options.Registry{}
+		cli.RegisterDefaultOpts(optRegistry)
 		h.registry = driver.NewRegistry(log)
 
 		var err error
-		h.files, err = source.NewFiles(h.Context, nil, tu.TempDir(h.T), tu.CacheDir(h.T), true)
+		h.files, err = source.NewFiles(h.Context, optRegistry,
+			tu.TempDir(h.T), tu.CacheDir(h.T), true)
 		require.NoError(h.T, err)
 
 		h.Cleanup.Add(func() {
@@ -199,13 +203,13 @@ func (h *Helper) init() {
 		h.addUserDrivers()
 
 		h.run = &run.Run{
-			Stdin:           os.Stdin,
-			Out:             os.Stdout,
-			ErrOut:          os.Stdin,
-			Config:          config.New(),
-			ConfigStore:     config.DiscardStore{},
-			OptionsRegistry: &options.Registry{},
-			DriverRegistry:  h.registry,
+			Stdin:       os.Stdin,
+			Out:         os.Stdout,
+			ErrOut:      os.Stdin,
+			Config:      config.New(),
+			ConfigStore: config.DiscardStore{},
+
+			DriverRegistry: h.registry,
 		}
 	})
 }

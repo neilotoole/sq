@@ -33,6 +33,7 @@ var OptEmptyAsNull = options.NewBool(
 	`When true, empty CSV fields are treated as NULL. When false,
 the zero value for that type is used, e.g. empty string or 0.`,
 	options.TagSource,
+	options.TagIngestMutate,
 	"csv",
 )
 
@@ -47,6 +48,7 @@ var OptDelim = options.NewString(
 	`Delimiter to use for CSV files. Default is "comma".
 Possible values are: comma, space, pipe, tab, colon, semi, period.`,
 	options.TagSource,
+	options.TagIngestMutate,
 	"csv",
 )
 

@@ -118,6 +118,7 @@ func applySourceOptions(cmd *cobra.Command, src *source.Source) error {
 		defaultOpts = options.Options{}
 	}
 
+	// FIXME: This should only apply source options?
 	flagOpts, err := getOptionsFromFlags(cmd.Flags(), ru.OptionsRegistry)
 	if err != nil {
 		return err
@@ -174,6 +175,8 @@ func RegisterDefaultOpts(reg *options.Registry) {
 		OptLogDevMode,
 		OptDiffNumLines,
 		OptDiffDataFormat,
+		source.OptHTTPPingTimeout,
+		source.OptHTTPSkipVerify,
 		driver.OptConnMaxOpen,
 		driver.OptConnMaxIdle,
 		driver.OptConnMaxIdleTime,

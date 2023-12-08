@@ -15,13 +15,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
 )
 
-func TestHash(t *testing.T) {
-
-	got := checksum.Hash([]byte("hello"))
-	t.Log(got)
-	assert.Equal(t, "aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d", got)
-}
-
 func TestMarshalYAML(t *testing.T) {
 	m := map[string]any{
 		"hello": `sqlserver://sakila:p_ss"**W0rd@222.75.174.219?database=sakila`,

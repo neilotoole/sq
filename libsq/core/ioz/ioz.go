@@ -389,13 +389,10 @@ func PrintTree(w io.Writer, loc string, showSize, colorize bool) error {
 	return nil
 }
 
-// NewHTTPClient returns a new HTTP client with the specified timeout.
-// A timeout of zero means no timeout. If insecureSkipVerify is true, the
-// client will skip TLS verification.
-//
-// REVISIT: Would it be better to just not set a timeout, and instead
-// use context.WithTimeout for each request?
-func NewHTTPClient(timeout time.Duration, insecureSkipVerify bool) *http.Client {
+// NewHTTPClient returns a new HTTP client with no client-wide timeout.
+// If a timeout is needed, use a [context.WithTimeout] for each request.
+// If insecureSkipVerify is true, the client will skip TLS verification.
+func NewHTTPClient(insecureSkipVerify bool) *http.Client {
 	client := *http.DefaultClient
 
 	var tr *http.Transport
@@ -406,6 +403,9 @@ func NewHTTPClient(timeout time.Duration, insecureSkipVerify bool) *http.Client 
 	}
 
 	if tr.TLSClientConfig == nil {
+		// We allow tls.VersionTLS10, even though it's not considered
+		// secure these days. Ultimately this could become a config
+		// option.
 		tr.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS10} //nolint:gosec
 	} else {
 		tr.TLSClientConfig = tr.TLSClientConfig.Clone()
@@ -413,7 +413,7 @@ func NewHTTPClient(timeout time.Duration, insecureSkipVerify bool) *http.Client 
 
 	tr.TLSClientConfig.InsecureSkipVerify = insecureSkipVerify
 
-	client.Timeout = timeout
+	client.Timeout = 0
 	client.Transport = tr
 
 	return &client

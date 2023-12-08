@@ -1,9 +1,15 @@
 package source
 
 import (
+	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/neilotoole/sq/libsq/core/options"
+
+	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
@@ -27,10 +33,52 @@ func (fs *Files) CacheDirFor(src *Source) (dir string, err error) {
 		fs.cacheDir,
 		"sources",
 		filepath.Join(strings.Split(strings.TrimPrefix(handle, "@"), "/")...),
-		src.Hash(),
+		fs.sourceHash(src),
 	)
 
 	return dir, nil
+}
+
+// sourceHash generates a hash for src. The hash is based on the
+// member fields of src, with special handling for src.Options.
+// Only the opts that affect data ingestion (options.TagIngestMutate)
+// are incorporated in the hash.
+func (fs *Files) sourceHash(src *Source) string {
+	if src == nil {
+		return ""
+	}
+
+	buf := bytes.Buffer{}
+	buf.WriteString(src.Handle)
+	buf.WriteString(string(src.Type))
+	buf.WriteString(src.Location)
+	buf.WriteString(src.Catalog)
+	buf.WriteString(src.Schema)
+
+	// FIXME: Revisit this
+	mUsedKeys := make(map[string]any)
+
+	if src.Options != nil {
+		keys := src.Options.Keys()
+		for _, k := range keys {
+			opt := fs.optRegistry.Get(k)
+			switch {
+			case opt == nil,
+				!opt.IsSet(src.Options),
+				!opt.HasTag(options.TagIngestMutate):
+				continue
+			default:
+			}
+
+			buf.WriteString(k)
+			v := src.Options[k]
+			buf.WriteString(fmt.Sprintf("%v", v))
+			mUsedKeys[k] = v
+		}
+	}
+
+	sum := checksum.Hash(buf.Bytes())
+	return sum
 }
 
 // DefaultCacheDir returns the sq cache dir. This is generally

@@ -13,10 +13,8 @@
 package options
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
 	"log/slog"
 	"slices"
 	"sync"
@@ -177,24 +175,6 @@ func (o Options) Clone() Options {
 	}
 
 	return o2
-}
-
-// Hash returns a SHA256 hash of o. If o is nil or empty,
-// an empty string is returned.
-func (o Options) Hash() string {
-	if len(o) == 0 {
-		return ""
-	}
-
-	keys := o.Keys()
-	buf := bytes.Buffer{}
-	for _, k := range keys {
-		buf.WriteString(k)
-		v := o[k]
-		buf.WriteString(fmt.Sprintf("%v", v))
-	}
-	sum := checksum.Hash(buf.Bytes())
-	return fmt.Sprintf("%x", sum)
 }
 
 // Keys returns the sorted set of keys in o.

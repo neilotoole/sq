@@ -3,6 +3,7 @@ package checksum
 import (
 	"bufio"
 	"bytes"
+	"crypto/rand"
 	"fmt"
 	"hash/crc32"
 	"io"
@@ -18,6 +19,13 @@ import (
 func Hash(b []byte) string {
 	sum := crc32.ChecksumIEEE(b)
 	return fmt.Sprintf("%x", sum)
+}
+
+// Rand returns a random checksum.
+func Rand() string {
+	b := make([]byte, 128)
+	_, _ = rand.Read(b)
+	return Hash(b)
 }
 
 // Checksum is a checksum of a file.
@@ -109,8 +117,7 @@ func ForFile(path string) (Checksum, error) {
 	buf.WriteString(strconv.FormatUint(uint64(fi.Mode()), 10))
 	buf.WriteString(strconv.FormatBool(fi.IsDir()))
 
-	sum := Hash(buf.Bytes())
-	return Checksum(fmt.Sprintf("%x", sum)), nil
+	return Checksum(Hash(buf.Bytes())), nil
 }
 
 // ForHTTPHeader returns a checksum generated from URL u and
@@ -135,8 +142,7 @@ func ForHTTPHeader(u string, header http.Header) Checksum {
 		}
 	}
 
-	sum := Hash(buf.Bytes())
-	return Checksum(fmt.Sprintf("%x", sum))
+	return Checksum(Hash(buf.Bytes()))
 }
 
 // ForHTTPResponse returns a checksum generated from the response's
@@ -165,6 +171,5 @@ func ForHTTPResponse(resp *http.Response) Checksum {
 		}
 	}
 
-	sum := Hash(buf.Bytes())
-	return Checksum(fmt.Sprintf("%x", sum))
+	return Checksum(Hash(buf.Bytes()))
 }

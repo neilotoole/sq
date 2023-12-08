@@ -24,6 +24,11 @@ const (
 
 	// TagOutput indicates the Opt is related to output/formatting.
 	TagOutput = "output"
+
+	// TagIngestMutate indicates the Opt may result in mutated data, particularly
+	// during ingestion. This tag is significant in that its value may affect
+	// data realization, and thus affect program aspects such as caching behavior.
+	TagIngestMutate = "mutate"
 )
 
 // Opt is an option type. Concrete impls exist for various types,

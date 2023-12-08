@@ -2,9 +2,7 @@
 package source
 
 import (
-	"bytes"
 	"fmt"
-	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
 	"log/slog"
 	"net/url"
 	"strings"
@@ -91,24 +89,6 @@ type Source struct {
 
 	// Options are additional params, typically empty.
 	Options options.Options `yaml:"options,omitempty" json:"options,omitempty"`
-}
-
-// Hash returns an SHA256 hash of all fields of s. The Source.Options
-// field is ignored. If s is nil, the empty string is returned.
-func (s *Source) Hash() string {
-	if s == nil {
-		return ""
-	}
-
-	buf := bytes.Buffer{}
-	buf.WriteString(s.Handle)
-	buf.WriteString(string(s.Type))
-	buf.WriteString(s.Location)
-	buf.WriteString(s.Catalog)
-	buf.WriteString(s.Schema)
-
-	sum := checksum.Hash(buf.Bytes())
-	return fmt.Sprintf("%x", sum)
 }
 
 // LogValue implements slog.LogValuer.

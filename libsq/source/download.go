@@ -13,6 +13,9 @@ import (
 	"path"
 	"path/filepath"
 	"sync"
+	"time"
+
+	"github.com/neilotoole/sq/libsq/core/options"
 
 	"golang.org/x/exp/maps"
 
@@ -25,6 +28,28 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/source/fetcher"
+)
+
+var OptHTTPPingTimeout = options.NewDuration(
+	"http.ping.timeout",
+	"",
+	0,
+	time.Second*10,
+	"HTTP ping timeout duration",
+	`How long to wait for initial response from HTTP endpoint before
+timeout occurs. Long-running operations, such as HTTP file downloads, are
+not affected by this option. Example: 500ms or 3s.`,
+	options.TagSource,
+)
+
+var OptHTTPSkipVerify = options.NewBool(
+	"http.skip-verify",
+	"",
+	false,
+	0,
+	false,
+	"Skip HTTPS TLS verification",
+	"Skip HTTPS TLS verification. Useful when downloading against self-signed certs.",
 )
 
 func newDownloader(c *http.Client, cacheDir, url string) *downloader {
@@ -71,7 +96,6 @@ func newDownloader(c *http.Client, cacheDir, url string) *downloader {
 // stored files before proceeding. Likewise, if the download fails, the stored
 // files are wiped, to prevent a partial download from being used.
 type downloader struct {
-	// FIXME: Use a client that doesn't require SSL? (see fetcher)
 	c        *http.Client
 	mu       sync.Mutex
 	cacheDir string
