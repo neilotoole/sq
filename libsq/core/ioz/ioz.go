@@ -406,7 +406,7 @@ func NewHTTPClient(timeout time.Duration, insecureSkipVerify bool) *http.Client 
 	}
 
 	if tr.TLSClientConfig == nil {
-		tr.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS10}
+		tr.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS10} //nolint:gosec
 	} else {
 		tr.TLSClientConfig = tr.TLSClientConfig.Clone()
 	}

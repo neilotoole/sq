@@ -4,6 +4,10 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/neilotoole/sq/libsq/core/stringz"
+	"io/fs"
+	"net/url"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -21,7 +25,7 @@ func TestIs(t *testing.T) {
 	require.True(t, errors.Is(err, sql.ErrNoRows))
 }
 
-func TestAs(t *testing.T) {
+func TestWrapCauseAs(t *testing.T) {
 	var originalErr error //nolint:gosimple
 	originalErr = &CustomError{msg: "huzzah"}
 
@@ -93,4 +97,28 @@ func TestIsErrNoData(t *testing.T) {
 	err = errz.NoDataf("%s doesn't exist", "me")
 	require.True(t, errz.IsErrNoData(err))
 	require.Equal(t, "me doesn't exist", err.Error())
+}
+
+func TestIsType(t *testing.T) {
+	_, err := os.Open(stringz.Uniq32() + "-non-existing")
+	require.Error(t, err)
+	t.Logf("err: %T %v", err, err)
+
+	got := errz.IsType[*fs.PathError](err)
+	require.True(t, got)
+
+	got = errz.IsType[*url.Error](err)
+	require.False(t, got)
+}
+
+func TestAs(t *testing.T) {
+	fp := stringz.Uniq32() + "-non-existing"
+	_, err := os.Open(fp)
+	require.Error(t, err)
+	t.Logf("err: %T %v", err, err)
+
+	ok, pathErr := errz.As[*fs.PathError](err)
+	require.True(t, ok)
+	require.NotNil(t, pathErr)
+	require.Equal(t, fp, pathErr.Path)
 }

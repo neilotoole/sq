@@ -18,6 +18,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
+	"github.com/neilotoole/sq/libsq/core/ioz/lockfile"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
@@ -38,11 +39,12 @@ import (
 // if we're reading long-running pipe from stdin). This entire thing
 // needs to be revisited. Maybe Files even becomes a fs.FS.
 type Files struct {
-	mu       sync.Mutex
-	log      *slog.Logger
-	cacheDir string
-	tempDir  string
-	clnup    *cleanup.Cleanup
+	mu         sync.Mutex
+	log        *slog.Logger
+	cacheDir   string
+	tempDir    string
+	clnup      *cleanup.Cleanup
+	httpClient *http.Client
 
 	// fscache is used to cache files, providing convenient access
 	// to multiple readers via Files.newReader.
@@ -73,6 +75,7 @@ func NewFiles(ctx context.Context, c *http.Client, tmpDir, cacheDir string, clea
 	}
 
 	fs := &Files{
+		httpClient:        c,
 		cacheDir:          cacheDir,
 		fscacheEntryMetas: make(map[string]*fscacheEntryMeta),
 		tempDir:           tmpDir,
@@ -95,13 +98,13 @@ func NewFiles(ctx context.Context, c *http.Client, tmpDir, cacheDir string, clea
 		})
 	}
 
-	fcache, err := fscache.New(fscacheTmpDir, os.ModePerm, time.Hour)
+	fsc, err := fscache.New(fscacheTmpDir, os.ModePerm, time.Hour)
 	if err != nil {
 		return nil, errz.Err(err)
 	}
 
-	fs.clnup.AddE(fcache.Clean)
-	fs.fscache = fcache
+	fs.clnup.AddE(fsc.Clean)
+	fs.fscache = fsc
 	return fs, nil
 }
 
@@ -297,6 +300,47 @@ func (fs *Files) Open(ctx context.Context, src *Source) (io.ReadCloser, error) {
 	return fs.newReader(ctx, src.Location)
 }
 
+// NewLock returns a new source.Lock instance.
+func NewLock(src *Source, pidfile string) (Lock, error) {
+	lf, err := lockfile.New(pidfile)
+	if err != nil {
+		return Lock{}, errz.Err(err)
+	}
+
+	return Lock{
+		Lockfile: lf,
+		src:      src,
+	}, nil
+}
+
+type Lock struct {
+	lockfile.Lockfile
+	src *Source
+}
+
+func (l Lock) Source() *Source {
+	return l.src
+}
+
+func (l Lock) String() string {
+	return l.src.Handle + ": " + string(l.Lockfile)
+}
+
+// CacheLockFor returns the lock file for src's cache.
+func (fs *Files) CacheLockFor(src *Source) (lockfile.Lockfile, error) {
+	cacheDir, err := fs.CacheDirFor(src)
+	if err != nil {
+		return "", errz.Wrapf(err, "cache lock for %s", src.Handle)
+	}
+
+	lf, err := lockfile.New(filepath.Join(cacheDir, "pid.lock"))
+	if err != nil {
+		return "", errz.Wrapf(err, "cache lock for %s", src.Handle)
+	}
+
+	return lf, nil
+}
+
 // OpenFunc returns a func that invokes fs.Open for src.Location.
 func (fs *Files) OpenFunc(src *Source) FileOpenFunc {
 	return func(ctx context.Context) (io.ReadCloser, error) {
@@ -305,6 +349,10 @@ func (fs *Files) OpenFunc(src *Source) FileOpenFunc {
 }
 
 // ReadAll is a convenience method to read the bytes of a source.
+//
+// FIXME: Delete Files.ReadAll?
+//
+// Deprecated: Files.ReadAll is not in use. We can probably delete it.
 func (fs *Files) ReadAll(ctx context.Context, src *Source) ([]byte, error) {
 	// fs.mu.Lock()
 	r, err := fs.newReader(ctx, src.Location)

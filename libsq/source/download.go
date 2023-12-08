@@ -3,14 +3,6 @@ package source
 import (
 	"bytes"
 	"context"
-	"github.com/neilotoole/sq/libsq/core/ioz"
-	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
-	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
-	"github.com/neilotoole/sq/libsq/core/lg"
-	"github.com/neilotoole/sq/libsq/core/lg/lga"
-	"github.com/neilotoole/sq/libsq/core/lg/lgm"
-	"github.com/neilotoole/sq/libsq/core/stringz"
-	"golang.org/x/exp/maps"
 	"io"
 	"log/slog"
 	"mime"
@@ -22,7 +14,16 @@ import (
 	"path/filepath"
 	"sync"
 
+	"golang.org/x/exp/maps"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/ioz"
+	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
+	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/source/fetcher"
 )
 
@@ -91,10 +92,6 @@ func (d *downloader) checksumFile() string {
 
 func (d *downloader) headerFile() string {
 	return filepath.Join(d.cacheDir, "header.txt")
-}
-
-func (d *downloader) lockFile() string {
-	return filepath.Join(d.cacheDir, "pid.lock")
 }
 
 // Download downloads the file at the URL to the download dir, and also writes
@@ -223,8 +220,7 @@ func (d *downloader) Cached(ctx context.Context) (ok bool, sum checksum.Checksum
 		return false, "", ""
 	}
 
-	fi, err = os.Stat(d.checksumFile())
-	if err != nil {
+	if _, err = os.Stat(d.checksumFile()); err != nil {
 		log.Debug("not cached: can't stat download checksum file")
 		return false, "", ""
 	}
@@ -249,8 +245,7 @@ func (d *downloader) Cached(ctx context.Context) (ok bool, sum checksum.Checksum
 
 	downloadFile := filepath.Join(dlDir, key)
 
-	fi, err = os.Stat(downloadFile)
-	if err != nil {
+	if _, err = os.Stat(downloadFile); err != nil {
 		log.Debug("not cached: can't stat download file referenced in checksum file", lga.File, key)
 		return false, "", ""
 	}
@@ -276,10 +271,10 @@ func fetchHTTPHeader(ctx context.Context, u string) (header http.Header, err err
 	}
 
 	switch resp.StatusCode {
-	case http.StatusOK:
-		return resp.Header, nil
 	default:
 		return nil, errz.Errorf("unexpected HTTP status (%s) for HEAD: %s", resp.Status, u)
+	case http.StatusOK:
+		return resp.Header, nil
 	case http.StatusMethodNotAllowed:
 	}
 

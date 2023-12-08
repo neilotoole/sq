@@ -3,7 +3,6 @@ package tu
 
 import (
 	"fmt"
-	"github.com/neilotoole/sq/libsq/core/ioz"
 	"io"
 	"os"
 	"path/filepath"
@@ -18,6 +17,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 

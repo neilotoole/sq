@@ -3,17 +3,20 @@ package source
 import (
 	"bytes"
 	"context"
-	"github.com/neilotoole/slogt"
-	"github.com/neilotoole/sq/libsq/core/lg"
-	"github.com/neilotoole/sq/testh/proj"
-	"github.com/neilotoole/sq/testh/tu"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"strconv"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/neilotoole/slogt"
+
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/testh/proj"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func TestGetRemoteChecksum(t *testing.T) {
@@ -41,7 +44,6 @@ func TestFetchHTTPHeader_sqio(t *testing.T) {
 }
 
 func TestDownloader_Download(t *testing.T) {
-	const u = "https://sq.io/testdata/actor.csv"
 	ctx := lg.NewContext(context.Background(), slogt.New(t))
 
 	cacheDir, err := filepath.Abs(filepath.Join("testdata", "downloader", "cache-dir-1"))
@@ -72,11 +74,10 @@ func TestFetchHTTPHeader_HEAD_fallback_GET(t *testing.T) {
 			return
 		}
 
-		w.Header().Set(http.CanonicalHeaderKey("Content-Length"), strconv.Itoa(len(b)))
+		w.Header().Set("Content-Length", strconv.Itoa(len(b)))
 		w.WriteHeader(http.StatusOK)
 		_, err := w.Write(b)
 		require.NoError(t, err)
-
 	}))
 	t.Cleanup(srvr.Close)
 
@@ -85,13 +86,4 @@ func TestFetchHTTPHeader_HEAD_fallback_GET(t *testing.T) {
 	header, err := fetchHTTPHeader(context.Background(), u)
 	assert.NoError(t, err)
 	assert.NotNil(t, header)
-
-	//u := "https://sq.io/testdata/actor.csv"
-	//
-	//header, allowed, err := fetchHTTPHeader(context.Background(), u)
-	//require.NoError(t, err)
-	//require.True(t, allowed)
-	//require.NotNil(t, header)
-	//
-	//// TODO
 }

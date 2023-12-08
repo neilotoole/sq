@@ -2,7 +2,6 @@ package ioz_test
 
 import (
 	"bytes"
-	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
 	"io"
 	"os"
 	"sync"
@@ -13,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/ioz"
+	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
 )
 
 func TestMarshalYAML(t *testing.T) {

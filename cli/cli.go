@@ -78,9 +78,8 @@ func ExecuteWith(ctx context.Context, ru *run.Run, args []string) error {
 	ctx = options.NewContext(ctx, ru.Config.Options)
 	log := lg.FromContext(ctx)
 	log.Info("EXECUTE", "args", strings.Join(args, " "))
-	log.Debug("Build info", "build", buildinfo.Get())
-	log.Debug("Config",
-		"config.version", ru.Config.Version,
+	log.Info("Build info", "build", buildinfo.Get())
+	log.Info("Config", "config_version", ru.Config.Version,
 		lga.Path, ru.ConfigStore.Location(),
 	)
 
@@ -237,7 +236,10 @@ func newCommandTree(ru *run.Run) (rootCmd *cobra.Command) {
 	addCmd(ru, rootCmd, newCompletionCmd())
 	addCmd(ru, rootCmd, newVersionCmd())
 	addCmd(ru, rootCmd, newManCmd())
-	addCmd(ru, rootCmd, newXTestCmd())
+
+	xCmd := addCmd(ru, rootCmd, newXCmd())
+	addCmd(ru, xCmd, newXLockSrcCmd())
+	addCmd(ru, xCmd, newXTestCmd())
 
 	return rootCmd
 }

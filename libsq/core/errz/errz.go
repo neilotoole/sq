@@ -100,3 +100,30 @@ func IsErrContextDeadlineExceeded(err error) bool {
 func Tuple[T any](t T, err error) (T, error) {
 	return t, Err(err)
 }
+
+// As is a convenience wrapper around errors.As.
+//
+//	_, err := os.Open("non-existing")
+//	ok, pathErr := errz.As[*fs.PathError](err)
+//	require.True(t, ok)
+//	require.Equal(t, "non-existing", pathErr.Path)
+//
+// Under the covers, As delegates to errors.As.
+func As[E error](err error) (bool, E) {
+	var target E
+	if errors.As(err, &target) {
+		return true, target
+	}
+	return false, target
+}
+
+// IsType returns true if err, or an error in its tree, if of type E.
+//
+//		_, err := os.Open("non-existing")
+//	 isPathErr := errz.IsType[*fs.PathError](err)
+//
+// Under the covers, IsType uses errors.As.
+func IsType[E error](err error) bool {
+	var target E
+	return errors.As(err, &target)
+}
