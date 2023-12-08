@@ -104,7 +104,8 @@ func NewFiles(ctx context.Context, c *http.Client, tmpDir, cacheDir string, clea
 	}
 	fs.clnup.AddE(fs.fscache.Clean)
 
-	fs.clnup.Add(func() { fs.sweepCacheDir(ctx) })
+	// REVISIT: We could automatically sweep the cache dir on Close?
+	// fs.clnup.Add(func() { fs.sweepCacheDir(ctx) })
 
 	return fs, nil
 }
