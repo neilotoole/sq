@@ -71,7 +71,7 @@ func (w *progWriter) Write(p []byte) (n int, err error) {
 		w.b.Stop()
 		return 0, w.ctx.Err()
 	case <-w.delayCh:
-		w.b.initBarOnce.Do(w.b.initBar)
+		w.b.barInitOnce.Do(w.b.barInitFn)
 	default:
 	}
 
@@ -167,7 +167,7 @@ func (r *progReader) Read(p []byte) (n int, err error) {
 		r.b.Stop()
 		return 0, r.ctx.Err()
 	case <-r.delayCh:
-		r.b.initBarOnce.Do(r.b.initBar)
+		r.b.barInitOnce.Do(r.b.barInitFn)
 	default:
 	}
 

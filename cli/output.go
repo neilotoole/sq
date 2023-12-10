@@ -2,11 +2,12 @@ package cli
 
 import (
 	"fmt"
-	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"io"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/neilotoole/sq/libsq/core/cleanup"
 
 	"github.com/fatih/color"
 	colorable "github.com/mattn/go-colorable"
@@ -262,7 +263,9 @@ Note that this option is no-op if the rendered value is not an integer.
 // newWriters returns an output.Writers instance configured per defaults and/or
 // flags from cmd. The returned out2/errOut2 values may differ
 // from the out/errOut args (e.g. decorated to support colorization).
-func newWriters(cmd *cobra.Command, clnup *cleanup.Cleanup, o options.Options, out, errOut io.Writer) (w *output.Writers, out2, errOut2 io.Writer) {
+func newWriters(cmd *cobra.Command, clnup *cleanup.Cleanup, o options.Options,
+	out, errOut io.Writer,
+) (w *output.Writers, out2, errOut2 io.Writer) {
 	var pr *output.Printing
 	pr, out2, errOut2 = getPrinting(cmd, clnup, o, out, errOut)
 	log := logFrom(cmd)
@@ -375,7 +378,9 @@ func getRecordWriterFunc(f format.Format) output.NewRecordWriterFunc {
 // be absolutely bulletproof, as it's called by all commands, as well
 // as by the error handling mechanism. So, be sure to always check
 // for nil cmd, nil cmd.Context, etc.
-func getPrinting(cmd *cobra.Command, clnup *cleanup.Cleanup, opts options.Options, out, errOut io.Writer) (pr *output.Printing, out2, errOut2 io.Writer) {
+func getPrinting(cmd *cobra.Command, clnup *cleanup.Cleanup, opts options.Options,
+	out, errOut io.Writer,
+) (pr *output.Printing, out2, errOut2 io.Writer) {
 	pr = output.NewPrinting()
 
 	pr.FormatDatetime = timez.FormatFunc(OptDatetimeFormat.Get(opts))

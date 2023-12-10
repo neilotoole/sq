@@ -2,12 +2,13 @@ package driver
 
 import (
 	"context"
-	"github.com/neilotoole/sq/libsq/core/progress"
 	"log/slog"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/neilotoole/sq/libsq/core/progress"
 
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"

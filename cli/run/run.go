@@ -4,9 +4,10 @@ package run
 
 import (
 	"context"
-	"github.com/neilotoole/sq/libsq/core/lg"
 	"io"
 	"os"
+
+	"github.com/neilotoole/sq/libsq/core/lg"
 
 	"github.com/spf13/cobra"
 

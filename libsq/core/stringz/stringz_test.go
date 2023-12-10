@@ -1,13 +1,14 @@
 package stringz_test
 
 import (
+	"strconv"
+	"strings"
+	"testing"
+
 	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"strconv"
-	"strings"
-	"testing"
 
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/testh/tu"

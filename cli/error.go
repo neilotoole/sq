@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"os"
 
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/output/format"
@@ -26,9 +27,9 @@ import (
 func printError(ctx context.Context, ru *run.Run, err error) {
 	log := lg.FromContext(ctx)
 	log.Warn("printError called", lga.Err, err) // FIXME: delete
-	//debug.PrintStack()
-	//stack := errz.Stack(err)
-	//fmt.Fprintln(ru.Out, "printError stack", "stack", stack)
+	// debug.PrintStack()
+	// stack := errz.Stack(err)
+	// fmt.Fprintln(ru.Out, "printError stack", "stack", stack)
 	if err == nil {
 		log.Warn("printError called with nil error")
 		return

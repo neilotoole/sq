@@ -85,12 +85,14 @@ func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors
 	pCtx, cancelFn := context.WithCancel(lg.NewContext(context.Background(), log))
 
 	p := &Progress{
-		ctx:      pCtx,
-		mu:       &sync.Mutex{},
-		colors:   colors,
-		cancelFn: cancelFn,
-		bars:     make([]*Bar, 0),
-		delay:    delay,
+		ctx:       pCtx,
+		mu:        &sync.Mutex{},
+		colors:    colors,
+		cancelFn:  cancelFn,
+		bars:      make([]*Bar, 0),
+		delay:     delay,
+		stoppedCh: make(chan struct{}),
+		stopOnce:  &sync.Once{},
 	}
 
 	go func() {
@@ -100,7 +102,7 @@ func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors
 		lg.FromContext(pCtx).Warn("Main context trigger returned")
 	}()
 
-	p.pcInit = func() {
+	p.pcInitFn = func() {
 		opts := []mpb.ContainerOption{
 			mpb.WithOutput(out),
 			mpb.WithWidth(boxWidth),
@@ -109,10 +111,10 @@ func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors
 		}
 
 		p.pc = mpb.NewWithContext(ctx, opts...)
-		p.pcInit = nil
+		p.pcInitFn = nil
 	}
 
-	p.pcInit()
+	p.pcInitFn()
 	return p
 }
 
@@ -146,20 +148,20 @@ type Progress struct {
 	cancelFn context.CancelFunc
 
 	// pc is the underlying progress container. It is lazily initialized
-	// by pcInit. Any method that accesses pc must be certain that
-	// pcInit has been called.
+	// by pcInitFn. Any method that accesses pc must be certain that
+	// pcInitFn has been called.
 	pc *mpb.Progress
 
-	// pcInit is the func that lazily initializes pc.
-	// FIXME: Do we even need the lazily initialized pc now?
-	pcInit func()
+	// pcInitFn is the func that lazily initializes pc.
+	pcInitFn func()
 
 	// delay is the duration to wait before rendering a progress bar.
 	// This value is used for each bar created by this Progress.
 	delay time.Duration
 
-	// stopped is set to true when Stop is called.
-	stopped bool
+	// stoppedCh is closed when the progress widget is stopped.
+	stoppedCh chan struct{}
+	stopOnce  *sync.Once
 
 	colors *Colors
 
@@ -178,7 +180,6 @@ func (p *Progress) Stop() {
 	lg.FromContext(p.ctx).Warn("Stopping progress widget")
 	p.mu.Lock()
 	p.doStop()
-	<-p.ctx.Done()
 	p.mu.Unlock()
 
 	lg.FromContext(p.ctx).Warn("Stopped progress widget")
@@ -188,48 +189,48 @@ func (p *Progress) Stop() {
 // there was a bug in the mpb package (to do with delayed render and abort),
 // and so was created an extra-paranoid workaround.
 func (p *Progress) doStop() {
-	if p.stopped {
-		return
-	}
+	p.stopOnce.Do(func() {
+		defer close(p.stoppedCh)
 
-	p.stopped = true
-
-	if p.pc == nil {
-		p.pcInit = nil
-		p.cancelFn()
-		return
-	}
-
-	if len(p.bars) == 0 {
-		// p.pc.Wait() FIXME: Does this need to happen
-		p.cancelFn()
-		return
-	}
-
-	for _, b := range p.bars {
-		// We abort each of the bars here, before we call b.doStop() below.
-		// In theory, this gives the bar abortion process a head start before
-		// b.bar.Wait() is invoked by b.doStop(). This may be completely
-		// unnecessary, but it doesn't seem to hurt.
-		if b.bar != nil {
-			if !b.bar.Aborted() {
-				b.bar.Abort(true)
-			}
-
+		if p.pc == nil {
+			p.pcInitFn = nil
+			p.cancelFn()
+			return
 		}
-	}
 
-	for _, b := range p.bars {
-		b.doStop()
-		<-b.barStopped
-	}
+		if len(p.bars) == 0 {
+			// p.pc.Wait() FIXME: Does this need to happen
+			p.cancelFn()
+			return
+		}
 
-	lg.FromContext(p.ctx).Warn("progress: p.pc.Wait()")
-	p.pc.Wait()
-	lg.FromContext(p.ctx).Warn("progress: p.pc.Wait() DONE")
-	// Important: we must call cancelFn after pc.Wait() or the bars
-	// may not be removed from the terminal.
-	p.cancelFn()
+		for _, b := range p.bars {
+			// We abort each of the bars here, before we call b.doStop() below.
+			// In theory, this gives the bar abortion process a head start before
+			// b.bar.Wait() is invoked by b.doStop(). This may be completely
+			// unnecessary, but it doesn't seem to hurt.
+			if b.bar != nil {
+				if !b.bar.Aborted() {
+					b.bar.Abort(true)
+				}
+			}
+		}
+
+		for _, b := range p.bars {
+			b.doStop()
+			<-b.barStoppedCh // Wait for bar to stop
+		}
+
+		lg.FromContext(p.ctx).Warn("progress: p.pc.Wait()")
+		p.pc.Wait()
+		lg.FromContext(p.ctx).Warn("progress: p.pc.Wait() DONE")
+		// Important: we must call cancelFn after pc.Wait() or the bars
+		// may not be removed from the terminal.
+		p.cancelFn()
+	})
+
+	<-p.stoppedCh
+	<-p.ctx.Done()
 }
 
 // newBar returns a new Bar. This function must only be called from
@@ -241,16 +242,18 @@ func (p *Progress) newBar(msg string, total int64,
 		return nil
 	}
 
-	lg.FromContext(p.ctx).Debug("New bar", "msg", msg, "total", total)
-
 	select {
+	case <-p.stoppedCh:
+		return nil
 	case <-p.ctx.Done():
 		return nil
 	default:
 	}
 
+	lg.FromContext(p.ctx).Debug("New bar", "msg", msg, "total", total)
+
 	if p.pc == nil {
-		p.pcInit()
+		p.pcInitFn()
 	}
 
 	if total < 0 {
@@ -266,18 +269,17 @@ func (p *Progress) newBar(msg string, total int64,
 	}
 
 	b := &Bar{
-		p:           p,
-		incrStash:   &atomic.Int64{},
-		initBarOnce: &sync.Once{},
-		barStopOnce: &sync.Once{},
-		barStopped:  make(chan struct{}),
+		p:            p,
+		incrStash:    &atomic.Int64{},
+		barInitOnce:  &sync.Once{},
+		barStopOnce:  &sync.Once{},
+		barStoppedCh: make(chan struct{}),
 	}
-	b.initBar = func() {
-		if p.stopped {
-			return
-		}
+	b.barInitFn = func() {
 		select {
-		case <-b.barStopped:
+		case <-p.stoppedCh:
+			return
+		case <-b.barStoppedCh:
 			return
 		default:
 		}
@@ -306,7 +308,7 @@ func (p *Progress) newBar(msg string, total int64,
 // the bar is complete, the caller should invoke [Bar.Stop]. All
 // methods are safe to call on a nil Bar.
 type Bar struct {
-	// bar is nil until barInitOnce.Do(initBar) is called
+	// bar is nil until barInitOnce.Do(barInitFn) is called
 	bar *mpb.Bar
 	// p is never nil
 	p *Progress
@@ -319,11 +321,11 @@ type Bar struct {
 	// Until that bug is fixed, the Bar is lazily initialized
 	// after the render delay expires.
 
-	initBarOnce *sync.Once
-	initBar     func()
+	barInitOnce *sync.Once
+	barInitFn   func()
 
-	barStopOnce *sync.Once
-	barStopped  chan struct{}
+	barStopOnce  *sync.Once
+	barStoppedCh chan struct{}
 
 	delayCh <-chan struct{}
 
@@ -342,17 +344,15 @@ func (b *Bar) IncrBy(n int) {
 	b.p.mu.Lock()
 	defer b.p.mu.Unlock()
 
-	if b.p.stopped {
-		return
-	}
-
 	select {
-	case <-b.barStopped:
+	case <-b.p.stoppedCh:
+		return
+	case <-b.barStoppedCh:
 		return
 	case <-b.p.ctx.Done():
 		return
 	case <-b.delayCh:
-		b.initBarOnce.Do(b.initBar)
+		b.barInitOnce.Do(b.barInitFn)
 		if b.bar != nil {
 			b.bar.IncrBy(n)
 		}
@@ -373,7 +373,7 @@ func (b *Bar) Stop() {
 	defer b.p.mu.Unlock()
 
 	b.doStop()
-	<-b.barStopped
+	<-b.barStoppedCh
 }
 
 func (b *Bar) doStop() {
@@ -383,7 +383,7 @@ func (b *Bar) doStop() {
 
 	b.barStopOnce.Do(func() {
 		if b.bar == nil {
-			close(b.barStopped)
+			close(b.barStoppedCh)
 			return
 		}
 
@@ -392,7 +392,7 @@ func (b *Bar) doStop() {
 		}
 
 		b.bar.Wait()
-		close(b.barStopped)
+		close(b.barStoppedCh)
 		lg.FromContext(b.p.ctx).Debug("Stopped progress bar")
 	})
 }
@@ -400,14 +400,14 @@ func (b *Bar) doStop() {
 // barRenderDelay returns a channel that will be closed after d,
 // at which point b will be initialized.
 func barRenderDelay(b *Bar, d time.Duration) <-chan struct{} {
-	ch := make(chan struct{})
+	delayCh := make(chan struct{})
 	t := time.NewTimer(d)
 	go func() {
-		defer close(ch)
+		defer close(delayCh)
 		defer t.Stop()
 
 		<-t.C
-		b.initBarOnce.Do(b.initBar)
+		b.barInitOnce.Do(b.barInitFn)
 	}()
-	return ch
+	return delayCh
 }
