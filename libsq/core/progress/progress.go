@@ -75,23 +75,30 @@ func FromContext(ctx context.Context) *Progress {
 // The Progress is lazily initialized, and thus the delay clock doesn't
 // start ticking until the first call to one of the Progress.NewX methods.
 func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors) *Progress {
-	lg.FromContext(ctx).Debug("New progress widget", "delay", delay)
-
-	var cancelFn context.CancelFunc
-	ctx, cancelFn = context.WithCancel(ctx)
+	log := lg.FromContext(ctx)
+	log.Debug("New progress widget", "delay", delay)
 
 	if colors == nil {
 		colors = DefaultColors()
 	}
 
+	pCtx, cancelFn := context.WithCancel(lg.NewContext(context.Background(), log))
+
 	p := &Progress{
-		ctx:      ctx,
+		ctx:      pCtx,
 		mu:       &sync.Mutex{},
 		colors:   colors,
 		cancelFn: cancelFn,
 		bars:     make([]*Bar, 0),
 		delay:    delay,
 	}
+
+	go func() {
+		<-ctx.Done()
+		lg.FromContext(pCtx).Warn("Main context canceled")
+		p.Stop()
+		lg.FromContext(pCtx).Warn("Main context trigger returned")
+	}()
 
 	p.pcInit = func() {
 		opts := []mpb.ContainerOption{
@@ -168,10 +175,13 @@ func (p *Progress) Stop() {
 		return
 	}
 
+	lg.FromContext(p.ctx).Warn("Stopping progress widget")
 	p.mu.Lock()
 	p.doStop()
+	<-p.ctx.Done()
 	p.mu.Unlock()
-	lg.FromContext(p.ctx).Debug("Stopped progress widget")
+
+	lg.FromContext(p.ctx).Warn("Stopped progress widget")
 }
 
 // doStop is probably needlessly complex, but at the time it was written,
@@ -185,6 +195,7 @@ func (p *Progress) doStop() {
 	p.stopped = true
 
 	if p.pc == nil {
+		p.pcInit = nil
 		p.cancelFn()
 		return
 	}
@@ -201,15 +212,21 @@ func (p *Progress) doStop() {
 		// b.bar.Wait() is invoked by b.doStop(). This may be completely
 		// unnecessary, but it doesn't seem to hurt.
 		if b.bar != nil {
-			b.bar.Abort(true)
+			if !b.bar.Aborted() {
+				b.bar.Abort(true)
+			}
+
 		}
 	}
 
 	for _, b := range p.bars {
 		b.doStop()
+		<-b.barStopped
 	}
 
+	lg.FromContext(p.ctx).Warn("progress: p.pc.Wait()")
 	p.pc.Wait()
+	lg.FromContext(p.ctx).Warn("progress: p.pc.Wait() DONE")
 	// Important: we must call cancelFn after pc.Wait() or the bars
 	// may not be removed from the terminal.
 	p.cancelFn()
@@ -252,11 +269,19 @@ func (p *Progress) newBar(msg string, total int64,
 		p:           p,
 		incrStash:   &atomic.Int64{},
 		initBarOnce: &sync.Once{},
+		barStopOnce: &sync.Once{},
+		barStopped:  make(chan struct{}),
 	}
 	b.initBar = func() {
-		if b.stopped || p.stopped {
+		if p.stopped {
 			return
 		}
+		select {
+		case <-b.barStopped:
+			return
+		default:
+		}
+
 		b.bar = p.pc.New(total,
 			style,
 			mpb.BarWidth(barWidth),
@@ -297,13 +322,14 @@ type Bar struct {
 	initBarOnce *sync.Once
 	initBar     func()
 
+	barStopOnce *sync.Once
+	barStopped  chan struct{}
+
 	delayCh <-chan struct{}
 
 	// incrStash holds the increment count until the
 	// bar is fully initialized.
 	incrStash *atomic.Int64
-
-	stopped bool
 }
 
 // IncrBy increments progress by amount of n. It is safe to
@@ -316,11 +342,13 @@ func (b *Bar) IncrBy(n int) {
 	b.p.mu.Lock()
 	defer b.p.mu.Unlock()
 
-	if b.stopped || b.p.stopped {
+	if b.p.stopped {
 		return
 	}
 
 	select {
+	case <-b.barStopped:
+		return
 	case <-b.p.ctx.Done():
 		return
 	case <-b.delayCh:
@@ -345,7 +373,7 @@ func (b *Bar) Stop() {
 	defer b.p.mu.Unlock()
 
 	b.doStop()
-	lg.FromContext(b.p.ctx).Debug("Stopped progress bar")
+	<-b.barStopped
 }
 
 func (b *Bar) doStop() {
@@ -353,23 +381,20 @@ func (b *Bar) doStop() {
 		return
 	}
 
-	if b.bar == nil {
-		b.stopped = true
-		return
-	}
+	b.barStopOnce.Do(func() {
+		if b.bar == nil {
+			close(b.barStopped)
+			return
+		}
 
-	if b.stopped {
-		return
-	}
+		if !b.bar.Aborted() && !b.bar.Completed() {
+			b.bar.Abort(true)
+		}
 
-	//if !b.stopped {
-	//	b.bar.Abort(true)
-	//}
-	b.bar.SetTotal(-1, true)
-	b.bar.Abort(true)
-	b.stopped = true
-
-	b.bar.Wait()
+		b.bar.Wait()
+		close(b.barStopped)
+		lg.FromContext(b.p.ctx).Debug("Stopped progress bar")
+	})
 }
 
 // barRenderDelay returns a channel that will be closed after d,

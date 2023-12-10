@@ -84,7 +84,9 @@ func newRun(ctx context.Context, stdin *os.File, stdout, stderr io.Writer, args 
 
 	log, logHandler, logCloser, logErr := defaultLogging(ctx, args, ru.Config)
 	ru.Cleanup = cleanup.New()
+	// FIXME: re-enable log closing
 	ru.LogCloser = logCloser
+	_ = logCloser
 	if logErr != nil {
 		stderrLog, h := stderrLogger()
 		_ = logbuf.Flush(ctx, h)
