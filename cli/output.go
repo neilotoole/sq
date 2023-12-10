@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"io"
 	"os"
 	"strings"
@@ -261,10 +262,9 @@ Note that this option is no-op if the rendered value is not an integer.
 // newWriters returns an output.Writers instance configured per defaults and/or
 // flags from cmd. The returned out2/errOut2 values may differ
 // from the out/errOut args (e.g. decorated to support colorization).
-func newWriters(cmd *cobra.Command, o options.Options, out, errOut io.Writer,
-) (w *output.Writers, out2, errOut2 io.Writer) {
+func newWriters(cmd *cobra.Command, clnup *cleanup.Cleanup, o options.Options, out, errOut io.Writer) (w *output.Writers, out2, errOut2 io.Writer) {
 	var pr *output.Printing
-	pr, out2, errOut2 = getPrinting(cmd, o, out, errOut)
+	pr, out2, errOut2 = getPrinting(cmd, clnup, o, out, errOut)
 	log := logFrom(cmd)
 
 	// Package tablew has writer impls for each of the writer interfaces,
@@ -375,8 +375,7 @@ func getRecordWriterFunc(f format.Format) output.NewRecordWriterFunc {
 // be absolutely bulletproof, as it's called by all commands, as well
 // as by the error handling mechanism. So, be sure to always check
 // for nil cmd, nil cmd.Context, etc.
-func getPrinting(cmd *cobra.Command, opts options.Options, out, errOut io.Writer,
-) (pr *output.Printing, out2, errOut2 io.Writer) {
+func getPrinting(cmd *cobra.Command, clnup *cleanup.Cleanup, opts options.Options, out, errOut io.Writer) (pr *output.Printing, out2, errOut2 io.Writer) {
 	pr = output.NewPrinting()
 
 	pr.FormatDatetime = timez.FormatFunc(OptDatetimeFormat.Get(opts))
@@ -422,10 +421,11 @@ func getPrinting(cmd *cobra.Command, opts options.Options, out, errOut io.Writer
 			progColors.EnableColor(false)
 			ctx := cmd.Context()
 			renderDelay := OptProgressDelay.Get(opts)
-			prog := progress.New(ctx, errOut, renderDelay, progColors)
+			pb := progress.New(ctx, errOut, renderDelay, progColors)
+			clnup.Add(pb.Stop)
 			// On first write to stdout, we remove the progress widget.
-			out2 = ioz.NotifyOnceWriter(out2, prog.Stop)
-			cmd.SetContext(progress.NewContext(ctx, prog))
+			out2 = ioz.NotifyOnceWriter(out2, pb.Stop)
+			cmd.SetContext(progress.NewContext(ctx, pb))
 		}
 
 		return pr, out2, errOut2
@@ -460,14 +460,15 @@ func getPrinting(cmd *cobra.Command, opts options.Options, out, errOut io.Writer
 
 		ctx := cmd.Context()
 		renderDelay := OptProgressDelay.Get(opts)
-		prog := progress.New(ctx, errOut2, renderDelay, progColors)
+		pb := progress.New(ctx, errOut2, renderDelay, progColors)
+		clnup.Add(pb.Stop)
 
 		// On first write to stdout, we remove the progress widget.
 		out2 = ioz.NotifyOnceWriter(out2, func() {
 			lg.FromContext(ctx).Debug("Output stream is being written to; removing progress widget")
-			prog.Stop()
+			pb.Stop()
 		})
-		cmd.SetContext(progress.NewContext(ctx, prog))
+		cmd.SetContext(progress.NewContext(ctx, pb))
 	}
 
 	logFrom(cmd).Debug("Constructed output.Printing", lga.Val, pr)

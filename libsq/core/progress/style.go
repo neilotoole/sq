@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	msgLength   = 22
+	msgLength   = 28
 	barWidth    = 28
 	boxWidth    = 64
 	refreshRate = 150 * time.Millisecond

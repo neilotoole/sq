@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
-
+	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"os"
 
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/output/format"
@@ -25,7 +25,10 @@ import (
 // ru or any of its fields are nil).
 func printError(ctx context.Context, ru *run.Run, err error) {
 	log := lg.FromContext(ctx)
-
+	log.Warn("printError called", lga.Err, err) // FIXME: delete
+	//debug.PrintStack()
+	//stack := errz.Stack(err)
+	//fmt.Fprintln(ru.Out, "printError stack", "stack", stack)
 	if err == nil {
 		log.Warn("printError called with nil error")
 		return
@@ -37,6 +40,7 @@ func printError(ctx context.Context, ru *run.Run, err error) {
 	}
 
 	switch {
+	// Friendlier messages for context errors.
 	default:
 	case errors.Is(err, context.Canceled):
 		err = errz.New("canceled")
@@ -89,8 +93,19 @@ func printError(ctx context.Context, ru *run.Run, err error) {
 		opts, _ = ru.OptionsRegistry.Process(opts)
 	}
 
+	// getPrinting requires a cleanup.Cleanup, so we get or create one.
+	var clnup *cleanup.Cleanup
+	if ru != nil && ru.Cleanup != nil {
+		clnup = ru.Cleanup
+	} else {
+		clnup = cleanup.New()
+	}
 	// getPrinting works even if cmd is nil
-	pr, _, errOut := getPrinting(cmd, opts, os.Stdout, os.Stderr)
+	pr, _, errOut := getPrinting(cmd, clnup, opts, os.Stdout, os.Stderr)
+	// Execute the cleanup before we print the error.
+	if cleanErr := clnup.Run(); cleanErr != nil {
+		log.Error("Cleanup failed", lga.Err, cleanErr)
+	}
 
 	if bootstrapIsFormatJSON(ru) {
 		// The user wants JSON, either via defaults or flags.

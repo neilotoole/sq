@@ -6,11 +6,27 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/stringz"
+)
+
+// OptCacheLockTimeout is the time allowed to acquire cache lock.
+//
+// See also: [driver.OptIngestCache].
+var OptCacheLockTimeout = options.NewDuration(
+	"cache.lock.timeout",
+	"",
+	0,
+	time.Second*5,
+	"Wait timeout to acquire cache lock",
+	`Wait timeout to acquire cache lock. During this period, retry will occur
+if the lock is already held by another process. If zero, no retry occurs.`,
+	options.TagSource,
+	options.TagSQL,
 )
 
 // CacheDirFor gets the cache dir for handle. It is not guaranteed

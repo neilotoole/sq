@@ -1,14 +1,13 @@
 package stringz_test
 
 import (
-	"strconv"
-	"strings"
-	"testing"
-
 	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"strconv"
+	"strings"
+	"testing"
 
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/testh/tu"
@@ -557,10 +556,46 @@ func TestShellEscape(t *testing.T) {
 	}
 }
 
-// TestTrimLenMiddle tests TrimLenMiddle. It verifies that
+func TestEllipsify(t *testing.T) {
+	testCases := []struct {
+		input  string
+		maxLen int
+		want   string
+	}{
+		{input: "", maxLen: 0, want: ""},
+		{input: "", maxLen: 1, want: ""},
+		{input: "abc", maxLen: 1, want: "…"},
+		{input: "abc", maxLen: 2, want: "a…"},
+		{input: "abcdefghijk", maxLen: 1, want: "…"},
+		{input: "abcdefghijk", maxLen: 2, want: "a…"},
+		{input: "abcdefghijk", maxLen: 3, want: "a…k"},
+		{input: "abcdefghijk", maxLen: 4, want: "ab…k"},
+		{input: "abcdefghijk", maxLen: 5, want: "ab…jk"},
+		{input: "abcdefghijk", maxLen: 6, want: "abc…jk"},
+		{input: "abcdefghijk", maxLen: 7, want: "abc…ijk"},
+		{input: "abcdefghijk", maxLen: 8, want: "abcd…ijk"},
+		{input: "abcdefghijk", maxLen: 9, want: "abcd…hijk"},
+	}
+
+	for i, tc := range testCases {
+		tc := tc
+		t.Run(tu.Name(i, tc.input, tc.maxLen), func(t *testing.T) {
+			got := stringz.Ellipsify(tc.input, tc.maxLen)
+			t.Logf("%12q  -->  %12q", tc.input, got)
+			assert.Equal(t, tc.want, got)
+		})
+	}
+
+	t.Run("test negative", func(t *testing.T) {
+		got := stringz.Ellipsify("abc", -1)
+		require.Equal(t, "", got)
+	})
+}
+
+// TestEllipsifyASCII tests EllipsifyASCII. It verifies that
 // the function trims the middle of a string, leaving the
 // start and end intact.
-func TestTrimLenMiddle(t *testing.T) {
+func TestEllipsifyASCII(t *testing.T) {
 	testCases := []struct {
 		input  string
 		maxLen int
@@ -582,7 +617,7 @@ func TestTrimLenMiddle(t *testing.T) {
 	for i, tc := range testCases {
 		tc := tc
 		t.Run(tu.Name(i, tc.input, tc.maxLen), func(t *testing.T) {
-			got := stringz.TrimLenMiddle(tc.input, tc.maxLen)
+			got := stringz.EllipsifyASCII(tc.input, tc.maxLen)
 			require.True(t, len(got) <= tc.maxLen)
 			require.Equal(t, tc.want, got)
 		})

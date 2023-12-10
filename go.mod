@@ -2,6 +2,17 @@ module github.com/neilotoole/sq
 
 go 1.21
 
+// See: https://github.com/vbauerster/mpb/issues/136
+require github.com/vbauerster/mpb/v8 v8.7.1-0.20231206170755-3a4a40c73c35
+
+// See: https://github.com/djherbis/fscache/pull/21
+require github.com/neilotoole/fscache v0.0.0-20231203162946-c9808f16552e
+
+require github.com/djherbis/stream v1.4.0 // indirect
+
+// See: https://github.com/djherbis/stream/pull/11
+replace github.com/djherbis/stream v1.4.0 => github.com/neilotoole/djherbis-stream v0.0.0-20231203160853-609f47afedda
+
 require (
 	github.com/Masterminds/sprig/v3 v3.2.3
 	github.com/a8m/tree v0.0.0-20230208161321-36ae24ddad15
@@ -18,7 +29,6 @@ require (
 	github.com/h2non/filetype v1.1.3
 	github.com/jackc/pgx/v5 v5.5.0
 	github.com/mattn/go-colorable v0.1.13
-	github.com/mattn/go-isatty v0.0.20
 	github.com/mattn/go-runewidth v0.0.15
 	github.com/mattn/go-sqlite3 v1.14.18
 	github.com/microsoft/go-mssqldb v1.6.0
@@ -68,6 +78,7 @@ require (
 	github.com/jackc/puddle/v2 v2.2.1 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
+	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mitchellh/copystructure v1.0.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.0 // indirect
 	github.com/moby/term v0.5.0 // indirect
@@ -88,17 +99,3 @@ require (
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-// See: https://github.com/vbauerster/mpb/issues/136
-require github.com/vbauerster/mpb/v8 v8.7.1-0.20231205062852-da3162c67234
-
-// See: https://github.com/djherbis/fscache/pull/21
-require github.com/neilotoole/fscache v0.0.0-20231203162946-c9808f16552e
-
-require (
-	github.com/djherbis/stream v1.4.0 // indirect
-	github.com/mrz1836/go-sanitize v1.3.1 // indirect
-)
-
-// See: https://github.com/djherbis/stream/pull/11
-replace github.com/djherbis/stream v1.4.0 => github.com/neilotoole/djherbis-stream v0.0.0-20231203160853-609f47afedda

@@ -2,6 +2,7 @@ package driver
 
 import (
 	"context"
+	"github.com/neilotoole/sq/libsq/core/progress"
 	"log/slog"
 	"path/filepath"
 	"strings"
@@ -233,7 +234,15 @@ func (gs *Grips) openIngestCache(ctx context.Context, src *source.Source,
 		return nil, err
 	}
 
-	if err = lock.Lock(ctx, time.Second*5); err != nil {
+	lockTimeout := source.OptCacheLockTimeout.Get(options.FromContext(ctx))
+	bar := progress.FromContext(ctx).NewTimeoutWaiter(
+		src.Handle+": acquire lock",
+		time.Now().Add(lockTimeout),
+	)
+
+	err = lock.Lock(ctx, lockTimeout)
+	bar.Stop()
+	if err != nil {
 		return nil, errz.Wrap(err, src.Handle+": acquire cache lock")
 	}
 

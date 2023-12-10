@@ -188,6 +188,7 @@ func RegisterDefaultOpts(reg *options.Registry) {
 		OptTuningFlushThreshold,
 		driver.OptIngestHeader,
 		driver.OptIngestCache,
+		source.OptCacheLockTimeout,
 		driver.OptIngestColRename,
 		driver.OptIngestSampleSize,
 		csv.OptDelim,

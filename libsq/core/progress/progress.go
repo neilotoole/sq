@@ -171,6 +171,7 @@ func (p *Progress) Stop() {
 	p.mu.Lock()
 	p.doStop()
 	p.mu.Unlock()
+	lg.FromContext(p.ctx).Debug("Stopped progress widget")
 }
 
 // doStop is probably needlessly complex, but at the time it was written,
@@ -239,11 +240,12 @@ func (p *Progress) newBar(msg string, total int64,
 		total = 0
 	}
 
+	// We want the bar message to be a consistent width.
 	switch {
 	case len(msg) < msgLength:
 		msg += strings.Repeat(" ", msgLength-len(msg))
 	case len(msg) > msgLength:
-		msg = stringz.TrimLenMiddle(msg, msgLength)
+		msg = stringz.Ellipsify(msg, msgLength)
 	}
 
 	b := &Bar{
@@ -343,6 +345,7 @@ func (b *Bar) Stop() {
 	defer b.p.mu.Unlock()
 
 	b.doStop()
+	lg.FromContext(b.p.ctx).Debug("Stopped progress bar")
 }
 
 func (b *Bar) doStop() {
@@ -355,9 +358,15 @@ func (b *Bar) doStop() {
 		return
 	}
 
-	if !b.stopped {
-		b.bar.Abort(true)
+	if b.stopped {
+		return
 	}
+
+	//if !b.stopped {
+	//	b.bar.Abort(true)
+	//}
+	b.bar.SetTotal(-1, true)
+	b.bar.Abort(true)
 	b.stopped = true
 
 	b.bar.Wait()

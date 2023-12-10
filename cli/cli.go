@@ -60,21 +60,30 @@ var errNoMsg = errors.New("")
 func Execute(ctx context.Context, stdin *os.File, stdout, stderr io.Writer, args []string) error {
 	ru, log, err := newRun(ctx, stdin, stdout, stderr, args)
 	if err != nil {
+		// This may be unnecessary, but we are extra-paranoid about
+		// closing ru before exiting the program.
+		if closeErr := ru.Close(); closeErr != nil && log != nil {
+			log.Error("Failed to close run", lga.Err, closeErr)
+		}
+		if ru.LogCloser != nil {
+			_ = ru.LogCloser()
+		}
 		printError(ctx, ru, err)
 		return err
 	}
 
-	defer ru.Close() // ok to call ru.Close on nil ru
-
 	ctx = lg.NewContext(ctx, log)
-
 	return ExecuteWith(ctx, ru, args)
 }
 
 // ExecuteWith invokes the cobra CLI framework, ultimately
-// resulting in a command being executed. The caller must
-// invoke ru.Close.
+// resulting in a command being executed. This function always closes ru.
 func ExecuteWith(ctx context.Context, ru *run.Run, args []string) error {
+	defer func() {
+		if ru != nil && ru.LogCloser != nil {
+			_ = ru.LogCloser()
+		}
+	}()
 	ctx = options.NewContext(ctx, ru.Config.Options)
 	log := lg.FromContext(ctx)
 	log.Info("EXECUTE", "args", strings.Join(args, " "))
@@ -122,6 +131,7 @@ func ExecuteWith(ctx context.Context, ru *run.Run, args []string) error {
 			// cobra still returns cmd though. It should be
 			// the root cmd.
 			if cmd == nil || cmd.Name() != rootCmd.Name() {
+				lg.WarnIfCloseError(log, "Problem closing run", ru)
 				// Not sure if this can happen anymore? Can prob delete?
 				panic(fmt.Sprintf("bad cobra cmd state: %v", cmd))
 			}
@@ -132,6 +142,7 @@ func ExecuteWith(ctx context.Context, ru *run.Run, args []string) error {
 			// doesn't want the first args element.
 			effectiveArgs := append([]string{"slq"}, args...)
 			if effectiveArgs, err = preprocessFlagArgVars(effectiveArgs); err != nil {
+				lg.WarnIfCloseError(log, "Problem closing run", ru)
 				return err
 			}
 			rootCmd.SetArgs(effectiveArgs)
@@ -142,6 +153,7 @@ func ExecuteWith(ctx context.Context, ru *run.Run, args []string) error {
 				// we redirect to "slq" cmd.
 				effectiveArgs := append([]string{"slq"}, args...)
 				if effectiveArgs, err = preprocessFlagArgVars(effectiveArgs); err != nil {
+					lg.WarnIfCloseError(log, "Problem closing run", ru)
 					return err
 				}
 				rootCmd.SetArgs(effectiveArgs)
@@ -159,8 +171,12 @@ func ExecuteWith(ctx context.Context, ru *run.Run, args []string) error {
 	// Execute rootCmd; cobra will find the appropriate
 	// sub-command, and ultimately execute that command.
 	err = rootCmd.ExecuteContext(ctx)
+	lg.WarnIfCloseError(log, "Problem closing run", ru)
 	if err != nil {
-		printError(ctx, ru, err)
+		ctx2 := rootCmd.Context() // FIXME: delete
+		_ = ctx2
+
+		printError(ctx2, ru, err)
 	}
 
 	return err

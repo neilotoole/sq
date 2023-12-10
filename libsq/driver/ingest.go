@@ -26,6 +26,8 @@ to detect the header.`,
 )
 
 // OptIngestCache specifies whether ingested data is cached or not.
+//
+// REVISIT: Maybe rename ingest.cache simply to "cache"?
 var OptIngestCache = options.NewBool(
 	"ingest.cache",
 	"",

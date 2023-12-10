@@ -457,21 +457,45 @@ func TrimLen(s string, maxLen int) string {
 	return s[:maxLen]
 }
 
-// TrimLenMiddle returns s but with a maximum length of maxLen,
+// Ellipsify shortens s to a length of maxLen by cutting the middle and
+// inserting an ellipsis rune "…".This is the actual ellipsis rune, not
+// three periods. For very short strings, the ellipsis may be elided.
+//
+// Be warned, Ellipsify may not be unicode-safe. Use at your own risk.
+//
+// See also: [EllipsifyASCII].
+func Ellipsify(s string, width int) string {
+	const e = "…"
+	if width <= 0 {
+		return ""
+	}
+	length := len(s)
+
+	if length <= width {
+		return s
+	}
+
+	trimLen := ((width + 1) / 2) - 1
+	return s[:trimLen+1-(width%2)] + e + s[len(s)-trimLen:]
+}
+
+// EllipsifyASCII returns s but with a maximum length of maxLen,
 // with the middle of s replaced with "...". If maxLen is a small
 // number, the ellipsis may be shorter, e.g. a single char.
 // This func is only tested with ASCII chars; results are not
 // guaranteed for multibyte runes.
-func TrimLenMiddle(s string, maxLen int) string {
+//
+// See also: [Ellipsify].
+func EllipsifyASCII(s string, width int) string {
 	length := len(s)
-	if maxLen <= 0 {
+	if width <= 0 {
 		return ""
 	}
-	if length <= maxLen {
+	if length <= width {
 		return s
 	}
 
-	switch maxLen {
+	switch width {
 	case 1:
 		return s[0:1]
 	case 2:
@@ -485,7 +509,7 @@ func TrimLenMiddle(s string, maxLen int) string {
 	default:
 	}
 
-	trimLen := ((maxLen + 1) / 2) - 2
+	trimLen := ((width + 1) / 2) - 2
 	return s[:trimLen] + "..." + s[len(s)-trimLen:]
 }
 

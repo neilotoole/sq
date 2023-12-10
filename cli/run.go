@@ -83,7 +83,8 @@ func newRun(ctx context.Context, stdin *os.File, stdout, stderr io.Writer, args 
 		args, ru.OptionsRegistry, upgrades)
 
 	log, logHandler, logCloser, logErr := defaultLogging(ctx, args, ru.Config)
-	ru.Cleanup = cleanup.New().AddE(logCloser)
+	ru.Cleanup = cleanup.New()
+	ru.LogCloser = logCloser
 	if logErr != nil {
 		stderrLog, h := stderrLogger()
 		_ = logbuf.Flush(ctx, h)
@@ -270,7 +271,7 @@ func preRun(cmd *cobra.Command, ru *run.Run) error {
 	if err != nil {
 		return err
 	}
-	ru.Writers, ru.Out, ru.ErrOut = newWriters(ru.Cmd, cmdOpts, ru.Out, ru.ErrOut)
+	ru.Writers, ru.Out, ru.ErrOut = newWriters(ru.Cmd, ru.Cleanup, cmdOpts, ru.Out, ru.ErrOut)
 
 	return FinishRunInit(ctx, ru)
 }
