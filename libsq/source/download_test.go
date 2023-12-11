@@ -40,7 +40,7 @@ const (
 )
 
 func TestFetchHTTPHeader_sqio(t *testing.T) {
-	header, err := fetchHTTPResponse(context.Background(), urlActorCSV)
+	header, err := fetchHTTPResponse(context.Background(), http.DefaultClient, urlActorCSV)
 	require.NoError(t, err)
 	require.NotNil(t, header)
 
@@ -111,7 +111,7 @@ func TestFetchHTTPHeader_HEAD_fallback_GET(t *testing.T) {
 
 	u := srvr.URL
 
-	resp, err := fetchHTTPResponse(context.Background(), u)
+	resp, err := fetchHTTPResponse(context.Background(), http.DefaultClient, u)
 	assert.NoError(t, err)
 	assert.NotNil(t, resp)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
