@@ -82,36 +82,55 @@ func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors
 		colors = DefaultColors()
 	}
 
-	pCtx, cancelFn := context.WithCancel(lg.NewContext(context.Background(), log))
-
 	p := &Progress{
-		ctx:       pCtx,
 		mu:        &sync.Mutex{},
 		colors:    colors,
-		cancelFn:  cancelFn,
 		bars:      make([]*Bar, 0),
 		delay:     delay,
 		stoppedCh: make(chan struct{}),
 		stopOnce:  &sync.Once{},
+		refreshCh: make(chan any, 100),
 	}
 
+	// Note that p.ctx is not the same as the arg ctx. This is a bit of a hack
+	// to ensure that p.Stop gets called when ctx is cancelled, but before
+	// the p.pc learns that its context is cancelled. This was done in an attempt
+	// to clean up the progress bars before the main context is cancelled (i.e.
+	// to remove bars when the user hits Ctrl-C). Alas, it's not working as
+	// hoped in that scenario.
+	p.ctx, p.cancelFn = context.WithCancel(lg.NewContext(context.Background(), log))
 	go func() {
 		<-ctx.Done()
-		lg.FromContext(pCtx).Warn("Main context canceled")
+		log.Debug("Stopping via go ctx done")
 		p.Stop()
-		lg.FromContext(pCtx).Warn("Main context trigger returned")
+		<-p.stoppedCh
+		<-p.ctx.Done()
 	}()
 
 	p.pcInitFn = func() {
 		opts := []mpb.ContainerOption{
 			mpb.WithOutput(out),
 			mpb.WithWidth(boxWidth),
-			mpb.WithRefreshRate(refreshRate),
-			mpb.WithAutoRefresh(), // Needed for color in Windows, apparently
+			// mpb.WithRefreshRate(refreshRate),
+			mpb.WithManualRefresh(p.refreshCh),
+			// mpb.WithAutoRefresh(), // Needed for color in Windows, apparently
 		}
 
 		p.pc = mpb.NewWithContext(ctx, opts...)
 		p.pcInitFn = nil
+		go func() {
+			for {
+				select {
+				case <-p.stoppedCh:
+					return
+				case <-p.ctx.Done():
+					return
+				default:
+					p.refreshCh <- time.Now()
+					time.Sleep(refreshRate)
+				}
+			}
+		}()
 	}
 
 	p.pcInitFn()
@@ -144,6 +163,13 @@ type Progress struct {
 	// mu guards ALL public methods.
 	mu *sync.Mutex
 
+	// stoppedCh is closed when the progress widget is stopped.
+	// This somewhat duplicates <-p.ctx.Done()... maybe it can be removed?
+	stoppedCh chan struct{}
+	stopOnce  *sync.Once
+
+	refreshCh chan any
+
 	ctx      context.Context
 	cancelFn context.CancelFunc
 
@@ -159,10 +185,6 @@ type Progress struct {
 	// This value is used for each bar created by this Progress.
 	delay time.Duration
 
-	// stoppedCh is closed when the progress widget is stopped.
-	stoppedCh chan struct{}
-	stopOnce  *sync.Once
-
 	colors *Colors
 
 	// bars contains all bars that have been created on this Progress.
@@ -177,12 +199,10 @@ func (p *Progress) Stop() {
 		return
 	}
 
-	lg.FromContext(p.ctx).Warn("Stopping progress widget")
 	p.mu.Lock()
 	p.doStop()
+	<-p.stoppedCh
 	p.mu.Unlock()
-
-	lg.FromContext(p.ctx).Warn("Stopped progress widget")
 }
 
 // doStop is probably needlessly complex, but at the time it was written,
@@ -190,16 +210,19 @@ func (p *Progress) Stop() {
 // and so was created an extra-paranoid workaround.
 func (p *Progress) doStop() {
 	p.stopOnce.Do(func() {
-		defer close(p.stoppedCh)
-
+		p.pcInitFn = nil
+		lg.FromContext(p.ctx).Warn("Stopping progress widget")
+		defer lg.FromContext(p.ctx).Warn("Stopped progress widget")
 		if p.pc == nil {
-			p.pcInitFn = nil
+			close(p.stoppedCh)
+			close(p.refreshCh)
 			p.cancelFn()
 			return
 		}
 
 		if len(p.bars) == 0 {
-			// p.pc.Wait() FIXME: Does this need to happen
+			close(p.stoppedCh)
+			close(p.refreshCh)
 			p.cancelFn()
 			return
 		}
@@ -210,9 +233,8 @@ func (p *Progress) doStop() {
 			// b.bar.Wait() is invoked by b.doStop(). This may be completely
 			// unnecessary, but it doesn't seem to hurt.
 			if b.bar != nil {
-				if !b.bar.Aborted() {
-					b.bar.Abort(true)
-				}
+				b.bar.SetTotal(-1, true)
+				b.bar.Abort(true)
 			}
 		}
 
@@ -221,9 +243,10 @@ func (p *Progress) doStop() {
 			<-b.barStoppedCh // Wait for bar to stop
 		}
 
-		lg.FromContext(p.ctx).Warn("progress: p.pc.Wait()")
+		p.refreshCh <- time.Now()
+		close(p.stoppedCh)
+		close(p.refreshCh)
 		p.pc.Wait()
-		lg.FromContext(p.ctx).Warn("progress: p.pc.Wait() DONE")
 		// Important: we must call cancelFn after pc.Wait() or the bars
 		// may not be removed from the terminal.
 		p.cancelFn()
@@ -294,7 +317,8 @@ func (p *Progress) newBar(msg string, total int64,
 			mpb.BarRemoveOnComplete(),
 		)
 		b.bar.IncrBy(int(b.incrStash.Load()))
-		b.incrStash.Store(0)
+		b.incrStash = nil
+		// b.incrStash.Store(0)
 	}
 
 	b.delayCh = barRenderDelay(b, p.delay)
@@ -382,16 +406,19 @@ func (b *Bar) doStop() {
 	}
 
 	b.barStopOnce.Do(func() {
+		lg.FromContext(b.p.ctx).Debug("Stopping progress bar")
 		if b.bar == nil {
 			close(b.barStoppedCh)
 			return
 		}
 
-		if !b.bar.Aborted() && !b.bar.Completed() {
-			b.bar.Abort(true)
-		}
-
+		// We *probably* only need to call b.bar.Abort() here?
+		b.bar.SetTotal(-1, true)
+		b.bar.Abort(true)
+		b.p.refreshCh <- time.Now()
 		b.bar.Wait()
+		b.p.refreshCh <- time.Now()
+
 		close(b.barStoppedCh)
 		lg.FromContext(b.p.ctx).Debug("Stopped progress bar")
 	})

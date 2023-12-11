@@ -426,7 +426,7 @@ func getPrinting(cmd *cobra.Command, clnup *cleanup.Cleanup, opts options.Option
 			progColors.EnableColor(false)
 			ctx := cmd.Context()
 			renderDelay := OptProgressDelay.Get(opts)
-			pb := progress.New(ctx, errOut, renderDelay, progColors)
+			pb := progress.New(ctx, errOut2, renderDelay, progColors)
 			clnup.Add(pb.Stop)
 			// On first write to stdout, we remove the progress widget.
 			out2 = ioz.NotifyOnceWriter(out2, pb.Stop)
@@ -473,6 +473,12 @@ func getPrinting(cmd *cobra.Command, clnup *cleanup.Cleanup, opts options.Option
 			lg.FromContext(ctx).Debug("Output stream is being written to; removing progress widget")
 			pb.Stop()
 		})
+
+		// On first write to stderr, we remove the progress widget.
+		errOut2 = ioz.NotifyOnceWriter(errOut2, func() {
+			lg.FromContext(ctx).Debug("Error stream is being written to; removing progress widget")
+			pb.Stop()
+		}) // FIXME: delete
 		cmd.SetContext(progress.NewContext(ctx, pb))
 	}
 
