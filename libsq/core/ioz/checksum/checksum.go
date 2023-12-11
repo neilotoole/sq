@@ -149,6 +149,29 @@ func ForHTTPHeader(u string, header http.Header) Checksum {
 // request URL and the contents of the response's header. If the header
 // contains an Etag, that is used as the primary element. Otherwise,
 // other values such as Content-Length and Last-Modified are considered.
+//
+// There's some trickiness with Etag. Note that by default, stdlib http.Client
+// will set sneakily set the "Accept-Encoding: gzip" header on GET requests.
+// However, this doesn't happen for HEAD requests. So, comparing a GET and HEAD
+// response for the same URL may result in different checksums, because the
+// server will likely return a different Etag for the gzipped response.
+//
+//	# With gzip
+//	Etag: "069dbf690a12d5eb853feb8e04aeb49e-ssl-df"
+//
+//	# Without gzip
+//	Etag: "069dbf690a12d5eb853feb8e04aeb49e-ssl"
+//
+// Note the "-ssl-df" suffix on the gzipped response. The "df" suffix is
+// for "deflate".
+//
+// The solution here might be to always explicitly set the gzip header on all
+// requests. However, when gzip is not explicitly set, the stdlib client
+// transparently handles gzip compression, including on the body read end. So,
+// ideally, we wouldn't change that part, so that we don't have to code for
+// both compressed and uncompressed responses.
+//
+// Our hack for now it to trim the "-df" suffix from the Etag.
 func ForHTTPResponse(resp *http.Response) Checksum {
 	if resp == nil {
 		return ""
@@ -156,20 +179,28 @@ func ForHTTPResponse(resp *http.Response) Checksum {
 
 	buf := bytes.Buffer{}
 	if resp.Request != nil && resp.Request.URL != nil {
-		buf.WriteString(resp.Request.URL.String())
+		buf.WriteString(resp.Request.URL.String() + "\n")
 	}
+	buf.WriteString(strconv.Itoa(int(resp.ContentLength)) + "\n")
 	header := resp.Header
 	if header != nil {
-		etag := header.Get("Etag")
+		buf.WriteString(header.Get("Content-Encoding") + "\n")
+		etag := strings.TrimSpace(header.Get("Etag"))
 		if etag != "" {
-			buf.WriteString(etag)
+			etag = strings.TrimSuffix(etag, "-df")
+			buf.WriteString(etag + "\n")
 		} else {
-			buf.WriteString(header.Get("Content-Type"))
-			buf.WriteString(header.Get("Content-Disposition"))
-			buf.WriteString(header.Get("Content-Length"))
-			buf.WriteString(header.Get("Last-Modified"))
+			buf.WriteString(header.Get("Content-Type") + "\n")
+			buf.WriteString(header.Get("Content-Disposition") + "\n")
+			buf.WriteString(header.Get("Content-Length") + "\n")
+			buf.WriteString(header.Get("Last-Modified") + "\n")
 		}
 	}
+
+	s := buf.String()
+	_ = s
+
+	fmt.Printf("\n\n%s\n\n", s)
 
 	return Checksum(Hash(buf.Bytes()))
 }

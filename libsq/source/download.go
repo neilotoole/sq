@@ -51,15 +51,16 @@ var OptHTTPSkipVerify = options.NewBool(
 	"Skip HTTPS TLS verification. Useful when downloading against self-signed certs.",
 )
 
-func newDownloader(c *http.Client, cacheDir, url string) *downloader {
+// newDownloader creates a new downloader using cacheDir for the given url.
+func newDownloader(c *http.Client, cacheDir, dlURL string) *downloader {
 	return &downloader{
 		c:        c,
 		cacheDir: cacheDir,
-		url:      url,
+		url:      dlURL,
 	}
 }
 
-// download is a helper for getting file contents from a URL,
+// downloader is a helper for getting file contents from a URL,
 // and caching the file locally. The structure of cacheDir
 // is as follows:
 //
@@ -74,15 +75,16 @@ func newDownloader(c *http.Client, cacheDir, url string) *downloader {
 //
 //   - pid.lock is a lock file used to ensure that only one
 //     process is downloading the file at a time.
+//     FIXME: are we using pid.lock, or will we share the parent cache lock?
 //
 //   - header.txt is a dump of the HTTP response header, included for
 //     debugging convenience.
 //
 //   - checksum.txt contains a checksum:key pair, where the checksum is
-//     calculated using checksum.ForHTTPHeader, and the key is the path
-//     to the downloaded file, e.g. "dl/data.csv".
+//     calculated using checksum.ForHTTPResponse, and the key is the path
+//     to the downloaded file, e.g. "dl/actor.csv".
 //
-//     67a47a0...a53e3e28154  dl/actor.csv
+//     67a47a0  dl/actor.csv
 //
 //   - The file is downloaded to dl/<filename> instead of into the root
 //     of cache dir, just to avoid the (remote) possibility of a name
@@ -117,8 +119,10 @@ func (d *downloader) headerFile() string {
 	return filepath.Join(d.cacheDir, "header.txt")
 }
 
-// Download downloads the file at the URL to the download dir, and also writes
-// the file to dest, and returns the file path of the downloaded file.
+// Download downloads the file at the URL to the download dir, creating the
+// checksum file on completion, and also writes the file to dest, and returns
+// the file path of the downloaded file.
+//
 // It is the caller's responsibility to close dest. If an appropriate file name
 // cannot be determined from the HTTP response, the file is named "download".
 // If the download fails at any stage, the download file is removed, but written
@@ -152,6 +156,7 @@ func (d *downloader) Download(ctx context.Context, dest io.Writer) (written int6
 	if err != nil {
 		return written, "", errz.Wrapf(err, "download new request failed for: %s", d.url)
 	}
+	//setDefaultHTTPRequestHeaders(req)
 
 	resp, err := d.c.Do(req)
 	if err != nil {
@@ -198,6 +203,13 @@ func (d *downloader) Download(ctx context.Context, dest io.Writer) (written int6
 		return written, "", errz.Wrapf(err, "failed to close download file: %s", fp)
 	}
 
+	if resp.ContentLength == -1 {
+		// Sometimes the response won't have the content-length set, but we know
+		// it via the number of bytes read from the body. We explicitly set
+		// it here, because checksum.ForHTTPResponse uses it.
+		resp.ContentLength = written
+	}
+
 	sum := checksum.ForHTTPResponse(resp)
 	if err = checksum.WriteFile(d.checksumFile(), sum, filepath.Join("dl", filename)); err != nil {
 		lg.WarnIfFuncError(log, lgm.RemoveFile, func() error { return errz.Err(os.Remove(fp)) })
@@ -205,6 +217,11 @@ func (d *downloader) Download(ctx context.Context, dest io.Writer) (written int6
 
 	log.Info("Wrote download file", lga.Written, written, lga.File, fp)
 	return written, fp, nil
+}
+
+func setDefaultHTTPRequestHeaders(req *http.Request) {
+	req.Header.Set("User-Agent", "sq") // FIXME: this should be set on the http.Client
+	req.Header.Set("Accept-Encoding", "gzip")
 }
 
 func (d *downloader) writeHeaderFile(resp *http.Response) error {
@@ -227,6 +244,23 @@ func (d *downloader) writeHeaderFile(resp *http.Response) error {
 	return nil
 }
 
+// ClearCache clears the cache dir.
+func (d *downloader) ClearCache(ctx context.Context) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	log := d.log(lg.FromContext(ctx))
+	if err := os.RemoveAll(d.cacheDir); err != nil {
+		log.Error("Failed to clear cache dir", lga.Dir, d.cacheDir, lga.Err, err)
+		return errz.Wrapf(err, "failed to clear cache dir: %s", d.cacheDir)
+	}
+
+	log.Info("Cleared cache dir", lga.Dir, d.cacheDir)
+	return nil
+}
+
+// Cached returns true if the file is cached locally, and if so, also returns
+// the checksum and file path of the cached file.
 func (d *downloader) Cached(ctx context.Context) (ok bool, sum checksum.Checksum, fp string) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -244,7 +278,7 @@ func (d *downloader) Cached(ctx context.Context) (ok bool, sum checksum.Checksum
 	}
 
 	if _, err = os.Stat(d.checksumFile()); err != nil {
-		log.Debug("not cached: can't stat download checksum file")
+		log.Debug("not cached: can't stat download checksum file", lga.File, d.checksumFile())
 		return false, "", ""
 	}
 
@@ -266,8 +300,7 @@ func (d *downloader) Cached(ctx context.Context) (ok bool, sum checksum.Checksum
 		return false, "", ""
 	}
 
-	downloadFile := filepath.Join(dlDir, key)
-
+	downloadFile := filepath.Join(d.cacheDir, key)
 	if _, err = os.Stat(downloadFile); err != nil {
 		log.Debug("not cached: can't stat download file referenced in checksum file", lga.File, key)
 		return false, "", ""
@@ -277,15 +310,37 @@ func (d *downloader) Cached(ctx context.Context) (ok bool, sum checksum.Checksum
 	return true, sum, downloadFile
 }
 
-// fetchHTTPHeader fetches the HTTP header for u. First HEAD is used, and
+// CachedIsCurrent returns true if the file is cached locally and if its
+// stored checksum matches the checksum of the remote file.
+func (d *downloader) CachedIsCurrent(ctx context.Context) (ok bool, err error) {
+	ok, sum, _ := d.Cached(ctx)
+	if !ok {
+		return false, errz.Errorf("not cached: %s", d.url)
+	}
+
+	resp, err := fetchHTTPResponse(ctx, d.c, d.url)
+	if err != nil {
+		return false, errz.Wrap(err, "check remote header")
+	}
+
+	remoteSum := checksum.ForHTTPResponse(resp)
+	if sum != remoteSum {
+		return false, nil
+	}
+
+	return true, nil
+}
+
+// fetchHTTPResponse fetches the HTTP response for u. First HEAD is tried, and
 // if that's not allowed (http.StatusMethodNotAllowed), then GET is used.
-func fetchHTTPHeader(ctx context.Context, u string) (header http.Header, err error) {
+func fetchHTTPResponse(ctx context.Context, c *http.Client, u string) (resp *http.Response, err error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodHead, u, nil)
 	if err != nil {
 		return nil, errz.Err(err)
 	}
+	setDefaultHTTPRequestHeaders(req)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err = c.Do(req)
 	if err != nil {
 		return nil, errz.Err(err)
 	}
@@ -297,7 +352,7 @@ func fetchHTTPHeader(ctx context.Context, u string) (header http.Header, err err
 	default:
 		return nil, errz.Errorf("unexpected HTTP status (%s) for HEAD: %s", resp.Status, u)
 	case http.StatusOK:
-		return resp.Header, nil
+		return resp, nil
 	case http.StatusMethodNotAllowed:
 	}
 
@@ -309,6 +364,7 @@ func fetchHTTPHeader(ctx context.Context, u string) (header http.Header, err err
 	if err != nil {
 		return nil, errz.Err(err)
 	}
+	//setDefaultHTTPRequestHeaders(req)
 
 	resp, err = http.DefaultClient.Do(req)
 	if err != nil {
@@ -322,7 +378,7 @@ func fetchHTTPHeader(ctx context.Context, u string) (header http.Header, err err
 		return nil, errz.Errorf("unexpected HTTP status (%s) for GET: %s", resp.Status, u)
 	}
 
-	return resp.Header, nil
+	return resp, nil
 }
 
 func getRemoteChecksum(ctx context.Context, u string) (string, error) {
