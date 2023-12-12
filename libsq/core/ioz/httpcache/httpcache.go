@@ -13,6 +13,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
+	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"io"
@@ -87,6 +88,8 @@ type RespCache struct {
 	clnup  *cleanup.Cleanup
 }
 
+// Cached returns the cached http.Response for req if present, and nil
+// otherwise.
 func (rc *RespCache) Cached(ctx context.Context, req *http.Request) (*http.Response, error) {
 	rc.mu.Lock()
 	defer rc.mu.Unlock()
@@ -95,37 +98,46 @@ func (rc *RespCache) Cached(ctx context.Context, req *http.Request) (*http.Respo
 		return nil, nil
 	}
 
-	b, err := os.ReadFile(rc.Header)
+	headerBytes, err := os.ReadFile(rc.Header)
 	if err != nil {
 		return nil, err
 	}
 
-	f, err := os.Open(rc.Body)
+	bodyFile, err := os.Open(rc.Body)
 	if err != nil {
 		lg.FromContext(ctx).Error("failed to open cached response body",
 			lga.File, rc.Body, lga.Err, err)
 		return nil, err
 	}
-	rc.clnup.AddC(f)
-	mr := io.MultiReader(bytes.NewReader(b), f)
-	return http.ReadResponse(bufio.NewReader(mr), req)
+
+	// We need to explicitly close bodyFile at some later point. It won't be
+	// closed via a call to http.Response.Body.Close().
+	rc.clnup.AddC(bodyFile)
+
+	concatRdr := io.MultiReader(bytes.NewReader(headerBytes), bodyFile)
+	return http.ReadResponse(bufio.NewReader(concatRdr), req)
 }
 
+// Close closes the cache, freeing any resources it holds. Note that
+// it does not delete the cache: for that, see RespCache.Delete.
 func (rc *RespCache) Close() error {
 	rc.mu.Lock()
 	defer rc.mu.Unlock()
+
 	err := rc.clnup.Run()
 	rc.clnup = cleanup.New()
 	return err
 }
 
-func (rc *RespCache) Clear() error {
+// Delete deletes the cache.
+func (rc *RespCache) Delete() error {
 	rc.mu.Lock()
 	defer rc.mu.Unlock()
-	return rc.doClear()
+
+	return rc.doDelete()
 }
 
-func (rc *RespCache) doClear() error {
+func (rc *RespCache) doDelete() error {
 	err1 := rc.clnup.Run()
 	rc.clnup = cleanup.New()
 	err2 := os.RemoveAll(rc.Header)
@@ -133,35 +145,16 @@ func (rc *RespCache) doClear() error {
 	return errz.Combine(err1, err2, err3)
 }
 
-//// drainBody reads all of b to memory and then returns two equivalent
-//// ReadClosers yielding the same bytes.
-////
-//// It returns an error if the initial slurp of all bytes fails. It does not attempt
-//// to make the returned ReadClosers have identical error-matching behavior.
-//func drainBody(b io.ReadCloser) (r1, r2 io.ReadCloser, err error) {
-//	if b == nil || b == http.NoBody {
-//		// No copying needed. Preserve the magic sentinel meaning of NoBody.
-//		return http.NoBody, http.NoBody, nil
-//	}
-//	var buf bytes.Buffer
-//	if _, err = buf.ReadFrom(b); err != nil {
-//		return nil, b, err
-//	}
-//	if err = b.Close(); err != nil {
-//		return nil, b, err
-//	}
-//	return io.NopCloser(&buf), io.NopCloser(bytes.NewReader(buf.Bytes())), nil
-//}
+const msgDeleteCache = "Delete HTTP response cache"
 
-const msgClearCache = "Clear HTTP response cache"
-
+// Write writes resp to the cache.
 func (rc *RespCache) Write(ctx context.Context, resp *http.Response) error {
 	rc.mu.Lock()
 	defer rc.mu.Unlock()
 
 	err := rc.doWrite(ctx, resp)
 	if err != nil {
-		//lg.WarnIfFuncError(lg.FromContext(ctx), msgClearCache, rc.doClear)
+		lg.WarnIfFuncError(lg.FromContext(ctx), msgDeleteCache, rc.doDelete)
 	}
 	return err
 }
@@ -191,7 +184,8 @@ func (rc *RespCache) doWrite(ctx context.Context, resp *http.Response) error {
 		return err
 	}
 
-	_, err = io.Copy(f, resp.Body)
+	cr := contextio.NewReader(ctx, resp.Body)
+	_, err = io.Copy(f, cr)
 	if err != nil {
 		lg.WarnIfCloseError(log, "Close cache body file", f)
 		return err
@@ -277,8 +271,11 @@ func KeyFuncOpt(keyFunc KeyFunc) TransportOpt {
 type Transport struct {
 	// The RoundTripper interface actually used to make requests
 	// If nil, http.DefaultTransport is used
-	Transport    http.RoundTripper
-	Cache        Cache
+	Transport http.RoundTripper
+	Cache     Cache
+	RespCache *RespCache
+
+	// Deprecated: Use RespCache instead.
 	BodyFilepath string
 	// If true, responses returned from the cache will be given an extra header, X-From-Cache
 	MarkCachedResponses bool
@@ -326,14 +323,18 @@ func varyMatches(cachedResp *http.Response, req *http.Request) bool {
 // to give the server a chance to respond with NotModified. If this happens, then the cached Response
 // will be returned.
 func (t *Transport) RoundTrip(req *http.Request) (resp *http.Response, err error) {
-	cacheKey := t.KeyFunc(req)
+	log := lg.FromContext(req.Context())
+	//cacheKey := t.KeyFunc(req)
 	cacheable := (req.Method == "GET" || req.Method == "HEAD") && req.Header.Get("range") == ""
 	var cachedResp *http.Response
 	if cacheable {
-		cachedResp, err = CachedResponseOld(req.Context(), t.Cache, cacheKey, req)
+		cachedResp, err = t.RespCache.Cached(req.Context(), req)
+		//cachedResp, err = t.CachedResponse(req.Context(), cacheKey, req)
 	} else {
 		// Need to invalidate an existing value
-		t.cacheDelete(req.Context(), cacheKey)
+		//err = t.RespCache.Delete()
+		lg.WarnIfFuncError(log, "Delete cached response", t.RespCache.Delete)
+		//t.cacheDelete(req.Context(), cacheKey)
 	}
 
 	transport := t.Transport
@@ -389,7 +390,9 @@ func (t *Transport) RoundTrip(req *http.Request) (resp *http.Response, err error
 			return cachedResp, nil
 		} else {
 			if err != nil || resp.StatusCode != http.StatusOK {
-				t.cacheDelete(req.Context(), cacheKey)
+				//t.cacheDelete(req.Context(), cacheKey)
+				t.RespCache.Delete()
+				//t.cacheDelete(req.Context(), cacheKey)
 			}
 			if err != nil {
 				return nil, err
@@ -424,7 +427,10 @@ func (t *Transport) RoundTrip(req *http.Request) (resp *http.Response, err error
 				OnEOF: func(r io.Reader) {
 					resp := *resp
 					resp.Body = ioutil.NopCloser(r)
-					_ = t.writeRespToCache(req.Context(), cacheKey, &resp)
+					if err := t.RespCache.Write(req.Context(), &resp); err != nil {
+						log.Error("failed to write download cache", lga.Err, err)
+					}
+					//_ = t.writeRespToCache(req.Context(), cacheKey, &resp)
 					//respBytes, err := httputil.DumpResponse(&resp, true)
 					//if err == nil {
 					//	if _, err = ioz.WriteToFile(req.Context(), t.BodyFilepath, resp.Body); err != nil {
@@ -437,7 +443,10 @@ func (t *Transport) RoundTrip(req *http.Request) (resp *http.Response, err error
 				},
 			}
 		default:
-			_ = t.writeRespToCache(req.Context(), cacheKey, resp)
+			if err := t.RespCache.Write(req.Context(), resp); err != nil {
+				log.Error("failed to write download cache", lga.Err, err)
+			}
+			//_ = t.writeRespToCache(req.Context(), cacheKey, resp)
 			//respBytes, err := httputil.DumpResponse(resp, true)
 			//if err == nil {
 			//	if _, err = ioz.WriteToFile(req.Context(), t.BodyFilepath, resp.Body); err != nil {
@@ -449,7 +458,8 @@ func (t *Transport) RoundTrip(req *http.Request) (resp *http.Response, err error
 			//}
 		}
 	} else {
-		t.cacheDelete(req.Context(), cacheKey)
+		lg.WarnIfFuncError(log, "Delete resp cache", t.RespCache.Delete)
+		//t.cacheDelete(req.Context(), cacheKey)
 	}
 	return resp, nil
 }
