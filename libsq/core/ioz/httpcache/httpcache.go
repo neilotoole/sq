@@ -1,14 +1,16 @@
-// Package httpcache provides a http.RoundTripper implementation that works as a
-// mostly RFC-compliant cache for http responses.
+// Package httpcache provides a http.RoundTripper implementation that
+// works as a mostly RFC-compliant cache for http responses.
 //
-// It is only suitable for use as a 'private' cache (i.e. for a web-browser or an API-client
-// and not for a shared proxy).
+// FIXME: move httpcache to internal/httpcache, because its use
+// is so specialized?
+//
+// Acknowledgement: This package is a heavily customized fork
+// of https://github.com/gregjones/httpcache, via bitcomplete/httpcache.
 package httpcache
 
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"errors"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -27,54 +29,6 @@ const (
 	XFromCache = "X-From-Cache"
 )
 
-// A Cache interface is used by the Transport to store and retrieve responses.
-type Cache interface {
-	// Get returns the []byte representation of a cached response and a bool
-	// set to true if the value isn't empty
-	Get(ctx context.Context, key string) (responseBytes []byte, ok bool)
-	// Set stores the []byte representation of a response against a key
-	Set(ctx context.Context, key string, responseBytes []byte)
-	// Delete removes the value associated with the key
-	Delete(ctx context.Context, key string)
-}
-
-type KeyFunc func(req *http.Request) string
-
-//
-//// MemoryCache is an implemtation of Cache that stores responses in an in-memory map.
-//type MemoryCache struct {
-//	mu    sync.RWMutex
-//	items map[string][]byte
-//}
-//
-//// Get returns the []byte representation of the response and true if present, false if not
-//func (c *MemoryCache) Get(ctx context.Context, key string) (resp []byte, ok bool) {
-//	c.mu.RLock()
-//	resp, ok = c.items[key]
-//	c.mu.RUnlock()
-//	return resp, ok
-//}
-//
-//// Set saves response resp to the cache with key
-//func (c *MemoryCache) Set(ctx context.Context, key string, resp []byte) {
-//	c.mu.Lock()
-//	c.items[key] = resp
-//	c.mu.Unlock()
-//}
-//
-//// Delete removes key from the cache
-//func (c *MemoryCache) Delete(ctx context.Context, key string) {
-//	c.mu.Lock()
-//	delete(c.items, key)
-//	c.mu.Unlock()
-//}
-//
-//// NewMemoryCache returns a new Cache that will store items in an in-memory map
-//func NewMemoryCache() *MemoryCache {
-//	c := &MemoryCache{items: map[string][]byte{}}
-//	return c
-//}
-
 // TransportOpt is a configuration option for creating a new Transport
 type TransportOpt func(t *Transport)
 
@@ -84,13 +38,6 @@ func MarkCachedResponsesOpt(markCachedResponses bool) TransportOpt {
 		t.MarkCachedResponses = markCachedResponses
 	}
 }
-
-//// KeyFuncOpt configures a transport by setting its KeyFunc to the one given
-//func KeyFuncOpt(keyFunc KeyFunc) TransportOpt {
-//	return func(t *Transport) {
-//		t.KeyFunc = keyFunc
-//	}
-//}
 
 // Transport is an implementation of http.RoundTripper that will return values from a cache
 // where possible (avoiding a network request) and will additionally add validators (etag/if-modified-since)
@@ -125,8 +72,8 @@ func (t *Transport) Client() *http.Client {
 	return &http.Client{Transport: t}
 }
 
-// varyMatches will return false unless all of the cached values for the headers listed in Vary
-// match the new request
+// varyMatches will return false unless all the cached values for the
+// headers listed in Vary match the new request
 func varyMatches(cachedResp *http.Response, req *http.Request) bool {
 	for _, header := range headerAllCommaSepValues(cachedResp.Header, "vary") {
 		header = http.CanonicalHeaderKey(header)
