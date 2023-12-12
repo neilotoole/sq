@@ -11,6 +11,7 @@ import (
 	"context"
 	"errors"
 	"github.com/neilotoole/sq/libsq/core/cleanup"
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -80,12 +81,16 @@ func NewRespCache(dir string) *RespCache {
 }
 
 type RespCache struct {
+	mu     sync.Mutex
 	Header string
 	Body   string
 	clnup  *cleanup.Cleanup
 }
 
 func (rc *RespCache) Cached(ctx context.Context, req *http.Request) (*http.Response, error) {
+	rc.mu.Lock()
+	defer rc.mu.Unlock()
+
 	if !ioz.FileAccessible(rc.Header) {
 		return nil, nil
 	}
@@ -106,13 +111,110 @@ func (rc *RespCache) Cached(ctx context.Context, req *http.Request) (*http.Respo
 	return http.ReadResponse(bufio.NewReader(mr), req)
 }
 
+func (rc *RespCache) Close() error {
+	rc.mu.Lock()
+	defer rc.mu.Unlock()
+	err := rc.clnup.Run()
+	rc.clnup = cleanup.New()
+	return err
+}
+
+func (rc *RespCache) Clear() error {
+	rc.mu.Lock()
+	defer rc.mu.Unlock()
+	return rc.doClear()
+}
+
+func (rc *RespCache) doClear() error {
+	err1 := rc.clnup.Run()
+	rc.clnup = cleanup.New()
+	err2 := os.RemoveAll(rc.Header)
+	err3 := os.RemoveAll(rc.Body)
+	return errz.Combine(err1, err2, err3)
+}
+
+//// drainBody reads all of b to memory and then returns two equivalent
+//// ReadClosers yielding the same bytes.
+////
+//// It returns an error if the initial slurp of all bytes fails. It does not attempt
+//// to make the returned ReadClosers have identical error-matching behavior.
+//func drainBody(b io.ReadCloser) (r1, r2 io.ReadCloser, err error) {
+//	if b == nil || b == http.NoBody {
+//		// No copying needed. Preserve the magic sentinel meaning of NoBody.
+//		return http.NoBody, http.NoBody, nil
+//	}
+//	var buf bytes.Buffer
+//	if _, err = buf.ReadFrom(b); err != nil {
+//		return nil, b, err
+//	}
+//	if err = b.Close(); err != nil {
+//		return nil, b, err
+//	}
+//	return io.NopCloser(&buf), io.NopCloser(bytes.NewReader(buf.Bytes())), nil
+//}
+
+const msgClearCache = "Clear HTTP response cache"
+
+func (rc *RespCache) Write(ctx context.Context, resp *http.Response) error {
+	rc.mu.Lock()
+	defer rc.mu.Unlock()
+
+	err := rc.doWrite(ctx, resp)
+	if err != nil {
+		//lg.WarnIfFuncError(lg.FromContext(ctx), msgClearCache, rc.doClear)
+	}
+	return err
+}
+
+func (rc *RespCache) doWrite(ctx context.Context, resp *http.Response) error {
+	log := lg.FromContext(ctx)
+
+	if err := ioz.RequireDir(filepath.Dir(rc.Header)); err != nil {
+		return err
+	}
+
+	if err := ioz.RequireDir(filepath.Dir(rc.Body)); err != nil {
+		return err
+	}
+
+	respBytes, err := httputil.DumpResponse(resp, false)
+	if err != nil {
+		return err
+	}
+
+	if _, err = ioz.WriteToFile(ctx, rc.Header, bytes.NewReader(respBytes)); err != nil {
+		return err
+	}
+
+	f, err := os.OpenFile(rc.Body, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
+	if err != nil {
+		return err
+	}
+
+	_, err = io.Copy(f, resp.Body)
+	if err != nil {
+		lg.WarnIfCloseError(log, "Close cache body file", f)
+		return err
+	}
+
+	if err = f.Close(); err != nil {
+		return err
+	}
+
+	f, err = os.Open(rc.Body)
+	if err != nil {
+		return err
+	}
+
+	resp.Body = f
+	return nil
+}
+
 func (t *Transport) CachedResponse(ctx context.Context, key string, req *http.Request) (resp *http.Response, err error) {
 	cachedVal, ok := t.Cache.Get(ctx, key)
 	if !ok {
 		return
 	}
-
-	io.MultiReader()
 
 	b := bytes.NewBuffer(cachedVal)
 	return http.ReadResponse(bufio.NewReader(b), req)
