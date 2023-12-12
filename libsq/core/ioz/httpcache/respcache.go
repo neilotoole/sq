@@ -22,10 +22,10 @@ import (
 // The caller should call RespCache.Close when finished with the cache.
 func NewRespCache(cacheDir string) *RespCache {
 	c := &RespCache{
-		Dir:    cacheDir,
-		Header: filepath.Join(cacheDir, "header"),
-		Body:   filepath.Join(cacheDir, "body"),
-		clnup:  cleanup.New(),
+		Dir: cacheDir,
+		//Header: filepath.Join(cacheDir, "header"),
+		//Body:   filepath.Join(cacheDir, "body"),
+		clnup: cleanup.New(),
 	}
 	return c
 }
@@ -38,16 +38,10 @@ type RespCache struct {
 	clnup *cleanup.Cleanup
 
 	Dir string
-
-	// Header is the path to the file containing the http.Response header.
-	Header string
-
-	// Body is the path to the file containing the http.Response body.
-	Body string
 }
 
 func (rc *RespCache) getPaths(req *http.Request) (header, body string) {
-	if req.Method == http.MethodGet {
+	if req == nil || req.Method == http.MethodGet {
 		return filepath.Join(rc.Dir, "header"), filepath.Join(rc.Dir, "body")
 	}
 
@@ -61,19 +55,21 @@ func (rc *RespCache) Get(ctx context.Context, req *http.Request) (*http.Response
 	rc.mu.Lock()
 	defer rc.mu.Unlock()
 
-	if !ioz.FileAccessible(rc.Header) {
+	fpHeader, fpBody := rc.getPaths(req)
+
+	if !ioz.FileAccessible(fpHeader) {
 		return nil, nil
 	}
 
-	headerBytes, err := os.ReadFile(rc.Header)
+	headerBytes, err := os.ReadFile(fpHeader)
 	if err != nil {
 		return nil, err
 	}
 
-	bodyFile, err := os.Open(rc.Body)
+	bodyFile, err := os.Open(fpBody)
 	if err != nil {
 		lg.FromContext(ctx).Error("failed to open cached response body",
-			lga.File, rc.Body, lga.Err, err)
+			lga.File, fpBody, lga.Err, err)
 		return nil, err
 	}
 
@@ -108,11 +104,10 @@ func (rc *RespCache) Delete() error {
 }
 
 func (rc *RespCache) doDelete() error {
-	err1 := rc.clnup.Run()
+	cleanErr := rc.clnup.Run()
 	rc.clnup = cleanup.New()
-	err2 := os.RemoveAll(rc.Header)
-	err3 := os.RemoveAll(rc.Body)
-	return errz.Combine(err1, err2, err3)
+	deleteErr := os.RemoveAll(rc.Dir)
+	return errz.Combine(cleanErr, deleteErr)
 }
 
 const msgDeleteCache = "Delete HTTP response cache"
@@ -132,24 +127,22 @@ func (rc *RespCache) Write(ctx context.Context, resp *http.Response) error {
 func (rc *RespCache) doWrite(ctx context.Context, resp *http.Response) error {
 	log := lg.FromContext(ctx)
 
-	if err := ioz.RequireDir(filepath.Dir(rc.Header)); err != nil {
+	if err := ioz.RequireDir(rc.Dir); err != nil {
 		return err
 	}
 
-	if err := ioz.RequireDir(filepath.Dir(rc.Body)); err != nil {
-		return err
-	}
+	fpHeader, fpBody := rc.getPaths(resp.Request)
 
 	respBytes, err := httputil.DumpResponse(resp, false)
 	if err != nil {
 		return err
 	}
 
-	if _, err = ioz.WriteToFile(ctx, rc.Header, bytes.NewReader(respBytes)); err != nil {
+	if _, err = ioz.WriteToFile(ctx, fpHeader, bytes.NewReader(respBytes)); err != nil {
 		return err
 	}
 
-	f, err := os.OpenFile(rc.Body, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
+	f, err := os.OpenFile(fpBody, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
 	if err != nil {
 		return err
 	}
@@ -165,7 +158,7 @@ func (rc *RespCache) doWrite(ctx context.Context, resp *http.Response) error {
 		return err
 	}
 
-	f, err = os.Open(rc.Body)
+	f, err = os.Open(fpBody)
 	if err != nil {
 		return err
 	}

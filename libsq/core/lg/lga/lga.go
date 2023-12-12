@@ -35,6 +35,7 @@ const (
 	Kind      = "kind"
 	Loc       = "loc"
 	Lock      = "lock"
+	Method    = "method"
 	Name      = "name"
 	New       = "new"
 	Old       = "old"
