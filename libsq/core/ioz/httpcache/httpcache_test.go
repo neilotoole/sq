@@ -16,6 +16,13 @@ import (
 	"time"
 )
 
+// newTestTransport returns a new Transport using the in-memory cache implementation
+func newTestTransport(cacheDir string, opts ...TransportOpt) *Transport {
+	rc := NewRespCache(cacheDir)
+	t := NewTransport(rc, opts...)
+	return t
+}
+
 var s struct {
 	server    *httptest.Server
 	client    http.Client
@@ -40,7 +47,7 @@ func TestMain(m *testing.M) {
 }
 
 func setup() {
-	tp := NewMemoryCacheTransport(filepath.Join(os.TempDir(), stringz.Uniq8()))
+	tp := newTestTransport(filepath.Join(os.TempDir(), stringz.Uniq8()))
 	client := http.Client{Transport: tp}
 	s.transport = tp
 	s.client = client
@@ -1210,7 +1217,7 @@ func TestStaleIfErrorRequest(t *testing.T) {
 		},
 		err: nil,
 	}
-	tp := NewMemoryCacheTransport(t.TempDir())
+	tp := newTestTransport(t.TempDir())
 	tp.Transport = &tmock
 
 	// First time, response is cached on success
@@ -1255,7 +1262,7 @@ func TestStaleIfErrorRequestLifetime(t *testing.T) {
 		},
 		err: nil,
 	}
-	tp := NewMemoryCacheTransport(t.TempDir())
+	tp := newTestTransport(t.TempDir())
 	tp.Transport = &tmock
 
 	// First time, response is cached on success
@@ -1318,7 +1325,7 @@ func TestStaleIfErrorResponse(t *testing.T) {
 		},
 		err: nil,
 	}
-	tp := NewMemoryCacheTransport(t.TempDir())
+	tp := newTestTransport(t.TempDir())
 	tp.Transport = &tmock
 
 	// First time, response is cached on success
@@ -1362,7 +1369,7 @@ func TestStaleIfErrorResponseLifetime(t *testing.T) {
 		},
 		err: nil,
 	}
-	tp := NewMemoryCacheTransport(t.TempDir())
+	tp := newTestTransport(t.TempDir())
 	tp.Transport = &tmock
 
 	// First time, response is cached on success
@@ -1416,7 +1423,7 @@ func TestStaleIfErrorKeepsStatus(t *testing.T) {
 		},
 		err: nil,
 	}
-	tp := NewMemoryCacheTransport(t.TempDir())
+	tp := newTestTransport(t.TempDir())
 	tp.Transport = &tmock
 
 	// First time, response is cached on success
@@ -1461,7 +1468,7 @@ func TestClientTimeout(t *testing.T) {
 	resetTest(t)
 
 	client := &http.Client{
-		Transport: NewMemoryCacheTransport(t.TempDir()),
+		Transport: newTestTransport(t.TempDir()),
 		Timeout:   time.Second,
 	}
 	started := time.Now()
