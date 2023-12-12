@@ -18,6 +18,7 @@ require (
 	github.com/a8m/tree v0.0.0-20230208161321-36ae24ddad15
 	github.com/alessio/shellescape v1.4.2
 	github.com/antlr4-go/antlr/v4 v4.13.0
+	github.com/bitcomplete/httpcache v0.0.0-20220528171057-1f4a71bbffc5
 	github.com/c2h5oh/datasize v0.0.0-20220606134207-859f65c6625b
 	github.com/dustin/go-humanize v1.0.1
 	github.com/ecnepsnai/osquery v1.0.1
@@ -40,6 +41,7 @@ require (
 	github.com/neilotoole/slogt v1.1.0
 	github.com/nightlyone/lockfile v1.0.0
 	github.com/otiai10/copy v1.14.0
+	github.com/peterbourgon/diskv v2.0.1+incompatible
 	github.com/ryboe/q v1.0.20
 	github.com/samber/lo v1.39.0
 	github.com/segmentio/encoding v0.3.7
@@ -66,10 +68,12 @@ require (
 	github.com/Masterminds/semver/v3 v3.2.0 // indirect
 	github.com/VividCortex/ewma v1.2.0 // indirect
 	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d // indirect
+	github.com/bradfitz/gomemcache v0.0.0-20230905024940-24af94b03874 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/djherbis/atime v1.1.0 // indirect
 	github.com/golang-sql/civil v0.0.0-20220223132316-b832511892a9 // indirect
 	github.com/golang-sql/sqlexp v0.1.0 // indirect
+	github.com/google/btree v1.0.1 // indirect
 	github.com/huandu/xstrings v1.3.3 // indirect
 	github.com/imdario/mergo v0.3.11 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
