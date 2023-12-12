@@ -1,4 +1,4 @@
-// Package httpcache provides a http.RoundTripper implementation that
+// Package httpcacheworking provides a http.RoundTripper implementation that
 // works as a mostly RFC-compliant cache for http responses.
 //
 // FIXME: move httpcache to internal/httpcache, because its use
@@ -6,7 +6,7 @@
 //
 // Acknowledgement: This package is a heavily customized fork
 // of https://github.com/gregjones/httpcache, via bitcomplete/httpcache.
-package httpcache
+package httpcacheworking
 
 import (
 	"bufio"
