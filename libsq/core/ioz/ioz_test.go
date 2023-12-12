@@ -2,8 +2,11 @@ package ioz_test
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -80,4 +83,19 @@ func TestDelayReader(t *testing.T) {
 	}
 
 	wg.Wait()
+}
+
+func TestWriteToFile(t *testing.T) {
+	const val = `In Zanadu did Kubla Khan a stately pleasure dome decree`
+	ctx := context.Background()
+	dir := t.TempDir()
+
+	fp := filepath.Join(dir, "not_existing_intervening_dir", "test.txt")
+	written, err := ioz.WriteToFile(ctx, fp, strings.NewReader(val))
+	require.NoError(t, err)
+	require.Equal(t, int64(len(val)), written)
+
+	got, err := os.ReadFile(fp)
+	require.NoError(t, err)
+	require.Equal(t, val, string(got))
 }

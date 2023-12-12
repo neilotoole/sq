@@ -3,7 +3,6 @@
 //
 // It is only suitable for use as a 'private' cache (i.e. for a web-browser or an API-client
 // and not for a shared proxy).
-//
 package httpcache
 
 import (
@@ -11,10 +10,16 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"github.com/neilotoole/sq/libsq/core/cleanup"
+	"github.com/neilotoole/sq/libsq/core/ioz"
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -50,13 +55,64 @@ var DefaultKeyFunc = func(req *http.Request) string {
 	}
 }
 
-// CachedResponse returns the cached http.Response for req if present, and nil
+// CachedResponseOld returns the cached http.Response for req if present, and nil
 // otherwise.
-func CachedResponse(ctx context.Context, c Cache, key string, req *http.Request) (resp *http.Response, err error) {
+func CachedResponseOld(ctx context.Context, c Cache, key string, req *http.Request) (resp *http.Response, err error) {
 	cachedVal, ok := c.Get(ctx, key)
 	if !ok {
 		return
 	}
+
+	b := bytes.NewBuffer(cachedVal)
+	return http.ReadResponse(bufio.NewReader(b), req)
+}
+
+func NewRespCache(dir string) *RespCache {
+	c := &RespCache{
+		Header: filepath.Join(dir, "header"),
+		Body:   filepath.Join(dir, "body"),
+		clnup:  cleanup.New(),
+	}
+	//c.clnup.AddE(func() error {
+	//	return os.RemoveAll(dir)
+	//})
+	return c
+}
+
+type RespCache struct {
+	Header string
+	Body   string
+	clnup  *cleanup.Cleanup
+}
+
+func (rc *RespCache) Cached(ctx context.Context, req *http.Request) (*http.Response, error) {
+	if !ioz.FileAccessible(rc.Header) {
+		return nil, nil
+	}
+
+	b, err := os.ReadFile(rc.Header)
+	if err != nil {
+		return nil, err
+	}
+
+	f, err := os.Open(rc.Body)
+	if err != nil {
+		lg.FromContext(ctx).Error("failed to open cached response body",
+			lga.File, rc.Body, lga.Err, err)
+		return nil, err
+	}
+	rc.clnup.AddC(f)
+	mr := io.MultiReader(bytes.NewReader(b), f)
+	return http.ReadResponse(bufio.NewReader(mr), req)
+}
+
+func (t *Transport) CachedResponse(ctx context.Context, key string, req *http.Request) (resp *http.Response, err error) {
+	cachedVal, ok := t.Cache.Get(ctx, key)
+	if !ok {
+		return
+	}
+
+	io.MultiReader()
 
 	b := bytes.NewBuffer(cachedVal)
 	return http.ReadResponse(bufio.NewReader(b), req)
@@ -119,8 +175,9 @@ func KeyFuncOpt(keyFunc KeyFunc) TransportOpt {
 type Transport struct {
 	// The RoundTripper interface actually used to make requests
 	// If nil, http.DefaultTransport is used
-	Transport http.RoundTripper
-	Cache     Cache
+	Transport    http.RoundTripper
+	Cache        Cache
+	BodyFilepath string
 	// If true, responses returned from the cache will be given an extra header, X-From-Cache
 	MarkCachedResponses bool
 	// A function to generate a cache key for the given request
@@ -171,10 +228,10 @@ func (t *Transport) RoundTrip(req *http.Request) (resp *http.Response, err error
 	cacheable := (req.Method == "GET" || req.Method == "HEAD") && req.Header.Get("range") == ""
 	var cachedResp *http.Response
 	if cacheable {
-		cachedResp, err = CachedResponse(req.Context(), t.Cache, cacheKey, req)
+		cachedResp, err = CachedResponseOld(req.Context(), t.Cache, cacheKey, req)
 	} else {
 		// Need to invalidate an existing value
-		t.Cache.Delete(req.Context(), cacheKey)
+		t.cacheDelete(req.Context(), cacheKey)
 	}
 
 	transport := t.Transport
@@ -230,7 +287,7 @@ func (t *Transport) RoundTrip(req *http.Request) (resp *http.Response, err error
 			return cachedResp, nil
 		} else {
 			if err != nil || resp.StatusCode != http.StatusOK {
-				t.Cache.Delete(req.Context(), cacheKey)
+				t.cacheDelete(req.Context(), cacheKey)
 			}
 			if err != nil {
 				return nil, err
@@ -265,22 +322,55 @@ func (t *Transport) RoundTrip(req *http.Request) (resp *http.Response, err error
 				OnEOF: func(r io.Reader) {
 					resp := *resp
 					resp.Body = ioutil.NopCloser(r)
-					respBytes, err := httputil.DumpResponse(&resp, true)
-					if err == nil {
-						t.Cache.Set(req.Context(), cacheKey, respBytes)
-					}
+					_ = t.writeRespToCache(req.Context(), cacheKey, &resp)
+					//respBytes, err := httputil.DumpResponse(&resp, true)
+					//if err == nil {
+					//	if _, err = ioz.WriteToFile(req.Context(), t.BodyFilepath, resp.Body); err != nil {
+					//		lg.FromContext(req.Context()).Error("failed to write download cache body to file",
+					//			lga.Err, err, lga.File, t.BodyFilepath)
+					//	} else {
+					//		t.Cache.Set(req.Context(), cacheKey, respBytes)
+					//	}
+					//}
 				},
 			}
 		default:
-			respBytes, err := httputil.DumpResponse(resp, true)
-			if err == nil {
-				t.Cache.Set(req.Context(), cacheKey, respBytes)
-			}
+			_ = t.writeRespToCache(req.Context(), cacheKey, resp)
+			//respBytes, err := httputil.DumpResponse(resp, true)
+			//if err == nil {
+			//	if _, err = ioz.WriteToFile(req.Context(), t.BodyFilepath, resp.Body); err != nil {
+			//		lg.FromContext(req.Context()).Error("failed to write download cache body to file",
+			//			lga.Err, err, lga.File, t.BodyFilepath)
+			//	} else {
+			//		t.Cache.Set(req.Context(), cacheKey, respBytes)
+			//	}
+			//}
 		}
 	} else {
-		t.Cache.Delete(req.Context(), cacheKey)
+		t.cacheDelete(req.Context(), cacheKey)
 	}
 	return resp, nil
+}
+
+func (t *Transport) cacheDelete(ctx context.Context, cacheKey string) {
+	if err := os.RemoveAll(t.BodyFilepath); err != nil {
+		lg.FromContext(ctx).Warn("failed to remove download cache body file",
+			lga.Err, err, lga.File, t.BodyFilepath)
+	}
+	t.Cache.Delete(ctx, cacheKey)
+}
+
+func (t *Transport) writeRespToCache(ctx context.Context, cacheKey string, resp *http.Response) error {
+	respBytes, err := httputil.DumpResponse(resp, true)
+	if err == nil {
+		if _, err = ioz.WriteToFile(ctx, t.BodyFilepath, resp.Body); err != nil {
+			lg.FromContext(ctx).Error("failed to write download cache body to file",
+				lga.Err, err, lga.File, t.BodyFilepath)
+		} else {
+			t.Cache.Set(ctx, cacheKey, respBytes)
+		}
+	}
+	return err
 }
 
 // ErrNoDateHeader indicates that the HTTP headers contained no Date header.

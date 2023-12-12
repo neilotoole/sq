@@ -6,6 +6,7 @@ import (
 	"context"
 	crand "crypto/rand"
 	"crypto/tls"
+	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
 	"io"
 	mrand "math/rand"
 	"net/http"
@@ -417,4 +418,27 @@ func NewHTTPClient(insecureSkipVerify bool) *http.Client {
 	client.Transport = tr
 
 	return &client
+}
+
+// WriteToFile writes the contents of r to fp. If fp doesn't exist,
+// the file is created (including any parent dirs). If fp exists, it is
+// truncated. The write operation is context-aware.
+func WriteToFile(ctx context.Context, fp string, r io.Reader) (written int64, err error) {
+	if err = RequireDir(filepath.Dir(fp)); err != nil {
+		return 0, err
+	}
+
+	f, err := os.Create(fp)
+	if err != nil {
+		return 0, err
+	}
+
+	cr := contextio.NewReader(ctx, r)
+	written, err = io.Copy(f, cr)
+	closeErr := f.Close()
+	if err == nil {
+		return written, closeErr
+	}
+
+	return written, err
 }
