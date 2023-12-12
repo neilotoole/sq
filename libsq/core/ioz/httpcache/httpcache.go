@@ -48,49 +48,34 @@ type Cache interface {
 
 type KeyFunc func(req *http.Request) string
 
-// DefaultKeyFunc returns the cache key for req
-var DefaultKeyFunc = func(req *http.Request) string {
-	if req.Method == http.MethodGet {
-		return req.URL.String()
-	} else {
-		return req.Method + " " + req.URL.String()
-	}
-}
-
-// CachedResponseOld returns the cached http.Response for req if present, and nil
-// otherwise.
-func CachedResponseOld(ctx context.Context, c Cache, key string, req *http.Request) (resp *http.Response, err error) {
-	cachedVal, ok := c.Get(ctx, key)
-	if !ok {
-		return
-	}
-
-	b := bytes.NewBuffer(cachedVal)
-	return http.ReadResponse(bufio.NewReader(b), req)
-}
-
-func NewRespCache(dir string) *RespCache {
+// NewRespCache returns a new instance that stores responses in cacheDir.
+// The caller should call RespCache.Close when finished with the cache.
+func NewRespCache(cacheDir string) *RespCache {
 	c := &RespCache{
-		Header: filepath.Join(dir, "header"),
-		Body:   filepath.Join(dir, "body"),
+		Header: filepath.Join(cacheDir, "header"),
+		Body:   filepath.Join(cacheDir, "body"),
 		clnup:  cleanup.New(),
 	}
-	//c.clnup.AddE(func() error {
-	//	return os.RemoveAll(dir)
-	//})
 	return c
 }
 
+// RespCache is a cache for a single http.Response. The response is
+// stored in two files, one for the header and one for the body.
+// The caller should call RespCache.Close when finished with the cache.
 type RespCache struct {
-	mu     sync.Mutex
+	mu    sync.Mutex
+	clnup *cleanup.Cleanup
+
+	// Header is the path to the file containing the http.Response header.
 	Header string
-	Body   string
-	clnup  *cleanup.Cleanup
+
+	// Body is the path to the file containing the http.Response body.
+	Body string
 }
 
-// Cached returns the cached http.Response for req if present, and nil
+// Get returns the cached http.Response for req if present, and nil
 // otherwise.
-func (rc *RespCache) Cached(ctx context.Context, req *http.Request) (*http.Response, error) {
+func (rc *RespCache) Get(ctx context.Context, req *http.Request) (*http.Response, error) {
 	rc.mu.Lock()
 	defer rc.mu.Unlock()
 
@@ -129,8 +114,11 @@ func (rc *RespCache) Close() error {
 	return err
 }
 
-// Delete deletes the cache.
+// Delete deletes the cache entries from disk.
 func (rc *RespCache) Delete() error {
+	if rc == nil {
+		return nil
+	}
 	rc.mu.Lock()
 	defer rc.mu.Unlock()
 
@@ -204,15 +192,15 @@ func (rc *RespCache) doWrite(ctx context.Context, resp *http.Response) error {
 	return nil
 }
 
-func (t *Transport) CachedResponse(ctx context.Context, key string, req *http.Request) (resp *http.Response, err error) {
-	cachedVal, ok := t.Cache.Get(ctx, key)
-	if !ok {
-		return
-	}
-
-	b := bytes.NewBuffer(cachedVal)
-	return http.ReadResponse(bufio.NewReader(b), req)
-}
+//func (t *Transport) CachedResponse(ctx context.Context, key string, req *http.Request) (resp *http.Response, err error) {
+//	cachedVal, ok := t.Cache.Get(ctx, key)
+//	if !ok {
+//		return
+//	}
+//
+//	b := bytes.NewBuffer(cachedVal)
+//	return http.ReadResponse(bufio.NewReader(b), req)
+//}
 
 // MemoryCache is an implemtation of Cache that stores responses in an in-memory map.
 type MemoryCache struct {
@@ -258,12 +246,12 @@ func MarkCachedResponsesOpt(markCachedResponses bool) TransportOpt {
 	}
 }
 
-// KeyFuncOpt configures a transport by setting its KeyFunc to the one given
-func KeyFuncOpt(keyFunc KeyFunc) TransportOpt {
-	return func(t *Transport) {
-		t.KeyFunc = keyFunc
-	}
-}
+//// KeyFuncOpt configures a transport by setting its KeyFunc to the one given
+//func KeyFuncOpt(keyFunc KeyFunc) TransportOpt {
+//	return func(t *Transport) {
+//		t.KeyFunc = keyFunc
+//	}
+//}
 
 // Transport is an implementation of http.RoundTripper that will return values from a cache
 // where possible (avoiding a network request) and will additionally add validators (etag/if-modified-since)
@@ -272,23 +260,27 @@ type Transport struct {
 	// The RoundTripper interface actually used to make requests
 	// If nil, http.DefaultTransport is used
 	Transport http.RoundTripper
-	Cache     Cache
+	//Cache     Cache
 	RespCache *RespCache
 
 	// Deprecated: Use RespCache instead.
-	BodyFilepath string
-	// If true, responses returned from the cache will be given an extra header, X-From-Cache
+	//BodyFilepath string
+
+	// MarkCachedResponses, if true, indicates that responses returned from the
+	// cache will be given an extra header, X-From-Cache
 	MarkCachedResponses bool
+
 	// A function to generate a cache key for the given request
-	KeyFunc KeyFunc
+	//KeyFunc KeyFunc
 }
 
 // NewTransport returns a new Transport with the provided Cache and options. If
 // KeyFunc is not specified in opts then DefaultKeyFunc is used.
-func NewTransport(c Cache, opts ...TransportOpt) *Transport {
+func NewTransport(rc *RespCache, opts ...TransportOpt) *Transport {
 	t := &Transport{
-		Cache:               c,
-		KeyFunc:             DefaultKeyFunc,
+		//Cache:               c,
+		//KeyFunc:             DefaultKeyFunc,
+		RespCache:           rc,
 		MarkCachedResponses: true,
 	}
 	for _, opt := range opts {
@@ -328,13 +320,12 @@ func (t *Transport) RoundTrip(req *http.Request) (resp *http.Response, err error
 	cacheable := (req.Method == "GET" || req.Method == "HEAD") && req.Header.Get("range") == ""
 	var cachedResp *http.Response
 	if cacheable {
-		cachedResp, err = t.RespCache.Cached(req.Context(), req)
-		//cachedResp, err = t.CachedResponse(req.Context(), cacheKey, req)
+		cachedResp, err = t.RespCache.Get(req.Context(), req)
 	} else {
 		// Need to invalidate an existing value
-		//err = t.RespCache.Delete()
-		lg.WarnIfFuncError(log, "Delete cached response", t.RespCache.Delete)
-		//t.cacheDelete(req.Context(), cacheKey)
+		if err = t.RespCache.Delete(); err != nil {
+			return nil, err
+		}
 	}
 
 	transport := t.Transport
@@ -390,9 +381,9 @@ func (t *Transport) RoundTrip(req *http.Request) (resp *http.Response, err error
 			return cachedResp, nil
 		} else {
 			if err != nil || resp.StatusCode != http.StatusOK {
-				//t.cacheDelete(req.Context(), cacheKey)
-				t.RespCache.Delete()
-				//t.cacheDelete(req.Context(), cacheKey)
+				if err = t.RespCache.Delete(); err != nil {
+					return nil, err
+				}
 			}
 			if err != nil {
 				return nil, err
@@ -430,32 +421,12 @@ func (t *Transport) RoundTrip(req *http.Request) (resp *http.Response, err error
 					if err := t.RespCache.Write(req.Context(), &resp); err != nil {
 						log.Error("failed to write download cache", lga.Err, err)
 					}
-					//_ = t.writeRespToCache(req.Context(), cacheKey, &resp)
-					//respBytes, err := httputil.DumpResponse(&resp, true)
-					//if err == nil {
-					//	if _, err = ioz.WriteToFile(req.Context(), t.BodyFilepath, resp.Body); err != nil {
-					//		lg.FromContext(req.Context()).Error("failed to write download cache body to file",
-					//			lga.Err, err, lga.File, t.BodyFilepath)
-					//	} else {
-					//		t.Cache.Set(req.Context(), cacheKey, respBytes)
-					//	}
-					//}
 				},
 			}
 		default:
-			if err := t.RespCache.Write(req.Context(), resp); err != nil {
+			if err = t.RespCache.Write(req.Context(), resp); err != nil {
 				log.Error("failed to write download cache", lga.Err, err)
 			}
-			//_ = t.writeRespToCache(req.Context(), cacheKey, resp)
-			//respBytes, err := httputil.DumpResponse(resp, true)
-			//if err == nil {
-			//	if _, err = ioz.WriteToFile(req.Context(), t.BodyFilepath, resp.Body); err != nil {
-			//		lg.FromContext(req.Context()).Error("failed to write download cache body to file",
-			//			lga.Err, err, lga.File, t.BodyFilepath)
-			//	} else {
-			//		t.Cache.Set(req.Context(), cacheKey, respBytes)
-			//	}
-			//}
 		}
 	} else {
 		lg.WarnIfFuncError(log, "Delete resp cache", t.RespCache.Delete)
@@ -464,26 +435,26 @@ func (t *Transport) RoundTrip(req *http.Request) (resp *http.Response, err error
 	return resp, nil
 }
 
-func (t *Transport) cacheDelete(ctx context.Context, cacheKey string) {
-	if err := os.RemoveAll(t.BodyFilepath); err != nil {
-		lg.FromContext(ctx).Warn("failed to remove download cache body file",
-			lga.Err, err, lga.File, t.BodyFilepath)
-	}
-	t.Cache.Delete(ctx, cacheKey)
-}
-
-func (t *Transport) writeRespToCache(ctx context.Context, cacheKey string, resp *http.Response) error {
-	respBytes, err := httputil.DumpResponse(resp, true)
-	if err == nil {
-		if _, err = ioz.WriteToFile(ctx, t.BodyFilepath, resp.Body); err != nil {
-			lg.FromContext(ctx).Error("failed to write download cache body to file",
-				lga.Err, err, lga.File, t.BodyFilepath)
-		} else {
-			t.Cache.Set(ctx, cacheKey, respBytes)
-		}
-	}
-	return err
-}
+//func (t *Transport) cacheDelete(ctx context.Context, cacheKey string) {
+//	if err := os.RemoveAll(t.BodyFilepath); err != nil {
+//		lg.FromContext(ctx).Warn("failed to remove download cache body file",
+//			lga.Err, err, lga.File, t.BodyFilepath)
+//	}
+//	t.Cache.Delete(ctx, cacheKey)
+//}
+//
+//func (t *Transport) writeRespToCache(ctx context.Context, cacheKey string, resp *http.Response) error {
+//	respBytes, err := httputil.DumpResponse(resp, true)
+//	if err == nil {
+//		if _, err = ioz.WriteToFile(ctx, t.BodyFilepath, resp.Body); err != nil {
+//			lg.FromContext(ctx).Error("failed to write download cache body to file",
+//				lga.Err, err, lga.File, t.BodyFilepath)
+//		} else {
+//			t.Cache.Set(ctx, cacheKey, respBytes)
+//		}
+//	}
+//	return err
+//}
 
 // ErrNoDateHeader indicates that the HTTP headers contained no Date header.
 var ErrNoDateHeader = errors.New("no Date header")
@@ -779,8 +750,8 @@ func (r *cachingReadCloser) Close() error {
 }
 
 // NewMemoryCacheTransport returns a new Transport using the in-memory cache implementation
-func NewMemoryCacheTransport(opts ...TransportOpt) *Transport {
-	c := NewMemoryCache()
-	t := NewTransport(c, opts...)
+func NewMemoryCacheTransport(cacheDir string, opts ...TransportOpt) *Transport {
+	rc := NewRespCache(cacheDir)
+	t := NewTransport(rc, opts...)
 	return t
 }

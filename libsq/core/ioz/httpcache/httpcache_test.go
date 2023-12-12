@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"errors"
 	"flag"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strconv"
 	"testing"
 	"time"
@@ -38,7 +40,7 @@ func TestMain(m *testing.M) {
 }
 
 func setup() {
-	tp := NewMemoryCacheTransport()
+	tp := NewMemoryCacheTransport(filepath.Join(os.TempDir(), stringz.Uniq8()))
 	client := http.Client{Transport: tp}
 	s.transport = tp
 	s.client = client
@@ -165,15 +167,16 @@ func teardown() {
 	s.server.Close()
 }
 
-func resetTest() {
-	s.transport.Cache = NewMemoryCache()
+func resetTest(t testing.TB) {
+	s.transport.RespCache = NewRespCache(t.TempDir())
+	//s.transport.RespCache.Delete()
 	clock = &realClock{}
 }
 
 // TestCacheableMethod ensures that uncacheable method does not get stored
 // in cache and get incorrectly used for a following cacheable method request.
 func TestCacheableMethod(t *testing.T) {
-	resetTest()
+	resetTest(t)
 	{
 		req, err := http.NewRequest("POST", s.server.URL+"/method", nil)
 		if err != nil {
@@ -230,7 +233,7 @@ func TestCacheableMethod(t *testing.T) {
 }
 
 func TestDontServeHeadResponseToGetRequest(t *testing.T) {
-	resetTest()
+	resetTest(t)
 	url := s.server.URL + "/"
 	req, err := http.NewRequest(http.MethodHead, url, nil)
 	if err != nil {
@@ -254,7 +257,7 @@ func TestDontServeHeadResponseToGetRequest(t *testing.T) {
 }
 
 func TestDontStorePartialRangeInCache(t *testing.T) {
-	resetTest()
+	resetTest(t)
 	{
 		req, err := http.NewRequest("GET", s.server.URL+"/range", nil)
 		if err != nil {
@@ -366,7 +369,7 @@ func TestDontStorePartialRangeInCache(t *testing.T) {
 }
 
 func TestCacheOnlyIfBodyRead(t *testing.T) {
-	resetTest()
+	resetTest(t)
 	{
 		req, err := http.NewRequest("GET", s.server.URL, nil)
 		if err != nil {
@@ -399,7 +402,7 @@ func TestCacheOnlyIfBodyRead(t *testing.T) {
 }
 
 func TestOnlyReadBodyOnDemand(t *testing.T) {
-	resetTest()
+	resetTest(t)
 
 	req, err := http.NewRequest("GET", s.server.URL+"/infinite", nil)
 	if err != nil {
@@ -418,7 +421,7 @@ func TestOnlyReadBodyOnDemand(t *testing.T) {
 }
 
 func TestGetOnlyIfCachedHit(t *testing.T) {
-	resetTest()
+	resetTest(t)
 	{
 		req, err := http.NewRequest("GET", s.server.URL, nil)
 		if err != nil {
@@ -458,7 +461,7 @@ func TestGetOnlyIfCachedHit(t *testing.T) {
 }
 
 func TestGetOnlyIfCachedMiss(t *testing.T) {
-	resetTest()
+	resetTest(t)
 	req, err := http.NewRequest("GET", s.server.URL, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -478,7 +481,7 @@ func TestGetOnlyIfCachedMiss(t *testing.T) {
 }
 
 func TestGetNoStoreRequest(t *testing.T) {
-	resetTest()
+	resetTest(t)
 	req, err := http.NewRequest("GET", s.server.URL, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -507,7 +510,7 @@ func TestGetNoStoreRequest(t *testing.T) {
 }
 
 func TestGetNoStoreResponse(t *testing.T) {
-	resetTest()
+	resetTest(t)
 	req, err := http.NewRequest("GET", s.server.URL+"/nostore", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -535,7 +538,7 @@ func TestGetNoStoreResponse(t *testing.T) {
 }
 
 func TestGetWithEtag(t *testing.T) {
-	resetTest()
+	resetTest(t)
 	req, err := http.NewRequest("GET", s.server.URL+"/etag", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -575,7 +578,7 @@ func TestGetWithEtag(t *testing.T) {
 }
 
 func TestGetWithLastModified(t *testing.T) {
-	resetTest()
+	resetTest(t)
 	req, err := http.NewRequest("GET", s.server.URL+"/lastmodified", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -607,7 +610,7 @@ func TestGetWithLastModified(t *testing.T) {
 }
 
 func TestGetWithVary(t *testing.T) {
-	resetTest()
+	resetTest(t)
 	req, err := http.NewRequest("GET", s.server.URL+"/varyaccept", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -662,7 +665,7 @@ func TestGetWithVary(t *testing.T) {
 }
 
 func TestGetWithDoubleVary(t *testing.T) {
-	resetTest()
+	resetTest(t)
 	req, err := http.NewRequest("GET", s.server.URL+"/doublevary", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -718,7 +721,7 @@ func TestGetWithDoubleVary(t *testing.T) {
 }
 
 func TestGetWith2VaryHeaders(t *testing.T) {
-	resetTest()
+	resetTest(t)
 	// Tests that multiple Vary headers' comma-separated lists are
 	// merged. See https://github.com/gregjones/httpcache/issues/27.
 	const (
@@ -817,7 +820,7 @@ func TestGetWith2VaryHeaders(t *testing.T) {
 }
 
 func TestGetVaryUnused(t *testing.T) {
-	resetTest()
+	resetTest(t)
 	req, err := http.NewRequest("GET", s.server.URL+"/varyunused", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -850,7 +853,7 @@ func TestGetVaryUnused(t *testing.T) {
 }
 
 func TestUpdateFields(t *testing.T) {
-	resetTest()
+	resetTest(t)
 	req, err := http.NewRequest("GET", s.server.URL+"/updatefields", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -888,7 +891,7 @@ func TestUpdateFields(t *testing.T) {
 // Previously, after validating a cached response, its StatusCode
 // was incorrectly being replaced.
 func TestCachedErrorsKeepStatus(t *testing.T) {
-	resetTest()
+	resetTest(t)
 	req, err := http.NewRequest("GET", s.server.URL+"/cachederror", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -914,7 +917,7 @@ func TestCachedErrorsKeepStatus(t *testing.T) {
 }
 
 func TestParseCacheControl(t *testing.T) {
-	resetTest()
+	resetTest(t)
 	h := http.Header{}
 	for range parseCacheControl(h) {
 		t.Fatal("cacheControl should be empty")
@@ -951,7 +954,7 @@ func TestParseCacheControl(t *testing.T) {
 }
 
 func TestNoCacheRequestExpiration(t *testing.T) {
-	resetTest()
+	resetTest(t)
 	respHeaders := http.Header{}
 	respHeaders.Set("Cache-Control", "max-age=7200")
 
@@ -963,7 +966,7 @@ func TestNoCacheRequestExpiration(t *testing.T) {
 }
 
 func TestNoCacheResponseExpiration(t *testing.T) {
-	resetTest()
+	resetTest(t)
 	respHeaders := http.Header{}
 	respHeaders.Set("Cache-Control", "no-cache")
 	respHeaders.Set("Expires", "Wed, 19 Apr 3000 11:43:00 GMT")
@@ -975,7 +978,7 @@ func TestNoCacheResponseExpiration(t *testing.T) {
 }
 
 func TestReqMustRevalidate(t *testing.T) {
-	resetTest()
+	resetTest(t)
 	// not paying attention to request setting max-stale means never returning stale
 	// responses, so always acting as if must-revalidate is set
 	respHeaders := http.Header{}
@@ -988,7 +991,7 @@ func TestReqMustRevalidate(t *testing.T) {
 }
 
 func TestRespMustRevalidate(t *testing.T) {
-	resetTest()
+	resetTest(t)
 	respHeaders := http.Header{}
 	respHeaders.Set("Cache-Control", "must-revalidate")
 
@@ -999,7 +1002,7 @@ func TestRespMustRevalidate(t *testing.T) {
 }
 
 func TestFreshExpiration(t *testing.T) {
-	resetTest()
+	resetTest(t)
 	now := time.Now()
 	respHeaders := http.Header{}
 	respHeaders.Set("date", now.Format(time.RFC1123))
@@ -1017,7 +1020,7 @@ func TestFreshExpiration(t *testing.T) {
 }
 
 func TestMaxAge(t *testing.T) {
-	resetTest()
+	resetTest(t)
 	now := time.Now()
 	respHeaders := http.Header{}
 	respHeaders.Set("date", now.Format(time.RFC1123))
@@ -1035,7 +1038,7 @@ func TestMaxAge(t *testing.T) {
 }
 
 func TestMaxAgeZero(t *testing.T) {
-	resetTest()
+	resetTest(t)
 	now := time.Now()
 	respHeaders := http.Header{}
 	respHeaders.Set("date", now.Format(time.RFC1123))
@@ -1048,7 +1051,7 @@ func TestMaxAgeZero(t *testing.T) {
 }
 
 func TestBothMaxAge(t *testing.T) {
-	resetTest()
+	resetTest(t)
 	now := time.Now()
 	respHeaders := http.Header{}
 	respHeaders.Set("date", now.Format(time.RFC1123))
@@ -1062,7 +1065,7 @@ func TestBothMaxAge(t *testing.T) {
 }
 
 func TestMinFreshWithExpires(t *testing.T) {
-	resetTest()
+	resetTest(t)
 	now := time.Now()
 	respHeaders := http.Header{}
 	respHeaders.Set("date", now.Format(time.RFC1123))
@@ -1082,7 +1085,7 @@ func TestMinFreshWithExpires(t *testing.T) {
 }
 
 func TestEmptyMaxStale(t *testing.T) {
-	resetTest()
+	resetTest(t)
 	now := time.Now()
 	respHeaders := http.Header{}
 	respHeaders.Set("date", now.Format(time.RFC1123))
@@ -1102,7 +1105,7 @@ func TestEmptyMaxStale(t *testing.T) {
 }
 
 func TestMaxStaleValue(t *testing.T) {
-	resetTest()
+	resetTest(t)
 	now := time.Now()
 	respHeaders := http.Header{}
 	respHeaders.Set("date", now.Format(time.RFC1123))
@@ -1136,7 +1139,7 @@ func containsHeader(headers []string, header string) bool {
 }
 
 func TestGetEndToEndHeaders(t *testing.T) {
-	resetTest()
+	resetTest(t)
 	var (
 		headers http.Header
 		end2end []string
@@ -1193,7 +1196,7 @@ func (t transportMock) RoundTrip(req *http.Request) (resp *http.Response, err er
 }
 
 func TestStaleIfErrorRequest(t *testing.T) {
-	resetTest()
+	resetTest(t)
 	now := time.Now()
 	tmock := transportMock{
 		response: &http.Response{
@@ -1207,7 +1210,7 @@ func TestStaleIfErrorRequest(t *testing.T) {
 		},
 		err: nil,
 	}
-	tp := NewMemoryCacheTransport()
+	tp := NewMemoryCacheTransport(t.TempDir())
 	tp.Transport = &tmock
 
 	// First time, response is cached on success
@@ -1238,7 +1241,7 @@ func TestStaleIfErrorRequest(t *testing.T) {
 }
 
 func TestStaleIfErrorRequestLifetime(t *testing.T) {
-	resetTest()
+	resetTest(t)
 	now := time.Now()
 	tmock := transportMock{
 		response: &http.Response{
@@ -1252,7 +1255,7 @@ func TestStaleIfErrorRequestLifetime(t *testing.T) {
 		},
 		err: nil,
 	}
-	tp := NewMemoryCacheTransport()
+	tp := NewMemoryCacheTransport(t.TempDir())
 	tp.Transport = &tmock
 
 	// First time, response is cached on success
@@ -1301,7 +1304,7 @@ func TestStaleIfErrorRequestLifetime(t *testing.T) {
 }
 
 func TestStaleIfErrorResponse(t *testing.T) {
-	resetTest()
+	resetTest(t)
 	now := time.Now()
 	tmock := transportMock{
 		response: &http.Response{
@@ -1315,7 +1318,7 @@ func TestStaleIfErrorResponse(t *testing.T) {
 		},
 		err: nil,
 	}
-	tp := NewMemoryCacheTransport()
+	tp := NewMemoryCacheTransport(t.TempDir())
 	tp.Transport = &tmock
 
 	// First time, response is cached on success
@@ -1345,7 +1348,7 @@ func TestStaleIfErrorResponse(t *testing.T) {
 }
 
 func TestStaleIfErrorResponseLifetime(t *testing.T) {
-	resetTest()
+	resetTest(t)
 	now := time.Now()
 	tmock := transportMock{
 		response: &http.Response{
@@ -1359,7 +1362,7 @@ func TestStaleIfErrorResponseLifetime(t *testing.T) {
 		},
 		err: nil,
 	}
-	tp := NewMemoryCacheTransport()
+	tp := NewMemoryCacheTransport(t.TempDir())
 	tp.Transport = &tmock
 
 	// First time, response is cached on success
@@ -1399,7 +1402,7 @@ func TestStaleIfErrorResponseLifetime(t *testing.T) {
 // Previously, after a stale response was used after encountering an error,
 // its StatusCode was being incorrectly replaced.
 func TestStaleIfErrorKeepsStatus(t *testing.T) {
-	resetTest()
+	resetTest(t)
 	now := time.Now()
 	tmock := transportMock{
 		response: &http.Response{
@@ -1413,7 +1416,7 @@ func TestStaleIfErrorKeepsStatus(t *testing.T) {
 		},
 		err: nil,
 	}
-	tp := NewMemoryCacheTransport()
+	tp := NewMemoryCacheTransport(t.TempDir())
 	tp.Transport = &tmock
 
 	// First time, response is cached on success
@@ -1455,9 +1458,10 @@ func TestClientTimeout(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping timeout test in short mode") // Because it takes at least 3 seconds to run.
 	}
-	resetTest()
+	resetTest(t)
+
 	client := &http.Client{
-		Transport: NewMemoryCacheTransport(),
+		Transport: NewMemoryCacheTransport(t.TempDir()),
 		Timeout:   time.Second,
 	}
 	started := time.Now()
