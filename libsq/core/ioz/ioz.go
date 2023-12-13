@@ -420,15 +420,15 @@ func WriteToFile(ctx context.Context, fp string, r io.Reader) (written int64, er
 
 	f, err := os.Create(fp)
 	if err != nil {
-		return 0, err
+		return 0, errz.Err(err)
 	}
 
 	cr := contextio.NewReader(ctx, r)
 	written, err = io.Copy(f, cr)
 	closeErr := f.Close()
 	if err == nil {
-		return written, closeErr
+		return written, errz.Err(closeErr)
 	}
 
-	return written, err
+	return written, errz.Err(err)
 }

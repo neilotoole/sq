@@ -40,7 +40,6 @@ require (
 	github.com/neilotoole/slogt v1.1.0
 	github.com/nightlyone/lockfile v1.0.0
 	github.com/otiai10/copy v1.14.0
-	github.com/peterbourgon/diskv v2.0.1+incompatible
 	github.com/ryboe/q v1.0.20
 	github.com/samber/lo v1.39.0
 	github.com/segmentio/encoding v0.3.7
@@ -71,7 +70,6 @@ require (
 	github.com/djherbis/atime v1.1.0 // indirect
 	github.com/golang-sql/civil v0.0.0-20220223132316-b832511892a9 // indirect
 	github.com/golang-sql/sqlexp v0.1.0 // indirect
-	github.com/google/btree v1.0.1 // indirect
 	github.com/huandu/xstrings v1.3.3 // indirect
 	github.com/imdario/mergo v0.3.11 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect

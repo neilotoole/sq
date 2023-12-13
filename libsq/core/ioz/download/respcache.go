@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"fmt"
+	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
 	"io"
 	"net/http"
 	"net/http/httputil"
@@ -14,7 +16,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
-	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 )
@@ -123,7 +124,8 @@ func (rc *RespCache) doClear(ctx context.Context) error {
 	cleanErr := rc.clnup.Run()
 	rc.clnup = cleanup.New()
 	deleteErr := errz.Wrap(os.RemoveAll(rc.Dir), "delete cache dir")
-	err := errz.Combine(cleanErr, deleteErr)
+	recreateErr := ioz.RequireDir(rc.Dir)
+	err := errz.Combine(cleanErr, deleteErr, recreateErr)
 	if err != nil {
 		lg.FromContext(ctx).Error(msgDeleteCache,
 			lga.Dir, rc.Dir, lga.Err, err)
@@ -136,26 +138,31 @@ func (rc *RespCache) doClear(ctx context.Context) error {
 
 const msgDeleteCache = "Delete HTTP response cache"
 
-// Write writes resp to the cache. If copyWrtr is non-nil, the response
-// bytes are copied to that destination also.
-func (rc *RespCache) Write(ctx context.Context, resp *http.Response, copyWrtr io.WriteCloser) error {
+// Write writes resp to the cache. If headerOnly is true, only the header
+// cache file is updated. If headerOnly is false and copyWrtr is non-nil, the
+// response body bytes are copied to that destination, as well as being
+// written to the cache.
+func (rc *RespCache) Write(ctx context.Context, resp *http.Response, headerOnly bool, copyWrtr io.WriteCloser) error {
 	rc.mu.Lock()
 	defer rc.mu.Unlock()
 
-	err := rc.doWrite(ctx, resp, copyWrtr)
+	err := rc.doWrite(ctx, resp, headerOnly, copyWrtr)
 	if err != nil {
-		lg.WarnIfError(lg.FromContext(ctx), msgDeleteCache, rc.doClear(ctx))
+		lg.FromContext(ctx).Error("Failed to write HTTP response to cache", lga.Dir, rc.Dir, lga.Err, err)
+
+		//lg.WarnIfError(lg.FromContext(ctx), msgDeleteCache, rc.doClear(ctx))
 	}
 	return err
 }
 
-func (rc *RespCache) doWrite(ctx context.Context, resp *http.Response, copyWrtr io.WriteCloser) error {
+func (rc *RespCache) doWrite(ctx context.Context, resp *http.Response, headerOnly bool, copyWrtr io.WriteCloser) error {
 	log := lg.FromContext(ctx)
 
 	if err := ioz.RequireDir(rc.Dir); err != nil {
 		return err
 	}
 
+	log.Info("Writing HTTP response to cache", lga.Dir, rc.Dir, "resp", fmt.Sprintf("%v", *resp))
 	fpHeader, fpBody := rc.Paths(resp.Request)
 
 	headerBytes, err := httputil.DumpResponse(resp, false)
@@ -165,6 +172,10 @@ func (rc *RespCache) doWrite(ctx context.Context, resp *http.Response, copyWrtr 
 
 	if _, err = ioz.WriteToFile(ctx, fpHeader, bytes.NewReader(headerBytes)); err != nil {
 		return err
+	}
+
+	if headerOnly {
+		return nil
 	}
 
 	cacheFile, err := os.OpenFile(fpBody, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
@@ -186,6 +197,7 @@ func (rc *RespCache) doWrite(ctx context.Context, resp *http.Response, copyWrtr 
 	var written int64
 	written, err = io.Copy(cacheFile, cr)
 	if err != nil {
+		log.Error("Cache write: io.Copy failed", lga.Err, err)
 		lg.WarnIfCloseError(log, "Close cache body file", cacheFile)
 		return err
 	}
