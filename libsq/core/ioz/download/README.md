@@ -1,6 +1,6 @@
 # ACKNOWLEDGEMENT
 
-This package a heavily-modified fork
+This `download` package is a heavily-modified fork
 of [`gregjones/httpcache`](https://github.com/gregjones/httpcache).
 
 

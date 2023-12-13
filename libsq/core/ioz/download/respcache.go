@@ -107,7 +107,7 @@ func (rc *RespCache) Get(ctx context.Context, req *http.Request) (*http.Response
 
 	// It won't be
 	// closed via a call to http.Response.Body.Close().
-	rc.clnup.AddC(bodyFile)
+	//rc.clnup.AddC(bodyFile)
 
 	// TODO: consider adding contextio.NewReader?
 	concatRdr := io.MultiReader(bytes.NewReader(headerBytes), bodyFile)

@@ -405,15 +405,41 @@ func ReadFileToString(t testing.TB, name string) string {
 // to lsof. This function is skipped on Windows.
 // If log is true, the output of lsof is logged.
 func OpenFileCount(t *testing.T, log bool) int {
-	SkipWindows(t, "OpenFileCount not implemented on Windows")
-	out, err := exec.Command("/bin/sh", "-c", fmt.Sprintf("lsof -p %v", os.Getpid())).Output()
-	require.NoError(t, err)
-	lines := strings.Split(string(out), "\n")
-	count := len(lines) - 1
+	count, out := doOpenFileCount(t)
 	msg := fmt.Sprintf("Open files for [%d]: %d", os.Getpid(), count)
 	if log {
 		msg += "\n\n" + string(out)
 	}
 	t.Log(msg)
 	return count
+}
+
+func doOpenFileCount(t *testing.T) (count int, out string) {
+	SkipWindows(t, "OpenFileCount not implemented on Windows")
+	b, err := exec.Command("/bin/sh", "-c", fmt.Sprintf("lsof -p %v", os.Getpid())).Output()
+	require.NoError(t, err)
+	lines := strings.Split(string(b), "\n")
+	count = len(lines) - 1
+	return count, string(b)
+}
+
+// DiffOpenFileCount is a debugging function that compares the
+// open file count at the start of the test with the count at
+// the end of the test (via t.Cleanup). This function is skipped on Windows.
+func DiffOpenFileCount(t *testing.T, log bool) {
+	openingCount, openingOut := doOpenFileCount(t)
+	if log {
+		t.Logf("START: Open files for [%d]: %d\n\n%s", os.Getpid(), openingCount, openingOut)
+	}
+	t.Cleanup(func() {
+		closingCount, closingOut := doOpenFileCount(t)
+		if log {
+			t.Logf("END: Open files for [%d]: %d\n\n%s", os.Getpid(), closingCount, closingOut)
+		}
+		if openingCount != closingCount {
+			t.Logf("Open file count changed from %d to %d", openingCount, closingCount)
+		} else {
+			t.Logf("Open file count unchanged: %d", openingCount)
+		}
+	})
 }
