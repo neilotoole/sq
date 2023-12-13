@@ -11,13 +11,14 @@ package download
 import (
 	"bufio"
 	"context"
+	"io"
+	"net/http"
+	"os"
+
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
-	"io"
-	"net/http"
-	"os"
 )
 
 // State is an enumeration of caching states based on the cache-control
@@ -330,7 +331,7 @@ func (dl *Download) newRequest(ctx context.Context, url string) (*http.Request, 
 }
 
 func (dl *Download) getClient() *http.Client {
-	return ioz.NewHTTPClient(dl.InsecureSkipVerify)
+	return ioz.NewHTTPClient("", dl.InsecureSkipVerify, 0, 0)
 }
 
 // Clear deletes the cache.

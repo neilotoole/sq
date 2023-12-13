@@ -5,16 +5,15 @@ import (
 	"bytes"
 	"context"
 	crand "crypto/rand"
-	"crypto/tls"
-	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
 	"io"
 	mrand "math/rand"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
 
 	"github.com/a8m/tree"
 	"github.com/a8m/tree/ostree"
@@ -390,34 +389,25 @@ func PrintTree(w io.Writer, loc string, showSize, colorize bool) error {
 	return nil
 }
 
-// NewHTTPClient returns a new HTTP client with no client-wide timeout.
-// If a timeout is needed, use a [context.WithTimeout] for each request.
-// If insecureSkipVerify is true, the client will skip TLS verification.
-func NewHTTPClient(insecureSkipVerify bool) *http.Client {
-	client := *http.DefaultClient
-
-	var tr *http.Transport
-	if client.Transport == nil {
-		tr = (http.DefaultTransport.(*http.Transport)).Clone()
-	} else {
-		tr = (client.Transport.(*http.Transport)).Clone()
+// ReadCloserNotifier returns a new io.ReadCloser that invokes fn
+// after Close is called, passing along any error from Close.
+// If rc or fn is nil, rc is returned.
+func ReadCloserNotifier(rc io.ReadCloser, fn func(closeErr error)) io.ReadCloser {
+	if rc == nil || fn == nil {
+		return rc
 	}
+	return &readCloseNotifier{ReadCloser: rc, fn: fn}
+}
 
-	if tr.TLSClientConfig == nil {
-		// We allow tls.VersionTLS10, even though it's not considered
-		// secure these days. Ultimately this could become a config
-		// option.
-		tr.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS10} //nolint:gosec
-	} else {
-		tr.TLSClientConfig = tr.TLSClientConfig.Clone()
-	}
+type readCloseNotifier struct {
+	fn func(error)
+	io.ReadCloser
+}
 
-	tr.TLSClientConfig.InsecureSkipVerify = insecureSkipVerify
-
-	client.Timeout = 0
-	client.Transport = tr
-
-	return &client
+func (c *readCloseNotifier) Close() error {
+	err := c.Close()
+	c.fn(err)
+	return err
 }
 
 // WriteToFile writes the contents of r to fp. If fp doesn't exist,

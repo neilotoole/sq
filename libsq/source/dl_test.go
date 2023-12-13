@@ -3,13 +3,14 @@ package source
 import (
 	"bytes"
 	"context"
-	"github.com/neilotoole/slogt"
-	"github.com/neilotoole/sq/libsq/core/lg"
-	"github.com/stretchr/testify/require"
 	"net/url"
 	"path"
 	"path/filepath"
 	"testing"
+
+	"github.com/neilotoole/slogt"
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDownloader2_Download(t *testing.T) {
@@ -29,21 +30,21 @@ func TestDownloader2_Download(t *testing.T) {
 	log.Debug("huzzah")
 	dl, err := newDownloader2(cacheDir, "sq/dev", dlURL)
 	require.NoError(t, err)
-	//require.NoError(t, dl.ClearCache(ctx))
+	// require.NoError(t, dl.ClearCache(ctx))
 
 	buf := &bytes.Buffer{}
 	written, cachedFp, err := dl.Download2(ctx, buf)
 	_ = written
 	_ = cachedFp
 	require.NoError(t, err)
-	//require.Equal(t, wantContentLength, written)
-	//require.Equal(t, wantContentLength, int64(buf.Len()))
+	// require.Equal(t, wantContentLength, written)
+	// require.Equal(t, wantContentLength, int64(buf.Len()))
 
 	buf.Reset()
 	written, cachedFp, err = dl.Download2(ctx, buf)
 	require.NoError(t, err)
-	//require.Equal(t, wantContentLength, written)
-	//require.Equal(t, wantContentLength, int64(buf.Len()))
+	// require.Equal(t, wantContentLength, written)
+	// require.Equal(t, wantContentLength, int64(buf.Len()))
 }
 
 func TestDownloader2_Download_Legacy(t *testing.T) {
@@ -61,7 +62,7 @@ func TestDownloader2_Download_Legacy(t *testing.T) {
 
 	dl, err := newDownloader2(cacheDir, "sq/dev", dlURL)
 	require.NoError(t, err)
-	//require.NoError(t, dl.ClearCache(ctx))
+	// require.NoError(t, dl.ClearCache(ctx))
 
 	buf := &bytes.Buffer{}
 	written, cachedFp, err := dl.Download2(ctx, buf)

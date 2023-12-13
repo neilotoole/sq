@@ -2,6 +2,11 @@ package source
 
 import (
 	"context"
+	"io"
+	"log/slog"
+	"net/http"
+	"sync"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
@@ -9,10 +14,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
-	"io"
-	"log/slog"
-	"net/http"
-	"sync"
 )
 
 // newDownloader creates a new downloader using cacheDir for the given url.
@@ -26,20 +27,20 @@ func newDownloader2(cacheDir, userAgent, dlURL string) (*downloader2, error) {
 		return nil, err
 	}
 
-	//dc := diskcache.NewWithDiskv(dv)
+	// dc := diskcache.NewWithDiskv(dv)
 	rc := download.NewRespCache(cacheDir)
 	tp := download.New(rc)
 
-	//respCache := download.NewRespCache(cacheDir)
-	//tp.RespCache = respCache
-	//tp.BodyFilepath = filepath.Join(cacheDir, "body.data")
+	// respCache := download.NewRespCache(cacheDir)
+	// tp.RespCache = respCache
+	// tp.BodyFilepath = filepath.Join(cacheDir, "body.data")
 
 	c := &http.Client{Transport: tp}
 
 	return &downloader2{
 		c: c,
-		//dc: dc,
-		//dv:        dv,
+		// dc: dc,
+		// dv:        dv,
 		cacheDir:  cacheDir,
 		url:       dlURL,
 		userAgent: userAgent,
@@ -122,7 +123,7 @@ func (d *downloader2) Download2(ctx context.Context, dest io.Writer) (written in
 
 	var gotFp string
 	var gotErr error
-	//buf := &bytes.Buffer{}
+	// buf := &bytes.Buffer{}
 	cb := download.Handler{
 		Cached: func(cachedFilepath string) error {
 			gotFp = cachedFilepath

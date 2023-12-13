@@ -3,7 +3,6 @@ package source
 import (
 	"bytes"
 	"context"
-	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -11,6 +10,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"testing"
+
+	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

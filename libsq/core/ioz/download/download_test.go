@@ -3,15 +3,16 @@ package download_test
 import (
 	"bytes"
 	"context"
+	"io"
+	"os"
+	"path/filepath"
+	"testing"
+
 	"github.com/neilotoole/slogt"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/ioz/download"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/stretchr/testify/require"
-	"io"
-	"os"
-	"path/filepath"
-	"testing"
 )
 
 const (

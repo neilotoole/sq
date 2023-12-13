@@ -156,7 +156,7 @@ func (d *downloader) Download(ctx context.Context, dest io.Writer) (written int6
 	if err != nil {
 		return written, "", errz.Wrapf(err, "download new request failed for: %s", d.url)
 	}
-	//setDefaultHTTPRequestHeaders(req)
+	// setDefaultHTTPRequestHeaders(req)
 
 	resp, err := d.c.Do(req)
 	if err != nil {
@@ -364,7 +364,7 @@ func fetchHTTPResponse(ctx context.Context, c *http.Client, u string) (resp *htt
 	if err != nil {
 		return nil, errz.Err(err)
 	}
-	//setDefaultHTTPRequestHeaders(req)
+	// setDefaultHTTPRequestHeaders(req)
 
 	resp, err = http.DefaultClient.Do(req)
 	if err != nil {

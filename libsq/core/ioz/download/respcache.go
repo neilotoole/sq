@@ -4,18 +4,19 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"github.com/neilotoole/sq/libsq/core/cleanup"
-	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/ioz"
-	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
-	"github.com/neilotoole/sq/libsq/core/lg"
-	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"io"
 	"net/http"
 	"net/http/httputil"
 	"os"
 	"path/filepath"
 	"sync"
+
+	"github.com/neilotoole/sq/libsq/core/cleanup"
+	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/ioz"
+	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 )
 
 // NewRespCache returns a new instance that stores responses in cacheDir.
@@ -23,8 +24,8 @@ import (
 func NewRespCache(cacheDir string) *RespCache {
 	c := &RespCache{
 		Dir: cacheDir,
-		//Header: filepath.Join(cacheDir, "header"),
-		//Body:   filepath.Join(cacheDir, "body"),
+		// Header: filepath.Join(cacheDir, "header"),
+		// Body:   filepath.Join(cacheDir, "body"),
 		clnup: cleanup.New(),
 	}
 	return c
