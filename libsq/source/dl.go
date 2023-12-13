@@ -5,7 +5,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
-	"github.com/neilotoole/sq/libsq/core/ioz/httpcache"
+	"github.com/neilotoole/sq/libsq/core/ioz/download"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
@@ -27,10 +27,10 @@ func newDownloader2(cacheDir, userAgent, dlURL string) (*downloader2, error) {
 	}
 
 	//dc := diskcache.NewWithDiskv(dv)
-	rc := httpcache.NewRespCache(cacheDir)
-	tp := httpcache.NewTransport(rc)
+	rc := download.NewRespCache(cacheDir)
+	tp := download.New(rc)
 
-	//respCache := httpcache.NewRespCache(cacheDir)
+	//respCache := download.NewRespCache(cacheDir)
 	//tp.RespCache = respCache
 	//tp.BodyFilepath = filepath.Join(cacheDir, "body.data")
 
@@ -53,7 +53,7 @@ type downloader2 struct {
 	userAgent string
 	cacheDir  string
 	url       string
-	tp        *httpcache.Transport
+	tp        *download.Download
 }
 
 func (d *downloader2) log(log *slog.Logger) *slog.Logger {
@@ -65,7 +65,7 @@ func (d *downloader2) ClearCache(ctx context.Context) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	if err := d.tp.Delete(ctx); err != nil {
+	if err := d.tp.Clear(ctx); err != nil {
 		return errz.Wrapf(err, "failed to clear cache dir: %s", d.cacheDir)
 	}
 
@@ -82,12 +82,6 @@ func (d *downloader2) Download(ctx context.Context, dest io.Writer) (written int
 	if d.userAgent != "" {
 		req.Header.Set("User-Agent", d.userAgent)
 	}
-
-	isCached := d.tp.IsCached(req)
-	_ = isCached
-
-	isFresh := d.tp.IsFresh(req)
-	_ = isFresh
 
 	resp, err := d.c.Do(req)
 	if err != nil {
@@ -126,16 +120,10 @@ func (d *downloader2) Download2(ctx context.Context, dest io.Writer) (written in
 		req.Header.Set("User-Agent", d.userAgent)
 	}
 
-	isCached := d.tp.IsCached(req)
-	_ = isCached
-
-	isFresh := d.tp.IsFresh(req)
-	_ = isFresh
-
 	var gotFp string
 	var gotErr error
 	//buf := &bytes.Buffer{}
-	cb := httpcache.Handler{
+	cb := download.Handler{
 		Cached: func(cachedFilepath string) error {
 			gotFp = cachedFilepath
 			return nil
@@ -150,7 +138,7 @@ func (d *downloader2) Download2(ctx context.Context, dest io.Writer) (written in
 		},
 	}
 
-	d.tp.FetchWith(req, cb)
+	d.tp.fetchWith(req, cb)
 	_ = gotFp
 	_ = gotErr
 

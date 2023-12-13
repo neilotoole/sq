@@ -1,4 +1,4 @@
-package httpcache
+package download
 
 import (
 	"bufio"
@@ -107,24 +107,24 @@ func (rc *RespCache) Close() error {
 	return err
 }
 
-// Delete deletes the cache entries from disk.
-func (rc *RespCache) Delete(ctx context.Context) error {
+// Clear deletes the cache entries from disk.
+func (rc *RespCache) Clear(ctx context.Context) error {
 	if rc == nil {
 		return nil
 	}
 	rc.mu.Lock()
 	defer rc.mu.Unlock()
 
-	return rc.doDelete(ctx)
+	return rc.doClear(ctx)
 }
 
-func (rc *RespCache) doDelete(ctx context.Context) error {
+func (rc *RespCache) doClear(ctx context.Context) error {
 	cleanErr := rc.clnup.Run()
 	rc.clnup = cleanup.New()
 	deleteErr := errz.Wrap(os.RemoveAll(rc.Dir), "delete cache dir")
 	err := errz.Combine(cleanErr, deleteErr)
 	if err != nil {
-		lg.FromContext(ctx).Error("Delete cache dir",
+		lg.FromContext(ctx).Error(msgDeleteCache,
 			lga.Dir, rc.Dir, lga.Err, err)
 		return err
 	}
@@ -141,12 +141,9 @@ func (rc *RespCache) Write(ctx context.Context, resp *http.Response, copyWrtr io
 	rc.mu.Lock()
 	defer rc.mu.Unlock()
 
-	log := lg.FromContext(ctx)
-	log.Debug("huzzah in write")
-
 	err := rc.doWrite(ctx, resp, copyWrtr)
 	if err != nil {
-		lg.WarnIfError(lg.FromContext(ctx), msgDeleteCache, rc.doDelete(ctx))
+		lg.WarnIfError(lg.FromContext(ctx), msgDeleteCache, rc.doClear(ctx))
 	}
 	return err
 }

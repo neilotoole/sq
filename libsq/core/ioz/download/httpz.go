@@ -1,4 +1,4 @@
-package httpcache
+package download
 
 import (
 	"bufio"
@@ -105,31 +105,31 @@ type timer interface {
 
 var clock timer = &realClock{}
 
-// getFreshness will return one of fresh/stale/transparent based on the cache-control
+// getFreshness will return one of Fresh/stale/transparent based on the cache-control
 // values of the request and the response
 //
-// fresh indicates the response can be returned
+// Fresh indicates the response can be returned
 // stale indicates that the response needs validating before it is returned
-// transparent indicates the response should not be used to fulfil the request
+// Transparent indicates the response should not be used to fulfil the request
 //
 // Because this is only a private cache, 'public' and 'private' in cache-control aren't
 // significant. Similarly, smax-age isn't used.
-func getFreshness(respHeaders, reqHeaders http.Header) (freshness int) {
+func getFreshness(respHeaders, reqHeaders http.Header) (freshness State) {
 	respCacheControl := parseCacheControl(respHeaders)
 	reqCacheControl := parseCacheControl(reqHeaders)
 	if _, ok := reqCacheControl["no-cache"]; ok {
-		return transparent
+		return Transparent
 	}
 	if _, ok := respCacheControl["no-cache"]; ok {
-		return stale
+		return Stale
 	}
 	if _, ok := reqCacheControl["only-if-cached"]; ok {
-		return fresh
+		return Fresh
 	}
 
 	date, err := getDate(respHeaders)
 	if err != nil {
-		return stale
+		return Stale
 	}
 	currentAge := clock.since(date)
 
@@ -162,15 +162,15 @@ func getFreshness(respHeaders, reqHeaders http.Header) (freshness int) {
 			lifetime = zeroDuration
 		}
 	}
-	if minfresh, ok := reqCacheControl["min-fresh"]; ok {
+	if minFresh, ok := reqCacheControl["min-fresh"]; ok {
 		//  the client wants a response that will still be fresh for at least the specified number of seconds.
-		minfreshDuration, err := time.ParseDuration(minfresh + "s")
+		minFreshDuration, err := time.ParseDuration(minFresh + "s")
 		if err == nil {
-			currentAge = time.Duration(currentAge + minfreshDuration)
+			currentAge = time.Duration(currentAge + minFreshDuration)
 		}
 	}
 
-	if maxstale, ok := reqCacheControl["max-stale"]; ok {
+	if maxStale, ok := reqCacheControl["max-stale"]; ok {
 		// Indicates that the client is willing to accept a response that has exceeded its expiration time.
 		// If max-stale is assigned a value, then the client is willing to accept a response that has exceeded
 		// its expiration time by no more than the specified number of seconds.
@@ -179,20 +179,20 @@ func getFreshness(respHeaders, reqHeaders http.Header) (freshness int) {
 		// Responses served only because of a max-stale value are supposed to have a Warning header added to them,
 		// but that seems like a  hassle, and is it actually useful? If so, then there needs to be a different
 		// return-value available here.
-		if maxstale == "" {
-			return fresh
+		if maxStale == "" {
+			return Fresh
 		}
-		maxstaleDuration, err := time.ParseDuration(maxstale + "s")
+		maxStaleDuration, err := time.ParseDuration(maxStale + "s")
 		if err == nil {
-			currentAge = time.Duration(currentAge - maxstaleDuration)
+			currentAge = time.Duration(currentAge - maxStaleDuration)
 		}
 	}
 
 	if lifetime > currentAge {
-		return fresh
+		return Fresh
 	}
 
-	return stale
+	return Stale
 }
 
 // Returns true if either the request or the response includes the stale-if-error

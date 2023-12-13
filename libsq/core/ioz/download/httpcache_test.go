@@ -1,16 +1,16 @@
-package httpcache
+package download
 
 //
-//// newTestTransport returns a new Transport using the in-memory cache implementation
-//func newTestTransport(cacheDir string, opts ...Opt) *Transport {
-//	t := NewTransport(cacheDir, opts...)
+//// newTestTransport returns a new Download using the in-memory cache implementation
+//func newTestTransport(cacheDir string, opts ...Opt) *Download {
+//	t := New(cacheDir, opts...)
 //	return t
 //}
 //
 //var s struct {
 //	server    *httptest.Server
 //	client    http.Client
-//	transport *Transport
+//	transport *Download
 //	done      chan struct{} // Closed to unlock infinite handlers.
 //}
 //
@@ -32,7 +32,7 @@ package httpcache
 //
 //func setup() {
 //	tp := newTestTransport(filepath.Join(os.TempDir(), stringz.Uniq8()))
-//	client := http.Client{Transport: tp}
+//	client := http.Client{Download: tp}
 //	s.transport = tp
 //	s.client = client
 //	s.done = make(chan struct{})
@@ -1203,7 +1203,7 @@ package httpcache
 //		err: nil,
 //	}
 //	tp := newTestTransport(t.TempDir())
-//	tp.Transport = &tmock
+//	tp.Download = &tmock
 //
 //	// First time, response is cached on success
 //	r, _ := http.NewRequest("GET", "http://somewhere.com/", nil)
@@ -1248,7 +1248,7 @@ package httpcache
 //		err: nil,
 //	}
 //	tp := newTestTransport(t.TempDir())
-//	tp.Transport = &tmock
+//	tp.Download = &tmock
 //
 //	// First time, response is cached on success
 //	r, _ := http.NewRequest("GET", "http://somewhere.com/", nil)
@@ -1311,7 +1311,7 @@ package httpcache
 //		err: nil,
 //	}
 //	tp := newTestTransport(t.TempDir())
-//	tp.Transport = &tmock
+//	tp.Download = &tmock
 //
 //	// First time, response is cached on success
 //	r, _ := http.NewRequest("GET", "http://somewhere.com/", nil)
@@ -1355,7 +1355,7 @@ package httpcache
 //		err: nil,
 //	}
 //	tp := newTestTransport(t.TempDir())
-//	tp.Transport = &tmock
+//	tp.Download = &tmock
 //
 //	// First time, response is cached on success
 //	r, _ := http.NewRequest("GET", "http://somewhere.com/", nil)
@@ -1409,7 +1409,7 @@ package httpcache
 //		err: nil,
 //	}
 //	tp := newTestTransport(t.TempDir())
-//	tp.Transport = &tmock
+//	tp.Download = &tmock
 //
 //	// First time, response is cached on success
 //	r, _ := http.NewRequest("GET", "http://somewhere.com/", nil)
@@ -1453,7 +1453,7 @@ package httpcache
 //	resetTest(t)
 //
 //	client := &http.Client{
-//		Transport: newTestTransport(t.TempDir()),
+//		Download: newTestTransport(t.TempDir()),
 //		Timeout:   time.Second,
 //	}
 //	started := time.Now()

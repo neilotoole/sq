@@ -1,11 +1,11 @@
-package httpcache_test
+package download_test
 
 import (
 	"bytes"
 	"context"
 	"github.com/neilotoole/slogt"
 	"github.com/neilotoole/sq/libsq/core/ioz"
-	"github.com/neilotoole/sq/libsq/core/ioz/httpcache"
+	"github.com/neilotoole/sq/libsq/core/ioz/download"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/stretchr/testify/require"
 	"io"
@@ -21,17 +21,18 @@ const (
 	sizeGzipActorCSV   = int64(1968)
 )
 
-func TestTransport_Fetch(t *testing.T) {
+func TestDownload(t *testing.T) {
 	log := slogt.New(t)
 	ctx := lg.NewContext(context.Background(), log)
 	const dlURL = urlActorCSV
 
+	// FIXME: switch to temp dir
 	cacheDir, err := filepath.Abs(filepath.Join("testdata", "downloader", "cache-dir-2"))
 	require.NoError(t, err)
 	t.Logf("cacheDir: %s", cacheDir)
 
-	dl := httpcache.NewTransport(cacheDir, httpcache.OptUserAgent("sq/dev"))
-	require.NoError(t, dl.Delete(ctx))
+	dl := download.New(cacheDir, download.OptUserAgent("sq/dev"))
+	require.NoError(t, dl.Clear(ctx))
 
 	var (
 		destBuf = &bytes.Buffer{}
@@ -44,34 +45,31 @@ func TestTransport_Fetch(t *testing.T) {
 		gotErr = nil
 	}
 
-	h := httpcache.Handler{
-		Cached: func(cachedFilepath string) error {
+	h := download.Handler{
+		Cached: func(cachedFilepath string) {
 			gotFp = cachedFilepath
-			return nil
 		},
-		Uncached: func() (wc io.WriteCloser, errFn func(error), err error) {
+		Uncached: func() (wc io.WriteCloser, errFn func(error)) {
 			return ioz.WriteCloser(destBuf),
 				func(err error) {
 					gotErr = err
-				},
-				nil
+				}
 		},
 		Error: func(err error) {
 			gotErr = err
 		},
 	}
 
-	//req, err := http.NewRequestWithContext(ctx, http.MethodGet, dlURL, nil)
-	////if d.userAgent != "" {
-	////	req.Header.Set("User-Agent", d.userAgent)
-	////}
-	dl.Fetch(ctx, dlURL, h)
+	require.Equal(t, download.Uncached, dl.State(ctx, dlURL))
+	dl.Get(ctx, dlURL, h)
 	require.NoError(t, gotErr)
 	require.Empty(t, gotFp)
 	require.Equal(t, sizeActorCSV, int64(destBuf.Len()))
 
+	require.Equal(t, download.Fresh, dl.State(ctx, dlURL))
+
 	reset()
-	dl.Fetch(ctx, dlURL, h)
+	dl.Get(ctx, dlURL, h)
 	require.NoError(t, gotErr)
 	require.Equal(t, 0, destBuf.Len())
 	require.NotEmpty(t, gotFp)
@@ -79,4 +77,8 @@ func TestTransport_Fetch(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, sizeActorCSV, int64(len(gotFileBytes)))
 
+	require.Equal(t, download.Fresh, dl.State(ctx, dlURL))
+
+	require.NoError(t, dl.Clear(ctx))
+	require.Equal(t, download.Uncached, dl.State(ctx, dlURL))
 }

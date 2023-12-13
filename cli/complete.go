@@ -675,7 +675,7 @@ func (c *handleTableCompleter) completeHandle(ctx context.Context, ru *run.Run, 
 		// This means that we aren't able to get metadata for this source.
 		// This could be because the source is temporarily offline. The
 		// best we can do is just to return the handle, without the tables.
-		lg.WarnIfError(lg.FromContext(ctx), "Fetch metadata", err)
+		lg.WarnIfError(lg.FromContext(ctx), "Get metadata", err)
 		return matchingHandles, cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace
 	}
 
