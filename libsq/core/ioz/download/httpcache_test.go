@@ -159,8 +159,8 @@ package download
 //}
 //
 //func resetTest(t testing.TB) {
-//	s.transport.RespCache = NewRespCache(t.TempDir())
-//	//s.transport.RespCache.Delete()
+//	s.transport.Cache = NewRespCache(t.TempDir())
+//	//s.transport.Cache.Delete()
 //	clock = &realClock{}
 //}
 //

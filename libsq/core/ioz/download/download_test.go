@@ -1,8 +1,10 @@
 package download_test
 
 import (
+	"bufio"
 	"bytes"
 	"context"
+	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
 	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/testh/tu"
@@ -13,6 +15,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -235,4 +238,21 @@ func newTestHandler(log *slog.Logger) *testHandler {
 		th.errors = append(th.errors, err)
 	}
 	return th
+}
+
+func TestMisc(t *testing.T) {
+	br := bufio.NewReader(strings.NewReader("huzzah"))
+
+	cr := contextio.NewReader(context.TODO(), br)
+
+	t.Logf("cr: %T", cr)
+
+	var wt io.WriterTo
+	wt = br
+	_ = wt
+
+	var ok bool
+	wt, ok = cr.(io.WriterTo)
+	require.True(t, ok)
+
 }

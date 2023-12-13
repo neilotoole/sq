@@ -87,7 +87,7 @@ type Download struct {
 
 	c *http.Client
 
-	respCache *RespCache
+	respCache *Cache
 
 	// markCachedResponses, if true, indicates that responses returned from the
 	// cache will be given an extra header, X-From-Cache.
@@ -122,7 +122,7 @@ func New(c *http.Client, dlURL, cacheDir string, opts ...Opt) (*Download, error)
 	}
 
 	if !t.disableCaching {
-		t.respCache = NewRespCache(cacheDir)
+		t.respCache = &Cache{dir: cacheDir}
 	}
 
 	return t, nil
@@ -265,7 +265,7 @@ func (dl *Download) get(req *http.Request, h Handler) {
 		if resp == cachedResp {
 			lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
 			if err = dl.respCache.Write(ctx, resp, true, nil); err != nil {
-				log.Error("Failed to update cache header", lga.Dir, dl.respCache.Dir, lga.Err, err)
+				log.Error("Failed to update cache header", lga.Dir, dl.respCache.dir, lga.Err, err)
 				h.Error(err)
 				return
 			}
@@ -282,7 +282,7 @@ func (dl *Download) get(req *http.Request, h Handler) {
 
 		defer lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
 		if err = dl.respCache.Write(req.Context(), resp, false, destWrtr); err != nil {
-			log.Error("Failed to write download cache", lga.Dir, dl.respCache.Dir, lga.Err, err)
+			log.Error("Failed to write download cache", lga.Dir, dl.respCache.dir, lga.Err, err)
 			if errFn != nil {
 				errFn(err)
 			}
@@ -312,15 +312,6 @@ func (dl *Download) get(req *http.Request, h Handler) {
 	}
 
 	return
-}
-
-// Close frees any resources held by the Download. It does not delete
-// the cache from disk. For that, see Download.Clear.
-func (dl *Download) Close() error {
-	if dl.respCache != nil {
-		return dl.respCache.Close()
-	}
-	return nil
 }
 
 // do executes the request.

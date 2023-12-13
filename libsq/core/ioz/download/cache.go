@@ -15,7 +15,6 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -25,54 +24,41 @@ import (
 const msgCloseCacheHeaderFile = "Close cached response header file"
 const msgCloseCacheBodyFile = "Close cached response body file"
 
-// NewRespCache returns a new instance that stores responses in cacheDir.
-// The caller should call RespCache.Close when finished with the cache.
-func NewRespCache(cacheDir string) *RespCache {
-	c := &RespCache{
-		Dir:   cacheDir,
-		clnup: cleanup.New(),
-	}
-	return c
-}
-
-// RespCache is a cache a download. The cached response is
+// Cache is a cache for a individual download. The cached response is
 // stored in two files, one for the header and one for the body, with
 // a checksum (of the body file) stored in a third file.
-// Use RespCache.Paths to access the cache files.
-type RespCache struct {
+// Use Cache.Paths to access the cache files.
+type Cache struct {
 	// FIXME: move the mutex to the Download struct?
 	mu sync.Mutex
 
-	// Deprecated: any cleanup should happen via resp.Body.Close().
-	clnup *cleanup.Cleanup
-
-	// Dir is the directory in which the cache files are stored.
-	Dir string
+	// dir is the directory in which the cache files are stored.
+	dir string
 }
 
 // Paths returns the paths to the header, body, and checksum files for req.
 // It is not guaranteed that they exist.
-func (rc *RespCache) Paths(req *http.Request) (header, body, checksum string) {
+func (c *Cache) Paths(req *http.Request) (header, body, checksum string) {
 	if req == nil || req.Method == http.MethodGet {
-		return filepath.Join(rc.Dir, "header"),
-			filepath.Join(rc.Dir, "body"),
-			filepath.Join(rc.Dir, "checksum.txt")
+		return filepath.Join(c.dir, "header"),
+			filepath.Join(c.dir, "body"),
+			filepath.Join(c.dir, "checksum.txt")
 	}
 
 	// This is probably not strictly necessary because we're always
 	// using GET, but in an earlier incarnation of the code, it was relevant.
 	// Can probably delete.
-	return filepath.Join(rc.Dir, req.Method+"_header"),
-		filepath.Join(rc.Dir, req.Method+"_body"),
-		filepath.Join(rc.Dir, req.Method+"_checksum.txt")
+	return filepath.Join(c.dir, req.Method+"_header"),
+		filepath.Join(c.dir, req.Method+"_body"),
+		filepath.Join(c.dir, req.Method+"_checksum.txt")
 }
 
 // Exists returns true if the cache contains a response for req.
-func (rc *RespCache) Exists(req *http.Request) bool {
-	rc.mu.Lock()
-	defer rc.mu.Unlock()
+func (c *Cache) Exists(req *http.Request) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
-	fpHeader, _, _ := rc.Paths(req)
+	fpHeader, _, _ := c.Paths(req)
 	fi, err := os.Stat(fpHeader)
 	if err != nil {
 		return false
@@ -82,12 +68,12 @@ func (rc *RespCache) Exists(req *http.Request) bool {
 
 // Get returns the cached http.Response for req if present, and nil
 // otherwise. The caller MUST close the returned response body.
-func (rc *RespCache) Get(ctx context.Context, req *http.Request) (*http.Response, error) {
-	rc.mu.Lock()
-	defer rc.mu.Unlock()
+func (c *Cache) Get(ctx context.Context, req *http.Request) (*http.Response, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	log := lg.FromContext(ctx)
 
-	fpHeader, fpBody, _ := rc.Paths(req)
+	fpHeader, fpBody, _ := c.Paths(req)
 	if !ioz.FileAccessible(fpHeader) {
 		// If the header file doesn't exist, it's a nil, nil situation.
 		return nil, nil
@@ -105,11 +91,7 @@ func (rc *RespCache) Get(ctx context.Context, req *http.Request) (*http.Response
 		return nil, errz.Wrap(err, "failed to open cached response body file")
 	}
 
-	// It won't be
-	// closed via a call to http.Response.Body.Close().
-	//rc.clnup.AddC(bodyFile)
-
-	// TODO: consider adding contextio.NewReader?
+	// FIXME: consider adding contextio.NewReader?
 	concatRdr := io.MultiReader(bytes.NewReader(headerBytes), bodyFile)
 	resp, err := http.ReadResponse(bufio.NewReader(concatRdr), req)
 	if err != nil {
@@ -121,20 +103,19 @@ func (rc *RespCache) Get(ctx context.Context, req *http.Request) (*http.Response
 	// we wrap bodyFile in a ReadCloserNotifier, which will close bodyFile
 	// when resp.Body is closed. Thus, it's critical that the caller
 	// close the returned resp.
-	respBody := resp.Body
-	resp.Body = ioz.ReadCloserNotifier(respBody, func(error) {
+	resp.Body = ioz.ReadCloserNotifier(resp.Body, func(error) {
 		lg.WarnIfCloseError(log, msgCloseCacheBodyFile, bodyFile)
 	})
 	return resp, nil
 }
 
 // Checksum returns the checksum of the cached body file, if available.
-func (rc *RespCache) Checksum(req *http.Request) (sum checksum.Checksum, ok bool) {
-	if rc == nil || req == nil {
+func (c *Cache) Checksum(req *http.Request) (sum checksum.Checksum, ok bool) {
+	if c == nil || req == nil {
 		return "", false
 	}
 
-	_, _, fp := rc.Paths(req)
+	_, _, fp := c.Paths(req)
 	if !ioz.FileAccessible(fp) {
 		return "", false
 	}
@@ -155,41 +136,28 @@ func (rc *RespCache) Checksum(req *http.Request) (sum checksum.Checksum, ok bool
 	return sum, ok
 }
 
-// Close closes the cache, freeing any resources it holds. Note that
-// it does not delete the cache: for that, see RespCache.Delete.
-func (rc *RespCache) Close() error {
-	rc.mu.Lock()
-	defer rc.mu.Unlock()
-
-	err := rc.clnup.Run()
-	rc.clnup = cleanup.New()
-	return err
-}
-
 // Clear deletes the cache entries from disk.
-func (rc *RespCache) Clear(ctx context.Context) error {
-	if rc == nil {
+func (c *Cache) Clear(ctx context.Context) error {
+	if c == nil {
 		return nil
 	}
-	rc.mu.Lock()
-	defer rc.mu.Unlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
-	return rc.doClear(ctx)
+	return c.doClear(ctx)
 }
 
-func (rc *RespCache) doClear(ctx context.Context) error {
-	cleanErr := rc.clnup.Run()
-	rc.clnup = cleanup.New()
-	deleteErr := errz.Wrap(os.RemoveAll(rc.Dir), "delete cache dir")
-	recreateErr := ioz.RequireDir(rc.Dir)
-	err := errz.Combine(cleanErr, deleteErr, recreateErr)
+func (c *Cache) doClear(ctx context.Context) error {
+	deleteErr := errz.Wrap(os.RemoveAll(c.dir), "delete cache dir")
+	recreateErr := ioz.RequireDir(c.dir)
+	err := errz.Combine(deleteErr, recreateErr)
 	if err != nil {
 		lg.FromContext(ctx).Error(msgDeleteCache,
-			lga.Dir, rc.Dir, lga.Err, err)
+			lga.Dir, c.dir, lga.Err, err)
 		return err
 	}
 
-	lg.FromContext(ctx).Info("Deleted cache dir", lga.Dir, rc.Dir)
+	lg.FromContext(ctx).Info("Deleted cache dir", lga.Dir, c.dir)
 	return nil
 }
 
@@ -199,24 +167,24 @@ const msgDeleteCache = "Delete HTTP response cache"
 // the header cache file is updated. If headerOnly is false and copyWrtr is
 // non-nil, the response body bytes are copied to that destination, as well as
 // being written to the cache. The response body is always closed.
-func (rc *RespCache) Write(ctx context.Context, resp *http.Response, headerOnly bool, copyWrtr io.WriteCloser) error {
-	rc.mu.Lock()
-	defer rc.mu.Unlock()
+func (c *Cache) Write(ctx context.Context, resp *http.Response, headerOnly bool, copyWrtr io.WriteCloser) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
-	return rc.doWrite(ctx, resp, headerOnly, copyWrtr)
+	return c.doWrite(ctx, resp, headerOnly, copyWrtr)
 }
 
-func (rc *RespCache) doWrite(ctx context.Context, resp *http.Response,
+func (c *Cache) doWrite(ctx context.Context, resp *http.Response,
 	headerOnly bool, copyWrtr io.WriteCloser) error {
 	log := lg.FromContext(ctx)
 	defer lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
 
-	if err := ioz.RequireDir(rc.Dir); err != nil {
+	if err := ioz.RequireDir(c.dir); err != nil {
 		return err
 	}
 
-	log.Debug("Writing HTTP response to cache", lga.Dir, rc.Dir, "resp", httpz.ResponseLogValue(resp))
-	fpHeader, fpBody, _ := rc.Paths(resp.Request)
+	log.Debug("Writing HTTP response to cache", lga.Dir, c.dir, "resp", httpz.ResponseLogValue(resp))
+	fpHeader, fpBody, _ := c.Paths(resp.Request)
 
 	headerBytes, err := httputil.DumpResponse(resp, false)
 	if err != nil {
@@ -264,7 +232,7 @@ func (rc *RespCache) doWrite(ctx context.Context, resp *http.Response,
 		return errz.Wrap(err, "failed to compute checksum for cache body file")
 	}
 
-	if err = checksum.WriteFile(filepath.Join(rc.Dir, "checksum.txt"), sum, "body"); err != nil {
+	if err = checksum.WriteFile(filepath.Join(c.dir, "checksum.txt"), sum, "body"); err != nil {
 		return errz.Wrap(err, "failed to write checksum file for cache body")
 	}
 
