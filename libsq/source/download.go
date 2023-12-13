@@ -3,14 +3,13 @@ package source
 import (
 	"bytes"
 	"context"
+	"github.com/neilotoole/sq/libsq/core/ioz/download"
 	"io"
 	"log/slog"
-	"mime"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"os"
-	"path"
 	"path/filepath"
 	"sync"
 	"time"
@@ -25,7 +24,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/options"
-	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/source/fetcher"
 )
 
@@ -176,7 +174,7 @@ func (d *downloader) Download(ctx context.Context, dest io.Writer) (written int6
 		return written, "", errz.Errorf("download failed with %s for %s", resp.Status, d.url)
 	}
 
-	filename := getDownloadFilename(resp)
+	filename := download.Filename(resp)
 	if filename == "" {
 		filename = "download"
 	}
@@ -419,31 +417,4 @@ func (fs *Files) fetch(ctx context.Context, loc string) (fpath string, err error
 	fs.clnup.AddC(dlFile)
 
 	return dlFile.Name(), nil
-}
-
-// getDownloadFilename returns the filename to use for a download.
-// It first checks the Content-Disposition header, and if that's
-// not present, it uses the last path segment of the URL. The
-// filename is sanitized.
-// It's possible that the returned value will be empty string; the
-// caller should handle that situation themselves.
-func getDownloadFilename(resp *http.Response) string {
-	var filename string
-	if resp == nil || resp.Header == nil {
-		return ""
-	}
-	dispHeader := resp.Header.Get("Content-Disposition")
-	if dispHeader != "" {
-		if _, params, err := mime.ParseMediaType(dispHeader); err == nil {
-			filename = params["filename"]
-		}
-	}
-
-	if filename == "" {
-		filename = path.Base(resp.Request.URL.Path)
-	} else {
-		filename = filepath.Base(filename)
-	}
-
-	return stringz.SanitizeFilename(filename)
 }

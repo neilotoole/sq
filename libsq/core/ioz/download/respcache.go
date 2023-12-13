@@ -4,8 +4,9 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"fmt"
+	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
 	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"io"
 	"net/http"
 	"net/http/httputil"
@@ -138,31 +139,27 @@ func (rc *RespCache) doClear(ctx context.Context) error {
 
 const msgDeleteCache = "Delete HTTP response cache"
 
-// Write writes resp to the cache. If headerOnly is true, only the header
-// cache file is updated. If headerOnly is false and copyWrtr is non-nil, the
-// response body bytes are copied to that destination, as well as being
-// written to the cache.
+// Write writes resp header and body to the cache. If headerOnly is true, only
+// the header cache file is updated. If headerOnly is false and copyWrtr is
+// non-nil, the response body bytes are copied to that destination, as well as
+// being written to the cache. The response body is always closed.
 func (rc *RespCache) Write(ctx context.Context, resp *http.Response, headerOnly bool, copyWrtr io.WriteCloser) error {
 	rc.mu.Lock()
 	defer rc.mu.Unlock()
 
-	err := rc.doWrite(ctx, resp, headerOnly, copyWrtr)
-	if err != nil {
-		lg.FromContext(ctx).Error("Failed to write HTTP response to cache", lga.Dir, rc.Dir, lga.Err, err)
-
-		//lg.WarnIfError(lg.FromContext(ctx), msgDeleteCache, rc.doClear(ctx))
-	}
-	return err
+	return rc.doWrite(ctx, resp, headerOnly, copyWrtr)
 }
 
-func (rc *RespCache) doWrite(ctx context.Context, resp *http.Response, headerOnly bool, copyWrtr io.WriteCloser) error {
+func (rc *RespCache) doWrite(ctx context.Context, resp *http.Response,
+	headerOnly bool, copyWrtr io.WriteCloser) error {
 	log := lg.FromContext(ctx)
+	defer lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
 
 	if err := ioz.RequireDir(rc.Dir); err != nil {
 		return err
 	}
 
-	log.Info("Writing HTTP response to cache", lga.Dir, rc.Dir, "resp", fmt.Sprintf("%v", *resp))
+	log.Debug("Writing HTTP response to cache", lga.Dir, rc.Dir, "resp", ResponseLogValue(resp))
 	fpHeader, fpBody := rc.Paths(resp.Request)
 
 	headerBytes, err := httputil.DumpResponse(resp, false)
@@ -191,9 +188,6 @@ func (rc *RespCache) doWrite(ctx context.Context, resp *http.Response, headerOnl
 		cr = contextio.NewReader(ctx, tr)
 	}
 
-	//if copyWrtr != nil {
-	//	cr = io.TeeReader(cr, copyWrtr)
-	//}
 	var written int64
 	written, err = io.Copy(cacheFile, cr)
 	if err != nil {
@@ -206,15 +200,23 @@ func (rc *RespCache) doWrite(ctx context.Context, resp *http.Response, headerOnl
 	}
 
 	if err = cacheFile.Close(); err != nil {
-		return err
+		return errz.Err(err)
 	}
 
-	log.Info("Wrote HTTP response to cache", lga.File, fpBody, lga.Size, written)
-	cacheFile, err = os.Open(fpBody)
+	sum, err := checksum.ForFile(fpBody)
 	if err != nil {
-		return err
+		return errz.Wrap(err, "failed to compute checksum for cache body file")
 	}
 
-	resp.Body = cacheFile
+	if err = checksum.WriteFile(filepath.Join(rc.Dir, "checksum.txt"), sum, "body"); err != nil {
+		return errz.Wrap(err, "failed to write checksum file for cache body")
+	}
+
+	if resp.Body == nil {
+		resp.Body = http.NoBody
+		return nil
+	}
+
+	log.Info("Wrote HTTP response body to cache", lga.Size, written, lga.File, fpBody)
 	return nil
 }

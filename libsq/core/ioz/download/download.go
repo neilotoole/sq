@@ -63,13 +63,6 @@ func OptMarkCacheResponses(markCachedResponses bool) Opt {
 	}
 }
 
-// OptInsecureSkipVerify configures a Download to skip TLS verification.
-func OptInsecureSkipVerify(insecureSkipVerify bool) Opt {
-	return func(t *Download) {
-		t.InsecureSkipVerify = insecureSkipVerify
-	}
-}
-
 // OptDisableCaching disables the cache.
 func OptDisableCaching(disable bool) Opt {
 	return func(t *Download) {
@@ -77,16 +70,8 @@ func OptDisableCaching(disable bool) Opt {
 	}
 }
 
-// OptUserAgent sets the User-Agent header on requests.
-func OptUserAgent(userAgent string) Opt {
-	return func(t *Download) {
-		t.userAgent = userAgent
-	}
-}
-
-// Download is aan implementation of http.RoundTripper that will return values from a cache
-// where possible (avoiding a network request) and will additionally add validators (etag/if-modified-since)
-// to repeated requests allowing servers to return 304 / Not Modified
+// Download encapsulates downloading a file from a URL, using a local
+// disk cache if possible.
 type Download struct {
 	// FIXME: Does Download need a sync.Mutex?
 
@@ -95,18 +80,11 @@ type Download struct {
 
 	c *http.Client
 
-	// The RoundTripper interface actually used to make requests
-	// If nil, http.DefaultTransport is used.
-	transport http.RoundTripper
-
-	// respCache is the cache used to store responses.
 	respCache *RespCache
 
 	// markCachedResponses, if true, indicates that responses returned from the
 	// cache will be given an extra header, X-From-Cache
 	markCachedResponses bool
-
-	InsecureSkipVerify bool
 
 	userAgent string
 
@@ -133,7 +111,6 @@ func New(c *http.Client, dlURL, cacheDir string, opts ...Opt) (*Download, error)
 		url:                 dlURL,
 		markCachedResponses: true,
 		disableCaching:      false,
-		InsecureSkipVerify:  false,
 	}
 	for _, opt := range opts {
 		opt(t)
@@ -286,7 +263,6 @@ func (dl *Download) get(req *http.Request, h Handler) {
 			lg.WarnIfCloseError(log, "Close response body", resp.Body)
 			if err = dl.respCache.Write(ctx, resp, true, nil); err != nil {
 				log.Error("Failed to update cache header", lga.Dir, dl.respCache.Dir, lga.Err, err)
-				// FIXME: Should we error here, or just return the cached file?
 				h.Error(err)
 				return
 			}

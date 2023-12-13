@@ -5,9 +5,14 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 	"io"
+	"log/slog"
+	"mime"
 	"net/http"
 	"net/textproto"
+	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -382,4 +387,92 @@ func varyMatches(cachedResp *http.Response, req *http.Request) bool {
 		}
 	}
 	return true
+}
+
+// ResponseLogValue implements slog.Valuer for resp.
+func ResponseLogValue(resp *http.Response) slog.Value {
+	if resp == nil {
+		return slog.Value{}
+	}
+
+	attrs := []slog.Attr{
+		slog.String("proto", resp.Proto),
+		slog.String("status", resp.Status),
+	}
+
+	h := resp.Header
+	for k, _ := range h {
+		vals := h.Values(k)
+		if len(vals) == 1 {
+			attrs = append(attrs, slog.String(k, vals[0]))
+			continue
+		}
+
+		attrs = append(attrs, slog.Any(k, h.Get(k)))
+	}
+
+	if resp.Request != nil {
+		attrs = append(attrs, slog.Any("req", RequestLogValue(resp.Request)))
+	}
+
+	return slog.GroupValue(attrs...)
+}
+
+// RequestLogValue implements slog.Valuer for req.
+func RequestLogValue(req *http.Request) slog.Value {
+	if req == nil {
+		return slog.Value{}
+	}
+
+	attrs := []slog.Attr{
+		slog.String("method", req.Method),
+		slog.String("path", req.URL.RawPath),
+	}
+
+	if req.Proto != "" {
+		attrs = append(attrs, slog.String("proto", req.Proto))
+	}
+	if req.Host != "" {
+		attrs = append(attrs, slog.String("host", req.Host))
+	}
+
+	h := req.Header
+	for k, _ := range h {
+		vals := h.Values(k)
+		if len(vals) == 1 {
+			attrs = append(attrs, slog.String(k, vals[0]))
+			continue
+		}
+
+		attrs = append(attrs, slog.Any(k, h.Get(k)))
+	}
+
+	return slog.GroupValue(attrs...)
+}
+
+// Filename returns the filename to use for a download.
+// It first checks the Content-Disposition header, and if that's
+// not present, it uses the last path segment of the URL. The
+// filename is sanitized.
+// It's possible that the returned value will be empty string; the
+// caller should handle that situation themselves.
+func Filename(resp *http.Response) string {
+	var filename string
+	if resp == nil || resp.Header == nil {
+		return ""
+	}
+	dispHeader := resp.Header.Get("Content-Disposition")
+	if dispHeader != "" {
+		if _, params, err := mime.ParseMediaType(dispHeader); err == nil {
+			filename = params["filename"]
+		}
+	}
+
+	if filename == "" {
+		filename = path.Base(resp.Request.URL.Path)
+	} else {
+		filename = filepath.Base(filename)
+	}
+
+	return stringz.SanitizeFilename(filename)
 }

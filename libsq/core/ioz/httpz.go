@@ -3,11 +3,24 @@ package ioz
 import (
 	"context"
 	"crypto/tls"
+	"github.com/neilotoole/sq/cli/buildinfo"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
+
+// NewDefaultHTTPClient returns a new HTTP client with default settings.
+func NewDefaultHTTPClient() *http.Client {
+	v := buildinfo.Get().Version
+	v = strings.TrimPrefix(v, "v")
+	if v != "" {
+		v = "sq/" + v
+	}
+
+	return NewHTTPClient(v, true, 0, 0)
+}
 
 // NewHTTPClient returns a new HTTP client. If userAgent is non-empty, the
 // "User-Agent" header is applied to each request. If insecureSkipVerify is
