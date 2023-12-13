@@ -6,6 +6,7 @@ import (
 	"context"
 	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
 	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
+	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"io"
 	"net/http"
@@ -159,7 +160,7 @@ func (rc *RespCache) doWrite(ctx context.Context, resp *http.Response,
 		return err
 	}
 
-	log.Debug("Writing HTTP response to cache", lga.Dir, rc.Dir, "resp", ResponseLogValue(resp))
+	log.Debug("Writing HTTP response to cache", lga.Dir, rc.Dir, "resp", httpz.ResponseLogValue(resp))
 	fpHeader, fpBody := rc.Paths(resp.Request)
 
 	headerBytes, err := httputil.DumpResponse(resp, false)

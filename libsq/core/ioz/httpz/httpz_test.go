@@ -1,14 +1,14 @@
-package ioz_test
+package httpz_test
 
 import (
 	"context"
+	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/stretchr/testify/require"
@@ -42,7 +42,7 @@ func TestNewHTTPClient_headerTimeout(t *testing.T) {
 			ctxFn: func(t *testing.T) context.Context {
 				return context.Background()
 			},
-			c:       ioz.NewHTTPClient("", false, headerTimeout, 0),
+			c:       httpz.NewClient("", false, headerTimeout, 0),
 			wantErr: false,
 		},
 	}

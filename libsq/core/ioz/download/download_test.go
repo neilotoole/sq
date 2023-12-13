@@ -3,6 +3,7 @@ package download_test
 import (
 	"bytes"
 	"context"
+	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/testh/tu"
 	"github.com/stretchr/testify/assert"
@@ -41,7 +42,7 @@ func TestDownload_redirect(t *testing.T) {
 	var srvr *httptest.Server
 	srvr = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log := log.With("origin", "server")
-		log.Info("Request on /actual", "req", download.RequestLogValue(r))
+		log.Info("Request on /actual", "req", httpz.RequestLogValue(r))
 		switch r.URL.Path {
 		case "/redirect":
 			loc := srvr.URL + "/actual"
@@ -81,7 +82,7 @@ func TestDownload_redirect(t *testing.T) {
 	ctx := lg.NewContext(context.Background(), log.With("origin", "downloader"))
 	loc := srvr.URL + "/redirect"
 
-	dl, err := download.New(ioz.NewDefaultHTTPClient(), loc, cacheDir)
+	dl, err := download.New(httpz.NewDefaultClient(), loc, cacheDir)
 	require.NoError(t, err)
 	require.NoError(t, dl.Clear(ctx))
 	h := newTestHandler(log.With("origin", "handler"))

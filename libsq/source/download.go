@@ -3,7 +3,7 @@ package source
 import (
 	"bytes"
 	"context"
-	"github.com/neilotoole/sq/libsq/core/ioz/download"
+	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
 	"io"
 	"log/slog"
 	"net/http"
@@ -174,7 +174,7 @@ func (d *downloader) Download(ctx context.Context, dest io.Writer) (written int6
 		return written, "", errz.Errorf("download failed with %s for %s", resp.Status, d.url)
 	}
 
-	filename := download.Filename(resp)
+	filename := httpz.Filename(resp)
 	if filename == "" {
 		filename = "download"
 	}

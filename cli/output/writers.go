@@ -120,7 +120,7 @@ type VersionWriter interface {
 	// Version prints version info. Arg latestVersion is the latest
 	// version available from the homebrew repository. The value
 	// may be empty.
-	Version(bi buildinfo.BuildInfo, latestVersion string, si hostinfo.Info) error
+	Version(bi buildinfo.Info, latestVersion string, si hostinfo.Info) error
 }
 
 // ConfigWriter prints config.

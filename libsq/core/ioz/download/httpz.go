@@ -4,85 +4,10 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
-	"fmt"
-	"github.com/neilotoole/sq/libsq/core/stringz"
-	"io"
-	"log/slog"
-	"mime"
 	"net/http"
-	"net/textproto"
-	"path"
-	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 )
-
-// readResponseHeader is a fork of http.ReadResponse that reads only the
-// header from req and not the body. Note that resp.Body will be nil, and
-// that the resp object is borked for general use.
-func readResponseHeader(r *bufio.Reader, req *http.Request) (resp *http.Response, err error) {
-	tp := textproto.NewReader(r)
-	resp = &http.Response{Request: req}
-
-	// Parse the first line of the response.
-	line, err := tp.ReadLine()
-	if err != nil {
-		if err == io.EOF {
-			err = io.ErrUnexpectedEOF
-		}
-		return nil, err
-	}
-	proto, status, ok := strings.Cut(line, " ")
-	if !ok {
-		return nil, badStringError("malformed HTTP response", line)
-	}
-	resp.Proto = proto
-	resp.Status = strings.TrimLeft(status, " ")
-
-	statusCode, _, _ := strings.Cut(resp.Status, " ")
-	if len(statusCode) != 3 {
-		return nil, badStringError("malformed HTTP status code", statusCode)
-	}
-	resp.StatusCode, err = strconv.Atoi(statusCode)
-	if err != nil || resp.StatusCode < 0 {
-		return nil, badStringError("malformed HTTP status code", statusCode)
-	}
-	if resp.ProtoMajor, resp.ProtoMinor, ok = http.ParseHTTPVersion(resp.Proto); !ok {
-		return nil, badStringError("malformed HTTP version", resp.Proto)
-	}
-
-	// Parse the response headers.
-	mimeHeader, err := tp.ReadMIMEHeader()
-	if err != nil {
-		if err == io.EOF {
-			err = io.ErrUnexpectedEOF
-		}
-		return nil, err
-	}
-	resp.Header = http.Header(mimeHeader)
-
-	fixPragmaCacheControl(resp.Header)
-
-	return resp, nil
-}
-
-// RFC 7234, section 5.4: Should treat
-//
-//	Pragma: no-cache
-//
-// like
-//
-//	Cache-Control: no-cache
-func fixPragmaCacheControl(header http.Header) {
-	if hp, ok := header["Pragma"]; ok && len(hp) > 0 && hp[0] == "no-cache" {
-		if _, presentcc := header["Cache-Control"]; !presentcc {
-			header["Cache-Control"] = []string{"no-cache"}
-		}
-	}
-}
-
-func badStringError(what, val string) error { return fmt.Errorf("%s %q", what, val) }
 
 // errNoDateHeader indicates that the HTTP headers contained no Date header.
 var errNoDateHeader = errors.New("no Date header")
@@ -348,35 +273,6 @@ func headerAllCommaSepValues(headers http.Header, name string) []string {
 	return vals
 }
 
-// cachingReadCloser is a wrapper around ReadCloser R that calls OnEOF
-// handler with a full copy of the content read from R when EOF is
-// reached.
-type cachingReadCloser struct {
-	// Underlying ReadCloser.
-	R io.ReadCloser
-	// OnEOF is called with a copy of the content of R when EOF is reached.
-	OnEOF func(io.Reader)
-
-	buf bytes.Buffer // buf stores a copy of the content of R.
-}
-
-// Read reads the next len(p) bytes from R or until R is drained. The
-// return value n is the number of bytes read. If R has no data to
-// return, err is io.EOF and OnEOF is called with a full copy of what
-// has been read so far.
-func (r *cachingReadCloser) Read(p []byte) (n int, err error) {
-	n, err = r.R.Read(p)
-	r.buf.Write(p[:n])
-	if err == io.EOF {
-		r.OnEOF(bytes.NewReader(r.buf.Bytes()))
-	}
-	return n, err
-}
-
-func (r *cachingReadCloser) Close() error {
-	return r.R.Close()
-}
-
 // varyMatches will return false unless all the cached values for the
 // headers listed in Vary match the new request
 func varyMatches(cachedResp *http.Response, req *http.Request) bool {
@@ -387,92 +283,4 @@ func varyMatches(cachedResp *http.Response, req *http.Request) bool {
 		}
 	}
 	return true
-}
-
-// ResponseLogValue implements slog.Valuer for resp.
-func ResponseLogValue(resp *http.Response) slog.Value {
-	if resp == nil {
-		return slog.Value{}
-	}
-
-	attrs := []slog.Attr{
-		slog.String("proto", resp.Proto),
-		slog.String("status", resp.Status),
-	}
-
-	h := resp.Header
-	for k, _ := range h {
-		vals := h.Values(k)
-		if len(vals) == 1 {
-			attrs = append(attrs, slog.String(k, vals[0]))
-			continue
-		}
-
-		attrs = append(attrs, slog.Any(k, h.Get(k)))
-	}
-
-	if resp.Request != nil {
-		attrs = append(attrs, slog.Any("req", RequestLogValue(resp.Request)))
-	}
-
-	return slog.GroupValue(attrs...)
-}
-
-// RequestLogValue implements slog.Valuer for req.
-func RequestLogValue(req *http.Request) slog.Value {
-	if req == nil {
-		return slog.Value{}
-	}
-
-	attrs := []slog.Attr{
-		slog.String("method", req.Method),
-		slog.String("path", req.URL.RawPath),
-	}
-
-	if req.Proto != "" {
-		attrs = append(attrs, slog.String("proto", req.Proto))
-	}
-	if req.Host != "" {
-		attrs = append(attrs, slog.String("host", req.Host))
-	}
-
-	h := req.Header
-	for k, _ := range h {
-		vals := h.Values(k)
-		if len(vals) == 1 {
-			attrs = append(attrs, slog.String(k, vals[0]))
-			continue
-		}
-
-		attrs = append(attrs, slog.Any(k, h.Get(k)))
-	}
-
-	return slog.GroupValue(attrs...)
-}
-
-// Filename returns the filename to use for a download.
-// It first checks the Content-Disposition header, and if that's
-// not present, it uses the last path segment of the URL. The
-// filename is sanitized.
-// It's possible that the returned value will be empty string; the
-// caller should handle that situation themselves.
-func Filename(resp *http.Response) string {
-	var filename string
-	if resp == nil || resp.Header == nil {
-		return ""
-	}
-	dispHeader := resp.Header.Get("Content-Disposition")
-	if dispHeader != "" {
-		if _, params, err := mime.ParseMediaType(dispHeader); err == nil {
-			filename = params["filename"]
-		}
-	}
-
-	if filename == "" {
-		filename = path.Base(resp.Request.URL.Path)
-	} else {
-		filename = filepath.Base(filename)
-	}
-
-	return stringz.SanitizeFilename(filename)
 }

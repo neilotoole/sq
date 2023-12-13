@@ -12,6 +12,7 @@ import (
 	"bufio"
 	"context"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
 	"io"
 	"net/http"
 	"net/url"
@@ -85,8 +86,6 @@ type Download struct {
 	// markCachedResponses, if true, indicates that responses returned from the
 	// cache will be given an extra header, X-From-Cache
 	markCachedResponses bool
-
-	userAgent string
 
 	disableCaching bool
 }
@@ -335,9 +334,7 @@ func (dl *Download) newRequest(ctx context.Context, url string) (*http.Request, 
 		lg.FromContext(ctx).Error("Failed to create request", lga.URL, url, lga.Err, err)
 		return nil, err
 	}
-	if dl.userAgent != "" {
-		req.Header.Set("User-Agent", dl.userAgent)
-	}
+
 	return req, nil
 }
 
@@ -379,7 +376,7 @@ func (dl *Download) state(req *http.Request) State {
 
 	defer lg.WarnIfCloseError(log, "Close cached response header file", f)
 
-	cachedResp, err := readResponseHeader(bufio.NewReader(f), nil)
+	cachedResp, err := httpz.ReadResponseHeader(bufio.NewReader(f), nil)
 	if err != nil {
 		log.Error("Failed to read cached response header", lga.Err, err)
 		return Uncached

@@ -26,7 +26,7 @@ func NewVersionWriter(out io.Writer, pr *output.Printing) output.VersionWriter {
 }
 
 // Version implements output.VersionWriter.
-func (w *versionWriter) Version(bi buildinfo.BuildInfo, latestVersion string, hi hostinfo.Info) error {
+func (w *versionWriter) Version(bi buildinfo.Info, latestVersion string, hi hostinfo.Info) error {
 	var newerAvailable bool
 
 	if latestVersion != "" {
