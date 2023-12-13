@@ -91,7 +91,7 @@ func (fs *Files) sourceHash(src *Source) string {
 		}
 	}
 
-	sum := checksum.Hash(buf.Bytes())
+	sum := checksum.Sum(buf.Bytes())
 	return sum
 }
 

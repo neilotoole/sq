@@ -139,7 +139,7 @@ func TestDownload_redirect(t *testing.T) {
 //loc := srvr.URL + "/redirect"
 //loc := srvr.URL + "/actual"
 
-func TestDownload(t *testing.T) {
+func TestDownload_New(t *testing.T) {
 	log := slogt.New(t)
 	ctx := lg.NewContext(context.Background(), log)
 	const dlURL = urlActorCSV
@@ -152,54 +152,39 @@ func TestDownload(t *testing.T) {
 	dl, err := download.New(nil, dlURL, cacheDir)
 	require.NoError(t, err)
 	require.NoError(t, dl.Clear(ctx))
-
-	var (
-		destBuf = &bytes.Buffer{}
-		gotFp   string
-		gotErr  error
-	)
-	reset := func() {
-		destBuf.Reset()
-		gotFp = ""
-		gotErr = nil
-	}
-
-	h := download.Handler{
-		Cached: func(cachedFilepath string) {
-			gotFp = cachedFilepath
-		},
-		Uncached: func() (wc io.WriteCloser, errFn func(error)) {
-			return ioz.WriteCloser(destBuf),
-				func(err error) {
-					gotErr = err
-				}
-		},
-		Error: func(err error) {
-			gotErr = err
-		},
-	}
-
 	require.Equal(t, download.Uncached, dl.State(ctx))
-	dl.Get(ctx, h)
-	require.NoError(t, gotErr)
-	require.Empty(t, gotFp)
-	require.Equal(t, sizeActorCSV, int64(destBuf.Len()))
+	sum, ok := dl.Checksum(ctx)
+	require.False(t, ok)
+	require.Empty(t, sum)
 
+	h := newTestHandler(log.With("origin", "handler"))
+	dl.Get(ctx, h.Handler)
+	require.Empty(t, h.errors)
+	require.Empty(t, h.cacheFiles)
+	require.Equal(t, sizeActorCSV, int64(h.bufs[0].Len()))
 	require.Equal(t, download.Fresh, dl.State(ctx))
+	sum, ok = dl.Checksum(ctx)
+	require.True(t, ok)
+	require.NotEmpty(t, sum)
 
-	reset()
-	dl.Get(ctx, h)
-	require.NoError(t, gotErr)
-	require.Equal(t, 0, destBuf.Len())
-	require.NotEmpty(t, gotFp)
-	gotFileBytes, err := os.ReadFile(gotFp)
+	h.reset()
+	dl.Get(ctx, h.Handler)
+	require.Empty(t, h.errors)
+	require.Empty(t, h.bufs)
+	require.NotEmpty(t, h.cacheFiles)
+	gotFileBytes, err := os.ReadFile(h.cacheFiles[0])
 	require.NoError(t, err)
 	require.Equal(t, sizeActorCSV, int64(len(gotFileBytes)))
-
 	require.Equal(t, download.Fresh, dl.State(ctx))
+	sum, ok = dl.Checksum(ctx)
+	require.True(t, ok)
+	require.NotEmpty(t, sum)
 
 	require.NoError(t, dl.Clear(ctx))
 	require.Equal(t, download.Uncached, dl.State(ctx))
+	sum, ok = dl.Checksum(ctx)
+	require.False(t, ok)
+	require.Empty(t, sum)
 }
 
 type testHandler struct {

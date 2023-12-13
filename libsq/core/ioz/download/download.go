@@ -1,5 +1,5 @@
-// Package download provides a http.RoundTripper implementation that
-// works as a mostly RFC-compliant cache for http responses.
+// Package download provides a mechanism for getting files from
+// HTTP URLs, making use of a mostly RFC-compliant cache.
 //
 // FIXME: move download to internal/download, because its use
 // is so specialized?
@@ -12,7 +12,10 @@ import (
 	"bufio"
 	"context"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/ioz"
+	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
 	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"io"
 	"net/http"
 	"net/url"
@@ -53,6 +56,8 @@ const (
 // XFromCache is the header added to responses that are returned from the cache
 const XFromCache = "X-From-Cache"
 
+const msgNilDestWriter = "nil dest writer from download handler; returning"
+
 // Opt is a configuration option for creating a new Download.
 type Opt func(t *Download)
 
@@ -76,7 +81,8 @@ func OptDisableCaching(disable bool) Opt {
 type Download struct {
 	// FIXME: Does Download need a sync.Mutex?
 
-	// url is the URL of the download.
+	// url is the URL of the download. It is parsed in download.New,
+	// thus is guaranteed to be valid.
 	url string
 
 	c *http.Client
@@ -84,7 +90,7 @@ type Download struct {
 	respCache *RespCache
 
 	// markCachedResponses, if true, indicates that responses returned from the
-	// cache will be given an extra header, X-From-Cache
+	// cache will be given an extra header, X-From-Cache.
 	markCachedResponses bool
 
 	disableCaching bool
@@ -95,7 +101,7 @@ type Download struct {
 func New(c *http.Client, dlURL, cacheDir string, opts ...Opt) (*Download, error) {
 	_, err := url.ParseRequestURI(dlURL)
 	if err != nil {
-		return nil, err
+		return nil, errz.Wrap(err, "invalid download URL")
 	}
 	if c == nil {
 		c = http.DefaultClient
@@ -123,39 +129,37 @@ func New(c *http.Client, dlURL, cacheDir string, opts ...Opt) (*Download, error)
 }
 
 // Handler is a callback invoked by Download.Get. Exactly one of the
-// handler functions will be invoked, one time.
+// handler functions will be invoked, exactly one time.
 type Handler struct {
 	// Cached is invoked when the download is already cached on disk. The
 	// fp arg is the path to the downloaded file.
 	Cached func(fp string)
 
-	// Uncached is invoked when the download is not cached. The handler must
+	// Uncached is invoked when the download is not cached. The handler should
 	// return an io.WriterCloser, which the download contents will be written
 	// to (as well as being written to the disk cache). On success, the dest
 	// io.WriteCloser is closed. If an error occurs during download or
-	// writing, errFn is invoked, and dest is not closed.
+	// writing, errFn is invoked, and dest is not closed. If the handler returns
+	// a nil dest io.WriteCloser, the Download will log a warning and return.
 	Uncached func() (dest io.WriteCloser, errFn func(error))
 
-	// Error is invoked if an
+	// Error is invoked on any error, other than writing to the destination
+	// io.WriteCloser returned by Handler.Uncached, which has its own error
+	// handling mechanism.
 	Error func(err error)
 }
 
 // Get gets the download, invoking Handler as appropriate.
 func (dl *Download) Get(ctx context.Context, h Handler) {
-	req, err := dl.newRequest(ctx, dl.url)
-	if err != nil {
-		h.Error(err)
-		return
-	}
-
+	req := dl.mustRequest(ctx)
 	dl.get(req, h)
 }
 
 func (dl *Download) get(req *http.Request, h Handler) {
 	ctx := req.Context()
 	log := lg.FromContext(ctx)
-	log.Info("Fetching download", lga.URL, req.URL.String())
-	_, fpBody := dl.respCache.Paths(req)
+	log.Debug("Get download", lga.URL, dl.url)
+	_, fpBody, _ := dl.respCache.Paths(req)
 
 	state := dl.state(req)
 	if state == Fresh {
@@ -259,7 +263,7 @@ func (dl *Download) get(req *http.Request, h Handler) {
 		}
 
 		if resp == cachedResp {
-			lg.WarnIfCloseError(log, "Close response body", resp.Body)
+			lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
 			if err = dl.respCache.Write(ctx, resp, true, nil); err != nil {
 				log.Error("Failed to update cache header", lga.Dir, dl.respCache.Dir, lga.Err, err)
 				h.Error(err)
@@ -270,17 +274,18 @@ func (dl *Download) get(req *http.Request, h Handler) {
 		}
 
 		// I'm not sure if this logic is even reachable?
-		copyWrtr, errFn := h.Uncached()
-		if copyWrtr == nil {
-			log.Warn("nil copy writer from download handler; returning")
+		destWrtr, errFn := h.Uncached()
+		if destWrtr == nil {
+			log.Warn(msgNilDestWriter)
 			return
 		}
 
-		defer lg.WarnIfCloseError(log, "Close response body", resp.Body)
-		if err = dl.respCache.Write(req.Context(), resp, false, copyWrtr); err != nil {
-			log.Error("failed to write download cache", lga.Dir, dl.respCache.Dir, lga.Err, err)
-			errFn(err)
-			h.Error(err)
+		defer lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
+		if err = dl.respCache.Write(req.Context(), resp, false, destWrtr); err != nil {
+			log.Error("Failed to write download cache", lga.Dir, dl.respCache.Dir, lga.Err, err)
+			if errFn != nil {
+				errFn(err)
+			}
 		}
 		return
 	} else {
@@ -290,21 +295,20 @@ func (dl *Download) get(req *http.Request, h Handler) {
 	// It's not cacheable, so we need to write it to the copyWrtr.
 	copyWrtr, errFn := h.Uncached()
 	if copyWrtr == nil {
-		log.Warn("nil copy writer from download handler; returning")
+		log.Warn(msgNilDestWriter)
 		return
 	}
 
 	cr := contextio.NewReader(ctx, resp.Body)
-	defer lg.WarnIfCloseError(log, "Close response body", resp.Body)
+	defer lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
 	_, err = io.Copy(copyWrtr, cr)
 	if err != nil {
+		log.Error("Failed to copy download to dest writer", lga.Err, err)
 		errFn(err)
-		h.Error(err)
 		return
 	}
 	if err = copyWrtr.Close(); err != nil {
-		h.Error(err)
-		return
+		log.Error("Failed to close dest writer", lga.Err, err)
 	}
 
 	return
@@ -321,21 +325,20 @@ func (dl *Download) Close() error {
 
 // execRequest executes the request.
 func (dl *Download) execRequest(req *http.Request) (*http.Response, error) {
-	//if dl.transport == nil {
-	//	return http.DefaultTransport.RoundTrip(req)
-	//}
-	//return dl.transport.RoundTrip(req)
 	return dl.c.Do(req)
 }
 
-func (dl *Download) newRequest(ctx context.Context, url string) (*http.Request, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+// mustRequest creates a new request from dl.url. The url has already been
+// parsed in download.New, so it's safe to ignore the error.
+func (dl *Download) mustRequest(ctx context.Context) *http.Request {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, dl.url, nil)
 	if err != nil {
-		lg.FromContext(ctx).Error("Failed to create request", lga.URL, url, lga.Err, err)
-		return nil, err
+		lg.FromContext(ctx).Error("Failed to create request", lga.URL, dl.url, lga.Err, err)
+		panic(err)
+		return nil
 	}
 
-	return req, nil
+	return req
 }
 
 // Clear deletes the cache.
@@ -348,11 +351,7 @@ func (dl *Download) Clear(ctx context.Context) error {
 
 // State returns the Download's cache state.
 func (dl *Download) State(ctx context.Context) State {
-	req, err := dl.newRequest(ctx, dl.url)
-	if err != nil {
-		return Uncached
-	}
-	return dl.state(req)
+	return dl.state(dl.mustRequest(ctx))
 }
 
 func (dl *Download) state(req *http.Request) State {
@@ -367,14 +366,14 @@ func (dl *Download) state(req *http.Request) State {
 		return Uncached
 	}
 
-	fpHeader, _ := dl.respCache.Paths(req)
+	fpHeader, _, _ := dl.respCache.Paths(req)
 	f, err := os.Open(fpHeader)
 	if err != nil {
-		log.Error("Failed to open cached response header file", lga.File, fpHeader, lga.Err, err)
+		log.Error(msgCloseCacheHeaderBody, lga.File, fpHeader, lga.Err, err)
 		return Uncached
 	}
 
-	defer lg.WarnIfCloseError(log, "Close cached response header file", f)
+	defer lg.WarnIfCloseError(log, msgCloseCacheHeaderBody, f)
 
 	cachedResp, err := httpz.ReadResponseHeader(bufio.NewReader(f), nil)
 	if err != nil {
@@ -383,6 +382,33 @@ func (dl *Download) state(req *http.Request) State {
 	}
 
 	return getFreshness(cachedResp.Header, req.Header)
+}
+
+// Checksum returns the checksum of the cached download, if available.
+func (dl *Download) Checksum(ctx context.Context) (sum checksum.Checksum, ok bool) {
+	if dl.respCache == nil {
+		return "", false
+	}
+
+	req := dl.mustRequest(ctx)
+
+	_, _, fp := dl.respCache.Paths(req)
+	if !ioz.FileAccessible(fp) {
+		return "", false
+	}
+
+	sums, err := checksum.ReadFile(fp)
+	if err != nil {
+		lg.FromContext(ctx).Warn("Failed to read checksum file", lga.File, fp, lga.Err, err)
+		return "", false
+	}
+
+	if len(sums) != 1 {
+		return "", false
+	}
+
+	sum, ok = sums["body"]
+	return sum, ok
 }
 
 func (dl *Download) isCacheable(req *http.Request) bool {

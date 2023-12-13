@@ -15,8 +15,12 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
-// Hash returns the hash of b as a hex string.
-func Hash(b []byte) string {
+// Sum returns the hash of b as a hex string.
+// If b is empty, empty string is returned.
+func Sum(b []byte) string {
+	if len(b) == 0 {
+		return ""
+	}
 	sum := crc32.ChecksumIEEE(b)
 	return fmt.Sprintf("%x", sum)
 }
@@ -25,7 +29,7 @@ func Hash(b []byte) string {
 func Rand() string {
 	b := make([]byte, 128)
 	_, _ = rand.Read(b)
-	return Hash(b)
+	return Sum(b)
 }
 
 // Checksum is a checksum of a file.
@@ -117,7 +121,7 @@ func ForFile(path string) (Checksum, error) {
 	buf.WriteString(strconv.FormatUint(uint64(fi.Mode()), 10))
 	buf.WriteString(strconv.FormatBool(fi.IsDir()))
 
-	return Checksum(Hash(buf.Bytes())), nil
+	return Checksum(Sum(buf.Bytes())), nil
 }
 
 // ForHTTPHeader returns a checksum generated from URL u and
@@ -142,7 +146,7 @@ func ForHTTPHeader(u string, header http.Header) Checksum {
 		}
 	}
 
-	return Checksum(Hash(buf.Bytes()))
+	return Checksum(Sum(buf.Bytes()))
 }
 
 // ForHTTPResponse returns a checksum generated from the response's
@@ -202,5 +206,5 @@ func ForHTTPResponse(resp *http.Response) Checksum {
 
 	fmt.Printf("\n\n%s\n\n", s)
 
-	return Checksum(Hash(buf.Bytes()))
+	return Checksum(Sum(buf.Bytes()))
 }
