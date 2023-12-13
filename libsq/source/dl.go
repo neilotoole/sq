@@ -65,8 +65,7 @@ func (d *downloader2) ClearCache(ctx context.Context) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	if err := d.tp.RespCache.Delete(ctx); err != nil {
-		//log.Error("Failed to delete cache dir", lga.Dir, d.cacheDir, lga.Err, err)
+	if err := d.tp.Delete(ctx); err != nil {
 		return errz.Wrapf(err, "failed to clear cache dir: %s", d.cacheDir)
 	}
 
@@ -136,22 +135,22 @@ func (d *downloader2) Download2(ctx context.Context, dest io.Writer) (written in
 	var gotFp string
 	var gotErr error
 	//buf := &bytes.Buffer{}
-	cb := httpcache.CallbackHandler{
-		HandleCached: func(cachedFilepath string) error {
+	cb := httpcache.Handler{
+		Cached: func(cachedFilepath string) error {
 			gotFp = cachedFilepath
 			return nil
 		},
-		HandleUncached: func() (wc io.WriteCloser, errFn func(error), err error) {
+		Uncached: func() (wc io.WriteCloser, errFn func(error), err error) {
 			return destWrtr, func(err error) {
 				gotErr = err
 			}, nil
 		},
-		HandleError: func(err error) {
+		Error: func(err error) {
 			gotErr = err
 		},
 	}
 
-	d.tp.Fetch(req, cb)
+	d.tp.FetchWith(req, cb)
 	_ = gotFp
 	_ = gotErr
 

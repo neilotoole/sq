@@ -10,17 +10,14 @@ package httpcache
 
 import (
 	"bufio"
-	"bytes"
-	"errors"
+	"context"
+	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
-	"strings"
-	"time"
 )
 
 const (
@@ -31,13 +28,35 @@ const (
 	XFromCache = "X-From-Cache"
 )
 
-// TransportOpt is a configuration option for creating a new Transport
-type TransportOpt func(t *Transport)
+// Opt is a configuration option for creating a new Transport.
+type Opt func(t *Transport)
 
-// MarkCachedResponsesOpt configures a transport by setting MarkCachedResponses to true
-func MarkCachedResponsesOpt(markCachedResponses bool) TransportOpt {
+// OptMarkCacheResponses configures a Transport by setting
+// Transport.markCachedResponses to true.
+func OptMarkCacheResponses(markCachedResponses bool) Opt {
 	return func(t *Transport) {
-		t.MarkCachedResponses = markCachedResponses
+		t.markCachedResponses = markCachedResponses
+	}
+}
+
+// OptInsecureSkipVerify configures a Transport to skip TLS verification.
+func OptInsecureSkipVerify(insecureSkipVerify bool) Opt {
+	return func(t *Transport) {
+		t.InsecureSkipVerify = insecureSkipVerify
+	}
+}
+
+// OptDisableCaching disables the cache.
+func OptDisableCaching(disable bool) Opt {
+	return func(t *Transport) {
+		t.disableCaching = disable
+	}
+}
+
+// OptUserAgent sets the User-Agent header on requests.
+func OptUserAgent(userAgent string) Opt {
+	return func(t *Transport) {
+		t.userAgent = userAgent
 	}
 }
 
@@ -46,126 +65,92 @@ func MarkCachedResponsesOpt(markCachedResponses bool) TransportOpt {
 // to repeated requests allowing servers to return 304 / Not Modified
 type Transport struct {
 	// The RoundTripper interface actually used to make requests
-	// If nil, http.DefaultTransport is used
-	Transport http.RoundTripper
+	// If nil, http.DefaultTransport is used.
+	transport http.RoundTripper
 
-	RespCache *RespCache
+	// respCache is the cache used to store responses.
+	respCache *RespCache
 
-	// MarkCachedResponses, if true, indicates that responses returned from the
+	// markCachedResponses, if true, indicates that responses returned from the
 	// cache will be given an extra header, X-From-Cache
-	MarkCachedResponses bool
+	markCachedResponses bool
+
+	InsecureSkipVerify bool
+
+	userAgent string
+
+	disableCaching bool
 }
 
 // NewTransport returns a new Transport with the provided Cache and options. If
 // KeyFunc is not specified in opts then DefaultKeyFunc is used.
-func NewTransport(rc *RespCache, opts ...TransportOpt) *Transport {
+func NewTransport(cacheDir string, opts ...Opt) *Transport {
 	t := &Transport{
-		RespCache:           rc,
-		MarkCachedResponses: true,
+		markCachedResponses: true,
+		disableCaching:      false,
+		InsecureSkipVerify:  false,
 	}
 	for _, opt := range opts {
 		opt(t)
 	}
+
+	if !t.disableCaching {
+		t.respCache = NewRespCache(cacheDir)
+	}
 	return t
 }
 
-// Client returns an *http.Client that caches responses.
-func (t *Transport) Client() *http.Client {
-	return &http.Client{Transport: t}
+type Handler struct {
+	Cached   func(cachedFilepath string) error
+	Uncached func() (wc io.WriteCloser, errFn func(error), err error)
+	Error    func(err error)
 }
 
-// varyMatches will return false unless all the cached values for the
-// headers listed in Vary match the new request
-func varyMatches(cachedResp *http.Response, req *http.Request) bool {
-	for _, header := range headerAllCommaSepValues(cachedResp.Header, "vary") {
-		header = http.CanonicalHeaderKey(header)
-		if header != "" && req.Header.Get(header) != cachedResp.Header.Get("X-Varied-"+header) {
-			return false
-		}
-	}
-	return true
-}
-
-// IsCached returns true if there is a cache entry for req. This does not
-// guarantee that the cache entry is fresh.
-func (t *Transport) IsCached(req *http.Request) bool {
-	return t.RespCache.Exists(req)
-}
-
-// IsFresh returns true if there is a fresh cache entry for req.
-func (t *Transport) IsFresh(req *http.Request) bool {
-	ctx := req.Context()
-	log := lg.FromContext(ctx)
-
-	if !isCacheable(req) {
-		return false
-	}
-
-	if !t.RespCache.Exists(req) {
-		return false
-	}
-
-	fpHeader, _ := t.RespCache.Paths(req)
-	f, err := os.Open(fpHeader)
+func (t *Transport) Fetch(ctx context.Context, dlURL string, h Handler) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, dlURL, nil)
 	if err != nil {
-		log.Error("Failed to open cached response header file", lga.File, fpHeader, lga.Err, err)
-		return false
+		h.Error(err)
+		return
+	}
+	if t.userAgent != "" {
+		req.Header.Set("User-Agent", t.userAgent)
 	}
 
-	defer lg.WarnIfCloseError(log, "Close cached response header", f)
-
-	cachedResp, err := ReadResponse(bufio.NewReader(f), nil, true)
-	if err != nil {
-		log.Error("Failed to read cached response", lga.Err, err)
-		return false
-	}
-
-	freshness := getFreshness(cachedResp.Header, req.Header)
-	return freshness == fresh
+	t.FetchWith(req, h)
 }
 
-func isCacheable(req *http.Request) bool {
-	return (req.Method == http.MethodGet || req.Method == http.MethodHead) && req.Header.Get("range") == ""
-}
-
-type CallbackHandler struct {
-	HandleCached   func(cachedFilepath string) error
-	HandleUncached func() (wc io.WriteCloser, errFn func(error), err error)
-	HandleError    func(err error)
-}
-
-func (t *Transport) Fetch(req *http.Request, cb CallbackHandler) {
+func (t *Transport) FetchWith(req *http.Request, cb Handler) {
 	ctx := req.Context()
 	log := lg.FromContext(ctx)
 	log.Info("Fetching download", lga.URL, req.URL.String())
 	_ = log
-	_, fpBody := t.RespCache.Paths(req)
+	_, fpBody := t.respCache.Paths(req)
 
 	if t.IsFresh(req) {
-		_ = cb.HandleCached(fpBody)
+		_ = cb.Cached(fpBody)
 		return
 	}
 
 	var err error
-	cacheable := (req.Method == "GET" || req.Method == "HEAD") && req.Header.Get("range") == ""
+	cacheable := t.isCacheable(req)
 	var cachedResp *http.Response
 	if cacheable {
-		cachedResp, err = t.RespCache.Get(req.Context(), req)
+		cachedResp, err = t.respCache.Get(req.Context(), req)
 	} else {
 		// Need to invalidate an existing value
-		if err = t.RespCache.Delete(req.Context()); err != nil {
-			cb.HandleError(err)
+		if err = t.respCache.Delete(req.Context()); err != nil {
+			cb.Error(err)
 			return
 		}
 	}
 
-	transport := t.Transport
+	transport := t.transport
 	if transport == nil {
 		transport = http.DefaultTransport
 	}
 	var resp *http.Response
 	if cacheable && cachedResp != nil && err == nil {
-		if t.MarkCachedResponses {
+		if t.markCachedResponses {
 			cachedResp.Header.Set(XFromCache, "1")
 		}
 
@@ -173,7 +158,7 @@ func (t *Transport) Fetch(req *http.Request, cb CallbackHandler) {
 			// Can only use cached value if the new request doesn't Vary significantly
 			freshness := getFreshness(cachedResp.Header, req.Header)
 			if freshness == fresh {
-				_ = cb.HandleCached(fpBody)
+				_ = cb.Cached(fpBody)
 				return
 			}
 
@@ -212,14 +197,14 @@ func (t *Transport) Fetch(req *http.Request, cb CallbackHandler) {
 			// In case of transport failure and stale-if-error activated, returns cached content
 			// when available
 			log.Warn("Returning cached response due to transport failure", lga.Err, err)
-			cb.HandleCached(fpBody)
+			cb.Cached(fpBody)
 			return
 		} else {
 			if err != nil || resp.StatusCode != http.StatusOK {
-				lg.WarnIfError(log, msgDeleteCache, t.RespCache.Delete(req.Context()))
+				lg.WarnIfError(log, msgDeleteCache, t.respCache.Delete(req.Context()))
 			}
 			if err != nil {
-				cb.HandleError(err)
+				cb.Error(err)
 				return
 			}
 		}
@@ -230,7 +215,7 @@ func (t *Transport) Fetch(req *http.Request, cb CallbackHandler) {
 		} else {
 			resp, err = transport.RoundTrip(req)
 			if err != nil {
-				cb.HandleError(err)
+				cb.Error(err)
 				return
 			}
 		}
@@ -245,473 +230,100 @@ func (t *Transport) Fetch(req *http.Request, cb CallbackHandler) {
 				resp.Header.Set(fakeHeader, reqValue)
 			}
 		}
-		switch req.Method {
-		//case "GET":
-		//	// Delay caching until EOF is reached.
-		//	resp.Body = &cachingReadCloser{
-		//		R: resp.Body,
-		//		OnEOF: func(r io.Reader) {
-		//			resp := *resp
-		//			resp.Body = ioutil.NopCloser(r)
-		//			if err := t.RespCache.Write(req.Context(), &resp, nil); err != nil {
-		//				log.Error("failed to write download cache", lga.Err, err)
-		//			}
-		//		},
-		//	}
-		default:
-			copyWrtr, errFn, err := cb.HandleUncached()
-			if err != nil {
-				cb.HandleError(err)
-				return
-			}
 
-			if err = t.RespCache.Write(req.Context(), resp, copyWrtr); err != nil {
-				log.Error("failed to write download cache", lga.Err, err)
-				errFn(err)
-				cb.HandleError(err)
-			}
+		copyWrtr, errFn, err := cb.Uncached()
+		if err != nil {
+			cb.Error(err)
 			return
 		}
+
+		if err = t.respCache.Write(req.Context(), resp, copyWrtr); err != nil {
+			log.Error("failed to write download cache", lga.Err, err)
+			errFn(err)
+			cb.Error(err)
+		}
+		return
 	} else {
-		lg.WarnIfError(log, "Delete resp cache", t.RespCache.Delete(req.Context()))
+		lg.WarnIfError(log, "Delete resp cache", t.respCache.Delete(req.Context()))
 	}
 
-	// It's not cacheable, so we need to write it to the copyWrtr
-	copyWrtr, errFn, err := cb.HandleUncached()
+	// It's not cacheable, so we need to write it to the copyWrtr.
+	copyWrtr, errFn, err := cb.Uncached()
 	if err != nil {
-		cb.HandleError(err)
+		cb.Error(err)
 		return
 	}
 	cr := contextio.NewReader(ctx, resp.Body)
 	_, err = io.Copy(copyWrtr, cr)
 	if err != nil {
 		errFn(err)
-		cb.HandleError(err)
+		cb.Error(err)
 		return
 	}
 	if err = copyWrtr.Close(); err != nil {
-		cb.HandleError(err)
+		cb.Error(err)
 		return
 	}
 
 	return
 }
 
-// RoundTrip takes a Request and returns a Response
-//
-// If there is a fresh Response already in cache, then it will be returned without connecting to
-// the server.
-//
-// If there is a stale Response, then any validators it contains will be set on the new request
-// to give the server a chance to respond with NotModified. If this happens, then the cached Response
-// will be returned.
-func (t *Transport) RoundTrip(req *http.Request) (resp *http.Response, err error) {
-	log := lg.FromContext(req.Context())
-
-	cacheable := (req.Method == "GET" || req.Method == "HEAD") && req.Header.Get("range") == ""
-	var cachedResp *http.Response
-	if cacheable {
-		cachedResp, err = t.RespCache.Get(req.Context(), req)
-	} else {
-		// Need to invalidate an existing value
-		if err = t.RespCache.Delete(req.Context()); err != nil {
-			return nil, err
-		}
-	}
-
-	transport := t.Transport
-	if transport == nil {
-		transport = http.DefaultTransport
-	}
-
-	if cacheable && cachedResp != nil && err == nil {
-		if t.MarkCachedResponses {
-			cachedResp.Header.Set(XFromCache, "1")
-		}
-
-		if varyMatches(cachedResp, req) {
-			// Can only use cached value if the new request doesn't Vary significantly
-			freshness := getFreshness(cachedResp.Header, req.Header)
-			if freshness == fresh {
-				return cachedResp, nil
-			}
-
-			if freshness == stale {
-				var req2 *http.Request
-				// Add validators if caller hasn't already done so
-				etag := cachedResp.Header.Get("etag")
-				if etag != "" && req.Header.Get("etag") == "" {
-					req2 = cloneRequest(req)
-					req2.Header.Set("if-none-match", etag)
-				}
-				lastModified := cachedResp.Header.Get("last-modified")
-				if lastModified != "" && req.Header.Get("last-modified") == "" {
-					if req2 == nil {
-						req2 = cloneRequest(req)
-					}
-					req2.Header.Set("if-modified-since", lastModified)
-				}
-				if req2 != nil {
-					req = req2
-				}
-			}
-		}
-
-		resp, err = transport.RoundTrip(req)
-		if err == nil && req.Method == "GET" && resp.StatusCode == http.StatusNotModified {
-			// Replace the 304 response with the one from cache, but update with some new headers
-			endToEndHeaders := getEndToEndHeaders(resp.Header)
-			for _, header := range endToEndHeaders {
-				cachedResp.Header[header] = resp.Header[header]
-			}
-			resp = cachedResp
-		} else if (err != nil || (cachedResp != nil && resp.StatusCode >= 500)) &&
-			req.Method == "GET" && canStaleOnError(cachedResp.Header, req.Header) {
-			// In case of transport failure and stale-if-error activated, returns cached content
-			// when available
-			return cachedResp, nil
-		} else {
-			if err != nil || resp.StatusCode != http.StatusOK {
-				lg.WarnIfError(log, msgDeleteCache, t.RespCache.Delete(req.Context()))
-			}
-			if err != nil {
-				return nil, err
-			}
-		}
-	} else {
-		reqCacheControl := parseCacheControl(req.Header)
-		if _, ok := reqCacheControl["only-if-cached"]; ok {
-			resp = newGatewayTimeoutResponse(req)
-		} else {
-			resp, err = transport.RoundTrip(req)
-			if err != nil {
-				return nil, err
-			}
-		}
-	}
-
-	if cacheable && canStore(parseCacheControl(req.Header), parseCacheControl(resp.Header)) {
-		for _, varyKey := range headerAllCommaSepValues(resp.Header, "vary") {
-			varyKey = http.CanonicalHeaderKey(varyKey)
-			fakeHeader := "X-Varied-" + varyKey
-			reqValue := req.Header.Get(varyKey)
-			if reqValue != "" {
-				resp.Header.Set(fakeHeader, reqValue)
-			}
-		}
-		switch req.Method {
-		case "GET":
-			// Delay caching until EOF is reached.
-			resp.Body = &cachingReadCloser{
-				R: resp.Body,
-				OnEOF: func(r io.Reader) {
-					resp := *resp
-					resp.Body = ioutil.NopCloser(r)
-					if err := t.RespCache.Write(req.Context(), &resp, nil); err != nil {
-						log.Error("failed to write download cache", lga.Err, err)
-					}
-				},
-			}
-		default:
-			if err = t.RespCache.Write(req.Context(), resp, nil); err != nil {
-				log.Error("failed to write download cache", lga.Err, err)
-			}
-		}
-	} else {
-		lg.WarnIfError(log, "Delete resp cache", t.RespCache.Delete(req.Context()))
-	}
-	return resp, nil
+func (t *Transport) getClient() *http.Client {
+	return ioz.NewHTTPClient(t.InsecureSkipVerify)
 }
 
-// ErrNoDateHeader indicates that the HTTP headers contained no Date header.
-var ErrNoDateHeader = errors.New("no Date header")
-
-// Date parses and returns the value of the Date header.
-func Date(respHeaders http.Header) (date time.Time, err error) {
-	dateHeader := respHeaders.Get("date")
-	if dateHeader == "" {
-		err = ErrNoDateHeader
-		return
+// Delete deletes the cache.
+func (t *Transport) Delete(ctx context.Context) error {
+	if t.respCache != nil {
+		return t.respCache.Delete(ctx)
 	}
-
-	return time.Parse(time.RFC1123, dateHeader)
+	return nil
 }
 
-type realClock struct{}
-
-func (c *realClock) since(d time.Time) time.Duration {
-	return time.Since(d)
-}
-
-type timer interface {
-	since(d time.Time) time.Duration
-}
-
-var clock timer = &realClock{}
-
-// getFreshness will return one of fresh/stale/transparent based on the cache-control
-// values of the request and the response
-//
-// fresh indicates the response can be returned
-// stale indicates that the response needs validating before it is returned
-// transparent indicates the response should not be used to fulfil the request
-//
-// Because this is only a private cache, 'public' and 'private' in cache-control aren't
-// signficant. Similarly, smax-age isn't used.
-func getFreshness(respHeaders, reqHeaders http.Header) (freshness int) {
-	respCacheControl := parseCacheControl(respHeaders)
-	reqCacheControl := parseCacheControl(reqHeaders)
-	if _, ok := reqCacheControl["no-cache"]; ok {
-		return transparent
-	}
-	if _, ok := respCacheControl["no-cache"]; ok {
-		return stale
-	}
-	if _, ok := reqCacheControl["only-if-cached"]; ok {
-		return fresh
-	}
-
-	date, err := Date(respHeaders)
-	if err != nil {
-		return stale
-	}
-	currentAge := clock.since(date)
-
-	var lifetime time.Duration
-	var zeroDuration time.Duration
-
-	// If a response includes both an Expires header and a max-age directive,
-	// the max-age directive overrides the Expires header, even if the Expires header is more restrictive.
-	if maxAge, ok := respCacheControl["max-age"]; ok {
-		lifetime, err = time.ParseDuration(maxAge + "s")
-		if err != nil {
-			lifetime = zeroDuration
-		}
-	} else {
-		expiresHeader := respHeaders.Get("Expires")
-		if expiresHeader != "" {
-			expires, err := time.Parse(time.RFC1123, expiresHeader)
-			if err != nil {
-				lifetime = zeroDuration
-			} else {
-				lifetime = expires.Sub(date)
-			}
-		}
-	}
-
-	if maxAge, ok := reqCacheControl["max-age"]; ok {
-		// the client is willing to accept a response whose age is no greater than the specified time in seconds
-		lifetime, err = time.ParseDuration(maxAge + "s")
-		if err != nil {
-			lifetime = zeroDuration
-		}
-	}
-	if minfresh, ok := reqCacheControl["min-fresh"]; ok {
-		//  the client wants a response that will still be fresh for at least the specified number of seconds.
-		minfreshDuration, err := time.ParseDuration(minfresh + "s")
-		if err == nil {
-			currentAge = time.Duration(currentAge + minfreshDuration)
-		}
-	}
-
-	if maxstale, ok := reqCacheControl["max-stale"]; ok {
-		// Indicates that the client is willing to accept a response that has exceeded its expiration time.
-		// If max-stale is assigned a value, then the client is willing to accept a response that has exceeded
-		// its expiration time by no more than the specified number of seconds.
-		// If no value is assigned to max-stale, then the client is willing to accept a stale response of any age.
-		//
-		// Responses served only because of a max-stale value are supposed to have a Warning header added to them,
-		// but that seems like a  hassle, and is it actually useful? If so, then there needs to be a different
-		// return-value available here.
-		if maxstale == "" {
-			return fresh
-		}
-		maxstaleDuration, err := time.ParseDuration(maxstale + "s")
-		if err == nil {
-			currentAge = time.Duration(currentAge - maxstaleDuration)
-		}
-	}
-
-	if lifetime > currentAge {
-		return fresh
-	}
-
-	return stale
-}
-
-// Returns true if either the request or the response includes the stale-if-error
-// cache control extension: https://tools.ietf.org/html/rfc5861
-func canStaleOnError(respHeaders, reqHeaders http.Header) bool {
-	respCacheControl := parseCacheControl(respHeaders)
-	reqCacheControl := parseCacheControl(reqHeaders)
-
-	var err error
-	lifetime := time.Duration(-1)
-
-	if staleMaxAge, ok := respCacheControl["stale-if-error"]; ok {
-		if staleMaxAge != "" {
-			lifetime, err = time.ParseDuration(staleMaxAge + "s")
-			if err != nil {
-				return false
-			}
-		} else {
-			return true
-		}
-	}
-	if staleMaxAge, ok := reqCacheControl["stale-if-error"]; ok {
-		if staleMaxAge != "" {
-			lifetime, err = time.ParseDuration(staleMaxAge + "s")
-			if err != nil {
-				return false
-			}
-		} else {
-			return true
-		}
-	}
-
-	if lifetime >= 0 {
-		date, err := Date(respHeaders)
-		if err != nil {
-			return false
-		}
-		currentAge := clock.since(date)
-		if lifetime > currentAge {
-			return true
-		}
-	}
-
-	return false
-}
-
-func getEndToEndHeaders(respHeaders http.Header) []string {
-	// These headers are always hop-by-hop
-	hopByHopHeaders := map[string]struct{}{
-		"Connection":          {},
-		"Keep-Alive":          {},
-		"Proxy-Authenticate":  {},
-		"Proxy-Authorization": {},
-		"Te":                  {},
-		"Trailers":            {},
-		"Transfer-Encoding":   {},
-		"Upgrade":             {},
-	}
-
-	for _, extra := range strings.Split(respHeaders.Get("connection"), ",") {
-		// any header listed in connection, if present, is also considered hop-by-hop
-		if strings.Trim(extra, " ") != "" {
-			hopByHopHeaders[http.CanonicalHeaderKey(extra)] = struct{}{}
-		}
-	}
-	endToEndHeaders := []string{}
-	for respHeader := range respHeaders {
-		if _, ok := hopByHopHeaders[respHeader]; !ok {
-			endToEndHeaders = append(endToEndHeaders, respHeader)
-		}
-	}
-	return endToEndHeaders
-}
-
-func canStore(reqCacheControl, respCacheControl cacheControl) (canStore bool) {
-	if _, ok := respCacheControl["no-store"]; ok {
+// IsCached returns true if there is a cache entry for req. This does not
+// guarantee that the cache entry is fresh. See also: [Transport.IsFresh].
+func (t *Transport) IsCached(req *http.Request) bool {
+	if t.disableCaching {
 		return false
 	}
-	if _, ok := reqCacheControl["no-store"]; ok {
+	return t.respCache.Exists(req)
+}
+
+// IsFresh returns true if there is a fresh cache entry for req.
+func (t *Transport) IsFresh(req *http.Request) bool {
+	ctx := req.Context()
+	log := lg.FromContext(ctx)
+
+	if !t.isCacheable(req) {
 		return false
 	}
-	return true
-}
 
-func newGatewayTimeoutResponse(req *http.Request) *http.Response {
-	var braw bytes.Buffer
-	braw.WriteString("HTTP/1.1 504 Gateway Timeout\r\n\r\n")
-	resp, err := http.ReadResponse(bufio.NewReader(&braw), req)
+	if !t.respCache.Exists(req) {
+		return false
+	}
+
+	fpHeader, _ := t.respCache.Paths(req)
+	f, err := os.Open(fpHeader)
 	if err != nil {
-		panic(err)
+		log.Error("Failed to open cached response header file", lga.File, fpHeader, lga.Err, err)
+		return false
 	}
-	return resp
+
+	defer lg.WarnIfCloseError(log, "Close cached response header", f)
+
+	cachedResp, err := readResponseHeader(bufio.NewReader(f), nil)
+	if err != nil {
+		log.Error("Failed to read cached response", lga.Err, err)
+		return false
+	}
+
+	freshness := getFreshness(cachedResp.Header, req.Header)
+	return freshness == fresh
 }
 
-// cloneRequest returns a clone of the provided *http.Request.
-// The clone is a shallow copy of the struct and its Header map.
-// (This function copyright goauth2 authors: https://code.google.com/p/goauth2)
-func cloneRequest(r *http.Request) *http.Request {
-	// shallow copy of the struct
-	r2 := new(http.Request)
-	*r2 = *r
-	if ctx := r.Context(); ctx != nil {
-		r2 = r2.WithContext(ctx)
+func (t *Transport) isCacheable(req *http.Request) bool {
+	if t.disableCaching {
+		return false
 	}
-	// deep copy of the Header
-	r2.Header = make(http.Header)
-	for k, s := range r.Header {
-		r2.Header[k] = s
-	}
-	return r2
-}
-
-type cacheControl map[string]string
-
-func parseCacheControl(headers http.Header) cacheControl {
-	cc := cacheControl{}
-	ccHeader := headers.Get("Cache-Control")
-	for _, part := range strings.Split(ccHeader, ",") {
-		part = strings.Trim(part, " ")
-		if part == "" {
-			continue
-		}
-		if strings.ContainsRune(part, '=') {
-			keyval := strings.Split(part, "=")
-			cc[strings.Trim(keyval[0], " ")] = strings.Trim(keyval[1], ",")
-		} else {
-			cc[part] = ""
-		}
-	}
-	return cc
-}
-
-// headerAllCommaSepValues returns all comma-separated values (each
-// with whitespace trimmed) for header name in headers. According to
-// Section 4.2 of the HTTP/1.1 spec
-// (http://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.2),
-// values from multiple occurrences of a header should be concatenated, if
-// the header's value is a comma-separated list.
-func headerAllCommaSepValues(headers http.Header, name string) []string {
-	var vals []string
-	for _, val := range headers[http.CanonicalHeaderKey(name)] {
-		fields := strings.Split(val, ",")
-		for i, f := range fields {
-			fields[i] = strings.TrimSpace(f)
-		}
-		vals = append(vals, fields...)
-	}
-	return vals
-}
-
-// cachingReadCloser is a wrapper around ReadCloser R that calls OnEOF
-// handler with a full copy of the content read from R when EOF is
-// reached.
-type cachingReadCloser struct {
-	// Underlying ReadCloser.
-	R io.ReadCloser
-	// OnEOF is called with a copy of the content of R when EOF is reached.
-	OnEOF func(io.Reader)
-
-	buf bytes.Buffer // buf stores a copy of the content of R.
-}
-
-// Read reads the next len(p) bytes from R or until R is drained. The
-// return value n is the number of bytes read. If R has no data to
-// return, err is io.EOF and OnEOF is called with a full copy of what
-// has been read so far.
-func (r *cachingReadCloser) Read(p []byte) (n int, err error) {
-	n, err = r.R.Read(p)
-	r.buf.Write(p[:n])
-	if err == io.EOF {
-		r.OnEOF(bytes.NewReader(r.buf.Bytes()))
-	}
-	return n, err
-}
-
-func (r *cachingReadCloser) Close() error {
-	return r.R.Close()
+	return (req.Method == http.MethodGet || req.Method == http.MethodHead) && req.Header.Get("range") == ""
 }
