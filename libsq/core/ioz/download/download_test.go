@@ -31,7 +31,7 @@ func TestDownload(t *testing.T) {
 	require.NoError(t, err)
 	t.Logf("cacheDir: %s", cacheDir)
 
-	dl := download.New(cacheDir, download.OptUserAgent("sq/dev"))
+	dl := download.New(dlURL, cacheDir, download.OptUserAgent("sq/dev"))
 	require.NoError(t, dl.Clear(ctx))
 
 	var (
@@ -60,16 +60,16 @@ func TestDownload(t *testing.T) {
 		},
 	}
 
-	require.Equal(t, download.Uncached, dl.State(ctx, dlURL))
-	dl.Get(ctx, dlURL, h)
+	require.Equal(t, download.Uncached, dl.State(ctx))
+	dl.Get(ctx, h)
 	require.NoError(t, gotErr)
 	require.Empty(t, gotFp)
 	require.Equal(t, sizeActorCSV, int64(destBuf.Len()))
 
-	require.Equal(t, download.Fresh, dl.State(ctx, dlURL))
+	require.Equal(t, download.Fresh, dl.State(ctx))
 
 	reset()
-	dl.Get(ctx, dlURL, h)
+	dl.Get(ctx, h)
 	require.NoError(t, gotErr)
 	require.Equal(t, 0, destBuf.Len())
 	require.NotEmpty(t, gotFp)
@@ -77,8 +77,8 @@ func TestDownload(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, sizeActorCSV, int64(len(gotFileBytes)))
 
-	require.Equal(t, download.Fresh, dl.State(ctx, dlURL))
+	require.Equal(t, download.Fresh, dl.State(ctx))
 
 	require.NoError(t, dl.Clear(ctx))
-	require.Equal(t, download.Uncached, dl.State(ctx, dlURL))
+	require.Equal(t, download.Uncached, dl.State(ctx))
 }

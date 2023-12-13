@@ -110,8 +110,9 @@ type Download struct {
 }
 
 // New returns a new Download that uses cacheDir as the cache directory.
-func New(cacheDir string, opts ...Opt) *Download {
+func New(url, cacheDir string, opts ...Opt) *Download {
 	t := &Download{
+		url:                 url,
 		markCachedResponses: true,
 		disableCaching:      false,
 		InsecureSkipVerify:  false,
@@ -144,9 +145,9 @@ type Handler struct {
 	Error func(err error)
 }
 
-// Get gets the download at url, invoking h as appropriate.
-func (dl *Download) Get(ctx context.Context, url string, h Handler) {
-	req, err := dl.newRequest(ctx, url)
+// Get gets the download, invoking Handler as appropriate.
+func (dl *Download) Get(ctx context.Context, h Handler) {
+	req, err := dl.newRequest(ctx, dl.url)
 	if err != nil {
 		h.Error(err)
 		return
@@ -179,10 +180,6 @@ func (dl *Download) get(req *http.Request, cb Handler) {
 		}
 	}
 
-	transport := dl.transport
-	if transport == nil {
-		transport = http.DefaultTransport
-	}
 	var resp *http.Response
 	if cacheable && cachedResp != nil && err == nil {
 		if dl.markCachedResponses {
@@ -218,8 +215,7 @@ func (dl *Download) get(req *http.Request, cb Handler) {
 			}
 		}
 
-		// FIXME: Use an http client here
-		resp, err = transport.RoundTrip(req)
+		resp, err = dl.execRequest(req)
 		if err == nil && req.Method == http.MethodGet && resp.StatusCode == http.StatusNotModified {
 			// Replace the 304 response with the one from cache, but update with some new headers
 			endToEndHeaders := getEndToEndHeaders(resp.Header)
@@ -248,7 +244,7 @@ func (dl *Download) get(req *http.Request, cb Handler) {
 		if _, ok := reqCacheControl["only-if-cached"]; ok {
 			resp = newGatewayTimeoutResponse(req)
 		} else {
-			resp, err = transport.RoundTrip(req)
+			resp, err = dl.execRequest(req)
 			if err != nil {
 				cb.Error(err)
 				return
@@ -313,6 +309,14 @@ func (dl *Download) Close() error {
 	return nil
 }
 
+// execRequest executes the request.
+func (dl *Download) execRequest(req *http.Request) (*http.Response, error) {
+	if dl.transport == nil {
+		return http.DefaultTransport.RoundTrip(req)
+	}
+	return dl.transport.RoundTrip(req)
+}
+
 func (dl *Download) newRequest(ctx context.Context, url string) (*http.Request, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
@@ -337,26 +341,9 @@ func (dl *Download) Clear(ctx context.Context) error {
 	return nil
 }
 
-// IsCached returns true if there is a cache entry for url. Success does not
-// guarantee that the cache entry is fresh. See also: [Download.IsFresh].
-func (dl *Download) IsCached(ctx context.Context, url string) bool {
-	req, err := dl.newRequest(ctx, url)
-	if err != nil {
-		return false
-	}
-	return dl.isCached(req)
-}
-
-func (dl *Download) isCached(req *http.Request) bool {
-	if dl.disableCaching {
-		return false
-	}
-	return dl.respCache.Exists(req)
-}
-
-// State returns the cache state of url.
-func (dl *Download) State(ctx context.Context, url string) State {
-	req, err := dl.newRequest(ctx, url)
+// State returns the Download's cache state.
+func (dl *Download) State(ctx context.Context) State {
+	req, err := dl.newRequest(ctx, dl.url)
 	if err != nil {
 		return Uncached
 	}
