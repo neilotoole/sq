@@ -15,7 +15,6 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -88,9 +87,10 @@ func OptUserAgent(userAgent string) Opt {
 type Download struct {
 	// FIXME: Does Download need a sync.Mutex?
 
-	// FIXME: implement url mechanism
 	// url is the URL of the download.
 	url string
+
+	c *http.Client
 
 	// The RoundTripper interface actually used to make requests
 	// If nil, http.DefaultTransport is used.
@@ -110,9 +110,15 @@ type Download struct {
 	disableCaching bool
 }
 
-// New returns a new Download that uses cacheDir as the cache directory.
-func New(url, cacheDir string, opts ...Opt) *Download {
+// New returns a new Download for url that writes to cacheDir.
+// If c is nil, http.DefaultClient is used.
+func New(c *http.Client, url, cacheDir string, opts ...Opt) *Download {
+	if c == nil {
+		c = http.DefaultClient
+	}
+
 	t := &Download{
+		c:                   c,
 		url:                 url,
 		markCachedResponses: true,
 		disableCaching:      false,
@@ -312,10 +318,11 @@ func (dl *Download) Close() error {
 
 // execRequest executes the request.
 func (dl *Download) execRequest(req *http.Request) (*http.Response, error) {
-	if dl.transport == nil {
-		return http.DefaultTransport.RoundTrip(req)
-	}
-	return dl.transport.RoundTrip(req)
+	//if dl.transport == nil {
+	//	return http.DefaultTransport.RoundTrip(req)
+	//}
+	//return dl.transport.RoundTrip(req)
+	return dl.c.Do(req)
 }
 
 func (dl *Download) newRequest(ctx context.Context, url string) (*http.Request, error) {
@@ -328,10 +335,6 @@ func (dl *Download) newRequest(ctx context.Context, url string) (*http.Request, 
 		req.Header.Set("User-Agent", dl.userAgent)
 	}
 	return req, nil
-}
-
-func (dl *Download) getClient() *http.Client {
-	return ioz.NewHTTPClient("", dl.InsecureSkipVerify, 0, 0)
 }
 
 // Clear deletes the cache.

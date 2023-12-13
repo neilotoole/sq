@@ -29,7 +29,7 @@ func newDownloader2(cacheDir, userAgent, dlURL string) (*downloader2, error) {
 
 	// dc := diskcache.NewWithDiskv(dv)
 	rc := download.NewRespCache(cacheDir)
-	tp := download.New(rc)
+	tp := download.New(nil, rc)
 
 	// respCache := download.NewRespCache(cacheDir)
 	// tp.RespCache = respCache

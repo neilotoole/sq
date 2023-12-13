@@ -22,6 +22,10 @@ const (
 	sizeGzipActorCSV   = int64(1968)
 )
 
+func TestDownload_redirect(t *testing.T) {
+
+}
+
 func TestDownload(t *testing.T) {
 	log := slogt.New(t)
 	ctx := lg.NewContext(context.Background(), log)
@@ -32,7 +36,7 @@ func TestDownload(t *testing.T) {
 	require.NoError(t, err)
 	t.Logf("cacheDir: %s", cacheDir)
 
-	dl := download.New(dlURL, cacheDir, download.OptUserAgent("sq/dev"))
+	dl := download.New(nil, dlURL, cacheDir, download.OptUserAgent("sq/dev"))
 	require.NoError(t, dl.Clear(ctx))
 
 	var (
