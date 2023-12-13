@@ -396,16 +396,16 @@ func ReadCloserNotifier(rc io.ReadCloser, fn func(closeErr error)) io.ReadCloser
 	if rc == nil || fn == nil {
 		return rc
 	}
-	return &readCloseNotifier{ReadCloser: rc, fn: fn}
+	return &readCloserNotifier{ReadCloser: rc, fn: fn}
 }
 
-type readCloseNotifier struct {
+type readCloserNotifier struct {
 	fn func(error)
 	io.ReadCloser
 }
 
-func (c *readCloseNotifier) Close() error {
-	err := c.Close()
+func (c *readCloserNotifier) Close() error {
+	err := c.ReadCloser.Close()
 	c.fn(err)
 	return err
 }

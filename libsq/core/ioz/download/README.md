@@ -1,3 +1,9 @@
+# ACKNOWLEDGEMENT
+
+This package a heavily-modified fork
+of [`gregjones/httpcache`](https://github.com/gregjones/httpcache).
+
+
 # httpcache
 
 [![GoDoc](https://godoc.org/github.com/bitcomplete/httpcache?status.svg)](https://godoc.org/github.com/bitcomplete/httpcache)

@@ -215,7 +215,7 @@ func (dl *Download) get(req *http.Request, h Handler) {
 			}
 		}
 
-		resp, err = dl.execRequest(req)
+		resp, err = dl.do(req)
 		if err == nil && req.Method == http.MethodGet && resp.StatusCode == http.StatusNotModified {
 			// Replace the 304 response with the one from cache, but update with some new headers
 			endToEndHeaders := getEndToEndHeaders(resp.Header)
@@ -244,7 +244,7 @@ func (dl *Download) get(req *http.Request, h Handler) {
 		if _, ok := reqCacheControl["only-if-cached"]; ok {
 			resp = newGatewayTimeoutResponse(req)
 		} else {
-			resp, err = dl.execRequest(req)
+			resp, err = dl.do(req)
 			if err != nil {
 				h.Error(err)
 				return
@@ -323,8 +323,8 @@ func (dl *Download) Close() error {
 	return nil
 }
 
-// execRequest executes the request.
-func (dl *Download) execRequest(req *http.Request) (*http.Response, error) {
+// do executes the request.
+func (dl *Download) do(req *http.Request) (*http.Response, error) {
 	return dl.c.Do(req)
 }
 
@@ -369,11 +369,11 @@ func (dl *Download) state(req *http.Request) State {
 	fpHeader, _, _ := dl.respCache.Paths(req)
 	f, err := os.Open(fpHeader)
 	if err != nil {
-		log.Error(msgCloseCacheHeaderBody, lga.File, fpHeader, lga.Err, err)
+		log.Error(msgCloseCacheHeaderFile, lga.File, fpHeader, lga.Err, err)
 		return Uncached
 	}
 
-	defer lg.WarnIfCloseError(log, msgCloseCacheHeaderBody, f)
+	defer lg.WarnIfCloseError(log, msgCloseCacheHeaderFile, f)
 
 	cachedResp, err := httpz.ReadResponseHeader(bufio.NewReader(f), nil)
 	if err != nil {

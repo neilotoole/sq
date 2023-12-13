@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -397,4 +398,22 @@ func ReadFileToString(t testing.TB, name string) string {
 	s, err := ioz.ReadFileToString(name)
 	require.NoError(t, err)
 	return s
+}
+
+// OpenFileCount is a debugging function that returns the count
+// of open file handles for the current process via shelling out
+// to lsof. This function is skipped on Windows.
+// If log is true, the output of lsof is logged.
+func OpenFileCount(t *testing.T, log bool) int {
+	SkipWindows(t, "OpenFileCount not implemented on Windows")
+	out, err := exec.Command("/bin/sh", "-c", fmt.Sprintf("lsof -p %v", os.Getpid())).Output()
+	require.NoError(t, err)
+	lines := strings.Split(string(out), "\n")
+	count := len(lines) - 1
+	msg := fmt.Sprintf("Open files for [%d]: %d", os.Getpid(), count)
+	if log {
+		msg += "\n\n" + string(out)
+	}
+	t.Log(msg)
+	return count
 }

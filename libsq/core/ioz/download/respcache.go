@@ -22,7 +22,8 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 )
 
-const msgCloseCacheHeaderBody = "Close cached response header file"
+const msgCloseCacheHeaderFile = "Close cached response header file"
+const msgCloseCacheBodyFile = "Close cached response body file"
 
 // NewRespCache returns a new instance that stores responses in cacheDir.
 // The caller should call RespCache.Close when finished with the cache.
@@ -34,13 +35,18 @@ func NewRespCache(cacheDir string) *RespCache {
 	return c
 }
 
-// RespCache is a cache for a single http.Response. The response is
-// stored in two files, one for the header and one for the body.
-// The caller should call RespCache.Close when finished with the cache.
+// RespCache is a cache a download. The cached response is
+// stored in two files, one for the header and one for the body, with
+// a checksum (of the body file) stored in a third file.
+// Use RespCache.Paths to access the cache files.
 type RespCache struct {
-	mu    sync.Mutex
+	// FIXME: move the mutex to the Download struct?
+	mu sync.Mutex
+
+	// Deprecated: any cleanup should happen via resp.Body.Close().
 	clnup *cleanup.Cleanup
 
+	// Dir is the directory in which the cache files are stored.
 	Dir string
 }
 
@@ -53,6 +59,9 @@ func (rc *RespCache) Paths(req *http.Request) (header, body, checksum string) {
 			filepath.Join(rc.Dir, "checksum.txt")
 	}
 
+	// This is probably not strictly necessary because we're always
+	// using GET, but in an earlier incarnation of the code, it was relevant.
+	// Can probably delete.
 	return filepath.Join(rc.Dir, req.Method+"_header"),
 		filepath.Join(rc.Dir, req.Method+"_body"),
 		filepath.Join(rc.Dir, req.Method+"_checksum.txt")
@@ -72,41 +81,51 @@ func (rc *RespCache) Exists(req *http.Request) bool {
 }
 
 // Get returns the cached http.Response for req if present, and nil
-// otherwise.
+// otherwise. The caller MUST close the returned response body.
 func (rc *RespCache) Get(ctx context.Context, req *http.Request) (*http.Response, error) {
 	rc.mu.Lock()
 	defer rc.mu.Unlock()
+	log := lg.FromContext(ctx)
 
 	fpHeader, fpBody, _ := rc.Paths(req)
-
 	if !ioz.FileAccessible(fpHeader) {
+		// If the header file doesn't exist, it's a nil, nil situation.
 		return nil, nil
 	}
 
 	headerBytes, err := os.ReadFile(fpHeader)
 	if err != nil {
-		return nil, err
+		return nil, errz.Wrap(err, "failed to read cached response header file")
 	}
 
 	bodyFile, err := os.Open(fpBody)
 	if err != nil {
-		lg.FromContext(ctx).Error("failed to open cached response body",
+		log.Error("Failed to open cached response body file",
 			lga.File, fpBody, lga.Err, err)
-		return nil, err
+		return nil, errz.Wrap(err, "failed to open cached response body file")
 	}
 
-	// We need to explicitly close bodyFile at some later point. It won't be
+	// It won't be
 	// closed via a call to http.Response.Body.Close().
 	rc.clnup.AddC(bodyFile)
+
 	// TODO: consider adding contextio.NewReader?
 	concatRdr := io.MultiReader(bytes.NewReader(headerBytes), bodyFile)
 	resp, err := http.ReadResponse(bufio.NewReader(concatRdr), req)
 	if err != nil {
-		lg.WarnIfCloseError(lg.FromContext(ctx), "Close cached response body", bodyFile)
+		lg.WarnIfCloseError(log, msgCloseCacheBodyFile, bodyFile)
 		return nil, errz.Err(err)
 	}
-	return resp, nil
 
+	// We need to explicitly close bodyFile. To do this (on the happy path),
+	// we wrap bodyFile in a ReadCloserNotifier, which will close bodyFile
+	// when resp.Body is closed. Thus, it's critical that the caller
+	// close the returned resp.
+	respBody := resp.Body
+	resp.Body = ioz.ReadCloserNotifier(respBody, func(error) {
+		lg.WarnIfCloseError(log, msgCloseCacheBodyFile, bodyFile)
+	})
+	return resp, nil
 }
 
 // Checksum returns the checksum of the cached body file, if available.

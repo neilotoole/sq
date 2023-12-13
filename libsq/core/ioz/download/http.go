@@ -219,7 +219,7 @@ func newGatewayTimeoutResponse(req *http.Request) *http.Response {
 
 // cloneRequest returns a clone of the provided *http.Request.
 // The clone is a shallow copy of the struct and its Header map.
-// (This function copyright goauth2 authors: https://code.google.com/p/goauth2)
+// (This function copyright goauth2 authors: https://code.google.com/p/goauth2).
 func cloneRequest(r *http.Request) *http.Request {
 	// shallow copy of the struct
 	r2 := new(http.Request)
