@@ -74,12 +74,15 @@ const (
 	ansiFaint           = "\033[2m"
 	ansiResetFaint      = "\033[22m"
 	ansiBrightRed       = "\033[91m"
+	ansiBrightRedBold   = "\033[1;91m"
 	ansiBrightGreen     = "\033[92m"
 	ansiBrightGreenBold = "\033[1;92m"
 	ansiBrightYellow    = "\033[93m"
 	ansiBlue            = "\033[34m"
 	ansiBrightBlue      = "\033[94m"
 	ansiBrightRedFaint  = "\033[91;2m"
+	ansiAttrColor       = "\033[36;2m"
+	// 	ansiAttrColor       = "\033[35;2m"
 )
 
 const errKey = "err"
@@ -229,7 +232,7 @@ func (h *handler) Handle(_ context.Context, r slog.Record) error {
 	case slog.LevelWarn:
 		msgColor = ansiBrightYellow
 	case slog.LevelError:
-		msgColor = ansiBrightRed
+		msgColor = ansiBrightRedBold
 	case slog.LevelInfo:
 		msgColor = ansiBrightGreenBold
 	}
@@ -318,7 +321,7 @@ func (h *handler) appendLevel(buf *buffer, level slog.Level) {
 		appendLevelDelta(buf, level-slog.LevelWarn)
 		buf.WriteStringIf(!h.noColor, ansiReset)
 	default:
-		buf.WriteStringIf(!h.noColor, ansiBrightRed)
+		buf.WriteStringIf(!h.noColor, ansiBrightRedBold)
 		buf.WriteString("ERR")
 		appendLevelDelta(buf, level-slog.LevelError)
 		buf.WriteStringIf(!h.noColor, ansiReset)
@@ -381,7 +384,10 @@ func (h *handler) appendAttr(buf *buffer, attr slog.Attr, groupsPrefix string, g
 		buf.WriteByte(' ')
 	} else {
 		h.appendKey(buf, attr.Key, groupsPrefix)
+		buf.WriteStringIf(!h.noColor, ansiAttrColor)
 		h.appendValue(buf, attr.Value, true)
+		buf.WriteStringIf(!h.noColor, ansiReset)
+
 		buf.WriteByte(' ')
 	}
 }

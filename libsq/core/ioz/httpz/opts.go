@@ -126,8 +126,6 @@ func OptHeaderTimeout(timeout time.Duration) TripFunc {
 			select {
 			case <-ctx.Done():
 			case <-t.C:
-				log := lg.FromContext(ctx)
-				_ = log
 				lg.FromContext(ctx).Warn("HTTP header response not received within timeout",
 					lga.Timeout, timeout, lga.URL, req.URL.String())
 				cancelFn(context.DeadlineExceeded)
