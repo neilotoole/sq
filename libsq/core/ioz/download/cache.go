@@ -24,11 +24,11 @@ import (
 const msgCloseCacheHeaderFile = "Close cached response header file"
 const msgCloseCacheBodyFile = "Close cached response body file"
 
-// Cache is a cache for a individual download. The cached response is
+// cache is a cache for a individual download. The cached response is
 // stored in two files, one for the header and one for the body, with
 // a checksum (of the body file) stored in a third file.
-// Use Cache.Paths to access the cache files.
-type Cache struct {
+// Use cache.paths to access the cache files.
+type cache struct {
 	// FIXME: move the mutex to the Download struct?
 	mu sync.Mutex
 
@@ -36,9 +36,9 @@ type Cache struct {
 	dir string
 }
 
-// Paths returns the paths to the header, body, and checksum files for req.
+// paths returns the paths to the header, body, and checksum files for req.
 // It is not guaranteed that they exist.
-func (c *Cache) Paths(req *http.Request) (header, body, checksum string) {
+func (c *cache) paths(req *http.Request) (header, body, checksum string) {
 	if req == nil || req.Method == http.MethodGet {
 		return filepath.Join(c.dir, "header"),
 			filepath.Join(c.dir, "body"),
@@ -53,12 +53,12 @@ func (c *Cache) Paths(req *http.Request) (header, body, checksum string) {
 		filepath.Join(c.dir, req.Method+"_checksum.txt")
 }
 
-// Exists returns true if the cache contains a response for req.
-func (c *Cache) Exists(req *http.Request) bool {
+// exists returns true if the cache contains a response for req.
+func (c *cache) exists(req *http.Request) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	fpHeader, _, _ := c.Paths(req)
+	fpHeader, _, _ := c.paths(req)
 	fi, err := os.Stat(fpHeader)
 	if err != nil {
 		return false
@@ -68,12 +68,12 @@ func (c *Cache) Exists(req *http.Request) bool {
 
 // Get returns the cached http.Response for req if present, and nil
 // otherwise. The caller MUST close the returned response body.
-func (c *Cache) Get(ctx context.Context, req *http.Request) (*http.Response, error) {
+func (c *cache) get(ctx context.Context, req *http.Request) (*http.Response, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	log := lg.FromContext(ctx)
 
-	fpHeader, fpBody, _ := c.Paths(req)
+	fpHeader, fpBody, _ := c.paths(req)
 	if !ioz.FileAccessible(fpHeader) {
 		// If the header file doesn't exist, it's a nil, nil situation.
 		return nil, nil
@@ -91,9 +91,13 @@ func (c *Cache) Get(ctx context.Context, req *http.Request) (*http.Response, err
 		return nil, errz.Wrap(err, "failed to open cached response body file")
 	}
 
-	// FIXME: consider adding contextio.NewReader?
-	concatRdr := io.MultiReader(bytes.NewReader(headerBytes), bodyFile)
-	resp, err := http.ReadResponse(bufio.NewReader(concatRdr), req)
+	// Now it's time for the Matroyshka readers. First we concatenate the
+	// header and body via io.MultiReader. Then, we wrap that in
+	// a contextio.NewReader, for context-awareness. Finally,
+	// http.ReadResponse requires a bufio.Reader, so we wrap the
+	// context reader via bufio.NewReader, and then we're ready to go.
+	r := contextio.NewReader(ctx, io.MultiReader(bytes.NewReader(headerBytes), bodyFile))
+	resp, err := http.ReadResponse(bufio.NewReader(r), req)
 	if err != nil {
 		lg.WarnIfCloseError(log, msgCloseCacheBodyFile, bodyFile)
 		return nil, errz.Err(err)
@@ -109,13 +113,13 @@ func (c *Cache) Get(ctx context.Context, req *http.Request) (*http.Response, err
 	return resp, nil
 }
 
-// Checksum returns the checksum of the cached body file, if available.
-func (c *Cache) Checksum(req *http.Request) (sum checksum.Checksum, ok bool) {
+// checksum returns the checksum of the cached body file, if available.
+func (c *cache) checksum(req *http.Request) (sum checksum.Checksum, ok bool) {
 	if c == nil || req == nil {
 		return "", false
 	}
 
-	_, _, fp := c.Paths(req)
+	_, _, fp := c.paths(req)
 	if !ioz.FileAccessible(fp) {
 		return "", false
 	}
@@ -137,7 +141,7 @@ func (c *Cache) Checksum(req *http.Request) (sum checksum.Checksum, ok bool) {
 }
 
 // Clear deletes the cache entries from disk.
-func (c *Cache) Clear(ctx context.Context) error {
+func (c *cache) Clear(ctx context.Context) error {
 	if c == nil {
 		return nil
 	}
@@ -147,7 +151,7 @@ func (c *Cache) Clear(ctx context.Context) error {
 	return c.doClear(ctx)
 }
 
-func (c *Cache) doClear(ctx context.Context) error {
+func (c *cache) doClear(ctx context.Context) error {
 	deleteErr := errz.Wrap(os.RemoveAll(c.dir), "delete cache dir")
 	recreateErr := ioz.RequireDir(c.dir)
 	err := errz.Combine(deleteErr, recreateErr)
@@ -163,18 +167,24 @@ func (c *Cache) doClear(ctx context.Context) error {
 
 const msgDeleteCache = "Delete HTTP response cache"
 
-// Write writes resp header and body to the cache. If headerOnly is true, only
+// write writes resp header and body to the cache. If headerOnly is true, only
 // the header cache file is updated. If headerOnly is false and copyWrtr is
 // non-nil, the response body bytes are copied to that destination, as well as
-// being written to the cache. The response body is always closed.
-func (c *Cache) Write(ctx context.Context, resp *http.Response, headerOnly bool, copyWrtr io.WriteCloser) error {
+// being written to the cache. If writing to copyWrtr completes successfully,
+// it is closed; if there's an error, copyWrtr is not closed. This is by design;
+// the caller is responsible for propagating any write error (as returned by
+// this method) to copyWrtr's owner.
+// A checksum file, computed from the body file, is also written to disk. The
+// response body is always closed.
+func (c *cache) write(ctx context.Context, resp *http.Response,
+	headerOnly bool, copyWrtr io.WriteCloser) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	return c.doWrite(ctx, resp, headerOnly, copyWrtr)
 }
 
-func (c *Cache) doWrite(ctx context.Context, resp *http.Response,
+func (c *cache) doWrite(ctx context.Context, resp *http.Response,
 	headerOnly bool, copyWrtr io.WriteCloser) error {
 	log := lg.FromContext(ctx)
 	defer lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
@@ -184,7 +194,7 @@ func (c *Cache) doWrite(ctx context.Context, resp *http.Response,
 	}
 
 	log.Debug("Writing HTTP response to cache", lga.Dir, c.dir, "resp", httpz.ResponseLogValue(resp))
-	fpHeader, fpBody, _ := c.Paths(resp.Request)
+	fpHeader, fpBody, _ := c.paths(resp.Request)
 
 	headerBytes, err := httputil.DumpResponse(resp, false)
 	if err != nil {
@@ -215,6 +225,7 @@ func (c *Cache) doWrite(ctx context.Context, resp *http.Response,
 	var written int64
 	written, err = io.Copy(cacheFile, cr)
 	if err != nil {
+
 		log.Error("Cache write: io.Copy failed", lga.Err, err)
 		lg.WarnIfCloseError(log, "Close cache body file", cacheFile)
 		return err

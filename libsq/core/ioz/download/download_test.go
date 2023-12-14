@@ -241,6 +241,7 @@ func newTestHandler(log *slog.Logger) *testHandler {
 }
 
 func TestMisc(t *testing.T) {
+	// FIXME: delete
 	br := bufio.NewReader(strings.NewReader("huzzah"))
 
 	cr := contextio.NewReader(context.TODO(), br)
@@ -254,5 +255,4 @@ func TestMisc(t *testing.T) {
 	var ok bool
 	wt, ok = cr.(io.WriterTo)
 	require.True(t, ok)
-
 }
