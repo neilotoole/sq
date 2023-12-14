@@ -140,8 +140,8 @@ func (c *cache) checksum(req *http.Request) (sum checksum.Checksum, ok bool) {
 	return sum, ok
 }
 
-// Clear deletes the cache entries from disk.
-func (c *cache) Clear(ctx context.Context) error {
+// clear deletes the cache entries from disk.
+func (c *cache) clear(ctx context.Context) error {
 	if c == nil {
 		return nil
 	}

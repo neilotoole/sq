@@ -77,7 +77,7 @@ func TestDownload_redirect(t *testing.T) {
 	ctx := lg.NewContext(context.Background(), log.With("origin", "downloader"))
 	loc := srvr.URL + "/redirect"
 
-	dl, err := download.New(httpz.NewDefaultClient(), loc, cacheDir)
+	dl, err := download.New(t.Name(), httpz.NewDefaultClient2(), loc, cacheDir)
 	require.NoError(t, err)
 	require.NoError(t, dl.Clear(ctx))
 	h := download.NewSinkHandler(log.With("origin", "handler"))
@@ -144,7 +144,7 @@ func TestDownload_New(t *testing.T) {
 	require.NoError(t, err)
 	t.Logf("cacheDir: %s", cacheDir)
 
-	dl, err := download.New(httpz.NewDefaultClient(), dlURL, cacheDir)
+	dl, err := download.New(t.Name(), httpz.NewDefaultClient2(), dlURL, cacheDir)
 	require.NoError(t, err)
 	require.NoError(t, dl.Clear(ctx))
 	require.Equal(t, download.Uncached, dl.State(ctx))

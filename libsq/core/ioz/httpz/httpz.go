@@ -26,7 +26,19 @@ import (
 
 // NewDefaultClient returns a new HTTP client with default settings.
 func NewDefaultClient() *http.Client {
-	return NewClient(buildinfo.Get().UserAgent(), true, 0, 0)
+	return NewClient(
+		buildinfo.Get().UserAgent(),
+		true,
+		0,
+		0,
+		OptUserAgent(buildinfo.Get().UserAgent()),
+	)
+} // NewDefaultClient returns a new HTTP client with default settings.
+func NewDefaultClient2() *http.Client {
+	return NewClient2(
+		OptInsecureSkipVerify(true),
+		OptUserAgent(buildinfo.Get().UserAgent()),
+	)
 }
 
 // NewClient returns a new HTTP client. If userAgent is non-empty, the
@@ -38,7 +50,7 @@ func NewDefaultClient() *http.Client {
 // to read. If bodyTimeout > 0, it is applied to the total lifecycle of
 // the request and response, including reading the response body.
 func NewClient(userAgent string, insecureSkipVerify bool,
-	headerTimeout, bodyTimeout time.Duration,
+	headerTimeout, bodyTimeout time.Duration, tripFuncs ...TripFunc,
 ) *http.Client {
 	c := *http.DefaultClient
 	var tr *http.Transport
@@ -60,22 +72,90 @@ func NewClient(userAgent string, insecureSkipVerify bool,
 
 	tr.TLSClientConfig.InsecureSkipVerify = insecureSkipVerify
 	c.Transport = tr
-	if userAgent != "" {
-		c.Transport = &userAgentRoundTripper{
-			userAgent: userAgent,
-			rt:        c.Transport,
-		}
+	for i := range tripFuncs {
+		c.Transport = RoundTrip(c.Transport, tripFuncs[i])
 	}
-
-	c.Timeout = bodyTimeout
-	if headerTimeout > 0 {
-		c.Transport = &headerTimeoutRoundTripper{
-			headerTimeout: headerTimeout,
-			rt:            c.Transport,
-		}
-	}
+	//
+	//if userAgent != "" {
+	//	//c.Transport = UserAgent2(c.Transport, userAgent)
+	//
+	//	//var funcs []TripFunc
+	//
+	//
+	//
+	//	//c.Transport = RoundTrip(c.Transport, func(next http.RoundTripper, req *http.Request) (*http.Response, error) {
+	//	//	req.Header.Set("User-Agent", userAgent)
+	//	//	return next.RoundTrip(req)
+	//	//})
+	//
+	//	c.Transport = &userAgentRoundTripper{
+	//		userAgent: userAgent,
+	//		rt:        c.Transport,
+	//	}
+	//}
+	//
+	//c.Timeout = bodyTimeout
+	//if headerTimeout > 0 {
+	//	c.Transport = &headerTimeoutRoundTripper{
+	//		headerTimeout: headerTimeout,
+	//		rt:            c.Transport,
+	//	}
+	//}
 
 	return &c
+}
+
+// NewClient2 returns a new HTTP client configured with opts.
+func NewClient2(opts ...Opt) *http.Client {
+	c := *http.DefaultClient
+	var tr *http.Transport
+	if c.Transport == nil {
+		tr = (http.DefaultTransport.(*http.Transport)).Clone()
+	} else {
+		tr = (c.Transport.(*http.Transport)).Clone()
+	}
+
+	DefaultTLSVersion.apply(tr)
+	for _, opt := range opts {
+		opt.apply(tr)
+	}
+
+	c.Transport = tr
+	for i := range opts {
+		if tf, ok := opts[i].(TripFunc); ok {
+			c.Transport = RoundTrip(c.Transport, tf)
+		}
+	}
+	return &c
+}
+
+var _ Opt = (*TripFunc)(nil)
+
+// TripFunc is a function that implements http.RoundTripper.
+// It is commonly used with RoundTrip to decorate an existing http.RoundTripper.
+type TripFunc func(next http.RoundTripper, req *http.Request) (*http.Response, error)
+
+func (tf TripFunc) apply(tr *http.Transport) {}
+
+// RoundTrip adapts a TripFunc to http.RoundTripper.
+func RoundTrip(next http.RoundTripper, fn TripFunc) http.RoundTripper {
+	return roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		return fn(next, req)
+	})
+}
+
+// NopTripFunc is a TripFunc that does nothing.
+func NopTripFunc(next http.RoundTripper, req *http.Request) (*http.Response, error) {
+	return next.RoundTrip(req)
+}
+
+// roundTripFunc is an adapter to allow use of functions as http.RoundTripper.
+// It works with TripFunc and RoundTrip.
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+// RoundTrip implements http.RoundTripper.
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
 }
 
 // userAgentRoundTripper applies a User-Agent header to each request.

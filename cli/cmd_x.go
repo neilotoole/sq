@@ -157,12 +157,13 @@ func execXDownloadCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	sum := checksum.Sum([]byte(u.String()))
-	cacheDir, err := ru.Files.CacheDirFor(&source.Source{Handle: "@download_" + sum})
+	fakeSrc := &source.Source{Handle: "@download_" + sum}
+	cacheDir, err := ru.Files.CacheDirFor(fakeSrc)
 	if err != nil {
 		return err
 	}
 
-	dl, err := download.New(httpz.NewDefaultClient(), u.String(), cacheDir)
+	dl, err := download.New(fakeSrc.Handle, httpz.NewDefaultClient2(), u.String(), cacheDir)
 	if err != nil {
 		return err
 	}

@@ -16,6 +16,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
 	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+	"github.com/neilotoole/sq/libsq/core/progress"
 	"io"
 	"net/http"
 	"net/url"
@@ -81,13 +82,16 @@ func OptDisableCaching(disable bool) Opt {
 type Download struct {
 	// FIXME: Does Download need a sync.Mutex?
 
+	// name is a user-friendly name, such as a source handle like @data.
+	name string
+
 	// url is the URL of the download. It is parsed in download.New,
 	// thus is guaranteed to be valid.
 	url string
 
 	c *http.Client
 
-	respCache *cache
+	cache *cache
 
 	// markCachedResponses, if true, indicates that responses returned from the
 	// cache will be given an extra header, X-From-cache.
@@ -97,14 +101,16 @@ type Download struct {
 }
 
 // New returns a new Download for url that writes to cacheDir.
-// If c is nil, http.DefaultClient is used.
-func New(c *http.Client, dlURL, cacheDir string, opts ...Opt) (*Download, error) {
+// Name is a user-friendly name, such as a source handle like @data.
+// The name may show up in logs, or progress indicators etc.
+// If c is nil, httpz.NewDefaultClient is used.
+func New(name string, c *http.Client, dlURL, cacheDir string, opts ...Opt) (*Download, error) {
 	_, err := url.ParseRequestURI(dlURL)
 	if err != nil {
 		return nil, errz.Wrap(err, "invalid download URL")
 	}
 	if c == nil {
-		c = http.DefaultClient
+		c = httpz.NewDefaultClient2()
 	}
 
 	if cacheDir, err = filepath.Abs(cacheDir); err != nil {
@@ -112,6 +118,7 @@ func New(c *http.Client, dlURL, cacheDir string, opts ...Opt) (*Download, error)
 	}
 
 	t := &Download{
+		name:                name,
 		c:                   c,
 		url:                 dlURL,
 		markCachedResponses: true,
@@ -122,7 +129,7 @@ func New(c *http.Client, dlURL, cacheDir string, opts ...Opt) (*Download, error)
 	}
 
 	if !t.disableCaching {
-		t.respCache = &cache{dir: cacheDir}
+		t.cache = &cache{dir: cacheDir}
 	}
 
 	return t, nil
@@ -138,7 +145,7 @@ func (dl *Download) get(req *http.Request, h Handler) {
 	ctx := req.Context()
 	log := lg.FromContext(ctx)
 	log.Debug("Get download", lga.URL, dl.url)
-	_, fpBody, _ := dl.respCache.paths(req)
+	_, fpBody, _ := dl.cache.paths(req)
 
 	state := dl.state(req)
 	if state == Fresh {
@@ -150,10 +157,10 @@ func (dl *Download) get(req *http.Request, h Handler) {
 	cacheable := dl.isCacheable(req)
 	var cachedResp *http.Response
 	if cacheable {
-		cachedResp, err = dl.respCache.get(req.Context(), req)
+		cachedResp, err = dl.cache.get(req.Context(), req)
 	} else {
 		// Need to invalidate an existing value
-		if err = dl.respCache.Clear(req.Context()); err != nil {
+		if err = dl.cache.clear(req.Context()); err != nil {
 			h.Error(err)
 			return
 		}
@@ -211,7 +218,7 @@ func (dl *Download) get(req *http.Request, h Handler) {
 			return
 		} else {
 			if err != nil || resp.StatusCode != http.StatusOK {
-				lg.WarnIfError(log, msgDeleteCache, dl.respCache.Clear(req.Context()))
+				lg.WarnIfError(log, msgDeleteCache, dl.cache.clear(req.Context()))
 			}
 			if err != nil {
 				h.Error(err)
@@ -243,8 +250,8 @@ func (dl *Download) get(req *http.Request, h Handler) {
 
 		if resp == cachedResp {
 			lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
-			if err = dl.respCache.write(ctx, resp, true, nil); err != nil {
-				log.Error("Failed to update cache header", lga.Dir, dl.respCache.dir, lga.Err, err)
+			if err = dl.cache.write(ctx, resp, true, nil); err != nil {
+				log.Error("Failed to update cache header", lga.Dir, dl.cache.dir, lga.Err, err)
 				h.Error(err)
 				return
 			}
@@ -260,13 +267,13 @@ func (dl *Download) get(req *http.Request, h Handler) {
 		}
 
 		defer lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
-		if err = dl.respCache.write(req.Context(), resp, false, destWrtr); err != nil {
-			log.Error("Failed to write download cache", lga.Dir, dl.respCache.dir, lga.Err, err)
+		if err = dl.cache.write(req.Context(), resp, false, destWrtr); err != nil {
+			log.Error("Failed to write download cache", lga.Dir, dl.cache.dir, lga.Err, err)
 			//destWrtr.Error(err)
 		}
 		return
 	} else {
-		lg.WarnIfError(log, "Delete resp cache", dl.respCache.Clear(req.Context()))
+		lg.WarnIfError(log, "Delete resp cache", dl.cache.clear(req.Context()))
 	}
 
 	// It's not cacheable, so we need to write it to the destWrtr,
@@ -294,7 +301,12 @@ func (dl *Download) get(req *http.Request, h Handler) {
 
 // do executes the request.
 func (dl *Download) do(req *http.Request) (*http.Response, error) {
-	return dl.c.Do(req)
+	resp, err := dl.c.Do(req)
+	if err == nil && resp.Body != nil {
+		r := progress.NewReader(req.Context(), dl.name+": download", resp.ContentLength, resp.Body)
+		resp.Body = r.(io.ReadCloser)
+	}
+	return resp, err
 }
 
 // mustRequest creates a new request from dl.url. The url has already been
@@ -306,14 +318,13 @@ func (dl *Download) mustRequest(ctx context.Context) *http.Request {
 		panic(err)
 		return nil
 	}
-
 	return req
 }
 
 // Clear deletes the cache.
 func (dl *Download) Clear(ctx context.Context) error {
-	if dl.respCache != nil {
-		return dl.respCache.Clear(ctx)
+	if dl.cache != nil {
+		return dl.cache.clear(ctx)
 	}
 	return nil
 }
@@ -331,11 +342,11 @@ func (dl *Download) state(req *http.Request) State {
 	ctx := req.Context()
 	log := lg.FromContext(ctx)
 
-	if !dl.respCache.exists(req) {
+	if !dl.cache.exists(req) {
 		return Uncached
 	}
 
-	fpHeader, _, _ := dl.respCache.paths(req)
+	fpHeader, _, _ := dl.cache.paths(req)
 	f, err := os.Open(fpHeader)
 	if err != nil {
 		log.Error(msgCloseCacheHeaderFile, lga.File, fpHeader, lga.Err, err)
@@ -355,13 +366,13 @@ func (dl *Download) state(req *http.Request) State {
 
 // Checksum returns the checksum of the cached download, if available.
 func (dl *Download) Checksum(ctx context.Context) (sum checksum.Checksum, ok bool) {
-	if dl.respCache == nil {
+	if dl.cache == nil {
 		return "", false
 	}
 
 	req := dl.mustRequest(ctx)
 
-	_, _, fp := dl.respCache.paths(req)
+	_, _, fp := dl.cache.paths(req)
 	if !ioz.FileAccessible(fp) {
 		return "", false
 	}

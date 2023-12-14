@@ -9,12 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewHTTPClient_headerTimeout(t *testing.T) {
+func TestOptHeaderTimeout(t *testing.T) {
 	t.Parallel()
 	const (
 		headerTimeout = time.Second * 2
@@ -42,7 +40,7 @@ func TestNewHTTPClient_headerTimeout(t *testing.T) {
 			ctxFn: func(t *testing.T) context.Context {
 				return context.Background()
 			},
-			c:       httpz.NewClient("", false, headerTimeout, 0),
+			c:       httpz.NewClient2(httpz.OptHeaderTimeout(headerTimeout)),
 			wantErr: false,
 		},
 	}
@@ -92,59 +90,4 @@ func TestNewHTTPClient_headerTimeout(t *testing.T) {
 			require.Len(t, b, numLines*2) // *2 because of the newlines.
 		})
 	}
-}
-
-func TestTimeout1(t *testing.T) {
-	const urlPaymentLargeCSV = "https://sqio-public.s3.amazonaws.com/testdata/payment-large.gen.csv"
-
-	const urlActorCSV = "https://sq.io/testdata/actor.csv"
-	const respTimeout = time.Second * 2
-	const lines = 10
-	const wantLen = lines * 2
-	slowServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		for i := 0; i < lines; i++ {
-			select {
-			case <-r.Context().Done():
-				t.Logf("Server exiting due to: %v", r.Context().Err())
-				return
-			default:
-			}
-			_, _ = io.WriteString(w, string(rune('A'+i))+"\n")
-			w.(http.Flusher).Flush()
-			time.Sleep(time.Second)
-		}
-	}))
-	t.Cleanup(slowServer.Close)
-
-	ctx, cancelFn := context.WithTimeout(context.Background(), respTimeout)
-	defer cancelFn()
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, slowServer.URL, nil)
-	require.NoError(t, err)
-
-	resp, err := http.DefaultClient.Do(req)
-	require.NoError(t, err)
-	require.Equal(t, http.StatusOK, resp.StatusCode)
-
-	// cancelFn()
-	time.Sleep(time.Second * 3)
-
-	select {
-	case <-ctx.Done():
-		t.Logf("ctx is done: %v", ctx.Err())
-	default:
-		t.Logf("ctx is not done")
-		cancelFn()
-	}
-
-	// cancelFn()
-	b, err := io.ReadAll(resp.Body)
-	t.Logf("err: %T: %v", err, err)
-	t.Logf("len(b): %d", len(b))
-	t.Logf("b:\n\n%s\n\n", b)
-	assert.Error(t, err)
-	// require.Nil(t, b)
-	_ = b
-	// require.Len(t, b, 0)
-	// require.Len(t, b, 7641)
 }
