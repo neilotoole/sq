@@ -26,10 +26,7 @@ import (
 // ru or any of its fields are nil).
 func printError(ctx context.Context, ru *run.Run, err error) {
 	log := lg.FromContext(ctx)
-	log.Warn("printError called", lga.Err, err) // FIXME: delete
-	// debug.PrintStack()
-	// stack := errz.Stack(err)
-	// fmt.Fprintln(ru.Out, "printError stack", "stack", stack)
+
 	if err == nil {
 		log.Warn("printError called with nil error")
 		return
@@ -38,15 +35,6 @@ func printError(ctx context.Context, ru *run.Run, err error) {
 	if errors.Is(err, errNoMsg) {
 		// errNoMsg is a sentinel err that sq doesn't want to print
 		return
-	}
-
-	switch {
-	// Friendlier messages for context errors.
-	default:
-	case errors.Is(err, context.Canceled):
-		err = errz.New("canceled")
-	case errors.Is(err, context.DeadlineExceeded):
-		err = errz.Wrap(err, "timeout")
 	}
 
 	var cmd *cobra.Command
@@ -65,7 +53,7 @@ func printError(ctx context.Context, ru *run.Run, err error) {
 		} else {
 			log.Error("EXECUTION FAILED", lga.Err, err, lga.Cmd, cmdName)
 		}
-
+		err = humanizeContextErr(err)
 		wrtrs := ru.Writers
 		if wrtrs != nil && wrtrs.Error != nil {
 			// If we have an errorWriter, we print to it
@@ -76,6 +64,8 @@ func printError(ctx context.Context, ru *run.Run, err error) {
 
 		// Else we don't have an errorWriter, so we fall through
 	}
+
+	err = humanizeContextErr(err)
 
 	// If we get this far, something went badly wrong in bootstrap
 	// (probably the config is corrupt).
@@ -164,4 +154,23 @@ func panicOn(err error) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+// humanizeContextErr returns a friendlier error message
+// for context errors.
+func humanizeContextErr(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	switch {
+	// Friendlier messages for context errors.
+	default:
+	case errors.Is(err, context.Canceled):
+		err = errz.New("canceled")
+	case errors.Is(err, context.DeadlineExceeded):
+		err = errz.New("timeout")
+	}
+
+	return err
 }

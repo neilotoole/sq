@@ -4,10 +4,12 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"github.com/neilotoole/sq/cli/buildinfo"
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"net/http"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 )
 
@@ -43,7 +45,8 @@ func (v minTLSVersion) apply(tr *http.Transport) {
 	}
 }
 
-// DefaultTLSVersion is the default minimum TLS version used by [NewClient].
+// DefaultTLSVersion is the default minimum TLS version,
+// as used by [NewDefaultClient].
 var DefaultTLSVersion = minTLSVersion(tls.VersionTLS10)
 
 // OptUserAgent is passed to [NewClient] to set the User-Agent header.
@@ -54,6 +57,10 @@ func OptUserAgent(ua string) TripFunc {
 	}
 }
 
+// DefaultUserAgent is the default User-Agent header value,
+// as used by [NewDefaultClient].
+var DefaultUserAgent = OptUserAgent(buildinfo.Get().UserAgent())
+
 // OptRequestTimeout is passed to [NewClient] to set the total request timeout.
 // If timeout is zero, this is a no-op.
 //
@@ -63,19 +70,37 @@ func OptRequestTimeout(timeout time.Duration) TripFunc {
 		return NopTripFunc
 	}
 	return func(next http.RoundTripper, req *http.Request) (*http.Response, error) {
-		ctx, cancelFn := context.WithTimeoutCause(req.Context(), timeout,
-			errz.Wrapf(context.DeadlineExceeded, "http request not completed within %s timeout", timeout))
-		defer cancelFn()
+		timeoutErr := errors.New("http request timeout")
+		ctx, cancelFn := context.WithTimeoutCause(req.Context(), timeout, timeoutErr)
+
 		resp, err := next.RoundTrip(req.WithContext(ctx))
 		if err == nil {
+			if resp.Body == nil {
+				// Shouldn't happen, but just in case.
+				cancelFn()
+			} else {
+				// Wrap resp.Body with a ReadCloserNotifier, so that cancelFn
+				// is called when the body is closed.
+				resp.Body = ioz.ReadCloserNotifier(resp.Body, func(err error) {
+					if errors.Is(context.Cause(ctx), timeoutErr) {
+						lg.FromContext(ctx).Warn("HTTP request not completed within timeout",
+							lga.Timeout, timeout, lga.URL, req.URL.String())
+					}
+
+					cancelFn()
+				})
+			}
 			return resp, nil
 		}
 
-		if errors.Is(err, ctx.Err()) {
-			// The lower-down RoundTripper probably returned ctx.Err(),
-			// not context.Cause(), so we swap it around here.
-			err = context.Cause(ctx)
+		// We've got an error
+		defer cancelFn()
+
+		if errors.Is(context.Cause(ctx), timeoutErr) {
+			lg.FromContext(ctx).Warn("HTTP request not completed within timeout XYZ", // FIXME: delete
+				lga.Timeout, timeout, lga.URL, req.URL.String())
 		}
+
 		return resp, err
 	}
 }
@@ -101,10 +126,11 @@ func OptHeaderTimeout(timeout time.Duration) TripFunc {
 			select {
 			case <-ctx.Done():
 			case <-t.C:
-				cancelErr := errz.Wrapf(context.DeadlineExceeded,
-					"http response not received within %s timeout",
-					timeout)
-				cancelFn(cancelErr)
+				log := lg.FromContext(ctx)
+				_ = log
+				lg.FromContext(ctx).Warn("HTTP header response not received within timeout",
+					lga.Timeout, timeout, lga.URL, req.URL.String())
+				cancelFn(context.DeadlineExceeded)
 			case <-timerCancelCh:
 				// Stop the timer goroutine.
 			}
@@ -115,24 +141,30 @@ func OptHeaderTimeout(timeout time.Duration) TripFunc {
 		if err != nil && errors.Is(err, ctx.Err()) {
 			// The lower-down RoundTripper probably returned ctx.Err(),
 			// not context.Cause(), so we swap it around here.
-			err = context.Cause(ctx)
+			if cause := context.Cause(ctx); cause != nil {
+				err = cause
+			}
 		}
 		// Don't leak resources; ensure that cancelFn is eventually called.
 		switch {
 		case err != nil:
 			// It's probable that cancelFn has already been called by the
 			// timer goroutine, but we call it again just in case.
-			cancelFn(err)
+			cancelFn(context.DeadlineExceeded)
 		case resp != nil && resp.Body != nil:
 
 			// Wrap resp.Body with a ReadCloserNotifier, so that cancelFn
 			// is called when the body is closed.
-			resp.Body = ioz.ReadCloserNotifier(resp.Body, cancelFn)
+			resp.Body = ioz.ReadCloserNotifier(resp.Body, func(error) { cancelFn(context.DeadlineExceeded) })
 		default:
 			// Not sure if this can actually happen, but just in case.
-			cancelFn(context.Canceled)
+			cancelFn(context.DeadlineExceeded)
 		}
 
 		return resp, err
 	}
 }
+
+// DefaultHeaderTimeout is the default header timeout as used
+// by [NewDefaultClient].
+var DefaultHeaderTimeout = OptHeaderTimeout(time.Second * 5)

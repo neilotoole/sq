@@ -5,11 +5,14 @@
 // Design note: this package contains generally fairly straightforward HTTP
 // functionality, but the Opt / TripFunc  config mechanism is a bit
 // experimental. And probably tries to be a bit too clever. It may change.
+//
+// And one last thing: remember kids, ALWAYS close your response bodies.
 package httpz
 
 import (
 	"bufio"
 	"fmt"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 	"io"
 	"log/slog"
 	"mime"
@@ -19,18 +22,14 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
-
-	"github.com/neilotoole/sq/cli/buildinfo"
-	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 // NewDefaultClient invokes NewClient with default settings.
 func NewDefaultClient() *http.Client {
 	return NewClient(
 		OptInsecureSkipVerify(false),
-		OptUserAgent(buildinfo.Get().UserAgent()),
-		OptHeaderTimeout(time.Second*5),
+		DefaultUserAgent,
+		DefaultHeaderTimeout,
 	)
 }
 

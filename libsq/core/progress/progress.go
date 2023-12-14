@@ -211,8 +211,8 @@ func (p *Progress) Stop() {
 func (p *Progress) doStop() {
 	p.stopOnce.Do(func() {
 		p.pcInitFn = nil
-		lg.FromContext(p.ctx).Warn("Stopping progress widget")
-		defer lg.FromContext(p.ctx).Warn("Stopped progress widget")
+		lg.FromContext(p.ctx).Debug("Stopping progress widget")
+		defer lg.FromContext(p.ctx).Debug("Stopped progress widget")
 		if p.pc == nil {
 			close(p.stoppedCh)
 			close(p.refreshCh)
@@ -299,7 +299,11 @@ func (p *Progress) newBar(msg string, total int64,
 		barStoppedCh: make(chan struct{}),
 	}
 	b.barInitFn = func() {
+		p.mu.Lock() // FIXME: not too sure about locking here?
+		defer p.mu.Unlock()
+
 		select {
+		case <-p.ctx.Done():
 		case <-p.stoppedCh:
 			return
 		case <-b.barStoppedCh:
@@ -307,6 +311,9 @@ func (p *Progress) newBar(msg string, total int64,
 		default:
 		}
 
+		// REVISIT: It shouldn't be the case that it's possible that the
+		// progress has already been stopped. If it is stopped, the call
+		// below will panic. Maybe consider wrapping the call in a recover?
 		b.bar = p.pc.New(total,
 			style,
 			mpb.BarWidth(barWidth),
@@ -318,7 +325,6 @@ func (p *Progress) newBar(msg string, total int64,
 		)
 		b.bar.IncrBy(int(b.incrStash.Load()))
 		b.incrStash = nil
-		// b.incrStash.Store(0)
 	}
 
 	b.delayCh = barRenderDelay(b, p.delay)

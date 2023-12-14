@@ -70,14 +70,16 @@ import (
 // ANSI modes
 // See: https://gist.github.com/JBlond/2fea43a3049b38287e5e9cefc87b2124
 const (
-	ansiReset          = "\033[0m"
-	ansiFaint          = "\033[2m"
-	ansiResetFaint     = "\033[22m"
-	ansiBrightRed      = "\033[91m"
-	ansiBrightGreen    = "\033[92m"
-	ansiBrightYellow   = "\033[93m"
-	ansiBlue           = "\033[34m"
-	ansiBrightRedFaint = "\033[91;2m"
+	ansiReset           = "\033[0m"
+	ansiFaint           = "\033[2m"
+	ansiResetFaint      = "\033[22m"
+	ansiBrightRed       = "\033[91m"
+	ansiBrightGreen     = "\033[92m"
+	ansiBrightGreenBold = "\033[1;92m"
+	ansiBrightYellow    = "\033[93m"
+	ansiBlue            = "\033[34m"
+	ansiBrightBlue      = "\033[94m"
+	ansiBrightRedFaint  = "\033[91;2m"
 )
 
 const errKey = "err"
@@ -229,7 +231,7 @@ func (h *handler) Handle(_ context.Context, r slog.Record) error {
 	case slog.LevelError:
 		msgColor = ansiBrightRed
 	case slog.LevelInfo:
-		msgColor = ansiBlue
+		msgColor = ansiBrightGreenBold
 	}
 	// write message
 	if rep == nil {

@@ -18,7 +18,6 @@ import (
 	"path/filepath"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
 	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
 	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
@@ -208,6 +207,7 @@ func (dl *Download) get(req *http.Request, h Handler) {
 			for _, header := range endToEndHeaders {
 				cachedResp.Header[header] = resp.Header[header]
 			}
+			lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
 			resp = cachedResp
 		} else if (err != nil || (cachedResp != nil && resp.StatusCode >= 500)) &&
 			req.Method == http.MethodGet && canStaleOnError(cachedResp.Header, req.Header) {
@@ -371,24 +371,7 @@ func (dl *Download) Checksum(ctx context.Context) (sum checksum.Checksum, ok boo
 	}
 
 	req := dl.mustRequest(ctx)
-
-	_, _, fp := dl.cache.paths(req)
-	if !ioz.FileAccessible(fp) {
-		return "", false
-	}
-
-	sums, err := checksum.ReadFile(fp)
-	if err != nil {
-		lg.FromContext(ctx).Warn("Failed to read checksum file", lga.File, fp, lga.Err, err)
-		return "", false
-	}
-
-	if len(sums) != 1 {
-		return "", false
-	}
-
-	sum, ok = sums["body"]
-	return sum, ok
+	return dl.cache.cachedChecksum(req)
 }
 
 func (dl *Download) isCacheable(req *http.Request) bool {

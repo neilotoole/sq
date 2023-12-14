@@ -55,17 +55,72 @@ func (c *cache) paths(req *http.Request) (header, body, checksum string) {
 		filepath.Join(c.dir, req.Method+"_checksum.txt")
 }
 
-// exists returns true if the cache contains a response for req.
+// exists returns true if the cache exists and is consistent.
+// If it's inconsistent, it will be automatically cleared.
+// See also: clearIfInconsistent.
 func (c *cache) exists(req *http.Request) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
+	if err := c.clearIfInconsistent(req); err != nil {
+		lg.FromContext(req.Context()).Error("Failed to clear inconsistent cache",
+			lga.Err, err, lga.Dir, c.dir)
+		return false
+	}
 
 	fpHeader, _, _ := c.paths(req)
 	fi, err := os.Stat(fpHeader)
 	if err != nil {
 		return false
 	}
-	return fi.Size() > 0
+
+	if fi.Size() == 0 {
+		return false
+	}
+
+	_, ok := c.checksumsMatch(req)
+	return ok
+}
+
+// clearIfInconsistent deletes the cache if it is inconsistent.
+func (c *cache) clearIfInconsistent(req *http.Request) error {
+	if !ioz.DirExists(c.dir) {
+		return nil
+	}
+
+	entries, err := ioz.ReadDir(c.dir, false, false, false)
+	if err != nil {
+		return err
+	}
+
+	if len(entries) == 0 {
+		// If it's an empty cache, that's consistent.
+		return nil
+	}
+
+	// We know that there's at least one file in the cache.
+	// To be consistent, all three cache files must exist.
+	inconsistent := false
+	fpHeader, fpBody, fpChecksum := c.paths(req)
+	for _, fp := range []string{fpHeader, fpBody, fpChecksum} {
+		if !ioz.FileAccessible(fp) {
+			inconsistent = true
+			break
+		}
+	}
+
+	if !inconsistent {
+		// All three cache files exist. Verify that checksums match.
+		if _, ok := c.checksumsMatch(req); !ok {
+			inconsistent = true
+		}
+	}
+
+	if inconsistent {
+		lg.FromContext(req.Context()).Warn("Deleting inconsistent cache", lga.Dir, c.dir)
+		return c.doClear(req.Context())
+	}
+	return nil
 }
 
 // Get returns the cached http.Response for req if present, and nil
@@ -78,6 +133,13 @@ func (c *cache) get(ctx context.Context, req *http.Request) (*http.Response, err
 	fpHeader, fpBody, _ := c.paths(req)
 	if !ioz.FileAccessible(fpHeader) {
 		// If the header file doesn't exist, it's a nil, nil situation.
+		return nil, nil
+	}
+
+	if _, ok := c.checksumsMatch(req); !ok {
+		// If the checksums don't match, it's a nil, nil situation.
+
+		// REVISIT: should we clear the cache here?
 		return nil, nil
 	}
 
@@ -115,8 +177,8 @@ func (c *cache) get(ctx context.Context, req *http.Request) (*http.Response, err
 	return resp, nil
 }
 
-// checksum returns the checksum of the cached body file, if available.
-func (c *cache) checksum(req *http.Request) (sum checksum.Checksum, ok bool) {
+// checksum returns the contents of the cached checksum file, if available.
+func (c *cache) cachedChecksum(req *http.Request) (sum checksum.Checksum, ok bool) {
 	if c == nil || req == nil {
 		return "", false
 	}
@@ -140,6 +202,29 @@ func (c *cache) checksum(req *http.Request) (sum checksum.Checksum, ok bool) {
 
 	sum, ok = sums["body"]
 	return sum, ok
+}
+
+// checksumsMatch returns true (and the valid checksum) if there is a cached
+// checksum file for req, and there is a cached response body file, and a fresh
+// checksum calculated from that body file matches the cached checksum.
+func (c *cache) checksumsMatch(req *http.Request) (sum checksum.Checksum, ok bool) {
+	sum, ok = c.cachedChecksum(req)
+	if !ok {
+		return "", false
+	}
+
+	_, fpBody, _ := c.paths(req)
+	calculatedSum, err := checksum.ForFile(fpBody)
+	if err != nil {
+		return "", false
+	}
+
+	if calculatedSum != sum {
+		lg.FromContext(req.Context()).Warn("Inconsistent cache: checksums don't match", lga.Dir, c.dir)
+		return "", false
+	}
+
+	return sum, true
 }
 
 // clear deletes the cache entries from disk.
@@ -192,11 +277,13 @@ func (c *cache) doWrite(ctx context.Context, resp *http.Response,
 
 	defer func() {
 		lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
-		if err == nil {
-			return
-		}
 		if err != nil && copyWrtr != nil {
 			copyWrtr.Error(err)
+		}
+
+		if err != nil {
+			log.Warn("Deleting cache because cache write failed", lga.Err, err, lga.Dir, c.dir)
+			lg.WarnIfError(log, msgDeleteCache, c.doClear(ctx))
 		}
 	}()
 
@@ -238,6 +325,7 @@ func (c *cache) doWrite(ctx context.Context, resp *http.Response,
 		err = errz.Err(err)
 		log.Error("Cache write: io.Copy failed", lga.Err, err)
 		lg.WarnIfCloseError(log, msgCloseCacheBodyFile, cacheFile)
+		cacheFile = nil
 		return err
 	}
 

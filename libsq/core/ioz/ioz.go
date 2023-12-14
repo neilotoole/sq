@@ -390,7 +390,9 @@ func PrintTree(w io.Writer, loc string, showSize, colorize bool) error {
 
 // ReadCloserNotifier returns a new io.ReadCloser that invokes fn
 // after Close is called, passing along any error from Close.
-// If rc or fn is nil, rc is returned.
+// If rc or fn is nil, rc is returned. Note that any subsequent
+// calls to Close are no-op, and return the same error (if any)
+// as the first invocation of Close.
 func ReadCloserNotifier(rc io.ReadCloser, fn func(closeErr error)) io.ReadCloser {
 	if rc == nil || fn == nil {
 		return rc
@@ -399,14 +401,19 @@ func ReadCloserNotifier(rc io.ReadCloser, fn func(closeErr error)) io.ReadCloser
 }
 
 type readCloserNotifier struct {
-	fn func(error)
+	once     sync.Once
+	closeErr error
+	fn       func(error)
 	io.ReadCloser
 }
 
 func (c *readCloserNotifier) Close() error {
-	err := c.ReadCloser.Close()
-	c.fn(err)
-	return err
+	c.once.Do(func() {
+		c.closeErr = c.ReadCloser.Close()
+		c.fn(c.closeErr)
+		//c.closeErr = errz.New("huzzah") // FIXME: delete
+	})
+	return c.closeErr
 }
 
 // WriteToFile writes the contents of r to fp. If fp doesn't exist,

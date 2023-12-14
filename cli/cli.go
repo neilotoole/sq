@@ -172,13 +172,12 @@ func ExecuteWith(ctx context.Context, ru *run.Run, args []string) error {
 	// Execute rootCmd; cobra will find the appropriate
 	// sub-command, and ultimately execute that command.
 	err = rootCmd.ExecuteContext(ctx)
-	log.Warn("Closing run", lga.Err, err)
 	lg.WarnIfCloseError(log, "Problem closing run", ru)
 	if err != nil {
-		ctx2 := rootCmd.Context() // FIXME: delete
-		_ = ctx2
+		//ctx2 := rootCmd.Context() // FIXME: delete
+		//_ = ctx2
 
-		printError(ctx2, ru, err)
+		printError(ctx, ru, err)
 	}
 
 	return err

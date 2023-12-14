@@ -41,7 +41,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/lg"
-	"github.com/neilotoole/sq/libsq/core/lg/devlog"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/options"
@@ -63,12 +62,6 @@ import (
 // This should be a low value, because, well, we can either connect
 // or not.
 const defaultDBOpenTimeout = time.Second * 5
-
-func init() { //nolint:gochecknoinits
-	slogt.Default = slogt.Factory(func(w io.Writer) slog.Handler {
-		return devlog.NewHandler(w, slog.LevelDebug)
-	})
-}
 
 // Option is a functional option type used with New to
 // configure the helper.

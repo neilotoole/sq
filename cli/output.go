@@ -474,14 +474,14 @@ func getPrinting(cmd *cobra.Command, clnup *cleanup.Cleanup, opts options.Option
 		})
 
 		// On first write to stderr, we remove the progress widget.
-		errOut2 = ioz.NotifyOnceWriter(errOut2, func() {
-			lg.FromContext(ctx).Debug("Error stream is being written to; removing progress widget")
-			pb.Stop()
-		}) // FIXME: delete
+		//errOut2 = ioz.NotifyOnceWriter(errOut2, func() {
+		//	lg.FromContext(ctx).Debug("Error stream is being written to; removing progress widget")
+		//	pb.Stop()
+		//}) // FIXME: delete
 		cmd.SetContext(progress.NewContext(ctx, pb))
 	}
 
-	logFrom(cmd).Debug("Constructed output.Printing", lga.Val, pr)
+	lg.FromContext(cmd.Context()).Debug("Constructed output.Printing", lga.Val, pr)
 
 	return pr, out2, errOut2
 }

@@ -3,6 +3,8 @@ package httpz_test
 import (
 	"context"
 	"errors"
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -49,6 +51,8 @@ func TestOptRequestTimeout(t *testing.T) {
 // that fails via OptHeaderTimeout returns the correct error.
 func TestOptHeaderTimeout_correct_error(t *testing.T) {
 	t.Parallel()
+	ctx := lg.NewContext(context.Background(), lgt.New(t))
+
 	const srvrBody = `Hello World!`
 	serverDelay := time.Second * 2
 	srvr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -65,7 +69,7 @@ func TestOptHeaderTimeout_correct_error(t *testing.T) {
 
 	clientHeaderTimeout := time.Second * 1
 	c := httpz.NewClient(httpz.OptHeaderTimeout(clientHeaderTimeout))
-	req, err := http.NewRequest(http.MethodGet, srvr.URL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, srvr.URL, nil)
 	require.NoError(t, err)
 
 	resp, err := c.Do(req)
