@@ -6,9 +6,8 @@ import (
 	antlr "github.com/antlr4-go/antlr/v4"
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/slogt"
-
 	"github.com/neilotoole/sq/libsq/ast/internal/slq"
+	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/testh/tu"
 )
 
@@ -24,7 +23,7 @@ func getSLQParser(input string) *slq.SLQParser {
 // buildInitialAST returns a new AST created by parseTreeVisitor. The AST has not
 // yet been processed.
 func buildInitialAST(t *testing.T, input string) (*AST, error) {
-	log := slogt.New(t)
+	log := lgt.New(t)
 
 	p := getSLQParser(input)
 	q, _ := p.Query().(*slq.QueryContext)
@@ -39,7 +38,7 @@ func buildInitialAST(t *testing.T, input string) (*AST, error) {
 
 // mustParse builds a full AST from the input SLQ, or fails on any error.
 func mustParse(t *testing.T, input string) *AST {
-	log := slogt.New(t)
+	log := lgt.New(t)
 
 	ast, err := Parse(log, input)
 	require.NoError(t, err)
@@ -48,7 +47,7 @@ func mustParse(t *testing.T, input string) *AST {
 
 func TestSimpleQuery(t *testing.T) {
 	const q1 = `@mydb1 | .user | .uid, .username`
-	log := slogt.New(t)
+	log := lgt.New(t)
 
 	ptree, err := parseSLQ(log, q1)
 	require.Nil(t, err)
@@ -83,7 +82,7 @@ func TestParseBuild(t *testing.T) {
 	for i, tc := range testCases {
 		t.Run(tu.Name(i, tc.name), func(t *testing.T) {
 			t.Logf(tc.in)
-			log := slogt.New(t)
+			log := lgt.New(t)
 
 			ptree, err := parseSLQ(log, tc.in)
 			require.Nil(t, err)
@@ -97,7 +96,7 @@ func TestParseBuild(t *testing.T) {
 }
 
 func TestInspector_FindWhereClauses(t *testing.T) {
-	log := slogt.New(t)
+	log := lgt.New(t)
 
 	// Verify that "where(.uid > 4)" becomes a WHERE clause.
 	const input = "@my1 | .actor | where(.uid > 4) | .uid, .username"

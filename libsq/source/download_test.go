@@ -14,10 +14,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/slogt"
-
 	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
 	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/tu"
 )
@@ -48,7 +47,7 @@ func TestFetchHTTPHeader_sqio(t *testing.T) {
 }
 
 func TestDownloader_Download(t *testing.T) {
-	ctx := lg.NewContext(context.Background(), slogt.New(t))
+	ctx := lg.NewContext(context.Background(), lgt.New(t))
 	const dlURL = urlActorCSV
 	const wantContentLength = sizeActorCSV
 	u, err := url.Parse(dlURL)

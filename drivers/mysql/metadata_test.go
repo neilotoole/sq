@@ -6,11 +6,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/slogt"
-
 	"github.com/neilotoole/sq/drivers/mysql"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
 )
@@ -18,7 +17,7 @@ import (
 func TestKindFromDBTypeName(t *testing.T) {
 	t.Parallel()
 
-	ctx := lg.NewContext(context.Background(), slogt.New(t))
+	ctx := lg.NewContext(context.Background(), lgt.New(t))
 
 	testCases := map[string]kind.Kind{
 		"":                 kind.Unknown,

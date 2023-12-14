@@ -5,10 +5,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/slogt"
-
 	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
+	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/testh/proj"
@@ -546,7 +545,7 @@ func TestCollection_Tree(t *testing.T) {
 }
 
 func TestSource_LogValue(t *testing.T) {
-	log := slogt.New(t)
+	log := lgt.New(t)
 
 	src := &source.Source{
 		Handle:   "@sakila",

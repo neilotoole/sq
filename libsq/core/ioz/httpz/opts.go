@@ -4,13 +4,13 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
-	"github.com/neilotoole/sq/cli/buildinfo"
-	"github.com/neilotoole/sq/libsq/core/lg"
-	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"net/http"
 	"time"
 
+	"github.com/neilotoole/sq/cli/buildinfo"
 	"github.com/neilotoole/sq/libsq/core/ioz"
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 )
 
 // Opt is an option that can be passed to [NewClient] to

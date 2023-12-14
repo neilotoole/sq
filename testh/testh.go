@@ -18,8 +18,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/slogt"
-
 	"github.com/neilotoole/sq/cli"
 	"github.com/neilotoole/sq/cli/buildinfo"
 	"github.com/neilotoole/sq/cli/config"
@@ -43,6 +41,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/sqlmodel"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
@@ -110,7 +109,7 @@ type Helper struct {
 func New(t testing.TB, opts ...Option) *Helper {
 	h := &Helper{
 		T:             t,
-		Log:           slogt.New(t),
+		Log:           lgt.New(t),
 		Cleanup:       cleanup.New(),
 		dbOpenTimeout: defaultDBOpenTimeout,
 	}

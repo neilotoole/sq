@@ -3,8 +3,6 @@ package httpz_test
 import (
 	"context"
 	"errors"
-	"github.com/neilotoole/sq/libsq/core/lg"
-	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -15,6 +13,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/testh/tu"
 )
 

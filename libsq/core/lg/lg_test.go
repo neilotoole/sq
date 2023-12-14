@@ -4,14 +4,13 @@ import (
 	"context"
 	"testing"
 
-	"github.com/neilotoole/slogt"
-
 	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 )
 
 func TestContext(t *testing.T) {
 	ctx := context.Background()
-	log := slogt.New(t)
+	log := lgt.New(t)
 
 	ctx = lg.NewContext(ctx, log)
 	log = lg.FromContext(ctx)

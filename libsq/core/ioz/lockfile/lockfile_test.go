@@ -8,15 +8,14 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/slogt"
-
 	"github.com/neilotoole/sq/libsq/core/ioz/lockfile"
 	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 )
 
 // FIXME: Duh, this can't work, because we're in the same pid.
 func TestLockfile(t *testing.T) {
-	ctx := lg.NewContext(context.Background(), slogt.New(t))
+	ctx := lg.NewContext(context.Background(), lgt.New(t))
 
 	pidfile := filepath.Join(t.TempDir(), "lock.pid")
 	lock, err := lockfile.New(pidfile)

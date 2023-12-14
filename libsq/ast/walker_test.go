@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/neilotoole/slogt"
+	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 )
 
 func TestWalker(t *testing.T) {
@@ -13,7 +13,7 @@ func TestWalker(t *testing.T) {
 
 	p := getSLQParser(q1)
 	query := p.Query()
-	ast, err := buildAST(slogt.New(t), query)
+	ast, err := buildAST(lgt.New(t), query)
 
 	assert.Nil(t, err)
 	assert.NotNil(t, ast)

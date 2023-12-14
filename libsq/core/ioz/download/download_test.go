@@ -13,12 +13,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/slogt"
-
 	"github.com/neilotoole/sq/libsq/core/ioz/download"
 	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
+	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/testh/tu"
 )
 
@@ -65,7 +64,7 @@ func TestDownload_redirect(t *testing.T) {
 	// FIXME: switch back to temp dir
 	cacheDir := filepath.Join("testdata", "download", tu.Name(t.Name()))
 
-	log := slogt.New(t)
+	log := lgt.New(t)
 	var srvr *httptest.Server
 	srvr = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log := log.With("origin", "server")
@@ -167,7 +166,7 @@ func TestDownload_redirect(t *testing.T) {
 //loc := srvr.URL + "/actual"
 
 func TestDownload_New(t *testing.T) {
-	log := slogt.New(t)
+	log := lgt.New(t)
 	ctx := lg.NewContext(context.Background(), log)
 	const dlURL = urlActorCSV
 

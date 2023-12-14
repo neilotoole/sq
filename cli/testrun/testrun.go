@@ -14,14 +14,13 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/slogt"
-
 	"github.com/neilotoole/sq/cli"
 	"github.com/neilotoole/sq/cli/config"
 	"github.com/neilotoole/sq/cli/config/yamlstore"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/source"
 )
@@ -55,7 +54,7 @@ func New(ctx context.Context, t testing.TB, from *TestRun) *TestRun {
 	}
 
 	if !lg.InContext(ctx) {
-		ctx = lg.NewContext(ctx, slogt.New(t))
+		ctx = lg.NewContext(ctx, lgt.New(t))
 	}
 
 	tr := &TestRun{T: t, Context: ctx, mu: &sync.Mutex{}}

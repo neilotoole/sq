@@ -5,14 +5,13 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/slogt"
-
 	"github.com/neilotoole/sq/cli"
+	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/libsq/core/options"
 )
 
 func TestRegisterDefaultOpts(t *testing.T) {
-	log := slogt.New(t)
+	log := lgt.New(t)
 	reg := &options.Registry{}
 
 	log.Debug("options.Registry (before)", "reg", reg)

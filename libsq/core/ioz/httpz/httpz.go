@@ -12,7 +12,6 @@ package httpz
 import (
 	"bufio"
 	"fmt"
-	"github.com/neilotoole/sq/libsq/core/stringz"
 	"io"
 	"log/slog"
 	"mime"
@@ -22,6 +21,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 // NewDefaultClient invokes NewClient with default settings.

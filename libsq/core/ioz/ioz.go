@@ -411,7 +411,7 @@ func (c *readCloserNotifier) Close() error {
 	c.once.Do(func() {
 		c.closeErr = c.ReadCloser.Close()
 		c.fn(c.closeErr)
-		//c.closeErr = errz.New("huzzah") // FIXME: delete
+		// c.closeErr = errz.New("huzzah") // FIXME: delete
 	})
 	return c.closeErr
 }

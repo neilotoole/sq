@@ -11,8 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/neilotoole/slogt"
-
 	"github.com/neilotoole/sq/drivers/csv"
 	"github.com/neilotoole/sq/drivers/mysql"
 	"github.com/neilotoole/sq/drivers/postgres"
@@ -20,6 +18,7 @@ import (
 	"github.com/neilotoole/sq/drivers/sqlserver"
 	"github.com/neilotoole/sq/drivers/xlsx"
 	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
@@ -55,7 +54,7 @@ func TestFiles_Type(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tu.Name(source.RedactLocation(tc.loc)), func(t *testing.T) {
-			ctx := lg.NewContext(context.Background(), slogt.New(t))
+			ctx := lg.NewContext(context.Background(), lgt.New(t))
 
 			fs, err := source.NewFiles(ctx, nil, tu.TempDir(t), tu.CacheDir(t), true)
 			require.NoError(t, err)
@@ -98,7 +97,7 @@ func TestFiles_DetectType(t *testing.T) {
 		tc := tc
 
 		t.Run(filepath.Base(tc.loc), func(t *testing.T) {
-			ctx := lg.NewContext(context.Background(), slogt.New(t))
+			ctx := lg.NewContext(context.Background(), lgt.New(t))
 			fs, err := source.NewFiles(ctx, nil, tu.TempDir(t), tu.CacheDir(t), true)
 			require.NoError(t, err)
 			fs.AddDriverDetectors(testh.DriverDetectors()...)
@@ -133,7 +132,7 @@ func TestDetectMagicNumber(t *testing.T) {
 		t.Run(filepath.Base(tc.loc), func(t *testing.T) {
 			rFn := func(ctx context.Context) (io.ReadCloser, error) { return os.Open(tc.loc) }
 
-			ctx := lg.NewContext(context.Background(), slogt.New(t))
+			ctx := lg.NewContext(context.Background(), lgt.New(t))
 
 			typ, score, err := source.DetectMagicNumber(ctx, rFn)
 			if tc.wantErr {
@@ -149,7 +148,7 @@ func TestDetectMagicNumber(t *testing.T) {
 }
 
 func TestFiles_NewReader(t *testing.T) {
-	ctx := lg.NewContext(context.Background(), slogt.New(t))
+	ctx := lg.NewContext(context.Background(), lgt.New(t))
 	fpath := sakila.PathCSVActor
 	wantBytes := proj.ReadFile(fpath)
 

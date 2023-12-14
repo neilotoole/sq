@@ -10,8 +10,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/slogt"
-
 	"github.com/neilotoole/sq/cli"
 	"github.com/neilotoole/sq/cli/config"
 	"github.com/neilotoole/sq/cli/config/yamlstore"
@@ -21,6 +19,7 @@ import (
 	"github.com/neilotoole/sq/drivers/postgres"
 	"github.com/neilotoole/sq/drivers/xlsx"
 	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/testh"
@@ -28,7 +27,7 @@ import (
 )
 
 func TestUpgrade(t *testing.T) {
-	log := slogt.New(t)
+	log := lgt.New(t)
 	ctx := lg.NewContext(context.Background(), log)
 
 	const (

@@ -11,14 +11,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/slogt"
-
 	"github.com/neilotoole/sq/cli"
 	"github.com/neilotoole/sq/cli/testrun"
 	"github.com/neilotoole/sq/drivers/postgres"
 	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/drivers/sqlserver"
 	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/testh"
@@ -1337,7 +1336,7 @@ func TestDoCompleteAddLocationFile(t *testing.T) {
 	for i, tc := range testCases {
 		tc := tc
 		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
-			ctx := lg.NewContext(context.Background(), slogt.New(t))
+			ctx := lg.NewContext(context.Background(), lgt.New(t))
 			t.Logf("input: %s", tc.in)
 			t.Logf("want:  %s", tc.want)
 			got := cli.DoCompleteAddLocationFile(ctx, tc.in)

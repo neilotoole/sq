@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/slogt"
+	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 )
 
 func TestChildIndex(t *testing.T) {
@@ -13,7 +13,7 @@ func TestChildIndex(t *testing.T) {
 
 	p := getSLQParser(q1)
 	query := p.Query()
-	ast, err := buildAST(slogt.New(t), query)
+	ast, err := buildAST(lgt.New(t), query)
 	require.Nil(t, err)
 	require.NotNil(t, ast)
 	require.Equal(t, 4, len(ast.Segments()))
@@ -35,7 +35,7 @@ func TestNodesWithType(t *testing.T) {
 
 func TestNodePrevNextSibling(t *testing.T) {
 	const in = `@sakila | .actor | .actor_id == 2`
-	log := slogt.New(t)
+	log := lgt.New(t)
 	a, err := Parse(log, in)
 	require.NoError(t, err)
 
@@ -83,7 +83,7 @@ func TestNodeUnwrap(t *testing.T) {
 
 func TestFindNodes(t *testing.T) {
 	const in = `@sakila | .actor | .actor_id == 2 | .actor_id, .first_name, .last_name`
-	a, err := Parse(slogt.New(t), in)
+	a, err := Parse(lgt.New(t), in)
 	require.NoError(t, err)
 
 	handles := FindNodes[*HandleNode](a)
