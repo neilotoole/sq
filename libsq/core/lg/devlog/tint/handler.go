@@ -56,34 +56,25 @@ import (
 	"context"
 	"encoding"
 	"fmt"
-	"github.com/neilotoole/sq/libsq/core/errz"
 	"io"
 	"log/slog"
 	"path/filepath"
 	"runtime"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 	"unicode"
 )
 
 // ANSI modes
-// See: https://gist.github.com/JBlond/2fea43a3049b38287e5e9cefc87b2124
 const (
-	ansiReset           = "\033[0m"
-	ansiFaint           = "\033[2m"
-	ansiResetFaint      = "\033[22m"
-	ansiBrightRed       = "\033[91m"
-	ansiBrightRedBold   = "\033[1;91m"
-	ansiBrightGreen     = "\033[92m"
-	ansiBrightGreenBold = "\033[1;92m"
-	ansiBrightYellow    = "\033[93m"
-	ansiBlue            = "\033[34m"
-	ansiBrightBlue      = "\033[94m"
-	ansiBrightRedFaint  = "\033[91;2m"
-	ansiAttr            = "\033[36;2m"
-	ansiStack           = "\033[0;35m"
+	ansiReset          = "\033[0m"
+	ansiFaint          = "\033[2m"
+	ansiResetFaint     = "\033[22m"
+	ansiBrightRed      = "\033[91m"
+	ansiBrightGreen    = "\033[92m"
+	ansiBrightYellow   = "\033[93m"
+	ansiBrightRedFaint = "\033[91;2m"
 )
 
 const errKey = "err"
@@ -226,27 +217,12 @@ func (h *handler) Handle(_ context.Context, r slog.Record) error {
 		}
 	}
 
-	msgColor := ansiBrightGreen
-	switch r.Level {
-	case slog.LevelDebug:
-		msgColor = ansiBrightGreen
-	case slog.LevelWarn:
-		msgColor = ansiBrightYellow
-	case slog.LevelError:
-		msgColor = ansiBrightRedBold
-	case slog.LevelInfo:
-		msgColor = ansiBrightGreenBold
-	}
 	// write message
 	if rep == nil {
-		buf.WriteStringIf(!h.noColor, msgColor)
 		buf.WriteString(r.Message)
-		buf.WriteStringIf(!h.noColor, ansiReset)
 		buf.WriteByte(' ')
 	} else if a := rep(nil /* groups */, slog.String(slog.MessageKey, r.Message)); a.Key != "" {
-		buf.WriteStringIf(!h.noColor, msgColor)
 		h.appendValue(buf, a.Value, false)
-		buf.WriteStringIf(!h.noColor, ansiReset)
 		buf.WriteByte(' ')
 	}
 
@@ -255,16 +231,8 @@ func (h *handler) Handle(_ context.Context, r slog.Record) error {
 		buf.WriteString(h.attrsPrefix)
 	}
 
-	const keyStack = "stack"
-	var stackAttrs []slog.Attr
-
 	// write attributes
 	r.Attrs(func(attr slog.Attr) bool {
-		if attr.Key == keyStack {
-			// Special handling for stacktraces
-			stackAttrs = append(stackAttrs, attr)
-			return true
-		}
 		h.appendAttr(buf, attr, h.groupPrefix, h.groups)
 		return true
 	})
@@ -274,55 +242,11 @@ func (h *handler) Handle(_ context.Context, r slog.Record) error {
 	}
 	(*buf)[len(*buf)-1] = '\n' // replace last space with newline
 
-	h.handleStackAttrs(buf, stackAttrs)
-
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
 	_, err := h.w.Write(*buf)
 	return err
-}
-
-func (h *handler) handleStackAttrs(buf *buffer, attrs []slog.Attr) {
-	if len(attrs) == 0 {
-		return
-	}
-	var stacks []*errz.StackTrace
-	for _, attr := range attrs {
-		v := attr.Value.Any()
-		switch v := v.(type) {
-		case *errz.StackTrace:
-			stacks = append(stacks, v)
-		case []*errz.StackTrace:
-			stacks = append(stacks, v...)
-		}
-	}
-
-	var count int
-	for _, stack := range stacks {
-		if stack == nil {
-			continue
-		}
-
-		v := fmt.Sprintf("%+v", stack)
-		v = strings.TrimSpace(v)
-		v = strings.ReplaceAll(v, "\n\t", "\n  ")
-		if v == "" {
-			continue
-		}
-
-		if count > 0 {
-			buf.WriteString("\n\n")
-		}
-		buf.WriteStringIf(!h.noColor, ansiStack)
-		buf.WriteString(v)
-		buf.WriteStringIf(!h.noColor, ansiReset)
-		count++
-	}
-	if count > 0 {
-		buf.WriteByte('\n')
-	}
-
 }
 
 func (h *handler) WithAttrs(attrs []slog.Attr) slog.Handler {
@@ -374,7 +298,7 @@ func (h *handler) appendLevel(buf *buffer, level slog.Level) {
 		appendLevelDelta(buf, level-slog.LevelWarn)
 		buf.WriteStringIf(!h.noColor, ansiReset)
 	default:
-		buf.WriteStringIf(!h.noColor, ansiBrightRedBold)
+		buf.WriteStringIf(!h.noColor, ansiBrightRed)
 		buf.WriteString("ERR")
 		appendLevelDelta(buf, level-slog.LevelError)
 		buf.WriteStringIf(!h.noColor, ansiReset)
@@ -393,18 +317,6 @@ func appendLevelDelta(buf *buffer, delta slog.Level) {
 func (h *handler) appendSource(buf *buffer, src *slog.Source) {
 	dir, file := filepath.Split(src.File)
 
-	fn := src.Function
-	parts := strings.Split(src.Function, "/")
-	if len(parts) > 0 {
-		fn = parts[len(parts)-1]
-	}
-
-	if fn != "" {
-		buf.WriteStringIf(!h.noColor, ansiBlue)
-		buf.WriteString(fn)
-		buf.WriteStringIf(!h.noColor, ansiReset)
-		buf.WriteByte(' ')
-	}
 	buf.WriteStringIf(!h.noColor, ansiFaint)
 	buf.WriteString(filepath.Join(filepath.Base(dir), file))
 	buf.WriteByte(':')
@@ -437,10 +349,7 @@ func (h *handler) appendAttr(buf *buffer, attr slog.Attr, groupsPrefix string, g
 		buf.WriteByte(' ')
 	} else {
 		h.appendKey(buf, attr.Key, groupsPrefix)
-		buf.WriteStringIf(!h.noColor, ansiAttr)
 		h.appendValue(buf, attr.Value, true)
-		buf.WriteStringIf(!h.noColor, ansiReset)
-
 		buf.WriteByte(' ')
 	}
 }
