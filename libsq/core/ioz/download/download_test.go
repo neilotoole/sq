@@ -1,35 +1,27 @@
 package download_test
 
 import (
-	"bufio"
-	"bytes"
 	"context"
-	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
 	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/testh/tu"
 	"github.com/stretchr/testify/assert"
-	"io"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"strings"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/neilotoole/slogt"
-	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/ioz/download"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/stretchr/testify/require"
 )
 
 const (
-	urlPaymentLargeCSV = "https://sqio-public.s3.amazonaws.com/testdata/payment-large.gen.csv"
 	urlActorCSV        = "https://sq.io/testdata/actor.csv"
+	urlPaymentLargeCSV = "https://sqio-public.s3.amazonaws.com/testdata/payment-large.gen.csv"
 	sizeActorCSV       = int64(7641)
 )
 
@@ -88,28 +80,28 @@ func TestDownload_redirect(t *testing.T) {
 	dl, err := download.New(httpz.NewDefaultClient(), loc, cacheDir)
 	require.NoError(t, err)
 	require.NoError(t, dl.Clear(ctx))
-	h := newTestHandler(log.With("origin", "handler"))
+	h := download.NewSinkHandler(log.With("origin", "handler"))
 
 	dl.Get(ctx, h.Handler)
-	require.Empty(t, h.errors)
-	gotBody := h.bufs[0].String()
+	require.Empty(t, h.Errors)
+	gotBody := h.UncachedBufs[0].String()
 	require.Equal(t, hello, gotBody)
 
-	h.reset()
+	h.Reset()
 	dl.Get(ctx, h.Handler)
-	require.Empty(t, h.errors)
-	require.Empty(t, h.bufs)
-	gotFile := h.cacheFiles[0]
+	require.Empty(t, h.Errors)
+	require.Empty(t, h.UncachedBufs)
+	gotFile := h.CachedFiles[0]
 	t.Logf("got fp: %s", gotFile)
 	gotBody = tu.ReadFileToString(t, gotFile)
 	t.Logf("got body: \n\n%s\n\n", gotBody)
 	require.Equal(t, serveBody, gotBody)
 
-	h.reset()
+	h.Reset()
 	dl.Get(ctx, h.Handler)
-	require.Empty(t, h.errors)
-	require.Empty(t, h.bufs)
-	gotFile = h.cacheFiles[0]
+	require.Empty(t, h.Errors)
+	require.Empty(t, h.UncachedBufs)
+	gotFile = h.CachedFiles[0]
 	t.Logf("got fp: %s", gotFile)
 	gotBody = tu.ReadFileToString(t, gotFile)
 	t.Logf("got body: \n\n%s\n\n", gotBody)
@@ -160,24 +152,24 @@ func TestDownload_New(t *testing.T) {
 	require.False(t, ok)
 	require.Empty(t, sum)
 
-	h := newTestHandler(log.With("origin", "handler"))
+	h := download.NewSinkHandler(log.With("origin", "handler"))
 	dl.Get(ctx, h.Handler)
-	require.Empty(t, h.errors)
-	require.Empty(t, h.writeErrs)
-	require.Empty(t, h.cacheFiles)
-	require.Equal(t, sizeActorCSV, int64(h.bufs[0].Len()))
+	require.Empty(t, h.Errors)
+	require.Empty(t, h.WriteErrors)
+	require.Empty(t, h.CachedFiles)
+	require.Equal(t, sizeActorCSV, int64(h.UncachedBufs[0].Len()))
 	require.Equal(t, download.Fresh, dl.State(ctx))
 	sum, ok = dl.Checksum(ctx)
 	require.True(t, ok)
 	require.NotEmpty(t, sum)
 
-	h.reset()
+	h.Reset()
 	dl.Get(ctx, h.Handler)
-	require.Empty(t, h.errors)
-	require.Empty(t, h.writeErrs)
-	require.Empty(t, h.bufs)
-	require.NotEmpty(t, h.cacheFiles)
-	gotFileBytes, err := os.ReadFile(h.cacheFiles[0])
+	require.Empty(t, h.Errors)
+	require.Empty(t, h.WriteErrors)
+	require.Empty(t, h.UncachedBufs)
+	require.NotEmpty(t, h.CachedFiles)
+	gotFileBytes, err := os.ReadFile(h.CachedFiles[0])
 	require.NoError(t, err)
 	require.Equal(t, sizeActorCSV, int64(len(gotFileBytes)))
 	require.Equal(t, download.Fresh, dl.State(ctx))
@@ -191,75 +183,8 @@ func TestDownload_New(t *testing.T) {
 	require.False(t, ok)
 	require.Empty(t, sum)
 
-	h.reset()
+	h.Reset()
 	dl.Get(ctx, h.Handler)
-	require.Empty(t, h.errors)
-	require.Empty(t, h.writeErrs)
-}
-
-type testHandler struct {
-	download.Handler
-	mu         sync.Mutex
-	log        *slog.Logger
-	errors     []error
-	cacheFiles []string
-	bufs       []*bytes.Buffer
-	writeErrs  []error
-}
-
-func (th *testHandler) reset() {
-	th.mu.Lock()
-	defer th.mu.Unlock()
-	th.errors = nil
-	th.cacheFiles = nil
-	th.bufs = nil
-	th.writeErrs = nil
-}
-
-func newTestHandler(log *slog.Logger) *testHandler {
-	th := &testHandler{log: log}
-	th.Cached = func(fp string) {
-		log.Info("Cached", lga.File, fp)
-		th.mu.Lock()
-		defer th.mu.Unlock()
-		th.cacheFiles = append(th.cacheFiles, fp)
-	}
-
-	th.Uncached = func() ioz.WriteErrorCloser {
-		log.Info("Uncached")
-		th.mu.Lock()
-		defer th.mu.Unlock()
-		buf := &bytes.Buffer{}
-		th.bufs = append(th.bufs, buf)
-		return ioz.NewFuncWriteErrorCloser(ioz.WriteCloser(buf), func(err error) {
-			th.mu.Lock()
-			defer th.mu.Unlock()
-			th.writeErrs = append(th.writeErrs, err)
-		})
-	}
-
-	th.Error = func(err error) {
-		log.Info("Error", lga.Err, err)
-		th.mu.Lock()
-		defer th.mu.Unlock()
-		th.errors = append(th.errors, err)
-	}
-	return th
-}
-
-func TestMisc(t *testing.T) {
-	// FIXME: delete
-	br := bufio.NewReader(strings.NewReader("huzzah"))
-
-	cr := contextio.NewReader(context.TODO(), br)
-
-	t.Logf("cr: %T", cr)
-
-	var wt io.WriterTo
-	wt = br
-	_ = wt
-
-	var ok bool
-	wt, ok = cr.(io.WriterTo)
-	require.True(t, ok)
+	require.Empty(t, h.Errors)
+	require.Empty(t, h.WriteErrors)
 }

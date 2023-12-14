@@ -128,27 +128,6 @@ func New(c *http.Client, dlURL, cacheDir string, opts ...Opt) (*Download, error)
 	return t, nil
 }
 
-// Handler is a callback invoked by Download.Get. Exactly one of the
-// handler functions will be invoked, exactly one time.
-type Handler struct {
-	// Cached is invoked when the download is already cached on disk. The
-	// fp arg is the path to the downloaded file.
-	Cached func(fp string)
-
-	// Uncached is invoked when the download is not cached. The handler should
-	// return an ioz.WriteErrorCloser, which the download contents will be written
-	// to (as well as being written to the disk cache). On success, the dest
-	// io.WriteCloser is closed. If an error occurs during download or writing,
-	// WriteErrorCloser.Error is invoked (but Close is not invoked). If the
-	// handler returns a nil dest, the Download will log a warning and return.
-	Uncached func() (dest ioz.WriteErrorCloser)
-
-	// Error is invoked on any error, other than writing to the destination
-	// io.WriteCloser returned by Handler.Uncached, which has its own error
-	// handling mechanism.
-	Error func(err error)
-}
-
 // Get gets the download, invoking Handler as appropriate.
 func (dl *Download) Get(ctx context.Context, h Handler) {
 	req := dl.mustRequest(ctx)
@@ -290,7 +269,8 @@ func (dl *Download) get(req *http.Request, h Handler) {
 		lg.WarnIfError(log, "Delete resp cache", dl.respCache.Clear(req.Context()))
 	}
 
-	// It's not cacheable, so we need to write it to the destWrtr.
+	// It's not cacheable, so we need to write it to the destWrtr,
+	// and skip the cache.
 	destWrtr := h.Uncached()
 	if destWrtr == nil {
 		log.Warn(msgNilDestWriter)
@@ -298,7 +278,7 @@ func (dl *Download) get(req *http.Request, h Handler) {
 	}
 
 	cr := contextio.NewReader(ctx, resp.Body)
-	defer lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
+	defer lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, cr.(io.ReadCloser))
 	_, err = io.Copy(destWrtr, cr)
 	if err != nil {
 		log.Error("Failed to copy download to dest writer", lga.Err, err)

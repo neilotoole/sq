@@ -322,32 +322,6 @@ func (fs *Files) Open(ctx context.Context, src *Source) (io.ReadCloser, error) {
 	return fs.newReader(ctx, src.Location)
 }
 
-// NewLock returns a new source.Lock instance.
-func NewLock(src *Source, pidfile string) (Lock, error) {
-	lf, err := lockfile.New(pidfile)
-	if err != nil {
-		return Lock{}, errz.Err(err)
-	}
-
-	return Lock{
-		Lockfile: lf,
-		src:      src,
-	}, nil
-}
-
-type Lock struct {
-	lockfile.Lockfile
-	src *Source
-}
-
-func (l Lock) Source() *Source {
-	return l.src
-}
-
-func (l Lock) String() string {
-	return l.src.Handle + ": " + string(l.Lockfile)
-}
-
 // CacheLockFor returns the lock file for src's cache.
 func (fs *Files) CacheLockFor(src *Source) (lockfile.Lockfile, error) {
 	cacheDir, err := fs.CacheDirFor(src)
@@ -368,32 +342,6 @@ func (fs *Files) OpenFunc(src *Source) FileOpenFunc {
 	return func(ctx context.Context) (io.ReadCloser, error) {
 		return fs.Open(ctx, src)
 	}
-}
-
-// ReadAll is a convenience method to read the bytes of a source.
-//
-// FIXME: Delete Files.ReadAll?
-//
-// Deprecated: Files.ReadAll is not in use. We can probably delete it.
-func (fs *Files) ReadAll(ctx context.Context, src *Source) ([]byte, error) {
-	// fs.mu.Lock()
-	r, err := fs.newReader(ctx, src.Location)
-	// fs.mu.Unlock()
-	if err != nil {
-		return nil, err
-	}
-
-	var data []byte
-	data, err = io.ReadAll(r)
-	closeErr := r.Close()
-	if err != nil {
-		return nil, err
-	}
-	if closeErr != nil {
-		return nil, closeErr
-	}
-
-	return data, nil
 }
 
 func (fs *Files) newReader(ctx context.Context, loc string) (io.ReadCloser, error) {

@@ -404,7 +404,7 @@ func ReadFileToString(t testing.TB, name string) string {
 // of open file handles for the current process via shelling out
 // to lsof. This function is skipped on Windows.
 // If log is true, the output of lsof is logged.
-func OpenFileCount(t *testing.T, log bool) int {
+func OpenFileCount(t testing.TB, log bool) int {
 	count, out := doOpenFileCount(t)
 	msg := fmt.Sprintf("Open files for [%d]: %d", os.Getpid(), count)
 	if log {
@@ -414,7 +414,7 @@ func OpenFileCount(t *testing.T, log bool) int {
 	return count
 }
 
-func doOpenFileCount(t *testing.T) (count int, out string) {
+func doOpenFileCount(t testing.TB) (count int, out string) {
 	SkipWindows(t, "OpenFileCount not implemented on Windows")
 	b, err := exec.Command("/bin/sh", "-c", fmt.Sprintf("lsof -p %v", os.Getpid())).Output()
 	require.NoError(t, err)
@@ -426,7 +426,7 @@ func doOpenFileCount(t *testing.T) (count int, out string) {
 // DiffOpenFileCount is a debugging function that compares the
 // open file count at the start of the test with the count at
 // the end of the test (via t.Cleanup). This function is skipped on Windows.
-func DiffOpenFileCount(t *testing.T, log bool) {
+func DiffOpenFileCount(t testing.TB, log bool) {
 	openingCount, openingOut := doOpenFileCount(t)
 	if log {
 		t.Logf("START: Open files for [%d]: %d\n\n%s", os.Getpid(), openingCount, openingOut)
@@ -442,4 +442,10 @@ func DiffOpenFileCount(t *testing.T, log bool) {
 			t.Logf("Open file count unchanged: %d", openingCount)
 		}
 	})
+}
+
+// UseProxy sets HTTP_PROXY and HTTPS_PROXY to localhost:9001.
+func UseProxy(t testing.TB) {
+	t.Setenv("HTTP_PROXY", "http://localhost:9001")
+	t.Setenv("HTTPS_PROXY", "http://localhost:9001")
 }

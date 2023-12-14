@@ -3,6 +3,11 @@ package cli
 import (
 	"bufio"
 	"fmt"
+	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
+	"github.com/neilotoole/sq/libsq/core/ioz/download"
+	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
+	"github.com/neilotoole/sq/libsq/source"
+	"net/url"
 	"os"
 	"time"
 
@@ -80,19 +85,19 @@ func execXLockSrcCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func newXDevTestCmd() *cobra.Command {
+func newXProgressCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "dev-test",
-		Short:   "Execute some dev test code",
+		Use:     "progress",
+		Short:   "Execute progress test code",
 		Hidden:  true,
-		RunE:    execXDevTestCmd,
-		Example: `	$ sq x dev-test`,
+		RunE:    execXProgress,
+		Example: `	$ sq x progress`,
 	}
 
 	return cmd
 }
 
-func execXDevTestCmd(cmd *cobra.Command, _ []string) error {
+func execXProgress(cmd *cobra.Command, _ []string) error {
 	ctx := cmd.Context()
 	log := lg.FromContext(ctx)
 	ru := run.FromContext(ctx)
@@ -122,6 +127,62 @@ func execXDevTestCmd(cmd *cobra.Command, _ []string) error {
 	// bar.EwmaIncrInt64(rand.Int63n(5)+1, time.Since(start))
 	fmt.Fprintln(ru.Out, "exiting")
 	return ctx.Err()
+}
+
+func newXDownloadCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:    "download URL",
+		Short:  "Download a file",
+		Hidden: true,
+		Args:   cobra.ExactArgs(1),
+		RunE:   execXDownloadCmd,
+		Example: `  $ sq x download https://sq.io/testdata/actor.csv
+
+  # Download a big-ass file
+  $ sq x download https://sqio-public.s3.amazonaws.com/testdata/payment-large.gen.csv
+`,
+	}
+
+	return cmd
+}
+
+func execXDownloadCmd(cmd *cobra.Command, args []string) error {
+	ctx := cmd.Context()
+	log := lg.FromContext(ctx)
+	ru := run.FromContext(ctx)
+
+	u, err := url.ParseRequestURI(args[0])
+	if err != nil {
+		return err
+	}
+
+	sum := checksum.Sum([]byte(u.String()))
+	cacheDir, err := ru.Files.CacheDirFor(&source.Source{Handle: "@download_" + sum})
+	if err != nil {
+		return err
+	}
+
+	dl, err := download.New(httpz.NewDefaultClient(), u.String(), cacheDir)
+	if err != nil {
+		return err
+	}
+
+	h := download.NewSinkHandler(log.With("origin", "handler"))
+	dl.Get(ctx, h.Handler)
+
+	switch {
+	case len(h.Errors) > 0:
+		return h.Errors[0]
+	case len(h.WriteErrors) > 0:
+		return h.WriteErrors[0]
+	case len(h.CachedFiles) > 0:
+		fmt.Fprintf(ru.Out, "Cached: %s\n", h.CachedFiles[0])
+		return nil
+	case len(h.UncachedBufs) > 0:
+		fmt.Fprintf(ru.Out, "Uncached: %d bytes\n", h.UncachedBufs[0].Len())
+	}
+
+	return nil
 }
 
 func pressEnter() <-chan struct{} {

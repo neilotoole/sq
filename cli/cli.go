@@ -257,7 +257,8 @@ func newCommandTree(ru *run.Run) (rootCmd *cobra.Command) {
 
 	xCmd := addCmd(ru, rootCmd, newXCmd())
 	addCmd(ru, xCmd, newXLockSrcCmd())
-	addCmd(ru, xCmd, newXDevTestCmd())
+	addCmd(ru, xCmd, newXProgressCmd())
+	addCmd(ru, xCmd, newXDownloadCmd())
 
 	return rootCmd
 }
