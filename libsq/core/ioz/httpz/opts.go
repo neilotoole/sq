@@ -3,6 +3,7 @@ package httpz
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"net/http"
 	"time"
 
@@ -63,10 +64,19 @@ func OptRequestTimeout(timeout time.Duration) TripFunc {
 	}
 	return func(next http.RoundTripper, req *http.Request) (*http.Response, error) {
 		ctx, cancelFn := context.WithTimeoutCause(req.Context(), timeout,
-			errz.Errorf("http request not completed in %s timeout", timeout))
+			errz.Errorf("http request not completed within %s timeout", timeout))
 		defer cancelFn()
-		req = req.WithContext(ctx)
-		return next.RoundTrip(req)
+		resp, err := next.RoundTrip(req.WithContext(ctx))
+		if err == nil {
+			return resp, nil
+		}
+
+		if errors.Is(err, ctx.Err()) {
+			// The lower-down RoundTripper probably returned ctx.Err(),
+			// not context.Cause(), so we swap it around here.
+			err = context.Cause(ctx)
+		}
+		return resp, err
 	}
 }
 
@@ -91,8 +101,9 @@ func OptHeaderTimeout(timeout time.Duration) TripFunc {
 			select {
 			case <-ctx.Done():
 			case <-t.C:
-				cancelFn(errz.Errorf("http response not received by %s timeout",
-					timeout))
+				cancelErr := errz.Errorf("http response not received within %s timeout",
+					timeout)
+				cancelFn(cancelErr)
 			case <-timerCancelCh:
 				// Stop the timer goroutine.
 			}
@@ -100,12 +111,15 @@ func OptHeaderTimeout(timeout time.Duration) TripFunc {
 
 		resp, err := next.RoundTrip(req.WithContext(ctx))
 		close(timerCancelCh)
-
+		if err != nil && errors.Is(err, ctx.Err()) {
+			// The lower-down RoundTripper probably returned ctx.Err(),
+			// not context.Cause(), so we swap it around here.
+			err = context.Cause(ctx)
+		}
 		// Don't leak resources; ensure that cancelFn is eventually called.
 		switch {
 		case err != nil:
-
-			// It's possible that cancelFn has already been called by the
+			// It's probable that cancelFn has already been called by the
 			// timer goroutine, but we call it again just in case.
 			cancelFn(err)
 		case resp != nil && resp.Body != nil:

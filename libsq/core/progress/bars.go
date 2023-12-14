@@ -7,12 +7,6 @@ import (
 	"github.com/dustin/go-humanize/english"
 	mpb "github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
-	// NewByteCounter returns a new progress bar whose metric is the count
-	// of bytes processed. If the size is unknown, set arg size to -1. The caller
-	// is ultimately responsible for calling [Bar.Stop] on the returned Bar.
-	// However, the returned Bar is also added to the Progress's cleanup list,
-	// so it will be called automatically when the Progress is shut down, but that
-	// may be later than the actual conclusion of the Bar's work.
 )
 
 func (p *Progress) NewByteCounter(msg string, size int64) *Bar {

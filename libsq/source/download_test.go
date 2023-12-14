@@ -11,13 +11,12 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/slogt"
 
+	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/tu"

@@ -10,8 +10,6 @@ package httpz
 import (
 	"bufio"
 	"fmt"
-	"github.com/neilotoole/sq/cli/buildinfo"
-	"github.com/neilotoole/sq/libsq/core/stringz"
 	"io"
 	"log/slog"
 	"mime"
@@ -21,6 +19,10 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
+
+	"github.com/neilotoole/sq/cli/buildinfo"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 // NewDefaultClient invokes NewClient with default settings.
@@ -28,12 +30,14 @@ func NewDefaultClient() *http.Client {
 	return NewClient(
 		OptInsecureSkipVerify(false),
 		OptUserAgent(buildinfo.Get().UserAgent()),
+		OptHeaderTimeout(time.Second*5),
 	)
 }
 
 // NewClient returns a new HTTP client configured with opts.
 func NewClient(opts ...Opt) *http.Client {
 	c := *http.DefaultClient
+	c.Timeout = 0
 	var tr *http.Transport
 	if c.Transport == nil {
 		tr = (http.DefaultTransport.(*http.Transport)).Clone()
@@ -96,7 +100,7 @@ func ResponseLogValue(resp *http.Response) slog.Value {
 	}
 
 	h := resp.Header
-	for k, _ := range h {
+	for k := range h {
 		vals := h.Values(k)
 		if len(vals) == 1 {
 			attrs = append(attrs, slog.String(k, vals[0]))
@@ -132,7 +136,7 @@ func RequestLogValue(req *http.Request) slog.Value {
 	}
 
 	h := req.Header
-	for k, _ := range h {
+	for k := range h {
 		vals := h.Values(k)
 		if len(vals) == 1 {
 			attrs = append(attrs, slog.String(k, vals[0]))

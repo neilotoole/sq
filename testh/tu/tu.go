@@ -400,6 +400,17 @@ func ReadFileToString(t testing.TB, name string) string {
 	return s
 }
 
+// ReadToString reads all bytes from r and returns them as a string.
+// If r is an io.Closer, it is closed.
+func ReadToString(t testing.TB, r io.Reader) string {
+	b, err := io.ReadAll(r)
+	require.NoError(t, err)
+	if r, ok := r.(io.Closer); ok {
+		require.NoError(t, r.Close())
+	}
+	return string(b)
+}
+
 // OpenFileCount is a debugging function that returns the count
 // of open file handles for the current process via shelling out
 // to lsof. This function is skipped on Windows.

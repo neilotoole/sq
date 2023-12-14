@@ -6,18 +6,20 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
-	"github.com/neilotoole/sq/libsq/core/lg/lga"
-	"github.com/neilotoole/sq/testh/tu"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/slogt"
+
 	"github.com/neilotoole/sq/libsq/core/ioz/download"
+	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
 	"github.com/neilotoole/sq/libsq/core/lg"
-	"github.com/stretchr/testify/require"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 const (
@@ -25,6 +27,35 @@ const (
 	urlPaymentLargeCSV = "https://sqio-public.s3.amazonaws.com/testdata/payment-large.gen.csv"
 	sizeActorCSV       = int64(7641)
 )
+
+func TestSlowHeaderServer(t *testing.T) {
+	const hello = `Hello World!`
+	var srvr *httptest.Server
+	serverDelay := time.Second * 200
+	srvr = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-r.Context().Done():
+			t.Log("Server request context done")
+			return
+		case <-time.After(serverDelay):
+		}
+
+		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Set("Content-Length", strconv.Itoa(len(hello)))
+		_, err := w.Write([]byte(hello))
+		assert.NoError(t, err)
+	}))
+	t.Cleanup(srvr.Close)
+
+	clientHeaderTimeout := time.Second * 2
+	c := httpz.NewClient(httpz.OptHeaderTimeout(clientHeaderTimeout))
+	req, err := http.NewRequest(http.MethodGet, srvr.URL, nil)
+	require.NoError(t, err)
+	resp, err := c.Do(req)
+	require.Error(t, err)
+	require.Nil(t, resp)
+	t.Log(err)
+}
 
 func TestDownload_redirect(t *testing.T) {
 	const hello = `Hello World!`

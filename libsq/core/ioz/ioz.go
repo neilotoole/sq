@@ -13,13 +13,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
-
 	"github.com/a8m/tree"
 	"github.com/a8m/tree/ostree"
 	yaml "github.com/goccy/go-yaml"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
 	"github.com/neilotoole/sq/libsq/core/lg"
 )
 
