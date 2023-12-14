@@ -2,6 +2,7 @@ package httpz_test
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -41,6 +42,7 @@ func TestOptRequestTimeout(t *testing.T) {
 	require.Error(t, err)
 	require.Nil(t, resp)
 	require.Contains(t, err.Error(), "http request not completed within")
+	require.True(t, errors.Is(err, context.DeadlineExceeded))
 }
 
 // TestOptHeaderTimeout_correct_error verifies that an HTTP request
@@ -71,6 +73,7 @@ func TestOptHeaderTimeout_correct_error(t *testing.T) {
 	require.Error(t, err)
 	require.Nil(t, resp)
 	require.Contains(t, err.Error(), "http response not received within")
+	require.True(t, errors.Is(err, context.DeadlineExceeded))
 
 	// Now let's try again, with a shorter server delay, so the
 	// request should succeed.

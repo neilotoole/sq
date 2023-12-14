@@ -64,7 +64,7 @@ func OptRequestTimeout(timeout time.Duration) TripFunc {
 	}
 	return func(next http.RoundTripper, req *http.Request) (*http.Response, error) {
 		ctx, cancelFn := context.WithTimeoutCause(req.Context(), timeout,
-			errz.Errorf("http request not completed within %s timeout", timeout))
+			errz.Wrapf(context.DeadlineExceeded, "http request not completed within %s timeout", timeout))
 		defer cancelFn()
 		resp, err := next.RoundTrip(req.WithContext(ctx))
 		if err == nil {
@@ -101,7 +101,8 @@ func OptHeaderTimeout(timeout time.Duration) TripFunc {
 			select {
 			case <-ctx.Done():
 			case <-t.C:
-				cancelErr := errz.Errorf("http response not received within %s timeout",
+				cancelErr := errz.Wrapf(context.DeadlineExceeded,
+					"http response not received within %s timeout",
 					timeout)
 				cancelFn(cancelErr)
 			case <-timerCancelCh:
