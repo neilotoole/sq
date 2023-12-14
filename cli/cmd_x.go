@@ -3,13 +3,14 @@ package cli
 import (
 	"bufio"
 	"fmt"
+	"net/url"
+	"os"
+	"time"
+
 	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
 	"github.com/neilotoole/sq/libsq/core/ioz/download"
 	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
 	"github.com/neilotoole/sq/libsq/source"
-	"net/url"
-	"os"
-	"time"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/progress"
@@ -163,7 +164,7 @@ func execXDownloadCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	dl, err := download.New(fakeSrc.Handle, httpz.NewDefaultClient2(), u.String(), cacheDir)
+	dl, err := download.New(fakeSrc.Handle, httpz.NewDefaultClient(), u.String(), cacheDir)
 	if err != nil {
 		return err
 	}

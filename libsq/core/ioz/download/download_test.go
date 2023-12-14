@@ -2,16 +2,17 @@ package download_test
 
 import (
 	"context"
-	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
-	"github.com/neilotoole/sq/libsq/core/lg/lga"
-	"github.com/neilotoole/sq/testh/tu"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+	"github.com/neilotoole/sq/testh/tu"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/neilotoole/slogt"
 	"github.com/neilotoole/sq/libsq/core/ioz/download"
@@ -27,9 +28,9 @@ const (
 
 func TestDownload_redirect(t *testing.T) {
 	const hello = `Hello World!`
-	var serveBody = hello
+	serveBody := hello
 	lastModified := time.Now().UTC()
-	//cacheDir := t.TempDir()
+	// cacheDir := t.TempDir()
 	// FIXME: switch back to temp dir
 	cacheDir := filepath.Join("testdata", "download", tu.Name(t.Name()))
 
@@ -77,7 +78,7 @@ func TestDownload_redirect(t *testing.T) {
 	ctx := lg.NewContext(context.Background(), log.With("origin", "downloader"))
 	loc := srvr.URL + "/redirect"
 
-	dl, err := download.New(t.Name(), httpz.NewDefaultClient2(), loc, cacheDir)
+	dl, err := download.New(t.Name(), httpz.NewDefaultClient(), loc, cacheDir)
 	require.NoError(t, err)
 	require.NoError(t, dl.Clear(ctx))
 	h := download.NewSinkHandler(log.With("origin", "handler"))
@@ -144,7 +145,7 @@ func TestDownload_New(t *testing.T) {
 	require.NoError(t, err)
 	t.Logf("cacheDir: %s", cacheDir)
 
-	dl, err := download.New(t.Name(), httpz.NewDefaultClient2(), dlURL, cacheDir)
+	dl, err := download.New(t.Name(), httpz.NewDefaultClient(), dlURL, cacheDir)
 	require.NoError(t, err)
 	require.NoError(t, dl.Clear(ctx))
 	require.Equal(t, download.Uncached, dl.State(ctx))

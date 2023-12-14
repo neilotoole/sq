@@ -2,12 +2,13 @@ package httpz_test
 
 import (
 	"context"
-	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
 
 	"github.com/stretchr/testify/require"
 )
@@ -40,7 +41,7 @@ func TestOptHeaderTimeout(t *testing.T) {
 			ctxFn: func(t *testing.T) context.Context {
 				return context.Background()
 			},
-			c:       httpz.NewClient2(httpz.OptHeaderTimeout(headerTimeout)),
+			c:       httpz.NewClient(httpz.OptHeaderTimeout(headerTimeout)),
 			wantErr: false,
 		},
 	}

@@ -4,10 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
-	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
-	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
-	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"io"
 	"net/http"
 	"net/http/httputil"
@@ -15,14 +11,21 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
+	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
+	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 )
 
-const msgCloseCacheHeaderFile = "Close cached response header file"
-const msgCloseCacheBodyFile = "Close cached response body file"
+const (
+	msgCloseCacheHeaderFile = "Close cached response header file"
+	msgCloseCacheBodyFile   = "Close cached response body file"
+)
 
 // cache is a cache for a individual download. The cached response is
 // stored in two files, one for the header and one for the body, with
@@ -175,7 +178,8 @@ const msgDeleteCache = "Delete HTTP response cache"
 // A checksum file, computed from the body file, is also written to disk. The
 // response body is always closed.
 func (c *cache) write(ctx context.Context, resp *http.Response,
-	headerOnly bool, copyWrtr ioz.WriteErrorCloser) error {
+	headerOnly bool, copyWrtr ioz.WriteErrorCloser,
+) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -183,7 +187,8 @@ func (c *cache) write(ctx context.Context, resp *http.Response,
 }
 
 func (c *cache) doWrite(ctx context.Context, resp *http.Response,
-	headerOnly bool, copyWrtr ioz.WriteErrorCloser) (err error) {
+	headerOnly bool, copyWrtr ioz.WriteErrorCloser,
+) (err error) {
 	log := lg.FromContext(ctx)
 
 	defer func() {

@@ -11,17 +11,18 @@ package download
 import (
 	"bufio"
 	"context"
+	"io"
+	"net/http"
+	"net/url"
+	"os"
+	"path/filepath"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
 	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/progress"
-	"io"
-	"net/http"
-	"net/url"
-	"os"
-	"path/filepath"
 
 	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -110,7 +111,7 @@ func New(name string, c *http.Client, dlURL, cacheDir string, opts ...Opt) (*Dow
 		return nil, errz.Wrap(err, "invalid download URL")
 	}
 	if c == nil {
-		c = httpz.NewDefaultClient2()
+		c = httpz.NewDefaultClient()
 	}
 
 	if cacheDir, err = filepath.Abs(cacheDir); err != nil {
@@ -269,7 +270,7 @@ func (dl *Download) get(req *http.Request, h Handler) {
 		defer lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
 		if err = dl.cache.write(req.Context(), resp, false, destWrtr); err != nil {
 			log.Error("Failed to write download cache", lga.Dir, dl.cache.dir, lga.Err, err)
-			//destWrtr.Error(err)
+			// destWrtr.Error(err)
 		}
 		return
 	} else {

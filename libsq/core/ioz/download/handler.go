@@ -2,10 +2,11 @@ package download
 
 import (
 	"bytes"
-	"github.com/neilotoole/sq/libsq/core/ioz"
-	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"log/slog"
 	"sync"
+
+	"github.com/neilotoole/sq/libsq/core/ioz"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 )
 
 // Handler is a callback invoked by Download.Get. Exactly one of the

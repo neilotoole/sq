@@ -3,7 +3,6 @@ package source
 import (
 	"bytes"
 	"context"
-	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
 	"io"
 	"log/slog"
 	"net/http"
@@ -13,6 +12,8 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+
+	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
 
 	"golang.org/x/exp/maps"
 

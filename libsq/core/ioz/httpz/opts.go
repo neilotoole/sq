@@ -3,13 +3,14 @@ package httpz
 import (
 	"context"
 	"crypto/tls"
-	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/ioz"
 	"net/http"
 	"time"
+
+	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/ioz"
 )
 
-// Opt is an option that can be passed to [NewClient2] to
+// Opt is an option that can be passed to [NewClient] to
 // configure the client.
 type Opt interface {
 	apply(*http.Transport)
@@ -41,10 +42,10 @@ func (v minTLSVersion) apply(tr *http.Transport) {
 	}
 }
 
-// DefaultTLSVersion is the default minimum TLS version used by [NewClient2].
+// DefaultTLSVersion is the default minimum TLS version used by [NewClient].
 var DefaultTLSVersion = minTLSVersion(tls.VersionTLS10)
 
-// OptUserAgent is passed to [NewClient2] to set the User-Agent header.
+// OptUserAgent is passed to [NewClient] to set the User-Agent header.
 func OptUserAgent(ua string) TripFunc {
 	return func(next http.RoundTripper, req *http.Request) (*http.Response, error) {
 		req.Header.Set("User-Agent", ua)
@@ -52,7 +53,7 @@ func OptUserAgent(ua string) TripFunc {
 	}
 }
 
-// OptRequestTimeout is passed to [NewClient2] to set the total request timeout.
+// OptRequestTimeout is passed to [NewClient] to set the total request timeout.
 // If timeout is zero, this is a no-op.
 //
 // Contrast with [OptHeaderTimeout].
@@ -69,7 +70,7 @@ func OptRequestTimeout(timeout time.Duration) TripFunc {
 	}
 }
 
-// OptHeaderTimeout is passed to [NewClient2] to set a timeout for just
+// OptHeaderTimeout is passed to [NewClient] to set a timeout for just
 // getting the initial response headers. This is useful if you expect
 // a response within, say, 5 seconds, but you expect the body to take longer
 // to read. If bodyTimeout > 0, it is applied to the total lifecycle of
@@ -82,7 +83,6 @@ func OptHeaderTimeout(timeout time.Duration) TripFunc {
 		return NopTripFunc
 	}
 	return func(next http.RoundTripper, req *http.Request) (*http.Response, error) {
-
 		timerCancelCh := make(chan struct{})
 		ctx, cancelFn := context.WithCancelCause(req.Context())
 		go func() {

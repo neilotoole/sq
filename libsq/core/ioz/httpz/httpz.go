@@ -1,14 +1,16 @@
 // Package httpz provides functionality supplemental to stdlib http.
 // Indeed, some of the functions are copied verbatim from stdlib.
+// The jumping-off point is [httpz.NewClient].
+//
+// Design note: this package contains generally fairly straightforward HTTP
+// functionality, but the Opt / TripFunc  config mechanism is a bit
+// experimental. And probably tries to be a bit too clever. It may change.
 package httpz
 
 import (
 	"bufio"
-	"context"
-	"crypto/tls"
 	"fmt"
 	"github.com/neilotoole/sq/cli/buildinfo"
-	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"io"
 	"log/slog"
@@ -19,94 +21,18 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
-
-	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
-// NewDefaultClient returns a new HTTP client with default settings.
+// NewDefaultClient invokes NewClient with default settings.
 func NewDefaultClient() *http.Client {
 	return NewClient(
-		buildinfo.Get().UserAgent(),
-		true,
-		0,
-		0,
-		OptUserAgent(buildinfo.Get().UserAgent()),
-	)
-} // NewDefaultClient returns a new HTTP client with default settings.
-func NewDefaultClient2() *http.Client {
-	return NewClient2(
-		OptInsecureSkipVerify(true),
+		OptInsecureSkipVerify(false),
 		OptUserAgent(buildinfo.Get().UserAgent()),
 	)
 }
 
-// NewClient returns a new HTTP client. If userAgent is non-empty, the
-// "User-Agent" header is applied to each request. If insecureSkipVerify is
-// true, the client will skip TLS verification. If headerTimeout > 0, a
-// timeout is applied to receiving the HTTP response, but that timeout is
-// not applied to reading the response body. This is useful if you expect
-// a response within, say, 5 seconds, but you expect the body to take longer
-// to read. If bodyTimeout > 0, it is applied to the total lifecycle of
-// the request and response, including reading the response body.
-func NewClient(userAgent string, insecureSkipVerify bool,
-	headerTimeout, bodyTimeout time.Duration, tripFuncs ...TripFunc,
-) *http.Client {
-	c := *http.DefaultClient
-	var tr *http.Transport
-	if c.Transport == nil {
-		tr = (http.DefaultTransport.(*http.Transport)).Clone()
-	} else {
-		tr = (c.Transport.(*http.Transport)).Clone()
-	}
-
-	if tr.TLSClientConfig == nil {
-		// We allow tls.VersionTLS10, even though it's not considered
-		// secure these days. Ultimately this could become a config
-		// option.
-		tr.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS10} //nolint:gosec
-	} else {
-		tr.TLSClientConfig = tr.TLSClientConfig.Clone()
-		tr.TLSClientConfig.MinVersion = tls.VersionTLS10 //nolint:gosec
-	}
-
-	tr.TLSClientConfig.InsecureSkipVerify = insecureSkipVerify
-	c.Transport = tr
-	for i := range tripFuncs {
-		c.Transport = RoundTrip(c.Transport, tripFuncs[i])
-	}
-	//
-	//if userAgent != "" {
-	//	//c.Transport = UserAgent2(c.Transport, userAgent)
-	//
-	//	//var funcs []TripFunc
-	//
-	//
-	//
-	//	//c.Transport = RoundTrip(c.Transport, func(next http.RoundTripper, req *http.Request) (*http.Response, error) {
-	//	//	req.Header.Set("User-Agent", userAgent)
-	//	//	return next.RoundTrip(req)
-	//	//})
-	//
-	//	c.Transport = &userAgentRoundTripper{
-	//		userAgent: userAgent,
-	//		rt:        c.Transport,
-	//	}
-	//}
-	//
-	//c.Timeout = bodyTimeout
-	//if headerTimeout > 0 {
-	//	c.Transport = &headerTimeoutRoundTripper{
-	//		headerTimeout: headerTimeout,
-	//		rt:            c.Transport,
-	//	}
-	//}
-
-	return &c
-}
-
-// NewClient2 returns a new HTTP client configured with opts.
-func NewClient2(opts ...Opt) *http.Client {
+// NewClient returns a new HTTP client configured with opts.
+func NewClient(opts ...Opt) *http.Client {
 	c := *http.DefaultClient
 	var tr *http.Transport
 	if c.Transport == nil {
@@ -158,72 +84,7 @@ func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return f(req)
 }
 
-// userAgentRoundTripper applies a User-Agent header to each request.
-type userAgentRoundTripper struct {
-	userAgent string
-	rt        http.RoundTripper
-}
-
-// RoundTrip implements http.RoundTripper.
-func (rt *userAgentRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
-	req.Header.Set("User-Agent", rt.userAgent)
-	return rt.rt.RoundTrip(req)
-}
-
-// headerTimeoutRoundTripper applies headerTimeout to the return of the http
-// response, but headerTimeout is not applied to reading the body of the
-// response. This is useful if you expect a response within, say, 5 seconds,
-// but you expect the body to take longer to read.
-type headerTimeoutRoundTripper struct {
-	headerTimeout time.Duration
-	rt            http.RoundTripper
-}
-
-// RoundTrip implements http.RoundTripper.
-func (rt *headerTimeoutRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
-	if rt.headerTimeout <= 0 {
-		return rt.rt.RoundTrip(req)
-	}
-
-	timerCancelCh := make(chan struct{})
-	ctx, cancelFn := context.WithCancelCause(req.Context())
-	go func() {
-		t := time.NewTimer(rt.headerTimeout)
-		defer t.Stop()
-		select {
-		case <-ctx.Done():
-		case <-t.C:
-			cancelFn(errz.Errorf("http response not received by %s timeout",
-				rt.headerTimeout))
-		case <-timerCancelCh:
-			// Stop the timer goroutine.
-		}
-	}()
-
-	resp, err := rt.rt.RoundTrip(req.WithContext(ctx))
-	close(timerCancelCh)
-
-	// Don't leak resources; ensure that cancelFn is eventually called.
-	switch {
-	case err != nil:
-
-		// It's possible that cancelFn has already been called by the
-		// timer goroutine, but we call it again just in case.
-		cancelFn(err)
-	case resp != nil && resp.Body != nil:
-
-		// Wrap resp.Body with a ReadCloserNotifier, so that cancelFn
-		// is called when the body is closed.
-		resp.Body = ioz.ReadCloserNotifier(resp.Body, cancelFn)
-	default:
-		// Not sure if this can actually happen, but just in case.
-		cancelFn(context.Canceled)
-	}
-
-	return resp, err
-}
-
-// ResponseLogValue implements slog.Valuer for resp.
+// ResponseLogValue implements slog.LogValuer for resp.
 func ResponseLogValue(resp *http.Response) slog.Value {
 	if resp == nil {
 		return slog.Value{}
@@ -252,7 +113,7 @@ func ResponseLogValue(resp *http.Response) slog.Value {
 	return slog.GroupValue(attrs...)
 }
 
-// RequestLogValue implements slog.Valuer for req.
+// RequestLogValue implements slog.LogValuer for req.
 func RequestLogValue(req *http.Request) slog.Value {
 	if req == nil {
 		return slog.Value{}
