@@ -49,6 +49,7 @@ const (
 	SQL       = "sql"
 	Src       = "src"
 	ScanType  = "scan_type"
+	Stack     = "stack"
 	Schema    = "schema"
 	Table     = "table"
 	Target    = "target"

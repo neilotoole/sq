@@ -28,7 +28,7 @@ func (w *errorWriter) Error(err error) {
 		return
 	}
 
-	stacks := errz.Stack(err)
+	stacks := errz.Stacks(err)
 	for i, stack := range stacks {
 		if i > 0 {
 			fmt.Fprintln(w.w)

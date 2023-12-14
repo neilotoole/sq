@@ -56,6 +56,7 @@ import (
 	"context"
 	"encoding"
 	"fmt"
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"io"
 	"log/slog"
 	"path/filepath"
@@ -81,8 +82,8 @@ const (
 	ansiBlue            = "\033[34m"
 	ansiBrightBlue      = "\033[94m"
 	ansiBrightRedFaint  = "\033[91;2m"
-	ansiAttrColor       = "\033[36;2m"
-	// 	ansiAttrColor       = "\033[35;2m"
+	ansiAttr            = "\033[36;2m"
+	ansiStack           = "\033[0;35m"
 )
 
 const errKey = "err"
@@ -254,8 +255,16 @@ func (h *handler) Handle(_ context.Context, r slog.Record) error {
 		buf.WriteString(h.attrsPrefix)
 	}
 
+	const keyStack = "stack"
+	var stackAttrs []slog.Attr
+
 	// write attributes
 	r.Attrs(func(attr slog.Attr) bool {
+		if attr.Key == keyStack {
+			// Special handling for stacktraces
+			stackAttrs = append(stackAttrs, attr)
+			return true
+		}
 		h.appendAttr(buf, attr, h.groupPrefix, h.groups)
 		return true
 	})
@@ -265,11 +274,55 @@ func (h *handler) Handle(_ context.Context, r slog.Record) error {
 	}
 	(*buf)[len(*buf)-1] = '\n' // replace last space with newline
 
+	h.handleStackAttrs(buf, stackAttrs)
+
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
 	_, err := h.w.Write(*buf)
 	return err
+}
+
+func (h *handler) handleStackAttrs(buf *buffer, attrs []slog.Attr) {
+	if len(attrs) == 0 {
+		return
+	}
+	var stacks []errz.StackTrace
+	for _, attr := range attrs {
+		v := attr.Value.Any()
+		switch v := v.(type) {
+		case errz.StackTrace:
+			stacks = append(stacks, v)
+		case []errz.StackTrace:
+			stacks = append(stacks, v...)
+		}
+	}
+
+	var count int
+	for _, stack := range stacks {
+		if stack == nil {
+			continue
+		}
+
+		v := fmt.Sprintf("%+v", stack)
+		v = strings.TrimSpace(v)
+		v = strings.ReplaceAll(v, "\n\t", "\n  ")
+		if v == "" {
+			continue
+		}
+
+		if count > 0 {
+			buf.WriteString("\n\n")
+		}
+		buf.WriteStringIf(!h.noColor, ansiStack)
+		buf.WriteString(v)
+		buf.WriteStringIf(!h.noColor, ansiReset)
+		count++
+	}
+	if count > 0 {
+		buf.WriteByte('\n')
+	}
+
 }
 
 func (h *handler) WithAttrs(attrs []slog.Attr) slog.Handler {
@@ -384,7 +437,7 @@ func (h *handler) appendAttr(buf *buffer, attr slog.Attr, groupsPrefix string, g
 		buf.WriteByte(' ')
 	} else {
 		h.appendKey(buf, attr.Key, groupsPrefix)
-		buf.WriteStringIf(!h.noColor, ansiAttrColor)
+		buf.WriteStringIf(!h.noColor, ansiAttr)
 		h.appendValue(buf, attr.Value, true)
 		buf.WriteStringIf(!h.noColor, ansiReset)
 

@@ -31,7 +31,7 @@ func (w *errorWriter) Error(err error) {
 	} else {
 		errMsg = err.Error()
 		if w.pr.Verbose {
-			for _, st := range errz.Stack(err) {
+			for _, st := range errz.Stacks(err) {
 				s := fmt.Sprintf("%+v", st)
 				stack = append(stack, s)
 			}

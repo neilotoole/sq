@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"path"
 	"runtime"
 	"strconv"
@@ -139,6 +140,15 @@ func (st StackTrace) formatSlice(s fmt.State, verb rune) {
 	_, _ = io.WriteString(s, "]")
 }
 
+// LogValue implements slog.LogValuer.
+func (st StackTrace) LogValue() slog.Value {
+	if len(st) == 0 {
+		return slog.Value{}
+	}
+
+	return slog.StringValue(fmt.Sprintf("%+v", st))
+}
+
 // stack represents a stack of program counters.
 type stack []uintptr
 
@@ -179,11 +189,28 @@ func funcname(name string) string {
 	return name[i+1:]
 }
 
-// Stack returns any stack trace(s) attached to err. If err
-// has been wrapped more than once, there may be multiple stack traces.
+// Stack returns the last of any stack trace(s) attached to err.
+// If err has been wrapped more than once, there may be multiple stack traces.
 // Generally speaking, the final stack trace is the most interesting.
 // The returned StackTrace can be printed using fmt "%+v".
-func Stack(err error) []StackTrace {
+func Stack(err error) StackTrace {
+	if err == nil {
+		return nil
+	}
+
+	stacks := Stacks(err)
+	if len(stacks) == 0 {
+		return nil
+	}
+
+	// Return the final element of the slice
+	return stacks[len(stacks)-1]
+}
+
+// Stacks returns any stack trace(s) attached to err. If err
+// has been wrapped more than once, there may be multiple stack traces.
+// Generally speaking, the final stack trace is the most interesting.
+func Stacks(err error) []StackTrace {
 	if err == nil {
 		return nil
 	}
@@ -207,4 +234,8 @@ func Stack(err error) []StackTrace {
 	}
 
 	return stacks
+}
+
+type StackTracer interface {
+	StackTrace() StackTrace
 }

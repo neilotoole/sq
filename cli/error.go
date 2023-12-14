@@ -46,13 +46,14 @@ func printError(ctx context.Context, ru *run.Run, err error) {
 			cmdName = cmd.Name()
 		}
 
+		logFn := log.Error
 		if errz.IsErrContext(err) {
 			// If it's a context error, e.g. the user cancelled, we'll log it as
 			// a warning instead of as an error.
-			log.Warn("EXECUTION FAILED", lga.Err, err, lga.Cmd, cmdName)
-		} else {
-			log.Error("EXECUTION FAILED", lga.Err, err, lga.Cmd, cmdName)
+			logFn = log.Warn
+			//log.Warn("EXECUTION FAILED", lga.Err, err, lga.Cmd, cmdName)
 		}
+		logFn("EXECUTION FAILED", lga.Err, err, lga.Cmd, cmdName, lga.Stack, errz.Stacks(err))
 		err = humanizeContextErr(err)
 		wrtrs := ru.Writers
 		if wrtrs != nil && wrtrs.Error != nil {

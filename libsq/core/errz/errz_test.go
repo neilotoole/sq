@@ -121,3 +121,14 @@ func TestAs(t *testing.T) {
 	require.NotNil(t, pathErr)
 	require.Equal(t, fp, pathErr.Path)
 }
+
+func TestStackTrace(t *testing.T) {
+	err := errz.New("huzzah")
+
+	tracer, ok := err.(errz.StackTracer)
+	require.True(t, ok)
+	require.NotNil(t, tracer)
+	tr := tracer.StackTrace()
+	t.Logf("stack trace:%+v", tr)
+
+}
