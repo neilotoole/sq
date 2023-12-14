@@ -171,13 +171,11 @@ const msgDeleteCache = "Delete HTTP response cache"
 // the header cache file is updated. If headerOnly is false and copyWrtr is
 // non-nil, the response body bytes are copied to that destination, as well as
 // being written to the cache. If writing to copyWrtr completes successfully,
-// it is closed; if there's an error, copyWrtr is not closed. This is by design;
-// the caller is responsible for propagating any write error (as returned by
-// this method) to copyWrtr's owner.
+// it is closed; if there's an error, copyWrtr.Error is invoked.
 // A checksum file, computed from the body file, is also written to disk. The
 // response body is always closed.
 func (c *cache) write(ctx context.Context, resp *http.Response,
-	headerOnly bool, copyWrtr io.WriteCloser) error {
+	headerOnly bool, copyWrtr ioz.WriteErrorCloser) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -185,11 +183,20 @@ func (c *cache) write(ctx context.Context, resp *http.Response,
 }
 
 func (c *cache) doWrite(ctx context.Context, resp *http.Response,
-	headerOnly bool, copyWrtr io.WriteCloser) error {
+	headerOnly bool, copyWrtr ioz.WriteErrorCloser) (err error) {
 	log := lg.FromContext(ctx)
-	defer lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
 
-	if err := ioz.RequireDir(c.dir); err != nil {
+	defer func() {
+		lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
+		if err == nil {
+			return
+		}
+		if err != nil && copyWrtr != nil {
+			copyWrtr.Error(err)
+		}
+	}()
+
+	if err = ioz.RequireDir(c.dir); err != nil {
 		return err
 	}
 
@@ -223,19 +230,25 @@ func (c *cache) doWrite(ctx context.Context, resp *http.Response,
 	}
 
 	var written int64
-	written, err = io.Copy(cacheFile, cr)
-	if err != nil {
-
+	if written, err = io.Copy(cacheFile, cr); err != nil {
+		err = errz.Err(err)
 		log.Error("Cache write: io.Copy failed", lga.Err, err)
-		lg.WarnIfCloseError(log, "Close cache body file", cacheFile)
+		lg.WarnIfCloseError(log, msgCloseCacheBodyFile, cacheFile)
 		return err
-	}
-	if copyWrtr != nil {
-		lg.WarnIfCloseError(log, "Close copy writer", copyWrtr)
 	}
 
 	if err = cacheFile.Close(); err != nil {
-		return errz.Err(err)
+		cacheFile = nil
+		err = errz.Err(err)
+		return err
+	}
+
+	if copyWrtr != nil {
+		if err = copyWrtr.Close(); err != nil {
+			err = errz.Err(err)
+			copyWrtr = nil
+			return err
+		}
 	}
 
 	sum, err := checksum.ForFile(fpBody)

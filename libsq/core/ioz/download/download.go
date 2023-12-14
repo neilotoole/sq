@@ -136,12 +136,12 @@ type Handler struct {
 	Cached func(fp string)
 
 	// Uncached is invoked when the download is not cached. The handler should
-	// return an io.WriterCloser, which the download contents will be written
+	// return an ioz.WriteErrorCloser, which the download contents will be written
 	// to (as well as being written to the disk cache). On success, the dest
-	// io.WriteCloser is closed. If an error occurs during download or
-	// writing, errFn is invoked, and dest is not closed. If the handler returns
-	// a nil dest io.WriteCloser, the Download will log a warning and return.
-	Uncached func() (dest io.WriteCloser, errFn func(error))
+	// io.WriteCloser is closed. If an error occurs during download or writing,
+	// WriteErrorCloser.Error is invoked (but Close is not invoked). If the
+	// handler returns a nil dest, the Download will log a warning and return.
+	Uncached func() (dest ioz.WriteErrorCloser)
 
 	// Error is invoked on any error, other than writing to the destination
 	// io.WriteCloser returned by Handler.Uncached, which has its own error
@@ -274,7 +274,7 @@ func (dl *Download) get(req *http.Request, h Handler) {
 		}
 
 		// I'm not sure if this logic is even reachable?
-		destWrtr, errFn := h.Uncached()
+		destWrtr := h.Uncached()
 		if destWrtr == nil {
 			log.Warn(msgNilDestWriter)
 			return
@@ -283,31 +283,29 @@ func (dl *Download) get(req *http.Request, h Handler) {
 		defer lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
 		if err = dl.respCache.write(req.Context(), resp, false, destWrtr); err != nil {
 			log.Error("Failed to write download cache", lga.Dir, dl.respCache.dir, lga.Err, err)
-			if errFn != nil {
-				errFn(err)
-			}
+			//destWrtr.Error(err)
 		}
 		return
 	} else {
 		lg.WarnIfError(log, "Delete resp cache", dl.respCache.Clear(req.Context()))
 	}
 
-	// It's not cacheable, so we need to write it to the copyWrtr.
-	copyWrtr, errFn := h.Uncached()
-	if copyWrtr == nil {
+	// It's not cacheable, so we need to write it to the destWrtr.
+	destWrtr := h.Uncached()
+	if destWrtr == nil {
 		log.Warn(msgNilDestWriter)
 		return
 	}
 
 	cr := contextio.NewReader(ctx, resp.Body)
 	defer lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
-	_, err = io.Copy(copyWrtr, cr)
+	_, err = io.Copy(destWrtr, cr)
 	if err != nil {
 		log.Error("Failed to copy download to dest writer", lga.Err, err)
-		errFn(err)
+		destWrtr.Error(err)
 		return
 	}
-	if err = copyWrtr.Close(); err != nil {
+	if err = destWrtr.Close(); err != nil {
 		log.Error("Failed to close dest writer", lga.Err, err)
 	}
 

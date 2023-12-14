@@ -432,3 +432,32 @@ func WriteToFile(ctx context.Context, fp string, r io.Reader) (written int64, er
 
 	return written, errz.Err(err)
 }
+
+// WriteErrorCloser supplements io.WriteCloser with an Error method, indicating
+// to the io.WriteCloser that an upstream error has interrupted the writing
+// operation. Note that clients should invoke only one of Close or Error.
+type WriteErrorCloser interface {
+	io.WriteCloser
+
+	// Error indicates that an upstream error has interrupted the
+	// writing operation.
+	Error(err error)
+}
+
+type writeErrorCloser struct {
+	fn func(error)
+	io.WriteCloser
+}
+
+// Error implements WriteErrorCloser.Error.
+func (w *writeErrorCloser) Error(err error) {
+	if w.fn != nil {
+		w.fn(err)
+	}
+}
+
+// NewFuncWriteErrorCloser returns a new WriteErrorCloser that wraps w, and
+// invokes non-nil fn when WriteErrorCloser.Error is called.
+func NewFuncWriteErrorCloser(w io.WriteCloser, fn func(error)) WriteErrorCloser {
+	return &writeErrorCloser{WriteCloser: w, fn: fn}
+}

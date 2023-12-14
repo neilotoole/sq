@@ -152,7 +152,7 @@ func TestDownload_New(t *testing.T) {
 	require.NoError(t, err)
 	t.Logf("cacheDir: %s", cacheDir)
 
-	dl, err := download.New(nil, dlURL, cacheDir)
+	dl, err := download.New(httpz.NewDefaultClient(), dlURL, cacheDir)
 	require.NoError(t, err)
 	require.NoError(t, dl.Clear(ctx))
 	require.Equal(t, download.Uncached, dl.State(ctx))
@@ -163,6 +163,7 @@ func TestDownload_New(t *testing.T) {
 	h := newTestHandler(log.With("origin", "handler"))
 	dl.Get(ctx, h.Handler)
 	require.Empty(t, h.errors)
+	require.Empty(t, h.writeErrs)
 	require.Empty(t, h.cacheFiles)
 	require.Equal(t, sizeActorCSV, int64(h.bufs[0].Len()))
 	require.Equal(t, download.Fresh, dl.State(ctx))
@@ -173,6 +174,7 @@ func TestDownload_New(t *testing.T) {
 	h.reset()
 	dl.Get(ctx, h.Handler)
 	require.Empty(t, h.errors)
+	require.Empty(t, h.writeErrs)
 	require.Empty(t, h.bufs)
 	require.NotEmpty(t, h.cacheFiles)
 	gotFileBytes, err := os.ReadFile(h.cacheFiles[0])
@@ -188,6 +190,11 @@ func TestDownload_New(t *testing.T) {
 	sum, ok = dl.Checksum(ctx)
 	require.False(t, ok)
 	require.Empty(t, sum)
+
+	h.reset()
+	dl.Get(ctx, h.Handler)
+	require.Empty(t, h.errors)
+	require.Empty(t, h.writeErrs)
 }
 
 type testHandler struct {
@@ -218,17 +225,17 @@ func newTestHandler(log *slog.Logger) *testHandler {
 		th.cacheFiles = append(th.cacheFiles, fp)
 	}
 
-	th.Uncached = func() (io.WriteCloser, func(error)) {
+	th.Uncached = func() ioz.WriteErrorCloser {
 		log.Info("Uncached")
 		th.mu.Lock()
 		defer th.mu.Unlock()
 		buf := &bytes.Buffer{}
 		th.bufs = append(th.bufs, buf)
-		return ioz.WriteCloser(buf), func(err error) {
+		return ioz.NewFuncWriteErrorCloser(ioz.WriteCloser(buf), func(err error) {
 			th.mu.Lock()
 			defer th.mu.Unlock()
 			th.writeErrs = append(th.writeErrs, err)
-		}
+		})
 	}
 
 	th.Error = func(err error) {
