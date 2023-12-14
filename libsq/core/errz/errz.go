@@ -12,10 +12,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
-	"path/filepath"
-
 	"go.uber.org/multierr"
+	"log/slog"
 )
 
 // Err annotates err with a stack trace at the point WithStack was called.
@@ -40,8 +38,9 @@ var Combine = multierr.Combine
 var Errors = multierr.Errors
 
 // logValue return a slog.Value for err.
+// Deprecated: Are we using logValue?
 func logValue(err error) slog.Value {
-	if err == nil {
+ 	if err == nil {
 		return slog.Value{}
 	}
 
@@ -55,25 +54,25 @@ func logValue(err error) slog.Value {
 	causeAttr := slog.String("cause", c.Error())
 	typeAttr := slog.String("type", fmt.Sprintf("%T", c))
 
-	if ws, ok := err.(*withStack); ok { //nolint:errorlint
-		st := ws.stack.StackTrace()
-
-		if len(st) > 0 {
-			f := st[0]
-			file := f.file()
-			funcName := f.name()
-			if funcName != unknown {
-				fp := filepath.Join(filepath.Base(filepath.Dir(file)), filepath.Base(file))
-				return slog.GroupValue(
-					msgAttr,
-					causeAttr,
-					typeAttr,
-					slog.String("func", funcName),
-					slog.String("source", fmt.Sprintf("%s:%d", fp, f.line())),
-				)
-			}
-		}
-	}
+	//if ws, ok := err.(*withStack); ok { //nolint:errorlint
+	//	st := ws.stack.stackTrace()
+	//
+	//	if st != nil && len(st.Frames) > 0 {
+	//		f := st.Frames[0]
+	//		file := f.file()
+	//		funcName := f.name()
+	//		if funcName != unknown {
+	//			fp := filepath.Join(filepath.Base(filepath.Dir(file)), filepath.Base(file))
+	//			return slog.GroupValue(
+	//				msgAttr,
+	//				causeAttr,
+	//				typeAttr,
+	//				slog.String("func", funcName),
+	//				slog.String("source", fmt.Sprintf("%s:%d", fp, f.line())),
+	//			)
+	//		}
+	//	}
+	//}
 
 	return slog.GroupValue(msgAttr, causeAttr, typeAttr)
 }

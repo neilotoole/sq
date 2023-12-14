@@ -98,7 +98,10 @@ func (f Frame) MarshalText() ([]byte, error) {
 }
 
 // StackTrace is stack of Frames from innermost (newest) to outermost (oldest).
-type StackTrace []Frame
+type StackTrace struct {
+	Error  error
+	Frames []Frame
+}
 
 // Format formats the stack of Frames according to the fmt.Formatter interface.
 //
@@ -108,17 +111,17 @@ type StackTrace []Frame
 // Format accepts flags that alter the printing of some verbs, as follows:
 //
 //	%+v   Prints filename, function, and line number for each Frame in the stack.
-func (st StackTrace) Format(s fmt.State, verb rune) {
+func (st *StackTrace) Format(s fmt.State, verb rune) {
 	switch verb {
 	case 'v':
 		switch {
 		case s.Flag('+'):
-			for _, f := range st {
+			for _, f := range st.Frames {
 				_, _ = io.WriteString(s, "\n")
 				f.Format(s, verb)
 			}
 		case s.Flag('#'):
-			fmt.Fprintf(s, "%#v", []Frame(st))
+			fmt.Fprintf(s, "%#v", []Frame(st.Frames))
 		default:
 			st.formatSlice(s, verb)
 		}
@@ -129,9 +132,9 @@ func (st StackTrace) Format(s fmt.State, verb rune) {
 
 // formatSlice will format this StackTrace into the given buffer as a slice of
 // Frame, only valid when called with '%s' or '%v'.
-func (st StackTrace) formatSlice(s fmt.State, verb rune) {
+func (st *StackTrace) formatSlice(s fmt.State, verb rune) {
 	_, _ = io.WriteString(s, "[")
-	for i, f := range st {
+	for i, f := range st.Frames {
 		if i > 0 {
 			_, _ = io.WriteString(s, " ")
 		}
@@ -141,8 +144,8 @@ func (st StackTrace) formatSlice(s fmt.State, verb rune) {
 }
 
 // LogValue implements slog.LogValuer.
-func (st StackTrace) LogValue() slog.Value {
-	if len(st) == 0 {
+func (st *StackTrace) LogValue() slog.Value {
+	if st == nil || len(st.Frames) == 0 {
 		return slog.Value{}
 	}
 
@@ -153,6 +156,9 @@ func (st StackTrace) LogValue() slog.Value {
 type stack []uintptr
 
 func (s *stack) Format(st fmt.State, verb rune) {
+	if s == nil {
+		fmt.Fprintf(st, "<nil>")
+	}
 	switch verb { //nolint:gocritic
 	case 'v':
 		switch { //nolint:gocritic
@@ -165,12 +171,12 @@ func (s *stack) Format(st fmt.State, verb rune) {
 	}
 }
 
-func (s *stack) StackTrace() StackTrace {
+func (s *stack) stackTrace() *StackTrace {
 	f := make([]Frame, len(*s))
 	for i := 0; i < len(f); i++ {
 		f[i] = Frame((*s)[i])
 	}
-	return f
+	return &StackTrace{Frames: f}
 }
 
 func callers() *stack {
@@ -193,7 +199,7 @@ func funcname(name string) string {
 // If err has been wrapped more than once, there may be multiple stack traces.
 // Generally speaking, the final stack trace is the most interesting.
 // The returned StackTrace can be printed using fmt "%+v".
-func Stack(err error) StackTrace {
+func Stack(err error) *StackTrace {
 	if err == nil {
 		return nil
 	}
@@ -210,12 +216,12 @@ func Stack(err error) StackTrace {
 // Stacks returns any stack trace(s) attached to err. If err
 // has been wrapped more than once, there may be multiple stack traces.
 // Generally speaking, the final stack trace is the most interesting.
-func Stacks(err error) []StackTrace {
+func Stacks(err error) []*StackTrace {
 	if err == nil {
 		return nil
 	}
 
-	var stacks []StackTrace
+	var stacks []*StackTrace
 
 	for {
 		if err == nil {
@@ -237,5 +243,5 @@ func Stacks(err error) []StackTrace {
 }
 
 type StackTracer interface {
-	StackTrace() StackTrace
+	StackTrace() *StackTrace
 }

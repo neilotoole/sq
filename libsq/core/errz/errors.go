@@ -141,6 +141,21 @@ func (f *fundamental) Format(s fmt.State, verb rune) {
 	}
 }
 
+var _ StackTracer = (*fundamental)(nil)
+
+// StackTrace implements StackTracer.
+func (f *fundamental) StackTrace() *StackTrace {
+	if f == nil || f.stack == nil {
+		return nil
+	}
+
+	st := f.stack.stackTrace()
+	if st != nil {
+		st.Error = f
+	}
+	return st
+}
+
 // LogValue implements slog.LogValuer.
 func (f *fundamental) LogValue() slog.Value {
 	return logValue(f)
@@ -149,6 +164,21 @@ func (f *fundamental) LogValue() slog.Value {
 type withStack struct {
 	error
 	*stack
+}
+
+var _ StackTracer = (*withStack)(nil)
+
+// StackTrace implements StackTracer.
+func (w *withStack) StackTrace() *StackTrace {
+	if w == nil || w.stack == nil {
+		return nil
+	}
+
+	st := w.stack.stackTrace()
+	if st != nil {
+		st.Error = w
+	}
+	return st
 }
 
 func (w *withStack) Cause() error { return w.error }

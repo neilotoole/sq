@@ -287,13 +287,13 @@ func (h *handler) handleStackAttrs(buf *buffer, attrs []slog.Attr) {
 	if len(attrs) == 0 {
 		return
 	}
-	var stacks []errz.StackTrace
+	var stacks []*errz.StackTrace
 	for _, attr := range attrs {
 		v := attr.Value.Any()
 		switch v := v.(type) {
-		case errz.StackTrace:
+		case *errz.StackTrace:
 			stacks = append(stacks, v)
-		case []errz.StackTrace:
+		case []*errz.StackTrace:
 			stacks = append(stacks, v...)
 		}
 	}
