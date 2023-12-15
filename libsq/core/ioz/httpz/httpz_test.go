@@ -76,7 +76,7 @@ func TestOptHeaderTimeout_correct_error(t *testing.T) {
 	t.Log(err)
 	require.Error(t, err)
 	require.Nil(t, resp)
-	require.Contains(t, err.Error(), "http response not received within")
+	require.Contains(t, err.Error(), "http response header not received within")
 	require.True(t, errors.Is(err, context.DeadlineExceeded))
 
 	// Now let's try again, with a shorter server delay, so the

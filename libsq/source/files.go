@@ -438,7 +438,7 @@ func (fs *Files) openLocation(ctx context.Context, loc string) (*os.File, error)
 	fpath, ok = isFpath(loc)
 	if ok {
 		// we have a legitimate fpath
-		return errz.Tuple(os.Open(fpath))
+		return errz.Return(os.Open(fpath))
 	}
 	// It's not a local file path, maybe it's remote (http)
 	var u *url.URL

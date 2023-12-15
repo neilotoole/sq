@@ -153,3 +153,27 @@ func ZeroIfNil[T comparable](t *T) T {
 
 	return *t
 }
+
+// Take returns true if ch is non-nil and a value is available
+// from ch, or false otherwise. This is useful in for a succinct
+// "if done" idiom, e.g.:
+//
+//	if someCondition && loz.Take(doneCh) {
+//		return
+//	}
+//
+// Note that this function does read from the channel, so it's mostly
+// intended for use with "done" channels, where the caller is not
+// interested in the value sent on the channel, only the fact that
+// a value was sent, e.g. by closing the channel.
+func Take[C any](ch <-chan C) bool {
+	if ch == nil {
+		return false
+	}
+	select {
+	case <-ch:
+		return true
+	default:
+		return false
+	}
+}

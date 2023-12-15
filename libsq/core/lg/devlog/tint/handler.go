@@ -55,8 +55,8 @@ package tint
 import (
 	"context"
 	"encoding"
+	"errors"
 	"fmt"
-	"github.com/neilotoole/sq/libsq/core/errz"
 	"io"
 	"log/slog"
 	"path/filepath"
@@ -66,6 +66,8 @@ import (
 	"sync"
 	"time"
 	"unicode"
+
+	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
 // ANSI modes
@@ -301,7 +303,7 @@ func (h *handler) handleStackAttrs(buf *buffer, attrs []slog.Attr) {
 	}
 
 	var count int
-	for _, stack := range stacks {
+	for i, stack := range stacks {
 		if stack == nil {
 			continue
 		}
@@ -318,12 +320,21 @@ func (h *handler) handleStackAttrs(buf *buffer, attrs []slog.Attr) {
 		}
 
 		if stack.Error != nil {
+
 			buf.WriteStringIf(!h.noColor, ansiStackErr)
 			buf.WriteString(stack.Error.Error())
 			buf.WriteStringIf(!h.noColor, ansiReset)
 			buf.WriteByte(' ')
 			buf.WriteStringIf(!h.noColor, ansiFaint)
-			buf.WriteStringIf(!h.noColor, fmt.Sprintf("%T", stack.Error))
+			// Now we'll print the type of the error.
+			buf.WriteString(fmt.Sprintf("%T", stack.Error))
+			if i == len(stacks)-1 {
+				// If we're on the final stack, and there's a cause underneath,
+				// then we print that type too.
+				if cause := errors.Unwrap(stack.Error); cause != nil {
+					buf.WriteString(fmt.Sprintf(" -> %T", cause))
+				}
+			}
 			buf.WriteStringIf(!h.noColor, ansiResetFaint)
 			buf.WriteByte('\n')
 		}
@@ -339,7 +350,6 @@ func (h *handler) handleStackAttrs(buf *buffer, attrs []slog.Attr) {
 	if count > 0 {
 		buf.WriteByte('\n')
 	}
-
 }
 
 func (h *handler) WithAttrs(attrs []slog.Attr) slog.Handler {

@@ -3,7 +3,6 @@ package cli
 import (
 	"bufio"
 	"fmt"
-	"github.com/neilotoole/sq/libsq/core/errz"
 	"net/url"
 	"os"
 	"time"
@@ -135,16 +134,16 @@ func newXDownloadCmd() *cobra.Command {
 		Short:  "Download a file",
 		Hidden: true,
 		Args:   cobra.ExactArgs(1),
-		//RunE:   execXDownloadCmd,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			err1 := errz.New("inner huzzah")
-			time.Sleep(time.Nanosecond)
-			err2 := errz.Wrap(err1, "outer huzzah")
-			time.Sleep(time.Nanosecond)
-			err3 := errz.Wrap(err2, "outer huzzah")
-
-			return err3
-		},
+		RunE:   execXDownloadCmd,
+		//RunE: func(cmd *cobra.Command, args []string) error {
+		//	err1 := errz.New("inner huzzah")
+		//	time.Sleep(time.Nanosecond)
+		//	err2 := errz.Wrap(err1, "outer huzzah")
+		//	time.Sleep(time.Nanosecond)
+		//	err3 := errz.Wrap(err2, "outer huzzah")
+		//
+		//	return err3
+		//},
 		Example: `  $ sq x download https://sq.io/testdata/actor.csv
 
   # Download a big-ass file
@@ -172,7 +171,11 @@ func execXDownloadCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	c := httpz.NewClient(httpz.DefaultUserAgent, httpz.OptRequestTimeout(time.Second*5))
+	c := httpz.NewClient(
+		httpz.DefaultUserAgent,
+		//httpz.OptRequestTimeout(time.Second*2),
+		httpz.OptHeaderTimeout(time.Millisecond),
+	)
 	dl, err := download.New(fakeSrc.Handle, c, u.String(), cacheDir)
 	if err != nil {
 		return err

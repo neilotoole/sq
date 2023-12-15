@@ -12,8 +12,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"go.uber.org/multierr"
 	"log/slog"
+
+	"go.uber.org/multierr"
 )
 
 // Err annotates err with a stack trace at the point WithStack was called.
@@ -79,13 +80,9 @@ func IsErrContext(err error) bool {
 	return false
 }
 
-// IsErrContextDeadlineExceeded returns true if err is context.DeadlineExceeded.
-func IsErrContextDeadlineExceeded(err error) bool {
-	return errors.Is(err, context.DeadlineExceeded)
-}
-
-// Tuple returns t and err, wrapping err with errz.Err.
-func Tuple[T any](t T, err error) (T, error) {
+// Return returns t, and err wrapped with [errz.Err].
+// This is useful for the common case of returning a value and an error.
+func Return[T any](t T, err error) (T, error) {
 	return t, Err(err)
 }
 

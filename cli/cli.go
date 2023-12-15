@@ -50,7 +50,8 @@ const (
 )
 
 // errNoMsg is a sentinel error indicating that a command
-// has failed, but that no error message should be printed.
+// has failed (and thus the program should exit with a non-zero
+// code), but no error message should be printed.
 // This is useful in the case where any error information may
 // already have been printed as part of the command output.
 var errNoMsg = errors.New("")

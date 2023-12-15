@@ -20,10 +20,7 @@ package contextio
 
 import (
 	"context"
-	"errors"
 	"io"
-
-	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
 var _ io.Writer = (*writer)(nil)
@@ -81,9 +78,11 @@ func NewWriter(ctx context.Context, w io.Writer) io.Writer {
 func (w *writer) Write(p []byte) (n int, err error) {
 	select {
 	case <-w.ctx.Done():
-		return 0, w.ctx.Err()
+		return 0, cause(w.ctx, nil)
 	default:
-		return w.w.Write(p)
+		n, err = w.w.Write(p)
+		err = cause(w.ctx, err)
+		return n, err
 	}
 }
 
@@ -96,7 +95,7 @@ func (w *writeCloser) Close() error {
 
 	select {
 	case <-w.ctx.Done():
-		return w.ctx.Err()
+		return cause(w.ctx, nil)
 	default:
 		return closeErr
 	}
@@ -136,9 +135,11 @@ func NewReader(ctx context.Context, r io.Reader) io.Reader {
 func (r *reader) Read(p []byte) (n int, err error) {
 	select {
 	case <-r.ctx.Done():
-		return 0, r.ctx.Err()
+		return 0, cause(r.ctx, nil)
 	default:
-		return r.r.Read(p)
+		n, err = r.r.Read(p)
+		err = cause(r.ctx, err)
+		return n, err
 	}
 }
 
@@ -157,7 +158,7 @@ func (rc *readCloser) Close() error {
 
 	select {
 	case <-rc.ctx.Done():
-		return rc.ctx.Err()
+		return cause(rc.ctx, nil)
 
 	default:
 		return closeErr
@@ -174,11 +175,13 @@ func (w *copier) ReadFrom(r io.Reader) (n int64, err error) {
 	}
 	select {
 	case <-w.ctx.Done():
-		return 0, w.ctx.Err()
+		return 0, cause(w.ctx, nil)
 	default:
 		// The original Writer is not a ReaderFrom.
 		// Let the Reader decide the chunk size.
-		return io.Copy(&w.writer, r)
+		n, err = io.Copy(&w.writer, r)
+		err = cause(w.ctx, err)
+		return n, err
 	}
 }
 
@@ -199,15 +202,24 @@ func (c *closer) Close() error {
 
 	select {
 	case <-c.ctx.Done():
-		ctxErr := c.ctx.Err()
-		switch {
-		case closeErr == nil,
-			errz.IsErrContext(closeErr):
-			return ctxErr
-		default:
-			return errors.Join(ctxErr, closeErr)
-		}
+		return cause(c.ctx, nil)
+
 	default:
 		return closeErr
 	}
+}
+
+func cause(ctx context.Context, err error) error {
+	if err == nil {
+		return context.Cause(ctx)
+	}
+
+	// err is non-nil
+	if ctx.Err() != err {
+		// err is not the context error, so err takes precedence.
+		return err
+	}
+
+	// err is the context error. Return the cause.
+	return context.Cause(ctx)
 }

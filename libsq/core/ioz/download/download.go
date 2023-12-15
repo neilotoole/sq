@@ -302,11 +302,15 @@ func (dl *Download) get(req *http.Request, h Handler) {
 // do executes the request.
 func (dl *Download) do(req *http.Request) (*http.Response, error) {
 	resp, err := dl.c.Do(req)
-	if err == nil && resp.Body != nil {
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.Body != nil && resp.Body != http.NoBody {
 		r := progress.NewReader(req.Context(), dl.name+": download", resp.ContentLength, resp.Body)
 		resp.Body = r.(io.ReadCloser)
 	}
-	return resp, err
+	return resp, nil
 }
 
 // mustRequest creates a new request from dl.url. The url has already been

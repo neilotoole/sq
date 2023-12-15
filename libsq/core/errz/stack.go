@@ -99,7 +99,10 @@ func (f Frame) MarshalText() ([]byte, error) {
 
 // StackTrace is stack of Frames from innermost (newest) to outermost (oldest).
 type StackTrace struct {
-	Error  error
+	// Error is the error value that resulted in this stack trace.
+	Error error
+
+	// Frames is the ordered list of frames that make up this stack trace.
 	Frames []Frame
 }
 

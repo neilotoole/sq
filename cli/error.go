@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
-
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"net/url"
+	"os"
+	"strings"
 
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/output/format"
@@ -37,35 +38,27 @@ func printError(ctx context.Context, ru *run.Run, err error) {
 		return
 	}
 
+	var cmdName = "unknown"
 	var cmd *cobra.Command
-	if ru != nil {
+	if ru != nil && ru.Cmd != nil {
 		cmd = ru.Cmd
+		cmdName = ru.Cmd.Name()
+	}
 
-		cmdName := "unknown"
-		if cmd != nil {
-			cmdName = cmd.Name()
-		}
+	log.Error("EXECUTION FAILED",
+		lga.Err, err, lga.Cmd, cmdName, lga.Stack, errz.Stacks(err))
 
-		logFn := log.Error
-		if errz.IsErrContext(err) {
-			// If it's a context error, e.g. the user cancelled, we'll log it as
-			// a warning instead of as an error.
-			logFn = log.Warn
-		}
-		logFn("EXECUTION FAILED", lga.Err, err, lga.Cmd, cmdName, lga.Stack, errz.Stacks(err))
-		err = humanizeContextErr(err)
-		wrtrs := ru.Writers
-		if wrtrs != nil && wrtrs.Error != nil {
+	err = humanizeError(err)
+	if ru != nil {
+		if wrtrs := ru.Writers; wrtrs != nil && wrtrs.Error != nil {
 			// If we have an errorWriter, we print to it
 			// and return.
 			wrtrs.Error.Error(err)
 			return
 		}
 
-		// Else we don't have an errorWriter, so we fall through
+		// Else we don't have an error writer, so we fall through
 	}
-
-	err = humanizeContextErr(err)
 
 	// If we get this far, something went badly wrong in bootstrap
 	// (probably the config is corrupt).
@@ -156,11 +149,26 @@ func panicOn(err error) {
 	}
 }
 
-// humanizeContextErr returns a friendlier error message
-// for context errors.
-func humanizeContextErr(err error) error {
+// humanizeError wrangles an error to make it more human-friendly before
+// printing to stderr. The returned err may be a different error from the
+// one passed in. This should be the final step before printing an error;
+// the original error should have already been logged.
+func humanizeError(err error) error {
 	if err == nil {
 		return nil
+	}
+
+	// Download timeout errors are typically wrapped in an url.Error, resulting
+	// in a message like:
+	//
+	//  Get "https://example.com": http response header not received within 1ms timeout
+	//
+	// We want to trim off that prefix, but we only do that if there's a wrapped
+	// error beneath (which should be the case).
+	if errz.IsType[*url.Error](err) && errors.Is(err, context.DeadlineExceeded) {
+		if e := errors.Unwrap(err); e != nil {
+			err = e
+		}
 	}
 
 	switch {
@@ -169,7 +177,17 @@ func humanizeContextErr(err error) error {
 	case errors.Is(err, context.Canceled):
 		err = errz.New("canceled")
 	case errors.Is(err, context.DeadlineExceeded):
-		err = errz.New("timeout")
+		errMsg := err.Error()
+		deadlineMsg := context.DeadlineExceeded.Error()
+		if errMsg == deadlineMsg {
+			// For generic context.DeadlineExceeded errors, we
+			// just return "timeout".
+			err = errz.New("timeout")
+		} else {
+			// But if the error is a wrapped context.DeadlineExceeded, we
+			// trim off the ": context deadline exceeded" suffix.
+			return errz.New(strings.TrimSuffix(errMsg, ": "+deadlineMsg))
+		}
 	}
 
 	return err

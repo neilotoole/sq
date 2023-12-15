@@ -8,9 +8,11 @@ import (
 	"time"
 
 	"github.com/neilotoole/sq/cli/buildinfo"
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
+	"github.com/neilotoole/sq/libsq/core/loz"
 )
 
 // Opt is an option that can be passed to [NewClient] to
@@ -57,20 +59,37 @@ func OptUserAgent(ua string) TripFunc {
 	}
 }
 
+// contextCause is a TripFunc that extracts the context.Cause error
+// from the request context, if any, and returns it as the error.
+func contextCause() TripFunc {
+	return func(next http.RoundTripper, req *http.Request) (*http.Response, error) {
+		resp, err := next.RoundTrip(req)
+		if err != nil {
+			if cause := context.Cause(req.Context()); cause != nil {
+				err = cause
+			}
+		}
+		return resp, err
+	}
+}
+
 // DefaultUserAgent is the default User-Agent header value,
 // as used by [NewDefaultClient].
 var DefaultUserAgent = OptUserAgent(buildinfo.Get().UserAgent())
 
-// OptRequestTimeout is passed to [NewClient] to set the total request timeout.
-// If timeout is zero, this is a no-op.
+// OptRequestTimeout is passed to [NewClient] to set the total request timeout,
+// including reading the body. This is basically the same as a traditional
+// request timeout via context.WithTimeout. If timeout is zero, this is no-op.
 //
 // Contrast with [OptHeaderTimeout].
 func OptRequestTimeout(timeout time.Duration) TripFunc {
 	if timeout <= 0 {
 		return NopTripFunc
 	}
+
 	return func(next http.RoundTripper, req *http.Request) (*http.Response, error) {
-		timeoutErr := errors.New("http request timeout")
+		timeoutErr := errz.Wrapf(context.DeadlineExceeded,
+			"http request not completed within %s timeout", timeout)
 		ctx, cancelFn := context.WithTimeoutCause(req.Context(), timeout, timeoutErr)
 
 		resp, err := next.RoundTrip(req.WithContext(ctx))
@@ -93,11 +112,14 @@ func OptRequestTimeout(timeout time.Duration) TripFunc {
 			return resp, nil
 		}
 
-		// We've got an error
+		// We've got an error. It may or may not be our timeout error.
+		// Either which way, we need to cancel the context.
 		defer cancelFn()
 
 		if errors.Is(context.Cause(ctx), timeoutErr) {
-			lg.FromContext(ctx).Warn("HTTP request not completed within timeout XYZ", // FIXME: delete
+			// If it is our timeout error, we log it.
+
+			lg.FromContext(ctx).Warn("HTTP request not completed within timeout",
 				lga.Timeout, timeout, lga.URL, req.URL.String())
 		}
 
@@ -107,10 +129,8 @@ func OptRequestTimeout(timeout time.Duration) TripFunc {
 
 // OptHeaderTimeout is passed to [NewClient] to set a timeout for just
 // getting the initial response headers. This is useful if you expect
-// a response within, say, 5 seconds, but you expect the body to take longer
-// to read. If bodyTimeout > 0, it is applied to the total lifecycle of
-// the request and response, including reading the response body.
-// If timeout <= zero, this is a no-op.
+// a response within, say, 2 seconds, but you expect the body to take longer
+// to read.
 //
 // Contrast with [OptRequestTimeout].
 func OptHeaderTimeout(timeout time.Duration) TripFunc {
@@ -119,43 +139,54 @@ func OptHeaderTimeout(timeout time.Duration) TripFunc {
 	}
 	return func(next http.RoundTripper, req *http.Request) (*http.Response, error) {
 		timerCancelCh := make(chan struct{})
+
 		ctx, cancelFn := context.WithCancelCause(req.Context())
+		t := time.NewTimer(timeout)
 		go func() {
-			t := time.NewTimer(timeout)
 			defer t.Stop()
 			select {
 			case <-ctx.Done():
 			case <-t.C:
+				cancelErr := errz.Wrapf(context.DeadlineExceeded,
+					"http response header not received within %s timeout", timeout)
+
 				lg.FromContext(ctx).Warn("HTTP header response not received within timeout",
 					lga.Timeout, timeout, lga.URL, req.URL.String())
-				cancelFn(context.DeadlineExceeded)
+
+				cancelFn(cancelErr)
 			case <-timerCancelCh:
 				// Stop the timer goroutine.
 			}
 		}()
 
-		resp, err := next.RoundTrip(req.WithContext(ctx))
-		close(timerCancelCh)
-		if err != nil && errors.Is(err, ctx.Err()) {
-			// The lower-down RoundTripper probably returned ctx.Err(),
-			// not context.Cause(), so we swap it around here.
-			if cause := context.Cause(ctx); cause != nil {
-				err = cause
+		resp, err := errz.Return(next.RoundTrip(req.WithContext(ctx)))
+
+		if errz.IsErrContext(err) {
+			if loz.Take(ctx.Done()) {
+				// The lower-down RoundTripper probably returned ctx.Err(),
+				// not context.Cause(), so we swap it around here.
+				if cause := context.Cause(ctx); cause != nil {
+					err = cause
+				}
 			}
 		}
+
+		// Signal completion of the timer goroutine (it may have already completed).
+		close(timerCancelCh)
+
 		// Don't leak resources; ensure that cancelFn is eventually called.
 		switch {
 		case err != nil:
-			// It's probable that cancelFn has already been called by the
-			// timer goroutine, but we call it again just in case.
+			// An error has occurred. It's probable that cancelFn has already been
+			// called by the timer goroutine, but we call it again just in case.
 			cancelFn(context.DeadlineExceeded)
 		case resp != nil && resp.Body != nil:
-
 			// Wrap resp.Body with a ReadCloserNotifier, so that cancelFn
 			// is called when the body is closed.
-			resp.Body = ioz.ReadCloserNotifier(resp.Body, func(error) { cancelFn(context.DeadlineExceeded) })
+			resp.Body = ioz.ReadCloserNotifier(resp.Body,
+				func(error) { cancelFn(context.DeadlineExceeded) })
 		default:
-			// Not sure if this can actually happen, but just in case.
+			// Not sure if this can actually be reached, but just in case.
 			cancelFn(context.DeadlineExceeded)
 		}
 

@@ -130,5 +130,4 @@ func TestStackTrace(t *testing.T) {
 	require.NotNil(t, tracer)
 	tr := tracer.StackTrace()
 	t.Logf("stack trace:%+v", tr)
-
 }

@@ -51,6 +51,8 @@ func NewClient(opts ...Opt) *http.Client {
 	}
 
 	c.Transport = tr
+	c.Transport = RoundTrip(c.Transport, contextCause())
+
 	for i := range opts {
 		if tf, ok := opts[i].(TripFunc); ok {
 			c.Transport = RoundTrip(c.Transport, tf)

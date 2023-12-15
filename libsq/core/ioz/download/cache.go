@@ -296,7 +296,7 @@ func (c *cache) doWrite(ctx context.Context, resp *http.Response,
 
 	headerBytes, err := httputil.DumpResponse(resp, false)
 	if err != nil {
-		return err
+		return errz.Err(err)
 	}
 
 	if _, err = ioz.WriteToFile(ctx, fpHeader, bytes.NewReader(headerBytes)); err != nil {
@@ -312,32 +312,28 @@ func (c *cache) doWrite(ctx context.Context, resp *http.Response,
 		return err
 	}
 
-	var cr io.Reader
-	if copyWrtr == nil {
-		cr = contextio.NewReader(ctx, resp.Body)
-	} else {
-		tr := io.TeeReader(resp.Body, copyWrtr)
-		cr = contextio.NewReader(ctx, tr)
+	var r io.Reader = resp.Body
+	if copyWrtr != nil {
+		// If copyWrtr is non-nil, we're copying the response body
+		// to that destination as well as to the cache file.
+		r = io.TeeReader(resp.Body, copyWrtr)
 	}
 
 	var written int64
-	if written, err = io.Copy(cacheFile, cr); err != nil {
-		err = errz.Err(err)
+	if written, err = errz.Return(io.Copy(cacheFile, r)); err != nil {
 		log.Error("Cache write: io.Copy failed", lga.Err, err)
 		lg.WarnIfCloseError(log, msgCloseCacheBodyFile, cacheFile)
 		cacheFile = nil
 		return err
 	}
 
-	if err = cacheFile.Close(); err != nil {
+	if err = errz.Err(cacheFile.Close()); err != nil {
 		cacheFile = nil
-		err = errz.Err(err)
 		return err
 	}
 
 	if copyWrtr != nil {
-		if err = copyWrtr.Close(); err != nil {
-			err = errz.Err(err)
+		if err = errz.Err(copyWrtr.Close()); err != nil {
 			copyWrtr = nil
 			return err
 		}
@@ -350,11 +346,6 @@ func (c *cache) doWrite(ctx context.Context, resp *http.Response,
 
 	if err = checksum.WriteFile(filepath.Join(c.dir, "checksum.txt"), sum, "body"); err != nil {
 		return errz.Wrap(err, "failed to write checksum file for cache body")
-	}
-
-	if resp.Body == nil {
-		resp.Body = http.NoBody
-		return nil
 	}
 
 	log.Info("Wrote HTTP response body to cache", lga.Size, written, lga.File, fpBody)
