@@ -321,6 +321,10 @@ func (h *handler) handleStackAttrs(buf *buffer, attrs []slog.Attr) {
 			buf.WriteStringIf(!h.noColor, ansiStackErr)
 			buf.WriteString(stack.Error.Error())
 			buf.WriteStringIf(!h.noColor, ansiReset)
+			buf.WriteByte(' ')
+			buf.WriteStringIf(!h.noColor, ansiFaint)
+			buf.WriteStringIf(!h.noColor, fmt.Sprintf("%T", stack.Error))
+			buf.WriteStringIf(!h.noColor, ansiResetFaint)
 			buf.WriteByte('\n')
 		}
 		lines := strings.Split(v, "\n")
