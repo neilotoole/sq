@@ -23,10 +23,7 @@ func NewHandler(w io.Writer, lvl slog.Leveler) slog.Handler {
 			case "pid":
 				return slog.Attr{}
 			case "error":
-				if _, ok := a.Value.Any().(error); ok {
-					a.Key = "e"
-				}
-				a.Key = "wussah"
+				a.Key = "err"
 				return a
 			default:
 				return a

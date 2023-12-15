@@ -38,9 +38,8 @@ var Combine = multierr.Combine
 var Errors = multierr.Errors
 
 // logValue return a slog.Value for err.
-// Deprecated: Are we using logValue?
 func logValue(err error) slog.Value {
- 	if err == nil {
+	if err == nil {
 		return slog.Value{}
 	}
 
@@ -50,31 +49,21 @@ func logValue(err error) slog.Value {
 		return slog.Value{}
 	}
 
-	msgAttr := slog.String("msg", err.Error())
-	causeAttr := slog.String("cause", c.Error())
-	typeAttr := slog.String("type", fmt.Sprintf("%T", c))
+	attrs := []slog.Attr{slog.String("msg", err.Error())}
+	if !errors.Is(c, err) {
+		attrs = append(attrs,
+			slog.String("cause", c.Error()),
+			slog.String("type", fmt.Sprintf("%T", c)),
+		)
 
-	//if ws, ok := err.(*withStack); ok { //nolint:errorlint
-	//	st := ws.stack.stackTrace()
-	//
-	//	if st != nil && len(st.Frames) > 0 {
-	//		f := st.Frames[0]
-	//		file := f.file()
-	//		funcName := f.name()
-	//		if funcName != unknown {
-	//			fp := filepath.Join(filepath.Base(filepath.Dir(file)), filepath.Base(file))
-	//			return slog.GroupValue(
-	//				msgAttr,
-	//				causeAttr,
-	//				typeAttr,
-	//				slog.String("func", funcName),
-	//				slog.String("source", fmt.Sprintf("%s:%d", fp, f.line())),
-	//			)
-	//		}
-	//	}
-	//}
+		// If there's a cause c, "type" will be the type of c.
+	} else {
+		// If there's no cause, "type" will be the type of err.
+		// It's a bit wonky, but probably the most useful thing to show.
+		attrs = append(attrs, slog.String("type", fmt.Sprintf("%T", err)))
+	}
 
-	return slog.GroupValue(msgAttr, causeAttr, typeAttr)
+	return slog.GroupValue(attrs...)
 }
 
 // IsErrContext returns true if err is context.Canceled or context.DeadlineExceeded.
