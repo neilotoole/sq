@@ -11,6 +11,24 @@ import (
 	"strings"
 )
 
+var _ Opt = (*Skip)(nil)
+
+// Skip is an Opt that can be passed to Err or New that
+// indicates how many frames to skip when recording the stack trace.
+// This is useful when wrapping errors in helper functions.
+//
+//	func handleErr(err error) error {
+//		slog.Default().Error("Oh noes", "err", err)
+//		return errz.Err(err, errz.Skip(1))
+//	}
+//
+// Skipping too many frames will panic.
+type Skip int
+
+func (s Skip) apply(e *errz) {
+	*(e.stack) = (*e.stack)[int(s):]
+}
+
 const unknown = "unknown"
 
 // Frame represents a program counter inside a stack frame.

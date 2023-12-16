@@ -96,22 +96,22 @@ func TestIsErrNotExist(t *testing.T) {
 
 func TestIsErrNoData(t *testing.T) {
 	var err error
-	require.False(t, errz.IsErrNoData(err))
-	require.False(t, errz.IsErrNoData(errz.New("huzzah")))
+	require.False(t, errz.Has[*errz.NoDataError](err))
+	require.False(t, errz.Has[*errz.NoDataError](errz.New("huzzah")))
 
 	var nde1 *errz.NoDataError
-	require.True(t, errz.IsErrNoData(nde1))
+	require.True(t, errz.Has[*errz.NoDataError](nde1))
 
 	var nde2 *errz.NoDataError
 	require.True(t, errors.As(nde1, &nde2))
 
 	err = errz.NoData(errz.New("huzzah"))
-	require.True(t, errz.IsErrNoData(err))
+	require.True(t, errz.Has[*errz.NoDataError](err))
 	err = fmt.Errorf("wrap me: %w", err)
-	require.True(t, errz.IsErrNoData(err))
+	require.True(t, errz.Has[*errz.NoDataError](err))
 
 	err = errz.NoDataf("%s doesn't exist", "me")
-	require.True(t, errz.IsErrNoData(err))
+	require.True(t, errz.Has[*errz.NoDataError](err))
 	require.Equal(t, "me doesn't exist", err.Error())
 }
 
@@ -144,7 +144,6 @@ func TestIs(t *testing.T) {
 	require.Equal(t, "wrap: "+sql.ErrNoRows.Error(), err.Error())
 	require.True(t, errors.Is(err, sql.ErrNoRows))
 }
-
 func TestStackTrace(t *testing.T) {
 	e1 := errz.New("inner")
 	e2 := errz.Wrap(e1, "wrap")
@@ -155,4 +154,65 @@ func TestStackTrace(t *testing.T) {
 	gotFinalStack := errz.LastStack(e2)
 	require.NotNil(t, gotFinalStack)
 	require.Equal(t, gotStacks[len(gotStacks)-1], gotFinalStack)
+}
+
+func TestOptSkip(t *testing.T) {
+	err := errz.Wrap(errz.New("inner"), "wrap1")
+	chain := errz.Chain(err)
+	require.Len(t, chain, 2)
+	//t.Logf("\n%+v", errz.LastStack(err).Frames)
+
+	errSkip0 := errz.Err(err, errz.Skip(0))
+	errSkip1 := errz.Err(err, errz.Skip(1))
+	errSkip2 := errz.Err(err, errz.Skip(2))
+
+	require.NotNil(t, errSkip0)
+	require.NotNil(t, errSkip1)
+	require.NotNil(t, errSkip2)
+	//chain2 := errz.Chain(err)
+	//require.Len(t, chain2, 2)
+	stacks0 := errz.Stacks(errSkip0)
+	stacks1 := errz.Stacks(errSkip1)
+	_ = stacks1
+
+	t.Logf("========== stacks0 ==========")
+	for _, st := range stacks0 {
+		t.Logf("\n\n\n\n%+v", st.Frames)
+	}
+	t.Logf("========== stacks1 ==========")
+	for _, st := range stacks1 {
+		t.Logf("\n\n\n\n%+v", st.Frames)
+	}
+	require.Len(t, stacks1[0].Frames, 2)
+
+	lastStack1 := errz.LastStack(errSkip1)
+	t.Logf("========== lastStack1 ==========")
+	t.Logf("\n\n\n\n%+v", lastStack1.Frames)
+
+	//t.Logf("\n%+v", errz.LastStack(err).Frames)
+}
+
+type FooErr struct {
+	msg string
+}
+
+func (e *FooErr) Error() string {
+	return e.msg
+}
+
+func NewFooError(msg string) error {
+	//return &FooErr{error: errz.New(msg, errz.Skip(1))}
+	return errz.Err(&FooErr{msg: msg}, errz.Skip(1))
+
+}
+
+func TestCustomError(t *testing.T) {
+	err := NewFooError("bah")
+	t.Logf("err: %v", err)
+	//st := errz.LastStack(err)
+	//require.NotNil(t, st)
+	stacks := errz.Stacks(err)
+	require.Len(t, stacks, 1)
+	st := stacks[0]
+	t.Logf("\n\n\n\n%+v", st.Frames)
 }

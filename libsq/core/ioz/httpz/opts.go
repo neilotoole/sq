@@ -161,7 +161,7 @@ func OptHeaderTimeout(timeout time.Duration) TripFunc {
 
 		resp, err := errz.Return(next.RoundTrip(req.WithContext(ctx)))
 
-		if errz.IsErrContext(err) {
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			if loz.Take(ctx.Done()) {
 				// The lower-down RoundTripper probably returned ctx.Err(),
 				// not context.Cause(), so we swap it around here.

@@ -1,8 +1,8 @@
 package errz
 
 import (
-	"context"
 	"errors"
+	"fmt"
 )
 
 // NotExistError indicates that a DB object, such
@@ -41,44 +41,31 @@ func IsErrNotExist(err error) bool {
 // REVISIT: Consider moving NoDataError to libsq/driver?
 // REVISIT: Consider renaming NoDataError to EmptyDataError?
 type NoDataError struct {
-	error
+	errz
 }
 
-// Unwrap satisfies the stdlib errors.Unwrap function.
-func (e *NoDataError) Unwrap() error { return e.error }
+//// Unwrap satisfies the stdlib errors.Unwrap function.
+//func (e *NoDataError) Unwrap() error { return e.error }
 
 // NoData returns a NoDataError, or nil.
 func NoData(err error) error {
 	if err == nil {
 		return nil
 	}
-	return &NoDataError{error: Err(err)}
+	return &NoDataError{errz{stack: callers(0), error: err}}
 }
 
 // NoDataf returns a NoDataError.
 func NoDataf(format string, args ...any) error {
-	return &NoDataError{error: Errorf(format, args...)}
+	return &NoDataError{errz: errz{stack: callers(0), msg: fmt.Sprintf(format, args...)}}
 }
 
-// IsErrNoData returns true if err is non-nil and
-// err is or contains NoDataError.
-func IsErrNoData(err error) bool {
-	if err == nil {
-		return false
-	}
-	var e *NoDataError
-	return errors.As(err, &e)
-}
-
-// IsErrContext returns true if err is context.Canceled or context.DeadlineExceeded.
-func IsErrContext(err error) bool {
-	if err == nil {
-		return false
-	}
-
-	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-		return true
-	}
-
-	return false
-}
+//// IsErrNoData returns true if err is non-nil and
+//// err is or contains NoDataError.
+//func IsErrNoData(err error) bool {
+//	if err == nil {
+//		return false
+//	}
+//	var e *NoDataError
+//	return errors.As(err, &e)
+//}

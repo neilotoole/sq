@@ -15,19 +15,32 @@ import (
 	"strings"
 )
 
+// Opt is a functional option. Use with [Err] or [New].
+type Opt interface {
+	apply(*errz)
+}
+
 // Err annotates err with a stack trace at the point Err was called.
 // It is equivalent to Wrap(err, ""). If err is nil, Err returns nil.
-func Err(err error) error {
+func Err(err error, opts ...Opt) error {
 	if err == nil {
 		return nil
 	}
-	return &errz{stack: callers(0), error: err}
+	ez := &errz{stack: callers(0), error: err}
+	for _, opt := range opts {
+		opt.apply(ez)
+	}
+	return ez
 }
 
 // New returns an error with the supplied message, recording the
 // stack trace at the point it was called.
-func New(message string) error {
-	return &errz{stack: callers(0), msg: message}
+func New(message string, opts ...Opt) error {
+	ez := &errz{stack: callers(0), msg: message}
+	for _, opt := range opts {
+		opt.apply(ez)
+	}
+	return ez
 }
 
 // Errorf works like [fmt.Errorf], but it also records the stack trace
