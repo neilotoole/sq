@@ -295,10 +295,11 @@ func (h *handler) handleStackAttrs(buf *buffer, attrs []slog.Attr) {
 	}
 	var stacks []*errz.StackTrace
 	for _, attr := range attrs {
-		v := attr.Value.Any()
-		switch v := v.(type) {
+		switch v := attr.Value.Any().(type) {
 		case *errz.StackTrace:
-			stacks = append(stacks, v)
+			if v != nil {
+				stacks = append(stacks, v)
+			}
 		case []*errz.StackTrace:
 			stacks = append(stacks, v...)
 		}
@@ -338,18 +339,6 @@ func (h *handler) handleStackAttrs(buf *buffer, attrs []slog.Attr) {
 			buf.WriteStringIf(!h.noColor, ansiStackErr)
 			buf.WriteString(stack.Error.Error())
 			buf.WriteStringIf(!h.noColor, ansiReset)
-			buf.WriteByte(' ')
-			//buf.WriteStringIf(!h.noColor, ansiFaint)
-			//// Now we'll print the type of the error.
-			//buf.WriteString(fmt.Sprintf("%T", stack.Error))
-			//if i == len(stacks)-1 {
-			//	// If we're on the final stack, and there's a cause underneath,
-			//	// then we print that type too.
-			//	if cause := errors.Unwrap(stack.Error); cause != nil {
-			//		buf.WriteString(fmt.Sprintf(" -> %T", cause))
-			//	}
-			//}
-			//buf.WriteStringIf(!h.noColor, ansiResetFaint)
 			buf.WriteByte('\n')
 		}
 		lines := strings.Split(stackPrint, "\n")

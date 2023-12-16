@@ -22,15 +22,23 @@ func TestErrEmpty(t *testing.T) {
 	require.Equal(t, "", gotMsg)
 	gotCause := errz.UnwrapChain(err)
 	require.NotNil(t, gotCause)
-
-	t.Log(gotMsg)
 }
 
-func TestIs(t *testing.T) {
-	err := errz.Wrap(sql.ErrNoRows, "wrap")
+func TestErrorf(t *testing.T) {
+	err := errz.Errorf("hello %s", "world")
+	require.Equal(t, "hello world", err.Error())
+	chain := errz.Chain(err)
+	require.Len(t, chain, 1)
 
-	require.Equal(t, "wrap: "+sql.ErrNoRows.Error(), err.Error())
-	require.True(t, errors.Is(err, sql.ErrNoRows))
+	err2 := errz.Errorf("wrap %w", err)
+	require.Equal(t, "wrap hello world", err2.Error())
+	chain2 := errz.Chain(err2)
+
+	// chain2 should have length 3:
+	// - the original "hello world";
+	// - the wrapping error from fmt.Errorf to handle the %w verb;
+	// - the final outer wrapper that errz.Errorf added to the fmt.Errorf error.
+	require.Len(t, chain2, 3)
 }
 
 func TestUnwrapChain(t *testing.T) {
@@ -129,6 +137,12 @@ func TestAs(t *testing.T) {
 	require.True(t, ok)
 	require.NotNil(t, pathErr)
 	require.Equal(t, fp, pathErr.Path)
+}
+
+func TestIs(t *testing.T) {
+	err := errz.Wrap(sql.ErrNoRows, "wrap")
+	require.Equal(t, "wrap: "+sql.ErrNoRows.Error(), err.Error())
+	require.True(t, errors.Is(err, sql.ErrNoRows))
 }
 
 func TestStackTrace(t *testing.T) {

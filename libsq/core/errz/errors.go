@@ -19,19 +19,13 @@ func New(message string) error {
 
 // Errorf works like [fmt.Errorf], but it also records the stack trace
 // at the point it was called. If the format string includes the %w verb,
-// [fmt.Errorf] is first called to construct the error, which is then wrapped.
+// [fmt.Errorf] is first called to construct the error, and then the
+// returned error is again wrapped to record the stack trace.
 func Errorf(format string, args ...any) error {
 	if strings.Contains(format, "%w") {
 		return &errz{stack: callers(), error: fmt.Errorf(format, args...)}
 	}
 	return &errz{stack: callers(), msg: fmt.Sprintf(format, args...)}
-
-	//return Err(fmt.Errorf(format, args...))
-	//return &errz{
-	//	// REVISIT: should we delegate to fmt.Errorf instead?
-	//	msg:   fmt.Sprintf(format, args...),
-	//	stack: callers(),
-	//}
 }
 
 // errz is the error implementation used by this package.
