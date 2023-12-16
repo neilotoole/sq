@@ -181,6 +181,11 @@ func (s *stack) Format(st fmt.State, verb rune) {
 	}
 }
 
+type stackTracer interface {
+	stackTrace() *StackTrace
+	inner() error
+}
+
 func (s *stack) stackTrace() *StackTrace {
 	f := make([]Frame, len(*s))
 	for i := 0; i < len(f); i++ {
@@ -218,13 +223,14 @@ func Stacks(err error) []*StackTrace {
 
 	var stacks []*StackTrace
 	for err != nil {
-		if ez, ok := err.(*errz); ok {
-			st := ez.stackTrace()
+		if tracer, ok := err.(stackTracer); ok {
+			st := tracer.stackTrace()
 			if st != nil {
 				stacks = append(stacks, st)
 			}
 		}
 
+		//err = errors.Unwrap(err)
 		err = errors.Unwrap(err)
 	}
 
@@ -243,24 +249,58 @@ func LastStack(err error) *StackTrace {
 		return nil
 	}
 
-	var ez *errz
-	var ok bool
+	var (
+		//var ez *errz
+		ok     bool
+		tracer stackTracer
+		inner  error
+	)
 	for err != nil {
-		ez, ok = err.(*errz)
-		if !ok || ez == nil {
+		tracer, ok = err.(stackTracer)
+		if !ok || tracer == nil {
 			return nil
 		}
 
-		if ez.error == nil {
-			return ez.stackTrace()
+		inner = tracer.inner()
+		if inner == nil {
+			return tracer.stackTrace()
 		}
 
-		if _, ok = ez.error.(*errz); !ok {
-			return ez.stackTrace()
+		if _, ok = inner.(stackTracer); !ok {
+			return tracer.stackTrace()
 		}
 
-		err = ez.error
+		err = inner
 	}
 
 	return nil
 }
+
+//
+//func LastStackLegacy(err error) *StackTrace { // FIXME: delete this
+//	if err == nil {
+//		return nil
+//	}
+//
+//	var ez *errz
+//	var ok bool
+//	var tracer stackTracer
+//	for err != nil {
+//		tracer, ok = err.(stackTracer)
+//		if !ok || ez == nil {
+//			return nil
+//		}
+//
+//		if ez.error == nil {
+//			return ez.stackTrace()
+//		}
+//
+//		if _, ok = ez.error.(*errz); !ok {
+//			return ez.stackTrace()
+//		}
+//
+//		err = ez.error
+//	}
+//
+//	return nil
+//}

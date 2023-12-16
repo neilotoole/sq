@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestMultiErrors_stdlib_errors(t *testing.T) {
+func TestAppend_stdlib_errors(t *testing.T) {
 	err1 := errors.New("err1")
 	err2 := errors.New("err2")
 	errs := Errors(err1)
@@ -25,6 +25,20 @@ func TestMultiErrors_stdlib_errors(t *testing.T) {
 	st := stacks[0]
 	require.NotNil(t, st)
 	t.Logf("%+v", st.Frames)
+
+	appendErr = Append(nil, nil)
+	require.Nil(t, appendErr)
+
+	appendErr = Append(err1, nil)
+	require.NotNil(t, appendErr)
+	errs = Errors(appendErr)
+	require.Len(t, errs, 1)
+	gotErr1 := errs[0]
+	_, ok := gotErr1.(*errz)
+	require.True(t, ok)
+	gotErr1Unwrap := errors.Unwrap(gotErr1)
+	require.Equal(t, err1, gotErr1Unwrap)
+
 }
 
 func TestMultiErrors_errz(t *testing.T) {

@@ -1,6 +1,7 @@
 package errz
 
 import (
+	"context"
 	"errors"
 )
 
@@ -67,4 +68,17 @@ func IsErrNoData(err error) bool {
 	}
 	var e *NoDataError
 	return errors.As(err, &e)
+}
+
+// IsErrContext returns true if err is context.Canceled or context.DeadlineExceeded.
+func IsErrContext(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+
+	return false
 }

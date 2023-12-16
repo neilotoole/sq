@@ -27,13 +27,28 @@ import "go.uber.org/multierr"
 // the defer statement.
 func Append(left error, right error) error {
 	switch {
+	case left == nil && right == nil:
+		return nil
 	case left == nil:
-		return Err(right)
+		if _, ok := right.(*errz); !ok {
+			// It's not an errz, so we  need to wrap it.
+			return &errz{stack: callers(), error: right}
+		}
+		return right
 	case right == nil:
-		return Err(left)
+		if _, ok := left.(*errz); !ok {
+			// It's not an errz, so we  need to wrap it.
+			return &errz{stack: callers(), error: left}
+		}
+		return left
 	}
 
-	return Err(multierr.Append(left, right))
+	if me := multierr.Append(left, right); me == nil {
+		return nil
+	} else {
+		return &errz{stack: callers(), error: me}
+	}
+
 }
 
 // Combine combines the passed errors into a single error.
@@ -43,7 +58,8 @@ func Append(left error, right error) error {
 //
 //	Combine(nil, nil)  // == nil
 //
-// If only a single error was passed, it is returned as-is.
+// If only a single error was passed, it is returned as-is if it's already
+// an errz error; otherwise, it is wrapped before return.
 //
 //	Combine(err)  // == err
 //
@@ -72,9 +88,23 @@ func Combine(errors ...error) error {
 	case 0:
 		return nil
 	case 1:
-		return Err(errors[0])
+		if errors[0] == nil {
+			return nil
+		}
+
+		if _, ok := errors[0].(*errz); ok {
+			// It's already an errz, so we don't need to wrap it.
+			return errors[0]
+		}
+
+		return &errz{stack: callers(), error: errors[0]}
 	}
-	return Err(multierr.Combine(errors...))
+
+	if me := multierr.Combine(errors...); me == nil {
+		return nil
+	} else {
+		return &errz{stack: callers(), error: me}
+	}
 }
 
 // Errors returns a slice containing zero or more errors that the supplied
