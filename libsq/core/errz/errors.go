@@ -37,14 +37,14 @@
 // for inspection. Any error value which implements this interface
 //
 //	type causer interface {
-//	        UnwrapFully() error
+//	        UnwrapChain() error
 //	}
 //
-// can be inspected by errors.UnwrapFully. errors.UnwrapFully will recursively retrieve
+// can be inspected by errors.UnwrapChain. errors.UnwrapChain will recursively retrieve
 // the topmost error that does not implement causer, which is assumed to be
 // the original cause. For example:
 //
-//	switch err := errors.UnwrapFully(err).(type) {
+//	switch err := errors.UnwrapChain(err).(type) {
 //	case *MyError:
 //	        // handle specifically
 //	default:
@@ -59,7 +59,7 @@
 // All error values returned from this package implement fmt.Formatter and can
 // be formatted by the fmt package. The following verbs are supported:
 //
-//	%s    print the error. If the error has a UnwrapFully it will be
+//	%s    print the error. If the error has a UnwrapChain it will be
 //	      printed recursively.
 //	%v    see %s
 //	%+v   extended format. Each Frame of the error's StackTrace will
@@ -225,9 +225,9 @@ func (w *withStack) LogValue() slog.Value {
 	return slog.GroupValue(attrs...)
 }
 
-// UnwrapFully returns the underlying *root* cause of the error, if possible.
+// UnwrapChain returns the underlying *root* cause of the error, if possible.
 //
-// Deprecated: get rid of UnwrapFully in favor of errors.Unwrap.
+// Deprecated: get rid of UnwrapChain in favor of errors.Unwrap.
 func (w *withStack) Cause() error { return w.error }
 
 // Unwrap provides compatibility for Go 1.13 error chains.
@@ -319,7 +319,7 @@ func Wrapf(err error, format string, args ...any) error {
 //}
 //
 //func (w *withMessage) Error() string { return w.msg + ": " + w.cause.Error() }
-//func (w *withMessage) UnwrapFully() error  { return w.cause }
+//func (w *withMessage) UnwrapChain() error  { return w.cause }
 //
 //// LogValue implements slog.LogValuer.
 //func (w *withMessage) LogValue() slog.Value {
@@ -333,7 +333,7 @@ func Wrapf(err error, format string, args ...any) error {
 //	switch verb {
 //	case 'v':
 //		if s.Flag('+') {
-//			_, _ = fmt.Fprintf(s, "%+v\n", w.UnwrapFully())
+//			_, _ = fmt.Fprintf(s, "%+v\n", w.UnwrapChain())
 //			_, _ = io.WriteString(s, w.msg)
 //			return
 //		}
@@ -343,10 +343,10 @@ func Wrapf(err error, format string, args ...any) error {
 //	}
 //}
 
-// UnwrapFully returns the underlying *root* cause of the error. That is
-// to say, UnwrapFully returns the final error in the error chain.
-// UnwrapFully returns nil if err is nil, but otherwise will not return nil.
-func UnwrapFully(err error) error {
+// UnwrapChain returns the underlying *root* cause of the error. That is
+// to say, UnwrapChain returns the final non-nil error in the error chain.
+// UnwrapChain returns nil if err is nil.
+func UnwrapChain(err error) error {
 	if err == nil {
 		return nil
 	}

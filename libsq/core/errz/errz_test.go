@@ -21,7 +21,7 @@ func TestErrEmpty(t *testing.T) {
 	err := errz.New("")
 	gotMsg := err.Error()
 	require.Equal(t, "", gotMsg)
-	gotCause := errz.UnwrapFully(err)
+	gotCause := errz.UnwrapChain(err)
 	require.NotNil(t, gotCause)
 
 	t.Log(gotMsg)
@@ -34,7 +34,7 @@ func TestIs(t *testing.T) {
 	require.True(t, errors.Is(err, sql.ErrNoRows))
 }
 
-func TestUnwrapFully(t *testing.T) {
+func TestUnwrapChain(t *testing.T) {
 	var originalErr error //nolint:gosimple
 	originalErr = &customError{msg: "huzzah"}
 
@@ -45,7 +45,7 @@ func TestUnwrapFully(t *testing.T) {
 	require.True(t, errors.As(err, &gotCustomErr))
 	require.Equal(t, "huzzah", gotCustomErr.msg)
 
-	gotUnwrap := errz.UnwrapFully(err)
+	gotUnwrap := errz.UnwrapChain(err)
 	require.Equal(t, *originalErr.(*customError), *gotUnwrap.(*customError)) //nolint:errorlint
 }
 
