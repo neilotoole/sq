@@ -11,13 +11,10 @@ package errz
 import (
 	"context"
 	"errors"
-	"fmt"
-	"log/slog"
-
 	"go.uber.org/multierr"
 )
 
-// Err annotates err with a stack trace at the point WithStack was called.
+// Err annotates err with a stack trace at the point Err was called.
 // If err is nil, Err returns nil.
 func Err(err error) error {
 	if err == nil {
@@ -25,7 +22,7 @@ func Err(err error) error {
 	}
 	return &withStack{
 		err,
-		nil,
+		"",
 		callers(),
 	}
 }
@@ -38,35 +35,6 @@ var Combine = multierr.Combine
 
 // Errors is documented by multierr.Errors.
 var Errors = multierr.Errors
-
-// logValue return a slog.Value for err.
-func logValue(err error) slog.Value {
-	if err == nil {
-		return slog.Value{}
-	}
-
-	c := Cause(err)
-	if c == nil {
-		// Shouldn't happen
-		return slog.Value{}
-	}
-
-	attrs := []slog.Attr{slog.String("msg", err.Error())}
-	if !errors.Is(c, err) {
-		attrs = append(attrs,
-			slog.String("cause", c.Error()),
-			slog.String("type", fmt.Sprintf("%T", c)),
-		)
-
-		// If there's a cause c, "type" will be the type of c.
-	} else {
-		// If there's no cause, "type" will be the type of err.
-		// It's a bit wonky, but probably the most useful thing to show.
-		attrs = append(attrs, slog.String("type", fmt.Sprintf("%T", err)))
-	}
-
-	return slog.GroupValue(attrs...)
-}
 
 // IsErrContext returns true if err is context.Canceled or context.DeadlineExceeded.
 func IsErrContext(err error) bool {
@@ -81,8 +49,11 @@ func IsErrContext(err error) bool {
 	return false
 }
 
-// Return returns t, and err wrapped with [errz.Err].
-// This is useful for the common case of returning a value and an error.
+// Return returns t with err wrapped via [errz.Err].
+// This is useful for the common case of returning a value and
+// an error from a function.
+//
+//	written, err = errz.Return(io.Copy(w, r))
 func Return[T any](t T, err error) (T, error) {
 	return t, Err(err)
 }
@@ -90,43 +61,47 @@ func Return[T any](t T, err error) (T, error) {
 // As is a convenience wrapper around errors.As.
 //
 //	_, err := os.Open("non-existing")
-//	ok, pathErr := errz.As[*fs.PathError](err)
+//	pathErr, ok := errz.As[*fs.PathError](err)
 //	require.True(t, ok)
 //	require.Equal(t, "non-existing", pathErr.Path)
 //
-// Under the covers, As delegates to errors.As.
-func As[E error](err error) (bool, E) {
+// If err is nil, As returns false.
+func As[E error](err error) (E, bool) {
 	var target E
-	if errors.As(err, &target) {
-		return true, target
+	if err == nil {
+		return target, false
 	}
-	return false, target
+
+	if errors.As(err, &target) {
+		return target, true
+	}
+	return target, false
 }
 
-// IsType returns true if err, or an error in its tree, if of type E.
+// Has returns true if err, or an error in its error tree, if of type E.
 //
 //		_, err := os.Open("non-existing")
-//	 isPathErr := errz.IsType[*fs.PathError](err)
+//	 isPathErr := errz.Has[*fs.PathError](err)
 //
-// Under the covers, IsType uses errors.As.
-func IsType[E error](err error) bool {
+// If err is nil, Has returns false.
+func Has[E error](err error) bool {
+	if err == nil {
+		return false
+	}
 	var target E
 	return errors.As(err, &target)
 }
 
-// Tree returns a slice of all the errors in err's tree.
-func Tree(err error) []error {
+// Chain returns a slice of all the errors in err's tree.
+func Chain(err error) []error {
 	if err == nil {
 		return nil
 	}
 
 	var errs []error
-	for {
+	for err != nil {
 		errs = append(errs, err)
 		err = errors.Unwrap(err)
-		if err == nil {
-			break
-		}
 	}
 
 	return errs

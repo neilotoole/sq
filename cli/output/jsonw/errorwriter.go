@@ -5,6 +5,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"io"
 	"log/slog"
+	"strings"
 
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -42,7 +43,6 @@ type stack struct {
 func (w *errorWriter) Error(systemErr error, humanErr error) {
 	pr := w.pr.Clone()
 	pr.String = pr.Warning
-	//pr.Key = pr.Warning
 
 	if !w.pr.Verbose {
 		ed := errorDetail{Error: humanErr.Error()}
@@ -63,10 +63,10 @@ func (w *errorWriter) Error(systemErr error, humanErr error) {
 			}
 
 			st := &stack{
-				Trace: fmt.Sprintf("%+v", sysStack),
+				Trace: strings.ReplaceAll(fmt.Sprintf("%+v", sysStack), "\n\t", "\n  "),
 				Error: &stackError{
 					Message: sysStack.Error.Error(),
-					Tree:    stringz.TypeNames(errz.Tree(sysStack.Error)...),
+					Tree:    stringz.TypeNames(errz.Chain(sysStack.Error)...),
 				}}
 
 			ed.Stack = append(ed.Stack, st)

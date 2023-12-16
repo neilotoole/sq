@@ -7,15 +7,25 @@ import (
 	"io/fs"
 	"net/url"
 	"os"
+	"runtime/debug"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 )
+
+func TestErrEmpty(t *testing.T) {
+	err := errz.New("")
+	gotMsg := err.Error()
+	require.Equal(t, "", gotMsg)
+	gotCause := errz.UnwrapFully(err)
+	require.NotNil(t, gotCause)
+
+	t.Log(gotMsg)
+}
 
 func TestIs(t *testing.T) {
 	err := errz.Wrap(sql.ErrNoRows, "wrap")
@@ -24,26 +34,26 @@ func TestIs(t *testing.T) {
 	require.True(t, errors.Is(err, sql.ErrNoRows))
 }
 
-func TestWrapCauseAs(t *testing.T) {
+func TestUnwrapFully(t *testing.T) {
 	var originalErr error //nolint:gosimple
-	originalErr = &CustomError{msg: "huzzah"}
+	originalErr = &customError{msg: "huzzah"}
 
-	err := errz.Wrap(errz.Wrap(originalErr, "wrap"), "wrap")
-	require.Equal(t, "wrap: wrap: huzzah", err.Error())
+	err := errz.Wrap(errz.Wrap(originalErr, "wrap1"), "wrap2")
+	require.Equal(t, "wrap2: wrap1: huzzah", err.Error())
 
-	var gotCustomErr *CustomError
+	var gotCustomErr *customError
 	require.True(t, errors.As(err, &gotCustomErr))
 	require.Equal(t, "huzzah", gotCustomErr.msg)
 
-	gotUnwrap := errz.Cause(err)
-	require.Equal(t, *originalErr.(*CustomError), *gotUnwrap.(*CustomError)) //nolint:errorlint
+	gotUnwrap := errz.UnwrapFully(err)
+	require.Equal(t, *originalErr.(*customError), *gotUnwrap.(*customError)) //nolint:errorlint
 }
 
-type CustomError struct {
+type customError struct {
 	msg string
 }
 
-func (e *CustomError) Error() string {
+func (e *customError) Error() string {
 	return e.msg
 }
 
@@ -51,13 +61,13 @@ func TestLogError_LogValue(t *testing.T) {
 	log := lgt.New(t)
 	nakedErr := sql.ErrNoRows
 
-	log.Debug("naked", lga.Err, nakedErr)
+	log.Debug("naked", "err", nakedErr)
 
 	zErr := errz.Err(nakedErr)
-	log.Debug("via errz.Err", lga.Err, zErr)
+	log.Debug("via errz.Err", "err", zErr)
 
 	wrapErr := errz.Wrap(nakedErr, "wrap me")
-	log.Debug("via errz.Wrap", lga.Err, wrapErr)
+	log.Debug("via errz.Wrap", "err", wrapErr)
 }
 
 func TestIsErrNotExist(t *testing.T) {
@@ -103,10 +113,10 @@ func TestIsType(t *testing.T) {
 	require.Error(t, err)
 	t.Logf("err: %T %v", err, err)
 
-	got := errz.IsType[*fs.PathError](err)
+	got := errz.Has[*fs.PathError](err)
 	require.True(t, got)
 
-	got = errz.IsType[*url.Error](err)
+	got = errz.Has[*url.Error](err)
 	require.False(t, got)
 }
 
@@ -116,7 +126,7 @@ func TestAs(t *testing.T) {
 	require.Error(t, err)
 	t.Logf("err: %T %v", err, err)
 
-	ok, pathErr := errz.As[*fs.PathError](err)
+	pathErr, ok := errz.As[*fs.PathError](err)
 	require.True(t, ok)
 	require.NotNil(t, pathErr)
 	require.Equal(t, fp, pathErr.Path)
@@ -129,5 +139,7 @@ func TestStackTrace(t *testing.T) {
 	require.True(t, ok)
 	require.NotNil(t, tracer)
 	tr := tracer.StackTrace()
-	t.Logf("stack trace:%+v", tr)
+	t.Logf("stack trace:\n%+v", tr)
+
+	debug.PrintStack()
 }

@@ -321,7 +321,7 @@ func (h *handler) handleStackAttrs(buf *buffer, attrs []slog.Attr) {
 		}
 
 		if stack.Error != nil {
-			errTypes := stringz.TypeNames(errz.Tree(stack.Error)...)
+			errTypes := stringz.TypeNames(errz.Chain(stack.Error)...)
 			for j, typ := range errTypes {
 				buf.WriteStringIf(!h.noColor, ansiStackErrType)
 				buf.WriteString(typ)

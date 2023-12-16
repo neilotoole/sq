@@ -64,7 +64,7 @@ func (l Lockfile) Lock(ctx context.Context, timeout time.Duration) error {
 			// log.Debug("Failed to acquire pid lock, may retry", lga.Attempts, attempts, lga.Err, err)
 			return err
 		},
-		errz.IsType[lockfile.TemporaryError],
+		errz.Has[lockfile.TemporaryError],
 	)
 
 	elapsed := time.Since(start)

@@ -311,7 +311,7 @@ func (dl *Download) do(req *http.Request) (*http.Response, error) {
 		//
 		// We want to trim off that `GET "URL"` prefix, but we only do that if
 		// there's a wrapped error beneath (which should be the case).
-		if errz.IsType[*url.Error](err) && errors.Is(err, context.DeadlineExceeded) {
+		if errz.Has[*url.Error](err) && errors.Is(err, context.DeadlineExceeded) {
 			if e := errors.Unwrap(err); e != nil {
 				err = e
 			}

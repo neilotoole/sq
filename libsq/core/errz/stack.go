@@ -63,7 +63,7 @@ func (f Frame) name() string {
 // Format accepts flags that alter the printing of some verbs, as follows:
 //
 //	%+s   function name and path of source file relative to the compile time
-//	      GOPATH separated by \nSPSP (<funcname>\nSPSP<path>)
+//	      GOPATH separated by \n\t (<funcname>\n\t<path>)
 //	%+v   equivalent to %+s:%d
 func (f Frame) Format(s fmt.State, verb rune) {
 	switch verb {
@@ -71,7 +71,7 @@ func (f Frame) Format(s fmt.State, verb rune) {
 		switch {
 		case s.Flag('+'):
 			_, _ = io.WriteString(s, f.name())
-			_, _ = io.WriteString(s, "\n  ")
+			_, _ = io.WriteString(s, "\n\t")
 			_, _ = io.WriteString(s, f.file())
 		default:
 			_, _ = io.WriteString(s, path.Base(f.file()))
@@ -221,6 +221,7 @@ func Stack(err error) *StackTrace {
 // Stacks returns any stack trace(s) attached to err. If err
 // has been wrapped more than once, there may be multiple stack traces.
 // Generally speaking, the final stack trace is the most interesting.
+// The returned StackTrace items can be printed using fmt "%+v".
 func Stacks(err error) []*StackTrace {
 	if err == nil {
 		return nil
@@ -236,8 +237,8 @@ func Stacks(err error) []*StackTrace {
 		switch err := err.(type) { //nolint:errorlint
 		case *withStack:
 			stacks = append(stacks, err.StackTrace())
-		case *fundamental:
-			stacks = append(stacks, err.StackTrace())
+		//case *fundamental:
+		//	stacks = append(stacks, err.StackTrace())
 		default:
 		}
 

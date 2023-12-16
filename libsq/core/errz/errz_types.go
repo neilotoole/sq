@@ -6,6 +6,8 @@ import (
 
 // NotExistError indicates that a DB object, such
 // as a table, does not exist.
+//
+// REVISIT: Consider moving NotExistError to libsq/driver?
 type NotExistError struct {
 	error
 }
@@ -34,6 +36,9 @@ func IsErrNotExist(err error) bool {
 // NoDataError indicates that there's no data, e.g. an empty document.
 // This is subtly different to NotExistError, which would indicate that
 // the document doesn't exist.
+//
+// REVISIT: Consider moving NoDataError to libsq/driver?
+// REVISIT: Consider renaming NoDataError to EmptyDataError?
 type NoDataError struct {
 	error
 }

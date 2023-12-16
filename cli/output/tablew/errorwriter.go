@@ -43,7 +43,7 @@ func (w *errorWriter) Error(systemErr error, humanErr error) {
 		}
 
 		stackPrint := fmt.Sprintf("%+v", stack)
-		//stackPrint = strings.ReplaceAll(strings.TrimSpace(stackPrint), "\n\t", "\n  ")
+		stackPrint = strings.ReplaceAll(strings.TrimSpace(stackPrint), "\n\t", "\n  ")
 		if stackPrint == "" {
 			continue
 		}
@@ -53,7 +53,7 @@ func (w *errorWriter) Error(systemErr error, humanErr error) {
 		}
 
 		if stack.Error != nil {
-			errTypes := stringz.TypeNames(errz.Tree(stack.Error)...)
+			errTypes := stringz.TypeNames(errz.Chain(stack.Error)...)
 			for i, typ := range errTypes {
 				w.pr.StackErrorType.Fprint(buf, typ)
 				if i < len(errTypes)-1 {
