@@ -3,6 +3,8 @@ package cli
 import (
 	"bufio"
 	"fmt"
+	"github.com/neilotoole/sq/cli/flag"
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"net/url"
 	"os"
 	"time"
@@ -150,7 +152,7 @@ func newXDownloadCmd() *cobra.Command {
   $ sq x download https://sqio-public.s3.amazonaws.com/testdata/payment-large.gen.csv
 `,
 	}
-
+	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 	return cmd
 }
 
@@ -186,7 +188,7 @@ func execXDownloadCmd(cmd *cobra.Command, args []string) error {
 
 	switch {
 	case len(h.Errors) > 0:
-		return h.Errors[0]
+		return errz.Wrap(h.Errors[0], "huzzah")
 	case len(h.WriteErrors) > 0:
 		return h.WriteErrors[0]
 	case len(h.CachedFiles) > 0:

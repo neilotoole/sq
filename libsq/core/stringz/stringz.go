@@ -792,3 +792,13 @@ func SanitizeFilename(name string) string {
 		return name
 	}
 }
+
+// TypeNames returns the go type of each element of a, as
+// rendered by fmt "%T".
+func TypeNames[T any](a ...T) []string {
+	types := make([]string, len(a))
+	for i := range a {
+		types[i] = fmt.Sprintf("%T", a[i])
+	}
+	return types
+}

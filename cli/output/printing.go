@@ -159,6 +159,15 @@ type Printing struct {
 	// Success is the color for success elements.
 	Success *color.Color
 
+	// Stack is the color for stack traces.
+	Stack *color.Color
+
+	// StackError is the color for errors attached to a stack trace.
+	StackError *color.Color
+
+	// StackErrorType is the color for the error types attached to a stack trace.
+	StackErrorType *color.Color
+
 	// Warning is the color for warning elements.
 	Warning *color.Color
 }
@@ -205,6 +214,9 @@ func NewPrinting() *Printing {
 		Number:                 color.New(color.FgCyan),
 		Punc:                   color.New(color.Bold),
 		String:                 color.New(color.FgGreen),
+		Stack:                  color.New(color.Faint),
+		StackError:             color.New(color.FgYellow, color.Faint),
+		StackErrorType:         color.New(color.FgGreen, color.Faint),
 		Success:                color.New(color.FgGreen, color.Bold),
 		Warning:                color.New(color.FgYellow),
 	}
@@ -257,6 +269,9 @@ func (pr *Printing) Clone() *Printing {
 	pr2.Punc = lo.ToPtr(*pr.Punc)
 	pr2.String = lo.ToPtr(*pr.String)
 	pr2.Success = lo.ToPtr(*pr.Success)
+	pr2.Stack = lo.ToPtr(*pr.Stack)
+	pr2.StackError = lo.ToPtr(*pr.StackError)
+	pr2.StackErrorType = lo.ToPtr(*pr.StackErrorType)
 	pr2.Warning = lo.ToPtr(*pr.Warning)
 
 	return pr2
@@ -289,8 +304,9 @@ func (pr *Printing) colors() []*color.Color {
 		pr.DiffHeader, pr.DiffMinus, pr.DiffPlus, pr.DiffNormal, pr.DiffSection,
 		pr.Disabled, pr.Enabled,
 		pr.Error, pr.Faint, pr.Handle, pr.Header, pr.Hilite,
-		pr.Key, pr.Location, pr.Normal, pr.Null, pr.Number,
-		pr.Punc, pr.String, pr.Success, pr.Warning,
+		pr.Key, pr.Location, pr.Normal, pr.Null, pr.Number, pr.Punc,
+		pr.Stack, pr.StackError, pr.StackErrorType,
+		pr.String, pr.Success, pr.Warning,
 	}
 }
 

@@ -1,6 +1,8 @@
 package stringz_test
 
 import (
+	"errors"
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"strconv"
 	"strings"
 	"testing"
@@ -683,4 +685,14 @@ func TestSanitizeFilename(t *testing.T) {
 			require.Equal(t, tc.want, got)
 		})
 	}
+}
+
+func TestTypeNames(t *testing.T) {
+	errs := []error{errors.New("stdlib"), errz.New("errz")}
+	names := stringz.TypeNames(errs...)
+	require.Equal(t, []string{"*errors.errorString", "*errz.fundamental"}, names)
+
+	a := []any{1, "hello", true, errs}
+	names = stringz.TypeNames(a...)
+	require.Equal(t, []string{"int", "string", "bool", "[]error"}, names)
 }

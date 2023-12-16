@@ -55,8 +55,8 @@ package tint
 import (
 	"context"
 	"encoding"
-	"errors"
 	"fmt"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 	"io"
 	"log/slog"
 	"path/filepath"
@@ -73,21 +73,23 @@ import (
 // ANSI modes
 // See: https://gist.github.com/JBlond/2fea43a3049b38287e5e9cefc87b2124
 const (
-	ansiAttr            = "\033[36;2m"
-	ansiBlue            = "\033[34m"
-	ansiBrightBlue      = "\033[94m"
-	ansiBrightGreen     = "\033[92m"
-	ansiBrightGreenBold = "\033[1;92m"
-	ansiBrightRed       = "\033[91m"
-	ansiBrightRedBold   = "\033[1;91m"
-	ansiBrightRedFaint  = "\033[91;2m"
-	ansiBrightYellow    = "\033[93m"
-	ansiFaint           = "\033[2m"
-	ansiReset           = "\033[0m"
-	ansiResetFaint      = "\033[22m"
-	ansiStack           = "\033[0;35m"
-	ansiYellowBold      = "\033[1;33m"
-	ansiStackErr        = ansiYellowBold
+	ansiAttr             = "\033[36;2m"
+	ansiBlue             = "\033[34m"
+	ansiBrightBlue       = "\033[94m"
+	ansiBrightGreen      = "\033[92m"
+	ansiBrightGreenBold  = "\033[1;92m"
+	ansiBrightGreenFaint = "\033[92;2m"
+	ansiBrightRed        = "\033[91m"
+	ansiBrightRedBold    = "\033[1;91m"
+	ansiBrightRedFaint   = "\033[91;2m"
+	ansiBrightYellow     = "\033[93m"
+	ansiFaint            = "\033[2m"
+	ansiReset            = "\033[0m"
+	ansiResetFaint       = "\033[22m"
+	ansiStack            = "\033[0;35m"
+	ansiYellowBold       = "\033[1;33m"
+	ansiStackErr         = ansiYellowBold
+	ansiStackErrType     = ansiBrightGreenFaint
 )
 
 const errKey = "err"
@@ -302,52 +304,64 @@ func (h *handler) handleStackAttrs(buf *buffer, attrs []slog.Attr) {
 		}
 	}
 
-	var count int
-	for i, stack := range stacks {
+	var printed int
+	for _, stack := range stacks {
 		if stack == nil {
 			continue
 		}
 
-		v := fmt.Sprintf("%+v", stack)
-		v = strings.TrimSpace(v)
-		v = strings.ReplaceAll(v, "\n\t", "\n  ")
-		if v == "" {
+		stackPrint := fmt.Sprintf("%+v", stack)
+		stackPrint = strings.ReplaceAll(strings.TrimSpace(stackPrint), "\n\t", "\n  ")
+		if stackPrint == "" {
 			continue
 		}
 
-		if count > 0 {
+		if printed > 0 {
 			buf.WriteString("\n")
 		}
 
 		if stack.Error != nil {
+			errTypes := stringz.TypeNames(errz.Tree(stack.Error)...)
+			for j, typ := range errTypes {
+				buf.WriteStringIf(!h.noColor, ansiStackErrType)
+				buf.WriteString(typ)
+				buf.WriteStringIf(!h.noColor, ansiReset)
+				if j < len(errTypes)-1 {
+					buf.WriteStringIf(!h.noColor, ansiFaint)
+					buf.WriteByte(':')
+					buf.WriteStringIf(!h.noColor, ansiResetFaint)
+					buf.WriteByte(' ')
+				}
+			}
+			buf.WriteByte('\n')
 
 			buf.WriteStringIf(!h.noColor, ansiStackErr)
 			buf.WriteString(stack.Error.Error())
 			buf.WriteStringIf(!h.noColor, ansiReset)
 			buf.WriteByte(' ')
-			buf.WriteStringIf(!h.noColor, ansiFaint)
-			// Now we'll print the type of the error.
-			buf.WriteString(fmt.Sprintf("%T", stack.Error))
-			if i == len(stacks)-1 {
-				// If we're on the final stack, and there's a cause underneath,
-				// then we print that type too.
-				if cause := errors.Unwrap(stack.Error); cause != nil {
-					buf.WriteString(fmt.Sprintf(" -> %T", cause))
-				}
-			}
-			buf.WriteStringIf(!h.noColor, ansiResetFaint)
+			//buf.WriteStringIf(!h.noColor, ansiFaint)
+			//// Now we'll print the type of the error.
+			//buf.WriteString(fmt.Sprintf("%T", stack.Error))
+			//if i == len(stacks)-1 {
+			//	// If we're on the final stack, and there's a cause underneath,
+			//	// then we print that type too.
+			//	if cause := errors.Unwrap(stack.Error); cause != nil {
+			//		buf.WriteString(fmt.Sprintf(" -> %T", cause))
+			//	}
+			//}
+			//buf.WriteStringIf(!h.noColor, ansiResetFaint)
 			buf.WriteByte('\n')
 		}
-		lines := strings.Split(v, "\n")
+		lines := strings.Split(stackPrint, "\n")
 		for _, line := range lines {
 			buf.WriteStringIf(!h.noColor, ansiStack)
 			buf.WriteString(line)
 			buf.WriteStringIf(!h.noColor, ansiReset)
 			buf.WriteByte('\n')
 		}
-		count++
+		printed++
 	}
-	if count > 0 {
+	if printed > 0 {
 		buf.WriteByte('\n')
 	}
 }

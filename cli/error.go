@@ -48,12 +48,12 @@ func printError(ctx context.Context, ru *run.Run, err error) {
 	log.Error("EXECUTION FAILED",
 		lga.Err, err, lga.Cmd, cmdName, lga.Stack, errz.Stacks(err))
 
-	err = humanizeError(err)
+	humanErr := humanizeError(err)
 	if ru != nil {
 		if wrtrs := ru.Writers; wrtrs != nil && wrtrs.Error != nil {
 			// If we have an errorWriter, we print to it
 			// and return.
-			wrtrs.Error.Error(err)
+			wrtrs.Error.Error(err, humanErr)
 			return
 		}
 
@@ -94,7 +94,7 @@ func printError(ctx context.Context, ru *run.Run, err error) {
 	if bootstrapIsFormatJSON(ru) {
 		// The user wants JSON, either via defaults or flags.
 		jw := jsonw.NewErrorWriter(log, errOut, pr)
-		jw.Error(err)
+		jw.Error(err, humanErr)
 		return
 	}
 

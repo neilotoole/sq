@@ -215,7 +215,8 @@ func TestErrorWriter(t *testing.T) {
 			pr.EnableColor(tc.color)
 
 			errw := jsonw.NewErrorWriter(lgt.New(t), buf, pr)
-			errw.Error(errz.New("err1"))
+			e := errz.New("err1")
+			errw.Error(e, e)
 			got := buf.String()
 
 			require.Equal(t, tc.want, got)

@@ -112,3 +112,21 @@ func IsType[E error](err error) bool {
 	var target E
 	return errors.As(err, &target)
 }
+
+// Tree returns a slice of all the errors in err's tree.
+func Tree(err error) []error {
+	if err == nil {
+		return nil
+	}
+
+	var errs []error
+	for {
+		errs = append(errs, err)
+		err = errors.Unwrap(err)
+		if err == nil {
+			break
+		}
+	}
+
+	return errs
+}

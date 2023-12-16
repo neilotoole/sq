@@ -28,7 +28,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/lg"
-	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/core/stringz"
@@ -473,15 +472,8 @@ func getPrinting(cmd *cobra.Command, clnup *cleanup.Cleanup, opts options.Option
 			pb.Stop()
 		})
 
-		// On first write to stderr, we remove the progress widget.
-		//errOut2 = ioz.NotifyOnceWriter(errOut2, func() {
-		//	lg.FromContext(ctx).Debug("Error stream is being written to; removing progress widget")
-		//	pb.Stop()
-		//}) // FIXME: delete
 		cmd.SetContext(progress.NewContext(ctx, pb))
 	}
-
-	lg.FromContext(cmd.Context()).Debug("Constructed output.Printing", lga.Val, pr)
 
 	return pr, out2, errOut2
 }

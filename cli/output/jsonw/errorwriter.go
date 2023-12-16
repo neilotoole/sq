@@ -22,16 +22,16 @@ func NewErrorWriter(log *slog.Logger, out io.Writer, pr *output.Printing) output
 }
 
 // Error implements output.ErrorWriter.
-func (w *errorWriter) Error(err error) {
+func (w *errorWriter) Error(systemErr error, humanErr error) {
 	var errMsg string
 	var stack []string
 
-	if err == nil {
+	if systemErr == nil {
 		errMsg = "nil error"
 	} else {
-		errMsg = err.Error()
+		errMsg = systemErr.Error()
 		if w.pr.Verbose {
-			for _, st := range errz.Stacks(err) {
+			for _, st := range errz.Stacks(systemErr) {
 				s := fmt.Sprintf("%+v", st)
 				stack = append(stack, s)
 			}
