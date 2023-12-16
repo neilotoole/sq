@@ -1,171 +1,86 @@
-// Package errz provides simple error handling primitives.
-//
-// FIXME: update docs
-//
-// The traditional error handling idiom in Go is roughly akin to
-//
-//	if err != nil {
-//	        return err
-//	}
-//
-// which when applied recursively up the call stack results in error reports
-// without context or debugging information. The errors package allows
-// programmers to add context to the failure path in their code in a way
-// that does not destroy the original value of the error.
-//
-// # Adding context to an error
-//
-// The errors.Wrap function returns a new error that adds context to the
-// original error by recording a stack trace at the point Wrap is called,
-// together with the supplied message. For example
-//
-//	_, err := ioutil.ReadAll(r)
-//	if err != nil {
-//	        return errors.Wrap(err, "read failed")
-//	}
-//
-// If additional control is required, the errors.WithStack and
-// errors.WithMessage functions destructure errors.Wrap into its component
-// operations: annotating an error with a stack trace and with a message,
-// respectively.
-//
-// # Retrieving the cause of an error
-//
-// Using errors.Wrap constructs a stack of errors, adding context to the
-// preceding error. Depending on the nature of the error it may be necessary
-// to reverse the operation of errors.Wrap to retrieve the original error
-// for inspection. Any error value which implements this interface
-//
-//	type causer interface {
-//	        UnwrapChain() error
-//	}
-//
-// can be inspected by errors.UnwrapChain. errors.UnwrapChain will recursively retrieve
-// the topmost error that does not implement causer, which is assumed to be
-// the original cause. For example:
-//
-//	switch err := errors.UnwrapChain(err).(type) {
-//	case *MyError:
-//	        // handle specifically
-//	default:
-//	        // unknown error
-//	}
-//
-// Although the causer interface is not exported by this package, it is
-// considered a part of its stable public interface.
-//
-// # Formatted printing of errors
-//
-// All error values returned from this package implement fmt.Formatter and can
-// be formatted by the fmt package. The following verbs are supported:
-//
-//	%s    print the error. If the error has a UnwrapChain it will be
-//	      printed recursively.
-//	%v    see %s
-//	%+v   extended format. Each Frame of the error's StackTrace will
-//	      be printed in detail.
-//
-// # Retrieving the stack trace of an error or wrapper
-//
-// New, Errorf, Wrap, and Wrapf record a stack trace at the point they are
-// invoked. This information can be retrieved with the following interface:
-//
-//	type stackTracer interface {
-//	        StackTrace() errors.StackTrace
-//	}
-//
-// The returned errors.stackTrace type is defined as
-//
-//	type stackTrace []Frame
-//
-// The Frame type represents a call site in the stack trace. Frame supports
-// the fmt.Formatter interface that can be used for printing information about
-// the stack trace of this error. For example:
-//
-//	if err, ok := err.(stackTracer); ok {
-//	        for _, f := range err.stackTrace() {
-//	                fmt.Printf("%+s:%d\n", f, f)
-//	        }
-//	}
-//
-// Although the stackTracer interface is not exported by this package, it is
-// considered a part of its stable public interface.
-//
-// See the documentation for Frame.Format for more details.
 package errz
+
+// ACKNOWLEDGEMENT: The code in this file has its origins
+// in Dave Cheney's pkg/errors.
 
 import (
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"strings"
 )
 
-// New returns an error with the supplied message.
-// New also records the stack trace at the point it was called.
+// New returns an error with the supplied message, recording the
+// stack trace at the point it was called.
 func New(message string) error {
-	return &withStack{
-		msg:   message,
-		stack: callers(),
-	}
+	return &errz{stack: callers(), msg: message}
 }
 
-// Errorf formats according to a format specifier and returns the string
-// as a value that satisfies error.
-// Errorf also records the stack trace at the point it was called.
+// Errorf works like [fmt.Errorf], but it also records the stack trace
+// at the point it was called. If the format string includes the %w verb,
+// [fmt.Errorf] is first called to construct the error, which is then wrapped.
 func Errorf(format string, args ...any) error {
-	return &withStack{
-		msg:   fmt.Sprintf(format, args...),
-		stack: callers(),
+	if strings.Contains(format, "%w") {
+		return &errz{stack: callers(), error: fmt.Errorf(format, args...)}
 	}
+	return &errz{stack: callers(), msg: fmt.Sprintf(format, args...)}
+
+	//return Err(fmt.Errorf(format, args...))
+	//return &errz{
+	//	// REVISIT: should we delegate to fmt.Errorf instead?
+	//	msg:   fmt.Sprintf(format, args...),
+	//	stack: callers(),
+	//}
 }
 
-type withStack struct {
+// errz is the error implementation used by this package.
+type errz struct {
 	error
 	msg string
 	*stack
 }
 
-func (w *withStack) stackTrace() *StackTrace {
-	if w == nil || w.stack == nil {
+func (e *errz) stackTrace() *StackTrace {
+	if e == nil || e.stack == nil {
 		return nil
 	}
 
-	st := w.stack.stackTrace()
+	st := e.stack.stackTrace()
 	if st != nil {
-		st.Error = w
+		st.Error = e
 	}
 	return st
 }
 
 // Error implements stdlib error interface.
-func (w *withStack) Error() string {
-	if w.msg == "" {
-		if w.error == nil {
+func (e *errz) Error() string {
+	if e.msg == "" {
+		if e.error == nil {
 			return ""
 		}
-		return w.error.Error()
+		return e.error.Error()
 	}
-	if w.error == nil {
-		return w.msg
+	if e.error == nil {
+		return e.msg
 	}
-	return w.msg + ": " + w.error.Error()
+	return e.msg + ": " + e.error.Error()
 }
 
 // LogValue implements slog.LogValuer. It returns a slog.GroupValue,
 // having attributes "msg" and "type". If the error has a cause that
-// from outside this package, the cause's type is include in the
+// from outside this package, the cause's type is included in a
 // "cause" attribute.
-func (w *withStack) LogValue() slog.Value {
-	if w == nil {
+func (e *errz) LogValue() slog.Value {
+	if e == nil {
 		return slog.Value{}
 	}
 
 	attrs := make([]slog.Attr, 2, 3)
-	attrs[0] = slog.String("msg", w.Error())
-	attrs[1] = slog.String("type", fmt.Sprintf("%T", w))
+	attrs[0] = slog.String("msg", e.Error())
+	attrs[1] = slog.String("type", fmt.Sprintf("%T", e))
 
-	if cause := w.foreignCause(); cause != nil {
+	if cause := e.foreignCause(); cause != nil {
 		attrs = append(attrs, slog.String("cause", fmt.Sprintf("%T", cause)))
 	}
 
@@ -173,122 +88,84 @@ func (w *withStack) LogValue() slog.Value {
 }
 
 // foreignCause returns the first error in the chain that is
-// not of type *withStack, or returns nil if no such error.
-func (w *withStack) foreignCause() error {
-	if w == nil {
+// not of type *errz, or returns nil if no such error.
+func (e *errz) foreignCause() error {
+	if e == nil {
 		return nil
 	}
 
-	inner := w.error
-	for {
-		switch v := inner.(type) {
-		case nil:
-			return v
-		case *withStack:
+	inner := e.error
+	for inner != nil {
+		// Note: don't use errors.As here; we want the direct type assertion.
+		if v, ok := inner.(*errz); ok {
 			inner = v.error
-		default:
-			return v
+			continue
 		}
+		return inner
 	}
+	return nil
 }
 
 // Unwrap provides compatibility for Go 1.13 error chains.
-func (w *withStack) Unwrap() error { return w.error }
+func (e *errz) Unwrap() error { return e.error }
 
 // Format implements fmt.Formatter.
-func (w *withStack) Format(s fmt.State, verb rune) {
+func (e *errz) Format(s fmt.State, verb rune) {
 	switch verb {
 	case 'v':
 		if s.Flag('+') {
-			if w.error == nil {
-				_, _ = io.WriteString(s, w.msg)
-				w.stack.Format(s, verb)
+			if e.error == nil {
+				_, _ = io.WriteString(s, e.msg)
+				e.stack.Format(s, verb)
 				return
 			} else {
-				_, _ = fmt.Fprintf(s, "%+v", w.error)
-				w.stack.Format(s, verb)
+				_, _ = fmt.Fprintf(s, "%+v", e.error)
+				e.stack.Format(s, verb)
 			}
 			return
 		}
 		fallthrough
 	case 's':
-		if w.error == nil {
-			_, _ = io.WriteString(s, w.msg)
+		if e.error == nil {
+			_, _ = io.WriteString(s, e.msg)
 			return
 		}
-		_, _ = io.WriteString(s, w.Error())
+		_, _ = io.WriteString(s, e.Error())
 	case 'q':
-		if w.error == nil {
-			_, _ = fmt.Fprintf(s, "{%s}", w.msg)
+		if e.error == nil {
+			_, _ = fmt.Fprintf(s, "{%s}", e.msg)
 			return
 		}
-		_, _ = fmt.Fprintf(s, "{%s}", w.Error())
+		_, _ = fmt.Fprintf(s, "{%s}", e.Error())
 	}
 }
 
 // Wrap returns an error annotating err with a stack trace
 // at the point Wrap is called, and the supplied message.
-// If err is nil, Wrap returns nil.
+// If err is nil, Wrap returns nil. See also: Wrapf.
 func Wrap(err error, message string) error {
 	if err == nil {
 		return nil
 	}
 
-	return &withStack{
-		err,
-		message,
-		callers(),
-	}
+	return &errz{stack: callers(), error: err, msg: message}
 }
 
 // Wrapf returns an error annotating err with a stack trace
-// at the point Wrapf is called, and the format specifier.
-// If err is nil, Wrapf returns nil.
+// at the point Wrapf is called. Wrapf will panic if format
+// includes the %w verb: use errz.Errorf for that situation.
+// If err is nil, Wrapf returns nil. See also: Wrap, Errorf.
 func Wrapf(err error, format string, args ...any) error {
 	if err == nil {
 		return nil
 	}
-	//err = &withMessage{
-	//	cause: err,
-	//	msg:   fmt.Sprintf(format, args...),
-	//}
-	return &withStack{
-		err,
-		fmt.Sprintf(format, args...),
-		callers(),
-	}
-}
 
-//
-//type withMessage struct { //nolint:errname
-//	cause error
-//	msg   string
-//}
-//
-//func (w *withMessage) Error() string { return w.msg + ": " + w.cause.Error() }
-//func (w *withMessage) UnwrapChain() error  { return w.cause }
-//
-//// LogValue implements slog.LogValuer.
-//func (w *withMessage) LogValue() slog.Value {
-//	return logValue(w)
-//}
-//
-//// Unwrap provides compatibility for Go 1.13 error chains.
-//func (w *withMessage) Unwrap() error { return w.cause }
-//
-//func (w *withMessage) Format(s fmt.State, verb rune) {
-//	switch verb {
-//	case 'v':
-//		if s.Flag('+') {
-//			_, _ = fmt.Fprintf(s, "%+v\n", w.UnwrapChain())
-//			_, _ = io.WriteString(s, w.msg)
-//			return
-//		}
-//		fallthrough
-//	case 's', 'q':
-//		_, _ = io.WriteString(s, w.Error())
-//	}
-//}
+	if strings.Contains(format, "%w") {
+		panic("errz.Wrapf does not support %w verb: use errz.Errorf instead")
+	}
+
+	return &errz{error: err, msg: fmt.Sprintf(format, args...), stack: callers()}
+}
 
 // UnwrapChain returns the underlying *root* cause of the error. That is
 // to say, UnwrapChain returns the final non-nil error in the error chain.

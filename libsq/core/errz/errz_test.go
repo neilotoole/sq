@@ -7,7 +7,6 @@ import (
 	"io/fs"
 	"net/url"
 	"os"
-	"runtime/debug"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -108,7 +107,7 @@ func TestIsErrNoData(t *testing.T) {
 	require.Equal(t, "me doesn't exist", err.Error())
 }
 
-func TestIsType(t *testing.T) {
+func TestHas(t *testing.T) {
 	_, err := os.Open(stringz.Uniq32() + "-non-existing")
 	require.Error(t, err)
 	t.Logf("err: %T %v", err, err)
@@ -133,10 +132,13 @@ func TestAs(t *testing.T) {
 }
 
 func TestStackTrace(t *testing.T) {
-	err := errz.New("huzzah")
+	e1 := errz.New("inner")
+	e2 := errz.Wrap(e1, "wrap")
 
-	tr := errz.FinalStack(err)
-	t.Logf("stack trace:\n%+v", tr.Frames)
+	gotStacks := errz.Stacks(e2)
+	require.Len(t, gotStacks, 2)
 
-	debug.PrintStack()
+	gotFinalStack := errz.LastStack(e2)
+	require.NotNil(t, gotFinalStack)
+	require.Equal(t, gotStacks[len(gotStacks)-1], gotFinalStack)
 }

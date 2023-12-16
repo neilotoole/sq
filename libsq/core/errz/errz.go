@@ -20,7 +20,7 @@ func Err(err error) error {
 	if err == nil {
 		return nil
 	}
-	return &withStack{
+	return &errz{
 		err,
 		"",
 		callers(),
