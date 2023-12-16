@@ -2,6 +2,7 @@ package jsonw
 
 import (
 	"fmt"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 	"io"
 	"log/slog"
 
@@ -21,33 +22,56 @@ func NewErrorWriter(log *slog.Logger, out io.Writer, pr *output.Printing) output
 	return &errorWriter{log: log, out: out, pr: pr}
 }
 
+type errorDetail struct {
+	Error     string   `json:"error,"`
+	BaseError string   `json:"base_error,omitempty"`
+	Stack     []*stack `json:"stack,omitempty"`
+}
+
+type stackError struct {
+	Message string   `json:"msg"`
+	Tree    []string `json:"tree,omitempty"`
+}
+
+type stack struct {
+	Error *stackError `json:"error,omitempty"`
+	Trace string      `json:"trace,omitempty"`
+}
+
 // Error implements output.ErrorWriter.
 func (w *errorWriter) Error(systemErr error, humanErr error) {
-	var errMsg string
-	var stack []string
+	pr := w.pr.Clone()
+	pr.String = pr.Warning
+	//pr.Key = pr.Warning
 
-	if systemErr == nil {
-		errMsg = "nil error"
-	} else {
-		errMsg = systemErr.Error()
-		if w.pr.Verbose {
-			for _, st := range errz.Stacks(systemErr) {
-				s := fmt.Sprintf("%+v", st)
-				stack = append(stack, s)
+	if !w.pr.Verbose {
+		ed := errorDetail{Error: humanErr.Error()}
+		_ = writeJSON(w.out, pr, ed)
+		return
+	}
+
+	ed := errorDetail{
+		Error:     humanErr.Error(),
+		BaseError: systemErr.Error(),
+	}
+
+	stacks := errz.Stacks(systemErr)
+	if len(stacks) > 0 {
+		for _, sysStack := range stacks {
+			if sysStack == nil {
+				continue
 			}
+
+			st := &stack{
+				Trace: fmt.Sprintf("%+v", sysStack),
+				Error: &stackError{
+					Message: sysStack.Error.Error(),
+					Tree:    stringz.TypeNames(errz.Tree(sysStack.Error)...),
+				}}
+
+			ed.Stack = append(ed.Stack, st)
 		}
 	}
 
-	t := struct {
-		Error string   `json:"error"`
-		Stack []string `json:"stack,omitempty"`
-	}{
-		Error: errMsg,
-		Stack: stack,
-	}
-
-	pr := w.pr.Clone()
-	pr.String = pr.Error
-
-	_ = writeJSON(w.out, pr, t)
+	_ = writeJSON(w.out, pr, ed)
 }

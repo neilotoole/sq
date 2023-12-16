@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"net/url"
 	"os"
 	"strings"
 
@@ -156,19 +155,6 @@ func panicOn(err error) {
 func humanizeError(err error) error {
 	if err == nil {
 		return nil
-	}
-
-	// Download timeout errors are typically wrapped in an url.Error, resulting
-	// in a message like:
-	//
-	//  Get "https://example.com": http response header not received within 1ms timeout
-	//
-	// We want to trim off that prefix, but we only do that if there's a wrapped
-	// error beneath (which should be the case).
-	if errz.IsType[*url.Error](err) && errors.Is(err, context.DeadlineExceeded) {
-		if e := errors.Unwrap(err); e != nil {
-			err = e
-		}
 	}
 
 	switch {

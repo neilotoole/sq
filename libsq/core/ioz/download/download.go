@@ -11,6 +11,7 @@ package download
 import (
 	"bufio"
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
@@ -303,6 +304,18 @@ func (dl *Download) get(req *http.Request, h Handler) {
 func (dl *Download) do(req *http.Request) (*http.Response, error) {
 	resp, err := dl.c.Do(req)
 	if err != nil {
+		// Download timeout errors are typically wrapped in an url.Error, resulting
+		// in a message like:
+		//
+		//  Get "https://example.com": http response header not received within 1ms timeout
+		//
+		// We want to trim off that `GET "URL"` prefix, but we only do that if
+		// there's a wrapped error beneath (which should be the case).
+		if errz.IsType[*url.Error](err) && errors.Is(err, context.DeadlineExceeded) {
+			if e := errors.Unwrap(err); e != nil {
+				err = e
+			}
+		}
 		return nil, err
 	}
 
