@@ -63,7 +63,7 @@ func (f Frame) name() string {
 // Format accepts flags that alter the printing of some verbs, as follows:
 //
 //	%+s   function name and path of source file relative to the compile time
-//	      GOPATH separated by \n\t (<funcname>\n\t<path>)
+//	      GOPATH separated by \nSPSP (<funcname>\nSPSP<path>)
 //	%+v   equivalent to %+s:%d
 func (f Frame) Format(s fmt.State, verb rune) {
 	switch verb {
@@ -71,7 +71,7 @@ func (f Frame) Format(s fmt.State, verb rune) {
 		switch {
 		case s.Flag('+'):
 			_, _ = io.WriteString(s, f.name())
-			_, _ = io.WriteString(s, "\n\t")
+			_, _ = io.WriteString(s, "\n  ")
 			_, _ = io.WriteString(s, f.file())
 		default:
 			_, _ = io.WriteString(s, path.Base(f.file()))
@@ -119,8 +119,10 @@ func (st *StackTrace) Format(s fmt.State, verb rune) {
 	case 'v':
 		switch {
 		case s.Flag('+'):
-			for _, f := range st.Frames {
-				_, _ = io.WriteString(s, "\n")
+			for i, f := range st.Frames {
+				if i != 0 {
+					_, _ = io.WriteString(s, "\n")
+				}
 				f.Format(s, verb)
 			}
 		case s.Flag('#'):
