@@ -4,10 +4,10 @@ package errz
 // package was in use before stdlib introduced the errors.Join function.
 // It's possible, maybe even desirable, to refactor these functions
 // to use stdlib errors instead.
-
+//
 import "go.uber.org/multierr"
 
-// Append appends the given errors together. Either value may be nil.
+// Append2 appends the given errors together. Either value may be nil.
 //
 // This function is a specialization of Combine for the common case where
 // there are only two errors.
@@ -25,20 +25,20 @@ import "go.uber.org/multierr"
 //
 // Note that the variable MUST be a named return to append an error to it from
 // the defer statement.
-func Append(left error, right error) error {
+func Append2(left error, right error) error {
 	switch {
 	case left == nil && right == nil:
 		return nil
 	case left == nil:
 		if _, ok := right.(*errz); !ok {
 			// It's not an errz, so we  need to wrap it.
-			return &errz{stack: callers(), error: right}
+			return &errz{stack: callers(0), error: right}
 		}
 		return right
 	case right == nil:
 		if _, ok := left.(*errz); !ok {
 			// It's not an errz, so we  need to wrap it.
-			return &errz{stack: callers(), error: left}
+			return &errz{stack: callers(0), error: left}
 		}
 		return left
 	}
@@ -46,12 +46,12 @@ func Append(left error, right error) error {
 	if me := multierr.Append(left, right); me == nil {
 		return nil
 	} else {
-		return &errz{stack: callers(), error: me}
+		return &errz{stack: callers(0), error: me}
 	}
 
 }
 
-// Combine combines the passed errors into a single error.
+// Combine2 combines the passed errors into a single error.
 //
 // If zero arguments were passed or if all items are nil, a nil error is
 // returned.
@@ -83,7 +83,7 @@ func Append(left error, right error) error {
 // formatted with %+v.
 //
 //	fmt.Sprintf("%+v", errz.Combine(err1, err2))
-func Combine(errors ...error) error {
+func Combine2(errors ...error) error {
 	switch len(errors) {
 	case 0:
 		return nil
@@ -97,17 +97,17 @@ func Combine(errors ...error) error {
 			return errors[0]
 		}
 
-		return &errz{stack: callers(), error: errors[0]}
+		return &errz{stack: callers(0), error: errors[0]}
 	}
 
 	if me := multierr.Combine(errors...); me == nil {
 		return nil
 	} else {
-		return &errz{stack: callers(), error: me}
+		return &errz{stack: callers(0), error: me}
 	}
 }
 
-// Errors returns a slice containing zero or more errors that the supplied
+// Errors2 returns a slice containing zero or more errors that the supplied
 // error is composed of. If the error is nil, a nil slice is returned.
 //
 //	err := errz.Append(r.Close(), w.Close())
@@ -117,7 +117,7 @@ func Combine(errors ...error) error {
 // just the error that was passed in.
 //
 // Callers of this function are free to modify the returned slice.
-func Errors(err error) []error {
+func Errors2(err error) []error {
 	if err == nil {
 		return nil
 	}
@@ -143,6 +143,23 @@ func Errors(err error) []error {
 	return multierr.Errors(alien)
 }
 
-type multipleErrors interface {
-	Unwrap() []error
+//
+//type multipleErrors interface {
+//	Unwrap() []error
+//}
+
+// inner implements stackTracer.
+func (merr *multiError) inner() error { return nil }
+
+// stackTrace implements stackTracer.
+func (merr *multiError) stackTrace() *StackTrace {
+	if merr == nil || merr.stack == nil {
+		return nil
+	}
+
+	st := merr.stack.stackTrace()
+	if st != nil {
+		st.Error = merr
+	}
+	return st
 }

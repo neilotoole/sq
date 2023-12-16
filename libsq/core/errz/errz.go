@@ -1,7 +1,10 @@
-// Package errz is sq's error package. It exists to combine
-// functionality from several error packages, including
-// annotating errors with stack trace. Much of the code originated
-// in Dave Cheney's pkg/errors.
+// Package errz is sq's error package. It annotates errors with stack traces,
+// and provides functionality for working with multiple errors, and error
+// chains.
+//
+// This package is the lovechild of Dave Cheney's pkg/errors and
+// Uber's go.uber.org/multierr, and much of the code is borrowed
+// from those packages.
 package errz
 
 import (
@@ -18,13 +21,13 @@ func Err(err error) error {
 	if err == nil {
 		return nil
 	}
-	return &errz{stack: callers(), error: err}
+	return &errz{stack: callers(0), error: err}
 }
 
 // New returns an error with the supplied message, recording the
 // stack trace at the point it was called.
 func New(message string) error {
-	return &errz{stack: callers(), msg: message}
+	return &errz{stack: callers(0), msg: message}
 }
 
 // Errorf works like [fmt.Errorf], but it also records the stack trace
@@ -33,9 +36,9 @@ func New(message string) error {
 // returned error is again wrapped to record the stack trace.
 func Errorf(format string, args ...any) error {
 	if strings.Contains(format, "%w") {
-		return &errz{stack: callers(), error: fmt.Errorf(format, args...)}
+		return &errz{stack: callers(0), error: fmt.Errorf(format, args...)}
 	}
-	return &errz{stack: callers(), msg: fmt.Sprintf(format, args...)}
+	return &errz{stack: callers(0), msg: fmt.Sprintf(format, args...)}
 }
 
 // errz is our error type that does the magic.
@@ -156,7 +159,7 @@ func Wrap(err error, message string) error {
 		return nil
 	}
 
-	return &errz{stack: callers(), error: err, msg: message}
+	return &errz{stack: callers(0), error: err, msg: message}
 }
 
 // Wrapf returns an error annotating err with a stack trace
@@ -172,7 +175,7 @@ func Wrapf(err error, format string, args ...any) error {
 		panic("errz.Wrapf does not support %w verb: use errz.Errorf instead")
 	}
 
-	return &errz{error: err, msg: fmt.Sprintf(format, args...), stack: callers()}
+	return &errz{error: err, msg: fmt.Sprintf(format, args...), stack: callers(0)}
 }
 
 // UnwrapChain returns the underlying *root* cause of the error. That is

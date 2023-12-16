@@ -50,8 +50,8 @@ func TestMultiErrors_errz(t *testing.T) {
 	appendErr := Append(err1, err2)
 	errs = Errors(appendErr)
 	require.Equal(t, []error{err1, err2}, errs)
-	t.Logf("%v", appendErr)
-	t.Logf("%+v", appendErr)
+	//t.Logf("%v", appendErr)
+	//t.Logf("%+v", appendErr)
 
 	stacks := Stacks(appendErr)
 	require.NotNil(t, stacks)
