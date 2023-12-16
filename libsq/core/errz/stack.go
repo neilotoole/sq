@@ -79,7 +79,7 @@ func (f Frame) Format(s fmt.State, verb rune) {
 	case 'd':
 		_, _ = io.WriteString(s, strconv.Itoa(f.line()))
 	case 'n':
-		_, _ = io.WriteString(s, funcname(f.name()))
+		_, _ = io.WriteString(s, funcName(f.name()))
 	case 'v':
 		f.Format(s, 's')
 		_, _ = io.WriteString(s, ":")
@@ -97,14 +97,19 @@ func (f Frame) MarshalText() ([]byte, error) {
 	return []byte(fmt.Sprintf("%s %s:%d", name, f.file(), f.line())), nil
 }
 
-// StackTrace is stack of Frames from innermost (newest) to outermost (oldest).
+// StackTrace contains a stack of Frames from innermost (newest)
+// to outermost (oldest), as well as the error value that resulted
+// in this stack trace.
 type StackTrace struct {
 	// Error is the error value that resulted in this stack trace.
 	Error error
 
 	// Frames is the ordered list of frames that make up this stack trace.
-	Frames []Frame
+	Frames Frames
 }
+
+// Frames is the ordered list of frames that make up a stack trace.
+type Frames []Frame
 
 // Format formats the stack of Frames according to the fmt.Formatter interface.
 //
@@ -114,32 +119,32 @@ type StackTrace struct {
 // Format accepts flags that alter the printing of some verbs, as follows:
 //
 //	%+v   Prints filename, function, and line number for each Frame in the stack.
-func (st *StackTrace) Format(s fmt.State, verb rune) {
+func (fs Frames) Format(s fmt.State, verb rune) {
 	switch verb {
 	case 'v':
 		switch {
 		case s.Flag('+'):
-			for i, f := range st.Frames {
+			for i, f := range fs {
 				if i != 0 {
 					_, _ = io.WriteString(s, "\n")
 				}
 				f.Format(s, verb)
 			}
 		case s.Flag('#'):
-			fmt.Fprintf(s, "%#v", []Frame(st.Frames))
+			fmt.Fprintf(s, "%#v", []Frame(fs))
 		default:
-			st.formatSlice(s, verb)
+			fs.formatSlice(s, verb)
 		}
 	case 's':
-		st.formatSlice(s, verb)
+		fs.formatSlice(s, verb)
 	}
 }
 
-// formatSlice will format this StackTrace into the given buffer as a slice of
+// formatSlice will format this Frames into the given buffer as a slice of
 // Frame, only valid when called with '%s' or '%v'.
-func (st *StackTrace) formatSlice(s fmt.State, verb rune) {
+func (fs Frames) formatSlice(s fmt.State, verb rune) {
 	_, _ = io.WriteString(s, "[")
-	for i, f := range st.Frames {
+	for i, f := range fs {
 		if i > 0 {
 			_, _ = io.WriteString(s, " ")
 		}
@@ -154,7 +159,7 @@ func (st *StackTrace) LogValue() slog.Value {
 		return slog.Value{}
 	}
 
-	return slog.StringValue(fmt.Sprintf("%+v", st))
+	return slog.StringValue(fmt.Sprintf("%+v", st.Frames))
 }
 
 // stack represents a stack of program counters.
@@ -162,7 +167,7 @@ type stack []uintptr
 
 func (s *stack) Format(st fmt.State, verb rune) {
 	if s == nil {
-		fmt.Fprintf(st, "<nil>")
+		fmt.Fprint(st, "<nil>")
 	}
 	switch verb { //nolint:gocritic
 	case 'v':
@@ -192,19 +197,38 @@ func callers() *stack {
 	return &st
 }
 
-// funcname removes the path prefix component of a function's name reported by func.Name().
-func funcname(name string) string {
+// funcName removes the path prefix component of a function's name reported by func.Name().
+func funcName(name string) string {
 	i := strings.LastIndex(name, "/")
 	name = name[i+1:]
 	i = strings.Index(name, ".")
 	return name[i+1:]
 }
 
-// Stack returns the last of any stack trace(s) attached to err.
-// If err has been wrapped more than once, there may be multiple stack traces.
+// Stacks returns any stack trace(s) attached to err. If err
+// has been wrapped more than once, there may be multiple stack traces.
 // Generally speaking, the final stack trace is the most interesting.
-// The returned StackTrace can be printed using fmt "%+v".
-func Stack(err error) *StackTrace {
+// The returned StackTrace.Frames can be printed using fmt "%+v".
+func Stacks(err error) []*StackTrace {
+	if err == nil {
+		return nil
+	}
+
+	var stacks []*StackTrace
+	for err != nil {
+		if ez, ok := err.(*withStack); ok {
+			stacks = append(stacks, ez.stackTrace())
+		}
+
+		err = errors.Unwrap(err)
+	}
+
+	return stacks
+}
+
+// FinalStack returns the last of any stack trace(s) attached to err.
+// It is a convenience function to return the last element of errz.Stacks(err).
+func FinalStack(err error) *StackTrace {
 	if err == nil {
 		return nil
 	}
@@ -216,38 +240,4 @@ func Stack(err error) *StackTrace {
 
 	// Return the final element of the slice
 	return stacks[len(stacks)-1]
-}
-
-// Stacks returns any stack trace(s) attached to err. If err
-// has been wrapped more than once, there may be multiple stack traces.
-// Generally speaking, the final stack trace is the most interesting.
-// The returned StackTrace items can be printed using fmt "%+v".
-func Stacks(err error) []*StackTrace {
-	if err == nil {
-		return nil
-	}
-
-	var stacks []*StackTrace
-
-	for {
-		if err == nil {
-			break
-		}
-
-		switch err := err.(type) { //nolint:errorlint
-		case *withStack:
-			stacks = append(stacks, err.StackTrace())
-		//case *fundamental:
-		//	stacks = append(stacks, err.StackTrace())
-		default:
-		}
-
-		err = errors.Unwrap(err)
-	}
-
-	return stacks
-}
-
-type StackTracer interface {
-	StackTrace() *StackTrace
 }

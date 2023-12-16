@@ -42,7 +42,7 @@ func (w *errorWriter) Error(systemErr error, humanErr error) {
 			continue
 		}
 
-		stackPrint := fmt.Sprintf("%+v", stack)
+		stackPrint := fmt.Sprintf("%+v", stack.Frames)
 		stackPrint = strings.ReplaceAll(strings.TrimSpace(stackPrint), "\n\t", "\n  ")
 		if stackPrint == "" {
 			continue

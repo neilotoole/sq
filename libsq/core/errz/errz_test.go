@@ -57,7 +57,7 @@ func (e *customError) Error() string {
 	return e.msg
 }
 
-func TestLogError_LogValue(t *testing.T) {
+func TestLogValue(t *testing.T) {
 	log := lgt.New(t)
 	nakedErr := sql.ErrNoRows
 
@@ -135,11 +135,8 @@ func TestAs(t *testing.T) {
 func TestStackTrace(t *testing.T) {
 	err := errz.New("huzzah")
 
-	tracer, ok := err.(errz.StackTracer)
-	require.True(t, ok)
-	require.NotNil(t, tracer)
-	tr := tracer.StackTrace()
-	t.Logf("stack trace:\n%+v", tr)
+	tr := errz.FinalStack(err)
+	t.Logf("stack trace:\n%+v", tr.Frames)
 
 	debug.PrintStack()
 }

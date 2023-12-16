@@ -74,16 +74,16 @@
 //	        StackTrace() errors.StackTrace
 //	}
 //
-// The returned errors.StackTrace type is defined as
+// The returned errors.stackTrace type is defined as
 //
-//	type StackTrace []Frame
+//	type stackTrace []Frame
 //
 // The Frame type represents a call site in the stack trace. Frame supports
 // the fmt.Formatter interface that can be used for printing information about
 // the stack trace of this error. For example:
 //
 //	if err, ok := err.(stackTracer); ok {
-//	        for _, f := range err.StackTrace() {
+//	        for _, f := range err.stackTrace() {
 //	                fmt.Printf("%+s:%d\n", f, f)
 //	        }
 //	}
@@ -120,63 +120,13 @@ func Errorf(format string, args ...any) error {
 	}
 }
 
-//
-//// fundamental is an error that has a message and a stack, but no caller.
-//type fundamental struct {
-//	msg string
-//	*stack
-//}
-//
-//func (f *fundamental) Error() string { return f.msg }
-//
-//func (f *fundamental) Format(s fmt.State, verb rune) {
-//	switch verb {
-//	case 'v':
-//		if s.Flag('+') {
-//			_, _ = io.WriteString(s, f.msg)
-//			f.stack.Format(s, verb)
-//			return
-//		}
-//		fallthrough
-//	case 's':
-//		_, _ = io.WriteString(s, f.msg)
-//	case 'q':
-//		_, _ = fmt.Fprintf(s, "{%s}", f.msg)
-//	}
-//}
-//
-//var _ StackTracer = (*fundamental)(nil)
-//
-//// StackTrace implements StackTracer.
-//func (f *fundamental) StackTrace() *StackTrace {
-//	if f == nil || f.stack == nil {
-//		return nil
-//	}
-//
-//	st := f.stack.stackTrace()
-//	if st != nil {
-//		st.Error = f
-//	}
-//	return st
-//}
-//
-//// LogValue implements slog.LogValuer.
-//func (f *fundamental) LogValue() slog.Value {
-//	return logValue(f)
-//}
-
 type withStack struct {
 	error
 	msg string
 	*stack
 }
 
-var _ StackTracer = (*withStack)(nil)
-
-// StackTrace implements StackTracer.
-// REVISIT: consider making StackTrace private, or removing
-// it in favor of the Stack function.
-func (w *withStack) StackTrace() *StackTrace {
+func (w *withStack) stackTrace() *StackTrace {
 	if w == nil || w.stack == nil {
 		return nil
 	}
@@ -202,53 +152,50 @@ func (w *withStack) Error() string {
 	return w.msg + ": " + w.error.Error()
 }
 
-// LogValue implements slog.LogValuer.
+// LogValue implements slog.LogValuer. It returns a slog.GroupValue,
+// having attributes "msg" and "type". If the error has a cause that
+// from outside this package, the cause's type is include in the
+// "cause" attribute.
 func (w *withStack) LogValue() slog.Value {
 	if w == nil {
 		return slog.Value{}
 	}
 
-	attrs := make([]slog.Attr, 2, 4)
+	attrs := make([]slog.Attr, 2, 3)
 	attrs[0] = slog.String("msg", w.Error())
 	attrs[1] = slog.String("type", fmt.Sprintf("%T", w))
 
-	// If there's a wrapped error, "cause" and "type" will be
-	// for that wrapped error.
-	if w.error != nil {
-		attrs[1] = slog.String("cause", w.error.Error())
-		attrs = append(attrs, slog.String("type", fmt.Sprintf("%T", w.error)))
-	} else {
-		// If there's no wrapped error, "type" will be the type of w.
-		attrs[1] = slog.String("type", fmt.Sprintf("%T", w))
+	if cause := w.foreignCause(); cause != nil {
+		attrs = append(attrs, slog.String("cause", fmt.Sprintf("%T", cause)))
 	}
 
 	return slog.GroupValue(attrs...)
 }
 
-// UnwrapChain returns the underlying *root* cause of the error, if possible.
-//
-// Deprecated: get rid of UnwrapChain in favor of errors.Unwrap.
-func (w *withStack) Cause() error { return w.error }
+// foreignCause returns the first error in the chain that is
+// not of type *withStack, or returns nil if no such error.
+func (w *withStack) foreignCause() error {
+	if w == nil {
+		return nil
+	}
+
+	inner := w.error
+	for {
+		switch v := inner.(type) {
+		case nil:
+			return v
+		case *withStack:
+			inner = v.error
+		default:
+			return v
+		}
+	}
+}
 
 // Unwrap provides compatibility for Go 1.13 error chains.
 func (w *withStack) Unwrap() error { return w.error }
 
-//func (f *fundamental) Format(s fmt.State, verb rune) {
-//	switch verb {
-//	case 'v':
-//		if s.Flag('+') {
-//			_, _ = io.WriteString(s, f.msg)
-//			f.stack.Format(s, verb)
-//			return
-//		}
-//		fallthrough
-//	case 's':
-//		_, _ = io.WriteString(s, f.msg)
-//	case 'q':
-//		_, _ = fmt.Fprintf(s, "{%s}", f.msg)
-//	}
-//}
-
+// Format implements fmt.Formatter.
 func (w *withStack) Format(s fmt.State, verb rune) {
 	switch verb {
 	case 'v':
@@ -258,7 +205,7 @@ func (w *withStack) Format(s fmt.State, verb rune) {
 				w.stack.Format(s, verb)
 				return
 			} else {
-				_, _ = fmt.Fprintf(s, "%+v", w.Cause())
+				_, _ = fmt.Fprintf(s, "%+v", w.error)
 				w.stack.Format(s, verb)
 			}
 			return
