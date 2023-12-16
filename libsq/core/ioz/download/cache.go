@@ -241,7 +241,7 @@ func (c *cache) clear(ctx context.Context) error {
 func (c *cache) doClear(ctx context.Context) error {
 	deleteErr := errz.Wrap(os.RemoveAll(c.dir), "delete cache dir")
 	recreateErr := ioz.RequireDir(c.dir)
-	err := errz.Combine(deleteErr, recreateErr)
+	err := errz.Append(deleteErr, recreateErr)
 	if err != nil {
 		lg.FromContext(ctx).Error(msgDeleteCache,
 			lga.Dir, c.dir, lga.Err, err)

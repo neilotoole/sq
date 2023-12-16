@@ -74,16 +74,16 @@ func (e *errz) LogValue() slog.Value {
 	attrs[0] = slog.String("msg", e.Error())
 	attrs[1] = slog.String("type", fmt.Sprintf("%T", e))
 
-	if cause := e.foreignCause(); cause != nil {
+	if cause := e.alienCause(); cause != nil {
 		attrs = append(attrs, slog.String("cause", fmt.Sprintf("%T", cause)))
 	}
 
 	return slog.GroupValue(attrs...)
 }
 
-// foreignCause returns the first error in the chain that is
+// alienCause returns the first error in the chain that is
 // not of type *errz, or returns nil if no such error.
-func (e *errz) foreignCause() error {
+func (e *errz) alienCause() error {
 	if e == nil {
 		return nil
 	}

@@ -742,7 +742,7 @@ func newStmtExecFunc(stmt *sql.Stmt, db sqlz.DB, tbl string) driver.StmtExecFunc
 
 		idErr := setIdentityInsert(ctx, db, tbl, true)
 		if idErr != nil {
-			return 0, errz.Combine(errw(err), idErr)
+			return 0, errz.Append(errw(err), idErr)
 		}
 
 		res, err = stmt.ExecContext(ctx, args...)

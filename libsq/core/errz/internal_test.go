@@ -6,18 +6,18 @@ import (
 	"testing"
 )
 
-func TestForeignCause(t *testing.T) {
+func TestAlienCause(t *testing.T) {
 	err := New("boo")
 
-	cause := err.(*errz).foreignCause()
+	cause := err.(*errz).alienCause()
 	require.Nil(t, cause)
 
 	err = Err(context.DeadlineExceeded)
-	cause = err.(*errz).foreignCause()
+	cause = err.(*errz).alienCause()
 	require.Equal(t, context.DeadlineExceeded, cause)
 
 	err = Err(context.DeadlineExceeded)
 	err = Wrap(err, "wrap")
-	cause = err.(*errz).foreignCause()
+	cause = err.(*errz).alienCause()
 	require.Equal(t, context.DeadlineExceeded, cause)
 }

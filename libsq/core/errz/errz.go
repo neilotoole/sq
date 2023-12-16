@@ -11,7 +11,6 @@ package errz
 import (
 	"context"
 	"errors"
-	"go.uber.org/multierr"
 )
 
 // Err annotates err with a stack trace at the point Err was called.
@@ -27,20 +26,13 @@ func Err(err error) error {
 	}
 }
 
-// Append is documented by multierr.Append.
-var Append = multierr.Append
-
-// Combine is documented by multierr.Combine.
-var Combine = multierr.Combine
-
-// Errors is documented by multierr.Errors.
-var Errors = multierr.Errors
-
 // IsErrContext returns true if err is context.Canceled or context.DeadlineExceeded.
 func IsErrContext(err error) bool {
 	if err == nil {
 		return false
 	}
+
+	errors.Join()
 
 	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		return true

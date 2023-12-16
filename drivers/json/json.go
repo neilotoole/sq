@@ -217,5 +217,5 @@ func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Sou
 func (g *grip) Close() error {
 	g.log.Debug(lgm.CloseDB, lga.Handle, g.src.Handle)
 
-	return errz.Combine(g.impl.Close(), g.clnup.Run())
+	return errz.Append(g.impl.Close(), g.clnup.Run())
 }

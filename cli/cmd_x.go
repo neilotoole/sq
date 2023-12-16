@@ -188,7 +188,9 @@ func execXDownloadCmd(cmd *cobra.Command, args []string) error {
 
 	switch {
 	case len(h.Errors) > 0:
-		return errz.Wrap(h.Errors[0], "huzzah")
+		err1 := h.Errors[0]
+		err2 := errz.New("another err")
+		return errz.Combine(err1, err2)
 	case len(h.WriteErrors) > 0:
 		return h.WriteErrors[0]
 	case len(h.CachedFiles) > 0:
