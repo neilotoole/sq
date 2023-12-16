@@ -163,6 +163,7 @@ func (f *fundamental) LogValue() slog.Value {
 
 type withStack struct {
 	error
+	msg *string
 	*stack
 }
 
@@ -179,6 +180,13 @@ func (w *withStack) StackTrace() *StackTrace {
 		st.Error = w
 	}
 	return st
+}
+
+func (w *withStack) Error() string {
+	if w.msg == nil {
+		return w.error.Error()
+	}
+	return *w.msg + ": " + w.error.Error()
 }
 
 func (w *withStack) Cause() error { return w.error }
@@ -214,12 +222,10 @@ func Wrap(err error, message string) error {
 	if err == nil {
 		return nil
 	}
-	err = &withMessage{
-		cause: err,
-		msg:   message,
-	}
+
 	return &withStack{
 		err,
+		&message,
 		callers(),
 	}
 }
@@ -231,71 +237,50 @@ func Wrapf(err error, format string, args ...any) error {
 	if err == nil {
 		return nil
 	}
-	err = &withMessage{
-		cause: err,
-		msg:   fmt.Sprintf(format, args...),
-	}
+	//err = &withMessage{
+	//	cause: err,
+	//	msg:   fmt.Sprintf(format, args...),
+	//}
+	msg := fmt.Sprintf(format, args...)
 	return &withStack{
 		err,
+		&msg,
 		callers(),
 	}
 }
 
-// WithMessage annotates err with a new message.
-// If err is nil, WithMessage returns nil.
-func WithMessage(err error, message string) error {
-	if err == nil {
-		return nil
-	}
-	return &withMessage{
-		cause: err,
-		msg:   message,
-	}
-}
+//
+//type withMessage struct { //nolint:errname
+//	cause error
+//	msg   string
+//}
+//
+//func (w *withMessage) Error() string { return w.msg + ": " + w.cause.Error() }
+//func (w *withMessage) Cause() error  { return w.cause }
+//
+//// LogValue implements slog.LogValuer.
+//func (w *withMessage) LogValue() slog.Value {
+//	return logValue(w)
+//}
+//
+//// Unwrap provides compatibility for Go 1.13 error chains.
+//func (w *withMessage) Unwrap() error { return w.cause }
+//
+//func (w *withMessage) Format(s fmt.State, verb rune) {
+//	switch verb {
+//	case 'v':
+//		if s.Flag('+') {
+//			_, _ = fmt.Fprintf(s, "%+v\n", w.Cause())
+//			_, _ = io.WriteString(s, w.msg)
+//			return
+//		}
+//		fallthrough
+//	case 's', 'q':
+//		_, _ = io.WriteString(s, w.Error())
+//	}
+//}
 
-// WithMessagef annotates err with the format specifier.
-// If err is nil, WithMessagef returns nil.
-func WithMessagef(err error, format string, args ...any) error {
-	if err == nil {
-		return nil
-	}
-	return &withMessage{
-		cause: err,
-		msg:   fmt.Sprintf(format, args...),
-	}
-}
-
-type withMessage struct { //nolint:errname
-	cause error
-	msg   string
-}
-
-func (w *withMessage) Error() string { return w.msg + ": " + w.cause.Error() }
-func (w *withMessage) Cause() error  { return w.cause }
-
-// LogValue implements slog.LogValuer.
-func (w *withMessage) LogValue() slog.Value {
-	return logValue(w)
-}
-
-// Unwrap provides compatibility for Go 1.13 error chains.
-func (w *withMessage) Unwrap() error { return w.cause }
-
-func (w *withMessage) Format(s fmt.State, verb rune) {
-	switch verb {
-	case 'v':
-		if s.Flag('+') {
-			_, _ = fmt.Fprintf(s, "%+v\n", w.Cause())
-			_, _ = io.WriteString(s, w.msg)
-			return
-		}
-		fallthrough
-	case 's', 'q':
-		_, _ = io.WriteString(s, w.Error())
-	}
-}
-
-// Cause returns the underlying cause of the error, if possible.
+// Cause returns the underlying *root* cause of the error, if possible.
 // An error value has a cause if it implements the following
 // interface:
 //
@@ -304,10 +289,7 @@ func (w *withMessage) Format(s fmt.State, verb rune) {
 //	}
 //
 // If the error does not implement Cause, the original error will
-// be returned. If the error is nil, nil will be returned without further
-// investigation.
-//
-// Deprecated: Use errors.Unwrap or errors.As.
+// be returned. Nil is returned if err is nil.
 func Cause(err error) error {
 	type causer interface {
 		Cause() error

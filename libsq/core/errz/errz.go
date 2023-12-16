@@ -25,6 +25,7 @@ func Err(err error) error {
 	}
 	return &withStack{
 		err,
+		nil,
 		callers(),
 	}
 }
