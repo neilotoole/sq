@@ -2,7 +2,6 @@ package jsonw
 
 import (
 	"fmt"
-	"github.com/neilotoole/sq/libsq/core/stringz"
 	"io"
 	"log/slog"
 	"strings"
@@ -26,12 +25,13 @@ func NewErrorWriter(log *slog.Logger, out io.Writer, pr *output.Printing) output
 type errorDetail struct {
 	Error     string   `json:"error,"`
 	BaseError string   `json:"base_error,omitempty"`
+	Tree      string   `json:"tree,omitempty"`
 	Stack     []*stack `json:"stack,omitempty"`
 }
 
 type stackError struct {
-	Message string   `json:"msg"`
-	Tree    []string `json:"tree,omitempty"`
+	Message string `json:"msg"`
+	Tree    string `json:"tree,omitempty"`
 }
 
 type stack struct {
@@ -53,6 +53,7 @@ func (w *errorWriter) Error(systemErr error, humanErr error) {
 	ed := errorDetail{
 		Error:     humanErr.Error(),
 		BaseError: systemErr.Error(),
+		Tree:      errz.SprintTreeTypes(systemErr),
 	}
 
 	stacks := errz.Stacks(systemErr)
@@ -63,10 +64,10 @@ func (w *errorWriter) Error(systemErr error, humanErr error) {
 			}
 
 			st := &stack{
-				Trace: strings.ReplaceAll(fmt.Sprintf("%+v", sysStack), "\n\t", "\n  "),
+				Trace: strings.ReplaceAll(fmt.Sprintf("%+v", sysStack.Frames), "\n\t", "\n  "),
 				Error: &stackError{
 					Message: sysStack.Error.Error(),
-					Tree:    stringz.TypeNames(errz.Chain(sysStack.Error)...),
+					Tree:    errz.SprintTreeTypes(sysStack.Error),
 				}}
 
 			ed.Stack = append(ed.Stack, st)

@@ -6,7 +6,9 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/samber/lo"
 	"io"
+	"log/slog"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -264,6 +266,20 @@ func Every(err error, target error) bool {
 		}
 	}
 	return true
+}
+
+func (merr *multiError) LogValue() slog.Value {
+	if merr == nil {
+		return slog.Value{}
+	}
+
+	attrs := make([]slog.Attr, 4)
+	attrs[0] = slog.String("msg", merr.Error())
+	attrs[1] = slog.String("type", fmt.Sprintf("%T", merr))
+	attrs[2] = slog.String("tree", SprintTreeTypes(merr))
+	errs := lo.Map(merr.Errors(), func(err error, i int) string { return err.Error() })
+	attrs[3] = slog.Any("errors", errs)
+	return slog.GroupValue(attrs...)
 }
 
 func (merr *multiError) Format(f fmt.State, c rune) {

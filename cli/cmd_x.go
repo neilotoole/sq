@@ -193,8 +193,10 @@ func execXDownloadCmd(cmd *cobra.Command, args []string) error {
 
 		err1 := h.Errors[0]
 		err2 := errz.New("another err")
-		return errz.Combine(err1, err2)
-
+		err3 := errz.Combine(err1, err2)
+		//lg.FromContext(ctx).Error("OH NO", lga.Err, err3)
+		return err3
+		//return nil
 	case len(h.WriteErrors) > 0:
 		return h.WriteErrors[0]
 	case len(h.CachedFiles) > 0:

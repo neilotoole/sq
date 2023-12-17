@@ -294,32 +294,3 @@ func LastStack(err error) *StackTrace {
 
 	return nil
 }
-
-//
-//func LastStackLegacy(err error) *StackTrace { // FIXME: delete this
-//	if err == nil {
-//		return nil
-//	}
-//
-//	var ez *errz
-//	var ok bool
-//	var tracer stackTracer
-//	for err != nil {
-//		tracer, ok = err.(stackTracer)
-//		if !ok || ez == nil {
-//			return nil
-//		}
-//
-//		if ez.error == nil {
-//			return ez.stackTrace()
-//		}
-//
-//		if _, ok = ez.error.(*errz); !ok {
-//			return ez.stackTrace()
-//		}
-//
-//		err = ez.error
-//	}
-//
-//	return nil
-//}
