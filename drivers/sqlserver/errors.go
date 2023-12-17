@@ -2,6 +2,7 @@ package sqlserver
 
 import (
 	"errors"
+	"github.com/neilotoole/sq/libsq/driver"
 
 	mssql "github.com/microsoft/go-mssqldb"
 
@@ -42,7 +43,7 @@ func errw(err error) error {
 	case err == nil:
 		return nil
 	case hasErrCode(err, errCodeBadObject):
-		return errz.NotExist(err)
+		return driver.NewNotExistError(err)
 	default:
 		return errz.Err(err)
 	}

@@ -493,7 +493,7 @@ func (merr *multiError) Unwrap() []error {
 	return merr.Errors()
 }
 
-type multipleErrors interface {
+type multipleErrorer interface {
 	Unwrap() []error
 }
 
@@ -503,11 +503,20 @@ func extractErrors(err error) []error {
 	}
 
 	// check if the given err is an Unwrapable error that
-	// implements multipleErrors interface.
-	eg, ok := err.(multipleErrors)
+	// implements multipleErrorer interface.
+	eg, ok := err.(multipleErrorer)
 	if !ok {
 		return []error{err}
 	}
 
 	return append(([]error)(nil), eg.Unwrap()...)
+}
+
+func IsMulti(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	_, ok := err.(*multiError)
+	return ok
 }

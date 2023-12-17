@@ -591,7 +591,7 @@ func getTableRowCounts(ctx context.Context, db sqlz.DB, tblNames []string) (map[
 		}
 
 		err = errw(err)
-		if errz.IsErrNotExist(err) {
+		if errz.Has[*driver.NotExistError](err) {
 			// Sometimes a table can get deleted during the operation. If so,
 			// we just remove that table from the list, and try again.
 			// We could also do this entire thing in a transaction, but where's

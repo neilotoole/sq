@@ -284,7 +284,7 @@ func buildSheetTables(ctx context.Context, srcIngestHeader *bool, sheets []*xShe
 
 			sheetTbl, err := buildSheetTable(gCtx, srcIngestHeader, sheets[i])
 			if err != nil {
-				if errz.Has[*errz.NoDataError](err) {
+				if errz.Has[*driver.EmptyDataError](err) {
 					//if errz.IsErrNoData(err) { // FIXME: remove after testing
 					// If the sheet has no data, we log it and skip it.
 					lg.FromContext(ctx).Warn("Excel sheet has no data",
@@ -324,7 +324,7 @@ func getSrcIngestHeader(o options.Options) *bool {
 // a model of the table, or an error. If the sheet is empty, (nil,nil)
 // is returned. If srcIngestHeader is nil, the function attempts
 // to detect if the sheet has a header row.
-// If the sheet has no data, errz.NoDataError is returned.
+// If the sheet has no data, errz.EmptyDataError is returned.
 func buildSheetTable(ctx context.Context, srcIngestHeader *bool, sheet *xSheet) (*sheetTable, error) {
 	log := lg.FromContext(ctx)
 
@@ -334,11 +334,11 @@ func buildSheetTable(ctx context.Context, srcIngestHeader *bool, sheet *xSheet) 
 	}
 
 	if len(sheet.sampleRows) == 0 {
-		return nil, errz.NoDataf("excel: sheet {%s} has no row data", sheet.name)
+		return nil, driver.NewEmptyDataError("excel: sheet {%s} has no row data", sheet.name)
 	}
 
 	if sheet.sampleRowsMaxWidth == 0 {
-		return nil, errz.NoDataf("excel: sheet {%s} has no column data", sheet.name)
+		return nil, driver.NewEmptyDataError("excel: sheet {%s} has no column data", sheet.name)
 	}
 
 	var hasHeader bool

@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"errors"
+	"github.com/neilotoole/sq/libsq/driver"
 
 	"github.com/jackc/pgx/v5/pgconn"
 
@@ -17,7 +18,7 @@ func errw(err error) error {
 	case err == nil:
 		return nil
 	case hasErrCode(err, errCodeRelationNotExist):
-		return errz.NotExist(err)
+		return driver.NewNotExistError(err)
 	default:
 		return errz.Err(err)
 	}

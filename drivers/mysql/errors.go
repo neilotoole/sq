@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"errors"
+	"github.com/neilotoole/sq/libsq/driver"
 
 	"github.com/go-sql-driver/mysql"
 
@@ -17,7 +18,7 @@ func errw(err error) error {
 	case err == nil:
 		return nil
 	case hasErrCode(err, errNumTableNotExist):
-		return errz.NotExist(err)
+		return driver.NewNotExistError(err)
 	default:
 		return errz.Err(err)
 	}

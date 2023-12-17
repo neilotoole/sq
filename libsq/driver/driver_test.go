@@ -2,6 +2,7 @@ package driver_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -729,7 +730,7 @@ func TestSQLDriver_ErrWrap_IsErrNotExist(t *testing.T) {
 			th, _, _, _, _ := testh.NewWith(t, h)
 			_, err := th.QuerySLQ(h+".does_not_exist", nil)
 			require.Error(t, err)
-			require.True(t, errz.IsErrNotExist(err))
+			require.True(t, errz.Has[*driver.NotExistError](err))
 		})
 	}
 }
@@ -753,4 +754,41 @@ func TestMungeColNames(t *testing.T) {
 			require.Equal(t, tc.want, got)
 		})
 	}
+}
+
+func TestEmptyDataError(t *testing.T) {
+	var err error
+	require.False(t, errz.Has[driver.EmptyDataError](err))
+	require.False(t, errz.Has[driver.EmptyDataError](errz.New("huzzah")))
+
+	var ede1 driver.EmptyDataError
+	require.True(t, errz.Has[driver.EmptyDataError](ede1))
+
+	var ede2 driver.EmptyDataError
+	require.True(t, errors.As(ede1, &ede2))
+
+	err = driver.NewEmptyDataError("huzzah")
+	require.True(t, errz.Has[driver.EmptyDataError](err))
+	err = fmt.Errorf("wrap me: %w", err)
+	require.True(t, errz.Has[driver.EmptyDataError](err))
+
+	err = driver.NewEmptyDataError("%s doesn't exist", "me")
+	require.True(t, errz.Has[driver.EmptyDataError](err))
+	require.Equal(t, "me doesn't exist", err.Error())
+}
+
+func TestNotExistError(t *testing.T) {
+	var err error
+	require.False(t, errz.Has[*driver.NotExistError](err))
+
+	var nee1 *driver.NotExistError
+	require.True(t, errz.Has[*driver.NotExistError](nee1))
+
+	var nee2 *driver.NotExistError
+	require.True(t, errors.As(nee1, &nee2))
+
+	err = driver.NewNotExistError(errz.New("huzzah"))
+	require.True(t, errz.Has[*driver.NotExistError](err))
+	err = fmt.Errorf("wrap me: %w", err)
+	require.True(t, errz.Has[*driver.NotExistError](err))
 }

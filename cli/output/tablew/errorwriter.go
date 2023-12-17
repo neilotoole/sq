@@ -3,7 +3,6 @@ package tablew
 import (
 	"bytes"
 	"fmt"
-	"github.com/neilotoole/sq/libsq/core/stringz"
 	"io"
 	"strings"
 
@@ -53,15 +52,7 @@ func (w *errorWriter) Error(systemErr error, humanErr error) {
 		}
 
 		if stack.Error != nil {
-			errTypes := stringz.TypeNames(errz.Chain(stack.Error)...)
-			for i, typ := range errTypes {
-				w.pr.StackErrorType.Fprint(buf, typ)
-				if i < len(errTypes)-1 {
-					w.pr.Faint.Fprint(buf, ":")
-					buf.WriteByte(' ')
-				}
-			}
-			buf.WriteByte('\n')
+			w.pr.StackErrorType.Fprintln(buf, errz.SprintTreeTypes(stack.Error))
 			w.pr.StackError.Fprintln(buf, stack.Error.Error())
 		}
 

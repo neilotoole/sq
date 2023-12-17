@@ -1,6 +1,7 @@
 package sqlite3
 
 import (
+	"github.com/neilotoole/sq/libsq/driver"
 	"strings"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -17,7 +18,7 @@ func errw(err error) error {
 	case strings.HasPrefix(err.Error(), "no such table:"):
 		// The sqlite driver always returns sqlite3.ErrError(1), so
 		// we need to search by string. Needs further investigation.
-		return errz.NotExist(err)
+		return driver.NewNotExistError(err)
 	default:
 		return errz.Err(err)
 	}

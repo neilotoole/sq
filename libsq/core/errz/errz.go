@@ -225,7 +225,7 @@ func Return[T any](t T, err error) (T, error) {
 //	require.True(t, ok)
 //	require.Equal(t, "non-existing", pathErr.Path)
 //
-// If err is nil, As returns false.
+// If err is nil, As returns false. See also: [errz.Has].
 func As[E error](err error) (E, bool) {
 	var target E
 	if err == nil {
@@ -238,18 +238,17 @@ func As[E error](err error) (E, bool) {
 	return target, false
 }
 
-// Has returns true if err, or an error in its error tree, if of type E.
+// Has returns true if err, or an error in its error tree, matches error type E.
+// An error is considered a match by the rules of [errors.As]
 //
-//		_, err := os.Open("non-existing")
-//	 isPathErr := errz.Has[*fs.PathError](err)
+//	f, err := os.Open("non-existing")
+//	if errz.Has[*fs.PathError](err) {
+//		// Do something
+//	}
 //
-// If err is nil, Has returns false.
+// If err is nil, Has returns false. See also: [errz.As].
 func Has[E error](err error) bool {
-	if err == nil {
-		return false
-	}
-	var target E
-	return errors.As(err, &target)
+	return errors.As(err, new(E))
 }
 
 // Chain returns a slice of all the errors in err's tree.
@@ -265,4 +264,34 @@ func Chain(err error) []error {
 	}
 
 	return errs
+}
+
+// SprintTreeTypes returns a string representation of err's type tree.
+// A multi-error is represented as a slice of its children.
+func SprintTreeTypes(err error) string {
+	if err == nil {
+		return ""
+	}
+	errChain := Chain(err)
+	var sb strings.Builder
+	for i, e := range errChain {
+		sb.WriteString(fmt.Sprintf("%T", e))
+		if me, ok := e.(multipleErrorer); ok {
+			children := me.Unwrap()
+			childText := make([]string, len(children))
+			for j := range children {
+				childText[j] = SprintTreeTypes(children[j])
+			}
+			joined := strings.Join(childText, ", ")
+			sb.WriteRune('[')
+			sb.WriteString(joined)
+			sb.WriteRune(']')
+		}
+
+		if i < len(errChain)-1 {
+			sb.WriteString(": ")
+		}
+	}
+
+	return sb.String()
 }

@@ -1,9 +1,9 @@
 package errz_test
 
 import (
+	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"io/fs"
 	"net/url"
 	"os"
@@ -77,44 +77,6 @@ func TestLogValue(t *testing.T) {
 	log.Debug("via errz.Wrap", "err", wrapErr)
 }
 
-func TestIsErrNotExist(t *testing.T) {
-	var err error
-	require.False(t, errz.IsErrNotExist(err))
-	require.False(t, errz.IsErrNotExist(errz.New("huzzah")))
-
-	var nee1 *errz.NotExistError
-	require.True(t, errz.IsErrNotExist(nee1))
-
-	var nee2 *errz.NotExistError
-	require.True(t, errors.As(nee1, &nee2))
-
-	err = errz.NotExist(errz.New("huzzah"))
-	require.True(t, errz.IsErrNotExist(err))
-	err = fmt.Errorf("wrap me: %w", err)
-	require.True(t, errz.IsErrNotExist(err))
-}
-
-func TestIsErrNoData(t *testing.T) {
-	var err error
-	require.False(t, errz.Has[*errz.NoDataError](err))
-	require.False(t, errz.Has[*errz.NoDataError](errz.New("huzzah")))
-
-	var nde1 *errz.NoDataError
-	require.True(t, errz.Has[*errz.NoDataError](nde1))
-
-	var nde2 *errz.NoDataError
-	require.True(t, errors.As(nde1, &nde2))
-
-	err = errz.NoData(errz.New("huzzah"))
-	require.True(t, errz.Has[*errz.NoDataError](err))
-	err = fmt.Errorf("wrap me: %w", err)
-	require.True(t, errz.Has[*errz.NoDataError](err))
-
-	err = errz.NoDataf("%s doesn't exist", "me")
-	require.True(t, errz.Has[*errz.NoDataError](err))
-	require.Equal(t, "me doesn't exist", err.Error())
-}
-
 func TestHas(t *testing.T) {
 	_, err := os.Open(stringz.Uniq32() + "-non-existing")
 	require.Error(t, err)
@@ -125,6 +87,10 @@ func TestHas(t *testing.T) {
 
 	got = errz.Has[*url.Error](err)
 	require.False(t, got)
+
+	got = errz.Has[*url.Error](nil)
+	require.False(t, got)
+
 }
 
 func TestAs(t *testing.T) {
@@ -215,4 +181,19 @@ func TestCustomError(t *testing.T) {
 	require.Len(t, stacks, 1)
 	st := stacks[0]
 	t.Logf("\n\n\n\n%+v", st.Frames)
+}
+
+//nolint:lll
+func TestSprintTreeTypes(t *testing.T) {
+	err := errz.Wrap(errz.Wrap(errz.New("inner"), "wrap1"), "")
+	require.Equal(t, "wrap1: inner", err.Error())
+
+	got := errz.SprintTreeTypes(err)
+	require.Equal(t, "*errz.errz: *errz.errz: *errz.errz", got)
+
+	me := errz.Combine(context.DeadlineExceeded, err, sql.ErrNoRows)
+	err = errz.Wrap(me, "wrap3")
+	got = errz.SprintTreeTypes(err)
+
+	require.Equal(t, "*errz.errz: *errz.multiError[context.deadlineExceededError, *errz.errz: *errz.errz: *errz.errz, *errors.errorString]", got)
 }

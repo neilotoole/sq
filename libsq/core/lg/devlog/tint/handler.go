@@ -56,7 +56,6 @@ import (
 	"context"
 	"encoding"
 	"fmt"
-	"github.com/neilotoole/sq/libsq/core/stringz"
 	"io"
 	"log/slog"
 	"path/filepath"
@@ -322,18 +321,9 @@ func (h *handler) handleStackAttrs(buf *buffer, attrs []slog.Attr) {
 		}
 
 		if stack.Error != nil {
-			errTypes := stringz.TypeNames(errz.Chain(stack.Error)...)
-			for j, typ := range errTypes {
-				buf.WriteStringIf(!h.noColor, ansiStackErrType)
-				buf.WriteString(typ)
-				buf.WriteStringIf(!h.noColor, ansiReset)
-				if j < len(errTypes)-1 {
-					buf.WriteStringIf(!h.noColor, ansiFaint)
-					buf.WriteByte(':')
-					buf.WriteStringIf(!h.noColor, ansiResetFaint)
-					buf.WriteByte(' ')
-				}
-			}
+			buf.WriteStringIf(!h.noColor, ansiStackErrType)
+			buf.WriteString(errz.SprintTreeTypes(stack.Error))
+			buf.WriteStringIf(!h.noColor, ansiReset)
 			buf.WriteByte('\n')
 
 			buf.WriteStringIf(!h.noColor, ansiStackErr)

@@ -3,6 +3,7 @@ package driver
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	"github.com/neilotoole/sq/libsq/ast/render"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -230,4 +231,34 @@ func OpeningPing(ctx context.Context, src *source.Source, db *sql.DB) error {
 	}
 
 	return nil
+}
+
+// EmptyDataError indicates that there's no data, e.g. an empty document.
+// This is subtly different to NotExistError, which would indicate that
+// the document doesn't exist.
+type EmptyDataError string
+
+// Error satisfies the stdlib error interface.
+func (e EmptyDataError) Error() string { return string(e) }
+
+// NewEmptyDataError returns a EmptyDataError.
+func NewEmptyDataError(format string, args ...any) error {
+	return errz.Err(EmptyDataError(fmt.Sprintf(format, args...)), errz.Skip(1))
+}
+
+// NotExistError indicates that a DB object, such
+// as a table, does not exist.
+type NotExistError struct {
+	error
+}
+
+// Unwrap satisfies the stdlib errors.Unwrap function.
+func (e *NotExistError) Unwrap() error { return e.error }
+
+// NewNotExistError returns a NotExistError, or nil.
+func NewNotExistError(err error) error {
+	if err == nil {
+		return nil
+	}
+	return errz.Err(&NotExistError{error: err})
 }

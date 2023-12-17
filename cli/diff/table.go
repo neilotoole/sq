@@ -3,6 +3,7 @@ package diff
 import (
 	"context"
 	"fmt"
+	"github.com/neilotoole/sq/libsq/driver"
 
 	"golang.org/x/sync/errgroup"
 
@@ -120,7 +121,7 @@ func fetchTableMeta(ctx context.Context, ru *run.Run, src *source.Source, table 
 	}
 	md, err := grip.TableMetadata(ctx, table)
 	if err != nil {
-		if errz.IsErrNotExist(err) {
+		if errz.Has[*driver.NotExistError](err) {
 			return nil, nil //nolint:nilnil
 		}
 		return nil, err

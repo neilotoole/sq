@@ -294,7 +294,7 @@ func TestHandleSomeSheetsEmpty(t *testing.T) {
 	for _, tblName := range []string{"Sheet2Empty, Sheet3Empty"} {
 		_, err = th.TableMetadata(src, tblName)
 		require.Error(t, err)
-		require.True(t, errz.IsErrNotExist(err))
+		require.True(t, errz.Has[*driver.NotExistError](err))
 	}
 }
 
