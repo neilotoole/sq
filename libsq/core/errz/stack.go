@@ -216,7 +216,7 @@ func callers(skip int) *stack {
 	const depth = 32
 	var pcs [depth]uintptr
 	n := runtime.Callers(3, pcs[:])
-	//var st stack = pcs[0:n]
+	// var st stack = pcs[0:n]
 	var st stack = pcs[skip:n]
 	return &st
 }
@@ -242,14 +242,14 @@ func Stacks(err error) []*StackTrace {
 
 	var stacks []*StackTrace
 	for err != nil {
-		if tracer, ok := err.(stackTracer); ok {
+		if tracer, ok := err.(stackTracer); ok { //nolint:errorlint
 			st := tracer.stackTrace()
 			if st != nil {
 				stacks = append(stacks, st)
 			}
 		}
 
-		//err = errors.Unwrap(err)
+		// err = errors.Unwrap(err)
 		err = errors.Unwrap(err)
 	}
 
@@ -269,13 +269,13 @@ func LastStack(err error) *StackTrace {
 	}
 
 	var (
-		//var ez *errz
+		// var ez *errz
 		ok     bool
 		tracer stackTracer
 		inner  error
 	)
 	for err != nil {
-		tracer, ok = err.(stackTracer)
+		tracer, ok = err.(stackTracer) //nolint:errorlint
 		if !ok || tracer == nil {
 			return nil
 		}
@@ -285,6 +285,7 @@ func LastStack(err error) *StackTrace {
 			return tracer.stackTrace()
 		}
 
+		//nolint:errorlint
 		if _, ok = inner.(stackTracer); !ok {
 			return tracer.stackTrace()
 		}

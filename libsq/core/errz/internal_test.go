@@ -2,10 +2,12 @@ package errz
 
 import (
 	"context"
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
+//nolint:errorlint
 func TestAlienCause(t *testing.T) {
 	err := New("boo")
 

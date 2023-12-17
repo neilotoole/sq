@@ -6,12 +6,13 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/samber/lo"
 	"io"
 	"log/slog"
 	"strings"
 	"sync"
 	"sync/atomic"
+
+	"github.com/samber/lo"
 )
 
 // Copyright (c) 2017-2023 Uber Technologies, Inc.
@@ -159,7 +160,7 @@ var (
 	// Separator for single-line error messages.
 	_singlelineSeparator = []byte("; ")
 
-	// Prefix for multi-line messages
+	// Prefix for multi-line messages.
 	_multilinePrefix = []byte("the following errors occurred:")
 
 	// Prefix for the first and following lines of an item in a list of
@@ -185,10 +186,6 @@ var _bufferPool = sync.Pool{
 	},
 }
 
-type errorGroup interface {
-	Errors() []error
-}
-
 // Errors returns a slice containing zero or more errors that the supplied
 // error is composed of. If the error is nil, a nil slice is returned.
 //
@@ -203,24 +200,24 @@ func Errors(err error) []error {
 	return extractErrors(err)
 }
 
-// multiError is an error that holds one or more errors.
+// multiErr is an error that holds one or more errors.
 //
 // An instance of this is guaranteed to be non-empty and flattened. That is,
-// none of the errors inside multiError are other multiErrors.
+// none of the errors inside multiErr are other multiErrors.
 //
-// multiError formats to a semi-colon delimited list of error messages with
+// multiErr formats to a semicolon delimited list of error messages with
 // %v and with a more readable multi-line format with %+v.
-type multiError struct {
+type multiErr struct { //nolint:errname
 	copyNeeded atomic.Bool
 	errors     []error
 	*stack
 }
 
 // inner implements stackTracer.
-func (merr *multiError) inner() error { return nil }
+func (merr *multiErr) inner() error { return nil }
 
 // stackTrace implements stackTracer.
-func (merr *multiError) stackTrace() *StackTrace {
+func (merr *multiErr) stackTrace() *StackTrace {
 	if merr == nil || merr.stack == nil {
 		return nil
 	}
@@ -235,19 +232,19 @@ func (merr *multiError) stackTrace() *StackTrace {
 // Errors returns the list of underlying errors.
 //
 // This slice MUST NOT be modified.
-func (merr *multiError) Errors() []error {
+func (merr *multiErr) Errors() []error {
 	if merr == nil {
 		return nil
 	}
 	return merr.errors
 }
 
-func (merr *multiError) Error() string {
+func (merr *multiErr) Error() string {
 	if merr == nil {
 		return ""
 	}
 
-	buff := _bufferPool.Get().(*bytes.Buffer)
+	buff, _ := _bufferPool.Get().(*bytes.Buffer)
 	buff.Reset()
 
 	merr.writeSingleline(buff)
@@ -257,18 +254,8 @@ func (merr *multiError) Error() string {
 	return result
 }
 
-// Every compares every error in the given err against the given target error
-// using [errors.Is], and returns true only if every comparison returned true.
-func Every(err error, target error) bool {
-	for _, e := range extractErrors(err) {
-		if !errors.Is(e, target) {
-			return false
-		}
-	}
-	return true
-}
-
-func (merr *multiError) LogValue() slog.Value {
+// LogValue implements [slog.LogValuer].
+func (merr *multiErr) LogValue() slog.Value {
 	if merr == nil {
 		return slog.Value{}
 	}
@@ -282,7 +269,7 @@ func (merr *multiError) LogValue() slog.Value {
 	return slog.GroupValue(attrs...)
 }
 
-func (merr *multiError) Format(f fmt.State, c rune) {
+func (merr *multiErr) Format(f fmt.State, c rune) {
 	if c == 'v' && f.Flag('+') {
 		merr.writeMultiline(f)
 	} else {
@@ -290,22 +277,22 @@ func (merr *multiError) Format(f fmt.State, c rune) {
 	}
 }
 
-func (merr *multiError) writeSingleline(w io.Writer) {
+func (merr *multiErr) writeSingleline(w io.Writer) {
 	first := true
 	for _, item := range merr.errors {
 		if first {
 			first = false
 		} else {
-			w.Write(_singlelineSeparator)
+			_, _ = w.Write(_singlelineSeparator)
 		}
-		io.WriteString(w, item.Error())
+		_, _ = io.WriteString(w, item.Error())
 	}
 }
 
-func (merr *multiError) writeMultiline(w io.Writer) {
-	w.Write(_multilinePrefix)
+func (merr *multiErr) writeMultiline(w io.Writer) {
+	_, _ = w.Write(_multilinePrefix)
 	for _, item := range merr.errors {
-		w.Write(_multilineSeparator)
+		_, _ = w.Write(_multilineSeparator)
 		writePrefixLine(w, _multilineIndent, fmt.Sprintf("%+v", item))
 	}
 }
@@ -318,7 +305,7 @@ func writePrefixLine(w io.Writer, prefix []byte, s string) {
 		if first {
 			first = false
 		} else {
-			w.Write(prefix)
+			_, _ = w.Write(prefix)
 		}
 
 		idx := strings.IndexByte(s, '\n')
@@ -326,7 +313,7 @@ func writePrefixLine(w io.Writer, prefix []byte, s string) {
 			idx = len(s) - 1
 		}
 
-		io.WriteString(w, s[:idx+1])
+		_, _ = io.WriteString(w, s[:idx+1])
 		s = s[idx+1:]
 	}
 }
@@ -342,7 +329,7 @@ type inspectResult struct {
 	// Count is zero.
 	FirstErrorIdx int
 
-	// Whether the list contains at least one multiError
+	// Whether the list contains at least one multiErr
 	ContainsMultiError bool
 }
 
@@ -361,14 +348,14 @@ func inspect(errors []error) (res inspectResult) {
 			res.FirstErrorIdx = i
 		}
 
-		if merr, ok := err.(*multiError); ok {
+		if merr, ok := err.(*multiErr); ok { //nolint:errorlint
 			res.Capacity += len(merr.errors)
 			res.ContainsMultiError = true
 		} else {
 			res.Capacity++
 		}
 	}
-	return
+	return res
 }
 
 // fromSlice converts the given list of errors into a single error.
@@ -395,7 +382,7 @@ func fromSlice(errors []error) error {
 			// unconditionally for all other cases.
 			// This lets us optimize for the "no errors" case.
 			out := append(([]error)(nil), errors...)
-			return &multiError{errors: out, stack: callers(1)}
+			return &multiErr{errors: out, stack: callers(1)}
 		}
 	}
 
@@ -405,14 +392,14 @@ func fromSlice(errors []error) error {
 			continue
 		}
 
-		if nested, ok := err.(*multiError); ok {
+		if nested, ok := err.(*multiErr); ok { //nolint:errorlint
 			nonNilErrs = append(nonNilErrs, nested.errors...)
 		} else {
 			nonNilErrs = append(nonNilErrs, err)
 		}
 	}
 
-	return &multiError{errors: nonNilErrs, stack: callers(0)}
+	return &multiErr{errors: nonNilErrs, stack: callers(0)}
 }
 
 // Combine combines the passed errors into a single error.
@@ -468,7 +455,9 @@ func Combine(errors ...error) error {
 //
 // Note that the variable MUST be a named return to append an error to it from
 // the defer statement.
-func Append(left error, right error) error {
+//
+//nolint:errorlint
+func Append(left, right error) error {
 	switch {
 	case left == nil && right == nil:
 		return nil
@@ -486,15 +475,15 @@ func Append(left error, right error) error {
 		return left
 	}
 
-	if _, ok := right.(*multiError); !ok {
-		if l, ok := left.(*multiError); ok && !l.copyNeeded.Swap(true) {
+	if _, ok := right.(*multiErr); !ok {
+		if l, ok := left.(*multiErr); ok && !l.copyNeeded.Swap(true) {
 			// Common case where the error on the left is constantly being
 			// appended to.
-			errs := append(l.errors, right)
-			return &multiError{errors: errs, stack: callers(0)}
+			errs := append(l.errors, right) //nolint:gocritic
+			return &multiErr{errors: errs, stack: callers(0)}
 		} else if !ok {
 			// Both errors are single errors.
-			return &multiError{errors: []error{left, right}, stack: callers(0)}
+			return &multiErr{errors: []error{left, right}, stack: callers(0)}
 		}
 	}
 
@@ -505,7 +494,7 @@ func Append(left error, right error) error {
 }
 
 // Unwrap returns a list of errors wrapped by this multierr.
-func (merr *multiError) Unwrap() []error {
+func (merr *multiErr) Unwrap() []error {
 	return merr.Errors()
 }
 
@@ -518,9 +507,9 @@ func extractErrors(err error) []error {
 		return nil
 	}
 
-	// check if the given err is an Unwrapable error that
+	// check if the given err is an unwrappable error that
 	// implements multipleErrorer interface.
-	eg, ok := err.(multipleErrorer)
+	eg, ok := err.(multipleErrorer) //nolint:errorlint
 	if !ok {
 		return []error{err}
 	}
@@ -528,11 +517,13 @@ func extractErrors(err error) []error {
 	return append(([]error)(nil), eg.Unwrap()...)
 }
 
-func IsMulti(err error) bool {
-	if err == nil {
-		return false
+// Every compares every error in the given err against the given target error
+// using [errors.Is], and returns true only if every comparison returned true.
+func Every(err, target error) bool {
+	for _, e := range extractErrors(err) {
+		if !errors.Is(e, target) {
+			return false
+		}
 	}
-
-	_, ok := err.(*multiError)
-	return ok
+	return true
 }

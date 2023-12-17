@@ -121,7 +121,7 @@ func (e *errz) alienCause() error {
 	inner := e.error
 	for inner != nil {
 		// Note: don't use errors.As here; we want the direct type assertion.
-		if v, ok := inner.(*errz); ok {
+		if v, ok := inner.(*errz); ok { //nolint:errorlint
 			inner = v.error
 			continue
 		}
@@ -142,10 +142,10 @@ func (e *errz) Format(s fmt.State, verb rune) {
 				_, _ = io.WriteString(s, e.msg)
 				e.stack.Format(s, verb)
 				return
-			} else {
-				_, _ = fmt.Fprintf(s, "%+v", e.error)
-				e.stack.Format(s, verb)
 			}
+			_, _ = fmt.Fprintf(s, "%+v", e.error)
+			e.stack.Format(s, verb)
+
 			return
 		}
 		fallthrough
@@ -276,7 +276,7 @@ func SprintTreeTypes(err error) string {
 	var sb strings.Builder
 	for i, e := range errChain {
 		sb.WriteString(fmt.Sprintf("%T", e))
-		if me, ok := e.(multipleErrorer); ok {
+		if me, ok := e.(multipleErrorer); ok { //nolint:errorlint
 			children := me.Unwrap()
 			childText := make([]string, len(children))
 			for j := range children {

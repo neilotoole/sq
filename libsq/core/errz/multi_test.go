@@ -2,8 +2,9 @@ package errz
 
 import (
 	"errors"
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestAppend_stdlib_errors(t *testing.T) {
@@ -34,14 +35,13 @@ func TestAppend_stdlib_errors(t *testing.T) {
 	errs = Errors(appendErr)
 	require.Len(t, errs, 1)
 	gotErr1 := errs[0]
-	_, ok := gotErr1.(*errz)
+	_, ok := gotErr1.(*errz) //nolint:errorlint
 	require.True(t, ok)
 	gotErr1Unwrap := errors.Unwrap(gotErr1)
 	require.Equal(t, err1, gotErr1Unwrap)
-
 }
 
-func TestMultiErrors_errz(t *testing.T) {
+func TestAppend_errz(t *testing.T) {
 	err1 := New("err1")
 	err2 := New("err2")
 	errs := Errors(err1)
@@ -50,8 +50,6 @@ func TestMultiErrors_errz(t *testing.T) {
 	appendErr := Append(err1, err2)
 	errs = Errors(appendErr)
 	require.Equal(t, []error{err1, err2}, errs)
-	//t.Logf("%v", appendErr)
-	//t.Logf("%+v", appendErr)
 
 	stacks := Stacks(appendErr)
 	require.NotNil(t, stacks)

@@ -90,7 +90,6 @@ func TestHas(t *testing.T) {
 
 	got = errz.Has[*url.Error](nil)
 	require.False(t, got)
-
 }
 
 func TestAs(t *testing.T) {
@@ -110,6 +109,7 @@ func TestIs(t *testing.T) {
 	require.Equal(t, "wrap: "+sql.ErrNoRows.Error(), err.Error())
 	require.True(t, errors.Is(err, sql.ErrNoRows))
 }
+
 func TestStackTrace(t *testing.T) {
 	e1 := errz.New("inner")
 	e2 := errz.Wrap(e1, "wrap")
@@ -126,7 +126,6 @@ func TestOptSkip(t *testing.T) {
 	err := errz.Wrap(errz.New("inner"), "wrap1")
 	chain := errz.Chain(err)
 	require.Len(t, chain, 2)
-	//t.Logf("\n%+v", errz.LastStack(err).Frames)
 
 	errSkip0 := errz.Err(err, errz.Skip(0))
 	errSkip1 := errz.Err(err, errz.Skip(1))
@@ -135,52 +134,29 @@ func TestOptSkip(t *testing.T) {
 	require.NotNil(t, errSkip0)
 	require.NotNil(t, errSkip1)
 	require.NotNil(t, errSkip2)
-	//chain2 := errz.Chain(err)
-	//require.Len(t, chain2, 2)
-	stacks0 := errz.Stacks(errSkip0)
 	stacks1 := errz.Stacks(errSkip1)
-	_ = stacks1
-
-	t.Logf("========== stacks0 ==========")
-	for _, st := range stacks0 {
-		t.Logf("\n\n\n\n%+v", st.Frames)
-	}
-	t.Logf("========== stacks1 ==========")
-	for _, st := range stacks1 {
-		t.Logf("\n\n\n\n%+v", st.Frames)
-	}
 	require.Len(t, stacks1[0].Frames, 2)
-
-	lastStack1 := errz.LastStack(errSkip1)
-	t.Logf("========== lastStack1 ==========")
-	t.Logf("\n\n\n\n%+v", lastStack1.Frames)
-
-	//t.Logf("\n%+v", errz.LastStack(err).Frames)
 }
 
-type FooErr struct {
+type FooError struct {
 	msg string
 }
 
-func (e *FooErr) Error() string {
+func (e *FooError) Error() string {
 	return e.msg
 }
 
 func NewFooError(msg string) error {
-	//return &FooErr{error: errz.New(msg, errz.Skip(1))}
-	return errz.Err(&FooErr{msg: msg}, errz.Skip(1))
-
+	return errz.Err(&FooError{msg: msg}, errz.Skip(1))
 }
 
-func TestCustomError(t *testing.T) {
+func TestFooError(t *testing.T) {
 	err := NewFooError("bah")
 	t.Logf("err: %v", err)
-	//st := errz.LastStack(err)
-	//require.NotNil(t, st)
 	stacks := errz.Stacks(err)
 	require.Len(t, stacks, 1)
 	st := stacks[0]
-	t.Logf("\n\n\n\n%+v", st.Frames)
+	t.Logf("\n%+v", st.Frames)
 }
 
 //nolint:lll
@@ -195,5 +171,5 @@ func TestSprintTreeTypes(t *testing.T) {
 	err = errz.Wrap(me, "wrap3")
 	got = errz.SprintTreeTypes(err)
 
-	require.Equal(t, "*errz.errz: *errz.multiError[context.deadlineExceededError, *errz.errz: *errz.errz: *errz.errz, *errors.errorString]", got)
+	require.Equal(t, "*errz.errz: *errz.multiErr[context.deadlineExceededError, *errz.errz: *errz.errz: *errz.errz, *errors.errorString]", got)
 }
