@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"path/filepath"
 	"strconv"
 	"testing"
 	"time"
@@ -60,25 +59,23 @@ func TestDownload_redirect(t *testing.T) {
 	const hello = `Hello World!`
 	serveBody := hello
 	lastModified := time.Now().UTC()
-	// cacheDir := t.TempDir()
-	// FIXME: switch back to temp dir
-	cacheDir := filepath.Join("testdata", "download", tu.Name(t.Name()))
+	cacheDir := t.TempDir()
 
 	log := lgt.New(t)
 	var srvr *httptest.Server
 	srvr = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log := log.With("origin", "server")
-		log.Info("Request on /actual", "req", httpz.RequestLogValue(r))
+		srvrLog := log.With("origin", "server")
+		srvrLog.Info("Request on /actual", "req", httpz.RequestLogValue(r))
 		switch r.URL.Path {
 		case "/redirect":
 			loc := srvr.URL + "/actual"
-			log.Info("Redirecting to", lga.Loc, loc)
+			srvrLog.Info("Redirecting to", lga.Loc, loc)
 			http.Redirect(w, r, loc, http.StatusFound)
 		case "/actual":
 			if ifm := r.Header.Get("If-Modified-Since"); ifm != "" {
 				tm, err := time.Parse(http.TimeFormat, ifm)
 				if err != nil {
-					log.Error("Failed to parse If-Modified-Since", lga.Err, err)
+					srvrLog.Error("Failed to parse If-Modified-Since", lga.Err, err)
 					w.WriteHeader(http.StatusBadRequest)
 					return
 				}
@@ -87,19 +84,19 @@ func TestDownload_redirect(t *testing.T) {
 				lastModifiedUnix := lastModified.Unix()
 
 				if lastModifiedUnix <= ifModifiedSinceUnix {
-					log.Info("Serving http.StatusNotModified")
+					srvrLog.Info("Serving http.StatusNotModified")
 					w.WriteHeader(http.StatusNotModified)
 					return
 				}
 			}
 
-			log.Info("Serving actual: writing bytes")
+			srvrLog.Info("Serving actual: writing bytes")
 			b := []byte(serveBody)
 			w.Header().Set("Last-Modified", lastModified.Format(http.TimeFormat))
 			_, err := w.Write(b)
 			assert.NoError(t, err)
 		default:
-			log.Info("Serving http.StatusNotFound")
+			srvrLog.Info("Serving http.StatusNotFound")
 			w.WriteHeader(http.StatusNotFound)
 		}
 	}))
@@ -139,40 +136,12 @@ func TestDownload_redirect(t *testing.T) {
 	require.Equal(t, serveBody, gotBody)
 }
 
-//tr := httpcache.NewTransport(diskcache.New(cacheDir))
-//req, err := http.NewRequestWithContext(ctx, http.MethodGet, loc, nil)
-//require.NoError(t, err)
-//
-//resp, err := tr.RoundTrip(req)
-//require.NoError(t, err)
-//require.Equal(t, http.StatusOK, resp.StatusCode)
-//b, err := io.ReadAll(resp.Body)
-//require.NoError(t, err)
-//require.Equal(t, serveBody, string(b))
-//t.Logf("b: \n\n%s\n\n", b)
-//
-//resp2, err := tr.RoundTrip(req)
-//require.NoError(t, err)
-//require.Equal(t, http.StatusOK, resp2.StatusCode)
-//
-//b, err = io.ReadAll(resp.Body)
-//require.NoError(t, err)
-//require.Equal(t, serveBody, string(b))
-//t.Logf("b: \n\n%s\n\n", b)
-
-//
-//ctx := lg.NewContext(context.Background(), log.With("origin", "downloader"))
-//loc := srvr.URL + "/redirect"
-//loc := srvr.URL + "/actual"
-
 func TestDownload_New(t *testing.T) {
 	log := lgt.New(t)
 	ctx := lg.NewContext(context.Background(), log)
 	const dlURL = urlActorCSV
 
-	// FIXME: switch to temp dir
-	cacheDir, err := filepath.Abs(filepath.Join("testdata", "download", tu.Name(t.Name())))
-	require.NoError(t, err)
+	cacheDir := t.TempDir()
 	t.Logf("cacheDir: %s", cacheDir)
 
 	dl, err := download.New(t.Name(), httpz.NewDefaultClient(), dlURL, cacheDir)

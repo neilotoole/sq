@@ -43,7 +43,7 @@ func (v minTLSVersion) apply(tr *http.Transport) {
 		tr.TLSClientConfig = &tls.Config{MinVersion: uint16(v)} //nolint:gosec
 	} else {
 		tr.TLSClientConfig = tr.TLSClientConfig.Clone()
-		tr.TLSClientConfig.MinVersion = uint16(v) //nolint:gosec
+		tr.TLSClientConfig.MinVersion = uint16(v)
 	}
 }
 

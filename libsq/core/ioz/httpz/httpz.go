@@ -67,7 +67,7 @@ var _ Opt = (*TripFunc)(nil)
 // It is commonly used with RoundTrip to decorate an existing http.RoundTripper.
 type TripFunc func(next http.RoundTripper, req *http.Request) (*http.Response, error)
 
-func (tf TripFunc) apply(tr *http.Transport) {}
+func (tf TripFunc) apply(*http.Transport) {}
 
 // RoundTrip adapts a TripFunc to http.RoundTripper.
 func RoundTrip(next http.RoundTripper, fn TripFunc) http.RoundTripper {
@@ -188,7 +188,7 @@ func ReadResponseHeader(r *bufio.Reader, req *http.Request) (resp *http.Response
 	// Parse the first line of the response.
 	line, err := tp.ReadLine()
 	if err != nil {
-		if err == io.EOF {
+		if err == io.EOF { //nolint:errorlint
 			err = io.ErrUnexpectedEOF
 		}
 		return nil, err
@@ -215,7 +215,7 @@ func ReadResponseHeader(r *bufio.Reader, req *http.Request) (resp *http.Response
 	// Parse the response headers.
 	mimeHeader, err := tp.ReadMIMEHeader()
 	if err != nil {
-		if err == io.EOF {
+		if err == io.EOF { //nolint:errorlint
 			err = io.ErrUnexpectedEOF
 		}
 		return nil, err

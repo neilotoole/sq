@@ -17,7 +17,7 @@ func getDate(respHeaders http.Header) (date time.Time, err error) {
 	dateHeader := respHeaders.Get("date")
 	if dateHeader == "" {
 		err = errNoDateHeader
-		return
+		return date, err
 	}
 
 	return time.Parse(time.RFC1123, dateHeader)
@@ -76,7 +76,8 @@ func getFreshness(respHeaders, reqHeaders http.Header) (freshness State) {
 	} else {
 		expiresHeader := respHeaders.Get("Expires")
 		if expiresHeader != "" {
-			expires, err := time.Parse(time.RFC1123, expiresHeader)
+			var expires time.Time
+			expires, err = time.Parse(time.RFC1123, expiresHeader)
 			if err != nil {
 				lifetime = zeroDuration
 			} else {
@@ -94,9 +95,10 @@ func getFreshness(respHeaders, reqHeaders http.Header) (freshness State) {
 	}
 	if minFresh, ok := reqCacheControl["min-fresh"]; ok {
 		//  the client wants a response that will still be fresh for at least the specified number of seconds.
-		minFreshDuration, err := time.ParseDuration(minFresh + "s")
+		var minFreshDuration time.Duration
+		minFreshDuration, err = time.ParseDuration(minFresh + "s")
 		if err == nil {
-			currentAge = time.Duration(currentAge + minFreshDuration)
+			currentAge += minFreshDuration
 		}
 	}
 
@@ -114,7 +116,7 @@ func getFreshness(respHeaders, reqHeaders http.Header) (freshness State) {
 		}
 		maxStaleDuration, err := time.ParseDuration(maxStale + "s")
 		if err == nil {
-			currentAge = time.Duration(currentAge - maxStaleDuration)
+			currentAge -= maxStaleDuration
 		}
 	}
 
@@ -274,7 +276,7 @@ func headerAllCommaSepValues(headers http.Header, name string) []string {
 }
 
 // varyMatches will return false unless all the cached values for the
-// headers listed in Vary match the new request
+// headers listed in Vary match the new request.
 func varyMatches(cachedResp *http.Response, req *http.Request) bool {
 	for _, header := range headerAllCommaSepValues(cachedResp.Header, "vary") {
 		header = http.CanonicalHeaderKey(header)

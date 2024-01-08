@@ -124,28 +124,28 @@ type grip struct {
 }
 
 // DB implements driver.Grip.
-func (p *grip) DB(ctx context.Context) (*sql.DB, error) {
-	return p.impl.DB(ctx)
+func (g *grip) DB(ctx context.Context) (*sql.DB, error) {
+	return g.impl.DB(ctx)
 }
 
 // SQLDriver implements driver.Grip.
-func (p *grip) SQLDriver() driver.SQLDriver {
-	return p.impl.SQLDriver()
+func (g *grip) SQLDriver() driver.SQLDriver {
+	return g.impl.SQLDriver()
 }
 
 // Source implements driver.Grip.
-func (p *grip) Source() *source.Source {
-	return p.src
+func (g *grip) Source() *source.Source {
+	return g.src
 }
 
 // TableMetadata implements driver.Grip.
-func (p *grip) TableMetadata(ctx context.Context, tblName string) (*metadata.Table, error) {
+func (g *grip) TableMetadata(ctx context.Context, tblName string) (*metadata.Table, error) {
 	if tblName != source.MonotableName {
 		return nil, errz.Errorf("table name should be %s for CSV/TSV etc., but got: %s",
 			source.MonotableName, tblName)
 	}
 
-	srcMeta, err := p.SourceMetadata(ctx, false)
+	srcMeta, err := g.SourceMetadata(ctx, false)
 	if err != nil {
 		return nil, err
 	}
@@ -155,22 +155,22 @@ func (p *grip) TableMetadata(ctx context.Context, tblName string) (*metadata.Tab
 }
 
 // SourceMetadata implements driver.Grip.
-func (p *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error) {
-	md, err := p.impl.SourceMetadata(ctx, noSchema)
+func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error) {
+	md, err := g.impl.SourceMetadata(ctx, noSchema)
 	if err != nil {
 		return nil, err
 	}
 
-	md.Handle = p.src.Handle
-	md.Location = p.src.Location
-	md.Driver = p.src.Type
+	md.Handle = g.src.Handle
+	md.Location = g.src.Location
+	md.Driver = g.src.Type
 
-	md.Name, err = source.LocationFileName(p.src)
+	md.Name, err = source.LocationFileName(g.src)
 	if err != nil {
 		return nil, err
 	}
 
-	md.Size, err = p.files.Filesize(ctx, p.src)
+	md.Size, err = g.files.Filesize(ctx, g.src)
 	if err != nil {
 		return nil, err
 	}
@@ -180,8 +180,8 @@ func (p *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Sou
 }
 
 // Close implements driver.Grip.
-func (p *grip) Close() error {
-	p.log.Debug(lgm.CloseDB, lga.Handle, p.src.Handle)
+func (g *grip) Close() error {
+	g.log.Debug(lgm.CloseDB, lga.Handle, g.src.Handle)
 
-	return errz.Err(p.impl.Close())
+	return errz.Err(g.impl.Close())
 }

@@ -133,14 +133,14 @@ func (c *cache) get(ctx context.Context, req *http.Request) (*http.Response, err
 	fpHeader, fpBody, _ := c.paths(req)
 	if !ioz.FileAccessible(fpHeader) {
 		// If the header file doesn't exist, it's a nil, nil situation.
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	}
 
 	if _, ok := c.checksumsMatch(req); !ok {
 		// If the checksums don't match, it's a nil, nil situation.
 
 		// REVISIT: should we clear the cache here?
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	}
 
 	headerBytes, err := os.ReadFile(fpHeader)
@@ -207,7 +207,7 @@ func (c *cache) cachedChecksum(req *http.Request) (sum checksum.Checksum, ok boo
 // checksumsMatch returns true (and the valid checksum) if there is a cached
 // checksum file for req, and there is a cached response body file, and a fresh
 // checksum calculated from that body file matches the cached checksum.
-func (c *cache) checksumsMatch(req *http.Request) (sum checksum.Checksum, ok bool) {
+func (c *cache) checksumsMatch(req *http.Request) (sum checksum.Checksum, ok bool) { //nolint:unparam
 	sum, ok = c.cachedChecksum(req)
 	if !ok {
 		return "", false

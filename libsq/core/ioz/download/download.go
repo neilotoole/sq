@@ -54,7 +54,7 @@ const (
 	Transparent
 )
 
-// XFromCache is the header added to responses that are returned from the cache
+// XFromCache is the header added to responses that are returned from the cache.
 const XFromCache = "X-From-Cache"
 
 const msgNilDestWriter = "nil dest writer from download handler; returning"
@@ -141,7 +141,9 @@ func (dl *Download) Get(ctx context.Context, h Handler) {
 	dl.get(req, h)
 }
 
-func (dl *Download) get(req *http.Request, h Handler) {
+// get contains the main logic for getting the download. It invokes Handler
+// as appropriate.
+func (dl *Download) get(req *http.Request, h Handler) { //nolint:funlen,gocognit
 	ctx := req.Context()
 	log := lg.FromContext(ctx)
 	log.Debug("Get download", lga.URL, dl.url)
@@ -149,15 +151,16 @@ func (dl *Download) get(req *http.Request, h Handler) {
 
 	state := dl.state(req)
 	if state == Fresh {
+		// The cached response is fresh, so we can return it.
 		h.Cached(fpBody)
 		return
 	}
 
-	var err error
 	cacheable := dl.isCacheable(req)
+	var err error
 	var cachedResp *http.Response
 	if cacheable {
-		cachedResp, err = dl.cache.get(req.Context(), req)
+		cachedResp, err = dl.cache.get(req.Context(), req) //nolint:bodyclose
 	} else {
 		// Need to invalidate an existing value
 		if err = dl.cache.clear(req.Context()); err != nil {
@@ -167,7 +170,7 @@ func (dl *Download) get(req *http.Request, h Handler) {
 	}
 
 	var resp *http.Response
-	if cacheable && cachedResp != nil && err == nil {
+	if cacheable && cachedResp != nil && err == nil { //nolint:nestif
 		if dl.markCachedResponses {
 			cachedResp.Header.Set(XFromCache, "1")
 		}
@@ -201,7 +204,7 @@ func (dl *Download) get(req *http.Request, h Handler) {
 			}
 		}
 
-		resp, err = dl.do(req)
+		resp, err = dl.do(req) //nolint:bodyclose
 		if err == nil && req.Method == http.MethodGet && resp.StatusCode == http.StatusNotModified {
 			// Replace the 304 response with the one from cache, but update with some new headers
 			endToEndHeaders := getEndToEndHeaders(resp.Header)
@@ -210,8 +213,11 @@ func (dl *Download) get(req *http.Request, h Handler) {
 			}
 			lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
 			resp = cachedResp
-		} else if (err != nil || (cachedResp != nil && resp.StatusCode >= 500)) &&
-			req.Method == http.MethodGet && canStaleOnError(cachedResp.Header, req.Header) {
+		} else if (err != nil ||
+			(cachedResp != nil &&
+				resp.StatusCode >= 500)) &&
+			req.Method == http.MethodGet &&
+			canStaleOnError(cachedResp.Header, req.Header) {
 			// In case of transport failure and stale-if-error activated, returns cached content
 			// when available
 			log.Warn("Returning cached response due to transport failure", lga.Err, err)
@@ -229,9 +235,9 @@ func (dl *Download) get(req *http.Request, h Handler) {
 	} else {
 		reqCacheControl := parseCacheControl(req.Header)
 		if _, ok := reqCacheControl["only-if-cached"]; ok {
-			resp = newGatewayTimeoutResponse(req)
+			resp = newGatewayTimeoutResponse(req) //nolint:bodyclose
 		} else {
-			resp, err = dl.do(req)
+			resp, err = dl.do(req) //nolint:bodyclose
 			if err != nil {
 				h.Error(err)
 				return
@@ -270,17 +276,19 @@ func (dl *Download) get(req *http.Request, h Handler) {
 		defer lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
 		if err = dl.cache.write(req.Context(), resp, false, destWrtr); err != nil {
 			log.Error("Failed to write download cache", lga.Dir, dl.cache.dir, lga.Err, err)
-			// destWrtr.Error(err)
+			// We don't need to explicitly call Handler.Error here, because the caller is
+			// informed via destWrtr.Error, which has already been invoked by cache.write.
 		}
 		return
-	} else {
-		lg.WarnIfError(log, "Delete resp cache", dl.cache.clear(req.Context()))
 	}
+
+	lg.WarnIfError(log, "Delete resp cache", dl.cache.clear(req.Context()))
 
 	// It's not cacheable, so we need to write it to the destWrtr,
 	// and skip the cache.
 	destWrtr := h.Uncached()
 	if destWrtr == nil {
+		// Shouldn't happen.
 		log.Warn(msgNilDestWriter)
 		return
 	}
@@ -296,8 +304,6 @@ func (dl *Download) get(req *http.Request, h Handler) {
 	if err = destWrtr.Close(); err != nil {
 		log.Error("Failed to close dest writer", lga.Err, err)
 	}
-
-	return
 }
 
 // do executes the request.
@@ -323,7 +329,7 @@ func (dl *Download) do(req *http.Request) (*http.Response, error) {
 
 	if resp.Body != nil && resp.Body != http.NoBody {
 		r := progress.NewReader(req.Context(), dl.name+": download", resp.ContentLength, resp.Body)
-		resp.Body = r.(io.ReadCloser)
+		resp.Body, _ = r.(io.ReadCloser)
 	}
 	return resp, nil
 }
@@ -335,7 +341,6 @@ func (dl *Download) mustRequest(ctx context.Context) *http.Request {
 	if err != nil {
 		lg.FromContext(ctx).Error("Failed to create request", lga.URL, dl.url, lga.Err, err)
 		panic(err)
-		return nil
 	}
 	return req
 }
@@ -374,7 +379,7 @@ func (dl *Download) state(req *http.Request) State {
 
 	defer lg.WarnIfCloseError(log, msgCloseCacheHeaderFile, f)
 
-	cachedResp, err := httpz.ReadResponseHeader(bufio.NewReader(f), nil)
+	cachedResp, err := httpz.ReadResponseHeader(bufio.NewReader(f), nil) //nolint:bodyclose
 	if err != nil {
 		log.Error("Failed to read cached response header", lga.Err, err)
 		return Uncached
