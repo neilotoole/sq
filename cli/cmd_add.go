@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 	"io"
 	"os"
 	"strings"
@@ -19,7 +20,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
-	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
@@ -186,23 +186,6 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 	var err error
 	var typ drivertype.Type
 
-	if cmdFlagChanged(cmd, flag.AddDriver) {
-		val, _ := cmd.Flags().GetString(flag.AddDriver)
-		typ = drivertype.Type(strings.TrimSpace(val))
-	} else {
-		typ, err = ru.Files.DriverType(ctx, loc)
-		if err != nil {
-			return err
-		}
-		if typ == drivertype.None {
-			return errz.Errorf("unable to determine driver type: use --driver flag")
-		}
-	}
-
-	if ru.DriverRegistry.ProviderFor(typ) == nil {
-		return errz.Errorf("unsupported driver type {%s}", typ)
-	}
-
 	var handle string
 	if cmdFlagChanged(cmd, flag.Handle) {
 		handle, _ = cmd.Flags().GetString(flag.Handle)
@@ -213,16 +196,33 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	if stringz.InSlice(source.ReservedHandles(), handle) {
-		return errz.Errorf("handle reserved for system use: %s", handle)
-	}
-
 	if err = source.ValidHandle(handle); err != nil {
 		return err
 	}
 
+	if stringz.InSlice(source.ReservedHandles(), handle) {
+		return errz.Errorf("handle reserved for system use: %s", handle)
+	}
+
 	if cfg.Collection.IsExistingSource(handle) {
 		return errz.Errorf("source handle already exists: %s", handle)
+	}
+
+	if cmdFlagChanged(cmd, flag.AddDriver) {
+		val, _ := cmd.Flags().GetString(flag.AddDriver)
+		typ = drivertype.Type(strings.TrimSpace(val))
+	} else {
+		typ, err = ru.Files.DriverType(ctx, handle, loc)
+		if err != nil {
+			return err
+		}
+		if typ == drivertype.None {
+			return errz.Errorf("unable to determine driver type: use --driver flag")
+		}
+	}
+
+	if ru.DriverRegistry.ProviderFor(typ) == nil {
+		return errz.Errorf("unsupported driver type {%s}", typ)
 	}
 
 	if typ == sqlite3.Type {

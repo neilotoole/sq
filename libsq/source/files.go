@@ -2,6 +2,8 @@ package source
 
 import (
 	"context"
+	"github.com/neilotoole/sq/libsq/core/ioz/download"
+	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
 	"io"
 	"log/slog"
 	"net/url"
@@ -47,6 +49,7 @@ type Files struct {
 	tempDir     string
 	clnup       *cleanup.Cleanup
 	optRegistry *options.Registry
+	coll        *Collection
 
 	// fscache is used to cache files, providing convenient access
 	// to multiple readers via Files.newReader.
@@ -64,9 +67,7 @@ type Files struct {
 
 // NewFiles returns a new Files instance. If cleanFscache is true, the fscache
 // is cleaned on Files.Close.
-func NewFiles(ctx context.Context, optReg *options.Registry,
-	tmpDir, cacheDir string, cleanFscache bool,
-) (*Files, error) {
+func NewFiles(ctx context.Context, coll *Collection, optReg *options.Registry, tmpDir, cacheDir string, cleanFscache bool) (*Files, error) {
 	log := lg.FromContext(ctx)
 	log.Debug("Creating new Files instance", "tmp_dir", tmpDir, "cache_dir", cacheDir)
 	if tmpDir == "" {
@@ -81,6 +82,7 @@ func NewFiles(ctx context.Context, optReg *options.Registry,
 	}
 
 	fs := &Files{
+		coll:              coll,
 		optRegistry:       optReg,
 		cacheDir:          cacheDir,
 		fscacheEntryMetas: make(map[string]*fscacheEntryMeta),
@@ -263,7 +265,7 @@ func (fs *Files) addRegularFile(ctx context.Context, f *os.File, key string) (fs
 	log.Debug("Adding regular file", lga.Key, key, lga.Path, f.Name())
 
 	if strings.Contains(f.Name(), "cached.db") {
-		log.Error("oh no, shouldn't be happening")
+		log.Error("oh no, shouldn't be happening") // FIXME: delete this
 	}
 
 	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, f)
@@ -284,6 +286,67 @@ func (fs *Files) addRegularFile(ctx context.Context, f *os.File, key string) (fs
 
 	r, _, err := fs.fscache.Get(key)
 	return r, errz.Err(err)
+}
+
+func (fs *Files) addRemoteFile(ctx context.Context, handle, loc string) (io.ReadCloser, error) {
+	dlDir := fs.downloadCacheDirFor(loc)
+	if err := ioz.RequireDir(dlDir); err != nil {
+		return nil, err
+	}
+
+	errCh := make(chan error, 1)
+	rdrCh := make(chan io.ReadCloser, 1)
+
+	h := download.Handler{
+		Cached: func(fp string) {
+			if err := fs.fscache.MapFile(fp); err != nil {
+				errCh <- errz.Wrapf(err, "failed to map file into fscache: %s", fp)
+				return
+			}
+
+			r, _, err := fs.fscache.Get(fp)
+			if err != nil {
+				errCh <- errz.Err(err)
+				return
+			}
+			rdrCh <- r
+		},
+		Uncached: func() (dest ioz.WriteErrorCloser) {
+			r, w, err := fs.fscache.Get(loc)
+			if err != nil {
+				errCh <- errz.Err(err)
+				return nil
+			}
+
+			wec := ioz.NewFuncWriteErrorCloser(w, func(err error) {
+				log := lg.FromContext(ctx)
+				lg.WarnIfError(log, "Remove damaged cache entry", fs.fscache.Remove(loc))
+			})
+
+			rdrCh <- r
+			return wec
+		},
+		Error: func(err error) {
+			errCh <- err
+		},
+	}
+
+	c := httpz.NewDefaultClient()
+	dl, err := download.New(handle, c, loc, dlDir)
+	if err != nil {
+		return nil, err
+	}
+
+	go dl.Get(ctx, h)
+
+	select {
+	case <-ctx.Done():
+		return nil, errz.Err(ctx.Err())
+	case err = <-errCh:
+		return nil, err
+	case rdr := <-rdrCh:
+		return rdr, nil
+	}
 }
 
 // Filepath returns the file path of src.Location.
@@ -319,7 +382,7 @@ func (fs *Files) Open(ctx context.Context, src *Source) (io.ReadCloser, error) {
 	defer fs.mu.Unlock()
 
 	lg.FromContext(ctx).Debug("Files.Open", lga.Src, src)
-	return fs.newReader(ctx, src.Location)
+	return fs.newReader(ctx, src.Handle, src.Location)
 }
 
 // CacheLockFor returns the lock file for src's cache.
@@ -344,8 +407,8 @@ func (fs *Files) OpenFunc(src *Source) FileOpenFunc {
 	}
 }
 
-func (fs *Files) newReader(ctx context.Context, loc string) (io.ReadCloser, error) {
-	log := lg.FromContext(ctx).With(lga.Loc, loc)
+func (fs *Files) newReader(ctx context.Context, handle string, loc string) (io.ReadCloser, error) {
+	//log := lg.FromContext(ctx).With(lga.Loc, loc)
 
 	locTyp := getLocType(loc)
 	switch locTyp {
@@ -390,42 +453,43 @@ func (fs *Files) newReader(ctx context.Context, loc string) (io.ReadCloser, erro
 		return r, nil
 	}
 
-	// It's an uncached remote file.
+	//if loc == StdinHandle {
+	//	r, w, err := fs.fscache.Get(StdinHandle)
+	//	log.Debug("Returned from fs.fcache.Get", lga.Err, err)
+	//	if err != nil {
+	//		return nil, errz.Err(err)
+	//	}
+	//	if w != nil {
+	//		return nil, errz.New("@stdin not cached: has AddStdin been invoked yet?")
+	//	}
+	//
+	//	return r, nil
+	//}
 
-	if loc == StdinHandle {
-		r, w, err := fs.fscache.Get(StdinHandle)
-		log.Debug("Returned from fs.fcache.Get", lga.Err, err)
-		if err != nil {
-			return nil, errz.Err(err)
-		}
-		if w != nil {
-			return nil, errz.New("@stdin not cached: has AddStdin been invoked yet?")
-		}
+	//// It's an uncached remote file.
+	//if !fs.fscache.Exists(loc) {
+	//	r, _, err := fs.fscache.Get(loc)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//
+	//	return r, nil
+	//}
+	//
+	//// cache miss
+	//f, err := fs.openLocation(ctx, loc)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//
+	//// Note that addRegularFile closes f
+	//r, err := fs.addRegularFile(ctx, f, loc)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//return r, nil
 
-		return r, nil
-	}
-
-	if !fs.fscache.Exists(loc) {
-		r, _, err := fs.fscache.Get(loc)
-		if err != nil {
-			return nil, err
-		}
-
-		return r, nil
-	}
-
-	// cache miss
-	f, err := fs.openLocation(ctx, loc)
-	if err != nil {
-		return nil, err
-	}
-
-	// Note that addRegularFile closes f
-	r, err := fs.addRegularFile(ctx, f, loc)
-	if err != nil {
-		return nil, err
-	}
-	return r, nil
+	return fs.addRemoteFile(ctx, handle, loc)
 }
 
 // openLocation returns a file for loc. It is the caller's

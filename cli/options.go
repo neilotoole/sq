@@ -176,7 +176,7 @@ func RegisterDefaultOpts(reg *options.Registry) {
 		OptDiffNumLines,
 		OptDiffDataFormat,
 		source.OptHTTPPingTimeout,
-		source.OptHTTPSkipVerify,
+		source.OptHTTPSInsecureSkipVerify,
 		driver.OptConnMaxOpen,
 		driver.OptConnMaxIdle,
 		driver.OptConnMaxIdleTime,

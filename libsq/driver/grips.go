@@ -259,11 +259,6 @@ func (gs *Grips) openIngestCache(ctx context.Context, src *source.Source,
 
 	log.Debug("Using cache dir", lga.Path, cacheDir)
 
-	ingestFilePath, err := gs.files.Filepath(ctx, src)
-	if err != nil {
-		return nil, err
-	}
-
 	var impl Grip
 	var foundCached bool
 	if impl, foundCached, err = gs.openCachedFor(ctx, src); err != nil {
@@ -297,6 +292,11 @@ func (gs *Grips) openIngestCache(ctx context.Context, src *source.Source,
 	}
 
 	log.Info("Ingest completed", lga.Src, src, lga.Dest, impl.Source(), lga.Elapsed, elapsed)
+
+	ingestFilePath, err := gs.files.Filepath(ctx, src)
+	if err != nil {
+		return nil, err
+	}
 
 	// Write the checksums file.
 	var sum checksum.Checksum

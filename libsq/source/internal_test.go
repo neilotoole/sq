@@ -21,7 +21,7 @@ import (
 // Export for testing.
 var (
 	FilesDetectTypeFn = func(fs *Files, ctx context.Context, loc string) (typ drivertype.Type, ok bool, err error) {
-		return fs.detectType(ctx, loc)
+		return fs.detectType(ctx, "", loc)
 	}
 	GroupsFilterOnlyDirectChildren = groupsFilterOnlyDirectChildren
 )
@@ -29,7 +29,14 @@ var (
 func TestFiles_Open(t *testing.T) {
 	ctx := lg.NewContext(context.Background(), lgt.New(t))
 
-	fs, err := NewFiles(ctx, nil, tu.TempDir(t), tu.CacheDir(t), true)
+	fs, err := NewFiles(
+		ctx,
+		&Collection{},
+		nil,
+		tu.TempDir(t),
+		tu.CacheDir(t),
+		true,
+	)
 	require.NoError(t, err)
 	t.Cleanup(func() { assert.NoError(t, fs.Close()) })
 

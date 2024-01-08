@@ -53,6 +53,13 @@ func (fs *Files) CacheDirFor(src *Source) (dir string, err error) {
 	return dir, nil
 }
 
+// downloadCacheDirFor gets the download cache dir for loc. It is not guaranteed
+// that the returned dir exists or is accessible.
+func (fs *Files) downloadCacheDirFor(loc string) (dir string) {
+	fp := filepath.Join(fs.cacheDir, "downloads", checksum.Sum([]byte(loc)))
+	return fp
+}
+
 // sourceHash generates a hash for src. The hash is based on the
 // member fields of src, with special handling for src.Options.
 // Only the opts that affect data ingestion (options.TagIngestMutate)

@@ -39,7 +39,7 @@ func (fs *Files) AddDriverDetectors(detectFns ...DriverDetectFunc) {
 
 // DriverType returns the driver type of loc.
 // This may result in loading files into the cache.
-func (fs *Files) DriverType(ctx context.Context, loc string) (drivertype.Type, error) {
+func (fs *Files) DriverType(ctx context.Context, handle string, loc string) (drivertype.Type, error) {
 	log := lg.FromContext(ctx).With(lga.Loc, loc)
 	ploc, err := parseLoc(loc)
 	if err != nil {
@@ -67,7 +67,7 @@ func (fs *Files) DriverType(ctx context.Context, loc string) (drivertype.Type, e
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 	// Fall back to the byte detectors
-	typ, ok, err := fs.detectType(ctx, loc)
+	typ, ok, err := fs.detectType(ctx, handle, loc)
 	if err != nil {
 		return drivertype.None, err
 	}
@@ -79,7 +79,7 @@ func (fs *Files) DriverType(ctx context.Context, loc string) (drivertype.Type, e
 	return typ, nil
 }
 
-func (fs *Files) detectType(ctx context.Context, loc string) (typ drivertype.Type, ok bool, err error) {
+func (fs *Files) detectType(ctx context.Context, handle string, loc string) (typ drivertype.Type, ok bool, err error) {
 	if len(fs.detectFns) == 0 {
 		return drivertype.None, false, nil
 	}
@@ -87,7 +87,7 @@ func (fs *Files) detectType(ctx context.Context, loc string) (typ drivertype.Typ
 	start := time.Now()
 
 	openFn := func(ctx context.Context) (io.ReadCloser, error) {
-		return fs.newReader(ctx, loc)
+		return fs.newReader(ctx, handle, loc)
 	}
 
 	// We do the magic number first, because it's so fast.
@@ -220,7 +220,7 @@ func (fs *Files) DetectStdinType(ctx context.Context) (drivertype.Type, error) {
 		return drivertype.None, errz.New("must invoke Files.AddStdin before invoking DetectStdinType")
 	}
 
-	typ, ok, err := fs.detectType(ctx, StdinHandle)
+	typ, ok, err := fs.detectType(ctx, "", StdinHandle)
 	if err != nil {
 		return drivertype.None, err
 	}

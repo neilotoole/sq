@@ -155,9 +155,16 @@ func (h *Helper) init() {
 		cli.RegisterDefaultOpts(optRegistry)
 		h.registry = driver.NewRegistry(log)
 
+		cfg := config.New()
 		var err error
-		h.files, err = source.NewFiles(h.Context, optRegistry,
-			tu.TempDir(h.T), tu.CacheDir(h.T), true)
+		h.files, err = source.NewFiles(
+			h.Context,
+			cfg.Collection,
+			optRegistry,
+			tu.TempDir(h.T),
+			tu.CacheDir(h.T),
+			true,
+		)
 		require.NoError(h.T, err)
 
 		h.Cleanup.Add(func() {
@@ -198,7 +205,7 @@ func (h *Helper) init() {
 			Stdin:       os.Stdin,
 			Out:         os.Stdout,
 			ErrOut:      os.Stdin,
-			Config:      config.New(),
+			Config:      cfg,
 			ConfigStore: config.DiscardStore{},
 
 			DriverRegistry: h.registry,

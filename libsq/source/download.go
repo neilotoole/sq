@@ -28,7 +28,8 @@ import (
 )
 
 var OptHTTPPingTimeout = options.NewDuration(
-	"http.ping.timeout",
+	// FIXME: apply OptHTTPPingTimeout to httpz.NewClient invocations
+	"https.ping.timeout",
 	"",
 	0,
 	time.Second*10,
@@ -39,8 +40,9 @@ not affected by this option. Example: 500ms or 3s.`,
 	options.TagSource,
 )
 
-var OptHTTPSkipVerify = options.NewBool(
-	"http.skip-verify",
+var OptHTTPSInsecureSkipVerify = options.NewBool(
+	// FIXME: apply OptHTTPSkipVerify to httpz.NewClient invocations
+	"https.skip-verify",
 	"",
 	false,
 	0,
@@ -377,10 +379,6 @@ func fetchHTTPResponse(ctx context.Context, c *http.Client, u string) (resp *htt
 	}
 
 	return resp, nil
-}
-
-func getRemoteChecksum(ctx context.Context, u string) (string, error) {
-	return "", errz.New("not implemented")
 }
 
 // fetch ensures that loc exists locally as a file. This may
