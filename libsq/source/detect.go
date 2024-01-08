@@ -39,7 +39,7 @@ func (fs *Files) AddDriverDetectors(detectFns ...DriverDetectFunc) {
 
 // DriverType returns the driver type of loc.
 // This may result in loading files into the cache.
-func (fs *Files) DriverType(ctx context.Context, handle string, loc string) (drivertype.Type, error) {
+func (fs *Files) DriverType(ctx context.Context, handle, loc string) (drivertype.Type, error) {
 	log := lg.FromContext(ctx).With(lga.Loc, loc)
 	ploc, err := parseLoc(loc)
 	if err != nil {
@@ -79,7 +79,7 @@ func (fs *Files) DriverType(ctx context.Context, handle string, loc string) (dri
 	return typ, nil
 }
 
-func (fs *Files) detectType(ctx context.Context, handle string, loc string) (typ drivertype.Type, ok bool, err error) {
+func (fs *Files) detectType(ctx context.Context, handle, loc string) (typ drivertype.Type, ok bool, err error) {
 	if len(fs.detectFns) == 0 {
 		return drivertype.None, false, nil
 	}

@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/neilotoole/sq/libsq/core/stringz"
 	"io"
 	"os"
 	"strings"
+
+	"github.com/neilotoole/sq/libsq/core/stringz"
 
 	"github.com/spf13/cobra"
 	"golang.org/x/term"

@@ -2,8 +2,6 @@ package source
 
 import (
 	"context"
-	"github.com/neilotoole/sq/libsq/core/ioz/download"
-	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
 	"io"
 	"log/slog"
 	"net/url"
@@ -13,6 +11,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/neilotoole/sq/libsq/core/ioz/download"
+	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
 
 	"github.com/neilotoole/fscache"
 
@@ -407,8 +408,8 @@ func (fs *Files) OpenFunc(src *Source) FileOpenFunc {
 	}
 }
 
-func (fs *Files) newReader(ctx context.Context, handle string, loc string) (io.ReadCloser, error) {
-	//log := lg.FromContext(ctx).With(lga.Loc, loc)
+func (fs *Files) newReader(ctx context.Context, handle, loc string) (io.ReadCloser, error) {
+	// log := lg.FromContext(ctx).With(lga.Loc, loc)
 
 	locTyp := getLocType(loc)
 	switch locTyp {

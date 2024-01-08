@@ -34,7 +34,8 @@ import (
 // release.
 //
 // Deprecated: This is a temporary hack for testing.
-const DebugDelay = time.Millisecond * 20
+// const DebugDelay = time.Millisecond * 20
+const DebugDelay = 0
 
 type ctxKey struct{}
 

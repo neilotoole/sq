@@ -57,21 +57,18 @@ func ingestCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFu
 	log := lg.FromContext(ctx)
 	startUTC := time.Now().UTC()
 
-	var err error
-	var r io.ReadCloser
-
-	r, err = openFn(ctx)
+	rc, err := openFn(ctx)
 	if err != nil {
 		return err
 	}
-	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
+	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, rc)
 
 	delim, err := getDelimiter(src)
 	if err != nil {
 		return err
 	}
 
-	cr := newCSVReader(r, delim)
+	cr := newCSVReader(rc, delim)
 	recs, err := readRecords(cr, driver.OptIngestSampleSize.Get(src.Options))
 	if err != nil {
 		return err
