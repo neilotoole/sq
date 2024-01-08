@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 	"os"
 	"strings"
+
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/output/format"
@@ -37,7 +38,7 @@ func printError(ctx context.Context, ru *run.Run, err error) {
 		return
 	}
 
-	var cmdName = "unknown"
+	cmdName := "unknown"
 	var cmd *cobra.Command
 	if ru != nil && ru.Cmd != nil {
 		cmd = ru.Cmd

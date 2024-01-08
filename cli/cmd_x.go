@@ -3,11 +3,12 @@ package cli
 import (
 	"bufio"
 	"fmt"
-	"github.com/neilotoole/sq/cli/flag"
-	"github.com/neilotoole/sq/libsq/core/errz"
 	"net/url"
 	"os"
 	"time"
+
+	"github.com/neilotoole/sq/cli/flag"
+	"github.com/neilotoole/sq/libsq/core/errz"
 
 	"github.com/spf13/cobra"
 
@@ -175,8 +176,9 @@ func execXDownloadCmd(cmd *cobra.Command, args []string) error {
 
 	c := httpz.NewClient(
 		httpz.DefaultUserAgent,
-		//httpz.OptRequestTimeout(time.Second*2),
-		httpz.OptHeaderTimeout(time.Millisecond),
+		httpz.OptRequestTimeout(time.Second*15),
+		// httpz.OptHeaderTimeout(time.Second*2),
+		httpz.OptRequestDelay(time.Second*5),
 	)
 	dl, err := download.New(fakeSrc.Handle, c, u.String(), cacheDir)
 	if err != nil {
@@ -188,14 +190,14 @@ func execXDownloadCmd(cmd *cobra.Command, args []string) error {
 
 	switch {
 	case len(h.Errors) > 0:
-		//err1 := errz.Err(h.Errors[0])
-		//return err1
+		err1 := errz.Err(h.Errors[0])
+		return err1
 
-		err1 := h.Errors[0]
-		err2 := errz.New("another err")
-		err3 := errz.Combine(err1, err2)
-		//lg.FromContext(ctx).Error("OH NO", lga.Err, err3)
-		return err3
+		//err1 := h.Errors[0]
+		//err2 := errz.New("another err")
+		//err3 := errz.Combine(err1, err2)
+		////lg.FromContext(ctx).Error("OH NO", lga.Err, err3)
+		//return err3
 		//return nil
 	case len(h.WriteErrors) > 0:
 		return h.WriteErrors[0]

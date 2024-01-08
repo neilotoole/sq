@@ -302,7 +302,9 @@ func (dl *Download) get(req *http.Request, h Handler) {
 
 // do executes the request.
 func (dl *Download) do(req *http.Request) (*http.Response, error) {
+	bar := progress.FromContext(req.Context()).NewWaiter(dl.name+": start download", true)
 	resp, err := dl.c.Do(req)
+	bar.Stop()
 	if err != nil {
 		// Download timeout errors are typically wrapped in an url.Error, resulting
 		// in a message like:

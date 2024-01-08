@@ -201,10 +201,5 @@ func ForHTTPResponse(resp *http.Response) Checksum {
 		}
 	}
 
-	s := buf.String()
-	_ = s
-
-	fmt.Printf("\n\n%s\n\n", s)
-
 	return Checksum(Sum(buf.Bytes()))
 }

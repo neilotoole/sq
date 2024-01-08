@@ -23,7 +23,7 @@ func NewErrorWriter(w io.Writer, pr *output.Printing) output.ErrorWriter {
 }
 
 // Error implements output.ErrorWriter.
-func (w *errorWriter) Error(systemErr error, humanErr error) {
+func (w *errorWriter) Error(systemErr, humanErr error) {
 	fmt.Fprintln(w.w, w.pr.Error.Sprintf("sq: %v", humanErr))
 	if !w.pr.Verbose {
 		return
@@ -34,7 +34,7 @@ func (w *errorWriter) Error(systemErr error, humanErr error) {
 		return
 	}
 
-	var buf = &bytes.Buffer{}
+	buf := &bytes.Buffer{}
 	var count int
 	for _, stack := range stacks {
 		if stack == nil {
@@ -64,5 +64,5 @@ func (w *errorWriter) Error(systemErr error, humanErr error) {
 		count++
 	}
 
-	buf.WriteTo(w.w)
+	_, _ = buf.WriteTo(w.w)
 }

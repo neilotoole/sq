@@ -175,9 +175,6 @@ func ExecuteWith(ctx context.Context, ru *run.Run, args []string) error {
 	err = rootCmd.ExecuteContext(ctx)
 	lg.WarnIfCloseError(log, "Problem closing run", ru)
 	if err != nil {
-		//ctx2 := rootCmd.Context() // FIXME: delete
-		//_ = ctx2
-
 		printError(ctx, ru, err)
 	}
 

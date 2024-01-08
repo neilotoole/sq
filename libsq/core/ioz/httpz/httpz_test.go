@@ -20,6 +20,7 @@ import (
 
 func TestOptRequestTimeout(t *testing.T) {
 	t.Parallel()
+
 	const srvrBody = `Hello World!`
 	serverDelay := time.Millisecond * 200
 	srvr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -34,16 +35,15 @@ func TestOptRequestTimeout(t *testing.T) {
 	}))
 	t.Cleanup(srvr.Close)
 
-	clientRequestTimeout := time.Millisecond * 100
-	c := httpz.NewClient(httpz.OptRequestTimeout(clientRequestTimeout))
-	req, err := http.NewRequest(http.MethodGet, srvr.URL, nil)
+	ctx := lg.NewContext(context.Background(), lgt.New(t))
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, srvr.URL, nil)
 	require.NoError(t, err)
 
+	clientRequestTimeout := time.Millisecond * 100
+	c := httpz.NewClient(httpz.OptRequestTimeout(clientRequestTimeout))
 	resp, err := c.Do(req)
-	t.Log(err)
 	require.Error(t, err)
 	require.Nil(t, resp)
-	require.Contains(t, err.Error(), "http request not completed within")
 	require.True(t, errors.Is(err, context.DeadlineExceeded))
 }
 
@@ -51,6 +51,7 @@ func TestOptRequestTimeout(t *testing.T) {
 // that fails via OptHeaderTimeout returns the correct error.
 func TestOptHeaderTimeout_correct_error(t *testing.T) {
 	t.Parallel()
+
 	ctx := lg.NewContext(context.Background(), lgt.New(t))
 
 	const srvrBody = `Hello World!`
@@ -93,6 +94,7 @@ func TestOptHeaderTimeout_correct_error(t *testing.T) {
 // works as expected when compared to stdlib.
 func TestOptHeaderTimeout_vs_stdlib(t *testing.T) {
 	t.Parallel()
+
 	const (
 		headerTimeout = time.Millisecond * 200
 		numLines      = 7

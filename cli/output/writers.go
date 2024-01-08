@@ -100,7 +100,7 @@ type ErrorWriter interface {
 	// Error outputs error conditions. It's possible that systemErr and
 	// humanErr differ; systemErr is the error that occurred, and humanErr
 	// is the error that should be presented to the user.
-	Error(systemErr error, humanErr error)
+	Error(systemErr, humanErr error)
 }
 
 // PingWriter writes ping results.

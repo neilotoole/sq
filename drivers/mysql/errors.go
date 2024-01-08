@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"errors"
+
 	"github.com/neilotoole/sq/libsq/driver"
 
 	"github.com/go-sql-driver/mysql"

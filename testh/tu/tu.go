@@ -419,7 +419,7 @@ func OpenFileCount(t testing.TB, log bool) int {
 	count, out := doOpenFileCount(t)
 	msg := fmt.Sprintf("Open files for [%d]: %d", os.Getpid(), count)
 	if log {
-		msg += "\n\n" + string(out)
+		msg += "\n\n" + out
 	}
 	t.Log(msg)
 	return count
@@ -427,7 +427,9 @@ func OpenFileCount(t testing.TB, log bool) int {
 
 func doOpenFileCount(t testing.TB) (count int, out string) {
 	SkipWindows(t, "OpenFileCount not implemented on Windows")
-	b, err := exec.Command("/bin/sh", "-c", fmt.Sprintf("lsof -p %v", os.Getpid())).Output()
+
+	c := fmt.Sprintf("lsof -p %v", os.Getpid())
+	b, err := exec.Command("/bin/sh", "-c", c).Output()
 	require.NoError(t, err)
 	lines := strings.Split(string(b), "\n")
 	count = len(lines) - 1

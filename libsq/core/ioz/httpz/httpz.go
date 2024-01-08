@@ -51,13 +51,13 @@ func NewClient(opts ...Opt) *http.Client {
 	}
 
 	c.Transport = tr
-	c.Transport = RoundTrip(c.Transport, contextCause())
-
-	for i := range opts {
+	// Apply the round trip functions in reverse order.
+	for i := len(opts) - 1; i >= 0; i-- {
 		if tf, ok := opts[i].(TripFunc); ok {
 			c.Transport = RoundTrip(c.Transport, tf)
 		}
 	}
+	c.Transport = RoundTrip(c.Transport, contextCause())
 	return &c
 }
 

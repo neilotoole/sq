@@ -40,7 +40,7 @@ type stack struct {
 }
 
 // Error implements output.ErrorWriter.
-func (w *errorWriter) Error(systemErr error, humanErr error) {
+func (w *errorWriter) Error(systemErr, humanErr error) {
 	pr := w.pr.Clone()
 	pr.String = pr.Warning
 
@@ -68,7 +68,8 @@ func (w *errorWriter) Error(systemErr error, humanErr error) {
 				Error: &stackError{
 					Message: sysStack.Error.Error(),
 					Tree:    errz.SprintTreeTypes(sysStack.Error),
-				}}
+				},
+			}
 
 			ed.Stack = append(ed.Stack, st)
 		}

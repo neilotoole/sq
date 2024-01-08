@@ -1,8 +1,9 @@
 package sqlite3
 
 import (
-	"github.com/neilotoole/sq/libsq/driver"
 	"strings"
+
+	"github.com/neilotoole/sq/libsq/driver"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 )

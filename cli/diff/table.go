@@ -3,6 +3,7 @@ package diff
 import (
 	"context"
 	"fmt"
+
 	"github.com/neilotoole/sq/libsq/driver"
 
 	"golang.org/x/sync/errgroup"

@@ -2,10 +2,11 @@ package stringz_test
 
 import (
 	"errors"
-	"github.com/neilotoole/sq/libsq/core/errz"
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/neilotoole/sq/libsq/core/errz"
 
 	"github.com/samber/lo"
 	"github.com/shopspring/decimal"

@@ -9,11 +9,14 @@ import (
 )
 
 const (
-	msgLength   = 28
+	msgLength   = 36
 	barWidth    = 28
 	boxWidth    = 64
 	refreshRate = 150 * time.Millisecond
 )
+
+// @download_16b8a3b1: http start                   ∙●∙
+// @download_16b8a3b1: download           ∙                          14.4 MiB / 427.6 MiB  3.4
 
 // DefaultColors returns the default colors used for the progress bars.
 func DefaultColors() *Colors {
@@ -95,4 +98,19 @@ func barStyle(c *color.Color) mpb.BarStyleComposer {
 		Filler("∙").FillerMeta(clr).
 		Padding(" ").
 		Tip(frames...).TipMeta(clr)
+}
+
+func newElapsedSeconds(c *color.Color, startTime time.Time, wcc ...decor.WC) decor.Decorator {
+	var msg string
+	producer := func(d time.Duration) string {
+		return " " + d.Round(time.Second).String()
+	}
+	fn := func(s decor.Statistics) string {
+		if !s.Completed {
+			msg = producer(time.Since(startTime))
+			msg = c.Sprint(msg)
+		}
+		return msg
+	}
+	return decor.Any(fn, wcc...)
 }

@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"errors"
+
 	"github.com/neilotoole/sq/libsq/driver"
 
 	"github.com/jackc/pgx/v5/pgconn"

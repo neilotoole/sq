@@ -215,7 +215,7 @@ func cause(ctx context.Context, err error) error {
 	}
 
 	// err is non-nil
-	if ctx.Err() != err {
+	if ctx.Err() != err { //nolint:errorlint
 		// err is not the context error, so err takes precedence.
 		return err
 	}

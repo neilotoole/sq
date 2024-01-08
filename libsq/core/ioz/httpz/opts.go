@@ -197,3 +197,28 @@ func OptHeaderTimeout(timeout time.Duration) TripFunc {
 // DefaultHeaderTimeout is the default header timeout as used
 // by [NewDefaultClient].
 var DefaultHeaderTimeout = OptHeaderTimeout(time.Second * 5)
+
+// OptRequestDelay is passed to [NewClient] to delay the request by the
+// specified duration. This is useful for testing.
+func OptRequestDelay(delay time.Duration) TripFunc {
+	if delay <= 0 {
+		return NopTripFunc
+	}
+
+	return func(next http.RoundTripper, req *http.Request) (*http.Response, error) {
+		ctx := req.Context()
+		log := lg.FromContext(ctx)
+		log.Debug("HTTP request delay: started", lga.Val, delay, lga.URL, req.URL.String())
+		t := time.NewTimer(delay)
+		defer t.Stop()
+		select {
+		case <-ctx.Done():
+			return nil, context.Cause(ctx)
+		case <-t.C:
+			// Continue below
+		}
+
+		log.Debug("HTTP request delay: done", lga.Val, delay, lga.URL, req.URL.String())
+		return next.RoundTrip(req)
+	}
+}

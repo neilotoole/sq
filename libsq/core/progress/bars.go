@@ -9,6 +9,9 @@ import (
 	"github.com/vbauerster/mpb/v8/decor"
 )
 
+// NewByteCounter returns a new determinate bar whose label
+// metric is the size in bytes of the data being processed. The caller is
+// ultimately responsible for calling [Bar.Stop] on the returned Bar.
 func (p *Progress) NewByteCounter(msg string, size int64) *Bar {
 	if p == nil {
 		return nil
@@ -36,10 +39,7 @@ func (p *Progress) NewByteCounter(msg string, size int64) *Bar {
 
 // NewUnitCounter returns a new indeterminate bar whose label
 // metric is the plural of the provided unit. The caller is ultimately
-// responsible for calling [Bar.Stop] on the returned Bar. However,
-// the returned Bar is also added to the Progress's cleanup list, so
-// it will be called automatically when the Progress is shut down, but that
-// may be later than the actual conclusion of the spinner's work.
+// responsible for calling [Bar.Stop] on the returned Bar.
 //
 //	bar := p.NewUnitCounter("Ingest records", "rec")
 //	defer bar.Stop()
@@ -76,12 +76,32 @@ func (p *Progress) NewUnitCounter(msg, unit string) *Bar {
 	return p.newBar(msg, -1, style, decorator)
 }
 
+// NewWaiter returns a generic indeterminate spinner. If arg clock
+// is true, a timer is shown. This produces output similar to:
+//
+//	@excel/remote: start download                ●∙∙                4s
+//
+// The caller is ultimately responsible for calling [Bar.Stop] on the
+// returned Bar.
+func (p *Progress) NewWaiter(msg string, clock bool) *Bar {
+	if p == nil {
+		return nil
+	}
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	var d []decor.Decorator
+	if clock {
+		d = append(d, newElapsedSeconds(p.colors.Size, time.Now(), decor.WCSyncSpace))
+	}
+	style := spinnerStyle(p.colors.Filler)
+	return p.newBar(msg, -1, style, d...)
+}
+
 // NewUnitTotalCounter returns a new determinate bar whose label
 // metric is the plural of the provided unit. The caller is ultimately
-// responsible for calling [Bar.Stop] on the returned Bar. However,
-// the returned Bar is also added to the Progress's cleanup list, so
-// it will be called automatically when the Progress is shut down, but that
-// may be later than the actual conclusion of the Bar's work.
+// responsible for calling [Bar.Stop] on the returned Bar.
 //
 // This produces output similar to:
 //
