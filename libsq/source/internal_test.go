@@ -2,65 +2,22 @@ package source
 
 import (
 	"context"
-	"io"
 	"runtime"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/sq/libsq/core/lg"
-	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
-	"github.com/neilotoole/sq/testh/proj"
-	"github.com/neilotoole/sq/testh/sakila"
-	"github.com/neilotoole/sq/testh/testsrc"
 	"github.com/neilotoole/sq/testh/tu"
 )
 
 // Export for testing.
 var (
 	FilesDetectTypeFn = func(fs *Files, ctx context.Context, loc string) (typ drivertype.Type, ok bool, err error) {
-		return fs.detectType(ctx, "", loc)
+		return fs.detectType(ctx, "@test", loc)
 	}
 	GroupsFilterOnlyDirectChildren = groupsFilterOnlyDirectChildren
 )
-
-func TestFiles_Open(t *testing.T) {
-	ctx := lg.NewContext(context.Background(), lgt.New(t))
-
-	fs, err := NewFiles(
-		ctx,
-		&Collection{},
-		nil,
-		tu.TempDir(t),
-		tu.CacheDir(t),
-		true,
-	)
-	require.NoError(t, err)
-	t.Cleanup(func() { assert.NoError(t, fs.Close()) })
-
-	src1 := &Source{
-		Location: proj.Abs(testsrc.PathXLSXTestHeader),
-	}
-
-	f, err := fs.openLocation(ctx, src1.Location)
-	require.NoError(t, err)
-	t.Cleanup(func() { assert.NoError(t, f.Close()) })
-	require.Equal(t, src1.Location, f.Name())
-
-	src2 := &Source{
-		Location: sakila.URLActorCSV,
-	}
-
-	f2, err := fs.openLocation(ctx, src2.Location)
-	require.NoError(t, err)
-	t.Cleanup(func() { assert.NoError(t, f2.Close()) })
-
-	b, err := io.ReadAll(f2)
-	require.NoError(t, err)
-	require.Equal(t, proj.ReadFile(sakila.PathCSVActor), b)
-}
 
 func TestParseLoc(t *testing.T) {
 	const (

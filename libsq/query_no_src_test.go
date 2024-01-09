@@ -34,7 +34,7 @@ func TestQuery_no_source(t *testing.T) {
 
 			qc := &libsq.QueryContext{
 				Collection: coll,
-				Sources:    sources,
+				Grips:      sources,
 			}
 
 			gotSQL, gotErr := libsq.SLQ2SQL(th.Context, qc, tc.in)

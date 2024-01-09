@@ -50,7 +50,6 @@ type Files struct {
 	tempDir     string
 	clnup       *cleanup.Cleanup
 	optRegistry *options.Registry
-	coll        *Collection
 
 	// fscache is used to cache files, providing convenient access
 	// to multiple readers via Files.newReader.
@@ -68,7 +67,9 @@ type Files struct {
 
 // NewFiles returns a new Files instance. If cleanFscache is true, the fscache
 // is cleaned on Files.Close.
-func NewFiles(ctx context.Context, coll *Collection, optReg *options.Registry, tmpDir, cacheDir string, cleanFscache bool) (*Files, error) {
+func NewFiles(ctx context.Context, optReg *options.Registry,
+	tmpDir, cacheDir string, cleanFscache bool,
+) (*Files, error) {
 	log := lg.FromContext(ctx)
 	log.Debug("Creating new Files instance", "tmp_dir", tmpDir, "cache_dir", cacheDir)
 	if tmpDir == "" {
@@ -83,7 +84,6 @@ func NewFiles(ctx context.Context, coll *Collection, optReg *options.Registry, t
 	}
 
 	fs := &Files{
-		coll:              coll,
 		optRegistry:       optReg,
 		cacheDir:          cacheDir,
 		fscacheEntryMetas: make(map[string]*fscacheEntryMeta),
@@ -289,10 +289,22 @@ func (fs *Files) addRegularFile(ctx context.Context, f *os.File, key string) (fs
 	return r, errz.Err(err)
 }
 
-func (fs *Files) addRemoteFile(ctx context.Context, handle, loc string) (io.ReadCloser, error) {
+// addRemoteFile adds a remote file to fs's cache, returning a reader.
+// If the remote file is already cached, the path to that cached download
+// file is returned in cachedDownload; otherwise cachedDownload is empty.
+func (fs *Files) addRemoteFile(ctx context.Context, handle, loc string) (cachedDownload string,
+	rdr io.ReadCloser, err error,
+) {
+	// FIXME: addRemoteFile should take a source, because we need to look
+	// at the src's options to create the correctly configured http client.
+
+	if getLocType(loc) != locTypeRemoteFile {
+		return "", nil, errz.Errorf("not a remote file: %s", loc)
+	}
+
 	dlDir := fs.downloadCacheDirFor(loc)
-	if err := ioz.RequireDir(dlDir); err != nil {
-		return nil, err
+	if err = ioz.RequireDir(dlDir); err != nil {
+		return "", nil, err
 	}
 
 	errCh := make(chan error, 1)
@@ -300,9 +312,11 @@ func (fs *Files) addRemoteFile(ctx context.Context, handle, loc string) (io.Read
 
 	h := download.Handler{
 		Cached: func(fp string) {
-			if err := fs.fscache.MapFile(fp); err != nil {
-				errCh <- errz.Wrapf(err, "failed to map file into fscache: %s", fp)
-				return
+			if !fs.fscache.Exists(fp) {
+				if err := fs.fscache.MapFile(fp); err != nil {
+					errCh <- errz.Wrapf(err, "failed to map file into fscache: %s", fp)
+					return
+				}
 			}
 
 			r, _, err := fs.fscache.Get(fp)
@@ -310,18 +324,20 @@ func (fs *Files) addRemoteFile(ctx context.Context, handle, loc string) (io.Read
 				errCh <- errz.Err(err)
 				return
 			}
+			cachedDownload = fp
 			rdrCh <- r
 		},
 		Uncached: func() (dest ioz.WriteErrorCloser) {
-			r, w, err := fs.fscache.Get(loc)
+			r, w, wErrFn, err := fs.fscache.GetWithErr(loc)
 			if err != nil {
 				errCh <- errz.Err(err)
 				return nil
 			}
 
 			wec := ioz.NewFuncWriteErrorCloser(w, func(err error) {
-				log := lg.FromContext(ctx)
-				lg.WarnIfError(log, "Remove damaged cache entry", fs.fscache.Remove(loc))
+				lg.FromContext(ctx).Error("Error writing to fscache",
+					lga.Handle, handle, lga.URL, loc, lga.Err, err)
+				wErrFn(err)
 			})
 
 			rdrCh <- r
@@ -335,37 +351,37 @@ func (fs *Files) addRemoteFile(ctx context.Context, handle, loc string) (io.Read
 	c := httpz.NewDefaultClient()
 	dl, err := download.New(handle, c, loc, dlDir)
 	if err != nil {
-		return nil, err
+		return "", nil, err
 	}
 
 	go dl.Get(ctx, h)
 
 	select {
 	case <-ctx.Done():
-		return nil, errz.Err(ctx.Err())
+		return "", nil, errz.Err(ctx.Err())
 	case err = <-errCh:
-		return nil, err
-	case rdr := <-rdrCh:
-		return rdr, nil
+		return "", nil, err
+	case rdr = <-rdrCh:
+		return cachedDownload, rdr, nil
 	}
 }
 
-// Filepath returns the file path of src.Location.
-// An error is returned the source's driver type
-// is not a file type (i.e. it is a SQL driver).
-// FIXME: Implement Files.Filepath fully.
-func (fs *Files) Filepath(_ context.Context, src *Source) (string, error) {
-	// fs.mu.Lock()
-	// defer fs.mu.Unlock()
-
+// filepath returns the file path of src.Location. An error is returned
+// if the source's driver type is not a document type (e.g. it is a
+// SQL driver). If src is a remote (http) location, the returned filepath
+// is that of the cached download file. If that file is not present, an
+// error is returned.
+func (fs *Files) filepath(src *Source) (string, error) {
 	switch getLocType(src.Location) {
 	case locTypeLocalFile:
 		return src.Location, nil
 	case locTypeRemoteFile:
-		// FIXME: implement remote file location.
-		// It's a remote file. We really should download it here.
-		// FIXME: implement downloading.
-		return "", errz.Errorf("not implemented for remote source: %s", src.Handle)
+		dlDir := fs.downloadCacheDirFor(src.Location)
+		dlFile := filepath.Join(dlDir, "body")
+		if !ioz.FileAccessible(dlFile) {
+			return "", errz.Errorf("remote file for %s not downloaded at: %s", src.Handle, dlFile)
+		}
+		return dlFile, nil
 	case locTypeSQL:
 		return "", errz.Errorf("cannot get filepath of SQL source: %s", src.Handle)
 	case locTypeStdin:
@@ -409,8 +425,6 @@ func (fs *Files) OpenFunc(src *Source) FileOpenFunc {
 }
 
 func (fs *Files) newReader(ctx context.Context, handle, loc string) (io.ReadCloser, error) {
-	// log := lg.FromContext(ctx).With(lga.Loc, loc)
-
 	locTyp := getLocType(loc)
 	switch locTyp {
 	case locTypeUnknown:
@@ -454,73 +468,8 @@ func (fs *Files) newReader(ctx context.Context, handle, loc string) (io.ReadClos
 		return r, nil
 	}
 
-	//if loc == StdinHandle {
-	//	r, w, err := fs.fscache.Get(StdinHandle)
-	//	log.Debug("Returned from fs.fcache.Get", lga.Err, err)
-	//	if err != nil {
-	//		return nil, errz.Err(err)
-	//	}
-	//	if w != nil {
-	//		return nil, errz.New("@stdin not cached: has AddStdin been invoked yet?")
-	//	}
-	//
-	//	return r, nil
-	//}
-
-	//// It's an uncached remote file.
-	//if !fs.fscache.Exists(loc) {
-	//	r, _, err := fs.fscache.Get(loc)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//
-	//	return r, nil
-	//}
-	//
-	//// cache miss
-	//f, err := fs.openLocation(ctx, loc)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//
-	//// Note that addRegularFile closes f
-	//r, err := fs.addRegularFile(ctx, f, loc)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//return r, nil
-
-	return fs.addRemoteFile(ctx, handle, loc)
-}
-
-// openLocation returns a file for loc. It is the caller's
-// responsibility to close the returned file.
-func (fs *Files) openLocation(ctx context.Context, loc string) (*os.File, error) {
-	var fpath string
-	var ok bool
-	var err error
-
-	fpath, ok = isFpath(loc)
-	if ok {
-		// we have a legitimate fpath
-		return errz.Return(os.Open(fpath))
-	}
-	// It's not a local file path, maybe it's remote (http)
-	var u *url.URL
-	u, ok = httpURL(loc)
-	if !ok {
-		// We're out of luck, it's not a valid file location
-		return nil, errz.Errorf("invalid src location: %s", loc)
-	}
-
-	// It's a remote file
-	fpath, err = fs.fetch(ctx, u.String())
-	if err != nil {
-		return nil, err
-	}
-
-	f, err := os.Open(fpath)
-	return f, errz.Err(err)
+	_, r, err := fs.addRemoteFile(ctx, handle, loc)
+	return r, err
 }
 
 // Close closes any open resources.

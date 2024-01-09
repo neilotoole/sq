@@ -167,7 +167,7 @@ func doExecQueryTestCase(t *testing.T, tc queryTestCase) {
 
 			qc := &libsq.QueryContext{
 				Collection: coll,
-				Sources:    sources,
+				Grips:      sources,
 				Args:       tc.args,
 			}
 

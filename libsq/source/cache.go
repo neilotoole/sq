@@ -2,11 +2,19 @@ package source
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+
+	"github.com/neilotoole/sq/libsq/core/ioz"
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
@@ -58,6 +66,134 @@ func (fs *Files) CacheDirFor(src *Source) (dir string, err error) {
 func (fs *Files) downloadCacheDirFor(loc string) (dir string) {
 	fp := filepath.Join(fs.cacheDir, "downloads", checksum.Sum([]byte(loc)))
 	return fp
+}
+
+func (fs *Files) WriteIngestChecksum(ctx context.Context, src, backingSrc *Source) (err error) {
+	log := lg.FromContext(ctx)
+	ingestFilePath, err := fs.filepath(src)
+	if err != nil {
+		return err
+	}
+
+	// Write the checksums file.
+	var sum checksum.Checksum
+	if sum, err = checksum.ForFile(ingestFilePath); err != nil {
+		log.Warn("Failed to compute checksum for source file; caching not in effect",
+			lga.Src, src, lga.Dest, backingSrc, lga.Path, ingestFilePath, lga.Err, err)
+		return err
+	}
+
+	var checksumsPath string
+	if _, _, checksumsPath, err = fs.CachePaths(src); err != nil {
+		return err
+	}
+
+	if err = checksum.WriteFile(checksumsPath, sum, ingestFilePath); err != nil {
+		log.Warn("Failed to write checksum; file caching not in effect",
+			lga.Src, src, lga.Dest, backingSrc, lga.Path, ingestFilePath, lga.Err, err)
+	}
+	return err
+}
+
+// CachedBackingSourceFor returns the underlying backing source for src, if
+// it exists. If it does not exist, ok returns false.
+func (fs *Files) CachedBackingSourceFor(ctx context.Context, src *Source) (backingSrc *Source, ok bool, err error) {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	switch getLocType(src.Location) {
+	case locTypeLocalFile:
+		return fs.cachedBackingSourceForLocalFile(ctx, src)
+	case locTypeRemoteFile:
+		return fs.cachedBackingSourceForRemoteFile(ctx, src)
+	default:
+		return nil, false, errz.Errorf("caching not applicable for source: %s", src.Handle)
+	}
+}
+
+// cachedBackingSourceForLocalFile returns the underlying cached backing
+// source for src, if it exists.
+func (fs *Files) cachedBackingSourceForLocalFile(ctx context.Context, src *Source) (*Source, bool, error) {
+	_, cacheDBPath, checksumsPath, err := fs.CachePaths(src)
+	if err != nil {
+		return nil, false, err
+	}
+
+	if !ioz.FileAccessible(checksumsPath) {
+		return nil, false, nil
+	}
+
+	mChecksums, err := checksum.ReadFile(checksumsPath)
+	if err != nil {
+		return nil, false, err
+	}
+
+	srcFilepath, err := fs.filepath(src)
+	if err != nil {
+		return nil, false, err
+	}
+
+	cachedChecksum, ok := mChecksums[srcFilepath]
+	if !ok {
+		return nil, false, nil
+	}
+
+	srcChecksum, err := checksum.ForFile(srcFilepath)
+	if err != nil {
+		return nil, false, err
+	}
+
+	if srcChecksum != cachedChecksum {
+		return nil, false, nil
+	}
+
+	// The checksums match, so we can use the cached DB,
+	// if it exists.
+	if !ioz.FileAccessible(cacheDBPath) {
+		return nil, false, nil
+	}
+
+	backingSrc := &Source{
+		Handle:   src.Handle + "_cached",
+		Location: "sqlite3://" + cacheDBPath,
+		Type:     drivertype.Type("sqlite3"),
+	}
+
+	lg.FromContext(ctx).Debug("Found cached backing source DB src", lga.Src, src, "backing_src", backingSrc)
+	return backingSrc, true, nil
+}
+
+// cachedBackingSourceForRemoteFile returns the underlying cached backing
+// source for src, if it exists.
+func (fs *Files) cachedBackingSourceForRemoteFile(ctx context.Context, src *Source) (*Source, bool, error) {
+	// src.Location is guaranteed to be a URL.
+	log := lg.FromContext(ctx)
+
+	downloadedFile, r, err := fs.addRemoteFile(ctx, src.Handle, src.Location)
+	if err != nil {
+		return nil, false, err
+	}
+	lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
+	if downloadedFile == "" {
+		log.Debug("No cached download file for src", lga.Src, src)
+		return nil, false, nil
+	}
+
+	log.Debug("Found cached download file for src", lga.Src, src, lga.Path, downloadedFile)
+	return fs.cachedBackingSourceForLocalFile(ctx, src)
+}
+
+// CachePaths returns the paths to the cache files for src.
+// There is no guarantee that these files exist, or are accessible.
+// It's just the paths.
+func (fs *Files) CachePaths(src *Source) (srcCacheDir, cacheDB, checksums string, err error) {
+	if srcCacheDir, err = fs.CacheDirFor(src); err != nil {
+		return "", "", "", err
+	}
+
+	checksums = filepath.Join(srcCacheDir, "checksums.txt")
+	cacheDB = filepath.Join(srcCacheDir, "cached.db")
+	return srcCacheDir, cacheDB, checksums, nil
 }
 
 // sourceHash generates a hash for src. The hash is based on the

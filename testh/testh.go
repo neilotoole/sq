@@ -157,14 +157,7 @@ func (h *Helper) init() {
 
 		cfg := config.New()
 		var err error
-		h.files, err = source.NewFiles(
-			h.Context,
-			cfg.Collection,
-			optRegistry,
-			tu.TempDir(h.T),
-			tu.CacheDir(h.T),
-			true,
-		)
+		h.files, err = source.NewFiles(h.Context, optRegistry, tu.TempDir(h.T), tu.CacheDir(h.T), true)
 		require.NoError(h.T, err)
 
 		h.Cleanup.Add(func() {
@@ -627,7 +620,7 @@ func (h *Helper) QuerySLQ(query string, args map[string]string) (*RecordSink, er
 
 	qc := &libsq.QueryContext{
 		Collection: h.coll,
-		Sources:    h.grips,
+		Grips:      h.grips,
 		Args:       args,
 	}
 

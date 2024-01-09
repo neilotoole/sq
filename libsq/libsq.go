@@ -27,8 +27,8 @@ type QueryContext struct {
 	// Collection is the set of sources.
 	Collection *source.Collection
 
-	// Sources bridges between source.Source and databases.
-	Sources *driver.Grips
+	// Grips mediates access to driver.Grip instances.
+	Grips *driver.Grips
 
 	// Args defines variables that are substituted into the query.
 	// May be nil or empty.

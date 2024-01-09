@@ -103,14 +103,10 @@ type Download struct {
 // New returns a new Download for url that writes to cacheDir.
 // Name is a user-friendly name, such as a source handle like @data.
 // The name may show up in logs, or progress indicators etc.
-// If c is nil, httpz.NewDefaultClient is used.
 func New(name string, c *http.Client, dlURL, cacheDir string, opts ...Opt) (*Download, error) {
 	_, err := url.ParseRequestURI(dlURL)
 	if err != nil {
 		return nil, errz.Wrap(err, "invalid download URL")
-	}
-	if c == nil {
-		c = httpz.NewDefaultClient()
 	}
 
 	if cacheDir, err = filepath.Abs(cacheDir); err != nil {

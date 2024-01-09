@@ -3,7 +3,6 @@ package driver
 import (
 	"context"
 	"log/slog"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -11,7 +10,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
-	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
@@ -130,11 +128,11 @@ func (gs *Grips) doOpen(ctx context.Context, src *source.Source) (Grip, error) {
 
 // OpenScratch returns a scratch database instance. It is not
 // necessary for the caller to close the returned Grip as
-// its Close method will be invoked by d.Close.
+// its Close method will be invoked by Grips.Close.
 func (gs *Grips) OpenScratch(ctx context.Context, src *source.Source) (Grip, error) {
 	const msgCloseScratch = "Close scratch db"
 
-	cacheDir, srcCacheDBFilepath, _, err := gs.getCachePaths(src)
+	cacheDir, srcCacheDBFilepath, _, err := gs.files.CachePaths(src)
 	if err != nil {
 		return nil, err
 	}
@@ -225,8 +223,7 @@ func (gs *Grips) openIngestNoCache(ctx context.Context, src *source.Source,
 func (gs *Grips) openIngestCache(ctx context.Context, src *source.Source,
 	ingestFn func(ctx context.Context, destGrip Grip) error,
 ) (Grip, error) {
-	log := lg.FromContext(ctx)
-	log = log.With(lga.Handle, src.Handle)
+	log := lg.FromContext(ctx).With(lga.Handle, src.Handle)
 	ctx = lg.NewContext(ctx, log)
 
 	lock, err := gs.files.CacheLockFor(src)
@@ -251,13 +248,6 @@ func (gs *Grips) openIngestCache(ctx context.Context, src *source.Source,
 			log.Warn("Failed to release cache lock", lga.Lock, lock, lga.Err, err)
 		}
 	}()
-
-	cacheDir, _, checksumsPath, err := gs.getCachePaths(src)
-	if err != nil {
-		return nil, err
-	}
-
-	log.Debug("Using cache dir", lga.Path, cacheDir)
 
 	var impl Grip
 	var foundCached bool
@@ -293,99 +283,27 @@ func (gs *Grips) openIngestCache(ctx context.Context, src *source.Source,
 
 	log.Info("Ingest completed", lga.Src, src, lga.Dest, impl.Source(), lga.Elapsed, elapsed)
 
-	ingestFilePath, err := gs.files.Filepath(ctx, src)
-	if err != nil {
-		return nil, err
-	}
-
-	// Write the checksums file.
-	var sum checksum.Checksum
-	if sum, err = checksum.ForFile(ingestFilePath); err != nil {
-		log.Warn("Failed to compute checksum for source file; caching not in effect",
-			lga.Src, src, lga.Dest, impl.Source(), lga.Path, ingestFilePath, lga.Err, err)
-		return impl, nil //nolint:nilerr
-	}
-
-	if err = checksum.WriteFile(checksumsPath, sum, ingestFilePath); err != nil {
-		log.Warn("Failed to write checksum; file caching not in effect",
-			lga.Src, src, lga.Dest, impl.Source(), lga.Path, ingestFilePath, lga.Err, err)
+	if err = gs.files.WriteIngestChecksum(ctx, src, impl.Source()); err != nil {
+		log.Warn("Failed to write checksum for source file; caching not in effect",
+			lga.Src, src, lga.Dest, impl.Source(), lga.Err, err)
 	}
 
 	return impl, nil
 }
 
-// getCachePaths returns the paths to the cache files for src.
-// There is no guarantee that these files exist, or are accessible.
-// It's just the paths.
-func (gs *Grips) getCachePaths(src *source.Source) (srcCacheDir, cacheDB, checksums string, err error) {
-	if srcCacheDir, err = gs.files.CacheDirFor(src); err != nil {
-		return "", "", "", err
-	}
-
-	checksums = filepath.Join(srcCacheDir, "checksums.txt")
-	cacheDB = filepath.Join(srcCacheDir, "cached.db")
-	return srcCacheDir, cacheDB, checksums, nil
-}
-
-func (gs *Grips) openCachedFor(ctx context.Context, src *source.Source) (Grip, bool, error) {
-	_, cacheDBPath, checksumsPath, err := gs.getCachePaths(src)
+// openCachedFor returns the cached backing grip for src.
+// If not cached, exists returns false.
+func (gs *Grips) openCachedFor(ctx context.Context, src *source.Source) (backingGrip Grip, exists bool, err error) {
+	var backingSrc *source.Source
+	backingSrc, exists, err = gs.files.CachedBackingSourceFor(ctx, src)
 	if err != nil {
 		return nil, false, err
 	}
-
-	if !ioz.FileAccessible(checksumsPath) {
+	if !exists {
 		return nil, false, nil
 	}
 
-	mChecksums, err := checksum.ReadFile(checksumsPath)
-	if err != nil {
-		return nil, false, err
-	}
-
-	drvr, err := gs.drvrs.DriverFor(src.Type)
-	if err != nil {
-		return nil, false, err
-	}
-
-	if drvr.DriverMetadata().IsSQL {
-		return nil, false, errz.Errorf("open file cache for source %s: driver {%s} is SQL, not document",
-			src.Handle, src.Type)
-	}
-
-	// FIXME: Not too sure invoking files.Filepath here is the right approach?
-	srcFilepath, err := gs.files.Filepath(ctx, src)
-	if err != nil {
-		return nil, false, err
-	}
-
-	cachedChecksum, ok := mChecksums[srcFilepath]
-	if !ok {
-		return nil, false, nil
-	}
-
-	srcChecksum, err := checksum.ForFile(srcFilepath)
-	if err != nil {
-		return nil, false, err
-	}
-
-	if srcChecksum != cachedChecksum {
-		return nil, false, nil
-	}
-
-	// The checksums match, so we can use the cached DB,
-	// if it exists.
-	if !ioz.FileAccessible(cacheDBPath) {
-		return nil, false, nil
-	}
-
-	backingSrc := &source.Source{
-		Handle:   src.Handle + "_cached",
-		Location: "sqlite3://" + cacheDBPath,
-		Type:     drivertype.Type("sqlite3"),
-	}
-
-	backingGrip, err := gs.doOpen(ctx, backingSrc)
-	if err != nil {
+	if backingGrip, err = gs.doOpen(ctx, backingSrc); err != nil {
 		return nil, false, errz.Wrapf(err, "open cached DB for source %s", src.Handle)
 	}
 

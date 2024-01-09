@@ -112,7 +112,7 @@ func (ru *Run) Close() error {
 func NewQueryContext(ru *Run, args map[string]string) *libsq.QueryContext {
 	return &libsq.QueryContext{
 		Collection: ru.Config.Collection,
-		Sources:    ru.Grips,
+		Grips:      ru.Grips,
 		Args:       args,
 	}
 }

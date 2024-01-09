@@ -185,7 +185,7 @@ func (p *pipeline) prepareNoTable(ctx context.Context, qm *queryModel) error {
 
 	if handle == "" {
 		src = p.qc.Collection.Active()
-		if src == nil || !p.qc.Sources.IsSQLSource(src) {
+		if src == nil || !p.qc.Grips.IsSQLSource(src) {
 			log.Debug("No active SQL source, will use scratchdb.")
 			// REVISIT: Grips.OpenScratch needs a source, so we just make one up.
 			ephemeralSrc := &source.Source{
@@ -195,7 +195,7 @@ func (p *pipeline) prepareNoTable(ctx context.Context, qm *queryModel) error {
 
 			// FIXME: We really want to change the signature of OpenScratch to
 			// just need a name, not a source.
-			p.targetGrip, err = p.qc.Sources.OpenScratch(ctx, ephemeralSrc)
+			p.targetGrip, err = p.qc.Grips.OpenScratch(ctx, ephemeralSrc)
 			if err != nil {
 				return err
 			}
@@ -214,7 +214,7 @@ func (p *pipeline) prepareNoTable(ctx context.Context, qm *queryModel) error {
 	}
 
 	// At this point, src is non-nil.
-	if p.targetGrip, err = p.qc.Sources.Open(ctx, src); err != nil {
+	if p.targetGrip, err = p.qc.Grips.Open(ctx, src); err != nil {
 		return err
 	}
 
@@ -246,7 +246,7 @@ func (p *pipeline) prepareFromTable(ctx context.Context, tblSel *ast.TblSelector
 		return "", nil, err
 	}
 
-	fromGrip, err = p.qc.Sources.Open(ctx, src)
+	fromGrip, err = p.qc.Grips.Open(ctx, src)
 	if err != nil {
 		return "", nil, err
 	}
@@ -339,7 +339,7 @@ func (p *pipeline) joinSingleSource(ctx context.Context, jc *joinClause) (fromCl
 		return "", nil, err
 	}
 
-	fromGrip, err = p.qc.Sources.Open(ctx, src)
+	fromGrip, err = p.qc.Grips.Open(ctx, src)
 	if err != nil {
 		return "", nil, err
 	}
@@ -377,7 +377,7 @@ func (p *pipeline) joinCrossSource(ctx context.Context, jc *joinClause) (fromCla
 	}
 
 	// Open the join db
-	joinGrip, err := p.qc.Sources.OpenJoin(ctx, srcs...)
+	joinGrip, err := p.qc.Grips.OpenJoin(ctx, srcs...)
 	if err != nil {
 		return "", nil, err
 	}
@@ -404,7 +404,7 @@ func (p *pipeline) joinCrossSource(ctx context.Context, jc *joinClause) (fromCla
 			return "", nil, err
 		}
 		var db driver.Grip
-		if db, err = p.qc.Sources.Open(ctx, src); err != nil {
+		if db, err = p.qc.Grips.Open(ctx, src); err != nil {
 			return "", nil, err
 		}
 

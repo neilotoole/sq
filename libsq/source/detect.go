@@ -220,7 +220,7 @@ func (fs *Files) DetectStdinType(ctx context.Context) (drivertype.Type, error) {
 		return drivertype.None, errz.New("must invoke Files.AddStdin before invoking DetectStdinType")
 	}
 
-	typ, ok, err := fs.detectType(ctx, "", StdinHandle)
+	typ, ok, err := fs.detectType(ctx, StdinHandle, StdinHandle)
 	if err != nil {
 		return drivertype.None, err
 	}
