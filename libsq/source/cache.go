@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/ioz/lockfile"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 
 	"github.com/neilotoole/sq/libsq/core/ioz"
@@ -61,13 +63,6 @@ func (fs *Files) CacheDirFor(src *Source) (dir string, err error) {
 	return dir, nil
 }
 
-// downloadCacheDirFor gets the download cache dir for loc. It is not guaranteed
-// that the returned dir exists or is accessible.
-func (fs *Files) downloadCacheDirFor(loc string) (dir string) {
-	fp := filepath.Join(fs.cacheDir, "downloads", checksum.Sum([]byte(loc)))
-	return fp
-}
-
 func (fs *Files) WriteIngestChecksum(ctx context.Context, src, backingSrc *Source) (err error) {
 	log := lg.FromContext(ctx)
 	ingestFilePath, err := fs.filepath(src)
@@ -103,7 +98,7 @@ func (fs *Files) CachedBackingSourceFor(ctx context.Context, src *Source) (backi
 
 	switch getLocType(src.Location) {
 	case locTypeLocalFile:
-		return fs.cachedBackingSourceForLocalFile(ctx, src)
+		return fs.cachedBackingSourceForFile(ctx, src)
 	case locTypeRemoteFile:
 		return fs.cachedBackingSourceForRemoteFile(ctx, src)
 	default:
@@ -111,9 +106,9 @@ func (fs *Files) CachedBackingSourceFor(ctx context.Context, src *Source) (backi
 	}
 }
 
-// cachedBackingSourceForLocalFile returns the underlying cached backing
+// cachedBackingSourceForFile returns the underlying cached backing
 // source for src, if it exists.
-func (fs *Files) cachedBackingSourceForLocalFile(ctx context.Context, src *Source) (*Source, bool, error) {
+func (fs *Files) cachedBackingSourceForFile(ctx context.Context, src *Source) (*Source, bool, error) {
 	_, cacheDBPath, checksumsPath, err := fs.CachePaths(src)
 	if err != nil {
 		return nil, false, err
@@ -166,13 +161,14 @@ func (fs *Files) cachedBackingSourceForLocalFile(ctx context.Context, src *Sourc
 // cachedBackingSourceForRemoteFile returns the underlying cached backing
 // source for src, if it exists.
 func (fs *Files) cachedBackingSourceForRemoteFile(ctx context.Context, src *Source) (*Source, bool, error) {
-	// src.Location is guaranteed to be a URL.
 	log := lg.FromContext(ctx)
 
-	downloadedFile, r, err := fs.addRemoteFile(ctx, src.Handle, src.Location)
+	downloadedFile, r, err := fs.openRemoteFile(ctx, src, true)
 	if err != nil {
 		return nil, false, err
 	}
+
+	// We don't care about the reader, but we do need to close it.
 	lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
 	if downloadedFile == "" {
 		log.Debug("No cached download file for src", lga.Src, src)
@@ -180,7 +176,7 @@ func (fs *Files) cachedBackingSourceForRemoteFile(ctx context.Context, src *Sour
 	}
 
 	log.Debug("Found cached download file for src", lga.Src, src, lga.Path, downloadedFile)
-	return fs.cachedBackingSourceForLocalFile(ctx, src)
+	return fs.cachedBackingSourceForFile(ctx, src)
 }
 
 // CachePaths returns the paths to the cache files for src.
@@ -236,6 +232,111 @@ func (fs *Files) sourceHash(src *Source) string {
 
 	sum := checksum.Sum(buf.Bytes())
 	return sum
+}
+
+// CacheLockFor returns the lock file for src's cache.
+func (fs *Files) CacheLockFor(src *Source) (lockfile.Lockfile, error) {
+	cacheDir, err := fs.CacheDirFor(src)
+	if err != nil {
+		return "", errz.Wrapf(err, "cache lock for %s", src.Handle)
+	}
+
+	lf, err := lockfile.New(filepath.Join(cacheDir, "pid.lock"))
+	if err != nil {
+		return "", errz.Wrapf(err, "cache lock for %s", src.Handle)
+	}
+
+	return lf, nil
+}
+
+// CacheClear clears the cache dir. This wipes the entire contents
+// of the cache dir, so it should be used with caution. Note that
+// this operation is distinct from [Files.CacheSweep].
+func (fs *Files) CacheClear(ctx context.Context) error {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	log := lg.FromContext(ctx).With(lga.Dir, fs.cacheDir)
+	log.Debug("Clearing cache dir")
+	if !ioz.DirExists(fs.cacheDir) {
+		log.Debug("Cache dir does not exist")
+		return nil
+	}
+
+	// Instead of directly deleting the existing cache dir, we first
+	// move it to /tmp, and then try to delete it. This should probably
+	// help with the situation where another sq instance has an open pid
+	// lock in the cache dir.
+
+	tmpDir := DefaultTempDir()
+	if err := ioz.RequireDir(tmpDir); err != nil {
+		return errz.Wrap(err, "cache clear")
+	}
+	relocateDir := filepath.Join(tmpDir, "dead_cache_"+stringz.Uniq8())
+	if err := os.Rename(fs.cacheDir, relocateDir); err != nil {
+		return errz.Wrap(err, "cache clear: relocate")
+	}
+
+	if err := os.RemoveAll(relocateDir); err != nil {
+		log.Warn("Could not delete relocated cache dir", lga.Path, relocateDir, lga.Err, err)
+	}
+
+	// Recreate the cache dir.
+	if err := ioz.RequireDir(fs.cacheDir); err != nil {
+		return errz.Wrap(err, "cache clear")
+	}
+
+	return nil
+}
+
+// CacheSweep sweeps the cache dir, making a best-effort attempt
+// to remove any empty directories. Note that this operation is
+// distinct from [Files.CacheClear].
+func (fs *Files) CacheSweep(ctx context.Context) {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	dir := fs.cacheDir
+	log := lg.FromContext(ctx).With(lga.Dir, dir)
+	log.Debug("Sweeping cache dir")
+	var count int
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+		if err != nil {
+			log.Warn("Problem sweeping cache dir", lga.Path, path, lga.Err, err)
+			return nil
+		}
+
+		if !info.IsDir() {
+			return nil
+		}
+
+		files, err := os.ReadDir(path)
+		if err != nil {
+			log.Warn("Problem reading dir", lga.Dir, path, lga.Err, err)
+			return nil
+		}
+
+		if len(files) != 0 {
+			return nil
+		}
+
+		err = os.Remove(path)
+		if err != nil {
+			log.Warn("Problem removing empty dir", lga.Dir, path, lga.Err, err)
+		}
+		count++
+
+		return nil
+	})
+	if err != nil {
+		log.Warn("Problem sweeping cache dir", lga.Dir, dir, lga.Err, err)
+	}
+	log.Info("Swept cache dir", lga.Dir, dir, lga.Count, count)
 }
 
 // DefaultCacheDir returns the sq cache dir. This is generally

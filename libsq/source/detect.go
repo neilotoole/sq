@@ -79,6 +79,9 @@ func (fs *Files) DriverType(ctx context.Context, handle, loc string) (drivertype
 	return typ, nil
 }
 
+// detectType detects the type of src's location. The value of Source.Type
+// is ignored. If the type cannot be detected, drivertype.None and false are
+// returned.
 func (fs *Files) detectType(ctx context.Context, handle, loc string) (typ drivertype.Type, ok bool, err error) {
 	if len(fs.detectFns) == 0 {
 		return drivertype.None, false, nil
@@ -87,7 +90,8 @@ func (fs *Files) detectType(ctx context.Context, handle, loc string) (typ driver
 	start := time.Now()
 
 	openFn := func(ctx context.Context) (io.ReadCloser, error) {
-		return fs.newReader(ctx, handle, loc)
+		src := &Source{Handle: handle, Location: loc}
+		return fs.newReader(ctx, src)
 	}
 
 	// We do the magic number first, because it's so fast.

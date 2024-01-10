@@ -353,3 +353,15 @@ func getLocType(loc string) locType {
 	}
 	return locTypeLocalFile
 }
+
+// httpURL tests if s is a well-structured HTTP or HTTPS url, and
+// if so, returns the url and true.
+func httpURL(s string) (u *url.URL, ok bool) {
+	var err error
+	u, err = url.Parse(s)
+	if err != nil || u.Host == "" || !(u.Scheme == "http" || u.Scheme == "https") {
+		return nil, false
+	}
+
+	return u, true
+}

@@ -176,8 +176,8 @@ func execXDownloadCmd(cmd *cobra.Command, args []string) error {
 
 	c := httpz.NewClient(
 		httpz.DefaultUserAgent,
-		httpz.OptRequestTimeout(time.Second*15),
-		// httpz.OptHeaderTimeout(time.Second*2),
+		httpz.OptResponseTimeout(time.Second*15),
+		// httpz.OptRequestTimeout(time.Second*2),
 		httpz.OptRequestDelay(time.Second*5),
 	)
 	dl, err := download.New(fakeSrc.Handle, c, u.String(), cacheDir)

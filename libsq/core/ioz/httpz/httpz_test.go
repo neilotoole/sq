@@ -40,7 +40,7 @@ func TestOptRequestTimeout(t *testing.T) {
 	require.NoError(t, err)
 
 	clientRequestTimeout := time.Millisecond * 100
-	c := httpz.NewClient(httpz.OptRequestTimeout(clientRequestTimeout))
+	c := httpz.NewClient(httpz.OptResponseTimeout(clientRequestTimeout))
 	resp, err := c.Do(req)
 	require.Error(t, err)
 	require.Nil(t, resp)
@@ -48,7 +48,7 @@ func TestOptRequestTimeout(t *testing.T) {
 }
 
 // TestOptHeaderTimeout_correct_error verifies that an HTTP request
-// that fails via OptHeaderTimeout returns the correct error.
+// that fails via OptRequestTimeout returns the correct error.
 func TestOptHeaderTimeout_correct_error(t *testing.T) {
 	t.Parallel()
 
@@ -69,7 +69,7 @@ func TestOptHeaderTimeout_correct_error(t *testing.T) {
 	t.Cleanup(srvr.Close)
 
 	clientHeaderTimeout := time.Second * 1
-	c := httpz.NewClient(httpz.OptHeaderTimeout(clientHeaderTimeout))
+	c := httpz.NewClient(httpz.OptRequestTimeout(clientHeaderTimeout))
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, srvr.URL, nil)
 	require.NoError(t, err)
 
@@ -90,7 +90,7 @@ func TestOptHeaderTimeout_correct_error(t *testing.T) {
 	require.Equal(t, srvrBody, got)
 }
 
-// TestOptHeaderTimeout_vs_stdlib verifies that OptHeaderTimeout
+// TestOptHeaderTimeout_vs_stdlib verifies that OptRequestTimeout
 // works as expected when compared to stdlib.
 func TestOptHeaderTimeout_vs_stdlib(t *testing.T) {
 	t.Parallel()
@@ -121,7 +121,7 @@ func TestOptHeaderTimeout_vs_stdlib(t *testing.T) {
 			ctxFn: func(t *testing.T) context.Context {
 				return context.Background()
 			},
-			c:       httpz.NewClient(httpz.OptHeaderTimeout(headerTimeout)),
+			c:       httpz.NewClient(httpz.OptRequestTimeout(headerTimeout)),
 			wantErr: false,
 		},
 	}

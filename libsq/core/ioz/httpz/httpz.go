@@ -22,6 +22,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
+
 	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
@@ -117,6 +120,17 @@ func ResponseLogValue(resp *http.Response) slog.Value {
 	}
 
 	return slog.GroupValue(attrs...)
+}
+
+// Log logs req, resp, and err via the logger on req.Context().
+func Log(req *http.Request, resp *http.Response, err error) {
+	log := lg.FromContext(req.Context()).With(lga.Method, req.Method, lga.URL, req.URL)
+	if err != nil {
+		log.Warn("HTTP request error", lga.Err, err)
+		return
+	}
+
+	log.Debug("HTTP request completed", lga.Resp, ResponseLogValue(resp))
 }
 
 // RequestLogValue implements slog.LogValuer for req.

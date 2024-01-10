@@ -134,6 +134,7 @@ func New(name string, c *http.Client, dlURL, cacheDir string, opts ...Opt) (*Dow
 // Get gets the download, invoking Handler as appropriate.
 func (dl *Download) Get(ctx context.Context, h Handler) {
 	req := dl.mustRequest(ctx)
+	lg.FromContext(ctx).Debug("Get download", lga.URL, dl.url)
 	dl.get(req, h)
 }
 
@@ -142,7 +143,6 @@ func (dl *Download) Get(ctx context.Context, h Handler) {
 func (dl *Download) get(req *http.Request, h Handler) { //nolint:funlen,gocognit
 	ctx := req.Context()
 	log := lg.FromContext(ctx)
-	log.Debug("Get download", lga.URL, dl.url)
 	_, fpBody, _ := dl.cache.paths(req)
 
 	state := dl.state(req)
@@ -306,6 +306,7 @@ func (dl *Download) get(req *http.Request, h Handler) { //nolint:funlen,gocognit
 func (dl *Download) do(req *http.Request) (*http.Response, error) {
 	bar := progress.FromContext(req.Context()).NewWaiter(dl.name+": start download", true)
 	resp, err := dl.c.Do(req)
+	httpz.Log(req, resp, err)
 	bar.Stop()
 	if err != nil {
 		// Download timeout errors are typically wrapped in an url.Error, resulting
@@ -382,6 +383,26 @@ func (dl *Download) state(req *http.Request) State {
 	}
 
 	return getFreshness(cachedResp.Header, req.Header)
+}
+
+// CacheFile returns the path to the cached file and its size, if it exists
+// and has been fully downloaded.
+func (dl *Download) CacheFile(ctx context.Context) (fp string, size int64, err error) {
+	if dl.cache == nil {
+		return "", 0, errz.Errorf("cache doesn't exist for: %s", dl.url)
+	}
+
+	req := dl.mustRequest(ctx)
+	if !dl.cache.exists(req) {
+		return "", 0, errz.Errorf("no cache for: %s", dl.url)
+	}
+	_, fp, _ = dl.cache.paths(req)
+
+	fi, err := os.Stat(fp)
+	if err != nil {
+		return "", 0, errz.Err(err)
+	}
+	return fp, fi.Size(), nil
 }
 
 // Checksum returns the checksum of the cached download, if available.

@@ -26,10 +26,10 @@ const (
 	msgCloseCacheBodyFile   = "Close cached response body file"
 )
 
-// cache is a cache for a individual download. The cached response is
+// cache is a cache for an individual download. The cached response is
 // stored in two files, one for the header and one for the body, with
 // a checksum (of the body file) stored in a third file.
-// Use cache.paths to access the cache files.
+// Use cache.paths to get the cache file paths.
 type cache struct {
 	// FIXME: move the mutex to the Download struct?
 	mu sync.Mutex
@@ -44,7 +44,7 @@ func (c *cache) paths(req *http.Request) (header, body, checksum string) {
 	if req == nil || req.Method == http.MethodGet {
 		return filepath.Join(c.dir, "header"),
 			filepath.Join(c.dir, "body"),
-			filepath.Join(c.dir, "checksum.txt")
+			filepath.Join(c.dir, "checksums.txt")
 	}
 
 	// This is probably not strictly necessary because we're always
@@ -52,7 +52,7 @@ func (c *cache) paths(req *http.Request) (header, body, checksum string) {
 	// Can probably delete.
 	return filepath.Join(c.dir, req.Method+"_header"),
 		filepath.Join(c.dir, req.Method+"_body"),
-		filepath.Join(c.dir, req.Method+"_checksum.txt")
+		filepath.Join(c.dir, req.Method+"_checksums.txt")
 }
 
 // exists returns true if the cache exists and is consistent.
@@ -291,7 +291,7 @@ func (c *cache) doWrite(ctx context.Context, resp *http.Response,
 		return err
 	}
 
-	log.Debug("Writing HTTP response to cache", lga.Dir, c.dir, "resp", httpz.ResponseLogValue(resp))
+	log.Debug("Writing HTTP response to cache", lga.Dir, c.dir, lga.Resp, httpz.ResponseLogValue(resp))
 	fpHeader, fpBody, _ := c.paths(resp.Request)
 
 	headerBytes, err := httputil.DumpResponse(resp, false)
@@ -344,7 +344,7 @@ func (c *cache) doWrite(ctx context.Context, resp *http.Response,
 		return errz.Wrap(err, "failed to compute checksum for cache body file")
 	}
 
-	if err = checksum.WriteFile(filepath.Join(c.dir, "checksum.txt"), sum, "body"); err != nil {
+	if err = checksum.WriteFile(filepath.Join(c.dir, "checksums.txt"), sum, "body"); err != nil {
 		return errz.Wrap(err, "failed to write checksum file for cache body")
 	}
 

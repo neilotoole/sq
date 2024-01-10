@@ -46,7 +46,7 @@ func TestSlowHeaderServer(t *testing.T) {
 	t.Cleanup(srvr.Close)
 
 	clientHeaderTimeout := time.Second * 2
-	c := httpz.NewClient(httpz.OptHeaderTimeout(clientHeaderTimeout))
+	c := httpz.NewClient(httpz.OptRequestTimeout(clientHeaderTimeout))
 	req, err := http.NewRequest(http.MethodGet, srvr.URL, nil)
 	require.NoError(t, err)
 	resp, err := c.Do(req)

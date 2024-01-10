@@ -77,12 +77,12 @@ func contextCause() TripFunc {
 // as used by [NewDefaultClient].
 var DefaultUserAgent = OptUserAgent(buildinfo.Get().UserAgent())
 
-// OptRequestTimeout is passed to [NewClient] to set the total request timeout,
+// OptResponseTimeout is passed to [NewClient] to set the total request timeout,
 // including reading the body. This is basically the same as a traditional
 // request timeout via context.WithTimeout. If timeout is zero, this is no-op.
 //
-// Contrast with [OptHeaderTimeout].
-func OptRequestTimeout(timeout time.Duration) TripFunc {
+// Contrast with [OptRequestTimeout].
+func OptResponseTimeout(timeout time.Duration) TripFunc {
 	if timeout <= 0 {
 		return NopTripFunc
 	}
@@ -127,13 +127,13 @@ func OptRequestTimeout(timeout time.Duration) TripFunc {
 	}
 }
 
-// OptHeaderTimeout is passed to [NewClient] to set a timeout for just
+// OptRequestTimeout is passed to [NewClient] to set a timeout for just
 // getting the initial response headers. This is useful if you expect
 // a response within, say, 2 seconds, but you expect the body to take longer
 // to read.
 //
-// Contrast with [OptRequestTimeout].
-func OptHeaderTimeout(timeout time.Duration) TripFunc {
+// Contrast with [OptResponseTimeout].
+func OptRequestTimeout(timeout time.Duration) TripFunc {
 	if timeout <= 0 {
 		return NopTripFunc
 	}
@@ -196,7 +196,7 @@ func OptHeaderTimeout(timeout time.Duration) TripFunc {
 
 // DefaultHeaderTimeout is the default header timeout as used
 // by [NewDefaultClient].
-var DefaultHeaderTimeout = OptHeaderTimeout(time.Second * 5)
+var DefaultHeaderTimeout = OptRequestTimeout(time.Second * 5)
 
 // OptRequestDelay is passed to [NewClient] to delay the request by the
 // specified duration. This is useful for testing.

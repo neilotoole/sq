@@ -4,31 +4,25 @@ import (
 	"context"
 	"io"
 	"log/slog"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/neilotoole/sq/libsq/core/ioz/download"
-	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
 
 	"github.com/neilotoole/fscache"
-
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
 	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
-	"github.com/neilotoole/sq/libsq/core/ioz/lockfile"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/progress"
-	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 // Files is the centralized API for interacting with files.
@@ -127,6 +121,8 @@ func NewFiles(ctx context.Context, optReg *options.Registry,
 // Filesize returns the file size of src.Location. If the source is being
 // loaded asynchronously, this function may block until loading completes.
 // An error is returned if src is not a document/file source.
+// For remote files, this method should only be invoked after the file
+// has completed downloading, or an error will be returned.
 func (fs *Files) Filesize(ctx context.Context, src *Source) (size int64, err error) {
 	locTyp := getLocType(src.Location)
 	switch locTyp {
@@ -139,11 +135,18 @@ func (fs *Files) Filesize(ctx context.Context, src *Source) (size int64, err err
 		return fi.Size(), nil
 
 	case locTypeRemoteFile:
-		// FIXME: implement remote file size.
-		return 0, errz.Errorf("remote file size not implemented: %s", src.Location)
+		fs.mu.Lock()
+		defer fs.mu.Unlock()
+		var dl *download.Download
+		if dl, err = fs.downloadFor(ctx, src); err != nil {
+			return 0, err
+		}
+
+		_, size, err = dl.CacheFile(ctx)
+		return size, err
 
 	case locTypeSQL:
-		return 0, errz.Errorf("cannot get size of SQL source: %s", src.Handle)
+		return 0, errz.Errorf("invalid to get size of SQL source: %s", src.Handle)
 
 	case locTypeStdin:
 		fs.mu.Lock()
@@ -265,10 +268,6 @@ func (fs *Files) addRegularFile(ctx context.Context, f *os.File, key string) (fs
 	log := lg.FromContext(ctx)
 	log.Debug("Adding regular file", lga.Key, key, lga.Path, f.Name())
 
-	if strings.Contains(f.Name(), "cached.db") {
-		log.Error("oh no, shouldn't be happening") // FIXME: delete this
-	}
-
 	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, f)
 
 	if key == StdinHandle {
@@ -289,83 +288,6 @@ func (fs *Files) addRegularFile(ctx context.Context, f *os.File, key string) (fs
 	return r, errz.Err(err)
 }
 
-// addRemoteFile adds a remote file to fs's cache, returning a reader.
-// If the remote file is already cached, the path to that cached download
-// file is returned in cachedDownload; otherwise cachedDownload is empty.
-func (fs *Files) addRemoteFile(ctx context.Context, handle, loc string) (cachedDownload string,
-	rdr io.ReadCloser, err error,
-) {
-	// FIXME: addRemoteFile should take a source, because we need to look
-	// at the src's options to create the correctly configured http client.
-
-	if getLocType(loc) != locTypeRemoteFile {
-		return "", nil, errz.Errorf("not a remote file: %s", loc)
-	}
-
-	dlDir := fs.downloadCacheDirFor(loc)
-	if err = ioz.RequireDir(dlDir); err != nil {
-		return "", nil, err
-	}
-
-	errCh := make(chan error, 1)
-	rdrCh := make(chan io.ReadCloser, 1)
-
-	h := download.Handler{
-		Cached: func(fp string) {
-			if !fs.fscache.Exists(fp) {
-				if err := fs.fscache.MapFile(fp); err != nil {
-					errCh <- errz.Wrapf(err, "failed to map file into fscache: %s", fp)
-					return
-				}
-			}
-
-			r, _, err := fs.fscache.Get(fp)
-			if err != nil {
-				errCh <- errz.Err(err)
-				return
-			}
-			cachedDownload = fp
-			rdrCh <- r
-		},
-		Uncached: func() (dest ioz.WriteErrorCloser) {
-			r, w, wErrFn, err := fs.fscache.GetWithErr(loc)
-			if err != nil {
-				errCh <- errz.Err(err)
-				return nil
-			}
-
-			wec := ioz.NewFuncWriteErrorCloser(w, func(err error) {
-				lg.FromContext(ctx).Error("Error writing to fscache",
-					lga.Handle, handle, lga.URL, loc, lga.Err, err)
-				wErrFn(err)
-			})
-
-			rdrCh <- r
-			return wec
-		},
-		Error: func(err error) {
-			errCh <- err
-		},
-	}
-
-	c := httpz.NewDefaultClient()
-	dl, err := download.New(handle, c, loc, dlDir)
-	if err != nil {
-		return "", nil, err
-	}
-
-	go dl.Get(ctx, h)
-
-	select {
-	case <-ctx.Done():
-		return "", nil, errz.Err(ctx.Err())
-	case err = <-errCh:
-		return "", nil, err
-	case rdr = <-rdrCh:
-		return cachedDownload, rdr, nil
-	}
-}
-
 // filepath returns the file path of src.Location. An error is returned
 // if the source's driver type is not a document type (e.g. it is a
 // SQL driver). If src is a remote (http) location, the returned filepath
@@ -376,7 +298,10 @@ func (fs *Files) filepath(src *Source) (string, error) {
 	case locTypeLocalFile:
 		return src.Location, nil
 	case locTypeRemoteFile:
-		dlDir := fs.downloadCacheDirFor(src.Location)
+		dlDir, err := fs.downloadDirFor(src)
+		if err != nil {
+			return "", err
+		}
 		dlFile := filepath.Join(dlDir, "body")
 		if !ioz.FileAccessible(dlFile) {
 			return "", errz.Errorf("remote file for %s not downloaded at: %s", src.Handle, dlFile)
@@ -399,22 +324,7 @@ func (fs *Files) Open(ctx context.Context, src *Source) (io.ReadCloser, error) {
 	defer fs.mu.Unlock()
 
 	lg.FromContext(ctx).Debug("Files.Open", lga.Src, src)
-	return fs.newReader(ctx, src.Handle, src.Location)
-}
-
-// CacheLockFor returns the lock file for src's cache.
-func (fs *Files) CacheLockFor(src *Source) (lockfile.Lockfile, error) {
-	cacheDir, err := fs.CacheDirFor(src)
-	if err != nil {
-		return "", errz.Wrapf(err, "cache lock for %s", src.Handle)
-	}
-
-	lf, err := lockfile.New(filepath.Join(cacheDir, "pid.lock"))
-	if err != nil {
-		return "", errz.Wrapf(err, "cache lock for %s", src.Handle)
-	}
-
-	return lf, nil
+	return fs.newReader(ctx, src)
 }
 
 // OpenFunc returns a func that invokes fs.Open for src.Location.
@@ -424,13 +334,14 @@ func (fs *Files) OpenFunc(src *Source) FileOpenFunc {
 	}
 }
 
-func (fs *Files) newReader(ctx context.Context, handle, loc string) (io.ReadCloser, error) {
+func (fs *Files) newReader(ctx context.Context, src *Source) (io.ReadCloser, error) {
+	loc := src.Location
 	locTyp := getLocType(loc)
 	switch locTyp {
 	case locTypeUnknown:
 		return nil, errz.Errorf("unknown source location type: %s", loc)
 	case locTypeSQL:
-		return nil, errz.Errorf("cannot read SQL source: %s", loc)
+		return nil, errz.Errorf("invalid to read SQL source: %s", loc)
 	case locTypeStdin:
 		r, w, err := fs.fscache.Get(StdinHandle)
 		if err != nil {
@@ -468,7 +379,7 @@ func (fs *Files) newReader(ctx context.Context, handle, loc string) (io.ReadClos
 		return r, nil
 	}
 
-	_, r, err := fs.addRemoteFile(ctx, handle, loc)
+	_, r, err := fs.openRemoteFile(ctx, src, false)
 	return r, err
 }
 
@@ -479,112 +390,13 @@ func (fs *Files) Close() error {
 }
 
 // CleanupE adds fn to the cleanup sequence invoked by fs.Close.
+//
+// REVISIT: This CleanupE method really is an odd fish. It's only used
+// by the test helper. Probably it can we removed?
 func (fs *Files) CleanupE(fn func() error) {
 	fs.clnup.AddE(fn)
-}
-
-// CacheClear clears the cache dir. This wipes the entire contents
-// of the cache dir, so it should be used with caution. Note that
-// this operation is distinct from [Files.CacheSweep].
-func (fs *Files) CacheClear(ctx context.Context) error {
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
-
-	log := lg.FromContext(ctx).With(lga.Dir, fs.cacheDir)
-	log.Debug("Clearing cache dir")
-	if !ioz.DirExists(fs.cacheDir) {
-		log.Debug("Cache dir does not exist")
-		return nil
-	}
-
-	// Instead of directly deleting the existing cache dir, we first
-	// move it to /tmp, and then try to delete it. This should probably
-	// help with the situation where another sq instance has an open pid
-	// lock in the cache dir.
-
-	tmpDir := DefaultTempDir()
-	if err := ioz.RequireDir(tmpDir); err != nil {
-		return errz.Wrap(err, "cache clear")
-	}
-	relocateDir := filepath.Join(tmpDir, "dead_cache_"+stringz.Uniq8())
-	if err := os.Rename(fs.cacheDir, relocateDir); err != nil {
-		return errz.Wrap(err, "cache clear: relocate")
-	}
-
-	if err := os.RemoveAll(relocateDir); err != nil {
-		log.Warn("Could not delete relocated cache dir", lga.Path, relocateDir, lga.Err, err)
-	}
-
-	// Recreate the cache dir.
-	if err := ioz.RequireDir(fs.cacheDir); err != nil {
-		return errz.Wrap(err, "cache clear")
-	}
-
-	return nil
-}
-
-// CacheSweep sweeps the cache dir, making a best-effort attempt
-// to remove any empty directories. Note that this operation is
-// distinct from [Files.CacheClear].
-func (fs *Files) CacheSweep(ctx context.Context) {
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
-
-	dir := fs.cacheDir
-	log := lg.FromContext(ctx).With(lga.Dir, dir)
-	log.Debug("Sweeping cache dir")
-	var count int
-	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-		if err != nil {
-			log.Warn("Problem sweeping cache dir", lga.Path, path, lga.Err, err)
-			return nil
-		}
-
-		if !info.IsDir() {
-			return nil
-		}
-
-		files, err := os.ReadDir(path)
-		if err != nil {
-			log.Warn("Problem reading dir", lga.Dir, path, lga.Err, err)
-			return nil
-		}
-
-		if len(files) != 0 {
-			return nil
-		}
-
-		err = os.Remove(path)
-		if err != nil {
-			log.Warn("Problem removing empty dir", lga.Dir, path, lga.Err, err)
-		}
-		count++
-
-		return nil
-	})
-	if err != nil {
-		log.Warn("Problem sweeping cache dir", lga.Dir, dir, lga.Err, err)
-	}
-	log.Info("Swept cache dir", lga.Dir, dir, lga.Count, count)
 }
 
 // FileOpenFunc returns a func that opens a ReadCloser. The caller
 // is responsible for closing the returned ReadCloser.
 type FileOpenFunc func(ctx context.Context) (io.ReadCloser, error)
-
-// httpURL tests if s is a well-structured HTTP or HTTPS url, and
-// if so, returns the url and true.
-func httpURL(s string) (u *url.URL, ok bool) {
-	var err error
-	u, err = url.Parse(s)
-	if err != nil || u.Host == "" || !(u.Scheme == "http" || u.Scheme == "https") {
-		return nil, false
-	}
-
-	return u, true
-}

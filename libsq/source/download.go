@@ -1,26 +1,48 @@
 package source
 
 import (
+	"context"
+	"io"
+	"path/filepath"
 	"time"
+
+	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/ioz"
+	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
+	"github.com/neilotoole/sq/libsq/core/ioz/download"
+	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 
 	"github.com/neilotoole/sq/libsq/core/options"
 )
 
-var OptHTTPPingTimeout = options.NewDuration(
-	// FIXME: apply OptHTTPPingTimeout to httpz.NewClient invocations
-	"http.ping.timeout",
+var OptHTTPRequestTimeout = options.NewDuration(
+	"http.request.timeout",
 	"",
 	0,
 	time.Second*10,
-	"HTTP/S ping timeout duration",
+	"HTTP/S request initial response timeout duration",
 	`How long to wait for initial response from HTTP/S endpoint before
-timeout occurs. Long-running operations, such as HTTP file downloads, are
-not affected by this option. Example: 500ms or 3s.`,
+timeout occurs. Reading the body of the response, such as large HTTP file
+downloads, is not affected by this option. Example: 500ms or 3s.
+Contrast with http.response.timeout.`,
+	options.TagSource,
+)
+
+var OptHTTPResponseTimeout = options.NewDuration(
+	"http.response.timeout",
+	"",
+	0,
+	0,
+	"HTTP/S response completion timeout duration",
+	`How long to wait for the entire HTTP transaction to complete. This includes
+reading the body of the response, such as large HTTP file downloads. Typically
+this is set to 0, indicating no timeout. Contrast with http.request.timeout.`,
 	options.TagSource,
 )
 
 var OptHTTPSInsecureSkipVerify = options.NewBool(
-	// FIXME: apply OptHTTPSInsecureSkipVerify to httpz.NewClient invocations
 	"https.insecure-skip-verify",
 	"",
 	false,
@@ -29,3 +51,127 @@ var OptHTTPSInsecureSkipVerify = options.NewBool(
 	"Skip HTTPS TLS verification",
 	"Skip HTTPS TLS verification. Useful when downloading against self-signed certs.",
 )
+
+func (fs *Files) downloadFor(ctx context.Context, src *Source) (*download.Download, error) {
+	// REVISIT: should downloadFor return a cached instance of download.Download?
+
+	dlDir, err := fs.downloadDirFor(src)
+	if err != nil {
+		return nil, err
+	}
+	if err = ioz.RequireDir(dlDir); err != nil {
+		return nil, err
+	}
+
+	o := options.Merge(options.FromContext(ctx), src.Options)
+	c := httpz.NewClient(httpz.DefaultUserAgent,
+		httpz.OptRequestTimeout(OptHTTPRequestTimeout.Get(o)),
+		httpz.OptResponseTimeout(OptHTTPResponseTimeout.Get(o)),
+		httpz.OptInsecureSkipVerify(OptHTTPSInsecureSkipVerify.Get(o)),
+	)
+
+	dl, err := download.New(src.Handle, c, src.Location, dlDir)
+	if err != nil {
+		return nil, err
+	}
+
+	return dl, nil
+}
+
+// downloadDirFor gets the download cache dir for src. It is not
+// guaranteed that the returned dir exists or is accessible.
+func (fs *Files) downloadDirFor(src *Source) (string, error) {
+	cacheDir, err := fs.CacheDirFor(src)
+	if err != nil {
+		return "", err
+	}
+
+	fp := filepath.Join(cacheDir, "download", checksum.Sum([]byte(src.Location)))
+	return fp, nil
+}
+
+// openRemoteFile adds a remote file to fs's cache, returning a reader.
+// If the remote file is already cached, the path to that cached download
+// file is returned in cachedDownload; otherwise cachedDownload is empty.
+// If checkFresh is false and the file is already fully downloaded, its
+// freshness is not checked against the remote server.
+func (fs *Files) openRemoteFile(ctx context.Context, src *Source, checkFresh bool) (cachedDownload string,
+	rdr io.ReadCloser, err error,
+) {
+	loc := src.Location
+	if getLocType(loc) != locTypeRemoteFile {
+		return "", nil, errz.Errorf("not a remote file: %s", loc)
+	}
+
+	dl, err := fs.downloadFor(ctx, src)
+	if err != nil {
+		return "", nil, err
+	}
+
+	if !checkFresh && fs.fscache.Exists(loc) {
+		// If the download has completed, dl.CacheFile will return the
+		// path to the cached file.
+		cachedDownload, _, err = dl.CacheFile(ctx)
+		if err != nil {
+			return "", nil, err
+		}
+		// The file is already cached, and we're not checking freshness.
+		// So, we can just return the cached reader.
+		rdr, _, err = fs.fscache.Get(loc)
+		if err != nil {
+			return "", nil, errz.Err(err)
+		}
+		return cachedDownload, rdr, nil
+	}
+
+	errCh := make(chan error, 1)
+	rdrCh := make(chan io.ReadCloser, 1)
+
+	h := download.Handler{
+		Cached: func(fp string) {
+			if !fs.fscache.Exists(fp) {
+				if hErr := fs.fscache.MapFile(fp); hErr != nil {
+					errCh <- errz.Wrapf(hErr, "failed to map file into fscache: %s", fp)
+					return
+				}
+			}
+
+			r, _, hErr := fs.fscache.Get(fp)
+			if hErr != nil {
+				errCh <- errz.Err(hErr)
+				return
+			}
+			cachedDownload = fp
+			rdrCh <- r
+		},
+		Uncached: func() (dest ioz.WriteErrorCloser) {
+			r, w, wErrFn, hErr := fs.fscache.GetWithErr(loc)
+			if hErr != nil {
+				errCh <- errz.Err(hErr)
+				return nil
+			}
+
+			wec := ioz.NewFuncWriteErrorCloser(w, func(err error) {
+				lg.FromContext(ctx).Error("Error writing to fscache", lga.Src, src, lga.Err, err)
+				wErrFn(err)
+			})
+
+			rdrCh <- r
+			return wec
+		},
+		Error: func(hErr error) {
+			errCh <- hErr
+		},
+	}
+
+	go dl.Get(ctx, h)
+
+	select {
+	case <-ctx.Done():
+		return "", nil, errz.Err(ctx.Err())
+	case err = <-errCh:
+		return "", nil, err
+	case rdr = <-rdrCh:
+		return cachedDownload, rdr, nil
+	}
+}
