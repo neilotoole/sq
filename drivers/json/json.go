@@ -135,17 +135,7 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 
 // Ping implements driver.Driver.
 func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
-	log := lg.FromContext(ctx).With(lga.Src, src)
-	log.Debug("Ping source")
-
-	// FIXME: this should call d.files.Ping
-	r, err := d.files.Open(ctx, src)
-	if err != nil {
-		return err
-	}
-	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
-
-	return nil
+	return d.files.Ping(ctx, src)
 }
 
 // grip implements driver.Grip.

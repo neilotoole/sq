@@ -257,3 +257,8 @@ func fixPragmaCacheControl(header http.Header) {
 }
 
 func badStringError(what, val string) error { return fmt.Errorf("%s %q", what, val) }
+
+// StatusText is like http.StatusText, but also includes the code, e.g. "200/OK".
+func StatusText(code int) string {
+	return strconv.Itoa(code) + "/" + http.StatusText(code)
+}

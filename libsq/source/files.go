@@ -4,11 +4,14 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
 
 	"github.com/neilotoole/sq/libsq/core/ioz/download"
 
@@ -49,6 +52,8 @@ type Files struct {
 	// for that source.
 	downloads map[string]*download.Download
 
+	downloadsWg *sync.WaitGroup
+
 	// fscache is used to cache files, providing convenient access
 	// to multiple readers via Files.newReader.
 	fscache *fscache.FSCache
@@ -69,12 +74,6 @@ func NewFiles(ctx context.Context, optReg *options.Registry, tmpDir, cacheDir st
 ) (*Files, error) {
 	log := lg.FromContext(ctx)
 	log.Debug("Creating new Files instance", "tmp_dir", tmpDir, "cache_dir", cacheDir)
-	if tmpDir == "" {
-		return nil, errz.Errorf("tmpDir is empty")
-	}
-	if cacheDir == "" {
-		return nil, errz.Errorf("cacheDir is empty")
-	}
 
 	if optReg == nil {
 		optReg = &options.Registry{}
@@ -88,6 +87,7 @@ func NewFiles(ctx context.Context, optReg *options.Registry, tmpDir, cacheDir st
 		clnup:             cleanup.New(),
 		log:               lg.FromContext(ctx),
 		downloads:         map[string]*download.Download{},
+		downloadsWg:       &sync.WaitGroup{},
 	}
 
 	// We want a unique dir for each execution. Note that fcache is deleted
@@ -386,9 +386,51 @@ func (fs *Files) newReader(ctx context.Context, src *Source) (io.ReadCloser, err
 	return r, err
 }
 
+// Ping implements a ping mechanism for document
+// sources (local or remote files).
+func (fs *Files) Ping(ctx context.Context, src *Source) error {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	switch getLocType(src.Location) {
+	case locTypeLocalFile:
+		// It's a filepath
+		if _, err := os.Stat(src.Location); err != nil {
+			return errz.Wrapf(err, "ping: failed to stat file source %s: %s", src.Handle, src.Location)
+		}
+		return nil
+	case locTypeRemoteFile:
+		req, err := http.NewRequestWithContext(ctx, http.MethodHead, src.Location, nil)
+		if err != nil {
+			return errz.Wrapf(err, "ping: %s", src.Handle)
+		}
+		c := fs.httpClientFor(ctx, src)
+		resp, err := c.Do(req) //nolint:bodyclose
+		if err != nil {
+			return errz.Wrapf(err, "ping: %s", src.Handle)
+		}
+		defer lg.WarnIfCloseError(fs.log, lgm.CloseHTTPResponseBody, resp.Body)
+		if resp.StatusCode != http.StatusOK {
+			return errz.Errorf("ping: %s: expected %s but got %s",
+				src.Handle, httpz.StatusText(http.StatusOK), httpz.StatusText(resp.StatusCode))
+		}
+		return nil
+	default:
+		return errz.Errorf("ping: unsupport location type for source %s: %s", src.Handle, src.RedactedLocation())
+	}
+}
+
 // Close closes any open resources.
 func (fs *Files) Close() error {
-	fs.log.Debug("Files.Close invoked: executing clean funcs", lga.Count, fs.clnup.Len())
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	// FIXME: should we use a timeout here while waiting for downloads?
+	fs.log.Debug("Files.Close: waiting any downloads to complete")
+	fs.downloadsWg.Wait()
+
+	fs.log.Debug("Files.Close: executing clean funcs", lga.Count, fs.clnup.Len())
+
 	return fs.clnup.Run()
 }
 

@@ -209,6 +209,8 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 		}))
 	}
 
+	dbCfg.ConnConfig.ConnectTimeout = driver.OptConnOpenTimeout.Get(src.Options)
+
 	db := stdlib.OpenDB(*dbCfg.ConnConfig, opts...)
 	driver.ConfigureDB(ctx, db, src.Options)
 

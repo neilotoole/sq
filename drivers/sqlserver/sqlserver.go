@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/xo/dburl"
+	"github.com/microsoft/go-mssqldb/msdsn"
 
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/ast/render"
@@ -175,21 +175,23 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, er
 func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
 	log := lg.FromContext(ctx)
 	loc := src.Location
+	cfg, err := msdsn.Parse(loc)
+	if err != nil {
+		return nil, errw(err)
+	}
 	if src.Catalog != "" {
-		u, err := dburl.Parse(loc)
-		if err != nil {
-			return nil, errw(err)
-		}
-		vals := u.Query()
-		vals.Set("database", src.Catalog)
-		u.RawQuery = vals.Encode()
-		loc = u.String()
+		cfg.Database = src.Catalog
+		loc = cfg.URL().String()
+
 		log.Debug("Using catalog as database in connection string",
 			lga.Src, src,
 			lga.Catalog, src.Catalog,
 			lga.Conn, source.RedactLocation(loc),
 		)
 	}
+
+	cfg.DialTimeout = driver.OptConnOpenTimeout.Get(src.Options)
+	loc = cfg.URL().String()
 
 	db, err := sql.Open(dbDrvr, loc)
 	if err != nil {

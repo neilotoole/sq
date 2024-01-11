@@ -103,16 +103,7 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 
 // Ping implements driver.Driver.
 func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
-	// FIXME: Does Ping calling d.files.Open cause a full read?
-	// We probably just want to check that the file exists
-	// or is accessible.
-	r, err := d.files.Open(ctx, src)
-	if err != nil {
-		return err
-	}
-	defer lg.WarnIfCloseError(d.log, lgm.CloseFileReader, r)
-
-	return nil
+	return d.files.Ping(ctx, src)
 }
 
 // grip implements driver.Grip.

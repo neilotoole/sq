@@ -108,23 +108,7 @@ func (d *Driver) ValidateSource(src *source.Source) (*source.Source, error) {
 
 // Ping implements driver.Driver.
 func (d *Driver) Ping(ctx context.Context, src *source.Source) (err error) {
-	log := lg.FromContext(ctx)
-
-	r, err := d.files.Open(ctx, src)
-	if err != nil {
-		return err
-	}
-
-	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
-
-	f, err := excelize.OpenReader(r)
-	if err != nil {
-		return errz.Err(err)
-	}
-
-	lg.WarnIfCloseError(log, lgm.CloseFileReader, f)
-
-	return nil
+	return d.files.Ping(ctx, src)
 }
 
 func errw(err error) error {

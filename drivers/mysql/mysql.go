@@ -486,6 +486,11 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 		return nil, errw(err)
 	}
 
+	cfg.Timeout = driver.OptConnOpenTimeout.Get(src.Options)
+	// REVISIT: Perhaps allow setting cfg.ReadTimeout and cfg.WriteTimeout?
+	// - https://github.com/go-sql-driver/mysql#writetimeout
+	// - https://github.com/go-sql-driver/mysql#readtimeout
+
 	if src.Schema != "" {
 		lg.FromContext(ctx).Debug("Setting default schema for MysQL connection",
 			lga.Src, src,

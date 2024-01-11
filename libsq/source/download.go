@@ -3,6 +3,7 @@ package source
 import (
 	"context"
 	"io"
+	"net/http"
 	"path/filepath"
 	"time"
 
@@ -69,18 +70,21 @@ func (fs *Files) downloadFor(ctx context.Context, src *Source) (*download.Downlo
 		return nil, err
 	}
 
-	o := options.Merge(options.FromContext(ctx), src.Options)
-	c := httpz.NewClient(httpz.DefaultUserAgent,
-		httpz.OptRequestTimeout(OptHTTPRequestTimeout.Get(o)),
-		httpz.OptResponseTimeout(OptHTTPResponseTimeout.Get(o)),
-		httpz.OptInsecureSkipVerify(OptHTTPSInsecureSkipVerify.Get(o)),
-	)
-
+	c := fs.httpClientFor(ctx, src)
 	if dl, err = download.New(src.Handle, c, src.Location, dlDir); err != nil {
 		return nil, err
 	}
 	fs.downloads[src.Handle] = dl
 	return dl, nil
+}
+
+func (fs *Files) httpClientFor(ctx context.Context, src *Source) *http.Client {
+	o := options.Merge(options.FromContext(ctx), src.Options)
+	return httpz.NewClient(httpz.DefaultUserAgent,
+		httpz.OptRequestTimeout(OptHTTPRequestTimeout.Get(o)),
+		httpz.OptResponseTimeout(OptHTTPResponseTimeout.Get(o)),
+		httpz.OptInsecureSkipVerify(OptHTTPSInsecureSkipVerify.Get(o)),
+	)
 }
 
 // downloadDirFor gets the download cache dir for src. It is not
@@ -169,7 +173,11 @@ func (fs *Files) openRemoteFile(ctx context.Context, src *Source, checkFresh boo
 		},
 	}
 
-	go dl.Get(ctx, h)
+	fs.downloadsWg.Add(1)
+	go func() {
+		defer fs.downloadsWg.Done()
+		dl.Get(ctx, h)
+	}()
 
 	select {
 	case <-ctx.Done():
