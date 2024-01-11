@@ -24,6 +24,7 @@ func TestAlienCause(t *testing.T) {
 	require.Equal(t, context.DeadlineExceeded, cause)
 }
 
+//nolint:errorlint
 func TestAppendNilToMulti(t *testing.T) {
 	merr := Append(New("a"), New("b"))
 	_, ok := merr.(*multiErr)
