@@ -109,6 +109,18 @@ func newRun(ctx context.Context, t testing.TB, cfgStore config.Store) (ru *run.R
 		OptionsRegistry: optsReg,
 	}
 
+	// The Files instance needs unique dirs for temp and cache because
+	// the test runs may execute in parallel inside the same test binary
+	// process, thus breaking the pid-based lockfile mechanism.
+	ru.Files, err = source.NewFiles(
+		ctx,
+		ru.OptionsRegistry,
+		filepath.Join(t.TempDir(), "sq", "temp"),
+		filepath.Join(t.TempDir(), "sq", "cache"),
+		true,
+	)
+	require.NoError(t, err)
+
 	require.NoError(t, cli.FinishRunInit(ctx, ru))
 	return ru, out, errOut
 }

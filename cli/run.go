@@ -146,6 +146,7 @@ func FinishRunInit(ctx context.Context, ru *run.Run) error {
 
 	var err error
 	if ru.Files == nil {
+		// The Files instance may already have been created. If not, create it.
 		ru.Files, err = source.NewFiles(ctx, ru.OptionsRegistry, source.DefaultTempDir(), source.DefaultCacheDir(), true)
 		if err != nil {
 			lg.WarnIfFuncError(log, lga.Cleanup, ru.Cleanup.Run)
@@ -192,34 +193,34 @@ func FinishRunInit(ctx context.Context, ru *run.Run) error {
 		xmlud.Genre: xmlud.Import,
 	}
 
-	for i, userDriverDef := range cfg.Ext.UserDrivers {
-		userDriverDef := userDriverDef
+	for i, udd := range cfg.Ext.UserDrivers {
+		udd := udd
 
-		errs := userdriver.ValidateDriverDef(userDriverDef)
+		errs := userdriver.ValidateDriverDef(udd)
 		if len(errs) > 0 {
 			err := errz.Combine(errs...)
 			err = errz.Wrapf(err, "failed validation of user driver definition [%d] {%s} from config",
-				i, userDriverDef.Name)
+				i, udd.Name)
 			return err
 		}
 
-		importFn, ok := userDriverImporters[userDriverDef.Genre]
+		importFn, ok := userDriverImporters[udd.Genre]
 		if !ok {
 			return errz.Errorf("unsupported genre {%s} for user driver {%s} specified via config",
-				userDriverDef.Genre, userDriverDef.Name)
+				udd.Genre, udd.Name)
 		}
 
 		// For each user driver definition, we register a
 		// distinct userdriver.Provider instance.
 		udp := &userdriver.Provider{
 			Log:       log,
-			DriverDef: userDriverDef,
+			DriverDef: udd,
 			ImportFn:  importFn,
 			Ingester:  ru.Grips,
 			Files:     ru.Files,
 		}
 
-		ru.DriverRegistry.AddProvider(drivertype.Type(userDriverDef.Name), udp)
+		ru.DriverRegistry.AddProvider(drivertype.Type(udd.Name), udp)
 		ru.Files.AddDriverDetectors(udp.Detectors()...)
 	}
 

@@ -61,6 +61,8 @@ func (fs *Files) CacheDirFor(src *Source) (dir string, err error) {
 	return dir, nil
 }
 
+// WriteIngestChecksum is invoked (after successful ingestion) to write the
+// checksum for the ingest cache db.
 func (fs *Files) WriteIngestChecksum(ctx context.Context, src, backingSrc *Source) (err error) {
 	log := lg.FromContext(ctx)
 	ingestFilePath, err := fs.filepath(src)

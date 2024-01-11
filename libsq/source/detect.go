@@ -89,6 +89,8 @@ func (fs *Files) detectType(ctx context.Context, handle, loc string) (typ driver
 	log := lg.FromContext(ctx).With(lga.Loc, loc)
 	start := time.Now()
 
+	// FIXME: we could bypass newReader here for local files (that
+	// isn't @stdin).
 	openFn := func(ctx context.Context) (io.ReadCloser, error) {
 		src := &Source{Handle: handle, Location: loc}
 		return fs.newReader(ctx, src)
