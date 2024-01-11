@@ -12,6 +12,8 @@ import (
 )
 
 func TestQuery_no_source(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		in      string
 		want    string
@@ -27,6 +29,8 @@ func TestQuery_no_source(t *testing.T) {
 	for i, tc := range testCases {
 		tc := tc
 		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
+			t.Parallel()
+
 			t.Logf("\nquery: %s\n want: %s", tc.in, tc.want)
 			th := testh.New(t)
 			coll := th.NewCollection()

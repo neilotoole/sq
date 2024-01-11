@@ -209,6 +209,7 @@ func Name(args ...any) string {
 		s = strings.ReplaceAll(s, "/", "_")
 		s = strings.ReplaceAll(s, ":", "_")
 		s = strings.ReplaceAll(s, `\`, "_")
+		s = stringz.SanitizeFilename(s)
 		s = stringz.EllipsifyASCII(s, 28) // we don't want it to be too long
 		parts = append(parts, s)
 	}
@@ -383,13 +384,29 @@ func MustAbsFilepath(elems ...string) string {
 }
 
 // TempDir is the standard means for obtaining a temp dir for tests.
-func TempDir(t testing.TB) string {
-	return filepath.Join(t.TempDir(), "sq", "tmp")
+// If arg clean is true, the temp dir is created via t.TempDir, and
+// thus is deleted on test cleanup.
+func TempDir(t testing.TB, clean bool) string {
+	if clean {
+		return filepath.Join(t.TempDir(), "sq-test", "tmp")
+	}
+
+	fp := filepath.Join(os.TempDir(), "sq-test", stringz.Uniq8(), "tmp")
+	require.NoError(t, ioz.RequireDir(fp))
+	return fp
 }
 
 // CacheDir is the standard means for obtaining a cache dir for tests.
-func CacheDir(t testing.TB) string {
-	return filepath.Join(t.TempDir(), "sq", "cache")
+// If arg clean is true, the cache dir is created via t.TempDir, and
+// thus is deleted on test cleanup.
+func CacheDir(t testing.TB, clean bool) string {
+	if clean {
+		return filepath.Join(t.TempDir(), "sq-test", "cache")
+	}
+
+	fp := filepath.Join(os.TempDir(), "sq-test", stringz.Uniq8(), "cache")
+	require.NoError(t, ioz.RequireDir(fp))
+	return fp
 }
 
 // ReadFileToString invokes ioz.ReadFileToString, failing t if

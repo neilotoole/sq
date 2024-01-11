@@ -12,6 +12,8 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/neilotoole/sq/testh/tu"
+
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli"
@@ -115,8 +117,8 @@ func newRun(ctx context.Context, t testing.TB, cfgStore config.Store) (ru *run.R
 	ru.Files, err = source.NewFiles(
 		ctx,
 		ru.OptionsRegistry,
-		filepath.Join(t.TempDir(), "sq", "temp"),
-		filepath.Join(t.TempDir(), "sq", "cache"),
+		tu.TempDir(t, false),
+		tu.CacheDir(t, false),
 		true,
 	)
 	require.NoError(t, err)

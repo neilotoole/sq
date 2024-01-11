@@ -14,6 +14,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neilotoole/sq/testh/tu"
+
 	"github.com/samber/lo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -54,7 +56,6 @@ import (
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/testsrc"
-	"github.com/neilotoole/sq/testh/tu"
 )
 
 // defaultDBOpenTimeout is the timeout for tests to open (and ping) their DBs.
@@ -159,7 +160,14 @@ func (h *Helper) init() {
 
 		cfg := config.New()
 		var err error
-		h.files, err = source.NewFiles(h.Context, optRegistry, tu.TempDir(h.T), tu.CacheDir(h.T), true)
+
+		h.files, err = source.NewFiles(
+			h.Context,
+			optRegistry,
+			tu.TempDir(h.T, false),
+			tu.TempDir(h.T, false),
+			true,
+		)
 		require.NoError(h.T, err)
 
 		h.Cleanup.Add(func() {

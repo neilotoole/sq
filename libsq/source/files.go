@@ -65,8 +65,7 @@ type Files struct {
 
 // NewFiles returns a new Files instance. If cleanFscache is true, the fscache
 // is cleaned on Files.Close.
-func NewFiles(ctx context.Context, optReg *options.Registry,
-	tmpDir, cacheDir string, cleanFscache bool,
+func NewFiles(ctx context.Context, optReg *options.Registry, tmpDir, cacheDir string, cleanFscache bool,
 ) (*Files, error) {
 	log := lg.FromContext(ctx)
 	log.Debug("Creating new Files instance", "tmp_dir", tmpDir, "cache_dir", cacheDir)
