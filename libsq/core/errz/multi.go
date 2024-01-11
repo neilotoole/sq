@@ -335,9 +335,9 @@ type inspectResult struct {
 
 // Inspects the given slice of errors so that we can efficiently allocate
 // space for it.
-func inspect(errors []error) (res inspectResult) {
+func inspect(errs []error) (res inspectResult) {
 	first := true
-	for i, err := range errors {
+	for i, err := range errs {
 		if err == nil {
 			continue
 		}
@@ -359,35 +359,35 @@ func inspect(errors []error) (res inspectResult) {
 }
 
 // fromSlice converts the given list of errors into a single error.
-func fromSlice(errors []error) error {
+func fromSlice(errs []error) error {
 	// Don't pay to inspect small slices.
-	switch len(errors) {
+	switch len(errs) {
 	case 0:
 		return nil
 	case 1:
-		return errors[0]
+		return errs[0]
 	}
 
-	res := inspect(errors)
+	res := inspect(errs)
 	switch res.Count {
 	case 0:
 		return nil
 	case 1:
 		// only one non-nil entry
-		return errors[res.FirstErrorIdx]
-	case len(errors):
+		return errs[res.FirstErrorIdx]
+	case len(errs):
 		if !res.ContainsMultiError {
 			// Error list is flat. Make a copy of it
 			// Otherwise "errors" escapes to the heap
 			// unconditionally for all other cases.
 			// This lets us optimize for the "no errors" case.
-			out := append(([]error)(nil), errors...)
+			out := append(([]error)(nil), errs...)
 			return &multiErr{errors: out, stack: callers(1)}
 		}
 	}
 
 	nonNilErrs := make([]error, 0, res.Capacity)
-	for _, err := range errors[res.FirstErrorIdx:] {
+	for _, err := range errs[res.FirstErrorIdx:] {
 		if err == nil {
 			continue
 		}
@@ -433,8 +433,8 @@ func fromSlice(errors []error) error {
 // formatted with %+v.
 //
 //	fmt.Sprintf("%+v", multierr.Combine(err1, err2))
-func Combine(errors ...error) error {
-	return fromSlice(errors)
+func Combine(errs ...error) error {
+	return fromSlice(errs)
 }
 
 // Append appends the given errors together. Either value may be nil.
@@ -489,8 +489,8 @@ func Append(left, right error) error {
 
 	// Either right or both, left and right, are multiErrors. Rely on usual
 	// expensive logic.
-	errors := [2]error{left, right}
-	return fromSlice(errors[0:])
+	errs := [2]error{left, right}
+	return fromSlice(errs[0:])
 }
 
 // Unwrap returns a list of errors wrapped by this multierr.

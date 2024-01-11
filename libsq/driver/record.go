@@ -382,7 +382,7 @@ func (bi *BatchInsert) Munge(rec []any) error {
 // it must be a sql.Conn or sql.Tx.
 //
 //nolint:gocognit
-func NewBatchInsert(ctx context.Context, msg string, drvr SQLDriver, db sqlz.DB,
+func NewBatchInsert(ctx context.Context, msg string, drvr SQLDriver, db sqlz.DB, //nolint:revive
 	destTbl string, destColNames []string, batchSize int,
 ) (*BatchInsert, error) {
 	log := lg.FromContext(ctx)
@@ -468,9 +468,7 @@ func NewBatchInsert(ctx context.Context, msg string, drvr SQLDriver, db sqlz.DB,
 
 				bi.written.Add(affected)
 				pbar.IncrBy(int(affected))
-				if progress.DebugDelay > 0 {
-					time.Sleep(progress.DebugDelay)
-				}
+				progress.DebugDelay()
 
 				if rec == nil {
 					// recCh is closed (coincidentally exactly on the
@@ -514,9 +512,7 @@ func NewBatchInsert(ctx context.Context, msg string, drvr SQLDriver, db sqlz.DB,
 
 			bi.written.Add(affected)
 			pbar.IncrBy(int(affected))
-			if progress.DebugDelay > 0 {
-				time.Sleep(progress.DebugDelay)
-			}
+			progress.DebugDelay()
 
 			// We're done
 			return

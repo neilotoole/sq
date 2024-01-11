@@ -6,12 +6,15 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"time"
+
+	"github.com/neilotoole/sq/libsq/core/progress"
 
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/config"
 	"github.com/neilotoole/sq/cli/config/yamlstore"
-	v0_34_0 "github.com/neilotoole/sq/cli/config/yamlstore/upgrades/v0.34.0"
+	v0_34_0 "github.com/neilotoole/sq/cli/config/yamlstore/upgrades/v0.34.0" //nolint:revive
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/drivers/csv"
@@ -159,7 +162,7 @@ func FinishRunInit(ctx context.Context, ru *run.Run) error {
 	ru.DriverRegistry = driver.NewRegistry(log)
 	dr := ru.DriverRegistry
 
-	ru.Grips = driver.NewGrips(log, dr, ru.Files, scratchSrcFunc)
+	ru.Grips = driver.NewGrips(dr, ru.Files, scratchSrcFunc)
 	ru.Cleanup.AddC(ru.Grips)
 
 	dr.AddProvider(sqlite3.Type, &sqlite3.Provider{Log: log})
@@ -275,4 +278,62 @@ func preRun(cmd *cobra.Command, ru *run.Run) error {
 	ru.Writers, ru.Out, ru.ErrOut = newWriters(ru.Cmd, ru.Cleanup, cmdOpts, ru.Out, ru.ErrOut)
 
 	return FinishRunInit(ctx, ru)
+}
+
+// lockReloadConfig acquires the lock for the config store, and updates the
+// run (as found on cmd's context) with a fresh copy of the config, loaded
+// after lock acquisition.
+//
+//	if unlock, err := lockReloadConfig(cmd); err != nil {
+//		return err
+//	} else {
+//		defer unlock()
+//	}
+//
+// The config lock should be acquired before making any changes to config.
+// Timeout and progress options from ctx are honored.
+// The caller is responsible for invoking the returned unlock func.
+func lockReloadConfig(cmd *cobra.Command) (unlock func(), err error) {
+	ctx := cmd.Context()
+	ru := run.FromContext(ctx)
+	if ru.ConfigStore == nil {
+		return nil, errz.New("config store is nil")
+	}
+
+	lock, err := ru.ConfigStore.Lockfile()
+	if err != nil {
+		return nil, errz.Wrap(err, "failed to get config lock")
+	}
+
+	lockTimeout := config.OptConfigLockTimeout.Get(options.FromContext(ctx))
+	bar := progress.FromContext(ctx).NewTimeoutWaiter(
+		"Acquire config lock",
+		time.Now().Add(lockTimeout),
+	)
+
+	err = lock.Lock(ctx, lockTimeout)
+	bar.Stop()
+	if err != nil {
+		return nil, errz.Wrap(err, "acquire config lock")
+	}
+
+	var cfg *config.Config
+	if cfg, err = ru.ConfigStore.Load(ctx); err != nil {
+		// An error occurred reloading config; release the lock before returning.
+		if unlockErr := lock.Unlock(); unlockErr != nil {
+			lg.FromContext(ctx).Warn("Failed to release config lock",
+				lga.Lock, lock, lga.Err, unlockErr)
+		}
+		return nil, err
+	}
+
+	// Update the run with the fresh config.
+	ru.Config = cfg
+
+	return func() {
+		if unlockErr := lock.Unlock(); unlockErr != nil {
+			lg.FromContext(ctx).Warn("Failed to release config lock",
+				lga.Lock, lock, lga.Err, unlockErr)
+		}
+	}, nil
 }

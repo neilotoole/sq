@@ -45,6 +45,10 @@ type Files struct {
 	clnup       *cleanup.Cleanup
 	optRegistry *options.Registry
 
+	// downloads is a map of source handles the download.Download
+	// for that source.
+	downloads map[string]*download.Download
+
 	// fscache is used to cache files, providing convenient access
 	// to multiple readers via Files.newReader.
 	fscache *fscache.FSCache
@@ -84,6 +88,7 @@ func NewFiles(ctx context.Context, optReg *options.Registry,
 		tempDir:           tmpDir,
 		clnup:             cleanup.New(),
 		log:               lg.FromContext(ctx),
+		downloads:         map[string]*download.Download{},
 	}
 
 	// We want a unique dir for each execution. Note that fcache is deleted
@@ -142,8 +147,7 @@ func (fs *Files) Filesize(ctx context.Context, src *Source) (size int64, err err
 			return 0, err
 		}
 
-		_, size, err = dl.CacheFile(ctx)
-		return size, err
+		return dl.Filesize(ctx)
 
 	case locTypeSQL:
 		return 0, errz.Errorf("invalid to get size of SQL source: %s", src.Handle)

@@ -17,7 +17,7 @@ import (
 )
 
 // ExecTableDiff diffs handle1.table1 and handle2.table2.
-func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Elements,
+func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Elements, //nolint:revive
 	handle1, table1, handle2, table2 string,
 ) error {
 	td1, td2 := &tableData{tblName: table1}, &tableData{tblName: table2}

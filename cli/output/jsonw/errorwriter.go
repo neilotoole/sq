@@ -23,7 +23,7 @@ func NewErrorWriter(log *slog.Logger, out io.Writer, pr *output.Printing) output
 }
 
 type errorDetail struct {
-	Error     string   `json:"error,"`
+	Error     string   `json:"error"`
 	BaseError string   `json:"base_error,omitempty"`
 	Tree      string   `json:"tree,omitempty"`
 	Stack     []*stack `json:"stack,omitempty"`

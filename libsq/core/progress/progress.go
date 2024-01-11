@@ -29,12 +29,16 @@ import (
 	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
-// DebugDelay is a duration that parts of the codebase sleep for to
-// facilitate testing the progress impl. It should be removed before
-// release.
+// DebugDelay sleeps for a period of time to facilitate testing the
+// progress impl. It should be removed before release.
 //
 // Deprecated: This is a temporary hack for testing.
-const DebugDelay = time.Millisecond * 0
+func DebugDelay() {
+	const delay = time.Millisecond * 0
+	if delay > 0 {
+		time.Sleep(delay)
+	}
+}
 
 type ctxKey struct{}
 

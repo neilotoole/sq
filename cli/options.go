@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/cli/config"
+
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -169,6 +171,7 @@ func RegisterDefaultOpts(reg *options.Registry) {
 		OptCompact,
 		OptPingCmdTimeout,
 		OptShellCompletionTimeout,
+		config.OptConfigLockTimeout,
 		OptLogEnabled,
 		OptLogFile,
 		OptLogLevel,

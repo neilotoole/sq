@@ -335,7 +335,7 @@ func readPassword(ctx context.Context, stdin *os.File, stdout io.Writer, pr *out
 		fmt.Fprint(buf, "Password: ")
 		pr.Faint.Fprint(buf, "[ENTER]")
 		fmt.Fprint(buf, " ")
-		stdout.Write(buf.Bytes())
+		_, _ = stdout.Write(buf.Bytes())
 
 		b, err := term.ReadPassword(int(stdin.Fd()))
 		// Regardless of whether there's an error, we print

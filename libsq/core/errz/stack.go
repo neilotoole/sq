@@ -187,9 +187,9 @@ func (s *stack) Format(st fmt.State, verb rune) {
 	if s == nil {
 		fmt.Fprint(st, "<nil>")
 	}
-	switch verb { //nolint:gocritic
+	switch verb { //nolint:gocritic,revive
 	case 'v':
-		switch { //nolint:gocritic
+		switch { //nolint:gocritic,revive
 		case st.Flag('+'):
 			for _, pc := range *s {
 				f := Frame(pc)

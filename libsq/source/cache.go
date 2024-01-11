@@ -24,7 +24,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
-// OptCacheLockTimeout is the time allowed to acquire cache lock.
+// OptCacheLockTimeout is the time allowed to acquire a cache lock.
 //
 // See also: [driver.OptIngestCache].
 var OptCacheLockTimeout = options.NewDuration(
@@ -35,8 +35,6 @@ var OptCacheLockTimeout = options.NewDuration(
 	"Wait timeout to acquire cache lock",
 	`Wait timeout to acquire cache lock. During this period, retry will occur
 if the lock is already held by another process. If zero, no retry occurs.`,
-	options.TagSource,
-	options.TagSQL,
 )
 
 // CacheDirFor gets the cache dir for handle. It is not guaranteed
@@ -188,7 +186,7 @@ func (fs *Files) CachePaths(src *Source) (srcCacheDir, cacheDB, checksums string
 	}
 
 	checksums = filepath.Join(srcCacheDir, "checksums.txt")
-	cacheDB = filepath.Join(srcCacheDir, "cached.db")
+	cacheDB = filepath.Join(srcCacheDir, "cache.sqlite.db")
 	return srcCacheDir, cacheDB, checksums, nil
 }
 

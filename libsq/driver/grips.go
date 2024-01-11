@@ -2,10 +2,11 @@ package driver
 
 import (
 	"context"
-	"log/slog"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/neilotoole/sq/libsq/core/progress"
 
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -14,7 +15,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/options"
-	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
@@ -29,7 +29,6 @@ type ScratchSrcFunc func(ctx context.Context, name string) (src *source.Source, 
 // Note that at this time instances returned by Open are cached
 // and then closed by Close. This may be a bad approach.
 type Grips struct {
-	log          *slog.Logger
 	drvrs        Provider
 	mu           sync.Mutex
 	scratchSrcFn ScratchSrcFunc
@@ -39,11 +38,8 @@ type Grips struct {
 }
 
 // NewGrips returns a Grips instances.
-func NewGrips(log *slog.Logger, drvrs Provider,
-	files *source.Files, scratchSrcFn ScratchSrcFunc,
-) *Grips {
+func NewGrips(drvrs Provider, files *source.Files, scratchSrcFn ScratchSrcFunc) *Grips {
 	return &Grips{
-		log:          log,
 		drvrs:        drvrs,
 		mu:           sync.Mutex{},
 		scratchSrcFn: scratchSrcFn,
@@ -131,6 +127,7 @@ func (gs *Grips) doOpen(ctx context.Context, src *source.Source) (Grip, error) {
 // its Close method will be invoked by Grips.Close.
 func (gs *Grips) OpenScratch(ctx context.Context, src *source.Source) (Grip, error) {
 	const msgCloseScratch = "Close scratch db"
+	log := lg.FromContext(ctx)
 
 	cacheDir, srcCacheDBFilepath, _, err := gs.files.CachePaths(src)
 	if err != nil {
@@ -146,18 +143,18 @@ func (gs *Grips) OpenScratch(ctx context.Context, src *source.Source) (Grip, err
 		// if err is non-nil, cleanup is guaranteed to be nil
 		return nil, err
 	}
-	gs.log.Debug("Opening scratch src", lga.Src, scratchSrc)
+	log.Debug("Opening scratch src", lga.Src, scratchSrc)
 
 	backingDrvr, err := gs.drvrs.DriverFor(scratchSrc.Type)
 	if err != nil {
-		lg.WarnIfFuncError(gs.log, msgCloseScratch, cleanFn)
+		lg.WarnIfFuncError(log, msgCloseScratch, cleanFn)
 		return nil, err
 	}
 
 	var backingGrip Grip
 	backingGrip, err = backingDrvr.Open(ctx, scratchSrc)
 	if err != nil {
-		lg.WarnIfFuncError(gs.log, msgCloseScratch, cleanFn)
+		lg.WarnIfFuncError(log, msgCloseScratch, cleanFn)
 		return nil, err
 	}
 
@@ -171,25 +168,48 @@ func (gs *Grips) OpenScratch(ctx context.Context, src *source.Source) (Grip, err
 	return backingGrip, nil
 }
 
-// OpenIngest implements driver.GripOpenIngester.
+// OpenIngest implements driver.GripOpenIngester. It opens a Grip, ingesting
+// the source into the Grip. If allowCache is true, the ingest cache DB
+// is used if possible. If allowCache is false, any existing ingest cache DB
+// is not utilized, and is overwritten by the ingestion process.
 func (gs *Grips) OpenIngest(ctx context.Context, src *source.Source, allowCache bool,
 	ingestFn func(ctx context.Context, dest Grip) error,
 ) (Grip, error) {
-	var grip Grip
-	var err error
-
-	if !allowCache || src.Handle == source.StdinHandle {
-		// We don't currently cache stdin. Probably we never will?
-		grip, err = gs.openIngestNoCache(ctx, src, ingestFn)
-	} else {
-		grip, err = gs.openIngestCache(ctx, src, ingestFn)
-	}
-
+	// Get the cache lock for src, no matter if we're making
+	// use of the ingest cache DB or not. We do this to prevent
+	// another process from overwriting the cache DB while it's
+	// being written to.
+	lock, err := gs.files.CacheLockFor(src)
 	if err != nil {
 		return nil, err
 	}
 
-	return grip, nil
+	lockTimeout := source.OptCacheLockTimeout.Get(options.FromContext(ctx))
+	bar := progress.FromContext(ctx).NewTimeoutWaiter(
+		src.Handle+": acquire lock",
+		time.Now().Add(lockTimeout),
+	)
+
+	err = lock.Lock(ctx, lockTimeout)
+	bar.Stop()
+	if err != nil {
+		return nil, errz.Wrap(err, src.Handle+": acquire cache lock")
+	}
+
+	defer func() {
+		if err = lock.Unlock(); err != nil {
+			lg.FromContext(ctx).Warn("Failed to release cache lock",
+				lga.Lock, lock, lga.Err, err)
+		}
+	}()
+
+	if !allowCache || src.Handle == source.StdinHandle {
+		// Note that we can never cache stdin, because it's a stream
+		// that is effectively unique each time.
+		return gs.openIngestNoCache(ctx, src, ingestFn)
+	}
+
+	return gs.openIngestCache(ctx, src, ingestFn)
 }
 
 func (gs *Grips) openIngestNoCache(ctx context.Context, src *source.Source,
@@ -214,7 +234,7 @@ func (gs *Grips) openIngestNoCache(ctx context.Context, src *source.Source,
 		return nil, err
 	}
 
-	gs.log.Info("Ingest completed",
+	log.Info("Ingest completed",
 		lga.Src, src, lga.Dest, impl.Source(),
 		lga.Elapsed, elapsed)
 	return impl, nil
@@ -226,31 +246,9 @@ func (gs *Grips) openIngestCache(ctx context.Context, src *source.Source,
 	log := lg.FromContext(ctx).With(lga.Handle, src.Handle)
 	ctx = lg.NewContext(ctx, log)
 
-	lock, err := gs.files.CacheLockFor(src)
-	if err != nil {
-		return nil, err
-	}
-
-	lockTimeout := source.OptCacheLockTimeout.Get(options.FromContext(ctx))
-	bar := progress.FromContext(ctx).NewTimeoutWaiter(
-		src.Handle+": acquire lock",
-		time.Now().Add(lockTimeout),
-	)
-
-	err = lock.Lock(ctx, lockTimeout)
-	bar.Stop()
-	if err != nil {
-		return nil, errz.Wrap(err, src.Handle+": acquire cache lock")
-	}
-
-	defer func() {
-		if err = lock.Unlock(); err != nil {
-			log.Warn("Failed to release cache lock", lga.Lock, lock, lga.Err, err)
-		}
-	}()
-
 	var impl Grip
 	var foundCached bool
+	var err error
 	if impl, foundCached, err = gs.openCachedFor(ctx, src); err != nil {
 		return nil, err
 	}
@@ -325,12 +323,11 @@ func (gs *Grips) OpenJoin(ctx context.Context, srcs ...*source.Source) (Grip, er
 		names = append(names, src.Handle[1:])
 	}
 
-	gs.log.Debug("OpenJoin", "sources", strings.Join(names, ","))
+	lg.FromContext(ctx).Debug("OpenJoin", "sources", strings.Join(names, ","))
 	return gs.OpenScratch(ctx, srcs[0])
 }
 
 // Close closes d, invoking Close on any instances opened via d.Open.
 func (gs *Grips) Close() error {
-	gs.log.Debug("Closing databases(s)...", lga.Count, gs.clnup.Len())
 	return gs.clnup.Run()
 }

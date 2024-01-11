@@ -134,9 +134,7 @@ func ingestXLSX(ctx context.Context, src *source.Source, destGrip driver.Grip, x
 
 	var ingestCount, skipped int
 	for i := range sheetTbls {
-		if progress.DebugDelay > 0 {
-			time.Sleep(progress.DebugDelay)
-		}
+		progress.DebugDelay()
 
 		if sheetTbls[i] == nil {
 			// tblDef can be nil if its sheet is empty (has no data).
@@ -212,6 +210,7 @@ func ingestSheetToTable(ctx context.Context, destGrip driver.Grip, sheetTbl *she
 	var cells []string
 
 	i := -1
+LOOP:
 	for iter.Next() {
 		i++
 		if hasHeader && i == 0 {
@@ -245,7 +244,7 @@ func ingestSheetToTable(ctx context.Context, destGrip driver.Grip, sheetTbl *she
 			}
 
 			// The batch inserter successfully completed
-			break
+			break LOOP
 		case bi.RecordCh <- rec:
 		}
 	}

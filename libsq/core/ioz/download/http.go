@@ -137,23 +137,21 @@ func canStaleOnError(respHeaders, reqHeaders http.Header) bool {
 	lifetime := time.Duration(-1)
 
 	if staleMaxAge, ok := respCacheControl["stale-if-error"]; ok {
-		if staleMaxAge != "" {
-			lifetime, err = time.ParseDuration(staleMaxAge + "s")
-			if err != nil {
-				return false
-			}
-		} else {
+		if staleMaxAge == "" {
 			return true
+		}
+		lifetime, err = time.ParseDuration(staleMaxAge + "s")
+		if err != nil {
+			return false
 		}
 	}
 	if staleMaxAge, ok := reqCacheControl["stale-if-error"]; ok {
-		if staleMaxAge != "" {
-			lifetime, err = time.ParseDuration(staleMaxAge + "s")
-			if err != nil {
-				return false
-			}
-		} else {
+		if staleMaxAge == "" {
 			return true
+		}
+		lifetime, err = time.ParseDuration(staleMaxAge + "s")
+		if err != nil {
+			return false
 		}
 	}
 

@@ -90,10 +90,10 @@ func TestSakila_query(t *testing.T) {
 		},
 	}
 
-	for _, driver := range []drivertype.Type{csv.TypeCSV, csv.TypeTSV} {
-		driver := driver
+	for _, drvr := range []drivertype.Type{csv.TypeCSV, csv.TypeTSV} {
+		drvr := drvr
 
-		t.Run(driver.String(), func(t *testing.T) {
+		t.Run(drvr.String(), func(t *testing.T) {
 			t.Parallel()
 
 			for _, tc := range testCases {
@@ -105,8 +105,8 @@ func TestSakila_query(t *testing.T) {
 					th := testh.New(t, testh.OptLongOpen())
 					src := th.Add(&source.Source{
 						Handle:   "@" + tc.file,
-						Type:     driver,
-						Location: filepath.Join("testdata", "sakila-"+driver.String(), tc.file+"."+driver.String()),
+						Type:     drvr,
+						Location: filepath.Join("testdata", "sakila-"+drvr.String(), tc.file+"."+drvr.String()),
 					})
 
 					sink, err := th.QuerySLQ(src.Handle+".data", nil)

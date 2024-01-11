@@ -193,6 +193,8 @@ var _ Opt = String{}
 // NewString returns an options.String instance. If flag is empty, the
 // value of key is used. If valid Fn is non-nil, it is called from
 // the process function.
+//
+//nolint:revive
 func NewString(key, flag string, short rune, defaultVal string,
 	validFn func(string) error, usage, help string, tags ...string,
 ) String {
@@ -275,7 +277,7 @@ var _ Opt = Int{}
 
 // NewInt returns an options.Int instance. If flag is empty, the
 // value of key is used.
-func NewInt(key, flag string, short rune, defaultVal int, usage, help string, tags ...string) Int {
+func NewInt(key, flag string, short rune, defaultVal int, usage, help string, tags ...string) Int { //nolint:revive
 	return Int{
 		BaseOpt:    NewBaseOpt(key, flag, short, usage, help, tags...),
 		defaultVal: defaultVal,
@@ -405,7 +407,7 @@ var _ Opt = Bool{}
 // of key is used. If invertFlag is true, the flag's boolean value
 // is inverted to set the option. For example, if the Opt is "progress",
 // and the flag is "--no-progress", then invertFlag should be true.
-func NewBool(key, flag string, invertFlag bool, short rune,
+func NewBool(key, flag string, invertFlag bool, short rune, //nolint:revive
 	defaultVal bool, usage, help string, tags ...string,
 ) Bool {
 	return Bool{
@@ -519,7 +521,9 @@ var _ Opt = Duration{}
 
 // NewDuration returns an options.Duration instance. If flag is empty, the
 // value of key is used.
-func NewDuration(key, flag string, short rune, defaultVal time.Duration, usage, help string, tags ...string) Duration {
+func NewDuration(key, flag string, short rune, defaultVal time.Duration, //nolint:revive
+	usage, help string, tags ...string,
+) Duration {
 	return Duration{
 		BaseOpt:    NewBaseOpt(key, flag, short, usage, help, tags...),
 		defaultVal: defaultVal,

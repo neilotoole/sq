@@ -26,8 +26,6 @@ to detect the header.`,
 )
 
 // OptIngestCache specifies whether ingested data is cached or not.
-//
-// REVISIT: Maybe rename ingest.cache simply to "cache"?
 var OptIngestCache = options.NewBool(
 	"ingest.cache",
 	"",
@@ -35,12 +33,15 @@ var OptIngestCache = options.NewBool(
 	0,
 	true,
 	"Ingest data is cached",
-	`Specifies whether ingested data is cached or not.`,
+	`Specifies whether ingested data is cached or not. When data is ingested
+from a document source, it is stored in a cache DB. Subsequent uses of that same
+source will use that cached DB instead of ingesting the data again, unless this
+option is set to false, in which case, the data is ingested each time.`,
 	options.TagSource,
 )
 
 // OptIngestSampleSize specifies the number of samples that a detector
-// should take to determine type.
+// should take to determine ingest data type.
 var OptIngestSampleSize = options.NewInt(
 	"ingest.sample-size",
 	"",

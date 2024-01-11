@@ -32,8 +32,8 @@ func recordMetaFromColumnTypes(ctx context.Context, colTypes []*sql.ColumnType,
 		// happens for functions such as COUNT(*).
 		dbTypeName := colType.DatabaseTypeName()
 
-		kind := kindFromDBTypeName(ctx, colType.Name(), dbTypeName, colType.ScanType())
-		colTypeData := record.NewColumnTypeData(colType, kind)
+		knd := kindFromDBTypeName(ctx, colType.Name(), dbTypeName, colType.ScanType())
+		colTypeData := record.NewColumnTypeData(colType, knd)
 
 		// It's necessary to explicitly set the scan type because
 		// the backing driver doesn't set it for whatever reason.

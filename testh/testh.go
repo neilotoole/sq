@@ -136,7 +136,9 @@ func New(t testing.TB, opts ...Option) *Helper {
 // NewWith is a convenience wrapper for New, that also returns
 // the source.Source for handle, the driver.SQLDriver, driver.Grip,
 // and the *sql.DB.
-func NewWith(t testing.TB, handle string) (*Helper, *source.Source, driver.SQLDriver, driver.Grip, *sql.DB) {
+func NewWith(t testing.TB, handle string) (*Helper, *source.Source, //nolint:revive
+	driver.SQLDriver, driver.Grip, *sql.DB,
+) {
 	th := New(t)
 	src := th.Source(handle)
 	grip := th.Open(src)
@@ -166,7 +168,7 @@ func (h *Helper) init() {
 			assert.NoError(h.T, err)
 		})
 
-		h.grips = driver.NewGrips(log, h.registry, h.files, sqlite3.NewScratchSource)
+		h.grips = driver.NewGrips(h.registry, h.files, sqlite3.NewScratchSource)
 		h.Cleanup.AddC(h.grips)
 
 		h.registry.AddProvider(sqlite3.Type, &sqlite3.Provider{Log: log})
@@ -859,8 +861,11 @@ func DriverDetectors() []source.DriverDetectFunc {
 	return []source.DriverDetectFunc{
 		source.DetectMagicNumber,
 		xlsx.DetectXLSX,
-		csv.DetectCSV, csv.DetectTSV,
-		/*json.DetectJSON,*/ json.DetectJSONA(1000), json.DetectJSONL(1000), // FIXME: enable DetectJSON when it's ready
+		csv.DetectCSV,
+		csv.DetectTSV,
+		// json.DetectJSON(1000), // FIXME: enable DetectJSON when it's ready
+		json.DetectJSONA(1000),
+		json.DetectJSONL(1000),
 	}
 }
 

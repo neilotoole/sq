@@ -43,7 +43,7 @@ func TestNullBool_Scan(t *testing.T) {
 
 		err := nb.Scan(tt.input)
 		if err != nil {
-			if tt.expectValid == false {
+			if !tt.expectValid {
 				continue
 			}
 			t.Errorf("[%d] {%s}: did not expect error: %v", i, tt.input, err)

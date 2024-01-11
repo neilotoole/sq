@@ -23,7 +23,7 @@ var OptHTTPRequestTimeout = options.NewDuration(
 	0,
 	time.Second*10,
 	"HTTP/S request initial response timeout duration",
-	`How long to wait for initial response from HTTP/S endpoint before
+	`How long to wait for initial response from a HTTP/S endpoint before
 timeout occurs. Reading the body of the response, such as large HTTP file
 downloads, is not affected by this option. Example: 500ms or 3s.
 Contrast with http.response.timeout.`,
@@ -35,7 +35,7 @@ var OptHTTPResponseTimeout = options.NewDuration(
 	"",
 	0,
 	0,
-	"HTTP/S response completion timeout duration",
+	"HTTP/S request completion timeout duration",
 	`How long to wait for the entire HTTP transaction to complete. This includes
 reading the body of the response, such as large HTTP file downloads. Typically
 this is set to 0, indicating no timeout. Contrast with http.request.timeout.`,
@@ -50,10 +50,16 @@ var OptHTTPSInsecureSkipVerify = options.NewBool(
 	false,
 	"Skip HTTPS TLS verification",
 	"Skip HTTPS TLS verification. Useful when downloading against self-signed certs.",
+	options.TagSource,
 )
 
+// downloadFor returns the download.Download for src, creating
+// and caching it if necessary.
 func (fs *Files) downloadFor(ctx context.Context, src *Source) (*download.Download, error) {
-	// REVISIT: should downloadFor return a cached instance of download.Download?
+	dl, ok := fs.downloads[src.Handle]
+	if ok {
+		return dl, nil
+	}
 
 	dlDir, err := fs.downloadDirFor(src)
 	if err != nil {
@@ -70,11 +76,10 @@ func (fs *Files) downloadFor(ctx context.Context, src *Source) (*download.Downlo
 		httpz.OptInsecureSkipVerify(OptHTTPSInsecureSkipVerify.Get(o)),
 	)
 
-	dl, err := download.New(src.Handle, c, src.Location, dlDir)
-	if err != nil {
+	if dl, err = download.New(src.Handle, c, src.Location, dlDir); err != nil {
 		return nil, err
 	}
-
+	fs.downloads[src.Handle] = dl
 	return dl, nil
 }
 
@@ -111,7 +116,7 @@ func (fs *Files) openRemoteFile(ctx context.Context, src *Source, checkFresh boo
 	if !checkFresh && fs.fscache.Exists(loc) {
 		// If the download has completed, dl.CacheFile will return the
 		// path to the cached file.
-		cachedDownload, _, err = dl.CacheFile(ctx)
+		cachedDownload, err = dl.CacheFile(ctx)
 		if err != nil {
 			return "", nil, err
 		}

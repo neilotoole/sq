@@ -20,7 +20,7 @@ import (
 type Lockfile string
 
 // New returns a new Lockfile instance. Arg fp must be
-// an absolute path (but the path may not exist).
+// an absolute path (but it's legal for the path to not exist).
 func New(fp string) (Lockfile, error) {
 	lf, err := lockfile.New(fp)
 	if err != nil {
@@ -38,12 +38,12 @@ func (l Lockfile) Lock(ctx context.Context, timeout time.Duration) error {
 
 	dir := filepath.Dir(string(l))
 	if err := ioz.RequireDir(dir); err != nil {
-		return errz.Wrapf(err, "failed create parent dir of cache lock: %s", string(l))
+		return errz.Wrapf(err, "failed to create parent dir of lockfile: %s", string(l))
 	}
 
 	if timeout == 0 {
 		if err := lockfile.Lockfile(l).TryLock(); err != nil {
-			log.Warn("Failed to acquire pid lock", lga.Err, err)
+			log.Warn("Failed to acquire pid lock", lga.Path, string(l), lga.Err, err)
 			return errz.Wrapf(err, "failed to acquire pid lock: %s", l)
 		}
 		log.Debug("Acquired pid lock")
@@ -61,7 +61,6 @@ func (l Lockfile) Lock(ctx context.Context, timeout time.Duration) error {
 				return nil
 			}
 
-			// log.Debug("Failed to acquire pid lock, may retry", lga.Attempts, attempts, lga.Err, err)
 			return err
 		},
 		errz.Has[lockfile.TemporaryError],

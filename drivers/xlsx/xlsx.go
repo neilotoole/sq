@@ -85,10 +85,7 @@ func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Grip, err
 
 		defer lg.WarnIfCloseError(log, lgm.CloseFileReader, xfile)
 
-		if err = ingestXLSX(ctx, p.src, destGrip, xfile); err != nil {
-			return err
-		}
-		return nil
+		return ingestXLSX(ctx, p.src, destGrip, xfile)
 	}
 
 	var err error

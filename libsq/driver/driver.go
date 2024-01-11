@@ -38,9 +38,9 @@ type Driver interface {
 
 	// ValidateSource verifies that the source is valid for this driver. It
 	// may transform the source into a canonical form, which is returned in
-	// the "src" return value (the original source is not changed). An error
+	// the return value (the original source is not changed). An error
 	// is returned if the source is invalid.
-	ValidateSource(source *source.Source) (src *source.Source, err error)
+	ValidateSource(src *source.Source) (*source.Source, error)
 
 	// Ping verifies that the source is reachable, or returns an error if not.
 	// The exact behavior of Ping() is driver-dependent.

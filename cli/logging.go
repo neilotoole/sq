@@ -251,31 +251,24 @@ func getLogLevel(ctx context.Context, osArgs []string, cfg *config.Config) slog.
 		bootLog.Debug("Using log level specified via flag", lga.Flag, flag.LogLevel, lga.Val, val)
 
 		lvl := new(slog.Level)
-		if err = lvl.UnmarshalText([]byte(val)); err != nil {
-			bootLog.Error("Invalid log level specified via flag",
-				lga.Flag, flag.LogLevel,
-				lga.Val, val,
-				lga.Err, err)
-		} else {
+		if err = lvl.UnmarshalText([]byte(val)); err == nil {
 			return *lvl
 		}
+		bootLog.Error("Invalid log level specified via flag",
+			lga.Flag, flag.LogLevel, lga.Val, val, lga.Err, err)
 	}
 
 	val, ok = os.LookupEnv(config.EnvarLogLevel)
 	if ok {
 		bootLog.Debug("Using log level specified via envar",
-			lga.Env, config.EnvarLogLevel,
-			lga.Val, val)
+			lga.Env, config.EnvarLogLevel, lga.Val, val)
 
 		lvl := new(slog.Level)
 		if err = lvl.UnmarshalText([]byte(val)); err != nil {
-			bootLog.Error("Invalid log level specified by envar",
-				lga.Env, config.EnvarLogLevel,
-				lga.Val, val,
-				lga.Err, err)
-		} else {
 			return *lvl
 		}
+		bootLog.Error("Invalid log level specified by envar",
+			lga.Env, config.EnvarLogLevel, lga.Val, val, lga.Err, err)
 	}
 
 	var o options.Options

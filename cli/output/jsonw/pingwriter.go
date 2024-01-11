@@ -6,7 +6,7 @@ import (
 
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/jsonw/internal"
-	jcolorenc "github.com/neilotoole/sq/cli/output/jsonw/internal/jcolorenc"
+	jcolorenc "github.com/neilotoole/sq/cli/output/jsonw/internal/jcolorenc" //nolint:revive
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/source"
 )
