@@ -3,6 +3,9 @@ package cli
 import (
 	"io"
 	"os"
+
+	"golang.org/x/sys/windows"
+	"golang.org/x/term"
 )
 
 // isTerminal returns true if w is a terminal.
