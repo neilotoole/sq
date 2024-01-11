@@ -691,7 +691,7 @@ func TestSanitizeFilename(t *testing.T) {
 func TestTypeNames(t *testing.T) {
 	errs := []error{errors.New("stdlib"), errz.New("errz")}
 	names := stringz.TypeNames(errs...)
-	require.Equal(t, []string{"*errors.errorString", "*errz.fundamental"}, names)
+	require.Equal(t, []string{"*errors.errorString", "*errz.errz"}, names)
 
 	a := []any{1, "hello", true, errs}
 	names = stringz.TypeNames(a...)

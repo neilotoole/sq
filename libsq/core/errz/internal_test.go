@@ -23,3 +23,17 @@ func TestAlienCause(t *testing.T) {
 	cause = err.(*errz).alienCause()
 	require.Equal(t, context.DeadlineExceeded, cause)
 }
+
+func TestAppendNilToMulti(t *testing.T) {
+	merr := Append(New("a"), New("b"))
+	_, ok := merr.(*multiErr)
+	require.True(t, ok)
+
+	got := Append(merr, nil)
+	_, ok = got.(*multiErr)
+	require.True(t, ok)
+
+	got = Append(nil, merr)
+	_, ok = got.(*multiErr)
+	require.True(t, ok)
+}

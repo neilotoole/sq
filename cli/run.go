@@ -311,15 +311,19 @@ func cmdRequiresConfigLock(cmd *cobra.Command) bool {
 // run (as found on cmd's context) with a fresh copy of the config, loaded
 // after lock acquisition.
 //
+// The config lock should be acquired before making any changes to config.
+// Timeout and progress options from ctx are honored.
+// The caller is responsible for invoking the returned unlock func.
+// Example usage:
+//
 //	if unlock, err := lockReloadConfig(cmd); err != nil {
 //		return err
 //	} else {
 //		defer unlock()
 //	}
 //
-// The config lock should be acquired before making any changes to config.
-// Timeout and progress options from ctx are honored.
-// The caller is responsible for invoking the returned unlock func.
+// However, in practice, most commands will invoke markCmdRequiresConfigLock
+// instead of explicitly invoking lockReloadConfig.
 func lockReloadConfig(cmd *cobra.Command) (unlock func(), err error) {
 	ctx := cmd.Context()
 	ru := run.FromContext(ctx)

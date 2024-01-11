@@ -462,17 +462,21 @@ func Append(left, right error) error {
 	case left == nil && right == nil:
 		return nil
 	case left == nil:
-		if _, ok := right.(*errz); !ok {
+		switch right := right.(type) {
+		case *multiErr, *errz:
+			return right
+		default:
 			// It's not an errz, so we  need to wrap it.
 			return &errz{stack: callers(0), error: right}
 		}
-		return right
 	case right == nil:
-		if _, ok := left.(*errz); !ok {
+		switch left := left.(type) {
+		case *multiErr, *errz:
+			return left
+		default:
 			// It's not an errz, so we  need to wrap it.
 			return &errz{stack: callers(0), error: left}
 		}
-		return left
 	}
 
 	if _, ok := right.(*multiErr); !ok {
