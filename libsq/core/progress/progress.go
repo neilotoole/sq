@@ -309,6 +309,7 @@ func (p *Progress) newBar(msg string, total int64,
 
 		select {
 		case <-p.ctx.Done():
+			return
 		case <-p.stoppedCh:
 			return
 		case <-b.barStoppedCh:
