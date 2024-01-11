@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
+## Upcoming
+
+### Fixed
+
+- Open DB connection now correctly honors [`conn.open-timeout`](https://sq.io/docs/config#connopen-timeout).
+
 ## [v0.46.1] - 2023-12-06
 
 ### Fixed

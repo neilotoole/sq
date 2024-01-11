@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -237,16 +236,11 @@ func TestDriver_Ping(t *testing.T) {
 	testCases := sakila.AllHandles()
 	testCases = append(testCases, sakila.CSVActor, sakila.CSVActorHTTP)
 
-	testCases = []string{sakila.CSVActorHTTP}
-
 	for _, handle := range testCases {
 		handle := handle
 
 		t.Run(handle, func(t *testing.T) {
-			t.Logf("pid: %d", os.Getpid())
 			tu.SkipShort(t, handle == sakila.XLSX)
-
-			tu.DiffOpenFileCount(t, true)
 
 			th := testh.New(t)
 			src := th.Source(handle)

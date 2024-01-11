@@ -52,7 +52,9 @@ type Files struct {
 	// for that source.
 	downloads map[string]*download.Download
 
-	downloadsWg *sync.WaitGroup
+	// fillerWgs is used to wait for asynchronous filling of the cache
+	// to complete (including downloads).
+	fillerWgs *sync.WaitGroup
 
 	// fscache is used to cache files, providing convenient access
 	// to multiple readers via Files.newReader.
@@ -87,7 +89,7 @@ func NewFiles(ctx context.Context, optReg *options.Registry, tmpDir, cacheDir st
 		clnup:             cleanup.New(),
 		log:               lg.FromContext(ctx),
 		downloads:         map[string]*download.Download{},
-		downloadsWg:       &sync.WaitGroup{},
+		fillerWgs:         &sync.WaitGroup{},
 	}
 
 	// We want a unique dir for each execution. Note that fcache is deleted
@@ -234,10 +236,12 @@ func (fs *Files) addStdin(ctx context.Context, handle string, f *os.File) error 
 	}
 	fs.fscacheEntryMetas[handle] = entryMeta
 
+	fs.fillerWgs.Add(1)
 	start := time.Now()
 	pw := progress.NewWriter(ctx, "Reading "+handle, -1, cacheWrtr)
 	ioz.CopyAsync(pw, contextio.NewReader(ctx, f),
 		func(written int64, err error) {
+			defer fs.fillerWgs.Done()
 			defer lg.WarnIfCloseError(log, lgm.CloseFileReader, f)
 			entryMeta.written = written
 			entryMeta.err = err
@@ -394,11 +398,11 @@ func (fs *Files) Ping(ctx context.Context, src *Source) error {
 
 	switch getLocType(src.Location) {
 	case locTypeLocalFile:
-		// It's a filepath
 		if _, err := os.Stat(src.Location); err != nil {
 			return errz.Wrapf(err, "ping: failed to stat file source %s: %s", src.Handle, src.Location)
 		}
 		return nil
+
 	case locTypeRemoteFile:
 		req, err := http.NewRequestWithContext(ctx, http.MethodHead, src.Location, nil)
 		if err != nil {
@@ -415,8 +419,10 @@ func (fs *Files) Ping(ctx context.Context, src *Source) error {
 				src.Handle, httpz.StatusText(http.StatusOK), httpz.StatusText(resp.StatusCode))
 		}
 		return nil
+
 	default:
-		return errz.Errorf("ping: unsupport location type for source %s: %s", src.Handle, src.RedactedLocation())
+		// Shouldn't happen
+		return errz.Errorf("ping: %s is not a document source", src.Handle)
 	}
 }
 
@@ -427,7 +433,7 @@ func (fs *Files) Close() error {
 
 	// FIXME: should we use a timeout here while waiting for downloads?
 	fs.log.Debug("Files.Close: waiting any downloads to complete")
-	fs.downloadsWg.Wait()
+	fs.fillerWgs.Wait()
 
 	fs.log.Debug("Files.Close: executing clean funcs", lga.Count, fs.clnup.Len())
 

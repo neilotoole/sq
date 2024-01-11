@@ -173,9 +173,9 @@ func (fs *Files) openRemoteFile(ctx context.Context, src *Source, checkFresh boo
 		},
 	}
 
-	fs.downloadsWg.Add(1)
+	fs.fillerWgs.Add(1)
 	go func() {
-		defer fs.downloadsWg.Done()
+		defer fs.fillerWgs.Done()
 		dl.Get(ctx, h)
 	}()
 
