@@ -42,6 +42,7 @@ source handles are files, and groups are directories.`,
   $ sq mv production prod`,
 	}
 
+	markCmdRequiresConfigLock(cmd)
 	addTextFormatFlags(cmd)
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 	cmd.Flags().BoolP(flag.Compact, flag.CompactShort, false, flag.CompactUsage)
@@ -51,12 +52,6 @@ source handles are files, and groups are directories.`,
 }
 
 func execMove(cmd *cobra.Command, args []string) error {
-	if unlock, err := lockReloadConfig(cmd); err != nil {
-		return err
-	} else {
-		defer unlock()
-	}
-
 	switch {
 	case source.IsValidHandle(args[0]) && source.IsValidHandle(args[1]):
 		// Effectively a handle rename

@@ -105,6 +105,7 @@ func newCacheClearCmd() *cobra.Command {
 		Example: `  $ sq cache clear`,
 	}
 
+	markCmdRequiresConfigLock(cmd)
 	return cmd
 }
 
@@ -155,7 +156,7 @@ func newCacheEnableCmd() *cobra.Command {
 		},
 		Example: `  $ sq cache enable`,
 	}
-
+	markCmdRequiresConfigLock(cmd)
 	return cmd
 }
 
@@ -173,5 +174,6 @@ func newCacheDisableCmd() *cobra.Command {
 		Example: `  $ sq cache disable`,
 	}
 
+	markCmdRequiresConfigLock(cmd)
 	return cmd
 }

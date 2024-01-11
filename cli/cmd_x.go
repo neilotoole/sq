@@ -49,53 +49,42 @@ func newXLockSrcCmd() *cobra.Command {
 }
 
 func execXLockSrcCmd(cmd *cobra.Command, args []string) error {
-	if unlock, err := lockReloadConfig(cmd); err != nil {
+	ctx := cmd.Context()
+	ru := run.FromContext(ctx)
+	src, err := ru.Config.Collection.Get(args[0])
+	if err != nil {
 		return err
-	} else {
-		defer unlock()
 	}
 
-	sleep := time.Second * 10
-	fmt.Fprintf(os.Stdout, "huzzah, will sleep for %s\n", sleep)
-	time.Sleep(sleep)
-	return nil
+	timeout := time.Minute * 20
+	lock, err := ru.Files.CacheLockFor(src)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(ru.Out, "Locking cache for source %s with timeout %s for %q [%d]\n\n  %s\n\n",
+		src.Handle, timeout, os.Args[0], os.Getpid(), lock)
 
-	//ctx := cmd.Context()
-	//ru := run.FromContext(ctx)
-	//src, err := ru.Config.Collection.Get(args[0])
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//timeout := time.Minute * 20
-	//lock, err := ru.Files.CacheLockFor(src)
-	//if err != nil {
-	//	return err
-	//}
-	//fmt.Fprintf(ru.Out, "Locking cache for source %s with timeout %s for %q [%d]\n\n  %s\n\n",
-	//	src.Handle, timeout, os.Args[0], os.Getpid(), lock)
-	//
-	//err = lock.Lock(ctx, timeout)
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//fmt.Fprintf(ru.Out, "Cache lock acquired for %s\n", src.Handle)
-	//
-	//select {
-	//case <-pressEnter():
-	//	fmt.Fprintln(ru.Out, "\nENTER received, releasing lock")
-	//case <-ctx.Done():
-	//	fmt.Fprintln(ru.Out, "\nContext done, releasing lock")
-	//}
-	//
-	//fmt.Fprintf(ru.Out, "Releasing cache lock for %s\n", src.Handle)
-	//if err = lock.Unlock(); err != nil {
-	//	return err
-	//}
-	//
-	//fmt.Fprintf(ru.Out, "Cache lock released for %s\n", src.Handle)
-	//return nil
+	err = lock.Lock(ctx, timeout)
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintf(ru.Out, "Cache lock acquired for %s\n", src.Handle)
+
+	select {
+	case <-pressEnter():
+		fmt.Fprintln(ru.Out, "\nENTER received, releasing lock")
+	case <-ctx.Done():
+		fmt.Fprintln(ru.Out, "\nContext done, releasing lock")
+	}
+
+	fmt.Fprintf(ru.Out, "Releasing cache lock for %s\n", src.Handle)
+	if err = lock.Unlock(); err != nil {
+		return err
+	}
+
+	fmt.Fprintf(ru.Out, "Cache lock released for %s\n", src.Handle)
+	return nil
 }
 
 func newXProgressCmd() *cobra.Command {
@@ -149,15 +138,6 @@ func newXDownloadCmd() *cobra.Command {
 		Hidden: true,
 		Args:   cobra.ExactArgs(1),
 		RunE:   execXDownloadCmd,
-		//RunE: func(cmd *cobra.Command, args []string) error {
-		//	err1 := errz.New("inner huzzah")
-		//	time.Sleep(time.Nanosecond)
-		//	err2 := errz.Wrap(err1, "outer huzzah")
-		//	time.Sleep(time.Nanosecond)
-		//	err3 := errz.Wrap(err2, "outer huzzah")
-		//
-		//	return err3
-		//},
 		Example: `  $ sq x download https://sq.io/testdata/actor.csv
 
   # Download a big-ass file
@@ -203,13 +183,6 @@ func execXDownloadCmd(cmd *cobra.Command, args []string) error {
 	case len(h.Errors) > 0:
 		err1 := errz.Err(h.Errors[0])
 		return err1
-
-		//err1 := h.Errors[0]
-		//err2 := errz.New("another err")
-		//err3 := errz.Combine(err1, err2)
-		////lg.FromContext(ctx).Error("OH NO", lga.Err, err3)
-		//return err3
-		//return nil
 	case len(h.WriteErrors) > 0:
 		return h.WriteErrors[0]
 	case len(h.CachedFiles) > 0:
@@ -231,4 +204,30 @@ func pressEnter() <-chan struct{} {
 		close(done)
 	}()
 	return done
+}
+
+func newXLockConfigCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:               "lock-config",
+		Short:             "Test config lock",
+		Hidden:            true,
+		Args:              cobra.NoArgs,
+		ValidArgsFunction: completeHandle(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ru := run.FromContext(cmd.Context())
+			fmt.Fprintf(ru.Out, "Locking config (pid %d)\n", os.Getpid())
+			unlock, err := lockReloadConfig(cmd)
+			if err != nil {
+				return err
+			}
+
+			fmt.Fprintln(ru.Out, "Config locked; ctrl-c to exit")
+			<-cmd.Context().Done()
+			unlock()
+			return nil
+		},
+		Example: `  $ sq x lock-config`,
+	}
+
+	return cmd
 }

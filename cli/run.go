@@ -241,11 +241,11 @@ func preRun(cmd *cobra.Command, ru *run.Run) error {
 		return nil
 	}
 
+	ctx := cmd.Context()
 	if ru.Cleanup == nil {
 		ru.Cleanup = cleanup.New()
 	}
 
-	ctx := cmd.Context()
 	// If the --output=/some/file flag is set, then we need to
 	// override ru.Out (which is typically stdout) to point it at
 	// the output destination file.
@@ -277,7 +277,34 @@ func preRun(cmd *cobra.Command, ru *run.Run) error {
 	}
 	ru.Writers, ru.Out, ru.ErrOut = newWriters(ru.Cmd, ru.Cleanup, cmdOpts, ru.Out, ru.ErrOut)
 
-	return FinishRunInit(ctx, ru)
+	if err = FinishRunInit(ctx, ru); err != nil {
+		return err
+	}
+
+	if cmdRequiresConfigLock(cmd) {
+		var unlock func()
+		if unlock, err = lockReloadConfig(cmd); err != nil {
+			return err
+		}
+		ru.Cleanup.Add(unlock)
+	}
+	return nil
+}
+
+// markCmdRequiresConfigLock marks cmd as requiring a config lock.
+// Thus, before the command's RunE is invoked, the config lock
+// is acquired (in preRun), and released on cleanup.
+func markCmdRequiresConfigLock(cmd *cobra.Command) {
+	if cmd.Annotations == nil {
+		cmd.Annotations = make(map[string]string)
+	}
+	cmd.Annotations["config.lock"] = "true"
+}
+
+// cmdRequiresConfigLock returns true if markCmdRequiresConfigLock was
+// previously invoked on cmd.
+func cmdRequiresConfigLock(cmd *cobra.Command) bool {
+	return cmd.Annotations != nil && cmd.Annotations["config.lock"] == "true"
 }
 
 // lockReloadConfig acquires the lock for the config store, and updates the

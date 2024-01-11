@@ -9,12 +9,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neilotoole/sq/cli/buildinfo"
+	"github.com/neilotoole/sq/cli/hostinfo"
+
 	"github.com/spf13/cobra"
 	"golang.org/x/mod/semver"
 
-	"github.com/neilotoole/sq/cli/buildinfo"
 	"github.com/neilotoole/sq/cli/flag"
-	"github.com/neilotoole/sq/cli/hostinfo"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"

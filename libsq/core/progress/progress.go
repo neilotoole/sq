@@ -32,7 +32,7 @@ import (
 // DebugDelay sleeps for a period of time to facilitate testing the
 // progress impl. It should be removed before release.
 //
-// Deprecated: This is a temporary hack for testing.
+// FIXME: Delete this before release.
 func DebugDelay() {
 	const delay = time.Millisecond * 0
 	if delay > 0 {
