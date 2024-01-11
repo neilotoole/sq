@@ -29,13 +29,6 @@ import (
 // It is an error for a Record to contain elements of any other type.
 type Record []any
 
-// Value is the idealized generic type. One day, we'd like to be able
-// to do something like this the below.
-// FIXME: Delete this type.
-type Value interface {
-	~int64 | ~float64 | ~bool | ~string | ~[]byte | time.Time | decimal.Decimal
-}
-
 // Valid checks that each element of the record vals is
 // of an acceptable type. On the first unacceptable element,
 // the index of that element and an error are returned. On

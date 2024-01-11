@@ -115,6 +115,7 @@ func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors
 		opts := []mpb.ContainerOption{
 			mpb.WithOutput(out),
 			mpb.WithWidth(boxWidth),
+			// FIXME: switch back to auto refresh?
 			// mpb.WithRefreshRate(refreshRate),
 			mpb.WithManualRefresh(p.refreshCh),
 			// mpb.WithAutoRefresh(), // Needed for color in Windows, apparently
@@ -219,14 +220,14 @@ func (p *Progress) doStop() {
 		defer lg.FromContext(p.ctx).Debug("Stopped progress widget")
 		if p.pc == nil {
 			close(p.stoppedCh)
-			close(p.refreshCh)
+			// close(p.refreshCh)
 			p.cancelFn()
 			return
 		}
 
 		if len(p.bars) == 0 {
 			close(p.stoppedCh)
-			close(p.refreshCh)
+			// close(p.refreshCh)
 			p.cancelFn()
 			return
 		}
@@ -249,7 +250,7 @@ func (p *Progress) doStop() {
 
 		p.refreshCh <- time.Now()
 		close(p.stoppedCh)
-		close(p.refreshCh)
+		// close(p.refreshCh)
 		p.pc.Wait()
 		// Important: we must call cancelFn after pc.Wait() or the bars
 		// may not be removed from the terminal.
@@ -303,7 +304,7 @@ func (p *Progress) newBar(msg string, total int64,
 		barStoppedCh: make(chan struct{}),
 	}
 	b.barInitFn = func() {
-		p.mu.Lock() // FIXME: not too sure about locking here?
+		p.mu.Lock()
 		defer p.mu.Unlock()
 
 		select {

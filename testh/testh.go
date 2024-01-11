@@ -289,7 +289,7 @@ func (h *Helper) Source(handle string) *source.Source {
 		// It might be expected that we would simply use the
 		// collection (h.coll) to return the source, but this
 		// method also uses a cache. This is because this
-		// method makes a copy the data file of file-based sources
+		// method makes a copy of the data file of file-based sources
 		// as mentioned in the method godoc.
 		h.coll = mustLoadCollection(h.Context, t)
 		h.srcCache = map[string]*source.Source{}

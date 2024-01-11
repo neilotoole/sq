@@ -287,7 +287,6 @@ func buildSheetTables(ctx context.Context, srcIngestHeader *bool, sheets []*xShe
 			sheetTbl, err := buildSheetTable(gCtx, srcIngestHeader, sheets[i])
 			if err != nil {
 				if errz.Has[*driver.EmptyDataError](err) {
-					// if errz.IsErrNoData(err) { // FIXME: remove after testing
 					// If the sheet has no data, we log it and skip it.
 					lg.FromContext(ctx).Warn("Excel sheet has no data",
 						laSheet, sheets[i].name,

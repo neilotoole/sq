@@ -331,12 +331,3 @@ func TestDatetime(t *testing.T) {
 		})
 	}
 }
-
-// TestIngestLargeCSV generates a large CSV file.
-// At count = 5,000,000, the generated file is ~500MB.
-// This test is skipped by default.
-// FIXME: Delete TestGenerateLargeCSV.
-func TestGenerateLargeCSV(t *testing.T) {
-	t.Skip()
-	testh.GenerateLargeCSV(t, "testdata/payment-large.csv")
-}
