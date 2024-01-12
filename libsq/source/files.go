@@ -187,7 +187,8 @@ type fscacheEntryMeta struct {
 // AddStdin copies f to fs's cache: the stdin data in f
 // is later accessible via fs.Open(src) where src.Handle
 // is StdinHandle; f's type can be detected via DetectStdinType.
-// Note that f is closed by this method.
+// Note that f is ultimately closed by a goroutine spawned by
+// this method, but may not be closed at the time of return.
 func (fs *Files) AddStdin(ctx context.Context, f *os.File) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -426,17 +427,16 @@ func (fs *Files) Ping(ctx context.Context, src *Source) error {
 	}
 }
 
-// Close closes any open resources.
+// Close closes any open resources and waits for any goroutines
+// to complete.
 func (fs *Files) Close() error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	// FIXME: should we use a timeout here while waiting for downloads?
-	fs.log.Debug("Files.Close: waiting any downloads to complete")
+	fs.log.Debug("Files.Close: waiting for goroutines to complete")
 	fs.fillerWgs.Wait()
 
 	fs.log.Debug("Files.Close: executing clean funcs", lga.Count, fs.clnup.Len())
-
 	return fs.clnup.Run()
 }
 

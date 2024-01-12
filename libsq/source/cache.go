@@ -195,7 +195,9 @@ func (fs *Files) CachePaths(src *Source) (srcCacheDir, cacheDB, checksums string
 // sourceHash generates a hash for src. The hash is based on the
 // member fields of src, with special handling for src.Options.
 // Only the opts that affect data ingestion (options.TagIngestMutate)
-// are incorporated in the hash.
+// are incorporated in the hash. The generated hash is used to
+// determine the cache dir for src. Thus, if a source is mutated
+// (e.g. the remote http location changes), a new cache dir results.
 func (fs *Files) sourceHash(src *Source) string {
 	if src == nil {
 		return ""
@@ -208,9 +210,7 @@ func (fs *Files) sourceHash(src *Source) string {
 	buf.WriteString(src.Catalog)
 	buf.WriteString(src.Schema)
 
-	// FIXME: Revisit this
 	mUsedKeys := make(map[string]any)
-
 	if src.Options != nil {
 		keys := src.Options.Keys()
 		for _, k := range keys {
@@ -292,6 +292,10 @@ func (fs *Files) CacheClear(ctx context.Context) error {
 // CacheSweep sweeps the cache dir, making a best-effort attempt
 // to remove any empty directories. Note that this operation is
 // distinct from [Files.CacheClear].
+//
+// REVISIT: This doesn't really do anything useful. It should instead
+// sweep any abandoned cache dirs, i.e. cache dirs that don't have
+// an associated source.
 func (fs *Files) CacheSweep(ctx context.Context) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
