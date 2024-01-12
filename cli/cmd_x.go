@@ -7,12 +7,11 @@ import (
 	"os"
 	"time"
 
-	"github.com/neilotoole/sq/cli/flag"
-	"github.com/neilotoole/sq/libsq/core/errz"
-
 	"github.com/spf13/cobra"
 
+	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/run"
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
 	"github.com/neilotoole/sq/libsq/core/ioz/download"
 	"github.com/neilotoole/sq/libsq/core/ioz/httpz"

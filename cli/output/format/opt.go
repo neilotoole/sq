@@ -77,6 +77,11 @@ func (op Opt) GetAny(o options.Options) any {
 	return op.Get(o)
 }
 
+// Default returns the default value of op.
+func (op Opt) Default() Format {
+	return op.defaultVal
+}
+
 // DefaultAny implements options.Opt.
 func (op Opt) DefaultAny() any {
 	return op.defaultVal

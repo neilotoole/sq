@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"log/slog"
 	"slices"
 	"strings"
 	"time"
@@ -45,7 +46,7 @@ var (
 )
 
 // completeStrings completes from a slice of string.
-func completeStrings(max int, a ...string) completionFunc { //nolint:unparam
+func completeStrings(max int, a ...string) completionFunc {
 	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if max > 0 && len(args) >= max {
 			return nil, cobra.ShellCompDirectiveNoFileComp
@@ -238,11 +239,12 @@ func completeOptValue(cmd *cobra.Command, args []string, toComplete string) ([]s
 		}
 
 	case LogLevelOpt:
-		a = []string{"debug", "DEBUG", "info", "INFO", "warn", "WARN", "error", "ERROR"}
+		a = []string{slog.LevelDebug.String(), slog.LevelInfo.String(), slog.LevelWarn.String(), slog.LevelError.String()}
 	case format.Opt:
-		if opt.Key() == OptErrorFormat.Key() {
+		switch opt.Key() {
+		case OptErrorFormat.Key(), OptLogFormat.Key():
 			a = []string{string(format.Text), string(format.JSON)}
-		} else {
+		default:
 			a = stringz.Strings(format.All())
 		}
 	case options.Bool:

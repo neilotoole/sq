@@ -3,11 +3,10 @@ package sqlserver
 import (
 	"errors"
 
-	"github.com/neilotoole/sq/libsq/driver"
-
 	mssql "github.com/microsoft/go-mssqldb"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/driver"
 )
 
 // mssql error codes

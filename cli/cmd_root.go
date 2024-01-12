@@ -1,9 +1,12 @@
 package cli
 
 import (
+	"log/slog"
+
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/flag"
+	"github.com/neilotoole/sq/cli/output/format"
 	_ "github.com/neilotoole/sq/drivers" // Load drivers
 )
 
@@ -103,7 +106,23 @@ See docs and more: https://sq.io`,
 	cmd.PersistentFlags().String(flag.Config, "", flag.ConfigUsage)
 
 	cmd.PersistentFlags().Bool(flag.LogEnabled, false, flag.LogEnabledUsage)
+	panicOn(cmd.RegisterFlagCompletionFunc(flag.LogEnabled, completeBool))
 	cmd.PersistentFlags().String(flag.LogFile, "", flag.LogFileUsage)
+
 	cmd.PersistentFlags().String(flag.LogLevel, "", flag.LogLevelUsage)
+	panicOn(cmd.RegisterFlagCompletionFunc(flag.LogLevel, completeStrings(
+		1,
+		slog.LevelDebug.String(),
+		slog.LevelInfo.String(),
+		slog.LevelWarn.String(),
+		slog.LevelError.String(),
+	)))
+
+	cmd.PersistentFlags().String(flag.LogFormat, "", flag.LogFormatUsage)
+	panicOn(cmd.RegisterFlagCompletionFunc(flag.LogFormat, completeStrings(
+		1,
+		string(format.Text),
+		string(format.JSON),
+	)))
 	return cmd
 }

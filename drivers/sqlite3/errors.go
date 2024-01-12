@@ -3,9 +3,8 @@ package sqlite3
 import (
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/driver"
-
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/driver"
 )
 
 // errw wraps any error from the db. It should be called at

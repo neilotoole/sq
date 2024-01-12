@@ -175,6 +175,9 @@ const (
 	LogLevel      = "log.level"
 	LogLevelUsage = "Log level: one of DEBUG, INFO, WARN, ERROR"
 
+	LogFormat      = "log.format"
+	LogFormatUsage = `Log format: one of "text" or "json"`
+
 	DiffOverview      = "overview"
 	DiffOverviewShort = "O"
 	DiffOverviewUsage = "Compare source overview"

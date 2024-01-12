@@ -6,13 +6,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/neilotoole/sq/libsq/core/errz"
-
 	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/testh/tu"
 )

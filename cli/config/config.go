@@ -19,6 +19,9 @@ const (
 	// EnvarLogLevel is the log level. It maps to a slog.Level.
 	EnvarLogLevel = "SQ_LOG_LEVEL"
 
+	// EnvarLogFormat is the log format. It maps to a slog.Level.
+	EnvarLogFormat = "SQ_LOG_FORMAT"
+
 	// EnvarLogEnabled turns logging on or off.
 	EnvarLogEnabled = "SQ_LOG"
 

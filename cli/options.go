@@ -4,12 +4,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/neilotoole/sq/cli/config"
-
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
+	"github.com/neilotoole/sq/cli/config"
 	"github.com/neilotoole/sq/cli/output/xlsxw"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/drivers/csv"
@@ -175,7 +174,7 @@ func RegisterDefaultOpts(reg *options.Registry) {
 		OptLogEnabled,
 		OptLogFile,
 		OptLogLevel,
-		OptLogDevMode,
+		OptLogFormat,
 		OptDiffNumLines,
 		OptDiffDataFormat,
 		source.OptHTTPRequestTimeout,

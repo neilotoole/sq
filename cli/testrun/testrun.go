@@ -12,8 +12,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/neilotoole/sq/testh/tu"
-
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli"
@@ -25,6 +23,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 // TestRun is a helper for testing sq commands.

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
 	"os"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/neilotoole/sq/cli/config"
 	"github.com/neilotoole/sq/cli/flag"
+	"github.com/neilotoole/sq/cli/output/format"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/devlog"
@@ -50,14 +52,21 @@ var (
 		"Log level, one of: DEBUG, INFO, WARN, ERROR.",
 	)
 
-	OptLogDevMode = options.NewBool(
-		"log.devmode",
+	OptLogFormat = format.NewOpt(
+		"log.format",
 		"",
-		false,
 		0,
-		false,
-		"Log in devmode",
-		"Log in devmode.",
+		format.Text,
+		func(f format.Format) error {
+			if f == format.Text || f == format.JSON {
+				return nil
+			}
+
+			return errz.Errorf("option {log.format} allows only %q or %q", format.Text, format.JSON)
+		},
+		"Log output format",
+		fmt.Sprintf(
+			`Log output format. Allowed formats are %q (human-friendly) or %q.`, format.Text, format.JSON),
 	)
 )
 
@@ -102,15 +111,23 @@ func defaultLogging(ctx context.Context, osArgs []string, cfg *config.Config,
 	}
 	closer = logFile.Close
 
-	devMode := OptLogDevMode.Get(cfg.Options)
+	// Determine if we're logging dev mode (format.Text).
+	devMode := OptLogFormat.Default() != format.JSON
+	switch getLogFormat(ctx, osArgs, cfg) { //nolint:exhaustive
+	case format.Text:
+		devMode = true
+	case format.JSON:
+		devMode = false
+	default:
+		// Shouldn't happen
+	}
 
 	if devMode {
 		h = devlog.NewHandler(logFile, lvl)
 	} else {
 		h = newJSONHandler(logFile, lvl)
 	}
-	// h = devlog.NewHandler(logFile, lvl)
-	// h = newJSONHandler(logFile, lvl)
+
 	return slog.New(h), h, closer, nil
 }
 
@@ -279,6 +296,58 @@ func getLogLevel(ctx context.Context, osArgs []string, cfg *config.Config) slog.
 	lvl := OptLogLevel.Get(o)
 	bootLog.Debug("Using log level specified via config", lga.Key, OptLogLevel.Key(), lga.Val, lvl)
 	return lvl
+}
+
+// getLogEnabled gets the log format based on flags, envars, or config.
+// Any error is logged to the ctx logger. The returned value is guaranteed
+// to be one of [format.Text] or [format.JSON].
+func getLogFormat(ctx context.Context, osArgs []string, cfg *config.Config) format.Format {
+	bootLog := lg.FromContext(ctx)
+
+	val, ok, err := getBootstrapFlagValue(flag.LogFormat, "", flag.LogFormatUsage, osArgs)
+	if err != nil {
+		bootLog.Error("Error reading log format from flag", lga.Flag, flag.LogFormat, lga.Err, err)
+	}
+	if ok {
+		bootLog.Debug("Using log format specified via flag", lga.Flag, flag.LogFormat, lga.Val, val)
+
+		f := new(format.Format)
+		if err = f.UnmarshalText([]byte(val)); err == nil {
+			switch *f { //nolint:exhaustive
+			case format.Text, format.JSON:
+				return *f
+			default:
+			}
+		}
+		bootLog.Error("Invalid log format specified via flag",
+			lga.Flag, flag.LogFormat, lga.Val, val, lga.Err, err)
+	}
+
+	val, ok = os.LookupEnv(config.EnvarLogFormat)
+	if ok {
+		bootLog.Debug("Using log level specified via envar",
+			lga.Env, config.EnvarLogFormat, lga.Val, val)
+
+		f := new(format.Format)
+		if err = f.UnmarshalText([]byte(val)); err == nil {
+			switch *f { //nolint:exhaustive
+			case format.Text, format.JSON:
+				return *f
+			default:
+			}
+		}
+		bootLog.Error("Invalid log format specified by envar",
+			lga.Env, config.EnvarLogLevel, lga.Val, val, lga.Err, err)
+	}
+
+	var o options.Options
+	if cfg != nil {
+		o = cfg.Options
+	}
+
+	f := OptLogFormat.Get(o)
+	bootLog.Debug("Using log format specified via config", lga.Key, OptLogFormat.Key(), lga.Val, f)
+	return f
 }
 
 // getLogFilePath gets the log file path, based on flags, envars, or config.

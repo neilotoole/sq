@@ -21,6 +21,7 @@ const (
 	Dest      = "dest"
 	Dir       = "dir"
 	Driver    = "driver"
+	Default   = "default"
 	DefaultTo = "default_to"
 	Elapsed   = "elapsed"
 	Env       = "env"

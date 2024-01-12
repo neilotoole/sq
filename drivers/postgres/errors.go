@@ -3,11 +3,10 @@ package postgres
 import (
 	"errors"
 
-	"github.com/neilotoole/sq/libsq/driver"
-
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/driver"
 )
 
 // errw wraps any error from the db. It should be called at

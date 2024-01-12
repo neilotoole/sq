@@ -9,9 +9,53 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ## Upcoming
 
+### Added
+
+- Long-running operations (such as data ingestion, or file download) now result
+  in a progress bar being displayed. Display of the progress bar is controlled
+  by the new config options [`progress`](https://sq.io/docs/config#progress)
+  and [`progress.delay`](https://sq.io/docs/config#progressdelay).
+- Ingested [document sources](https://sq.io/docs/concepts#document-source) (such as
+  [CSV](https://sq.io/docs/drivers/csv) or [Excel](https://sq.io/docs/drivers/xlsx))
+  now make use of an ingest cache DB. Previously, ingestion of document source data occurred
+  on each `sq` command. It is now a one-time cost; subsequent use of the document source utilizes
+  the cache DB. If the source document changes, the ingest cache DB is invalidated and
+  ingested again. This is a massively improved experience for large document sources.
+- There's several new commands to interact with the cache.
+  - [`sq cache enable`](https://sq.io/docs/cmd/cache_enable) and
+  [`sq cache disable`](https://sq.io/docs/cmd/cache_disable) control cache usage.
+  You can also instead use the new [`ingest.cache`](https://sq.io/docs/config#ingestcache)
+  config option.
+  - [`sq cache clear`](https://sq.io/docs/cmd/cache_clear) clears the cache.
+  - [`sq cache location`](https://sq.io/docs/cmd/cache_location) prints the cache location on disk.
+  - [`sq cache stat`](https://sq.io/docs/cmd/cache_stat) shows stats about the cache.
+  - [`sq cache tree`](https://sq.io/docs/cmd/cache_location) shows a tree view of the cache.
+- Downloading of remote document sources (e.g. a CSV file at
+  [`https://sq.io/testdata/actor.csv`](https://sq.io/testdata/actor.csv)) has been completely
+  overhauled. Previously, `sq` would re-download the remote file on every command. Now, the
+  remote file is downloaded and cached locally. Subsequent commands check for staleness of
+  the cached download, and re-download if necessary.
+- As part of the download revamp, new config options have been introduced:
+  - [`http.request.timeout`](https://sq.io/docs/config#httprequesttimeout) and
+    [`http.response.timeout`](https://sq.io/docs/config#httpresponsetimeout) control HTTP timeout.
+  - [`https.insecure-skip-verify`](https://sq.io/docs/config#httpsinsecureskipverify) controls
+    whether HTTPS connections verify the server's certificate. This is useful for remote files served
+    with a self-signed certificate.
+- There are two more new config options introduced as part of the above work.
+  - [`cache.lock.timeout`](https://sq.io/docs/config#cachelocktimeout) controls the time that
+  `sq` will wait for a lock on the cache DB. The cache lock is introduced for when you have
+  multiple `sq` commands running concurrently, and you want to avoid them stepping on each other.
+  - Similarly, [`config.lock.timeout`](https://sq.io/docs/config#configlocktimeout) controls the
+  timeout for acquiring the (newly-introduced) lock on `sq`'s config file. This helps prevent
+  issues with multiple `sq` processes mutating the config concurrently.
+- `sq`'s own [logs](https://sq.io/docs/config#logging) previously outputted in JSON
+  format. Now there's a new [`log.format`](https://sq.io/docs/config#logformat) config option
+  that permits setting the log format to `json` or `text`. The `text` format is more human-friendly, and
+  is now the default.
+
 ### Fixed
 
-- Open DB connection now correctly honors [`conn.open-timeout`](https://sq.io/docs/config#connopen-timeout).
+- Opening a DB connection now correctly honors [`conn.open-timeout`](https://sq.io/docs/config#connopen-timeout).
 
 ## [v0.46.1] - 2023-12-06
 

@@ -4,14 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/neilotoole/sq/libsq/driver"
-
 	"golang.org/x/sync/errgroup"
 
 	udiff "github.com/neilotoole/sq/cli/diff/internal/go-udiff"
 	"github.com/neilotoole/sq/cli/diff/internal/go-udiff/myers"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )

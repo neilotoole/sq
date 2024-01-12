@@ -14,7 +14,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
-
 	"github.com/neilotoole/sq/libsq/core/options"
 )
 
@@ -25,8 +24,8 @@ var OptHTTPRequestTimeout = options.NewDuration(
 	time.Second*10,
 	"HTTP/S request initial response timeout duration",
 	`How long to wait for initial response from a HTTP/S endpoint before
-timeout occurs. Reading the body of the response, such as large HTTP file
-downloads, is not affected by this option. Example: 500ms or 3s.
+timeout occurs. Reading the body of the response, such as a large HTTP file
+download, is not affected by this option. Example: 500ms or 3s.
 Contrast with http.response.timeout.`,
 	options.TagSource,
 )
@@ -38,7 +37,7 @@ var OptHTTPResponseTimeout = options.NewDuration(
 	0,
 	"HTTP/S request completion timeout duration",
 	`How long to wait for the entire HTTP transaction to complete. This includes
-reading the body of the response, such as large HTTP file downloads. Typically
+reading the body of the response, such as a large HTTP file download. Typically
 this is set to 0, indicating no timeout. Contrast with http.request.timeout.`,
 	options.TagSource,
 )

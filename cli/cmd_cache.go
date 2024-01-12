@@ -147,7 +147,7 @@ func newCacheEnableCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "enable",
 		Short: "Enable caching",
-		Long: `Disable caching. This is equivalent to:
+		Long: `Enable caching. This is equivalent to:
 
   $ sq config set ingest.cache true`,
 		Args: cobra.ExactArgs(0),
