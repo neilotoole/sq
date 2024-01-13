@@ -116,10 +116,6 @@ func New(t testing.TB, opts ...Option) *Helper {
 		dbOpenTimeout: defaultDBOpenTimeout,
 	}
 
-	for _, opt := range opts {
-		opt(h)
-	}
-
 	ctx, cancelFn := context.WithCancel(context.Background())
 	h.cancelFn = cancelFn
 
@@ -132,9 +128,16 @@ func New(t testing.TB, opts ...Option) *Helper {
 	//
 	// REVISIT: The above statement regarding pid-based locking may no longer
 	// be applicable, as a new cache dir is created for each test run.
-	o := options.Options{driver.OptIngestCache.Key(): false}
-	h.Context = options.NewContext(h.Context, o)
+	//
+	// FIXME: Add an option to set config value
+	// o := options.Options{driver.OptIngestCache.Key(): false}
+	// h.Context = options.NewContext(h.Context, o)
 	t.Cleanup(h.Close)
+
+	for _, opt := range opts {
+		opt(h)
+	}
+
 	return h
 }
 

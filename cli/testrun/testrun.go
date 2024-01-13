@@ -57,18 +57,21 @@ func New(ctx context.Context, t testing.TB, from *TestRun) *TestRun {
 	}
 
 	if !lg.InContext(ctx) {
+		// FIXME: Get rid of this abomination
 		ctx = lg.NewContext(ctx, lgt.New(t))
 	}
 
 	tr := &TestRun{T: t, Context: ctx, mu: &sync.Mutex{}}
 
 	var cfgStore config.Store
+	var cacheDir string
 	if from != nil {
 		cfgStore = from.Run.ConfigStore
+		cacheDir = from.Run.Files.CacheDir()
 		tr.hushOutput = from.hushOutput
 	}
 
-	tr.Run, tr.Out, tr.ErrOut = newRun(ctx, t, cfgStore)
+	tr.Run, tr.Out, tr.ErrOut = newRun(ctx, t, cfgStore, cacheDir)
 	tr.Context = options.NewContext(ctx, tr.Run.Config.Options)
 	return tr
 }
@@ -79,7 +82,9 @@ func New(ctx context.Context, t testing.TB, from *TestRun) *TestRun {
 // these buffers can be written to t.Log() if desired.
 //
 // If cfgStore is nil, a new one is created in a temp dir.
-func newRun(ctx context.Context, t testing.TB, cfgStore config.Store) (ru *run.Run, out, errOut *bytes.Buffer) {
+func newRun(ctx context.Context, t testing.TB,
+	cfgStore config.Store, cacheDir string,
+) (ru *run.Run, out, errOut *bytes.Buffer) {
 	out = &bytes.Buffer{}
 	errOut = &bytes.Buffer{}
 
@@ -115,12 +120,16 @@ func newRun(ctx context.Context, t testing.TB, cfgStore config.Store) (ru *run.R
 	// The Files instance needs unique dirs for temp and cache because
 	// the test runs may execute in parallel inside the same test binary
 	// process, thus breaking the pid-based lockfile mechanism.
+	if cacheDir == "" {
+		cacheDir = tu.CacheDir(t, false)
+	}
+
 	ru.Files, err = source.NewFiles(
 		ctx,
 		ru.OptionsRegistry,
 		testh.TempLockFunc(t),
 		tu.TempDir(t, false),
-		tu.CacheDir(t, false),
+		cacheDir,
 	)
 	require.NoError(t, err)
 

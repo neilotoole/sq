@@ -7,6 +7,9 @@ import (
 	"os"
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lgt"
+
 	"github.com/samber/lo"
 	"github.com/stretchr/testify/require"
 
@@ -28,7 +31,7 @@ import (
 
 // TestCmdInspect_json_yaml tests "sq inspect" for
 // the JSON and YAML formats.
-func TestCmdInspect_json_yaml(t *testing.T) {
+func TestCmdInspect_json_yaml(t *testing.T) { //nolint:tparallel
 	tu.SkipShort(t, true)
 
 	possibleTbls := append(sakila.AllTbls(), source.MonotableName)
@@ -56,10 +59,13 @@ func TestCmdInspect_json_yaml(t *testing.T) {
 	for _, tf := range testFormats {
 		tf := tf
 		t.Run(tf.format.String(), func(t *testing.T) {
+			t.Parallel()
+
 			for _, tc := range testCases {
 				tc := tc
 
 				t.Run(tc.handle, func(t *testing.T) {
+					t.Parallel()
 					tu.SkipWindowsIf(t, tc.handle == sakila.XLSX, "XLSX too slow on windows workflow")
 
 					th := testh.New(t)
@@ -91,7 +97,7 @@ func TestCmdInspect_json_yaml(t *testing.T) {
 							tblName := tblName
 							t.Run(tblName, func(t *testing.T) {
 								tu.SkipShort(t, true)
-								tr2 := testrun.New(th.Context, t, tr)
+								tr2 := testrun.New(lg.NewContext(th.Context, lgt.New(t)), t, tr)
 								err := tr2.Exec("inspect", "."+tblName, fmt.Sprintf("--%s", tf.format))
 								require.NoError(t, err)
 								tblMeta := &metadata.Table{}
@@ -104,7 +110,7 @@ func TestCmdInspect_json_yaml(t *testing.T) {
 
 					t.Run("inspect_overview", func(t *testing.T) {
 						t.Logf("Test: sq inspect @src --overview")
-						tr2 := testrun.New(th.Context, t, tr)
+						tr2 := testrun.New(lg.NewContext(th.Context, lgt.New(t)), t, tr)
 						err := tr2.Exec(
 							"inspect",
 							tc.handle,
@@ -131,7 +137,7 @@ func TestCmdInspect_json_yaml(t *testing.T) {
 
 					t.Run("inspect_dbprops", func(t *testing.T) {
 						t.Logf("Test: sq inspect @src --dbprops")
-						tr2 := testrun.New(th.Context, t, tr)
+						tr2 := testrun.New(lg.NewContext(th.Context, lgt.New(t)), t, tr)
 						err := tr2.Exec(
 							"inspect",
 							tc.handle,
