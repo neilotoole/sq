@@ -1034,7 +1034,8 @@ func NewScratchSource(ctx context.Context, fpath string) (src *source.Source, cl
 
 	clnup = func() error {
 		log.Debug("Delete sqlite3 scratchdb file", lga.Src, src, lga.Path, fpath)
-		if err := os.Remove(fpath); err != nil {
+		lg.WarnIfError(log, "Delete sqlite3 db journal file", os.RemoveAll(filepath.Join(fpath, ".db-journal")))
+		if err := os.RemoveAll(fpath); err != nil {
 			log.Warn("Delete sqlite3 scratchdb file", lga.Err, err)
 			return errz.Err(err)
 		}

@@ -386,8 +386,7 @@ func (fs *Files) doCacheClearAll(ctx context.Context) error {
 // REVISIT: This doesn't really do as much as desired. It should
 // also be able to detect orphaned src cache dirs and delete those.
 func (fs *Files) doCacheSweep(ctx context.Context) {
-	dir := fs.cacheDir
-	log := lg.FromContext(ctx).With(lga.Dir, dir)
+	log := lg.FromContext(ctx).With(lga.Dir, fs.cacheDir)
 	log.Debug("Sweep cache dir: acquiring config lock")
 
 	if unlock, err := fs.cfgLockFn(ctx); err != nil {
@@ -397,44 +396,13 @@ func (fs *Files) doCacheSweep(ctx context.Context) {
 		defer unlock()
 	}
 
-	var count int
-	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-		if err != nil {
-			log.Warn("Problem sweeping cache dir", lga.Path, path, lga.Err, err)
-			return nil
-		}
-
-		if !info.IsDir() {
-			return nil
-		}
-
-		files, err := os.ReadDir(path)
-		if err != nil {
-			log.Warn("Problem reading dir", lga.Dir, path, lga.Err, err)
-			return nil
-		}
-
-		if len(files) != 0 {
-			return nil
-		}
-
-		err = os.Remove(path)
-		if err != nil {
-			log.Warn("Problem removing empty dir", lga.Dir, path, lga.Err, err)
-		}
-		count++
-
-		return nil
-	})
+	count, err := ioz.PruneEmptyDirTree(ctx, fs.cacheDir)
 	if err != nil {
-		log.Warn("Problem sweeping cache dir", lga.Dir, dir, lga.Err, err)
+		log.Warn("Problem sweeping cache dir", lga.Err, err, "deleted_dirs", count)
+		return
 	}
-	log.Info("Swept cache dir", lga.Dir, dir, lga.Count, count)
+
+	log.Info("Swept cache dir", "deleted_dirs", count)
 }
 
 // DefaultCacheDir returns the sq cache dir. This is generally

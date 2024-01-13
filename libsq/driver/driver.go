@@ -218,6 +218,9 @@ type Metadata struct {
 // OpeningPing is a standardized mechanism to ping db using
 // driver.OptConnOpenTimeout. This should be invoked by each SQL
 // driver impl in its Open method. If the ping fails, db is closed.
+//
+// REVISIT: now that driver.OptConnOpenTimeout is applied to each DB
+// in each driver impl, do we still need OpeningPing?
 func OpeningPing(ctx context.Context, src *source.Source, db *sql.DB) error {
 	o := options.FromContext(ctx)
 	timeout := OptConnOpenTimeout.Get(o)
