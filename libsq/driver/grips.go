@@ -178,6 +178,10 @@ func (gs *Grips) openNewCacheGrip(ctx context.Context, src *source.Source) (grip
 	const msgRemoveScratch = "Remove cache db"
 	log := lg.FromContext(ctx)
 
+	if err = gs.files.CacheClearSource(ctx, src, false); err != nil {
+		return nil, nil, err
+	}
+
 	cacheDir, srcCacheDBFilepath, _, err := gs.files.CachePaths(src)
 	if err != nil {
 		return nil, nil, err
