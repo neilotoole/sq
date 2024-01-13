@@ -9,6 +9,10 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ## Upcoming
 
+This is a significant release, focused on improving i/o, responsiveness,
+and performance. The headline feature is caching of ingested data for
+document sources such as CSV or Excel.
+
 ### Added
 
 - Long-running operations (such as data ingestion, or file download) now result
@@ -21,7 +25,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   now make use of an ingest cache DB. Previously, ingestion of document source data occurred
   on each `sq` command. It is now a one-time cost; subsequent use of the document source utilizes
   the cache DB. If the source document changes, the ingest cache DB is invalidated and
-  ingested again. This is a massively improved experience for large document sources.
+  ingested again. This is a significantly improved experience for large document sources.
 - There's several new commands to interact with the cache.
   - [`sq cache enable`](https://sq.io/docs/cmd/cache_enable) and
   [`sq cache disable`](https://sq.io/docs/cmd/cache_disable) control cache usage.
