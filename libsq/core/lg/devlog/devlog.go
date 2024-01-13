@@ -20,8 +20,6 @@ func NewHandler(w io.Writer, lvl slog.Leveler) slog.Handler {
 		AddSource:  true,
 		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
 			switch a.Key {
-			// case "pid":
-			//	return slog.Attr{}
 			case "error":
 				a.Key = "err"
 				return a

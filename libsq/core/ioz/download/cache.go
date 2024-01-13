@@ -14,7 +14,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
 	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
-	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
@@ -265,7 +264,7 @@ func (c *cache) write(ctx context.Context, resp *http.Response,
 		return 0, err
 	}
 
-	log.Debug("Writing HTTP response to cache", lga.Dir, c.dir, lga.Resp, httpz.ResponseLogValue(resp))
+	log.Debug("Writing HTTP response to cache", lga.Dir, c.dir, lga.Resp, resp)
 	fpHeader, fpBody, _ := c.paths(resp.Request)
 
 	headerBytes, err := httputil.DumpResponse(resp, false)

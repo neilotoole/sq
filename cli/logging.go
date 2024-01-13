@@ -5,10 +5,13 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
 
 	"github.com/spf13/cobra"
 
@@ -149,6 +152,7 @@ func newJSONHandler(w io.Writer, lvl slog.Leveler) slog.Handler {
 func slogReplaceAttrs(groups []string, a slog.Attr) slog.Attr {
 	a = slogReplaceSource(groups, a)
 	a = slogReplaceDuration(groups, a)
+	a = slogReplaceHTTPResponse(groups, a)
 	return a
 }
 
@@ -172,6 +176,18 @@ func slogReplaceDuration(_ []string, a slog.Attr) slog.Attr {
 	if a.Value.Kind() == slog.KindDuration {
 		a.Value = slog.StringValue(a.Value.Duration().String())
 	}
+	return a
+}
+
+// slogReplaceDuration prints the friendly version of duration.
+func slogReplaceHTTPResponse(_ []string, a slog.Attr) slog.Attr {
+	resp, ok := a.Value.Any().(*http.Response)
+	if !ok {
+		return a
+	}
+
+	v := httpz.ResponseLogValue(resp)
+	a.Value = v
 	return a
 }
 

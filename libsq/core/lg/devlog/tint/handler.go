@@ -53,11 +53,14 @@ Color support on Windows can be added by using e.g. the [go-colorable] package.
 package tint
 
 import (
+	"bytes"
 	"context"
 	"encoding"
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
+	"net/http/httputil"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -72,7 +75,6 @@ import (
 // ANSI modes
 // See: https://gist.github.com/JBlond/2fea43a3049b38287e5e9cefc87b2124
 const (
-	ansiAttr             = "\033[36;2m"
 	ansiBlue             = "\033[34m"
 	ansiBrightBlue       = "\033[94m"
 	ansiBrightGreen      = "\033[92m"
@@ -83,12 +85,21 @@ const (
 	ansiBrightRedFaint   = "\033[91;2m"
 	ansiBrightYellow     = "\033[93m"
 	ansiFaint            = "\033[2m"
-	ansiReset            = "\033[0m"
-	ansiResetFaint       = "\033[22m"
-	ansiStack            = "\033[0;35m"
 	ansiYellowBold       = "\033[1;33m"
-	ansiStackErr         = ansiYellowBold
-	ansiStackErrType     = ansiBrightGreenFaint
+	ansiYellow           = "\033[33m"
+	ansiPurpleBold       = "\033[1;35m"
+
+	ansiReset      = "\033[0m"
+	ansiResetFaint = "\033[22m"
+
+	ansiAttr         = "\033[36;2m"
+	ansiStack        = "\033[0;35m"
+	ansiStackErr     = ansiYellowBold
+	ansiStackErrType = ansiBrightGreenFaint
+	ansiDebug        = ansiBrightGreen
+	ansiInfo         = ansiYellow
+	ansiWarn         = ansiPurpleBold
+	ansiError        = ansiBrightRedBold
 )
 
 const errKey = "err"
@@ -234,13 +245,13 @@ func (h *handler) Handle(_ context.Context, r slog.Record) error {
 	msgColor := ansiBrightGreen
 	switch r.Level {
 	case slog.LevelDebug:
-		msgColor = ansiBrightGreen
+		msgColor = ansiDebug
 	case slog.LevelWarn:
-		msgColor = ansiBrightYellow
+		msgColor = ansiWarn
 	case slog.LevelError:
 		msgColor = ansiBrightRedBold
 	case slog.LevelInfo:
-		msgColor = ansiBrightGreenBold
+		msgColor = ansiInfo
 	}
 	// write message
 	if rep == nil {
@@ -262,6 +273,7 @@ func (h *handler) Handle(_ context.Context, r slog.Record) error {
 
 	const keyStack = "stack"
 	var stackAttrs []slog.Attr
+	var resps []*http.Response
 
 	// write attributes
 	r.Attrs(func(attr slog.Attr) bool {
@@ -270,9 +282,18 @@ func (h *handler) Handle(_ context.Context, r slog.Record) error {
 			stackAttrs = append(stackAttrs, attr)
 			return true
 		}
+
+		if resp, ok := attr.Value.Any().(*http.Response); ok {
+			// Special handling for http responses
+			resps = append(resps, resp)
+			return true
+		}
+
 		h.appendAttr(buf, attr, h.groupPrefix, h.groups)
 		return true
 	})
+
+	h.handleHTTPResponse(buf, resps)
 
 	if len(*buf) == 0 {
 		return nil
@@ -286,6 +307,25 @@ func (h *handler) Handle(_ context.Context, r slog.Record) error {
 
 	_, err := h.w.Write(*buf)
 	return err
+}
+
+func (h *handler) handleHTTPResponse(buf *buffer, resps []*http.Response) {
+	for _, resp := range resps {
+		if resp == nil {
+			continue
+		}
+		b, _ := httputil.DumpResponse(resp, false)
+		b = bytes.TrimSpace(b)
+		if len(b) == 0 {
+			return
+		}
+
+		buf.WriteByte('\n')
+		buf.WriteStringIf(!h.noColor, ansiAttr)
+		_, _ = buf.Write(b)
+		buf.WriteStringIf(!h.noColor, ansiReset)
+		buf.WriteByte('\n')
+	}
 }
 
 func (h *handler) handleStackAttrs(buf *buffer, attrs []slog.Attr) {
@@ -381,20 +421,22 @@ func (h *handler) appendTime(buf *buffer, t time.Time) {
 func (h *handler) appendLevel(buf *buffer, level slog.Level) {
 	switch {
 	case level < slog.LevelInfo:
+		buf.WriteStringIf(!h.noColor, ansiDebug)
 		buf.WriteString("DBG")
 		appendLevelDelta(buf, level-slog.LevelDebug)
+		buf.WriteStringIf(!h.noColor, ansiReset)
 	case level < slog.LevelWarn:
-		buf.WriteStringIf(!h.noColor, ansiBrightGreen)
+		buf.WriteStringIf(!h.noColor, ansiInfo)
 		buf.WriteString("INF")
 		appendLevelDelta(buf, level-slog.LevelInfo)
 		buf.WriteStringIf(!h.noColor, ansiReset)
 	case level < slog.LevelError:
-		buf.WriteStringIf(!h.noColor, ansiBrightYellow)
+		buf.WriteStringIf(!h.noColor, ansiWarn)
 		buf.WriteString("WRN")
 		appendLevelDelta(buf, level-slog.LevelWarn)
 		buf.WriteStringIf(!h.noColor, ansiReset)
 	default:
-		buf.WriteStringIf(!h.noColor, ansiBrightRedBold)
+		buf.WriteStringIf(!h.noColor, ansiError)
 		buf.WriteString("ERR")
 		appendLevelDelta(buf, level-slog.LevelError)
 		buf.WriteStringIf(!h.noColor, ansiReset)

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/flag"
@@ -28,9 +29,13 @@ func newCacheCmd() *cobra.Command {
 
   $ sq cache enable
 
+  $ sq cache enable @sakila
+
   $ sq cache disable
 
   $ sq cache clear
+
+  $ sq cache clear @sakila
 
   # Print tree view of cache dir.
   $ sq cache tree`,
@@ -46,7 +51,10 @@ func newCacheLocationCmd() *cobra.Command {
 		Short:   "Print cache location",
 		Long:    "Print cache location.",
 		Args:    cobra.ExactArgs(0),
-		RunE:    execCacheLocation,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ru := run.FromContext(cmd.Context())
+			return ru.Writers.Config.CacheLocation(ru.Files.CacheDir())
+		},
 		Example: `  $ sq cache location
   /Users/neilotoole/Library/Caches/sq/f36ac695`,
 	}
@@ -57,29 +65,25 @@ func newCacheLocationCmd() *cobra.Command {
 	return cmd
 }
 
-func execCacheLocation(cmd *cobra.Command, _ []string) error {
-	ru := run.FromContext(cmd.Context())
-	return ru.Writers.Config.CacheLocation(ru.Files.CacheDir())
-}
-
-func newCacheInfoCmd() *cobra.Command {
+func newCacheStatCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "stat",
 		Short: "Show cache info",
 		Long:  "Show cache info, including location and size.",
 		Args:  cobra.ExactArgs(0),
-		RunE:  execCacheInfo,
+		RunE:  execCacheStat,
 		Example: `  $ sq cache stat
   /Users/neilotoole/Library/Caches/sq/f36ac695  enabled  (472.8MB)`,
 	}
 
+	markCmdRequiresConfigLock(cmd)
 	addTextFormatFlags(cmd)
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 	cmd.Flags().BoolP(flag.YAML, flag.YAMLShort, false, flag.YAMLUsage)
 	return cmd
 }
 
-func execCacheInfo(cmd *cobra.Command, _ []string) error {
+func execCacheStat(cmd *cobra.Command, _ []string) error {
 	ru := run.FromContext(cmd.Context())
 	dir := ru.Files.CacheDir()
 
@@ -164,36 +168,76 @@ func execCacheTree(cmd *cobra.Command, _ []string) error {
 	return ioz.PrintTree(ru.Out, cacheDir, showSize, !ru.Writers.Printing.IsMonochrome())
 }
 
-func newCacheEnableCmd() *cobra.Command {
+func newCacheEnableCmd() *cobra.Command { //nolint:dupl
 	cmd := &cobra.Command{
-		Use:   "enable",
-		Short: "Enable caching",
-		Long: `Enable caching. This is equivalent to:
-
-  $ sq config set ingest.cache true`,
-		Args: cobra.ExactArgs(0),
+		Use:               "enable [@HANDLE]",
+		Short:             "Enable caching",
+		Long:              `Enable caching by default or for a specific source.`,
+		Args:              cobra.MaximumNArgs(1),
+		ValidArgsFunction: completeHandle(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return execConfigSet(cmd, []string{driver.OptIngestCache.Key(), "true"})
+			ru := run.FromContext(cmd.Context())
+			var o options.Options
+
+			if len(args) == 0 {
+				o = ru.Config.Options
+			} else {
+				src, err := ru.Config.Collection.Get(args[0])
+				if err != nil {
+					return err
+				}
+				if src.Options == nil {
+					src.Options = options.Options{}
+				}
+				o = src.Options
+			}
+
+			o[driver.OptIngestCache.Key()] = true
+			return ru.ConfigStore.Save(cmd.Context(), ru.Config)
 		},
-		Example: `  $ sq cache enable`,
+		Example: `  # Enable caching by default
+  $ sq cache enable
+
+	# Enable caching for a particular source
+	$ sq cache enable @sakila`,
 	}
 
 	markCmdRequiresConfigLock(cmd)
 	return cmd
 }
 
-func newCacheDisableCmd() *cobra.Command {
+func newCacheDisableCmd() *cobra.Command { //nolint:dupl
 	cmd := &cobra.Command{
-		Use:   "disable",
-		Short: "Disable caching",
-		Long: `Disable caching. This is equivalent to:
-
-  $ sq config set ingest.cache false`,
-		Args: cobra.ExactArgs(0),
+		Use:               "disable [@HANDLE]",
+		Short:             "Disable caching",
+		Long:              `Disable caching by default or for a specific source.`,
+		Args:              cobra.MaximumNArgs(1),
+		ValidArgsFunction: completeHandle(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return execConfigSet(cmd, []string{driver.OptIngestCache.Key(), "false"})
+			ru := run.FromContext(cmd.Context())
+			var o options.Options
+
+			if len(args) == 0 {
+				o = ru.Config.Options
+			} else {
+				src, err := ru.Config.Collection.Get(args[0])
+				if err != nil {
+					return err
+				}
+				if src.Options == nil {
+					src.Options = options.Options{}
+				}
+				o = src.Options
+			}
+
+			o[driver.OptIngestCache.Key()] = false
+			return ru.ConfigStore.Save(cmd.Context(), ru.Config)
 		},
-		Example: `  $ sq cache disable`,
+		Example: `  # Disable caching by default
+  $ sq cache disable
+
+  # Disable caching for a particular source
+	$ sq cache disable @sakila`,
 	}
 
 	markCmdRequiresConfigLock(cmd)
