@@ -235,7 +235,7 @@ func (h *Helper) Add(src *source.Source) *source.Source {
 	// This is a bit of a hack to ensure that internals are loaded: we
 	// load a known source. The loading mechanism should be refactored
 	// to not require this.
-	_ = h.Source(sakila.Pg)
+	_ = h.Source(sakila.SL3)
 
 	h.mu.Lock()
 	defer h.mu.Unlock()

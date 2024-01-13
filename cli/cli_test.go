@@ -79,22 +79,27 @@ func TestSmoke(t *testing.T) {
 	}
 }
 
-func TestCreateTblTestBytes(t *testing.T) {
-	th, src, _, _, _ := testh.NewWith(t, sakila.Pg)
-	th.DiffDB(src)
+func TestCreateTable_bytes(t *testing.T) {
+	for _, handle := range sakila.SQLLatest() {
+		handle := handle
+		t.Run(handle, func(t *testing.T) {
+			th, src, _, _, _ := testh.NewWith(t, handle)
+			th.DiffDB(src)
 
-	tblDef := sqlmodel.NewTableDef(
-		stringz.UniqTableName("test_bytes"),
-		[]string{"col_name", "col_bytes"},
-		[]kind.Kind{kind.Text, kind.Bytes},
-	)
+			tblDef := sqlmodel.NewTableDef(
+				stringz.UniqTableName("test_bytes"),
+				[]string{"col_name", "col_bytes"},
+				[]kind.Kind{kind.Text, kind.Bytes},
+			)
 
-	fBytes := proj.ReadFile(fixt.GopherPath)
-	data := []any{fixt.GopherFilename, fBytes}
+			fBytes := proj.ReadFile(fixt.GopherPath)
+			data := []any{fixt.GopherFilename, fBytes}
 
-	require.Equal(t, int64(1), th.CreateTable(true, src, tblDef, data))
-	t.Logf(src.Location)
-	th.DropTable(src, tablefq.From(tblDef.Name))
+			require.Equal(t, int64(1), th.CreateTable(true, src, tblDef, data))
+			t.Logf(src.Location)
+			th.DropTable(src, tablefq.From(tblDef.Name))
+		})
+	}
 }
 
 // TestOutputRaw verifies that the raw output format works.
