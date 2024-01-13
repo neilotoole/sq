@@ -85,7 +85,7 @@ func ExecuteWith(ctx context.Context, ru *run.Run, args []string) error {
 			_ = ru.LogCloser()
 		}
 	}()
-	ctx = options.NewContext(ctx, ru.Config.Options)
+	ctx = options.NewContext(ctx, options.Merge(options.FromContext(ctx), ru.Config.Options))
 	log := lg.FromContext(ctx)
 	log.Info("EXECUTE", "args", strings.Join(args, " "))
 	log.Info("Build info", "build", buildinfo.Get())

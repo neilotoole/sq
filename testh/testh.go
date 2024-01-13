@@ -81,6 +81,20 @@ func OptLongOpen() Option {
 	}
 }
 
+// OptCaching enables or disables ingest caching.
+func OptCaching(enable bool) Option {
+	return func(h *Helper) {
+		o := options.FromContext(h.Context)
+		if o == nil {
+			o = options.Options{driver.OptIngestCache.Key(): enable}
+			h.Context = options.NewContext(h.Context, o)
+			return
+		}
+
+		o[driver.OptIngestCache.Key()] = enable
+	}
+}
+
 // Helper encapsulates a test helper session.
 type Helper struct {
 	mu sync.Mutex
@@ -120,18 +134,6 @@ func New(t testing.TB, opts ...Option) *Helper {
 	h.cancelFn = cancelFn
 
 	h.Context = lg.NewContext(ctx, h.Log)
-
-	// Disable caching in tests, because there's all sorts of confounding
-	// situations with running tests in parallel with caching enabled,
-	// due to the fact that caching uses pid-based locking, and parallel tests
-	// share the same pid.
-	//
-	// REVISIT: The above statement regarding pid-based locking may no longer
-	// be applicable, as a new cache dir is created for each test run.
-	//
-	// FIXME: Add an option to set config value
-	// o := options.Options{driver.OptIngestCache.Key(): false}
-	// h.Context = options.NewContext(h.Context, o)
 	t.Cleanup(h.Close)
 
 	for _, opt := range opts {
