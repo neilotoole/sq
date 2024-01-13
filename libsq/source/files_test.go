@@ -284,10 +284,3 @@ func TestFiles_Size(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, wantSize, gotSize2)
 }
-
-func TestPruneEmptyDirTree(t *testing.T) {
-	const dir = "/Users/neilotoole/Library/Caches/sq/f36ac695"
-	count, err := source.PruneEmptyDirTree(context.Background(), dir)
-	t.Logf("pruned %d empty dirs from: %s", count, dir)
-	assert.NoError(t, err)
-}

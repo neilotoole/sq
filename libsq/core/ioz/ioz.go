@@ -469,3 +469,72 @@ func (w *writeErrorCloser) Error(err error) {
 func NewFuncWriteErrorCloser(w io.WriteCloser, fn func(error)) WriteErrorCloser {
 	return &writeErrorCloser{WriteCloser: w, fn: fn}
 }
+
+// PruneEmptyDirTree prunes empty dirs, and dirs that contain only
+// other empty dirs, from the directory tree rooted at dir. If a dir
+// contains at least one non-dir entry, that dir is spared. Arg dir
+// must be an absolute path.
+func PruneEmptyDirTree(ctx context.Context, dir string) (count int, err error) {
+	return doPruneEmptyDirTree(ctx, dir, true)
+}
+
+func doPruneEmptyDirTree(ctx context.Context, dir string, isRoot bool) (count int, err error) {
+	if !filepath.IsAbs(dir) {
+		return 0, errz.Errorf("dir must be absolute: %s", dir)
+	}
+
+	select {
+	case <-ctx.Done():
+		return 0, errz.Err(ctx.Err())
+	default:
+	}
+
+	var entries []os.DirEntry
+	if entries, err = os.ReadDir(dir); err != nil {
+		return 0, errz.Err(err)
+	}
+
+	if len(entries) == 0 {
+		if isRoot {
+			return 0, nil
+		}
+		err = os.RemoveAll(dir)
+		if err != nil {
+			return 0, errz.Err(err)
+		}
+		return 1, nil
+	}
+
+	// We've got some entries... let's check what they are.
+	if countNonDirs(entries) != 0 {
+		// There are some non-dir entries, so this dir doesn't get deleted.
+		return 0, nil
+	}
+
+	// Each of the entries is a dir. Recursively prune.
+	var n int
+	for _, entry := range entries {
+		select {
+		case <-ctx.Done():
+			return count, errz.Err(ctx.Err())
+		default:
+		}
+
+		n, err = doPruneEmptyDirTree(ctx, filepath.Join(dir, entry.Name()), false)
+		count += n
+		if err != nil {
+			return count, err
+		}
+	}
+
+	return count, nil
+}
+
+func countNonDirs(entries []os.DirEntry) (count int) {
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			count++
+		}
+	}
+	return count
+}
