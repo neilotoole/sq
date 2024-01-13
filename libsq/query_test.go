@@ -141,7 +141,17 @@ func execQueryTestCase(t *testing.T, tc queryTestCase) {
 func doExecQueryTestCase(t *testing.T, tc queryTestCase) {
 	t.Helper()
 
-	coll := testh.New(t).NewCollection(sakila.SQLLatest()...)
+	th := testh.New(t)
+	var handles []string
+	for _, handle := range sakila.SQLLatest() {
+		if th.SourceConfigured(handle) {
+			handles = append(handles, handle)
+		} else {
+			t.Logf("Skipping because source %s is not configured", handle)
+		}
+	}
+
+	coll := th.NewCollection(handles...)
 	for _, src := range coll.Sources() {
 		src := src
 
@@ -153,6 +163,13 @@ func doExecQueryTestCase(t *testing.T, tc queryTestCase) {
 			t.Helper()
 
 			in := strings.Replace(tc.in, "@sakila", src.Handle, 1)
+			for _, handle := range testh.ExtractHandlesFromQuery(t, tc.in, false) {
+				if !testh.New(t).SourceConfigured(handle) {
+					t.Skipf("Skipping because source %s is not configured", handle)
+					return
+				}
+			}
+
 			t.Logf("QUERY:\n\n%s\n\n", in)
 			want := tc.wantSQL
 			if overrideWant, ok := tc.override[src.Type]; ok {

@@ -359,6 +359,29 @@ func (h *Helper) Source(handle string) *source.Source {
 	return src
 }
 
+// SourceConfigured returns true if the source is configured. Note
+// that Helper.Source skips the test if the source is not configured: that
+// is to say, if the source location requires population via an envar, and
+// the envar is not set. For example, for the PostgreSQL source @sakila_pg12,
+// the envar SQ_TEST_SRC__SAKILA_PG12 is required. SourceConfigured tests
+// if that envar is set.
+func (h *Helper) SourceConfigured(handle string) bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if !stringz.InSlice(sakila.SQLAllExternal(), handle) {
+		// Non-SQL and SQLite sources are always available.
+		return true
+	}
+
+	handleEnvar := "SQ_TEST_SRC__" + strings.ToUpper(strings.TrimPrefix(handle, "@"))
+	if envar, ok := os.LookupEnv(handleEnvar); !ok || strings.TrimSpace(envar) == "" {
+		return false
+	}
+
+	return true
+}
+
 // NewCollection is a convenience function for building a
 // new *source.Collection incorporating the supplied handles. See
 // Helper.Source for more on the behavior.
@@ -892,13 +915,15 @@ func SetBuildVersion(t testing.TB, vers string) {
 	})
 }
 
+// TempLockfile returns a lockfile.Lockfile that uses a temp file.
 func TempLockfile(t testing.TB) lockfile.Lockfile {
 	return lockfile.Lockfile(tu.TempFile(t, "pid.lock", false))
 }
 
+// TempLockFunc returns a lockfile.LockFunc that uses a temp file.
 func TempLockFunc(t testing.TB) lockfile.LockFunc {
 	return func(ctx context.Context) (unlock func(), err error) {
-		lock := lockfile.Lockfile(tu.TempFile(t, "pid.lock", false))
+		lock := TempLockfile(t)
 		timeout := config.OptConfigLockTimeout.Default()
 		if err = lock.Lock(ctx, timeout); err != nil {
 			return nil, err
@@ -910,4 +935,21 @@ func TempLockFunc(t testing.TB) lockfile.LockFunc {
 			}
 		}, nil
 	}
+}
+
+// ExtractHandlesFromQuery returns all handles mentioned in the query.
+// If failOnErr is true, the test will fail on any parse error; otherwise,
+// the test will log the error and return an empty slice.
+func ExtractHandlesFromQuery(t testing.TB, query string, failOnErr bool) []string {
+	a, err := ast.Parse(lg.Discard(), query)
+	if err != nil {
+		if failOnErr {
+			require.NoError(t, err)
+			return nil
+		}
+		t.Logf("Failed to parse query: >> %s << : %v", query, err)
+		return []string{}
+	}
+
+	return ast.ExtractHandles(a)
 }
