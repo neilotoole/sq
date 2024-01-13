@@ -459,4 +459,3 @@ func DefaultCacheDir() (dir string) {
 func DefaultTempDir() (dir string) {
 	return filepath.Join(os.TempDir(), "sq")
 }
-

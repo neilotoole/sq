@@ -182,7 +182,10 @@ func (h *Helper) init() {
 		})
 
 		h.grips = driver.NewGrips(h.registry, h.files, sqlite3.NewScratchSource)
-		h.Cleanup.AddC(h.grips)
+		// h.Cleanup.AddC(h.grips)
+		h.Cleanup.AddE(func() error {
+			return h.grips.Close()
+		})
 
 		h.registry.AddProvider(sqlite3.Type, &sqlite3.Provider{Log: log})
 		h.registry.AddProvider(postgres.Type, &postgres.Provider{Log: log})

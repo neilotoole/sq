@@ -174,6 +174,7 @@ func (gs *Grips) OpenEphemeral(ctx context.Context) (Grip, error) {
 	}
 	gs.clnup.AddC(g)
 	log.Info("Opened ephemeral db", lga.Src, g.Source())
+	gs.grips[g.Source().Handle] = g
 	return g, nil
 }
 
@@ -441,7 +442,9 @@ type cleanOnCloseGrip struct {
 // method, and then the closeFn, returning a combined error.
 func (g *cleanOnCloseGrip) Close() error {
 	g.once.Do(func() {
-		g.closeErr = errz.Append(g.Grip.Close(), g.clnup.Run())
+		err1 := g.Grip.Close()
+		err2 := g.clnup.Run()
+		g.closeErr = errz.Append(err1, err2)
 	})
 	return g.closeErr
 }

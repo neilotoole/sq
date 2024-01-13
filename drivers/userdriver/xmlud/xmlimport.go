@@ -1,6 +1,8 @@
 // Package xmlud provides user driver XML import functionality.
 // Note that this implementation is experimental, not well-tested,
 // inefficient, possibly incomprehensible, and subject to change.
+//
+// Also, it's really old, and just generally embarrassing. Don't look.
 package xmlud
 
 import (
@@ -11,6 +13,8 @@ import (
 	"log/slog"
 	"strconv"
 	"strings"
+
+	"github.com/neilotoole/sq/libsq/core/sqlz"
 
 	"github.com/neilotoole/sq/drivers/userdriver"
 	"github.com/neilotoole/sq/libsq/core/cleanup"
@@ -32,8 +36,17 @@ func Import(ctx context.Context, def *userdriver.DriverDef, data io.Reader, dest
 		return errz.Errorf("xmlud.Import does not support genre {%s}", def.Genre)
 	}
 
+	log := lg.FromContext(ctx)
+	db, err := destGrip.DB(ctx)
+	if err != nil {
+		return err
+	}
+
 	im := &importer{
-		log:           lg.FromContext(ctx),
+		log:           log,
+		destGrip:      destGrip,
+		destDB:        db,
+		data:          data,
 		def:           def,
 		selStack:      newSelStack(),
 		rowStack:      newRowStack(),
@@ -45,13 +58,12 @@ func Import(ctx context.Context, def *userdriver.DriverDef, data io.Reader, dest
 		msgOnce:       map[string]struct{}{},
 	}
 
-	err := im.execImport(ctx, data, destGrip)
-	err2 := im.clnup.Run()
-	if err != nil {
-		return errz.Wrap(err, "xml import")
+	if err = im.execIngest(ctx); err != nil {
+		lg.WarnIfFuncError(log, "xml ingest: cleanup", im.clnup.Run)
+		return errz.Wrap(err, "xml ingest")
 	}
 
-	return errz.Wrap(err2, "xml import: cleanup")
+	return errz.Wrap(im.clnup.Run(), "xml ingest: cleanup")
 }
 
 // importer does the work of importing data from XML.
@@ -60,6 +72,7 @@ type importer struct {
 	def      *userdriver.DriverDef
 	data     io.Reader
 	destGrip driver.Grip
+	destDB   sqlz.DB
 	selStack *selStack
 	rowStack *rowStack
 	tblDefs  map[string]*sqlmodel.TableDef
@@ -86,9 +99,7 @@ type importer struct {
 	msgOnce map[string]struct{}
 }
 
-func (im *importer) execImport(ctx context.Context, r io.Reader, destGrip driver.Grip) error { //nolint:gocognit
-	im.data, im.destGrip = r, destGrip
-
+func (im *importer) execIngest(ctx context.Context) error { //nolint:gocognit
 	err := im.createTables(ctx)
 	if err != nil {
 		return err
@@ -429,13 +440,8 @@ func (im *importer) dbInsert(ctx context.Context, row *rowState) error {
 
 	execInsertFn, ok := im.execInsertFns[cacheKey]
 	if !ok {
-		db, err := im.destGrip.DB(ctx)
-		if err != nil {
-			return err
-		}
-
 		// Nothing cached, prepare the insert statement and insert munge func
-		stmtExecer, err := im.destGrip.SQLDriver().PrepareInsertStmt(ctx, db, tblName, colNames, 1)
+		stmtExecer, err := im.destGrip.SQLDriver().PrepareInsertStmt(ctx, im.destDB, tblName, colNames, 1)
 		if err != nil {
 			return err
 		}
@@ -506,13 +512,8 @@ func (im *importer) dbUpdate(ctx context.Context, row *rowState) error {
 	cacheKey := "##update_func__" + tblName + "__" + strings.Join(colNames, ",") + whereClause
 	execUpdateFn, ok := im.execUpdateFns[cacheKey]
 	if !ok {
-		db, err := im.destGrip.DB(ctx)
-		if err != nil {
-			return err
-		}
-
 		// Nothing cached, prepare the update statement and munge func
-		stmtExecer, err := drvr.PrepareUpdateStmt(ctx, db, tblName, colNames, whereClause)
+		stmtExecer, err := drvr.PrepareUpdateStmt(ctx, im.destDB, tblName, colNames, whereClause)
 		if err != nil {
 			return err
 		}
@@ -576,12 +577,7 @@ func (im *importer) createTables(ctx context.Context) error {
 
 		im.tblDefs[tblDef.Name] = tblDef
 
-		db, err := im.destGrip.DB(ctx)
-		if err != nil {
-			return err
-		}
-
-		err = im.destGrip.SQLDriver().CreateTable(ctx, db, tblDef)
+		err = im.destGrip.SQLDriver().CreateTable(ctx, im.destDB, tblDef)
 		if err != nil {
 			return err
 		}
