@@ -5,18 +5,20 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
-	"github.com/neilotoole/sq/cli/testrun"
 	"github.com/neilotoole/sq/drivers/csv"
 	"github.com/neilotoole/sq/drivers/mysql"
 	"github.com/neilotoole/sq/drivers/postgres"
 	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/drivers/sqlserver"
-	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/drivers/xlsx"
 	"github.com/neilotoole/sq/libsq/source"
-	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/neilotoole/sq/cli/testrun"
+	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/tu"
@@ -35,54 +37,62 @@ func TestCmdAdd(t *testing.T) {
 		wantRows: sakila.TblActorCount,
 		wantCols: len(sakila.TblActorCols()),
 	}
-
-	th := testh.New(t)
+	_ = actorDataQuery
 
 	testCases := []struct {
-		loc         string // first arg to "add" cmd
-		driver      string // --driver flag
-		handle      string // --handle flag
-		wantHandle  string
-		wantType    drivertype.Type
-		wantOptions options.Options
-		wantErr     bool
-		query       *query
+		// Set only one of loc, or locFromHandle, to create
+		// the first arg to "add" cmd.
+		//
+		// loc, when set, will be used directly.
+		loc string
+		// locFromHandle, when set, gets the location from the
+		// config source with the given handle.
+		locFromHandle string
+
+		driver       string // --driver flag
+		handle       string // --handle flag
+		wantHandle   string
+		wantType     drivertype.Type
+		wantOptions  options.Options
+		wantAddErr   bool
+		wantQueryErr bool
+		query        *query
 	}{
 		{
-			loc:     "",
-			wantErr: true,
+			loc:        "",
+			wantAddErr: true,
 		},
 		{
-			loc:     "   ",
-			wantErr: true,
+			loc:        "   ",
+			wantAddErr: true,
 		},
 		{
-			loc:     "/",
-			wantErr: true,
+			loc:        "/",
+			wantAddErr: true,
 		},
 		{
-			loc:     "../../",
-			wantErr: true,
+			loc:        "../../",
+			wantAddErr: true,
 		},
 		{
-			loc:     "does/not/exist",
-			wantErr: true,
+			loc:        "does/not/exist",
+			wantAddErr: true,
 		},
 		{
-			loc:     "_",
-			wantErr: true,
+			loc:        "_",
+			wantAddErr: true,
 		},
 		{
-			loc:     ".",
-			wantErr: true,
+			loc:        ".",
+			wantAddErr: true,
 		},
 		{
-			loc:     "/",
-			wantErr: true,
+			loc:        "/",
+			wantAddErr: true,
 		},
 		{
-			loc:     "../does/not/exist.csv",
-			wantErr: true,
+			loc:        "../does/not/exist.csv",
+			wantAddErr: true,
 		},
 		{
 			loc:        proj.Rel(sakila.PathCSVActor),
@@ -109,9 +119,14 @@ func TestCmdAdd(t *testing.T) {
 			wantType:   csv.TypeCSV,
 		},
 		{
-			loc:     proj.Abs(sakila.PathCSVActor),
-			driver:  "xlsx",
-			wantErr: true,
+			loc:        proj.Abs(sakila.PathCSVActor),
+			driver:     "xlsx",
+			wantHandle: "@actor",
+			wantType:   xlsx.Type,
+			// It's legal to add a CSV file with the xlsx driver.
+			wantAddErr: false,
+			// But it should fail when we try to query it.
+			wantQueryErr: true,
 		},
 		{
 			loc:        proj.Rel(sakila.PathTSVActor),
@@ -148,49 +163,53 @@ func TestCmdAdd(t *testing.T) {
 			wantType:   sqlite3.Type,
 		},
 		{
-			// without scheme, relative path
-			loc:        th.Source(sakila.Pg).Location,
-			wantHandle: "@sakila",
-			wantType:   postgres.Type,
+			locFromHandle: sakila.Pg,
+			wantHandle:    "@sakila",
+			wantType:      postgres.Type,
 		},
 		{
-			loc:        th.Source(sakila.MS).Location,
-			wantHandle: "@sakila",
-			wantType:   sqlserver.Type,
+			locFromHandle: sakila.MS,
+			wantHandle:    "@sakila",
+			wantType:      sqlserver.Type,
 		},
 		{
-			loc:        th.Source(sakila.My).Location,
-			wantHandle: "@sakila",
-			wantType:   mysql.Type,
+			locFromHandle: sakila.My,
+			wantHandle:    "@sakila",
+			wantType:      mysql.Type,
 		},
 		{
-			loc:     proj.Abs(sakila.PathCSVActor),
-			handle:  source.StdinHandle, // reserved handle
-			wantErr: true,
-		},
-
-		{
-			loc:     proj.Abs(sakila.PathCSVActor),
-			handle:  source.ActiveHandle, // reserved handle
-			wantErr: true,
+			loc:        proj.Abs(sakila.PathCSVActor),
+			handle:     source.StdinHandle, // reserved handle
+			wantAddErr: true,
 		},
 
 		{
-			loc:     proj.Abs(sakila.PathCSVActor),
-			handle:  source.ScratchHandle, // reserved handle
-			wantErr: true,
+			loc:        proj.Abs(sakila.PathCSVActor),
+			handle:     source.ActiveHandle, // reserved handle
+			wantAddErr: true,
+		},
+
+		{
+			loc:        proj.Abs(sakila.PathCSVActor),
+			handle:     source.ScratchHandle, // reserved handle
+			wantAddErr: true,
 		},
 		{
-			loc:     proj.Abs(sakila.PathCSVActor),
-			handle:  source.JoinHandle, // reserved handle
-			wantErr: true,
+			loc:        proj.Abs(sakila.PathCSVActor),
+			handle:     source.JoinHandle, // reserved handle
+			wantAddErr: true,
 		},
 	}
 
 	for i, tc := range testCases {
 		tc := tc
 
-		t.Run(tu.Name(i, tc.wantHandle, tc.loc, tc.driver), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.wantHandle, tc.loc, tc.locFromHandle, tc.driver), func(t *testing.T) {
+			if tc.locFromHandle != "" {
+				th := testh.New(t)
+				tc.loc = th.Source(tc.locFromHandle).Location
+			}
+
 			args := []string{"add", tc.loc}
 			if tc.handle != "" {
 				args = append(args, "--handle="+tc.handle)
@@ -199,9 +218,9 @@ func TestCmdAdd(t *testing.T) {
 				args = append(args, "--driver="+tc.driver)
 			}
 
-			tr := testrun.New(th.Context, t, nil)
+			tr := testrun.New(context.Background(), t, nil)
 			err := tr.Exec(args...)
-			if tc.wantErr {
+			if tc.wantAddErr {
 				require.Error(t, err)
 				return
 			}
@@ -220,6 +239,10 @@ func TestCmdAdd(t *testing.T) {
 			}
 
 			err = tr.Reset().Exec(tc.query.q, "--json")
+			if tc.wantQueryErr {
+				require.Error(t, err)
+				return
+			}
 			require.NoError(t, err)
 			var results []map[string]any
 			tr.Bind(&results)

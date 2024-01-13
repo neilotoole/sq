@@ -178,7 +178,7 @@ func (fs *Store) doLoad(ctx context.Context) (*config.Config, error) {
 }
 
 // Save writes config to disk. It implements Store.
-func (fs *Store) Save(_ context.Context, cfg *config.Config) error {
+func (fs *Store) Save(ctx context.Context, cfg *config.Config) error {
 	if fs == nil {
 		return errz.New("config file store is nil")
 	}
@@ -192,11 +192,11 @@ func (fs *Store) Save(_ context.Context, cfg *config.Config) error {
 		return err
 	}
 
-	return fs.write(data)
+	return fs.write(ctx, data)
 }
 
 // Write writes the config bytes to disk.
-func (fs *Store) write(data []byte) error {
+func (fs *Store) write(ctx context.Context, data []byte) error {
 	// It's possible that the parent dir of fs.Path doesn't exist.
 	if err := ioz.RequireDir(filepath.Dir(fs.Path)); err != nil {
 		return errz.Wrapf(err, "failed to make parent dir of config file: %s", filepath.Dir(fs.Path))
@@ -206,6 +206,7 @@ func (fs *Store) write(data []byte) error {
 		return errz.Wrap(err, "failed to save config file")
 	}
 
+	lg.FromContext(ctx).Info("Wrote config file", lga.Path, fs.Path)
 	return nil
 }
 
