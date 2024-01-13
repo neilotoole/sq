@@ -94,3 +94,6 @@ func (l Lockfile) Unlock() error {
 func (l Lockfile) String() string {
 	return string(l)
 }
+
+// LockFunc is a function that encapsulates locking and unlocking.
+type LockFunc func(ctx context.Context) (unlock func(), err error)

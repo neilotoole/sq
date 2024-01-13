@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"slices"
 
+	"github.com/neilotoole/sq/libsq/driver"
+
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/flag"
@@ -102,7 +104,7 @@ formats both show extensive detail.`,
 	cmd.Flags().String(flag.ActiveSchema, "", flag.ActiveSchemaUsage)
 	panicOn(cmd.RegisterFlagCompletionFunc(flag.ActiveSchema,
 		activeSchemaCompleter{getActiveSourceViaArgs}.complete))
-
+	addOptionFlag(cmd.Flags(), driver.OptIngestCache)
 	return cmd
 }
 

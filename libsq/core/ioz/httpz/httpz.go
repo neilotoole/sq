@@ -22,8 +22,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/lg"
-	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
@@ -98,38 +96,34 @@ func ResponseLogValue(resp *http.Response) slog.Value {
 		return slog.Value{}
 	}
 
-	attrs := []slog.Attr{
-		slog.String("proto", resp.Proto),
-		slog.String("status", resp.Status),
+	var attrs []slog.Attr
+	if resp.Request != nil {
+		attrs = append(attrs,
+			slog.String("method", resp.Request.Method),
+			slog.String("url", resp.Request.URL.String()),
+		)
 	}
+	attrs = append(attrs,
+		slog.String("proto", resp.Proto),
+		slog.String("status", resp.Status))
 
 	h := resp.Header
+	var hAttrs []slog.Attr
 	for k := range h {
 		vals := h.Values(k)
 		if len(vals) == 1 {
-			attrs = append(attrs, slog.String(k, vals[0]))
+			hAttrs = append(hAttrs, slog.String(k, vals[0]))
 			continue
 		}
 
-		attrs = append(attrs, slog.Any(k, h.Get(k)))
+		hAttrs = append(hAttrs, slog.Any(k, h.Get(k)))
 	}
 
-	if resp.Request != nil {
-		attrs = append(attrs, slog.Any("req", RequestLogValue(resp.Request)))
+	if len(hAttrs) > 0 {
+		attrs = append(attrs, slog.Any("headers", slog.GroupValue(hAttrs...)))
 	}
 
 	return slog.GroupValue(attrs...)
-}
-
-// Log logs req, resp, and err via the logger on req.Context().
-func Log(req *http.Request, resp *http.Response, err error) {
-	log := lg.FromContext(req.Context()).With(lga.Method, req.Method, lga.URL, req.URL)
-	if err != nil {
-		log.Warn("HTTP request error", lga.Err, err)
-		return
-	}
-
-	log.Debug("HTTP request completed", lga.Resp, ResponseLogValue(resp))
 }
 
 // RequestLogValue implements slog.LogValuer for req.
@@ -138,9 +132,14 @@ func RequestLogValue(req *http.Request) slog.Value {
 		return slog.Value{}
 	}
 
+	p := req.URL.Path
+	if p == "" {
+		p = req.URL.RawPath
+	}
+
 	attrs := []slog.Attr{
 		slog.String("method", req.Method),
-		slog.String("path", req.URL.RawPath),
+		slog.String("path", p),
 	}
 
 	if req.Proto != "" {
@@ -257,7 +256,7 @@ func fixPragmaCacheControl(header http.Header) {
 
 func badStringError(what, val string) error { return fmt.Errorf("%s %q", what, val) }
 
-// StatusText is like http.StatusText, but also includes the code, e.g. "200/OK".
+// StatusText is like http.StatusText, but also includes the code, e.g. "200 OK".
 func StatusText(code int) string {
-	return strconv.Itoa(code) + "/" + http.StatusText(code)
+	return strconv.Itoa(code) + " " + http.StatusText(code)
 }

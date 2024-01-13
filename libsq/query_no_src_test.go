@@ -34,7 +34,7 @@ func TestQuery_no_source(t *testing.T) {
 			t.Logf("\nquery: %s\n want: %s", tc.in, tc.want)
 			th := testh.New(t)
 			coll := th.NewCollection()
-			sources := th.Sources()
+			sources := th.Grips()
 
 			qc := &libsq.QueryContext{
 				Collection: coll,

@@ -107,8 +107,8 @@ command, sq falls back to "text". Available formats:
 		true,
 		0,
 		true,
-		"Progress bar shown for long-running operations",
-		`Progress bar shown for long-running operations.`,
+		"Progress bar for long-running operations",
+		`Progress bar for long-running operations.`,
 		options.TagOutput,
 	)
 

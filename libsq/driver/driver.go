@@ -31,7 +31,13 @@ type Provider interface {
 // Driver is the core interface that must be implemented for each type
 // of data source.
 type Driver interface {
-	GripOpener
+	// Open returns a Grip instance for src.
+	Open(ctx context.Context, src *source.Source) (Grip, error)
+
+	// Ping verifies that the source is reachable, or returns an error if not.
+	// The exact behavior of Ping is driver-dependent. Even if Ping does not
+	// return an error, the source may still be bad for other reasons.
+	Ping(ctx context.Context, src *source.Source) error
 
 	// DriverMetadata returns driver metadata.
 	DriverMetadata() Metadata
@@ -41,10 +47,6 @@ type Driver interface {
 	// the return value (the original source is not changed). An error
 	// is returned if the source is invalid.
 	ValidateSource(src *source.Source) (*source.Source, error)
-
-	// Ping verifies that the source is reachable, or returns an error if not.
-	// The exact behavior of Ping() is driver-dependent.
-	Ping(ctx context.Context, src *source.Source) error
 }
 
 // SQLDriver is implemented by Driver instances for SQL databases.
@@ -115,8 +117,8 @@ type SQLDriver interface {
 	//
 	// Note that db must guarantee a single connection: that is, db
 	// must be a sql.Conn or sql.Tx.
-	PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string, numRows int) (*StmtExecer,
-		error)
+	PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string,
+		numRows int) (*StmtExecer, error)
 
 	// PrepareUpdateStmt prepares a statement for updating destColNames in
 	// destTbl, using the supplied where clause (which may be empty).

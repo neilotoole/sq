@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/ioz/lockfile"
+
 	"github.com/neilotoole/fscache"
 
 	"github.com/neilotoole/sq/libsq/core/cleanup"
@@ -47,6 +49,9 @@ type Files struct {
 	clnup       *cleanup.Cleanup
 	optRegistry *options.Registry
 
+	// cfgLockFn is the lock func for sq's config.
+	cfgLockFn lockfile.LockFunc
+
 	// downloads is a map of source handles the download.Download
 	// for that source.
 	downloads map[string]*download.Download
@@ -71,7 +76,11 @@ type Files struct {
 
 // NewFiles returns a new Files instance. If cleanFscache is true, the fscache
 // is cleaned on Files.Close.
-func NewFiles(ctx context.Context, optReg *options.Registry, tmpDir, cacheDir string, cleanFscache bool,
+func NewFiles(ctx context.Context,
+	optReg *options.Registry,
+	cfgLock lockfile.LockFunc,
+	tmpDir, cacheDir string,
+	cleanFscache bool,
 ) (*Files, error) {
 	log := lg.FromContext(ctx)
 	log.Debug("Creating new Files instance", "tmp_dir", tmpDir, "cache_dir", cacheDir)
@@ -83,12 +92,13 @@ func NewFiles(ctx context.Context, optReg *options.Registry, tmpDir, cacheDir st
 	fs := &Files{
 		optRegistry:       optReg,
 		cacheDir:          cacheDir,
-		fscacheEntryMetas: make(map[string]*fscacheEntryMeta),
+		cfgLockFn:         cfgLock,
 		tempDir:           tmpDir,
 		clnup:             cleanup.New(),
 		log:               lg.FromContext(ctx),
 		downloads:         map[string]*download.Download{},
 		fillerWgs:         &sync.WaitGroup{},
+		fscacheEntryMetas: make(map[string]*fscacheEntryMeta),
 	}
 
 	// We want a unique dir for each execution. Note that fcache is deleted
@@ -117,8 +127,11 @@ func NewFiles(ctx context.Context, optReg *options.Registry, tmpDir, cacheDir st
 	}
 	fs.clnup.AddE(fs.fscache.Clean)
 
-	// REVISIT: We could automatically sweep the cache dir on Close?
-	// fs.clnup.Add(func() { fs.CacheSweep(ctx) })
+	fs.clnup.AddE(func() error {
+		return errz.Wrap(os.RemoveAll(fs.tempDir), "remove files temp dir")
+	})
+
+	fs.clnup.Add(func() { fs.doCacheSweep(ctx) })
 
 	return fs, nil
 }
@@ -415,7 +428,7 @@ func (fs *Files) Ping(ctx context.Context, src *Source) error {
 		}
 		defer lg.WarnIfCloseError(fs.log, lgm.CloseHTTPResponseBody, resp.Body)
 		if resp.StatusCode != http.StatusOK {
-			return errz.Errorf("ping: %s: expected %s but got %s",
+			return errz.Errorf("ping: %s: expected {%s} but got {%s}",
 				src.Handle, httpz.StatusText(http.StatusOK), httpz.StatusText(resp.StatusCode))
 		}
 		return nil
@@ -434,6 +447,9 @@ func (fs *Files) Close() error {
 
 	fs.log.Debug("Files.Close: waiting for goroutines to complete")
 	fs.fillerWgs.Wait()
+
+	// TODO: Should delete the tmp dir
+	// TODO: Should sweep the cache
 
 	fs.log.Debug("Files.Close: executing clean funcs", lga.Count, fs.clnup.Len())
 	return fs.clnup.Run()

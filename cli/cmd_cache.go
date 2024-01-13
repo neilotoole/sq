@@ -9,7 +9,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/driver"
-	"github.com/neilotoole/sq/libsq/source"
 )
 
 func newCacheCmd() *cobra.Command {
@@ -49,7 +48,7 @@ func newCacheLocationCmd() *cobra.Command {
 		Args:    cobra.ExactArgs(0),
 		RunE:    execCacheLocation,
 		Example: `  $ sq cache location
-  /Users/neilotoole/Library/Caches/sq`,
+  /Users/neilotoole/Library/Caches/sq/f36ac695`,
 	}
 
 	addTextFormatFlags(cmd)
@@ -59,9 +58,8 @@ func newCacheLocationCmd() *cobra.Command {
 }
 
 func execCacheLocation(cmd *cobra.Command, _ []string) error {
-	dir := source.DefaultCacheDir()
 	ru := run.FromContext(cmd.Context())
-	return ru.Writers.Config.CacheLocation(dir)
+	return ru.Writers.Config.CacheLocation(ru.Files.CacheDir())
 }
 
 func newCacheInfoCmd() *cobra.Command {
@@ -72,7 +70,7 @@ func newCacheInfoCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(0),
 		RunE:  execCacheInfo,
 		Example: `  $ sq cache stat
-  /Users/neilotoole/Library/Caches/sq  enabled  (472.8MB)`,
+  /Users/neilotoole/Library/Caches/sq/f36ac695  enabled  (472.8MB)`,
 	}
 
 	addTextFormatFlags(cmd)
@@ -82,8 +80,9 @@ func newCacheInfoCmd() *cobra.Command {
 }
 
 func execCacheInfo(cmd *cobra.Command, _ []string) error {
-	dir := source.DefaultCacheDir()
 	ru := run.FromContext(cmd.Context())
+	dir := ru.Files.CacheDir()
+
 	size, err := ioz.DirSize(dir)
 	if err != nil {
 		lg.FromContext(cmd.Context()).Warn("Could not determine cache size",
@@ -97,21 +96,42 @@ func execCacheInfo(cmd *cobra.Command, _ []string) error {
 
 func newCacheClearCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "clear",
-		Short:   "Clear cache",
-		Long:    "Clear cache. May cause issues if another sq instance is running.",
-		Args:    cobra.ExactArgs(0),
-		RunE:    execCacheClear,
-		Example: `  $ sq cache clear`,
+		Use:               "clear [@HANDLE]",
+		Short:             "Clear cache",
+		Long:              "Clear cache for source or entire cache.",
+		Args:              cobra.MaximumNArgs(1),
+		ValidArgsFunction: completeHandle(1),
+		RunE:              execCacheClear,
+		Example: `  # Clear entire cache
+  $ sq cache clear
+
+  # Clear cache for @sakila
+  $ sq cache clear @sakila`,
 	}
 
 	markCmdRequiresConfigLock(cmd)
 	return cmd
 }
 
-func execCacheClear(cmd *cobra.Command, _ []string) error {
-	ru := run.FromContext(cmd.Context())
-	return ru.Files.CacheClear(cmd.Context())
+func execCacheClear(cmd *cobra.Command, args []string) error {
+	ctx := cmd.Context()
+	ru := run.FromContext(ctx)
+	if len(args) == 0 {
+		return ru.Files.CacheClearAll(ctx)
+	}
+
+	src, err := ru.Config.Collection.Get(args[0])
+	if err != nil {
+		return err
+	}
+
+	unlock, err := ru.Files.CacheLockAcquire(ctx, src)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+
+	return ru.Files.CacheClearSource(ctx, src, true)
 }
 
 func newCacheTreeCmd() *cobra.Command {
@@ -128,13 +148,14 @@ func newCacheTreeCmd() *cobra.Command {
   $ sq cache tree --size`,
 	}
 
+	markCmdRequiresConfigLock(cmd)
 	_ = cmd.Flags().BoolP(flag.CacheTreeSize, flag.CacheTreeSizeShort, false, flag.CacheTreeSizeUsage)
 	return cmd
 }
 
 func execCacheTree(cmd *cobra.Command, _ []string) error {
 	ru := run.FromContext(cmd.Context())
-	cacheDir := source.DefaultCacheDir()
+	cacheDir := ru.Files.CacheDir()
 	if !ioz.DirExists(cacheDir) {
 		return nil
 	}
@@ -156,6 +177,7 @@ func newCacheEnableCmd() *cobra.Command {
 		},
 		Example: `  $ sq cache enable`,
 	}
+
 	markCmdRequiresConfigLock(cmd)
 	return cmd
 }

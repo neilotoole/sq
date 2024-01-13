@@ -22,6 +22,9 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 )
 
+// RWPerms is the default file mode used for creating files.
+const RWPerms = os.FileMode(0o600)
+
 // Close is a convenience function to close c, logging a warning
 // if c.Close returns an error. This is useful in defer, e.g.
 //
@@ -348,7 +351,7 @@ func DirSize(path string) (int64, error) {
 // RequireDir ensures that dir exists and is a directory, creating
 // it if necessary.
 func RequireDir(dir string) error {
-	return errz.Err(os.MkdirAll(dir, 0o750))
+	return errz.Err(os.MkdirAll(dir, 0o700))
 }
 
 // ReadFileToString reads the file at name and returns its contents
@@ -423,7 +426,7 @@ func WriteToFile(ctx context.Context, fp string, r io.Reader) (written int64, er
 		return 0, err
 	}
 
-	f, err := os.Create(fp)
+	f, err := os.OpenFile(fp, os.O_RDWR|os.O_CREATE|os.O_TRUNC, RWPerms)
 	if err != nil {
 		return 0, errz.Err(err)
 	}

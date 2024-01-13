@@ -59,6 +59,7 @@ func TestFiles_Type(t *testing.T) {
 			fs, err := source.NewFiles(
 				ctx,
 				nil,
+				testh.TempLockFunc(t),
 				tu.TempDir(t, true),
 				tu.CacheDir(t, true),
 				true,
@@ -107,6 +108,7 @@ func TestFiles_DetectType(t *testing.T) {
 			fs, err := source.NewFiles(
 				ctx,
 				nil,
+				testh.TempLockFunc(t),
 				tu.TempDir(t, true),
 				tu.CacheDir(t, true),
 				true,
@@ -173,6 +175,7 @@ func TestFiles_NewReader(t *testing.T) {
 	fs, err := source.NewFiles(
 		ctx,
 		nil,
+		testh.TempLockFunc(t),
 		tu.TempDir(t, true),
 		tu.CacheDir(t, true),
 		true,
@@ -280,4 +283,11 @@ func TestFiles_Size(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, wantSize, gotSize2)
+}
+
+func TestPruneEmptyDirTree(t *testing.T) {
+	const dir = "/Users/neilotoole/Library/Caches/sq/f36ac695"
+	count, err := source.PruneEmptyDirTree(context.Background(), dir)
+	t.Logf("pruned %d empty dirs from: %s", count, dir)
+	assert.NoError(t, err)
 }

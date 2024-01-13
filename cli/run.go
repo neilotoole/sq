@@ -8,6 +8,9 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
+	"github.com/neilotoole/sq/libsq/core/ioz/lockfile"
+
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/config"
@@ -144,9 +147,27 @@ func FinishRunInit(ctx context.Context, ru *run.Run) error {
 	}
 
 	var err error
+	// The Files instance may already have been created. If not, create it.
 	if ru.Files == nil {
-		// The Files instance may already have been created. If not, create it.
-		ru.Files, err = source.NewFiles(ctx, ru.OptionsRegistry, source.DefaultTempDir(), source.DefaultCacheDir(), true)
+		var cfgLock lockfile.Lockfile
+		if cfgLock, err = ru.ConfigStore.Lockfile(); err != nil {
+			return err
+		}
+		cfgLockFunc := source.NewLockFunc(cfgLock, "acquire config lock", config.OptConfigLockTimeout)
+
+		// We use cache and temp dirs with paths based on a hash of the config's
+		// location. This ensures that multiple sq instances using different
+		// configs don't share the same cache/temp dir.
+		sum := checksum.Sum([]byte(ru.ConfigStore.Location()))
+
+		ru.Files, err = source.NewFiles(
+			ctx,
+			ru.OptionsRegistry,
+			cfgLockFunc,
+			filepath.Join(source.DefaultTempDir(), sum),
+			filepath.Join(source.DefaultCacheDir(), sum),
+			true,
+		)
 		if err != nil {
 			lg.WarnIfFuncError(log, lga.Cleanup, ru.Cleanup.Run)
 			return err

@@ -55,7 +55,7 @@ type Store struct {
 
 // Lockfile implements Store.Lockfile.
 func (fs *Store) Lockfile() (lockfile.Lockfile, error) {
-	fp := filepath.Join(filepath.Dir(fs.Path), "config.lock.pid")
+	fp := filepath.Join(filepath.Dir(fs.Path), "config.pid.lock")
 	fp, err := filepath.Abs(fp)
 	if err != nil {
 		return "", errz.Wrap(err, "failed to get abs path for lockfile")
@@ -192,20 +192,17 @@ func (fs *Store) Save(_ context.Context, cfg *config.Config) error {
 		return err
 	}
 
-	return fs.Write(data)
+	return fs.write(data)
 }
 
 // Write writes the config bytes to disk.
-func (fs *Store) Write(data []byte) error {
+func (fs *Store) write(data []byte) error {
 	// It's possible that the parent dir of fs.Path doesn't exist.
-	dir := filepath.Dir(fs.Path)
-	err := os.MkdirAll(dir, 0o750)
-	if err != nil {
-		return errz.Wrapf(err, "failed to make parent dir of sq config file: %s", dir)
+	if err := ioz.RequireDir(filepath.Dir(fs.Path)); err != nil {
+		return errz.Wrapf(err, "failed to make parent dir of config file: %s", filepath.Dir(fs.Path))
 	}
 
-	err = os.WriteFile(fs.Path, data, 0o600)
-	if err != nil {
+	if err := os.WriteFile(fs.Path, data, ioz.RWPerms); err != nil {
 		return errz.Wrap(err, "failed to save config file")
 	}
 

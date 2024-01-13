@@ -25,8 +25,8 @@ database table.
 You can query using sq's own jq-like syntax, or in native SQL.
 
 Use "sq inspect" to view schema metadata. Use the "sq tbl" commands
-to copy, truncate and drop tables. Use "sq diff" to compare source metadata
-and row data.
+to copy, truncate and drop tables. Use "sq diff" to compare source
+metadata and row data.
 
 See docs and more: https://sq.io`,
 		Example: `  # Add Postgres source.

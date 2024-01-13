@@ -918,10 +918,11 @@ type grip struct {
 	src  *source.Source
 	drvr *driveri
 
-	// DEBUG: closeMu and closed exist while debugging close behavior.
-	// We should be able to get rid of them eventually.
-	closeMu sync.Mutex
-	closed  bool
+	// closeOnce and closeErr are used to ensure that Close is only called once.
+	// This is particularly relevant to sqlite, as calling Close multiple times
+	// can cause problems on Windows.
+	closeOnce sync.Once
+	closeErr  error
 }
 
 // DB implements driver.Grip.
@@ -1006,20 +1007,15 @@ func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Sou
 	return md, nil
 }
 
-// Close implements driver.Grip.
+// Close implements driver.Grip. Subsequent calls to Close are no-op and
+// return the same error.
 func (g *grip) Close() error {
-	g.closeMu.Lock()
-	defer g.closeMu.Unlock()
+	g.closeOnce.Do(func() {
+		g.log.Debug(lgm.CloseDB, lga.Handle, g.src.Handle)
+		g.closeErr = errw(g.db.Close())
+	})
 
-	if g.closed {
-		g.log.Warn("SQLite DB already closed", lga.Src, g.src)
-		return nil
-	}
-
-	g.log.Debug(lgm.CloseDB, lga.Handle, g.src.Handle)
-	err := errw(g.db.Close())
-	g.closed = true
-	return err
+	return g.closeErr
 }
 
 var _ driver.ScratchSrcFunc = NewScratchSource
@@ -1027,28 +1023,26 @@ var _ driver.ScratchSrcFunc = NewScratchSource
 // NewScratchSource returns a new scratch src. The supplied fpath
 // must be the absolute path to the location to create the SQLite DB file,
 // typically in the user cache dir.
-// The returned clnup func will delete the file.
+// The returned clnup func will delete the dB file.
 func NewScratchSource(ctx context.Context, fpath string) (src *source.Source, clnup func() error, err error) {
 	log := lg.FromContext(ctx)
-
-	log.Debug("Created sqlite3 scratchdb data file", lga.Path, fpath)
-
 	src = &source.Source{
 		Type:     Type,
 		Handle:   source.ScratchHandle,
 		Location: Prefix + fpath,
 	}
 
-	fn := func() error {
-		log.Debug("Deleting sqlite3 scratchdb file", lga.Src, src, lga.Path, fpath)
-		rmErr := errz.Err(os.Remove(fpath))
-		if rmErr != nil {
-			log.Warn("Delete sqlite3 scratchdb file", lga.Err, rmErr)
+	clnup = func() error {
+		log.Debug("Delete sqlite3 scratchdb file", lga.Src, src, lga.Path, fpath)
+		if err := os.Remove(fpath); err != nil {
+			log.Warn("Delete sqlite3 scratchdb file", lga.Err, err)
+			return errz.Err(err)
 		}
+
 		return nil
 	}
 
-	return src, fn, nil
+	return src, clnup, nil
 }
 
 // PathFromLocation returns the absolute file path from the source location,

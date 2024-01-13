@@ -12,6 +12,8 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/neilotoole/sq/testh"
+
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli"
@@ -116,6 +118,7 @@ func newRun(ctx context.Context, t testing.TB, cfgStore config.Store) (ru *run.R
 	ru.Files, err = source.NewFiles(
 		ctx,
 		ru.OptionsRegistry,
+		testh.TempLockFunc(t),
 		tu.TempDir(t, false),
 		tu.CacheDir(t, false),
 		true,

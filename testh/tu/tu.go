@@ -396,6 +396,14 @@ func TempDir(t testing.TB, clean bool) string {
 	return fp
 }
 
+// TempFile returns the path to a temp file with the given name, in a unique
+// temp dir. The file is not created. If arg clean is true, the parent temp
+// dir is created via t.TempDir, and thus is deleted on test cleanup.
+func TempFile(t testing.TB, name string, clean bool) string {
+	fp := filepath.Join(TempDir(t, clean), name)
+	return fp
+}
+
 // CacheDir is the standard means for obtaining a cache dir for tests.
 // If arg clean is true, the cache dir is created via t.TempDir, and
 // thus is deleted on test cleanup.

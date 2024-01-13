@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 
@@ -189,6 +190,7 @@ The default (3) can be changed via:
 		completeStrings(-1, stringz.Strings(diffFormats)...),
 	))
 
+	addOptionFlag(cmd.Flags(), driver.OptIngestCache)
 	return cmd
 }
 

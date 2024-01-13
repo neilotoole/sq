@@ -28,11 +28,11 @@ to detect the header.`,
 // OptIngestCache specifies whether ingested data is cached or not.
 var OptIngestCache = options.NewBool(
 	"ingest.cache",
-	"",
-	false,
+	"no-cache",
+	true,
 	0,
 	true,
-	"Ingest data is cached",
+	"Cache ingest data",
 	`Specifies whether ingested data is cached or not. When data is ingested
 from a document source, it is stored in a cache DB. Subsequent uses of that same
 source will use that cached DB instead of ingesting the data again, unless this

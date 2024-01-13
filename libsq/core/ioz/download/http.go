@@ -7,6 +7,10 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 )
 
 // errNoDateHeader indicates that the HTTP headers contained no Date header.
@@ -283,4 +287,15 @@ func varyMatches(cachedResp *http.Response, req *http.Request) bool {
 		}
 	}
 	return true
+}
+
+func logResp(resp *http.Response, elapsed time.Duration, err error) {
+	ctx := resp.Request.Context()
+	log := lg.FromContext(ctx).With("response_time", elapsed)
+	if err != nil {
+		log.Warn("HTTP request error", lga.Err, err)
+		return
+	}
+
+	log.Info("HTTP request completed", lga.Resp, httpz.ResponseLogValue(resp))
 }

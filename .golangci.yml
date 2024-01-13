@@ -231,7 +231,7 @@ linters-settings:
         arguments: [ 7 ]
       # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#comment-spacings
       - name: comment-spacings
-        disabled: false
+        disabled: true
         arguments:
           - mypragma
           - otherpragma

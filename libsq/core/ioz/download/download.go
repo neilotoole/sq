@@ -15,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
@@ -314,9 +315,11 @@ func (dl *Download) get(req *http.Request, h Handler) { //nolint:funlen,gocognit
 
 // do executes the request.
 func (dl *Download) do(req *http.Request) (*http.Response, error) {
-	bar := progress.FromContext(req.Context()).NewWaiter(dl.name+": start download", true)
+	ctx := req.Context()
+	bar := progress.FromContext(ctx).NewWaiter(dl.name+": start download", true)
+	start := time.Now()
 	resp, err := dl.c.Do(req)
-	httpz.Log(req, resp, err)
+	logResp(resp, time.Since(start), err)
 	bar.Stop()
 	if err != nil {
 		// Download timeout errors are typically wrapped in an url.Error, resulting

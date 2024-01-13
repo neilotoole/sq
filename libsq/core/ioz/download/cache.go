@@ -281,7 +281,7 @@ func (c *cache) write(ctx context.Context, resp *http.Response,
 		return 0, nil
 	}
 
-	cacheFile, err := os.OpenFile(fpBody, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
+	cacheFile, err := os.OpenFile(fpBody, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, ioz.RWPerms)
 	if err != nil {
 		return 0, err
 	}

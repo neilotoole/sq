@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/ioz"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
@@ -53,7 +55,7 @@ func Write(w io.Writer, sum Checksum, name string) error {
 //
 // See: Write.
 func WriteFile(path string, sum Checksum, name string) error {
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, ioz.RWPerms)
 	if err != nil {
 		return errz.Wrap(err, "write checksum file")
 	}

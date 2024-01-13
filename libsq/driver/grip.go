@@ -43,12 +43,6 @@ type Grip interface {
 	Close() error
 }
 
-// GripOpener opens a Grip.
-type GripOpener interface {
-	// Open returns a Grip instance for src.
-	Open(ctx context.Context, src *source.Source) (Grip, error)
-}
-
 // GripOpenIngester opens a Grip via an ingest function.
 type GripOpenIngester interface {
 	// OpenIngest opens a Grip for src by executing ingestFn, which is

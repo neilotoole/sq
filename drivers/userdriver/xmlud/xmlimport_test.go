@@ -11,8 +11,6 @@ import (
 	"github.com/neilotoole/sq/drivers/userdriver/xmlud"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
-	"github.com/neilotoole/sq/libsq/source"
-	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/testsrc"
@@ -33,8 +31,7 @@ func TestImport_Ppl(t *testing.T) {
 	require.Equal(t, driverPpl, udDef.Name)
 	require.Equal(t, xmlud.Genre, udDef.Genre)
 
-	src := &source.Source{Handle: "@ppl_" + stringz.Uniq8(), Type: drivertype.None}
-	scratchDB, err := th.Sources().OpenScratch(th.Context, src)
+	scratchDB, err := th.Grips().OpenEphemeral(th.Context)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		assert.NoError(t, scratchDB.Close())
@@ -79,8 +76,7 @@ func TestImport_RSS(t *testing.T) {
 	require.Equal(t, driverRSS, udDef.Name)
 	require.Equal(t, xmlud.Genre, udDef.Genre)
 
-	src := &source.Source{Handle: "@rss_" + stringz.Uniq8(), Type: drivertype.None}
-	scratchDB, err := th.Sources().OpenScratch(th.Context, src)
+	scratchDB, err := th.Grips().OpenEphemeral(th.Context)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		assert.NoError(t, scratchDB.Close())

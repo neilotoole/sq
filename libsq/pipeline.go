@@ -18,11 +18,9 @@ import (
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/sqlmodel"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
-	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
-	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
 // pipeline is used to execute a SLQ query,
@@ -186,16 +184,8 @@ func (p *pipeline) prepareNoTable(ctx context.Context, qm *queryModel) error {
 	if handle == "" {
 		src = p.qc.Collection.Active()
 		if src == nil || !p.qc.Grips.IsSQLSource(src) {
-			log.Debug("No active SQL source, will use scratchdb.")
-			// REVISIT: Grips.OpenScratch needs a source, so we just make one up.
-			ephemeralSrc := &source.Source{
-				Type:   drivertype.None,
-				Handle: "@scratch_" + stringz.Uniq8(),
-			}
-
-			// FIXME: We really want to change the signature of OpenScratch to
-			// just need a name, not a source.
-			p.targetGrip, err = p.qc.Grips.OpenScratch(ctx, ephemeralSrc)
+			log.Debug("No active SQL source, will use an ephemeral db.")
+			p.targetGrip, err = p.qc.Grips.OpenEphemeral(ctx)
 			if err != nil {
 				return err
 			}

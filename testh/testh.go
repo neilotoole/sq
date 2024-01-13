@@ -14,6 +14,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/ioz/lockfile"
+
 	"github.com/samber/lo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -127,6 +129,9 @@ func New(t testing.TB, opts ...Option) *Helper {
 	// situations with running tests in parallel with caching enabled,
 	// due to the fact that caching uses pid-based locking, and parallel tests
 	// share the same pid.
+	//
+	// REVISIT: The above statement regarding pid-based locking may no longer
+	// be applicable, as a new cache dir is created for each test run.
 	o := options.Options{driver.OptIngestCache.Key(): false}
 	h.Context = options.NewContext(h.Context, o)
 	t.Cleanup(h.Close)
@@ -163,6 +168,7 @@ func (h *Helper) init() {
 		h.files, err = source.NewFiles(
 			h.Context,
 			optRegistry,
+			TempLockFunc(h.T),
 			tu.TempDir(h.T, false),
 			tu.TempDir(h.T, false),
 			true,
@@ -365,7 +371,7 @@ func (h *Helper) NewCollection(handles ...string) *source.Collection {
 	return coll
 }
 
-// Open opens a driver.Grip for src via h's internal Sources
+// Open opens a driver.Grip for src via h's internal Grips
 // instance: thus subsequent calls to Open may return the
 // same driver.Grip instance. The opened driver.Grip will be closed
 // during h.Close.
@@ -373,7 +379,7 @@ func (h *Helper) Open(src *source.Source) driver.Grip {
 	ctx, cancelFn := context.WithTimeout(h.Context, h.dbOpenTimeout)
 	defer cancelFn()
 
-	grip, err := h.Sources().Open(ctx, src)
+	grip, err := h.Grips().Open(ctx, src)
 	require.NoError(h.T, err)
 
 	db, err := grip.DB(ctx)
@@ -754,13 +760,13 @@ func (h *Helper) IsMonotable(src *source.Source) bool {
 	return h.DriverFor(src).DriverMetadata().Monotable
 }
 
-// Sources returns the helper's driver.Grips instance.
-func (h *Helper) Sources() *driver.Grips {
+// Grips returns the helper's [driver.Grips] instance.
+func (h *Helper) Grips() *driver.Grips {
 	h.init()
 	return h.grips
 }
 
-// Files returns the helper's Files instance.
+// Files returns the helper's [source.Files] instance.
 func (h *Helper) Files() *source.Files {
 	h.init()
 	return h.files
@@ -768,7 +774,7 @@ func (h *Helper) Files() *source.Files {
 
 // SourceMetadata returns metadata for src.
 func (h *Helper) SourceMetadata(src *source.Source) (*metadata.Source, error) {
-	grip, err := h.Sources().Open(h.Context, src)
+	grip, err := h.Grips().Open(h.Context, src)
 	if err != nil {
 		return nil, err
 	}
@@ -778,7 +784,7 @@ func (h *Helper) SourceMetadata(src *source.Source) (*metadata.Source, error) {
 
 // TableMetadata returns metadata for src's table.
 func (h *Helper) TableMetadata(src *source.Source, tbl string) (*metadata.Table, error) {
-	grip, err := h.Sources().Open(h.Context, src)
+	grip, err := h.Grips().Open(h.Context, src)
 	if err != nil {
 		return nil, err
 	}
@@ -885,4 +891,24 @@ func SetBuildVersion(t testing.TB, vers string) {
 	t.Cleanup(func() {
 		buildinfo.Version = prevVers
 	})
+}
+
+func TempLockfile(t testing.TB) lockfile.Lockfile {
+	return lockfile.Lockfile(tu.TempFile(t, "pid.lock", false))
+}
+
+func TempLockFunc(t testing.TB) lockfile.LockFunc {
+	return func(ctx context.Context) (unlock func(), err error) {
+		lock := lockfile.Lockfile(tu.TempFile(t, "pid.lock", false))
+		timeout := config.OptConfigLockTimeout.Default()
+		if err = lock.Lock(ctx, timeout); err != nil {
+			return nil, err
+		}
+
+		return func() {
+			if err := lock.Unlock(); err != nil {
+				t.Logf("failed to release temp lock: %v", err)
+			}
+		}, nil
+	}
 }

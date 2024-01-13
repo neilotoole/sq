@@ -56,14 +56,9 @@ func execXLockSrcCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	timeout := time.Minute * 20
-	lock, err := ru.Files.CacheLockFor(src)
-	if err != nil {
-		return err
-	}
-	fmt.Fprintf(ru.Out, "Locking cache for source %s with timeout %s for %q [%d]\n\n  %s\n\n",
-		src.Handle, timeout, os.Args[0], os.Getpid(), lock)
+	ru.Config.Options[source.OptCacheLockTimeout.Key()] = timeout
 
-	err = lock.Lock(ctx, timeout)
+	unlock, err := ru.Files.CacheLockAcquire(ctx, src)
 	if err != nil {
 		return err
 	}
@@ -78,9 +73,7 @@ func execXLockSrcCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Fprintf(ru.Out, "Releasing cache lock for %s\n", src.Handle)
-	if err = lock.Unlock(); err != nil {
-		return err
-	}
+	unlock()
 
 	fmt.Fprintf(ru.Out, "Cache lock released for %s\n", src.Handle)
 	return nil

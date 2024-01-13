@@ -60,7 +60,7 @@ func (fs *Store) doUpgrade(ctx context.Context, startVersion, targetVersion stri
 		log.Debug("Config upgrade step successful")
 	}
 
-	if err = fs.Write(data); err != nil {
+	if err = fs.write(data); err != nil {
 		return nil, err
 	}
 

@@ -11,7 +11,7 @@ import (
 	diff "github.com/neilotoole/sq/cli/diff/internal/go-udiff"
 )
 
-// Sources:
+// Grips:
 // https://blog.jcoglan.com/2017/02/17/the-myers-diff-algorithm-part-3/
 // https://www.codeproject.com/Articles/42279/%2FArticles%2F42279%2FInvestigating-Myers-diff-algorithm-Part-1-of-2
 

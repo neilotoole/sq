@@ -17,6 +17,7 @@ var (
 		return fs.detectType(ctx, "@test", loc)
 	}
 	GroupsFilterOnlyDirectChildren = groupsFilterOnlyDirectChildren
+	PruneEmptyDirTree              = pruneEmptyDirTree
 )
 
 func TestParseLoc(t *testing.T) {

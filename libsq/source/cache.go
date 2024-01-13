@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/progress"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
@@ -33,6 +35,18 @@ var OptCacheLockTimeout = options.NewDuration(
 	`Wait timeout to acquire cache lock. During this period, retry will occur
 if the lock is already held by another process. If zero, no retry occurs.`,
 )
+
+// CacheDir returns the cache dir. It is not guaranteed that the
+// returned dir exists.
+func (fs *Files) CacheDir() string {
+	return fs.cacheDir
+}
+
+// TempDir returns the temp dir. It is not guaranteed that the
+// returned dir exists.
+func (fs *Files) TempDir() string {
+	return fs.tempDir
+}
 
 // CacheDirFor gets the cache dir for handle. It is not guaranteed
 // that the returned dir exists or is accessible.
@@ -231,8 +245,8 @@ func (fs *Files) sourceHash(src *Source) string {
 	return sum
 }
 
-// CacheLockFor returns the lock file for src's cache.
-func (fs *Files) CacheLockFor(src *Source) (lockfile.Lockfile, error) {
+// cacheLockFor returns the lock file for src's cache.
+func (fs *Files) cacheLockFor(src *Source) (lockfile.Lockfile, error) {
 	cacheDir, err := fs.CacheDirFor(src)
 	if err != nil {
 		return "", errz.Wrapf(err, "cache lock for %s", src.Handle)
@@ -246,13 +260,88 @@ func (fs *Files) CacheLockFor(src *Source) (lockfile.Lockfile, error) {
 	return lf, nil
 }
 
-// CacheClear clears the cache dir. This wipes the entire contents
-// of the cache dir, so it should be used with caution. Note that
-// this operation is distinct from [Files.CacheSweep].
-func (fs *Files) CacheClear(ctx context.Context) error {
+// CacheLockAcquire acquires the cache lock for src. The caller must invoke
+// the returned unlock func.
+func (fs *Files) CacheLockAcquire(ctx context.Context, src *Source) (unlock func(), err error) {
+	lock, err := fs.cacheLockFor(src)
+	if err != nil {
+		return nil, err
+	}
+
+	lockTimeout := OptCacheLockTimeout.Get(options.FromContext(ctx))
+	log := lg.FromContext(ctx).With(lga.Src, src, lga.Timeout, lockTimeout, lga.Lock, lock)
+	log.Debug("Acquiring cache lock for source")
+
+	bar := progress.FromContext(ctx).NewTimeoutWaiter(
+		src.Handle+": acquire lock",
+		time.Now().Add(lockTimeout),
+	)
+
+	err = lock.Lock(ctx, lockTimeout)
+	bar.Stop()
+	if err != nil {
+		return nil, errz.Wrap(err, src.Handle+": acquire cache lock")
+	}
+
+	return func() {
+		if err = lock.Unlock(); err != nil {
+			log.Warn("Failed to release cache lock", lga.Err, err)
+		}
+	}, nil
+}
+
+// CacheClearAll clears the entire cache dir.
+// Note that this operation is distinct from [Files.doCacheSweep].
+func (fs *Files) CacheClearAll(ctx context.Context) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
+	return fs.doCacheClearAll(ctx)
+}
+
+// CacheClearSource clears the ingest cache for src. If arg downloads is true,
+// the source's download dir is also cleared. The caller should typically
+// first acquire the cache lock for src via [Files.cacheLockFor].
+func (fs *Files) CacheClearSource(ctx context.Context, src *Source, clearDownloads bool) error {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+	return fs.doCacheClearSource(ctx, src, clearDownloads)
+}
+
+func (fs *Files) doCacheClearSource(ctx context.Context, src *Source, clearDownloads bool) error {
+	cacheDir, err := fs.CacheDirFor(src)
+	if err != nil {
+		return err
+	}
+
+	entries, err := os.ReadDir(cacheDir)
+	if err != nil {
+		return errz.Wrapf(err, "%s: clear cache", src.Handle)
+	}
+
+	for _, entry := range entries {
+		switch entry.Name() {
+		case "pid.lock":
+			continue
+		case "download":
+			if !clearDownloads {
+				continue
+			}
+		default:
+		}
+
+		if err = os.RemoveAll(filepath.Join(cacheDir, entry.Name())); err != nil {
+			return errz.Wrapf(err, "%s: clear cache", src.Handle)
+		}
+	}
+
+	lg.FromContext(ctx).
+		With("clear_downloads", clearDownloads, lga.Src, src, lga.Dir, cacheDir).
+		Info("Cleared source cache")
+	return nil
+}
+
+func (fs *Files) doCacheClearAll(ctx context.Context) error {
 	log := lg.FromContext(ctx).With(lga.Dir, fs.cacheDir)
 	log.Debug("Clearing cache dir")
 	if !ioz.DirExists(fs.cacheDir) {
@@ -286,20 +375,24 @@ func (fs *Files) CacheClear(ctx context.Context) error {
 	return nil
 }
 
-// CacheSweep sweeps the cache dir, making a best-effort attempt
+// doCacheSweep sweeps the cache dir, making a best-effort attempt
 // to remove any empty directories. Note that this operation is
-// distinct from [Files.CacheClear].
+// distinct from [Files.CacheClearAll].
 //
-// REVISIT: This doesn't really do anything useful. It should instead
-// sweep any abandoned cache dirs, i.e. cache dirs that don't have
-// an associated source.
-func (fs *Files) CacheSweep(ctx context.Context) {
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
-
+// REVISIT: This doesn't really do as much as desired. It should
+// also be able to detect orphaned src cache dirs and delete those.
+func (fs *Files) doCacheSweep(ctx context.Context) {
 	dir := fs.cacheDir
 	log := lg.FromContext(ctx).With(lga.Dir, dir)
-	log.Debug("Sweeping cache dir")
+	log.Debug("Sweep cache dir: acquiring config lock")
+
+	if unlock, err := fs.cfgLockFn(ctx); err != nil {
+		log.Error("Sweep cache dir: failed to acquire config lock", lga.Lock, fs.cfgLockFn, lga.Err, err)
+		return
+	} else {
+		defer unlock()
+	}
+
 	var count int
 	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		select {
@@ -361,4 +454,93 @@ func DefaultCacheDir() (dir string) {
 // guaranteed that the returned dir exists or is accessible.
 func DefaultTempDir() (dir string) {
 	return filepath.Join(os.TempDir(), "sq")
+}
+
+func NewLockFunc(lock lockfile.Lockfile, msg string, timeoutOpt options.Duration) lockfile.LockFunc {
+	return func(ctx context.Context) (unlock func(), err error) {
+		lockTimeout := timeoutOpt.Get(options.FromContext(ctx))
+		bar := progress.FromContext(ctx).NewTimeoutWaiter(
+			msg,
+			time.Now().Add(lockTimeout),
+		)
+		err = lock.Lock(ctx, lockTimeout)
+		bar.Stop()
+		if err != nil {
+			return nil, errz.Wrap(err, msg)
+		}
+		return func() {
+			if err = lock.Unlock(); err != nil {
+				lg.FromContext(ctx).With(lga.Lock, lock, "for", msg).
+					Warn("Failed to release lock", lga.Err, err)
+			}
+		}, nil
+	}
+}
+
+// pruneEmptyDirTree prunes empty dirs, and dirs that contain only
+// other empty dirs, from the directory tree rooted at dir. Arg dir
+// must be an absolute path.
+func pruneEmptyDirTree(ctx context.Context, dir string) (count int, err error) {
+	return doPruneEmptyDirTree(ctx, dir, true)
+}
+
+func doPruneEmptyDirTree(ctx context.Context, dir string, isRoot bool) (count int, err error) {
+	if !filepath.IsAbs(dir) {
+		return 0, errz.Errorf("dir must be absolute: %s", dir)
+	}
+
+	select {
+	case <-ctx.Done():
+		return 0, errz.Err(ctx.Err())
+	default:
+	}
+
+	var entries []os.DirEntry
+	if entries, err = os.ReadDir(dir); err != nil {
+		return 0, errz.Err(err)
+	}
+
+	if len(entries) == 0 {
+		if isRoot {
+			return 0, nil
+		}
+		err = os.RemoveAll(dir)
+		if err != nil {
+			return 0, errz.Err(err)
+		}
+		return 1, nil
+	}
+
+	// We've got some entries... let's check what they are.
+	if countNonDirs(entries) != 0 {
+		// There are some non-dir entries, so this dir doesn't get deleted.
+		return 0, nil
+	}
+
+	// Each of the entries is a dir. Recursively prune.
+	var n int
+	for _, entry := range entries {
+		select {
+		case <-ctx.Done():
+			return count, errz.Err(ctx.Err())
+		default:
+		}
+
+		n, err = doPruneEmptyDirTree(ctx, filepath.Join(dir, entry.Name()), false)
+		count += n
+		if err != nil {
+			return count, err
+		}
+	}
+
+	return count, nil
+}
+
+func countNonDirs(entries []os.DirEntry) (count int) {
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			count++
+		}
+	}
+	return count
 }

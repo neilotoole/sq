@@ -14,7 +14,8 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 - Long-running operations (such as data ingestion, or file download) now result
   in a progress bar being displayed. Display of the progress bar is controlled
   by the new config options [`progress`](https://sq.io/docs/config#progress)
-  and [`progress.delay`](https://sq.io/docs/config#progressdelay).
+  and [`progress.delay`](https://sq.io/docs/config#progressdelay). You can also use
+  the `--no-progress` flag to disable the progress bar.
 - Ingested [document sources](https://sq.io/docs/concepts#document-source) (such as
   [CSV](https://sq.io/docs/drivers/csv) or [Excel](https://sq.io/docs/drivers/xlsx))
   now make use of an ingest cache DB. Previously, ingestion of document source data occurred
