@@ -314,6 +314,10 @@ func (fs *Files) doCacheClearSource(ctx context.Context, src *Source, clearDownl
 		return err
 	}
 
+	if !ioz.DirExists(cacheDir) {
+		return nil
+	}
+
 	entries, err := os.ReadDir(cacheDir)
 	if err != nil {
 		return errz.Wrapf(err, "%s: clear cache", src.Handle)
@@ -456,29 +460,9 @@ func DefaultTempDir() (dir string) {
 	return filepath.Join(os.TempDir(), "sq")
 }
 
-func NewLockFunc(lock lockfile.Lockfile, msg string, timeoutOpt options.Duration) lockfile.LockFunc {
-	return func(ctx context.Context) (unlock func(), err error) {
-		lockTimeout := timeoutOpt.Get(options.FromContext(ctx))
-		bar := progress.FromContext(ctx).NewTimeoutWaiter(
-			msg,
-			time.Now().Add(lockTimeout),
-		)
-		err = lock.Lock(ctx, lockTimeout)
-		bar.Stop()
-		if err != nil {
-			return nil, errz.Wrap(err, msg)
-		}
-		return func() {
-			if err = lock.Unlock(); err != nil {
-				lg.FromContext(ctx).With(lga.Lock, lock, "for", msg).
-					Warn("Failed to release lock", lga.Err, err)
-			}
-		}, nil
-	}
-}
-
 // pruneEmptyDirTree prunes empty dirs, and dirs that contain only
-// other empty dirs, from the directory tree rooted at dir. Arg dir
+// other empty dirs, from the directory tree rooted at dir. If a dir
+// contains at least one non-dir entry, that dir is spared. Arg dir
 // must be an absolute path.
 func pruneEmptyDirTree(ctx context.Context, dir string) (count int, err error) {
 	return doPruneEmptyDirTree(ctx, dir, true)

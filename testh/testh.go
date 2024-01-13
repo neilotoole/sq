@@ -843,14 +843,14 @@ func mustLoadCollection(ctx context.Context, t testing.TB) *source.Collection {
 		return []byte(proj.Expand(string(data))), nil
 	}
 
-	fs := &yamlstore.Store{
+	store := &yamlstore.Store{
 		Path:            proj.Rel(testsrc.PathSrcsConfig),
 		OptionsRegistry: &options.Registry{},
 		HookLoad:        hookExpand,
 	}
-	cli.RegisterDefaultOpts(fs.OptionsRegistry)
+	cli.RegisterDefaultOpts(store.OptionsRegistry)
 
-	cfg, err := fs.Load(ctx)
+	cfg, err := store.Load(ctx)
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
 	require.NotNil(t, cfg.Collection)

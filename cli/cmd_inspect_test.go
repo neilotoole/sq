@@ -281,6 +281,8 @@ func TestCmdInspect_smoke(t *testing.T) {
 }
 
 func TestCmdInspect_stdin(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		fpath    string
 		wantErr  bool
@@ -303,6 +305,8 @@ func TestCmdInspect_stdin(t *testing.T) {
 		tc := tc
 
 		t.Run(tu.Name(tc.fpath), func(t *testing.T) {
+			t.Parallel()
+
 			ctx := context.Background()
 			f, err := os.Open(tc.fpath) // No need to close f
 			require.NoError(t, err)
