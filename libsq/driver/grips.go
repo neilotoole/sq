@@ -71,6 +71,7 @@ func (gs *Grips) Open(ctx context.Context, src *source.Source) (Grip, error) {
 		return nil, err
 	}
 	gs.clnup.AddC(g)
+	gs.grips[src.Handle] = g
 	return g, nil
 }
 
@@ -97,15 +98,9 @@ func (gs *Grips) IsSQLSource(src *source.Source) bool {
 	return false
 }
 
-func (gs *Grips) getKey(src *source.Source) string {
-	return src.Handle
-}
-
 func (gs *Grips) doOpen(ctx context.Context, src *source.Source) (Grip, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
-	key := gs.getKey(src)
-
-	grip, ok := gs.grips[key]
+	grip, ok := gs.grips[src.Handle]
 	if ok {
 		return grip, nil
 	}
@@ -124,7 +119,6 @@ func (gs *Grips) doOpen(ctx context.Context, src *source.Source) (Grip, error) {
 		return nil, err
 	}
 
-	gs.grips[key] = grip
 	return grip, nil
 }
 
@@ -418,6 +412,7 @@ func (gs *Grips) OpenJoin(ctx context.Context, srcs ...*source.Source) (Grip, er
 		clnup: clnup,
 	}
 	gs.clnup.AddC(g)
+	gs.grips[g.Source().Handle] = g
 	return g, nil
 }
 
