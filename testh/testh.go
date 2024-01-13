@@ -171,7 +171,6 @@ func (h *Helper) init() {
 			TempLockFunc(h.T),
 			tu.TempDir(h.T, false),
 			tu.TempDir(h.T, false),
-			true,
 		)
 		require.NoError(h.T, err)
 

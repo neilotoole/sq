@@ -385,8 +385,11 @@ func (fs *Files) doCacheClearAll(ctx context.Context) error {
 //
 // REVISIT: This doesn't really do as much as desired. It should
 // also be able to detect orphaned src cache dirs and delete those.
-func (fs *Files) doCacheSweep(ctx context.Context) {
-	log := lg.FromContext(ctx).With(lga.Dir, fs.cacheDir)
+func (fs *Files) doCacheSweep() {
+	ctx, cancelFn := context.WithTimeout(context.Background(), time.Millisecond*100)
+	defer cancelFn()
+
+	log := fs.log.With(lga.Dir, fs.cacheDir)
 	log.Debug("Sweep cache dir: acquiring config lock")
 
 	if unlock, err := fs.cfgLockFn(ctx); err != nil {

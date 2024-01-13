@@ -64,6 +64,8 @@ type Files struct {
 	// to multiple readers via Files.newReader.
 	fscache *fscache.FSCache
 
+	fscacheDir string
+
 	// fscacheEntryMetas contains metadata about fscache entries.
 	// Entries are added by Files.addStdin, and consumed by
 	// Files.Filesize.
@@ -76,11 +78,11 @@ type Files struct {
 
 // NewFiles returns a new Files instance. If cleanFscache is true, the fscache
 // is cleaned on Files.Close.
-func NewFiles(ctx context.Context,
+func NewFiles(
+	ctx context.Context,
 	optReg *options.Registry,
 	cfgLock lockfile.LockFunc,
 	tmpDir, cacheDir string,
-	cleanFscache bool,
 ) (*Files, error) {
 	log := lg.FromContext(ctx)
 	log.Debug("Creating new Files instance", "tmp_dir", tmpDir, "cache_dir", cacheDir)
@@ -105,33 +107,16 @@ func NewFiles(ctx context.Context,
 	// on cleanup (unless something bad happens and sq doesn't
 	// get a chance to clean up). But, why take the chance; we'll just give
 	// fcache a unique dir each time.
-	fscacheTmpDir := filepath.Join(
-		cacheDir,
-		"fscache",
-		strconv.Itoa(os.Getpid())+"_"+checksum.Rand(),
-	)
+	fs.fscacheDir = filepath.Join(cacheDir, "fscache", strconv.Itoa(os.Getpid())+"_"+checksum.Rand())
 
-	if err := ioz.RequireDir(fscacheTmpDir); err != nil {
+	if err := ioz.RequireDir(fs.fscacheDir); err != nil {
 		return nil, errz.Err(err)
-	}
-
-	if cleanFscache {
-		fs.clnup.AddE(func() error {
-			return errz.Wrap(os.RemoveAll(fscacheTmpDir), "remove fscache dir")
-		})
 	}
 
 	var err error
-	if fs.fscache, err = fscache.New(fscacheTmpDir, os.ModePerm, time.Hour); err != nil {
+	if fs.fscache, err = fscache.New(fs.fscacheDir, os.ModePerm, time.Hour); err != nil {
 		return nil, errz.Err(err)
 	}
-	fs.clnup.AddE(fs.fscache.Clean)
-
-	fs.clnup.AddE(func() error {
-		return errz.Wrap(os.RemoveAll(fs.tempDir), "remove files temp dir")
-	})
-
-	fs.clnup.Add(func() { fs.doCacheSweep(ctx) })
 
 	return fs, nil
 }
@@ -448,11 +433,14 @@ func (fs *Files) Close() error {
 	fs.log.Debug("Files.Close: waiting for goroutines to complete")
 	fs.fillerWgs.Wait()
 
-	// TODO: Should delete the tmp dir
-	// TODO: Should sweep the cache
+	fs.log.Debug("Files.Close: executing cleanup", lga.Count, fs.clnup.Len())
+	err := fs.clnup.Run()
+	err = errz.Append(err, fs.fscache.Clean())
+	err = errz.Append(err, errz.Wrap(os.RemoveAll(fs.fscacheDir), "remove fscache dir"))
+	err = errz.Append(err, errz.Wrap(os.RemoveAll(fs.tempDir), "remove files temp dir"))
+	fs.doCacheSweep()
 
-	fs.log.Debug("Files.Close: executing clean funcs", lga.Count, fs.clnup.Len())
-	return fs.clnup.Run()
+	return err
 }
 
 // CleanupE adds fn to the cleanup sequence invoked by fs.Close.

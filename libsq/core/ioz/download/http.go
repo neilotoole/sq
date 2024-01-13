@@ -298,5 +298,4 @@ func logResp(resp *http.Response, elapsed time.Duration, err error) {
 	}
 
 	log.Info("HTTP request completed", lga.Resp, resp)
-	log.Warn("this is a warning") // FIXME: delete
 }

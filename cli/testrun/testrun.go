@@ -121,7 +121,6 @@ func newRun(ctx context.Context, t testing.TB, cfgStore config.Store) (ru *run.R
 		testh.TempLockFunc(t),
 		tu.TempDir(t, false),
 		tu.CacheDir(t, false),
-		true,
 	)
 	require.NoError(t, err)
 

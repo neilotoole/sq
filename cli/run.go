@@ -235,7 +235,6 @@ func FinishRunInit(ctx context.Context, ru *run.Run) error {
 			cfgLockFunc,
 			filepath.Join(source.DefaultTempDir(), sum),
 			filepath.Join(source.DefaultCacheDir(), sum),
-			true,
 		)
 		if err != nil {
 			lg.WarnIfFuncError(log, lga.Cleanup, ru.Cleanup.Run)
