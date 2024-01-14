@@ -69,6 +69,7 @@ func ingestCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFu
 	}
 
 	cr := newCSVReader(rc, delim)
+
 	recs, err := readRecords(cr, driver.OptIngestSampleSize.Get(src.Options))
 	if err != nil {
 		return err

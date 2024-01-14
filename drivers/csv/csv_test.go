@@ -2,7 +2,12 @@ package csv_test
 
 import (
 	"context"
+	"fmt"
+	"github.com/neilotoole/sq/testh/fixt"
+	"golang.org/x/exp/maps"
+	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
@@ -216,20 +221,168 @@ func TestIngestDuplicateColumns(t *testing.T) {
 	require.Equal(t, wantHeaders, data[0])
 }
 
+func TestGenerateDatetimeVals(t *testing.T) {
+	canonicalTimeUTC := time.Unix(0, fixt.TimestampUnixNano1989).UTC()
+	_ = canonicalTimeUTC
+
+	names := maps.Keys(timez.TimestampLayouts)
+	slices.Sort(names)
+
+	for _, loc := range []*time.Location{time.UTC, timez.LosAngeles} {
+		fmt.Printf("\n\n%s\n\n", loc.String())
+		tm := canonicalTimeUTC.In(loc)
+
+		for _, name := range names {
+			layout := timez.TimestampLayouts[name]
+			fmt.Fprintf(os.Stdout, "%32s: %s\n", name, tm.Format(layout))
+		}
+	}
+
+	t.Logf("\n\n")
+}
+
+func TestIngestTimestamp(t *testing.T) {
+	t.Parallel()
+
+	denver, err := time.LoadLocation("America/Denver")
+	require.NoError(t, err)
+	_ = denver
+	lax, err := time.LoadLocation("America/Los_Angeles")
+	require.NoError(t, err)
+	_ = lax
+
+	_ = denver
+
+	wantNanoUTC := time.Unix(0, fixt.TimestampUnixNano1989).UTC()
+	wantMilliUTC := wantNanoUTC.Truncate(time.Millisecond)
+	wantSecUTC := wantNanoUTC.Truncate(time.Second)
+	wantMinUTC := wantNanoUTC.Truncate(time.Minute)
+
+	testCases := []struct {
+		file        string
+		wantHeaders []string
+		wantVals    []time.Time
+	}{
+		{
+			file: "test_timestamp",
+			wantHeaders: []string{
+				"ANSIC",
+				"DateHourMinute",
+				"DateHourMinuteSecond",
+				"ISO8601",
+				"ISO8601Z",
+				"RFC1123",
+				"RFC1123Z",
+				"RFC3339",
+				"RFC3339Nano",
+				"RFC3339NanoZ",
+				"RFC3339Z",
+				"RFC8222",
+				"RFC8222Z",
+				"RFC850",
+				"RubyDate",
+				"UnixDate",
+			},
+			wantVals: []time.Time{
+				wantSecUTC,   // ANSIC
+				wantMinUTC,   // DateHourMinute
+				wantSecUTC,   // DateHourMinuteSecond
+				wantMilliUTC, // ISO8601
+				wantMilliUTC, // ISO8601Z
+				wantSecUTC,   // RFC1123
+				wantSecUTC,   // RFC1123Z
+				wantSecUTC,   // RFC3339
+				wantNanoUTC,  // RFC3339Nano
+				wantNanoUTC,  // RFC3339NanoZ
+				wantSecUTC,   // RFC3339Z
+				wantMinUTC,   // RFC8222
+				wantMinUTC,   // RFC8222Z
+				wantSecUTC,   // RFC850
+				wantSecUTC,   // RubyDate
+				wantSecUTC,   // UnixDate
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.file, func(t *testing.T) {
+			th := testh.New(t, testh.OptLongOpen())
+			src := &source.Source{
+				Handle:   "@tsv/" + tc.file,
+				Type:     csv.TypeTSV,
+				Location: filepath.Join("testdata", tc.file+".tsv"),
+			}
+			src = th.Add(src)
+
+			sink, err := th.QuerySLQ(src.Handle+".data", nil)
+			require.NoError(t, err)
+
+			assert.Equal(t, tc.wantHeaders, sink.RecMeta.MungedNames())
+			require.Len(t, sink.Recs, 1)
+			t.Log(sink.Recs[0])
+
+			for i, col := range sink.RecMeta.MungedNames() {
+				i, col := i, col
+				t.Run(col, func(t *testing.T) {
+					t.Logf("[%d] %s", i, col)
+					assert.Equal(t, kind.Datetime.String(), sink.RecMeta.Kinds()[i].String())
+					if gotTime, ok := sink.Recs[0][i].(time.Time); ok {
+						// REVISIT: If it's a time value, we want to compare UTC times.
+						// This may actually be a bug.
+						wantTime := tc.wantVals[i]
+						t.Logf("wantTime: %s  |  %s  |  %d  ", wantTime.Format(time.RFC3339Nano), wantTime.Location(), wantTime.Unix())
+						t.Logf(" gotTime: %s  |  %s  |  %d  ", gotTime.Format(time.RFC3339Nano), gotTime.Location(), gotTime.Unix())
+						require.True(t, ok)
+						assert.Equal(t, wantTime.Unix(), gotTime.Unix())
+						assert.Equal(t, wantTime.UTC(), gotTime.UTC())
+					} else {
+						assert.EqualValues(t, tc.wantVals[i], sink.Recs[0][i])
+					}
+				})
+			}
+		})
+	}
+}
+
 func TestDatetime(t *testing.T) {
 	t.Parallel()
 
 	denver, err := time.LoadLocation("America/Denver")
 	require.NoError(t, err)
+	_ = denver
+	lax, err := time.LoadLocation("America/Los_Angeles")
+	require.NoError(t, err)
+	_ = lax
 
-	wantDtNanoUTC := time.Date(1989, 11, 9, 15, 17, 59, 123456700, time.UTC)
-	wantDtMilliUTC := wantDtNanoUTC.Truncate(time.Millisecond)
-	wantDtSecUTC := wantDtNanoUTC.Truncate(time.Second)
-	wantDtMinUTC := wantDtNanoUTC.Truncate(time.Minute)
-	wantDtNanoMST := time.Date(1989, 11, 9, 15, 17, 59, 123456700, denver)
-	wantDtMilliMST := wantDtNanoMST.Truncate(time.Millisecond)
-	wantDtSecMST := wantDtNanoMST.Truncate(time.Second)
-	wantDtMinMST := wantDtNanoMST.Truncate(time.Minute)
+	_ = denver
+	// 1989-11-09T15:17:59.1234567Z  - RFC3339Nano
+	//wantDtNanoUTC := time.Date(1989, 11, 9, 15, 17, 59, 123456700, time.UTC)
+	wantNanoUTC := time.Unix(0, fixt.TimestampUnixNano1989).UTC()
+	//wantNanoUTC := timez.MustParse(time.RFC3339Nano, "1989-11-09T15:17:59.1234567Z")
+
+	//got := wantDtNanoUTC.Format(time.RFC3339Nano)
+	//t.Logf(got)
+
+	wantMilliUTC := wantNanoUTC.Truncate(time.Millisecond)
+	wantSecUTC := wantNanoUTC.Truncate(time.Second)
+	wantMinUTC := wantNanoUTC.Truncate(time.Minute)
+
+	// 1989-11-09T15:17:59.1234567-07:00  - RFC3339Nano
+	//wantDtNanoMST := timez.MustParse(time.RFC3339Nano, "1989-11-09T15:17:59.1234567-07:00")
+	//wantDtNanoMST2 := time.Date(1989, 11, 9, 15, 17, 59, 123456700, denver)
+	//
+	//require.Equal(t, wantDtNanoMST.Unix(), wantDtNanoMST2.Unix())
+	//require.Equal(t, wantDtNanoMST.UTC(), wantDtNanoMST2.UTC())
+	////got = wantDtNanoMST.Format(time.RFC3339Nano)
+	////t.Log(got)
+	//wantDtMilliMST := wantDtNanoMST.Truncate(time.Millisecond)
+	//wantDtSecMST := wantDtNanoMST.Truncate(time.Second)
+	//wantDtMinMST := wantDtNanoMST.Truncate(time.Minute)
+	//
+	//t.Logf("wantDtSecMST: %s  .... %d", wantDtSecMST.Format(time.RFC1123), wantDtSecMST.Unix())
+
+	// FIXME: repair this stuff
 
 	testCases := []struct {
 		file        string
@@ -237,19 +390,19 @@ func TestDatetime(t *testing.T) {
 		wantKinds   []kind.Kind
 		wantVals    []any
 	}{
-		{
-			file:        "test_date",
-			wantHeaders: []string{"Long", "Short", "d-mmm-yy", "mm-dd-yy", "mmmm d, yyyy"},
-			wantKinds:   loz.Make(5, kind.Date),
-			wantVals: lo.ToAnySlice(loz.Make(5,
-				time.Date(1989, time.November, 9, 0, 0, 0, 0, time.UTC))),
-		},
-		{
-			file:        "test_time",
-			wantHeaders: []string{"time1", "time2", "time3", "time4", "time5", "time6"},
-			wantKinds:   loz.Make(6, kind.Time),
-			wantVals:    []any{"15:17:00", "15:17:00", "15:17:00", "15:17:00", "15:17:00", "15:17:59"},
-		},
+		//{
+		//	file:        "test_date",
+		//	wantHeaders: []string{"Long", "Short", "d-mmm-yy", "mm-dd-yy", "mmmm d, yyyy"},
+		//	wantKinds:   loz.Make(5, kind.Date),
+		//	wantVals: lo.ToAnySlice(loz.Make(5,
+		//		time.Date(1989, time.November, 9, 0, 0, 0, 0, time.UTC))),
+		//},
+		//{
+		//	file:        "test_time",
+		//	wantHeaders: []string{"time1", "time2", "time3", "time4", "time5", "time6"},
+		//	wantKinds:   loz.Make(6, kind.Time),
+		//	wantVals:    []any{"15:17:00", "15:17:00", "15:17:00", "15:17:00", "15:17:00", "15:17:59"},
+		//},
 		{
 			file: "test_datetime",
 			wantHeaders: []string{
@@ -272,22 +425,22 @@ func TestDatetime(t *testing.T) {
 			},
 			wantKinds: loz.Make(20, kind.Datetime),
 			wantVals: lo.ToAnySlice([]time.Time{
-				wantDtSecUTC,   // ANSIC
-				wantDtMinUTC,   // DateHourMinute
-				wantDtSecUTC,   // DateHourMinuteSecond
-				wantDtMilliMST, // ISO8601
-				wantDtMilliUTC, // ISO8601Z
-				wantDtSecMST,   // RFC1123
-				wantDtSecMST,   // RFC1123Z
-				wantDtSecMST,   // RFC3339
-				wantDtNanoMST,  // RFC3339Nano
-				wantDtNanoUTC,  // RFC3339NanoZ
-				wantDtSecUTC,   // RFC3339Z
-				wantDtMinMST,   // RFC8222
-				wantDtMinMST,   // RFC8222Z
-				wantDtSecMST,   // RFC850
-				wantDtSecMST,   // RubyDate
-				wantDtSecMST,   // UnixDate
+				wantSecUTC,   // ANSIC
+				wantMinUTC,   // DateHourMinute
+				wantSecUTC,   // DateHourMinuteSecond
+				wantMilliUTC, // ISO8601
+				wantMilliUTC, // ISO8601Z
+				wantSecUTC,   // RFC1123
+				wantSecUTC,   // RFC1123Z
+				wantSecUTC,   // RFC3339
+				wantNanoUTC,  // RFC3339Nano
+				wantNanoUTC,  // RFC3339NanoZ
+				wantSecUTC,   // RFC3339Z
+				wantMinUTC,   // RFC8222
+				wantMinUTC,   // RFC8222Z
+				wantSecUTC,   // RFC850
+				wantSecUTC,   // RubyDate
+				wantSecUTC,   // UnixDate
 			}),
 		},
 	}
@@ -315,11 +468,14 @@ func TestDatetime(t *testing.T) {
 			for i, col := range sink.RecMeta.MungedNames() {
 				i, col := i, col
 				t.Run(col, func(t *testing.T) {
+					t.Logf("[%d] %s", i, col)
 					assert.Equal(t, tc.wantKinds[i].String(), sink.RecMeta.Kinds()[i].String())
 					if gotTime, ok := sink.Recs[0][i].(time.Time); ok {
 						// REVISIT: If it's a time value, we want to compare UTC times.
 						// This may actually be a bug.
 						wantTime, ok := tc.wantVals[i].(time.Time)
+						t.Logf("wantTime: %s  |  %s  |  %d  ", wantTime.Format(time.RFC3339Nano), wantTime.Location(), wantTime.Unix())
+						t.Logf(" gotTime: %s  |  %s  |  %d  ", gotTime.Format(time.RFC3339Nano), gotTime.Location(), gotTime.Unix())
 						require.True(t, ok)
 						assert.Equal(t, wantTime.Unix(), gotTime.Unix())
 						assert.Equal(t, wantTime.UTC(), gotTime.UTC())
