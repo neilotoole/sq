@@ -3,7 +3,7 @@ module github.com/neilotoole/sq
 go 1.21
 
 // See: https://github.com/vbauerster/mpb/issues/136
-require github.com/vbauerster/mpb/v8 v8.7.1-0.20231206170755-3a4a40c73c35
+require github.com/vbauerster/mpb/v8 v8.7.2
 
 // See: https://github.com/djherbis/fscache/pull/21
 require github.com/neilotoole/fscache v0.0.0-20231203162946-c9808f16552e
@@ -51,11 +51,10 @@ require (
 	github.com/xo/dburl v0.19.1
 	github.com/xuri/excelize/v2 v2.8.0
 	go.uber.org/atomic v1.11.0
-	go.uber.org/multierr v1.11.0
 	golang.org/x/exp v0.0.0-20231127185646-65229373498e
 	golang.org/x/mod v0.14.0
-	golang.org/x/net v0.19.0
 	golang.org/x/sync v0.5.0
+	golang.org/x/sys v0.16.0
 	golang.org/x/term v0.15.0
 	golang.org/x/text v0.14.0
 )
@@ -95,7 +94,7 @@ require (
 	github.com/xuri/efp v0.0.0-20230802181842-ad255f2331ca // indirect
 	github.com/xuri/nfp v0.0.0-20230819163627-dc951e3ffe1a // indirect
 	golang.org/x/crypto v0.16.0 // indirect
-	golang.org/x/sys v0.15.0 // indirect
+	golang.org/x/net v0.19.0 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
