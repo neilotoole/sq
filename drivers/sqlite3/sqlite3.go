@@ -112,7 +112,7 @@ func (d *driveri) ErrWrapFunc() func(error) error {
 
 // DBProperties implements driver.SQLDriver.
 func (d *driveri) DBProperties(ctx context.Context, db sqlz.DB) (map[string]any, error) {
-	return getDBProperties(ctx, db, nil)
+	return getDBProperties(ctx, db)
 }
 
 // DriverMetadata implements driver.Driver.

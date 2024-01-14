@@ -304,7 +304,7 @@ func TestGetTblRowCounts(t *testing.T) {
 
 	tblNames := createTypeTestTbls(th, src, numTables, true)
 
-	counts, err := sqlite3.GetTblRowCounts(th.Context, db, func(i int) {}, tblNames)
+	counts, err := sqlite3.GetTblRowCounts(th.Context, db, tblNames)
 	require.NoError(t, err)
 	require.Equal(t, len(tblNames), len(counts))
 }
@@ -318,7 +318,7 @@ func BenchmarkGetTblRowCounts(b *testing.B) {
 
 	testCases := []struct {
 		name string
-		fn   func(ctx context.Context, db sqlz.DB, incr sqlite3.IncrFunc, tblNames []string) ([]int64, error)
+		fn   func(ctx context.Context, db sqlz.DB, tblNames []string) ([]int64, error)
 	}{
 		{name: "benchGetTblRowCountsBaseline", fn: benchGetTblRowCountsBaseline},
 		{name: "getTblRowCounts", fn: sqlite3.GetTblRowCounts},
@@ -329,7 +329,7 @@ func BenchmarkGetTblRowCounts(b *testing.B) {
 
 		b.Run(tc.name, func(b *testing.B) {
 			for n := 0; n < b.N; n++ {
-				counts, err := tc.fn(th.Context, db, func(int) {}, tblNames)
+				counts, err := tc.fn(th.Context, db, tblNames)
 				require.NoError(b, err)
 				require.Len(b, counts, len(tblNames))
 			}
@@ -343,8 +343,7 @@ func BenchmarkGetTblRowCounts(b *testing.B) {
 
 // benchGetTblRowCountsBaseline is a baseline impl of getTblRowCounts
 // for benchmark comparison.
-func benchGetTblRowCountsBaseline(ctx context.Context, db sqlz.DB,
-	_ sqlite3.IncrFunc, tblNames []string,
+func benchGetTblRowCountsBaseline(ctx context.Context, db sqlz.DB, tblNames []string,
 ) ([]int64, error) {
 	tblCounts := make([]int64, len(tblNames))
 

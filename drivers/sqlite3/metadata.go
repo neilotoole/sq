@@ -22,11 +22,6 @@ import (
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
-// IncrFunc is a function that increments a counter.
-// It is used to gather statistics, in particular to update
-// progress bars.
-type IncrFunc func(int)
-
 // recordMetaFromColumnTypes returns record.Meta for colTypes.
 func recordMetaFromColumnTypes(ctx context.Context, colTypes []*sql.ColumnType,
 ) (record.Meta, error) {
@@ -269,7 +264,7 @@ func DBTypeForKind(knd kind.Kind) string {
 }
 
 // getTableMetadata returns metadata for tblName in db.
-func getTableMetadata(ctx context.Context, db sqlz.DB, incr IncrFunc, tblName string) (*metadata.Table, error) {
+func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadata.Table, error) {
 	log := lg.FromContext(ctx)
 	tblMeta := &metadata.Table{Name: tblName}
 	// Note that there's no easy way of getting the physical size of
@@ -289,7 +284,7 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, incr IncrFunc, tblName st
 	if err != nil {
 		return nil, errw(err)
 	}
-	incr(1)
+	progress.Incr(ctx, 1)
 
 	switch {
 	case isVirtualTbl.Valid && isVirtualTbl.Bool:
@@ -315,7 +310,7 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, incr IncrFunc, tblName st
 	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
 
 	for rows.Next() {
-		incr(1)
+		progress.Incr(ctx, 1)
 		progress.DebugDelay()
 
 		col := &metadata.Column{}
@@ -335,7 +330,7 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, incr IncrFunc, tblName st
 			if col.BaseType, err = getTypeOfColumn(ctx, db, tblMeta.Name, col.Name); err != nil {
 				return nil, err
 			}
-			incr(1)
+			progress.Incr(ctx, 1)
 		}
 
 		col.PrimaryKey = pkValue.Int64 > 0 // pkVal can be 0,1,2 etc
@@ -360,7 +355,7 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, incr IncrFunc, tblName st
 // set Table.FQName; it is not used to select which schema
 // to introspect.
 // The supplied incr func should be invoked for each row read from the DB.
-func getAllTableMetadata(ctx context.Context, db sqlz.DB, incr IncrFunc, schemaName string) ([]*metadata.Table, error) {
+func getAllTableMetadata(ctx context.Context, db sqlz.DB, schemaName string) ([]*metadata.Table, error) {
 	log := lg.FromContext(ctx)
 	// This query returns a row for each column of each table,
 	// order by table name then col id (ordinal).
@@ -401,7 +396,7 @@ ORDER BY m.name, p.cid
 	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
 
 	for rows.Next() {
-		incr(1)
+		progress.Incr(ctx, 1)
 		progress.DebugDelay()
 		select {
 		case <-ctx.Done():
@@ -442,7 +437,7 @@ ORDER BY m.name, p.cid
 			if col.BaseType, err = getTypeOfColumn(ctx, db, curTblName, col.Name); err != nil {
 				return nil, err
 			}
-			incr(1)
+			progress.Incr(ctx, 1)
 		}
 
 		if curTblMeta == nil || curTblMeta.Name != curTblName {
@@ -484,7 +479,7 @@ ORDER BY m.name, p.cid
 
 	// Separately, we need to get the row counts for the tables
 	var rowCounts []int64
-	rowCounts, err = getTblRowCounts(ctx, db, incr, tblNames)
+	rowCounts, err = getTblRowCounts(ctx, db, tblNames)
 	if err != nil {
 		return nil, errw(err)
 	}
@@ -497,7 +492,7 @@ ORDER BY m.name, p.cid
 }
 
 // getTblRowCounts returns the number of rows in each table.
-func getTblRowCounts(ctx context.Context, db sqlz.DB, incr IncrFunc, tblNames []string) ([]int64, error) {
+func getTblRowCounts(ctx context.Context, db sqlz.DB, tblNames []string) ([]int64, error) {
 	log := lg.FromContext(ctx)
 
 	// See: https://stackoverflow.com/questions/7524612/how-to-count-rows-from-multiple-tables-in-sqlite
@@ -556,7 +551,7 @@ func getTblRowCounts(ctx context.Context, db sqlz.DB, incr IncrFunc, tblNames []
 				return nil, errw(err)
 			}
 			j++
-			incr(1)
+			progress.Incr(ctx, 1)
 			progress.DebugDelay()
 		}
 

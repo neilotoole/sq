@@ -743,59 +743,6 @@ func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (
 	return recMeta, mungeFn, nil
 }
 
-// grip is the postgres implementation of driver.Grip.
-type grip struct {
-	log  *slog.Logger
-	drvr *driveri
-	db   *sql.DB
-	src  *source.Source
-}
-
-// DB implements driver.Grip.
-func (g *grip) DB(context.Context) (*sql.DB, error) {
-	return g.db, nil
-}
-
-// SQLDriver implements driver.Grip.
-func (g *grip) SQLDriver() driver.SQLDriver {
-	return g.drvr
-}
-
-// Source implements driver.Grip.
-func (g *grip) Source() *source.Source {
-	return g.src
-}
-
-// TableMetadata implements driver.Grip.
-func (g *grip) TableMetadata(ctx context.Context, tblName string) (*metadata.Table, error) {
-	db, err := g.DB(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	return getTableMetadata(ctx, db, tblName)
-}
-
-// SourceMetadata implements driver.Grip.
-func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error) {
-	db, err := g.DB(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return getSourceMetadata(ctx, g.src, db, noSchema)
-}
-
-// Close implements driver.Grip.
-func (g *grip) Close() error {
-	g.log.Debug(lgm.CloseDB, lga.Handle, g.src.Handle)
-
-	err := g.db.Close()
-	if err != nil {
-		return errw(err)
-	}
-	return nil
-}
-
 // doRetry executes fn with retry on isErrTooManyConnections.
 func doRetry(ctx context.Context, fn func() error) error {
 	maxRetryInterval := driver.OptMaxRetryInterval.Get(options.FromContext(ctx))

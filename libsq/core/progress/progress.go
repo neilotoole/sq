@@ -76,7 +76,8 @@ func FromContext(ctx context.Context) *Progress {
 type barCtxKey struct{}
 
 // NewBarContext returns ctx with bar added as a value. This
-// context can be used in conjunction with progress.Incr to increment bar.
+// context can be used in conjunction with progress.Incr to increment
+// the progress bar.
 func NewBarContext(ctx context.Context, bar *Bar) context.Context {
 	if ctx == nil {
 		ctx = context.Background()

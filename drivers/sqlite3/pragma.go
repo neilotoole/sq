@@ -19,7 +19,7 @@ import (
 // be invoked for each row read from the DB.
 //
 // See: https://www.sqlite.org/pragma.html
-func getDBProperties(ctx context.Context, db sqlz.DB, incr IncrFunc) (map[string]any, error) {
+func getDBProperties(ctx context.Context, db sqlz.DB) (map[string]any, error) {
 	pragmas, err := listPragmaNames(ctx, db)
 	if err != nil {
 		return nil, err
@@ -33,7 +33,7 @@ func getDBProperties(ctx context.Context, db sqlz.DB, incr IncrFunc) (map[string
 			return nil, errz.Wrapf(errw(err), "read pragma: %s", pragma)
 		}
 
-		incr(1)
+		progress.Incr(ctx, 1)
 		progress.DebugDelay()
 
 		if val != nil {

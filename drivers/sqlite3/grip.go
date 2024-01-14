@@ -52,18 +52,20 @@ func (g *grip) TableMetadata(ctx context.Context, tblName string) (*metadata.Tab
 		return nil, err
 	}
 
-	bar := progress.FromContext(ctx).NewUnitCounter(g.Source().Handle+"."+tblName+": reading schema", "row")
+	bar := progress.FromContext(ctx).NewUnitCounter(g.Source().Handle+"."+tblName+": read schema", "item")
 	defer bar.Stop()
+	ctx = progress.NewBarContext(ctx, bar)
 
-	return getTableMetadata(ctx, db, bar.Incr, tblName)
+	return getTableMetadata(ctx, db, tblName)
 }
 
 // SourceMetadata implements driver.Grip.
 func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error) {
 	// https://stackoverflow.com/questions/9646353/how-to-find-sqlite-database-file-version
 
-	bar := progress.FromContext(ctx).NewUnitCounter(g.Source().Handle+": reading schema", "row")
+	bar := progress.FromContext(ctx).NewUnitCounter(g.Source().Handle+": read schema", "item")
 	defer bar.Stop()
+	ctx = progress.NewBarContext(ctx, bar)
 
 	md := &metadata.Source{Handle: g.src.Handle, Driver: Type, DBDriver: dbDrvr}
 
@@ -78,7 +80,7 @@ func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Sou
 	if err != nil {
 		return nil, errw(err)
 	}
-	bar.Incr(1)
+	progress.Incr(ctx, 1)
 
 	md.DBProduct = "SQLite3 v" + md.DBVersion
 
@@ -94,7 +96,7 @@ func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Sou
 	md.Catalog = "default"
 	md.Location = g.src.Location
 
-	md.DBProperties, err = getDBProperties(ctx, g.db, bar.Incr)
+	md.DBProperties, err = getDBProperties(ctx, g.db)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +105,7 @@ func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Sou
 		return md, nil
 	}
 
-	md.Tables, err = getAllTableMetadata(ctx, g.db, bar.Incr, md.Schema)
+	md.Tables, err = getAllTableMetadata(ctx, g.db, md.Schema)
 	if err != nil {
 		return nil, err
 	}

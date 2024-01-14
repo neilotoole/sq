@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/progress"
+
 	"golang.org/x/sync/errgroup"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -199,6 +201,8 @@ current_setting('server_version'), version(), "current_user"()`
 	if err != nil {
 		return nil, errw(err)
 	}
+	progress.Incr(ctx, 1)
+	progress.DebugDelay()
 
 	if !schema.Valid {
 		return nil, errz.New("NULL value for current_schema(): check privileges and search_path")
@@ -305,6 +309,8 @@ func getPgSettings(ctx context.Context, db sqlz.DB) (map[string]any, error) {
 		if err = rows.Scan(&name, &setting, &typ); err != nil {
 			return nil, errw(err)
 		}
+		progress.Incr(ctx, 1)
+		progress.DebugDelay()
 
 		// Narrow the setting value bool, int, etc.
 		val = setting
@@ -362,6 +368,8 @@ ORDER BY table_name`
 			return nil, errw(err)
 		}
 		tblNames = append(tblNames, s)
+		progress.Incr(ctx, 1)
+		progress.DebugDelay()
 	}
 
 	err = closeRows(rows)
@@ -393,6 +401,8 @@ AND table_name = $1`
 	if err != nil {
 		return nil, errw(err)
 	}
+	progress.Incr(ctx, 1)
+	progress.DebugDelay()
 
 	tblMeta := tblMetaFromPgTable(pgTbl)
 	if tblMeta.Name != tblName {
@@ -552,6 +562,8 @@ ORDER BY cols.table_catalog, cols.table_schema, cols.table_name, cols.ordinal_po
 			return nil, err
 		}
 
+		progress.Incr(ctx, 1)
+		progress.DebugDelay()
 		cols = append(cols, col)
 	}
 	err = closeRows(rows)
@@ -641,6 +653,8 @@ WHERE kcu.table_catalog = current_catalog AND kcu.table_schema = current_schema(
 			return nil, errw(err)
 		}
 
+		progress.Incr(ctx, 1)
+		progress.DebugDelay()
 		constraints = append(constraints, pgc)
 	}
 	err = closeRows(rows)
