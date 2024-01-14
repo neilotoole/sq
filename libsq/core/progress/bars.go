@@ -5,14 +5,13 @@ import (
 
 	humanize "github.com/dustin/go-humanize"
 	"github.com/dustin/go-humanize/english"
-	mpb "github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
 )
 
 // NewByteCounter returns a new determinate bar whose label
 // metric is the size in bytes of the data being processed. The caller is
 // ultimately responsible for calling [Bar.Stop] on the returned Bar.
-func (p *Progress) NewByteCounter(msg string, size int64) *Bar {
+func (p *Progress) NewByteCounter(msg string, size int64, opts ...Opt) *Bar {
 	if p == nil {
 		return nil
 	}
@@ -20,21 +19,23 @@ func (p *Progress) NewByteCounter(msg string, size int64) *Bar {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	var style mpb.BarFillerBuilder
+	cfg := &barConfig{msg: msg, total: size}
+
 	var counter decor.Decorator
 	var percent decor.Decorator
 	if size < 0 {
-		style = spinnerStyle(p.colors.Filler)
+		cfg.style = spinnerStyle(p.colors.Filler)
 		counter = decor.Current(decor.SizeB1024(0), "% .1f")
 	} else {
-		style = barStyle(p.colors.Filler)
+		cfg.style = barStyle(p.colors.Filler)
 		counter = decor.Counters(decor.SizeB1024(0), "% .1f / % .1f")
 		percent = decor.NewPercentage(" %.1f", decor.WCSyncSpace)
 		percent = colorize(percent, p.colors.Percent)
 	}
 	counter = colorize(counter, p.colors.Size)
+	cfg.decorators = []decor.Decorator{counter, percent}
 
-	return p.newBar(msg, size, style, counter, percent)
+	return p.newBar(cfg, opts)
 }
 
 // NewUnitCounter returns a new indeterminate bar whose label
@@ -54,7 +55,7 @@ func (p *Progress) NewByteCounter(msg string, size int64) *Bar {
 //	Ingesting records               ∙∙●              87 recs
 //
 // Note that the unit arg is automatically pluralized.
-func (p *Progress) NewUnitCounter(msg, unit string) *Bar {
+func (p *Progress) NewUnitCounter(msg, unit string, opts ...Opt) *Bar {
 	if p == nil {
 		return nil
 	}
@@ -62,18 +63,22 @@ func (p *Progress) NewUnitCounter(msg, unit string) *Bar {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	decorator := decor.Any(func(statistics decor.Statistics) string {
+	cfg := &barConfig{
+		msg:   msg,
+		total: -1,
+		style: spinnerStyle(p.colors.Filler),
+	}
+
+	d := decor.Any(func(statistics decor.Statistics) string {
 		s := humanize.Comma(statistics.Current)
 		if unit != "" {
 			s += " " + english.PluralWord(int(statistics.Current), unit, "")
 		}
 		return s
 	})
-	decorator = colorize(decorator, p.colors.Size)
+	cfg.decorators = []decor.Decorator{colorize(d, p.colors.Size)}
 
-	style := spinnerStyle(p.colors.Filler)
-
-	return p.newBar(msg, -1, style, decorator)
+	return p.newBar(cfg, opts)
 }
 
 // NewWaiter returns a generic indeterminate spinner. If arg clock
@@ -83,7 +88,7 @@ func (p *Progress) NewUnitCounter(msg, unit string) *Bar {
 //
 // The caller is ultimately responsible for calling [Bar.Stop] on the
 // returned Bar.
-func (p *Progress) NewWaiter(msg string, clock bool) *Bar {
+func (p *Progress) NewWaiter(msg string, clock bool, opts ...Opt) *Bar {
 	if p == nil {
 		return nil
 	}
@@ -91,12 +96,17 @@ func (p *Progress) NewWaiter(msg string, clock bool) *Bar {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	var d []decor.Decorator
-	if clock {
-		d = append(d, newElapsedSeconds(p.colors.Size, time.Now(), decor.WCSyncSpace))
+	cfg := &barConfig{
+		msg:   msg,
+		total: -1,
+		style: spinnerStyle(p.colors.Filler),
 	}
-	style := spinnerStyle(p.colors.Filler)
-	return p.newBar(msg, -1, style, d...)
+
+	if clock {
+		d := newElapsedSeconds(p.colors.Size, time.Now(), decor.WCSyncSpace)
+		cfg.decorators = []decor.Decorator{d}
+	}
+	return p.newBar(cfg, opts)
 }
 
 // NewUnitTotalCounter returns a new determinate bar whose label
@@ -108,7 +118,7 @@ func (p *Progress) NewWaiter(msg string, clock bool) *Bar {
 //	Ingesting sheets   ∙∙∙∙∙●                     4 / 16 sheets
 //
 // Note that the unit arg is automatically pluralized.
-func (p *Progress) NewUnitTotalCounter(msg, unit string, total int64) *Bar {
+func (p *Progress) NewUnitTotalCounter(msg, unit string, total int64, opts ...Opt) *Bar {
 	if p == nil {
 		return nil
 	}
@@ -120,16 +130,21 @@ func (p *Progress) NewUnitTotalCounter(msg, unit string, total int64) *Bar {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	style := barStyle(p.colors.Filler)
-	decorator := decor.Any(func(statistics decor.Statistics) string {
+	cfg := &barConfig{
+		msg:   msg,
+		total: total,
+		style: barStyle(p.colors.Filler),
+	}
+
+	d := decor.Any(func(statistics decor.Statistics) string {
 		s := humanize.Comma(statistics.Current) + " / " + humanize.Comma(statistics.Total)
 		if unit != "" {
 			s += " " + english.PluralWord(int(statistics.Current), unit, "")
 		}
 		return s
 	})
-	decorator = colorize(decorator, p.colors.Size)
-	return p.newBar(msg, total, style, decorator)
+	cfg.decorators = []decor.Decorator{colorize(d, p.colors.Size)}
+	return p.newBar(cfg, opts)
 }
 
 // NewTimeoutWaiter returns a new indeterminate bar whose label is the
@@ -140,7 +155,7 @@ func (p *Progress) NewUnitTotalCounter(msg, unit string, total int64) *Bar {
 // The caller is ultimately responsible for calling [Bar.Stop] on
 // the returned bar, although the bar will also be stopped when the
 // parent Progress stops.
-func (p *Progress) NewTimeoutWaiter(msg string, expires time.Time) *Bar {
+func (p *Progress) NewTimeoutWaiter(msg string, expires time.Time, opts ...Opt) *Bar {
 	if p == nil {
 		return nil
 	}
@@ -148,8 +163,12 @@ func (p *Progress) NewTimeoutWaiter(msg string, expires time.Time) *Bar {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	style := spinnerStyle(p.colors.Waiting)
-	decorator := decor.Any(func(statistics decor.Statistics) string {
+	cfg := &barConfig{
+		msg:   msg,
+		style: spinnerStyle(p.colors.Waiting),
+	}
+
+	d := decor.Any(func(statistics decor.Statistics) string {
 		remaining := time.Until(expires)
 		switch {
 		case remaining > 0:
@@ -165,6 +184,7 @@ func (p *Progress) NewTimeoutWaiter(msg string, expires time.Time) *Bar {
 		}
 	})
 
-	total := time.Until(expires)
-	return p.newBar(msg, int64(total), style, decorator)
+	cfg.decorators = []decor.Decorator{d}
+	cfg.total = int64(time.Until(expires))
+	return p.newBar(cfg, opts)
 }

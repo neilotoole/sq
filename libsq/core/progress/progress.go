@@ -22,6 +22,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/samber/lo"
+
 	mpb "github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
 
@@ -220,14 +222,12 @@ func (p *Progress) doStop() {
 		defer lg.FromContext(p.ctx).Debug("Stopped progress widget")
 		if p.pc == nil {
 			close(p.stoppedCh)
-			// close(p.refreshCh)
 			p.cancelFn()
 			return
 		}
 
 		if len(p.bars) == 0 {
 			close(p.stoppedCh)
-			// close(p.refreshCh)
 			p.cancelFn()
 			return
 		}
@@ -250,7 +250,6 @@ func (p *Progress) doStop() {
 
 		p.refreshCh <- time.Now()
 		close(p.stoppedCh)
-		// close(p.refreshCh)
 		p.pc.Wait()
 		// Important: we must call cancelFn after pc.Wait() or the bars
 		// may not be removed from the terminal.
@@ -261,14 +260,27 @@ func (p *Progress) doStop() {
 	<-p.ctx.Done()
 }
 
+// Opt is a functional option for Bar creation.
+type Opt interface {
+	apply(*Progress, *barConfig)
+}
+
+// barConfig is passed to Progress.newBar.
+type barConfig struct {
+	msg        string
+	total      int64
+	style      mpb.BarFillerBuilder
+	decorators []decor.Decorator
+}
+
 // newBar returns a new Bar. This function must only be called from
-// inside the mutex.
-func (p *Progress) newBar(msg string, total int64,
-	style mpb.BarFillerBuilder, decorators ...decor.Decorator,
-) *Bar {
+// inside the Progress mutex.
+func (p *Progress) newBar(cfg *barConfig, opts []Opt) *Bar {
 	if p == nil {
 		return nil
 	}
+
+	cfg.decorators = lo.WithoutEmpty(cfg.decorators)
 
 	select {
 	case <-p.stoppedCh:
@@ -278,22 +290,22 @@ func (p *Progress) newBar(msg string, total int64,
 	default:
 	}
 
-	lg.FromContext(p.ctx).Debug("New bar", "msg", msg, "total", total)
+	lg.FromContext(p.ctx).Debug("New bar", "msg", cfg.msg, "total", cfg.total)
 
 	if p.pc == nil {
 		p.pcInitFn()
 	}
 
-	if total < 0 {
-		total = 0
+	if cfg.total < 0 {
+		cfg.total = 0
 	}
 
 	// We want the bar message to be a consistent width.
 	switch {
-	case len(msg) < msgLength:
-		msg += strings.Repeat(" ", msgLength-len(msg))
-	case len(msg) > msgLength:
-		msg = stringz.Ellipsify(msg, msgLength)
+	case len(cfg.msg) < msgLength:
+		cfg.msg += strings.Repeat(" ", msgLength-len(cfg.msg))
+	case len(cfg.msg) > msgLength:
+		cfg.msg = stringz.Ellipsify(cfg.msg, msgLength)
 	}
 
 	b := &Bar{
@@ -317,18 +329,25 @@ func (p *Progress) newBar(msg string, total int64,
 		default:
 		}
 
+		for _, opt := range opts {
+			if opt != nil {
+				opt.apply(p, cfg)
+			}
+		}
+
 		// REVISIT: It shouldn't be the case that it's possible that the
 		// progress has already been stopped. If it is stopped, the call
 		// below will panic. Maybe consider wrapping the call in a recover?
-		b.bar = p.pc.New(total,
-			style,
+		b.bar = p.pc.New(cfg.total,
+			cfg.style,
 			mpb.BarWidth(barWidth),
 			mpb.PrependDecorators(
-				colorize(decor.Name(msg, decor.WCSyncWidthR), p.colors.Message),
+				colorize(decor.Name(cfg.msg, decor.WCSyncWidthR), p.colors.Message),
 			),
-			mpb.AppendDecorators(decorators...),
+			mpb.AppendDecorators(cfg.decorators...),
 			mpb.BarRemoveOnComplete(),
 		)
+
 		b.bar.IncrBy(int(b.incrStash.Load()))
 		b.incrStash = nil
 	}

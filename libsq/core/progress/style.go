@@ -1,6 +1,8 @@
 package progress
 
 import (
+	"fmt"
+	"runtime"
 	"time"
 
 	"github.com/fatih/color"
@@ -21,25 +23,27 @@ const (
 // DefaultColors returns the default colors used for the progress bars.
 func DefaultColors() *Colors {
 	return &Colors{
-		Error:   color.New(color.FgRed, color.Bold),
-		Filler:  color.New(color.FgGreen, color.Bold, color.Faint),
-		Message: color.New(color.Faint),
-		Percent: color.New(color.FgCyan, color.Faint),
-		Size:    color.New(color.Faint),
-		Waiting: color.New(color.FgYellow, color.Faint),
-		Warning: color.New(color.FgYellow),
+		Error:    color.New(color.FgRed, color.Bold),
+		Filler:   color.New(color.FgGreen, color.Bold, color.Faint),
+		MemUsage: color.New(color.FgGreen, color.Faint),
+		Message:  color.New(color.Faint),
+		Percent:  color.New(color.FgCyan, color.Faint),
+		Size:     color.New(color.Faint),
+		Waiting:  color.New(color.FgYellow, color.Faint),
+		Warning:  color.New(color.FgYellow),
 	}
 }
 
 // Colors is the set of colors used for the progress bars.
 type Colors struct {
-	Error   *color.Color
-	Filler  *color.Color
-	Message *color.Color
-	Percent *color.Color
-	Size    *color.Color
-	Waiting *color.Color
-	Warning *color.Color
+	Error    *color.Color
+	Filler   *color.Color
+	MemUsage *color.Color
+	Message  *color.Color
+	Percent  *color.Color
+	Size     *color.Color
+	Waiting  *color.Color
+	Warning  *color.Color
 }
 
 // EnableColor enables or disables color for the progress bars.
@@ -51,17 +55,18 @@ func (c *Colors) EnableColor(enable bool) {
 	if enable {
 		c.Error.EnableColor()
 		c.Filler.EnableColor()
+		c.MemUsage.EnableColor()
 		c.Message.EnableColor()
 		c.Percent.EnableColor()
 		c.Size.EnableColor()
 		c.Waiting.EnableColor()
 		c.Warning.EnableColor()
-
 		return
 	}
 
 	c.Error.DisableColor()
 	c.Filler.DisableColor()
+	c.MemUsage.DisableColor()
 	c.Message.DisableColor()
 	c.Percent.DisableColor()
 	c.Size.DisableColor()
@@ -113,4 +118,22 @@ func newElapsedSeconds(c *color.Color, startTime time.Time, wcc ...decor.WC) dec
 		return msg
 	}
 	return decor.Any(fn, wcc...)
+}
+
+// OptMemUsage is an Opt that causes the bar to display program
+// memory usage.
+var OptMemUsage = optMemUsage{}
+
+var _ Opt = optMemUsage{}
+
+type optMemUsage struct{}
+
+func (optMemUsage) apply(p *Progress, cfg *barConfig) {
+	fn := func(s decor.Statistics) string {
+		stats := &runtime.MemStats{}
+		runtime.ReadMemStats(stats)
+		msg := fmt.Sprintf("  (% .1f)", decor.SizeB1024(stats.Sys))
+		return p.colors.MemUsage.Sprint(msg)
+	}
+	cfg.decorators = append(cfg.decorators, decor.Any(fn, decor.WCSyncSpace))
 }

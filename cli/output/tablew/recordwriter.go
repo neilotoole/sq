@@ -46,7 +46,7 @@ func (w *recordWriter) Open(ctx context.Context, recMeta record.Meta) error {
 	// with. After all, this writer is intended for human/interactive use, and
 	// if the number of records is huge (triggering batching), then the user
 	// really should be using a machine-readable output format instead.
-	w.bar = progress.FromContext(ctx).NewUnitCounter("Preparing output", "rec")
+	w.bar = progress.FromContext(ctx).NewUnitCounter("Preparing output", "rec", progress.OptMemUsage)
 
 	return nil
 }
