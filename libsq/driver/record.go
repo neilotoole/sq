@@ -467,7 +467,7 @@ func NewBatchInsert(ctx context.Context, msg string, drvr SQLDriver, db sqlz.DB,
 				}
 
 				bi.written.Add(affected)
-				pbar.IncrBy(int(affected))
+				pbar.Incr(int(affected))
 				progress.DebugDelay()
 
 				if rec == nil {
@@ -511,7 +511,7 @@ func NewBatchInsert(ctx context.Context, msg string, drvr SQLDriver, db sqlz.DB,
 			}
 
 			bi.written.Add(affected)
-			pbar.IncrBy(int(affected))
+			pbar.Incr(int(affected))
 			progress.DebugDelay()
 
 			// We're done

@@ -101,7 +101,7 @@ func (w *recordWriter) WriteRecords(ctx context.Context, recs []record.Record) e
 
 		tblRows = append(tblRows, tblRow)
 		w.rowCount++
-		w.bar.IncrBy(1)
+		w.bar.Incr(1)
 	}
 
 	return w.tbl.appendRows(ctx, tblRows)

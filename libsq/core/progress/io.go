@@ -76,7 +76,7 @@ func (w *progWriter) Write(p []byte) (n int, err error) {
 	}
 
 	n, err = w.w.Write(p)
-	w.b.IncrBy(n)
+	w.b.Incr(n)
 	if err != nil {
 		w.b.Stop()
 	}
@@ -172,7 +172,7 @@ func (r *progReader) Read(p []byte) (n int, err error) {
 	}
 
 	n, err = r.r.Read(p)
-	r.b.IncrBy(n)
+	r.b.Incr(n)
 	if err != nil {
 		r.b.Stop()
 	}

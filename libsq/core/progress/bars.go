@@ -46,7 +46,7 @@ func (p *Progress) NewByteCounter(msg string, size int64, opts ...Opt) *Bar {
 //	defer bar.Stop()
 //
 //	for i := 0; i < 100; i++ {
-//	    bar.IncrBy(1)
+//	    bar.Incr(1)
 //	    time.Sleep(100 * time.Millisecond)
 //	}
 //

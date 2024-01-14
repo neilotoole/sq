@@ -9,6 +9,8 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/progress"
+
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -19,6 +21,11 @@ import (
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
+
+// IncrFunc is a function that increments a counter.
+// It is used to gather statistics, in particular to update
+// progress bars.
+type IncrFunc func(int)
 
 // recordMetaFromColumnTypes returns record.Meta for colTypes.
 func recordMetaFromColumnTypes(ctx context.Context, colTypes []*sql.ColumnType,
@@ -262,7 +269,7 @@ func DBTypeForKind(knd kind.Kind) string {
 }
 
 // getTableMetadata returns metadata for tblName in db.
-func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadata.Table, error) {
+func getTableMetadata(ctx context.Context, db sqlz.DB, incr IncrFunc, tblName string) (*metadata.Table, error) {
 	log := lg.FromContext(ctx)
 	tblMeta := &metadata.Table{Name: tblName}
 	// Note that there's no easy way of getting the physical size of
@@ -282,6 +289,7 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadat
 	if err != nil {
 		return nil, errw(err)
 	}
+	incr(1)
 
 	switch {
 	case isVirtualTbl.Valid && isVirtualTbl.Bool:
@@ -307,6 +315,9 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadat
 	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
 
 	for rows.Next() {
+		incr(1)
+		progress.DebugDelay()
+
 		col := &metadata.Column{}
 		var notnull int64
 		defaultValue := &sql.NullString{}
@@ -324,6 +335,7 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadat
 			if col.BaseType, err = getTypeOfColumn(ctx, db, tblMeta.Name, col.Name); err != nil {
 				return nil, err
 			}
+			incr(1)
 		}
 
 		col.PrimaryKey = pkValue.Int64 > 0 // pkVal can be 0,1,2 etc
@@ -347,7 +359,8 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadat
 // non-system tables in db's schema. Arg schemaName is used to
 // set Table.FQName; it is not used to select which schema
 // to introspect.
-func getAllTableMetadata(ctx context.Context, db sqlz.DB, schemaName string) ([]*metadata.Table, error) {
+// The supplied incr func should be invoked for each row read from the DB.
+func getAllTableMetadata(ctx context.Context, db sqlz.DB, incr IncrFunc, schemaName string) ([]*metadata.Table, error) {
 	log := lg.FromContext(ctx)
 	// This query returns a row for each column of each table,
 	// order by table name then col id (ordinal).
@@ -372,12 +385,14 @@ FROM sqlite_master AS m JOIN pragma_table_info(m.name) AS p
 ORDER BY m.name, p.cid
 `
 
-	var tblMetas []*metadata.Table
-	var tblNames []string
-	var curTblName string
-	var curTblType string
-	var curTblIsVirtual bool
-	var curTblMeta *metadata.Table
+	var (
+		tblMetas        []*metadata.Table
+		tblNames        []string
+		curTblName      string
+		curTblType      string
+		curTblIsVirtual bool
+		curTblMeta      *metadata.Table
+	)
 
 	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
@@ -386,6 +401,8 @@ ORDER BY m.name, p.cid
 	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
 
 	for rows.Next() {
+		incr(1)
+		progress.DebugDelay()
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
@@ -425,6 +442,7 @@ ORDER BY m.name, p.cid
 			if col.BaseType, err = getTypeOfColumn(ctx, db, curTblName, col.Name); err != nil {
 				return nil, err
 			}
+			incr(1)
 		}
 
 		if curTblMeta == nil || curTblMeta.Name != curTblName {
@@ -466,7 +484,7 @@ ORDER BY m.name, p.cid
 
 	// Separately, we need to get the row counts for the tables
 	var rowCounts []int64
-	rowCounts, err = getTblRowCounts(ctx, db, tblNames)
+	rowCounts, err = getTblRowCounts(ctx, db, incr, tblNames)
 	if err != nil {
 		return nil, errw(err)
 	}
@@ -479,7 +497,7 @@ ORDER BY m.name, p.cid
 }
 
 // getTblRowCounts returns the number of rows in each table.
-func getTblRowCounts(ctx context.Context, db sqlz.DB, tblNames []string) ([]int64, error) {
+func getTblRowCounts(ctx context.Context, db sqlz.DB, incr IncrFunc, tblNames []string) ([]int64, error) {
 	log := lg.FromContext(ctx)
 
 	// See: https://stackoverflow.com/questions/7524612/how-to-count-rows-from-multiple-tables-in-sqlite
@@ -505,12 +523,13 @@ func getTblRowCounts(ctx context.Context, db sqlz.DB, tblNames []string) ([]int6
 	// Thus if len(tblNames) > 500, we need to execute multiple queries.
 	const maxCompoundSelect = 500
 
-	tblCounts := make([]int64, len(tblNames))
-
-	var sb strings.Builder
-	var query string
-	var terms int
-	var j int
+	var (
+		tblCounts = make([]int64, len(tblNames))
+		sb        strings.Builder
+		query     string
+		terms     int
+		j         int
+	)
 
 	for i := 0; i < len(tblNames); i++ {
 		if terms > 0 {
@@ -537,6 +556,8 @@ func getTblRowCounts(ctx context.Context, db sqlz.DB, tblNames []string) ([]int6
 				return nil, errw(err)
 			}
 			j++
+			incr(1)
+			progress.DebugDelay()
 		}
 
 		if err = rows.Err(); err != nil {

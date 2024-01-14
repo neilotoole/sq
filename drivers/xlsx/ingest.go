@@ -138,7 +138,7 @@ func ingestXLSX(ctx context.Context, src *source.Source, destGrip driver.Grip, x
 		if sheetTbls[i] == nil {
 			// tblDef can be nil if its sheet is empty (has no data).
 			skipped++
-			bar.IncrBy(1)
+			bar.Incr(1)
 			continue
 		}
 
@@ -146,7 +146,7 @@ func ingestXLSX(ctx context.Context, src *source.Source, destGrip driver.Grip, x
 			return err
 		}
 		ingestCount++
-		bar.IncrBy(1)
+		bar.Incr(1)
 	}
 
 	log.Debug("Sheets ingested",

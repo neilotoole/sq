@@ -158,7 +158,7 @@ func Print(ctx context.Context, w io.Writer, pr *output.Printing, header, dif st
 			return pr.DiffPlus.Sprint(line)
 		}
 
-		bar.IncrBy(1)
+		bar.Incr(1)
 		return pr.DiffNormal.Sprint(line)
 	})
 

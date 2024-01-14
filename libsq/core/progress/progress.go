@@ -2,7 +2,7 @@
 // Use progress.New to create a new progress widget container.
 // That widget should be added to a context using progress.NewContext,
 // and retrieved via progress.FromContext. Invoke one of the Progress.NewX
-// methods to create a new progress.Bar. Invoke Bar.IncrBy to increment
+// methods to create a new progress.Bar. Invoke Bar.Incr to increment
 // the bar's progress, and invoke Bar.Stop to stop the bar. Be sure
 // to invoke Progress.Stop when the progress widget is no longer needed.
 //
@@ -42,7 +42,7 @@ func DebugDelay() {
 	}
 }
 
-type ctxKey struct{}
+type progCtxKey struct{}
 
 // NewContext returns ctx with p added as a value.
 func NewContext(ctx context.Context, p *Progress) context.Context {
@@ -50,7 +50,7 @@ func NewContext(ctx context.Context, p *Progress) context.Context {
 		ctx = context.Background()
 	}
 
-	return context.WithValue(ctx, ctxKey{}, p)
+	return context.WithValue(ctx, progCtxKey{}, p)
 }
 
 // FromContext returns the [Progress] added to ctx via NewContext,
@@ -61,7 +61,7 @@ func FromContext(ctx context.Context) *Progress {
 		return nil
 	}
 
-	val := ctx.Value(ctxKey{})
+	val := ctx.Value(progCtxKey{})
 	if val == nil {
 		return nil
 	}
@@ -71,6 +71,35 @@ func FromContext(ctx context.Context) *Progress {
 	}
 
 	return nil
+}
+
+type barCtxKey struct{}
+
+// NewBarContext returns ctx with bar added as a value. This
+// context can be used in conjunction with progress.Incr to increment bar.
+func NewBarContext(ctx context.Context, bar *Bar) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	return context.WithValue(ctx, barCtxKey{}, bar)
+}
+
+// Incr increments the progress of the outermost bar in ctx by amount n.
+// Use in conjunction with a context returned from NewBarContext.
+func Incr(ctx context.Context, n int) {
+	if ctx == nil {
+		return
+	}
+
+	val := ctx.Value(barCtxKey{})
+	if val == nil {
+		return
+	}
+
+	if b, ok := val.(*Bar); ok {
+		b.Incr(n)
+	}
 }
 
 // New returns a new Progress instance, which is a container for progress bars.
@@ -359,7 +388,7 @@ func (p *Progress) newBar(cfg *barConfig, opts []Opt) *Bar {
 }
 
 // Bar represents a single progress bar. The caller should invoke
-// [Bar.IncrBy] as necessary to increment the bar's progress. When
+// [Bar.Incr] as necessary to increment the bar's progress. When
 // the bar is complete, the caller should invoke [Bar.Stop]. All
 // methods are safe to call on a nil Bar.
 type Bar struct {
@@ -389,9 +418,9 @@ type Bar struct {
 	incrStash *atomic.Int64
 }
 
-// IncrBy increments progress by amount of n. It is safe to
+// Incr increments progress by amount n. It is safe to
 // call IncrBy on a nil Bar.
-func (b *Bar) IncrBy(n int) {
+func (b *Bar) Incr(n int) {
 	if b == nil {
 		return
 	}
