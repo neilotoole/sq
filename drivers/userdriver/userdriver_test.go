@@ -31,7 +31,7 @@ func TestDriver(t *testing.T) {
 		t.Run(tc.handle, func(t *testing.T) {
 			t.Parallel()
 
-			th := testh.New(t, testh.OptLongOpen())
+			th := testh.New(t)
 			src := th.Source(tc.handle)
 
 			grip := th.Open(src)

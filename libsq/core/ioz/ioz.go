@@ -286,11 +286,11 @@ type notifyOnceWriter struct {
 
 // Write implements [io.Writer]. On the first invocation of this
 // method, the notify function is invoked, blocking until it returns.
-// Subsequent invocations of Write do trigger the notify function.
+// Subsequent invocations of Write don't trigger the notify function.
 func (w *notifyOnceWriter) Write(p []byte) (n int, err error) {
 	w.notifyOnce.Do(func() {
-		close(w.doneCh)
 		w.fn()
+		close(w.doneCh)
 	})
 
 	<-w.doneCh

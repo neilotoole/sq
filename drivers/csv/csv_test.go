@@ -107,7 +107,7 @@ func TestSakila_query(t *testing.T) {
 				t.Run(tc.file, func(t *testing.T) {
 					t.Parallel()
 
-					th := testh.New(t, testh.OptLongOpen())
+					th := testh.New(t)
 					src := th.Add(&source.Source{
 						Handle:   "@" + tc.file,
 						Type:     drvr,
@@ -280,7 +280,7 @@ func TestIngest_Kind_Timestamp(t *testing.T) {
 		t.Run(tc.file, func(t *testing.T) {
 			t.Parallel()
 
-			th := testh.New(t, testh.OptLongOpen())
+			th := testh.New(t)
 			src := &source.Source{
 				Handle:   "@tsv/" + tc.file,
 				Type:     csv.TypeTSV,
@@ -345,7 +345,7 @@ func TestIngest_Kind_Date(t *testing.T) {
 		t.Run(tc.file, func(t *testing.T) {
 			t.Parallel()
 
-			th := testh.New(t, testh.OptLongOpen())
+			th := testh.New(t)
 			src := &source.Source{
 				Handle:   "@tsv/" + tc.file,
 				Type:     csv.TypeTSV,
@@ -398,7 +398,7 @@ func TestIngest_Kind_Time(t *testing.T) {
 		t.Run(tc.file, func(t *testing.T) {
 			t.Parallel()
 
-			th := testh.New(t, testh.OptLongOpen())
+			th := testh.New(t)
 			src := &source.Source{
 				Handle:   "@tsv/" + tc.file,
 				Type:     csv.TypeTSV,

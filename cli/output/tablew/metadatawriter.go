@@ -128,7 +128,7 @@ func (w *mdWriter) doSourceMetaNoSchema(md *metadata.Source) error {
 	}
 
 	w.tbl.tblImpl.SetHeader(headers)
-	return w.tbl.renderRow(context.TODO(), row)
+	return w.tbl.writeRow(context.TODO(), row)
 }
 
 func (w *mdWriter) printTablesVerbose(tbls []*metadata.Table) error {
@@ -261,7 +261,7 @@ func (w *mdWriter) doSourceMetaFull(md *metadata.Source) error {
 	}
 
 	w.tbl.tblImpl.SetHeader(headers)
-	if err := w.tbl.renderRow(context.TODO(), row); err != nil {
+	if err := w.tbl.writeRow(context.TODO(), row); err != nil {
 		return err
 	}
 

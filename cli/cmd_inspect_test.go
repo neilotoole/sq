@@ -68,7 +68,7 @@ func TestCmdInspect_json_yaml(t *testing.T) { //nolint:tparallel
 					t.Parallel()
 					tu.SkipWindowsIf(t, tc.handle == sakila.XLSX, "XLSX too slow on windows workflow")
 
-					th := testh.New(t, testh.OptCaching(true))
+					th := testh.New(t)
 					src := th.Source(tc.handle)
 
 					tr := testrun.New(th.Context, t, nil).Hush().Add(*src)

@@ -172,11 +172,11 @@ func (t *table) appendRows(ctx context.Context, rows [][]string) error {
 	return nil
 }
 
-func (t *table) renderAll(ctx context.Context) error {
+func (t *table) writeAll(ctx context.Context) error {
 	return t.tblImpl.RenderAll(ctx)
 }
 
-func (t *table) renderRow(ctx context.Context, row []string) error {
+func (t *table) writeRow(ctx context.Context, row []string) error {
 	t.tblImpl.Append(row)
 	return t.tblImpl.RenderAll(ctx) // Send output
 }

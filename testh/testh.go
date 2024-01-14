@@ -12,7 +12,6 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/neilotoole/sq/libsq/core/ioz/lockfile"
 
@@ -59,28 +58,9 @@ import (
 	"github.com/neilotoole/sq/testh/tu"
 )
 
-// defaultDBOpenTimeout is the timeout for tests to open (and ping) their DBs.
-// This should be a low value, because, well, we can either connect
-// or not.
-const defaultDBOpenTimeout = time.Second * 5 //nolint:unused
-
 // Option is a functional option type used with New to
 // configure the helper.
 type Option func(h *Helper)
-
-// OptLongOpen allows a longer DB open timeout, which is necessary
-// for some tests. Note that DB open performs an import for file-based
-// sources, so it can take some time. Usage:
-//
-//	testh.New(t, testh.OptLongOpen())
-//
-// Most tests don't need this.
-func OptLongOpen() Option {
-	return func(h *Helper) {
-		// FIXME: Delete OptLongOpen entirely
-		// h.dbOpenTimeout = time.Second * 180
-	}
-}
 
 // OptCaching enables or disables ingest caching.
 func OptCaching(enable bool) Option {
@@ -117,8 +97,6 @@ type Helper struct {
 	cancelFn context.CancelFunc
 
 	Cleanup *cleanup.Cleanup
-
-	dbOpenTimeout time.Duration //nolint:unused
 }
 
 // New returns a new Helper. The helper's Close func will be

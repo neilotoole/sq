@@ -59,9 +59,8 @@ func NewRecordWriterAdapter(ctx context.Context, rw RecordWriter) *RecordWriterA
 func (w *RecordWriterAdapter) Open(ctx context.Context, cancelFn context.CancelFunc,
 	recMeta record.Meta,
 ) (chan<- record.Record, <-chan error, error) {
-	w.cancelFn = cancelFn
-
 	lg.FromContext(ctx).Debug("Open RecordWriterAdapter", "fields", recMeta)
+	w.cancelFn = cancelFn
 
 	err := w.rw.Open(ctx, recMeta)
 	if err != nil {

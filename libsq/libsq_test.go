@@ -63,7 +63,7 @@ func TestQuerySQL_Smoke(t *testing.T) {
 			tu.SkipShort(t, tc.handle == sakila.XLSX)
 			t.Parallel()
 
-			th := testh.New(t, testh.OptLongOpen())
+			th := testh.New(t)
 			src := th.Source(tc.handle)
 
 			tblName := sakila.TblActor

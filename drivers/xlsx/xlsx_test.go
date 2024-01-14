@@ -55,7 +55,7 @@ func TestSakilaInspectSource(t *testing.T) {
 	tu.SkipWindows(t, "Skipping because of slow workflow perf on windows")
 	tu.SkipShort(t, true)
 
-	th := testh.New(t, testh.OptLongOpen())
+	th := testh.New(t)
 	src := th.Source(sakila.XLSX)
 
 	tr := testrun.New(th.Context, t, nil).Hush().Add(*src)
@@ -74,7 +74,7 @@ func TestSakilaInspectSheets(t *testing.T) {
 
 		t.Run(sheet, func(t *testing.T) {
 			t.Parallel()
-			th := testh.New(t, testh.OptLongOpen())
+			th := testh.New(t)
 			src := th.Source(sakila.XLSX)
 
 			tr := testrun.New(th.Context, t, nil).Hush().Add(*src)
@@ -94,7 +94,7 @@ func BenchmarkInspectSheets(b *testing.B) {
 
 		b.Run(sheet, func(b *testing.B) {
 			for n := 0; n < b.N; n++ {
-				th := testh.New(b, testh.OptLongOpen())
+				th := testh.New(b)
 				src := th.Source(sakila.XLSX)
 
 				tr := testrun.New(th.Context, b, nil).Hush().Add(*src)
@@ -118,7 +118,7 @@ func TestSakila_query_cmd(t *testing.T) {
 
 		t.Run(sheet, func(t *testing.T) {
 			t.Parallel()
-			th := testh.New(t, testh.OptLongOpen())
+			th := testh.New(t)
 			src := th.Source(sakila.XLSX)
 
 			tr := testrun.New(th.Context, t, nil).Hush().Add(*src)
@@ -157,7 +157,7 @@ func TestOpenFileFormats(t *testing.T) {
 		t.Run(tc.filename, func(t *testing.T) {
 			t.Parallel()
 
-			th := testh.New(t, testh.OptLongOpen())
+			th := testh.New(t)
 			src := th.Add(&source.Source{
 				Handle:   "@excel",
 				Type:     xlsx.Type,
@@ -240,7 +240,7 @@ func TestSakila_query(t *testing.T) {
 
 		t.Run(tc.sheet, func(t *testing.T) {
 			t.Parallel()
-			th := testh.New(t, testh.OptLongOpen())
+			th := testh.New(t)
 			src := th.Source(sakila.XLSX)
 
 			sink, err := th.QuerySQL(src, nil, "SELECT * FROM "+tc.sheet)
@@ -528,7 +528,7 @@ func TestDatetime(t *testing.T) {
 		t.Run(tc.sheet, func(t *testing.T) {
 			t.Parallel()
 
-			th := testh.New(t, testh.OptLongOpen())
+			th := testh.New(t)
 			src = th.Add(src)
 
 			sink, err := th.QuerySLQ(src.Handle+"."+tc.sheet, nil)
