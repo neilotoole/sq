@@ -95,7 +95,6 @@ func execXProgress(cmd *cobra.Command, _ []string) error {
 	ctx := cmd.Context()
 	log := lg.FromContext(ctx)
 	ru := run.FromContext(ctx)
-	_ = ru
 
 	d := time.Second * 5
 	pb := progress.FromContext(ctx)
@@ -103,22 +102,21 @@ func execXProgress(cmd *cobra.Command, _ []string) error {
 	defer bar.Stop()
 
 	select {
-	// case <-pressEnter():
-	//	bar.Stop()
-	//	pb.Stop()
-	//	fmt.Fprintln(ru.Out, "\nENTER received")
+	case <-pressEnter():
+		bar.Stop()
+		pb.Stop()
+		fmt.Fprintln(ru.Out, "\nENTER received")
 	case <-ctx.Done():
-		// bar.Stop()
-		// pb.Stop()
+		bar.Stop()
+		pb.Stop()
 		fmt.Fprintln(ru.Out, "Context done")
 	case <-time.After(d + time.Second*5):
-		// bar.Stop()
+		bar.Stop()
 		log.Warn("timed out, about to print something")
 		fmt.Fprintln(ru.Out, "Really timed out")
 		log.Warn("done printing")
 	}
 
-	// bar.EwmaIncrInt64(rand.Int63n(5)+1, time.Since(start))
 	fmt.Fprintln(ru.Out, "exiting")
 	return ctx.Err()
 }

@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neilotoole/sq/testh/fixt"
+
 	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
@@ -441,23 +443,16 @@ func TestDates(t *testing.T) {
 func TestDatetime(t *testing.T) {
 	t.Parallel()
 
-	denver, err := time.LoadLocation("America/Denver")
-	require.NoError(t, err)
-
 	src := &source.Source{
 		Handle:   "@excel/datetime",
 		Type:     xlsx.Type,
 		Location: "testdata/datetime.xlsx",
 	}
 
-	wantDtNanoUTC := time.Date(1989, 11, 9, 15, 17, 59, 123456700, time.UTC)
-	wantDtMilliUTC := wantDtNanoUTC.Truncate(time.Millisecond)
-	wantDtSecUTC := wantDtNanoUTC.Truncate(time.Second)
-	wantDtMinUTC := wantDtNanoUTC.Truncate(time.Minute)
-	wantDtNanoMST := time.Date(1989, 11, 9, 15, 17, 59, 123456700, denver)
-	wantDtMilliMST := wantDtNanoMST.Truncate(time.Millisecond)
-	wantDtSecMST := wantDtNanoMST.Truncate(time.Second)
-	wantDtMinMST := wantDtNanoMST.Truncate(time.Minute)
+	wantNanoUTC := time.Unix(0, fixt.TimestampUnixNano1989).UTC()
+	wantMilliUTC := wantNanoUTC.Truncate(time.Millisecond)
+	wantSecUTC := wantNanoUTC.Truncate(time.Second)
+	wantMinUTC := wantNanoUTC.Truncate(time.Minute)
 
 	testCases := []struct {
 		sheet       string
@@ -504,26 +499,26 @@ func TestDatetime(t *testing.T) {
 			},
 			wantKinds: loz.Make(20, kind.Datetime),
 			wantVals: lo.ToAnySlice([]time.Time{
-				wantDtSecUTC,   // ANSIC
-				wantDtMinUTC,   // DateHourMinute
-				wantDtMinUTC,   // DateHourMinuteSecond
-				wantDtMilliMST, // ISO8601
-				wantDtMilliUTC, // ISO8601Z
-				wantDtSecMST,   // RFC1123
-				wantDtSecMST,   // RFC1123Z
-				wantDtSecMST,   // RFC3339
-				wantDtNanoMST,  // RFC3339Nano
-				wantDtNanoUTC,  // RFC3339NanoZ
-				wantDtSecUTC,   // RFC3339Z
-				wantDtMinMST,   // RFC8222
-				wantDtMinUTC,   // RFC8222Z
-				wantDtSecMST,   // RFC850
-				wantDtSecMST,   // RubyDate
-				wantDtMinUTC,   // Stamp
-				wantDtMinUTC,   // StampMicro
-				wantDtMinUTC,   // StampMilli
-				wantDtMinUTC,   // StampNano
-				wantDtSecMST,   // UnixDate
+				wantSecUTC,   // ANSIC
+				wantMinUTC,   // DateHourMinute
+				wantMinUTC,   // DateHourMinuteSecond
+				wantMilliUTC, // ISO8601
+				wantMilliUTC, // ISO8601Z
+				wantSecUTC,   // RFC1123
+				wantSecUTC,   // RFC1123Z
+				wantSecUTC,   // RFC3339
+				wantNanoUTC,  // RFC3339Nano
+				wantNanoUTC,  // RFC3339NanoZ
+				wantSecUTC,   // RFC3339Z
+				wantMinUTC,   // RFC8222
+				wantMinUTC,   // RFC8222Z
+				wantSecUTC,   // RFC850
+				wantSecUTC,   // RubyDate
+				wantMinUTC,   // Stamp
+				wantMinUTC,   // StampMicro
+				wantMinUTC,   // StampMilli
+				wantMinUTC,   // StampNano
+				wantSecUTC,   // UnixDate
 			}),
 		},
 	}
