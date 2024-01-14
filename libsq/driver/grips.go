@@ -295,13 +295,13 @@ func (gs *Grips) openIngestGripCache(ctx context.Context, src *source.Source,
 		return nil, err
 	}
 	if foundCached {
-		log.Debug("Ingest cache HIT: found cached copy of source",
+		log.Info("Ingest cache HIT: found cached copy of source",
 			lga.Src, src, "cached", impl.Source(),
 		)
 		return impl, nil
 	}
 
-	log.Debug("Ingest cache MISS: no cache for source", lga.Src, src)
+	log.Info("Ingest cache MISS: no cache for source", lga.Src, src)
 
 	var cleanFn func() error
 	impl, cleanFn, err = gs.openNewCacheGrip(ctx, src)

@@ -143,3 +143,51 @@ func ParseDateOrTimestampUTC(s string) (time.Time, error) {
 	t, err := ParseDateUTC(s)
 	return t.UTC(), err
 }
+
+// MustParse is like time.Parse, but panics on error.
+func MustParse(layout, value string) time.Time {
+	t, err := time.Parse(layout, value)
+	if err != nil {
+		panic(err)
+	}
+	return t
+}
+
+// TimestampLayouts is a map of timestamp layout names to layout string.
+var TimestampLayouts = map[string]string{
+	"RFC3339":                   time.RFC3339,
+	"RFC3339Z":                  RFC3339Z,
+	"ISO8601":                   ISO8601,
+	"ISO8601Z":                  ISO8601Z,
+	"RFC3339Nano":               time.RFC3339Nano,
+	"RFC3339NanoZ":              RFC3339NanoZ,
+	"ANSIC":                     time.ANSIC,
+	"UnixDate":                  time.UnixDate,
+	"RubyDate":                  time.RubyDate,
+	"RFC8222":                   time.RFC822,
+	"RFC8222Z":                  time.RFC822Z,
+	"RFC850":                    time.RFC850,
+	"RFC1123":                   time.RFC1123,
+	"RFC1123Z":                  time.RFC1123Z,
+	"Stamp":                     time.Stamp,
+	"StampMilli":                time.StampMilli,
+	"StampMicro":                time.StampMicro,
+	"StampNano":                 time.StampNano,
+	"DateHourMinuteSecond":      DateHourMinuteSecond,
+	"DateHourMinute":            DateHourMinute,
+	"ExcelDatetimeMDYSeconds":   ExcelDatetimeMDYSeconds,
+	"ExcelDatetimeMDYNoSeconds": ExcelDatetimeMDYNoSeconds,
+}
+
+var (
+	LosAngeles = mustLoadLocation("America/Los_Angeles")
+	Denver     = mustLoadLocation("America/Denver")
+)
+
+func mustLoadLocation(name string) *time.Location {
+	loc, err := time.LoadLocation(name)
+	if err != nil {
+		panic(err)
+	}
+	return loc
+}

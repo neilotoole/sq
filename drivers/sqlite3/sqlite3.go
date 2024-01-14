@@ -15,6 +15,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/ioz"
+
 	_ "github.com/mattn/go-sqlite3" // Import for side effect of loading the driver
 	"github.com/shopspring/decimal"
 
@@ -1033,9 +1035,12 @@ func NewScratchSource(ctx context.Context, fpath string) (src *source.Source, cl
 	}
 
 	clnup = func() error {
+		if journal := filepath.Join(fpath, ".db-journal"); ioz.FileAccessible(journal) {
+			lg.WarnIfError(log, "Delete sqlite3 db journal file", os.Remove(journal))
+		}
+
 		log.Debug("Delete sqlite3 scratchdb file", lga.Src, src, lga.Path, fpath)
-		lg.WarnIfError(log, "Delete sqlite3 db journal file", os.RemoveAll(filepath.Join(fpath, ".db-journal")))
-		if err := os.RemoveAll(fpath); err != nil {
+		if err := os.Remove(fpath); err != nil {
 			log.Warn("Delete sqlite3 scratchdb file", lga.Err, err)
 			return errz.Err(err)
 		}
