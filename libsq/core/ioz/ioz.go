@@ -280,7 +280,7 @@ var _ io.Writer = (*notifyOnceWriter)(nil)
 type notifyOnceWriter struct {
 	w          io.Writer
 	fn         func()
-	doneCh     chan struct{}
+	doneCh     chan struct{} // REVISIT: Do we need doneCh?
 	notifyOnce sync.Once
 }
 

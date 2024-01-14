@@ -672,60 +672,6 @@ func (d *driveri) getTableColsMeta(ctx context.Context, db sqlz.DB, tblName stri
 	return destCols, nil
 }
 
-// grip implements driver.Grip.
-type grip struct {
-	log  *slog.Logger
-	drvr *driveri
-	db   *sql.DB
-	src  *source.Source
-}
-
-var _ driver.Grip = (*grip)(nil)
-
-// DB implements driver.Grip.
-func (g *grip) DB(context.Context) (*sql.DB, error) {
-	return g.db, nil
-}
-
-// SQLDriver implements driver.Grip.
-func (g *grip) SQLDriver() driver.SQLDriver {
-	return g.drvr
-}
-
-// Source implements driver.Grip.
-func (g *grip) Source() *source.Source {
-	return g.src
-}
-
-// TableMetadata implements driver.Grip.
-func (g *grip) TableMetadata(ctx context.Context, tblName string) (*metadata.Table, error) {
-	const query = `SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_TYPE
-FROM INFORMATION_SCHEMA.TABLES
-WHERE TABLE_NAME = @p1`
-
-	var catalog, schema, tblType string
-	err := g.db.QueryRowContext(ctx, query, tblName).Scan(&catalog, &schema, &tblType)
-	if err != nil {
-		return nil, errw(err)
-	}
-
-	// TODO: getTableMetadata can cause deadlock in the DB. Needs further investigation.
-	// But a quick hack would be to use retry on a deadlock error.
-	return getTableMetadata(ctx, g.db, catalog, schema, tblName, tblType)
-}
-
-// SourceMetadata implements driver.Grip.
-func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error) {
-	return getSourceMetadata(ctx, g.src, g.db, noSchema)
-}
-
-// Close implements driver.Grip.
-func (g *grip) Close() error {
-	g.log.Debug(lgm.CloseDB, lga.Handle, g.src.Handle)
-
-	return errw(g.db.Close())
-}
-
 // newStmtExecFunc returns a StmtExecFunc that has logic to deal with
 // the "identity insert" error. If the error is encountered, setIdentityInsert
 // is called and stmt is executed again.

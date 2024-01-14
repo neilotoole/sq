@@ -1,4 +1,4 @@
-package postgres
+package mysql
 
 import (
 	"context"
@@ -13,12 +13,12 @@ import (
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
-// grip is the postgres implementation of driver.Grip.
+// grip implements driver.Grip.
 type grip struct {
 	log  *slog.Logger
-	drvr *driveri
 	db   *sql.DB
 	src  *source.Source
+	drvr *driveri
 }
 
 // DB implements driver.Grip.
@@ -57,10 +57,5 @@ func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Sou
 // Close implements driver.Grip.
 func (g *grip) Close() error {
 	g.log.Debug(lgm.CloseDB, lga.Handle, g.src.Handle)
-
-	err := g.db.Close()
-	if err != nil {
-		return errw(err)
-	}
-	return nil
+	return errw(g.db.Close())
 }

@@ -283,7 +283,7 @@ linters-settings:
         disabled: false
       # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#empty-lines
       - name: empty-lines
-        disabled: false
+        disabled: true # Covered by "whitespace" linter.
       # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#enforce-map-style
       - name: enforce-map-style
         disabled: true

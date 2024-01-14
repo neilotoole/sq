@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/progress"
+
 	"github.com/go-sql-driver/mysql"
 	"github.com/samber/lo"
 	"golang.org/x/sync/errgroup"
@@ -186,6 +188,8 @@ WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`
 	if err != nil {
 		return nil, errw(err)
 	}
+	progress.Incr(ctx, 1)
+	progress.DebugDelay()
 
 	tblMeta.TableType = canonicalTableType(tblMeta.DBTableType)
 	tblMeta.FQName = schema + "." + tblMeta.Name
@@ -230,6 +234,8 @@ ORDER BY cols.ordinal_position ASC`
 		if err != nil {
 			return nil, errw(err)
 		}
+		progress.Incr(ctx, 1)
+		progress.DebugDelay()
 
 		if strings.EqualFold("YES", isNullable) {
 			col.Nullable = true
@@ -343,6 +349,8 @@ func setSourceSummaryMeta(ctx context.Context, db sqlz.DB, md *metadata.Source) 
 	if err != nil {
 		return errw(err)
 	}
+	progress.Incr(ctx, 1)
+	progress.DebugDelay()
 
 	md.Name = schema
 	md.Schema = schema
@@ -374,6 +382,9 @@ func getDBProperties(ctx context.Context, db sqlz.DB) (map[string]any, error) {
 		if err != nil {
 			return nil, errw(err)
 		}
+
+		progress.Incr(ctx, 1)
+		progress.DebugDelay()
 
 		// Narrow setting to bool or int if possible.
 		var (
@@ -453,6 +464,9 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 		if err != nil {
 			return nil, errw(err)
 		}
+
+		progress.Incr(ctx, 1)
+		progress.DebugDelay()
 
 		if !curTblName.Valid || !colName.Valid {
 			// table may have been dropped during metadata collection
@@ -618,6 +632,8 @@ func getTableRowCounts(ctx context.Context, db sqlz.DB, tblNames []string) (map[
 		if err = rows.Scan(&tblName, &count); err != nil {
 			return nil, errw(err)
 		}
+		progress.Incr(ctx, 1)
+		progress.DebugDelay()
 
 		m[tblName] = count
 	}

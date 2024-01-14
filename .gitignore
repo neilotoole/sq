@@ -55,3 +55,4 @@ goreleaser-test.sh
 /cli/test.db
 /*.db
 /.CHANGELOG.delta.md
+/testh/progress-remove.test.sh

@@ -573,45 +573,6 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 	return beforeCount, errw(tx.Commit())
 }
 
-// grip implements driver.Grip.
-type grip struct {
-	log  *slog.Logger
-	db   *sql.DB
-	src  *source.Source
-	drvr *driveri
-}
-
-// DB implements driver.Grip.
-func (g *grip) DB(context.Context) (*sql.DB, error) {
-	return g.db, nil
-}
-
-// SQLDriver implements driver.Grip.
-func (g *grip) SQLDriver() driver.SQLDriver {
-	return g.drvr
-}
-
-// Source implements driver.Grip.
-func (g *grip) Source() *source.Source {
-	return g.src
-}
-
-// TableMetadata implements driver.Grip.
-func (g *grip) TableMetadata(ctx context.Context, tblName string) (*metadata.Table, error) {
-	return getTableMetadata(ctx, g.db, tblName)
-}
-
-// SourceMetadata implements driver.Grip.
-func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error) {
-	return getSourceMetadata(ctx, g.src, g.db, noSchema)
-}
-
-// Close implements driver.Grip.
-func (g *grip) Close() error {
-	g.log.Debug(lgm.CloseDB, lga.Handle, g.src.Handle)
-	return errw(g.db.Close())
-}
-
 // dsnFromLocation builds the mysql driver DSN from src.Location.
 // If parseTime is true, the param "parseTime=true" is added. This
 // is because of: https://stackoverflow.com/questions/29341590/how-to-parse-time-from-database/29343013#29343013

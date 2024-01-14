@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/progress"
+
 	"github.com/c2h5oh/datasize"
 	"golang.org/x/sync/errgroup"
 
@@ -131,6 +133,8 @@ GROUP BY database_id) AS total_size_bytes`
 	if err != nil {
 		return nil, errw(err)
 	}
+	progress.Incr(ctx, 1)
+	progress.DebugDelay()
 
 	md.Name = catalog
 	md.FQName = catalog + "." + schema
@@ -238,6 +242,8 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblCatalog,
 	if err != nil {
 		return nil, errw(err)
 	}
+	progress.Incr(ctx, 1)
+	progress.DebugDelay()
 
 	if rowCount.Valid {
 		tblMeta.RowCount, err = strconv.ParseInt(strings.TrimSpace(rowCount.String), 10, 64)
@@ -251,6 +257,8 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblCatalog,
 		if err != nil {
 			return nil, errw(err)
 		}
+		progress.Incr(ctx, 1)
+		progress.DebugDelay()
 	}
 
 	if reserved.Valid {
@@ -340,6 +348,8 @@ ORDER BY TABLE_NAME ASC, TABLE_TYPE ASC`
 		if err != nil {
 			return nil, nil, errw(err)
 		}
+		progress.Incr(ctx, 1)
+		progress.DebugDelay()
 
 		tblNames = append(tblNames, tblName)
 		tblTypes = append(tblTypes, tblType)
@@ -387,7 +397,8 @@ func getColumnMeta(ctx context.Context, db sqlz.DB, tblCatalog, tblSchema, tblNa
 		if err != nil {
 			return nil, errw(err)
 		}
-
+		progress.Incr(ctx, 1)
+		progress.DebugDelay()
 		cols = append(cols, c)
 	}
 
@@ -416,11 +427,12 @@ func getConstraints(ctx context.Context, db sqlz.DB, tblCatalog, tblSchema, tblN
 	if err != nil {
 		return nil, errw(err)
 	}
+	progress.Incr(ctx, 1)
+	progress.DebugDelay()
 
 	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
 
 	var constraints []constraintMeta
-
 	for rows.Next() {
 		c := constraintMeta{}
 		err = rows.Scan(&c.TableCatalog, &c.TableSchema, &c.TableName, &c.ConstraintType, &c.ColumnName,
@@ -428,6 +440,8 @@ func getConstraints(ctx context.Context, db sqlz.DB, tblCatalog, tblSchema, tblN
 		if err != nil {
 			return nil, errw(err)
 		}
+		progress.Incr(ctx, 1)
+		progress.DebugDelay()
 
 		constraints = append(constraints, c)
 	}
@@ -441,7 +455,7 @@ func getConstraints(ctx context.Context, db sqlz.DB, tblCatalog, tblSchema, tblN
 
 // constraintMeta models constraint metadata from information schema.
 type constraintMeta struct {
-	TableCatalog   string `db:"TABLE_CATALOG"`
+	TableCatalog   string `db:"TABLE_CATALOG"` // REVISIT: why do we have the `db` tag here?
 	TableSchema    string `db:"TABLE_SCHEMA"`
 	TableName      string `db:"TABLE_NAME"`
 	ConstraintType string `db:"CONSTRAINT_TYPE"`

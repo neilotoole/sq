@@ -86,8 +86,14 @@ func NewBarContext(ctx context.Context, bar *Bar) context.Context {
 	return context.WithValue(ctx, barCtxKey{}, bar)
 }
 
-// Incr increments the progress of the outermost bar in ctx by amount n.
-// Use in conjunction with a context returned from NewBarContext.
+// Incr increments the progress of the outermost bar (if any) in ctx
+// by amount n. Use in conjunction with a context returned from NewBarContext.
+// It safe to invoke Incr on a nil context or a context that doesn't
+// contain a Bar.
+//
+// NOTE: This is a bit of an experiment. I'm a bit hesitant in going even
+// further with context-based logic, as it's not clear to me that it's
+// a good path to be on. So, it's possible this mechanism may be removed.
 func Incr(ctx context.Context, n int) {
 	if ctx == nil {
 		return
@@ -125,7 +131,7 @@ func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors
 		delay:     delay,
 		stoppedCh: make(chan struct{}),
 		stopOnce:  &sync.Once{},
-		refreshCh: make(chan any, 100),
+		// refreshCh: make(chan any, 100),
 	}
 
 	// Note that p.ctx is not the same as the arg ctx. This is a bit of a hack
@@ -147,29 +153,33 @@ func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors
 		opts := []mpb.ContainerOption{
 			mpb.WithOutput(out),
 			mpb.WithWidth(boxWidth),
+
 			// FIXME: switch back to auto refresh?
 			// mpb.WithRefreshRate(refreshRate),
-			mpb.WithManualRefresh(p.refreshCh),
-			// mpb.WithAutoRefresh(), // Needed for color in Windows, apparently
+			// mpb.WithManualRefresh(p.refreshCh),
+			mpb.WithAutoRefresh(), // Needed for color in Windows, apparently
 		}
 
 		p.pc = mpb.NewWithContext(ctx, opts...)
 		p.pcInitFn = nil
-		go func() {
-			for {
-				select {
-				case <-p.stoppedCh:
-					return
-				case <-p.ctx.Done():
-					return
-				default:
-					p.refreshCh <- time.Now()
-					time.Sleep(refreshRate)
-				}
-			}
-		}()
+		// go func() {
+		// 	for {
+		// 		select {
+		// 		case <-p.stoppedCh:
+		// 			return
+		// 		case <-p.ctx.Done():
+		// 			return
+		// 		case <-p.refreshCh:
+		// 		default:
+		// 			// p.refreshCh <- time.Now()
+		// 			time.Sleep(refreshRate)
+		// 		}
+		// 	}
+		// }()
 	}
 
+	// REVISIT: The delay init of pc is no longer required. We can just
+	// directly call it here.
 	p.pcInitFn()
 	return p
 }
@@ -205,7 +215,7 @@ type Progress struct {
 	stoppedCh chan struct{}
 	stopOnce  *sync.Once
 
-	refreshCh chan any
+	// refreshCh chan any
 
 	ctx      context.Context
 	cancelFn context.CancelFunc
@@ -244,21 +254,25 @@ func (p *Progress) Stop() {
 
 // doStop is probably needlessly complex, but at the time it was written,
 // there was a bug in the mpb package (to do with delayed render and abort),
-// and so was created an extra-paranoid workaround.
+// and so was created an extra-paranoid workaround. It's still not clear
+// if all of this works to remove the progress bars before content
+// is written to stdout.
 func (p *Progress) doStop() {
 	p.stopOnce.Do(func() {
 		p.pcInitFn = nil
 		lg.FromContext(p.ctx).Debug("Stopping progress widget")
 		defer lg.FromContext(p.ctx).Debug("Stopped progress widget")
 		if p.pc == nil {
-			close(p.stoppedCh)
 			p.cancelFn()
+			<-p.ctx.Done()
+			close(p.stoppedCh)
 			return
 		}
 
 		if len(p.bars) == 0 {
-			close(p.stoppedCh)
 			p.cancelFn()
+			<-p.ctx.Done()
+			close(p.stoppedCh)
 			return
 		}
 
@@ -278,15 +292,31 @@ func (p *Progress) doStop() {
 			<-b.barStoppedCh // Wait for bar to stop
 		}
 
-		p.refreshCh <- time.Now()
-		close(p.stoppedCh)
+		// p.refreshCh <- time.Now()
+
+		// close(p.stoppedCh)
+
+		// So, now we REALLY want to wait for the progress widget
+		// to finish. Alas, the pc.Wait method doesn't seem to
+		// always remove the bars from the terminal. So, we do
+		// some probably useless extra steps to hopefully trigger
+		// the terminal wipe before we return.
 		p.pc.Wait()
 		// Important: we must call cancelFn after pc.Wait() or the bars
 		// may not be removed from the terminal.
 		p.cancelFn()
+		<-p.ctx.Done()
+		// We shouldn't need this extra call to pc.Wait,
+		// but it shouldn't hurt?
+		// time.Sleep(time.Millisecond) // FIXME: delete
+		p.pc.Wait()
+
+		// And a tiny sleep, which again, hopefully can be removed
+		// at some point.
+		// time.Sleep(time.Millisecond) // FIXME: delete
+		close(p.stoppedCh)
 	})
 
-	<-p.stoppedCh
 	<-p.ctx.Done()
 }
 
@@ -476,9 +506,9 @@ func (b *Bar) doStop() {
 		// We *probably* only need to call b.bar.Abort() here?
 		b.bar.SetTotal(-1, true)
 		b.bar.Abort(true)
-		b.p.refreshCh <- time.Now()
+		// b.p.refreshCh <- time.Now()
 		b.bar.Wait()
-		b.p.refreshCh <- time.Now()
+		// b.p.refreshCh <- time.Now()
 
 		close(b.barStoppedCh)
 		lg.FromContext(b.p.ctx).Debug("Stopped progress bar")
