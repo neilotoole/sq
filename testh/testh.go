@@ -62,7 +62,7 @@ import (
 // defaultDBOpenTimeout is the timeout for tests to open (and ping) their DBs.
 // This should be a low value, because, well, we can either connect
 // or not.
-const defaultDBOpenTimeout = time.Second * 5
+const defaultDBOpenTimeout = time.Second * 5 //nolint:unused
 
 // Option is a functional option type used with New to
 // configure the helper.
@@ -77,7 +77,8 @@ type Option func(h *Helper)
 // Most tests don't need this.
 func OptLongOpen() Option {
 	return func(h *Helper) {
-		h.dbOpenTimeout = time.Second * 180
+		// FIXME: Delete OptLongOpen entirely
+		// h.dbOpenTimeout = time.Second * 180
 	}
 }
 
@@ -117,17 +118,16 @@ type Helper struct {
 
 	Cleanup *cleanup.Cleanup
 
-	dbOpenTimeout time.Duration
+	dbOpenTimeout time.Duration //nolint:unused
 }
 
 // New returns a new Helper. The helper's Close func will be
 // automatically invoked via t.Cleanup.
 func New(t testing.TB, opts ...Option) *Helper {
 	h := &Helper{
-		T:             t,
-		Log:           lgt.New(t),
-		Cleanup:       cleanup.New(),
-		dbOpenTimeout: defaultDBOpenTimeout,
+		T:       t,
+		Log:     lgt.New(t),
+		Cleanup: cleanup.New(),
 	}
 
 	ctx, cancelFn := context.WithCancel(context.Background())
@@ -403,9 +403,7 @@ func (h *Helper) NewCollection(handles ...string) *source.Collection {
 // same driver.Grip instance. The opened driver.Grip will be closed
 // during h.Close.
 func (h *Helper) Open(src *source.Source) driver.Grip {
-	ctx, cancelFn := context.WithTimeout(h.Context, h.dbOpenTimeout)
-	defer cancelFn()
-
+	ctx := h.Context
 	grip, err := h.Grips().Open(ctx, src)
 	require.NoError(h.T, err)
 

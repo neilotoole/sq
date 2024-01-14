@@ -20,7 +20,9 @@ import (
 	"github.com/neilotoole/sq/testh/tu"
 )
 
-func TestImportJSONL_Flat(t *testing.T) {
+func TestIngestJSONL_Flat(t *testing.T) {
+	t.Parallel()
+
 	// Either fpath (testdata file path) or input should be provided.
 	testCases := []struct {
 		fpath     string
@@ -75,6 +77,8 @@ func TestImportJSONL_Flat(t *testing.T) {
 		tc := tc
 
 		t.Run(tu.Name(i, tc.fpath, tc.input), func(t *testing.T) {
+			t.Parallel()
+
 			openFn := func(ctx context.Context) (io.ReadCloser, error) {
 				return io.NopCloser(strings.NewReader(tc.input)), nil
 			}
@@ -86,9 +90,9 @@ func TestImportJSONL_Flat(t *testing.T) {
 			}
 
 			th, src, _, grip, _ := testh.NewWith(t, testsrc.EmptyDB)
-			job := json.NewImportJob(src, openFn, grip, 0, true)
+			job := json.NewIngestJob(src, openFn, grip, 0, true)
 
-			err := json.ImportJSONL(th.Context, job)
+			err := json.IngestJSONL(th.Context, job)
 			if tc.wantErr {
 				require.Error(t, err)
 				return
@@ -105,15 +109,17 @@ func TestImportJSONL_Flat(t *testing.T) {
 	}
 }
 
-func TestImportJSON_Flat(t *testing.T) {
+func TestIngestJSON_Flat(t *testing.T) {
+	t.Parallel()
+
 	openFn := func(context.Context) (io.ReadCloser, error) {
 		return os.Open("testdata/actor.json")
 	}
 
 	th, src, _, grip, _ := testh.NewWith(t, testsrc.EmptyDB)
-	job := json.NewImportJob(src, openFn, grip, 0, true)
+	job := json.NewIngestJob(src, openFn, grip, 0, true)
 
-	err := json.ImportJSON(th.Context, job)
+	err := json.IngestJSON(th.Context, job)
 	require.NoError(t, err)
 
 	sink, err := th.QuerySQL(src, nil, "SELECT * FROM data")
@@ -122,6 +128,8 @@ func TestImportJSON_Flat(t *testing.T) {
 }
 
 func TestScanObjectsInArray(t *testing.T) {
+	t.Parallel()
+
 	var (
 		m1 = []map[string]any{{"a": float64(1)}}
 		m2 = []map[string]any{{"a": float64(1)}, {"a": float64(2)}}
@@ -188,6 +196,8 @@ func TestScanObjectsInArray(t *testing.T) {
 		tc := tc
 
 		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
+			t.Parallel()
+
 			r := bytes.NewReader([]byte(tc.in))
 			gotObjs, gotChunks, err := json.ScanObjectsInArray(r)
 			if tc.wantErr {
@@ -207,6 +217,8 @@ func TestScanObjectsInArray(t *testing.T) {
 }
 
 func TestScanObjectsInArray_Files(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		fname     string
 		wantCount int
@@ -220,6 +232,8 @@ func TestScanObjectsInArray_Files(t *testing.T) {
 		tc := tc
 
 		t.Run(tu.Name(tc.fname), func(t *testing.T) {
+			t.Parallel()
+
 			f, err := os.Open(tc.fname)
 			require.NoError(t, err)
 			defer f.Close()
@@ -233,6 +247,8 @@ func TestScanObjectsInArray_Files(t *testing.T) {
 }
 
 func TestColumnOrderFlat(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		in      string
 		want    []string
@@ -261,6 +277,8 @@ func TestColumnOrderFlat(t *testing.T) {
 		tc := tc
 
 		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
+			t.Parallel()
+
 			require.True(t, stdj.Valid([]byte(tc.in)))
 
 			gotCols, err := json.ColumnOrderFlat([]byte(tc.in))

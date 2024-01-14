@@ -17,16 +17,16 @@ import (
 
 // export for testing.
 var (
-	ImportJSON      = ingestJSON
-	ImportJSONA     = ingestJSONA
-	ImportJSONL     = ingestJSONL
+	IngestJSON      = ingestJSON
+	IngestJSONA     = ingestJSONA
+	IngestJSONL     = ingestJSONL
 	ColumnOrderFlat = columnOrderFlat
-	NewImportJob    = newImportJob
+	NewIngestJob    = newIngestJob
 )
 
-// newImportJob is a constructor for the unexported ingestJob type.
+// newIngestJob is a constructor for the unexported ingestJob type.
 // If sampleSize <= 0, a default value is used.
-func newImportJob(fromSrc *source.Source, openFn source.FileOpenFunc, destGrip driver.Grip, sampleSize int,
+func newIngestJob(fromSrc *source.Source, openFn source.FileOpenFunc, destGrip driver.Grip, sampleSize int,
 	flatten bool,
 ) ingestJob {
 	if sampleSize <= 0 {
@@ -43,6 +43,8 @@ func newImportJob(fromSrc *source.Source, openFn source.FileOpenFunc, destGrip d
 }
 
 func TestDetectColKindsJSONA(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		tbl       string
 		wantKinds []kind.Kind
@@ -56,6 +58,8 @@ func TestDetectColKindsJSONA(t *testing.T) {
 		tc := tc
 
 		t.Run(tc.tbl, func(t *testing.T) {
+			t.Parallel()
+
 			f, err := os.Open(fmt.Sprintf("testdata/%s.jsona", tc.tbl))
 			require.NoError(t, err)
 			t.Cleanup(func() { require.NoError(t, f.Close()) })
