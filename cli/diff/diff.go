@@ -7,9 +7,14 @@
 package diff
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"strings"
+
+	udiff "github.com/neilotoole/sq/cli/diff/internal/go-udiff"
+	"github.com/neilotoole/sq/cli/diff/internal/go-udiff/myers"
+	"github.com/neilotoole/sq/libsq/core/progress"
 
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -117,7 +122,7 @@ type tableDataDiff struct {
 }
 
 // Print prints dif to w. If pr is nil, printing is in monochrome.
-func Print(w io.Writer, pr *output.Printing, header, dif string) error {
+func Print(ctx context.Context, w io.Writer, pr *output.Printing, header, dif string) error {
 	if dif == "" {
 		return nil
 	}
@@ -129,6 +134,9 @@ func Print(w io.Writer, pr *output.Printing, header, dif string) error {
 		_, err := fmt.Fprintln(w, dif)
 		return errz.Err(err)
 	}
+
+	bar := progress.FromContext(ctx).
+		NewUnitCounter("Preparing diff output", "line", progress.OptMemUsage)
 
 	after := stringz.VisitLines(dif, func(i int, line string) string {
 		if i == 0 && strings.HasPrefix(line, "---") {
@@ -150,6 +158,7 @@ func Print(w io.Writer, pr *output.Printing, header, dif string) error {
 			return pr.DiffPlus.Sprint(line)
 		}
 
+		bar.IncrBy(1)
 		return pr.DiffNormal.Sprint(line)
 	})
 
@@ -157,6 +166,59 @@ func Print(w io.Writer, pr *output.Printing, header, dif string) error {
 		after = pr.DiffHeader.Sprint(header) + "\n" + after
 	}
 
+	bar.Stop()
 	_, err := fmt.Fprintln(w, after)
 	return errz.Err(err)
+}
+
+// computeUnified encapsulates computing a unified diff.
+func computeUnified(ctx context.Context, msg, oldLabel, newLabel string, lines int,
+	before, after string,
+) (string, error) {
+	if msg == "" {
+		msg = "Diffing"
+	} else {
+		msg = fmt.Sprintf("Diffing (%s)", msg)
+	}
+
+	bar := progress.FromContext(ctx).NewWaiter(msg, true, progress.OptMemUsage)
+	defer bar.Stop()
+
+	var (
+		unified string
+		err     error
+		done    = make(chan struct{})
+	)
+
+	// We compute the diff on a goroutine because the underlying diff
+	// library functions aren't context-aware.
+	go func() {
+		defer close(done)
+
+		edits := myers.ComputeEdits(before, after)
+		// After edits are computed, if the context is done,
+		// there's no point continuing.
+		select {
+		case <-ctx.Done():
+			err = errz.Err(ctx.Err())
+			return
+		default:
+		}
+
+		unified, err = udiff.ToUnified(
+			oldLabel,
+			newLabel,
+			before,
+			edits,
+			lines,
+		)
+	}()
+
+	select {
+	case <-ctx.Done():
+		return "", errz.Err(ctx.Err())
+	case <-done:
+	}
+
+	return unified, err
 }

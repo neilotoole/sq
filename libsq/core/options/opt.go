@@ -277,7 +277,7 @@ var _ Opt = Int{}
 
 // NewInt returns an options.Int instance. If flag is empty, the
 // value of key is used.
-func NewInt(key, flag string, short rune, defaultVal int, usage, help string, tags ...string) Int { //nolint:revive
+func NewInt(key, flag string, short rune, defaultVal int, usage, help string, tags ...string) Int {
 	return Int{
 		BaseOpt:    NewBaseOpt(key, flag, short, usage, help, tags...),
 		defaultVal: defaultVal,
@@ -521,7 +521,7 @@ var _ Opt = Duration{}
 
 // NewDuration returns an options.Duration instance. If flag is empty, the
 // value of key is used.
-func NewDuration(key, flag string, short rune, defaultVal time.Duration, //nolint:revive
+func NewDuration(key, flag string, short rune, defaultVal time.Duration,
 	usage, help string, tags ...string,
 ) Duration {
 	return Duration{

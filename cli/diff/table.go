@@ -6,8 +6,6 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	udiff "github.com/neilotoole/sq/cli/diff/internal/go-udiff"
-	"github.com/neilotoole/sq/cli/diff/internal/go-udiff/myers"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/driver"
@@ -48,12 +46,12 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Element
 		}
 
 		var tblDiff *tableDiff
-		tblDiff, err = buildTableStructureDiff(cfg, elems.RowCount, td1, td2)
+		tblDiff, err = buildTableStructureDiff(ctx, cfg, elems.RowCount, td1, td2)
 		if err != nil {
 			return err
 		}
 
-		if err = Print(ru.Out, ru.Writers.Printing, tblDiff.header, tblDiff.diff); err != nil {
+		if err = Print(ctx, ru.Out, ru.Writers.Printing, tblDiff.header, tblDiff.diff); err != nil {
 			return err
 		}
 	}
@@ -71,10 +69,12 @@ func ExecTableDiff(ctx context.Context, ru *run.Run, cfg *Config, elems *Element
 		return nil
 	}
 
-	return Print(ru.Out, ru.Writers.Printing, tblDataDiff.header, tblDataDiff.diff)
+	return Print(ctx, ru.Out, ru.Writers.Printing, tblDataDiff.header, tblDataDiff.diff)
 }
 
-func buildTableStructureDiff(cfg *Config, showRowCounts bool, td1, td2 *tableData) (*tableDiff, error) {
+func buildTableStructureDiff(ctx context.Context, cfg *Config, showRowCounts bool,
+	td1, td2 *tableData,
+) (*tableDiff, error) {
 	var (
 		body1, body2 string
 		err          error
@@ -87,16 +87,13 @@ func buildTableStructureDiff(cfg *Config, showRowCounts bool, td1, td2 *tableDat
 		return nil, err
 	}
 
-	edits := myers.ComputeEdits(body1, body2)
-	unified, err := udiff.ToUnified(
-		td1.src.Handle+"."+td1.tblName,
-		td2.src.Handle+"."+td2.tblName,
-		body1,
-		edits,
-		cfg.Lines,
-	)
+	handle1 := td1.src.Handle + "." + td1.tblName
+	handle2 := td2.src.Handle + "." + td2.tblName
+
+	msg := fmt.Sprintf("table schema {%s}", td1.tblName)
+	unified, err := computeUnified(ctx, msg, handle1, handle2, cfg.Lines, body1, body2)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, err
 	}
 
 	tblDiff := &tableDiff{

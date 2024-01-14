@@ -382,7 +382,7 @@ func (bi *BatchInsert) Munge(rec []any) error {
 // it must be a sql.Conn or sql.Tx.
 //
 //nolint:gocognit
-func NewBatchInsert(ctx context.Context, msg string, drvr SQLDriver, db sqlz.DB, //nolint:revive
+func NewBatchInsert(ctx context.Context, msg string, drvr SQLDriver, db sqlz.DB,
 	destTbl string, destColNames []string, batchSize int,
 ) (*BatchInsert, error) {
 	log := lg.FromContext(ctx)

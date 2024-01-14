@@ -9,7 +9,7 @@ var _ options.Opt = Opt{}
 
 // NewOpt returns a new format.Opt instance. If validFn is non-nil, it
 // is executed against possible values.
-func NewOpt(key, flag string, short rune, defaultVal Format, //nolint:revive
+func NewOpt(key, flag string, short rune, defaultVal Format,
 	validFn func(Format) error, usage, help string,
 ) Opt {
 	opt := options.NewBaseOpt(key, flag, short, usage, help, options.TagOutput)

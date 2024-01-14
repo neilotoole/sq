@@ -5,8 +5,6 @@ import (
 	"context"
 	"fmt"
 
-	udiff "github.com/neilotoole/sq/cli/diff/internal/go-udiff"
-	"github.com/neilotoole/sq/cli/diff/internal/go-udiff/myers"
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/yamlw"
 	"github.com/neilotoole/sq/cli/run"
@@ -40,6 +38,8 @@ type recordDiff struct {
 // inefficient for large result sets. findRecordDiff demonstrates one
 // possibly better path. The code is left here as a guilty reminder
 // to tackle this issue.
+//
+// See:https://github.com/neilotoole/sq/issues/353
 //
 //nolint:unused
 func findRecordDiff(ctx context.Context, ru *run.Run, lines int,
@@ -185,20 +185,13 @@ func populateRecordDiff(ctx context.Context, lines int, pr *output.Printing, rec
 		return err
 	}
 
-	edits := myers.ComputeEdits(body1, body2)
-	recDiff.diff, err = udiff.ToUnified(
-		handleTbl1,
-		handleTbl2,
-		body1,
-		edits,
-		lines,
-	)
+	msg := fmt.Sprintf("table {%s}", recDiff.td1.tblName)
+	recDiff.diff, err = computeUnified(ctx, msg, handleTbl1, handleTbl2, lines, body1, body2)
 	if err != nil {
-		return errz.Err(err)
+		return err
 	}
 
-	recDiff.header = fmt.Sprintf("sq diff %s %s | .[%d]",
-		handleTbl1, handleTbl2, recDiff.row)
+	recDiff.header = fmt.Sprintf("sq diff %s %s | .[%d]", handleTbl1, handleTbl2, recDiff.row)
 
 	return nil
 }
