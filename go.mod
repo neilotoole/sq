@@ -15,22 +15,22 @@ replace github.com/djherbis/stream v1.4.0 => github.com/neilotoole/djherbis-stre
 
 require (
 	github.com/Masterminds/sprig/v3 v3.2.3
-	github.com/a8m/tree v0.0.0-20230208161321-36ae24ddad15
+	github.com/a8m/tree v0.0.0-20240104212747-2c8764a5f17e
 	github.com/alessio/shellescape v1.4.2
 	github.com/antlr4-go/antlr/v4 v4.13.0
-	github.com/c2h5oh/datasize v0.0.0-20220606134207-859f65c6625b
+	github.com/c2h5oh/datasize v0.0.0-20231215233829-aa82cc1e6500
 	github.com/dustin/go-humanize v1.0.1
 	github.com/ecnepsnai/osquery v1.0.1
 	github.com/emirpasic/gods v1.18.1
 	github.com/fatih/color v1.16.0
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/goccy/go-yaml v1.11.2
-	github.com/google/uuid v1.4.0
+	github.com/google/uuid v1.5.0
 	github.com/h2non/filetype v1.1.3
-	github.com/jackc/pgx/v5 v5.5.0
+	github.com/jackc/pgx/v5 v5.5.2
 	github.com/mattn/go-colorable v0.1.13
 	github.com/mattn/go-runewidth v0.0.15
-	github.com/mattn/go-sqlite3 v1.14.18
+	github.com/mattn/go-sqlite3 v1.14.19
 	github.com/microsoft/go-mssqldb v1.6.0
 	github.com/mitchellh/go-wordwrap v1.0.1
 	github.com/muesli/mango-cobra v1.2.0
@@ -48,14 +48,14 @@ require (
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.4
-	github.com/xo/dburl v0.19.1
+	github.com/xo/dburl v0.20.2
 	github.com/xuri/excelize/v2 v2.8.0
 	go.uber.org/atomic v1.11.0
-	golang.org/x/exp v0.0.0-20231127185646-65229373498e
+	golang.org/x/exp v0.0.0-20240112132812-db7319d0e0e3
 	golang.org/x/mod v0.14.0
-	golang.org/x/sync v0.5.0
+	golang.org/x/sync v0.6.0
 	golang.org/x/sys v0.16.0
-	golang.org/x/term v0.15.0
+	golang.org/x/term v0.16.0
 	golang.org/x/text v0.14.0
 )
 
@@ -93,7 +93,7 @@ require (
 	github.com/spf13/cast v1.3.1 // indirect
 	github.com/xuri/efp v0.0.0-20230802181842-ad255f2331ca // indirect
 	github.com/xuri/nfp v0.0.0-20230819163627-dc951e3ffe1a // indirect
-	golang.org/x/crypto v0.16.0 // indirect
+	golang.org/x/crypto v0.17.0 // indirect
 	golang.org/x/net v0.19.0 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
