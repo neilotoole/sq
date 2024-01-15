@@ -3,7 +3,7 @@ module github.com/neilotoole/sq
 go 1.21
 
 // See: https://github.com/djherbis/fscache/pull/21
-require github.com/neilotoole/fscache v0.0.0-20231203162946-c9808f16552e
+require github.com/neilotoole/fscache v0.10.1
 
 // See: https://github.com/djherbis/stream/pull/11
 replace github.com/djherbis/stream v1.4.0 => github.com/neilotoole/djherbis-stream v0.0.0-20231203160853-609f47afedda
@@ -62,8 +62,6 @@ require (
 	github.com/VividCortex/ewma v1.2.0 // indirect
 	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/djherbis/atime v1.1.0 // indirect
-	github.com/djherbis/stream v1.4.0 // indirect
 	github.com/golang-sql/civil v0.0.0-20220223132316-b832511892a9 // indirect
 	github.com/golang-sql/sqlexp v0.1.0 // indirect
 	github.com/huandu/xstrings v1.4.0 // indirect
@@ -93,5 +91,7 @@ require (
 	golang.org/x/crypto v0.18.0 // indirect
 	golang.org/x/net v0.20.0 // indirect
 	golang.org/x/xerrors v0.0.0-20231012003039-104605ab7028 // indirect
+	gopkg.in/djherbis/atime.v1 v1.0.0 // indirect
+	gopkg.in/djherbis/stream.v1 v1.3.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
