@@ -14,14 +14,13 @@ import (
 func TestCmdSrc(t *testing.T) {
 	ctx := context.Background()
 	th := testh.New(t)
-	_ = th
 
 	tr := testrun.New(ctx, t, nil).Add()
-	// err := tr.Exec("src")
-	// require.NoError(t, err)
+	err := tr.Exec("src")
+	require.NoError(t, err)
 
 	tr.Reset().Add(*th.Source(sakila.CSVActor))
-	err := tr.Exec("src")
+	err = tr.Exec("src")
 	require.NoError(t, err)
 
 	err = tr.Reset().Exec(".data | .[0:5]")

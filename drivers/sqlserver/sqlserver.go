@@ -156,7 +156,7 @@ func (d *driveri) Renderer() *render.Renderer {
 	return r
 }
 
-// Open implements driver.GripOpener.
+// Open implements driver.Driver.
 func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 

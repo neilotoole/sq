@@ -14,8 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/ioz"
-
 	_ "github.com/mattn/go-sqlite3" // Import for side effect of loading the driver
 	"github.com/shopspring/decimal"
 
@@ -23,6 +21,7 @@ import (
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/ast/render"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/jointype"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -125,7 +124,7 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 	}
 }
 
-// Open implements driver.GripOpener.
+// Open implements driver.Driver.
 func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 

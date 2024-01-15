@@ -17,9 +17,6 @@ const (
 	refreshRate = 150 * time.Millisecond
 )
 
-// @download_16b8a3b1: http start                   ∙●∙
-// @download_16b8a3b1: download           ∙                          14.4 MiB / 427.6 MiB  3.4
-
 // DefaultColors returns the default colors used for the progress bars.
 func DefaultColors() *Colors {
 	return &Colors{

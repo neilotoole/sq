@@ -45,9 +45,8 @@ func (w *configWriter) CacheLocation(loc string) error {
 	return errz.Err(err)
 }
 
-// CacheInfo implements output.ConfigWriter. It simply
-// delegates to CacheLocation.
-func (w *configWriter) CacheInfo(loc string, enabled bool, size int64) error {
+// CacheStat implements output.ConfigWriter.
+func (w *configWriter) CacheStat(loc string, enabled bool, size int64) error {
 	const sp = "  "
 	s := loc + sp
 	if enabled {

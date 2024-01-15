@@ -1,3 +1,6 @@
+// Package checksum provides functions for working with checksums.
+// It uses crc32 for the checksum algorithm, resulting in checksum
+// values like "3af3aaad".
 package checksum
 
 import (
@@ -12,9 +15,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/ioz"
-
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/ioz"
 )
 
 // Sum returns the hash of b as a hex string.
@@ -178,6 +180,8 @@ func ForHTTPHeader(u string, header http.Header) Checksum {
 // both compressed and uncompressed responses.
 //
 // Our hack for now it to trim the "-df" suffix from the Etag.
+//
+// REVISIT: ForHTTPResponse is no longer used. It should be removed.
 func ForHTTPResponse(resp *http.Response) Checksum {
 	if resp == nil {
 		return ""

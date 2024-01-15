@@ -16,6 +16,7 @@ limitations under the License.
 
 // This code is lifted from github.com/dolmen-go/contextio.
 
+// Package contextio provides io decorators that are context-aware.
 package contextio
 
 import (

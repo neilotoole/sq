@@ -1,6 +1,6 @@
 package json
 
-// ingest.go contains functionality common to the
+// xmlud.go contains functionality common to the
 // various JSON import mechanisms.
 
 import (

@@ -14,10 +14,9 @@ import (
 
 	udiff "github.com/neilotoole/sq/cli/diff/internal/go-udiff"
 	"github.com/neilotoole/sq/cli/diff/internal/go-udiff/myers"
-	"github.com/neilotoole/sq/libsq/core/progress"
-
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/metadata"

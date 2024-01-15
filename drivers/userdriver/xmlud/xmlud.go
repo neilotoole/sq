@@ -14,8 +14,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/sqlz"
-
 	"github.com/neilotoole/sq/drivers/userdriver"
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -23,6 +21,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/sqlmodel"
+	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 )
@@ -30,10 +29,10 @@ import (
 // Genre is the user driver genre that this package supports.
 const Genre = "xml"
 
-// Import implements userdriver.ImportFunc.
-func Import(ctx context.Context, def *userdriver.DriverDef, data io.Reader, destGrip driver.Grip) error {
+// Ingest implements userdriver.IngestFunc.
+func Ingest(ctx context.Context, def *userdriver.DriverDef, data io.Reader, destGrip driver.Grip) error {
 	if def.Genre != Genre {
-		return errz.Errorf("xmlud.Import does not support genre {%s}", def.Genre)
+		return errz.Errorf("xmlud.Ingest does not support genre {%s}", def.Genre)
 	}
 
 	log := lg.FromContext(ctx)
@@ -42,7 +41,7 @@ func Import(ctx context.Context, def *userdriver.DriverDef, data io.Reader, dest
 		return err
 	}
 
-	im := &importer{
+	ing := &ingester{
 		log:           log,
 		destGrip:      destGrip,
 		destDB:        db,
@@ -58,16 +57,16 @@ func Import(ctx context.Context, def *userdriver.DriverDef, data io.Reader, dest
 		msgOnce:       map[string]struct{}{},
 	}
 
-	if err = im.execIngest(ctx); err != nil {
-		lg.WarnIfFuncError(log, "xml ingest: cleanup", im.clnup.Run)
+	if err = ing.execIngest(ctx); err != nil {
+		lg.WarnIfFuncError(log, "xml ingest: cleanup", ing.clnup.Run)
 		return errz.Wrap(err, "xml ingest")
 	}
 
-	return errz.Wrap(im.clnup.Run(), "xml ingest: cleanup")
+	return errz.Wrap(ing.clnup.Run(), "xml ingest: cleanup")
 }
 
-// importer does the work of importing data from XML.
-type importer struct {
+// ingester does the work of importing data from XML.
+type ingester struct {
 	log      *slog.Logger
 	def      *userdriver.DriverDef
 	data     io.Reader
@@ -91,7 +90,7 @@ type importer struct {
 	// update's WHERE clause.
 	execUpdateFns map[string]func(ctx context.Context, updateVals, whereArgs []any) error
 
-	// clnup holds cleanup funcs that should be run when the importer
+	// clnup holds cleanup funcs that should be run when the ingester
 	// finishes.
 	clnup *cleanup.Cleanup
 
@@ -99,13 +98,13 @@ type importer struct {
 	msgOnce map[string]struct{}
 }
 
-func (im *importer) execIngest(ctx context.Context) error { //nolint:gocognit
-	err := im.createTables(ctx)
+func (in *ingester) execIngest(ctx context.Context) error { //nolint:gocognit
+	err := in.createTables(ctx)
 	if err != nil {
 		return err
 	}
 
-	decoder := xml.NewDecoder(im.data)
+	decoder := xml.NewDecoder(in.data)
 	for {
 		t, err := decoder.Token()
 		if t == nil {
@@ -117,33 +116,33 @@ func (im *importer) execIngest(ctx context.Context) error { //nolint:gocognit
 
 		switch elem := t.(type) {
 		case xml.StartElement:
-			im.selStack.push(elem.Name.Local)
-			if im.isRootSelector() {
+			in.selStack.push(elem.Name.Local)
+			if in.isRootSelector() {
 				continue
 			}
 
-			if im.isRowSelector() {
+			if in.isRowSelector() {
 				// We found a new row...
-				prevRow := im.rowStack.peek()
+				prevRow := in.rowStack.peek()
 				if prevRow != nil {
 					// Because the new row might require the primary key of the prev row,
 					// we need to save the previous row, to ensure its primary key is
 					// generated.
-					err = im.saveRow(ctx, prevRow)
+					err = in.saveRow(ctx, prevRow)
 					if err != nil {
 						return err
 					}
 				}
 
 				var curRow *rowState
-				curRow, err = im.buildRow()
+				curRow, err = in.buildRow()
 				if err != nil {
 					return err
 				}
 
-				im.rowStack.push(curRow)
+				in.rowStack.push(curRow)
 
-				err = im.handleElemAttrs(elem, curRow)
+				err = in.handleElemAttrs(elem, curRow)
 				if err != nil {
 					return err
 				}
@@ -152,43 +151,43 @@ func (im *importer) execIngest(ctx context.Context) error { //nolint:gocognit
 			}
 
 			// It's not a row element, it's a col element
-			curRow := im.rowStack.peek()
+			curRow := in.rowStack.peek()
 			if curRow == nil {
 				return errz.Errorf("unable to parse XML: no current row on stack for elem {%s}", elem.Name.Local)
 			}
 
-			col := curRow.tbl.ColBySelector(im.selStack.selector())
+			col := curRow.tbl.ColBySelector(in.selStack.selector())
 			if col == nil {
-				if msg, ok := im.msgOncef("Skip: element {%s} is not a column of table {%s}", elem.Name.Local,
+				if msg, ok := in.msgOncef("Skip: element {%s} is not a column of table {%s}", elem.Name.Local,
 					curRow.tbl.Name); ok {
-					im.log.Debug(msg)
+					in.log.Debug(msg)
 				}
 				continue
 			}
 
 			curRow.curCol = col
 
-			err = im.handleElemAttrs(elem, curRow)
+			err = in.handleElemAttrs(elem, curRow)
 			if err != nil {
 				return err
 			}
 
 		case xml.EndElement:
-			if im.isRowSelector() {
-				row := im.rowStack.peek()
+			if in.isRowSelector() {
+				row := in.rowStack.peek()
 				if row.dirty() {
-					err = im.saveRow(ctx, row)
+					err = in.saveRow(ctx, row)
 					if err != nil {
 						return err
 					}
 				}
-				im.rowStack.pop()
+				in.rowStack.pop()
 			}
-			im.selStack.pop()
+			in.selStack.pop()
 
 		case xml.CharData:
 			data := string(elem)
-			curRow := im.rowStack.peek()
+			curRow := in.rowStack.peek()
 
 			if curRow == nil {
 				continue
@@ -198,7 +197,7 @@ func (im *importer) execIngest(ctx context.Context) error { //nolint:gocognit
 				continue
 			}
 
-			val, err := im.convertVal(curRow.tbl.Name, curRow.curCol, data)
+			val, err := in.convertVal(curRow.tbl.Name, curRow.curCol, data)
 			if err != nil {
 				return err
 			}
@@ -211,7 +210,7 @@ func (im *importer) execIngest(ctx context.Context) error { //nolint:gocognit
 	return nil
 }
 
-func (im *importer) convertVal(tbl string, col *userdriver.ColMapping, data any) (any, error) {
+func (in *ingester) convertVal(tbl string, col *userdriver.ColMapping, data any) (any, error) {
 	const errTpl = `conversion error: %s.%s: expected "%s" but got %T(%v)`
 	const errTplMsg = `conversion error: %s.%s: expected "%s" but got %T(%v): %v`
 
@@ -275,22 +274,22 @@ func (im *importer) convertVal(tbl string, col *userdriver.ColMapping, data any)
 	}
 }
 
-func (im *importer) handleElemAttrs(elem xml.StartElement, curRow *rowState) error {
+func (in *ingester) handleElemAttrs(elem xml.StartElement, curRow *rowState) error {
 	if len(elem.Attr) > 0 {
-		baseSel := im.selStack.selector()
+		baseSel := in.selStack.selector()
 
 		for _, attr := range elem.Attr {
 			attrSel := baseSel + "/@" + attr.Name.Local
 			attrCol := curRow.tbl.ColBySelector(attrSel)
 			if attrCol == nil {
-				if msg, ok := im.msgOncef("Skip: attr {%s} is not a column of table {%s}", attrSel, curRow.tbl.Name); ok {
-					im.log.Debug(msg)
+				if msg, ok := in.msgOncef("Skip: attr {%s} is not a column of table {%s}", attrSel, curRow.tbl.Name); ok {
+					in.log.Debug(msg)
 				}
 
 				continue
 			}
 			// We have found the col matching the attribute
-			val, err := im.convertVal(curRow.tbl.Name, attrCol, attr.Value)
+			val, err := in.convertVal(curRow.tbl.Name, attrCol, attr.Value)
 			if err != nil {
 				return err
 			}
@@ -304,7 +303,7 @@ func (im *importer) handleElemAttrs(elem xml.StartElement, curRow *rowState) err
 
 // setForeignColsVals sets the values of any column that needs to be
 // populated from a foreign key.
-func (im *importer) setForeignColsVals(row *rowState) error {
+func (in *ingester) setForeignColsVals(row *rowState) error {
 	// check if we need to populate any of the row's values with
 	// foreign key data (e.g. from parent table).
 	for _, col := range row.tbl.Cols {
@@ -321,7 +320,7 @@ func (im *importer) setForeignColsVals(row *rowState) error {
 
 		fkName := parts[1]
 
-		parentRow := im.rowStack.peekN(1)
+		parentRow := in.rowStack.peekN(1)
 		if parentRow == nil {
 			return errz.Errorf("unable to find parent() table for foreign key for %s.%s", row.tbl.Name, col.Name)
 		}
@@ -337,7 +336,7 @@ func (im *importer) setForeignColsVals(row *rowState) error {
 	return nil
 }
 
-func (im *importer) setSequenceColsVals(row *rowState, nextSeqVal int64) {
+func (in *ingester) setSequenceColsVals(row *rowState, nextSeqVal int64) {
 	seqColNames := userdriver.NamesFromCols(row.tbl.SequenceCols())
 	for _, seqColName := range seqColNames {
 		if _, ok := row.savedColVals[seqColName]; ok {
@@ -360,7 +359,7 @@ func (im *importer) setSequenceColsVals(row *rowState, nextSeqVal int64) {
 			// Probably safer to override the value.
 			row.dirtyColVals[seqColName] = nextSeqVal
 
-			im.log.Warn("%s.%s is a auto-generated sequence() column: ignoring the value found in input",
+			in.log.Warn("%s.%s is a auto-generated sequence() column: ignoring the value found in input",
 				row.tbl.Name, seqColName)
 			continue
 		}
@@ -370,19 +369,19 @@ func (im *importer) setSequenceColsVals(row *rowState, nextSeqVal int64) {
 	}
 }
 
-func (im *importer) saveRow(ctx context.Context, row *rowState) error {
+func (in *ingester) saveRow(ctx context.Context, row *rowState) error {
 	if !row.dirty() {
 		return nil
 	}
 
-	tblDef, ok := im.tblDefs[row.tbl.Name]
+	tblDef, ok := in.tblDefs[row.tbl.Name]
 	if !ok {
 		return errz.Errorf("unable to find definition for table {%s}", row.tbl.Name)
 	}
 
 	if row.created() {
 		// Row already exists in the db
-		err := im.dbUpdate(ctx, row)
+		err := in.dbUpdate(ctx, row)
 		if err != nil {
 			return errz.Wrapf(err, "failed to update table {%s}", tblDef.Name)
 		}
@@ -395,14 +394,14 @@ func (im *importer) saveRow(ctx context.Context, row *rowState) error {
 
 	// Maintain the table's sequence. Note that we always increment the
 	// seq val even if there are no sequence cols for this table.
-	prevSeqVal := im.tblSequence[tblDef.Name]
+	prevSeqVal := in.tblSequence[tblDef.Name]
 	nextSeqVal := prevSeqVal + 1
-	im.tblSequence[tblDef.Name] = nextSeqVal
+	in.tblSequence[tblDef.Name] = nextSeqVal
 
-	im.setSequenceColsVals(row, nextSeqVal)
+	in.setSequenceColsVals(row, nextSeqVal)
 
 	// Set any foreign cols
-	err := im.setForeignColsVals(row)
+	err := in.setForeignColsVals(row)
 	if err != nil {
 		return err
 	}
@@ -414,7 +413,7 @@ func (im *importer) saveRow(ctx context.Context, row *rowState) error {
 		}
 	}
 
-	err = im.dbInsert(ctx, row)
+	err = in.dbInsert(ctx, row)
 	if err != nil {
 		return errz.Wrapf(err, "failed to insert to table {%s}", tblDef.Name)
 	}
@@ -424,7 +423,7 @@ func (im *importer) saveRow(ctx context.Context, row *rowState) error {
 }
 
 // dbInsert inserts row's dirty col values to row's table.
-func (im *importer) dbInsert(ctx context.Context, row *rowState) error {
+func (in *ingester) dbInsert(ctx context.Context, row *rowState) error {
 	tblName := row.tbl.Name
 	colNames := make([]string, len(row.dirtyColVals))
 	vals := make([]any, len(row.dirtyColVals))
@@ -438,16 +437,16 @@ func (im *importer) dbInsert(ctx context.Context, row *rowState) error {
 	// We cache the prepared insert statements.
 	cacheKey := "##insert_func__" + tblName + "__" + strings.Join(colNames, ",")
 
-	execInsertFn, ok := im.execInsertFns[cacheKey]
+	execInsertFn, ok := in.execInsertFns[cacheKey]
 	if !ok {
 		// Nothing cached, prepare the insert statement and insert munge func
-		stmtExecer, err := im.destGrip.SQLDriver().PrepareInsertStmt(ctx, im.destDB, tblName, colNames, 1)
+		stmtExecer, err := in.destGrip.SQLDriver().PrepareInsertStmt(ctx, in.destDB, tblName, colNames, 1)
 		if err != nil {
 			return err
 		}
 
 		// Make sure we close stmt eventually.
-		im.clnup.AddC(stmtExecer)
+		in.clnup.AddC(stmtExecer)
 
 		execInsertFn = func(ctx context.Context, vals []any) error {
 			// Munge vals so that they're as the target DB expects
@@ -461,7 +460,7 @@ func (im *importer) dbInsert(ctx context.Context, row *rowState) error {
 		}
 
 		// Cache the execInsertFn.
-		im.execInsertFns[cacheKey] = execInsertFn
+		in.execInsertFns[cacheKey] = execInsertFn
 	}
 
 	err := execInsertFn(ctx, vals)
@@ -474,8 +473,8 @@ func (im *importer) dbInsert(ctx context.Context, row *rowState) error {
 
 // dbUpdate updates row's table with row's dirty values, using row's
 // primary key cols as the args to the WHERE clause.
-func (im *importer) dbUpdate(ctx context.Context, row *rowState) error {
-	drvr := im.destGrip.SQLDriver()
+func (in *ingester) dbUpdate(ctx context.Context, row *rowState) error {
+	drvr := in.destGrip.SQLDriver()
 	tblName := row.tbl.Name
 	pkColNames := row.tbl.PrimaryKey
 
@@ -510,16 +509,16 @@ func (im *importer) dbUpdate(ctx context.Context, row *rowState) error {
 
 	// We cache the prepared statement.
 	cacheKey := "##update_func__" + tblName + "__" + strings.Join(colNames, ",") + whereClause
-	execUpdateFn, ok := im.execUpdateFns[cacheKey]
+	execUpdateFn, ok := in.execUpdateFns[cacheKey]
 	if !ok {
 		// Nothing cached, prepare the update statement and munge func
-		stmtExecer, err := drvr.PrepareUpdateStmt(ctx, im.destDB, tblName, colNames, whereClause)
+		stmtExecer, err := drvr.PrepareUpdateStmt(ctx, in.destDB, tblName, colNames, whereClause)
 		if err != nil {
 			return err
 		}
 
 		// Make sure we close stmt eventually.
-		im.clnup.AddC(stmtExecer)
+		in.clnup.AddC(stmtExecer)
 
 		execUpdateFn = func(ctx context.Context, updateVals, whereArgs []any) error {
 			// Munge vals so that they're as the target DB expects
@@ -535,7 +534,7 @@ func (im *importer) dbUpdate(ctx context.Context, row *rowState) error {
 		}
 
 		// Cache the execInsertFn.
-		im.execUpdateFns[cacheKey] = execUpdateFn
+		in.execUpdateFns[cacheKey] = execUpdateFn
 	}
 
 	err := execUpdateFn(ctx, dirtyVals, pkVals)
@@ -546,10 +545,10 @@ func (im *importer) dbUpdate(ctx context.Context, row *rowState) error {
 	return nil
 }
 
-func (im *importer) buildRow() (*rowState, error) {
-	tbl := im.def.TableBySelector(im.selStack.selector())
+func (in *ingester) buildRow() (*rowState, error) {
+	tbl := in.def.TableBySelector(in.selStack.selector())
 	if tbl == nil {
-		return nil, errz.Errorf("no tbl matching current selector: %s", im.selStack.selector())
+		return nil, errz.Errorf("no tbl matching current selector: %s", in.selStack.selector())
 	}
 
 	r := &rowState{tbl: tbl}
@@ -568,47 +567,47 @@ func (im *importer) buildRow() (*rowState, error) {
 	return r, nil
 }
 
-func (im *importer) createTables(ctx context.Context) error {
-	for i := range im.def.Tables {
-		tblDef, err := userdriver.ToTableDef(im.def.Tables[i])
+func (in *ingester) createTables(ctx context.Context) error {
+	for i := range in.def.Tables {
+		tblDef, err := userdriver.ToTableDef(in.def.Tables[i])
 		if err != nil {
 			return err
 		}
 
-		im.tblDefs[tblDef.Name] = tblDef
+		in.tblDefs[tblDef.Name] = tblDef
 
-		err = im.destGrip.SQLDriver().CreateTable(ctx, im.destDB, tblDef)
+		err = in.destGrip.SQLDriver().CreateTable(ctx, in.destDB, tblDef)
 		if err != nil {
 			return err
 		}
-		im.log.Debug("Created table", lga.Target, source.Target(im.destGrip.Source(), tblDef.Name))
+		in.log.Debug("Created table", lga.Target, source.Target(in.destGrip.Source(), tblDef.Name))
 	}
 
 	return nil
 }
 
 // isRootSelector returns true if the current selector matches the root selector.
-func (im *importer) isRootSelector() bool {
-	return im.selStack.selector() == im.def.Selector
+func (in *ingester) isRootSelector() bool {
+	return in.selStack.selector() == in.def.Selector
 }
 
 // isRowSelector returns true if entity referred to by the current selector
 // maps to a table row (as opposed to a column).
-func (im *importer) isRowSelector() bool {
-	return im.def.TableBySelector(im.selStack.selector()) != nil
+func (in *ingester) isRowSelector() bool {
+	return in.def.TableBySelector(in.selStack.selector()) != nil
 }
 
 // msgOncef is used to prevent repeated logging of a message. The
 // method returns ok=true and the formatted string if the formatted
 // string has not been previous seen by msgOncef.
-func (im *importer) msgOncef(format string, a ...any) (msg string, ok bool) {
+func (in *ingester) msgOncef(format string, a ...any) (msg string, ok bool) {
 	msg = fmt.Sprintf(format, a...)
 
-	if _, exists := im.msgOnce[msg]; exists {
+	if _, exists := in.msgOnce[msg]; exists {
 		// msg already seen, return ok=false.
 		return "", false
 	}
 
-	im.msgOnce[msg] = struct{}{}
+	in.msgOnce[msg] = struct{}{}
 	return msg, true
 }

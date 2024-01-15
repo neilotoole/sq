@@ -27,9 +27,8 @@ func (w *configWriter) CacheLocation(loc string) error {
 	return writeJSON(w.out, w.pr, m)
 }
 
-// CacheInfo implements output.ConfigWriter. It simply
-// delegates to CacheLocation.
-func (w *configWriter) CacheInfo(loc string, enabled bool, size int64) error {
+// CacheStat implements output.ConfigWriter.
+func (w *configWriter) CacheStat(loc string, enabled bool, size int64) error {
 	type cacheInfo struct {
 		Location string `json:"location"`
 		Enabled  bool   `json:"enabled"`

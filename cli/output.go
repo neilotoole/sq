@@ -27,7 +27,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
-	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/core/stringz"
@@ -467,11 +466,7 @@ func getPrinting(cmd *cobra.Command, clnup *cleanup.Cleanup, opts options.Option
 		clnup.Add(pb.Stop)
 
 		// On first write to stdout, we remove the progress widget.
-		out2 = ioz.NotifyOnceWriter(out2, func() {
-			lg.FromContext(ctx).Debug("Output stream is being written to; removing progress widget")
-			pb.Stop()
-			lg.FromContext(ctx).Debug("Progress widget should be removed now")
-		})
+		out2 = ioz.NotifyOnceWriter(out2, pb.Stop)
 
 		cmd.SetContext(progress.NewContext(ctx, pb))
 	}

@@ -1,5 +1,5 @@
 // Package download provides a mechanism for getting files from
-// HTTP URLs, making use of a mostly RFC-compliant cache.
+// HTTP/S URLs, making use of a mostly RFC-compliant cache.
 //
 // Acknowledgement: This package is a heavily customized fork
 // of https://github.com/gregjones/httpcache, via bitcomplete/download.
@@ -404,7 +404,7 @@ func (dl *Download) state(req *http.Request) State {
 }
 
 // Filesize returns the size of the downloaded file. This should
-// be invoked after the download has completed.
+// only be invoked after the download has completed.
 func (dl *Download) Filesize(ctx context.Context) (int64, error) {
 	dl.mu.Lock()
 	defer dl.mu.Unlock()
@@ -437,8 +437,8 @@ func (dl *Download) Filesize(ctx context.Context) (int64, error) {
 	return fi.Size(), nil
 }
 
-// CacheFile returns the path to the cached file, if it exists,
-// and has been fully downloaded.
+// CacheFile returns the path to the cached file, if it exists and has
+// been fully downloaded.
 func (dl *Download) CacheFile(ctx context.Context) (fp string, err error) {
 	dl.mu.Lock()
 	defer dl.mu.Unlock()

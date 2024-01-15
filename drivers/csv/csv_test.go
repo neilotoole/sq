@@ -9,12 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/neilotoole/sq/testh/fixt"
-	"golang.org/x/exp/maps"
-
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/exp/maps"
 
 	"github.com/neilotoole/sq/cli/testrun"
 	"github.com/neilotoole/sq/drivers/csv"
@@ -27,6 +25,7 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
+	"github.com/neilotoole/sq/testh/fixt"
 	"github.com/neilotoole/sq/testh/sakila"
 )
 

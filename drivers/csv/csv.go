@@ -65,7 +65,7 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 	return md
 }
 
-// Open implements driver.GripOpener.
+// Open implements driver.Driver.
 func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, error) {
 	log := lg.FromContext(ctx)
 	log.Debug(lgm.OpenSrc, lga.Src, src)

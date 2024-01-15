@@ -11,8 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/ioz/lockfile"
-
 	"github.com/neilotoole/fscache"
 
 	"github.com/neilotoole/sq/libsq/core/cleanup"
@@ -22,6 +20,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
 	"github.com/neilotoole/sq/libsq/core/ioz/download"
 	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
+	"github.com/neilotoole/sq/libsq/core/ioz/lockfile"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
@@ -199,7 +198,7 @@ func (fs *Files) AddStdin(ctx context.Context, f *os.File) error {
 	return errz.Wrapf(err, "failed to add %s to fscache", StdinHandle)
 }
 
-// addStdin synchronously copies f to fs's cache. f is closed
+// addStdin asynchronously copies f to fs's cache. f is closed
 // when the async copy completes. This method should only be used
 // for stdin; for regular files, use Files.addRegularFile.
 func (fs *Files) addStdin(ctx context.Context, handle string, f *os.File) error {

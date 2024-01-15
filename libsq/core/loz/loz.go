@@ -155,7 +155,7 @@ func ZeroIfNil[T comparable](t *T) T {
 }
 
 // Take returns true if ch is non-nil and a value is available
-// from ch, or false otherwise. This is useful in for a succinct
+// from ch, or false otherwise. This is useful for a succinct
 // "if done" idiom, e.g.:
 //
 //	if someCondition && loz.Take(doneCh) {

@@ -180,11 +180,9 @@ func doExecQueryTestCase(t *testing.T, tc queryTestCase) {
 			require.NoError(t, err)
 
 			th := testh.New(t)
-			sources := th.Grips()
-
 			qc := &libsq.QueryContext{
 				Collection: coll,
-				Grips:      sources,
+				Grips:      th.Grips(),
 				Args:       tc.args,
 			}
 

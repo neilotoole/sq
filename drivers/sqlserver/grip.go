@@ -5,8 +5,6 @@ import (
 	"database/sql"
 	"log/slog"
 
-	"github.com/neilotoole/sq/libsq/core/lg"
-
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/progress"
@@ -43,11 +41,7 @@ func (g *grip) Source() *source.Source {
 // TableMetadata implements driver.Grip.
 func (g *grip) TableMetadata(ctx context.Context, tblName string) (*metadata.Table, error) {
 	bar := progress.FromContext(ctx).NewUnitCounter(g.Source().Handle+"."+tblName+": read schema", "item")
-	defer func() {
-		lg.FromContext(ctx).Warn("Before bar stop")
-		bar.Stop()
-		lg.FromContext(ctx).Warn("After bar stop")
-	}()
+	defer bar.Stop()
 	ctx = progress.NewBarContext(ctx, bar)
 
 	const query = `SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_TYPE

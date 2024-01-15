@@ -218,7 +218,6 @@ func (fs *Store) fileExists() bool {
 }
 
 // acquireLock acquires the config lock, and returns an unlock func.
-// This is an internal convenience method.
 func (fs *Store) acquireLock(ctx context.Context) (unlock func(), err error) {
 	lock, err := fs.Lockfile()
 	if err != nil {

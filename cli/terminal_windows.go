@@ -4,7 +4,6 @@ import (
 	"io"
 	"os"
 
-	"golang.org/x/sys/windows"
 	"golang.org/x/term"
 )
 
@@ -20,6 +19,10 @@ func isTerminal(w io.Writer) bool {
 
 // isColorTerminal returns true if w is a colorable terminal.
 // It respects [NO_COLOR], [FORCE_COLOR] and TERM=dumb environment variables.
+//
+// Acknowledgement: This function is lifted from neilotoole/jsoncolor, but
+// it was contributed by @hermannm.
+// - https://github.com/neilotoole/jsoncolor/pull/27
 //
 // [NO_COLOR]: https://no-color.org/
 // [FORCE_COLOR]: https://force-color.org/

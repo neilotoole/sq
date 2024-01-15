@@ -59,20 +59,6 @@ func OptUserAgent(ua string) TripFunc {
 	}
 }
 
-// contextCause is a TripFunc that extracts the context.Cause error
-// from the request context, if any, and returns it as the error.
-func contextCause() TripFunc {
-	return func(next http.RoundTripper, req *http.Request) (*http.Response, error) {
-		resp, err := next.RoundTrip(req)
-		if err != nil {
-			if cause := context.Cause(req.Context()); cause != nil {
-				err = cause
-			}
-		}
-		return resp, err
-	}
-}
-
 // DefaultUserAgent is the default User-Agent header value,
 // as used by [NewDefaultClient].
 var DefaultUserAgent = OptUserAgent(buildinfo.Get().UserAgent())
@@ -220,5 +206,19 @@ func OptRequestDelay(delay time.Duration) TripFunc {
 
 		log.Debug("HTTP request delay: done", lga.Val, delay, lga.URL, req.URL.String())
 		return next.RoundTrip(req)
+	}
+}
+
+// contextCause returns a TripFunc that extracts the context.Cause error
+// from the request context, if any, and returns it as the error.
+func contextCause() TripFunc {
+	return func(next http.RoundTripper, req *http.Request) (*http.Response, error) {
+		resp, err := next.RoundTrip(req)
+		if err != nil {
+			if cause := context.Cause(req.Context()); cause != nil {
+				err = cause
+			}
+		}
+		return resp, err
 	}
 }

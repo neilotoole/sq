@@ -10,8 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/progress"
-
 	"github.com/go-sql-driver/mysql"
 	"github.com/samber/lo"
 	"golang.org/x/sync/errgroup"
@@ -22,6 +20,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
@@ -172,7 +171,7 @@ func getNewRecordFunc(rowMeta record.Meta) driver.NewRecordFunc {
 }
 
 // getTableMetadata gets the metadata for a single table. It is the
-// implementation of driver.Grip.Table.
+// implementation of Grip.TableMetadata.
 func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadata.Table, error) {
 	query := `SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, TABLE_COMMENT, (DATA_LENGTH + INDEX_LENGTH) AS table_size,
 (SELECT COUNT(*) FROM ` + "`" + tblName + "`" + `) AS row_count

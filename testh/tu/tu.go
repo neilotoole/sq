@@ -156,6 +156,9 @@ func SliceFieldKeyValues(keyFieldName, valFieldName string, slice any) map[any]a
 //
 // Note that this function uses reflection, and may panic. It is only
 // to be used by test code.
+//
+// REVISIT: This function predates generics. It can probably be
+// removed, or at a minimum, moved to pkg loz.
 func AnySlice(slice any) []any {
 	if slice == nil {
 		return nil
@@ -306,7 +309,7 @@ func (t *tWriter) Write(p []byte) (n int, err error) {
 }
 
 // Chdir changes the working directory to dir, or if dir is empty,
-// to a temp dir. On test end, the original working dir is restored,
+// to a temp dir. On test conclusion, the original working dir is restored,
 // and the temp dir deleted (if applicable). The absolute path
 // of the changed working dir is returned.
 func Chdir(t testing.TB, dir string) (absDir string) {

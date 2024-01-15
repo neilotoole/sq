@@ -459,7 +459,7 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 	return destCols, nil
 }
 
-// Open implements driver.GripOpener.
+// Open implements driver.Driver.
 func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 

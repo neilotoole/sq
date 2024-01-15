@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/neilotoole/sq/testh/tu"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -16,6 +14,7 @@ import (
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/testsrc"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 const (
@@ -46,7 +45,7 @@ func TestImport_Ppl(t *testing.T) {
 	tu.OpenFileCount(t, true)
 
 	data := proj.ReadFile("drivers/userdriver/xmlud/testdata/people.xml")
-	err = xmlud.Import(th.Context, udDef, bytes.NewReader(data), grip)
+	err = xmlud.Ingest(th.Context, udDef, bytes.NewReader(data), grip)
 	require.NoError(t, err)
 
 	tu.OpenFileCount(t, true)
@@ -93,7 +92,7 @@ func TestImport_RSS(t *testing.T) {
 	})
 
 	data := proj.ReadFile("drivers/userdriver/xmlud/testdata/nytimes_local.rss.xml")
-	err = xmlud.Import(th.Context, udDef, bytes.NewReader(data), scratchDB)
+	err = xmlud.Ingest(th.Context, udDef, bytes.NewReader(data), scratchDB)
 	require.NoError(t, err)
 
 	srcMeta, err := scratchDB.SourceMetadata(th.Context, false)

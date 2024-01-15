@@ -9,7 +9,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
 )
 
-func TestHash(t *testing.T) {
+func TestSum(t *testing.T) {
 	got := checksum.Sum(nil)
 	require.Equal(t, "", got)
 	got = checksum.Sum([]byte{})

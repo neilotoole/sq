@@ -8,16 +8,12 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/neilotoole/sq/cli/flag"
-
-	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
-	"github.com/neilotoole/sq/libsq/core/ioz/lockfile"
-
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/config"
 	"github.com/neilotoole/sq/cli/config/yamlstore"
 	v0_34_0 "github.com/neilotoole/sq/cli/config/yamlstore/upgrades/v0.34.0" //nolint:revive
+	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/drivers/csv"
 	"github.com/neilotoole/sq/drivers/json"
@@ -30,6 +26,8 @@ import (
 	"github.com/neilotoole/sq/drivers/xlsx"
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
+	"github.com/neilotoole/sq/libsq/core/ioz/lockfile"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/slogbuf"
@@ -90,7 +88,6 @@ func newRun(ctx context.Context, stdin *os.File, stdout, stderr io.Writer, args 
 
 	log, logHandler, logCloser, logErr := defaultLogging(ctx, args, ru.Config)
 	ru.Cleanup = cleanup.New()
-	// FIXME: re-enable log closing
 	ru.LogCloser = logCloser
 	if logErr != nil {
 		stderrLog, h := stderrLogger()
@@ -277,8 +274,8 @@ func FinishRunInit(ctx context.Context, ru *run.Run) error {
 	dr.AddProvider(xlsx.Type, &xlsx.Provider{Log: log, Ingester: ru.Grips, Files: ru.Files})
 	ru.Files.AddDriverDetectors(xlsx.DetectXLSX)
 	// One day we may have more supported user driver genres.
-	userDriverImporters := map[string]userdriver.ImportFunc{
-		xmlud.Genre: xmlud.Import,
+	userDriverImporters := map[string]userdriver.IngestFunc{
+		xmlud.Genre: xmlud.Ingest,
 	}
 
 	for i, udd := range cfg.Ext.UserDrivers {
@@ -303,7 +300,7 @@ func FinishRunInit(ctx context.Context, ru *run.Run) error {
 		udp := &userdriver.Provider{
 			Log:       log,
 			DriverDef: udd,
-			ImportFn:  importFn,
+			IngestFn:  importFn,
 			Ingester:  ru.Grips,
 			Files:     ru.Files,
 		}

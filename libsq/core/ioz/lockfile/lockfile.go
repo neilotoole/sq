@@ -29,10 +29,9 @@ func New(fp string) (Lockfile, error) {
 	return Lockfile(lf), nil
 }
 
-// Lock attempts to acquire the lockfile, retrying if necessary,
-// until the timeout expires. If timeout is zero, retry will not occur.
-// On success, nil is returned. An error is returned if the lock cannot
-// be acquired for any reason.
+// Lock attempts to acquire the lock, retrying if necessary, until the timeout
+// expires. If timeout is zero, retry will not occur. On success, nil is
+// returned. An error is returned if the lock cannot be acquired for any reason.
 func (l Lockfile) Lock(ctx context.Context, timeout time.Duration) error {
 	log := lg.FromContext(ctx).With(lga.Lock, l, lga.Timeout, timeout)
 

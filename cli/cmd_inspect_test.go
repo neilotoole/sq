@@ -7,9 +7,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/neilotoole/sq/libsq/core/lg"
-	"github.com/neilotoole/sq/libsq/core/lg/lgt"
-
 	"github.com/samber/lo"
 	"github.com/stretchr/testify/require"
 
@@ -20,6 +17,8 @@ import (
 	"github.com/neilotoole/sq/drivers/postgres"
 	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/libsq/core/ioz"
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/metadata"
@@ -96,7 +95,6 @@ func TestCmdInspect_json_yaml(t *testing.T) { //nolint:tparallel
 						for _, tblName := range gotTableNames {
 							tblName := tblName
 							t.Run(tblName, func(t *testing.T) {
-								// t.Parallel()
 								tu.SkipShort(t, true)
 								tr2 := testrun.New(lg.NewContext(th.Context, lgt.New(t)), t, tr)
 								err := tr2.Exec("inspect", "."+tblName, fmt.Sprintf("--%s", tf.format))

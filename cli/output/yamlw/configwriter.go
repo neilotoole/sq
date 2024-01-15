@@ -45,9 +45,8 @@ func (w *configWriter) CacheLocation(loc string) error {
 	return writeYAML(w.out, w.p, m)
 }
 
-// CacheInfo implements output.ConfigWriter. It simply
-// delegates to CacheLocation.
-func (w *configWriter) CacheInfo(loc string, enabled bool, size int64) error {
+// CacheStat implements output.ConfigWriter.
+func (w *configWriter) CacheStat(loc string, enabled bool, size int64) error {
 	type cacheInfo struct {
 		Location string `yaml:"location"`
 		Enabled  bool   `yaml:"enabled"`

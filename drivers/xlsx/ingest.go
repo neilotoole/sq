@@ -188,7 +188,7 @@ func ingestSheetToTable(ctx context.Context, destGrip driver.Grip, sheetTbl *she
 	batchSize := driver.MaxBatchRows(drvr, len(destColKinds))
 	bi, err := driver.NewBatchInsert(
 		ctx,
-		"Ingest "+sheet.name,
+		fmt.Sprintf("Ingest {%s}", sheet.name),
 		drvr,
 		conn,
 		tblDef.Name,

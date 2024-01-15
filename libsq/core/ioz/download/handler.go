@@ -19,7 +19,7 @@ type Handler struct {
 	// Uncached is invoked when the download is not cached. The handler should
 	// return an ioz.WriteErrorCloser, which the download contents will be written
 	// to (as well as being written to the disk cache). On success, the dest
-	// io.WriteCloser is closed. If an error occurs during download or writing,
+	// writer is closed. If an error occurs during download or writing,
 	// WriteErrorCloser.Error is invoked (but Close is not invoked). If the
 	// handler returns a nil dest, the Download will log a warning and return.
 	Uncached func() (dest ioz.WriteErrorCloser)

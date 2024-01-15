@@ -13,8 +13,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/neilotoole/sq/libsq/core/ioz/lockfile"
-
 	"github.com/samber/lo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -39,6 +37,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
+	"github.com/neilotoole/sq/libsq/core/ioz/lockfile"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
@@ -192,13 +191,13 @@ func (h *Helper) init() {
 		h.addUserDrivers()
 
 		h.run = &run.Run{
-			Stdin:       os.Stdin,
-			Out:         os.Stdout,
-			ErrOut:      os.Stdin,
-			Config:      cfg,
-			ConfigStore: config.DiscardStore{},
-
-			DriverRegistry: h.registry,
+			Stdin:           os.Stdin,
+			Out:             os.Stdout,
+			ErrOut:          os.Stdin,
+			Config:          cfg,
+			ConfigStore:     config.DiscardStore{},
+			OptionsRegistry: optRegistry,
+			DriverRegistry:  h.registry,
 		}
 	})
 }
@@ -729,8 +728,8 @@ func (h *Helper) addUserDrivers() {
 	userDriverDefs := DriverDefsFrom(h.T, testsrc.PathDriverDefPpl, testsrc.PathDriverDefRSS)
 
 	// One day we may have more supported user driver genres.
-	userDriverImporters := map[string]userdriver.ImportFunc{
-		xmlud.Genre: xmlud.Import,
+	userDriverImporters := map[string]userdriver.IngestFunc{
+		xmlud.Genre: xmlud.Ingest,
 	}
 
 	for _, userDriverDef := range userDriverDefs {
@@ -748,7 +747,7 @@ func (h *Helper) addUserDrivers() {
 		udp := &userdriver.Provider{
 			Log:       h.Log,
 			DriverDef: userDriverDef,
-			ImportFn:  importFn,
+			IngestFn:  importFn,
 			Ingester:  h.grips,
 			Files:     h.files,
 		}

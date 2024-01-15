@@ -12,8 +12,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/neilotoole/sq/testh"
-
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli"
@@ -25,6 +23,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/tu"
 )
 
@@ -119,6 +118,13 @@ func newRun(ctx context.Context, t testing.TB,
 	}
 
 	// The Files instance needs unique dirs for temp and cache because
+	// the test runs may execute in parallel inside the same test binary
+	// process, thus breaking the pid-based lockfile mechanism.
+
+	// If cacheDir was supplied, use that one, because it's probably the
+	// cache dir from a previous run, that we want to reuse. If not supplied,
+	// create a unique cache dir for this run.
+	// The Files instance generally needs unique dirs for temp and cache because
 	// the test runs may execute in parallel inside the same test binary
 	// process, thus breaking the pid-based lockfile mechanism.
 	if cacheDir == "" {

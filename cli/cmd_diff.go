@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 
@@ -13,6 +12,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 )
 

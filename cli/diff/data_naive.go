@@ -7,8 +7,6 @@ import (
 	"slices"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/progress"
-
 	"github.com/samber/lo"
 	"golang.org/x/sync/errgroup"
 
@@ -19,6 +17,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/driver"
 )
 

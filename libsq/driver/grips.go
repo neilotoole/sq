@@ -9,16 +9,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
-	"github.com/neilotoole/sq/libsq/core/stringz"
-
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
+	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
@@ -51,16 +50,12 @@ func NewGrips(drvrs Provider, files *source.Files, scratchSrcFn ScratchSrcFunc) 
 	}
 }
 
-// Open returns an opened Grip for src. The returned Grip
-// may be cached and returned on future invocations for the
-// same source (where each source fields is identical).
-// Thus, the caller should typically not close
-// the Grip: it will be closed via d.Close.
+// Open returns an opened Grip for src. The returned Grip may be cached and
+// returned on future invocations for the identical source. Thus, the caller
+// should typically not close the Grip: it will be closed via d.Close.
 //
 // NOTE: This entire logic re caching/not-closing is a bit sketchy,
 // and needs to be revisited.
-//
-// Open implements GripOpener.
 func (gs *Grips) Open(ctx context.Context, src *source.Source) (Grip, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 	gs.mu.Lock()
@@ -123,8 +118,8 @@ func (gs *Grips) doOpen(ctx context.Context, src *source.Source) (Grip, error) {
 }
 
 // OpenEphemeral returns an ephemeral scratch Grip instance. It is not
-// necessary for the caller to close the returned Grip as
-// its Close method will be invoked by Grips.Close.
+// necessary for the caller to close the returned Grip as its Close method
+// will be invoked by Grips.Close.
 func (gs *Grips) OpenEphemeral(ctx context.Context) (Grip, error) {
 	const msgCloseDB = "Close ephemeral db"
 	gs.mu.Lock()
@@ -352,8 +347,7 @@ func (gs *Grips) openCachedGripFor(ctx context.Context, src *source.Source) (bac
 	return backingGrip, true, nil
 }
 
-// OpenJoin opens an appropriate Grip for use as
-// a work DB for joining across sources.
+// OpenJoin opens an appropriate Grip for use as a work DB for joining across sources.
 //
 // REVISIT: There is much work to be done on this method. Ultimately OpenJoin
 // should be able to inspect the join srcs and use heuristics to determine

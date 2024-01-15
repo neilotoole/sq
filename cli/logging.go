@@ -11,14 +11,13 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
-
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/config"
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/output/format"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/devlog"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -114,7 +113,7 @@ func defaultLogging(ctx context.Context, osArgs []string, cfg *config.Config,
 	}
 	closer = logFile.Close
 
-	// Determine if we're logging dev mode (format.Text).
+	// Determine if we're logging in dev mode (format.Text).
 	devMode := OptLogFormat.Default() != format.JSON
 	switch getLogFormat(ctx, osArgs, cfg) { //nolint:exhaustive
 	case format.Text:

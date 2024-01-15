@@ -3,9 +3,10 @@ package ast
 import (
 	"slices"
 
+	"github.com/samber/lo"
+
 	"github.com/neilotoole/sq/libsq/ast/internal/slq"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
-	"github.com/samber/lo"
 )
 
 // HandleNode models a source handle such as "@sakila".

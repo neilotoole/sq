@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/samber/lo"
-
 	mpb "github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
 
@@ -75,9 +74,8 @@ func FromContext(ctx context.Context) *Progress {
 
 type barCtxKey struct{}
 
-// NewBarContext returns ctx with bar added as a value. This
-// context can be used in conjunction with progress.Incr to increment
-// the progress bar.
+// NewBarContext returns ctx with bar added as a value. This context can
+// be used in conjunction with progress.Incr to increment the progress bar.
 func NewBarContext(ctx context.Context, bar *Bar) context.Context {
 	if ctx == nil {
 		ctx = context.Background()
@@ -91,9 +89,10 @@ func NewBarContext(ctx context.Context, bar *Bar) context.Context {
 // It safe to invoke Incr on a nil context or a context that doesn't
 // contain a Bar.
 //
-// NOTE: This is a bit of an experiment. I'm a bit hesitant in going even
-// further with context-based logic, as it's not clear to me that it's
-// a good path to be on. So, it's possible this mechanism may be removed.
+// NOTE: This context-based incrementing is a bit of an experiment. I'm
+// a bit hesitant in going even further with context-based logic, as it's not
+// clear to me that it's a good idea to lean on context so much.
+// So, it's possible this mechanism may be removed in the future.
 func Incr(ctx context.Context, n int) {
 	if ctx == nil {
 		return
@@ -131,7 +130,6 @@ func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors
 		delay:     delay,
 		stoppedCh: make(chan struct{}),
 		stopOnce:  &sync.Once{},
-		// refreshCh: make(chan any, 100),
 	}
 
 	// Note that p.ctx is not the same as the arg ctx. This is a bit of a hack
@@ -153,29 +151,11 @@ func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors
 		opts := []mpb.ContainerOption{
 			mpb.WithOutput(out),
 			mpb.WithWidth(boxWidth),
-
-			// FIXME: switch back to auto refresh?
-			// mpb.WithRefreshRate(refreshRate),
-			// mpb.WithManualRefresh(p.refreshCh),
 			mpb.WithAutoRefresh(), // Needed for color in Windows, apparently
 		}
 
 		p.pc = mpb.NewWithContext(ctx, opts...)
 		p.pcInitFn = nil
-		// go func() {
-		// 	for {
-		// 		select {
-		// 		case <-p.stoppedCh:
-		// 			return
-		// 		case <-p.ctx.Done():
-		// 			return
-		// 		case <-p.refreshCh:
-		// 		default:
-		// 			// p.refreshCh <- time.Now()
-		// 			time.Sleep(refreshRate)
-		// 		}
-		// 	}
-		// }()
 	}
 
 	// REVISIT: The delay init of pc is no longer required. We can just
@@ -214,8 +194,6 @@ type Progress struct {
 	// This somewhat duplicates <-p.ctx.Done()... maybe it can be removed?
 	stoppedCh chan struct{}
 	stopOnce  *sync.Once
-
-	// refreshCh chan any
 
 	ctx      context.Context
 	cancelFn context.CancelFunc
@@ -292,10 +270,6 @@ func (p *Progress) doStop() {
 			<-b.barStoppedCh // Wait for bar to stop
 		}
 
-		// p.refreshCh <- time.Now()
-
-		// close(p.stoppedCh)
-
 		// So, now we REALLY want to wait for the progress widget
 		// to finish. Alas, the pc.Wait method doesn't seem to
 		// always remove the bars from the terminal. So, we do
@@ -308,12 +282,7 @@ func (p *Progress) doStop() {
 		<-p.ctx.Done()
 		// We shouldn't need this extra call to pc.Wait,
 		// but it shouldn't hurt?
-		// time.Sleep(time.Millisecond) // FIXME: delete
 		p.pc.Wait()
-
-		// And a tiny sleep, which again, hopefully can be removed
-		// at some point.
-		// time.Sleep(time.Millisecond) // FIXME: delete
 		close(p.stoppedCh)
 	})
 
@@ -434,7 +403,10 @@ type Bar struct {
 	// https://github.com/vbauerster/mpb/issues/136
 	//
 	// Until that bug is fixed, the Bar is lazily initialized
-	// after the render delay expires.
+	// after the render delay expires. In fact, even when the
+	// bug is fixed, we may just stick with the lazy initialization
+	// mechanism, as it allows us to set the render delay on a
+	// per-bar basis, which is not possible with the mpb package.
 
 	barInitOnce *sync.Once
 	barInitFn   func()
@@ -473,6 +445,8 @@ func (b *Bar) Incr(n int) {
 		}
 		return
 	default:
+		// The bar hasn't been initialized yet, so we stash
+		// the increment count for later use.
 		b.incrStash.Add(int64(n))
 	}
 }
@@ -506,10 +480,7 @@ func (b *Bar) doStop() {
 		// We *probably* only need to call b.bar.Abort() here?
 		b.bar.SetTotal(-1, true)
 		b.bar.Abort(true)
-		// b.p.refreshCh <- time.Now()
 		b.bar.Wait()
-		// b.p.refreshCh <- time.Now()
-
 		close(b.barStoppedCh)
 		lg.FromContext(b.p.ctx).Debug("Stopped progress bar")
 	})

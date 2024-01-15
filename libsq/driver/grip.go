@@ -16,17 +16,15 @@ import (
 // encapsulates a sql.DB instance. The realized sql.DB instance can be
 // accessed via the DB method.
 type Grip interface {
-	// DB returns the sql.DB object for this Grip.
-	// This operation may take a long time if opening the DB requires
-	// an ingest of data (but note that when an ingest step occurs is
-	// driver-dependent).
+	// DB returns the sql.DB object for this Grip. This operation some time
+	// to complete if opening the DB requires an ingest of data.
 	DB(ctx context.Context) (*sql.DB, error)
 
 	// SQLDriver returns the underlying database driver. The type of the SQLDriver
 	// may be different from the driver type reported by the Source.
 	SQLDriver() SQLDriver
 
-	// FIXME: Add a method: SourceDriver() Driver.
+	// TODO: Add a method: SourceDriver() Driver.
 
 	// Source returns the source for which this Grip was opened.
 	Source() *source.Source

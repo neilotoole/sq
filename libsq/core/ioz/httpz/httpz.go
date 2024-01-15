@@ -90,7 +90,7 @@ func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return f(req)
 }
 
-// ResponseLogValue implements slog.LogValuer for resp.
+// ResponseLogValue implements slog.LogValuer for http.Response.
 func ResponseLogValue(resp *http.Response) slog.Value {
 	if resp == nil {
 		return slog.Value{}
@@ -126,7 +126,7 @@ func ResponseLogValue(resp *http.Response) slog.Value {
 	return slog.GroupValue(attrs...)
 }
 
-// RequestLogValue implements slog.LogValuer for req.
+// RequestLogValue implements slog.LogValuer for http.Request.
 func RequestLogValue(req *http.Request) slog.Value {
 	if req == nil {
 		return slog.Value{}

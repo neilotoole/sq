@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/flag"
@@ -9,6 +8,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
+	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/driver"
 )
 
@@ -29,12 +29,11 @@ func newCacheCmd() *cobra.Command {
 
   $ sq cache enable
 
-  $ sq cache enable @sakila
-
   $ sq cache disable
+  # Disable cache for an individual source.
+  $ sq cache disable @sakila
 
   $ sq cache clear
-
   $ sq cache clear @sakila
 
   # Print tree view of cache dir.
@@ -95,7 +94,7 @@ func execCacheStat(cmd *cobra.Command, _ []string) error {
 	}
 
 	enabled := driver.OptIngestCache.Get(ru.Config.Options)
-	return ru.Writers.Config.CacheInfo(dir, enabled, size)
+	return ru.Writers.Config.CacheStat(dir, enabled, size)
 }
 
 func newCacheClearCmd() *cobra.Command {
