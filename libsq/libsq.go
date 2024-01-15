@@ -16,6 +16,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/driver"
@@ -139,7 +140,9 @@ func QuerySQL(ctx context.Context, grip driver.Grip, db sqlz.DB, //nolint:funlen
 		}
 	}
 
+	bar := progress.FromContext(ctx).NewWaiter("Execute query", true)
 	rows, err := db.QueryContext(ctx, query, args...)
+	bar.Stop()
 	if err != nil {
 		err = errz.Wrapf(errw(err), `SQL query against %s failed: %s`, grip.Source().Handle, query)
 		select {

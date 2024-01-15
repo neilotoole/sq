@@ -259,6 +259,12 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 	if reset {
 		_, err = db.ExecContext(ctx, fmt.Sprintf("DBCC CHECKIDENT ('%s', RESEED, 1)", tbl))
 		if err != nil {
+			if hasErrCode(err, errNoIdentityColumn) {
+				// The table has no identity column, so we can't reseed.
+				lg.FromContext(ctx).Warn("truncate: table has no identity column, so cannot reseed",
+					lga.Src, src, lga.Table, tbl, lga.Err, errw(err))
+				return affected, nil
+			}
 			return affected, errz.Wrapf(errw(err), "truncate: deleted %d rows from %q but RESEED failed", affected, tbl)
 		}
 	}

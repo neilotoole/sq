@@ -17,6 +17,7 @@ const (
 	errCodeIdentityInsert int32 = 544
 	errCodeObjectNotExist int32 = 15009
 	errCodeBadObject      int32 = 208
+	errNoIdentityColumn   int32 = 7997
 )
 
 // hasErrCode returns true if err (or its cause err) is
@@ -45,6 +46,11 @@ func errw(err error) error {
 	case hasErrCode(err, errCodeBadObject):
 		return driver.NewNotExistError(err)
 	default:
+		var mssqlErr mssql.Error
+		if errors.As(err, &mssqlErr) {
+			return errz.Wrapf(err, "ERROR %d", mssqlErr.Number)
+		}
+
 		return errz.Err(err)
 	}
 }

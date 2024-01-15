@@ -33,7 +33,7 @@ func getDBProperties(ctx context.Context, db sqlz.DB) (map[string]any, error) {
 		}
 
 		progress.Incr(ctx, 1)
-		progress.DebugDelay()
+		progress.DebugSleep(ctx)
 
 		if val != nil {
 			m[pragma] = val

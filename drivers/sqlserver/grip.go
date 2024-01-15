@@ -54,7 +54,7 @@ WHERE TABLE_NAME = @p1`
 		return nil, errw(err)
 	}
 	progress.Incr(ctx, 1)
-	progress.DebugDelay()
+	progress.DebugSleep(ctx)
 
 	// TODO: getTableMetadata can cause deadlock in the DB. Needs further investigation.
 	// But a quick hack would be to use retry on a deadlock error.

@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/neilotoole/sq/libsq/core/progress"
+
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/flag"
@@ -135,7 +137,9 @@ func execTblCopy(cmd *cobra.Command, args []string) error {
 	fromTbl := tablefq.New(tblHandles[0].tbl)
 	toTbl := tablefq.New(tblHandles[1].tbl)
 
+	bar := progress.FromContext(ctx).NewWaiter("Copy table", true)
 	copied, err := sqlDrvr.CopyTable(ctx, db, fromTbl, toTbl, copyData)
+	bar.Stop()
 	if err != nil {
 		return errz.Wrapf(err, "failed tbl copy %s.%s --> %s.%s",
 			tblHandles[0].handle, tblHandles[0].tbl,
@@ -185,10 +189,10 @@ only applies to SQL sources.`,
 	return cmd
 }
 
-func execTblTruncate(cmd *cobra.Command, args []string) (err error) {
-	ru := run.FromContext(cmd.Context())
-	var tblHandles []tblHandle
-	tblHandles, err = parseTableHandleArgs(ru.DriverRegistry, ru.Config.Collection, args)
+func execTblTruncate(cmd *cobra.Command, args []string) error {
+	ctx := cmd.Context()
+	ru := run.FromContext(ctx)
+	tblHandles, err := parseTableHandleArgs(ru.DriverRegistry, ru.Config.Collection, args)
 	if err != nil {
 		return err
 	}
@@ -204,7 +208,9 @@ func execTblTruncate(cmd *cobra.Command, args []string) (err error) {
 				tblH.drvr.DriverMetadata().Type, tblH.src.Handle)
 		}
 
-		affected, err = tblH.drvr.(driver.SQLDriver).Truncate(cmd.Context(), tblH.src, tblH.tbl, true)
+		bar := progress.FromContext(ctx).NewWaiter("Truncate table", true)
+		affected, err = tblH.drvr.(driver.SQLDriver).Truncate(ctx, tblH.src, tblH.tbl, true)
+		bar.Stop()
 		if err != nil {
 			return err
 		}
@@ -270,7 +276,10 @@ func execTblDrop(cmd *cobra.Command, args []string) (err error) {
 		}
 
 		targetTbl := tablefq.New(tblH.tbl)
-		if err = sqlDrvr.DropTable(cmd.Context(), db, targetTbl, false); err != nil {
+		bar := progress.FromContext(ctx).NewWaiter("Drop table", true)
+		err = sqlDrvr.DropTable(cmd.Context(), db, targetTbl, false)
+		bar.Stop()
+		if err != nil {
 			return err
 		}
 

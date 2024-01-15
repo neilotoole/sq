@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/progress"
+
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -196,6 +198,7 @@ func RegisterDefaultOpts(reg *options.Registry) {
 		driver.OptIngestSampleSize,
 		csv.OptDelim,
 		csv.OptEmptyAsNull,
+		progress.OptDebugSleep,
 	)
 }
 
