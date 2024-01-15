@@ -12,6 +12,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/sqlmodel"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
@@ -218,8 +219,12 @@ type Metadata struct {
 // OpeningPing is a standardized mechanism to ping db using
 // driver.OptConnOpenTimeout. This should be invoked by each SQL
 // driver impl in its Open method. If the ping fails, db is closed.
+// In practice, this function probably isn't needed. Maybe ditch it.
 func OpeningPing(ctx context.Context, src *source.Source, db *sql.DB) error {
-	o := options.FromContext(ctx)
+	bar := progress.FromContext(ctx).NewWaiter("Ping "+src.Handle, true)
+	defer bar.Stop()
+
+	o := options.Merge(options.FromContext(ctx), src.Options)
 	timeout := OptConnOpenTimeout.Get(o)
 	ctx, cancelFn := context.WithTimeout(ctx, timeout)
 	defer cancelFn()
