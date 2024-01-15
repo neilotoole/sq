@@ -34,12 +34,12 @@ func TestRecordWriter(t *testing.T) {
 	pr := output.NewPrinting()
 	pr.EnableColor(false)
 	recw := yamlw.NewRecordWriter(buf, pr)
-	require.NoError(t, recw.Open(sink.RecMeta))
+	require.NoError(t, recw.Open(th.Context, sink.RecMeta))
 
-	err = recw.WriteRecords(sink.Recs)
+	err = recw.WriteRecords(th.Context, sink.Recs)
 	require.NoError(t, err)
-	require.NoError(t, recw.Flush())
-	require.NoError(t, recw.Close())
+	require.NoError(t, recw.Flush(th.Context))
+	require.NoError(t, recw.Close(th.Context))
 
 	want2 := want
 	_ = want2

@@ -9,11 +9,14 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 )
 
 // getDBProperties returns a map of the DB's settings, as exposed
-// via SQLite's pragma mechanism.
+// via SQLite's pragma mechanism. The supplied incr func should
+// be invoked for each row read from the DB.
+//
 // See: https://www.sqlite.org/pragma.html
 func getDBProperties(ctx context.Context, db sqlz.DB) (map[string]any, error) {
 	pragmas, err := listPragmaNames(ctx, db)
@@ -28,6 +31,9 @@ func getDBProperties(ctx context.Context, db sqlz.DB) (map[string]any, error) {
 		if err != nil {
 			return nil, errz.Wrapf(errw(err), "read pragma: %s", pragma)
 		}
+
+		progress.Incr(ctx, 1)
+		progress.DebugDelay()
 
 		if val != nil {
 			m[pragma] = val

@@ -3,6 +3,7 @@ package jsonw_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"strings"
@@ -11,11 +12,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/slogt"
-
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/jsonw"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/fixt"
@@ -139,6 +139,7 @@ func TestRecordWriters(t *testing.T) {
 		tc := tc
 
 		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
 			colNames, kinds := fixt.ColNamePerKind(false, false, false)
 			recMeta := testh.NewRecordMeta(colNames, kinds)
 
@@ -164,9 +165,9 @@ func TestRecordWriters(t *testing.T) {
 
 			w := tc.factoryFn(buf, pr)
 
-			require.NoError(t, w.Open(recMeta))
-			require.NoError(t, w.WriteRecords(recs))
-			require.NoError(t, w.Close())
+			require.NoError(t, w.Open(ctx, recMeta))
+			require.NoError(t, w.WriteRecords(ctx, recs))
+			require.NoError(t, w.Close(ctx))
 			require.Equal(t, tc.want, buf.String())
 
 			if !tc.multiline {
@@ -213,8 +214,9 @@ func TestErrorWriter(t *testing.T) {
 			pr.Compact = !tc.pretty
 			pr.EnableColor(tc.color)
 
-			errw := jsonw.NewErrorWriter(slogt.New(t), buf, pr)
-			errw.Error(errz.New("err1"))
+			errw := jsonw.NewErrorWriter(lgt.New(t), buf, pr)
+			e := errz.New("err1")
+			errw.Error(e, e)
 			got := buf.String()
 
 			require.Equal(t, tc.want, got)

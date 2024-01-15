@@ -26,7 +26,7 @@ func NewVersionWriter(out io.Writer, pr *output.Printing) output.VersionWriter {
 }
 
 // Version implements output.VersionWriter.
-func (w *versionWriter) Version(bi buildinfo.BuildInfo, latestVersion string, hi hostinfo.Info) error {
+func (w *versionWriter) Version(bi buildinfo.Info, latestVersion string, hi hostinfo.Info) error {
 	type cliBuildInfo struct {
 		Version       string        `json:"version" yaml:"version"`
 		Commit        string        `json:"commit,omitempty" yaml:"commit,omitempty"`

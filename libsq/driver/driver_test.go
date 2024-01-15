@@ -2,6 +2,7 @@ package driver_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -26,7 +27,7 @@ import (
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/fixt"
 	"github.com/neilotoole/sq/testh/sakila"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func TestDriver_DropTable(t *testing.T) {
@@ -154,7 +155,7 @@ func TestDriver_TableColumnTypes(t *testing.T) { //nolint:tparallel
 		handle := handle
 
 		t.Run(handle, func(t *testing.T) {
-			tutil.SkipShort(t, handle == sakila.XLSX)
+			tu.SkipShort(t, handle == sakila.XLSX)
 			t.Parallel()
 
 			th, src, drvr, _, db := testh.NewWith(t, handle)
@@ -194,7 +195,7 @@ func TestSQLDriver_PrepareUpdateStmt(t *testing.T) { //nolint:tparallel
 		handle := handle
 
 		t.Run(handle, func(t *testing.T) {
-			tutil.SkipShort(t, handle == sakila.XLSX)
+			tu.SkipShort(t, handle == sakila.XLSX)
 			t.Parallel()
 
 			th, src, drvr, _, db := testh.NewWith(t, handle)
@@ -239,12 +240,11 @@ func TestDriver_Ping(t *testing.T) {
 		handle := handle
 
 		t.Run(handle, func(t *testing.T) {
-			tutil.SkipShort(t, handle == sakila.XLSX)
+			tu.SkipShort(t, handle == sakila.XLSX)
 
 			th := testh.New(t)
 			src := th.Source(handle)
 			drvr := th.DriverFor(src)
-
 			err := drvr.Ping(th.Context, src)
 			require.NoError(t, err)
 		})
@@ -260,18 +260,18 @@ func TestDriver_Open(t *testing.T) {
 		handle := handle
 
 		t.Run(handle, func(t *testing.T) {
-			tutil.SkipShort(t, handle == sakila.XLSX)
+			tu.SkipShort(t, handle == sakila.XLSX)
 			t.Parallel()
 
 			th := testh.New(t)
 			src := th.Source(handle)
 			drvr := th.DriverFor(src)
-			pool, err := drvr.Open(th.Context, src)
+			grip, err := drvr.Open(th.Context, src)
 			require.NoError(t, err)
-			db, err := pool.DB(th.Context)
+			db, err := grip.DB(th.Context)
 			require.NoError(t, err)
 			require.NoError(t, db.PingContext(th.Context))
-			require.NoError(t, pool.Close())
+			require.NoError(t, grip.Close())
 		})
 	}
 }
@@ -294,7 +294,15 @@ func TestNewBatchInsert(t *testing.T) {
 
 			// Get records from TblActor that we'll write to the new tbl
 			recMeta, recs := testh.RecordsFromTbl(t, handle, sakila.TblActor)
-			bi, err := driver.NewBatchInsert(th.Context, drvr, conn, tblName, recMeta.Names(), batchSize)
+			bi, err := driver.NewBatchInsert(
+				th.Context,
+				"Insert records",
+				drvr,
+				conn,
+				tblName,
+				recMeta.Names(),
+				batchSize,
+			)
 			require.NoError(t, err)
 
 			for _, rec := range recs {
@@ -435,9 +443,9 @@ func TestDatabase_TableMetadata(t *testing.T) { //nolint:tparallel
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
-			th, _, _, pool, _ := testh.NewWith(t, handle)
+			th, _, _, grip, _ := testh.NewWith(t, handle)
 
-			tblMeta, err := pool.TableMetadata(th.Context, sakila.TblActor)
+			tblMeta, err := grip.TableMetadata(th.Context, sakila.TblActor)
 			require.NoError(t, err)
 			require.Equal(t, sakila.TblActor, tblMeta.Name)
 			require.Equal(t, int64(sakila.TblActorCount), tblMeta.RowCount)
@@ -454,9 +462,9 @@ func TestDatabase_SourceMetadata(t *testing.T) {
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
-			th, _, _, pool, _ := testh.NewWith(t, handle)
+			th, _, _, grip, _ := testh.NewWith(t, handle)
 
-			md, err := pool.SourceMetadata(th.Context, false)
+			md, err := grip.SourceMetadata(th.Context, false)
 			require.NoError(t, err)
 			require.Equal(t, sakila.TblActor, md.Tables[0].Name)
 			require.Equal(t, int64(sakila.TblActorCount), md.Tables[0].RowCount)
@@ -476,11 +484,11 @@ func TestDatabase_SourceMetadata_concurrent(t *testing.T) { //nolint:tparallel
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
-			th, _, _, pool, _ := testh.NewWith(t, handle)
+			th, _, _, grip, _ := testh.NewWith(t, handle)
 			g, gCtx := errgroup.WithContext(th.Context)
 			for i := 0; i < concurrency; i++ {
 				g.Go(func() error {
-					md, err := pool.SourceMetadata(gCtx, false)
+					md, err := grip.SourceMetadata(gCtx, false)
 					require.NoError(t, err)
 					require.NotNil(t, md)
 					gotTbl := md.Table(sakila.TblActor)
@@ -533,7 +541,7 @@ func TestSQLDriver_AlterTableRename(t *testing.T) {
 		handle := handle
 
 		t.Run(handle, func(t *testing.T) {
-			th, src, drvr, pool, db := testh.NewWith(t, handle)
+			th, src, drvr, grip, db := testh.NewWith(t, handle)
 
 			// Make a copy of the table to play with
 			tbl := th.CopyTable(true, src, tablefq.From(sakila.TblActor), tablefq.T{}, true)
@@ -544,7 +552,7 @@ func TestSQLDriver_AlterTableRename(t *testing.T) {
 			require.NoError(t, err)
 			defer th.DropTable(src, tablefq.From(newName))
 
-			md, err := pool.TableMetadata(th.Context, newName)
+			md, err := grip.TableMetadata(th.Context, newName)
 			require.NoError(t, err)
 			require.Equal(t, newName, md.Name)
 			sink, err := th.QuerySQL(src, nil, "SELECT * FROM "+newName)
@@ -561,7 +569,7 @@ func TestSQLDriver_AlterTableRenameColumn(t *testing.T) {
 		handle := handle
 
 		t.Run(handle, func(t *testing.T) {
-			th, src, drvr, pool, db := testh.NewWith(t, handle)
+			th, src, drvr, grip, db := testh.NewWith(t, handle)
 
 			// Make a copy of the table to play with
 			tbl := th.CopyTable(true, src, tablefq.From(sakila.TblActor), tablefq.T{}, true)
@@ -570,7 +578,7 @@ func TestSQLDriver_AlterTableRenameColumn(t *testing.T) {
 			err := drvr.AlterTableRenameColumn(th.Context, db, tbl, "first_name", newName)
 			require.NoError(t, err)
 
-			md, err := pool.TableMetadata(th.Context, tbl)
+			md, err := grip.TableMetadata(th.Context, tbl)
 			require.NoError(t, err)
 			require.NotNil(t, md.Column(newName))
 			sink, err := th.QuerySQL(src, nil, fmt.Sprintf("SELECT %s FROM %s", newName, tbl))
@@ -618,13 +626,13 @@ func TestSQLDriver_CurrentSchemaCatalog(t *testing.T) {
 		tc := tc
 
 		t.Run(tc.handle, func(t *testing.T) {
-			th, _, drvr, pool, db := testh.NewWith(t, tc.handle)
+			th, _, drvr, grip, db := testh.NewWith(t, tc.handle)
 
 			gotSchema, err := drvr.CurrentSchema(th.Context, db)
 			require.NoError(t, err)
 			require.Equal(t, tc.wantSchema, gotSchema)
 
-			md, err := pool.SourceMetadata(th.Context, false)
+			md, err := grip.SourceMetadata(th.Context, false)
 			require.NoError(t, err)
 			require.NotNil(t, md)
 			require.Equal(t, md.Schema, tc.wantSchema)
@@ -721,7 +729,7 @@ func TestSQLDriver_ErrWrap_IsErrNotExist(t *testing.T) {
 			th, _, _, _, _ := testh.NewWith(t, h)
 			_, err := th.QuerySLQ(h+".does_not_exist", nil)
 			require.Error(t, err)
-			require.True(t, errz.IsErrNotExist(err))
+			require.True(t, errz.Has[*driver.NotExistError](err))
 		})
 	}
 }
@@ -738,11 +746,48 @@ func TestMungeColNames(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, tc.in), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
 			ctx := options.NewContext(context.Background(), options.Options{})
 			got, err := driver.MungeResultColNames(ctx, tc.in)
 			require.NoError(t, err)
 			require.Equal(t, tc.want, got)
 		})
 	}
+}
+
+func TestEmptyDataError(t *testing.T) {
+	var err error
+	require.False(t, errz.Has[driver.EmptyDataError](err))
+	require.False(t, errz.Has[driver.EmptyDataError](errz.New("huzzah")))
+
+	var ede1 driver.EmptyDataError
+	require.True(t, errz.Has[driver.EmptyDataError](ede1))
+
+	var ede2 driver.EmptyDataError
+	require.True(t, errors.As(ede1, &ede2))
+
+	err = driver.NewEmptyDataError("huzzah")
+	require.True(t, errz.Has[driver.EmptyDataError](err))
+	err = fmt.Errorf("wrap me: %w", err)
+	require.True(t, errz.Has[driver.EmptyDataError](err))
+
+	err = driver.NewEmptyDataError("%s doesn't exist", "me")
+	require.True(t, errz.Has[driver.EmptyDataError](err))
+	require.Equal(t, "me doesn't exist", err.Error())
+}
+
+func TestNotExistError(t *testing.T) {
+	var err error
+	require.False(t, errz.Has[*driver.NotExistError](err))
+
+	var nee1 *driver.NotExistError
+	require.True(t, errz.Has[*driver.NotExistError](nee1))
+
+	var nee2 *driver.NotExistError
+	require.True(t, errors.As(nee1, &nee2))
+
+	err = driver.NewNotExistError(errz.New("huzzah"))
+	require.True(t, errz.Has[*driver.NotExistError](err))
+	err = fmt.Errorf("wrap me: %w", err)
+	require.True(t, errz.Has[*driver.NotExistError](err))
 }

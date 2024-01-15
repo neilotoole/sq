@@ -56,10 +56,10 @@ func cmdFlagIsSetTrue(cmd *cobra.Command, name string) bool {
 	return b
 }
 
-// cmdFlagIsSetTrue returns the bool value of flag name. If the flag
+// cmdFlagBool returns the bool value of flag name. If the flag
 // has not been set, its default value is returned.
 // Contrast with cmdFlagIsSetTrue.
-func cmdFlagBool(cmd *cobra.Command, name string) bool { //nolint:unused
+func cmdFlagBool(cmd *cobra.Command, name string) bool {
 	b, err := cmd.Flags().GetBool(name)
 	if err != nil {
 		panic(err) // Should never happen
@@ -71,6 +71,8 @@ func cmdFlagBool(cmd *cobra.Command, name string) bool { //nolint:unused
 // getBootstrapFlagValue parses osArgs looking for flg. The flag is always
 // treated as string. This function exists because some components, such
 // as logging and config, interrogate flags before cobra has loaded.
+//
+//nolint:unparam
 func getBootstrapFlagValue(flg, flgShort, flgUsage string, osArgs []string) (val string, ok bool, err error) {
 	fs := pflag.NewFlagSet("bootstrap", pflag.ContinueOnError)
 	fs.ParseErrorsWhitelist.UnknownFlags = true

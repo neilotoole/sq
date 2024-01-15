@@ -12,13 +12,10 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/samber/lo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/neilotoole/slogt"
 
 	"github.com/neilotoole/sq/cli"
 	"github.com/neilotoole/sq/cli/buildinfo"
@@ -40,9 +37,11 @@ import (
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
+	"github.com/neilotoole/sq/libsq/core/ioz/lockfile"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/sqlmodel"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
@@ -55,38 +54,24 @@ import (
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/testsrc"
+	"github.com/neilotoole/sq/testh/tu"
 )
-
-// defaultDBOpenTimeout is the timeout for tests to open (and ping) their DBs.
-// This should be a low value, because, well, we can either connect
-// or not.
-const defaultDBOpenTimeout = time.Second * 5
-
-func init() { //nolint:gochecknoinits
-	slogt.Default = slogt.Factory(func(w io.Writer) slog.Handler {
-		h := &slog.HandlerOptions{
-			Level:     slog.LevelDebug,
-			AddSource: true,
-		}
-
-		return slog.NewTextHandler(w, h)
-	})
-}
 
 // Option is a functional option type used with New to
 // configure the helper.
 type Option func(h *Helper)
 
-// OptLongOpen allows a longer DB open timeout, which is necessary
-// for some tests. Note that DB open performs an import for file-based
-// sources, so it can take some time. Usage:
-//
-//	testh.New(t, testh.OptLongOpen())
-//
-// Most tests don't need this.
-func OptLongOpen() Option {
+// OptCaching enables or disables ingest caching.
+func OptCaching(enable bool) Option {
 	return func(h *Helper) {
-		h.dbOpenTimeout = time.Second * 180
+		o := options.FromContext(h.Context)
+		if o == nil {
+			o = options.Options{driver.OptIngestCache.Key(): enable}
+			h.Context = options.NewContext(h.Context, o)
+			return
+		}
+
+		o[driver.OptIngestCache.Key()] = enable
 	}
 }
 
@@ -99,7 +84,7 @@ type Helper struct {
 
 	registry *driver.Registry
 	files    *source.Files
-	pools    *driver.Pools
+	grips    *driver.Grips
 	run      *run.Run
 
 	initOnce sync.Once
@@ -111,54 +96,64 @@ type Helper struct {
 	cancelFn context.CancelFunc
 
 	Cleanup *cleanup.Cleanup
-
-	dbOpenTimeout time.Duration
 }
 
 // New returns a new Helper. The helper's Close func will be
 // automatically invoked via t.Cleanup.
 func New(t testing.TB, opts ...Option) *Helper {
 	h := &Helper{
-		T:             t,
-		Log:           slogt.New(t),
-		Cleanup:       cleanup.New(),
-		dbOpenTimeout: defaultDBOpenTimeout,
-	}
-
-	for _, opt := range opts {
-		opt(h)
+		T:       t,
+		Log:     lgt.New(t),
+		Cleanup: cleanup.New(),
 	}
 
 	ctx, cancelFn := context.WithCancel(context.Background())
 	h.cancelFn = cancelFn
 
 	h.Context = lg.NewContext(ctx, h.Log)
-
 	t.Cleanup(h.Close)
+
+	for _, opt := range opts {
+		opt(h)
+	}
+
 	return h
 }
 
-// NewWith is a convenience wrapper for New that also returns
-// a Source for handle, the driver.SQLDriver, driver.Pool,
+// NewWith is a convenience wrapper for New, that also returns
+// the source.Source for handle, the driver.SQLDriver, driver.Grip,
 // and the *sql.DB.
-func NewWith(t testing.TB, handle string) (*Helper, *source.Source, driver.SQLDriver, driver.Pool, *sql.DB) {
+func NewWith(t testing.TB, handle string) (*Helper, *source.Source, //nolint:revive
+	driver.SQLDriver, driver.Grip, *sql.DB,
+) {
 	th := New(t)
 	src := th.Source(handle)
-	pool := th.Open(src)
-	drvr := pool.SQLDriver()
-	db, err := pool.DB(th.Context)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
 	require.NoError(t, err)
 
-	return th, src, drvr, pool, db
+	return th, src, drvr, grip, db
 }
 
 func (h *Helper) init() {
 	h.initOnce.Do(func() {
 		log := h.Log
+
+		optRegistry := &options.Registry{}
+		cli.RegisterDefaultOpts(optRegistry)
 		h.registry = driver.NewRegistry(log)
 
+		cfg := config.New()
 		var err error
-		h.files, err = source.NewFiles(h.Context)
+
+		h.files, err = source.NewFiles(
+			h.Context,
+			optRegistry,
+			TempLockFunc(h.T),
+			tu.TempDir(h.T, false),
+			tu.TempDir(h.T, false),
+		)
 		require.NoError(h.T, err)
 
 		h.Cleanup.Add(func() {
@@ -167,22 +162,20 @@ func (h *Helper) init() {
 			assert.NoError(h.T, err)
 		})
 
-		h.files.AddDriverDetectors(source.DetectMagicNumber)
-
-		h.pools = driver.NewPools(log, h.registry, sqlite3.NewScratchSource)
-		h.Cleanup.AddC(h.pools)
+		h.grips = driver.NewGrips(h.registry, h.files, sqlite3.NewScratchSource)
+		h.Cleanup.AddC(h.grips)
 
 		h.registry.AddProvider(sqlite3.Type, &sqlite3.Provider{Log: log})
 		h.registry.AddProvider(postgres.Type, &postgres.Provider{Log: log})
 		h.registry.AddProvider(sqlserver.Type, &sqlserver.Provider{Log: log})
 		h.registry.AddProvider(mysql.Type, &mysql.Provider{Log: log})
 
-		csvp := &csv.Provider{Log: log, Scratcher: h.pools, Files: h.files}
+		csvp := &csv.Provider{Log: log, Ingester: h.grips, Files: h.files}
 		h.registry.AddProvider(csv.TypeCSV, csvp)
 		h.registry.AddProvider(csv.TypeTSV, csvp)
 		h.files.AddDriverDetectors(csv.DetectCSV, csv.DetectTSV)
 
-		jsonp := &json.Provider{Log: log, Scratcher: h.pools, Files: h.files}
+		jsonp := &json.Provider{Log: log, Ingester: h.grips, Files: h.files}
 		h.registry.AddProvider(json.TypeJSON, jsonp)
 		h.registry.AddProvider(json.TypeJSONA, jsonp)
 		h.registry.AddProvider(json.TypeJSONL, jsonp)
@@ -192,7 +185,7 @@ func (h *Helper) init() {
 			json.DetectJSONL(driver.OptIngestSampleSize.Get(nil)),
 		)
 
-		h.registry.AddProvider(xlsx.Type, &xlsx.Provider{Log: log, Scratcher: h.pools, Files: h.files})
+		h.registry.AddProvider(xlsx.Type, &xlsx.Provider{Log: log, Ingester: h.grips, Files: h.files})
 		h.files.AddDriverDetectors(xlsx.DetectXLSX)
 
 		h.addUserDrivers()
@@ -201,9 +194,9 @@ func (h *Helper) init() {
 			Stdin:           os.Stdin,
 			Out:             os.Stdout,
 			ErrOut:          os.Stdin,
-			Config:          config.New(),
+			Config:          cfg,
 			ConfigStore:     config.DiscardStore{},
-			OptionsRegistry: &options.Registry{},
+			OptionsRegistry: optRegistry,
 			DriverRegistry:  h.registry,
 		}
 	})
@@ -224,7 +217,7 @@ func (h *Helper) Add(src *source.Source) *source.Source {
 	// This is a bit of a hack to ensure that internals are loaded: we
 	// load a known source. The loading mechanism should be refactored
 	// to not require this.
-	_ = h.Source(sakila.Pg)
+	_ = h.Source(sakila.SL3)
 
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -290,7 +283,7 @@ func (h *Helper) Source(handle string) *source.Source {
 		// It might be expected that we would simply use the
 		// collection (h.coll) to return the source, but this
 		// method also uses a cache. This is because this
-		// method makes a copy the data file of file-based sources
+		// method makes a copy of the data file of file-based sources
 		// as mentioned in the method godoc.
 		h.coll = mustLoadCollection(h.Context, t)
 		h.srcCache = map[string]*source.Source{}
@@ -348,6 +341,29 @@ func (h *Helper) Source(handle string) *source.Source {
 	return src
 }
 
+// SourceConfigured returns true if the source is configured. Note
+// that Helper.Source skips the test if the source is not configured: that
+// is to say, if the source location requires population via an envar, and
+// the envar is not set. For example, for the PostgreSQL source @sakila_pg12,
+// the envar SQ_TEST_SRC__SAKILA_PG12 is required. SourceConfigured tests
+// if that envar is set.
+func (h *Helper) SourceConfigured(handle string) bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if !stringz.InSlice(sakila.SQLAllExternal(), handle) {
+		// Non-SQL and SQLite sources are always available.
+		return true
+	}
+
+	handleEnvar := "SQ_TEST_SRC__" + strings.ToUpper(strings.TrimPrefix(handle, "@"))
+	if envar, ok := os.LookupEnv(handleEnvar); !ok || strings.TrimSpace(envar) == "" {
+		return false
+	}
+
+	return true
+}
+
 // NewCollection is a convenience function for building a
 // new *source.Collection incorporating the supplied handles. See
 // Helper.Source for more on the behavior.
@@ -359,49 +375,47 @@ func (h *Helper) NewCollection(handles ...string) *source.Collection {
 	return coll
 }
 
-// Open opens a driver.Pool for src via h's internal Pools
+// Open opens a driver.Grip for src via h's internal Grips
 // instance: thus subsequent calls to Open may return the
-// same Pool instance. The opened driver.Pool will be closed
+// same driver.Grip instance. The opened driver.Grip will be closed
 // during h.Close.
-func (h *Helper) Open(src *source.Source) driver.Pool {
-	ctx, cancelFn := context.WithTimeout(h.Context, h.dbOpenTimeout)
-	defer cancelFn()
-
-	pool, err := h.Pools().Open(ctx, src)
+func (h *Helper) Open(src *source.Source) driver.Grip {
+	ctx := h.Context
+	grip, err := h.Grips().Open(ctx, src)
 	require.NoError(h.T, err)
 
-	db, err := pool.DB(ctx)
+	db, err := grip.DB(ctx)
 	require.NoError(h.T, err)
 
 	require.NoError(h.T, db.PingContext(ctx))
-	return pool
+	return grip
 }
 
 // OpenDB is a convenience method for getting the sql.DB for src.
 // The returned sql.DB is closed during h.Close, via the closing
-// of its parent driver.Pool.
+// of its parent driver.Grip.
 func (h *Helper) OpenDB(src *source.Source) *sql.DB {
-	pool := h.Open(src)
-	db, err := pool.DB(h.Context)
+	grip := h.Open(src)
+	db, err := grip.DB(h.Context)
 	require.NoError(h.T, err)
 	return db
 }
 
-// openNew opens a new driver.Pool. It is the caller's responsibility
-// to close the returned Pool. Unlike method Open, this method
+// openNew opens a new driver.Grip. It is the caller's responsibility
+// to close the returned Grip. Unlike method Open, this method
 // will always invoke the driver's Open method.
 //
 // Some of Helper's methods (e.g. DropTable) need to use openNew rather
-// than Open, as the Pool returned by Open can be closed by test code,
+// than Open, as the Grip returned by Open can be closed by test code,
 // potentially causing problems during Cleanup.
-func (h *Helper) openNew(src *source.Source) driver.Pool {
+func (h *Helper) openNew(src *source.Source) driver.Grip {
 	h.Log.Debug("openNew", lga.Src, src)
 	reg := h.Registry()
 	drvr, err := reg.DriverFor(src.Type)
 	require.NoError(h.T, err)
-	pool, err := drvr.Open(h.Context, src)
+	grip, err := drvr.Open(h.Context, src)
 	require.NoError(h.T, err)
-	return pool
+	return grip
 }
 
 // SQLDriverFor is a convenience method to get src's driver.SQLDriver.
@@ -427,12 +441,12 @@ func (h *Helper) DriverFor(src *source.Source) driver.Driver {
 // RowCount returns the result of "SELECT COUNT(*) FROM tbl",
 // failing h's test on any error.
 func (h *Helper) RowCount(src *source.Source, tbl string) int64 {
-	pool := h.openNew(src)
-	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, pool)
+	grip := h.openNew(src)
+	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, grip)
 
-	query := "SELECT COUNT(*) FROM " + pool.SQLDriver().Dialect().Enquote(tbl)
+	query := "SELECT COUNT(*) FROM " + grip.SQLDriver().Dialect().Enquote(tbl)
 	var count int64
-	db, err := pool.DB(h.Context)
+	db, err := grip.DB(h.Context)
 	require.NoError(h.T, err)
 
 	require.NoError(h.T, db.QueryRowContext(h.Context, query).Scan(&count))
@@ -445,13 +459,13 @@ func (h *Helper) RowCount(src *source.Source, tbl string) int64 {
 func (h *Helper) CreateTable(dropAfter bool, src *source.Source, tblDef *sqlmodel.TableDef,
 	data ...[]any,
 ) (affected int64) {
-	pool := h.openNew(src)
-	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, pool)
+	grip := h.openNew(src)
+	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, grip)
 
-	db, err := pool.DB(h.Context)
+	db, err := grip.DB(h.Context)
 	require.NoError(h.T, err)
 
-	require.NoError(h.T, pool.SQLDriver().CreateTable(h.Context, db, tblDef))
+	require.NoError(h.T, grip.SQLDriver().CreateTable(h.Context, db, tblDef))
 	h.T.Logf("Created table %s.%s", src.Handle, tblDef.Name)
 
 	if dropAfter {
@@ -473,11 +487,11 @@ func (h *Helper) Insert(src *source.Source, tbl string, cols []string, records .
 		return 0
 	}
 
-	pool := h.openNew(src)
-	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, pool)
+	grip := h.openNew(src)
+	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, grip)
 
-	drvr := pool.SQLDriver()
-	db, err := pool.DB(h.Context)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(h.Context)
 	require.NoError(h.T, err)
 
 	conn, err := db.Conn(h.Context)
@@ -485,7 +499,15 @@ func (h *Helper) Insert(src *source.Source, tbl string, cols []string, records .
 	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, conn)
 
 	batchSize := driver.MaxBatchRows(drvr, len(cols))
-	bi, err := driver.NewBatchInsert(h.Context, drvr, conn, tbl, cols, batchSize)
+	bi, err := driver.NewBatchInsert(
+		h.Context,
+		libsq.MsgIngestRecords,
+		drvr,
+		conn,
+		tbl,
+		cols,
+		batchSize,
+	)
 	require.NoError(h.T, err)
 
 	for _, rec := range records {
@@ -512,7 +534,7 @@ func (h *Helper) Insert(src *source.Source, tbl string, cols []string, records .
 
 	close(bi.RecordCh) // Indicate that we're finished writing records
 
-	err = <-bi.ErrCh // Wait for bi to complete
+	err = <-bi.ErrCh // Stop for bi to complete
 	require.NoError(h.T, err)
 
 	h.T.Logf("Inserted %d rows to %s.%s", bi.Written(), src.Handle, tbl)
@@ -538,13 +560,13 @@ func (h *Helper) CopyTable(
 		toTable.Table = stringz.UniqTableName(fromTable.Table)
 	}
 
-	pool := h.openNew(src)
-	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, pool)
+	grip := h.openNew(src)
+	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, grip)
 
-	db, err := pool.DB(h.Context)
+	db, err := grip.DB(h.Context)
 	require.NoError(h.T, err)
 
-	copied, err := pool.SQLDriver().CopyTable(
+	copied, err := grip.SQLDriver().CopyTable(
 		h.Context,
 		db,
 		fromTable,
@@ -568,28 +590,28 @@ func (h *Helper) CopyTable(
 
 // DropTable drops tbl from src.
 func (h *Helper) DropTable(src *source.Source, tbl tablefq.T) {
-	pool := h.openNew(src)
-	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, pool)
+	grip := h.openNew(src)
+	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, grip)
 
-	db, err := pool.DB(h.Context)
+	db, err := grip.DB(h.Context)
 	require.NoError(h.T, err)
 
-	require.NoError(h.T, pool.SQLDriver().DropTable(h.Context, db, tbl, true))
+	require.NoError(h.T, grip.SQLDriver().DropTable(h.Context, db, tbl, true))
 	h.Log.Debug("Dropped table", lga.Target, source.Target(src, tbl.Table))
 }
 
 // QuerySQL uses libsq.QuerySQL to execute SQL query
 // against src, returning a sink to which all records have
 // been written. Typically the db arg is nil, and QuerySQL uses the
-// same driver.Pool instance as returned by Helper.Open. If db
+// same driver.Grip instance as returned by Helper.Open. If db
 // is non-nil, it is passed to libsq.QuerySQL (e.g. the query needs to
 // execute against a sql.Tx), and the caller is responsible for closing db.
 func (h *Helper) QuerySQL(src *source.Source, db sqlz.DB, query string, args ...any) (*RecordSink, error) {
-	pool := h.Open(src)
+	grip := h.Open(src)
 
 	sink := &RecordSink{}
 	recw := output.NewRecordWriterAdapter(h.Context, sink)
-	err := libsq.QuerySQL(h.Context, pool, db, recw, query, args...)
+	err := libsq.QuerySQL(h.Context, grip, db, recw, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -614,11 +636,9 @@ func (h *Helper) QuerySLQ(query string, args map[string]string) (*RecordSink, er
 	}
 
 	qc := &libsq.QueryContext{
-		Collection:        h.coll,
-		PoolOpener:        h.pools,
-		JoinPoolOpener:    h.pools,
-		ScratchPoolOpener: h.pools,
-		Args:              args,
+		Collection: h.coll,
+		Grips:      h.grips,
+		Args:       args,
 	}
 
 	sink := &RecordSink{}
@@ -638,7 +658,7 @@ func (h *Helper) QuerySLQ(query string, args map[string]string) (*RecordSink, er
 
 // ExecSQL is a convenience wrapper for sql.DB.Exec that returns the
 // rows affected, failing on any error. Note that ExecSQL uses the
-// same Pool instance as returned by h.Open.
+// same Grip instance as returned by h.Open.
 func (h *Helper) ExecSQL(src *source.Source, query string, args ...any) (affected int64) {
 	db := h.OpenDB(src)
 
@@ -679,10 +699,13 @@ func (h *Helper) InsertDefaultRow(src *source.Source, tbl string) {
 
 // TruncateTable truncates tbl in src.
 func (h *Helper) TruncateTable(src *source.Source, tbl string) (affected int64) {
-	pool := h.openNew(src)
-	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, pool)
+	grip := h.openNew(src)
+	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, grip)
 
-	affected, err := h.DriverFor(src).Truncate(h.Context, src, tbl, true)
+	drvr := h.SQLDriverFor(src)
+	require.NotNil(h.T, drvr, "not a SQL driver")
+
+	affected, err := drvr.Truncate(h.Context, src, tbl, true)
 	require.NoError(h.T, err)
 	return affected
 }
@@ -705,8 +728,8 @@ func (h *Helper) addUserDrivers() {
 	userDriverDefs := DriverDefsFrom(h.T, testsrc.PathDriverDefPpl, testsrc.PathDriverDefRSS)
 
 	// One day we may have more supported user driver genres.
-	userDriverImporters := map[string]userdriver.ImportFunc{
-		xmlud.Genre: xmlud.Import,
+	userDriverImporters := map[string]userdriver.IngestFunc{
+		xmlud.Genre: xmlud.Ingest,
 	}
 
 	for _, userDriverDef := range userDriverDefs {
@@ -724,8 +747,8 @@ func (h *Helper) addUserDrivers() {
 		udp := &userdriver.Provider{
 			Log:       h.Log,
 			DriverDef: userDriverDef,
-			ImportFn:  importFn,
-			Scratcher: h.pools,
+			IngestFn:  importFn,
+			Ingester:  h.grips,
 			Files:     h.files,
 		}
 
@@ -739,13 +762,13 @@ func (h *Helper) IsMonotable(src *source.Source) bool {
 	return h.DriverFor(src).DriverMetadata().Monotable
 }
 
-// Pools returns the helper's driver.Pools instance.
-func (h *Helper) Pools() *driver.Pools {
+// Grips returns the helper's [driver.Grips] instance.
+func (h *Helper) Grips() *driver.Grips {
 	h.init()
-	return h.pools
+	return h.grips
 }
 
-// Files returns the helper's Files instance.
+// Files returns the helper's [source.Files] instance.
 func (h *Helper) Files() *source.Files {
 	h.init()
 	return h.files
@@ -753,22 +776,22 @@ func (h *Helper) Files() *source.Files {
 
 // SourceMetadata returns metadata for src.
 func (h *Helper) SourceMetadata(src *source.Source) (*metadata.Source, error) {
-	pools, err := h.Pools().Open(h.Context, src)
+	grip, err := h.Grips().Open(h.Context, src)
 	if err != nil {
 		return nil, err
 	}
 
-	return pools.SourceMetadata(h.Context, false)
+	return grip.SourceMetadata(h.Context, false)
 }
 
 // TableMetadata returns metadata for src's table.
 func (h *Helper) TableMetadata(src *source.Source, tbl string) (*metadata.Table, error) {
-	pools, err := h.Pools().Open(h.Context, src)
+	grip, err := h.Grips().Open(h.Context, src)
 	if err != nil {
 		return nil, err
 	}
 
-	return pools.TableMetadata(h.Context, tbl)
+	return grip.TableMetadata(h.Context, tbl)
 }
 
 // DiffDB fails the test if src's metadata is substantially different
@@ -822,14 +845,14 @@ func mustLoadCollection(ctx context.Context, t testing.TB) *source.Collection {
 		return []byte(proj.Expand(string(data))), nil
 	}
 
-	fs := &yamlstore.Store{
+	store := &yamlstore.Store{
 		Path:            proj.Rel(testsrc.PathSrcsConfig),
 		OptionsRegistry: &options.Registry{},
 		HookLoad:        hookExpand,
 	}
-	cli.RegisterDefaultOpts(fs.OptionsRegistry)
+	cli.RegisterDefaultOpts(store.OptionsRegistry)
 
-	cfg, err := fs.Load(ctx)
+	cfg, err := store.Load(ctx)
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
 	require.NotNil(t, cfg.Collection)
@@ -853,8 +876,11 @@ func DriverDetectors() []source.DriverDetectFunc {
 	return []source.DriverDetectFunc{
 		source.DetectMagicNumber,
 		xlsx.DetectXLSX,
-		csv.DetectCSV, csv.DetectTSV,
-		/*json.DetectJSON,*/ json.DetectJSONA(1000), json.DetectJSONL(1000), // FIXME: enable DetectJSON when it's ready
+		csv.DetectCSV,
+		csv.DetectTSV,
+		json.DetectJSON(1000),
+		json.DetectJSONA(1000),
+		json.DetectJSONL(1000),
 	}
 }
 
@@ -867,4 +893,43 @@ func SetBuildVersion(t testing.TB, vers string) {
 	t.Cleanup(func() {
 		buildinfo.Version = prevVers
 	})
+}
+
+// TempLockfile returns a lockfile.Lockfile that uses a temp file.
+func TempLockfile(t testing.TB) lockfile.Lockfile {
+	return lockfile.Lockfile(tu.TempFile(t, "pid.lock", false))
+}
+
+// TempLockFunc returns a lockfile.LockFunc that uses a temp file.
+func TempLockFunc(t testing.TB) lockfile.LockFunc {
+	return func(ctx context.Context) (unlock func(), err error) {
+		lock := TempLockfile(t)
+		timeout := config.OptConfigLockTimeout.Default()
+		if err = lock.Lock(ctx, timeout); err != nil {
+			return nil, err
+		}
+
+		return func() {
+			if err := lock.Unlock(); err != nil {
+				t.Logf("failed to release temp lock: %v", err)
+			}
+		}, nil
+	}
+}
+
+// ExtractHandlesFromQuery returns all handles mentioned in the query.
+// If failOnErr is true, the test will fail on any parse error; otherwise,
+// the test will log the error and return an empty slice.
+func ExtractHandlesFromQuery(t testing.TB, query string, failOnErr bool) []string {
+	a, err := ast.Parse(lg.Discard(), query)
+	if err != nil {
+		if failOnErr {
+			require.NoError(t, err)
+			return nil
+		}
+		t.Logf("Failed to parse query: >> %s << : %v", query, err)
+		return []string{}
+	}
+
+	return ast.ExtractHandles(a)
 }

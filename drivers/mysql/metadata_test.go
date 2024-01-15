@@ -6,11 +6,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/slogt"
-
 	"github.com/neilotoole/sq/drivers/mysql"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
 )
@@ -18,7 +17,7 @@ import (
 func TestKindFromDBTypeName(t *testing.T) {
 	t.Parallel()
 
-	ctx := lg.NewContext(context.Background(), slogt.New(t))
+	ctx := lg.NewContext(context.Background(), lgt.New(t))
 
 	testCases := map[string]kind.Kind{
 		"":                 kind.Unknown,
@@ -78,8 +77,8 @@ func TestDatabase_SourceMetadata_MySQL(t *testing.T) {
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
-			th, _, _, pool, _ := testh.NewWith(t, handle)
-			md, err := pool.SourceMetadata(th.Context, false)
+			th, _, _, grip, _ := testh.NewWith(t, handle)
+			md, err := grip.SourceMetadata(th.Context, false)
 			require.NoError(t, err)
 			require.Equal(t, "sakila", md.Name)
 			require.Equal(t, handle, md.Handle)
@@ -101,8 +100,8 @@ func TestDatabase_TableMetadata(t *testing.T) {
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
-			th, _, _, pool, _ := testh.NewWith(t, handle)
-			md, err := pool.TableMetadata(th.Context, sakila.TblActor)
+			th, _, _, grip, _ := testh.NewWith(t, handle)
+			md, err := grip.TableMetadata(th.Context, sakila.TblActor)
 			require.NoError(t, err)
 			require.Equal(t, sakila.TblActor, md.Name)
 		})

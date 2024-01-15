@@ -67,6 +67,9 @@ const (
 	MonochromeShort = "M"
 	MonochromeUsage = "Don't colorize output"
 
+	NoProgress      = "no-progress"
+	NoProgressUsage = "Don't show progress bar"
+
 	Output      = "output"
 	OutputShort = "o"
 	OutputUsage = "Write output to <file> instead of stdout"
@@ -78,6 +81,10 @@ const (
 	PasswordPrompt      = "password"
 	PasswordPromptShort = "p"
 	PasswordPromptUsage = "Read password from stdin or prompt"
+
+	CacheTreeSize      = "size"
+	CacheTreeSizeShort = "s"
+	CacheTreeSizeUsage = "Show sizes in cache tree"
 
 	Compact      = "compact"
 	CompactShort = "c"
@@ -167,6 +174,9 @@ const (
 
 	LogLevel      = "log.level"
 	LogLevelUsage = "Log level: one of DEBUG, INFO, WARN, ERROR"
+
+	LogFormat      = "log.format"
+	LogFormatUsage = `Log format: one of "text" or "json"`
 
 	DiffOverview      = "overview"
 	DiffOverviewShort = "O"

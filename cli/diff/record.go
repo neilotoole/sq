@@ -5,8 +5,6 @@ import (
 	"context"
 	"fmt"
 
-	udiff "github.com/neilotoole/sq/cli/diff/internal/go-udiff"
-	"github.com/neilotoole/sq/cli/diff/internal/go-udiff/myers"
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/yamlw"
 	"github.com/neilotoole/sq/cli/run"
@@ -40,6 +38,8 @@ type recordDiff struct {
 // inefficient for large result sets. findRecordDiff demonstrates one
 // possibly better path. The code is left here as a guilty reminder
 // to tackle this issue.
+//
+// See:https://github.com/neilotoole/sq/issues/353
 //
 //nolint:unused
 func findRecordDiff(ctx context.Context, ru *run.Run, lines int,
@@ -158,7 +158,7 @@ func findRecordDiff(ctx context.Context, ru *run.Run, lines int,
 		row:      i,
 	}
 
-	if err = populateRecordDiff(lines, ru.Writers.Printing, recDiff); err != nil {
+	if err = populateRecordDiff(ctx, lines, ru.Writers.Printing, recDiff); err != nil {
 		return nil, err
 	}
 
@@ -166,7 +166,7 @@ func findRecordDiff(ctx context.Context, ru *run.Run, lines int,
 }
 
 //nolint:unused
-func populateRecordDiff(lines int, pr *output.Printing, recDiff *recordDiff) error {
+func populateRecordDiff(ctx context.Context, lines int, pr *output.Printing, recDiff *recordDiff) error {
 	pr = pr.Clone()
 	pr.EnableColor(false)
 
@@ -178,49 +178,44 @@ func populateRecordDiff(lines int, pr *output.Printing, recDiff *recordDiff) err
 		err          error
 	)
 
-	if body1, err = renderRecord2YAML(pr, recDiff.recMeta1, recDiff.rec1); err != nil {
+	if body1, err = renderRecord2YAML(ctx, pr, recDiff.recMeta1, recDiff.rec1); err != nil {
 		return err
 	}
-	if body2, err = renderRecord2YAML(pr, recDiff.recMeta1, recDiff.rec2); err != nil {
+	if body2, err = renderRecord2YAML(ctx, pr, recDiff.recMeta1, recDiff.rec2); err != nil {
 		return err
 	}
 
-	edits := myers.ComputeEdits(body1, body2)
-	recDiff.diff, err = udiff.ToUnified(
-		handleTbl1,
-		handleTbl2,
-		body1,
-		edits,
-		lines,
-	)
+	msg := fmt.Sprintf("table {%s}", recDiff.td1.tblName)
+	recDiff.diff, err = computeUnified(ctx, msg, handleTbl1, handleTbl2, lines, body1, body2)
 	if err != nil {
-		return errz.Err(err)
+		return err
 	}
 
-	recDiff.header = fmt.Sprintf("sq diff %s %s | .[%d]",
-		handleTbl1, handleTbl2, recDiff.row)
+	recDiff.header = fmt.Sprintf("sq diff %s %s | .[%d]", handleTbl1, handleTbl2, recDiff.row)
 
 	return nil
 }
 
 //nolint:unused
-func renderRecord2YAML(pr *output.Printing, recMeta record.Meta, rec record.Record) (string, error) {
+func renderRecord2YAML(ctx context.Context, pr *output.Printing,
+	recMeta record.Meta, rec record.Record,
+) (string, error) {
 	if rec == nil {
 		return "", nil
 	}
 
 	buf := &bytes.Buffer{}
 	yw := yamlw.NewRecordWriter(buf, pr)
-	if err := yw.Open(recMeta); err != nil {
+	if err := yw.Open(ctx, recMeta); err != nil {
 		return "", err
 	}
-	if err := yw.WriteRecords([]record.Record{rec}); err != nil {
+	if err := yw.WriteRecords(ctx, []record.Record{rec}); err != nil {
 		return "", err
 	}
-	if err := yw.Flush(); err != nil {
+	if err := yw.Flush(ctx); err != nil {
 		return "", err
 	}
-	if err := yw.Close(); err != nil {
+	if err := yw.Close(ctx); err != nil {
 		return "", err
 	}
 	return buf.String(), nil
@@ -243,6 +238,6 @@ func (d *recWriter) Open(_ context.Context, _ context.CancelFunc, recMeta record
 
 // Wait implements libsq.RecordWriter.
 func (d *recWriter) Wait() (written int64, err error) {
-	// We don't actually use Wait(), so just return zero values.
+	// We don't actually use Stop(), so just return zero values.
 	return 0, nil
 }

@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/xo/dburl"
+	"github.com/microsoft/go-mssqldb/msdsn"
 
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/ast/render"
@@ -156,8 +156,8 @@ func (d *driveri) Renderer() *render.Renderer {
 	return r
 }
 
-// Open implements driver.PoolOpener.
-func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Pool, error) {
+// Open implements driver.Driver.
+func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
 	db, err := d.doOpen(ctx, src)
@@ -169,27 +169,29 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Pool, er
 		return nil, err
 	}
 
-	return &pool{log: d.log, db: db, src: src, drvr: d}, nil
+	return &grip{log: d.log, db: db, src: src, drvr: d}, nil
 }
 
 func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
 	log := lg.FromContext(ctx)
 	loc := src.Location
+	cfg, err := msdsn.Parse(loc)
+	if err != nil {
+		return nil, errw(err)
+	}
 	if src.Catalog != "" {
-		u, err := dburl.Parse(loc)
-		if err != nil {
-			return nil, errw(err)
-		}
-		vals := u.Query()
-		vals.Set("database", src.Catalog)
-		u.RawQuery = vals.Encode()
-		loc = u.String()
+		cfg.Database = src.Catalog
+		loc = cfg.URL().String()
+
 		log.Debug("Using catalog as database in connection string",
 			lga.Src, src,
 			lga.Catalog, src.Catalog,
 			lga.Conn, source.RedactLocation(loc),
 		)
 	}
+
+	cfg.DialTimeout = driver.OptConnOpenTimeout.Get(src.Options)
+	loc = cfg.URL().String()
 
 	db, err := sql.Open(dbDrvr, loc)
 	if err != nil {
@@ -316,9 +318,9 @@ func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (
 	sColTypeData := make([]*record.ColumnTypeData, len(colTypes))
 	ogColNames := make([]string, len(colTypes))
 	for i, colType := range colTypes {
-		kind := kindFromDBTypeName(d.log, colType.Name(), colType.DatabaseTypeName())
-		colTypeData := record.NewColumnTypeData(colType, kind)
-		setScanType(colTypeData, kind)
+		knd := kindFromDBTypeName(d.log, colType.Name(), colType.DatabaseTypeName())
+		colTypeData := record.NewColumnTypeData(colType, knd)
+		setScanType(colTypeData, knd)
 		sColTypeData[i] = colTypeData
 		ogColNames[i] = colTypeData.Name
 	}
@@ -670,60 +672,6 @@ func (d *driveri) getTableColsMeta(ctx context.Context, db sqlz.DB, tblName stri
 	return destCols, nil
 }
 
-// pool implements driver.Pool.
-type pool struct {
-	log  *slog.Logger
-	drvr *driveri
-	db   *sql.DB
-	src  *source.Source
-}
-
-var _ driver.Pool = (*pool)(nil)
-
-// DB implements driver.Pool.
-func (d *pool) DB(context.Context) (*sql.DB, error) {
-	return d.db, nil
-}
-
-// SQLDriver implements driver.Pool.
-func (d *pool) SQLDriver() driver.SQLDriver {
-	return d.drvr
-}
-
-// Source implements driver.Pool.
-func (d *pool) Source() *source.Source {
-	return d.src
-}
-
-// TableMetadata implements driver.Pool.
-func (d *pool) TableMetadata(ctx context.Context, tblName string) (*metadata.Table, error) {
-	const query = `SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_TYPE
-FROM INFORMATION_SCHEMA.TABLES
-WHERE TABLE_NAME = @p1`
-
-	var catalog, schema, tblType string
-	err := d.db.QueryRowContext(ctx, query, tblName).Scan(&catalog, &schema, &tblType)
-	if err != nil {
-		return nil, errw(err)
-	}
-
-	// TODO: getTableMetadata can cause deadlock in the DB. Needs further investigation.
-	// But a quick hack would be to use retry on a deadlock error.
-	return getTableMetadata(ctx, d.db, catalog, schema, tblName, tblType)
-}
-
-// SourceMetadata implements driver.Pool.
-func (d *pool) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error) {
-	return getSourceMetadata(ctx, d.src, d.db, noSchema)
-}
-
-// Close implements driver.Pool.
-func (d *pool) Close() error {
-	d.log.Debug(lgm.CloseDB, lga.Handle, d.src.Handle)
-
-	return errw(d.db.Close())
-}
-
 // newStmtExecFunc returns a StmtExecFunc that has logic to deal with
 // the "identity insert" error. If the error is encountered, setIdentityInsert
 // is called and stmt is executed again.
@@ -742,7 +690,7 @@ func newStmtExecFunc(stmt *sql.Stmt, db sqlz.DB, tbl string) driver.StmtExecFunc
 
 		idErr := setIdentityInsert(ctx, db, tbl, true)
 		if idErr != nil {
-			return 0, errz.Combine(errw(err), idErr)
+			return 0, errz.Append(errw(err), idErr)
 		}
 
 		res, err = stmt.ExecContext(ctx, args...)

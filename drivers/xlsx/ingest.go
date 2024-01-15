@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"slices"
 	"strings"
 	"time"
 
@@ -19,6 +18,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/loz"
 	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/core/sqlmodel"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
@@ -26,10 +26,6 @@ import (
 )
 
 const msgCloseRowIter = "Close Excel row iterator"
-
-func hasSheet(xfile *excelize.File, sheetName string) bool {
-	return slices.Contains(xfile.GetSheetList(), sheetName)
-}
 
 // sheetTable maps a sheet to a database table.
 type sheetTable struct {
@@ -84,31 +80,21 @@ func (xs *xSheet) loadSampleRows(ctx context.Context, sampleSize int) error {
 	return nil
 }
 
-// ingestXLSX loads the data in xfile into scratchPool.
+// ingestXLSX loads the data in xfile into destGrip.
 // If includeSheetNames is non-empty, only the named sheets are ingested.
-func ingestXLSX(ctx context.Context, src *source.Source, scratchPool driver.Pool,
-	xfile *excelize.File, includeSheetNames []string,
-) error {
+func ingestXLSX(ctx context.Context, src *source.Source, destGrip driver.Grip, xfile *excelize.File) error {
 	log := lg.FromContext(ctx)
 	start := time.Now()
 	log.Debug("Beginning import from XLSX",
 		lga.Src, src,
-		lga.Target, scratchPool.Source())
+		lga.Target, destGrip.Source())
 
 	var sheets []*xSheet
-	if len(includeSheetNames) > 0 {
-		for _, sheetName := range includeSheetNames {
-			if !hasSheet(xfile, sheetName) {
-				return errz.Errorf("sheet {%s} not found", sheetName)
-			}
-			sheets = append(sheets, &xSheet{file: xfile, name: sheetName})
-		}
-	} else {
-		sheetNames := xfile.GetSheetList()
-		sheets = make([]*xSheet, len(sheetNames))
-		for i := range sheetNames {
-			sheets[i] = &xSheet{file: xfile, name: sheetNames[i]}
-		}
+
+	sheetNames := xfile.GetSheetList()
+	sheets = make([]*xSheet, len(sheetNames))
+	for i := range sheetNames {
+		sheets[i] = &xSheet{file: xfile, name: sheetNames[i]}
 	}
 
 	srcIngestHeader := getSrcIngestHeader(src.Options)
@@ -117,6 +103,13 @@ func ingestXLSX(ctx context.Context, src *source.Source, scratchPool driver.Pool
 		return err
 	}
 
+	bar := progress.FromContext(ctx).NewUnitTotalCounter(
+		"Ingesting sheets",
+		"",
+		int64(len(sheetTbls)),
+	)
+	defer bar.Stop()
+
 	for _, sheetTbl := range sheetTbls {
 		if sheetTbl == nil {
 			// tblDef can be nil if its sheet is empty (has no data).
@@ -124,39 +117,43 @@ func ingestXLSX(ctx context.Context, src *source.Source, scratchPool driver.Pool
 		}
 
 		var db *sql.DB
-		if db, err = scratchPool.DB(ctx); err != nil {
+		if db, err = destGrip.DB(ctx); err != nil {
 			return err
 		}
 
-		if err = scratchPool.SQLDriver().CreateTable(ctx, db, sheetTbl.def); err != nil {
+		if err = destGrip.SQLDriver().CreateTable(ctx, db, sheetTbl.def); err != nil {
 			return err
 		}
 	}
 
 	log.Debug("Tables created (but not yet populated)",
 		lga.Count, len(sheetTbls),
-		lga.Target, scratchPool.Source(),
+		lga.Target, destGrip.Source(),
 		lga.Elapsed, time.Since(start))
 
-	var imported, skipped int
+	var ingestCount, skipped int
 	for i := range sheetTbls {
+		progress.DebugDelay()
+
 		if sheetTbls[i] == nil {
 			// tblDef can be nil if its sheet is empty (has no data).
 			skipped++
+			bar.Incr(1)
 			continue
 		}
 
-		if err = ingestSheetToTable(ctx, scratchPool, sheetTbls[i]); err != nil {
+		if err = ingestSheetToTable(ctx, destGrip, sheetTbls[i]); err != nil {
 			return err
 		}
-		imported++
+		ingestCount++
+		bar.Incr(1)
 	}
 
-	log.Debug("Sheets imported",
-		lga.Count, imported,
+	log.Debug("Sheets ingested",
+		lga.Count, ingestCount,
 		"skipped", skipped,
 		lga.From, src,
-		lga.To, scratchPool.Source(),
+		lga.To, destGrip.Source(),
 		lga.Elapsed, time.Since(start),
 	)
 
@@ -164,8 +161,8 @@ func ingestXLSX(ctx context.Context, src *source.Source, scratchPool driver.Pool
 }
 
 // ingestSheetToTable imports the sheet data into the appropriate table
-// in scratchPool. The scratch table must already exist.
-func ingestSheetToTable(ctx context.Context, scratchPool driver.Pool, sheetTbl *sheetTable) error {
+// in destGrip. The scratch table must already exist.
+func ingestSheetToTable(ctx context.Context, destGrip driver.Grip, sheetTbl *sheetTable) error {
 	var (
 		log          = lg.FromContext(ctx)
 		startTime    = time.Now()
@@ -175,7 +172,7 @@ func ingestSheetToTable(ctx context.Context, scratchPool driver.Pool, sheetTbl *
 		destColKinds = tblDef.ColKinds()
 	)
 
-	db, err := scratchPool.DB(ctx)
+	db, err := destGrip.DB(ctx)
 	if err != nil {
 		return err
 	}
@@ -186,10 +183,18 @@ func ingestSheetToTable(ctx context.Context, scratchPool driver.Pool, sheetTbl *
 	}
 	defer lg.WarnIfCloseError(log, lgm.CloseDB, conn)
 
-	drvr := scratchPool.SQLDriver()
+	drvr := destGrip.SQLDriver()
 
 	batchSize := driver.MaxBatchRows(drvr, len(destColKinds))
-	bi, err := driver.NewBatchInsert(ctx, drvr, conn, tblDef.Name, tblDef.ColNames(), batchSize)
+	bi, err := driver.NewBatchInsert(
+		ctx,
+		fmt.Sprintf("Ingest {%s}", sheet.name),
+		drvr,
+		conn,
+		tblDef.Name,
+		tblDef.ColNames(),
+		batchSize,
+	)
 	if err != nil {
 		return err
 	}
@@ -204,6 +209,7 @@ func ingestSheetToTable(ctx context.Context, scratchPool driver.Pool, sheetTbl *
 	var cells []string
 
 	i := -1
+LOOP:
 	for iter.Next() {
 		i++
 		if hasHeader && i == 0 {
@@ -237,14 +243,14 @@ func ingestSheetToTable(ctx context.Context, scratchPool driver.Pool, sheetTbl *
 			}
 
 			// The batch inserter successfully completed
-			break
+			break LOOP
 		case bi.RecordCh <- rec:
 		}
 	}
 
 	close(bi.RecordCh) // Indicate that we're finished writing records
 
-	err = <-bi.ErrCh // Wait for bi to complete
+	err = <-bi.ErrCh // Stop for bi to complete
 	if err != nil {
 		return err
 	}
@@ -256,7 +262,7 @@ func ingestSheetToTable(ctx context.Context, scratchPool driver.Pool, sheetTbl *
 	log.Debug("Inserted rows from sheet into table",
 		lga.Count, bi.Written(),
 		laSheet, sheet.name,
-		lga.Target, source.Target(scratchPool.Source(), tblDef.Name),
+		lga.Target, source.Target(destGrip.Source(), tblDef.Name),
 		lga.Elapsed, time.Since(startTime))
 
 	return nil
@@ -279,7 +285,7 @@ func buildSheetTables(ctx context.Context, srcIngestHeader *bool, sheets []*xShe
 
 			sheetTbl, err := buildSheetTable(gCtx, srcIngestHeader, sheets[i])
 			if err != nil {
-				if errz.IsErrNoData(err) {
+				if errz.Has[driver.EmptyDataError](err) {
 					// If the sheet has no data, we log it and skip it.
 					lg.FromContext(ctx).Warn("Excel sheet has no data",
 						laSheet, sheets[i].name,
@@ -318,7 +324,7 @@ func getSrcIngestHeader(o options.Options) *bool {
 // a model of the table, or an error. If the sheet is empty, (nil,nil)
 // is returned. If srcIngestHeader is nil, the function attempts
 // to detect if the sheet has a header row.
-// If the sheet has no data, errz.NoDataError is returned.
+// If the sheet has no data, errz.EmptyDataError is returned.
 func buildSheetTable(ctx context.Context, srcIngestHeader *bool, sheet *xSheet) (*sheetTable, error) {
 	log := lg.FromContext(ctx)
 
@@ -328,11 +334,11 @@ func buildSheetTable(ctx context.Context, srcIngestHeader *bool, sheet *xSheet) 
 	}
 
 	if len(sheet.sampleRows) == 0 {
-		return nil, errz.NoDataf("excel: sheet {%s} has no row data", sheet.name)
+		return nil, driver.NewEmptyDataError("excel: sheet {%s} has no row data", sheet.name)
 	}
 
 	if sheet.sampleRowsMaxWidth == 0 {
-		return nil, errz.NoDataf("excel: sheet {%s} has no column data", sheet.name)
+		return nil, driver.NewEmptyDataError("excel: sheet {%s} has no column data", sheet.name)
 	}
 
 	var hasHeader bool

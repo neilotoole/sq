@@ -17,6 +17,9 @@ import (
 
 // These consts are test fixtures for various data types.
 const (
+	// TimestampUnixNano1989 is 1989-11-09T15:17:59.1234567Z.
+	TimestampUnixNano1989 = 626627879123456700
+
 	Text   string  = "seven"
 	TextZ  string  = ""
 	Int    int64   = 7

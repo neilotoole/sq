@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func TestKind(t *testing.T) {
@@ -148,7 +148,7 @@ func TestDetector(t *testing.T) {
 	for i, tc := range testCases {
 		tc := tc
 
-		t.Run(tutil.Name(i, tc.in), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
 			kd := kind.NewDetector()
 
 			for _, val := range tc.in {

@@ -6,6 +6,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/driver"
 )
 
 // errw wraps any error from the db. It should be called at
@@ -17,7 +18,7 @@ func errw(err error) error {
 	case err == nil:
 		return nil
 	case hasErrCode(err, errCodeRelationNotExist):
-		return errz.NotExist(err)
+		return driver.NewNotExistError(err)
 	default:
 		return errz.Err(err)
 	}

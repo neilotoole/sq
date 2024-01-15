@@ -148,7 +148,6 @@ func createTypeTestTbls(th *testh.Helper, src *source.Source, nTimes int, withDa
 		}
 
 		insertStmt := fmt.Sprintf(insertTpl, actualTblName, strings.Join(typeTestColNames, ", "), placeholders)
-
 		for _, insertVals := range typeTestVals {
 			_, err = db.Exec(insertStmt, insertVals...)
 			require.NoError(t, err)

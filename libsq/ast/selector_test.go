@@ -5,9 +5,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/slogt"
-
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/libsq/core/lg/lgt"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func TestColumnAlias(t *testing.T) {
@@ -28,10 +27,10 @@ func TestColumnAlias(t *testing.T) {
 
 	for _, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(tc.in), func(t *testing.T) {
+		t.Run(tu.Name(tc.in), func(t *testing.T) {
 			t.Parallel()
 
-			log := slogt.New(t)
+			log := lgt.New(t)
 
 			ast, err := Parse(log, tc.in)
 			if tc.wantErr {

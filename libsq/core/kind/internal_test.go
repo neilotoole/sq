@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func TestDetectKindDatetime(t *testing.T) {
@@ -17,7 +17,7 @@ func TestDetectKindDatetime(t *testing.T) {
 
 	for _, f := range datetimeFormats {
 		f := f
-		t.Run(tutil.Name(f), func(t *testing.T) {
+		t.Run(tu.Name(f), func(t *testing.T) {
 			s := tm.Format(f)
 
 			ok, gotF := detectKindDatetime(s)
@@ -51,7 +51,7 @@ func TestDetectKindDate(t *testing.T) {
 
 	for i, input := range valid {
 		input := input
-		t.Run(tutil.Name("valid", i, input), func(t *testing.T) {
+		t.Run(tu.Name("valid", i, input), func(t *testing.T) {
 			t.Log(input)
 			ok, gotF := detectKindDate(input)
 			require.True(t, ok)
@@ -72,7 +72,7 @@ func TestDetectKindDate(t *testing.T) {
 
 	for i, input := range invalid {
 		input := input
-		t.Run(tutil.Name("invalid", i, input), func(t *testing.T) {
+		t.Run(tu.Name("invalid", i, input), func(t *testing.T) {
 			t.Log(input)
 			ok, gotF := detectKindDate(input)
 			require.False(t, ok)
@@ -95,7 +95,7 @@ func TestDetectKindTime(t *testing.T) {
 
 	for i, input := range valid {
 		input := input
-		t.Run(tutil.Name("valid", i, input), func(t *testing.T) {
+		t.Run(tu.Name("valid", i, input), func(t *testing.T) {
 			t.Log(input)
 			ok, gotF := detectKindTime(input)
 			require.True(t, ok)
@@ -117,7 +117,7 @@ func TestDetectKindTime(t *testing.T) {
 
 	for i, input := range invalid {
 		input := input
-		t.Run(tutil.Name("invalid", i, input), func(t *testing.T) {
+		t.Run(tu.Name("invalid", i, input), func(t *testing.T) {
 			t.Log(input)
 			ok, gotF := detectKindTime(input)
 			require.False(t, ok)

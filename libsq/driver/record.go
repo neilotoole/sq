@@ -20,6 +20,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/loz"
 	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
@@ -370,7 +371,7 @@ func (bi *BatchInsert) Written() int64 {
 
 // Munge should be invoked on every record before sending
 // on RecordCh.
-func (bi BatchInsert) Munge(rec []any) error {
+func (bi *BatchInsert) Munge(rec []any) error {
 	return bi.mungeFn(rec)
 }
 
@@ -381,15 +382,16 @@ func (bi BatchInsert) Munge(rec []any) error {
 // it must be a sql.Conn or sql.Tx.
 //
 //nolint:gocognit
-func NewBatchInsert(ctx context.Context, drvr SQLDriver, db sqlz.DB,
+func NewBatchInsert(ctx context.Context, msg string, drvr SQLDriver, db sqlz.DB,
 	destTbl string, destColNames []string, batchSize int,
 ) (*BatchInsert, error) {
 	log := lg.FromContext(ctx)
 
-	err := sqlz.RequireSingleConn(db)
-	if err != nil {
+	if err := sqlz.RequireSingleConn(db); err != nil {
 		return nil, err
 	}
+
+	pbar := progress.FromContext(ctx).NewUnitCounter(msg, "rec")
 
 	recCh := make(chan []any, batchSize*8)
 	errCh := make(chan error, 1)
@@ -412,6 +414,8 @@ func NewBatchInsert(ctx context.Context, drvr SQLDriver, db sqlz.DB,
 		var affected int64
 
 		defer func() {
+			pbar.Stop()
+
 			if inserter != nil {
 				if err == nil {
 					// If no pre-existing error, any inserter.Close error
@@ -463,6 +467,8 @@ func NewBatchInsert(ctx context.Context, drvr SQLDriver, db sqlz.DB,
 				}
 
 				bi.written.Add(affected)
+				pbar.Incr(int(affected))
+				progress.DebugDelay()
 
 				if rec == nil {
 					// recCh is closed (coincidentally exactly on the
@@ -505,6 +511,8 @@ func NewBatchInsert(ctx context.Context, drvr SQLDriver, db sqlz.DB,
 			}
 
 			bi.written.Add(affected)
+			pbar.Incr(int(affected))
+			progress.DebugDelay()
 
 			// We're done
 			return

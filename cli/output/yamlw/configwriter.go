@@ -39,6 +39,28 @@ func (w *configWriter) Location(loc, origin string) error {
 	return writeYAML(w.out, w.p, c)
 }
 
+// CacheLocation implements output.ConfigWriter.
+func (w *configWriter) CacheLocation(loc string) error {
+	m := map[string]string{"location": loc}
+	return writeYAML(w.out, w.p, m)
+}
+
+// CacheStat implements output.ConfigWriter.
+func (w *configWriter) CacheStat(loc string, enabled bool, size int64) error {
+	type cacheInfo struct {
+		Location string `yaml:"location"`
+		Enabled  bool   `yaml:"enabled"`
+		Size     *int64 `yaml:"size,omitempty"`
+	}
+
+	ci := cacheInfo{Location: loc, Enabled: enabled}
+	if size != -1 {
+		ci.Size = &size
+	}
+
+	return writeYAML(w.out, w.p, ci)
+}
+
 // Opt implements output.ConfigWriter.
 func (w *configWriter) Opt(o options.Options, opt options.Opt) error {
 	if o == nil || opt == nil {

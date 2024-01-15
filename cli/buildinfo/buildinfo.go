@@ -33,15 +33,15 @@ var (
 	Timestamp string
 )
 
-// BuildInfo encapsulates Version, Commit and Timestamp.
-type BuildInfo struct {
+// Info encapsulates Version, Commit and Timestamp.
+type Info struct {
 	Version   string    `json:"version" yaml:"version"`
 	Commit    string    `json:"commit,omitempty" yaml:"commit,omitempty"`
 	Timestamp time.Time `json:"timestamp,omitempty" yaml:"timestamp,omitempty"`
 }
 
-// String returns a string representation of BuildInfo.
-func (bi BuildInfo) String() string {
+// String returns a string representation of Info.
+func (bi Info) String() string {
 	s := bi.Version
 	if bi.Commit != "" {
 		s += " " + bi.Commit
@@ -52,8 +52,30 @@ func (bi BuildInfo) String() string {
 	return s
 }
 
+// UserAgent returns a string suitable for use in an HTTP User-Agent header.
+func (bi Info) UserAgent() string {
+	if bi.Version == "" {
+		return "sq/0.0.0-dev"
+	}
+
+	ua := "sq/" + strings.TrimPrefix(bi.Version, "v")
+	return ua
+}
+
+// ShortCommit returns the short commit hash.
+func (bi Info) ShortCommit() string {
+	switch {
+	case bi.Commit == "":
+		return ""
+	case len(bi.Commit) > 7:
+		return bi.Commit[:7]
+	default:
+		return bi.Commit
+	}
+}
+
 // LogValue implements slog.LogValuer.
-func (bi BuildInfo) LogValue() slog.Value {
+func (bi Info) LogValue() slog.Value {
 	gv := slog.GroupValue(
 		slog.String(lga.Version, bi.Version),
 		slog.String(lga.Commit, bi.Commit),
@@ -62,9 +84,9 @@ func (bi BuildInfo) LogValue() slog.Value {
 	return gv
 }
 
-// Get returns BuildInfo. If buildinfo.Timestamp cannot be parsed,
-// the returned BuildInfo.Timestamp will be the zero value.
-func Get() BuildInfo {
+// Get returns Info. If buildinfo.Timestamp cannot be parsed,
+// the returned Info.Timestamp will be the zero value.
+func Get() Info {
 	var t time.Time
 	if Timestamp != "" {
 		got, err := timez.ParseTimestampUTC(Timestamp)
@@ -73,7 +95,7 @@ func Get() BuildInfo {
 		}
 	}
 
-	return BuildInfo{
+	return Info{
 		Version:   Version,
 		Commit:    Commit,
 		Timestamp: t,
@@ -88,7 +110,7 @@ func init() { //nolint:gochecknoinits
 	if Version != "" && !semver.IsValid(Version) {
 		// We want to panic here because it is a pipeline/build failure
 		// to have an invalid non-empty Version.
-		panic(fmt.Sprintf("Invalid BuildInfo.Version value: %s", Version))
+		panic(fmt.Sprintf("Invalid Info.Version value: %s", Version))
 	}
 
 	if Timestamp != "" {

@@ -16,12 +16,17 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 )
 
+// MsgIngestRecords is the typical message used with [libsq.NewDBWriter]
+// to indicate that records are being ingested.
+const MsgIngestRecords = "Ingesting records"
+
 // DBWriter implements RecordWriter, writing
 // records to a database table.
 type DBWriter struct {
+	msg      string
 	wg       *sync.WaitGroup
 	cancelFn context.CancelFunc
-	destPool driver.Pool
+	destGrip driver.Grip
 	destTbl  string
 	recordCh chan record.Record
 	bi       *driver.BatchInsert
@@ -37,17 +42,17 @@ type DBWriter struct {
 
 // DBWriterPreWriteHook is a function that is invoked before DBWriter
 // begins writing.
-type DBWriterPreWriteHook func(ctx context.Context, recMeta record.Meta, destPool driver.Pool, tx sqlz.DB) error
+type DBWriterPreWriteHook func(ctx context.Context, recMeta record.Meta, destGrip driver.Grip, tx sqlz.DB) error
 
 // DBWriterCreateTableIfNotExistsHook returns a hook that
 // creates destTblName if it does not exist.
 func DBWriterCreateTableIfNotExistsHook(destTblName string) DBWriterPreWriteHook {
-	return func(ctx context.Context, recMeta record.Meta, destPool driver.Pool, tx sqlz.DB) error {
-		db, err := destPool.DB(ctx)
+	return func(ctx context.Context, recMeta record.Meta, destGrip driver.Grip, tx sqlz.DB) error {
+		db, err := destGrip.DB(ctx)
 		if err != nil {
 			return err
 		}
-		tblExists, err := destPool.SQLDriver().TableExists(ctx, db, destTblName)
+		tblExists, err := destGrip.SQLDriver().TableExists(ctx, db, destTblName)
 		if err != nil {
 			return errz.Err(err)
 		}
@@ -60,9 +65,9 @@ func DBWriterCreateTableIfNotExistsHook(destTblName string) DBWriterPreWriteHook
 		destColKinds := recMeta.Kinds()
 		destTblDef := sqlmodel.NewTableDef(destTblName, destColNames, destColKinds)
 
-		err = destPool.SQLDriver().CreateTable(ctx, tx, destTblDef)
+		err = destGrip.SQLDriver().CreateTable(ctx, tx, destTblDef)
 		if err != nil {
-			return errz.Wrapf(err, "failed to create dest table %s.%s", destPool.Source().Handle, destTblName)
+			return errz.Wrapf(err, "failed to create dest table %s.%s", destGrip.Source().Handle, destTblName)
 		}
 
 		return nil
@@ -71,13 +76,14 @@ func DBWriterCreateTableIfNotExistsHook(destTblName string) DBWriterPreWriteHook
 
 // NewDBWriter returns a new writer than implements RecordWriter.
 // The writer writes records from recordCh to destTbl
-// in destPool. The recChSize param controls the size of recordCh
+// in destGrip. The recChSize param controls the size of recordCh
 // returned by the writer's Open method.
-func NewDBWriter(destPool driver.Pool, destTbl string, recChSize int,
+func NewDBWriter(msg string, destGrip driver.Grip, destTbl string, recChSize int,
 	preWriteHooks ...DBWriterPreWriteHook,
 ) *DBWriter {
 	return &DBWriter{
-		destPool:      destPool,
+		msg:           msg,
+		destGrip:      destGrip,
 		destTbl:       destTbl,
 		recordCh:      make(chan record.Record, recChSize),
 		errCh:         make(chan error, 3),
@@ -97,7 +103,7 @@ func (w *DBWriter) Open(ctx context.Context, cancelFn context.CancelFunc, recMet
 ) {
 	w.cancelFn = cancelFn
 
-	db, err := w.destPool.DB(ctx)
+	db, err := w.destGrip.DB(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -105,19 +111,27 @@ func (w *DBWriter) Open(ctx context.Context, cancelFn context.CancelFunc, recMet
 	// REVISIT: tx could potentially be passed to NewDBWriter?
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
-		return nil, nil, errz.Wrapf(err, "failed to open tx for %s.%s", w.destPool.Source().Handle, w.destTbl)
+		return nil, nil, errz.Wrapf(err, "failed to open tx for %s.%s", w.destGrip.Source().Handle, w.destTbl)
 	}
 
 	for _, hook := range w.preWriteHooks {
-		err = hook(ctx, recMeta, w.destPool, tx)
+		err = hook(ctx, recMeta, w.destGrip, tx)
 		if err != nil {
 			w.rollback(ctx, tx, err)
 			return nil, nil, err
 		}
 	}
 
-	batchSize := driver.MaxBatchRows(w.destPool.SQLDriver(), len(recMeta.Names()))
-	w.bi, err = driver.NewBatchInsert(ctx, w.destPool.SQLDriver(), tx, w.destTbl, recMeta.Names(), batchSize)
+	batchSize := driver.MaxBatchRows(w.destGrip.SQLDriver(), len(recMeta.Names()))
+	w.bi, err = driver.NewBatchInsert(
+		ctx,
+		w.msg,
+		w.destGrip.SQLDriver(),
+		tx,
+		w.destTbl,
+		recMeta.Names(),
+		batchSize,
+	)
 	if err != nil {
 		w.rollback(ctx, tx, err)
 		return nil, nil, err
@@ -164,7 +178,7 @@ func (w *DBWriter) Open(ctx context.Context, cancelFn context.CancelFunc, recMet
 						w.addErrs(commitErr)
 					} else {
 						lg.FromContext(ctx).Debug("Tx commit success",
-							lga.Target, source.Target(w.destPool.Source(), w.destTbl))
+							lga.Target, source.Target(w.destGrip.Source(), w.destTbl))
 					}
 
 					return
@@ -219,7 +233,7 @@ func (w *DBWriter) addErrs(errs ...error) {
 func (w *DBWriter) rollback(ctx context.Context, tx *sql.Tx, causeErrs ...error) {
 	// Guaranteed to be at least one causeErr
 	lg.FromContext(ctx).Error("failed to insert data: tx will rollback",
-		lga.Target, w.destPool.Source().Handle+"."+w.destTbl,
+		lga.Target, w.destGrip.Source().Handle+"."+w.destTbl,
 		lga.Err, causeErrs[0])
 
 	rollbackErr := errz.Err(tx.Rollback())

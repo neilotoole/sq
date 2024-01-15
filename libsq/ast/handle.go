@@ -1,6 +1,10 @@
 package ast
 
 import (
+	"slices"
+
+	"github.com/samber/lo"
+
 	"github.com/neilotoole/sq/libsq/ast/internal/slq"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 )
@@ -46,4 +50,32 @@ func (v *parseTreeVisitor) VisitHandleTable(ctx *slq.HandleTableContext) any {
 	node.tbl = tablefq.From(selTbl)
 
 	return v.cur.AddChild(node)
+}
+
+// ExtractHandles returns a sorted slice of all handles mentioned
+// in the AST. Duplicate mentions are removed.
+func ExtractHandles(ast *AST) []string {
+	var handles []string
+	handleNodes := FindNodes[*HandleNode](ast)
+	for _, n := range handleNodes {
+		handles = append(handles, n.Handle())
+	}
+
+	joinNodes := FindNodes[*JoinNode](ast)
+	for _, n := range joinNodes {
+		if n != nil && n.Table().Handle() != "" {
+			handles = append(handles, n.Table().Handle())
+		}
+	}
+
+	tblSelNodes := FindNodes[*TblSelectorNode](ast)
+	for _, n := range tblSelNodes {
+		if n.Handle() != "" {
+			handles = append(handles, n.Handle())
+		}
+	}
+
+	handles = lo.Uniq(handles)
+	slices.Sort(handles)
+	return handles
 }

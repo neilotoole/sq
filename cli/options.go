@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
+	"github.com/neilotoole/sq/cli/config"
 	"github.com/neilotoole/sq/cli/output/xlsxw"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/drivers/csv"
@@ -41,7 +42,22 @@ func getOptionsFromFlags(flags *pflag.FlagSet, reg *options.Registry) (options.O
 			return nil
 		}
 
-		o[opt.Key()] = f.Value.String()
+		if bOpt, ok := opt.(options.Bool); ok {
+			// Special handling for bool, because
+			// the flag value could be inverted.
+			val, err := flags.GetBool(bOpt.Flag())
+			if err != nil {
+				return errz.Err(err)
+			}
+
+			if bOpt.FlagInverted() {
+				val = !val
+			}
+			o[bOpt.Key()] = val
+		} else {
+			o[opt.Key()] = f.Value.String()
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -103,6 +119,7 @@ func applySourceOptions(cmd *cobra.Command, src *source.Source) error {
 		defaultOpts = options.Options{}
 	}
 
+	// FIXME: This should only apply source options?
 	flagOpts, err := getOptionsFromFlags(cmd.Flags(), ru.OptionsRegistry)
 	if err != nil {
 		return err
@@ -148,14 +165,21 @@ func RegisterDefaultOpts(reg *options.Registry) {
 		OptVerbose,
 		OptPrintHeader,
 		OptMonochrome,
+		OptProgress,
+		OptProgressDelay,
 		OptCompact,
 		OptPingCmdTimeout,
 		OptShellCompletionTimeout,
+		config.OptConfigLockTimeout,
 		OptLogEnabled,
 		OptLogFile,
 		OptLogLevel,
+		OptLogFormat,
 		OptDiffNumLines,
 		OptDiffDataFormat,
+		source.OptHTTPRequestTimeout,
+		source.OptHTTPResponseTimeout,
+		source.OptHTTPSInsecureSkipVerify,
 		driver.OptConnMaxOpen,
 		driver.OptConnMaxIdle,
 		driver.OptConnMaxIdleTime,
@@ -166,6 +190,8 @@ func RegisterDefaultOpts(reg *options.Registry) {
 		driver.OptTuningRecChanSize,
 		OptTuningFlushThreshold,
 		driver.OptIngestHeader,
+		driver.OptIngestCache,
+		source.OptCacheLockTimeout,
 		driver.OptIngestColRename,
 		driver.OptIngestSampleSize,
 		csv.OptDelim,
@@ -219,12 +245,16 @@ func addOptionFlag(flags *pflag.FlagSet, opt options.Opt) (key string) {
 		flags.IntP(key, string(opt.Short()), opt.Default(), opt.Usage())
 		return key
 	case options.Bool:
+		defVal := opt.Default()
+		if opt.FlagInverted() {
+			defVal = !defVal
+		}
 		if opt.Short() == 0 {
-			flags.Bool(key, opt.Default(), opt.Usage())
+			flags.Bool(key, defVal, opt.Usage())
 			return key
 		}
 
-		flags.BoolP(key, string(opt.Short()), opt.Default(), opt.Usage())
+		flags.BoolP(key, string(opt.Short()), defVal, opt.Usage())
 		return key
 	case options.Duration:
 		if opt.Short() == 0 {

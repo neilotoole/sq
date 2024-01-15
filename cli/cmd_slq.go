@@ -135,7 +135,7 @@ func execSLQInsert(ctx context.Context, ru *run.Run, mArgs map[string]string,
 	ctx, cancelFn := context.WithCancel(ctx)
 	defer cancelFn()
 
-	destPool, err := ru.Pools.Open(ctx, destSrc)
+	destGrip, err := ru.Grips.Open(ctx, destSrc)
 	if err != nil {
 		return err
 	}
@@ -146,14 +146,15 @@ func execSLQInsert(ctx context.Context, ru *run.Run, mArgs map[string]string,
 	// stack.
 
 	inserter := libsq.NewDBWriter(
-		destPool,
+		"Insert records",
+		destGrip,
 		destTbl,
 		driver.OptTuningRecChanSize.Get(destSrc.Options),
 		libsq.DBWriterCreateTableIfNotExistsHook(destTbl),
 	)
 
 	execErr := libsq.ExecuteSLQ(ctx, qc, slq, inserter)
-	affected, waitErr := inserter.Wait() // Wait for the writer to finish processing
+	affected, waitErr := inserter.Wait() // Stop for the writer to finish processing
 	if execErr != nil {
 		return errz.Wrapf(execErr, "insert %s.%s failed", destSrc.Handle, destTbl)
 	}
@@ -203,7 +204,7 @@ func execSLQPrint(ctx context.Context, ru *run.Run, mArgs map[string]string) err
 //
 //	$ cat something.xlsx | sq @stdin.sheet1
 func preprocessUserSLQ(ctx context.Context, ru *run.Run, args []string) (string, error) {
-	log, reg, pools, coll := lg.FromContext(ctx), ru.DriverRegistry, ru.Pools, ru.Config.Collection
+	log, reg, grips, coll := lg.FromContext(ctx), ru.DriverRegistry, ru.Grips, ru.Config.Collection
 	activeSrc := coll.Active()
 
 	if len(args) == 0 {
@@ -234,13 +235,13 @@ func preprocessUserSLQ(ctx context.Context, ru *run.Run, args []string) (string,
 			// This isn't a monotable src, so we can't
 			// just select @stdin.data. Instead we'll select
 			// the first table name, as found in the source meta.
-			pool, err := pools.Open(ctx, activeSrc)
+			grip, err := grips.Open(ctx, activeSrc)
 			if err != nil {
 				return "", err
 			}
-			defer lg.WarnIfCloseError(log, lgm.CloseDB, pool)
+			defer lg.WarnIfCloseError(log, lgm.CloseDB, grip)
 
-			srcMeta, err := pool.SourceMetadata(ctx, false)
+			srcMeta, err := grip.SourceMetadata(ctx, false)
 			if err != nil {
 				return "", err
 			}
@@ -342,6 +343,7 @@ func addQueryCmdFlags(cmd *cobra.Command) {
 	panicOn(cmd.RegisterFlagCompletionFunc(flag.IngestDriver, completeDriverType))
 
 	cmd.Flags().Bool(flag.IngestHeader, false, flag.IngestHeaderUsage)
+	addOptionFlag(cmd.Flags(), driver.OptIngestCache)
 	cmd.Flags().Bool(flag.CSVEmptyAsNull, true, flag.CSVEmptyAsNullUsage)
 	cmd.Flags().String(flag.CSVDelim, flag.CSVDelimDefault, flag.CSVDelimUsage)
 	panicOn(cmd.RegisterFlagCompletionFunc(flag.CSVDelim, completeStrings(-1, csv.NamedDelims()...)))
@@ -415,7 +417,7 @@ func extractFlagArgsValues(cmd *cobra.Command) (map[string]string, error) {
 // preprocessFlagArgVars is a hack to support the predefined
 // variables "--arg" mechanism. We implement the mechanism in alignment
 // with how jq does it: "--arg name value".
-// See: https://stedolan.github.io/jq/manual/v1.6/
+// See: https://jqlang.github.io/jq/manual/v1.6/
 //
 // For example:
 //

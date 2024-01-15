@@ -14,6 +14,7 @@
 package tablew
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"strconv"
@@ -147,26 +148,37 @@ func (t *table) setTableWriterOptions() {
 	t.tblImpl.SetHeaderTrans(t.pr.Header.SprintFunc())
 }
 
-func (t *table) appendRowsAndRenderAll(rows [][]string) {
+func (t *table) appendRowsAndRenderAll(ctx context.Context, rows [][]string) error {
 	for _, v := range rows {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
 		t.tblImpl.Append(v)
 	}
-	t.tblImpl.RenderAll()
+	return t.tblImpl.RenderAll(ctx)
 }
 
-func (t *table) appendRows(rows [][]string) {
+func (t *table) appendRows(ctx context.Context, rows [][]string) error {
 	for _, v := range rows {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
 		t.tblImpl.Append(v)
 	}
+	return nil
 }
 
-func (t *table) renderAll() {
-	t.tblImpl.RenderAll()
+func (t *table) writeAll(ctx context.Context) error {
+	return t.tblImpl.RenderAll(ctx)
 }
 
-func (t *table) renderRow(row []string) {
+func (t *table) writeRow(ctx context.Context, row []string) error {
 	t.tblImpl.Append(row)
-	t.tblImpl.RenderAll() // Send output
+	return t.tblImpl.RenderAll(ctx) // Send output
 }
 
 func getColorForVal(pr *output.Printing, v any) *color.Color {

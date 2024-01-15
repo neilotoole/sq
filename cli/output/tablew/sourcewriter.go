@@ -1,6 +1,7 @@
 package tablew
 
 import (
+	"context"
 	"io"
 	"strconv"
 	"strings"
@@ -54,8 +55,7 @@ func (w *sourceWriter) Collection(coll *source.Collection) error {
 		w.tbl.tblImpl.SetHeaderDisable(true)
 		w.tbl.tblImpl.SetColTrans(0, pr.Handle.SprintFunc())
 		w.tbl.tblImpl.SetColTrans(2, pr.Location.SprintFunc())
-		w.tbl.appendRowsAndRenderAll(rows)
-		return nil
+		return w.tbl.appendRowsAndRenderAll(context.TODO(), rows)
 	}
 
 	// Else print verbose
@@ -83,8 +83,7 @@ func (w *sourceWriter) Collection(coll *source.Collection) error {
 	w.tbl.tblImpl.SetColTrans(0, pr.Handle.SprintFunc())
 	w.tbl.tblImpl.SetColTrans(3, pr.Location.SprintFunc())
 	w.tbl.tblImpl.SetHeader([]string{"HANDLE", "ACTIVE", "DRIVER", "LOCATION", "OPTIONS"})
-	w.tbl.appendRowsAndRenderAll(rows)
-	return nil
+	return w.tbl.appendRowsAndRenderAll(context.TODO(), rows)
 }
 
 // Added implements output.SourceWriter.
@@ -144,8 +143,7 @@ func (w *sourceWriter) doSource(coll *source.Collection, src *source.Source) err
 
 		w.tbl.tblImpl.SetColTrans(2, w.tbl.pr.Location.SprintFunc())
 		w.tbl.tblImpl.SetHeaderDisable(true)
-		w.tbl.appendRowsAndRenderAll(rows)
-		return nil
+		return w.tbl.appendRowsAndRenderAll(context.TODO(), rows)
 	}
 
 	var rows [][]string
@@ -165,8 +163,7 @@ func (w *sourceWriter) doSource(coll *source.Collection, src *source.Source) err
 
 	w.tbl.tblImpl.SetColTrans(2, w.tbl.pr.Location.SprintFunc())
 	w.tbl.tblImpl.SetHeaderDisable(true)
-	w.tbl.appendRowsAndRenderAll(rows)
-	return nil
+	return w.tbl.appendRowsAndRenderAll(context.TODO(), rows)
 }
 
 // Removed implements output.SourceWriter.
@@ -292,8 +289,7 @@ func (w *sourceWriter) renderGroups(groups []*source.Group) error {
 	w.tbl.tblImpl.SetColTrans(4, pr.Number.SprintFunc())
 	w.tbl.tblImpl.SetColTrans(5, pr.Bool.SprintFunc())
 
-	w.tbl.appendRowsAndRenderAll(rows)
-	return nil
+	return w.tbl.appendRowsAndRenderAll(context.TODO(), rows)
 }
 
 // Groups implements output.SourceWriter.

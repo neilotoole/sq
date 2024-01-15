@@ -10,12 +10,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/slogt"
-
 	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/source/metadata"
@@ -94,7 +93,7 @@ func TestCurrentTime(t *testing.T) {
 func TestKindFromDBTypeName(t *testing.T) {
 	t.Parallel()
 
-	ctx := lg.NewContext(context.Background(), slogt.New(t))
+	ctx := lg.NewContext(context.Background(), lgt.New(t))
 
 	testCases := map[string]kind.Kind{
 		"":                       kind.Bytes,
@@ -201,7 +200,7 @@ func TestRecordMetadata(t *testing.T) {
 		t.Run(tc.tbl, func(t *testing.T) {
 			t.Parallel()
 
-			th, _, drvr, pool, db := testh.NewWith(t, sakila.SL3)
+			th, _, drvr, grip, db := testh.NewWith(t, sakila.SL3)
 
 			query := fmt.Sprintf("SELECT %s FROM %s", strings.Join(tc.colNames, ", "), tc.tbl)
 			rows, err := db.QueryContext(th.Context, query) //nolint:rowserrcheck
@@ -232,7 +231,7 @@ func TestRecordMetadata(t *testing.T) {
 			}
 
 			// Now check our table metadata
-			gotTblMeta, err := pool.TableMetadata(th.Context, tc.tbl)
+			gotTblMeta, err := grip.TableMetadata(th.Context, tc.tbl)
 			require.NoError(t, err)
 			require.Equal(t, tc.tbl, gotTblMeta.Name)
 			require.Equal(t, tc.rowCount, gotTblMeta.RowCount)
@@ -282,12 +281,12 @@ func TestAggregateFuncsQuery(t *testing.T) {
 func BenchmarkDatabase_SourceMetadata(b *testing.B) {
 	const numTables = 1000
 
-	th, src, drvr, pool, db := testh.NewWith(b, testsrc.MiscDB)
+	th, src, drvr, grip, db := testh.NewWith(b, testsrc.MiscDB)
 	tblNames := createTypeTestTbls(th, src, numTables, true)
 
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		srcMeta, err := pool.SourceMetadata(th.Context, false)
+		srcMeta, err := grip.SourceMetadata(th.Context, false)
 		require.NoError(b, err)
 		require.True(b, len(srcMeta.Tables) > len(tblNames))
 	}
@@ -344,7 +343,8 @@ func BenchmarkGetTblRowCounts(b *testing.B) {
 
 // benchGetTblRowCountsBaseline is a baseline impl of getTblRowCounts
 // for benchmark comparison.
-func benchGetTblRowCountsBaseline(ctx context.Context, db sqlz.DB, tblNames []string) ([]int64, error) {
+func benchGetTblRowCountsBaseline(ctx context.Context, db sqlz.DB, tblNames []string,
+) ([]int64, error) {
 	tblCounts := make([]int64, len(tblNames))
 
 	for i := range tblNames {

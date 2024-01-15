@@ -3,7 +3,6 @@ package userdriver_test
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli/config"
@@ -32,22 +31,16 @@ func TestDriver(t *testing.T) {
 		t.Run(tc.handle, func(t *testing.T) {
 			t.Parallel()
 
-			th := testh.New(t, testh.OptLongOpen())
+			th := testh.New(t)
 			src := th.Source(tc.handle)
 
-			drvr := th.DriverFor(src)
-			err := drvr.Ping(th.Context, src)
-			require.NoError(t, err)
+			grip := th.Open(src)
 
-			pool, err := drvr.Open(th.Context, src)
-			require.NoError(t, err)
-			t.Cleanup(func() { assert.NoError(t, pool.Close()) })
-
-			srcMeta, err := pool.SourceMetadata(th.Context, false)
+			srcMeta, err := grip.SourceMetadata(th.Context, false)
 			require.NoError(t, err)
 			require.True(t, stringz.InSlice(srcMeta.TableNames(), tc.tbl))
 
-			tblMeta, err := pool.TableMetadata(th.Context, tc.tbl)
+			tblMeta, err := grip.TableMetadata(th.Context, tc.tbl)
 			require.NoError(t, err)
 			require.Equal(t, tc.tbl, tblMeta.Name)
 

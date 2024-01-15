@@ -254,3 +254,9 @@ func Contains[S *Source | ~string](srcs []*Source, s S) bool {
 
 	return false
 }
+
+// Handle2SafePath returns a string derived from handle that
+// is safe to use as a file path.
+func Handle2SafePath(handle string) string {
+	return strings.ReplaceAll(strings.TrimPrefix(handle, "@"), "/", "__")
+}

@@ -9,7 +9,9 @@ var _ options.Opt = Opt{}
 
 // NewOpt returns a new format.Opt instance. If validFn is non-nil, it
 // is executed against possible values.
-func NewOpt(key, flag string, short rune, defaultVal Format, validFn func(Format) error, usage, help string) Opt {
+func NewOpt(key, flag string, short rune, defaultVal Format,
+	validFn func(Format) error, usage, help string,
+) Opt {
 	opt := options.NewBaseOpt(key, flag, short, usage, help, options.TagOutput)
 	return Opt{BaseOpt: opt, defaultVal: defaultVal, validFn: validFn}
 }
@@ -73,6 +75,11 @@ func (op Opt) Process(o options.Options) (options.Options, error) {
 // GetAny implements options.Opt.
 func (op Opt) GetAny(o options.Options) any {
 	return op.Get(o)
+}
+
+// Default returns the default value of op.
+func (op Opt) Default() Format {
+	return op.defaultVal
 }
 
 // DefaultAny implements options.Opt.

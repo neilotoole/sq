@@ -1,6 +1,7 @@
 package testh
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"sync"
@@ -148,7 +149,7 @@ func (r *RecordSink) Result() any {
 }
 
 // Open implements libsq.RecordWriter.
-func (r *RecordSink) Open(recMeta record.Meta) error {
+func (r *RecordSink) Open(_ context.Context, recMeta record.Meta) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -157,7 +158,7 @@ func (r *RecordSink) Open(recMeta record.Meta) error {
 }
 
 // WriteRecords implements libsq.RecordWriter.
-func (r *RecordSink) WriteRecords(recs []record.Record) error {
+func (r *RecordSink) WriteRecords(_ context.Context, recs []record.Record) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -166,7 +167,7 @@ func (r *RecordSink) WriteRecords(recs []record.Record) error {
 }
 
 // Flush implements libsq.RecordWriter.
-func (r *RecordSink) Flush() error {
+func (r *RecordSink) Flush(context.Context) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.Flushed = append(r.Flushed, time.Now())
@@ -174,7 +175,7 @@ func (r *RecordSink) Flush() error {
 }
 
 // Close implements libsq.RecordWriter.
-func (r *RecordSink) Close() error {
+func (r *RecordSink) Close(context.Context) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.Closed = append(r.Closed, time.Now())

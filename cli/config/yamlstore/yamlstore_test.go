@@ -14,7 +14,7 @@ import (
 	"github.com/neilotoole/sq/cli/config/yamlstore"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/testh/proj"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func TestFileStore_Nil_Save(t *testing.T) {
@@ -85,7 +85,7 @@ func TestFileStore_Load(t *testing.T) {
 
 	for _, match := range good {
 		match := match
-		t.Run(tutil.Name(match), func(t *testing.T) {
+		t.Run(tu.Name(match), func(t *testing.T) {
 			fs.Path = match
 			cfg, err := fs.Load(context.Background())
 			require.NoError(t, err, match)
@@ -95,7 +95,7 @@ func TestFileStore_Load(t *testing.T) {
 
 	for _, match := range bad {
 		match := match
-		t.Run(tutil.Name(match), func(t *testing.T) {
+		t.Run(tu.Name(match), func(t *testing.T) {
 			fs.Path = match
 			cfg, err := fs.Load(context.Background())
 			t.Log(err)

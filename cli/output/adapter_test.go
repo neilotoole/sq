@@ -14,7 +14,7 @@ import (
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/testsrc"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 var _ libsq.RecordWriter = (*output.RecordWriterAdapter)(nil)
@@ -50,11 +50,11 @@ func TestRecordWriterAdapter(t *testing.T) {
 
 			th := testh.New(t)
 			src := th.Source(tc.handle)
-			pool := th.Open(src)
+			grip := th.Open(src)
 
 			sink := &testh.RecordSink{}
 			recw := output.NewRecordWriterAdapter(th.Context, sink)
-			err := libsq.QuerySQL(th.Context, pool, nil, recw, tc.sqlQuery)
+			err := libsq.QuerySQL(th.Context, grip, nil, recw, tc.sqlQuery)
 			require.NoError(t, err)
 			written, err := recw.Wait()
 			require.NoError(t, err)
@@ -127,7 +127,7 @@ func TestRecordWriterAdapter_FlushAfterDuration(t *testing.T) {
 	testCases := []struct {
 		flushAfter  time.Duration
 		wantFlushed int
-		assertFn    tutil.AssertCompareFunc
+		assertFn    tu.AssertCompareFunc
 	}{
 		{flushAfter: -1, wantFlushed: 0, assertFn: require.Equal},
 		{flushAfter: 0, wantFlushed: 0, assertFn: require.Equal},

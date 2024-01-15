@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -245,7 +246,7 @@ func stringWithCharset(length int, charset string) string {
 
 	b := make([]byte, length)
 	for i := range b {
-		b[i] = charset[rand.Intn(len(charset))] //#nosec G404 // Doesn't need to be strongly random
+		b[i] = charset[rand.Intn(len(charset))] //nolint:gosec
 	}
 
 	return string(b)
@@ -456,21 +457,45 @@ func TrimLen(s string, maxLen int) string {
 	return s[:maxLen]
 }
 
-// TrimLenMiddle returns s but with a maximum length of maxLen,
+// Ellipsify shortens s to a length of maxLen by cutting the middle and
+// inserting an ellipsis rune "…".This is the actual ellipsis rune, not
+// three periods. For very short strings, the ellipsis may be elided.
+//
+// Be warned, Ellipsify may not be unicode-safe. Use at your own risk.
+//
+// See also: [EllipsifyASCII].
+func Ellipsify(s string, width int) string {
+	const e = "…"
+	if width <= 0 {
+		return ""
+	}
+	length := len(s)
+
+	if length <= width {
+		return s
+	}
+
+	trimLen := ((width + 1) / 2) - 1
+	return s[:trimLen+1-(width%2)] + e + s[len(s)-trimLen:]
+}
+
+// EllipsifyASCII returns s but with a maximum length of maxLen,
 // with the middle of s replaced with "...". If maxLen is a small
 // number, the ellipsis may be shorter, e.g. a single char.
 // This func is only tested with ASCII chars; results are not
 // guaranteed for multibyte runes.
-func TrimLenMiddle(s string, maxLen int) string {
+//
+// See also: [Ellipsify].
+func EllipsifyASCII(s string, width int) string {
 	length := len(s)
-	if maxLen <= 0 {
+	if width <= 0 {
 		return ""
 	}
-	if length <= maxLen {
+	if length <= width {
 		return s
 	}
 
-	switch maxLen {
+	switch width {
 	case 1:
 		return s[0:1]
 	case 2:
@@ -484,7 +509,7 @@ func TrimLenMiddle(s string, maxLen int) string {
 	default:
 	}
 
-	trimLen := ((maxLen + 1) / 2) - 2
+	trimLen := ((width + 1) / 2) - 2
 	return s[:trimLen] + "..." + s[len(s)-trimLen:]
 }
 
@@ -737,4 +762,43 @@ func ExecuteTemplate(name, tpl string, data any) (string, error) {
 // Note that empty string will be returned as two single quotes.
 func ShellEscape(s string) string {
 	return shellescape.Quote(s)
+}
+
+var filenameRegex = regexp.MustCompile(`[^a-zA-Z0-9-_ .(),+]`)
+
+// SanitizeFilename returns a sanitized version of filename.
+// The supplied value should be the base file name, not a path.
+func SanitizeFilename(name string) string {
+	const repl = "_"
+
+	if name == "" {
+		return ""
+	}
+	name = filenameRegex.ReplaceAllString(name, repl)
+	if name == "" {
+		return ""
+	}
+
+	name = filepath.Clean(name)
+	// Some extra paranoid handling below.
+	// Note that we know that filename is at least one char long.
+	trimmed := strings.TrimSpace(name)
+	switch {
+	case trimmed == ".":
+		return strings.Replace(name, ".", repl, 1)
+	case trimmed == "..":
+		return strings.Replace(name, "..", repl+repl, 1)
+	default:
+		return name
+	}
+}
+
+// TypeNames returns the go type of each element of a, as
+// rendered by fmt "%T".
+func TypeNames[T any](a ...T) []string {
+	types := make([]string, len(a))
+	for i := range a {
+		types[i] = fmt.Sprintf("%T", a[i])
+	}
+	return types
 }

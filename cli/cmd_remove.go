@@ -34,6 +34,7 @@ may have changed, if that source or group was removed.`,
   $ sq rm @staging/sakila_db @staging/backup_db dev`,
 	}
 
+	markCmdRequiresConfigLock(cmd)
 	addTextFormatFlags(cmd)
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 	cmd.Flags().BoolP(flag.Compact, flag.CompactShort, false, flag.CompactUsage)

@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"errors"
 	"io"
+	"time"
 	"unicode/utf8"
 
 	"github.com/neilotoole/sq/libsq"
@@ -25,12 +26,14 @@ import (
 var OptEmptyAsNull = options.NewBool(
 	"driver.csv.empty-as-null",
 	"",
+	false,
 	0,
 	true,
 	"Treat ingest empty CSV fields as NULL",
 	`When true, empty CSV fields are treated as NULL. When false,
 the zero value for that type is used, e.g. empty string or 0.`,
 	options.TagSource,
+	options.TagIngestMutate,
 	"csv",
 )
 
@@ -45,28 +48,28 @@ var OptDelim = options.NewString(
 	`Delimiter to use for CSV files. Default is "comma".
 Possible values are: comma, space, pipe, tab, colon, semi, period.`,
 	options.TagSource,
+	options.TagIngestMutate,
 	"csv",
 )
 
 // ingestCSV loads the src CSV data into scratchDB.
-func ingestCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFunc, scratchPool driver.Pool) error {
+func ingestCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFunc, destGrip driver.Grip) error {
 	log := lg.FromContext(ctx)
+	startUTC := time.Now().UTC()
 
-	var err error
-	var r io.ReadCloser
-
-	r, err = openFn()
+	rc, err := openFn(ctx)
 	if err != nil {
 		return err
 	}
-	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
+	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, rc)
 
 	delim, err := getDelimiter(src)
 	if err != nil {
 		return err
 	}
 
-	cr := newCSVReader(r, delim)
+	cr := newCSVReader(rc, delim)
+
 	recs, err := readRecords(cr, driver.OptIngestSampleSize.Get(src.Options))
 	if err != nil {
 		return err
@@ -104,17 +107,17 @@ func ingestCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFu
 	// And now we need to create the dest table in scratchDB
 	tblDef := createTblDef(source.MonotableName, header, kinds)
 
-	db, err := scratchPool.DB(ctx)
+	db, err := destGrip.DB(ctx)
 	if err != nil {
 		return err
 	}
 
-	err = scratchPool.SQLDriver().CreateTable(ctx, db, tblDef)
+	err = destGrip.SQLDriver().CreateTable(ctx, db, tblDef)
 	if err != nil {
 		return errz.Wrap(err, "csv: failed to create dest scratch table")
 	}
 
-	recMeta, err := getIngestRecMeta(ctx, scratchPool, tblDef)
+	recMeta, err := getIngestRecMeta(ctx, destGrip, tblDef)
 	if err != nil {
 		return err
 	}
@@ -124,9 +127,10 @@ func ingestCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFu
 	}
 
 	insertWriter := libsq.NewDBWriter(
-		scratchPool,
+		libsq.MsgIngestRecords,
+		destGrip,
 		tblDef.Name,
-		driver.OptTuningRecChanSize.Get(scratchPool.Source().Options),
+		driver.OptTuningRecChanSize.Get(destGrip.Source().Options),
 	)
 	err = execInsert(ctx, insertWriter, recMeta, mungers, recs, cr)
 	if err != nil {
@@ -140,7 +144,8 @@ func ingestCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFu
 
 	log.Debug("Inserted rows",
 		lga.Count, inserted,
-		lga.Target, source.Target(scratchPool.Source(), tblDef.Name),
+		lga.Elapsed, time.Since(startUTC).Round(time.Millisecond),
+		lga.Target, source.Target(destGrip.Source(), tblDef.Name),
 	)
 	return nil
 }

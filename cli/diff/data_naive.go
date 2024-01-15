@@ -10,8 +10,6 @@ import (
 	"github.com/samber/lo"
 	"golang.org/x/sync/errgroup"
 
-	udiff "github.com/neilotoole/sq/cli/diff/internal/go-udiff"
-	"github.com/neilotoole/sq/cli/diff/internal/go-udiff/myers"
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq"
@@ -19,6 +17,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/driver"
 )
 
@@ -34,6 +33,7 @@ import (
 // raw record.Record values, and only generate the diff text if there
 // are differences, and even then, to only selectively generate the
 // needed text.
+// See: https://github.com/neilotoole/sq/issues/353.
 func buildTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config,
 	td1, td2 *tableData,
 ) (*tableDataDiff, error) {
@@ -49,10 +49,11 @@ func buildTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config,
 	w1, w2 := cfg.RecordWriterFn(buf1, pr), cfg.RecordWriterFn(buf2, pr)
 	recw1, recw2 := output.NewRecordWriterAdapter(ctx, w1), output.NewRecordWriterAdapter(ctx, w2)
 
+	bar := progress.FromContext(ctx).NewWaiter("Retrieving diff data", true, progress.OptMemUsage)
 	g, gCtx := errgroup.WithContext(ctx)
 	g.Go(func() error {
 		if err := libsq.ExecuteSLQ(gCtx, qc, query1, recw1); err != nil {
-			if errz.IsErrNotExist(err) {
+			if errz.Has[*driver.NotExistError](err) {
 				// It's totally ok if a table is not found.
 				log.Debug("Diff: table not found", lga.Src, td1.src, lga.Table, td1.tblName)
 				return nil
@@ -64,7 +65,7 @@ func buildTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config,
 	})
 	g.Go(func() error {
 		if err := libsq.ExecuteSLQ(gCtx, qc, query2, recw2); err != nil {
-			if errz.IsErrNotExist(err) {
+			if errz.Has[*driver.NotExistError](err) {
 				log.Debug("Diff: table not found", lga.Src, td2.src, lga.Table, td2.tblName)
 				return nil
 			}
@@ -73,25 +74,18 @@ func buildTableDataDiff(ctx context.Context, ru *run.Run, cfg *Config,
 		_, err := recw2.Wait()
 		return err
 	})
-	if err := g.Wait(); err != nil {
+	err := g.Wait()
+	bar.Stop()
+	if err != nil {
 		return nil, err
 	}
 
-	var (
-		body1, body2 = buf1.String(), buf2.String()
-		err          error
-	)
+	body1, body2 := buf1.String(), buf2.String()
 
-	edits := myers.ComputeEdits(body1, body2)
-	unified, err := udiff.ToUnified(
-		query1,
-		query2,
-		body1,
-		edits,
-		cfg.Lines,
-	)
+	msg := fmt.Sprintf("table {%s}", td1.tblName)
+	unified, err := computeUnified(ctx, msg, query1, query2, cfg.Lines, body1, body2)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, err
 	}
 
 	return &tableDataDiff{
@@ -182,7 +176,7 @@ func execSourceDataDiff(ctx context.Context, ru *run.Run, cfg *Config, sd1, sd2 
 				}
 
 				tblDataDiff = diffs[printIndex]
-				if err := Print(ru.Out, ru.Writers.Printing, tblDataDiff.header, tblDataDiff.diff); err != nil {
+				if err := Print(ctx, ru.Out, ru.Writers.Printing, tblDataDiff.header, tblDataDiff.diff); err != nil {
 					printErrCh <- err
 					return
 				}

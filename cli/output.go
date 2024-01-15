@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/fatih/color"
 	colorable "github.com/mattn/go-colorable"
@@ -23,9 +24,11 @@ import (
 	"github.com/neilotoole/sq/cli/output/xlsxw"
 	"github.com/neilotoole/sq/cli/output/xmlw"
 	"github.com/neilotoole/sq/cli/output/yamlw"
+	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/lg/lga"
+	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/timez"
 )
@@ -34,6 +37,7 @@ var (
 	OptPrintHeader = options.NewBool(
 		"header",
 		"",
+		false,
 		0,
 		true,
 		"Print header row",
@@ -77,6 +81,7 @@ command, sq falls back to "text". Available formats:
 	OptVerbose = options.NewBool(
 		"verbose",
 		"",
+		false,
 		'v',
 		false,
 		"Print verbose output",
@@ -87,6 +92,7 @@ command, sq falls back to "text". Available formats:
 	OptMonochrome = options.NewBool(
 		"monochrome",
 		"",
+		false,
 		'M',
 		false,
 		"Don't print color output",
@@ -94,9 +100,30 @@ command, sq falls back to "text". Available formats:
 		options.TagOutput,
 	)
 
+	OptProgress = options.NewBool(
+		"progress",
+		"no-progress",
+		true,
+		0,
+		true,
+		"Progress bar for long-running operations",
+		`Progress bar for long-running operations.`,
+		options.TagOutput,
+	)
+
+	OptProgressDelay = options.NewDuration(
+		"progress.delay",
+		"",
+		0,
+		time.Second*2,
+		"Progress bar render delay",
+		`Delay before showing a progress bar.`,
+	)
+
 	OptCompact = options.NewBool(
 		"compact",
 		"",
+		false,
 		'c',
 		false,
 		"Compact instead of pretty-printed output",
@@ -136,6 +163,7 @@ as "RFC3339" or "Unix", or a strftime format such as "%Y-%m-%d %H:%M:%S".
 	OptDatetimeFormatAsNumber = options.NewBool(
 		"format.datetime.number",
 		"",
+		false,
 		0,
 		true,
 		"Render numeric datetime value as number instead of string",
@@ -173,6 +201,7 @@ from datetime values. In that situation, use format.datetime instead.
 	OptDateFormatAsNumber = options.NewBool(
 		"format.date.number",
 		"",
+		false,
 		0,
 		true,
 		"Render numeric date value as number instead of string",
@@ -209,6 +238,7 @@ from datetime values. In that situation, use format.datetime instead.
 	OptTimeFormatAsNumber = options.NewBool(
 		"format.time.number",
 		"",
+		false,
 		0,
 		true,
 		"Render numeric time value as number instead of string",
@@ -230,10 +260,11 @@ Note that this option is no-op if the rendered value is not an integer.
 // newWriters returns an output.Writers instance configured per defaults and/or
 // flags from cmd. The returned out2/errOut2 values may differ
 // from the out/errOut args (e.g. decorated to support colorization).
-func newWriters(cmd *cobra.Command, o options.Options, out, errOut io.Writer,
+func newWriters(cmd *cobra.Command, clnup *cleanup.Cleanup, o options.Options,
+	out, errOut io.Writer,
 ) (w *output.Writers, out2, errOut2 io.Writer) {
 	var pr *output.Printing
-	pr, out2, errOut2 = getPrinting(cmd, o, out, errOut)
+	pr, out2, errOut2 = getPrinting(cmd, clnup, o, out, errOut)
 	log := logFrom(cmd)
 
 	// Package tablew has writer impls for each of the writer interfaces,
@@ -339,7 +370,13 @@ func getRecordWriterFunc(f format.Format) output.NewRecordWriterFunc {
 // may be decorated for dealing with color, etc.
 // The supplied opts must already have flags merged into it
 // via getOptionsFromCmd.
-func getPrinting(cmd *cobra.Command, opts options.Options, out, errOut io.Writer,
+//
+// Be cautious making changes to getPrinting. This function must
+// be absolutely bulletproof, as it's called by all commands, as well
+// as by the error handling mechanism. So, be sure to always check
+// for nil cmd, nil cmd.Context, etc.
+func getPrinting(cmd *cobra.Command, clnup *cleanup.Cleanup, opts options.Options,
+	out, errOut io.Writer,
 ) (pr *output.Printing, out2, errOut2 io.Writer) {
 	pr = output.NewPrinting()
 
@@ -380,6 +417,19 @@ func getPrinting(cmd *cobra.Command, opts options.Options, out, errOut io.Writer
 		pr.EnableColor(false)
 		out2 = out
 		errOut2 = errOut
+
+		if cmd != nil && cmd.Context() != nil && OptProgress.Get(opts) && isTerminal(errOut) {
+			progColors := progress.DefaultColors()
+			progColors.EnableColor(false)
+			ctx := cmd.Context()
+			renderDelay := OptProgressDelay.Get(opts)
+			pb := progress.New(ctx, errOut2, renderDelay, progColors)
+			clnup.Add(pb.Stop)
+			// On first write to stdout, we remove the progress widget.
+			out2 = ioz.NotifyOnceWriter(out2, pb.Stop)
+			cmd.SetContext(progress.NewContext(ctx, pb))
+		}
+
 		return pr, out2, errOut2
 	}
 
@@ -406,7 +456,20 @@ func getPrinting(cmd *cobra.Command, opts options.Options, out, errOut io.Writer
 		errOut2 = colorable.NewNonColorable(errOut)
 	}
 
-	logFrom(cmd).Debug("Constructed output.Printing", lga.Val, pr)
+	if cmd != nil && cmd.Context() != nil && OptProgress.Get(opts) && isTerminal(errOut) {
+		progColors := progress.DefaultColors()
+		progColors.EnableColor(isColorTerminal(errOut))
+
+		ctx := cmd.Context()
+		renderDelay := OptProgressDelay.Get(opts)
+		pb := progress.New(ctx, errOut2, renderDelay, progColors)
+		clnup.Add(pb.Stop)
+
+		// On first write to stdout, we remove the progress widget.
+		out2 = ioz.NotifyOnceWriter(out2, pb.Stop)
+
+		cmd.SetContext(progress.NewContext(ctx, pb))
+	}
 
 	return pr, out2, errOut2
 }

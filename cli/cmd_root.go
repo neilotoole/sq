@@ -1,9 +1,12 @@
 package cli
 
 import (
+	"log/slog"
+
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/flag"
+	"github.com/neilotoole/sq/cli/output/format"
 	_ "github.com/neilotoole/sq/drivers" // Load drivers
 )
 
@@ -22,8 +25,8 @@ database table.
 You can query using sq's own jq-like syntax, or in native SQL.
 
 Use "sq inspect" to view schema metadata. Use the "sq tbl" commands
-to copy, truncate and drop tables. Use "sq diff" to compare source metadata
-and row data.
+to copy, truncate and drop tables. Use "sq diff" to compare source
+metadata and row data.
 
 See docs and more: https://sq.io`,
 		Example: `  # Add Postgres source.
@@ -50,9 +53,6 @@ See docs and more: https://sq.io`,
 
   # Output all rows from 'actor' table in JSON.
   $ sq -j .actor
-
-  # Alternative way to specify format.
-  $ sq --format json .actor
 
   # Output in text format (with header).
   $ sq -th .actor
@@ -98,12 +98,31 @@ See docs and more: https://sq.io`,
 	cmd.Flags().Bool(flag.Version, false, flag.VersionUsage)
 
 	cmd.PersistentFlags().BoolP(flag.Monochrome, flag.MonochromeShort, false, flag.MonochromeUsage)
+
+	addOptionFlag(cmd.PersistentFlags(), OptProgress)
+	// TODO: Move the rest of the option flags over to addOptionFlag
 	cmd.PersistentFlags().BoolP(flag.Verbose, flag.VerboseShort, false, flag.VerboseUsage)
 
 	cmd.PersistentFlags().String(flag.Config, "", flag.ConfigUsage)
 
 	cmd.PersistentFlags().Bool(flag.LogEnabled, false, flag.LogEnabledUsage)
+	panicOn(cmd.RegisterFlagCompletionFunc(flag.LogEnabled, completeBool))
 	cmd.PersistentFlags().String(flag.LogFile, "", flag.LogFileUsage)
+
 	cmd.PersistentFlags().String(flag.LogLevel, "", flag.LogLevelUsage)
+	panicOn(cmd.RegisterFlagCompletionFunc(flag.LogLevel, completeStrings(
+		1,
+		slog.LevelDebug.String(),
+		slog.LevelInfo.String(),
+		slog.LevelWarn.String(),
+		slog.LevelError.String(),
+	)))
+
+	cmd.PersistentFlags().String(flag.LogFormat, "", flag.LogFormatUsage)
+	panicOn(cmd.RegisterFlagCompletionFunc(flag.LogFormat, completeStrings(
+		1,
+		string(format.Text),
+		string(format.JSON),
+	)))
 	return cmd
 }

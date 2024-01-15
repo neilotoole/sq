@@ -121,13 +121,13 @@ func execTblCopy(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	var pool driver.Pool
-	pool, err = ru.Pools.Open(ctx, tblHandles[0].src)
+	var grip driver.Grip
+	grip, err = ru.Grips.Open(ctx, tblHandles[0].src)
 	if err != nil {
 		return err
 	}
 
-	db, err := pool.DB(ctx)
+	db, err := grip.DB(ctx)
 	if err != nil {
 		return err
 	}
@@ -199,7 +199,12 @@ func execTblTruncate(cmd *cobra.Command, args []string) (err error) {
 
 	for _, tblH := range tblHandles {
 		var affected int64
-		affected, err = tblH.drvr.Truncate(cmd.Context(), tblH.src, tblH.tbl, true)
+		if !tblH.drvr.DriverMetadata().IsSQL {
+			return errz.Errorf("driver {%s} for source %s doesn't support truncate",
+				tblH.drvr.DriverMetadata().Type, tblH.src.Handle)
+		}
+
+		affected, err = tblH.drvr.(driver.SQLDriver).Truncate(cmd.Context(), tblH.src, tblH.tbl, true)
 		if err != nil {
 			return err
 		}
@@ -254,13 +259,13 @@ func execTblDrop(cmd *cobra.Command, args []string) (err error) {
 			return errz.Errorf("driver type {%s} (%s) doesn't support dropping tables", tblH.src.Type, tblH.src.Handle)
 		}
 
-		var pool driver.Pool
-		if pool, err = ru.Pools.Open(ctx, tblH.src); err != nil {
+		var grip driver.Grip
+		if grip, err = ru.Grips.Open(ctx, tblH.src); err != nil {
 			return err
 		}
 
 		var db *sql.DB
-		if db, err = pool.DB(ctx); err != nil {
+		if db, err = grip.DB(ctx); err != nil {
 			return err
 		}
 

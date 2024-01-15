@@ -10,25 +10,24 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/slogt"
-
 	"github.com/neilotoole/sq/cli"
 	"github.com/neilotoole/sq/cli/config"
 	"github.com/neilotoole/sq/cli/config/yamlstore"
-	v0_34_0 "github.com/neilotoole/sq/cli/config/yamlstore/upgrades/v0.34.0"
+	v0_34_0 "github.com/neilotoole/sq/cli/config/yamlstore/upgrades/v0.34.0" //nolint:revive
 	"github.com/neilotoole/sq/cli/output/format"
 	"github.com/neilotoole/sq/drivers/csv"
 	"github.com/neilotoole/sq/drivers/postgres"
 	"github.com/neilotoole/sq/drivers/xlsx"
 	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/testh"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func TestUpgrade(t *testing.T) {
-	log := slogt.New(t)
+	log := lgt.New(t)
 	ctx := lg.NewContext(context.Background(), log)
 
 	const (
@@ -42,7 +41,7 @@ func TestUpgrade(t *testing.T) {
 	testh.SetBuildVersion(t, nextVers)
 
 	// The sq.yml file in cfgDir is on v0.33.0
-	cfgDir := tutil.DirCopy(t, "testdata", true)
+	cfgDir := tu.DirCopy(t, "testdata", true)
 	t.Setenv(config.EnvarConfig, cfgDir)
 
 	cfgFilePath := filepath.Join(cfgDir, "sq.yml")

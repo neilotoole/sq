@@ -7,6 +7,7 @@
 package output
 
 import (
+	"context"
 	"io"
 	"time"
 
@@ -31,18 +32,18 @@ import (
 type RecordWriter interface {
 	// Open instructs the writer to prepare to write records
 	// described by recMeta.
-	Open(recMeta record.Meta) error
+	Open(ctx context.Context, recMeta record.Meta) error
 
 	// WriteRecords writes rec to the destination.
-	WriteRecords(recs []record.Record) error
+	WriteRecords(ctx context.Context, recs []record.Record) error
 
 	// Flush advises the writer to flush any internal
 	// buffer. Note that the writer may implement an independent
 	// flushing strategy, or may not buffer at all.
-	Flush() error
+	Flush(ctx context.Context) error
 
 	// Close closes the writer after flushing any internal buffer.
-	Close() error
+	Close(ctx context.Context) error
 }
 
 // MetadataWriter can output metadata.
@@ -96,8 +97,10 @@ type SourceWriter interface {
 
 // ErrorWriter outputs errors.
 type ErrorWriter interface {
-	// Error outputs err.
-	Error(err error)
+	// Error outputs error conditions. It's possible that systemErr and
+	// humanErr differ; systemErr is the error that occurred, and humanErr
+	// is the error that should be presented to the user.
+	Error(systemErr, humanErr error)
 }
 
 // PingWriter writes ping results.
@@ -119,7 +122,7 @@ type VersionWriter interface {
 	// Version prints version info. Arg latestVersion is the latest
 	// version available from the homebrew repository. The value
 	// may be empty.
-	Version(bi buildinfo.BuildInfo, latestVersion string, si hostinfo.Info) error
+	Version(bi buildinfo.Info, latestVersion string, si hostinfo.Info) error
 }
 
 // ConfigWriter prints config.
@@ -139,6 +142,13 @@ type ConfigWriter interface {
 
 	// UnsetOption is called when an option is unset.
 	UnsetOption(opt options.Opt) error
+
+	// CacheLocation prints the cache location.
+	CacheLocation(loc string) error
+
+	// CacheStat prints cache info. Set arg size to -1 to indicate
+	// that the size of the cache could not be calculated.
+	CacheStat(loc string, enabled bool, size int64) error
 }
 
 // Writers is a container for the various output Writers.

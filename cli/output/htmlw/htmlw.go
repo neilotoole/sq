@@ -3,6 +3,7 @@ package htmlw
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"fmt"
 	"html"
@@ -37,7 +38,7 @@ func NewRecordWriter(out io.Writer, pr *output.Printing) output.RecordWriter {
 }
 
 // Open implements output.RecordWriter.
-func (w *recordWriter) Open(recMeta record.Meta) error {
+func (w *recordWriter) Open(_ context.Context, recMeta record.Meta) error {
 	w.recMeta = recMeta
 	w.buf = &bytes.Buffer{}
 
@@ -69,7 +70,7 @@ func (w *recordWriter) Open(recMeta record.Meta) error {
 }
 
 // Flush implements output.RecordWriter.
-func (w *recordWriter) Flush() error {
+func (w *recordWriter) Flush(context.Context) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	_, err := w.buf.WriteTo(w.out) // resets buf
@@ -77,8 +78,8 @@ func (w *recordWriter) Flush() error {
 }
 
 // Close implements output.RecordWriter.
-func (w *recordWriter) Close() error {
-	err := w.Flush()
+func (w *recordWriter) Close(ctx context.Context) error {
+	err := w.Flush(ctx)
 	if err != nil {
 		return err
 	}
@@ -140,11 +141,16 @@ func (w *recordWriter) writeRecord(rec record.Record) error {
 }
 
 // WriteRecords implements output.RecordWriter.
-func (w *recordWriter) WriteRecords(recs []record.Record) error {
+func (w *recordWriter) WriteRecords(ctx context.Context, recs []record.Record) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	var err error
 	for _, rec := range recs {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
 		err = w.writeRecord(rec)
 		if err != nil {
 			return err

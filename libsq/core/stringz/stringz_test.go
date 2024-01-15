@@ -1,6 +1,7 @@
 package stringz_test
 
 import (
+	"errors"
 	"strconv"
 	"strings"
 	"testing"
@@ -10,8 +11,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func TestGenerateAlphaColName(t *testing.T) {
@@ -297,7 +299,7 @@ func TestLineCount(t *testing.T) {
 	for i, tc := range testCases {
 		tc := tc
 
-		t.Run(tutil.Name(i, tc.in), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
 			count := stringz.LineCount(strings.NewReader(tc.in), false)
 			require.Equal(t, tc.withEmpty, count)
 			count = stringz.LineCount(strings.NewReader(tc.in), true)
@@ -340,7 +342,7 @@ func TestStripDoubleQuote(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, tc.in), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
 			got := stringz.StripDoubleQuote(tc.in)
 			require.Equal(t, tc.want, got)
 		})
@@ -401,7 +403,7 @@ func TestValidIdent(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(tc.in), func(t *testing.T) {
+		t.Run(tu.Name(tc.in), func(t *testing.T) {
 			gotErr := stringz.ValidIdent(tc.in)
 			if tc.wantErr {
 				require.Error(t, gotErr)
@@ -429,7 +431,7 @@ func TestStrings(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, tc.in), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
 			got := stringz.Strings(tc.in)
 			require.Len(t, got, len(tc.in))
 
@@ -457,7 +459,7 @@ func TestStringsD(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, tc.in), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
 			got := stringz.StringsD(tc.in)
 			require.Len(t, got, len(tc.in))
 
@@ -517,7 +519,7 @@ func TestTemplate(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, tc.tpl), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.tpl), func(t *testing.T) {
 			got, gotErr := stringz.ExecuteTemplate(t.Name(), tc.tpl, tc.data)
 			t.Logf("\nTPL:   %s\nGOT:   %s\nERR:   %v", tc.tpl, got, gotErr)
 			if tc.wantErr {
@@ -550,17 +552,53 @@ func TestShellEscape(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, tc), func(t *testing.T) {
+		t.Run(tu.Name(i, tc), func(t *testing.T) {
 			got := stringz.ShellEscape(tc.in)
 			require.Equal(t, tc.want, got)
 		})
 	}
 }
 
-// TestTrimLenMiddle tests TrimLenMiddle. It verifies that
+func TestEllipsify(t *testing.T) {
+	testCases := []struct {
+		input  string
+		maxLen int
+		want   string
+	}{
+		{input: "", maxLen: 0, want: ""},
+		{input: "", maxLen: 1, want: ""},
+		{input: "abc", maxLen: 1, want: "…"},
+		{input: "abc", maxLen: 2, want: "a…"},
+		{input: "abcdefghijk", maxLen: 1, want: "…"},
+		{input: "abcdefghijk", maxLen: 2, want: "a…"},
+		{input: "abcdefghijk", maxLen: 3, want: "a…k"},
+		{input: "abcdefghijk", maxLen: 4, want: "ab…k"},
+		{input: "abcdefghijk", maxLen: 5, want: "ab…jk"},
+		{input: "abcdefghijk", maxLen: 6, want: "abc…jk"},
+		{input: "abcdefghijk", maxLen: 7, want: "abc…ijk"},
+		{input: "abcdefghijk", maxLen: 8, want: "abcd…ijk"},
+		{input: "abcdefghijk", maxLen: 9, want: "abcd…hijk"},
+	}
+
+	for i, tc := range testCases {
+		tc := tc
+		t.Run(tu.Name(i, tc.input, tc.maxLen), func(t *testing.T) {
+			got := stringz.Ellipsify(tc.input, tc.maxLen)
+			t.Logf("%12q  -->  %12q", tc.input, got)
+			assert.Equal(t, tc.want, got)
+		})
+	}
+
+	t.Run("test negative", func(t *testing.T) {
+		got := stringz.Ellipsify("abc", -1)
+		require.Equal(t, "", got)
+	})
+}
+
+// TestEllipsifyASCII tests EllipsifyASCII. It verifies that
 // the function trims the middle of a string, leaving the
 // start and end intact.
-func TestTrimLenMiddle(t *testing.T) {
+func TestEllipsifyASCII(t *testing.T) {
 	testCases := []struct {
 		input  string
 		maxLen int
@@ -581,8 +619,8 @@ func TestTrimLenMiddle(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, tc.input, tc.maxLen), func(t *testing.T) {
-			got := stringz.TrimLenMiddle(tc.input, tc.maxLen)
+		t.Run(tu.Name(i, tc.input, tc.maxLen), func(t *testing.T) {
+			got := stringz.EllipsifyASCII(tc.input, tc.maxLen)
 			require.True(t, len(got) <= tc.maxLen)
 			require.Equal(t, tc.want, got)
 		})
@@ -611,7 +649,7 @@ func TestDecimal(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, tc.in, tc.wantStr), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.in, tc.wantStr), func(t *testing.T) {
 			gotStr := stringz.FormatDecimal(tc.in)
 			require.Equal(t, tc.wantStr, gotStr)
 			gotPlaces := stringz.DecimalPlaces(tc.in)
@@ -620,4 +658,41 @@ func TestDecimal(t *testing.T) {
 			require.Equal(t, tc.wantFloatOK, gotFloatOK)
 		})
 	}
+}
+
+func TestSanitizeFilename(t *testing.T) {
+	testCases := []struct {
+		in   string
+		want string
+	}{
+		{in: "", want: ""},
+		{in: " ", want: " "},
+		{in: "a", want: "a"},
+		{in: "a b", want: "a b"},
+		{in: "a b c", want: "a b c"},
+		{in: "a b c.txt", want: "a b c.txt"},
+		{in: "conin$", want: "conin_"},
+		{in: "a+b", want: "a+b"},
+		{in: "some (file).txt", want: "some (file).txt"},
+		{in: ".", want: "_"},
+		{in: "..", want: "__"},
+	}
+
+	for i, tc := range testCases {
+		tc := tc
+		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
+			got := stringz.SanitizeFilename(tc.in)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestTypeNames(t *testing.T) {
+	errs := []error{errors.New("stdlib"), errz.New("errz")}
+	names := stringz.TypeNames(errs...)
+	require.Equal(t, []string{"*errors.errorString", "*errz.errz"}, names)
+
+	a := []any{1, "hello", true, errs}
+	names = stringz.TypeNames(a...)
+	require.Equal(t, []string{"int", "string", "bool", "[]error"}, names)
 }

@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 // TestRowRange tests the row range mechanism.
@@ -33,7 +33,7 @@ func TestRowRange(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, tc.in), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
 			ast := mustParse(t, tc.in)
 			insp := NewInspector(ast)
 			nodes := insp.FindNodes(typeRowRangeNode)

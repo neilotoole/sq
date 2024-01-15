@@ -20,6 +20,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
@@ -170,7 +171,7 @@ func getNewRecordFunc(rowMeta record.Meta) driver.NewRecordFunc {
 }
 
 // getTableMetadata gets the metadata for a single table. It is the
-// implementation of driver.Pool.Table.
+// implementation of Grip.TableMetadata.
 func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadata.Table, error) {
 	query := `SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, TABLE_COMMENT, (DATA_LENGTH + INDEX_LENGTH) AS table_size,
 (SELECT COUNT(*) FROM ` + "`" + tblName + "`" + `) AS row_count
@@ -186,6 +187,8 @@ WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`
 	if err != nil {
 		return nil, errw(err)
 	}
+	progress.Incr(ctx, 1)
+	progress.DebugDelay()
 
 	tblMeta.TableType = canonicalTableType(tblMeta.DBTableType)
 	tblMeta.FQName = schema + "." + tblMeta.Name
@@ -230,6 +233,8 @@ ORDER BY cols.ordinal_position ASC`
 		if err != nil {
 			return nil, errw(err)
 		}
+		progress.Incr(ctx, 1)
+		progress.DebugDelay()
 
 		if strings.EqualFold("YES", isNullable) {
 			col.Nullable = true
@@ -248,7 +253,7 @@ ORDER BY cols.ordinal_position ASC`
 	return cols, errw(rows.Err())
 }
 
-// getSourceMetadata is the implementation of driver.Pool.SourceMetadata.
+// getSourceMetadata is the implementation of driver.Grip.SourceMetadata.
 //
 // Multiple queries are required to build the SourceMetadata, and this
 // impl makes use of errgroup to make concurrent queries. In the initial
@@ -343,6 +348,8 @@ func setSourceSummaryMeta(ctx context.Context, db sqlz.DB, md *metadata.Source) 
 	if err != nil {
 		return errw(err)
 	}
+	progress.Incr(ctx, 1)
+	progress.DebugDelay()
 
 	md.Name = schema
 	md.Schema = schema
@@ -374,6 +381,9 @@ func getDBProperties(ctx context.Context, db sqlz.DB) (map[string]any, error) {
 		if err != nil {
 			return nil, errw(err)
 		}
+
+		progress.Incr(ctx, 1)
+		progress.DebugDelay()
 
 		// Narrow setting to bool or int if possible.
 		var (
@@ -453,6 +463,9 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 		if err != nil {
 			return nil, errw(err)
 		}
+
+		progress.Incr(ctx, 1)
+		progress.DebugDelay()
 
 		if !curTblName.Valid || !colName.Valid {
 			// table may have been dropped during metadata collection
@@ -591,7 +604,7 @@ func getTableRowCounts(ctx context.Context, db sqlz.DB, tblNames []string) (map[
 		}
 
 		err = errw(err)
-		if errz.IsErrNotExist(err) {
+		if errz.Has[*driver.NotExistError](err) {
 			// Sometimes a table can get deleted during the operation. If so,
 			// we just remove that table from the list, and try again.
 			// We could also do this entire thing in a transaction, but where's
@@ -618,6 +631,8 @@ func getTableRowCounts(ctx context.Context, db sqlz.DB, tblNames []string) (map[
 		if err = rows.Scan(&tblName, &count); err != nil {
 			return nil, errw(err)
 		}
+		progress.Incr(ctx, 1)
+		progress.DebugDelay()
 
 		m[tblName] = count
 	}

@@ -50,7 +50,8 @@ const (
 )
 
 // errNoMsg is a sentinel error indicating that a command
-// has failed, but that no error message should be printed.
+// has failed (and thus the program should exit with a non-zero
+// code), but no error message should be printed.
 // This is useful in the case where any error information may
 // already have been printed as part of the command output.
 var errNoMsg = errors.New("")
@@ -60,27 +61,35 @@ var errNoMsg = errors.New("")
 func Execute(ctx context.Context, stdin *os.File, stdout, stderr io.Writer, args []string) error {
 	ru, log, err := newRun(ctx, stdin, stdout, stderr, args)
 	if err != nil {
+		// This may be unnecessary, but we are extra-paranoid about
+		// closing ru before exiting the program.
+		if closeErr := ru.Close(); closeErr != nil && log != nil {
+			log.Error("Failed to close run", lga.Err, closeErr)
+		}
+		if ru.LogCloser != nil {
+			_ = ru.LogCloser()
+		}
 		printError(ctx, ru, err)
 		return err
 	}
 
-	defer ru.Close() // ok to call ru.Close on nil ru
-
 	ctx = lg.NewContext(ctx, log)
-
 	return ExecuteWith(ctx, ru, args)
 }
 
 // ExecuteWith invokes the cobra CLI framework, ultimately
-// resulting in a command being executed. The caller must
-// invoke ru.Close.
+// resulting in a command being executed. This function always closes ru.
 func ExecuteWith(ctx context.Context, ru *run.Run, args []string) error {
-	ctx = options.NewContext(ctx, ru.Config.Options)
+	defer func() {
+		if ru != nil && ru.LogCloser != nil {
+			_ = ru.LogCloser()
+		}
+	}()
+	ctx = options.NewContext(ctx, options.Merge(options.FromContext(ctx), ru.Config.Options))
 	log := lg.FromContext(ctx)
-	log.Debug("EXECUTE", "args", strings.Join(args, " "))
-	log.Debug("Build info", "build", buildinfo.Get())
-	log.Debug("Config",
-		"config.version", ru.Config.Version,
+	log.Info("EXECUTE", "args", strings.Join(args, " "))
+	log.Info("Build info", "build", buildinfo.Get())
+	log.Info("Config", "config_version", ru.Config.Version,
 		lga.Path, ru.ConfigStore.Location(),
 	)
 
@@ -123,6 +132,7 @@ func ExecuteWith(ctx context.Context, ru *run.Run, args []string) error {
 			// cobra still returns cmd though. It should be
 			// the root cmd.
 			if cmd == nil || cmd.Name() != rootCmd.Name() {
+				lg.WarnIfCloseError(log, "Problem closing run", ru)
 				// Not sure if this can happen anymore? Can prob delete?
 				panic(fmt.Sprintf("bad cobra cmd state: %v", cmd))
 			}
@@ -133,6 +143,7 @@ func ExecuteWith(ctx context.Context, ru *run.Run, args []string) error {
 			// doesn't want the first args element.
 			effectiveArgs := append([]string{"slq"}, args...)
 			if effectiveArgs, err = preprocessFlagArgVars(effectiveArgs); err != nil {
+				lg.WarnIfCloseError(log, "Problem closing run", ru)
 				return err
 			}
 			rootCmd.SetArgs(effectiveArgs)
@@ -143,6 +154,7 @@ func ExecuteWith(ctx context.Context, ru *run.Run, args []string) error {
 				// we redirect to "slq" cmd.
 				effectiveArgs := append([]string{"slq"}, args...)
 				if effectiveArgs, err = preprocessFlagArgVars(effectiveArgs); err != nil {
+					lg.WarnIfCloseError(log, "Problem closing run", ru)
 					return err
 				}
 				rootCmd.SetArgs(effectiveArgs)
@@ -157,9 +169,11 @@ func ExecuteWith(ctx context.Context, ru *run.Run, args []string) error {
 		}
 	}
 
+	rootCmd.SetContext(ctx)
 	// Execute rootCmd; cobra will find the appropriate
 	// sub-command, and ultimately execute that command.
 	err = rootCmd.ExecuteContext(ctx)
+	lg.WarnIfCloseError(log, "Problem closing run", ru)
 	if err != nil {
 		printError(ctx, ru, err)
 	}
@@ -226,9 +240,23 @@ func newCommandTree(ru *run.Run) (rootCmd *cobra.Command) {
 	addCmd(ru, configCmd, newConfigLocationCmd())
 	addCmd(ru, configCmd, newConfigEditCmd())
 
+	cacheCmd := addCmd(ru, rootCmd, newCacheCmd())
+	addCmd(ru, cacheCmd, newCacheLocationCmd())
+	addCmd(ru, cacheCmd, newCacheStatCmd())
+	addCmd(ru, cacheCmd, newCacheEnableCmd())
+	addCmd(ru, cacheCmd, newCacheDisableCmd())
+	addCmd(ru, cacheCmd, newCacheClearCmd())
+	addCmd(ru, cacheCmd, newCacheTreeCmd())
+
 	addCmd(ru, rootCmd, newCompletionCmd())
 	addCmd(ru, rootCmd, newVersionCmd())
 	addCmd(ru, rootCmd, newManCmd())
+
+	xCmd := addCmd(ru, rootCmd, newXCmd())
+	addCmd(ru, xCmd, newXLockSrcCmd())
+	addCmd(ru, xCmd, newXLockConfigCmd())
+	addCmd(ru, xCmd, newXProgressCmd())
+	addCmd(ru, xCmd, newXDownloadCmd())
 
 	return rootCmd
 }

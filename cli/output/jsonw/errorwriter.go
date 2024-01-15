@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"strings"
 
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -21,33 +22,58 @@ func NewErrorWriter(log *slog.Logger, out io.Writer, pr *output.Printing) output
 	return &errorWriter{log: log, out: out, pr: pr}
 }
 
-// Error implements output.ErrorWriter.
-func (w *errorWriter) Error(err error) {
-	var errMsg string
-	var stack []string
+type errorDetail struct {
+	Error     string   `json:"error"`
+	BaseError string   `json:"base_error,omitempty"`
+	Tree      string   `json:"tree,omitempty"`
+	Stack     []*stack `json:"stack,omitempty"`
+}
 
-	if err == nil {
-		errMsg = "nil error"
-	} else {
-		errMsg = err.Error()
-		if w.pr.Verbose {
-			for _, st := range errz.Stack(err) {
-				s := fmt.Sprintf("%+v", st)
-				stack = append(stack, s)
+type stackError struct {
+	Message string `json:"msg"`
+	Tree    string `json:"tree,omitempty"`
+}
+
+type stack struct {
+	Error *stackError `json:"error,omitempty"`
+	Trace string      `json:"trace,omitempty"`
+}
+
+// Error implements output.ErrorWriter.
+func (w *errorWriter) Error(systemErr, humanErr error) {
+	pr := w.pr.Clone()
+	pr.String = pr.Warning
+
+	if !w.pr.Verbose {
+		ed := errorDetail{Error: humanErr.Error()}
+		_ = writeJSON(w.out, pr, ed)
+		return
+	}
+
+	ed := errorDetail{
+		Error:     humanErr.Error(),
+		BaseError: systemErr.Error(),
+		Tree:      errz.SprintTreeTypes(systemErr),
+	}
+
+	stacks := errz.Stacks(systemErr)
+	if len(stacks) > 0 {
+		for _, sysStack := range stacks {
+			if sysStack == nil {
+				continue
 			}
+
+			st := &stack{
+				Trace: strings.ReplaceAll(fmt.Sprintf("%+v", sysStack.Frames), "\n\t", "\n  "),
+				Error: &stackError{
+					Message: sysStack.Error.Error(),
+					Tree:    errz.SprintTreeTypes(sysStack.Error),
+				},
+			}
+
+			ed.Stack = append(ed.Stack, st)
 		}
 	}
 
-	t := struct {
-		Error string   `json:"error"`
-		Stack []string `json:"stack,omitempty"`
-	}{
-		Error: errMsg,
-		Stack: stack,
-	}
-
-	pr := w.pr.Clone()
-	pr.String = pr.Error
-
-	_ = writeJSON(w.out, pr, t)
+	_ = writeJSON(w.out, pr, ed)
 }

@@ -21,6 +21,28 @@ func NewConfigWriter(out io.Writer, pr *output.Printing) output.ConfigWriter {
 	return &configWriter{out: out, pr: pr}
 }
 
+// CacheLocation implements output.ConfigWriter.
+func (w *configWriter) CacheLocation(loc string) error {
+	m := map[string]string{"location": loc}
+	return writeJSON(w.out, w.pr, m)
+}
+
+// CacheStat implements output.ConfigWriter.
+func (w *configWriter) CacheStat(loc string, enabled bool, size int64) error {
+	type cacheInfo struct {
+		Location string `json:"location"`
+		Enabled  bool   `json:"enabled"`
+		Size     *int64 `json:"size,omitempty"`
+	}
+
+	ci := cacheInfo{Location: loc, Enabled: enabled}
+	if size != -1 {
+		ci.Size = &size
+	}
+
+	return writeJSON(w.out, w.pr, ci)
+}
+
 // Location implements output.ConfigWriter.
 func (w *configWriter) Location(loc, origin string) error {
 	type cfgInfo struct {

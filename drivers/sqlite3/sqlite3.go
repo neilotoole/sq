@@ -12,7 +12,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3" // Import for side effect of loading the driver
@@ -22,6 +21,7 @@ import (
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/ast/render"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/jointype"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -124,8 +124,8 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 	}
 }
 
-// Open implements driver.PoolOpener.
-func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Pool, error) {
+// Open implements driver.Driver.
+func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
 	db, err := d.doOpen(ctx, src)
@@ -137,7 +137,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Pool, er
 		return nil, err
 	}
 
-	return &pool{log: d.log, db: db, src: src, drvr: d}, nil
+	return &grip{log: d.log, db: db, src: src, drvr: d}, nil
 }
 
 func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
@@ -145,6 +145,7 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 	if err != nil {
 		return nil, err
 	}
+
 	db, err := sql.Open(dbDrvr, fp)
 	if err != nil {
 		return nil, errz.Wrapf(errw(err), "failed to open sqlite3 source with DSN: %s", fp)
@@ -910,151 +911,42 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 	return destCols, nil
 }
 
-// pool implements driver.Pool.
-type pool struct {
-	log  *slog.Logger
-	db   *sql.DB
-	src  *source.Source
-	drvr *driveri
+var _ driver.ScratchSrcFunc = NewScratchSource
 
-	// DEBUG: closeMu and closed exist while debugging close behavior
-	closeMu sync.Mutex
-	closed  bool
-}
-
-// DB implements driver.Pool.
-func (p *pool) DB(context.Context) (*sql.DB, error) {
-	return p.db, nil
-}
-
-// SQLDriver implements driver.Pool.
-func (p *pool) SQLDriver() driver.SQLDriver {
-	return p.drvr
-}
-
-// Source implements driver.Pool.
-func (p *pool) Source() *source.Source {
-	return p.src
-}
-
-// TableMetadata implements driver.Pool.
-func (p *pool) TableMetadata(ctx context.Context, tblName string) (*metadata.Table, error) {
-	db, err := p.DB(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	return getTableMetadata(ctx, db, tblName)
-}
-
-// SourceMetadata implements driver.Pool.
-func (p *pool) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error) {
-	// https://stackoverflow.com/questions/9646353/how-to-find-sqlite-database-file-version
-
-	md := &metadata.Source{Handle: p.src.Handle, Driver: Type, DBDriver: dbDrvr}
-
-	dsn, err := PathFromLocation(p.src)
-	if err != nil {
-		return nil, err
-	}
-
-	const q = "SELECT sqlite_version(), (SELECT name FROM pragma_database_list ORDER BY seq limit 1);"
-
-	err = p.db.QueryRowContext(ctx, q).Scan(&md.DBVersion, &md.Schema)
-	if err != nil {
-		return nil, errw(err)
-	}
-
-	md.DBProduct = "SQLite3 v" + md.DBVersion
-
-	fi, err := os.Stat(dsn)
-	if err != nil {
-		return nil, errw(err)
-	}
-
-	md.Size = fi.Size()
-	md.Name = fi.Name()
-	md.FQName = fi.Name() + "." + md.Schema
-	// SQLite doesn't support catalog, but we conventionally set it to "default"
-	md.Catalog = "default"
-	md.Location = p.src.Location
-
-	md.DBProperties, err = getDBProperties(ctx, p.db)
-	if err != nil {
-		return nil, err
-	}
-
-	if noSchema {
-		return md, nil
-	}
-
-	md.Tables, err = getAllTableMetadata(ctx, p.db, md.Schema)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, tbl := range md.Tables {
-		if tbl.TableType == sqlz.TableTypeTable {
-			md.TableCount++
-		} else if tbl.TableType == sqlz.TableTypeView {
-			md.ViewCount++
-		}
-	}
-
-	return md, nil
-}
-
-// Close implements driver.Pool.
-func (p *pool) Close() error {
-	p.closeMu.Lock()
-	defer p.closeMu.Unlock()
-
-	if p.closed {
-		p.log.Warn("SQLite DB already closed", lga.Src, p.src)
-		return nil
-	}
-
-	p.log.Debug(lgm.CloseDB, lga.Handle, p.src.Handle)
-	err := errw(p.db.Close())
-	p.closed = true
-	return err
-}
-
-// NewScratchSource returns a new scratch src. Effectively this
-// function creates a new sqlite db file in the temp dir, and
-// src points at this file. The returned clnup func will delete
-// the file.
-func NewScratchSource(ctx context.Context, name string) (src *source.Source, clnup func() error, err error) {
+// NewScratchSource returns a new scratch src. The supplied fpath
+// must be the absolute path to the location to create the SQLite DB file,
+// typically in the user cache dir.
+// The returned clnup func will delete the dB file.
+func NewScratchSource(ctx context.Context, fpath string) (src *source.Source, clnup func() error, err error) {
 	log := lg.FromContext(ctx)
-	name = stringz.SanitizeAlphaNumeric(name, '_')
-	dir, file, err := source.TempDirFile(name + ".sqlite")
-	if err != nil {
-		return nil, nil, err
-	}
-
-	log.Debug("Created sqlite3 scratchdb data file", lga.Path, file)
-
 	src = &source.Source{
 		Type:     Type,
 		Handle:   source.ScratchHandle,
-		Location: Prefix + file,
+		Location: Prefix + fpath,
 	}
 
-	fn := func() error {
-		log.Debug("Deleting sqlite3 scratchdb file", lga.Src, src, lga.Path, file)
-		rmErr := errz.Err(os.RemoveAll(dir))
-		if rmErr != nil {
-			log.Warn("Delete sqlite3 scratchdb file", lga.Err, rmErr)
+	clnup = func() error {
+		if journal := filepath.Join(fpath, ".db-journal"); ioz.FileAccessible(journal) {
+			lg.WarnIfError(log, "Delete sqlite3 db journal file", os.Remove(journal))
 		}
+
+		log.Debug("Delete sqlite3 scratchdb file", lga.Src, src, lga.Path, fpath)
+		if err := os.Remove(fpath); err != nil {
+			log.Warn("Delete sqlite3 scratchdb file", lga.Err, err)
+			return errz.Err(err)
+		}
+
 		return nil
 	}
 
-	return src, fn, nil
+	return src, clnup, nil
 }
 
-// PathFromLocation returns the absolute file path
-// from the source location, which should have the "sqlite3://" prefix.
+// PathFromLocation returns the absolute file path from the source location,
+// which should have the "sqlite3://" prefix.
 func PathFromLocation(src *source.Source) (string, error) {
+	// FIXME: Does this actually work with query params in the path?
+	// Probably not? Maybe refactor use dburl.Parse or such.
 	if src.Type != Type {
 		return "", errz.Errorf("driver {%s} does not support {%s}", Type, src.Type)
 	}

@@ -5,6 +5,7 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 )
 
@@ -47,6 +48,8 @@ func getSysConfigurations(ctx context.Context, db sqlz.DB) (map[string]any, erro
 		if err = rows.Scan(&name, &val); err != nil {
 			return nil, errw(err)
 		}
+		progress.Incr(ctx, 1)
+		progress.DebugDelay()
 
 		m[name] = val
 	}
@@ -83,6 +86,8 @@ func getServerProperties(ctx context.Context, db sqlz.DB) (map[string]any, error
 		if val == nil {
 			continue
 		}
+		progress.Incr(ctx, 1)
+		progress.DebugDelay()
 
 		m[name] = val
 	}

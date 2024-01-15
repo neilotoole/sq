@@ -14,7 +14,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/jointype"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh/sakila"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func TestQuery_join_args(t *testing.T) {
@@ -384,7 +384,7 @@ func TestQuery_table_alias(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, tc.name), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.name), func(t *testing.T) {
 			execQueryTestCase(t, tc)
 		})
 	}

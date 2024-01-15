@@ -309,7 +309,7 @@ See [CHANGELOG.md](./CHANGELOG.md).
 - Thanks to [Diego Souza](https://github.com/diegosouza) for creating
   the [Arch Linux package](https://aur.archlinux.org/packages/sq-bin), and [`@icp`](https://github.com/icp1994)
   for creating the [Void Linux package](https://github.com/void-linux/void-packages/blob/master/srcpkgs/sq/template).
-- Much inspiration is owed to [jq](https://stedolan.github.io/jq/).
+- Much inspiration is owed to [jq](https://jqlang.github.io/jq/).
 - See [`go.mod`](https://github.com/neilotoole/sq/blob/master/go.mod) for a list of third-party
   packages.
 - Additionally, `sq` incorporates modified versions of:
@@ -319,6 +319,13 @@ See [CHANGELOG.md](./CHANGELOG.md).
   from [jOOQ](https://github.com/jooq/jooq), which in turn owe their heritage to earlier work on
   Sakila.
 - Date rendering via [`ncruces/go-strftime`](https://github.com/ncruces/go-strftime).
+- A modified version [`dolmen-go/contextio`](https://github.com/dolmen-go/contextio) is
+  incorporated into the codebase.
+- The [`log.devmode`](https://sq.io/docs/config#logdevmode) log format is
+  derived from [`lmittmann/tint`](https://github.com/lmittmann/tint).
+- [`djherbis/fscache`](https://github.com/djherbis/fscache) is used for caching.
+- A forked version of [`nightlyone/lockfile`](https://github.com/nightlyone/lockfile) is incorporated.
+- The human-friendly `text` log format handler is a fork of [`lmittmann/tint`](https://github.com/lmittmann/tint).
 
 ## Similar, related, or noteworthy projects
 

@@ -14,16 +14,17 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/slogt"
-
 	"github.com/neilotoole/sq/cli"
 	"github.com/neilotoole/sq/cli/config"
 	"github.com/neilotoole/sq/cli/config/yamlstore"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/testh"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 // TestRun is a helper for testing sq commands.
@@ -55,19 +56,23 @@ func New(ctx context.Context, t testing.TB, from *TestRun) *TestRun {
 	}
 
 	if !lg.InContext(ctx) {
-		ctx = lg.NewContext(ctx, slogt.New(t))
+		// FIXME: Get rid of this abomination
+		ctx = lg.NewContext(ctx, lgt.New(t))
 	}
 
 	tr := &TestRun{T: t, Context: ctx, mu: &sync.Mutex{}}
 
 	var cfgStore config.Store
+	var cacheDir string
 	if from != nil {
 		cfgStore = from.Run.ConfigStore
+		cacheDir = from.Run.Files.CacheDir()
 		tr.hushOutput = from.hushOutput
 	}
 
-	tr.Run, tr.Out, tr.ErrOut = newRun(ctx, t, cfgStore)
-	tr.Context = options.NewContext(ctx, tr.Run.Config.Options)
+	tr.Run, tr.Out, tr.ErrOut = newRun(ctx, t, cfgStore, cacheDir)
+	o := options.Merge(options.FromContext(ctx), tr.Run.Config.Options)
+	tr.Context = options.NewContext(ctx, o)
 	return tr
 }
 
@@ -77,7 +82,9 @@ func New(ctx context.Context, t testing.TB, from *TestRun) *TestRun {
 // these buffers can be written to t.Log() if desired.
 //
 // If cfgStore is nil, a new one is created in a temp dir.
-func newRun(ctx context.Context, t testing.TB, cfgStore config.Store) (ru *run.Run, out, errOut *bytes.Buffer) {
+func newRun(ctx context.Context, t testing.TB,
+	cfgStore config.Store, cacheDir string,
+) (ru *run.Run, out, errOut *bytes.Buffer) {
 	out = &bytes.Buffer{}
 	errOut = &bytes.Buffer{}
 
@@ -109,6 +116,29 @@ func newRun(ctx context.Context, t testing.TB, cfgStore config.Store) (ru *run.R
 		ConfigStore:     cfgStore,
 		OptionsRegistry: optsReg,
 	}
+
+	// The Files instance needs unique dirs for temp and cache because
+	// the test runs may execute in parallel inside the same test binary
+	// process, thus breaking the pid-based lockfile mechanism.
+
+	// If cacheDir was supplied, use that one, because it's probably the
+	// cache dir from a previous run, that we want to reuse. If not supplied,
+	// create a unique cache dir for this run.
+	// The Files instance generally needs unique dirs for temp and cache because
+	// the test runs may execute in parallel inside the same test binary
+	// process, thus breaking the pid-based lockfile mechanism.
+	if cacheDir == "" {
+		cacheDir = tu.CacheDir(t, false)
+	}
+
+	ru.Files, err = source.NewFiles(
+		ctx,
+		ru.OptionsRegistry,
+		testh.TempLockFunc(t),
+		tu.TempDir(t, false),
+		cacheDir,
+	)
+	require.NoError(t, err)
 
 	require.NoError(t, cli.FinishRunInit(ctx, ru))
 	return ru, out, errOut

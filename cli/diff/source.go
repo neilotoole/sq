@@ -8,8 +8,6 @@ import (
 	"github.com/samber/lo"
 	"golang.org/x/sync/errgroup"
 
-	udiff "github.com/neilotoole/sq/cli/diff/internal/go-udiff"
-	"github.com/neilotoole/sq/cli/diff/internal/go-udiff/myers"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/source"
@@ -44,22 +42,22 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, cfg *Config,
 	}
 
 	if elems.Overview {
-		srcDiff, err := buildSourceOverviewDiff(cfg, sd1, sd2)
+		srcDiff, err := buildSourceOverviewDiff(ctx, cfg, sd1, sd2)
 		if err != nil {
 			return err
 		}
 
-		if err = Print(ru.Out, ru.Writers.Printing, srcDiff.header, srcDiff.diff); err != nil {
+		if err = Print(ctx, ru.Out, ru.Writers.Printing, srcDiff.header, srcDiff.diff); err != nil {
 			return err
 		}
 	}
 
 	if elems.DBProperties {
-		propsDiff, err := buildDBPropsDiff(cfg, sd1, sd2)
+		propsDiff, err := buildDBPropsDiff(ctx, cfg, sd1, sd2)
 		if err != nil {
 			return err
 		}
-		if err = Print(ru.Out, ru.Writers.Printing, propsDiff.header, propsDiff.diff); err != nil {
+		if err = Print(ctx, ru.Out, ru.Writers.Printing, propsDiff.header, propsDiff.diff); err != nil {
 			return err
 		}
 	}
@@ -70,7 +68,7 @@ func ExecSourceDiff(ctx context.Context, ru *run.Run, cfg *Config,
 			return err
 		}
 		for _, tblDiff := range tblDiffs {
-			if err := Print(ru.Out, ru.Writers.Printing, tblDiff.header, tblDiff.diff); err != nil {
+			if err = Print(ctx, ru.Out, ru.Writers.Printing, tblDiff.header, tblDiff.diff); err != nil {
 				return err
 			}
 		}
@@ -112,7 +110,7 @@ func buildSourceTableDiffs(ctx context.Context, cfg *Config, showRowCounts bool,
 			srcMeta: sd2.srcMeta,
 		}
 
-		dff, err := buildTableStructureDiff(cfg, showRowCounts, td1, td2)
+		dff, err := buildTableStructureDiff(ctx, cfg, showRowCounts, td1, td2)
 		if err != nil {
 			return nil, err
 		}
@@ -123,7 +121,7 @@ func buildSourceTableDiffs(ctx context.Context, cfg *Config, showRowCounts bool,
 	return diffs, nil
 }
 
-func buildSourceOverviewDiff(cfg *Config, sd1, sd2 *sourceData) (*sourceOverviewDiff, error) {
+func buildSourceOverviewDiff(ctx context.Context, cfg *Config, sd1, sd2 *sourceData) (*sourceOverviewDiff, error) {
 	var (
 		body1, body2 string
 		err          error
@@ -136,16 +134,9 @@ func buildSourceOverviewDiff(cfg *Config, sd1, sd2 *sourceData) (*sourceOverview
 		return nil, err
 	}
 
-	edits := myers.ComputeEdits(body1, body2)
-	unified, err := udiff.ToUnified(
-		sd1.handle,
-		sd2.handle,
-		body1,
-		edits,
-		cfg.Lines,
-	)
+	unified, err := computeUnified(ctx, "overview", sd1.handle, sd2.handle, cfg.Lines, body1, body2)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, err
 	}
 
 	diff := &sourceOverviewDiff{
@@ -158,7 +149,7 @@ func buildSourceOverviewDiff(cfg *Config, sd1, sd2 *sourceData) (*sourceOverview
 	return diff, nil
 }
 
-func buildDBPropsDiff(cfg *Config, sd1, sd2 *sourceData) (*dbPropsDiff, error) {
+func buildDBPropsDiff(ctx context.Context, cfg *Config, sd1, sd2 *sourceData) (*dbPropsDiff, error) {
 	var (
 		body1, body2 string
 		err          error
@@ -171,16 +162,9 @@ func buildDBPropsDiff(cfg *Config, sd1, sd2 *sourceData) (*dbPropsDiff, error) {
 		return nil, err
 	}
 
-	edits := myers.ComputeEdits(body1, body2)
-	unified, err := udiff.ToUnified(
-		sd1.handle,
-		sd2.handle,
-		body1,
-		edits,
-		cfg.Lines,
-	)
+	unified, err := computeUnified(ctx, "dbprops", sd1.handle, sd2.handle, cfg.Lines, body1, body2)
 	if err != nil {
-		return nil, errz.Err(err)
+		return nil, err
 	}
 
 	return &dbPropsDiff{
@@ -196,11 +180,11 @@ func fetchSourceMeta(ctx context.Context, ru *run.Run, handle string) (*source.S
 	if err != nil {
 		return nil, nil, err
 	}
-	pool, err := ru.Pools.Open(ctx, src)
+	grip, err := ru.Grips.Open(ctx, src)
 	if err != nil {
 		return nil, nil, err
 	}
-	md, err := pool.SourceMetadata(ctx, false)
+	md, err := grip.SourceMetadata(ctx, false)
 	if err != nil {
 		return nil, nil, err
 	}

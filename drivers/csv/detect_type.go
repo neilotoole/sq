@@ -5,10 +5,12 @@ import (
 	"encoding/csv"
 	"errors"
 	"io"
+	"time"
 
 	"github.com/neilotoole/sq/cli/output/csvw"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
@@ -38,7 +40,7 @@ func detectType(ctx context.Context, typ drivertype.Type,
 ) (detected drivertype.Type, score float32, err error) {
 	log := lg.FromContext(ctx)
 	var r io.ReadCloser
-	r, err = openFn()
+	r, err = openFn(ctx)
 	if err != nil {
 		return drivertype.None, 0, errz.Err(err)
 	}
@@ -70,10 +72,13 @@ const (
 	scoreYes float32 = 0.9
 )
 
-// isCSV returns a score indicating the
-// the confidence that cr is reading legitimate CSV, where
-// a score <= 0 is not CSV, a score >= 1 is definitely CSV.
+// isCSV returns a score indicating the confidence that cr is reading
+// legitimate CSV, where a score <= 0 is not CSV, a score >= 1 is definitely CSV.
 func isCSV(ctx context.Context, cr *csv.Reader) (score float32) {
+	start := time.Now()
+	defer func() {
+		lg.FromContext(ctx).Debug("CSV detection complete", lga.Elapsed, time.Since(start), lga.Score, score)
+	}()
 	const (
 		maxRecords int = 100
 	)

@@ -8,15 +8,14 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/slogt"
-
 	"github.com/neilotoole/sq/cli"
 	"github.com/neilotoole/sq/cli/output/format"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
+	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/driver"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 type config struct {
@@ -24,7 +23,7 @@ type config struct {
 }
 
 func TestOptions(t *testing.T) {
-	log := slogt.New(t)
+	log := lgt.New(t)
 	b, err := os.ReadFile("testdata/good.01.yml")
 	require.NoError(t, err)
 
@@ -67,7 +66,7 @@ func TestInt(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, tc.key), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.key), func(t *testing.T) {
 			reg := &options.Registry{}
 
 			opt := options.NewInt(tc.key, "", 0, tc.defaultVal, "", "")
@@ -113,10 +112,10 @@ func TestBool(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, tc.key), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.key), func(t *testing.T) {
 			reg := &options.Registry{}
 
-			opt := options.NewBool(tc.key, "", 0, tc.defaultVal, "", "")
+			opt := options.NewBool(tc.key, "", false, 0, tc.defaultVal, "", "")
 			reg.Add(opt)
 
 			o := options.Options{tc.key: tc.input}
@@ -151,7 +150,7 @@ func TestMerge(t *testing.T) {
 
 func TestOptions_LogValue(t *testing.T) {
 	o1 := options.Options{"a": 1, "b": true, "c": "hello"}
-	log := slogt.New(t)
+	log := lgt.New(t)
 
 	log.Debug("Logging options", lga.Opts, o1)
 }

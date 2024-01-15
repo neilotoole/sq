@@ -12,6 +12,7 @@ import (
 	"github.com/neilotoole/sq/cli/config"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
+	"github.com/neilotoole/sq/libsq/core/ioz/lockfile"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/options"
@@ -25,6 +26,8 @@ const (
 	originEnv     = "env"
 	originDefault = "default"
 )
+
+var _ config.Store = (*Store)(nil)
 
 // Store provides persistence of config via YAML file.
 // It implements config.Store.
@@ -50,6 +53,16 @@ type Store struct {
 	OptionsRegistry *options.Registry
 }
 
+// Lockfile implements Store.Lockfile.
+func (fs *Store) Lockfile() (lockfile.Lockfile, error) {
+	fp := filepath.Join(filepath.Dir(fs.Path), "config.pid.lock")
+	fp, err := filepath.Abs(fp)
+	if err != nil {
+		return "", errz.Wrap(err, "failed to get abs path for lockfile")
+	}
+	return lockfile.Lockfile(fp), nil
+}
+
 // String returns a log/debug-friendly representation.
 func (fs *Store) String() string {
 	return fmt.Sprintf("config via %s: %v", fs.PathOrigin, fs.Path)
@@ -66,27 +79,46 @@ func (fs *Store) Load(ctx context.Context) (*config.Config, error) {
 	log.Debug("Loading config from file", lga.Path, fs.Path)
 
 	if fs.UpgradeRegistry != nil {
-		mightNeedUpgrade, foundVers, err := checkNeedsUpgrade(ctx, fs.Path)
+		mightNeedUpgrade, _, err := checkNeedsUpgrade(ctx, fs.Path)
 		if err != nil {
 			return nil, errz.Wrapf(err, "config: %s", fs.Path)
 		}
 
 		if mightNeedUpgrade {
-			log.Info("Upgrade config?", lga.From, foundVers, lga.To, buildinfo.Version)
-			if _, err = fs.doUpgrade(ctx, foundVers, buildinfo.Version); err != nil {
+			// The config might need to be upgraded. But, there's an edge case
+			// where another process might upgrade the config file before we
+			// get a chance to do so. So, we acquire the config lock, and
+			// then check again if it still needs upgrade.
+			unlock, err := fs.acquireLock(ctx)
+			if err != nil {
 				return nil, err
 			}
+			defer unlock()
 
-			// We do a cycle of loading and saving the config after the upgrade,
-			// because the upgrade may have written YAML via a map, which
-			// doesn't preserve order. Loading and saving should fix that.
-			cfg, err := fs.doLoad(ctx)
+			// Lock is acquired; check again if config needs upgrade.
+			var foundVers string
+			mightNeedUpgrade, foundVers, err = checkNeedsUpgrade(ctx, fs.Path)
 			if err != nil {
-				return nil, errz.Wrapf(err, "config: %s: load failed after config upgrade", fs.Path)
+				return nil, errz.Wrapf(err, "config: %s", fs.Path)
 			}
 
-			if err = fs.Save(ctx, cfg); err != nil {
-				return nil, errz.Wrapf(err, "config: %s: save failed after config upgrade", fs.Path)
+			if mightNeedUpgrade {
+				log.Info("Upgrade config?", lga.From, foundVers, lga.To, buildinfo.Version)
+				if _, err = fs.doUpgrade(ctx, foundVers, buildinfo.Version); err != nil {
+					return nil, err
+				}
+
+				// We do a cycle of loading and saving the config after the upgrade,
+				// because the upgrade may have written YAML via a map, which
+				// doesn't preserve order. Loading and saving should fix that.
+				cfg, err := fs.doLoad(ctx)
+				if err != nil {
+					return nil, errz.Wrapf(err, "config: %s: load failed after config upgrade", fs.Path)
+				}
+
+				if err = fs.Save(ctx, cfg); err != nil {
+					return nil, errz.Wrapf(err, "config: %s: save failed after config upgrade", fs.Path)
+				}
 			}
 		}
 	}
@@ -146,7 +178,7 @@ func (fs *Store) doLoad(ctx context.Context) (*config.Config, error) {
 }
 
 // Save writes config to disk. It implements Store.
-func (fs *Store) Save(_ context.Context, cfg *config.Config) error {
+func (fs *Store) Save(ctx context.Context, cfg *config.Config) error {
 	if fs == nil {
 		return errz.New("config file store is nil")
 	}
@@ -160,23 +192,21 @@ func (fs *Store) Save(_ context.Context, cfg *config.Config) error {
 		return err
 	}
 
-	return fs.Write(data)
+	return fs.write(ctx, data)
 }
 
 // Write writes the config bytes to disk.
-func (fs *Store) Write(data []byte) error {
+func (fs *Store) write(ctx context.Context, data []byte) error {
 	// It's possible that the parent dir of fs.Path doesn't exist.
-	dir := filepath.Dir(fs.Path)
-	err := os.MkdirAll(dir, 0o750)
-	if err != nil {
-		return errz.Wrapf(err, "failed to make parent dir of sq config file: %s", dir)
+	if err := ioz.RequireDir(filepath.Dir(fs.Path)); err != nil {
+		return errz.Wrapf(err, "failed to make parent dir of config file: %s", filepath.Dir(fs.Path))
 	}
 
-	err = os.WriteFile(fs.Path, data, 0o600)
-	if err != nil {
+	if err := os.WriteFile(fs.Path, data, ioz.RWPerms); err != nil {
 		return errz.Wrap(err, "failed to save config file")
 	}
 
+	lg.FromContext(ctx).Info("Wrote config file", lga.Path, fs.Path)
 	return nil
 }
 
@@ -185,6 +215,25 @@ func (fs *Store) Write(data []byte) error {
 func (fs *Store) fileExists() bool {
 	_, err := os.Stat(fs.Path)
 	return err == nil
+}
+
+// acquireLock acquires the config lock, and returns an unlock func.
+func (fs *Store) acquireLock(ctx context.Context) (unlock func(), err error) {
+	lock, err := fs.Lockfile()
+	if err != nil {
+		return nil, errz.Wrap(err, "failed to get config lock")
+	}
+
+	// We use the default timeout because config isn't loaded yet,
+	// so we don't know what the value is.
+	lockTimeout := config.OptConfigLockTimeout.Default()
+	if err = lock.Lock(ctx, lockTimeout); err != nil {
+		return nil, errz.Wrap(err, "acquire config lock")
+	}
+
+	return func() {
+		lg.WarnIfFuncError(lg.FromContext(ctx), "Release config lock", lock.Unlock)
+	}, nil
 }
 
 // canonicalizeConfig checks cfg's validity, and patches cfg to the canonical

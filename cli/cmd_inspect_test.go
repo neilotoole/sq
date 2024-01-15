@@ -17,19 +17,21 @@ import (
 	"github.com/neilotoole/sq/drivers/postgres"
 	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/libsq/core/ioz"
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 // TestCmdInspect_json_yaml tests "sq inspect" for
 // the JSON and YAML formats.
-func TestCmdInspect_json_yaml(t *testing.T) {
-	tutil.SkipShort(t, true)
+func TestCmdInspect_json_yaml(t *testing.T) { //nolint:tparallel
+	tu.SkipShort(t, true)
 
 	possibleTbls := append(sakila.AllTbls(), source.MonotableName)
 	testCases := []struct {
@@ -56,11 +58,14 @@ func TestCmdInspect_json_yaml(t *testing.T) {
 	for _, tf := range testFormats {
 		tf := tf
 		t.Run(tf.format.String(), func(t *testing.T) {
+			t.Parallel()
+
 			for _, tc := range testCases {
 				tc := tc
 
 				t.Run(tc.handle, func(t *testing.T) {
-					tutil.SkipWindowsIf(t, tc.handle == sakila.XLSX, "XLSX too slow on windows workflow")
+					t.Parallel()
+					tu.SkipWindowsIf(t, tc.handle == sakila.XLSX, "XLSX too slow on windows workflow")
 
 					th := testh.New(t)
 					src := th.Source(tc.handle)
@@ -90,8 +95,8 @@ func TestCmdInspect_json_yaml(t *testing.T) {
 						for _, tblName := range gotTableNames {
 							tblName := tblName
 							t.Run(tblName, func(t *testing.T) {
-								tutil.SkipShort(t, true)
-								tr2 := testrun.New(th.Context, t, tr)
+								tu.SkipShort(t, true)
+								tr2 := testrun.New(lg.NewContext(th.Context, lgt.New(t)), t, tr)
 								err := tr2.Exec("inspect", "."+tblName, fmt.Sprintf("--%s", tf.format))
 								require.NoError(t, err)
 								tblMeta := &metadata.Table{}
@@ -104,7 +109,7 @@ func TestCmdInspect_json_yaml(t *testing.T) {
 
 					t.Run("inspect_overview", func(t *testing.T) {
 						t.Logf("Test: sq inspect @src --overview")
-						tr2 := testrun.New(th.Context, t, tr)
+						tr2 := testrun.New(lg.NewContext(th.Context, lgt.New(t)), t, tr)
 						err := tr2.Exec(
 							"inspect",
 							tc.handle,
@@ -131,7 +136,7 @@ func TestCmdInspect_json_yaml(t *testing.T) {
 
 					t.Run("inspect_dbprops", func(t *testing.T) {
 						t.Logf("Test: sq inspect @src --dbprops")
-						tr2 := testrun.New(th.Context, t, tr)
+						tr2 := testrun.New(lg.NewContext(th.Context, lgt.New(t)), t, tr)
 						err := tr2.Exec(
 							"inspect",
 							tc.handle,
@@ -172,7 +177,7 @@ func TestCmdInspect_text(t *testing.T) { //nolint:tparallel
 		t.Run(tc.handle, func(t *testing.T) {
 			t.Parallel()
 
-			tutil.SkipWindowsIf(t, tc.handle == sakila.XLSX, "XLSX too slow on windows workflow")
+			tu.SkipWindowsIf(t, tc.handle == sakila.XLSX, "XLSX too slow on windows workflow")
 
 			th := testh.New(t)
 			src := th.Source(tc.handle)
@@ -198,7 +203,7 @@ func TestCmdInspect_text(t *testing.T) { //nolint:tparallel
 				for _, tblName := range tc.wantTbls {
 					tblName := tblName
 					t.Run(tblName, func(t *testing.T) {
-						tutil.SkipShort(t, true)
+						tu.SkipShort(t, true)
 						t.Logf("Test: sq inspect .tbl")
 						tr2 := testrun.New(th.Context, t, tr)
 						err := tr2.Exec("inspect", "."+tblName, fmt.Sprintf("--%s", format.Text))
@@ -281,6 +286,8 @@ func TestCmdInspect_smoke(t *testing.T) {
 }
 
 func TestCmdInspect_stdin(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		fpath    string
 		wantErr  bool
@@ -302,7 +309,9 @@ func TestCmdInspect_stdin(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 
-		t.Run(tutil.Name(tc.fpath), func(t *testing.T) {
+		t.Run(tu.Name(tc.fpath), func(t *testing.T) {
+			t.Parallel()
+
 			ctx := context.Background()
 			f, err := os.Open(tc.fpath) // No need to close f
 			require.NoError(t, err)

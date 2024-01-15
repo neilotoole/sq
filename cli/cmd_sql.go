@@ -120,17 +120,17 @@ func execSQL(cmd *cobra.Command, args []string) error {
 // to the configured writer.
 func execSQLPrint(ctx context.Context, ru *run.Run, fromSrc *source.Source) error {
 	args := ru.Args
-	pool, err := ru.Pools.Open(ctx, fromSrc)
+	grip, err := ru.Grips.Open(ctx, fromSrc)
 	if err != nil {
 		return err
 	}
 
 	recw := output.NewRecordWriterAdapter(ctx, ru.Writers.Record)
-	err = libsq.QuerySQL(ctx, pool, nil, recw, args[0])
+	err = libsq.QuerySQL(ctx, grip, nil, recw, args[0])
 	if err != nil {
 		return err
 	}
-	_, err = recw.Wait() // Wait for the writer to finish processing
+	_, err = recw.Wait() // Stop for the writer to finish processing
 	return err
 }
 
@@ -140,36 +140,37 @@ func execSQLInsert(ctx context.Context, ru *run.Run,
 	fromSrc, destSrc *source.Source, destTbl string,
 ) error {
 	args := ru.Args
-	pools := ru.Pools
+	grips := ru.Grips
 	ctx, cancelFn := context.WithCancel(ctx)
 	defer cancelFn()
 
-	fromPool, err := pools.Open(ctx, fromSrc)
+	fromGrip, err := grips.Open(ctx, fromSrc)
 	if err != nil {
 		return err
 	}
 
-	destPool, err := pools.Open(ctx, destSrc)
+	destGrip, err := grips.Open(ctx, destSrc)
 	if err != nil {
 		return err
 	}
 
-	// Note: We don't need to worry about closing fromPool and
-	// destPool because they are closed by pools.Close, which
+	// Note: We don't need to worry about closing fromGrip and
+	// destGrip because they are closed by grips.Close, which
 	// is invoked by ru.Close, and ru is closed further up the
 	// stack.
 	inserter := libsq.NewDBWriter(
-		destPool,
+		"Insert records",
+		destGrip,
 		destTbl,
 		driver.OptTuningRecChanSize.Get(destSrc.Options),
 		libsq.DBWriterCreateTableIfNotExistsHook(destTbl),
 	)
-	err = libsq.QuerySQL(ctx, fromPool, nil, inserter, args[0])
+	err = libsq.QuerySQL(ctx, fromGrip, nil, inserter, args[0])
 	if err != nil {
 		return errz.Wrapf(err, "insert to {%s} failed", source.Target(destSrc, destTbl))
 	}
 
-	affected, err := inserter.Wait() // Wait for the writer to finish processing
+	affected, err := inserter.Wait() // Stop for the writer to finish processing
 	if err != nil {
 		return errz.Wrapf(err, "insert %s.%s failed", destSrc.Handle, destTbl)
 	}

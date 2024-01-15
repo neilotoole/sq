@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func Test_detectHeaderRow(t *testing.T) {
@@ -24,7 +24,7 @@ func Test_detectHeaderRow(t *testing.T) {
 	for i, tc := range testCases {
 		tc := tc
 
-		t.Run(tutil.Name(i, tc.fp), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.fp), func(t *testing.T) {
 			recs := readAllRecs(t, tc.comma, tc.fp)
 
 			gotHasHeader, err := detectHeaderRow(recs)

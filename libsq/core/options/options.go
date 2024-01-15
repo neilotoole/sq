@@ -9,7 +9,7 @@
 //   - New types of Opt can be defined, near where they are used.
 //
 // It is noted that these requirements could probably largely be met using
-// packages such as spf13/viper. AGain, this is largely an experiment.
+// packages such as spf13/viper. Again, this is largely an experiment.
 package options
 
 import (
@@ -27,9 +27,6 @@ type contextKey struct{}
 
 // NewContext returns a context that contains the given Options.
 // Use FromContext to retrieve the Options.
-//
-// NOTE: It's questionable whether we need to engage in this context
-// business with Options. This is a bit of an experiment.
 func NewContext(ctx context.Context, o Options) context.Context {
 	return context.WithValue(ctx, contextKey{}, o)
 }
@@ -253,7 +250,7 @@ type Processor interface {
 	Process(o Options) (Options, error)
 }
 
-// DeleteNil deletes any keys with nil values.
+// DeleteNil returns a new Options that has any nil values removed.
 func DeleteNil(o Options) Options {
 	if o == nil {
 		return nil

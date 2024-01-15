@@ -2,6 +2,7 @@ package csvw_test
 
 import (
 	"bytes"
+	"context"
 	"testing"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 )
 
 func TestDateTimeHandling(t *testing.T) {
+	ctx := context.Background()
 	var (
 		colNames = []string{"col_datetime", "col_date", "col_time"}
 		kinds    = []kind.Kind{kind.Datetime, kind.Date, kind.Time}
@@ -30,11 +32,11 @@ func TestDateTimeHandling(t *testing.T) {
 	pr.EnableColor(false)
 
 	w := csvw.NewTabRecordWriter(buf, pr)
-	require.NoError(t, w.Open(recMeta))
+	require.NoError(t, w.Open(ctx, recMeta))
 
 	rec := record.Record{when, when, when}
-	require.NoError(t, w.WriteRecords([]record.Record{rec}))
-	require.NoError(t, w.Close())
+	require.NoError(t, w.WriteRecords(ctx, []record.Record{rec}))
+	require.NoError(t, w.Close(ctx))
 
 	require.Equal(t, want, buf.String())
 	t.Log(buf.String())

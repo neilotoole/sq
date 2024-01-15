@@ -158,44 +158,41 @@ func processFlagActiveSchema(cmd *cobra.Command, activeSrc *source.Source) error
 // and returned. If the pipe has no data (size is zero),
 // then (nil,nil) is returned.
 func checkStdinSource(ctx context.Context, ru *run.Run) (*source.Source, error) {
-	log := lg.FromContext(ctx)
-	cmd := ru.Cmd
-
 	f := ru.Stdin
 	fi, err := f.Stat()
 	if err != nil {
 		return nil, errz.Wrap(err, "failed to get stat on stdin")
 	}
 
+	mode := fi.Mode()
+	log := lg.FromContext(ctx).With(lga.File, fi.Name(), lga.Size, fi.Size(), "mode", mode.String())
 	switch {
-	case os.ModeNamedPipe&fi.Mode() > 0:
+	case os.ModeNamedPipe&mode > 0:
 		log.Info("Detected stdin pipe via os.ModeNamedPipe")
 	case fi.Size() > 0:
-		log.Info("Detected stdin redirect via size > 0", lga.Size, fi.Size())
+		log.Info("Detected stdin redirect via size > 0")
 	default:
 		log.Info("No stdin data detected")
 		return nil, nil //nolint:nilnil
 	}
 
-	// If we got this far, we have pipe input
+	// If we got this far, we have input from pipe or redirect.
 
 	typ := drivertype.None
-	if cmd.Flags().Changed(flag.IngestDriver) {
-		val, _ := cmd.Flags().GetString(flag.IngestDriver)
+	if ru.Cmd.Flags().Changed(flag.IngestDriver) {
+		val, _ := ru.Cmd.Flags().GetString(flag.IngestDriver)
 		typ = drivertype.Type(val)
 		if ru.DriverRegistry.ProviderFor(typ) == nil {
 			return nil, errz.Errorf("unknown driver type: %s", typ)
 		}
 	}
 
-	err = ru.Files.AddStdin(f)
-	if err != nil {
+	if err = ru.Files.AddStdin(ctx, f); err != nil {
 		return nil, err
 	}
 
 	if typ == drivertype.None {
-		typ, err = ru.Files.TypeStdin(ctx)
-		if err != nil {
+		if typ, err = ru.Files.DetectStdinType(ctx); err != nil {
 			return nil, err
 		}
 		if typ == drivertype.None {
@@ -231,7 +228,6 @@ func newSource(ctx context.Context, dp driver.Provider, typ drivertype.Type, han
 			lga.Handle, handle,
 			lga.Driver, typ,
 			lga.Loc, source.RedactLocation(loc),
-			// lga.Opts, opts.Encode(), // FIXME: encode opts for debugging
 		)
 	}
 
@@ -247,7 +243,6 @@ func newSource(ctx context.Context, dp driver.Provider, typ drivertype.Type, han
 
 	src := &source.Source{Handle: handle, Location: loc, Type: typ, Options: opts}
 
-	log.Debug("Validating provisional new data source", lga.Src, src)
 	canonicalSrc, err := drvr.ValidateSource(src)
 	if err != nil {
 		return nil, err

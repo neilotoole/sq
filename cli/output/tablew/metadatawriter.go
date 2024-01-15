@@ -2,6 +2,7 @@ package tablew
 
 import (
 	"cmp"
+	"context"
 	"fmt"
 	"io"
 	"slices"
@@ -45,8 +46,7 @@ func (w *mdWriter) DriverMetadata(drvrs []driver.Metadata) error {
 		row := []string{string(md.Type), md.Description, strconv.FormatBool(md.UserDefined), md.Doc}
 		rows = append(rows, row)
 	}
-	w.tbl.appendRowsAndRenderAll(rows)
-	return nil
+	return w.tbl.appendRowsAndRenderAll(context.TODO(), rows)
 }
 
 // TableMetadata implements output.MetadataWriter.
@@ -86,8 +86,7 @@ func (w *mdWriter) doTableMeta(md *metadata.Table) error {
 	}
 	rows = append(rows, row)
 
-	w.tbl.appendRowsAndRenderAll(rows)
-	return nil
+	return w.tbl.appendRowsAndRenderAll(context.TODO(), rows)
 }
 
 func (w *mdWriter) doTableMetaVerbose(tblMeta *metadata.Table) error {
@@ -129,8 +128,7 @@ func (w *mdWriter) doSourceMetaNoSchema(md *metadata.Source) error {
 	}
 
 	w.tbl.tblImpl.SetHeader(headers)
-	w.tbl.renderRow(row)
-	return nil
+	return w.tbl.writeRow(context.TODO(), row)
 }
 
 func (w *mdWriter) printTablesVerbose(tbls []*metadata.Table) error {
@@ -192,8 +190,7 @@ func (w *mdWriter) printTablesVerbose(tbls []*metadata.Table) error {
 		}
 	}
 
-	w.tbl.appendRowsAndRenderAll(rows)
-	return nil
+	return w.tbl.appendRowsAndRenderAll(context.TODO(), rows)
 }
 
 func (w *mdWriter) printTables(tables []*metadata.Table) error {
@@ -226,8 +223,7 @@ func (w *mdWriter) printTables(tables []*metadata.Table) error {
 		rows = append(rows, row)
 	}
 
-	w.tbl.appendRowsAndRenderAll(rows)
-	return nil
+	return w.tbl.appendRowsAndRenderAll(context.TODO(), rows)
 }
 
 func (w *mdWriter) doSourceMetaFull(md *metadata.Source) error {
@@ -265,7 +261,9 @@ func (w *mdWriter) doSourceMetaFull(md *metadata.Source) error {
 	}
 
 	w.tbl.tblImpl.SetHeader(headers)
-	w.tbl.renderRow(row)
+	if err := w.tbl.writeRow(context.TODO(), row); err != nil {
+		return err
+	}
 
 	if len(md.Tables) == 0 {
 		return nil
@@ -355,8 +353,7 @@ func (w *mdWriter) DBProperties(props map[string]any) error {
 		rows = append(rows, row)
 	}
 
-	w.tbl.appendRowsAndRenderAll(rows)
-	return nil
+	return w.tbl.appendRowsAndRenderAll(context.TODO(), rows)
 }
 
 // Catalogs implements output.MetadataWriter.
@@ -380,8 +377,7 @@ func (w *mdWriter) Catalogs(currentCatalog string, catalogs []string) error {
 			}
 			rows = append(rows, []string{catalog})
 		}
-		w.tbl.appendRowsAndRenderAll(rows)
-		return nil
+		return w.tbl.appendRowsAndRenderAll(context.TODO(), rows)
 	}
 
 	// Verbose mode
@@ -402,9 +398,7 @@ func (w *mdWriter) Catalogs(currentCatalog string, catalogs []string) error {
 		}
 		rows = append(rows, []string{catalog, active})
 	}
-	w.tbl.appendRowsAndRenderAll(rows)
-
-	return nil
+	return w.tbl.appendRowsAndRenderAll(context.TODO(), rows)
 }
 
 // Schemata implements output.MetadataWriter.
@@ -427,8 +421,7 @@ func (w *mdWriter) Schemata(currentSchema string, schemas []*metadata.Schema) er
 			}
 			rows = append(rows, []string{s})
 		}
-		w.tbl.appendRowsAndRenderAll(rows)
-		return nil
+		return w.tbl.appendRowsAndRenderAll(context.TODO(), rows)
 	}
 
 	// Verbose mode
@@ -452,7 +445,5 @@ func (w *mdWriter) Schemata(currentSchema string, schemas []*metadata.Schema) er
 		}
 		rows = append(rows, row)
 	}
-	w.tbl.appendRowsAndRenderAll(rows)
-
-	return nil
+	return w.tbl.appendRowsAndRenderAll(context.TODO(), rows)
 }

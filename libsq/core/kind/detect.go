@@ -242,12 +242,7 @@ func (d *Detector) doSampleString(s string) {
 					return nil, nil //nolint:nilnil
 				}
 
-				t, err := time.Parse(format, s)
-				if err != nil {
-					return nil, errz.Err(err)
-				}
-
-				return t, nil
+				return errz.Return(time.Parse(format, s))
 			}
 		}
 	}

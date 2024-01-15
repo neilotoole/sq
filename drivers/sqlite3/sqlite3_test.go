@@ -18,7 +18,7 @@ import (
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/fixt"
 	"github.com/neilotoole/sq/testh/sakila"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func TestSmoke(t *testing.T) {
@@ -290,7 +290,7 @@ func TestMungeLocation(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, tc.in), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
 			if tc.onlyForOS != "" && tc.onlyForOS != runtime.GOOS {
 				t.Skipf("Skipping because this test is only for OS {%s}, but have {%s}",
 					tc.onlyForOS, runtime.GOOS)

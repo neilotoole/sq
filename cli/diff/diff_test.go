@@ -2,6 +2,7 @@ package diff
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"testing"
 
@@ -37,7 +38,7 @@ func TestMyers(t *testing.T) {
 	require.NoError(t, err)
 
 	buf := &bytes.Buffer{}
-	err = Print(buf, output.NewPrinting(), "diff before after", result)
+	err = Print(context.Background(), buf, output.NewPrinting(), "diff before after", result)
 	require.NoError(t, err)
 
 	t.Logf("\n" + buf.String())

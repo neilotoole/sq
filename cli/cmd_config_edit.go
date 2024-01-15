@@ -51,7 +51,7 @@ in envar $SQ_EDITOR or $EDITOR.`,
   # Use a different editor
   $ SQ_EDITOR=nano sq config edit`,
 	}
-
+	markCmdRequiresConfigLock(cmd)
 	return cmd
 }
 

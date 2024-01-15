@@ -459,8 +459,8 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 	return destCols, nil
 }
 
-// Open implements driver.PoolOpener.
-func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Pool, error) {
+// Open implements driver.Driver.
+func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
 	db, err := d.doOpen(ctx, src)
@@ -472,7 +472,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Pool, er
 		return nil, err
 	}
 
-	return &pool{log: d.log, db: db, src: src, drvr: d}, nil
+	return &grip{log: d.log, db: db, src: src, drvr: d}, nil
 }
 
 func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
@@ -485,6 +485,11 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 	if err != nil {
 		return nil, errw(err)
 	}
+
+	cfg.Timeout = driver.OptConnOpenTimeout.Get(src.Options)
+	// REVISIT: Perhaps allow setting cfg.ReadTimeout and cfg.WriteTimeout?
+	// - https://github.com/go-sql-driver/mysql#writetimeout
+	// - https://github.com/go-sql-driver/mysql#readtimeout
 
 	if src.Schema != "" {
 		lg.FromContext(ctx).Debug("Setting default schema for MysQL connection",
@@ -566,45 +571,6 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 	// TRUNCATE succeeded, therefore tbl is empty, therefore
 	// the count of truncated rows must be beforeCount?
 	return beforeCount, errw(tx.Commit())
-}
-
-// pool implements driver.Pool.
-type pool struct {
-	log  *slog.Logger
-	db   *sql.DB
-	src  *source.Source
-	drvr *driveri
-}
-
-// DB implements driver.Pool.
-func (p *pool) DB(context.Context) (*sql.DB, error) {
-	return p.db, nil
-}
-
-// SQLDriver implements driver.Pool.
-func (p *pool) SQLDriver() driver.SQLDriver {
-	return p.drvr
-}
-
-// Source implements driver.Pool.
-func (p *pool) Source() *source.Source {
-	return p.src
-}
-
-// TableMetadata implements driver.Pool.
-func (p *pool) TableMetadata(ctx context.Context, tblName string) (*metadata.Table, error) {
-	return getTableMetadata(ctx, p.db, tblName)
-}
-
-// SourceMetadata implements driver.Pool.
-func (p *pool) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error) {
-	return getSourceMetadata(ctx, p.src, p.db, noSchema)
-}
-
-// Close implements driver.Pool.
-func (p *pool) Close() error {
-	p.log.Debug(lgm.CloseDB, lga.Handle, p.src.Handle)
-	return errw(p.db.Close())
 }
 
 // dsnFromLocation builds the mysql driver DSN from src.Location.

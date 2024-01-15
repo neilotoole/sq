@@ -13,7 +13,7 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 // TestQuerySQL_Smoke is a smoke test of testh.QuerySQL.
@@ -60,10 +60,10 @@ func TestQuerySQL_Smoke(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.handle, func(t *testing.T) {
-			tutil.SkipShort(t, tc.handle == sakila.XLSX)
+			tu.SkipShort(t, tc.handle == sakila.XLSX)
 			t.Parallel()
 
-			th := testh.New(t, testh.OptLongOpen())
+			th := testh.New(t)
 			src := th.Source(tc.handle)
 
 			tblName := sakila.TblActor

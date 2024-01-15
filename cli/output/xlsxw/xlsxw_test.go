@@ -2,6 +2,7 @@ package xlsxw_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"fmt"
 	"image"
@@ -21,7 +22,7 @@ import (
 	"github.com/neilotoole/sq/testh/fixt"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/testsrc"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func TestRecordWriter(t *testing.T) {
@@ -59,6 +60,7 @@ func TestRecordWriter(t *testing.T) {
 		tc := tc
 
 		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
 			recMeta, recs := testh.RecordsFromTbl(t, tc.handle, tc.tbl)
 			if tc.numRecs >= 0 {
 				recs = recs[0:tc.numRecs]
@@ -70,12 +72,12 @@ func TestRecordWriter(t *testing.T) {
 			pr.ExcelDateFormat = xlsxw.OptDateFormat.Default()
 			pr.ExcelTimeFormat = xlsxw.OptTimeFormat.Default()
 			w := xlsxw.NewRecordWriter(buf, pr)
-			require.NoError(t, w.Open(recMeta))
+			require.NoError(t, w.Open(ctx, recMeta))
 
-			require.NoError(t, w.WriteRecords(recs))
-			require.NoError(t, w.Close())
+			require.NoError(t, w.WriteRecords(ctx, recs))
+			require.NoError(t, w.Close(ctx))
 
-			_ = tutil.WriteTemp(t, fmt.Sprintf("*.%s.test.xlsx", tc.name), buf.Bytes(), false)
+			_ = tu.WriteTemp(t, fmt.Sprintf("*.%s.test.xlsx", tc.name), buf.Bytes(), false)
 
 			want, err := os.ReadFile(tc.fixtPath)
 			require.NoError(t, err)
@@ -85,15 +87,16 @@ func TestRecordWriter(t *testing.T) {
 }
 
 func TestBytesEncodedAsBase64(t *testing.T) {
+	ctx := context.Background()
 	recMeta, recs := testh.RecordsFromTbl(t, testsrc.BlobDB, "blobs")
 
 	buf := &bytes.Buffer{}
 	pr := output.NewPrinting()
 	w := xlsxw.NewRecordWriter(buf, pr)
-	require.NoError(t, w.Open(recMeta))
+	require.NoError(t, w.Open(ctx, recMeta))
 
-	require.NoError(t, w.WriteRecords(recs))
-	require.NoError(t, w.Close())
+	require.NoError(t, w.WriteRecords(ctx, recs))
+	require.NoError(t, w.Close(ctx))
 
 	xl, err := excelize.OpenReader(buf)
 	require.NoError(t, err)
@@ -170,7 +173,7 @@ func TestOptDatetimeFormats(t *testing.T) {
 	tr = testrun.New(th.Context, t, tr)
 	require.NoError(t, tr.Exec("sql", "--xlsx", query))
 
-	fpath := tutil.WriteTemp(t, "*.xlsx", tr.Out.Bytes(), true)
+	fpath := tu.WriteTemp(t, "*.xlsx", tr.Out.Bytes(), true)
 
 	gotDatetime := readCellValue(t, fpath, source.MonotableName, "A2")
 	gotDate := readCellValue(t, fpath, source.MonotableName, "B2")

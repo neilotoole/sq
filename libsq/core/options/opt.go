@@ -24,6 +24,11 @@ const (
 
 	// TagOutput indicates the Opt is related to output/formatting.
 	TagOutput = "output"
+
+	// TagIngestMutate indicates the Opt may result in mutated data, particularly
+	// during ingestion. This tag is significant in that its value may affect
+	// data realization, and thus affect program aspects such as caching behavior.
+	TagIngestMutate = "mutate"
 )
 
 // Opt is an option type. Concrete impls exist for various types,
@@ -188,6 +193,8 @@ var _ Opt = String{}
 // NewString returns an options.String instance. If flag is empty, the
 // value of key is used. If valid Fn is non-nil, it is called from
 // the process function.
+//
+//nolint:revive
 func NewString(key, flag string, short rune, defaultVal string,
 	validFn func(string) error, usage, help string, tags ...string,
 ) String {
@@ -397,18 +404,31 @@ func (op Int) Process(o Options) (Options, error) {
 var _ Opt = Bool{}
 
 // NewBool returns an options.Bool instance. If flag is empty, the value
-// of key is used.
-func NewBool(key, flag string, short rune, defaultVal bool, usage, help string, tags ...string) Bool {
+// of key is used. If invertFlag is true, the flag's boolean value
+// is inverted to set the option. For example, if the Opt is "progress",
+// and the flag is "--no-progress", then invertFlag should be true.
+func NewBool(key, flag string, invertFlag bool, short rune, //nolint:revive
+	defaultVal bool, usage, help string, tags ...string,
+) Bool {
 	return Bool{
-		BaseOpt:    NewBaseOpt(key, flag, short, usage, help, tags...),
-		defaultVal: defaultVal,
+		BaseOpt:      NewBaseOpt(key, flag, short, usage, help, tags...),
+		defaultVal:   defaultVal,
+		flagInverted: invertFlag,
 	}
 }
 
 // Bool is an options.Opt for type bool.
 type Bool struct {
 	BaseOpt
-	defaultVal bool
+	defaultVal   bool
+	flagInverted bool
+}
+
+// FlagInverted returns true Opt value is the inverse of the flag value.
+// For example, if the Opt is "progress", and the flag is "--no-progress",
+// then FlagInverted will return true.
+func (op Bool) FlagInverted() bool {
+	return op.flagInverted
 }
 
 // GetAny implements options.Opt.
@@ -501,7 +521,9 @@ var _ Opt = Duration{}
 
 // NewDuration returns an options.Duration instance. If flag is empty, the
 // value of key is used.
-func NewDuration(key, flag string, short rune, defaultVal time.Duration, usage, help string, tags ...string) Duration {
+func NewDuration(key, flag string, short rune, defaultVal time.Duration,
+	usage, help string, tags ...string,
+) Duration {
 	return Duration{
 		BaseOpt:    NewBaseOpt(key, flag, short, usage, help, tags...),
 		defaultVal: defaultVal,

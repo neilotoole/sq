@@ -1,6 +1,7 @@
 package tablew
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"strings"
@@ -22,20 +23,46 @@ func NewErrorWriter(w io.Writer, pr *output.Printing) output.ErrorWriter {
 }
 
 // Error implements output.ErrorWriter.
-func (w *errorWriter) Error(err error) {
-	fmt.Fprintln(w.w, w.pr.Error.Sprintf("sq: %v", err))
+func (w *errorWriter) Error(systemErr, humanErr error) {
+	fmt.Fprintln(w.w, w.pr.Error.Sprintf("sq: %v", humanErr))
 	if !w.pr.Verbose {
 		return
 	}
 
-	stacks := errz.Stack(err)
-	for i, stack := range stacks {
-		if i > 0 {
-			fmt.Fprintln(w.w)
+	stacks := errz.Stacks(systemErr)
+	if len(stacks) == 0 {
+		return
+	}
+
+	buf := &bytes.Buffer{}
+	var count int
+	for _, stack := range stacks {
+		if stack == nil {
+			continue
 		}
 
-		s := fmt.Sprintf("%+v", stack)
-		s = strings.TrimSpace(s)
-		w.pr.Faint.Fprintln(w.w, s)
+		stackPrint := fmt.Sprintf("%+v", stack.Frames)
+		stackPrint = strings.ReplaceAll(strings.TrimSpace(stackPrint), "\n\t", "\n  ")
+		if stackPrint == "" {
+			continue
+		}
+
+		if count > 0 {
+			buf.WriteString("\n")
+		}
+
+		if stack.Error != nil {
+			w.pr.StackErrorType.Fprintln(buf, errz.SprintTreeTypes(stack.Error))
+			w.pr.StackError.Fprintln(buf, stack.Error.Error())
+		}
+
+		lines := strings.Split(stackPrint, "\n")
+		for _, line := range lines {
+			w.pr.Stack.Fprint(buf, line)
+			buf.WriteByte('\n')
+		}
+		count++
 	}
+
+	_, _ = buf.WriteTo(w.w)
 }

@@ -13,6 +13,7 @@ import (
 var OptIngestHeader = options.NewBool(
 	"ingest.header",
 	"",
+	false,
 	0,
 	false,
 	"Ingest data has a header row",
@@ -21,10 +22,26 @@ If not set, the ingester *may* try to detect if the input has a header.
 Generally it is best to leave this option unset and allow the ingester
 to detect the header.`,
 	options.TagSource,
+	options.TagIngestMutate,
+)
+
+// OptIngestCache specifies whether ingested data is cached or not.
+var OptIngestCache = options.NewBool(
+	"ingest.cache",
+	"no-cache",
+	true,
+	0,
+	true,
+	"Cache ingest data",
+	`Specifies whether ingested data is cached or not. When data is ingested
+from a document source, it is stored in a cache DB. Subsequent uses of that same
+source will use that cached DB instead of ingesting the data again, unless this
+option is set to false, in which case, the data is ingested each time.`,
+	options.TagSource,
 )
 
 // OptIngestSampleSize specifies the number of samples that a detector
-// should take to determine type.
+// should take to determine ingest data type.
 var OptIngestSampleSize = options.NewInt(
 	"ingest.sample-size",
 	"",
@@ -33,6 +50,7 @@ var OptIngestSampleSize = options.NewInt(
 	"Ingest data sample size for type detection",
 	`Specify the number of samples that a detector should take to determine type.`,
 	options.TagSource,
+	options.TagIngestMutate,
 )
 
 // OptIngestColRename transforms a column name in ingested data.
@@ -66,6 +84,7 @@ For a unique column name, e.g. "first_name" above, ".Recurrence" will be 0.
 For duplicate column names, ".Recurrence" will be 0 for the first instance,
 then 1 for the next instance, and so on.`,
 	options.TagSource,
+	options.TagIngestMutate,
 )
 
 // MungeIngestColNames transforms ingest data column names, per the template

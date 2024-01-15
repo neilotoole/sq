@@ -2,6 +2,7 @@ package markdownw_test
 
 import (
 	"bytes"
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -38,15 +39,16 @@ func TestRecordWriter(t *testing.T) {
 		tc := tc
 
 		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
 			recMeta, recs := testh.RecordsFromTbl(t, sakila.SL3, sakila.TblActor)
 			recs = recs[0:tc.numRecs]
 
 			buf := &bytes.Buffer{}
 			w := markdownw.NewRecordWriter(buf, output.NewPrinting())
-			require.NoError(t, w.Open(recMeta))
+			require.NoError(t, w.Open(ctx, recMeta))
 
-			require.NoError(t, w.WriteRecords(recs))
-			require.NoError(t, w.Close())
+			require.NoError(t, w.WriteRecords(ctx, recs))
+			require.NoError(t, w.Close(ctx))
 			require.Equal(t, tc.want, buf.String())
 		})
 	}

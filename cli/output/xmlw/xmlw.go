@@ -3,6 +3,7 @@ package xmlw
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/xml"
 	"fmt"
@@ -58,7 +59,7 @@ func NewRecordWriter(out io.Writer, pr *output.Printing) output.RecordWriter {
 }
 
 // Open implements output.RecordWriter.
-func (w *recordWriter) Open(recMeta record.Meta) error {
+func (w *recordWriter) Open(_ context.Context, recMeta record.Meta) error {
 	w.recMeta = recMeta
 
 	var indent, newline string
@@ -113,13 +114,13 @@ func monoPrint(w io.Writer, a ...any) {
 }
 
 // Flush implements output.RecordWriter.
-func (w *recordWriter) Flush() error {
+func (w *recordWriter) Flush(context.Context) error {
 	_, err := w.outBuf.WriteTo(w.out) // resets buf
 	return errz.Err(err)
 }
 
 // Close implements output.RecordWriter.
-func (w *recordWriter) Close() error {
+func (w *recordWriter) Close(ctx context.Context) error {
 	w.outBuf.WriteByte('\n')
 
 	if w.recsWritten {
@@ -131,13 +132,13 @@ func (w *recordWriter) Close() error {
 
 	w.outBuf.WriteByte('\n')
 
-	return w.Flush()
+	return w.Flush(ctx)
 }
 
 // WriteRecords implements output.RecordWriter.
 // Note that (by design) the XML element is omitted for any nil value
 // in a record.
-func (w *recordWriter) WriteRecords(recs []record.Record) error {
+func (w *recordWriter) WriteRecords(ctx context.Context, recs []record.Record) error {
 	if len(recs) == 0 {
 		return nil
 	}
@@ -150,7 +151,7 @@ func (w *recordWriter) WriteRecords(recs []record.Record) error {
 
 	var err error
 	for _, rec := range recs {
-		err = w.writeRecord(rec)
+		err = w.writeRecord(ctx, rec)
 		if err != nil {
 			return err
 		}
@@ -159,7 +160,7 @@ func (w *recordWriter) WriteRecords(recs []record.Record) error {
 	return nil
 }
 
-func (w *recordWriter) writeRecord(rec record.Record) error {
+func (w *recordWriter) writeRecord(ctx context.Context, rec record.Record) error {
 	var err error
 	tmpBuf := &bytes.Buffer{}
 
@@ -215,7 +216,7 @@ func (w *recordWriter) writeRecord(rec record.Record) error {
 	w.outBuf.WriteString(w.tplRecEnd)
 
 	if w.outBuf.Len() > w.pr.FlushThreshold {
-		return w.Flush()
+		return w.Flush(ctx)
 	}
 
 	return nil

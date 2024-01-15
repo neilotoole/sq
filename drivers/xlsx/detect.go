@@ -2,10 +2,12 @@ package xlsx
 
 import (
 	"context"
+	"errors"
 	"io"
 	"slices"
 
-	excelize "github.com/xuri/excelize/v2"
+	"github.com/h2non/filetype"
+	"github.com/h2non/filetype/matchers"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -23,22 +25,32 @@ var _ source.DriverDetectFunc = DetectXLSX
 func DetectXLSX(ctx context.Context, openFn source.FileOpenFunc) (detected drivertype.Type, score float32,
 	err error,
 ) {
+	const detectBufSize = 4096
+
 	log := lg.FromContext(ctx)
 	var r io.ReadCloser
-	r, err = openFn()
+	r, err = openFn(ctx)
 	if err != nil {
 		return drivertype.None, 0, errz.Err(err)
 	}
 	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
 
-	f, err := excelize.OpenReader(r)
-	if err != nil {
-		return drivertype.None, 0, nil
+	buf := make([]byte, detectBufSize)
+	if _, err = r.Read(buf); err != nil {
+		return drivertype.None, 0, errz.Err(err)
 	}
 
-	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, f)
+	t, err := filetype.Document(buf)
+	if err != nil && !errors.Is(err, filetype.ErrUnknownBuffer) {
+		return drivertype.None, 0, errz.Err(err)
+	}
 
-	return Type, 1.0, nil
+	switch t {
+	case matchers.TypeXlsx, matchers.TypeXls:
+		return Type, 1.0, nil
+	default:
+		return drivertype.None, 0, nil
+	}
 }
 
 func detectHeaderRow(ctx context.Context, sheet *xSheet) (hasHeader bool, err error) {

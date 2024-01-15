@@ -24,7 +24,7 @@ import (
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
-func newSrcAddCmd() *cobra.Command {
+func newSrcAddCmd() *cobra.Command { //nolint:funlen
 	cmd := &cobra.Command{
 		Use:               "add [--handle @HANDLE] LOCATION",
 		RunE:              execSrcAdd,
@@ -155,6 +155,7 @@ More examples:
 		Long:  `Add data source specified by LOCATION, optionally identified by @HANDLE.`,
 	}
 
+	markCmdRequiresConfigLock(cmd)
 	addTextFormatFlags(cmd)
 	cmd.Flags().BoolP(flag.JSON, flag.JSONShort, false, flag.JSONUsage)
 	cmd.Flags().BoolP(flag.Compact, flag.CompactShort, false, flag.CompactUsage)
@@ -186,23 +187,6 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 	var err error
 	var typ drivertype.Type
 
-	if cmdFlagChanged(cmd, flag.AddDriver) {
-		val, _ := cmd.Flags().GetString(flag.AddDriver)
-		typ = drivertype.Type(strings.TrimSpace(val))
-	} else {
-		typ, err = ru.Files.DriverType(ctx, loc)
-		if err != nil {
-			return err
-		}
-		if typ == drivertype.None {
-			return errz.Errorf("unable to determine driver type: use --driver flag")
-		}
-	}
-
-	if ru.DriverRegistry.ProviderFor(typ) == nil {
-		return errz.Errorf("unsupported driver type {%s}", typ)
-	}
-
 	var handle string
 	if cmdFlagChanged(cmd, flag.Handle) {
 		handle, _ = cmd.Flags().GetString(flag.Handle)
@@ -213,16 +197,33 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	if stringz.InSlice(source.ReservedHandles(), handle) {
-		return errz.Errorf("handle reserved for system use: %s", handle)
-	}
-
 	if err = source.ValidHandle(handle); err != nil {
 		return err
 	}
 
+	if stringz.InSlice(source.ReservedHandles(), handle) {
+		return errz.Errorf("handle reserved for system use: %s", handle)
+	}
+
 	if cfg.Collection.IsExistingSource(handle) {
 		return errz.Errorf("source handle already exists: %s", handle)
+	}
+
+	if cmdFlagChanged(cmd, flag.AddDriver) {
+		val, _ := cmd.Flags().GetString(flag.AddDriver)
+		typ = drivertype.Type(strings.TrimSpace(val))
+	} else {
+		typ, err = ru.Files.DriverType(ctx, handle, loc)
+		if err != nil {
+			return err
+		}
+		if typ == drivertype.None {
+			return errz.Errorf("unable to determine driver type: use --driver flag")
+		}
+	}
+
+	if ru.DriverRegistry.ProviderFor(typ) == nil {
+		return errz.Errorf("unsupported driver type {%s}", typ)
 	}
 
 	if typ == sqlite3.Type {
@@ -334,7 +335,7 @@ func readPassword(ctx context.Context, stdin *os.File, stdout io.Writer, pr *out
 		fmt.Fprint(buf, "Password: ")
 		pr.Faint.Fprint(buf, "[ENTER]")
 		fmt.Fprint(buf, " ")
-		stdout.Write(buf.Bytes())
+		_, _ = stdout.Write(buf.Bytes())
 
 		b, err := term.ReadPassword(int(stdin.Fd()))
 		// Regardless of whether there's an error, we print

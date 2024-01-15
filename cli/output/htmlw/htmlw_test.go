@@ -2,6 +2,7 @@ package htmlw_test
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"testing"
 
@@ -27,16 +28,17 @@ func TestRecordWriter(t *testing.T) {
 		tc := tc
 
 		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
 			recMeta, recs := testh.RecordsFromTbl(t, sakila.SL3, sakila.TblActor)
 			recs = recs[0:tc.numRecs]
 
 			buf := &bytes.Buffer{}
 			pr := output.NewPrinting()
 			w := htmlw.NewRecordWriter(buf, pr)
-			require.NoError(t, w.Open(recMeta))
+			require.NoError(t, w.Open(ctx, recMeta))
 
-			require.NoError(t, w.WriteRecords(recs))
-			require.NoError(t, w.Close())
+			require.NoError(t, w.WriteRecords(ctx, recs))
+			require.NoError(t, w.Close(ctx))
 
 			want, err := os.ReadFile(tc.fixtPath)
 			require.NoError(t, err)

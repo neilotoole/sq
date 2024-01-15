@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/source"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func TestIsSQL(t *testing.T) {
@@ -73,7 +73,7 @@ func TestLocationWithPassword(t *testing.T) {
 
 	for _, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(tc.loc), func(t *testing.T) {
+		t.Run(tu.Name(tc.loc), func(t *testing.T) {
 			t.Parallel()
 
 			beforeURL, err := url.ParseRequestURI(tc.loc)

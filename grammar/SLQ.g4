@@ -150,7 +150,7 @@ The 'group_by' construct implments the SQL "GROUP BY" clause.
 
 Syonyms:
 - 'group_by' for jq interoperability.
-  https://stedolan.github.io/jq/manual/v1.6/#group_by(path_expression)
+  https://jqlang.github.io/jq/manual/v1.6/#group_by(path_expression)
 - 'gb' for brevity.
 */
 
@@ -188,7 +188,7 @@ The optional plus/minus tokens specify ASC or DESC order.
 Synonyms:
 
 - 'sort_by' for jq interoperability.
-  https://stedolan.github.io/jq/manual/v1.6/#sort,sort_by(path_expression)
+  https://jqlang.github.io/jq/manual/v1.6/#sort,sort_by(path_expression)
 - 'ob' for brevity.
 
 We do not implement a 'sort' synonym for the jq 'sort' function, because SQL

@@ -13,7 +13,7 @@ import (
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 // driverMap is a map of drivertype.Type to a string.
@@ -109,7 +109,7 @@ func execQueryTestCase(t *testing.T, tc queryTestCase) {
 	subTests := make([]queryTestCase, len(tc.repeatReplace))
 	for i := range tc.repeatReplace {
 		subTests[i] = tc
-		subTests[i].name = tutil.Name(tc.repeatReplace[i])
+		subTests[i].name = tu.Name(tc.repeatReplace[i])
 		if i == 0 {
 			// No need for replacement on first item, it's the original.
 			continue
@@ -141,7 +141,17 @@ func execQueryTestCase(t *testing.T, tc queryTestCase) {
 func doExecQueryTestCase(t *testing.T, tc queryTestCase) {
 	t.Helper()
 
-	coll := testh.New(t).NewCollection(sakila.SQLLatest()...)
+	th := testh.New(t)
+	var handles []string
+	for _, handle := range sakila.SQLLatest() {
+		if th.SourceConfigured(handle) {
+			handles = append(handles, handle)
+		} else {
+			t.Logf("Skipping because source %s is not configured", handle)
+		}
+	}
+
+	coll := th.NewCollection(handles...)
 	for _, src := range coll.Sources() {
 		src := src
 
@@ -153,6 +163,13 @@ func doExecQueryTestCase(t *testing.T, tc queryTestCase) {
 			t.Helper()
 
 			in := strings.Replace(tc.in, "@sakila", src.Handle, 1)
+			for _, handle := range testh.ExtractHandlesFromQuery(t, tc.in, false) {
+				if !testh.New(t).SourceConfigured(handle) {
+					t.Skipf("Skipping because source %s is not configured", handle)
+					return
+				}
+			}
+
 			t.Logf("QUERY:\n\n%s\n\n", in)
 			want := tc.wantSQL
 			if overrideWant, ok := tc.override[src.Type]; ok {
@@ -163,14 +180,10 @@ func doExecQueryTestCase(t *testing.T, tc queryTestCase) {
 			require.NoError(t, err)
 
 			th := testh.New(t)
-			pools := th.Pools()
-
 			qc := &libsq.QueryContext{
-				Collection:        coll,
-				PoolOpener:        pools,
-				JoinPoolOpener:    pools,
-				ScratchPoolOpener: pools,
-				Args:              tc.args,
+				Collection: coll,
+				Grips:      th.Grips(),
+				Args:       tc.args,
 			}
 
 			if tc.beforeRun != nil {

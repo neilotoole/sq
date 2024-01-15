@@ -39,16 +39,16 @@ type pipeline struct {
 	rc *render.Context
 
 	// tasks contains tasks that must be completed before targetSQL
-	// is executed against targetPool. Typically tasks is used to
+	// is executed against targetGrip. Typically tasks is used to
 	// set up the joindb before it is queried.
 	tasks []tasker
 
-	// targetSQL is the ultimate SQL query to be executed against targetPool.
+	// targetSQL is the ultimate SQL query to be executed against targetGrip.
 	targetSQL string
 
-	// targetPool is the destination for the ultimate SQL query to
+	// targetGrip is the destination for the ultimate SQL query to
 	// be executed against.
-	targetPool driver.Pool
+	targetGrip driver.Grip
 }
 
 // newPipeline parses query, returning a pipeline prepared for
@@ -83,11 +83,11 @@ func (p *pipeline) execute(ctx context.Context, recw RecordWriter) error {
 	log := lg.FromContext(ctx)
 	log.Debug(
 		"Execute SQL query",
-		lga.Src, p.targetPool.Source(),
+		lga.Src, p.targetGrip.Source(),
 		lga.SQL, p.targetSQL,
 	)
 
-	errw := p.targetPool.SQLDriver().ErrWrapFunc()
+	errw := p.targetGrip.SQLDriver().ErrWrapFunc()
 
 	// TODO: The tasks might like to be executed in parallel. However,
 	// what happens if a task does something that is session/connection-dependent?
@@ -103,7 +103,7 @@ func (p *pipeline) execute(ctx context.Context, recw RecordWriter) error {
 		// If there's pre/post exec work to do, we need to
 		// obtain a connection from the pool. We are responsible
 		// for closing these resources.
-		db, err := p.targetPool.DB(ctx)
+		db, err := p.targetGrip.DB(ctx)
 		if err != nil {
 			return errw(err)
 		}
@@ -121,7 +121,7 @@ func (p *pipeline) execute(ctx context.Context, recw RecordWriter) error {
 		}
 	}
 
-	if err := QuerySQL(ctx, p.targetPool, conn, recw, p.targetSQL); err != nil {
+	if err := QuerySQL(ctx, p.targetGrip, conn, recw, p.targetSQL); err != nil {
 		return err
 	}
 
@@ -182,17 +182,18 @@ func (p *pipeline) prepareNoTable(ctx context.Context, qm *queryModel) error {
 	)
 
 	if handle == "" {
-		if src = p.qc.Collection.Active(); src == nil {
-			log.Debug("No active source, will use scratchdb.")
-			p.targetPool, err = p.qc.ScratchPoolOpener.OpenScratch(ctx, "scratch")
+		src = p.qc.Collection.Active()
+		if src == nil || !p.qc.Grips.IsSQLSource(src) {
+			log.Debug("No active SQL source, will use an ephemeral db.")
+			p.targetGrip, err = p.qc.Grips.OpenEphemeral(ctx)
 			if err != nil {
 				return err
 			}
 
 			p.rc = &render.Context{
-				Renderer: p.targetPool.SQLDriver().Renderer(),
+				Renderer: p.targetGrip.SQLDriver().Renderer(),
 				Args:     p.qc.Args,
-				Dialect:  p.targetPool.SQLDriver().Dialect(),
+				Dialect:  p.targetGrip.SQLDriver().Dialect(),
 			}
 			return nil
 		}
@@ -203,14 +204,14 @@ func (p *pipeline) prepareNoTable(ctx context.Context, qm *queryModel) error {
 	}
 
 	// At this point, src is non-nil.
-	if p.targetPool, err = p.qc.PoolOpener.Open(ctx, src); err != nil {
+	if p.targetGrip, err = p.qc.Grips.Open(ctx, src); err != nil {
 		return err
 	}
 
 	p.rc = &render.Context{
-		Renderer: p.targetPool.SQLDriver().Renderer(),
+		Renderer: p.targetGrip.SQLDriver().Renderer(),
 		Args:     p.qc.Args,
-		Dialect:  p.targetPool.SQLDriver().Dialect(),
+		Dialect:  p.targetGrip.SQLDriver().Dialect(),
 	}
 
 	return nil
@@ -220,7 +221,7 @@ func (p *pipeline) prepareNoTable(ctx context.Context, qm *queryModel) error {
 //
 // When this function returns, pipeline.rc will be set.
 func (p *pipeline) prepareFromTable(ctx context.Context, tblSel *ast.TblSelectorNode) (fromClause string,
-	fromPool driver.Pool, err error,
+	fromGrip driver.Grip, err error,
 ) {
 	handle := tblSel.Handle()
 	if handle == "" {
@@ -235,16 +236,16 @@ func (p *pipeline) prepareFromTable(ctx context.Context, tblSel *ast.TblSelector
 		return "", nil, err
 	}
 
-	fromPool, err = p.qc.PoolOpener.Open(ctx, src)
+	fromGrip, err = p.qc.Grips.Open(ctx, src)
 	if err != nil {
 		return "", nil, err
 	}
 
-	rndr := fromPool.SQLDriver().Renderer()
+	rndr := fromGrip.SQLDriver().Renderer()
 	p.rc = &render.Context{
 		Renderer: rndr,
 		Args:     p.qc.Args,
-		Dialect:  fromPool.SQLDriver().Dialect(),
+		Dialect:  fromGrip.SQLDriver().Dialect(),
 	}
 
 	fromClause, err = rndr.FromTable(p.rc, tblSel)
@@ -252,7 +253,7 @@ func (p *pipeline) prepareFromTable(ctx context.Context, tblSel *ast.TblSelector
 		return "", nil, err
 	}
 
-	return fromClause, fromPool, nil
+	return fromClause, fromGrip, nil
 }
 
 // joinClause models the SQL "JOIN" construct.
@@ -308,7 +309,7 @@ func (jc *joinClause) isSingleSource() bool {
 //
 // When this function returns, pipeline.rc will be set.
 func (p *pipeline) prepareFromJoin(ctx context.Context, jc *joinClause) (fromClause string,
-	fromConn driver.Pool, err error,
+	fromConn driver.Grip, err error,
 ) {
 	if jc.isSingleSource() {
 		return p.joinSingleSource(ctx, jc)
@@ -321,23 +322,23 @@ func (p *pipeline) prepareFromJoin(ctx context.Context, jc *joinClause) (fromCla
 //
 // On return, pipeline.rc will be set.
 func (p *pipeline) joinSingleSource(ctx context.Context, jc *joinClause) (fromClause string,
-	fromPool driver.Pool, err error,
+	fromGrip driver.Grip, err error,
 ) {
 	src, err := p.qc.Collection.Get(jc.leftTbl.Handle())
 	if err != nil {
 		return "", nil, err
 	}
 
-	fromPool, err = p.qc.PoolOpener.Open(ctx, src)
+	fromGrip, err = p.qc.Grips.Open(ctx, src)
 	if err != nil {
 		return "", nil, err
 	}
 
-	rndr := fromPool.SQLDriver().Renderer()
+	rndr := fromGrip.SQLDriver().Renderer()
 	p.rc = &render.Context{
 		Renderer: rndr,
 		Args:     p.qc.Args,
-		Dialect:  fromPool.SQLDriver().Dialect(),
+		Dialect:  fromGrip.SQLDriver().Dialect(),
 	}
 
 	fromClause, err = rndr.Join(p.rc, jc.leftTbl, jc.joins)
@@ -345,7 +346,7 @@ func (p *pipeline) joinSingleSource(ctx context.Context, jc *joinClause) (fromCl
 		return "", nil, err
 	}
 
-	return fromClause, fromPool, nil
+	return fromClause, fromGrip, nil
 }
 
 // joinCrossSource returns a FROM clause that forms part of
@@ -353,7 +354,7 @@ func (p *pipeline) joinSingleSource(ctx context.Context, jc *joinClause) (fromCl
 //
 // On return, pipeline.rc will be set.
 func (p *pipeline) joinCrossSource(ctx context.Context, jc *joinClause) (fromClause string,
-	fromDB driver.Pool, err error,
+	fromDB driver.Grip, err error,
 ) {
 	handles := jc.handles()
 	srcs := make([]*source.Source, 0, len(handles))
@@ -366,16 +367,16 @@ func (p *pipeline) joinCrossSource(ctx context.Context, jc *joinClause) (fromCla
 	}
 
 	// Open the join db
-	joinPool, err := p.qc.JoinPoolOpener.OpenJoin(ctx, srcs...)
+	joinGrip, err := p.qc.Grips.OpenJoin(ctx, srcs...)
 	if err != nil {
 		return "", nil, err
 	}
 
-	rndr := joinPool.SQLDriver().Renderer()
+	rndr := joinGrip.SQLDriver().Renderer()
 	p.rc = &render.Context{
 		Renderer: rndr,
 		Args:     p.qc.Args,
-		Dialect:  joinPool.SQLDriver().Dialect(),
+		Dialect:  joinGrip.SQLDriver().Dialect(),
 	}
 
 	leftHandle := jc.leftTbl.Handle()
@@ -392,15 +393,15 @@ func (p *pipeline) joinCrossSource(ctx context.Context, jc *joinClause) (fromCla
 		if src, err = p.qc.Collection.Get(handle); err != nil {
 			return "", nil, err
 		}
-		var db driver.Pool
-		if db, err = p.qc.PoolOpener.Open(ctx, src); err != nil {
+		var db driver.Grip
+		if db, err = p.qc.Grips.Open(ctx, src); err != nil {
 			return "", nil, err
 		}
 
 		task := &joinCopyTask{
-			fromPool: db,
+			fromGrip: db,
 			fromTbl:  tbl.Table(),
-			toPool:   joinPool,
+			toGrip:   joinGrip,
 			toTbl:    tbl.TblAliasOrName(),
 		}
 
@@ -414,7 +415,7 @@ func (p *pipeline) joinCrossSource(ctx context.Context, jc *joinClause) (fromCla
 		return "", nil, err
 	}
 
-	return fromClause, joinPool, nil
+	return fromClause, joinGrip, nil
 }
 
 // tasker is the interface for executing a DB task.
@@ -425,59 +426,60 @@ type tasker interface {
 
 // joinCopyTask is a specification of a table data copy task to be performed
 // for a cross-source join. That is, the data in fromDB.fromTblName will
-// be copied to a table in toPool. If colNames is
+// be copied to a table in toGrip. If colNames is
 // empty, all cols in fromTbl are to be copied.
 type joinCopyTask struct {
-	fromPool driver.Pool
+	fromGrip driver.Grip
 	fromTbl  tablefq.T
-	toPool   driver.Pool
+	toGrip   driver.Grip
 	toTbl    tablefq.T
 }
 
 func (jt *joinCopyTask) executeTask(ctx context.Context) error {
-	return execCopyTable(ctx, jt.fromPool, jt.fromTbl, jt.toPool, jt.toTbl)
+	return execCopyTable(ctx, jt.fromGrip, jt.fromTbl, jt.toGrip, jt.toTbl)
 }
 
-// execCopyTable performs the work of copying fromDB.fromTbl to destPool.destTbl.
-func execCopyTable(ctx context.Context, fromDB driver.Pool, fromTbl tablefq.T,
-	destPool driver.Pool, destTbl tablefq.T,
+// execCopyTable performs the work of copying fromDB.fromTbl to destGrip.destTbl.
+func execCopyTable(ctx context.Context, fromDB driver.Grip, fromTbl tablefq.T,
+	destGrip driver.Grip, destTbl tablefq.T,
 ) error {
 	log := lg.FromContext(ctx)
 
-	createTblHook := func(ctx context.Context, originRecMeta record.Meta, destPool driver.Pool,
+	createTblHook := func(ctx context.Context, originRecMeta record.Meta, destGrip driver.Grip,
 		tx sqlz.DB,
 	) error {
 		destColNames := originRecMeta.Names()
 		destColKinds := originRecMeta.Kinds()
 		destTblDef := sqlmodel.NewTableDef(destTbl.Table, destColNames, destColKinds)
 
-		err := destPool.SQLDriver().CreateTable(ctx, tx, destTblDef)
+		err := destGrip.SQLDriver().CreateTable(ctx, tx, destTblDef)
 		if err != nil {
-			return errz.Wrapf(err, "failed to create dest table %s.%s", destPool.Source().Handle, destTbl)
+			return errz.Wrapf(err, "failed to create dest table %s.%s", destGrip.Source().Handle, destTbl)
 		}
 
 		return nil
 	}
 
 	inserter := NewDBWriter(
-		destPool,
+		"Copy records",
+		destGrip,
 		destTbl.Table,
-		driver.OptTuningRecChanSize.Get(destPool.Source().Options),
+		driver.OptTuningRecChanSize.Get(destGrip.Source().Options),
 		createTblHook,
 	)
 
 	query := "SELECT * FROM " + fromTbl.Render(fromDB.SQLDriver().Dialect().Enquote)
 	err := QuerySQL(ctx, fromDB, nil, inserter, query)
 	if err != nil {
-		return errz.Wrapf(err, "insert %s.%s failed", destPool.Source().Handle, destTbl)
+		return errz.Wrapf(err, "insert %s.%s failed", destGrip.Source().Handle, destTbl)
 	}
 
-	affected, err := inserter.Wait() // Wait for the writer to finish processing
+	affected, err := inserter.Wait() // Stop for the writer to finish processing
 	if err != nil {
-		return errz.Wrapf(err, "insert %s.%s failed", destPool.Source().Handle, destTbl)
+		return errz.Wrapf(err, "insert %s.%s failed", destGrip.Source().Handle, destTbl)
 	}
 	log.Debug("Copied rows to dest", lga.Count, affected,
 		lga.From, fmt.Sprintf("%s.%s", fromDB.Source().Handle, fromTbl),
-		lga.To, fmt.Sprintf("%s.%s", destPool.Source().Handle, destTbl))
+		lga.To, fmt.Sprintf("%s.%s", destGrip.Source().Handle, destTbl))
 	return nil
 }

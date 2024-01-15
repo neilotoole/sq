@@ -14,6 +14,7 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
@@ -26,14 +27,8 @@ type QueryContext struct {
 	// Collection is the set of sources.
 	Collection *source.Collection
 
-	// PoolOpener is used to open databases.
-	PoolOpener driver.PoolOpener
-
-	// JoinPoolOpener is used to open the joindb.
-	JoinPoolOpener driver.JoinPoolOpener
-
-	// ScratchPoolOpener is used to open the scratchdb.
-	ScratchPoolOpener driver.ScratchPoolOpener
+	// Grips mediates access to driver.Grip instances.
+	Grips *driver.Grips
 
 	// Args defines variables that are substituted into the query.
 	// May be nil or empty.
@@ -127,26 +122,35 @@ func SLQ2SQL(ctx context.Context, qc *QueryContext, query string) (targetSQL str
 
 // QuerySQL executes the SQL query, writing the results to recw. If db is
 // non-nil, the query is executed against it. Otherwise, the connection is
-// obtained from pool.
+// obtained from grip.
 // Note that QuerySQL may return before recw has finished writing, thus the
 // caller may wish to wait for recw to complete.
-// The caller is responsible for closing pool (and db, if non-nil).
-func QuerySQL(ctx context.Context, pool driver.Pool, db sqlz.DB,
+// The caller is responsible for closing grip (and db, if non-nil).
+func QuerySQL(ctx context.Context, grip driver.Grip, db sqlz.DB, //nolint:funlen
 	recw RecordWriter, query string, args ...any,
 ) error {
 	log := lg.FromContext(ctx)
-	errw := pool.SQLDriver().ErrWrapFunc()
+	errw := grip.SQLDriver().ErrWrapFunc()
 
 	if db == nil {
 		var err error
-		if db, err = pool.DB(ctx); err != nil {
+		if db, err = grip.DB(ctx); err != nil {
 			return err
 		}
 	}
 
 	rows, err := db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return errz.Wrapf(errw(err), `SQL query against %s failed: %s`, pool.Source().Handle, query)
+		err = errz.Wrapf(errw(err), `SQL query against %s failed: %s`, grip.Source().Handle, query)
+		select {
+		case <-ctx.Done():
+			// If the context was cancelled, it's probably more accurate
+			// to just return the context error.
+			log.Debug("Error received, but context was done", lga.Err, err)
+			return ctx.Err()
+		default:
+			return err
+		}
 	}
 	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
 
@@ -192,7 +196,7 @@ func QuerySQL(ctx context.Context, pool driver.Pool, db sqlz.DB,
 		}
 	}
 
-	drvr := pool.SQLDriver()
+	drvr := grip.SQLDriver()
 	recMeta, recFromScanRowFn, err := drvr.RecordMeta(ctx, colTypes)
 	if err != nil {
 		return errw(err)
@@ -222,7 +226,7 @@ func QuerySQL(ctx context.Context, pool driver.Pool, db sqlz.DB,
 		err = rows.Scan(scanRow...)
 		if err != nil {
 			cancelFn()
-			return errz.Wrapf(errw(err), "query against %s", pool.Source().Handle)
+			return errz.Wrapf(errw(err), "query against %s", grip.Source().Handle)
 		}
 
 		// recFromScanRowFn returns a new Record with appropriate

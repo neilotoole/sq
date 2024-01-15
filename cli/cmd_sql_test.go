@@ -19,7 +19,7 @@ import (
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/testsrc"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 // TestCmdSQL_Insert tests "sq sql QUERY --insert=dest.tbl".
@@ -28,7 +28,7 @@ func TestCmdSQL_Insert(t *testing.T) {
 		origin := origin
 
 		t.Run("origin_"+origin, func(t *testing.T) {
-			tutil.SkipShort(t, origin == sakila.XLSX)
+			tu.SkipShort(t, origin == sakila.XLSX)
 
 			for _, dest := range sakila.SQLLatest() {
 				dest := dest
@@ -161,7 +161,7 @@ func TestCmdSQL_StdinQuery(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		name := tutil.Name(i, filepath.Base(filepath.Dir(tc.fpath)), filepath.Base(tc.fpath))
+		name := tu.Name(i, filepath.Base(filepath.Dir(tc.fpath)), filepath.Base(tc.fpath))
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
@@ -202,8 +202,6 @@ func TestFlagActiveSource_sql(t *testing.T) {
 	tr = testrun.New(ctx, t, tr)
 	require.NoError(t, tr.Exec("add", proj.Abs(sakila.PathCSVActor), "--handle", "@csv"))
 
-	t.Logf("\n\n\n QUERY 1 \n\n\n") // FIXME: delete
-
 	tr = testrun.New(ctx, t, tr)
 	require.NoError(t, tr.Exec(
 		"sql",
@@ -212,8 +210,6 @@ func TestFlagActiveSource_sql(t *testing.T) {
 		`select * from actor`,
 	))
 	require.Len(t, tr.BindCSV(), sakila.TblActorCount)
-
-	t.Logf("\n\n\n QUERY 2 \n\n\n") // FIXME: delete
 
 	// Now, use flag.ActiveSrc to switch the source.
 	tr = testrun.New(ctx, t, tr)

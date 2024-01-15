@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"log/slog"
 	"slices"
 	"strings"
 	"time"
@@ -29,7 +30,7 @@ var OptShellCompletionTimeout = options.NewDuration(
 	"",
 	0,
 	time.Millisecond*500,
-	"shell completion timeout",
+	"Shell completion timeout",
 	`How long shell completion should wait before giving up. This can
 become relevant when shell completion inspects a source's metadata, e.g. to
 offer a list of tables in a source.`,
@@ -45,7 +46,7 @@ var (
 )
 
 // completeStrings completes from a slice of string.
-func completeStrings(max int, a ...string) completionFunc { //nolint:unparam
+func completeStrings(max int, a ...string) completionFunc {
 	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if max > 0 && len(args) >= max {
 			return nil, cobra.ShellCompDirectiveNoFileComp
@@ -140,7 +141,7 @@ func completeSLQ(cmd *cobra.Command, args []string, toComplete string) ([]string
 // completeDriverType is a completionFunc that suggests drivers.
 func completeDriverType(cmd *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
 	ru := getRun(cmd)
-	if ru.Pools == nil {
+	if ru.Grips == nil {
 		if err := preRun(cmd, ru); err != nil {
 			lg.Unexpected(logFrom(cmd), err)
 			return nil, cobra.ShellCompDirectiveError
@@ -238,11 +239,12 @@ func completeOptValue(cmd *cobra.Command, args []string, toComplete string) ([]s
 		}
 
 	case LogLevelOpt:
-		a = []string{"debug", "DEBUG", "info", "INFO", "warn", "WARN", "error", "ERROR"}
+		a = []string{slog.LevelDebug.String(), slog.LevelInfo.String(), slog.LevelWarn.String(), slog.LevelError.String()}
 	case format.Opt:
-		if opt.Key() == OptErrorFormat.Key() {
+		switch opt.Key() {
+		case OptErrorFormat.Key(), OptLogFormat.Key():
 			a = []string{string(format.Text), string(format.JSON)}
-		} else {
+		default:
 			a = stringz.Strings(format.All())
 		}
 	case options.Bool:
@@ -383,13 +385,13 @@ func (c activeSchemaCompleter) complete(cmd *cobra.Command, args []string, toCom
 	ctx, cancelFn := context.WithTimeout(cmd.Context(), OptShellCompletionTimeout.Get(ru.Config.Options))
 	defer cancelFn()
 
-	pool, err := ru.Pools.Open(ctx, src)
+	grip, err := ru.Grips.Open(ctx, src)
 	if err != nil {
 		lg.Unexpected(log, err)
 		return nil, cobra.ShellCompDirectiveError
 	}
 
-	db, err := pool.DB(ctx)
+	db, err := grip.DB(ctx)
 	if err != nil {
 		lg.Unexpected(log, err)
 		return nil, cobra.ShellCompDirectiveError
@@ -675,7 +677,7 @@ func (c *handleTableCompleter) completeHandle(ctx context.Context, ru *run.Run, 
 		// This means that we aren't able to get metadata for this source.
 		// This could be because the source is temporarily offline. The
 		// best we can do is just to return the handle, without the tables.
-		lg.WarnIfError(lg.FromContext(ctx), "Fetch metadata", err)
+		lg.WarnIfError(lg.FromContext(ctx), "Get metadata", err)
 		return matchingHandles, cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace
 	}
 
@@ -759,14 +761,14 @@ func getTableNamesForHandle(ctx context.Context, ru *run.Run, handle string) ([]
 		return nil, err
 	}
 
-	pool, err := ru.Pools.Open(ctx, src)
+	grip, err := ru.Grips.Open(ctx, src)
 	if err != nil {
 		return nil, err
 	}
 
 	// TODO: We shouldn't have to load the full metadata just to get
 	// the table names. driver.SQLDriver should have a method ListTables.
-	md, err := pool.SourceMetadata(ctx, false)
+	md, err := grip.SourceMetadata(ctx, false)
 	if err != nil {
 		return nil, err
 	}

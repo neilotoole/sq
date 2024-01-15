@@ -12,6 +12,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 )
 
@@ -189,6 +190,7 @@ The default (3) can be changed via:
 		completeStrings(-1, stringz.Strings(diffFormats)...),
 	))
 
+	addOptionFlag(cmd.Flags(), driver.OptIngestCache)
 	return cmd
 }
 

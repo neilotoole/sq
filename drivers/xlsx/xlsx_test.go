@@ -24,9 +24,10 @@ import (
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/testh"
+	"github.com/neilotoole/sq/testh/fixt"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 var sakilaSheets = []string{
@@ -50,10 +51,10 @@ var sakilaSheets = []string{
 
 func TestSakilaInspectSource(t *testing.T) {
 	t.Parallel()
-	tutil.SkipWindows(t, "Skipping because of slow workflow perf on windows")
-	tutil.SkipShort(t, true)
+	tu.SkipWindows(t, "Skipping because of slow workflow perf on windows")
+	tu.SkipShort(t, true)
 
-	th := testh.New(t, testh.OptLongOpen())
+	th := testh.New(t)
 	src := th.Source(sakila.XLSX)
 
 	tr := testrun.New(th.Context, t, nil).Hush().Add(*src)
@@ -64,15 +65,15 @@ func TestSakilaInspectSource(t *testing.T) {
 
 func TestSakilaInspectSheets(t *testing.T) {
 	t.Parallel()
-	tutil.SkipWindows(t, "Skipping because of slow workflow perf on windows")
-	tutil.SkipShort(t, true)
+	tu.SkipWindows(t, "Skipping because of slow workflow perf on windows")
+	tu.SkipShort(t, true)
 
 	for _, sheet := range sakilaSheets {
 		sheet := sheet
 
 		t.Run(sheet, func(t *testing.T) {
 			t.Parallel()
-			th := testh.New(t, testh.OptLongOpen())
+			th := testh.New(t)
 			src := th.Source(sakila.XLSX)
 
 			tr := testrun.New(th.Context, t, nil).Hush().Add(*src)
@@ -84,15 +85,15 @@ func TestSakilaInspectSheets(t *testing.T) {
 }
 
 func BenchmarkInspectSheets(b *testing.B) {
-	tutil.SkipWindows(b, "Skipping because of slow workflow perf on windows")
-	tutil.SkipShort(b, true)
+	tu.SkipWindows(b, "Skipping because of slow workflow perf on windows")
+	tu.SkipShort(b, true)
 
 	for _, sheet := range sakilaSheets {
 		sheet := sheet
 
 		b.Run(sheet, func(b *testing.B) {
 			for n := 0; n < b.N; n++ {
-				th := testh.New(b, testh.OptLongOpen())
+				th := testh.New(b)
 				src := th.Source(sakila.XLSX)
 
 				tr := testrun.New(th.Context, b, nil).Hush().Add(*src)
@@ -108,15 +109,15 @@ func BenchmarkInspectSheets(b *testing.B) {
 
 func TestSakila_query_cmd(t *testing.T) {
 	t.Parallel()
-	tutil.SkipWindows(t, "Skipping because of slow workflow perf on windows")
-	tutil.SkipShort(t, true)
+	tu.SkipWindows(t, "Skipping because of slow workflow perf on windows")
+	tu.SkipShort(t, true)
 
 	for _, sheet := range sakilaSheets {
 		sheet := sheet
 
 		t.Run(sheet, func(t *testing.T) {
 			t.Parallel()
-			th := testh.New(t, testh.OptLongOpen())
+			th := testh.New(t)
 			src := th.Source(sakila.XLSX)
 
 			tr := testrun.New(th.Context, t, nil).Hush().Add(*src)
@@ -130,8 +131,8 @@ func TestSakila_query_cmd(t *testing.T) {
 
 func TestOpenFileFormats(t *testing.T) {
 	t.Parallel()
-	tutil.SkipWindows(t, "Skipping because of slow workflow perf on windows")
-	tutil.SkipShort(t, true)
+	tu.SkipWindows(t, "Skipping because of slow workflow perf on windows")
+	tu.SkipShort(t, true)
 
 	testCases := []struct {
 		filename string
@@ -155,22 +156,23 @@ func TestOpenFileFormats(t *testing.T) {
 		t.Run(tc.filename, func(t *testing.T) {
 			t.Parallel()
 
-			th := testh.New(t, testh.OptLongOpen())
+			th := testh.New(t)
 			src := th.Add(&source.Source{
 				Handle:   "@excel",
 				Type:     xlsx.Type,
 				Location: filepath.Join("testdata", "file_formats", tc.filename),
 			})
 
-			pool, err := th.Pools().Open(th.Context, src)
-			require.NoError(t, err)
-			db, err := pool.DB(th.Context)
+			grip, err := th.Grips().Open(th.Context, src)
 			if tc.wantErr {
 				require.Error(t, err)
 				return
 			}
 			require.NoError(t, err)
-			require.NoError(t, db.PingContext(th.Context))
+			db, err := grip.DB(th.Context)
+			require.NoError(t, err)
+			err = db.PingContext(th.Context)
+			require.NoError(t, err)
 
 			sink, err := th.QuerySQL(src, nil, "SELECT * FROM actor")
 
@@ -189,8 +191,8 @@ func TestOpenFileFormats(t *testing.T) {
 
 func TestSakila_query(t *testing.T) {
 	t.Parallel()
-	tutil.SkipWindows(t, "Skipping because of slow workflow perf on windows")
-	tutil.SkipShort(t, true)
+	tu.SkipWindows(t, "Skipping because of slow workflow perf on windows")
+	tu.SkipShort(t, true)
 
 	testCases := []struct {
 		sheet     string
@@ -237,7 +239,7 @@ func TestSakila_query(t *testing.T) {
 
 		t.Run(tc.sheet, func(t *testing.T) {
 			t.Parallel()
-			th := testh.New(t, testh.OptLongOpen())
+			th := testh.New(t)
 			src := th.Source(sakila.XLSX)
 
 			sink, err := th.QuerySQL(src, nil, "SELECT * FROM "+tc.sheet)
@@ -293,7 +295,7 @@ func TestHandleSomeSheetsEmpty(t *testing.T) {
 	for _, tblName := range []string{"Sheet2Empty, Sheet3Empty"} {
 		_, err = th.TableMetadata(src, tblName)
 		require.Error(t, err)
-		require.True(t, errz.IsErrNotExist(err))
+		require.True(t, errz.Has[*driver.NotExistError](err))
 	}
 }
 
@@ -440,23 +442,16 @@ func TestDates(t *testing.T) {
 func TestDatetime(t *testing.T) {
 	t.Parallel()
 
-	denver, err := time.LoadLocation("America/Denver")
-	require.NoError(t, err)
-
 	src := &source.Source{
 		Handle:   "@excel/datetime",
 		Type:     xlsx.Type,
 		Location: "testdata/datetime.xlsx",
 	}
 
-	wantDtNanoUTC := time.Date(1989, 11, 9, 15, 17, 59, 123456700, time.UTC)
-	wantDtMilliUTC := wantDtNanoUTC.Truncate(time.Millisecond)
-	wantDtSecUTC := wantDtNanoUTC.Truncate(time.Second)
-	wantDtMinUTC := wantDtNanoUTC.Truncate(time.Minute)
-	wantDtNanoMST := time.Date(1989, 11, 9, 15, 17, 59, 123456700, denver)
-	wantDtMilliMST := wantDtNanoMST.Truncate(time.Millisecond)
-	wantDtSecMST := wantDtNanoMST.Truncate(time.Second)
-	wantDtMinMST := wantDtNanoMST.Truncate(time.Minute)
+	wantNanoUTC := time.Unix(0, fixt.TimestampUnixNano1989).UTC()
+	wantMilliUTC := wantNanoUTC.Truncate(time.Millisecond)
+	wantSecUTC := wantNanoUTC.Truncate(time.Second)
+	wantMinUTC := wantNanoUTC.Truncate(time.Minute)
 
 	testCases := []struct {
 		sheet       string
@@ -503,26 +498,26 @@ func TestDatetime(t *testing.T) {
 			},
 			wantKinds: loz.Make(20, kind.Datetime),
 			wantVals: lo.ToAnySlice([]time.Time{
-				wantDtSecUTC,   // ANSIC
-				wantDtMinUTC,   // DateHourMinute
-				wantDtMinUTC,   // DateHourMinuteSecond
-				wantDtMilliMST, // ISO8601
-				wantDtMilliUTC, // ISO8601Z
-				wantDtSecMST,   // RFC1123
-				wantDtSecMST,   // RFC1123Z
-				wantDtSecMST,   // RFC3339
-				wantDtNanoMST,  // RFC3339Nano
-				wantDtNanoUTC,  // RFC3339NanoZ
-				wantDtSecUTC,   // RFC3339Z
-				wantDtMinMST,   // RFC8222
-				wantDtMinUTC,   // RFC8222Z
-				wantDtSecMST,   // RFC850
-				wantDtSecMST,   // RubyDate
-				wantDtMinUTC,   // Stamp
-				wantDtMinUTC,   // StampMicro
-				wantDtMinUTC,   // StampMilli
-				wantDtMinUTC,   // StampNano
-				wantDtSecMST,   // UnixDate
+				wantSecUTC,   // ANSIC
+				wantMinUTC,   // DateHourMinute
+				wantMinUTC,   // DateHourMinuteSecond
+				wantMilliUTC, // ISO8601
+				wantMilliUTC, // ISO8601Z
+				wantSecUTC,   // RFC1123
+				wantSecUTC,   // RFC1123Z
+				wantSecUTC,   // RFC3339
+				wantNanoUTC,  // RFC3339Nano
+				wantNanoUTC,  // RFC3339NanoZ
+				wantSecUTC,   // RFC3339Z
+				wantMinUTC,   // RFC8222
+				wantMinUTC,   // RFC8222Z
+				wantSecUTC,   // RFC850
+				wantSecUTC,   // RubyDate
+				wantMinUTC,   // Stamp
+				wantMinUTC,   // StampMicro
+				wantMinUTC,   // StampMilli
+				wantMinUTC,   // StampNano
+				wantSecUTC,   // UnixDate
 			}),
 		},
 	}
@@ -532,7 +527,7 @@ func TestDatetime(t *testing.T) {
 		t.Run(tc.sheet, func(t *testing.T) {
 			t.Parallel()
 
-			th := testh.New(t, testh.OptLongOpen())
+			th := testh.New(t)
 			src = th.Add(src)
 
 			sink, err := th.QuerySLQ(src.Handle+"."+tc.sheet, nil)

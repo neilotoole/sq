@@ -16,7 +16,7 @@ import (
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func TestVal(t *testing.T) {
@@ -137,7 +137,7 @@ func TestHelper_Files(t *testing.T) {
 	th := testh.New(t)
 	fs := th.Files()
 
-	typ, err := fs.DriverType(th.Context, src.Location)
+	typ, err := fs.DriverType(th.Context, src.Handle, src.Location)
 	require.NoError(t, err)
 	require.Equal(t, src.Type, typ)
 
@@ -145,7 +145,7 @@ func TestHelper_Files(t *testing.T) {
 
 	for i := 0; i < 1000; i++ {
 		g.Go(func() error {
-			r, fErr := fs.Open(src)
+			r, fErr := fs.Open(th.Context, src)
 			require.NoError(t, fErr)
 
 			defer func() { require.NoError(t, r.Close()) }()
@@ -173,7 +173,7 @@ func TestTName(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		got := tutil.Name(tc.a...)
+		got := tu.Name(tc.a...)
 		require.Equal(t, tc.want, got)
 	}
 }

@@ -111,8 +111,14 @@ type Printing struct {
 	// DiffNormal is the color for regular diff text.
 	DiffNormal *color.Color
 
+	// Disabled is the color for disabled elements.
+	Disabled *color.Color
+
 	// Duration is the color for time duration values.
 	Duration *color.Color
+
+	// Enabled is the color for enabled elements.
+	Enabled *color.Color
 
 	// Error is the color for error elements such as an error message.
 	Error *color.Color
@@ -152,6 +158,18 @@ type Printing struct {
 
 	// Success is the color for success elements.
 	Success *color.Color
+
+	// Stack is the color for stack traces.
+	Stack *color.Color
+
+	// StackError is the color for errors attached to a stack trace.
+	StackError *color.Color
+
+	// StackErrorType is the color for the error types attached to a stack trace.
+	StackErrorType *color.Color
+
+	// Warning is the color for warning elements.
+	Warning *color.Color
 }
 
 // NewPrinting returns a Printing instance. Color and pretty-print
@@ -181,7 +199,9 @@ func NewPrinting() *Printing {
 		DiffNormal:             color.New(color.Faint),
 		DiffPlus:               color.New(color.FgGreen),
 		DiffSection:            color.New(color.FgCyan),
+		Disabled:               color.New(color.FgYellow, color.Faint),
 		Duration:               color.New(color.FgGreen, color.Faint),
+		Enabled:                color.New(color.FgGreen, color.Faint),
 		Error:                  color.New(color.FgRed, color.Bold),
 		Faint:                  color.New(color.Faint),
 		Handle:                 color.New(color.FgBlue),
@@ -194,7 +214,11 @@ func NewPrinting() *Printing {
 		Number:                 color.New(color.FgCyan),
 		Punc:                   color.New(color.Bold),
 		String:                 color.New(color.FgGreen),
+		Stack:                  color.New(color.Faint),
+		StackError:             color.New(color.FgYellow, color.Faint),
+		StackErrorType:         color.New(color.FgGreen, color.Faint),
 		Success:                color.New(color.FgGreen, color.Bold),
+		Warning:                color.New(color.FgYellow),
 	}
 
 	pr.EnableColor(true)
@@ -229,7 +253,9 @@ func (pr *Printing) Clone() *Printing {
 	pr2.DiffHeader = lo.ToPtr(*pr.DiffHeader)
 	pr2.DiffSection = lo.ToPtr(*pr.DiffSection)
 	pr2.DiffNormal = lo.ToPtr(*pr.DiffNormal)
+	pr2.Disabled = lo.ToPtr(*pr.Disabled)
 	pr2.Duration = lo.ToPtr(*pr.Duration)
+	pr2.Enabled = lo.ToPtr(*pr.Enabled)
 	pr2.Error = lo.ToPtr(*pr.Error)
 	pr2.Faint = lo.ToPtr(*pr.Faint)
 	pr2.Handle = lo.ToPtr(*pr.Handle)
@@ -243,6 +269,10 @@ func (pr *Printing) Clone() *Printing {
 	pr2.Punc = lo.ToPtr(*pr.Punc)
 	pr2.String = lo.ToPtr(*pr.String)
 	pr2.Success = lo.ToPtr(*pr.Success)
+	pr2.Stack = lo.ToPtr(*pr.Stack)
+	pr2.StackError = lo.ToPtr(*pr.StackError)
+	pr2.StackErrorType = lo.ToPtr(*pr.StackErrorType)
+	pr2.Warning = lo.ToPtr(*pr.Warning)
 
 	return pr2
 }
@@ -272,9 +302,11 @@ func (pr *Printing) colors() []*color.Color {
 	return []*color.Color{
 		pr.Active, pr.Bold, pr.Bold, pr.Bytes, pr.Datetime, pr.Duration,
 		pr.DiffHeader, pr.DiffMinus, pr.DiffPlus, pr.DiffNormal, pr.DiffSection,
+		pr.Disabled, pr.Enabled,
 		pr.Error, pr.Faint, pr.Handle, pr.Header, pr.Hilite,
-		pr.Key, pr.Location, pr.Normal, pr.Null, pr.Number,
-		pr.Punc, pr.String, pr.Success,
+		pr.Key, pr.Location, pr.Normal, pr.Null, pr.Number, pr.Punc,
+		pr.Stack, pr.StackError, pr.StackErrorType,
+		pr.String, pr.Success, pr.Warning,
 	}
 }
 

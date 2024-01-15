@@ -133,8 +133,8 @@ func (d *driveri) Renderer() *render.Renderer {
 	return r
 }
 
-// Open implements driver.PoolOpener.
-func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Pool, error) {
+// Open implements driver.Driver.
+func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
 	db, err := d.doOpen(ctx, src)
@@ -146,7 +146,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Pool, er
 		return nil, err
 	}
 
-	return &pool{log: d.log, db: db, src: src, drvr: d}, nil
+	return &grip{log: d.log, db: db, src: src, drvr: d}, nil
 }
 
 func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
@@ -208,6 +208,8 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 			return errw(err)
 		}))
 	}
+
+	dbCfg.ConnConfig.ConnectTimeout = driver.OptConnOpenTimeout.Get(src.Options)
 
 	db := stdlib.OpenDB(*dbCfg.ConnConfig, opts...)
 	driver.ConfigureDB(ctx, db, src.Options)
@@ -739,59 +741,6 @@ func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (
 	}
 
 	return recMeta, mungeFn, nil
-}
-
-// pool is the postgres implementation of driver.Pool.
-type pool struct {
-	log  *slog.Logger
-	drvr *driveri
-	db   *sql.DB
-	src  *source.Source
-}
-
-// DB implements driver.Pool.
-func (p *pool) DB(context.Context) (*sql.DB, error) {
-	return p.db, nil
-}
-
-// SQLDriver implements driver.Pool.
-func (p *pool) SQLDriver() driver.SQLDriver {
-	return p.drvr
-}
-
-// Source implements driver.Pool.
-func (p *pool) Source() *source.Source {
-	return p.src
-}
-
-// TableMetadata implements driver.Pool.
-func (p *pool) TableMetadata(ctx context.Context, tblName string) (*metadata.Table, error) {
-	db, err := p.DB(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	return getTableMetadata(ctx, db, tblName)
-}
-
-// SourceMetadata implements driver.Pool.
-func (p *pool) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error) {
-	db, err := p.DB(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return getSourceMetadata(ctx, p.src, db, noSchema)
-}
-
-// Close implements driver.Pool.
-func (p *pool) Close() error {
-	p.log.Debug(lgm.CloseDB, lga.Handle, p.src.Handle)
-
-	err := p.db.Close()
-	if err != nil {
-		return errw(err)
-	}
-	return nil
 }
 
 // doRetry executes fn with retry on isErrTooManyConnections.

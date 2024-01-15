@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -13,6 +14,7 @@ import (
 	"github.com/neilotoole/sq/cli/output/format"
 	"github.com/neilotoole/sq/cli/output/jsonw"
 	"github.com/neilotoole/sq/cli/run"
+	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -36,33 +38,26 @@ func printError(ctx context.Context, ru *run.Run, err error) {
 		return
 	}
 
-	switch {
-	default:
-	case errors.Is(err, context.Canceled):
-		err = errz.New("canceled")
-	case errors.Is(err, context.DeadlineExceeded):
-		err = errz.Wrap(err, "timeout")
+	cmdName := "unknown"
+	var cmd *cobra.Command
+	if ru != nil && ru.Cmd != nil {
+		cmd = ru.Cmd
+		cmdName = ru.Cmd.Name()
 	}
 
-	var cmd *cobra.Command
+	log.Error("EXECUTION FAILED",
+		lga.Err, err, lga.Cmd, cmdName, lga.Stack, errz.Stacks(err))
+
+	humanErr := humanizeError(err)
 	if ru != nil {
-		cmd = ru.Cmd
-
-		cmdName := "unknown"
-		if cmd != nil {
-			cmdName = cmd.Name()
-		}
-
-		log.Error("EXECUTION FAILED", lga.Err, err, lga.Cmd, cmdName)
-		wrtrs := ru.Writers
-		if wrtrs != nil && wrtrs.Error != nil {
+		if wrtrs := ru.Writers; wrtrs != nil && wrtrs.Error != nil {
 			// If we have an errorWriter, we print to it
 			// and return.
-			wrtrs.Error.Error(err)
+			wrtrs.Error.Error(err, humanErr)
 			return
 		}
 
-		// Else we don't have an errorWriter, so we fall through
+		// Else we don't have an error writer, so we fall through
 	}
 
 	// If we get this far, something went badly wrong in bootstrap
@@ -82,13 +77,24 @@ func printError(ctx context.Context, ru *run.Run, err error) {
 		opts, _ = ru.OptionsRegistry.Process(opts)
 	}
 
+	// getPrinting requires a cleanup.Cleanup, so we get or create one.
+	var clnup *cleanup.Cleanup
+	if ru != nil && ru.Cleanup != nil {
+		clnup = ru.Cleanup
+	} else {
+		clnup = cleanup.New()
+	}
 	// getPrinting works even if cmd is nil
-	pr, _, errOut := getPrinting(cmd, opts, os.Stdout, os.Stderr)
+	pr, _, errOut := getPrinting(cmd, clnup, opts, os.Stdout, os.Stderr)
+	// Execute the cleanup before we print the error.
+	if cleanErr := clnup.Run(); cleanErr != nil {
+		log.Error("Cleanup failed", lga.Err, cleanErr)
+	}
 
 	if bootstrapIsFormatJSON(ru) {
 		// The user wants JSON, either via defaults or flags.
 		jw := jsonw.NewErrorWriter(log, errOut, pr)
-		jw.Error(err)
+		jw.Error(err, humanErr)
 		return
 	}
 
@@ -141,4 +147,35 @@ func panicOn(err error) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+// humanizeError wrangles an error to make it more human-friendly before
+// printing to stderr. The returned err may be a different error from the
+// one passed in. This should be the final step before printing an error;
+// the original error should have already been logged.
+func humanizeError(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	switch {
+	// Friendlier messages for context errors.
+	default:
+	case errors.Is(err, context.Canceled):
+		err = errz.New("canceled")
+	case errors.Is(err, context.DeadlineExceeded):
+		errMsg := err.Error()
+		deadlineMsg := context.DeadlineExceeded.Error()
+		if errMsg == deadlineMsg {
+			// For generic context.DeadlineExceeded errors, we
+			// just return "timeout".
+			err = errz.New("timeout")
+		} else {
+			// But if the error is a wrapped context.DeadlineExceeded, we
+			// trim off the ": context deadline exceeded" suffix.
+			return errz.New(strings.TrimSuffix(errMsg, ": "+deadlineMsg))
+		}
+	}
+
+	return err
 }

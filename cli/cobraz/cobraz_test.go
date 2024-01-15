@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func TestExtractDirectives(t *testing.T) {
@@ -33,7 +33,7 @@ func TestExtractDirectives(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		t.Run(tutil.Name(i, tc.in), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
 			gotDirectives := ExtractDirectives(tc.in)
 			require.Equal(t, tc.want, gotDirectives)
 			gotStrings := MarshalDirective(tc.in)

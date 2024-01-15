@@ -10,6 +10,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
@@ -26,18 +27,18 @@ const (
 
 // Provider implements driver.Provider.
 type Provider struct {
-	Log       *slog.Logger
-	Scratcher driver.ScratchPoolOpener
-	Files     *source.Files
+	Log      *slog.Logger
+	Ingester driver.GripOpenIngester
+	Files    *source.Files
 }
 
 // DriverFor implements driver.Provider.
 func (d *Provider) DriverFor(typ drivertype.Type) (driver.Driver, error) {
 	switch typ { //nolint:exhaustive
 	case TypeCSV:
-		return &driveri{log: d.Log, typ: TypeCSV, scratcher: d.Scratcher, files: d.Files}, nil
+		return &driveri{log: d.Log, typ: TypeCSV, ingester: d.Ingester, files: d.Files}, nil
 	case TypeTSV:
-		return &driveri{log: d.Log, typ: TypeTSV, scratcher: d.Scratcher, files: d.Files}, nil
+		return &driveri{log: d.Log, typ: TypeTSV, ingester: d.Ingester, files: d.Files}, nil
 	}
 
 	return nil, errz.Errorf("unsupported driver type {%s}", typ)
@@ -45,10 +46,10 @@ func (d *Provider) DriverFor(typ drivertype.Type) (driver.Driver, error) {
 
 // Driver implements driver.Driver.
 type driveri struct {
-	log       *slog.Logger
-	typ       drivertype.Type
-	scratcher driver.ScratchPoolOpener
-	files     *source.Files
+	log      *slog.Logger
+	typ      drivertype.Type
+	ingester driver.GripOpenIngester
+	files    *source.Files
 }
 
 // DriverMetadata implements driver.Driver.
@@ -64,32 +65,31 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 	return md
 }
 
-// Open implements driver.PoolOpener.
-func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Pool, error) {
-	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
+// Open implements driver.Driver.
+func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, error) {
+	log := lg.FromContext(ctx)
+	log.Debug(lgm.OpenSrc, lga.Src, src)
 
-	pool := &pool{
+	g := &grip{
 		log:   d.log,
 		src:   src,
 		files: d.files,
 	}
 
+	allowCache := driver.OptIngestCache.Get(options.FromContext(ctx))
+
+	ingestFn := func(ctx context.Context, destGrip driver.Grip) error {
+		openFn := d.files.OpenFunc(src)
+		log.Debug("Ingest func invoked", lga.Src, src)
+		return ingestCSV(ctx, src, openFn, destGrip)
+	}
+
 	var err error
-	pool.impl, err = d.scratcher.OpenScratch(ctx, src.Handle)
-	if err != nil {
+	if g.impl, err = d.ingester.OpenIngest(ctx, src, allowCache, ingestFn); err != nil {
 		return nil, err
 	}
 
-	if err = ingestCSV(ctx, src, d.files.OpenFunc(src), pool.impl); err != nil {
-		return nil, err
-	}
-
-	return pool, nil
-}
-
-// Truncate implements driver.Driver.
-func (d *driveri) Truncate(_ context.Context, _ *source.Source, _ string, _ bool) (int64, error) {
-	return 0, errz.Errorf("truncate not supported for %s", d.DriverMetadata().Type)
+	return g, nil
 }
 
 // ValidateSource implements driver.Driver.
@@ -102,47 +102,41 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 }
 
 // Ping implements driver.Driver.
-func (d *driveri) Ping(_ context.Context, src *source.Source) error {
-	r, err := d.files.Open(src)
-	if err != nil {
-		return err
-	}
-	defer lg.WarnIfCloseError(d.log, lgm.CloseFileReader, r)
-
-	return nil
+func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
+	return d.files.Ping(ctx, src)
 }
 
-// pool implements driver.Pool.
-type pool struct {
+// grip implements driver.Grip.
+type grip struct {
 	log   *slog.Logger
 	src   *source.Source
-	impl  driver.Pool
+	impl  driver.Grip
 	files *source.Files
 }
 
-// DB implements driver.Pool.
-func (p *pool) DB(ctx context.Context) (*sql.DB, error) {
-	return p.impl.DB(ctx)
+// DB implements driver.Grip.
+func (g *grip) DB(ctx context.Context) (*sql.DB, error) {
+	return g.impl.DB(ctx)
 }
 
-// SQLDriver implements driver.Pool.
-func (p *pool) SQLDriver() driver.SQLDriver {
-	return p.impl.SQLDriver()
+// SQLDriver implements driver.Grip.
+func (g *grip) SQLDriver() driver.SQLDriver {
+	return g.impl.SQLDriver()
 }
 
-// Source implements driver.Pool.
-func (p *pool) Source() *source.Source {
-	return p.src
+// Source implements driver.Grip.
+func (g *grip) Source() *source.Source {
+	return g.src
 }
 
-// TableMetadata implements driver.Pool.
-func (p *pool) TableMetadata(ctx context.Context, tblName string) (*metadata.Table, error) {
+// TableMetadata implements driver.Grip.
+func (g *grip) TableMetadata(ctx context.Context, tblName string) (*metadata.Table, error) {
 	if tblName != source.MonotableName {
 		return nil, errz.Errorf("table name should be %s for CSV/TSV etc., but got: %s",
 			source.MonotableName, tblName)
 	}
 
-	srcMeta, err := p.SourceMetadata(ctx, false)
+	srcMeta, err := g.SourceMetadata(ctx, false)
 	if err != nil {
 		return nil, err
 	}
@@ -151,23 +145,23 @@ func (p *pool) TableMetadata(ctx context.Context, tblName string) (*metadata.Tab
 	return srcMeta.Tables[0], nil
 }
 
-// SourceMetadata implements driver.Pool.
-func (p *pool) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error) {
-	md, err := p.impl.SourceMetadata(ctx, noSchema)
+// SourceMetadata implements driver.Grip.
+func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error) {
+	md, err := g.impl.SourceMetadata(ctx, noSchema)
 	if err != nil {
 		return nil, err
 	}
 
-	md.Handle = p.src.Handle
-	md.Location = p.src.Location
-	md.Driver = p.src.Type
+	md.Handle = g.src.Handle
+	md.Location = g.src.Location
+	md.Driver = g.src.Type
 
-	md.Name, err = source.LocationFileName(p.src)
+	md.Name, err = source.LocationFileName(g.src)
 	if err != nil {
 		return nil, err
 	}
 
-	md.Size, err = p.files.Size(p.src)
+	md.Size, err = g.files.Filesize(ctx, g.src)
 	if err != nil {
 		return nil, err
 	}
@@ -176,9 +170,9 @@ func (p *pool) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Sou
 	return md, nil
 }
 
-// Close implements driver.Pool.
-func (p *pool) Close() error {
-	p.log.Debug(lgm.CloseDB, lga.Handle, p.src.Handle)
+// Close implements driver.Grip.
+func (g *grip) Close() error {
+	g.log.Debug(lgm.CloseDB, lga.Handle, g.src.Handle)
 
-	return errz.Err(p.impl.Close())
+	return errz.Err(g.impl.Close())
 }

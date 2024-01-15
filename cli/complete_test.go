@@ -10,20 +10,19 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/slogt"
-
 	"github.com/neilotoole/sq/cli/cobraz"
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/testrun"
 	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
-	"github.com/neilotoole/sq/testh/tutil"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 // testComplete is a helper for testing cobra completion.
 func testComplete(t testing.TB, from *testrun.TestRun, args ...string) completion {
-	ctx := lg.NewContext(context.Background(), slogt.New(t))
+	ctx := lg.NewContext(context.Background(), lgt.New(t))
 
 	tr := testrun.New(ctx, t, from)
 	args = append([]string{"__complete"}, args...)
@@ -152,7 +151,7 @@ func TestCompleteFlagActiveSchema_query_cmds(t *testing.T) {
 
 			for i, tc := range testCases {
 				tc := tc
-				t.Run(tutil.Name(i, tc.handles, tc.withFlagActiveSrc, tc.arg), func(t *testing.T) {
+				t.Run(tu.Name(i, tc.handles, tc.withFlagActiveSrc, tc.arg), func(t *testing.T) {
 					t.Parallel()
 
 					th := testh.New(t)
@@ -262,7 +261,7 @@ func TestCompleteFlagActiveSchema_inspect(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(tutil.Name(i, tc.handles, tc.withArgActiveSrc, tc.arg), func(t *testing.T) {
+		t.Run(tu.Name(i, tc.handles, tc.withArgActiveSrc, tc.arg), func(t *testing.T) {
 			t.Parallel()
 
 			th := testh.New(t)
