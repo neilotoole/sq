@@ -192,7 +192,6 @@ only applies to SQL sources.`,
 func execTblTruncate(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	ru := run.FromContext(ctx)
-	var tblHandles []tblHandle
 	tblHandles, err := parseTableHandleArgs(ru.DriverRegistry, ru.Config.Collection, args)
 	if err != nil {
 		return err
