@@ -133,7 +133,7 @@ GROUP BY database_id) AS total_size_bytes`
 		return nil, errw(err)
 	}
 	progress.Incr(ctx, 1)
-	progress.DebugDelay()
+	progress.DebugSleep(ctx)
 
 	md.Name = catalog
 	md.FQName = catalog + "." + schema
@@ -242,7 +242,7 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblCatalog,
 		return nil, errw(err)
 	}
 	progress.Incr(ctx, 1)
-	progress.DebugDelay()
+	progress.DebugSleep(ctx)
 
 	if rowCount.Valid {
 		tblMeta.RowCount, err = strconv.ParseInt(strings.TrimSpace(rowCount.String), 10, 64)
@@ -257,7 +257,7 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblCatalog,
 			return nil, errw(err)
 		}
 		progress.Incr(ctx, 1)
-		progress.DebugDelay()
+		progress.DebugSleep(ctx)
 	}
 
 	if reserved.Valid {
@@ -348,7 +348,7 @@ ORDER BY TABLE_NAME ASC, TABLE_TYPE ASC`
 			return nil, nil, errw(err)
 		}
 		progress.Incr(ctx, 1)
-		progress.DebugDelay()
+		progress.DebugSleep(ctx)
 
 		tblNames = append(tblNames, tblName)
 		tblTypes = append(tblTypes, tblType)
@@ -397,7 +397,7 @@ func getColumnMeta(ctx context.Context, db sqlz.DB, tblCatalog, tblSchema, tblNa
 			return nil, errw(err)
 		}
 		progress.Incr(ctx, 1)
-		progress.DebugDelay()
+		progress.DebugSleep(ctx)
 		cols = append(cols, c)
 	}
 
@@ -427,7 +427,7 @@ func getConstraints(ctx context.Context, db sqlz.DB, tblCatalog, tblSchema, tblN
 		return nil, errw(err)
 	}
 	progress.Incr(ctx, 1)
-	progress.DebugDelay()
+	progress.DebugSleep(ctx)
 
 	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
 
@@ -440,7 +440,7 @@ func getConstraints(ctx context.Context, db sqlz.DB, tblCatalog, tblSchema, tblN
 			return nil, errw(err)
 		}
 		progress.Incr(ctx, 1)
-		progress.DebugDelay()
+		progress.DebugSleep(ctx)
 
 		constraints = append(constraints, c)
 	}

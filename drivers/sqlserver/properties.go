@@ -49,7 +49,7 @@ func getSysConfigurations(ctx context.Context, db sqlz.DB) (map[string]any, erro
 			return nil, errw(err)
 		}
 		progress.Incr(ctx, 1)
-		progress.DebugDelay()
+		progress.DebugSleep(ctx)
 
 		m[name] = val
 	}
@@ -87,7 +87,7 @@ func getServerProperties(ctx context.Context, db sqlz.DB) (map[string]any, error
 			continue
 		}
 		progress.Incr(ctx, 1)
-		progress.DebugDelay()
+		progress.DebugSleep(ctx)
 
 		m[name] = val
 	}

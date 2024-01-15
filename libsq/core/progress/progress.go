@@ -22,6 +22,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/options"
+
 	"github.com/samber/lo"
 	mpb "github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
@@ -29,17 +31,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 )
-
-// DebugDelay sleeps for a period of time to facilitate testing the
-// progress impl. It should be removed before release.
-//
-// FIXME: Delete this before release.
-func DebugDelay() {
-	const delay = time.Millisecond * 0
-	if delay > 0 {
-		time.Sleep(delay)
-	}
-}
 
 type progCtxKey struct{}
 
@@ -499,4 +490,26 @@ func barRenderDelay(b *Bar, d time.Duration) <-chan struct{} {
 		b.barInitOnce.Do(b.barInitFn)
 	}()
 	return delayCh
+}
+
+// OptDebugSleep configures DebugSleep. It should be removed when the
+// progress impl is stable.
+var OptDebugSleep = options.NewDuration(
+	"debug.progress.sleep",
+	"",
+	0,
+	0,
+	"DEBUG: Sleep during operations to facilitate testing progress bars",
+	`DEBUG: Sleep during operations to facilitate testing progress bars.`,
+)
+
+// DebugSleep sleeps for a period of time to facilitate testing the
+// progress impl. It uses the value from OptDebugSleep. This function
+// (and OptDebugSleep) should be removed when the progress impl is
+// stable.
+func DebugSleep(ctx context.Context) {
+	sleep := OptDebugSleep.Get(options.FromContext(ctx))
+	if sleep > 0 {
+		time.Sleep(sleep)
+	}
 }
