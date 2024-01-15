@@ -2,13 +2,8 @@ module github.com/neilotoole/sq
 
 go 1.21
 
-// See: https://github.com/vbauerster/mpb/issues/136
-require github.com/vbauerster/mpb/v8 v8.7.2
-
 // See: https://github.com/djherbis/fscache/pull/21
 require github.com/neilotoole/fscache v0.0.0-20231203162946-c9808f16552e
-
-require github.com/djherbis/stream v1.4.0 // indirect
 
 // See: https://github.com/djherbis/stream/pull/11
 replace github.com/djherbis/stream v1.4.0 => github.com/neilotoole/djherbis-stream v0.0.0-20231203160853-609f47afedda
@@ -42,12 +37,13 @@ require (
 	github.com/otiai10/copy v1.14.0
 	github.com/ryboe/q v1.0.20
 	github.com/samber/lo v1.39.0
-	github.com/segmentio/encoding v0.3.7
+	github.com/segmentio/encoding v0.4.0
 	github.com/sethvargo/go-retry v0.2.4
 	github.com/shopspring/decimal v1.3.1
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.4
+	github.com/vbauerster/mpb/v8 v8.7.2
 	github.com/xo/dburl v0.20.2
 	github.com/xuri/excelize/v2 v2.8.0
 	go.uber.org/atomic v1.11.0
@@ -67,6 +63,7 @@ require (
 	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/djherbis/atime v1.1.0 // indirect
+	github.com/djherbis/stream v1.4.0 // indirect
 	github.com/golang-sql/civil v0.0.0-20220223132316-b832511892a9 // indirect
 	github.com/golang-sql/sqlexp v0.1.0 // indirect
 	github.com/huandu/xstrings v1.3.3 // indirect
@@ -94,8 +91,7 @@ require (
 	github.com/xuri/efp v0.0.0-20230802181842-ad255f2331ca // indirect
 	github.com/xuri/nfp v0.0.0-20230819163627-dc951e3ffe1a // indirect
 	golang.org/x/crypto v0.17.0 // indirect
-	golang.org/x/net v0.19.0 // indirect
+	golang.org/x/net v0.14.0 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
