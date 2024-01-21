@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	crand "crypto/rand"
+	"fmt"
 	"io"
 	mrand "math/rand"
 	"os"
@@ -416,6 +417,44 @@ func (c *readCloserNotifier) Close() error {
 		c.fn(c.closeErr)
 	})
 	return c.closeErr
+}
+
+var _ io.Reader = (*errorAfterNReader)(nil)
+
+// NewErrorAfterNReader returns an io.Reader that returns err after
+// reading n random bytes from crypto/rand.Reader.
+func NewErrorAfterNReader(n int, err error) io.Reader {
+	return &errorAfterNReader{afterN: n, err: err}
+}
+
+type errorAfterNReader struct {
+	mu     sync.Mutex
+	afterN int
+	count  int
+	err    error
+}
+
+func (r *errorAfterNReader) Read(p []byte) (n int, err error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if r.count >= r.afterN {
+		return 0, r.err
+	}
+
+	// There's some bytes to read
+	allowed := r.afterN - r.count
+	if allowed > len(p) {
+		n, _ = crand.Read(p)
+		r.count += n
+		return n, nil
+	}
+	n, _ = crand.Read(p[:allowed])
+	if n != allowed {
+		panic(fmt.Sprintf("expected to read %d bytes, got %d", allowed, n))
+	}
+	r.count += n
+	return n, r.err
 }
 
 // WriteToFile writes the contents of r to fp. If fp doesn't exist,

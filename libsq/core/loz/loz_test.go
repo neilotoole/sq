@@ -1,7 +1,11 @@
 package loz_test
 
 import (
+	"errors"
+	"io"
 	"testing"
+
+	"github.com/neilotoole/sq/libsq/core/ioz"
 
 	"github.com/stretchr/testify/require"
 
@@ -96,4 +100,37 @@ func TestIsSliceZeroed(t *testing.T) {
 	require.False(t, loz.IsSliceZeroed([]int{0, 1}))
 	require.True(t, loz.IsSliceZeroed([]string{"", ""}))
 	require.False(t, loz.IsSliceZeroed([]string{"", "a"}))
+}
+
+func TestNewErrorAfterNReader_Read(t *testing.T) {
+	const (
+		errAfterN = 50
+		bufSize   = 100
+	)
+	wantErr := errors.New("oh dear")
+
+	b := make([]byte, bufSize)
+
+	r := ioz.NewErrorAfterNReader(errAfterN, wantErr)
+	n, err := r.Read(b)
+	require.Error(t, err)
+	require.True(t, errors.Is(err, wantErr))
+	require.Equal(t, errAfterN, n)
+
+	b = make([]byte, bufSize)
+	n, err = r.Read(b)
+	require.Error(t, err)
+	require.True(t, errors.Is(err, wantErr))
+	require.Equal(t, 0, n)
+}
+
+func TestNewErrorAfterNReader_ReadAll(t *testing.T) {
+	const errAfterN = 50
+	wantErr := errors.New("oh dear")
+
+	r := ioz.NewErrorAfterNReader(errAfterN, wantErr)
+	b, err := io.ReadAll(r)
+	require.Error(t, err)
+	require.True(t, errors.Is(err, wantErr))
+	require.Equal(t, errAfterN, len(b))
 }
