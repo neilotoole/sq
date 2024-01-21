@@ -177,3 +177,28 @@ func Take[C any](ch <-chan C) bool {
 		return false
 	}
 }
+
+// Remove returns a slice without v, preserving order. If order is not
+// important, use RemoveUnordered instead, as it's faster.
+func Remove[T any](a []*T, v *T) []*T {
+	// https://stackoverflow.com/a/37335777/6004734
+	for i := range a {
+		if a[i] == v {
+			return append(a[:i], a[i+1:]...)
+		}
+	}
+	return a
+}
+
+// RemoveUnordered returns a slice without v, but order is not
+// guaranteed to preserved. If order is important, use Remove instead.
+func RemoveUnordered[T any](a []*T, v *T) []*T {
+	// https://stackoverflow.com/a/37335777/6004734
+	for i := range a {
+		if a[i] == v {
+			a[i] = a[len(a)-1]
+			return a[:len(a)-1]
+		}
+	}
+	return a
+}
