@@ -44,7 +44,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.4
 	github.com/vbauerster/mpb/v8 v8.7.2
-	github.com/xo/dburl v0.20.2
+	github.com/xo/dburl v0.21.1
 	github.com/xuri/excelize/v2 v2.8.0
 	go.uber.org/atomic v1.11.0
 	golang.org/x/exp v0.0.0-20240112132812-db7319d0e0e3
