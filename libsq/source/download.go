@@ -118,7 +118,8 @@ func (fs *Files) openRemoteFile(ctx context.Context, src *Source, checkFresh boo
 
 	// checkFresh should be false on subsequent calls.
 
-	if !checkFresh && fs.hasRdrCache(loc) {
+	//if !checkFresh && fs.hasRdrCache(src.Handle) { // FIXME: this logic is wonky
+	if !checkFresh && fs.hasRdrCache(src.Handle) { // FIXME: this logic is wonky
 		// If the download has completed, dl.CacheFile will return the
 		// path to the cached file.
 		cachedDownload, err = dl.CacheFile(ctx)
@@ -126,11 +127,11 @@ func (fs *Files) openRemoteFile(ctx context.Context, src *Source, checkFresh boo
 			return "", nil, err
 		}
 
-		cache, _ := fs.rdrCaches[loc]
+		cache, _ := fs.streamCaches[src.Handle]
 
 		// The file is already cached, and we're not checking freshness.
 		// So, we can just return the cached reader.
-		rdr := cache.NewReader(ctx)
+		rdr = cache.NewReader(ctx)
 		//rdr, _, err = fs.fscache.Get(loc)
 		//if err != nil {
 		//	return "", nil, errz.Err(err)
@@ -150,7 +151,7 @@ func (fs *Files) openRemoteFile(ctx context.Context, src *Source, checkFresh boo
 			//	}
 			//}
 
-			cache, ok := fs.rdrCaches[loc]
+			cache, ok := fs.streamCaches[src.Handle]
 			if !ok {
 				f, err := os.Open(fp)
 				if err != nil {
@@ -158,7 +159,7 @@ func (fs *Files) openRemoteFile(ctx context.Context, src *Source, checkFresh boo
 					return
 				}
 				cache = streamcache.New(f)
-				fs.rdrCaches[loc] = cache
+				fs.streamCaches[src.Handle] = cache
 			}
 
 			r := cache.NewReader(ctx)
@@ -182,7 +183,7 @@ func (fs *Files) openRemoteFile(ctx context.Context, src *Source, checkFresh boo
 			//	lg.FromContext(ctx).Error("Error writing to fscache", lga.Src, src, lga.Err, err)
 			//	wErrFn(err)
 			//})
-			fs.rdrCaches[loc] = cache
+			fs.streamCaches[src.Handle] = cache
 			r := cache.NewReader(ctx)
 			rdrCh <- r
 		},
@@ -191,9 +192,9 @@ func (fs *Files) openRemoteFile(ctx context.Context, src *Source, checkFresh boo
 		},
 	}
 
-	fs.fillerWgs.Add(1)
+	fs.downloadsWg.Add(1)
 	go func() {
-		defer fs.fillerWgs.Done()
+		defer fs.downloadsWg.Done()
 		dl.Get(ctx, h)
 	}()
 

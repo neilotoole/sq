@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"mime"
+	"os"
 	"time"
 
 	"github.com/h2non/filetype"
@@ -89,12 +90,24 @@ func (fs *Files) detectType(ctx context.Context, handle, loc string) (typ driver
 	log := lg.FromContext(ctx).With(lga.Loc, loc)
 	start := time.Now()
 
+	var openFn FileOpenFunc
+	if getLocType(loc) == locTypeLocalFile {
+		openFn = func(ctx context.Context) (io.ReadCloser, error) {
+			return errz.Return(os.Open(loc))
+		}
+	} else {
+		openFn = func(ctx context.Context) (io.ReadCloser, error) {
+			src := &Source{Handle: handle, Location: loc}
+			return fs.newReader(ctx, src, false)
+		}
+	}
+
 	// FIXME: we could bypass newReader here for local files (that
 	// isn't @stdin).
-	openFn := func(ctx context.Context) (io.ReadCloser, error) {
-		src := &Source{Handle: handle, Location: loc}
-		return fs.newReader(ctx, src)
-	}
+	//openFn := func(ctx context.Context) (io.ReadCloser, error) {
+	//	src := &Source{Handle: handle, Location: loc}
+	//	return fs.newReader(ctx, src)
+	//}
 
 	// We do the magic number first, because it's so fast.
 	detected, score, err := DetectMagicNumber(ctx, openFn)

@@ -6,6 +6,7 @@ import (
 	"context"
 	stdj "encoding/json"
 	"io"
+	"time"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -22,6 +23,10 @@ func DetectJSONL(sampleSize int) source.DriverDetectFunc {
 		score float32, err error,
 	) {
 		log := lg.FromContext(ctx)
+		start := time.Now()
+		defer func() {
+			log.Debug("JSONL detection complete", lga.Elapsed, time.Since(start), lga.Score, score)
+		}()
 		var r io.ReadCloser
 		r, err = openFn(ctx)
 		if err != nil {

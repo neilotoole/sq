@@ -445,7 +445,7 @@ func ReadToString(t testing.TB, r io.Reader) string {
 // If log is true, the output of lsof is logged.
 func OpenFileCount(t testing.TB, log bool) int {
 	count, out := doOpenFileCount(t)
-	msg := fmt.Sprintf("Open files for [%d]: %d", os.Getpid(), count)
+	msg := fmt.Sprintf("NewReader files for [%d]: %d", os.Getpid(), count)
 	if log {
 		msg += "\n\n" + out
 	}
@@ -470,17 +470,17 @@ func doOpenFileCount(t testing.TB) (count int, out string) {
 func DiffOpenFileCount(t testing.TB, log bool) {
 	openingCount, openingOut := doOpenFileCount(t)
 	if log {
-		t.Logf("START: Open files for [%d]: %d\n\n%s", os.Getpid(), openingCount, openingOut)
+		t.Logf("START: NewReader files for [%d]: %d\n\n%s", os.Getpid(), openingCount, openingOut)
 	}
 	t.Cleanup(func() {
 		closingCount, closingOut := doOpenFileCount(t)
 		if log {
-			t.Logf("END: Open files for [%d]: %d\n\n%s", os.Getpid(), closingCount, closingOut)
+			t.Logf("END: NewReader files for [%d]: %d\n\n%s", os.Getpid(), closingCount, closingOut)
 		}
 		if openingCount != closingCount {
-			t.Logf("Open file count changed from %d to %d", openingCount, closingCount)
+			t.Logf("NewReader file count changed from %d to %d", openingCount, closingCount)
 		} else {
-			t.Logf("Open file count unchanged: %d", openingCount)
+			t.Logf("NewReader file count unchanged: %d", openingCount)
 		}
 	})
 }

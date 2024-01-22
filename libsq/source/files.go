@@ -45,20 +45,37 @@ type Files struct {
 	clnup       *cleanup.Cleanup
 	optRegistry *options.Registry
 
-	// rdrCaches is used to cache files, providing convenient access
-	// to multiple readers via Files.newReader.
-	rdrCaches map[string]*streamcache.Cache
+	// streamCaches is a map of source handles to streamcache.Cache
+	// instances: this is used to cache non-regular-file streams, such
+	// as stdin, or downloads (via the resp.Body). This streamcache
+	// mechanism permits multiple readers to access the stream. For
+	// example:
+	//
+	//  $ cat FILE | sq .data
+	//
+	// In this scenario FILE is provided on os.Stdin, but sq needs
+	// to read the stdin stream several times: first, to detect the type
+	// of data on stdin (via Files.DetectStdinType), and then to actually
+	// ingest the data.
+	streamCaches map[string]*streamcache.Cache
 
 	// cfgLockFn is the lock func for sq's config.
 	cfgLockFn lockfile.LockFunc
 
-	// downloads is a map of source handles the download.Download
+	// downloads is a map of source handles to the download.Download
 	// for that source.
 	downloads map[string]*download.Download
 
-	// fillerWgs is used to wait for asynchronous filling of the cache
-	// to complete (including downloads).
-	fillerWgs *sync.WaitGroup
+	// downloadsWg is used to wait for any download goroutines
+	// to complete.
+	downloadsWg *sync.WaitGroup
+
+	// downloadedFiles is a map of source handles to filepath of
+	// already downloaded files. Consulting this map allows Files
+	// to directly serve the downloaded file from disk instead of
+	// using download.Download (which typically makes an HTTP
+	// call to check the freshness of an already downloaded file).
+	downloadedFiles map[string]string
 
 	// fscache is used to cache files, providing convenient access
 	// to multiple readers via Files.newReader.
@@ -99,9 +116,9 @@ func NewFiles(
 		clnup:       cleanup.New(),
 		log:         lg.FromContext(ctx),
 		downloads:   map[string]*download.Download{},
-		fillerWgs:   &sync.WaitGroup{},
+		downloadsWg: &sync.WaitGroup{},
 		//fscacheEntryMetas: make(map[string]*fscacheEntryMeta),
-		rdrCaches: make(map[string]*streamcache.Cache),
+		streamCaches: make(map[string]*streamcache.Cache),
 	}
 
 	// We want a unique dir for each execution. Note that fcache is deleted
@@ -153,19 +170,25 @@ func (fs *Files) Filesize(ctx context.Context, src *Source) (size int64, err err
 
 	case locTypeStdin:
 		fs.mu.Lock()
-		cache, ok := fs.rdrCaches[StdinHandle]
-		//if !ok {}
-		//entryMeta, ok := fs.fscacheEntryMetas[StdinHandle]
+		cache, ok := fs.streamCaches[StdinHandle]
 		fs.mu.Unlock()
 		if !ok {
+			// This is a programming error; probably should panic here.
 			return 0, errz.Errorf("stdin not present in cache")
 		}
-		select {
-		case <-ctx.Done():
-			return 0, ctx.Err()
-		case <-cache.Done():
-			return int64(cache.Size()), nil
-		}
+		return int64(cache.Size()), nil
+		//lg.FromContext(ctx).Warn("Files.Filesize: waiting for stdin cache to be done")
+		//select {
+		//case <-ctx.Done():
+		//	return 0, ctx.Err()
+		//case <-cache.Done():
+		//	lg.FromContext(ctx).Warn("Files.Filesize: stdin cache is done", lga.Size, cache.Size())
+		//	return int64(cache.Size()), nil
+		//default:
+		//	// This is a programming error; probably should panic here.
+		//	return 0, errz.Errorf("stdin cache not sealed?")
+		//	//panic("stdin cache is not sealed?")
+		//}
 
 	default:
 		return 0, errz.Errorf("unknown source location type: %s", RedactLocation(src.Location))
@@ -185,7 +208,7 @@ type fscacheEntryMeta struct {
 }
 
 // AddStdin copies f to fs's cache: the stdin data in f
-// is later accessible via fs.Open(src) where src.Handle
+// is later accessible via fs.NewReader(src) where src.Handle
 // is StdinHandle; f's type can be detected via DetectStdinType.
 // Note that f is ultimately closed by a goroutine spawned by
 // this method, but may not be closed at the time of return.
@@ -198,104 +221,108 @@ func (fs *Files) AddStdin(ctx context.Context, f *os.File) error {
 	// when sq exits. But, first we probably need to refactor the
 	// interaction with driver.Grips.
 
-	err := fs.addStdin(ctx, StdinHandle, f) // f is closed by addStdin
-	return errz.Wrapf(err, "failed to add %s to fscache", StdinHandle)
-}
+	//err := fs.addStdin(ctx, StdinHandle, f) // f is closed by addStdin
 
-// addStdin asynchronously copies f to fs's cache. f is closed
-// when the async copy completes. This method should only be used
-// for stdin; for regular files, use Files.addRegularFile.
-func (fs *Files) addStdin(ctx context.Context, handle string, f *os.File) error {
-	log := lg.FromContext(ctx).With(lga.Handle, handle, lga.File, f.Name())
-
-	if _, ok := fs.rdrCaches[handle]; ok {
-		return errz.Errorf("%s already added to reader cache", handle)
+	if _, ok := fs.streamCaches[StdinHandle]; ok {
+		return errz.Errorf("%s already added to reader cache", StdinHandle)
 	}
 
 	cache := streamcache.New(f)
-	fs.rdrCaches[handle] = cache
-	log.Debug("Added stdin to reader cache")
+	fs.streamCaches[StdinHandle] = cache
+	lg.FromContext(ctx).With(lga.Handle, StdinHandle, lga.File, f.Name()).
+		Debug("Added stdin to reader cache")
 	return nil
-	//
-	//cacheRdr, cacheWrtr, cacheWrtrErrFn, err := fs.fscache.GetWithErr(handle)
-	//if err != nil {
-	//	return errz.Err(err)
-	//}
-	//
-	//defer lg.WarnIfCloseError(log, lgm.CloseFileReader, cacheRdr)
-	//
-	//if cacheWrtr == nil {
-	//	// Shouldn't happen
-	//	if cacheRdr != nil {
-	//		return errz.Errorf("no fscache writer for %s (but fscache reader exists when it shouldn't)", handle)
-	//	}
-	//
-	//	return errz.Errorf("no fscache writer for %s", handle)
-	//}
-	//
-	//// We create an entry meta for this handle. This entry will be
-	//// filled asynchronously in the ioz.CopyAsync callback below.
-	//// The entry can then be consumed by Files.Filesize.
-	//entryMeta := &fscacheEntryMeta{
-	//	key:  handle,
-	//	done: make(chan struct{}),
-	//}
-	//fs.fscacheEntryMetas[handle] = entryMeta
-	//
-	//fs.fillerWgs.Add(1)
-	//start := time.Now()
-	//pw := progress.NewWriter(ctx, "Reading "+handle, -1, cacheWrtr)
-	//ioz.CopyAsync(pw, contextio.NewReader(ctx, f),
-	//	func(written int64, err error) {
-	//		defer fs.fillerWgs.Done()
-	//		defer lg.WarnIfCloseError(log, lgm.CloseFileReader, f)
-	//		entryMeta.written = written
-	//		entryMeta.err = err
-	//		close(entryMeta.done)
-	//
-	//		elapsed := time.Since(start)
-	//		if err == nil {
-	//			log.Info("Async fscache fill: completed", lga.Copied, written, lga.Elapsed, elapsed)
-	//			lg.WarnIfCloseError(log, "Close fscache writer", cacheWrtr)
-	//			pw.Stop()
-	//			return
-	//		}
-	//
-	//		log.Error("Async fscache fill: failure", lga.Copied, written, lga.Elapsed, elapsed, lga.Err, err)
-	//
-	//		pw.Stop()
-	//		cacheWrtrErrFn(err)
-	//		// We deliberately don't close cacheWrtr here,
-	//		// because cacheWrtrErrFn handles that work.
-	//	},
-	//)
-	//
-	//log.Debug("Async fscache fill: dispatched")
-	//return nil
+
+	//return errz.Wrapf(err, "failed to add %s to fscache", StdinHandle)
 }
+
+//// addStdin asynchronously copies f to fs's cache. f is closed
+//// when the async copy completes. This method should only be used
+//// for stdin; for regular files, use Files.addRegularFile.
+//func (fs *Files) addStdin(ctx context.Context, handle string, f *os.File) error {
+//	log := lg.FromContext(ctx).With(lga.Handle, StdinHandle, lga.File, f.Name())
+//
+//	//
+//	//cacheRdr, cacheWrtr, cacheWrtrErrFn, err := fs.fscache.GetWithErr(handle)
+//	//if err != nil {
+//	//	return errz.Err(err)
+//	//}
+//	//
+//	//defer lg.WarnIfCloseError(log, lgm.CloseFileReader, cacheRdr)
+//	//
+//	//if cacheWrtr == nil {
+//	//	// Shouldn't happen
+//	//	if cacheRdr != nil {
+//	//		return errz.Errorf("no fscache writer for %s (but fscache reader exists when it shouldn't)", handle)
+//	//	}
+//	//
+//	//	return errz.Errorf("no fscache writer for %s", handle)
+//	//}
+//	//
+//	//// We create an entry meta for this handle. This entry will be
+//	//// filled asynchronously in the ioz.CopyAsync callback below.
+//	//// The entry can then be consumed by Files.Filesize.
+//	//entryMeta := &fscacheEntryMeta{
+//	//	key:  handle,
+//	//	done: make(chan struct{}),
+//	//}
+//	//fs.fscacheEntryMetas[handle] = entryMeta
+//	//
+//	//fs.fillerWgs.Add(1)
+//	//start := time.Now()
+//	//pw := progress.NewWriter(ctx, "Reading "+handle, -1, cacheWrtr)
+//	//ioz.CopyAsync(pw, contextio.NewReader(ctx, f),
+//	//	func(written int64, err error) {
+//	//		defer fs.fillerWgs.Done()
+//	//		defer lg.WarnIfCloseError(log, lgm.CloseFileReader, f)
+//	//		entryMeta.written = written
+//	//		entryMeta.err = err
+//	//		close(entryMeta.done)
+//	//
+//	//		elapsed := time.Since(start)
+//	//		if err == nil {
+//	//			log.Info("Async fscache fill: completed", lga.Copied, written, lga.Elapsed, elapsed)
+//	//			lg.WarnIfCloseError(log, "Close fscache writer", cacheWrtr)
+//	//			pw.Stop()
+//	//			return
+//	//		}
+//	//
+//	//		log.Error("Async fscache fill: failure", lga.Copied, written, lga.Elapsed, elapsed, lga.Err, err)
+//	//
+//	//		pw.Stop()
+//	//		cacheWrtrErrFn(err)
+//	//		// We deliberately don't close cacheWrtr here,
+//	//		// because cacheWrtrErrFn handles that work.
+//	//	},
+//	//)
+//	//
+//	//log.Debug("Async fscache fill: dispatched")
+//	//return nil
+//}
 
 // addRegularFile adds f to fs's cache.
 // Do not add stdin via this function; instead use addStdin.
-func (fs *Files) addRegularFile(ctx context.Context, f *os.File, key string) (*streamcache.Cache, error) {
-	log := lg.FromContext(ctx)
-	log.Debug("Adding regular file to cache", lga.Key, key, lga.Path, f.Name())
-
-	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, f)
-
-	if key == StdinHandle {
-		// This is a programming error; the caller should have
-		// instead invoked addStdin. Probably should panic here.
-		errz.New("illegal to add stdin via Files.addRegularFile")
-	}
-
-	if _, ok := fs.rdrCaches[key]; ok {
-		return nil, errz.Errorf("file already exists in cache: %s", key)
-	}
-
-	cache := streamcache.New(f)
-	fs.rdrCaches[key] = cache
-	return cache, nil
-}
+// Deprecated: regular files shouldn't be cached.
+//func (fs *Files) addRegularFile(ctx context.Context, f *os.File, key string) (*streamcache.Cache, error) {
+//	log := lg.FromContext(ctx)
+//	log.Debug("Adding regular file to cache", lga.Key, key, lga.Path, f.Name())
+//
+//	//defer lg.WarnIfCloseError(log, lgm.CloseFileReader, f)
+//
+//	if key == StdinHandle {
+//		// This is a programming error; the caller should have
+//		// instead invoked addStdin. Probably should panic here.
+//		errz.New("illegal to add stdin via Files.addRegularFile")
+//	}
+//
+//	if _, ok := fs.rdrCaches[key]; ok {
+//		return nil, errz.Errorf("file already exists in cache: %s", key)
+//	}
+//
+//	cache := streamcache.New(f)
+//	fs.rdrCaches[key] = cache
+//	return cache, nil
+//}
 
 // filepath returns the file path of src.Location. An error is returned
 // if the source's driver type is not a document type (e.g. it is a
@@ -311,6 +338,10 @@ func (fs *Files) filepath(src *Source) (string, error) {
 		if err != nil {
 			return "", err
 		}
+
+		// FIXME: We shouldn't be depending on knowledge of the internal
+		// workings of download.Download here. Instead we should call
+		// some method?
 		dlFile := filepath.Join(dlDir, "body")
 		if !ioz.FileAccessible(dlFile) {
 			return "", errz.Errorf("remote file for %s not downloaded at: %s", src.Handle, dlFile)
@@ -325,30 +356,33 @@ func (fs *Files) filepath(src *Source) (string, error) {
 	}
 }
 
-// Open returns a new io.ReadCloser for src.Location.
+// NewReader returns a new io.ReadCloser for src.Location.
+// Arg ingesting is a performance hint that indicates that
+// the reader is being used to ingest data (as opposed to,
+// say, sampling the data for type detection). After invoking
+// NewReader with ingesting=true for a particular source, it's
+// an error to invoke NewReader again for that source.
+//
 // If src.Handle is StdinHandle, AddStdin must first have
 // been invoked. The caller must close the reader.
-func (fs *Files) Open(ctx context.Context, src *Source) (io.ReadCloser, error) {
+func (fs *Files) NewReader(ctx context.Context, src *Source, ingesting bool) (io.ReadCloser, error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	lg.FromContext(ctx).Debug("Files.Open", lga.Src, src)
-	return fs.newReader(ctx, src)
-}
-
-// OpenFunc returns a func that invokes fs.Open for src.Location.
-func (fs *Files) OpenFunc(src *Source) FileOpenFunc {
-	return func(ctx context.Context) (io.ReadCloser, error) {
-		return fs.Open(ctx, src)
-	}
+	lg.FromContext(ctx).Debug("Files.NewReader", lga.Src, src)
+	return fs.newReader(ctx, src, ingesting)
 }
 
 func (fs *Files) hasRdrCache(key string) bool { // FIXME: do we need Files.hasRdrCache?
-	_, ok := fs.rdrCaches[key]
+	_, ok := fs.streamCaches[key]
 	return ok
 }
 
-func (fs *Files) newReader(ctx context.Context, src *Source) (io.ReadCloser, error) {
+// newReader returns a new io.ReadCloser for src.Location. If finalRdr is
+// true, and src is using a streamcache.Cache, that cache is sealed
+// after the reader is created. That means that newReader should not be
+// called again for src in the lifetime of the Files instance.
+func (fs *Files) newReader(ctx context.Context, src *Source, finalRdr bool) (io.ReadCloser, error) {
 	loc := src.Location
 	locTyp := getLocType(loc)
 	switch locTyp {
@@ -356,37 +390,30 @@ func (fs *Files) newReader(ctx context.Context, src *Source) (io.ReadCloser, err
 		return nil, errz.Errorf("unknown source location type: %s", loc)
 	case locTypeSQL:
 		return nil, errz.Errorf("invalid to read SQL source: %s", loc)
+	case locTypeLocalFile:
+		return errz.Return(os.Open(loc))
 	case locTypeStdin:
-		cache, ok := fs.rdrCaches[StdinHandle]
+		cache, ok := fs.streamCaches[StdinHandle]
 		if !ok {
 			// This is a programming error: AddStdin should have been invoked first.
 			// Probably should panic here.
 			return nil, errz.New("@stdin not cached: has AddStdin been invoked yet?")
 		}
-		return cache.NewReader(ctx), nil
-	}
-
-	// Well, it's either a local or remote file.
-	// Let's see if it's cached.
-	if cache, ok := fs.rdrCaches[loc]; ok {
 		r := cache.NewReader(ctx)
+		if finalRdr {
+			cache.Seal()
+		}
 		return r, nil
+	default:
+		// It's a remote file.
 	}
 
-	// It's not cached.
-	if locTyp == locTypeLocalFile {
-		f, err := os.Open(loc)
-		if err != nil {
-			return nil, errz.Err(err)
-		}
-		// fs.addRegularFile closes f, so we don't have to do it.
-
-		cache, err := fs.addRegularFile(ctx, f, loc)
-		if err != nil {
-			return nil, err
-		}
-
+	// Let's see if it's cached (which happens for downloads).
+	if cache, ok := fs.streamCaches[src.Handle]; ok {
 		r := cache.NewReader(ctx)
+		if finalRdr {
+			cache.Seal()
+		}
 		return r, nil
 	}
 
@@ -401,6 +428,9 @@ func (fs *Files) Ping(ctx context.Context, src *Source) error {
 	defer fs.mu.Unlock()
 
 	switch getLocType(src.Location) {
+	case locTypeStdin:
+		// Stdin is always available.
+		return nil
 	case locTypeLocalFile:
 		if _, err := os.Stat(src.Location); err != nil {
 			return errz.Wrapf(err, "ping: failed to stat file source %s: %s", src.Handle, src.Location)
@@ -419,7 +449,9 @@ func (fs *Files) Ping(ctx context.Context, src *Source) error {
 			return errz.Wrapf(err, "ping: %s", src.Handle)
 		}
 
-		defer lg.WarnIfCloseError(fs.log, lgm.CloseHTTPResponseBody, resp.Body)
+		// This shouldn't be necessary because the request method was HEAD,
+		// so resp.Body should be nil?
+		lg.WarnIfCloseError(fs.log, lgm.CloseHTTPResponseBody, resp.Body)
 
 		if resp.StatusCode != http.StatusOK {
 			return errz.Errorf("ping: %s: expected {%s} but got {%s}",
@@ -440,7 +472,7 @@ func (fs *Files) Close() error {
 	defer fs.mu.Unlock()
 
 	fs.log.Debug("Files.Close: waiting for goroutines to complete")
-	fs.fillerWgs.Wait()
+	fs.downloadsWg.Wait()
 
 	fs.log.Debug("Files.Close: executing cleanup", lga.Count, fs.clnup.Len())
 	err := fs.clnup.Run()

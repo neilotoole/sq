@@ -72,7 +72,7 @@ func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Grip, err
 
 	ingestFn := func(ctx context.Context, destGrip driver.Grip) error {
 		log.Debug("Ingest XLSX", lga.Src, p.src)
-		r, err := p.files.Open(ctx, p.src)
+		r, err := p.files.NewReader(ctx, p.src, false)
 		if err != nil {
 			return err
 		}

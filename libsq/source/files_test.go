@@ -173,7 +173,7 @@ func TestFiles_NewReader(t *testing.T) {
 
 	for i := 0; i < 1000; i++ {
 		g.Go(func() error {
-			r, gErr := fs.Open(ctx, src)
+			r, gErr := fs.NewReader(ctx, src, false)
 			require.NoError(t, gErr)
 
 			b, gErr := io.ReadAll(r)

@@ -8,6 +8,7 @@ package json
 import (
 	"context"
 	"database/sql"
+	"io"
 	"log/slog"
 
 	"github.com/neilotoole/sq/libsq/core/cleanup"
@@ -106,8 +107,11 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, er
 
 	ingestFn := func(ctx context.Context, destGrip driver.Grip) error {
 		job := ingestJob{
-			fromSrc:    src,
-			openFn:     d.files.OpenFunc(src),
+			fromSrc: src,
+			openFn: func(ctx context.Context) (io.ReadCloser, error) {
+				log.Debug("JSON ingest job openFn", lga.Src, src)
+				return d.files.NewReader(ctx, src, false)
+			},
 			destGrip:   destGrip,
 			sampleSize: driver.OptIngestSampleSize.Get(src.Options),
 			flatten:    true,

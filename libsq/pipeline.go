@@ -366,7 +366,7 @@ func (p *pipeline) joinCrossSource(ctx context.Context, jc *joinClause) (fromCla
 		srcs = append(srcs, src)
 	}
 
-	// Open the join db
+	// NewReader the join db
 	joinGrip, err := p.qc.Grips.OpenJoin(ctx, srcs...)
 	if err != nil {
 		return "", nil, err

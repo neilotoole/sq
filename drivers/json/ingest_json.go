@@ -6,6 +6,7 @@ import (
 	stdj "encoding/json"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -17,11 +18,16 @@ import (
 )
 
 // DetectJSON returns a source.DriverDetectFunc that can detect JSON.
-func DetectJSON(sampleSize int) source.DriverDetectFunc {
+func DetectJSON(sampleSize int) source.DriverDetectFunc { // FIXME: is DetectJSON actually working?
 	return func(ctx context.Context, openFn source.FileOpenFunc) (detected drivertype.Type, score float32,
 		err error,
 	) {
 		log := lg.FromContext(ctx)
+		start := time.Now()
+		defer func() {
+			log.Debug("JSON detection complete", lga.Elapsed, time.Since(start), lga.Score, score)
+		}()
+
 		var r1, r2 io.ReadCloser
 		r1, err = openFn(ctx)
 		if err != nil {
