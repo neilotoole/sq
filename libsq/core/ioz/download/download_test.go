@@ -2,6 +2,7 @@ package download_test
 
 import (
 	"context"
+	"github.com/neilotoole/sq/cli"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -110,15 +111,16 @@ func TestDownload_redirect(t *testing.T) {
 	require.NoError(t, dl.Clear(ctx))
 	h := download.NewSinkHandler(log.With("origin", "handler"))
 
+	tu.MustAbsFilepath()
 	dl.Get(ctx, h.Handler)
 	require.Empty(t, h.Errors)
-	gotBody := h.UncachedBufs[0].String()
+	gotBody := tu.ReadToString(t, h.UncachedFiles[0].NewReader(ctx))
 	require.Equal(t, hello, gotBody)
 
 	h.Reset()
 	dl.Get(ctx, h.Handler)
 	require.Empty(t, h.Errors)
-	require.Empty(t, h.UncachedBufs)
+	require.Empty(t, h.UncachedFiles)
 	gotFile := h.CachedFiles[0]
 	t.Logf("got fp: %s", gotFile)
 	gotBody = tu.ReadFileToString(t, gotFile)
@@ -128,7 +130,7 @@ func TestDownload_redirect(t *testing.T) {
 	h.Reset()
 	dl.Get(ctx, h.Handler)
 	require.Empty(t, h.Errors)
-	require.Empty(t, h.UncachedBufs)
+	require.Empty(t, h.UncachedFiles)
 	gotFile = h.CachedFiles[0]
 	t.Logf("got fp: %s", gotFile)
 	gotBody = tu.ReadFileToString(t, gotFile)
@@ -157,7 +159,8 @@ func TestDownload_New(t *testing.T) {
 	require.Empty(t, h.Errors)
 	require.Empty(t, h.WriteErrors)
 	require.Empty(t, h.CachedFiles)
-	require.Equal(t, sizeActorCSV, int64(h.UncachedBufs[0].Len()))
+	require.Equal(t, 1, len(h.UncachedFiles))
+	require.Equal(t, sizeActorCSV, int64(h.UncachedFiles[0].Size()))
 	require.Equal(t, download.Fresh, dl.State(ctx))
 	sum, ok = dl.Checksum(ctx)
 	require.True(t, ok)
@@ -167,7 +170,7 @@ func TestDownload_New(t *testing.T) {
 	dl.Get(ctx, h.Handler)
 	require.Empty(t, h.Errors)
 	require.Empty(t, h.WriteErrors)
-	require.Empty(t, h.UncachedBufs)
+	require.Empty(t, h.UncachedFiles)
 	require.NotEmpty(t, h.CachedFiles)
 	gotFileBytes, err := os.ReadFile(h.CachedFiles[0])
 	require.NoError(t, err)
@@ -187,4 +190,21 @@ func TestDownload_New(t *testing.T) {
 	dl.Get(ctx, h.Handler)
 	require.Empty(t, h.Errors)
 	require.Empty(t, h.WriteErrors)
+}
+
+//func TestDownloadCLI_DELETEME(t *testing.T) { // FIXME: delete
+//	th := testh.New(t)
+//	src := th.Source(sakila.CSVActorHTTP)
+//
+//	tr := testrun.New(th.Context, t, nil).Hush().Add(*src)
+//	err := tr.Exec(".data | .[0:3]")
+//	require.NoError(t, err)
+//	t.Logf("out:\n\n%s\n", tr.OutString())
+//}
+
+func TestDownloadCLI_DELETEME2(t *testing.T) { // FIXME: delete
+	ctx := context.Background()
+	args := []string{".data | .[0:3]"}
+	err := cli.Execute(ctx, os.Stdin, os.Stdout, os.Stderr, args)
+	assert.NoError(t, err)
 }

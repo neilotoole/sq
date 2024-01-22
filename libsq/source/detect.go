@@ -116,7 +116,6 @@ func (fs *Files) detectType(ctx context.Context, handle, loc string) (typ driver
 	}
 
 	g, gCtx := errgroup.WithContext(ctx)
-
 	for _, detectFn := range fs.detectFns {
 		detectFn := detectFn
 
@@ -222,7 +221,7 @@ func (fs *Files) DetectStdinType(ctx context.Context) (drivertype.Type, error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	if !fs.fscache.Exists(StdinHandle) {
+	if !fs.hasRdrCache(StdinHandle) {
 		return drivertype.None, errz.New("must invoke Files.AddStdin before invoking DetectStdinType")
 	}
 

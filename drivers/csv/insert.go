@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/csv"
 	"errors"
-	"io"
-
 	"github.com/neilotoole/sq/libsq"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -14,6 +12,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/sqlmodel"
 	"github.com/neilotoole/sq/libsq/driver"
+	"io"
 )
 
 // execInsert inserts the CSV records in readAheadRecs (followed by records
@@ -62,8 +61,8 @@ func execInsert(ctx context.Context, recw libsq.RecordWriter, recMeta record.Met
 			return errz.Wrap(err, "read from CSV data source")
 		}
 
-		rec, err := mungeCSV2InsertRecord(ctx, mungers, csvRecord)
-		if err != nil {
+		var rec []any
+		if rec, err = mungeCSV2InsertRecord(ctx, mungers, csvRecord); err != nil {
 			return err
 		}
 

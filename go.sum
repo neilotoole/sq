@@ -131,12 +131,16 @@ github.com/ncruces/go-strftime v0.1.9 h1:bY0MQC28UADQmHmaF5dgpLmImcShSi2kHU9XLdh
 github.com/ncruces/go-strftime v0.1.9/go.mod h1:Fwc5htZGVVkseilnfgOVb9mKy6w1naJmn9CehxcKcls=
 github.com/neilotoole/djherbis-stream v0.0.0-20231203160853-609f47afedda h1:/DeuPyW2WdGnI45Z4Bdct9+OAveM3/gIXFDau5rameY=
 github.com/neilotoole/djherbis-stream v0.0.0-20231203160853-609f47afedda/go.mod h1:cqjC1ZRq3FFwkGmUtHwcldbnW8f0Q4YuVsGW1eAFtOk=
+github.com/neilotoole/fifomu v0.1.1 h1:S6stULFbK9/ZWjbcgZjxhlmXNg1P2IB7AisEfk/AaBM=
+github.com/neilotoole/fifomu v0.1.1/go.mod h1:eQEVNCI1Ur9GPyv7oRhtNjEWd4bhaxxNCFB+jLv06e0=
 github.com/neilotoole/fscache v0.0.0-20231203162946-c9808f16552e h1:iHZVemEeZ5iK67hJAT4eInA3ljwISjyX72rUtL/DCzM=
 github.com/neilotoole/fscache v0.0.0-20231203162946-c9808f16552e/go.mod h1:GZrpRf9MA0R0OZy6zovlS0Gs3VPFZ+L0jq45Rz+Sm2g=
 github.com/neilotoole/shelleditor v0.4.1 h1:74LEw2mVo3jtNw2BjII6RSss9DXgEqAbmCQDDiJvzO0=
 github.com/neilotoole/shelleditor v0.4.1/go.mod h1:QanOZN4syDMp/L0SKwZb47Mh49mvLWX3ja5YfbYDDjo=
 github.com/neilotoole/slogt v1.1.0 h1:c7qE92sq+V0yvCuaxph+RQ2jOKL61c4hqS1Bv9W7FZE=
 github.com/neilotoole/slogt v1.1.0/go.mod h1:RCrGXkPc/hYybNulqQrMHRtvlQ7F6NktNVLuLwk6V+w=
+github.com/neilotoole/streamcache v0.2.1-0.20240121154007-e53a3bae28e7 h1:EY0PUPMgY0CjN3UQ2MHTVW5zqpAtIBctqrwbs9QJdP4=
+github.com/neilotoole/streamcache v0.2.1-0.20240121154007-e53a3bae28e7/go.mod h1:rEzKCnekctG3vh0CNdkvQBXu0YraqKYP6KVrdYilvlo=
 github.com/nightlyone/lockfile v1.0.0 h1:RHep2cFKK4PonZJDdEl4GmkabuhbsRMgk/k3uAmxBiA=
 github.com/nightlyone/lockfile v1.0.0/go.mod h1:rywoIealpdNse2r832aiD9jRk8ErCatROs6LzC841CI=
 github.com/otiai10/copy v1.14.0 h1:dCI/t1iTdYGtkvCuBG2BgR6KZa83PTclw4U5n2wAllU=

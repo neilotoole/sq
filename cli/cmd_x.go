@@ -177,8 +177,8 @@ func execXDownloadCmd(cmd *cobra.Command, args []string) error {
 	case len(h.CachedFiles) > 0:
 		fmt.Fprintf(ru.Out, "Cached: %s\n", h.CachedFiles[0])
 		return nil
-	case len(h.UncachedBufs) > 0:
-		fmt.Fprintf(ru.Out, "Uncached: %d bytes\n", h.UncachedBufs[0].Len())
+	case len(h.UncachedFiles) > 0:
+		fmt.Fprintf(ru.Out, "Uncached: %d bytes\n", h.UncachedFiles[0].Size())
 	}
 
 	return nil

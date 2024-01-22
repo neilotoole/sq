@@ -61,6 +61,7 @@ func ingestCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFu
 	if err != nil {
 		return err
 	}
+
 	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, rc)
 
 	delim, err := getDelimiter(src)
@@ -132,6 +133,7 @@ func ingestCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFu
 		tblDef.Name,
 		driver.OptTuningRecChanSize.Get(destGrip.Source().Options),
 	)
+
 	err = execInsert(ctx, insertWriter, recMeta, mungers, recs, cr)
 	if err != nil {
 		return err

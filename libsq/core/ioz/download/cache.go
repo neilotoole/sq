@@ -9,6 +9,7 @@ import (
 	"net/http/httputil"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
@@ -233,26 +234,17 @@ func (c *cache) clear(ctx context.Context) error {
 // write writes resp header and body to the cache, returning the number of
 // bytes written.
 //
-// If headerOnly is true, only the header cache file is updated. If headerOnly
-// is false and copyWrtr is non-nil, the response body bytes are copied to that
-// destination, as well as being written to the cache.
-//
-// If writing to copyWrtr completes successfully, it is closed; if there's an error,
-// copyWrtr.Error is invoked.
+// If headerOnly is true, only the header cache file is updated.
 //
 // A checksum file, computed from the body file, is also written to disk.
 //
 // The response body is always closed.
-func (c *cache) write(ctx context.Context, resp *http.Response,
-	headerOnly bool, copyWrtr ioz.WriteErrorCloser,
-) (written int64, err error) {
+func (c *cache) write(ctx context.Context, resp *http.Response, headerOnly bool) (written int64, err error) {
+	start := time.Now()
 	log := lg.FromContext(ctx)
 
 	defer func() {
 		lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
-		if err != nil && copyWrtr != nil {
-			copyWrtr.Error(err)
-		}
 
 		if err != nil {
 			log.Warn("Deleting cache because cache write failed", lga.Err, err, lga.Dir, c.dir)
@@ -285,14 +277,7 @@ func (c *cache) write(ctx context.Context, resp *http.Response,
 		return 0, err
 	}
 
-	var r io.Reader = resp.Body
-	if copyWrtr != nil {
-		// If copyWrtr is non-nil, we're copying the response body
-		// to that destination as well as to the cache file.
-		r = io.TeeReader(resp.Body, copyWrtr)
-	}
-
-	if written, err = errz.Return(io.Copy(cacheFile, r)); err != nil {
+	if written, err = errz.Return(io.Copy(cacheFile, resp.Body)); err != nil {
 		log.Error("Cache write: io.Copy failed", lga.Err, err)
 		lg.WarnIfCloseError(log, msgCloseCacheBodyFile, cacheFile)
 		cacheFile = nil
@@ -304,13 +289,6 @@ func (c *cache) write(ctx context.Context, resp *http.Response,
 		return 0, err
 	}
 
-	if copyWrtr != nil {
-		if err = errz.Err(copyWrtr.Close()); err != nil {
-			copyWrtr = nil
-			return 0, err
-		}
-	}
-
 	sum, err := checksum.ForFile(fpBody)
 	if err != nil {
 		return 0, errz.Wrap(err, "failed to compute checksum for cache body file")
@@ -320,6 +298,7 @@ func (c *cache) write(ctx context.Context, resp *http.Response,
 		return 0, errz.Wrap(err, "failed to write checksum file for cache body")
 	}
 
-	log.Info("Wrote HTTP response body to cache", lga.Size, written, lga.File, fpBody)
+	log.Info("Wrote HTTP response body to cache",
+		lga.Size, written, lga.File, fpBody, lga.Elapsed, time.Since(start).Round(time.Millisecond))
 	return written, nil
 }

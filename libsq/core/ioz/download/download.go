@@ -9,6 +9,7 @@ import (
 	"bufio"
 	"context"
 	"errors"
+	"github.com/neilotoole/streamcache"
 	"io"
 	"net/http"
 	"net/url"
@@ -19,7 +20,6 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
-	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
 	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -56,7 +56,7 @@ const (
 // XFromCache is the header added to responses that are returned from the cache.
 const XFromCache = "X-From-Cache"
 
-const msgNilDestWriter = "nil dest writer from download handler; returning"
+const msgNilDestWriter = "nil dest writer from download handler; returning" // FIXME: delete
 
 // Opt is a configuration option for creating a new Download.
 type Opt func(t *Download)
@@ -264,7 +264,7 @@ func (dl *Download) get(req *http.Request, h Handler) { //nolint:funlen,gocognit
 
 		if resp == cachedResp {
 			lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
-			if dl.bodySize, err = dl.cache.write(ctx, resp, true, nil); err != nil {
+			if dl.bodySize, err = dl.cache.write(ctx, resp, true); err != nil {
 				log.Error("Failed to update cache header", lga.Dir, dl.cache.dir, lga.Err, err)
 				h.Error(err)
 				return
@@ -273,44 +273,26 @@ func (dl *Download) get(req *http.Request, h Handler) { //nolint:funlen,gocognit
 			return
 		}
 
-		// I'm not sure if this logic is even reachable?
-		destWrtr := h.Uncached()
-		if destWrtr == nil {
-			log.Warn(msgNilDestWriter)
-			return
-		}
+		rdrCache := streamcache.New(resp.Body)
+		resp.Body = rdrCache.NewReader(ctx)
+		h.Uncached(rdrCache)
 
 		defer lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
-		if dl.bodySize, err = dl.cache.write(req.Context(), resp, false, destWrtr); err != nil {
+		if dl.bodySize, err = dl.cache.write(req.Context(), resp, false); err != nil {
 			log.Error("Failed to write download cache", lga.Dir, dl.cache.dir, lga.Err, err)
 			// We don't need to explicitly call Handler.Error here, because the caller is
-			// informed via destWrtr.Error, which has already been invoked by cache.write.
+			// gets any read error when they read from the streamcache.Cache.
 		}
 		return
 	}
 
 	lg.WarnIfError(log, "Delete resp cache", dl.cache.clear(req.Context()))
 
-	// It's not cacheable, so we need to write it to the destWrtr,
-	// and skip the cache.
-	destWrtr := h.Uncached()
-	if destWrtr == nil {
-		// Shouldn't happen.
-		log.Warn(msgNilDestWriter)
-		return
-	}
-
-	cr := contextio.NewReader(ctx, resp.Body)
-	defer lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, cr.(io.ReadCloser))
-	dl.bodySize, err = io.Copy(destWrtr, cr)
-	if err != nil {
-		log.Error("Failed to copy download to dest writer", lga.Err, err)
-		destWrtr.Error(err)
-		return
-	}
-	if err = destWrtr.Close(); err != nil {
-		log.Error("Failed to close dest writer", lga.Err, err)
-	}
+	// It's not cacheable, so we can just wrap resp.Body in a streamcache
+	// and return it.
+	rdrCache := streamcache.New(resp.Body)
+	resp.Body = nil // Unnecessary, but just to be explicit.
+	h.Uncached(rdrCache)
 }
 
 // do executes the request.

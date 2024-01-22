@@ -2,8 +2,10 @@ package source
 
 import (
 	"context"
+	"github.com/neilotoole/streamcache"
 	"io"
 	"net/http"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -12,8 +14,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
 	"github.com/neilotoole/sq/libsq/core/ioz/download"
 	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
-	"github.com/neilotoole/sq/libsq/core/lg"
-	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/options"
 )
 
@@ -116,19 +116,25 @@ func (fs *Files) openRemoteFile(ctx context.Context, src *Source, checkFresh boo
 		return "", nil, err
 	}
 
-	if !checkFresh && fs.fscache.Exists(loc) {
+	// checkFresh should be false on subsequent calls.
+
+	if !checkFresh && fs.hasRdrCache(loc) {
 		// If the download has completed, dl.CacheFile will return the
 		// path to the cached file.
 		cachedDownload, err = dl.CacheFile(ctx)
 		if err != nil {
 			return "", nil, err
 		}
+
+		cache, _ := fs.rdrCaches[loc]
+
 		// The file is already cached, and we're not checking freshness.
 		// So, we can just return the cached reader.
-		rdr, _, err = fs.fscache.Get(loc)
-		if err != nil {
-			return "", nil, errz.Err(err)
-		}
+		rdr := cache.NewReader(ctx)
+		//rdr, _, err = fs.fscache.Get(loc)
+		//if err != nil {
+		//	return "", nil, errz.Err(err)
+		//}
 		return cachedDownload, rdr, nil
 	}
 
@@ -137,35 +143,48 @@ func (fs *Files) openRemoteFile(ctx context.Context, src *Source, checkFresh boo
 
 	h := download.Handler{
 		Cached: func(fp string) {
-			if !fs.fscache.Exists(fp) {
-				if hErr := fs.fscache.MapFile(fp); hErr != nil {
-					errCh <- errz.Wrapf(hErr, "failed to map file into fscache: %s", fp)
+			//if !fs.fscache.Exists(fp) {
+			//	if hErr := fs.fscache.MapFile(fp); hErr != nil {
+			//		errCh <- errz.Wrapf(hErr, "failed to map file into fscache: %s", fp)
+			//		return
+			//	}
+			//}
+
+			cache, ok := fs.rdrCaches[loc]
+			if !ok {
+				f, err := os.Open(fp)
+				if err != nil {
+					errCh <- errz.Wrapf(err, "failed to open cached file: %s", fp)
 					return
 				}
+				cache = streamcache.New(f)
+				fs.rdrCaches[loc] = cache
 			}
 
-			r, _, hErr := fs.fscache.Get(fp)
-			if hErr != nil {
-				errCh <- errz.Err(hErr)
-				return
-			}
+			r := cache.NewReader(ctx)
+
+			//r, _, hErr := fs.fscache.Get(fp)
+			//if hErr != nil {
+			//	errCh <- errz.Err(hErr)
+			//	return
+			//}
 			cachedDownload = fp
 			rdrCh <- r
 		},
-		Uncached: func() (dest ioz.WriteErrorCloser) {
-			r, w, wErrFn, hErr := fs.fscache.GetWithErr(loc)
-			if hErr != nil {
-				errCh <- errz.Err(hErr)
-				return nil
-			}
-
-			wec := ioz.NewFuncWriteErrorCloser(w, func(err error) {
-				lg.FromContext(ctx).Error("Error writing to fscache", lga.Src, src, lga.Err, err)
-				wErrFn(err)
-			})
-
+		Uncached: func(cache *streamcache.Cache) {
+			//r, w, wErrFn, hErr := fs.fscache.GetWithErr(loc)
+			//if hErr != nil {
+			//	errCh <- errz.Err(hErr)
+			//	return nil
+			//}
+			//
+			//wec := ioz.NewFuncWriteErrorCloser(w, func(err error) {
+			//	lg.FromContext(ctx).Error("Error writing to fscache", lga.Src, src, lga.Err, err)
+			//	wErrFn(err)
+			//})
+			fs.rdrCaches[loc] = cache
+			r := cache.NewReader(ctx)
 			rdrCh <- r
-			return wec
 		},
 		Error: func(hErr error) {
 			errCh <- hErr
