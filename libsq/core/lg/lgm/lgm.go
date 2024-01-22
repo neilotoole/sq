@@ -12,7 +12,7 @@ const (
 	CloseFileReader       = "Close file reader"
 	CloseFileWriter       = "Close file writer"
 	CtxDone               = "Context unexpectedly done"
-	OpenSrc               = "NewReader source"
+	OpenSrc               = "Open source"
 	ReadDBRows            = "Read DB rows"
 	RemoveFile            = "Remove file"
 	RowsAffected          = "Rows affected"

@@ -2,13 +2,14 @@ package source
 
 import (
 	"context"
-	"github.com/neilotoole/streamcache"
 	"io"
 	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
 	"sync"
+
+	"github.com/neilotoole/streamcache"
 
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -79,14 +80,14 @@ type Files struct {
 
 	// fscache is used to cache files, providing convenient access
 	// to multiple readers via Files.newReader.
-	//fscache *fscache.FSCache
+	// fscache *fscache.FSCache
 
-	//fscacheDir string
+	// fscacheDir string
 
 	// fscacheEntryMetas contains metadata about fscache entries.
 	// Entries are added by Files.addStdin, and consumed by
 	// Files.Filesize.
-	//fscacheEntryMetas map[string]*fscacheEntryMeta
+	// fscacheEntryMetas map[string]*fscacheEntryMeta
 
 	// detectFns is the set of functions that can detect
 	// the type of a file.
@@ -109,23 +110,24 @@ func NewFiles(
 	}
 
 	fs := &Files{
-		optRegistry: optReg,
-		cacheDir:    cacheDir,
-		cfgLockFn:   cfgLock,
-		tempDir:     tmpDir,
-		clnup:       cleanup.New(),
-		log:         lg.FromContext(ctx),
-		downloads:   map[string]*download.Download{},
-		downloadsWg: &sync.WaitGroup{},
-		//fscacheEntryMetas: make(map[string]*fscacheEntryMeta),
-		streamCaches: make(map[string]*streamcache.Cache),
+		log:             lg.FromContext(ctx),
+		optRegistry:     optReg,
+		cacheDir:        cacheDir,
+		tempDir:         tmpDir,
+		cfgLockFn:       cfgLock,
+		clnup:           cleanup.New(),
+		downloads:       map[string]*download.Download{},
+		downloadsWg:     &sync.WaitGroup{},
+		downloadedFiles: map[string]string{},
+		streamCaches:    map[string]*streamcache.Cache{},
+		// fscacheEntryMetas: make(map[string]*fscacheEntryMeta),
 	}
 
 	// We want a unique dir for each execution. Note that fcache is deleted
 	// on cleanup (unless something bad happens and sq doesn't
 	// get a chance to clean up). But, why take the chance; we'll just give
 	// fcache a unique dir each time.
-	//fs.fscacheDir = filepath.Join(cacheDir, "fscache", strconv.Itoa(os.Getpid())+"_"+checksum.Rand())
+	// fs.fscacheDir = filepath.Join(cacheDir, "fscache", strconv.Itoa(os.Getpid())+"_"+checksum.Rand())
 
 	//if err := ioz.RequireDir(fs.fscacheDir); err != nil {
 	//	return nil, errz.Err(err)
@@ -221,7 +223,7 @@ func (fs *Files) AddStdin(ctx context.Context, f *os.File) error {
 	// when sq exits. But, first we probably need to refactor the
 	// interaction with driver.Grips.
 
-	//err := fs.addStdin(ctx, StdinHandle, f) // f is closed by addStdin
+	// err := fs.addStdin(ctx, StdinHandle, f) // f is closed by addStdin
 
 	if _, ok := fs.streamCaches[StdinHandle]; ok {
 		return errz.Errorf("%s already added to reader cache", StdinHandle)
@@ -233,7 +235,7 @@ func (fs *Files) AddStdin(ctx context.Context, f *os.File) error {
 		Debug("Added stdin to reader cache")
 	return nil
 
-	//return errz.Wrapf(err, "failed to add %s to fscache", StdinHandle)
+	// return errz.Wrapf(err, "failed to add %s to fscache", StdinHandle)
 }
 
 //// addStdin asynchronously copies f to fs's cache. f is closed
@@ -356,20 +358,19 @@ func (fs *Files) filepath(src *Source) (string, error) {
 	}
 }
 
-// NewReader returns a new io.ReadCloser for src.Location.
-// Arg ingesting is a performance hint that indicates that
-// the reader is being used to ingest data (as opposed to,
-// say, sampling the data for type detection). After invoking
-// NewReader with ingesting=true for a particular source, it's
-// an error to invoke NewReader again for that source.
+// NewReader returns a new io.ReadCloser for src.Location. Arg ingesting is
+// a performance hint that indicates that the reader is being used to ingest
+// data (as opposed to, say, sampling the data for type detection). It's an
+// error to invoke NewReader for a src after having invoked it for the same
+// src with ingesting=true.
 //
-// If src.Handle is StdinHandle, AddStdin must first have
-// been invoked. The caller must close the reader.
+// If src.Handle is StdinHandle, AddStdin must first have been invoked.
+//
+// The caller must close the reader.
 func (fs *Files) NewReader(ctx context.Context, src *Source, ingesting bool) (io.ReadCloser, error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	lg.FromContext(ctx).Debug("Files.NewReader", lga.Src, src)
 	return fs.newReader(ctx, src, ingesting)
 }
 
@@ -379,13 +380,14 @@ func (fs *Files) hasRdrCache(key string) bool { // FIXME: do we need Files.hasRd
 }
 
 // newReader returns a new io.ReadCloser for src.Location. If finalRdr is
-// true, and src is using a streamcache.Cache, that cache is sealed
-// after the reader is created. That means that newReader should not be
-// called again for src in the lifetime of the Files instance.
+// true, and src is using a streamcache.Cache, that cache is sealed after
+// the reader is created: newReader must not be called again for src in the
+// lifetime of this Files instance.
 func (fs *Files) newReader(ctx context.Context, src *Source, finalRdr bool) (io.ReadCloser, error) {
+	lg.FromContext(ctx).Debug("Files.NewReader", lga.Src, src, "final_reader", finalRdr)
+
 	loc := src.Location
-	locTyp := getLocType(loc)
-	switch locTyp {
+	switch getLocType(loc) {
 	case locTypeUnknown:
 		return nil, errz.Errorf("unknown source location type: %s", loc)
 	case locTypeSQL:
@@ -408,7 +410,7 @@ func (fs *Files) newReader(ctx context.Context, src *Source, finalRdr bool) (io.
 		// It's a remote file.
 	}
 
-	// Let's see if it's cached (which happens for downloads).
+	// Is there a download in progress?
 	if cache, ok := fs.streamCaches[src.Handle]; ok {
 		r := cache.NewReader(ctx)
 		if finalRdr {
@@ -417,7 +419,12 @@ func (fs *Files) newReader(ctx context.Context, src *Source, finalRdr bool) (io.
 		return r, nil
 	}
 
-	_, r, err := fs.openRemoteFile(ctx, src, false)
+	// Is the file already downloaded?
+	if fp, ok := fs.downloadedFiles[src.Handle]; ok {
+		return errz.Return(os.Open(fp))
+	}
+
+	_, r, err := fs.maybeStartDownload(ctx, src, false)
 	return r, err
 }
 
@@ -476,8 +483,8 @@ func (fs *Files) Close() error {
 
 	fs.log.Debug("Files.Close: executing cleanup", lga.Count, fs.clnup.Len())
 	err := fs.clnup.Run()
-	//err = errz.Append(err, fs.fscache.Clean())
-	//err = errz.Append(err, errz.Wrap(os.RemoveAll(fs.fscacheDir), "remove fscache dir"))
+	// err = errz.Append(err, fs.fscache.Clean())
+	// err = errz.Append(err, errz.Wrap(os.RemoveAll(fs.fscacheDir), "remove fscache dir"))
 	err = errz.Append(err, errz.Wrap(os.RemoveAll(fs.tempDir), "remove files temp dir"))
 	fs.doCacheSweep()
 

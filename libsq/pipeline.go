@@ -81,11 +81,7 @@ func newPipeline(ctx context.Context, qc *QueryContext, query string) (*pipeline
 // execute executes the pipeline, writing results to recw.
 func (p *pipeline) execute(ctx context.Context, recw RecordWriter) error {
 	log := lg.FromContext(ctx)
-	log.Debug(
-		"Execute SQL query",
-		lga.Src, p.targetGrip.Source(),
-		lga.SQL, p.targetSQL,
-	)
+	log.Info("Execute SQL query", lga.Src, p.targetGrip.Source(), lga.SQL, p.targetSQL)
 
 	errw := p.targetGrip.SQLDriver().ErrWrapFunc()
 

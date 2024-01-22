@@ -2,12 +2,12 @@ package source
 
 import (
 	"context"
-	"github.com/neilotoole/streamcache"
 	"io"
 	"net/http"
-	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/neilotoole/streamcache"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
@@ -98,17 +98,25 @@ func (fs *Files) downloadDirFor(src *Source) (string, error) {
 	return fp, nil
 }
 
-// openRemoteFile adds a remote file to fs's cache, returning a reader.
+// maybeStartDownload adds a remote file to fs's cache, returning a reader.
 // If the remote file is already cached, the path to that cached download
 // file is returned in cachedDownload; otherwise cachedDownload is empty.
 // If checkFresh is false and the file is already fully downloaded, its
 // freshness is not checked against the remote server.
-func (fs *Files) openRemoteFile(ctx context.Context, src *Source, checkFresh bool) (cachedDownload string,
+func (fs *Files) maybeStartDownload(ctx context.Context, src *Source, checkFresh bool) (cachedDownload string,
 	rdr io.ReadCloser, err error,
 ) {
 	loc := src.Location
 	if getLocType(loc) != locTypeRemoteFile {
 		return "", nil, errz.Errorf("not a remote file: %s", loc)
+	}
+
+	cache, ok := fs.streamCaches[src.Handle]
+	if ok {
+		// If there's a stream cache for this source, then it means that the
+		// download is in progress.
+		rdr = cache.NewReader(ctx)
+		return "", rdr, nil
 	}
 
 	dl, err := fs.downloadFor(ctx, src)
@@ -118,7 +126,7 @@ func (fs *Files) openRemoteFile(ctx context.Context, src *Source, checkFresh boo
 
 	// checkFresh should be false on subsequent calls.
 
-	//if !checkFresh && fs.hasRdrCache(src.Handle) { // FIXME: this logic is wonky
+	// if !checkFresh && fs.hasRdrCache(src.Handle) { // FIXME: this logic is wonky
 	if !checkFresh && fs.hasRdrCache(src.Handle) { // FIXME: this logic is wonky
 		// If the download has completed, dl.CacheFile will return the
 		// path to the cached file.
@@ -127,52 +135,56 @@ func (fs *Files) openRemoteFile(ctx context.Context, src *Source, checkFresh boo
 			return "", nil, err
 		}
 
-		cache, _ := fs.streamCaches[src.Handle]
+		cache = fs.streamCaches[src.Handle]
 
 		// The file is already cached, and we're not checking freshness.
 		// So, we can just return the cached reader.
 		rdr = cache.NewReader(ctx)
-		//rdr, _, err = fs.fscache.Get(loc)
-		//if err != nil {
-		//	return "", nil, errz.Err(err)
-		//}
 		return cachedDownload, rdr, nil
 	}
 
-	errCh := make(chan error, 1)
-	rdrCh := make(chan io.ReadCloser, 1)
+	// Having got this far, we need to interact with the download handler.
+	var (
+		errCh   = make(chan error, 1)
+		cacheCh = make(chan *streamcache.Cache, 1)
+		fileCh  = make(chan string, 1)
+	)
+	// rdrCh := make(chan io.ReadCloser, 1)
 
 	h := download.Handler{
 		Cached: func(fp string) {
-			//if !fs.fscache.Exists(fp) {
-			//	if hErr := fs.fscache.MapFile(fp); hErr != nil {
-			//		errCh <- errz.Wrapf(hErr, "failed to map file into fscache: %s", fp)
+			fileCh <- fp
+			//fs.downloadedFiles[src.Handle] = fp
+			////if !fs.fscache.Exists(fp) {
+			////	if hErr := fs.fscache.MapFile(fp); hErr != nil {
+			////		errCh <- errz.Wrapf(hErr, "failed to map file into fscache: %s", fp)
+			////		return
+			////	}
+			////}
+			//
+			//cache, ok := fs.streamCaches[src.Handle]
+			//if !ok {
+			//	f, err := os.Open(fp)
+			//	if err != nil {
+			//		errCh <- errz.Wrapf(err, "failed to open cached file: %s", fp)
 			//		return
 			//	}
+			//	cache = streamcache.New(f)
+			//	fs.streamCaches[src.Handle] = cache
 			//}
-
-			cache, ok := fs.streamCaches[src.Handle]
-			if !ok {
-				f, err := os.Open(fp)
-				if err != nil {
-					errCh <- errz.Wrapf(err, "failed to open cached file: %s", fp)
-					return
-				}
-				cache = streamcache.New(f)
-				fs.streamCaches[src.Handle] = cache
-			}
-
-			r := cache.NewReader(ctx)
-
-			//r, _, hErr := fs.fscache.Get(fp)
-			//if hErr != nil {
-			//	errCh <- errz.Err(hErr)
-			//	return
-			//}
-			cachedDownload = fp
-			rdrCh <- r
+			//
+			//r := cache.NewReader(ctx)
+			//
+			////r, _, hErr := fs.fscache.Get(fp)
+			////if hErr != nil {
+			////	errCh <- errz.Err(hErr)
+			////	return
+			////}
+			//cachedDownload = fp
+			//rdrCh <- r
 		},
 		Uncached: func(cache *streamcache.Cache) {
+			cacheCh <- cache
 			//r, w, wErrFn, hErr := fs.fscache.GetWithErr(loc)
 			//if hErr != nil {
 			//	errCh <- errz.Err(hErr)
@@ -183,9 +195,9 @@ func (fs *Files) openRemoteFile(ctx context.Context, src *Source, checkFresh boo
 			//	lg.FromContext(ctx).Error("Error writing to fscache", lga.Src, src, lga.Err, err)
 			//	wErrFn(err)
 			//})
-			fs.streamCaches[src.Handle] = cache
-			r := cache.NewReader(ctx)
-			rdrCh <- r
+			//fs.streamCaches[src.Handle] = cache
+			//r := cache.NewReader(ctx)
+			//rdrCh <- r
 		},
 		Error: func(hErr error) {
 			errCh <- hErr
@@ -203,7 +215,18 @@ func (fs *Files) openRemoteFile(ctx context.Context, src *Source, checkFresh boo
 		return "", nil, errz.Err(ctx.Err())
 	case err = <-errCh:
 		return "", nil, err
-	case rdr = <-rdrCh:
-		return cachedDownload, rdr, nil
+	case cache = <-cacheCh:
+		fs.streamCaches[src.Handle] = cache
+		rdr = cache.NewReader(ctx)
+		return "", rdr, nil
+	case cachedDownload = <-fileCh:
+		fs.downloadedFiles[src.Handle] = cachedDownload
+		return cachedDownload, nil, nil
+		//var f *os.File
+		//if f, err = os.Open(cachedDownload); err != nil {
+		//	return "", nil, errz.Wrapf(err, "failed to open cached file: %s", cachedDownload)
+		//}
+		//case rdr = <-rdrCh:
+		//	return cachedDownload, rdr, nil
 	}
 }

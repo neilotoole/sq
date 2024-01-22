@@ -1,9 +1,10 @@
 package download
 
 import (
-	"github.com/neilotoole/streamcache"
 	"log/slog"
 	"sync"
+
+	"github.com/neilotoole/streamcache"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 )

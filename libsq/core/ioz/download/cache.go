@@ -256,7 +256,7 @@ func (c *cache) write(ctx context.Context, resp *http.Response, headerOnly bool)
 		return 0, err
 	}
 
-	log.Debug("Writing HTTP response to cache", lga.Dir, c.dir, lga.Resp, resp)
+	log.Debug("Writing HTTP response header to cache", lga.Dir, c.dir, lga.Resp, resp)
 	fpHeader, fpBody, _ := c.paths(resp.Request)
 
 	headerBytes, err := httputil.DumpResponse(resp, false)

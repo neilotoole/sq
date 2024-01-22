@@ -173,7 +173,7 @@ func (fs *Files) cachedBackingSourceForFile(ctx context.Context, src *Source) (*
 func (fs *Files) cachedBackingSourceForRemoteFile(ctx context.Context, src *Source) (*Source, bool, error) {
 	log := lg.FromContext(ctx)
 
-	downloadedFile, r, err := fs.openRemoteFile(ctx, src, true)
+	downloadedFile, r, err := fs.maybeStartDownload(ctx, src, true)
 	if err != nil {
 		return nil, false, err
 	}

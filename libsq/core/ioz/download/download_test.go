@@ -2,13 +2,14 @@ package download_test
 
 import (
 	"context"
-	"github.com/neilotoole/sq/cli"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/neilotoole/sq/cli"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

@@ -9,7 +9,6 @@ import (
 	"bufio"
 	"context"
 	"errors"
-	"github.com/neilotoole/streamcache"
 	"io"
 	"net/http"
 	"net/url"
@@ -17,6 +16,8 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+
+	"github.com/neilotoole/streamcache"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
@@ -242,7 +243,7 @@ func (dl *Download) get(req *http.Request, h Handler) { //nolint:funlen,gocognit
 	} else {
 		reqCacheControl := parseCacheControl(req.Header)
 		if _, ok := reqCacheControl["only-if-cached"]; ok {
-			resp = newGatewayTimeoutResponse(req)
+			resp = newGatewayTimeoutResponse(req) //nolint:bodyclose
 		} else {
 			resp, err = dl.do(req) //nolint:bodyclose
 			if err != nil {
