@@ -11,8 +11,6 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/ioz/downloader"
 
-	"github.com/neilotoole/sq/cli"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -123,7 +121,7 @@ func TestDownload_redirect(t *testing.T) {
 	dl.Get(ctx, h.Handler)
 	require.Empty(t, h.Errors)
 	require.Empty(t, h.Streams)
-	gotFile := h.CachedFiles[0]
+	gotFile := h.Downloaded[0]
 	t.Logf("got fp: %s", gotFile)
 	gotBody = tu.ReadFileToString(t, gotFile)
 	t.Logf("got body: \n\n%s\n\n", gotBody)
@@ -133,7 +131,7 @@ func TestDownload_redirect(t *testing.T) {
 	dl.Get(ctx, h.Handler)
 	require.Empty(t, h.Errors)
 	require.Empty(t, h.Streams)
-	gotFile = h.CachedFiles[0]
+	gotFile = h.Downloaded[0]
 	t.Logf("got fp: %s", gotFile)
 	gotBody = tu.ReadFileToString(t, gotFile)
 	t.Logf("got body: \n\n%s\n\n", gotBody)
@@ -159,8 +157,7 @@ func TestDownload_New(t *testing.T) {
 	h := downloader.NewSinkHandler(log.With("origin", "handler"))
 	dl.Get(ctx, h.Handler)
 	require.Empty(t, h.Errors)
-	require.Empty(t, h.WriteErrors)
-	require.Empty(t, h.CachedFiles)
+	require.Empty(t, h.Downloaded)
 	require.Equal(t, 1, len(h.Streams))
 	require.Equal(t, sizeActorCSV, int64(h.Streams[0].Size()))
 	require.Equal(t, downloader.Fresh, dl.State(ctx))
@@ -171,10 +168,9 @@ func TestDownload_New(t *testing.T) {
 	h.Reset()
 	dl.Get(ctx, h.Handler)
 	require.Empty(t, h.Errors)
-	require.Empty(t, h.WriteErrors)
 	require.Empty(t, h.Streams)
-	require.NotEmpty(t, h.CachedFiles)
-	gotFileBytes, err := os.ReadFile(h.CachedFiles[0])
+	require.NotEmpty(t, h.Downloaded)
+	gotFileBytes, err := os.ReadFile(h.Downloaded[0])
 	require.NoError(t, err)
 	require.Equal(t, sizeActorCSV, int64(len(gotFileBytes)))
 	require.Equal(t, downloader.Fresh, dl.State(ctx))
@@ -191,12 +187,4 @@ func TestDownload_New(t *testing.T) {
 	h.Reset()
 	dl.Get(ctx, h.Handler)
 	require.Empty(t, h.Errors)
-	require.Empty(t, h.WriteErrors)
-}
-
-func TestDownloadCLI_DELETEME2(t *testing.T) { // FIXME: delete
-	ctx := context.Background()
-	args := []string{".data | .[0:3]"}
-	err := cli.Execute(ctx, os.Stdin, os.Stdout, os.Stderr, args)
-	assert.NoError(t, err)
 }

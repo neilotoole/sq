@@ -173,10 +173,8 @@ func execXDownloadCmd(cmd *cobra.Command, args []string) error {
 	case len(h.Errors) > 0:
 		err1 := errz.Err(h.Errors[0])
 		return err1
-	case len(h.WriteErrors) > 0:
-		return h.WriteErrors[0]
-	case len(h.CachedFiles) > 0:
-		fmt.Fprintf(ru.Out, "Cached: %s\n", h.CachedFiles[0])
+	case len(h.Downloaded) > 0:
+		fmt.Fprintf(ru.Out, "Cached: %s\n", h.Downloaded[0])
 		return nil
 	case len(h.Streams) > 0:
 		fmt.Fprintf(ru.Out, "Uncached: %d bytes\n", h.Streams[0].Size())

@@ -137,7 +137,11 @@ func New(name string, c *http.Client, dlURL, cacheDir string, opts ...Opt) (*Dow
 	return dl, nil
 }
 
-// Get gets the download, invoking Handler as appropriate.
+// Get gets the download, invoking Handler as appropriate. Exactly
+// one of the Handler methods will be invoked, one time. If Handler.Uncached
+// is invoked, Get blocks until the download is completed. The download
+// resp.Body is written to cache; if an error occurs during cache write,
+// the cache write error is logged, but no error is returned.
 func (dl *Downloader) Get(ctx context.Context, h Handler) {
 	dl.mu.Lock()
 	defer dl.mu.Unlock()
@@ -272,9 +276,9 @@ func (dl *Downloader) get(req *http.Request, h Handler) { //nolint:gocognit
 			return
 		}
 
-		rdrCache := streamcache.New(resp.Body)
-		resp.Body = rdrCache.NewReader(ctx)
-		h.Uncached(rdrCache)
+		dlStream := streamcache.New(resp.Body)
+		resp.Body = dlStream.NewReader(ctx)
+		h.Uncached(dlStream)
 
 		defer lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
 		if dl.bodySize, err = dl.cache.write(req.Context(), resp, false); err != nil {
@@ -289,9 +293,9 @@ func (dl *Downloader) get(req *http.Request, h Handler) { //nolint:gocognit
 
 	// It's not cacheable, so we can just wrap resp.Body in a streamcache
 	// and return it.
-	rdrCache := streamcache.New(resp.Body)
+	dlStream := streamcache.New(resp.Body)
 	resp.Body = nil // Unnecessary, but just to be explicit.
-	h.Uncached(rdrCache)
+	h.Uncached(dlStream)
 }
 
 // do executes the request.

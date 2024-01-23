@@ -69,7 +69,7 @@ func Execute(ctx context.Context, stdin *os.File, stdout, stderr io.Writer, args
 		if ru.LogCloser != nil {
 			_ = ru.LogCloser()
 		}
-		printError(ctx, ru, err)
+		PrintError(ctx, ru, err)
 		return err
 	}
 
@@ -175,7 +175,7 @@ func ExecuteWith(ctx context.Context, ru *run.Run, args []string) error {
 	err = rootCmd.ExecuteContext(ctx)
 	lg.WarnIfCloseError(log, "Problem closing run", ru)
 	if err != nil {
-		printError(ctx, ru, err)
+		PrintError(ctx, ru, err)
 	}
 
 	return err
