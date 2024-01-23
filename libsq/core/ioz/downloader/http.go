@@ -4,11 +4,11 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 )
 
@@ -288,10 +288,15 @@ func varyMatches(cachedResp *http.Response, req *http.Request) bool {
 	return true
 }
 
-func logResp(resp *http.Response, elapsed time.Duration, err error) {
-	ctx := resp.Request.Context()
-	log := lg.FromContext(ctx).
-		With("response_time", elapsed, lga.Method, resp.Request.Method, lga.URL, resp.Request.URL.String())
+func logResp(log *slog.Logger, req *http.Request, resp *http.Response, elapsed time.Duration, err error) {
+	if req != nil {
+		log = log.With("response_time", elapsed,
+			lga.Method, req.Method,
+			lga.URL, req.URL.String())
+	} else {
+		log = log.With("response_time", elapsed, "no_request", true)
+	}
+
 	if err != nil {
 		log.Warn("HTTP request error", lga.Err, err)
 		return

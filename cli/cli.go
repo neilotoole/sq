@@ -111,8 +111,14 @@ func ExecuteWith(ctx context.Context, ru *run.Run, args []string) error {
 	// NOTE: This entire mechanism is ancient. Perhaps cobra
 	// now handles this situation?
 
-	// We need to perform handling for autocomplete
+	// Special handling is required for shell completion.
 	if len(args) > 0 && args[0] == cobra.ShellCompRequestCmd {
+		if !OptShellCompletionLog.Get(options.FromContext(ctx)) {
+			log.Debug("Discarding shell completion logging",
+				lga.Opt, OptShellCompletionLog.Key(), lga.Val, false)
+			ctx = lg.NewContext(ctx, lg.Discard())
+		}
+
 		if hasMatchingChildCommand(rootCmd, args[1]) {
 			// If there is a matching child command, we let rootCmd
 			// handle it, as per normal.

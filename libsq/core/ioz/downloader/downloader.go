@@ -102,6 +102,10 @@ type Downloader struct {
 	// has not been set. The Downloader.Filesize method consults this value,
 	// but if not set (e.g. Downloader.Get) has not been invoked,
 	// Downloader.Filesize may use the size of the cached file on disk.
+	//
+	// REVISIT: Probably get rid of this bodySize mechanism. Maybe Downloader
+	// should hold on to a reference to the streamcache.Stream, and invoke
+	// its Stream.Total method?
 	bodySize int64
 }
 
@@ -156,6 +160,7 @@ func (dl *Downloader) Get(ctx context.Context, h Handler) {
 func (dl *Downloader) get(req *http.Request, h Handler) { //nolint:gocognit
 	ctx := req.Context()
 	log := lg.FromContext(ctx)
+
 	_, fpBody, _ := dl.cache.paths(req)
 
 	state := dl.state(req)
@@ -280,7 +285,8 @@ func (dl *Downloader) get(req *http.Request, h Handler) { //nolint:gocognit
 		resp.Body = dlStream.NewReader(ctx)
 		h.Uncached(dlStream)
 
-		defer lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
+		// FIXME: Do we really need to close resp.Body here?
+		// defer lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
 		if dl.bodySize, err = dl.cache.write(req.Context(), resp, false); err != nil {
 			log.Error("Failed to write download cache", lga.Dir, dl.cache.dir, lga.Err, err)
 			// We don't need to explicitly call Handler.Error here, because the caller is
@@ -301,10 +307,11 @@ func (dl *Downloader) get(req *http.Request, h Handler) { //nolint:gocognit
 // do executes the request.
 func (dl *Downloader) do(req *http.Request) (*http.Response, error) {
 	ctx := req.Context()
+	log := lg.FromContext(ctx)
 	bar := progress.FromContext(ctx).NewWaiter(dl.name+": start download", true)
 	start := time.Now()
 	resp, err := dl.c.Do(req)
-	logResp(resp, time.Since(start), err)
+	logResp(log, req, resp, time.Since(start), err)
 	bar.Stop()
 	if err != nil {
 		// Downloader timeout errors are typically wrapped in an url.Error, resulting

@@ -2,10 +2,12 @@ package source_test
 
 import (
 	"context"
+	"github.com/neilotoole/sq/libsq/core/ioz"
 	"io"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -250,6 +252,9 @@ func TestFiles_Size(t *testing.T) {
 	wantSize := fi.Size()
 
 	th := testh.New(t)
+	var cancelFn context.CancelFunc
+	th.Context, cancelFn = context.WithTimeout(th.Context, time.Second)
+	defer cancelFn()
 	fs := th.Files()
 
 	gotSize, err := fs.Filesize(th.Context, &source.Source{
@@ -264,10 +269,18 @@ func TestFiles_Size(t *testing.T) {
 	// Verify that this works with @stdin as well
 	require.NoError(t, fs.AddStdin(th.Context, f2))
 
-	gotSize2, err := fs.Filesize(th.Context, &source.Source{
+	src := &source.Source{
 		Handle:   "@stdin",
 		Location: "@stdin",
-	})
+	}
+
+	// Files.Filesize will block until the stream is fully read.
+	r, err := fs.NewReader(th.Context, src, false)
+	require.NoError(t, err)
+	require.NoError(t, ioz.Drain(r))
+	require.NoError(t, r.Close())
+
+	gotSize2, err := fs.Filesize(th.Context, src)
 	require.NoError(t, err)
 	require.Equal(t, wantSize, gotSize2)
 }

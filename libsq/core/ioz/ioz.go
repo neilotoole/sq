@@ -374,6 +374,12 @@ func DirExists(dir string) bool {
 	return fi.IsDir()
 }
 
+// Drain drains r.
+func Drain(r io.Reader) error {
+	_, err := io.Copy(io.Discard, r)
+	return err
+}
+
 // PrintTree prints the file tree structure at loc to w.
 // This function uses the github.com/a8m/tree library, which is
 // a Go implementation of the venerable "tree" command.
