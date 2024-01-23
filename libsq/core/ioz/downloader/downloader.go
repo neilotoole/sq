@@ -1,9 +1,9 @@
-// Package download provides a mechanism for getting files from
+// Package downloader provides a mechanism for getting files from
 // HTTP/S URLs, making use of a mostly RFC-compliant cache.
 //
 // Acknowledgement: This package is a heavily customized fork
 // of https://github.com/gregjones/httpcache, via bitcomplete/download.
-package download
+package downloader
 
 import (
 	"bufio"
@@ -55,31 +55,29 @@ const (
 )
 
 // XFromCache is the header added to responses that are returned from the cache.
-const XFromCache = "X-From-Cache"
+const XFromCache = "X-From-Stream"
 
-const msgNilDestWriter = "nil dest writer from download handler; returning" // FIXME: delete
+// Opt is a configuration option for creating a new Downloader.
+type Opt func(t *Downloader)
 
-// Opt is a configuration option for creating a new Download.
-type Opt func(t *Download)
-
-// OptMarkCacheResponses configures a Download by setting
-// Download.markCachedResponses to true.
+// OptMarkCacheResponses configures a Downloader by setting
+// Downloader.markCachedResponses to true.
 func OptMarkCacheResponses(markCachedResponses bool) Opt {
-	return func(t *Download) {
+	return func(t *Downloader) {
 		t.markCachedResponses = markCachedResponses
 	}
 }
 
 // OptDisableCaching disables the cache.
 func OptDisableCaching(disable bool) Opt {
-	return func(t *Download) {
+	return func(t *Downloader) {
 		t.disableCaching = disable
 	}
 }
 
-// Download encapsulates downloading a file from a URL, using a local
+// Downloader encapsulates downloading a file from a URL, using a local
 // disk cache if possible.
-type Download struct {
+type Downloader struct {
 	mu sync.Mutex
 
 	// name is a user-friendly name, such as a source handle like @data.
@@ -101,16 +99,16 @@ type Download struct {
 
 	// bodySize is the size of the downloaded file. It is set after
 	// the download has completed. A value of -1 indicates that it
-	// has not been set. The Download.Filesize method consults this value,
-	// but if not set (e.g. Download.Get) has not been invoked,
-	// Download.Filesize may use the size of the cached file on disk.
+	// has not been set. The Downloader.Filesize method consults this value,
+	// but if not set (e.g. Downloader.Get) has not been invoked,
+	// Downloader.Filesize may use the size of the cached file on disk.
 	bodySize int64
 }
 
-// New returns a new Download for url that writes to cacheDir.
+// New returns a new Downloader for url that writes to cacheDir.
 // Name is a user-friendly name, such as a source handle like @data.
 // The name may show up in logs, or progress indicators etc.
-func New(name string, c *http.Client, dlURL, cacheDir string, opts ...Opt) (*Download, error) {
+func New(name string, c *http.Client, dlURL, cacheDir string, opts ...Opt) (*Downloader, error) {
 	_, err := url.ParseRequestURI(dlURL)
 	if err != nil {
 		return nil, errz.Wrap(err, "invalid download URL")
@@ -120,7 +118,7 @@ func New(name string, c *http.Client, dlURL, cacheDir string, opts ...Opt) (*Dow
 		return nil, errz.Err(err)
 	}
 
-	dl := &Download{
+	dl := &Downloader{
 		name:                name,
 		c:                   c,
 		url:                 dlURL,
@@ -140,7 +138,7 @@ func New(name string, c *http.Client, dlURL, cacheDir string, opts ...Opt) (*Dow
 }
 
 // Get gets the download, invoking Handler as appropriate.
-func (dl *Download) Get(ctx context.Context, h Handler) {
+func (dl *Downloader) Get(ctx context.Context, h Handler) {
 	dl.mu.Lock()
 	defer dl.mu.Unlock()
 
@@ -151,7 +149,7 @@ func (dl *Download) Get(ctx context.Context, h Handler) {
 
 // get contains the main logic for getting the download. It invokes Handler
 // as appropriate.
-func (dl *Download) get(req *http.Request, h Handler) { //nolint:funlen,gocognit
+func (dl *Downloader) get(req *http.Request, h Handler) { //nolint:gocognit
 	ctx := req.Context()
 	log := lg.FromContext(ctx)
 	_, fpBody, _ := dl.cache.paths(req)
@@ -282,7 +280,7 @@ func (dl *Download) get(req *http.Request, h Handler) { //nolint:funlen,gocognit
 		if dl.bodySize, err = dl.cache.write(req.Context(), resp, false); err != nil {
 			log.Error("Failed to write download cache", lga.Dir, dl.cache.dir, lga.Err, err)
 			// We don't need to explicitly call Handler.Error here, because the caller is
-			// gets any read error when they read from the streamcache.Cache.
+			// gets any read error when they read from the streamcache.Stream.
 		}
 		return
 	}
@@ -297,7 +295,7 @@ func (dl *Download) get(req *http.Request, h Handler) { //nolint:funlen,gocognit
 }
 
 // do executes the request.
-func (dl *Download) do(req *http.Request) (*http.Response, error) {
+func (dl *Downloader) do(req *http.Request) (*http.Response, error) {
 	ctx := req.Context()
 	bar := progress.FromContext(ctx).NewWaiter(dl.name+": start download", true)
 	start := time.Now()
@@ -305,7 +303,7 @@ func (dl *Download) do(req *http.Request) (*http.Response, error) {
 	logResp(resp, time.Since(start), err)
 	bar.Stop()
 	if err != nil {
-		// Download timeout errors are typically wrapped in an url.Error, resulting
+		// Downloader timeout errors are typically wrapped in an url.Error, resulting
 		// in a message like:
 		//
 		//  Get "https://example.com": http response header not received within 1ms timeout
@@ -329,7 +327,7 @@ func (dl *Download) do(req *http.Request) (*http.Response, error) {
 
 // mustRequest creates a new request from dl.url. The url has already been
 // parsed in download.New, so it's safe to ignore the error.
-func (dl *Download) mustRequest(ctx context.Context) *http.Request {
+func (dl *Downloader) mustRequest(ctx context.Context) *http.Request {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, dl.url, nil)
 	if err != nil {
 		lg.FromContext(ctx).Error("Failed to create request", lga.URL, dl.url, lga.Err, err)
@@ -339,7 +337,7 @@ func (dl *Download) mustRequest(ctx context.Context) *http.Request {
 }
 
 // Clear deletes the cache.
-func (dl *Download) Clear(ctx context.Context) error {
+func (dl *Downloader) Clear(ctx context.Context) error {
 	dl.mu.Lock()
 	defer dl.mu.Unlock()
 	if dl.cache == nil {
@@ -349,14 +347,14 @@ func (dl *Download) Clear(ctx context.Context) error {
 	return dl.cache.clear(ctx)
 }
 
-// State returns the Download's cache state.
-func (dl *Download) State(ctx context.Context) State {
+// State returns the Downloader's cache state.
+func (dl *Downloader) State(ctx context.Context) State {
 	dl.mu.Lock()
 	defer dl.mu.Unlock()
 	return dl.state(dl.mustRequest(ctx))
 }
 
-func (dl *Download) state(req *http.Request) State {
+func (dl *Downloader) state(req *http.Request) State {
 	if !dl.isCacheable(req) {
 		return Uncached
 	}
@@ -388,7 +386,7 @@ func (dl *Download) state(req *http.Request) State {
 
 // Filesize returns the size of the downloaded file. This should
 // only be invoked after the download has completed.
-func (dl *Download) Filesize(ctx context.Context) (int64, error) {
+func (dl *Downloader) Filesize(ctx context.Context) (int64, error) {
 	dl.mu.Lock()
 	defer dl.mu.Unlock()
 
@@ -422,7 +420,7 @@ func (dl *Download) Filesize(ctx context.Context) (int64, error) {
 
 // CacheFile returns the path to the cached file, if it exists and has
 // been fully downloaded.
-func (dl *Download) CacheFile(ctx context.Context) (fp string, err error) {
+func (dl *Downloader) CacheFile(ctx context.Context) (fp string, err error) {
 	dl.mu.Lock()
 	defer dl.mu.Unlock()
 
@@ -439,7 +437,7 @@ func (dl *Download) CacheFile(ctx context.Context) (fp string, err error) {
 }
 
 // Checksum returns the checksum of the cached download, if available.
-func (dl *Download) Checksum(ctx context.Context) (sum checksum.Checksum, ok bool) {
+func (dl *Downloader) Checksum(ctx context.Context) (sum checksum.Checksum, ok bool) {
 	dl.mu.Lock()
 	defer dl.mu.Unlock()
 
@@ -451,7 +449,7 @@ func (dl *Download) Checksum(ctx context.Context) (sum checksum.Checksum, ok boo
 	return dl.cache.cachedChecksum(req)
 }
 
-func (dl *Download) isCacheable(req *http.Request) bool {
+func (dl *Downloader) isCacheable(req *http.Request) bool {
 	if dl.cache == nil || dl.disableCaching {
 		return false
 	}

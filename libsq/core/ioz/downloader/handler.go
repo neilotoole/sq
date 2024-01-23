@@ -1,4 +1,4 @@
-package download
+package downloader
 
 import (
 	"log/slog"
@@ -9,7 +9,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 )
 
-// Handler is a callback invoked by Download.Get. Exactly one of the
+// Handler is a callback invoked by Downloader.Get. Exactly one of the
 // handler functions will be invoked, exactly one time.
 type Handler struct {
 	// Cached is invoked when the download is already cached on disk. The
@@ -21,10 +21,10 @@ type Handler struct {
 	// to (as well as being written to the disk cache). On success, the dest
 	// writer is closed. If an error occurs during download or writing,
 	// WriteErrorCloser.Error is invoked (but Close is not invoked). If the
-	// handler returns a nil dest, the Download will log a warning and return.
+	// handler returns a nil dest, the Downloader will log a warning and return.
 	//
 	// FIXME: Update docs
-	Uncached func(cache *streamcache.Cache)
+	Uncached func(dlStream *streamcache.Stream)
 
 	// Error is invoked on any error, other than writing to the destination
 	// io.WriteCloser returned by Handler.Uncached, which has its own error
@@ -48,7 +48,7 @@ type SinkHandler struct {
 	// Uncached records in bytes.Buffer instances the data written
 	// via Handler.Uncached.
 	// FIXME: Update docs
-	UncachedFiles []*streamcache.Cache
+	Streams []*streamcache.Stream
 
 	// WriteErrors records the write errors received via Handler.Uncached.
 	WriteErrors []error
@@ -60,7 +60,7 @@ func (sh *SinkHandler) Reset() {
 	defer sh.mu.Unlock()
 	sh.Errors = nil
 	sh.CachedFiles = nil
-	sh.UncachedFiles = nil
+	sh.Streams = nil
 	sh.WriteErrors = nil
 }
 
@@ -74,18 +74,11 @@ func NewSinkHandler(log *slog.Logger) *SinkHandler {
 		h.CachedFiles = append(h.CachedFiles, fp)
 	}
 
-	h.Uncached = func(cache *streamcache.Cache) {
+	h.Uncached = func(dlStream *streamcache.Stream) {
 		log.Info("Uncached")
 		h.mu.Lock()
 		defer h.mu.Unlock()
-		//buf := &bytes.Buffer{}
-		//h.UncachedBufs = append(h.UncachedBufs, buf)
-		//return ioz.NewFuncWriteErrorCloser(ioz.WriteCloser(buf), func(err error) {
-		//	h.mu.Lock()
-		//	defer h.mu.Unlock()
-		//	h.WriteErrors = append(h.WriteErrors, err)
-		//})
-		h.UncachedFiles = append(h.UncachedFiles, cache)
+		h.Streams = append(h.Streams, dlStream)
 	}
 
 	h.Error = func(err error) {

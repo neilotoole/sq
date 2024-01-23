@@ -22,7 +22,7 @@ var _ source.DriverDetectFunc = DetectXLSX
 
 // DetectXLSX implements source.DriverDetectFunc, returning
 // TypeXLSX and a score of 1.0 if valid XLSX.
-func DetectXLSX(ctx context.Context, openFn source.FileOpenFunc) (detected drivertype.Type, score float32,
+func DetectXLSX(ctx context.Context, openFn source.NewReaderFunc) (detected drivertype.Type, score float32,
 	err error,
 ) {
 	const detectBufSize = 4096

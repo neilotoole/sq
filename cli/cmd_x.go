@@ -7,13 +7,14 @@ import (
 	"os"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/ioz/downloader"
+
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
-	"github.com/neilotoole/sq/libsq/core/ioz/download"
 	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/progress"
@@ -160,12 +161,12 @@ func execXDownloadCmd(cmd *cobra.Command, args []string) error {
 		httpz.OptResponseTimeout(time.Second*15),
 		httpz.OptRequestDelay(time.Second*5),
 	)
-	dl, err := download.New(fakeSrc.Handle, c, u.String(), cacheDir)
+	dl, err := downloader.New(fakeSrc.Handle, c, u.String(), cacheDir)
 	if err != nil {
 		return err
 	}
 
-	h := download.NewSinkHandler(log.With("origin", "handler"))
+	h := downloader.NewSinkHandler(log.With("origin", "handler"))
 	dl.Get(ctx, h.Handler)
 
 	switch {
@@ -177,8 +178,8 @@ func execXDownloadCmd(cmd *cobra.Command, args []string) error {
 	case len(h.CachedFiles) > 0:
 		fmt.Fprintf(ru.Out, "Cached: %s\n", h.CachedFiles[0])
 		return nil
-	case len(h.UncachedFiles) > 0:
-		fmt.Fprintf(ru.Out, "Uncached: %d bytes\n", h.UncachedFiles[0].Size())
+	case len(h.Streams) > 0:
+		fmt.Fprintf(ru.Out, "Uncached: %d bytes\n", h.Streams[0].Size())
 	}
 
 	return nil

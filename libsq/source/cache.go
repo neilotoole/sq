@@ -15,7 +15,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/ioz/lockfile"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
-	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/core/stringz"
@@ -173,13 +172,13 @@ func (fs *Files) cachedBackingSourceForFile(ctx context.Context, src *Source) (*
 func (fs *Files) cachedBackingSourceForRemoteFile(ctx context.Context, src *Source) (*Source, bool, error) {
 	log := lg.FromContext(ctx)
 
-	downloadedFile, r, err := fs.maybeStartDownload(ctx, src, true)
+	downloadedFile, _, err := fs.maybeStartDownload(ctx, src, true)
 	if err != nil {
 		return nil, false, err
 	}
 
 	// We don't care about the reader, but we do need to close it.
-	lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
+	// lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
 	if downloadedFile == "" {
 		log.Debug("No cached download file for src", lga.Src, src)
 		return nil, false, nil

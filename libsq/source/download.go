@@ -2,17 +2,17 @@ package source
 
 import (
 	"context"
-	"io"
 	"net/http"
 	"path/filepath"
 	"time"
+
+	"github.com/neilotoole/sq/libsq/core/ioz/downloader"
 
 	"github.com/neilotoole/streamcache"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
-	"github.com/neilotoole/sq/libsq/core/ioz/download"
 	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
 	"github.com/neilotoole/sq/libsq/core/options"
 )
@@ -53,37 +53,74 @@ var OptHTTPSInsecureSkipVerify = options.NewBool(
 	options.TagSource,
 )
 
-// downloadFor returns the download.Download for src, creating
-// and caching it if necessary.
-func (fs *Files) downloadFor(ctx context.Context, src *Source) (*download.Download, error) {
-	dl, ok := fs.downloads[src.Handle]
-	if ok {
-		return dl, nil
+// maybeStartDownload starts a download for src if one is not already in progress
+// or completed. If there's a download in progress, dlStream returns non-nil.
+// If the file is already downloaded to disk (and is valid/fresh), dlFile
+// returns non-empty and contains the absolute path to the downloaded file.
+// Otherwise, a new download is started, and dlStream returns non-nil. The
+// download happens on a freshly-spawned goroutine, and Files.downloadersWg
+// is incremented; wait on that WaitGroup to ensure that all downloads have
+// completed.
+//
+// It is guaranteed that one (and only one) of the returned values will be non-nil.
+// REVISIT: look into use of checkFresh?
+func (fs *Files) maybeStartDownload(ctx context.Context, src *Source, checkFresh bool) (dlFile string,
+	dlStream *streamcache.Stream, err error,
+) {
+	var ok bool
+	if dlStream, ok = fs.mStreams[src.Handle]; ok {
+		// A download stream is always fresh, so we
+		// can ignore checkFresh here.
+		return "", dlStream, nil
 	}
 
-	dlDir, err := fs.downloadDirFor(src)
+	dldr, err := fs.downloaderFor(ctx, src)
 	if err != nil {
-		return nil, err
-	}
-	if err = ioz.RequireDir(dlDir); err != nil {
-		return nil, err
+		return "", nil, err
 	}
 
-	c := fs.httpClientFor(ctx, src)
-	if dl, err = download.New(src.Handle, c, src.Location, dlDir); err != nil {
-		return nil, err
+	if !checkFresh {
+		// If we don't care about freshness, check if the download is
+		// already on disk. If so, Downloader.CacheFile will return the
+		// path to the cached file.
+		dlFile, err = dldr.CacheFile(ctx)
+		if err == nil && dlFile != "" {
+			// The file is already on disk, so we can just return it.
+			return dlFile, nil, err
+		}
 	}
-	fs.downloads[src.Handle] = dl
-	return dl, nil
-}
 
-func (fs *Files) httpClientFor(ctx context.Context, src *Source) *http.Client {
-	o := options.Merge(options.FromContext(ctx), src.Options)
-	return httpz.NewClient(httpz.DefaultUserAgent,
-		httpz.OptRequestTimeout(OptHTTPRequestTimeout.Get(o)),
-		httpz.OptResponseTimeout(OptHTTPResponseTimeout.Get(o)),
-		httpz.OptInsecureSkipVerify(OptHTTPSInsecureSkipVerify.Get(o)),
+	// Having got this far, we need to talk to the downloader.
+	var (
+		dlErrCh    = make(chan error, 1)
+		dlStreamCh = make(chan *streamcache.Stream, 1)
+		dlFileCh   = make(chan string, 1)
 	)
+
+	h := downloader.Handler{
+		Cached:   func(dlFile string) { dlFileCh <- dlFile },
+		Uncached: func(dlStream *streamcache.Stream) { dlStreamCh <- dlStream },
+		Error:    func(dlErr error) { dlErrCh <- dlErr },
+	}
+
+	fs.downloadersWg.Add(1)
+	go func() {
+		defer fs.downloadersWg.Done()
+		dldr.Get(ctx, h)
+	}()
+
+	select {
+	case <-ctx.Done():
+		return "", nil, errz.Err(ctx.Err())
+	case err = <-dlErrCh:
+		return "", nil, err
+	case dlStream = <-dlStreamCh:
+		fs.mStreams[src.Handle] = dlStream
+		return "", dlStream, nil
+	case dlFile = <-dlFileCh:
+		fs.mDownloadedFiles[src.Handle] = dlFile
+		return dlFile, nil, nil
+	}
 }
 
 // downloadDirFor gets the download cache dir for src. It is not
@@ -98,135 +135,35 @@ func (fs *Files) downloadDirFor(src *Source) (string, error) {
 	return fp, nil
 }
 
-// maybeStartDownload adds a remote file to fs's cache, returning a reader.
-// If the remote file is already cached, the path to that cached download
-// file is returned in cachedDownload; otherwise cachedDownload is empty.
-// If checkFresh is false and the file is already fully downloaded, its
-// freshness is not checked against the remote server.
-func (fs *Files) maybeStartDownload(ctx context.Context, src *Source, checkFresh bool) (cachedDownload string,
-	rdr io.ReadCloser, err error,
-) {
-	loc := src.Location
-	if getLocType(loc) != locTypeRemoteFile {
-		return "", nil, errz.Errorf("not a remote file: %s", loc)
-	}
-
-	cache, ok := fs.streamCaches[src.Handle]
+// downloaderFor returns the downloader.Downloader for src, creating
+// and caching it if necessary.
+func (fs *Files) downloaderFor(ctx context.Context, src *Source) (*downloader.Downloader, error) {
+	dl, ok := fs.mDownloaders[src.Handle]
 	if ok {
-		// If there's a stream cache for this source, then it means that the
-		// download is in progress.
-		rdr = cache.NewReader(ctx)
-		return "", rdr, nil
+		return dl, nil
 	}
 
-	dl, err := fs.downloadFor(ctx, src)
+	dlDir, err := fs.downloadDirFor(src)
 	if err != nil {
-		return "", nil, err
+		return nil, err
+	}
+	if err = ioz.RequireDir(dlDir); err != nil {
+		return nil, err
 	}
 
-	// checkFresh should be false on subsequent calls.
-
-	// if !checkFresh && fs.hasRdrCache(src.Handle) { // FIXME: this logic is wonky
-	if !checkFresh && fs.hasRdrCache(src.Handle) { // FIXME: this logic is wonky
-		// If the download has completed, dl.CacheFile will return the
-		// path to the cached file.
-		cachedDownload, err = dl.CacheFile(ctx)
-		if err != nil {
-			return "", nil, err
-		}
-
-		cache = fs.streamCaches[src.Handle]
-
-		// The file is already cached, and we're not checking freshness.
-		// So, we can just return the cached reader.
-		rdr = cache.NewReader(ctx)
-		return cachedDownload, rdr, nil
+	c := fs.httpClientFor(ctx, src)
+	if dl, err = downloader.New(src.Handle, c, src.Location, dlDir); err != nil {
+		return nil, err
 	}
+	fs.mDownloaders[src.Handle] = dl
+	return dl, nil
+}
 
-	// Having got this far, we need to interact with the download handler.
-	var (
-		errCh   = make(chan error, 1)
-		cacheCh = make(chan *streamcache.Cache, 1)
-		fileCh  = make(chan string, 1)
+func (fs *Files) httpClientFor(ctx context.Context, src *Source) *http.Client {
+	o := options.Merge(options.FromContext(ctx), src.Options)
+	return httpz.NewClient(httpz.DefaultUserAgent,
+		httpz.OptRequestTimeout(OptHTTPRequestTimeout.Get(o)),
+		httpz.OptResponseTimeout(OptHTTPResponseTimeout.Get(o)),
+		httpz.OptInsecureSkipVerify(OptHTTPSInsecureSkipVerify.Get(o)),
 	)
-	// rdrCh := make(chan io.ReadCloser, 1)
-
-	h := download.Handler{
-		Cached: func(fp string) {
-			fileCh <- fp
-			//fs.downloadedFiles[src.Handle] = fp
-			////if !fs.fscache.Exists(fp) {
-			////	if hErr := fs.fscache.MapFile(fp); hErr != nil {
-			////		errCh <- errz.Wrapf(hErr, "failed to map file into fscache: %s", fp)
-			////		return
-			////	}
-			////}
-			//
-			//cache, ok := fs.streamCaches[src.Handle]
-			//if !ok {
-			//	f, err := os.Open(fp)
-			//	if err != nil {
-			//		errCh <- errz.Wrapf(err, "failed to open cached file: %s", fp)
-			//		return
-			//	}
-			//	cache = streamcache.New(f)
-			//	fs.streamCaches[src.Handle] = cache
-			//}
-			//
-			//r := cache.NewReader(ctx)
-			//
-			////r, _, hErr := fs.fscache.Get(fp)
-			////if hErr != nil {
-			////	errCh <- errz.Err(hErr)
-			////	return
-			////}
-			//cachedDownload = fp
-			//rdrCh <- r
-		},
-		Uncached: func(cache *streamcache.Cache) {
-			cacheCh <- cache
-			//r, w, wErrFn, hErr := fs.fscache.GetWithErr(loc)
-			//if hErr != nil {
-			//	errCh <- errz.Err(hErr)
-			//	return nil
-			//}
-			//
-			//wec := ioz.NewFuncWriteErrorCloser(w, func(err error) {
-			//	lg.FromContext(ctx).Error("Error writing to fscache", lga.Src, src, lga.Err, err)
-			//	wErrFn(err)
-			//})
-			//fs.streamCaches[src.Handle] = cache
-			//r := cache.NewReader(ctx)
-			//rdrCh <- r
-		},
-		Error: func(hErr error) {
-			errCh <- hErr
-		},
-	}
-
-	fs.downloadsWg.Add(1)
-	go func() {
-		defer fs.downloadsWg.Done()
-		dl.Get(ctx, h)
-	}()
-
-	select {
-	case <-ctx.Done():
-		return "", nil, errz.Err(ctx.Err())
-	case err = <-errCh:
-		return "", nil, err
-	case cache = <-cacheCh:
-		fs.streamCaches[src.Handle] = cache
-		rdr = cache.NewReader(ctx)
-		return "", rdr, nil
-	case cachedDownload = <-fileCh:
-		fs.downloadedFiles[src.Handle] = cachedDownload
-		return cachedDownload, nil, nil
-		//var f *os.File
-		//if f, err = os.Open(cachedDownload); err != nil {
-		//	return "", nil, errz.Wrapf(err, "failed to open cached file: %s", cachedDownload)
-		//}
-		//case rdr = <-rdrCh:
-		//	return cachedDownload, rdr, nil
-	}
 }

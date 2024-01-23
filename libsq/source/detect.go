@@ -26,7 +26,7 @@ import (
 // An error is returned only if an IO problem occurred.
 // The implementation gets access to the byte stream by invoking openFn,
 // and is responsible for closing any reader it opens.
-type DriverDetectFunc func(ctx context.Context, openFn FileOpenFunc) (
+type DriverDetectFunc func(ctx context.Context, openFn NewReaderFunc) (
 	detected drivertype.Type, score float32, err error)
 
 var _ DriverDetectFunc = DetectMagicNumber
@@ -90,27 +90,20 @@ func (fs *Files) detectType(ctx context.Context, handle, loc string) (typ driver
 	log := lg.FromContext(ctx).With(lga.Loc, loc)
 	start := time.Now()
 
-	var openFn FileOpenFunc
+	var newRdrFn NewReaderFunc
 	if getLocType(loc) == locTypeLocalFile {
-		openFn = func(ctx context.Context) (io.ReadCloser, error) {
+		newRdrFn = func(ctx context.Context) (io.ReadCloser, error) {
 			return errz.Return(os.Open(loc))
 		}
 	} else {
-		openFn = func(ctx context.Context) (io.ReadCloser, error) {
+		newRdrFn = func(ctx context.Context) (io.ReadCloser, error) {
 			src := &Source{Handle: handle, Location: loc}
 			return fs.newReader(ctx, src, false)
 		}
 	}
 
-	// FIXME: we could bypass newReader here for local files (that
-	// isn't @stdin).
-	//openFn := func(ctx context.Context) (io.ReadCloser, error) {
-	//	src := &Source{Handle: handle, Location: loc}
-	//	return fs.newReader(ctx, src)
-	//}
-
 	// We do the magic number first, because it's so fast.
-	detected, score, err := DetectMagicNumber(ctx, openFn)
+	detected, score, err := DetectMagicNumber(ctx, newRdrFn)
 	if err == nil && score >= 1.0 {
 		return detected, true, nil
 	}
@@ -139,7 +132,7 @@ func (fs *Files) detectType(ctx context.Context, handle, loc string) (typ driver
 			default:
 			}
 
-			gTyp, gScore, gErr := detectFn(gCtx, openFn)
+			gTyp, gScore, gErr := detectFn(gCtx, newRdrFn)
 			if gErr != nil {
 				return gErr
 			}
@@ -156,8 +149,7 @@ func (fs *Files) detectType(ctx context.Context, handle, loc string) (typ driver
 	// goroutine returns a score >= 1.0 (then cancelling the other detector
 	// goroutines).
 
-	err = g.Wait()
-	if err != nil {
+	if err = g.Wait(); err != nil {
 		log.Error(err.Error())
 		return drivertype.None, false, errz.Err(err)
 	}
@@ -181,10 +173,9 @@ func (fs *Files) detectType(ctx context.Context, handle, loc string) (typ driver
 	return drivertype.None, false, nil
 }
 
-// DetectMagicNumber is a DriverDetectFunc that uses an external
-// pkg (h2non/filetype) to detect the "magic number" from
-// the start of files.
-func DetectMagicNumber(ctx context.Context, openFn FileOpenFunc,
+// DetectMagicNumber is a DriverDetectFunc that detects the "magic number"
+// from the start of files.
+func DetectMagicNumber(ctx context.Context, openFn NewReaderFunc,
 ) (detected drivertype.Type, score float32, err error) {
 	log := lg.FromContext(ctx)
 	var r io.ReadCloser
@@ -234,7 +225,7 @@ func (fs *Files) DetectStdinType(ctx context.Context) (drivertype.Type, error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	if !fs.hasRdrCache(StdinHandle) {
+	if _, ok := fs.mStreams[StdinHandle]; !ok {
 		return drivertype.None, errz.New("must invoke Files.AddStdin before invoking DetectStdinType")
 	}
 

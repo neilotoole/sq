@@ -26,7 +26,7 @@ var (
 
 // newIngestJob is a constructor for the unexported ingestJob type.
 // If sampleSize <= 0, a default value is used.
-func newIngestJob(fromSrc *source.Source, openFn source.FileOpenFunc, destGrip driver.Grip, sampleSize int,
+func newIngestJob(fromSrc *source.Source, openFn source.NewReaderFunc, destGrip driver.Grip, sampleSize int,
 	flatten bool,
 ) ingestJob {
 	if sampleSize <= 0 {

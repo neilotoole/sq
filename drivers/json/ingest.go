@@ -29,7 +29,7 @@ import (
 // are written to destGrip.
 type ingestJob struct {
 	fromSrc  *source.Source
-	openFn   source.FileOpenFunc
+	openFn   source.NewReaderFunc
 	destGrip driver.Grip
 
 	// sampleSize is the maximum number of values to

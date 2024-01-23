@@ -182,7 +182,7 @@ type Progress struct {
 	mu *sync.Mutex
 
 	// stoppedCh is closed when the progress widget is stopped.
-	// This somewhat duplicates <-p.ctx.Done()... maybe it can be removed?
+	// This somewhat duplicates <-p.ctx.ReadersDone()... maybe it can be removed?
 	stoppedCh chan struct{}
 	stopOnce  *sync.Once
 

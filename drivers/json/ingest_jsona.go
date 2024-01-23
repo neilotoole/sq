@@ -25,7 +25,7 @@ import (
 // DetectJSONA returns a source.DriverDetectFunc for TypeJSONA.
 // Each line of input must be a valid JSON array.
 func DetectJSONA(sampleSize int) source.DriverDetectFunc {
-	return func(ctx context.Context, openFn source.FileOpenFunc) (detected drivertype.Type,
+	return func(ctx context.Context, openFn source.NewReaderFunc) (detected drivertype.Type,
 		score float32, err error,
 	) {
 		log := lg.FromContext(ctx)

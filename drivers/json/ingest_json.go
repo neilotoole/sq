@@ -19,7 +19,7 @@ import (
 
 // DetectJSON returns a source.DriverDetectFunc that can detect JSON.
 func DetectJSON(sampleSize int) source.DriverDetectFunc { // FIXME: is DetectJSON actually working?
-	return func(ctx context.Context, openFn source.FileOpenFunc) (detected drivertype.Type, score float32,
+	return func(ctx context.Context, openFn source.NewReaderFunc) (detected drivertype.Type, score float32,
 		err error,
 	) {
 		log := lg.FromContext(ctx)

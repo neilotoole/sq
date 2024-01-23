@@ -19,7 +19,7 @@ import (
 // DetectJSONL returns a source.DriverDetectFunc that can
 // detect JSONL.
 func DetectJSONL(sampleSize int) source.DriverDetectFunc {
-	return func(ctx context.Context, openFn source.FileOpenFunc) (detected drivertype.Type,
+	return func(ctx context.Context, openFn source.NewReaderFunc) (detected drivertype.Type,
 		score float32, err error,
 	) {
 		log := lg.FromContext(ctx)
