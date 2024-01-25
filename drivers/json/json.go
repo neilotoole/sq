@@ -97,7 +97,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, er
 	allowCache := driver.OptIngestCache.Get(options.FromContext(ctx))
 
 	ingestFn := func(ctx context.Context, destGrip driver.Grip) error {
-		job := ingestJob{
+		job := &ingestJob{
 			fromSrc: src,
 			newRdrFn: func(ctx context.Context) (io.ReadCloser, error) {
 				log.Debug("JSON ingest job newRdrFn", lga.Src, src)

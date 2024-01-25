@@ -138,7 +138,7 @@ func DetectJSON(sampleSize int) files.TypeDetectFunc { // FIXME: is DetectJSON a
 	}
 }
 
-func ingestJSON(ctx context.Context, job ingestJob) error {
+func ingestJSON(ctx context.Context, job *ingestJob) error {
 	log := lg.FromContext(ctx)
 
 	r, err := job.newRdrFn(ctx)
@@ -189,13 +189,11 @@ func ingestJSON(ctx context.Context, job ingestJob) error {
 				}
 
 				var newSchema *ingestSchema
-				newSchema, err = proc.buildSchemaFlat()
-				if err != nil {
+				if newSchema, err = proc.buildSchemaFlat(); err != nil {
 					return err
 				}
 
-				err = execSchemaDelta(ctx, drvr, conn, curSchema, newSchema)
-				if err != nil {
+				if err = execSchemaDelta(ctx, drvr, conn, curSchema, newSchema); err != nil {
 					return err
 				}
 
@@ -206,13 +204,11 @@ func ingestJSON(ctx context.Context, job ingestJob) error {
 				curSchema = newSchema
 				newSchema = nil
 
-				insertions, err = proc.buildInsertionsFlat(curSchema)
-				if err != nil {
+				if insertions, err = proc.buildInsertionsFlat(curSchema); err != nil {
 					return err
 				}
 
-				err = execInsertions(ctx, drvr, conn, insertions)
-				if err != nil {
+				if err = job.execInsertions(ctx, drvr, conn, insertions); err != nil {
 					return err
 				}
 			}
@@ -223,8 +219,7 @@ func ingestJSON(ctx context.Context, job ingestJob) error {
 			}
 		}
 
-		schemaModified, err = proc.processObject(obj, chunk)
-		if err != nil {
+		if schemaModified, err = proc.processObject(obj, chunk); err != nil {
 			return err
 		}
 
@@ -243,13 +238,11 @@ func ingestJSON(ctx context.Context, job ingestJob) error {
 
 		// The schema exists in the DB, and the current JSON chunk hasn't
 		// dirtied the schema, so it's safe to insert the recent rows.
-		insertions, err = proc.buildInsertionsFlat(curSchema)
-		if err != nil {
+		if insertions, err = proc.buildInsertionsFlat(curSchema); err != nil {
 			return err
 		}
 
-		err = execInsertions(ctx, drvr, conn, insertions)
-		if err != nil {
+		if err = job.execInsertions(ctx, drvr, conn, insertions); err != nil {
 			return err
 		}
 	}

@@ -11,11 +11,12 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
-	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/schema"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
@@ -45,7 +46,46 @@ type ingestJob struct {
 	flatten bool
 }
 
-type ingestFunc func(ctx context.Context, job ingestJob) error
+// execInsertions performs db INSERT for each of the insertions.
+func (jb *ingestJob) execInsertions(ctx context.Context, drvr driver.SQLDriver,
+	db sqlz.DB, insertions []*insertion,
+) error {
+	// FIXME: This is an inefficient way of performing insertion.
+	//  We should be re-using the prepared statement, and probably
+	//  should batch the inserts as well. See driver.BatchInsert.
+
+	log := lg.FromContext(ctx)
+	var err error
+	var execer *driver.StmtExecer
+
+	for _, insert := range insertions {
+		execer, err = drvr.PrepareInsertStmt(ctx, db, insert.tbl, insert.cols, 1)
+		if err != nil {
+			return err
+		}
+
+		err = execer.Munge(insert.vals)
+		if err != nil {
+			lg.WarnIfCloseError(log, lgm.CloseDBStmt, execer)
+			return err
+		}
+
+		_, err = execer.Exec(ctx, insert.vals...)
+		if err != nil {
+			lg.WarnIfCloseError(log, lgm.CloseDBStmt, execer)
+			return err
+		}
+
+		err = execer.Close()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+type ingestFunc func(ctx context.Context, job *ingestJob) error
 
 var (
 	_ ingestFunc = ingestJSON
@@ -434,6 +474,12 @@ type ingestSchema struct {
 	entityTbls map[*entity]*schema.Table
 }
 
+// execSchemaDelta executes the schema delta between curSchema and newSchema.
+// That is, if curSchema is nil, then newSchema is created in the DB; if
+// newSchema has additional tables or columns, then those are created in the DB.
+//
+// TODO: execSchemaDelta is only partially implemented; it doesn't create
+// the new tables/columns.
 func execSchemaDelta(ctx context.Context, drvr driver.SQLDriver, db sqlz.DB,
 	curSchema, newSchema *ingestSchema,
 ) error {
@@ -451,6 +497,7 @@ func execSchemaDelta(ctx context.Context, drvr driver.SQLDriver, db sqlz.DB,
 		return nil
 	}
 
+	// TODO: implement execSchemaDelta fully.
 	return errz.New("schema delta not yet implemented")
 }
 
@@ -584,47 +631,10 @@ func decoderFindArrayClose(dec *stdj.Decoder) error {
 	return errz.Err(err)
 }
 
-// execInsertions performs db INSERT for each of the insertions.
-func execInsertions(ctx context.Context, drvr driver.SQLDriver, db sqlz.DB, insertions []*insertion) error {
-	// FIXME: This is an inefficient way of performing insertion.
-	//  We should be re-using the prepared statement, and probably
-	//  should batch the inserts as well. See driver.BatchInsert.
-
-	log := lg.FromContext(ctx)
-	var err error
-	var execer *driver.StmtExecer
-
-	for _, insert := range insertions {
-		execer, err = drvr.PrepareInsertStmt(ctx, db, insert.tbl, insert.cols, 1)
-		if err != nil {
-			return err
-		}
-
-		err = execer.Munge(insert.vals)
-		if err != nil {
-			lg.WarnIfCloseError(log, lgm.CloseDBStmt, execer)
-			return err
-		}
-
-		_, err = execer.Exec(ctx, insert.vals...)
-		if err != nil {
-			lg.WarnIfCloseError(log, lgm.CloseDBStmt, execer)
-			return err
-		}
-
-		err = execer.Close()
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 type insertion struct {
-	// stmtKey is a concatenation of tbl and cols that can
+	// stmtHash is a concatenation of tbl and cols that can
 	// uniquely identify a db insert statement.
-	stmtKey string
+	stmtHash string
 
 	tbl  string
 	cols []string
@@ -633,15 +643,15 @@ type insertion struct {
 
 func newInsertion(tbl string, cols []string, vals []any) *insertion {
 	return &insertion{
-		stmtKey: buildInsertStmtKey(tbl, cols),
-		tbl:     tbl,
-		cols:    cols,
-		vals:    vals,
+		stmtHash: buildInsertStmtHash(tbl, cols),
+		tbl:      tbl,
+		cols:     cols,
+		vals:     vals,
 	}
 }
 
-// buildInsertStmtKey returns a concatenation of tbl and cols that can
+// buildInsertStmtHash returns a concatenation of tbl and cols that can
 // uniquely identify a db insert statement.
-func buildInsertStmtKey(tbl string, cols []string) string {
+func buildInsertStmtHash(tbl string, cols []string) string {
 	return tbl + "__" + strings.Join(cols, "_")
 }

@@ -102,7 +102,7 @@ func DetectJSONA(sampleSize int) files.TypeDetectFunc {
 	}
 }
 
-func ingestJSONA(ctx context.Context, job ingestJob) error {
+func ingestJSONA(ctx context.Context, job *ingestJob) error {
 	log := lg.FromContext(ctx)
 
 	predictR, err := job.newRdrFn(ctx)
