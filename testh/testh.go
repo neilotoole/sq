@@ -75,12 +75,21 @@ func OptCaching(enable bool) Option {
 	}
 }
 
+// OptNoLog disables the test logger.
+func OptNoLog() Option {
+	return func(h *Helper) {
+		if h.Context == nil {
+			h.Context = context.Background()
+		}
+		h.Context = lg.NewContext(h.Context, lg.Discard())
+	}
+}
+
 // Helper encapsulates a test helper session.
 type Helper struct {
 	mu sync.Mutex
 
-	T   testing.TB
-	Log *slog.Logger
+	T testing.TB
 
 	registry *driver.Registry
 	files    *files.Files
@@ -103,14 +112,13 @@ type Helper struct {
 func New(t testing.TB, opts ...Option) *Helper {
 	h := &Helper{
 		T:       t,
-		Log:     lgt.New(t),
 		Cleanup: cleanup.New(),
 	}
 
 	ctx, cancelFn := context.WithCancel(context.Background())
 	h.cancelFn = cancelFn
 
-	h.Context = lg.NewContext(ctx, h.Log)
+	h.Context = lg.NewContext(ctx, lgt.New(t))
 	t.Cleanup(h.Close)
 
 	for _, opt := range opts {
@@ -136,13 +144,15 @@ func NewWith(t testing.TB, handle string) (*Helper, *source.Source, //nolint:rev
 	return th, src, drvr, grip, db
 }
 
+func (h *Helper) Log() *slog.Logger {
+	return lg.FromContext(h.Context)
+}
+
 func (h *Helper) init() {
 	h.initOnce.Do(func() {
-		log := h.Log
-
 		optRegistry := &options.Registry{}
 		cli.RegisterDefaultOpts(optRegistry)
-		h.registry = driver.NewRegistry(log)
+		h.registry = driver.NewRegistry(h.Log())
 
 		cfg := config.New()
 		var err error
@@ -157,7 +167,7 @@ func (h *Helper) init() {
 		require.NoError(h.T, err)
 
 		h.Cleanup.Add(func() {
-			h.T.Logf("Executing outer Files cleanup")
+			lg.FromContext(h.Context).Debug("Executing outer Files cleanup")
 			err := h.files.Close()
 			assert.NoError(h.T, err)
 		})
@@ -165,17 +175,17 @@ func (h *Helper) init() {
 		h.grips = driver.NewGrips(h.registry, h.files, sqlite3.NewScratchSource)
 		h.Cleanup.AddC(h.grips)
 
-		h.registry.AddProvider(drivertype.SQLite, &sqlite3.Provider{Log: log})
-		h.registry.AddProvider(drivertype.Pg, &postgres.Provider{Log: log})
-		h.registry.AddProvider(drivertype.MSSQL, &sqlserver.Provider{Log: log})
-		h.registry.AddProvider(drivertype.MySQL, &mysql.Provider{Log: log})
+		h.registry.AddProvider(drivertype.SQLite, &sqlite3.Provider{Log: h.Log()})
+		h.registry.AddProvider(drivertype.Pg, &postgres.Provider{Log: h.Log()})
+		h.registry.AddProvider(drivertype.MSSQL, &sqlserver.Provider{Log: h.Log()})
+		h.registry.AddProvider(drivertype.MySQL, &mysql.Provider{Log: h.Log()})
 
-		csvp := &csv.Provider{Log: log, Ingester: h.grips, Files: h.files}
+		csvp := &csv.Provider{Log: h.Log(), Ingester: h.grips, Files: h.files}
 		h.registry.AddProvider(drivertype.CSV, csvp)
 		h.registry.AddProvider(drivertype.TSV, csvp)
 		h.files.AddDriverDetectors(csv.DetectCSV, csv.DetectTSV)
 
-		jsonp := &json.Provider{Log: log, Ingester: h.grips, Files: h.files}
+		jsonp := &json.Provider{Log: h.Log(), Ingester: h.grips, Files: h.files}
 		h.registry.AddProvider(drivertype.JSON, jsonp)
 		h.registry.AddProvider(drivertype.JSONA, jsonp)
 		h.registry.AddProvider(drivertype.JSONL, jsonp)
@@ -185,7 +195,7 @@ func (h *Helper) init() {
 			json.DetectJSONL(driver.OptIngestSampleSize.Get(nil)),
 		)
 
-		h.registry.AddProvider(drivertype.XLSX, &xlsx.Provider{Log: log, Ingester: h.grips, Files: h.files})
+		h.registry.AddProvider(drivertype.XLSX, &xlsx.Provider{Log: h.Log(), Ingester: h.grips, Files: h.files})
 		h.files.AddDriverDetectors(xlsx.DetectXLSX)
 
 		h.addUserDrivers()
@@ -207,7 +217,7 @@ func (h *Helper) init() {
 // not need to be explicitly invoked unless desired.
 func (h *Helper) Close() {
 	err := h.Cleanup.Run()
-	lg.WarnIfError(h.Log, "helper cleanup", err)
+	lg.WarnIfError(h.Log(), "helper cleanup", err)
 	assert.NoError(h.T, err)
 	h.cancelFn()
 }
@@ -405,7 +415,7 @@ func (h *Helper) OpenDB(src *source.Source) *sql.DB {
 // than Open, as the Grip returned by Open can be closed by test code,
 // potentially causing problems during Cleanup.
 func (h *Helper) openNew(src *source.Source) driver.Grip {
-	h.Log.Debug("openNew", lga.Src, src)
+	h.Log().Debug("openNew", lga.Src, src)
 	reg := h.Registry()
 	drvr, err := reg.DriverFor(src.Type)
 	require.NoError(h.T, err)
@@ -438,7 +448,7 @@ func (h *Helper) DriverFor(src *source.Source) driver.Driver {
 // failing h's test on any error.
 func (h *Helper) RowCount(src *source.Source, tbl string) int64 {
 	grip := h.openNew(src)
-	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, grip)
+	defer lg.WarnIfCloseError(h.Log(), lgm.CloseDB, grip)
 
 	query := "SELECT COUNT(*) FROM " + grip.SQLDriver().Dialect().Enquote(tbl)
 	var count int64
@@ -456,7 +466,7 @@ func (h *Helper) CreateTable(dropAfter bool, src *source.Source, tblDef *schema.
 	data ...[]any,
 ) (affected int64) {
 	grip := h.openNew(src)
-	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, grip)
+	defer lg.WarnIfCloseError(h.Log(), lgm.CloseDB, grip)
 
 	db, err := grip.DB(h.Context)
 	require.NoError(h.T, err)
@@ -484,7 +494,7 @@ func (h *Helper) Insert(src *source.Source, tbl string, cols []string, records .
 	}
 
 	grip := h.openNew(src)
-	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, grip)
+	defer lg.WarnIfCloseError(h.Log(), lgm.CloseDB, grip)
 
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(h.Context)
@@ -492,7 +502,7 @@ func (h *Helper) Insert(src *source.Source, tbl string, cols []string, records .
 
 	conn, err := db.Conn(h.Context)
 	require.NoError(h.T, err)
-	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, conn)
+	defer lg.WarnIfCloseError(h.Log(), lgm.CloseDB, conn)
 
 	batchSize := driver.MaxBatchRows(drvr, len(cols))
 	bi, err := driver.NewBatchInsert(
@@ -557,7 +567,7 @@ func (h *Helper) CopyTable(
 	}
 
 	grip := h.openNew(src)
-	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, grip)
+	defer lg.WarnIfCloseError(h.Log(), lgm.CloseDB, grip)
 
 	db, err := grip.DB(h.Context)
 	require.NoError(h.T, err)
@@ -574,7 +584,7 @@ func (h *Helper) CopyTable(
 		h.Cleanup.Add(func() { h.DropTable(src, toTable) })
 	}
 
-	h.Log.Debug("Copied table",
+	h.Log().Debug("Copied table",
 		lga.From, fromTable,
 		lga.To, toTable,
 		"copy_data", copyData,
@@ -587,13 +597,13 @@ func (h *Helper) CopyTable(
 // DropTable drops tbl from src.
 func (h *Helper) DropTable(src *source.Source, tbl tablefq.T) {
 	grip := h.openNew(src)
-	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, grip)
+	defer lg.WarnIfCloseError(h.Log(), lgm.CloseDB, grip)
 
 	db, err := grip.DB(h.Context)
 	require.NoError(h.T, err)
 
 	require.NoError(h.T, grip.SQLDriver().DropTable(h.Context, db, tbl, true))
-	h.Log.Debug("Dropped table", lga.Target, source.Target(src, tbl.Table))
+	h.Log().Debug("Dropped table", lga.Target, source.Target(src, tbl.Table))
 }
 
 // QuerySQL uses libsq.QuerySQL to execute SQL query
@@ -623,7 +633,7 @@ func (h *Helper) QuerySQL(src *source.Source, db sqlz.DB, query string, args ...
 // substitution.
 func (h *Helper) QuerySLQ(query string, args map[string]string) (*RecordSink, error) {
 	// We need to ensure that each of the handles in the query is loaded.
-	a, err := ast.Parse(h.Log, query)
+	a, err := ast.Parse(h.Log(), query)
 	require.NoError(h.T, err)
 
 	for _, handle := range ast.NewInspector(a).FindHandles() {
@@ -696,7 +706,7 @@ func (h *Helper) InsertDefaultRow(src *source.Source, tbl string) {
 // TruncateTable truncates tbl in src.
 func (h *Helper) TruncateTable(src *source.Source, tbl string) (affected int64) {
 	grip := h.openNew(src)
-	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, grip)
+	defer lg.WarnIfCloseError(h.Log(), lgm.CloseDB, grip)
 
 	drvr := h.SQLDriverFor(src)
 	require.NotNil(h.T, drvr, "not a SQL driver")
@@ -741,7 +751,7 @@ func (h *Helper) addUserDrivers() {
 		// For each user driver definition, we register a
 		// distinct userdriver.Provider instance.
 		udp := &userdriver.Provider{
-			Log:       h.Log,
+			Log:       h.Log(),
 			DriverDef: userDriverDef,
 			IngestFn:  importFn,
 			Ingester:  h.grips,
@@ -810,7 +820,7 @@ func (h *Helper) DiffDB(src *source.Source) {
 	h.T.Logf("Executing DiffDB for %s", src.Handle)
 
 	beforeDB := h.openNew(src)
-	defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, beforeDB)
+	defer lg.WarnIfCloseError(h.Log(), lgm.CloseDB, beforeDB)
 
 	beforeMeta, err := beforeDB.SourceMetadata(h.Context, false)
 	require.NoError(h.T, err)
@@ -820,7 +830,7 @@ func (h *Helper) DiffDB(src *source.Source) {
 		// table's row count match.
 
 		afterDB := h.openNew(src)
-		defer lg.WarnIfCloseError(h.Log, lgm.CloseDB, afterDB)
+		defer lg.WarnIfCloseError(h.Log(), lgm.CloseDB, afterDB)
 
 		afterMeta, err := afterDB.SourceMetadata(h.Context, false)
 		require.NoError(h.T, err)

@@ -14,7 +14,6 @@ import (
 
 	"github.com/neilotoole/sq/drivers/postgres"
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/schema"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
@@ -274,8 +273,7 @@ func BenchmarkDatabase_SourceMetadata(b *testing.B) {
 	for _, handle := range sakila.PgAll() {
 		handle := handle
 		b.Run(handle, func(b *testing.B) {
-			th := testh.New(b)
-			th.Log = lg.Discard()
+			th := testh.New(b, testh.OptNoLog())
 			grip := th.Open(th.Source(handle))
 			b.ResetTimer()
 

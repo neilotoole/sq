@@ -12,7 +12,6 @@ import (
 
 	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/libsq/core/kind"
-	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 )
@@ -36,8 +35,7 @@ func RecordsFromTbl(tb testing.TB, handle, tbl string) (recMeta record.Meta, rec
 	key := fmt.Sprintf("#rec_sink__%s__%s", handle, tbl)
 	sink, ok := recSinkCache[key]
 	if !ok {
-		th := New(tb)
-		th.Log = lg.Discard()
+		th := New(tb, OptNoLog())
 		src := th.Source(handle)
 		var err error
 		sink, err = th.QuerySQL(src, nil, "SELECT * FROM "+tbl)
