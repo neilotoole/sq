@@ -22,6 +22,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/files"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/tu"
@@ -131,7 +132,7 @@ func newRun(ctx context.Context, t testing.TB,
 		cacheDir = tu.CacheDir(t, false)
 	}
 
-	ru.Files, err = source.NewFiles(
+	ru.Files, err = files.New(
 		ctx,
 		ru.OptionsRegistry,
 		testh.TempLockFunc(t),

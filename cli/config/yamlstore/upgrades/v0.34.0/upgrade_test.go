@@ -15,13 +15,11 @@ import (
 	"github.com/neilotoole/sq/cli/config/yamlstore"
 	v0_34_0 "github.com/neilotoole/sq/cli/config/yamlstore/upgrades/v0.34.0" //nolint:revive
 	"github.com/neilotoole/sq/cli/output/format"
-	"github.com/neilotoole/sq/drivers/csv"
-	"github.com/neilotoole/sq/drivers/postgres"
-	"github.com/neilotoole/sq/drivers/xlsx"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/driver"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/tu"
 )
@@ -67,19 +65,19 @@ func TestUpgrade(t *testing.T) {
 	require.Len(t, cfg.Collection.Sources(), 3)
 	src0 := cfg.Collection.Sources()[0]
 	require.Equal(t, handlePg, src0.Handle)
-	require.Equal(t, postgres.Type, src0.Type)
+	require.Equal(t, drivertype.Pg, src0.Type)
 	require.Equal(t, "prod", cfg.Collection.ActiveGroup())
 	require.NotNil(t, cfg.Collection.Active())
 	require.Equal(t, handlePg, cfg.Collection.Active().Handle)
 
 	src1 := cfg.Collection.Sources()[1]
 	require.Equal(t, handleCSV, src1.Handle)
-	require.Equal(t, csv.TypeCSV, src1.Type)
+	require.Equal(t, drivertype.CSV, src1.Type)
 	require.Equal(t, true, src1.Options[driver.OptIngestHeader.Key()])
 
 	src2 := cfg.Collection.Sources()[2]
 	require.Equal(t, handleXLSX, src2.Handle)
-	require.Equal(t, xlsx.Type, src2.Type)
+	require.Equal(t, drivertype.XLSX, src2.Type)
 	require.Equal(t, false, src2.Options[driver.OptIngestHeader.Key()])
 
 	wantCfgRaw, err := os.ReadFile(filepath.Join("testdata", "want.sq.yml"))

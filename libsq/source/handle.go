@@ -11,6 +11,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/location"
 )
 
 var (
@@ -92,10 +93,10 @@ func ValidGroup(group string) error {
 // handleTypeAliases is a map of type names to the
 // more user-friendly suffix returned by SuggestHandle.
 var handleTypeAliases = map[string]string{
-	typeSL3.String(): "sqlite",
-	typePg.String():  "pg",
-	typeMS.String():  "mssql",
-	typeMy.String():  "my",
+	drivertype.SQLite.String(): "sqlite",
+	drivertype.Pg.String():     "pg",
+	drivertype.MSSQL.String():  "mssql",
+	drivertype.MySQL.String():  "my",
 }
 
 // SuggestHandle suggests a handle based on location and type.
@@ -108,20 +109,20 @@ var handleTypeAliases = map[string]string{
 // a number or underscore, it will be prefixed with "h" (for "handle").
 // Thus "123.xlsx" becomes "@h123_xlsx".
 func SuggestHandle(coll *Collection, typ drivertype.Type, loc string) (string, error) {
-	ploc, err := parseLoc(loc)
+	locFields, err := location.Parse(loc)
 	if err != nil {
 		return "", err
 	}
 
 	if typ == drivertype.None {
-		typ = ploc.typ
+		typ = locFields.DriverType
 	}
 
 	// use the type name as the _ext suffix if possible
 	ext := typ.String()
 	if ext == "" {
-		if len(ploc.ext) > 0 {
-			ext = ploc.ext[1:] // trim the leading period in ".xlsx" etc
+		if len(locFields.Ext) > 0 {
+			ext = locFields.Ext[1:] // trim the leading period in ".xlsx" etc
 		}
 	}
 
@@ -137,7 +138,7 @@ func SuggestHandle(coll *Collection, typ drivertype.Type, loc string) (string, e
 	// UX reports will suggest that "@prod/csv/actor" is preferable,
 	// and thus we would still need ext.
 	_ = ext
-	name := stringz.SanitizeAlphaNumeric(ploc.name, '_')
+	name := stringz.SanitizeAlphaNumeric(locFields.Name, '_')
 
 	// if the name is empty, we use "h" (for "handle"), e.g "@h".
 	if name == "" {

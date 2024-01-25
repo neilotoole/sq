@@ -13,6 +13,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
@@ -67,7 +68,7 @@ func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Sou
 	defer bar.Stop()
 	ctx = progress.NewBarContext(ctx, bar)
 
-	md := &metadata.Source{Handle: g.src.Handle, Driver: Type, DBDriver: dbDrvr}
+	md := &metadata.Source{Handle: g.src.Handle, Driver: drivertype.SQLite, DBDriver: dbDrvr}
 
 	dsn, err := PathFromLocation(g.src)
 	if err != nil {

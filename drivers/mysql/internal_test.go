@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh/tu"
 )
 
@@ -101,7 +102,7 @@ func TestDSNFromLocation(t *testing.T) {
 		t.Run(tu.Name(tc.loc, tc.parseTime), func(t *testing.T) {
 			src := &source.Source{
 				Handle:   "@testhandle",
-				Type:     Type,
+				Type:     drivertype.MySQL,
 				Location: tc.loc,
 			}
 

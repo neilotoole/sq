@@ -34,6 +34,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/driver"
+	"github.com/neilotoole/sq/libsq/files"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
@@ -226,12 +227,12 @@ func FinishRunInit(ctx context.Context, ru *run.Run) error {
 		// configs don't share the same cache/temp dir.
 		sum := checksum.Sum([]byte(ru.ConfigStore.Location()))
 
-		ru.Files, err = source.NewFiles(
+		ru.Files, err = files.New(
 			ctx,
 			ru.OptionsRegistry,
 			cfgLockFunc,
-			filepath.Join(source.DefaultTempDir(), sum),
-			filepath.Join(source.DefaultCacheDir(), sum),
+			filepath.Join(files.DefaultTempDir(), sum),
+			filepath.Join(files.DefaultCacheDir(), sum),
 		)
 		if err != nil {
 			lg.WarnIfFuncError(log, lga.Cleanup, ru.Cleanup.Run)
@@ -251,19 +252,19 @@ func FinishRunInit(ctx context.Context, ru *run.Run) error {
 	ru.Grips = driver.NewGrips(dr, ru.Files, scratchSrcFunc)
 	ru.Cleanup.AddC(ru.Grips)
 
-	dr.AddProvider(sqlite3.Type, &sqlite3.Provider{Log: log})
-	dr.AddProvider(postgres.Type, &postgres.Provider{Log: log})
-	dr.AddProvider(sqlserver.Type, &sqlserver.Provider{Log: log})
-	dr.AddProvider(mysql.Type, &mysql.Provider{Log: log})
+	dr.AddProvider(drivertype.SQLite, &sqlite3.Provider{Log: log})
+	dr.AddProvider(drivertype.Pg, &postgres.Provider{Log: log})
+	dr.AddProvider(drivertype.MSSQL, &sqlserver.Provider{Log: log})
+	dr.AddProvider(drivertype.MySQL, &mysql.Provider{Log: log})
 	csvp := &csv.Provider{Log: log, Ingester: ru.Grips, Files: ru.Files}
-	dr.AddProvider(csv.TypeCSV, csvp)
-	dr.AddProvider(csv.TypeTSV, csvp)
+	dr.AddProvider(drivertype.CSV, csvp)
+	dr.AddProvider(drivertype.TSV, csvp)
 	ru.Files.AddDriverDetectors(csv.DetectCSV, csv.DetectTSV)
 
 	jsonp := &json.Provider{Log: log, Ingester: ru.Grips, Files: ru.Files}
-	dr.AddProvider(json.TypeJSON, jsonp)
-	dr.AddProvider(json.TypeJSONA, jsonp)
-	dr.AddProvider(json.TypeJSONL, jsonp)
+	dr.AddProvider(drivertype.JSON, jsonp)
+	dr.AddProvider(drivertype.JSONA, jsonp)
+	dr.AddProvider(drivertype.JSONL, jsonp)
 	sampleSize := driver.OptIngestSampleSize.Get(cfg.Options)
 	ru.Files.AddDriverDetectors(
 		json.DetectJSON(sampleSize),
@@ -271,7 +272,7 @@ func FinishRunInit(ctx context.Context, ru *run.Run) error {
 		json.DetectJSONL(sampleSize),
 	)
 
-	dr.AddProvider(xlsx.Type, &xlsx.Provider{Log: log, Ingester: ru.Grips, Files: ru.Files})
+	dr.AddProvider(drivertype.XLSX, &xlsx.Provider{Log: log, Ingester: ru.Grips, Files: ru.Files})
 	ru.Files.AddDriverDetectors(xlsx.DetectXLSX)
 	// One day we may have more supported user driver genres.
 	userDriverImporters := map[string]userdriver.IngestFunc{

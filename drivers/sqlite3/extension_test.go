@@ -7,10 +7,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/tu"
@@ -22,7 +22,7 @@ func TestExtension_fts5(t *testing.T) {
 	th := testh.New(t)
 	src := th.Add(&source.Source{
 		Handle:   "@fts",
-		Type:     sqlite3.Type,
+		Type:     drivertype.SQLite,
 		Location: "sqlite3://" + tu.MustAbsFilepath("testdata", "sakila_fts5.db"),
 	})
 

@@ -19,6 +19,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
 // OptEmptyAsNull determines if an empty CSV field is treated as NULL
@@ -233,7 +234,7 @@ func getDelimiter(src *source.Source) (rune, error) {
 		return delim, nil
 	}
 
-	if src.Type == TypeTSV {
+	if src.Type == drivertype.TSV {
 		return '\t', nil
 	}
 

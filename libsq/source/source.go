@@ -4,15 +4,13 @@ package source
 import (
 	"fmt"
 	"log/slog"
-	"net/url"
 	"strings"
-
-	"github.com/xo/dburl"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/location"
 )
 
 const (
@@ -123,6 +121,15 @@ func (s *Source) String() string {
 	return fmt.Sprintf("%s|%s|%s", s.Handle, s.Type, s.RedactedLocation())
 }
 
+// ShortLocation returns a short location string. For example, the
+// base name (data.xlsx) for a file or for a DSN, user@host[:port]/db.
+func (s *Source) ShortLocation() string {
+	if s == nil {
+		return ""
+	}
+	return location.Short(s.Location)
+}
+
 // Group returns the source's group. If s is in the root group,
 // the empty string is returned.
 //
@@ -148,7 +155,7 @@ func (s *Source) RedactedLocation() string {
 	if s == nil {
 		return ""
 	}
-	return RedactLocation(s.Location)
+	return location.Redact(s.Location)
 }
 
 // Clone returns a deep copy of s. If s is nil, nil is returned.
@@ -182,82 +189,6 @@ func RedactSources(srcs ...*Source) []*Source {
 	}
 
 	return a
-}
-
-// RedactLocation returns a redacted version of the source
-// location loc, with the password component (if any) of
-// the location masked.
-func RedactLocation(loc string) string {
-	switch {
-	case loc == "",
-		strings.HasPrefix(loc, "/"),
-		strings.HasPrefix(loc, "sqlite3://"):
-
-		// REVISIT: If it's a sqlite URI, could it have auth details in there?
-		// e.g. "?_auth_pass=foo"
-		return loc
-	case strings.HasPrefix(loc, "http://"), strings.HasPrefix(loc, "https://"):
-		u, err := url.ParseRequestURI(loc)
-		if err != nil {
-			// If we can't parse it, just return the original loc
-			return loc
-		}
-
-		return u.Redacted()
-	}
-
-	// At this point, we expect it's a DSN
-	dbu, err := dburl.Parse(loc)
-	if err != nil {
-		// Shouldn't happen, but if it does, simply return the
-		// unmodified loc.
-		return loc
-	}
-
-	return dbu.Redacted()
-}
-
-// ShortLocation returns a short location string. For example, the
-// base name (data.xlsx) for a file or for a DSN, user@host[:port]/db.
-func (s *Source) ShortLocation() string {
-	if s == nil {
-		return ""
-	}
-	return ShortLocation(s.Location)
-}
-
-// Redefine the drivertype.Type values here rather than introducing
-// a circular dependency on the drivers impl packages.
-const (
-	typeSL3  = drivertype.Type("sqlite3")
-	typePg   = drivertype.Type("postgres")
-	typeMS   = drivertype.Type("sqlserver")
-	typeMy   = drivertype.Type("mysql")
-	typeXLSX = drivertype.Type("xlsx")
-	typeCSV  = drivertype.Type("csv")
-	typeTSV  = drivertype.Type("tsv")
-)
-
-// typeFromMediaType returns the driver type corresponding to mediatype.
-// For example:
-//
-//	xlsx		application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
-//	csv			text/csv
-//
-// Note that we don't rely on this function for types such
-// as application/json, because JSON can map to multiple
-// driver types (json, jsona, jsonl).
-func typeFromMediaType(mediatype string) (typ drivertype.Type, ok bool) {
-	switch {
-	case strings.Contains(mediatype, `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`):
-		return typeXLSX, true
-	case strings.Contains(mediatype, `text/csv`):
-		return typeCSV, true
-	case strings.Contains(mediatype, `text/tab-separated-values`):
-		return typeTSV, true
-	}
-
-	return drivertype.None, false
 }
 
 // Target returns @handle.tbl. This is often used in log messages.

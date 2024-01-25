@@ -9,6 +9,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/location"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
@@ -48,7 +49,7 @@ func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Sou
 
 	meta.Handle = g.src.Handle
 	meta.Location = g.src.Location
-	meta.Name, err = source.LocationFileName(g.src)
+	meta.Name, err = location.Filename(g.src.Location)
 	if err != nil {
 		return nil, err
 	}

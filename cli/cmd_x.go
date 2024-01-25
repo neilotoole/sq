@@ -17,6 +17,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/progress"
+	"github.com/neilotoole/sq/libsq/files"
 	"github.com/neilotoole/sq/libsq/source"
 )
 
@@ -56,7 +57,7 @@ func execXLockSrcCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	timeout := time.Minute * 20
-	ru.Config.Options[source.OptCacheLockTimeout.Key()] = timeout
+	ru.Config.Options[files.OptCacheLockTimeout.Key()] = timeout
 
 	unlock, err := ru.Files.CacheLockAcquire(ctx, src)
 	if err != nil {

@@ -26,6 +26,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
@@ -278,8 +279,8 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSc
 	ctx = options.NewContext(ctx, src.Options)
 
 	md := &metadata.Source{
-		Driver:   Type,
-		DBDriver: Type,
+		Driver:   drivertype.MySQL,
+		DBDriver: drivertype.MySQL,
 		Handle:   src.Handle,
 		Location: src.Location,
 	}

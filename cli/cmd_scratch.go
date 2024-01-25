@@ -4,8 +4,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/run"
-	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
 // TODO: dump all this "internal" stuff: make the options as follows: @HANDLE, file, memory
@@ -50,7 +50,7 @@ func execScratch(cmd *cobra.Command, args []string) error {
 	defaultScratch := &source.Source{
 		Handle:   source.ScratchHandle,
 		Location: "internal:file",
-		Type:     sqlite3.Type,
+		Type:     drivertype.SQLite,
 	}
 
 	if len(args) == 0 {

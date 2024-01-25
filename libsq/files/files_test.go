@@ -1,4 +1,4 @@
-package source_test
+package files_test
 
 import (
 	"context"
@@ -12,19 +12,14 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/neilotoole/sq/drivers/csv"
-	"github.com/neilotoole/sq/drivers/json"
-	"github.com/neilotoole/sq/drivers/mysql"
-	"github.com/neilotoole/sq/drivers/postgres"
-	"github.com/neilotoole/sq/drivers/sqlite3"
-	"github.com/neilotoole/sq/drivers/sqlserver"
-	"github.com/neilotoole/sq/drivers/xlsx"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/files"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/location"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
@@ -36,25 +31,24 @@ func TestFiles_DetectType(t *testing.T) {
 	testCases := []struct {
 		loc      string
 		wantType drivertype.Type
-		wantOK   bool
 		wantErr  bool
 	}{
-		{loc: proj.Abs(sakila.PathSL3), wantType: sqlite3.Type, wantOK: true},
-		{loc: proj.Abs("drivers/sqlite3/testdata/sakila_db"), wantType: sqlite3.Type, wantOK: true},
-		{loc: proj.Abs(testsrc.PathXLSXTestHeader), wantType: xlsx.Type, wantOK: true},
-		{loc: proj.Abs("drivers/xlsx/testdata/test_header_xlsx"), wantType: xlsx.Type, wantOK: true},
-		{loc: proj.Abs("drivers/xlsx/testdata/test_noheader.xlsx"), wantType: xlsx.Type, wantOK: true},
-		{loc: proj.Abs("drivers/csv/testdata/person.csv"), wantType: csv.TypeCSV, wantOK: true},
-		{loc: proj.Abs("drivers/csv/testdata/person_noheader.csv"), wantType: csv.TypeCSV, wantOK: true},
-		{loc: proj.Abs("drivers/csv/testdata/person_csv"), wantType: csv.TypeCSV, wantOK: true},
-		{loc: proj.Abs("drivers/csv/testdata/person.tsv"), wantType: csv.TypeTSV, wantOK: true},
-		{loc: proj.Abs("drivers/csv/testdata/person_noheader.tsv"), wantType: csv.TypeTSV, wantOK: true},
-		{loc: proj.Abs("drivers/csv/testdata/person_tsv"), wantType: csv.TypeTSV, wantOK: true},
-		{loc: proj.Abs("drivers/csv/testdata/person_tsv"), wantType: csv.TypeTSV, wantOK: true},
-		{loc: proj.Abs("drivers/json/testdata/actor.json"), wantType: json.TypeJSON, wantOK: true},
-		{loc: proj.Abs("drivers/json/testdata/actor.jsona"), wantType: json.TypeJSONA, wantOK: true},
-		{loc: proj.Abs("drivers/json/testdata/actor.jsonl"), wantType: json.TypeJSONL, wantOK: true},
-		{loc: proj.Abs("README.md"), wantType: drivertype.None, wantOK: false},
+		{loc: proj.Abs(sakila.PathSL3), wantType: drivertype.SQLite},
+		{loc: proj.Abs("drivers/sqlite3/testdata/sakila_db"), wantType: drivertype.SQLite},
+		{loc: proj.Abs(testsrc.PathXLSXTestHeader), wantType: drivertype.XLSX},
+		{loc: proj.Abs("drivers/xlsx/testdata/test_header_xlsx"), wantType: drivertype.XLSX},
+		{loc: proj.Abs("drivers/xlsx/testdata/test_noheader.xlsx"), wantType: drivertype.XLSX},
+		{loc: proj.Abs("drivers/csv/testdata/person.csv"), wantType: drivertype.CSV},
+		{loc: proj.Abs("drivers/csv/testdata/person_noheader.csv"), wantType: drivertype.CSV},
+		{loc: proj.Abs("drivers/csv/testdata/person_csv"), wantType: drivertype.CSV},
+		{loc: proj.Abs("drivers/csv/testdata/person.tsv"), wantType: drivertype.TSV},
+		{loc: proj.Abs("drivers/csv/testdata/person_noheader.tsv"), wantType: drivertype.TSV},
+		{loc: proj.Abs("drivers/csv/testdata/person_tsv"), wantType: drivertype.TSV},
+		{loc: proj.Abs("drivers/csv/testdata/person_tsv"), wantType: drivertype.TSV},
+		{loc: proj.Abs("drivers/json/testdata/actor.json"), wantType: drivertype.JSON},
+		{loc: proj.Abs("drivers/json/testdata/actor.jsona"), wantType: drivertype.JSONA},
+		{loc: proj.Abs("drivers/json/testdata/actor.jsonl"), wantType: drivertype.JSONL},
+		{loc: proj.Abs("README.md"), wantType: drivertype.None, wantErr: true},
 	}
 
 	for _, tc := range testCases {
@@ -62,18 +56,17 @@ func TestFiles_DetectType(t *testing.T) {
 
 		t.Run(filepath.Base(tc.loc), func(t *testing.T) {
 			ctx := lg.NewContext(context.Background(), lgt.New(t))
-			fs, err := source.NewFiles(ctx, nil, testh.TempLockFunc(t), tu.TempDir(t, true), tu.CacheDir(t, true))
+			fs, err := files.New(ctx, nil, testh.TempLockFunc(t), tu.TempDir(t, true), tu.CacheDir(t, true))
 			require.NoError(t, err)
 			fs.AddDriverDetectors(testh.DriverDetectors()...)
 
-			typ, ok, err := source.FilesDetectTypeFn(fs, ctx, tc.loc)
+			typ, err := fs.DetectType(ctx, "@test_"+stringz.Uniq8(), tc.loc)
 			if tc.wantErr {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
 			}
 
-			require.Equal(t, tc.wantOK, ok)
 			require.Equal(t, tc.wantType, typ)
 		})
 	}
@@ -85,35 +78,35 @@ func TestFiles_DriverType(t *testing.T) {
 		wantType drivertype.Type
 		wantErr  bool
 	}{
-		{loc: proj.Expand("sqlite3://${SQ_ROOT}/drivers/sqlite3/testdata/sakila.db"), wantType: sqlite3.Type},
-		{loc: proj.Abs(sakila.PathSL3), wantType: sqlite3.Type},
-		{loc: proj.Abs("drivers/sqlite3/testdata/sakila_db"), wantType: sqlite3.Type},
-		{loc: "sqlserver://sakila:p_ssW0rd@localhost?database=sakila", wantType: sqlserver.Type},
-		{loc: "postgres://sakila:p_ssW0rd@localhost/sakila", wantType: postgres.Type},
-		{loc: "mysql://sakila:p_ssW0rd@localhost/sakila", wantType: mysql.Type},
-		{loc: proj.Abs(testsrc.PathXLSXTestHeader), wantType: xlsx.Type},
-		{loc: proj.Abs("drivers/xlsx/testdata/test_header_xlsx"), wantType: xlsx.Type},
-		{loc: sakila.URLSubsetXLSX, wantType: xlsx.Type},
-		{loc: proj.Abs(sakila.PathCSVActor), wantType: csv.TypeCSV},
-		{loc: proj.Abs("drivers/csv/testdata/person_csv"), wantType: csv.TypeCSV},
-		{loc: sakila.URLActorCSV, wantType: csv.TypeCSV},
-		{loc: proj.Abs(sakila.PathTSVActor), wantType: csv.TypeTSV},
-		{loc: proj.Abs("drivers/csv/testdata/person_tsv"), wantType: csv.TypeTSV},
-		{loc: proj.Abs("drivers/json/testdata/actor.json"), wantType: json.TypeJSON},
-		{loc: proj.Abs("drivers/json/testdata/actor.jsona"), wantType: json.TypeJSONA},
-		{loc: proj.Abs("drivers/json/testdata/actor.jsonl"), wantType: json.TypeJSONL},
+		{loc: proj.Expand("sqlite3://${SQ_ROOT}/drivers/sqlite3/testdata/sakila.db"), wantType: drivertype.SQLite},
+		{loc: proj.Abs(sakila.PathSL3), wantType: drivertype.SQLite},
+		{loc: proj.Abs("drivers/sqlite3/testdata/sakila_db"), wantType: drivertype.SQLite},
+		{loc: "sqlserver://sakila:p_ssW0rd@localhost?database=sakila", wantType: drivertype.MSSQL},
+		{loc: "postgres://sakila:p_ssW0rd@localhost/sakila", wantType: drivertype.Pg},
+		{loc: "mysql://sakila:p_ssW0rd@localhost/sakila", wantType: drivertype.MySQL},
+		{loc: proj.Abs(testsrc.PathXLSXTestHeader), wantType: drivertype.XLSX},
+		{loc: proj.Abs("drivers/xlsx/testdata/test_header_xlsx"), wantType: drivertype.XLSX},
+		{loc: sakila.URLSubsetXLSX, wantType: drivertype.XLSX},
+		{loc: proj.Abs(sakila.PathCSVActor), wantType: drivertype.CSV},
+		{loc: proj.Abs("drivers/csv/testdata/person_csv"), wantType: drivertype.CSV},
+		{loc: sakila.URLActorCSV, wantType: drivertype.CSV},
+		{loc: proj.Abs(sakila.PathTSVActor), wantType: drivertype.TSV},
+		{loc: proj.Abs("drivers/csv/testdata/person_tsv"), wantType: drivertype.TSV},
+		{loc: proj.Abs("drivers/json/testdata/actor.json"), wantType: drivertype.JSON},
+		{loc: proj.Abs("drivers/json/testdata/actor.jsona"), wantType: drivertype.JSONA},
+		{loc: proj.Abs("drivers/json/testdata/actor.jsonl"), wantType: drivertype.JSONL},
 	}
 
 	for _, tc := range testCases {
 		tc := tc
-		t.Run(tu.Name(source.RedactLocation(tc.loc)), func(t *testing.T) {
+		t.Run(tu.Name(location.Redact(tc.loc)), func(t *testing.T) {
 			ctx := lg.NewContext(context.Background(), lgt.New(t))
 
-			fs, err := source.NewFiles(ctx, nil, testh.TempLockFunc(t), tu.TempDir(t, true), tu.CacheDir(t, true))
+			fs, err := files.New(ctx, nil, testh.TempLockFunc(t), tu.TempDir(t, true), tu.CacheDir(t, true))
 			require.NoError(t, err)
 			fs.AddDriverDetectors(testh.DriverDetectors()...)
 
-			gotType, gotErr := fs.DriverType(context.Background(), "@test_"+stringz.Uniq8(), tc.loc)
+			gotType, gotErr := fs.DetectType(context.Background(), "@test_"+stringz.Uniq8(), tc.loc)
 			if tc.wantErr {
 				require.Error(t, gotErr)
 				return
@@ -132,8 +125,8 @@ func TestDetectMagicNumber(t *testing.T) {
 		wantScore float32
 		wantErr   bool
 	}{
-		{loc: proj.Abs(sakila.PathSL3), wantType: sqlite3.Type, wantScore: 1.0},
-		{loc: proj.Abs("drivers/sqlite3/testdata/sakila_db"), wantType: sqlite3.Type, wantScore: 1.0},
+		{loc: proj.Abs(sakila.PathSL3), wantType: drivertype.SQLite, wantScore: 1.0},
+		{loc: proj.Abs("drivers/sqlite3/testdata/sakila_db"), wantType: drivertype.SQLite, wantScore: 1.0},
 	}
 
 	for _, tc := range testCases {
@@ -144,7 +137,7 @@ func TestDetectMagicNumber(t *testing.T) {
 
 			ctx := lg.NewContext(context.Background(), lgt.New(t))
 
-			typ, score, err := source.DetectMagicNumber(ctx, rFn)
+			typ, score, err := files.DetectMagicNumber(ctx, rFn)
 			if tc.wantErr {
 				require.Error(t, err)
 				return
@@ -164,11 +157,11 @@ func TestFiles_NewReader(t *testing.T) {
 
 	src := &source.Source{
 		Handle:   "@test_" + stringz.Uniq8(),
-		Type:     csv.TypeCSV,
+		Type:     drivertype.CSV,
 		Location: proj.Abs(fpath),
 	}
 
-	fs, err := source.NewFiles(ctx, nil, testh.TempLockFunc(t), tu.TempDir(t, true), tu.CacheDir(t, true))
+	fs, err := files.New(ctx, nil, testh.TempLockFunc(t), tu.TempDir(t, true), tu.CacheDir(t, true))
 	require.NoError(t, err)
 
 	g := &errgroup.Group{}
@@ -196,9 +189,9 @@ func TestFiles_Stdin(t *testing.T) {
 		wantType drivertype.Type
 		wantErr  bool
 	}{
-		{fpath: proj.Abs(sakila.PathCSVActor), wantType: csv.TypeCSV},
-		{fpath: proj.Abs(sakila.PathTSVActor), wantType: csv.TypeTSV},
-		{fpath: proj.Abs(sakila.PathXLSX), wantType: xlsx.Type},
+		{fpath: proj.Abs(sakila.PathCSVActor), wantType: drivertype.CSV},
+		{fpath: proj.Abs(sakila.PathTSVActor), wantType: drivertype.TSV},
+		{fpath: proj.Abs(sakila.PathXLSX), wantType: drivertype.XLSX},
 	}
 
 	for _, tc := range testCases {
@@ -239,7 +232,7 @@ func TestFiles_Stdin_ErrorWrongOrder(t *testing.T) {
 	require.NoError(t, fs.AddStdin(th.Context, f)) // AddStdin closes f
 	typ, err = fs.DetectStdinType(th.Context)
 	require.NoError(t, err)
-	require.Equal(t, csv.TypeCSV, typ)
+	require.Equal(t, drivertype.CSV, typ)
 }
 
 func TestFiles_Filesize(t *testing.T) {

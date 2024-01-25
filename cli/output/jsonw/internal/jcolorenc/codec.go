@@ -41,8 +41,8 @@ type (
 // Eventually consistent cache mapping go types to dynamically generated
 // codecs.
 //
-// Note: using a uintptr as key instead of reflect.DriverType shaved ~15ns off of
-// the ~30ns Marhsal/Unmarshal functions which were dominated by the map
+// Note: using a uintptr as key instead of reflect.Type shaved ~15ns off of
+// the ~30ns Marshal/Unmarshal functions which were dominated by the map
 // lookup time for simple types like bool, int, etc..
 var cache unsafe.Pointer // map[unsafe.Pointer]codec
 

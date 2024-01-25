@@ -8,12 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli/testrun"
-	"github.com/neilotoole/sq/drivers/csv"
-	"github.com/neilotoole/sq/drivers/mysql"
-	"github.com/neilotoole/sq/drivers/postgres"
-	"github.com/neilotoole/sq/drivers/sqlite3"
-	"github.com/neilotoole/sq/drivers/sqlserver"
-	"github.com/neilotoole/sq/drivers/xlsx"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
@@ -97,31 +91,31 @@ func TestCmdAdd(t *testing.T) {
 			loc:        proj.Rel(sakila.PathCSVActor),
 			handle:     "@h1",
 			wantHandle: "@h1",
-			wantType:   csv.TypeCSV,
+			wantType:   drivertype.CSV,
 			query:      actorDataQuery,
 		},
 		{
 			loc:        proj.Abs(sakila.PathCSVActor),
 			handle:     "@h1",
 			wantHandle: "@h1",
-			wantType:   csv.TypeCSV,
+			wantType:   drivertype.CSV,
 		},
 		{
 			loc:        proj.Abs(sakila.PathCSVActor),
 			wantHandle: "@actor",
-			wantType:   csv.TypeCSV,
+			wantType:   drivertype.CSV,
 		},
 		{
 			loc:        proj.Abs(sakila.PathCSVActor),
 			driver:     "csv",
 			wantHandle: "@actor",
-			wantType:   csv.TypeCSV,
+			wantType:   drivertype.CSV,
 		},
 		{
 			loc:        proj.Abs(sakila.PathCSVActor),
 			driver:     "xlsx",
 			wantHandle: "@actor",
-			wantType:   xlsx.Type,
+			wantType:   drivertype.XLSX,
 			// It's legal to add a CSV file with the xlsx driver.
 			wantAddErr: false,
 			// But it should fail when we try to query it.
@@ -131,50 +125,50 @@ func TestCmdAdd(t *testing.T) {
 			loc:        proj.Rel(sakila.PathTSVActor),
 			handle:     "@h1",
 			wantHandle: "@h1",
-			wantType:   csv.TypeTSV,
+			wantType:   drivertype.TSV,
 			query:      actorDataQuery,
 		},
 		{
 			loc:        proj.Rel(sakila.PathTSVActorNoHeader),
 			handle:     "@h1",
 			wantHandle: "@h1",
-			wantType:   csv.TypeTSV,
+			wantType:   drivertype.TSV,
 			query:      actorDataQuery,
 		},
 		{
 			// sqlite can be added both with and without the scheme "sqlite://"
 			loc:        "sqlite3://" + proj.Abs(sakila.PathSL3),
 			wantHandle: "@sakila",
-			wantType:   sqlite3.Type,
+			wantType:   drivertype.SQLite,
 		},
 
 		{
 			// with scheme
 			loc:        proj.Abs(sakila.PathSL3),
 			wantHandle: "@sakila",
-			wantType:   sqlite3.Type,
+			wantType:   drivertype.SQLite,
 		},
 
 		{
 			// without scheme, abs path
 			loc:        proj.Rel(sakila.PathSL3),
 			wantHandle: "@sakila",
-			wantType:   sqlite3.Type,
+			wantType:   drivertype.SQLite,
 		},
 		{
 			locFromHandle: sakila.Pg,
 			wantHandle:    "@sakila",
-			wantType:      postgres.Type,
+			wantType:      drivertype.Pg,
 		},
 		{
 			locFromHandle: sakila.MS,
 			wantHandle:    "@sakila",
-			wantType:      sqlserver.Type,
+			wantType:      drivertype.MSSQL,
 		},
 		{
 			locFromHandle: sakila.My,
 			wantHandle:    "@sakila",
-			wantType:      mysql.Type,
+			wantType:      drivertype.MySQL,
 		},
 		{
 			loc:        proj.Abs(sakila.PathCSVActor),

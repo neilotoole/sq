@@ -15,6 +15,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/fixt"
 	"github.com/neilotoole/sq/testh/sakila"
@@ -209,7 +210,7 @@ func TestPathFromLocation(t *testing.T) {
 		t.Run(tc.loc, func(t *testing.T) {
 			src := &source.Source{
 				Handle:   "@h1",
-				Type:     sqlite3.Type,
+				Type:     drivertype.SQLite,
 				Location: tc.loc,
 			}
 

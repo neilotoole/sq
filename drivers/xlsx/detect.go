@@ -14,15 +14,15 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/loz"
-	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/files"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
-var _ source.DriverDetectFunc = DetectXLSX
+var _ files.TypeDetectFunc = DetectXLSX
 
-// DetectXLSX implements source.DriverDetectFunc, returning
+// DetectXLSX implements files.TypeDetectFunc, returning
 // TypeXLSX and a score of 1.0 if valid XLSX.
-func DetectXLSX(ctx context.Context, newRdrFn source.NewReaderFunc) (detected drivertype.Type, score float32,
+func DetectXLSX(ctx context.Context, newRdrFn files.NewReaderFunc) (detected drivertype.Type, score float32,
 	err error,
 ) {
 	const detectBufSize = 4096
@@ -48,7 +48,7 @@ func DetectXLSX(ctx context.Context, newRdrFn source.NewReaderFunc) (detected dr
 
 	switch t {
 	case matchers.TypeXlsx, matchers.TypeXls:
-		return Type, 1.0, nil
+		return drivertype.XLSX, 1.0, nil
 	default:
 		return drivertype.None, 0, nil
 	}

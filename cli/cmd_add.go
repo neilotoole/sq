@@ -22,6 +22,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/location"
 )
 
 func newSrcAddCmd() *cobra.Command { //nolint:funlen
@@ -183,7 +184,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 	ru := run.FromContext(ctx)
 	cfg := ru.Config
 
-	loc := source.AbsLocation(strings.TrimSpace(args[0]))
+	loc := location.Abs(strings.TrimSpace(args[0]))
 	var err error
 	var typ drivertype.Type
 
@@ -213,7 +214,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		val, _ := cmd.Flags().GetString(flag.AddDriver)
 		typ = drivertype.Type(strings.TrimSpace(val))
 	} else {
-		typ, err = ru.Files.DriverType(ctx, handle, loc)
+		typ, err = ru.Files.DetectType(ctx, handle, loc)
 		if err != nil {
 			return err
 		}
@@ -226,7 +227,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		return errz.Errorf("unsupported driver type {%s}", typ)
 	}
 
-	if typ == sqlite3.Type {
+	if typ == drivertype.SQLite {
 		locBefore := loc
 		// Special handling for SQLite, because it's a file-based DB.
 		loc, err = sqlite3.MungeLocation(loc)
@@ -245,7 +246,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		if loc, err = source.LocationWithPassword(loc, string(passwd)); err != nil {
+		if loc, err = location.WithPassword(loc, string(passwd)); err != nil {
 			return err
 		}
 	}

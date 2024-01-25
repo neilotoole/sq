@@ -17,6 +17,7 @@ import (
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/location"
 )
 
 // determineSources figures out what the active source is
@@ -221,13 +222,13 @@ func newSource(ctx context.Context, dp driver.Provider, typ drivertype.Type, han
 		log.Debug("Create new data source",
 			lga.Handle, handle,
 			lga.Driver, typ,
-			lga.Loc, source.RedactLocation(loc),
+			lga.Loc, location.Redact(loc),
 		)
 	} else {
 		log.Debug("Create new data source with opts",
 			lga.Handle, handle,
 			lga.Driver, typ,
-			lga.Loc, source.RedactLocation(loc),
+			lga.Loc, location.Redact(loc),
 		)
 	}
 

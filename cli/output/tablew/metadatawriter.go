@@ -16,7 +16,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
-	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/location"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
@@ -124,7 +124,7 @@ func (w *mdWriter) doSourceMetaNoSchema(md *metadata.Source) error {
 		md.Name,
 		md.FQName,
 		w.tbl.pr.Number.Sprint(stringz.ByteSized(md.Size, 1, "")),
-		source.RedactLocation(md.Location),
+		location.Redact(md.Location),
 	}
 
 	w.tbl.tblImpl.SetHeader(headers)
@@ -257,7 +257,7 @@ func (w *mdWriter) doSourceMetaFull(md *metadata.Source) error {
 		w.tbl.pr.Number.Sprint(stringz.ByteSized(md.Size, 1, "")),
 		fmt.Sprintf("%d", md.TableCount),
 		fmt.Sprintf("%d", md.ViewCount),
-		source.RedactLocation(md.Location),
+		location.Redact(md.Location),
 	}
 
 	w.tbl.tblImpl.SetHeader(headers)

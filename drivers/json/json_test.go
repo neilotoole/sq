@@ -12,7 +12,7 @@ import (
 	"github.com/neilotoole/sq/drivers/json"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lgt"
-	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/files"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh/tu"
 )
@@ -20,10 +20,10 @@ import (
 func TestDriverDetectorFuncs(t *testing.T) {
 	const sampleSize = 1000
 
-	detectFns := map[drivertype.Type]source.DriverDetectFunc{ //nolint:exhaustive
-		json.TypeJSON:  json.DetectJSON(sampleSize),
-		json.TypeJSONA: json.DetectJSONA(sampleSize),
-		json.TypeJSONL: json.DetectJSONL(sampleSize),
+	detectFns := map[drivertype.Type]files.TypeDetectFunc{ //nolint:exhaustive
+		drivertype.JSON:  json.DetectJSON(sampleSize),
+		drivertype.JSONA: json.DetectJSONA(sampleSize),
+		drivertype.JSONL: json.DetectJSONL(sampleSize),
 	}
 
 	testCases := []struct {
@@ -37,55 +37,55 @@ func TestDriverDetectorFuncs(t *testing.T) {
 		wantErr   bool
 	}{
 		// JSON detector
-		{fn: json.TypeJSON, fname: "actor.json", want: json.TypeJSON},
-		{fn: json.TypeJSON, fname: "film_actor.json", want: json.TypeJSON},
-		{fn: json.TypeJSON, fname: "payment.json", want: json.TypeJSON},
-		{fn: json.TypeJSON, fname: "address_1_object.json", want: json.TypeJSON},
-		{fn: json.TypeJSON, fname: "1_record_on_1_line.jsonl", want: json.TypeJSON, wantScore: 0.9},
-		{fn: json.TypeJSON, fname: "1_record_over_n_lines.json", want: json.TypeJSON, wantScore: 1.0},
-		{fn: json.TypeJSON, fname: "jsona_bad_1.jsona"},
-		{fn: json.TypeJSON, fname: "jsona_good_1.jsona"},
-		{fn: json.TypeJSON, fname: "film_actor.jsona"},
-		{fn: json.TypeJSON, fname: "payment.jsona"},
-		{fn: json.TypeJSON, fname: "actor.jsona"},
-		{fn: json.TypeJSON, fname: "actor.jsonl"},
-		{fn: json.TypeJSON, fname: "film_actor.jsona"},
-		{fn: json.TypeJSON, fname: "film_actor.jsonl"},
-		{fn: json.TypeJSON, fname: "payment.jsona"},
-		{fn: json.TypeJSON, fname: "payment.jsonl"},
-		{fn: json.TypeJSON, fname: "jsonl_good_1.jsonl"},
-		{fn: json.TypeJSON, fname: "jsonl_bad_1.jsonl"},
+		{fn: drivertype.JSON, fname: "actor.json", want: drivertype.JSON},
+		{fn: drivertype.JSON, fname: "film_actor.json", want: drivertype.JSON},
+		{fn: drivertype.JSON, fname: "payment.json", want: drivertype.JSON},
+		{fn: drivertype.JSON, fname: "address_1_object.json", want: drivertype.JSON},
+		{fn: drivertype.JSON, fname: "1_record_on_1_line.jsonl", want: drivertype.JSON, wantScore: 0.9},
+		{fn: drivertype.JSON, fname: "1_record_over_n_lines.json", want: drivertype.JSON, wantScore: 1.0},
+		{fn: drivertype.JSON, fname: "jsona_bad_1.jsona"},
+		{fn: drivertype.JSON, fname: "jsona_good_1.jsona"},
+		{fn: drivertype.JSON, fname: "film_actor.jsona"},
+		{fn: drivertype.JSON, fname: "payment.jsona"},
+		{fn: drivertype.JSON, fname: "actor.jsona"},
+		{fn: drivertype.JSON, fname: "actor.jsonl"},
+		{fn: drivertype.JSON, fname: "film_actor.jsona"},
+		{fn: drivertype.JSON, fname: "film_actor.jsonl"},
+		{fn: drivertype.JSON, fname: "payment.jsona"},
+		{fn: drivertype.JSON, fname: "payment.jsonl"},
+		{fn: drivertype.JSON, fname: "jsonl_good_1.jsonl"},
+		{fn: drivertype.JSON, fname: "jsonl_bad_1.jsonl"},
 
 		// JSONA detector
-		{fn: json.TypeJSONA, fname: "actor.jsona", want: json.TypeJSONA},
-		{fn: json.TypeJSONA, fname: "1_record_on_1_line.jsonl"},
-		{fn: json.TypeJSONA, fname: "1_record_over_n_lines.json"},
-		{fn: json.TypeJSONA, fname: "jsona_bad_1.jsona"},
-		{fn: json.TypeJSONA, fname: "jsona_good_1.jsona", want: json.TypeJSONA},
-		{fn: json.TypeJSONA, fname: "film_actor.jsona", want: json.TypeJSONA},
-		{fn: json.TypeJSONA, fname: "payment.jsona", want: json.TypeJSONA},
-		{fn: json.TypeJSONA, fname: "actor.json"},
-		{fn: json.TypeJSONA, fname: "actor.jsonl"},
-		{fn: json.TypeJSONA, fname: "film_actor.json"},
-		{fn: json.TypeJSONA, fname: "film_actor.jsonl"},
-		{fn: json.TypeJSONA, fname: "payment.json"},
-		{fn: json.TypeJSONA, fname: "payment.jsonl"},
-		{fn: json.TypeJSONA, fname: "jsonl_good_1.jsonl"},
-		{fn: json.TypeJSONA, fname: "jsonl_bad_1.jsonl"},
+		{fn: drivertype.JSONA, fname: "actor.jsona", want: drivertype.JSONA},
+		{fn: drivertype.JSONA, fname: "1_record_on_1_line.jsonl"},
+		{fn: drivertype.JSONA, fname: "1_record_over_n_lines.json"},
+		{fn: drivertype.JSONA, fname: "jsona_bad_1.jsona"},
+		{fn: drivertype.JSONA, fname: "jsona_good_1.jsona", want: drivertype.JSONA},
+		{fn: drivertype.JSONA, fname: "film_actor.jsona", want: drivertype.JSONA},
+		{fn: drivertype.JSONA, fname: "payment.jsona", want: drivertype.JSONA},
+		{fn: drivertype.JSONA, fname: "actor.json"},
+		{fn: drivertype.JSONA, fname: "actor.jsonl"},
+		{fn: drivertype.JSONA, fname: "film_actor.json"},
+		{fn: drivertype.JSONA, fname: "film_actor.jsonl"},
+		{fn: drivertype.JSONA, fname: "payment.json"},
+		{fn: drivertype.JSONA, fname: "payment.jsonl"},
+		{fn: drivertype.JSONA, fname: "jsonl_good_1.jsonl"},
+		{fn: drivertype.JSONA, fname: "jsonl_bad_1.jsonl"},
 		// JSONL detector
-		{fn: json.TypeJSONL, fname: "actor.jsonl", want: json.TypeJSONL},
-		{fn: json.TypeJSONL, fname: "jsonl_good_1.jsonl", want: json.TypeJSONL},
-		{fn: json.TypeJSONL, fname: "1_record_on_1_line.jsonl", want: json.TypeJSONL},
-		{fn: json.TypeJSONL, fname: "1_record_over_n_lines.json"},
-		{fn: json.TypeJSONL, fname: "jsonl_bad_1.jsonl"},
-		{fn: json.TypeJSONL, fname: "actor.jsona"},
-		{fn: json.TypeJSONL, fname: "actor.json"},
-		{fn: json.TypeJSONL, fname: "film_actor.jsonl", want: json.TypeJSONL},
-		{fn: json.TypeJSONL, fname: "film_actor.jsona"},
-		{fn: json.TypeJSONL, fname: "film_actor.json"},
-		{fn: json.TypeJSONL, fname: "payment.jsonl", want: json.TypeJSONL},
-		{fn: json.TypeJSONL, fname: "payment.jsona"},
-		{fn: json.TypeJSONL, fname: "payment.json"},
+		{fn: drivertype.JSONL, fname: "actor.jsonl", want: drivertype.JSONL},
+		{fn: drivertype.JSONL, fname: "jsonl_good_1.jsonl", want: drivertype.JSONL},
+		{fn: drivertype.JSONL, fname: "1_record_on_1_line.jsonl", want: drivertype.JSONL},
+		{fn: drivertype.JSONL, fname: "1_record_over_n_lines.json"},
+		{fn: drivertype.JSONL, fname: "jsonl_bad_1.jsonl"},
+		{fn: drivertype.JSONL, fname: "actor.jsona"},
+		{fn: drivertype.JSONL, fname: "actor.json"},
+		{fn: drivertype.JSONL, fname: "film_actor.jsonl", want: drivertype.JSONL},
+		{fn: drivertype.JSONL, fname: "film_actor.jsona"},
+		{fn: drivertype.JSONL, fname: "film_actor.json"},
+		{fn: drivertype.JSONL, fname: "payment.jsonl", want: drivertype.JSONL},
+		{fn: drivertype.JSONL, fname: "payment.jsona"},
+		{fn: drivertype.JSONL, fname: "payment.json"},
 	}
 
 	for _, tc := range testCases {

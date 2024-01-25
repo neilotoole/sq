@@ -21,6 +21,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
@@ -122,7 +123,7 @@ FROM sys.master_files WITH(NOWAIT)
 WHERE database_id = DB_ID()
 GROUP BY database_id) AS total_size_bytes`
 
-	md := &metadata.Source{Driver: Type, DBDriver: Type}
+	md := &metadata.Source{Driver: drivertype.MSSQL, DBDriver: drivertype.MSSQL}
 	md.Handle = src.Handle
 	md.Location = src.Location
 

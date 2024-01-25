@@ -35,11 +35,6 @@ import (
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
-const (
-	// Type is the MySQL source driver type.
-	Type = drivertype.Type("mysql")
-)
-
 var _ driver.Provider = (*Provider)(nil)
 
 // Provider is the MySQL implementation of driver.Provider.
@@ -49,7 +44,7 @@ type Provider struct {
 
 // DriverFor implements driver.Provider.
 func (p *Provider) DriverFor(typ drivertype.Type) (driver.Driver, error) {
-	if typ != Type {
+	if typ != drivertype.MySQL {
 		return nil, errz.Errorf("unsupported driver type {%s}", typ)
 	}
 
@@ -104,7 +99,7 @@ func (d *driveri) DBProperties(ctx context.Context, db sqlz.DB) (map[string]any,
 // DriverMetadata implements driver.Driver.
 func (d *driveri) DriverMetadata() driver.Metadata {
 	return driver.Metadata{
-		Type:        Type,
+		Type:        drivertype.MySQL,
 		Description: "MySQL",
 		Doc:         "https://github.com/go-sql-driver/mysql",
 		IsSQL:       true,
@@ -115,7 +110,7 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 // Dialect implements driver.Driver.
 func (d *driveri) Dialect() dialect.Dialect {
 	return dialect.Dialect{
-		Type:           Type,
+		Type:           drivertype.MySQL,
 		Placeholders:   placeholders,
 		Enquote:        stringz.BacktickQuote,
 		IntBool:        true,
@@ -511,8 +506,8 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 
 // ValidateSource implements driver.Driver.
 func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
-	if src.Type != Type {
-		return nil, errz.Errorf("expected driver type {%s} but got {%s}", Type, src.Type)
+	if src.Type != drivertype.MySQL {
+		return nil, errz.Errorf("expected driver type {%s} but got {%s}", drivertype.MySQL, src.Type)
 	}
 	return src, nil
 }

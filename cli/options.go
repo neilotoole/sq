@@ -17,6 +17,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/core/timez"
 	"github.com/neilotoole/sq/libsq/driver"
+	"github.com/neilotoole/sq/libsq/files"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
@@ -179,9 +180,9 @@ func RegisterDefaultOpts(reg *options.Registry) {
 		OptLogFormat,
 		OptDiffNumLines,
 		OptDiffDataFormat,
-		source.OptHTTPRequestTimeout,
-		source.OptHTTPResponseTimeout,
-		source.OptHTTPSInsecureSkipVerify,
+		files.OptHTTPRequestTimeout,
+		files.OptHTTPResponseTimeout,
+		files.OptHTTPSInsecureSkipVerify,
 		driver.OptConnMaxOpen,
 		driver.OptConnMaxIdle,
 		driver.OptConnMaxIdleTime,
@@ -193,7 +194,7 @@ func RegisterDefaultOpts(reg *options.Registry) {
 		OptTuningFlushThreshold,
 		driver.OptIngestHeader,
 		driver.OptIngestCache,
-		source.OptCacheLockTimeout,
+		files.OptCacheLockTimeout,
 		driver.OptIngestColRename,
 		driver.OptIngestSampleSize,
 		csv.OptDelim,

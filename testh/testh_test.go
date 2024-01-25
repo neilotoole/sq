@@ -9,10 +9,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/neilotoole/sq/drivers/csv"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
@@ -130,14 +130,14 @@ func TestHelper_Files(t *testing.T) {
 
 	src := &source.Source{
 		Handle:   "@test_" + stringz.Uniq8(),
-		Type:     csv.TypeCSV,
+		Type:     drivertype.CSV,
 		Location: proj.Abs(fpath),
 	}
 
 	th := testh.New(t)
 	fs := th.Files()
 
-	typ, err := fs.DriverType(th.Context, src.Handle, src.Location)
+	typ, err := fs.DetectType(th.Context, src.Handle, src.Location)
 	require.NoError(t, err)
 	require.Equal(t, src.Type, typ)
 

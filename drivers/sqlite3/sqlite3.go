@@ -41,8 +41,6 @@ import (
 )
 
 const (
-	// Type is the sqlite3 source driver type.
-	Type drivertype.Type = "sqlite3"
 
 	// dbDrvr is the backing sqlite3 SQL driver impl name.
 	dbDrvr = "sqlite3"
@@ -60,7 +58,7 @@ type Provider struct {
 
 // DriverFor implements driver.Provider.
 func (p *Provider) DriverFor(typ drivertype.Type) (driver.Driver, error) {
-	if typ != Type {
+	if typ != drivertype.SQLite {
 		return nil, errz.Errorf("unsupported driver type {%s}", typ)
 	}
 
@@ -117,7 +115,7 @@ func (d *driveri) DBProperties(ctx context.Context, db sqlz.DB) (map[string]any,
 // DriverMetadata implements driver.Driver.
 func (d *driveri) DriverMetadata() driver.Metadata {
 	return driver.Metadata{
-		Type:        Type,
+		Type:        drivertype.SQLite,
 		Description: "SQLite",
 		Doc:         "https://github.com/mattn/go-sqlite3",
 		IsSQL:       true,
@@ -198,8 +196,8 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 
 // ValidateSource implements driver.Driver.
 func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
-	if src.Type != Type {
-		return nil, errz.Errorf("expected driver type {%s} but got {%s}", Type, src.Type)
+	if src.Type != drivertype.SQLite {
+		return nil, errz.Errorf("expected driver type {%s} but got {%s}", drivertype.SQLite, src.Type)
 	}
 	return src, nil
 }
@@ -226,7 +224,7 @@ func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 // Dialect implements driver.SQLDriver.
 func (d *driveri) Dialect() dialect.Dialect {
 	return dialect.Dialect{
-		Type:           Type,
+		Type:           drivertype.SQLite,
 		Placeholders:   placeholders,
 		Enquote:        stringz.DoubleQuote,
 		MaxBatchValues: 500,
@@ -920,7 +918,7 @@ var _ driver.ScratchSrcFunc = NewScratchSource
 func NewScratchSource(ctx context.Context, fpath string) (src *source.Source, clnup func() error, err error) {
 	log := lg.FromContext(ctx)
 	src = &source.Source{
-		Type:     Type,
+		Type:     drivertype.SQLite,
 		Handle:   source.ScratchHandle,
 		Location: Prefix + fpath,
 	}
@@ -947,8 +945,8 @@ func NewScratchSource(ctx context.Context, fpath string) (src *source.Source, cl
 func PathFromLocation(src *source.Source) (string, error) {
 	// FIXME: Does this actually work with query params in the path?
 	// Probably not? Maybe refactor use dburl.Parse or such.
-	if src.Type != Type {
-		return "", errz.Errorf("driver {%s} does not support {%s}", Type, src.Type)
+	if src.Type != drivertype.SQLite {
+		return "", errz.Errorf("driver {%s} does not support {%s}", drivertype.SQLite, src.Type)
 	}
 
 	if !strings.HasPrefix(src.Location, Prefix) {

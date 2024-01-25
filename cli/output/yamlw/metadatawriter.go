@@ -8,7 +8,7 @@ import (
 
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq/driver"
-	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/location"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
@@ -40,7 +40,7 @@ func (w *mdWriter) TableMetadata(md *metadata.Table) error {
 // SourceMetadata implements output.MetadataWriter.
 func (w *mdWriter) SourceMetadata(md *metadata.Source, showSchema bool) error {
 	md2 := *md // Shallow copy is fine
-	md2.Location = source.RedactLocation(md2.Location)
+	md2.Location = location.Redact(md2.Location)
 
 	if showSchema {
 		return writeYAML(w.out, w.yp, &md2)

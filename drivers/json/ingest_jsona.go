@@ -18,14 +18,15 @@ import (
 	"github.com/neilotoole/sq/libsq/core/sqlmodel"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
+	"github.com/neilotoole/sq/libsq/files"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
-// DetectJSONA returns a source.DriverDetectFunc for TypeJSONA.
+// DetectJSONA returns a files.TypeDetectFunc for TypeJSONA.
 // Each line of input must be a valid JSON array.
-func DetectJSONA(sampleSize int) source.DriverDetectFunc {
-	return func(ctx context.Context, newRdrFn source.NewReaderFunc) (detected drivertype.Type,
+func DetectJSONA(sampleSize int) files.TypeDetectFunc {
+	return func(ctx context.Context, newRdrFn files.NewReaderFunc) (detected drivertype.Type,
 		score float32, err error,
 	) {
 		log := lg.FromContext(ctx)
@@ -94,7 +95,7 @@ func DetectJSONA(sampleSize int) source.DriverDetectFunc {
 		}
 
 		if validLines > 0 {
-			return TypeJSONA, 1.0, nil
+			return drivertype.JSONA, 1.0, nil
 		}
 
 		return drivertype.None, 0, nil
@@ -117,7 +118,7 @@ func ingestJSONA(ctx context.Context, job ingestJob) error {
 	}
 
 	if len(colKinds) == 0 || len(readMungeFns) == 0 {
-		return errz.Errorf("import %s: number of fields is zero", TypeJSONA)
+		return errz.Errorf("import %s: number of fields is zero", drivertype.JSONA)
 	}
 
 	colNames := make([]string, len(colKinds))
@@ -134,7 +135,7 @@ func ingestJSONA(ctx context.Context, job ingestJob) error {
 
 	err = job.destGrip.SQLDriver().CreateTable(ctx, db, tblDef)
 	if err != nil {
-		return errz.Wrapf(err, "import %s: failed to create dest scratch table", TypeJSONA)
+		return errz.Wrapf(err, "import %s: failed to create dest scratch table", drivertype.JSONA)
 	}
 
 	recMeta, err := getRecMeta(ctx, job.destGrip, tblDef)

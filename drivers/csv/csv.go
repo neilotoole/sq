@@ -12,33 +12,27 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/driver"
+	"github.com/neilotoole/sq/libsq/files"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/location"
 	"github.com/neilotoole/sq/libsq/source/metadata"
-)
-
-const (
-	// TypeCSV is the CSV driver type.
-	TypeCSV = drivertype.Type("csv")
-
-	// TypeTSV is the TSV driver type.
-	TypeTSV = drivertype.Type("tsv")
 )
 
 // Provider implements driver.Provider.
 type Provider struct {
 	Log      *slog.Logger
 	Ingester driver.GripOpenIngester
-	Files    *source.Files
+	Files    *files.Files
 }
 
 // DriverFor implements driver.Provider.
 func (d *Provider) DriverFor(typ drivertype.Type) (driver.Driver, error) {
 	switch typ { //nolint:exhaustive
-	case TypeCSV:
-		return &driveri{log: d.Log, typ: TypeCSV, ingester: d.Ingester, files: d.Files}, nil
-	case TypeTSV:
-		return &driveri{log: d.Log, typ: TypeTSV, ingester: d.Ingester, files: d.Files}, nil
+	case drivertype.CSV:
+		return &driveri{log: d.Log, typ: drivertype.CSV, ingester: d.Ingester, files: d.Files}, nil
+	case drivertype.TSV:
+		return &driveri{log: d.Log, typ: drivertype.TSV, ingester: d.Ingester, files: d.Files}, nil
 	}
 
 	return nil, errz.Errorf("unsupported driver type {%s}", typ)
@@ -49,13 +43,13 @@ type driveri struct {
 	log      *slog.Logger
 	typ      drivertype.Type
 	ingester driver.GripOpenIngester
-	files    *source.Files
+	files    *files.Files
 }
 
 // DriverMetadata implements driver.Driver.
 func (d *driveri) DriverMetadata() driver.Metadata {
 	md := driver.Metadata{Type: d.typ, Monotable: true}
-	if d.typ == TypeCSV {
+	if d.typ == drivertype.CSV {
 		md.Description = "Comma-Separated Values"
 		md.Doc = "https://en.wikipedia.org/wiki/Comma-separated_values"
 	} else {
@@ -110,7 +104,7 @@ type grip struct {
 	log   *slog.Logger
 	src   *source.Source
 	impl  driver.Grip
-	files *source.Files
+	files *files.Files
 }
 
 // DB implements driver.Grip.
@@ -155,7 +149,7 @@ func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Sou
 	md.Location = g.src.Location
 	md.Driver = g.src.Type
 
-	md.Name, err = source.LocationFileName(g.src)
+	md.Name, err = location.Filename(g.src.Location)
 	if err != nil {
 		return nil, err
 	}

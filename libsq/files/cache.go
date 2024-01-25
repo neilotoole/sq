@@ -1,4 +1,4 @@
-package source
+package files
 
 import (
 	"bytes"
@@ -18,7 +18,9 @@ import (
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/location"
 )
 
 // OptCacheLockTimeout is the time allowed to acquire a cache lock.
@@ -48,13 +50,13 @@ func (fs *Files) TempDir() string {
 
 // CacheDirFor gets the cache dir for handle. It is not guaranteed
 // that the returned dir exists or is accessible.
-func (fs *Files) CacheDirFor(src *Source) (dir string, err error) {
+func (fs *Files) CacheDirFor(src *source.Source) (dir string, err error) {
 	handle := src.Handle
-	if err = ValidHandle(handle); err != nil {
+	if err = source.ValidHandle(handle); err != nil {
 		return "", errz.Wrapf(err, "cache dir: invalid handle: %s", handle)
 	}
 
-	if handle == StdinHandle {
+	if handle == source.StdinHandle {
 		// stdin is different input every time, so we need a unique
 		// cache dir. In practice, stdin probably isn't using this function.
 		handle += "_" + stringz.UniqN(32)
@@ -72,7 +74,7 @@ func (fs *Files) CacheDirFor(src *Source) (dir string, err error) {
 
 // WriteIngestChecksum is invoked (after successful ingestion) to write the
 // checksum for the ingest cache db.
-func (fs *Files) WriteIngestChecksum(ctx context.Context, src, backingSrc *Source) (err error) {
+func (fs *Files) WriteIngestChecksum(ctx context.Context, src, backingSrc *source.Source) (err error) {
 	log := lg.FromContext(ctx)
 	ingestFilePath, err := fs.filepath(src)
 	if err != nil {
@@ -101,14 +103,16 @@ func (fs *Files) WriteIngestChecksum(ctx context.Context, src, backingSrc *Sourc
 
 // CachedBackingSourceFor returns the underlying backing source for src, if
 // it exists. If it does not exist, ok returns false.
-func (fs *Files) CachedBackingSourceFor(ctx context.Context, src *Source) (backingSrc *Source, ok bool, err error) {
+func (fs *Files) CachedBackingSourceFor(ctx context.Context, src *source.Source) (backingSrc *source.Source,
+	ok bool, err error,
+) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	switch getLocType(src.Location) {
-	case locTypeLocalFile:
+	switch location.TypeOf(src.Location) {
+	case location.TypeLocalFile:
 		return fs.cachedBackingSourceForFile(ctx, src)
-	case locTypeRemoteFile:
+	case location.TypeRemoteFile:
 		return fs.cachedBackingSourceForRemoteFile(ctx, src)
 	default:
 		return nil, false, errz.Errorf("caching not applicable for source: %s", src.Handle)
@@ -117,7 +121,7 @@ func (fs *Files) CachedBackingSourceFor(ctx context.Context, src *Source) (backi
 
 // cachedBackingSourceForFile returns the underlying cached backing
 // source for src, if it exists.
-func (fs *Files) cachedBackingSourceForFile(ctx context.Context, src *Source) (*Source, bool, error) {
+func (fs *Files) cachedBackingSourceForFile(ctx context.Context, src *source.Source) (*source.Source, bool, error) {
 	_, cacheDBPath, checksumsPath, err := fs.CachePaths(src)
 	if err != nil {
 		return nil, false, err
@@ -157,10 +161,10 @@ func (fs *Files) cachedBackingSourceForFile(ctx context.Context, src *Source) (*
 		return nil, false, nil
 	}
 
-	backingSrc := &Source{
+	backingSrc := &source.Source{
 		Handle:   src.Handle + "_cached",
 		Location: "sqlite3://" + cacheDBPath,
-		Type:     drivertype.Type("sqlite3"),
+		Type:     drivertype.SQLite,
 	}
 
 	lg.FromContext(ctx).Debug("Found cached backing source DB src", lga.Src, src, "backing_src", backingSrc)
@@ -169,7 +173,9 @@ func (fs *Files) cachedBackingSourceForFile(ctx context.Context, src *Source) (*
 
 // cachedBackingSourceForRemoteFile returns the underlying cached backing
 // source for src, if it exists.
-func (fs *Files) cachedBackingSourceForRemoteFile(ctx context.Context, src *Source) (*Source, bool, error) {
+func (fs *Files) cachedBackingSourceForRemoteFile(ctx context.Context, src *source.Source) (*source.Source,
+	bool, error,
+) {
 	log := lg.FromContext(ctx)
 
 	downloadedFile, _, err := fs.maybeStartDownload(ctx, src, true)
@@ -189,7 +195,7 @@ func (fs *Files) cachedBackingSourceForRemoteFile(ctx context.Context, src *Sour
 // CachePaths returns the paths to the cache files for src.
 // There is no guarantee that these files exist, or are accessible.
 // It's just the paths.
-func (fs *Files) CachePaths(src *Source) (srcCacheDir, cacheDB, checksums string, err error) {
+func (fs *Files) CachePaths(src *source.Source) (srcCacheDir, cacheDB, checksums string, err error) {
 	if srcCacheDir, err = fs.CacheDirFor(src); err != nil {
 		return "", "", "", err
 	}
@@ -205,7 +211,7 @@ func (fs *Files) CachePaths(src *Source) (srcCacheDir, cacheDB, checksums string
 // are incorporated in the hash. The generated hash is used to
 // determine the cache dir for src. Thus, if a source is mutated
 // (e.g. the remote http location changes), a new cache dir results.
-func (fs *Files) sourceHash(src *Source) string {
+func (fs *Files) sourceHash(src *source.Source) string {
 	if src == nil {
 		return ""
 	}
@@ -242,7 +248,7 @@ func (fs *Files) sourceHash(src *Source) string {
 }
 
 // cacheLockFor returns the lock file for src's cache.
-func (fs *Files) cacheLockFor(src *Source) (lockfile.Lockfile, error) {
+func (fs *Files) cacheLockFor(src *source.Source) (lockfile.Lockfile, error) {
 	cacheDir, err := fs.CacheDirFor(src)
 	if err != nil {
 		return "", errz.Wrapf(err, "cache lock for %s", src.Handle)
@@ -258,7 +264,7 @@ func (fs *Files) cacheLockFor(src *Source) (lockfile.Lockfile, error) {
 
 // CacheLockAcquire acquires the cache lock for src. The caller must invoke
 // the returned unlock func.
-func (fs *Files) CacheLockAcquire(ctx context.Context, src *Source) (unlock func(), err error) {
+func (fs *Files) CacheLockAcquire(ctx context.Context, src *source.Source) (unlock func(), err error) {
 	lock, err := fs.cacheLockFor(src)
 	if err != nil {
 		return nil, err
@@ -298,13 +304,13 @@ func (fs *Files) CacheClearAll(ctx context.Context) error {
 // CacheClearSource clears the ingest cache for src. If arg downloads is true,
 // the source's download dir is also cleared. The caller should typically
 // first acquire the cache lock for src via Files.cacheLockFor.
-func (fs *Files) CacheClearSource(ctx context.Context, src *Source, clearDownloads bool) error {
+func (fs *Files) CacheClearSource(ctx context.Context, src *source.Source, clearDownloads bool) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 	return fs.doCacheClearSource(ctx, src, clearDownloads)
 }
 
-func (fs *Files) doCacheClearSource(ctx context.Context, src *Source, clearDownloads bool) error {
+func (fs *Files) doCacheClearSource(ctx context.Context, src *source.Source, clearDownloads bool) error {
 	cacheDir, err := fs.CacheDirFor(src)
 	if err != nil {
 		return err

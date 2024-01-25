@@ -35,7 +35,6 @@ import (
 	"github.com/neilotoole/sq/libsq"
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/core/cleanup"
-	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/ioz/lockfile"
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -48,6 +47,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/driver"
+	"github.com/neilotoole/sq/libsq/files"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/metadata"
@@ -83,7 +83,7 @@ type Helper struct {
 	Log *slog.Logger
 
 	registry *driver.Registry
-	files    *source.Files
+	files    *files.Files
 	grips    *driver.Grips
 	run      *run.Run
 
@@ -147,7 +147,7 @@ func (h *Helper) init() {
 		cfg := config.New()
 		var err error
 
-		h.files, err = source.NewFiles(
+		h.files, err = files.New(
 			h.Context,
 			optRegistry,
 			TempLockFunc(h.T),
@@ -165,27 +165,27 @@ func (h *Helper) init() {
 		h.grips = driver.NewGrips(h.registry, h.files, sqlite3.NewScratchSource)
 		h.Cleanup.AddC(h.grips)
 
-		h.registry.AddProvider(sqlite3.Type, &sqlite3.Provider{Log: log})
-		h.registry.AddProvider(postgres.Type, &postgres.Provider{Log: log})
-		h.registry.AddProvider(sqlserver.Type, &sqlserver.Provider{Log: log})
-		h.registry.AddProvider(mysql.Type, &mysql.Provider{Log: log})
+		h.registry.AddProvider(drivertype.SQLite, &sqlite3.Provider{Log: log})
+		h.registry.AddProvider(drivertype.Pg, &postgres.Provider{Log: log})
+		h.registry.AddProvider(drivertype.MSSQL, &sqlserver.Provider{Log: log})
+		h.registry.AddProvider(drivertype.MySQL, &mysql.Provider{Log: log})
 
 		csvp := &csv.Provider{Log: log, Ingester: h.grips, Files: h.files}
-		h.registry.AddProvider(csv.TypeCSV, csvp)
-		h.registry.AddProvider(csv.TypeTSV, csvp)
+		h.registry.AddProvider(drivertype.CSV, csvp)
+		h.registry.AddProvider(drivertype.TSV, csvp)
 		h.files.AddDriverDetectors(csv.DetectCSV, csv.DetectTSV)
 
 		jsonp := &json.Provider{Log: log, Ingester: h.grips, Files: h.files}
-		h.registry.AddProvider(json.TypeJSON, jsonp)
-		h.registry.AddProvider(json.TypeJSONA, jsonp)
-		h.registry.AddProvider(json.TypeJSONL, jsonp)
+		h.registry.AddProvider(drivertype.JSON, jsonp)
+		h.registry.AddProvider(drivertype.JSONA, jsonp)
+		h.registry.AddProvider(drivertype.JSONL, jsonp)
 		h.files.AddDriverDetectors(
 			json.DetectJSON(driver.OptIngestSampleSize.Get(nil)),
 			json.DetectJSONA(driver.OptIngestSampleSize.Get(nil)),
 			json.DetectJSONL(driver.OptIngestSampleSize.Get(nil)),
 		)
 
-		h.registry.AddProvider(xlsx.Type, &xlsx.Provider{Log: log, Ingester: h.grips, Files: h.files})
+		h.registry.AddProvider(drivertype.XLSX, &xlsx.Provider{Log: log, Ingester: h.grips, Files: h.files})
 		h.files.AddDriverDetectors(xlsx.DetectXLSX)
 
 		h.addUserDrivers()
@@ -299,7 +299,7 @@ func (h *Helper) Source(handle string) *source.Source {
 	require.NoError(t, err,
 		"source %s was not found in %s", handle, testsrc.PathSrcsConfig)
 
-	if src.Type == sqlite3.Type {
+	if src.Type == drivertype.SQLite {
 		// This could be easily generalized for CSV/XLSX etc.
 		fpath, err := sqlite3.PathFromLocation(src)
 		require.NoError(t, err)
@@ -310,17 +310,13 @@ func (h *Helper) Source(handle string) *source.Source {
 			assert.NoError(t, srcFile.Close())
 		}()
 
-		destFile, err := os.CreateTemp("", "*_"+filepath.Base(src.Location))
+		destFile, err := h.files.CreateTemp("*_"+filepath.Base(src.Location), true)
 		require.NoError(t, err)
 		defer func() {
 			assert.NoError(t, destFile.Close())
 		}()
 
 		destFileName := destFile.Name()
-
-		h.Files().CleanupE(func() error {
-			return errz.Err(os.Remove(destFileName))
-		})
 
 		_, err = io.Copy(destFile, srcFile)
 		require.NoError(t, err)
@@ -684,7 +680,7 @@ func (h *Helper) InsertDefaultRow(src *source.Source, tbl string) {
 	drvr := h.SQLDriverFor(src)
 	var query string
 
-	if src.Type == mysql.Type {
+	if src.Type == drivertype.MySQL {
 		// One driver had to be different...
 		// We could push this mysql-specific logic down to the driver impl
 		// but prob not worth the effort just for one driver.
@@ -769,7 +765,7 @@ func (h *Helper) Grips() *driver.Grips {
 }
 
 // Files returns the helper's source.Files instance.
-func (h *Helper) Files() *source.Files {
+func (h *Helper) Files() *files.Files {
 	h.init()
 	return h.files
 }
@@ -872,9 +868,9 @@ func DriverDefsFrom(t testing.TB, cfgFiles ...string) []*userdriver.DriverDef {
 }
 
 // DriverDetectors returns the common set of TypeDetectorFuncs.
-func DriverDetectors() []source.DriverDetectFunc {
-	return []source.DriverDetectFunc{
-		source.DetectMagicNumber,
+func DriverDetectors() []files.TypeDetectFunc {
+	return []files.TypeDetectFunc{
+		files.DetectMagicNumber,
 		xlsx.DetectXLSX,
 		csv.DetectCSV,
 		csv.DetectTSV,

@@ -11,6 +11,7 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/driver"
+	"github.com/neilotoole/sq/libsq/files"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/testh/sakila"
 )
@@ -26,7 +27,7 @@ var (
 
 // newIngestJob is a constructor for the unexported ingestJob type.
 // If sampleSize <= 0, a default value is used.
-func newIngestJob(fromSrc *source.Source, newRdrFn source.NewReaderFunc, destGrip driver.Grip, sampleSize int,
+func newIngestJob(fromSrc *source.Source, newRdrFn files.NewReaderFunc, destGrip driver.Grip, sampleSize int,
 	flatten bool,
 ) ingestJob {
 	if sampleSize <= 0 {

@@ -68,12 +68,12 @@ type Source struct {
 }
 
 // Table returns the named table, or nil.
-func (md *Source) Table(tblName string) *Table {
-	if md == nil {
+func (s *Source) Table(tblName string) *Table {
+	if s == nil {
 		return nil
 	}
 
-	for _, tbl := range md.Tables {
+	for _, tbl := range s.Tables {
 		if tbl.Name == tblName {
 			return tbl
 		}
@@ -83,53 +83,53 @@ func (md *Source) Table(tblName string) *Table {
 }
 
 // Clone returns a deep copy of md. If md is nil, nil is returned.
-func (md *Source) Clone() *Source {
-	if md == nil {
-		return md
+func (s *Source) Clone() *Source {
+	if s == nil {
+		return s
 	}
 
-	c := &Source{
-		Handle:    md.Handle,
-		Location:  md.Location,
-		Name:      md.Name,
-		FQName:    md.FQName,
-		Driver:    md.Driver,
-		DBDriver:  md.DBDriver,
-		DBProduct: md.DBProduct,
-		DBVersion: md.DBVersion,
-		User:      md.User,
-		Size:      md.Size,
+	s2 := &Source{
+		Handle:    s.Handle,
+		Location:  s.Location,
+		Name:      s.Name,
+		FQName:    s.FQName,
+		Driver:    s.Driver,
+		DBDriver:  s.DBDriver,
+		DBProduct: s.DBProduct,
+		DBVersion: s.DBVersion,
+		User:      s.User,
+		Size:      s.Size,
 	}
 
-	if md.DBProperties != nil {
-		c.DBProperties = make(map[string]any, len(md.DBProperties))
-		for k, v := range md.DBProperties {
-			c.DBProperties[k] = v
+	if s.DBProperties != nil {
+		s2.DBProperties = make(map[string]any, len(s.DBProperties))
+		for k, v := range s.DBProperties {
+			s2.DBProperties[k] = v
 		}
 	}
 
-	if md.Tables != nil {
-		c.Tables = make([]*Table, len(md.Tables))
-		for i := range md.Tables {
-			c.Tables[i] = md.Tables[i].Clone()
+	if s.Tables != nil {
+		s2.Tables = make([]*Table, len(s.Tables))
+		for i := range s.Tables {
+			s2.Tables[i] = s.Tables[i].Clone()
 		}
 	}
 
-	return c
+	return s2
 }
 
 // TableNames is a convenience method that returns md's table names.
-func (md *Source) TableNames() []string {
-	names := make([]string, len(md.Tables))
-	for i, tblDef := range md.Tables {
+func (s *Source) TableNames() []string {
+	names := make([]string, len(s.Tables))
+	for i, tblDef := range s.Tables {
 		names[i] = tblDef.Name
 	}
 	return names
 }
 
 // String returns a log/debug friendly representation.
-func (md *Source) String() string {
-	bytes, _ := json.Marshal(md)
+func (s *Source) String() string {
+	bytes, _ := json.Marshal(s)
 	return string(bytes)
 }
 

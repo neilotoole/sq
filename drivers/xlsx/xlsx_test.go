@@ -14,7 +14,6 @@ import (
 	"golang.org/x/exp/maps"
 
 	"github.com/neilotoole/sq/cli/testrun"
-	"github.com/neilotoole/sq/drivers/xlsx"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/loz"
@@ -23,6 +22,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/timez"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/fixt"
 	"github.com/neilotoole/sq/testh/proj"
@@ -159,7 +159,7 @@ func TestOpenFileFormats(t *testing.T) {
 			th := testh.New(t)
 			src := th.Add(&source.Source{
 				Handle:   "@excel",
-				Type:     xlsx.Type,
+				Type:     drivertype.XLSX,
 				Location: filepath.Join("testdata", "file_formats", tc.filename),
 			})
 
@@ -259,7 +259,7 @@ func Test_XLSX_BadDateRecognition(t *testing.T) {
 
 	src := &source.Source{
 		Handle:   "@xlsx_bad_date",
-		Type:     xlsx.Type,
+		Type:     drivertype.XLSX,
 		Location: proj.Abs("drivers/xlsx/testdata/problem_with_recognizing_date_colA.xlsx"),
 		Options:  options.Options{driver.OptIngestHeader.Key(): true},
 	}
@@ -282,7 +282,7 @@ func TestHandleSomeSheetsEmpty(t *testing.T) {
 	th := testh.New(t)
 	src := th.Add(&source.Source{
 		Handle:   "@xlsx_empty_sheets",
-		Type:     xlsx.Type,
+		Type:     drivertype.XLSX,
 		Location: "testdata/some_sheets_empty.xlsx",
 	})
 
@@ -444,7 +444,7 @@ func TestDatetime(t *testing.T) {
 
 	src := &source.Source{
 		Handle:   "@excel/datetime",
-		Type:     xlsx.Type,
+		Type:     drivertype.XLSX,
 		Location: "testdata/datetime.xlsx",
 	}
 

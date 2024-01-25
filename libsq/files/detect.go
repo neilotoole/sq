@@ -1,4 +1,4 @@
-package source
+package files
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"io"
 	"mime"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/h2non/filetype"
@@ -16,10 +17,12 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/location"
 )
 
-// DriverDetectFunc interrogates a byte stream to determine
+// TypeDetectFunc interrogates a byte stream to determine
 // the source driver type. A score is returned indicating
 // the confidence that the driver type has been detected.
 // A score <= 0 is failure, a score >= 1 is success; intermediate
@@ -27,37 +30,35 @@ import (
 // An error is returned only if an IO problem occurred.
 // The implementation gets access to the byte stream by invoking
 // newRdrFn, and is responsible for closing any reader it opens.
-type DriverDetectFunc func(ctx context.Context, newRdrFn NewReaderFunc) (
+type TypeDetectFunc func(ctx context.Context, newRdrFn NewReaderFunc) (
 	detected drivertype.Type, score float32, err error)
 
-var _ DriverDetectFunc = DetectMagicNumber
-
 // AddDriverDetectors adds driver type detectors.
-func (fs *Files) AddDriverDetectors(detectFns ...DriverDetectFunc) {
+func (fs *Files) AddDriverDetectors(detectFns ...TypeDetectFunc) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 	fs.detectFns = append(fs.detectFns, detectFns...)
 }
 
-// DriverType returns the driver type of loc.
+// DetectType returns the driver type of loc.
 // This may result in loading files into the cache.
-func (fs *Files) DriverType(ctx context.Context, handle, loc string) (drivertype.Type, error) {
+func (fs *Files) DetectType(ctx context.Context, handle, loc string) (drivertype.Type, error) {
 	log := lg.FromContext(ctx).With(lga.Loc, loc)
-	ploc, err := parseLoc(loc)
+	fields, err := location.Parse(loc)
 	if err != nil {
 		return drivertype.None, err
 	}
 
-	if ploc.typ != drivertype.None {
-		return ploc.typ, nil
+	if fields.DriverType != drivertype.None {
+		return fields.DriverType, nil
 	}
 
-	if ploc.ext != "" {
-		mtype := mime.TypeByExtension(ploc.ext)
+	if fields.Ext != "" {
+		mtype := mime.TypeByExtension(fields.Ext)
 		if mtype == "" {
 			log.Debug("unknown mime type", lga.Type, mtype)
 		} else {
-			if typ, ok := typeFromMediaType(mtype); ok {
+			if typ, ok := driverFromMediaType(mtype); ok {
 				return typ, nil
 			}
 			log.Debug("unknown driver type for media type", lga.Type, mtype)
@@ -81,6 +82,30 @@ func (fs *Files) DriverType(ctx context.Context, handle, loc string) (drivertype
 	return typ, nil
 }
 
+// DetectStdinType detects the type of stdin as previously added
+// by AddStdin. An error is returned if AddStdin was not
+// first invoked. If the type cannot be detected, TypeNone and
+// nil are returned.
+func (fs *Files) DetectStdinType(ctx context.Context) (drivertype.Type, error) {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	if _, ok := fs.mStreams[source.StdinHandle]; !ok {
+		return drivertype.None, errz.New("must invoke Files.AddStdin before invoking DetectStdinType")
+	}
+
+	typ, ok, err := fs.detectType(ctx, source.StdinHandle, source.StdinHandle)
+	if err != nil {
+		return drivertype.None, err
+	}
+
+	if !ok {
+		return drivertype.None, nil
+	}
+
+	return typ, nil
+}
+
 // detectType detects the type of src's location. The value of Source.Type
 // is ignored. If the type cannot be detected, drivertype.None and false are
 // returned.
@@ -92,13 +117,13 @@ func (fs *Files) detectType(ctx context.Context, handle, loc string) (typ driver
 	start := time.Now()
 
 	var newRdrFn NewReaderFunc
-	if getLocType(loc) == locTypeLocalFile {
+	if location.TypeOf(loc) == location.TypeLocalFile {
 		newRdrFn = func(ctx context.Context) (io.ReadCloser, error) {
 			return errz.Return(os.Open(loc))
 		}
 	} else {
 		newRdrFn = func(ctx context.Context) (io.ReadCloser, error) {
-			src := &Source{Handle: handle, Location: loc}
+			src := &source.Source{Handle: handle, Location: loc}
 			return fs.newReader(ctx, src, false)
 		}
 	}
@@ -174,7 +199,9 @@ func (fs *Files) detectType(ctx context.Context, handle, loc string) (typ driver
 	return drivertype.None, false, nil
 }
 
-// DetectMagicNumber is a DriverDetectFunc that detects the "magic number"
+var _ TypeDetectFunc = DetectMagicNumber
+
+// DetectMagicNumber is a TypeDetectFunc that detects the "magic number"
 // from the start of files.
 func DetectMagicNumber(ctx context.Context, newRdrFn NewReaderFunc,
 ) (detected drivertype.Type, score float32, err error) {
@@ -206,35 +233,33 @@ func DetectMagicNumber(ctx context.Context, newRdrFn NewReaderFunc,
 		// something we can do about it, such as first extracting
 		// the zip, and then reading the inner magic number, but
 		// the xlsx.DetectXLSX func should catch the type anyway.
-		return typeXLSX, 1.0, nil
+		return drivertype.XLSX, 1.0, nil
 	case matchers.TypeXls:
 		// TODO: our xlsx driver doesn't yet support XLS
-		return typeXLSX, 1.0, errz.Errorf("Microsoft XLS (%s) not currently supported", ftype)
+		return drivertype.XLSX, 1.0, errz.Errorf("Microsoft XLS (%s) not currently supported", ftype)
 	case matchers.TypeSqlite:
-		return typeSL3, 1.0, nil
+		return drivertype.SQLite, 1.0, nil
 	}
 }
 
-// DetectStdinType detects the type of stdin as previously added
-// by AddStdin. An error is returned if AddStdin was not
-// first invoked. If the type cannot be detected, TypeNone and
-// nil are returned.
-func (fs *Files) DetectStdinType(ctx context.Context) (drivertype.Type, error) {
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
-
-	if _, ok := fs.mStreams[StdinHandle]; !ok {
-		return drivertype.None, errz.New("must invoke Files.AddStdin before invoking DetectStdinType")
+// driverFromMediaType returns the driver type corresponding to mediatype.
+// For example:
+//
+//	xlsx		application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+//	csv			text/csv
+//
+// Note that we don't rely on this function for types such
+// as application/json, because JSON can map to multiple
+// driver types (json, jsona, jsonl).
+func driverFromMediaType(mediatype string) (typ drivertype.Type, ok bool) {
+	switch {
+	case strings.Contains(mediatype, `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`):
+		return drivertype.XLSX, true
+	case strings.Contains(mediatype, `text/csv`):
+		return drivertype.CSV, true
+	case strings.Contains(mediatype, `text/tab-separated-values`):
+		return drivertype.TSV, true
 	}
 
-	typ, ok, err := fs.detectType(ctx, StdinHandle, StdinHandle)
-	if err != nil {
-		return drivertype.None, err
-	}
-
-	if !ok {
-		return drivertype.None, nil
-	}
-
-	return typ, nil
+	return drivertype.None, false
 }

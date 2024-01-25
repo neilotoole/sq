@@ -13,14 +13,12 @@ import (
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/output/format"
 	"github.com/neilotoole/sq/cli/testrun"
-	"github.com/neilotoole/sq/drivers/csv"
-	"github.com/neilotoole/sq/drivers/postgres"
-	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/location"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/proj"
@@ -78,13 +76,13 @@ func TestCmdInspect_json_yaml(t *testing.T) { //nolint:tparallel
 					require.NoError(t, tf.unmarshalFn(tr.Out.Bytes(), srcMeta))
 					require.Equal(t, src.Type, srcMeta.Driver)
 					require.Equal(t, src.Handle, srcMeta.Handle)
-					require.Equal(t, source.RedactLocation(src.Location), srcMeta.Location)
+					require.Equal(t, location.Redact(src.Location), srcMeta.Location)
 
 					gotTableNames := srcMeta.TableNames()
 					gotTableNames = lo.Intersect(gotTableNames, possibleTbls)
 
 					for _, wantTblName := range tc.wantTbls {
-						if src.Type == postgres.Type && wantTblName == sakila.TblFilmText {
+						if src.Type == drivertype.Pg && wantTblName == sakila.TblFilmText {
 							// Postgres sakila DB doesn't have film_text for some reason
 							continue
 						}
@@ -189,10 +187,10 @@ func TestCmdInspect_text(t *testing.T) { //nolint:tparallel
 			output := tr.Out.String()
 			require.Contains(t, output, src.Type)
 			require.Contains(t, output, src.Handle)
-			require.Contains(t, output, source.RedactLocation(src.Location))
+			require.Contains(t, output, location.Redact(src.Location))
 
 			for _, wantTblName := range tc.wantTbls {
-				if src.Type == postgres.Type && wantTblName == "film_text" {
+				if src.Type == drivertype.Pg && wantTblName == "film_text" {
 					// Postgres sakila DB doesn't have film_text for some reason
 					continue
 				}
@@ -228,7 +226,7 @@ func TestCmdInspect_text(t *testing.T) { //nolint:tparallel
 				output := tr2.Out.String()
 				require.Contains(t, output, src.Type)
 				require.Contains(t, output, src.Handle)
-				require.Contains(t, output, source.RedactLocation(src.Location))
+				require.Contains(t, output, location.Redact(src.Location))
 			})
 
 			t.Run("inspect_dbprops", func(t *testing.T) {
@@ -264,7 +262,7 @@ func TestCmdInspect_smoke(t *testing.T) {
 
 	md := &metadata.Source{}
 	require.NoError(t, json.Unmarshal(tr.Out.Bytes(), md))
-	require.Equal(t, sqlite3.Type, md.Driver)
+	require.Equal(t, drivertype.SQLite, md.Driver)
 	require.Equal(t, sakila.SL3, md.Handle)
 	require.Equal(t, src.RedactedLocation(), md.Location)
 	require.Equal(t, sakila.AllTblsViews(), md.TableNames())
@@ -279,7 +277,7 @@ func TestCmdInspect_smoke(t *testing.T) {
 
 	md = &metadata.Source{}
 	require.NoError(t, json.Unmarshal(tr.Out.Bytes(), md))
-	require.Equal(t, csv.TypeCSV, md.Driver)
+	require.Equal(t, drivertype.CSV, md.Driver)
 	require.Equal(t, sakila.CSVActor, md.Handle)
 	require.Equal(t, src.Location, md.Location)
 	require.Equal(t, []string{source.MonotableName}, md.TableNames())
@@ -296,12 +294,12 @@ func TestCmdInspect_stdin(t *testing.T) {
 	}{
 		{
 			fpath:    proj.Abs(sakila.PathCSVActor),
-			wantType: csv.TypeCSV,
+			wantType: drivertype.CSV,
 			wantTbls: []string{source.MonotableName},
 		},
 		{
 			fpath:    proj.Abs(sakila.PathTSVActor),
-			wantType: csv.TypeTSV,
+			wantType: drivertype.TSV,
 			wantTbls: []string{source.MonotableName},
 		},
 	}

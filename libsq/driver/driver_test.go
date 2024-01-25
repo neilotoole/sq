@@ -10,12 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/neilotoole/sq/drivers/csv"
-	"github.com/neilotoole/sq/drivers/mysql"
-	"github.com/neilotoole/sq/drivers/postgres"
-	"github.com/neilotoole/sq/drivers/sqlite3"
-	"github.com/neilotoole/sq/drivers/sqlserver"
-	"github.com/neilotoole/sq/drivers/xlsx"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/options"
@@ -338,28 +332,28 @@ func TestNewBatchInsert(t *testing.T) {
 
 // coreDrivers is a slice of the core driver types.
 var coreDrivers = []drivertype.Type{
-	postgres.Type,
-	sqlserver.Type,
-	sqlite3.Type,
-	mysql.Type,
-	csv.TypeCSV,
-	csv.TypeTSV,
-	xlsx.Type,
+	drivertype.Pg,
+	drivertype.MSSQL,
+	drivertype.SQLite,
+	drivertype.MySQL,
+	drivertype.CSV,
+	drivertype.TSV,
+	drivertype.XLSX,
 }
 
 // sqlDrivers is a slice of the SQL driver types.
 var sqlDrivers = []drivertype.Type{
-	postgres.Type,
-	sqlserver.Type,
-	sqlite3.Type,
-	mysql.Type,
+	drivertype.Pg,
+	drivertype.MSSQL,
+	drivertype.SQLite,
+	drivertype.MySQL,
 }
 
 // docDrivers is a slice of the doc driver types.
 var docDrivers = []drivertype.Type{
-	csv.TypeCSV,
-	csv.TypeTSV,
-	xlsx.Type,
+	drivertype.CSV,
+	drivertype.TSV,
+	drivertype.XLSX,
 }
 
 func TestRegistry_DriversMetadata_All(t *testing.T) {

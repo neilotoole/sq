@@ -13,13 +13,12 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/driver"
+	"github.com/neilotoole/sq/libsq/files"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
 const (
-	// Type is the sq source driver type for XLSX.
-	Type = drivertype.Type("xlsx")
 
 	// laSheet is a constant for the "sheet" log attribute.
 	laSheet = "sheet"
@@ -28,13 +27,13 @@ const (
 // Provider implements driver.Provider.
 type Provider struct {
 	Log      *slog.Logger
-	Files    *source.Files
+	Files    *files.Files
 	Ingester driver.GripOpenIngester
 }
 
 // DriverFor implements driver.Provider.
 func (p *Provider) DriverFor(typ drivertype.Type) (driver.Driver, error) {
-	if typ != Type {
+	if typ != drivertype.XLSX {
 		return nil, errz.Errorf("unsupported driver type {%s}", typ)
 	}
 
@@ -45,13 +44,13 @@ func (p *Provider) DriverFor(typ drivertype.Type) (driver.Driver, error) {
 type Driver struct {
 	log      *slog.Logger
 	ingester driver.GripOpenIngester
-	files    *source.Files
+	files    *files.Files
 }
 
 // DriverMetadata implements driver.Driver.
 func (d *Driver) DriverMetadata() driver.Metadata {
 	return driver.Metadata{
-		Type:        Type,
+		Type:        drivertype.XLSX,
 		Description: "Microsoft Excel XLSX",
 		Doc:         "https://en.wikipedia.org/wiki/Microsoft_Excel",
 	}
@@ -99,8 +98,8 @@ func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Grip, err
 // ValidateSource implements driver.Driver.
 func (d *Driver) ValidateSource(src *source.Source) (*source.Source, error) {
 	d.log.Debug("Validating source", lga.Src, src)
-	if src.Type != Type {
-		return nil, errz.Errorf("expected driver type {%s} but got {%s}", Type, src.Type)
+	if src.Type != drivertype.XLSX {
+		return nil, errz.Errorf("expected driver type {%s} but got {%s}", drivertype.XLSX, src.Type)
 	}
 
 	return src, nil

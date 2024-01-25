@@ -17,7 +17,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/driver"
-	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/files"
 )
 
 type runKey struct{}
@@ -72,7 +72,7 @@ type Run struct {
 	DriverRegistry *driver.Registry
 
 	// Files manages file access.
-	Files *source.Files
+	Files *files.Files
 
 	// Grips mediates access to driver.Grip instances.
 	Grips *driver.Grips

@@ -13,13 +13,13 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/stringz"
-	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/files"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
-// DetectJSON returns a source.DriverDetectFunc that can detect JSON.
-func DetectJSON(sampleSize int) source.DriverDetectFunc { // FIXME: is DetectJSON actually working?
-	return func(ctx context.Context, newRdrFn source.NewReaderFunc) (detected drivertype.Type, score float32,
+// DetectJSON returns a files.TypeDetectFunc that can detect JSON.
+func DetectJSON(sampleSize int) files.TypeDetectFunc { // FIXME: is DetectJSON actually working?
+	return func(ctx context.Context, newRdrFn files.NewReaderFunc) (detected drivertype.Type, score float32,
 		err error,
 	) {
 		log := lg.FromContext(ctx)
@@ -89,9 +89,9 @@ func DetectJSON(sampleSize int) source.DriverDetectFunc { // FIXME: is DetectJSO
 				// If the input is a JSON object on a single line, it could
 				// be TypeJSON or TypeJSONL. In deference to TypeJSONL, we
 				// return 0.9 instead of 1.0
-				return TypeJSON, 0.9, nil
+				return drivertype.JSON, 0.9, nil
 			default:
-				return TypeJSON, 1.0, nil
+				return drivertype.JSON, 1.0, nil
 			}
 
 		case leftBracket:
@@ -131,7 +131,7 @@ func DetectJSON(sampleSize int) source.DriverDetectFunc { // FIXME: is DetectJSO
 		}
 
 		if validObjCount > 0 {
-			return TypeJSON, 1.0, nil
+			return drivertype.JSON, 1.0, nil
 		}
 
 		return drivertype.None, 0, nil

@@ -21,6 +21,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
+	"github.com/neilotoole/sq/libsq/files"
 	"github.com/neilotoole/sq/libsq/source"
 )
 
@@ -29,7 +30,7 @@ import (
 // are written to destGrip.
 type ingestJob struct {
 	fromSrc  *source.Source
-	newRdrFn source.NewReaderFunc
+	newRdrFn files.NewReaderFunc
 	destGrip driver.Grip
 
 	// sampleSize is the maximum number of values to

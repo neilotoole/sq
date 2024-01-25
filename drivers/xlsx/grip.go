@@ -8,7 +8,10 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/driver"
+	"github.com/neilotoole/sq/libsq/files"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/location"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
@@ -17,7 +20,7 @@ import (
 type grip struct {
 	log    *slog.Logger
 	src    *source.Source
-	files  *source.Files
+	files  *files.Files
 	dbGrip driver.Grip
 }
 
@@ -44,9 +47,9 @@ func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Sou
 	}
 
 	md.Handle = g.src.Handle
-	md.Driver = Type
+	md.Driver = drivertype.XLSX
 	md.Location = g.src.Location
-	if md.Name, err = source.LocationFileName(g.src); err != nil {
+	if md.Name, err = location.Filename(g.src.Location); err != nil {
 		return nil, err
 	}
 	md.FQName = md.Name

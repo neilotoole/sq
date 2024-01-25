@@ -5,11 +5,12 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/location"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/tu"
 )
@@ -25,7 +26,7 @@ const (
 func newSource(handle string) *source.Source {
 	return &source.Source{
 		Handle:   handle,
-		Type:     sqlite3.Type,
+		Type:     drivertype.SQLite,
 		Location: proj.Abs("drivers/sqlite3/testdata/sakila.db"),
 	}
 }
@@ -206,7 +207,7 @@ func TestShortLocation(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			got := source.ShortLocation(tc.loc)
+			got := location.Short(tc.loc)
 			t.Logf("%s  -->  %s", tc.loc, got)
 			require.Equal(t, tc.want, got)
 		})
@@ -549,7 +550,7 @@ func TestSource_LogValue(t *testing.T) {
 
 	src := &source.Source{
 		Handle:   "@sakila",
-		Type:     sqlite3.Type,
+		Type:     drivertype.SQLite,
 		Location: "/tmp/sakila.db",
 		Options:  nil,
 	}
