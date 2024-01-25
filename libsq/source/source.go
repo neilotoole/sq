@@ -4,12 +4,9 @@ package source
 import (
 	"fmt"
 	"log/slog"
-	"net/url"
 	"strings"
 
 	"github.com/neilotoole/sq/libsq/source/location"
-
-	"github.com/xo/dburl"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -125,6 +122,15 @@ func (s *Source) String() string {
 	return fmt.Sprintf("%s|%s|%s", s.Handle, s.Type, s.RedactedLocation())
 }
 
+// ShortLocation returns a short location string. For example, the
+// base name (data.xlsx) for a file or for a DSN, user@host[:port]/db.
+func (s *Source) ShortLocation() string {
+	if s == nil {
+		return ""
+	}
+	return location.ShortLocation(s.Location)
+}
+
 // Group returns the source's group. If s is in the root group,
 // the empty string is returned.
 //
@@ -150,7 +156,7 @@ func (s *Source) RedactedLocation() string {
 	if s == nil {
 		return ""
 	}
-	return RedactLocation(s.Location)
+	return location.RedactLocation(s.Location)
 }
 
 // Clone returns a deep copy of s. If s is nil, nil is returned.
@@ -184,48 +190,6 @@ func RedactSources(srcs ...*Source) []*Source {
 	}
 
 	return a
-}
-
-// RedactLocation returns a redacted version of the source
-// location loc, with the password component (if any) of
-// the location masked.
-func RedactLocation(loc string) string {
-	switch {
-	case loc == "",
-		strings.HasPrefix(loc, "/"),
-		strings.HasPrefix(loc, "sqlite3://"):
-
-		// REVISIT: If it's a sqlite URI, could it have auth details in there?
-		// e.g. "?_auth_pass=foo"
-		return loc
-	case strings.HasPrefix(loc, "http://"), strings.HasPrefix(loc, "https://"):
-		u, err := url.ParseRequestURI(loc)
-		if err != nil {
-			// If we can't parse it, just return the original loc
-			return loc
-		}
-
-		return u.Redacted()
-	}
-
-	// At this point, we expect it's a DSN
-	dbu, err := dburl.Parse(loc)
-	if err != nil {
-		// Shouldn't happen, but if it does, simply return the
-		// unmodified loc.
-		return loc
-	}
-
-	return dbu.Redacted()
-}
-
-// ShortLocation returns a short location string. For example, the
-// base name (data.xlsx) for a file or for a DSN, user@host[:port]/db.
-func (s *Source) ShortLocation() string {
-	if s == nil {
-		return ""
-	}
-	return location.ShortLocation(s.Location)
 }
 
 // Redefine the drivertype.Type values here rather than introducing

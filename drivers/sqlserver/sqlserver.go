@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/source/location"
+
 	"github.com/microsoft/go-mssqldb/msdsn"
 
 	"github.com/neilotoole/sq/libsq/ast"
@@ -186,7 +188,7 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 		log.Debug("Using catalog as database in connection string",
 			lga.Src, src,
 			lga.Catalog, src.Catalog,
-			lga.Conn, source.RedactLocation(loc),
+			lga.Conn, location.RedactLocation(loc),
 		)
 	}
 

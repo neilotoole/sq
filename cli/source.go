@@ -5,6 +5,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/source/location"
+
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/flag"
@@ -221,13 +223,13 @@ func newSource(ctx context.Context, dp driver.Provider, typ drivertype.Type, han
 		log.Debug("Create new data source",
 			lga.Handle, handle,
 			lga.Driver, typ,
-			lga.Loc, source.RedactLocation(loc),
+			lga.Loc, location.RedactLocation(loc),
 		)
 	} else {
 		log.Debug("Create new data source with opts",
 			lga.Handle, handle,
 			lga.Driver, typ,
-			lga.Loc, source.RedactLocation(loc),
+			lga.Loc, location.RedactLocation(loc),
 		)
 	}
 

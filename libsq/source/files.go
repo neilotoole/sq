@@ -237,7 +237,7 @@ func (fs *Files) filepath(src *Source) (string, error) {
 	case location.LocTypeStdin:
 		return "", errz.Errorf("cannot get filepath of stdin source: %s", src.Handle)
 	default:
-		return "", errz.Errorf("unknown source location type for %s: %s", src.Handle, RedactLocation(src.Location))
+		return "", errz.Errorf("unknown source location type for %s: %s", src.Handle, location.RedactLocation(src.Location))
 	}
 }
 

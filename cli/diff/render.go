@@ -2,8 +2,8 @@ package diff
 
 import (
 	"github.com/neilotoole/sq/libsq/core/ioz"
-	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/location"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
@@ -36,7 +36,7 @@ func renderSourceMeta2YAML(sm *metadata.Source) (string, error) {
 
 	smr := &sourceMeta{
 		Handle:     sm.Handle,
-		Location:   source.RedactLocation(sm.Location),
+		Location:   location.RedactLocation(sm.Location),
 		Name:       sm.Name,
 		FQName:     sm.FQName,
 		Schema:     sm.Schema,

@@ -377,3 +377,36 @@ const (
 	typeCSV  = drivertype.Type("csv")
 	typeTSV  = drivertype.Type("tsv")
 )
+
+// RedactLocation returns a redacted version of the source
+// location loc, with the password component (if any) of
+// the location masked.
+func RedactLocation(loc string) string {
+	switch {
+	case loc == "",
+		strings.HasPrefix(loc, "/"),
+		strings.HasPrefix(loc, "sqlite3://"):
+
+		// REVISIT: If it's a sqlite URI, could it have auth details in there?
+		// e.g. "?_auth_pass=foo"
+		return loc
+	case strings.HasPrefix(loc, "http://"), strings.HasPrefix(loc, "https://"):
+		u, err := url.ParseRequestURI(loc)
+		if err != nil {
+			// If we can't parse it, just return the original loc
+			return loc
+		}
+
+		return u.Redacted()
+	}
+
+	// At this point, we expect it's a DSN
+	dbu, err := dburl.Parse(loc)
+	if err != nil {
+		// Shouldn't happen, but if it does, simply return the
+		// unmodified loc.
+		return loc
+	}
+
+	return dbu.Redacted()
+}

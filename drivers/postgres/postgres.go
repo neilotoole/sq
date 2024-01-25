@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/source/location"
+
 	pgx "github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
@@ -179,7 +181,7 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 		log.Debug("Using catalog as database in connection string",
 			lga.Src, src,
 			lga.Catalog, src.Catalog,
-			lga.Conn, source.RedactLocation(connStr),
+			lga.Conn, location.RedactLocation(connStr),
 		)
 	}
 
@@ -198,7 +200,7 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 
 			log.Debug("Setting default schema (search_path) on Postgres DB connection",
 				lga.Src, src,
-				lga.Conn, source.RedactLocation(dbCfg.ConnString()),
+				lga.Conn, location.RedactLocation(dbCfg.ConnString()),
 				lga.Catalog, src.Catalog,
 				lga.Schema, src.Schema,
 				lga.Old, oldSearchPath,

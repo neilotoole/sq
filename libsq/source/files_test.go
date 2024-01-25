@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/source/location"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
@@ -104,7 +106,7 @@ func TestFiles_DriverType(t *testing.T) {
 
 	for _, tc := range testCases {
 		tc := tc
-		t.Run(tu.Name(source.RedactLocation(tc.loc)), func(t *testing.T) {
+		t.Run(tu.Name(location.RedactLocation(tc.loc)), func(t *testing.T) {
 			ctx := lg.NewContext(context.Background(), lgt.New(t))
 
 			fs, err := source.NewFiles(ctx, nil, testh.TempLockFunc(t), tu.TempDir(t, true), tu.CacheDir(t, true))
