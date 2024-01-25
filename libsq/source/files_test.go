@@ -2,12 +2,13 @@ package source_test
 
 import (
 	"context"
-	"github.com/neilotoole/sq/libsq/core/ioz"
 	"io"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/neilotoole/sq/libsq/core/ioz"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -214,6 +215,11 @@ func TestFiles_Stdin(t *testing.T) {
 			err = fs.AddStdin(th.Context, f) // f is closed by AddStdin
 			require.NoError(t, err)
 
+			// Files.Filesize will block until the stream is fully read.
+			// r, err := fs.NewReader(th.Context, stdinSrc, false)
+			// require.NoError(t, err)
+			// require.NoError(t, ioz.Drain(r))
+
 			typ, err := fs.DetectStdinType(th.Context)
 			if tc.wantErr {
 				require.Error(t, err)
@@ -242,7 +248,7 @@ func TestFiles_Stdin_ErrorWrongOrder(t *testing.T) {
 	require.Equal(t, csv.TypeCSV, typ)
 }
 
-func TestFiles_Size(t *testing.T) {
+func TestFiles_Filesize(t *testing.T) {
 	f, err := os.Open(proj.Abs(sakila.PathCSVActor))
 	require.NoError(t, err)
 	t.Cleanup(func() { assert.NoError(t, f.Close()) })
@@ -269,18 +275,14 @@ func TestFiles_Size(t *testing.T) {
 	// Verify that this works with @stdin as well
 	require.NoError(t, fs.AddStdin(th.Context, f2))
 
-	src := &source.Source{
-		Handle:   "@stdin",
-		Location: "@stdin",
-	}
+	stdinSrc := &source.Source{Handle: "@stdin", Location: "@stdin"}
 
 	// Files.Filesize will block until the stream is fully read.
-	r, err := fs.NewReader(th.Context, src, false)
+	r, err := fs.NewReader(th.Context, stdinSrc, false)
 	require.NoError(t, err)
 	require.NoError(t, ioz.Drain(r))
-	require.NoError(t, r.Close())
 
-	gotSize2, err := fs.Filesize(th.Context, src)
+	gotSize2, err := fs.Filesize(th.Context, stdinSrc)
 	require.NoError(t, err)
 	require.Equal(t, wantSize, gotSize2)
 }

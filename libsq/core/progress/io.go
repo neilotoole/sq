@@ -11,7 +11,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/ioz/contextio"
 )
 
-// NewWriter returns a [progress.Writer] that wraps w, is context-aware, and
+// NewWriter returns a progress.Writer that wraps w, is context-aware, and
 // generates a progress bar as bytes are written to w. It is expected that ctx
 // contains a *progress.Progress, as returned by progress.FromContext. If not,
 // this function delegates to contextio.NewWriter: the returned writer will
@@ -19,19 +19,19 @@ import (
 //
 // Context state is checked BEFORE every Write.
 //
-// The returned [progress.Writer] implements [io.ReaderFrom] to allow [io.Copy]
+// The returned progress.Writer implements io.ReaderFrom to allow io.Copy
 // to select the best strategy while still checking the context state before
 // every chunk transfer.
 //
-// The returned [progress.Writer] also implements [io.Closer], even if the
+// The returned progress.Writer also implements io.Closer, even if the
 // underlying writer does not. This is necessary because we need a means of
 // stopping the progress bar when writing is complete. If the underlying writer
-// does implement [io.Closer], it will be closed when the returned writer is
+// does implement io.Closer, it will be closed when the returned writer is
 // closed.
 //
 // The caller is expected to close the returned writer, which results in the
 // progress bar being removed. However, the progress bar can also be removed
-// independently of closing the writer by invoking [Writer.Stop].
+// independently of closing the writer by invoking Writer.Stop.
 //
 // If size is unknown, set to -1; this will result in an indeterminate progress
 // spinner instead of a bar.
@@ -64,7 +64,7 @@ type progWriter struct {
 	b       *Bar
 }
 
-// Write implements [io.Writer], but with context and progress interaction.
+// Write implements io.Writer, but with context and progress interaction.
 func (w *progWriter) Write(p []byte) (n int, err error) {
 	select {
 	case <-w.ctx.Done():
@@ -83,7 +83,7 @@ func (w *progWriter) Write(p []byte) (n int, err error) {
 	return n, err
 }
 
-// Close implements [io.WriteCloser], but with context and
+// Close implements io.WriteCloser, but with context and
 // progress interaction.
 func (w *progWriter) Close() error {
 	w.b.Stop()
@@ -102,7 +102,7 @@ func (w *progWriter) Close() error {
 	}
 }
 
-// NewReader returns an [io.Reader] that wraps r, is context-aware, and
+// NewReader returns an io.Reader that wraps r, is context-aware, and
 // generates a progress bar as bytes are read from r. It is expected that ctx
 // contains a *progress.Progress, as returned by progress.FromContext. If not,
 // this function delegates to contextio.NewReader: the returned reader will
@@ -110,10 +110,10 @@ func (w *progWriter) Close() error {
 //
 // Context state is checked BEFORE every Read.
 //
-// The returned [io.Reader] also implements [io.Closer], even if the underlying
+// The returned io.Reader also implements io.Closer, even if the underlying
 // reader does not. This is necessary because we need a means of stopping the
 // progress bar when writing is complete. If the underlying reader does
-// implement [io.Closer], it will be closed when the returned reader is closed.
+// implement io.Closer, it will be closed when the returned reader is closed.
 func NewReader(ctx context.Context, msg string, size int64, r io.Reader) io.Reader {
 	if r, ok := r.(*progReader); ok && ctx == r.ctx {
 		return r
@@ -143,7 +143,7 @@ type progReader struct {
 	b       *Bar
 }
 
-// Close implements [io.ReadCloser], but with context awareness.
+// Close implements io.ReadCloser, but with context awareness.
 func (r *progReader) Close() error {
 	r.b.Stop()
 
@@ -160,7 +160,7 @@ func (r *progReader) Close() error {
 	}
 }
 
-// Read implements [io.Reader], but with context and progress interaction.
+// Read implements io.Reader, but with context and progress interaction.
 func (r *progReader) Read(p []byte) (n int, err error) {
 	select {
 	case <-r.ctx.Done():
@@ -181,7 +181,7 @@ func (r *progReader) Read(p []byte) (n int, err error) {
 
 var _ io.ReaderFrom = (*progCopier)(nil)
 
-// Writer is an [io.WriteCloser] as returned by [NewWriter].
+// Writer is an io.WriteCloser as returned by NewWriter.
 type Writer interface {
 	io.WriteCloser
 
@@ -194,16 +194,16 @@ type Writer interface {
 
 var _ Writer = (*writerAdapter)(nil)
 
-// writerAdapter wraps an io.Writer to implement [progress.Writer].
-// This is only used, by [NewWriter], when there is no progress bar
-// in the context, and thus [NewWriter] delegates to contextio.NewWriter,
-// but we still need to implement [progress.Writer].
+// writerAdapter wraps an io.Writer to implement progress.Writer.
+// This is only used, by NewWriter, when there is no progress bar
+// in the context, and thus NewWriter delegates to contextio.NewWriter,
+// but we still need to implement progress.Writer.
 type writerAdapter struct {
 	io.Writer
 }
 
-// Close implements [io.WriteCloser]. If the underlying
-// writer implements [io.Closer], it will be closed.
+// Close implements io.WriteCloser. If the underlying
+// writer implements io.Closer, it will be closed.
 func (w writerAdapter) Close() error {
 	if c, ok := w.Writer.(io.Closer); ok {
 		return c.Close()
@@ -211,7 +211,7 @@ func (w writerAdapter) Close() error {
 	return nil
 }
 
-// Stop implements [Writer] and is no-op.
+// Stop implements Writer and is no-op.
 func (w writerAdapter) Stop() {
 }
 
@@ -221,12 +221,12 @@ type progCopier struct {
 	progWriter
 }
 
-// Stop implements [progress.Writer].
+// Stop implements progress.Writer.
 func (w *progCopier) Stop() {
 	w.b.Stop()
 }
 
-// ReadFrom implements [io.ReaderFrom], but with context and
+// ReadFrom implements io.ReaderFrom, but with context and
 // progress interaction.
 func (w *progCopier) ReadFrom(r io.Reader) (n int64, err error) {
 	if _, ok := w.w.(io.ReaderFrom); ok {

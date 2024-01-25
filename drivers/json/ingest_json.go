@@ -19,7 +19,7 @@ import (
 
 // DetectJSON returns a source.DriverDetectFunc that can detect JSON.
 func DetectJSON(sampleSize int) source.DriverDetectFunc { // FIXME: is DetectJSON actually working?
-	return func(ctx context.Context, openFn source.NewReaderFunc) (detected drivertype.Type, score float32,
+	return func(ctx context.Context, newRdrFn source.NewReaderFunc) (detected drivertype.Type, score float32,
 		err error,
 	) {
 		log := lg.FromContext(ctx)
@@ -29,7 +29,7 @@ func DetectJSON(sampleSize int) source.DriverDetectFunc { // FIXME: is DetectJSO
 		}()
 
 		var r1, r2 io.ReadCloser
-		r1, err = openFn(ctx)
+		r1, err = newRdrFn(ctx)
 		if err != nil {
 			return drivertype.None, 0, errz.Err(err)
 		}
@@ -52,7 +52,7 @@ func DetectJSON(sampleSize int) source.DriverDetectFunc { // FIXME: is DetectJSO
 			return drivertype.None, 0, nil
 		case leftBrace:
 			// The input is a single JSON object
-			r2, err = openFn(ctx)
+			r2, err = newRdrFn(ctx)
 
 			// buf gets a copy of what is read from r2
 			buf := &buffer{}
@@ -98,7 +98,7 @@ func DetectJSON(sampleSize int) source.DriverDetectFunc { // FIXME: is DetectJSO
 			// The input is one or more JSON objects inside an array
 		}
 
-		r2, err = openFn(ctx)
+		r2, err = newRdrFn(ctx)
 		if err != nil {
 			return drivertype.None, 0, errz.Err(err)
 		}
@@ -141,7 +141,7 @@ func DetectJSON(sampleSize int) source.DriverDetectFunc { // FIXME: is DetectJSO
 func ingestJSON(ctx context.Context, job ingestJob) error {
 	log := lg.FromContext(ctx)
 
-	r, err := job.openFn(ctx)
+	r, err := job.newRdrFn(ctx)
 	if err != nil {
 		return err
 	}

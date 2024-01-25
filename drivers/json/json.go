@@ -108,8 +108,8 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, er
 	ingestFn := func(ctx context.Context, destGrip driver.Grip) error {
 		job := ingestJob{
 			fromSrc: src,
-			openFn: func(ctx context.Context) (io.ReadCloser, error) {
-				log.Debug("JSON ingest job openFn", lga.Src, src)
+			newRdrFn: func(ctx context.Context) (io.ReadCloser, error) {
+				log.Debug("JSON ingest job newRdrFn", lga.Src, src)
 				return d.files.NewReader(ctx, src, false)
 			},
 			destGrip:   destGrip,

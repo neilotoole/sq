@@ -16,7 +16,7 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 )
 
-// MsgIngestRecords is the typical message used with [libsq.NewDBWriter]
+// MsgIngestRecords is the typical message used with libsq.NewDBWriter
 // to indicate that records are being ingested.
 const MsgIngestRecords = "Ingesting records"
 
@@ -194,7 +194,7 @@ func (w *DBWriter) Open(ctx context.Context, cancelFn context.CancelFunc, recMet
 				// Otherwise, we successfully wrote rec to tx.
 				// Therefore continue to wait/select for the next
 				// element on recordCh (or for recordCh to close)
-				// or for ctx.ReadersDone indicating timeout or cancel etc.
+				// or for ctx.Done indicating timeout or cancel etc.
 			}
 		}
 	}()

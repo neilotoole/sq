@@ -79,18 +79,18 @@ func TestIngestJSONL_Flat(t *testing.T) {
 		t.Run(tu.Name(i, tc.fpath, tc.input), func(t *testing.T) {
 			t.Parallel()
 
-			openFn := func(ctx context.Context) (io.ReadCloser, error) {
+			newRdrFn := func(ctx context.Context) (io.ReadCloser, error) {
 				return io.NopCloser(strings.NewReader(tc.input)), nil
 			}
 
 			if tc.fpath != "" {
-				openFn = func(ctx context.Context) (io.ReadCloser, error) {
+				newRdrFn = func(ctx context.Context) (io.ReadCloser, error) {
 					return os.Open(filepath.Join("testdata", tc.fpath))
 				}
 			}
 
 			th, src, _, grip, _ := testh.NewWith(t, testsrc.EmptyDB)
-			job := json.NewIngestJob(src, openFn, grip, 0, true)
+			job := json.NewIngestJob(src, newRdrFn, grip, 0, true)
 
 			err := json.IngestJSONL(th.Context, job)
 			if tc.wantErr {
@@ -112,12 +112,12 @@ func TestIngestJSONL_Flat(t *testing.T) {
 func TestIngestJSON_Flat(t *testing.T) {
 	t.Parallel()
 
-	openFn := func(context.Context) (io.ReadCloser, error) {
+	newRdrFn := func(context.Context) (io.ReadCloser, error) {
 		return os.Open("testdata/actor.json")
 	}
 
 	th, src, _, grip, _ := testh.NewWith(t, testsrc.EmptyDB)
-	job := json.NewIngestJob(src, openFn, grip, 0, true)
+	job := json.NewIngestJob(src, newRdrFn, grip, 0, true)
 
 	err := json.IngestJSON(th.Context, job)
 	require.NoError(t, err)

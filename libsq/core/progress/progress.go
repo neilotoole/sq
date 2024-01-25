@@ -43,9 +43,9 @@ func NewContext(ctx context.Context, p *Progress) context.Context {
 	return context.WithValue(ctx, progCtxKey{}, p)
 }
 
-// FromContext returns the [Progress] added to ctx via NewContext,
+// FromContext returns the Progress added to ctx via NewContext,
 // or returns nil. Note that it is safe to invoke the methods
-// of a nil [Progress].
+// of a nil Progress.
 func FromContext(ctx context.Context) *Progress {
 	if ctx == nil {
 		return nil
@@ -102,7 +102,7 @@ func Incr(ctx context.Context, n int) {
 // New returns a new Progress instance, which is a container for progress bars.
 // The returned Progress instance is safe for concurrent use, and all of its
 // public methods can be safely invoked on a nil Progress. The caller is
-// responsible for calling [Progress.Stop] on the returned Progress.
+// responsible for calling Progress.Stop on the returned Progress.
 // Arg delay specifies a duration to wait before rendering the progress bar.
 // The Progress is lazily initialized, and thus the delay clock doesn't
 // start ticking until the first call to one of the Progress.NewX methods.
@@ -156,7 +156,7 @@ func New(ctx context.Context, out io.Writer, delay time.Duration, colors *Colors
 }
 
 // Progress represents a container that renders one or more progress bars.
-// The caller is responsible for calling [Progress.Stop] to indicate
+// The caller is responsible for calling Progress.Stop to indicate
 // completion.
 type Progress struct {
 	// The implementation here may seem a bit convoluted. The gist of it is that
@@ -182,7 +182,7 @@ type Progress struct {
 	mu *sync.Mutex
 
 	// stoppedCh is closed when the progress widget is stopped.
-	// This somewhat duplicates <-p.ctx.ReadersDone()... maybe it can be removed?
+	// This somewhat duplicates <-p.ctx.Done()... maybe it can be removed?
 	stoppedCh chan struct{}
 	stopOnce  *sync.Once
 
@@ -379,8 +379,8 @@ func (p *Progress) newBar(cfg *barConfig, opts []Opt) *Bar {
 }
 
 // Bar represents a single progress bar. The caller should invoke
-// [Bar.Incr] as necessary to increment the bar's progress. When
-// the bar is complete, the caller should invoke [Bar.Stop]. All
+// Bar.Incr as necessary to increment the bar's progress. When
+// the bar is complete, the caller should invoke Bar.Stop. All
 // methods are safe to call on a nil Bar.
 type Bar struct {
 	// bar is nil until barInitOnce.Do(barInitFn) is called

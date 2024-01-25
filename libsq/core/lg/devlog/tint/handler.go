@@ -1,5 +1,5 @@
 /*
-Package tint implements a zero-dependency [slog.Handler] that writes tinted
+Package tint implements a zero-dependency slog.Handler that writes tinted
 (colorized) logs. The output format is inspired by the [zerolog.ConsoleWriter]
 and [slog.TextHandler].
 
@@ -112,7 +112,7 @@ var (
 // Options for a slog.Handler that writes tinted logs. A zero Options consists
 // entirely of default values.
 //
-// Options can be used as a drop-in replacement for [slog.HandlerOptions].
+// Options can be used as a drop-in replacement for slog.HandlerOptions.
 type Options struct {
 	// Enable source code location (Default: false)
 	AddSource bool
@@ -131,7 +131,7 @@ type Options struct {
 	NoColor bool
 }
 
-// NewHandler creates a [slog.Handler] that writes tinted logs to Writer w,
+// NewHandler creates a slog.Handler that writes tinted logs to Writer w,
 // using the default options. If opts is nil, the default options are used.
 func NewHandler(w io.Writer, opts *Options) slog.Handler {
 	h := &handler{
@@ -155,7 +155,7 @@ func NewHandler(w io.Writer, opts *Options) slog.Handler {
 	return h
 }
 
-// handler implements a [slog.Handler].
+// handler implements a slog.Handler.
 type handler struct {
 	attrsPrefix string
 	groupPrefix string
@@ -579,8 +579,8 @@ func needsQuoting(s string) bool {
 
 type tintError struct{ error }
 
-// Err returns a tinted (colorized) [slog.Attr] that will be written in red color
-// by the [tint.Handler]. When used with any other [slog.Handler], it behaves as
+// Err returns a tinted (colorized) slog.Attr that will be written in red color
+// by the [tint.Handler]. When used with any other slog.Handler, it behaves as
 //
 //	slog.Any("err", err)
 func Err(err error) slog.Attr {

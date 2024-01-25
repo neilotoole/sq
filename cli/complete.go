@@ -43,7 +43,8 @@ var OptShellCompletionLog = options.NewBool(
 	`Enable logging of shell completion activity. It is frequently the case
 that shell completion handlers will trigger work (such as inspecting
 the schema) that doesn't complete by the shell completion timeout. This can result
-in the logs being filled with uninteresting junk.`,
+in the logs being filled with uninteresting junk when the timeout triggers
+logging of errors due to the cancellation.`,
 )
 
 // completionFunc is a shell completion function.

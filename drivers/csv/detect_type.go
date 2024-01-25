@@ -22,25 +22,25 @@ var (
 )
 
 // DetectCSV implements source.DriverDetectFunc.
-func DetectCSV(ctx context.Context, openFn source.NewReaderFunc) (detected drivertype.Type, score float32,
+func DetectCSV(ctx context.Context, newRdrFn source.NewReaderFunc) (detected drivertype.Type, score float32,
 	err error,
 ) {
-	return detectType(ctx, TypeCSV, openFn)
+	return detectType(ctx, TypeCSV, newRdrFn)
 }
 
 // DetectTSV implements source.DriverDetectFunc.
-func DetectTSV(ctx context.Context, openFn source.NewReaderFunc) (detected drivertype.Type,
+func DetectTSV(ctx context.Context, newRdrFn source.NewReaderFunc) (detected drivertype.Type,
 	score float32, err error,
 ) {
-	return detectType(ctx, TypeTSV, openFn)
+	return detectType(ctx, TypeTSV, newRdrFn)
 }
 
-func detectType(ctx context.Context, typ drivertype.Type,
-	openFn source.NewReaderFunc,
-) (detected drivertype.Type, score float32, err error) {
+func detectType(ctx context.Context, typ drivertype.Type, newRdrFn source.NewReaderFunc) (detected drivertype.Type,
+	score float32, err error,
+) {
 	log := lg.FromContext(ctx)
 	var r io.ReadCloser
-	r, err = openFn(ctx)
+	r, err = newRdrFn(ctx)
 	if err != nil {
 		return drivertype.None, 0, errz.Err(err)
 	}

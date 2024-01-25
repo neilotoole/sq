@@ -92,7 +92,7 @@ import (
 // This will append the error into the err variable, and return true if that
 // individual error was non-nil.
 //
-// See [AppendInto] for more information.
+// See AppendInto for more information.
 //
 // # Deferred Functions
 //
@@ -124,7 +124,7 @@ import (
 //		// ...
 //	}
 //
-// See [AppendInvoke] and [Invoker] for more information.
+// See AppendInvoke and Invoker for more information.
 //
 // NOTE: If you're modifying an error from inside a defer, you MUST use a named
 // return value for that function.
@@ -254,7 +254,7 @@ func (merr *multiErr) Error() string {
 	return result
 }
 
-// LogValue implements [slog.LogValuer].
+// LogValue implements slog.LogValuer.
 func (merr *multiErr) LogValue() slog.Value {
 	if merr == nil {
 		return slog.Value{}
@@ -522,7 +522,7 @@ func extractErrors(err error) []error {
 }
 
 // Every compares every error in the given err against the given target error
-// using [errors.Is], and returns true only if every comparison returned true.
+// using errors.Is, and returns true only if every comparison returned true.
 func Every(err, target error) bool {
 	for _, e := range extractErrors(err) {
 		if !errors.Is(e, target) {

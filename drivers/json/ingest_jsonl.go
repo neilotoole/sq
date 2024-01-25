@@ -19,7 +19,7 @@ import (
 // DetectJSONL returns a source.DriverDetectFunc that can
 // detect JSONL.
 func DetectJSONL(sampleSize int) source.DriverDetectFunc {
-	return func(ctx context.Context, openFn source.NewReaderFunc) (detected drivertype.Type,
+	return func(ctx context.Context, newRdrFn source.NewReaderFunc) (detected drivertype.Type,
 		score float32, err error,
 	) {
 		log := lg.FromContext(ctx)
@@ -28,7 +28,7 @@ func DetectJSONL(sampleSize int) source.DriverDetectFunc {
 			log.Debug("JSONL detection complete", lga.Elapsed, time.Since(start), lga.Score, score)
 		}()
 		var r io.ReadCloser
-		r, err = openFn(ctx)
+		r, err = newRdrFn(ctx)
 		if err != nil {
 			return drivertype.None, 0, errz.Err(err)
 		}
@@ -91,7 +91,7 @@ func DetectJSONL(sampleSize int) source.DriverDetectFunc {
 func ingestJSONL(ctx context.Context, job ingestJob) error { //nolint:gocognit
 	log := lg.FromContext(ctx)
 
-	r, err := job.openFn(ctx)
+	r, err := job.newRdrFn(ctx)
 	if err != nil {
 		return err
 	}

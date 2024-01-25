@@ -6,6 +6,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neilotoole/sq/cli"
+	"github.com/neilotoole/sq/libsq/core/options"
+
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -22,10 +25,18 @@ import (
 
 // testComplete is a helper for testing cobra completion.
 func testComplete(t testing.TB, from *testrun.TestRun, args ...string) completion {
-	ctx := lg.NewContext(context.Background(), lgt.New(t))
+	var ctx context.Context
+	if from == nil {
+		ctx = lg.NewContext(context.Background(), lgt.New(t))
+	} else {
+		ctx = from.Context
+	}
+
+	// Enable completion logging.
+	ctx = options.NewContext(ctx, options.Options{cli.OptShellCompletionLog.Key(): true})
 
 	tr := testrun.New(ctx, t, from)
-	args = append([]string{"__complete"}, args...)
+	args = append([]string{cobra.ShellCompRequestCmd}, args...)
 
 	err := tr.Exec(args...)
 	require.NoError(t, err)
@@ -74,8 +85,7 @@ type completion struct {
 // behavior for the query commands (slq, sql).
 //
 // See also: TestCompleteFlagActiveSchema_inspect.
-func TestCompleteFlagActiveSchema_query_cmds(t *testing.T) {
-	t.Parallel()
+func TestCompleteFlagActiveSchema_query_cmds(t *testing.T) { //nolint:tparallel
 	const wantDirective = cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveKeepOrder
 
 	testCases := []struct {

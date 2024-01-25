@@ -49,11 +49,11 @@ type copyCloser struct {
 	writeCloser
 }
 
-// NewWriter wraps an [io.Writer] to handle context cancellation.
+// NewWriter wraps an io.Writer to handle context cancellation.
 //
 // Context state is checked BEFORE every Write.
 //
-// The returned Writer also implements [io.ReaderFrom] to allow [io.Copy] to select
+// The returned Writer also implements io.ReaderFrom to allow io.Copy to select
 // the best strategy while still checking the context state before every chunk transfer.
 //
 // If w implements io.WriteCloser, the returned Writer will
@@ -75,7 +75,7 @@ func NewWriter(ctx context.Context, w io.Writer) io.Writer {
 	return &copier{writer: wr}
 }
 
-// Write implements [io.Writer], but with context awareness.
+// Write implements io.Writer, but with context awareness.
 func (w *writer) Write(p []byte) (n int, err error) {
 	select {
 	case <-w.ctx.Done():
@@ -87,7 +87,7 @@ func (w *writer) Write(p []byte) (n int, err error) {
 	}
 }
 
-// Close implements [io.Closer], but with context awareness.
+// Close implements io.Closer, but with context awareness.
 func (w *writeCloser) Close() error {
 	var closeErr error
 	if c, ok := w.w.(io.Closer); ok {
@@ -109,7 +109,7 @@ type reader struct {
 	r   io.Reader
 }
 
-// NewReader wraps an [io.Reader] to handle context cancellation.
+// NewReader wraps an io.Reader to handle context cancellation.
 //
 // Context state is checked BEFORE every Read.
 //
@@ -132,7 +132,7 @@ func NewReader(ctx context.Context, r io.Reader) io.Reader {
 	return &rdr
 }
 
-// Read implements [io.Reader], but with context awareness.
+// Read implements io.Reader, but with context awareness.
 func (r *reader) Read(p []byte) (n int, err error) {
 	select {
 	case <-r.ctx.Done():
@@ -150,7 +150,7 @@ type readCloser struct {
 	reader
 }
 
-// Close implements [io.Closer], but with context awareness.
+// Close implements io.Closer, but with context awareness.
 func (rc *readCloser) Close() error {
 	var closeErr error
 	if c, ok := rc.r.(io.Closer); ok {
@@ -166,7 +166,7 @@ func (rc *readCloser) Close() error {
 	}
 }
 
-// ReadFrom implements interface [io.ReaderFrom], but with context awareness.
+// ReadFrom implements interface io.ReaderFrom, but with context awareness.
 //
 // This should allow efficient copying allowing writer or reader to define the chunk size.
 func (w *copier) ReadFrom(r io.Reader) (n int64, err error) {
@@ -186,7 +186,7 @@ func (w *copier) ReadFrom(r io.Reader) (n int64, err error) {
 	}
 }
 
-// NewCloser wraps an [io.Reader] to handle context cancellation.
+// NewCloser wraps an io.Reader to handle context cancellation.
 //
 // The underlying io.Closer is closed even if the context is done.
 func NewCloser(ctx context.Context, c io.Closer) io.Closer {

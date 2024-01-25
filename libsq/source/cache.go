@@ -23,7 +23,7 @@ import (
 
 // OptCacheLockTimeout is the time allowed to acquire a cache lock.
 //
-// See also: [driver.OptIngestCache].
+// See also: driver.OptIngestCache.
 var OptCacheLockTimeout = options.NewDuration(
 	"cache.lock.timeout",
 	"",
@@ -289,7 +289,7 @@ func (fs *Files) CacheLockAcquire(ctx context.Context, src *Source) (unlock func
 }
 
 // CacheClearAll clears the entire cache dir.
-// Note that this operation is distinct from [Files.doCacheSweep].
+// Note that this operation is distinct from Files.doCacheSweep.
 func (fs *Files) CacheClearAll(ctx context.Context) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -299,7 +299,7 @@ func (fs *Files) CacheClearAll(ctx context.Context) error {
 
 // CacheClearSource clears the ingest cache for src. If arg downloads is true,
 // the source's download dir is also cleared. The caller should typically
-// first acquire the cache lock for src via [Files.cacheLockFor].
+// first acquire the cache lock for src via Files.cacheLockFor.
 func (fs *Files) CacheClearSource(ctx context.Context, src *Source, clearDownloads bool) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -379,7 +379,7 @@ func (fs *Files) doCacheClearAll(ctx context.Context) error {
 
 // doCacheSweep sweeps the cache dir, making a best-effort attempt
 // to remove any empty directories. Note that this operation is
-// distinct from [Files.CacheClearAll].
+// distinct from Files.CacheClearAll.
 //
 // REVISIT: This doesn't really do as much as desired. It should
 // also be able to detect orphaned src cache dirs and delete those.

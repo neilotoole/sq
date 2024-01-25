@@ -2,6 +2,7 @@ package source
 
 import (
 	"context"
+	"errors"
 	"io"
 	"mime"
 	"os"
@@ -24,9 +25,9 @@ import (
 // A score <= 0 is failure, a score >= 1 is success; intermediate
 // values indicate some level of confidence.
 // An error is returned only if an IO problem occurred.
-// The implementation gets access to the byte stream by invoking openFn,
-// and is responsible for closing any reader it opens.
-type DriverDetectFunc func(ctx context.Context, openFn NewReaderFunc) (
+// The implementation gets access to the byte stream by invoking
+// newRdrFn, and is responsible for closing any reader it opens.
+type DriverDetectFunc func(ctx context.Context, newRdrFn NewReaderFunc) (
 	detected drivertype.Type, score float32, err error)
 
 var _ DriverDetectFunc = DetectMagicNumber
@@ -175,11 +176,11 @@ func (fs *Files) detectType(ctx context.Context, handle, loc string) (typ driver
 
 // DetectMagicNumber is a DriverDetectFunc that detects the "magic number"
 // from the start of files.
-func DetectMagicNumber(ctx context.Context, openFn NewReaderFunc,
+func DetectMagicNumber(ctx context.Context, newRdrFn NewReaderFunc,
 ) (detected drivertype.Type, score float32, err error) {
 	log := lg.FromContext(ctx)
 	var r io.ReadCloser
-	r, err = openFn(ctx)
+	r, err = newRdrFn(ctx)
 	if err != nil {
 		return drivertype.None, 0, errz.Err(err)
 	}
@@ -187,16 +188,13 @@ func DetectMagicNumber(ctx context.Context, openFn NewReaderFunc,
 
 	// We only have to pass the file header = first 261 bytes
 	head := make([]byte, 261)
-	_, err = r.Read(head)
-	if err != nil {
+	if _, err = io.ReadFull(r, head); err != nil && !errors.Is(err, io.ErrUnexpectedEOF) {
 		return drivertype.None, 0, errz.Wrapf(err, "failed to read header")
 	}
 
 	ftype, err := filetype.Match(head)
 	if err != nil {
-		if err != nil {
-			return drivertype.None, 0, errz.Err(err)
-		}
+		return drivertype.None, 0, errz.Err(err)
 	}
 
 	switch ftype {

@@ -24,7 +24,7 @@ type Handler struct {
 	// bytes as would be returned from resp.Body. Downloader.Get will
 	// continue the download process after Uncached returns. The caller
 	// can wait on the download to complete using the channel returned
-	// by streamcache.Stream's SourceDone method.
+	// by streamcache.Stream's Filled method.
 	Uncached func(dlStream *streamcache.Stream)
 
 	// Error is invoked by Downloader.Get if an error occurs before Handler.Cached

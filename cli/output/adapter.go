@@ -69,7 +69,7 @@ func (w *RecordWriterAdapter) Open(ctx context.Context, cancelFn context.CancelF
 
 	// errCh has size 2 because that's the maximum number of
 	// errs that could be sent. Typically only one err is sent,
-	// but in the case of ctx.ReadersDone, we send ctx.Err, followed
+	// but in the case of ctx.Done, we send ctx.Err, followed
 	// by any error returned by r.rw.Close.
 	w.errCh = make(chan error, 2)
 	w.wg.Add(1)
@@ -151,7 +151,7 @@ func (w *RecordWriterAdapter) Open(ctx context.Context, cancelFn context.CancelF
 				// If we got this far, we successfully wrote rec to rw.
 				// Therefore continue to wait/select for the next
 				// element on recCh (or for recCh to close)
-				// or for ctx.ReadersDone indicating timeout or cancel etc.
+				// or for ctx.Done indicating timeout or cancel etc.
 				continue
 			}
 		}
