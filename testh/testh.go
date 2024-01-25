@@ -35,7 +35,6 @@ import (
 	"github.com/neilotoole/sq/libsq"
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/core/cleanup"
-	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/ioz/lockfile"
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -311,17 +310,13 @@ func (h *Helper) Source(handle string) *source.Source {
 			assert.NoError(t, srcFile.Close())
 		}()
 
-		destFile, err := os.CreateTemp("", "*_"+filepath.Base(src.Location))
+		destFile, err := h.files.CreateTemp("*_"+filepath.Base(src.Location), true)
 		require.NoError(t, err)
 		defer func() {
 			assert.NoError(t, destFile.Close())
 		}()
 
 		destFileName := destFile.Name()
-
-		h.Files().CleanupE(func() error {
-			return errz.Err(os.Remove(destFileName))
-		})
 
 		_, err = io.Copy(destFile, srcFile)
 		require.NoError(t, err)

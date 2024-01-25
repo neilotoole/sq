@@ -382,12 +382,23 @@ func (fs *Files) Close() error {
 	return err
 }
 
-// CleanupE adds fn to the cleanup sequence invoked by fs.Close.
-//
-// FIXME: This CleanupE method really is an odd fish. It's only used
-// by the test helper. Probably it can we removed?
-func (fs *Files) CleanupE(fn func() error) {
-	fs.clnup.AddE(fn)
+// CreateTemp creates a new temporary file fs's temp dir with the given
+// filename pattern, as per the os.CreateTemp docs. If arg clean is
+// true, the file is added to the cleanup sequence invoked by fs.Close.
+// It is the callers responsibility to close the returned file.
+func (fs *Files) CreateTemp(pattern string, clean bool) (*os.File, error) {
+	f, err := os.CreateTemp(fs.tempDir, pattern)
+	if err != nil {
+		return nil, errz.Err(err)
+	}
+
+	if clean {
+		fname := f.Name()
+		fs.clnup.AddE(func() error {
+			return errz.Err(os.Remove(fname))
+		})
+	}
+	return f, nil
 }
 
 // NewReaderFunc returns a func that returns an io.ReadCloser. The caller
