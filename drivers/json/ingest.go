@@ -11,6 +11,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -655,15 +657,9 @@ type insertion struct {
 // it initializes insertion.stmtHash.
 func newInsertion(tbl string, cols []string, vals []any) *insertion {
 	return &insertion{
-		stmtHash: buildInsertStmtHash(tbl, cols),
+		stmtHash: checksum.SumAll(tbl, cols...),
 		tbl:      tbl,
 		cols:     cols,
 		vals:     vals,
 	}
-}
-
-// buildInsertStmtHash returns a concatenation of tbl and cols that can
-// uniquely identify a db insert statement.
-func buildInsertStmtHash(tbl string, cols []string) string {
-	return tbl + "__" + strings.Join(cols, "_")
 }
