@@ -49,7 +49,7 @@ func DetectXLSX(ctx context.Context, newRdrFn files.NewReaderFunc) (detected dri
 
 	switch t {
 	case matchers.TypeXlsx, matchers.TypeXls:
-		return Type, 1.0, nil
+		return drivertype.TypeXLSX, 1.0, nil
 	default:
 		return drivertype.None, 0, nil
 	}

@@ -5,11 +5,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/source/drivertype"
+
 	_ "github.com/ryboe/q" // keep the q lib around
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/neilotoole/sq/drivers/csv"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/source"
@@ -130,7 +131,7 @@ func TestHelper_Files(t *testing.T) {
 
 	src := &source.Source{
 		Handle:   "@test_" + stringz.Uniq8(),
-		Type:     csv.TypeCSV,
+		Type:     drivertype.TypeCSV,
 		Location: proj.Abs(fpath),
 	}
 

@@ -15,9 +15,6 @@ import (
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/output/format"
 	"github.com/neilotoole/sq/cli/testrun"
-	"github.com/neilotoole/sq/drivers/csv"
-	"github.com/neilotoole/sq/drivers/postgres"
-	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lgt"
@@ -86,7 +83,7 @@ func TestCmdInspect_json_yaml(t *testing.T) { //nolint:tparallel
 					gotTableNames = lo.Intersect(gotTableNames, possibleTbls)
 
 					for _, wantTblName := range tc.wantTbls {
-						if src.Type == postgres.Type && wantTblName == sakila.TblFilmText {
+						if src.Type == drivertype.TypePg && wantTblName == sakila.TblFilmText {
 							// Postgres sakila DB doesn't have film_text for some reason
 							continue
 						}
@@ -194,7 +191,7 @@ func TestCmdInspect_text(t *testing.T) { //nolint:tparallel
 			require.Contains(t, output, location.Redact(src.Location))
 
 			for _, wantTblName := range tc.wantTbls {
-				if src.Type == postgres.Type && wantTblName == "film_text" {
+				if src.Type == drivertype.TypePg && wantTblName == "film_text" {
 					// Postgres sakila DB doesn't have film_text for some reason
 					continue
 				}
@@ -266,7 +263,7 @@ func TestCmdInspect_smoke(t *testing.T) {
 
 	md := &metadata.Source{}
 	require.NoError(t, json.Unmarshal(tr.Out.Bytes(), md))
-	require.Equal(t, sqlite3.Type, md.Driver)
+	require.Equal(t, drivertype.TypeSL3, md.Driver)
 	require.Equal(t, sakila.SL3, md.Handle)
 	require.Equal(t, src.RedactedLocation(), md.Location)
 	require.Equal(t, sakila.AllTblsViews(), md.TableNames())
@@ -281,7 +278,7 @@ func TestCmdInspect_smoke(t *testing.T) {
 
 	md = &metadata.Source{}
 	require.NoError(t, json.Unmarshal(tr.Out.Bytes(), md))
-	require.Equal(t, csv.TypeCSV, md.Driver)
+	require.Equal(t, drivertype.TypeCSV, md.Driver)
 	require.Equal(t, sakila.CSVActor, md.Handle)
 	require.Equal(t, src.Location, md.Location)
 	require.Equal(t, []string{source.MonotableName}, md.TableNames())
@@ -298,12 +295,12 @@ func TestCmdInspect_stdin(t *testing.T) {
 	}{
 		{
 			fpath:    proj.Abs(sakila.PathCSVActor),
-			wantType: csv.TypeCSV,
+			wantType: drivertype.TypeCSV,
 			wantTbls: []string{source.MonotableName},
 		},
 		{
 			fpath:    proj.Abs(sakila.PathTSVActor),
-			wantType: csv.TypeTSV,
+			wantType: drivertype.TypeTSV,
 			wantTbls: []string{source.MonotableName},
 		},
 	}

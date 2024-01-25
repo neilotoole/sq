@@ -5,9 +5,10 @@ package sqlite3_test
 import (
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/source/drivertype"
+
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/source"
@@ -22,7 +23,7 @@ func TestExtension_fts5(t *testing.T) {
 	th := testh.New(t)
 	src := th.Add(&source.Source{
 		Handle:   "@fts",
-		Type:     sqlite3.Type,
+		Type:     drivertype.TypeSL3,
 		Location: "sqlite3://" + tu.MustAbsFilepath("testdata", "sakila_fts5.db"),
 	})
 

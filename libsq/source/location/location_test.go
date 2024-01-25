@@ -37,7 +37,7 @@ func TestIsSQL(t *testing.T) {
 	}
 }
 
-func TestLocationWithPassword(t *testing.T) {
+func TestWithPassword(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {

@@ -8,6 +8,8 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/neilotoole/sq/libsq/source/drivertype"
+
 	"github.com/neilotoole/sq/libsq"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -233,7 +235,7 @@ func getDelimiter(src *source.Source) (rune, error) {
 		return delim, nil
 	}
 
-	if src.Type == TypeTSV {
+	if src.Type == drivertype.TypeTSV {
 		return '\t', nil
 	}
 

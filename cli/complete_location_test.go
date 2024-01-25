@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/source/drivertype"
+
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -13,9 +15,6 @@ import (
 
 	"github.com/neilotoole/sq/cli"
 	"github.com/neilotoole/sq/cli/testrun"
-	"github.com/neilotoole/sq/drivers/postgres"
-	"github.com/neilotoole/sq/drivers/sqlite3"
-	"github.com/neilotoole/sq/drivers/sqlserver"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/libsq/core/stringz"
@@ -801,12 +800,12 @@ func TestCompleteAddLocation_History_Postgres(t *testing.T) {
 	tr.Add(
 		source.Source{
 			Handle:   "@src1",
-			Type:     postgres.Type,
+			Type:     drivertype.TypePg,
 			Location: "postgres://alice:abc123@dev.acme.com:7777/sakila?application_name=app1&channel_binding=prefer",
 		},
 		source.Source{
 			Handle:   "@src2",
-			Type:     postgres.Type,
+			Type:     drivertype.TypePg,
 			Location: "postgres://bob:abc123@prod.acme.com:8888/sales?application_name=app2&channel_binding=require",
 		},
 	)
@@ -938,17 +937,17 @@ func TestCompleteAddLocation_History_SQLServer(t *testing.T) {
 	tr.Add(
 		source.Source{
 			Handle:   "@src1",
-			Type:     sqlserver.Type,
+			Type:     drivertype.TypeMS,
 			Location: "sqlserver://alice:abc123@dev.acme.com:7777?database=sakila&app+name=app1&encrypt=disable",
 		},
 		source.Source{
 			Handle:   "@src2",
-			Type:     sqlserver.Type,
+			Type:     drivertype.TypeMS,
 			Location: "sqlserver://bob:abc123@prod.acme.com:8888?database=sales&app+name=app2&encrypt=true",
 		},
 		source.Source{
 			Handle:   "@src3",
-			Type:     sqlserver.Type,
+			Type:     drivertype.TypeMS,
 			Location: "sqlserver://bob:abc123@prod.acme.com:8888/my_instance?database=sakila",
 		},
 	)
@@ -1139,19 +1138,19 @@ func TestCompleteAddLocation_History_SQLite3(t *testing.T) {
 	tr.Add(
 		source.Source{
 			Handle: "@src2",
-			Type:   sqlite3.Type,
+			Type:   drivertype.TypeSL3,
 			// Note that this file doesn't actually exist
 			Location: "sqlite3:///zz_dir1/sqtest/sq/src2.db?mode=rwc&cache=FAST",
 		},
 		source.Source{
 			Handle: "@src1",
-			Type:   sqlite3.Type,
+			Type:   drivertype.TypeSL3,
 			// Note that this file doesn't actually exist
 			Location: "sqlite3:///zz_dir1/sqtest/sq/src1.db",
 		},
 		source.Source{
 			Handle: "@src3",
-			Type:   sqlite3.Type,
+			Type:   drivertype.TypeSL3,
 			// This file DOES exist
 			Location: src3Loc,
 		},

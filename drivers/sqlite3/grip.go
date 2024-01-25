@@ -7,6 +7,8 @@ import (
 	"os"
 	"sync"
 
+	"github.com/neilotoole/sq/libsq/source/drivertype"
+
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/progress"
@@ -67,7 +69,7 @@ func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Sou
 	defer bar.Stop()
 	ctx = progress.NewBarContext(ctx, bar)
 
-	md := &metadata.Source{Handle: g.src.Handle, Driver: Type, DBDriver: dbDrvr}
+	md := &metadata.Source{Handle: g.src.Handle, Driver: drivertype.TypeSL3, DBDriver: dbDrvr}
 
 	dsn, err := PathFromLocation(g.src)
 	if err != nil {

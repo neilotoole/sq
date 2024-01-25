@@ -21,14 +21,6 @@ import (
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
-const (
-	// TypeCSV is the CSV driver type.
-	TypeCSV = drivertype.Type("csv")
-
-	// TypeTSV is the TSV driver type.
-	TypeTSV = drivertype.Type("tsv")
-)
-
 // Provider implements driver.Provider.
 type Provider struct {
 	Log      *slog.Logger
@@ -39,10 +31,10 @@ type Provider struct {
 // DriverFor implements driver.Provider.
 func (d *Provider) DriverFor(typ drivertype.Type) (driver.Driver, error) {
 	switch typ { //nolint:exhaustive
-	case TypeCSV:
-		return &driveri{log: d.Log, typ: TypeCSV, ingester: d.Ingester, files: d.Files}, nil
-	case TypeTSV:
-		return &driveri{log: d.Log, typ: TypeTSV, ingester: d.Ingester, files: d.Files}, nil
+	case drivertype.TypeCSV:
+		return &driveri{log: d.Log, typ: drivertype.TypeCSV, ingester: d.Ingester, files: d.Files}, nil
+	case drivertype.TypeTSV:
+		return &driveri{log: d.Log, typ: drivertype.TypeTSV, ingester: d.Ingester, files: d.Files}, nil
 	}
 
 	return nil, errz.Errorf("unsupported driver type {%s}", typ)
@@ -59,7 +51,7 @@ type driveri struct {
 // DriverMetadata implements driver.Driver.
 func (d *driveri) DriverMetadata() driver.Metadata {
 	md := driver.Metadata{Type: d.typ, Monotable: true}
-	if d.typ == TypeCSV {
+	if d.typ == drivertype.TypeCSV {
 		md.Description = "Comma-Separated Values"
 		md.Doc = "https://en.wikipedia.org/wiki/Comma-separated_values"
 	} else {

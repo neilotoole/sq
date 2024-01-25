@@ -15,11 +15,24 @@ func (t Type) String() string {
 const None = Type("")
 
 const (
-	TypeSL3  = Type("sqlite3")
-	TypePg   = Type("postgres")
-	TypeMS   = Type("sqlserver")
-	TypeMy   = Type("mysql")
+	// TypeMS is the SQL Server source driver type.
+	TypeMS = Type("sqlserver")
+	// TypeCSV is the CSV driver type.
+	TypeCSV = Type("csv")
+	// TypeTSV is the TSV driver type.
+	TypeTSV = Type("tsv")
+	// TypeJSON is the plain-old JSON driver type.
+	TypeJSON = Type("json")
+	// TypeJSONA is the JSON Array driver type.
+	TypeJSONA = Type("jsona")
+	// TypeJSONL is the JSON Lines driver type.
+	TypeJSONL = Type("jsonl")
+	// TypeMy is the MySQL source driver type.
+	TypeMy = Type("mysql")
+	// TypePg is the postgres source driver type.
+	TypePg = Type("postgres")
+	// TypeXLSX is the sq source driver type for XLSX.
 	TypeXLSX = Type("xlsx")
-	TypeCSV  = Type("csv")
-	TypeTSV  = Type("tsv")
+	// TypeSL3 is the sqlite3 source driver type.
+	TypeSL3 Type = "sqlite3"
 )

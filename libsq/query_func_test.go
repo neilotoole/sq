@@ -5,10 +5,6 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
-	"github.com/neilotoole/sq/drivers/mysql"
-	"github.com/neilotoole/sq/drivers/postgres"
-	"github.com/neilotoole/sq/drivers/sqlite3"
-	"github.com/neilotoole/sq/drivers/sqlserver"
 	"github.com/neilotoole/sq/libsq"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
@@ -26,7 +22,7 @@ func TestQuery_func(t *testing.T) {
 			name:         "max",
 			in:           `@sakila | .actor | max(.actor_id)`,
 			wantSQL:      `SELECT max("actor_id") AS "max(.actor_id)" FROM "actor"`,
-			override:     driverMap{mysql.Type: "SELECT max(`actor_id`) AS `max(.actor_id)` FROM `actor`"},
+			override:     driverMap{drivertype.TypeMy: "SELECT max(`actor_id`) AS `max(.actor_id)` FROM `actor`"},
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "max(.actor_id)"),
@@ -37,7 +33,7 @@ func TestQuery_func(t *testing.T) {
 			name:         "min",
 			in:           `@sakila | .actor | min(.actor_id)`,
 			wantSQL:      `SELECT min("actor_id") AS "min(.actor_id)" FROM "actor"`,
-			override:     driverMap{mysql.Type: "SELECT min(`actor_id`) AS `min(.actor_id)` FROM `actor`"},
+			override:     driverMap{drivertype.TypeMy: "SELECT min(`actor_id`) AS `min(.actor_id)` FROM `actor`"},
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "min(.actor_id)"),
@@ -48,7 +44,7 @@ func TestQuery_func(t *testing.T) {
 			name:         "avg",
 			in:           `@sakila | .actor | avg(.actor_id)`,
 			wantSQL:      `SELECT avg("actor_id") AS "avg(.actor_id)" FROM "actor"`,
-			override:     driverMap{mysql.Type: "SELECT avg(`actor_id`) AS `avg(.actor_id)` FROM `actor`"},
+			override:     driverMap{drivertype.TypeMy: "SELECT avg(`actor_id`) AS `avg(.actor_id)` FROM `actor`"},
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "avg(.actor_id)"),
@@ -80,7 +76,7 @@ func TestQuery_func_schema(t *testing.T) {
 			name:         "sqlserver-default",
 			in:           `@sakila | schema()`,
 			wantSQL:      `SELECT SCHEMA_NAME() AS "schema()"`,
-			onlyFor:      []drivertype.Type{sqlserver.Type},
+			onlyFor:      []drivertype.Type{drivertype.TypeMS},
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "schema()"),
@@ -96,7 +92,7 @@ func TestQuery_func_schema(t *testing.T) {
 				qc.Collection.Active().Schema = infoSchema
 			},
 			wantSQL:      `SELECT SCHEMA_NAME() AS "schema()"`,
-			onlyFor:      []drivertype.Type{sqlserver.Type},
+			onlyFor:      []drivertype.Type{drivertype.TypeMS},
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "schema()"),
@@ -107,7 +103,7 @@ func TestQuery_func_schema(t *testing.T) {
 			name:         "postgres-default",
 			in:           `@sakila | schema()`,
 			wantSQL:      `SELECT current_schema() AS "schema()"`,
-			onlyFor:      []drivertype.Type{postgres.Type},
+			onlyFor:      []drivertype.Type{drivertype.TypePg},
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "schema()"),
@@ -121,7 +117,7 @@ func TestQuery_func_schema(t *testing.T) {
 				qc.Collection.Active().Schema = infoSchema
 			},
 			wantSQL:      `SELECT current_schema() AS "schema()"`,
-			onlyFor:      []drivertype.Type{postgres.Type},
+			onlyFor:      []drivertype.Type{drivertype.TypePg},
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "schema()"),
@@ -132,7 +128,7 @@ func TestQuery_func_schema(t *testing.T) {
 			name:         "mysql-default",
 			in:           `@sakila | schema()`,
 			wantSQL:      "SELECT DATABASE() AS `schema()`",
-			onlyFor:      []drivertype.Type{mysql.Type},
+			onlyFor:      []drivertype.Type{drivertype.TypeMy},
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "schema()"),
@@ -146,7 +142,7 @@ func TestQuery_func_schema(t *testing.T) {
 				qc.Collection.Active().Schema = infoSchema
 			},
 			wantSQL:      "SELECT DATABASE() AS `schema()`",
-			onlyFor:      []drivertype.Type{mysql.Type},
+			onlyFor:      []drivertype.Type{drivertype.TypeMy},
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "schema()"),
@@ -157,7 +153,7 @@ func TestQuery_func_schema(t *testing.T) {
 			name:         "sqlite-default",
 			in:           `@sakila | schema()`,
 			wantSQL:      `SELECT (SELECT name FROM pragma_database_list ORDER BY seq limit 1) AS "schema()"`,
-			onlyFor:      []drivertype.Type{sqlite3.Type},
+			onlyFor:      []drivertype.Type{drivertype.TypeSL3},
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "schema()"),
@@ -180,7 +176,7 @@ func TestQuery_func_catalog(t *testing.T) {
 			name:         "sqlserver-default",
 			in:           `@sakila | catalog()`,
 			wantSQL:      `SELECT DB_NAME() AS "catalog()"`,
-			onlyFor:      []drivertype.Type{sqlserver.Type},
+			onlyFor:      []drivertype.Type{drivertype.TypeMS},
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "catalog()"),
@@ -194,7 +190,7 @@ func TestQuery_func_catalog(t *testing.T) {
 				qc.Collection.Active().Catalog = "model"
 			},
 			wantSQL:      `SELECT DB_NAME() AS "catalog()"`,
-			onlyFor:      []drivertype.Type{sqlserver.Type},
+			onlyFor:      []drivertype.Type{drivertype.TypeMS},
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "catalog()"),
@@ -205,7 +201,7 @@ func TestQuery_func_catalog(t *testing.T) {
 			name:         "postgres-default",
 			in:           `@sakila | catalog()`,
 			wantSQL:      `SELECT current_database() AS "catalog()"`,
-			onlyFor:      []drivertype.Type{postgres.Type},
+			onlyFor:      []drivertype.Type{drivertype.TypePg},
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "catalog()"),
@@ -219,7 +215,7 @@ func TestQuery_func_catalog(t *testing.T) {
 				qc.Collection.Active().Catalog = "postgres"
 			},
 			wantSQL:      `SELECT current_database() AS "catalog()"`,
-			onlyFor:      []drivertype.Type{postgres.Type},
+			onlyFor:      []drivertype.Type{drivertype.TypePg},
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "catalog()"),
@@ -230,7 +226,7 @@ func TestQuery_func_catalog(t *testing.T) {
 			name:         "mysql",
 			in:           `@sakila | catalog()`,
 			wantSQL:      "SELECT (SELECT CATALOG_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = DATABASE() LIMIT 1) AS `catalog()`", //nolint:lll
-			onlyFor:      []drivertype.Type{mysql.Type},
+			onlyFor:      []drivertype.Type{drivertype.TypeMy},
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "catalog()"),
@@ -244,7 +240,7 @@ func TestQuery_func_catalog(t *testing.T) {
 			// return the string "default". This behavior may change
 			// upon feedback.
 			wantSQL:      `SELECT (SELECT 'default') AS "catalog()"`,
-			onlyFor:      []drivertype.Type{sqlite3.Type},
+			onlyFor:      []drivertype.Type{drivertype.TypeSL3},
 			wantRecCount: 1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "catalog()"),
@@ -269,10 +265,10 @@ func TestQuery_func_rownum(t *testing.T) {
 			in:      `@sakila | .actor | rownum()`,
 			wantSQL: `SELECT (row_number() OVER (ORDER BY 1)) AS "rownum()" FROM "actor"`,
 			override: driverMap{
-				sqlserver.Type: `SELECT (row_number() OVER (ORDER BY (SELECT NULL))) AS "rownum()" FROM "actor"`,
+				drivertype.TypeMS: `SELECT (row_number() OVER (ORDER BY (SELECT NULL))) AS "rownum()" FROM "actor"`,
 				// We don't test the MySQL override because it uses a randomly generated variable value. E.g.
 				//  SELECT (@row_number_dw5ch2ss:=@row_number_dw5ch2ss + 1) AS `rownum()` FROM `actor`
-				mysql.Type: ``,
+				drivertype.TypeMy: ``,
 			},
 			wantRecCount: 200,
 			sinkFns: []SinkTestFunc{
@@ -286,8 +282,8 @@ func TestQuery_func_rownum(t *testing.T) {
 			in:      `@sakila | .actor | rownum() + 1`,
 			wantSQL: `SELECT (row_number() OVER (ORDER BY 1))+1 AS "rownum()+1" FROM "actor"`,
 			override: driverMap{
-				sqlserver.Type: `SELECT (row_number() OVER (ORDER BY (SELECT NULL)))+1 AS "rownum()+1" FROM "actor"`,
-				mysql.Type:     "",
+				drivertype.TypeMS: `SELECT (row_number() OVER (ORDER BY (SELECT NULL)))+1 AS "rownum()+1" FROM "actor"`,
+				drivertype.TypeMy: "",
 			},
 			wantRecCount: 200,
 			sinkFns: []SinkTestFunc{
@@ -301,8 +297,8 @@ func TestQuery_func_rownum(t *testing.T) {
 			in:      `@sakila | .actor | (rownum()-1):zero_index`,
 			wantSQL: `SELECT ((row_number() OVER (ORDER BY 1))-1) AS "zero_index" FROM "actor"`,
 			override: driverMap{
-				sqlserver.Type: `SELECT ((row_number() OVER (ORDER BY (SELECT NULL)))-1) AS "zero_index" FROM "actor"`,
-				mysql.Type:     "",
+				drivertype.TypeMS: `SELECT ((row_number() OVER (ORDER BY (SELECT NULL)))-1) AS "zero_index" FROM "actor"`,
+				drivertype.TypeMy: "",
 			},
 			wantRecCount: 200,
 			sinkFns: []SinkTestFunc{
@@ -315,7 +311,7 @@ func TestQuery_func_rownum(t *testing.T) {
 			name:         "column_orderby",
 			in:           `@sakila | .actor | rownum(), .actor_id | order_by(.actor_id)`,
 			wantSQL:      `SELECT (row_number() OVER (ORDER BY "actor_id")) AS "rownum()", "actor_id" FROM "actor" ORDER BY "actor_id"`,
-			override:     driverMap{mysql.Type: ""},
+			override:     driverMap{drivertype.TypeMy: ""},
 			wantRecCount: 200,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "rownum()"),
@@ -327,7 +323,7 @@ func TestQuery_func_rownum(t *testing.T) {
 			name:         "double_invocation",
 			in:           `@sakila | .actor | rownum():index1, .actor_id, rownum():index2 | order_by(.actor_id)`,
 			wantSQL:      `SELECT (row_number() OVER (ORDER BY "actor_id")) AS "index1", "actor_id", (row_number() OVER (ORDER BY "actor_id")) AS "index2" FROM "actor" ORDER BY "actor_id"`,
-			override:     driverMap{mysql.Type: ""},
+			override:     driverMap{drivertype.TypeMy: ""},
 			wantRecCount: 200,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "index1"),

@@ -3,9 +3,10 @@ package libsq_test
 import (
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/source/drivertype"
+
 	_ "github.com/mattn/go-sqlite3"
 
-	"github.com/neilotoole/sq/drivers/mysql"
 	"github.com/neilotoole/sq/testh/sakila"
 )
 
@@ -16,35 +17,35 @@ func TestQuery_unique(t *testing.T) {
 			name:         "unique/single-col",
 			in:           `@sakila | .actor | .first_name | unique`,
 			wantSQL:      `SELECT DISTINCT "first_name" FROM "actor"`,
-			override:     driverMap{mysql.Type: "SELECT DISTINCT `first_name` FROM `actor`"},
+			override:     driverMap{drivertype.TypeMy: "SELECT DISTINCT `first_name` FROM `actor`"},
 			wantRecCount: 128,
 		},
 		{
 			name:         "unique/no-col-with-parens",
 			in:           `@sakila | .actor | unique()`,
 			wantSQL:      `SELECT DISTINCT * FROM "actor"`,
-			override:     driverMap{mysql.Type: "SELECT DISTINCT * FROM `actor`"},
+			override:     driverMap{drivertype.TypeMy: "SELECT DISTINCT * FROM `actor`"},
 			wantRecCount: sakila.TblActorCount,
 		},
 		{
 			name:         "unique/no-col",
 			in:           `@sakila | .actor | unique`,
 			wantSQL:      `SELECT DISTINCT * FROM "actor"`,
-			override:     driverMap{mysql.Type: "SELECT DISTINCT * FROM `actor`"},
+			override:     driverMap{drivertype.TypeMy: "SELECT DISTINCT * FROM `actor`"},
 			wantRecCount: sakila.TblActorCount,
 		},
 		{
 			name:         "uniq/no-col",
 			in:           `@sakila | .actor | uniq`,
 			wantSQL:      `SELECT DISTINCT * FROM "actor"`,
-			override:     driverMap{mysql.Type: "SELECT DISTINCT * FROM `actor`"},
+			override:     driverMap{drivertype.TypeMy: "SELECT DISTINCT * FROM `actor`"},
 			wantRecCount: sakila.TblActorCount,
 		},
 		{
 			name:         "uniq/no-col-with-parens",
 			in:           `@sakila | .actor | uniq()`,
 			wantSQL:      `SELECT DISTINCT * FROM "actor"`,
-			override:     driverMap{mysql.Type: "SELECT DISTINCT * FROM `actor`"},
+			override:     driverMap{drivertype.TypeMy: "SELECT DISTINCT * FROM `actor`"},
 			wantRecCount: sakila.TblActorCount,
 		},
 	}

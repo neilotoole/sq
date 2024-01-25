@@ -1,10 +1,10 @@
 package cli
 
 import (
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/run"
-	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/libsq/source"
 )
 
@@ -50,7 +50,7 @@ func execScratch(cmd *cobra.Command, args []string) error {
 	defaultScratch := &source.Source{
 		Handle:   source.ScratchHandle,
 		Location: "internal:file",
-		Type:     sqlite3.Type,
+		Type:     drivertype.TypeSL3,
 	}
 
 	if len(args) == 0 {

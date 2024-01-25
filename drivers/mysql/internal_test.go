@@ -4,6 +4,8 @@ package mysql
 import (
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/source/drivertype"
+
 	"github.com/go-sql-driver/mysql"
 	"github.com/stretchr/testify/require"
 
@@ -101,7 +103,7 @@ func TestDSNFromLocation(t *testing.T) {
 		t.Run(tu.Name(tc.loc, tc.parseTime), func(t *testing.T) {
 			src := &source.Source{
 				Handle:   "@testhandle",
-				Type:     Type,
+				Type:     drivertype.TypeMy,
 				Location: tc.loc,
 			}
 

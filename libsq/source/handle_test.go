@@ -7,12 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/sq/drivers/csv"
-	"github.com/neilotoole/sq/drivers/mysql"
-	"github.com/neilotoole/sq/drivers/postgres"
-	"github.com/neilotoole/sq/drivers/sqlite3"
-	"github.com/neilotoole/sq/drivers/sqlserver"
-	"github.com/neilotoole/sq/drivers/xlsx"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh/tu"
@@ -97,7 +91,7 @@ func TestSuggestHandle(t *testing.T) {
 		taken []string
 	}{
 		{
-			typ:  csv.TypeCSV,
+			typ:  drivertype.TypeCSV,
 			loc:  "/path/to/actor.csv",
 			want: "@actor",
 		},
@@ -107,27 +101,27 @@ func TestSuggestHandle(t *testing.T) {
 			want: "@actor",
 		},
 		{
-			typ:  xlsx.Type,
+			typ:  drivertype.TypeXLSX,
 			loc:  "/path/to/sakila.xlsx",
 			want: "@sakila",
 		},
 		{
-			typ:  xlsx.Type,
+			typ:  drivertype.TypeXLSX,
 			loc:  "/path/to/123_sakila.xlsx",
 			want: "@h123_sakila",
 		},
 		{
-			typ:  xlsx.Type,
+			typ:  drivertype.TypeXLSX,
 			loc:  "/path/to/__sakila.xlsx",
 			want: "@h__sakila",
 		},
 		{
-			typ:  xlsx.Type,
+			typ:  drivertype.TypeXLSX,
 			loc:  "/path/to/sakila.something.xlsx",
 			want: "@sakila_something",
 		},
 		{
-			typ:  xlsx.Type,
+			typ:  drivertype.TypeXLSX,
 			loc:  "/path/to/😀abc123😀",
 			want: "@h_abc123_",
 		},
@@ -137,13 +131,13 @@ func TestSuggestHandle(t *testing.T) {
 			want: "@sakila",
 		},
 		{
-			typ:   xlsx.Type,
+			typ:   drivertype.TypeXLSX,
 			loc:   "/path/to/sakila.xlsx",
 			want:  "@sakila2",
 			taken: []string{"@sakila", "@sakila1"},
 		},
 		{
-			typ:  sqlite3.Type,
+			typ:  drivertype.TypeSL3,
 			loc:  "sqlite3:///path/to/sakila.db",
 			want: "@sakila",
 		},
@@ -153,12 +147,12 @@ func TestSuggestHandle(t *testing.T) {
 			want: "@sakila",
 		},
 		{
-			typ:  sqlite3.Type,
+			typ:  drivertype.TypeSL3,
 			loc:  "/path/to/sakila.db",
 			want: "@sakila",
 		},
 		{
-			typ:  sqlserver.Type,
+			typ:  drivertype.TypeMS,
 			loc:  "sqlserver://sakila_p_ssW0rd@localhost?database=sakila",
 			want: "@sakila",
 		},
@@ -174,7 +168,7 @@ func TestSuggestHandle(t *testing.T) {
 			taken: []string{"@sakila"},
 		},
 		{
-			typ:  postgres.Type,
+			typ:  drivertype.TypePg,
 			loc:  "postgres://sakila_p_ssW0rd@localhost/sakila",
 			want: "@sakila",
 		},
@@ -184,12 +178,12 @@ func TestSuggestHandle(t *testing.T) {
 			want: "@sakila",
 		},
 		{
-			typ:  postgres.Type,
+			typ:  drivertype.TypePg,
 			loc:  "postgres://sakila_p_ssW0rd@localhost/sakila",
 			want: "@sakila",
 		},
 		{
-			typ:  mysql.Type,
+			typ:  drivertype.TypeMy,
 			loc:  "mysql://sakila_p_ssW0rd@localhost:3306/sakila",
 			want: "@sakila",
 		},
@@ -207,7 +201,7 @@ func TestSuggestHandle(t *testing.T) {
 			for i := range tc.taken {
 				err := set.Add(&source.Source{
 					Handle:   tc.taken[i],
-					Type:     sqlite3.Type,
+					Type:     drivertype.TypeSL3,
 					Location: "/tmp/taken.db",
 				})
 				require.NoError(t, err)

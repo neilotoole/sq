@@ -3,9 +3,9 @@ package libsq_test
 import (
 	"testing"
 
-	_ "github.com/mattn/go-sqlite3"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 
-	"github.com/neilotoole/sq/drivers/mysql"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 //nolint:exhaustive
@@ -15,35 +15,35 @@ func TestQuery_count(t *testing.T) {
 			name:         "alias",
 			in:           `@sakila | .actor | count:quantity`,
 			wantSQL:      `SELECT count(*) AS "quantity" FROM "actor"`,
-			override:     driverMap{mysql.Type: "SELECT count(*) AS `quantity` FROM `actor`"},
+			override:     driverMap{drivertype.TypeMy: "SELECT count(*) AS `quantity` FROM `actor`"},
 			wantRecCount: 1,
 		},
 		{
 			name:         "count-same-alias",
 			in:           `@sakila | .actor | count:count`,
 			wantSQL:      `SELECT count(*) AS "count" FROM "actor"`,
-			override:     driverMap{mysql.Type: "SELECT count(*) AS `count` FROM `actor`"},
+			override:     driverMap{drivertype.TypeMy: "SELECT count(*) AS `count` FROM `actor`"},
 			wantRecCount: 1,
 		},
 		{
 			name:     "whitespace-col",
 			in:       `@sakila | .actor | count(."first name")`,
 			wantSQL:  `SELECT count("first name") FROM "actor"`,
-			override: driverMap{mysql.Type: "SELECT count(`first name`) FROM `actor`"},
+			override: driverMap{drivertype.TypeMy: "SELECT count(`first name`) FROM `actor`"},
 			skipExec: true,
 		},
 		{
 			name:         "select-handle-table",
 			in:           `@sakila.actor | count`,
 			wantSQL:      `SELECT count(*) AS "count" FROM "actor"`,
-			override:     driverMap{mysql.Type: "SELECT count(*) AS `count` FROM `actor`"},
+			override:     driverMap{drivertype.TypeMy: "SELECT count(*) AS `count` FROM `actor`"},
 			wantRecCount: 1,
 		},
 		{
 			name:     "select-handle-table-ws-selector",
 			in:       `@sakila.actor | count(."first name")`,
 			wantSQL:  `SELECT count("first name") FROM "actor"`,
-			override: driverMap{mysql.Type: "SELECT count(`first name`) FROM `actor`"},
+			override: driverMap{drivertype.TypeMy: "SELECT count(`first name`) FROM `actor`"},
 			skipExec: true,
 		},
 		{
@@ -52,21 +52,21 @@ func TestQuery_count(t *testing.T) {
 			// being a reserved word (unique).
 			in:           `@sakila | .actor | count:unique`,
 			wantSQL:      `SELECT count(*) AS "unique" FROM "actor"`,
-			override:     driverMap{mysql.Type: "SELECT count(*) AS `unique` FROM `actor`"},
+			override:     driverMap{drivertype.TypeMy: "SELECT count(*) AS `unique` FROM `actor`"},
 			wantRecCount: 1,
 		},
 		{
 			name:         "no-parens-no-args-with-alias-arbitrary",
 			in:           `@sakila | .actor | count:something_123`,
 			wantSQL:      `SELECT count(*) AS "something_123" FROM "actor"`,
-			override:     driverMap{mysql.Type: "SELECT count(*) AS `something_123` FROM `actor`"},
+			override:     driverMap{drivertype.TypeMy: "SELECT count(*) AS `something_123` FROM `actor`"},
 			wantRecCount: 1,
 		},
 		{
 			name:         "parens-no-args",
 			in:           `@sakila | .actor | count()`,
 			wantSQL:      `SELECT count(*) AS "count" FROM "actor"`,
-			override:     driverMap{mysql.Type: "SELECT count(*) AS `count` FROM `actor`"},
+			override:     driverMap{drivertype.TypeMy: "SELECT count(*) AS `count` FROM `actor`"},
 			wantRecCount: 1,
 		},
 		{
@@ -78,7 +78,7 @@ func TestQuery_count(t *testing.T) {
 			name:         "single-selector",
 			in:           `@sakila | .actor | count(.first_name)`,
 			wantSQL:      `SELECT count("first_name") FROM "actor"`,
-			override:     driverMap{mysql.Type: "SELECT count(`first_name`) FROM `actor`"},
+			override:     driverMap{drivertype.TypeMy: "SELECT count(`first_name`) FROM `actor`"},
 			wantRecCount: 1,
 		},
 		{
@@ -90,7 +90,7 @@ func TestQuery_count(t *testing.T) {
 			name:         "count/no-parens-no-args",
 			in:           `@sakila | .actor | count`,
 			wantSQL:      `SELECT count(*) AS "count" FROM "actor"`,
-			override:     driverMap{mysql.Type: "SELECT count(*) AS `count` FROM `actor`"},
+			override:     driverMap{drivertype.TypeMy: "SELECT count(*) AS `count` FROM `actor`"},
 			wantRecCount: 1,
 		},
 		{
@@ -99,7 +99,7 @@ func TestQuery_count(t *testing.T) {
 			// being a reserved word (count).
 			in:           `@sakila | .actor | count:count`,
 			wantSQL:      `SELECT count(*) AS "count" FROM "actor"`,
-			override:     driverMap{mysql.Type: "SELECT count(*) AS `count` FROM `actor`"},
+			override:     driverMap{drivertype.TypeMy: "SELECT count(*) AS `count` FROM `actor`"},
 			wantRecCount: 1,
 		},
 	}

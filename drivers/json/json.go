@@ -27,17 +27,6 @@ import (
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
-const (
-	// TypeJSON is the plain-old JSON driver type.
-	TypeJSON = drivertype.Type("json")
-
-	// TypeJSONA is the JSON Array driver type.
-	TypeJSONA = drivertype.Type("jsona")
-
-	// TypeJSONL is the JSON Lines driver type.
-	TypeJSONL = drivertype.Type("jsonl")
-)
-
 // Provider implements driver.Provider.
 type Provider struct {
 	Log      *slog.Logger
@@ -50,11 +39,11 @@ func (d *Provider) DriverFor(typ drivertype.Type) (driver.Driver, error) {
 	var ingestFn ingestFunc
 
 	switch typ { //nolint:exhaustive
-	case TypeJSON:
+	case drivertype.TypeJSON:
 		ingestFn = ingestJSON
-	case TypeJSONA:
+	case drivertype.TypeJSONA:
 		ingestFn = ingestJSONA
-	case TypeJSONL:
+	case drivertype.TypeJSONL:
 		ingestFn = ingestJSONL
 	default:
 		return nil, errz.Errorf("unsupported driver type {%s}", typ)
@@ -81,13 +70,13 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 	md := driver.Metadata{Type: d.typ, Monotable: true}
 
 	switch d.typ { //nolint:exhaustive
-	case TypeJSON:
+	case drivertype.TypeJSON:
 		md.Description = "JSON"
 		md.Doc = "https://en.wikipedia.org/wiki/JSON"
-	case TypeJSONA:
+	case drivertype.TypeJSONA:
 		md.Description = "JSON Array: LF-delimited JSON arrays"
 		md.Doc = "https://en.wikipedia.org/wiki/JSON"
-	case TypeJSONL:
+	case drivertype.TypeJSONL:
 		md.Description = "JSON Lines: LF-delimited JSON objects"
 		md.Doc = "https://en.wikipedia.org/wiki/JSON_streaming#Line-delimited_JSON"
 	}

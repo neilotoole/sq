@@ -16,13 +16,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/neilotoole/sq/drivers/csv"
-	"github.com/neilotoole/sq/drivers/json"
-	"github.com/neilotoole/sq/drivers/mysql"
-	"github.com/neilotoole/sq/drivers/postgres"
-	"github.com/neilotoole/sq/drivers/sqlite3"
-	"github.com/neilotoole/sq/drivers/sqlserver"
-	"github.com/neilotoole/sq/drivers/xlsx"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lgt"
@@ -42,21 +35,21 @@ func TestFiles_DetectType(t *testing.T) {
 		wantType drivertype.Type
 		wantErr  bool
 	}{
-		{loc: proj.Abs(sakila.PathSL3), wantType: sqlite3.Type},
-		{loc: proj.Abs("drivers/sqlite3/testdata/sakila_db"), wantType: sqlite3.Type},
-		{loc: proj.Abs(testsrc.PathXLSXTestHeader), wantType: xlsx.Type},
-		{loc: proj.Abs("drivers/xlsx/testdata/test_header_xlsx"), wantType: xlsx.Type},
-		{loc: proj.Abs("drivers/xlsx/testdata/test_noheader.xlsx"), wantType: xlsx.Type},
-		{loc: proj.Abs("drivers/csv/testdata/person.csv"), wantType: csv.TypeCSV},
-		{loc: proj.Abs("drivers/csv/testdata/person_noheader.csv"), wantType: csv.TypeCSV},
-		{loc: proj.Abs("drivers/csv/testdata/person_csv"), wantType: csv.TypeCSV},
-		{loc: proj.Abs("drivers/csv/testdata/person.tsv"), wantType: csv.TypeTSV},
-		{loc: proj.Abs("drivers/csv/testdata/person_noheader.tsv"), wantType: csv.TypeTSV},
-		{loc: proj.Abs("drivers/csv/testdata/person_tsv"), wantType: csv.TypeTSV},
-		{loc: proj.Abs("drivers/csv/testdata/person_tsv"), wantType: csv.TypeTSV},
-		{loc: proj.Abs("drivers/json/testdata/actor.json"), wantType: json.TypeJSON},
-		{loc: proj.Abs("drivers/json/testdata/actor.jsona"), wantType: json.TypeJSONA},
-		{loc: proj.Abs("drivers/json/testdata/actor.jsonl"), wantType: json.TypeJSONL},
+		{loc: proj.Abs(sakila.PathSL3), wantType: drivertype.TypeSL3},
+		{loc: proj.Abs("drivers/sqlite3/testdata/sakila_db"), wantType: drivertype.TypeSL3},
+		{loc: proj.Abs(testsrc.PathXLSXTestHeader), wantType: drivertype.TypeXLSX},
+		{loc: proj.Abs("drivers/xlsx/testdata/test_header_xlsx"), wantType: drivertype.TypeXLSX},
+		{loc: proj.Abs("drivers/xlsx/testdata/test_noheader.xlsx"), wantType: drivertype.TypeXLSX},
+		{loc: proj.Abs("drivers/csv/testdata/person.csv"), wantType: drivertype.TypeCSV},
+		{loc: proj.Abs("drivers/csv/testdata/person_noheader.csv"), wantType: drivertype.TypeCSV},
+		{loc: proj.Abs("drivers/csv/testdata/person_csv"), wantType: drivertype.TypeCSV},
+		{loc: proj.Abs("drivers/csv/testdata/person.tsv"), wantType: drivertype.TypeTSV},
+		{loc: proj.Abs("drivers/csv/testdata/person_noheader.tsv"), wantType: drivertype.TypeTSV},
+		{loc: proj.Abs("drivers/csv/testdata/person_tsv"), wantType: drivertype.TypeTSV},
+		{loc: proj.Abs("drivers/csv/testdata/person_tsv"), wantType: drivertype.TypeTSV},
+		{loc: proj.Abs("drivers/json/testdata/actor.json"), wantType: drivertype.TypeJSON},
+		{loc: proj.Abs("drivers/json/testdata/actor.jsona"), wantType: drivertype.TypeJSONA},
+		{loc: proj.Abs("drivers/json/testdata/actor.jsonl"), wantType: drivertype.TypeJSONL},
 		{loc: proj.Abs("README.md"), wantType: drivertype.None, wantErr: true},
 	}
 
@@ -87,23 +80,23 @@ func TestFiles_DriverType(t *testing.T) {
 		wantType drivertype.Type
 		wantErr  bool
 	}{
-		{loc: proj.Expand("sqlite3://${SQ_ROOT}/drivers/sqlite3/testdata/sakila.db"), wantType: sqlite3.Type},
-		{loc: proj.Abs(sakila.PathSL3), wantType: sqlite3.Type},
-		{loc: proj.Abs("drivers/sqlite3/testdata/sakila_db"), wantType: sqlite3.Type},
-		{loc: "sqlserver://sakila:p_ssW0rd@localhost?database=sakila", wantType: sqlserver.Type},
-		{loc: "postgres://sakila:p_ssW0rd@localhost/sakila", wantType: postgres.Type},
-		{loc: "mysql://sakila:p_ssW0rd@localhost/sakila", wantType: mysql.Type},
-		{loc: proj.Abs(testsrc.PathXLSXTestHeader), wantType: xlsx.Type},
-		{loc: proj.Abs("drivers/xlsx/testdata/test_header_xlsx"), wantType: xlsx.Type},
-		{loc: sakila.URLSubsetXLSX, wantType: xlsx.Type},
-		{loc: proj.Abs(sakila.PathCSVActor), wantType: csv.TypeCSV},
-		{loc: proj.Abs("drivers/csv/testdata/person_csv"), wantType: csv.TypeCSV},
-		{loc: sakila.URLActorCSV, wantType: csv.TypeCSV},
-		{loc: proj.Abs(sakila.PathTSVActor), wantType: csv.TypeTSV},
-		{loc: proj.Abs("drivers/csv/testdata/person_tsv"), wantType: csv.TypeTSV},
-		{loc: proj.Abs("drivers/json/testdata/actor.json"), wantType: json.TypeJSON},
-		{loc: proj.Abs("drivers/json/testdata/actor.jsona"), wantType: json.TypeJSONA},
-		{loc: proj.Abs("drivers/json/testdata/actor.jsonl"), wantType: json.TypeJSONL},
+		{loc: proj.Expand("sqlite3://${SQ_ROOT}/drivers/sqlite3/testdata/sakila.db"), wantType: drivertype.TypeSL3},
+		{loc: proj.Abs(sakila.PathSL3), wantType: drivertype.TypeSL3},
+		{loc: proj.Abs("drivers/sqlite3/testdata/sakila_db"), wantType: drivertype.TypeSL3},
+		{loc: "sqlserver://sakila:p_ssW0rd@localhost?database=sakila", wantType: drivertype.TypeMS},
+		{loc: "postgres://sakila:p_ssW0rd@localhost/sakila", wantType: drivertype.TypePg},
+		{loc: "mysql://sakila:p_ssW0rd@localhost/sakila", wantType: drivertype.TypeMy},
+		{loc: proj.Abs(testsrc.PathXLSXTestHeader), wantType: drivertype.TypeXLSX},
+		{loc: proj.Abs("drivers/xlsx/testdata/test_header_xlsx"), wantType: drivertype.TypeXLSX},
+		{loc: sakila.URLSubsetXLSX, wantType: drivertype.TypeXLSX},
+		{loc: proj.Abs(sakila.PathCSVActor), wantType: drivertype.TypeCSV},
+		{loc: proj.Abs("drivers/csv/testdata/person_csv"), wantType: drivertype.TypeCSV},
+		{loc: sakila.URLActorCSV, wantType: drivertype.TypeCSV},
+		{loc: proj.Abs(sakila.PathTSVActor), wantType: drivertype.TypeTSV},
+		{loc: proj.Abs("drivers/csv/testdata/person_tsv"), wantType: drivertype.TypeTSV},
+		{loc: proj.Abs("drivers/json/testdata/actor.json"), wantType: drivertype.TypeJSON},
+		{loc: proj.Abs("drivers/json/testdata/actor.jsona"), wantType: drivertype.TypeJSONA},
+		{loc: proj.Abs("drivers/json/testdata/actor.jsonl"), wantType: drivertype.TypeJSONL},
 	}
 
 	for _, tc := range testCases {
@@ -134,8 +127,8 @@ func TestDetectMagicNumber(t *testing.T) {
 		wantScore float32
 		wantErr   bool
 	}{
-		{loc: proj.Abs(sakila.PathSL3), wantType: sqlite3.Type, wantScore: 1.0},
-		{loc: proj.Abs("drivers/sqlite3/testdata/sakila_db"), wantType: sqlite3.Type, wantScore: 1.0},
+		{loc: proj.Abs(sakila.PathSL3), wantType: drivertype.TypeSL3, wantScore: 1.0},
+		{loc: proj.Abs("drivers/sqlite3/testdata/sakila_db"), wantType: drivertype.TypeSL3, wantScore: 1.0},
 	}
 
 	for _, tc := range testCases {
@@ -166,7 +159,7 @@ func TestFiles_NewReader(t *testing.T) {
 
 	src := &source.Source{
 		Handle:   "@test_" + stringz.Uniq8(),
-		Type:     csv.TypeCSV,
+		Type:     drivertype.TypeCSV,
 		Location: proj.Abs(fpath),
 	}
 
@@ -198,9 +191,9 @@ func TestFiles_Stdin(t *testing.T) {
 		wantType drivertype.Type
 		wantErr  bool
 	}{
-		{fpath: proj.Abs(sakila.PathCSVActor), wantType: csv.TypeCSV},
-		{fpath: proj.Abs(sakila.PathTSVActor), wantType: csv.TypeTSV},
-		{fpath: proj.Abs(sakila.PathXLSX), wantType: xlsx.Type},
+		{fpath: proj.Abs(sakila.PathCSVActor), wantType: drivertype.TypeCSV},
+		{fpath: proj.Abs(sakila.PathTSVActor), wantType: drivertype.TypeTSV},
+		{fpath: proj.Abs(sakila.PathXLSX), wantType: drivertype.TypeXLSX},
 	}
 
 	for _, tc := range testCases {
@@ -241,7 +234,7 @@ func TestFiles_Stdin_ErrorWrongOrder(t *testing.T) {
 	require.NoError(t, fs.AddStdin(th.Context, f)) // AddStdin closes f
 	typ, err = fs.DetectStdinType(th.Context)
 	require.NoError(t, err)
-	require.Equal(t, csv.TypeCSV, typ)
+	require.Equal(t, drivertype.TypeCSV, typ)
 }
 
 func TestFiles_Filesize(t *testing.T) {

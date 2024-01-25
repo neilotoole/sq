@@ -192,18 +192,6 @@ func RedactSources(srcs ...*Source) []*Source {
 	return a
 }
 
-// Redefine the drivertype.Type values here rather than introducing
-// a circular dependency on the drivers impl packages.
-const (
-	typeSL3  = drivertype.Type("sqlite3")
-	typePg   = drivertype.Type("postgres")
-	typeMS   = drivertype.Type("sqlserver")
-	typeMy   = drivertype.Type("mysql")
-	typeXLSX = drivertype.Type("xlsx")
-	typeCSV  = drivertype.Type("csv")
-	typeTSV  = drivertype.Type("tsv")
-)
-
 // Target returns @handle.tbl. This is often used in log messages.
 func Target(src *Source, tbl string) string {
 	if src == nil {

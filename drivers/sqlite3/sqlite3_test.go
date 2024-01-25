@@ -6,6 +6,8 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/source/drivertype"
+
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/require"
 
@@ -209,7 +211,7 @@ func TestPathFromLocation(t *testing.T) {
 		t.Run(tc.loc, func(t *testing.T) {
 			src := &source.Source{
 				Handle:   "@h1",
-				Type:     sqlite3.Type,
+				Type:     drivertype.TypeSL3,
 				Location: tc.loc,
 			}
 

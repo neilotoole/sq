@@ -3,11 +3,12 @@ package source_test
 import (
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/source/drivertype"
+
 	"github.com/neilotoole/sq/libsq/source/location"
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/libsq/core/options"
@@ -27,7 +28,7 @@ const (
 func newSource(handle string) *source.Source {
 	return &source.Source{
 		Handle:   handle,
-		Type:     sqlite3.Type,
+		Type:     drivertype.TypeSL3,
 		Location: proj.Abs("drivers/sqlite3/testdata/sakila.db"),
 	}
 }
@@ -551,7 +552,7 @@ func TestSource_LogValue(t *testing.T) {
 
 	src := &source.Source{
 		Handle:   "@sakila",
-		Type:     sqlite3.Type,
+		Type:     drivertype.TypeSL3,
 		Location: "/tmp/sakila.db",
 		Options:  nil,
 	}

@@ -38,9 +38,6 @@ import (
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
-// Type is the postgres source driver type.
-const Type = drivertype.Type("postgres")
-
 // Provider is the postgres implementation of driver.Provider.
 type Provider struct {
 	Log *slog.Logger
@@ -48,7 +45,7 @@ type Provider struct {
 
 // DriverFor implements driver.Provider.
 func (p *Provider) DriverFor(typ drivertype.Type) (driver.Driver, error) {
-	if typ != Type {
+	if typ != drivertype.TypePg {
 		return nil, errz.Errorf("unsupported driver type {%s}", typ)
 	}
 
@@ -83,7 +80,7 @@ func (d *driveri) ErrWrapFunc() func(error) error {
 // DriverMetadata implements driver.Driver.
 func (d *driveri) DriverMetadata() driver.Metadata {
 	return driver.Metadata{
-		Type:        Type,
+		Type:        drivertype.TypePg,
 		Description: "PostgreSQL",
 		Doc:         "https://github.com/jackc/pgx",
 		IsSQL:       true,
@@ -94,7 +91,7 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 // Dialect implements driver.SQLDriver.
 func (d *driveri) Dialect() dialect.Dialect {
 	return dialect.Dialect{
-		Type:           Type,
+		Type:           drivertype.TypePg,
 		Placeholders:   placeholders,
 		Enquote:        stringz.DoubleQuote,
 		MaxBatchValues: 1000,
@@ -221,8 +218,8 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 
 // ValidateSource implements driver.Driver.
 func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
-	if src.Type != Type {
-		return nil, errz.Errorf("expected driver type {%s} but got {%s}", Type, src.Type)
+	if src.Type != drivertype.TypePg {
+		return nil, errz.Errorf("expected driver type {%s} but got {%s}", drivertype.TypePg, src.Type)
 	}
 	return src, nil
 }

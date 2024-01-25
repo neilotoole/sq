@@ -26,14 +26,14 @@ var (
 func DetectCSV(ctx context.Context, newRdrFn files.NewReaderFunc) (detected drivertype.Type, score float32,
 	err error,
 ) {
-	return detectType(ctx, TypeCSV, newRdrFn)
+	return detectType(ctx, drivertype.TypeCSV, newRdrFn)
 }
 
 // DetectTSV implements source.DriverDetectFunc.
 func DetectTSV(ctx context.Context, newRdrFn files.NewReaderFunc) (detected drivertype.Type,
 	score float32, err error,
 ) {
-	return detectType(ctx, TypeTSV, newRdrFn)
+	return detectType(ctx, drivertype.TypeTSV, newRdrFn)
 }
 
 func detectType(ctx context.Context, typ drivertype.Type, newRdrFn files.NewReaderFunc) (detected drivertype.Type,
@@ -48,7 +48,7 @@ func detectType(ctx context.Context, typ drivertype.Type, newRdrFn files.NewRead
 	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
 
 	delim := csvw.Comma
-	if typ == TypeTSV {
+	if typ == drivertype.TypeTSV {
 		delim = csvw.Tab
 	}
 

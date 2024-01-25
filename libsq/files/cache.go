@@ -166,7 +166,7 @@ func (fs *Files) cachedBackingSourceForFile(ctx context.Context, src *source.Sou
 	backingSrc := &source.Source{
 		Handle:   src.Handle + "_cached",
 		Location: "sqlite3://" + cacheDBPath,
-		Type:     drivertype.Type("sqlite3"),
+		Type:     drivertype.TypeSL3,
 	}
 
 	lg.FromContext(ctx).Debug("Found cached backing source DB src", lga.Src, src, "backing_src", backingSrc)

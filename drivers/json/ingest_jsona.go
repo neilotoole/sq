@@ -96,7 +96,7 @@ func DetectJSONA(sampleSize int) files.DriverDetectFunc {
 		}
 
 		if validLines > 0 {
-			return TypeJSONA, 1.0, nil
+			return drivertype.TypeJSONA, 1.0, nil
 		}
 
 		return drivertype.None, 0, nil
@@ -119,7 +119,7 @@ func ingestJSONA(ctx context.Context, job ingestJob) error {
 	}
 
 	if len(colKinds) == 0 || len(readMungeFns) == 0 {
-		return errz.Errorf("import %s: number of fields is zero", TypeJSONA)
+		return errz.Errorf("import %s: number of fields is zero", drivertype.TypeJSONA)
 	}
 
 	colNames := make([]string, len(colKinds))
@@ -136,7 +136,7 @@ func ingestJSONA(ctx context.Context, job ingestJob) error {
 
 	err = job.destGrip.SQLDriver().CreateTable(ctx, db, tblDef)
 	if err != nil {
-		return errz.Wrapf(err, "import %s: failed to create dest scratch table", TypeJSONA)
+		return errz.Wrapf(err, "import %s: failed to create dest scratch table", drivertype.TypeJSONA)
 	}
 
 	recMeta, err := getRecMeta(ctx, job.destGrip, tblDef)

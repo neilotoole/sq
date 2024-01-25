@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/source/drivertype"
+
 	"github.com/c2h5oh/datasize"
 	"golang.org/x/sync/errgroup"
 
@@ -122,7 +124,7 @@ FROM sys.master_files WITH(NOWAIT)
 WHERE database_id = DB_ID()
 GROUP BY database_id) AS total_size_bytes`
 
-	md := &metadata.Source{Driver: Type, DBDriver: Type}
+	md := &metadata.Source{Driver: drivertype.TypeMS, DBDriver: drivertype.TypeMS}
 	md.Handle = src.Handle
 	md.Location = src.Location
 

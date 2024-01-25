@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"log/slog"
 
+	"github.com/neilotoole/sq/libsq/source/drivertype"
+
 	"github.com/neilotoole/sq/libsq/files"
 
 	"github.com/neilotoole/sq/libsq/source/location"
@@ -48,7 +50,7 @@ func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Sou
 	}
 
 	md.Handle = g.src.Handle
-	md.Driver = Type
+	md.Driver = drivertype.TypeXLSX
 	md.Location = g.src.Location
 	if md.Name, err = location.Filename(g.src.Location); err != nil {
 		return nil, err

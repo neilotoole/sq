@@ -20,8 +20,6 @@ import (
 )
 
 const (
-	// Type is the sq source driver type for XLSX.
-	Type = drivertype.Type("xlsx")
 
 	// laSheet is a constant for the "sheet" log attribute.
 	laSheet = "sheet"
@@ -36,7 +34,7 @@ type Provider struct {
 
 // DriverFor implements driver.Provider.
 func (p *Provider) DriverFor(typ drivertype.Type) (driver.Driver, error) {
-	if typ != Type {
+	if typ != drivertype.TypeXLSX {
 		return nil, errz.Errorf("unsupported driver type {%s}", typ)
 	}
 
@@ -53,7 +51,7 @@ type Driver struct {
 // DriverMetadata implements driver.Driver.
 func (d *Driver) DriverMetadata() driver.Metadata {
 	return driver.Metadata{
-		Type:        Type,
+		Type:        drivertype.TypeXLSX,
 		Description: "Microsoft Excel XLSX",
 		Doc:         "https://en.wikipedia.org/wiki/Microsoft_Excel",
 	}
@@ -101,8 +99,8 @@ func (d *Driver) Open(ctx context.Context, src *source.Source) (driver.Grip, err
 // ValidateSource implements driver.Driver.
 func (d *Driver) ValidateSource(src *source.Source) (*source.Source, error) {
 	d.log.Debug("Validating source", lga.Src, src)
-	if src.Type != Type {
-		return nil, errz.Errorf("expected driver type {%s} but got {%s}", Type, src.Type)
+	if src.Type != drivertype.TypeXLSX {
+		return nil, errz.Errorf("expected driver type {%s} but got {%s}", drivertype.TypeXLSX, src.Type)
 	}
 
 	return src, nil

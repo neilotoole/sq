@@ -94,10 +94,10 @@ func ValidGroup(group string) error {
 // handleTypeAliases is a map of type names to the
 // more user-friendly suffix returned by SuggestHandle.
 var handleTypeAliases = map[string]string{
-	typeSL3.String(): "sqlite",
-	typePg.String():  "pg",
-	typeMS.String():  "mssql",
-	typeMy.String():  "my",
+	drivertype.TypeSL3.String(): "sqlite",
+	drivertype.TypePg.String():  "pg",
+	drivertype.TypeMS.String():  "mssql",
+	drivertype.TypeMy.String():  "my",
 }
 
 // SuggestHandle suggests a handle based on location and type.

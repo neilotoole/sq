@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/source/drivertype"
+
 	"github.com/go-sql-driver/mysql"
 	"github.com/samber/lo"
 	"golang.org/x/sync/errgroup"
@@ -278,8 +280,8 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSc
 	ctx = options.NewContext(ctx, src.Options)
 
 	md := &metadata.Source{
-		Driver:   Type,
-		DBDriver: Type,
+		Driver:   drivertype.TypeMy,
+		DBDriver: drivertype.TypeMy,
 		Handle:   src.Handle,
 		Location: src.Location,
 	}

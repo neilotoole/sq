@@ -7,10 +7,6 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/samber/lo"
 
-	"github.com/neilotoole/sq/drivers/mysql"
-	"github.com/neilotoole/sq/drivers/postgres"
-	"github.com/neilotoole/sq/drivers/sqlite3"
-	"github.com/neilotoole/sq/drivers/sqlserver"
 	"github.com/neilotoole/sq/libsq/core/jointype"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh/sakila"
@@ -65,7 +61,7 @@ func TestQuery_join_inner(t *testing.T) {
 			name:          "n1/equals-with-alias",
 			in:            `@sakila | .store:s | join(.address:a, .s.address_id == .a.address_id)`,
 			wantSQL:       `SELECT * FROM "store" AS "s" INNER JOIN "address" AS "a" ON "s"."address_id" = "a"."address_id"`,
-			override:      driverMap{mysql.Type: "SELECT * FROM `store` AS `s` INNER JOIN `address` AS `a` ON `s`.`address_id` = `a`.`address_id`"},
+			override:      driverMap{drivertype.TypeMy: "SELECT * FROM `store` AS `s` INNER JOIN `address` AS `a` ON `s`.`address_id` = `a`.`address_id`"},
 			wantRecCount:  2,
 			repeatReplace: innerJoins,
 		},
@@ -73,7 +69,7 @@ func TestQuery_join_inner(t *testing.T) {
 			name:          "n2/equals-with-alias/unqualified-cols",
 			in:            `@sakila | .actor:a | join(.film_actor:fa, .a.actor_id == .fa.actor_id) | join(.film:f, .fa.film_id == .f.film_id) | .first_name, .last_name, .title`,
 			wantSQL:       `SELECT "first_name", "last_name", "title" FROM "actor" AS "a" INNER JOIN "film_actor" AS "fa" ON "a"."actor_id" = "fa"."actor_id" INNER JOIN "film" AS "f" ON "fa"."film_id" = "f"."film_id"`,
-			override:      driverMap{mysql.Type: "SELECT `first_name`, `last_name`, `title` FROM `actor` AS `a` INNER JOIN `film_actor` AS `fa` ON `a`.`actor_id` = `fa`.`actor_id` INNER JOIN `film` AS `f` ON `fa`.`film_id` = `f`.`film_id`"},
+			override:      driverMap{drivertype.TypeMy: "SELECT `first_name`, `last_name`, `title` FROM `actor` AS `a` INNER JOIN `film_actor` AS `fa` ON `a`.`actor_id` = `fa`.`actor_id` INNER JOIN `film` AS `f` ON `fa`.`film_id` = `f`.`film_id`"},
 			wantRecCount:  sakila.TblFilmActorCount,
 			repeatReplace: innerJoins,
 		},
@@ -81,7 +77,7 @@ func TestQuery_join_inner(t *testing.T) {
 			name:          "n2/equals-with-alias/qualified-cols",
 			in:            `@sakila | .actor:a | join(.film_actor:fa, .a.actor_id == .fa.actor_id) | join(.film:f, .fa.film_id == .f.film_id) | .a.first_name, .a.last_name, .f.title`,
 			wantSQL:       `SELECT "a"."first_name", "a"."last_name", "f"."title" FROM "actor" AS "a" INNER JOIN "film_actor" AS "fa" ON "a"."actor_id" = "fa"."actor_id" INNER JOIN "film" AS "f" ON "fa"."film_id" = "f"."film_id"`,
-			override:      driverMap{mysql.Type: "SELECT `a`.`first_name`, `a`.`last_name`, `f`.`title` FROM `actor` AS `a` INNER JOIN `film_actor` AS `fa` ON `a`.`actor_id` = `fa`.`actor_id` INNER JOIN `film` AS `f` ON `fa`.`film_id` = `f`.`film_id`"},
+			override:      driverMap{drivertype.TypeMy: "SELECT `a`.`first_name`, `a`.`last_name`, `f`.`title` FROM `actor` AS `a` INNER JOIN `film_actor` AS `fa` ON `a`.`actor_id` = `fa`.`actor_id` INNER JOIN `film` AS `f` ON `fa`.`film_id` = `f`.`film_id`"},
 			wantRecCount:  sakila.TblFilmActorCount,
 			repeatReplace: innerJoins,
 		},
@@ -89,7 +85,7 @@ func TestQuery_join_inner(t *testing.T) {
 			name:          "n1/single-selector-no-alias",
 			in:            `@sakila | .store | join(.address, .address_id)`,
 			wantSQL:       `SELECT * FROM "store" INNER JOIN "address" ON "store"."address_id" = "address"."address_id"`,
-			override:      driverMap{mysql.Type: "SELECT * FROM `store` INNER JOIN `address` ON `store`.`address_id` = `address`.`address_id`"},
+			override:      driverMap{drivertype.TypeMy: "SELECT * FROM `store` INNER JOIN `address` ON `store`.`address_id` = `address`.`address_id`"},
 			wantRecCount:  2,
 			repeatReplace: innerJoins,
 		},
@@ -97,7 +93,7 @@ func TestQuery_join_inner(t *testing.T) {
 			name:          "n1/table-handle-single-selector-no-alias",
 			in:            `@sakila.store | join(.address, .address_id)`,
 			wantSQL:       `SELECT * FROM "store" INNER JOIN "address" ON "store"."address_id" = "address"."address_id"`,
-			override:      driverMap{mysql.Type: "SELECT * FROM `store` INNER JOIN `address` ON `store`.`address_id` = `address`.`address_id`"},
+			override:      driverMap{drivertype.TypeMy: "SELECT * FROM `store` INNER JOIN `address` ON `store`.`address_id` = `address`.`address_id`"},
 			wantRecCount:  2,
 			repeatReplace: innerJoins,
 		},
@@ -105,7 +101,7 @@ func TestQuery_join_inner(t *testing.T) {
 			name:          "n1/single-selector-with-alias",
 			in:            `@sakila | .store:s | join(.address:a, .address_id)`,
 			wantSQL:       `SELECT * FROM "store" AS "s" INNER JOIN "address" AS "a" ON "s"."address_id" = "a"."address_id"`,
-			override:      driverMap{mysql.Type: "SELECT * FROM `store` AS `s` INNER JOIN `address` AS `a` ON `s`.`address_id` = `a`.`address_id`"},
+			override:      driverMap{drivertype.TypeMy: "SELECT * FROM `store` AS `s` INNER JOIN `address` AS `a` ON `s`.`address_id` = `a`.`address_id`"},
 			wantRecCount:  2,
 			repeatReplace: innerJoins,
 		},
@@ -113,7 +109,7 @@ func TestQuery_join_inner(t *testing.T) {
 			name:          "cross-join/n1/no-constraint",
 			in:            `@sakila | .store | cross_join(.address)`,
 			wantSQL:       `SELECT * FROM "store" CROSS JOIN "address"`,
-			override:      driverMap{mysql.Type: "SELECT * FROM `store` CROSS JOIN `address`"},
+			override:      driverMap{drivertype.TypeMy: "SELECT * FROM `store` CROSS JOIN `address`"},
 			wantRecCount:  1206,
 			repeatReplace: []string{string(jointype.Cross), jointype.CrossAlias},
 		},
@@ -239,7 +235,7 @@ func TestQuery_join_others(t *testing.T) {
 			name:          "left_join",
 			in:            `@sakila | .actor | left_join(.film_actor, .actor_id)`,
 			wantSQL:       `SELECT * FROM "actor" LEFT JOIN "film_actor" ON "actor"."actor_id" = "film_actor"."actor_id"`,
-			override:      driverMap{mysql.Type: "SELECT * FROM `actor` LEFT JOIN `film_actor` ON `actor`.`actor_id` = `film_actor`.`actor_id`"},
+			override:      driverMap{drivertype.TypeMy: "SELECT * FROM `actor` LEFT JOIN `film_actor` ON `actor`.`actor_id` = `film_actor`.`actor_id`"},
 			wantRecCount:  sakila.TblFilmActorCount,
 			repeatReplace: []string{string(jointype.Left), jointype.LeftAlias},
 			sinkFns: []SinkTestFunc{
@@ -250,7 +246,7 @@ func TestQuery_join_others(t *testing.T) {
 			name:          "left_outer_join",
 			in:            `@sakila | .actor | left_outer_join(.film_actor, .actor_id)`,
 			wantSQL:       `SELECT * FROM "actor" LEFT OUTER JOIN "film_actor" ON "actor"."actor_id" = "film_actor"."actor_id"`,
-			override:      driverMap{mysql.Type: "SELECT * FROM `actor` LEFT OUTER JOIN `film_actor` ON `actor`.`actor_id` = `film_actor`.`actor_id`"},
+			override:      driverMap{drivertype.TypeMy: "SELECT * FROM `actor` LEFT OUTER JOIN `film_actor` ON `actor`.`actor_id` = `film_actor`.`actor_id`"},
 			wantRecCount:  sakila.TblFilmActorCount,
 			repeatReplace: []string{string(jointype.LeftOuter), jointype.LeftOuterAlias},
 			sinkFns: []SinkTestFunc{
@@ -261,7 +257,7 @@ func TestQuery_join_others(t *testing.T) {
 			name:          "right_join",
 			in:            `@sakila | .actor | right_join(.film_actor, .actor_id)`,
 			wantSQL:       `SELECT * FROM "actor" RIGHT JOIN "film_actor" ON "actor"."actor_id" = "film_actor"."actor_id"`,
-			override:      driverMap{mysql.Type: "SELECT * FROM `actor` RIGHT JOIN `film_actor` ON `actor`.`actor_id` = `film_actor`.`actor_id`"},
+			override:      driverMap{drivertype.TypeMy: "SELECT * FROM `actor` RIGHT JOIN `film_actor` ON `actor`.`actor_id` = `film_actor`.`actor_id`"},
 			wantRecCount:  sakila.TblFilmActorCount,
 			repeatReplace: []string{string(jointype.Right), jointype.RightAlias},
 			sinkFns: []SinkTestFunc{
@@ -272,7 +268,7 @@ func TestQuery_join_others(t *testing.T) {
 			name:          "right_outer_join",
 			in:            `@sakila | .actor | right_outer_join(.film_actor, .actor_id)`,
 			wantSQL:       `SELECT * FROM "actor" RIGHT OUTER JOIN "film_actor" ON "actor"."actor_id" = "film_actor"."actor_id"`,
-			override:      driverMap{mysql.Type: "SELECT * FROM `actor` RIGHT OUTER JOIN `film_actor` ON `actor`.`actor_id` = `film_actor`.`actor_id`"},
+			override:      driverMap{drivertype.TypeMy: "SELECT * FROM `actor` RIGHT OUTER JOIN `film_actor` ON `actor`.`actor_id` = `film_actor`.`actor_id`"},
 			wantRecCount:  sakila.TblFilmActorCount,
 			repeatReplace: []string{string(jointype.RightOuter), jointype.RightOuterAlias},
 			sinkFns: []SinkTestFunc{
@@ -284,7 +280,7 @@ func TestQuery_join_others(t *testing.T) {
 			in:      `@sakila | .actor | full_outer_join(.film_actor, .actor_id)`,
 			wantSQL: `SELECT * FROM "actor" FULL OUTER JOIN "film_actor" ON "actor"."actor_id" = "film_actor"."actor_id"`,
 			// Note that MySQL doesn't support full outer join.
-			onlyFor:       []drivertype.Type{sqlite3.Type, postgres.Type, sqlserver.Type},
+			onlyFor:       []drivertype.Type{drivertype.TypeSL3, drivertype.TypePg, drivertype.TypeMS},
 			wantRecCount:  sakila.TblFilmActorCount,
 			repeatReplace: []string{string(jointype.FullOuter), jointype.FullOuterAlias},
 			sinkFns: []SinkTestFunc{
@@ -295,7 +291,7 @@ func TestQuery_join_others(t *testing.T) {
 			name: "full_outer_join/error-mysql",
 			in:   `@sakila | .actor | full_outer_join(.film_actor, .actor_id)`,
 			// Note that MySQL doesn't support full outer join.
-			onlyFor:       []drivertype.Type{mysql.Type},
+			onlyFor:       []drivertype.Type{drivertype.TypeMy},
 			wantErr:       true,
 			repeatReplace: []string{string(jointype.FullOuter), jointype.FullOuterAlias},
 		},
@@ -303,7 +299,7 @@ func TestQuery_join_others(t *testing.T) {
 			name:          "cross/store-address",
 			in:            `@sakila | .store | cross_join(.address)`,
 			wantSQL:       `SELECT * FROM "store" CROSS JOIN "address"`,
-			override:      driverMap{mysql.Type: "SELECT * FROM `store` CROSS JOIN `address`"},
+			override:      driverMap{drivertype.TypeMy: "SELECT * FROM `store` CROSS JOIN `address`"},
 			wantRecCount:  1206,
 			repeatReplace: []string{string(jointype.Cross), jointype.CrossAlias},
 		},
@@ -311,7 +307,7 @@ func TestQuery_join_others(t *testing.T) {
 			name:          "cross/store-staff",
 			in:            `@sakila | .store | cross_join(.staff)`,
 			wantSQL:       `SELECT * FROM "store" CROSS JOIN "staff"`,
-			override:      driverMap{mysql.Type: "SELECT * FROM `store` CROSS JOIN `staff`"},
+			override:      driverMap{drivertype.TypeMy: "SELECT * FROM `store` CROSS JOIN `staff`"},
 			wantRecCount:  4,
 			repeatReplace: []string{string(jointype.Cross), jointype.CrossAlias},
 		},
@@ -344,7 +340,7 @@ func TestQuery_table_alias(t *testing.T) {
 			name:         "table-alias",
 			in:           `@sakila | .actor:a | .a.first_name`,
 			wantSQL:      `SELECT "a"."first_name" FROM "actor" AS "a"`,
-			override:     driverMap{mysql.Type: "SELECT `a`.`first_name` FROM `actor` AS `a`"},
+			override:     driverMap{drivertype.TypeMy: "SELECT `a`.`first_name` FROM `actor` AS `a`"},
 			wantRecCount: sakila.TblActorCount,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "first_name"),
@@ -354,7 +350,7 @@ func TestQuery_table_alias(t *testing.T) {
 			name:         "table-whitespace-alias",
 			in:           `@sakila | .actor:"oy vey" | ."oy vey".first_name`,
 			wantSQL:      `SELECT "oy vey"."first_name" FROM "actor" AS "oy vey"`,
-			override:     driverMap{mysql.Type: "SELECT `oy vey`.`first_name` FROM `actor` AS `oy vey`"},
+			override:     driverMap{drivertype.TypeMy: "SELECT `oy vey`.`first_name` FROM `actor` AS `oy vey`"},
 			wantRecCount: sakila.TblActorCount,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "first_name"),
@@ -364,7 +360,7 @@ func TestQuery_table_alias(t *testing.T) {
 			name:         "table-whitespace-alias-with-col-alias",
 			in:           `@sakila | .actor:"oy vey" | ."oy vey".first_name:given_name`,
 			wantSQL:      `SELECT "oy vey"."first_name" AS "given_name" FROM "actor" AS "oy vey"`,
-			override:     driverMap{mysql.Type: "SELECT `oy vey`.`first_name` AS `given_name` FROM `actor` AS `oy vey`"},
+			override:     driverMap{drivertype.TypeMy: "SELECT `oy vey`.`first_name` AS `given_name` FROM `actor` AS `oy vey`"},
 			wantRecCount: sakila.TblActorCount,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "given_name"),
@@ -374,7 +370,7 @@ func TestQuery_table_alias(t *testing.T) {
 			name:         "table-whitespace-alias-with-col-whitespace-alias",
 			in:           `@sakila | .actor:"oy vey" | ."oy vey".first_name:"oy vey"`,
 			wantSQL:      `SELECT "oy vey"."first_name" AS "oy vey" FROM "actor" AS "oy vey"`,
-			override:     driverMap{mysql.Type: "SELECT `oy vey`.`first_name` AS `oy vey` FROM `actor` AS `oy vey`"},
+			override:     driverMap{drivertype.TypeMy: "SELECT `oy vey`.`first_name` AS `oy vey` FROM `actor` AS `oy vey`"},
 			wantRecCount: sakila.TblActorCount,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "oy vey"),

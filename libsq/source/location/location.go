@@ -226,7 +226,7 @@ func Parse(loc string) (*Fields, error) {
 		fpath := strings.TrimPrefix(loc, sqlitePrefix)
 
 		fields.Scheme = "sqlite3"
-		fields.DriverType = typeSL3
+		fields.DriverType = drivertype.TypeSL3
 		fields.DSN = fpath
 
 		// fpath could include params, e.g. "sqlite3://C:\sakila.db?param=val"
@@ -266,7 +266,7 @@ func Parse(loc string) (*Fields, error) {
 	default:
 		return nil, errz.Errorf("parse location: invalid scheme: %s", loc)
 	case "sqlserver":
-		fields.DriverType = typeMS
+		fields.DriverType = drivertype.TypeMS
 
 		u2, err := url.ParseRequestURI(loc)
 		if err != nil {
@@ -280,10 +280,10 @@ func Parse(loc string) (*Fields, error) {
 		}
 		fields.Name = vals.Get("database")
 	case "postgres":
-		fields.DriverType = typePg
+		fields.DriverType = drivertype.TypePg
 		fields.Name = strings.TrimPrefix(u.Path, "/")
 	case "mysql":
-		fields.DriverType = typeMy
+		fields.DriverType = drivertype.TypeMy
 		fields.Name = strings.TrimPrefix(u.Path, "/")
 	}
 
@@ -366,18 +366,6 @@ func isHTTP(s string) (u *url.URL, ok bool) {
 
 	return u, true
 }
-
-// Redefine the drivertype.Type values here rather than introducing
-// a circular dependency on the drivers impl packages.
-const (
-	typeSL3  = drivertype.Type("sqlite3")
-	typePg   = drivertype.Type("postgres")
-	typeMS   = drivertype.Type("sqlserver")
-	typeMy   = drivertype.Type("mysql")
-	typeXLSX = drivertype.Type("xlsx")
-	typeCSV  = drivertype.Type("csv")
-	typeTSV  = drivertype.Type("tsv")
-)
 
 // Redact returns a redacted version of the source
 // location loc, with the password component (if any) of

@@ -15,7 +15,6 @@ import (
 	"golang.org/x/exp/maps"
 
 	"github.com/neilotoole/sq/cli/testrun"
-	"github.com/neilotoole/sq/drivers/csv"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/loz"
 	"github.com/neilotoole/sq/libsq/core/record"
@@ -94,7 +93,7 @@ func TestSakila_query(t *testing.T) {
 		},
 	}
 
-	for _, drvr := range []drivertype.Type{csv.TypeCSV, csv.TypeTSV} {
+	for _, drvr := range []drivertype.Type{drivertype.TypeCSV, drivertype.TypeTSV} {
 		drvr := drvr
 
 		t.Run(drvr.String(), func(t *testing.T) {
@@ -282,7 +281,7 @@ func TestIngest_Kind_Timestamp(t *testing.T) {
 			th := testh.New(t)
 			src := &source.Source{
 				Handle:   "@tsv/" + tc.file,
-				Type:     csv.TypeTSV,
+				Type:     drivertype.TypeTSV,
 				Location: filepath.Join("testdata", tc.file+".tsv"),
 			}
 			src = th.Add(src)
@@ -347,7 +346,7 @@ func TestIngest_Kind_Date(t *testing.T) {
 			th := testh.New(t)
 			src := &source.Source{
 				Handle:   "@tsv/" + tc.file,
-				Type:     csv.TypeTSV,
+				Type:     drivertype.TypeTSV,
 				Location: filepath.Join("testdata", tc.file+".tsv"),
 			}
 			src = th.Add(src)
@@ -400,7 +399,7 @@ func TestIngest_Kind_Time(t *testing.T) {
 			th := testh.New(t)
 			src := &source.Source{
 				Handle:   "@tsv/" + tc.file,
-				Type:     csv.TypeTSV,
+				Type:     drivertype.TypeTSV,
 				Location: filepath.Join("testdata", tc.file+".tsv"),
 			}
 			src = th.Add(src)
