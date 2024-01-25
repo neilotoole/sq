@@ -17,7 +17,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/record"
-	"github.com/neilotoole/sq/libsq/core/sqlmodel"
+	"github.com/neilotoole/sq/libsq/core/schema"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
@@ -54,7 +54,7 @@ var (
 )
 
 // getRecMeta returns record.Meta to use with RecordWriter.Open.
-func getRecMeta(ctx context.Context, grip driver.Grip, tblDef *sqlmodel.TableDef) (record.Meta, error) {
+func getRecMeta(ctx context.Context, grip driver.Grip, tblDef *schema.Table) (record.Meta, error) {
 	db, err := grip.DB(ctx)
 	if err != nil {
 		return nil, err
@@ -96,8 +96,8 @@ type processor struct {
 	// if flattened is true, the JSON object will be flattened into a single table.
 	flatten bool
 
-	root   *entity
-	schema *importSchema
+	root         *entity
+	importSchema *importSchema
 
 	colNamesOrdered []string
 
@@ -111,7 +111,7 @@ type processor struct {
 func newProcessor(flatten bool) *processor {
 	return &processor{
 		flatten:             flatten,
-		schema:              &importSchema{},
+		importSchema:        &importSchema{},
 		root:                &entity{name: source.MonotableName, detectors: map[string]*kind.Detector{}},
 		schemaDirtyEntities: map[*entity]struct{}{},
 	}
@@ -147,20 +147,20 @@ func (p *processor) calcColName(ent *entity, fieldName string) string {
 
 // buildSchemaFlat currently only builds a flat (single table) schema.
 func (p *processor) buildSchemaFlat() (*importSchema, error) {
-	tblDef := &sqlmodel.TableDef{
+	tblDef := &schema.Table{
 		Name: source.MonotableName,
 	}
 
-	var colDefs []*sqlmodel.ColDef
+	var colDefs []*schema.Column
 
-	schema := &importSchema{
-		colMungeFns: map[*sqlmodel.ColDef]kind.MungeFunc{},
-		entityTbls:  map[*entity]*sqlmodel.TableDef{},
-		tblDefs:     []*sqlmodel.TableDef{tblDef}, // Single table only because flat
+	schma := &importSchema{
+		colMungeFns: map[*schema.Column]kind.MungeFunc{},
+		entityTbls:  map[*entity]*schema.Table{},
+		tblDefs:     []*schema.Table{tblDef}, // Single table only because flat
 	}
 
 	visitFn := func(e *entity) error {
-		schema.entityTbls[e] = tblDef
+		schma.entityTbls[e] = tblDef
 
 		for _, field := range e.fieldNames {
 			if detector, ok := e.detectors[field]; ok {
@@ -174,7 +174,7 @@ func (p *processor) buildSchemaFlat() (*importSchema, error) {
 					k = kind.Text
 				}
 
-				colDef := &sqlmodel.ColDef{
+				colDef := &schema.Column{
 					Name:  p.calcColName(e, field),
 					Table: tblDef,
 					Kind:  k,
@@ -182,7 +182,7 @@ func (p *processor) buildSchemaFlat() (*importSchema, error) {
 
 				colDefs = append(colDefs, colDef)
 				if mungeFn != nil {
-					schema.colMungeFns[colDef] = mungeFn
+					schma.colMungeFns[colDef] = mungeFn
 				}
 				continue
 			}
@@ -205,7 +205,7 @@ func (p *processor) buildSchemaFlat() (*importSchema, error) {
 		}
 	}
 
-	return schema, nil
+	return schma, nil
 }
 
 // processObject processes the parsed JSON object m. If the structure
@@ -317,12 +317,12 @@ func (p *processor) doAddObject(ent *entity, m map[string]any) error {
 // buildInsertionsFlat builds a set of DB insertions from the
 // processor's unwrittenObjVals. After a non-error return, unwrittenObjVals
 // is empty.
-func (p *processor) buildInsertionsFlat(schema *importSchema) ([]*insertion, error) {
-	if len(schema.tblDefs) != 1 {
-		return nil, errz.Errorf("expected 1 table for flat JSON processing but got %d", len(schema.tblDefs))
+func (p *processor) buildInsertionsFlat(schma *importSchema) ([]*insertion, error) {
+	if len(schma.tblDefs) != 1 {
+		return nil, errz.Errorf("expected 1 table for flat JSON processing but got %d", len(schma.tblDefs))
 	}
 
-	tblDef := schema.tblDefs[0]
+	tblDef := schma.tblDefs[0]
 	var insertions []*insertion
 
 	// Each of unwrittenObjVals is effectively an INSERT row
@@ -426,12 +426,12 @@ func walkEntity(ent *entity, visitFn func(*entity) error) error {
 // importSchema encapsulates the table definitions that
 // the JSON is imported to.
 type importSchema struct {
-	tblDefs     []*sqlmodel.TableDef
-	colMungeFns map[*sqlmodel.ColDef]kind.MungeFunc
+	tblDefs     []*schema.Table
+	colMungeFns map[*schema.Column]kind.MungeFunc
 
 	// entityTbls is a mapping of entity to the table in which
 	// the entity's fields will be inserted.
-	entityTbls map[*entity]*sqlmodel.TableDef
+	entityTbls map[*entity]*schema.Table
 }
 
 func execSchemaDelta(ctx context.Context, drvr driver.SQLDriver, db sqlz.DB,

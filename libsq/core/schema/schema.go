@@ -1,5 +1,5 @@
-// Package sqlmodel provides functionality for modeling SQL constructs.
-package sqlmodel
+// Package schema provides functionality for modeling SQL constructs.
+package schema
 
 import (
 	"strings"
@@ -8,8 +8,8 @@ import (
 	"github.com/neilotoole/sq/libsq/core/kind"
 )
 
-// TableDef models a database table definition.
-type TableDef struct {
+// Table models a database table definition.
+type Table struct {
 	// Name is the table name.
 	Name string `json:"name"`
 
@@ -25,17 +25,17 @@ type TableDef struct {
 	AutoIncrement bool `json:"auto_increment"`
 
 	// Cols is the table's column definitions.
-	Cols []*ColDef `json:"cols"`
+	Cols []*Column `json:"cols"`
 }
 
-// NewTableDef is a convenience constructor for creating
+// NewTable is a convenience constructor for creating
 // a simple table definition.
-func NewTableDef(tblName string, colNames []string, colKinds []kind.Kind) *TableDef {
-	tblDef := &TableDef{Name: tblName}
-	cols := make([]*ColDef, len(colNames))
+func NewTable(tblName string, colNames []string, colKinds []kind.Kind) *Table {
+	tblDef := &Table{Name: tblName}
+	cols := make([]*Column, len(colNames))
 
 	for i := range colNames {
-		cols[i] = &ColDef{Table: tblDef, Name: colNames[i], Kind: colKinds[i]}
+		cols[i] = &Column{Table: tblDef, Name: colNames[i], Kind: colKinds[i]}
 	}
 
 	tblDef.Cols = cols
@@ -44,7 +44,7 @@ func NewTableDef(tblName string, colNames []string, colKinds []kind.Kind) *Table
 
 // ColNames returns a new slice containing the names
 // of t's columns.
-func (t *TableDef) ColNames() []string {
+func (t *Table) ColNames() []string {
 	names := make([]string, len(t.Cols))
 	for i, col := range t.Cols {
 		names[i] = col.Name
@@ -54,7 +54,7 @@ func (t *TableDef) ColNames() []string {
 
 // ColKinds returns a new slice containing the kinds
 // of t's columns.
-func (t *TableDef) ColKinds() []kind.Kind {
+func (t *Table) ColKinds() []kind.Kind {
 	kinds := make([]kind.Kind, len(t.Cols))
 	for i, col := range t.Cols {
 		kinds[i] = col.Kind
@@ -62,14 +62,14 @@ func (t *TableDef) ColKinds() []kind.Kind {
 	return kinds
 }
 
-func (t *TableDef) String() string {
+func (t *Table) String() string {
 	return t.Name + "(" + strings.Join(t.ColNames(), ",") + ")"
 }
 
 // ColsByName returns the ColDefs for each named column, or an error if any column
 // is not matched.
-func (t *TableDef) ColsByName(cols []string) ([]*ColDef, error) {
-	defs := make([]*ColDef, len(cols))
+func (t *Table) ColsByName(cols []string) ([]*Column, error) {
+	defs := make([]*Column, len(cols))
 
 	for i, name := range cols {
 		found := false
@@ -88,8 +88,8 @@ func (t *TableDef) ColsByName(cols []string) ([]*ColDef, error) {
 	return defs, nil
 }
 
-// FindCol returns the named ColDef or nil if not found.
-func (t *TableDef) FindCol(name string) (*ColDef, error) {
+// FindCol returns the named Column or nil if not found.
+func (t *Table) FindCol(name string) (*Column, error) {
 	for _, col := range t.Cols {
 		if col.Name == name {
 			return col, nil
@@ -98,10 +98,10 @@ func (t *TableDef) FindCol(name string) (*ColDef, error) {
 	return nil, errz.Errorf("could not find column definition {%s} in table {%s}", name, t.Name)
 }
 
-// ColDef models a table column definition.
-type ColDef struct {
+// Column models a table column definition.
+type Column struct {
 	Name  string    `json:"name"`
-	Table *TableDef `json:"-"`
+	Table *Table    `json:"-"`
 	Kind  kind.Kind `json:"kind"`
 
 	NotNull    bool `json:"not_null"`

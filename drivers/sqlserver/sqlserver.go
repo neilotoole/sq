@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/schema"
+
 	"github.com/microsoft/go-mssqldb/msdsn"
 
 	"github.com/neilotoole/sq/libsq/ast"
@@ -21,7 +23,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/loz"
 	"github.com/neilotoole/sq/libsq/core/record"
-	"github.com/neilotoole/sq/libsq/core/sqlmodel"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
@@ -388,11 +389,11 @@ func (d *driveri) ListSchemas(ctx context.Context, db sqlz.DB) ([]string, error)
 	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
 
 	for rows.Next() {
-		var schema string
-		if err = rows.Scan(&schema); err != nil {
+		var schma string
+		if err = rows.Scan(&schma); err != nil {
 			return nil, errz.Err(err)
 		}
-		schemas = append(schemas, schema)
+		schemas = append(schemas, schma)
 	}
 
 	if err = rows.Err(); err != nil {
@@ -512,7 +513,7 @@ func (d *driveri) DropSchema(ctx context.Context, db sqlz.DB, schemaName string)
 }
 
 // CreateTable implements driver.SQLDriver.
-func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *sqlmodel.TableDef) error {
+func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *schema.Table) error {
 	stmt := buildCreateTableStmt(tblDef)
 
 	_, err := db.ExecContext(ctx, stmt)
@@ -529,26 +530,26 @@ func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl, col 
 
 // AlterTableRename implements driver.SQLDriver.
 func (d *driveri) AlterTableRename(ctx context.Context, db sqlz.DB, tbl, newName string) error {
-	schema, err := d.CurrentSchema(ctx, db)
+	schma, err := d.CurrentSchema(ctx, db)
 	if err != nil {
 		return err
 	}
 
-	q := fmt.Sprintf(`exec sp_rename '[%s].[%s]', '%s'`, schema, tbl, newName)
+	q := fmt.Sprintf(`exec sp_rename '[%s].[%s]', '%s'`, schma, tbl, newName)
 	_, err = db.ExecContext(ctx, q)
 	return errz.Wrapf(errw(err), "alter table: failed to rename table %q to %q", tbl, newName)
 }
 
 // AlterTableRenameColumn implements driver.SQLDriver.
 func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, col, newName string) error {
-	schema, err := d.CurrentSchema(ctx, db)
+	schma, err := d.CurrentSchema(ctx, db)
 	if err != nil {
 		return err
 	}
 
-	q := fmt.Sprintf(`exec sp_rename '[%s].[%s].[%s]', '%s'`, schema, tbl, col, newName)
+	q := fmt.Sprintf(`exec sp_rename '[%s].[%s].[%s]', '%s'`, schma, tbl, col, newName)
 	_, err = db.ExecContext(ctx, q)
-	return errz.Wrapf(errw(err), "alter table: failed to rename column {%s.%s.%s} to {%s}", schema, tbl, col, newName)
+	return errz.Wrapf(errw(err), "alter table: failed to rename column {%s.%s.%s} to {%s}", schma, tbl, col, newName)
 }
 
 // CopyTable implements driver.SQLDriver.

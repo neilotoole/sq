@@ -14,13 +14,14 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/schema"
+
 	"github.com/neilotoole/sq/drivers/userdriver"
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
-	"github.com/neilotoole/sq/libsq/core/sqlmodel"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
@@ -49,7 +50,7 @@ func Ingest(ctx context.Context, def *userdriver.DriverDef, data io.Reader, dest
 		def:           def,
 		selStack:      newSelStack(),
 		rowStack:      newRowStack(),
-		tblDefs:       map[string]*sqlmodel.TableDef{},
+		tblDefs:       map[string]*schema.Table{},
 		tblSequence:   map[string]int64{},
 		execInsertFns: map[string]func(ctx context.Context, insertVals []any) error{},
 		execUpdateFns: map[string]func(ctx context.Context, updateVals, whereArgs []any) error{},
@@ -74,7 +75,7 @@ type ingester struct {
 	destDB   sqlz.DB
 	selStack *selStack
 	rowStack *rowStack
-	tblDefs  map[string]*sqlmodel.TableDef
+	tblDefs  map[string]*schema.Table
 
 	// tblSequence is a map of table name to the last
 	// insert ID value for that table. See dbInsert for more.

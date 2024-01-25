@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/schema"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
-	"github.com/neilotoole/sq/libsq/core/sqlmodel"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
@@ -299,9 +300,9 @@ func validateDefRoot(def *DriverDef) (drvrName string, errs []error) {
 }
 
 // ToTableDef builds a TableDef from the TableMapping.
-func ToTableDef(tblMapping *TableMapping) (*sqlmodel.TableDef, error) {
-	tblDef := &sqlmodel.TableDef{Name: tblMapping.Name}
-	colDefs := make([]*sqlmodel.ColDef, len(tblMapping.Cols))
+func ToTableDef(tblMapping *TableMapping) (*schema.Table, error) {
+	tblDef := &schema.Table{Name: tblMapping.Name}
+	colDefs := make([]*schema.Column, len(tblMapping.Cols))
 
 	pkCols, err := tblMapping.PKCols()
 	if err != nil {
@@ -311,7 +312,7 @@ func ToTableDef(tblMapping *TableMapping) (*sqlmodel.TableDef, error) {
 	tblDef.PKColName = pkCols[0].Name
 
 	for i, colMapping := range tblMapping.Cols {
-		colDef := &sqlmodel.ColDef{Table: tblDef, Name: colMapping.Name, Kind: colMapping.Kind}
+		colDef := &schema.Column{Table: tblDef, Name: colMapping.Name, Kind: colMapping.Kind}
 		colDefs[i] = colDef
 	}
 

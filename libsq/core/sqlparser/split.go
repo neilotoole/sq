@@ -1,4 +1,4 @@
-package sqlmodel
+package sqlparser
 
 import (
 	"bufio"

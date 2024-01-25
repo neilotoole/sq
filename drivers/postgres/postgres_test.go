@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/core/schema"
+
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -15,7 +17,6 @@ import (
 	"github.com/neilotoole/sq/drivers/postgres"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
-	"github.com/neilotoole/sq/libsq/core/sqlmodel"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/testh"
@@ -163,7 +164,7 @@ func TestDriver_CreateTable_NotNullDefault(t *testing.T) {
 			tblName := stringz.UniqTableName(t.Name())
 			colNames, colKinds := fixt.ColNamePerKind(drvr.Dialect().IntBool, false, false)
 
-			tblDef := sqlmodel.NewTableDef(tblName, colNames, colKinds)
+			tblDef := schema.NewTable(tblName, colNames, colKinds)
 			for _, colDef := range tblDef.Cols {
 				colDef.NotNull = true
 				colDef.HasDefault = true

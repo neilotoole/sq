@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/schema"
+
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/ast/render"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
-	"github.com/neilotoole/sq/libsq/core/sqlmodel"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
@@ -58,7 +59,7 @@ var createTblKindDefaults = map[kind.Kind]string{ //nolint:exhaustive
 }
 
 //nolint:funlen
-func buildCreateTableStmt(tblDef *sqlmodel.TableDef) string {
+func buildCreateTableStmt(tblDef *schema.Table) string {
 	buf := &bytes.Buffer{}
 
 	cols := make([]string, len(tblDef.Cols))

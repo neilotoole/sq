@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/core/schema"
+
 	"github.com/samber/lo"
 	excelize "github.com/xuri/excelize/v2"
 	"golang.org/x/sync/errgroup"
@@ -19,7 +21,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/loz"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/progress"
-	"github.com/neilotoole/sq/libsq/core/sqlmodel"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
@@ -30,7 +31,7 @@ const msgCloseRowIter = "Close Excel row iterator"
 // sheetTable maps a sheet to a database table.
 type sheetTable struct {
 	sheet             *xSheet
-	def               *sqlmodel.TableDef
+	def               *schema.Table
 	colIngestMungeFns []kind.MungeFunc
 	hasHeaderRow      bool
 }
@@ -400,10 +401,10 @@ func buildSheetTable(ctx context.Context, srcIngestHeader *bool, sheet *xSheet) 
 		return nil, err
 	}
 
-	tblDef := &sqlmodel.TableDef{Name: sheet.name}
-	cols := make([]*sqlmodel.ColDef, len(colNames))
+	tblDef := &schema.Table{Name: sheet.name}
+	cols := make([]*schema.Column, len(colNames))
 	for i, colName := range colNames {
-		cols[i] = &sqlmodel.ColDef{Table: tblDef, Name: colName, Kind: colKinds[i]}
+		cols[i] = &schema.Column{Table: tblDef, Name: colName, Kind: colKinds[i]}
 	}
 	tblDef.Cols = cols
 	lg.FromContext(ctx).Debug("Built table def",

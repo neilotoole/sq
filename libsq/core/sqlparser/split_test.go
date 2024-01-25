@@ -1,21 +1,22 @@
-package sqlmodel_test
+package sqlparser_test
 
 import (
 	"strings"
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/core/sqlparser"
+
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/sq/libsq/core/sqlmodel"
 	"github.com/neilotoole/sq/testh/proj"
 )
 
 func TestSplitInput(t *testing.T) {
-	const sel, other = sqlmodel.StmtSelect, sqlmodel.StmtOther
+	const sel, other = sqlparser.StmtSelect, sqlparser.StmtOther
 
-	// convenience func to return a slice of n core.sqlmodel.StmtType.
-	nTypes := func(n int, typ sqlmodel.StmtType) []sqlmodel.StmtType {
-		types := make([]sqlmodel.StmtType, n)
+	// convenience func to return a slice of n sqlmodel.StmtType.
+	nTypes := func(n int, typ sqlparser.StmtType) []sqlparser.StmtType {
+		types := make([]sqlparser.StmtType, n)
 		for i := range types {
 			types[i] = typ
 		}
@@ -30,7 +31,7 @@ func TestSplitInput(t *testing.T) {
 		input        string
 		wantCount    int
 		wantContains []string
-		wantTypes    []sqlmodel.StmtType
+		wantTypes    []sqlparser.StmtType
 	}{
 		"simple": {
 			{
@@ -39,7 +40,7 @@ func TestSplitInput(t *testing.T) {
 				input:        "select * from my_table; ",
 				wantCount:    1,
 				wantContains: []string{"select * from my_table"},
-				wantTypes:    []sqlmodel.StmtType{sel},
+				wantTypes:    []sqlparser.StmtType{sel},
 			},
 			{
 				name:         "select_1_no_delim",
@@ -47,7 +48,7 @@ func TestSplitInput(t *testing.T) {
 				input:        "select * from my_table",
 				wantCount:    1,
 				wantContains: []string{"select * from my_table"},
-				wantTypes:    []sqlmodel.StmtType{sel},
+				wantTypes:    []sqlparser.StmtType{sel},
 			},
 			{
 				name:         "select_1_many_delim",
@@ -55,7 +56,7 @@ func TestSplitInput(t *testing.T) {
 				input:        "select * from my_table;\n;;",
 				wantCount:    1,
 				wantContains: []string{"select * from my_table"},
-				wantTypes:    []sqlmodel.StmtType{sel},
+				wantTypes:    []sqlparser.StmtType{sel},
 			},
 			{
 				name:         "select_2",
@@ -63,7 +64,7 @@ func TestSplitInput(t *testing.T) {
 				input:        "select * from my_table;\ndrop table my_table;",
 				wantCount:    2,
 				wantContains: []string{"select * from my_table", "drop table my_table"},
-				wantTypes:    []sqlmodel.StmtType{sel, other},
+				wantTypes:    []sqlparser.StmtType{sel, other},
 			},
 			{
 				name:         "select_2_no_trailing_delim",
@@ -71,28 +72,28 @@ func TestSplitInput(t *testing.T) {
 				input:        "select * from my_table;\ndrop table my_table",
 				wantCount:    2,
 				wantContains: []string{"select * from my_table", "drop table my_table"},
-				wantTypes:    []sqlmodel.StmtType{sel, other},
+				wantTypes:    []sqlparser.StmtType{sel, other},
 			},
 		},
 		"sqlite3": {
 			{
 				name:      "sqlite3_type_test.sql",
 				delim:     ";",
-				input:     string(proj.ReadFile("libsq/core/sqlmodel/testdata/sqlite3_type_test.sql")),
+				input:     string(proj.ReadFile("libsq/core/sqlparser/testdata/sqlite3_type_test.sql")),
 				wantCount: 4,
 				wantTypes: nTypes(4, other),
 			},
 			{
 				name:      "sqlite3_address.sql",
 				delim:     ";",
-				input:     string(proj.ReadFile("libsq/core/sqlmodel/testdata/sqlite3_address.sql")),
+				input:     string(proj.ReadFile("libsq/core/sqlparser/testdata/sqlite3_address.sql")),
 				wantCount: 4,
 				wantTypes: nTypes(4, other),
 			},
 			{
 				name:      "sqlite3_person.sql",
 				delim:     ";",
-				input:     string(proj.ReadFile("libsq/core/sqlmodel/testdata/sqlite3_person.sql")),
+				input:     string(proj.ReadFile("libsq/core/sqlparser/testdata/sqlite3_person.sql")),
 				wantCount: 10,
 				wantTypes: nTypes(10, other),
 			},
@@ -101,21 +102,21 @@ func TestSplitInput(t *testing.T) {
 			{
 				name:      "sqtype_public_type_test.sql",
 				delim:     ";",
-				input:     string(proj.ReadFile("libsq/core/sqlmodel/testdata/postgres_public_type_test.sql")),
+				input:     string(proj.ReadFile("libsq/core/sqlparser/testdata/postgres_public_type_test.sql")),
 				wantCount: 5,
 				wantTypes: nTypes(5, other),
 			},
 			{
 				name:      "sqtest_public_address.sql",
 				delim:     ";",
-				input:     string(proj.ReadFile("libsq/core/sqlmodel/testdata/postgres_public_address.sql")),
+				input:     string(proj.ReadFile("libsq/core/sqlparser/testdata/postgres_public_address.sql")),
 				wantCount: 5,
 				wantTypes: nTypes(5, other),
 			},
 			{
 				name:      "sqtest_public_person.sql",
 				delim:     ";",
-				input:     string(proj.ReadFile("libsq/core/sqlmodel/testdata/postgres_public_person.sql")),
+				input:     string(proj.ReadFile("libsq/core/sqlparser/testdata/postgres_public_person.sql")),
 				wantCount: 11,
 				wantTypes: nTypes(11, other),
 			},
@@ -128,7 +129,7 @@ func TestSplitInput(t *testing.T) {
 				input:        "select * from my_table;\ngo",
 				wantCount:    1,
 				wantContains: []string{"select * from my_table"},
-				wantTypes:    []sqlmodel.StmtType{sel},
+				wantTypes:    []sqlparser.StmtType{sel},
 			},
 			{
 				name:         "select_2",
@@ -137,13 +138,13 @@ func TestSplitInput(t *testing.T) {
 				input:        "select * from my_table;\ndrop table my_table;",
 				wantCount:    2,
 				wantContains: []string{"select * from my_table", "drop table my_table"},
-				wantTypes:    []sqlmodel.StmtType{sel, other},
+				wantTypes:    []sqlparser.StmtType{sel, other},
 			},
 			{
 				name:       "sqtype_dbo_type_test.sql",
 				delim:      ";",
 				moreDelims: []string{"go"},
-				input:      string(proj.ReadFile("libsq/core/sqlmodel/testdata/sqlserver_dbo_type_test.sql")),
+				input:      string(proj.ReadFile("libsq/core/sqlparser/testdata/sqlserver_dbo_type_test.sql")),
 				wantCount:  5,
 				wantTypes:  nTypes(5, other),
 			},
@@ -151,7 +152,7 @@ func TestSplitInput(t *testing.T) {
 				name:       "sqtest_dbo_address.sql",
 				delim:      ";",
 				moreDelims: []string{"go"},
-				input:      string(proj.ReadFile("libsq/core/sqlmodel/testdata/sqlserver_dbo_address.sql")),
+				input:      string(proj.ReadFile("libsq/core/sqlparser/testdata/sqlserver_dbo_address.sql")),
 				wantCount:  4,
 				wantTypes:  nTypes(5, other),
 			},
@@ -159,7 +160,7 @@ func TestSplitInput(t *testing.T) {
 				name:       "sqtest_dbo_person.sql",
 				delim:      ";",
 				moreDelims: []string{"go"},
-				input:      string(proj.ReadFile("libsq/core/sqlmodel/testdata/sqlserver_dbo_person.sql")),
+				input:      string(proj.ReadFile("libsq/core/sqlparser/testdata/sqlserver_dbo_person.sql")),
 				wantCount:  10,
 				wantTypes:  nTypes(10, other),
 			},
@@ -168,21 +169,21 @@ func TestSplitInput(t *testing.T) {
 			{
 				name:      "mysql_type_test.sql",
 				delim:     ";",
-				input:     string(proj.ReadFile("libsq/core/sqlmodel/testdata/mysql_type_test.sql")),
+				input:     string(proj.ReadFile("libsq/core/sqlparser/testdata/mysql_type_test.sql")),
 				wantCount: 5,
 				wantTypes: nTypes(5, other),
 			},
 			{
 				name:      "mysql_address.sql",
 				delim:     ";",
-				input:     string(proj.ReadFile("libsq/core/sqlmodel/testdata/mysql_address.sql")),
+				input:     string(proj.ReadFile("libsq/core/sqlparser/testdata/mysql_address.sql")),
 				wantCount: 4,
 				wantTypes: nTypes(5, other),
 			},
 			{
 				name:      "mysql_person.sql",
 				delim:     ";",
-				input:     string(proj.ReadFile("libsq/core/sqlmodel/testdata/mysql_person.sql")),
+				input:     string(proj.ReadFile("libsq/core/sqlparser/testdata/mysql_person.sql")),
 				wantCount: 9,
 				wantTypes: nTypes(9, other),
 			},
@@ -195,7 +196,7 @@ func TestSplitInput(t *testing.T) {
 			for _, tc := range testGroup {
 				tc := tc
 				t.Run(tc.name, func(t *testing.T) {
-					stmts, stmtTypes, err := sqlmodel.SplitSQL(strings.NewReader(tc.input), tc.delim, tc.moreDelims...)
+					stmts, stmtTypes, err := sqlparser.SplitSQL(strings.NewReader(tc.input), tc.delim, tc.moreDelims...)
 					require.NoError(t, err)
 					require.Equal(t, tc.wantCount, len(stmts))
 					require.Equal(t, len(stmts), len(stmtTypes))

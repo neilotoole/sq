@@ -6,11 +6,12 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/core/schema"
+
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/drivers/sqlite3"
-	"github.com/neilotoole/sq/libsq/core/sqlmodel"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
@@ -172,7 +173,7 @@ func TestDriver_CreateTable_NotNullDefault(t *testing.T) {
 	tblName := stringz.UniqTableName(t.Name())
 	colNames, colKinds := fixt.ColNamePerKind(drvr.Dialect().IntBool, false, false)
 
-	tblDef := sqlmodel.NewTableDef(tblName, colNames, colKinds)
+	tblDef := schema.NewTable(tblName, colNames, colKinds)
 	for _, colDef := range tblDef.Cols {
 		colDef.NotNull = true
 		colDef.HasDefault = true

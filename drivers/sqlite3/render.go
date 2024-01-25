@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/core/schema"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
-	"github.com/neilotoole/sq/libsq/core/sqlmodel"
 )
 
 // createTblKindDefaults is a mapping of Kind to the value
@@ -24,7 +25,7 @@ var createTblKindDefaults = map[kind.Kind]string{ //nolint:exhaustive // ignore 
 	kind.Unknown:  `DEFAULT ''`,
 }
 
-func buildCreateTableStmt(tblDef *sqlmodel.TableDef) string {
+func buildCreateTableStmt(tblDef *schema.Table) string {
 	var buf *bytes.Buffer
 
 	cols := make([]string, len(tblDef.Cols))

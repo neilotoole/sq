@@ -10,13 +10,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/core/schema"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli"
 	"github.com/neilotoole/sq/cli/testrun"
 	"github.com/neilotoole/sq/libsq/core/kind"
-	"github.com/neilotoole/sq/libsq/core/sqlmodel"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/testh"
@@ -86,7 +87,7 @@ func TestCreateTable_bytes(t *testing.T) {
 			th, src, _, _, _ := testh.NewWith(t, handle)
 			th.DiffDB(src)
 
-			tblDef := sqlmodel.NewTableDef(
+			tblDef := schema.NewTable(
 				stringz.UniqTableName("test_bytes"),
 				[]string{"col_name", "col_bytes"},
 				[]kind.Kind{kind.Text, kind.Bytes},
@@ -119,7 +120,7 @@ func TestOutputRaw(t *testing.T) {
 			_, err := gif.Decode(bytes.NewReader(wantBytes))
 			require.NoError(t, err)
 
-			tblDef := sqlmodel.NewTableDef(
+			tblDef := schema.NewTable(
 				stringz.UniqTableName("test_bytes"),
 				[]string{"col_name", "col_bytes"},
 				[]kind.Kind{kind.Text, kind.Bytes},
