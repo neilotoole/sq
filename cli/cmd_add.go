@@ -8,6 +8,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/source/location"
+
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 
@@ -183,7 +185,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 	ru := run.FromContext(ctx)
 	cfg := ru.Config
 
-	loc := source.AbsLocation(strings.TrimSpace(args[0]))
+	loc := location.AbsLocation(strings.TrimSpace(args[0]))
 	var err error
 	var typ drivertype.Type
 
@@ -245,7 +247,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		if loc, err = source.LocationWithPassword(loc, string(passwd)); err != nil {
+		if loc, err = location.LocationWithPassword(loc, string(passwd)); err != nil {
 			return err
 		}
 	}

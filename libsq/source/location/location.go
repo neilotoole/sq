@@ -1,4 +1,4 @@
-package source
+package location
 
 import (
 	"net/url"
@@ -22,12 +22,12 @@ var dbSchemes = []string{
 }
 
 // LocationFileName returns the final component of the file/URL path.
-func LocationFileName(src *Source) (string, error) {
-	if IsSQLLocation(src.Location) {
-		return "", errz.Errorf("location is not a file: %s", src.Location)
+func LocationFileName(loc string) (string, error) {
+	if IsSQLLocation(loc) {
+		return "", errz.Errorf("location is not a file: %s", loc)
 	}
 
-	ploc, err := ParseLocation(src.Location)
+	ploc, err := ParseLocation(loc)
 	if err != nil {
 		return "", err
 	}
@@ -322,36 +322,36 @@ func isFpath(loc string) (fpath string, ok bool) {
 	return fpath, true
 }
 
-// locType is an enumeration of the various types of source location.
-type locType string
+// LocType is an enumeration of the various types of source location.
+type LocType string
 
 const (
-	locTypeStdin      = "stdin"
-	locTypeLocalFile  = "local_file"
-	locTypeSQL        = "sql"
-	locTypeRemoteFile = "remote_file"
-	locTypeUnknown    = "unknown"
+	LocTypeStdin      = "stdin"
+	LocTypeLocalFile  = "local_file"
+	LocTypeSQL        = "sql"
+	LocTypeRemoteFile = "remote_file"
+	LocTypeUnknown    = "unknown"
 )
 
-// getLocType returns the type of loc, or locTypeUnknown if it
+// GetLocType returns the type of loc, or locTypeUnknown if it
 // can't be determined.
-func getLocType(loc string) locType {
+func GetLocType(loc string) LocType {
 	switch {
-	case loc == StdinHandle:
+	case loc == "@stdin":
 		// Convention: the "location" of stdin is always "@stdin"
-		return locTypeStdin
+		return LocTypeStdin
 	case IsSQLLocation(loc):
-		return locTypeSQL
+		return LocTypeSQL
 	case strings.HasPrefix(loc, "http://"),
 		strings.HasPrefix(loc, "https://"):
-		return locTypeRemoteFile
+		return LocTypeRemoteFile
 	default:
 	}
 
 	if _, err := filepath.Abs(loc); err != nil {
-		return locTypeUnknown
+		return LocTypeUnknown
 	}
-	return locTypeLocalFile
+	return LocTypeLocalFile
 }
 
 // httpURL tests if s is a well-structured HTTP or HTTPS url, and
@@ -365,3 +365,15 @@ func httpURL(s string) (u *url.URL, ok bool) {
 
 	return u, true
 }
+
+// Redefine the drivertype.Type values here rather than introducing
+// a circular dependency on the drivers impl packages.
+const (
+	typeSL3  = drivertype.Type("sqlite3")
+	typePg   = drivertype.Type("postgres")
+	typeMS   = drivertype.Type("sqlserver")
+	typeMy   = drivertype.Type("mysql")
+	typeXLSX = drivertype.Type("xlsx")
+	typeCSV  = drivertype.Type("csv")
+	typeTSV  = drivertype.Type("tsv")
+)

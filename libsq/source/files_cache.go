@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/source/location"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
@@ -105,10 +107,10 @@ func (fs *Files) CachedBackingSourceFor(ctx context.Context, src *Source) (backi
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	switch getLocType(src.Location) {
-	case locTypeLocalFile:
+	switch location.GetLocType(src.Location) {
+	case location.LocTypeLocalFile:
 		return fs.cachedBackingSourceForFile(ctx, src)
-	case locTypeRemoteFile:
+	case location.LocTypeRemoteFile:
 		return fs.cachedBackingSourceForRemoteFile(ctx, src)
 	default:
 		return nil, false, errz.Errorf("caching not applicable for source: %s", src.Handle)

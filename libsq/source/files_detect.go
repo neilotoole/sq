@@ -8,6 +8,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/neilotoole/sq/libsq/source/location"
+
 	"github.com/h2non/filetype"
 	"github.com/h2non/filetype/matchers"
 	"golang.org/x/sync/errgroup"
@@ -43,7 +45,7 @@ func (fs *Files) AddDriverDetectors(detectFns ...DriverDetectFunc) {
 // This may result in loading files into the cache.
 func (fs *Files) DriverType(ctx context.Context, handle, loc string) (drivertype.Type, error) {
 	log := lg.FromContext(ctx).With(lga.Loc, loc)
-	ploc, err := ParseLocation(loc)
+	ploc, err := location.ParseLocation(loc)
 	if err != nil {
 		return drivertype.None, err
 	}
@@ -92,7 +94,7 @@ func (fs *Files) detectType(ctx context.Context, handle, loc string) (typ driver
 	start := time.Now()
 
 	var newRdrFn NewReaderFunc
-	if getLocType(loc) == locTypeLocalFile {
+	if location.GetLocType(loc) == location.LocTypeLocalFile {
 		newRdrFn = func(ctx context.Context) (io.ReadCloser, error) {
 			return errz.Return(os.Open(loc))
 		}

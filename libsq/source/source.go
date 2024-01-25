@@ -7,6 +7,8 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/neilotoole/sq/libsq/source/location"
+
 	"github.com/xo/dburl"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -223,7 +225,7 @@ func (s *Source) ShortLocation() string {
 	if s == nil {
 		return ""
 	}
-	return ShortLocation(s.Location)
+	return location.ShortLocation(s.Location)
 }
 
 // Redefine the drivertype.Type values here rather than introducing

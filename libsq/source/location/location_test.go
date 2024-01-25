@@ -1,12 +1,13 @@
-package source_test
+package location_test
 
 import (
 	"net/url"
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/source/location"
+
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/testh/tu"
 )
 
@@ -30,7 +31,7 @@ func TestIsSQL(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.loc, func(t *testing.T) {
-			got := source.IsSQLLocation(tc.loc)
+			got := location.IsSQLLocation(tc.loc)
 			require.Equal(t, tc.want, got)
 		})
 	}
@@ -79,7 +80,7 @@ func TestLocationWithPassword(t *testing.T) {
 			beforeURL, err := url.ParseRequestURI(tc.loc)
 			require.NoError(t, err)
 
-			got, gotErr := source.LocationWithPassword(tc.loc, tc.pw)
+			got, gotErr := location.LocationWithPassword(tc.loc, tc.pw)
 			if tc.wantErr {
 				require.Error(t, gotErr)
 				return

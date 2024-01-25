@@ -8,6 +8,8 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/neilotoole/sq/libsq/source/location"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
@@ -108,7 +110,7 @@ var handleTypeAliases = map[string]string{
 // a number or underscore, it will be prefixed with "h" (for "handle").
 // Thus "123.xlsx" becomes "@h123_xlsx".
 func SuggestHandle(coll *Collection, typ drivertype.Type, loc string) (string, error) {
-	ploc, err := ParseLocation(loc)
+	ploc, err := location.ParseLocation(loc)
 	if err != nil {
 		return "", err
 	}

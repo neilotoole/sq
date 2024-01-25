@@ -6,6 +6,8 @@ import (
 	"database/sql"
 	"log/slog"
 
+	"github.com/neilotoole/sq/libsq/source/location"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -155,7 +157,7 @@ func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Sou
 	md.Location = g.src.Location
 	md.Driver = g.src.Type
 
-	md.Name, err = source.LocationFileName(g.src)
+	md.Name, err = location.LocationFileName(g.src.Location)
 	if err != nil {
 		return nil, err
 	}

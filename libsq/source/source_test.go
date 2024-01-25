@@ -3,6 +3,8 @@ package source_test
 import (
 	"testing"
 
+	"github.com/neilotoole/sq/libsq/source/location"
+
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/drivers/sqlite3"
@@ -206,7 +208,7 @@ func TestShortLocation(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			got := source.ShortLocation(tc.loc)
+			got := location.ShortLocation(tc.loc)
 			t.Logf("%s  -->  %s", tc.loc, got)
 			require.Equal(t, tc.want, got)
 		})

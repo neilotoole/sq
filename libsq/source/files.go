@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/neilotoole/sq/libsq/source/location"
+
 	"github.com/neilotoole/streamcache"
 
 	"github.com/neilotoole/sq/libsq/core/cleanup"
@@ -114,15 +116,15 @@ func NewFiles(
 // For remote files, this method should only be invoked after the file has
 // completed downloading (e.g. after ingestion), or an error may be returned.
 func (fs *Files) Filesize(ctx context.Context, src *Source) (size int64, err error) {
-	switch getLocType(src.Location) {
-	case locTypeLocalFile:
+	switch location.GetLocType(src.Location) {
+	case location.LocTypeLocalFile:
 		var fi os.FileInfo
 		if fi, err = os.Stat(src.Location); err != nil {
 			return 0, errz.Err(err)
 		}
 		return fi.Size(), nil
 
-	case locTypeStdin:
+	case location.LocTypeStdin:
 		fs.mu.Lock()
 		stdinStream, ok := fs.mStreams[StdinHandle]
 		fs.mu.Unlock()
@@ -136,7 +138,7 @@ func (fs *Files) Filesize(ctx context.Context, src *Source) (size int64, err err
 		}
 		return int64(total), nil
 
-	case locTypeRemoteFile:
+	case location.LocTypeRemoteFile:
 		fs.mu.Lock()
 
 		// First check if the file is already downloaded
@@ -177,7 +179,7 @@ func (fs *Files) Filesize(ctx context.Context, src *Source) (size int64, err err
 		// not have been invoked before ingestion.
 		return dl.Filesize(ctx)
 
-	case locTypeSQL:
+	case location.LocTypeSQL:
 		// Should be impossible.
 		return 0, errz.Errorf("invalid to get size of SQL source: %s", src.Handle)
 
@@ -213,10 +215,10 @@ func (fs *Files) AddStdin(ctx context.Context, f *os.File) error {
 // is that of the cached download file. If that file is not present, an
 // error is returned.
 func (fs *Files) filepath(src *Source) (string, error) {
-	switch getLocType(src.Location) {
-	case locTypeLocalFile:
+	switch location.GetLocType(src.Location) {
+	case location.LocTypeLocalFile:
 		return src.Location, nil
-	case locTypeRemoteFile:
+	case location.LocTypeRemoteFile:
 		dlDir, err := fs.downloadDirFor(src)
 		if err != nil {
 			return "", err
@@ -230,9 +232,9 @@ func (fs *Files) filepath(src *Source) (string, error) {
 			return "", errz.Errorf("remote file for %s not downloaded at: %s", src.Handle, dlFile)
 		}
 		return dlFile, nil
-	case locTypeSQL:
+	case location.LocTypeSQL:
 		return "", errz.Errorf("cannot get filepath of SQL source: %s", src.Handle)
-	case locTypeStdin:
+	case location.LocTypeStdin:
 		return "", errz.Errorf("cannot get filepath of stdin source: %s", src.Handle)
 	default:
 		return "", errz.Errorf("unknown source location type for %s: %s", src.Handle, RedactLocation(src.Location))
@@ -263,14 +265,14 @@ func (fs *Files) newReader(ctx context.Context, src *Source, finalRdr bool) (io.
 	lg.FromContext(ctx).Debug("Files.NewReader", lga.Src, src, "final_reader", finalRdr)
 
 	loc := src.Location
-	switch getLocType(loc) {
-	case locTypeUnknown:
+	switch location.GetLocType(loc) {
+	case location.LocTypeUnknown:
 		return nil, errz.Errorf("unknown source location type: %s", loc)
-	case locTypeSQL:
+	case location.LocTypeSQL:
 		return nil, errz.Errorf("invalid to read SQL source: %s", loc)
-	case locTypeLocalFile:
+	case location.LocTypeLocalFile:
 		return errz.Return(os.Open(loc))
-	case locTypeStdin:
+	case location.LocTypeStdin:
 		stdinStream, ok := fs.mStreams[StdinHandle]
 		if !ok {
 			// This is a programming error: AddStdin should have been invoked first.
@@ -325,17 +327,17 @@ func (fs *Files) Ping(ctx context.Context, src *Source) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	switch getLocType(src.Location) {
-	case locTypeStdin:
+	switch location.GetLocType(src.Location) {
+	case location.LocTypeStdin:
 		// Stdin is always available.
 		return nil
-	case locTypeLocalFile:
+	case location.LocTypeLocalFile:
 		if _, err := os.Stat(src.Location); err != nil {
 			return errz.Wrapf(err, "ping: failed to stat file source %s: %s", src.Handle, src.Location)
 		}
 		return nil
 
-	case locTypeRemoteFile:
+	case location.LocTypeRemoteFile:
 		req, err := http.NewRequestWithContext(ctx, http.MethodHead, src.Location, nil)
 		if err != nil {
 			return errz.Wrapf(err, "ping: %s", src.Handle)

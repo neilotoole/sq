@@ -11,6 +11,8 @@ import (
 	"io"
 	"log/slog"
 
+	"github.com/neilotoole/sq/libsq/source/location"
+
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -193,7 +195,7 @@ func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Sou
 	md.Location = g.src.Location
 	md.Driver = g.src.Type
 
-	md.Name, err = source.LocationFileName(g.src)
+	md.Name, err = location.LocationFileName(g.src.Location)
 	if err != nil {
 		return nil, err
 	}
