@@ -167,7 +167,7 @@ func ingestJSON(ctx context.Context, job ingestJob) error {
 		obj            map[string]any
 		chunk          []byte
 		schemaModified bool
-		curSchema      *importSchema
+		curSchema      *ingestSchema
 		insertions     []*insertion
 		hasMore        bool
 	)
@@ -188,7 +188,7 @@ func ingestJSON(ctx context.Context, job ingestJob) error {
 					log.Debug("First time building the schema")
 				}
 
-				var newSchema *importSchema
+				var newSchema *ingestSchema
 				newSchema, err = proc.buildSchemaFlat()
 				if err != nil {
 					return err

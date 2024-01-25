@@ -97,7 +97,7 @@ type processor struct {
 	flatten bool
 
 	root         *entity
-	importSchema *importSchema
+	importSchema *ingestSchema
 
 	colNamesOrdered []string
 
@@ -111,7 +111,7 @@ type processor struct {
 func newProcessor(flatten bool) *processor {
 	return &processor{
 		flatten:             flatten,
-		importSchema:        &importSchema{},
+		importSchema:        &ingestSchema{},
 		root:                &entity{name: source.MonotableName, detectors: map[string]*kind.Detector{}},
 		schemaDirtyEntities: map[*entity]struct{}{},
 	}
@@ -146,14 +146,14 @@ func (p *processor) calcColName(ent *entity, fieldName string) string {
 }
 
 // buildSchemaFlat currently only builds a flat (single table) schema.
-func (p *processor) buildSchemaFlat() (*importSchema, error) {
+func (p *processor) buildSchemaFlat() (*ingestSchema, error) {
 	tblDef := &schema.Table{
 		Name: source.MonotableName,
 	}
 
 	var colDefs []*schema.Column
 
-	schma := &importSchema{
+	schma := &ingestSchema{
 		colMungeFns: map[*schema.Column]kind.MungeFunc{},
 		entityTbls:  map[*entity]*schema.Table{},
 		tblDefs:     []*schema.Table{tblDef}, // Single table only because flat
@@ -209,7 +209,7 @@ func (p *processor) buildSchemaFlat() (*importSchema, error) {
 }
 
 // processObject processes the parsed JSON object m. If the structure
-// of the importSchema changes due to this object, dirtySchema returns true.
+// of the ingestSchema changes due to this object, dirtySchema returns true.
 func (p *processor) processObject(m map[string]any, chunk []byte) (dirtySchema bool, err error) {
 	p.curObjVals = objectValueSet{}
 	err = p.doAddObject(p.root, m)
@@ -317,7 +317,7 @@ func (p *processor) doAddObject(ent *entity, m map[string]any) error {
 // buildInsertionsFlat builds a set of DB insertions from the
 // processor's unwrittenObjVals. After a non-error return, unwrittenObjVals
 // is empty.
-func (p *processor) buildInsertionsFlat(schma *importSchema) ([]*insertion, error) {
+func (p *processor) buildInsertionsFlat(schma *ingestSchema) ([]*insertion, error) {
 	if len(schma.tblDefs) != 1 {
 		return nil, errz.Errorf("expected 1 table for flat JSON processing but got %d", len(schma.tblDefs))
 	}
@@ -423,9 +423,9 @@ func walkEntity(ent *entity, visitFn func(*entity) error) error {
 	return nil
 }
 
-// importSchema encapsulates the table definitions that
+// ingestSchema encapsulates the table definitions that
 // the JSON is imported to.
-type importSchema struct {
+type ingestSchema struct {
 	tblDefs     []*schema.Table
 	colMungeFns map[*schema.Column]kind.MungeFunc
 
@@ -435,7 +435,7 @@ type importSchema struct {
 }
 
 func execSchemaDelta(ctx context.Context, drvr driver.SQLDriver, db sqlz.DB,
-	curSchema, newSchema *importSchema,
+	curSchema, newSchema *ingestSchema,
 ) error {
 	log := lg.FromContext(ctx)
 	var err error
