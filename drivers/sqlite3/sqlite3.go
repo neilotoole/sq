@@ -14,8 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/schema"
-
 	_ "github.com/mattn/go-sqlite3" // Import for side effect of loading the driver
 	"github.com/shopspring/decimal"
 
@@ -31,6 +29,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/loz"
 	"github.com/neilotoole/sq/libsq/core/record"
+	"github.com/neilotoole/sq/libsq/core/schema"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"

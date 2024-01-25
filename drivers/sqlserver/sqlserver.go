@@ -9,8 +9,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/schema"
-
 	"github.com/microsoft/go-mssqldb/msdsn"
 
 	"github.com/neilotoole/sq/libsq/ast"
@@ -23,6 +21,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/loz"
 	"github.com/neilotoole/sq/libsq/core/record"
+	"github.com/neilotoole/sq/libsq/core/schema"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"

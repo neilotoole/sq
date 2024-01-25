@@ -4,10 +4,9 @@ import (
 	"bytes"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/schema"
-
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/schema"
 )
 
 // createTblKindDefaults is a mapping of Kind to the value

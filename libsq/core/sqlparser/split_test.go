@@ -4,10 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/neilotoole/sq/libsq/core/sqlparser"
-
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/sq/libsq/core/sqlparser"
 	"github.com/neilotoole/sq/testh/proj"
 )
 

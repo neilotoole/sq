@@ -7,8 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/schema"
-
 	"github.com/samber/lo"
 	excelize "github.com/xuri/excelize/v2"
 	"golang.org/x/sync/errgroup"
@@ -21,6 +19,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/loz"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/progress"
+	"github.com/neilotoole/sq/libsq/core/schema"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"

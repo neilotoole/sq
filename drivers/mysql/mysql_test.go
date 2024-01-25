@@ -3,10 +3,9 @@ package mysql_test
 import (
 	"testing"
 
-	"github.com/neilotoole/sq/libsq/core/schema"
-
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/sq/libsq/core/schema"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/testh"

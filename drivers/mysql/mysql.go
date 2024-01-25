@@ -8,8 +8,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/schema"
-
 	"github.com/go-sql-driver/mysql"
 	"github.com/samber/lo"
 	"github.com/xo/dburl"
@@ -26,6 +24,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/retry"
+	"github.com/neilotoole/sq/libsq/core/schema"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"

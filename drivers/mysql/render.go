@@ -5,12 +5,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/schema"
-
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/ast/render"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/schema"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
