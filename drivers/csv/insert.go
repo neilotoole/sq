@@ -117,7 +117,7 @@ func createTblDef(tblName string, colNames []string, kinds []kind.Kind) *sqlmode
 	return tbl
 }
 
-// getIngestRecMeta returns record.Meta to use with RecordWriter.NewReader.
+// getIngestRecMeta returns record.Meta to use with RecordWriter.Open.
 func getIngestRecMeta(ctx context.Context, destGrip driver.Grip, tblDef *sqlmodel.TableDef) (record.Meta, error) {
 	db, err := destGrip.DB(ctx)
 	if err != nil {

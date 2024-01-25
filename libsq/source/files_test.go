@@ -215,11 +215,6 @@ func TestFiles_Stdin(t *testing.T) {
 			err = fs.AddStdin(th.Context, f) // f is closed by AddStdin
 			require.NoError(t, err)
 
-			// Files.Filesize will block until the stream is fully read.
-			// r, err := fs.NewReader(th.Context, stdinSrc, false)
-			// require.NoError(t, err)
-			// require.NoError(t, ioz.Drain(r))
-
 			typ, err := fs.DetectStdinType(th.Context)
 			if tc.wantErr {
 				require.Error(t, err)

@@ -220,7 +220,7 @@ func Return[T any](t T, err error) (T, error) {
 
 // As is a convenience wrapper around errors.As.
 //
-//	_, err := os.NewReader("non-existing")
+//	_, err := os.Open("non-existing")
 //	pathErr, ok := errz.As[*fs.PathError](err)
 //	require.True(t, ok)
 //	require.Equal(t, "non-existing", pathErr.Path)
@@ -241,7 +241,7 @@ func As[E error](err error) (E, bool) {
 // Has returns true if err, or an error in its error tree, matches error type E.
 // An error is considered a match by the rules of errors.As:
 //
-//	f, err := os.NewReader("non-existing")
+//	f, err := os.Open("non-existing")
 //	if errz.Has[*fs.PathError](err) {
 //		// Do something
 //	}

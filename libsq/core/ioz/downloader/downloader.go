@@ -63,15 +63,15 @@ type Opt func(t *Downloader)
 // OptMarkCacheResponses configures a Downloader by setting
 // Downloader.markCachedResponses to true.
 func OptMarkCacheResponses(markCachedResponses bool) Opt {
-	return func(t *Downloader) {
-		t.markCachedResponses = markCachedResponses
+	return func(d *Downloader) {
+		d.markCachedResponses = markCachedResponses
 	}
 }
 
 // OptDisableCaching disables the cache.
 func OptDisableCaching(disable bool) Opt {
-	return func(t *Downloader) {
-		t.disableCaching = disable
+	return func(d *Downloader) {
+		d.disableCaching = disable
 	}
 }
 
@@ -285,8 +285,6 @@ func (dl *Downloader) get(req *http.Request, h Handler) { //nolint:gocognit
 		resp.Body = dlStream.NewReader(ctx)
 		h.Uncached(dlStream)
 
-		// FIXME: Do we really need to close resp.Body here?
-		// defer lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
 		if dl.bodySize, err = dl.cache.write(req.Context(), resp, false); err != nil {
 			log.Error("Failed to write download cache", lga.Dir, dl.cache.dir, lga.Err, err)
 			// We don't need to explicitly call Handler.Error here, because the caller is
@@ -314,7 +312,7 @@ func (dl *Downloader) do(req *http.Request) (*http.Response, error) {
 	logResp(log, req, resp, time.Since(start), err)
 	bar.Stop()
 	if err != nil {
-		// Downloader timeout errors are typically wrapped in an url.Error, resulting
+		// Download timeout errors are typically wrapped in an url.Error, resulting
 		// in a message like:
 		//
 		//  Get "https://example.com": http response header not received within 1ms timeout

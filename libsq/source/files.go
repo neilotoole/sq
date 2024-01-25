@@ -30,16 +30,9 @@ import (
 // transparently get a Reader for remote or local files, and most importantly,
 // an ability for multiple goroutines to read/sample a file while
 // it's being read (mainly to "sample" the file type, e.g. to determine
-// if it's an XLSX file etc.).
+// if it's an XLSX file etc.). See: Files.NewReader.
 //
-// Currently we use fscache under the hood
-// for this, but our implementation is not satisfactory: in particular,
-// the implementation currently requires that we read the entire source
-// file into fscache before it's available to be read (which is awful
-// if we're reading long-running pipe from stdin). This entire thing
-// needs to be revisited. Maybe Files even becomes a fs.FS.
-// TODO: ^^ Change docs when switched to streamcache.
-// TODO move Files to its own pkg, e.g. files.New, *files.Files, etc.
+// TODO: move Files to its own pkg, e.g. files.New, *files.Files, etc.
 type Files struct {
 	mu          sync.Mutex
 	log         *slog.Logger

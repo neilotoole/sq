@@ -177,8 +177,6 @@ func (fs *Files) cachedBackingSourceForRemoteFile(ctx context.Context, src *Sour
 		return nil, false, err
 	}
 
-	// We don't care about the reader, but we do need to close it.
-	// lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
 	if downloadedFile == "" {
 		log.Debug("No cached download file for src", lga.Src, src)
 		return nil, false, nil

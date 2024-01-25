@@ -170,7 +170,7 @@ type parsedLoc struct {
 	ext string
 
 	// dsn is the connection "data source name" that can be used in a
-	// call to sql/NewReader. Empty for non-SQL locations.
+	// call to sql.Open. Empty for non-SQL locations.
 	dsn string
 }
 

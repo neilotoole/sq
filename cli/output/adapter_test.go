@@ -81,7 +81,7 @@ func TestRecordWriterAdapter_FlushAfterN(t *testing.T) {
 		100:               writeRecCount / 100,
 		writeRecCount + 1: 0,
 	}
-	// Get some recMeta to feed to RecordWriter.NewReader.
+	// Get some recMeta to feed to RecordWriter.Open.
 	// In this case, the field is "actor_id", which is an int.
 	recMeta := testh.NewRecordMeta([]string{"col_int"}, []kind.Kind{kind.Int})
 
@@ -136,7 +136,7 @@ func TestRecordWriterAdapter_FlushAfterDuration(t *testing.T) {
 		{flushAfter: time.Second, wantFlushed: 0, assertFn: require.Equal},
 	}
 
-	// Get some recMeta to feed to RecordWriter.NewReader.
+	// Get some recMeta to feed to RecordWriter.Open.
 	// In this case, the field is "actor_id", which is an int.
 	recMeta := testh.NewRecordMeta([]string{"col_int"}, []kind.Kind{kind.Int})
 

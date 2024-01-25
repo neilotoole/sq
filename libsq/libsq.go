@@ -205,7 +205,7 @@ func QuerySQL(ctx context.Context, grip driver.Grip, db sqlz.DB, //nolint:funlen
 		return errw(err)
 	}
 
-	// We create a new ctx to pass to recw.NewReader; we use
+	// We create a new ctx to pass to recw.Open; we use
 	// the new ctx/cancelFn to stop recw if a problem happens
 	// in this function.
 	ctx, cancelFn := context.WithCancel(ctx)

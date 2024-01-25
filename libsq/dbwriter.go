@@ -77,7 +77,7 @@ func DBWriterCreateTableIfNotExistsHook(destTblName string) DBWriterPreWriteHook
 // NewDBWriter returns a new writer than implements RecordWriter.
 // The writer writes records from recordCh to destTbl
 // in destGrip. The recChSize param controls the size of recordCh
-// returned by the writer's NewReader method.
+// returned by the writer's Open method.
 func NewDBWriter(msg string, destGrip driver.Grip, destTbl string, recChSize int,
 	preWriteHooks ...DBWriterPreWriteHook,
 ) *DBWriter {

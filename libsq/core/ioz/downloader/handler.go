@@ -16,8 +16,8 @@ import (
 // processing the download stream before the download completes.
 type Handler struct {
 	// Cached is invoked when the download is already cached on disk. The
-	// fp arg is the path to the downloaded file.
-	Cached func(fp string)
+	// dlFile arg is the path to the downloaded file.
+	Cached func(dlFile string)
 
 	// Uncached is invoked when the download is not cached on disk and
 	// downloading has begun. The dlStream arg can be used to read the

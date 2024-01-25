@@ -52,7 +52,7 @@ var (
 	_ ingestFunc = ingestJSONL
 )
 
-// getRecMeta returns record.Meta to use with RecordWriter.NewReader.
+// getRecMeta returns record.Meta to use with RecordWriter.Open.
 func getRecMeta(ctx context.Context, grip driver.Grip, tblDef *sqlmodel.TableDef) (record.Meta, error) {
 	db, err := grip.DB(ctx)
 	if err != nil {
