@@ -2,9 +2,6 @@ module github.com/neilotoole/sq
 
 go 1.21
 
-// See: https://github.com/djherbis/stream/pull/11
-replace github.com/djherbis/stream v1.4.0 => github.com/neilotoole/djherbis-stream v0.0.0-20231203160853-609f47afedda
-
 require (
 	github.com/Masterminds/sprig/v3 v3.2.3
 	github.com/a8m/tree v0.0.0-20240104212747-2c8764a5f17e
@@ -17,7 +14,7 @@ require (
 	github.com/fatih/color v1.16.0
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/goccy/go-yaml v1.11.2
-	github.com/google/uuid v1.5.0
+	github.com/google/uuid v1.6.0
 	github.com/h2non/filetype v1.1.3
 	github.com/jackc/pgx/v5 v5.5.2
 	github.com/mattn/go-colorable v0.1.13
@@ -42,10 +39,10 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.4
 	github.com/vbauerster/mpb/v8 v8.7.2
-	github.com/xo/dburl v0.20.2
+	github.com/xo/dburl v0.21.1
 	github.com/xuri/excelize/v2 v2.8.0
 	go.uber.org/atomic v1.11.0
-	golang.org/x/exp v0.0.0-20240112132812-db7319d0e0e3
+	golang.org/x/exp v0.0.0-20240119083558-1b970713d09a
 	golang.org/x/mod v0.14.0
 	golang.org/x/sync v0.6.0
 	golang.org/x/sys v0.16.0
