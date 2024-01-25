@@ -81,7 +81,7 @@ func (jb *ingestJob) execInsertions(ctx context.Context, drvr driver.SQLDriver,
 			}
 
 			// Note that we don't close the execer here, because we cache it.
-			// It will be closed when via ingestJob.Close.
+			// It will be closed via ingestJob.Close.
 			jb.stmtCache[insert.stmtHash] = execer
 		}
 
