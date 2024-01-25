@@ -29,6 +29,17 @@ func Sum(b []byte) string {
 	return fmt.Sprintf("%x", sum)
 }
 
+// SumAll returns the hash of a, and all the elements
+// of b, as a hex string.
+func SumAll[T ~string](a T, b ...T) string {
+	h := crc32.NewIEEE()
+	_, _ = h.Write([]byte(a))
+	for _, col := range b {
+		_, _ = h.Write([]byte(col))
+	}
+	return fmt.Sprintf("%x", h.Sum32())
+}
+
 // Rand returns a random checksum.
 func Rand() string {
 	b := make([]byte, 128)
@@ -36,7 +47,7 @@ func Rand() string {
 	return Sum(b)
 }
 
-// Checksum is a checksum of a file.
+// Checksum is a checksum value.
 type Checksum string
 
 // Write appends a checksum line to w, including

@@ -29,17 +29,18 @@ var (
 // If sampleSize <= 0, a default value is used.
 func newIngestJob(fromSrc *source.Source, newRdrFn files.NewReaderFunc, destGrip driver.Grip, sampleSize int,
 	flatten bool,
-) ingestJob {
+) *ingestJob {
 	if sampleSize <= 0 {
 		sampleSize = driver.OptIngestSampleSize.Get(fromSrc.Options)
 	}
 
-	return ingestJob{
+	return &ingestJob{
 		fromSrc:    fromSrc,
 		newRdrFn:   newRdrFn,
 		destGrip:   destGrip,
 		sampleSize: sampleSize,
 		flatten:    flatten,
+		stmtCache:  map[string]*driver.StmtExecer{},
 	}
 }
 

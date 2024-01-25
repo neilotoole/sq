@@ -86,10 +86,9 @@ func DetectJSONL(sampleSize int) files.TypeDetectFunc {
 	}
 }
 
-// DetectJSONL implements files.TypeDetectFunc.
-
-func ingestJSONL(ctx context.Context, job ingestJob) error { //nolint:gocognit
+func ingestJSONL(ctx context.Context, job *ingestJob) error { //nolint:gocognit
 	log := lg.FromContext(ctx)
+	defer lg.WarnIfCloseError(log, "Close JSONL ingest job", job)
 
 	r, err := job.newRdrFn(ctx)
 	if err != nil {
@@ -133,13 +132,11 @@ func ingestJSONL(ctx context.Context, job ingestJob) error { //nolint:gocognit
 				}
 
 				var newSchema *ingestSchema
-				newSchema, err = proc.buildSchemaFlat()
-				if err != nil {
+				if newSchema, err = proc.buildSchemaFlat(); err != nil {
 					return err
 				}
 
-				err = execSchemaDelta(ctx, drvr, conn, curSchema, newSchema)
-				if err != nil {
+				if err = execSchemaDelta(ctx, drvr, conn, curSchema, newSchema); err != nil {
 					return err
 				}
 
@@ -150,13 +147,11 @@ func ingestJSONL(ctx context.Context, job ingestJob) error { //nolint:gocognit
 				curSchema = newSchema
 				newSchema = nil
 
-				insertions, err = proc.buildInsertionsFlat(curSchema)
-				if err != nil {
+				if insertions, err = proc.buildInsertionsFlat(curSchema); err != nil {
 					return err
 				}
 
-				err = execInsertions(ctx, drvr, conn, insertions)
-				if err != nil {
+				if err = job.execInsertions(ctx, drvr, conn, insertions); err != nil {
 					return err
 				}
 			}
@@ -198,13 +193,11 @@ func ingestJSONL(ctx context.Context, job ingestJob) error { //nolint:gocognit
 
 		// The schema exists in the DB, and the current JSON chunk hasn't
 		// dirtied the schema, so it's safe to insert the recent rows.
-		insertions, err = proc.buildInsertionsFlat(curSchema)
-		if err != nil {
+		if insertions, err = proc.buildInsertionsFlat(curSchema); err != nil {
 			return err
 		}
 
-		err = execInsertions(ctx, drvr, conn, insertions)
-		if err != nil {
+		if err = job.execInsertions(ctx, drvr, conn, insertions); err != nil {
 			return err
 		}
 	}

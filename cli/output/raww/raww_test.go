@@ -10,7 +10,6 @@ import (
 
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/raww"
-	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/fixt"
 	"github.com/neilotoole/sq/testh/proj"
@@ -51,8 +50,7 @@ func TestRecordWriter_TblActor(t *testing.T) {
 }
 
 func TestRecordWriter_TblBytes(t *testing.T) {
-	th := testh.New(t)
-	th.Log = lg.Discard()
+	th := testh.New(t, testh.OptNoLog())
 	src := th.Source(testsrc.MiscDB)
 	sink, err := th.QuerySQL(src, nil, "SELECT col_bytes FROM tbl_bytes WHERE col_name='gopher.gif'")
 	require.NoError(t, err)
