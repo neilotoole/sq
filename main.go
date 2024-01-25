@@ -7,9 +7,8 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/errz"
-
 	"github.com/neilotoole/sq/cli"
+	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
 func main() {

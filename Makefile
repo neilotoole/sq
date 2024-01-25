@@ -26,11 +26,11 @@ gen:
 .PHONY: fmt
 fmt:
 	@# https://github.com/incu6us/goimports-reviser
-	@# Note that terminal_windows.go is excluded because the tool seems
+	@# Note that *_windows.go is excluded because the tool seems
 	@# to mangle Go code that is guarded by build tags that
 	@# are not in use.
 	@goimports-reviser -company-prefixes github.com/neilotoole -set-alias \
-		-excludes ./cli/terminal_windows.go \
+		-excludes *_windows.go \
 		-rm-unused -output write \
 		-project-name github.com/neilotoole/sq ./...
 

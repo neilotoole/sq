@@ -22,13 +22,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/core/options"
-
 	"github.com/samber/lo"
 	mpb "github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
 
 	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
