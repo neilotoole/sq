@@ -13,7 +13,7 @@ import (
 func TestSplitInput(t *testing.T) {
 	const sel, other = sqlparser.StmtSelect, sqlparser.StmtOther
 
-	// convenience func to return a slice of n sqlmodel.StmtType.
+	// convenience func to return a slice of n sqlparser.StmtType.
 	nTypes := func(n int, typ sqlparser.StmtType) []sqlparser.StmtType {
 		types := make([]sqlparser.StmtType, n)
 		for i := range types {
