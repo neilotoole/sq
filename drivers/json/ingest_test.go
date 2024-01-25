@@ -124,6 +124,7 @@ func TestIngestJSONL_Flat(t *testing.T) {
 
 	// Either fpath (testdata file path) or input should be provided.
 	testCases := []struct {
+		name      string
 		fpath     string
 		input     string
 		wantRows  int
@@ -132,24 +133,28 @@ func TestIngestJSONL_Flat(t *testing.T) {
 		wantErr   bool
 	}{
 		{
+			name:      "actor",
 			fpath:     "actor.jsonl",
 			wantRows:  sakila.TblActorCount,
 			wantCols:  sakila.TblActorCols(),
 			wantKinds: sakila.TblActorColKinds(),
 		},
 		{
+			name:      "film_actor",
 			fpath:     "film_actor.jsonl",
 			wantRows:  sakila.TblFilmActorCount,
 			wantCols:  sakila.TblFilmActorCols(),
 			wantKinds: sakila.TblFilmActorColKinds(),
 		},
 		{
+			name:      "actor_nested",
 			fpath:     "jsonl_actor_nested.jsonl",
 			wantRows:  4,
 			wantCols:  []string{"actor_id", "name_first_name", "name_last_name", "last_update"},
 			wantKinds: []kind.Kind{kind.Int, kind.Text, kind.Text, kind.Datetime},
 		},
 		{
+			name: "recs_medium",
 			input: `{"a": 1, "b": 1, "c": true, "d": "2020-06-11", "e": 2.0}
 {"a": 1.0, "b": 1, "c": false, "d": "2020-06-12", "e":2.01}`,
 			wantRows:  2,
@@ -157,6 +162,7 @@ func TestIngestJSONL_Flat(t *testing.T) {
 			wantKinds: []kind.Kind{kind.Int, kind.Int, kind.Bool, kind.Date, kind.Float},
 		},
 		{
+			name: "recs_small",
 			input: `{"b": 1}
 {"a": 1.1, "b": 2}`,
 			wantRows:  2,
@@ -164,6 +170,7 @@ func TestIngestJSONL_Flat(t *testing.T) {
 			wantKinds: []kind.Kind{kind.Int, kind.Float},
 		},
 		{
+			name: "recs_null",
 			input: `{"a": null, "b": null}
 {"a": 1.1, "b": 2.0000}`,
 			wantRows:  2,
@@ -172,10 +179,10 @@ func TestIngestJSONL_Flat(t *testing.T) {
 		},
 	}
 
-	for i, tc := range testCases {
+	for _, tc := range testCases {
 		tc := tc
 
-		t.Run(tu.Name(i, tc.fpath, tc.input), func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
 			newRdrFn := func(ctx context.Context) (io.ReadCloser, error) {

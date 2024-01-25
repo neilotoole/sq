@@ -11,8 +11,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/core/lg/lgm"
-
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -48,7 +46,7 @@ type ingestJob struct {
 	stmtCache map[string]*driver.StmtExecer
 }
 
-// Close closes the ingestJob.
+// Close closes the ingestJob. In particular, it closes any cached statements.
 func (jb *ingestJob) Close() error {
 	var err error
 	for _, stmt := range jb.stmtCache {
@@ -58,37 +56,38 @@ func (jb *ingestJob) Close() error {
 }
 
 // execInsertions performs db INSERT for each of the insertions.
+// The caller must ensure that ingestJob.Close is eventually called.
 func (jb *ingestJob) execInsertions(ctx context.Context, drvr driver.SQLDriver,
 	db sqlz.DB, insertions []*insertion,
 ) error {
-	// FIXME: This is an inefficient way of performing insertion.
-	//  We should be re-using the prepared statement, and probably
-	//  should batch the inserts as well. See driver.BatchInsert.
+	// TODO: Although we cache the insert statements (driver.StmtExecer), this
+	// is still pretty inefficient. We should be able to use driver.BatchInsert.
+	// But that requires interaction with execSchemaDelta, so that we
+	// can create a new BatchInsert instance if the schema changes.
+	// And execSchemaDelta is not yet fully implemented.
 
-	log := lg.FromContext(ctx)
-	var err error
-	var execer *driver.StmtExecer
+	var (
+		execer *driver.StmtExecer
+		ok     bool
+		err    error
+	)
 
 	for _, insert := range insertions {
-		execer, err = drvr.PrepareInsertStmt(ctx, db, insert.tbl, insert.cols, 1)
-		if err != nil {
+		if execer, ok = jb.stmtCache[insert.stmtHash]; !ok {
+			if execer, err = drvr.PrepareInsertStmt(ctx, db, insert.tbl, insert.cols, 1); err != nil {
+				return err
+			}
+
+			// Note that we don't close the execer here, because we cache it.
+			// It will be closed when via ingestJob.Close.
+			jb.stmtCache[insert.stmtHash] = execer
+		}
+
+		if err = execer.Munge(insert.vals); err != nil {
 			return err
 		}
 
-		err = execer.Munge(insert.vals)
-		if err != nil {
-			lg.WarnIfCloseError(log, lgm.CloseDBStmt, execer)
-			return err
-		}
-
-		_, err = execer.Exec(ctx, insert.vals...)
-		if err != nil {
-			lg.WarnIfCloseError(log, lgm.CloseDBStmt, execer)
-			return err
-		}
-
-		err = execer.Close()
-		if err != nil {
+		if _, err = execer.Exec(ctx, insert.vals...); err != nil {
 			return err
 		}
 	}
@@ -652,6 +651,8 @@ type insertion struct {
 	vals []any
 }
 
+// newInsert should always be used to create an insertion, because
+// it initializes insertion.stmtHash.
 func newInsertion(tbl string, cols []string, vals []any) *insertion {
 	return &insertion{
 		stmtHash: buildInsertStmtHash(tbl, cols),
