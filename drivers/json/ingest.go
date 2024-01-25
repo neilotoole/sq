@@ -424,7 +424,7 @@ func walkEntity(ent *entity, visitFn func(*entity) error) error {
 }
 
 // ingestSchema encapsulates the table definitions that
-// the JSON is imported to.
+// the JSON is ingested to.
 type ingestSchema struct {
 	tblDefs     []*schema.Table
 	colMungeFns map[*schema.Column]kind.MungeFunc
