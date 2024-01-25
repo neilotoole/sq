@@ -214,7 +214,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) error {
 		val, _ := cmd.Flags().GetString(flag.AddDriver)
 		typ = drivertype.Type(strings.TrimSpace(val))
 	} else {
-		typ, err = ru.Files.DriverType(ctx, handle, loc)
+		typ, err = ru.Files.DetectType(ctx, handle, loc)
 		if err != nil {
 			return err
 		}

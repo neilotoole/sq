@@ -873,8 +873,8 @@ func DriverDefsFrom(t testing.TB, cfgFiles ...string) []*userdriver.DriverDef {
 }
 
 // DriverDetectors returns the common set of TypeDetectorFuncs.
-func DriverDetectors() []files.DriverDetectFunc {
-	return []files.DriverDetectFunc{
+func DriverDetectors() []files.TypeDetectFunc {
+	return []files.TypeDetectFunc{
 		files.DetectMagicNumber,
 		xlsx.DetectXLSX,
 		csv.DetectCSV,

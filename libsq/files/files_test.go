@@ -60,7 +60,7 @@ func TestFiles_DetectType(t *testing.T) {
 			require.NoError(t, err)
 			fs.AddDriverDetectors(testh.DriverDetectors()...)
 
-			typ, err := fs.DriverType(ctx, "@test_"+stringz.Uniq8(), tc.loc)
+			typ, err := fs.DetectType(ctx, "@test_"+stringz.Uniq8(), tc.loc)
 			if tc.wantErr {
 				require.Error(t, err)
 			} else {
@@ -106,7 +106,7 @@ func TestFiles_DriverType(t *testing.T) {
 			require.NoError(t, err)
 			fs.AddDriverDetectors(testh.DriverDetectors()...)
 
-			gotType, gotErr := fs.DriverType(context.Background(), "@test_"+stringz.Uniq8(), tc.loc)
+			gotType, gotErr := fs.DetectType(context.Background(), "@test_"+stringz.Uniq8(), tc.loc)
 			if tc.wantErr {
 				require.Error(t, gotErr)
 				return

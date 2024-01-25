@@ -20,7 +20,7 @@ import (
 func TestDriverDetectorFuncs(t *testing.T) {
 	const sampleSize = 1000
 
-	detectFns := map[drivertype.Type]files.DriverDetectFunc{ //nolint:exhaustive
+	detectFns := map[drivertype.Type]files.TypeDetectFunc{ //nolint:exhaustive
 		drivertype.JSON:  json.DetectJSON(sampleSize),
 		drivertype.JSONA: json.DetectJSONA(sampleSize),
 		drivertype.JSONL: json.DetectJSONL(sampleSize),

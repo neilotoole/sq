@@ -79,7 +79,7 @@ type Files struct {
 
 	// detectFns is the set of functions that can detect
 	// the type of a file.
-	detectFns []DriverDetectFunc
+	detectFns []TypeDetectFunc
 }
 
 // New returns a new Files instance. If cleanFscache is true, the fscache

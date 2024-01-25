@@ -23,9 +23,9 @@ import (
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
-// DetectJSONA returns a source.DriverDetectFunc for TypeJSONA.
+// DetectJSONA returns a files.TypeDetectFunc for TypeJSONA.
 // Each line of input must be a valid JSON array.
-func DetectJSONA(sampleSize int) files.DriverDetectFunc {
+func DetectJSONA(sampleSize int) files.TypeDetectFunc {
 	return func(ctx context.Context, newRdrFn files.NewReaderFunc) (detected drivertype.Type,
 		score float32, err error,
 	) {

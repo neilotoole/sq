@@ -17,8 +17,8 @@ import (
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
-// DetectJSON returns a source.DriverDetectFunc that can detect JSON.
-func DetectJSON(sampleSize int) files.DriverDetectFunc { // FIXME: is DetectJSON actually working?
+// DetectJSON returns a files.TypeDetectFunc that can detect JSON.
+func DetectJSON(sampleSize int) files.TypeDetectFunc { // FIXME: is DetectJSON actually working?
 	return func(ctx context.Context, newRdrFn files.NewReaderFunc) (detected drivertype.Type, score float32,
 		err error,
 	) {

@@ -17,18 +17,18 @@ import (
 )
 
 var (
-	_ files.DriverDetectFunc = DetectCSV
-	_ files.DriverDetectFunc = DetectTSV
+	_ files.TypeDetectFunc = DetectCSV
+	_ files.TypeDetectFunc = DetectTSV
 )
 
-// DetectCSV implements source.DriverDetectFunc.
+// DetectCSV implements files.TypeDetectFunc.
 func DetectCSV(ctx context.Context, newRdrFn files.NewReaderFunc) (detected drivertype.Type, score float32,
 	err error,
 ) {
 	return detectType(ctx, drivertype.CSV, newRdrFn)
 }
 
-// DetectTSV implements source.DriverDetectFunc.
+// DetectTSV implements files.TypeDetectFunc.
 func DetectTSV(ctx context.Context, newRdrFn files.NewReaderFunc) (detected drivertype.Type,
 	score float32, err error,
 ) {

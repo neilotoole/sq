@@ -18,9 +18,9 @@ import (
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
-var _ files.DriverDetectFunc = DetectXLSX
+var _ files.TypeDetectFunc = DetectXLSX
 
-// DetectXLSX implements source.DriverDetectFunc, returning
+// DetectXLSX implements files.TypeDetectFunc, returning
 // TypeXLSX and a score of 1.0 if valid XLSX.
 func DetectXLSX(ctx context.Context, newRdrFn files.NewReaderFunc) (detected drivertype.Type, score float32,
 	err error,

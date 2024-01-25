@@ -16,9 +16,9 @@ import (
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
-// DetectJSONL returns a source.DriverDetectFunc that can
+// DetectJSONL returns a files.TypeDetectFunc that can
 // detect JSONL.
-func DetectJSONL(sampleSize int) files.DriverDetectFunc {
+func DetectJSONL(sampleSize int) files.TypeDetectFunc {
 	return func(ctx context.Context, newRdrFn files.NewReaderFunc) (detected drivertype.Type,
 		score float32, err error,
 	) {
@@ -86,7 +86,7 @@ func DetectJSONL(sampleSize int) files.DriverDetectFunc {
 	}
 }
 
-// DetectJSONL implements source.DriverDetectFunc.
+// DetectJSONL implements files.TypeDetectFunc.
 
 func ingestJSONL(ctx context.Context, job ingestJob) error { //nolint:gocognit
 	log := lg.FromContext(ctx)

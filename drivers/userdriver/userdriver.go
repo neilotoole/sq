@@ -51,11 +51,11 @@ func (p *Provider) DriverFor(typ drivertype.Type) (driver.Driver, error) {
 }
 
 // Detectors returns funcs that can detect the driver type.
-func (p *Provider) Detectors() []files.DriverDetectFunc {
+func (p *Provider) Detectors() []files.TypeDetectFunc {
 	// TODO: it should be possible to return type detectors that
 	//  can detect based upon the DriverDef. So, as of right
 	//  now these detectors do nothing.
-	return []files.DriverDetectFunc{}
+	return []files.TypeDetectFunc{}
 }
 
 // Driver implements driver.Driver.
