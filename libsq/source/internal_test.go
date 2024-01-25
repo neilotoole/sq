@@ -1,21 +1,16 @@
 package source
 
 import (
-	"context"
 	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh/tu"
 )
 
 // Export for testing.
 var (
-	FilesDetectTypeFn = func(fs *Files, ctx context.Context, loc string) (typ drivertype.Type, ok bool, err error) {
-		return fs.detectType(ctx, "@test", loc)
-	}
 	GroupsFilterOnlyDirectChildren = groupsFilterOnlyDirectChildren
 )
 

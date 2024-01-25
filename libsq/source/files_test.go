@@ -36,25 +36,24 @@ func TestFiles_DetectType(t *testing.T) {
 	testCases := []struct {
 		loc      string
 		wantType drivertype.Type
-		wantOK   bool
 		wantErr  bool
 	}{
-		{loc: proj.Abs(sakila.PathSL3), wantType: sqlite3.Type, wantOK: true},
-		{loc: proj.Abs("drivers/sqlite3/testdata/sakila_db"), wantType: sqlite3.Type, wantOK: true},
-		{loc: proj.Abs(testsrc.PathXLSXTestHeader), wantType: xlsx.Type, wantOK: true},
-		{loc: proj.Abs("drivers/xlsx/testdata/test_header_xlsx"), wantType: xlsx.Type, wantOK: true},
-		{loc: proj.Abs("drivers/xlsx/testdata/test_noheader.xlsx"), wantType: xlsx.Type, wantOK: true},
-		{loc: proj.Abs("drivers/csv/testdata/person.csv"), wantType: csv.TypeCSV, wantOK: true},
-		{loc: proj.Abs("drivers/csv/testdata/person_noheader.csv"), wantType: csv.TypeCSV, wantOK: true},
-		{loc: proj.Abs("drivers/csv/testdata/person_csv"), wantType: csv.TypeCSV, wantOK: true},
-		{loc: proj.Abs("drivers/csv/testdata/person.tsv"), wantType: csv.TypeTSV, wantOK: true},
-		{loc: proj.Abs("drivers/csv/testdata/person_noheader.tsv"), wantType: csv.TypeTSV, wantOK: true},
-		{loc: proj.Abs("drivers/csv/testdata/person_tsv"), wantType: csv.TypeTSV, wantOK: true},
-		{loc: proj.Abs("drivers/csv/testdata/person_tsv"), wantType: csv.TypeTSV, wantOK: true},
-		{loc: proj.Abs("drivers/json/testdata/actor.json"), wantType: json.TypeJSON, wantOK: true},
-		{loc: proj.Abs("drivers/json/testdata/actor.jsona"), wantType: json.TypeJSONA, wantOK: true},
-		{loc: proj.Abs("drivers/json/testdata/actor.jsonl"), wantType: json.TypeJSONL, wantOK: true},
-		{loc: proj.Abs("README.md"), wantType: drivertype.None, wantOK: false},
+		{loc: proj.Abs(sakila.PathSL3), wantType: sqlite3.Type},
+		{loc: proj.Abs("drivers/sqlite3/testdata/sakila_db"), wantType: sqlite3.Type},
+		{loc: proj.Abs(testsrc.PathXLSXTestHeader), wantType: xlsx.Type},
+		{loc: proj.Abs("drivers/xlsx/testdata/test_header_xlsx"), wantType: xlsx.Type},
+		{loc: proj.Abs("drivers/xlsx/testdata/test_noheader.xlsx"), wantType: xlsx.Type},
+		{loc: proj.Abs("drivers/csv/testdata/person.csv"), wantType: csv.TypeCSV},
+		{loc: proj.Abs("drivers/csv/testdata/person_noheader.csv"), wantType: csv.TypeCSV},
+		{loc: proj.Abs("drivers/csv/testdata/person_csv"), wantType: csv.TypeCSV},
+		{loc: proj.Abs("drivers/csv/testdata/person.tsv"), wantType: csv.TypeTSV},
+		{loc: proj.Abs("drivers/csv/testdata/person_noheader.tsv"), wantType: csv.TypeTSV},
+		{loc: proj.Abs("drivers/csv/testdata/person_tsv"), wantType: csv.TypeTSV},
+		{loc: proj.Abs("drivers/csv/testdata/person_tsv"), wantType: csv.TypeTSV},
+		{loc: proj.Abs("drivers/json/testdata/actor.json"), wantType: json.TypeJSON},
+		{loc: proj.Abs("drivers/json/testdata/actor.jsona"), wantType: json.TypeJSONA},
+		{loc: proj.Abs("drivers/json/testdata/actor.jsonl"), wantType: json.TypeJSONL},
+		{loc: proj.Abs("README.md"), wantType: drivertype.None, wantErr: true},
 	}
 
 	for _, tc := range testCases {
@@ -66,14 +65,13 @@ func TestFiles_DetectType(t *testing.T) {
 			require.NoError(t, err)
 			fs.AddDriverDetectors(testh.DriverDetectors()...)
 
-			typ, ok, err := source.FilesDetectTypeFn(fs, ctx, tc.loc)
+			typ, err := fs.DriverType(ctx, "@test_"+stringz.Uniq8(), tc.loc)
 			if tc.wantErr {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
 			}
 
-			require.Equal(t, tc.wantOK, ok)
 			require.Equal(t, tc.wantType, typ)
 		})
 	}
