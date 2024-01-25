@@ -5,8 +5,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/source/location"
-
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/flag"
@@ -19,6 +17,7 @@ import (
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/location"
 )
 
 // determineSources figures out what the active source is

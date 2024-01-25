@@ -9,10 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/source"
-
-	"github.com/neilotoole/sq/libsq/source/location"
-
 	"github.com/h2non/filetype"
 	"github.com/h2non/filetype/matchers"
 	"golang.org/x/sync/errgroup"
@@ -21,7 +17,9 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
+	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/location"
 )
 
 // DriverDetectFunc interrogates a byte stream to determine

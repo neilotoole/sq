@@ -9,10 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/source"
-
-	"github.com/neilotoole/sq/libsq/source/location"
-
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
@@ -22,7 +18,9 @@ import (
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/location"
 )
 
 // OptCacheLockTimeout is the time allowed to acquire a cache lock.

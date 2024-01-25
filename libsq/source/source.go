@@ -6,12 +6,11 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/source/location"
-
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/location"
 )
 
 const (

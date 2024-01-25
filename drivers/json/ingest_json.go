@@ -8,13 +8,12 @@ import (
 	"io"
 	"time"
 
-	"github.com/neilotoole/sq/libsq/files"
-
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/files"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 

@@ -6,10 +6,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/source/location"
-
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/location"
 )
 
 var _ output.SourceWriter = (*sourceWriter)(nil)

@@ -8,8 +8,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/neilotoole/sq/libsq/source/location"
-
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 
@@ -24,6 +22,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/location"
 )
 
 func newSrcAddCmd() *cobra.Command { //nolint:funlen

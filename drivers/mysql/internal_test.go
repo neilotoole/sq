@@ -4,12 +4,11 @@ package mysql
 import (
 	"testing"
 
-	"github.com/neilotoole/sq/libsq/source/drivertype"
-
 	"github.com/go-sql-driver/mysql"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh/tu"
 )
 

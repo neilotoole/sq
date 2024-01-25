@@ -3,13 +3,12 @@ package yamlw
 import (
 	"io"
 
-	"github.com/neilotoole/sq/libsq/source/location"
-
 	yamlp "github.com/goccy/go-yaml/printer"
 	"github.com/samber/lo"
 
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq/driver"
+	"github.com/neilotoole/sq/libsq/source/location"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 

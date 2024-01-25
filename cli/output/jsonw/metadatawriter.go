@@ -3,12 +3,11 @@ package jsonw
 import (
 	"io"
 
-	"github.com/neilotoole/sq/libsq/source/location"
-
 	"github.com/samber/lo"
 
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq/driver"
+	"github.com/neilotoole/sq/libsq/source/location"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 

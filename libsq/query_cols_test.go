@@ -3,10 +3,9 @@ package libsq_test
 import (
 	"testing"
 
-	"github.com/neilotoole/sq/libsq/source/drivertype"
-
 	_ "github.com/mattn/go-sqlite3"
 
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh/sakila"
 )
 

@@ -8,11 +8,10 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/neilotoole/sq/libsq/source/location"
-
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/location"
 )
 
 var (

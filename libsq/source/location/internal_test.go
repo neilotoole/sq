@@ -4,10 +4,10 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/neilotoole/sq/libsq/source/drivertype"
-
-	"github.com/neilotoole/sq/testh/tu"
 	"github.com/stretchr/testify/require"
+
+	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func TestParse(t *testing.T) {

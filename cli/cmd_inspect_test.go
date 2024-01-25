@@ -7,8 +7,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/neilotoole/sq/libsq/source/location"
-
 	"github.com/samber/lo"
 	"github.com/stretchr/testify/require"
 
@@ -20,6 +18,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/location"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/proj"

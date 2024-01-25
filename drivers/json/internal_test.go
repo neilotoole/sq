@@ -7,12 +7,11 @@ import (
 	"os"
 	"testing"
 
-	"github.com/neilotoole/sq/libsq/files"
-
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/driver"
+	"github.com/neilotoole/sq/libsq/files"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/testh/sakila"
 )

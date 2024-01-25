@@ -4,10 +4,9 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/neilotoole/sq/libsq/source/location"
-
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/sq/libsq/source/location"
 	"github.com/neilotoole/sq/testh/tu"
 )
 

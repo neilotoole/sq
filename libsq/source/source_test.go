@@ -3,16 +3,14 @@ package source_test
 import (
 	"testing"
 
-	"github.com/neilotoole/sq/libsq/source/drivertype"
-
-	"github.com/neilotoole/sq/libsq/source/location"
-
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/location"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/tu"
 )
