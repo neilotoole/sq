@@ -13,3 +13,13 @@ func (t Type) String() string {
 
 // None is the zero value of Type.
 const None = Type("")
+
+const (
+	TypeSL3  = Type("sqlite3")
+	TypePg   = Type("postgres")
+	TypeMS   = Type("sqlserver")
+	TypeMy   = Type("mysql")
+	TypeXLSX = Type("xlsx")
+	TypeCSV  = Type("csv")
+	TypeTSV  = Type("tsv")
+)

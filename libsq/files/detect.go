@@ -211,12 +211,12 @@ func DetectMagicNumber(ctx context.Context, newRdrFn NewReaderFunc,
 		// something we can do about it, such as first extracting
 		// the zip, and then reading the inner magic number, but
 		// the xlsx.DetectXLSX func should catch the type anyway.
-		return typeXLSX, 1.0, nil
+		return drivertype.TypeXLSX, 1.0, nil
 	case matchers.TypeXls:
 		// TODO: our xlsx driver doesn't yet support XLS
-		return typeXLSX, 1.0, errz.Errorf("Microsoft XLS (%s) not currently supported", ftype)
+		return drivertype.TypeXLSX, 1.0, errz.Errorf("Microsoft XLS (%s) not currently supported", ftype)
 	case matchers.TypeSqlite:
-		return typeSL3, 1.0, nil
+		return drivertype.TypeSL3, 1.0, nil
 	}
 }
 
@@ -256,24 +256,12 @@ func (fs *Files) DetectStdinType(ctx context.Context) (drivertype.Type, error) {
 func TypeFromMediaType(mediatype string) (typ drivertype.Type, ok bool) {
 	switch {
 	case strings.Contains(mediatype, `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`):
-		return typeXLSX, true
+		return drivertype.TypeXLSX, true
 	case strings.Contains(mediatype, `text/csv`):
-		return typeCSV, true
+		return drivertype.TypeCSV, true
 	case strings.Contains(mediatype, `text/tab-separated-values`):
-		return typeTSV, true
+		return drivertype.TypeTSV, true
 	}
 
 	return drivertype.None, false
 }
-
-const (
-	// FIXME: the types are defined in like 5 places.
-	// They should be consolidated.
-	typeSL3  = drivertype.Type("sqlite3")
-	typePg   = drivertype.Type("postgres")
-	typeMS   = drivertype.Type("sqlserver")
-	typeMy   = drivertype.Type("mysql")
-	typeXLSX = drivertype.Type("xlsx")
-	typeCSV  = drivertype.Type("csv")
-	typeTSV  = drivertype.Type("tsv")
-)
