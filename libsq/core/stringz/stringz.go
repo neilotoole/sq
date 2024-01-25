@@ -463,7 +463,7 @@ func TrimLen(s string, maxLen int) string {
 //
 // Be warned, Ellipsify may not be unicode-safe. Use at your own risk.
 //
-// See also: [EllipsifyASCII].
+// See also: EllipsifyASCII.
 func Ellipsify(s string, width int) string {
 	const e = "…"
 	if width <= 0 {
@@ -485,7 +485,7 @@ func Ellipsify(s string, width int) string {
 // This func is only tested with ASCII chars; results are not
 // guaranteed for multibyte runes.
 //
-// See also: [Ellipsify].
+// See also: Ellipsify.
 func EllipsifyASCII(s string, width int) string {
 	length := len(s)
 	if width <= 0 {

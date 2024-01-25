@@ -22,21 +22,22 @@ var _ source.DriverDetectFunc = DetectXLSX
 
 // DetectXLSX implements source.DriverDetectFunc, returning
 // TypeXLSX and a score of 1.0 if valid XLSX.
-func DetectXLSX(ctx context.Context, openFn source.FileOpenFunc) (detected drivertype.Type, score float32,
+func DetectXLSX(ctx context.Context, newRdrFn source.NewReaderFunc) (detected drivertype.Type, score float32,
 	err error,
 ) {
 	const detectBufSize = 4096
 
 	log := lg.FromContext(ctx)
 	var r io.ReadCloser
-	r, err = openFn(ctx)
+	r, err = newRdrFn(ctx)
 	if err != nil {
 		return drivertype.None, 0, errz.Err(err)
 	}
 	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, r)
 
 	buf := make([]byte, detectBufSize)
-	if _, err = r.Read(buf); err != nil {
+
+	if _, err = io.ReadFull(r, buf); err != nil && !errors.Is(err, io.ErrUnexpectedEOF) {
 		return drivertype.None, 0, errz.Err(err)
 	}
 

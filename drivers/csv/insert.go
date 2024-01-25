@@ -62,8 +62,8 @@ func execInsert(ctx context.Context, recw libsq.RecordWriter, recMeta record.Met
 			return errz.Wrap(err, "read from CSV data source")
 		}
 
-		rec, err := mungeCSV2InsertRecord(ctx, mungers, csvRecord)
-		if err != nil {
+		var rec []any
+		if rec, err = mungeCSV2InsertRecord(ctx, mungers, csvRecord); err != nil {
 			return err
 		}
 

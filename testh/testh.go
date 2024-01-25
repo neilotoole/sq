@@ -762,13 +762,13 @@ func (h *Helper) IsMonotable(src *source.Source) bool {
 	return h.DriverFor(src).DriverMetadata().Monotable
 }
 
-// Grips returns the helper's [driver.Grips] instance.
+// Grips returns the helper's driver.Grips instance.
 func (h *Helper) Grips() *driver.Grips {
 	h.init()
 	return h.grips
 }
 
-// Files returns the helper's [source.Files] instance.
+// Files returns the helper's source.Files instance.
 func (h *Helper) Files() *source.Files {
 	h.init()
 	return h.files

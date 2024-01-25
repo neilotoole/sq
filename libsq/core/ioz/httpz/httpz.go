@@ -1,6 +1,6 @@
 // Package httpz provides functionality supplemental to stdlib http.
 // Indeed, some of the functions are copied verbatim from stdlib.
-// The jumping-off point is [httpz.NewClient].
+// The jumping-off point is httpz.NewClient.
 //
 // Design note: this package contains generally fairly straightforward HTTP
 // functionality, but the Opt / TripFunc  config mechanism is a bit

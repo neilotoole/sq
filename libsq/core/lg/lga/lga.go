@@ -40,6 +40,7 @@ const (
 	Name      = "name"
 	New       = "new"
 	Old       = "old"
+	Opt       = "opt"
 	Opts      = "opts"
 	Path      = "path"
 	Pid       = "pid"

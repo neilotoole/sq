@@ -1,5 +1,5 @@
 // Package lgt provides a mechanism for getting a *slog.Logger
-// that outputs to testing.T. See [lgt.New].
+// that outputs to testing.T. See lgt.New.
 package lgt
 
 import (
@@ -17,5 +17,5 @@ func init() { //nolint:gochecknoinits
 	})
 }
 
-// New delegates to [slogt.New].
+// New delegates to slogt.New.
 var New = slogt.New

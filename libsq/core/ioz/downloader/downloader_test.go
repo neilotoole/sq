@@ -1,4 +1,4 @@
-package download_test
+package downloader_test
 
 import (
 	"context"
@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/sq/libsq/core/ioz/download"
+	"github.com/neilotoole/sq/libsq/core/ioz/downloader"
 	"github.com/neilotoole/sq/libsq/core/ioz/httpz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -105,21 +105,22 @@ func TestDownload_redirect(t *testing.T) {
 	ctx := lg.NewContext(context.Background(), log.With("origin", "downloader"))
 	loc := srvr.URL + "/redirect"
 
-	dl, err := download.New(t.Name(), httpz.NewDefaultClient(), loc, cacheDir)
+	dl, err := downloader.New(t.Name(), httpz.NewDefaultClient(), loc, cacheDir)
 	require.NoError(t, err)
 	require.NoError(t, dl.Clear(ctx))
-	h := download.NewSinkHandler(log.With("origin", "handler"))
+	h := downloader.NewSinkHandler(log.With("origin", "handler"))
 
+	tu.MustAbsFilepath()
 	dl.Get(ctx, h.Handler)
 	require.Empty(t, h.Errors)
-	gotBody := h.UncachedBufs[0].String()
+	gotBody := tu.ReadToString(t, h.Streams[0].NewReader(ctx))
 	require.Equal(t, hello, gotBody)
 
 	h.Reset()
 	dl.Get(ctx, h.Handler)
 	require.Empty(t, h.Errors)
-	require.Empty(t, h.UncachedBufs)
-	gotFile := h.CachedFiles[0]
+	require.Empty(t, h.Streams)
+	gotFile := h.Downloaded[0]
 	t.Logf("got fp: %s", gotFile)
 	gotBody = tu.ReadFileToString(t, gotFile)
 	t.Logf("got body: \n\n%s\n\n", gotBody)
@@ -128,8 +129,8 @@ func TestDownload_redirect(t *testing.T) {
 	h.Reset()
 	dl.Get(ctx, h.Handler)
 	require.Empty(t, h.Errors)
-	require.Empty(t, h.UncachedBufs)
-	gotFile = h.CachedFiles[0]
+	require.Empty(t, h.Streams)
+	gotFile = h.Downloaded[0]
 	t.Logf("got fp: %s", gotFile)
 	gotBody = tu.ReadFileToString(t, gotFile)
 	t.Logf("got body: \n\n%s\n\n", gotBody)
@@ -144,21 +145,21 @@ func TestDownload_New(t *testing.T) {
 	cacheDir := t.TempDir()
 	t.Logf("cacheDir: %s", cacheDir)
 
-	dl, err := download.New(t.Name(), httpz.NewDefaultClient(), dlURL, cacheDir)
+	dl, err := downloader.New(t.Name(), httpz.NewDefaultClient(), dlURL, cacheDir)
 	require.NoError(t, err)
 	require.NoError(t, dl.Clear(ctx))
-	require.Equal(t, download.Uncached, dl.State(ctx))
+	require.Equal(t, downloader.Uncached, dl.State(ctx))
 	sum, ok := dl.Checksum(ctx)
 	require.False(t, ok)
 	require.Empty(t, sum)
 
-	h := download.NewSinkHandler(log.With("origin", "handler"))
+	h := downloader.NewSinkHandler(log.With("origin", "handler"))
 	dl.Get(ctx, h.Handler)
 	require.Empty(t, h.Errors)
-	require.Empty(t, h.WriteErrors)
-	require.Empty(t, h.CachedFiles)
-	require.Equal(t, sizeActorCSV, int64(h.UncachedBufs[0].Len()))
-	require.Equal(t, download.Fresh, dl.State(ctx))
+	require.Empty(t, h.Downloaded)
+	require.Equal(t, 1, len(h.Streams))
+	require.Equal(t, sizeActorCSV, int64(h.Streams[0].Size()))
+	require.Equal(t, downloader.Fresh, dl.State(ctx))
 	sum, ok = dl.Checksum(ctx)
 	require.True(t, ok)
 	require.NotEmpty(t, sum)
@@ -166,19 +167,18 @@ func TestDownload_New(t *testing.T) {
 	h.Reset()
 	dl.Get(ctx, h.Handler)
 	require.Empty(t, h.Errors)
-	require.Empty(t, h.WriteErrors)
-	require.Empty(t, h.UncachedBufs)
-	require.NotEmpty(t, h.CachedFiles)
-	gotFileBytes, err := os.ReadFile(h.CachedFiles[0])
+	require.Empty(t, h.Streams)
+	require.NotEmpty(t, h.Downloaded)
+	gotFileBytes, err := os.ReadFile(h.Downloaded[0])
 	require.NoError(t, err)
 	require.Equal(t, sizeActorCSV, int64(len(gotFileBytes)))
-	require.Equal(t, download.Fresh, dl.State(ctx))
+	require.Equal(t, downloader.Fresh, dl.State(ctx))
 	sum, ok = dl.Checksum(ctx)
 	require.True(t, ok)
 	require.NotEmpty(t, sum)
 
 	require.NoError(t, dl.Clear(ctx))
-	require.Equal(t, download.Uncached, dl.State(ctx))
+	require.Equal(t, downloader.Uncached, dl.State(ctx))
 	sum, ok = dl.Checksum(ctx)
 	require.False(t, ok)
 	require.Empty(t, sum)
@@ -186,5 +186,4 @@ func TestDownload_New(t *testing.T) {
 	h.Reset()
 	dl.Get(ctx, h.Handler)
 	require.Empty(t, h.Errors)
-	require.Empty(t, h.WriteErrors)
 }

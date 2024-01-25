@@ -2,8 +2,10 @@ package source
 
 import (
 	"context"
+	"errors"
 	"io"
 	"mime"
+	"os"
 	"time"
 
 	"github.com/h2non/filetype"
@@ -23,9 +25,9 @@ import (
 // A score <= 0 is failure, a score >= 1 is success; intermediate
 // values indicate some level of confidence.
 // An error is returned only if an IO problem occurred.
-// The implementation gets access to the byte stream by invoking openFn,
-// and is responsible for closing any reader it opens.
-type DriverDetectFunc func(ctx context.Context, openFn FileOpenFunc) (
+// The implementation gets access to the byte stream by invoking
+// newRdrFn, and is responsible for closing any reader it opens.
+type DriverDetectFunc func(ctx context.Context, newRdrFn NewReaderFunc) (
 	detected drivertype.Type, score float32, err error)
 
 var _ DriverDetectFunc = DetectMagicNumber
@@ -89,15 +91,20 @@ func (fs *Files) detectType(ctx context.Context, handle, loc string) (typ driver
 	log := lg.FromContext(ctx).With(lga.Loc, loc)
 	start := time.Now()
 
-	// FIXME: we could bypass newReader here for local files (that
-	// isn't @stdin).
-	openFn := func(ctx context.Context) (io.ReadCloser, error) {
-		src := &Source{Handle: handle, Location: loc}
-		return fs.newReader(ctx, src)
+	var newRdrFn NewReaderFunc
+	if getLocType(loc) == locTypeLocalFile {
+		newRdrFn = func(ctx context.Context) (io.ReadCloser, error) {
+			return errz.Return(os.Open(loc))
+		}
+	} else {
+		newRdrFn = func(ctx context.Context) (io.ReadCloser, error) {
+			src := &Source{Handle: handle, Location: loc}
+			return fs.newReader(ctx, src, false)
+		}
 	}
 
 	// We do the magic number first, because it's so fast.
-	detected, score, err := DetectMagicNumber(ctx, openFn)
+	detected, score, err := DetectMagicNumber(ctx, newRdrFn)
 	if err == nil && score >= 1.0 {
 		return detected, true, nil
 	}
@@ -116,7 +123,6 @@ func (fs *Files) detectType(ctx context.Context, handle, loc string) (typ driver
 	}
 
 	g, gCtx := errgroup.WithContext(ctx)
-
 	for _, detectFn := range fs.detectFns {
 		detectFn := detectFn
 
@@ -127,7 +133,7 @@ func (fs *Files) detectType(ctx context.Context, handle, loc string) (typ driver
 			default:
 			}
 
-			gTyp, gScore, gErr := detectFn(gCtx, openFn)
+			gTyp, gScore, gErr := detectFn(gCtx, newRdrFn)
 			if gErr != nil {
 				return gErr
 			}
@@ -144,8 +150,7 @@ func (fs *Files) detectType(ctx context.Context, handle, loc string) (typ driver
 	// goroutine returns a score >= 1.0 (then cancelling the other detector
 	// goroutines).
 
-	err = g.Wait()
-	if err != nil {
+	if err = g.Wait(); err != nil {
 		log.Error(err.Error())
 		return drivertype.None, false, errz.Err(err)
 	}
@@ -169,14 +174,13 @@ func (fs *Files) detectType(ctx context.Context, handle, loc string) (typ driver
 	return drivertype.None, false, nil
 }
 
-// DetectMagicNumber is a DriverDetectFunc that uses an external
-// pkg (h2non/filetype) to detect the "magic number" from
-// the start of files.
-func DetectMagicNumber(ctx context.Context, openFn FileOpenFunc,
+// DetectMagicNumber is a DriverDetectFunc that detects the "magic number"
+// from the start of files.
+func DetectMagicNumber(ctx context.Context, newRdrFn NewReaderFunc,
 ) (detected drivertype.Type, score float32, err error) {
 	log := lg.FromContext(ctx)
 	var r io.ReadCloser
-	r, err = openFn(ctx)
+	r, err = newRdrFn(ctx)
 	if err != nil {
 		return drivertype.None, 0, errz.Err(err)
 	}
@@ -184,16 +188,13 @@ func DetectMagicNumber(ctx context.Context, openFn FileOpenFunc,
 
 	// We only have to pass the file header = first 261 bytes
 	head := make([]byte, 261)
-	_, err = r.Read(head)
-	if err != nil {
+	if _, err = io.ReadFull(r, head); err != nil && !errors.Is(err, io.ErrUnexpectedEOF) {
 		return drivertype.None, 0, errz.Wrapf(err, "failed to read header")
 	}
 
 	ftype, err := filetype.Match(head)
 	if err != nil {
-		if err != nil {
-			return drivertype.None, 0, errz.Err(err)
-		}
+		return drivertype.None, 0, errz.Err(err)
 	}
 
 	switch ftype {
@@ -222,7 +223,7 @@ func (fs *Files) DetectStdinType(ctx context.Context) (drivertype.Type, error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	if !fs.fscache.Exists(StdinHandle) {
+	if _, ok := fs.mStreams[StdinHandle]; !ok {
 		return drivertype.None, errz.New("must invoke Files.AddStdin before invoking DetectStdinType")
 	}
 

@@ -4,13 +4,12 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/neilotoole/sq/libsq/core/progress"
-
 	"github.com/spf13/cobra"
 
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/driver"

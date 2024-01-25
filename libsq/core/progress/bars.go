@@ -10,7 +10,7 @@ import (
 
 // NewByteCounter returns a new determinate bar whose label
 // metric is the size in bytes of the data being processed. The caller is
-// ultimately responsible for calling [Bar.Stop] on the returned Bar.
+// ultimately responsible for calling Bar.Stop on the returned Bar.
 func (p *Progress) NewByteCounter(msg string, size int64, opts ...Opt) *Bar {
 	if p == nil {
 		return nil
@@ -40,7 +40,7 @@ func (p *Progress) NewByteCounter(msg string, size int64, opts ...Opt) *Bar {
 
 // NewUnitCounter returns a new indeterminate bar whose label
 // metric is the plural of the provided unit. The caller is ultimately
-// responsible for calling [Bar.Stop] on the returned Bar.
+// responsible for calling Bar.Stop on the returned Bar.
 //
 //	bar := p.NewUnitCounter("Ingest records", "rec")
 //	defer bar.Stop()
@@ -86,7 +86,7 @@ func (p *Progress) NewUnitCounter(msg, unit string, opts ...Opt) *Bar {
 //
 //	@excel/remote: start download                ●∙∙                4s
 //
-// The caller is ultimately responsible for calling [Bar.Stop] on the
+// The caller is ultimately responsible for calling Bar.Stop on the
 // returned Bar.
 func (p *Progress) NewWaiter(msg string, clock bool, opts ...Opt) *Bar {
 	if p == nil {
@@ -111,7 +111,7 @@ func (p *Progress) NewWaiter(msg string, clock bool, opts ...Opt) *Bar {
 
 // NewUnitTotalCounter returns a new determinate bar whose label
 // metric is the plural of the provided unit. The caller is ultimately
-// responsible for calling [Bar.Stop] on the returned Bar.
+// responsible for calling Bar.Stop on the returned Bar.
 //
 // This produces output similar to:
 //
@@ -152,7 +152,7 @@ func (p *Progress) NewUnitTotalCounter(msg, unit string, total int64, opts ...Op
 //
 //	Locking @sakila                    ●∙∙              timeout in 7s
 //
-// The caller is ultimately responsible for calling [Bar.Stop] on
+// The caller is ultimately responsible for calling Bar.Stop on
 // the returned bar, although the bar will also be stopped when the
 // parent Progress stops.
 func (p *Progress) NewTimeoutWaiter(msg string, expires time.Time, opts ...Opt) *Bar {

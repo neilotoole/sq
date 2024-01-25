@@ -15,7 +15,7 @@ import (
 	"strings"
 )
 
-// Opt is a functional option. Use with [Err] or [New].
+// Opt is a functional option. Use with Err or New.
 type Opt interface {
 	apply(*errz)
 }
@@ -43,9 +43,9 @@ func New(message string, opts ...Opt) error {
 	return ez
 }
 
-// Errorf works like [fmt.Errorf], but it also records the stack trace
+// Errorf works like fmt.Errorf, but it also records the stack trace
 // at the point it was called. If the format string includes the %w verb,
-// [fmt.Errorf] is first called to construct the error, and then the
+// fmt.Errorf is first called to construct the error, and then the
 // returned error is again wrapped to record the stack trace.
 func Errorf(format string, args ...any) error {
 	if strings.Contains(format, "%w") {
@@ -91,7 +91,7 @@ func (e *errz) Error() string {
 	return e.msg + ": " + e.error.Error()
 }
 
-// LogValue implements [slog.LogValuer]. It returns a [slog.GroupValue],
+// LogValue implements slog.LogValuer. It returns a slog.GroupValue,
 // having attributes "msg" and "type". If the error has a cause that
 // from outside this package, the cause's type is included in a
 // "cause" attribute.
@@ -209,7 +209,7 @@ func UnwrapChain(err error) error {
 	return err
 }
 
-// Return returns t with err wrapped via [errz.Err].
+// Return returns t with err wrapped via errz.Err.
 // This is useful for the common case of returning a value and
 // an error from a function.
 //
@@ -225,7 +225,7 @@ func Return[T any](t T, err error) (T, error) {
 //	require.True(t, ok)
 //	require.Equal(t, "non-existing", pathErr.Path)
 //
-// If err is nil, As returns false. See also: [errz.Has].
+// If err is nil, As returns false. See also: errz.Has.
 func As[E error](err error) (E, bool) {
 	var target E
 	if err == nil {
@@ -239,14 +239,14 @@ func As[E error](err error) (E, bool) {
 }
 
 // Has returns true if err, or an error in its error tree, matches error type E.
-// An error is considered a match by the rules of [errors.As]
+// An error is considered a match by the rules of errors.As:
 //
 //	f, err := os.Open("non-existing")
 //	if errz.Has[*fs.PathError](err) {
 //		// Do something
 //	}
 //
-// If err is nil, Has returns false. See also: [errz.As].
+// If err is nil, Has returns false. See also: errz.As.
 func Has[E error](err error) bool {
 	return errors.As(err, new(E))
 }

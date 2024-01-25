@@ -52,15 +52,16 @@ Possible values are: comma, space, pipe, tab, colon, semi, period.`,
 	"csv",
 )
 
-// ingestCSV loads the src CSV data into scratchDB.
-func ingestCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFunc, destGrip driver.Grip) error {
+// ingestCSV loads the src CSV data into destGrip.
+func (d *driveri) ingestCSV(ctx context.Context, src *source.Source, destGrip driver.Grip) error {
 	log := lg.FromContext(ctx)
 	startUTC := time.Now().UTC()
 
-	rc, err := openFn(ctx)
+	rc, err := d.files.NewReader(ctx, src, true)
 	if err != nil {
 		return err
 	}
+
 	defer lg.WarnIfCloseError(log, lgm.CloseFileReader, rc)
 
 	delim, err := getDelimiter(src)
@@ -132,6 +133,7 @@ func ingestCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFu
 		tblDef.Name,
 		driver.OptTuningRecChanSize.Get(destGrip.Source().Options),
 	)
+
 	err = execInsert(ctx, insertWriter, recMeta, mungers, recs, cr)
 	if err != nil {
 		return err
@@ -142,7 +144,7 @@ func ingestCSV(ctx context.Context, src *source.Source, openFn source.FileOpenFu
 		return err
 	}
 
-	log.Debug("Inserted rows",
+	log.Info("Ingested rows",
 		lga.Count, inserted,
 		lga.Elapsed, time.Since(startUTC).Round(time.Millisecond),
 		lga.Target, source.Target(destGrip.Source(), tblDef.Name),

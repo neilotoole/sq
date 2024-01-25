@@ -285,7 +285,7 @@ type notifyOnceWriter struct {
 	notifyOnce sync.Once
 }
 
-// Write implements [io.Writer]. On the first invocation of this
+// Write implements io.Writer. On the first invocation of this
 // method, the notify function is invoked, blocking until it returns.
 // Subsequent invocations of Write don't trigger the notify function.
 func (w *notifyOnceWriter) Write(p []byte) (n int, err error) {
@@ -372,6 +372,12 @@ func DirExists(dir string) bool {
 		return false
 	}
 	return fi.IsDir()
+}
+
+// Drain drains r.
+func Drain(r io.Reader) error {
+	_, err := io.Copy(io.Discard, r)
+	return err
 }
 
 // PrintTree prints the file tree structure at loc to w.

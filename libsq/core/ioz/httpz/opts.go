@@ -15,7 +15,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/loz"
 )
 
-// Opt is an option that can be passed to [NewClient] to
+// Opt is an option that can be passed to NewClient to
 // configure the client.
 type Opt interface {
 	apply(*http.Transport)
@@ -48,10 +48,10 @@ func (v minTLSVersion) apply(tr *http.Transport) {
 }
 
 // DefaultTLSVersion is the default minimum TLS version,
-// as used by [NewDefaultClient].
+// as used by NewDefaultClient.
 var DefaultTLSVersion = minTLSVersion(tls.VersionTLS10)
 
-// OptUserAgent is passed to [NewClient] to set the User-Agent header.
+// OptUserAgent is passed to NewClient to set the User-Agent header.
 func OptUserAgent(ua string) TripFunc {
 	return func(next http.RoundTripper, req *http.Request) (*http.Response, error) {
 		req.Header.Set("User-Agent", ua)
@@ -60,14 +60,14 @@ func OptUserAgent(ua string) TripFunc {
 }
 
 // DefaultUserAgent is the default User-Agent header value,
-// as used by [NewDefaultClient].
+// as used by NewDefaultClient.
 var DefaultUserAgent = OptUserAgent(buildinfo.Get().UserAgent())
 
-// OptResponseTimeout is passed to [NewClient] to set the total request timeout,
+// OptResponseTimeout is passed to NewClient to set the total request timeout,
 // including reading the body. This is basically the same as a traditional
 // request timeout via context.WithTimeout. If timeout is zero, this is no-op.
 //
-// Contrast with [OptRequestTimeout].
+// Contrast with OptRequestTimeout.
 func OptResponseTimeout(timeout time.Duration) TripFunc {
 	if timeout <= 0 {
 		return NopTripFunc
@@ -113,12 +113,12 @@ func OptResponseTimeout(timeout time.Duration) TripFunc {
 	}
 }
 
-// OptRequestTimeout is passed to [NewClient] to set a timeout for just
+// OptRequestTimeout is passed to NewClient to set a timeout for just
 // getting the initial response headers. This is useful if you expect
 // a response within, say, 2 seconds, but you expect the body to take longer
 // to read.
 //
-// Contrast with [OptResponseTimeout].
+// Contrast with OptResponseTimeout.
 func OptRequestTimeout(timeout time.Duration) TripFunc {
 	if timeout <= 0 {
 		return NopTripFunc
@@ -181,10 +181,10 @@ func OptRequestTimeout(timeout time.Duration) TripFunc {
 }
 
 // DefaultHeaderTimeout is the default header timeout as used
-// by [NewDefaultClient].
+// by NewDefaultClient.
 var DefaultHeaderTimeout = OptRequestTimeout(time.Second * 5)
 
-// OptRequestDelay is passed to [NewClient] to delay the request by the
+// OptRequestDelay is passed to NewClient to delay the request by the
 // specified duration. This is useful for testing.
 func OptRequestDelay(delay time.Duration) TripFunc {
 	if delay <= 0 {

@@ -21,15 +21,19 @@ import (
 	"github.com/neilotoole/sq/libsq/core/options"
 )
 
-// printError is the centralized function for printing
+// PrintError is the centralized function for printing
 // and logging errors. This func has a lot of (possibly needless)
 // redundancy; ultimately err will print if non-nil (even if
-// ru or any of its fields are nil).
-func printError(ctx context.Context, ru *run.Run, err error) {
+// ctx, or ru, or any of ru's fields are nil).
+func PrintError(ctx context.Context, ru *run.Run, err error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	log := lg.FromContext(ctx)
 
 	if err == nil {
-		log.Warn("printError called with nil error")
+		log.Warn("PrintError called with nil error")
 		return
 	}
 

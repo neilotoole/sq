@@ -79,9 +79,8 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, er
 	allowCache := driver.OptIngestCache.Get(options.FromContext(ctx))
 
 	ingestFn := func(ctx context.Context, destGrip driver.Grip) error {
-		openFn := d.files.OpenFunc(src)
 		log.Debug("Ingest func invoked", lga.Src, src)
-		return ingestCSV(ctx, src, openFn, destGrip)
+		return d.ingestCSV(ctx, src, destGrip)
 	}
 
 	var err error

@@ -25,11 +25,11 @@ import (
 )
 
 // ingestJob describes a single ingest job, where the JSON
-// at fromSrc is read via openFn and the resulting records
+// at fromSrc is read via newRdrFn and the resulting records
 // are written to destGrip.
 type ingestJob struct {
 	fromSrc  *source.Source
-	openFn   source.FileOpenFunc
+	newRdrFn source.NewReaderFunc
 	destGrip driver.Grip
 
 	// sampleSize is the maximum number of values to

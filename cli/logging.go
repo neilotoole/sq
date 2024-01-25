@@ -315,7 +315,7 @@ func getLogLevel(ctx context.Context, osArgs []string, cfg *config.Config) slog.
 
 // getLogEnabled gets the log format based on flags, envars, or config.
 // Any error is logged to the ctx logger. The returned value is guaranteed
-// to be one of [format.Text] or [format.JSON].
+// to be one of format.Text or format.JSON.
 func getLogFormat(ctx context.Context, osArgs []string, cfg *config.Config) format.Format {
 	bootLog := lg.FromContext(ctx)
 

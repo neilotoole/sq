@@ -6,6 +6,7 @@ import (
 	stdj "encoding/json"
 	"io"
 	"math"
+	"time"
 
 	"github.com/neilotoole/sq/libsq"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -24,12 +25,17 @@ import (
 // DetectJSONA returns a source.DriverDetectFunc for TypeJSONA.
 // Each line of input must be a valid JSON array.
 func DetectJSONA(sampleSize int) source.DriverDetectFunc {
-	return func(ctx context.Context, openFn source.FileOpenFunc) (detected drivertype.Type,
+	return func(ctx context.Context, newRdrFn source.NewReaderFunc) (detected drivertype.Type,
 		score float32, err error,
 	) {
 		log := lg.FromContext(ctx)
+		start := time.Now()
+		defer func() {
+			log.Debug("JSONA detection complete", lga.Elapsed, time.Since(start), lga.Score, score)
+		}()
+
 		var r io.ReadCloser
-		r, err = openFn(ctx)
+		r, err = newRdrFn(ctx)
 		if err != nil {
 			return drivertype.None, 0, errz.Err(err)
 		}
@@ -98,7 +104,7 @@ func DetectJSONA(sampleSize int) source.DriverDetectFunc {
 func ingestJSONA(ctx context.Context, job ingestJob) error {
 	log := lg.FromContext(ctx)
 
-	predictR, err := job.openFn(ctx)
+	predictR, err := job.newRdrFn(ctx)
 	if err != nil {
 		return errz.Err(err)
 	}
@@ -136,7 +142,7 @@ func ingestJSONA(ctx context.Context, job ingestJob) error {
 		return err
 	}
 
-	r, err := job.openFn(ctx)
+	r, err := job.newRdrFn(ctx)
 	if err != nil {
 		return errz.Err(err)
 	}

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -18,6 +19,7 @@ import (
 	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/drivers/sqlserver"
 	"github.com/neilotoole/sq/drivers/xlsx"
+	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/libsq/core/stringz"
@@ -173,7 +175,7 @@ func TestFiles_NewReader(t *testing.T) {
 
 	for i := 0; i < 1000; i++ {
 		g.Go(func() error {
-			r, gErr := fs.Open(ctx, src)
+			r, gErr := fs.NewReader(ctx, src, false)
 			require.NoError(t, gErr)
 
 			b, gErr := io.ReadAll(r)
@@ -240,7 +242,7 @@ func TestFiles_Stdin_ErrorWrongOrder(t *testing.T) {
 	require.Equal(t, csv.TypeCSV, typ)
 }
 
-func TestFiles_Size(t *testing.T) {
+func TestFiles_Filesize(t *testing.T) {
 	f, err := os.Open(proj.Abs(sakila.PathCSVActor))
 	require.NoError(t, err)
 	t.Cleanup(func() { assert.NoError(t, f.Close()) })
@@ -250,6 +252,9 @@ func TestFiles_Size(t *testing.T) {
 	wantSize := fi.Size()
 
 	th := testh.New(t)
+	var cancelFn context.CancelFunc
+	th.Context, cancelFn = context.WithTimeout(th.Context, time.Second)
+	defer cancelFn()
 	fs := th.Files()
 
 	gotSize, err := fs.Filesize(th.Context, &source.Source{
@@ -264,10 +269,14 @@ func TestFiles_Size(t *testing.T) {
 	// Verify that this works with @stdin as well
 	require.NoError(t, fs.AddStdin(th.Context, f2))
 
-	gotSize2, err := fs.Filesize(th.Context, &source.Source{
-		Handle:   "@stdin",
-		Location: "@stdin",
-	})
+	stdinSrc := &source.Source{Handle: "@stdin", Location: "@stdin"}
+
+	// Files.Filesize will block until the stream is fully read.
+	r, err := fs.NewReader(th.Context, stdinSrc, false)
+	require.NoError(t, err)
+	require.NoError(t, ioz.Drain(r))
+
+	gotSize2, err := fs.Filesize(th.Context, stdinSrc)
 	require.NoError(t, err)
 	require.Equal(t, wantSize, gotSize2)
 }

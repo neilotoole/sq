@@ -16,7 +16,7 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 )
 
-// MsgIngestRecords is the typical message used with [libsq.NewDBWriter]
+// MsgIngestRecords is the typical message used with libsq.NewDBWriter
 // to indicate that records are being ingested.
 const MsgIngestRecords = "Ingesting records"
 

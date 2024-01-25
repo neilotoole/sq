@@ -22,9 +22,6 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 )
 
-// OptShellCompletionTimeout determines how long to wait until for long-running
-// shell completion operations (such as fetching table names from a DB) before
-// giving up.
 var OptShellCompletionTimeout = options.NewDuration(
 	"shell-completion.timeout",
 	"",
@@ -34,6 +31,20 @@ var OptShellCompletionTimeout = options.NewDuration(
 	`How long shell completion should wait before giving up. This can
 become relevant when shell completion inspects a source's metadata, e.g. to
 offer a list of tables in a source.`,
+)
+
+var OptShellCompletionLog = options.NewBool(
+	"shell-completion.log",
+	"",
+	false,
+	0,
+	false,
+	"Enable logging of shell completion activity",
+	`Enable logging of shell completion activity. It is frequently the case
+that shell completion handlers will trigger work (such as inspecting
+the schema) that doesn't complete by the shell completion timeout. This can result
+in the logs being filled with uninteresting junk when the timeout triggers
+logging of errors due to the cancellation.`,
 )
 
 // completionFunc is a shell completion function.

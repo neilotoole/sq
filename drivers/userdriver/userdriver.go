@@ -90,7 +90,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, er
 	allowCache := driver.OptIngestCache.Get(options.FromContext(ctx))
 
 	ingestFn := func(ctx context.Context, destGrip driver.Grip) error {
-		r, err := d.files.Open(ctx, src)
+		r, err := d.files.NewReader(ctx, src, false)
 		if err != nil {
 			return err
 		}

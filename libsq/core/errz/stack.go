@@ -231,10 +231,10 @@ func funcName(name string) string {
 
 // Stacks returns all stack trace(s) attached to err. If err has been wrapped
 // more than once, there may be multiple stack traces. Generally speaking, the
-// final stack trace is the most interesting; you can use [errz.LastStack] if
+// final stack trace is the most interesting; you can use errz.LastStack if
 // you're just interested in that one.
 //
-// The returned [StackTrace.Frames] can be printed using fmt "%+v".
+// The returned StackTrace.Frames can be printed using fmt "%+v".
 func Stacks(err error) []*StackTrace {
 	if err == nil {
 		return nil
@@ -257,7 +257,7 @@ func Stacks(err error) []*StackTrace {
 }
 
 // LastStack returns the last of any stack trace(s) attached to err, or nil.
-// Contrast with [errz.Stacks], which returns all stack traces attached
+// Contrast with errz.Stacks, which returns all stack traces attached
 // to any error in the chain. But if you only want to examine one stack,
 // the final stack trace is usually the most interesting, which is why this
 // function exists.
