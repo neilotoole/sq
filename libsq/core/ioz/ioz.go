@@ -380,6 +380,24 @@ func Drain(r io.Reader) error {
 	return err
 }
 
+// FileInfoEqual returns true if a and b are equal.
+// The FileInfo.Sys() field is ignored.
+func FileInfoEqual(a, b os.FileInfo) bool {
+	if a == nil && b == nil {
+		return true
+	}
+
+	if a == nil || b == nil {
+		return false
+	}
+
+	return a.Name() == b.Name() &&
+		a.Size() == b.Size() &&
+		a.Mode() == b.Mode() &&
+		a.ModTime() == b.ModTime() &&
+		a.IsDir() == b.IsDir()
+}
+
 // PrintTree prints the file tree structure at loc to w.
 // This function uses the github.com/a8m/tree library, which is
 // a Go implementation of the venerable "tree" command.

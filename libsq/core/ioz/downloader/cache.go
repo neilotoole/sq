@@ -232,7 +232,9 @@ func (c *cache) clear(ctx context.Context) error {
 }
 
 // write writes resp header and body to the cache, returning the number of
-// bytes written.
+// body bytes written to disk.
+//
+// FIXME: comment on swap files
 //
 // If headerOnly is true, only the header cache file is updated.
 //
@@ -240,15 +242,23 @@ func (c *cache) clear(ctx context.Context) error {
 //
 // The response body is always closed.
 func (c *cache) write(ctx context.Context, resp *http.Response, headerOnly bool) (written int64, err error) {
-	start := time.Now()
+	var fpHeaderTmp, fpBodyTmp string
 	log := lg.FromContext(ctx)
+	start := time.Now()
 
 	defer func() {
 		lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
 
-		if err != nil {
-			log.Warn("Deleting cache because cache write failed", lga.Err, err, lga.Dir, c.dir)
-			lg.WarnIfError(log, msgDeleteCache, c.clear(ctx))
+		//if err != nil {
+		//	log.Warn("Deleting cache because cache write failed", lga.Err, err, lga.Dir, c.dir)
+		//	lg.WarnIfError(log, msgDeleteCache, c.clear(ctx))
+		//}
+
+		if fpHeaderTmp != "" && ioz.FileAccessible(fpHeaderTmp) {
+			lg.WarnIfError(log, "Remove temp cache header file", os.Remove(fpHeaderTmp))
+		}
+		if fpBodyTmp != "" && ioz.FileAccessible(fpBodyTmp) {
+			lg.WarnIfError(log, "Remove temp cache body file", os.Remove(fpHeaderTmp))
 		}
 	}()
 
@@ -257,48 +267,55 @@ func (c *cache) write(ctx context.Context, resp *http.Response, headerOnly bool)
 	}
 
 	log.Debug("Writing HTTP response header to cache", lga.Dir, c.dir, lga.Resp, resp)
-	fpHeader, fpBody, _ := c.paths(resp.Request)
-
 	headerBytes, err := httputil.DumpResponse(resp, false)
 	if err != nil {
 		return 0, errz.Err(err)
 	}
 
-	if _, err = ioz.WriteToFile(ctx, fpHeader, bytes.NewReader(headerBytes)); err != nil {
-		return written, err
+	fpHeader, fpBody, _ := c.paths(resp.Request)
+
+	// FIXME: use a dir for tmp files, to permit a more atomic swap of the files
+	fpHeaderTmp = fpHeader + ".tmp"
+	if _, err = ioz.WriteToFile(ctx, fpHeaderTmp, bytes.NewReader(headerBytes)); err != nil {
+		return 0, err
 	}
 
 	if headerOnly {
+		if err = os.Rename(fpHeaderTmp, fpHeader); err != nil {
+			return 0, errz.Wrap(err, "failed to move temp cache header file")
+		}
+
 		return 0, nil
 	}
 
-	cacheFile, err := os.OpenFile(fpBody, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, ioz.RWPerms)
-	if err != nil {
+	fpBodyTmp = fpBody + ".tmp"
+	if written, err = ioz.WriteToFile(ctx, fpBodyTmp, resp.Body); err != nil {
+		log.Error("Cache write: failed to write temp cache body file", lga.Err, err, lga.Path, fpBodyTmp)
 		return 0, err
 	}
 
-	if written, err = errz.Return(io.Copy(cacheFile, resp.Body)); err != nil {
-		log.Error("Cache write: io.Copy failed", lga.Err, err)
-		lg.WarnIfCloseError(log, msgCloseCacheBodyFile, cacheFile)
-		cacheFile = nil
-		return 0, err
+	// We've got good data in body.tmp and header.tmp.
+	// Now we'll swap them for the originals.
+	if err = os.Rename(fpBodyTmp, fpBody); err != nil {
+		return 0, errz.Wrap(err, "failed to move temp cache body file")
 	}
+	fpBodyTmp = ""
 
-	if err = errz.Err(cacheFile.Close()); err != nil {
-		cacheFile = nil
-		return 0, err
+	if err = os.Rename(fpHeaderTmp, fpHeader); err != nil {
+		return written, errz.Wrap(err, "failed to move temp cache header file")
 	}
+	fpHeaderTmp = ""
 
 	sum, err := checksum.ForFile(fpBody)
 	if err != nil {
-		return 0, errz.Wrap(err, "failed to compute checksum for cache body file")
+		return written, errz.Wrap(err, "failed to compute checksum for cache body file")
 	}
 
 	if err = checksum.WriteFile(filepath.Join(c.dir, "checksums.txt"), sum, "body"); err != nil {
-		return 0, errz.Wrap(err, "failed to write checksum file for cache body")
+		return written, errz.Wrap(err, "failed to write checksum file for cache body")
 	}
 
 	log.Info("Wrote HTTP response body to cache",
-		lga.Size, written, lga.File, fpBody, lga.Elapsed, time.Since(start).Round(time.Millisecond))
+		lga.Written, written, lga.File, fpBody, lga.Elapsed, time.Since(start).Round(time.Millisecond))
 	return written, nil
 }

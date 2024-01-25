@@ -2,9 +2,14 @@ package downloader_test
 
 import (
 	"context"
+	"errors"
+	"github.com/neilotoole/sq/libsq/core/ioz"
+	"github.com/neilotoole/sq/libsq/core/stringz"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strconv"
 	"testing"
 	"time"
@@ -26,33 +31,111 @@ const (
 	sizeActorCSV       = int64(7641)
 )
 
-func TestSlowHeaderServer(t *testing.T) {
-	const hello = `Hello World!`
+func TestCachePreservedOnFailedRefresh(t *testing.T) {
+	log := lgt.New(t)
+
+	var sentBody string
 	var srvr *httptest.Server
-	serverDelay := time.Second * 200
+	var srvrShouldBodyError bool
 	srvr = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		select {
-		case <-r.Context().Done():
-			t.Log("Server request context done")
+		if srvrShouldBodyError {
+			// We want the error to happen while reading the body,
+			// not send non-200 status code.
+			w.Header().Set("Content-Length", "1000")
+			sentBody = stringz.UniqSuffix("baaaaad")
+			_, err := w.Write([]byte(sentBody))
+			assert.NoError(t, err)
+			w.(http.Flusher).Flush()
+			time.Sleep(time.Millisecond * 10)
+			srvr.CloseClientConnections()
+			// The client should get an io.ErrUnexpectedEOF.
 			return
-		case <-time.After(serverDelay):
 		}
 
+		// Use "no-cache" to force downloader.getFreshness to return Stale:
+		// - https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control#response_directives
+		w.Header().Set("Cache-Control", "no-cache")
 		w.Header().Set("Content-Type", "text/plain")
-		w.Header().Set("Content-Length", strconv.Itoa(len(hello)))
-		_, err := w.Write([]byte(hello))
+		sentBody = stringz.UniqSuffix("hello") // Send a unique body each time.
+		w.Header().Set("Content-Length", strconv.Itoa(len(sentBody)))
+		_, err := w.Write([]byte(sentBody))
 		assert.NoError(t, err)
 	}))
 	t.Cleanup(srvr.Close)
 
-	clientHeaderTimeout := time.Second * 2
-	c := httpz.NewClient(httpz.OptRequestTimeout(clientHeaderTimeout))
-	req, err := http.NewRequest(http.MethodGet, srvr.URL, nil)
+	ctx := lg.NewContext(context.Background(), log.With("origin", "downloader"))
+	cacheDir := filepath.Join(os.TempDir(), stringz.UniqSuffix("dlcache"))
+	// FIXME: switch ^^ to t.TempDir()
+	dl, err := downloader.New(t.Name(), httpz.NewDefaultClient(), srvr.URL, cacheDir)
 	require.NoError(t, err)
-	resp, err := c.Do(req)
+	require.NoError(t, dl.Clear(ctx))
+	h := downloader.NewSinkHandler(log.With("origin", "handler"))
+
+	dl.Get(ctx, h.Handler)
+	require.Empty(t, h.Errors)
+	require.NotEmpty(t, h.Streams)
+
+	stream := h.Streams[0]
+	start := time.Now()
+	t.Logf("Waiting for download to complete")
+	<-stream.Filled()
+	t.Logf("Download completed after %s", time.Since(start))
+	require.True(t, errors.Is(stream.Err(), io.EOF))
+
+	require.Equal(t, len(sentBody), stream.Size())
+
+	gotFilesize, err := dl.Filesize(ctx)
+	require.NoError(t, err)
+	require.Equal(t, len(sentBody), int(gotFilesize))
+
+	fpBody, err := dl.CacheFile(ctx)
+	require.NoError(t, err)
+	require.NotEmpty(t, fpBody)
+	fpHeader := filepath.Join(filepath.Dir(fpBody), "header")
+	fpChecksums := filepath.Join(filepath.Dir(fpBody), "checksums.txt")
+	t.Logf("Cache files:\n- body:       %s\n- header:     %s\n- checksums:  %s",
+		fpBody, fpHeader, fpChecksums)
+
+	gotCacheBody1 := tu.ReadFileToString(t, fpBody)
+	t.Logf("gotCacheBody1: \n\n%s\n\n", gotCacheBody1)
+	require.Equal(t, sentBody, gotCacheBody1)
+	gotCacheHeader1 := tu.ReadFileToString(t, fpHeader)
+	t.Logf("gotCacheHeader1: \n\n%s\n\n", gotCacheHeader1)
+	gotCacheChecksums1 := tu.ReadFileToString(t, fpChecksums)
+	t.Logf("gotCacheChecksums1: \n\n%s\n\n", gotCacheChecksums1)
+
+	fiBody1 := tu.MustStat(t, fpBody)
+	fiHeader1 := tu.MustStat(t, fpHeader)
+	fiChecksums1 := tu.MustStat(t, fpChecksums)
+
+	t.Logf("\n\n\nTAKE 2\n\n\n")
+
+	srvrShouldBodyError = true
+	h.Reset()
+	//downloader.SetDownloaderDisableCaching(dl, true)
+	dl.Get(ctx, h.Handler)
+	require.Empty(t, h.Errors)
+	require.NotEmpty(t, h.Streams)
+	stream = h.Streams[0]
+	<-stream.Filled()
+	err = stream.Err()
+	t.Logf("got stream err: %v", err)
 	require.Error(t, err)
-	require.Nil(t, resp)
-	t.Log(err)
+	require.True(t, errors.Is(err, io.ErrUnexpectedEOF))
+	require.Equal(t, len(sentBody), stream.Size())
+
+	fiBody2 := tu.MustStat(t, fpBody)
+	fiHeader2 := tu.MustStat(t, fpHeader)
+	fiChecksums2 := tu.MustStat(t, fpChecksums)
+
+	require.True(t, ioz.FileInfoEqual(fiBody1, fiBody2))
+	require.True(t, ioz.FileInfoEqual(fiHeader1, fiHeader2))
+	require.True(t, ioz.FileInfoEqual(fiChecksums1, fiChecksums2))
+
+	t.Logf("huzzah")
+	//state := dl.State(ctx)
+	//require.Equal(t, downloader.Fresh.String(), state.String()) // FIXME: What's wrong with this?
+
 }
 
 func TestDownload_redirect(t *testing.T) {
@@ -110,7 +193,6 @@ func TestDownload_redirect(t *testing.T) {
 	require.NoError(t, dl.Clear(ctx))
 	h := downloader.NewSinkHandler(log.With("origin", "handler"))
 
-	tu.MustAbsFilepath()
 	dl.Get(ctx, h.Handler)
 	require.Empty(t, h.Errors)
 	gotBody := tu.ReadToString(t, h.Streams[0].NewReader(ctx))

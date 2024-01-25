@@ -54,6 +54,22 @@ const (
 	Transparent
 )
 
+// String returns a string representation of State.
+func (s State) String() string {
+	switch s {
+	case Uncached:
+		return "uncached"
+	case Stale:
+		return "stale"
+	case Fresh:
+		return "fresh"
+	case Transparent:
+		return "transparent"
+	default:
+		return "unknown"
+	}
+}
+
 // XFromCache is the header added to responses that are returned from the cache.
 const XFromCache = "X-From-Stream"
 
@@ -157,7 +173,7 @@ func (dl *Downloader) Get(ctx context.Context, h Handler) {
 
 // get contains the main logic for getting the download. It invokes Handler
 // as appropriate.
-func (dl *Downloader) get(req *http.Request, h Handler) { //nolint:gocognit
+func (dl *Downloader) get(req *http.Request, h Handler) { //nolint:gocognit,funlen
 	ctx := req.Context()
 	log := lg.FromContext(ctx)
 
@@ -177,10 +193,11 @@ func (dl *Downloader) get(req *http.Request, h Handler) { //nolint:gocognit
 		cachedResp, err = dl.cache.get(req.Context(), req) //nolint:bodyclose
 	} else {
 		// Need to invalidate an existing value
-		if err = dl.cache.clear(req.Context()); err != nil {
-			h.Error(err)
-			return
-		}
+		// FIXME: delete
+		//if err = dl.cache.clear(req.Context()); err != nil {
+		//	h.Error(err)
+		//	return
+		//}
 	}
 
 	var resp *http.Response
@@ -239,10 +256,17 @@ func (dl *Downloader) get(req *http.Request, h Handler) { //nolint:gocognit
 			return
 
 		default:
-			if err != nil || resp.StatusCode != http.StatusOK {
-				lg.WarnIfError(log, msgDeleteCache, dl.cache.clear(req.Context()))
-			}
+			//if err != nil || resp.StatusCode != http.StatusOK {
+			//	// FIXME: delete this
+			//	// lg.WarnIfError(log, msgDeleteCache, dl.cache.clear(req.Context()))
+			//}
 			if err != nil {
+				h.Error(err)
+				return
+			}
+
+			if resp.StatusCode != http.StatusOK {
+				err = errz.Errorf("download: unexpected HTTP status: %s", httpz.StatusText(resp.StatusCode))
 				h.Error(err)
 				return
 			}
@@ -293,7 +317,8 @@ func (dl *Downloader) get(req *http.Request, h Handler) { //nolint:gocognit
 		return
 	}
 
-	lg.WarnIfError(log, "Delete resp cache", dl.cache.clear(req.Context()))
+	// FIXME: Hmmn, ,do we want to clear here?
+	//lg.WarnIfError(log, "Delete resp cache", dl.cache.clear(req.Context()))
 
 	// It's not cacheable, so we can just wrap resp.Body in a streamcache
 	// and return it.

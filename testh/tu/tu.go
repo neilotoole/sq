@@ -386,6 +386,13 @@ func MustAbsFilepath(elems ...string) string {
 	return s
 }
 
+// MustStat invokes os.Stat on fp, and fails t on error.
+func MustStat(t testing.TB, fp string) os.FileInfo {
+	fi, err := os.Stat(fp)
+	require.NoError(t, err)
+	return fi
+}
+
 // TempDir is the standard means for obtaining a temp dir for tests.
 // If arg clean is true, the temp dir is created via t.TempDir, and
 // thus is deleted on test cleanup.
