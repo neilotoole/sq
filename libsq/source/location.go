@@ -27,12 +27,12 @@ func LocationFileName(src *Source) (string, error) {
 		return "", errz.Errorf("location is not a file: %s", src.Location)
 	}
 
-	ploc, err := parseLoc(src.Location)
+	ploc, err := ParseLocation(src.Location)
 	if err != nil {
 		return "", err
 	}
 
-	return ploc.name + ploc.ext, nil
+	return ploc.Name + ploc.Ext, nil
 }
 
 // IsSQLLocation returns true if source location loc seems to be
@@ -137,48 +137,48 @@ func ShortLocation(loc string) string {
 	return sb.String()
 }
 
-// parsedLoc is a parsed representation of a source location.
-type parsedLoc struct {
-	// loc is the original unparsed location value.
-	loc string
+// ParsedLoc is a parsed representation of a source location.
+type ParsedLoc struct {
+	// Loc is the original unparsed location value.
+	Loc string
 
-	// typ is the associated source driver type, which may
+	// DriverType is the associated source driver type, which may
 	// be empty until later determination.
-	typ drivertype.Type
+	DriverType drivertype.Type
 
-	// scheme is the original location scheme
-	scheme string
+	// Scheme is the original location Scheme.
+	Scheme string
 
-	// user is the username, if applicable.
-	user string
+	// User is the username, if applicable.
+	User string
 
-	// pass is the password, if applicable.
-	pass string
+	// Pass is the password, if applicable.
+	Pass string
 
-	// hostname is the hostname, if applicable.
-	hostname string
+	// Hostname is the Hostname, if applicable.
+	Hostname string
 
-	// port is the port number or 0 if not applicable.
-	port int
+	// Port is the Port number or 0 if not applicable.
+	Port int
 
-	// name is the "source name", e.g. "sakila". Typically this
-	// is the database name, but for a file location such
+	// Name is the "source Name", e.g. "sakila". Typically this
+	// is the database Name, but for a file location such
 	// as "/path/to/things.xlsx" it would be "things".
-	name string
+	Name string
 
-	// ext is the file extension, if applicable.
-	ext string
+	// Ext is the file extension, if applicable.
+	Ext string
 
-	// dsn is the connection "data source name" that can be used in a
+	// DSN is the connection "data source Name" that can be used in a
 	// call to sql.Open. Empty for non-SQL locations.
-	dsn string
+	DSN string
 }
 
-// parseLoc parses a location string. On return
+// ParseLocation parses a location string. On return
 // the typ field may not be set: further processing
 // may be required.
-func parseLoc(loc string) (*parsedLoc, error) {
-	ploc := &parsedLoc{loc: loc}
+func ParseLocation(loc string) (*ParsedLoc, error) {
+	ploc := &ParsedLoc{Loc: loc}
 
 	if !strings.Contains(loc, "://") {
 		if strings.Contains(loc, ":/") {
@@ -188,34 +188,34 @@ func parseLoc(loc string) (*parsedLoc, error) {
 
 		// no scheme: it's just a regular file path for a document such as an Excel file
 		name := filepath.Base(loc)
-		ploc.ext = filepath.Ext(name)
-		if ploc.ext != "" {
-			name = name[:len(name)-len(ploc.ext)]
+		ploc.Ext = filepath.Ext(name)
+		if ploc.Ext != "" {
+			name = name[:len(name)-len(ploc.Ext)]
 		}
 
-		ploc.name = name
+		ploc.Name = name
 		return ploc, nil
 	}
 
 	if u, ok := httpURL(loc); ok {
 		// It's a http or https URL
-		ploc.scheme = u.Scheme
-		ploc.hostname = u.Hostname()
+		ploc.Scheme = u.Scheme
+		ploc.Hostname = u.Hostname()
 		if u.Port() != "" {
 			var err error
-			ploc.port, err = strconv.Atoi(u.Port())
+			ploc.Port, err = strconv.Atoi(u.Port())
 			if err != nil {
 				return nil, errz.Wrapf(err, "parse location: invalid port {%s}: {%s}", u.Port(), loc)
 			}
 		}
 
 		name := path.Base(u.Path)
-		ploc.ext = path.Ext(name)
-		if ploc.ext != "" {
-			name = name[:len(name)-len(ploc.ext)]
+		ploc.Ext = path.Ext(name)
+		if ploc.Ext != "" {
+			name = name[:len(name)-len(ploc.Ext)]
 		}
 
-		ploc.name = name
+		ploc.Name = name
 		return ploc, nil
 	}
 
@@ -224,9 +224,9 @@ func parseLoc(loc string) (*parsedLoc, error) {
 	if strings.HasPrefix(loc, sqlitePrefix) {
 		fpath := strings.TrimPrefix(loc, sqlitePrefix)
 
-		ploc.scheme = "sqlite3"
-		ploc.typ = typeSL3
-		ploc.dsn = fpath
+		ploc.Scheme = "sqlite3"
+		ploc.DriverType = typeSL3
+		ploc.DSN = fpath
 
 		// fpath could include params, e.g. "sqlite3://C:\sakila.db?param=val"
 		if i := strings.IndexRune(fpath, '?'); i >= 0 {
@@ -235,12 +235,12 @@ func parseLoc(loc string) (*parsedLoc, error) {
 		}
 
 		name := filepath.Base(fpath)
-		ploc.ext = filepath.Ext(name)
-		if ploc.ext != "" {
-			name = name[:len(name)-len(ploc.ext)]
+		ploc.Ext = filepath.Ext(name)
+		if ploc.Ext != "" {
+			name = name[:len(name)-len(ploc.Ext)]
 		}
 
-		ploc.name = name
+		ploc.Name = name
 		return ploc, nil
 	}
 
@@ -249,23 +249,23 @@ func parseLoc(loc string) (*parsedLoc, error) {
 		return nil, errz.Err(err)
 	}
 
-	ploc.scheme = u.OriginalScheme
-	ploc.dsn = u.DSN
-	ploc.user = u.User.Username()
-	ploc.pass, _ = u.User.Password()
-	ploc.hostname = u.Hostname()
+	ploc.Scheme = u.OriginalScheme
+	ploc.DSN = u.DSN
+	ploc.User = u.User.Username()
+	ploc.Pass, _ = u.User.Password()
+	ploc.Hostname = u.Hostname()
 	if u.Port() != "" {
-		ploc.port, err = strconv.Atoi(u.Port())
+		ploc.Port, err = strconv.Atoi(u.Port())
 		if err != nil {
 			return nil, errz.Wrapf(err, "parse location: invalid port {%s}: %s", u.Port(), loc)
 		}
 	}
 
-	switch ploc.scheme {
+	switch ploc.Scheme {
 	default:
 		return nil, errz.Errorf("parse location: invalid scheme: %s", loc)
 	case "sqlserver":
-		ploc.typ = typeMS
+		ploc.DriverType = typeMS
 
 		u2, err := url.ParseRequestURI(loc)
 		if err != nil {
@@ -277,13 +277,13 @@ func parseLoc(loc string) (*parsedLoc, error) {
 			return nil,
 				errz.Wrapf(err, "parse location: %s", loc)
 		}
-		ploc.name = vals.Get("database")
+		ploc.Name = vals.Get("database")
 	case "postgres":
-		ploc.typ = typePg
-		ploc.name = strings.TrimPrefix(u.Path, "/")
+		ploc.DriverType = typePg
+		ploc.Name = strings.TrimPrefix(u.Path, "/")
 	case "mysql":
-		ploc.typ = typeMy
-		ploc.name = strings.TrimPrefix(u.Path, "/")
+		ploc.DriverType = typeMy
+		ploc.Name = strings.TrimPrefix(u.Path, "/")
 	}
 
 	return ploc, nil

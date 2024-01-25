@@ -43,17 +43,17 @@ func (fs *Files) AddDriverDetectors(detectFns ...DriverDetectFunc) {
 // This may result in loading files into the cache.
 func (fs *Files) DriverType(ctx context.Context, handle, loc string) (drivertype.Type, error) {
 	log := lg.FromContext(ctx).With(lga.Loc, loc)
-	ploc, err := parseLoc(loc)
+	ploc, err := ParseLocation(loc)
 	if err != nil {
 		return drivertype.None, err
 	}
 
-	if ploc.typ != drivertype.None {
-		return ploc.typ, nil
+	if ploc.DriverType != drivertype.None {
+		return ploc.DriverType, nil
 	}
 
-	if ploc.ext != "" {
-		mtype := mime.TypeByExtension(ploc.ext)
+	if ploc.Ext != "" {
+		mtype := mime.TypeByExtension(ploc.Ext)
 		if mtype == "" {
 			log.Debug("unknown mime type", lga.Type, mtype)
 		} else {

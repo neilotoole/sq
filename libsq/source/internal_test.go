@@ -22,29 +22,29 @@ func TestParseLoc(t *testing.T) {
 
 	testCases := []struct {
 		loc     string
-		want    parsedLoc
+		want    ParsedLoc
 		wantErr bool
 		windows bool
 	}{
 		{
 			loc:  "/path/to/sakila.xlsx",
-			want: parsedLoc{name: "sakila", ext: ".xlsx"},
+			want: ParsedLoc{Name: "sakila", Ext: ".xlsx"},
 		},
 		{
 			loc:  "relative/path/to/sakila.xlsx",
-			want: parsedLoc{name: "sakila", ext: ".xlsx"},
+			want: ParsedLoc{Name: "sakila", Ext: ".xlsx"},
 		},
 		{
 			loc:  "./relative/path/to/sakila.xlsx",
-			want: parsedLoc{name: "sakila", ext: ".xlsx"},
+			want: ParsedLoc{Name: "sakila", Ext: ".xlsx"},
 		},
 		{
 			loc:  "https://server:8080/path/to/sakila.xlsx",
-			want: parsedLoc{scheme: "https", hostname: "server", port: 8080, name: "sakila", ext: ".xlsx"},
+			want: ParsedLoc{Scheme: "https", Hostname: "server", Port: 8080, Name: "sakila", Ext: ".xlsx"},
 		},
 		{
 			loc:  "http://server/path/to/sakila.xlsx?param=val&param2=val2",
-			want: parsedLoc{scheme: "http", hostname: "server", name: "sakila", ext: ".xlsx"},
+			want: ParsedLoc{Scheme: "http", Hostname: "server", Name: "sakila", Ext: ".xlsx"},
 		},
 		{
 			loc:     "sqlite3:/path/to/sakila.db",
@@ -52,87 +52,87 @@ func TestParseLoc(t *testing.T) {
 		}, // the scheme is malformed (should be "sqlite3://...")
 		{
 			loc: "sqlite3:///path/to/sakila.sqlite",
-			want: parsedLoc{
-				typ: typeSL3, scheme: "sqlite3", name: "sakila", ext: ".sqlite",
-				dsn: "/path/to/sakila.sqlite",
+			want: ParsedLoc{
+				DriverType: typeSL3, Scheme: "sqlite3", Name: "sakila", Ext: ".sqlite",
+				DSN: "/path/to/sakila.sqlite",
 			},
 		},
 		{
 			loc:     `sqlite3://C:\path\to\sakila.sqlite`,
 			windows: true,
-			want: parsedLoc{
-				typ: typeSL3, scheme: "sqlite3", name: "sakila", ext: ".sqlite",
-				dsn: `C:\path\to\sakila.sqlite`,
+			want: ParsedLoc{
+				DriverType: typeSL3, Scheme: "sqlite3", Name: "sakila", Ext: ".sqlite",
+				DSN: `C:\path\to\sakila.sqlite`,
 			},
 		},
 		{
 			loc:     `sqlite3://C:\path\to\sakila.sqlite?param=val`,
 			windows: true,
-			want: parsedLoc{
-				typ: typeSL3, scheme: "sqlite3", name: "sakila", ext: ".sqlite",
-				dsn: `C:\path\to\sakila.sqlite?param=val`,
+			want: ParsedLoc{
+				DriverType: typeSL3, Scheme: "sqlite3", Name: "sakila", Ext: ".sqlite",
+				DSN: `C:\path\to\sakila.sqlite?param=val`,
 			},
 		},
 		{
 			loc: "sqlite3:///path/to/sakila",
-			want: parsedLoc{
-				typ: typeSL3, scheme: "sqlite3", name: "sakila", dsn: "/path/to/sakila",
+			want: ParsedLoc{
+				DriverType: typeSL3, Scheme: "sqlite3", Name: "sakila", DSN: "/path/to/sakila",
 			},
 		},
 		{
 			loc: "sqlite3://path/to/sakila.db",
-			want: parsedLoc{
-				typ: typeSL3, scheme: "sqlite3", name: "sakila", ext: ".db", dsn: "path/to/sakila.db",
+			want: ParsedLoc{
+				DriverType: typeSL3, Scheme: "sqlite3", Name: "sakila", Ext: ".db", DSN: "path/to/sakila.db",
 			},
 		},
 		{
 			loc: "sqlite3:///path/to/sakila.db",
-			want: parsedLoc{
-				typ: typeSL3, scheme: "sqlite3", name: "sakila", ext: ".db", dsn: "/path/to/sakila.db",
+			want: ParsedLoc{
+				DriverType: typeSL3, Scheme: "sqlite3", Name: "sakila", Ext: ".db", DSN: "/path/to/sakila.db",
 			},
 		},
 		{
 			loc: "sqlserver://sakila:p_ssW0rd@localhost?database=sakila",
-			want: parsedLoc{
-				typ: typeMS, scheme: "sqlserver", user: dbuser, pass: dbpass, hostname: "localhost",
-				name: "sakila", dsn: "sqlserver://sakila:p_ssW0rd@localhost?database=sakila",
+			want: ParsedLoc{
+				DriverType: typeMS, Scheme: "sqlserver", User: dbuser, Pass: dbpass, Hostname: "localhost",
+				Name: "sakila", DSN: "sqlserver://sakila:p_ssW0rd@localhost?database=sakila",
 			},
 		},
 		{
 			loc: "sqlserver://sakila:p_ssW0rd@server:1433?database=sakila",
-			want: parsedLoc{
-				typ: typeMS, scheme: "sqlserver", user: dbuser, pass: dbpass, hostname: "server",
-				port: 1433, name: "sakila",
-				dsn: "sqlserver://sakila:p_ssW0rd@server:1433?database=sakila",
+			want: ParsedLoc{
+				DriverType: typeMS, Scheme: "sqlserver", User: dbuser, Pass: dbpass, Hostname: "server",
+				Port: 1433, Name: "sakila",
+				DSN: "sqlserver://sakila:p_ssW0rd@server:1433?database=sakila",
 			},
 		},
 		{
 			loc: "postgres://sakila:p_ssW0rd@localhost/sakila?sslmode=disable",
-			want: parsedLoc{
-				typ: typePg, scheme: "postgres", user: dbuser, pass: dbpass, hostname: "localhost",
-				name: "sakila", dsn: "dbname=sakila host=localhost password=p_ssW0rd sslmode=disable user=sakila",
+			want: ParsedLoc{
+				DriverType: typePg, Scheme: "postgres", User: dbuser, Pass: dbpass, Hostname: "localhost",
+				Name: "sakila", DSN: "dbname=sakila host=localhost password=p_ssW0rd sslmode=disable user=sakila",
 			},
 		},
 		{
 			loc: "postgres://sakila:p_ssW0rd@server:5432/sakila?sslmode=disable",
-			want: parsedLoc{
-				typ: typePg, scheme: "postgres", user: dbuser, pass: dbpass, hostname: "server", port: 5432,
-				name: "sakila",
-				dsn:  "dbname=sakila host=server password=p_ssW0rd port=5432 sslmode=disable user=sakila",
+			want: ParsedLoc{
+				DriverType: typePg, Scheme: "postgres", User: dbuser, Pass: dbpass, Hostname: "server", Port: 5432,
+				Name: "sakila",
+				DSN:  "dbname=sakila host=server password=p_ssW0rd port=5432 sslmode=disable user=sakila",
 			},
 		},
 		{
 			loc: "mysql://sakila:p_ssW0rd@localhost/sakila",
-			want: parsedLoc{
-				typ: typeMy, scheme: "mysql", user: dbuser, pass: dbpass, hostname: "localhost",
-				name: "sakila", dsn: "sakila:p_ssW0rd@tcp(localhost:3306)/sakila",
+			want: ParsedLoc{
+				DriverType: typeMy, Scheme: "mysql", User: dbuser, Pass: dbpass, Hostname: "localhost",
+				Name: "sakila", DSN: "sakila:p_ssW0rd@tcp(localhost:3306)/sakila",
 			},
 		},
 		{
 			loc: "mysql://sakila:p_ssW0rd@server:3306/sakila",
-			want: parsedLoc{
-				typ: typeMy, scheme: "mysql", user: dbuser, pass: dbpass, hostname: "server", port: 3306,
-				name: "sakila", dsn: "sakila:p_ssW0rd@tcp(server:3306)/sakila",
+			want: ParsedLoc{
+				DriverType: typeMy, Scheme: "mysql", User: dbuser, Pass: dbpass, Hostname: "server", Port: 3306,
+				Name: "sakila", DSN: "sakila:p_ssW0rd@tcp(server:3306)/sakila",
 			},
 		},
 	}
@@ -144,8 +144,8 @@ func TestParseLoc(t *testing.T) {
 				return
 			}
 
-			tc.want.loc = tc.loc // set this here rather than verbosely in the setup
-			got, gotErr := parseLoc(tc.loc)
+			tc.want.Loc = tc.loc // set this here rather than verbosely in the setup
+			got, gotErr := ParseLocation(tc.loc)
 			if tc.wantErr {
 				require.Error(t, gotErr)
 				require.Nil(t, got)
