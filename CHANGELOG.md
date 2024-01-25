@@ -58,6 +58,10 @@ document sources such as CSV or Excel.
   that permits setting the log format to `json` or `text`. The `text` format is more human-friendly, and
   is now the default.
 
+### Changed
+
+- Ingestion performance for `json` and `jsonl` sources has been significantly improved.
+
 ### Fixed
 
 - Opening a DB connection now correctly honors [`conn.open-timeout`](https://sq.io/docs/config#connopen-timeout).
