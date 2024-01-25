@@ -40,6 +40,7 @@ func newIngestJob(fromSrc *source.Source, newRdrFn files.NewReaderFunc, destGrip
 		destGrip:   destGrip,
 		sampleSize: sampleSize,
 		flatten:    flatten,
+		stmtCache:  map[string]*driver.StmtExecer{},
 	}
 }
 

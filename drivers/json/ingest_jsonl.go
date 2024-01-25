@@ -86,10 +86,9 @@ func DetectJSONL(sampleSize int) files.TypeDetectFunc {
 	}
 }
 
-// DetectJSONL implements files.TypeDetectFunc.
-
 func ingestJSONL(ctx context.Context, job *ingestJob) error { //nolint:gocognit
 	log := lg.FromContext(ctx)
+	defer lg.WarnIfCloseError(log, "Close JSONL ingest job", job)
 
 	r, err := job.newRdrFn(ctx)
 	if err != nil {

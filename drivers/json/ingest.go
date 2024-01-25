@@ -44,6 +44,17 @@ type ingestJob struct {
 	//
 	// TODO: flatten should come from src.Options
 	flatten bool
+
+	stmtCache map[string]*driver.StmtExecer
+}
+
+// Close closes the ingestJob.
+func (jb *ingestJob) Close() error {
+	var err error
+	for _, stmt := range jb.stmtCache {
+		err = errz.Append(err, stmt.Close())
+	}
+	return err
 }
 
 // execInsertions performs db INSERT for each of the insertions.

@@ -106,6 +106,7 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, er
 			destGrip:   destGrip,
 			sampleSize: driver.OptIngestSampleSize.Get(src.Options),
 			flatten:    true,
+			stmtCache:  map[string]*driver.StmtExecer{},
 		}
 
 		return d.ingestFn(ctx, job)

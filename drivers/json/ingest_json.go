@@ -140,6 +140,7 @@ func DetectJSON(sampleSize int) files.TypeDetectFunc { // FIXME: is DetectJSON a
 
 func ingestJSON(ctx context.Context, job *ingestJob) error {
 	log := lg.FromContext(ctx)
+	defer lg.WarnIfCloseError(log, "Close JSON ingest job", job)
 
 	r, err := job.newRdrFn(ctx)
 	if err != nil {
