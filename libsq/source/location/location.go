@@ -1,3 +1,4 @@
+// Package location contains functionality related to source location.
 package location
 
 import (
@@ -21,23 +22,23 @@ var dbSchemes = []string{
 	"sqlite3",
 }
 
-// LocationFileName returns the final component of the file/URL path.
-func LocationFileName(loc string) (string, error) {
-	if IsSQLLocation(loc) {
+// Filename returns the final component of the file/URL path.
+func Filename(loc string) (string, error) {
+	if IsSQL(loc) {
 		return "", errz.Errorf("location is not a file: %s", loc)
 	}
 
-	ploc, err := ParseLocation(loc)
+	fields, err := Parse(loc)
 	if err != nil {
 		return "", err
 	}
 
-	return ploc.Name + ploc.Ext, nil
+	return fields.Name + fields.Ext, nil
 }
 
-// IsSQLLocation returns true if source location loc seems to be
+// IsSQL returns true if source location loc seems to be
 // a DSN for a SQL driver.
-func IsSQLLocation(loc string) bool {
+func IsSQL(loc string) bool {
 	for _, dbScheme := range dbSchemes {
 		if strings.HasPrefix(loc, dbScheme+"://") {
 			return true
@@ -47,10 +48,10 @@ func IsSQLLocation(loc string) bool {
 	return false
 }
 
-// LocationWithPassword returns the location string with the password
+// WithPassword returns the location string with the password
 // value set, overriding any existing password. If loc is not a URL
 // (e.g. it's a file path), it is returned unmodified.
-func LocationWithPassword(loc, passw string) (string, error) {
+func WithPassword(loc, passw string) (string, error) {
 	if _, ok := isFpath(loc); ok {
 		return loc, nil
 	}
@@ -70,14 +71,14 @@ func LocationWithPassword(loc, passw string) (string, error) {
 	return u.String(), nil
 }
 
-// ShortLocation returns a short location string. For example, the
+// Short returns a short location string. For example, the
 // base name (data.xlsx) for a file, or for a DSN, user@host[:port]/db.
-func ShortLocation(loc string) string {
-	if !IsSQLLocation(loc) {
+func Short(loc string) string {
+	if !IsSQL(loc) {
 		// NOT a SQL location, must be a document (local filepath or URL).
 
 		// Let's check if it's http
-		u, ok := httpURL(loc)
+		u, ok := isHTTP(loc)
 		if ok {
 			name := path.Base(u.Path)
 			if name == "" || name == "/" || name == "." {
@@ -137,8 +138,8 @@ func ShortLocation(loc string) string {
 	return sb.String()
 }
 
-// ParsedLoc is a parsed representation of a source location.
-type ParsedLoc struct {
+// Fields is a parsed representation of a source location.
+type Fields struct {
 	// Loc is the original unparsed location value.
 	Loc string
 
@@ -174,11 +175,11 @@ type ParsedLoc struct {
 	DSN string
 }
 
-// ParseLocation parses a location string. On return
-// the typ field may not be set: further processing
-// may be required.
-func ParseLocation(loc string) (*ParsedLoc, error) {
-	ploc := &ParsedLoc{Loc: loc}
+// Parse parses a location string, returning a Fields instance representing
+// the decomposition of the location. On return the Fields.DriverType field
+// may not be set: further processing may be required.
+func Parse(loc string) (*Fields, error) {
+	fields := &Fields{Loc: loc}
 
 	if !strings.Contains(loc, "://") {
 		if strings.Contains(loc, ":/") {
@@ -188,35 +189,35 @@ func ParseLocation(loc string) (*ParsedLoc, error) {
 
 		// no scheme: it's just a regular file path for a document such as an Excel file
 		name := filepath.Base(loc)
-		ploc.Ext = filepath.Ext(name)
-		if ploc.Ext != "" {
-			name = name[:len(name)-len(ploc.Ext)]
+		fields.Ext = filepath.Ext(name)
+		if fields.Ext != "" {
+			name = name[:len(name)-len(fields.Ext)]
 		}
 
-		ploc.Name = name
-		return ploc, nil
+		fields.Name = name
+		return fields, nil
 	}
 
-	if u, ok := httpURL(loc); ok {
+	if u, ok := isHTTP(loc); ok {
 		// It's a http or https URL
-		ploc.Scheme = u.Scheme
-		ploc.Hostname = u.Hostname()
+		fields.Scheme = u.Scheme
+		fields.Hostname = u.Hostname()
 		if u.Port() != "" {
 			var err error
-			ploc.Port, err = strconv.Atoi(u.Port())
+			fields.Port, err = strconv.Atoi(u.Port())
 			if err != nil {
 				return nil, errz.Wrapf(err, "parse location: invalid port {%s}: {%s}", u.Port(), loc)
 			}
 		}
 
 		name := path.Base(u.Path)
-		ploc.Ext = path.Ext(name)
-		if ploc.Ext != "" {
-			name = name[:len(name)-len(ploc.Ext)]
+		fields.Ext = path.Ext(name)
+		if fields.Ext != "" {
+			name = name[:len(name)-len(fields.Ext)]
 		}
 
-		ploc.Name = name
-		return ploc, nil
+		fields.Name = name
+		return fields, nil
 	}
 
 	// sqlite3 is a special case, handle it now
@@ -224,9 +225,9 @@ func ParseLocation(loc string) (*ParsedLoc, error) {
 	if strings.HasPrefix(loc, sqlitePrefix) {
 		fpath := strings.TrimPrefix(loc, sqlitePrefix)
 
-		ploc.Scheme = "sqlite3"
-		ploc.DriverType = typeSL3
-		ploc.DSN = fpath
+		fields.Scheme = "sqlite3"
+		fields.DriverType = typeSL3
+		fields.DSN = fpath
 
 		// fpath could include params, e.g. "sqlite3://C:\sakila.db?param=val"
 		if i := strings.IndexRune(fpath, '?'); i >= 0 {
@@ -235,13 +236,13 @@ func ParseLocation(loc string) (*ParsedLoc, error) {
 		}
 
 		name := filepath.Base(fpath)
-		ploc.Ext = filepath.Ext(name)
-		if ploc.Ext != "" {
-			name = name[:len(name)-len(ploc.Ext)]
+		fields.Ext = filepath.Ext(name)
+		if fields.Ext != "" {
+			name = name[:len(name)-len(fields.Ext)]
 		}
 
-		ploc.Name = name
-		return ploc, nil
+		fields.Name = name
+		return fields, nil
 	}
 
 	u, err := dburl.Parse(loc)
@@ -249,23 +250,23 @@ func ParseLocation(loc string) (*ParsedLoc, error) {
 		return nil, errz.Err(err)
 	}
 
-	ploc.Scheme = u.OriginalScheme
-	ploc.DSN = u.DSN
-	ploc.User = u.User.Username()
-	ploc.Pass, _ = u.User.Password()
-	ploc.Hostname = u.Hostname()
+	fields.Scheme = u.OriginalScheme
+	fields.DSN = u.DSN
+	fields.User = u.User.Username()
+	fields.Pass, _ = u.User.Password()
+	fields.Hostname = u.Hostname()
 	if u.Port() != "" {
-		ploc.Port, err = strconv.Atoi(u.Port())
+		fields.Port, err = strconv.Atoi(u.Port())
 		if err != nil {
 			return nil, errz.Wrapf(err, "parse location: invalid port {%s}: %s", u.Port(), loc)
 		}
 	}
 
-	switch ploc.Scheme {
+	switch fields.Scheme {
 	default:
 		return nil, errz.Errorf("parse location: invalid scheme: %s", loc)
 	case "sqlserver":
-		ploc.DriverType = typeMS
+		fields.DriverType = typeMS
 
 		u2, err := url.ParseRequestURI(loc)
 		if err != nil {
@@ -277,22 +278,22 @@ func ParseLocation(loc string) (*ParsedLoc, error) {
 			return nil,
 				errz.Wrapf(err, "parse location: %s", loc)
 		}
-		ploc.Name = vals.Get("database")
+		fields.Name = vals.Get("database")
 	case "postgres":
-		ploc.DriverType = typePg
-		ploc.Name = strings.TrimPrefix(u.Path, "/")
+		fields.DriverType = typePg
+		fields.Name = strings.TrimPrefix(u.Path, "/")
 	case "mysql":
-		ploc.DriverType = typeMy
-		ploc.Name = strings.TrimPrefix(u.Path, "/")
+		fields.DriverType = typeMy
+		fields.Name = strings.TrimPrefix(u.Path, "/")
 	}
 
-	return ploc, nil
+	return fields, nil
 }
 
-// AbsLocation returns the absolute path of loc. That is, relative
+// Abs returns the absolute path of loc. That is, relative
 // paths etc. are resolved. If loc is not a file path or
 // it cannot be processed, loc is returned unmodified.
-func AbsLocation(loc string) string {
+func Abs(loc string) string {
 	if fpath, ok := isFpath(loc); ok {
 		return fpath
 	}
@@ -322,41 +323,41 @@ func isFpath(loc string) (fpath string, ok bool) {
 	return fpath, true
 }
 
-// LocType is an enumeration of the various types of source location.
-type LocType string
+// Type is an enumeration of the various types of source location.
+type Type string
 
 const (
-	LocTypeStdin      = "stdin"
-	LocTypeLocalFile  = "local_file"
-	LocTypeSQL        = "sql"
-	LocTypeRemoteFile = "remote_file"
-	LocTypeUnknown    = "unknown"
+	TypeStdin      = "stdin"
+	TypeLocalFile  = "local_file"
+	TypeSQL        = "sql"
+	TypeRemoteFile = "remote_file"
+	TypeUnknown    = "unknown"
 )
 
-// GetLocType returns the type of loc, or locTypeUnknown if it
+// TypeOf returns the type of loc, or locTypeUnknown if it
 // can't be determined.
-func GetLocType(loc string) LocType {
+func TypeOf(loc string) Type {
 	switch {
 	case loc == "@stdin":
 		// Convention: the "location" of stdin is always "@stdin"
-		return LocTypeStdin
-	case IsSQLLocation(loc):
-		return LocTypeSQL
+		return TypeStdin
+	case IsSQL(loc):
+		return TypeSQL
 	case strings.HasPrefix(loc, "http://"),
 		strings.HasPrefix(loc, "https://"):
-		return LocTypeRemoteFile
+		return TypeRemoteFile
 	default:
 	}
 
 	if _, err := filepath.Abs(loc); err != nil {
-		return LocTypeUnknown
+		return TypeUnknown
 	}
-	return LocTypeLocalFile
+	return TypeLocalFile
 }
 
-// httpURL tests if s is a well-structured HTTP or HTTPS url, and
+// isHTTP tests if s is a well-structured HTTP or HTTPS url, and
 // if so, returns the url and true.
-func httpURL(s string) (u *url.URL, ok bool) {
+func isHTTP(s string) (u *url.URL, ok bool) {
 	var err error
 	u, err = url.Parse(s)
 	if err != nil || u.Host == "" || !(u.Scheme == "http" || u.Scheme == "https") {
@@ -378,10 +379,10 @@ const (
 	typeTSV  = drivertype.Type("tsv")
 )
 
-// RedactLocation returns a redacted version of the source
+// Redact returns a redacted version of the source
 // location loc, with the password component (if any) of
 // the location masked.
-func RedactLocation(loc string) string {
+func Redact(loc string) string {
 	switch {
 	case loc == "",
 		strings.HasPrefix(loc, "/"),

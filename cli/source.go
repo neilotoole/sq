@@ -223,13 +223,13 @@ func newSource(ctx context.Context, dp driver.Provider, typ drivertype.Type, han
 		log.Debug("Create new data source",
 			lga.Handle, handle,
 			lga.Driver, typ,
-			lga.Loc, location.RedactLocation(loc),
+			lga.Loc, location.Redact(loc),
 		)
 	} else {
 		log.Debug("Create new data source with opts",
 			lga.Handle, handle,
 			lga.Driver, typ,
-			lga.Loc, location.RedactLocation(loc),
+			lga.Loc, location.Redact(loc),
 		)
 	}
 

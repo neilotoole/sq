@@ -188,7 +188,7 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 		log.Debug("Using catalog as database in connection string",
 			lga.Src, src,
 			lga.Catalog, src.Catalog,
-			lga.Conn, location.RedactLocation(loc),
+			lga.Conn, location.Redact(loc),
 		)
 	}
 

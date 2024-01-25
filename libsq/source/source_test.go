@@ -208,7 +208,7 @@ func TestShortLocation(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			got := location.ShortLocation(tc.loc)
+			got := location.Short(tc.loc)
 			t.Logf("%s  -->  %s", tc.loc, got)
 			require.Equal(t, tc.want, got)
 		})

@@ -108,7 +108,7 @@ func TestFiles_DriverType(t *testing.T) {
 
 	for _, tc := range testCases {
 		tc := tc
-		t.Run(tu.Name(location.RedactLocation(tc.loc)), func(t *testing.T) {
+		t.Run(tu.Name(location.Redact(tc.loc)), func(t *testing.T) {
 			ctx := lg.NewContext(context.Background(), lgt.New(t))
 
 			fs, err := files.New(ctx, nil, testh.TempLockFunc(t), tu.TempDir(t, true), tu.CacheDir(t, true))

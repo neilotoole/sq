@@ -159,7 +159,7 @@ func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Sou
 	md.Location = g.src.Location
 	md.Driver = g.src.Type
 
-	md.Name, err = location.LocationFileName(g.src.Location)
+	md.Name, err = location.Filename(g.src.Location)
 	if err != nil {
 		return nil, err
 	}

@@ -128,7 +128,7 @@ func (s *Source) ShortLocation() string {
 	if s == nil {
 		return ""
 	}
-	return location.ShortLocation(s.Location)
+	return location.Short(s.Location)
 }
 
 // Group returns the source's group. If s is in the root group,
@@ -156,7 +156,7 @@ func (s *Source) RedactedLocation() string {
 	if s == nil {
 		return ""
 	}
-	return location.RedactLocation(s.Location)
+	return location.Redact(s.Location)
 }
 
 // Clone returns a deep copy of s. If s is nil, nil is returned.

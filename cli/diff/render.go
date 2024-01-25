@@ -36,7 +36,7 @@ func renderSourceMeta2YAML(sm *metadata.Source) (string, error) {
 
 	smr := &sourceMeta{
 		Handle:     sm.Handle,
-		Location:   location.RedactLocation(sm.Location),
+		Location:   location.Redact(sm.Location),
 		Name:       sm.Name,
 		FQName:     sm.FQName,
 		Schema:     sm.Schema,

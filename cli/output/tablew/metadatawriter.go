@@ -125,7 +125,7 @@ func (w *mdWriter) doSourceMetaNoSchema(md *metadata.Source) error {
 		md.Name,
 		md.FQName,
 		w.tbl.pr.Number.Sprint(stringz.ByteSized(md.Size, 1, "")),
-		location.RedactLocation(md.Location),
+		location.Redact(md.Location),
 	}
 
 	w.tbl.tblImpl.SetHeader(headers)
@@ -258,7 +258,7 @@ func (w *mdWriter) doSourceMetaFull(md *metadata.Source) error {
 		w.tbl.pr.Number.Sprint(stringz.ByteSized(md.Size, 1, "")),
 		fmt.Sprintf("%d", md.TableCount),
 		fmt.Sprintf("%d", md.ViewCount),
-		location.RedactLocation(md.Location),
+		location.Redact(md.Location),
 	}
 
 	w.tbl.tblImpl.SetHeader(headers)

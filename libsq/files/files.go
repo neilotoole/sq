@@ -1,3 +1,6 @@
+// Package files contains functionality for dealing with files,
+// including remote files (e.g. HTTP). The files.Files type
+// is the central API for interacting with files.
 package files
 
 import (
@@ -115,15 +118,15 @@ func New(ctx context.Context, optReg *options.Registry, cfgLock lockfile.LockFun
 // For remote files, this method should only be invoked after the file has
 // completed downloading (e.g. after ingestion), or an error may be returned.
 func (fs *Files) Filesize(ctx context.Context, src *source.Source) (size int64, err error) {
-	switch location.GetLocType(src.Location) {
-	case location.LocTypeLocalFile:
+	switch location.TypeOf(src.Location) {
+	case location.TypeLocalFile:
 		var fi os.FileInfo
 		if fi, err = os.Stat(src.Location); err != nil {
 			return 0, errz.Err(err)
 		}
 		return fi.Size(), nil
 
-	case location.LocTypeStdin:
+	case location.TypeStdin:
 		fs.mu.Lock()
 		stdinStream, ok := fs.mStreams[source.StdinHandle]
 		fs.mu.Unlock()
@@ -137,7 +140,7 @@ func (fs *Files) Filesize(ctx context.Context, src *source.Source) (size int64, 
 		}
 		return int64(total), nil
 
-	case location.LocTypeRemoteFile:
+	case location.TypeRemoteFile:
 		fs.mu.Lock()
 
 		// First check if the file is already downloaded
@@ -178,7 +181,7 @@ func (fs *Files) Filesize(ctx context.Context, src *source.Source) (size int64, 
 		// not have been invoked before ingestion.
 		return dl.Filesize(ctx)
 
-	case location.LocTypeSQL:
+	case location.TypeSQL:
 		// Should be impossible.
 		return 0, errz.Errorf("invalid to get size of SQL source: %s", src.Handle)
 
@@ -214,10 +217,10 @@ func (fs *Files) AddStdin(ctx context.Context, f *os.File) error {
 // is that of the cached download file. If that file is not present, an
 // error is returned.
 func (fs *Files) filepath(src *source.Source) (string, error) {
-	switch location.GetLocType(src.Location) {
-	case location.LocTypeLocalFile:
+	switch location.TypeOf(src.Location) {
+	case location.TypeLocalFile:
 		return src.Location, nil
-	case location.LocTypeRemoteFile:
+	case location.TypeRemoteFile:
 		dlDir, err := fs.downloadDirFor(src)
 		if err != nil {
 			return "", err
@@ -231,12 +234,12 @@ func (fs *Files) filepath(src *source.Source) (string, error) {
 			return "", errz.Errorf("remote file for %s not downloaded at: %s", src.Handle, dlFile)
 		}
 		return dlFile, nil
-	case location.LocTypeSQL:
+	case location.TypeSQL:
 		return "", errz.Errorf("cannot get filepath of SQL source: %s", src.Handle)
-	case location.LocTypeStdin:
+	case location.TypeStdin:
 		return "", errz.Errorf("cannot get filepath of stdin source: %s", src.Handle)
 	default:
-		return "", errz.Errorf("unknown source location type for %s: %s", src.Handle, location.RedactLocation(src.Location))
+		return "", errz.Errorf("unknown source location type for %s: %s", src.Handle, location.Redact(src.Location))
 	}
 }
 
@@ -264,14 +267,14 @@ func (fs *Files) newReader(ctx context.Context, src *source.Source, finalRdr boo
 	lg.FromContext(ctx).Debug("Files.NewReader", lga.Src, src, "final_reader", finalRdr)
 
 	loc := src.Location
-	switch location.GetLocType(loc) {
-	case location.LocTypeUnknown:
+	switch location.TypeOf(loc) {
+	case location.TypeUnknown:
 		return nil, errz.Errorf("unknown source location type: %s", loc)
-	case location.LocTypeSQL:
+	case location.TypeSQL:
 		return nil, errz.Errorf("invalid to read SQL source: %s", loc)
-	case location.LocTypeLocalFile:
+	case location.TypeLocalFile:
 		return errz.Return(os.Open(loc))
-	case location.LocTypeStdin:
+	case location.TypeStdin:
 		stdinStream, ok := fs.mStreams[source.StdinHandle]
 		if !ok {
 			// This is a programming error: AddStdin should have been invoked first.
@@ -326,17 +329,17 @@ func (fs *Files) Ping(ctx context.Context, src *source.Source) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	switch location.GetLocType(src.Location) {
-	case location.LocTypeStdin:
+	switch location.TypeOf(src.Location) {
+	case location.TypeStdin:
 		// Stdin is always available.
 		return nil
-	case location.LocTypeLocalFile:
+	case location.TypeLocalFile:
 		if _, err := os.Stat(src.Location); err != nil {
 			return errz.Wrapf(err, "ping: failed to stat file source %s: %s", src.Handle, src.Location)
 		}
 		return nil
 
-	case location.LocTypeRemoteFile:
+	case location.TypeRemoteFile:
 		req, err := http.NewRequestWithContext(ctx, http.MethodHead, src.Location, nil)
 		if err != nil {
 			return errz.Wrapf(err, "ping: %s", src.Handle)
@@ -383,7 +386,7 @@ func (fs *Files) Close() error {
 
 // CleanupE adds fn to the cleanup sequence invoked by fs.Close.
 //
-// REVISIT: This CleanupE method really is an odd fish. It's only used
+// FIXME: This CleanupE method really is an odd fish. It's only used
 // by the test helper. Probably it can we removed?
 func (fs *Files) CleanupE(fn func() error) {
 	fs.clnup.AddE(fn)

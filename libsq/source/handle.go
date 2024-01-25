@@ -110,20 +110,20 @@ var handleTypeAliases = map[string]string{
 // a number or underscore, it will be prefixed with "h" (for "handle").
 // Thus "123.xlsx" becomes "@h123_xlsx".
 func SuggestHandle(coll *Collection, typ drivertype.Type, loc string) (string, error) {
-	ploc, err := location.ParseLocation(loc)
+	locFields, err := location.Parse(loc)
 	if err != nil {
 		return "", err
 	}
 
 	if typ == drivertype.None {
-		typ = ploc.DriverType
+		typ = locFields.DriverType
 	}
 
 	// use the type name as the _ext suffix if possible
 	ext := typ.String()
 	if ext == "" {
-		if len(ploc.Ext) > 0 {
-			ext = ploc.Ext[1:] // trim the leading period in ".xlsx" etc
+		if len(locFields.Ext) > 0 {
+			ext = locFields.Ext[1:] // trim the leading period in ".xlsx" etc
 		}
 	}
 
@@ -139,7 +139,7 @@ func SuggestHandle(coll *Collection, typ drivertype.Type, loc string) (string, e
 	// UX reports will suggest that "@prod/csv/actor" is preferable,
 	// and thus we would still need ext.
 	_ = ext
-	name := stringz.SanitizeAlphaNumeric(ploc.Name, '_')
+	name := stringz.SanitizeAlphaNumeric(locFields.Name, '_')
 
 	// if the name is empty, we use "h" (for "handle"), e.g "@h".
 	if name == "" {

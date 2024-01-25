@@ -181,7 +181,7 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 		log.Debug("Using catalog as database in connection string",
 			lga.Src, src,
 			lga.Catalog, src.Catalog,
-			lga.Conn, location.RedactLocation(connStr),
+			lga.Conn, location.Redact(connStr),
 		)
 	}
 
@@ -200,7 +200,7 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 
 			log.Debug("Setting default schema (search_path) on Postgres DB connection",
 				lga.Src, src,
-				lga.Conn, location.RedactLocation(dbCfg.ConnString()),
+				lga.Conn, location.Redact(dbCfg.ConnString()),
 				lga.Catalog, src.Catalog,
 				lga.Schema, src.Schema,
 				lga.Old, oldSearchPath,

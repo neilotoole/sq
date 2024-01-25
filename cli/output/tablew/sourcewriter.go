@@ -44,7 +44,7 @@ func (w *sourceWriter) Collection(coll *source.Collection) error {
 			row := []string{
 				src.Handle,
 				string(src.Type),
-				location.ShortLocation(src.Location),
+				location.Short(src.Location),
 			}
 
 			if coll.Active() != nil && coll.Active().Handle == src.Handle {
@@ -133,7 +133,7 @@ func (w *sourceWriter) doSource(coll *source.Collection, src *source.Source) err
 		row := []string{
 			src.Handle,
 			string(src.Type),
-			location.ShortLocation(src.Location),
+			location.Short(src.Location),
 		}
 		rows = append(rows, row)
 

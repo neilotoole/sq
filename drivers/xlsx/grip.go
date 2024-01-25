@@ -50,7 +50,7 @@ func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Sou
 	md.Handle = g.src.Handle
 	md.Driver = Type
 	md.Location = g.src.Location
-	if md.Name, err = location.LocationFileName(g.src.Location); err != nil {
+	if md.Name, err = location.Filename(g.src.Location); err != nil {
 		return nil, err
 	}
 	md.FQName = md.Name

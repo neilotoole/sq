@@ -50,7 +50,7 @@ func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Sou
 
 	meta.Handle = g.src.Handle
 	meta.Location = g.src.Location
-	meta.Name, err = location.LocationFileName(g.src.Location)
+	meta.Name, err = location.Filename(g.src.Location)
 	if err != nil {
 		return nil, err
 	}

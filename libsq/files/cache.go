@@ -111,10 +111,10 @@ func (fs *Files) CachedBackingSourceFor(ctx context.Context, src *source.Source)
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	switch location.GetLocType(src.Location) {
-	case location.LocTypeLocalFile:
+	switch location.TypeOf(src.Location) {
+	case location.TypeLocalFile:
 		return fs.cachedBackingSourceForFile(ctx, src)
-	case location.LocTypeRemoteFile:
+	case location.TypeRemoteFile:
 		return fs.cachedBackingSourceForRemoteFile(ctx, src)
 	default:
 		return nil, false, errz.Errorf("caching not applicable for source: %s", src.Handle)

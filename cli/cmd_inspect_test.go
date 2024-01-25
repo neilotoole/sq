@@ -80,7 +80,7 @@ func TestCmdInspect_json_yaml(t *testing.T) { //nolint:tparallel
 					require.NoError(t, tf.unmarshalFn(tr.Out.Bytes(), srcMeta))
 					require.Equal(t, src.Type, srcMeta.Driver)
 					require.Equal(t, src.Handle, srcMeta.Handle)
-					require.Equal(t, location.RedactLocation(src.Location), srcMeta.Location)
+					require.Equal(t, location.Redact(src.Location), srcMeta.Location)
 
 					gotTableNames := srcMeta.TableNames()
 					gotTableNames = lo.Intersect(gotTableNames, possibleTbls)
@@ -191,7 +191,7 @@ func TestCmdInspect_text(t *testing.T) { //nolint:tparallel
 			output := tr.Out.String()
 			require.Contains(t, output, src.Type)
 			require.Contains(t, output, src.Handle)
-			require.Contains(t, output, location.RedactLocation(src.Location))
+			require.Contains(t, output, location.Redact(src.Location))
 
 			for _, wantTblName := range tc.wantTbls {
 				if src.Type == postgres.Type && wantTblName == "film_text" {
@@ -230,7 +230,7 @@ func TestCmdInspect_text(t *testing.T) { //nolint:tparallel
 				output := tr2.Out.String()
 				require.Contains(t, output, src.Type)
 				require.Contains(t, output, src.Handle)
-				require.Contains(t, output, location.RedactLocation(src.Location))
+				require.Contains(t, output, location.Redact(src.Location))
 			})
 
 			t.Run("inspect_dbprops", func(t *testing.T) {
