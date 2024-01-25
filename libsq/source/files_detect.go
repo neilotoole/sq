@@ -6,6 +6,7 @@ import (
 	"io"
 	"mime"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/neilotoole/sq/libsq/source/location"
@@ -59,7 +60,7 @@ func (fs *Files) DriverType(ctx context.Context, handle, loc string) (drivertype
 		if mtype == "" {
 			log.Debug("unknown mime type", lga.Type, mtype)
 		} else {
-			if typ, ok := typeFromMediaType(mtype); ok {
+			if typ, ok := TypeFromMediaType(mtype); ok {
 				return typ, nil
 			}
 			log.Debug("unknown driver type for media type", lga.Type, mtype)
@@ -239,4 +240,26 @@ func (fs *Files) DetectStdinType(ctx context.Context) (drivertype.Type, error) {
 	}
 
 	return typ, nil
+}
+
+// TypeFromMediaType returns the driver type corresponding to mediatype.
+// For example:
+//
+//	xlsx		application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+//	csv			text/csv
+//
+// Note that we don't rely on this function for types such
+// as application/json, because JSON can map to multiple
+// driver types (json, jsona, jsonl).
+func TypeFromMediaType(mediatype string) (typ drivertype.Type, ok bool) {
+	switch {
+	case strings.Contains(mediatype, `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`):
+		return typeXLSX, true
+	case strings.Contains(mediatype, `text/csv`):
+		return typeCSV, true
+	case strings.Contains(mediatype, `text/tab-separated-values`):
+		return typeTSV, true
+	}
+
+	return drivertype.None, false
 }

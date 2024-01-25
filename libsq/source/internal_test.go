@@ -8,11 +8,6 @@ import (
 	"github.com/neilotoole/sq/testh/tu"
 )
 
-// Export for testing.
-var (
-	GroupsFilterOnlyDirectChildren = groupsFilterOnlyDirectChildren
-)
-
 func TestGroupsFilterOnlyDirectChildren(t *testing.T) {
 	testCases := []struct {
 		parent string
@@ -34,7 +29,7 @@ func TestGroupsFilterOnlyDirectChildren(t *testing.T) {
 	for i, tc := range testCases {
 		tc := tc
 		t.Run(tu.Name(i, tc.want), func(t *testing.T) {
-			got := GroupsFilterOnlyDirectChildren(tc.parent, tc.groups)
+			got := groupsFilterOnlyDirectChildren(tc.parent, tc.groups)
 			require.EqualValues(t, tc.want, got)
 		})
 	}

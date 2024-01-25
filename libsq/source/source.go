@@ -204,28 +204,6 @@ const (
 	typeTSV  = drivertype.Type("tsv")
 )
 
-// typeFromMediaType returns the driver type corresponding to mediatype.
-// For example:
-//
-//	xlsx		application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
-//	csv			text/csv
-//
-// Note that we don't rely on this function for types such
-// as application/json, because JSON can map to multiple
-// driver types (json, jsona, jsonl).
-func typeFromMediaType(mediatype string) (typ drivertype.Type, ok bool) {
-	switch {
-	case strings.Contains(mediatype, `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`):
-		return typeXLSX, true
-	case strings.Contains(mediatype, `text/csv`):
-		return typeCSV, true
-	case strings.Contains(mediatype, `text/tab-separated-values`):
-		return typeTSV, true
-	}
-
-	return drivertype.None, false
-}
-
 // Target returns @handle.tbl. This is often used in log messages.
 func Target(src *Source, tbl string) string {
 	if src == nil {
