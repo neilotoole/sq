@@ -29,7 +29,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/loz"
 	"github.com/neilotoole/sq/libsq/core/record"
-	"github.com/neilotoole/sq/libsq/core/sqlmodel"
+	"github.com/neilotoole/sq/libsq/core/schema"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
@@ -654,7 +654,7 @@ func (d *driveri) DropSchema(ctx context.Context, db sqlz.DB, schemaName string)
 }
 
 // CreateTable implements driver.SQLDriver.
-func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *sqlmodel.TableDef) error {
+func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *schema.Table) error {
 	query := buildCreateTableStmt(tblDef)
 
 	stmt, err := db.PrepareContext(ctx, query)
@@ -695,11 +695,11 @@ func (d *driveri) ListSchemas(ctx context.Context, db sqlz.DB) ([]string, error)
 	defer lg.WarnIfCloseError(log, lgm.CloseDBRows, rows)
 
 	for rows.Next() {
-		var schema string
-		if err = rows.Scan(&schema); err != nil {
+		var schma string
+		if err = rows.Scan(&schma); err != nil {
 			return nil, errz.Err(err)
 		}
-		schemas = append(schemas, schema)
+		schemas = append(schemas, schma)
 	}
 
 	if err = rows.Err(); err != nil {

@@ -16,7 +16,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/record"
-	"github.com/neilotoole/sq/libsq/core/sqlmodel"
+	"github.com/neilotoole/sq/libsq/core/schema"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/driver"
@@ -446,7 +446,7 @@ func execCopyTable(ctx context.Context, fromDB driver.Grip, fromTbl tablefq.T,
 	) error {
 		destColNames := originRecMeta.Names()
 		destColKinds := originRecMeta.Kinds()
-		destTblDef := sqlmodel.NewTableDef(destTbl.Table, destColNames, destColKinds)
+		destTblDef := schema.NewTable(destTbl.Table, destColNames, destColKinds)
 
 		err := destGrip.SQLDriver().CreateTable(ctx, tx, destTblDef)
 		if err != nil {

@@ -115,7 +115,7 @@ func ingestJSONL(ctx context.Context, job ingestJob) error { //nolint:gocognit
 		hasMore        bool
 		schemaModified bool
 		line           []byte
-		curSchema      *importSchema
+		curSchema      *ingestSchema
 		insertions     []*insertion
 	)
 
@@ -132,7 +132,7 @@ func ingestJSONL(ctx context.Context, job ingestJob) error { //nolint:gocognit
 					log.Debug("First time building the schema")
 				}
 
-				var newSchema *importSchema
+				var newSchema *ingestSchema
 				newSchema, err = proc.buildSchemaFlat()
 				if err != nil {
 					return err

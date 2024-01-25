@@ -7,7 +7,7 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
-	"github.com/neilotoole/sq/libsq/core/sqlmodel"
+	"github.com/neilotoole/sq/libsq/core/schema"
 )
 
 func dbTypeNameFromKind(knd kind.Kind) string {
@@ -54,7 +54,7 @@ var createTblKindDefaults = map[kind.Kind]string{ //nolint:exhaustive
 
 // buildCreateTableStmt builds a CREATE TABLE statement from tblDef.
 // The implementation is minimal: it does not honor PK, FK, etc.
-func buildCreateTableStmt(tblDef *sqlmodel.TableDef) string {
+func buildCreateTableStmt(tblDef *schema.Table) string {
 	sb := strings.Builder{}
 	sb.WriteString(`CREATE TABLE "`)
 	sb.WriteString(tblDef.Name)

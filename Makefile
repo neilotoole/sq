@@ -30,7 +30,7 @@ fmt:
 	@# to mangle Go code that is guarded by build tags that
 	@# are not in use.
 	@goimports-reviser -company-prefixes github.com/neilotoole -set-alias \
-		-excludes *_windows.go \
+		-excludes '*_windows.go' \
 		-rm-unused -output write \
 		-project-name github.com/neilotoole/sq ./...
 

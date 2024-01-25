@@ -14,7 +14,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/core/record"
-	"github.com/neilotoole/sq/libsq/core/sqlmodel"
+	"github.com/neilotoole/sq/libsq/core/schema"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/driver/dialect"
@@ -141,7 +141,7 @@ type SQLDriver interface {
 	// may not honor every field of tblDef, e.g. an impl might not
 	// build the foreign key constraints. At a minimum the implementation
 	// must honor the table name and column names and kinds from tblDef.
-	CreateTable(ctx context.Context, db sqlz.DB, tblDef *sqlmodel.TableDef) error
+	CreateTable(ctx context.Context, db sqlz.DB, tblDef *schema.Table) error
 
 	// CreateSchema creates a new schema in db. Note that db's current
 	// connection schema is not changed.

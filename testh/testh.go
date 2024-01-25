@@ -42,7 +42,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/libsq/core/options"
-	"github.com/neilotoole/sq/libsq/core/sqlmodel"
+	"github.com/neilotoole/sq/libsq/core/schema"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
@@ -452,7 +452,7 @@ func (h *Helper) RowCount(src *source.Source, tbl string) int64 {
 // CreateTable creates a new table in src, and inserts data, returning
 // the number of data rows inserted. If dropAfter is true, the created
 // table is dropped when t.Cleanup is run.
-func (h *Helper) CreateTable(dropAfter bool, src *source.Source, tblDef *sqlmodel.TableDef,
+func (h *Helper) CreateTable(dropAfter bool, src *source.Source, tblDef *schema.Table,
 	data ...[]any,
 ) (affected int64) {
 	grip := h.openNew(src)

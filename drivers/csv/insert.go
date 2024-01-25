@@ -12,7 +12,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/record"
-	"github.com/neilotoole/sq/libsq/core/sqlmodel"
+	"github.com/neilotoole/sq/libsq/core/schema"
 	"github.com/neilotoole/sq/libsq/driver"
 )
 
@@ -105,12 +105,12 @@ func mungeCSV2InsertRecord(ctx context.Context, mungers []kind.MungeFunc, csvRec
 	return a, nil
 }
 
-func createTblDef(tblName string, colNames []string, kinds []kind.Kind) *sqlmodel.TableDef {
-	tbl := &sqlmodel.TableDef{Name: tblName}
+func createTblDef(tblName string, colNames []string, kinds []kind.Kind) *schema.Table {
+	tbl := &schema.Table{Name: tblName}
 
-	cols := make([]*sqlmodel.ColDef, len(colNames))
+	cols := make([]*schema.Column, len(colNames))
 	for i := range colNames {
-		cols[i] = &sqlmodel.ColDef{Table: tbl, Name: colNames[i], Kind: kinds[i]}
+		cols[i] = &schema.Column{Table: tbl, Name: colNames[i], Kind: kinds[i]}
 	}
 
 	tbl.Cols = cols
@@ -118,7 +118,7 @@ func createTblDef(tblName string, colNames []string, kinds []kind.Kind) *sqlmode
 }
 
 // getIngestRecMeta returns record.Meta to use with RecordWriter.Open.
-func getIngestRecMeta(ctx context.Context, destGrip driver.Grip, tblDef *sqlmodel.TableDef) (record.Meta, error) {
+func getIngestRecMeta(ctx context.Context, destGrip driver.Grip, tblDef *schema.Table) (record.Meta, error) {
 	db, err := destGrip.DB(ctx)
 	if err != nil {
 		return nil, err

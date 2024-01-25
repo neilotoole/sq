@@ -10,7 +10,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/record"
-	"github.com/neilotoole/sq/libsq/core/sqlmodel"
+	"github.com/neilotoole/sq/libsq/core/schema"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
@@ -63,7 +63,7 @@ func DBWriterCreateTableIfNotExistsHook(destTblName string) DBWriterPreWriteHook
 
 		destColNames := recMeta.Names()
 		destColKinds := recMeta.Kinds()
-		destTblDef := sqlmodel.NewTableDef(destTblName, destColNames, destColKinds)
+		destTblDef := schema.NewTable(destTblName, destColNames, destColKinds)
 
 		err = destGrip.SQLDriver().CreateTable(ctx, tx, destTblDef)
 		if err != nil {

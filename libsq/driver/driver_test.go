@@ -13,7 +13,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/options"
-	"github.com/neilotoole/sq/libsq/core/sqlmodel"
+	"github.com/neilotoole/sq/libsq/core/schema"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/driver"
@@ -124,7 +124,7 @@ func TestDriver_CreateTable_Minimal(t *testing.T) {
 
 			tblName := stringz.UniqTableName(t.Name())
 			colNames, colKinds := fixt.ColNamePerKind(drvr.Dialect().IntBool, false, false)
-			tblDef := sqlmodel.NewTableDef(tblName, colNames, colKinds)
+			tblDef := schema.NewTable(tblName, colNames, colKinds)
 
 			err := drvr.CreateTable(th.Context, db, tblDef)
 			require.NoError(t, err)
