@@ -17,7 +17,7 @@ const None = Type("")
 // Driver types.
 const (
 	// SQLite is for sqlite3.
-	SQLite Type = "sqlite3"
+	SQLite = Type("sqlite3")
 
 	// Pg is for Postgres.
 	Pg = Type("postgres")
